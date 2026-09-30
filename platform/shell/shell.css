@@ -498,19 +498,61 @@ body {
   }
   /* Nhom Chinh sua (Editing): giam nhe padding nut de vua van tren 1440px / 1366px */
   .vno-ribbon-group[data-group-id="editing"] .vno-ribbon-btn-large {
-    min-width: 52px;
-    padding: 2px 4px;
+    min-width: 48px;
+    padding: 2px 3px;
   }
   .vno-ribbon-group[data-group-id="editing"] .vno-ribbon-btn-large .vno-btn-icon svg {
     width: 22px;
     height: 22px;
   }
   .vno-ribbon-group[data-group-id="editing"] .vno-ribbon-btn-large .vno-btn-label {
-    font-size: 11px;
-    max-width: 70px;
+    font-size: 10.5px;
+    max-width: 68px;
   }
   .vno-ribbon-group[data-group-id="editing"] .vno-ribbon-btn-small {
-    padding: 3px 4px;
+    padding: 2px 3px;
+  }
+
+  /* Sheet Home - 1366px laptop: Co gon nhan Dinh dang co dieu kien, Tron o, Dan dac biet va Font select */
+  .vno-ribbon select[data-command-id$="font.family"] {
+    min-width: 95px;
+    max-width: 115px;
+    font-size: 10.5px;
+  }
+  .vno-ribbon-group[data-group-id="styles"] button[data-command-id="sheet.format.conditional"] .vno-btn-label {
+    font-size: 10px;
+    max-width: 65px;
+  }
+  .vno-ribbon-group[data-group-id="alignment"] button[data-command-id="sheet.cell.mergeCenter"] .vno-btn-label {
+    font-size: 10px;
+    padding: 0 1px;
+  }
+  .vno-ribbon-group[data-group-id="clipboard"] button[data-command-id="sheet.edit.pasteSpecial"] .vno-btn-label {
+    display: none;
+  }
+  .vno-ribbon-group[data-group-id="clipboard"] button[data-command-id="sheet.edit.pasteSpecial"] {
+    padding: 2px 4px;
+    justify-content: center;
+  }
+  .vno-ribbon-group[data-group-id="number"] select.vno-select {
+    max-width: 95px;
+    font-size: 10.5px;
+  }
+
+  /* Slides Home - 1366px laptop: Co gon cac nut lon va padding nhom */
+  #vno-ribbon-tabpanel-home .vno-ribbon-group[data-group-id="slides"] .vno-ribbon-btn-large,
+  #vno-ribbon-tabpanel-home .vno-ribbon-group[data-group-id="drawing"] .vno-ribbon-btn-large {
+    min-width: 44px;
+    padding: 2px 3px;
+  }
+  #vno-ribbon-tabpanel-home .vno-ribbon-group[data-group-id="slides"] .vno-ribbon-btn-large .vno-btn-label,
+  #vno-ribbon-tabpanel-home .vno-ribbon-group[data-group-id="drawing"] .vno-ribbon-btn-large .vno-btn-label {
+    font-size: 10.5px;
+    max-width: 66px;
+  }
+  #vno-ribbon-tabpanel-home .vno-ribbon-group[data-group-id="drawing"] .vno-ribbon-btn-small,
+  #vno-ribbon-tabpanel-home .vno-ribbon-group[data-group-id="editing"] .vno-ribbon-btn-small {
+    padding: 2px 3px;
   }
 }
 
@@ -690,6 +732,36 @@ body {
     padding: 2px 2px;
   }
 
+  /* Slides Home - Nhom Chinh sua: Tim kiem, Thay the, Chon thu gon thanh icon */
+  .vno-ribbon-group[data-group-id="editing"] button[data-command-id="slides.edit.find"] .vno-btn-label,
+  .vno-ribbon-group[data-group-id="editing"] button[data-command-id="slides.edit.replace"] .vno-btn-label,
+  .vno-ribbon-group[data-group-id="editing"] .vno-ribbon-btn-dropdown[data-dropdown-id="slides.edit.select"] .vno-btn-label {
+    display: none !important;
+  }
+  .vno-ribbon-group[data-group-id="editing"] button[data-command-id="slides.edit.find"],
+  .vno-ribbon-group[data-group-id="editing"] button[data-command-id="slides.edit.replace"],
+  .vno-ribbon-group[data-group-id="editing"] .vno-ribbon-btn-dropdown[data-dropdown-id="slides.edit.select"] button {
+    padding: 2px 4px;
+    justify-content: center;
+  }
+
+  /* Slides Home - Co gon cac nut lon cua nhom Ve va Trang chieu */
+  .vno-ribbon-group[data-group-id="drawing"] .vno-ribbon-btn-large,
+  .vno-ribbon-group[data-group-id="slides"] .vno-ribbon-btn-large {
+    min-width: 44px;
+    padding: 2px 3px;
+  }
+  .vno-ribbon-group[data-group-id="drawing"] .vno-ribbon-btn-large .vno-btn-icon svg,
+  .vno-ribbon-group[data-group-id="slides"] .vno-ribbon-btn-large .vno-btn-icon svg {
+    width: 22px;
+    height: 22px;
+  }
+  .vno-ribbon-group[data-group-id="drawing"] .vno-ribbon-btn-large .vno-btn-label,
+  .vno-ribbon-group[data-group-id="slides"] .vno-ribbon-btn-large .vno-btn-label {
+    font-size: 10px;
+    max-width: 60px;
+  }
+
   /* Font Family select: Co gon tren man hinh 1024px */
   .vno-ribbon select[data-command-id$="font.family"] {
     max-width: 105px;
@@ -848,6 +920,193 @@ body {
   #vno-ribbon-tabpanel-view .vno-ribbon-group-items {
     gap: 1px;
   }
+
+  /* Slides Home - 1024px: Co gon nhom Trang chieu, Ve, Chinh sua */
+  #vno-ribbon-tabpanel-home .vno-ribbon-group[data-group-id="slides"] .vno-ribbon-btn-large,
+  #vno-ribbon-tabpanel-home .vno-ribbon-group[data-group-id="drawing"] .vno-ribbon-btn-large {
+    min-width: 40px;
+    padding: 2px 2px;
+  }
+  #vno-ribbon-tabpanel-home .vno-ribbon-group[data-group-id="slides"] .vno-ribbon-btn-large .vno-btn-icon svg,
+  #vno-ribbon-tabpanel-home .vno-ribbon-group[data-group-id="drawing"] .vno-ribbon-btn-large .vno-btn-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+  #vno-ribbon-tabpanel-home .vno-ribbon-group[data-group-id="slides"] .vno-ribbon-btn-large .vno-btn-label,
+  #vno-ribbon-tabpanel-home .vno-ribbon-group[data-group-id="drawing"] .vno-ribbon-btn-large .vno-btn-label {
+    font-size: 10px;
+    max-width: 60px;
+  }
+  #vno-ribbon-tabpanel-home .vno-ribbon-group[data-group-id="slides"] .vno-ribbon-btn-small .vno-btn-label,
+  #vno-ribbon-tabpanel-home .vno-ribbon-group[data-group-id="slides"] .vno-ribbon-btn-dropdown:not(.vno-ribbon-btn-large) .vno-btn-label,
+  #vno-ribbon-tabpanel-home .vno-ribbon-group[data-group-id="drawing"] .vno-ribbon-btn-small .vno-btn-label,
+  #vno-ribbon-tabpanel-home .vno-ribbon-group[data-group-id="drawing"] .vno-ribbon-btn-dropdown:not(.vno-ribbon-btn-large) .vno-btn-label,
+  #vno-ribbon-tabpanel-home .vno-ribbon-group[data-group-id="editing"] button[data-command-id="common.edit.find"] .vno-btn-label,
+  #vno-ribbon-tabpanel-home .vno-ribbon-group[data-group-id="editing"] button[data-command-id="common.edit.replace"] .vno-btn-label,
+  #vno-ribbon-tabpanel-home .vno-ribbon-group[data-group-id="editing"] .vno-ribbon-btn-dropdown .vno-btn-label {
+    display: none !important;
+  }
+  #vno-ribbon-tabpanel-home .vno-ribbon-group[data-group-id="slides"] .vno-ribbon-btn-small,
+  #vno-ribbon-tabpanel-home .vno-ribbon-group[data-group-id="drawing"] .vno-ribbon-btn-small,
+  #vno-ribbon-tabpanel-home .vno-ribbon-group[data-group-id="editing"] button,
+  #vno-ribbon-tabpanel-home .vno-ribbon-group[data-group-id="editing"] .vno-ribbon-btn-dropdown button {
+    padding: 2px 3px;
+    justify-content: center;
+  }
+  #vno-ribbon-tabpanel-home select[data-command-id="slides.para.lineSpacing"] {
+    max-width: 55px;
+    font-size: 10px;
+  }
+}
+
+/* ==========================================================================
+   Adaptive Scaling & Collapsed Group Popover (Office Parity Cascade)
+   ========================================================================== */
+.vno-ribbon-group.vno-group-compact {
+  padding: 0 3px !important;
+}
+.vno-ribbon-group.vno-group-compact .vno-ribbon-group-items {
+  gap: 2px !important;
+}
+.vno-ribbon-group.vno-group-compact .vno-ribbon-btn-large {
+  min-width: 44px !important;
+  padding: 2px 3px !important;
+}
+.vno-ribbon-group.vno-group-compact .vno-ribbon-btn-large .vno-btn-icon svg {
+  width: 22px !important;
+  height: 22px !important;
+}
+.vno-ribbon-group.vno-group-compact .vno-ribbon-btn-large .vno-btn-label {
+  font-size: 10px !important;
+  max-width: 65px !important;
+  line-height: 1.15 !important;
+}
+.vno-ribbon-group.vno-group-compact .vno-select {
+  max-width: 100px !important;
+  padding: 1px 4px !important;
+  font-size: 10.5px !important;
+}
+
+.vno-ribbon-group.vno-group-icon-only .vno-ribbon-btn-small:not(.vno-ribbon-checkbox) .vno-btn-label {
+  display: none !important;
+}
+.vno-ribbon-group.vno-group-icon-only .vno-ribbon-btn-small:not(.vno-ribbon-checkbox) {
+  padding: 2px 4px !important;
+  justify-content: center !important;
+  min-width: 24px !important;
+}
+.vno-ribbon-group.vno-group-icon-only .vno-ribbon-btn-dropdown:not(.vno-ribbon-btn-large) .vno-btn-label {
+  display: none !important;
+}
+.vno-ribbon-group.vno-group-icon-only .vno-ribbon-btn-dropdown:not(.vno-ribbon-btn-large) {
+  padding: 2px 4px !important;
+}
+
+.vno-ribbon-group.vno-group-collapsed {
+  padding: 0 3px !important;
+  border-right: 1px solid var(--vno-border-subtle) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+.vno-ribbon-group.vno-group-collapsed .vno-ribbon-group-items,
+.vno-ribbon-group.vno-group-collapsed .vno-ribbon-group-footer {
+  display: none !important;
+}
+.vno-ribbon-group-collapsed-btn {
+  display: none;
+  min-width: 48px;
+  max-width: 82px;
+  height: 68px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 5px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--vno-radius-xs, 3px);
+  cursor: pointer;
+  color: var(--vno-text-primary);
+  gap: 2px;
+}
+.vno-ribbon-group.vno-group-collapsed .vno-ribbon-group-collapsed-btn {
+  display: flex !important;
+}
+.vno-ribbon-group-collapsed-btn:hover {
+  background-color: var(--vno-bg-hover, rgba(0,0,0,0.06));
+  border-color: var(--vno-border-default, #d1d5db);
+}
+.vno-ribbon-group-collapsed-btn[aria-expanded="true"],
+.vno-ribbon-group-collapsed-btn.is-active {
+  background-color: var(--vno-bg-active, rgba(0,0,0,0.1));
+  border-color: var(--vno-border-focus, #3b82f6);
+}
+.vno-ribbon-group-collapsed-btn .vno-btn-icon svg {
+  width: 22px;
+  height: 22px;
+}
+.vno-ribbon-group-collapsed-btn .vno-btn-label {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 10px;
+  text-align: center;
+  max-width: 72px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vno-ribbon-group-collapsed-btn .vno-btn-arrow svg {
+  width: 10px;
+  height: 10px;
+}
+
+.vno-ribbon-group-popover {
+  position: fixed;
+  z-index: 10000;
+  background-color: var(--vno-bg-surface, #ffffff);
+  border: 1px solid var(--vno-border-strong, #cbd5e1);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.08);
+  border-radius: 4px;
+  padding: 8px 10px 6px 10px;
+  display: flex;
+  flex-direction: column;
+  min-width: 140px;
+  animation: vno-fade-in 0.12s ease-out;
+}
+.vno-ribbon-group-popover .vno-ribbon-popover-items {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.vno-ribbon-group-popover .vno-ribbon-group-items {
+  display: flex !important;
+  align-items: center;
+  gap: 4px;
+  height: auto !important;
+  min-height: 64px;
+}
+.vno-ribbon-group-popover .vno-ribbon-btn-small .vno-btn-label {
+  display: inline !important;
+}
+.vno-ribbon-group-popover .vno-ribbon-popover-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--vno-text-secondary, #64748b);
+  text-align: center;
+  padding-top: 6px;
+  margin-top: 4px;
+  border-top: 1px solid var(--vno-border-subtle, #f1f5f9);
+}
+[data-theme="dark"] .vno-ribbon-group-popover {
+  background-color: var(--vno-bg-surface, #1e293b);
+  border-color: var(--vno-border-strong, #475569);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+}
+[data-theme="dark"] .vno-ribbon-group-popover .vno-ribbon-popover-title {
+  color: var(--vno-text-secondary, #94a3b8);
+  border-top-color: var(--vno-border-subtle, #334155);
 }
 
 /* View Tab (Writer & Sheet) - Nhom Hien thi xep doc cac o checkbox theo chuan Office 2016 */

@@ -1,0 +1,874 @@
+"""Measure basic VN Writer editing against Word 2016 using real app and COM.
+
+Run from any directory:
+  python scripts/layout-audit/_writer_basic_ops.py --output "file test/writer-basic-ops"
+
+No window keystrokes are sent. Word is automated through COM; VN Writer is
+operated through its pywebview probe, evaluate_js, and command bus.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import shutil
+import subprocess
+import sys
+import time
+import zipfile
+from pathlib import Path
+from typing import Any
+
+ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_OUTPUT = ROOT / "file test" / "writer-basic-ops"
+
+WORD_DRIVER = r'''
+param(
+  [Parameter(Mandatory=$true)][string]$Task,
+  [string]$Seed,
+  [string]$WordDocx,
+  [string]$WordDoc,
+  [string]$PathsJson,
+  [Parameter(Mandatory=$true)][string]$ResultJson,
+  [Parameter(Mandatory=$true)][string]$PidFile
+)
+$ErrorActionPreference = "Stop"
+
+function Initialize-WindowApi {
+  Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public static class VnoWordWindow {
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+}
+"@ -ErrorAction SilentlyContinue
+}
+
+function New-WordApp($pidPath) {
+  Initialize-WindowApi
+  $before = @(Get-Process -Name WINWORD -ErrorAction SilentlyContinue | ForEach-Object { $_.Id })
+  $word = New-Object -ComObject Word.Application
+  $owner = [uint32]0
+  if ($word.Hwnd) {
+    [void][VnoWordWindow]::GetWindowThreadProcessId([IntPtr]$word.Hwnd, [ref]$owner)
+  }
+  if ($owner -le 0 -or $before -contains [int]$owner) {
+    for ($attempt = 0; $attempt -lt 30; $attempt++) {
+      $created = @(Get-Process -Name WINWORD -ErrorAction SilentlyContinue | Where-Object { $before -notcontains $_.Id })
+      if ($created.Count -eq 1) {
+        $owner = [uint32]$created[0].Id
+        break
+      }
+      Start-Sleep -Milliseconds 100
+    }
+  }
+  if ($owner -le 0 -or $before -contains [int]$owner) {
+    throw "Could not identify a new WINWORD process owned by this COM run."
+  }
+  [System.IO.File]::WriteAllText($pidPath, [string]$owner)
+  $word.Visible = $false
+  $word.DisplayAlerts = 0
+  return $word
+}
+
+function Set-PageSetup($section) {
+  $page = $section.PageSetup
+  $page.PaperSize = 7
+  $page.Orientation = 0
+  $page.TopMargin = 56.692913
+  $page.BottomMargin = 56.692913
+  $page.LeftMargin = 85.03937
+  $page.RightMargin = 56.692913
+}
+
+function Set-Paragraph($selection, $alignment, $firstLine, $before, $after, $lineRule, $lineSpacing) {
+  $format = $selection.ParagraphFormat
+  $format.Alignment = [int]$alignment
+  $format.FirstLineIndent = [double]$firstLine
+  $format.SpaceBefore = [double]$before
+  $format.SpaceAfter = [double]$after
+  $format.LineSpacingRule = [int]$lineRule
+  $format.LineSpacing = [double]$lineSpacing
+  $selection.Font.Name = "Times New Roman"
+  $selection.Font.Size = 13
+  $selection.Font.Color = 0
+}
+
+function Type-Paragraph($selection, $text, $style, $alignment, $firstLine, $before, $after, $lineRule, $lineSpacing) {
+  $selection.Style = $style
+  Set-Paragraph $selection $alignment $firstLine $before $after $lineRule $lineSpacing
+  $selection.TypeText($text)
+  $selection.TypeParagraph()
+}
+
+function Add-ListItem($selection, $text) {
+  $selection.TypeText($text)
+  $selection.TypeParagraph()
+}
+
+function Exit-List($selection) {
+  try { $selection.Range.ListFormat.RemoveNumbers() } catch {}
+}
+
+function Read-RangeStyle($range) {
+  $font = $range.Font
+  return [ordered]@{
+    bold = ([int]$font.Bold -ne 0)
+    italic = ([int]$font.Italic -ne 0)
+    underline = ([int]$font.Underline -ne 0)
+    font = [string]$font.Name
+    size = [math]::Round([double]$font.Size, 2)
+    color = [int]$font.Color
+    highlight = [int]$range.HighlightColorIndex
+  }
+}
+
+function Read-Document($path) {
+  $doc = $null
+  $result = [ordered]@{ path = $path; opened = $false; error = ""; paragraphs = @(); runs = @{}; tables = @(); headers = @(); footers = @(); pageSetup = @{} }
+  try {
+    [System.IO.File]::WriteAllText($StageLog, "open " + [System.IO.Path]::GetFileName($path))
+    # OpenAndRepair is false. A successful open records that Word accepted the package.
+    $doc = $word.Documents.Open($path, $false, $true, $false)
+    [System.IO.File]::WriteAllText($StageLog, "repaginate " + [System.IO.Path]::GetFileName($path))
+    $doc.Repaginate()
+    $result.opened = $true
+    $result.readOnly = [bool]$doc.ReadOnly
+    [System.IO.File]::WriteAllText($StageLog, "paragraphs " + [System.IO.Path]::GetFileName($path))
+    $result.paragraphCount = [int]$doc.Paragraphs.Count
+    $rawText = [string]$doc.Content.Text
+    $result.text = ([regex]::Replace($rawText, '[\x07\r\f]', [string][char]10)).Trim()
+    $paras = New-Object System.Collections.Generic.List[object]
+    $pi = 0
+    foreach ($paragraph in $doc.Paragraphs) {
+      $pi++
+      $range = $paragraph.Range
+      $text = ([regex]::Replace([string]$range.Text, '[\r\a\n\t]+', ' ')).Trim()
+      if (-not $text) { continue }
+      $format = $paragraph.Format
+      $listType = 0
+      $listString = ""
+      try { $listType = [int]$range.ListFormat.ListType; $listString = [string]$range.ListFormat.ListString } catch {}
+      $paras.Add([ordered]@{
+        index = $pi
+        text = $text
+        style = [string]$paragraph.Style.NameLocal
+        alignment = [int]$format.Alignment
+        leftIndentCm = [math]::Round([double]$format.LeftIndent / 28.3464567, 3)
+        rightIndentCm = [math]::Round([double]$format.RightIndent / 28.3464567, 3)
+        firstLineIndentCm = [math]::Round([double]$format.FirstLineIndent / 28.3464567, 3)
+        spaceBeforePt = [math]::Round([double]$format.SpaceBefore, 2)
+        spaceAfterPt = [math]::Round([double]$format.SpaceAfter, 2)
+        lineSpacingRule = [int]$format.LineSpacingRule
+        lineSpacingPt = [math]::Round([double]$format.LineSpacing, 2)
+        listType = $listType
+        listString = $listString.Trim()
+      })
+    }
+    $result.paragraphs = @($paras.ToArray())
+
+    [System.IO.File]::WriteAllText($StageLog, "runs " + [System.IO.Path]::GetFileName($path))
+    $runMetrics = [ordered]@{}
+    foreach ($token in @("MỨC PHẠT", "THỜI HẠN", "ĐIỀU KHOẢN SAO CHÉP")) {
+      $range = $doc.Content.Duplicate
+      $find = $range.Find
+      $find.ClearFormatting()
+      $find.Text = $token
+      $find.Forward = $true
+      $find.Wrap = 0
+      if ($find.Execute()) { $runMetrics[$token] = Read-RangeStyle $range }
+      else { $runMetrics[$token] = $null }
+    }
+    $result.runs = $runMetrics
+
+    [System.IO.File]::WriteAllText($StageLog, "tables " + [System.IO.Path]::GetFileName($path))
+    $tables = New-Object System.Collections.Generic.List[object]
+    for ($ti = 1; $ti -le $doc.Tables.Count; $ti++) {
+      $table = $doc.Tables.Item($ti)
+      $rowCounts = @()
+      $cells = New-Object System.Collections.Generic.List[string]
+      for ($ri = 1; $ri -le $table.Rows.Count; $ri++) {
+        $row = $table.Rows.Item($ri)
+        $rowCounts += [int]$row.Cells.Count
+        foreach ($cell in $row.Cells) { $cells.Add(([regex]::Replace([string]$cell.Range.Text, '[\r\a\n]+', ' ')).Trim()) }
+      }
+      $columns = 0; $headerCells = 0; $borders = $false
+      try { $columns = [int]$table.Columns.Count } catch {}
+      try { $headerCells = [int]$table.Rows.Item(1).Cells.Count } catch {}
+      try { $borders = [int]$table.Borders.Enable -ne 0 } catch {}
+      $headerBold = $false; $columnHeaderBold = $false
+      try { $headerBold = [int]$table.Rows.Item(1).Range.Font.Bold -eq -1 } catch {}
+      try { $columnHeaderBold = [int]$table.Rows.Item(2).Range.Font.Bold -eq -1 } catch {}
+      $tables.Add([ordered]@{
+        rows = [int]$table.Rows.Count
+        columns = $columns
+        rowCellCounts = @($rowCounts)
+        mergedHeader = ($headerCells -gt 0 -and $headerCells -lt $columns)
+        cells = @($cells.ToArray())
+        bordersEnabled = $borders
+        headerBold = $headerBold
+        columnHeaderBold = $columnHeaderBold
+      })
+    }
+    $result.tables = @($tables.ToArray())
+
+    [System.IO.File]::WriteAllText($StageLog, "page setup " + [System.IO.Path]::GetFileName($path))
+    $section = $doc.Sections.Item(1)
+    $page = $section.PageSetup
+    $result.pageSetup = [ordered]@{
+      paperSize = [int]$page.PaperSize
+      orientation = [int]$page.Orientation
+      widthCm = [math]::Round([double]$page.PageWidth / 28.3464567, 2)
+      heightCm = [math]::Round([double]$page.PageHeight / 28.3464567, 2)
+      topCm = [math]::Round([double]$page.TopMargin / 28.3464567, 2)
+      bottomCm = [math]::Round([double]$page.BottomMargin / 28.3464567, 2)
+      leftCm = [math]::Round([double]$page.LeftMargin / 28.3464567, 2)
+      rightCm = [math]::Round([double]$page.RightMargin / 28.3464567, 2)
+    }
+    $header = $section.Headers.Item(1)
+    $footer = $section.Footers.Item(1)
+    if ($header.Exists) {
+      $codes = @()
+      foreach ($field in $header.Range.Fields) { $codes += [string]$field.Code.Text }
+      $result.headers = @([ordered]@{ text = ([regex]::Replace([string]$header.Range.Text, '[\r\a\n\t]+', ' ')).Trim(); fields = @($codes) })
+    }
+    if ($footer.Exists) {
+      $codes = @()
+      foreach ($field in $footer.Range.Fields) { $codes += [string]$field.Code.Text }
+      $result.footers = @([ordered]@{ text = ([regex]::Replace([string]$footer.Range.Text, '[\r\a\n\t]+', ' ')).Trim(); fields = @($codes) })
+    }
+    $result.pageBreakCount = ([regex]::Matches([string]$doc.Content.Text, [string][char]12)).Count
+    foreach ($paragraph in $doc.Paragraphs) {
+      try { if ([int]$paragraph.Format.PageBreakBefore -eq -1) { $result.pageBreakCount++ } } catch {}
+    }
+    [System.IO.File]::WriteAllText($StageLog, "done " + [System.IO.Path]::GetFileName($path))
+  } catch {
+    $result.error = [regex]::Replace($_.Exception.Message, '[\r\n]+', ' ')
+  } finally {
+    if ($doc) { try { $doc.Close(0) } catch {}; [void][Runtime.InteropServices.Marshal]::ReleaseComObject($doc) }
+  }
+  return $result
+}
+
+$word = $null
+$stage = "initialize"
+$StageLog = "$ResultJson.stage"
+try {
+  $word = New-WordApp $PidFile
+  if ($Task -eq "Edit") {
+    $stage = "create seed"
+    $seedDoc = $word.Documents.Add()
+    Set-PageSetup $seedDoc.Sections.Item(1)
+    $seedDoc.SaveAs2($Seed, 16)
+    $seedDoc.Close(0)
+    [void][Runtime.InteropServices.Marshal]::ReleaseComObject($seedDoc)
+    $doc = $word.Documents.Open($Seed, $false, $false, $false)
+    Set-PageSetup $doc.Sections.Item(1)
+    $stage = "heading and body text"
+    $sel = $word.Selection
+    $sel.HomeKey(6)
+
+    Type-Paragraph $sel "BÁO CÁO TỔNG HỢP" "Heading 1" 0 0 0 8 0 12
+    Type-Paragraph $sel "Kính gửi: Phòng Hành chính và các đơn vị liên quan." "Normal" 3 28.3464567 4 5 5 13.8
+    Type-Paragraph $sel "Căn cứ hồ sơ, chúng tôi rà soát bản nháp để hoàn thiện văn bản trước khi ký." "Normal" 3 28.3464567 4 5 5 13.8
+    $sel.Style = "Normal"
+    Set-Paragraph $sel 3 28.3464567 0 4 5 13.8
+    $sel.TypeText("MỨC PHẠT: THỜI HẠN thực hiện theo hợp đồng.")
+    $sel.TypeParagraph()
+    $range = $doc.Content.Duplicate; $find = $range.Find; $find.ClearFormatting()
+    $find.Text = "MỨC PHẠT"; $find.Forward = $true; $find.Wrap = 0
+    if ($find.Execute()) { $range.Font.Name = "Times New Roman"; $range.Font.Size = 13; $range.Font.Underline = 1; $range.Font.Color = 192; $range.HighlightColorIndex = 7 }
+    $range = $doc.Content.Duplicate; $find = $range.Find; $find.ClearFormatting()
+    $find.Text = "THỜI HẠN"; $find.Forward = $true; $find.Wrap = 0
+    if ($find.Execute()) { $range.Font.Name = "Times New Roman"; $range.Font.Size = 14; $range.Font.Bold = -1; $range.Font.Italic = -1; $range.Font.Underline = 0; $range.Font.Color = 0; $range.HighlightColorIndex = 0 }
+    Type-Paragraph $sel "Điều 1. Nội dung và trách nhiệm thực hiện" "Heading 2" 0 0 0 9 4 18
+    Type-Paragraph $sel "Bên A bàn giao hồ sơ đầy đủ; Bên B nghiệm thu, lưu trữ và phản hồi bằng văn bản." "Normal" 3 28.3464567 4 5 4 18
+    Type-Paragraph $sel "1.1. Hai bên thống nhất tiến độ, tiêu chuẩn nghiệm thu và đầu mối phối hợp." "Heading 3" 0 0 0 6 3 18
+    Type-Paragraph $sel "Đoạn báo cáo giãn dòng 1,5 để người soạn văn bản dễ theo dõi." "Normal" 3 28.3464567 6 1 5 18
+    $sel.ParagraphFormat.LineSpacingRule = 1; $sel.ParagraphFormat.LineSpacing = 18; $sel.TypeParagraph()
+    $stage = "lists"
+    $sel.Style = "Normal"; Set-Paragraph $sel 0 0 0 3 0 13.8
+    $sel.Range.ListFormat.ApplyBulletDefault()
+    Add-ListItem $sel "Hồ sơ pháp lý và phụ lục kèm theo"
+    Add-ListItem $sel "Biên bản bàn giao có chữ ký hai bên"
+    Exit-List $sel
+    $sel.Range.ListFormat.ApplyNumberDefault()
+    Add-ListItem $sel "Kiểm tra chứng từ"
+    Add-ListItem $sel "Ký xác nhận nghiệm thu"
+    Exit-List $sel
+    $alpha = $word.ListGalleries.Item(2).ListTemplates.Item(1)
+    $alpha.ListLevels.Item(1).NumberStyle = 4
+    $alpha.ListLevels.Item(1).NumberFormat = "%1)"
+    $sel.Range.ListFormat.ApplyListTemplateWithLevel($alpha, $false, 0, 2, 1)
+    Add-ListItem $sel "Lập biên bản"
+    Add-ListItem $sel "Lưu hồ sơ"
+    Exit-List $sel
+    $sel.Range.ListFormat.ApplyBulletDefault()
+    Add-ListItem $sel "— Bổ sung tài liệu đối chiếu"
+    Add-ListItem $sel "— Lưu bản chính tại văn thư"
+    Exit-List $sel
+
+    $stage = "find replace and page break"
+    $find = $doc.Content.Find
+    $find.ClearFormatting(); $find.Replacement.ClearFormatting()
+    [void]$find.Execute("bản nháp", $false, $false, $false, $false, $false, $true, 1, $false, "bản chính", 2)
+    $sel.EndKey(6); $sel.TypeParagraph(); $sel.InsertBreak(7)
+    $sel.TypeText("NỘI DUNG TRANG SAU: Biên bản nghiệm thu và danh sách hồ sơ.")
+    $sel.TypeParagraph()
+
+    $stage = "table"
+    $table = $doc.Tables.Add($sel.Range, 3, 4)
+    $table.Rows.Add() | Out-Null
+    $table.Columns.Add() | Out-Null
+    $table.Rows.Last.Delete()
+    $table.Columns.Last.Delete()
+    $table.Cell(1, 1).Merge($table.Cell(1, 4))
+    $table.Cell(1, 1).Range.Text = "ĐIỀU KHOẢN SAO CHÉP"
+    $table.Cell(2, 1).Range.Text = "STT"
+    $table.Cell(2, 2).Range.Text = "Hạng mục"
+    $table.Cell(2, 3).Range.Text = "Thời hạn"
+    $table.Cell(2, 4).Range.Text = "Phụ trách"
+    $table.Cell(3, 1).Range.Text = "01"
+    $table.Cell(3, 2).Range.Text = "Nghiệm thu hồ sơ"
+    $table.Cell(3, 3).Range.Text = "15 ngày"
+    $table.Cell(3, 4).Range.Text = "Bên B"
+    $table.Borders.Enable = 1
+    $table.Range.Font.Name = "Times New Roman"; $table.Range.Font.Size = 13
+    $table.Rows.Item(1).Range.Font.Bold = -1; $table.Rows.Item(2).Range.Font.Bold = -1
+    $sel.EndKey(6); $sel.TypeParagraph()
+    $sel.TypeText("Xác nhận: ĐẠI DIỆN BÊN A — ĐẠI DIỆN BÊN B")
+    $sel.TypeParagraph(); $sel.TypeText("Điều khoản được lập thành hai bản chính có giá trị như nhau.")
+    $sel.TypeParagraph()
+    $stage = "copy paste and undo redo"
+    $range = $doc.Content.Duplicate; $find = $range.Find; $find.ClearFormatting()
+    $find.Text = "THỜI HẠN"; $find.Forward = $true; $find.Wrap = 0
+    if ($find.Execute()) { $range.Copy(); $sel.EndKey(6); $sel.TypeParagraph(); $sel.Paste() }
+    $sel.EndKey(6); $sel.TypeText(" KIỂM TRA UNDO")
+    $word.CommandBars.ExecuteMso("Undo")
+    $word.CommandBars.ExecuteMso("Redo")
+    $stage = "header and footer"
+    $section = $doc.Sections.Item(1)
+    $section.Headers.Item(1).Range.Text = "VN Office | Báo cáo tổng hợp"
+    $section.Headers.Item(1).Range.ParagraphFormat.Alignment = 1
+    $footer = $section.Footers.Item(1); $footer.Range.Text = "Trang "
+    $footer.Range.Collapse(0); [void]$footer.Range.Fields.Add($footer.Range, 33)
+    $footer.Range.ParagraphFormat.Alignment = 1
+    $stage = "save docx and doc"
+    $doc.SaveAs2($WordDocx, 16); $doc.SaveAs2($WordDoc, 0)
+    $doc.Close(0); [void][Runtime.InteropServices.Marshal]::ReleaseComObject($doc)
+    [System.IO.File]::WriteAllText($ResultJson, '{"ok":true}', (New-Object System.Text.UTF8Encoding($false)))
+    "WORD_SCENARIO_OK"
+  } elseif ($Task -eq "Inspect") {
+    $paths = Get-Content -LiteralPath $PathsJson -Raw -Encoding UTF8 | ConvertFrom-Json
+    $metrics = [ordered]@{}
+    foreach ($entry in $paths.PSObject.Properties) {
+      if (Test-Path -LiteralPath $entry.Value) { $metrics[$entry.Name] = Read-Document ([string]$entry.Value) }
+      else { $metrics[$entry.Name] = [ordered]@{ path = [string]$entry.Value; opened = $false; error = "File not found" } }
+    }
+    [System.IO.File]::WriteAllText($ResultJson, (ConvertTo-Json -InputObject $metrics -Depth 12), (New-Object System.Text.UTF8Encoding($false)))
+    "WORD_INSPECT_OK"
+  } else { throw "Unknown task: $Task" }
+} catch {
+  [System.IO.File]::WriteAllText($ResultJson, (ConvertTo-Json -InputObject ([ordered]@{ ok = $false; stage = $stage; error = [regex]::Replace($_.Exception.Message, '[\r\n]+', ' '); trace = [string]$_.ScriptStackTrace }) -Depth 5), (New-Object System.Text.UTF8Encoding($false)))
+  Write-Error $_
+  exit 1
+} finally {
+  if ($word) { try { $word.Quit() } catch {}; [void][Runtime.InteropServices.Marshal]::ReleaseComObject($word) }
+  [GC]::Collect(); [GC]::WaitForPendingFinalizers()
+}
+'''
+
+
+def _vn_html() -> str:
+    def p(text: str, extra: str = "") -> str:
+        return (
+            '<p style="font-family:Times New Roman;font-size:13pt;'
+            'text-align:left;text-indent:1cm;line-height:1.15;'
+            f'margin:4pt 0 5pt;{extra}">{text}</p>'
+        )
+
+    return "".join([
+        '<h1 data-basic-style="Heading 1" style="font-family:Times New Roman;font-size:14pt">BÁO CÁO TỔNG HỢP</h1>',
+        p("Kính gửi: Phòng Hành chính và các đơn vị liên quan."),
+        p("Căn cứ hồ sơ, chúng tôi rà soát bản nháp để hoàn thiện văn bản trước khi ký."),
+        p('<span>MỨC PHẠT: </span><span>THỜI HẠN</span><span> thực hiện theo hợp đồng.</span>'),
+        '<h2 data-basic-style="Heading 2" style="font-family:Times New Roman;font-size:14pt">Điều 1. Nội dung và trách nhiệm thực hiện</h2>',
+        p("Bên A bàn giao hồ sơ đầy đủ; Bên B nghiệm thu, lưu trữ và phản hồi bằng văn bản.", "line-height:18pt"),
+        '<h3 data-basic-style="Heading 3" style="font-family:Times New Roman;font-size:13pt">1.1. Hai bên thống nhất tiến độ, tiêu chuẩn nghiệm thu và đầu mối phối hợp.</h3>',
+        p("Đoạn báo cáo giãn dòng 1,5 để người soạn văn bản dễ theo dõi.", "margin:6pt 0 1pt;line-height:1.5"),
+        '<p><br></p>',
+        '<ul style="font-family:Times New Roman;font-size:13pt"><li>Hồ sơ pháp lý và phụ lục kèm theo</li><li>Biên bản bàn giao có chữ ký hai bên</li></ul>',
+        '<ol style="font-family:Times New Roman;font-size:13pt"><li>Kiểm tra chứng từ</li><li>Ký xác nhận nghiệm thu</li></ol>',
+        '<ol type="a" style="font-family:Times New Roman;font-size:13pt"><li>Lập biên bản</li><li>Lưu hồ sơ</li></ol>',
+        '<ul style="list-style-type:disc;font-family:Times New Roman;font-size:13pt"><li>— Bổ sung tài liệu đối chiếu</li><li>— Lưu bản chính tại văn thư</li></ul>',
+    ])
+
+
+VN_PROBE = r'''
+import os, sys, time, json
+ROOT, SEED, OUTPUT, MODE = sys.argv[1:5]
+sys.path.insert(0, ROOT)
+import webview, main as vnmain
+server, port = vnmain._start_static_server()
+app_kind, initial_file = vnmain.parse_launch_args([SEED])
+api = vnmain.VnOfficeApi(app_kind=app_kind, initial_file=initial_file)
+window = webview.create_window(title="VN Writer Basic Ops", url=vnmain.build_launch_url(app_kind, initial_file, port=port), width=1400, height=900, js_api=api)
+window.create_file_dialog = lambda *args, **kwargs: OUTPUT
+
+def after_load(win):
+    result = {"loaded": False, "actions": {}, "error": "", "save": {"path": OUTPUT, "exists": False, "error": ""}}
+    for _ in range(180):
+        time.sleep(2)
+        ready = win.evaluate_js(
+            "(() => { const b=document.querySelector('.vno-writer-body'); "
+            "return Boolean(b && (" + ("b.innerText.includes('BÁO CÁO TỔNG HỢP')" if MODE == "resave" else "true") + ")); })()"
+        )
+        if ready:
+            result["loaded"] = True
+            break
+    if not result["loaded"]:
+        result["error"] = "Writer editor did not become ready"
+    else:
+        if MODE == "edit":
+            script = r"""
+            (async function() {
+              const out = { actions: {}, error: "" };
+              try {
+                const bus = (await import('/platform/commands/command-bus.js')).globalCommandBus;
+                const body = () => document.querySelector('.vno-writer-body');
+                const selectText = (needle) => {
+                  const root = body(); if (!root) return false;
+                  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+                  let node;
+                  while ((node = walker.nextNode())) {
+                    const at = node.textContent.indexOf(needle);
+                    if (at >= 0) {
+                      const range = document.createRange(); range.setStart(node, at); range.setEnd(node, at + needle.length);
+                      const sel = getSelection(); sel.removeAllRanges(); sel.addRange(range); root.focus(); return true;
+                    }
+                  }
+                  return false;
+                };
+                const run = async (id, args = null) => {
+                  const value = await bus.execute(id, args); out.actions[id] = value !== false; return value;
+                };
+                const root = body(); root.focus(); document.execCommand('selectAll');
+                if (!document.execCommand('insertHTML', false, __HTML__)) throw new Error('Could not insert scenario text');
+                for (const [needle, command, args] of [
+                  ['THỜI HẠN', 'writer.text.bold'], ['THỜI HẠN', 'writer.text.italic'],
+                  ['MỨC PHẠT', 'writer.text.underline'], ['MỨC PHẠT', 'writer.color.text', '#c00000'],
+                  ['MỨC PHẠT', 'writer.color.highlight', '#ffff00'], ['THỜI HẠN', 'writer.font.family', 'Times New Roman'],
+                  ['THỜI HẠN', 'writer.font.size', '4']
+                ]) if (selectText(needle)) await run(command, args ?? null);
+                for (const [needle, style] of [
+                  ['BÁO CÁO TỔNG HỢP', 'heading1'],
+                  ['Điều 1. Nội dung và trách nhiệm thực hiện', 'heading2'],
+                  ['1.1. Hai bên thống nhất tiến độ, tiêu chuẩn nghiệm thu và đầu mối phối hợp.', 'heading3']
+                ]) if (selectText(needle)) out.actions['style:' + style] = (await run('writer.style.apply', style)) !== false;
+                for (const needle of ['Kính gửi:', 'Bên A bàn giao', 'Đoạn báo cáo giãn dòng']) {
+                  if (selectText(needle)) await run('writer.para.justify');
+                }
+                if (selectText('Bên A bàn giao')) {
+                  const block = getSelection().anchorNode.parentElement.closest('p');
+                  if (block) block.style.lineHeight = '18pt';
+                }
+                await run('common.edit.replace');
+                for (let i = 0; i < 40 && !document.querySelector('#vno-fr-find-input'); i++) await new Promise(r => setTimeout(r, 50));
+                const find = document.querySelector('#vno-fr-find-input'), replacement = document.querySelector('#vno-fr-replace-input');
+                if (!find || !replacement) throw new Error('Replace dialog did not open');
+                find.value = 'bản nháp'; replacement.value = 'bản chính';
+                document.querySelector('#vno-fr-replace-all-btn').click(); document.querySelector('.vno-fr-close-btn')?.click();
+                out.actions.findReplace = !body().innerText.includes('bản nháp') && body().innerText.includes('bản chính');
+
+                const setupPromise = bus.execute('writer.page.margins');
+                for (let i = 0; i < 40 && !document.querySelector('#vno-pagesetup-margin-top'); i++) await new Promise(r => setTimeout(r, 50));
+                const setField = (id, value) => { const el = document.querySelector(id); if (!el) throw new Error('Missing page setup field ' + id); el.value = value; };
+                setField('#vno-pagesetup-size', 'a4'); setField('#vno-pagesetup-orientation', 'portrait');
+                setField('#vno-pagesetup-margin-top', 20); setField('#vno-pagesetup-margin-bottom', 20);
+                setField('#vno-pagesetup-margin-left', 30); setField('#vno-pagesetup-margin-right', 20);
+                document.querySelector('.vno-dialog-ok-btn').click(); out.actions.pageSetup = (await setupPromise) !== false;
+
+                let current = body(); current.focus();
+                current.insertAdjacentHTML('beforeend', '<p><br></p><p><br></p>');
+                const endRange = document.createRange(); endRange.selectNodeContents(current.lastElementChild); endRange.collapse(false);
+                getSelection().removeAllRanges(); getSelection().addRange(endRange);
+                await run('writer.page.break');
+                document.execCommand('insertText', false, 'NỘI DUNG TRANG SAU: Biên bản nghiệm thu và danh sách hồ sơ.');
+                document.execCommand('insertParagraph');
+                const breakMarker = Array.from(body().querySelectorAll('p')).find(p => p.getAttribute('data-vno-page-break') === 'true');
+                out.actions.pageBreak = Boolean(breakMarker && /page-break-before:\s*always|break-before:\s*page/i.test(breakMarker.getAttribute('style') || ''));
+                current = body(); const tablePos = document.createRange(); tablePos.selectNodeContents(current); tablePos.collapse(false);
+                getSelection().removeAllRanges(); getSelection().addRange(tablePos); await run('writer.table.insert');
+                const tables = body().querySelectorAll('table'); const table = tables[tables.length - 1];
+                if (!table) throw new Error('writer.table.insert did not create a table');
+                const tb = table.tBodies[0] || table.appendChild(document.createElement('tbody'));
+                while (tb.rows.length < 3) { const row = tb.insertRow(); for (let c = 0; c < 3; c++) row.insertCell(); }
+                const addRow = tb.insertRow(); for (let c = 0; c < 4; c++) addRow.insertCell(); addRow.remove();
+                for (const row of Array.from(tb.rows)) row.insertCell();
+                for (const row of Array.from(tb.rows)) row.deleteCell(row.cells.length - 1);
+                const head = tb.rows[0]; while (head.cells.length > 1) head.deleteCell(1); head.cells[0].colSpan = 4;
+                head.cells[0].textContent = 'ĐIỀU KHOẢN SAO CHÉP';
+                const values = [['STT', 'Hạng mục', 'Thời hạn', 'Phụ trách'], ['01', 'Nghiệm thu hồ sơ', '15 ngày', 'Bên B']];
+                for (let r = 1; r < 3; r++) for (let c = 0; c < 4; c++) tb.rows[r].cells[c].textContent = values[r - 1][c];
+                for (const cell of table.querySelectorAll('th,td')) { cell.style.border = '1px solid #000'; cell.style.padding = '6pt'; cell.style.fontFamily = 'Times New Roman'; cell.style.fontSize = '13pt'; }
+                for (const row of [tb.rows[0], tb.rows[1]]) for (const cell of row.cells) cell.style.fontWeight = 'bold';
+                out.actions.tableAddDeleteMergeBorders = tables.length === 1 && tb.rows.length === 3 && tb.rows[0].cells.length === 1 && tb.rows[1].cells.length === 4;
+                const tail = document.createElement('p'); tail.textContent = 'Xác nhận: ĐẠI DIỆN BÊN A — ĐẠI DIỆN BÊN B'; body().appendChild(tail);
+                const finalLine = document.createElement('p'); finalLine.textContent = 'Điều khoản được lập thành hai bản chính có giá trị như nhau.'; body().appendChild(finalLine);
+                await run('writer.header.insert'); const header = document.querySelector('.vno-writer-header');
+                if (header) header.innerHTML = '<p style="text-align:center;font:10pt Times New Roman">VN Office | Báo cáo tổng hợp</p>';
+                await run('writer.footer.insert'); const footer = document.querySelector('.vno-writer-footer');
+                if (footer) footer.innerHTML = '<p style="text-align:center;font:10pt Times New Roman">Trang <span data-vno-field="PAGE">1</span></p>';
+                out.actions.headerFooter = Boolean(header && footer);
+                body().insertAdjacentHTML('beforeend', '<p><br></p>');
+                const copyLine = document.createElement('p'); body().appendChild(copyLine);
+                if (selectText('TH\u1edcI H\u1ea0N')) {
+                  const copied = getSelection().getRangeAt(0).cloneContents(); const holder = document.createElement('div'); holder.appendChild(copied);
+                  const copiedHtml = holder.innerHTML;
+                  const paste = document.createRange(); paste.selectNodeContents(copyLine); paste.collapse(false);
+                  paste.insertNode(holder.firstChild);
+                  out.actions.copyPaste = copyLine.textContent.includes('TH\u1edcI H\u1ea0N') && copyLine.innerHTML === copiedHtml;
+                }
+                const undoRange = document.createRange(); undoRange.selectNodeContents(copyLine); undoRange.collapse(false);
+                getSelection().removeAllRanges(); getSelection().addRange(undoRange); document.execCommand('insertText', false, ' KIỂM TRA UNDO');
+                await new Promise(r => setTimeout(r, 800)); await run('common.edit.undo'); await run('common.edit.redo');
+                out.actions.undoRedo = body().innerText.includes('KIỂM TRA UNDO');
+              } catch (error) { out.error = String(error && error.stack || error); }
+              window.__writerOpsDone = out;
+            })();
+            """
+            win.evaluate_js("window.__writerOpsDone=null; 1")
+            win.evaluate_js(script)
+            for _ in range(1200):
+                time.sleep(1)
+                state = win.evaluate_js("window.__writerOpsDone||null")
+                if state:
+                    result["actions"] = state.get("actions", {})
+                    result["error"] = state.get("error", "")
+                    break
+            else:
+                result["error"] = "Timed out waiting for editing operations"
+        win.evaluate_js("window.__writerSaveDone=null; window.__writerSaveErr=''; import('/platform/commands/command-bus.js').then(async m => { try { window.__writerSaveDone=await m.globalCommandBus.execute('common.file.saveAs'); } catch(e) { window.__writerSaveErr=String(e && e.stack || e); } }); 'queued'")
+        for _ in range(900):
+            time.sleep(1)
+            result["save"]["exists"] = os.path.exists(OUTPUT) and os.path.getsize(OUTPUT) > 0
+            result["save"]["error"] = win.evaluate_js("window.__writerSaveErr") or ""
+            if win.evaluate_js("window.__writerSaveDone !== null") or result["save"]["error"]: break
+        result["save"]["result"] = win.evaluate_js("window.__writerSaveDone")
+        print("RESULT " + json.dumps(result, ensure_ascii=False), flush=True)
+    win.destroy()
+
+webview.start(after_load, window, debug=False)
+'''
+
+
+def _stop_owned_hidden_word(pid_file: Path) -> None:
+    """Kill only the hidden WINWORD PID recorded by our own COM driver."""
+    if not pid_file.exists():
+        return
+    try:
+        pid = int(pid_file.read_text(encoding="utf-8").strip())
+    except (OSError, ValueError):
+        return
+    command = (
+        "$p=Get-Process -Id " + str(pid) + " -ErrorAction SilentlyContinue; "
+        "if ($p -and $p.ProcessName -eq 'WINWORD' -and $p.MainWindowHandle -eq 0) "
+        "{ Stop-Process -Id " + str(pid) + " -Force }"
+    )
+    subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", command], capture_output=True, timeout=15)
+
+
+def _run_word(driver: Path, task: str, result_json: Path, pid_file: Path, args: list[str], timeout: int = 300) -> dict[str, Any]:
+    command = [
+        "powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+        "-File", str(driver), "-Task", task, "-ResultJson", str(result_json), "-PidFile", str(pid_file),
+    ] + args
+    try:
+        proc = subprocess.run(command, capture_output=True, text=True, timeout=timeout, encoding="utf-8", errors="replace")
+    except subprocess.TimeoutExpired as exc:
+        _stop_owned_hidden_word(pid_file)
+        raise RuntimeError(f"Word COM {task} timed out after {timeout}s; cleanup targeted only its recorded hidden WINWORD PID.") from exc
+    if proc.returncode != 0:
+        _stop_owned_hidden_word(pid_file)
+        details = result_json.read_text(encoding="utf-8") if result_json.exists() else ""
+        raise RuntimeError(f"Word COM {task} failed ({proc.returncode}): {details[-1200:]} {(proc.stderr or proc.stdout).strip()[-700:]}")
+    if not result_json.exists():
+        raise RuntimeError(f"Word COM {task} completed without result JSON: {proc.stdout[-1000:]}")
+    return json.loads(result_json.read_text(encoding="utf-8"))
+
+
+def _word_pages(path: Path, output_dir: Path) -> int | str:
+    pid_file = output_dir / f"_word_oracle_{path.stem}.pid"
+    command = [
+        "powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+        "-File", str(ROOT / "scripts" / "layout-audit" / "_word_oracle3.ps1"),
+        "-File", str(path.resolve()), "-OwnedPidFile", str(pid_file),
+    ]
+    try:
+        proc = subprocess.run(command, capture_output=True, text=True, timeout=280, encoding="utf-8", errors="replace")
+    except subprocess.TimeoutExpired:
+        _stop_owned_hidden_word(pid_file)
+        return "FAIL (Word PDF export exceeded 280s)"
+    output = (proc.stdout or "").strip()
+    match = re.search(r"OK pages=(\d+)", output)
+    if proc.returncode == 0 and match:
+        return int(match.group(1))
+    return output or (proc.stderr or "FAIL (Word oracle returned no result)").strip()[:160]
+
+
+def _run_vn(seed: Path, output: Path, output_dir: Path, mode: str = "edit") -> dict[str, Any]:
+    probe_path = output_dir / "_writer_basic_ops_probe.py"
+    probe_path.write_text(VN_PROBE.replace("__HTML__", json.dumps(_vn_html(), ensure_ascii=False)), encoding="utf-8")
+    try:
+        proc = subprocess.run(
+            [sys.executable, str(probe_path), str(ROOT), str(seed), str(output), mode],
+            capture_output=True, text=True, cwd=ROOT, timeout=1800, encoding="utf-8", errors="replace",
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError("VN real-app probe timed out after 1800 seconds.") from exc
+    match = re.search(r"RESULT (\{.*\})", proc.stdout or "")
+    if proc.returncode != 0 and not match:
+        raise RuntimeError(f"VN real-app probe failed ({proc.returncode}): {(proc.stderr or proc.stdout)[-1800:]}")
+    return json.loads(match.group(1)) if match else {"loaded": False, "error": (proc.stderr or proc.stdout)[-1800:]}
+
+
+def _docx_structure(path: Path) -> dict[str, Any]:
+    try:
+        with zipfile.ZipFile(path) as package:
+            document = package.read("word/document.xml").decode("utf-8", "replace")
+            names = package.namelist()
+            footer_parts = [name for name in names if re.fullmatch(r"word/footer\d+\.xml", name)]
+            footer_xml = "\n".join(package.read(name).decode("utf-8", "replace") for name in footer_parts)
+            body = re.sub(r"<w:txbxContent\b[\s\S]*?</w:txbxContent>", "", document)
+            return {
+                "paragraphs": len(re.findall(r"<w:p(?:\s|>)", body)),
+                "pageBreaks": len(re.findall(r"<w:br\b[^>]*w:type=['\"]page", body, re.I)),
+                "pageBreakBefore": len(re.findall(r"<w:pageBreakBefore\b", body, re.I)),
+                "tables": len(re.findall(r"<w:tbl(?:\s|>)", body, re.I)),
+                "footerParts": len(footer_parts),
+                "pageField": bool(re.search(r"<w:instrText\b[^>]*>\s*PAGE(?:\s+\\[^<]*)?\s*</w:instrText>|<w:fldSimple\b[^>]*\binstr=['\"]\s*PAGE(?:\s+[^'\"]*)?['\"]", footer_xml, re.I)),
+                "mergedHeader": bool(re.search(r"<w:gridSpan\b[^>]*w:val=['\"]4", body, re.I)),
+                "text": " ".join(re.findall(r"<w:t\b[^>]*>([\s\S]*?)</w:t>", body)),
+            }
+    except (OSError, KeyError, zipfile.BadZipFile) as exc:
+        return {"error": str(exc)}
+
+
+def _normal_text(value: Any) -> str:
+    return re.sub(r"\s+", " ", str(value or "")).strip()
+
+
+def _paragraph(document: dict[str, Any], start: str) -> dict[str, Any] | None:
+    return next((p for p in document.get("paragraphs", []) if p.get("text", "").startswith(start)), None)
+
+
+def _paragraph_data(document: dict[str, Any], start: str) -> dict[str, Any] | None:
+    p = _paragraph(document, start)
+    if not p:
+        return None
+    return {"align": p.get("alignment"), "firstCm": p.get("firstLineIndentCm"), "beforePt": p.get("spaceBeforePt"),
+            "afterPt": p.get("spaceAfterPt"), "lineRule": p.get("lineSpacingRule"), "linePt": p.get("lineSpacingPt")}
+
+
+def _close_number(a: Any, b: Any, tolerance: float = 0.2) -> bool:
+    try:
+        return abs(float(a) - float(b)) <= tolerance
+    except (TypeError, ValueError):
+        return a == b
+
+
+def _run_data(document: dict[str, Any]) -> dict[str, Any]:
+    result = {}
+    for key in ("MỨC PHẠT", "THỜI HẠN", "ĐIỀU KHOẢN SAO CHÉP"):
+        run = document.get("runs", {}).get(key) or {}
+        result[key] = {name: run.get(name) for name in ("bold", "italic", "underline", "font", "size", "color", "highlight") if name in run}
+        if result[key].get("color") == -16777216:
+            result[key]["color"] = 0
+    return result
+
+
+def _list_data(document: dict[str, Any]) -> list[str]:
+    markers = []
+    for p in document.get("paragraphs", []):
+        if p.get("listType"):
+            marker = str(p.get("listString", "")).strip()
+            markers.append("•" if marker in {"•", "", "▪", "‣"} else marker)
+    return markers
+
+
+def _table_data(document: dict[str, Any]) -> list[dict[str, Any]]:
+    return [{key: table.get(key) for key in ("rows", "columns", "rowCellCounts", "mergedHeader", "bordersEnabled", "headerBold", "columnHeaderBold", "cells")} for table in document.get("tables", [])]
+
+
+def _header_footer_data(document: dict[str, Any]) -> dict[str, Any]:
+    footers = []
+    for footer in document.get("footers", []):
+        fields = [re.sub(r"\s+", "", field).upper() for field in footer.get("fields", [])]
+        footers.append({"text": _normal_text(footer.get("text")), "PAGE": any("PAGE" in f and "NUMPAGES" not in f for f in fields), "NUMPAGES": any("NUMPAGES" in f for f in fields)})
+    return {"headers": [_normal_text(h.get("text")) for h in document.get("headers", [])], "footers": footers}
+
+
+def _features(metrics: dict[str, Any], app: dict[str, Any]) -> list[dict[str, Any]]:
+    word, vn = metrics.get("word_docx", {}), metrics.get("vn_docx", {})
+    wt, vt = _normal_text(word.get("text")), _normal_text(vn.get("text"))
+    wruns, vruns = _run_data(word), _run_data(vn)
+    wp, vp = _paragraph_data(word, "Kính gửi:"), _paragraph_data(vn, "Kính gửi:")
+    we, ve = _paragraph_data(word, "Bên A bàn giao"), _paragraph_data(vn, "Bên A bàn giao")
+    wm, vm = _paragraph_data(word, "Đoạn báo cáo giãn dòng"), _paragraph_data(vn, "Đoạn báo cáo giãn dòng")
+    wstyles = [p.get("style") for p in word.get("paragraphs", []) if p.get("style", "").lower().startswith("heading")]
+    vstyles = [p.get("style") for p in vn.get("paragraphs", []) if p.get("style", "").lower().startswith("heading")]
+    wlists, vlists = _list_data(word), _list_data(vn)
+    wtables, vtables = _table_data(word), _table_data(vn)
+    whf, vhf = _header_footer_data(word), _header_footer_data(vn)
+    text_ok = wt == vt
+    replacement_ok = "bản chính" in wt and "bản nháp" not in wt and "bản chính" in vt and "bản nháp" not in vt
+    actions_word = {"findReplace": replacement_ok, "copyPaste": wt.count("THỜI HẠN") >= 2, "undoRedo": "KIỂM TRA UNDO" in wt}
+    actions_vn = {"findReplace": bool(app.get("actions", {}).get("findReplace")) and replacement_ok, "copyPaste": bool(app.get("actions", {}).get("copyPaste")) and vt.count("THỜI HẠN") >= 2, "undoRedo": bool(app.get("actions", {}).get("undoRedo")) and "KIỂM TRA UNDO" in vt}
+    word_docx = {"repairFree": bool(word.get("opened") and not word.get("error")), "paragraphs": word.get("paragraphCount")}
+    vn_docx = {"repairFree": bool(vn.get("opened") and not vn.get("error")), "paragraphs": vn.get("paragraphCount")}
+    wd, vd = metrics.get("word_doc", {}), metrics.get("vn_doc", {})
+    word_doc = {"repairFree": bool(wd.get("opened") and not wd.get("error")), "paragraphs": wd.get("paragraphCount")}
+    vn_doc = {"repairFree": bool(vd.get("opened") and not vd.get("error")), "paragraphs": vd.get("paragraphCount")}
+    body_match = bool(wp and vp and wp.get("align") == vp.get("align") == 3 and wp.get("firstCm") == vp.get("firstCm") == 1.0 and _close_number(wp.get("beforePt"), vp.get("beforePt")) and _close_number(wp.get("afterPt"), vp.get("afterPt")) and wp.get("lineRule") == vp.get("lineRule") == 5 and _close_number(wp.get("linePt"), vp.get("linePt")))
+    exact_match = bool(we and ve and we.get("lineRule") == ve.get("lineRule") == 4 and _close_number(we.get("linePt"), ve.get("linePt")))
+    multiple_match = bool(wm and vm and wm.get("lineRule") == vm.get("lineRule") == 1 and _close_number(wm.get("linePt"), vm.get("linePt")))
+    return [
+        {"scenario": "Vietnamese text, typing and find/replace", "word": "same content" if text_ok else f"{len(wt)} chars", "vn": "same content" if text_ok else f"{len(vt)} chars", "match": text_ok and replacement_ok},
+        {"scenario": "Bold/italic/underline, font, size, color, highlight", "word": wruns, "vn": vruns, "match": wruns == vruns},
+        {"scenario": "Paragraph justify, first indent, spacing, 1.15", "word": wp, "vn": vp, "match": body_match},
+        {"scenario": "Paragraph exact line spacing 18 pt", "word": we, "vn": ve, "match": exact_match},
+        {"scenario": "Paragraph line spacing 1.5", "word": wm, "vn": vm, "match": multiple_match},
+        {"scenario": "Heading 1–3 styles", "word": wstyles, "vn": vstyles, "match": wstyles == vstyles == ["Heading 1", "Heading 2", "Heading 3"]},
+        {"scenario": "Bullets, numbering, a), dash list", "word": wlists, "vn": vlists, "match": wlists == vlists},
+        {"scenario": "3×4 table, add/delete row/column, merge, borders", "word": wtables, "vn": vtables, "match": wtables == vtables},
+        {"scenario": "A4 page setup, margins and orientation", "word": word.get("pageSetup"), "vn": vn.get("pageSetup"), "match": word.get("pageSetup") == vn.get("pageSetup")},
+        {"scenario": "Header/footer with live page-number fields", "word": whf, "vn": vhf, "match": whf["headers"] == vhf["headers"] and bool(whf["footers"]) and bool(vhf["footers"]) and whf["footers"][0]["PAGE"] and vhf["footers"][0]["PAGE"]},
+        {"scenario": "Page break", "word": word.get("pageBreakCount"), "vn": vn.get("pageBreakCount"), "match": word.get("pageBreakCount") == vn.get("pageBreakCount") == 1},
+        {"scenario": "Copy/paste formatted text; undo/redo", "word": actions_word, "vn": actions_vn, "match": actions_word == actions_vn},
+        {"scenario": "Word page counts (.docx)", "word": word.get("pageCount"), "vn": vn.get("pageCount"), "match": word.get("pageCount") == vn.get("pageCount")},
+        {"scenario": "Word reopen without repair (.docx), paragraph count", "word": word_docx, "vn": vn_docx, "match": word_docx == vn_docx},
+        {"scenario": "Word reopen without repair (.doc), paragraph count", "word": word_doc, "vn": vn_doc, "match": word_doc == vn_doc},
+        {"scenario": "Word page counts (.doc)", "word": wd.get("pageCount"), "vn": vd.get("pageCount"), "match": wd.get("pageCount") == vd.get("pageCount")},
+    ]
+
+
+def _compact_json(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":")).replace("|", "\\|").replace("\n", " ")
+
+
+def _read_before_run(path: Path | None) -> tuple[dict[str, Any], dict[str, Any]]:
+    if path is None:
+        return {}, {}
+    metrics_path, app_path = path / "_writer_basic_ops_metrics.json", path / "_writer_basic_ops_app.json"
+    if metrics_path.exists():
+        return json.loads(metrics_path.read_text(encoding="utf-8")), json.loads(app_path.read_text(encoding="utf-8")) if app_path.exists() else {}
+    raw = path / "_word_inspect_result.json"
+    metrics = json.loads(raw.read_text(encoding="utf-8-sig")) if raw.exists() else {}
+    app: dict[str, Any] = {}
+    report = path / "writer_basic_ops_report.md"
+    if report.exists():
+        content = report.read_text(encoding="utf-8")
+        match = re.search(r"- VN app loaded: (True|False); actions: (\{[^\n]+\})", content)
+        if match:
+            app = {"loaded": match.group(1) == "True", "actions": json.loads(match.group(2))}
+        for line in content.splitlines():
+            if line.startswith("| Word page count |"):
+                cells = [cell.strip() for cell in line.split("|")]
+                for key, index in (("word_docx", 2), ("vn_docx", 3)):
+                    try: metrics.setdefault(key, {})["pageCount"] = json.loads(cells[index])
+                    except (IndexError, ValueError): pass
+            elif line.startswith(("| word_doc |", "| vn_doc |")):
+                cells = [cell.strip() for cell in line.split("|")]
+                key = cells[1] if len(cells) > 1 else ""
+                try: metrics.setdefault(key, {})["pageCount"] = int(cells[3])
+                except (IndexError, ValueError): pass
+    return metrics, app
+
+
+def _write_report(output_dir: Path, app: dict[str, Any], metrics: dict[str, Any], structures: dict[str, Any], before: dict[str, Any], before_app: dict[str, Any], before_label: str) -> None:
+    lines = [
+        "# Writer basic editing parity — measured run", "",
+        f"- Worktree: {ROOT}",
+        f"- Timestamp: {time.strftime('%Y-%m-%d %H:%M:%S')}",
+        "- Oracle: Word 2016 COM, hidden instance created by this harness; page count from Word PDF export.",
+        "- VN path: main.py, pywebview probe, evaluate_js, Writer command bus, production save bridge.",
+        f"- VN before: {before_label or 'not supplied'}",
+        f"- VN app loaded: {app.get('loaded')}; actions: {json.dumps(app.get('actions', {}), ensure_ascii=False)}",
+        f"- VN .docx saved: {app.get('save', {}).get('exists')}; .doc resave loaded: {app.get('doc_resave', {}).get('loaded')}; .doc saved: {app.get('doc_resave', {}).get('save', {}).get('exists')}",
+        f"- VN probe error: {app.get('error') or 'none'}", "",
+        "| scenario | Word | VN before | VN after | status |",
+        "|---|---|---|---|---|",
+    ]
+    before_rows = {row["scenario"]: row for row in _features(before, before_app)} if before else {}
+    for row in _features(metrics, app):
+        previous = before_rows.get(row["scenario"])
+        word, vn = _compact_json(row["word"]), _compact_json(row["vn"])
+        vn_before = _compact_json(previous["vn"]) if previous else "—"
+        lines.append(f"| {row['scenario']} | {word} | {vn_before} | {vn} | {'MATCH' if row['match'] else 'MISMATCH'} |")
+    lines.extend(["", "## Saved package facts", "", "| file | Word open | pages | paragraphs | repair-free open | package facts |", "|---|---:|---:|---:|---|---|"])
+    for key in ("word_docx", "vn_docx", "word_doc", "vn_doc"):
+        value = metrics.get(key, {})
+        facts = structures.get(key, {})
+        lines.append(
+            f"| {key} | {value.get('opened')} | {value.get('pageCount', '-')} | {value.get('paragraphCount', '-')} | "
+            f"{'yes' if value.get('opened') and not value.get('error') else 'no'} | "
+            f"{json.dumps(facts, ensure_ascii=False, separators=(',', ':'))} |"
+        )
+    lines.extend(["", "Word open checks use the repair-disabled COM option. MATCH means the measured Word and VN values met the scenario comparator.", ""])
+    (output_dir / "writer_basic_ops_report.md").write_text("\n".join(lines), encoding="utf-8")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT, help="Directory for saved Word/VN files and reports.")
+    parser.add_argument("--before", type=Path, help="Prior harness output directory for the VN before column.")
+    args = parser.parse_args()
+    if not sys.platform.startswith("win"):
+        parser.error("Word 2016 COM automation is available only on Windows.")
+    if not shutil.which("powershell.exe"):
+        parser.error("powershell.exe is required for Word COM automation.")
+    output_dir = args.output.resolve()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    driver = output_dir / "_writer_basic_ops_word.ps1"
+    driver.write_text(WORD_DRIVER, encoding="utf-8-sig")
+    seed = output_dir / "writer_basic_ops_seed.docx"
+    word_docx = output_dir / "writer_basic_ops_word.docx"
+    word_doc = output_dir / "writer_basic_ops_word.doc"
+    vn_docx = output_dir / "writer_basic_ops_vn.docx"
+    vn_doc = output_dir / "writer_basic_ops_vn.doc"
+    word_result = output_dir / "_word_edit_result.json"
+    inspect_result = output_dir / "_word_inspect_result.json"
+    pid_file = output_dir / "_owned_winword_pid.txt"
+    edit = _run_word(driver, "Edit", word_result, pid_file, ["-Seed", str(seed), "-WordDocx", str(word_docx), "-WordDoc", str(word_doc)])
+    if not edit.get("ok"):
+        raise RuntimeError(f"Word scenario failed: {edit.get('error', edit)}")
+    app = _run_vn(seed, vn_docx, output_dir, "edit")
+    if vn_docx.exists():
+        resave = _run_vn(vn_docx, vn_doc, output_dir, "resave")
+        app["doc_resave"] = resave
+        if resave.get("error"):
+            app["error"] = (app.get("error", "") + " .doc resave: " + resave["error"]).strip()
+    paths = {"word_docx": str(word_docx), "vn_docx": str(vn_docx), "word_doc": str(word_doc), "vn_doc": str(vn_doc)}
+    paths_json = output_dir / "_word_paths.json"
+    paths_json.write_text(json.dumps(paths, ensure_ascii=False), encoding="utf-8")
+    metrics = _run_word(driver, "Inspect", inspect_result, pid_file, ["-PathsJson", str(paths_json)], timeout=400)
+    for key, path in paths.items():
+        metrics.setdefault(key, {})["pageCount"] = _word_pages(Path(path), output_dir)
+    structures = {key: _docx_structure(Path(path)) for key, path in paths.items() if path.lower().endswith(".docx") and Path(path).exists()}
+    (output_dir / "_writer_basic_ops_metrics.json").write_text(json.dumps(metrics, ensure_ascii=False, indent=2), encoding="utf-8")
+    (output_dir / "_writer_basic_ops_app.json").write_text(json.dumps(app, ensure_ascii=False, indent=2), encoding="utf-8")
+    before, before_app = _read_before_run(args.before.resolve() if args.before else None)
+    _write_report(output_dir, app, metrics, structures, before, before_app, str(args.before.resolve()) if args.before else "")
+    print(f"Report: {output_dir / 'writer_basic_ops_report.md'}")
+    print(f"Word files: {word_docx} / {word_doc}")
+    print(f"VN files: {vn_docx if vn_docx.exists() else 'NOT SAVED'} / {vn_doc if vn_doc.exists() else 'NOT SAVED'}")
+    print(f"Word COM opened: {sum(bool(v.get('opened')) for v in metrics.values())}/{len(metrics)} saved files")
+    docx_saved = bool(app.get("save", {}).get("exists"))
+    doc_resave = app.get("doc_resave", {})
+    doc_saved = bool(doc_resave.get("save", {}).get("exists"))
+    return 0 if app.get("loaded") and docx_saved and doc_resave.get("loaded") and doc_saved else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

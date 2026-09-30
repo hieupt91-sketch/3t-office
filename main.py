@@ -266,6 +266,9 @@ FORMAT_FILTERS = {
     "csv": "Text - txt - csv (StarCalc)",
     "fods": "OpenDocument Spreadsheet Flat XML",
     "pptx": "Impress MS PowerPoint 2007 XML",
+    # PowerPoint 97-2003: thiếu dòng này, "Lưu thành *.ppt" rơi về định dạng mặc định pptx
+    # và ghi nội dung ZIP/PPTX vào tệp đuôi .ppt (đo G8).
+    "ppt": "MS PowerPoint 97",
     "odp": "impress8",
     # "fodp" cố ý KHÔNG có filter tường minh — đã thử nghiệm thật, mọi filter name
     # tường minh (kể cả "OpenDocument Presentation Flat XML" mà tài liệu LibreOffice
@@ -2849,6 +2852,9 @@ def main(argv: list[str] | None = None):
         width=1366,
         height=820,
         min_size=(960, 640),
+        # Office opens maximized; a fixed-size window ended up in a screen corner (pilot 30/9).
+        # width/height remain the restore size when the user un-maximizes.
+        maximized=True,
         js_api=api,
         text_select=True,
     )

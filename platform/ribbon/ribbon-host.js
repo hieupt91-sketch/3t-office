@@ -1,12 +1,54 @@
 /**
  * VN Office Platform — Ribbon Host Framework
- * Quản lý kết cấu Ribbon động theo app context
+ * Quản lý kết cấu Ribbon động theo app context và cơ chế tự co giãn (adaptive scaling) chuẩn Office
  */
 
 import { createCommandButton, createSelect, createDropdownButton, closeActiveDropdown } from "../ui-kit/components.js";
 import { t } from "../i18n/i18n.js";
 import { ICONS } from "../ui-kit/icons.js";
 import { globalCommandBus } from "../commands/command-bus.js";
+
+function resolveGroupIcon(groupId, label) {
+  const gid = (groupId || "").toLowerCase();
+  const lbl = (label || "").toLowerCase();
+  if (gid.includes("clipboard") || lbl.includes("bảng nhớ") || lbl.includes("nhớ tạm")) return ICONS.paste;
+  if (gid.includes("font") || lbl.includes("phông")) return ICONS.bold;
+  if (gid.includes("para") || lbl.includes("đoạn")) return ICONS.alignLeft;
+  if (gid.includes("style") || lbl.includes("kiểu")) return ICONS.themeGallery || ICONS.styleGallery;
+  if (gid.includes("edit") || lbl.includes("chỉnh sửa")) return ICONS.search;
+  if (gid.includes("align") || lbl.includes("căn chỉnh")) return ICONS.alignCenter;
+  if (gid.includes("number") || lbl.includes("số")) return ICONS.currencyVND;
+  if (gid.includes("cell") || lbl.includes("ô")) return ICONS.sheetFormat || ICONS.table;
+  if (gid.includes("slide") || lbl.includes("trang chiếu")) return ICONS.slideNew;
+  if (gid.includes("draw") || lbl.includes("vẽ")) return ICONS.shape;
+  if (gid.includes("table") || lbl.includes("bảng")) return ICONS.table;
+  if (gid.includes("illustrat") || gid.includes("image") || lbl.includes("ảnh") || lbl.includes("minh họa")) return ICONS.image;
+  if (gid.includes("link") || lbl.includes("liên kết")) return ICONS.hyperlink;
+  if (gid.includes("comment") || lbl.includes("ghi chú") || lbl.includes("nhận xét")) return ICONS.comment;
+  if (gid.includes("header") || lbl.includes("đầu trang")) return ICONS.headerFooter;
+  if (gid.includes("text") || lbl.includes("văn bản")) return ICONS.textBox;
+  if (gid.includes("symbol") || lbl.includes("ký hiệu")) return ICONS.symbol || ICONS.equation;
+  if (gid.includes("page") || lbl.includes("trang")) return ICONS.margins || ICONS.pageBreak;
+  if (gid.includes("print") || lbl.includes("in")) return ICONS.filePrint;
+  if (gid.includes("function") || lbl.includes("hàm")) return ICONS.insertFunction || ICONS.autoSum;
+  if (gid.includes("audit") || lbl.includes("kiểm tra")) return ICONS.tracePrecedents;
+  if (gid.includes("name") || lbl.includes("tên")) return ICONS.nameManager;
+  if (gid.includes("calc") || lbl.includes("tính toán")) return ICONS.calculateSheet || ICONS.autoSum;
+  if (gid.includes("data") || gid.includes("sort") || gid.includes("filter") || lbl.includes("dữ liệu") || lbl.includes("lọc")) return ICONS.filter;
+  if (gid.includes("proof") || gid.includes("spell") || lbl.includes("soát lỗi") || lbl.includes("chính tả")) return ICONS.sheetSpellCheck || ICONS.aiGrammar;
+  if (gid.includes("protect") || lbl.includes("bảo vệ")) return ICONS.protectSheet;
+  if (gid.includes("view") || lbl.includes("xem")) return ICONS.sheetNormalView || ICONS.writerPrintLayout;
+  if (gid.includes("show") || lbl.includes("hiển thị")) return ICONS.gridlines;
+  if (gid.includes("zoom") || lbl.includes("thu phóng")) return ICONS.zoomReset || ICONS.zoomIn;
+  if (gid.includes("window") || lbl.includes("cửa sổ")) return ICONS.newWindow;
+  if (gid.includes("macro")) return ICONS.macroManager;
+  if (gid.includes("transit") || lbl.includes("chuyển tiếp")) return ICONS.slidePlay;
+  if (gid.includes("animat") || lbl.includes("hoạt hình")) return ICONS.shape;
+  if (gid.includes("ai") || lbl.includes("ai")) return ICONS.aiSparkle;
+  if (gid.includes("help") || lbl.includes("trợ giúp")) return ICONS.help;
+
+  return ICONS.chevronDown || `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><circle cx="12" cy="12" r="4"/></svg>`;
+}
 
 export class RibbonHost {
   /**
@@ -20,6 +62,16 @@ export class RibbonHost {
     this.tabs = [];
     this.activeTabId = null;
     this.isCollapsed = false;
+    this._activePopover = null;
+
+    if (typeof window !== "undefined") {
+      this._resizeHandler = () => this.updateAdaptiveLayout();
+      window.addEventListener("resize", this._resizeHandler);
+      if (typeof ResizeObserver !== "undefined" && this.container) {
+        this._resizeObserver = new ResizeObserver(() => this.updateAdaptiveLayout());
+        this._resizeObserver.observe(this.container);
+      }
+    }
   }
 
   setStructure(tabs, defaultActiveId) {
@@ -30,13 +82,18 @@ export class RibbonHost {
 
   selectTab(tabId) {
     closeActiveDropdown();
-    if (this.activeTabId === tabId) return;
+    this._closeGroupPopover();
+    if (this.activeTabId === tabId) {
+      this.updateAdaptiveLayout();
+      return;
+    }
     this.activeTabId = tabId;
     this.render();
   }
 
   render() {
     closeActiveDropdown();
+    this._closeGroupPopover();
     this.container.innerHTML = "";
     this.container.className = "vno-ribbon";
 
@@ -72,7 +129,7 @@ export class RibbonHost {
     tabsBar.appendChild(fileBtn);
 
     // Các tabs chức năng
-    this.tabs.forEach((tab, index) => {
+    this.tabs.forEach((tab) => {
       const tabBtn = document.createElement("button");
       const isActive = tab.id === this.activeTabId;
       tabBtn.className = `vno-ribbon-tab ${isActive ? "is-active" : ""}`;
@@ -85,9 +142,7 @@ export class RibbonHost {
       tabBtn.tabIndex = isActive ? 0 : -1;
 
       tabBtn.addEventListener("click", () => this.selectTab(tab.id));
-      // Nhấp đúp vào tab (giống Word/Excel thật) thu gọn/mở rộng Ribbon —
-      // dùng chung lệnh common.view.ribbonToggle với nút Ctrl+F1 đã có,
-      // tránh có 2 cơ chế bật/tắt lệch trạng thái nhau.
+      // Nhấp đúp vào tab (giống Word/Excel thật) thu gọn/mở rộng Ribbon
       tabBtn.addEventListener("dblclick", (e) => {
         e.preventDefault();
         globalCommandBus.execute("common.view.ribbonToggle");
@@ -137,9 +192,7 @@ export class RibbonHost {
       tabsBar.appendChild(tabBtn);
     });
 
-    // Nút thu gọn/mở rộng Ribbon rõ ràng (giống chevron góc phải Word/Excel
-    // thật) — cùng lệnh với Ctrl+F1 và nhấp đúp tab, để người dùng bàn phím/
-    // không biết mẹo nhấp đúp vẫn thấy và bật/tắt được.
+    // Nút thu gọn/mở rộng Ribbon rõ ràng
     const collapseBtn = createCommandButton({ commandId: "common.view.ribbonToggle", iconOnly: true });
     collapseBtn.classList.add("vno-ribbon-collapse-btn");
     collapseBtn.setAttribute("aria-expanded", String(!this.isCollapsed));
@@ -162,6 +215,7 @@ export class RibbonHost {
       groupEl.className = "vno-ribbon-group";
       const groupId = group.id || (group.labelKey ? group.labelKey.split('.').pop() : "");
       if (groupId) groupEl.dataset.groupId = groupId;
+      groupEl.dataset.groupLabel = group.label;
       groupEl.setAttribute("role", "group");
       groupEl.setAttribute("aria-label", group.label);
 
@@ -190,6 +244,8 @@ export class RibbonHost {
             labelKey: item.labelKey,
             icon: item.icon,
             isLarge: item.isLarge,
+            iconOnly: item.iconOnly,
+            ariaLabel: item.ariaLabel,
             items: item.items
           }));
         } else if (item.type === "select") {
@@ -234,6 +290,8 @@ export class RibbonHost {
                 labelKey: subItem.labelKey,
                 icon: subItem.icon,
                 isLarge: subItem.isLarge,
+                iconOnly: subItem.iconOnly,
+                ariaLabel: subItem.ariaLabel,
                 items: subItem.items
               }));
             } else if (subItem.type === "select") {
@@ -281,9 +339,198 @@ export class RibbonHost {
 
       groupEl.appendChild(labelRowEl);
 
+      // Collapsed group trigger button (hiển thị khi nhóm ở Stage 3 co gọn)
+      const collapsedBtn = document.createElement("button");
+      collapsedBtn.type = "button";
+      collapsedBtn.className = "vno-btn vno-ribbon-btn-large vno-ribbon-group-collapsed-btn";
+      collapsedBtn.setAttribute("aria-haspopup", "dialog");
+      collapsedBtn.setAttribute("aria-expanded", "false");
+      const grpIconSvg = resolveGroupIcon(groupId, group.label);
+      collapsedBtn.innerHTML = `
+        <span class="vno-btn-icon" aria-hidden="true">${grpIconSvg}</span>
+        <span class="vno-btn-label">
+          <span class="vno-btn-text">${group.label}</span>
+          <span class="vno-btn-arrow">${ICONS.chevronDown || `<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>`}</span>
+        </span>
+      `;
+      collapsedBtn.title = `${group.label} (Mở rộng nhóm)`;
+      collapsedBtn.setAttribute("aria-label", `${group.label} (Mở rộng nhóm)`);
+      collapsedBtn.addEventListener("click", () => {
+        this._toggleGroupPopover(groupEl, group, itemsEl, labelRowEl);
+      });
+      groupEl.appendChild(collapsedBtn);
+
       contentPanel.appendChild(groupEl);
     });
 
     this.container.appendChild(contentPanel);
+
+    // Kích hoạt co giãn thông minh sau khi render
+    this.updateAdaptiveLayout();
+    if (typeof requestAnimationFrame !== "undefined") {
+      requestAnimationFrame(() => this.updateAdaptiveLayout());
+    }
+  }
+
+  /**
+   * Bộ điều phối co giãn thích ứng (Adaptive / Responsive Scaling Engine) chuẩn Office:
+   * Khi không đủ không gian (scrollWidth > clientWidth), các nhóm tự động thu gọn theo thứ tự:
+   * 1. Nút lớn -> nút nhỏ / gọn (vno-group-compact)
+   * 2. Nút nhỏ có nhãn -> nút nhỏ chỉ icon + tooltip (vno-group-icon-only)
+   * 3. Toàn bộ nhóm thu thành 1 nút thả xuống mở popup đầy đủ (vno-group-collapsed)
+   * Đảm bảo KHÔNG BAO GIỜ cuộn ngang ở chiều rộng >= 1024px.
+   */
+  updateAdaptiveLayout() {
+    if (this.isCollapsed) return;
+    const contentPanel = this.container?.querySelector?.(".vno-ribbon-content");
+    if (!contentPanel) return;
+
+    this._closeGroupPopover();
+
+    const groupEls = Array.from(contentPanel.querySelectorAll(".vno-ribbon-group"));
+    if (groupEls.length === 0) return;
+
+    // Reset về trạng thái đầy đủ (Stage 0)
+    for (const g of groupEls) {
+      g.classList.remove("vno-group-compact", "vno-group-icon-only", "vno-group-collapsed");
+    }
+
+    // Nếu đã vừa vặn thì không cần thu gọn
+    if (contentPanel.scrollWidth <= contentPanel.clientWidth + 1) {
+      return;
+    }
+
+    // Thứ tự ưu tiên thu nhỏ: từ phải qua trái, các nhóm ít dùng trước;
+    // nhóm Phông chữ (font) và Bảng nhớ tạm (clipboard) giữ lâu nhất.
+    const highPriority = ["font", "clipboard"];
+    const groupsToShrink = [...groupEls].reverse().sort((a, b) => {
+      const aHigh = highPriority.includes(a.dataset.groupId);
+      const bHigh = highPriority.includes(b.dataset.groupId);
+      if (aHigh && !bHigh) return 1;
+      if (!aHigh && bHigh) return -1;
+      return 0;
+    });
+
+    // Stage 1: Co gọn các nút lớn (compact)
+    for (const g of groupsToShrink) {
+      g.classList.add("vno-group-compact");
+      if (contentPanel.scrollWidth <= contentPanel.clientWidth + 1) return;
+    }
+
+    // Stage 2: Nút nhỏ ẩn nhãn, chỉ hiển thị icon (icon-only + tooltip)
+    for (const g of groupsToShrink) {
+      g.classList.add("vno-group-icon-only");
+      if (contentPanel.scrollWidth <= contentPanel.clientWidth + 1) return;
+    }
+
+    // Stage 3: Thu cả nhóm thành 1 nút dropdown mở rộng
+    for (const g of groupsToShrink) {
+      if (g.dataset.groupId === "clipboard" && groupEls.length > 1) {
+        continue;
+      }
+      g.classList.add("vno-group-collapsed");
+      if (contentPanel.scrollWidth <= contentPanel.clientWidth + 1) return;
+    }
+
+    // Nếu vẫn chưa đủ (ở màn hình cực hẹp), thu nốt các nhóm còn lại
+    for (const g of groupsToShrink) {
+      if (!g.classList.contains("vno-group-collapsed")) {
+        g.classList.add("vno-group-collapsed");
+        if (contentPanel.scrollWidth <= contentPanel.clientWidth + 1) return;
+      }
+    }
+  }
+
+  _closeGroupPopover() {
+    if (this._activePopover) {
+      this._activePopover.cleanup();
+      this._activePopover = null;
+    }
+  }
+
+  _toggleGroupPopover(groupEl, group, itemsEl) {
+    if (this._activePopover && this._activePopover.groupEl === groupEl) {
+      this._closeGroupPopover();
+      return;
+    }
+    this._closeGroupPopover();
+
+    const btn = groupEl.querySelector(".vno-ribbon-group-collapsed-btn");
+    if (!btn) return;
+
+    btn.setAttribute("aria-expanded", "true");
+    btn.classList.add("is-active");
+
+    const popover = document.createElement("div");
+    popover.className = "vno-ribbon-group-popover";
+    popover.setAttribute("role", "dialog");
+    popover.setAttribute("aria-label", group.label || "Nhóm mở rộng");
+
+    const placeholder = document.createComment(`items-placeholder-${groupEl.dataset.groupId || "group"}`);
+    itemsEl.parentNode.insertBefore(placeholder, itemsEl);
+
+    const contentWrap = document.createElement("div");
+    contentWrap.className = "vno-ribbon-popover-items";
+    contentWrap.appendChild(itemsEl);
+    popover.appendChild(contentWrap);
+
+    const titleEl = document.createElement("div");
+    titleEl.className = "vno-ribbon-popover-title";
+    titleEl.textContent = group.label;
+    popover.appendChild(titleEl);
+
+    const rect = btn.getBoundingClientRect();
+    popover.style.position = "fixed";
+    popover.style.top = `${rect.bottom + 2}px`;
+    const popoverLeft = Math.max(8, Math.min(rect.left, (window.innerWidth || 1024) - 340));
+    popover.style.left = `${popoverLeft}px`;
+    popover.style.zIndex = "10000";
+
+    document.body.appendChild(popover);
+
+    let isCleanedUp = false;
+    const cleanup = () => {
+      if (isCleanedUp) return;
+      isCleanedUp = true;
+      btn.setAttribute("aria-expanded", "false");
+      btn.classList.remove("is-active");
+      if (placeholder.parentNode) {
+        placeholder.parentNode.insertBefore(itemsEl, placeholder);
+        placeholder.remove();
+      }
+      popover.remove();
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("keydown", onKeyDown, true);
+      if (this._activePopover?.groupEl === groupEl) {
+        this._activePopover = null;
+      }
+    };
+
+    const onPointerDown = (e) => {
+      if (!popover.contains(e.target) && !btn.contains(e.target)) {
+        cleanup();
+      }
+    };
+
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") {
+        cleanup();
+        btn.focus();
+      }
+    };
+
+    popover.addEventListener("click", (e) => {
+      const actionBtn = e.target.closest("button.vno-btn:not(.vno-ribbon-btn-dropdown):not(.vno-ribbon-checkbox)");
+      if (actionBtn) {
+        setTimeout(cleanup, 120);
+      }
+    });
+
+    setTimeout(() => {
+      document.addEventListener("pointerdown", onPointerDown, true);
+      document.addEventListener("keydown", onKeyDown, true);
+    }, 0);
+
+    this._activePopover = { groupEl, cleanup };
   }
 }
