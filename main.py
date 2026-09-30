@@ -59,6 +59,14 @@ sys.modules[_PRINT_PIPELINE_SPEC.name] = _PRINT_PIPELINE_MODULE
 _PRINT_PIPELINE_SPEC.loader.exec_module(_PRINT_PIPELINE_MODULE)
 PrintPipeline = _PRINT_PIPELINE_MODULE.PrintPipeline
 
+_OFFICE_COM_PATH = Path(__file__).resolve().parent / "platform" / "print" / "office_com.py"
+_OFFICE_COM_SPEC = importlib.util.spec_from_file_location("_vno_office_com", _OFFICE_COM_PATH)
+if _OFFICE_COM_SPEC is None or _OFFICE_COM_SPEC.loader is None:
+    raise ImportError(f"Cannot load Office COM print integration: {_OFFICE_COM_PATH}")
+_OFFICE_COM_MODULE = importlib.util.module_from_spec(_OFFICE_COM_SPEC)
+sys.modules[_OFFICE_COM_SPEC.name] = _OFFICE_COM_MODULE
+_OFFICE_COM_SPEC.loader.exec_module(_OFFICE_COM_MODULE)
+
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 INDEX_HTML = os.path.join(ROOT_DIR, "index.html")
 APP_VERSION = "0.9.0-pilot1"
@@ -1507,15 +1515,60 @@ def _convert_print_source_to_pdf(source_path: str, app_kind: str, output_dir: st
     return _run_soffice_convert(source_path, "pdf", output_dir, app_kind=app_kind)
 
 
+def _convert_print_source_with_office(
+    source_path: str, app_kind: str, output_dir: str, candidate: dict[str, str],
+) -> str:
+    return _OFFICE_COM_MODULE.export_pdf_with_office(
+        source_path,
+        app_kind,
+        output_dir,
+        engine_info=candidate["engine_info"],
+    )
+
+
+def _office_candidates_for_print(app_kind: str) -> tuple[dict[str, str], ...]:
+    info = _OFFICE_COM_MODULE.get_office_engine_info(app_kind)
+    if not info.get("available"):
+        return ()
+    return ({
+        "engine": str(info["engine"]),
+        "progid": str(info["progId"]),
+        "engine_info": info,
+    },)
+
+
+def _render_print_source_to_pdf(
+    source_path: str, app_kind: str, output_dir: str, *, use_office: bool = True,
+) -> tuple[str, str]:
+    info = _OFFICE_COM_MODULE.get_office_engine_info(app_kind)
+    return _OFFICE_COM_MODULE.convert_pdf_with_office_fallback(
+        source_path,
+        app_kind,
+        output_dir,
+        _convert_print_source_to_pdf,
+        use_office=use_office,
+        office_info=info,
+        office_exporter=lambda source, kind, out, *, engine_info=None: _OFFICE_COM_MODULE.export_pdf_with_office(
+            source, kind, out, engine_info=engine_info,
+        ),
+    )
+
+
 def _export_content_to_pdf(
     content: str,
     app_kind: str,
     temp_dir: str,
     source_document_path: str | None = None,
-) -> str:
+    *,
+    use_office: bool = True,
+    return_engine: bool = False,
+) -> str | tuple[str, str]:
     """Export PDF only after running the source-aware native Save conversion."""
     native_path = _write_print_source(content, app_kind, temp_dir, source_document_path)
-    return _convert_print_source_to_pdf(native_path, app_kind, temp_dir)
+    pdf_path, engine_name = _render_print_source_to_pdf(
+        native_path, app_kind, temp_dir, use_office=use_office,
+    )
+    return (pdf_path, engine_name) if return_engine else pdf_path
 
 
 def _print_pdf_to_target_file(pdf_path: str, printer: str, destination_path: str, app_kind: str) -> dict:
@@ -1797,6 +1850,8 @@ class VnOfficeApi:
         self._print_pipeline = PrintPipeline(
             write_source=_write_print_source,
             convert_pdf=_convert_print_source_to_pdf,
+            office_candidates=_office_candidates_for_print,
+            convert_office_pdf=_convert_print_source_with_office,
             inspect_pdf=lambda kind, pdf_path: int(
                 _PERSISTENT_SOFFICE.operation(kind, "inspect_pdf", pdf_path=pdf_path)["page_count"]
             ),
@@ -2092,7 +2147,7 @@ class VnOfficeApi:
             content, app_kind, suggested_name, source_path,
         )
 
-    def prepare_print_document(self, app_kind, content, suggested_name="TaiLieu", source_path=None):
+    def prepare_print_document(self, app_kind, content, suggested_name="TaiLieu", source_path=None, use_office=True):
         return self._invoke_reported_api(
             "prepare_print_document",
             self._print_pipeline.prepare,
@@ -2100,7 +2155,11 @@ class VnOfficeApi:
             content,
             suggested_name,
             source_path,
+            use_office,
         )
+
+    def get_print_engine_status(self, app_kind):
+        return self._print_pipeline.engine_status(str(app_kind or ""))
 
     def get_print_preview_page(self, session_id, page_number):
         try:
@@ -2681,12 +2740,14 @@ class VnOfficeApi:
         target_format = actual_format
         self._reporting_file_path = dest_path
         self._reporting_operation = f"{'export' if target_format == 'pdf' else 'save'}.{target_format}"
+        pdf_engine = None
 
         try:
             with tempfile.TemporaryDirectory(prefix="vnoffice_save_") as tmp:
                 if target_format == "pdf":
-                    out_path = _export_content_to_pdf(
+                    out_path, pdf_engine = _export_content_to_pdf(
                         content, app_kind, tmp, source_document_path=source_path,
+                        return_engine=True,
                     )
                 else:
                     src_path = _write_save_source(content, app_kind, tmp, target_format)
@@ -2701,7 +2762,10 @@ class VnOfficeApi:
             return {"status": "error", "message": f"Lỗi không xác định khi lưu tệp: {exc}"}
 
         self._current_file_path = dest_path
-        return {"status": "ok", "message": f"Đã lưu tại {dest_path}", "path": dest_path}
+        response = {"status": "ok", "message": f"Đã lưu tại {dest_path}", "path": dest_path}
+        if target_format == "pdf":
+            response["engine"] = pdf_engine or "LibreOffice"
+        return response
 
     def _export_pdf_dialog_impl(self, content, app_kind="writer", suggested_name="TaiLieu", source_path=None):
         return self.save_document_dialog(

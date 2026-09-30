@@ -129,12 +129,16 @@ class PrintPipeline:
         *,
         write_source: Callable[[str, str, str, str | None], str],
         convert_pdf: Callable[[str, str, str], str],
+        office_candidates: Callable[[str], tuple[dict[str, str], ...]] | None = None,
+        convert_office_pdf: Callable[[str, str, str, dict[str, str]], str] | None = None,
         inspect_pdf: Callable[[str, str], int],
         render_page: Callable[[str, str, int, str], None],
         print_pdf: Callable[[str, str, str, int, str, str | None], dict],
     ):
         self._write_source = write_source
         self._convert_pdf = convert_pdf
+        self._office_candidates = office_candidates or (lambda _kind: ())
+        self._convert_office_pdf = convert_office_pdf
         self._inspect_pdf = inspect_pdf
         self._render_page = render_page
         self._print_pdf = print_pdf
@@ -147,6 +151,7 @@ class PrintPipeline:
         content: str,
         suggested_name: str = "TaiLieu",
         source_path: str | None = None,
+        use_office: bool = True,
     ) -> dict:
         if app_kind not in {"writer", "sheet", "slides"}:
             return {"status": "error", "message": "Không xác định được ứng dụng cần in."}
@@ -158,7 +163,25 @@ class PrintPipeline:
         root = temp_dir.name
         try:
             native_source_path = self._write_source(content, app_kind, root, source_path)
-            pdf_path = self._convert_pdf(native_source_path, app_kind, root)
+            engine_name = "LibreOffice"
+            if use_office and self._convert_office_pdf:
+                for candidate in self._office_candidates(app_kind):
+                    try:
+                        candidate_pdf = self._convert_office_pdf(native_source_path, app_kind, root, candidate)
+                        if Path(candidate_pdf).is_file() and Path(candidate_pdf).stat().st_size > 0:
+                            pdf_path = candidate_pdf
+                            engine_name = str(candidate["engine"])
+                            break
+                    except Exception:
+                        # The print dialog reports the successful fallback engine only.
+                        try:
+                            (Path(root) / f"{Path(native_source_path).stem}.pdf").unlink(missing_ok=True)
+                        except OSError:
+                            pass
+                else:
+                    pdf_path = self._convert_pdf(native_source_path, app_kind, root)
+            else:
+                pdf_path = self._convert_pdf(native_source_path, app_kind, root)
             if not Path(pdf_path).is_file() or Path(pdf_path).stat().st_size <= 0:
                 raise RuntimeError("LibreOffice không tạo được tệp PDF xem trước.")
             page_count = self._inspect_pdf(app_kind, pdf_path)
@@ -171,9 +194,13 @@ class PrintPipeline:
                     "app_kind": app_kind,
                     "pdf_path": str(pdf_path),
                     "page_count": page_count,
+                    "engine": engine_name,
                     "suggested_name": Path(str(suggested_name or "TaiLieu")).stem or "TaiLieu",
                 }
-            return {"status": "ok", "sessionId": session_id, "pageCount": page_count}
+            return {
+                "status": "ok", "sessionId": session_id,
+                "pageCount": page_count, "engine": engine_name,
+            }
         except Exception as exc:
             temp_dir.cleanup()
             return {"status": "error", "message": f"Không tạo được bản xem trước để in: {exc}"}
@@ -223,7 +250,10 @@ class PrintPipeline:
                 if not isinstance(result, dict) or not result.get("ok"):
                     detail = result.get("error") if isinstance(result, dict) else "Máy in không xác nhận được lệnh in."
                     return {"status": "error", "message": f"Máy in '{selected_printer}' không in được tài liệu: {detail}"}
-                response = {"status": "ok", "message": "Đã gửi đến máy in.", "printer": selected_printer}
+                response = {
+                    "status": "ok", "message": "Đã gửi đến máy in.",
+                    "printer": selected_printer, "engine": session.get("engine", "LibreOffice"),
+                }
                 if destination_path:
                     response["path"] = str(destination_path)
                 return response
@@ -242,6 +272,15 @@ class PrintPipeline:
         with self._lock:
             session = self._sessions.get(str(session_id or ""))
         return str(session.get("suggested_name") or "TaiLieu") if session else "TaiLieu"
+
+    def engine_status(self, app_kind: str) -> dict[str, object]:
+        candidates = self._office_candidates(str(app_kind or ""))
+        return {
+            "status": "ok",
+            "appKind": app_kind,
+            "officeAvailable": bool(candidates),
+            "preferredEngine": candidates[0]["engine"] if candidates else "LibreOffice",
+        }
 
     def close(self) -> None:
         with self._lock:

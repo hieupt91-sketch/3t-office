@@ -34,6 +34,11 @@ export async function openPrintDialog({
     sessionId: "",
     printers: [],
     printing: false,
+    preparing: false,
+    officeAvailable: false,
+    preferredEngine: "LibreOffice",
+    engineUsed: "LibreOffice",
+    prepareRevision: 0,
     closed: false
   };
   const overlay = document.createElement("div");
@@ -54,6 +59,11 @@ export async function openPrintDialog({
 
           <label for="vno-print-copies">Số bản</label>
           <input id="vno-print-copies" name="copies" type="number" min="1" max="999" value="1" inputmode="numeric">
+
+          <div class="vno-print-engine-options">
+            <label class="vno-print-office-option" hidden><input id="vno-print-use-office" type="checkbox" checked disabled> <span>Dùng Microsoft Office để in (chính xác nhất)</span></label>
+            <p class="vno-print-engine-used" role="status" aria-live="polite">Bộ máy dựng PDF: đang kiểm tra…</p>
+          </div>
 
           <fieldset class="vno-print-range">
             <legend>Phạm vi trang</legend>
@@ -77,7 +87,7 @@ export async function openPrintDialog({
             <label>Trang <input class="vno-print-preview-page" type="number" min="1" value="1" aria-label="Số trang xem trước"> / <span class="vno-print-total">1</span></label>
             <button type="button" class="vno-print-next" aria-label="Trang sau" disabled>▶</button>
           </div>
-          <div class="vno-print-preview-stage"><div class="vno-print-preview-loading">Đang dựng trang thật từ LibreOffice…</div></div>
+          <div class="vno-print-preview-stage"><div class="vno-print-preview-loading">Đang dựng trang thật từ bộ máy tài liệu…</div></div>
         </section>
       </div>
     </section>`;
@@ -95,6 +105,9 @@ export async function openPrintDialog({
   const previewStage = overlay.querySelector(".vno-print-preview-stage");
   const prevButton = overlay.querySelector(".vno-print-prev");
   const nextButton = overlay.querySelector(".vno-print-next");
+  const officeOption = overlay.querySelector("#vno-print-use-office");
+  const officeOptionLabel = officeOption.parentElement.querySelector("span");
+  const engineUsedLabel = overlay.querySelector(".vno-print-engine-used");
 
   const close = async () => {
     if (state.closed) return;
@@ -157,7 +170,10 @@ export async function openPrintDialog({
   };
 
   const validateOptions = () => {
-    if (state.closed || state.printing) return;
+    if (state.closed || state.printing || state.preparing) {
+      submit.disabled = true;
+      return;
+    }
     const copies = Number(copiesInput.value);
     try {
       selectedPages(state);
@@ -173,6 +189,52 @@ export async function openPrintDialog({
     }
   };
 
+  const preparePreview = async (useOffice, previousSession = "") => {
+    const revision = ++state.prepareRevision;
+    state.preparing = true;
+    officeOption.disabled = true;
+    submit.disabled = true;
+    status.classList.remove("is-error", "is-success");
+    status.textContent = "Đang tạo lại bản xem trước…";
+    previewStage.innerHTML = '<div class="vno-print-preview-loading">Đang dựng trang thật từ bộ máy tài liệu…</div>';
+    try {
+      const prepared = await engine.preparePrintDocument(
+        appKind, content, documentName, sourcePath, Boolean(useOffice),
+      );
+      if (state.closed || revision !== state.prepareRevision) {
+        if (prepared?.sessionId) await engine.cancelPrintDocument?.(prepared.sessionId);
+        return false;
+      }
+      if (prepared?.status !== "ok") throw new Error(prepared?.message || "Không tạo được bản xem trước.");
+      state.sessionId = prepared.sessionId;
+      state.totalPages = Math.max(1, Number(prepared.pageCount) || 1);
+      state.engineUsed = String(prepared.engine || "LibreOffice");
+      state.useOfficeSelected = Boolean(useOffice);
+      state.currentDocumentPage = Math.min(state.currentDocumentPage, state.totalPages);
+      state.currentPreviewPage = Math.min(state.currentPreviewPage, state.totalPages);
+      engineUsedLabel.textContent = `Bộ máy dựng PDF: ${state.engineUsed}`;
+      updatePreviewControls();
+      if (previousSession && previousSession !== prepared.sessionId) {
+        try { await engine.cancelPrintDocument?.(previousSession); } catch { /* old preview expires with the app */ }
+      }
+      state.preparing = false;
+      officeOption.disabled = !state.officeAvailable;
+      validateOptions();
+      await showPreviewPage(state.currentPreviewPage);
+      return true;
+    } catch (error) {
+      if (state.closed || revision !== state.prepareRevision) return false;
+      state.preparing = false;
+      officeOption.checked = Boolean(state.useOfficeSelected);
+      officeOption.disabled = !state.officeAvailable;
+      status.textContent = getPrintErrorMessage(error);
+      status.classList.add("is-error");
+      previewStage.innerHTML = `<p class="vno-print-preview-error">${escapeHtml(getPrintErrorMessage(error))}</p>`;
+      validateOptions();
+      return false;
+    }
+  };
+
   prevButton.addEventListener("click", () => showPreviewPage(state.currentPreviewPage - 1));
   nextButton.addEventListener("click", () => showPreviewPage(state.currentPreviewPage + 1));
   previewPage.addEventListener("change", () => showPreviewPage(previewPage.value));
@@ -185,6 +247,11 @@ export async function openPrintDialog({
   rangeInput.addEventListener("input", () => { state.rangeInput = rangeInput.value; validateOptions(); });
   copiesInput.addEventListener("input", validateOptions);
   printerSelect.addEventListener("change", validateOptions);
+  officeOption.addEventListener("change", async () => {
+    if (!state.officeAvailable || state.preparing) return;
+    const previousSession = state.sessionId;
+    await preparePreview(officeOption.checked, previousSession);
+  });
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -243,19 +310,20 @@ export async function openPrintDialog({
     if (!engine?.preparePrintDocument || !engine?.getInstalledPrinters) {
       throw new Error("Dịch vụ in chỉ khả dụng trong VN Office Desktop có LibreOffice.");
     }
-    const [prepared, printerResult] = await Promise.all([
-      engine.preparePrintDocument(appKind, content, documentName, sourcePath),
+    const [engineStatus, printerResult] = await Promise.all([
+      engine.getPrintEngineStatus?.(appKind) || Promise.resolve({ officeAvailable: false, preferredEngine: "LibreOffice" }),
       engine.getInstalledPrinters()
     ]);
-    if (state.closed) {
-      if (prepared?.sessionId) await engine.cancelPrintDocument?.(prepared.sessionId);
-      return false;
-    }
-    if (prepared?.status !== "ok") throw new Error(prepared?.message || "LibreOffice không tạo được bản xem trước.");
-    state.sessionId = prepared.sessionId;
-    state.totalPages = Math.max(1, Number(prepared.pageCount) || 1);
-    state.currentDocumentPage = Math.min(state.currentDocumentPage, state.totalPages);
-    state.currentPreviewPage = state.currentDocumentPage;
+    if (state.closed) return false;
+    state.officeAvailable = engineStatus?.status === "ok" && Boolean(engineStatus.officeAvailable);
+    state.preferredEngine = String(engineStatus?.preferredEngine || "LibreOffice");
+    officeOption.parentElement.hidden = !state.officeAvailable;
+    officeOptionLabel.textContent = state.preferredEngine === "WPS"
+      ? "Dùng WPS để in (chính xác nhất)"
+      : "Dùng Microsoft Office để in (chính xác nhất)";
+    officeOption.checked = state.officeAvailable;
+    state.useOfficeSelected = state.officeAvailable;
+    engineUsedLabel.textContent = `Bộ máy dựng PDF: ${state.preferredEngine}`;
     if (printerResult?.status !== "ok") throw new Error(printerResult?.message || "Không đọc được danh sách máy in Windows.");
     state.printers = Array.isArray(printerResult.printers) ? printerResult.printers : [];
     printerSelect.replaceChildren();
@@ -267,10 +335,7 @@ export async function openPrintDialog({
       printerSelect.value = chooseDefaultPrinter(state.printers);
       printerSelect.disabled = false;
     }
-    updatePreviewControls();
-    validateOptions();
-    await showPreviewPage(state.currentPreviewPage);
-    return true;
+    return await preparePreview(state.officeAvailable);
   } catch (error) {
     status.textContent = getPrintErrorMessage(error);
     status.classList.add("is-error");

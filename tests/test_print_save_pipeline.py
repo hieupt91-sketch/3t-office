@@ -78,6 +78,15 @@ def _docx_document_xml(path: str) -> str:
 
 
 class PrintSavePipelineTests(unittest.TestCase):
+    def setUp(self):
+        self.office_info_patch = patch.object(
+            main._OFFICE_COM_MODULE,
+            "get_office_engine_info",
+            return_value={"status": "ok", "available": False, "engine": "LibreOffice", "progId": ""},
+        )
+        self.office_info_patch.start()
+        self.addCleanup(self.office_info_patch.stop)
+
     def test_writer_print_source_is_the_source_aware_save_docx(self):
         with tempfile.TemporaryDirectory(prefix="vno_print_save_test_") as temp_dir:
             root = Path(temp_dir)
