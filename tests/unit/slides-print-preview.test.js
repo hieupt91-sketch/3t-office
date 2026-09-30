@@ -255,6 +255,9 @@ export async function runSlidesPrintPreviewTests() {
       const printOnly = fakeDoc.body.querySelector("#vno-slides-print-only");
       assert(printOnly, "Phải dựng #vno-slides-print-only");
       const pages = printOnly.querySelectorAll(".vno-slides-print-page");
+      assert(pages[0].style.breakAfter === "page" && pages[1].style.breakAfter === "page" && pages[2].style.breakAfter === "auto",
+        "Mỗi slide phải bắt đầu trang in riêng và trang cuối không tạo trang trắng dư");
+      assert(pages.every(page => page.style.breakInside === "avoid"), "Nội dung mỗi slide phải giữ nguyên trên một trang");
       assert(pages.length === 3, `Mong 3 trang in (bỏ trang ẩn), nhận ${pages.length}`);
       assert(printOnly.textContent.includes("Nội dung chính") && !printOnly.textContent.includes("Trang ẩn"),
         "Nội dung in phải là dữ liệu slide thật, loại đúng slide Ẩn");

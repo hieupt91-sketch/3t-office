@@ -1670,13 +1670,37 @@
    đúng thứ tự trước khi gọi window.print(); ở đây chỉ cần ẩn canvas sống/preview
    và hiện vùng in thật. */
 @media print {
-  .vno-slide-navigator,
-  .vno-slide-canvas,
-  .vno-slides-print-preview-overlay {
+  html,
+  body {
+    width: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+  body > :not(#vno-slides-print-only) {
     display: none !important;
   }
-  .vno-slides-print-only {
+  #vno-slides-print-only {
+    position: static !important;
     display: block !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .vno-slides-print-page {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    break-after: page !important;
+    page-break-after: always !important;
+  }
+  .vno-slides-print-page:last-child {
+    break-after: auto !important;
+    page-break-after: auto !important;
   }
 }
 

@@ -3221,7 +3221,10 @@ export class SlidesCanvasController {
     result.pages.forEach(({ slide, index }, order) => {
       const pageDiv = document.createElement("div");
       pageDiv.className = "vno-slides-print-page";
-      if (order < result.pages.length - 1) pageDiv.style.pageBreakAfter = "always";
+      const isLastPage = order === result.pages.length - 1;
+      pageDiv.style.pageBreakAfter = isLastPage ? "auto" : "always";
+      pageDiv.style.breakAfter = isLastPage ? "auto" : "page";
+      pageDiv.style.breakInside = "avoid";
       pageDiv.appendChild(this._renderSlidePrintPage(slide, index));
       container.appendChild(pageDiv);
     });
