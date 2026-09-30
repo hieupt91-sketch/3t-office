@@ -1,5 +1,5 @@
 /**
- * VN Office Platform — Global Command Bus
+ * 3T Office Platform — Global Command Bus
  * Tuân thủ chuẩn 01-architecture/COMMAND-ARCHITECTURE.md
  */
 

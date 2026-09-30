@@ -1,6 +1,6 @@
 """Build the compact Sheet open payload during the final XF FODS traversal.
 
-This module is part of the VN Sheet adapter. It deliberately consumes the
+This module is part of the 3T Sheet adapter. It deliberately consumes the
 already optimized FODS string and the same XF coordinates used by the existing
 patcher; it never serializes a completed FODS document in a second pass.
 """

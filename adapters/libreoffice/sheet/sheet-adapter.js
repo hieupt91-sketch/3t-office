@@ -1,5 +1,5 @@
 /**
- * VN Office LibreOffice Adapter — VN Sheet Adapter
+ * 3T Office LibreOffice Adapter — 3T Sheet Adapter
  * Quản lý tương tác với StarCalc (sc) Document Model & Phím tắt Microsoft/LibreOffice
  */
 
@@ -689,7 +689,7 @@ export class SheetAdapter {
    * -> style:page-layout[style:name]. Đây là cách MỌI file ODF/FODS thật (kể cả file do
    * chính LibreOffice/Excel thật tạo ra, không đi qua các thuộc tính vno:* riêng của app)
    * lưu Page Setup - dùng làm fallback khi thuộc tính vno:page-* (chỉ tồn tại khi FODS này
-   * do chính VN Office ghi ra và chưa qua bất kỳ vòng chuyển đổi thật nào) không có sẵn.
+   * do chính 3T Office ghi ra và chưa qua bất kỳ vòng chuyển đổi thật nào) không có sẵn.
    */
   _parseStandardOdfPageLayout(xml, tableStyleName) {
     if (!tableStyleName) return null;
@@ -758,7 +758,7 @@ export class SheetAdapter {
   }
 
   /**
-   * Đọc tab-color từ style:style family="table" trong FODS do LibreOffice hoặc VN Office tạo ra.
+   * Đọc tab-color từ style:style family="table" trong FODS do LibreOffice hoặc 3T Office tạo ra.
    */
   _parseStandardOdfTabColor(xml, tableStyleName) {
     if (!tableStyleName || !xml) return "";
@@ -1783,7 +1783,7 @@ export class SheetAdapter {
 
   _parseNumberStyles(xmlText) {
     // LibreOffice replaces common custom styles with its built-in N* styles during
-    // XLSX import; seed the subset produced by the formats VN Sheet writes.
+    // XLSX import; seed the subset produced by the formats 3T Sheet writes.
     const dataStyles = new Map([
       ["N0", { category: "number", decimals: 0, useThousands: false }],
       ["N4", { category: "number", decimals: 2, useThousands: true }],
@@ -2486,7 +2486,7 @@ export class SheetAdapter {
    * Ghi một ảnh (imagesBySheet item: { id, src, anchor, widthCm?, heightCm? }) thành
    * <draw:frame><draw:image> nhúng NGAY BÊN TRONG ô neo của nó — cùng định dạng chuẩn
    * ODF thật mà soffice tự ghi khi convert XLSX→FODS (đã xác nhận qua probe thật),
-   * để lần đọc lại (kể cả từ file VN Office tự lưu) dùng chung một đường phân tích
+   * để lần đọc lại (kể cả từ file 3T Office tự lưu) dùng chung một đường phân tích
    * _parseCellEmbeddedImage()/_parseCellEmbeddedImageDom() với file thật bên ngoài.
    */
   /**
@@ -2656,13 +2656,13 @@ export class SheetAdapter {
   }
 
   /**
-   * vno:frozen-rows/cols (đọc lại từ chính FODS VN Office tự ghi - xem
+   * vno:frozen-rows/cols (đọc lại từ chính FODS 3T Office tự ghi - xem
    * serializeToFods()). soffice thật KHÔNG khôi phục Freeze Panes vào
    * office:settings khi chuyển đổi headless XLSX->FODS (xác nhận qua vòng
    * chuyển đổi soffice thật, xem docs/HANDOFF-SHEET-FREEZE-PANES.md) - khi mở
    * FILE XLSX THẬT từ Excel/nguồn khác, dùng sheet-xlsx-open-overlay đọc trực
    * tiếp <pane> từ XLSX gốc thay vì hàm này (hàm này chỉ phục vụ tự round-trip
-   * FODS nội bộ của VN Office).
+   * FODS nội bộ của 3T Office).
    */
   _attachImportedFreezePanes(workbook, xmlText) {
     workbook.freezePanesBySheet = {};
@@ -2677,7 +2677,7 @@ export class SheetAdapter {
   }
 
   /**
-   * vno:sheet-state (hidden/veryHidden) — read back from FODS that VN Office
+   * vno:sheet-state (hidden/veryHidden) — read back from FODS that 3T Office
    * self-wrote during File → Mở overlay.  LibreOffice downgrades veryHidden
    * to hidden during XLSX→FODS; the Python overlay writes vno:sheet-state so
    * we can round-trip correctly.
@@ -2699,7 +2699,7 @@ export class SheetAdapter {
   }
 
   /**
-   * <table:database-ranges> — read back from FODS that VN Office self-wrote
+   * <table:database-ranges> — read back from FODS that 3T Office self-wrote
    * during File → Mở overlay.  These represent AutoFilter ranges that
    * LibreOffice preserves in FODS but may drop during FODS→XLSX export.
    * Only activate filter when display-filter-buttons="true" (S25d).
@@ -3494,7 +3494,7 @@ export class SheetAdapter {
       // vno:frozen-rows/cols: LibreOffice thật KHÔNG ghi lại trạng thái Freeze
       // Panes vào office:settings khi chuyển đổi headless XLSX<->FODS (đã xác
       // nhận qua vòng chuyển đổi soffice thật - xem HANDOFF-SHEET-FREEZE-PANES.md).
-      // Lưu riêng ở đây để tự round-trip đúng trong VN Office; khi xuất XLSX
+      // Lưu riêng ở đây để tự round-trip đúng trong 3T Office; khi xuất XLSX
       // thật, postprocess_sheet_xlsx() đọc thuộc tính này để ghi <pane> chuẩn.
       const freezeAttr = (freezeRows > 0 || freezeCols > 0) ? ` vno:frozen-rows="${freezeRows}" vno:frozen-cols="${freezeCols}"` : "";
       // vno:sheet-state: preserve hidden/veryHidden through round-trip.
@@ -4027,11 +4027,11 @@ export class SheetAdapter {
 
   /**
    * Map ODF `<chart:chart>` (LibreOffice Calc / Excel chart after soffice XLSX→FODS)
-   * onto the existing VN Sheet chartsBySheet object:
+   * onto the existing 3T Sheet chartsBySheet object:
    * { id, type, range, title, labels, data }.
    *
    * Supported classes: bar/column, line, area, circle/ring/pie — the four SVG types
-   * VN Sheet already renders. First series only (engine is single-series).
+   * 3T Sheet already renders. First series only (engine is single-series).
    * Same-sheet source range required because extractRangeData reads one sheet Map.
    */
   _attachImportedCharts(workbook, xmlText) {
@@ -4091,7 +4091,7 @@ export class SheetAdapter {
 
   /**
    * Map ODF DataPilot (LibreOffice Calc / Excel Pivot Table after soffice XLSX→FODS)
-   * onto the existing VN Sheet pivotTablesBySheet object:
+   * onto the existing 3T Sheet pivotTablesBySheet object:
    * { id, name, sourceSheet, sourceRange, rows, columns, values[{field,aggregate}], targetSheet }.
    *
    * Only cell-range DataPilots with a value field using SUM/COUNT/AVERAGE/MIN/MAX.
@@ -4216,7 +4216,7 @@ export class SheetAdapter {
           try { pageCentering = JSON.parse(table.getAttribute("vno:page-centering") || "{}"); } catch (_) { pageCentering = {}; }
           let pagePrintOptions = {};
           try { pagePrintOptions = JSON.parse(table.getAttribute("vno:page-print-options") || "{}"); } catch (_) { pagePrintOptions = {}; }
-          // Thuộc tính vno:page-* chỉ tồn tại khi chính VN Office ghi ra và CHƯA từng qua vòng
+          // Thuộc tính vno:page-* chỉ tồn tại khi chính 3T Office ghi ra và CHƯA từng qua vòng
           // chuyển đổi thật nào (LibreOffice/Excel không giữ lại thuộc tính lạ khi convert).
           // Với file thật (mở lần đầu từ Excel/LibreOffice, hoặc đã convert qua lại), phải đọc
           // Page Setup chuẩn ODF thật (style:page-layout-properties) làm nguồn dự phòng.
@@ -4501,7 +4501,7 @@ export class SheetAdapter {
         try { pageCentering = JSON.parse(pageAttr("vno:page-centering") || "{}"); } catch (_) { pageCentering = {}; }
         let pagePrintOptions = {};
         try { pagePrintOptions = JSON.parse(pageAttr("vno:page-print-options") || "{}"); } catch (_) { pagePrintOptions = {}; }
-        // Xem chú thích ở nhánh DOM phía trên: vno:page-* chỉ có khi VN Office ghi ra và chưa
+        // Xem chú thích ở nhánh DOM phía trên: vno:page-* chỉ có khi 3T Office ghi ra và chưa
         // qua vòng chuyển đổi thật nào; file thật cần đọc style:page-layout-properties chuẩn ODF.
         const tableStyleMatch = tableMatch[1].match(/table:style-name=["']([^"']*)["']/i);
         const standardLayout = this._parseStandardOdfPageLayout(tableXml, this._unescapeXml(tableStyleMatch?.[1] || ""));
@@ -4964,13 +4964,13 @@ export class SheetAdapter {
     this._invalidateRowTopsCache?.();
     // LibreOffice recalculates add-in functions it does not have (e.g. the Vietnamese
     // VND() "amount in words" XLL) to #ADDIN?/#NAME? on import and drops the cached
-    // text. When VN Sheet implements the function, compute the value once on open.
+    // text. When 3T Sheet implements the function, compute the value once on open.
     const engine = this.grid.formulaEngine;
     if (engine?.evaluate) {
       const openSheet = this.grid.activeSheet;
       for (const [sheetName, sheetData] of Object.entries(this.grid.sheetsData || {})) {
         for (const item of sheetData?.values?.() || []) {
-          // Only functions LibreOffice lacks but VN Sheet implements: a broad "#NAME?" rule
+          // Only functions LibreOffice lacks but 3T Sheet implements: a broad "#NAME?" rule
           // replaced Excel's cached #REF! with numbers (lan04.xlsx, 23 cells, 28/9).
           if (!item?.formula || item.externalLink || !/^#(ADDIN|NAME)\?$/.test(String(item.val))
             || !/(^|[^A-Z0-9_.])(_XLL\.)?VND\s*\(/i.test(item.formula)) continue;
@@ -4982,7 +4982,7 @@ export class SheetAdapter {
       this.grid.activeSheet = openSheet;
     }
     // Excel opens such a workbook with a notice and shows the last saved values;
-    // VN Office is offline and never opens the other workbook itself.
+    // 3T Office is offline and never opens the other workbook itself.
     let externalLinkCells = 0;
     for (const sheetData of Object.values(this.grid.sheetsData || {})) {
       for (const item of sheetData?.values?.() || []) {
@@ -4993,7 +4993,7 @@ export class SheetAdapter {
     if (externalLinkCells > 0) {
       this.shell?.setStatus?.(`Tệp có ${externalLinkCells} ô liên kết tới sổ làm việc khác — đang hiển thị giá trị lưu lần cuối (không tự cập nhật).`);
       this.shell?.showNotification?.({
-        message: `Tệp có ${externalLinkCells} ô liên kết tới sổ làm việc khác. VN Office hiển thị giá trị lưu lần cuối và không tự cập nhật (ứng dụng chạy ngoại tuyến).`,
+        message: `Tệp có ${externalLinkCells} ô liên kết tới sổ làm việc khác. 3T Office hiển thị giá trị lưu lần cuối và không tự cập nhật (ứng dụng chạy ngoại tuyến).`,
         type: "warning",
         action: {
           label: "Tìm hiểu thêm",
@@ -5424,7 +5424,7 @@ export class SheetAdapter {
       this.shell?.setStatus?.("Không thể mở tệp. Sổ làm việc đang mở được giữ nguyên.");
       await showAlertDialog({
         title: "Không thể mở tệp",
-        message: "VN Sheet không thể nạp bảng tính bằng dữ liệu chính hoặc bản FODS dự phòng. Sổ làm việc đang mở được giữ nguyên.",
+        message: "3T Sheet không thể nạp bảng tính bằng dữ liệu chính hoặc bản FODS dự phòng. Sổ làm việc đang mở được giữ nguyên.",
         type: "error"
       });
       return false;

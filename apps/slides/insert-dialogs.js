@@ -1,5 +1,5 @@
 /**
- * VN Slides — Insert dialogs (Table size, Header & Footer)
+ * 3T Slide — Insert dialogs (Table size, Header & Footer)
  */
 
 import { t, getLocale } from "../../platform/i18n/i18n.js";
@@ -419,7 +419,7 @@ export function applyWordArtCss(el, shapeOrOptions = {}, options = {}) {
  * @returns {Promise<{text:string, presetId:string}|null>}
  */
 export function showWordArtDialog(options = {}) {
-  const defaultText = String(options.text || "VN Office");
+  const defaultText = String(options.text || "3T Office");
   const defaultPreset = resolveWordArtPreset(options.presetId || options.styleId).id;
   if (typeof document === "undefined" || !document.body || typeof document.createElement !== "function") {
     return Promise.resolve({ text: defaultText, presetId: defaultPreset });

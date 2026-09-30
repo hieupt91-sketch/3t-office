@@ -1,4 +1,4 @@
-const APP_NAMES = { writer: "VN Writer", sheet: "VN Sheet", slides: "VN Slides" };
+const APP_NAMES = { writer: "3T Doc", sheet: "3T Sheet", slides: "3T Slide" };
 
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
@@ -37,7 +37,7 @@ export class RecoveryDialog {
     overlay.className = "vno-recovery-overlay";
     overlay.innerHTML = `
       <section class="vno-recovery-dialog" role="dialog" aria-modal="true" aria-labelledby="vno-recovery-title" aria-describedby="vno-recovery-description" tabindex="-1">
-        <header class="vno-recovery-header"><div><h2 id="vno-recovery-title">Khôi phục tài liệu</h2><p id="vno-recovery-description">VN Office tìm thấy bản lưu tự động từ phiên làm việc trước chưa đóng bình thường.</p></div></header>
+        <header class="vno-recovery-header"><div><h2 id="vno-recovery-title">Khôi phục tài liệu</h2><p id="vno-recovery-description">3T Office tìm thấy bản lưu tự động từ phiên làm việc trước chưa đóng bình thường.</p></div></header>
         <div class="vno-recovery-list" role="list"></div>
         <div class="vno-recovery-message" aria-live="polite" role="status"></div>
         <footer><button type="button" class="vno-btn vno-recovery-later">Để sau</button></footer>

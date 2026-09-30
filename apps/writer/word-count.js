@@ -1,5 +1,5 @@
 /**
- * VN Writer — Đếm từ (Word Count)
+ * 3T Doc — Đếm từ (Word Count)
  * Thống kê từ / ký tự / đoạn / dòng dựa trên innerText của thân tài liệu.
  * Không gửi nội dung tài liệu ra ngoài.
  */

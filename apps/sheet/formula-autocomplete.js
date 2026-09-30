@@ -1,5 +1,5 @@
 ﻿/**
- * VN Sheet — Formula Autocomplete & Parameter IntelliSense Controller
+ * 3T Sheet — Formula Autocomplete & Parameter IntelliSense Controller
  * Trải nghiệm gợi ý hàm & tooltip cú pháp tham số chuẩn Microsoft Excel
  */
 

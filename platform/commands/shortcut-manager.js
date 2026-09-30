@@ -1,5 +1,5 @@
 /**
- * VN Office Platform — Enterprise Shortcut & KeyTips Manager
+ * 3T Office Platform — Enterprise Shortcut & KeyTips Manager
  * Tương thích 100% hệ thống phím tắt Microsoft Office & LibreOffice
  * Tuân thủ quy định 01-architecture/COMMAND-ARCHITECTURE.md & 03-ui-ux/ACCESSIBILITY.md
  */

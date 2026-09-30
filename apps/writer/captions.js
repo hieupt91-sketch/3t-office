@@ -1,5 +1,5 @@
 /**
- * VN Writer — Captions & Table of Figures
+ * 3T Doc — Captions & Table of Figures
  * Nhãn + số tự động theo từng loại (Hình / Bảng / Phương trình) và danh mục tự động.
  * Dialog headless-safe: unit test không treo chờ click.
  */

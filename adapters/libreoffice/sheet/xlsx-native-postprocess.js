@@ -346,7 +346,7 @@ export function postProcessSheetXlsx(xlsxPathOrBuffer, options = {}) {
   // Freeze Panes: soffice thật không khôi phục <pane> qua ODF office:settings
   // khi chuyển đổi headless FODS->XLSX (xác nhận qua vòng chuyển đổi soffice
   // thật) - ghi thẳng <pane> chuẩn vào (các) worksheetN.xml thật dựa theo
-  // vno:frozen-rows/cols mà VN Office tự lưu trong FODS nguồn.
+  // vno:frozen-rows/cols mà 3T Office tự lưu trong FODS nguồn.
   const freezeBySheet = parseFreezePanesFromFods(options.sourceFods);
   if (Object.keys(freezeBySheet).length > 0) {
     const sheetEntries = resolveXlsxSheetEntries(source);

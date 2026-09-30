@@ -1,4 +1,4 @@
-"""Signed, offline-tolerant automatic update support for VN Office."""
+"""Signed, offline-tolerant automatic update support for 3T Office."""
 
 from .crypto import generate_rsa_key, sign_sha256_pkcs1v15, verify_sha256_pkcs1v15
 from .manifest import ManifestError, compare_versions, parse_manifest, validate_manifest

@@ -1,5 +1,5 @@
 /**
- * VN Office UI Kit — Date & Time format helper + dialog
+ * 3T Office UI Kit — Date & Time format helper + dialog
  * Writer chèn chuỗi tại con trỏ; Slides dùng cùng định dạng cho placeholder tự cập nhật.
  */
 

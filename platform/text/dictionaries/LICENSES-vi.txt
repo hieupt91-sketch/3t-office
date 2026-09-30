@@ -1,4 +1,4 @@
-VN Office Vietnamese spellcheck dictionary data
+3T Office Vietnamese spellcheck dictionary data
 ================================================
 
 Source corpus
@@ -17,7 +17,7 @@ Snapshot commit: 154dda177b3c45db8423b4f970bd131490b224b1
 Snapshot commit date: 2022-12-14
 Source SHA-256: 6E6B9D0C3DB850237CC916811951C6536809EECCC15786BB8BDFA5D6B63C2552
 
-The source file contains 5,711 non-empty Vietnamese sentences. The VN Office
+The source file contains 5,711 non-empty Vietnamese sentences. The 3T Office
 word list was derived offline by normalizing the corpus to Unicode NFC,
 extracting alphabetic tokens, converting them to lowercase, removing exact
 duplicates, and sorting the resulting 2,798 distinct tokens with the

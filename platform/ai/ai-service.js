@@ -1,4 +1,4 @@
-/** VN Office Platform — AI Service / provider orchestrator. */
+/** 3T Office Platform — AI Service / provider orchestrator. */
 import { RuleBasedProvider } from "./providers/rule-based-provider.js";
 import { OllamaProvider } from "./providers/ollama-provider.js";
 import { OpenAiProvider } from "./providers/openai-provider.js";

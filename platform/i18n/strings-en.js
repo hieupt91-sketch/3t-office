@@ -1,14 +1,14 @@
 /**
- * VN Office Platform — English Strings Catalog (ESM)
+ * 3T Office Platform — English Strings Catalog (ESM)
  * Mirror của strings-vi.js — mọi key ở đây PHẢI có key tương ứng bên strings-vi.js.
  */
 
 export const enStrings = {
   app: {
-    suiteName: "VN Office",
-    writer: "VN Writer (Word Processor)",
-    sheet: "VN Sheet (Spreadsheet)",
-    slides: "VN Slides (Presentation)"
+    suiteName: "3T Office",
+    writer: "3T Doc (Word Processor)",
+    sheet: "3T Sheet (Spreadsheet)",
+    slides: "3T Slide (Presentation)"
   },
   common: {
     save: "Save document",
@@ -39,7 +39,7 @@ export const enStrings = {
     stepsHeading: "How to use"
   },
   aiAssistant: {
-    title: "VN AI Assistant", provider: "AI provider", local: "Local (default)",
+    title: "3T AI Assistant", provider: "AI provider", local: "Local (default)",
     activeProvider: "Actually in use", configureKey: "Configure API key", apiKey: "API key",
     showKey: "Show key", hideKey: "Hide key", saveConsent: "Consent & Save key", removeKey: "Remove key",
     send: "Send", stop: "Stop", analyzing: "Analyzing...", stopped: "Request stopped.",
@@ -63,7 +63,7 @@ export const enStrings = {
     formulaFromDescPlaceholder: "Describe the formula to create...",
     formulaFromDescPreview: "Formula Preview",
     formulaFromDescApply: "Apply to selected cell",
-    formulaFromDescInvalid: "The generated formula is not compatible with VN Sheet. Please try a different description.",
+    formulaFromDescInvalid: "The generated formula is not compatible with 3T Sheet. Please try a different description.",
     formulaFromDescUnsupported: "Formula contains unsupported functions:"
   },
   backstage: {
@@ -75,7 +75,7 @@ export const enStrings = {
     print: "Print (Ctrl+P)",
     printNow: "Print Now",
     exportPdf: "Export PDF",
-    about: "About VN Office",
+    about: "About 3T Office",
     templateTitle: "Standard Vietnamese Document Templates",
     templateSubtitle: "Quickly start a new document from an administrative or business template",
     recentTitle: "Recent Documents",
@@ -97,7 +97,7 @@ export const enStrings = {
   },
   sheetRibbon: {
     whatIfAnalysis: "What-If Analysis",
-    tab: { home: "Home", formulas: "Formulas", data: "Data", insert: "Insert", pageLayout: "Page Layout", review: "Review", view: "View", help: "Help", ai: "VN AI Assistant" },
+    tab: { home: "Home", formulas: "Formulas", data: "Data", insert: "Insert", pageLayout: "Page Layout", review: "Review", view: "View", help: "Help", ai: "3T AI Assistant" },
     group: { clipboard: "Clipboard", font: "Font", alignment: "Alignment", number: "Number", styles: "Styles", cells: "Cells", quickAnalysis: "Editing & Data", editing: "Editing", functionLibrary: "Function Library", definedNames: "Defined Names", formulaAuditing: "Formula Auditing", calculation: "Calculation", sortFilter: "Sort & Filter", dataTools: "Data Tools", outline: "Outline", pivotTable: "PivotTable", tables: "Tables", illustrations: "Illustrations", charts: "Charts", sparklines: "Sparklines", links: "Links", text: "Text", printArea: "Print Area", pageBreaks: "Page Breaks", pageSetup: "Page Setup", scaleToFit: "Scale to Fit", sheetOptions: "Sheet Options", proofing: "Proofing", comments: "Comments", protection: "Protect", workbookViews: "Workbook Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiAnalysis: "AI Data Analysis" },
     editing: { fill: "Fill", clear: "Clear" },
     alignment: { orientation: "Orientation" },
@@ -105,7 +105,7 @@ export const enStrings = {
     window: { freezePanes: "Freeze Panes" }
   },
   slidesRibbon: {
-    tab: { home: "Home", insert: "Insert", design: "Design", transitions: "Transitions", animations: "Animations", slideshow: "Slide Show", review: "Review", view: "View", help: "Help", ai: "VN AI Assistant" },
+    tab: { home: "Home", insert: "Insert", design: "Design", transitions: "Transitions", animations: "Animations", slideshow: "Slide Show", review: "Review", view: "View", help: "Help", ai: "3T AI Assistant" },
     group: { slides: "Slides", clipboard: "Clipboard", font: "Font", paragraph: "Paragraph", drawing: "Drawing", editing: "Editing", imagesObjects: "Images & Objects", images: "Images", illustrations: "Illustrations", tables: "Tables", text: "Text", symbols: "Symbols", media: "Media", themes: "Themes", master: "Slide Master", customize: "Customize", transitions: "Transition to This Slide", animations: "Animation", startSlideshow: "Start Slide Show", presenter: "Presenter Tools", setup: "Set Up", comments: "Comments", proofing: "Proofing", presentationViews: "Presentation Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiContent: "AI Presentation Content" },
     editing: { select: "Select" },
     drawing: { arrange: "Arrange" },
@@ -119,7 +119,7 @@ export const enStrings = {
     errorCheckingTitle: "Error Checking", noErrorsFound: "The error check is complete for the entire sheet. No errors were found.", errorsFoundPrompt: "Found <strong>{count}</strong> formula errors in the current sheet:", errorColCell: "Cell", errorColCode: "Error", errorColFormula: "Formula", errorColReason: "Reason", calcError: "Calculation error", divZero: "Division by zero or empty cell", invalidRef: "Invalid cell reference", wrongType: "Incorrect data type", naError: "Value not available", nameError: "Unrecognized formula or name", numError: "Numeric value out of range",
     watchWindowTitle: "Watch Window", addWatch: "Add Watch", deleteWatch: "Delete Watch", watchWindowColBook: "Book", watchWindowColSheet: "Sheet", watchWindowColName: "Name", watchWindowColCell: "Cell", watchWindowColValue: "Value", watchWindowColFormula: "Formula", watchWindowEmpty: "No watched cells.", addWatchTitle: "Add Watch", addWatchPrompt: "Select the cells that you would like to watch the value of:", addWatchBtn: "Add", deleteWatchConfirm: "Select a row in the table to delete watch.", watchWindowCountSuffix: "watched cell(s)", watchWindowKeyboardHint: "Shortcuts: Delete to remove, Enter to navigate, Esc to close", watchWindowInvalidCoord: "Invalid cell reference.", defineNameTitle: "Define Name", nameLabel: "Name:", refersTo: "Refers to:", useInFormulaTitle: "Paste Name", namePlaceholder: "e.g., Payroll, UnitPrice", scopeLabel: "Scope:", scopeWorkbook: "Workbook (Entire workbook)", invalidName: "The name is invalid or already exists.", useInFormulaPrompt: "Select a name to paste into the formula:",
     nameManagerTitle: "Name Manager", nameNew: "New...", nameEdit: "Edit...", nameDelete: "Delete", noNamedRanges: "No named ranges found.", invalidNameOrRef: "Name or reference is invalid or duplicate.",
-    newComment: "New Comment {coord}", editComment: "Edit Comment {coord}", commentContent: "Comment", commentPlaceholder: "Enter a comment for {coord}", author: "Author", defaultAuthor: "VN Office User", saveChanges: "Save Changes", addComment: "Add Comment", deleteComment: "Delete Comment", emptyComment: "Comment text cannot be empty.",
+    newComment: "New Comment {coord}", editComment: "Edit Comment {coord}", commentContent: "Comment", commentPlaceholder: "Enter a comment for {coord}", author: "Author", defaultAuthor: "3T Office User", saveChanges: "Save Changes", addComment: "Add Comment", deleteComment: "Delete Comment", emptyComment: "Comment text cannot be empty.",
     spellcheckTitle: "Spelling", spellcheckNotInDictionary: "Not in Dictionary:", spellcheckCell: "Cell", spellcheckContext: "Cell text", spellcheckSuggestions: "Suggestions:", spellcheckNoSuggestions: "(No close suggestions)", spellcheckIgnore: "Ignore Once", spellcheckIgnoreAll: "Ignore All", spellcheckAdd: "Add to Dictionary", spellcheckReplace: "Change", spellcheckReplaceAll: "Change All", spellcheckClose: "Close", spellcheckStatus: "Issue {current} of {total}", spellcheckComplete: "The spelling check is complete for the entire sheet. No misspellings were found.", spellcheckCompleteRemaining: "The spelling check is complete. No misspellings remain.",
     conditionalFormatting: "Conditional Formatting", rule: "Rule", greaterThan: "Greater Than", lessThan: "Less Than", blankCell: "Blanks", fillColor: "Fill Color", invalidNumber: "Enter a valid number.",
     dataValidation: "Data Validation", allow: "Allow", list: "List", numberRange: "Whole number range", listValues: "Source values (comma-separated)", listPlaceholder: "Approved, Rejected, In progress", minimum: "Minimum", maximum: "Maximum", invalidValidation: "The data validation settings are not valid.", chooseOption: "-- Select --", selectCellValue: "Select value for cell {col}{row}",
@@ -249,7 +249,7 @@ export const enStrings = {
     sectionAddTitle: "Add Section", sectionAddMessage: "Section name", sectionAddConfirm: "Add",
     sectionRenameTitle: "Rename Section", sectionRenameMessage: "New name", sectionRenameConfirm: "Rename",
     sectionCollapse: "Collapse section", sectionExpand: "Expand section",
-    slideElapsed: "Slide", totalElapsed: "Total", footerDoc: "VN Office Presentation",
+    slideElapsed: "Slide", totalElapsed: "Total", footerDoc: "3T Office Presentation",
     prevSlideTitle: "Previous slide (←)", nextSlideTitle: "Next slide (Space or →)",
     prevSlideReadingTitle: "Previous slide (Left arrow)", nextSlideReadingTitle: "Next slide (Right arrow)",
     exitReadingTitle: "Exit reading mode (Esc)", notesFontDecTitle: "Decrease font size", notesFontIncTitle: "Increase font size",
@@ -259,8 +259,8 @@ export const enStrings = {
     formatBackgroundTitle: "Format Background", formatBackgroundHint: "Change this slide's background. This does not replace the presentation theme.", formatBackgroundSolid: "Solid fill", formatBackgroundGradient: "Two-color gradient", formatBackgroundPicture: "Picture", formatBackgroundColor: "Fill color", formatBackgroundFrom: "Color 1", formatBackgroundTo: "Color 2", formatBackgroundDirection: "Direction", formatBackgroundHorizontal: "Horizontal", formatBackgroundVertical: "Vertical", formatBackgroundChoosePicture: "Choose picture…", formatBackgroundApplyCurrent: "Apply to this slide", formatBackgroundApplyAll: "Apply to all slides", formatBackgroundClear: "Remove custom background",
     spellcheckTitle: "Spelling", spellcheckNotInDictionary: "Not in Dictionary:", spellcheckLocation: "Location", spellcheckContext: "Text", spellcheckSuggestions: "Suggestions:", spellcheckNoSuggestions: "(No close suggestions)", spellcheckIgnore: "Ignore Once", spellcheckIgnoreAll: "Ignore All", spellcheckAdd: "Add to Dictionary", spellcheckReplace: "Change", spellcheckReplaceAll: "Change All", spellcheckClose: "Close", spellcheckStatus: "Issue {current} of {total}", spellcheckComplete: "The spelling check is complete for this slide. No misspellings were found.", spellcheckCompleteRemaining: "The spelling check is complete. No misspellings remain.", spellcheckFieldTitle: "Title", spellcheckFieldBody: "Body", spellcheckFieldBody2: "Second column", spellcheckFieldShape: "Shape",
     animationPaneTitle: "Animation Pane", animationPaneHint: "Every animation on the current slide. Reorder with Up/Down, choose how it starts, or remove the animation without deleting the object.", animationPaneEmpty: "This slide has no animations. Apply an object animation on the Animations tab, then open this pane to sequence them.", animStartLabel: "Start", animStartOnClick: "On Click", animStartWithPrevious: "With Previous", animStartAfterPrevious: "After Previous", animMoveUp: "Move up", animMoveDown: "Move down", animMoveUpShort: "↑", animMoveDownShort: "↓", animRemove: "Remove animation", animRemoveShort: "Remove", shapeWordArt: "WordArt", shapeChart: "Chart", shapeTable: "Table", shapeTextBox: "Text box",
-    setupShowTitle: "Set Up Slide Show", setupShowHint: "Slide show options for this presentation. Loop until Esc applies immediately in F5. Default pen and laser pointer color during slide show (toggle with Ctrl+P, Ctrl+L).", setupShowLoop: "Loop continuously until Esc", setupShowNoNarration: "Show without narration", setupShowNoNarrationHint: "VN Slides does not have audio narration yet — this option only stores a flag and does not mute or hide audio.", setupShowPointerColor: "Pen / laser pointer color",
-    keepInkTitle: "VN Slides", keepInkPrompt: "Do you want to keep your ink annotations?", keepInkKeep: "Keep", keepInkDiscard: "Discard",
+    setupShowTitle: "Set Up Slide Show", setupShowHint: "Slide show options for this presentation. Loop until Esc applies immediately in F5. Default pen and laser pointer color during slide show (toggle with Ctrl+P, Ctrl+L).", setupShowLoop: "Loop continuously until Esc", setupShowNoNarration: "Show without narration", setupShowNoNarrationHint: "3T Slide does not have audio narration yet — this option only stores a flag and does not mute or hide audio.", setupShowPointerColor: "Pen / laser pointer color",
+    keepInkTitle: "3T Slide", keepInkPrompt: "Do you want to keep your ink annotations?", keepInkKeep: "Keep", keepInkDiscard: "Discard",
     slideshowNext: "Next", slideshowPrev: "Previous", slideshowPointerOptions: "Pointer Options", slideshowArrow: "Arrow", slideshowPen: "Pen", slideshowLaser: "Laser Pointer", slideshowPenColor: "Pen Color", slideshowEraseInk: "Erase Ink on Slide", slideshowEndShow: "End Show",
     colorRed: "Red", colorBlue: "Blue", colorYellow: "Yellow", colorGreen: "Green", colorBlack: "Black"
   },
@@ -322,7 +322,7 @@ export const enStrings = {
     "common.view.zoomIn": { label: "Zoom In", tooltip: "Increase zoom level (Ctrl++)" },
     "common.view.zoomOut": { label: "Zoom Out", tooltip: "Decrease zoom level (Ctrl+-)" },
     "common.view.fullScreen": { label: "Full Screen", tooltip: "Toggle full screen mode (F11)" },
-    "ai.assistant.toggle": { label: "VN AI Assistant", tooltip: "Open the VN AI assistant panel (Alt+J)" },
+    "ai.assistant.toggle": { label: "3T AI Assistant", tooltip: "Open the 3T AI assistant panel (Alt+J)" },
     "ai.assistant.summarize": { label: "Quick Summary", tooltip: "Summarize the selected content with AI" },
     "ai.assistant.rewrite": { label: "Rewrite", tooltip: "Rewrite text in polished Vietnamese style" },
     "ai.assistant.grammarCheck": { label: "Spell Check", tooltip: "Check Vietnamese spelling and grammar (F7)" }
@@ -573,7 +573,7 @@ export const enStrings = {
     ,"slides.para.lineSpacing": { label: "Line Spacing", tooltip: "Set line spacing to 1.0, 1.5, or 2.0" }
     ,"slides.help.open": { label: "Help", tooltip: "Open the in-app user guide (F1)" }
 
-    ,// VN Writer Commands
+    ,// 3T Doc Commands
     "writer.text.bold": { label: "Bold", tooltip: "Bold (Ctrl+B)" },
     "writer.text.italic": { label: "Italic", tooltip: "Italic (Ctrl+I)" },
     "writer.text.underline": { label: "Underline", tooltip: "Underline (Ctrl+U)" },
@@ -703,7 +703,7 @@ export const enStrings = {
       review: "Review",
       view: "View",
       help: "Help",
-      ai: "VN AI Assistant"
+      ai: "3T AI Assistant"
     },
     group: {
       clipboard: "Clipboard",
@@ -845,7 +845,7 @@ export const enStrings = {
         veryBold: "6 pt (Extra Thick)"
       },
       colors: {
-        blueOffice: "VN Office Blue",
+        blueOffice: "3T Office Blue",
         charcoal: "Charcoal",
         gray: "Neutral Gray",
         adminRed: "Official Red",

@@ -1,4 +1,4 @@
-/** Pure Pivot Table aggregation for VN Sheet. */
+/** Pure Pivot Table aggregation for 3T Sheet. */
 export class PivotTableEngine {
   static parseRange(range) {
     const match = String(range).trim().toUpperCase().match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);

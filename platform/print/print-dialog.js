@@ -241,7 +241,7 @@ export async function openPrintDialog({
   overlay.querySelector(".vno-print-close").focus();
   try {
     if (!engine?.preparePrintDocument || !engine?.getInstalledPrinters) {
-      throw new Error("Dịch vụ in chỉ khả dụng trong VN Office Desktop có LibreOffice.");
+      throw new Error("Dịch vụ in chỉ khả dụng trong 3T Office Desktop có LibreOffice.");
     }
     const [prepared, printerResult] = await Promise.all([
       engine.preparePrintDocument(appKind, content, documentName, sourcePath),

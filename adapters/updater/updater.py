@@ -273,7 +273,7 @@ class UpdaterManager:
             if version_order < 0:
                 raise UpdateRefused("Từ chối hạ cấp hoặc cài lại cùng phiên bản")
             if compare_versions(self.current_version, manifest["min_version"]) < 0:
-                raise UpdateRefused("Bản cập nhật yêu cầu cài mới VN Office trước")
+                raise UpdateRefused("Bản cập nhật yêu cầu cài mới 3T Office trước")
             if not is_update_allowed(manifest):
                 raise UpdateRefused("Giấy phép hiện tại chưa được phép cập nhật")
             changed = compute_delta(self.install_dir, manifest)

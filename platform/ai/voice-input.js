@@ -1,5 +1,5 @@
 /**
- * VN Office AI — Nhập liệu bằng giọng nói (Voice Input / Speech-to-Text)
+ * Trợ lý 3T AI — Nhập liệu bằng giọng nói (Voice Input / Speech-to-Text)
  * Dùng Web Speech API (SpeechRecognition) — API chuẩn có sẵn trong Chromium/Edge.
  * WebView2 (pywebview Windows) dùng Chromium engine → SpeechRecognition khả dụng
  * khi chạy qua HTTP (localhost), KHÔNG cần thêm dependency.

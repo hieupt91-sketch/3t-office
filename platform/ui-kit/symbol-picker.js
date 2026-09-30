@@ -1,5 +1,5 @@
 /**
- * VN Office UI Kit — Shared Symbol Picker
+ * 3T Office UI Kit — Shared Symbol Picker
  * Hộp thoại chọn ký tự đặc biệt dùng chung Writer và Slides.
  */
 

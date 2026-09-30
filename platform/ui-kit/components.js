@@ -1,5 +1,5 @@
 /**
- * VN Office UI Kit — Precision Component Factory
+ * 3T Office UI Kit — Precision Component Factory
  * Đảm bảo 100% nút Ribbon đều có Icon Vector sắc nét
  */
 

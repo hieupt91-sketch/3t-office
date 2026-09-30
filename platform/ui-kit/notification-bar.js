@@ -1,5 +1,5 @@
 /**
- * VN Office UI Kit — Notification Bar Component
+ * 3T Office UI Kit — Notification Bar Component
  *
  * Thanh thông báo ngữ cảnh dùng chung (Office-style InfoBar / Security Warning Bar).
  * Vị trí: Dưới ribbon, phía trên không gian làm việc (lưới/trang).

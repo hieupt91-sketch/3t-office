@@ -1,5 +1,5 @@
 /**
- * VN Office LibreOffice Adapter — VN Slides Adapter
+ * 3T Office LibreOffice Adapter — 3T Slide Adapter
  * Quản lý tương tác với StarImpress (sd) Document Model & Phím tắt Microsoft/LibreOffice
  */
 
@@ -819,7 +819,7 @@ export class SlidesAdapter {
    * màu của chủ đề, cỡ/độ đậm/căn lề theo slides.css), ghi thẳng vào từng đoạn khi lưu.
    * LibreOffice bỏ qua text-properties của style presentation (prTitle/prBody) khi xuất
    * PPTX (đo: mọi tiêu đề ra Arial 44pt đen, căn giữa, không đậm — khác hẳn màn hình), nên
-   * phải đặt ở mức đoạn/span thì PowerPoint mới mở ra đúng như VN Slides. Tệp mở từ ngoài
+   * phải đặt ở mức đoạn/span thì PowerPoint mới mở ra đúng như 3T Slide. Tệp mở từ ngoài
    * (imported) giữ nguyên định dạng gốc của tệp, không áp chủ đề VN.
    */
   _themeTextBase(role, slide) {
@@ -1947,7 +1947,10 @@ export class SlidesAdapter {
 
     const isImported = Boolean(this.canvas?.imported);
     const theme = this._masterTheme();
-    const isVnDefaultLogo = !theme?.logoText || theme?.logoText === "VN OFFICE • THUYẾT TRÌNH" || theme?.logoText === "VN OFFICE";
+    const isVnDefaultLogo = !theme?.logoText || [
+      "VN OFFICE • THUYẾT TRÌNH", "VN OFFICE",
+      "3T OFFICE • THUYẾT TRÌNH", "3T OFFICE"
+    ].includes(theme.logoText);
     const effectiveLogoText = (isImported && isVnDefaultLogo) ? "" : (theme?.logoText || "");
     const effectiveFooterText = theme?.footerText || "";
 
@@ -3010,7 +3013,7 @@ export class SlidesAdapter {
   _masterPageFillAttrs() {
     const isImported = Boolean(this.canvas?.imported);
     const theme = this._masterTheme();
-    // Default VN Office theme bgColor - don't serialize for imported docs
+    // Default 3T Office theme bgColor - don't serialize for imported docs
     const defaultBgColor = "#f8fafc";
     if (isImported && (!theme?.bgColor || theme.bgColor === defaultBgColor)) return "";
     const color = this._cssColorToHex(theme?.bgColor || "") || theme?.bgColor;
@@ -3024,7 +3027,10 @@ export class SlidesAdapter {
     if (!theme) {
       return `<style:master-page style:name="Standard" style:page-layout-name="PM1" draw:style-name="dp1"/>`;
     }
-    const isVnDefaultLogo = !theme.logoText || theme.logoText === "VN OFFICE • THUYẾT TRÌNH" || theme.logoText === "VN OFFICE";
+    const isVnDefaultLogo = !theme.logoText || [
+      "VN OFFICE • THUYẾT TRÌNH", "VN OFFICE",
+      "3T OFFICE • THUYẾT TRÌNH", "3T OFFICE"
+    ].includes(theme.logoText);
     const effectiveLogoText = (isImported && isVnDefaultLogo) ? "" : (theme.logoText || "");
     const effectiveFooterText = theme.footerText || "";
     const payload = {
@@ -3717,7 +3723,7 @@ export class SlidesAdapter {
         this.isDirty = previous.isDirty;
         await showAlertDialog({
           title: "Không thể mở tệp",
-          message: error?.message || "VN Slides không thể đọc nội dung tệp. Bản trình chiếu đang mở được giữ nguyên.",
+          message: error?.message || "3T Slide không thể đọc nội dung tệp. Bản trình chiếu đang mở được giữ nguyên.",
           type: "error"
         });
         return false;

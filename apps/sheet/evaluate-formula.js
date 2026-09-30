@@ -1,5 +1,5 @@
 /**
- * VN Sheet — Evaluate Formula stepper.
+ * 3T Sheet — Evaluate Formula stepper.
  *
  * FormulaEngine.evaluate() chỉ trả kết quả cuối (hàm lồng nhau được
  * _resolveSingleValue gọi đệ quy). Module này không viết lại engine:
