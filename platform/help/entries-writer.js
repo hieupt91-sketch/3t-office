@@ -280,7 +280,7 @@ export const WRITER_HELP_ENTRIES = [
     steps: [
       "Đặt con trỏ trong đoạn (hoặc bôi vài đoạn). Tab Trang đầu, nhóm Đoạn văn, hàng trên: sau Dấu đầu dòng và Đánh số là nút Danh sách đa cấp (biểu tượng 1. / 1.1 / a.). Nhấn mũi tên để mở gallery.",
       "Chọn một kiểu: 1. / 1.1. / 1.1.1. (đề mục pháp lý, mục lục); 1. / a. / i. (kiểu Word cổ điển); Điều 1. / 1. / a) (Điều — Khoản — Điểm, văn bản hành chính Việt Nam). Các đoạn đang chọn thành một danh sách cùng kiểu.",
-      "Tăng cấp: đặt con trỏ trong mục danh sách rồi nhấn Tab (hoặc Thụt lề Ctrl+M). Mục đó thành cấp con của mục ngay trên — ví dụ 2. thành 1.1. Giảm cấp: Shift+Tab (hoặc Giảm thụt lề Ctrl+Shift+M). Ở cấp 1, Shift+Tab đưa mục về đoạn thường.",
+      "Tăng cấp: đặt con trỏ trong mục danh sách rồi nhấn Thụt lề (Ctrl+M). Mục đó thành cấp con của mục ngay trên — ví dụ 2. thành 1.1. Giảm cấp: nhấn Giảm thụt lề (Ctrl+Shift+M). Ở cấp 1, thao tác này đưa mục về đoạn thường. Lưu ý: giảm cấp không phải phím Shift+Tab như Word.",
       "Phiên bản này hỗ trợ tối đa 3 cấp. Tab khi đang ở cấp 3 không lồng thêm. Nút Đánh số / Dấu đầu dòng vẫn tạo list một cấp như trước; chọn lại một kiểu trong gallery để đổi cả cây danh sách đang chọn."
     ]
   },
