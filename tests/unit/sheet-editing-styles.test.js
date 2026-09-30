@@ -339,7 +339,8 @@ export async function runSheetEditingStylesTests() {
     assert(grid.getSelectedRangeLabel() === "G2:G4", `Shift+Click G2→G4 phải chọn G2:G4, nhận: ${grid.getSelectedRangeLabel()}`);
     assert(grid.selectionRange.start.c === "G" && grid.selectionRange.start.r === 2, "Neo start phải giữ G2");
     assert(grid.selectionRange.end.c === "G" && grid.selectionRange.end.r === 4, "End phải là G4");
-    assert(grid.selectedCoord.c === "G" && grid.selectedCoord.r === 2, "selectedCoord phải giữ neo G2");
+    assert(grid._rangeAnchor.c === "G" && grid._rangeAnchor.r === 2, "Neo range phải giữ G2");
+    assert(grid.selectedCoord.c === "G" && grid.selectedCoord.r === 4, "selectedCoord phải theo ô cuối G4");
 
     grid.fillDown();
 

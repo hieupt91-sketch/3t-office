@@ -147,6 +147,25 @@ export class UnoBridge {
     return { status: "error", message: "Không thể đóng cửa sổ tài liệu hiện tại." };
   }
 
+  /**
+   * Mở tệp nguồn dữ liệu trộn thư (.xlsx, .xls, .csv, .tsv) qua hộp thoại native desktop.
+   */
+  async openMailMergeDataSource() {
+    if (!this.desktopApi || !this.hasRealEngine) {
+      return {
+        status: "error",
+        message: "Chức năng đọc tệp Excel chỉ khả dụng trong VN Office Desktop App (đã cài LibreOffice).",
+      };
+    }
+    if (typeof this.desktopApi.open_mail_merge_data_dialog === "function") {
+      return await this.desktopApi.open_mail_merge_data_dialog();
+    }
+    return {
+      status: "error",
+      message: "Hệ thống chưa hỗ trợ hộp thoại nguồn dữ liệu.",
+    };
+  }
+
   async getSheetOpenFallback(openId) {
     if (!this.desktopApi) return { status: "error", message: "Không thể lấy dữ liệu dự phòng của bảng tính." };
     return await this.desktopApi.get_sheet_open_fallback(openId || "");
@@ -208,14 +227,46 @@ export class UnoBridge {
    * @param {string} content
    * @param {string} [suggestedName]
    */
-  async exportRealPdf(appKind, content, suggestedName) {
+  async exportRealPdf(appKind, content, suggestedName, sourcePath) {
     if (!this.desktopApi || !this.hasRealEngine) {
       return {
         status: "error",
         message: "Chức năng Xuất PDF thật chỉ khả dụng trong VN Office Desktop App (đã cài LibreOffice).",
       };
     }
-    return await this.desktopApi.export_pdf_dialog(content, appKind, suggestedName);
+    return await this.desktopApi.export_pdf_dialog(content, appKind, suggestedName, sourcePath);
+  }
+
+  async preparePrintDocument(appKind, content, suggestedName, sourcePath) {
+    if (!this.desktopApi || !this.hasRealEngine) {
+      return {
+        status: "error",
+        message: "Chức năng In chỉ khả dụng trong VN Office Desktop có LibreOffice.",
+      };
+    }
+    return await this.desktopApi.prepare_print_document(appKind, content, suggestedName, sourcePath);
+  }
+
+  async getPrintPreviewPage(sessionId, pageNumber) {
+    if (!this.desktopApi) return { status: "error", message: "Cầu nối Python của ứng dụng chưa sẵn sàng." };
+    return await this.desktopApi.get_print_preview_page(sessionId, pageNumber);
+  }
+
+  async getInstalledPrinters() {
+    if (!this.desktopApi) return { status: "error", message: "Danh sách máy in chỉ khả dụng trong VN Office Desktop." };
+    return await this.desktopApi.get_installed_printers();
+  }
+
+  async printDocument(sessionId, settings) {
+    if (!this.desktopApi || !this.hasRealEngine) {
+      return { status: "error", message: "Không tìm thấy dịch vụ in LibreOffice trên máy này." };
+    }
+    return await this.desktopApi.print_document(sessionId, settings);
+  }
+
+  async cancelPrintDocument(sessionId) {
+    if (!this.desktopApi || !sessionId) return false;
+    return await this.desktopApi.cancel_print_document(sessionId);
   }
 
   // AutoRecover is a local app-data service and does not require the LibreOffice engine.

@@ -1664,11 +1664,7 @@
   color: var(--vno-text-primary);
 }
 
-/* In tài liệu (window.print()) — canvas sống chỉ có 1 slide đang active trong DOM
-   (không như một bộ deck nhiều trang), nên KHÔNG thể in trực tiếp toàn bộ deck.
-   print() dựng lại TOÀN BỘ các slide không ẩn vào #vno-slides-print-only theo
-   đúng thứ tự trước khi gọi window.print(); ở đây chỉ cần ẩn canvas sống/preview
-   và hiện vùng in thật. */
+/* Fallback CSS cũ nếu WebView hiển thị vùng in HTML; thao tác In hiện dùng PDF LibreOffice. */
 @media print {
   html,
   body {

@@ -146,6 +146,7 @@ import { runSlidesTextVerticalDirectionTests } from "./unit/slides-text-vertical
 import { runSheetFreezePanesRealTests } from "./unit/sheet-freeze-panes-real.test.js";
 import { runSheetImageImportExportTests } from "./unit/sheet-image-import-export.test.js";
 import { runSheetStatusBarSumTests } from "./unit/sheet-status-bar-sum.test.js";
+import { runSheetRangeSelectionTests } from "./unit/sheet-range-selection.test.js";
 import { runSlidesPptxSetupShowOpenOverlayTests } from "./unit/slides-pptx-setup-show-open-overlay.test.js";
 import { runWriterParagraphSpacingTests } from "./unit/writer-paragraph-spacing.test.js";
 import { runWriterFindReplaceDomTests } from "./unit/writer-find-replace-dom.test.js";
@@ -156,6 +157,7 @@ import { runSheetPrintPreviewTests } from "./unit/sheet-print-preview.test.js";
 import { runSlidesPrintPreviewTests } from "./unit/slides-print-preview.test.js";
 import { runSheetPagesetupRealFileImportTests } from "./unit/sheet-pagesetup-real-file-import.test.js";
 import { runSheetPrintTitlesRealFileImportTests } from "./unit/sheet-print-titles-real-file-import.test.js";
+import { runSheetPrintTitlesGridSelectionTests } from "./unit/sheet-print-titles-grid-selection.test.js";
 import { runWriterFodtRealDocxParsingTests } from "./unit/writer-fodt-real-docx-parsing.test.js";
 import { runBackstagePrintThumbnailTests } from "./unit/backstage-print-thumbnail.test.js";
 import { runSlidesShapeAlignmentTests } from "./unit/slides-shape-alignment.test.js";
@@ -192,6 +194,10 @@ import { runAutoRecoverTests } from "./unit/autorecover.test.js";
 import { runUpdaterUiTests } from "./unit/updater-ui.test.js";
 import { run3tBrandUxTests } from "./unit/3t-brand-ux.test.js";
 import { runRibbonCommandHandlersTests } from "./unit/ribbon-command-handlers.test.js";
+import { runSheetWatchWindowTests } from "./unit/sheet-watch-window.test.js";
+import { runOfficeShortcutCoverageTests } from "./unit/office-shortcut-coverage.test.js";
+import { runMissingOfficeShortcutsTests } from "./unit/missing-office-shortcuts.test.js";
+import { runSlidesPenLaserTests } from "./unit/slides-pen-laser.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -352,6 +358,7 @@ async function runAll() {
     { title: "122. Unit & Behavioral Tests — VN Slides Print Preview (Ctrl+F2) + in thật (Ctrl+P)", runner: runSlidesPrintPreviewTests },
     { title: "123. Unit Tests — VN Sheet Page Setup: đọc đúng file ODF thật (không phụ thuộc thuộc tính riêng vno:page-*)", runner: runSheetPagesetupRealFileImportTests },
     { title: "123b. Unit Tests — VN Sheet Print Titles: đọc đúng Print Titles từ file ODF thật (_xlnm.Print_Titles)", runner: runSheetPrintTitlesRealFileImportTests },
+    { title: "123c. Unit Tests — VN Sheet Print Titles: nhập tham chiếu $1:$2/$A:$B + chọn trên lưới + serialisation", runner: runSheetPrintTitlesGridSelectionTests },
     { title: "124. Unit Tests — Writer parseFodt(): đọc đúng file FODT thật từ vòng chuyển đổi DOCX (page-layout regex + text:sequence-decls)", runner: runWriterFodtRealDocxParsingTests },
     { title: "125. Unit & Behavioral Tests — VN Office Backstage Print Thumbnail & Live Preview", runner: runBackstagePrintThumbnailTests },
     { title: "126. Unit & Behavioral Tests — VN Slides Multi-Shape Align/Distribute (GAP-SLIDES-01/02/03)", runner: runSlidesShapeAlignmentTests },
@@ -393,7 +400,12 @@ async function runAll() {
     { title: "158. Unit Tests — Shared AutoRecover dirty tracking, timer, and recovery dialog behavior", runner: runAutoRecoverTests },
     { title: "159. Unit Tests — G8 VN Slides basics vs PowerPoint 2016 (slides, text, objects, show, notes, save)", runner: runSlidesBasicsG8Tests },
     { title: "160. Unit Tests — 3T Office Brand UX (About Dialog)", runner: run3tBrandUxTests },
-    { title: "161. Unit Tests — 100% Ribbon Command Handlers & Definitions (Zero Silent NO-OPs)", runner: runRibbonCommandHandlersTests }
+    { title: "161. Unit Tests — 100% Ribbon Command Handlers & Definitions (Zero Silent NO-OPs)", runner: runRibbonCommandHandlersTests },
+    { title: "162. Unit Tests — Sheet Watch Window (Excel parity: 6 columns, multi-sheet, draggable, keyboard, real-time)", runner: runSheetWatchWindowTests },
+    { title: "163. Regression Guard — Microsoft Office Shortcut Coverage (Word/Excel/PowerPoint)", runner: runOfficeShortcutCoverageTests },
+    { title: "164. Unit Tests — Office Missing Shortcuts (Ctrl+], Ctrl+[, Ctrl+Shift++, Shift+F11, Ctrl+-, F11) & Undo", runner: runMissingOfficeShortcutsTests },
+    { title: "165. Unit Tests — Slides F5 Pen and Laser Pointer (Ctrl+P, Ctrl+L, Ctrl+A, E, Color, Keep/Discard ink)", runner: runSlidesPenLaserTests },
+    { title: "166. Unit Tests — VN Sheet range selection anchors, multi-area status and drag auto-scroll math", runner: runSheetRangeSelectionTests }
   ];
 
   for (const suite of suites) {

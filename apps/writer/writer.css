@@ -1370,81 +1370,23 @@ li.vno-page-auto-gap {
 
 /* Ẩn các thanh công cụ khi in thật */
 @media print {
-  @page {
-    margin: 0;
-  }
-  html,
-  body {
-    width: auto !important;
-    height: auto !important;
-    min-height: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    overflow: visible !important;
-    background: #fff !important;
-  }
-  body.vno-writer-printing > :not(.vno-print-preview-overlay) {
-    display: none !important;
-  }
-  .vno-print-preview-overlay {
-    position: static !important;
-    inset: auto !important;
-    z-index: auto !important;
-    display: block !important;
-    width: auto !important;
-    height: auto !important;
-    overflow: visible !important;
-    background: #fff !important;
-    color: #111827 !important;
-    animation: none !important;
-  }
+  .vno-print-preview-toolbar,
+  .vno-print-preview-overlay,
   .vno-writer-ruler,
   .vno-writer-comments-panel,
   .vno-page-auto-gap {
     display: none !important;
   }
-  .vno-print-preview-toolbar {
-    display: none !important;
-  }
-  .vno-print-preview-viewport {
-    display: block !important;
+  .vno-writer-viewport {
     overflow: visible !important;
     height: auto !important;
-    padding: 0 !important;
-    background: transparent !important;
-  }
-  .vno-print-preview-pages-container {
-    display: block !important;
-    width: auto !important;
-    gap: 0 !important;
-    transform: none !important;
-    transition: none !important;
-  }
-  .vno-print-preview-sheet {
-    margin: 0 !important;
-    box-shadow: none !important;
-    border-radius: 0 !important;
-    outline: none !important;
-    overflow: visible !important;
-    break-inside: avoid !important;
-    page-break-inside: avoid !important;
-    break-after: page;
-    page-break-after: always;
-  }
-  .vno-print-preview-sheet:last-child {
-    break-after: auto;
-    page-break-after: auto;
-  }
-  .vno-print-preview-page-number-tag {
-    display: none !important;
   }
   .vno-writer-page {
-    display: none !important;
+    box-shadow: none !important;
+    border: 1px solid var(--vno-border-subtle);
+    margin: 0 !important;
   }
-  /*
-   * Placeholder gợi ý chỉ hỗ trợ soạn thảo, không phải nội dung tài liệu.
-   * Giữ quy tắc này để không in lời nhắc nếu có header/footer rỗng trong DOM.
-   */
+  /* Ẩn gợi ý nhập đầu trang/chân trang nếu WebView cần dùng kiểu in dự phòng. */
   .vno-writer-header:empty::before,
   .vno-writer-footer:empty::before,
   .vno-note-text:empty::before {

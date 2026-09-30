@@ -6,7 +6,8 @@
 import { globalUnoBridge } from "../common/uno-bridge.js";
 import { showPromptDialog, showFindReplaceDialog, showAlertDialog } from "../../../platform/ui-kit/dialogs.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
-import { parseCsv, replaceMergeFields, showMailMergeDataSourceDialog, showInsertMergeFieldDialog } from "../../../apps/writer/mail-merge.js";
+import { openPrintDialog } from "../../../platform/print/print-dialog.js";
+import { parseCsv, parseDelimitedText, parseFodsData, replaceMergeFields, showMailMergeDataSourceDialog, showInsertMergeFieldDialog, showFinishMailMergeDialog } from "../../../apps/writer/mail-merge.js";
 import {
   ENVELOPE_SIZES,
   LABEL_LAYOUTS,
@@ -252,7 +253,11 @@ export class WriterAdapter {
     this.mailMergeData = {
       fields: [],
       records: [],
-      rawCsv: ""
+      sheets: [],
+      activeSheetName: "",
+      rawCsv: "",
+      rawFods: "",
+      sourceFileName: ""
     };
     this.mailMergePreview = {
       enabled: false,
@@ -311,7 +316,8 @@ export class WriterAdapter {
     this._bindTrackChanges();
     this._renderCommentsPanel();
     this._updateTrackChangesCommandState();
-    globalCommandBus.bindHandler("writer.file.printPreview", () => this.openPrintPreview());
+    globalCommandBus.bindHandler("common.file.print", () => this.print());
+    globalCommandBus.bindHandler("writer.file.printPreview", () => this.print());
 
     // Bind Review (Ghi chú & Theo dõi thay đổi)
     globalCommandBus.bindHandler("writer.comment.insert", (args) => this.insertComment(args));
@@ -414,6 +420,8 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.para.lineSpacingLayout", (args) => globalCommandBus.execute("writer.para.lineSpacing", args));
     globalCommandBus.bindHandler("writer.edit.select", () => globalCommandBus.execute("common.edit.selectAll"));
     globalCommandBus.bindHandler("writer.layout.breaks", () => globalCommandBus.execute("writer.page.break"));
+    globalCommandBus.bindHandler("writer.font.grow1pt", () => this._adjustFontSizePt(1));
+    globalCommandBus.bindHandler("writer.font.shrink1pt", () => this._adjustFontSizePt(-1));
     globalCommandBus.bindHandler("common.edit.repeat", () => this.repeatLastAction());
 
     if (!this._lastSnapshot) {
@@ -6015,22 +6023,23 @@ export class WriterAdapter {
    */
   async handleDispatch(unoUrl, args, vnCmdId) {
     if (!this.editorDom) return false;
+    const cmd = vnCmdId || unoUrl;
 
     // Clone vùng chọn trước khi nút ribbon/dialog lấy focus khỏi trình soạn thảo.
-    if (vnCmdId === "writer.comment.insert") {
+    if (cmd === "writer.comment.insert") {
       return await this.insertComment(args);
     }
 
-    if (vnCmdId === "writer.trackChanges.toggle") return this.toggleTrackChanges(args?.enabled);
-    if (vnCmdId === "writer.trackChanges.previous") return this.previousTrackChange();
-    if (vnCmdId === "writer.trackChanges.next") return this.nextTrackChange();
-    if (vnCmdId === "writer.trackChanges.acceptOne") return this.acceptOneTrackChange();
-    if (vnCmdId === "writer.trackChanges.rejectOne") return this.rejectOneTrackChange();
-    if (vnCmdId === "writer.trackChanges.acceptAll") return this.acceptAllTrackChanges();
-    if (vnCmdId === "writer.trackChanges.rejectAll") return this.rejectAllTrackChanges();
-    if (vnCmdId === "writer.review.wordCount") return this.openWordCountDialog();
+    if (cmd === "writer.trackChanges.toggle") return this.toggleTrackChanges(args?.enabled);
+    if (cmd === "writer.trackChanges.previous") return this.previousTrackChange();
+    if (cmd === "writer.trackChanges.next") return this.nextTrackChange();
+    if (cmd === "writer.trackChanges.acceptOne") return this.acceptOneTrackChange();
+    if (cmd === "writer.trackChanges.rejectOne") return this.rejectOneTrackChange();
+    if (cmd === "writer.trackChanges.acceptAll") return this.acceptAllTrackChanges();
+    if (cmd === "writer.trackChanges.rejectAll") return this.rejectAllTrackChanges();
+    if (cmd === "writer.review.wordCount") return this.openWordCountDialog();
 
-    if (vnCmdId !== "common.edit.undo" && vnCmdId !== "common.edit.redo") {
+    if (cmd !== "common.edit.undo" && cmd !== "common.edit.redo") {
       this.flushTyping();
     }
 
@@ -6038,7 +6047,7 @@ export class WriterAdapter {
 
     let dispatchResult = false;
 
-    switch (vnCmdId) {
+    switch (cmd) {
       case "writer.nav.docStart":
         return this.navigateDocumentBoundary(false);
 
@@ -6087,6 +6096,16 @@ export class WriterAdapter {
 
       case "writer.font.shrink":
         this._adjustFontSize(-1);
+        dispatchResult = true;
+        break;
+
+      case "writer.font.grow1pt":
+        this._adjustFontSizePt(1);
+        dispatchResult = true;
+        break;
+
+      case "writer.font.shrink1pt":
+        this._adjustFontSizePt(-1);
         dispatchResult = true;
         break;
 
@@ -6310,7 +6329,7 @@ export class WriterAdapter {
         return this.print();
 
       case "writer.file.printPreview":
-        return Boolean(this.openPrintPreview());
+        return this.print();
 
       case "writer.page.margins":
         return await this._openPageSetup("margins");
@@ -6430,7 +6449,7 @@ export class WriterAdapter {
         return false;
     }
 
-    this.recordSnapshot(vnCmdId);
+    this.recordSnapshot(cmd);
     return dispatchResult;
   }
 
@@ -8510,6 +8529,37 @@ export class WriterAdapter {
           fontElements[i].style.fontSize = `${nextSize}px`;
         }
       }
+    }
+  }
+
+  _adjustFontSizePt(deltaPt) {
+    if (typeof window === "undefined" || typeof document === "undefined") return;
+    const sel = window.getSelection?.();
+    if (sel && sel.rangeCount > 0) {
+      let node = sel.anchorNode;
+      if (node && node.nodeType === 3) node = node.parentNode;
+      let curPt = 12;
+      if (node && typeof window.getComputedStyle === "function") {
+        const computed = window.getComputedStyle(node);
+        const curPx = parseFloat(computed?.fontSize) || 16;
+        curPt = Math.round(curPx * 0.75) || 12;
+      }
+      const nextPt = Math.max(1, Math.min(1638, curPt + deltaPt));
+      this.flushTyping?.();
+      if (typeof document.execCommand === "function") {
+        document.execCommand("fontSize", false, "7");
+      }
+      if (this.editorDom) {
+        const fontElements = this.editorDom.getElementsByTagName("font");
+        for (let i = 0; i < fontElements.length; i++) {
+          if (fontElements[i].size === "7") {
+            fontElements[i].removeAttribute("size");
+            fontElements[i].style.fontSize = `${nextPt}pt`;
+          }
+        }
+      }
+      this.isDirty = true;
+      this.recordSnapshot?.(deltaPt > 0 ? "writer.font.grow1pt" : "writer.font.shrink1pt");
     }
   }
 
@@ -11424,7 +11474,7 @@ export class WriterAdapter {
     this.docStyles = null;
     this._applyDocStyles();
 
-    this.mailMergeData = { fields: [], records: [], rawCsv: "" };
+    this.mailMergeData = { fields: [], records: [], sheets: [], activeSheetName: "", rawCsv: "", rawFods: "", sourceFileName: "" };
     this.mailMergePreview = { enabled: false, recordIndex: 0 };
     this.citationStyle = "apa";
     this.citationSources = [];
@@ -11449,7 +11499,9 @@ export class WriterAdapter {
 
   async exportPdf() {
     this.documentContent = this.editorDom.innerHTML;
-    const result = await globalUnoBridge.exportRealPdf("writer", this._contentForExport(), this.sourceFileName);
+    const result = await globalUnoBridge.exportRealPdf(
+      "writer", this._contentForExport(), this.sourceFileName, this._sourcePath || null,
+    );
     if (result.status === "ok") {
       await showAlertDialog({ title: "Đã xuất PDF", message: result.message, type: "success" });
       return true;
@@ -11460,34 +11512,32 @@ export class WriterAdapter {
   }
 
   print() {
-    if (typeof window === "undefined" || typeof window.print !== "function") return false;
-
-    // Print the same paginated sheets shown by Print Preview. Printing the live
-    // editor page directly can overflow the physical paper margins and create
-    // an extra blank page even when the document itself has one page.
-    const overlay = this.openPrintPreview();
-    if (!overlay) return false;
-
-    const widthMm = Number(overlay.dataset.widthMm) || 210;
-    const heightMm = Number(overlay.dataset.heightMm) || 297;
-    let pageRule = document.querySelector?.("#vno-writer-print-page-rule");
-    if (!pageRule) {
-      pageRule = document.createElement("style");
-      pageRule.setAttribute("id", "vno-writer-print-page-rule");
-      (document.head || document.body)?.appendChild(pageRule);
-    }
-    pageRule.textContent = `@page { size: ${widthMm}mm ${heightMm}mm; margin: 0; }`;
-
-    document.body.classList.add("vno-writer-printing");
-    const restorePrintClass = () => document.body.classList.remove("vno-writer-printing");
-    window.addEventListener("afterprint", restorePrintClass, { once: true });
+    this.documentContent = this.editorDom?.innerHTML || this.documentContent;
+    const page = this.getPageDimensions();
+    const pageSetupLabel = `${this.pageSetup?.size?.toUpperCase() || "A4"} · ${this.pageSetup?.orientation === "landscape" ? "Ngang" : "Dọc"}`;
+    let currentPage = 1;
     try {
-      window.print();
-    } catch (error) {
-      restorePrintClass();
-      throw error;
-    }
-    return true;
+      const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+      const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+      if (range && this.bodyDom?.contains?.(range.startContainer)) {
+        const bodyRect = this.bodyDom.getBoundingClientRect?.();
+        const caretRect = range.getBoundingClientRect?.();
+        if (bodyRect && caretRect && page.heightPx > 0) {
+          const bodyHeight = Math.max(1, page.heightPx - page.topPx - page.bottomPx);
+          const offset = Math.max(0, caretRect.top - bodyRect.top + (this.bodyDom.scrollTop || 0));
+          currentPage = Math.max(1, Math.min(this._livePageCount || 1, Math.floor(offset / bodyHeight) + 1));
+        }
+      }
+    } catch { currentPage = 1; }
+    return openPrintDialog({
+      appKind: "writer",
+      content: this._contentForExport(),
+      documentName: this.sourceFileName || "Tài liệu",
+      sourcePath: this._sourcePath || null,
+      pageSetupLabel,
+      currentPage,
+      engine: globalUnoBridge
+    });
   }
 
   /**
@@ -14297,33 +14347,79 @@ export class WriterAdapter {
   // =========================================================================
 
   /**
-   * Thiết lập nguồn dữ liệu trộn thư từ chuỗi CSV
-   * @param {string} csvText
-   * @returns {{ fields: string[], records: Array<Record<string, string>> }}
+   * Lấy danh sách các bản ghi trộn thư đang được chọn (không bị bỏ chọn)
+   * @returns {Array<Record<string, string>>}
    */
-  setMailMergeData(csvText) {
-    if (typeof csvText !== "string") {
-      this.mailMergeData = { fields: [], records: [], rawCsv: "" };
+  _getActiveMailMergeRecords() {
+    return (this.mailMergeData?.records || []).filter((r) => r._selected !== false);
+  }
+
+  /**
+   * Thiết lập nguồn dữ liệu trộn thư từ chuỗi (CSV, TSV, FODS) hoặc đối tượng nguồn dữ liệu
+   * @param {string|Object} dataInput
+   * @param {Object} [options={}]
+   * @returns {{ fields: string[], records: Array<Record<string, string>>, sheets?: Array<any> }}
+   */
+  setMailMergeData(dataInput, options = {}) {
+    if (!dataInput) {
+      this.mailMergeData = { fields: [], records: [], sheets: [], activeSheetName: "", rawCsv: "", rawFods: "", sourceFileName: "" };
       this._updateMailMergeCommandStates();
       return { fields: [], records: [] };
     }
-    const { fields, records } = parseCsv(csvText);
-    this.mailMergeData = {
-      rawCsv: csvText,
-      fields,
-      records
-    };
+
+    if (typeof dataInput === "object" && Array.isArray(dataInput.records) && Array.isArray(dataInput.fields)) {
+      const records = dataInput.records.map((r) => ({ ...r, _selected: r._selected !== false }));
+      this.mailMergeData = {
+        fields: dataInput.fields,
+        records,
+        sheets: dataInput.sheets || [],
+        activeSheetName: dataInput.activeSheetName || "",
+        rawCsv: dataInput.rawCsv || "",
+        rawFods: dataInput.rawFods || "",
+        sourceFileName: dataInput.sourceFileName || ""
+      };
+    } else if (typeof dataInput === "string") {
+      const isFods = dataInput.includes("<office:document") || dataInput.includes("<table:table");
+      if (isFods) {
+        const { sheets } = parseFodsData(dataInput, options);
+        const activeSheet = sheets[0] || { fields: [], records: [] };
+        this.mailMergeData = {
+          rawFods: dataInput,
+          rawCsv: "",
+          sheets,
+          activeSheetName: activeSheet.name || "",
+          fields: activeSheet.fields,
+          records: activeSheet.records
+        };
+      } else {
+        const { fields, records } = parseDelimitedText(dataInput, options);
+        this.mailMergeData = {
+          rawCsv: dataInput,
+          rawFods: "",
+          sheets: [{ name: "Trang tính 1", fields, records }],
+          activeSheetName: "Trang tính 1",
+          fields,
+          records
+        };
+      }
+    } else {
+      this.mailMergeData = { fields: [], records: [], sheets: [], activeSheetName: "", rawCsv: "", rawFods: "", sourceFileName: "" };
+      this._updateMailMergeCommandStates();
+      return { fields: [], records: [] };
+    }
+
     this.mailMergePreview.recordIndex = 0;
+    const activeRecords = this._getActiveMailMergeRecords();
     if (this.mailMergePreview.enabled) {
-      if (records.length > 0) {
-        this._renderMergePreview(records[0]);
+      if (activeRecords.length > 0) {
+        this._renderMergePreview(activeRecords[0]);
       } else {
         this._clearMergePreview();
         this.mailMergePreview.enabled = false;
       }
     }
     this._updateMailMergeCommandStates();
-    return { fields, records };
+    return { fields: this.mailMergeData.fields, records: this.mailMergeData.records, sheets: this.mailMergeData.sheets };
   }
 
   /**
@@ -15059,15 +15155,18 @@ export class WriterAdapter {
 
   async openMailMergeDataSourceDialog(options = {}) {
     options = options || {};
-    const csvInput = options.csv !== undefined ? options.csv : options.csvText;
-    if (csvInput !== undefined) {
-      return this.setMailMergeData(csvInput);
+    const inputData = options.csv !== undefined ? options.csv : (options.csvText !== undefined ? options.csvText : (options.fods !== undefined ? options.fods : options.data));
+    if (inputData !== undefined) {
+      return this.setMailMergeData(inputData, options);
     }
     return new Promise((resolve) => {
       showMailMergeDataSourceDialog({
         currentCsv: this.mailMergeData?.rawCsv || "",
-        onSave: (csv) => {
-          const res = this.setMailMergeData(csv);
+        rawFods: this.mailMergeData?.rawFods || "",
+        sheets: this.mailMergeData?.sheets || [],
+        activeSheetName: this.mailMergeData?.activeSheetName || "",
+        onSave: (result) => {
+          const res = this.setMailMergeData(result);
           resolve(res);
         },
         onCancel: () => {
@@ -15192,7 +15291,8 @@ export class WriterAdapter {
     }
 
     if (this.mailMergePreview.enabled) {
-      const record = this.mailMergeData.records[this.mailMergePreview.recordIndex];
+      const activeRecords = this._getActiveMailMergeRecords();
+      const record = activeRecords[this.mailMergePreview.recordIndex];
       if (record && record[fieldName] !== undefined) {
         span.textContent = record[fieldName];
         if (span.classList?.add) span.classList.add("vno-merge-preview");
@@ -15218,7 +15318,7 @@ export class WriterAdapter {
       ? options.force
       : (typeof options === "boolean" ? options : null);
 
-    const records = this.mailMergeData?.records || [];
+    const records = this._getActiveMailMergeRecords();
     if (records.length === 0) {
       if (typeof document !== "undefined" && typeof document.createElement === "function" && document.body) {
         const previewWarnTitle = (typeof t === "function" && t("writerDialogs.mailMerge.noDataWarningTitle") !== "writerDialogs.mailMerge.noDataWarningTitle")
@@ -15226,7 +15326,7 @@ export class WriterAdapter {
           : "Xem trước trộn thư";
         const previewWarnMsg = (typeof t === "function" && t("writerDialogs.mailMerge.noDataWarningMsg") !== "writerDialogs.mailMerge.noDataWarningMsg")
           ? t("writerDialogs.mailMerge.noDataWarningMsg")
-          : "Chưa có nguồn dữ liệu trộn thư. Vui lòng mở 'Nguồn dữ liệu' để dán bảng CSV trước.";
+          : "Chưa có nguồn dữ liệu trộn thư. Vui lòng mở 'Nguồn dữ liệu' để chọn tệp hoặc dán bảng CSV trước.";
         showAlertDialog({
           title: previewWarnTitle,
           message: previewWarnMsg,
@@ -15264,7 +15364,7 @@ export class WriterAdapter {
    */
   prevMailMergeRecord(options = {}) {
     options = options || {};
-    const records = this.mailMergeData?.records || [];
+    const records = this._getActiveMailMergeRecords();
     if (records.length === 0) return false;
 
     if (!this.mailMergePreview.enabled) {
@@ -15287,7 +15387,7 @@ export class WriterAdapter {
    */
   nextMailMergeRecord(options = {}) {
     options = options || {};
-    const records = this.mailMergeData?.records || [];
+    const records = this._getActiveMailMergeRecords();
     if (records.length === 0) return false;
 
     if (!this.mailMergePreview.enabled) {
@@ -15305,6 +15405,7 @@ export class WriterAdapter {
 
   /**
    * Hoàn tất trộn thư: tạo ra N bản sao nội dung thật, nối bằng ngắt trang page-break-before
+   * hoặc in trực tiếp qua options.mode === "print".
    * @param {Object} [options={}]
    * @returns {boolean}
    */
@@ -15314,6 +15415,28 @@ export class WriterAdapter {
     this._initZones();
     if (!this.bodyDom) return false;
 
+    const activeRecords = this._getActiveMailMergeRecords();
+
+    // Nếu gọi trực tiếp từ thanh Ribbon (không tham số mode) và có DOM -> mở hộp thoại Hoàn tất trộn
+    if (
+      options.mode === undefined &&
+      options.records === undefined &&
+      typeof document !== "undefined" &&
+      typeof document.createElement === "function" &&
+      document.body &&
+      activeRecords.length > 0 &&
+      (this.bodyDom.innerHTML || "").includes("vno-merge-field")
+    ) {
+      showFinishMailMergeDialog({
+        totalRecords: activeRecords.length,
+        currentIndex: this.mailMergePreview.recordIndex,
+        onFinish: (dialogOpts) => {
+          this.finishMailMerge(dialogOpts);
+        }
+      });
+      return true;
+    }
+
     // Tắt chế độ preview trước để lấy HTML mẫu nguyên bản chứa field marker
     if (this.mailMergePreview.enabled) {
       this._clearMergePreview();
@@ -15321,16 +15444,26 @@ export class WriterAdapter {
       this._updateMailMergeCommandStates();
     }
 
-    const records = (options.records && options.records.length > 0)
-      ? options.records
-      : (this.mailMergeData?.records || []);
+    let records = (options.records && options.records.length > 0) ? options.records : null;
+    if (!records) {
+      if (options.range === "current") {
+        const cur = activeRecords[this.mailMergePreview.recordIndex] || activeRecords[0];
+        records = cur ? [cur] : [];
+      } else if (options.range === "from_to") {
+        const from = Math.max(0, (parseInt(options.from, 10) || 1) - 1);
+        const to = Math.min(activeRecords.length, parseInt(options.to, 10) || activeRecords.length);
+        records = activeRecords.slice(from, to);
+      } else {
+        records = activeRecords;
+      }
+    }
 
     const finishTitle = (typeof t === "function" && t("writerDialogs.mailMerge.finishTitle") !== "writerDialogs.mailMerge.finishTitle")
       ? t("writerDialogs.mailMerge.finishTitle")
       : "Hoàn tất trộn thư";
     const finishNoData = (typeof t === "function" && t("writerDialogs.mailMerge.finishNoData") !== "writerDialogs.mailMerge.finishNoData")
       ? t("writerDialogs.mailMerge.finishNoData")
-      : "Chưa có nguồn dữ liệu trộn thư để tạo tài liệu. Vui lòng mở 'Nguồn dữ liệu' để dán bảng CSV.";
+      : "Chưa có nguồn dữ liệu trộn thư để tạo tài liệu. Vui lòng mở 'Nguồn dữ liệu' để chọn tệp hoặc dán bảng CSV.";
     const finishNoFields = (typeof t === "function" && t("writerDialogs.mailMerge.finishNoFields") !== "writerDialogs.mailMerge.finishNoFields")
       ? t("writerDialogs.mailMerge.finishNoFields")
       : "Tài liệu hiện tại chưa chứa trường trộn thư nào. Hãy dùng lệnh 'Chèn trường' để chèn ít nhất một trường trộn.";
@@ -15378,15 +15511,19 @@ export class WriterAdapter {
     this.isDirty = true;
     this.recordSnapshot("writer.mailMerge.finish");
 
-    if (typeof document !== "undefined" && typeof document.createElement === "function" && document.body) {
-      const pattern = (typeof t === "function" && t("writerDialogs.mailMerge.finishSuccess") !== "writerDialogs.mailMerge.finishSuccess")
-        ? t("writerDialogs.mailMerge.finishSuccess")
-        : "Đã hoàn tất trộn thư thành công {count} bản ghi vào tài liệu. Bạn có thể xem trước khi in hoặc xuất tệp.";
-      showAlertDialog({
-        title: finishTitle,
-        message: pattern.replace("{count}", records.length),
-        type: "success"
-      });
+    if (options.mode === "print") {
+      this.print();
+    } else {
+      if (typeof document !== "undefined" && typeof document.createElement === "function" && document.body && options.range !== undefined) {
+        const pattern = (typeof t === "function" && t("writerDialogs.mailMerge.finishSuccess") !== "writerDialogs.mailMerge.finishSuccess")
+          ? t("writerDialogs.mailMerge.finishSuccess")
+          : "Đã hoàn tất trộn thư thành công {count} bản ghi vào tài liệu. Bạn có thể xem trước khi in hoặc xuất tệp.";
+        showAlertDialog({
+          title: finishTitle,
+          message: pattern.replace("{count}", records.length),
+          type: "success"
+        });
+      }
     }
 
     return true;
@@ -15462,10 +15599,11 @@ export class WriterAdapter {
   _updateMailMergeCommandStates() {
     if (typeof globalCommandBus?.updateState !== "function") return;
 
-    const hasData = Boolean(this.mailMergeData?.records?.length > 0);
+    const activeRecords = this._getActiveMailMergeRecords();
+    const hasData = Boolean(activeRecords.length > 0);
     const isPreview = Boolean(this.mailMergePreview?.enabled);
     const currentIndex = this.mailMergePreview?.recordIndex || 0;
-    const totalRecords = this.mailMergeData?.records?.length || 0;
+    const totalRecords = activeRecords.length;
 
     globalCommandBus.updateState("writer.mailMerge.preview", {
       checked: isPreview,

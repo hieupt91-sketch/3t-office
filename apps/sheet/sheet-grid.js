@@ -51,6 +51,45 @@ export const SHEET_MM_TO_PX = 3.7795275591; // 96dpi
 // Lề trong pageSetupBySheet lưu bằng CM (xem showPageSetupDialog: input "(cm)"), khác mm.
 export const SHEET_CM_TO_PX = SHEET_MM_TO_PX * 10;
 
+/** Build a directed selection range without losing the fixed anchor. */
+export function createSheetSelectionRange(anchor, active) {
+  return {
+    start: { c: anchor.c, r: anchor.r },
+    end: { c: active.c, r: active.r }
+  };
+}
+
+/** Normalize a directed range for operations that need its top-left/bottom-right. */
+export function normalizeSheetSelectionRange(range, cols) {
+  const start = range?.start || { c: cols[0], r: 1 };
+  const end = range?.end || start;
+  const startCol = Math.max(0, cols.indexOf(start.c));
+  const endCol = Math.max(0, cols.indexOf(end.c));
+  return {
+    start: { c: cols[Math.min(startCol, endCol)], r: Math.min(start.r, end.r) },
+    end: { c: cols[Math.max(startCol, endCol)], r: Math.max(start.r, end.r) }
+  };
+}
+
+/** Smooth, distance-based edge auto-scroll delta (pixels for one animation frame). */
+export function getSheetSelectionAutoScrollDelta(pointer, start, end, elapsedMs, options = {}) {
+  const edgeZone = Math.max(1, options.edgeZone ?? 48);
+  const maxSpeed = Math.max(0, options.maxSpeed ?? 900);
+  const duration = Math.max(0, Math.min(50, Number(elapsedMs) || 0));
+  let direction = 0;
+  let penetration = 0;
+  if (pointer < start + edgeZone) {
+    direction = -1;
+    penetration = start + edgeZone - pointer;
+  } else if (pointer > end - edgeZone) {
+    direction = 1;
+    penetration = pointer - (end - edgeZone);
+  }
+  if (!direction || !maxSpeed || !duration) return 0;
+  const intensity = Math.min(1, penetration / edgeZone);
+  return direction * maxSpeed * intensity * intensity * duration / 1000;
+}
+
 export function _getTabContrastTextColor(hexColor) {
   if (!hexColor || typeof hexColor !== "string") return "#000000";
   let hex = hexColor.trim().replace(/^#/, "");
@@ -156,6 +195,8 @@ export class SheetGridController {
 
     this.selectedCoord = { r: 1, c: "A" };
     this.selectionRange = { start: { r: 1, c: "A" }, end: { r: 1, c: "A" } };
+    this.selectionRanges = [this.selectionRange];
+    this.selectionKind = "cell";
     this.showFormulas = false;
     this.calculationMode = "automatic"; // "automatic" | "manual"
     this.auditArrows = [];
@@ -168,6 +209,11 @@ export class SheetGridController {
     this._moveTarget = null;
     this._isSelectingRange = false;
     this._rangeAnchor = null;
+    this._rangePointer = null;
+    this._rangeScrollFrame = 0;
+    this._rangeScrollTimestamp = 0;
+    this._rangeSelectionAdditive = false;
+    this._rangeSelectionBaseAreas = null;
     this._activeContextMenu = null;
     this._contextMenuPreviousFocus = null;
     this.formatPainter = null;
@@ -184,6 +230,8 @@ export class SheetGridController {
     this.textBoxesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.pivotTablesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.scenariosBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.dataTablesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this._dataTableEvaluating = false;
     this.outlineGroupsBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.rowHeightsBySheet = Object.fromEntries(this.sheets.map(name => [name, new Map()]));
     this.colWidthsBySheet = Object.fromEntries(this.sheets.map(name => [name, new Map()]));
@@ -191,6 +239,8 @@ export class SheetGridController {
     this.userHiddenColsBySheet = Object.fromEntries(this.sheets.map(name => [name, new Set()]));
     this.protectionBySheet = Object.fromEntries(this.sheets.map(name => [name, { enabled: false, password: "" }]));
     this.workbookProtection = { enabled: false, password: "" };
+    this.watchedCells = new Set();
+    this.documentName = options.documentName || null;
     this.dataTools = new SheetDataTools(this);
 
     // Freeze Panes & Sort/Filter state (phản ánh sheet đang active)
@@ -527,15 +577,13 @@ export class SheetGridController {
 
   selectCurrentColumn() {
     const col = this.selectedCoord.c;
-    this.selectCell(col, 1);
-    this.selectCell(col, this.rowCount, true);
+    this._selectHeaderRange("column", col);
     return true;
   }
 
   selectCurrentRow() {
     const row = this.selectedCoord.r;
-    this.selectCell(this.cols[0], row);
-    this.selectCell(this.cols[this.cols.length - 1], row, true);
+    this._selectHeaderRange("row", row);
     return true;
   }
 
@@ -1100,15 +1148,17 @@ export class SheetGridController {
       event.stopPropagation();
       this.toggleOutlineGroup(event.currentTarget.dataset.groupId);
     });
+    th.addEventListener("mousedown", event => {
+      if (event.button !== 0 || event.target.closest(".vno-filter-btn, .vno-col-resizer, .vno-outline-toggle")) return;
+      this._startRangeSelect(event, col, 1, "column");
+    });
     th.addEventListener("click", (e) => {
       if (e.target.closest(".vno-filter-btn") || e.target.closest(".vno-col-resizer")) return;
-      this.selectCell(col, 1);
-      this.selectCell(col, this.rowCount, true);
+      if (e.detail === 0) this._selectHeaderRange("column", col);
     });
     th.addEventListener("contextmenu", (e) => {
       e.preventDefault();
-      this.selectCell(col, 1);
-      this.selectCell(col, this.rowCount, true);
+      this._selectHeaderRange("column", col);
       this.showContextMenu(e, "col", col);
     });
     th.querySelector(".vno-col-resizer")?.addEventListener("dblclick", (e) => {
@@ -1145,70 +1195,236 @@ export class SheetGridController {
     }
   }
 
-  _startRangeSelect(e, col, row) {
-    if (this._isSelectingRange) return;
-    this._isSelectingRange = true;
-    // mousedown chạy trước click: nếu Shift đang giữ thì mở rộng từ neo hiện có,
-    // không reset vùng chọn về 1 ô (nếu không Shift+Click chuột thật không bao giờ tạo range).
-    const extendRange = !!(e && e.shiftKey && this.selectionRange);
-    this._rangeAnchor = extendRange
-      ? { c: this.selectedCoord?.c ?? this.selectionRange.start.c, r: this.selectedCoord?.r ?? this.selectionRange.start.r }
-      : { c: col, r: row };
-    this.selectCell(col, row, extendRange);
+  _commitEditBeforeRangeSelection() {
+    if (!this.formulaInput || typeof document === "undefined" || document.activeElement !== this.formulaInput) return;
+    const coord = { ...this.selectedCoord };
+    const current = this.cellsData.get(`${coord.c}${coord.r}`);
+    const currentValue = current ? (current.formula || current.val || "") : "";
+    const editedValue = this.formulaInput.value;
+    if (String(currentValue) !== String(editedValue)) {
+      this.setCellValue(coord.c, coord.r, editedValue, true, { coalesce: true });
+    }
+    this._cellValueBeforeEdit = undefined;
+    this.autocomplete?.closeAll?.();
+  }
 
-    const onMove = (moveEvt) => {
-      if (!this._isSelectingRange) return;
-      const el = typeof document !== "undefined" ? document.elementFromPoint(moveEvt.clientX, moveEvt.clientY) : null;
-      const cell = el?.closest?.(".vno-grid-cell");
-      if (cell && cell.dataset.col && cell.dataset.row) {
-        const hoverCol = cell.dataset.col;
-        const hoverRow = Number(cell.dataset.row);
-        if (hoverCol !== this.selectionRange.end.c || hoverRow !== this.selectionRange.end.r) {
-          this.selectionRange.end = { c: hoverCol, r: hoverRow };
-          this._updateRangeSelectionVisuals();
+  _selectionRangeForPointer(anchor, active, kind = "cell") {
+    if (kind === "row") {
+      return createSheetSelectionRange(
+        { c: this.cols[0], r: anchor.r },
+        { c: this.cols[this.cols.length - 1], r: active.r }
+      );
+    }
+    if (kind === "column") {
+      return createSheetSelectionRange(
+        { c: anchor.c, r: 1 },
+        { c: active.c, r: this.rowCount }
+      );
+    }
+    return createSheetSelectionRange(anchor, active);
+  }
+
+  _applySelectionRange(range, activeCoord, options = {}) {
+    this.selectionRange = range;
+    this.selectedCoord = { c: activeCoord.c, r: activeCoord.r };
+    this._rangeAnchor = { ...(options.anchor || range.start) };
+    this.selectionKind = options.kind || "cell";
+    if (options.additive) {
+      this.selectionRanges = [
+        ...(options.baseAreas || this._rangeSelectionBaseAreas || this.selectionRanges || []),
+        range
+      ];
+    } else {
+      this.selectionRanges = [range];
+    }
+    if (options.scrollActive && this.viewport &&
+        (activeCoord.r < this.currentStartRow || activeCoord.r > this.currentEndRow)) {
+      this.viewport.scrollTop = Math.max(0, this._rowTop(activeCoord.r) - 5 * this.rowHeight);
+      this._onViewportScroll();
+    }
+    this._updateRangeSelectionVisuals();
+  }
+
+  _rangeSelectionTargetAt(x, y, kind = "cell") {
+    if (typeof document === "undefined") return null;
+    let element = document.elementFromPoint(x, y);
+    let cell = element?.closest?.(".vno-grid-cell");
+    if (!cell && this.viewport?.getBoundingClientRect) {
+      const rect = this.viewport.getBoundingClientRect();
+      const rowHeaderWidth = this.tbody?.querySelector?.(".vno-row-header")?.getBoundingClientRect?.().width || 44;
+      const headerHeight = this.theadRow?.getBoundingClientRect?.().height || 24;
+      const clampedX = Math.max(rect.left + rowHeaderWidth + 1, Math.min(rect.right - 1, x));
+      const clampedY = Math.max(rect.top + headerHeight + 1, Math.min(rect.bottom - 1, y));
+      element = document.elementFromPoint(clampedX, clampedY);
+      cell = element?.closest?.(".vno-grid-cell");
+    }
+
+    if (kind === "row") {
+      const rowHeader = element?.closest?.(".vno-row-header");
+      const row = Number(rowHeader?.dataset.row || cell?.dataset.row);
+      return Number.isInteger(row) && row >= 1 && row <= this.rowCount
+        ? { c: this.cols[0], r: row }
+        : null;
+    }
+    if (kind === "column") {
+      const colHeader = element?.closest?.(".vno-col-header");
+      const col = colHeader?.dataset.col || cell?.dataset.col;
+      return this.cols.includes(col) ? { c: col, r: 1 } : null;
+    }
+    return cell?.dataset.col && cell?.dataset.row
+      ? { c: cell.dataset.col, r: Number(cell.dataset.row) }
+      : null;
+  }
+
+  _updateRangeFromPointer() {
+    if (!this._isSelectingRange || !this._rangePointer || !this._rangeAnchor) return;
+    const kind = this._rangeSelectionKind || "cell";
+    const active = this._rangeSelectionTargetAt(this._rangePointer.x, this._rangePointer.y, kind);
+    if (!active) return;
+    const range = this._selectionRangeForPointer(this._rangeAnchor, active, kind);
+    const activeCoord = kind === "row"
+      ? { c: this.cols[0], r: active.r }
+      : kind === "column"
+        ? { c: active.c, r: 1 }
+        : active;
+    const current = this.selectionRange;
+    if (current?.end.c === range.end.c && current?.end.r === range.end.r &&
+        this.selectedCoord.c === activeCoord.c && this.selectedCoord.r === activeCoord.r) return;
+    this._applySelectionRange(range, activeCoord, {
+      anchor: this._rangeAnchor,
+      additive: this._rangeSelectionAdditive,
+      kind
+    });
+  }
+
+  _startRangeAutoScroll() {
+    if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function" || !this.viewport) return;
+    this._rangeScrollTimestamp = 0;
+    const tick = timestamp => {
+      if (!this._isSelectingRange || !this._rangePointer || !this.viewport) return;
+      const elapsed = this._rangeScrollTimestamp ? timestamp - this._rangeScrollTimestamp : 16;
+      this._rangeScrollTimestamp = timestamp;
+      const rect = this.viewport.getBoundingClientRect();
+      const deltaY = getSheetSelectionAutoScrollDelta(this._rangePointer.y, rect.top, rect.bottom, elapsed);
+      const deltaX = getSheetSelectionAutoScrollDelta(this._rangePointer.x, rect.left, rect.right, elapsed);
+      if (deltaX || deltaY) {
+        const oldTop = this.viewport.scrollTop;
+        const oldLeft = this.viewport.scrollLeft;
+        this.viewport.scrollTop += deltaY;
+        this.viewport.scrollLeft += deltaX;
+        if (this.viewport.scrollTop !== oldTop || this.viewport.scrollLeft !== oldLeft) {
+          this._onViewportScroll();
+          this._updateFrozenImages();
         }
       }
-      if (this.viewport && this.viewport.getBoundingClientRect) {
-        const r = this.viewport.getBoundingClientRect();
-        if (moveEvt.clientY > r.bottom - 25) this.viewport.scrollTop += 20;
-        else if (moveEvt.clientY < r.top + 25) this.viewport.scrollTop -= 20;
-        if (moveEvt.clientX > r.right - 25) this.viewport.scrollLeft += 20;
-        else if (moveEvt.clientX < r.left + 25) this.viewport.scrollLeft -= 20;
-      }
+      this._updateRangeFromPointer();
+      this._rangeScrollFrame = window.requestAnimationFrame(tick);
     };
+    this._rangeScrollFrame = window.requestAnimationFrame(tick);
+  }
 
+  _stopRangeAutoScroll() {
+    if (this._rangeScrollFrame && typeof window !== "undefined") {
+      window.cancelAnimationFrame?.(this._rangeScrollFrame);
+    }
+    this._rangeScrollFrame = 0;
+    this._rangeScrollTimestamp = 0;
+  }
+
+  _selectHeaderRange(kind, index) {
+    const anchor = kind === "row" ? { c: this.cols[0], r: Number(index) } : { c: index, r: 1 };
+    const active = kind === "row" ? { c: this.cols[0], r: Number(index) } : { c: index, r: 1 };
+    const range = this._selectionRangeForPointer(anchor, active, kind);
+    this._applySelectionRange(range, active, { anchor, scrollActive: false, kind });
+  }
+
+  _startRangeSelect(e, col, row, kind = "cell") {
+    if (this._isSelectingRange) return;
+    e?.preventDefault?.();
+    this._commitEditBeforeRangeSelection();
+    this._isSelectingRange = true;
+    const extendRange = !!(e && e.shiftKey && this.selectionRange);
+    const additive = !!(e && e.ctrlKey && !e.shiftKey && kind === "cell");
+    const anchor = extendRange
+      ? { ...(this._rangeAnchor || this.selectedCoord || this.selectionRange.start) }
+      : kind === "row"
+        ? { c: this.cols[0], r: row }
+        : kind === "column"
+          ? { c: col, r: 1 }
+          : { c: col, r: row };
+    this._rangeSelectionKind = kind;
+    this._rangeSelectionAdditive = additive;
+    this._rangeSelectionBaseAreas = additive
+      ? this._getSelectionRanges().map(range => structuredClone(range))
+      : null;
+    this._rangePointer = { x: e?.clientX ?? 0, y: e?.clientY ?? 0 };
+
+    const initial = { c: col, r: row };
+    const range = this._selectionRangeForPointer(anchor, initial, kind);
+    const active = kind === "row"
+      ? { c: this.cols[0], r: row }
+      : kind === "column"
+        ? { c: col, r: 1 }
+        : initial;
+    this._applySelectionRange(range, active, { anchor, additive, scrollActive: false, kind });
+
+    const onMove = moveEvt => {
+      if (!this._isSelectingRange) return;
+      this._rangePointer = { x: moveEvt.clientX, y: moveEvt.clientY };
+      this._updateRangeFromPointer();
+    };
     const onUp = () => {
       if (typeof window !== "undefined") {
         window.removeEventListener("mousemove", onMove);
         window.removeEventListener("mouseup", onUp);
       }
+      this._stopRangeAutoScroll();
+      this._updateRangeFromPointer();
       this._isSelectingRange = false;
       if (this.formatPainter) this.applyFormatPainterToSelection();
+      this._rangeSelectionAdditive = false;
+      this._rangeSelectionBaseAreas = null;
+      this._rangePointer = null;
     };
 
     if (typeof window !== "undefined") {
       window.addEventListener("mousemove", onMove);
       window.addEventListener("mouseup", onUp);
     }
+    this._startRangeAutoScroll();
   }
 
   _updateRangeSelectionVisuals() {
-    const isMulti = (this.selectionRange.start.c !== this.selectionRange.end.c || this.selectionRange.start.r !== this.selectionRange.end.r);
-    const norm = this._normalizeRange(this.selectionRange);
+    const ranges = this._getSelectionRanges();
+    const isMulti = ranges.length > 1 || ranges.some(range =>
+      range.start.c !== range.end.c || range.start.r !== range.end.r
+    );
+    const activeCoordKey = `${this.selectedCoord.c}${this.selectedCoord.r}`;
 
     this.container?.querySelectorAll?.(".vno-grid-cell[data-coord]").forEach(cell => {
-      const inRange = this._rangeContains(this.selectionRange, cell.dataset.col, Number(cell.dataset.row));
-      cell.classList.toggle("is-range-selected", inRange && isMulti);
+      const row = Number(cell.dataset.row);
+      const selected = ranges.some(range => this._rangeContains(range, cell.dataset.col, row));
+      const isActive = cell.dataset.coord === activeCoordKey;
+      cell.classList.toggle("is-selected", isActive);
+      cell.classList.toggle("is-range-selected", selected && isMulti);
+      if (!isActive) {
+        cell.querySelectorAll?.(".vno-cell-move-handle, .vno-cell-validation-select").forEach(el => el.remove());
+      }
     });
 
-    if (this.nameBox) this.nameBox.textContent = this.getSelectedRangeLabel();
+    const activeCell = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${activeCoordKey}"]`);
+    if (activeCell) this._attachMoveHandles(activeCell);
+    this.container?.querySelectorAll?.(".vno-cell-autofill-handle").forEach(handle => handle.remove());
+    const norm = this._normalizeRange(this.selectionRange);
+    const endCell = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${norm.end.c}${norm.end.r}"]`);
+    if (endCell) this._attachAutofillHandle(endCell);
 
-    this.container?.querySelectorAll?.(".vno-cell-autofill-handle").forEach(h => h.remove());
-    const endCoord = `${norm.end.c}${norm.end.r}`;
-    const endCell = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${endCoord}"]`);
-    if (endCell) {
-      this._attachAutofillHandle(endCell);
-    }
+    if (this.nameBox) this.nameBox.textContent = this.getSelectionNameLabel();
+    const data = this.cellsData.get(activeCoordKey);
+    if (this.formulaInput) this.formulaInput.value = data ? (data.formula || data.val) : "";
+    this._showValidationDropdown(activeCell, this.selectedCoord.c, this.selectedCoord.r);
+    this.options.onSelect?.(activeCoordKey, data, this._calculateStats());
+    this.container?.focus?.({ preventScroll: true });
   }
 
   _startAutofill(e) {
@@ -1856,6 +2072,7 @@ export class SheetGridController {
     this.selectCell(this.selectedCoord.c, this.selectedCoord.r);
     this._syncCommandStates();
     this._applyProtectionUi();
+    this._updateWatchWindow?.();
 
     return true;
   }
@@ -1911,6 +2128,68 @@ export class SheetGridController {
     return sheetName;
   }
 
+  addSheetBefore(targetSheet = this.activeSheet, name, recordUndo = true) {
+    if (this._guardWorkbookStructure()) return false;
+    const targetIdx = this.sheets.indexOf(targetSheet);
+    const insertIdx = targetIdx >= 0 ? targetIdx : 0;
+    const previousSheet = this.activeSheet;
+
+    let sheetName = name;
+    if (!sheetName) {
+      let counter = this.sheets.length + 1;
+      while (this.sheets.includes(`Trang tính ${counter}`)) counter++;
+      sheetName = `Trang tính ${counter}`;
+    }
+    const isNewSheet = !this.sheets.includes(sheetName);
+    if (!isNewSheet) return false;
+
+    this.sheets.splice(insertIdx, 0, sheetName);
+    if (!this.sheetsData) this.sheetsData = {};
+    if (!this.sheetsData[sheetName]) this.sheetsData[sheetName] = new Map();
+    if (!this.conditionalFormattingBySheet[sheetName]) this.conditionalFormattingBySheet[sheetName] = [];
+    if (!this.dataValidationsBySheet[sheetName]) this.dataValidationsBySheet[sheetName] = [];
+    if (!this.chartsBySheet[sheetName]) this.chartsBySheet[sheetName] = [];
+    if (!this.imagesBySheet[sheetName]) this.imagesBySheet[sheetName] = [];
+    if (!this.textBoxesBySheet[sheetName]) this.textBoxesBySheet[sheetName] = [];
+    if (!this.pivotTablesBySheet[sheetName]) this.pivotTablesBySheet[sheetName] = [];
+    if (!this.scenariosBySheet[sheetName]) this.scenariosBySheet[sheetName] = [];
+    if (!this.namedRangesBySheet[sheetName]) this.namedRangesBySheet[sheetName] = [];
+    if (!this.commentsBySheet[sheetName]) this.commentsBySheet[sheetName] = {};
+    if (!(sheetName in this.printAreaBySheet)) this.printAreaBySheet[sheetName] = null;
+    if (!this.pageBreaksBySheet[sheetName]) this.pageBreaksBySheet[sheetName] = { rows: [], cols: [] };
+    if (!this.pageSetupBySheet[sheetName]) this.pageSetupBySheet[sheetName] = newSheetPageSetup();
+    if (!this.mergedRangesBySheet[sheetName]) this.mergedRangesBySheet[sheetName] = [];
+    if (!this.protectionBySheet) this.protectionBySheet = {};
+    if (!this.protectionBySheet[sheetName]) this.protectionBySheet[sheetName] = { enabled: false, password: "" };
+    this._ensureRowColLayout(sheetName);
+    if (!this.sheetStates) this.sheetStates = {};
+    if (!this.sheetStates[sheetName]) {
+      this.sheetStates[sheetName] = {
+        hiddenRows: new Set(),
+        activeFilters: new Map(),
+        isFilterActive: false,
+        isFrozenPanes: false,
+        frozenRows: 0,
+        frozenCols: 0,
+        selectedCoord: { r: 1, c: "A" }
+      };
+    }
+
+    this._renderSheetTabs();
+    this.switchSheet(sheetName);
+    if (recordUndo) {
+      this._recordHistory({
+        type: "sheet-add",
+        sheet: previousSheet,
+        sheetName,
+        previousSheet,
+        index: insertIdx,
+        snapshot: this._snapshotSheet(sheetName)
+      });
+    }
+    return sheetName;
+  }
+
   deleteSheet(sheetName = this.activeSheet, recordUndo = true) {
     if (this._guardWorkbookStructure()) return false;
     const index = this.sheets.indexOf(sheetName);
@@ -1956,7 +2235,7 @@ export class SheetGridController {
       "conditionalFormattingBySheet", "dataValidationsBySheet", "chartsBySheet",
       "imagesBySheet", "textBoxesBySheet", "pivotTablesBySheet", "outlineGroupsBySheet",
       "rowHeightsBySheet", "colWidthsBySheet", "userHiddenRowsBySheet", "userHiddenColsBySheet",
-      "protectionBySheet"
+      "protectionBySheet", "dataTablesBySheet"
     ];
   }
 
@@ -2699,15 +2978,17 @@ export class SheetGridController {
       event.stopPropagation();
       this.toggleOutlineGroup(event.currentTarget.dataset.groupId);
     });
+    thRow.addEventListener("mousedown", event => {
+      if (event.button !== 0 || event.target.closest(".vno-row-resizer, .vno-outline-toggle")) return;
+      this._startRangeSelect(event, this.cols[0], r, "row");
+    });
     thRow.addEventListener("click", (e) => {
       if (e.target.closest(".vno-row-resizer")) return;
-      this.selectCell(this.cols[0], r);
-      this.selectCell(this.cols[this.cols.length - 1], r, true);
+      if (e.detail === 0) this._selectHeaderRange("row", r);
     });
     thRow.addEventListener("contextmenu", (e) => {
       e.preventDefault();
-      this.selectCell(this.cols[0], r);
-      this.selectCell(this.cols[this.cols.length - 1], r, true);
+      this._selectHeaderRange("row", r);
       this.showContextMenu(e, "row", r);
     });
     thRow.querySelector(".vno-row-resizer")?.addEventListener("dblclick", (e) => {
@@ -2717,7 +2998,7 @@ export class SheetGridController {
     tr.appendChild(thRow);
 
     const normRange = this._normalizeRange(this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
-    const isMulti = (normRange.start.c !== normRange.end.c || normRange.start.r !== normRange.end.r);
+    const isMulti = this._isMultiRangeSelection();
 
     this.cols.forEach(c => {
       const mergedRange = this.getMergedRangeForCell(c, r);
@@ -2746,7 +3027,7 @@ export class SheetGridController {
         td.classList.add("is-selected");
         this._attachMoveHandles(td);
       }
-      if (this._rangeContains(this.selectionRange, c, r) && isMulti) {
+      if (this._isCoordInSelection(c, r) && isMulti) {
         td.classList.add("is-range-selected");
       }
       if (normRange.end.c === c && normRange.end.r === r) {
@@ -2759,8 +3040,8 @@ export class SheetGridController {
         this._startRangeSelect(e, c, r);
       });
       td.addEventListener("click", event => {
-        if (event.defaultPrevented) return;
-        this.selectCell(c, r, event.shiftKey);
+        if (event.detail !== 0 || event.defaultPrevented) return;
+        this.selectCell(c, r, event.shiftKey, event.ctrlKey);
       });
       td.addEventListener("dblclick", (e) => {
         e.preventDefault();
@@ -2770,7 +3051,7 @@ export class SheetGridController {
       });
       td.addEventListener("contextmenu", event => {
         event.preventDefault();
-        const inRange = this._rangeContains(this.selectionRange, c, r);
+        const inRange = this._isCoordInSelection(c, r);
         if (!inRange) {
           this.selectCell(c, r);
         }
@@ -3032,7 +3313,7 @@ export class SheetGridController {
         this.cancelFormatPainter();
         return;
       }
-      if (document.activeElement === this.formulaInput) return;
+      if (typeof document !== "undefined" && document?.activeElement === this.formulaInput) return;
 
       if (this.selectedImageId) {
         if (e.key === "Delete" || e.key === "Backspace") {
@@ -3221,6 +3502,22 @@ export class SheetGridController {
         e.preventDefault();
         this.insertCurrentTime();
         return;
+      } else if (e.key === "F11" && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        e.preventDefault();
+        this.addSheetBefore();
+        return;
+      } else if (e.key === "F11" && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        e.preventDefault();
+        globalCommandBus?.execute?.("sheet.chart.insert");
+        return;
+      } else if (e.ctrlKey && e.shiftKey && (e.key === "+" || e.key === "=")) {
+        e.preventDefault();
+        this.handleInsertShortcut();
+        return;
+      } else if (e.ctrlKey && !e.shiftKey && !e.altKey && (e.key === "-" || e.key === "_")) {
+        e.preventDefault();
+        this.handleDeleteShortcut();
+        return;
       } else if (e.key === "F9") {
         e.preventDefault();
         this.recalculateAll();
@@ -3258,8 +3555,10 @@ export class SheetGridController {
         // Xóa nội dung ô hoặc vùng đang chọn ngay, đúng hành vi Excel thật
         e.preventDefault();
         if (this._guardProtectedMutation()) return;
-        if (this.selectionRange && (this.selectionRange.start.c !== this.selectionRange.end.c || this.selectionRange.start.r !== this.selectionRange.end.r)) {
-          const cells = this.formulaEngine.expandRange(this.getSelectedRangeLabel());
+        if (this._isMultiRangeSelection()) {
+          const cells = [...new Set(this._getSelectionRanges().flatMap(range =>
+            this.formulaEngine.expandRange(this._rangeLabel(this._normalizeRange(range)))
+          ))];
           cells.forEach(coord => {
             const [c, r] = this._splitCoord(coord);
             this.setCellValue(c, r, "");
@@ -3391,8 +3690,11 @@ export class SheetGridController {
     this.setStyle("color", "#0f6d38");
   }
 
-  selectCell(col, row, extendRange = false) {
+  selectCell(col, row, extendRange = false, addRange = false) {
     if (row < 1 || row > this.rowCount) return;
+    if (this.formulaInput && typeof document !== "undefined" && document.activeElement === this.formulaInput) {
+      this._commitEditBeforeRangeSelection();
+    }
     if (this.selectedImageId) {
       this.selectedImageId = null;
       this._updateImageSelection();
@@ -3402,64 +3704,29 @@ export class SheetGridController {
     }
 
     const mergedRange = this.getMergedRangeForCell(col, row);
+    let anchor;
+    let active;
+    let range;
     if (mergedRange && !extendRange) {
-      this.selectionRange = structuredClone(mergedRange);
-      this.selectedCoord = { ...mergedRange.start };
-      col = mergedRange.start.c;
-      row = mergedRange.start.r;
-    } else if (!extendRange || !this.selectionRange) {
-      this.selectionRange = { start: { c: col, r: row }, end: { c: col, r: row } };
-      this.selectedCoord = { c: col, r: row };
+      range = structuredClone(mergedRange);
+      anchor = { ...mergedRange.start };
+      active = { ...mergedRange.start };
     } else {
-      this.selectionRange.end = { c: col, r: row };
-      // Giữ nguyên selectedCoord là ô neo bắt đầu (anchor) của vùng chọn
+      active = { c: col, r: row };
+      anchor = extendRange && this.selectionRange
+        ? { ...(this._rangeAnchor || this.selectionRange.start) }
+        : { ...active };
+      range = createSheetSelectionRange(anchor, active);
     }
 
-    // Tự động cuộn viewport nếu ô nằm ngoài phạm vi hiển thị ảo
-    if (this.viewport && (row < this.currentStartRow || row > this.currentEndRow)) {
-      this.viewport.scrollTop = Math.max(0, this._rowTop(row) - 5 * this.rowHeight);
-      this._onViewportScroll();
-    }
-
-    this.container.querySelectorAll?.(".vno-grid-cell.is-selected, .vno-grid-cell.is-range-selected").forEach(old => {
-      old.classList.remove("is-selected", "is-range-selected");
-      old.querySelectorAll?.(".vno-cell-autofill-handle, .vno-cell-move-handle, .vno-cell-validation-select").forEach(el => el.remove());
+    const previousAreas = this._getSelectionRanges();
+    this._applySelectionRange(range, active, {
+      anchor,
+      additive: addRange,
+      kind: "cell",
+      baseAreas: addRange ? previousAreas.map(area => structuredClone(area)) : null,
+      scrollActive: true
     });
-
-    const activeCoordKey = `${this.selectedCoord.c}${this.selectedCoord.r}`;
-    const activeTarget = this.container.querySelector(`.vno-grid-cell[data-coord="${activeCoordKey}"]`);
-    if (activeTarget) {
-      activeTarget.classList.add("is-selected");
-      this._attachMoveHandles(activeTarget);
-    }
-
-    const norm = this._normalizeRange(this.selectionRange);
-    const endCoordKey = `${norm.end.c}${norm.end.r}`;
-    const endTarget = this.container.querySelector(`.vno-grid-cell[data-coord="${endCoordKey}"]`);
-    if (endTarget) {
-      this._attachAutofillHandle(endTarget);
-    }
-
-    this.container.querySelectorAll?.(".vno-grid-cell[data-coord]").forEach(cell => {
-      const inRange = this._rangeContains(this.selectionRange, cell.dataset.col, Number(cell.dataset.row));
-      cell.classList.toggle("is-range-selected", inRange && this.getSelectedRangeLabel().includes(":"));
-    });
-
-    if (this.nameBox) this.nameBox.textContent = this.getSelectedRangeLabel();
-
-    const data = this.cellsData.get(activeCoordKey);
-    const displayVal = data ? (data.formula || data.val) : "";
-    if (this.formulaInput) this.formulaInput.value = displayVal;
-    this._showValidationDropdown(activeTarget, col, row);
-
-    if (this.options.onSelect) {
-      this.options.onSelect(activeCoordKey, data, this._calculateStats());
-    }
-
-    // Đưa focus bàn phím thật về container lưới khi chọn ô
-    if (typeof this.container.focus === "function") {
-      this.container.focus({ preventScroll: true });
-    }
   }
 
   navigateHome() {
@@ -3559,8 +3826,10 @@ export class SheetGridController {
     if (this.calculationMode === "manual" && !force) return;
     this.formulaEngine?.clearCache?.();
     const activeSheet = this.activeSheet;
+    const changedFormulaCells = new Set();
     for (const sheetName of this.sheets) {
       const map = this.sheetsData[sheetName];
+      if (!map) continue;
       this.activeSheet = sheetName;
       for (const [k, itm] of map.entries()) {
         if ((sheetName !== activeSheet || k !== excludeKey) && itm.formula) {
@@ -3580,6 +3849,7 @@ export class SheetGridController {
           // job at render time, driven by the cell's actual numberFormat.
           if (res !== itm.val) {
             itm.val = res;
+            if (sheetName === activeSheet) changedFormulaCells.add(k);
             this.formulaEngine?.bumpSheetVersion?.(sheetName);
           } else {
             itm.val = res;
@@ -3603,6 +3873,47 @@ export class SheetGridController {
     }
     this.activeSheet = activeSheet;
     this._refreshVisibleRuleVisuals();
+    this._updateWatchWindow?.();
+    this._refreshDataTables(changedFormulaCells, excludeKey);
+  }
+
+  /**
+   * Excel TABLE() behaviour: khi ô công thức gốc hoặc ô đầu vào của một Bảng
+   * dữ liệu thay đổi, tính lại toàn bộ phần thân bảng. Chỉ chạy ngoài chế độ
+   * thử nghiệm (trial) để tránh đệ quy vô hạn.
+   */
+  _refreshDataTables(changedFormulaCells, editedKey) {
+    if (this._dataTableEvaluating || this._applyingHistory) return;
+    const tables = this.dataTablesBySheet[this.activeSheet];
+    if (!tables?.length) return;
+    for (const table of tables) {
+      const inputs = [table.rowInputCell, table.columnInputCell].filter(Boolean);
+      const affected = changedFormulaCells.has(table.formulaCell) ||
+        (editedKey && (editedKey === table.formulaCell || inputs.includes(editedKey)));
+      if (!affected) continue;
+      this._recomputeDataTable(table);
+    }
+  }
+
+  _recomputeDataTable(table) {
+    const before = this._snapshotCells(table.sheet);
+    const previousGuard = this._dataTableEvaluating;
+    this._dataTableEvaluating = true;
+    let output;
+    try {
+      output = this._evaluateDataTable(table);
+      this._writeDataTableResults(table, output);
+    } finally {
+      this._dataTableEvaluating = previousGuard;
+    }
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    if (this._applyingHistory) return;
+    const after = this._snapshotCells(table.sheet);
+    const changed = before.length !== after.length || before.some(([coord, item], index) => {
+      const other = after[index]?.[1];
+      return !other || item.val !== other.val || item.formula !== other.formula;
+    });
+    if (changed) this._recordHistory({ type: "what-if-cells", sheet: table.sheet, before, after });
   }
 
   enterArrayFormula(options = {}) {
@@ -4204,12 +4515,159 @@ export class SheetGridController {
     return true;
   }
 
+  get workbookName() {
+    return this.documentName || this.options?.documentName || this.adapter?.shell?.documentName || "Bảng tính 1.xlsx";
+  }
+
+  _getNamedRangeForCell(sheetName, coord) {
+    if (!coord) return "";
+    const cleanCoord = coord.replace(/\$/g, "").toUpperCase();
+    const [c, r] = this._splitCoord(cleanCoord);
+    const rNum = Number(r);
+    const cIdx = this.cols.indexOf(c);
+
+    // Check sheet-scoped named ranges first
+    const sheetRanges = this.namedRangesBySheet?.[sheetName] || [];
+    for (const item of sheetRanges) {
+      if (this._coordMatchesNamedRange(cleanCoord, cIdx, rNum, item.ref)) {
+        return item.name;
+      }
+    }
+
+    // Check workbook-scoped named ranges
+    const wbRanges = this.namedRangesWorkbook || [];
+    for (const item of wbRanges) {
+      if (item.sheet && item.sheet !== sheetName) continue;
+      if (this._coordMatchesNamedRange(cleanCoord, cIdx, rNum, item.ref)) {
+        return item.name;
+      }
+    }
+
+    return "";
+  }
+
+  _coordMatchesNamedRange(coord, cIdx, rNum, ref) {
+    if (!ref) return false;
+    const cleanRef = String(ref).replace(/\$/g, "").toUpperCase();
+    if (cleanRef === coord) return true;
+    if (cleanRef.includes(":")) {
+      const [start, end] = cleanRef.split(":");
+      const [sc, sr] = this._splitCoord(start);
+      const [ec, er] = this._splitCoord(end);
+      const sColIdx = this.cols.indexOf(sc);
+      const eColIdx = this.cols.indexOf(ec);
+      if (sColIdx >= 0 && eColIdx >= 0 && sr && er) {
+        const minCol = Math.min(sColIdx, eColIdx);
+        const maxCol = Math.max(sColIdx, eColIdx);
+        const minRow = Math.min(Number(sr), Number(er));
+        const maxRow = Math.max(Number(sr), Number(er));
+        if (cIdx >= minCol && cIdx <= maxCol && rNum >= minRow && rNum <= maxRow) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  addWatchedCell(cellRef, targetSheet = this.activeSheet) {
+    if (!this.watchedCells) this.watchedCells = new Set();
+    if (!cellRef || typeof cellRef !== "string") return false;
+
+    let ref = cellRef.trim();
+    if (ref.startsWith("=")) ref = ref.slice(1).trim();
+
+    let sheet = targetSheet;
+    let coordPart = ref;
+    if (ref.includes("!")) {
+      const idx = ref.lastIndexOf("!");
+      sheet = ref.slice(0, idx).trim().replace(/^'|'$/g, "");
+      coordPart = ref.slice(idx + 1).trim();
+    }
+
+    coordPart = coordPart.replace(/\$/g, "").toUpperCase();
+
+    // Dải ô (Range) ví dụ: A1:A3 hoặc B2:C4
+    if (coordPart.includes(":")) {
+      const [start, end] = coordPart.split(":");
+      const [sc, sr] = this._splitCoord(start);
+      const [ec, er] = this._splitCoord(end);
+      const sColIdx = this.cols.indexOf(sc);
+      const eColIdx = this.cols.indexOf(ec);
+      if (sColIdx >= 0 && eColIdx >= 0 && sr && er) {
+        const minCol = Math.min(sColIdx, eColIdx);
+        const maxCol = Math.max(sColIdx, eColIdx);
+        const minRow = Math.min(Number(sr), Number(er));
+        const maxRow = Math.max(Number(sr), Number(er));
+        for (let r = minRow; r <= maxRow; r++) {
+          for (let c = minCol; c <= maxCol; c++) {
+            this.watchedCells.add(`${sheet}!${this.cols[c]}${r}`);
+          }
+        }
+        this._updateWatchWindow();
+        return true;
+      }
+    }
+
+    // Ô đơn ví dụ: A1
+    if (!/^[A-Z]+\d+$/.test(coordPart)) return false;
+    this.watchedCells.add(`${sheet}!${coordPart}`);
+    this._updateWatchWindow();
+    return true;
+  }
+
+  removeWatchedCell(key) {
+    if (!this.watchedCells) return false;
+    let deleted = this.watchedCells.delete(key);
+    if (!deleted && !key.includes("!")) {
+      deleted = this.watchedCells.delete(`${this.activeSheet}!${key}`);
+    }
+    if (deleted) {
+      this._updateWatchWindow();
+    }
+    return deleted;
+  }
+
+  clearWatchedCells() {
+    if (!this.watchedCells) return;
+    this.watchedCells.clear();
+    this._updateWatchWindow();
+  }
+
+  getWatchedCellsList() {
+    if (!this.watchedCells) return [];
+    const list = [];
+    const bookName = this.workbookName;
+    for (const key of this.watchedCells) {
+      const lastExcl = key.lastIndexOf("!");
+      const sheetName = lastExcl >= 0 ? key.slice(0, lastExcl).replace(/^'|'$/g, "") : this.activeSheet;
+      const coord = lastExcl >= 0 ? key.slice(lastExcl + 1).replace(/\$/g, "").toUpperCase() : key;
+      const map = (sheetName === this.activeSheet) ? this.cellsData : this.sheetsData?.[sheetName];
+      const itm = map?.get(coord);
+      const val = itm ? (itm.val ?? "") : "";
+      const formula = itm ? (itm.formula || "") : "";
+      const name = this._getNamedRangeForCell(sheetName, coord);
+      list.push({
+        workbook: bookName,
+        sheet: sheetName,
+        name,
+        cell: coord,
+        value: val,
+        formula,
+        key
+      });
+    }
+    return list;
+  }
+
   showWatchWindow() {
     if (typeof document === "undefined" || typeof document.querySelector !== "function") return false;
     let win = document.querySelector("#vno-watch-window");
     if (win) {
       win.style.display = win.style.display === "none" ? "flex" : "none";
-      if (win.style.display !== "none") this._updateWatchWindow();
+      if (win.style.display !== "none") {
+        this._updateWatchWindow();
+        win.focus();
+      }
       return true;
     }
 
@@ -4222,52 +4680,187 @@ export class SheetGridController {
     win = document.createElement("div");
     win.id = "vno-watch-window";
     win.className = "vno-watch-window";
+    win.setAttribute("role", "dialog");
+    win.setAttribute("aria-label", t("sheetDialogs.watchWindowTitle", "Cửa sổ theo dõi (Watch Window)"));
+    win.tabIndex = -1;
     win.style.cssText = `
-      position:fixed;right:24px;bottom:36px;width:440px;height:250px;background:#ffffff;border:1px solid #cbd5e1;
-      border-radius:6px;box-shadow:0 8px 24px rgba(15,23,42,0.16);z-index:9999;display:flex;flex-direction:column;font-size:12px;overflow:hidden;
+      position:fixed;right:24px;bottom:36px;width:580px;height:280px;min-width:420px;min-height:180px;
+      resize:both;background:#ffffff;border:1px solid #cbd5e1;border-radius:6px;
+      box-shadow:0 10px 30px rgba(15,23,42,0.18);z-index:9999;display:flex;flex-direction:column;
+      font-size:12px;overflow:hidden;
     `;
 
     win.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#f1f5f9;color:#0f172a;font-weight:600;border-bottom:1px solid #cbd5e1;">
-        <span style="font-size:12px;display:flex;align-items:center;gap:6px;">${t("sheetDialogs.watchWindowTitle") || "Cửa sổ theo dõi (Watch Window)"}</span>
-        <button id="vno-watch-close" type="button" class="vno-dialog-close-btn" style="width:22px;height:22px;min-width:22px;min-height:22px;padding:0;font-size:16px;">&times;</button>
+      <div id="vno-watch-header" class="vno-watch-header" style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#f1f5f9;color:#0f172a;font-weight:600;border-bottom:1px solid #cbd5e1;cursor:move;user-select:none;">
+        <span style="font-size:12px;display:flex;align-items:center;gap:6px;">${t("sheetDialogs.watchWindowTitle", "Cửa sổ theo dõi (Watch Window)")}</span>
+        <button id="vno-watch-close" type="button" class="vno-dialog-close-btn" aria-label="${t("sheetDialogs.close", "Đóng")}" title="${t("sheetDialogs.close", "Đóng")} (Esc)" style="width:24px;height:24px;min-width:24px;min-height:24px;padding:0;font-size:16px;line-height:1;border:none;background:transparent;cursor:pointer;border-radius:3px;">&times;</button>
       </div>
-      <div style="display:flex;gap:8px;padding:6px 12px;background:#f8fafc;border-bottom:1px solid #e2e8f0;">
-        <button id="vno-watch-add" type="button" class="vno-btn" style="font-size:11px;padding:3px 10px;height:24px;background:#ffffff;border:1px solid #cbd5e1;border-radius:3px;font-weight:500;">+ ${t("sheetDialogs.addWatch") || "Thêm ô theo dõi"}</button>
-        <button id="vno-watch-del" type="button" class="vno-btn" style="font-size:11px;padding:3px 10px;height:24px;background:#ffffff;border:1px solid #cbd5e1;border-radius:3px;font-weight:500;">- ${t("sheetDialogs.deleteWatch") || "Xóa"}</button>
+      <div class="vno-watch-toolbar" style="display:flex;gap:8px;padding:6px 12px;background:#f8fafc;border-bottom:1px solid #e2e8f0;align-items:center;">
+        <button id="vno-watch-add" type="button" class="vno-btn" style="font-size:11px;padding:4px 10px;height:26px;background:#ffffff;border:1px solid #cbd5e1;border-radius:4px;font-weight:500;cursor:pointer;">+ ${t("sheetDialogs.addWatch", "Thêm ô theo dõi")}</button>
+        <button id="vno-watch-del" type="button" class="vno-btn" style="font-size:11px;padding:4px 10px;height:26px;background:#ffffff;border:1px solid #cbd5e1;border-radius:4px;font-weight:500;cursor:pointer;">- ${t("sheetDialogs.deleteWatch", "Xóa theo dõi")}</button>
       </div>
-      <div style="flex:1;overflow-y:auto;padding:0;">
-        <table class="vno-watch-table" style="width:100%;border-collapse:collapse;font-size:11px;">
+      <div class="vno-watch-table-container" style="flex:1;overflow:auto;padding:0;outline:none;" tabindex="0" role="region" aria-label="${t("sheetDialogs.watchWindowTitle", "Cửa sổ theo dõi")}">
+        <table class="vno-watch-table" style="width:100%;border-collapse:collapse;font-size:11px;text-align:left;">
           <thead>
-            <tr style="background:#f8fafc;border-bottom:1px solid #cbd5e1;text-align:left;color:#475569;">
-              <th style="padding:5px 8px;border-right:1px solid #e2e8f0;font-weight:600;">${t("sheetDialogs.watchWindowColSheet", "Trang tính")}</th>
-              <th style="padding:5px 8px;border-right:1px solid #e2e8f0;font-weight:600;">${t("sheetDialogs.watchWindowColCell", "Ô")}</th>
-              <th style="padding:5px 8px;border-right:1px solid #e2e8f0;font-weight:600;">${t("sheetDialogs.watchWindowColValue", "Giá trị")}</th>
-              <th style="padding:5px 8px;font-weight:600;">${t("sheetDialogs.watchWindowColFormula", "Công thức")}</th>
+            <tr style="background:#f8fafc;border-bottom:1px solid #cbd5e1;text-align:left;color:#475569;font-size:11px;position:sticky;top:0;z-index:1;">
+              <th style="padding:6px 8px;border-right:1px solid #e2e8f0;font-weight:600;white-space:nowrap;">${t("sheetDialogs.watchWindowColBook", "Sổ làm việc")}</th>
+              <th style="padding:6px 8px;border-right:1px solid #e2e8f0;font-weight:600;white-space:nowrap;">${t("sheetDialogs.watchWindowColSheet", "Trang tính")}</th>
+              <th style="padding:6px 8px;border-right:1px solid #e2e8f0;font-weight:600;white-space:nowrap;">${t("sheetDialogs.watchWindowColName", "Tên")}</th>
+              <th style="padding:6px 8px;border-right:1px solid #e2e8f0;font-weight:600;white-space:nowrap;">${t("sheetDialogs.watchWindowColCell", "Ô")}</th>
+              <th style="padding:6px 8px;border-right:1px solid #e2e8f0;font-weight:600;white-space:nowrap;">${t("sheetDialogs.watchWindowColValue", "Giá trị")}</th>
+              <th style="padding:6px 8px;font-weight:600;white-space:nowrap;">${t("sheetDialogs.watchWindowColFormula", "Công thức")}</th>
             </tr>
           </thead>
           <tbody id="vno-watch-tbody"></tbody>
         </table>
       </div>
+      <div class="vno-watch-footer" style="padding:4px 12px;background:#f8fafc;border-top:1px solid #e2e8f0;font-size:11px;color:#64748b;display:flex;justify-content:space-between;align-items:center;">
+        <span id="vno-watch-count">0 ${t("sheetDialogs.watchWindowCountSuffix", "ô theo dõi")}</span>
+        <span style="font-size:10px;color:#94a3b8;">${t("sheetDialogs.watchWindowKeyboardHint", "Phím tắt: Delete để xóa, Enter để chuyển đến ô, Esc để đóng")}</span>
+      </div>
     `;
 
     document.body.appendChild(win);
 
-    win.querySelector("#vno-watch-close").addEventListener("click", () => {
+    // Kéo thả cửa sổ nổi qua header
+    const header = win.querySelector("#vno-watch-header");
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let initialLeft = 0;
+    let initialTop = 0;
+
+    const onMouseDown = (e) => {
+      if (e.target?.closest?.("button") || e.target?.closest?.("input")) return;
+      isDragging = true;
+      dragStartX = e.clientX ?? 0;
+      dragStartY = e.clientY ?? 0;
+      const rect = win.getBoundingClientRect?.() || { left: 100, top: 100 };
+      initialLeft = rect.left;
+      initialTop = rect.top;
+      win.style.right = "auto";
+      win.style.bottom = "auto";
+      win.style.left = `${initialLeft}px`;
+      win.style.top = `${initialTop}px`;
+      if (document.body) document.body.style.userSelect = "none";
+
+      const onMouseMove = (ev) => {
+        if (!isDragging) return;
+        const dx = (ev.clientX ?? 0) - dragStartX;
+        const dy = (ev.clientY ?? 0) - dragStartY;
+        let nextLeft = initialLeft + dx;
+        let nextTop = initialTop + dy;
+        const viewportW = (typeof window !== "undefined" ? window.innerWidth : 1024) || 1024;
+        const viewportH = (typeof window !== "undefined" ? window.innerHeight : 768) || 768;
+        const maxLeft = Math.max(0, viewportW - (win.offsetWidth || 580));
+        const maxTop = Math.max(0, viewportH - (win.offsetHeight || 280));
+        nextLeft = Math.max(0, Math.min(maxLeft, nextLeft));
+        nextTop = Math.max(0, Math.min(maxTop, nextTop));
+        win.style.left = `${nextLeft}px`;
+        win.style.top = `${nextTop}px`;
+      };
+
+      const onMouseUp = () => {
+        isDragging = false;
+        if (document.body) document.body.style.userSelect = "";
+        document.removeEventListener("mousemove", onMouseMove);
+        document.removeEventListener("mouseup", onMouseUp);
+      };
+
+      document.addEventListener("mousemove", onMouseMove);
+      document.addEventListener("mouseup", onMouseUp);
+    };
+
+    if (header) header.addEventListener("mousedown", onMouseDown);
+
+    // Đóng cửa sổ
+    win.querySelector("#vno-watch-close")?.addEventListener("click", () => {
       win.style.display = "none";
     });
 
-    win.querySelector("#vno-watch-add").addEventListener("click", () => {
-      const cKey = `${this.activeSheet}!${this.selectedCoord.c}${this.selectedCoord.r}`;
-      this.watchedCells.add(cKey);
-      this._updateWatchWindow();
+    // Thêm ô theo dõi
+    win.querySelector("#vno-watch-add")?.addEventListener("click", () => {
+      this._showAddWatchDialog(win);
     });
 
-    win.querySelector("#vno-watch-del").addEventListener("click", () => {
+    // Xóa ô theo dõi
+    win.querySelector("#vno-watch-del")?.addEventListener("click", () => {
       const selectedRow = win.querySelector(".vno-watch-row.is-selected");
       if (selectedRow) {
-        this.watchedCells.delete(selectedRow.dataset.watchKey);
-        this._updateWatchWindow();
+        const rows = Array.from(win.querySelectorAll(".vno-watch-row"));
+        const currentIndex = rows.indexOf(selectedRow);
+        this.removeWatchedCell(selectedRow.dataset.watchKey);
+        const newRows = Array.from(win.querySelectorAll(".vno-watch-row"));
+        if (newRows.length > 0) {
+          const nextIndex = Math.min(currentIndex, newRows.length - 1);
+          newRows[nextIndex].classList.add("is-selected");
+        }
+      }
+    });
+
+    // Phím tắt và điều hướng bàn phím trên cửa sổ
+    win.addEventListener("keydown", (e) => {
+      const addDialog = win.querySelector("#vno-watch-add-dialog");
+      if (addDialog) {
+        if (e.key === "Escape") {
+          e.preventDefault?.();
+          e.stopPropagation?.();
+          addDialog.remove();
+          win.querySelector("#vno-watch-backdrop")?.remove();
+          win.querySelector("#vno-watch-add")?.focus();
+        }
+        return;
+      }
+
+      if (e.key === "Escape") {
+        e.preventDefault?.();
+        win.style.display = "none";
+        return;
+      }
+
+      const rows = Array.from(win.querySelectorAll(".vno-watch-row"));
+      if (rows.length === 0) return;
+
+      let selectedIndex = rows.findIndex(r => r.classList.contains("is-selected"));
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault?.();
+        const nextIndex = selectedIndex < rows.length - 1 ? selectedIndex + 1 : 0;
+        rows.forEach(r => r.classList.remove("is-selected"));
+        rows[nextIndex].classList.add("is-selected");
+        rows[nextIndex].scrollIntoView?.({ block: "nearest" });
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault?.();
+        const prevIndex = selectedIndex > 0 ? selectedIndex - 1 : rows.length - 1;
+        rows.forEach(r => r.classList.remove("is-selected"));
+        rows[prevIndex].classList.add("is-selected");
+        rows[prevIndex].scrollIntoView?.({ block: "nearest" });
+      } else if (e.key === "Delete" || e.key === "Backspace") {
+        if (e.target?.tagName !== "INPUT" && selectedIndex >= 0) {
+          e.preventDefault?.();
+          const keyToDelete = rows[selectedIndex].dataset.watchKey;
+          this.removeWatchedCell(keyToDelete);
+          const newRows = Array.from(win.querySelectorAll(".vno-watch-row"));
+          if (newRows.length > 0) {
+            newRows.forEach(r => r.classList.remove("is-selected"));
+            const nextSel = Math.min(selectedIndex, newRows.length - 1);
+            newRows[nextSel].classList.add("is-selected");
+          }
+        }
+      } else if (e.key === "Enter") {
+        if (e.target?.tagName !== "BUTTON" && e.target?.tagName !== "INPUT" && selectedIndex >= 0) {
+          e.preventDefault?.();
+          const row = rows[selectedIndex];
+          const key = row.dataset.watchKey;
+          const lastExcl = key.lastIndexOf("!");
+          const sheetName = lastExcl >= 0 ? key.slice(0, lastExcl).replace(/^'|'$/g, "") : this.activeSheet;
+          const coord = lastExcl >= 0 ? key.slice(lastExcl + 1).replace(/\$/g, "").toUpperCase() : key;
+          if (this.sheets?.includes(sheetName)) {
+            this.switchSheet(sheetName);
+          }
+          const [col, r] = this._splitCoord(coord);
+          this.selectCell(col, Number(r));
+        }
       }
     });
 
@@ -4275,37 +4868,154 @@ export class SheetGridController {
     return true;
   }
 
+  _showAddWatchDialog(win) {
+    if (!win) return;
+    const oldDialog = win.querySelector("#vno-watch-add-dialog");
+    if (oldDialog) oldDialog.remove();
+    win.querySelector("#vno-watch-backdrop")?.remove();
+
+    const backdrop = document.createElement("div");
+    backdrop.id = "vno-watch-backdrop";
+    backdrop.className = "vno-watch-add-dialog-backdrop";
+    backdrop.style.cssText = "position:absolute;inset:0;background:rgba(15,23,42,0.25);z-index:10000;";
+
+    const dialog = document.createElement("div");
+    dialog.id = "vno-watch-add-dialog";
+    dialog.className = "vno-watch-add-dialog";
+    dialog.setAttribute("role", "dialog");
+    dialog.setAttribute("aria-label", t("sheetDialogs.addWatchTitle", "Thêm ô theo dõi"));
+    dialog.style.cssText = `
+      position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:360px;max-width:90%;
+      background:#ffffff;border:1px solid #cbd5e1;border-radius:6px;box-shadow:0 12px 32px rgba(15,23,42,0.22);
+      z-index:10001;display:flex;flex-direction:column;font-size:12px;overflow:hidden;
+    `;
+
+    const defaultRef = `='${this.activeSheet}'!$${this.selectedCoord.c}$${this.selectedCoord.r}`;
+
+    dialog.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#f1f5f9;border-bottom:1px solid #cbd5e1;font-weight:600;color:#0f172a;">
+        <span>${t("sheetDialogs.addWatchTitle", "Thêm ô theo dõi")}</span>
+        <button id="vno-watch-add-close" type="button" class="vno-dialog-close-btn" aria-label="${t("sheetDialogs.close", "Đóng")}" style="width:22px;height:22px;min-width:22px;min-height:22px;padding:0;font-size:16px;line-height:1;border:none;background:transparent;cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:12px;display:flex;flex-direction:column;gap:8px;">
+        <label for="vno-watch-add-input" style="font-weight:500;color:#334155;">${t("sheetDialogs.addWatchPrompt", "Chọn ô bạn muốn theo dõi giá trị:")}</label>
+        <input id="vno-watch-add-input" type="text" value="${this._escapeHtml(defaultRef)}" style="width:100%;height:28px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:4px;font-size:12px;font-family:Consolas, monospace;" />
+        <div id="vno-watch-add-error" style="color:#dc2626;font-size:11px;display:none;"></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;padding:8px 12px;background:#f8fafc;border-top:1px solid #e2e8f0;">
+        <button id="vno-watch-add-confirm" type="button" class="vno-btn vno-btn-primary" style="font-size:11px;padding:4px 12px;height:26px;background:#0f6d38;color:#ffffff;border:none;border-radius:4px;cursor:pointer;font-weight:500;">${t("sheetDialogs.addWatchBtn", "Thêm")}</button>
+        <button id="vno-watch-add-cancel" type="button" class="vno-btn" style="font-size:11px;padding:4px 12px;height:26px;background:#ffffff;border:1px solid #cbd5e1;border-radius:4px;cursor:pointer;">${t("sheetDialogs.cancel", "Hủy")}</button>
+      </div>
+    `;
+
+    win.appendChild(backdrop);
+    win.appendChild(dialog);
+
+    const input = dialog.querySelector("#vno-watch-add-input");
+    const errorEl = dialog.querySelector("#vno-watch-add-error");
+    const closeDialog = () => {
+      dialog.remove();
+      backdrop.remove();
+      win.querySelector("#vno-watch-add")?.focus();
+    };
+
+    dialog.querySelector("#vno-watch-add-close")?.addEventListener("click", closeDialog);
+    dialog.querySelector("#vno-watch-add-cancel")?.addEventListener("click", closeDialog);
+
+    const doSubmit = () => {
+      const val = (input?.value || "").trim();
+      const added = this.addWatchedCell(val);
+      if (!added) {
+        if (errorEl) {
+          errorEl.textContent = t("sheetDialogs.watchWindowInvalidCoord", "Địa chỉ ô không hợp lệ.");
+          errorEl.style.display = "block";
+        }
+        input?.focus?.();
+        return;
+      }
+      closeDialog();
+    };
+
+    dialog.querySelector("#vno-watch-add-confirm")?.addEventListener("click", doSubmit);
+
+    input?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault?.();
+        doSubmit();
+      } else if (e.key === "Escape") {
+        e.preventDefault?.();
+        e.stopPropagation?.();
+        closeDialog();
+      }
+    });
+
+    if (typeof setTimeout === "function") {
+      setTimeout(() => {
+        input?.focus?.();
+        input?.select?.();
+      }, 10);
+    }
+  }
+
   _updateWatchWindow() {
     if (typeof document === "undefined" || typeof document.querySelector !== "function") return;
     const tbody = document.querySelector("#vno-watch-tbody");
     if (!tbody || !this.watchedCells) return;
+    const countEl = document.querySelector("#vno-watch-count");
+
+    const currentSelectedRow = tbody.querySelector(".vno-watch-row.is-selected");
+    let preservedKey = currentSelectedRow?.dataset?.watchKey;
+
     tbody.innerHTML = "";
     if (this.watchedCells.size === 0) {
-      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:16px;color:#94a3b8;">Chưa có ô theo dõi nào.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:24px 16px;color:#94a3b8;font-size:12px;">${t("sheetDialogs.watchWindowEmpty", "Chưa có ô theo dõi nào.")}</td></tr>`;
+      if (countEl) countEl.textContent = `0 ${t("sheetDialogs.watchWindowCountSuffix", "ô theo dõi")}`;
       return;
     }
 
-    for (const key of this.watchedCells) {
-      const [sheetName, coord] = key.split("!");
-      const map = this.sheetsData?.[sheetName] || (sheetName === this.activeSheet ? this.cellsData : null);
-      const itm = map?.get(coord);
-      const val = itm ? (itm.val ?? "") : "";
-      const formula = itm ? (itm.formula || "") : "";
+    const items = this.getWatchedCellsList();
+    if (countEl) countEl.textContent = `${items.length} ${t("sheetDialogs.watchWindowCountSuffix", "ô theo dõi")}`;
 
+    let selectedKeyToApply = preservedKey;
+    if (!selectedKeyToApply || !items.some(it => it.key === selectedKeyToApply)) {
+      selectedKeyToApply = items[0]?.key;
+    }
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
       const tr = document.createElement("tr");
       tr.className = "vno-watch-row";
-      tr.dataset.watchKey = key;
+      tr.dataset.watchKey = item.key;
+      tr.dataset.sheet = item.sheet;
+      tr.dataset.coord = item.cell;
+      tr.tabIndex = -1;
       tr.style.cssText = "border-bottom:1px solid #f1f5f9;cursor:pointer;transition:background-color 0.1s;";
+      if (item.key === selectedKeyToApply) {
+        tr.classList.add("is-selected");
+      }
+
       tr.innerHTML = `
-        <td style="padding:5px 8px;font-weight:600;border-right:1px solid #f1f5f9;">${this._escapeHtml(sheetName)}</td>
-        <td style="padding:5px 8px;font-weight:700;color:#0f6d38;border-right:1px solid #f1f5f9;">${this._escapeHtml(coord)}</td>
-        <td style="padding:5px 8px;border-right:1px solid #f1f5f9;">${this._escapeHtml(String(val))}</td>
-        <td style="padding:5px 8px;font-family:Consolas, monospace;color:#64748b;">${this._escapeHtml(formula)}</td>
+        <td style="padding:5px 8px;border-right:1px solid #f1f5f9;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px;" title="${this._escapeHtml(item.workbook)}">${this._escapeHtml(item.workbook)}</td>
+        <td style="padding:5px 8px;font-weight:600;border-right:1px solid #f1f5f9;color:#1e293b;white-space:nowrap;">${this._escapeHtml(item.sheet)}</td>
+        <td style="padding:5px 8px;border-right:1px solid #e2e8f0;color:#0284c7;white-space:nowrap;">${this._escapeHtml(item.name || "")}</td>
+        <td style="padding:5px 8px;font-weight:700;color:#0f6d38;border-right:1px solid #f1f5f9;white-space:nowrap;">${this._escapeHtml(item.cell)}</td>
+        <td style="padding:5px 8px;border-right:1px solid #f1f5f9;color:#0f172a;white-space:nowrap;font-weight:500;">${this._escapeHtml(String(item.value))}</td>
+        <td style="padding:5px 8px;font-family:Consolas, monospace;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;" title="${this._escapeHtml(item.formula)}">${this._escapeHtml(item.formula)}</td>
       `;
+
       tr.addEventListener("click", () => {
         tbody.querySelectorAll(".vno-watch-row").forEach(r => r.classList.remove("is-selected"));
         tr.classList.add("is-selected");
       });
+
+      tr.addEventListener("dblclick", () => {
+        if (this.sheets?.includes(item.sheet)) {
+          this.switchSheet(item.sheet);
+        }
+        const [col, row] = this._splitCoord(item.cell);
+        this.selectCell(col, Number(row));
+      });
+
       tbody.appendChild(tr);
     }
   }
@@ -5446,11 +6156,14 @@ export class SheetGridController {
     return true;
   }
 
-  applyFormatPainterToSelection(range = this.selectionRange) {
+  applyFormatPainterToSelection(range = null) {
     if (!this.formatPainter) return false;
     const sourceStyle = structuredClone(this.formatPainter.style || {});
-    const norm = this._normalizeRange(range || { start: this.selectedCoord, end: this.selectedCoord });
-    const coords = this.formulaEngine.expandRange(this._rangeLabel(norm));
+    const ranges = range ? [range] : this._getSelectionRanges();
+    const coords = [...new Set(ranges.flatMap(selection => {
+      const normalized = this._normalizeRange(selection || { start: this.selectedCoord, end: this.selectedCoord });
+      return this.formulaEngine.expandRange(this._rangeLabel(normalized));
+    }))];
     if (!coords.length) return false;
 
     const before = {};
@@ -6356,20 +7069,20 @@ export class SheetGridController {
     };
   }
 
-  /** Đọc "Hàng lặp lại" của Print Titles (vd "1" hoặc "1:2") thành {start, end} hoặc null. */
+  /** Đọc "Hàng lặp lại" của Print Titles (vd "1", "1:2" hoặc Excel "$1", "$1:$2") thành {start, end} hoặc null. */
   _parsePrintTitleRows(setup) {
     const raw = String(setup?.printTitles?.rows || "").trim();
-    const m = raw.match(/^(\d+)(?::(\d+))?$/);
+    const m = raw.match(/^\$?(\d+)(?::\$?(\d+))?$/);
     if (!m) return null;
     const a = parseInt(m[1], 10);
     const b = m[2] ? parseInt(m[2], 10) : a;
     return { start: Math.min(a, b), end: Math.max(a, b) };
   }
 
-  /** Đọc "Cột lặp lại" của Print Titles (vd "A" hoặc "A:B") thành {start, end} (số cột) hoặc null. */
+  /** Đọc "Cột lặp lại" của Print Titles (vd "A", "A:B" hoặc Excel "$A", "$A:$B") thành {start, end} (số cột) hoặc null. */
   _parsePrintTitleCols(setup) {
     const raw = String(setup?.printTitles?.cols || "").trim().toUpperCase();
-    const m = raw.match(/^([A-Z]+)(?::([A-Z]+))?$/);
+    const m = raw.match(/^\$?([A-Z]+)(?::\$?([A-Z]+))?$/);
     if (!m) return null;
     const a = this._columnNumber(m[1]);
     const b = m[2] ? this._columnNumber(m[2]) : a;
@@ -6377,9 +7090,36 @@ export class SheetGridController {
   }
 
   /**
+   * Chuẩn hoá giá trị Print Titles nhập tay kiểu Excel: bỏ dấu $ ($1:$2 → 1:2, $A:$B → A:B),
+   * viết hoa chữ cái cột. Lưu trữ luôn ở dạng chuẩn không $ để round-trip FODS/XLSX ổn định.
+   */
+  _normalizePrintTitlesInput(rows, cols) {
+    return {
+      rows: String(rows || "").trim().replace(/\$/g, ""),
+      cols: String(cols || "").trim().toUpperCase().replace(/\$/g, "")
+    };
+  }
+
+  /**
+   * Chuyển kết quả chọn trực tiếp trên lưới thành giá trị Print Titles.
+   * field: "rows" (start/end là số hàng 1-based) hoặc "cols" (start/end là số cột 1-based).
+   * Trả về "1:2" / "A:B"; start === end thì trả về "1" / "A" (đúng chuẩn Excel).
+   */
+  formatPrintTitleSelection(field, start, end) {
+    const a = Math.min(start, end);
+    const b = Math.max(start, end);
+    if (field === "rows") return a === b ? String(a) : `${a}:${b}`;
+    if (field === "cols") {
+      const label = n => (typeof this._columnLabel === "function" ? this._columnLabel(n) : String(n));
+      return a === b ? label(a) : `${label(a)}:${label(b)}`;
+    }
+    return "";
+  }
+
+  /**
    * Tính toán phân trang in THẬT dựa trên Page Setup (khổ giấy, lề, hướng, tỷ lệ,
    * tiêu đề lặp lại) và Vùng in hiệu lực hiện tại. Dùng chung cho cả Print Preview
-   * và in thật (window.print()) để đảm bảo WYSIWYG - Preview thấy gì thì in ra đúng vậy.
+   * và bản đồ trang hiện tại; bản in cuối cùng do PDF LibreOffice quyết định.
    * Hàng/cột ẩn (thủ công hoặc outline) không được đưa vào trang in, giống Excel thật.
    */
   computePrintPages(sheetName = this.activeSheet) {
@@ -6657,14 +7397,9 @@ export class SheetGridController {
     return { container, result };
   }
 
-  /** In thật: dựng lại toàn bộ nội dung theo Page Setup (khác với lưới ảo hóa trên màn hình) rồi gọi window.print(). */
+  /** Chuyển nút xem trước cũ về lệnh In dùng chung của Platform. */
   print() {
-    if (typeof document === "undefined") return true;
-    this._syncSheetPrintOnlyDom();
-    if (typeof window !== "undefined" && typeof window.print === "function") {
-      window.print();
-    }
-    return true;
+    return globalCommandBus.execute("common.file.print");
   }
 
   closePrintPreview() {
@@ -6810,6 +7545,14 @@ export class SheetGridController {
     return this.headingsVisible;
   }
 
+  canUndo() {
+    return (this.undoStack?.length || 0) > 0;
+  }
+
+  canRedo() {
+    return (this.redoStack?.length || 0) > 0;
+  }
+
   undo() {
     const action = this.undoStack.pop();
     if (!action) { this._syncCommandStates(); return false; }
@@ -6850,7 +7593,7 @@ export class SheetGridController {
         if (removed && this.sheets.includes(action.previousSheet)) this.switchSheet(action.previousSheet);
         return removed;
       }
-      this._restoreSheet(action.sheetName, action.snapshot, this.sheets.length);
+      this._restoreSheet(action.sheetName, action.snapshot, action.index !== undefined ? action.index : this.sheets.length);
       this.switchSheet(action.sheetName);
       return true;
     }
@@ -7636,6 +8379,509 @@ export class SheetGridController {
     return true;
   }
 
+  isEntireRowSelected(range = this.selectionRange) {
+    const norm = this._normalizeRange(range);
+    const startColIdx = this.cols.indexOf(norm.start.c);
+    const endColIdx = this.cols.indexOf(norm.end.c);
+    return startColIdx === 0 && endColIdx === this.cols.length - 1;
+  }
+
+  isEntireColumnSelected(range = this.selectionRange) {
+    const norm = this._normalizeRange(range);
+    return norm.start.r === 1 && norm.end.r === this.rowCount;
+  }
+
+  shiftCellsRight(range = this.selectionRange, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    const normalized = this._normalizeRange(range);
+    const startColIdx = this.cols.indexOf(normalized.start.c);
+    const endColIdx = this.cols.indexOf(normalized.end.c);
+    const shiftAmount = endColIdx - startColIdx + 1;
+    if (startColIdx < 0 || endColIdx < 0 || shiftAmount <= 0) return false;
+
+    const before = this._snapshotGridStructure();
+
+    let maxColIdx = endColIdx;
+    for (const [key] of this.cellsData.entries()) {
+      const [col, r] = this._splitCoord(key);
+      if (r >= normalized.start.r && r <= normalized.end.r) {
+        const cIdx = this.cols.indexOf(col);
+        if (cIdx > maxColIdx) maxColIdx = cIdx;
+      }
+    }
+    while (this.cols.length <= maxColIdx + shiftAmount) {
+      this.cols.push(this._columnLabel(this.cols.length + 1));
+    }
+
+    for (let r = normalized.start.r; r <= normalized.end.r; r++) {
+      for (let cIdx = this.cols.length - 1; cIdx >= startColIdx; cIdx--) {
+        const col = this.cols[cIdx];
+        const key = `${col}${r}`;
+        const sourceColIdx = cIdx - shiftAmount;
+        if (sourceColIdx >= startColIdx) {
+          const sourceCol = this.cols[sourceColIdx];
+          const sourceKey = `${sourceCol}${r}`;
+          const item = this.cellsData.get(sourceKey);
+          if (item) {
+            this.cellsData.set(key, structuredClone(item));
+          } else {
+            this.cellsData.delete(key);
+          }
+        } else {
+          this.cellsData.delete(key);
+        }
+      }
+    }
+
+    this._renderColumnHeaders();
+    this._renderVirtualRows(this.currentStartRow || 1, Math.min(this.currentEndRow || 40, this.rowCount));
+    this._recalculateAllFormulas();
+    this.refreshCharts();
+    this.selectCell(normalized.start.c, normalized.start.r);
+    if (recordUndo) {
+      this._recordHistory({
+        type: "grid-structure",
+        sheet: this.activeSheet,
+        before,
+        after: this._snapshotGridStructure()
+      });
+    }
+    return true;
+  }
+
+  shiftCellsDown(range = this.selectionRange, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    const normalized = this._normalizeRange(range);
+    const startColIdx = this.cols.indexOf(normalized.start.c);
+    const endColIdx = this.cols.indexOf(normalized.end.c);
+    const shiftAmount = normalized.end.r - normalized.start.r + 1;
+    if (startColIdx < 0 || endColIdx < 0 || shiftAmount <= 0) return false;
+
+    const before = this._snapshotGridStructure();
+
+    let maxRow = normalized.end.r;
+    for (const [key] of this.cellsData.entries()) {
+      const [col, r] = this._splitCoord(key);
+      const cIdx = this.cols.indexOf(col);
+      if (cIdx >= startColIdx && cIdx <= endColIdx) {
+        if (r > maxRow) maxRow = r;
+      }
+    }
+    if (maxRow + shiftAmount > this.rowCount) {
+      this.rowCount = maxRow + shiftAmount;
+    }
+
+    for (let cIdx = startColIdx; cIdx <= endColIdx; cIdx++) {
+      const col = this.cols[cIdx];
+      for (let r = this.rowCount; r >= normalized.start.r; r--) {
+        const key = `${col}${r}`;
+        const sourceRow = r - shiftAmount;
+        if (sourceRow >= normalized.start.r) {
+          const sourceKey = `${col}${sourceRow}`;
+          const item = this.cellsData.get(sourceKey);
+          if (item) {
+            this.cellsData.set(key, structuredClone(item));
+          } else {
+            this.cellsData.delete(key);
+          }
+        } else {
+          this.cellsData.delete(key);
+        }
+      }
+    }
+
+    this._renderVirtualRows(this.currentStartRow || 1, Math.min(this.currentEndRow || 40, this.rowCount));
+    this._recalculateAllFormulas();
+    this.refreshCharts();
+    this.selectCell(normalized.start.c, normalized.start.r);
+    if (recordUndo) {
+      this._recordHistory({
+        type: "grid-structure",
+        sheet: this.activeSheet,
+        before,
+        after: this._snapshotGridStructure()
+      });
+    }
+    return true;
+  }
+
+  shiftCellsLeft(range = this.selectionRange, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    const normalized = this._normalizeRange(range);
+    const startColIdx = this.cols.indexOf(normalized.start.c);
+    const endColIdx = this.cols.indexOf(normalized.end.c);
+    const shiftAmount = endColIdx - startColIdx + 1;
+    if (startColIdx < 0 || endColIdx < 0 || shiftAmount <= 0) return false;
+
+    const before = this._snapshotGridStructure();
+
+    for (let r = normalized.start.r; r <= normalized.end.r; r++) {
+      for (let cIdx = startColIdx; cIdx < this.cols.length; cIdx++) {
+        const col = this.cols[cIdx];
+        const key = `${col}${r}`;
+        const sourceColIdx = cIdx + shiftAmount;
+        if (sourceColIdx < this.cols.length) {
+          const sourceCol = this.cols[sourceColIdx];
+          const sourceKey = `${sourceCol}${r}`;
+          const item = this.cellsData.get(sourceKey);
+          if (item) {
+            this.cellsData.set(key, structuredClone(item));
+          } else {
+            this.cellsData.delete(key);
+          }
+        } else {
+          this.cellsData.delete(key);
+        }
+      }
+    }
+
+    this._renderVirtualRows(this.currentStartRow || 1, Math.min(this.currentEndRow || 40, this.rowCount));
+    this._recalculateAllFormulas();
+    this.refreshCharts();
+    this.selectCell(normalized.start.c, normalized.start.r);
+    if (recordUndo) {
+      this._recordHistory({
+        type: "grid-structure",
+        sheet: this.activeSheet,
+        before,
+        after: this._snapshotGridStructure()
+      });
+    }
+    return true;
+  }
+
+  shiftCellsUp(range = this.selectionRange, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    const normalized = this._normalizeRange(range);
+    const startColIdx = this.cols.indexOf(normalized.start.c);
+    const endColIdx = this.cols.indexOf(normalized.end.c);
+    const shiftAmount = normalized.end.r - normalized.start.r + 1;
+    if (startColIdx < 0 || endColIdx < 0 || shiftAmount <= 0) return false;
+
+    const before = this._snapshotGridStructure();
+
+    for (let cIdx = startColIdx; cIdx <= endColIdx; cIdx++) {
+      const col = this.cols[cIdx];
+      for (let r = normalized.start.r; r <= this.rowCount; r++) {
+        const key = `${col}${r}`;
+        const sourceRow = r + shiftAmount;
+        if (sourceRow <= this.rowCount) {
+          const sourceKey = `${col}${sourceRow}`;
+          const item = this.cellsData.get(sourceKey);
+          if (item) {
+            this.cellsData.set(key, structuredClone(item));
+          } else {
+            this.cellsData.delete(key);
+          }
+        } else {
+          this.cellsData.delete(key);
+        }
+      }
+    }
+
+    this._renderVirtualRows(this.currentStartRow || 1, Math.min(this.currentEndRow || 40, this.rowCount));
+    this._recalculateAllFormulas();
+    this.refreshCharts();
+    this.selectCell(normalized.start.c, normalized.start.r);
+    if (recordUndo) {
+      this._recordHistory({
+        type: "grid-structure",
+        sheet: this.activeSheet,
+        before,
+        after: this._snapshotGridStructure()
+      });
+    }
+    return true;
+  }
+
+  showInsertCellsDialog(range = this.selectionRange) {
+    const normalized = this._normalizeRange(range);
+    if (typeof document === "undefined" || !document.body) {
+      this.shiftCellsDown(normalized);
+      return true;
+    }
+    const previousFocused = document.activeElement;
+    const overlay = document.createElement("div");
+    overlay.className = "vno-dialog-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:99999;";
+
+    overlay.innerHTML = `
+      <div class="vno-dialog-box" style="width: 320px; background:var(--vno-bg-surface, #fff); border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,0.2); font-family:sans-serif; overflow:hidden;" role="document">
+        <div class="vno-dialog-header" style="padding:12px 16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; font-weight:600; font-size:14px;">
+          <span>Chèn</span>
+          <button class="vno-dialog-close-btn" style="border:none;background:transparent;cursor:pointer;font-size:18px;" aria-label="Đóng">&times;</button>
+        </div>
+        <div class="vno-dialog-body" style="padding:16px; font-size:13px; display:flex; flex-direction:column; gap:10px;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="radio" name="vno-insert-action" value="shiftRight">
+            <span>Chuyển ô sang phải</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="radio" name="vno-insert-action" value="shiftDown" checked>
+            <span>Chuyển ô xuống dưới</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="radio" name="vno-insert-action" value="entireRow">
+            <span>Toàn bộ hàng</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="radio" name="vno-insert-action" value="entireCol">
+            <span>Toàn bộ cột</span>
+          </label>
+        </div>
+        <div class="vno-dialog-footer" style="padding:12px 16px; display:flex; justify-content:flex-end; gap:8px; border-top:1px solid #e2e8f0; background:#f8fafc;">
+          <button class="vno-btn vno-dialog-ok-btn" style="padding:6px 16px; border-radius:4px; font-size:13px; cursor:pointer; background:var(--vno-primary, #0f6d38); color:#fff; border:none; font-weight:500;">Đồng ý</button>
+          <button class="vno-btn vno-dialog-cancel-btn" style="padding:6px 16px; border-radius:4px; font-size:13px; cursor:pointer; background:#fff; border:1px solid #cbd5e1; color:#334155;">Hủy</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+    const dialogBox = overlay.querySelector(".vno-dialog-box");
+    const okBtn = overlay.querySelector(".vno-dialog-ok-btn");
+    const cancelBtn = overlay.querySelector(".vno-dialog-cancel-btn");
+    const closeBtn = overlay.querySelector(".vno-dialog-close-btn");
+
+    const cleanup = () => {
+      document.removeEventListener("keydown", onKeyDown);
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (previousFocused && typeof previousFocused.focus === "function") {
+        previousFocused.focus();
+      }
+    };
+
+    const executeChoice = () => {
+      const selected = overlay.querySelector('input[name="vno-insert-action"]:checked')?.value || "shiftDown";
+      cleanup();
+      if (selected === "shiftRight") {
+        this.shiftCellsRight(normalized);
+      } else if (selected === "shiftDown") {
+        this.shiftCellsDown(normalized);
+      } else if (selected === "entireRow") {
+        const rowCount = normalized.end.r - normalized.start.r + 1;
+        const before = this._snapshotGridStructure();
+        for (let i = 0; i < rowCount; i++) {
+          this.insertRow(normalized.start.r, false);
+        }
+        this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+      } else if (selected === "entireCol") {
+        const startColIdx = this.cols.indexOf(normalized.start.c);
+        const endColIdx = this.cols.indexOf(normalized.end.c);
+        const colCount = endColIdx - startColIdx + 1;
+        const before = this._snapshotGridStructure();
+        for (let i = 0; i < colCount; i++) {
+          this.insertColumn(normalized.start.c, false);
+        }
+        this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+      }
+    };
+
+    okBtn.addEventListener("click", executeChoice);
+    cancelBtn.addEventListener("click", cleanup);
+    closeBtn.addEventListener("click", cleanup);
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) cleanup(); });
+
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        cleanup();
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        executeChoice();
+      } else if (e.key === "Tab") {
+        const focusables = Array.from(dialogBox.querySelectorAll('button, input[type="radio"]:checked, input'));
+        if (focusables.length > 0) {
+          const first = focusables[0];
+          const last = focusables[focusables.length - 1];
+          if (e.shiftKey && (document.activeElement === first || !dialogBox.contains(document.activeElement))) {
+            e.preventDefault();
+            last.focus();
+          } else if (!e.shiftKey && (document.activeElement === last || !dialogBox.contains(document.activeElement))) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    okBtn.focus();
+    return true;
+  }
+
+  showDeleteCellsDialog(range = this.selectionRange) {
+    const normalized = this._normalizeRange(range);
+    if (typeof document === "undefined" || !document.body) {
+      this.shiftCellsLeft(normalized);
+      return true;
+    }
+    const previousFocused = document.activeElement;
+    const overlay = document.createElement("div");
+    overlay.className = "vno-dialog-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:99999;";
+
+    overlay.innerHTML = `
+      <div class="vno-dialog-box" style="width: 320px; background:var(--vno-bg-surface, #fff); border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,0.2); font-family:sans-serif; overflow:hidden;" role="document">
+        <div class="vno-dialog-header" style="padding:12px 16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; font-weight:600; font-size:14px;">
+          <span>Xóa</span>
+          <button class="vno-dialog-close-btn" style="border:none;background:transparent;cursor:pointer;font-size:18px;" aria-label="Đóng">&times;</button>
+        </div>
+        <div class="vno-dialog-body" style="padding:16px; font-size:13px; display:flex; flex-direction:column; gap:10px;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="radio" name="vno-delete-action" value="shiftLeft" checked>
+            <span>Chuyển ô sang trái</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="radio" name="vno-delete-action" value="shiftUp">
+            <span>Chuyển ô lên trên</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="radio" name="vno-delete-action" value="entireRow">
+            <span>Toàn bộ hàng</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="radio" name="vno-delete-action" value="entireCol">
+            <span>Toàn bộ cột</span>
+          </label>
+        </div>
+        <div class="vno-dialog-footer" style="padding:12px 16px; display:flex; justify-content:flex-end; gap:8px; border-top:1px solid #e2e8f0; background:#f8fafc;">
+          <button class="vno-btn vno-dialog-ok-btn" style="padding:6px 16px; border-radius:4px; font-size:13px; cursor:pointer; background:var(--vno-primary, #0f6d38); color:#fff; border:none; font-weight:500;">Đồng ý</button>
+          <button class="vno-btn vno-dialog-cancel-btn" style="padding:6px 16px; border-radius:4px; font-size:13px; cursor:pointer; background:#fff; border:1px solid #cbd5e1; color:#334155;">Hủy</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+    const dialogBox = overlay.querySelector(".vno-dialog-box");
+    const okBtn = overlay.querySelector(".vno-dialog-ok-btn");
+    const cancelBtn = overlay.querySelector(".vno-dialog-cancel-btn");
+    const closeBtn = overlay.querySelector(".vno-dialog-close-btn");
+
+    const cleanup = () => {
+      document.removeEventListener("keydown", onKeyDown);
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (previousFocused && typeof previousFocused.focus === "function") {
+        previousFocused.focus();
+      }
+    };
+
+    const executeChoice = () => {
+      const selected = overlay.querySelector('input[name="vno-delete-action"]:checked')?.value || "shiftLeft";
+      cleanup();
+      if (selected === "shiftLeft") {
+        this.shiftCellsLeft(normalized);
+      } else if (selected === "shiftUp") {
+        this.shiftCellsUp(normalized);
+      } else if (selected === "entireRow") {
+        const rowCount = normalized.end.r - normalized.start.r + 1;
+        const before = this._snapshotGridStructure();
+        for (let i = 0; i < rowCount; i++) {
+          this.deleteRow(normalized.start.r, false);
+        }
+        this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+      } else if (selected === "entireCol") {
+        const startColIdx = this.cols.indexOf(normalized.start.c);
+        const endColIdx = this.cols.indexOf(normalized.end.c);
+        const colCount = endColIdx - startColIdx + 1;
+        const before = this._snapshotGridStructure();
+        for (let i = 0; i < colCount; i++) {
+          this.deleteColumn(normalized.start.c, false);
+        }
+        this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+      }
+    };
+
+    okBtn.addEventListener("click", executeChoice);
+    cancelBtn.addEventListener("click", cleanup);
+    closeBtn.addEventListener("click", cleanup);
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) cleanup(); });
+
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        cleanup();
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        executeChoice();
+      } else if (e.key === "Tab") {
+        const focusables = Array.from(dialogBox.querySelectorAll('button, input[type="radio"]:checked, input'));
+        if (focusables.length > 0) {
+          const first = focusables[0];
+          const last = focusables[focusables.length - 1];
+          if (e.shiftKey && (document.activeElement === first || !dialogBox.contains(document.activeElement))) {
+            e.preventDefault();
+            last.focus();
+          } else if (!e.shiftKey && (document.activeElement === last || !dialogBox.contains(document.activeElement))) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    okBtn.focus();
+    return true;
+  }
+
+  handleInsertShortcut() {
+    if (this._guardProtectedMutation()) return false;
+    const range = this._normalizeRange();
+    const entireRow = this.isEntireRowSelected(range);
+    const entireCol = this.isEntireColumnSelected(range);
+    if (entireRow && !entireCol) {
+      const rowCount = range.end.r - range.start.r + 1;
+      const before = this._snapshotGridStructure();
+      for (let i = 0; i < rowCount; i++) {
+        this.insertRow(range.start.r, false);
+      }
+      this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+      return true;
+    }
+    if (entireCol && !entireRow) {
+      const startColIdx = this.cols.indexOf(range.start.c);
+      const endColIdx = this.cols.indexOf(range.end.c);
+      const colCount = endColIdx - startColIdx + 1;
+      const before = this._snapshotGridStructure();
+      for (let i = 0; i < colCount; i++) {
+        this.insertColumn(range.start.c, false);
+      }
+      this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+      return true;
+    }
+    return this.showInsertCellsDialog(range);
+  }
+
+  handleDeleteShortcut() {
+    if (this._guardProtectedMutation()) return false;
+    const range = this._normalizeRange();
+    const entireRow = this.isEntireRowSelected(range);
+    const entireCol = this.isEntireColumnSelected(range);
+    if (entireRow && !entireCol) {
+      const rowCount = range.end.r - range.start.r + 1;
+      const before = this._snapshotGridStructure();
+      for (let i = 0; i < rowCount; i++) {
+        this.deleteRow(range.start.r, false);
+      }
+      this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+      return true;
+    }
+    if (entireCol && !entireRow) {
+      const startColIdx = this.cols.indexOf(range.start.c);
+      const endColIdx = this.cols.indexOf(range.end.c);
+      const colCount = endColIdx - startColIdx + 1;
+      const before = this._snapshotGridStructure();
+      for (let i = 0; i < colCount; i++) {
+        this.deleteColumn(range.start.c, false);
+      }
+      this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+      return true;
+    }
+    return this.showDeleteCellsDialog(range);
+  }
+
   _restoreCells(entries) {
     this.sheetsData[this.activeSheet] = new Map(entries.map(([key, value]) => [key, structuredClone(value)]));
     this._renderVirtualRows(this.currentStartRow, this.currentEndRow);
@@ -7691,6 +8937,7 @@ export class SheetGridController {
       textBoxes: structuredClone(this.textBoxesBySheet[sheetName] || []),
       pivotTables: structuredClone(this.pivotTablesBySheet[sheetName] || []),
       scenarios: structuredClone(this.scenariosBySheet[sheetName] || []),
+      dataTables: structuredClone(this.dataTablesBySheet[sheetName] || []),
       namedRanges: structuredClone(this.namedRangesBySheet[sheetName] || []),
       comments: structuredClone(this.commentsBySheet[sheetName] || {}),
       printArea: this.printAreaBySheet[sheetName] || null,
@@ -7721,6 +8968,7 @@ export class SheetGridController {
     this.textBoxesBySheet[sheetName] = structuredClone(snapshot.textBoxes || []);
     this.pivotTablesBySheet[sheetName] = structuredClone(snapshot.pivotTables || []);
     this.scenariosBySheet[sheetName] = structuredClone(snapshot.scenarios || []);
+    this.dataTablesBySheet[sheetName] = structuredClone(snapshot.dataTables || []);
     this.namedRangesBySheet[sheetName] = structuredClone(snapshot.namedRanges || []);
     this.commentsBySheet[sheetName] = structuredClone(snapshot.comments || {});
     this.printAreaBySheet[sheetName] = snapshot.printArea || null;
@@ -7758,14 +9006,7 @@ export class SheetGridController {
   }
 
   _normalizeRange(range = this.selectionRange) {
-    const start = range?.start || this.selectedCoord;
-    const end = range?.end || start;
-    const startCol = this.cols.indexOf(start.c);
-    const endCol = this.cols.indexOf(end.c);
-    return {
-      start: { c: this.cols[Math.min(startCol, endCol)], r: Math.min(start.r, end.r) },
-      end: { c: this.cols[Math.max(startCol, endCol)], r: Math.max(start.r, end.r) }
-    };
+    return normalizeSheetSelectionRange(range || { start: this.selectedCoord, end: this.selectedCoord }, this.cols);
   }
 
   getSelectedRangeLabel() {
@@ -7773,6 +9014,24 @@ export class SheetGridController {
     const first = `${range.start.c}${range.start.r}`;
     const last = `${range.end.c}${range.end.r}`;
     return first === last ? first : `${first}:${last}`;
+  }
+
+  getSelectionNameLabel() {
+    const ranges = this._getSelectionRanges();
+    if (ranges.length === 1 && this.selectionKind === "row") {
+      const normalized = this._normalizeRange(ranges[0]);
+      return `${normalized.start.r}:${normalized.end.r}`;
+    }
+    if (ranges.length === 1 && this.selectionKind === "column") {
+      const normalized = this._normalizeRange(ranges[0]);
+      return `${normalized.start.c}:${normalized.end.c}`;
+    }
+    return ranges.map(range => {
+      const normalized = this._normalizeRange(range);
+      const first = `${normalized.start.c}${normalized.start.r}`;
+      const last = `${normalized.end.c}${normalized.end.r}`;
+      return first === last ? first : `${first}:${last}`;
+    }).join(",");
   }
 
   resolveNamedRange(name, sheetName = this.activeSheet) {
@@ -7852,6 +9111,27 @@ export class SheetGridController {
     return colIndex >= this.cols.indexOf(normalized.start.c) &&
       colIndex <= this.cols.indexOf(normalized.end.c) &&
       row >= normalized.start.r && row <= normalized.end.r;
+  }
+
+  _getSelectionRanges() {
+    if (!this.selectionRange) return [];
+    if (!Array.isArray(this.selectionRanges) || !this.selectionRanges.length ||
+        !this.selectionRanges.includes(this.selectionRange)) {
+      this.selectionRanges = [this.selectionRange];
+    }
+    return this.selectionRanges;
+  }
+
+  _isCoordInSelection(col, row) {
+    const ranges = this._getSelectionRanges();
+    return ranges.some(range => this._rangeContains(range, col, row));
+  }
+
+  _isMultiRangeSelection() {
+    const ranges = this._getSelectionRanges();
+    return ranges.length > 1 || ranges.some(range =>
+      range && (range.start.c !== range.end.c || range.start.r !== range.end.r)
+    );
   }
 
   addConditionalFormattingRule(range, config, recordUndo = true) {
@@ -8450,8 +9730,9 @@ export class SheetGridController {
     const size = changes.size || before.size;
     if (!["portrait", "landscape"].includes(orientation) || !["a4", "letter", "legal"].includes(size)) return false;
     const printTitles = { ...before.printTitles, ...(changes.printTitles || {}) };
-    printTitles.rows = String(printTitles.rows || "").trim();
-    printTitles.cols = String(printTitles.cols || "").trim().toUpperCase();
+    const normalizedTitles = this._normalizePrintTitlesInput(printTitles.rows, printTitles.cols);
+    printTitles.rows = normalizedTitles.rows;
+    printTitles.cols = normalizedTitles.cols;
     if (printTitles.rows && !/^\d+(?::\d+)?$/.test(printTitles.rows)) return false;
     if (printTitles.cols && !/^[A-Z]+(?::[A-Z]+)?$/.test(printTitles.cols)) return false;
     const scale = { ...before.scale, ...(changes.scale || {}) };
@@ -8484,6 +9765,9 @@ export class SheetGridController {
   showPageSetupDialog(focusField = "margins") {
     if (typeof document === "undefined" || !document.body) return false;
     const setup = this.getPageSetup();
+    const pending = this._printTitleSelect;
+    const rowsValue = pending?.field === "rows" && pending.pendingValue ? pending.pendingValue : setup.printTitles.rows;
+    const colsValue = pending?.field === "cols" && pending.pendingValue ? pending.pendingValue : setup.printTitles.cols;
     const overlay = this._createSheetDialog("Thiết lập trang", `
       <label>Kiểu lề
         <select id="vno-sheet-margin-preset" class="vno-select" style="width:100%;margin-top:4px">
@@ -8495,7 +9779,7 @@ export class SheetGridController {
       </div>
       <label>Hướng trang<select id="vno-sheet-orientation" class="vno-select" style="width:100%;margin-top:4px"><option value="portrait" ${setup.orientation === "portrait" ? "selected" : ""}>Dọc</option><option value="landscape" ${setup.orientation === "landscape" ? "selected" : ""}>Ngang</option></select></label>
       <label>Khổ giấy<select id="vno-sheet-size" class="vno-select" style="width:100%;margin-top:4px"><option value="a4" ${setup.size === "a4" ? "selected" : ""}>A4</option><option value="letter" ${setup.size === "letter" ? "selected" : ""}>Letter</option><option value="legal" ${setup.size === "legal" ? "selected" : ""}>Legal</option></select></label>
-      <fieldset style="border:1px solid var(--vno-border-default);border-radius:6px"><legend>Tiêu đề in (tùy chọn)</legend><label>Hàng lặp lại (ví dụ 1:2)<input id="vno-sheet-title-rows" value="${this._escapeHtml(setup.printTitles.rows)}" class="vno-dialog-input"></label><label>Cột lặp lại (ví dụ A:B)<input id="vno-sheet-title-cols" value="${this._escapeHtml(setup.printTitles.cols)}" class="vno-dialog-input"></label></fieldset>
+      <fieldset style="border:1px solid var(--vno-border-default);border-radius:6px"><legend>Tiêu đề in (tùy chọn)</legend><label>Hàng lặp lại trên mỗi trang (ví dụ 1:2 hoặc $1:$2)<span style="display:flex;gap:4px;align-items:center;margin-top:4px"><input id="vno-sheet-title-rows" value="${this._escapeHtml(rowsValue)}" class="vno-dialog-input" style="flex:1" placeholder="vd: 1:2"><button type="button" id="vno-sheet-title-rows-pick" class="vno-btn vno-btn-icon-only" title="Chọn hàng trực tiếp trên lưới" aria-label="Chọn hàng trực tiếp trên lưới">⊞</button></span></label><label>Cột lặp lại ở bên trái (ví dụ A:B hoặc $A:$B)<span style="display:flex;gap:4px;align-items:center;margin-top:4px"><input id="vno-sheet-title-cols" value="${this._escapeHtml(colsValue)}" class="vno-dialog-input" style="flex:1" placeholder="vd: A:B"><button type="button" id="vno-sheet-title-cols-pick" class="vno-btn vno-btn-icon-only" title="Chọn cột trực tiếp trên lưới" aria-label="Chọn cột trực tiếp trên lưới">⊞</button></span></label></fieldset>
       <fieldset style="border:1px solid var(--vno-border-default);border-radius:6px"><legend>Tỷ lệ vừa trang</legend>
         <label><input type="radio" name="vno-sheet-scale-mode" value="percent" ${setup.scale.mode === "percent" ? "checked" : ""}> Vừa theo tỷ lệ <input id="vno-sheet-scale-percent" type="number" min="10" max="400" value="${setup.scale.percent}" class="vno-dialog-input" style="width:76px">%</label>
         <label><input type="radio" name="vno-sheet-scale-mode" value="pages" ${setup.scale.mode === "pages" ? "checked" : ""}> Vừa trong <input id="vno-sheet-scale-wide" type="number" min="0" max="1000" value="${setup.scale.pagesWide}" class="vno-dialog-input" style="width:64px"> trang ngang × <input id="vno-sheet-scale-tall" type="number" min="0" max="1000" value="${setup.scale.pagesTall}" class="vno-dialog-input" style="width:64px"> trang dọc <small>(0 = tự động)</small></label>
@@ -8520,11 +9804,118 @@ export class SheetGridController {
         printTitles: { rows: overlay.querySelector("#vno-sheet-title-rows").value, cols: overlay.querySelector("#vno-sheet-title-cols").value }
       });
       if (!result) { overlay.querySelector(".vno-rule-error").textContent = "Giá trị lề hoặc tiêu đề in không hợp lệ."; return; }
+      this._printTitleSelect = null;
       overlay.closeDialog();
     });
+    overlay.querySelector("#vno-sheet-title-rows-pick")?.addEventListener("click", () => this.beginPrintTitleSelection("rows", overlay));
+    overlay.querySelector("#vno-sheet-title-cols-pick")?.addEventListener("click", () => this.beginPrintTitleSelection("cols", overlay));
+    const clearPending = () => { this._printTitleSelect = null; };
+    overlay.querySelector(".vno-rule-cancel")?.addEventListener("click", clearPending);
+    overlay.querySelector(".vno-rule-close")?.addEventListener("click", clearPending);
     const focusIds = { margins: "vno-sheet-margin-preset", orientation: "vno-sheet-orientation", size: "vno-sheet-size", scale: "vno-sheet-scale-percent", printTitles: "vno-sheet-title-rows" };
     overlay.querySelector(`#${focusIds[focusField] || focusIds.margins}`)?.focus();
     return true;
+  }
+
+  /**
+   * Bắt đầu chọn Print Titles trực tiếp trên lưới (nút thu gọn ⊞ kiểu Excel).
+   * Hộp thoại được ẩn tạm; người dùng nhấp vào đầu hàng/cột để chọn,
+   * Shift+nhấn để mở rộng vùng. Nhấn Esc hoặc «Quay lại hộp thoại» để trở về.
+   */
+  beginPrintTitleSelection(field, overlay) {
+    if (typeof document === "undefined" || !document.body) return false;
+    if (!["rows", "cols"].includes(field)) return false;
+    this._teardownPrintTitleSelection();
+    const hint = document.createElement("div");
+    hint.className = "vno-print-title-hint";
+    hint.setAttribute("role", "status");
+    hint.style.cssText = "position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:10px;padding:6px 12px;background:var(--vno-primary,#1a5fb4);color:#fff;font-size:13px;";
+    const label = field === "rows" ? "Chọn HÀNG lặp lại trên mỗi trang" : "Chọn CỘT lặp lại ở bên trái";
+    hint.innerHTML = `<strong>${label}</strong><span class="vno-print-title-hint-value">—</span><span style="opacity:.85">Nhấp vào đầu hàng/cột trên lưới, Shift+nhấn để mở rộng.</span><button type="button" class="vno-btn vno-print-title-hint-back" style="margin-left:auto">Quay lại hộp thoại</button>`;
+    this.viewport?.insertBefore?.(hint, this.viewport.firstChild);
+    const state = { field, overlay, anchor: null, current: null, pendingValue: null, hint, onClick: null, onKey: null };
+    state.onClick = event => this._onPrintTitleGridClick(event);
+    state.onKey = event => { if (event.key === "Escape") this.endPrintTitleSelection(); };
+    this.table?.addEventListener?.("click", state.onClick, true);
+    document.addEventListener("keydown", state.onKey);
+    hint.querySelector(".vno-print-title-hint-back")?.addEventListener("click", () => this.endPrintTitleSelection());
+    this._printTitleSelect = state;
+    overlay.closeDialog();
+    return true;
+  }
+
+  /** Xử lý nhấp vào đầu hàng/cột khi đang ở chế độ chọn Print Titles trên lưới. */
+  _onPrintTitleGridClick(event) {
+    const state = this._printTitleSelect;
+    if (!state?.hint) return;
+    const header = event.target?.closest?.(".vno-row-header, .vno-col-header");
+    if (!header) return;
+    event.preventDefault?.();
+    event.stopPropagation?.();
+    if (state.field === "rows") {
+      const row = Number(header.dataset?.row);
+      if (!row) return;
+      if (event.shiftKey && state.anchor != null) {
+        state.current = { start: state.anchor, end: row };
+      } else {
+        state.anchor = row;
+        state.current = { start: row, end: row };
+      }
+    } else {
+      const col = header.dataset?.col;
+      if (!col) return;
+      const colNum = this._columnNumber(col);
+      if (event.shiftKey && state.anchor != null) {
+        state.current = { start: state.anchor, end: colNum };
+      } else {
+        state.anchor = colNum;
+        state.current = { start: colNum, end: colNum };
+      }
+    }
+    state.pendingValue = this.formatPrintTitleSelection(state.field, state.current.start, state.current.end);
+    this._refreshPrintTitleSelectionVisuals();
+  }
+
+  /** Tô sáng đầu hàng/cột đang chọn và cập nhật xem trước giá trị trong thanh gợi ý. */
+  _refreshPrintTitleSelectionVisuals() {
+    const state = this._printTitleSelect;
+    if (!state?.current) return;
+    this.container?.querySelectorAll?.(".vno-row-header.is-print-title-selected, .vno-col-header.is-print-title-selected").forEach(el => el.classList.remove("is-print-title-selected"));
+    const { start, end } = state.current;
+    if (state.field === "rows") {
+      for (let r = start; r <= end; r++) {
+        this.container?.querySelector?.(`.vno-row-header[data-row="${r}"]`)?.classList.add("is-print-title-selected");
+      }
+    } else {
+      for (let c = start; c <= end; c++) {
+        this.container?.querySelector?.(`.vno-col-header[data-col="${this._columnLabel(c)}"]`)?.classList.add("is-print-title-selected");
+      }
+    }
+    if (state.hint) {
+      const valueEl = state.hint.querySelector(".vno-print-title-hint-value");
+      if (valueEl) valueEl.textContent = state.pendingValue || "—";
+    }
+  }
+
+  /** Kết thúc chọn trên lưới: dọn dẹp và mở lại hộp thoại với giá trị đã chọn. */
+  endPrintTitleSelection() {
+    const state = this._printTitleSelect;
+    if (!state?.field) return false;
+    const { field, pendingValue } = state;
+    this._teardownPrintTitleSelection();
+    this._printTitleSelect = { field, pendingValue: pendingValue || null };
+    return this.showPageSetupDialog("printTitles");
+  }
+
+  /** Dọn dẹp listener/thanh gợi ý của chế độ chọn Print Titles trên lưới (giữ lại pendingValue nếu có). */
+  _teardownPrintTitleSelection() {
+    const state = this._printTitleSelect;
+    if (!state) return;
+    if (state.onClick) this.table?.removeEventListener?.("click", state.onClick, true);
+    if (state.onKey) document.removeEventListener("keydown", state.onKey);
+    state.hint?.remove?.();
+    this.container?.querySelectorAll?.(".vno-row-header.is-print-title-selected, .vno-col-header.is-print-title-selected").forEach(el => el.classList.remove("is-print-title-selected"));
+    if (!state.pendingValue) this._printTitleSelect = null;
   }
 
   showHeaderFooterDialog() {
@@ -8936,12 +10327,38 @@ export class SheetGridController {
     const columnInput = columnInputCell ? WhatIfAnalysisEngine.normalizeCoord(columnInputCell) : "";
     if (!rowInput && !columnInput) throw new Error(t("sheetDialogs.dataTableNeedsInput", "Hãy chọn ô đầu vào theo hàng hoặc theo cột."));
     if (rowInput && columnInput && rowInput === columnInput) throw new Error(t("sheetDialogs.dataTableDistinctInputs", "Hai ô đầu vào phải khác nhau."));
-    const grid = WhatIfAnalysisEngine.rangeCoords(this._normalizeRange(range), this.cols);
+    const normalizedRange = this._normalizeRange(range);
+    const grid = WhatIfAnalysisEngine.rangeCoords(normalizedRange, this.cols);
     if (grid.length < 2 || grid[0].length < 2) throw new Error(t("sheetDialogs.dataTableRangeSize", "Vùng Bảng dữ liệu phải có ít nhất 2 hàng và 2 cột."));
     const formulaCoord = grid[0][0];
     if (!this.cellsData.get(formulaCoord)?.formula) throw new Error(t("sheetDialogs.dataTableFormulaCorner", "Ô góc trên bên trái phải chứa công thức gốc."));
+    const table = { sheet: this.activeSheet, range: normalizedRange, rowInputCell: rowInput, columnInputCell: columnInput, formulaCell: formulaCoord };
     const before = this._snapshotCells();
-    const original = new Map(before.map(([coord, item]) => [coord, structuredClone(item)]));
+    const previousGuard = this._dataTableEvaluating;
+    this._dataTableEvaluating = true;
+    let output;
+    try {
+      output = this._evaluateDataTable(table);
+      this._writeDataTableResults(table, output);
+    } finally {
+      this._dataTableEvaluating = previousGuard;
+    }
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    if (recordUndo) this._recordHistory({ type: "what-if-cells", sheet: this.activeSheet, before, after: this._snapshotCells() });
+    this._registerDataTable(table);
+    return { formulaCell: formulaCoord, results: Object.fromEntries(output) };
+  }
+
+  /**
+   * Tính phần thân bảng: với mỗi cặp (giá trị hàng, giá trị cột) gán thử
+   * vào ô đầu vao, tính lại toàn bộ công thức rồi đọc giá trị ô công thức
+   * gốc — đúng như cơ chế TABLE() của Excel. Trạng thái ô thật được phục
+   * hồi nguyên vẹn sau khi thử.
+   */
+  _evaluateDataTable(table) {
+    const grid = WhatIfAnalysisEngine.rangeCoords(table.range, this.cols);
+    const original = new Map(this._snapshotCells(table.sheet).map(([coord, item]) => [coord, structuredClone(item)]));
+    const { rowInputCell: rowInput, columnInputCell: columnInput, formulaCell: formulaCoord } = table;
     const output = [];
     const assignTrial = (coord, value) => {
       const current = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
@@ -8953,6 +10370,8 @@ export class SheetGridController {
       this._recalculateAllFormulas(undefined, true);
       return structuredClone(this.cellsData.get(formulaCoord)?.val ?? "");
     };
+    const previousGuard = this._dataTableEvaluating;
+    this._dataTableEvaluating = true;
     try {
       if (rowInput && columnInput) {
         const rowValues = grid[0].slice(1).map(coord => original.get(coord)?.val ?? "");
@@ -8966,16 +10385,25 @@ export class SheetGridController {
         values.forEach((value, index) => output.push([grid[index + 1][1], evaluate(undefined, value)]));
       }
     } finally {
-      this.sheetsData[this.activeSheet] = new Map(before.map(([coord, item]) => [coord, structuredClone(item)]));
+      this._dataTableEvaluating = previousGuard;
+      this.sheetsData[table.sheet] = new Map(original);
     }
+    return output;
+  }
+
+  _writeDataTableResults(table, output) {
     for (const [coord, value] of output) {
       const current = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
       this.cellsData.set(coord, { ...current, val: value, formula: "" });
     }
     this._recalculateAllFormulas(undefined, true);
-    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
-    if (recordUndo) this._recordHistory({ type: "what-if-cells", sheet: this.activeSheet, before, after: this._snapshotCells() });
-    return { formulaCell: formulaCoord, results: Object.fromEntries(output) };
+  }
+
+  _registerDataTable(table) {
+    const tables = this.dataTablesBySheet[table.sheet] ||= [];
+    const index = tables.findIndex(item => item.formulaCell === table.formulaCell && item.range.start.c === table.range.start.c && item.range.start.r === table.range.start.r && item.range.end.c === table.range.end.c && item.range.end.r === table.range.end.r);
+    if (index >= 0) tables.splice(index, 1, structuredClone(table));
+    else tables.push(structuredClone(table));
   }
 
   getScenarios(sheetName = this.activeSheet) { return structuredClone(this.scenariosBySheet[sheetName] || []); }
@@ -9522,30 +10950,42 @@ export class SheetGridController {
    * Sum/Average của vùng chọn.
    */
   _calculateStats() {
-    const range = this._normalizeRange();
-    const startCol = this.cols.indexOf(range.start.c);
-    const endCol = this.cols.indexOf(range.end.c);
+    const ranges = this._getSelectionRanges();
     let total = 0;
     let count = 0;
-    for (let r = range.start.r; r <= range.end.r; r++) {
-      for (let ci = startCol; ci <= endCol; ci++) {
-        const col = this.cols[ci];
-        if (!col) continue;
-        const itm = this.cellsData.get(`${col}${r}`);
-        if (!itm || itm.val === undefined || itm.val === null || itm.val === "") continue;
-        const num = typeof itm.val === "number"
-          ? itm.val
-          : parseFloat(String(itm.val).replace(/\./g, "").replace(/,/g, ".").replace(/[^\d.-]/g, ""));
-        if (!Number.isFinite(num)) continue;
-        count++;
-        total += num;
+    const seenCoords = new Set();
+    for (const selection of ranges) {
+      const range = this._normalizeRange(selection);
+      const startCol = this.cols.indexOf(range.start.c);
+      const endCol = this.cols.indexOf(range.end.c);
+      for (let r = range.start.r; r <= range.end.r; r++) {
+        for (let ci = startCol; ci <= endCol; ci++) {
+          const col = this.cols[ci];
+          if (!col) continue;
+          const coord = `${col}${r}`;
+          if (seenCoords.has(coord)) continue;
+          seenCoords.add(coord);
+          const itm = this.cellsData.get(coord);
+          if (!itm || itm.val === undefined || itm.val === null || itm.val === "") continue;
+          const num = typeof itm.val === "number"
+            ? itm.val
+            : parseFloat(String(itm.val).replace(/\./g, "").replace(/,/g, ".").replace(/[^\d.-]/g, ""));
+          if (!Number.isFinite(num)) continue;
+          count++;
+          total += num;
+        }
       }
     }
-    const avg = count > 0 ? Math.round(total / count) : 0;
+    const avg = count > 0 ? total / count : 0;
+    const formatter = new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+      maximumFractionDigits: 10
+    });
     return {
       count: count,
-      sum: new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(total),
-      avg: new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(avg)
+      sum: formatter.format(total),
+      avg: formatter.format(avg)
     };
   }
 

@@ -188,16 +188,18 @@ export const WRITER_HELP_ENTRIES = [
       "writer.mailMerge.nextRecord",
       "writer.mailMerge.finish"
     ],
-    title: "Trộn thư",
-    summary: "Lấy danh sách người nhận từ CSV, chèn trường trộn vào văn bản, xem từng bản ghi rồi tạo tài liệu kết quả cho toàn bộ danh sách.",
+    title: "Trộn thư và Danh sách người nhận Excel",
+    summary: "Lấy danh sách người nhận từ tệp Excel (.xlsx, .xls, .ods) hoặc CSV/TSV, hỗ trợ chọn trang tính, dòng đầu là tên trường, xem trước từng bản ghi, lọc/bỏ chọn người nhận, chèn trường trộn vào văn bản và hoàn tất ra tài liệu mới hoặc in ấn.",
     ribbon: { tab: "Trộn thư", tabId: "mailings", group: "Bắt đầu trộn" },
-    keywords: ["trộn thư", "mail merge", "csv", "trường", "người nhận", "bản ghi", "nguồn dữ liệu", "chèn trường", "xem trước kết quả", "hoàn tất trộn"],
+    keywords: ["trộn thư", "mail merge", "excel", "xlsx", "xls", "csv", "tsv", "trường", "người nhận", "bản ghi", "nguồn dữ liệu", "chèn trường", "xem trước kết quả", "hoàn tất trộn", "in ấn", "lọc người nhận"],
     steps: [
-      "Mở tab Trộn thư, nhóm Bắt đầu trộn, nhấn Nguồn dữ liệu rồi dán bảng dữ liệu CSV (dòng đầu là tên cột, ví dụ: HoTen, ChucVu, DonVi, NgayKy) hoặc bấm 'Dán dữ liệu mẫu', sau đó nhấn Lưu nguồn dữ liệu.",
-      "Đặt con trỏ tại vị trí muốn đưa thông tin người nhận vào văn bản, mở nhóm Viết & Chèn trường, nhấn Chèn trường và chọn trường dữ liệu tương ứng.",
-      "Nhấn Xem trước kết quả (nhóm Xem trước kết quả) để bật chế độ xem trước văn bản sau khi ghép dữ liệu của từng bản ghi.",
-      "Dùng nút Bản ghi trước hoặc Bản ghi sau để duyệt qua từng người nhận trong danh sách.",
-      "Mở nhóm Hoàn tất, nhấn Hoàn tất trộn để tạo tài liệu kết quả cho toàn bộ danh sách bản ghi đã nạp."
+      "Mở tab Trộn thư, nhóm Bắt đầu trộn, nhấn Nguồn dữ liệu. Trong hộp thoại, nhấn 'Chọn tệp Excel / CSV...' để mở tệp bảng tính (.xlsx, .xls, .ods, .csv, .tsv) hoặc dán dữ liệu thủ công.",
+      "Nếu tệp Excel có nhiều trang tính, chọn trang tính mong muốn tại mục 'Trang tính'. Đánh dấu tùy chọn 'Dòng đầu tiên là tên trường' nếu hàng đầu của bảng chứa tiêu đề cột.",
+      "Xem trước danh sách người nhận trong bảng. Có thể nhập từ khóa vào ô tìm kiếm để lọc, và bỏ dấu tích ở các dòng không muốn gửi để loại trừ người nhận đó khỏi danh sách.",
+      "Nhấn 'Lưu nguồn dữ liệu' để áp dụng danh sách người nhận vào tài liệu.",
+      "Đặt con trỏ tại vị trí muốn đưa thông tin người nhận vào văn bản, mở nhóm Viết & Chèn trường, nhấn Chèn trường và chọn trường dữ liệu tương ứng (ví dụ: Họ tên, Lương thưởng, Ngày ký).",
+      "Nhấn Xem trước kết quả (nhóm Xem trước kết quả) để bật chế độ xem trước văn bản sau khi ghép dữ liệu của từng bản ghi. Dùng nút Bản ghi trước hoặc Bản ghi sau để duyệt qua từng người nhận được chọn.",
+      "Mở nhóm Hoàn tất, nhấn Hoàn tất trộn để chọn hình thức xuất: 'Tạo tài liệu mới' (hợp nhất toàn bộ bản ghi nối tiếp nhau bằng ngắt trang) hoặc 'In tài liệu trực tiếp'."
     ]
   },
   {
@@ -249,6 +251,8 @@ export const WRITER_HELP_ENTRIES = [
       "writer.font.size",
       "writer.font.grow",
       "writer.font.shrink",
+      "writer.font.grow1pt",
+      "writer.font.shrink1pt",
       "writer.text.bold",
       "writer.text.italic",
       "writer.text.underline",
@@ -262,10 +266,10 @@ export const WRITER_HELP_ENTRIES = [
     title: "Định dạng chữ cơ bản",
     summary: "Đổi phông, cỡ chữ, đậm/nghiêng/gạch, chỉ số trên/dưới, màu chữ và màu nền chữ cho vùng đang bôi. Xóa định dạng trả chữ về kiểu mặc định mà không xóa nội dung.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Phông chữ" },
-    keywords: ["đậm", "nghiêng", "gạch chân", "gạch ngang", "phông chữ", "cỡ chữ", "màu chữ", "tô vàng", "chỉ số", "xóa định dạng", "bold", "italic", "font", "highlight", "ctrl+b"],
+    keywords: ["đậm", "nghiêng", "gạch chân", "gạch ngang", "phông chữ", "cỡ chữ", "màu chữ", "tô vàng", "chỉ số", "xóa định dạng", "bold", "italic", "font", "highlight", "ctrl+b", "ctrl+]", "ctrl+["],
     steps: [
       "Bôi chữ cần đổi (hoặc đặt con trỏ trong từ). Mở tab Trang đầu, nhóm Phông chữ — hàng trên là hộp Phông chữ và Cỡ chữ, hàng dưới là các nút kiểu chữ.",
-      "Phông chữ: Times New Roman (mặc định), Be Vietnam Pro, Arial, Calibri, Roboto. Cỡ chữ: 10 pt, 12 pt, 14 pt (NĐ 30 — mặc định văn bản hành chính), 16 pt, 18 pt, 24 pt. Nút Tăng cỡ chữ (Ctrl+Shift+>) / Giảm cỡ chữ (Ctrl+Shift+<) nhảy nhanh theo các nấc đó.",
+      "Phông chữ: Times New Roman (mặc định), Be Vietnam Pro, Arial, Calibri, Roboto. Cỡ chữ: 10 pt, 12 pt, 14 pt (NĐ 30 — mặc định văn bản hành chính), 16 pt, 18 pt, 24 pt. Nút Tăng cỡ chữ (Ctrl+Shift+>) / Giảm cỡ chữ (Ctrl+Shift+<) nhảy nhanh theo các nấc đó. Dùng phím tắt Ctrl+] để tăng cỡ chữ 1 điểm (1 pt) và Ctrl+[ để giảm cỡ chữ 1 điểm (1 pt) từng bước chuẩn Microsoft Word.",
       "Đậm Ctrl+B, Nghiêng Ctrl+I, Gạch chân Ctrl+U, Gạch ngang (không có phím tắt). Chỉ số dưới Ctrl+= (ví dụ H₂O), Chỉ số trên Ctrl+Shift++ (ví dụ m²). Nhấn lại cùng nút để tắt.",
       "Màu chữ đổi vùng chọn sang đỏ (#dc2626). Màu nền chữ tô vàng (#ffcd00) giống bút highlight. Xóa định dạng (Ctrl+Space) bỏ hết kiểu, giữ nguyên chữ. Ctrl+Z hoàn tác."
     ]
@@ -688,14 +692,14 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["writer.file.printPreview", "common.file.print"],
     title: "Xem trước khi in",
-    summary: "Ctrl+F2 mở overlay phân trang thật: khổ/hướng/lề trên thanh công cụ, lật trang, thu phóng 30%–200%. In tài liệu gọi hộp in trình duyệt (Ctrl+P). Esc đóng.",
+    summary: "Ctrl+P hoặc Ctrl+F2 mở hộp thoại In dùng PDF do LibreOffice dựng từ nội dung hiện tại. Xem từng trang thật, chọn máy in, số bản và phạm vi trang.",
     ribbon: { tab: "Bố cục", tabId: "layout", group: "In ấn" },
     keywords: ["xem trước khi in", "print preview", "ctrl+f2", "phân trang", "in tài liệu"],
     steps: [
-      "Tab Bố cục, nhóm In ấn: Xem trước khi in (nút lớn, cạnh In tài liệu) — hoặc Ctrl+F2.",
-      "Thanh công cụ: In tài liệu (Ctrl+P → window.print), huy hiệu «Khổ: A4 · Dọc (Portrait) · Lề: T20 D20 T30 P15 mm» (số theo thiết lập trang), ◀ Trang trước / Trang sau ▶, ô số trang / tổng, − Thu nhỏ / + Phóng to (bước 0.15, kẹp 0.3–2.0), Vừa trang (0.35–1.2 theo chiều cao).",
-      "Mỗi tờ lặp đầu trang / chân trang, hình mờ, viền trang. Chú thích cuối trang theo tờ có mốc; chú thích cuối tài liệu nằm tờ cuối. Phím: Esc đóng, ← / PageUp tờ trước, → / PageDown tờ sau, Ctrl+P in.",
-      "Đây là xem HTML đã chia trang, không phải Backstage Word. Đóng bằng × hoặc Esc về soạn thảo."
+      "Nhấn Ctrl+P, nhấp biểu tượng máy in trên thanh truy cập nhanh, hoặc vào Tệp → In. Ctrl+F2 cũng mở cùng hộp thoại.",
+      "Chờ LibreOffice tạo PDF tạm từ nội dung đang soạn. Khung bên phải hiển thị trang thật; dùng nút ◀/▶ hoặc ô số trang để xem các trang khác.",
+      "Chọn máy in, nhập số bản. Chọn Tất cả, Trang hiện tại theo vị trí con trỏ, hoặc Trang từ–đến; phạm vi nhiều đoạn dùng dấu phẩy, ví dụ 1-3,5.",
+      "Khổ giấy và hướng in được lấy từ Thiết lập trang hiện tại. Nhấn In để gửi tài liệu; nếu chọn Microsoft Print to PDF, chọn nơi lưu tệp PDF. Esc hoặc nút × đóng hộp thoại."
     ]
   },
   {
@@ -889,7 +893,7 @@ export const WRITER_HELP_ENTRIES = [
       "Màn hình Trang chủ: Hiển thị danh sách mẫu tài liệu chuẩn Việt Nam (Văn bản trống, Quyết định ban hành tiêu chuẩn theo NĐ 30/2020/NĐ-CP) và bảng 'Tài liệu mở gần đây'.",
       "Chọn mẫu tài liệu: Dùng phím mũi tên Phải để đi vào lưới mẫu, dùng mũi tên duyệt và nhấn Enter hoặc phím Space để khởi tạo văn bản theo mẫu đang chọn.",
       "Mở và quản lý tệp gần đây: Dùng phím mũi tên Xuống để chuyển tới danh sách tệp gần đây. Nhấp chuột hoặc bấm Enter để mở lại tệp. Mỗi hàng tệp có nút 'Gỡ khỏi danh sách' (biểu tượng ×) giúp bạn chủ động loại bỏ tệp đã bị xóa hoặc đổi tên. Nút 'Xóa lịch sử' phía trên cho phép dọn sạch toàn bộ danh sách khi cần.",
-      "In với Xem trước trực tiếp: Chọn mục «In» trên thanh bên trái (hoặc nhấn Ctrl+P). Panel In hiển thị nút 'In ngay', cụm chuyển trang (Trang trước/sau) và khung Live Preview Thumbnail mô phỏng trang in A4 thực tế của tài liệu. Nhấn 'In ngay' để chuyển sang hộp thoại in của máy in.",
+      "In tài liệu: Chọn mục «In» trong Tệp hoặc nhấn Ctrl+P. Hộp thoại In tạo PDF tạm từ nội dung hiện tại, hiển thị ảnh từng trang, cho chọn máy in, số bản và phạm vi trang; nhấn In để gửi tài liệu.",
       "Các lệnh tài liệu khác: Các mục 'Tạo mới' (Ctrl+N), 'Mở' (Ctrl+O), 'Lưu' (Ctrl+S), 'Lưu bản sao' (F12) và 'Xuất PDF' đều có thể kích hoạt trực tiếp từ thanh bên trái.",
       "Đóng menu Tệp: Nhấn phím Escape hoặc nhấp nút '← Quay lại' ở góc trên bên trái bất kỳ lúc nào để đóng Backstage và khôi phục tiêu điểm chính xác về vị trí soạn thảo trước đó."
     ]

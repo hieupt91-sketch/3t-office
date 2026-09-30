@@ -116,7 +116,7 @@ export const viStrings = {
     mergeConfirmTitle: "Trộn ô", mergeConfirmMessage: "Vùng chọn có nhiều ô chứa dữ liệu. Chỉ dữ liệu ở ô trên cùng bên trái của mỗi vùng gộp được giữ lại.", mergeConfirmOk: "Tiếp tục gộp",
     functionTitle: "Chèn Hàm (Insert Function fx)", functionCategory: "Danh mục hàm:", allCategory: "Tất cả", allFunctions: "Tất cả các hàm", mathFunctions: "Toán học & Lượng giác", statsFunctions: "Thống kê (AVERAGE, COUNT...)", logicFunctions: "Logic (IF, AND, OR...)", textFunctions: "Văn bản (CONCAT, LEN...)", dateFunctions: "Ngày & Giờ (TODAY, NOW...)", financialFunctions: "Tài chính (PMT, FV, PV...)", lookupFunctions: "Tra cứu & Tham chiếu (VLOOKUP, INDEX...)", searchFunction: "Tìm kiếm hàm:", searchPlaceholder: "Gõ tên hàm hoặc mô tả để tìm kiếm...", insertFunction: "Chèn hàm vào ô",
     errorCheckingTitle: "Kiểm tra lỗi công thức (Error Checking)", noErrorsFound: "Kiểm tra hoàn tất. Không tìm thấy ô nào có giá trị lỗi trong trang tính.", errorsFoundPrompt: "Phát hiện <strong>{count}</strong> ô có lỗi công thức trong trang tính hiện tại:", errorColCell: "Ô", errorColCode: "Mã lỗi", errorColFormula: "Công thức", errorColReason: "Nguyên nhân", calcError: "Lỗi tính toán", divZero: "Chia cho số 0 hoặc ô trống", invalidRef: "Tham chiếu ô không hợp lệ", wrongType: "Sai kiểu dữ liệu (số vs chữ)", naError: "Giá trị không tồn tại", nameError: "Tên hàm/vùng không xác định", numError: "Giá trị số ngoài phạm vi",
-    watchWindowTitle: "Cửa sổ theo dõi (Watch Window)", addWatch: "Thêm ô theo dõi", deleteWatch: "Xóa theo dõi", watchWindowColSheet: "Trang tính", watchWindowColCell: "Ô", watchWindowColValue: "Giá trị", watchWindowColFormula: "Công thức", defineNameTitle: "Đặt tên vùng (Define Name)", nameLabel: "Tên:", refersTo: "Tham chiếu đến:", useInFormulaTitle: "Dùng tên trong công thức", namePlaceholder: "Ví dụ: BangLuong, DonGia", scopeLabel: "Phạm vi:", scopeWorkbook: "Workbook (Toàn bảng tính)", invalidName: "Tên không hợp lệ hoặc đã tồn tại.", useInFormulaPrompt: "Chọn một tên để chèn vào công thức:",
+    watchWindowTitle: "Cửa sổ theo dõi (Watch Window)", addWatch: "Thêm ô theo dõi", deleteWatch: "Xóa theo dõi", watchWindowColBook: "Sổ làm việc", watchWindowColSheet: "Trang tính", watchWindowColName: "Tên", watchWindowColCell: "Ô", watchWindowColValue: "Giá trị", watchWindowColFormula: "Công thức", watchWindowEmpty: "Chưa có ô theo dõi nào.", addWatchTitle: "Thêm ô theo dõi", addWatchPrompt: "Chọn ô bạn muốn theo dõi giá trị:", addWatchBtn: "Thêm", deleteWatchConfirm: "Hãy chọn một hàng trong bảng để xóa theo dõi.", watchWindowCountSuffix: "ô theo dõi", watchWindowKeyboardHint: "Phím tắt: Delete để xóa, Enter để chuyển đến ô, Esc để đóng", watchWindowInvalidCoord: "Địa chỉ ô không hợp lệ.", defineNameTitle: "Đặt tên vùng (Define Name)", nameLabel: "Tên:", refersTo: "Tham chiếu đến:", useInFormulaTitle: "Dùng tên trong công thức", namePlaceholder: "Ví dụ: BangLuong, DonGia", scopeLabel: "Phạm vi:", scopeWorkbook: "Workbook (Toàn bảng tính)", invalidName: "Tên không hợp lệ hoặc đã tồn tại.", useInFormulaPrompt: "Chọn một tên để chèn vào công thức:",
     nameManagerTitle: "Trình quản lý tên", nameNew: "Thêm mới", nameEdit: "Sửa", nameDelete: "Xóa", noNamedRanges: "Chưa có vùng được đặt tên.", invalidNameOrRef: "Tên hoặc vùng tham chiếu không hợp lệ/trùng lặp.",
     newComment: "Ghi chú mới {coord}", editComment: "Sửa ghi chú {coord}", commentContent: "Nội dung ghi chú", commentPlaceholder: "Nhập ghi chú cho {coord}", author: "Tác giả", defaultAuthor: "Người dùng VN Office", saveChanges: "Lưu thay đổi", addComment: "Thêm ghi chú", deleteComment: "Xóa ghi chú", emptyComment: "Nội dung ghi chú không được để trống.",
     spellcheckTitle: "Chính tả", spellcheckNotInDictionary: "Không có trong từ điển:", spellcheckCell: "Ô", spellcheckContext: "Nội dung ô", spellcheckSuggestions: "Gợi ý:", spellcheckNoSuggestions: "(Không có gợi ý gần)", spellcheckIgnore: "Bỏ qua", spellcheckIgnoreAll: "Bỏ qua tất cả", spellcheckAdd: "Thêm vào từ điển", spellcheckReplace: "Thay thế", spellcheckReplaceAll: "Thay thế tất cả", spellcheckClose: "Đóng", spellcheckStatus: "Lỗi {current} / {total}", spellcheckComplete: "Đã kiểm tra xong toàn bộ trang tính. Không tìm thấy lỗi chính tả.", spellcheckCompleteRemaining: "Đã kiểm tra xong. Không còn lỗi chính tả.",
@@ -258,7 +258,10 @@ export const viStrings = {
     formatBackgroundTitle: "Định dạng nền", formatBackgroundHint: "Đổi nền trang chiếu hiện tại. Không thay chủ đề toàn bài.", formatBackgroundSolid: "Màu đơn", formatBackgroundGradient: "Gradient 2 màu", formatBackgroundPicture: "Ảnh nền", formatBackgroundColor: "Màu nền", formatBackgroundFrom: "Màu 1", formatBackgroundTo: "Màu 2", formatBackgroundDirection: "Hướng", formatBackgroundHorizontal: "Ngang", formatBackgroundVertical: "Dọc", formatBackgroundChoosePicture: "Chọn ảnh…", formatBackgroundApplyCurrent: "Áp dụng trang này", formatBackgroundApplyAll: "Áp dụng tất cả trang", formatBackgroundClear: "Xóa nền tùy chỉnh",
     spellcheckTitle: "Chính tả", spellcheckNotInDictionary: "Không có trong từ điển:", spellcheckLocation: "Vị trí", spellcheckContext: "Nội dung", spellcheckSuggestions: "Gợi ý:", spellcheckNoSuggestions: "(Không có gợi ý gần)", spellcheckIgnore: "Bỏ qua", spellcheckIgnoreAll: "Bỏ qua tất cả", spellcheckAdd: "Thêm vào từ điển", spellcheckReplace: "Thay thế", spellcheckReplaceAll: "Thay thế tất cả", spellcheckClose: "Đóng", spellcheckStatus: "Lỗi {current} / {total}", spellcheckComplete: "Đã kiểm tra xong trang chiếu hiện tại. Không tìm thấy lỗi chính tả.", spellcheckCompleteRemaining: "Đã kiểm tra xong. Không còn lỗi chính tả.", spellcheckFieldTitle: "Tiêu đề", spellcheckFieldBody: "Nội dung", spellcheckFieldBody2: "Nội dung cột 2", spellcheckFieldShape: "Hình",
     animationPaneTitle: "Ngăn hoạt hình", animationPaneHint: "Danh sách hiệu ứng trên trang đang chọn. Đổi thứ tự bằng nút lên/xuống, chọn cách bắt đầu, hoặc xóa hiệu ứng (không xóa đối tượng).", animationPaneEmpty: "Trang này chưa có hiệu ứng. Dùng Hiệu ứng đối tượng trên tab Hoạt hình để gắn hiệu ứng, rồi mở lại ngăn này để sắp xếp.", animStartLabel: "Bắt đầu", animStartOnClick: "Khi click", animStartWithPrevious: "Cùng với trước đó", animStartAfterPrevious: "Sau trước đó", animMoveUp: "Đưa lên", animMoveDown: "Đưa xuống", animMoveUpShort: "↑", animMoveDownShort: "↓", animRemove: "Xóa hiệu ứng", animRemoveShort: "Xóa", shapeWordArt: "Chữ nghệ thuật", shapeChart: "Biểu đồ", shapeTable: "Bảng", shapeTextBox: "Hộp văn bản",
-    setupShowTitle: "Thiết lập trình chiếu", setupShowHint: "Tùy chọn trình chiếu cho bản này. Lặp liên tục áp dụng ngay khi F5. Màu bút/laser được lưu cho tính năng tương lai — VN Slides chưa có bút/laser trên màn hình chiếu.", setupShowLoop: "Lặp lại liên tục cho đến khi nhấn Esc", setupShowNoNarration: "Trình chiếu không có thuyết minh", setupShowNoNarrationHint: "Chưa có thuyết minh/audio narration trong VN Slides — tùy chọn này chỉ lưu cờ, chưa ẩn hay tắt âm thanh nào.", setupShowPointerColor: "Màu con trỏ bút / laser"
+    setupShowTitle: "Thiết lập trình chiếu", setupShowHint: "Tùy chọn trình chiếu cho bản này. Lặp liên tục áp dụng ngay khi F5. Màu bút vẽ và con trỏ laser mặc định khi trình chiếu (bật bằng Ctrl+P, Ctrl+L).", setupShowLoop: "Lặp lại liên tục cho đến khi nhấn Esc", setupShowNoNarration: "Trình chiếu không có thuyết minh", setupShowNoNarrationHint: "Chưa có thuyết minh/audio narration trong VN Slides — tùy chọn này chỉ lưu cờ, chưa ẩn hay tắt âm thanh nào.", setupShowPointerColor: "Màu con trỏ bút / laser",
+    keepInkTitle: "VN Slides", keepInkPrompt: "Bạn có muốn giữ lại các chú thích bằng nét vẽ không?", keepInkKeep: "Giữ", keepInkDiscard: "Bỏ",
+    slideshowNext: "Tiếp theo", slideshowPrev: "Quay lại", slideshowPointerOptions: "Tùy chọn con trỏ", slideshowArrow: "Mũi tên", slideshowPen: "Bút vẽ", slideshowLaser: "Con trỏ laser", slideshowPenColor: "Màu bút", slideshowEraseInk: "Xóa nét vẽ trên trang", slideshowEndShow: "Thoát trình chiếu",
+    colorRed: "Đỏ", colorBlue: "Xanh lam", colorYellow: "Vàng", colorGreen: "Xanh lá", colorBlack: "Đen"
   },
   commands: {
     "writer.edit.select": { label: "Chọn", tooltip: "Chọn văn bản hoặc đối tượng" },
@@ -435,6 +438,8 @@ export const viStrings = {
     ,"sheet.page.clearPrintArea": { label: "Xóa vùng in", tooltip: "Xóa vùng in của trang tính hiện tại" }
     ,"sheet.page.insertPageBreak": { label: "Chèn ngắt trang", tooltip: "Chèn ngắt hàng và cột tại ô đang chọn" }
     ,"sheet.page.removePageBreak": { label: "Xóa ngắt trang", tooltip: "Xóa ngắt hàng và cột tại ô đang chọn" }
+    ,"sheet.insert.cells": { label: "Chèn ô/hàng/cột...", tooltip: "Chèn ô, hàng hoặc cột (Ctrl+Shift++)" }
+    ,"sheet.sheet.insertBefore": { label: "Chèn trang tính mới", tooltip: "Chèn trang tính mới trước trang hiện tại (Shift+F11)" }
     ,"sheet.row.insert": { label: "Chèn hàng", tooltip: "Chèn thêm hàng mới (Ctrl+Shift+=)" }
     ,"sheet.col.insert": { label: "Chèn cột", tooltip: "Chèn thêm cột mới" }
     ,"sheet.row.delete": { label: "Xóa hàng", tooltip: "Xóa hàng chứa ô đang chọn" }
@@ -574,6 +579,8 @@ export const viStrings = {
     "writer.text.strike": { label: "Gạch ngang", tooltip: "Gạch ngang chữ" },
     "writer.font.grow": { label: "Tăng cỡ chữ", tooltip: "Tăng cỡ chữ nhanh (Ctrl+Shift+>)" },
     "writer.font.shrink": { label: "Giảm cỡ chữ", tooltip: "Giảm cỡ chữ nhanh (Ctrl+Shift+<)" },
+    "writer.font.grow1pt": { label: "Tăng cỡ chữ 1 điểm", tooltip: "Tăng cỡ chữ thêm 1 điểm (Ctrl+])" },
+    "writer.font.shrink1pt": { label: "Giảm cỡ chữ 1 điểm", tooltip: "Giảm cỡ chữ đi 1 điểm (Ctrl+[)" },
     "writer.text.subscript": { label: "Chỉ số dưới", tooltip: "Chỉ số dưới X₂ (Ctrl+=)" },
     "writer.text.superscript": { label: "Chỉ số trên", tooltip: "Chỉ số trên X² (Ctrl+Shift++)" },
     "writer.text.clearFormat": { label: "Xóa định dạng", tooltip: "Xóa toàn bộ định dạng về mặc định (Ctrl+Space)" },
@@ -675,12 +682,12 @@ export const viStrings = {
     "writer.reference.captionInsert": { label: "Chèn chú thích ảnh", tooltip: "Chèn chú thích tự đánh số cho hình ảnh, bảng hoặc phương trình" },
     "writer.reference.tofInsert": { label: "Danh mục hình ảnh", tooltip: "Chèn danh mục hình ảnh/bảng tự động từ các chú thích đã chèn" },
     "writer.reference.tofUpdate": { label: "Cập nhật danh mục", tooltip: "Cập nhật lại danh mục hình ảnh/bảng từ các chú thích hiện có" },
-    "writer.mailMerge.open": { label: "Nguồn dữ liệu", tooltip: "Mở bảng nhập dữ liệu trộn thư (CSV)" },
+    "writer.mailMerge.open": { label: "Nguồn dữ liệu", tooltip: "Mở danh sách người nhận trộn thư từ tệp Excel (.xlsx, .xls) hoặc CSV/TSV" },
     "writer.mailMerge.insertField": { label: "Chèn trường", tooltip: "Chèn trường trộn thư tại vị trí con trỏ" },
     "writer.mailMerge.preview": { label: "Xem trước kết quả", tooltip: "Bật/tắt xem trước bản ghi trộn thư" },
     "writer.mailMerge.prevRecord": { label: "Bản ghi trước", tooltip: "Chuyển tới bản ghi trước" },
     "writer.mailMerge.nextRecord": { label: "Bản ghi sau", tooltip: "Chuyển tới bản ghi tiếp theo" },
-    "writer.mailMerge.finish": { label: "Hoàn tất trộn", tooltip: "Hoàn tất trộn và tạo tài liệu kết quả cho toàn bộ bản ghi" },
+    "writer.mailMerge.finish": { label: "Hoàn tất & Trộn", tooltip: "Hoàn tất trộn: xuất ra tài liệu mới hoặc in trực tiếp" },
     "writer.mailings.envelopes": { label: "Phong bì", tooltip: "Tạo trang phong bì với địa chỉ người nhận và người gửi" },
     "writer.mailings.labels": { label: "Nhãn", tooltip: "Tạo trang nhãn — một nội dung hoặc hàng loạt từ Trộn thư" }
   },
@@ -886,20 +893,20 @@ export const viStrings = {
       contentRequired: "Hãy nhập nội dung nhãn, hoặc bật nguồn Trộn thư."
     },
     mailMerge: {
-      dataSourceTitle: "Trộn thư — Nguồn dữ liệu (CSV)",
-      pastePrompt: "Dán dữ liệu bảng tính dạng <strong>CSV</strong> vào khung bên dưới (dòng đầu tiên là tiêu đề các cột):",
+      dataSourceTitle: "Trộn thư — Nguồn dữ liệu người nhận (Excel / CSV)",
+      pastePrompt: "Chọn tệp Excel (.xlsx, .xls) / CSV, hoặc dán dữ liệu vào khung bên dưới:",
       pasteSampleBtn: "📋 Dán dữ liệu mẫu",
       noData: "Chưa có dữ liệu",
-      invalidCsv: "CSV chưa hợp lệ (thiếu tiêu đề cột)",
+      invalidCsv: "Dữ liệu chưa hợp lệ (thiếu tiêu đề cột)",
       foundData: "Đã tìm thấy: {count} cột | {records} bản ghi",
       saveDataSource: "Lưu nguồn dữ liệu",
       insertFieldTitle: "Chèn trường trộn thư",
       selectFieldPrompt: "Chọn trường dữ liệu muốn chèn vào tài liệu:",
       insertBtn: "Chèn trường",
       noDataWarningTitle: "Xem trước trộn thư",
-      noDataWarningMsg: "Chưa có nguồn dữ liệu trộn thư. Vui lòng mở 'Nguồn dữ liệu' để dán bảng CSV trước.",
-      finishTitle: "Hoàn tất trộn thư",
-      finishNoData: "Chưa có nguồn dữ liệu trộn thư để tạo tài liệu. Vui lòng mở 'Nguồn dữ liệu' để dán bảng CSV.",
+      noDataWarningMsg: "Chưa có nguồn dữ liệu trộn thư. Vui lòng mở 'Nguồn dữ liệu' để chọn tệp Excel hoặc dán dữ liệu trước.",
+      finishTitle: "Hoàn tất và Trộn thư",
+      finishNoData: "Chưa có nguồn dữ liệu trộn thư để tạo tài liệu. Vui lòng mở 'Nguồn dữ liệu' để chọn tệp Excel hoặc dán bảng dữ liệu.",
       finishNoFields: "Tài liệu hiện tại chưa chứa trường trộn thư nào. Hãy dùng lệnh 'Chèn trường' để chèn ít nhất một trường trộn.",
       finishSuccess: "Đã hoàn tất trộn thư thành công {count} bản ghi vào tài liệu. Bạn có thể xem trước khi in hoặc xuất tệp."
     },

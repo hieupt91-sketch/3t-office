@@ -117,7 +117,7 @@ export const enStrings = {
     mergeConfirmTitle: "Merge cells", mergeConfirmMessage: "Merging cells only keeps the upper-left value and discards other values.", mergeConfirmOk: "OK",
     functionTitle: "Insert Function", functionCategory: "Function category:", allCategory: "All", allFunctions: "All functions", mathFunctions: "Math & Trig", statsFunctions: "Statistical (AVERAGE, COUNT...)", logicFunctions: "Logical (IF, AND, OR...)", textFunctions: "Text (CONCAT, LEN...)", dateFunctions: "Date & Time (TODAY, NOW...)", financialFunctions: "Financial (PMT, FV, PV...)", lookupFunctions: "Lookup & Reference (VLOOKUP, INDEX...)", searchFunction: "Search for a function:", searchPlaceholder: "Type a brief description or function name...", insertFunction: "Insert Function",
     errorCheckingTitle: "Error Checking", noErrorsFound: "The error check is complete for the entire sheet. No errors were found.", errorsFoundPrompt: "Found <strong>{count}</strong> formula errors in the current sheet:", errorColCell: "Cell", errorColCode: "Error", errorColFormula: "Formula", errorColReason: "Reason", calcError: "Calculation error", divZero: "Division by zero or empty cell", invalidRef: "Invalid cell reference", wrongType: "Incorrect data type", naError: "Value not available", nameError: "Unrecognized formula or name", numError: "Numeric value out of range",
-    watchWindowTitle: "Watch Window", addWatch: "Add Watch", deleteWatch: "Delete Watch", watchWindowColSheet: "Sheet", watchWindowColCell: "Cell", watchWindowColValue: "Value", watchWindowColFormula: "Formula", defineNameTitle: "Define Name", nameLabel: "Name:", refersTo: "Refers to:", useInFormulaTitle: "Paste Name", namePlaceholder: "e.g., Payroll, UnitPrice", scopeLabel: "Scope:", scopeWorkbook: "Workbook (Entire workbook)", invalidName: "The name is invalid or already exists.", useInFormulaPrompt: "Select a name to paste into the formula:",
+    watchWindowTitle: "Watch Window", addWatch: "Add Watch", deleteWatch: "Delete Watch", watchWindowColBook: "Book", watchWindowColSheet: "Sheet", watchWindowColName: "Name", watchWindowColCell: "Cell", watchWindowColValue: "Value", watchWindowColFormula: "Formula", watchWindowEmpty: "No watched cells.", addWatchTitle: "Add Watch", addWatchPrompt: "Select the cells that you would like to watch the value of:", addWatchBtn: "Add", deleteWatchConfirm: "Select a row in the table to delete watch.", watchWindowCountSuffix: "watched cell(s)", watchWindowKeyboardHint: "Shortcuts: Delete to remove, Enter to navigate, Esc to close", watchWindowInvalidCoord: "Invalid cell reference.", defineNameTitle: "Define Name", nameLabel: "Name:", refersTo: "Refers to:", useInFormulaTitle: "Paste Name", namePlaceholder: "e.g., Payroll, UnitPrice", scopeLabel: "Scope:", scopeWorkbook: "Workbook (Entire workbook)", invalidName: "The name is invalid or already exists.", useInFormulaPrompt: "Select a name to paste into the formula:",
     nameManagerTitle: "Name Manager", nameNew: "New...", nameEdit: "Edit...", nameDelete: "Delete", noNamedRanges: "No named ranges found.", invalidNameOrRef: "Name or reference is invalid or duplicate.",
     newComment: "New Comment {coord}", editComment: "Edit Comment {coord}", commentContent: "Comment", commentPlaceholder: "Enter a comment for {coord}", author: "Author", defaultAuthor: "VN Office User", saveChanges: "Save Changes", addComment: "Add Comment", deleteComment: "Delete Comment", emptyComment: "Comment text cannot be empty.",
     spellcheckTitle: "Spelling", spellcheckNotInDictionary: "Not in Dictionary:", spellcheckCell: "Cell", spellcheckContext: "Cell text", spellcheckSuggestions: "Suggestions:", spellcheckNoSuggestions: "(No close suggestions)", spellcheckIgnore: "Ignore Once", spellcheckIgnoreAll: "Ignore All", spellcheckAdd: "Add to Dictionary", spellcheckReplace: "Change", spellcheckReplaceAll: "Change All", spellcheckClose: "Close", spellcheckStatus: "Issue {current} of {total}", spellcheckComplete: "The spelling check is complete for the entire sheet. No misspellings were found.", spellcheckCompleteRemaining: "The spelling check is complete. No misspellings remain.",
@@ -259,7 +259,10 @@ export const enStrings = {
     formatBackgroundTitle: "Format Background", formatBackgroundHint: "Change this slide's background. This does not replace the presentation theme.", formatBackgroundSolid: "Solid fill", formatBackgroundGradient: "Two-color gradient", formatBackgroundPicture: "Picture", formatBackgroundColor: "Fill color", formatBackgroundFrom: "Color 1", formatBackgroundTo: "Color 2", formatBackgroundDirection: "Direction", formatBackgroundHorizontal: "Horizontal", formatBackgroundVertical: "Vertical", formatBackgroundChoosePicture: "Choose picture…", formatBackgroundApplyCurrent: "Apply to this slide", formatBackgroundApplyAll: "Apply to all slides", formatBackgroundClear: "Remove custom background",
     spellcheckTitle: "Spelling", spellcheckNotInDictionary: "Not in Dictionary:", spellcheckLocation: "Location", spellcheckContext: "Text", spellcheckSuggestions: "Suggestions:", spellcheckNoSuggestions: "(No close suggestions)", spellcheckIgnore: "Ignore Once", spellcheckIgnoreAll: "Ignore All", spellcheckAdd: "Add to Dictionary", spellcheckReplace: "Change", spellcheckReplaceAll: "Change All", spellcheckClose: "Close", spellcheckStatus: "Issue {current} of {total}", spellcheckComplete: "The spelling check is complete for this slide. No misspellings were found.", spellcheckCompleteRemaining: "The spelling check is complete. No misspellings remain.", spellcheckFieldTitle: "Title", spellcheckFieldBody: "Body", spellcheckFieldBody2: "Second column", spellcheckFieldShape: "Shape",
     animationPaneTitle: "Animation Pane", animationPaneHint: "Every animation on the current slide. Reorder with Up/Down, choose how it starts, or remove the animation without deleting the object.", animationPaneEmpty: "This slide has no animations. Apply an object animation on the Animations tab, then open this pane to sequence them.", animStartLabel: "Start", animStartOnClick: "On Click", animStartWithPrevious: "With Previous", animStartAfterPrevious: "After Previous", animMoveUp: "Move up", animMoveDown: "Move down", animMoveUpShort: "↑", animMoveDownShort: "↓", animRemove: "Remove animation", animRemoveShort: "Remove", shapeWordArt: "WordArt", shapeChart: "Chart", shapeTable: "Table", shapeTextBox: "Text box",
-    setupShowTitle: "Set Up Slide Show", setupShowHint: "Show options for this presentation. Loop until Esc applies immediately in F5. Pen/laser color is stored for a future pointer — VN Slides does not yet draw a pen or laser on the show screen.", setupShowLoop: "Loop continuously until Esc", setupShowNoNarration: "Show without narration", setupShowNoNarrationHint: "VN Slides does not have audio narration yet — this option only stores a flag and does not mute or hide audio.", setupShowPointerColor: "Pen / laser pointer color"
+    setupShowTitle: "Set Up Slide Show", setupShowHint: "Slide show options for this presentation. Loop until Esc applies immediately in F5. Default pen and laser pointer color during slide show (toggle with Ctrl+P, Ctrl+L).", setupShowLoop: "Loop continuously until Esc", setupShowNoNarration: "Show without narration", setupShowNoNarrationHint: "VN Slides does not have audio narration yet — this option only stores a flag and does not mute or hide audio.", setupShowPointerColor: "Pen / laser pointer color",
+    keepInkTitle: "VN Slides", keepInkPrompt: "Do you want to keep your ink annotations?", keepInkKeep: "Keep", keepInkDiscard: "Discard",
+    slideshowNext: "Next", slideshowPrev: "Previous", slideshowPointerOptions: "Pointer Options", slideshowArrow: "Arrow", slideshowPen: "Pen", slideshowLaser: "Laser Pointer", slideshowPenColor: "Pen Color", slideshowEraseInk: "Erase Ink on Slide", slideshowEndShow: "End Show",
+    colorRed: "Red", colorBlue: "Blue", colorYellow: "Yellow", colorGreen: "Green", colorBlack: "Black"
   },
   commands: {
     "writer.edit.select": { label: "Select", tooltip: "Select text or objects in the document" },
@@ -436,6 +439,8 @@ export const enStrings = {
     ,"sheet.page.clearPrintArea": { label: "Clear Print Area", tooltip: "Clear the current worksheet's print area" }
     ,"sheet.page.insertPageBreak": { label: "Insert Page Break", tooltip: "Insert row and column page breaks at the active cell" }
     ,"sheet.page.removePageBreak": { label: "Remove Page Break", tooltip: "Remove row and column page breaks at the active cell" }
+    ,"sheet.insert.cells": { label: "Insert Cells...", tooltip: "Insert cells, rows, or columns (Ctrl+Shift++)" }
+    ,"sheet.sheet.insertBefore": { label: "Insert Sheet", tooltip: "Insert a new sheet before current sheet (Shift+F11)" }
     ,"sheet.row.insert": { label: "Insert Row", tooltip: "Insert a new row (Ctrl+Shift+=)" }
     ,"sheet.col.insert": { label: "Insert Column", tooltip: "Insert a new column" }
     ,"sheet.row.delete": { label: "Delete Row", tooltip: "Delete the row containing the active cell" }
@@ -575,6 +580,8 @@ export const enStrings = {
     "writer.text.strike": { label: "Strikethrough", tooltip: "Strikethrough" },
     "writer.font.grow": { label: "Increase Font Size", tooltip: "Increase font size (Ctrl+Shift+>)" },
     "writer.font.shrink": { label: "Decrease Font Size", tooltip: "Decrease font size (Ctrl+Shift+<)" },
+    "writer.font.grow1pt": { label: "Increase Font Size 1 pt", tooltip: "Increase font size by 1 point (Ctrl+])" },
+    "writer.font.shrink1pt": { label: "Decrease Font Size 1 pt", tooltip: "Decrease font size by 1 point (Ctrl+[)" },
     "writer.text.subscript": { label: "Subscript", tooltip: "Subscript X₂ (Ctrl+=)" },
     "writer.text.superscript": { label: "Superscript", tooltip: "Superscript X² (Ctrl+Shift++)" },
     "writer.text.clearFormat": { label: "Clear All Formatting", tooltip: "Clear all formatting (Ctrl+Space)" },
@@ -676,12 +683,12 @@ export const enStrings = {
     "writer.reference.captionInsert": { label: "Insert Caption", tooltip: "Insert an auto-numbered caption for a picture, table, or equation" },
     "writer.reference.tofInsert": { label: "Insert Table of Figures", tooltip: "Insert a table of figures or tables from existing captions" },
     "writer.reference.tofUpdate": { label: "Update Table of Figures", tooltip: "Refresh the table of figures from captions in the document" },
-    "writer.mailMerge.open": { label: "Select Recipients", tooltip: "Set up mail merge data source (CSV)" },
+    "writer.mailMerge.open": { label: "Select Recipients", tooltip: "Open mail merge recipient list from Excel (.xlsx, .xls) or CSV/TSV file" },
     "writer.mailMerge.insertField": { label: "Insert Merge Field", tooltip: "Insert a mail merge field" },
     "writer.mailMerge.preview": { label: "Preview Results", tooltip: "Preview merged records" },
     "writer.mailMerge.prevRecord": { label: "Previous Record", tooltip: "Go to previous record" },
     "writer.mailMerge.nextRecord": { label: "Next Record", tooltip: "Go to next record" },
-    "writer.mailMerge.finish": { label: "Finish & Merge", tooltip: "Complete merge and generate merged document" },
+    "writer.mailMerge.finish": { label: "Finish & Merge", tooltip: "Complete mail merge: generate new document or print directly" },
     "writer.mailings.envelopes": { label: "Envelopes", tooltip: "Add an envelope page with delivery and return addresses" },
     "writer.mailings.labels": { label: "Labels", tooltip: "Create a label sheet — one text or a record per cell from Mail Merge" }
   },
@@ -887,20 +894,20 @@ export const enStrings = {
       contentRequired: "Enter label text, or turn on the Mail Merge source."
     },
     mailMerge: {
-      dataSourceTitle: "Mail Merge — Data Source (CSV)",
-      pastePrompt: "Paste spreadsheet data in <strong>CSV</strong> format below (first row as column headers):",
+      dataSourceTitle: "Mail Merge — Recipient Data Source (Excel / CSV)",
+      pastePrompt: "Select an Excel (.xlsx, .xls) / CSV file, or paste table data below:",
       pasteSampleBtn: "📋 Paste Sample Data",
       noData: "No data",
-      invalidCsv: "Invalid CSV (missing column headers)",
+      invalidCsv: "Invalid data (missing column headers)",
       foundData: "Found: {count} columns | {records} records",
       saveDataSource: "Save Data Source",
       insertFieldTitle: "Insert Merge Field",
       selectFieldPrompt: "Select field to insert into document:",
       insertBtn: "Insert Field",
       noDataWarningTitle: "Mail Merge Preview",
-      noDataWarningMsg: "No mail merge data source found. Please open 'Select Recipients' to paste CSV data first.",
+      noDataWarningMsg: "No mail merge data source found. Please open 'Select Recipients' to choose an Excel/CSV file first.",
       finishTitle: "Finish & Merge",
-      finishNoData: "No mail merge data source to create documents. Please open 'Select Recipients' to paste CSV data.",
+      finishNoData: "No mail merge data source to create documents. Please open 'Select Recipients' to select an Excel/CSV file.",
       finishNoFields: "Current document contains no merge fields. Use 'Insert Merge Field' to insert at least one field.",
       finishSuccess: "Successfully merged {count} records into document. You can preview or export the document."
     },
