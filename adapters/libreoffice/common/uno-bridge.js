@@ -107,6 +107,25 @@ export class UnoBridge {
     return await this.desktopApi.open_document_dialog(appKind);
   }
 
+  /**
+   * Mở tệp nguồn dữ liệu trộn thư (.xlsx, .xls, .csv, .tsv) qua hộp thoại native desktop.
+   */
+  async openMailMergeDataSource() {
+    if (!this.desktopApi || !this.hasRealEngine) {
+      return {
+        status: "error",
+        message: "Chức năng đọc tệp Excel chỉ khả dụng trong VN Office Desktop App (đã cài LibreOffice).",
+      };
+    }
+    if (typeof this.desktopApi.open_mail_merge_data_dialog === "function") {
+      return await this.desktopApi.open_mail_merge_data_dialog();
+    }
+    return {
+      status: "error",
+      message: "Hệ thống chưa hỗ trợ hộp thoại nguồn dữ liệu.",
+    };
+  }
+
   async getSheetOpenFallback(openId) {
     if (!this.desktopApi) return { status: "error", message: "Không thể lấy dữ liệu dự phòng của bảng tính." };
     return await this.desktopApi.get_sheet_open_fallback(openId || "");

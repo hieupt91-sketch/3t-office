@@ -160,16 +160,18 @@ export const WRITER_HELP_ENTRIES = [
       "writer.mailMerge.nextRecord",
       "writer.mailMerge.finish"
     ],
-    title: "Trộn thư",
-    summary: "Lấy danh sách người nhận từ CSV, chèn trường trộn vào văn bản, xem từng bản ghi rồi tạo tài liệu kết quả cho toàn bộ danh sách.",
+    title: "Trộn thư và Danh sách người nhận Excel",
+    summary: "Lấy danh sách người nhận từ tệp Excel (.xlsx, .xls, .ods) hoặc CSV/TSV, hỗ trợ chọn trang tính, dòng đầu là tên trường, xem trước từng bản ghi, lọc/bỏ chọn người nhận, chèn trường trộn vào văn bản và hoàn tất ra tài liệu mới hoặc in ấn.",
     ribbon: { tab: "Trộn thư", tabId: "mailings", group: "Bắt đầu trộn" },
-    keywords: ["trộn thư", "mail merge", "csv", "trường", "người nhận", "bản ghi", "nguồn dữ liệu", "chèn trường", "xem trước kết quả", "hoàn tất trộn"],
+    keywords: ["trộn thư", "mail merge", "excel", "xlsx", "xls", "csv", "tsv", "trường", "người nhận", "bản ghi", "nguồn dữ liệu", "chèn trường", "xem trước kết quả", "hoàn tất trộn", "in ấn", "lọc người nhận"],
     steps: [
-      "Mở tab Trộn thư, nhóm Bắt đầu trộn, nhấn Nguồn dữ liệu rồi dán bảng dữ liệu CSV (dòng đầu là tên cột, ví dụ: HoTen, ChucVu, DonVi, NgayKy) hoặc bấm 'Dán dữ liệu mẫu', sau đó nhấn Lưu nguồn dữ liệu.",
-      "Đặt con trỏ tại vị trí muốn đưa thông tin người nhận vào văn bản, mở nhóm Viết & Chèn trường, nhấn Chèn trường và chọn trường dữ liệu tương ứng.",
-      "Nhấn Xem trước kết quả (nhóm Xem trước kết quả) để bật chế độ xem trước văn bản sau khi ghép dữ liệu của từng bản ghi.",
-      "Dùng nút Bản ghi trước hoặc Bản ghi sau để duyệt qua từng người nhận trong danh sách.",
-      "Mở nhóm Hoàn tất, nhấn Hoàn tất trộn để tạo tài liệu kết quả cho toàn bộ danh sách bản ghi đã nạp."
+      "Mở tab Trộn thư, nhóm Bắt đầu trộn, nhấn Nguồn dữ liệu. Trong hộp thoại, nhấn 'Chọn tệp Excel / CSV...' để mở tệp bảng tính (.xlsx, .xls, .ods, .csv, .tsv) hoặc dán dữ liệu thủ công.",
+      "Nếu tệp Excel có nhiều trang tính, chọn trang tính mong muốn tại mục 'Trang tính'. Đánh dấu tùy chọn 'Dòng đầu tiên là tên trường' nếu hàng đầu của bảng chứa tiêu đề cột.",
+      "Xem trước danh sách người nhận trong bảng. Có thể nhập từ khóa vào ô tìm kiếm để lọc, và bỏ dấu tích ở các dòng không muốn gửi để loại trừ người nhận đó khỏi danh sách.",
+      "Nhấn 'Lưu nguồn dữ liệu' để áp dụng danh sách người nhận vào tài liệu.",
+      "Đặt con trỏ tại vị trí muốn đưa thông tin người nhận vào văn bản, mở nhóm Viết & Chèn trường, nhấn Chèn trường và chọn trường dữ liệu tương ứng (ví dụ: Họ tên, Lương thưởng, Ngày ký).",
+      "Nhấn Xem trước kết quả (nhóm Xem trước kết quả) để bật chế độ xem trước văn bản sau khi ghép dữ liệu của từng bản ghi. Dùng nút Bản ghi trước hoặc Bản ghi sau để duyệt qua từng người nhận được chọn.",
+      "Mở nhóm Hoàn tất, nhấn Hoàn tất trộn để chọn hình thức xuất: 'Tạo tài liệu mới' (hợp nhất toàn bộ bản ghi nối tiếp nhau bằng ngắt trang) hoặc 'In tài liệu trực tiếp'."
     ]
   },
   {
