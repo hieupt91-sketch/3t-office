@@ -6,6 +6,7 @@
 import { ICONS } from "../ui-kit/icons.js";
 import { t } from "../i18n/i18n.js";
 import { getHelpEntryById, groupHelpEntriesByTab, searchHelpEntries } from "./help-service.js";
+import { showAboutDialog } from "../about/about-dialog.js";
 
 function localize(key, fallback) {
   const value = t(key);
@@ -75,7 +76,10 @@ export class HelpPanel {
                aria-label="${escapeHtml(localize("help.searchPlaceholder", "Tìm tính năng"))}" />
       </div>
       <section class="vno-help-reporting-actions" aria-label="Báo lỗi và quyền riêng tư">
-        <button type="button" class="vno-btn vno-btn-primary" data-vno-report-open>Báo lỗi / Góp ý</button>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px;">
+          <button type="button" class="vno-btn vno-btn-primary" data-vno-report-open>Báo lỗi / Góp ý</button>
+          <button type="button" class="vno-btn" data-vno-about-open id="vno-help-about-btn">Giới thiệu 3T Office</button>
+        </div>
         <label class="vno-report-consent-label"><input type="checkbox" data-vno-report-consent>
           <span>Cho phép gửi báo cáo lỗi kỹ thuật tự động</span></label>
         <p class="vno-reporting-status" data-vno-reporting-status role="status" aria-live="polite">Đang đọc trạng thái…</p>
@@ -87,6 +91,7 @@ export class HelpPanel {
     `;
     host.appendChild(this.root);
     this.root.querySelector(".vno-help-close").addEventListener("click", () => this.close());
+    this.root.querySelector("[data-vno-about-open]")?.addEventListener("click", () => showAboutDialog());
     this.root.querySelector(".vno-help-search").addEventListener("input", (event) => {
       this._query = event.target.value || "";
       const visible = this.getVisibleEntries();

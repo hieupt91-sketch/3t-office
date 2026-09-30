@@ -631,6 +631,38 @@ export const SLIDES_HELP_ENTRIES = [
       "Phát lại và chỉnh sửa: Bấm «Xem Macro» (hoặc Alt+F8) để mở hộp thoại Quản lý Macro. Nhấn «▶ Chạy» để thực thi lại chuỗi thao tác đã ghi trên trang chiếu hiện tại, hoặc chọn «Đổi tên», «Xóa» tùy ý.",
       "Giới hạn trung thực: Macro chỉ ghi lại các thao tác lệnh có trong Command Bus của VN Slides (bố cục, hình khối, định dạng). Macro không ghi lại văn bản gõ tay trực tiếp vào hộp chữ tự do. Macro được lưu riêng cho VN Slides và phân tách độc lập với Writer và Sheet."
     ]
+  },
+  {
+    id: "slides.help.about",
+    app: "slides",
+    commandIds: ["slides.help.open", "common.help.about"],
+    title: "Giới thiệu 3T Office và Giấy phép bản quyền",
+    summary: "Xem thông tin phiên bản, bản quyền thương hiệu 3T Technology và danh sách các phần mềm nguồn mở bên thứ ba kèm giấy phép hợp pháp.",
+    ribbon: { tab: "Trợ giúp", tabId: "help", group: "Trợ giúp" },
+    keywords: ["giới thiệu", "about", "phiên bản", "bản quyền", "3t office", "giấy phép", "nguồn mở", "third-party", "license", "3t slide"],
+    steps: [
+      "Mở tab Trợ giúp trên thanh ribbon, nhóm Trợ giúp rồi nhấn nút Giới thiệu (hoặc vào menu Tệp rồi chọn Giới thiệu).",
+      "Hộp thoại Giới thiệu 3T Office xuất hiện với logo nhận diện 3T và thông tin bộ ứng dụng 3T Office (3T Doc, 3T Sheet, 3T Slide).",
+      "Quan sát số hiệu phiên bản hiện hành, nhà phát triển 3T Technology và các điều khoản bản quyền sở hữu.",
+      "Tra cứu danh sách phần mềm nguồn mở bên thứ ba (Python, LibreOffice Core, pywebview) và nhấn nút Xem toàn văn giấy phép nếu muốn đọc toàn văn THIRD-PARTY-NOTICES.",
+      "Nhấn nút Đóng hoặc bấm phím Esc trên bàn phím để trở lại bài thuyết trình."
+    ]
+  },
+  {
+    id: "slides.help.splash",
+    app: "slides",
+    commandIds: ["slides.help.open"],
+    title: "Màn hình chào 3T Office khi khởi động",
+    summary: "Hiển thị nhận diện thương hiệu 3T Office và tên ứng dụng 3T Slide ngay khi mở cửa sổ, tự động ẩn khi không gian trình chiếu sẵn sàng.",
+    ribbon: { tab: "Trợ giúp", tabId: "help", group: "Trợ giúp" },
+    keywords: ["màn hình chào", "splash", "khởi động", "3t office", "3t slide", "logo 3t", "chào mừng"],
+    steps: [
+      "Khi bạn khởi chạy 3T Slide hoặc mở một tệp trình chiếu (.pptx, .odp), màn hình chào xuất hiện ngay lập tức trên cửa sổ.",
+      "Màn hình hiển thị logo 3T, tiêu đề 3T Office và huy hiệu ứng dụng màu cam đất 3T Slide trên nền gradient sang trọng.",
+      "Dòng chữ trạng thái hiển thị «Đang khởi động…» kèm biểu tượng xoay trong khi hệ thống nạp các tài nguyên trang chiếu và canvas.",
+      "Ngay khi khung slide và dải thumbnail hoàn tất chuẩn bị, màn hình chào sẽ tự động làm mờ và ẩn đi một cách mượt mà.",
+      "Màn hình chào được tối ưu hiển thị tức thời, chạy hoàn toàn offline không phụ thuộc internet và không gây độ trễ."
+    ]
   }
 ];
 

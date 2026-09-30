@@ -7,6 +7,7 @@ import { createCommandButton, createSelect, createDropdownButton, closeActiveDro
 import { t } from "../i18n/i18n.js";
 import { ICONS } from "../ui-kit/icons.js";
 import { globalCommandBus } from "../commands/command-bus.js";
+import { showAboutDialog } from "../about/about-dialog.js";
 
 function resolveGroupIcon(groupId, label) {
   const gid = (groupId || "").toLowerCase();
@@ -228,7 +229,17 @@ export class RibbonHost {
 
       // Render items trong group
       group.items.forEach(item => {
-        if (item.type === "button" || item.type === "checkbox") {
+        if (item.type === "about-button" || item.action === "about") {
+          const btn = createCommandButton({
+            commandId: "common.help.about",
+            isLarge: item.isLarge ?? true,
+            iconOnly: item.iconOnly,
+            customLabel: item.label || t("common.help.about") || "Giới thiệu 3T Office",
+            customIcon: "help"
+          });
+          btn.addEventListener("click", () => showAboutDialog());
+          itemsEl.appendChild(btn);
+        } else if (item.type === "button" || item.type === "checkbox") {
           itemsEl.appendChild(createCommandButton({
             commandId: item.commandId,
             isLarge: item.isLarge,

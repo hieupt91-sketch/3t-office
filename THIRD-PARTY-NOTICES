@@ -1,0 +1,111 @@
+================================================================================
+3T OFFICE — THÔNG BÁO VÀ GIẤY PHÉP PHẦN MỀM NGUỒN MỞ BÊN THỨ BA
+(THIRD-PARTY SOFTWARE LICENSES AND NOTICES)
+================================================================================
+
+Sản phẩm 3T Office (bao gồm 3T Doc, 3T Sheet và 3T Slide) sử dụng và phân phối
+các thành phần phần mềm nguồn mở dưới đây theo các điều khoản giấy phép tương ứng.
+Chúng tôi trân trọng cảm ơn cộng đồng các nhà phát triển phần mềm nguồn mở đã đóng góp
+vào các dự án nền tảng này.
+
+--------------------------------------------------------------------------------
+1. Python 3.12
+--------------------------------------------------------------------------------
+Bản quyền: (c) 2001-2026 Python Software Foundation. All rights reserved.
+Giấy phép: Python Software Foundation License Version 2 (PSF-2.0)
+Trang web: https://www.python.org/
+
+PYTHON SOFTWARE FOUNDATION LICENSE VERSION 2
+--------------------------------------------
+1. This LICENSE AGREEMENT is between the Python Software Foundation ("PSF"), and
+the Individual or Organization ("Licensee") accessing and otherwise using this
+software ("Python") in source or binary form and its associated documentation.
+
+2. Subject to the terms and conditions of this License Agreement, PSF hereby
+grants Licensee a nonexclusive, royalty-free, world-wide license to reproduce,
+analyze, test, perform and/or display publicly, prepare derivative works, distribute,
+and otherwise use Python alone or in any derivative version, provided, however, that
+PSF's License Agreement and PSF's notice of copyright, i.e., "Copyright (c) 2001-2026
+Python Software Foundation; All Rights Reserved" are retained in Python alone or
+in any derivative version prepared by Licensee.
+
+--------------------------------------------------------------------------------
+2. LibreOffice Core
+--------------------------------------------------------------------------------
+Bản quyền: (c) 2000-2026 The Document Foundation and contributors.
+Giấy phép: Mozilla Public License Version 2.0 (MPL-2.0)
+Trang web: https://www.libreoffice.org/
+
+LibreOffice is free software: you can redistribute it and/or modify it under the
+terms of the Mozilla Public License v2.0 as published by Mozilla Corporation.
+Mã nguồn thành phần LibreOffice và các bản vá tương ứng tuân thủ đầy đủ điều khoản
+phân phối lại theo MPL-2.0.
+
+--------------------------------------------------------------------------------
+3. pywebview
+--------------------------------------------------------------------------------
+Bản quyền: (c) 2014-2026 Roman Sirokov and contributors.
+Giấy phép: BSD 3-Clause License
+Trang web: https://pywebview.flowrl.com/
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+1. Redistributions of source code must retain the above copyright notice, this list
+   of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright notice, this
+   list of conditions and the following disclaimer in the documentation and/or other
+   materials provided with the distribution.
+3. Neither the name of the copyright holder nor the names of its contributors may
+   be used to endorse or promote products derived from this software without
+   specific prior written permission.
+
+--------------------------------------------------------------------------------
+4. pythonnet & clr_loader
+--------------------------------------------------------------------------------
+Bản quyền: (c) 2006-2026 Python.NET authors and contributors.
+Giấy phép: MIT License
+Trang web: https://pythonnet.github.io/
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+--------------------------------------------------------------------------------
+5. cffi & pycparser
+--------------------------------------------------------------------------------
+Bản quyền: (c) 2012-2026 Armin Rigo, Maciej Fijalkowski, Eli Bendersky and contributors.
+Giấy phép: MIT License & BSD 3-Clause License
+
+--------------------------------------------------------------------------------
+6. bottle & proxy_tools
+--------------------------------------------------------------------------------
+Bản quyền: (c) 2009-2026 Marcel Hellkamp and contributors.
+Giấy phép: MIT License
+Trang web: https://bottlepy.org/
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software.
+
+--------------------------------------------------------------------------------
+7. typing_extensions
+--------------------------------------------------------------------------------
+Bản quyền: (c) 2017-2026 Guido van Rossum, Jukka Lehtosalo, Łukasz Langa, Michael Lee and contributors.
+Giấy phép: Python Software Foundation License (PSF)
+
+--------------------------------------------------------------------------------
+8. Phông chữ Be Vietnam Pro
+--------------------------------------------------------------------------------
+Bản quyền: Copyright 2019 The Be Vietnam Pro Project Authors (https://github.com/bettertype/BeVietnamPro)
+Giấy phép: SIL Open Font License, Version 1.1 (OFL-1.1)
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+This license is available with a FAQ at: http://scripts.sil.org/OFL
+--------------------------------------------------------------------------------
