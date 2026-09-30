@@ -15,7 +15,7 @@ export const WRITER_HELP_ENTRIES = [
     steps: [
       "Đặt con trỏ tại vị trí cần bắt đầu vùng định dạng mới.",
       "Mở tab Bố cục, nhóm Thiết lập trang, mở Ngắt trang rồi chọn Trang kế tiếp, Liên tục, Trang chẵn hoặc Trang lẻ trong nhóm Ngắt mục.",
-      "Sau mốc ngắt, chọn Căn lề, Hướng giấy hoặc Khổ giấy trên cùng nhóm. Thay đổi chỉ được lưu cho mục đang hoạt động; mục trước giữ nguyên.",
+      "Sau mốc ngắt, chọn Căn lề, Hướng giấy hoặc Khổ giấy trên cùng nhóm. Ví dụ tạo trang ngang: đặt con trỏ trước trang cần xoay, chọn Ngắt trang → Trang kế tiếp, rồi Hướng giấy → Ngang. Thay đổi chỉ được lưu cho mục đang hoạt động; mục trước giữ nguyên.",
       "Ngắt cột chỉ có hiệu lực rõ khi tài liệu đang dùng từ hai cột trở lên. Dùng Ctrl+Z/Ctrl+Y để hoàn tác hoặc làm lại mốc ngắt cùng thiết lập trang."
     ]
   },
@@ -349,7 +349,7 @@ export const WRITER_HELP_ENTRIES = [
       "Đặt con trỏ tại chỗ cần ảnh. Tab Chèn, nhóm Minh họa, nhấn nút lớn Hình ảnh (cạnh Hình khối, Sơ đồ, Biểu đồ).",
       "Hộp chọn tệp của hệ thống hiện ra, lọc sẵn các file ảnh. Chọn một file rồi Mở. Ảnh được nhúng dạng data URL, rộng tối đa 100% trang, chiều cao tự giữ tỉ lệ, có đổ bóng nhẹ.",
       "Khi mở DOCX có ảnh neo hoặc hộp văn bản nổi, VN Writer giữ vị trí và kiểu bọc chữ từ tệp gốc. Các khung nhập hiện chưa hỗ trợ kéo để đổi vị trí; hãy chỉnh vị trí trong ứng dụng nguồn nếu cần.",
-      "Nhấp ảnh để chọn (có tabindex). Delete khi đang chọn sẽ xóa ảnh. Ctrl+Z hoàn tác lần chèn.",
+      "Nhấp ảnh để chọn rồi mở tab Định dạng Hình ảnh. Nhập Rộng (mm) hoặc Cao (mm); Giữ tỉ lệ được bật sẵn để kích thước còn lại tự đổi theo. Trong nhóm Sắp xếp chọn Trong dòng, Vuông hoặc Khít để đặt kiểu bọc chữ; dùng Vị trí để chọn một trong chín điểm trên trang. Delete khi ảnh đang chọn sẽ xóa ảnh. Ctrl+Z hoàn tác thao tác ảnh.",
       "Muốn chú thích và đánh số hình: sau khi chèn, dùng tab Tham chiếu → nhóm Chú thích ảnh (bài «Chú thích ảnh và danh mục hình»)."
     ]
   },
@@ -578,7 +578,7 @@ export const WRITER_HELP_ENTRIES = [
   {
     id: "writer.comment.insertHelp",
     app: "writer",
-    commandIds: ["writer.comment.insert"],
+    commandIds: ["writer.comment.insert", "writer.review.commentReply"],
     title: "Thêm ghi chú vào đoạn đã bôi",
     summary: "Ctrl+Alt+M yêu cầu đã bôi chữ trong thân tài liệu. Hộp nhập ghi chú, neo vàng trên chữ đã chọn. Duyệt / xóa / đánh dấu xử lý nằm bài «Duyệt nhận xét».",
     ribbon: { tab: "Đánh giá", tabId: "review", group: "Ghi chú" },
@@ -587,7 +587,7 @@ export const WRITER_HELP_ENTRIES = [
       "Bôi đoạn chữ trong thân tài liệu (không phải đầu/chân trang). Tab Đánh giá, nhóm Ghi chú, nút lớn Thêm ghi chú — hoặc tab Chèn, nhóm Ghi chú — hoặc Ctrl+Alt+M.",
       "Chưa bôi: cảnh báo «Chưa chọn văn bản» / «Hãy bôi đen đoạn văn bản trong nội dung tài liệu trước khi thêm ghi chú.» Đã bôi: hộp «Thêm ghi chú» hiện đoạn trích (tối đa 80 ký tự), ô nhập, nút Thêm ghi chú.",
       "Chữ được bọc mark vàng (neo ghi chú). Panel bên «Ghi chú tài liệu» liệt kê các ghi chú. Không thêm được khi con trỏ chỉ nhấp, khác Word.",
-      "Ctrl+Z gỡ ghi chú vừa thêm. Nhận xét trước/sau, xóa, đã xử lý: bài «Duyệt nhận xét»."
+      "Ctrl+Z gỡ ghi chú vừa thêm. Để trả lời, chọn thẻ ghi chú trong panel bên rồi nhấn Trả lời trên thẻ hoặc tab Đánh giá → nhóm Ghi chú → Trả lời nhận xét; nhập câu trả lời và chọn Gửi trả lời. Các câu trả lời hiện dưới ghi chú gốc. Nhận xét trước/sau, xóa, đã xử lý: bài «Duyệt nhận xét»."
     ]
   },
   {
@@ -601,7 +601,7 @@ export const WRITER_HELP_ENTRIES = [
     steps: [
       "Tab Bố cục, nhóm Thiết lập trang: Căn lề, Hướng giấy, Khổ giấy (ba nút lớn). Cả ba mở hộp «Thiết lập trang» — Hướng giấy đặt focus vào hướng; Căn lề và Khổ giấy đặt focus vào khổ.",
       "Khổ giấy: A4 (210 × 297 mm, mặc định), Letter (215.9 × 279.4 mm), Legal (216 × 356 mm). Khi mở DOCX có khổ không chuẩn, hộp hiển thị Tùy chỉnh kèm kích thước gốc và VN Writer giữ nguyên kích thước đó khi lưu. Hướng: Dọc (Portrait) hoặc Ngang (Landscape).",
-      "Lề trên / dưới / trái / phải (mm), mỗi ô 0–100. Mặc định trên 20, dưới 20, trái 30, phải 15 — đúng lề văn bản hành chính NĐ 30. Áp dụng / Hủy bỏ.",
+      "Lề trên / dưới / trái / phải (mm), mỗi ô 0–100. Mặc định trên 20, dưới 20, trái 30, phải 15 — đúng lề văn bản hành chính NĐ 30. Tích Trang đầu khác trong hộp này để ẩn đầu trang/chân trang thường ở trang đầu và dùng nội dung riêng. Áp dụng / Hủy bỏ.",
       "Không có gallery Narrow/Wide như Word — chỉ số mm. Thước trên tab Chế độ xem phản ánh lề trái/phải sau khi áp dụng. Ctrl+Z hoàn tác."
     ]
   },
@@ -919,15 +919,15 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["ai.assistant.grammarCheck"],
     title: "Soát lỗi chính tả và ngữ pháp tiếng Việt",
-    summary: "Kiểm tra toàn diện lỗi chính tả dấu thanh, phụ âm đầu và ngữ pháp văn bản tiếng Việt theo chuẩn từ điển tiếng Việt và Nghị định 30 bằng phím tắt F7.",
+    summary: "Gạch chân từ tiếng Việt chưa có trong từ điển cục bộ khi gõ; bấm chuột phải lên từ để xem gợi ý. Bộ từ điển được đóng gói kèm ứng dụng và không cần kết nối Internet.",
     ribbon: { tab: "Đánh giá", tabId: "review", group: "Chính tả & Ngữ pháp" },
     keywords: ["soát lỗi chính tả", "chính tả", "ngữ pháp", "kiểm tra chính tả", "spell check", "grammar", "F7", "tiếng việt", "nghị định 30"],
     steps: [
       "Mở tab Đánh giá trên thanh ribbon.",
       "Trong nhóm Chính tả & Ngữ pháp, nhấn nút Soát lỗi chính tả (hoặc bấm phím F7 trên bàn phím).",
-      "Hệ thống tự động quét toàn bộ văn bản hiện tại, phát hiện các từ sai chính tả tiếng Việt (nhầm lẫn hỏi/ngã, s/x, tr/ch, d/gi/r) và lỗi dấu câu.",
-      "Bảng Trợ lý VN AI mở ra hiển thị danh sách các từ nghi ngờ kèm ngữ cảnh và gợi ý chỉnh sửa đúng.",
-      "Nhấn vào từ gợi ý để tự động thay thế vào tài liệu, hoặc nhấn Bỏ qua để giữ nguyên từ đó."
+      "VN Writer đối chiếu từ với từ điển tiếng Việt cục bộ đi kèm ứng dụng; kiểm tra này vẫn hoạt động khi máy không có Internet.",
+      "Từ chưa nhận diện được đánh dấu gạch chân trong vùng soạn thảo. Bấm chuột phải vào từ để mở menu chính tả và xem các từ gợi ý.",
+      "Chọn một gợi ý để thay từ, hoặc chọn Bỏ qua / Thêm vào từ điển nếu đó là tên riêng hay thuật ngữ đúng. Từ điển cá nhân được lưu cục bộ trên máy."
     ]
   },
   {

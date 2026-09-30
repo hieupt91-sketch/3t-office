@@ -25,6 +25,35 @@ export async function runVietnameseSpellcheckerTests() {
       const issues = checker.checkText(text);
       assert(issues.length === 0, `báo nhầm: ${issues.map(item => item.word).join(", ")}`);
     }),
+    test("200 từ tiếng Việt thông dụng không bị gạch chân và bộ từ điển không cần mạng", () => {
+      const commonWords = `
+        tôi bạn anh chị em ta chúng họ ông bà
+        cha mẹ bố má con cháu người nhà cửa đất nước
+        quê hương xã hội có không được cần phải muốn biết
+        nghĩ nói làm đi đến về ở ăn uống ngủ
+        học dạy đọc viết xem nghe hỏi trả lời cảm ơn
+        xin chào vâng dạ rồi chưa đang sẽ đã từng vừa
+        mới rất quá khá nhiều ít một hai ba bốn năm
+        sáu bảy tám chín mười đây đó kia nào gì ai
+        đâu sao khi hôm ngày tháng tuần giờ phút sáng trưa
+        chiều tối đêm nay mai qua trước sau trên dưới trong
+        ngoài giữa cạnh gần xa trái phải cao thấp dài
+        ngắn rộng hẹp to nhỏ tốt xấu đẹp cũ nhanh chậm
+        vui buồn khỏe mệt nóng lạnh khô ướt mưa nắng gió
+        trời biển sông núi cây hoa lá quả rau cá
+        thịt cơm bánh trà cà phê sữa đường muối ngon ngọt
+        chua cay màu đỏ xanh vàng trắng đen mắt tai mũi
+        miệng tay chân đầu tóc lòng tim sức bệnh thuốc bác
+        sĩ trường lớp sách vở bút giấy bàn ghế phòng phố
+        đường xe tàu máy bay việc công tiền giá hàng chợ
+        tiếng chữ câu từ đoạn trang mục tiêu văn bản
+      `.trim().split(/\s+/).slice(0, 200);
+      assert(commonWords.length === 200, `mẫu có ${commonWords.length} từ thay vì 200`);
+      const checker = new VietnameseSpellChecker(VIETNAMESE_DICTIONARY_WORDS);
+      const issues = checker.checkText(commonWords.join(" "));
+      assert(issues.length === 0, `có từ thông dụng bị báo nhầm: ${issues.map((item) => item.word).join(", ")}`);
+      assert(typeof checker.checkText === "function", "từ điển cục bộ chưa sẵn sàng");
+    }),
     test("Phát hiện lỗi rõ ràng và đưa ra gợi ý gần", () => {
       const checker = new VietnameseSpellChecker(VIETNAMESE_DICTIONARY_WORDS);
       assert(checker.checkText("Em viết chínnh tả.").some(item => item.word === "chínnh"), "không phát hiện chínnh");

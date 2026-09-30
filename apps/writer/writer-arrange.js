@@ -106,6 +106,47 @@ export class WriterArrangeController {
     return true;
   }
 
+  currentSizeMm(image = this._currentImage()) {
+    if (!image) return { width: 0, height: 0 };
+    const px = (property, dimension, natural) => {
+      const raw = Number.parseFloat(image.style?.[property] || "");
+      if (Number.isFinite(raw) && raw > 0) return raw;
+      const rectValue = Number(image.getBoundingClientRect?.()[dimension]) || 0;
+      return rectValue || (Number(image[natural]) ? Number(image[natural]) * 96 / 25.4 : 0);
+    };
+    return {
+      width: px("width", "width", "naturalWidth") / 96 * 25.4,
+      height: px("height", "height", "naturalHeight") / 96 * 25.4
+    };
+  }
+
+  applySize({ widthMm, heightMm, lockAspect = true } = {}) {
+    const image = this._currentImage();
+    if (!image) return false;
+    const current = this.currentSizeMm(image);
+    let width = Number(widthMm);
+    let height = Number(heightMm);
+    const aspect = current.width > 0 && current.height > 0 ? current.width / current.height :
+      (Number(image.naturalWidth) > 0 && Number(image.naturalHeight) > 0 ? image.naturalWidth / image.naturalHeight : 1);
+    if (Number.isFinite(width) && width > 0) {
+      width = Math.min(500, Math.max(1, width));
+      if (lockAspect) height = width / aspect;
+    } else if (Number.isFinite(height) && height > 0) {
+      height = Math.min(500, Math.max(1, height));
+      if (lockAspect) width = height * aspect;
+    }
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return false;
+    width = Math.min(500, Math.max(1, width));
+    height = Math.min(500, Math.max(1, height));
+    image.style.width = `${(width * 96 / 25.4).toFixed(3)}px`;
+    image.style.height = `${(height * 96 / 25.4).toFixed(3)}px`;
+    image.dataset.vnoWidthMm = width.toFixed(2);
+    image.dataset.vnoHeightMm = height.toFixed(2);
+    image.dataset.vnoLockAspect = String(Boolean(lockAspect));
+    this._commit("writer.image.resize");
+    return { widthMm: width, heightMm: height };
+  }
+
   applyPosition(presetName, commit = true) {
     const image = this._currentImage();
     const preset = POSITION_PRESETS[presetName];
@@ -230,10 +271,15 @@ export class WriterArrangeController {
     if (!this.selectedImage || this.ribbonHost?.activeTabId !== "pictureFormat") return;
     const panel = this.mountElement?.querySelector?.("#vno-ribbon-tabpanel-pictureFormat");
     if (!panel || panel.querySelector(".vno-writer-arrange-group")) return;
+    const size = this.currentSizeMm(this.selectedImage);
+    const locked = this.selectedImage.dataset.vnoLockAspect !== "false";
     const group = document.createElement("section");
     group.className = "vno-ribbon-group vno-writer-arrange-group";
     group.dataset.groupId = "writerArrange";
     group.innerHTML = `<div class="vno-ribbon-group-items">
+      <label>Rộng (mm)<input type="number" min="1" max="500" step="0.1" data-arrange="width" aria-label="Chiều rộng ảnh (mm)" value="${size.width.toFixed(1)}"></label>
+      <label>Cao (mm)<input type="number" min="1" max="500" step="0.1" data-arrange="height" aria-label="Chiều cao ảnh (mm)" value="${size.height.toFixed(1)}"></label>
+      <label><input type="checkbox" data-arrange="lockAspect" aria-label="Giữ nguyên tỉ lệ ảnh" ${locked ? "checked" : ""}>Giữ tỉ lệ</label>
       <label>Chạy chữ<select data-arrange="wrap" aria-label="Kiểu chạy chữ">${optionList(WRAP_STYLES, this.selectedImage.dataset.vnoWrap || "inline")}</select></label>
       <label>Vị trí<select data-arrange="position" aria-label="Vị trí ảnh trên trang"><option value="">Chọn vị trí…</option>${optionList(POSITION_LABELS, this.selectedImage.dataset.vnoPosition || "")}</select></label>
       <div class="vno-writer-arrange-buttons"><button type="button" data-arrange="forward">Đưa lên</button><button type="button" data-arrange="backward">Đưa xuống</button></div>
@@ -244,6 +290,15 @@ export class WriterArrangeController {
       if (action === "wrap") this.applyWrap(event.target.value);
       if (action === "position" && event.target.value) this.applyPosition(event.target.value);
       if (action === "align" && event.target.value) this.align(event.target.value);
+      if (action === "lockAspect") this.selectedImage.dataset.vnoLockAspect = String(event.target.checked);
+      if (action === "width" || action === "height") {
+        const lockAspect = group.querySelector('[data-arrange="lockAspect"]')?.checked !== false;
+        const measured = this.applySize({ [action === "width" ? "widthMm" : "heightMm"]: Number(event.target.value), lockAspect });
+        if (measured) {
+          group.querySelector('[data-arrange="width"]').value = measured.widthMm.toFixed(1);
+          group.querySelector('[data-arrange="height"]').value = measured.heightMm.toFixed(1);
+        }
+      }
     });
     group.addEventListener("click", (event) => {
       const action = event.target.closest?.("button")?.dataset.arrange;

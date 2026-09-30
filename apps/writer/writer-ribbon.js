@@ -603,7 +603,8 @@ export const WRITER_RIBBON_TABS = [
             type: "column",
             items: [
               { type: "button", commandId: "writer.review.commentDelete" },
-              { type: "button", commandId: "writer.review.commentResolve" }
+              { type: "button", commandId: "writer.review.commentResolve" },
+              { type: "button", commandId: "writer.review.commentReply" }
             ]
           },
           {

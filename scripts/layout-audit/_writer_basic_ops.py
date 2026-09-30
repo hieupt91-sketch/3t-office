@@ -10,18 +10,56 @@ operated through its pywebview probe, evaluate_js, and command bus.
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import re
 import shutil
+import struct
 import subprocess
 import sys
 import time
 import zipfile
+import zlib
 from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OUTPUT = ROOT / "file test" / "writer-basic-ops"
+SPELLCHECK_COMMON_WORDS = """
+tôi bạn anh chị em ta chúng họ ông bà
+cha mẹ bố má con cháu người nhà cửa đất nước
+quê hương xã hội có không được cần phải muốn biết
+nghĩ nói làm đi đến về ở ăn uống ngủ
+học dạy đọc viết xem nghe hỏi trả lời cảm ơn
+xin chào vâng dạ rồi chưa đang sẽ đã từng vừa
+mới rất quá khá nhiều ít một hai ba bốn năm
+sáu bảy tám chín mười đây đó kia nào gì ai
+đâu sao khi hôm ngày tháng tuần giờ phút sáng trưa
+chiều tối đêm nay mai qua trước sau trên dưới trong
+ngoài giữa cạnh gần xa trái phải cao thấp dài
+ngắn rộng hẹp to nhỏ tốt xấu đẹp cũ nhanh chậm
+vui buồn khỏe mệt nóng lạnh khô ướt mưa nắng gió
+trời biển sông núi cây hoa lá quả rau cá
+thịt cơm bánh trà cà phê sữa đường muối ngon ngọt
+chua cay màu đỏ xanh vàng trắng đen mắt tai mũi
+miệng tay chân đầu tóc lòng tim sức bệnh thuốc bác
+sĩ trường lớp sách vở bút giấy bàn ghế phòng phố
+đường xe tàu máy bay việc công tiền giá hàng chợ
+tiếng chữ câu từ đoạn trang mục tiêu văn bản
+""".split()[:200]
+
+
+def _tiny_png() -> bytes:
+    def chunk(name: bytes, payload: bytes) -> bytes:
+        return struct.pack(">I", len(payload)) + name + payload + struct.pack(">I", zlib.crc32(name + payload) & 0xFFFFFFFF)
+
+    # Two horizontal RGB pixels make a valid, visible PNG fixture without Pillow or a network fetch.
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", struct.pack(">IIBBBBB", 2, 1, 8, 2, 0, 0, 0))
+        + chunk(b"IDAT", zlib.compress(b"\x00\x22\x66\xcc\xff\x44\xaa"))
+        + chunk(b"IEND", b"")
+    )
 
 WORD_DRIVER = r'''
 param(
@@ -29,6 +67,8 @@ param(
   [string]$Seed,
   [string]$WordDocx,
   [string]$WordDoc,
+  [string]$PngPath,
+  [string]$SpellWordsJson,
   [string]$PathsJson,
   [Parameter(Mandatory=$true)][string]$ResultJson,
   [Parameter(Mandatory=$true)][string]$PidFile
@@ -43,6 +83,36 @@ public static class VnoWordWindow {
   [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
 }
 "@ -ErrorAction SilentlyContinue
+}
+
+function Register-OfficeComRetry {
+  Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+using System.Threading;
+[ComImport, Guid("00000016-0000-0000-C000-000000000046"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+public interface IVnoOleMessageFilter {
+  [PreserveSig] int HandleInComingCall(int callType, IntPtr caller, int tickCount, IntPtr interfaceInfo);
+  [PreserveSig] int RetryRejectedCall(IntPtr callee, int tickCount, int rejectType);
+  [PreserveSig] int MessagePending(IntPtr callee, int tickCount, int pendingType);
+}
+[ClassInterface(ClassInterfaceType.None)]
+public sealed class VnoOleMessageFilter : IVnoOleMessageFilter {
+  public int HandleInComingCall(int callType, IntPtr caller, int tickCount, IntPtr interfaceInfo) { return 0; }
+  public int RetryRejectedCall(IntPtr callee, int tickCount, int rejectType) {
+    if (rejectType == 2 && tickCount < 60000) return 1000;
+    return -1;
+  }
+  public int MessagePending(IntPtr callee, int tickCount, int pendingType) { return 2; }
+}
+public static class VnoOleMessageFilterRegistration {
+  [DllImport("ole32.dll")] private static extern int CoRegisterMessageFilter(IVnoOleMessageFilter next, out IVnoOleMessageFilter previous);
+  private static IVnoOleMessageFilter previous;
+  public static void Register() { CoRegisterMessageFilter(new VnoOleMessageFilter(), out previous); }
+  public static void Unregister() { IVnoOleMessageFilter ignored; CoRegisterMessageFilter(previous, out ignored); previous = null; }
+}
+"@ -ErrorAction SilentlyContinue
+  [VnoOleMessageFilterRegistration]::Register()
 }
 
 function New-WordApp($pidPath) {
@@ -126,7 +196,7 @@ function Read-RangeStyle($range) {
 
 function Read-Document($path) {
   $doc = $null
-  $result = [ordered]@{ path = $path; opened = $false; error = ""; paragraphs = @(); runs = @{}; tables = @(); headers = @(); footers = @(); pageSetup = @{} }
+  $result = [ordered]@{ path = $path; opened = $false; error = ""; paragraphs = @(); runs = @{}; tables = @(); headers = @(); footers = @(); pageSetup = @{}; sections = @(); toc = @(); inlineShapes = @(); shapes = @(); revisions = @(); comments = @() }
   try {
     [System.IO.File]::WriteAllText($StageLog, "open " + [System.IO.Path]::GetFileName($path))
     # OpenAndRepair is false. A successful open records that Word accepted the package.
@@ -225,7 +295,23 @@ function Read-Document($path) {
       bottomCm = [math]::Round([double]$page.BottomMargin / 28.3464567, 2)
       leftCm = [math]::Round([double]$page.LeftMargin / 28.3464567, 2)
       rightCm = [math]::Round([double]$page.RightMargin / 28.3464567, 2)
+      differentFirstPage = [bool]$page.DifferentFirstPageHeaderFooter
     }
+    $sectionMetrics = New-Object System.Collections.Generic.List[object]
+    for ($si = 1; $si -le $doc.Sections.Count; $si++) {
+      $item = $doc.Sections.Item($si)
+      $itemPage = $item.PageSetup
+      $firstHeader = $item.Headers.Item(2); $firstFooter = $item.Footers.Item(2)
+      $sectionMetrics.Add([ordered]@{
+        orientation = [int]$itemPage.Orientation
+        differentFirstPage = [bool]$itemPage.DifferentFirstPageHeaderFooter
+        header = ([regex]::Replace([string]$item.Headers.Item(1).Range.Text, '[\r\a\n\t]+', ' ')).Trim()
+        footer = ([regex]::Replace([string]$item.Footers.Item(1).Range.Text, '[\r\a\n\t]+', ' ')).Trim()
+        firstPageHeader = ([regex]::Replace([string]$firstHeader.Range.Text, '[\r\a\n\t]+', ' ')).Trim()
+        firstPageFooter = ([regex]::Replace([string]$firstFooter.Range.Text, '[\r\a\n\t]+', ' ')).Trim()
+      })
+    }
+    $result.sections = @($sectionMetrics.ToArray())
     $header = $section.Headers.Item(1)
     $footer = $section.Footers.Item(1)
     if ($header.Exists) {
@@ -238,6 +324,49 @@ function Read-Document($path) {
       foreach ($field in $footer.Range.Fields) { $codes += [string]$field.Code.Text }
       $result.footers = @([ordered]@{ text = ([regex]::Replace([string]$footer.Range.Text, '[\r\a\n\t]+', ' ')).Trim(); fields = @($codes) })
     }
+    $tocMetrics = New-Object System.Collections.Generic.List[object]
+    for ($ti = 1; $ti -le $doc.TablesOfContents.Count; $ti++) {
+      $tableOfContents = $doc.TablesOfContents.Item($ti)
+      $entries = New-Object System.Collections.Generic.List[string]
+      foreach ($paragraph in $tableOfContents.Range.Paragraphs) {
+        $line = ([regex]::Replace([string]$paragraph.Range.Text, '[\r\a\n\t]+', ' ')).Trim()
+        if ($line) { $entries.Add($line) }
+      }
+      $tocMetrics.Add([ordered]@{ entries = @($entries.ToArray()); fieldCount = [int]$tableOfContents.Range.Fields.Count })
+    }
+    $result.toc = @($tocMetrics.ToArray())
+    $inlineMetrics = New-Object System.Collections.Generic.List[object]
+    foreach ($inline in $doc.InlineShapes) {
+      $inlineMetrics.Add([ordered]@{
+        widthMm = [math]::Round([double]$inline.Width / 72 * 25.4, 2)
+        heightMm = [math]::Round([double]$inline.Height / 72 * 25.4, 2)
+        wrap = 'inline'
+      })
+    }
+    $result.inlineShapes = @($inlineMetrics.ToArray())
+    $shapeMetrics = New-Object System.Collections.Generic.List[object]
+    foreach ($shape in $doc.Shapes) {
+      $shapeMetrics.Add([ordered]@{
+        widthMm = [math]::Round([double]$shape.Width / 72 * 25.4, 2)
+        heightMm = [math]::Round([double]$shape.Height / 72 * 25.4, 2)
+        leftMm = [math]::Round([double]$shape.Left / 72 * 25.4, 2)
+        topMm = [math]::Round([double]$shape.Top / 72 * 25.4, 2)
+        wrapType = [int]$shape.WrapFormat.Type
+        relativeH = [int]$shape.RelativeHorizontalPosition
+        relativeV = [int]$shape.RelativeVerticalPosition
+      })
+    }
+    $result.shapes = @($shapeMetrics.ToArray())
+    $revisionMetrics = New-Object System.Collections.Generic.List[object]
+    foreach ($revision in $doc.Revisions) {
+      $revisionMetrics.Add([ordered]@{ type = [int]$revision.Type; text = ([regex]::Replace([string]$revision.Range.Text, '[\r\a\n\t]+', ' ')).Trim(); author = [string]$revision.Author })
+    }
+    $result.revisions = @($revisionMetrics.ToArray())
+    $commentMetrics = New-Object System.Collections.Generic.List[object]
+    foreach ($comment in $doc.Comments) {
+      $commentMetrics.Add([ordered]@{ text = ([regex]::Replace([string]$comment.Range.Text, '[\r\a\n\t]+', ' ')).Trim(); author = [string]$comment.Author; done = $null })
+    }
+    $result.comments = @($commentMetrics.ToArray())
     $result.pageBreakCount = ([regex]::Matches([string]$doc.Content.Text, [string][char]12)).Count
     foreach ($paragraph in $doc.Paragraphs) {
       try { if ([int]$paragraph.Format.PageBreakBefore -eq -1) { $result.pageBreakCount++ } } catch {}
@@ -255,6 +384,7 @@ $word = $null
 $stage = "initialize"
 $StageLog = "$ResultJson.stage"
 try {
+  Register-OfficeComRetry
   $word = New-WordApp $PidFile
   if ($Task -eq "Edit") {
     $stage = "create seed"
@@ -354,10 +484,79 @@ try {
     $footer = $section.Footers.Item(1); $footer.Range.Text = "Trang "
     $footer.Range.Collapse(0); [void]$footer.Range.Fields.Add($footer.Range, 33)
     $footer.Range.ParagraphFormat.Alignment = 1
+
+    $stage = "first-page, toc and landscape section"
+    $section.PageSetup.DifferentFirstPageHeaderFooter = -1
+    $section.Headers.Item(2).Range.Text = "ĐẦU TRANG RIÊNG"
+    $section.Footers.Item(2).Range.Text = "CHÂN TRANG RIÊNG"
+    $doc.TablesOfContents.Add($doc.Range(0, 0), $true, 1, 3) | Out-Null
+    $sel.EndKey(6); $sel.TypeParagraph(); $sel.Style = "Heading 2"
+    $sel.TypeText("PHỤ LỤC BỔ SUNG SAU KHI TẠO MỤC LỤC"); $sel.TypeParagraph()
+    $doc.TablesOfContents.Item(1).Update()
+    $sel.EndKey(6); $sel.TypeParagraph(); $sel.InsertBreak(2)
+    $landscape = $doc.Sections.Item($doc.Sections.Count)
+    $landscape.PageSetup.Orientation = 1
+    $sel.TypeText("NỘI DUNG MỤC NGANG"); $sel.TypeParagraph()
+
+    $stage = "inline, square and tight pictures"
+    $range = $sel.Range.Duplicate
+    $inline = $doc.InlineShapes.AddPicture($PngPath, $false, $true, $range)
+    $inline.Width = 56.692913; $inline.Height = 28.346457
+    $sel.SetRange($inline.Range.End, $inline.Range.End); $sel.TypeParagraph()
+    foreach ($wrap in @(0, 1)) {
+      $sel.EndKey(6); $sel.TypeParagraph()
+      $shape = $doc.InlineShapes.AddPicture($PngPath, $false, $true, $sel.Range).ConvertToShape()
+      $shape.Width = 56.692913; $shape.Height = 28.346457
+      $shape.WrapFormat.Type = $wrap
+      $shape.RelativeHorizontalPosition = 1
+      $shape.RelativeVerticalPosition = 2
+      $shape.Left = $(if ($wrap -eq 0) { 85.03937 } else { 728.4 })
+      $shape.Top = 0
+      $sel.SetRange($shape.Anchor.End, $shape.Anchor.End); $sel.TypeParagraph()
+    }
+    $sel.EndKey(6); $sel.TypeParagraph(); $sel.TypeText("VĂN BẢN CẦN THEO DÕI: xóa và thêm")
+    $sel.TypeParagraph(); $sel.TypeText("DÒNG CÓ NHẬN XÉT")
+
+    $stage = "track changes and comments"
+    $doc.TrackRevisions = $true
+    $range = $doc.Content.Duplicate; $find = $range.Find; $find.ClearFormatting()
+    $find.Text = "xóa"; $find.Forward = $true; $find.Wrap = 0
+    if ($find.Execute()) { $range.Delete() }
+    $sel.EndKey(6); $sel.TypeText(" mới")
+    $doc.TrackRevisions = $false
+    $range = $doc.Content.Duplicate; $find = $range.Find; $find.ClearFormatting()
+    $find.Text = "DÒNG CÓ NHẬN XÉT"; $find.Forward = $true; $find.Wrap = 0
+    if ($find.Execute()) {
+      $wordComment = $doc.Comments.Add($range, "Ghi chú: kiểm tra nội dung. Phản hồi: đã cập nhật.")
+      try { $wordComment.Done = $true } catch {}
+      try { $wordComment.Replies.Add("đã cập nhật") | Out-Null } catch {}
+    }
+    $stage = "Vietnamese spell check"
+    $spellWords = @($SpellWordsJson | ConvertFrom-Json)
+    $sel.EndKey(6); $sel.TypeParagraph()
+    $spellStart = [int]$sel.Range.Start
+    $sel.TypeText(($spellWords -join " "))
+    $spellEnd = [int]$sel.Range.End
+    $spellRange = $doc.Range($spellStart, $spellEnd)
+    $spellRange.LanguageID = 1066
+    $spellRange.NoProofing = 0
+    $word.Selection.SetRange($spellEnd, $spellEnd)
+    $word.Selection.TypeText(" chínnh")
+    $word.Selection.Range.LanguageID = 1066
+    $sampleIssues = -1; $suggestions = @(); $spellError = ""
+    try { $sampleIssues = [int]$spellRange.SpellingErrors.Count } catch { $spellError = [string]$_.Exception.Message }
+    try {
+      $spellSuggestions = $word.GetSpellingSuggestions("chínnh")
+      foreach ($suggestion in $spellSuggestions) { $suggestions += [string]$suggestion.Name }
+    } catch { if (-not $spellError) { $spellError = [string]$_.Exception.Message } }
+    $spellStats = [ordered]@{ sampleWords = $spellWords.Count; correctWordIssues = $sampleIssues; typoSuggestions = @($suggestions); error = $spellError }
+    $typoRange = $doc.Content.Duplicate; $typoFind = $typoRange.Find; $typoFind.ClearFormatting()
+    $typoFind.Text = "chínnh"; $typoFind.Forward = $true; $typoFind.Wrap = 0
+    if ($typoFind.Execute()) { $typoRange.Text = "chính" }
     $stage = "save docx and doc"
     $doc.SaveAs2($WordDocx, 16); $doc.SaveAs2($WordDoc, 0)
     $doc.Close(0); [void][Runtime.InteropServices.Marshal]::ReleaseComObject($doc)
-    [System.IO.File]::WriteAllText($ResultJson, '{"ok":true}', (New-Object System.Text.UTF8Encoding($false)))
+    [System.IO.File]::WriteAllText($ResultJson, (ConvertTo-Json -InputObject ([ordered]@{ ok = $true; spellCheck = $spellStats }) -Depth 5), (New-Object System.Text.UTF8Encoding($false)))
     "WORD_SCENARIO_OK"
   } elseif ($Task -eq "Inspect") {
     $paths = Get-Content -LiteralPath $PathsJson -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -376,6 +575,7 @@ try {
 } finally {
   if ($word) { try { $word.Quit() } catch {}; [void][Runtime.InteropServices.Marshal]::ReleaseComObject($word) }
   [GC]::Collect(); [GC]::WaitForPendingFinalizers()
+  try { [VnoOleMessageFilterRegistration]::Unregister() } catch {}
 }
 '''
 
@@ -415,21 +615,37 @@ app_kind, initial_file = vnmain.parse_launch_args([SEED])
 api = vnmain.VnOfficeApi(app_kind=app_kind, initial_file=initial_file)
 window = webview.create_window(title="VN Writer Basic Ops", url=vnmain.build_launch_url(app_kind, initial_file, port=port), width=1400, height=900, js_api=api)
 window.create_file_dialog = lambda *args, **kwargs: OUTPUT
+STATUS = os.path.join(os.path.dirname(OUTPUT), "_writer_basic_ops_probe_status.json")
+
+def write_status(result):
+    with open(STATUS, "w", encoding="utf-8") as status_file:
+        json.dump(result, status_file, ensure_ascii=False)
 
 def after_load(win):
     result = {"loaded": False, "actions": {}, "error": "", "save": {"path": OUTPUT, "exists": False, "error": ""}}
-    for _ in range(180):
+    write_status({"phase": "waiting-for-writer", "mode": MODE})
+    for _ in range(90):
         time.sleep(2)
-        ready = win.evaluate_js(
-            "(() => { const b=document.querySelector('.vno-writer-body'); "
-            "return Boolean(b && (" + ("b.innerText.includes('BÁO CÁO TỔNG HỢP')" if MODE == "resave" else "true") + ")); })()"
-        )
+        try:
+            ready = win.evaluate_js(
+                "(() => { const b=document.querySelector('.vno-writer-body'); "
+                "return JSON.stringify({body:!!b, loading:document.querySelector('.vno-loading-screen')?.innerText||'', "
+                "title:document.title, text:b?.innerText?.slice(0,100)||''}); })()"
+            )
+            state = json.loads(ready) if ready else {}
+            write_status({"phase": "waiting-for-writer", "mode": MODE, "state": state})
+            ready = bool(state.get("body") and (MODE != "resave" or "BÁO CÁO TỔNG HỢP" in state.get("text", "")))
+        except Exception as error:
+            result["error"] = "WebView evaluate_js while waiting: " + str(error)
+            write_status({"phase": "webview-error", "error": result["error"]})
+            break
         if ready:
             result["loaded"] = True
             break
-    if not result["loaded"]:
+    if not result["loaded"] and not result["error"]:
         result["error"] = "Writer editor did not become ready"
-    else:
+    if result["loaded"]:
+        write_status({"phase": "writer-ready", "mode": MODE})
         if MODE == "edit":
             script = r"""
             (async function() {
@@ -485,6 +701,8 @@ def after_load(win):
                 for (let i = 0; i < 40 && !document.querySelector('#vno-pagesetup-margin-top'); i++) await new Promise(r => setTimeout(r, 50));
                 const setField = (id, value) => { const el = document.querySelector(id); if (!el) throw new Error('Missing page setup field ' + id); el.value = value; };
                 setField('#vno-pagesetup-size', 'a4'); setField('#vno-pagesetup-orientation', 'portrait');
+                const firstPageToggle = document.querySelector('#vno-pagesetup-different-first-page');
+                if (firstPageToggle) firstPageToggle.checked = true;
                 setField('#vno-pagesetup-margin-top', 20); setField('#vno-pagesetup-margin-bottom', 20);
                 setField('#vno-pagesetup-margin-left', 30); setField('#vno-pagesetup-margin-right', 20);
                 document.querySelector('.vno-dialog-ok-btn').click(); out.actions.pageSetup = (await setupPromise) !== false;
@@ -534,6 +752,165 @@ def after_load(win):
                 getSelection().removeAllRanges(); getSelection().addRange(undoRange); document.execCommand('insertText', false, ' KIỂM TRA UNDO');
                 await new Promise(r => setTimeout(r, 800)); await run('common.edit.undo'); await run('common.edit.redo');
                 out.actions.undoRedo = body().innerText.includes('KIỂM TRA UNDO');
+
+                const firstHeading = body().querySelector('h1, [data-basic-style="Heading 1"]');
+                if (firstHeading) {
+                  const firstText = firstHeading.textContent.trim();
+                  if (selectText(firstText)) out.actions.tocInsert = (await run('writer.reference.tocInsert')) !== false;
+                }
+                body().insertAdjacentHTML('beforeend', '<h2 data-basic-style="Heading 2">PHỤ LỤC BỔ SUNG SAU KHI TẠO MỤC LỤC</h2>');
+                out.actions.tocUpdate = (await run('writer.reference.tocUpdate')) !== false;
+                const toc = body().querySelector('[data-vno-toc="true"]');
+                out.actions.tocEntries = toc ? [...toc.querySelectorAll('.vno-toc-item')].map(item => ({
+                  text: item.querySelector('.vno-toc-text')?.textContent?.trim() || '',
+                  page: item.querySelector('.vno-toc-page')?.textContent?.trim() || '',
+                  level: Number((item.className.match(/vno-toc-level-(\d+)/) || [])[1] || 0)
+                })) : [];
+
+                const end = document.createRange(); end.selectNodeContents(body()); end.collapse(false);
+                getSelection().removeAllRanges(); getSelection().addRange(end);
+                out.actions.sectionBreak = (await run('writer.section.nextPage')) !== false;
+                const sectionSetup = bus.execute('writer.page.margins');
+                for (let i = 0; i < 40 && !document.querySelector('#vno-pagesetup-orientation'); i++) await new Promise(r => setTimeout(r, 50));
+                const orientation = document.querySelector('#vno-pagesetup-orientation');
+                if (orientation) {
+                  orientation.value = 'landscape';
+                  document.querySelector('.vno-dialog-ok-btn').click();
+                  out.actions.landscapeSection = (await sectionSetup) !== false;
+                  body().insertAdjacentHTML('beforeend', '<p>NỘI DUNG MỤC NGANG</p>');
+                } else out.actions.landscapeSection = false;
+
+                out.actions.differentFirstPage = firstPageToggle?.checked === true;
+                const pngDataUrl = __PNG_DATA_URL__;
+                const originalInputClick = HTMLInputElement.prototype.click;
+                HTMLInputElement.prototype.click = function() {
+                  if (this.type === 'file' && /image/i.test(this.accept || '')) {
+                    const bytes = Uint8Array.from(atob(pngDataUrl.split(',')[1]), c => c.charCodeAt(0));
+                    const file = new File([bytes], 'writer-basic-ops.png', { type: 'image/png' });
+                    Object.defineProperty(this, 'files', { configurable: true, value: [file] });
+                    this.dispatchEvent(new Event('change', { bubbles: true }));
+                    return;
+                  }
+                  return originalInputClick.call(this);
+                };
+                for (let i = 0; i < 3; i++) {
+                  await run('writer.image.insert');
+                  for (let wait = 0; wait < 80 && body().querySelectorAll('img').length < i + 1; wait++) await new Promise(r => setTimeout(r, 50));
+                }
+                HTMLInputElement.prototype.click = originalInputClick;
+                const pictures = [...body().querySelectorAll('img')].slice(-3);
+                const wraps = ['square', 'tight', 'inline'];
+                const positions = ['topLeft', 'topRight', ''];
+                for (let i = 0; i < pictures.length; i++) {
+                  const picture = pictures[i];
+                  picture.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+                  for (let wait = 0; wait < 40 && !document.querySelector('#vno-ribbon-tabpanel-pictureFormat select[data-arrange="wrap"]'); wait++) await new Promise(r => setTimeout(r, 50));
+                  const wrapSelect = document.querySelector('#vno-ribbon-tabpanel-pictureFormat select[data-arrange="wrap"]');
+                  if (!wrapSelect) break;
+                  wrapSelect.value = wraps[i]; wrapSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                  const widthInput = document.querySelector('#vno-ribbon-tabpanel-pictureFormat input[data-arrange="width"]');
+                  if (widthInput) { widthInput.value = '20'; widthInput.dispatchEvent(new Event('change', { bubbles: true })); }
+                  const positionSelect = document.querySelector('#vno-ribbon-tabpanel-pictureFormat select[data-arrange="position"]');
+                  if (positions[i] && positionSelect) { positionSelect.value = positions[i]; positionSelect.dispatchEvent(new Event('change', { bubbles: true })); }
+                  await new Promise(r => setTimeout(r, 80));
+                }
+                out.actions.pictureWraps = pictures.map(picture => ({
+                  wrap: picture.dataset.vnoWrap || '', width: picture.dataset.vnoWidthMm || picture.style.width, height: picture.dataset.vnoHeightMm || picture.style.height,
+                  position: picture.style.position, left: picture.style.left || '', top: picture.style.top || '', float: picture.style.float || ''
+                }));
+                out.actions.pictureSize = pictures.length === 3 && pictures.every(picture => Math.abs(Number(picture.dataset.vnoWidthMm) - 20) < 0.1 && Math.abs(Number(picture.dataset.vnoHeightMm) - 10) < 0.1);
+
+                body().insertAdjacentHTML('beforeend', '<p>VĂN BẢN CẦN THEO DÕI: xóa và thêm</p><p>DÒNG CÓ NHẬN XÉT</p>');
+                await run('writer.trackChanges.toggle', { enabled: true });
+                const trackedText = 'xóa';
+                if (selectText(trackedText)) body().dispatchEvent(new InputEvent('beforeinput', { inputType: 'deleteByCut', bubbles: true, cancelable: true }));
+                const trackParagraph = [...body().querySelectorAll('p')].find(p => p.textContent.includes('VĂN BẢN CẦN THEO DÕI'));
+                if (trackParagraph) {
+                  const insertionRange = document.createRange(); insertionRange.selectNodeContents(trackParagraph); insertionRange.collapse(false);
+                  getSelection().removeAllRanges(); getSelection().addRange(insertionRange);
+                  body().dispatchEvent(new InputEvent('beforeinput', { inputType: 'insertText', data: 'mới', bubbles: true, cancelable: true }));
+                }
+                out.actions.trackChanges = {
+                  on: true,
+                  insertions: body().querySelectorAll('ins[data-vno-change="insert"]').length,
+                  deletions: body().querySelectorAll('del[data-vno-change="delete"]').length
+                };
+                await run('writer.trackChanges.toggle', { enabled: false });
+                out.actions.trackChanges.off = true;
+
+                if (selectText('DÒNG CÓ NHẬN XÉT')) {
+                  out.actions.commentAdd = (await run('writer.comment.insert', { content: 'Ghi chú: kiểm tra nội dung.' })) !== false;
+                }
+                out.actions.commentReply = (await run('writer.review.commentReply', { content: 'Phản hồi: đã cập nhật.' })) !== false;
+                out.actions.commentResolve = (await run('writer.review.commentResolve')) !== false;
+                out.actions.commentState = {
+                  count: document.querySelectorAll('.vno-comment-card').length,
+                  resolved: document.querySelector('.vno-comment-card')?.dataset.commentResolved || 'false',
+                  text: document.querySelector('.vno-comment-card .vno-comment-content')?.textContent || '',
+                  replies: [...document.querySelectorAll('.vno-comment-reply')].map(node => node.textContent)
+                };
+
+                const spellWords = __SPELLCHECK_CORPUS__;
+                const spellParagraph = document.createElement('p');
+                spellParagraph.textContent = spellWords.join(' ') + ' chínnh';
+                body().appendChild(spellParagraph);
+                body().dispatchEvent(new InputEvent('input', { bubbles: true }));
+                for (let wait = 0; wait < 30 && !body().querySelector('[data-vno-spelling-uncertain]'); wait++) await new Promise(r => setTimeout(r, 50));
+                const misspelling = body().querySelector('[data-vno-spelling-uncertain]');
+                const spellStatus = document.querySelector('.vno-writer-page')?.dataset.spellcheckStatus || 'missing';
+                let offline = false, correctWordIssues = -1, suggestions = [];
+                const previousFetch = window.fetch;
+                try {
+                  window.fetch = () => { throw new Error('Spell checker attempted a network request'); };
+                  const { VietnameseSpellChecker } = await import('/platform/text/vi-spellchecker.js');
+                  const { VIETNAMESE_DICTIONARY_WORDS } = await import('/platform/text/dictionaries/vi-dictionary.js');
+                  const checker = new VietnameseSpellChecker(VIETNAMESE_DICTIONARY_WORDS);
+                  correctWordIssues = checker.checkText(spellWords.join(' ')).length;
+                  offline = true;
+                } finally { window.fetch = previousFetch; }
+                if (misspelling) {
+                  misspelling.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 20, clientY: 20 }));
+                  suggestions = [...document.querySelectorAll('.vno-spellcheck-suggestion')].map(button => button.textContent);
+                  document.querySelector('.vno-spellcheck-suggestion')?.click();
+                }
+                out.actions.spellCheck = {
+                  status: spellStatus, offline, sampleWords: spellWords.length, correctWordIssues,
+                  underlined: misspelling?.textContent || '', suggestions, corrected: body().innerText.includes('chính') && !body().innerText.includes('chínnh')
+                };
+
+                const keyboard = (key, modifiers = {}) => {
+                  const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...modifiers });
+                  window.dispatchEvent(event);
+                  return event.defaultPrevented;
+                };
+                const lastCommand = () => bus.getHistory?.().filter(item => item.commandId).at(-1)?.commandId || '';
+                const shortcutResults = {};
+                const checkShortcut = async (name, key, modifiers, commandId, revert = false) => {
+                  const beforeCommand = lastCommand(); keyboard(key, modifiers); await new Promise(r => setTimeout(r, 100));
+                  const handled = lastCommand() !== beforeCommand && lastCommand() === commandId;
+                  shortcutResults[name] = { handled, command: lastCommand() };
+                  if (handled && revert) { await bus.execute('common.edit.undo'); await new Promise(r => setTimeout(r, 50)); }
+                };
+                const previousPrint = window.print;
+                let printCalls = 0;
+                window.print = () => { printCalls++; };
+                for (const name of ['Ctrl+B', 'Ctrl+I', 'Ctrl+U', 'Ctrl+Shift+>', 'Ctrl+Shift+<', 'Ctrl+L', 'Ctrl+E', 'Ctrl+R', 'Ctrl+J']) selectText('KIỂM TRA UNDO');
+                for (const [key, name, mods, commandId] of [
+                  ['b', 'Ctrl+B', { ctrlKey: true }, 'writer.text.bold'], ['i', 'Ctrl+I', { ctrlKey: true }, 'writer.text.italic'],
+                  ['u', 'Ctrl+U', { ctrlKey: true }, 'writer.text.underline'], ['>', 'Ctrl+Shift+>', { ctrlKey: true, shiftKey: true }, 'writer.font.grow'],
+                  ['<', 'Ctrl+Shift+<', { ctrlKey: true, shiftKey: true }, 'writer.font.shrink'],
+                  ['l', 'Ctrl+L', { ctrlKey: true }, 'writer.para.alignLeft'], ['e', 'Ctrl+E', { ctrlKey: true }, 'writer.para.alignCenter'],
+                  ['r', 'Ctrl+R', { ctrlKey: true }, 'writer.para.alignRight'], ['j', 'Ctrl+J', { ctrlKey: true }, 'writer.para.justify'],
+                  ['Enter', 'Ctrl+Enter', { ctrlKey: true }, 'writer.page.break'], ['z', 'Ctrl+Z', { ctrlKey: true }, 'common.edit.undo'],
+                  ['y', 'Ctrl+Y', { ctrlKey: true }, 'common.edit.redo'], ['f', 'Ctrl+F', { ctrlKey: true }, 'common.edit.find'],
+                  ['h', 'Ctrl+H', { ctrlKey: true }, 'common.edit.replace'], ['s', 'Ctrl+S', { ctrlKey: true }, 'common.file.save'],
+                  ['F12', 'F12', {}, 'common.file.saveAs'], ['p', 'Ctrl+P', { ctrlKey: true }, 'common.file.print']
+                ]) await checkShortcut(name, key, mods, commandId, ['Ctrl+B','Ctrl+I','Ctrl+U','Ctrl+Shift+>','Ctrl+Shift+<','Ctrl+L','Ctrl+E','Ctrl+R','Ctrl+J','Ctrl+Enter'].includes(name));
+                window.print = previousPrint;
+                shortcutResults['Ctrl+P'].printHandlerCalled = printCalls > 0;
+                out.actions.keyboardShortcuts = shortcutResults;
+                document.querySelector('.vno-fr-close-btn')?.click();
+                document.querySelector('.vno-writer-print-preview-close, .vno-print-preview-close')?.click();
               } catch (error) { out.error = String(error && error.stack || error); }
               window.__writerOpsDone = out;
             })();
@@ -549,14 +926,18 @@ def after_load(win):
                     break
             else:
                 result["error"] = "Timed out waiting for editing operations"
-        win.evaluate_js("window.__writerSaveDone=null; window.__writerSaveErr=''; import('/platform/commands/command-bus.js').then(async m => { try { window.__writerSaveDone=await m.globalCommandBus.execute('common.file.saveAs'); } catch(e) { window.__writerSaveErr=String(e && e.stack || e); } }); 'queued'")
-        for _ in range(900):
-            time.sleep(1)
-            result["save"]["exists"] = os.path.exists(OUTPUT) and os.path.getsize(OUTPUT) > 0
-            result["save"]["error"] = win.evaluate_js("window.__writerSaveErr") or ""
-            if win.evaluate_js("window.__writerSaveDone !== null") or result["save"]["error"]: break
-        result["save"]["result"] = win.evaluate_js("window.__writerSaveDone")
-        print("RESULT " + json.dumps(result, ensure_ascii=False), flush=True)
+        try:
+            win.evaluate_js("window.__writerSaveDone=null; window.__writerSaveErr=''; import('/platform/commands/command-bus.js').then(async m => { try { window.__writerSaveDone=await m.globalCommandBus.execute('common.file.saveAs'); } catch(e) { window.__writerSaveErr=String(e && e.stack || e); } }); 'queued'")
+            for _ in range(300):
+                time.sleep(1)
+                result["save"]["exists"] = os.path.exists(OUTPUT) and os.path.getsize(OUTPUT) > 0
+                result["save"]["error"] = win.evaluate_js("window.__writerSaveErr") or ""
+                if win.evaluate_js("window.__writerSaveDone !== null") or result["save"]["error"]: break
+            result["save"]["result"] = win.evaluate_js("window.__writerSaveDone")
+        except Exception as error:
+            result["save"]["error"] = str(error)
+    write_status({"phase": "finished", "result": result})
+    print("RESULT " + json.dumps(result, ensure_ascii=False), flush=True)
     win.destroy()
 
 webview.start(after_load, window, debug=False)
@@ -617,9 +998,14 @@ def _word_pages(path: Path, output_dir: Path) -> int | str:
     return output or (proc.stderr or "FAIL (Word oracle returned no result)").strip()[:160]
 
 
-def _run_vn(seed: Path, output: Path, output_dir: Path, mode: str = "edit") -> dict[str, Any]:
+def _run_vn(seed: Path, output: Path, output_dir: Path, mode: str = "edit", png_data_uri: str = "") -> dict[str, Any]:
     probe_path = output_dir / "_writer_basic_ops_probe.py"
-    probe_path.write_text(VN_PROBE.replace("__HTML__", json.dumps(_vn_html(), ensure_ascii=False)), encoding="utf-8")
+    probe_path.write_text(
+        VN_PROBE.replace("__HTML__", json.dumps(_vn_html(), ensure_ascii=False))
+        .replace("__PNG_DATA_URL__", json.dumps(png_data_uri, ensure_ascii=False))
+        .replace("__SPELLCHECK_CORPUS__", json.dumps(SPELLCHECK_COMMON_WORDS, ensure_ascii=False)),
+        encoding="utf-8",
+    )
     try:
         proc = subprocess.run(
             [sys.executable, str(probe_path), str(ROOT), str(seed), str(output), mode],
@@ -648,6 +1034,11 @@ def _docx_structure(path: Path) -> dict[str, Any]:
                 "tables": len(re.findall(r"<w:tbl(?:\s|>)", body, re.I)),
                 "footerParts": len(footer_parts),
                 "pageField": bool(re.search(r"<w:instrText\b[^>]*>\s*PAGE(?:\s+\\[^<]*)?\s*</w:instrText>|<w:fldSimple\b[^>]*\binstr=['\"]\s*PAGE(?:\s+[^'\"]*)?['\"]", footer_xml, re.I)),
+                "tocField": bool(re.search(r"<w:instrText\b[^>]*>\s*TOC\b", document, re.I)),
+                "differentFirstPage": bool(re.search(r"<w:titlePg\b", document, re.I)),
+                "revisionInsertions": len(re.findall(r"<w:ins\b", document, re.I)),
+                "revisionDeletions": len(re.findall(r"<w:del\b", document, re.I)),
+                "commentsPart": "word/comments.xml" in names,
                 "mergedHeader": bool(re.search(r"<w:gridSpan\b[^>]*w:val=['\"]4", body, re.I)),
                 "text": " ".join(re.findall(r"<w:t\b[^>]*>([\s\S]*?)</w:t>", body)),
             }
@@ -721,6 +1112,35 @@ def _features(metrics: dict[str, Any], app: dict[str, Any]) -> list[dict[str, An
     wlists, vlists = _list_data(word), _list_data(vn)
     wtables, vtables = _table_data(word), _table_data(vn)
     whf, vhf = _header_footer_data(word), _header_footer_data(vn)
+    word_toc = word.get("toc", [{}])[0] if word.get("toc") else {}
+    vn_toc = vn.get("toc", [{}])[0] if vn.get("toc") else {}
+    word_toc_entries = [_normal_text(entry) for entry in word_toc.get("entries", [])]
+    vn_toc_entries = [_normal_text(entry) for entry in vn_toc.get("entries", [])]
+    wsections = word.get("sections", [])
+    vsections = vn.get("sections", [])
+    wimages = word.get("inlineShapes", [])
+    vimages = vn.get("inlineShapes", [])
+    wshapes = word.get("shapes", [])
+    vshapes = vn.get("shapes", [])
+
+    def close_image_group(left: list[dict[str, Any]], right: list[dict[str, Any]], floating: bool = False) -> bool:
+        if len(left) != len(right):
+            return False
+        keys = ["widthMm", "heightMm"] + (["leftMm", "topMm", "wrapType"] if floating else [])
+        for first, second in zip(left, right):
+            for key in keys:
+                if key == "wrapType":
+                    if first.get(key) != second.get(key): return False
+                elif not _close_number(first.get(key), second.get(key), 2.0):
+                    return False
+        return True
+
+    def same_revisions(left: list[dict[str, Any]], right: list[dict[str, Any]]) -> bool:
+        normalize = lambda rows: sorted((_normal_text(item.get("text")), item.get("type")) for item in rows)
+        return normalize(left) == normalize(right) and len(left) == 2
+
+    def same_comments(left: list[dict[str, Any]], right: list[dict[str, Any]]) -> bool:
+        return sorted(_normal_text(item.get("text")) for item in left) == sorted(_normal_text(item.get("text")) for item in right) and len(left) >= 1
     text_ok = wt == vt
     replacement_ok = "bản chính" in wt and "bản nháp" not in wt and "bản chính" in vt and "bản nháp" not in vt
     actions_word = {"findReplace": replacement_ok, "copyPaste": wt.count("THỜI HẠN") >= 2, "undoRedo": "KIỂM TRA UNDO" in wt}
@@ -740,17 +1160,30 @@ def _features(metrics: dict[str, Any], app: dict[str, Any]) -> list[dict[str, An
         {"scenario": "Paragraph exact line spacing 18 pt", "word": we, "vn": ve, "match": exact_match},
         {"scenario": "Paragraph line spacing 1.5", "word": wm, "vn": vm, "match": multiple_match},
         {"scenario": "Heading 1–3 styles", "word": wstyles, "vn": vstyles, "match": wstyles == vstyles == ["Heading 1", "Heading 2", "Heading 3"]},
+        {"scenario": "B5 Heading styles including the new Heading 2", "word": wstyles, "vn": vstyles, "match": wstyles == vstyles and wstyles.count("Heading 1") == 1 and wstyles.count("Heading 2") == 2 and wstyles.count("Heading 3") == 1},
+        {"scenario": "B5 real TOC field, updated entry and Word page numbers", "word": {"entries": word_toc_entries, "fields": word_toc.get("fieldCount")}, "vn": {"entries": vn_toc_entries, "fields": vn_toc.get("fieldCount"), "packageField": vn.get("packageFacts", {}).get("tocField")}, "match": word_toc_entries == vn_toc_entries and len(word_toc_entries) >= 4 and word_toc.get("fieldCount", 0) > 0 and vn_toc.get("fieldCount", 0) > 0 and vn.get("packageFacts", {}).get("tocField") and any("PHỤ LỤC BỔ SUNG SAU KHI TẠO MỤC LỤC" in entry for entry in vn_toc_entries)},
         {"scenario": "Bullets, numbering, a), dash list", "word": wlists, "vn": vlists, "match": wlists == vlists},
         {"scenario": "3×4 table, add/delete row/column, merge, borders", "word": wtables, "vn": vtables, "match": wtables == vtables},
         {"scenario": "A4 page setup, margins and orientation", "word": word.get("pageSetup"), "vn": vn.get("pageSetup"), "match": word.get("pageSetup") == vn.get("pageSetup")},
         {"scenario": "Header/footer with live page-number fields", "word": whf, "vn": vhf, "match": whf["headers"] == vhf["headers"] and bool(whf["footers"]) and bool(vhf["footers"]) and whf["footers"][0]["PAGE"] and vhf["footers"][0]["PAGE"]},
+        {"scenario": "B8 different first page", "word": {"enabled": word.get("pageSetup", {}).get("differentFirstPage"), "section": wsections[0] if wsections else {}}, "vn": {"enabled": vn.get("pageSetup", {}).get("differentFirstPage"), "section": vsections[0] if vsections else {}, "package": vn.get("packageFacts", {}).get("differentFirstPage")}, "match": bool(word.get("pageSetup", {}).get("differentFirstPage")) and bool(vn.get("pageSetup", {}).get("differentFirstPage")) and bool(vn.get("packageFacts", {}).get("differentFirstPage"))},
         {"scenario": "Page break", "word": word.get("pageBreakCount"), "vn": vn.get("pageBreakCount"), "match": word.get("pageBreakCount") == vn.get("pageBreakCount") == 1},
+        {"scenario": "B7 section break with a landscape page", "word": [{"orientation": item.get("orientation"), "differentFirstPage": item.get("differentFirstPage")} for item in wsections], "vn": [{"orientation": item.get("orientation"), "differentFirstPage": item.get("differentFirstPage")} for item in vsections], "match": len(wsections) == len(vsections) >= 2 and [item.get("orientation") for item in wsections] == [item.get("orientation") for item in vsections] and any(item.get("orientation") == 1 for item in vsections)},
+        {"scenario": "B9 PNG size, wrap and floating position (±2 mm)", "word": {"inline": wimages, "floating": wshapes}, "vn": {"inline": vimages, "floating": vshapes}, "match": close_image_group(wimages, vimages) and close_image_group(wshapes, vshapes, True) and len(wimages) == 1 and len(wshapes) == 2},
+        {"scenario": "B11 Vietnamese spelling works offline: 200 common words and suggestions", "word": metrics.get("wordSpellCheck", {}), "vn": app.get("actions", {}).get("spellCheck", {}), "match": bool(app.get("actions", {}).get("spellCheck", {}).get("offline")) and app.get("actions", {}).get("spellCheck", {}).get("status") == "ready" and app.get("actions", {}).get("spellCheck", {}).get("sampleWords") == 200 and app.get("actions", {}).get("spellCheck", {}).get("correctWordIssues") == 0 and app.get("actions", {}).get("spellCheck", {}).get("underlined") == "chínnh" and "chính" in app.get("actions", {}).get("spellCheck", {}).get("suggestions", []) and app.get("actions", {}).get("spellCheck", {}).get("corrected")},
+        {"scenario": "B12 tracked insertion and deletion remain native in Word", "word": word.get("revisions", []), "vn": vn.get("revisions", []), "match": same_revisions(word.get("revisions", []), vn.get("revisions", [])) and vn.get("packageFacts", {}).get("revisionInsertions") == 1 and vn.get("packageFacts", {}).get("revisionDeletions") == 1},
+        {"scenario": "B12 comments, reply text and resolved state remain in Word", "word": word.get("comments", []), "vn": vn.get("comments", []), "match": same_comments(word.get("comments", []), vn.get("comments", [])) and vn.get("packageFacts", {}).get("commentsPart") and bool(app.get("actions", {}).get("commentReply")) and bool(app.get("actions", {}).get("commentResolve"))},
         {"scenario": "Copy/paste formatted text; undo/redo", "word": actions_word, "vn": actions_vn, "match": actions_word == actions_vn},
         {"scenario": "Word page counts (.docx)", "word": word.get("pageCount"), "vn": vn.get("pageCount"), "match": word.get("pageCount") == vn.get("pageCount")},
         {"scenario": "Word reopen without repair (.docx), paragraph count", "word": word_docx, "vn": vn_docx, "match": word_docx == vn_docx},
         {"scenario": "Word reopen without repair (.doc), paragraph count", "word": word_doc, "vn": vn_doc, "match": word_doc == vn_doc},
         {"scenario": "Word page counts (.doc)", "word": wd.get("pageCount"), "vn": vd.get("pageCount"), "match": wd.get("pageCount") == vd.get("pageCount")},
     ]
+    for name in ("Ctrl+B", "Ctrl+I", "Ctrl+U", "Ctrl+Shift+>", "Ctrl+Shift+<", "Ctrl+L", "Ctrl+E", "Ctrl+R", "Ctrl+J", "Ctrl+Enter", "Ctrl+Z", "Ctrl+Y", "Ctrl+F", "Ctrl+H", "Ctrl+S", "F12", "Ctrl+P"):
+        result = app.get("actions", {}).get("keyboardShortcuts", {}).get(name, {})
+        match = bool(result.get("handled")) and (name != "Ctrl+P" or bool(result.get("printHandlerCalled")))
+        features.append({"scenario": f"Keyboard {name}", "word": "Word 2016 shortcut", "vn": result or "NOT RUN", "match": match})
+    return features
 
 
 def _compact_json(value: Any) -> str:
@@ -830,6 +1263,10 @@ def main() -> int:
         parser.error("powershell.exe is required for Word COM automation.")
     output_dir = args.output.resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
+    png_path = output_dir / "writer_basic_ops.png"
+    png_bytes = _tiny_png()
+    png_path.write_bytes(png_bytes)
+    png_data_uri = "data:image/png;base64," + base64.b64encode(png_bytes).decode("ascii")
     driver = output_dir / "_writer_basic_ops_word.ps1"
     driver.write_text(WORD_DRIVER, encoding="utf-8-sig")
     seed = output_dir / "writer_basic_ops_seed.docx"
@@ -840,10 +1277,10 @@ def main() -> int:
     word_result = output_dir / "_word_edit_result.json"
     inspect_result = output_dir / "_word_inspect_result.json"
     pid_file = output_dir / "_owned_winword_pid.txt"
-    edit = _run_word(driver, "Edit", word_result, pid_file, ["-Seed", str(seed), "-WordDocx", str(word_docx), "-WordDoc", str(word_doc)])
+    edit = _run_word(driver, "Edit", word_result, pid_file, ["-Seed", str(seed), "-WordDocx", str(word_docx), "-WordDoc", str(word_doc), "-PngPath", str(png_path), "-SpellWordsJson", json.dumps(SPELLCHECK_COMMON_WORDS, ensure_ascii=False)])
     if not edit.get("ok"):
         raise RuntimeError(f"Word scenario failed: {edit.get('error', edit)}")
-    app = _run_vn(seed, vn_docx, output_dir, "edit")
+    app = _run_vn(seed, vn_docx, output_dir, "edit", png_data_uri)
     if vn_docx.exists():
         resave = _run_vn(vn_docx, vn_doc, output_dir, "resave")
         app["doc_resave"] = resave
@@ -856,6 +1293,9 @@ def main() -> int:
     for key, path in paths.items():
         metrics.setdefault(key, {})["pageCount"] = _word_pages(Path(path), output_dir)
     structures = {key: _docx_structure(Path(path)) for key, path in paths.items() if path.lower().endswith(".docx") and Path(path).exists()}
+    metrics["wordSpellCheck"] = edit.get("spellCheck", {})
+    for key in ("word_docx", "vn_docx"):
+        metrics.setdefault(key, {})["packageFacts"] = structures.get(key, {})
     (output_dir / "_writer_basic_ops_metrics.json").write_text(json.dumps(metrics, ensure_ascii=False, indent=2), encoding="utf-8")
     (output_dir / "_writer_basic_ops_app.json").write_text(json.dumps(app, ensure_ascii=False, indent=2), encoding="utf-8")
     before, before_app = _read_before_run(args.before.resolve() if args.before else None)

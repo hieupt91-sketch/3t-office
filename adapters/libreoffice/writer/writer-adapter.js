@@ -197,7 +197,8 @@ export class WriterAdapter {
       orientation: "portrait",
       margins: { ...DEFAULT_MARGINS_MM },
       headerDistanceMm: 12.7,
-      footerDistanceMm: 12.7
+      footerDistanceMm: 12.7,
+      differentFirstPage: false
     };
     this.activeSectionId = "section-1";
     this.sectionPageSetups = { "section-1": JSON.parse(JSON.stringify(this.pageSetup)) };
@@ -319,6 +320,7 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.review.commentNext", () => this.nextComment());
     globalCommandBus.bindHandler("writer.review.commentDelete", () => this.deleteActiveComment());
     globalCommandBus.bindHandler("writer.review.commentResolve", () => this.toggleActiveCommentResolved());
+    globalCommandBus.bindHandler("writer.review.commentReply", (args) => this.replyToActiveComment(args));
     globalCommandBus.bindHandler("writer.trackChanges.toggle", (args) => this.toggleTrackChanges(args?.enabled));
     globalCommandBus.bindHandler("writer.trackChanges.previous", () => this.previousTrackChange());
     globalCommandBus.bindHandler("writer.trackChanges.next", () => this.nextTrackChange());
@@ -1562,6 +1564,12 @@ export class WriterAdapter {
 
     if (this.commentsPanel?.addEventListener && !this._commentPanelClickHandler) {
       this._commentPanelClickHandler = (event) => {
+        const replyButton = event.target?.closest?.("[data-comment-reply]");
+        if (replyButton) {
+          event.stopPropagation?.();
+          this.replyToComment(replyButton.dataset.commentReply);
+          return;
+        }
         const deleteButton = event.target?.closest?.("[data-comment-delete]");
         if (deleteButton) {
           event.stopPropagation?.();
@@ -5885,6 +5893,9 @@ export class WriterAdapter {
       const landscapeLabel = (typeof t === "function" && t("writerDialogs.pageSetup.landscape") !== "writerDialogs.pageSetup.landscape")
         ? t("writerDialogs.pageSetup.landscape")
         : "Ngang (Landscape)";
+      const differentFirstPageLabel = (typeof t === "function" && t("writerDialogs.pageSetup.differentFirstPage") !== "writerDialogs.pageSetup.differentFirstPage")
+        ? t("writerDialogs.pageSetup.differentFirstPage")
+        : "Trang đầu khác";
       const cancelBtn = (typeof t === "function" && t("writerDialogs.pageSetup.cancel") !== "writerDialogs.pageSetup.cancel")
         ? t("writerDialogs.pageSetup.cancel")
         : "Hủy bỏ";
@@ -5914,6 +5925,10 @@ export class WriterAdapter {
                 <option value="portrait" ${this.pageSetup.orientation === "portrait" ? "selected" : ""}>${portraitLabel}</option>
                 <option value="landscape" ${this.pageSetup.orientation === "landscape" ? "selected" : ""}>${landscapeLabel}</option>
               </select>
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;">
+              <input type="checkbox" id="vno-pagesetup-different-first-page" ${this.pageSetup.differentFirstPage ? "checked" : ""} />
+              ${differentFirstPageLabel}
             </label>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
               ${["top", "bottom", "left", "right"].map(side => {
@@ -5949,6 +5964,7 @@ export class WriterAdapter {
       const readForm = () => ({
         size: overlay.querySelector("#vno-pagesetup-size").value,
         orientation: overlay.querySelector("#vno-pagesetup-orientation").value,
+        differentFirstPage: overlay.querySelector("#vno-pagesetup-different-first-page").checked,
         margins: {
           top: Number(overlay.querySelector("#vno-pagesetup-margin-top").value) || 0,
           bottom: Number(overlay.querySelector("#vno-pagesetup-margin-bottom").value) || 0,
@@ -5982,6 +5998,7 @@ export class WriterAdapter {
     this.pageSetup = {
       size: newSetup.size || this.pageSetup.size,
       orientation: newSetup.orientation || this.pageSetup.orientation,
+      differentFirstPage: typeof newSetup.differentFirstPage === "boolean" ? newSetup.differentFirstPage : !!this.pageSetup.differentFirstPage,
       margins: { ...this.pageSetup.margins, ...(newSetup.margins || {}) },
       ...(newSetup.size === "custom" || (!newSetup.size && this.pageSetup.size === "custom")
         ? { widthMm: newSetup.widthMm ?? this.pageSetup.widthMm, heightMm: newSetup.heightMm ?? this.pageSetup.heightMm }
@@ -6574,6 +6591,33 @@ export class WriterAdapter {
     return comment.resolved;
   }
 
+  async replyToActiveComment(args = null) {
+    const comment = this.comments.find((item) => item.id === this.activeCommentId) || this.comments[0];
+    return comment ? this.replyToComment(comment.id, args) : false;
+  }
+
+  async replyToComment(commentId, args = null) {
+    const comment = this.comments.find((item) => item.id === commentId);
+    if (!comment) return false;
+    const reply = args && Object.prototype.hasOwnProperty.call(args, "content")
+      ? args.content
+      : await showPromptDialog({
+          title: "Trả lời nhận xét",
+          message: `Trả lời ghi chú: “${String(comment.content).slice(0, 80)}”`,
+          placeholder: "Nhập nội dung trả lời...",
+          confirmText: "Gửi trả lời"
+        });
+    if (reply === null || !String(reply).trim()) return false;
+    comment.replies = Array.isArray(comment.replies) ? comment.replies : [];
+    comment.replies.push({ content: String(reply).trim(), createdAt: new Date().toISOString() });
+    this.activeCommentId = comment.id;
+    this.isDirty = true;
+    this._renderCommentsPanel();
+    this.focusComment(comment.id);
+    this.recordSnapshot("writer.review.commentReply");
+    return true;
+  }
+
   deleteComment(commentId) {
     const index = this.comments.findIndex((item) => item.id === commentId);
     if (index < 0) return false;
@@ -6616,6 +6660,14 @@ export class WriterAdapter {
       const content = document.createElement("div");
       content.className = "vno-comment-content";
       content.textContent = comment.content;
+      const replies = document.createElement("div");
+      replies.className = "vno-comment-replies";
+      for (const reply of comment.replies || []) {
+        const item = document.createElement("div");
+        item.className = "vno-comment-reply";
+        item.textContent = reply.content || "";
+        replies.appendChild(item);
+      }
       const meta = document.createElement("div");
       meta.className = "vno-comment-meta";
       const info = document.createElement("span");
@@ -6636,8 +6688,14 @@ export class WriterAdapter {
       remove.dataset.commentDelete = comment.id;
       remove.setAttribute("aria-label", `Xóa ghi chú cho ${comment.anchorText}`);
       remove.textContent = "Xóa";
-      meta.append(info, remove);
-      card.append(preview, content, meta);
+      const respond = document.createElement("button");
+      respond.type = "button";
+      respond.className = "vno-comment-reply-button";
+      respond.dataset.commentReply = comment.id;
+      respond.setAttribute("aria-label", `Trả lời ghi chú cho ${comment.anchorText}`);
+      respond.textContent = "Trả lời";
+      meta.append(info, respond, remove);
+      card.append(preview, content, replies, meta);
       this.commentsPanel.appendChild(card);
     }
   }
@@ -10947,7 +11005,7 @@ export class WriterAdapter {
    * nội dung (xem `main.py: save_document_dialog` bọc `<body>{content}</body>`) —
    * trình phân tích HTML của LibreOffice vẫn áp dụng đúng CSS ở vị trí này.
    */
-  _contentForExport() {
+  _contentForExport({ preserveReviewMarkup = false } = {}) {
     this._initZones();
     let bodyHtml = "";
     let headerHtml = "";
@@ -10969,9 +11027,9 @@ export class WriterAdapter {
     if (this.bodyDom) {
       const exportRoot = this.bodyDom.cloneNode?.(true) || this.bodyDom;
       this._markCurrentUntouchedParagraphs(exportRoot);
-      bodyHtml = this._stripSessionMarkup(exportRoot.innerHTML);
+      bodyHtml = this._stripSessionMarkup(exportRoot.innerHTML, { preserveReviewMarkup });
     } else if (this.editorDom) {
-      bodyHtml = this._stripSessionMarkup(this.editorDom.innerHTML);
+      bodyHtml = this._stripSessionMarkup(this.editorDom.innerHTML, { preserveReviewMarkup });
     }
     bodyHtml = this._prepareFloatingFramesForExport(bodyHtml);
     bodyHtml = this._restoreProportionalLineHeightsForExport(bodyHtml);
@@ -11036,7 +11094,8 @@ export class WriterAdapter {
     const mutationMarkers = this._shapeMutationMarkerHtml();
 
     const pristineMarker = this._isOpenedDocumentPristine() ? '<a name="vno-pristine-document"></a>' : "";
-    const fullHtml = `${pristineMarker}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}`;
+    const firstPageSetupMarker = this.pageSetup.differentFirstPage ? '<p data-vno-different-first-page="true"></p>' : "";
+    const fullHtml = `${pristineMarker}${mutationMarkers}${firstPageSetupMarker}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}`;
     const rawExport = `<style>${this._getPageSetupCss()}\n${this._getSectionPageCss()}${columnsCss}</style>${fullHtml}`;
     return this._sanitizeExportHtmlForWordCompat(rawExport);
   }
@@ -11048,16 +11107,14 @@ export class WriterAdapter {
     );
   }
 
-  _stripSessionMarkup(html) {
-    const withoutComments = this._stripCommentMarkup(html);
-    return withoutComments
+  _stripSessionMarkup(html, { preserveReviewMarkup = false } = {}) {
+    const withoutComments = preserveReviewMarkup ? String(html || "") : this._stripCommentMarkup(html);
+    let clean = withoutComments
       .replace(/\s+data-vno-src-hash=["'][^"']*["']/gi, "")
       .replace(/\s+data-vno-edited=["'][^"']*["']/gi, "")
       .replace(/\s+data-vno-keep-next=["'][^"']*["']/gi, "")
       .replace(/<span\b(?=[^>]*\bclass=["'][^"']*\bvno-spelling-(?:error|uncertain)\b[^"']*["'])[^>]*>([\s\S]*?)<\/span>/gi, "$1")
       .replace(/\s+is-vno-image-selected(?=[\s"'])/gi, "")
-      .replace(/<del\b(?=[^>]*\bdata-vno-change=(?:"delete"|'delete'))[^>]*>[\s\S]*?<\/del>/gi, "")
-      .replace(/<ins\b(?=[^>]*\bdata-vno-change=(?:"insert"|'insert'))[^>]*>([\s\S]*?)<\/ins>/gi, "$1")
       .replace(/<button\b[^>]*class=["'][^"']*\bvno-toc-btn\b[^"']*["'][^>]*>[\s\S]*?<\/button>/gi, "")
       .replace(/<button\b[^>]*class=["'][^"']*\bvno-tof-btn\b[^"']*["'][^>]*>[\s\S]*?<\/button>/gi, "")
       .replace(/<button\b[^>]*class=["'][^"']*\bvno-caption-delete-btn\b[^"']*["'][^>]*>[\s\S]*?<\/button>/gi, "")
@@ -11072,6 +11129,34 @@ export class WriterAdapter {
       .replace(/\s*\bvno-merge-preview\b/gi, "")
       .replace(/<(div|tr|li)\b[^>]*data-vno-auto-page-gap=["']true["'][^>]*>[\s\S]*?<\/\1>/gi, "")
       .replace(/<span\b[^>]*data-vno-format-mark=["'][^"']+["'][^>]*>([\s\S]*?)<\/span>/gi, "$1");
+    if (!preserveReviewMarkup) {
+      clean = clean
+        .replace(/<del\b(?=[^>]*\bdata-vno-change=(?:"delete"|'delete'))[^>]*>[\s\S]*?<\/del>/gi, "")
+        .replace(/<ins\b(?=[^>]*\bdata-vno-change=(?:"insert"|'insert'))[^>]*>([\s\S]*?)<\/ins>/gi, "$1");
+    }
+    return clean;
+  }
+
+  _contentForOfficeSave() {
+    const comments = (this.comments || []).map((comment) => ({
+      id: comment.id,
+      anchorText: comment.anchorText,
+      content: comment.content,
+      author: comment.author || "",
+      createdAt: comment.createdAt || new Date().toISOString(),
+      resolved: !!comment.resolved,
+      replies: (comment.replies || []).map((reply) => ({
+        content: reply.content,
+        author: reply.author || "",
+        createdAt: reply.createdAt || new Date().toISOString()
+      }))
+    }));
+    const changes = [...(this.bodyDom?.querySelectorAll?.('ins[data-vno-change="insert"], del[data-vno-change="delete"]') || [])]
+      .map((node) => ({ type: node.dataset.vnoChange, text: node.textContent || "", author: node.dataset.author || "", date: node.dataset.date || "" }))
+      .filter((change) => change.text.trim());
+    const state = { comments, changes };
+    const hex = Array.from(new TextEncoder().encode(JSON.stringify(state)), (byte) => byte.toString(16).padStart(2, "0")).join("");
+    return `${this._contentForExport({ preserveReviewMarkup: true })}<div data-vno-review-state="${hex}" style="display:none"></div>`;
   }
 
   _shapesForExport() {
@@ -11121,9 +11206,10 @@ export class WriterAdapter {
     }
 
     this.documentContent = this.editorDom ? this.editorDom.innerHTML : "";
+    const sourceFormat = this._sourcePath.match(/\.([a-zA-Z0-9]+)$/)?.[1]?.toLowerCase() || "";
     const result = await globalUnoBridge.saveRealFileInPlace(
       "writer",
-      this._contentForExport(),
+      ["doc", "docx"].includes(sourceFormat) ? this._contentForOfficeSave() : this._contentForExport(),
       this._sourcePath,
       this._sourcePath
     );
@@ -11167,7 +11253,7 @@ export class WriterAdapter {
 
     const result = await globalUnoBridge.saveRealFile(
       "writer",
-      this._contentForExport(),
+      ["doc", "docx"].includes(targetFormat) ? this._contentForOfficeSave() : this._contentForExport(),
       targetFormat,
       suggestedName,
       this._sourcePath || null

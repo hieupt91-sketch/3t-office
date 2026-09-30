@@ -11934,6 +11934,220 @@ def _writer_clone_lower_alpha_suffix(document_xml: str, numbering_xml: str, sour
     return document_xml, numbering_xml
 
 
+def _writer_enable_setting(settings_xml: str, name: str, value: str = "true") -> str:
+    tag = f'<w:{name} w:val="{value}"/>'
+    pattern = re.compile(rf"<w:{name}\b[^>]*/>", re.IGNORECASE)
+    if pattern.search(settings_xml):
+        return pattern.sub(tag, settings_xml, count=1)
+    close = re.search(r"</w:settings\s*>", settings_xml, re.IGNORECASE)
+    if close:
+        return settings_xml[:close.start()] + tag + settings_xml[close.start():]
+    return settings_xml
+
+
+def _writer_add_created_toc_field(document_xml: str, source_html: str) -> str:
+    """Turn the visible cached VN TOC entries into a native Word TOC field."""
+    if re.search(r"<w:instrText\b[^>]*>\s*TOC\b", document_xml, re.IGNORECASE):
+        return document_xml
+    labels = [
+        _writer_html_plain(item.group(1))
+        for item in re.finditer(r'<span\b(?=[^>]*\bclass=["\'][^"\']*\bvno-toc-text\b[^"\']*["\'])[^>]*>([\s\S]*?)</span\s*>', source_html, re.IGNORECASE)
+    ]
+    labels = [label for label in labels if label]
+    if not labels:
+        return document_xml
+    paragraphs = list(re.finditer(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", document_xml, re.IGNORECASE))
+    matching = []
+    cursor = 0
+    for label in labels:
+        found = next((index for index in range(cursor, len(paragraphs))
+                      if _paragraph_plain_text(paragraphs[index].group(0)).strip().startswith(label)), None)
+        if found is None:
+            continue
+        matching.append(found)
+        cursor = found + 1
+    if not matching:
+        return document_xml
+    first_index, last_index = matching[0], matching[-1]
+    field_start = (
+        '<w:r><w:fldChar w:fldCharType="begin"/></w:r>'
+        '<w:r><w:instrText xml:space="preserve"> TOC \\o "1-3" \\h \\z \\u </w:instrText></w:r>'
+        '<w:r><w:fldChar w:fldCharType="separate"/></w:r>'
+    )
+    field_end = '<w:r><w:fldChar w:fldCharType="end"/></w:r>'
+    offset = 0
+    updated = document_xml
+    for index, paragraph in enumerate(paragraphs):
+        if index not in {first_index, last_index}:
+            continue
+        block = paragraph.group(0)
+        insert_at = re.search(r"</w:pPr\s*>", block, re.IGNORECASE)
+        start = insert_at.end() if insert_at else re.match(r"<w:p\b[^>]*>", block, re.IGNORECASE).end()
+        if index == first_index:
+            block = block[:start] + field_start + block[start:]
+        if index == last_index:
+            close = re.search(r"</w:p\s*>", block, re.IGNORECASE)
+            if close:
+                block = block[:close.start()] + field_end + block[close.start():]
+        actual = paragraph.start() + offset
+        updated = updated[:actual] + block + updated[paragraph.end() + offset:]
+        offset += len(block) - (paragraph.end() - paragraph.start())
+    return updated
+
+
+def _writer_mark_created_different_first_page(document_xml: str, source_html: str) -> str:
+    if not re.search(r'data-vno-different-first-page=["\']true["\']', source_html, re.IGNORECASE):
+        return document_xml
+    sections = list(re.finditer(r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>", document_xml, re.IGNORECASE))
+    if not sections or re.search(r"<w:titlePg\b", sections[0].group(0), re.IGNORECASE):
+        return document_xml
+    section = sections[0].group(0)
+    boundary = re.search(r"<w:(?:textDirection|bidi|rtlGutter|docGrid)\b", section, re.IGNORECASE)
+    at = boundary.start() if boundary else section.lower().rfind("</w:sectpr")
+    if at < 0:
+        return document_xml
+    section = section[:at] + "<w:titlePg/>" + section[at:]
+    return document_xml[:sections[0].start()] + section + document_xml[sections[0].end():]
+
+
+def _writer_apply_created_review_state(
+    docx_bytes: bytes, document_xml: str, source_html: str
+) -> tuple[str, dict[str, bytes], bool, bool]:
+    """Restore VN review spans as native Word revisions and comment threads."""
+    marker = re.search(r'data-vno-review-state=["\']([0-9a-f]+)["\']', source_html, re.IGNORECASE)
+    if not marker:
+        return document_xml, {}, False, False
+    try:
+        state = json.loads(bytes.fromhex(marker.group(1)).decode("utf-8"))
+    except (ValueError, UnicodeDecodeError, json.JSONDecodeError):
+        return document_xml, {}, False, False
+
+    changed = False
+    next_revision_id = max([int(value) for value in re.findall(r'<w:(?:ins|del)\b[^>]*\bw:id=["\'](\d+)', document_xml, re.IGNORECASE)] or [0]) + 1
+    for change in state.get("changes", []):
+        change_text = str(change.get("text") or "").strip()
+        kind = "del" if change.get("type") == "delete" else "ins"
+        if not change_text:
+            continue
+        found = False
+        def patch_run(match: re.Match) -> str:
+            nonlocal found, next_revision_id, changed
+            if found:
+                return match.group(0)
+            run_xml = match.group(0)
+            run_text = _paragraph_plain_text(run_xml).strip()
+            if run_text != change_text:
+                return run_xml
+            if kind == "del":
+                run_xml = re.sub(r"<w:t\b", "<w:delText", run_xml, flags=re.IGNORECASE)
+                run_xml = re.sub(r"</w:t\s*>", "</w:delText>", run_xml, flags=re.IGNORECASE)
+            author = html.escape(str(change.get("author") or "VN Office"), quote=True)
+            date = html.escape(str(change.get("date") or "2026-01-01T00:00:00Z"), quote=True)
+            wrapped = f'<w:{kind} w:id="{next_revision_id}" w:author="{author}" w:date="{date}">{run_xml}</w:{kind}>'
+            next_revision_id += 1
+            found = changed = True
+            return wrapped
+        document_xml = re.sub(r"<w:r\b[^>]*>[\s\S]*?</w:r\s*>", patch_run, document_xml, count=0, flags=re.IGNORECASE)
+
+    existing_comments = read_zip_entry(docx_bytes, "word/comments.xml")
+    comments_xml = existing_comments.decode("utf-8", errors="replace") if existing_comments else (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<w:comments xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+        'xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml">'
+        '</w:comments>'
+    )
+    existing_ids = [int(value) for value in re.findall(r'<w:comment\b[^>]*\bw:id=["\'](\d+)', comments_xml, re.IGNORECASE)]
+    next_comment_id = max(existing_ids, default=-1) + 1
+    comments_added: list[tuple[str, bool, list[str]]] = []
+    for comment in state.get("comments", []):
+        anchor_text = re.sub(r"\s+", " ", str(comment.get("anchorText") or "")).strip()
+        content = str(comment.get("content") or "").strip()
+        if not anchor_text or not content:
+            continue
+        comment_id = next_comment_id
+        anchor_para_id = f"{uuid.uuid4().int & 0xffffffff:08X}"
+        anchored = False
+        def patch_anchor_paragraph(match: re.Match) -> str:
+            nonlocal anchored
+            if anchored:
+                return match.group(0)
+            paragraph = match.group(0)
+            if anchor_text not in re.sub(r"\s+", " ", _paragraph_plain_text(paragraph)):
+                return paragraph
+            run_match = re.search(r"<w:r\b[^>]*>[\s\S]*?</w:r\s*>", paragraph, re.IGNORECASE)
+            if not run_match or anchor_text not in _paragraph_plain_text(run_match.group(0)):
+                return paragraph
+            reference = f'<w:commentRangeStart w:id="{comment_id}"/>{run_match.group(0)}<w:commentRangeEnd w:id="{comment_id}"/><w:r><w:commentReference w:id="{comment_id}"/></w:r>'
+            anchored = True
+            return paragraph[:run_match.start()] + reference + paragraph[run_match.end():]
+        document_xml = re.sub(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", patch_anchor_paragraph, document_xml, count=0, flags=re.IGNORECASE)
+        if not anchored:
+            continue
+        author_value = str(comment.get("author") or "VN Office")
+        date_value = str(comment.get("createdAt") or "2026-01-01T00:00:00Z")
+        author = html.escape(author_value, quote=True)
+        date = html.escape(date_value, quote=True)
+        text_xml = html.escape(content, quote=False)
+        comment_paragraphs = [f'<w:p w14:paraId="{anchor_para_id}"><w:r><w:t xml:space="preserve">{text_xml}</w:t></w:r></w:p>']
+        for reply in comment.get("replies", []):
+            reply_text = str(reply.get("content") or "").strip()
+            if not reply_text:
+                continue
+            reply_para_id = f"{uuid.uuid4().int & 0xffffffff:08X}"
+            comment_paragraphs.append(f'<w:p w14:paraId="{reply_para_id}"><w:r><w:t xml:space="preserve">{html.escape("Phản hồi: " + reply_text, quote=False)}</w:t></w:r></w:p>')
+        comment_xml = f'<w:comment w:id="{comment_id}" w:author="{author}" w:date="{date}" w:initials="VN">{"".join(comment_paragraphs)}</w:comment>'
+        close = re.search(r"</w:comments\s*>", comments_xml, re.IGNORECASE)
+        if close:
+            comments_xml = comments_xml[:close.start()] + comment_xml + comments_xml[close.start():]
+        comments_added.append((anchor_para_id, bool(comment.get("resolved")), []))
+
+    if not comments_added:
+        return document_xml, {}, changed, False
+
+    replacements: dict[str, bytes] = {"word/comments.xml": comments_xml.encode("utf-8")}
+    relationships = read_zip_entry(docx_bytes, "word/_rels/document.xml.rels")
+    rels_xml = relationships.decode("utf-8", errors="replace") if relationships else (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
+    )
+    relation_target = re.search(r'<Relationship\b(?=[^>]*\bType=["\'][^"\']*/comments["\'])[^>]*\bTarget=["\']([^"\']+)', rels_xml, re.IGNORECASE)
+    if not relation_target:
+        rids = [int(value) for value in re.findall(r'\bId=["\']rId(\d+)', rels_xml)]
+        rel_id = f"rId{max(rids, default=0) + 1}"
+        rels_xml = rels_xml.replace("</Relationships>", f'<Relationship Id="{rel_id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments" Target="comments.xml"/></Relationships>')
+    replacements["word/_rels/document.xml.rels"] = rels_xml.encode("utf-8")
+
+    comments_ex = read_zip_entry(docx_bytes, "word/commentsExtended.xml")
+    comments_ex_xml = comments_ex.decode("utf-8", errors="replace") if comments_ex else (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<w15:commentsEx xmlns:w15="http://schemas.microsoft.com/office/word/2012/wordml"></w15:commentsEx>'
+    )
+    ex_items = []
+    for parent_para_id, resolved, replies in comments_added:
+        ex_items.append(f'<w15:commentEx w15:paraId="{parent_para_id}" w15:done="{1 if resolved else 0}"/>')
+        for reply_para_id in replies:
+            ex_items.append(f'<w15:commentEx w15:paraId="{reply_para_id}" w15:paraIdParent="{parent_para_id}" w15:done="0"/>')
+    comments_ex_xml = comments_ex_xml.replace("</w15:commentsEx>", "".join(ex_items) + "</w15:commentsEx>")
+    replacements["word/commentsExtended.xml"] = comments_ex_xml.encode("utf-8")
+    if not re.search(r'<Relationship\b(?=[^>]*\bTarget=["\']commentsExtended\.xml["\'])', rels_xml, re.IGNORECASE):
+        rids = [int(value) for value in re.findall(r'\bId=["\']rId(\d+)', rels_xml)]
+        rel_id = f"rId{max(rids, default=0) + 1}"
+        rels_xml = rels_xml.replace("</Relationships>", f'<Relationship Id="{rel_id}" Type="http://schemas.microsoft.com/office/word/2018/wordml/commentsExt" Target="commentsExtended.xml"/></Relationships>')
+        replacements["word/_rels/document.xml.rels"] = rels_xml.encode("utf-8")
+
+    content_types = read_zip_entry(docx_bytes, "[Content_Types].xml")
+    types_xml = content_types.decode("utf-8", errors="replace") if content_types else ""
+    for part, content_type in (
+        ("comments.xml", "application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml"),
+        ("commentsExtended.xml", "application/vnd.ms-word.commentsExt+xml"),
+    ):
+        if f"/word/{part}" not in types_xml:
+            types_xml = types_xml.replace("</Types>", f'<Override PartName="/word/{part}" ContentType="{content_type}"/></Types>')
+    if types_xml:
+        replacements["[Content_Types].xml"] = types_xml.encode("utf-8")
+    return document_xml, replacements, changed, True
+
+
 def _writer_insert_page_field(footer_xml: str, field_name: str, fallback: str = "1") -> str:
     """Turn the fallback text in a page-number span into a native Word PAGE field."""
     field = (
@@ -12528,6 +12742,21 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
                 patched_footer = _writer_insert_page_field(patched_footer, field_name, fallback)
             if patched_footer != source_footer:
                 replacements[name] = patched_footer.encode("utf-8")
+    document_xml = _writer_add_created_toc_field(document_xml, source_html)
+    document_xml = _writer_mark_created_different_first_page(document_xml, source_html)
+    document_xml, review_parts, has_revisions, has_comments = _writer_apply_created_review_state(
+        docx_bytes, document_xml, source_html
+    )
+    replacements["word/document.xml"] = document_xml.encode("utf-8")
+    replacements.update(review_parts)
+    settings_bytes = read_zip_entry(docx_bytes, "word/settings.xml")
+    if settings_bytes and (re.search(r"<w:instrText\b[^>]*>\s*TOC\b", document_xml, re.IGNORECASE) or has_revisions):
+        settings_xml = settings_bytes.decode("utf-8", errors="replace")
+        if re.search(r"<w:instrText\b[^>]*>\s*TOC\b", document_xml, re.IGNORECASE):
+            settings_xml = _writer_enable_setting(settings_xml, "updateFields")
+        if has_revisions:
+            settings_xml = _writer_enable_setting(settings_xml, "trackRevisions")
+        replacements["word/settings.xml"] = settings_xml.encode("utf-8")
     return patch_ooxml_zip(docx_bytes, replacements)
 
 

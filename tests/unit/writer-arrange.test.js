@@ -4,6 +4,8 @@ import { WRITER_RIBBON_TABS } from "../../apps/writer/writer-ribbon.js";
 function image() {
   return {
     tagName: "IMG",
+    naturalWidth: 200,
+    naturalHeight: 100,
     style: {},
     dataset: {},
     classList: { add() {}, remove() {} },
@@ -65,6 +67,14 @@ export async function runWriterArrangeTests() {
       assert(controller.applyPosition(name), `Không áp dụng ${name}`);
       assert(images[0].style.left === left && images[0].style.top === top && images[0].style.transform === transform, `Sai tọa độ ${name}`);
     }
+  });
+
+  test("Kích thước ảnh đặt được theo mm và khóa tỉ lệ mặc định", () => {
+    const { controller, images, snapshots } = fixture();
+    const size = controller.applySize({ widthMm: 20, lockAspect: true });
+    assert(Math.abs(size.widthMm - 20) < 0.01 && Math.abs(size.heightMm - 10) < 0.01, "Không giữ tỉ lệ 2:1 khi đổi rộng");
+    assert(Math.abs(Number.parseFloat(images[0].style.width) / 96 * 25.4 - 20) < 0.02, "Chiều rộng CSS không theo kích thước mm");
+    assert(images[0].dataset.vnoWidthMm === "20.00" && snapshots.at(-1) === "writer.image.resize", "Thiếu kích thước lưu được hoặc Undo snapshot");
   });
 
   test("Bring Forward và Send Backward đổi cả z-index lẫn thứ tự DOM", () => {

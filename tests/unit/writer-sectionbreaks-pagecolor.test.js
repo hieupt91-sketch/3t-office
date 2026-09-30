@@ -130,5 +130,15 @@ export async function runWriterSectionBreaksPageColorTests() {
     assert(adapter._getPageSetupCss().includes("size: 210mm 297mm"), "New document CSS is no longer A4");
   });
 
+  await test("Writer page setup records and exports Different First Page", () => {
+    const { adapter } = createAdapter();
+    assert(adapter.setPageSetup({ differentFirstPage: true }), "Could not enable Different First Page");
+    assert(adapter.pageSetup.differentFirstPage === true, "Page setup did not retain the option");
+    assert(adapter._contentForExport().includes('data-vno-different-first-page="true"'), "Office export missed the first-page marker");
+    const help = WRITER_HELP_ENTRIES.find((entry) => entry.id === "writer.page.setup");
+    assert(help?.steps.some((step) => step.includes("Trang đầu khác")), "In-app help missed the control and effect");
+    assert(WRITER_COMMANDS.some((item) => item.id === "writer.page.margins"), "Page setup entry point disappeared");
+  });
+
   return results;
 }

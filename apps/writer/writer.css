@@ -156,6 +156,15 @@
   line-height: 1.45;
 }
 
+.vno-comment-replies {
+  display: grid;
+  gap: 5px;
+  margin: 8px 0 0 10px;
+  padding-left: 9px;
+  border-left: 2px solid var(--vno-border-default, #cbd5e1);
+}
+.vno-comment-reply { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; line-height: 1.4; }
+
 .vno-comment-meta {
   display: flex;
   align-items: center;
@@ -854,6 +863,7 @@ li.vno-page-auto-gap {
 }
 
 .vno-writer-arrange-group select,
+.vno-writer-arrange-group input[type="number"],
 .vno-writer-arrange-group button {
   min-height: 28px;
   border: 1px solid var(--vno-border-strong, #94a3b8);
@@ -869,12 +879,27 @@ li.vno-page-auto-gap {
   cursor: pointer;
 }
 
+.vno-comment-reply-button {
+  border: 0;
+  border-radius: 4px;
+  padding: 3px 7px;
+  color: var(--vno-writer-primary, #2563eb);
+  background: transparent;
+  cursor: pointer;
+}
+.vno-comment-reply-button:hover,
+.vno-comment-reply-button:focus { background: var(--vno-bg-hover, #eff6ff); outline: 2px solid rgba(37, 99, 235, 0.18); }
+
+.vno-writer-arrange-group input[type="number"] { width: 76px; box-sizing: border-box; }
+.vno-writer-arrange-group input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--vno-writer-primary, #2563eb); }
+
 .vno-writer-arrange-group button:hover {
   background: var(--vno-bg-hover, #f1f5f9);
   border-color: var(--vno-writer-primary, #2563eb);
 }
 
 .vno-writer-arrange-group select:focus-visible,
+.vno-writer-arrange-group input:focus-visible,
 .vno-writer-arrange-group button:focus-visible {
   outline: 2px solid var(--vno-writer-primary, #2563eb);
   outline-offset: 2px;
@@ -887,6 +912,7 @@ li.vno-page-auto-gap {
 }
 
 [data-theme="dark"] .vno-writer-arrange-group select,
+[data-theme="dark"] .vno-writer-arrange-group input[type="number"],
 [data-theme="dark"] .vno-writer-arrange-group button {
   background: var(--vno-bg-surface, #2d2d30);
   color: var(--vno-text-primary, #f1f5f9);

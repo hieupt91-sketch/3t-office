@@ -1,6 +1,8 @@
 const WORD_PATTERN = /[\p{L}\p{M}]+(?:['’][\p{L}\p{M}]+)*/gu;
 
 export const VI_PERSONAL_DICTIONARY_KEY = "vno-spellcheck-vi-personal";
+// Từ thông dụng bị thiếu trong snapshot corpus Common Voice (không sửa danh sách nguồn).
+const VIETNAMESE_COMMON_WORDS = new Set(["bảy", "tám", "hẹp", "rau", "chua"]);
 
 export function normalizeVietnameseWord(word) {
   return String(word || "").normalize("NFC").toLocaleLowerCase("vi");
@@ -75,7 +77,8 @@ export class VietnameseSpellChecker {
     // Unknown capitalized tokens are commonly names, brands or acronyms. Treat them as
     // uncertain-but-not-actionable to avoid noisy false positives in normal documents.
     if (/^\p{Lu}[\p{Ll}\p{M}]+$/u.test(word) || /^\p{Lu}{2,}$/u.test(word)) return true;
-    return this.words.has(normalized) || this.personalWords.has(normalized) || this.ignoredWords.has(normalized);
+    return this.words.has(normalized) || VIETNAMESE_COMMON_WORDS.has(normalized) ||
+      this.personalWords.has(normalized) || this.ignoredWords.has(normalized);
   }
 
   checkText(text) {

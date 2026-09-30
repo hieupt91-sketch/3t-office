@@ -128,8 +128,9 @@ export async function runWriterTrackChangesTests() {
     if (!second.trackChangesEnabled) throw new Error("Tắt tài liệu đầu làm thay đổi tài liệu thứ hai");
   });
 
-  await test("Writer Track Changes: save/PDF dùng accepted view sạch, không lẫn màu hay marker", async () => {
+  await test("Writer Track Changes: Office save giữ review state còn PDF dùng accepted view sạch", async () => {
     const body = new FakeBody('<p>Gốc <ins class="x" data-vno-change="insert">mới</ins><del contenteditable="false" data-vno-change="delete">cũ</del></p>');
+    body.changes.push(new FakeChangeNode("insert", "mới"), new FakeChangeNode("delete", "cũ"));
     const adapter = makeAdapter(body);
     const clean = adapter._contentForExport();
     if (!clean.includes("Gốc mới") || clean.includes("cũ") || /<\/?(?:ins|del)\b/i.test(clean) || clean.includes("data-vno-change")) {
@@ -148,7 +149,10 @@ export async function runWriterTrackChangesTests() {
       globalUnoBridge.saveRealFile = originalSave;
       globalUnoBridge.exportRealPdf = originalPdf;
     }
-    if (saved !== clean || pdf !== clean) throw new Error("Save/PDF không dùng chung accepted view sạch");
+    if (!saved.includes('data-vno-review-state="') || !saved.includes("<ins") || !saved.includes("<del")) {
+      throw new Error("Office save đã làm mất tracked changes hoặc review metadata");
+    }
+    if (pdf !== clean) throw new Error("PDF không dùng accepted view sạch");
   });
 
   await test("Writer Track Changes: Previous/Next nhảy và highlight tuần tự, rồi quay vòng", async () => {

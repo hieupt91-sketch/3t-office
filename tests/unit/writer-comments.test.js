@@ -4,6 +4,8 @@ import { WriterAdapter } from "../../adapters/libreoffice/writer/writer-adapter.
 import { globalUnoBridge } from "../../adapters/libreoffice/common/uno-bridge.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { mapVnCommandToUno } from "../../adapters/libreoffice/common/command-dispatch-mapper.js";
+import { WRITER_COMMANDS } from "../../platform/commands/command-definitions.js";
+import { WRITER_HELP_ENTRIES } from "../../platform/help/entries-writer.js";
 
 class FakeClassList {
   constructor(owner) { this.owner = owner; }
@@ -136,6 +138,21 @@ export async function runWriterCommentsTests() {
       panel.listeners.click({ target: secondCard });
       const secondAnchor = body.querySelector(`[data-comment-id="${second.id}"]`);
       if (adapter.activeCommentId !== second.id || !secondAnchor.scrolled) throw new Error("Click card không nhảy đúng anchor");
+    });
+
+    await test("Writer Comments: trả lời giữ quan hệ trong state và office-save HTML", async () => {
+      const target = adapter.comments[1];
+      const replied = await globalCommandBus.execute("writer.review.commentReply", { content: "Đã cập nhật" });
+      if (!replied) throw new Error("Command trả lời không thực thi");
+      const reply = target.replies?.[0];
+      if (reply?.content !== "Đã cập nhật") throw new Error("Reply không lưu dưới comment gốc");
+      const officeHtml = adapter._contentForOfficeSave();
+      const reviewState = officeHtml.match(/data-vno-review-state="([0-9a-f]+)"/i)?.[1];
+      if (!reviewState || JSON.parse(Buffer.from(reviewState, "hex").toString("utf8")).comments?.[1]?.replies?.[0]?.content !== "Đã cập nhật") {
+        throw new Error("Office-save không mang metadata reply");
+      }
+      if (!WRITER_COMMANDS.some((item) => item.id === "writer.review.commentReply")) throw new Error("Thiếu command Reply");
+      if (!WRITER_HELP_ENTRIES.some((entry) => entry.commandIds.includes("writer.review.commentReply") && entry.steps.some((step) => step.includes("Trả lời")))) throw new Error("Thiếu hướng dẫn sử dụng reply");
     });
 
     await test("Writer Comments: xóa từng comment loại khỏi state, panel và anchor DOM", async () => {

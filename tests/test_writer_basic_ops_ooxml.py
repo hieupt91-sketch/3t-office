@@ -1,6 +1,14 @@
 import unittest
+import io
+import json
+import zipfile
 
 from adapters.libreoffice.common.ooxml_zip_patch import (
+    _writer_add_created_toc_field,
+    _writer_apply_created_review_state,
+    _writer_enable_setting,
+    _writer_mark_created_different_first_page,
+    patch_ooxml_zip,
     _writer_clone_lower_alpha_suffix,
     _writer_insert_page_field,
     _restore_writer_html_page_breaks,
@@ -10,6 +18,80 @@ from adapters.libreoffice.common.ooxml_zip_patch import (
 
 
 class WriterBasicOpsOoxmlTests(unittest.TestCase):
+    def test_toc_result_is_wrapped_in_a_native_word_field(self):
+        source = (
+            '<div data-vno-toc="true"><span class="vno-toc-text">BÁO CÁO</span>'
+            '<span class="vno-toc-page">1</span><span class="vno-toc-text">Điều 1</span>'
+            '<span class="vno-toc-page">2</span></div>'
+        )
+        document = (
+            '<w:document><w:body><w:p><w:r><w:t>BÁO CÁO 1</w:t></w:r></w:p>'
+            '<w:p><w:r><w:t>Điều 1 2</w:t></w:r></w:p>'
+            '<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>BÁO CÁO</w:t></w:r></w:p>'
+            '</w:body></w:document>'
+        )
+        updated = _writer_add_created_toc_field(document, source)
+        self.assertIn(' TOC \\o "1-3" \\h \\z \\u ', updated)
+        self.assertIn('<w:fldChar w:fldCharType="begin"/>', updated)
+        self.assertIn('<w:fldChar w:fldCharType="separate"/>', updated)
+        self.assertIn('<w:fldChar w:fldCharType="end"/>', updated)
+        settings = _writer_enable_setting('<w:settings></w:settings>', "updateFields")
+        self.assertIn('<w:updateFields w:val="true"/>', settings)
+
+    def test_different_first_page_is_a_native_section_property(self):
+        source = '<p data-vno-different-first-page="true"></p>'
+        document = '<w:document><w:body><w:p/><w:sectPr><w:pgSz w:w="11906" w:h="16838"/></w:sectPr></w:body></w:document>'
+        updated = _writer_mark_created_different_first_page(document, source)
+        self.assertIn('<w:titlePg/>', updated)
+        self.assertEqual(_writer_mark_created_different_first_page(updated, source).count('<w:titlePg/>'), 1)
+
+    def test_created_review_state_exports_native_revisions_comments_replies_and_resolution(self):
+        state = {
+            "changes": [
+                {"type": "delete", "text": "xóa", "author": "Nguyễn An", "date": "2026-09-30T01:00:00Z"},
+                {"type": "insert", "text": "mới", "author": "Nguyễn An", "date": "2026-09-30T01:01:00Z"},
+            ],
+            "comments": [{
+                "anchorText": "DÒNG CÓ NHẬN XÉT", "content": "Ghi chú gốc", "author": "Nguyễn An",
+                "createdAt": "2026-09-30T01:02:00Z", "resolved": True,
+                "replies": [{"content": "Đã cập nhật", "author": "Trần Bình", "createdAt": "2026-09-30T01:03:00Z"}],
+            }],
+        }
+        encoded = json.dumps(state, ensure_ascii=False).encode("utf-8").hex()
+        source = f'<div data-vno-review-state="{encoded}"></div>'
+        document = (
+            '<w:document><w:body><w:p><w:r><w:t>DÒNG CÓ NHẬN XÉT</w:t></w:r></w:p>'
+            '<w:p><w:r><w:t>xóa</w:t></w:r><w:r><w:t>mới</w:t></w:r></w:p>'
+            '<w:sectPr/></w:body></w:document>'
+        )
+        source_package = io.BytesIO()
+        with zipfile.ZipFile(source_package, "w") as package:
+            package.writestr("[Content_Types].xml", '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"></Types>')
+            package.writestr("word/document.xml", document)
+            package.writestr("word/settings.xml", '<w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"></w:settings>')
+            package.writestr("word/_rels/document.xml.rels", '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>')
+        with zipfile.ZipFile(io.BytesIO(source_package.getvalue())) as package:
+            source_bytes = package.read("word/document.xml")
+        updated_document, parts, has_revisions, has_comments = _writer_apply_created_review_state(
+            source_package.getvalue(), source_bytes.decode("utf-8"), source
+        )
+        self.assertTrue(has_revisions)
+        self.assertTrue(has_comments)
+        self.assertIn("<w:del", updated_document)
+        self.assertIn("<w:delText", updated_document)
+        self.assertIn("<w:ins", updated_document)
+        self.assertIn("<w:commentRangeStart", updated_document)
+        patched = patch_ooxml_zip(source_package.getvalue(), {"word/document.xml": updated_document, **parts})
+        with zipfile.ZipFile(io.BytesIO(patched)) as package:
+            comments = package.read("word/comments.xml").decode("utf-8")
+            comments_ex = package.read("word/commentsExtended.xml").decode("utf-8")
+            relationships = package.read("word/_rels/document.xml.rels").decode("utf-8")
+        self.assertIn("Ghi chú gốc", comments)
+        self.assertIn("Đã cập nhật", comments)
+        self.assertIn('w15:done="1"', comments_ex)
+        self.assertIn("paraIdParent", comments_ex)
+        self.assertIn("commentsExtended.xml", relationships)
+
     def test_justify_and_exact_line_spacing_restore_from_html_css(self):
         source = '<p style="text-align:justify;line-height:18pt">Đoạn chính</p>'
         paragraph = (
