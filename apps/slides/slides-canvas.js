@@ -3009,6 +3009,12 @@ export class SlidesCanvasController {
       const marker = shape.arrowEnd ? "marker-end='url(#vno-show-arrow)'" : "";
       return `<svg class="vno-show-connector"${morphAttrs} style="position:absolute;inset:0;width:${this.slideSize.width}px;height:${this.slideSize.height}px;overflow:visible" viewBox="0 0 ${this.slideSize.width} ${this.slideSize.height}"><defs><marker id="vno-show-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="${shape.color || "#475569"}"/></marker></defs><line x1="${shape.x1}" y1="${shape.y1}" x2="${shape.x2}" y2="${shape.y2}" stroke="${shape.color || "#475569"}" stroke-width="3" ${marker}/></svg>`;
     }
+    if (shape.type === "ink" || shape.type === "path") {
+      const stroke = shape.stroke || shape.color || "#DC2626";
+      const strokeWidth = shape.strokeWidth || 3;
+      const viewBox = shape.viewBox || `0 0 ${shape.w} ${shape.h}`;
+      return `<svg class="vno-show-shape vno-show-ink"${morphAttrs} style="position:absolute;left:${shape.x}px;top:${shape.y}px;width:${shape.w}px;height:${shape.h}px;overflow:visible;pointer-events:none;" viewBox="${this._escapeShapeText(viewBox)}"><path d="${this._escapeShapeText(shape.d || "")}" stroke="${this._escapeShapeText(stroke)}" stroke-width="${strokeWidth}" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    }
     const rotateStyle = shape.rotation ? `transform:rotate(${shape.rotation}deg);transform-origin:center center;` : "";
     const pos = `position:absolute;left:${shape.x}px;top:${shape.y}px;width:${shape.w}px;height:${shape.h}px;${rotateStyle}`;
     let animStyle = "";
@@ -3764,6 +3770,17 @@ export class SlidesCanvasController {
 
       if (isConnector) {
         this._renderDiagramConnectorElement(el, shape);
+      } else if (shape.type === "ink" || shape.type === "path") {
+        el.classList.add("is-ink");
+        el.style.backgroundColor = "transparent";
+        el.style.background = "transparent";
+        el.style.border = "none";
+        el.style.boxShadow = "none";
+        el.style.overflow = "visible";
+        const stroke = shape.stroke || shape.color || "#DC2626";
+        const strokeWidth = shape.strokeWidth || 3;
+        const viewBox = shape.viewBox || `0 0 ${shape.w} ${shape.h}`;
+        el.innerHTML = `<svg viewBox="${this._escapeShapeText(viewBox)}" width="100%" height="100%" overflow="visible" style="pointer-events:none;"><path d="${this._escapeShapeText(shape.d || "")}" stroke="${this._escapeShapeText(stroke)}" stroke-width="${strokeWidth}" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
       } else if (shape.type === "image" && shape.src) {
         const img = document.createElement("img");
         img.src = shape.src;
@@ -8340,7 +8357,7 @@ export class SlidesCanvasController {
             <button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${t("slidesDialogs.close", "Đóng")}" aria-label="${t("slidesDialogs.close", "Đóng")}" style="font-size:16px;">&times;</button>
           </div>
           <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:14px;">
-            <p style="margin:0;font-size:12px;color:var(--vno-text-secondary);">${t("slidesDialogs.setupShowHint", "Tùy chọn trình chiếu cho bản này. Lặp liên tục áp dụng ngay khi F5. Màu bút/laser được lưu cho tính năng tương lai — VN Slides chưa có bút/laser trên màn hình chiếu.")}</p>
+            <p style="margin:0;font-size:12px;color:var(--vno-text-secondary);">${t("slidesDialogs.setupShowHint", "Tùy chọn trình chiếu cho bản này. Lặp liên tục áp dụng ngay khi F5. Màu bút vẽ và con trỏ laser mặc định khi trình chiếu (bật bằng Ctrl+P, Ctrl+L).")}</p>
             <label class="vno-setup-show-check" style="display:flex;align-items:flex-start;gap:8px;font-size:13px;">
               <input type="checkbox" id="vno-setup-loop" ${current.loopUntilEsc ? "checked" : ""}>
               <span>${t("slidesDialogs.setupShowLoop", "Lặp lại liên tục cho đến khi nhấn Esc")}</span>
@@ -8352,9 +8369,16 @@ export class SlidesCanvasController {
             <p style="margin:0 0 0 24px;font-size:11px;color:var(--vno-text-muted);">${t("slidesDialogs.setupShowNoNarrationHint", "Chưa có thuyết minh/audio narration trong VN Slides — tùy chọn này chỉ lưu cờ, chưa ẩn hay tắt âm thanh nào.")}</p>
             <div style="display:flex;flex-direction:column;gap:6px;">
               <label for="vno-setup-pointer-color" style="font-size:12px;font-weight:600;color:var(--vno-text-primary);">${t("slidesDialogs.setupShowPointerColor", "Màu con trỏ bút / laser")}</label>
-              <div style="display:flex;align-items:center;gap:10px;">
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
                 <input type="color" id="vno-setup-pointer-color" value="${this._escapeShapeText(current.pointerColor)}" aria-label="${t("slidesDialogs.setupShowPointerColor", "Màu con trỏ bút / laser")}" style="width:44px;height:32px;padding:0;border:1px solid var(--vno-border-default);border-radius:4px;background:var(--vno-bg-surface);cursor:pointer;">
                 <span id="vno-setup-pointer-hex" style="font-size:12px;color:var(--vno-text-secondary);">${this._escapeShapeText(current.pointerColor)}</span>
+                <div class="vno-setup-color-swatches" style="display:flex;align-items:center;gap:6px;margin-left:8px;">
+                  <button type="button" class="vno-btn vno-btn-sm vno-color-preset" data-color="#DC2626" title="Đỏ" aria-label="Màu đỏ" style="width:24px;height:24px;min-width:24px;padding:0;background:#DC2626;border-radius:3px;border:1px solid #cbd5e1;cursor:pointer;"></button>
+                  <button type="button" class="vno-btn vno-btn-sm vno-color-preset" data-color="#2563EB" title="Xanh lam" aria-label="Màu xanh lam" style="width:24px;height:24px;min-width:24px;padding:0;background:#2563EB;border-radius:3px;border:1px solid #cbd5e1;cursor:pointer;"></button>
+                  <button type="button" class="vno-btn vno-btn-sm vno-color-preset" data-color="#EAB308" title="Vàng" aria-label="Màu vàng" style="width:24px;height:24px;min-width:24px;padding:0;background:#EAB308;border-radius:3px;border:1px solid #cbd5e1;cursor:pointer;"></button>
+                  <button type="button" class="vno-btn vno-btn-sm vno-color-preset" data-color="#16A34A" title="Xanh lá" aria-label="Màu xanh lá" style="width:24px;height:24px;min-width:24px;padding:0;background:#16A34A;border-radius:3px;border:1px solid #cbd5e1;cursor:pointer;"></button>
+                  <button type="button" class="vno-btn vno-btn-sm vno-color-preset" data-color="#000000" title="Đen" aria-label="Màu đen" style="width:24px;height:24px;min-width:24px;padding:0;background:#000000;border-radius:3px;border:1px solid #cbd5e1;cursor:pointer;"></button>
+                </div>
               </div>
             </div>
           </div>
@@ -8372,6 +8396,15 @@ export class SlidesCanvasController {
       const hexEl = overlay.querySelector("#vno-setup-pointer-hex");
       colorEl?.addEventListener("input", () => {
         if (hexEl) hexEl.textContent = colorEl.value;
+      });
+      overlay.querySelectorAll(".vno-color-preset").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const c = btn.getAttribute("data-color");
+          if (colorEl && c) {
+            colorEl.value = c;
+            if (hexEl) hexEl.textContent = c;
+          }
+        });
       });
 
       let closed = false;
@@ -8434,7 +8467,20 @@ export class SlidesCanvasController {
 
     const theme = this.masterTheme || {};
 
-    // === Rehearse Timings: đồng hồ thật + ghi thời gian thật đã dừng ở mỗi slide ===
+    // === Pen & Laser Pointer State ===
+    let pointerMode = options.pointerMode || "arrow";
+    let penColor = options.penColor || this.getSlideShowSettings().pointerColor || "#DC2626";
+    const penWidth = options.penWidth || 3;
+    const slideInks = {};
+    let isDrawing = false;
+    let currentStroke = null;
+    let activePathEl = null;
+    let inkOverlayEl = null;
+    let contextMenuEl = null;
+
+    const laserDotEl = document.createElement("div");
+    laserDotEl.className = "vno-slideshow-laser-dot";
+    laserDotEl.style.cssText = `position:fixed;width:14px;height:14px;border-radius:50%;background:${penColor};box-shadow:0 0 8px 2px ${penColor}, 0 0 16px 4px ${penColor};pointer-events:none;z-index:10000;display:none;transform:translate(-50%,-50%);`;
     let rehearseTimerBox = null;
     let rehearseInterval = null;
     let rehearseTotalStart = 0;
@@ -8583,6 +8629,23 @@ export class SlidesCanvasController {
         </div>
       `;
 
+      inkOverlayEl = document.createElement("svg");
+      inkOverlayEl.className = "vno-slideshow-ink-overlay";
+      inkOverlayEl.setAttribute?.("viewBox", `0 0 ${this.slideSize.width} ${this.slideSize.height}`);
+      inkOverlayEl.style.cssText = "position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:50;overflow:visible;";
+      content.appendChild(inkOverlayEl);
+      const existingStrokes = slideInks[currentShowIdx] || [];
+      for (const st of existingStrokes) {
+        const pEl = document.createElement("path");
+        pEl.setAttribute?.("d", st.d);
+        pEl.setAttribute?.("stroke", st.color || penColor);
+        pEl.setAttribute?.("stroke-width", String(st.width || 3));
+        pEl.setAttribute?.("fill", "none");
+        pEl.setAttribute?.("stroke-linecap", "round");
+        pEl.setAttribute?.("stroke-linejoin", "round");
+        inkOverlayEl.appendChild(pEl);
+      }
+
       // Áp dụng Transition Animation thật
       content.style.animation = "none";
       void content.offsetWidth;
@@ -8603,7 +8666,270 @@ export class SlidesCanvasController {
     if (currentShowIdx < 0) renderEmptyShow();
     else renderShow();
     overlay.appendChild(content);
+    overlay.appendChild(laserDotEl);
     document.body.appendChild(overlay);
+
+    const setPointerMode = (mode) => {
+      if (mode !== "arrow" && mode !== "pen" && mode !== "laser") return;
+      pointerMode = mode;
+      if (mode === "laser") {
+        overlay.style.cursor = "none";
+        if (laserDotEl) {
+          laserDotEl.style.display = "block";
+          laserDotEl.style.backgroundColor = penColor;
+          laserDotEl.style.boxShadow = `0 0 8px 2px ${penColor}, 0 0 16px 4px ${penColor}`;
+        }
+      } else if (mode === "pen") {
+        overlay.style.cursor = "crosshair";
+        if (laserDotEl) laserDotEl.style.display = "none";
+      } else {
+        overlay.style.cursor = "default";
+        if (laserDotEl) laserDotEl.style.display = "none";
+      }
+      if (contextMenuEl) closeContextMenu();
+    };
+
+    const setPenColor = (color) => {
+      if (!color) return;
+      penColor = String(color);
+      if (laserDotEl) {
+        laserDotEl.style.backgroundColor = penColor;
+        laserDotEl.style.boxShadow = `0 0 8px 2px ${penColor}, 0 0 16px 4px ${penColor}`;
+      }
+    };
+
+    const getSlideCoords = (e) => {
+      const rect = content.getBoundingClientRect?.() || { left: 0, top: 0, width: this.slideSize.width, height: this.slideSize.height };
+      const rw = rect.width || this.slideSize.width;
+      const rh = rect.height || this.slideSize.height;
+      const clientX = e.clientX !== undefined ? e.clientX : (e.x !== undefined ? e.x : 0);
+      const clientY = e.clientY !== undefined ? e.clientY : (e.y !== undefined ? e.y : 0);
+      const x = Math.max(0, Math.min(this.slideSize.width, (clientX - rect.left) * (this.slideSize.width / rw)));
+      const y = Math.max(0, Math.min(this.slideSize.height, (clientY - rect.top) * (this.slideSize.height / rh)));
+      return { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 };
+    };
+
+    const onPointerMove = (e) => {
+      const cx = e.clientX !== undefined ? e.clientX : (e.x !== undefined ? e.x : 0);
+      const cy = e.clientY !== undefined ? e.clientY : (e.y !== undefined ? e.y : 0);
+      if (pointerMode === "laser" && laserDotEl) {
+        laserDotEl.style.left = `${cx}px`;
+        laserDotEl.style.top = `${cy}px`;
+        laserDotEl.style.display = "block";
+      }
+      if (isDrawing && currentStroke && activePathEl) {
+        const pt = getSlideCoords(e);
+        currentStroke.points.push(pt);
+        currentStroke.d += ` L ${pt.x} ${pt.y}`;
+        activePathEl.setAttribute?.("d", currentStroke.d);
+      }
+    };
+
+    const onPointerDown = (e) => {
+      if (contextMenuEl) closeContextMenu();
+      if (e.button !== undefined && e.button !== 0) return;
+      if (pointerMode === "pen") {
+        isDrawing = true;
+        const pt = getSlideCoords(e);
+        currentStroke = { color: penColor, width: penWidth, points: [pt], d: `M ${pt.x} ${pt.y}` };
+        activePathEl = document.createElement("path");
+        activePathEl.setAttribute?.("d", currentStroke.d);
+        activePathEl.setAttribute?.("stroke", currentStroke.color);
+        activePathEl.setAttribute?.("stroke-width", String(currentStroke.width));
+        activePathEl.setAttribute?.("fill", "none");
+        activePathEl.setAttribute?.("stroke-linecap", "round");
+        activePathEl.setAttribute?.("stroke-linejoin", "round");
+        if (inkOverlayEl) inkOverlayEl.appendChild(activePathEl);
+      }
+    };
+
+    const onPointerUp = (e) => {
+      if (isDrawing && currentStroke) {
+        if (currentStroke.points.length === 1) {
+          const pt0 = currentStroke.points[0];
+          currentStroke.d += ` L ${Math.round((pt0.x + 0.2) * 10) / 10} ${Math.round((pt0.y + 0.2) * 10) / 10}`;
+          if (activePathEl) activePathEl.setAttribute?.("d", currentStroke.d);
+        }
+        if (!slideInks[currentShowIdx]) slideInks[currentShowIdx] = [];
+        slideInks[currentShowIdx].push(currentStroke);
+        isDrawing = false;
+        currentStroke = null;
+        activePathEl = null;
+      }
+    };
+
+    overlay.addEventListener("pointermove", onPointerMove);
+    overlay.addEventListener("pointerdown", onPointerDown);
+    overlay.addEventListener("pointerup", onPointerUp);
+    overlay.addEventListener("mousemove", onPointerMove);
+    overlay.addEventListener("mousedown", onPointerDown);
+    overlay.addEventListener("mouseup", onPointerUp);
+
+    const drawStroke = (points, color = penColor, width = penWidth) => {
+      if (!Array.isArray(points) || points.length === 0) return;
+      const pts = points.map(p => ({ x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 }));
+      if (pts.length === 1) {
+        pts.push({ x: Math.round((pts[0].x + 0.2) * 10) / 10, y: Math.round((pts[0].y + 0.2) * 10) / 10 });
+      }
+      const d = pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+      const stroke = { color: color || penColor, width: width || 3, points: pts, d };
+      if (!slideInks[currentShowIdx]) slideInks[currentShowIdx] = [];
+      slideInks[currentShowIdx].push(stroke);
+      if (inkOverlayEl) {
+        const pEl = document.createElement("path");
+        pEl.setAttribute?.("d", stroke.d);
+        pEl.setAttribute?.("stroke", stroke.color);
+        pEl.setAttribute?.("stroke-width", String(stroke.width));
+        pEl.setAttribute?.("fill", "none");
+        pEl.setAttribute?.("stroke-linecap", "round");
+        pEl.setAttribute?.("stroke-linejoin", "round");
+        inkOverlayEl.appendChild(pEl);
+      }
+      return stroke;
+    };
+
+    const eraseInkOnCurrentSlide = () => {
+      slideInks[currentShowIdx] = [];
+      if (inkOverlayEl) {
+        inkOverlayEl.innerHTML = "";
+      }
+    };
+
+    const saveInkAsShapes = () => {
+      for (const [idxStr, strokes] of Object.entries(slideInks)) {
+        const sIdx = Number(idxStr);
+        const slide = this.slides[sIdx];
+        if (!slide || !Array.isArray(strokes) || strokes.length === 0) continue;
+        if (!Array.isArray(slide.shapes)) slide.shapes = [];
+        for (const st of strokes) {
+          if (!st.points || st.points.length === 0) continue;
+          const xs = st.points.map(p => p.x);
+          const ys = st.points.map(p => p.y);
+          const minX = Math.min(...xs);
+          const maxX = Math.max(...xs);
+          const minY = Math.min(...ys);
+          const maxY = Math.max(...ys);
+          const w = Math.max(2, Math.round((maxX - minX) * 10) / 10);
+          const h = Math.max(2, Math.round((maxY - minY) * 10) / 10);
+          const x = Math.round(minX * 10) / 10;
+          const y = Math.round(minY * 10) / 10;
+          const relD = st.points.map((p, i) => `${i === 0 ? "M" : "L"} ${Math.round((p.x - minX) * 10) / 10} ${Math.round((p.y - minY) * 10) / 10}`).join(" ");
+          const inkShape = {
+            id: "ink-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7),
+            type: "ink",
+            x,
+            y,
+            w,
+            h,
+            color: st.color || penColor,
+            stroke: st.color || penColor,
+            strokeWidth: st.width || 3,
+            fill: "none",
+            d: relD,
+            viewBox: `0 0 ${w} ${h}`
+          };
+          slide.shapes.push(inkShape);
+        }
+      }
+      if (typeof this._renderShapesLayer === "function") this._renderShapesLayer();
+      if (typeof this._renderSlideSorterGrid === "function") this._renderSlideSorterGrid();
+    };
+
+    const closeContextMenu = () => {
+      if (contextMenuEl && contextMenuEl.parentNode) {
+        contextMenuEl.parentNode.removeChild(contextMenuEl);
+      }
+      contextMenuEl = null;
+    };
+
+    const showContextMenu = (clientX, clientY) => {
+      closeContextMenu();
+      const menu = document.createElement("div");
+      menu.className = "vno-slideshow-context-menu";
+      menu.setAttribute?.("role", "menu");
+      menu.setAttribute?.("aria-label", t("slidesDialogs.slideshowContextMenu", "Trình đơn trình chiếu"));
+      menu.style.cssText = `position:fixed;left:${clientX}px;top:${clientY}px;background:var(--vno-bg-surface, #ffffff);color:var(--vno-text-primary, #0f172a);border:1px solid var(--vno-border-default, #cbd5e1);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,0.25);padding:6px 0;min-width:200px;z-index:10001;font-size:13px;font-family:sans-serif;`;
+
+      const createItem = (label, shortcut, onClick, checked = false) => {
+        const item = document.createElement("div");
+        item.className = "vno-slideshow-menu-item";
+        item.setAttribute?.("role", "menuitem");
+        item.setAttribute?.("tabindex", "0");
+        item.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:6px 14px;cursor:pointer;user-select:none;gap:12px;";
+        const checkMark = checked ? "✓ " : "  ";
+        item.innerHTML = `<span>${checkMark}${label}</span><span style="opacity:0.6;font-size:11px;">${shortcut || ""}</span>`;
+        item.addEventListener?.("mouseenter", () => { item.style.backgroundColor = "var(--vno-bg-hover, #f1f5f9)"; });
+        item.addEventListener?.("mouseleave", () => { item.style.backgroundColor = "transparent"; });
+        item.addEventListener?.("click", (e) => {
+          e?.stopPropagation?.();
+          closeContextMenu();
+          onClick();
+        });
+        item.addEventListener?.("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault?.();
+            e.stopPropagation?.();
+            closeContextMenu();
+            onClick();
+          }
+        });
+        return item;
+      };
+
+      const createSep = () => {
+        const sep = document.createElement("div");
+        sep.style.cssText = "height:1px;background:var(--vno-border-default, #e2e8f0);margin:4px 0;";
+        return sep;
+      };
+
+      menu.appendChild(createItem(t("slidesDialogs.slideshowNext", "Tiếp theo"), "Space", () => advanceShow()));
+      menu.appendChild(createItem(t("slidesDialogs.slideshowPrev", "Quay lại"), "Backspace", () => rewindShow()));
+      menu.appendChild(createSep());
+
+      const pointerHeader = document.createElement("div");
+      pointerHeader.style.cssText = "padding:4px 14px;font-size:11px;font-weight:700;opacity:0.6;text-transform:uppercase;";
+      pointerHeader.textContent = t("slidesDialogs.slideshowPointerOptions", "Tùy chọn con trỏ");
+      menu.appendChild(pointerHeader);
+
+      menu.appendChild(createItem(t("slidesDialogs.slideshowArrow", "Mũi tên"), "Ctrl+A", () => setPointerMode("arrow"), pointerMode === "arrow"));
+      menu.appendChild(createItem(t("slidesDialogs.slideshowPen", "Bút vẽ"), "Ctrl+P", () => setPointerMode("pen"), pointerMode === "pen"));
+      menu.appendChild(createItem(t("slidesDialogs.slideshowLaser", "Con trỏ laser"), "Ctrl+L", () => setPointerMode("laser"), pointerMode === "laser"));
+      menu.appendChild(createSep());
+
+      const colorHeader = document.createElement("div");
+      colorHeader.style.cssText = "padding:4px 14px;font-size:11px;font-weight:700;opacity:0.6;text-transform:uppercase;";
+      colorHeader.textContent = t("slidesDialogs.slideshowPenColor", "Màu bút");
+      menu.appendChild(colorHeader);
+
+      const colors = [
+        { label: t("slidesDialogs.colorRed", "Đỏ"), hex: "#DC2626" },
+        { label: t("slidesDialogs.colorBlue", "Xanh lam"), hex: "#2563EB" },
+        { label: t("slidesDialogs.colorYellow", "Vàng"), hex: "#EAB308" },
+        { label: t("slidesDialogs.colorGreen", "Xanh lá"), hex: "#16A34A" },
+        { label: t("slidesDialogs.colorBlack", "Đen"), hex: "#000000" }
+      ];
+      colors.forEach((c) => {
+        const isSelected = penColor.toUpperCase() === c.hex.toUpperCase();
+        const colorItem = createItem(c.label, "", () => {
+          setPenColor(c.hex);
+          setPointerMode("pen");
+        }, isSelected);
+        menu.appendChild(colorItem);
+      });
+
+      menu.appendChild(createSep());
+      menu.appendChild(createItem(t("slidesDialogs.slideshowEraseInk", "Xóa nét vẽ trên trang"), "E", () => eraseInkOnCurrentSlide()));
+      menu.appendChild(createSep());
+      menu.appendChild(createItem(t("slidesDialogs.slideshowEndShow", "Thoát trình chiếu"), "Esc", () => closeShow()));
+
+      overlay.appendChild(menu);
+      contextMenuEl = menu;
+    };
+
+    overlay.addEventListener?.("contextmenu", (e) => {
+      e?.preventDefault?.();
+      showContextMenu(e.clientX || 100, e.clientY || 100);
+    });
 
     const goToSlide = (nextIdx) => {
       if (nextIdx < 0) return;
@@ -8611,6 +8937,7 @@ export class SlidesCanvasController {
         captureSlideTiming();
         rehearseSlideStart = performance.now();
       }
+      closeContextMenu();
       const previousSlide = this.slides[currentShowIdx];
       currentShowIdx = nextIdx;
       renderShow(previousSlide);
@@ -8619,25 +8946,88 @@ export class SlidesCanvasController {
     const nextVisible = () => this._findVisibleSlideIndex(currentShowIdx + 1, 1);
     const prevVisible = () => this._findVisibleSlideIndex(currentShowIdx - 1, -1);
 
-    const closeShow = (discardRehearsal = false) => {
+    const closeShow = (discardRehearsal = false, keepInk = undefined) => {
       let saved;
-      if (rehearsing && discardRehearsal) {
-        if (rehearseInterval) clearInterval(rehearseInterval);
-      } else {
-        saved = rehearsing ? finishRehearsal() : undefined;
+      const totalInkCount = Object.values(slideInks).reduce((sum, list) => sum + (list ? list.length : 0), 0);
+
+      const finishClose = () => {
+        if (rehearsing && discardRehearsal) {
+          if (rehearseInterval) clearInterval(rehearseInterval);
+        } else {
+          saved = rehearsing ? finishRehearsal() : undefined;
+        }
+        document.removeEventListener("keydown", keyHandler);
+        if (globalShortcutManager.getActiveScope?.() === "slides-show") {
+          globalShortcutManager.setActiveScope?.(previousShortcutScope);
+        }
+        closeContextMenu();
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        if (previousFocused && typeof previousFocused.focus === "function") {
+          try { previousFocused.focus(); } catch (_) {}
+        }
+        if (this._activeShowCleanup === cleanupShow) this._activeShowCleanup = null;
+        return saved;
+      };
+
+      if (totalInkCount > 0 && !discardRehearsal) {
+        if (keepInk === true) {
+          saveInkAsShapes();
+          return finishClose();
+        } else if (keepInk === false) {
+          return finishClose();
+        } else {
+          const inkOverlay = document.createElement("div");
+          inkOverlay.className = "vno-dialog-overlay vno-ink-dialog";
+          inkOverlay.setAttribute?.("role", "dialog");
+          inkOverlay.setAttribute?.("aria-modal", "true");
+          inkOverlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10002;";
+          inkOverlay.innerHTML = `
+            <div class="vno-dialog-box" style="width:380px;background:var(--vno-bg-surface, #fff);border-radius:8px;padding:20px;box-shadow:0 12px 32px rgba(0,0,0,0.3);color:var(--vno-text-primary, #0f172a);" role="dialog" aria-modal="true">
+              <h3 style="margin:0 0 10px;font-size:16px;font-weight:700;">${t("slidesDialogs.keepInkTitle", "VN Slides")}</h3>
+              <p style="margin:0 0 20px;font-size:13px;line-height:1.5;">${t("slidesDialogs.keepInkPrompt", "Bạn có muốn giữ lại các chú thích bằng nét vẽ không?")}</p>
+              <div style="display:flex;justify-content:flex-end;gap:10px;">
+                <button type="button" class="vno-btn vno-btn-primary" id="vno-ink-keep-btn" style="padding:6px 16px;">${t("slidesDialogs.keepInkKeep", "Giữ")}</button>
+                <button type="button" class="vno-btn" id="vno-ink-discard-btn" style="padding:6px 16px;">${t("slidesDialogs.keepInkDiscard", "Bỏ")}</button>
+              </div>
+            </div>
+          `;
+          document.body.appendChild(inkOverlay);
+          const keepBtn = inkOverlay.querySelector("#vno-ink-keep-btn");
+          const discardBtn = inkOverlay.querySelector("#vno-ink-discard-btn");
+          const onInkKey = (ke) => {
+            if (ke.key === "Escape") {
+              ke.preventDefault?.();
+              document.removeEventListener("keydown", onInkKey);
+              if (inkOverlay.parentNode) inkOverlay.parentNode.removeChild(inkOverlay);
+              finishClose();
+            } else if (ke.key === "Enter") {
+              ke.preventDefault?.();
+              document.removeEventListener("keydown", onInkKey);
+              if (inkOverlay.parentNode) inkOverlay.parentNode.removeChild(inkOverlay);
+              saveInkAsShapes();
+              finishClose();
+            }
+          };
+          document.addEventListener("keydown", onInkKey);
+          keepBtn?.addEventListener?.("click", () => {
+            document.removeEventListener("keydown", onInkKey);
+            if (inkOverlay.parentNode) inkOverlay.parentNode.removeChild(inkOverlay);
+            saveInkAsShapes();
+            finishClose();
+          });
+          discardBtn?.addEventListener?.("click", () => {
+            document.removeEventListener("keydown", onInkKey);
+            if (inkOverlay.parentNode) inkOverlay.parentNode.removeChild(inkOverlay);
+            finishClose();
+          });
+          keepBtn?.focus?.();
+          return saved;
+        }
       }
-      document.removeEventListener("keydown", keyHandler);
-      if (globalShortcutManager.getActiveScope?.() === "slides-show") {
-        globalShortcutManager.setActiveScope?.(previousShortcutScope);
-      }
-      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-      if (previousFocused && typeof previousFocused.focus === "function") {
-        try { previousFocused.focus(); } catch (_) {}
-      }
-      if (this._activeShowCleanup === cleanupShow) this._activeShowCleanup = null;
-      return saved;
+
+      return finishClose();
     };
-    const cleanupShow = () => closeShow(true);
+    const cleanupShow = () => closeShow(true, false);
 
     const advanceShow = () => {
       if (currentShowIdx < 0) {
@@ -8663,26 +9053,51 @@ export class SlidesCanvasController {
       if (n >= 0) goToSlide(n);
     };
 
-    // Phím điều khiển khi chiếu như PowerPoint: sau = →, ↓, Space, Enter, Page Down, N;
-    // trước = ←, ↑, Backspace, Page Up, P; Home / End = trang đầu / cuối; Esc thoát.
     const keyHandler = (e) => {
-      if (e.ctrlKey || e.altKey || e.metaKey) return;
+      if (contextMenuEl && e.key === "Escape") {
+        e.preventDefault?.();
+        closeContextMenu();
+        return;
+      }
+      if (e.ctrlKey || e.metaKey) {
+        const k = (e.key || "").toLowerCase();
+        if (k === "p") {
+          e.preventDefault?.();
+          setPointerMode("pen");
+          return;
+        } else if (k === "l") {
+          e.preventDefault?.();
+          setPointerMode("laser");
+          return;
+        } else if (k === "a") {
+          e.preventDefault?.();
+          setPointerMode("arrow");
+          return;
+        }
+        return;
+      }
+      if (e.altKey) return;
       const k = e.key;
+      if (k === "e" || k === "E") {
+        e.preventDefault?.();
+        eraseInkOnCurrentSlide();
+        return;
+      }
       if (k === "Escape") {
-        e.preventDefault();
+        e.preventDefault?.();
         closeShow();
       } else if (k === " " || k === "ArrowRight" || k === "ArrowDown" || k === "PageDown" || k === "Enter" || k === "n" || k === "N") {
-        e.preventDefault();
+        e.preventDefault?.();
         advanceShow();
       } else if (k === "ArrowLeft" || k === "ArrowUp" || k === "PageUp" || k === "Backspace" || k === "p" || k === "P") {
-        e.preventDefault();
+        e.preventDefault?.();
         rewindShow();
       } else if (k === "Home") {
-        e.preventDefault();
+        e.preventDefault?.();
         const first = this._firstVisibleSlideIndex();
         if (first >= 0 && first !== currentShowIdx) goToSlide(first);
       } else if (k === "End") {
-        e.preventDefault();
+        e.preventDefault?.();
         const last = this._findVisibleSlideIndex(this.slides.length - 1, -1);
         if (last >= 0 && last !== currentShowIdx) goToSlide(last);
       } else if (k === "Tab") {
@@ -8690,29 +9105,35 @@ export class SlidesCanvasController {
       }
     };
 
-    // Phím tắt soạn thảo của Slides (Page Down = trang sau khi soạn, F5, Delete…) chạy ở
-    // window capture TRƯỚC listener này và nuốt phím. Trong lúc chiếu tạm chuyển sang scope
-    // riêng không có phím nào; trả lại scope cũ khi thoát.
     const previousShortcutScope = globalShortcutManager.getActiveScope?.() ?? "slides";
     globalShortcutManager.setActiveScope?.("slides-show");
     document.addEventListener("keydown", keyHandler);
     this._activeShowCleanup?.();
     this._activeShowCleanup = cleanupShow;
-    overlay.addEventListener("click", (e) => {
-      if (e.target && e.target.closest && e.target.closest("video, audio, .vno-rehearse-timer-box")) return;
+    overlay.addEventListener?.("click", (e) => {
+      if (e.target && e.target.closest && e.target.closest("video, audio, .vno-rehearse-timer-box, .vno-slideshow-context-menu, .vno-ink-dialog")) return;
+      if (pointerMode !== "arrow") return;
       advanceShow();
     });
 
     overlay.focus?.();
 
     const handle = {
-      close: closeShow,
+      close: (keepInk) => closeShow(false, keepInk),
       next: advanceShow,
       prev: rewindShow,
       getIndex: () => currentShowIdx,
       getTitle: () => this.slides[currentShowIdx]?.title || "",
       getTimeline: () => this.getAnimationTimeline(this.slides[currentShowIdx]),
       isEmpty: currentShowIdx < 0,
+      getPointerMode: () => pointerMode,
+      setPointerMode,
+      getPenColor: () => penColor,
+      setPenColor,
+      drawStroke,
+      getStrokes: () => (slideInks[currentShowIdx] || []).slice(),
+      getAllStrokes: () => ({ ...slideInks }),
+      eraseInk: eraseInkOnCurrentSlide,
       overlay
     };
     if (rehearsing) handle.getTimings = () => rehearseTimings.slice();

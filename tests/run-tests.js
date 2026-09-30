@@ -196,6 +196,7 @@ import { runRibbonCommandHandlersTests } from "./unit/ribbon-command-handlers.te
 import { runSheetWatchWindowTests } from "./unit/sheet-watch-window.test.js";
 import { runOfficeShortcutCoverageTests } from "./unit/office-shortcut-coverage.test.js";
 import { runMissingOfficeShortcutsTests } from "./unit/missing-office-shortcuts.test.js";
+import { runSlidesPenLaserTests } from "./unit/slides-pen-laser.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -401,7 +402,8 @@ async function runAll() {
     { title: "161. Unit Tests — 100% Ribbon Command Handlers & Definitions (Zero Silent NO-OPs)", runner: runRibbonCommandHandlersTests },
     { title: "162. Unit Tests — Sheet Watch Window (Excel parity: 6 columns, multi-sheet, draggable, keyboard, real-time)", runner: runSheetWatchWindowTests },
     { title: "163. Regression Guard — Microsoft Office Shortcut Coverage (Word/Excel/PowerPoint)", runner: runOfficeShortcutCoverageTests },
-    { title: "164. Unit Tests — Office Missing Shortcuts (Ctrl+], Ctrl+[, Ctrl+Shift++, Shift+F11, Ctrl+-, F11) & Undo", runner: runMissingOfficeShortcutsTests }
+    { title: "164. Unit Tests — Office Missing Shortcuts (Ctrl+], Ctrl+[, Ctrl+Shift++, Shift+F11, Ctrl+-, F11) & Undo", runner: runMissingOfficeShortcutsTests },
+    { title: "165. Unit Tests — Slides F5 Pen and Laser Pointer (Ctrl+P, Ctrl+L, Ctrl+A, E, Color, Keep/Discard ink)", runner: runSlidesPenLaserTests }
   ];
 
   for (const suite of suites) {

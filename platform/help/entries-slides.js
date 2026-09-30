@@ -206,15 +206,16 @@ export const SLIDES_HELP_ENTRIES = [
     app: "slides",
     commandIds: ["slides.show.setupShow"],
     title: "Thiết lập trình chiếu (Set Up Slide Show)",
-    summary: "Hộp thoại trên tab Trình chiếu, nhóm Thiết lập: lặp liên tục đến Esc, trình chiếu không thuyết minh, và màu con trỏ bút/laser. Lặp liên tục quay về trang 1 sau trang cuối thay vì thoát. Lưu PPTX ghi p:showPr chuẩn (showNarration / penClr) vào file PowerPoint.",
+    summary: "Hộp thoại trên tab Trình chiếu, nhóm Thiết lập: lặp liên tục đến Esc, trình chiếu không thuyết minh, và màu con trỏ bút/laser. Trong chế độ trình chiếu F5, hỗ trợ Bút vẽ (Ctrl+P), Con trỏ laser (Ctrl+L), Xóa nét vẽ (E), Mũi tên (Ctrl+A), đổi màu bút, và hộp thoại Giữ nét vẽ khi kết thúc để lưu vào PPTX.",
     ribbon: { tab: "Trình chiếu", tabId: "slideshow", group: "Thiết lập" },
-    keywords: ["thiết lập trình chiếu", "set up slide show", "lặp liên tục", "loop", "thuyết minh", "narration", "bút", "laser", "màu con trỏ", "pptx", "showPr"],
+    keywords: ["thiết lập trình chiếu", "set up slide show", "lặp liên tục", "loop", "thuyết minh", "narration", "bút", "laser", "màu con trỏ", "pptx", "showPr", "ctrl+p", "ctrl+l", "nét vẽ"],
     steps: [
       "Tab Trình chiếu, nhóm Thiết lập, nhấn Thiết lập trình chiếu (cạnh Ẩn trang chiếu).",
       "Đánh dấu Lặp lại liên tục cho đến khi nhấn Esc nếu muốn hết trang cuối thì quay lại trang đầu (trang không ẩn đầu tiên). Không đánh dấu thì hết trang cuối F5 thoát như trước. Esc luôn thoát. Lưu PPTX: LibreOffice đã ghi p:showPr loop trên ppt/presProps.xml — VN không vá thêm cờ này.",
       "Trình chiếu không có thuyết minh: lưu cờ cho bản trình chiếu (FODP: vno:without-narration). VN Slides chưa có audio thuyết minh trên màn hình chiếu. Khi Lưu PPTX, VN ghi showNarration=\"0\" vào p:showPr (LibreOffice luôn để \"1\" nếu không vá).",
-      "Màu con trỏ bút / laser: chọn màu bằng ô màu. VN Slides chưa vẽ bút hay laser trên màn hình chiếu; màu được lưu FODP (vno:pointer-color) và khi Lưu PPTX được ghi p:penClr/a:srgbClr chuẩn PowerPoint. Nhấn Áp dụng để giữ, Hủy hoặc Esc để bỏ.",
-      "File → Mở một .pptx đã có Thiết lập trình chiếu (file vừa Lưu, hoặc file PowerPoint có p:showPr showNarration=\"0\" / p:penClr trên ppt/presProps.xml): LibreOffice chuyển PPTX→FODP giữ Lặp lại liên tục (presentation:endless) nhưng bỏ cờ không thuyết minh và màu bút. VN Office đọc ppt/presProps.xml của file gốc rồi gắn lại vno:without-narration / vno:pointer-color lên presentation:settings trước khi mở canvas — hộp thoại Thiết lập trình chiếu hiện lại đúng hai giá trị đó. Lặp liên tục không cần overlay (LibreOffice đã map). File không có p:showPr, hoặc giá trị không hợp lệ, thì không bịa cờ. File ZIP hỏng thì hộp thoại Mở báo lỗi rõ. File .odp/.fodp không đi overlay này — chúng giữ vno:* sẵn có."
+      "Màu con trỏ bút / laser: chọn màu bằng ô màu hoặc các nút màu nhanh (Đỏ, Xanh lam, Vàng, Xanh lá, Đen). Màu này được làm mặc định khi bắt đầu trình chiếu F5. Trong lúc chiếu, dùng Ctrl+P để bật Bút vẽ trực tiếp bằng chuột, Ctrl+L để bật Con trỏ laser chấm sáng theo chuột, E để xóa toàn bộ nét vẽ trên trang, và Ctrl+A để trở lại con trỏ mũi tên. Nhấn chuột phải trong màn chiếu để mở menu đổi màu bút tức thì.",
+      "Khi kết thúc trình chiếu (Esc hoặc hết slide cuối), nếu có nét vẽ, VN Slides hiển thị hộp thoại 'Giữ nét vẽ? (Giữ / Bỏ)'. Chọn Giữ sẽ chuyển các nét vẽ thành hình vẽ vĩnh viễn trên trang chiếu và lưu chuẩn ra tệp PPTX/FODP. Chọn Bỏ để xóa các nét vẽ tạm thời.",
+      "File → Mở một .pptx đã có Thiết lập trình chiếu: VN Office đọc ppt/presProps.xml của file gốc rồi gắn lại vno:without-narration / vno:pointer-color lên presentation:settings trước khi mở canvas — hộp thoại Thiết lập trình chiếu hiện lại đúng các giá trị đó."
     ]
   },
   {
