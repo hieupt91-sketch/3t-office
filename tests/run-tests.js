@@ -12,6 +12,7 @@ import { runSheetVndWordsTests } from "./unit/sheet-vnd-words.test.js";
 import { runSheetFormulaOdfTests } from "./unit/sheet-formula-odf.test.js";
 import { runFormulaAutocompleteTests } from "./unit/formula-autocomplete.test.js";
 import { runI18nTests } from "./unit/i18n.test.js";
+import { runI18nHardcodedEnglishTests } from "./unit/i18n-hardcoded-english.test.js";
 import { runSyntaxCheckTests } from "./unit/syntax-check.test.js";
 import { runHtmlSmokeTests } from "./smoke/html-smoke.test.js";
 import { runAiServiceTests } from "./unit/ai-service.test.js";
@@ -206,6 +207,7 @@ async function runAll() {
     { title: "3d. Unit Tests — Sheet công thức #REF! ⇄ ODF", runner: runSheetFormulaOdfTests },
     { title: "4. Unit Tests — Formula Autocomplete & Parameter IntelliSense", runner: runFormulaAutocompleteTests },
     { title: "5. Unit Tests — Vietnamese i18n Localization Layer", runner: runI18nTests },
+    { title: "5b. Regression Report — Hard-coded English UI Text Scan (report, chưa strict)", runner: runI18nHardcodedEnglishTests },
     { title: "6. Smoke Tests — Suite & Vietnamese Unicode", runner: runSuiteSmokeTests },
     { title: "7. Syntax & Codebase Integrity — node --check", runner: runSyntaxCheckTests },
     { title: "7b. Regression Guard — Offline Resources (no external CDN runtime loads)", runner: runOfflineResourcesTests },
