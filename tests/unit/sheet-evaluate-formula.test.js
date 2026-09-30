@@ -207,5 +207,66 @@ export async function runSheetEvaluateFormulaTests() {
     assert(calls === 1, "Adapter không gọi showEvaluateFormulaDialog đúng một lần");
   });
 
+  await test("Evaluate Formula: =A1+B1*2 thứ tự ưu tiên phép toán (nhân trước cộng)", () => {
+    const cells = new Map([
+      ["A1", { val: 10, formula: "" }],
+      ["B1", { val: 3, formula: "" }]
+    ]);
+    const engine = new FormulaEngine(cells);
+    const formula = "=A1+B1*2";
+    // B1*2 = 6 trước, rồi A1+6 = 16
+    const engineMul = engine.evaluate("=B1*2");
+    const engineFinal = engine.evaluate(formula);
+    assert(engineMul === 6, `Engine B1*2=${engineMul}, cần 6`);
+    assert(engineFinal === 16, `Engine final=${engineFinal}, cần 16`);
+
+    const session = createEvaluateFormulaSession({
+      formula,
+      coord: "C1",
+      engine,
+      cellValue: engineFinal,
+      getCell: coord => cells.get(coord) || null
+    });
+    const first = findNextEvaluationSpan(formula);
+    assert(first?.text === "B1*2", `Bước đầu phải là B1*2 (nhân ưu tiên), thực tế ${first?.text}`);
+
+    const steps = runAllSteps(session);
+    assert(steps[0].underlined === "B1*2", `Bước 1 gạch chân ${steps[0].underlined}`);
+    assert(valuesMatch(steps[0].value, engineMul), `Bước 1 phải = engine B1*2 (${engineMul}), được ${steps[0].value}`);
+    // Sau bước 1: hiển thị =A1+6, bước 2 ước lượng cả A1+6 (tham chiếu ô A1 được giải quyết cùng lúc)
+    assert(steps[1].underlined.replace(/\s/g, "") === "A1+6", `Bước 2 cộng, được ${steps[1].underlined}`);
+    assert(valuesMatch(steps[1].value, engineFinal), `Bước 2 phải = 16, được ${steps[1].value}`);
+    const done = session.getState();
+    assert(done.done, "Phải kết thúc sau khi cộng xong");
+    assert(valuesMatch(done.finalValue, engineFinal), `Final ${done.finalValue} khác engine ${engineFinal}`);
+  });
+
+  await test("Evaluate Formula: giá trị lỗi #DIV/0! hiển thị trong bước ước lượng", () => {
+    const cells = new Map([
+      ["A1", { val: 10, formula: "" }],
+      ["B1", { val: 0, formula: "" }]
+    ]);
+    const engine = new FormulaEngine(cells);
+    const formula = "=A1/B1";
+    const engineFinal = engine.evaluate(formula);
+    assert(engineFinal === "#DIV/0!", `Engine chia 0 phải #DIV/0!, được ${engineFinal}`);
+
+    const session = createEvaluateFormulaSession({
+      formula,
+      coord: "C1",
+      engine,
+      cellValue: engineFinal,
+      getCell: coord => cells.get(coord) || null
+    });
+    const steps = runAllSteps(session);
+    assert(steps.length === 1, "Chỉ có 1 bước ước lượng");
+    assert(steps[0].underlined === "A1/B1", `Gạch chân phép chia, được ${steps[0].underlined}`);
+    assert(steps[0].token === "#DIV/0!", `Token bước phải là #DIV/0!, được ${steps[0].token}`);
+    assert(valuesMatch(steps[0].value, "#DIV/0!"), `Giá trị bước phải #DIV/0!, được ${steps[0].value}`);
+    const done = session.getState();
+    assert(done.done, "Phải kết thúc sau khi gặp lỗi");
+    assert(valuesMatch(done.finalValue, "#DIV/0!"), `Final phải #DIV/0!, được ${done.finalValue}`);
+  });
+
   return results;
 }
