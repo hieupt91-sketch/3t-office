@@ -3831,6 +3831,10 @@ export class SheetGridController {
       const map = this.sheetsData[sheetName];
       if (!map) continue;
       this.activeSheet = sheetName;
+      if (this.formulaEngine) {
+        if (typeof this.formulaEngine.setCellsData === "function") this.formulaEngine.setCellsData(map);
+        else this.formulaEngine.cellsData = map;
+      }
       for (const [k, itm] of map.entries()) {
         if ((sheetName !== activeSheet || k !== excludeKey) && itm.formula) {
           // A link to another (closed) workbook keeps its cached value, as in
@@ -3872,6 +3876,11 @@ export class SheetGridController {
       }
     }
     this.activeSheet = activeSheet;
+    if (this.formulaEngine) {
+      const activeMap = this.sheetsData[activeSheet];
+      if (typeof this.formulaEngine.setCellsData === "function") this.formulaEngine.setCellsData(activeMap);
+      else this.formulaEngine.cellsData = activeMap;
+    }
     this._refreshVisibleRuleVisuals();
     this._updateWatchWindow?.();
     this._refreshDataTables(changedFormulaCells, excludeKey);
@@ -10409,7 +10418,7 @@ export class SheetGridController {
   getScenarios(sheetName = this.activeSheet) { return structuredClone(this.scenariosBySheet[sheetName] || []); }
 
   saveScenario(config, editingId = null, recordUndo = true) {
-    const validated = WhatIfAnalysisEngine.validateScenario(config?.name, config?.changingCells, config?.values);
+    const validated = WhatIfAnalysisEngine.validateScenario(config?.name, config?.changingCells, config?.values, config?.comment);
     const scenarios = this.scenariosBySheet[this.activeSheet] ||= [];
     if (scenarios.some(item => item.id !== editingId && item.name.toLocaleLowerCase() === validated.name.toLocaleLowerCase())) throw new Error(t("sheetDialogs.scenarioNameExists", "Tên kịch bản đã tồn tại."));
     const before = structuredClone(scenarios);
@@ -10428,6 +10437,260 @@ export class SheetGridController {
     scenarios.splice(index, 1);
     if (recordUndo) this._recordHistory({ type: "scenario-state", sheet: this.activeSheet, before, after: structuredClone(scenarios) });
     return true;
+  }
+
+  mergeScenariosFromSheet(sourceSheetName, recordUndo = true) {
+    if (!this.sheets.includes(sourceSheetName)) throw new Error(t("sheetDialogs.sheetNotFound", "Trang tính nguồn không tồn tại."));
+    const sourceList = this.getScenarios(sourceSheetName);
+    if (!sourceList.length) return 0;
+    const currentList = this.scenariosBySheet[this.activeSheet] ||= [];
+    const before = structuredClone(currentList);
+    for (const item of sourceList) {
+      let resolvedName = item.name;
+      if (currentList.some(s => s.name.toLocaleLowerCase() === resolvedName.toLocaleLowerCase())) {
+        resolvedName = `${item.name} (${sourceSheetName})`;
+        let counter = 2;
+        while (currentList.some(s => s.name.toLocaleLowerCase() === resolvedName.toLocaleLowerCase())) {
+          resolvedName = `${item.name} (${sourceSheetName} ${counter++})`;
+        }
+      }
+      const newScenario = {
+        id: `scenario-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        name: resolvedName,
+        changingCells: structuredClone(item.changingCells),
+        values: structuredClone(item.values),
+        comment: item.comment || `${t("sheetDialogs.mergedFrom", "Gộp từ")} ${sourceSheetName}`
+      };
+      currentList.push(newScenario);
+    }
+    if (recordUndo) {
+      this._recordHistory({
+        type: "scenario-state",
+        sheet: this.activeSheet,
+        before,
+        after: structuredClone(currentList)
+      });
+    }
+    return sourceList.length;
+  }
+
+  generateScenarioSummary({ resultCells, reportType = "summary", recordUndo = true } = {}) {
+    const scenarios = this.getScenarios(this.activeSheet);
+    if (!scenarios.length) throw new Error(t("sheetDialogs.noScenariosForSummary", "Không có kịch bản nào để tạo tóm tắt."));
+
+    const sourceSheetName = this.activeSheet;
+    const parsedResultCells = resultCells ? WhatIfAnalysisEngine.expandCellReferences(resultCells) : [];
+    const allChangingCells = [...new Set(scenarios.flatMap(s => s.changingCells))];
+
+    // Snapshot current values on source sheet
+    const originalChangingSnap = new Map();
+    const currentChangingVals = {};
+    for (const coord of allChangingCells) {
+      const cell = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+      originalChangingSnap.set(coord, structuredClone(cell));
+      currentChangingVals[coord] = cell.val ?? "";
+    }
+
+    const currentResultVals = {};
+    for (const coord of parsedResultCells) {
+      currentResultVals[coord] = this.cellsData.get(coord)?.val ?? "";
+    }
+
+    // Evaluate each scenario to calculate corresponding result values
+    const evaluatedScenarios = scenarios.map(scen => {
+      for (let i = 0; i < scen.changingCells.length; i++) {
+        const coord = scen.changingCells[i];
+        const cur = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+        this.cellsData.set(coord, { ...cur, val: scen.values[i], formula: "" });
+      }
+      this._recalculateAllFormulas(undefined, true);
+
+      const results = {};
+      for (const rCoord of parsedResultCells) {
+        results[rCoord] = this.cellsData.get(rCoord)?.val ?? "";
+      }
+      return { ...scen, results };
+    });
+
+    // Restore original values on source sheet
+    for (const [coord, cellObj] of originalChangingSnap.entries()) {
+      this.cellsData.set(coord, cellObj);
+    }
+    this._recalculateAllFormulas(undefined, true);
+
+    // Create unique summary sheet name
+    const baseName = t("sheetDialogs.scenarioSummaryTitle", "Tóm tắt kịch bản");
+    let summarySheetName = baseName;
+    let counter = 1;
+    while (this.sheets.includes(summarySheetName)) {
+      summarySheetName = `${baseName} ${counter++}`;
+    }
+
+    this.addSheet(summarySheetName);
+    this.switchSheet(summarySheetName);
+
+    const setCell = (col, row, val, style = {}, formula = "") => {
+      const coord = `${col}${row}`;
+      this.cellsData.set(coord, { val, formula, style });
+    };
+
+    setCell("B", 2, t("sheetDialogs.scenarioSummaryTitle", "Tóm tắt kịch bản"), {
+      bold: true,
+      fontSize: "15pt",
+      color: "#1E293B"
+    });
+
+    const nowStr = new Date().toLocaleString("vi-VN");
+    setCell("B", 3, `${t("sheetDialogs.createdDate", "Thời gian tạo")}: ${nowStr}`, {
+      italic: true,
+      fontSize: "9pt",
+      color: "#64748B"
+    });
+
+    // Table header row 5
+    const colLetters = [];
+    let cIdx = WhatIfAnalysisEngine.colToIdx("D");
+    setCell("D", 5, t("sheetDialogs.currentValues", "Giá trị hiện tại"), {
+      bold: true,
+      bgColor: "#F1F5F9",
+      align: "center",
+      borderTop: "1px solid #94A3B8",
+      borderBottom: "1px solid #94A3B8",
+      borderLeft: "1px solid #CBD5E1",
+      borderRight: "1px solid #CBD5E1"
+    });
+
+    evaluatedScenarios.forEach((scen, idx) => {
+      const cLetter = WhatIfAnalysisEngine.idxToCol(cIdx + 1 + idx);
+      colLetters.push(cLetter);
+      setCell(cLetter, 5, scen.name, {
+        bold: true,
+        bgColor: "#F1F5F9",
+        align: "center",
+        borderTop: "1px solid #94A3B8",
+        borderBottom: "1px solid #94A3B8",
+        borderLeft: "1px solid #CBD5E1",
+        borderRight: "1px solid #CBD5E1"
+      });
+    });
+
+    // Row 6: "Các ô thay đổi:"
+    setCell("B", 6, t("sheetDialogs.changingCellsHeader", "Các ô thay đổi:"), {
+      bold: true,
+      color: "#334155"
+    });
+
+    let curRow = 7;
+    for (const coord of allChangingCells) {
+      const parsed = WhatIfAnalysisEngine.parseCoord(coord);
+      let label = "";
+      if (parsed.c !== "A") {
+        const leftCol = WhatIfAnalysisEngine.idxToCol(WhatIfAnalysisEngine.colToIdx(parsed.c) - 1);
+        const leftVal = this.sheetsData[sourceSheetName]?.get(`${leftCol}${parsed.r}`)?.val;
+        if (typeof leftVal === "string" && leftVal.trim()) label = leftVal.trim();
+      }
+
+      if (label) setCell("B", curRow, label, { align: "right", color: "#475569" });
+      setCell("C", curRow, `$${coord}`, {
+        bgColor: "#F8FAFC",
+        align: "left",
+        borderTop: "1px solid #E2E8F0",
+        borderBottom: "1px solid #E2E8F0",
+        borderLeft: "1px solid #CBD5E1",
+        borderRight: "1px solid #CBD5E1"
+      });
+      setCell("D", curRow, currentChangingVals[coord] ?? "", {
+        align: "right",
+        borderTop: "1px solid #E2E8F0",
+        borderBottom: "1px solid #E2E8F0",
+        borderLeft: "1px solid #CBD5E1",
+        borderRight: "1px solid #CBD5E1"
+      });
+
+      evaluatedScenarios.forEach((scen, idx) => {
+        const cLetter = colLetters[idx];
+        const sIdx = scen.changingCells.indexOf(coord);
+        const sVal = sIdx >= 0 ? scen.values[sIdx] : currentChangingVals[coord];
+        setCell(cLetter, curRow, sVal, {
+          bold: true,
+          align: "right",
+          borderTop: "1px solid #E2E8F0",
+          borderBottom: "1px solid #E2E8F0",
+          borderLeft: "1px solid #CBD5E1",
+          borderRight: "1px solid #CBD5E1"
+        });
+      });
+      curRow++;
+    }
+
+    // Result cells section
+    if (parsedResultCells.length > 0) {
+      curRow++;
+      setCell("B", curRow, t("sheetDialogs.resultCellsHeader", "Các ô kết quả:"), {
+        bold: true,
+        color: "#334155"
+      });
+      curRow++;
+
+      for (const coord of parsedResultCells) {
+        const parsed = WhatIfAnalysisEngine.parseCoord(coord);
+        let label = "";
+        if (parsed.c !== "A") {
+          const leftCol = WhatIfAnalysisEngine.idxToCol(WhatIfAnalysisEngine.colToIdx(parsed.c) - 1);
+          const leftVal = this.sheetsData[sourceSheetName]?.get(`${leftCol}${parsed.r}`)?.val;
+          if (typeof leftVal === "string" && leftVal.trim()) label = leftVal.trim();
+        }
+
+        if (label) setCell("B", curRow, label, { align: "right", color: "#475569" });
+        setCell("C", curRow, `$${coord}`, {
+          bgColor: "#F8FAFC",
+          align: "left",
+          borderTop: "1px solid #E2E8F0",
+          borderBottom: "1px solid #E2E8F0",
+          borderLeft: "1px solid #CBD5E1",
+          borderRight: "1px solid #CBD5E1"
+        });
+        setCell("D", curRow, currentResultVals[coord] ?? "", {
+          align: "right",
+          borderTop: "1px solid #E2E8F0",
+          borderBottom: "1px solid #E2E8F0",
+          borderLeft: "1px solid #CBD5E1",
+          borderRight: "1px solid #CBD5E1"
+        });
+
+        evaluatedScenarios.forEach((scen, idx) => {
+          const cLetter = colLetters[idx];
+          setCell(cLetter, curRow, scen.results[coord] ?? "", {
+            align: "right",
+            borderTop: "1px solid #E2E8F0",
+            borderBottom: "1px solid #E2E8F0",
+            borderLeft: "1px solid #CBD5E1",
+            borderRight: "1px solid #CBD5E1"
+          });
+        });
+        curRow++;
+      }
+    }
+
+    // Footnote
+    curRow += 2;
+    setCell("B", curRow, t("sheetDialogs.summaryNotes", "Ghi chú: Cột Giá trị hiện tại thể hiện giá trị của các ô thay đổi tại thời điểm báo cáo Tóm tắt kịch bản được tạo. Các ô thay đổi cho mỗi kịch bản được tô đậm."), {
+      italic: true,
+      fontSize: "9pt",
+      color: "#64748B"
+    });
+
+    this.colWidths = this.colWidths || {};
+    this.colWidths["A"] = 30;
+    this.colWidths["B"] = 160;
+    this.colWidths["C"] = 90;
+    this.colWidths["D"] = 130;
+    colLetters.forEach(c => { this.colWidths[c] = 130; });
+
+    this._recalculateAllFormulas(undefined, true);
+    this._renderVirtualRows(1, Math.max(curRow + 5, 40));
+
+    return { success: true, sheetName: summarySheetName };
   }
 
   applyScenario(id, recordUndo = true) {
@@ -10466,37 +10729,159 @@ export class SheetGridController {
 
   showScenarioManagerDialog() {
     const overlay = this._createSheetDialog(t("sheetDialogs.scenarioManagerTitle", "Trình quản lý kịch bản"), `
-      <div class="vno-scenario-manager">
-        <label for="vno-scenario-list">${t("sheetDialogs.scenarios", "Kịch bản")}
-          <select id="vno-scenario-list" size="5" aria-label="${t("sheetDialogs.scenarios", "Kịch bản")}"></select>
+      <div class="vno-scenario-manager" style="display:flex;flex-direction:column;gap:8px;min-width:420px;">
+        <label for="vno-scenario-list" style="display:flex;flex-direction:column;gap:4px;font-weight:600;">${t("sheetDialogs.scenarios", "Kịch bản")}
+          <select id="vno-scenario-list" size="5" style="width:100%;height:110px;padding:4px;" aria-label="${t("sheetDialogs.scenarios", "Kịch bản")}"></select>
         </label>
-        <label for="vno-scenario-name">${t("sheetDialogs.scenarioName", "Tên kịch bản")}
-          <input id="vno-scenario-name" autocomplete="off">
-        </label>
-        <label for="vno-scenario-cells">${t("sheetDialogs.changingCells", "Các ô thay đổi")}
-          <input id="vno-scenario-cells" placeholder="B2, B3" autocomplete="off">
-        </label>
-        <label for="vno-scenario-values">${t("sheetDialogs.scenarioValues", "Các giá trị (cách nhau bằng dấu phẩy)")}
-          <input id="vno-scenario-values" placeholder="100, 0.08" autocomplete="off">
-        </label>
-        <div class="vno-scenario-actions">
+        <div style="display:grid;grid-template-columns:120px 1fr;gap:6px;align-items:center;">
+          <label for="vno-scenario-name" style="font-size:13px;">${t("sheetDialogs.scenarioName", "Tên kịch bản")}:</label>
+          <input id="vno-scenario-name" autocomplete="off" style="padding:4px 6px;">
+          <label for="vno-scenario-cells" style="font-size:13px;">${t("sheetDialogs.changingCells", "Các ô thay đổi")}:</label>
+          <input id="vno-scenario-cells" placeholder="B2, B3 hoặc B1:B3" autocomplete="off" style="padding:4px 6px;">
+          <label for="vno-scenario-values" style="font-size:13px;">${t("sheetDialogs.scenarioValues", "Các giá trị")}:</label>
+          <input id="vno-scenario-values" placeholder="100, 0.08" autocomplete="off" style="padding:4px 6px;">
+          <label for="vno-scenario-comment" style="font-size:13px;">${t("sheetDialogs.scenarioComment", "Ghi chú")}:</label>
+          <input id="vno-scenario-comment" placeholder="${t("sheetDialogs.scenarioCommentPlaceholder", "Ghi chú kịch bản")}" autocomplete="off" style="padding:4px 6px;">
+        </div>
+        <div class="vno-scenario-actions" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">
           <button type="button" class="vno-btn" data-scenario-add>${t("sheetDialogs.add", "Thêm")}</button>
           <button type="button" class="vno-btn" data-scenario-edit>${t("sheetDialogs.edit", "Sửa")}</button>
           <button type="button" class="vno-btn" data-scenario-delete>${t("sheetDialogs.delete", "Xóa")}</button>
+          <button type="button" class="vno-btn" data-scenario-merge>${t("sheetDialogs.scenarioMerge", "Gộp...")}</button>
+          <button type="button" class="vno-btn" data-scenario-summary>${t("sheetDialogs.scenarioSummary", "Tóm tắt...")}</button>
         </div>
-        <div class="vno-rule-error" role="alert"></div>
+        <div class="vno-rule-error" role="alert" style="min-height:18px;font-size:12px;color:#DC2626;"></div>
       </div>`);
     if (!overlay) return false;
     const list = overlay.querySelector("#vno-scenario-list"), error = overlay.querySelector(".vno-rule-error");
-    const render = selectedId => { list.innerHTML = this.getScenarios().map(item => `<option value="${item.id}"${item.id === selectedId ? " selected" : ""}>${this._escapeHtml(item.name)}</option>`).join(""); list.dispatchEvent(new Event("change")); };
-    list.addEventListener("change", () => { const item = this.getScenarios().find(value => value.id === list.value); if (!item) return; overlay.querySelector("#vno-scenario-name").value = item.name; overlay.querySelector("#vno-scenario-cells").value = item.changingCells.join(", "); overlay.querySelector("#vno-scenario-values").value = item.values.join(", "); });
-    const values = () => ({ name: overlay.querySelector("#vno-scenario-name").value, changingCells: overlay.querySelector("#vno-scenario-cells").value, values: overlay.querySelector("#vno-scenario-values").value });
-    const save = editing => { try { const item = this.saveScenario(values(), editing ? list.value : null); error.textContent = ""; render(item.id); } catch (err) { error.textContent = err.message; } };
+    const nameInput = overlay.querySelector("#vno-scenario-name");
+    const cellsInput = overlay.querySelector("#vno-scenario-cells");
+    const valuesInput = overlay.querySelector("#vno-scenario-values");
+    const commentInput = overlay.querySelector("#vno-scenario-comment");
+
+    const render = selectedId => {
+      list.innerHTML = this.getScenarios().map(item => `<option value="${item.id}"${item.id === selectedId ? " selected" : ""}>${this._escapeHtml(item.name)}</option>`).join("");
+      list.dispatchEvent(new Event("change"));
+    };
+
+    list.addEventListener("change", () => {
+      const item = this.getScenarios().find(value => value.id === list.value);
+      if (!item) return;
+      nameInput.value = item.name;
+      cellsInput.value = item.changingCells.join(", ");
+      valuesInput.value = item.values.join(", ");
+      commentInput.value = item.comment || "";
+    });
+
+    const values = () => ({
+      name: nameInput.value,
+      changingCells: cellsInput.value,
+      values: valuesInput.value,
+      comment: commentInput.value
+    });
+
+    const save = editing => {
+      try {
+        const item = this.saveScenario(values(), editing ? list.value : null);
+        error.style.color = "#16A34A";
+        error.textContent = editing ? t("sheetDialogs.scenarioUpdated", "Đã cập nhật kịch bản thành công.") : t("sheetDialogs.scenarioAdded", "Đã thêm kịch bản mới thành công.");
+        render(item.id);
+      } catch (err) {
+        error.style.color = "#DC2626";
+        error.textContent = err.message;
+      }
+    };
+
     overlay.querySelector("[data-scenario-add]").addEventListener("click", () => save(false));
     overlay.querySelector("[data-scenario-edit]").addEventListener("click", () => save(true));
-    overlay.querySelector("[data-scenario-delete]").addEventListener("click", () => { if (this.deleteScenario(list.value)) render(); });
+    overlay.querySelector("[data-scenario-delete]").addEventListener("click", () => {
+      if (this.deleteScenario(list.value)) {
+        error.style.color = "#16A34A";
+        error.textContent = t("sheetDialogs.scenarioDeleted", "Đã xóa kịch bản.");
+        render();
+      } else {
+        error.style.color = "#DC2626";
+        error.textContent = t("sheetDialogs.selectScenario", "Hãy chọn một kịch bản.");
+      }
+    });
+
+    overlay.querySelector("[data-scenario-merge]").addEventListener("click", () => {
+      const otherSheets = this.sheets.filter(name => name !== this.activeSheet);
+      if (!otherSheets.length) {
+        error.style.color = "#DC2626";
+        error.textContent = t("sheetDialogs.noOtherSheetsForMerge", "Không có trang tính khác để gộp kịch bản.");
+        return;
+      }
+      const sheetOptions = otherSheets.map(s => `<option value="${this._escapeHtml(s)}">${this._escapeHtml(s)}</option>`).join("");
+      const mergeDlg = this._createSheetDialog(t("sheetDialogs.scenarioMergeTitle", "Gộp kịch bản"), `
+        <label for="vno-merge-sheet-select" style="display:flex;flex-direction:column;gap:6px;">
+          ${t("sheetDialogs.selectSourceSheet", "Chọn trang tính nguồn chứa kịch bản cần gộp:")}
+          <select id="vno-merge-sheet-select" style="padding:4px;">${sheetOptions}</select>
+        </label>
+        <div class="vno-rule-error" role="alert" style="margin-top:6px;color:#DC2626;"></div>
+      `);
+      if (!mergeDlg) return;
+      mergeDlg.querySelector(".vno-rule-apply").textContent = t("sheetDialogs.merge", "Gộp");
+      mergeDlg.querySelector(".vno-rule-apply").addEventListener("click", () => {
+        const selSheet = mergeDlg.querySelector("#vno-merge-sheet-select").value;
+        try {
+          const count = this.mergeScenariosFromSheet(selSheet);
+          mergeDlg.closeDialog();
+          error.style.color = "#16A34A";
+          error.textContent = count > 0 ? t("sheetDialogs.mergedCountSuccess", { count }) || `Đã gộp thành công ${count} kịch bản từ «${selSheet}».` : t("sheetDialogs.noScenariosFoundOnSheet", "Trang tính này không có kịch bản nào.");
+          render();
+        } catch (mErr) {
+          mergeDlg.querySelector(".vno-rule-error").textContent = mErr.message;
+        }
+      });
+    });
+
+    overlay.querySelector("[data-scenario-summary]").addEventListener("click", () => {
+      const defaultResult = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+      const summaryDlg = this._createSheetDialog(t("sheetDialogs.scenarioSummaryDialogTitle", "Tóm tắt kịch bản"), `
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div>
+            <strong>${t("sheetDialogs.reportType", "Kiểu báo cáo")}:</strong>
+            <label style="display:flex;align-items:center;gap:6px;margin-top:4px;">
+              <input type="radio" name="vno-summary-type" value="summary" checked>
+              ${t("sheetDialogs.scenarioSummaryType", "Tóm tắt kịch bản (Scenario summary)")}
+            </label>
+          </div>
+          <label for="vno-summary-result-cells" style="display:flex;flex-direction:column;gap:4px;">
+            <strong>${t("sheetDialogs.resultCells", "Các ô kết quả")}:</strong>
+            <input id="vno-summary-result-cells" value="${this._escapeHtml(defaultResult)}" placeholder="ví dụ: B4 hoặc B4, B5" autocomplete="off" style="padding:4px 6px;">
+          </label>
+          <div class="vno-rule-error" role="alert" style="color:#DC2626;font-size:12px;"></div>
+        </div>
+      `);
+      if (!summaryDlg) return;
+      summaryDlg.querySelector(".vno-rule-apply").textContent = t("sheetDialogs.apply", "Đồng ý");
+      summaryDlg.querySelector(".vno-rule-apply").addEventListener("click", () => {
+        const resCells = summaryDlg.querySelector("#vno-summary-result-cells").value;
+        try {
+          this.generateScenarioSummary({ resultCells: resCells });
+          summaryDlg.closeDialog();
+          overlay.closeDialog();
+        } catch (sErr) {
+          summaryDlg.querySelector(".vno-rule-error").textContent = sErr.message;
+        }
+      });
+    });
+
     overlay.querySelector(".vno-rule-apply").textContent = t("sheetDialogs.showScenario", "Hiển thị");
-    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => { if (this.applyScenario(list.value)) overlay.closeDialog(); else error.textContent = t("sheetDialogs.selectScenario", "Hãy chọn một kịch bản."); });
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      const applied = this.applyScenario(list.value);
+      if (applied) {
+        error.style.color = "#16A34A";
+        error.textContent = t("sheetDialogs.scenarioApplied", { name: applied.name }) || `Đã hiển thị kịch bản «${applied.name}» lên trang tính.`;
+      } else {
+        error.style.color = "#DC2626";
+        error.textContent = t("sheetDialogs.selectScenario", "Hãy chọn một kịch bản.");
+      }
+    });
+
+    overlay.querySelector(".vno-rule-cancel").textContent = t("sheetDialogs.close", "Đóng");
+
     render();
     return true;
   }

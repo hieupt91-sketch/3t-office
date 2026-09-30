@@ -1153,6 +1153,119 @@ def apply_autofilter_to_worksheet(sheet_xml: str, ref: str) -> str:
     return _insert_worksheet_child_in_schema_order(xml, element_xml, "autoFilter")
 
 
+def parse_scenarios_from_fods(fods_xml: str | None) -> dict[str, list[dict]]:
+    result: dict[str, list[dict]] = {}
+    for match in re.finditer(r"<table:table\b([^>]*)>", fods_xml or "", re.IGNORECASE):
+        attrs = match.group(1)
+        name_m = re.search(r'table:name="([^"]*)"', attrs, re.IGNORECASE)
+        scen_m = re.search(r'vno:scenarios="([^"]*)"', attrs, re.IGNORECASE)
+        if name_m and scen_m:
+            try:
+                decoded = _unescape_xml(scen_m.group(1))
+                list_data = json.loads(decoded)
+                if isinstance(list_data, list) and list_data:
+                    result[_unescape_xml(name_m.group(1))] = list_data
+            except Exception:
+                pass
+    return result
+
+
+def build_scenarios_xml(scenarios: list[dict]) -> str:
+    if not scenarios:
+        return ""
+    tags = []
+    for s in scenarios:
+        cells = []
+        raw_changing = s.get("changingCells") or []
+        if isinstance(raw_changing, str):
+            changing = [c.strip().replace("$", "") for c in raw_changing.split(",") if c.strip()]
+        else:
+            changing = [str(c).strip().replace("$", "") for c in raw_changing if str(c).strip()]
+        vals = s.get("values") or []
+        for idx, coord in enumerate(changing):
+            v = vals[idx] if idx < len(vals) else ""
+            cells.append(f'<inputCells r="{html.escape(str(coord))}" val="{html.escape(str(v))}"/>')
+        comment_attr = f' comment="{html.escape(str(s["comment"]))}"' if s.get("comment") else ""
+        tags.append(f'<scenario name="{html.escape(str(s.get("name", "")))}"{comment_attr} count="{len(changing)}">{"".join(cells)}</scenario>')
+    return f'<scenarios current="0" show="0">{"".join(tags)}</scenarios>'
+
+
+def apply_scenarios_to_worksheet(sheet_xml: str, scenarios: list[dict]) -> str:
+    xml = sheet_xml or ""
+    element_xml = build_scenarios_xml(scenarios)
+    if not element_xml:
+        return xml
+    xml = re.sub(r'<scenarios\b[\s\S]*?<\/scenarios>', '', xml, flags=re.IGNORECASE)
+    return _insert_worksheet_child_in_schema_order(xml, element_xml, "scenarios")
+
+
+def parse_scenarios_from_worksheet(sheet_xml: str) -> list[dict]:
+    if not sheet_xml:
+        return []
+    m = re.search(r'<scenarios\b[^>]*>([\s\S]*?)<\/scenarios>', sheet_xml, re.IGNORECASE)
+    if not m:
+        return []
+    body = m.group(1)
+    scenarios = []
+    for scen_m in re.finditer(r'<scenario\b([^>]*)>([\s\S]*?)<\/scenario>', body, re.IGNORECASE):
+        attrs = scen_m.group(1)
+        inner = scen_m.group(2)
+        name_m = re.search(r'name="([^"]*)"', attrs, re.IGNORECASE)
+        comment_m = re.search(r'comment="([^"]*)"', attrs, re.IGNORECASE)
+        name = _unescape_xml(name_m.group(1)) if name_m else ""
+        comment = _unescape_xml(comment_m.group(1)) if comment_m else ""
+        changing_cells = []
+        values = []
+        for cell_m in re.finditer(r'<inputCells\b[^>]*r="([^"]*)"[^>]*val="([^"]*)"[^>]*\/?>', inner, re.IGNORECASE):
+            changing_cells.append(_unescape_xml(cell_m.group(1)))
+            v = _unescape_xml(cell_m.group(2))
+            try:
+                num = float(v)
+                values.append(int(num) if num.is_integer() else num)
+            except ValueError:
+                values.append(v)
+        if name and changing_cells:
+            scenarios.append({
+                "id": f"scenario-{uuid.uuid4().hex[:8]}",
+                "name": name,
+                "changingCells": changing_cells,
+                "values": values,
+                "comment": comment
+            })
+    return scenarios
+
+
+def _overlay_scenarios_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
+    sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+    if not sheet_entries:
+        return fods_xml
+    scenarios_by_sheet = {}
+    for sheet_name, entry_path in sheet_entries.items():
+        entry_bytes = read_zip_entry(xlsx_bytes, entry_path)
+        if not entry_bytes:
+            continue
+        scenarios = parse_scenarios_from_worksheet(entry_bytes.decode("utf-8", errors="replace"))
+        if scenarios:
+            scenarios_by_sheet[sheet_name] = scenarios
+    if not scenarios_by_sheet:
+        return fods_xml
+
+    def _replace_table(match):
+        attrs = match.group(1)
+        name_m = re.search(r'table:name="([^"]*)"', attrs, re.IGNORECASE)
+        if not name_m:
+            return match.group(0)
+        name = _unescape_xml(name_m.group(1))
+        scens = scenarios_by_sheet.get(name)
+        if not scens:
+            return match.group(0)
+        json_str = html.escape(json.dumps(scens, ensure_ascii=False))
+        clean_attrs = re.sub(r'\bvno:scenarios="[^"]*"', '', attrs, flags=re.IGNORECASE)
+        return f'<table:table{clean_attrs} vno:scenarios="{json_str}">'
+
+    return re.sub(r'<table:table\b([^>]*)>', _replace_table, fods_xml, flags=re.IGNORECASE)
+
+
 def parse_print_titles_from_fods(fods_xml: str | None) -> list[tuple[str, str, str]]:
     """Return [(sheet name, row titles, column titles)] in workbook order."""
     result: list[tuple[str, str, str]] = []
@@ -2760,6 +2873,24 @@ def postprocess_sheet_xlsx(
         except Exception:
             # A table part we could not parse is left alone rather than failing the save.
             pass
+
+    # Scenarios: soffice drops <scenarios> during FODS -> XLSX. Read
+    # vno:scenarios from FODS and write <scenarios> into worksheets.
+    scenarios_by_sheet = parse_scenarios_from_fods(source_fods)
+    if scenarios_by_sheet:
+        for sheet_name, scens in scenarios_by_sheet.items():
+            entry_path = _sheet_name_equivalent_value(sheet_entries, sheet_name)
+            if not entry_path:
+                continue
+            sheet_xml = replacements.get(entry_path)
+            if sheet_xml is None:
+                entry_bytes = read_zip_entry(xlsx_bytes, entry_path)
+                if not entry_bytes:
+                    continue
+                sheet_xml = entry_bytes.decode("utf-8", errors="replace")
+            next_sheet_xml = apply_scenarios_to_worksheet(sheet_xml, scens)
+            if next_sheet_xml != sheet_xml:
+                replacements[entry_path] = next_sheet_xml
 
     # Print Titles: LibreOffice drops the app's vno:print-title-* metadata
     # during FODS -> XLSX, so rebuild the standard workbook defined names.
@@ -5956,6 +6087,8 @@ def overlay_sheet_xlsx_fods(
         xml = apply_tab_colors_to_fods(xml, tab_colors)
     # Drawing images: overlay vno:image-id on <draw:frame> elements
     xml = _overlay_sheet_drawing_image_ids(xlsx_bytes, xml)
+    # Scenarios: overlay vno:scenarios from XLSX worksheet XMLs
+    xml = _overlay_scenarios_from_xlsx(xlsx_bytes, xml)
     return xml
 
 

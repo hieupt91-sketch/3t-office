@@ -3511,7 +3511,9 @@ export class SheetAdapter {
       // S27c: retain how many images entered the editable model at open time.
       // If all are later deleted, the save-side repair must not resurrect them.
       const imagesAtOpen = Math.max(0, Number(this.grid.imagesAtOpenBySheet?.[sheetName]) || 0);
-      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}" vno:images-at-open="${imagesAtOpen}"${freezeAttr}${sheetStateAttr}${tabColorAttr}${this._untouchedAutoRowsAttr(sheetName)}`;
+      const scenarios = this.grid.getScenarios ? this.grid.getScenarios(sheetName) : (this.grid.scenariosBySheet?.[sheetName] || []);
+      const scenariosAttr = scenarios && scenarios.length ? ` vno:scenarios="${this._escapeXml(JSON.stringify(scenarios))}"` : "";
+      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}" vno:images-at-open="${imagesAtOpen}"${freezeAttr}${sheetStateAttr}${tabColorAttr}${scenariosAttr}${this._untouchedAutoRowsAttr(sheetName)}`;
       const conditionalXml = conditionalFormatsBySheet[sheetName];
       const chartsXml = this._serializeChartsXml(sheetName);
       const sparklinesXml = this._serializeSparklinesXml(sheetName);
@@ -4454,6 +4456,16 @@ export class SheetAdapter {
             workbook.tabColors = workbook.tabColors || {};
             workbook.tabColors[name] = tabColor;
           }
+          const scenariosRaw = table.getAttribute("vno:scenarios");
+          if (scenariosRaw) {
+            try {
+              const scens = JSON.parse(scenariosRaw);
+              if (scens && scens.length) {
+                workbook.scenariosBySheet = workbook.scenariosBySheet || {};
+                workbook.scenariosBySheet[name] = scens;
+              }
+            } catch (_) {}
+          }
         });
         perfReport("DOM worksheet traversal", phaseStart);
         if (perfEnabled) {
@@ -4710,6 +4722,16 @@ export class SheetAdapter {
           workbook.tabColors = workbook.tabColors || {};
           workbook.tabColors[name] = tabColor;
         }
+        const scenariosRaw = pageAttr("vno:scenarios");
+        if (scenariosRaw) {
+          try {
+            const scens = JSON.parse(scenariosRaw);
+            if (scens && scens.length) {
+              workbook.scenariosBySheet = workbook.scenariosBySheet || {};
+              workbook.scenariosBySheet[name] = scens;
+            }
+          } catch (_) {}
+        }
       }
     }
     if (!workbook.sheets.includes(workbook.activeSheet)) workbook.activeSheet = workbook.sheets[0] || "";
@@ -4864,6 +4886,7 @@ export class SheetAdapter {
     this.grid.sheetVisibilityBySheet = workbook.sheetVisibilityBySheet || {};
     // Store tabColors on grid for fallback access in _renderSheetTabs
     this.grid.tabColors = workbook.tabColors || {};
+    this.grid.scenariosBySheet = workbook.scenariosBySheet || {};
     const equivalentSheetValue = (mapping, sheetName) => {
       if (!mapping) return undefined;
       if (Object.prototype.hasOwnProperty.call(mapping, sheetName)) return mapping[sheetName];
@@ -4872,6 +4895,7 @@ export class SheetAdapter {
       return found === undefined ? undefined : mapping[found];
     };
     for (const sheetName of workbook.sheets) {
+      this.grid.scenariosBySheet[sheetName] = workbook.scenariosBySheet?.[sheetName] || [];
       this.grid.conditionalFormattingBySheet[sheetName] = workbook.conditionalFormattingBySheet?.[sheetName] || [];
       this.grid.dataValidationsBySheet[sheetName] = workbook.dataValidationsBySheet?.[sheetName] || [];
       this.grid.pivotTablesBySheet[sheetName] = workbook.pivotTablesBySheet?.[sheetName] || [];

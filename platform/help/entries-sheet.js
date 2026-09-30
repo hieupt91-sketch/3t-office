@@ -227,14 +227,20 @@ export const SHEET_HELP_ENTRIES = [
     title: "Phân tích What-If: Bảng dữ liệu và Kịch bản",
     summary: "Thử nhiều giá trị đầu vào cho một công thức hoặc lưu các bộ giả định có tên để so sánh kết quả mà không phải nhập lại thủ công.",
     ribbon: { tab: "Dữ liệu", tabId: "data", group: "Công cụ dữ liệu" },
-    keywords: ["what-if", "bảng dữ liệu", "data table", "kịch bản", "scenario manager", "giả định"],
+    keywords: ["what-if", "bảng dữ liệu", "data table", "kịch bản", "scenario manager", "giả định", "tóm tắt kịch bản", "scenario summary", "gộp kịch bản"],
     steps: [
       "Mở tab Dữ liệu, nhóm Công cụ dữ liệu, nhấn Phân tích What-If rồi chọn Dò tìm mục tiêu, Bảng dữ liệu hoặc Trình quản lý kịch bản.",
       "Bảng dữ liệu: đặt công thức gốc ở ô góc trên-trái của vùng; đặt các giá trị thử ngang hàng trên và/hoặc dọc cột trái. Bôi toàn bộ vùng, mở Bảng dữ liệu và nhập Ô đầu vào theo hàng, theo cột, hoặc cả hai rồi nhấn Áp dụng.",
       "Với một biến, chỉ nhập đúng một ô đầu vào (giá trị thử nằm ngang hàng trên, kết quả nằm ở hàng dưới). Với hai biến — ví dụ bảng PMT với lãi suất ngang hàng trên và số năm dọc cột trái — nhập cả Ô đầu vào theo hàng lẫn Ô đầu vào theo cột (hai ô phải khác nhau); VN Sheet điền kết quả vào phần thân bảng nhưng giữ nguyên công thức gốc.",
       "Kết quả Bảng dữ liệu tự tính lại khi bạn đổi ô đầu vào hoặc bất kỳ ô nào mà công thức gốc phụ thuộc (giống công thức mảng TABLE() của Excel) — ví dụ đổi tiền vay trong bảng PMT là toàn bộ phần thân cập nhật ngay.",
       "Khi lưu tệp xlsx, VN Sheet ghi kết quả Bảng dữ liệu dạng giá trị tĩnh (chưa ghi được công thức mảng TABLE()); mở tệp bằng chương trình bảng tính khác vẫn hiển thị đúng các giá trị này nhưng phần thân bảng không tự tính lại ở đó.",
-      "Trình quản lý kịch bản: nhập Tên, danh sách Các ô thay đổi (ví dụ B2, B3) và cùng số Giá trị; nhấn Thêm. Chọn một kịch bản để Sửa/Xóa hoặc nhấn Hiển thị để ghi bộ giá trị vào các ô thật.",
+      "Trình quản lý kịch bản: Quản lý và chuyển đổi linh hoạt nhiều bộ giả định dữ liệu có tên trên trang tính:",
+      "- Thêm kịch bản: Nhập Tên kịch bản, Các ô thay đổi (hỗ trợ ô đơn, danh sách phân tách bằng dấu phẩy như $B$1, $B$2 hoặc dải ô $B$1:$B$3), các Giá trị tương ứng và Ghi chú mô tả. Nhấn Thêm để lưu.",
+      "- Hiển thị kịch bản: Chọn kịch bản trong danh sách rồi nhấn nút Hiển thị. VN Sheet lập tức ghi các giá trị giả định vào ô thật trên lưới và tự động tính toán lại mọi công thức phụ thuộc.",
+      "- Sửa và Xóa: Chọn kịch bản cần chỉnh sửa để cập nhật giá trị hoặc ghi chú, hoặc nhấn Xóa khi không còn nhu cầu sử dụng.",
+      "- Gộp kịch bản: Nhấn nút Gộp..., chọn trang tính nguồn để nạp kịch bản từ trang tính khác vào trang hiện tại; kịch bản trùng tên sẽ được tự động đổi tên kèm tên trang nguồn.",
+      "- Báo cáo Tóm tắt kịch bản: Nhấn nút Tóm tắt..., chọn Kiểu báo cáo Tóm tắt kịch bản và nhập Các ô kết quả (ví dụ $B$4, $B$5). Ứng dụng sẽ tự động sinh một trang tính mới trình bày bảng so sánh toàn diện chuẩn Excel gồm Giá trị hiện tại, giá trị từng kịch bản và kết quả tính toán tương ứng.",
+      "Lưu trữ tương thích: Toàn bộ cấu hình kịch bản và trang báo cáo Tóm tắt được lưu trực tiếp vào tệp .xlsx và .fods, tương thích đầy đủ với Microsoft Excel.",
       "Nhấn Ctrl+Z/Ctrl+Y để hoàn tác/làm lại kết quả Bảng dữ liệu, thao tác quản lý kịch bản hoặc bộ giá trị vừa Hiển thị."
     ]
   },
