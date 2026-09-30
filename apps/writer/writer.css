@@ -996,7 +996,7 @@ li.vno-page-auto-gap {
 
 /* Hiển thị dấu ngắt mục (Section Break) dạng nét chấm theo chuẩn Word */
 .vno-section-break {
-  display: block;
+  display: none;
   position: relative;
   margin: 16px 0;
   padding: 4px 8px;
@@ -1010,6 +1010,10 @@ li.vno-page-auto-gap {
   border-bottom: 1px dotted #7c3aed;
   background-color: rgba(124, 58, 237, 0.04);
   cursor: pointer;
+}
+
+.vno-writer-body.vno-show-formatting-marks .vno-section-break {
+  display: block;
 }
 
 .vno-section-break:hover {

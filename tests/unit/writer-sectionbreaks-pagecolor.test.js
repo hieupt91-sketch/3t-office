@@ -1,5 +1,6 @@
 import { WriterAdapter } from "../../adapters/libreoffice/writer/writer-adapter.js";
 import { globalUnoBridge } from "../../adapters/libreoffice/common/uno-bridge.js";
+import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { WRITER_COMMANDS } from "../../platform/commands/command-definitions.js";
 import { WRITER_RIBBON_TABS } from "../../apps/writer/writer-ribbon.js";
 import { WRITER_HELP_ENTRIES } from "../../platform/help/entries-writer.js";
@@ -8,7 +9,33 @@ import { ICONS } from "../../platform/ui-kit/icons.js";
 function assert(value, message) { if (!value) throw new Error(message); }
 
 function createAdapter(html = "<p>Nội dung</p>") {
-  const body = { innerHTML: html, innerText: "Nội dung", contains: () => true, querySelectorAll: () => [], querySelector: () => null, classList: { add() {}, remove() {}, toggle() {} }, style: {} };
+  const body = {
+    innerHTML: html,
+    innerText: String(html || "").replace(/<[^>]*>/g, " "),
+    contains: () => true,
+    querySelectorAll: () => [],
+    addEventListener() {},
+    focus() {},
+    classList: { add() {}, remove() {}, toggle() {} },
+    style: {}
+  };
+  body.querySelector = (selector) => {
+    const id = String(selector).match(/data-vno-section-id=["']([^"']+)["']/)?.[1];
+    if (!id || !body.innerHTML.includes('data-vno-section-id="' + id + '"')) return null;
+    return {
+      nodeType: 1,
+      classList: { contains: (name) => name === "vno-section-break" },
+      getAttribute: (name) => name === "data-vno-section-id" ? id : null,
+      nextElementSibling: null,
+      remove() {
+        const markerText = 'data-vno-section-id="' + id + '"';
+        const attrAt = body.innerHTML.indexOf(markerText);
+        const openAt = body.innerHTML.lastIndexOf("<div", attrAt);
+        const closeAt = body.innerHTML.indexOf("</div>", attrAt);
+        if (openAt >= 0 && closeAt >= 0) body.innerHTML = body.innerHTML.slice(0, openAt) + body.innerHTML.slice(closeAt + 6);
+      }
+    };
+  };
   const header = { innerHTML: "", innerText: "" };
   const footer = { innerHTML: "", innerText: "" };
   const style = { setProperty() {} };
@@ -128,6 +155,92 @@ export async function runWriterSectionBreaksPageColorTests() {
     const { adapter } = createAdapter();
     assert(adapter.pageSetup.size === "a4", "New document default is no longer A4");
     assert(adapter._getPageSetupCss().includes("size: 210mm 297mm"), "New document CSS is no longer A4");
+  });
+
+  await test("Writer Section Break: insert and delete both support Undo/Redo", () => {
+    const { adapter, body } = createAdapter("<p>Trước</p>");
+    const sectionId = adapter.insertSectionBreak("nextPage");
+    assert(body.innerHTML.includes(`data-vno-section-id="${sectionId}"`), "Insert không tạo marker");
+    assert(adapter.undo(), "Undo insert thất bại");
+    assert(!body.innerHTML.includes("vno-section-break"), "Undo không bỏ marker");
+    assert(!adapter.sectionPageSetups[sectionId], "Undo không bỏ model của mục");
+    assert(adapter.redo(), "Redo insert thất bại");
+    assert(body.innerHTML.includes(`data-vno-section-id="${sectionId}"`), "Redo không khôi phục marker");
+    assert(adapter.deleteSectionBreak(sectionId), "Delete command không xóa marker");
+    assert(!body.innerHTML.includes(`data-vno-section-id="${sectionId}"`), "Delete vẫn để marker");
+    assert(!adapter.sectionPageSetups[sectionId], "Delete vẫn để model mục");
+    assert(adapter.undo(), "Undo delete thất bại");
+    assert(body.innerHTML.includes(`data-vno-section-id="${sectionId}"`), "Undo delete không khôi phục marker");
+    assert(adapter.sectionPageSetups[sectionId], "Undo delete không khôi phục model mục");
+    assert(adapter.redo(), "Redo delete thất bại");
+    assert(!adapter.sectionPageSetups[sectionId], "Redo delete không xóa model mục");
+  });
+
+  await test("Writer Page Setup: apply-to scope and section header/footer options are independent", () => {
+    const { adapter } = createAdapter("<p>Mục đầu</p>");
+    const secondId = adapter.insertSectionBreak("nextPage");
+    adapter.activateSection(secondId);
+    adapter.setPageSetup({ orientation: "landscape", margins: { left: 27 } });
+    assert(adapter.sectionPageSetups["section-1"].orientation === "portrait", "Đổi hướng giấy đã làm thay đổi mục trước");
+    assert(adapter.sectionPageSetups[secondId].margins.left === 27, "Lề riêng của mục hiện tại không được lưu");
+    adapter.setDifferentFirstPage(true, secondId);
+    adapter.setDifferentOddEven(true, secondId);
+    adapter.setPageNumberFormat({ restart: true, startAt: 7 }, secondId);
+    assert(adapter.sectionHeadersFooters[secondId].differentFirstPage, "Mất tùy chọn Trang đầu khác biệt");
+    assert(adapter.sectionHeadersFooters[secondId].differentOddEven, "Mất tùy chọn Trang chẵn và lẻ khác nhau");
+    assert(adapter.sectionHeadersFooters[secondId].pageNumberRestart && adapter.sectionHeadersFooters[secondId].pageNumberStart === 7, "Mất tùy chọn bắt đầu số trang");
+    adapter.setPageSetup({ orientation: "portrait", applyTo: "whole" });
+    assert(adapter.sectionPageSetups["section-1"].orientation === "portrait" && adapter.sectionPageSetups[secondId].orientation === "portrait", "Áp dụng toàn tài liệu không cập nhật mọi mục");
+  });
+
+  await test("Writer Section Options: Layout ribbon exposes and executes section commands", async () => {
+    const layout = WRITER_RIBBON_TABS.find((tab) => tab.id === "layout");
+    const dropdown = layout?.groups.flatMap((group) => group.items).find((item) => item.id === "writer.layout.sectionOptions");
+    const commandIds = dropdown?.items.map((item) => item.commandId) || [];
+    for (const id of ["writer.section.options", "writer.pageNumber.format", "writer.section.delete"]) {
+      assert(commandIds.includes(id), `Tùy chọn mục thiếu ${id}`);
+      assert(WRITER_COMMANDS.some((item) => item.id === id), `Thiếu command definition ${id}`);
+    }
+    assert(WRITER_HELP_ENTRIES.some((entry) => entry.id === "writer.section.headers-footers"), "Thiếu Help đầu trang/chân trang");
+    const { adapter, body } = createAdapter("<p>Trước</p>");
+    adapter.attach();
+    const sectionId = await globalCommandBus.execute("writer.section.continuous");
+    assert(sectionId && body.innerHTML.includes('data-vno-section-break="continuous"'), "Command Bus không chèn ngắt mục liên tục");
+    assert(adapter.sectionHeadersFooters[sectionId].linkToPrevious, "Liên kết với mục trước không mặc định bật");
+  });
+
+  await test("Writer section import maps geometry, header variants, and numbering", () => {
+    const { adapter } = createAdapter();
+    const documentXml = '<w:document><w:body>' +
+      '<w:p><w:pPr><w:sectPr><w:headerReference w:type="default" r:id="rId1"/>' +
+      '<w:headerReference w:type="first" r:id="rId2"/><w:headerReference w:type="even" r:id="rId3"/>' +
+      '<w:type w:val="continuous"/><w:pgSz w:w="11906" w:h="16838"/>' +
+      '<w:pgMar w:top="1134" w:right="850" w:bottom="1134" w:left="1701"/></w:sectPr></w:pPr>' +
+      '</w:p><w:sectPr><w:headerReference w:type="default" r:id="rId4"/>' +
+      '<w:pgSz w:w="15840" w:h="12240" w:orient="landscape"/>' +
+      '<w:pgMar w:top="1134" w:right="850" w:bottom="1134" w:left="1701"/>' +
+      '<w:titlePg/><w:pgNumType w:start="7"/></w:sectPr></w:body></w:document>';
+    const headerXml = (value) => `<w:hdr><w:p><w:r><w:t>${value}</w:t></w:r></w:p></w:hdr>`;
+    const imported = adapter._extractSectionsFromOoxml(
+      documentXml,
+      { rId1: headerXml("Default One"), rId2: headerXml("First One"), rId3: headerXml("Even One"), rId4: headerXml("Section Two") },
+      {},
+      { rId1: "header1.xml", rId2: "header2.xml", rId3: "header3.xml", rId4: "header4.xml" },
+      null,
+      "<w:settings><w:evenAndOddHeaders/></w:settings>"
+    );
+    assert(imported?.sections.length === 2, "Không nhận đủ hai mục");
+    assert(imported.sections[0].type === "continuous", "Sai kiểu ngắt mục liên tục");
+    assert(imported.sectionPageSetups["section-2"].orientation === "landscape", "Mất hướng giấy ngang của mục 2");
+    const first = imported.sectionHeadersFooters["section-1"];
+    assert(first.headers.default.includes("Default One"), "Mất đầu trang mặc định");
+    assert(first.headers.first.includes("First One"), "Mất đầu trang trang đầu");
+    assert(first.headers.even.includes("Even One"), "Mất đầu trang trang chẵn");
+    assert(first.differentOddEven, "Không đọc w:evenAndOddHeaders");
+    const second = imported.sectionHeadersFooters["section-2"];
+    assert(second.differentFirstPage, "Không đọc w:titlePg");
+    assert(second.pageNumberRestart && second.pageNumberStart === 7, "Không đọc w:pgNumType w:start");
+    assert(second.header.includes("Section Two"), "Mất đầu trang riêng của mục 2");
   });
 
   return results;

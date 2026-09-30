@@ -8549,6 +8549,7 @@ def _extract_docx_section_parts(
     original_xml = original_xml_bytes.decode("utf-8", errors="replace")
     header_refs, footer_refs = _extract_docx_header_footer_refs(original_xml)
     sect_pr = _extract_docx_section_properties(original_xml)
+    rels = _resolve_docx_rels(original_docx_bytes)
     def _norm_entry(target: str, default_name: str) -> str:
         t = (target or default_name).replace("\\", "/").lstrip("./")
         if not t.startswith("word/"):
@@ -9942,19 +9943,53 @@ def _restore_writer_sections_by_order(converted_xml: str, source_xml: str, r_id_
     dst = [m for m in re.finditer(r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>", converted_xml, re.IGNORECASE)]
     if not src or len(src) != len(dst):
         return converted_xml
+
+    def refs_by_key(sect_xml: str) -> dict[tuple[str, str], str]:
+        refs: dict[tuple[str, str], str] = {}
+        for ref in _SECT_REF_RE.findall(sect_xml):
+            tag_match = re.match(r"<w:(header|footer)Reference\b", ref, re.IGNORECASE)
+            type_match = re.search(r'\bw:type\s*=\s*(["\'])([^"\']+)\1', ref, re.IGNORECASE)
+            if not tag_match:
+                continue
+            kind = tag_match.group(1).lower()
+            ref_type = (type_match.group(2) if type_match else "default").lower()
+            refs[(kind, ref_type)] = ref
+        return refs
+
+    source_maps = [refs_by_key(match.group(0)) for match in src]
+    converted_maps = [refs_by_key(match.group(0)) for match in dst]
+    preserve_source_refs: dict[str, bool] = {}
+    for kind in ("header", "footer"):
+        source_signatures = [tuple(sorted((ref_type, ref) for (ref_kind, ref_type), ref in refs.items()
+                                          if ref_kind == kind)) for refs in source_maps]
+        converted_signatures = [tuple(sorted((ref_type, ref) for (ref_kind, ref_type), ref in refs.items()
+                                             if ref_kind == kind)) for refs in converted_maps]
+        # If the source's per-section refs/links differ but the HTML filter made
+        # them identical, restore the source reference pattern (including links).
+        preserve_source_refs[kind] = (
+            len(set(source_signatures)) > 1
+            and len(set(converted_signatures)) <= 1
+        )
+
     out: list[str] = []
     pos = 0
-    for s_m, d_m in zip(src, dst):
-        refs = "".join(_SECT_REF_RE.findall(d_m.group(0)))
-        if not refs:
-            src_refs = "".join(_SECT_REF_RE.findall(s_m.group(0)))
-            if src_refs and r_id_map:
-                refs = _remap_header_footer_rids(src_refs, r_id_map)
-            elif src_refs:
-                refs = src_refs
+    for s_m, d_m, source_refs, converted_refs in zip(src, dst, source_maps, converted_maps):
+        merged_refs = {
+            key: ref for key, ref in converted_refs.items()
+            if not preserve_source_refs[key[0]]
+        }
+        for key, source_ref in source_refs.items():
+            kind, _ref_type = key
+            if preserve_source_refs[kind] or key not in merged_refs:
+                merged_refs[key] = _remap_header_footer_rids(source_ref, r_id_map or {})
+        refs = "".join(
+            merged_refs[key]
+            for kind in ("header", "footer")
+            for ref_type in ("default", "first", "even")
+            if (key := (kind, ref_type)) in merged_refs
+        )
         body = _SECT_REF_RE.sub("", s_m.group(0))
         open_tag = re.match(r"<w:sectPr\b[^>]*>", body).group(0)
-        # bỏ rsid của nguồn trong thẻ mở để không lẫn; giữ các thuộc tính khác
         open_clean = re.sub(r'\s+w:rsid\w*="[^"]*"', "", open_tag)
         replaced = open_clean + refs + body[len(open_tag):]
         out.append(converted_xml[pos:d_m.start()])
@@ -12455,98 +12490,240 @@ def _restore_writer_html_page_breaks(document_xml: str, source_html: str) -> str
         if located is None:
             continue
         apply_at(located[0], located[1], located[2], target["empty"])
-def _html_to_docx_hdr_ftr(html_text: str, is_footer: bool = False) -> str:
-    root_tag = "w:ftr" if is_footer else "w:hdr"
-    paragraphs = re.findall(r"<p\b[^>]*>([\s\S]*?)</p\s*>", html_text or "", re.IGNORECASE)
-    if not paragraphs:
-        plain = _writer_html_plain(html_text or "").strip()
-        paragraphs = [plain] if plain else [""]
-    p_xmls = []
-    for p_content in paragraphs:
-        p_align = ""
-        if re.search(r"text-align:\s*center|align=['\"]center['\"]", p_content, re.IGNORECASE):
-            p_align = '<w:jc w:val="center"/>'
-        elif re.search(r"text-align:\s*right|align=['\"]right['\"]", p_content, re.IGNORECASE):
-            p_align = '<w:jc w:val="right"/>'
-        p_pr = f"<w:pPr>{p_align}</w:pPr>" if p_align else ""
+    return result
 
-        runs_xml = ""
-        if 'data-vno-field="PAGE"' in p_content:
-            runs_xml += '<w:fldSimple w:instr="PAGE"><w:r><w:rPr/><w:t>1</w:t></w:r></w:fldSimple>'
-        elif 'data-vno-field="NUMPAGES"' in p_content:
-            runs_xml += '<w:fldSimple w:instr="NUMPAGES"><w:r><w:rPr/><w:t>1</w:t></w:r></w:fldSimple>'
+
+def _restore_created_writer_section_metadata(document_xml: str, section_meta: list[dict]) -> str:
+    """Map section properties from Writer's HTML bridge onto LibreOffice's DOCX sections."""
+    if not section_meta:
+        return document_xml
+    sections = list(re.finditer(r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>", document_xml, re.IGNORECASE))
+    if len(sections) != len(section_meta):
+        return document_xml
+
+    def replace_or_insert(sect_xml: str, name: str, replacement: str) -> str:
+        pattern = re.compile(rf"<w:{name}\b[^>]*/>", re.IGNORECASE)
+        match = pattern.search(sect_xml)
+        if match:
+            return sect_xml[:match.start()] + replacement + sect_xml[match.end():]
+        close_at = sect_xml.rfind("</w:sectPr>")
+        if name == "type":
+            refs = list(_SECT_REF_RE.finditer(sect_xml))
+            insert_at = refs[-1].end() if refs else re.search(r"<w:sectPr\b[^>]*>", sect_xml).end()
+        elif name == "pgSz":
+            margin = re.search(r"<w:pgMar\b", sect_xml, re.IGNORECASE)
+            insert_at = margin.start() if margin else close_at
+        elif name == "pgMar":
+            size = re.search(r"<w:pgSz\b[^>]*/>", sect_xml, re.IGNORECASE)
+            insert_at = size.end() if size else close_at
+        elif name == "pgNumType":
+            title = re.search(r"<w:titlePg\b[^>]*/>", sect_xml, re.IGNORECASE)
+            insert_at = title.start() if title else close_at
         else:
-            text = _writer_html_plain(p_content).strip()
-            runs_xml += f'<w:r><w:t xml:space="preserve">{_escape_xml(text)}</w:t></w:r>'
-        p_xmls.append(f"<w:p>{p_pr}{runs_xml}</w:p>")
-    body_xml = "".join(p_xmls) or "<w:p/>"
-    return (
-        f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-        f'<{root_tag} xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
-        f'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
-        f'{body_xml}</{root_tag}>'
+            insert_at = close_at
+        return sect_xml[:insert_at] + replacement + sect_xml[insert_at:]
+
+    def set_attr(tag: str, name: str, value: int) -> str:
+        attr_re = re.compile(rf"\bw:{name}\s*=\s*([\"'])([^\"']*)\1", re.IGNORECASE)
+        if attr_re.search(tag):
+            return attr_re.sub(f'w:{name}="{value}"', tag, count=1)
+        return tag[:-2] + f' w:{name}="{value}"/>'
+
+    paper_twips = {
+        "a3": (16838, 23811), "a4": (11906, 16838), "a5": (8391, 11906),
+        "letter": (12240, 15840), "legal": (12240, 20160),
+    }
+    for index in range(len(section_meta) - 1, -1, -1):
+        match = sections[index]
+        section_xml = match.group(0)
+        section = section_meta[index]
+        page_setup = section.get("pageSetup") or {}
+        landscape = str(page_setup.get("orientation", "portrait")).lower() == "landscape"
+        dims = paper_twips.get(str(page_setup.get("size", "a4")).lower())
+        if dims:
+            width_twips, height_twips = dims
+        else:
+            width_mm = float(page_setup.get("widthMm") or 210)
+            height_mm = float(page_setup.get("heightMm") or 297)
+            width_twips = round(width_mm * 1440 / 25.4)
+            height_twips = round(height_mm * 1440 / 25.4)
+        if landscape:
+            width_twips, height_twips = max(width_twips, height_twips), min(width_twips, height_twips)
+            orient_attr = ' w:orient="landscape"'
+        else:
+            width_twips, height_twips = min(width_twips, height_twips), max(width_twips, height_twips)
+            orient_attr = ""
+        section_xml = replace_or_insert(
+            section_xml, "pgSz", f'<w:pgSz w:w="{width_twips}" w:h="{height_twips}"{orient_attr}/>'
+        )
+
+        margins = page_setup.get("margins") or {}
+        margin_values = {
+            "top": round(float(margins.get("top", 20)) * 1440 / 25.4),
+            "right": round(float(margins.get("right", 15)) * 1440 / 25.4),
+            "bottom": round(float(margins.get("bottom", 20)) * 1440 / 25.4),
+            "left": round(float(margins.get("left", 30)) * 1440 / 25.4),
+            "header": round(float(page_setup.get("headerDistanceMm", 12.7)) * 1440 / 25.4),
+            "footer": round(float(page_setup.get("footerDistanceMm", 12.7)) * 1440 / 25.4),
+        }
+        pgmar = re.search(r"<w:pgMar\b[^>]*/>", section_xml, re.IGNORECASE)
+        if pgmar:
+            pgmar_xml = pgmar.group(0)
+            for name, value in margin_values.items():
+                pgmar_xml = set_attr(pgmar_xml, name, value)
+        else:
+            pgmar_xml = "<w:pgMar " + " ".join(f'w:{name}="{value}"' for name, value in margin_values.items()) + ' w:gutter="0"/>'
+        section_xml = replace_or_insert(section_xml, "pgMar", pgmar_xml)
+
+        header_footer = section.get("headerFooter") or {}
+        if header_footer.get("differentFirstPage"):
+            section_xml = replace_or_insert(section_xml, "titlePg", "<w:titlePg/>")
+        else:
+            section_xml = re.sub(r"<w:titlePg\b[^>]*/>", "", section_xml, flags=re.IGNORECASE)
+        if header_footer.get("pageNumberRestart"):
+            start_at = max(1, int(header_footer.get("pageNumberStart", 1) or 1))
+            pgnum = re.search(r"<w:pgNumType\b[^>]*/>", section_xml, re.IGNORECASE)
+            pgnum_xml = set_attr(pgnum.group(0), "start", start_at) if pgnum else f'<w:pgNumType w:start="{start_at}"/>'
+            section_xml = replace_or_insert(section_xml, "pgNumType", pgnum_xml)
+        else:
+            section_xml = re.sub(r"<w:pgNumType\b[^>]*/>", "", section_xml, flags=re.IGNORECASE)
+
+        if index < len(section_meta) - 1:
+            break_type = str(section_meta[index + 1].get("type") or "nextPage")
+            if break_type not in {"nextPage", "continuous", "evenPage", "oddPage"}:
+                break_type = "nextPage"
+            section_xml = replace_or_insert(section_xml, "type", f'<w:type w:val="{break_type}"/>')
+        else:
+            section_xml = re.sub(r"<w:type\b[^>]*/>", "", section_xml, flags=re.IGNORECASE)
+        document_xml = document_xml[:match.start()] + section_xml + document_xml[match.end():]
+    return document_xml
+
+
+def _apply_writer_link_to_previous(document_xml: str, section_meta: list[dict]) -> str:
+    """Represent section header/footer inheritance through explicit OOXML references.
+
+    Word treats a missing section reference as "Link to Previous". When a
+    section is unlinked but has no references yet, copy the prior section's
+    references so its current appearance is retained. Reusing the relationship
+    IDs also keeps this mapping limited to the existing LibreOffice package.
+    """
+    sections = list(re.finditer(r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>", document_xml, re.IGNORECASE))
+    if len(sections) != len(section_meta):
+        return document_xml
+
+    section_xmls = [match.group(0) for match in sections]
+    ref_pattern = re.compile(r"<w:(header|footer)Reference\b[^>]*/>", re.IGNORECASE)
+    for index, section in enumerate(section_meta):
+        if index == 0:
+            continue
+        header_footer = section.get("headerFooter") or {}
+        if "linkToPrevious" not in header_footer:
+            continue
+        current = section_xmls[index]
+        if header_footer.get("linkToPrevious"):
+            section_xmls[index] = ref_pattern.sub("", current)
+            continue
+
+        current_refs = list(ref_pattern.finditer(current))
+        current_kinds = {match.group(1).lower() for match in current_refs}
+        previous_refs = list(ref_pattern.finditer(section_xmls[index - 1]))
+        refs_to_copy = [
+            match.group(0) for match in previous_refs
+            if match.group(1).lower() not in current_kinds
+        ]
+        if refs_to_copy:
+            open_tag = re.search(r"<w:sectPr\b[^>]*>", current, re.IGNORECASE)
+            if open_tag:
+                insert_at = open_tag.end()
+                section_xmls[index] = current[:insert_at] + "".join(refs_to_copy) + current[insert_at:]
+
+    result = document_xml
+    for match, replacement in reversed(list(zip(sections, section_xmls))):
+        result = result[:match.start()] + replacement + result[match.end():]
+    return result
+
+
+def postprocess_writer_section_metadata(
+    docx_bytes: bytes,
+    *,
+    source_html: str | None = None,
+    source_docx: bytes | None = None,
+) -> bytes:
+    """Apply section metadata after source OOXML preservation has restored section XML.
+
+    The HTML conversion creates the edited layout, while the source-aware pass
+    restores header/footer references and original section structures. Apply
+    the edited page setup and section flags last so preserving references does
+    not roll back the user's page setup changes.
+    """
+    if not docx_bytes or not source_html:
+        return docx_bytes
+    meta_match = re.search(
+        r"<!--vno-sections-meta:\s*(\[.*?\])\s*-->",
+        source_html,
+        re.IGNORECASE | re.DOTALL,
     )
+    if not meta_match:
+        return docx_bytes
+    try:
+        parsed_meta = json.loads(meta_match.group(1))
+    except (TypeError, ValueError):
+        return docx_bytes
+    if not isinstance(parsed_meta, list):
+        return docx_bytes
+    section_meta = [item for item in parsed_meta if isinstance(item, dict)]
+    if not section_meta:
+        return docx_bytes
 
+    document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
+    if not document_bytes:
+        return docx_bytes
+    document_xml = document_bytes.decode("utf-8", errors="replace")
+    if source_docx:
+        source_document_bytes = read_zip_entry(source_docx, "word/document.xml")
+        if source_document_bytes:
+            source_xml = source_document_bytes.decode("utf-8", errors="replace")
+            source_rels = _resolve_docx_rels(source_docx)
+            output_rels = _resolve_docx_rels(docx_bytes)
 
-def _build_sect_pr_xml(
-    sec_meta: dict,
-    is_final: bool = False,
-    header_rid: str | None = None,
-    footer_rid: str | None = None,
-) -> str:
-    page_setup = sec_meta.get("pageSetup", {})
-    hf_meta = sec_meta.get("headerFooter", {})
-    sec_type = sec_meta.get("type", "nextPage")
+            def word_target(target: str) -> str:
+                normalized = target.replace("\\", "/")
+                return normalized.lstrip("/") if normalized.startswith("/") else posixpath.normpath(posixpath.join("word", normalized))
 
-    refs_parts = []
-    if header_rid:
-        refs_parts.append(f'<w:headerReference w:type="default" r:id="{header_rid}"/>')
-    if footer_rid:
-        refs_parts.append(f'<w:footerReference w:type="default" r:id="{footer_rid}"/>')
-    refs_xml = "".join(refs_parts)
+            output_ids_by_target = {word_target(target): r_id for r_id, target in output_rels.items()}
+            source_to_output_ids = {
+                source_id: output_ids_by_target[word_target(target)]
+                for source_id, target in source_rels.items()
+                if word_target(target) in output_ids_by_target
+            }
+            document_xml = _restore_writer_sections_by_order(
+                document_xml, source_xml, r_id_map=source_to_output_ids,
+            )
+    document_xml = _apply_writer_link_to_previous(document_xml, section_meta)
+    patched_xml = _restore_created_writer_section_metadata(document_xml, section_meta)
+    replacements: dict[str, str | bytes | None] = {}
+    if patched_xml != document_xml:
+        replacements["word/document.xml"] = patched_xml
 
-    orient = page_setup.get("orientation", "portrait")
-    size_name = page_setup.get("size", "a4")
-    if size_name == "letter":
-        w, h = (15840, 12240) if orient == "landscape" else (12240, 15840)
-    elif size_name == "legal":
-        w, h = (20160, 12240) if orient == "landscape" else (12240, 20160)
-    elif size_name == "a3":
-        w, h = (23811, 16838) if orient == "landscape" else (16838, 23811)
-    elif size_name == "a5":
-        w, h = (11906, 8391) if orient == "landscape" else (8391, 11906)
-    elif size_name == "a4":
-        w, h = (16838, 11906) if orient == "landscape" else (11906, 16838)
-    else:
-        w_mm = float(page_setup.get("widthMm") or (297 if orient == "landscape" else 210))
-        h_mm = float(page_setup.get("heightMm") or (210 if orient == "landscape" else 297))
-        w_val = round(w_mm * 1440 / 25.4)
-        h_val = round(h_mm * 1440 / 25.4)
-        w, h = (max(w_val, h_val), min(w_val, h_val)) if orient == "landscape" else (min(w_val, h_val), max(w_val, h_val))
-    orient_attr = ' w:orient="landscape"' if orient == "landscape" else ""
-    pgsz_xml = f'<w:pgSz w:w="{w}" w:h="{h}"{orient_attr}/>'
-
-    margins = page_setup.get("margins", {})
-    top_dxa = round(float(margins.get("top", 20)) * 1440 / 25.4)
-    right_dxa = round(float(margins.get("right", 20)) * 1440 / 25.4)
-    bottom_dxa = round(float(margins.get("bottom", 20)) * 1440 / 25.4)
-    left_dxa = round(float(margins.get("left", 20)) * 1440 / 25.4)
-    hdr_dxa = round(float(page_setup.get("headerDistanceMm", 12.7)) * 1440 / 25.4)
-    ftr_dxa = round(float(page_setup.get("footerDistanceMm", 12.7)) * 1440 / 25.4)
-    pgmar_xml = f'<w:pgMar w:top="{top_dxa}" w:right="{right_dxa}" w:bottom="{bottom_dxa}" w:left="{left_dxa}" w:header="{hdr_dxa}" w:footer="{ftr_dxa}" w:gutter="0"/>'
-
-    pgnum_xml = ""
-    if hf_meta.get("pageNumberRestart"):
-        start_val = hf_meta.get("pageNumberStart", 1)
-        pgnum_xml = f'<w:pgNumType w:start="{start_val}"/>'
-
-    title_pg_xml = "<w:titlePg/>" if hf_meta.get("differentFirstPage") else ""
-
-    type_xml = ""
-    if not is_final:
-        type_xml = f'<w:type w:val="{sec_type}"/>'
-
-    return f'<w:sectPr>{refs_xml}{pgsz_xml}{pgmar_xml}{pgnum_xml}{title_pg_xml}{type_xml}</w:sectPr>'
+    settings_bytes = read_zip_entry(docx_bytes, "word/settings.xml")
+    if settings_bytes:
+        settings_xml = settings_bytes.decode("utf-8", errors="replace")
+        different_odd_even = any(
+            (section.get("headerFooter") or {}).get("differentOddEven")
+            for section in section_meta
+        )
+        flag = re.search(r"<w:evenAndOddHeaders\b[^>]*/>", settings_xml, re.IGNORECASE)
+        if different_odd_even and not flag:
+            settings_xml = settings_xml.replace(
+                "</w:settings>", "<w:evenAndOddHeaders/></w:settings>", 1
+            )
+        elif not different_odd_even and flag:
+            settings_xml = re.sub(
+                r"<w:evenAndOddHeaders\b[^>]*/>", "", settings_xml, flags=re.IGNORECASE
+            )
+        if settings_xml != settings_bytes.decode("utf-8", errors="replace"):
+            replacements["word/settings.xml"] = settings_xml
+    return patch_ooxml_zip(docx_bytes, replacements) if replacements else docx_bytes
 
 
 def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | None = None) -> bytes:
@@ -12573,7 +12750,18 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
     document_xml = re.sub(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", patch_indent, document_xml, flags=re.IGNORECASE)
     document_xml = _writer_restore_created_paragraph_css(document_xml, source_html)
 
+    section_meta: list[dict] = []
+    meta_match = re.search(r"<!--vno-sections-meta:\s*(\[.*?\])\s*-->", source_html, re.IGNORECASE | re.DOTALL)
+    if meta_match:
+        try:
+            parsed_meta = json.loads(meta_match.group(1))
+            if isinstance(parsed_meta, list):
+                section_meta = [item for item in parsed_meta if isinstance(item, dict)]
+        except (TypeError, ValueError):
+            section_meta = []
     section_ids = re.findall(r'data-vno-export-section=["\']([^"\']+)["\']', source_html, re.IGNORECASE)
+    if section_meta:
+        section_ids = [str(section.get("id")) for section in section_meta if section.get("id")]
     section_starts = []
     for section_id in section_ids[1:]:
         start = re.search(
@@ -12727,6 +12915,8 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
     # (fallback chữ duy nhất trên thân, không vào ô bảng). Đoạn rỗng → w:br type=page;
     # đoạn có chữ → w:pageBreakBefore.
     document_xml = _restore_writer_html_page_breaks(document_xml, source_html)
+    if section_meta:
+        document_xml = _restore_created_writer_section_metadata(document_xml, section_meta)
 
     # W22f: Khôi phục bề rộng cột bảng (w:gridCol & w:tcW) từ style width: ...cm của ô
     # LibreOffice HTML import bỏ qua thuộc tính width trên ô <td>, chia đều bề rộng các cột.
@@ -12899,6 +13089,25 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
                 patched_footer = _writer_insert_page_field(patched_footer, field_name, fallback)
             if patched_footer != source_footer:
                 replacements[name] = patched_footer.encode("utf-8")
+    if section_meta:
+        settings_bytes = read_zip_entry(docx_bytes, "word/settings.xml")
+        if settings_bytes:
+            settings_xml = settings_bytes.decode("utf-8", errors="replace")
+            odd_even_enabled = any(
+                bool((section.get("headerFooter") or {}).get("differentOddEven"))
+                for section in section_meta
+            )
+            if odd_even_enabled:
+                flag = re.search(r"<w:evenAndOddHeaders\b[^>]*/>", settings_xml, re.IGNORECASE)
+                if flag:
+                    flag_xml = flag.group(0)
+                    if re.search(r'\bw:val=["\'](?:0|false|off)["\']', flag_xml, re.IGNORECASE):
+                        settings_xml = settings_xml[:flag.start()] + "<w:evenAndOddHeaders/>" + settings_xml[flag.end():]
+                elif "</w:settings>" in settings_xml:
+                    settings_xml = settings_xml.replace("</w:settings>", "<w:evenAndOddHeaders/></w:settings>", 1)
+            else:
+                settings_xml = re.sub(r"<w:evenAndOddHeaders\b[^>]*/>", "", settings_xml, flags=re.IGNORECASE)
+            replacements["word/settings.xml"] = settings_xml.encode("utf-8")
     return patch_ooxml_zip(docx_bytes, replacements)
 
 

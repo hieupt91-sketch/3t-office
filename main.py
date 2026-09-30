@@ -1076,6 +1076,12 @@ def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str
                     with open(source_path, "rb") as handle:
                         original_docx = handle.read()
                 patched = patcher.postprocess_writer_docx(patched, source_docx=original_docx)
+            if source_html:
+                patched = patcher.postprocess_writer_section_metadata(
+                    patched,
+                    source_html=source_html,
+                    source_docx=original_docx if source_path and os.path.isfile(source_path) else None,
+                )
             if patched != converted_docx:
                 with open(out_path, "wb") as handle:
                     handle.write(patched)
@@ -2660,6 +2666,7 @@ class VnOfficeApi:
                             "ooxmlCommentsXml": _read_docx_comments_xml(convert_src_path),
                             "ooxmlStylesXml": _read_docx_zip_entry(convert_src_path, "word/styles.xml"),
                             "ooxmlNumberingXml": _read_docx_zip_entry(convert_src_path, "word/numbering.xml"),
+                            "ooxmlSettingsXml": _read_docx_zip_entry(convert_src_path, "word/settings.xml"),
                         }
                         header_xml, footer_xml, all_hdrs, all_ftrs, all_rels = _read_all_docx_headers_footers(convert_src_path)
                         writer_ooxml_metadata["ooxmlHeaderXml"] = header_xml
@@ -2775,12 +2782,17 @@ class VnOfficeApi:
                 payload["ooxmlHeaders"] = writer_ooxml_metadata.get("ooxmlHeaders", {})
                 payload["ooxmlFooters"] = writer_ooxml_metadata.get("ooxmlFooters", {})
                 payload["ooxmlRels"] = writer_ooxml_metadata.get("ooxmlRels", {})
+                if writer_ooxml_metadata.get("ooxmlSettingsXml"):
+                    payload["ooxmlSettingsXml"] = writer_ooxml_metadata["ooxmlSettingsXml"]
             else:
                 hdr_xml, ftr_xml, all_hdrs, all_ftrs, all_rels = _read_all_docx_headers_footers(src_path)
                 header_xml, footer_xml = hdr_xml, ftr_xml
                 payload["ooxmlHeaders"] = all_hdrs
                 payload["ooxmlFooters"] = all_ftrs
                 payload["ooxmlRels"] = all_rels
+                settings_xml = _read_docx_zip_entry(src_path, "word/settings.xml")
+                if settings_xml:
+                    payload["ooxmlSettingsXml"] = settings_xml
             if header_xml:
                 payload["ooxmlHeaderXml"] = header_xml
             if footer_xml:

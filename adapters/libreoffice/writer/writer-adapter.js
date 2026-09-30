@@ -208,6 +208,8 @@ export class WriterAdapter {
         linkToPrevious: false,
         header: "",
         footer: "",
+        headers: { default: "", first: "", even: "" },
+        footers: { default: "", first: "", even: "" },
         differentFirstPage: false,
         differentOddEven: false,
         pageNumberRestart: false,
@@ -397,6 +399,7 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.pageNumber.format", (args) => this.openPageNumberDialog(args));
     globalCommandBus.bindHandler("writer.section.delete", (args) => this.deleteSectionBreak(args));
     globalCommandBus.bindHandler("writer.section.options", (args) => this.openHeaderFooterOptionsDialog(args));
+    globalCommandBus.bindHandler("writer.layout.sectionOptions", () => this.openHeaderFooterOptionsDialog());
     globalCommandBus.bindHandler("writer.page.border", (args) => this.openPageBorderDialog(args));
     globalCommandBus.bindHandler("writer.page.columns", (args) => this.openColumnsDialog(args));
     globalCommandBus.bindHandler("writer.page.columns1", () => this.setColumns({ count: 1, gap: 0, rule: false }));
@@ -549,6 +552,19 @@ export class WriterAdapter {
         brk.classList.add("is-selected");
       }
       this.syncActiveSection();
+    });
+    this.bodyDom?.addEventListener?.("focusin", (e) => {
+      const brk = e.target?.closest?.(".vno-section-break");
+      if (!brk) return;
+      this.bodyDom.querySelectorAll?.(".vno-section-break.is-selected")?.forEach((el) => el.classList.remove("is-selected"));
+      brk.classList.add("is-selected");
+    });
+    this.bodyDom?.addEventListener?.("keydown", (e) => {
+      const brk = e.target?.closest?.(".vno-section-break");
+      if (!brk || !["Backspace", "Delete"].includes(e.key)) return;
+      e.preventDefault();
+      this.deleteSectionBreak(brk);
+      this.bodyDom?.focus?.();
     });
     this.bodyDom.addEventListener("keyup", () => {
       this.syncActiveSection();
@@ -1736,7 +1752,9 @@ export class WriterAdapter {
       const width = landscape ? base.h : base.w;
       const height = landscape ? base.w : base.h;
       const margins = setup.margins || DEFAULT_MARGINS_MM;
-      return `@page vno-${id} { size:${width}mm ${height}mm; margin:${margins.top}mm ${margins.right}mm ${margins.bottom}mm ${margins.left}mm;${this.pageColor && this.pageColor !== "transparent" ? ` background-color:${this.pageColor};` : ""} } .vno-export-${id} { page:vno-${id}; }`;
+      const headerDistanceMm = setup.headerDistanceMm ?? 12.7;
+      const footerDistanceMm = setup.footerDistanceMm ?? 12.7;
+      return `@page vno-${id} { size:${width}mm ${height}mm; margin:${margins.top}mm ${margins.right}mm ${margins.bottom}mm ${margins.left}mm; --vno-header-distance:${headerDistanceMm}mm; --vno-footer-distance:${footerDistanceMm}mm;${this.pageColor && this.pageColor !== "transparent" ? ` background-color:${this.pageColor};` : ""} } .vno-export-${id} { page:vno-${id}; }`;
     }).join("\n");
   }
 
@@ -2224,7 +2242,7 @@ export class WriterAdapter {
       `font-size: 13pt; --vno-gdi-advance: ${scale}`);
   }
 
-  _normalizeImportedHtml(raw, ooxmlDocumentXml, ooxmlCommentsXml, ooxmlStylesXml = "", ooxmlNumberingXml = "", ooxmlHeaderXml = "", ooxmlFooterXml = "", ooxmlHeaders = {}, ooxmlFooters = {}, ooxmlRels = {}) {
+  _normalizeImportedHtml(raw, ooxmlDocumentXml, ooxmlCommentsXml, ooxmlStylesXml = "", ooxmlNumberingXml = "", ooxmlHeaderXml = "", ooxmlFooterXml = "", ooxmlHeaders = {}, ooxmlFooters = {}, ooxmlRels = {}, ooxmlSettingsXml = "") {
     let html = String(raw || "");
     let comments = [];
     html = this._unwrapOutlineHeadingLists(html, ooxmlDocumentXml, ooxmlStylesXml, ooxmlNumberingXml);
@@ -2329,8 +2347,8 @@ export class WriterAdapter {
         }
       } catch {}
     } else if (ooxmlDocumentXml) {
-      const extracted = this._extractSectionsFromOoxml(ooxmlDocumentXml, ooxmlHeaders, ooxmlFooters, ooxmlRels, page);
-      if (extracted && extracted.sections && extracted.sections.length > 1) {
+      const extracted = this._extractSectionsFromOoxml(ooxmlDocumentXml, ooxmlHeaders, ooxmlFooters, ooxmlRels, page, ooxmlSettingsXml);
+      if (extracted && extracted.sections && extracted.sections.length > 0) {
         sectionPageSetups = extracted.sectionPageSetups;
         sectionHeadersFooters = extracted.sectionHeadersFooters;
 
@@ -2338,9 +2356,10 @@ export class WriterAdapter {
           const pWithSect = [...ooxmlDocumentXml.matchAll(/<w:p\b[^>]*>([\s\S]*?)<w:sectPr\b[\s\S]*?<\/w:p>/gi)];
           for (let i = 0; i < pWithSect.length && i < extracted.sections.length - 1; i++) {
             const nextSec = extracted.sections[i + 1];
+            const boundarySection = extracted.sections[i];
             const pContent = pWithSect[i][1];
             const pText = [...pContent.matchAll(/<w:t\b[^>]*>([\s\S]*?)<\/w:t>/gi)].map((m) => m[1]).join("").trim();
-            const markerHtml = this._buildSectionBreakMarker(nextSec.type || "nextPage", nextSec.id) + "<p><br></p>";
+            const markerHtml = this._buildSectionBreakMarker(boundarySection.type || "nextPage", nextSec.id) + "<p><br></p>";
             let inserted = false;
             if (pText) {
               const escapedText = pText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -6118,6 +6137,8 @@ export class WriterAdapter {
       size: newSetup.size || baseSetup.size,
       orientation: newSetup.orientation || baseSetup.orientation,
       margins: { ...baseSetup.margins, ...(newSetup.margins || {}) },
+      headerDistanceMm: newSetup.headerDistanceMm ?? baseSetup.headerDistanceMm ?? 12.7,
+      footerDistanceMm: newSetup.footerDistanceMm ?? baseSetup.footerDistanceMm ?? 12.7,
       ...(newSetup.size === "custom" || (!newSetup.size && baseSetup.size === "custom")
         ? { widthMm: newSetup.widthMm ?? baseSetup.widthMm, heightMm: newSetup.heightMm ?? baseSetup.heightMm }
         : {})
@@ -7168,6 +7189,13 @@ export class WriterAdapter {
     this.flushTyping();
     this._initZones();
     const currentActive = this.getActiveSectionId ? this.getActiveSectionId() : (this.activeSectionId || "section-1");
+    const activeHeaderFooter = this.sectionHeadersFooters[currentActive];
+    if (activeHeaderFooter) {
+      activeHeaderFooter.header = this.headerDom?.innerHTML ?? activeHeaderFooter.header ?? "";
+      activeHeaderFooter.footer = this.footerDom?.innerHTML ?? activeHeaderFooter.footer ?? "";
+      activeHeaderFooter.headers = { ...(activeHeaderFooter.headers || {}), default: activeHeaderFooter.header };
+      activeHeaderFooter.footers = { ...(activeHeaderFooter.footers || {}), default: activeHeaderFooter.footer };
+    }
     const previousSetup = this.sectionPageSetups[currentActive] || this.pageSetup;
     const id = `section-${++this._sectionSequence}`;
     const marker = `${this._buildSectionBreakMarker(type, id)}<p><br></p>`;
@@ -7182,6 +7210,8 @@ export class WriterAdapter {
       linkToPrevious: true,
       header: prevHf.header || "",
       footer: prevHf.footer || "",
+      headers: { ...(prevHf.headers || {}), default: prevHf.header || "" },
+      footers: { ...(prevHf.footers || {}), default: prevHf.footer || "" },
       differentFirstPage: false,
       differentOddEven: false,
       pageNumberRestart: false,
@@ -7232,7 +7262,9 @@ export class WriterAdapter {
         }
       } catch {}
     }
-    return this.activeSectionId || Object.keys(this.sectionPageSetups || {})[0] || "section-1";
+    return this.sectionPageSetups?.[this.activeSectionId]
+      ? this.activeSectionId
+      : (Object.keys(this.sectionPageSetups || {})[0] || "section-1");
   }
 
   syncActiveSection() {
@@ -7244,6 +7276,9 @@ export class WriterAdapter {
       if (prevId && this.sectionHeadersFooters?.[prevId]) {
         if (this.headerDom) this.sectionHeadersFooters[prevId].header = this.headerDom.innerHTML;
         if (this.footerDom) this.sectionHeadersFooters[prevId].footer = this.footerDom.innerHTML;
+        const previous = this.sectionHeadersFooters[prevId];
+        previous.headers = { ...(previous.headers || {}), default: previous.header || "" };
+        previous.footers = { ...(previous.footers || {}), default: previous.footer || "" };
       }
       if (this.sectionPageSetups[currentId]) {
         this.pageSetup = JSON.parse(JSON.stringify(this.sectionPageSetups[currentId]));
@@ -7285,6 +7320,7 @@ export class WriterAdapter {
           }
         }
       }
+      breakEl ||= this.bodyDom.querySelector?.(".vno-section-break.is-selected");
     }
     if (!breakEl) return false;
     const sectionId = breakEl.getAttribute("data-vno-section-id");
@@ -7333,6 +7369,8 @@ export class WriterAdapter {
       if (prevHf) {
         current.header = prevHf.header;
         current.footer = prevHf.footer;
+        current.headers = JSON.parse(JSON.stringify(prevHf.headers || { default: prevHf.header || "" }));
+        current.footers = JSON.parse(JSON.stringify(prevHf.footers || { default: prevHf.footer || "" }));
         if (this.activeSectionId === sId) {
           if (this.headerDom) this.headerDom.innerHTML = current.header;
           if (this.footerDom) this.footerDom.innerHTML = current.footer;
@@ -7402,7 +7440,7 @@ export class WriterAdapter {
       this.sectionHeadersFooters[sId].pageNumberRestart = Boolean(options.restart);
     }
     if (options.startAt !== undefined) {
-      this.sectionHeadersFooters[sId].pageNumberStart = Number(options.startAt) || 1;
+      this.sectionHeadersFooters[sId].pageNumberStart = Math.max(1, Math.trunc(Number(options.startAt) || 1));
     }
     this.isDirty = true;
     this.recordSnapshot("writer.pageNumber.format");
@@ -7413,53 +7451,59 @@ export class WriterAdapter {
     if (typeof document === "undefined") return false;
     const sId = sectionId || this.getActiveSectionId();
     const hf = this.sectionHeadersFooters?.[sId] || { pageNumberRestart: false, pageNumberStart: 1 };
+    const text = (key, fallback) => {
+      const value = t("writerDialogs.sections." + key);
+      return value === "writerDialogs.sections." + key ? fallback : value;
+    };
 
     return new Promise((resolve) => {
+      const previousFocused = document.activeElement;
       const overlay = document.createElement("div");
       overlay.className = "vno-dialog-overlay";
-      overlay.innerHTML = `
-        <div class="vno-dialog-box" style="width: 380px;" role="dialog" aria-modal="true">
-          <div class="vno-dialog-header">
-            <span>Định dạng số trang (Format Page Numbers)</span>
-            <button class="vno-btn vno-btn-icon-only vno-dialog-close-btn" aria-label="Đóng">&times;</button>
-          </div>
-          <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:12px;">
-            <fieldset style="border:1px solid var(--vno-border-default,#cbd5e1);border-radius:6px;padding:12px;">
-              <legend style="font-size:12px;font-weight:600;padding:0 6px;">Đánh số trang</legend>
-              <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;">
-                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-                  <input type="radio" name="vno-pgnum-choice" value="continue" ${!hf.pageNumberRestart ? "checked" : ""}>
-                  Tiếp tục từ phần trước (Continue from previous section)
-                </label>
-                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-                  <input type="radio" name="vno-pgnum-choice" value="restart" ${hf.pageNumberRestart ? "checked" : ""}>
-                  Bắt đầu tại (Start at):
-                  <input type="number" min="1" id="vno-pgnum-start-val" value="${hf.pageNumberStart || 1}" style="width:60px;padding:3px 6px;margin-left:4px;">
-                </label>
-              </div>
-            </fieldset>
-          </div>
-          <div class="vno-dialog-footer">
-            <button class="vno-btn vno-dialog-cancel-btn">Hủy bỏ</button>
-            <button class="vno-btn vno-btn-primary vno-dialog-ok-btn">Áp dụng</button>
-          </div>
-        </div>
-      `;
+      overlay.innerHTML =
+        '<div class="vno-dialog-box" style="width:380px" role="dialog" aria-modal="true" aria-labelledby="vno-pgnum-title">' +
+          '<div class="vno-dialog-header"><span id="vno-pgnum-title">' + text("pageNumbers", "Định dạng số trang") + '</span>' +
+            '<button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" aria-label="' + t("common.close") + '">&times;</button></div>' +
+          '<div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:12px">' +
+            '<fieldset style="border:1px solid var(--vno-border-default,#cbd5e1);border-radius:6px;padding:12px">' +
+              '<legend style="font-size:12px;font-weight:600;padding:0 6px">' + text("numbering", "Đánh số trang") + '</legend>' +
+              '<label style="display:flex;align-items:center;gap:8px;cursor:pointer">' +
+                '<input type="radio" name="vno-pgnum-choice" value="continue" ' + (!hf.pageNumberRestart ? "checked" : "") + '>' +
+                text("continueFromPrevious", "Tiếp tục từ mục trước") + '</label>' +
+              '<label style="display:flex;align-items:center;gap:8px;cursor:pointer">' +
+                '<input type="radio" name="vno-pgnum-choice" value="restart" ' + (hf.pageNumberRestart ? "checked" : "") + '>' +
+                text("startAt", "Bắt đầu tại:") +
+                '<input type="number" min="1" step="1" id="vno-pgnum-start-val" aria-label="' + text("startAt", "Bắt đầu tại") + '" value="' + (Number(hf.pageNumberStart) || 1) + '" style="width:76px;padding:4px 6px;margin-left:4px"></label>' +
+            '</fieldset></div>' +
+          '<div class="vno-dialog-footer">' +
+            '<button type="button" class="vno-btn vno-dialog-cancel-btn">' + t("common.cancel") + '</button>' +
+            '<button type="button" class="vno-btn vno-btn-primary vno-dialog-ok-btn">' + t("writerDialogs.pageSetup.apply") + '</button>' +
+          '</div></div>';
       document.body.appendChild(overlay);
+      const dialogBox = overlay.querySelector(".vno-dialog-box");
       const finish = (result) => {
+        document.removeEventListener("keydown", onKeyDown);
         if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        previousFocused?.focus?.();
         resolve(result);
       };
+      const onKeyDown = (event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          finish(false);
+        } else {
+          trapFocus(dialogBox, event);
+        }
+      };
+      document.addEventListener("keydown", onKeyDown);
+      dialogBox.querySelector('input[value="continue"]')?.focus();
       overlay.querySelector(".vno-dialog-cancel-btn").addEventListener("click", () => finish(false));
       overlay.querySelector(".vno-dialog-close-btn").addEventListener("click", () => finish(false));
       overlay.querySelector(".vno-dialog-ok-btn").addEventListener("click", () => {
         const choice = overlay.querySelector('input[name="vno-pgnum-choice"]:checked')?.value;
-        const startVal = Number(overlay.querySelector("#vno-pgnum-start-val")?.value) || 1;
-        this.setPageNumberFormat({ restart: choice === "restart", startAt: startVal }, sId);
+        const startAt = Math.max(1, Math.trunc(Number(overlay.querySelector("#vno-pgnum-start-val")?.value) || 1));
+        this.setPageNumberFormat({ restart: choice === "restart", startAt }, sId);
         finish(true);
-      });
-      overlay.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") finish(false);
       });
     });
   }
@@ -7476,44 +7520,55 @@ export class WriterAdapter {
       pageNumberRestart: false,
       pageNumberStart: 1
     };
+    const text = (key, fallback) => {
+      const value = t("writerDialogs.sections." + key);
+      return value === "writerDialogs.sections." + key ? fallback : value;
+    };
 
     return new Promise((resolve) => {
+      const previousFocused = document.activeElement;
       const overlay = document.createElement("div");
       overlay.className = "vno-dialog-overlay";
-      overlay.innerHTML = `
-        <div class="vno-dialog-box" style="width: 420px;" role="dialog" aria-modal="true">
-          <div class="vno-dialog-header">
-            <span>Tùy chọn Đầu trang & Chân trang (${sId})</span>
-            <button class="vno-btn vno-btn-icon-only vno-dialog-close-btn" aria-label="Đóng">&times;</button>
-          </div>
-          <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:12px;">
-            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
-              <input type="checkbox" id="vno-hf-link-prev" ${hf.linkToPrevious ? "checked" : ""} ${isFirst ? "disabled" : ""}>
-              Liên kết với phần trước (Link to Previous)
-            </label>
-            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
-              <input type="checkbox" id="vno-hf-diff-first" ${hf.differentFirstPage ? "checked" : ""}>
-              Trang đầu khác biệt (Different First Page)
-            </label>
-            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
-              <input type="checkbox" id="vno-hf-diff-oddeven" ${hf.differentOddEven ? "checked" : ""}>
-              Trang chẵn và lẻ khác nhau (Different Odd & Even Pages)
-            </label>
-            <button type="button" class="vno-btn" id="vno-hf-open-pgnum" style="align-self:flex-start;margin-top:6px;">
-              Định dạng số trang...
-            </button>
-          </div>
-          <div class="vno-dialog-footer">
-            <button class="vno-btn vno-dialog-cancel-btn">Hủy bỏ</button>
-            <button class="vno-btn vno-btn-primary vno-dialog-ok-btn">Áp dụng</button>
-          </div>
-        </div>
-      `;
+      overlay.innerHTML =
+        '<div class="vno-dialog-box" style="width:440px" role="dialog" aria-modal="true" aria-labelledby="vno-section-options-title">' +
+          '<div class="vno-dialog-header"><span id="vno-section-options-title">' + text("optionsTitle", "Đầu trang và chân trang theo mục") + ' (' + sId + ')</span>' +
+            '<button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" aria-label="' + t("common.close") + '">&times;</button></div>' +
+          '<div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:12px">' +
+            '<p style="margin:0;color:var(--vno-text-secondary,#64748b);font-size:13px">' + text("optionsDescription", "Các tùy chọn này chỉ áp dụng cho mục hiện tại.") + '</p>' +
+            '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">' +
+              '<input type="checkbox" id="vno-hf-link-prev" ' + (hf.linkToPrevious ? "checked" : "") + (isFirst ? " disabled" : "") + '>' +
+              text("linkToPrevious", "Liên kết với mục trước") + '</label>' +
+            '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">' +
+              '<input type="checkbox" id="vno-hf-diff-first" ' + (hf.differentFirstPage ? "checked" : "") + '>' +
+              text("differentFirstPage", "Trang đầu khác biệt") + '</label>' +
+            '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">' +
+              '<input type="checkbox" id="vno-hf-diff-oddeven" ' + (hf.differentOddEven ? "checked" : "") + '>' +
+              text("differentOddEven", "Trang chẵn và lẻ khác nhau") + '</label>' +
+            '<button type="button" class="vno-btn" id="vno-hf-open-pgnum" style="align-self:flex-start">' +
+              text("pageNumbers", "Định dạng số trang") + '…</button>' +
+            (isFirst ? '<p style="margin:0;font-size:12px;color:var(--vno-text-secondary,#64748b)">' + text("firstSection", "Mục đầu tiên không thể liên kết với mục trước.") + '</p>' : '') +
+          '</div><div class="vno-dialog-footer">' +
+            '<button type="button" class="vno-btn vno-dialog-cancel-btn">' + t("common.cancel") + '</button>' +
+            '<button type="button" class="vno-btn vno-btn-primary vno-dialog-ok-btn">' + t("writerDialogs.pageSetup.apply") + '</button>' +
+          '</div></div>';
       document.body.appendChild(overlay);
+      const dialogBox = overlay.querySelector(".vno-dialog-box");
       const finish = (result) => {
+        document.removeEventListener("keydown", onKeyDown);
         if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        previousFocused?.focus?.();
         resolve(result);
       };
+      const onKeyDown = (event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          finish(false);
+        } else {
+          trapFocus(dialogBox, event);
+        }
+      };
+      document.addEventListener("keydown", onKeyDown);
+      dialogBox.querySelector("#vno-hf-link-prev:not(:disabled)")?.focus();
       overlay.querySelector("#vno-hf-open-pgnum")?.addEventListener("click", () => {
         this.openPageNumberDialog(sId);
       });
@@ -7522,28 +7577,25 @@ export class WriterAdapter {
       overlay.querySelector(".vno-dialog-ok-btn").addEventListener("click", () => {
         if (!isFirst) {
           const wantLink = overlay.querySelector("#vno-hf-link-prev")?.checked;
-          if (Boolean(wantLink) !== Boolean(hf.linkToPrevious)) {
-            this.toggleLinkToPrevious(sId);
-          }
+          if (Boolean(wantLink) !== Boolean(hf.linkToPrevious)) this.toggleLinkToPrevious(sId);
         }
-        const diffFirst = overlay.querySelector("#vno-hf-diff-first")?.checked;
-        this.setDifferentFirstPage(diffFirst, sId);
-        const diffOddEven = overlay.querySelector("#vno-hf-diff-oddeven")?.checked;
-        this.setDifferentOddEven(diffOddEven, sId);
+        this.setDifferentFirstPage(Boolean(overlay.querySelector("#vno-hf-diff-first")?.checked), sId);
+        this.setDifferentOddEven(Boolean(overlay.querySelector("#vno-hf-diff-oddeven")?.checked), sId);
         finish(true);
-      });
-      overlay.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") finish(false);
       });
     });
   }
-
   _buildSectionBreakMarker(type, id, caption) {
-    const labels = { nextPage: "Trang tiếp theo", continuous: "Liên tục", evenPage: "Trang chẵn", oddPage: "Trang lẻ" };
+    const labels = {
+      nextPage: t("writerDialogs.sections.nextPage"),
+      continuous: t("writerDialogs.sections.continuous"),
+      evenPage: t("writerDialogs.sections.evenPage"),
+      oddPage: t("writerDialogs.sections.oddPage")
+    };
     const breakStyle = type === "continuous" ? "" : `break-before:${type === "evenPage" ? "left" : type === "oddPage" ? "right" : "page"};page-break-before:always;`;
     const labelText = labels[type] || type;
     const text = caption || `········································ Ngắt mục (${labelText}) ········································`;
-    return `<div class="vno-section-break" data-vno-section-break="${type}" data-vno-section-id="${id}" contenteditable="false" style="${breakStyle}border-top:1px dotted #7c3aed;border-bottom:1px dotted #7c3aed;margin:16px 0;padding:4px 0;text-align:center;color:#6d28d9;font-size:11px;user-select:none;cursor:pointer">${text}</div>`;
+    return `<div class="vno-section-break" data-vno-section-break="${type}" data-vno-section-id="${id}" role="separator" tabindex="0" aria-label="${this._escapeHtml("Ngắt mục (" + labelText + ")")}" contenteditable="false" style="${breakStyle}border-top:1px dotted #7c3aed;border-bottom:1px dotted #7c3aed;margin:16px 0;padding:4px 0;text-align:center;color:#6d28d9;font-size:11px;user-select:none;cursor:pointer">${text}</div>`;
   }
 
   _htmlFromHeaderFooterXml(xmlStr) {
@@ -7591,10 +7643,10 @@ export class WriterAdapter {
     return paragraphs.length > 0 ? paragraphs.join("\n") : "";
   }
 
-  _extractSectionsFromOoxml(ooxmlDocumentXml, ooxmlHeaders = {}, ooxmlFooters = {}, ooxmlRels = {}, defaultPage = null) {
+  _extractSectionsFromOoxml(ooxmlDocumentXml, ooxmlHeaders = {}, ooxmlFooters = {}, ooxmlRels = {}, defaultPage = null, ooxmlSettingsXml = "") {
     if (!ooxmlDocumentXml) return null;
     const sectMatches = [...ooxmlDocumentXml.matchAll(/<w:sectPr\b[^>]*>([\s\S]*?)<\/w:sectPr>/gi)];
-    if (sectMatches.length <= 1) return null;
+    if (sectMatches.length === 0) return null;
 
     const relsNormalized = {};
     for (const [k, v] of Object.entries(ooxmlRels || {})) {
@@ -7604,9 +7656,10 @@ export class WriterAdapter {
     const sectionPageSetups = {};
     const sectionHeadersFooters = {};
     const sections = [];
+    const documentUsesEvenOddHeaders = /<w:evenAndOddHeaders\b/i.test(String(ooxmlSettingsXml || ""));
 
-    let prevHeader = "";
-    let prevFooter = "";
+    let prevHeader = { default: "", first: "", even: "" };
+    let prevFooter = { default: "", first: "", even: "" };
 
     for (let i = 0; i < sectMatches.length; i++) {
       const match = sectMatches[i];
@@ -7687,34 +7740,36 @@ export class WriterAdapter {
       const pageNumberRestart = Boolean(pgNumM);
       const pageNumberStart = pgNumM ? parseInt(pgNumM[1], 10) : 1;
 
-      const hdrRefs = [...sectXml.matchAll(/<w:headerReference\b[^>]*w:type=["']([^"']+)["'][^>]*r:id=["']([^"']+)["']/gi)];
-      const ftrRefs = [...sectXml.matchAll(/<w:footerReference\b[^>]*w:type=["']([^"']+)["'][^>]*r:id=["']([^"']+)["']/gi)];
-
+      const readRefs = (tagName) => [...sectXml.matchAll(new RegExp(`<w:${tagName}Reference\\b([^>]*)\\/?>`, "gi"))]
+        .map((ref) => {
+          const attrs = ref[1] || "";
+          const type = attrs.match(/w:type=["']([^"']+)["']/i)?.[1]?.toLowerCase() || "default";
+          const rId = attrs.match(/r:id=["']([^"']+)["']/i)?.[1] || "";
+          return rId ? { type, rId } : null;
+        })
+        .filter(Boolean);
+      const hdrRefs = readRefs("header");
+      const ftrRefs = readRefs("footer");
       const linkToPrevious = i > 0 && hdrRefs.length === 0 && ftrRefs.length === 0;
-      let headerHtml = "";
-      let footerHtml = "";
-
-      if (hdrRefs.length > 0) {
-        const defHdr = hdrRefs.find((r) => r[1].toLowerCase() === "default") || hdrRefs[0];
-        const rId = defHdr[2];
-        const target = relsNormalized[rId] || `header${i + 1}.xml`;
-        const xml = ooxmlHeaders[target] || ooxmlHeaders[`word/${target}`] || "";
-        headerHtml = this._htmlFromHeaderFooterXml(xml);
-        prevHeader = headerHtml;
-      } else if (i > 0) {
-        headerHtml = prevHeader;
-      }
-
-      if (ftrRefs.length > 0) {
-        const defFtr = ftrRefs.find((r) => r[1].toLowerCase() === "default") || ftrRefs[0];
-        const rId = defFtr[2];
-        const target = relsNormalized[rId] || `footer${i + 1}.xml`;
-        const xml = ooxmlFooters[target] || ooxmlFooters[`word/${target}`] || "";
-        footerHtml = this._htmlFromHeaderFooterXml(xml);
-        prevFooter = footerHtml;
-      } else if (i > 0) {
-        footerHtml = prevFooter;
-      }
+      const readVariants = (refs, parts, previous, partName) => {
+        const result = { ...(linkToPrevious ? previous : {}) };
+        for (const ref of refs) {
+          const type = ["first", "even"].includes(ref.type) ? ref.type : "default";
+          const target = relsNormalized[ref.rId] || `${partName}${i + 1}.xml`;
+          const xml = parts[ref.rId] || parts[target] || parts[`word/${target}`] || "";
+          result[type] = this._htmlFromHeaderFooterXml(xml);
+        }
+        if (result.default === undefined) result.default = previous.default || "";
+        if (result.first === undefined) result.first = result.default;
+        if (result.even === undefined) result.even = result.default;
+        return result;
+      };
+      const headers = readVariants(hdrRefs, ooxmlHeaders, i > 0 ? prevHeader : {}, "header");
+      const footers = readVariants(ftrRefs, ooxmlFooters, i > 0 ? prevFooter : {}, "footer");
+      const headerHtml = headers.default || "";
+      const footerHtml = footers.default || "";
+      prevHeader = headers;
+      prevFooter = footers;
 
       sectionPageSetups[sectionId] = pageSetup;
       sectionHeadersFooters[sectionId] = {
@@ -7722,7 +7777,9 @@ export class WriterAdapter {
         header: headerHtml,
         footer: footerHtml,
         differentFirstPage,
-        differentOddEven: false,
+        differentOddEven: documentUsesEvenOddHeaders || hdrRefs.some((ref) => ref.type === "even") || ftrRefs.some((ref) => ref.type === "even"),
+        headers,
+        footers,
         pageNumberRestart,
         pageNumberStart
       };
@@ -10952,7 +11009,7 @@ export class WriterAdapter {
         throw this._fodtError(`data-vno-section-break '${type || ""}'`);
       }
       if (!id) throw this._fodtError("data-vno-section-break thiếu data-vno-section-id");
-      const unexpected = Object.keys(node.attrs).filter(name => !["style", "class", "data-vno-section-break", "data-vno-section-id", "contenteditable", "aria-hidden"].includes(name));
+      const unexpected = Object.keys(node.attrs).filter(name => !["style", "class", "data-vno-section-break", "data-vno-section-id", "contenteditable", "aria-hidden", "role", "tabindex", "aria-label"].includes(name));
       if (unexpected.length) throw this._fodtError(`thuộc tính ${unexpected[0]} trên ngắt mục`);
       return true;
     };
@@ -11997,7 +12054,8 @@ export class WriterAdapter {
           result.ooxmlFooterXml,
           result.ooxmlHeaders,
           result.ooxmlFooters,
-          result.ooxmlRels
+          result.ooxmlRels,
+          result.ooxmlSettingsXml
         );
       } catch (error) {
         await showAlertDialog({
@@ -12024,24 +12082,43 @@ export class WriterAdapter {
         this._lastKnownSectionId = firstId;
         this.pageSetup = JSON.parse(JSON.stringify(this.sectionPageSetups[firstId]));
         this._applyPageSetup();
-      } else if (imported.page) {
-        this.pageSetup = {
-          size: imported.page.size || this.pageSetup.size,
-          orientation: imported.page.orientation || this.pageSetup.orientation,
-          margins: { ...this.pageSetup.margins, ...imported.page.margins },
-          headerDistanceMm: imported.page.headerDistanceMm ?? this.pageSetup.headerDistanceMm ?? 12.7,
-          footerDistanceMm: imported.page.footerDistanceMm ?? this.pageSetup.footerDistanceMm ?? 12.7,
-          ...(imported.page.size === "custom"
-            ? { widthMm: imported.page.widthMm, heightMm: imported.page.heightMm }
-            : {})
+      } else {
+        const defaultSetup = {
+          size: "a4",
+          orientation: "portrait",
+          margins: { ...DEFAULT_MARGINS_MM },
+          headerDistanceMm: 12.7,
+          footerDistanceMm: 12.7
         };
-        const importedSetup = JSON.parse(JSON.stringify(this.pageSetup));
-        const sectionIds = Object.keys(this.sectionPageSetups || {});
-        if (sectionIds.length <= 1) {
-          this.sectionPageSetups = { [this.activeSectionId]: importedSetup };
-        } else {
-          this.sectionPageSetups[this.activeSectionId] = importedSetup;
-        }
+        const page = imported.page || {};
+        this.pageSetup = {
+          ...defaultSetup,
+          size: page.size || defaultSetup.size,
+          orientation: page.orientation || defaultSetup.orientation,
+          margins: { ...defaultSetup.margins, ...(page.margins || {}) },
+          headerDistanceMm: page.headerDistanceMm ?? defaultSetup.headerDistanceMm,
+          footerDistanceMm: page.footerDistanceMm ?? defaultSetup.footerDistanceMm,
+          ...(page.size === "custom" ? { widthMm: page.widthMm, heightMm: page.heightMm } : {})
+        };
+        const header = imported.header || "";
+        const footer = imported.footer || "";
+        this.sectionPageSetups = { "section-1": JSON.parse(JSON.stringify(this.pageSetup)) };
+        this.sectionHeadersFooters = {
+          "section-1": {
+            linkToPrevious: false,
+            header,
+            footer,
+            headers: { default: header, first: header, even: header },
+            footers: { default: footer, first: footer, even: footer },
+            differentFirstPage: false,
+            differentOddEven: false,
+            pageNumberRestart: false,
+            pageNumberStart: 1
+          }
+        };
+        this.activeSectionId = "section-1";
+        this._lastKnownSectionId = "section-1";
+        this._sectionSequence = 1;
         this._applyPageSetup();
       }
       this.docStyles = imported.docStyles || null;
@@ -13201,6 +13278,11 @@ export class WriterAdapter {
     if (snapshot.sectionPageSetups) this.sectionPageSetups = JSON.parse(JSON.stringify(snapshot.sectionPageSetups));
     if (snapshot.sectionHeadersFooters) this.sectionHeadersFooters = JSON.parse(JSON.stringify(snapshot.sectionHeadersFooters));
     if (snapshot.activeSectionId) this.activeSectionId = snapshot.activeSectionId;
+    this._lastKnownSectionId = this.activeSectionId;
+    if (this.sectionPageSetups[this.activeSectionId]) {
+      this.pageSetup = JSON.parse(JSON.stringify(this.sectionPageSetups[this.activeSectionId]));
+      this._applyPageSetup();
+    }
     if (snapshot.sectionSequence) this._sectionSequence = snapshot.sectionSequence;
 
     if (snapshot.comments) {
