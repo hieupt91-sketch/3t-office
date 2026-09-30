@@ -381,8 +381,10 @@ export const SLIDES_COMMANDS = [
   { id: "slides.section.remove", category: "slide", label: "Xóa phần", icon: "slideSectionRemove", tooltip: "Bỏ nhóm phần — không xóa các trang chiếu bên trong" },
   { id: "slides.section.moveUp", category: "slide", label: "Chuyển phần lên", icon: "slideSectionUp", tooltip: "Di chuyển cả nhóm trang của phần lên trên phần kề trước, giữ thứ tự trang bên trong" },
   { id: "slides.section.moveDown", category: "slide", label: "Chuyển phần xuống", icon: "slideSectionDown", tooltip: "Di chuyển cả nhóm trang của phần xuống dưới phần kề sau, giữ thứ tự trang bên trong" },
+  { id: "slides.section.menu", category: "slide", label: "Phần", icon: "slideSectionAdd", tooltip: "Quản lý các phần trong bài trình chiếu" },
 
   // Chèn đối tượng
+  { id: "slides.drawing.arrange", category: "draw", label: "Sắp xếp", icon: "bringToFront", tooltip: "Sắp xếp thứ tự hiển thị và căn lề các đối tượng vẽ" },
   { id: "slides.text.insert", category: "insert", label: "Hộp văn bản", icon: "textBox", tooltip: "Chèn khung văn bản mới" },
   { id: "slides.shape.insert", category: "insert", label: "Hình khối", icon: "shape", tooltip: "Chèn hình chữ nhật, tròn, mũi tên" },
   { id: "slides.diagram.insert", category: "insert", label: "Sơ đồ", icon: "diagram", tooltip: "Chèn sơ đồ quy trình, chu kỳ hoặc phân cấp" },
