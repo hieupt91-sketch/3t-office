@@ -215,6 +215,10 @@ export const SLIDES_RIBBON_TABS = [
             icon: "shape",
             isLarge: true,
             items: [
+              { commandId: "slides.arrange.bringToFront" },
+              { commandId: "slides.arrange.bringForward" },
+              { commandId: "slides.arrange.sendBackward" },
+              { commandId: "slides.arrange.sendToBack" },
               { commandId: "slides.arrange.alignLeft" },
               { commandId: "slides.arrange.alignCenter" },
               { commandId: "slides.arrange.alignRight" },

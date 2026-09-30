@@ -39,6 +39,11 @@ export class ShortcutManager {
     this._rebuildActiveShortcuts();
   }
 
+  /** Scope đang kích hoạt (để một chế độ toàn màn hình tạm tắt phím tắt app rồi trả lại). */
+  getActiveScope() {
+    return this._activeScope;
+  }
+
   _rebuildActiveShortcuts() {
     this._shortcuts.clear();
     const common = this._scopedShortcuts.get("common");

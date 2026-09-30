@@ -166,7 +166,8 @@ export async function runSlidesAnimationsNotesTests() {
     canvas.notesCharCountEl = { textContent: "" };
 
     canvas.addNewSlide(false);
-    const addedSlide = canvas.slides[canvas.slides.length - 1];
+    // PowerPoint Ctrl+M chèn ngay sau trang đang chọn (không nối vào cuối) — lấy đúng trang vừa thêm.
+    const addedSlide = canvas.slides[canvas.currentSlideIndex];
 
     if (typeof addedSlide.notes !== "string" || addedSlide.notes !== "") {
       throw new Error(`Slide mới tạo phải có notes là chuỗi rỗng, thực tế: ${addedSlide.notes}`);
@@ -174,7 +175,7 @@ export async function runSlidesAnimationsNotesTests() {
 
     // Gán notes cho slide mới
     addedSlide.notes = "Ghi chú của slide mới tạo";
-    canvas.selectSlide(canvas.slides.length - 1);
+    canvas.selectSlide(canvas.slides.indexOf(addedSlide));
     if (canvas.notesTextarea.value !== "Ghi chú của slide mới tạo") {
       throw new Error("Textarea không cập nhật đúng khi chọn slide mới tạo");
     }
