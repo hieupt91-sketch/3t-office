@@ -51,6 +51,45 @@ export const SHEET_MM_TO_PX = 3.7795275591; // 96dpi
 // Lề trong pageSetupBySheet lưu bằng CM (xem showPageSetupDialog: input "(cm)"), khác mm.
 export const SHEET_CM_TO_PX = SHEET_MM_TO_PX * 10;
 
+/** Build a directed selection range without losing the fixed anchor. */
+export function createSheetSelectionRange(anchor, active) {
+  return {
+    start: { c: anchor.c, r: anchor.r },
+    end: { c: active.c, r: active.r }
+  };
+}
+
+/** Normalize a directed range for operations that need its top-left/bottom-right. */
+export function normalizeSheetSelectionRange(range, cols) {
+  const start = range?.start || { c: cols[0], r: 1 };
+  const end = range?.end || start;
+  const startCol = Math.max(0, cols.indexOf(start.c));
+  const endCol = Math.max(0, cols.indexOf(end.c));
+  return {
+    start: { c: cols[Math.min(startCol, endCol)], r: Math.min(start.r, end.r) },
+    end: { c: cols[Math.max(startCol, endCol)], r: Math.max(start.r, end.r) }
+  };
+}
+
+/** Smooth, distance-based edge auto-scroll delta (pixels for one animation frame). */
+export function getSheetSelectionAutoScrollDelta(pointer, start, end, elapsedMs, options = {}) {
+  const edgeZone = Math.max(1, options.edgeZone ?? 48);
+  const maxSpeed = Math.max(0, options.maxSpeed ?? 900);
+  const duration = Math.max(0, Math.min(50, Number(elapsedMs) || 0));
+  let direction = 0;
+  let penetration = 0;
+  if (pointer < start + edgeZone) {
+    direction = -1;
+    penetration = start + edgeZone - pointer;
+  } else if (pointer > end - edgeZone) {
+    direction = 1;
+    penetration = pointer - (end - edgeZone);
+  }
+  if (!direction || !maxSpeed || !duration) return 0;
+  const intensity = Math.min(1, penetration / edgeZone);
+  return direction * maxSpeed * intensity * intensity * duration / 1000;
+}
+
 export function _getTabContrastTextColor(hexColor) {
   if (!hexColor || typeof hexColor !== "string") return "#000000";
   let hex = hexColor.trim().replace(/^#/, "");
@@ -158,6 +197,8 @@ export class SheetGridController {
 
     this.selectedCoord = { r: 1, c: "A" };
     this.selectionRange = { start: { r: 1, c: "A" }, end: { r: 1, c: "A" } };
+    this.selectionRanges = [this.selectionRange];
+    this.selectionKind = "cell";
     this.showFormulas = false;
     this.calculationMode = "automatic"; // "automatic" | "manual"
     this.auditArrows = [];
@@ -170,6 +211,11 @@ export class SheetGridController {
     this._moveTarget = null;
     this._isSelectingRange = false;
     this._rangeAnchor = null;
+    this._rangePointer = null;
+    this._rangeScrollFrame = 0;
+    this._rangeScrollTimestamp = 0;
+    this._rangeSelectionAdditive = false;
+    this._rangeSelectionBaseAreas = null;
     this._activeContextMenu = null;
     this._contextMenuPreviousFocus = null;
     this.formatPainter = null;
@@ -531,15 +577,13 @@ export class SheetGridController {
 
   selectCurrentColumn() {
     const col = this.selectedCoord.c;
-    this.selectCell(col, 1);
-    this.selectCell(col, this.rowCount, true);
+    this._selectHeaderRange("column", col);
     return true;
   }
 
   selectCurrentRow() {
     const row = this.selectedCoord.r;
-    this.selectCell(this.cols[0], row);
-    this.selectCell(this.cols[this.cols.length - 1], row, true);
+    this._selectHeaderRange("row", row);
     return true;
   }
 
@@ -1104,15 +1148,17 @@ export class SheetGridController {
       event.stopPropagation();
       this.toggleOutlineGroup(event.currentTarget.dataset.groupId);
     });
+    th.addEventListener("mousedown", event => {
+      if (event.button !== 0 || event.target.closest(".vno-filter-btn, .vno-col-resizer, .vno-outline-toggle")) return;
+      this._startRangeSelect(event, col, 1, "column");
+    });
     th.addEventListener("click", (e) => {
       if (e.target.closest(".vno-filter-btn") || e.target.closest(".vno-col-resizer")) return;
-      this.selectCell(col, 1);
-      this.selectCell(col, this.rowCount, true);
+      if (e.detail === 0) this._selectHeaderRange("column", col);
     });
     th.addEventListener("contextmenu", (e) => {
       e.preventDefault();
-      this.selectCell(col, 1);
-      this.selectCell(col, this.rowCount, true);
+      this._selectHeaderRange("column", col);
       this.showContextMenu(e, "col", col);
     });
     th.querySelector(".vno-col-resizer")?.addEventListener("dblclick", (e) => {
@@ -1149,70 +1195,236 @@ export class SheetGridController {
     }
   }
 
-  _startRangeSelect(e, col, row) {
-    if (this._isSelectingRange) return;
-    this._isSelectingRange = true;
-    // mousedown chạy trước click: nếu Shift đang giữ thì mở rộng từ neo hiện có,
-    // không reset vùng chọn về 1 ô (nếu không Shift+Click chuột thật không bao giờ tạo range).
-    const extendRange = !!(e && e.shiftKey && this.selectionRange);
-    this._rangeAnchor = extendRange
-      ? { c: this.selectedCoord?.c ?? this.selectionRange.start.c, r: this.selectedCoord?.r ?? this.selectionRange.start.r }
-      : { c: col, r: row };
-    this.selectCell(col, row, extendRange);
+  _commitEditBeforeRangeSelection() {
+    if (!this.formulaInput || typeof document === "undefined" || document.activeElement !== this.formulaInput) return;
+    const coord = { ...this.selectedCoord };
+    const current = this.cellsData.get(`${coord.c}${coord.r}`);
+    const currentValue = current ? (current.formula || current.val || "") : "";
+    const editedValue = this.formulaInput.value;
+    if (String(currentValue) !== String(editedValue)) {
+      this.setCellValue(coord.c, coord.r, editedValue, true, { coalesce: true });
+    }
+    this._cellValueBeforeEdit = undefined;
+    this.autocomplete?.closeAll?.();
+  }
 
-    const onMove = (moveEvt) => {
-      if (!this._isSelectingRange) return;
-      const el = typeof document !== "undefined" ? document.elementFromPoint(moveEvt.clientX, moveEvt.clientY) : null;
-      const cell = el?.closest?.(".vno-grid-cell");
-      if (cell && cell.dataset.col && cell.dataset.row) {
-        const hoverCol = cell.dataset.col;
-        const hoverRow = Number(cell.dataset.row);
-        if (hoverCol !== this.selectionRange.end.c || hoverRow !== this.selectionRange.end.r) {
-          this.selectionRange.end = { c: hoverCol, r: hoverRow };
-          this._updateRangeSelectionVisuals();
+  _selectionRangeForPointer(anchor, active, kind = "cell") {
+    if (kind === "row") {
+      return createSheetSelectionRange(
+        { c: this.cols[0], r: anchor.r },
+        { c: this.cols[this.cols.length - 1], r: active.r }
+      );
+    }
+    if (kind === "column") {
+      return createSheetSelectionRange(
+        { c: anchor.c, r: 1 },
+        { c: active.c, r: this.rowCount }
+      );
+    }
+    return createSheetSelectionRange(anchor, active);
+  }
+
+  _applySelectionRange(range, activeCoord, options = {}) {
+    this.selectionRange = range;
+    this.selectedCoord = { c: activeCoord.c, r: activeCoord.r };
+    this._rangeAnchor = { ...(options.anchor || range.start) };
+    this.selectionKind = options.kind || "cell";
+    if (options.additive) {
+      this.selectionRanges = [
+        ...(options.baseAreas || this._rangeSelectionBaseAreas || this.selectionRanges || []),
+        range
+      ];
+    } else {
+      this.selectionRanges = [range];
+    }
+    if (options.scrollActive && this.viewport &&
+        (activeCoord.r < this.currentStartRow || activeCoord.r > this.currentEndRow)) {
+      this.viewport.scrollTop = Math.max(0, this._rowTop(activeCoord.r) - 5 * this.rowHeight);
+      this._onViewportScroll();
+    }
+    this._updateRangeSelectionVisuals();
+  }
+
+  _rangeSelectionTargetAt(x, y, kind = "cell") {
+    if (typeof document === "undefined") return null;
+    let element = document.elementFromPoint(x, y);
+    let cell = element?.closest?.(".vno-grid-cell");
+    if (!cell && this.viewport?.getBoundingClientRect) {
+      const rect = this.viewport.getBoundingClientRect();
+      const rowHeaderWidth = this.tbody?.querySelector?.(".vno-row-header")?.getBoundingClientRect?.().width || 44;
+      const headerHeight = this.theadRow?.getBoundingClientRect?.().height || 24;
+      const clampedX = Math.max(rect.left + rowHeaderWidth + 1, Math.min(rect.right - 1, x));
+      const clampedY = Math.max(rect.top + headerHeight + 1, Math.min(rect.bottom - 1, y));
+      element = document.elementFromPoint(clampedX, clampedY);
+      cell = element?.closest?.(".vno-grid-cell");
+    }
+
+    if (kind === "row") {
+      const rowHeader = element?.closest?.(".vno-row-header");
+      const row = Number(rowHeader?.dataset.row || cell?.dataset.row);
+      return Number.isInteger(row) && row >= 1 && row <= this.rowCount
+        ? { c: this.cols[0], r: row }
+        : null;
+    }
+    if (kind === "column") {
+      const colHeader = element?.closest?.(".vno-col-header");
+      const col = colHeader?.dataset.col || cell?.dataset.col;
+      return this.cols.includes(col) ? { c: col, r: 1 } : null;
+    }
+    return cell?.dataset.col && cell?.dataset.row
+      ? { c: cell.dataset.col, r: Number(cell.dataset.row) }
+      : null;
+  }
+
+  _updateRangeFromPointer() {
+    if (!this._isSelectingRange || !this._rangePointer || !this._rangeAnchor) return;
+    const kind = this._rangeSelectionKind || "cell";
+    const active = this._rangeSelectionTargetAt(this._rangePointer.x, this._rangePointer.y, kind);
+    if (!active) return;
+    const range = this._selectionRangeForPointer(this._rangeAnchor, active, kind);
+    const activeCoord = kind === "row"
+      ? { c: this.cols[0], r: active.r }
+      : kind === "column"
+        ? { c: active.c, r: 1 }
+        : active;
+    const current = this.selectionRange;
+    if (current?.end.c === range.end.c && current?.end.r === range.end.r &&
+        this.selectedCoord.c === activeCoord.c && this.selectedCoord.r === activeCoord.r) return;
+    this._applySelectionRange(range, activeCoord, {
+      anchor: this._rangeAnchor,
+      additive: this._rangeSelectionAdditive,
+      kind
+    });
+  }
+
+  _startRangeAutoScroll() {
+    if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function" || !this.viewport) return;
+    this._rangeScrollTimestamp = 0;
+    const tick = timestamp => {
+      if (!this._isSelectingRange || !this._rangePointer || !this.viewport) return;
+      const elapsed = this._rangeScrollTimestamp ? timestamp - this._rangeScrollTimestamp : 16;
+      this._rangeScrollTimestamp = timestamp;
+      const rect = this.viewport.getBoundingClientRect();
+      const deltaY = getSheetSelectionAutoScrollDelta(this._rangePointer.y, rect.top, rect.bottom, elapsed);
+      const deltaX = getSheetSelectionAutoScrollDelta(this._rangePointer.x, rect.left, rect.right, elapsed);
+      if (deltaX || deltaY) {
+        const oldTop = this.viewport.scrollTop;
+        const oldLeft = this.viewport.scrollLeft;
+        this.viewport.scrollTop += deltaY;
+        this.viewport.scrollLeft += deltaX;
+        if (this.viewport.scrollTop !== oldTop || this.viewport.scrollLeft !== oldLeft) {
+          this._onViewportScroll();
+          this._updateFrozenImages();
         }
       }
-      if (this.viewport && this.viewport.getBoundingClientRect) {
-        const r = this.viewport.getBoundingClientRect();
-        if (moveEvt.clientY > r.bottom - 25) this.viewport.scrollTop += 20;
-        else if (moveEvt.clientY < r.top + 25) this.viewport.scrollTop -= 20;
-        if (moveEvt.clientX > r.right - 25) this.viewport.scrollLeft += 20;
-        else if (moveEvt.clientX < r.left + 25) this.viewport.scrollLeft -= 20;
-      }
+      this._updateRangeFromPointer();
+      this._rangeScrollFrame = window.requestAnimationFrame(tick);
     };
+    this._rangeScrollFrame = window.requestAnimationFrame(tick);
+  }
 
+  _stopRangeAutoScroll() {
+    if (this._rangeScrollFrame && typeof window !== "undefined") {
+      window.cancelAnimationFrame?.(this._rangeScrollFrame);
+    }
+    this._rangeScrollFrame = 0;
+    this._rangeScrollTimestamp = 0;
+  }
+
+  _selectHeaderRange(kind, index) {
+    const anchor = kind === "row" ? { c: this.cols[0], r: Number(index) } : { c: index, r: 1 };
+    const active = kind === "row" ? { c: this.cols[0], r: Number(index) } : { c: index, r: 1 };
+    const range = this._selectionRangeForPointer(anchor, active, kind);
+    this._applySelectionRange(range, active, { anchor, scrollActive: false, kind });
+  }
+
+  _startRangeSelect(e, col, row, kind = "cell") {
+    if (this._isSelectingRange) return;
+    e?.preventDefault?.();
+    this._commitEditBeforeRangeSelection();
+    this._isSelectingRange = true;
+    const extendRange = !!(e && e.shiftKey && this.selectionRange);
+    const additive = !!(e && e.ctrlKey && !e.shiftKey && kind === "cell");
+    const anchor = extendRange
+      ? { ...(this._rangeAnchor || this.selectedCoord || this.selectionRange.start) }
+      : kind === "row"
+        ? { c: this.cols[0], r: row }
+        : kind === "column"
+          ? { c: col, r: 1 }
+          : { c: col, r: row };
+    this._rangeSelectionKind = kind;
+    this._rangeSelectionAdditive = additive;
+    this._rangeSelectionBaseAreas = additive
+      ? this._getSelectionRanges().map(range => structuredClone(range))
+      : null;
+    this._rangePointer = { x: e?.clientX ?? 0, y: e?.clientY ?? 0 };
+
+    const initial = { c: col, r: row };
+    const range = this._selectionRangeForPointer(anchor, initial, kind);
+    const active = kind === "row"
+      ? { c: this.cols[0], r: row }
+      : kind === "column"
+        ? { c: col, r: 1 }
+        : initial;
+    this._applySelectionRange(range, active, { anchor, additive, scrollActive: false, kind });
+
+    const onMove = moveEvt => {
+      if (!this._isSelectingRange) return;
+      this._rangePointer = { x: moveEvt.clientX, y: moveEvt.clientY };
+      this._updateRangeFromPointer();
+    };
     const onUp = () => {
       if (typeof window !== "undefined") {
         window.removeEventListener("mousemove", onMove);
         window.removeEventListener("mouseup", onUp);
       }
+      this._stopRangeAutoScroll();
+      this._updateRangeFromPointer();
       this._isSelectingRange = false;
       if (this.formatPainter) this.applyFormatPainterToSelection();
+      this._rangeSelectionAdditive = false;
+      this._rangeSelectionBaseAreas = null;
+      this._rangePointer = null;
     };
 
     if (typeof window !== "undefined") {
       window.addEventListener("mousemove", onMove);
       window.addEventListener("mouseup", onUp);
     }
+    this._startRangeAutoScroll();
   }
 
   _updateRangeSelectionVisuals() {
-    const isMulti = (this.selectionRange.start.c !== this.selectionRange.end.c || this.selectionRange.start.r !== this.selectionRange.end.r);
-    const norm = this._normalizeRange(this.selectionRange);
+    const ranges = this._getSelectionRanges();
+    const isMulti = ranges.length > 1 || ranges.some(range =>
+      range.start.c !== range.end.c || range.start.r !== range.end.r
+    );
+    const activeCoordKey = `${this.selectedCoord.c}${this.selectedCoord.r}`;
 
     this.container?.querySelectorAll?.(".vno-grid-cell[data-coord]").forEach(cell => {
-      const inRange = this._rangeContains(this.selectionRange, cell.dataset.col, Number(cell.dataset.row));
-      cell.classList.toggle("is-range-selected", inRange && isMulti);
+      const row = Number(cell.dataset.row);
+      const selected = ranges.some(range => this._rangeContains(range, cell.dataset.col, row));
+      const isActive = cell.dataset.coord === activeCoordKey;
+      cell.classList.toggle("is-selected", isActive);
+      cell.classList.toggle("is-range-selected", selected && isMulti);
+      if (!isActive) {
+        cell.querySelectorAll?.(".vno-cell-move-handle, .vno-cell-validation-select").forEach(el => el.remove());
+      }
     });
 
-    if (this.nameBox) this.nameBox.textContent = this.getSelectedRangeLabel();
+    const activeCell = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${activeCoordKey}"]`);
+    if (activeCell) this._attachMoveHandles(activeCell);
+    this.container?.querySelectorAll?.(".vno-cell-autofill-handle").forEach(handle => handle.remove());
+    const norm = this._normalizeRange(this.selectionRange);
+    const endCell = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${norm.end.c}${norm.end.r}"]`);
+    if (endCell) this._attachAutofillHandle(endCell);
 
-    this.container?.querySelectorAll?.(".vno-cell-autofill-handle").forEach(h => h.remove());
-    const endCoord = `${norm.end.c}${norm.end.r}`;
-    const endCell = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${endCoord}"]`);
-    if (endCell) {
-      this._attachAutofillHandle(endCell);
-    }
+    if (this.nameBox) this.nameBox.textContent = this.getSelectionNameLabel();
+    const data = this.cellsData.get(activeCoordKey);
+    if (this.formulaInput) this.formulaInput.value = data ? (data.formula || data.val) : "";
+    this._showValidationDropdown(activeCell, this.selectedCoord.c, this.selectedCoord.r);
+    this.options.onSelect?.(activeCoordKey, data, this._calculateStats());
+    this.container?.focus?.({ preventScroll: true });
   }
 
   _startAutofill(e) {
@@ -2704,15 +2916,17 @@ export class SheetGridController {
       event.stopPropagation();
       this.toggleOutlineGroup(event.currentTarget.dataset.groupId);
     });
+    thRow.addEventListener("mousedown", event => {
+      if (event.button !== 0 || event.target.closest(".vno-row-resizer, .vno-outline-toggle")) return;
+      this._startRangeSelect(event, this.cols[0], r, "row");
+    });
     thRow.addEventListener("click", (e) => {
       if (e.target.closest(".vno-row-resizer")) return;
-      this.selectCell(this.cols[0], r);
-      this.selectCell(this.cols[this.cols.length - 1], r, true);
+      if (e.detail === 0) this._selectHeaderRange("row", r);
     });
     thRow.addEventListener("contextmenu", (e) => {
       e.preventDefault();
-      this.selectCell(this.cols[0], r);
-      this.selectCell(this.cols[this.cols.length - 1], r, true);
+      this._selectHeaderRange("row", r);
       this.showContextMenu(e, "row", r);
     });
     thRow.querySelector(".vno-row-resizer")?.addEventListener("dblclick", (e) => {
@@ -2722,7 +2936,7 @@ export class SheetGridController {
     tr.appendChild(thRow);
 
     const normRange = this._normalizeRange(this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
-    const isMulti = (normRange.start.c !== normRange.end.c || normRange.start.r !== normRange.end.r);
+    const isMulti = this._isMultiRangeSelection();
 
     this.cols.forEach(c => {
       const mergedRange = this.getMergedRangeForCell(c, r);
@@ -2751,7 +2965,7 @@ export class SheetGridController {
         td.classList.add("is-selected");
         this._attachMoveHandles(td);
       }
-      if (this._rangeContains(this.selectionRange, c, r) && isMulti) {
+      if (this._isCoordInSelection(c, r) && isMulti) {
         td.classList.add("is-range-selected");
       }
       if (normRange.end.c === c && normRange.end.r === r) {
@@ -2764,8 +2978,8 @@ export class SheetGridController {
         this._startRangeSelect(e, c, r);
       });
       td.addEventListener("click", event => {
-        if (event.defaultPrevented) return;
-        this.selectCell(c, r, event.shiftKey);
+        if (event.detail !== 0 || event.defaultPrevented) return;
+        this.selectCell(c, r, event.shiftKey, event.ctrlKey);
       });
       td.addEventListener("dblclick", (e) => {
         e.preventDefault();
@@ -2775,7 +2989,7 @@ export class SheetGridController {
       });
       td.addEventListener("contextmenu", event => {
         event.preventDefault();
-        const inRange = this._rangeContains(this.selectionRange, c, r);
+        const inRange = this._isCoordInSelection(c, r);
         if (!inRange) {
           this.selectCell(c, r);
         }
@@ -3263,8 +3477,10 @@ export class SheetGridController {
         // Xóa nội dung ô hoặc vùng đang chọn ngay, đúng hành vi Excel thật
         e.preventDefault();
         if (this._guardProtectedMutation()) return;
-        if (this.selectionRange && (this.selectionRange.start.c !== this.selectionRange.end.c || this.selectionRange.start.r !== this.selectionRange.end.r)) {
-          const cells = this.formulaEngine.expandRange(this.getSelectedRangeLabel());
+        if (this._isMultiRangeSelection()) {
+          const cells = [...new Set(this._getSelectionRanges().flatMap(range =>
+            this.formulaEngine.expandRange(this._rangeLabel(this._normalizeRange(range)))
+          ))];
           cells.forEach(coord => {
             const [c, r] = this._splitCoord(coord);
             this.setCellValue(c, r, "");
@@ -3396,8 +3612,11 @@ export class SheetGridController {
     this.setStyle("color", "#0f6d38");
   }
 
-  selectCell(col, row, extendRange = false) {
+  selectCell(col, row, extendRange = false, addRange = false) {
     if (row < 1 || row > this.rowCount) return;
+    if (this.formulaInput && typeof document !== "undefined" && document.activeElement === this.formulaInput) {
+      this._commitEditBeforeRangeSelection();
+    }
     if (this.selectedImageId) {
       this.selectedImageId = null;
       this._updateImageSelection();
@@ -3407,64 +3626,29 @@ export class SheetGridController {
     }
 
     const mergedRange = this.getMergedRangeForCell(col, row);
+    let anchor;
+    let active;
+    let range;
     if (mergedRange && !extendRange) {
-      this.selectionRange = structuredClone(mergedRange);
-      this.selectedCoord = { ...mergedRange.start };
-      col = mergedRange.start.c;
-      row = mergedRange.start.r;
-    } else if (!extendRange || !this.selectionRange) {
-      this.selectionRange = { start: { c: col, r: row }, end: { c: col, r: row } };
-      this.selectedCoord = { c: col, r: row };
+      range = structuredClone(mergedRange);
+      anchor = { ...mergedRange.start };
+      active = { ...mergedRange.start };
     } else {
-      this.selectionRange.end = { c: col, r: row };
-      // Giữ nguyên selectedCoord là ô neo bắt đầu (anchor) của vùng chọn
+      active = { c: col, r: row };
+      anchor = extendRange && this.selectionRange
+        ? { ...(this._rangeAnchor || this.selectionRange.start) }
+        : { ...active };
+      range = createSheetSelectionRange(anchor, active);
     }
 
-    // Tự động cuộn viewport nếu ô nằm ngoài phạm vi hiển thị ảo
-    if (this.viewport && (row < this.currentStartRow || row > this.currentEndRow)) {
-      this.viewport.scrollTop = Math.max(0, this._rowTop(row) - 5 * this.rowHeight);
-      this._onViewportScroll();
-    }
-
-    this.container.querySelectorAll?.(".vno-grid-cell.is-selected, .vno-grid-cell.is-range-selected").forEach(old => {
-      old.classList.remove("is-selected", "is-range-selected");
-      old.querySelectorAll?.(".vno-cell-autofill-handle, .vno-cell-move-handle, .vno-cell-validation-select").forEach(el => el.remove());
+    const previousAreas = this._getSelectionRanges();
+    this._applySelectionRange(range, active, {
+      anchor,
+      additive: addRange,
+      kind: "cell",
+      baseAreas: addRange ? previousAreas.map(area => structuredClone(area)) : null,
+      scrollActive: true
     });
-
-    const activeCoordKey = `${this.selectedCoord.c}${this.selectedCoord.r}`;
-    const activeTarget = this.container.querySelector(`.vno-grid-cell[data-coord="${activeCoordKey}"]`);
-    if (activeTarget) {
-      activeTarget.classList.add("is-selected");
-      this._attachMoveHandles(activeTarget);
-    }
-
-    const norm = this._normalizeRange(this.selectionRange);
-    const endCoordKey = `${norm.end.c}${norm.end.r}`;
-    const endTarget = this.container.querySelector(`.vno-grid-cell[data-coord="${endCoordKey}"]`);
-    if (endTarget) {
-      this._attachAutofillHandle(endTarget);
-    }
-
-    this.container.querySelectorAll?.(".vno-grid-cell[data-coord]").forEach(cell => {
-      const inRange = this._rangeContains(this.selectionRange, cell.dataset.col, Number(cell.dataset.row));
-      cell.classList.toggle("is-range-selected", inRange && this.getSelectedRangeLabel().includes(":"));
-    });
-
-    if (this.nameBox) this.nameBox.textContent = this.getSelectedRangeLabel();
-
-    const data = this.cellsData.get(activeCoordKey);
-    const displayVal = data ? (data.formula || data.val) : "";
-    if (this.formulaInput) this.formulaInput.value = displayVal;
-    this._showValidationDropdown(activeTarget, col, row);
-
-    if (this.options.onSelect) {
-      this.options.onSelect(activeCoordKey, data, this._calculateStats());
-    }
-
-    // Đưa focus bàn phím thật về container lưới khi chọn ô
-    if (typeof this.container.focus === "function") {
-      this.container.focus({ preventScroll: true });
-    }
   }
 
   navigateHome() {
@@ -5851,11 +6035,14 @@ export class SheetGridController {
     return true;
   }
 
-  applyFormatPainterToSelection(range = this.selectionRange) {
+  applyFormatPainterToSelection(range = null) {
     if (!this.formatPainter) return false;
     const sourceStyle = structuredClone(this.formatPainter.style || {});
-    const norm = this._normalizeRange(range || { start: this.selectedCoord, end: this.selectedCoord });
-    const coords = this.formulaEngine.expandRange(this._rangeLabel(norm));
+    const ranges = range ? [range] : this._getSelectionRanges();
+    const coords = [...new Set(ranges.flatMap(selection => {
+      const normalized = this._normalizeRange(selection || { start: this.selectedCoord, end: this.selectedCoord });
+      return this.formulaEngine.expandRange(this._rangeLabel(normalized));
+    }))];
     if (!coords.length) return false;
 
     const before = {};
@@ -8163,14 +8350,7 @@ export class SheetGridController {
   }
 
   _normalizeRange(range = this.selectionRange) {
-    const start = range?.start || this.selectedCoord;
-    const end = range?.end || start;
-    const startCol = this.cols.indexOf(start.c);
-    const endCol = this.cols.indexOf(end.c);
-    return {
-      start: { c: this.cols[Math.min(startCol, endCol)], r: Math.min(start.r, end.r) },
-      end: { c: this.cols[Math.max(startCol, endCol)], r: Math.max(start.r, end.r) }
-    };
+    return normalizeSheetSelectionRange(range || { start: this.selectedCoord, end: this.selectedCoord }, this.cols);
   }
 
   getSelectedRangeLabel() {
@@ -8178,6 +8358,24 @@ export class SheetGridController {
     const first = `${range.start.c}${range.start.r}`;
     const last = `${range.end.c}${range.end.r}`;
     return first === last ? first : `${first}:${last}`;
+  }
+
+  getSelectionNameLabel() {
+    const ranges = this._getSelectionRanges();
+    if (ranges.length === 1 && this.selectionKind === "row") {
+      const normalized = this._normalizeRange(ranges[0]);
+      return `${normalized.start.r}:${normalized.end.r}`;
+    }
+    if (ranges.length === 1 && this.selectionKind === "column") {
+      const normalized = this._normalizeRange(ranges[0]);
+      return `${normalized.start.c}:${normalized.end.c}`;
+    }
+    return ranges.map(range => {
+      const normalized = this._normalizeRange(range);
+      const first = `${normalized.start.c}${normalized.start.r}`;
+      const last = `${normalized.end.c}${normalized.end.r}`;
+      return first === last ? first : `${first}:${last}`;
+    }).join(",");
   }
 
   resolveNamedRange(name, sheetName = this.activeSheet) {
@@ -8257,6 +8455,27 @@ export class SheetGridController {
     return colIndex >= this.cols.indexOf(normalized.start.c) &&
       colIndex <= this.cols.indexOf(normalized.end.c) &&
       row >= normalized.start.r && row <= normalized.end.r;
+  }
+
+  _getSelectionRanges() {
+    if (!this.selectionRange) return [];
+    if (!Array.isArray(this.selectionRanges) || !this.selectionRanges.length ||
+        !this.selectionRanges.includes(this.selectionRange)) {
+      this.selectionRanges = [this.selectionRange];
+    }
+    return this.selectionRanges;
+  }
+
+  _isCoordInSelection(col, row) {
+    const ranges = this._getSelectionRanges();
+    return ranges.some(range => this._rangeContains(range, col, row));
+  }
+
+  _isMultiRangeSelection() {
+    const ranges = this._getSelectionRanges();
+    return ranges.length > 1 || ranges.some(range =>
+      range && (range.start.c !== range.end.c || range.start.r !== range.end.r)
+    );
   }
 
   addConditionalFormattingRule(range, config, recordUndo = true) {
@@ -9927,30 +10146,42 @@ export class SheetGridController {
    * Sum/Average của vùng chọn.
    */
   _calculateStats() {
-    const range = this._normalizeRange();
-    const startCol = this.cols.indexOf(range.start.c);
-    const endCol = this.cols.indexOf(range.end.c);
+    const ranges = this._getSelectionRanges();
     let total = 0;
     let count = 0;
-    for (let r = range.start.r; r <= range.end.r; r++) {
-      for (let ci = startCol; ci <= endCol; ci++) {
-        const col = this.cols[ci];
-        if (!col) continue;
-        const itm = this.cellsData.get(`${col}${r}`);
-        if (!itm || itm.val === undefined || itm.val === null || itm.val === "") continue;
-        const num = typeof itm.val === "number"
-          ? itm.val
-          : parseFloat(String(itm.val).replace(/\./g, "").replace(/,/g, ".").replace(/[^\d.-]/g, ""));
-        if (!Number.isFinite(num)) continue;
-        count++;
-        total += num;
+    const seenCoords = new Set();
+    for (const selection of ranges) {
+      const range = this._normalizeRange(selection);
+      const startCol = this.cols.indexOf(range.start.c);
+      const endCol = this.cols.indexOf(range.end.c);
+      for (let r = range.start.r; r <= range.end.r; r++) {
+        for (let ci = startCol; ci <= endCol; ci++) {
+          const col = this.cols[ci];
+          if (!col) continue;
+          const coord = `${col}${r}`;
+          if (seenCoords.has(coord)) continue;
+          seenCoords.add(coord);
+          const itm = this.cellsData.get(coord);
+          if (!itm || itm.val === undefined || itm.val === null || itm.val === "") continue;
+          const num = typeof itm.val === "number"
+            ? itm.val
+            : parseFloat(String(itm.val).replace(/\./g, "").replace(/,/g, ".").replace(/[^\d.-]/g, ""));
+          if (!Number.isFinite(num)) continue;
+          count++;
+          total += num;
+        }
       }
     }
-    const avg = count > 0 ? Math.round(total / count) : 0;
+    const avg = count > 0 ? total / count : 0;
+    const formatter = new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+      maximumFractionDigits: 10
+    });
     return {
       count: count,
-      sum: new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(total),
-      avg: new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(avg)
+      sum: formatter.format(total),
+      avg: formatter.format(avg)
     };
   }
 

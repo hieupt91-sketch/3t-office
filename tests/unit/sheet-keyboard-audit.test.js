@@ -52,7 +52,7 @@ export async function runSheetKeyboardAuditTests() {
     assert(sln === 18000000, `SLN với 10/2 phải trả về 18000000, thực tế: ${sln}`);
   });
 
-  await test("SheetGridController: Range extension (Shift+click/Arrow) giữ nguyên selectedCoord là anchor", () => {
+  await test("SheetGridController: Range extension giữ anchor riêng và selectedCoord theo ô hoạt động", () => {
     const grid = new SheetGridController(mockContainer());
     grid.selectCell("J", 20, false);
     assert(grid.selectedCoord.c === "J" && grid.selectedCoord.r === 20, "Active ban đầu phải là J20");
@@ -61,7 +61,8 @@ export async function runSheetKeyboardAuditTests() {
     grid.selectCell("J", 25, true);
     assert(grid.selectionRange.start.c === "J" && grid.selectionRange.start.r === 20, "Start range phải là J20");
     assert(grid.selectionRange.end.c === "J" && grid.selectionRange.end.r === 25, "End range phải là J25");
-    assert(grid.selectedCoord.c === "J" && grid.selectedCoord.r === 20, "selectedCoord phải giữ nguyên J20 (anchor)");
+    assert(grid._rangeAnchor.c === "J" && grid._rangeAnchor.r === 20, "Anchor riêng phải giữ nguyên J20");
+    assert(grid.selectedCoord.c === "J" && grid.selectedCoord.r === 25, "selectedCoord phải theo ô đang hoạt động J25");
   });
 
   await test("SheetGridController: Xóa vùng chọn bằng Delete/Backspace xóa toàn bộ ô trong vùng và giữ style", () => {
