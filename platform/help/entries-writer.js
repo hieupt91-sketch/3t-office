@@ -221,6 +221,8 @@ export const WRITER_HELP_ENTRIES = [
       "writer.font.size",
       "writer.font.grow",
       "writer.font.shrink",
+      "writer.font.grow1pt",
+      "writer.font.shrink1pt",
       "writer.text.bold",
       "writer.text.italic",
       "writer.text.underline",
@@ -234,10 +236,10 @@ export const WRITER_HELP_ENTRIES = [
     title: "Định dạng chữ cơ bản",
     summary: "Đổi phông, cỡ chữ, đậm/nghiêng/gạch, chỉ số trên/dưới, màu chữ và màu nền chữ cho vùng đang bôi. Xóa định dạng trả chữ về kiểu mặc định mà không xóa nội dung.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Phông chữ" },
-    keywords: ["đậm", "nghiêng", "gạch chân", "gạch ngang", "phông chữ", "cỡ chữ", "màu chữ", "tô vàng", "chỉ số", "xóa định dạng", "bold", "italic", "font", "highlight", "ctrl+b"],
+    keywords: ["đậm", "nghiêng", "gạch chân", "gạch ngang", "phông chữ", "cỡ chữ", "màu chữ", "tô vàng", "chỉ số", "xóa định dạng", "bold", "italic", "font", "highlight", "ctrl+b", "ctrl+]", "ctrl+["],
     steps: [
       "Bôi chữ cần đổi (hoặc đặt con trỏ trong từ). Mở tab Trang đầu, nhóm Phông chữ — hàng trên là hộp Phông chữ và Cỡ chữ, hàng dưới là các nút kiểu chữ.",
-      "Phông chữ: Times New Roman (mặc định), Be Vietnam Pro, Arial, Calibri, Roboto. Cỡ chữ: 10 pt, 12 pt, 14 pt (NĐ 30 — mặc định văn bản hành chính), 16 pt, 18 pt, 24 pt. Nút Tăng cỡ chữ (Ctrl+Shift+>) / Giảm cỡ chữ (Ctrl+Shift+<) nhảy nhanh theo các nấc đó.",
+      "Phông chữ: Times New Roman (mặc định), Be Vietnam Pro, Arial, Calibri, Roboto. Cỡ chữ: 10 pt, 12 pt, 14 pt (NĐ 30 — mặc định văn bản hành chính), 16 pt, 18 pt, 24 pt. Nút Tăng cỡ chữ (Ctrl+Shift+>) / Giảm cỡ chữ (Ctrl+Shift+<) nhảy nhanh theo các nấc đó. Dùng phím tắt Ctrl+] để tăng cỡ chữ 1 điểm (1 pt) và Ctrl+[ để giảm cỡ chữ 1 điểm (1 pt) từng bước chuẩn Microsoft Word.",
       "Đậm Ctrl+B, Nghiêng Ctrl+I, Gạch chân Ctrl+U, Gạch ngang (không có phím tắt). Chỉ số dưới Ctrl+= (ví dụ H₂O), Chỉ số trên Ctrl+Shift++ (ví dụ m²). Nhấn lại cùng nút để tắt.",
       "Màu chữ đổi vùng chọn sang đỏ (#dc2626). Màu nền chữ tô vàng (#ffcd00) giống bút highlight. Xóa định dạng (Ctrl+Space) bỏ hết kiểu, giữ nguyên chữ. Ctrl+Z hoàn tác."
     ]
@@ -280,7 +282,7 @@ export const WRITER_HELP_ENTRIES = [
     steps: [
       "Đặt con trỏ trong đoạn (hoặc bôi vài đoạn). Tab Trang đầu, nhóm Đoạn văn, hàng trên: sau Dấu đầu dòng và Đánh số là nút Danh sách đa cấp (biểu tượng 1. / 1.1 / a.). Nhấn mũi tên để mở gallery.",
       "Chọn một kiểu: 1. / 1.1. / 1.1.1. (đề mục pháp lý, mục lục); 1. / a. / i. (kiểu Word cổ điển); Điều 1. / 1. / a) (Điều — Khoản — Điểm, văn bản hành chính Việt Nam). Các đoạn đang chọn thành một danh sách cùng kiểu.",
-      "Tăng cấp: đặt con trỏ trong mục danh sách rồi nhấn Tab (hoặc Thụt lề Ctrl+M). Mục đó thành cấp con của mục ngay trên — ví dụ 2. thành 1.1. Giảm cấp: Shift+Tab (hoặc Giảm thụt lề Ctrl+Shift+M). Ở cấp 1, Shift+Tab đưa mục về đoạn thường.",
+      "Tăng cấp: đặt con trỏ trong mục danh sách rồi nhấn Thụt lề (Ctrl+M). Mục đó thành cấp con của mục ngay trên — ví dụ 2. thành 1.1. Giảm cấp: nhấn Giảm thụt lề (Ctrl+Shift+M). Ở cấp 1, thao tác này đưa mục về đoạn thường. Lưu ý: giảm cấp không phải phím Shift+Tab như Word.",
       "Phiên bản này hỗ trợ tối đa 3 cấp. Tab khi đang ở cấp 3 không lồng thêm. Nút Đánh số / Dấu đầu dòng vẫn tạo list một cấp như trước; chọn lại một kiểu trong gallery để đổi cả cây danh sách đang chọn."
     ]
   },
@@ -658,7 +660,7 @@ export const WRITER_HELP_ENTRIES = [
   {
     id: "writer.file.printPreviewHelp",
     app: "writer",
-    commandIds: ["writer.file.printPreview"],
+    commandIds: ["writer.file.printPreview", "common.file.print"],
     title: "Xem trước khi in",
     summary: "Ctrl+F2 mở overlay phân trang thật: khổ/hướng/lề trên thanh công cụ, lật trang, thu phóng 30%–200%. In tài liệu gọi hộp in trình duyệt (Ctrl+P). Esc đóng.",
     ribbon: { tab: "Bố cục", tabId: "layout", group: "In ấn" },
@@ -735,7 +737,7 @@ export const WRITER_HELP_ENTRIES = [
   {
     id: "writer.accessibility.keyboardNav",
     app: "writer",
-    commandIds: ["common.file.backstage", "writer.format.bold", "writer.format.italic", "writer.format.underline"],
+    commandIds: ["common.file.backstage"],
     title: "Điều hướng bằng bàn phím và trợ năng (VN Writer)",
     summary: "Thao tác hoàn toàn bằng bàn phím không cần dùng chuột: mở menu Tệp (Alt+F), chuyển tab Ribbon bằng phím mũi tên Trái/Phải, di chuyển giữa các nút bằng Tab, bẫy tiêu điểm trong các hộp thoại (Tab/Shift+Tab) và đóng bằng Escape khôi phục tiêu điểm.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Trợ năng" },
@@ -851,7 +853,7 @@ export const WRITER_HELP_ENTRIES = [
   {
     id: "writer.file.backstage",
     app: "writer",
-    commandIds: ["common.file.backstage", "common.file.new", "common.file.open", "common.file.save", "common.file.saveAs", "common.file.print", "common.file.exportPdf"],
+    commandIds: ["common.file.backstage", "common.file.new", "common.file.open", "common.file.save", "common.file.saveAs", "common.file.exportPdf"],
     title: "Menu Tệp (Backstage) và quản lý tài liệu",
     summary: "Mở menu Tệp toàn màn hình (Alt+F hoặc nút Tệp màu xanh góc trên-trái) để khởi tạo văn bản theo mẫu chuẩn, mở lại tài liệu gần đây, lưu DOCX, in với khung xem trước trực tiếp, hoặc xuất PDF.",
     ribbon: { tab: "Tệp", tabId: "file", group: "Tài liệu" },
@@ -977,22 +979,6 @@ export const WRITER_HELP_ENTRIES = [
       "Quan sát số hiệu phiên bản hiện hành được lấy trực tiếp từ hệ thống, nhà phát triển 3T Technology và bản quyền sở hữu.",
       "Kiểm tra danh sách các thành phần nguồn mở bên thứ ba (Python 3.12, LibreOffice Core, pywebview, v.v.) và nhấn nút Xem toàn văn giấy phép nếu muốn đọc toàn văn THIRD-PARTY-NOTICES.",
       "Nhấn nút Đóng hoặc bấm phím Esc trên bàn phím để quay lại làm việc."
-    ]
-  },
-  {
-    id: "writer.help.splash",
-    app: "writer",
-    commandIds: ["writer.help.open"],
-    title: "Màn hình chào 3T Office khi khởi động",
-    summary: "Hiển thị nhận diện thương hiệu 3T Office và tên ứng dụng 3T Doc ngay khi mở cửa sổ, tự động ẩn khi không gian soạn thảo sẵn sàng.",
-    ribbon: { tab: "Trợ giúp", tabId: "help", group: "Trợ giúp" },
-    keywords: ["màn hình chào", "splash", "khởi động", "3t office", "3t doc", "logo 3t", "chào mừng"],
-    steps: [
-      "Khi bạn khởi chạy 3T Office hoặc mở một tệp văn bản từ máy tính, màn hình chào xuất hiện ngay lập tức trên cửa sổ.",
-      "Màn hình hiển thị logo 3T, tiêu đề 3T Office và huy hiệu ứng dụng tương ứng (ví dụ: 3T Doc) trên nền gradient xanh hoàng gia đậm.",
-      "Thanh thông báo trạng thái hiển thị «Đang khởi động…» kèm chỉ báo xoay nhẹ nhàng trong khi hệ thống nạp các tài nguyên nền tảng.",
-      "Ngay khi giao diện soạn thảo hoàn tất nạp dữ liệu, màn hình chào sẽ tự động làm mờ và ẩn đi mà không làm chậm tốc độ làm việc.",
-      "Màn hình chào chạy hoàn toàn cục bộ ngoại tuyến (offline) trên máy tính của bạn, không gửi bất kỳ dữ liệu nào ra mạng."
     ]
   }
 ];

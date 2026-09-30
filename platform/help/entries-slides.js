@@ -206,15 +206,16 @@ export const SLIDES_HELP_ENTRIES = [
     app: "slides",
     commandIds: ["slides.show.setupShow"],
     title: "Thiết lập trình chiếu (Set Up Slide Show)",
-    summary: "Hộp thoại trên tab Trình chiếu, nhóm Thiết lập: lặp liên tục đến Esc, trình chiếu không thuyết minh, và màu con trỏ bút/laser. Lặp liên tục quay về trang 1 sau trang cuối thay vì thoát. Lưu PPTX ghi p:showPr chuẩn (showNarration / penClr) vào file PowerPoint.",
+    summary: "Hộp thoại trên tab Trình chiếu, nhóm Thiết lập: lặp liên tục đến Esc, trình chiếu không thuyết minh, và màu con trỏ bút/laser. Trong chế độ trình chiếu F5, hỗ trợ Bút vẽ (Ctrl+P), Con trỏ laser (Ctrl+L), Xóa nét vẽ (E), Mũi tên (Ctrl+A), đổi màu bút, và hộp thoại Giữ nét vẽ khi kết thúc để lưu vào PPTX.",
     ribbon: { tab: "Trình chiếu", tabId: "slideshow", group: "Thiết lập" },
-    keywords: ["thiết lập trình chiếu", "set up slide show", "lặp liên tục", "loop", "thuyết minh", "narration", "bút", "laser", "màu con trỏ", "pptx", "showPr"],
+    keywords: ["thiết lập trình chiếu", "set up slide show", "lặp liên tục", "loop", "thuyết minh", "narration", "bút", "laser", "màu con trỏ", "pptx", "showPr", "ctrl+p", "ctrl+l", "nét vẽ"],
     steps: [
       "Tab Trình chiếu, nhóm Thiết lập, nhấn Thiết lập trình chiếu (cạnh Ẩn trang chiếu).",
       "Đánh dấu Lặp lại liên tục cho đến khi nhấn Esc nếu muốn hết trang cuối thì quay lại trang đầu (trang không ẩn đầu tiên). Không đánh dấu thì hết trang cuối F5 thoát như trước. Esc luôn thoát. Lưu PPTX: LibreOffice đã ghi p:showPr loop trên ppt/presProps.xml — VN không vá thêm cờ này.",
       "Trình chiếu không có thuyết minh: lưu cờ cho bản trình chiếu (FODP: vno:without-narration). VN Slides chưa có audio thuyết minh trên màn hình chiếu. Khi Lưu PPTX, VN ghi showNarration=\"0\" vào p:showPr (LibreOffice luôn để \"1\" nếu không vá).",
-      "Màu con trỏ bút / laser: chọn màu bằng ô màu. VN Slides chưa vẽ bút hay laser trên màn hình chiếu; màu được lưu FODP (vno:pointer-color) và khi Lưu PPTX được ghi p:penClr/a:srgbClr chuẩn PowerPoint. Nhấn Áp dụng để giữ, Hủy hoặc Esc để bỏ.",
-      "File → Mở một .pptx đã có Thiết lập trình chiếu (file vừa Lưu, hoặc file PowerPoint có p:showPr showNarration=\"0\" / p:penClr trên ppt/presProps.xml): LibreOffice chuyển PPTX→FODP giữ Lặp lại liên tục (presentation:endless) nhưng bỏ cờ không thuyết minh và màu bút. VN Office đọc ppt/presProps.xml của file gốc rồi gắn lại vno:without-narration / vno:pointer-color lên presentation:settings trước khi mở canvas — hộp thoại Thiết lập trình chiếu hiện lại đúng hai giá trị đó. Lặp liên tục không cần overlay (LibreOffice đã map). File không có p:showPr, hoặc giá trị không hợp lệ, thì không bịa cờ. File ZIP hỏng thì hộp thoại Mở báo lỗi rõ. File .odp/.fodp không đi overlay này — chúng giữ vno:* sẵn có."
+      "Màu con trỏ bút / laser: chọn màu bằng ô màu hoặc các nút màu nhanh (Đỏ, Xanh lam, Vàng, Xanh lá, Đen). Màu này được làm mặc định khi bắt đầu trình chiếu F5. Trong lúc chiếu, dùng Ctrl+P để bật Bút vẽ trực tiếp bằng chuột, Ctrl+L để bật Con trỏ laser chấm sáng theo chuột, E để xóa toàn bộ nét vẽ trên trang, và Ctrl+A để trở lại con trỏ mũi tên. Nhấn chuột phải trong màn chiếu để mở menu đổi màu bút tức thì.",
+      "Khi kết thúc trình chiếu (Esc hoặc hết slide cuối), nếu có nét vẽ, VN Slides hiển thị hộp thoại 'Giữ nét vẽ? (Giữ / Bỏ)'. Chọn Giữ sẽ chuyển các nét vẽ thành hình vẽ vĩnh viễn trên trang chiếu và lưu chuẩn ra tệp PPTX/FODP. Chọn Bỏ để xóa các nét vẽ tạm thời.",
+      "File → Mở một .pptx đã có Thiết lập trình chiếu: VN Office đọc ppt/presProps.xml của file gốc rồi gắn lại vno:without-narration / vno:pointer-color lên presentation:settings trước khi mở canvas — hộp thoại Thiết lập trình chiếu hiện lại đúng các giá trị đó."
     ]
   },
   {
@@ -573,10 +574,10 @@ export const SLIDES_HELP_ENTRIES = [
     commandIds: ["slides.show.rehearseTimings"],
     title: "Tập dượt hẹn giờ",
     summary: "Chiếu từ trang đang mở, đồng hồ «Trang: MM:SS» và «Tổng: MM:SS». Esc (hoặc hết trang) hỏi có lưu thời gian từng trang không. Thời gian lưu chỉ để tham khảo — F5 không tự chuyển trang theo mốc này.",
-    ribbon: { tab: "Trình chiếu", tabId: "slideshow", group: "Người thuyết trình" },
+    ribbon: { tab: "Trình chiếu", tabId: "slideshow", group: "Thiết lập" },
     keywords: ["tập dượt", "hẹn giờ", "rehearse timings", "đồng hồ", "thời gian trang"],
     steps: [
-      "Mở trang muốn bắt đầu tập. Tab Trình chiếu, nhóm Người thuyết trình: Tập dượt hẹn giờ (nút lớn, cạnh Ghi chú thuyết trình).",
+      "Mở trang muốn bắt đầu tập. Tab Trình chiếu, nhóm Thiết lập: Tập dượt hẹn giờ (nút lớn, cạnh Thiết lập trình chiếu và Ẩn trang).",
       "Overlay «Tập dượt thời gian trình chiếu» với đồng hồ «Trang: MM:SS» và «Tổng: MM:SS» (cập nhật 250 ms). Space / → / PageDown / click (trừ video/audio/đồng hồ) sang trang; ← / PageUp lùi; Esc kết thúc. Trang ẩn bị bỏ qua. Bắt đầu từ trang đang mở, không phải trang 1.",
       "Hết (Esc hoặc trang cuối, trừ khi đang lặp liên tục): hộp xác nhận «Tổng thời gian trình chiếu: {time}. Lưu thời gian tập dượt cho từng trang?» Đồng ý ghi rehearsedDuration (1 chữ số thập phân); Bộ sắp xếp trang hiện ⏱ Ns.",
       "Mốc đã lưu không tự chạy khi F5 — chỉ để xem lại. Muốn lặp không dừng: tab Trình chiếu → Thiết lập trình chiếu."
@@ -646,22 +647,6 @@ export const SLIDES_HELP_ENTRIES = [
       "Quan sát số hiệu phiên bản hiện hành, nhà phát triển 3T Technology và các điều khoản bản quyền sở hữu.",
       "Tra cứu danh sách phần mềm nguồn mở bên thứ ba (Python, LibreOffice Core, pywebview) và nhấn nút Xem toàn văn giấy phép nếu muốn đọc toàn văn THIRD-PARTY-NOTICES.",
       "Nhấn nút Đóng hoặc bấm phím Esc trên bàn phím để trở lại bài thuyết trình."
-    ]
-  },
-  {
-    id: "slides.help.splash",
-    app: "slides",
-    commandIds: ["slides.help.open"],
-    title: "Màn hình chào 3T Office khi khởi động",
-    summary: "Hiển thị nhận diện thương hiệu 3T Office và tên ứng dụng 3T Slide ngay khi mở cửa sổ, tự động ẩn khi không gian trình chiếu sẵn sàng.",
-    ribbon: { tab: "Trợ giúp", tabId: "help", group: "Trợ giúp" },
-    keywords: ["màn hình chào", "splash", "khởi động", "3t office", "3t slide", "logo 3t", "chào mừng"],
-    steps: [
-      "Khi bạn khởi chạy 3T Slide hoặc mở một tệp trình chiếu (.pptx, .odp), màn hình chào xuất hiện ngay lập tức trên cửa sổ.",
-      "Màn hình hiển thị logo 3T, tiêu đề 3T Office và huy hiệu ứng dụng màu cam đất 3T Slide trên nền gradient sang trọng.",
-      "Dòng chữ trạng thái hiển thị «Đang khởi động…» kèm biểu tượng xoay trong khi hệ thống nạp các tài nguyên trang chiếu và canvas.",
-      "Ngay khi khung slide và dải thumbnail hoàn tất chuẩn bị, màn hình chào sẽ tự động làm mờ và ẩn đi một cách mượt mà.",
-      "Màn hình chào được tối ưu hiển thị tức thời, chạy hoàn toàn offline không phụ thuộc internet và không gây độ trễ."
     ]
   }
 ];

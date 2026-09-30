@@ -197,6 +197,11 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("slides.section.remove", () => this.canvas.removeCurrentSection ? this.canvas.removeCurrentSection() : false);
     globalCommandBus.bindHandler("slides.section.moveUp", () => this.canvas.moveCurrentSectionUp ? this.canvas.moveCurrentSectionUp() : false);
     globalCommandBus.bindHandler("slides.section.moveDown", () => this.canvas.moveCurrentSectionDown ? this.canvas.moveCurrentSectionDown() : false);
+    globalCommandBus.bindHandler("slides.section.menu", () => this.canvas.promptAddCurrentSection ? this.canvas.promptAddCurrentSection() : false);
+    globalCommandBus.bindHandler("slides.drawing.arrange", () => this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("front") : false);
+    globalCommandBus.bindHandler("slides.edit.select", () => this.canvas.selectAllShapes ? this.canvas.selectAllShapes() : false);
+    globalCommandBus.bindHandler("slides.text.vAlign", () => this.canvas.setTextVerticalAlign ? this.canvas.setTextVerticalAlign("middle") : false);
+    globalCommandBus.bindHandler("slides.text.direction", () => this.canvas.setTextDirection ? this.canvas.setTextDirection("horizontal") : false);
     this._bindTextFormatTracking();
   }
 
@@ -510,7 +515,8 @@ export class SlidesAdapter {
         this._applyExecCommand("strikeThrough");
         return this._queryCommandState("strikeThrough");
       case "slides.text.clearFormat":
-        return this._applyExecCommand("removeFormat");
+        this._applyExecCommand("removeFormat");
+        return true;
       case "slides.font.family":
         if (args) this._applyExecCommand("fontName", args);
         return true;
@@ -1255,6 +1261,7 @@ export class SlidesAdapter {
 
   _shapeStyleName(shape) {
     if (shape.type === "connector") return "grConnector";
+    if (shape.type === "ink" || shape.type === "path") return `grInk_${this._styleKey(shape.stroke || shape.color || "DC2626")}_${shape.strokeWidth || 3}`;
     if (shape.type === "image" && shape.crop) return `grImage_crop_${this._styleKey(shape.id || "img")}`;
     if (shape.type === "image" || shape.type === "video" || shape.type === "audio") return "grImage";
     const suffix = this._shapeTextStyleSuffix(shape);
@@ -1895,6 +1902,10 @@ export class SlidesAdapter {
           needsConnector = true;
           continue;
         }
+        if (shape.type === "ink" || shape.type === "path") {
+          namedStyles.set(this._shapeStyleName(shape), shape);
+          continue;
+        }
         if (shape.type === "image" || shape.type === "video" || shape.type === "audio") {
           if (shape.type === "image" && shape.crop) {
             namedStyles.set(this._shapeStyleName(shape), shape);
@@ -2008,6 +2019,15 @@ export class SlidesAdapter {
     </style:style>`;
         continue;
       }
+      if (shape.type === "ink" || shape.type === "path") {
+        const sc = shape.stroke || shape.color || "#DC2626";
+        const sw = shape.strokeWidth ? this._pxToOdf(shape.strokeWidth) : "0.08cm";
+        xml += `
+    <style:style style:name="${styleName}" style:family="graphic">
+      <style:graphic-properties draw:stroke="solid" svg:stroke-color="${this._escapeXml(sc)}" svg:stroke-width="${sw}" draw:fill="none"/>
+    </style:style>`;
+        continue;
+      }
       const isTextBox = shape.type === "textbox";
       const isTransparent = this._isTransparentFill(shape);
       let fillAttrs = "";
@@ -2063,6 +2083,14 @@ export class SlidesAdapter {
         <draw:connector ${geom} draw:type="line" svg:x1="${x1}" svg:y1="${y1}" svg:x2="${x2}" svg:y2="${y2}" draw:start-shape="${start}" draw:end-shape="${end}"${stroke}${marker}>
           <text:p/>
         </draw:connector>`;
+    }
+
+    if (type === "ink" || type === "path") {
+      const viewBox = shape.viewBox || `0 0 ${shape.w} ${shape.h}`;
+      return `
+        <draw:path ${geom} svg:d="${this._escapeXml(shape.d || "")}" svg:viewBox="${this._escapeXml(viewBox)}">
+          <text:p/>
+        </draw:path>`;
     }
 
     if (type === "image") {
@@ -2344,9 +2372,12 @@ export class SlidesAdapter {
   _parseDrawShape(tagName, attrs, inner, graphicStyles) {
     const get = (name) => this._attr(attrs, name);
     const geomType = inner.match(/draw:type=["']([^"']+)["']/i)?.[1] || tagName;
+    const dAttr = get("svg:d");
+    const enhancedPath = inner.match(/draw:enhanced-path=["']([^"']+)["']/i)?.[1];
     let type = "rect";
     if (/ellipse|circle/i.test(geomType) || tagName === "ellipse" || tagName === "circle") type = "ellipse";
     else if (/arrow/i.test(geomType)) type = "arrow";
+    else if (/path|ink/i.test(geomType) || tagName === "path" || (dAttr && !/arrow/i.test(geomType))) type = "ink";
     const styleName = get("draw:style-name");
     const style = graphicStyles.get(styleName) || {};
     const color = get("draw:fill-color") || style.fill || "#3b82f6";
@@ -2461,6 +2492,15 @@ export class SlidesAdapter {
     if (pRight != null) shape.paddingRight = pRight;
     if (pTop != null) shape.paddingTop = pTop;
     if (pBottom != null) shape.paddingBottom = pBottom;
+    if (type === "ink" || tagName === "path" || dAttr) {
+      shape.type = "ink";
+      shape.d = dAttr || enhancedPath || "";
+      shape.viewBox = get("svg:viewBox") || inner.match(/svg:viewBox=["']([^"']+)["']/i)?.[1] || "";
+      shape.stroke = get("svg:stroke-color") || style.stroke || color || "#DC2626";
+      shape.strokeWidth = strokeWidth || style.strokeWidth || 3;
+      shape.color = shape.stroke;
+      shape.fill = "none";
+    }
     return shape;
   }
 
@@ -2819,7 +2859,7 @@ export class SlidesAdapter {
   _parseInnerDrawShapes(xml, graphicStyles, idMap) {
     const shapes = [];
     let rest = xml;
-    rest = this._extractTaggedShapes(rest, ["rect", "ellipse", "circle", "custom-shape", "polygon"], (tagName, attrs, inner) => {
+    rest = this._extractTaggedShapes(rest, ["rect", "ellipse", "circle", "custom-shape", "polygon", "path"], (tagName, attrs, inner) => {
       const shape = this._parseDrawShape(tagName, attrs, inner, graphicStyles);
       this._recordShapeId(attrs, shape, idMap);
       shapes.push(shape);
@@ -3285,7 +3325,7 @@ export class SlidesAdapter {
       const shapes = [];
       const idMap = new Map();
       pageContent = this._extractDrawGroups(pageContent, shapes, graphicStyles, idMap);
-      pageContent = this._extractTaggedShapes(pageContent, ["rect", "ellipse", "circle", "custom-shape", "polygon"], (tagName, attrs, inner) => {
+      pageContent = this._extractTaggedShapes(pageContent, ["rect", "ellipse", "circle", "custom-shape", "polygon", "path"], (tagName, attrs, inner) => {
         const shape = this._parseDrawShape(tagName, attrs, inner, graphicStyles);
         this._recordShapeId(attrs, shape, idMap);
         shapes.push(shape);

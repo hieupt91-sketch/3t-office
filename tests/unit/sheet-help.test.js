@@ -39,6 +39,7 @@ export async function runSheetHelpTests() {
       "sheet.data.validation",
       "sheet.data.goalSeek",
       "sheet.edit.formatPainter",
+      "sheet.selection.range",
       "sheet.chart.insert",
       "sheet.view.freezePanes"
     ];
@@ -226,8 +227,9 @@ export async function runSheetHelpTests() {
     if (byId["sheet.review.spellCheck"].ribbon.tab !== "Xem xét") {
       throw new Error("Bài chính tả Sheet phải ở tab Xem xét");
     }
-    if (byId["sheet.page.printAreaBreaks"].ribbon.group !== "Vùng in") {
-      throw new Error("Bài vùng in phải trỏ nhóm Vùng in");
+    // Ribbon rework (main 6050354) moved Print Area / Breaks into Page Setup, like Excel.
+    if (byId["sheet.page.printAreaBreaks"].ribbon.group !== "Thiết lập trang") {
+      throw new Error("Bài vùng in phải trỏ nhóm Thiết lập trang");
     }
     if (byId["sheet.edit.findReplace"].ribbon.group !== "Chỉnh sửa") {
       throw new Error("Bài Tìm/Thay thế phải trỏ nhóm Chỉnh sửa");

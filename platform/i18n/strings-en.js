@@ -24,7 +24,10 @@ export const enStrings = {
     switchLanguage: "Language",
     toggleTheme: "Dark / Light Mode",
     themeDark: "Dark Theme",
-    themeLight: "Light Theme"
+    themeLight: "Light Theme",
+    notice: "Notice",
+    confirm: "OK",
+    featurePendingNotice: "This feature is being completed and will be available in the next update."
   },
   help: {
     panelTitle: "Help",
@@ -114,7 +117,7 @@ export const enStrings = {
     mergeConfirmTitle: "Merge cells", mergeConfirmMessage: "Merging cells only keeps the upper-left value and discards other values.", mergeConfirmOk: "OK",
     functionTitle: "Insert Function", functionCategory: "Function category:", allCategory: "All", allFunctions: "All functions", mathFunctions: "Math & Trig", statsFunctions: "Statistical (AVERAGE, COUNT...)", logicFunctions: "Logical (IF, AND, OR...)", textFunctions: "Text (CONCAT, LEN...)", dateFunctions: "Date & Time (TODAY, NOW...)", financialFunctions: "Financial (PMT, FV, PV...)", lookupFunctions: "Lookup & Reference (VLOOKUP, INDEX...)", searchFunction: "Search for a function:", searchPlaceholder: "Type a brief description or function name...", insertFunction: "Insert Function",
     errorCheckingTitle: "Error Checking", noErrorsFound: "The error check is complete for the entire sheet. No errors were found.", errorsFoundPrompt: "Found <strong>{count}</strong> formula errors in the current sheet:", errorColCell: "Cell", errorColCode: "Error", errorColFormula: "Formula", errorColReason: "Reason", calcError: "Calculation error", divZero: "Division by zero or empty cell", invalidRef: "Invalid cell reference", wrongType: "Incorrect data type", naError: "Value not available", nameError: "Unrecognized formula or name", numError: "Numeric value out of range",
-    watchWindowTitle: "Watch Window", addWatch: "Add Watch", deleteWatch: "Delete Watch", watchWindowColSheet: "Sheet", watchWindowColCell: "Cell", watchWindowColValue: "Value", watchWindowColFormula: "Formula", defineNameTitle: "Define Name", nameLabel: "Name:", refersTo: "Refers to:", useInFormulaTitle: "Paste Name", namePlaceholder: "e.g., Payroll, UnitPrice", scopeLabel: "Scope:", scopeWorkbook: "Workbook (Entire workbook)", invalidName: "The name is invalid or already exists.", useInFormulaPrompt: "Select a name to paste into the formula:",
+    watchWindowTitle: "Watch Window", addWatch: "Add Watch", deleteWatch: "Delete Watch", watchWindowColBook: "Book", watchWindowColSheet: "Sheet", watchWindowColName: "Name", watchWindowColCell: "Cell", watchWindowColValue: "Value", watchWindowColFormula: "Formula", watchWindowEmpty: "No watched cells.", addWatchTitle: "Add Watch", addWatchPrompt: "Select the cells that you would like to watch the value of:", addWatchBtn: "Add", deleteWatchConfirm: "Select a row in the table to delete watch.", watchWindowCountSuffix: "watched cell(s)", watchWindowKeyboardHint: "Shortcuts: Delete to remove, Enter to navigate, Esc to close", watchWindowInvalidCoord: "Invalid cell reference.", defineNameTitle: "Define Name", nameLabel: "Name:", refersTo: "Refers to:", useInFormulaTitle: "Paste Name", namePlaceholder: "e.g., Payroll, UnitPrice", scopeLabel: "Scope:", scopeWorkbook: "Workbook (Entire workbook)", invalidName: "The name is invalid or already exists.", useInFormulaPrompt: "Select a name to paste into the formula:",
     nameManagerTitle: "Name Manager", nameNew: "New...", nameEdit: "Edit...", nameDelete: "Delete", noNamedRanges: "No named ranges found.", invalidNameOrRef: "Name or reference is invalid or duplicate.",
     newComment: "New Comment {coord}", editComment: "Edit Comment {coord}", commentContent: "Comment", commentPlaceholder: "Enter a comment for {coord}", author: "Author", defaultAuthor: "VN Office User", saveChanges: "Save Changes", addComment: "Add Comment", deleteComment: "Delete Comment", emptyComment: "Comment text cannot be empty.",
     spellcheckTitle: "Spelling", spellcheckNotInDictionary: "Not in Dictionary:", spellcheckCell: "Cell", spellcheckContext: "Cell text", spellcheckSuggestions: "Suggestions:", spellcheckNoSuggestions: "(No close suggestions)", spellcheckIgnore: "Ignore Once", spellcheckIgnoreAll: "Ignore All", spellcheckAdd: "Add to Dictionary", spellcheckReplace: "Change", spellcheckReplaceAll: "Change All", spellcheckClose: "Close", spellcheckStatus: "Issue {current} of {total}", spellcheckComplete: "The spelling check is complete for the entire sheet. No misspellings were found.", spellcheckCompleteRemaining: "The spelling check is complete. No misspellings remain.",
@@ -256,9 +259,26 @@ export const enStrings = {
     formatBackgroundTitle: "Format Background", formatBackgroundHint: "Change this slide's background. This does not replace the presentation theme.", formatBackgroundSolid: "Solid fill", formatBackgroundGradient: "Two-color gradient", formatBackgroundPicture: "Picture", formatBackgroundColor: "Fill color", formatBackgroundFrom: "Color 1", formatBackgroundTo: "Color 2", formatBackgroundDirection: "Direction", formatBackgroundHorizontal: "Horizontal", formatBackgroundVertical: "Vertical", formatBackgroundChoosePicture: "Choose picture…", formatBackgroundApplyCurrent: "Apply to this slide", formatBackgroundApplyAll: "Apply to all slides", formatBackgroundClear: "Remove custom background",
     spellcheckTitle: "Spelling", spellcheckNotInDictionary: "Not in Dictionary:", spellcheckLocation: "Location", spellcheckContext: "Text", spellcheckSuggestions: "Suggestions:", spellcheckNoSuggestions: "(No close suggestions)", spellcheckIgnore: "Ignore Once", spellcheckIgnoreAll: "Ignore All", spellcheckAdd: "Add to Dictionary", spellcheckReplace: "Change", spellcheckReplaceAll: "Change All", spellcheckClose: "Close", spellcheckStatus: "Issue {current} of {total}", spellcheckComplete: "The spelling check is complete for this slide. No misspellings were found.", spellcheckCompleteRemaining: "The spelling check is complete. No misspellings remain.", spellcheckFieldTitle: "Title", spellcheckFieldBody: "Body", spellcheckFieldBody2: "Second column", spellcheckFieldShape: "Shape",
     animationPaneTitle: "Animation Pane", animationPaneHint: "Every animation on the current slide. Reorder with Up/Down, choose how it starts, or remove the animation without deleting the object.", animationPaneEmpty: "This slide has no animations. Apply an object animation on the Animations tab, then open this pane to sequence them.", animStartLabel: "Start", animStartOnClick: "On Click", animStartWithPrevious: "With Previous", animStartAfterPrevious: "After Previous", animMoveUp: "Move up", animMoveDown: "Move down", animMoveUpShort: "↑", animMoveDownShort: "↓", animRemove: "Remove animation", animRemoveShort: "Remove", shapeWordArt: "WordArt", shapeChart: "Chart", shapeTable: "Table", shapeTextBox: "Text box",
-    setupShowTitle: "Set Up Slide Show", setupShowHint: "Show options for this presentation. Loop until Esc applies immediately in F5. Pen/laser color is stored for a future pointer — VN Slides does not yet draw a pen or laser on the show screen.", setupShowLoop: "Loop continuously until Esc", setupShowNoNarration: "Show without narration", setupShowNoNarrationHint: "VN Slides does not have audio narration yet — this option only stores a flag and does not mute or hide audio.", setupShowPointerColor: "Pen / laser pointer color"
+    setupShowTitle: "Set Up Slide Show", setupShowHint: "Slide show options for this presentation. Loop until Esc applies immediately in F5. Default pen and laser pointer color during slide show (toggle with Ctrl+P, Ctrl+L).", setupShowLoop: "Loop continuously until Esc", setupShowNoNarration: "Show without narration", setupShowNoNarrationHint: "VN Slides does not have audio narration yet — this option only stores a flag and does not mute or hide audio.", setupShowPointerColor: "Pen / laser pointer color",
+    keepInkTitle: "VN Slides", keepInkPrompt: "Do you want to keep your ink annotations?", keepInkKeep: "Keep", keepInkDiscard: "Discard",
+    slideshowNext: "Next", slideshowPrev: "Previous", slideshowPointerOptions: "Pointer Options", slideshowArrow: "Arrow", slideshowPen: "Pen", slideshowLaser: "Laser Pointer", slideshowPenColor: "Pen Color", slideshowEraseInk: "Erase Ink on Slide", slideshowEndShow: "End Show",
+    colorRed: "Red", colorBlue: "Blue", colorYellow: "Yellow", colorGreen: "Green", colorBlack: "Black"
   },
   commands: {
+    "writer.edit.select": { label: "Select", tooltip: "Select text or objects in the document" },
+    "writer.para.lineSpacing": { label: "Line Spacing", tooltip: "Adjust spacing between lines of text" },
+    "writer.layout.breaks": { label: "Breaks", tooltip: "Insert page or section breaks" },
+    "writer.para.lineSpacingLayout": { label: "Line Spacing", tooltip: "Adjust line and paragraph spacing" },
+    "sheet-what-if-analysis": { label: "What-If Analysis", tooltip: "Try out various values for formulas using Goal Seek, Data Table, Scenario Manager" },
+    "sheet.view.freezePanesMenu": { label: "Freeze Panes", tooltip: "Freeze rows and columns to keep them visible while scrolling" },
+    "sheet.cells.format": { label: "Format", tooltip: "Change row height or column width, organize sheets, or protect sheets" },
+    "sheet.edit.fill": { label: "Fill", tooltip: "Continue a pattern or copy values in adjacent cells" },
+    "sheet.edit.clear": { label: "Clear", tooltip: "Delete everything, formatting, or contents from selected cells" },
+    "slides.edit.select": { label: "Select", tooltip: "Select text or objects on the slide" },
+    "slides.section.menu": { label: "Section", tooltip: "Organize slides into sections" },
+    "slides.drawing.arrange": { label: "Arrange", tooltip: "Change the placement and order of shapes and objects" },
+    "slides.text.vAlign": { label: "Align Text", tooltip: "Change how text is aligned within the text box vertically" },
+    "slides.text.direction": { label: "Text Direction", tooltip: "Change orientation of text to vertical, stacked, or rotated" },
     "sheet.page.margins": { label: "Margins", tooltip: "Set page margins for printed worksheets" },
     "sheet.page.orientation": { label: "Orientation", tooltip: "Switch between portrait and landscape layouts" },
     "sheet.page.size": { label: "Size", tooltip: "Choose paper size for printing" },
@@ -419,6 +439,8 @@ export const enStrings = {
     ,"sheet.page.clearPrintArea": { label: "Clear Print Area", tooltip: "Clear the current worksheet's print area" }
     ,"sheet.page.insertPageBreak": { label: "Insert Page Break", tooltip: "Insert row and column page breaks at the active cell" }
     ,"sheet.page.removePageBreak": { label: "Remove Page Break", tooltip: "Remove row and column page breaks at the active cell" }
+    ,"sheet.insert.cells": { label: "Insert Cells...", tooltip: "Insert cells, rows, or columns (Ctrl+Shift++)" }
+    ,"sheet.sheet.insertBefore": { label: "Insert Sheet", tooltip: "Insert a new sheet before current sheet (Shift+F11)" }
     ,"sheet.row.insert": { label: "Insert Row", tooltip: "Insert a new row (Ctrl+Shift+=)" }
     ,"sheet.col.insert": { label: "Insert Column", tooltip: "Insert a new column" }
     ,"sheet.row.delete": { label: "Delete Row", tooltip: "Delete the row containing the active cell" }
@@ -558,6 +580,8 @@ export const enStrings = {
     "writer.text.strike": { label: "Strikethrough", tooltip: "Strikethrough" },
     "writer.font.grow": { label: "Increase Font Size", tooltip: "Increase font size (Ctrl+Shift+>)" },
     "writer.font.shrink": { label: "Decrease Font Size", tooltip: "Decrease font size (Ctrl+Shift+<)" },
+    "writer.font.grow1pt": { label: "Increase Font Size 1 pt", tooltip: "Increase font size by 1 point (Ctrl+])" },
+    "writer.font.shrink1pt": { label: "Decrease Font Size 1 pt", tooltip: "Decrease font size by 1 point (Ctrl+[)" },
     "writer.text.subscript": { label: "Subscript", tooltip: "Subscript X₂ (Ctrl+=)" },
     "writer.text.superscript": { label: "Superscript", tooltip: "Superscript X² (Ctrl+Shift++)" },
     "writer.text.clearFormat": { label: "Clear All Formatting", tooltip: "Clear all formatting (Ctrl+Space)" },

@@ -405,6 +405,17 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.para.spacingAfter", (args) => this.applyParagraphSpacingAfter(args));
     globalCommandBus.bindHandler("writer.para.moveUp", () => this.moveParagraph("up"));
     globalCommandBus.bindHandler("writer.para.moveDown", () => this.moveParagraph("down"));
+    globalCommandBus.bindHandler("writer.para.lineSpacing", (args) => {
+      if (args === "1" || args === 1 || args === "1.0") return this._setLineHeight("1.0");
+      if (args === "1.5" || args === 1.5) return this._setLineHeight("1.5");
+      if (args === "2" || args === 2 || args === "2.0") return this._setLineHeight("2.0");
+      return this._setLineHeight("1.5");
+    });
+    globalCommandBus.bindHandler("writer.para.lineSpacingLayout", (args) => globalCommandBus.execute("writer.para.lineSpacing", args));
+    globalCommandBus.bindHandler("writer.edit.select", () => globalCommandBus.execute("common.edit.selectAll"));
+    globalCommandBus.bindHandler("writer.layout.breaks", () => globalCommandBus.execute("writer.page.break"));
+    globalCommandBus.bindHandler("writer.font.grow1pt", () => this._adjustFontSizePt(1));
+    globalCommandBus.bindHandler("writer.font.shrink1pt", () => this._adjustFontSizePt(-1));
     globalCommandBus.bindHandler("common.edit.repeat", () => this.repeatLastAction());
 
     if (!this._lastSnapshot) {
@@ -737,7 +748,8 @@ export class WriterAdapter {
       all: { border: "1px solid #334155", borderBottom: "1px solid #334155" },
       none: { border: "none", borderBottom: "none" }
     };
-    return borders[style] ? this._applyParagraphVisualStyle(borders[style], "writer.para.borders") : false;
+    const key = (typeof style === "string" && borders[style]) ? style : "bottom";
+    return this._applyParagraphVisualStyle(borders[key], "writer.para.borders");
   }
 
   _parseParagraphSpacingPt(args) {
@@ -6031,22 +6043,23 @@ export class WriterAdapter {
    */
   async handleDispatch(unoUrl, args, vnCmdId) {
     if (!this.editorDom) return false;
+    const cmd = vnCmdId || unoUrl;
 
     // Clone vùng chọn trước khi nút ribbon/dialog lấy focus khỏi trình soạn thảo.
-    if (vnCmdId === "writer.comment.insert") {
+    if (cmd === "writer.comment.insert") {
       return await this.insertComment(args);
     }
 
-    if (vnCmdId === "writer.trackChanges.toggle") return this.toggleTrackChanges(args?.enabled);
-    if (vnCmdId === "writer.trackChanges.previous") return this.previousTrackChange();
-    if (vnCmdId === "writer.trackChanges.next") return this.nextTrackChange();
-    if (vnCmdId === "writer.trackChanges.acceptOne") return this.acceptOneTrackChange();
-    if (vnCmdId === "writer.trackChanges.rejectOne") return this.rejectOneTrackChange();
-    if (vnCmdId === "writer.trackChanges.acceptAll") return this.acceptAllTrackChanges();
-    if (vnCmdId === "writer.trackChanges.rejectAll") return this.rejectAllTrackChanges();
-    if (vnCmdId === "writer.review.wordCount") return this.openWordCountDialog();
+    if (cmd === "writer.trackChanges.toggle") return this.toggleTrackChanges(args?.enabled);
+    if (cmd === "writer.trackChanges.previous") return this.previousTrackChange();
+    if (cmd === "writer.trackChanges.next") return this.nextTrackChange();
+    if (cmd === "writer.trackChanges.acceptOne") return this.acceptOneTrackChange();
+    if (cmd === "writer.trackChanges.rejectOne") return this.rejectOneTrackChange();
+    if (cmd === "writer.trackChanges.acceptAll") return this.acceptAllTrackChanges();
+    if (cmd === "writer.trackChanges.rejectAll") return this.rejectAllTrackChanges();
+    if (cmd === "writer.review.wordCount") return this.openWordCountDialog();
 
-    if (vnCmdId !== "common.edit.undo" && vnCmdId !== "common.edit.redo") {
+    if (cmd !== "common.edit.undo" && cmd !== "common.edit.redo") {
       this.flushTyping();
     }
 
@@ -6054,7 +6067,7 @@ export class WriterAdapter {
 
     let dispatchResult = false;
 
-    switch (vnCmdId) {
+    switch (cmd) {
       case "writer.nav.docStart":
         return this.navigateDocumentBoundary(false);
 
@@ -6103,6 +6116,16 @@ export class WriterAdapter {
 
       case "writer.font.shrink":
         this._adjustFontSize(-1);
+        dispatchResult = true;
+        break;
+
+      case "writer.font.grow1pt":
+        this._adjustFontSizePt(1);
+        dispatchResult = true;
+        break;
+
+      case "writer.font.shrink1pt":
+        this._adjustFontSizePt(-1);
         dispatchResult = true;
         break;
 
@@ -6444,7 +6467,7 @@ export class WriterAdapter {
         return false;
     }
 
-    this.recordSnapshot(vnCmdId);
+    this.recordSnapshot(cmd);
     return dispatchResult;
   }
 
@@ -8524,6 +8547,37 @@ export class WriterAdapter {
           fontElements[i].style.fontSize = `${nextSize}px`;
         }
       }
+    }
+  }
+
+  _adjustFontSizePt(deltaPt) {
+    if (typeof window === "undefined" || typeof document === "undefined") return;
+    const sel = window.getSelection?.();
+    if (sel && sel.rangeCount > 0) {
+      let node = sel.anchorNode;
+      if (node && node.nodeType === 3) node = node.parentNode;
+      let curPt = 12;
+      if (node && typeof window.getComputedStyle === "function") {
+        const computed = window.getComputedStyle(node);
+        const curPx = parseFloat(computed?.fontSize) || 16;
+        curPt = Math.round(curPx * 0.75) || 12;
+      }
+      const nextPt = Math.max(1, Math.min(1638, curPt + deltaPt));
+      this.flushTyping?.();
+      if (typeof document.execCommand === "function") {
+        document.execCommand("fontSize", false, "7");
+      }
+      if (this.editorDom) {
+        const fontElements = this.editorDom.getElementsByTagName("font");
+        for (let i = 0; i < fontElements.length; i++) {
+          if (fontElements[i].size === "7") {
+            fontElements[i].removeAttribute("size");
+            fontElements[i].style.fontSize = `${nextPt}pt`;
+          }
+        }
+      }
+      this.isDirty = true;
+      this.recordSnapshot?.(deltaPt > 0 ? "writer.font.grow1pt" : "writer.font.shrink1pt");
     }
   }
 

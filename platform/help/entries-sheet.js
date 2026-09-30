@@ -237,6 +237,24 @@ export const SHEET_HELP_ENTRIES = [
     ]
   },
   {
+    id: "sheet.selection.range",
+    app: "sheet",
+    commandIds: [],
+    title: "Chọn ô, vùng, hàng và cột",
+    summary: "Dùng chuột hoặc bàn phím để chọn ô/vùng liên tiếp, thêm vùng rời, chọn trọn hàng/cột và xem Sum, Count, Average ở thanh trạng thái.",
+    ribbon: { tab: "Lưới trang tính", tabId: "grid", group: "Hộp tên và thanh trạng thái" },
+    keywords: ["chọn ô", "chọn vùng", "bôi đen", "kéo chuột", "Shift+click", "Ctrl+click", "phím hướng", "hàng", "cột", "name box", "thanh trạng thái"],
+    steps: [
+      "Trong lưới bên dưới thanh công thức, nhấn giữ nút chuột trái ở ô đầu rồi kéo tới ô cuối. Khung chọn cập nhật khi kéo; thả chuột để giữ nguyên vùng. Kéo ngược lên trên hoặc sang trái để chọn theo hướng ngược.",
+      "Giữ Shift rồi nhấp ô cuối để mở rộng từ ô neo hiện tại. Sau khi chọn bằng chuột, giữ Shift và nhấn một phím hướng để tiếp tục mở rộng từ ô đang hoạt động; giữ Ctrl và nhấn phím hướng để đi tới ranh giới vùng dữ liệu liền kề.",
+      "Nhấn Ctrl+A khi lưới được focus để chọn trang tính; Ctrl+Space chọn cột hiện tại và Shift+Space chọn hàng hiện tại.",
+      "Giữ Ctrl rồi nhấp hoặc kéo vùng thứ hai để thêm vùng rời; hộp tên hiển thị các địa chỉ cách nhau bằng dấu phẩy. Chọn lại một ô bình thường để bỏ các vùng rời và bắt đầu lựa chọn mới.",
+      "Kéo từ số hàng bên trái để chọn nhiều hàng, hoặc kéo từ chữ cột phía trên để chọn nhiều cột. Có thể đưa con trỏ sát mép lưới trong lúc giữ chuột để tự cuộn và tiếp tục mở rộng vùng; các hàng/cột đã cố định vẫn giữ nguyên.",
+      "Hộp tên phía trên lưới hiện địa chỉ vùng. Thanh trạng thái dưới cùng cập nhật số ô số (ĐẾM), TRUNG BÌNH và TỔNG CỘNG của các ô đang chọn.",
+      "Khi Sao chép định dạng đang bật ở tab Trang đầu → nhóm Bảng nhớ tạm, kéo qua một vùng đích để áp dụng kiểu ô. Nếu đang sửa trên thanh công thức, kéo chọn ô khác sẽ xác nhận nội dung đang nhập trước khi chọn vùng mới."
+    ]
+  },
+  {
     id: "sheet.chart.insert",
     app: "sheet",
     commandIds: ["sheet.chart.insert"],
@@ -287,16 +305,20 @@ export const SHEET_HELP_ENTRIES = [
     id: "sheet.page.setupRound2", app: "sheet",
     commandIds: ["sheet.page.scale", "sheet.page.headerFooter", "sheet.page.margins", "sheet.page.printTitles"],
     title: "Thiết lập trang in nâng cao",
-    summary: "Thu bảng tính vừa số trang mong muốn, thêm đầu/cuối trang động, căn giữa nội dung và chọn in đường kẻ hoặc tiêu đề hàng/cột.",
+    summary: "Thu bảng tính vừa số trang mong muốn, thêm đầu/cuối trang động, căn giữa nội dung, chọn in đường kẻ hoặc tiêu đề hàng/cột, và đặt hàng/cột lặp lại trên mỗi trang in (Print Titles).",
     ribbon: { tab: "Bố trí trang", tabId: "pageLayout", group: "Thiết lập trang" },
-    keywords: ["tỷ lệ", "vừa trang", "scale", "đầu trang", "cuối trang", "đường kẻ", "tiêu đề hàng cột", "in"],
+    keywords: ["tỷ lệ", "vừa trang", "scale", "đầu trang", "cuối trang", "đường kẻ", "tiêu đề hàng cột", "in", "print titles", "hàng lặp lại", "cột lặp lại"],
     steps: [
       "Mở tab Bố trí trang, nhóm Thiết lập trang.",
       "Nhấn Tỷ lệ vừa trang. Chọn Vừa theo tỷ lệ và nhập 10–400%, hoặc chọn Vừa trong rồi nhập số trang ngang và dọc; nhập 0 cho chiều muốn để tự động.",
       "Trong cùng hộp thoại, đánh dấu Theo chiều ngang hoặc Theo chiều dọc ở mục Căn giữa trang khi in.",
       "Đánh dấu In đường kẻ ô hoặc In tiêu đề hàng và cột nếu cần chúng xuất hiện trên giấy/PDF, rồi nhấn Áp dụng.",
       "Để tạo đầu/cuối trang, nhấn Tiêu đề Đầu/Cuối trang. Chọn mẫu Trang X, Tên sheet, Ngày hoặc nhập ba vùng Trái/Giữa/Phải.",
-      "Trong ô tùy chỉnh có thể chèn &P (số trang), &N (tổng trang), &D (ngày), &T (giờ), &F (tên file), &A (tên sheet), rồi nhấn Áp dụng. Các thiết lập chỉ áp dụng cho sheet hiện tại và có thể hoàn tác bằng Ctrl+Z."
+      "Trong ô tùy chỉnh có thể chèn &P (số trang), &N (tổng trang), &D (ngày), &T (giờ), &F (tệp), &A (tên sheet), rồi nhấn Áp dụng. Các thiết lập chỉ áp dụng cho sheet hiện tại và có thể hoàn tác bằng Ctrl+Z.",
+      "Để đặt hàng lặp lại trên mỗi trang in, nhấn Tiêu đề in. Ở mục Hàng lặp lại trên mỗi trang, nhập tham chiếu kiểu Excel như 1:2 hoặc $1:$2 (một hàng đơn gõ 1 hoặc $1).",
+      "Cách khác: nhấn nút ⊞ bên cạnh ô Hàng lặp lại để thu gọn hộp thoại, rồi nhấp trực tiếp vào số hàng trên lưới; để mở rộng vùng, nhấn giữ phím Shift rồi nhấp hàng khác. Nhấn Esc hoặc nút Quay lại hộp thoại để trở về — ô tự điền giá trị đã chọn.",
+      "Tương tự cho Cột lặp lại ở bên trái: nhập A:B hoặc $A:$B, hoặc nhấn nút ⊞ và nhấp vào chữ cái cột trên lưới (nhấn giữ Shift rồi nhấp cột khác để mở rộng). Giá trị lưu riêng theo từng sheet, nhấn Áp dụng để lưu.",
+      "Print Titles được ghi vào tệp dưới dạng defined name _xlnm.Print_Titles của Excel nên mở lại bằng Excel vẫn giữ nguyên; mở lại trong VN Sheet cũng đọc đúng giá trị đã lưu."
     ]
   },
   {
@@ -525,16 +547,16 @@ export const SHEET_HELP_ENTRIES = [
   {
     id: "sheet.cells.insertDelete",
     app: "sheet",
-    commandIds: ["sheet.row.insert", "sheet.col.insert", "sheet.row.delete", "sheet.col.delete"],
-    title: "Chèn và xóa hàng, cột",
-    summary: "Chèn hàng tại hàng đang chọn (dữ liệu bên dưới dịch xuống); chèn cột tại cột đang chọn (dữ liệu bên phải dịch sang). Xóa hàng/cột chứa ô đang chọn. Công thức A1 trên cùng sheet được dịch theo.",
+    commandIds: ["sheet.row.insert", "sheet.col.insert", "sheet.row.delete", "sheet.col.delete", "sheet.insert.cells", "sheet.sheet.insertBefore"],
+    title: "Chèn và xóa hàng, cột, ô và trang tính",
+    summary: "Chèn hàng tại hàng đang chọn (dữ liệu bên dưới dịch xuống); chèn cột tại cột đang chọn (dữ liệu bên phải dịch sang). Xóa hàng/cột chứa ô đang chọn. Hỗ trợ hộp thoại Chèn/Xóa ô và chèn trang tính mới trước trang hiện tại theo chuẩn Microsoft Excel.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Ô" },
-    keywords: ["chèn hàng", "chèn cột", "xóa hàng", "xóa cột", "insert row", "insert column", "ctrl+shift+=", "dịch ô"],
+    keywords: ["chèn hàng", "chèn cột", "xóa hàng", "xóa cột", "chèn ô", "xóa ô", "insert row", "insert column", "insert cells", "ctrl+shift+=", "ctrl+shift++", "ctrl+-", "shift+f11", "dịch ô"],
     steps: [
-      "Chọn một ô (hoặc bấm số hàng / chữ cột). Tab Trang đầu, nhóm Ô: cột trái Chèn hàng / Chèn cột; cột giữa Xóa hàng / Xóa cột. Chèn hàng còn phím Ctrl+Shift+=.",
-      "Chèn hàng: hàng mới trống ngay tại vị trí chọn; hàng cũ và ghi chú / quy tắc định dạng / kiểm tra dữ liệu / vùng in / ngắt trang dịch xuống. Công thức cùng sheet dạng A1 được sửa theo.",
-      "Chèn cột tương tự, dịch sang phải; tiêu đề cột cuối tăng (ví dụ Z → AA). Xóa hàng/cột làm ngược lại — mất dữ liệu trên hàng/cột đó.",
-      "Chuột phải tiêu đề hàng/cột cũng có Xóa hàng. Ctrl+Z hoàn tác cả khối dịch chuyển. Named range, nguồn biểu đồ và nguồn Pivot chưa tự dịch khi chèn."
+      "Chọn một ô (hoặc bấm số hàng / chữ cột). Tab Trang đầu, nhóm Ô: cột trái Chèn hàng / Chèn cột; cột giữa Xóa hàng / Xóa cột.",
+      "Phím tắt Chèn Ctrl+Shift++ (hoặc Ctrl+Shift+=): Khi chọn cả hàng hoặc cả cột, lệnh sẽ chèn ngay hàng hoặc cột mới. Khi đang chọn ô hoặc dải ô, hệ thống mở hộp thoại Chèn chuẩn Excel cho phép chọn: Chuyển ô sang phải, Chuyển ô xuống dưới (mặc định), Toàn bộ hàng hoặc Toàn bộ cột.",
+      "Phím tắt Xóa Ctrl+-: Khi chọn cả hàng hoặc cột sẽ xóa ngay; khi chọn ô sẽ mở hộp thoại Xóa chuẩn Excel để chuyển ô sang trái, chuyển ô lên trên, xóa cả hàng hoặc xóa cả cột. Phím Shift+F11 chèn ngay một trang tính mới trước trang tính hiện tại.",
+      "Mọi thao tác chèn, xóa ô, hàng, cột hoặc chèn trang tính mới đều hỗ trợ hoàn tác nguyên tử qua Ctrl+Z và làm lại qua Ctrl+Y."
     ]
   },
   {
@@ -655,14 +677,15 @@ export const SHEET_HELP_ENTRIES = [
       "sheet.view.toggleFormulas"
     ],
     title: "Kiểm tra công thức: mũi tên, lỗi và cửa sổ theo dõi",
-    summary: "Vẽ mũi tên tới ô tiền lệ (xanh dương) hoặc ô phụ thuộc (xanh lá), hiện chuỗi công thức thay vì kết quả (Ctrl+`), quét lỗi #DIV/0! / #REF!…, và ghim cửa sổ theo dõi giá trị ô khi cuộn.",
+    summary: "Vẽ mũi tên tới ô tiền lệ (xanh dương) hoặc ô phụ thuộc (xanh lá), hiện chuỗi công thức thay vì kết quả (Ctrl+`), quét lỗi #DIV/0! / #REF!…, và mở cửa sổ theo dõi giá trị ô nổi có thể kéo di chuyển.",
     ribbon: { tab: "Công thức", tabId: "formulas", group: "Kiểm tra công thức" },
     keywords: ["trace", "tiền lệ", "phụ thuộc", "precedents", "dependents", "mũi tên", "hiện công thức", "ctrl+`", "kiểm tra lỗi", "watch window", "cửa sổ theo dõi", "ước lượng công thức"],
     steps: [
       "Chọn ô có công thức. Tab Công thức, nhóm Kiểm tra công thức: cột Tìm ô tiền lệ / Tìm ô phụ thuộc / Xóa mũi tên; cột Hiện công thức / Kiểm tra lỗi / Ước lượng công thức; nút lớn Cửa sổ theo dõi.",
       "Tìm ô tiền lệ phân tích công thức (ô đơn, dải A1:B10, named range) rồi vẽ mũi tên SVG xanh dương (#2563EB) từ ô nguồn tới ô đang chọn, viền nét đứt class precedent. Tìm ô phụ thuộc quét cả sheet, mũi tên xanh lá (#0F6D38) tới các ô công thức đang tham chiếu ô này. Ô không có công thức thì tiền lệ trả danh sách rỗng. Xóa mũi tên gỡ mọi đường và viền.",
       "Hiện công thức (cùng lệnh với phím Ctrl+` — sheet.view.toggleFormulas, không có nút riêng trên tab Chế độ xem) bật/tắt lớp is-formula-view-mode: ô hiện chuỗi =SUM(...) thay vì kết quả. Nhấn lại để về giá trị.",
-      "Kiểm tra lỗi: hộp «Kiểm tra lỗi công thức (Error Checking)» quét mã #DIV/0! (chia 0/ô trống), #REF!, #VALUE! (sai kiểu), #N/A, #NAME?, #NUM!. Không lỗi thì báo «Không tìm thấy ô nào có giá trị lỗi». Có lỗi: bảng Ô / Mã lỗi / Công thức / Nguyên nhân — nhấp hàng để nhảy tới ô. Cửa sổ theo dõi: khung cố định 440×250 px góc dưới phải, cột Sheet / Ô / Giá trị / Công thức; lần đầu tự thêm ô đang chọn. + Thêm ô theo dõi / − Xóa hàng đang chọn / × ẩn cửa sổ. Giá trị cập nhật khi ô đổi hoặc khi Tính lại."
+      "Kiểm tra lỗi: hộp «Kiểm tra lỗi công thức (Error Checking)» quét mã #DIV/0! (chia 0/ô trống), #REF!, #VALUE! (sai kiểu), #N/A, #NAME?, #NUM!. Không lỗi thì báo «Không tìm thấy ô nào có giá trị lỗi». Có lỗi: bảng Ô / Mã lỗi / Công thức / Nguyên nhân — nhấp hàng để nhảy tới ô.",
+      "Cửa sổ theo dõi (Watch Window): Mở cửa sổ nổi có thể kéo di chuyển bằng thanh tiêu đề. Bảng theo dõi chuẩn Excel với 6 cột: Sổ làm việc, Trang tính, Tên (nếu ô thuộc vùng đặt tên), Ô, Giá trị, Công thức. Nhấn «+ Thêm ô theo dõi» để nhập tọa độ ô đơn (ví dụ B5), dải ô (A1:A5) hoặc ô ở trang tính khác (Sheet2!C10). Dùng phím mũi tên lên/xuống để duyệt, nhấn Enter hoặc nhấp đúp hàng để chuyển ngay tới ô đó, nhấn Delete hoặc nút Xóa để bỏ theo dõi ô đang chọn, và nhấn Esc để đóng cửa sổ."
     ]
   },
   {
@@ -779,11 +802,11 @@ export const SHEET_HELP_ENTRIES = [
     ],
     title: "Vùng in và ngắt trang",
     summary: "Đặt khối đang bôi làm vùng in (chỉ phần đó ra giấy/PDF); xóa vùng in để in theo dữ liệu. Chèn ngắt trang ghi cả ngắt hàng và ngắt cột tại ô đang chọn — thấy rõ ở Xem ngắt trang.",
-    ribbon: { tab: "Bố trí trang", tabId: "pageLayout", group: "Vùng in" },
+    ribbon: { tab: "Bố trí trang", tabId: "pageLayout", group: "Thiết lập trang" },
     keywords: ["vùng in", "print area", "ngắt trang", "page break", "xóa vùng in", "in excel"],
     steps: [
-      "Bôi vùng cần in. Tab Bố trí trang, nhóm Vùng in: Đặt vùng in (nút lớn) ghi nhãn vùng (ví dụ A1:G40) theo sheet; Xóa vùng in gỡ vùng (không làm gì nếu chưa đặt).",
-      "Nhóm Ngắt trang cạnh đó: Chèn ngắt trang (nút lớn) thêm ngắt tại hàng và cột của ô đang chọn (ví dụ đứng C15 → ngắt trước hàng 15 và trước cột C). Xóa ngắt trang gỡ đúng cặp hàng/cột đó. Trùng ngắt đã có thì lệnh không thêm lần nữa.",
+      "Bôi vùng cần in. Tab Bố trí trang, nhóm Thiết lập trang: Đặt vùng in (nút lớn) ghi nhãn vùng (ví dụ A1:G40) theo sheet; Xóa vùng in gỡ vùng (không làm gì nếu chưa đặt).",
+      "Cùng nhóm Thiết lập trang: Chèn ngắt trang (nút lớn) thêm ngắt tại hàng và cột của ô đang chọn (ví dụ đứng C15 → ngắt trước hàng 15 và trước cột C). Xóa ngắt trang gỡ đúng cặp hàng/cột đó. Trùng ngắt đã có thì lệnh không thêm lần nữa.",
       "Xem đường chia: tab Chế độ xem → Xem ngắt trang (đường xanh, vùng ngoài khổ in tối). Ctrl+Z hoàn tác lần đặt vùng / chèn ngắt.",
       "Lề, hướng, khổ giấy, tỷ lệ vừa trang: nhóm Thiết lập trang — bài «Thiết lập trang in nâng cao»."
     ]
@@ -887,7 +910,7 @@ export const SHEET_HELP_ENTRIES = [
   {
     id: "sheet.accessibility.keyboardNav",
     app: "sheet",
-    commandIds: ["common.file.backstage", "sheet.format.cells"],
+    commandIds: ["common.file.backstage"],
     title: "Điều hướng bằng bàn phím và trợ năng (VN Sheet)",
     summary: "Thao tác hoàn toàn bằng bàn phím không cần dùng chuột trên bảng tính: di chuyển ô bằng phím mũi tên, Enter, Tab; mở hộp thoại Định dạng ô bằng phím tắt Ctrl+1; bẫy tiêu điểm bên trong hộp thoại (kể cả khi chuyển tab) và tự động khôi phục tiêu điểm về ô lưới sau khi nhấn Escape.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Trợ năng" },
@@ -1061,22 +1084,6 @@ export const SHEET_HELP_ENTRIES = [
       "Xem chi tiết số hiệu phiên bản hiện hành, nhà phát triển 3T Technology và các điều khoản bản quyền.",
       "Tra cứu danh sách phần mềm nguồn mở (Python, LibreOffice Core, pywebview) và nhấn nút Xem toàn văn giấy phép nếu cần kiểm tra chi tiết THIRD-PARTY-NOTICES.",
       "Nhấn nút Đóng hoặc bấm phím Esc trên bàn phím để trở về trang bảng tính đang làm việc."
-    ]
-  },
-  {
-    id: "sheet.help.splash",
-    app: "sheet",
-    commandIds: ["sheet.help.open"],
-    title: "Màn hình chào 3T Office khi khởi động",
-    summary: "Hiển thị nhận diện thương hiệu 3T Office và tên ứng dụng 3T Sheet ngay khi mở cửa sổ, tự động ẩn khi lưới bảng tính sẵn sàng.",
-    ribbon: { tab: "Trợ giúp", tabId: "help", group: "Trợ giúp" },
-    keywords: ["màn hình chào", "splash", "khởi động", "3t office", "3t sheet", "logo 3t", "chào mừng"],
-    steps: [
-      "Khi khởi chạy 3T Sheet hoặc mở tệp bảng tính (.xlsx, .ods, .csv), màn hình chào xuất hiện tức thì trên cửa sổ.",
-      "Màn hình hiển thị logo 3T, tiêu đề thương hiệu 3T Office và nhãn màu xanh ngọc nhận diện 3T Sheet.",
-      "Dòng chữ trạng thái hiển thị «Đang khởi động…» kèm biểu tượng xoay trong khi hệ thống nạp engine bảng tính và công thức.",
-      "Ngay khi lưới ô và thanh công thức được tạo xong, màn hình chào tự động làm mờ và ẩn đi trong tích tắc.",
-      "Màn hình chào chạy 100% độc lập ngoại tuyến trên máy tính của bạn, không làm tăng thời gian chờ hay độ trễ khởi động."
     ]
   }
 ];

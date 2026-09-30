@@ -115,6 +115,8 @@
   overflow: auto;
   position: relative;
   background-color: var(--vno-bg-window);
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .vno-grid-table {
@@ -210,6 +212,18 @@
   color: var(--vno-sheet-primary-fg, var(--vno-sheet-primary));
 }
 
+/* Print Titles: chọn trực tiếp hàng/cột trên lưới */
+.vno-row-header.is-print-title-selected,
+.vno-col-header.is-print-title-selected {
+  background-color: var(--vno-sheet-primary, #1a5fb4);
+  color: #fff;
+  box-shadow: inset 0 0 0 2px var(--vno-sheet-primary-fg, #1a5fb4);
+}
+.vno-print-title-hint .vno-print-title-hint-value {
+  font-weight: 700;
+  font-family: var(--vno-font-mono, monospace);
+}
+
 .vno-outline-toggle {
   width: 18px;
   height: 18px;
@@ -256,6 +270,8 @@
   overflow: hidden;
   text-overflow: clip;
   cursor: cell;
+  user-select: none;
+  -webkit-user-select: none;
   /* Excel thật dùng lưới ô rõ nét (~#d4d4d4), không mờ gần trắng như trước -
      border-subtle (#f1f5f9) gần như vô hình trên nền trắng, khó nhìn hơn hẳn
      Excel thật. Dùng border-default cho tương phản đủ rõ, khớp cảm giác lưới
@@ -1705,6 +1721,88 @@ tr.is-filtered-out {
   background: #064e3b;
   border-color: #059669;
   color: #ecfdf5;
+}
+
+/* --- VN Sheet: Watch Window (Cửa sổ theo dõi ô) chuẩn Excel --- */
+.vno-watch-window {
+  box-sizing: border-box;
+  font-family: inherit;
+}
+.vno-watch-window *, .vno-watch-window *::before, .vno-watch-window *::after {
+  box-sizing: border-box;
+}
+.vno-watch-header {
+  user-select: none;
+  cursor: move;
+}
+.vno-watch-header:active {
+  cursor: grabbing;
+}
+.vno-watch-table-container:focus-visible {
+  outline: 2px solid var(--vno-sheet-green, #0f6d38);
+  outline-offset: -2px;
+}
+.vno-watch-row {
+  cursor: pointer;
+  user-select: none;
+}
+.vno-watch-row:hover {
+  background-color: var(--vno-bg-hover, #f1f5f9);
+}
+.vno-watch-row.is-selected {
+  background-color: #dbeafe !important;
+  color: #0f172a !important;
+}
+.vno-watch-row.is-selected:hover {
+  background-color: #bfdbfe !important;
+}
+.vno-watch-add-dialog {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.22);
+  z-index: 10001;
+  width: 360px;
+  max-width: 90%;
+  display: flex;
+  flex-direction: column;
+}
+.vno-watch-add-dialog-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.25);
+  z-index: 10000;
+}
+[data-theme="dark"] .vno-watch-window {
+  background: #1e1e1e !important;
+  border-color: #3e3e42 !important;
+  color: #f1f5f9 !important;
+}
+[data-theme="dark"] .vno-watch-header {
+  background: #252526 !important;
+  border-color: #3e3e42 !important;
+  color: #f1f5f9 !important;
+}
+[data-theme="dark"] .vno-watch-toolbar,
+[data-theme="dark"] .vno-watch-footer {
+  background: #252526 !important;
+  border-color: #3e3e42 !important;
+}
+[data-theme="dark"] .vno-watch-row:hover {
+  background-color: #2d2d30 !important;
+}
+[data-theme="dark"] .vno-watch-row.is-selected {
+  background-color: #1e3a5f !important;
+  color: #f1f5f9 !important;
+}
+[data-theme="dark"] .vno-watch-add-dialog {
+  background: #252526 !important;
+  border-color: #3e3e42 !important;
+  color: #f1f5f9 !important;
 }
 
 
