@@ -496,6 +496,10 @@ export const enStrings = {
     ,"slides.file.printPreview": { label: "Print Preview", tooltip: "Print Preview (Ctrl+F2)" }
     ,"slides.shape.group": { label: "Group", tooltip: "Group the selected objects together (Ctrl+G)" }
     ,"slides.shape.ungroup": { label: "Ungroup", tooltip: "Ungroup the selected objects (Ctrl+Shift+G)" }
+    ,"slides.arrange.bringToFront": { label: "Bring to Front", tooltip: "Bring the selected object in front of all other objects" }
+    ,"slides.arrange.bringForward": { label: "Bring Forward", tooltip: "Bring the selected object forward one level" }
+    ,"slides.arrange.sendBackward": { label: "Send Backward", tooltip: "Send the selected object backward one level" }
+    ,"slides.arrange.sendToBack": { label: "Send to Back", tooltip: "Send the selected object behind all other objects" }
     ,"slides.arrange.alignLeft": { label: "Align Left", tooltip: "Align the selected objects to the left edge" }
     ,"slides.arrange.alignCenter": { label: "Align Center", tooltip: "Align the selected objects to the horizontal center" }
     ,"slides.arrange.alignRight": { label: "Align Right", tooltip: "Align the selected objects to the right edge" }

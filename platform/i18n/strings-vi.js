@@ -495,6 +495,10 @@ export const viStrings = {
     ,"slides.file.printPreview": { label: "Xem trước khi in", tooltip: "Xem trước khi in (Ctrl+F2)" }
     ,"slides.shape.group": { label: "Nhóm đối tượng", tooltip: "Nhóm các đối tượng đang chọn thành một khối (Ctrl+G)" }
     ,"slides.shape.ungroup": { label: "Bỏ nhóm", tooltip: "Tách nhóm đối tượng đang chọn (Ctrl+Shift+G)" }
+    ,"slides.arrange.bringToFront": { label: "Đưa lên trên cùng", tooltip: "Đưa đối tượng đang chọn lên trên tất cả đối tượng khác" }
+    ,"slides.arrange.bringForward": { label: "Đưa lên trên một lớp", tooltip: "Đưa đối tượng đang chọn lên trên một lớp" }
+    ,"slides.arrange.sendBackward": { label: "Đưa xuống dưới một lớp", tooltip: "Đưa đối tượng đang chọn xuống dưới một lớp" }
+    ,"slides.arrange.sendToBack": { label: "Đưa xuống dưới cùng", tooltip: "Đưa đối tượng đang chọn xuống dưới tất cả đối tượng khác" }
     ,"slides.arrange.alignLeft": { label: "Căn trái", tooltip: "Căn các đối tượng đang chọn theo mép trái" }
     ,"slides.arrange.alignCenter": { label: "Căn giữa (ngang)", tooltip: "Căn các đối tượng đang chọn giữa theo chiều ngang" }
     ,"slides.arrange.alignRight": { label: "Căn phải", tooltip: "Căn các đối tượng đang chọn theo mép phải" }
