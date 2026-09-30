@@ -1,5 +1,6 @@
 /** Behavioral tests — real Sheet chart data, rendering, refresh and sheet isolation. */
 import { SheetGridController } from "../../apps/sheet/sheet-grid.js";
+import { createSheetGridWithSheets } from "./sheet-test-fixtures.js";
 import { SheetChartBuilder } from "../../apps/sheet/sheet-chart.js";
 
 function assert(condition, message) {
@@ -54,7 +55,7 @@ export async function runSheetChartTests() {
 
   try {
     test("Sheet Charts: openChartBuilder dùng dữ liệu thật của vùng chọn", () => {
-      const grid = new SheetGridController(container());
+      const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
       grid.setCellValue("A", 1, "Tháng 1");
       grid.setCellValue("B", 1, 125);
       grid.setCellValue("A", 2, "Tháng 2");
@@ -85,7 +86,7 @@ export async function runSheetChartTests() {
     });
 
     test("Sheet Charts: insert render SVG và tự cập nhật khi ô nguồn đổi", () => {
-      const grid = new SheetGridController(container());
+      const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
       grid.chartLayer = chartLayer();
       grid.setCellValue("A", 4, "Doanh thu");
       grid.setCellValue("B", 4, 100);
@@ -101,7 +102,7 @@ export async function runSheetChartTests() {
     });
 
     test("Sheet Charts: state và DOM không rò rỉ chéo sheet", () => {
-      const grid = new SheetGridController(container());
+      const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
       grid.chartLayer = chartLayer();
       grid.setCellValue("A", 1, "Sheet một");
       grid.setCellValue("B", 1, 10);
@@ -122,7 +123,7 @@ export async function runSheetChartTests() {
     });
 
     test("Sheet Charts: xóa chart loại bỏ state và SVG", () => {
-      const grid = new SheetGridController(container());
+      const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
       grid.chartLayer = chartLayer();
       grid.setCellValue("A", 3, 42);
       const chart = grid.insertChart("bar", { start: { c: "A", r: 3 }, end: { c: "A", r: 3 } });

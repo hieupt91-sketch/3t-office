@@ -13,6 +13,7 @@ export class UnoBridge {
     this.desktopApi = null; // window.pywebview.api — cầu nối Python thật tới LibreOffice headless
     this.hasRealEngine = false;
     this._listeners = new Map();
+    this._browserDocumentSequences = { writer: 1, sheet: 1, slides: 1 };
   }
 
   /**
@@ -105,6 +106,45 @@ export class UnoBridge {
       };
     }
     return await this.desktopApi.open_document_dialog(appKind);
+  }
+
+  async createNewDocumentWindow(appKind) {
+    if (this.desktopApi?.create_new_document_window) {
+      return await this.desktopApi.create_new_document_window(appKind);
+    }
+    if (typeof window === "undefined" || typeof window.open !== "function") {
+      return { status: "error", message: "Không thể mở cửa sổ tài liệu mới." };
+    }
+    const prefixes = { writer: "Tài liệu", sheet: "Bảng tính", slides: "Bản trình bày" };
+    const extensions = { writer: "docx", sheet: "xlsx", slides: "pptx" };
+    if (!prefixes[appKind]) return { status: "error", message: "Loại tài liệu không hợp lệ." };
+    const sequence = ++this._browserDocumentSequences[appKind];
+    const url = new URL(window.location.href);
+    url.searchParams.delete("openFile");
+    url.searchParams.set("documentName", `${prefixes[appKind]} ${sequence}.${extensions[appKind]}`);
+    const opened = window.open(url.toString(), "_blank");
+    return opened
+      ? { status: "ok" }
+      : { status: "error", message: "Trình duyệt đã chặn cửa sổ tài liệu mới." };
+  }
+
+  async openFileInNewWindow(filePath, appKind) {
+    if (this.desktopApi?.open_file_in_new_window) {
+      return await this.desktopApi.open_file_in_new_window(filePath, appKind);
+    }
+    return { status: "error", message: "Mở tệp gần đây trong cửa sổ mới chỉ khả dụng trong VN Office Desktop." };
+  }
+
+  async setWindowTitle(title) {
+    if (!this.desktopApi?.set_window_title) return false;
+    return await this.desktopApi.set_window_title(String(title || "VN Office"));
+  }
+
+  async closeCurrentWindow() {
+    if (this.desktopApi?.close_current_window) {
+      return await this.desktopApi.close_current_window();
+    }
+    return { status: "error", message: "Không thể đóng cửa sổ tài liệu hiện tại." };
   }
 
   /**

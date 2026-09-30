@@ -20,7 +20,8 @@ export function resolveLaunchContext(search = "") {
   return Object.freeze({
     appKind,
     singleAppMode: Boolean(appKind && params.get("singleApp") === "1"),
-    openInitialFile: Boolean(appKind && params.get("openFile") === "1")
+    openInitialFile: Boolean(appKind && params.get("openFile") === "1"),
+    documentName: params.get("documentName") || ""
   });
 }
 
@@ -28,7 +29,8 @@ export function configurePlatformLaunchContext(context = {}) {
   _launchContext = Object.freeze({
     appKind: ["writer", "sheet", "slides"].includes(context.appKind) ? context.appKind : null,
     singleAppMode: context.singleAppMode === true,
-    openInitialFile: context.openInitialFile === true
+    openInitialFile: context.openInitialFile === true,
+    documentName: typeof context.documentName === "string" ? context.documentName : ""
   });
   return _launchContext;
 }

@@ -34,7 +34,8 @@ export class WriterApp {
     await bootstrapPlatform();
     globalShortcutManager.setActiveScope("writer");
 
-    const isBlank = options.templateId === "blank";
+    const templateId = options.templateId || "blank";
+    const isBlank = templateId === "blank";
     this.shell = new AppShell({
       appName: "writer",
       appTitle: "VN Writer",
@@ -188,6 +189,18 @@ export class WriterApp {
     this.adapter.setCommentsPanel(commentsPanel);
     this.adapter.setShell(this.shell);
     this.adapter.attach();
+    if (isBlank) {
+      const firstParagraph = body.querySelector("p") || body;
+      body.focus();
+      const selection = window.getSelection?.();
+      const range = document.createRange?.();
+      if (selection && range) {
+        range.selectNodeContents(firstParagraph);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    }
     this.arrangeController = new WriterArrangeController({
       body,
       adapter: this.adapter,

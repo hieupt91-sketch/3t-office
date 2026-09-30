@@ -7,6 +7,21 @@ import { registerHelpEntries } from "./help-catalog.js";
 
 export const SHEET_HELP_ENTRIES = [
   {
+    id: "sheet.file.basics",
+    app: "sheet",
+    commandIds: ["common.file.new", "common.file.open", "common.file.save", "common.file.saveAs", "common.file.close", "common.file.print"],
+    title: "Tạo, mở, lưu và in sổ làm việc",
+    summary: "Sổ mới bắt đầu với một trang tính Sheet1 trống tại ô A1. Dùng Tệp để mở hoặc lưu XLSX, XLS, ODS, CSV; Ctrl+P mở bản xem trước in.",
+    ribbon: { tab: "Tệp", tabId: "file", group: "Sổ làm việc" },
+    keywords: ["tạo mới", "mở tệp", "lưu", "lưu thành", "in", "Ctrl+N", "Ctrl+O", "Ctrl+S", "F12", "Ctrl+P", "Sheet1"],
+    steps: [
+      "Tạo sổ trống: nhấn Ctrl+N hoặc mở Tệp > Mới. Một cửa sổ mới tên Bảng tính 2, Bảng tính 3… xuất hiện với duy nhất Sheet1, ô A1 đang chọn và chưa có dữ liệu.",
+      "Mở sổ: nhấn Ctrl+O hoặc chọn Tệp > Mở, chọn XLSX, XLS, ODS hoặc CSV. Nếu sổ hiện tại có thay đổi, chọn Lưu, Không lưu hoặc Hủy trước khi chọn tệp; Hủy thao tác mở sẽ giữ sổ hiện tại.",
+      "Lưu: Ctrl+S mở hộp thoại Lưu thành cho sổ mới. Với tệp đã mở/lưu, Ctrl+S giữ nguyên định dạng hiện tại. Dùng F12 hoặc Ctrl+Shift+S để lưu tên/định dạng khác; xác nhận ghi đè khi được hỏi. Chọn PDF trong Lưu thành chỉ xuất một bản PDF; tệp đang mở vẫn giữ tên và định dạng cũ.",
+      "In: nhấn Ctrl+P, xem vùng in và ngắt trang, rồi chọn máy in, số bản và phạm vi trang. Các thiết lập vùng in, ngắt trang và vừa trang được áp dụng vào bản xem trước."
+    ]
+  },
+  {
     id: "sheet.formula.vndWords",
     app: "sheet",
     commandIds: [],
@@ -1009,7 +1024,7 @@ export const SHEET_HELP_ENTRIES = [
     steps: [
       "Lưu nhanh vào tệp đang mở (Ctrl+S): Nhấn phím tắt Ctrl+S hoặc nhấp biểu tượng đĩa mềm trên thanh truy cập nhanh ở góc trên bên trái. Nếu bảng tính đã có đường dẫn trên đĩa (XLSX, XLS, ODS, CSV), hệ thống sẽ lưu thẳng trực tiếp vào tệp đó mà không mở hộp thoại, kèm thông báo 'Đã lưu' trên thanh trạng thái.",
       "Lưu bảng tính mới: Nếu bảng tính vừa tạo mới chưa lưu lần nào, thao tác Ctrl+S hoặc nút Lưu sẽ tự động mở hộp thoại Lưu bản sao để bạn chọn thư mục và đặt tên tệp.",
-      "Lưu bản sao (F12 / Tệp → Lưu bản sao): Nhấn phím F12 hoặc vào menu Tệp → chọn «Lưu bản sao» để mở hộp thoại lưu tệp native. Bạn có thể lưu thành tệp mới với các định dạng: .xlsx (Excel 2007 XML chuẩn), .xls (Excel 97-2003 OLE2), .ods (OpenDocument Spreadsheet) hoặc .csv (phân tách dấu phẩy).",
+      "Lưu bản sao (F12 / Tệp → Lưu bản sao): Nhấn F12 hoặc vào Tệp → Lưu bản sao, nhập tên rồi chọn XLSX, XLS, ODS, CSV hoặc PDF trong danh sách Loại tệp. Lưu XLSX sang ODS đổi tên tab và tiêu đề cửa sổ theo tệp mới; chọn PDF chỉ xuất bản sao, không đổi sổ đang mở. CSV chỉ chứa trang tính đang hoạt động: trước khi lưu, bấm tab trang tính cần xuất. Nếu sổ có nhiều trang tính, xác nhận cảnh báo để tiếp tục; chọn Hủy sẽ giữ nguyên tệp đích.",
       "Chế độ tương thích định dạng cũ (.xls): Khi mở một tệp .xls từ cơ quan hoặc ổ LAN, thao tác Ctrl+S sẽ lưu lại đúng chuẩn nhị phân Excel 97-2003 (.xls), không âm thầm chuyển đổi sang .xlsx.",
       "Bảo vệ dữ liệu nguyên tử: Hệ thống luôn ghi ra tệp tạm và thay thế nguyên tử (atomic replace); nếu có sự cố hoặc lỗi chuyển đổi, tệp gốc trên đĩa hoàn toàn không bị hư hại. Nếu tệp đang ở chế độ chỉ đọc hoặc bị Excel khóa, hệ thống sẽ thông báo rõ ràng để bạn chọn Lưu bản sao."
     ]

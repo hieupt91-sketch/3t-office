@@ -1,0 +1,935 @@
+"""Desktop acceptance probe for G7; needs pywebview, LibreOffice, and Office COM on Windows.
+
+Copies small Office fixtures from E:\\VN OFice\\file test into the system temp directory,
+drives VN Office through pywebview/evaluate_js, and leaves the source corpus untouched.
+It never uses SendKeys. Run with: python scripts/test_g7_file_basics.py
+"""
+from __future__ import annotations
+
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+CORPUS = Path(r"E:\VN OFice\file test")
+FIXTURES = {
+    "writer": Path("landocx/d03.docx"),
+    "sheet": Path("lan/lan25.xlsx"),
+    "slides": Path("lan/BÁO CÁO KẾT QUẢ KINH DOANH NĂM 2021.pptx"),
+}
+COM_SCRIPT = r'''
+param([string]$App, [string]$File, [string]$Marker)
+$ErrorActionPreference = "Stop"
+# Office COM rejects calls while busy (RPC_E_CALL_REJECTED): wait and retry the same call.
+function Invoke-Com([scriptblock]$Call) {
+  for ($attempt = 0; $attempt -lt 120; $attempt++) {
+    try { return & $Call }
+    catch {
+      if ($_.Exception.Message -match "0x80010001|0x8001010A|RPC_E_CALL_REJECTED|RETRYLATER") { Start-Sleep -Milliseconds 500 }
+      else { throw }
+    }
+  }
+  throw "Office COM stayed busy (RPC_E_CALL_REJECTED) after 60 seconds"
+}
+$obj = $null
+$stage = "start"
+$wordPageCount = 0
+$officeNames = @{ writer = "WINWORD"; sheet = "EXCEL"; slides = "POWERPNT" }
+$before = @(Get-Process $officeNames[$App] -ErrorAction SilentlyContinue | ForEach-Object Id)
+try {
+  switch ($App) {
+    "writer" {
+      $stage = "word.open"
+      $obj = New-Object -ComObject Word.Application
+      $obj.Visible = $false; $obj.DisplayAlerts = 0
+      $doc = Invoke-Com { $obj.Documents.Open((Resolve-Path $File).Path, $false, $true, $false) }
+      Invoke-Com { $doc.Repaginate() } | Out-Null
+      $wordPageCount = [int](Invoke-Com { $doc.ComputeStatistics(2) })
+      $stage = "word.read"
+      $text = [string](Invoke-Com { $doc.Content.Text })
+      $found = $text.Contains($Marker)
+      $doc.Close(0)
+    }
+    "sheet" {
+      $stage = "excel.open"
+      $obj = New-Object -ComObject Excel.Application
+      $obj.Visible = $false; $obj.DisplayAlerts = $false
+      $book = Invoke-Com { $obj.Workbooks.Open((Resolve-Path $File).Path, 0, $true) }
+      $found = $false
+      $stage = "excel.read"
+      $sheetCount = Invoke-Com { $book.Worksheets.Count }
+      if (-not $sheetCount) { throw "Excel returned no readable workbook (Office blocked, e.g. activation prompt)" }
+      for ($index = 1; $index -le $sheetCount; $index++) {
+        $values = Invoke-Com { $book.Worksheets.Item($index).UsedRange.Value2 }
+        if ($null -ne $values) {
+          foreach ($value in $values) {
+            if ([string]$value -eq $Marker) { $found = $true; break }
+          }
+        }
+        if ($found) { break }
+      }
+      Invoke-Com { $book.Close($false) } | Out-Null
+    }
+    "slides" {
+      $stage = "powerpoint.open"
+      $obj = New-Object -ComObject PowerPoint.Application
+      $deck = $obj.Presentations.Open((Resolve-Path $File).Path, $true, $false, $false)
+      $found = $false
+      $stage = "powerpoint.read"
+      foreach ($slide in $deck.Slides) {
+        foreach ($shape in $slide.Shapes) {
+          if ($shape.HasTextFrame -and $shape.TextFrame.HasText -and ([string]$shape.TextFrame.TextRange.Text).Contains($Marker)) { $found = $true }
+        }
+      }
+      $deck.Close()
+    }
+  }
+  if ($found -and $App -eq "writer") { "COM_PASS WORD_PAGES=$wordPageCount" }
+  elseif ($found) { "COM_PASS" } else { "COM_FAIL marker not found" }
+} catch { "COM_ERROR stage=$stage " + ($_.Exception.Message -replace "`r|`n", " ") }
+finally {
+  $quitOk = $false
+  if ($null -ne $obj) { try { $obj.Quit(); $quitOk = $true } catch {} }
+  if (-not $quitOk) {
+    # A blocked instance (e.g. an Office activation prompt) cannot Quit; never leave it running.
+    Get-Process $officeNames[$App] -ErrorAction SilentlyContinue | Where-Object { $before -notcontains $_.Id } |
+      ForEach-Object { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue }
+  }
+}
+'''
+
+
+
+
+def package_has_marker(path: Path, marker: str) -> str:
+    """Independent evidence (not a replacement for Office): is the marker inside the saved OOXML XML?"""
+    import zipfile
+    try:
+        with zipfile.ZipFile(path) as package:
+            for name in package.namelist():
+                if name.endswith(".xml") and marker.encode("utf-8") in package.read(name):
+                    return f"yes ({name})"
+        return "no"
+    except (OSError, zipfile.BadZipFile) as error:
+        return f"unreadable ({error})"
+
+
+def office_com_check(app: str, path: Path, marker: str) -> tuple[str, str]:
+    status, detail = _office_com_check(app, path, marker)
+    return status, f"{detail} | package-xml marker: {package_has_marker(path, marker)}"
+
+
+def _office_com_check(app: str, path: Path, marker: str) -> tuple[str, str]:
+    helper = path.parent / "_verify_g7_office.ps1"
+    if not helper.exists():
+        helper.write_text(COM_SCRIPT, encoding="utf-8")
+    try:
+        output = ""
+        for attempt in range(3):
+            completed = subprocess.run(
+                ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(helper), "-App", app, "-File", str(path), "-Marker", marker],
+                capture_output=True, text=True, timeout=180, encoding="utf-8", errors="replace",
+            )
+            output = (completed.stdout or completed.stderr).strip()
+            retryable = any(token in output.lower() for token in (
+                "rpc_e_call_rejected", "office blocked", "0x800ac472", "activation prompt", "kept rejecting calls"
+            ))
+            if not retryable or attempt == 2:
+                break
+            time.sleep(2 ** (attempt + 1))
+        if "COM_PASS" in output:
+            return "PASS", output
+        if "COM_ERROR" in output and any(name in output.lower() for name in ("class not registered", "80040154", "cannot create activex")):
+            return "BLOCKED", output
+        if "RPC_E_CALL_REJECTED" in output or "Office blocked" in output or "0x800AC472" in output:
+            return "BLOCKED", "Office COM server kept rejecting calls during verification after retries: " + output
+        return "FAIL", output or f"PowerShell exit={completed.returncode}"
+    except subprocess.TimeoutExpired:
+        return "BLOCKED", "Office COM probe exceeded 180 seconds"
+    except OSError as error:
+        return "BLOCKED", str(error)
+
+
+def pdf_page_count(path: Path) -> int:
+    data = path.read_bytes()
+    return len(re.findall(rb"/Type\s*/Page(?!s)\b", data))
+
+
+def export_pdf_from_app(window, output_path: Path, save_queue: list[str]) -> dict:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.unlink(missing_ok=True)
+    save_queue.append(str(output_path))
+    run_id = start_promise(window, "window.__vnoAppInstance.adapter.exportPdf()")
+    deadline = time.time() + 240
+    while time.time() < deadline and not (output_path.is_file() and output_path.stat().st_size > 0):
+        time.sleep(0.25)
+    if not output_path.is_file() or output_path.stat().st_size <= 0:
+        raise TimeoutError(f"Export PDF did not create {output_path}")
+    wait_for(window, "!!document.querySelector('.vno-dialog-ok-btn')", bool, timeout=45)
+    dialog_text = str(window.evaluate_js("document.querySelector('.vno-dialog-overlay')?.innerText || ''"))
+    window.evaluate_js("document.querySelector('.vno-dialog-ok-btn')?.click(); true")
+    if await_promise(window, run_id, 45) is not True:
+        raise RuntimeError(f"Export PDF did not finish successfully: {dialog_text}")
+    return {"path": str(output_path), "pdfPages": pdf_page_count(output_path),
+            "pdfBytes": output_path.stat().st_size, "message": dialog_text}
+
+
+def print_with_g9_pipeline(window, app: str, output_path: Path) -> dict:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.unlink(missing_ok=True)
+    destination = json.dumps(str(output_path))
+    bridge_id = start_promise(window, f"""import('/adapters/libreoffice/common/uno-bridge.js').then(({{globalUnoBridge}}) => {{
+      window.__g7PrintBridge = globalUnoBridge;
+      window.__g7PrintOriginal ||= globalUnoBridge.printDocument.bind(globalUnoBridge);
+      globalUnoBridge.printDocument = (sessionId, settings) => window.__g7PrintOriginal(sessionId, {{...settings, destinationPath: {destination}}});
+      return true;
+    }})""")
+    if await_promise(window, bridge_id, 30) is not True:
+        raise RuntimeError("Could not route the G9 print action to the probe PDF path")
+    try:
+        print_id = start_promise(window, "window.__vnoAppInstance.adapter.print()")
+        if await_promise(window, print_id, 300) is not True:
+            raise RuntimeError("The G9 print dialog could not prepare the saved document")
+        dialog_state = evaluate_js_json(window, """(() => {
+          const printer = document.querySelector('#vno-print-printer');
+          const all = document.querySelector('input[name=rangeMode][value=all]');
+          return {
+            pages: Number(document.querySelector('.vno-print-total')?.textContent || 0),
+            printers: [...(printer?.options || [])].map(option => option.value),
+            hasCopies: !!document.querySelector('#vno-print-copies[type=number]'),
+            hasPageRange: !!document.querySelector('input[name=rangeMode][value=custom]')
+              && !!document.querySelector('#vno-print-range-input'),
+            allPages: !!all
+          };
+        })()""")
+        printer_name = next((name for name in dialog_state["printers"] if name.casefold() == "microsoft print to pdf"), None)
+        if not printer_name:
+            return {**dialog_state, "status": "BLOCKED", "error": "Microsoft Print to PDF is not installed"}
+        printer_result = window.evaluate_js("""(() => {
+          const printer = document.querySelector('#vno-print-printer');
+          printer.value = 'Microsoft Print to PDF';
+          printer.dispatchEvent(new Event('change', {bubbles: true}));
+          const copies = document.querySelector('#vno-print-copies');
+          copies.value = '1';
+          copies.dispatchEvent(new Event('input', {bubbles: true}));
+          const all = document.querySelector('input[name=rangeMode][value=all]');
+          all.checked = true;
+          all.dispatchEvent(new Event('change', {bubbles: true}));
+          const submit = document.querySelector('.vno-print-submit');
+          if (!submit || submit.disabled) return false;
+          submit.click();
+          return true;
+        })()""")
+        if not printer_result:
+            raise RuntimeError("The G9 print dialog rejected Microsoft Print to PDF / all-pages settings")
+        status = wait_for(window, """(() => {
+          const node = document.querySelector('.vno-print-dialog-status');
+          if (!node) return {closed: true};
+          return {success: node.classList.contains('is-success'), error: node.classList.contains('is-error'), text: node.textContent};
+        })()""", lambda state: bool(state and (state.get("success") or state.get("error") or state.get("closed"))), timeout=300)
+        deadline = time.time() + 60
+        while time.time() < deadline and not (output_path.is_file() and output_path.stat().st_size > 0):
+            time.sleep(0.25)
+        if not output_path.is_file() or output_path.stat().st_size <= 0:
+            raise RuntimeError(f"G9 print did not create its PDF: {status}")
+        if status.get("error") or status.get("closed"):
+            raise RuntimeError(f"G9 print failed: {status}")
+        return {**dialog_state, "status": "PASS", "printer": printer_name,
+                "copiesControl": dialog_state["hasCopies"], "pageRangeControl": dialog_state["hasPageRange"],
+                "pdfPages": pdf_page_count(output_path), "pdfBytes": output_path.stat().st_size,
+                "output": str(output_path), "message": status.get("text", "")}
+    finally:
+        try:
+            window.evaluate_js("""(() => {
+              const close = document.querySelector('.vno-print-close');
+              if (close) close.click();
+              if (window.__g7PrintBridge && window.__g7PrintOriginal) {
+                window.__g7PrintBridge.printDocument = window.__g7PrintOriginal;
+              }
+              return true;
+            })()""")
+        except Exception:
+            pass
+
+def copy_fixtures(temp_root: Path) -> dict[str, tuple[Path, Path]]:
+    copied = {}
+    for app, relative in FIXTURES.items():
+        source = CORPUS / relative
+        if not source.is_file():
+            raise FileNotFoundError(f"Required fixture missing: {source}")
+        first = temp_root / f"{app}_open{source.suffix.lower()}"
+        second = temp_root / f"{app}_replacement{source.suffix.lower()}"
+        shutil.copy2(source, first)
+        shutil.copy2(source, second)
+        copied[app] = (first, second)
+    return copied
+
+
+def run_probe(app: str, first: Path, second: Path, out_dir: Path) -> tuple[dict, str]:
+    result_path = out_dir / f"{app}.json"
+    command = [sys.executable, str(Path(__file__).resolve()), "--probe", str(ROOT), app, str(first), str(second), str(out_dir), str(result_path)]
+    try:
+        completed = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, timeout=900, encoding="utf-8", errors="replace")
+    except subprocess.TimeoutExpired as error:
+        return {"status": "BLOCKED", "error": "pywebview session exceeded 900 seconds"}, str(error)
+    if not result_path.exists():
+        return {"status": "FAIL", "error": "probe did not write a result"}, (completed.stdout + "\n" + completed.stderr)[-4000:]
+    try:
+        payload = json.loads(result_path.read_text(encoding="utf-8"))
+    except Exception as error:
+        return {"status": "FAIL", "error": str(error)}, (completed.stdout + "\n" + completed.stderr)[-4000:]
+    return payload, (completed.stdout + "\n" + completed.stderr)[-4000:]
+
+
+def evaluate_js_json(window, expression: str):
+    result = window.evaluate_js(f"JSON.stringify(({expression}))")
+    if isinstance(result, str):
+        return json.loads(result)
+    return result
+
+
+def wait_for(window, expression: str, predicate, timeout: float = 80, interval: float = 0.5):
+    deadline = time.time() + timeout
+    last = None
+    while time.time() < deadline:
+        try:
+            last = evaluate_js_json(window, expression)
+            if predicate(last):
+                return last
+        except Exception:
+            pass
+        time.sleep(interval)
+    raise TimeoutError(f"Timed out waiting for JavaScript state: {expression}; last={last!r}")
+
+
+def wait_for_window_count(webview_module, expected_count: int, timeout: float = 45):
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if len(webview_module.windows) == expected_count:
+            return list(webview_module.windows)
+        time.sleep(0.25)
+    raise TimeoutError(f"Timed out waiting for {expected_count} pywebview windows; saw {len(webview_module.windows)}")
+
+
+def start_promise(window, expression: str) -> str:
+    js = """(() => {
+      window.__g7Runs ||= {}; const id = `g7-${Date.now()}-${Math.random()}`;
+      window.__g7Runs[id] = { done: false };
+      Promise.resolve().then(() => (EXPRESSION)).then(value => {
+        window.__g7Runs[id] = { done: true, ok: true, value: value === undefined ? null : value };
+      }, error => { window.__g7Runs[id] = { done: true, ok: false, error: String(error?.stack || error) }; });
+      return id;
+    })()""".replace("EXPRESSION", expression)
+    return str(window.evaluate_js(js))
+
+
+def await_promise(window, run_id: str, timeout: float = 240):
+    state = wait_for(window, f"window.__g7Runs[{json.dumps(run_id)}]", lambda value: bool(value and value.get("done")), timeout)
+    if not state.get("ok"):
+        raise RuntimeError(state.get("error", "page promise failed"))
+    return state.get("value")
+
+
+def run_command(window, command: str, timeout: float = 240):
+    run_id = start_promise(window, f"import('/platform/commands/command-bus.js').then(m => m.globalCommandBus.execute({json.dumps(command)}))")
+    return await_promise(window, run_id, timeout)
+
+
+def trigger_shortcut(window, key: str, *, ctrl: bool = False, shift: bool = False):
+    window.evaluate_js(
+        "window.dispatchEvent(new KeyboardEvent('keydown', {key: " + json.dumps(key) +
+        f", ctrlKey: {str(ctrl).lower()}, shiftKey: {str(shift).lower()}, bubbles: true, cancelable: true}})); true"
+    )
+
+
+def wait_app(window):
+    return wait_for(window, "!!window.__vnoAppInstance?.adapter", bool, timeout=90)
+
+
+def inspect_blank(window, app: str) -> dict:
+    state = evaluate_js_json(window, f"""(() => {{
+      const app = window.__vnoAppInstance, adapter = app?.adapter, shell = app?.shell;
+      const common = {{ name: shell?.documentName || "", tab: document.querySelector('.vno-doc-tab span')?.textContent || "",
+        title: document.title, dirty: !!adapter?.isDirty,
+        recent: JSON.parse(localStorage.getItem('vno_recent_documents') || '[]').filter(item => item?.path).length }};
+      if ({json.dumps(app)} === "writer") {{
+        const body = adapter?.bodyDom;
+        return {{...common, text: body?.innerText || "", html: body?.innerHTML || "", pages: adapter?.paginateContent?.()?.length || 0}};
+      }}
+      if ({json.dumps(app)} === "sheet") {{
+        const grid = app.grid;
+        return {{...common, sheets: grid?.sheets || [], active: grid?.activeSheet || "", selected: grid?.selectedCoord || null,
+          dataCount: grid?.cellsData?.size ?? -1}};
+      }}
+      const slides = app.canvasController?.slides || [];
+      return {{...common, slideCount: slides.length, slides: slides.map(slide => ({{title: slide.title || "", body: slide.body || "", notes: slide.notes || ""}}))}};
+    }})()""")
+    state["windowTitle"] = str(getattr(window, "title", ""))
+    return state
+
+
+def insert_marker(window, app: str, marker: str) -> None:
+    escaped = json.dumps(marker)
+    if app == "writer":
+        expression = f"""(() => {{ const a=window.__vnoAppInstance.adapter, b=a.bodyDom;
+          b.insertAdjacentHTML('beforeend', '<p>' + {escaped} + '</p>');
+          b.dispatchEvent(new InputEvent('input', {{bubbles:true, inputType:'insertText', data:{escaped}}})); a.isDirty=true; return true; }})()"""
+    elif app == "sheet":
+        close_marker = "-close-save" in marker
+        col = "B" if close_marker else "A"
+        expression = f"""(() => {{ const a=window.__vnoAppInstance; a.grid.setCellValue('{col}', 1, {escaped}, false); a.adapter.isDirty=true; return true; }})()"""
+    else:
+        close_marker = "-close-save" in marker
+        target_index = "Math.min(1, c.slides.length - 1)" if close_marker else "c.currentSlideIndex"
+        expression = f"""(() => {{ const a=window.__vnoAppInstance, c=a.canvasController;
+          const targetIndex={target_index}; if (targetIndex !== c.currentSlideIndex) c.selectSlide(targetIndex);
+          const slide=c.slides[targetIndex], shape=slide?.shapes?.find(item => String(item.text || '').trim());
+          if (shape) {{ shape.text={escaped}; delete shape.textHtml; }}
+          c.titleEl.innerText={escaped}; c._syncEditableFieldsFromDom(); slide.title={escaped}; delete slide.titleHtml;
+          c._renderShapesLayer();
+          a.adapter.isDirty=true; return true; }})()"""
+    if not window.evaluate_js(expression):
+        raise RuntimeError(f"Could not insert marker into {app}")
+
+
+def preview_info(window, app: str) -> dict:
+    fonts_ready = start_promise(
+        window,
+        "Promise.resolve(document.fonts?.ready).then(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true)))))",
+    )
+    await_promise(window, fonts_ready, 30)
+    methods = {"writer": "adapter.openPrintPreview()", "sheet": "grid.openPrintPreview()", "slides": "canvasController.openPrintPreview()"}
+    window.evaluate_js(f"window.__vnoAppInstance.{methods[app]}; 'opened'")
+    if app == "writer":
+        selector = ".vno-print-preview-sheet"
+        total_selector = ".vno-print-preview-total-pages"
+    elif app == "sheet":
+        selector = ".vno-sheet-print-preview-page"
+        total_selector = ".vno-sheet-pp-total"
+    else:
+        selector = ".vno-slides-print-preview-page"
+        total_selector = ".vno-slides-pp-total"
+    info = evaluate_js_json(window, f"""(() => {{ const el=document.querySelector({json.dumps('.vno-print-preview-overlay' if app == 'writer' else '.vno-sheet-print-preview-overlay' if app == 'sheet' else '.vno-slides-print-preview-overlay')});
+      return {{count: document.querySelectorAll({json.dumps(selector)}).length,
+        totalPages: Number(document.querySelector({json.dumps(total_selector)})?.textContent || 0),
+        text: (el?.innerText || '').slice(0,30000)}}; }})()""")
+    close_methods = {"writer": "adapter.closePrintPreview()", "sheet": "grid.closePrintPreview()", "slides": "canvasController.closePrintPreview()"}
+    try:
+        window.evaluate_js(f"window.__vnoAppInstance.{close_methods[app]}; 'closed'")
+    except Exception:
+        pass
+    return info
+
+
+def desktop_probe(app: str, first: Path, second: Path, out_dir: Path, result_path: Path) -> int:
+    # Keep this automation isolated from the developer's real VN Office profile and prior probe runs.
+    profile_root = Path(os.environ.get("VNO_G7_PROFILE_ROOT") or out_dir) / app
+    local_app_data = profile_root / "LocalAppData"
+    roaming_app_data = profile_root / "AppData"
+    local_app_data.mkdir(parents=True, exist_ok=True)
+    roaming_app_data.mkdir(parents=True, exist_ok=True)
+    os.environ["LOCALAPPDATA"] = str(local_app_data)
+    os.environ["APPDATA"] = str(roaming_app_data)
+    import webview
+    import main as vnmain
+
+    server, port = vnmain._start_static_server()
+    vnmain._DOCUMENT_SEQUENCE[app] = 1
+    api = vnmain.VnOfficeApi(app_kind=app, server_port=port)
+    window = webview.create_window(
+        title=f"G7 {app}", url=vnmain.build_launch_url(app, None, port=port),
+        width=1366, height=900, min_size=(960, 640), js_api=api, text_select=True,
+    )
+    vnmain._register_app_window(api, window)
+    open_queue = [str(first), str(second)]
+    save_queue = []
+    dialog_calls = []
+    confirmation_calls = []
+
+    def fake_dialog(dialog_type, *args, **kwargs):
+        dialog_calls.append({"type": int(dialog_type), "kwargs": {key: list(value) if isinstance(value, tuple) else value for key, value in kwargs.items()}})
+        if dialog_type == webview.OPEN_DIALOG:
+            return [open_queue.pop(0)] if open_queue else []
+        if dialog_type == webview.SAVE_DIALOG:
+            return [save_queue.pop(0)] if save_queue else []
+        return []
+
+    def fake_confirmation(title, message):
+        confirmation_calls.append({"title": str(title), "message": str(message)})
+        return True
+
+    def after_loaded(win):
+        outcome = {"app": app, "checks": {}, "errors": [], "dialogCalls": dialog_calls}
+        def checkpoint(step: str):
+            outcome["step"] = step
+            result_path.write_text(json.dumps(outcome, ensure_ascii=False, indent=2), encoding="utf-8")
+        try:
+            wait_app(win)
+            win.create_file_dialog = fake_dialog
+            win.create_confirmation_dialog = fake_confirmation
+            blank = inspect_blank(win, app)
+            outcome["blank"] = blank
+            preview = preview_info(win, app)
+            outcome["blankPreview"] = preview
+            outcome["checks"]["blank"] = is_blank_ok(app, blank)
+            outcome["checks"]["blankPreview"] = preview["count"] > 0 and not any(
+                sample in preview["text"] for sample in ("Dự toán kinh phí", "Kế hoạch Q3", "Tiêu đề trang chiếu", "Nhập nội dung chính", "QUYẾT ĐỊNH")
+            )
+            blank_export_path = out_dir / f"{app}_blank_export.pdf"
+            blank_export = export_pdf_from_app(win, blank_export_path, save_queue)
+            blank_print_path = out_dir / f"{app}_blank_print.pdf"
+            blank_print = print_with_g9_pipeline(win, app, blank_print_path)
+            outcome["blankPdf"] = {"export": blank_export, "print": blank_print}
+            outcome["checks"]["blankExportPdfPageCount"] = blank_export["pdfPages"] == 1
+            outcome["checks"]["blankPrintPdfPageCount"] = "BLOCKED" if blank_print.get("status") == "BLOCKED" else (
+                blank_print.get("status") == "PASS" and blank_print.get("pages") == 1
+                and blank_print.get("pdfPages") == 1
+            )
+
+            initial_window = win
+            checkpoint("blank")
+            initial_before_new = blank
+            trigger_shortcut(win, "n", ctrl=True)
+            wait_for_window_count(webview, 2, timeout=35)
+            child = next(candidate for candidate in webview.windows if candidate.uid != win.uid)
+            wait_for(child, "!!window.__vnoAppInstance?.adapter", bool, timeout=90)
+            child_blank = inspect_blank(child, app)
+            after_new = inspect_blank(initial_window, app)
+            outcome["new"] = {"first": after_new, "second": child_blank}
+            outcome["checks"]["new"] = is_blank_ok(app, child_blank, number=2) and after_new == initial_before_new
+            checkpoint("new")
+
+            # A clean close must close the child without ever rendering the three-choice prompt.
+            # The bridge Promise is torn down with the WebView, so observe native window removal instead.
+            start_promise(child, "window.__vnoAppInstance.shell.requestCloseDocument()")
+            wait_for_window_count(webview, 1, timeout=30)
+            outcome["checks"]["cleanClose"] = True
+            checkpoint("cleanClose")
+
+            # New document + Ctrl+S must open Save As with "<Tên> 3.<ext>" and write a real Office file.
+            ext = {"writer": "docx", "sheet": "xlsx", "slides": "pptx"}[app]
+            new_target = out_dir / f"{app}_new_saved.{ext}"
+            new_calls = []
+
+            def new_doc_dialog(dialog_type, *args, **kwargs):
+                new_calls.append({"type": int(dialog_type), "kwargs": {key: list(value) if isinstance(value, tuple) else value for key, value in kwargs.items()}})
+                return [str(new_target)] if dialog_type == webview.SAVE_DIALOG else []
+
+            trigger_shortcut(win, "n", ctrl=True)
+            wait_for_window_count(webview, 2, timeout=35)
+            new_child = next(candidate for candidate in webview.windows if candidate.uid != win.uid)
+            wait_app(new_child)
+            new_child.create_file_dialog = new_doc_dialog
+            new_marker = f"VNOfficeG7-{app}-new-save"
+            insert_marker(new_child, app, new_marker)
+            trigger_shortcut(new_child, "s", ctrl=True)
+            wait_for(new_child, "!window.__vnoAppInstance.adapter.isDirty", bool, timeout=240)
+            new_state = inspect_blank(new_child, app)
+            outcome["newSave"] = {"state": new_state, "calls": new_calls, "path": str(new_target)}
+            outcome["checks"]["newCtrlSOpensSaveAs"] = (
+                len(new_calls) == 1 and new_calls[0]["kwargs"].get("save_filename") == {
+                    "writer": "Tài liệu 3", "sheet": "Bảng tính 3", "slides": "Bản trình bày 3"}[app]
+                and new_target.is_file() and new_state["name"] == new_target.name and not new_state["dirty"]
+            )
+            start_promise(new_child, "window.__vnoAppInstance.shell.requestCloseDocument()")
+            wait_for_window_count(webview, 1, timeout=30)
+            checkpoint("newSave")
+
+            # Route native dialogs to copied fixtures and capture their actual filter/default-name arguments.
+            trigger_shortcut(win, "o", ctrl=True)
+            wait_for(win, "!!window.__vnoAppInstance.adapter.isDirty || !!window.__vnoAppInstance.adapter._sourcePath || !!window.__vnoAppInstance.adapter.sourceFilePath", bool, timeout=300)
+            wait_for(win, f"window.__vnoAppInstance.shell.documentName === {json.dumps(first.name)}", bool, timeout=60)
+            first_state = inspect_blank(win, app)
+            first_path = read_source_path(win, app)
+            outcome["openedFirst"] = {"state": first_state, "path": first_path}
+            outcome["checks"]["openFilter"] = dialog_has_filter(dialog_calls, app)
+            checkpoint("openedFirst")
+
+            marker1 = f"VNOfficeG7-{app}-replace-save"
+            insert_marker(win, app, marker1)
+            # Opening another file while dirty must show Save / Don't Save / Cancel; choose Save.
+            trigger_shortcut(win, "o", ctrl=True)
+            wait_for(win, "!!document.querySelector('[data-unsaved-choice=save]')", bool, timeout=25)
+            win.evaluate_js("document.querySelector('[data-unsaved-choice=save]').click(); true")
+            wait_for(win, f"window.__vnoAppInstance.shell.documentName === {json.dumps(second.name)} && !window.__vnoAppInstance.adapter.isDirty", bool, timeout=300)
+            outcome["checks"]["dirtyOpenSaveChoice"] = True
+            checkpoint("dirtyOpenSaveChoice")
+
+            marker2 = f"VNOfficeG7-{app}-cancel-then-save"
+            insert_marker(win, app, marker2)
+            outcome["insertedMarker"] = inspect_blank(win, app)
+            if app == "slides":
+                outcome["slideShapesAfterInsert"] = evaluate_js_json(win, "window.__vnoAppInstance.canvasController.slides[0].shapes.filter(shape => shape.text).map(({id,type,text,x,y}) => ({id,type,text,x,y})).slice(0,8)")
+            title_before_cancel = inspect_blank(win, app)["title"]
+            trigger_shortcut(win, "o", ctrl=True)
+            wait_for(win, "!!document.querySelector('[data-unsaved-choice=cancel]')", bool, timeout=25)
+            win.evaluate_js("document.querySelector('[data-unsaved-choice=cancel]').click(); true")
+            wait_for(win, "window.__vnoAppInstance.adapter.isDirty", bool, timeout=25)
+            after_cancel = inspect_blank(win, app)
+            outcome["cancelOpen"] = after_cancel
+            outcome["checks"]["dirtyOpenCancel"] = after_cancel["dirty"] and after_cancel["title"] == title_before_cancel and read_source_path(win, app) == str(second)
+
+            trigger_shortcut(win, "s", ctrl=True)
+            wait_for(win, "!window.__vnoAppInstance.adapter.isDirty", bool, timeout=300)
+            outcome["checks"]["saveInPlace"] = not inspect_blank(win, app)["dirty"] and read_source_path(win, app) == str(second)
+            outcome["afterInPlaceSave"] = inspect_blank(win, app)
+            if app == "slides":
+                outcome["slideShapesAfterSave"] = evaluate_js_json(win, "window.__vnoAppInstance.canvasController.slides[0].shapes.filter(shape => shape.text).map(({id,type,text,x,y}) => ({id,type,text,x,y})).slice(0,8)")
+            checkpoint("saveInPlace")
+
+            # Canceling the native Open picker leaves the current file, title, and dirty flag untouched.
+            before_open_cancel = inspect_blank(win, app)
+            open_cancel_id = start_promise(win, "window.__vnoAppInstance.adapter.open()")
+            open_cancel_result = await_promise(win, open_cancel_id, 30)
+            after_open_cancel = inspect_blank(win, app)
+            outcome["checks"]["openDialogCancel"] = (
+                open_cancel_result is False and after_open_cancel == before_open_cancel
+                and read_source_path(win, app) == str(second)
+            )
+            checkpoint("openDialogCancel")
+
+            # Save As (F12) proposes the current name/format first; choosing PDF only exports a copy
+            # (Word/Excel/PowerPoint keep the open document's name, format and path).
+            pdf_target = out_dir / f"{app}_saveas_copy.pdf"
+            save_queue.append(str(pdf_target))
+            before_pdf = inspect_blank(win, app)
+            trigger_shortcut(win, "F12")
+            pdf_deadline = time.time() + 180
+            while time.time() < pdf_deadline and not (pdf_target.is_file() and pdf_target.stat().st_size > 0):
+                time.sleep(0.5)
+            time.sleep(1.0)
+            final_state = inspect_blank(win, app)
+            outcome["saveAsStatus"] = evaluate_js_json(win, "document.getElementById('vno-status-docinfo')?.textContent || ''")
+            save_calls = [call for call in dialog_calls if call["type"] == int(webview.SAVE_DIALOG)]
+            outcome["saveAs"] = {"state": final_state, "path": read_source_path(win, app), "pdf": str(pdf_target),
+                                 "suggested": [call["kwargs"].get("save_filename") for call in save_calls],
+                                 "firstFilter": [(call["kwargs"].get("file_types") or [""])[0] for call in save_calls],
+                                 "directory": [call["kwargs"].get("directory") for call in save_calls]}
+            suggested = outcome["saveAs"]["suggested"]
+            outcome["checks"]["saveAsProposesCurrent"] = bool(suggested) and suggested[-1] == second.stem
+            outcome["checks"]["saveAsCurrentFormatFirst"] = outcome["saveAs"]["firstFilter"][-1].endswith(f"(*{second.suffix.lower()})")
+            outcome["checks"]["saveAsStartsInFileFolder"] = outcome["saveAs"]["directory"][-1] == str(second.parent)
+            outcome["checks"]["saveAsPdfExportsCopy"] = (
+                pdf_target.is_file() and pdf_target.read_bytes()[:5] == b"%PDF-"
+                and final_state["name"] == before_pdf["name"] and final_state["dirty"] == before_pdf["dirty"]
+                and read_source_path(win, app) == str(second)
+            )
+            checkpoint("saveAs")
+
+            # Reopen the saved source through the native Open path, then compare preview pages with the model.
+            open_queue.append(str(second))
+            trigger_shortcut(win, "o", ctrl=True)
+            wait_for(win, f"window.__vnoAppInstance.shell.documentName === {json.dumps(second.name)} && !window.__vnoAppInstance.adapter.isDirty", bool, timeout=240)
+            reopened = win
+            reopened_state = inspect_blank(reopened, app)
+            outcome["reopened"] = reopened_state
+            if app == "slides":
+                outcome["slideShapesAfterReopen"] = evaluate_js_json(reopened, "window.__vnoAppInstance.canvasController.slides[0].shapes.filter(shape => shape.text).map(({id,type,text,x,y}) => ({id,type,text,x,y})).slice(0,8)")
+            if app == "sheet":
+                outcome["checks"]["reopenSaved"] = evaluate_js_json(
+                    reopened, f"window.__vnoAppInstance.grid.cellsData.get('A1')?.val === {json.dumps(marker2)}"
+                )
+            elif app == "slides":
+                outcome["checks"]["reopenSaved"] = evaluate_js_json(
+                    reopened,
+                    f"window.__vnoAppInstance.canvasController.slides.some(slide => (slide.title || '') === {json.dumps(marker2)} || (slide.shapes || []).some(shape => (shape.text || '') === {json.dumps(marker2)}))",
+                )
+            else:
+                outcome["checks"]["reopenSaved"] = marker2 in json.dumps(reopened_state, ensure_ascii=False)
+            if app == "slides":
+                outcome["printModel"] = evaluate_js_json(
+                    reopened,
+                    "(() => { const c=window.__vnoAppInstance.canvasController; return {slideCount:c.slides.length, hiddenCount:c.slides.filter(slide => slide.hidden).length, pageCount:c.computePrintPages().totalPages}; })()",
+                )
+            reopened_preview = preview_info(reopened, app)
+            outcome["openedDocumentPreview"] = reopened_preview
+            outcome["checks"]["openedDocumentPreview"] = (
+                reopened_preview["count"] > 0
+                and reopened_preview["totalPages"] > 0
+                and marker2 in reopened_preview["text"]
+            )
+            alternate_targets = {"writer": ("odt",), "sheet": ("csv", "ods"), "slides": ("odp",)}[app]
+            alternate_save_results = []
+            if app == "sheet":
+                csv_warning_setup = evaluate_js_json(
+                    reopened,
+                    "(() => { const grid = window.__vnoAppInstance.grid; const active = grid.activeSheet; "
+                    "const added = grid.addSheet('G7 CSV warning', false); grid.switchSheet(active); "
+                    "return {added, sheetCount: grid.sheets.length, active: grid.activeSheet}; })()",
+                )
+                outcome["csvWarningSetup"] = csv_warning_setup
+                if csv_warning_setup.get("sheetCount", 0) < 2 or not csv_warning_setup.get("added"):
+                    raise RuntimeError("Could not create the second sheet needed to verify Excel's CSV warning")
+            for target_ext in alternate_targets:
+                alternate_path = out_dir / f"{app}_alternate.{target_ext}"
+                save_queue.append(str(alternate_path))
+                save_run = start_promise(reopened, "window.__vnoAppInstance.adapter.saveAs()")
+                wait_for(reopened, f"window.__vnoAppInstance.shell.documentName === {json.dumps(alternate_path.name)} && !window.__vnoAppInstance.adapter.isDirty", bool, timeout=300)
+                if await_promise(reopened, save_run, 45) is not True:
+                    raise RuntimeError(f"Save As to {target_ext} did not finish")
+                wait_for(reopened, f"document.title.startsWith({json.dumps(alternate_path.name)})", bool, timeout=30)
+                title_deadline = time.time() + 15
+                while time.time() < title_deadline and not str(reopened.title).startswith(alternate_path.name):
+                    time.sleep(0.25)
+                saved_state = inspect_blank(reopened, app)
+                alternate_save_results.append({"path": str(alternate_path), "state": saved_state})
+            outcome["alternateSaveAs"] = alternate_save_results
+            outcome["csvConfirmations"] = list(confirmation_calls)
+            expected_confirmation_count = 1 if app == "sheet" else 0
+            outcome["checks"]["saveAsAlternateFormats"] = (
+                len(alternate_save_results) == len(alternate_targets)
+                and all(Path(item["path"]).is_file() for item in alternate_save_results)
+                and all(
+                    item["state"]["name"] == Path(item["path"]).name
+                    and item["state"]["tab"] == Path(item["path"]).name
+                    and item["state"]["title"].startswith(Path(item["path"]).name)
+                    and item["state"]["windowTitle"].startswith(Path(item["path"]).name)
+                    and not item["state"]["dirty"]
+                    for item in alternate_save_results
+                )
+                and read_source_path(reopened, app) == alternate_save_results[-1]["path"]
+                and len(confirmation_calls) == expected_confirmation_count
+                and (app != "sheet" or "trang tính đang hoạt động" in confirmation_calls[0]["message"])
+            )
+            fixture_export_path = out_dir / f"{app}_export.pdf"
+            export_result = export_pdf_from_app(reopened, fixture_export_path, save_queue)
+            print_path = out_dir / f"{app}_print.pdf"
+            print_result = print_with_g9_pipeline(reopened, app, print_path)
+            outcome["exportPdf"] = export_result
+            outcome["g9Print"] = print_result
+            outcome["checks"]["printDialogOptions"] = "BLOCKED" if print_result.get("status") == "BLOCKED" else (
+                print_result.get("printer") == "Microsoft Print to PDF"
+                and print_result.get("copiesControl") is True
+                and print_result.get("pageRangeControl") is True
+            )
+            outcome["checks"]["printPageCount"] = "BLOCKED" if print_result.get("status") == "BLOCKED" else (
+                print_result.get("status") == "PASS" and print_result.get("pdfPages") == print_result.get("pages")
+            )
+            outcome["checks"]["exportPdfPageCount"] = "BLOCKED" if print_result.get("status") == "BLOCKED" else (
+                export_result.get("pdfPages") == print_result.get("pages")
+            )
+            if app == "writer":
+                word_status, word_detail = office_com_check("writer", second, marker2)
+                word_match = re.search(r"WORD_PAGES=(\d+)", word_detail)
+                outcome.setdefault("officeCom", {})["Word document page reference"] = {
+                    "status": word_status, "detail": word_detail,
+                    "pages": int(word_match.group(1)) if word_match else None,
+                }
+                if word_status == "BLOCKED":
+                    outcome["checks"]["writerWordPageCount"] = "BLOCKED"
+                else:
+                    word_pages = int(word_match.group(1)) if word_match else None
+                    outcome["checks"]["writerWordPageCount"] = (
+                        word_status == "PASS" and word_pages == print_result.get("pages")
+                        and word_pages == export_result.get("pdfPages")
+                    )
+            recent_paths = evaluate_js_json(
+                reopened,
+                "JSON.parse(localStorage.getItem('vno_recent_documents') || '[]').map(x => x.path)",
+            )
+            outcome["recentPaths"] = recent_paths
+            outcome["checks"]["recentOnlyRealPaths"] = bool(recent_paths) and all(
+                isinstance(path, str) and Path(path).is_file() for path in recent_paths
+            )
+            checkpoint("reopen")
+
+            corrupt = out_dir / f"{app}_corrupt{first.suffix.lower()}"
+            corrupt.write_bytes(b"not a valid Office document package")
+            open_queue.append(str(corrupt))
+            title_before_bad_open = inspect_blank(win, app)["title"]
+            source_before_bad_open = read_source_path(win, app)
+            trigger_shortcut(win, "o", ctrl=True)
+            wait_for(win, "!!document.querySelector('.vno-dialog-overlay')", bool, timeout=300)
+            error_text = evaluate_js_json(win, "document.querySelector('.vno-dialog-overlay')?.innerText || ''")
+            outcome["badOpen"] = {"message": error_text}
+            win.evaluate_js("document.querySelector('.vno-dialog-ok-btn')?.click(); true")
+            wait_for(win, "!document.querySelector('.vno-dialog-overlay')", bool, timeout=30)
+            current_has_marker = evaluate_js_json(win, f"""(() => {{ const a=window.__vnoAppInstance;
+              if ({json.dumps(app)} === 'writer') return (a.adapter.bodyDom?.innerText || '').includes({json.dumps(marker2)});
+              if ({json.dumps(app)} === 'sheet') return a.grid.cellsData.get('A1')?.val === {json.dumps(marker2)};
+              return a.canvasController.slides.some(slide => [slide.title, slide.body].some(text => String(text || '').includes({json.dumps(marker2)}))
+                || (slide.shapes || []).some(shape => String(shape.text || '').includes({json.dumps(marker2)})));
+            }})()""")
+            after_bad_open = inspect_blank(win, app)
+            outcome["checks"]["badOpenKeepsCurrent"] = (
+                "Không thể mở" in error_text and after_bad_open["title"] == title_before_bad_open
+                and read_source_path(win, app) == source_before_bad_open and current_has_marker
+            )
+            checkpoint("badOpen")
+
+            # Exercise all three Office choices for a dirty document close.
+            marker_close = f"VNOfficeG7-{app}-close-save"
+            insert_marker(win, app, marker_close)
+            close_cancel = start_promise(win, "window.__vnoAppInstance.shell.requestCloseDocument()")
+            wait_for(win, "!!document.querySelector('[data-unsaved-choice=cancel]')", bool, timeout=25)
+            win.evaluate_js("document.querySelector('[data-unsaved-choice=cancel]').click(); true")
+            close_cancel_result = await_promise(win, close_cancel, 30)
+            outcome["checks"]["dirtyCloseCancel"] = close_cancel_result is False and bool(inspect_blank(win, app)["dirty"])
+
+            trigger_shortcut(win, "n", ctrl=True)
+            wait_for_window_count(webview, 2, timeout=35)
+            discard_window = next(candidate for candidate in webview.windows if candidate.uid != win.uid)
+            wait_app(discard_window)
+            insert_marker(discard_window, app, f"VNOfficeG7-{app}-close-discard")
+            start_promise(discard_window, "window.__vnoAppInstance.shell.requestCloseDocument()")
+            wait_for(discard_window, "!!document.querySelector('[data-unsaved-choice=discard]')", bool, timeout=25)
+            discard_window.evaluate_js("document.querySelector('[data-unsaved-choice=discard]').click(); true")
+            wait_for_window_count(webview, 1, timeout=30)
+            outcome["checks"]["dirtyCloseDiscard"] = True
+
+            outcome["dirtyCloseSavePath"] = read_source_path(win, app)
+            close_save = start_promise(win, "window.__vnoAppInstance.shell.requestCloseDocument()")
+            wait_for(win, "!!document.querySelector('[data-unsaved-choice=save]')", bool, timeout=25)
+            win.evaluate_js("document.querySelector('[data-unsaved-choice=save]').click(); true")
+            wait_for_window_count(webview, 0, timeout=90)
+            outcome["checks"]["dirtyCloseSave"] = True
+
+        except Exception as error:
+            outcome["errors"].append(f"{type(error).__name__}: {error}")
+        finally:
+            try:
+                for active_api in list(vnmain._APP_WINDOW_APIS.values()):
+                    active_api._allow_window_close = True
+                for extra in list(webview.windows):
+                    try:
+                        extra.destroy()
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+            try:
+                result_path.write_text(json.dumps(outcome, ensure_ascii=False, indent=2), encoding="utf-8")
+                print("G7_RESULT " + json.dumps(outcome, ensure_ascii=False), flush=True)
+            except Exception as error:
+                print(f"G7_WRITE_ERROR {error}", flush=True)
+
+    webview.start(after_loaded, window, debug=False)
+    return 0
+
+
+def is_blank_ok(app: str, state: dict, number: int = 1) -> bool:
+    expected_names = {"writer": f"Tài liệu {number}.docx", "sheet": f"Bảng tính {number}.xlsx", "slides": f"Bản trình bày {number}.pptx"}
+    if (state.get("name") != expected_names[app] or state.get("tab") != expected_names[app]
+        or not state.get("title", "").startswith(expected_names[app])
+        or not state.get("windowTitle", "").startswith(expected_names[app]) or state.get("dirty")):
+        return False
+    if app == "writer":
+        return not state.get("text", "").strip() and "<p><br" in state.get("html", "").lower()
+    if app == "sheet":
+        return state.get("sheets") == ["Sheet1"] and state.get("active") == "Sheet1" and state.get("selected") == {"r": 1, "c": "A"} and state.get("dataCount") == 0
+    slides = state.get("slides", [])
+    return len(slides) == 1 and not slides[0].get("title") and not slides[0].get("body") and not slides[0].get("notes")
+
+
+def read_source_path(window, app: str) -> str:
+    field = {"writer": "_sourcePath", "sheet": "sourceFilePath", "slides": "sourceFilePath"}[app]
+    return str(window.evaluate_js(f"window.__vnoAppInstance.adapter.{field} || ''"))
+
+
+def dialog_has_filter(calls: list[dict], app: str) -> bool:
+    open_call = next((call for call in calls if "file_types" in call["kwargs"] and "save_filename" not in call["kwargs"]), None)
+    types = open_call["kwargs"].get("file_types", []) if open_call else []
+    extensions = {"writer": ("*.docx", "*.doc", "*.odt", "*.rtf", "*.txt"), "sheet": ("*.xlsx", "*.xls", "*.ods", "*.csv"), "slides": ("*.pptx", "*.ppt", "*.odp")}[app]
+    return bool(types) and all(any(ext in item for item in types) for ext in extensions)
+
+
+def main() -> int:
+    if len(sys.argv) > 1 and sys.argv[1] == "--probe":
+        _, _, root, app, first, second, out_dir, result = sys.argv
+        sys.path.insert(0, root)
+        return desktop_probe(app, Path(first), Path(second), Path(out_dir), Path(result))
+
+    selected_app = sys.argv[2] if len(sys.argv) > 2 and sys.argv[1] == "--app" else None
+    if selected_app is not None and selected_app not in {"writer", "sheet", "slides"}:
+        print(f"FAIL: unknown app {selected_app}")
+        return 1
+
+    if os.name != "nt":
+        print("BLOCKED: this G7 desktop probe needs Windows and pywebview.")
+        return 2
+    with tempfile.TemporaryDirectory(prefix="vno-g7-file-basics-", ignore_cleanup_errors=True) as temp:
+        temp_root = Path(temp)
+        fixtures = copy_fixtures(temp_root)
+        report = {"fixtureDirectory": str(temp_root), "sourceCorpus": str(CORPUS), "apps": {}, "status": "PASS"}
+        for app, (first, second) in fixtures.items():
+            if selected_app is not None and app != selected_app:
+                continue
+            payload, output = run_probe(app, first, second, temp_root)
+            report["apps"][app] = payload
+            print(f"{app}: pywebview probe complete; errors={payload.get('errors', [])}")
+            if payload.get("errors"):
+                print(f"{app} probe log: {output[-5000:]}")
+            marker1 = f"VNOfficeG7-{app}-replace-save"
+            marker2 = f"VNOfficeG7-{app}-cancel-then-save"
+            for label, target, marker in (("replacement save", first, marker1), ("in-place save", second, marker2)):
+                status, detail = office_com_check(app, target, marker)
+                payload.setdefault("officeCom", {})[label] = {"status": status, "detail": detail}
+                print(f"{app} {label}: {status} ({detail})")
+            close_marker = f"VNOfficeG7-{app}-close-save"
+            close_path = Path(payload.get("dirtyCloseSavePath") or second)
+            close_status, close_detail = office_com_check(app, close_path, close_marker)
+            payload.setdefault("officeCom", {})["dirty close save"] = {"status": close_status, "detail": close_detail}
+            payload.setdefault("checks", {})["dirtyCloseSaveContentVerified"] = (
+                True if close_status == "PASS" else "BLOCKED" if close_status == "BLOCKED" else False
+            )
+            print(f"{app} dirty-close save: {close_status} ({close_detail})")
+            new_path = Path(payload.get("newSave", {}).get("path") or "")
+            if new_path.is_file():
+                new_status, new_detail = office_com_check(app, new_path, f"VNOfficeG7-{app}-new-save")
+            else:
+                new_status, new_detail = "FAIL", "new document Save As file was not written"
+            payload.setdefault("officeCom", {})["new document save"] = {"status": new_status, "detail": new_detail}
+            print(f"{app} new-document save: {new_status} ({new_detail})")
+            failures = [key for key, value in payload.get("checks", {}).items() if value is not True and value != "BLOCKED"]
+            print(f"{app} checks: {json.dumps(payload.get('checks', {}), ensure_ascii=False)}")
+            if payload.get("blankPdf"):
+                print(f"{app} blank PDF export/print: {json.dumps(payload['blankPdf'], ensure_ascii=False)}")
+            if payload.get("exportPdf"):
+                print(f"{app} G9 Export PDF: {json.dumps(payload['exportPdf'], ensure_ascii=False)}")
+            if payload.get("g9Print"):
+                print(f"{app} G9 Print: {json.dumps(payload['g9Print'], ensure_ascii=False)}")
+            if payload.get("officeCom", {}).get("Word document page reference"):
+                print(f"{app} Word page reference: {json.dumps(payload['officeCom']['Word document page reference'], ensure_ascii=False)}")
+            if payload.get("printModel"):
+                print(f"{app} print model: {json.dumps(payload['printModel'], ensure_ascii=False)}")
+            if payload.get("openedDocumentPreview"):
+                print(f"{app} document print preview: {json.dumps(payload['openedDocumentPreview'], ensure_ascii=False)}")
+            print(f"{app} failed checks: {failures}")
+            if app == "slides":
+                print("slides marker state: " + json.dumps({
+                    key: payload.get(key) for key in (
+                        "insertedMarker", "slideShapesAfterInsert", "afterInPlaceSave",
+                        "slideShapesAfterSave", "reopened", "slideShapesAfterReopen"
+                    )
+                }, ensure_ascii=False)[:1200])
+
+            if payload.get("errors") or failures or any(item["status"] == "FAIL" for item in payload.get("officeCom", {}).values()):
+                report["status"] = "FAIL"
+            if any(item["status"] == "BLOCKED" for item in payload.get("officeCom", {}).values()):
+                report["status"] = "BLOCKED" if report["status"] == "PASS" else report["status"]
+            if report["status"] == "PASS" and "BLOCKED" in payload.get("checks", {}).values():
+                report["status"] = "BLOCKED"
+            payload["failedChecks"] = failures
+            payload["probeLog"] = output
+
+        report_path = temp_root / "g7-file-basics-report.json"
+        report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+        keep_dir = os.environ.get("VNO_G7_PROFILE_ROOT")
+        if keep_dir:
+            # The fixture directory is temporary; keep a copy of the JSON report for the handoff.
+            Path(keep_dir).mkdir(parents=True, exist_ok=True)
+            report_path = Path(keep_dir) / f"g7-file-basics-report-{selected_app or 'all'}.json"
+            report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"G7 desktop report: {report_path}")
+        print(f"G7 desktop probe status: {report['status']}")
+        return 0 if report["status"] == "PASS" else 2 if report["status"] in {"NOT RUN", "BLOCKED"} else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

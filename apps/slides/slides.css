@@ -420,6 +420,14 @@
   padding: 4px;
   transition: all 0.15s ease;
 }
+.vno-slide-title:empty::before,
+.vno-slide-body:empty::before {
+  color: #64748b;
+  font-weight: 400;
+  pointer-events: none;
+  user-select: none;
+  content: attr(data-placeholder);
+}
 .vno-slide-title:focus,
 .vno-slide-title.is-selected {
   border-color: var(--vno-slides-primary);
@@ -1658,13 +1666,37 @@
 
 /* Fallback CSS cũ nếu WebView hiển thị vùng in HTML; thao tác In hiện dùng PDF LibreOffice. */
 @media print {
-  .vno-slide-navigator,
-  .vno-slide-canvas,
-  .vno-slides-print-preview-overlay {
+  html,
+  body {
+    width: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+  body > :not(#vno-slides-print-only) {
     display: none !important;
   }
-  .vno-slides-print-only {
+  #vno-slides-print-only {
+    position: static !important;
     display: block !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .vno-slides-print-page {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    break-after: page !important;
+    page-break-after: always !important;
+  }
+  .vno-slides-print-page:last-child {
+    break-after: auto !important;
+    page-break-after: auto !important;
   }
 }
 

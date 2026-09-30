@@ -6,6 +6,7 @@
 import { FormulaEngine } from "../../apps/sheet/formula-engine.js";
 import { computeConsolidate, evaluateConsolidateFunction, formatSheetRange, parseConsolidateReference } from "../../apps/sheet/consolidate.js";
 import { SheetGridController } from "../../apps/sheet/sheet-grid.js";
+import { createSheetGridWithSheets } from "./sheet-test-fixtures.js";
 import { SHEET_RIBBON_TABS } from "../../apps/sheet/sheet-ribbon.js";
 import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
 import { VN_TO_UNO_MAP } from "../../adapters/libreoffice/common/command-dispatch-mapper.js";
@@ -54,7 +55,7 @@ export async function runSheetConsolidateTests() {
   };
 
   await test("Consolidate: SUM 2 sheet cùng kích thước — engine và tính tay 10+1=11", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     seedPositionGrids(grid);
     grid.switchSheet(S3);
     grid.selectCell("A", 1);
@@ -76,7 +77,7 @@ export async function runSheetConsolidateTests() {
   });
 
   await test("Consolidate: AVERAGE và MAX trên cùng dữ liệu, không chỉ SUM", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     seedPositionGrids(grid);
     grid.switchSheet(S3);
     const avgHand = { A1: (10 + 1) / 2, B1: (20 + 2) / 2, A2: (3 + 4) / 2, B2: (7 + 8) / 2 };
@@ -104,7 +105,7 @@ export async function runSheetConsolidateTests() {
   });
 
   await test("Consolidate: COUNT 3 sheet và Undo/Redo khôi phục đúng khối đã chèn", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     seedPositionGrids(grid);
     put(grid, S3, "A1", 100); put(grid, S3, "B1", 200);
     put(grid, S3, "A2", 9); put(grid, S3, "B2", 11);
@@ -131,7 +132,7 @@ export async function runSheetConsolidateTests() {
   });
 
   await test("Consolidate: theo nhãn (hàng trên + cột trái) khớp thứ tự khác nhau", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     put(grid, S1, "A1", "Mặt hàng"); put(grid, S1, "B1", "Q1"); put(grid, S1, "C1", "Q2");
     put(grid, S1, "A2", "Hà Nội"); put(grid, S1, "B2", 10); put(grid, S1, "C2", 20);
     put(grid, S1, "A3", "HCM"); put(grid, S1, "B3", 5); put(grid, S1, "C3", 8);
@@ -164,7 +165,7 @@ export async function runSheetConsolidateTests() {
   });
 
   await test("Consolidate: theo vị trí từ chối vùng khác kích thước; parse ref có tên sheet tiếng Việt", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     seedPositionGrids(grid);
     grid.switchSheet(S3);
     const mismatch = grid.applyConsolidate({

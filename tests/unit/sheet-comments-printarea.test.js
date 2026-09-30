@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { SheetGridController } from "../../apps/sheet/sheet-grid.js";
+import { createSheetGridWithSheets } from "./sheet-test-fixtures.js";
 import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
 import { SHEET_RIBBON_TABS } from "../../apps/sheet/sheet-ribbon.js";
 import { SHEET_COMMANDS } from "../../platform/commands/command-definitions.js";
@@ -21,7 +22,7 @@ export async function runSheetCommentsPrintAreaTests() {
   const originalDocument = globalThis.document;
   globalThis.document = { createElement: () => ({ className: "", textContent: "", setAttribute() {} }) };
   try {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     grid._refreshPageAndCommentVisuals = () => {};
 
     await test("Sheet Comments: thêm ghi chú lưu đúng state và render tam giác/popup DOM", () => {
@@ -120,7 +121,7 @@ export async function runSheetCommentsPrintAreaTests() {
       const parsed = adapter.parseFods(xml);
       assert(parsed.printAreaBySheet[first] === "B2:F20", "Không đọc lại Print Area từ FODS");
 
-      const loaded = new SheetGridController(container());
+      const loaded = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
       loaded._refreshPageAndCommentVisuals = () => {};
       assert(new SheetAdapter(loaded).loadFromFods(xml), "loadFromFods thất bại");
       assert(loaded.printAreaBySheet[first] === "B2:F20", "loadFromFods không khôi phục Print Area");
@@ -163,7 +164,7 @@ export async function runSheetCommentsPrintAreaTests() {
     });
   } finally { globalThis.document = originalDocument; }
   await test("Sheet Comments navigation resolves, deletes and uses existing history", () => {
-    const grid = new SheetGridController(container()); grid._refreshPageAndCommentVisuals = () => {};
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]); grid._refreshPageAndCommentVisuals = () => {};
     grid.saveComment({ coord: "A1", text: "One" }); grid.saveComment({ coord: "C3", text: "Two" });
     grid.selectCell = (c, r) => { grid.selectedCoord = { c, r }; }; grid.selectedCoord = { c: "A", r: 1 };
     assert(grid.nextComment().coord === "C3", "Next order"); assert(grid.previousComment().coord === "A1", "Previous order");

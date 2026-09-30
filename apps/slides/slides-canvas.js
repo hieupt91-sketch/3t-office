@@ -201,7 +201,19 @@ export class SlidesCanvasController {
   constructor(container, options = {}) {
     this.container = container;
     this.options = options;
-    this.slides = [
+    this.slides = Array.isArray(options.initialSlides)
+      ? options.initialSlides.map(slide => JSON.parse(JSON.stringify(slide)))
+      : options.isBlankTemplate !== false ? [{
+          id: 1,
+          title: "",
+          body: "",
+          layoutType: "title-content",
+          shapes: [],
+          comments: [],
+          notes: "",
+          titleAnimation: { type: "none", duration: 500, delay: 0 },
+          hidden: false
+        }] : [
       {
         id: 1,
         title: "VN OFFICE — BỘ ỨNG DỤNG VĂN PHÒNG VIỆT",
@@ -294,10 +306,10 @@ export class SlidesCanvasController {
       bodyColor: "#334155",
       accentColor: "#2563eb",
       bgColor: "#f8fafc",
-      logoText: "VN OFFICE • THUYẾT TRÌNH",
-      footerText: "Tài liệu trình chiếu tiêu chuẩn VN Office",
-      showLogo: true,
-      showFooter: true
+      logoText: options.isBlankTemplate !== false ? "" : "VN OFFICE • THUYẾT TRÌNH",
+      footerText: options.isBlankTemplate !== false ? "" : "Tài liệu trình chiếu tiêu chuẩn VN Office",
+      showLogo: options.isBlankTemplate === false,
+      showFooter: options.isBlankTemplate === false
     };
     // Bản mới = khổ Widescreen PowerPoint (960 × 540 pt) với 1 px canvas = 1 pt; không còn là tệp mở từ ngoài.
     this.imported = false;
@@ -305,8 +317,8 @@ export class SlidesCanvasController {
     this.slideSize = { preset: "wide", width: 960, height: 540 };
     this.headerFooter = {
       showDate: false,
-      showSlideNumber: true,
-      showFooter: true,
+      showSlideNumber: options.isBlankTemplate === false,
+      showFooter: options.isBlankTemplate === false,
       footerText: this.masterTheme.footerText,
       dateFormat: "dd/MM/yyyy",
       applyToAll: true
@@ -407,6 +419,7 @@ export class SlidesCanvasController {
     this.titleEl.setAttribute("role", "textbox");
     this.titleEl.setAttribute("aria-label", "Tiêu đề trang chiếu");
     this.titleEl.setAttribute("aria-multiline", "false");
+    this.titleEl.setAttribute("data-placeholder", "Bấm để thêm tiêu đề");
 
     this.bodyRowEl = document.createElement("div");
     this.bodyRowEl.className = "vno-slide-body-row";
@@ -418,6 +431,7 @@ export class SlidesCanvasController {
     this.bodyEl.setAttribute("role", "textbox");
     this.bodyEl.setAttribute("aria-label", "Nội dung trang chiếu");
     this.bodyEl.setAttribute("aria-multiline", "true");
+    this.bodyEl.setAttribute("data-placeholder", "Bấm để thêm văn bản");
 
     this.body2El = document.createElement("div");
     this.body2El.className = "vno-slide-body vno-slide-body-col2 vno-slide-body-col-2";
@@ -426,6 +440,7 @@ export class SlidesCanvasController {
     this.body2El.setAttribute("role", "textbox");
     this.body2El.setAttribute("aria-label", "Nội dung trang chiếu cột 2");
     this.body2El.setAttribute("aria-multiline", "true");
+    this.body2El.setAttribute("data-placeholder", "Bấm để thêm văn bản");
     this.body2El.style.display = "none";
 
     this.bodyRowEl.appendChild(this.bodyEl);
@@ -3212,7 +3227,10 @@ export class SlidesCanvasController {
     result.pages.forEach(({ slide, index }, order) => {
       const pageDiv = document.createElement("div");
       pageDiv.className = "vno-slides-print-page";
-      if (order < result.pages.length - 1) pageDiv.style.pageBreakAfter = "always";
+      const isLastPage = order === result.pages.length - 1;
+      pageDiv.style.pageBreakAfter = isLastPage ? "auto" : "always";
+      pageDiv.style.breakAfter = isLastPage ? "auto" : "page";
+      pageDiv.style.breakInside = "avoid";
       pageDiv.appendChild(this._renderSlidePrintPage(slide, index));
       container.appendChild(pageDiv);
     });
@@ -9458,7 +9476,7 @@ export class SlidesCanvasController {
    * Đặt lại bản trình chiếu về trạng thái trang trắng ban đầu (1 slide duy nhất).
    * @param {string} [defaultTitle]
    */
-  resetToBlank(defaultTitle = "BẢN TRÌNH CHIẾU MỚI") {
+  resetToBlank(defaultTitle = "") {
     this.cancelFormatPainter();
     this.closeSlideSorter();
     this._activeShowCleanup?.();
@@ -9470,7 +9488,7 @@ export class SlidesCanvasController {
       {
         id: 1,
         title: defaultTitle,
-        body: "Nhấn vào đây để thêm nội dung trình chiếu...",
+        body: "",
         layoutType: "title-content",
         shapes: [],
         comments: [],
@@ -9498,10 +9516,10 @@ export class SlidesCanvasController {
       bodyColor: "#334155",
       accentColor: "#2563eb",
       bgColor: "#f8fafc",
-      logoText: "VN OFFICE • THUYẾT TRÌNH",
-      footerText: "Tài liệu trình chiếu tiêu chuẩn VN Office",
-      showLogo: true,
-      showFooter: true
+      logoText: "",
+      footerText: "",
+      showLogo: false,
+      showFooter: false
     };
     // Bản mới = khổ Widescreen PowerPoint (960 × 540 pt) với 1 px canvas = 1 pt; không còn là tệp mở từ ngoài.
     this.imported = false;
@@ -9509,8 +9527,8 @@ export class SlidesCanvasController {
     this.slideSize = { preset: "wide", width: 960, height: 540 };
     this.headerFooter = {
       showDate: false,
-      showSlideNumber: true,
-      showFooter: true,
+      showSlideNumber: false,
+      showFooter: false,
       footerText: this.masterTheme.footerText,
       dateFormat: "dd/MM/yyyy",
       applyToAll: true
