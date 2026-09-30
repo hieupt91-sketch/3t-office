@@ -1429,6 +1429,11 @@ def _save_file_types_for_format(app_kind: str | None, current_ext: str | None) -
     return tuple(current + [item for item in file_types if item not in current])
 
 
+def _fods_sheet_count(fods: str | None) -> int:
+    """Count sheet table elements without parsing the potentially large FODS payload."""
+    return len(re.findall(r"<table:table(?=[\s>])", str(fods or ""), re.IGNORECASE))
+
+
 def _infer_save_format_from_path(file_path: str, app_kind: str | None = None) -> tuple[str, str]:
     """Suy luận định dạng đích và chuẩn hóa đường dẫn tệp.
     Trả về (đường_dẫn_chuẩn_hóa, định_dạng_viết_thường).
@@ -2299,6 +2304,7 @@ class VnOfficeApi:
         def exit_for_update():
             # The apply helper waits for every process of this install; stop the warm LibreOffice worker first.
             try:
+                self.close_print_sessions()
                 _PERSISTENT_SOFFICE.shutdown()
             finally:
                 os._exit(0)
@@ -2832,7 +2838,11 @@ class VnOfficeApi:
 
         default_ext = target_format or DEFAULT_SAVE_FORMAT.get(app_kind, "docx")
         default_stem = suggested_name or "TaiLieu"
-        if suggested_name:
+        if target_format == "pdf":
+            default_ext = "pdf"
+            if suggested_name:
+                default_stem = Path(suggested_name).stem or suggested_name
+        elif suggested_name:
             s_ext = Path(suggested_name).suffix.lower().lstrip(".")
             if s_ext in FORMAT_FILTERS or s_ext in {"doc", "xls", "rtf", "txt", "docx", "xlsx", "ppt", "pptx"}:
                 default_ext = s_ext
@@ -2843,13 +2853,17 @@ class VnOfficeApi:
         else:
             file_types = _save_file_types_for_format(app_kind, default_ext)
 
-        dialog_kwargs = {"save_filename": f"{default_stem}.{default_ext}", "file_types": file_types}
+        # Leave the extension off so the native dialog can append the extension
+        # for whichever file type the user selects, including a different format.
+        dialog_kwargs = {"save_filename": default_stem, "file_types": file_types}
         # Like Word/Excel/PowerPoint, Save As starts in the folder of the file being edited.
         source_dir = os.path.dirname(str(source_path)) if source_path else ""
         if source_dir and os.path.isdir(source_dir):
             dialog_kwargs["directory"] = source_dir
 
         try:
+            # pywebview's Windows SaveFileDialog uses the native overwrite prompt; if
+            # the user declines/cancels it, create_file_dialog returns an empty result.
             save_result = window.create_file_dialog(webview.SAVE_DIALOG, **dialog_kwargs)
         except Exception as exc:
             return {"status": "error", "message": f"Không mở được hộp thoại lưu: {exc}"}
@@ -2860,6 +2874,16 @@ class VnOfficeApi:
 
         dest_path, actual_format = _infer_save_format_from_path(dest_path, app_kind=app_kind)
         target_format = actual_format
+        if app_kind == "sheet" and target_format == "csv" and _fods_sheet_count(content) > 1:
+            try:
+                confirmed = window.create_confirmation_dialog(
+                    "Xuất CSV chỉ lưu một trang tính",
+                    "Tệp CSV chỉ lưu trang tính đang hoạt động; các trang tính khác sẽ không có trong tệp. Bạn có muốn tiếp tục không?",
+                )
+            except Exception as exc:
+                return {"status": "error", "message": f"Không mở được xác nhận xuất CSV: {exc}"}
+            if not confirmed:
+                return {"status": "cancelled"}
         self._reporting_file_path = dest_path
         self._reporting_operation = f"{'export' if target_format == 'pdf' else 'save'}.{target_format}"
 
@@ -2923,6 +2947,7 @@ def _register_app_window(api: VnOfficeApi, window) -> None:
 
     def on_closed(*_args):
         api.close_autorecover_session()
+        api.close_print_sessions()
         with _APP_WINDOW_LOCK:
             _APP_WINDOW_APIS.pop(api._window_uid or "", None)
 
@@ -3203,16 +3228,6 @@ def main(argv: list[str] | None = None):
     )
 
     _register_app_window(api, window)
-
-    def on_closing():
-        # Thoát tiến trình ngay lập tức khi người dùng bấm nút đóng (X), tránh lỗi COM teardown
-        api.close_autorecover_session()
-        api.close_print_sessions()
-        _PERSISTENT_SOFFICE.shutdown()
-        os._exit(0)
-
-    window.events.closing += on_closing
-    window.events.closed += on_closing
 
     startup_worker_kind = app_kind if app_kind in {"writer", "sheet"} else None
     if _PERSISTENT_SOFFICE_ENABLED and startup_worker_kind:

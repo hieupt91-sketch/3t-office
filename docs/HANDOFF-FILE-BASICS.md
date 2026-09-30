@@ -1,50 +1,47 @@
-# Agent Handoff — G7 File Basics
+﻿# Agent Handoff
 
 TASK: G7 — blank startup and Office-style New/Open/Save/Save As/Print lifecycle
 AGENT/ROLE: Codex — implementation and QA
 BRANCH: `fix/file-basics-clean-start-codex`
 WORKTREE: `E:\VNOffice-codex-file-basics`
-OBJECTIVE: Start Writer, Sheet, and Slides with true blank documents; preserve document names, content, dirty state, and formats through file operations; verify printing against the actual preview and generated PDF.
+OBJECTIVE: Keep Writer, Sheet, and Slides documents clean at startup and preserve names, formats, content, and dirty state through file operations. Verify G9 printing and PDF export using the generated document, not the screen preview.
 
 FINDINGS:
 
-- `main` was merged first, as requested. Merge commit: `6dd235b` (`Merge branch 'main' into fix/file-basics-clean-start-codex`). This branch has not been merged into `main`.
-- At the task baseline, Sheet started with three demo sheets and Slides stored placeholder prompts as real text. Writer already started with an empty A4 page.
-- G7 desktop probes use pywebview plus `evaluate_js`, copied fixtures from `E:\VN OFice\file test`, native dialog argument capture, UI Automation, and Office COM. The probes do not use SendKeys and delete their temporary fixture/output directory when they finish.
-- The current probes pass blank startup, New, Open, Save, Save As PDF-copy, bad-file handling, recent paths, and all three dirty-close choices at the application level for all three apps.
-- Print preview totals are Writer 2, Sheet 6, and Slides 17. Edge's native print dialog reports 1 page for each app, even after waiting for the app-preview total. Selecting Microsoft Print to PDF, Copies, and a custom page range works, but clicking Print does not open the “Save Print Output As” dialog. No print PDF was produced.
-- Sheet's current Excel COM probe is blocked: Excel returns no readable workbook, consistent with an activation/Office-busy condition. The saved XLSX package contains the expected marker. A new-document save passed COM in one run and was blocked on a later run. Writer and Slides COM checks passed.
+- Merged `main` into this branch at merge commit `9c7e4c0`; this branch has not been merged back into `main`.
+- Conflict resolutions keep G9's print/save pipeline. Print and Export PDF use the current document Save pipeline and LibreOffice PDF conversion; there is no `window.print()` implementation in the app path.
+- `main.py` retains both `_notify_document_open_progress` and `_notify_sheet_open_progress`, preserves G7 window close handling, and shuts down the persistent soffice worker when the app exits for update.
+- The G7 desktop probe copies fixtures from `E:\VN OFice\file test`, drives pywebview without SendKeys, captures the G9 PDF outputs, and stores per-app JSON reports under `%TEMP%\vno-g7-final-report`.
+- Print results: blank documents exported/printed as one page in all three apps. Writer `d03.docx` exported and printed as 3 pages, matching Word's 3-page count. Sheet `lan25.xlsx` exported and printed as 7 pages. Slides' 17-slide fixture exported and printed as 17 pages. The Sheet screen preview reported 6 pages; the G9 print model and both generated PDFs reported 7, and the screen-preview count was not used as the document page-count oracle.
+- Save As passed in the desktop probes: Writer DOCX→ODT, Sheet XLSX→CSV and ODS, Slides PPTX→ODP; PDF Save As creates a copy without changing the open document. The Sheet probe adds a temporary second sheet and confirms the Vietnamese warning that CSV saves only the active sheet. Tab, title, window title, path, and clean state switch to the selected Office format.
+- Windows Forms `SaveFileDialog.OverwritePrompt` default was checked as `True`. Unit tests cover accepted writes to existing targets and cancellation preserving an existing target across the five requested format cases. The native overwrite prompt itself was not driven with desktop UI automation.
+- Writer and Slides Office COM marker checks passed. Excel COM was retried with 2s/4s backoff; the results remained mixed: replacement and dirty-close checks were blocked by Excel's unreadable-workbook/activation condition; in-place and new-document checks ran but reported marker-not-found although the XLSX package contained the marker. These are not counted as passes.
 
 IMPLEMENTATION SUMMARY:
 
-- Earlier G7 commits on this branch implement blank startup, Sheet1/A1 defaults, blank first slide, document numbering, lifecycle state handling, recent-file handling, and tests replacing old sample-sheet assumptions.
-- Writer print now uses the app's paginated preview DOM, its current page dimensions, and an afterprint-scoped body class. Sheet and Slides print styles explicitly isolate their print-only DOM, clear fixed shell clipping, and set page breaks for Slides.
-- `scripts/test_g7_file_basics.py` automates the lifecycle, Office COM marker checks, real-file Recent paths, printer/copies/range controls, native page count, and print-to-PDF result. It records print-media diagnostics, waits for the expected preview page count, restores the All pages radio through UI Automation, and reports desktop window names if the print-to-PDF save dialog is missing.
-- The shortcut consistency test now recognizes the existing shared `Ctrl+Shift+S` binding instead of incorrectly requiring three app-only bindings.
+- Preserved the G7 clean-start, lifecycle, recent-file, and close handling while resolving the main merge in favor of G9 printing.
+- Updated `scripts/test_g7_file_basics.py` to use G9 Print and Export PDF and count generated PDF pages. It compares Writer's fixture PDFs to Word's page count and verifies blank output is one page.
+- Completed Save As format conversion, PDF-copy behavior, native filename stem/filter selection, CSV multi-sheet confirmation, and tab/title/path changes. Added tests for Writer DOCX→ODT/PDF, Sheet XLSX→ODS/CSV, Slides PPTX→ODP, and overwrite accept/cancel behavior.
+- Added Vietnamese in-app Save As guidance for Writer, Sheet, and Slides.
 - No LibreOffice Core patch, dependency, or build-system change was made.
 
-FILES CHANGED IN THE FINAL INCREMENT:
+FILES CHANGED:
 
-- `adapters/libreoffice/writer/writer-adapter.js`
-- `apps/writer/writer.css`
-- `apps/sheet/sheet.css`
-- `apps/slides/slides-canvas.js`
-- `apps/slides/slides.css`
-- `scripts/test_g7_file_basics.py`
-- `tests/unit/help-shortcut-consistency.test.js`
-- `tests/unit/writer-print-preview.test.js`
-- `tests/unit/slides-print-preview.test.js`
-- `docs/HANDOFF-FILE-BASICS.md`
+- G7 direct changes: `main.py`, `scripts/test_g7_file_basics.py`, `tests/test_g7_save_as_dialog.py`, `tests/unit/blank-default.test.js`, `tests/unit/sheet-print-titles-grid-selection.test.js`, and the Writer/Sheet/Slides help entries.
+- Merge-conflict resolutions include `adapters/libreoffice/common/uno-bridge.js`, `adapters/libreoffice/writer/writer-adapter.js`, `apps/writer/writer.css`, and the Writer/Slides print-preview unit tests. G9's shared print pipeline and associated main changes are included from the merge.
+- Full merge/change inventory is available from `git show --stat HEAD` and the branch diff.
 
 COMMANDS RUN:
 
-- `git merge main`
-- `python scripts/test_g7_file_basics.py --app sheet`
-- `python scripts/test_g7_file_basics.py --app writer`
-- `python scripts/test_g7_file_basics.py --app slides`
+- `git merge --no-edit main`
 - `node tests/run-tests.js`
-- `python -m py_compile scripts/test_g7_file_basics.py`
 - `python -m unittest discover -s tests`
+- `python -m unittest discover -s tests -p test_g7_save_as_dialog.py`
+- `python -m py_compile main.py scripts/test_g7_file_basics.py tests/test_g7_save_as_dialog.py`
+- `python scripts/test_g7_file_basics.py --app writer`
+- `python scripts/test_g7_file_basics.py --app sheet`
+- `python scripts/test_g7_file_basics.py --app slides`
+- Windows Forms `SaveFileDialog().OverwritePrompt` property check
 - `git diff --check`
 
 BUILD RESULT: NOT RUN. No build-system changes were made.
@@ -53,47 +50,41 @@ TEST RESULTS:
 
 | Check | Result | Evidence |
 |---|---|---|
-| `node tests/run-tests.js` | PASS | 2,114/2,114 tests after the final JS/CSS changes |
-| `python -m unittest discover -s tests` | PASS | 478 tests; `Ran 478 tests in 388.492s`, `OK`. Updater end-to-end checks also passed. |
-| `python -m py_compile scripts/test_g7_file_basics.py` | PASS | Syntax check after the final G7 harness edits |
-| `git diff --check` | PASS | No whitespace errors |
-| G7 desktop probe — Writer | FAIL | Lifecycle and Word COM checks pass; native dialog says 1 page for a 2-page app preview; no print PDF |
-| G7 desktop probe — Sheet | FAIL | Lifecycle checks pass; app preview says 6 pages, Excel COM is blocked, native dialog says 1 page; no print PDF |
-| G7 desktop probe — Slides | FAIL | Lifecycle and PowerPoint COM checks pass; model/preview says 17 pages, native dialog says 1 page; no print PDF |
+| `node tests/run-tests.js` | PASS | 2,177/2,177 tests; 0 failures. |
+| `python -m unittest discover -s tests` | PASS | 497 tests; `OK`. Updater end-to-end checks passed. FODS→XLSX round-trip tests passed in this serial run. |
+| Focused G7 Save As unit tests | PASS | 11 tests after the final overwrite-target assertion. |
+| Python syntax check | PASS | `main.py`, G7 probe, and Save As tests compiled. |
+| G7 desktop probe — Writer | PASS | All lifecycle/Save As checks passed; Word and generated PDFs report 3 fixture pages, blank output is 1 page. |
+| G7 desktop probe — Sheet | FAIL | App lifecycle and Save As checks passed. Excel COM had two marker-not-found results and two blocked results; see Findings. Print/export PDFs both have 7 pages; blank output is 1. |
+| G7 desktop probe — Slides | PASS | All lifecycle/Save As checks and PowerPoint COM passed; generated PDFs have 17 pages, blank output is 1. |
+| `git diff --check` | PASS | No whitespace errors. |
 
-Acceptance status (before = task-baseline behavior or verification; after = measured result on this branch):
+ACCEPTANCE STATUS:
 
-| Item | Writer | Sheet | Slides | Before | After |
-|---|---|---|---|---|---|
-| 1. Startup blank, correct name/title, clean close | PASS | PASS | PASS | Writer blank; Sheet had 3 seeded demo sheets; Slides had real placeholder text | Empty A4 paragraph; one `Sheet1` with A1 selected; one empty slide. Vietnamese names/titles start at 1, dirty=false, clean close asks nothing |
-| 2. File > New / Ctrl+N | PASS | PASS | PASS | Independent-window and numbering behavior not live-verified | New empty document is number 2, prior document unchanged; number 3 Save path also exercised |
-| 3. Open filters/cancel/dirty replacement/bad file | PASS | PASS | PASS | Full dialog/lifecycle behavior not live-verified | Required filter extensions captured; cancel keeps state; dirty open Save/Cancel works; invalid file shows Vietnamese error and retains current document |
-| 4. Ctrl+S, same-format in-place save, reopen/content | PASS | BLOCKED (Office COM) | PASS | Same-format round-trip not verified by Office COM | App save/reopen retains marker and clears dirty; Word/PowerPoint COM pass. Excel COM is blocked on current host; package marker is present |
-| 5. Save As, PDF export copy, overwrite/name switch | NOT RUN (overwrite/name switch) | NOT RUN (overwrite/name switch) | NOT RUN (overwrite/name switch) | Not verified | Current name/type/folder suggestion and PDF export-copy behavior pass. Choosing a new Office filename/format, overwrite confirmation, and tab/title switch are not covered |
-| 6. Dirty close Save / Don't Save / Cancel | PASS (document close) | PASS (UI flow; saved-content COM blocked) | PASS (document close) | Prompt choices not live-verified | All three document-close choices work in UI. App quit path was not separately exercised |
-| 7. Print preview, controls, PDF page count/content | FAIL | FAIL | FAIL | Correct native pagination/PDF output not verified | App preview totals are 2/6/17; native dialog reports 1 page each. Printer, copies, and range controls are selectable. No “Save Print Output As” dialog or PDF appears |
-| 8. Recent files contain real files only | PASS | PASS | PASS | Unsaved-document entries were possible | Fresh-profile probes verify each recent path points to an existing file |
+| Item | Writer | Sheet | Slides | Evidence |
+|---|---|---|---|---|
+| 1. Blank startup, correct name/title, clean close | PASS | PASS | PASS | Empty Writer page, one clean Sheet1/A1, and one empty slide; clean close asks no save question. |
+| 2. File > New / Ctrl+N | PASS | PASS | PASS | New document opens cleanly and Save As creates a numbered file. |
+| 3. Open filters/cancel/dirty replacement/bad file | PASS | PASS | PASS | Supported filters captured; cancel and dirty-open choices preserve the expected state; bad-file error keeps the open document. |
+| 4. Ctrl+S, in-place save, reopen/content | PASS | FAIL | PASS | Writer and Slides markers verified by Office COM. Sheet app round-trip and package markers exist, but Excel COM returned marker-not-found on in-place/new saves and was blocked on replacement. |
+| 5. Save As, PDF copy, overwrite/name/type switch | PASS | PASS | PASS | Alternate formats, PDF-copy behavior, naming/title/path switch, existing-target accept/cancel handling, and multi-sheet CSV warning verified. |
+| 6. Dirty close Save / Don't Save / Cancel | PASS | BLOCKED | PASS | UI choices passed. Writer/Slides saved content verified; Excel COM could not independently verify the Sheet dirty-close target after retries. |
+| 7. Print preview controls and generated PDF page count | PASS | PASS | PASS | Blank PDFs are 1 page; Writer `d03.docx` PDFs are 3 pages, equal to Word; Sheet PDFs are 7 pages; Slides PDFs are 17 pages. Print and export use G9's generated document. |
+| 8. Recent files contain real paths | PASS | PASS | PASS | Probe checks recent entries point to existing files. |
 
 KNOWN FAILURES:
 
-- G7 is **not complete**. Acceptance item 7 fails for all apps: native pagination disagrees with app preview, and Microsoft Print to PDF produces no output file.
-- Excel COM verification is `BLOCKED` on the latest probe for replacement, in-place, dirty-close, and new-document files; Office reports no readable workbook while the XLSX package contains the expected marker. A previous new-document XLSX COM verification passed.
-- Acceptance item 5 is only partially checked. Alternate Office-format Save As, overwrite confirmation, and tab/title switching were not exercised by the automated probe.
-- Legacy `.doc`/`.xls`/`.ppt` same-format round-trips were not tested. Live COM checks used `.docx`/`.xlsx`/`.pptx` fixtures.
-- The print diagnostic runs from `beforeprint`, before WebView reports `matchMedia('print') === true`, so it does not establish the final computed print styles.
+- Sheet's desktop probe exits FAIL due to mixed Excel COM results: replacement save is BLOCKED, in-place save is FAIL (`COM_FAIL marker not found`), dirty-close save is BLOCKED, and new-document save is FAIL (`COM_FAIL marker not found`). For the marker-not-found cases, the XLSX package's `xl/sharedStrings.xml` contains the marker. Do not treat these Office COM results as a save pass.
+- Sheet's screen preview displayed 6 pages while the G9 document print model and the generated Print/Export PDFs reported 7. G7 item 7 measures the G9 generated-document/PDF count, not the screen preview.
+- The native overwrite dialog was not driven end-to-end; its WinForms default is enabled and accept/cancel branches are covered by unit tests.
 
 RISKS:
 
-- Do not mark G7 complete until native print pagination and actual PDF page/content checks pass for all three apps.
-- Do not treat Excel COM `BLOCKED` as a save pass; rerun after the Office activation/busy condition is cleared.
-- The desktop probe needs Windows, pywebview, Microsoft Print to PDF, and Office COM for independent saved-content verification.
+- Excel COM must be rerun after the Office activation/busy condition clears. The desktop app's Sheet Save/reopen checks and package markers passed, but independent Office COM verification remains incomplete.
+- No build was run.
 
-DEPENDENCIES/BLOCKERS: Native WebView/print-to-PDF behavior remains unresolved; Excel COM is intermittently blocked by the Office host. No source dependency was added.
+DEPENDENCIES/BLOCKERS: Excel COM is intermittent on this Windows host. No source dependency was added.
 
 CORE PATCH ID (if any): None.
 
-NEXT ACTION:
-
-1. Diagnose why the WebView native print dialog sees one page when the app preview has 2/6/17; verify print CSS in the actual WebView print renderer and print each page.
-2. Make Microsoft Print to PDF open its save dialog and verify PDF page count and marker content.
-3. Add/execute native Save As overwrite and rename/format-switch coverage, then rerun the complete G7 desktop probe and both requested test gates.
+NEXT ACTION: Rerun Excel COM verification when the Office host is available without competing Office clients. Keep this branch unmerged until that independent verification is resolved or explicitly accepted as blocked.

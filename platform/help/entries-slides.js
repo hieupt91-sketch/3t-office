@@ -17,7 +17,7 @@ export const SLIDES_HELP_ENTRIES = [
     steps: [
       "Tạo bản mới: nhấn Ctrl+N hoặc mở Tệp > Mới. VN Slides mở cửa sổ riêng tên Bản trình bày 2, Bản trình bày 3… với một trang chiếu trống. Chữ gợi ý xám trong khung tiêu đề và khung văn bản chỉ là hướng dẫn trên màn hình, không phải nội dung được lưu.",
       "Mở bản trình chiếu: nhấn Ctrl+O hoặc chọn Tệp > Mở, chọn PPTX, PPT hoặc ODP. Nếu bản đang mở có thay đổi, chọn Lưu, Không lưu hoặc Hủy trước khi tiếp tục.",
-      "Lưu: Ctrl+S mở hộp thoại Lưu thành cho bản mới; với tệp đã mở/lưu, lệnh này giữ nguyên định dạng. Dùng F12 hoặc Ctrl+Shift+S để đổi tên/định dạng, gồm cả PDF; xác nhận ghi đè khi được hỏi. Chọn PDF trong Lưu thành chỉ xuất một bản PDF; tệp đang mở vẫn giữ tên và định dạng cũ.",
+      "Lưu: Ctrl+S mở hộp thoại Lưu thành cho bản mới; với tệp đã mở/lưu, lệnh này giữ nguyên định dạng. Nhấn F12 (hoặc Ctrl+Shift+S), nhập tên trong hộp thoại Lưu bản sao rồi chọn PPTX, PPT, ODP hoặc PDF ở danh sách Loại tệp. Cũng có thể chọn Tệp > Lưu bản sao. Khi lưu sang PPTX/PPT/ODP, tên tab và tiêu đề cửa sổ chuyển theo tệp mới; chọn PDF chỉ xuất bản sao và giữ nguyên bản trình chiếu đang mở. Khi ghi đè tệp đã có, xác nhận trong hộp thoại của Windows.",
       "In: nhấn Ctrl+P để xem trước từng trang chiếu. Chọn máy in, số bản và phạm vi trang rồi nhấn In; mỗi trang chiếu chiếm một trang in."
     ]
   },

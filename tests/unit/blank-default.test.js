@@ -241,18 +241,20 @@ export async function runBlankDefaultTests() {
         return adapter;
       },
       pathField: "_sourcePath",
+      targetExt: "odt",
       openPath: "C:\\docs\\hopdong.docx"
     },
     {
       app: "sheet",
       make: () => {
         const adapter = Object.create(SheetAdapter.prototype);
-        Object.assign(adapter, { sourceFileName: "hopdong", sourceFilePath: "C:\\docs\\hopdong.xls", isDirty: true });
+        Object.assign(adapter, { sourceFileName: "hopdong", sourceFilePath: "C:\\docs\\hopdong.xlsx", isDirty: true });
         adapter.serializeToFods = () => "<fods/>";
         return adapter;
       },
       pathField: "sourceFilePath",
-      openPath: "C:\\docs\\hopdong.xls"
+      targetExt: "ods",
+      openPath: "C:\\docs\\hopdong.xlsx"
     },
     {
       app: "slides",
@@ -263,6 +265,7 @@ export async function runBlankDefaultTests() {
         return adapter;
       },
       pathField: "sourceFilePath",
+      targetExt: "odp",
       openPath: "C:\\docs\\hopdong.pptx"
     }
   ];
@@ -292,7 +295,7 @@ export async function runBlankDefaultTests() {
     await asyncTest(`${testCase.app}: Lưu thành định dạng Office đổi sang tệp mới và xóa trạng thái chưa lưu`, async () => {
       const adapter = testCase.make();
       adapter.shell = makeShell(testCase.openPath.split("\\").pop());
-      const target = testCase.openPath.replace("hopdong", "ban-moi");
+      const target = testCase.openPath.replace("hopdong", "ban-moi").replace(/\.[^.]+$/, `.${testCase.targetExt}`);
       const originalSave = globalUnoBridge.saveRealFile;
       globalUnoBridge.saveRealFile = async () => ({ status: "ok", path: target });
       try {
@@ -302,6 +305,10 @@ export async function runBlankDefaultTests() {
       }
       if (adapter[testCase.pathField] !== target || adapter.isDirty || adapter.shell.documentName !== target.split("\\").pop()) {
         throw new Error("Lưu thành Office phải chuyển tài liệu sang tệp đích và không còn dấu chưa lưu");
+      }
+      if (adapter.shell.chromeCalls[0]?.name !== target.split("\\").pop()
+        || adapter.shell.chromeCalls[0]?.filePath !== target) {
+        throw new Error("Lưu thành định dạng khác phải cập nhật tên tab/cửa sổ và đường dẫn tài liệu");
       }
     });
   }

@@ -25,6 +25,9 @@ export async function runSheetPrintTitlesGridSelectionTests() {
   globalThis.document = { createElement: () => ({ className: "", textContent: "", setAttribute() {} }) };
   try {
     const grid = new SheetGridController(container());
+    // G7 starts a new workbook with one Sheet1; this feature needs two sheets to
+    // verify that print-title settings stay attached to their own sheet.
+    grid.addSheet("Sheet2", false);
 
     await test("Print Titles: nhập tham chiếu Excel $1:$2 và $A:$B được chuẩn hoá khi lưu", () => {
       const result = grid.setPageSetup({ printTitles: { rows: "$1:$2", cols: "$A:$B" } });

@@ -19,7 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CORPUS = Path(r"E:\VN OFice\file test")
 FIXTURES = {
-    "writer": Path("landocx/d05.docx"),
+    "writer": Path("landocx/d03.docx"),
     "sheet": Path("lan/lan25.xlsx"),
     "slides": Path("lan/BÁO CÁO KẾT QUẢ KINH DOANH NĂM 2021.pptx"),
 }
@@ -39,6 +39,7 @@ function Invoke-Com([scriptblock]$Call) {
 }
 $obj = $null
 $stage = "start"
+$wordPageCount = 0
 $officeNames = @{ writer = "WINWORD"; sheet = "EXCEL"; slides = "POWERPNT" }
 $before = @(Get-Process $officeNames[$App] -ErrorAction SilentlyContinue | ForEach-Object Id)
 try {
@@ -48,6 +49,8 @@ try {
       $obj = New-Object -ComObject Word.Application
       $obj.Visible = $false; $obj.DisplayAlerts = 0
       $doc = Invoke-Com { $obj.Documents.Open((Resolve-Path $File).Path, $false, $true, $false) }
+      Invoke-Com { $doc.Repaginate() } | Out-Null
+      $wordPageCount = [int](Invoke-Com { $doc.ComputeStatistics(2) })
       $stage = "word.read"
       $text = [string](Invoke-Com { $doc.Content.Text })
       $found = $text.Contains($Marker)
@@ -87,7 +90,8 @@ try {
       $deck.Close()
     }
   }
-  if ($found) { "COM_PASS" } else { "COM_FAIL marker not found" }
+  if ($found -and $App -eq "writer") { "COM_PASS WORD_PAGES=$wordPageCount" }
+  elseif ($found) { "COM_PASS" } else { "COM_FAIL marker not found" }
 } catch { "COM_ERROR stage=$stage " + ($_.Exception.Message -replace "`r|`n", " ") }
 finally {
   $quitOk = $false
@@ -100,235 +104,7 @@ finally {
 }
 '''
 
-PRINT_UIA_SCRIPT = r'''
-param([string]$AppTitle, [string]$OutputPath, [int]$ExpectedPages = 0, [string]$PrinterName = "Microsoft Print to PDF")
-$ErrorActionPreference = "Stop"
-Add-Type -AssemblyName UIAutomationClient
-Add-Type -AssemblyName UIAutomationTypes
-Add-Type -TypeDefinition @'
-using System;
-using System.Runtime.InteropServices;
-public static class G7Mouse {
-  [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
-  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hwnd);
-  [DllImport("user32.dll")] public static extern void mouse_event(uint flags, uint dx, uint dy, uint data, UIntPtr extra);
-}
-'@
-function Bring-AppToFront() {
-  try { [G7Mouse]::SetForegroundWindow([IntPtr]$appWindow.Current.NativeWindowHandle) | Out-Null } catch {}
-  try { $appWindow.SetFocus() } catch {}
-  Start-Sleep -Milliseconds 150
-}
-function Find-First($root, [System.Windows.Automation.Condition]$condition, $scope = [System.Windows.Automation.TreeScope]::Descendants) {
-  return $root.FindFirst($scope, $condition)
-}
-function Find-Id($root, [string]$id) {
-  return Find-First $root (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::AutomationIdProperty, $id))
-}
-function Click-Element($element) {
-  $bounds = $element.Current.BoundingRectangle
-  if ($bounds.Width -le 0 -or $bounds.Height -le 0) { throw "Control has no clickable area: $($element.Current.Name)" }
-  [G7Mouse]::SetCursorPos([int]($bounds.X + $bounds.Width / 2), [int]($bounds.Y + $bounds.Height / 2)) | Out-Null
-  [G7Mouse]::mouse_event(2, 0, 0, 0, [UIntPtr]::Zero)
-  [G7Mouse]::mouse_event(4, 0, 0, 0, [UIntPtr]::Zero)
-}
-function Wait-First($root, [System.Windows.Automation.Condition]$condition, [int]$seconds = 25, $scope = [System.Windows.Automation.TreeScope]::Descendants, [string]$label = "UI Automation element") {
-  $deadline = [DateTime]::UtcNow.AddSeconds($seconds)
-  while ([DateTime]::UtcNow -lt $deadline) {
-    $element = $root.FindFirst($scope, $condition)
-    if ($null -ne $element) { return $element }
-    Start-Sleep -Milliseconds 250
-  }
-  if ($label -eq "Save Print Output As dialog") {
-    $desktopWindows = [System.Windows.Automation.AutomationElement]::RootElement.FindAll(
-      [System.Windows.Automation.TreeScope]::Children, $windowType)
-    $windowNames = @()
-    for ($index = 0; $index -lt $desktopWindows.Count; $index++) {
-      $item = $desktopWindows.Item($index)
-      $windowNames += "$($item.Current.Name) [pid=$($item.Current.ProcessId)]"
-    }
-    throw "Timed out waiting for $label. Desktop windows: $($windowNames -join ' | ')"
-  }
-  throw "Timed out waiting for $label"
-}
-function Get-PrintWindow($root) {
-  $name = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, "Print")
-  $elements = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $name)
-  for ($i = 0; $i -lt $elements.Count; $i++) {
-    if ($elements.Item($i).Current.ControlType -eq [System.Windows.Automation.ControlType]::Window) { return $elements.Item($i) }
-  }
-  return $null
-}
-$root = [System.Windows.Automation.AutomationElement]::RootElement
-$nameCondition = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $AppTitle)
-$windowType = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Window)
-$appWindow = Wait-First $root (New-Object System.Windows.Automation.AndCondition($nameCondition, $windowType)) 20 ([System.Windows.Automation.TreeScope]::Children)
-Bring-AppToFront
-trap {
-  $failure = $_
-  try {
-    $activePrint = Get-PrintWindow $appWindow
-    if ($null -ne $activePrint) {
-      $buttons = $activePrint.FindAll([System.Windows.Automation.TreeScope]::Descendants,
-        (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button)))
-      for ($i = 0; $i -lt $buttons.Count; $i++) {
-        if ($buttons.Item($i).Current.Name -eq "Cancel") {
-          try { $buttons.Item($i).GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() }
-          catch { Click-Element $buttons.Item($i) }
-          break
-        }
-      }
-    }
-  } catch {}
-  throw $failure
-}
-$printWindow = Wait-First $appWindow (New-Object System.Windows.Automation.AndCondition(
-  (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, "Print")),
-  (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Window))
-)) 45 ([System.Windows.Automation.TreeScope]::Descendants) "Print dialog"
-$comboType = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::ComboBox)
-$printerGroupCondition = New-Object System.Windows.Automation.AndCondition(
-  (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, "Printer")),
-  (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Group))
-)
-$printerGroup = Wait-First $printWindow $printerGroupCondition 60 ([System.Windows.Automation.TreeScope]::Descendants) "Printer group"
-$printer = Wait-First $printerGroup $comboType 30 ([System.Windows.Automation.TreeScope]::Descendants) "Printer selector"
-$printerValue = $printer.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value
-function Click-ComboDropdown($element) {
-  Bring-AppToFront
-  $bounds = $element.Current.BoundingRectangle
-  [G7Mouse]::SetCursorPos([int]($bounds.X + $bounds.Width - 6), [int]($bounds.Y + $bounds.Height / 2)) | Out-Null
-  [G7Mouse]::mouse_event(2, 0, 0, 0, [UIntPtr]::Zero)
-  [G7Mouse]::mouse_event(4, 0, 0, 0, [UIntPtr]::Zero)
-}
-if ($printerValue -notlike "*$PrinterName*") {
-  try { $printer.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($PrinterName) } catch {}
-  Start-Sleep -Milliseconds 400
-  $printer = $printWindow.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $comboType)
-  $printerValue = $printer.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value
-}
-if ($printerValue -notlike "*$PrinterName*") {
-  try { $printer.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand() }
-  catch { Click-ComboDropdown $printer }
-  $printerItem = $null
-  $deadline = [DateTime]::UtcNow.AddSeconds(15)
-  do {
-    $items = $printWindow.FindAll([System.Windows.Automation.TreeScope]::Descendants,
-      (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::ListItem)))
-    for ($i = 0; $i -lt $items.Count; $i++) {
-      if ($items.Item($i).Current.Name -like "*$PrinterName*" -or $items.Item($i).Current.AutomationId -eq $PrinterName) {
-        $printerItem = $items.Item($i); break
-      }
-    }
-    if ($null -eq $printerItem) { Start-Sleep -Milliseconds 250 }
-  } while ($null -eq $printerItem -and [DateTime]::UtcNow -lt $deadline)
-  if ($null -eq $printerItem) { throw "Printer list has no $PrinterName item" }
-  # Click the visible native list item; its SelectionItem pattern is exposed by Edge
-  # but does not consistently commit the selected printer to the print dialog.
-  try { $printerItem.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() }
-  catch { Click-Element $printerItem }
-  Start-Sleep -Milliseconds 350
-  $printer = $printWindow.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $comboType)
-  $printerValue = $printer.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value
-  if ($printerValue -notlike "*$PrinterName*") { Click-Element $printerItem }
-  $deadline = [DateTime]::UtcNow.AddSeconds(15)
-  do {
-    Start-Sleep -Milliseconds 250
-    $printer = $printWindow.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $comboType)
-    $printerValue = $printer.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value
-  } while ($printerValue -notlike "*$PrinterName*" -and [DateTime]::UtcNow -lt $deadline)
-  if ($printerValue -notlike "*$PrinterName*") { throw "Printer selection did not update: $printerValue" }
-}
 
-$paperCountText = ""
-$textType = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Text)
-$deadline = [DateTime]::UtcNow.AddSeconds(45)
-do {
-  $texts = $printWindow.FindAll([System.Windows.Automation.TreeScope]::Descendants, $textType)
-  for ($i = 0; $i -lt $texts.Count; $i++) {
-    if ($texts.Item($i).Current.Name -match '^Total:\s+(\d+)\s+sheets? of paper$') {
-      $paperCountText = $texts.Item($i).Current.Name
-      if ($ExpectedPages -le 0 -or [int]$Matches[1] -eq $ExpectedPages) { break }
-    }
-  }
-  $countMatches = $paperCountText -match 'Total:\s+(\d+)\s+sheets? of paper'
-  $countReady = $countMatches -and ($ExpectedPages -le 0 -or [int]$Matches[1] -eq $ExpectedPages)
-  if (-not $countReady) { Start-Sleep -Milliseconds 350 }
-} while (-not $countReady -and [DateTime]::UtcNow -lt $deadline)
-if ($paperCountText -notmatch '(\d+)\s+sheets? of paper') { throw "Print page count unavailable: $paperCountText" }
-$dialogPages = [int]$Matches[1]
-
-$copies = Wait-First $printWindow (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Spinner)) 30 ([System.Windows.Automation.TreeScope]::Descendants) "Copies control"
-$copiesPattern = $copies.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
-$copiesPattern.SetValue("2")
-$rangeGroup = Wait-First $printWindow (New-Object System.Windows.Automation.AndCondition(
-    (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, "Pages")),
-    (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Group))
-  )) 30 ([System.Windows.Automation.TreeScope]::Descendants) "Pages group"
-$radioType = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::RadioButton)
-$radios = $rangeGroup.FindAll([System.Windows.Automation.TreeScope]::Descendants, $radioType)
-$rangeRadio = $null
-for ($i = 0; $i -lt $radios.Count; $i++) {
-  if ([string]::IsNullOrWhiteSpace($radios.Item($i).Current.Name)) { $rangeRadio = $radios.Item($i); break }
-}
-if ($null -eq $rangeRadio) { throw "Custom page range radio button not found" }
-$rangeRadio.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
-$rangeEdit = $rangeGroup.FindFirst([System.Windows.Automation.TreeScope]::Descendants,
-  (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Edit)))
-$rangeEdit.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue("1")
-Start-Sleep -Milliseconds 300
-$copiesValue = $copies.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value
-$rangeValue = $rangeEdit.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value
-$rangeSelected = $rangeRadio.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Current.IsSelected
-$copiesAccepted = $copiesValue -eq "2"
-$rangeAccepted = $rangeSelected -and $rangeValue -eq "1"
-if (-not $copiesAccepted -or -not $rangeAccepted) {
-  throw "Copies/range values were not retained: copies=$copiesValue accepted=$copiesAccepted; range=$rangeValue selected=$rangeSelected accepted=$rangeAccepted"
-}
-
-# Print the whole document once after proving copies and a custom page range are usable.
-$copiesPattern.SetValue("1")
-$allPages = $null
-$allPages = $rangeGroup.FindFirst([System.Windows.Automation.TreeScope]::Descendants,
-  (New-Object System.Windows.Automation.AndCondition(
-    (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, "All")),
-    $radioType
-  )))
-if ($null -eq $allPages) { throw "All pages radio button not found" }
-try { $allPages.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select() }
-catch { Click-Element $allPages }
-$allPages = $rangeGroup.FindFirst([System.Windows.Automation.TreeScope]::Descendants,
-  (New-Object System.Windows.Automation.AndCondition(
-    (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, "All")),
-    $radioType
-  )))
-Start-Sleep -Milliseconds 300
-$allAccepted = $allPages.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Current.IsSelected
-if (-not $allAccepted) { throw "Could not restore the All pages option" }
-[ordered]@{ printer = $printerValue; pages = $dialogPages; copiesControl = $copiesAccepted; pageRangeControl = $rangeAccepted } |
-  ConvertTo-Json -Compress | ForEach-Object { "PRINT_UIA_OPTIONS=$_" }
-$buttonType = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button)
-$buttons = $printWindow.FindAll([System.Windows.Automation.TreeScope]::Descendants, $buttonType)
-$printButton = $null
-for ($i = 0; $i -lt $buttons.Count; $i++) {
-  if ($buttons.Item($i).Current.Name -eq "Print") { $printButton = $buttons.Item($i); break }
-}
-if ($null -eq $printButton) { throw "Print button not found" }
-Bring-AppToFront
-Click-Element $printButton
-$saveName = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, "Save Print Output As")
-$saveDialog = Wait-First $root (New-Object System.Windows.Automation.AndCondition($saveName, $windowType)) 60 ([System.Windows.Automation.TreeScope]::Descendants) "Save Print Output As dialog"
-$fileName = $saveDialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants,
-  (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Edit)))
-$fileName.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($OutputPath)
-$saveButton = $saveDialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants,
-  (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, "Save")))
-try { $saveButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch { Click-Element $saveButton }
-$deadline = [DateTime]::UtcNow.AddSeconds(45)
-while (-not (Test-Path -LiteralPath $OutputPath) -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 250 }
-if (-not (Test-Path -LiteralPath $OutputPath)) { throw "Microsoft Print to PDF did not create $OutputPath" }
-[ordered]@{ printer = $printerValue; pages = $dialogPages; copiesControl = $copiesAccepted; pageRangeControl = $rangeAccepted; output = $OutputPath } | ConvertTo-Json -Compress | ForEach-Object { "PRINT_UIA_RESULT=$_" }
-'''
 
 
 def package_has_marker(path: Path, marker: str) -> str:
@@ -355,15 +131,18 @@ def _office_com_check(app: str, path: Path, marker: str) -> tuple[str, str]:
         helper.write_text(COM_SCRIPT, encoding="utf-8")
     try:
         output = ""
-        for attempt in range(2):
+        for attempt in range(3):
             completed = subprocess.run(
                 ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(helper), "-App", app, "-File", str(path), "-Marker", marker],
                 capture_output=True, text=True, timeout=180, encoding="utf-8", errors="replace",
             )
             output = (completed.stdout or completed.stderr).strip()
-            if "RPC_E_CALL_REJECTED" not in output or attempt == 1:
+            retryable = any(token in output.lower() for token in (
+                "rpc_e_call_rejected", "office blocked", "0x800ac472", "activation prompt", "kept rejecting calls"
+            ))
+            if not retryable or attempt == 2:
                 break
-            time.sleep(2)
+            time.sleep(2 ** (attempt + 1))
         if "COM_PASS" in output:
             return "PASS", output
         if "COM_ERROR" in output and any(name in output.lower() for name in ("class not registered", "80040154", "cannot create activex")):
@@ -382,80 +161,101 @@ def pdf_page_count(path: Path) -> int:
     return len(re.findall(rb"/Type\s*/Page(?!s)\b", data))
 
 
-def print_to_microsoft_pdf(window, app: str, output_path: Path, expected_pages: int) -> dict:
+def export_pdf_from_app(window, output_path: Path, save_queue: list[str]) -> dict:
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    print_methods = {
-        "writer": "adapter.print()",
-        "sheet": "grid.print()",
-        "slides": "canvasController.print()",
-    }
-    close_methods = {
-        "writer": "adapter.closePrintPreview()",
-        "sheet": "grid.closePrintPreview()",
-        "slides": "canvasController.closePrintPreview()",
-    }
+    output_path.unlink(missing_ok=True)
+    save_queue.append(str(output_path))
+    run_id = start_promise(window, "window.__vnoAppInstance.adapter.exportPdf()")
+    deadline = time.time() + 240
+    while time.time() < deadline and not (output_path.is_file() and output_path.stat().st_size > 0):
+        time.sleep(0.25)
+    if not output_path.is_file() or output_path.stat().st_size <= 0:
+        raise TimeoutError(f"Export PDF did not create {output_path}")
+    wait_for(window, "!!document.querySelector('.vno-dialog-ok-btn')", bool, timeout=45)
+    dialog_text = str(window.evaluate_js("document.querySelector('.vno-dialog-overlay')?.innerText || ''"))
+    window.evaluate_js("document.querySelector('.vno-dialog-ok-btn')?.click(); true")
+    if await_promise(window, run_id, 45) is not True:
+        raise RuntimeError(f"Export PDF did not finish successfully: {dialog_text}")
+    return {"path": str(output_path), "pdfPages": pdf_page_count(output_path),
+            "pdfBytes": output_path.stat().st_size, "message": dialog_text}
+
+
+def print_with_g9_pipeline(window, app: str, output_path: Path) -> dict:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.unlink(missing_ok=True)
+    destination = json.dumps(str(output_path))
+    bridge_id = start_promise(window, f"""import('/adapters/libreoffice/common/uno-bridge.js').then(({{globalUnoBridge}}) => {{
+      window.__g7PrintBridge = globalUnoBridge;
+      window.__g7PrintOriginal ||= globalUnoBridge.printDocument.bind(globalUnoBridge);
+      globalUnoBridge.printDocument = (sessionId, settings) => window.__g7PrintOriginal(sessionId, {{...settings, destinationPath: {destination}}});
+      return true;
+    }})""")
+    if await_promise(window, bridge_id, 30) is not True:
+        raise RuntimeError("Could not route the G9 print action to the probe PDF path")
     try:
-        output_path.unlink(missing_ok=True)
-        container_id = {"writer": "vno-print-preview-overlay", "sheet": "vno-sheet-print-only", "slides": "vno-slides-print-only"}[app]
-        page_class = {"writer": "vno-print-preview-sheet", "sheet": "vno-sheet-print-page", "slides": "vno-slides-print-page"}[app]
-        window.evaluate_js(f"""(() => {{
-          window.__g7PrintMediaDiagnostics = null;
-          window.addEventListener('beforeprint', () => {{
-            const target = document.getElementById({json.dumps(container_id)});
-            const describe = element => {{
-              if (!element) return null;
-              const style = getComputedStyle(element), rect = element.getBoundingClientRect();
-              return {{tag: element.tagName, id: element.id, className: String(element.className || ''), display: style.display,
-                position: style.position, overflow: style.overflow, width: Math.round(rect.width), height: Math.round(rect.height),
-                breakAfter: style.breakAfter, pageBreakAfter: style.pageBreakAfter}};
-            }};
-            window.__g7PrintMediaDiagnostics = {{matches: matchMedia('print').matches, body: describe(document.body),
-              children: [...document.body.children].map(describe), target: describe(target),
-              pageCount: target?.querySelectorAll('.{page_class}').length || 0,
-              pages: [...(target?.querySelectorAll('.{page_class}') || [])].slice(0, 3).map(describe)}};
-          }}, {{once: true}});
-        }})()""")
-        scheduled = window.evaluate_js(f"setTimeout(() => window.__vnoAppInstance.{print_methods[app]}, 250); 'scheduled'")
-        if scheduled != "scheduled":
-            raise RuntimeError(f"window.print was not scheduled: {scheduled!r}")
-        helper = output_path.parent / "_g7_print_uia.ps1"
-        if not helper.exists():
-            helper.write_text(PRINT_UIA_SCRIPT, encoding="utf-8")
-        app_title = str(getattr(window, "title", ""))
-        completed = subprocess.run(
-            ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(helper),
-             "-AppTitle", app_title, "-OutputPath", str(output_path), "-ExpectedPages", str(expected_pages)],
-            capture_output=True, text=True, timeout=240, encoding="utf-8", errors="replace",
-        )
-        # Printing opens the same preview overlay used by the app's Preview command.
-        # Close it after the native dialog finishes so later probe shortcuts reach the editor.
+        print_id = start_promise(window, "window.__vnoAppInstance.adapter.print()")
+        if await_promise(window, print_id, 300) is not True:
+            raise RuntimeError("The G9 print dialog could not prepare the saved document")
+        dialog_state = evaluate_js_json(window, """(() => {
+          const printer = document.querySelector('#vno-print-printer');
+          const all = document.querySelector('input[name=rangeMode][value=all]');
+          return {
+            pages: Number(document.querySelector('.vno-print-total')?.textContent || 0),
+            printers: [...(printer?.options || [])].map(option => option.value),
+            hasCopies: !!document.querySelector('#vno-print-copies[type=number]'),
+            hasPageRange: !!document.querySelector('input[name=rangeMode][value=custom]')
+              && !!document.querySelector('#vno-print-range-input'),
+            allPages: !!all
+          };
+        })()""")
+        printer_name = next((name for name in dialog_state["printers"] if name.casefold() == "microsoft print to pdf"), None)
+        if not printer_name:
+            return {**dialog_state, "status": "BLOCKED", "error": "Microsoft Print to PDF is not installed"}
+        printer_result = window.evaluate_js("""(() => {
+          const printer = document.querySelector('#vno-print-printer');
+          printer.value = 'Microsoft Print to PDF';
+          printer.dispatchEvent(new Event('change', {bubbles: true}));
+          const copies = document.querySelector('#vno-print-copies');
+          copies.value = '1';
+          copies.dispatchEvent(new Event('input', {bubbles: true}));
+          const all = document.querySelector('input[name=rangeMode][value=all]');
+          all.checked = true;
+          all.dispatchEvent(new Event('change', {bubbles: true}));
+          const submit = document.querySelector('.vno-print-submit');
+          if (!submit || submit.disabled) return false;
+          submit.click();
+          return true;
+        })()""")
+        if not printer_result:
+            raise RuntimeError("The G9 print dialog rejected Microsoft Print to PDF / all-pages settings")
+        status = wait_for(window, """(() => {
+          const node = document.querySelector('.vno-print-dialog-status');
+          if (!node) return {closed: true};
+          return {success: node.classList.contains('is-success'), error: node.classList.contains('is-error'), text: node.textContent};
+        })()""", lambda state: bool(state and (state.get("success") or state.get("error") or state.get("closed"))), timeout=300)
+        deadline = time.time() + 60
+        while time.time() < deadline and not (output_path.is_file() and output_path.stat().st_size > 0):
+            time.sleep(0.25)
+        if not output_path.is_file() or output_path.stat().st_size <= 0:
+            raise RuntimeError(f"G9 print did not create its PDF: {status}")
+        if status.get("error") or status.get("closed"):
+            raise RuntimeError(f"G9 print failed: {status}")
+        return {**dialog_state, "status": "PASS", "printer": printer_name,
+                "copiesControl": dialog_state["hasCopies"], "pageRangeControl": dialog_state["hasPageRange"],
+                "pdfPages": pdf_page_count(output_path), "pdfBytes": output_path.stat().st_size,
+                "output": str(output_path), "message": status.get("text", "")}
+    finally:
         try:
-            media_diagnostics = evaluate_js_json(window, "window.__g7PrintMediaDiagnostics")
+            window.evaluate_js("""(() => {
+              const close = document.querySelector('.vno-print-close');
+              if (close) close.click();
+              if (window.__g7PrintBridge && window.__g7PrintOriginal) {
+                window.__g7PrintBridge.printDocument = window.__g7PrintOriginal;
+              }
+              return true;
+            })()""")
         except Exception:
-            media_diagnostics = None
-        window.evaluate_js(f"window.__vnoAppInstance.{close_methods[app]}; true")
-        output = (completed.stdout or "") + "\n" + (completed.stderr or "")
-        line = next((item for item in output.splitlines() if item.startswith("PRINT_UIA_RESULT=")), "")
-        if completed.returncode != 0 or not line:
-            options_line = next((item for item in output.splitlines() if item.startswith("PRINT_UIA_OPTIONS=")), "")
-            if options_line:
-                partial = json.loads(options_line.split("=", 1)[1])
-                partial.update({"error": output.strip(), "output": str(output_path)})
-                partial["renderDiagnostics"] = media_diagnostics
-                return partial
-            raise RuntimeError(output.strip() or f"UI Automation exit={completed.returncode}")
-        result = json.loads(line.split("=", 1)[1])
-        result["pdfPages"] = pdf_page_count(output_path)
-        result["pdfBytes"] = output_path.stat().st_size
-        result["renderDiagnostics"] = media_diagnostics
-        return result
-    except Exception as error:
-        return {"error": f"{type(error).__name__}: {error}", "output": str(output_path)}
-
-
-
-
-
+            pass
 
 def copy_fixtures(temp_root: Path) -> dict[str, tuple[Path, Path]]:
     copied = {}
@@ -648,8 +448,9 @@ def desktop_probe(app: str, first: Path, second: Path, out_dir: Path, result_pat
     )
     vnmain._register_app_window(api, window)
     open_queue = [str(first), str(second)]
-    save_queue = [str(out_dir / f"{app}_saveas.pdf")]
+    save_queue = []
     dialog_calls = []
+    confirmation_calls = []
 
     def fake_dialog(dialog_type, *args, **kwargs):
         dialog_calls.append({"type": int(dialog_type), "kwargs": {key: list(value) if isinstance(value, tuple) else value for key, value in kwargs.items()}})
@@ -659,6 +460,10 @@ def desktop_probe(app: str, first: Path, second: Path, out_dir: Path, result_pat
             return [save_queue.pop(0)] if save_queue else []
         return []
 
+    def fake_confirmation(title, message):
+        confirmation_calls.append({"title": str(title), "message": str(message)})
+        return True
+
     def after_loaded(win):
         outcome = {"app": app, "checks": {}, "errors": [], "dialogCalls": dialog_calls}
         def checkpoint(step: str):
@@ -666,6 +471,8 @@ def desktop_probe(app: str, first: Path, second: Path, out_dir: Path, result_pat
             result_path.write_text(json.dumps(outcome, ensure_ascii=False, indent=2), encoding="utf-8")
         try:
             wait_app(win)
+            win.create_file_dialog = fake_dialog
+            win.create_confirmation_dialog = fake_confirmation
             blank = inspect_blank(win, app)
             outcome["blank"] = blank
             preview = preview_info(win, app)
@@ -673,6 +480,16 @@ def desktop_probe(app: str, first: Path, second: Path, out_dir: Path, result_pat
             outcome["checks"]["blank"] = is_blank_ok(app, blank)
             outcome["checks"]["blankPreview"] = preview["count"] > 0 and not any(
                 sample in preview["text"] for sample in ("Dự toán kinh phí", "Kế hoạch Q3", "Tiêu đề trang chiếu", "Nhập nội dung chính", "QUYẾT ĐỊNH")
+            )
+            blank_export_path = out_dir / f"{app}_blank_export.pdf"
+            blank_export = export_pdf_from_app(win, blank_export_path, save_queue)
+            blank_print_path = out_dir / f"{app}_blank_print.pdf"
+            blank_print = print_with_g9_pipeline(win, app, blank_print_path)
+            outcome["blankPdf"] = {"export": blank_export, "print": blank_print}
+            outcome["checks"]["blankExportPdfPageCount"] = blank_export["pdfPages"] == 1
+            outcome["checks"]["blankPrintPdfPageCount"] = "BLOCKED" if blank_print.get("status") == "BLOCKED" else (
+                blank_print.get("status") == "PASS" and blank_print.get("pages") == 1
+                and blank_print.get("pdfPages") == 1
             )
 
             initial_window = win
@@ -717,7 +534,7 @@ def desktop_probe(app: str, first: Path, second: Path, out_dir: Path, result_pat
             outcome["newSave"] = {"state": new_state, "calls": new_calls, "path": str(new_target)}
             outcome["checks"]["newCtrlSOpensSaveAs"] = (
                 len(new_calls) == 1 and new_calls[0]["kwargs"].get("save_filename") == {
-                    "writer": "Tài liệu 3.docx", "sheet": "Bảng tính 3.xlsx", "slides": "Bản trình bày 3.pptx"}[app]
+                    "writer": "Tài liệu 3", "sheet": "Bảng tính 3", "slides": "Bản trình bày 3"}[app]
                 and new_target.is_file() and new_state["name"] == new_target.name and not new_state["dirty"]
             )
             start_promise(new_child, "window.__vnoAppInstance.shell.requestCloseDocument()")
@@ -725,7 +542,6 @@ def desktop_probe(app: str, first: Path, second: Path, out_dir: Path, result_pat
             checkpoint("newSave")
 
             # Route native dialogs to copied fixtures and capture their actual filter/default-name arguments.
-            win.create_file_dialog = fake_dialog
             trigger_shortcut(win, "o", ctrl=True)
             wait_for(win, "!!window.__vnoAppInstance.adapter.isDirty || !!window.__vnoAppInstance.adapter._sourcePath || !!window.__vnoAppInstance.adapter.sourceFilePath", bool, timeout=300)
             wait_for(win, f"window.__vnoAppInstance.shell.documentName === {json.dumps(first.name)}", bool, timeout=60)
@@ -780,7 +596,8 @@ def desktop_probe(app: str, first: Path, second: Path, out_dir: Path, result_pat
 
             # Save As (F12) proposes the current name/format first; choosing PDF only exports a copy
             # (Word/Excel/PowerPoint keep the open document's name, format and path).
-            pdf_target = Path(save_queue[0])
+            pdf_target = out_dir / f"{app}_saveas_copy.pdf"
+            save_queue.append(str(pdf_target))
             before_pdf = inspect_blank(win, app)
             trigger_shortcut(win, "F12")
             pdf_deadline = time.time() + 180
@@ -795,7 +612,7 @@ def desktop_probe(app: str, first: Path, second: Path, out_dir: Path, result_pat
                                  "firstFilter": [(call["kwargs"].get("file_types") or [""])[0] for call in save_calls],
                                  "directory": [call["kwargs"].get("directory") for call in save_calls]}
             suggested = outcome["saveAs"]["suggested"]
-            outcome["checks"]["saveAsProposesCurrent"] = bool(suggested) and suggested[-1] == second.name
+            outcome["checks"]["saveAsProposesCurrent"] = bool(suggested) and suggested[-1] == second.stem
             outcome["checks"]["saveAsCurrentFormatFirst"] = outcome["saveAs"]["firstFilter"][-1].endswith(f"(*{second.suffix.lower()})")
             outcome["checks"]["saveAsStartsInFileFolder"] = outcome["saveAs"]["directory"][-1] == str(second.parent)
             outcome["checks"]["saveAsPdfExportsCopy"] = (
@@ -837,20 +654,81 @@ def desktop_probe(app: str, first: Path, second: Path, out_dir: Path, result_pat
                 and reopened_preview["totalPages"] > 0
                 and marker2 in reopened_preview["text"]
             )
-            print_path = out_dir / f"{app}_microsoft-print-to-pdf.pdf"
-            print_result = print_to_microsoft_pdf(reopened, app, print_path, reopened_preview["totalPages"])
-            outcome["microsoftPrintToPdf"] = print_result
-            outcome["checks"]["printDialogOptions"] = (
+            alternate_targets = {"writer": ("odt",), "sheet": ("csv", "ods"), "slides": ("odp",)}[app]
+            alternate_save_results = []
+            if app == "sheet":
+                csv_warning_setup = evaluate_js_json(
+                    reopened,
+                    "(() => { const grid = window.__vnoAppInstance.grid; const active = grid.activeSheet; "
+                    "const added = grid.addSheet('G7 CSV warning', false); grid.switchSheet(active); "
+                    "return {added, sheetCount: grid.sheets.length, active: grid.activeSheet}; })()",
+                )
+                outcome["csvWarningSetup"] = csv_warning_setup
+                if csv_warning_setup.get("sheetCount", 0) < 2 or not csv_warning_setup.get("added"):
+                    raise RuntimeError("Could not create the second sheet needed to verify Excel's CSV warning")
+            for target_ext in alternate_targets:
+                alternate_path = out_dir / f"{app}_alternate.{target_ext}"
+                save_queue.append(str(alternate_path))
+                save_run = start_promise(reopened, "window.__vnoAppInstance.adapter.saveAs()")
+                wait_for(reopened, f"window.__vnoAppInstance.shell.documentName === {json.dumps(alternate_path.name)} && !window.__vnoAppInstance.adapter.isDirty", bool, timeout=300)
+                if await_promise(reopened, save_run, 45) is not True:
+                    raise RuntimeError(f"Save As to {target_ext} did not finish")
+                wait_for(reopened, f"document.title.startsWith({json.dumps(alternate_path.name)})", bool, timeout=30)
+                title_deadline = time.time() + 15
+                while time.time() < title_deadline and not str(reopened.title).startswith(alternate_path.name):
+                    time.sleep(0.25)
+                saved_state = inspect_blank(reopened, app)
+                alternate_save_results.append({"path": str(alternate_path), "state": saved_state})
+            outcome["alternateSaveAs"] = alternate_save_results
+            outcome["csvConfirmations"] = list(confirmation_calls)
+            expected_confirmation_count = 1 if app == "sheet" else 0
+            outcome["checks"]["saveAsAlternateFormats"] = (
+                len(alternate_save_results) == len(alternate_targets)
+                and all(Path(item["path"]).is_file() for item in alternate_save_results)
+                and all(
+                    item["state"]["name"] == Path(item["path"]).name
+                    and item["state"]["tab"] == Path(item["path"]).name
+                    and item["state"]["title"].startswith(Path(item["path"]).name)
+                    and item["state"]["windowTitle"].startswith(Path(item["path"]).name)
+                    and not item["state"]["dirty"]
+                    for item in alternate_save_results
+                )
+                and read_source_path(reopened, app) == alternate_save_results[-1]["path"]
+                and len(confirmation_calls) == expected_confirmation_count
+                and (app != "sheet" or "trang tính đang hoạt động" in confirmation_calls[0]["message"])
+            )
+            fixture_export_path = out_dir / f"{app}_export.pdf"
+            export_result = export_pdf_from_app(reopened, fixture_export_path, save_queue)
+            print_path = out_dir / f"{app}_print.pdf"
+            print_result = print_with_g9_pipeline(reopened, app, print_path)
+            outcome["exportPdf"] = export_result
+            outcome["g9Print"] = print_result
+            outcome["checks"]["printDialogOptions"] = "BLOCKED" if print_result.get("status") == "BLOCKED" else (
                 print_result.get("printer") == "Microsoft Print to PDF"
                 and print_result.get("copiesControl") is True
                 and print_result.get("pageRangeControl") is True
             )
-            outcome["checks"]["printPageCount"] = (
-                print_result.get("pages") == reopened_preview["totalPages"]
-                and print_result.get("pdfPages") == reopened_preview["totalPages"]
+            outcome["checks"]["printPageCount"] = "BLOCKED" if print_result.get("status") == "BLOCKED" else (
+                print_result.get("status") == "PASS" and print_result.get("pdfPages") == print_result.get("pages")
             )
-            outcome["printPdfOfficeContent"] = office_com_check("writer", print_path, marker2)
-            outcome["checks"]["printPdfContent"] = outcome["printPdfOfficeContent"][0] == "PASS"
+            outcome["checks"]["exportPdfPageCount"] = "BLOCKED" if print_result.get("status") == "BLOCKED" else (
+                export_result.get("pdfPages") == print_result.get("pages")
+            )
+            if app == "writer":
+                word_status, word_detail = office_com_check("writer", second, marker2)
+                word_match = re.search(r"WORD_PAGES=(\d+)", word_detail)
+                outcome.setdefault("officeCom", {})["Word document page reference"] = {
+                    "status": word_status, "detail": word_detail,
+                    "pages": int(word_match.group(1)) if word_match else None,
+                }
+                if word_status == "BLOCKED":
+                    outcome["checks"]["writerWordPageCount"] = "BLOCKED"
+                else:
+                    word_pages = int(word_match.group(1)) if word_match else None
+                    outcome["checks"]["writerWordPageCount"] = (
+                        word_status == "PASS" and word_pages == print_result.get("pages")
+                        and word_pages == export_result.get("pdfPages")
+                    )
             recent_paths = evaluate_js_json(
                 reopened,
                 "JSON.parse(localStorage.getItem('vno_recent_documents') || '[]').map(x => x.path)",
@@ -905,12 +783,12 @@ def desktop_probe(app: str, first: Path, second: Path, out_dir: Path, result_pat
             wait_for_window_count(webview, 1, timeout=30)
             outcome["checks"]["dirtyCloseDiscard"] = True
 
+            outcome["dirtyCloseSavePath"] = read_source_path(win, app)
             close_save = start_promise(win, "window.__vnoAppInstance.shell.requestCloseDocument()")
             wait_for(win, "!!document.querySelector('[data-unsaved-choice=save]')", bool, timeout=25)
             win.evaluate_js("document.querySelector('[data-unsaved-choice=save]').click(); true")
             wait_for_window_count(webview, 0, timeout=90)
             outcome["checks"]["dirtyCloseSave"] = True
-            outcome["dirtyCloseSavePath"] = str(second)
 
         except Exception as error:
             outcome["errors"].append(f"{type(error).__name__}: {error}")
@@ -994,7 +872,8 @@ def main() -> int:
                 payload.setdefault("officeCom", {})[label] = {"status": status, "detail": detail}
                 print(f"{app} {label}: {status} ({detail})")
             close_marker = f"VNOfficeG7-{app}-close-save"
-            close_status, close_detail = office_com_check(app, second, close_marker)
+            close_path = Path(payload.get("dirtyCloseSavePath") or second)
+            close_status, close_detail = office_com_check(app, close_path, close_marker)
             payload.setdefault("officeCom", {})["dirty close save"] = {"status": close_status, "detail": close_detail}
             payload.setdefault("checks", {})["dirtyCloseSaveContentVerified"] = (
                 True if close_status == "PASS" else "BLOCKED" if close_status == "BLOCKED" else False
@@ -1009,8 +888,14 @@ def main() -> int:
             print(f"{app} new-document save: {new_status} ({new_detail})")
             failures = [key for key, value in payload.get("checks", {}).items() if value is not True and value != "BLOCKED"]
             print(f"{app} checks: {json.dumps(payload.get('checks', {}), ensure_ascii=False)}")
-            if payload.get("microsoftPrintToPdf"):
-                print(f"{app} Microsoft Print to PDF: {json.dumps(payload['microsoftPrintToPdf'], ensure_ascii=False)}")
+            if payload.get("blankPdf"):
+                print(f"{app} blank PDF export/print: {json.dumps(payload['blankPdf'], ensure_ascii=False)}")
+            if payload.get("exportPdf"):
+                print(f"{app} G9 Export PDF: {json.dumps(payload['exportPdf'], ensure_ascii=False)}")
+            if payload.get("g9Print"):
+                print(f"{app} G9 Print: {json.dumps(payload['g9Print'], ensure_ascii=False)}")
+            if payload.get("officeCom", {}).get("Word document page reference"):
+                print(f"{app} Word page reference: {json.dumps(payload['officeCom']['Word document page reference'], ensure_ascii=False)}")
             if payload.get("printModel"):
                 print(f"{app} print model: {json.dumps(payload['printModel'], ensure_ascii=False)}")
             if payload.get("openedDocumentPreview"):
@@ -1028,6 +913,8 @@ def main() -> int:
                 report["status"] = "FAIL"
             if any(item["status"] == "BLOCKED" for item in payload.get("officeCom", {}).values()):
                 report["status"] = "BLOCKED" if report["status"] == "PASS" else report["status"]
+            if report["status"] == "PASS" and "BLOCKED" in payload.get("checks", {}).values():
+                report["status"] = "BLOCKED"
             payload["failedChecks"] = failures
             payload["probeLog"] = output
 
@@ -1040,7 +927,7 @@ def main() -> int:
             report_path = Path(keep_dir) / f"g7-file-basics-report-{selected_app or 'all'}.json"
             report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"G7 desktop report: {report_path}")
-        print(f"G7 desktop probe status: {report['status']} (printing is verified by the print work package, not here)")
+        print(f"G7 desktop probe status: {report['status']}")
         return 0 if report["status"] == "PASS" else 2 if report["status"] in {"NOT RUN", "BLOCKED"} else 1
 
 
