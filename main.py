@@ -257,6 +257,9 @@ FORMAT_FILTERS = {
     "csv": "Text - txt - csv (StarCalc)",
     "fods": "OpenDocument Spreadsheet Flat XML",
     "pptx": "Impress MS PowerPoint 2007 XML",
+    # PowerPoint 97-2003: thiếu dòng này, "Lưu thành *.ppt" rơi về định dạng mặc định pptx
+    # và ghi nội dung ZIP/PPTX vào tệp đuôi .ppt (đo G8).
+    "ppt": "MS PowerPoint 97",
     "odp": "impress8",
     # "fodp" cố ý KHÔNG có filter tường minh — đã thử nghiệm thật, mọi filter name
     # tường minh (kể cả "OpenDocument Presentation Flat XML" mà tài liệu LibreOffice
