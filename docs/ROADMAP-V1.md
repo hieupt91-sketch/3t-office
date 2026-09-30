@@ -25,6 +25,11 @@ VN Slides: chỉ cần mở/xem/sửa đơn giản/lưu được (ưu tiên sau,
 | G5. Máy chủ báo lỗi | Claude + người phụ trách | Có VPS/HTTPS; lỗi từ máy thử hiện trên trang quản trị ≤ 1 phút |
 | G6. Phát hành | Claude | Mỗi gói xong → bản vá tự động 0.9.x qua share; Setup.exe cho máy mới |
 
+## 3b. Chiến lược chuyển đổi (người phụ trách chốt 30/09)
+- Thước đo chính của 1.0 là **độ trung thực chuyển đổi trên tài liệu thật của công ty** (~696 tệp trên share LAN): mở hiển thị như Office; sửa, lưu, Office mở lại đúng; in/PDF khớp màn hình. Không đòi mô phỏng từng hành vi của Word.
+- Lỗi được tìm hàng loạt bằng máy trên tệp thật (scripts/layout-audit/corpus_gate.py, báo cáo docs/CONVERSION-CORPUS-REPORT.md), sửa theo nhóm, nhóm ảnh hưởng nhiều tệp nhất trước.
+- **Thao tác như Office**: phím tắt, vị trí và tên chức năng, cách làm giống Word/Excel/PowerPoint để người dùng không phải học lại. **Hình thức riêng của 3T**: không dùng tên Word/Excel/PowerPoint/Office, không dùng icon/logo/màu nhận diện/hình ảnh của Microsoft, không chép nguyên văn trợ giúp của Microsoft, không bắt chước y hệt từng điểm ảnh giao diện Office. Trước khi phát hành thương mại: nhờ luật sư SHTT rà kiểu dáng giao diện và nhãn hiệu 3T.
+
 ## 4. Cách kiểm tra (một cổng chung, chạy 1 lần khi gói báo xong)
 1. `node tests/run-tests.js` và `python -m unittest discover -s tests` đạt.
 2. Bộ tệp cố định: 24 docx + 20 doc (số trang Word = VN = bản lưu), 26 xlsx LAN (lệch 0 ô), 20 xls.
