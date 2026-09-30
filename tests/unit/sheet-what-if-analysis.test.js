@@ -88,17 +88,16 @@ export async function runSheetWhatIfAnalysisTests() {
     assert(grid.cellsData.get("F1").val === 10000 && closeTo(grid.cellsData.get("B2").val, pmtOracle(0.05, 5, 10000)), `Undo lần 3 không phục hồi ô gốc F1: F1=${grid.cellsData.get("F1").val}, B2=${grid.cellsData.get("B2").val}`);
   });
 
-  await test("Data Table lưu xlsx dạng giá trị tĩnh + ghi chú trên ô công thức gốc", () => {
+  await test("Data Table lưu xlsx dạng giá trị tĩnh, không tự chèn ghi chú vào tài liệu người dùng", () => {
     const grid = new SheetGridController(container());
     put(grid, "B1", 0.05); put(grid, "A1", "=PMT(B1,5,10000)"); put(grid, "C1", 0.06);
     grid.calculateDataTable({ range: { start: { c: "A", r: 1 }, end: { c: "C", r: 2 } }, rowInputCell: "B1" });
-    const note = grid.commentsBySheet[grid.activeSheet]?.A1;
-    assert(note && note.text.includes("Bảng dữ liệu") && note.text.includes("B1") && note.text.includes("TABLE()"), "Thiếu ghi chú trên ô công thức gốc");
+    assert(!grid.commentsBySheet[grid.activeSheet]?.A1, "Không được tự chèn ghi chú vào ô công thức gốc");
     const xml = new SheetAdapter(grid).serializeToFods();
     const b2Value = String(grid.cellsData.get("B2").val);
     const c2Value = String(grid.cellsData.get("C2").val);
     assert(xml.includes(`office:value="${b2Value}"`) && xml.includes(`office:value="${c2Value}"`), "Thiếu giá trị tĩnh của phần thân bảng trong FODS");
-    assert(xml.includes("<office:annotation>") && xml.includes("Bảng dữ liệu"), "Thiếu ghi chú (office:annotation) trong FODS");
+    assert(!xml.includes("<office:annotation>"), "Không được ghi ghi chú (office:annotation) do Bảng dữ liệu tự sinh");
   });
 
   await test("Scenario Manager thêm/sửa/xóa/hiển thị và đổi kết quả công thức đúng", () => {

@@ -10348,7 +10348,6 @@ export class SheetGridController {
     this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
     if (recordUndo) this._recordHistory({ type: "what-if-cells", sheet: this.activeSheet, before, after: this._snapshotCells() });
     this._registerDataTable(table);
-    this._writeDataTableNote(table);
     return { formulaCell: formulaCoord, results: Object.fromEntries(output) };
   }
 
@@ -10407,28 +10406,6 @@ export class SheetGridController {
     const index = tables.findIndex(item => item.formulaCell === table.formulaCell && item.range.start.c === table.range.start.c && item.range.start.r === table.range.start.r && item.range.end.c === table.range.end.c && item.range.end.r === table.range.end.r);
     if (index >= 0) tables.splice(index, 1, structuredClone(table));
     else tables.push(structuredClone(table));
-  }
-
-  /**
-   * VN Sheet lưu kết quả Bảng dữ liệu dạng giá trị tĩnh (chưa ghi được công
-   * thức mảng TABLE() của Excel qua FODS), nên ghi một ghi chú trên ô công
-   * * thức gốc để người dùng và Excel đều hiểu bảng này là gì khi mở tệp.
-   */
-  _writeDataTableNote(table) {
-    const comments = this.commentsBySheet[table.sheet] ||= {};
-    const twoVar = Boolean(table.rowInputCell && table.columnInputCell);
-    const inputDesc = twoVar
-      ? `ô đầu vào theo hàng: ${table.rowInputCell}, ô đầu vào theo cột: ${table.columnInputCell}`
-      : (table.rowInputCell ? `ô đầu vào theo hàng: ${table.rowInputCell}` : `ô đầu vào theo cột: ${table.columnInputCell}`);
-    const noteText = `Bảng dữ liệu (Phân tích What-If) ${twoVar ? "hai biến" : "một biến"} — ${inputDesc}. Phần thân bảng được lưu dạng giá trị tĩnh (VN Sheet chưa ghi được công thức mảng TABLE() của Excel); mở tệp bằng Excel vẫn hiển thị đúng các giá trị này. Kết quả tự tính lại khi ô đầu vào hoặc công thức gốc thay đổi.`;
-    const existing = comments[table.formulaCell];
-    comments[table.formulaCell] = {
-      coord: table.formulaCell,
-      text: existing?.text ? `${existing.text}\n\n${noteText}` : noteText,
-      author: existing?.author || "VN Office",
-      timestamp: existing?.timestamp || new Date().toISOString()
-    };
-    this._refreshPageAndCommentVisuals?.();
   }
 
   getScenarios(sheetName = this.activeSheet) { return structuredClone(this.scenariosBySheet[sheetName] || []); }
