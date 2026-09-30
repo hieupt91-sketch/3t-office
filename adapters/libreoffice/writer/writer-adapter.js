@@ -11460,8 +11460,32 @@ export class WriterAdapter {
   }
 
   print() {
-    if (typeof window !== "undefined" && typeof window.print === "function") {
+    if (typeof window === "undefined" || typeof window.print !== "function") return false;
+
+    // Print the same paginated sheets shown by Print Preview. Printing the live
+    // editor page directly can overflow the physical paper margins and create
+    // an extra blank page even when the document itself has one page.
+    const overlay = this.openPrintPreview();
+    if (!overlay) return false;
+
+    const widthMm = Number(overlay.dataset.widthMm) || 210;
+    const heightMm = Number(overlay.dataset.heightMm) || 297;
+    let pageRule = document.querySelector?.("#vno-writer-print-page-rule");
+    if (!pageRule) {
+      pageRule = document.createElement("style");
+      pageRule.setAttribute("id", "vno-writer-print-page-rule");
+      (document.head || document.body)?.appendChild(pageRule);
+    }
+    pageRule.textContent = `@page { size: ${widthMm}mm ${heightMm}mm; margin: 0; }`;
+
+    document.body.classList.add("vno-writer-printing");
+    const restorePrintClass = () => document.body.classList.remove("vno-writer-printing");
+    window.addEventListener("afterprint", restorePrintClass, { once: true });
+    try {
       window.print();
+    } catch (error) {
+      restorePrintClass();
+      throw error;
     }
     return true;
   }

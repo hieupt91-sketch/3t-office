@@ -1370,30 +1370,80 @@ li.vno-page-auto-gap {
 
 /* Ẩn các thanh công cụ khi in thật */
 @media print {
-  .vno-print-preview-toolbar,
-  .vno-print-preview-overlay,
+  @page {
+    margin: 0;
+  }
+  html,
+  body {
+    width: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+  body.vno-writer-printing > :not(.vno-print-preview-overlay) {
+    display: none !important;
+  }
+  .vno-print-preview-overlay {
+    position: static !important;
+    inset: auto !important;
+    z-index: auto !important;
+    display: block !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+    color: #111827 !important;
+    animation: none !important;
+  }
   .vno-writer-ruler,
   .vno-writer-comments-panel,
   .vno-page-auto-gap {
     display: none !important;
   }
-  .vno-writer-viewport {
+  .vno-print-preview-toolbar {
+    display: none !important;
+  }
+  .vno-print-preview-viewport {
+    display: block !important;
     overflow: visible !important;
     height: auto !important;
+    padding: 0 !important;
+    background: transparent !important;
+  }
+  .vno-print-preview-pages-container {
+    display: block !important;
+    width: auto !important;
+    gap: 0 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  .vno-print-preview-sheet {
+    margin: 0 !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    outline: none !important;
+    overflow: visible !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    break-after: page;
+    page-break-after: always;
+  }
+  .vno-print-preview-sheet:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+  .vno-print-preview-page-number-tag {
+    display: none !important;
   }
   .vno-writer-page {
-    box-shadow: none !important;
-    border: 1px solid var(--vno-border-subtle);
-    margin: 0 !important;
+    display: none !important;
   }
   /*
-   * Lỗi thật đã xác nhận: "In tài liệu" (common.file.print) gọi thẳng
-   * window.print() trên DOM sống, chỉ dựa vào CSS @media print - không đi
-   * qua getPageDimensions()'s hasHeader/hasFooter check như Print Preview
-   * (Ctrl+F2) hay Backstage In. Placeholder gợi ý "Nhấp để nhập tiêu đề..."
-   * (data-placeholder qua :empty::before) vốn CHỈ để hỗ trợ khi đang soạn
-   * thảo, không phải nội dung thật - phải ẩn tuyệt đối khi in thật/xuất PDF
-   * qua trình duyệt, nếu không sẽ in nhầm placeholder thành nội dung.
+   * Placeholder gợi ý chỉ hỗ trợ soạn thảo, không phải nội dung tài liệu.
+   * Giữ quy tắc này để không in lời nhắc nếu có header/footer rỗng trong DOM.
    */
   .vno-writer-header:empty::before,
   .vno-writer-footer:empty::before,

@@ -248,8 +248,10 @@ export async function runWriterPrintPreviewTests() {
     const fakeDoc = new FakeDocument();
     globalThis.document = fakeDoc;
     let windowPrintCalled = false;
+    let afterPrintCallback = null;
     globalThis.window = {
       print: () => { windowPrintCalled = true; },
+      addEventListener: (type, callback) => { if (type === "afterprint") afterPrintCallback = callback; },
       getSelection: () => null
     };
 
@@ -435,7 +437,22 @@ export async function runWriterPrintPreviewTests() {
       if (!printBtn) throw new Error("Không tìm thấy nút In trong preview toolbar");
 
       printBtn.click();
+      if (!fakeDoc.body.classList.contains("vno-writer-printing") || typeof afterPrintCallback !== "function") {
+        throw new Error("Writer print state must be set before printing and cleaned up afterprint");
+      }
+      afterPrintCallback();
+      if (fakeDoc.body.classList.contains("vno-writer-printing")) {
+        throw new Error("Writer print state was not cleared after afterprint");
+      }
       if (!windowPrintCalled) throw new Error("window.print() chưa được gọi khi click nút In");
+
+      const printStyle = fakeDoc.querySelector("#vno-writer-print-page-rule");
+      if (!printStyle?.textContent.includes("size: 210mm 297mm")) {
+        throw new Error("Bản in không khai báo đúng khổ A4 của tài liệu");
+      }
+      if (!adapter.printPreviewOverlay?.querySelectorAll(".vno-print-preview-sheet").length) {
+        throw new Error("Bản in không giữ lại các trang đã phân trang trong Print Preview");
+      }
 
       adapter.closePrintPreview();
     });
