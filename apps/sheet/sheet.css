@@ -210,6 +210,18 @@
   color: var(--vno-sheet-primary-fg, var(--vno-sheet-primary));
 }
 
+/* Print Titles: chọn trực tiếp hàng/cột trên lưới */
+.vno-row-header.is-print-title-selected,
+.vno-col-header.is-print-title-selected {
+  background-color: var(--vno-sheet-primary, #1a5fb4);
+  color: #fff;
+  box-shadow: inset 0 0 0 2px var(--vno-sheet-primary-fg, #1a5fb4);
+}
+.vno-print-title-hint .vno-print-title-hint-value {
+  font-weight: 700;
+  font-family: var(--vno-font-mono, monospace);
+}
+
 .vno-outline-toggle {
   width: 18px;
   height: 18px;

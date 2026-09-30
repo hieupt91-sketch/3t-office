@@ -287,16 +287,20 @@ export const SHEET_HELP_ENTRIES = [
     id: "sheet.page.setupRound2", app: "sheet",
     commandIds: ["sheet.page.scale", "sheet.page.headerFooter", "sheet.page.margins", "sheet.page.printTitles"],
     title: "Thiết lập trang in nâng cao",
-    summary: "Thu bảng tính vừa số trang mong muốn, thêm đầu/cuối trang động, căn giữa nội dung và chọn in đường kẻ hoặc tiêu đề hàng/cột.",
+    summary: "Thu bảng tính vừa số trang mong muốn, thêm đầu/cuối trang động, căn giữa nội dung, chọn in đường kẻ hoặc tiêu đề hàng/cột, và đặt hàng/cột lặp lại trên mỗi trang in (Print Titles).",
     ribbon: { tab: "Bố trí trang", tabId: "pageLayout", group: "Thiết lập trang" },
-    keywords: ["tỷ lệ", "vừa trang", "scale", "đầu trang", "cuối trang", "đường kẻ", "tiêu đề hàng cột", "in"],
+    keywords: ["tỷ lệ", "vừa trang", "scale", "đầu trang", "cuối trang", "đường kẻ", "tiêu đề hàng cột", "in", "print titles", "hàng lặp lại", "cột lặp lại"],
     steps: [
       "Mở tab Bố trí trang, nhóm Thiết lập trang.",
       "Nhấn Tỷ lệ vừa trang. Chọn Vừa theo tỷ lệ và nhập 10–400%, hoặc chọn Vừa trong rồi nhập số trang ngang và dọc; nhập 0 cho chiều muốn để tự động.",
       "Trong cùng hộp thoại, đánh dấu Theo chiều ngang hoặc Theo chiều dọc ở mục Căn giữa trang khi in.",
       "Đánh dấu In đường kẻ ô hoặc In tiêu đề hàng và cột nếu cần chúng xuất hiện trên giấy/PDF, rồi nhấn Áp dụng.",
       "Để tạo đầu/cuối trang, nhấn Tiêu đề Đầu/Cuối trang. Chọn mẫu Trang X, Tên sheet, Ngày hoặc nhập ba vùng Trái/Giữa/Phải.",
-      "Trong ô tùy chỉnh có thể chèn &P (số trang), &N (tổng trang), &D (ngày), &T (giờ), &F (tên file), &A (tên sheet), rồi nhấn Áp dụng. Các thiết lập chỉ áp dụng cho sheet hiện tại và có thể hoàn tác bằng Ctrl+Z."
+      "Trong ô tùy chỉnh có thể chèn &P (số trang), &N (tổng trang), &D (ngày), &T (giờ), &F (tệp), &A (tên sheet), rồi nhấn Áp dụng. Các thiết lập chỉ áp dụng cho sheet hiện tại và có thể hoàn tác bằng Ctrl+Z.",
+      "Để đặt hàng lặp lại trên mỗi trang in, nhấn Tiêu đề in. Ở mục Hàng lặp lại trên mỗi trang, nhập tham chiếu kiểu Excel như 1:2 hoặc $1:$2 (một hàng đơn gõ 1 hoặc $1).",
+      "Cách khác: nhấn nút ⊞ bên cạnh ô Hàng lặp lại để thu gọn hộp thoại, rồi nhấp trực tiếp vào số hàng trên lưới; để mở rộng vùng, nhấn giữ phím Shift rồi nhấp hàng khác. Nhấn Esc hoặc nút Quay lại hộp thoại để trở về — ô tự điền giá trị đã chọn.",
+      "Tương tự cho Cột lặp lại ở bên trái: nhập A:B hoặc $A:$B, hoặc nhấn nút ⊞ và nhấp vào chữ cái cột trên lưới (nhấn giữ Shift rồi nhấp cột khác để mở rộng). Giá trị lưu riêng theo từng sheet, nhấn Áp dụng để lưu.",
+      "Print Titles được ghi vào tệp dưới dạng defined name _xlnm.Print_Titles của Excel nên mở lại bằng Excel vẫn giữ nguyên; mở lại trong VN Sheet cũng đọc đúng giá trị đã lưu."
     ]
   },
   {
