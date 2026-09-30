@@ -44,6 +44,7 @@ class TestSaveInPlace(unittest.TestCase):
             )
             postprocess.assert_called_once_with(
                 html, docx, "writer", "docx", source_path=normalized_source,
+                pristine_docx_source=False,
             )
 
     def test_extension_to_filter_mapping(self):
