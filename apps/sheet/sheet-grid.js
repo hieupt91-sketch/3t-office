@@ -2852,6 +2852,21 @@ export class SheetGridController {
       this.__vnoPerfRenderLogged = true;
       window.__vnoPerfReport?.("first grid render", performance.now() - this.__vnoPerfLoadAt);
     }
+    const openStartedAt = typeof window !== "undefined" ? window.__vnoSheetOpenStartedAt : null;
+    if (perfEnabled && Number.isFinite(openStartedAt) && !window.__vnoSheetOpenFirstGridPending) {
+      window.__vnoSheetOpenFirstGridPending = true;
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        // Wait until the populated grid has passed a paint opportunity before
+        // reporting the user-visible open time.
+        if (window.__vnoSheetOpenStartedAt !== openStartedAt) return;
+        const openElapsed = performance.now() - openStartedAt;
+        window.__vnoSheetOpenElapsedMs = openElapsed;
+        window.__vnoSheetOpenFirstGridAt = performance.now();
+        window.__vnoSheetOpenStartedAt = null;
+        window.__vnoSheetOpenFirstGridPending = false;
+        window.__vnoPerfReport?.("selection-to-first-grid", openElapsed);
+      }));
+    }
   }
 
   /**

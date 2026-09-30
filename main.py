@@ -14,6 +14,8 @@ import socket
 import sys
 import base64
 import csv
+import json
+import secrets
 from collections import Counter
 import html
 import importlib.util
@@ -116,6 +118,7 @@ _STATIC_MIME_OVERRIDES = {
 
 _DEFAULT_STATIC_PORT = 8080
 _MAX_PORT_ATTEMPTS = 20
+_SHEET_OPEN_SESSION_TTL_SECONDS = 600
 
 
 class _StaticFileHandler(http.server.SimpleHTTPRequestHandler):
@@ -1186,6 +1189,12 @@ def _sheet_open_skip_initial_xf_enabled() -> bool:
     return value in {"1", "true", "yes", "on"}
 
 
+def _sheet_open_payload_enabled() -> bool:
+    """Return the explicit opt-in for the compact Sheet XLSX open payload."""
+    value = os.environ.get("SHEET_OPEN_PAYLOAD", "").strip().lower()
+    return value in {"1", "true", "yes", "on"}
+
+
 def _optimize_fods_for_sheet(fods_xml: str) -> str:
     """Optimize FODS for Sheet: merge repeated empty cells, trim style-only tail.
     
@@ -1533,6 +1542,24 @@ def _notify_document_open_progress() -> None:
         pass
 
 
+def _notify_sheet_open_progress(message: str, start_timing: bool = False) -> None:
+    """Update the Sheet status line while the desktop bridge converts a file."""
+    window = _active_window()
+    if not window:
+        return
+    try:
+        window.evaluate_js(
+            "window.__vnoSheetOpenProgress?.("
+            + json.dumps(str(message), ensure_ascii=False)
+            + ","
+            + ("true" if start_timing else "false")
+            + ")"
+        )
+    except Exception:
+        # Progress UI must never prevent the normal open/fallback flow.
+        pass
+
+
 class VnOfficeApi:
     """Python API phơi ra cho JavaScript giao tiếp (Bridge) — cầu nối thật tới LibreOffice."""
 
@@ -1546,6 +1573,9 @@ class VnOfficeApi:
         self._reporting_app_kind = app_kind if app_kind in VALID_APP_KINDS else None
         self._api_report_depth = 0
         self._updater = _UPDATE_MANAGER
+        self._sheet_open_sessions: dict[str, dict[str, object]] = {}
+        self._sheet_open_session_lock = threading.RLock()
+        self._last_sheet_open_id: str | None = None
         try:
             self._autorecover_store = AutoRecoverStore(_user_data_dir())
         except OSError:
@@ -1591,6 +1621,7 @@ class VnOfficeApi:
     def close_autorecover_session(self):
         if self._autorecover_session_closed:
             return True
+        self._clear_sheet_open_sessions()
         if self._autorecover_store:
             try:
                 self._autorecover_store.cleanup_session()
@@ -1598,6 +1629,124 @@ class VnOfficeApi:
                 return False
         self._autorecover_session_closed = True
         return True
+
+    def _prune_sheet_open_sessions(self):
+        now = time.monotonic()
+        with self._sheet_open_session_lock:
+            expired = [
+                open_id for open_id, entry in self._sheet_open_sessions.items()
+                if float(entry.get("expires_at", 0)) <= now
+            ]
+            for open_id in expired:
+                self._remove_sheet_open_session_locked(open_id)
+
+    def _remove_sheet_open_session_locked(self, open_id):
+        entry = self._sheet_open_sessions.pop(open_id, None)
+        if self._last_sheet_open_id == open_id:
+            self._last_sheet_open_id = next(reversed(self._sheet_open_sessions), None) if self._sheet_open_sessions else None
+        if entry:
+            timer = entry.get("timer")
+            if isinstance(timer, threading.Timer):
+                timer.cancel()
+            try:
+                Path(str(entry["path"])).unlink(missing_ok=True)
+            except OSError:
+                pass
+
+    def _clear_sheet_open_sessions(self):
+        with self._sheet_open_session_lock:
+            for open_id in list(self._sheet_open_sessions):
+                self._remove_sheet_open_session_locked(open_id)
+
+    def _store_sheet_open_fallback(self, fods_content: str, source_path: str, workbook_xml: str | None) -> str:
+        self._prune_sheet_open_sessions()
+        folder = _user_data_dir() / "sheet-open-sessions"
+        folder.mkdir(parents=True, exist_ok=True)
+        open_id = secrets.token_urlsafe(32)
+        target = folder / f"{open_id}.fods"
+        temporary = folder / f".{open_id}.tmp"
+        try:
+            with temporary.open("w", encoding="utf-8", newline="") as handle:
+                handle.write(fods_content)
+            os.replace(temporary, target)
+        except Exception:
+            try:
+                temporary.unlink(missing_ok=True)
+            except OSError:
+                pass
+            raise
+        now = time.monotonic()
+        expiry_timer = threading.Timer(
+            _SHEET_OPEN_SESSION_TTL_SECONDS,
+            self._expire_sheet_open_session,
+            args=(open_id,),
+        )
+        expiry_timer.daemon = True
+        with self._sheet_open_session_lock:
+            self._sheet_open_sessions[open_id] = {
+                "path": target,
+                "expires_at": now + _SHEET_OPEN_SESSION_TTL_SECONDS,
+                "source_path": source_path,
+                "file_name": Path(source_path).name,
+                "workbook_xml": workbook_xml,
+                "timer": expiry_timer,
+            }
+            self._last_sheet_open_id = open_id
+            while len(self._sheet_open_sessions) > 2:
+                oldest = next(iter(self._sheet_open_sessions))
+                if oldest == open_id:
+                    break
+                self._remove_sheet_open_session_locked(oldest)
+        expiry_timer.start()
+        return open_id
+
+    def _expire_sheet_open_session(self, open_id):
+        with self._sheet_open_session_lock:
+            entry = self._sheet_open_sessions.get(open_id)
+            if entry and float(entry.get("expires_at", 0)) <= time.monotonic():
+                self._remove_sheet_open_session_locked(open_id)
+
+    def _read_sheet_open_fallback(self, open_id=None):
+        self._prune_sheet_open_sessions()
+        with self._sheet_open_session_lock:
+            selected_id = open_id or self._last_sheet_open_id
+            entry = self._sheet_open_sessions.get(selected_id) if selected_id else None
+            path = Path(str(entry["path"])) if entry else None
+            metadata = dict(entry) if entry else {}
+        if not path or not path.is_file():
+            return {"status": "error", "message": "Không còn dữ liệu dự phòng cho lần mở này. Hãy mở lại tệp."}
+        try:
+            with path.open("r", encoding="utf-8", errors="replace", newline="") as handle:
+                content = handle.read()
+        except OSError:
+            return {"status": "error", "message": "Không đọc được dữ liệu dự phòng. Hãy mở lại tệp."}
+        return {
+            "status": "ok",
+            "openId": selected_id,
+            "content": content,
+            "sourcePath": metadata.get("source_path", ""),
+            "fileName": metadata.get("file_name", "BangTinh.xlsx"),
+            "ooxmlWorkbookXml": metadata.get("workbook_xml"),
+        }
+
+    def get_sheet_open_fallback(self, open_id):
+        return self._invoke_reported_api(
+            "get_sheet_open_fallback", self._read_sheet_open_fallback, open_id
+        )
+
+    def get_latest_sheet_open_fallback(self):
+        return self._invoke_reported_api(
+            "get_latest_sheet_open_fallback", self._read_sheet_open_fallback, None
+        )
+
+    def release_sheet_open_fallback(self, open_id):
+        if not isinstance(open_id, str) or not open_id or len(open_id) > 128:
+            return False
+        self._prune_sheet_open_sessions()
+        with self._sheet_open_session_lock:
+            existed = open_id in self._sheet_open_sessions
+            self._remove_sheet_open_session_locked(open_id)
+        return existed
 
     def _invoke_reported_api(self, method_name, method, *args, **kwargs):
         outermost = self._api_report_depth == 0
@@ -1695,6 +1844,19 @@ class VnOfficeApi:
             app_kind=self._reporting_app_kind,
         )
 
+    def _record_sheet_open_payload_failure(self, phase):
+        """Report a payload-path issue without recording workbook contents."""
+        self._reporting_operation = "open.xlsx.payload"
+        self._reporting_app_kind = "sheet"
+        try:
+            self._record_api_failure(
+                RuntimeError(f"Sheet compact open payload {phase} failed."),
+                time.monotonic(),
+            )
+        except Exception:
+            # Reporting is best-effort and cannot disable the FODS fallback.
+            pass
+
     def get_error_reporting_state(self):
         if self._reporter is None:
             return {"enabled": False, "consent": "unknown", "endpoint_configured": False, "queue_count": 0, "has_current_file": bool(self._current_file_path)}
@@ -1783,7 +1945,8 @@ class VnOfficeApi:
         if os.environ.get("VNO_PERF_DEBUG") != "1":
             return False
         allowed_metrics = {
-            "parseFods", "loadFromFods", "first grid render", "first layout",
+            "parseFods", "loadFromFods", "buildSheetPayloadModel", "loadFromPayload",
+            "first grid render", "first layout", "selection-to-first-grid",
             "writer.parseHtml", "writer.render", "writer.firstPaint",
         }
         if name not in allowed_metrics and not name.startswith("parseFods:"):
@@ -1822,6 +1985,8 @@ class VnOfficeApi:
 
         self._reporting_file_path = src_path
         self._reporting_operation = f"open.{Path(src_path).suffix.lower().lstrip('.') or 'unknown'}"
+        if app_kind == "sheet" and src_path.lower().endswith(".xlsx"):
+            _notify_sheet_open_progress("Đã chọn tệp. Đang chuẩn bị mở bảng tính lớn…", True)
 
         if app_kind == "writer":
             target_ext = "html"
@@ -1833,6 +1998,9 @@ class VnOfficeApi:
             return {"status": "error", "message": f"Loại ứng dụng không hợp lệ: {app_kind}"}
 
         writer_ooxml_metadata = None
+        sheet_open_payload = None
+        sheet_open_id = None
+        sheet_ooxml_workbook_xml = None
         original_xlsx = None
         try:
             with tempfile.TemporaryDirectory(prefix="vnoffice_open_") as tmp:
@@ -1855,6 +2023,8 @@ class VnOfficeApi:
                         convert_src_path = os.path.join(tmp, "import-visible.xlsx")
                         with open(convert_src_path, "wb") as import_file:
                             import_file.write(import_xlsx)
+                if app_kind == "sheet" and src_path.lower().endswith(".xlsx"):
+                    _notify_sheet_open_progress("Đang chuyển workbook Excel sang dữ liệu bảng tính…")
                 out_path = _run_soffice_convert(convert_src_path, target_ext, tmp, app_kind=app_kind)
                 with open(out_path, "r", encoding="utf-8", errors="replace") as f:
                     content = f.read()
@@ -1895,17 +2065,48 @@ class VnOfficeApi:
                         src_path, content, app_kind, source_bytes=original_xlsx
                     )
                     # Optimize FODS: merge repeated empty cells, trim style-only tail.
+                    if src_path.lower().endswith(".xlsx"):
+                        _notify_sheet_open_progress("Đang tối ưu dữ liệu, công thức và định dạng…")
                     content = _optimize_fods_for_sheet(content)
                     # Cell runs can move to their final logical coordinates during
                     # optimization. Reapply only XF ownership at those coordinates;
                     # all other native overlays retain their established ordering.
-                    if src_path.lower().endswith(".xlsx") and os.path.isfile(src_path):
-                        if original_xlsx is None:
-                            with open(src_path, "rb") as source_file:
-                                original_xlsx = source_file.read()
-                        content = _ooxml_zip_patch().reoverlay_sheet_xf_indices(
-                            original_xlsx, content
-                        )
+                    if src_path.lower().endswith(".xlsx") and os.path.isfile(src_path) and original_xlsx is None:
+                        with open(src_path, "rb") as source_file:
+                            original_xlsx = source_file.read()
+                    if src_path.lower().endswith(".xlsx") and original_xlsx is not None:
+                        patcher = _ooxml_zip_patch()
+                        if _sheet_open_payload_enabled():
+                            _notify_sheet_open_progress("Đang đóng gói dữ liệu để nạp nhanh vào VN Sheet…")
+                            try:
+                                from adapters.libreoffice.sheet.sheet_open_payload import build_sheet_open_payload
+                                final_fods, sheet_open_payload = build_sheet_open_payload(
+                                    original_xlsx, content, patcher
+                                )
+                            except Exception:
+                                sheet_open_payload = None
+                                self._record_sheet_open_payload_failure("build")
+                                # Keep exactly the existing final-XF FODS route if capture fails.
+                                content = patcher.reoverlay_sheet_xf_indices(original_xlsx, content)
+                            else:
+                                content = final_fods
+                                try:
+                                    sheet_ooxml_workbook_xml = _read_xlsx_workbook_xml(src_path)
+                                    sheet_open_id = self._store_sheet_open_fallback(
+                                        final_fods, src_path, sheet_ooxml_workbook_xml
+                                    )
+                                except Exception:
+                                    sheet_open_payload = None
+                                    sheet_open_id = None
+                                    self._record_sheet_open_payload_failure("fallback-session")
+                                if sheet_open_payload is not None and sheet_open_id:
+                                    # The complete FODS is retained in the app-private fallback session;
+                                    # do not send it alongside the compact payload.
+                                    content = None
+                                else:
+                                    sheet_open_payload = None
+                        else:
+                            content = patcher.reoverlay_sheet_xf_indices(original_xlsx, content)
                 elif app_kind == "slides":
                     # Overlay BEFORE the FODP leaves this process — SlidesAdapter.parseFodp
                     # must see vno:section-*, vno:master-theme, and Set Up Show vno:*
@@ -1920,8 +2121,12 @@ class VnOfficeApi:
             "sourcePath": src_path,
             "fileName": Path(src_path).name,
             "format": target_ext,
-            "content": content,
         }
+        if sheet_open_payload is not None and sheet_open_id:
+            payload["sheetPayload"] = sheet_open_payload
+            payload["openId"] = sheet_open_id
+        else:
+            payload["content"] = content
         self._current_file_path = src_path
         if app_kind == "writer":
             ooxml = (
@@ -1965,7 +2170,7 @@ class VnOfficeApi:
             if footer_xml:
                 payload["ooxmlFooterXml"] = footer_xml
         elif app_kind == "sheet":
-            workbook_xml = _read_xlsx_workbook_xml(src_path)
+            workbook_xml = sheet_ooxml_workbook_xml or _read_xlsx_workbook_xml(src_path)
             if workbook_xml:
                 payload["ooxmlWorkbookXml"] = workbook_xml
         elif app_kind == "slides":

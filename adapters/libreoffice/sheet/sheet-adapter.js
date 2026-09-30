@@ -11,6 +11,7 @@ import { getVnCommand } from "../common/command-dispatch-mapper.js";
 import { SheetChartBuilder } from "../../../apps/sheet/sheet-chart.js";
 import { overlayFodsStructureProtection } from "./xlsx-workbook-protection.js";
 import { overlayActiveSheetToFods } from "./xlsx-active-sheet.js";
+import { buildSheetPayloadModel } from "./sheet-payload-parser.js";
 
 export function numberFormatFromExcelCode(code) {
   const source = String(code ?? "").trim();
@@ -4688,16 +4689,87 @@ export class SheetAdapter {
       this.grid.__vnoPerfLoadAt = perfStart;
       this.grid.__vnoPerfRenderLogged = false;
     }
-    // Imported files retain the legacy layout fallback while their explicit
-    // XLSX dimensions are overlaid. S24's 20/64 defaults apply to new books.
+    const oldRowHeight = this.grid.rowHeight;
+    const oldDefaultColWidth = this.grid.defaultColWidth;
+    // Keep the established imported-workbook defaults while parsing, then
+    // restore the live grid until the fully parsed model is ready to commit.
     this.grid.rowHeight = 26;
     this.grid.defaultColWidth = 100;
-    let xml = overlayFodsStructureProtection(fodsText, ooxmlWorkbookXml);
-    xml = overlayActiveSheetToFods(xml, ooxmlWorkbookXml);
-    const parseStart = perfEnabled ? performance.now() : 0;
-    const workbook = this.parseFods(xml);
-    if (perfEnabled) window.__vnoPerfReport?.("parseFods", performance.now() - parseStart);
+    let workbook;
+    try {
+      let xml = overlayFodsStructureProtection(fodsText, ooxmlWorkbookXml);
+      xml = overlayActiveSheetToFods(xml, ooxmlWorkbookXml);
+      const parseStart = perfEnabled ? performance.now() : 0;
+      workbook = this.parseFods(xml);
+      if (perfEnabled) window.__vnoPerfReport?.("parseFods", performance.now() - parseStart);
+    } finally {
+      this.grid.rowHeight = oldRowHeight;
+      this.grid.defaultColWidth = oldDefaultColWidth;
+    }
     if (workbook.sheets.length === 0) return false;
+    return this._commitWorkbook(workbook, perfStart, "loadFromFods");
+  }
+
+  async loadFromPayload(payload, ooxmlWorkbookXml) {
+    if (!this.grid) return false;
+    const perfEnabled = typeof window !== "undefined" && window.__vnoPerfDebug === true;
+    const perfStart = perfEnabled ? performance.now() : 0;
+    if (perfEnabled) {
+      this.grid.__vnoPerfLoadAt = perfStart;
+      this.grid.__vnoPerfRenderLogged = false;
+    }
+    const hadDefaultWidth = Object.prototype.hasOwnProperty.call(this, "_sheetPayloadImportDefaultColWidth");
+    const oldDefaultWidth = this._sheetPayloadImportDefaultColWidth;
+    this._sheetPayloadImportDefaultColWidth = 100;
+    try {
+      let supportXml = payload?.supportXml;
+      supportXml = overlayFodsStructureProtection(supportXml, ooxmlWorkbookXml);
+      supportXml = overlayActiveSheetToFods(supportXml, ooxmlWorkbookXml);
+      const parseStart = perfEnabled ? performance.now() : 0;
+      const workbook = await buildSheetPayloadModel(payload, this, supportXml);
+      if (perfEnabled) window.__vnoPerfReport?.("buildSheetPayloadModel", performance.now() - parseStart);
+      if (!workbook.sheets.length) return false;
+      return this._commitWorkbook(workbook, perfStart, "loadFromPayload");
+    } finally {
+      if (hadDefaultWidth) this._sheetPayloadImportDefaultColWidth = oldDefaultWidth;
+      else delete this._sheetPayloadImportDefaultColWidth;
+    }
+  }
+
+  _snapshotGridForOpen() {
+    return new Map(Object.keys(this.grid || {}).map(key => [key, this.grid[key]]));
+  }
+
+  _restoreGridAfterFailedOpen(snapshot) {
+    if (!this.grid || !snapshot) return;
+    for (const key of Object.keys(this.grid)) {
+      if (!snapshot.has(key)) delete this.grid[key];
+    }
+    for (const [key, value] of snapshot) this.grid[key] = value;
+    try {
+      this.grid._renderSheetTabs?.();
+      if (this.grid.activeSheet) this.grid.switchSheet?.(this.grid.activeSheet, { skipSave: true });
+      this.grid._refreshVisibleRuleVisuals?.();
+      this.grid._refreshRowColLayoutView?.();
+      this.grid.renderCharts?.();
+      this.grid.renderImages?.();
+      this.grid.renderTextBoxes?.();
+      this.grid._applyProtectionUi?.({ renderTabs: true });
+      this.grid.updateStatus?.();
+    } catch {
+      // The original model references are restored even if a secondary repaint fails.
+    }
+  }
+
+  _commitWorkbook(workbook, perfStart, perfName) {
+    const perfEnabled = typeof window !== "undefined" && window.__vnoPerfDebug === true;
+    const gridSnapshot = this._snapshotGridForOpen();
+    const previousExternalLinkCells = this.externalLinkCells;
+    try {
+      // Imported files retain the legacy layout fallback while explicit XLSX
+      // dimensions are overlaid. S24's 20/64 defaults apply only to new books.
+      this.grid.rowHeight = 26;
+      this.grid.defaultColWidth = 100;
     const firstSheet = workbook.sheets[0];
     if (typeof this.grid.resetToBlank === "function") this.grid.resetToBlank(firstSheet);
     this.grid.sheets = [firstSheet];
@@ -4865,12 +4937,17 @@ export class SheetAdapter {
     this.grid.updateStatus?.();
     if (perfEnabled) {
       const elapsed = performance.now() - perfStart;
-      window.__vnoPerfReport?.("loadFromFods", elapsed);
+      window.__vnoPerfReport?.(perfName, elapsed);
       requestAnimationFrame(() => requestAnimationFrame(() => {
         window.__vnoPerfReport?.("first layout", performance.now() - perfStart);
       }));
     }
     return true;
+    } catch (error) {
+      this._restoreGridAfterFailedOpen(gridSnapshot);
+      this.externalLinkCells = previousExternalLinkCells;
+      throw error;
+    }
   }
 
   /** Load the existing Save FODS serialization as a new, unsaved recovery copy. */
@@ -5173,24 +5250,84 @@ export class SheetAdapter {
   }
 
   async _openWorkbookFromDisk() {
-    const result = await globalUnoBridge.openRealFile("sheet");
-    if (result.status === "ok") {
-      // Overlay lockStructure from original XLSX onto FODS before parseFods.
-      // Production File → Mở already overlays in main.py; this is the Writer-like
-      // belt-and-suspenders path (ooxmlWorkbookXml) plus tests that stub the bridge.
-      this.loadFromFods(result.content, result.ooxmlWorkbookXml);
+    let result = null;
+    let openId = null;
+    const reportOpenIssue = (type, message) => {
+      try {
+        const pending = globalUnoBridge.reportFrontendError({ type, message, stack: "" });
+        pending?.catch?.(() => {});
+      } catch {
+        // Error reporting must never interrupt the local fallback.
+      }
+    };
+    this.shell?.setStatus?.("Đang chuẩn bị mở bảng tính…");
+    try {
+      try {
+        result = await globalUnoBridge.openRealFile("sheet");
+      } catch {
+        // A pywebview transfer can fail after Python has retained the FODS.
+        // The latest session is process-local and exposes no filesystem path.
+        reportOpenIssue("SheetOpenPayloadTransferError", "Sheet payload transfer failed; requesting the retained FODS fallback.");
+        this.shell?.setStatus?.("Kết nối dữ liệu bị gián đoạn. Đang lấy bản dự phòng…");
+        result = await globalUnoBridge.getLatestSheetOpenFallback();
+        if (result?.status !== "ok") throw new Error("Không thể nhận dữ liệu dự phòng của bảng tính.");
+        openId = result.openId || null;
+      }
+      if (result?.status === "cancelled") return false;
+      if (result?.status === "error") {
+        await showAlertDialog({ title: "Không thể mở tệp", message: result.message, type: "error" });
+        return false;
+      }
+      if (result?.status !== "ok") throw new Error("Phản hồi mở tệp không hợp lệ.");
+
+      if (result.sheetPayload) {
+        openId = result.openId || openId;
+        try {
+          this.shell?.setStatus?.("Đang dựng mô hình bảng tính và chuẩn bị lưới…");
+          const loaded = await this.loadFromPayload(result.sheetPayload, result.ooxmlWorkbookXml);
+          if (!loaded) throw new Error("Payload không tạo được workbook.");
+        } catch {
+          reportOpenIssue("SheetOpenPayloadError", "Sheet payload parsing or model construction failed; using the retained FODS fallback.");
+          this.shell?.setStatus?.("Đang tải dữ liệu FODS dự phòng…");
+          const fallback = openId
+            ? await globalUnoBridge.getSheetOpenFallback(openId)
+            : await globalUnoBridge.getLatestSheetOpenFallback();
+          if (fallback?.status !== "ok") throw new Error("Không lấy được FODS dự phòng cho bảng tính.");
+          openId = fallback.openId || openId;
+          const loaded = this.loadFromFods(
+            fallback.content,
+            fallback.ooxmlWorkbookXml || result.ooxmlWorkbookXml
+          );
+          if (!loaded) throw new Error("FODS dự phòng không tạo được workbook.");
+          result = { ...result, ...fallback };
+        }
+      } else {
+        this.shell?.setStatus?.("Đang đọc dữ liệu bảng tính và hiển thị lưới…");
+        if (typeof result.content !== "string" || !this.loadFromFods(result.content, result.ooxmlWorkbookXml)) {
+          throw new Error("Không thể đọc nội dung bảng tính.");
+        }
+      }
+
       this.sourceFileName = (result.fileName || "BangTinh").replace(/\.[^/.]+$/, "");
       this.sourceFilePath = result.sourcePath || "";
       this.isDirty = false;
-      // Lỗi thật đã xác nhận: dữ liệu nạp đúng nhưng nhãn tên tệp trên tab
-      // (đầu cửa sổ) vẫn giữ nguyên tên demo cũ vì resetDocumentChrome() chỉ
-      // được gọi ở File > Mới/Đóng, chưa bao giờ gọi sau khi Mở tệp thật.
       this.shell?.resetDocumentChrome?.(result.fileName || "Bảng tính 1.xlsx");
       return true;
+    } catch {
+      reportOpenIssue("SheetOpenError", "Workbook opening failed; the previously open workbook was preserved.");
+      if (typeof window !== "undefined") window.__vnoSheetOpenStartedAt = null;
+      this.shell?.setStatus?.("Không thể mở tệp. Sổ làm việc đang mở được giữ nguyên.");
+      await showAlertDialog({
+        title: "Không thể mở tệp",
+        message: "VN Sheet không thể nạp bảng tính bằng dữ liệu chính hoặc bản FODS dự phòng. Sổ làm việc đang mở được giữ nguyên.",
+        type: "error"
+      });
+      return false;
+    } finally {
+      if (openId) {
+        try { await globalUnoBridge.releaseSheetOpenFallback(openId); } catch { /* expires automatically */ }
+      }
     }
-    if (result.status === "cancelled") return false;
-    await showAlertDialog({ title: "Không thể mở tệp", message: result.message, type: "error" });
-    return false;
   }
 
   async exportPdf() {
