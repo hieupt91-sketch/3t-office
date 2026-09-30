@@ -9,26 +9,16 @@ import { enStrings } from "./strings-en.js";
 const STORAGE_KEY = "vno-locale";
 const SUPPORTED_LOCALES = ["vi", "en"];
 
-function _detectSystemLocale() {
-  try {
-    if (typeof navigator === "undefined") return "vi";
-    const langs = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language];
-    for (const lang of langs || []) {
-      const short = String(lang || "").toLowerCase().split("-")[0];
-      if (SUPPORTED_LOCALES.includes(short)) return short;
-    }
-    return "vi";
-  } catch {
-    return "vi";
-  }
-}
+// VN Office là bộ ứng dụng cho người dùng Việt: mặc định luôn là tiếng Việt, kể cả khi Windows
+// cài tiếng Anh (đa số máy văn phòng). Trước đây lấy theo ngôn ngữ hệ thống nên nhân viên dùng thử
+// thấy toàn bộ ribbon tiếng Anh (30/9/2026). Tiếng Anh chỉ khi người dùng tự chọn.
+const DEFAULT_LOCALE = "vi";
 
 function _readPersistedLocale() {
   try {
-    if (typeof localStorage === "undefined") return _detectSystemLocale();
+    if (typeof localStorage === "undefined") return DEFAULT_LOCALE;
     const saved = localStorage.getItem(STORAGE_KEY);
-    // Chưa từng chọn thủ công lần nào -> dùng ngôn ngữ hệ thống trình duyệt/OS làm mặc định.
-    return SUPPORTED_LOCALES.includes(saved) ? saved : _detectSystemLocale();
+    return SUPPORTED_LOCALES.includes(saved) ? saved : DEFAULT_LOCALE;
   } catch {
     return "vi";
   }

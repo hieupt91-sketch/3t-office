@@ -113,7 +113,7 @@ export const viStrings = {
     mergeConfirmTitle: "Trộn ô", mergeConfirmMessage: "Vùng chọn có nhiều ô chứa dữ liệu. Chỉ dữ liệu ở ô trên cùng bên trái của mỗi vùng gộp được giữ lại.", mergeConfirmOk: "Tiếp tục gộp",
     functionTitle: "Chèn Hàm (Insert Function fx)", functionCategory: "Danh mục hàm:", allCategory: "Tất cả", allFunctions: "Tất cả các hàm", mathFunctions: "Toán học & Lượng giác", statsFunctions: "Thống kê (AVERAGE, COUNT...)", logicFunctions: "Logic (IF, AND, OR...)", textFunctions: "Văn bản (CONCAT, LEN...)", dateFunctions: "Ngày & Giờ (TODAY, NOW...)", financialFunctions: "Tài chính (PMT, FV, PV...)", lookupFunctions: "Tra cứu & Tham chiếu (VLOOKUP, INDEX...)", searchFunction: "Tìm kiếm hàm:", searchPlaceholder: "Gõ tên hàm hoặc mô tả để tìm kiếm...", insertFunction: "Chèn hàm vào ô",
     errorCheckingTitle: "Kiểm tra lỗi công thức (Error Checking)", noErrorsFound: "Kiểm tra hoàn tất. Không tìm thấy ô nào có giá trị lỗi trong trang tính.", errorsFoundPrompt: "Phát hiện <strong>{count}</strong> ô có lỗi công thức trong trang tính hiện tại:", errorColCell: "Ô", errorColCode: "Mã lỗi", errorColFormula: "Công thức", errorColReason: "Nguyên nhân", calcError: "Lỗi tính toán", divZero: "Chia cho số 0 hoặc ô trống", invalidRef: "Tham chiếu ô không hợp lệ", wrongType: "Sai kiểu dữ liệu (số vs chữ)", naError: "Giá trị không tồn tại", nameError: "Tên hàm/vùng không xác định", numError: "Giá trị số ngoài phạm vi",
-    watchWindowTitle: "Cửa sổ theo dõi (Watch Window)", addWatch: "Thêm ô theo dõi", deleteWatch: "Xóa theo dõi", defineNameTitle: "Đặt tên vùng (Define Name)", nameLabel: "Tên:", refersTo: "Tham chiếu đến:", useInFormulaTitle: "Dùng tên trong công thức", namePlaceholder: "Ví dụ: BangLuong, DonGia", scopeLabel: "Phạm vi:", scopeWorkbook: "Workbook (Toàn bảng tính)", invalidName: "Tên không hợp lệ hoặc đã tồn tại.", useInFormulaPrompt: "Chọn một tên để chèn vào công thức:",
+    watchWindowTitle: "Cửa sổ theo dõi (Watch Window)", addWatch: "Thêm ô theo dõi", deleteWatch: "Xóa theo dõi", watchWindowColSheet: "Trang tính", watchWindowColCell: "Ô", watchWindowColValue: "Giá trị", watchWindowColFormula: "Công thức", defineNameTitle: "Đặt tên vùng (Define Name)", nameLabel: "Tên:", refersTo: "Tham chiếu đến:", useInFormulaTitle: "Dùng tên trong công thức", namePlaceholder: "Ví dụ: BangLuong, DonGia", scopeLabel: "Phạm vi:", scopeWorkbook: "Workbook (Toàn bảng tính)", invalidName: "Tên không hợp lệ hoặc đã tồn tại.", useInFormulaPrompt: "Chọn một tên để chèn vào công thức:",
     nameManagerTitle: "Trình quản lý tên", nameNew: "Thêm mới", nameEdit: "Sửa", nameDelete: "Xóa", noNamedRanges: "Chưa có vùng được đặt tên.", invalidNameOrRef: "Tên hoặc vùng tham chiếu không hợp lệ/trùng lặp.",
     newComment: "Ghi chú mới {coord}", editComment: "Sửa ghi chú {coord}", commentContent: "Nội dung ghi chú", commentPlaceholder: "Nhập ghi chú cho {coord}", author: "Tác giả", defaultAuthor: "Người dùng VN Office", saveChanges: "Lưu thay đổi", addComment: "Thêm ghi chú", deleteComment: "Xóa ghi chú", emptyComment: "Nội dung ghi chú không được để trống.",
     spellcheckTitle: "Chính tả", spellcheckNotInDictionary: "Không có trong từ điển:", spellcheckCell: "Ô", spellcheckContext: "Nội dung ô", spellcheckSuggestions: "Gợi ý:", spellcheckNoSuggestions: "(Không có gợi ý gần)", spellcheckIgnore: "Bỏ qua", spellcheckIgnoreAll: "Bỏ qua tất cả", spellcheckAdd: "Thêm vào từ điển", spellcheckReplace: "Thay thế", spellcheckReplaceAll: "Thay thế tất cả", spellcheckClose: "Đóng", spellcheckStatus: "Lỗi {current} / {total}", spellcheckComplete: "Đã kiểm tra xong toàn bộ trang tính. Không tìm thấy lỗi chính tả.", spellcheckCompleteRemaining: "Đã kiểm tra xong. Không còn lỗi chính tả.",
@@ -134,6 +134,9 @@ export const viStrings = {
     resultTitle: "Kết quả", flashFillSuccess: "Flash Fill đã điền {filled} ô ({pattern}).", flashFillFailure: "Không nhận diện được mẫu. Hãy nhập 1–2 ví dụ ở cột kết quả kế bên dữ liệu nguồn.",
     pivotChartTitle: "Biểu đồ Pivot", pivotChartNeedsPivot: "Hãy chọn một trang Pivot hoặc tạo Pivot Table trước.",
     dataTableTitle: "Bảng dữ liệu", dataTableRange: "Vùng đã chọn", dataTableHint: "Đặt công thức gốc ở ô góc trên-trái; giá trị thay thế ở hàng trên và/hoặc cột trái.", rowInputCell: "Ô đầu vào theo hàng", columnInputCell: "Ô đầu vào theo cột", dataTableNeedsInput: "Hãy chọn ô đầu vào theo hàng hoặc theo cột.", dataTableDistinctInputs: "Hai ô đầu vào phải khác nhau.", dataTableRangeSize: "Vùng Bảng dữ liệu phải có ít nhất 2 hàng và 2 cột.", dataTableFormulaCorner: "Ô góc trên bên trái phải chứa công thức gốc.", scenarioManagerTitle: "Trình quản lý kịch bản", scenarios: "Kịch bản", scenarioName: "Tên kịch bản", changingCells: "Các ô thay đổi", scenarioValues: "Các giá trị (cách nhau bằng dấu phẩy)", scenarioNameExists: "Tên kịch bản đã tồn tại.", showScenario: "Hiển thị", selectScenario: "Hãy chọn một kịch bản.", add: "Thêm", edit: "Sửa", delete: "Xóa",
+    goalSeekTitle: "Dò tìm mục tiêu", goalSeekSetCell: "Ô đặt", goalSeekToValue: "Đến giá trị", goalSeekByChangingCell: "Bằng cách đổi ô", goalSeekFind: "Tìm kết quả", goalSeekResult: "Đã tìm thấy {cell} = {value} (sai số {residual}). Chọn Đồng ý để áp dụng.",
+    sparklineColumn: "Biểu đồ mini dạng cột", sparklineLine: "Biểu đồ mini dạng đường",
+    hfPresetLabel: "Mẫu dùng sẵn", hfPresetCustom: "Tùy chỉnh", hfPresetPage: "Trang X", hfPresetSheet: "Tên trang tính", hfPresetDate: "Ngày", hfPresetNone: "Không có", hfPresetPageVal: "Trang &P", hfPresetSheetVal: "Tên trang tính: &A", hfPresetDateVal: "Ngày: &D", hfLeft: "Trái", hfCenter: "Giữa", hfRight: "Phải", headerFooterTitle: "Tiêu đề Đầu/Cuối trang", headerTitle: "Đầu trang", footerTitle: "Cuối trang", hfDynamicCodesHint: "Mã động: &P số trang, &N tổng số trang, &D ngày, &T giờ, &F tên tệp, &A tên trang tính.",
     pivotTitle: "Tạo Bảng tổng hợp", pivotSource: "Vùng dữ liệu nguồn (hàng đầu là tiêu đề)", loadFields: "Đọc tên cột", chooseFields: "Chọn trường cho từng vùng:", aggregateFor: "Phép tổng hợp cho {field}", sourceRangeFormat: "Vùng nguồn phải có dạng A1:D20.", sourceNeedsHeaders: "Hàng đầu tiên của vùng nguồn phải có tiêu đề.", uniqueHeaders: "Tiêu đề cột trong vùng nguồn phải là duy nhất.", selectValue: "Hãy chọn ít nhất một trường Values.", columnNotFound: "Không tìm thấy cột {field}.", sourceSheetNotFound: "Không tìm thấy sheet dữ liệu nguồn.", createPivotBtn: "Tạo Pivot Table",
     chartDefaultTitle: "Biểu đồ dữ liệu", chartUnsupported: "Kiểu biểu đồ không được hỗ trợ: {type}", chartItem: "Mục {number}", chartNoNumericData: "Vùng đã chọn không có dữ liệu số", chartPiePositive: "Biểu đồ tròn cần giá trị dương", chartInsertFrom: "Chèn biểu đồ từ {range}", selectedRange: "vùng đã chọn", chartType: "Kiểu biểu đồ", chartColumn: "Cột", chartLine: "Đường", chartPie: "Tròn", chartArea: "Miền", insertIntoSheet: "Chèn vào bảng tính", insertedImageAlt: "Ảnh được chèn trong trang tính", deleteImage: "Xóa ảnh", imageFormatUnsupported: "Định dạng ảnh không được hỗ trợ",
     cellStylesTitle: "Thư viện kiểu ô (Cell Styles)", cellStylesHint: "Chọn một kiểu để áp dụng ngay lập tức cho các ô đang chọn:",
@@ -215,13 +218,18 @@ export const viStrings = {
   },
   slidesDialogs: {
     close: "Đóng", cancel: "Hủy bỏ", apply: "Áp dụng", preview: "Xem thử", delete: "Xóa",
+    canvasRegion: "Vùng trình chiếu",
+    removeSectionKeepSlides: "Xóa Phần (giữ trang chiếu)",
+    totalPrintSlides: "Tổng số trang chiếu in",
     printPreview: {
       title: "Xem trước khi in",
       printBtn: "In tài liệu",
       prevPage: "◀ Trang trước",
       nextPage: "Trang sau ▶",
       pagePrefix: "Trang ",
-      closeTooltip: "Đóng xem trước (Esc)"
+      closeTooltip: "Đóng xem trước (Esc)",
+      slideUnit: "trang chiếu",
+      slideCount: "{count} trang chiếu"
     },
     masterTitle: "Mẫu Slide Master", themeGalleryTitle: "Thư viện Chủ đề", themeGalleryHint: "Chọn một chủ đề để áp dụng ngay cho toàn bộ bản trình chiếu.", themePreviewTitle: "Tiêu đề bản trình chiếu", themeCorporateBlue: "Xanh Doanh Nghiệp", themeWarmTerracotta: "Terracotta Ấm Áp", themeMinimalMonochrome: "Đơn Sắc Tối Giản", themeNaturalGreen: "Xanh Lá Thiên Nhiên", themeModernCharcoal: "Than Chì Hiện Đại", themeEnergeticOrange: "Cam Năng Động", slideSizeTitle: "Kích thước trang chiếu", slideSizeHint: "Chọn tỷ lệ mới. Mọi hình và đối tượng hiện có sẽ được co giãn theo khung.", slideSizeWide: "Màn hình rộng", slideSizeStandard: "Tiêu chuẩn", layoutTitle: "Chọn Bố Cục Trang Chiếu", transitionTitle: "Hiệu Ứng Chuyển Trang", animationTitle: "Hiệu Ứng Đối Tượng (Object Animations)",
     applyMaster: "Áp dụng mẫu", applyLayout: "Áp dụng bố cục", applyTransition: "Áp dụng chuyển tiếp", applyAnimation: "Áp dụng hiệu ứng", removeTransition: "Xóa chuyển tiếp", removeAnimation: "Xóa hiệu ứng", previewTransition: "▶ Xem thử chuyển tiếp", previewAnimation: "▶ Xem thử hiệu ứng", previewObject: "Đối tượng xem thử",
@@ -272,6 +280,7 @@ export const viStrings = {
     "common.file.exportPdf": { label: "Xuất PDF", tooltip: "Xuất nội dung sang định dạng PDF tiêu chuẩn" },
     "common.file.print": { label: "In tài liệu", tooltip: "In tài liệu (Ctrl+P)" },
     "common.file.close": { label: "Đóng", tooltip: "Đóng tài liệu (Ctrl+W)" },
+    "common.help.about": { label: "Giới thiệu 3T Office", tooltip: "Xem thông tin phiên bản, bản quyền và giấy phép nguồn mở 3T Office" },
     "common.macro.recordToggle": { label: "Ghi Macro", tooltip: "Bắt đầu/Dừng ghi lại thao tác thành Macro (Ctrl+Shift+R)" },
     "common.macro.manager": { label: "Xem Macro", tooltip: "Xem, chạy, đổi tên hoặc xóa các Macro đã ghi (Alt+F8)" },
     "common.edit.undo": { label: "Hoàn tác", tooltip: "Hoàn tác thao tác vừa thực hiện (Ctrl+Z)" },
@@ -495,6 +504,10 @@ export const viStrings = {
     ,"slides.file.printPreview": { label: "Xem trước khi in", tooltip: "Xem trước khi in (Ctrl+F2)" }
     ,"slides.shape.group": { label: "Nhóm đối tượng", tooltip: "Nhóm các đối tượng đang chọn thành một khối (Ctrl+G)" }
     ,"slides.shape.ungroup": { label: "Bỏ nhóm", tooltip: "Tách nhóm đối tượng đang chọn (Ctrl+Shift+G)" }
+    ,"slides.arrange.bringToFront": { label: "Đưa lên trên cùng", tooltip: "Đưa đối tượng đang chọn lên trên tất cả đối tượng khác" }
+    ,"slides.arrange.bringForward": { label: "Đưa lên trên một lớp", tooltip: "Đưa đối tượng đang chọn lên trên một lớp" }
+    ,"slides.arrange.sendBackward": { label: "Đưa xuống dưới một lớp", tooltip: "Đưa đối tượng đang chọn xuống dưới một lớp" }
+    ,"slides.arrange.sendToBack": { label: "Đưa xuống dưới cùng", tooltip: "Đưa đối tượng đang chọn xuống dưới tất cả đối tượng khác" }
     ,"slides.arrange.alignLeft": { label: "Căn trái", tooltip: "Căn các đối tượng đang chọn theo mép trái" }
     ,"slides.arrange.alignCenter": { label: "Căn giữa (ngang)", tooltip: "Căn các đối tượng đang chọn giữa theo chiều ngang" }
     ,"slides.arrange.alignRight": { label: "Căn phải", tooltip: "Căn các đối tượng đang chọn theo mép phải" }

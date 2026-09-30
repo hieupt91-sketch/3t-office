@@ -3,6 +3,7 @@
  */
 
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
+import { globalShortcutManager } from "../../platform/commands/shortcut-manager.js";
 import { t, getLocale } from "../../platform/i18n/i18n.js";
 import { formatDateTime, showDateTimeDialog } from "../../platform/ui-kit/datetime-picker.js";
 import { showSymbolPicker } from "../../platform/ui-kit/symbol-picker.js";
@@ -298,6 +299,9 @@ export class SlidesCanvasController {
       showLogo: true,
       showFooter: true
     };
+    // Bản mới = khổ Widescreen PowerPoint (960 × 540 pt) với 1 px canvas = 1 pt; không còn là tệp mở từ ngoài.
+    this.imported = false;
+    this.ptPerPx = 1;
     this.slideSize = { preset: "wide", width: 960, height: 540 };
     this.headerFooter = {
       showDate: false,
@@ -393,7 +397,7 @@ export class SlidesCanvasController {
     this.canvasEl.className = "vno-slide-canvas";
     this.canvasEl.tabIndex = -1;
     this.canvasEl.setAttribute("role", "region");
-    this.canvasEl.setAttribute("aria-label", "Vùng trình chiếu slide");
+    this.canvasEl.setAttribute("aria-label", t("slidesDialogs.canvasRegion", "Vùng trình chiếu"));
     this._applySlideSizeToDom();
 
     this.titleEl = document.createElement("div");
@@ -2331,6 +2335,78 @@ export class SlidesCanvasController {
     return true;
   }
 
+  /**
+   * Chèn > Hộp văn bản (PowerPoint Insert > Text Box): tạo một đối tượng hộp chữ độc lập
+   * trên trang hiện tại và đặt con trỏ vào trong để gõ ngay.
+   */
+  insertTextBox() {
+    if (!this.insertShape("textbox")) return false;
+    const slide = this.slides[this.currentSlideIndex];
+    const shape = slide?.shapes?.[slide.shapes.length - 1];
+    const el = shape ? this.shapesLayer?.querySelector?.(`[data-shape-id="${shape.id}"]`) : null;
+    el?._vnoStartTextEditing?.();
+    return true;
+  }
+
+  /**
+   * Sắp lớp (PowerPoint Arrange > Bring Forward / Send Backward / Bring to Front / Send to Back).
+   * Thứ tự vẽ = thứ tự mảng slide.shapes (phần tử sau nằm trên), cũng là thứ tự lưu PPTX.
+   * @param {"forward"|"backward"|"front"|"back"} direction
+   */
+  reorderSelectedShapes(direction) {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide || !Array.isArray(slide.shapes) || slide.shapes.length < 2) return false;
+    const selected = new Set([...(this.selectedShapeIds || [])].map(String));
+    if (this.selectedTarget != null && !["title", "body", "body2"].includes(String(this.selectedTarget))) {
+      selected.add(String(this.selectedTarget));
+    }
+    if (!selected.size) return false;
+    const before = slide.shapes.map(s => s.id);
+    const shapes = [...slide.shapes];
+    const isSel = (s) => selected.has(String(s.id));
+    let next;
+    if (direction === "front") {
+      next = [...shapes.filter(s => !isSel(s)), ...shapes.filter(isSel)];
+    } else if (direction === "back") {
+      next = [...shapes.filter(isSel), ...shapes.filter(s => !isSel(s))];
+    } else if (direction === "forward") {
+      next = [...shapes];
+      for (let i = next.length - 2; i >= 0; i--) {
+        if (isSel(next[i]) && !isSel(next[i + 1])) [next[i], next[i + 1]] = [next[i + 1], next[i]];
+      }
+    } else if (direction === "backward") {
+      next = [...shapes];
+      for (let i = 1; i < next.length; i++) {
+        if (isSel(next[i]) && !isSel(next[i - 1])) [next[i], next[i - 1]] = [next[i - 1], next[i]];
+      }
+    } else {
+      return false;
+    }
+    const after = next.map(s => s.id);
+    if (after.every((id, i) => id === before[i])) return false;
+    slide.shapes = next;
+    this.undoStack.push({ type: "shape-order", slideIndex: this.currentSlideIndex, before, after });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+    this._renderShapesLayer();
+    this._renderThumbnails();
+    this.options.onDocumentChange?.();
+    return true;
+  }
+
+  _applyShapeOrder(slideIndex, order) {
+    const slide = this.slides[slideIndex];
+    if (!slide || !Array.isArray(slide.shapes)) return false;
+    const byId = new Map(slide.shapes.map(s => [String(s.id), s]));
+    const ordered = order.map(id => byId.get(String(id))).filter(Boolean);
+    const rest = slide.shapes.filter(s => !order.some(id => String(id) === String(s.id)));
+    slide.shapes = [...ordered, ...rest];
+    if (slideIndex !== this.currentSlideIndex) this.selectSlide(slideIndex);
+    else this._renderShapesLayer();
+    this._renderThumbnails();
+    return true;
+  }
+
   async insertTable(options = null) {
     options = options || {};
     let rows = Number(options.rows);
@@ -2346,9 +2422,8 @@ export class SlidesCanvasController {
     const slide = this.slides[this.currentSlideIndex];
     if (!slide) return false;
     if (!Array.isArray(slide.shapes)) slide.shapes = [];
-    const cells = Array.from({ length: rows }, (_, r) =>
-      Array.from({ length: cols }, (_, c) => (r === 0 ? `Cột ${c + 1}` : ""))
-    );
+    // PowerPoint Chèn > Bảng tạo bảng với mọi ô TRỐNG (không điền sẵn «Cột 1»… thành nội dung).
+    const cells = Array.from({ length: rows }, () => Array.from({ length: cols }, () => ""));
     const offset = slide.shapes.length * 16;
     const newShape = {
       id: Date.now() + Math.floor(Math.random() * 1000),
@@ -3184,11 +3259,12 @@ export class SlidesCanvasController {
     const nextLabel = t("slidesDialogs.printPreview.nextPage", "Trang sau ▶");
     const pagePrefix = t("slidesDialogs.printPreview.pagePrefix", "Trang ");
     const closeLabel = t("slidesDialogs.printPreview.closeTooltip", "Đóng xem trước (Esc)");
+    const slideCountLabel = t("slidesDialogs.printPreview.slideCount", { count: totalPages }) || `${totalPages} trang chiếu`;
 
     overlay.innerHTML = `
       <header class="vno-slides-print-preview-toolbar" role="toolbar" aria-label="${t("slidesDialogs.printPreview.title", "Xem trước khi in")}">
         <button type="button" class="vno-btn vno-btn-primary vno-slides-pp-print" title="${printLabel} (Ctrl+P)">${printLabel}</button>
-        <div class="vno-slides-pp-info">${this.slideSize.width}x${this.slideSize.height} · ${totalPages} slide</div>
+        <div class="vno-slides-pp-info">${this.slideSize.width}x${this.slideSize.height} · ${slideCountLabel}</div>
         <div class="vno-slides-pp-nav">
           <button type="button" class="vno-btn vno-slides-pp-prev" ${totalPages <= 1 ? "disabled" : ""} title="${prevLabel}">${prevLabel}</button>
           <div class="vno-slides-pp-page-indicator">${pagePrefix}<span class="vno-slides-pp-current">1</span> / <span class="vno-slides-pp-total">${totalPages}</span></div>
@@ -3235,7 +3311,10 @@ export class SlidesCanvasController {
   updateShapeText(shapeId, text, html) {
     const shape = this.slides[this.currentSlideIndex]?.shapes?.find(item => String(item.id) === String(shapeId));
     if (!shape || shape.type === "connector") return false;
-    shape.text = String(text || "").replace(/\r?\n/g, " ");
+    // Hộp văn bản giữ nhiều đoạn (mỗi dòng = một đoạn khi lưu PPTX); các hình khác giữ 1 dòng.
+    shape.text = shape.type === "textbox"
+      ? String(text || "").replace(/\r\n?/g, "\n").replace(/\n+$/, "")
+      : String(text || "").replace(/\r?\n/g, " ");
     if (html !== undefined) {
       if (this._htmlLooksFormatted(html)) shape.textHtml = html;
       else delete shape.textHtml;
@@ -3892,8 +3971,11 @@ export class SlidesCanvasController {
             this._syncUndoRedoState();
           }
         });
+        el._vnoStartTextEditing = startEditing;
         textEl.addEventListener("keydown", (event) => {
-          if (event.key === "Enter" || event.key === "Escape") {
+          // Hộp văn bản như PowerPoint: Enter xuống đoạn mới (cần cho gạch đầu dòng / đánh số
+          // nhiều mục); chỉ Esc mới thoát chế độ sửa chữ.
+          if (event.key === "Escape") {
             event.preventDefault();
             textEl.blur();
             el.focus?.();
@@ -4140,6 +4222,19 @@ export class SlidesCanvasController {
     el.querySelectorAll(".vno-shape-rotate-tooltip").forEach(h => h.remove());
   }
 
+  /**
+   * Tỉ lệ màn hình / toạ độ trang chiếu (thu phóng Chế độ xem dùng transform: scale()).
+   * Kéo chuột N px trên màn hình phải dời hình N / tỉ lệ px trên trang — như PowerPoint,
+   * hình luôn bám đúng con trỏ ở mọi mức thu phóng.
+   */
+  _pointerScale() {
+    const el = this.canvasEl;
+    const rectW = el?.getBoundingClientRect?.()?.width;
+    const layoutW = el?.offsetWidth || this.slideSize?.width;
+    const scale = rectW && layoutW ? rectW / layoutW : (this.zoomLevel || 1);
+    return Number.isFinite(scale) && scale > 0.05 ? scale : 1;
+  }
+
   _attachResizeHandle(handleEl, shapeEl, shape, dir) {
     handleEl.addEventListener("pointerdown", (event) => {
       event.stopPropagation();
@@ -4152,11 +4247,12 @@ export class SlidesCanvasController {
       const origW = shape.w;
       const origH = shape.h;
       const aspect = (origW && origH) ? origW / origH : 1;
+      const pointerScale = this._pointerScale();
       let resized = false;
 
       const move = (moveEvent) => {
-        const dx = moveEvent.clientX - startClientX;
-        const dy = moveEvent.clientY - startClientY;
+        const dx = (moveEvent.clientX - startClientX) / pointerScale;
+        const dy = (moveEvent.clientY - startClientY) / pointerScale;
         if (!resized && Math.abs(dx) + Math.abs(dy) < 2) return;
         resized = true;
 
@@ -4469,10 +4565,11 @@ export class SlidesCanvasController {
       const otherShapes = allShapes.filter(s => !shapesToMove.includes(s) && s.type !== "connector");
 
       let moved = false;
+      const pointerScale = this._pointerScale();
 
       const move = (moveEvent) => {
-        let dx = moveEvent.clientX - startX;
-        let dy = moveEvent.clientY - startY;
+        let dx = (moveEvent.clientX - startX) / pointerScale;
+        let dy = (moveEvent.clientY - startY) / pointerScale;
         if (!moved && Math.abs(dx) + Math.abs(dy) < 3) return;
         moved = true;
 
@@ -5401,7 +5498,8 @@ export class SlidesCanvasController {
 
     s.layoutType = layoutType;
     if (layoutType === "two-content" && s.body2 === undefined) {
-      s.body2 = "• Nhập nội dung cột 2 tại đây...\n• Điểm bổ sung";
+      // Cột phải mới là placeholder trống như PowerPoint (không chèn chữ gợi ý thành nội dung).
+      s.body2 = "";
     }
 
     this._applyLayoutToDom(layoutType);
@@ -5467,11 +5565,15 @@ export class SlidesCanvasController {
   }
 
   addNewSlide(recordUndo = true, layoutType = "title-content") {
+    // PowerPoint (Ctrl+M / Trang mới): trang mới nằm NGAY SAU trang đang chọn và các
+    // placeholder để TRỐNG — chữ gợi ý chỉ là hướng dẫn trên màn hình, không phải nội dung
+    // (trước đây trang luôn nối vào cuối và mang sẵn «Tiêu đề trang chiếu mới» thành chữ thật,
+    // bị lưu vào PPTX).
     const newSlide = {
       id: Date.now(),
-      title: layoutType === "blank" ? "" : "Tiêu đề trang chiếu mới",
-      body: layoutType === "blank" ? "" : "• Nhập nội dung chính tại đây...\n• Trình bày các điểm nổi bật",
-      body2: layoutType === "two-content" ? "• Nhập nội dung cột 2 tại đây...\n• Điểm thứ hai" : undefined,
+      title: "",
+      body: "",
+      body2: layoutType === "two-content" ? "" : undefined,
       layoutType,
       shapes: [],
       notes: "",
@@ -5479,8 +5581,9 @@ export class SlidesCanvasController {
       hidden: false,
       headerFooter: this.headerFooter?.applyToAll !== false ? { ...(this.headerFooter || {}) } : undefined
     };
-    this.slides.push(newSlide);
-    const newIdx = this.slides.length - 1;
+    const current = Number.isInteger(this.currentSlideIndex) ? this.currentSlideIndex : this.slides.length - 1;
+    const newIdx = Math.max(0, Math.min(this.slides.length, current + 1));
+    this.slides.splice(newIdx, 0, newSlide);
     const previous = this.slides[newIdx - 1];
     if (previous?.sectionId) newSlide.sectionId = previous.sectionId;
     if (recordUndo) {
@@ -5500,7 +5603,8 @@ export class SlidesCanvasController {
     if (!cur) return false;
     const dup = {
       id: Date.now(),
-      title: `${cur.title} (Bản sao)`,
+      // PowerPoint «Nhân đôi trang chiếu» tạo bản sao y hệt — không tự thêm hậu tố vào tiêu đề.
+      title: cur.title,
       titleHtml: cur.titleHtml,
       body: cur.body,
       bodyHtml: cur.bodyHtml,
@@ -5899,12 +6003,12 @@ export class SlidesCanvasController {
     menu.style.cssText = `position:fixed;left:${clampedX}px;top:${clampedY}px;z-index:10040;min-width:190px;padding:6px;background:var(--vno-bg-surface,#ffffff);color:var(--vno-text-primary,#0f172a);border:1px solid var(--vno-border-default,#cbd5e1);border-radius:6px;box-shadow:0 8px 24px rgba(15,23,42,.2)`;
     
     let menuHtml = `
-      <button type="button" data-slide-action="new" role="menuitem" tabindex="0">Trang mới</button>
-      <button type="button" data-slide-action="duplicate" role="menuitem" tabindex="-1">Nhân đôi trang</button>
-      <button type="button" data-slide-action="delete" role="menuitem" tabindex="-1"${this.slides.length <= 1 ? " disabled style='opacity:0.5;cursor:not-allowed;'" : ""}>Xóa trang</button>
+      <button type="button" data-slide-action="new" role="menuitem" tabindex="0">${t("slides.newSlide", "Trang mới")}</button>
+      <button type="button" data-slide-action="duplicate" role="menuitem" tabindex="-1">${t("slides.duplicateSlide", "Nhân đôi trang")}</button>
+      <button type="button" data-slide-action="delete" role="menuitem" tabindex="-1"${this.slides.length <= 1 ? " disabled style='opacity:0.5;cursor:not-allowed;'" : ""}>${t("slides.deleteSlide", "Xóa trang")}</button>
       <div style="height:1px;background:var(--vno-border-default,#cbd5e1);margin:4px 0;"></div>
-      <button type="button" data-section-action="add" role="menuitem" tabindex="-1">Thêm Phần</button>
-      ${section ? `<button type="button" data-section-action="rename" role="menuitem" tabindex="-1">Đổi tên Phần</button><button type="button" data-section-action="remove" role="menuitem" tabindex="-1">Xóa Phần (giữ slide)</button>` : ""}
+      <button type="button" data-section-action="add" role="menuitem" tabindex="-1">${t("slidesDialogs.sectionAddTitle", "Thêm phần")}</button>
+      ${section ? `<button type="button" data-section-action="rename" role="menuitem" tabindex="-1">${t("slidesDialogs.sectionRenameTitle", "Đổi tên phần")}</button><button type="button" data-section-action="remove" role="menuitem" tabindex="-1">${t("slidesDialogs.removeSectionKeepSlides", "Xóa Phần (giữ trang chiếu)")}</button>` : ""}
     `;
     menu.innerHTML = menuHtml;
 
@@ -6035,6 +6139,10 @@ export class SlidesCanvasController {
     let itemsHtml = `
       <button type="button" data-action="duplicate" role="menuitem" tabindex="0">Nhân đôi (Ctrl+D)</button>
       <button type="button" data-action="delete" role="menuitem" tabindex="-1">Xóa hình vẽ (Delete)</button>
+      <button type="button" data-action="order-front" role="menuitem" tabindex="-1">Đưa lên trên cùng</button>
+      <button type="button" data-action="order-forward" role="menuitem" tabindex="-1">Đưa lên trên một lớp</button>
+      <button type="button" data-action="order-backward" role="menuitem" tabindex="-1">Đưa xuống dưới một lớp</button>
+      <button type="button" data-action="order-back" role="menuitem" tabindex="-1">Đưa xuống dưới cùng</button>
     `;
     if (shape.rotation) {
       itemsHtml += `<button type="button" data-action="reset-rotation" role="menuitem" tabindex="-1">Đặt lại góc xoay (0°)</button>`;
@@ -6083,6 +6191,12 @@ export class SlidesCanvasController {
       close(false);
       this.deleteSelectedShapes();
     });
+    for (const [action, direction] of [["order-front", "front"], ["order-forward", "forward"], ["order-backward", "backward"], ["order-back", "back"]]) {
+      menu.querySelector(`[data-action="${action}"]`)?.addEventListener("click", () => {
+        close(false);
+        this.reorderSelectedShapes(direction);
+      });
+    }
     menu.querySelector('[data-action="reset-rotation"]')?.addEventListener("click", () => {
       close(false);
       this.resetShapeRotation(shape.id);
@@ -6524,6 +6638,10 @@ export class SlidesCanvasController {
       this.selectSlide(action.slideIndex);
       this._renderShapesLayer();
       return true;
+    } else if (action.type === "shape-order") {
+      if (!this._applyShapeOrder(action.slideIndex, action.before)) return false;
+      this.redoStack.push(action);
+      return true;
     } else if (action.type === "shapes-delete") {
       const slide = this.slides[action.slideIndex];
       if (!slide) return false;
@@ -6801,6 +6919,10 @@ export class SlidesCanvasController {
       this.undoStack.push(action);
       this.selectSlide(action.slideIndex);
       this._renderShapesLayer();
+      return true;
+    } else if (action.type === "shape-order") {
+      if (!this._applyShapeOrder(action.slideIndex, action.after)) return false;
+      this.undoStack.push(action);
       return true;
     } else if (action.type === "shapes-delete") {
       const slide = this.slides[action.slideIndex];
@@ -7383,7 +7505,14 @@ export class SlidesCanvasController {
 
   setSlideSize(options, recordHistory = true) {
     options = options || {};
-    const presets = { wide: { preset: "wide", width: 960, height: 540 }, standard: { preset: "standard", width: 720, height: 540 } };
+    // Khổ đúng preset PowerPoint 2013+: Widescreen 13,333 × 7,5 in = 960 × 540 pt, Standard (4:3)
+    // 10 × 7,5 in = 720 × 540 pt; quy ra px theo đơn vị của tài liệu (bản mới 1 px = 1 pt,
+    // tệp mở từ ngoài 0,75 pt/px) để PowerPoint mở ra đúng «Widescreen» / «Standard (4:3)».
+    const ptPerPx = Number(this.ptPerPx) > 0 ? Number(this.ptPerPx) : 1;
+    const presets = {
+      wide: { preset: "wide", width: Math.round(960 / ptPerPx), height: Math.round(540 / ptPerPx) },
+      standard: { preset: "standard", width: Math.round(720 / ptPerPx), height: Math.round(540 / ptPerPx) }
+    };
     // Có width/height tường minh (khổ thật của file mở) thì ưu tiên hơn preset.
     let next = (options && options.width && options.height) ? null : (presets[options.preset || options] || null);
     if (!next && options && options.width && options.height) {
@@ -7423,8 +7552,8 @@ export class SlidesCanvasController {
       overlay.innerHTML = `<div class="vno-dialog-box" style="width:480px" role="dialog" aria-modal="true" aria-labelledby="vno-slide-size-title">
         <div class="vno-dialog-header"><span id="vno-slide-size-title">${t("slidesDialogs.slideSizeTitle")}</span><button type="button" class="vno-btn vno-dialog-close-btn" aria-label="${t("slidesDialogs.close")}">&times;</button></div>
         <div class="vno-dialog-body"><p style="font-size:12px;color:#475569">${t("slidesDialogs.slideSizeHint")}</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:14px" role="radiogroup" aria-labelledby="vno-slide-size-title">
-          <button type="button" role="radio" class="vno-theme-card" data-slide-size="wide" aria-checked="${this.slideSize.preset === "wide"}" aria-pressed="${this.slideSize.preset === "wide"}"><span style="display:block;aspect-ratio:16/9;background:#dbeafe;border:2px solid #2563eb" aria-hidden="true"></span><strong>${t("slidesDialogs.slideSizeWide")}</strong><small>16:9 · 960 × 540</small></button>
-          <button type="button" role="radio" class="vno-theme-card" data-slide-size="standard" aria-checked="${this.slideSize.preset === "standard"}" aria-pressed="${this.slideSize.preset === "standard"}"><span style="display:block;aspect-ratio:4/3;background:#ffedd5;border:2px solid #f97316" aria-hidden="true"></span><strong>${t("slidesDialogs.slideSizeStandard")}</strong><small>4:3 · 720 × 540</small></button>
+          <button type="button" role="radio" class="vno-theme-card" data-slide-size="wide" aria-checked="${this.slideSize.preset === "wide"}" aria-pressed="${this.slideSize.preset === "wide"}"><span style="display:block;aspect-ratio:16/9;background:#dbeafe;border:2px solid #2563eb" aria-hidden="true"></span><strong>${t("slidesDialogs.slideSizeWide")}</strong><small>16:9 · 33,867 × 19,05 cm</small></button>
+          <button type="button" role="radio" class="vno-theme-card" data-slide-size="standard" aria-checked="${this.slideSize.preset === "standard"}" aria-pressed="${this.slideSize.preset === "standard"}"><span style="display:block;aspect-ratio:4/3;background:#ffedd5;border:2px solid #f97316" aria-hidden="true"></span><strong>${t("slidesDialogs.slideSizeStandard")}</strong><small>4:3 · 25,4 × 19,05 cm</small></button>
         </div></div></div>`;
       document.body.appendChild(overlay);
       const dialogBox = overlay.querySelector(".vno-dialog-box");
@@ -7859,7 +7988,7 @@ export class SlidesCanvasController {
         this.slides.forEach((s) => {
           s.layoutType = selectedId;
           if (selectedId === "two-content" && s.body2 === undefined) {
-            s.body2 = "• Nhập nội dung cột 2 tại đây...\n• Điểm bổ sung";
+            s.body2 = "";
           }
         });
         this.selectSlide(this.currentSlideIndex);
@@ -8432,13 +8561,18 @@ export class SlidesCanvasController {
         `;
       }
 
+      // Màn chiếu chỉ hiện đúng những gì có trên trang (như PowerPoint): logo / chân trang của
+      // mẫu chủ đạo chỉ khi mẫu thật sự bật và có chữ — không tự chèn chữ «VN OFFICE» hay
+      // «Tài liệu thuyết trình VN Office» vào bài của người dùng.
+      const showLogo = theme.showLogo !== false && !!theme.logoText;
+      const showFooter = theme.showFooter !== false && !!theme.footerText;
       content.innerHTML = `
         <div class="vno-slide-master-accent" style="background:${theme.accentColor || "#b53818"};"></div>
         ${activeSection ? `<div class="vno-slideshow-section" style="position:absolute;top:18px;left:32px;z-index:4;padding:5px 10px;border-radius:4px;background:rgba(15,23,42,.78);color:#fff;font-size:14px;font-weight:700">${String(activeSection.name).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")}</div>` : ""}
-        <div class="vno-slide-master-logo" style="color:${theme.accentColor || "#b53818"};">${theme.logoText || "VN OFFICE"}</div>
+        ${showLogo ? `<div class="vno-slide-master-logo" style="color:${theme.accentColor || "#b53818"};">${this._escapeHtml(theme.logoText)}</div>` : ""}
         ${layoutHtml}
         <div class="vno-slide-master-footer" style="color:${theme.bodyColor || "#475569"};">
-          <span>${theme.footerText || t("slidesDialogs.footerDoc", "Tài liệu thuyết trình VN Office")}</span>
+          <span>${showFooter ? this._escapeHtml(theme.footerText) : ""}</span>
           <span>${t("slidesDialogs.slideCounter", { current: currentShowIdx + 1, total: this.slides.length })}</span>
           <span>${t("slidesDialogs.slideshowHint")}</span>
         </div>
@@ -8488,6 +8622,9 @@ export class SlidesCanvasController {
         saved = rehearsing ? finishRehearsal() : undefined;
       }
       document.removeEventListener("keydown", keyHandler);
+      if (globalShortcutManager.getActiveScope?.() === "slides-show") {
+        globalShortcutManager.setActiveScope?.(previousShortcutScope);
+      }
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
       if (previousFocused && typeof previousFocused.focus === "function") {
         try { previousFocused.focus(); } catch (_) {}
@@ -8521,18 +8658,38 @@ export class SlidesCanvasController {
       if (n >= 0) goToSlide(n);
     };
 
+    // Phím điều khiển khi chiếu như PowerPoint: sau = →, ↓, Space, Enter, Page Down, N;
+    // trước = ←, ↑, Backspace, Page Up, P; Home / End = trang đầu / cuối; Esc thoát.
     const keyHandler = (e) => {
-      if (e.key === "Escape") {
+      if (e.ctrlKey || e.altKey || e.metaKey) return;
+      const k = e.key;
+      if (k === "Escape") {
+        e.preventDefault();
         closeShow();
-      } else if (e.key === " " || e.key === "ArrowRight" || e.key === "PageDown") {
+      } else if (k === " " || k === "ArrowRight" || k === "ArrowDown" || k === "PageDown" || k === "Enter" || k === "n" || k === "N") {
+        e.preventDefault();
         advanceShow();
-      } else if (e.key === "ArrowLeft" || e.key === "PageUp") {
+      } else if (k === "ArrowLeft" || k === "ArrowUp" || k === "PageUp" || k === "Backspace" || k === "p" || k === "P") {
+        e.preventDefault();
         rewindShow();
-      } else if (e.key === "Tab") {
+      } else if (k === "Home") {
+        e.preventDefault();
+        const first = this._firstVisibleSlideIndex();
+        if (first >= 0 && first !== currentShowIdx) goToSlide(first);
+      } else if (k === "End") {
+        e.preventDefault();
+        const last = this._findVisibleSlideIndex(this.slides.length - 1, -1);
+        if (last >= 0 && last !== currentShowIdx) goToSlide(last);
+      } else if (k === "Tab") {
         trapFocus(overlay, e);
       }
     };
 
+    // Phím tắt soạn thảo của Slides (Page Down = trang sau khi soạn, F5, Delete…) chạy ở
+    // window capture TRƯỚC listener này và nuốt phím. Trong lúc chiếu tạm chuyển sang scope
+    // riêng không có phím nào; trả lại scope cũ khi thoát.
+    const previousShortcutScope = globalShortcutManager.getActiveScope?.() ?? "slides";
+    globalShortcutManager.setActiveScope?.("slides-show");
     document.addEventListener("keydown", keyHandler);
     this._activeShowCleanup?.();
     this._activeShowCleanup = cleanupShow;
@@ -8777,6 +8934,9 @@ export class SlidesCanvasController {
     const closePresenter = () => {
       if (timerInterval) clearInterval(timerInterval);
       document.removeEventListener("keydown", keyHandler);
+      if (globalShortcutManager.getActiveScope?.() === "slides-show") {
+        globalShortcutManager.setActiveScope?.(previousPresenterScope);
+      }
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
       if (previousFocused && typeof previousFocused.focus === "function") {
         try { previousFocused.focus(); } catch (_) {}
@@ -8827,17 +8987,25 @@ export class SlidesCanvasController {
     });
 
     const keyHandler = (e) => {
-      if (e.key === "Escape") {
+      if (e.ctrlKey || e.altKey || e.metaKey) return;
+      const k = e.key;
+      if (k === "Escape") {
         closePresenter();
-      } else if (e.key === " " || e.key === "ArrowRight" || e.key === "PageDown") {
+      } else if (k === " " || k === "ArrowRight" || k === "ArrowDown" || k === "PageDown" || k === "Enter" || k === "n" || k === "N") {
+        if (k === "Enter" && e.target?.closest?.("button")) return;
+        e.preventDefault();
         nextSlide();
-      } else if (e.key === "ArrowLeft" || e.key === "PageUp") {
+      } else if (k === "ArrowLeft" || k === "ArrowUp" || k === "PageUp" || k === "Backspace" || k === "p" || k === "P") {
+        e.preventDefault();
         prevSlide();
-      } else if (e.key === "Tab") {
+      } else if (k === "Tab") {
         trapFocus(overlay, e);
       }
     };
 
+    // Như màn chiếu F5: tạm tắt phím tắt soạn thảo (Page Down/Delete/F5…) trong lúc thuyết trình.
+    const previousPresenterScope = globalShortcutManager.getActiveScope?.() ?? "slides";
+    globalShortcutManager.setActiveScope?.("slides-show");
     document.addEventListener("keydown", keyHandler);
     this._activePresenterCleanup?.();
     this._activePresenterCleanup = closePresenter;
@@ -8914,6 +9082,9 @@ export class SlidesCanvasController {
       showLogo: true,
       showFooter: true
     };
+    // Bản mới = khổ Widescreen PowerPoint (960 × 540 pt) với 1 px canvas = 1 pt; không còn là tệp mở từ ngoài.
+    this.imported = false;
+    this.ptPerPx = 1;
     this.slideSize = { preset: "wide", width: 960, height: 540 };
     this.headerFooter = {
       showDate: false,

@@ -358,13 +358,13 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["writer.header.insert", "writer.footer.insert"],
     title: "Đầu trang và chân trang",
-    summary: "Nhảy vào vùng đầu trang hoặc chân trang của bố cục in để gõ tiêu đề, số trang. Nếu vùng còn trống, Writer điền sẵn «Tiêu đề đầu trang» hoặc «Trang 1 / 1» căn giữa cỡ 10 pt.",
+    summary: "Nhảy vào vùng đầu trang hoặc chân trang của bố cục in để gõ tiêu đề, số trang. Nếu vùng còn trống, Writer điền sẵn «Tiêu đề đầu trang» hoặc «Trang 1 / 1» căn giữa cỡ 10 pt; số trang là trường PAGE / NUMPAGES và tự cập nhật theo từng trang.",
     ribbon: { tab: "Chèn", tabId: "insert", group: "Đầu trang / Chân trang" },
     keywords: ["đầu trang", "chân trang", "header", "footer", "số trang", "tiêu đề trang"],
     steps: [
       "Mở tab Chèn, nhóm Đầu trang / Chân trang. Nhấn Đầu trang hoặc Chân trang (hai nút lớn).",
-      "Con trỏ nhảy vào vùng tương ứng trên trang giấy (chỉ thấy rõ ở Bố trí in). Nếu vùng trống, Writer chèn sẵn một dòng căn giữa 10 pt: «Tiêu đề đầu trang» hoặc «Trang 1 / 1». Gõ đè chữ mẫu.",
-      "Đầu trang / chân trang lặp trên mọi trang khi xem Bố trí in và khi in. Chế độ Bố trí Web ẩn hai vùng này.",
+      "Con trỏ nhảy vào vùng tương ứng trên trang giấy (chỉ thấy rõ ở Bố trí in). Nếu vùng trống, Writer chèn sẵn một dòng căn giữa 10 pt: «Tiêu đề đầu trang» hoặc «Trang 1 / 1». Hai số trong chân trang là trường sống, tự đổi theo trang hiện tại và tổng số trang; có thể gõ thêm nhãn như «Trang».",
+      "Đầu trang / chân trang lặp trên mọi trang khi xem Bố trí in, Print Preview và khi in; số trang hiển thị theo từng tờ. Chế độ Bố trí Web ẩn hai vùng này.",
       "Nhấp lại thân tài liệu để thoát vùng đầu/chân trang. Ctrl+Z hoàn tác lần chèn chữ mẫu nếu vùng vốn trống."
     ]
   },
@@ -961,6 +961,38 @@ export const WRITER_HELP_ENTRIES = [
       "Nhấn Tóm tắt nhanh để AI cô đọng nội dung chính thành các điểm gạch đầu dòng rõ ràng, súc tích.",
       "Nhấn Viết lại để AI trau chuốt lại câu từ, sửa câu cụt, chuẩn hóa ngữ pháp và nâng cao độ trang trọng theo phong cách văn bản hành chính Việt Nam.",
       "Xem kết quả hiển thị trên bảng Trợ lý VN AI và nhấn Chèn vào tài liệu nếu đồng ý với nội dung mới."
+    ]
+  },
+  {
+    id: "writer.help.about",
+    app: "writer",
+    commandIds: ["writer.help.open", "common.help.about"],
+    title: "Giới thiệu 3T Office và Giấy phép bản quyền",
+    summary: "Xem thông tin phiên bản, bản quyền thương hiệu 3T Technology và danh sách các phần mềm nguồn mở bên thứ ba kèm giấy phép hợp pháp.",
+    ribbon: { tab: "Trợ giúp", tabId: "help", group: "Trợ giúp" },
+    keywords: ["giới thiệu", "about", "phiên bản", "bản quyền", "3t office", "giấy phép", "nguồn mở", "third-party", "license", "3t doc"],
+    steps: [
+      "Mở tab Trợ giúp trên thanh ribbon, nhóm Trợ giúp rồi nhấn nút Giới thiệu (hoặc vào menu Tệp rồi chọn Giới thiệu).",
+      "Hộp thoại Giới thiệu 3T Office xuất hiện với logo nhận diện 3T và tiêu đề 3T Office — Bộ ứng dụng văn phòng Việt.",
+      "Quan sát số hiệu phiên bản hiện hành được lấy trực tiếp từ hệ thống, nhà phát triển 3T Technology và bản quyền sở hữu.",
+      "Kiểm tra danh sách các thành phần nguồn mở bên thứ ba (Python 3.12, LibreOffice Core, pywebview, v.v.) và nhấn nút Xem toàn văn giấy phép nếu muốn đọc toàn văn THIRD-PARTY-NOTICES.",
+      "Nhấn nút Đóng hoặc bấm phím Esc trên bàn phím để quay lại làm việc."
+    ]
+  },
+  {
+    id: "writer.help.splash",
+    app: "writer",
+    commandIds: ["writer.help.open"],
+    title: "Màn hình chào 3T Office khi khởi động",
+    summary: "Hiển thị nhận diện thương hiệu 3T Office và tên ứng dụng 3T Doc ngay khi mở cửa sổ, tự động ẩn khi không gian soạn thảo sẵn sàng.",
+    ribbon: { tab: "Trợ giúp", tabId: "help", group: "Trợ giúp" },
+    keywords: ["màn hình chào", "splash", "khởi động", "3t office", "3t doc", "logo 3t", "chào mừng"],
+    steps: [
+      "Khi bạn khởi chạy 3T Office hoặc mở một tệp văn bản từ máy tính, màn hình chào xuất hiện ngay lập tức trên cửa sổ.",
+      "Màn hình hiển thị logo 3T, tiêu đề 3T Office và huy hiệu ứng dụng tương ứng (ví dụ: 3T Doc) trên nền gradient xanh hoàng gia đậm.",
+      "Thanh thông báo trạng thái hiển thị «Đang khởi động…» kèm chỉ báo xoay nhẹ nhàng trong khi hệ thống nạp các tài nguyên nền tảng.",
+      "Ngay khi giao diện soạn thảo hoàn tất nạp dữ liệu, màn hình chào sẽ tự động làm mờ và ẩn đi mà không làm chậm tốc độ làm việc.",
+      "Màn hình chào chạy hoàn toàn cục bộ ngoại tuyến (offline) trên máy tính của bạn, không gửi bất kỳ dữ liệu nào ra mạng."
     ]
   }
 ];

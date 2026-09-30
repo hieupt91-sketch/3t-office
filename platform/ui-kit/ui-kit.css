@@ -937,4 +937,88 @@ body.vno-macro-is-recording #vno-ribbon-tab-view::after {
   outline-offset: 1px;
 }
 
+.vno-document-open-progress {
+  position: fixed;
+  z-index: 12000;
+  top: 76px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: min(300px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  padding: 11px 14px;
+  transform: translateX(-50%);
+  border: 1px solid var(--vno-border-default, #cbd5e1);
+  border-radius: 10px;
+  background: var(--vno-bg-window, #ffffff);
+  color: var(--vno-text-primary, #0f172a);
+  box-shadow: 0 8px 24px rgb(15 23 42 / 18%);
+  pointer-events: none;
+}
+
+.vno-document-open-progress[hidden] {
+  display: none;
+}
+
+.vno-document-open-progress-spinner {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+  border: 2px solid var(--vno-border-default, #cbd5e1);
+  border-top-color: var(--vno-app-current, #0f4c81);
+  border-radius: 50%;
+  animation: vno-open-progress-spin 850ms linear infinite;
+}
+
+.vno-document-open-progress-label {
+  flex: 1 1 auto;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.vno-document-open-progress-track {
+  position: relative;
+  display: block;
+  width: 58px;
+  height: 4px;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--vno-bg-muted, #f1f5f9);
+}
+
+.vno-document-open-progress-indicator {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 38%;
+  border-radius: inherit;
+  background: var(--vno-app-current, #0f4c81);
+  animation: vno-open-progress-slide 1.2s ease-in-out infinite;
+}
+
+@keyframes vno-open-progress-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes vno-open-progress-slide {
+  0% { transform: translateX(-110%); }
+  100% { transform: translateX(265%); }
+}
+
+[data-theme="dark"] .vno-document-open-progress {
+  border-color: var(--vno-border-default, #334155);
+  background: var(--vno-bg-window, #111827);
+  color: var(--vno-text-primary, #f8fafc);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 35%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vno-document-open-progress-spinner,
+  .vno-document-open-progress-indicator {
+    animation-duration: 2.5s;
+  }
+}
+
 

@@ -474,6 +474,24 @@ export const ICONS = {
     <rect x="6" y="6" width="6" height="5" rx="1" fill="#3B82F6"/>
     <path d="M15 15l4 4m0 0v-3.5m0 3.5h-3.5" stroke="#DC2626" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`,
+  bringToFront: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="3" y="11" width="10" height="10" rx="1" fill="#E2E8F0" stroke="#64748B" stroke-width="1.2"/>
+    <rect x="11" y="3" width="10" height="10" rx="1" fill="#E2E8F0" stroke="#64748B" stroke-width="1.2"/>
+    <rect x="7" y="7" width="10" height="10" rx="1" fill="#3B82F6" stroke="#1D4ED8" stroke-width="1.2"/>
+  </svg>`,
+  bringForward: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="4" y="9" width="11" height="11" rx="1" fill="#E2E8F0" stroke="#64748B" stroke-width="1.2"/>
+    <rect x="9" y="4" width="11" height="11" rx="1" fill="#3B82F6" stroke="#1D4ED8" stroke-width="1.2"/>
+  </svg>`,
+  sendBackward: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="9" y="4" width="11" height="11" rx="1" fill="#3B82F6" stroke="#1D4ED8" stroke-width="1.2"/>
+    <rect x="4" y="9" width="11" height="11" rx="1" fill="#E2E8F0" stroke="#64748B" stroke-width="1.2"/>
+  </svg>`,
+  sendToBack: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="7" y="7" width="10" height="10" rx="1" fill="#3B82F6" stroke="#1D4ED8" stroke-width="1.2"/>
+    <rect x="3" y="11" width="10" height="10" rx="1" fill="#E2E8F0" stroke="#64748B" stroke-width="1.2"/>
+    <rect x="11" y="3" width="10" height="10" rx="1" fill="#E2E8F0" stroke="#64748B" stroke-width="1.2"/>
+  </svg>`,
   textVAlignTop: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
     <rect x="2.5" y="2.5" width="19" height="19" rx="1.5" stroke="#64748B" stroke-width="1.4"/>
     <path d="M6 6h12M6 9h8M6 12h9" stroke="#3B82F6" stroke-width="1.6" stroke-linecap="round"/>

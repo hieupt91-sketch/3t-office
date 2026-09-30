@@ -107,6 +107,26 @@ export class UnoBridge {
     return await this.desktopApi.open_document_dialog(appKind);
   }
 
+  async getSheetOpenFallback(openId) {
+    if (!this.desktopApi) return { status: "error", message: "Không thể lấy dữ liệu dự phòng của bảng tính." };
+    return await this.desktopApi.get_sheet_open_fallback(openId || "");
+  }
+
+  async getLatestSheetOpenFallback() {
+    if (!this.desktopApi) return { status: "error", message: "Không thể lấy dữ liệu dự phòng của bảng tính." };
+    return await this.desktopApi.get_latest_sheet_open_fallback();
+  }
+
+  async releaseSheetOpenFallback(openId) {
+    if (!this.desktopApi || !openId) return false;
+    return await this.desktopApi.release_sheet_open_fallback(openId);
+  }
+
+  async reportFrontendError(payload) {
+    if (!this.desktopApi) return { queued: false };
+    return await this.desktopApi.report_frontend_error(payload);
+  }
+
   /**
    * Lưu nội dung hiện tại thành tệp thật (DOCX/XLSX/...) qua hộp thoại native.
    * @param {"writer"|"sheet"|"slides"} appKind

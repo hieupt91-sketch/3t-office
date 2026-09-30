@@ -2867,6 +2867,21 @@ export class SheetGridController {
       this.__vnoPerfRenderLogged = true;
       window.__vnoPerfReport?.("first grid render", performance.now() - this.__vnoPerfLoadAt);
     }
+    const openStartedAt = typeof window !== "undefined" ? window.__vnoSheetOpenStartedAt : null;
+    if (perfEnabled && Number.isFinite(openStartedAt) && !window.__vnoSheetOpenFirstGridPending) {
+      window.__vnoSheetOpenFirstGridPending = true;
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        // Wait until the populated grid has passed a paint opportunity before
+        // reporting the user-visible open time.
+        if (window.__vnoSheetOpenStartedAt !== openStartedAt) return;
+        const openElapsed = performance.now() - openStartedAt;
+        window.__vnoSheetOpenElapsedMs = openElapsed;
+        window.__vnoSheetOpenFirstGridAt = performance.now();
+        window.__vnoSheetOpenStartedAt = null;
+        window.__vnoSheetOpenFirstGridPending = false;
+        window.__vnoPerfReport?.("selection-to-first-grid", openElapsed);
+      }));
+    }
   }
 
   /**
@@ -4242,10 +4257,10 @@ export class SheetGridController {
         <table class="vno-watch-table" style="width:100%;border-collapse:collapse;font-size:11px;">
           <thead>
             <tr style="background:#f8fafc;border-bottom:1px solid #cbd5e1;text-align:left;color:#475569;">
-              <th style="padding:5px 8px;border-right:1px solid #e2e8f0;font-weight:600;">Sheet</th>
-              <th style="padding:5px 8px;border-right:1px solid #e2e8f0;font-weight:600;">Ô</th>
-              <th style="padding:5px 8px;border-right:1px solid #e2e8f0;font-weight:600;">Giá trị</th>
-              <th style="padding:5px 8px;font-weight:600;">Công thức</th>
+              <th style="padding:5px 8px;border-right:1px solid #e2e8f0;font-weight:600;">${t("sheetDialogs.watchWindowColSheet", "Trang tính")}</th>
+              <th style="padding:5px 8px;border-right:1px solid #e2e8f0;font-weight:600;">${t("sheetDialogs.watchWindowColCell", "Ô")}</th>
+              <th style="padding:5px 8px;border-right:1px solid #e2e8f0;font-weight:600;">${t("sheetDialogs.watchWindowColValue", "Giá trị")}</th>
+              <th style="padding:5px 8px;font-weight:600;">${t("sheetDialogs.watchWindowColFormula", "Công thức")}</th>
             </tr>
           </thead>
           <tbody id="vno-watch-tbody"></tbody>
@@ -8596,14 +8611,14 @@ export class SheetGridController {
     if (typeof document === "undefined" || !document.body) return false;
     const current = this.getPageSetup().headerFooter;
     const fieldset = (kind, title) => `<fieldset style="border:1px solid var(--vno-border-default);border-radius:6px"><legend>${title}</legend>
-      <label>Mẫu dùng sẵn<select class="vno-select vno-sheet-hf-preset" data-kind="${kind}" style="width:100%"><option value="custom">Tùy chỉnh</option><option value="page">Trang X</option><option value="sheet">Tên sheet</option><option value="date">Ngày</option><option value="none">Không có</option></select></label>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${["left", "center", "right"].map((position, index) => `<label>${["Trái", "Giữa", "Phải"][index]}<input id="vno-sheet-${kind}-${position}" class="vno-dialog-input" maxlength="500" value="${this._escapeHtml(current[kind][position])}"></label>`).join("")}</div>
+      <label>${t("sheetDialogs.hfPresetLabel", "Mẫu dùng sẵn")}<select class="vno-select vno-sheet-hf-preset" data-kind="${kind}" style="width:100%"><option value="custom">${t("sheetDialogs.hfPresetCustom", "Tùy chỉnh")}</option><option value="page">${t("sheetDialogs.hfPresetPage", "Trang X")}</option><option value="sheet">${t("sheetDialogs.hfPresetSheet", "Tên trang tính")}</option><option value="date">${t("sheetDialogs.hfPresetDate", "Ngày")}</option><option value="none">${t("sheetDialogs.hfPresetNone", "Không có")}</option></select></label>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${["left", "center", "right"].map((position, index) => `<label>${[t("sheetDialogs.hfLeft", "Trái"), t("sheetDialogs.hfCenter", "Giữa"), t("sheetDialogs.hfRight", "Phải")][index]}<input id="vno-sheet-${kind}-${position}" class="vno-dialog-input" maxlength="500" value="${this._escapeHtml(current[kind][position])}"></label>`).join("")}</div>
     </fieldset>`;
-    const overlay = this._createSheetDialog("Tiêu đề Đầu/Cuối trang", `${fieldset("header", "Đầu trang")}${fieldset("footer", "Cuối trang")}<p><small>Mã động: &amp;P số trang, &amp;N tổng số trang, &amp;D ngày, &amp;T giờ, &amp;F tên file, &amp;A tên sheet.</small></p><div class="vno-rule-error" role="alert"></div>`);
+    const overlay = this._createSheetDialog(t("sheetDialogs.headerFooterTitle", "Tiêu đề Đầu/Cuối trang"), `${fieldset("header", t("sheetDialogs.headerTitle", "Đầu trang"))}${fieldset("footer", t("sheetDialogs.footerTitle", "Cuối trang"))}<p><small>${t("sheetDialogs.hfDynamicCodesHint", "Mã động: &P số trang, &N tổng số trang, &D ngày, &T giờ, &F tên tệp, &A tên trang tính.")}</small></p><div class="vno-rule-error" role="alert"></div>`);
     if (!overlay) return false;
     overlay.querySelectorAll(".vno-sheet-hf-preset").forEach(select => select.addEventListener("change", event => {
       const kind = event.target.dataset.kind;
-      const preset = { page: "Trang &P", sheet: "Tên sheet: &A", date: "Ngày: &D", none: "" }[event.target.value];
+      const preset = { page: t("sheetDialogs.hfPresetPageVal", "Trang &P"), sheet: t("sheetDialogs.hfPresetSheetVal", "Tên trang tính: &A"), date: t("sheetDialogs.hfPresetDateVal", "Ngày: &D"), none: "" }[event.target.value];
       if (preset === undefined) return;
       ["left", "center", "right"].forEach(position => { overlay.querySelector(`#vno-sheet-${kind}-${position}`).value = position === "center" ? preset : ""; });
     }));
@@ -9140,10 +9155,10 @@ export class SheetGridController {
 
   showGoalSeekDialog() {
     const selected = `${this.selectedCoord.c}${this.selectedCoord.r}`;
-    const overlay = this._createSheetDialog("Dò tìm mục tiêu", `
-      <label for="vno-goal-set-cell">Ô đặt<input id="vno-goal-set-cell" value="${this._escapeHtml(selected)}" autocomplete="off"></label>
-      <label for="vno-goal-value">Đến giá trị<input id="vno-goal-value" type="number" step="any" autocomplete="off"></label>
-      <label for="vno-goal-changing-cell">Bằng cách đổi ô<input id="vno-goal-changing-cell" autocomplete="off"></label>
+    const overlay = this._createSheetDialog(t("sheetDialogs.goalSeekTitle", "Dò tìm mục tiêu"), `
+      <label for="vno-goal-set-cell">${t("sheetDialogs.goalSeekSetCell", "Ô đặt")}<input id="vno-goal-set-cell" value="${this._escapeHtml(selected)}" autocomplete="off"></label>
+      <label for="vno-goal-value">${t("sheetDialogs.goalSeekToValue", "Đến giá trị")}<input id="vno-goal-value" type="number" step="any" autocomplete="off"></label>
+      <label for="vno-goal-changing-cell">${t("sheetDialogs.goalSeekByChangingCell", "Bằng cách đổi ô")}<input id="vno-goal-changing-cell" autocomplete="off"></label>
       <div class="vno-rule-error" role="alert" aria-live="assertive"></div>
       <div class="vno-goal-result" role="status" aria-live="polite" hidden></div>`);
     if (!overlay) return false;
@@ -9151,7 +9166,7 @@ export class SheetGridController {
     const error = overlay.querySelector(".vno-rule-error");
     const resultBox = overlay.querySelector(".vno-goal-result");
     let pending = null;
-    apply.textContent = "Tìm kết quả";
+    apply.textContent = t("sheetDialogs.goalSeekFind", "Tìm kết quả");
     apply.addEventListener("click", () => {
       if (pending) {
         this.applyGoalSeekResult(pending.changingCell, pending.value);
@@ -9173,8 +9188,14 @@ export class SheetGridController {
       error.textContent = "";
       pending = { changingCell: config.changingCell, value: result.value };
       resultBox.hidden = false;
-      resultBox.textContent = `Đã tìm thấy ${config.changingCell.toUpperCase()} = ${NumberFormatter.formatGeneralNumber(result.value)} (sai số ${result.residual.toPrecision(3)}). Chọn OK để áp dụng.`;
-      apply.textContent = "OK";
+      const formattedVal = NumberFormatter.formatGeneralNumber(result.value);
+      const residualVal = result.residual.toPrecision(3);
+      resultBox.textContent = t("sheetDialogs.goalSeekResult", {
+        cell: config.changingCell.toUpperCase(),
+        value: formattedVal,
+        residual: residualVal
+      }) || `Đã tìm thấy ${config.changingCell.toUpperCase()} = ${formattedVal} (sai số ${residualVal}). Chọn Đồng ý để áp dụng.`;
+      apply.textContent = t("sheetDialogs.apply", "Đồng ý");
       overlay.querySelectorAll("input").forEach(input => { input.disabled = true; });
     });
     return true;
@@ -9656,10 +9677,10 @@ export class SheetGridController {
       const min = Math.min(...values), max = Math.max(...values), span = max - min || 1;
       if (itm.sparkline.type === "column") {
         const width = 96 / values.length;
-        td.innerHTML = `<svg data-sparkline="column" viewBox="0 0 100 24" width="100%" height="24" aria-label="Sparkline column">${values.map((value, i) => `<rect x="${i * width + 1}" y="${22 - (value - min) / span * 20}" width="${Math.max(1, width - 2)}" height="${Math.max(1, (value - min) / span * 20)}" fill="#0f6d38"/>`).join("")}</svg>`;
+        td.innerHTML = `<svg data-sparkline="column" viewBox="0 0 100 24" width="100%" height="24" aria-label="${t("sheetDialogs.sparklineColumn", "Biểu đồ mini dạng cột")}">${values.map((value, i) => `<rect x="${i * width + 1}" y="${22 - (value - min) / span * 20}" width="${Math.max(1, width - 2)}" height="${Math.max(1, (value - min) / span * 20)}" fill="#0f6d38"/>`).join("")}</svg>`;
       } else {
         const points = values.map((value, i) => `${values.length === 1 ? 50 : i * 100 / (values.length - 1)},${22 - (value - min) / span * 20}`).join(" ");
-        td.innerHTML = `<svg data-sparkline="line" viewBox="0 0 100 24" width="100%" height="24" aria-label="Sparkline line"><polyline points="${points}" fill="none" stroke="#0f6d38" stroke-width="2"/></svg>`;
+        td.innerHTML = `<svg data-sparkline="line" viewBox="0 0 100 24" width="100%" height="24" aria-label="${t("sheetDialogs.sparklineLine", "Biểu đồ mini dạng đường")}"><polyline points="${points}" fill="none" stroke="#0f6d38" stroke-width="2"/></svg>`;
       }
       if (col && row && typeof this._applyRowColSizeToCell === "function") this._applyRowColSizeToCell(td, col, row);
       return;

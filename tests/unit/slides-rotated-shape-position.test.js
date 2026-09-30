@@ -55,10 +55,12 @@ export async function runSlidesRotatedShapePositionTests() {
     const shapes = slides[0]?.shapes || [];
     const image = shapes.find(s => s.type === "image");
     assert(image, "Phải parse được shape type=image");
-    // 5.318cm và 1.726cm ở 96dpi: cm * 96 / 2.54
-    const expectedX = Math.round(5.318 * 96 / 2.54);
-    const expectedY = Math.round(1.726 * 96 / 2.54);
-    assert(Math.abs(image.x - expectedX) <= 2, `x phải ~${expectedX}px (từ translate), thực tế: ${image.x} (0 nghĩa là bug cũ chưa sửa)`);
+    // Vị trí phải khớp a:off của PPTX gốc (x=y=1000000 EMU = 105px ở 96dpi), KHÔNG phải
+    // translate (5.318cm 1.726cm): translate của ODF là góc trên-trái SAU khi xoay quanh góc,
+    // còn PowerPoint/VN giữ góc chưa xoay và xoay quanh tâm (G8, đo bằng PowerPoint COM).
+    const expectedX = Math.round(1000000 / 9525);
+    const expectedY = Math.round(1000000 / 9525);
+    assert(Math.abs(image.x - expectedX) <= 2, `x phải ~${expectedX}px (a:off PPTX gốc), thực tế: ${image.x} (0 nghĩa là bug cũ chưa sửa)`);
     assert(Math.abs(image.y - expectedY) <= 2, `y phải ~${expectedY}px (từ translate), thực tế: ${image.y}`);
   });
 
@@ -72,6 +74,7 @@ export async function runSlidesRotatedShapePositionTests() {
 
   test("_parseDrawTranslate(): khớp đúng cả khi CÓ khoảng trắng giữa tên hàm và dấu ngoặc (định dạng soffice thật ghi ra)", () => {
     const adapter = new SlidesAdapter(null);
+    // Không có svg:width/height → không quy đổi tâm xoay, x = translate (kiểm tra riêng regex).
     const withSpace = adapter._parseDrawTranslate('draw:transform="rotate (-0.785) translate (5.318cm 1.726cm)"');
     const noSpace = adapter._parseDrawTranslate('draw:transform="translate(5.318cm,1.726cm)"');
     assert(Math.abs(withSpace.x - Math.round(5.318 * 96 / 2.54)) <= 2, `Định dạng CÓ khoảng trắng phải khớp, thực tế x=${withSpace.x}`);
@@ -155,8 +158,9 @@ export async function runSlidesRotatedShapePositionTests() {
     const shapes = slides[0]?.shapes || [];
     const rect = shapes.find(s => s.text === "Hop xoay");
     assert(rect, "Phải parse được hình chữ nhật xoay");
-    const expectedX = Math.round(5.233 * 96 / 2.54);
-    const expectedY = Math.round(1.019 * 96 / 2.54);
+    // a:off của PPTX gốc: x=1500000, y=800000 EMU (xem chú thích fixture) — không phải translate.
+    const expectedX = Math.round(1500000 / 9525);
+    const expectedY = Math.round(800000 / 9525);
     assert(Math.abs(rect.x - expectedX) <= 2, `x phải ~${expectedX}px, thực tế: ${rect.x} (0 nghĩa là bug _parseDrawShape chưa sửa)`);
     assert(Math.abs(rect.y - expectedY) <= 2, `y phải ~${expectedY}px, thực tế: ${rect.y}`);
   });
