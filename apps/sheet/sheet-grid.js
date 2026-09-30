@@ -6381,7 +6381,7 @@ export class SheetGridController {
   /**
    * Tính toán phân trang in THẬT dựa trên Page Setup (khổ giấy, lề, hướng, tỷ lệ,
    * tiêu đề lặp lại) và Vùng in hiệu lực hiện tại. Dùng chung cho cả Print Preview
-   * và in thật (window.print()) để đảm bảo WYSIWYG - Preview thấy gì thì in ra đúng vậy.
+   * và bản đồ trang hiện tại; bản in cuối cùng do PDF LibreOffice quyết định.
    * Hàng/cột ẩn (thủ công hoặc outline) không được đưa vào trang in, giống Excel thật.
    */
   computePrintPages(sheetName = this.activeSheet) {
@@ -6659,14 +6659,9 @@ export class SheetGridController {
     return { container, result };
   }
 
-  /** In thật: dựng lại toàn bộ nội dung theo Page Setup (khác với lưới ảo hóa trên màn hình) rồi gọi window.print(). */
+  /** Chuyển nút xem trước cũ về lệnh In dùng chung của Platform. */
   print() {
-    if (typeof document === "undefined") return true;
-    this._syncSheetPrintOnlyDom();
-    if (typeof window !== "undefined" && typeof window.print === "function") {
-      window.print();
-    }
-    return true;
+    return globalCommandBus.execute("common.file.print");
   }
 
   closePrintPreview() {

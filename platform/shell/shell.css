@@ -1687,13 +1687,9 @@ body {
 }
 
 /* ==========================================================================
-   6. IN TÀI LIỆU (window.print()) — ẩn toàn bộ khung ứng dụng dùng chung
+   6. CSS dự phòng cho bề mặt in của WebView
    ========================================================================== */
-/* `common.file.print` gọi thẳng `window.print()` của trình duyệt/WebView2 — nếu
-   không có quy tắc @media print, toàn bộ khung ứng dụng (topbar, ribbon, statusbar,
-   AI sidebar) cũng bị in ra cùng nội dung tài liệu, cho kết quả in sai/xấu hoàn toàn.
-   Mỗi app còn có panel riêng (Writer: ruler & comments panel; Sheet: formula bar &
-   sheet tabs; Slides: navigator/thumbnail rail) được ẩn thêm trong CSS riêng của app. */
+/* Luồng in chính dựng PDF trong LibreOffice và không dùng DOM trang ứng dụng. */
 @media print {
   .vno-topbar,
   .vno-ribbon,

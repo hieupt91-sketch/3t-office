@@ -6,6 +6,7 @@
 import { globalUnoBridge } from "../common/uno-bridge.js";
 import { showAlertDialog, showPromptDialog, showFindReplaceDialog } from "../../../platform/ui-kit/dialogs.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
+import { openPrintDialog } from "../../../platform/print/print-dialog.js";
 import { globalShortcutManager } from "../../../platform/commands/shortcut-manager.js";
 import { getVnCommand } from "../common/command-dispatch-mapper.js";
 import { SheetChartBuilder } from "../../../apps/sheet/sheet-chart.js";
@@ -199,6 +200,7 @@ export class SheetAdapter {
     // trước (mặc định Writer) sẽ chiếm vĩnh viễn phím Ctrl+Z/Ctrl+Y cho mọi app khác.
     globalCommandBus.bindHandler("common.file.new", () => this.newDocument());
     globalCommandBus.bindHandler("common.file.close", () => this.closeDocument());
+    globalCommandBus.bindHandler("common.file.print", () => this.print());
     globalCommandBus.bindHandler("common.edit.undo", () => this.grid.undo ? this.grid.undo() : false);
     globalCommandBus.bindHandler("common.edit.redo", () => this.grid.redo ? this.grid.redo() : false);
     globalCommandBus.bindHandler("common.edit.repeat", () => this.grid.redo ? this.grid.redo() : false);
@@ -302,7 +304,7 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.review.commentNext", () => this.grid.nextComment?.());
     globalCommandBus.bindHandler("sheet.review.commentDelete", () => this.grid.deleteCurrentComment?.());
     globalCommandBus.bindHandler("sheet.review.commentResolve", () => this.grid.toggleCurrentCommentResolved?.());
-    globalCommandBus.bindHandler("sheet.file.printPreview", () => Boolean(this.grid.openPrintPreview ? this.grid.openPrintPreview() : false));
+    globalCommandBus.bindHandler("sheet.file.printPreview", () => this.print());
     globalCommandBus.bindHandler("sheet.view.normal", () => this.grid.setWorkbookView ? this.grid.setWorkbookView("normal") : false);
     globalCommandBus.bindHandler("sheet.view.pageBreakPreview", () => this.grid.setWorkbookView ? this.grid.setWorkbookView("pageBreakPreview") : false);
     globalCommandBus.bindHandler("sheet.view.pageLayout", () => this.grid.setWorkbookView ? this.grid.setWorkbookView("pageLayout") : false);
@@ -5343,11 +5345,23 @@ export class SheetAdapter {
   }
 
   print() {
-    if (this.grid?.print) return this.grid.print();
-    if (typeof window !== "undefined" && typeof window.print === "function") {
-      window.print();
-    }
-    return true;
+    const grid = this.grid;
+    const setup = grid?.getPageSetup?.(grid.activeSheet) || grid?.pageSetupBySheet?.[grid?.activeSheet] || {};
+    const pages = grid?.computePrintPages?.(grid.activeSheet)?.pages || [];
+    const selected = grid?.selectedCoord || grid?.selectionRange?.start || { r: 1, c: "A" };
+    const selectedRow = Number(selected.r) || 1;
+    const selectedCol = grid?._columnNumber?.(selected.c) || 1;
+    const activePage = pages.findIndex((page) => page.rowNums?.includes(selectedRow) && page.colNums?.includes(selectedCol));
+    const pageSize = String(setup.size || "a4").toUpperCase();
+    const orientation = setup.orientation === "landscape" ? "Ngang" : "Dọc";
+    return openPrintDialog({
+      appKind: "sheet",
+      content: this.serializeToFods(),
+      documentName: this.sourceFileName || "Bảng tính",
+      pageSetupLabel: `${pageSize} · ${orientation}`,
+      currentPage: activePage >= 0 ? activePage + 1 : 1,
+      engine: globalUnoBridge
+    });
   }
 
   async handleDispatch(unoUrl, args, vnCmdId) {
@@ -5357,7 +5371,7 @@ export class SheetAdapter {
     switch (cmd) {
       case "sheet.file.printPreview":
       case ".uno:PrintPreview":
-        return Boolean(this.grid.openPrintPreview ? this.grid.openPrintPreview() : false);
+        return this.print();
 
       case "sheet.view.normal":
       case ".uno:NormalViewMode":

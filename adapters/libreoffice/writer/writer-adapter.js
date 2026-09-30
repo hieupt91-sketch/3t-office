@@ -6,6 +6,7 @@
 import { globalUnoBridge } from "../common/uno-bridge.js";
 import { showPromptDialog, showFindReplaceDialog, showAlertDialog } from "../../../platform/ui-kit/dialogs.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
+import { openPrintDialog } from "../../../platform/print/print-dialog.js";
 import { parseCsv, replaceMergeFields, showMailMergeDataSourceDialog, showInsertMergeFieldDialog } from "../../../apps/writer/mail-merge.js";
 import {
   ENVELOPE_SIZES,
@@ -287,7 +288,8 @@ export class WriterAdapter {
     this._bindTrackChanges();
     this._renderCommentsPanel();
     this._updateTrackChangesCommandState();
-    globalCommandBus.bindHandler("writer.file.printPreview", () => this.openPrintPreview());
+    globalCommandBus.bindHandler("common.file.print", () => this.print());
+    globalCommandBus.bindHandler("writer.file.printPreview", () => this.print());
 
     // Bind Review (Ghi chú & Theo dõi thay đổi)
     globalCommandBus.bindHandler("writer.comment.insert", (args) => this.insertComment(args));
@@ -6269,7 +6271,7 @@ export class WriterAdapter {
         return this.print();
 
       case "writer.file.printPreview":
-        return Boolean(this.openPrintPreview());
+        return this.print();
 
       case "writer.page.margins":
         return await this._openPageSetup("margins");
@@ -11388,10 +11390,31 @@ export class WriterAdapter {
   }
 
   print() {
-    if (typeof window !== "undefined" && typeof window.print === "function") {
-      window.print();
-    }
-    return true;
+    this.documentContent = this.editorDom?.innerHTML || this.documentContent;
+    const page = this.getPageDimensions();
+    const pageSetupLabel = `${this.pageSetup?.size?.toUpperCase() || "A4"} · ${this.pageSetup?.orientation === "landscape" ? "Ngang" : "Dọc"}`;
+    let currentPage = 1;
+    try {
+      const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+      const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+      if (range && this.bodyDom?.contains?.(range.startContainer)) {
+        const bodyRect = this.bodyDom.getBoundingClientRect?.();
+        const caretRect = range.getBoundingClientRect?.();
+        if (bodyRect && caretRect && page.heightPx > 0) {
+          const bodyHeight = Math.max(1, page.heightPx - page.topPx - page.bottomPx);
+          const offset = Math.max(0, caretRect.top - bodyRect.top + (this.bodyDom.scrollTop || 0));
+          currentPage = Math.max(1, Math.min(this._livePageCount || 1, Math.floor(offset / bodyHeight) + 1));
+        }
+      }
+    } catch { currentPage = 1; }
+    return openPrintDialog({
+      appKind: "writer",
+      content: this._contentForExport(),
+      documentName: this.sourceFileName || "Tài liệu",
+      pageSetupLabel,
+      currentPage,
+      engine: globalUnoBridge
+    });
   }
 
   /**
