@@ -8549,13 +8549,18 @@ def _extract_docx_section_parts(
     original_xml = original_xml_bytes.decode("utf-8", errors="replace")
     header_refs, footer_refs = _extract_docx_header_footer_refs(original_xml)
     sect_pr = _extract_docx_section_properties(original_xml)
-    rels = _resolve_docx_rels(original_docx_bytes)
+    def _norm_entry(target: str, default_name: str) -> str:
+        t = (target or default_name).replace("\\", "/").lstrip("./")
+        if not t.startswith("word/"):
+            t = f"word/{t}"
+        return t
+
     header_entries = [
-        f"word/{rels.get(r_id, f'header{idx + 1}.xml')}"
+        _norm_entry(rels.get(r_id, ""), f"header{idx + 1}.xml")
         for idx, (_, r_id) in enumerate(header_refs)
     ]
     footer_entries = [
-        f"word/{rels.get(r_id, f'footer{idx + 1}.xml')}"
+        _norm_entry(rels.get(r_id, ""), f"footer{idx + 1}.xml")
         for idx, (_, r_id) in enumerate(footer_refs)
     ]
     return header_entries, footer_entries, sect_pr, rels
@@ -9926,11 +9931,13 @@ def _restore_writer_floating_tables(converted_xml: str, source_xml: str) -> str:
 _SECT_REF_RE = re.compile(r"<w:(?:headerReference|footerReference)\b[^>]*/>", re.IGNORECASE)
 
 
-def _restore_writer_sections_by_order(converted_xml: str, source_xml: str) -> str:
+def _restore_writer_sections_by_order(converted_xml: str, source_xml: str, r_id_map: dict[str, str] | None = None) -> str:
     """W40 (đo d03: nguồn 3 section [nextPage top 810 / continuous 1134 / continuous 1134], bản lưu
     [continuous 1134 / continuous 811 / continuous 811] → đoạn đầu y 40,5 → 57pt, 1 → 2 trang): khi số `w:sectPr`
     hai bên bằng nhau (kể cả sectPr cuối thân), thay từng sectPr theo thứ tự bằng sectPr nguồn nhưng giữ
-    headerReference/footerReference của bản chuyển đổi (rId thuộc gói mới)."""
+    headerReference/footerReference của bản chuyển đổi (rId thuộc gói mới).
+    Khi bản chuyển đổi không có refs (LibreOffice bỏ sót ref của section giữa tài liệu), giữ lại refs nguồn
+    đã được ánh xạ lại rId qua r_id_map."""
     src = [m for m in re.finditer(r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>", source_xml, re.IGNORECASE)]
     dst = [m for m in re.finditer(r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>", converted_xml, re.IGNORECASE)]
     if not src or len(src) != len(dst):
@@ -9939,6 +9946,12 @@ def _restore_writer_sections_by_order(converted_xml: str, source_xml: str) -> st
     pos = 0
     for s_m, d_m in zip(src, dst):
         refs = "".join(_SECT_REF_RE.findall(d_m.group(0)))
+        if not refs:
+            src_refs = "".join(_SECT_REF_RE.findall(s_m.group(0)))
+            if src_refs and r_id_map:
+                refs = _remap_header_footer_rids(src_refs, r_id_map)
+            elif src_refs:
+                refs = src_refs
         body = _SECT_REF_RE.sub("", s_m.group(0))
         open_tag = re.match(r"<w:sectPr\b[^>]*>", body).group(0)
         # bỏ rsid của nguồn trong thẻ mở để không lẫn; giữ các thuộc tính khác
@@ -11676,8 +11689,8 @@ def postprocess_writer_docx(
     )
 
     # W40: cùng số section → thuộc tính trang từng section lấy theo THỨ TỰ nguồn (giữ header/footerReference của bản
-    # chuyển đổi để không chạm rels)
-    new_xml = _restore_writer_sections_by_order(new_xml, original_xml)
+    # chuyển đổi để không chạm rels, hoặc ánh xạ lại rId nguồn nếu bản chuyển đổi bị LibreOffice bỏ sót)
+    new_xml = _restore_writer_sections_by_order(new_xml, original_xml, r_id_map=r_id_map)
 
     # W27a: Restore manual page breaks (w:br type=page / w:pageBreakBefore)
     # by matching paragraphs and tables by ORDER between source and converted DOCX.
@@ -12442,7 +12455,98 @@ def _restore_writer_html_page_breaks(document_xml: str, source_html: str) -> str
         if located is None:
             continue
         apply_at(located[0], located[1], located[2], target["empty"])
-    return result
+def _html_to_docx_hdr_ftr(html_text: str, is_footer: bool = False) -> str:
+    root_tag = "w:ftr" if is_footer else "w:hdr"
+    paragraphs = re.findall(r"<p\b[^>]*>([\s\S]*?)</p\s*>", html_text or "", re.IGNORECASE)
+    if not paragraphs:
+        plain = _writer_html_plain(html_text or "").strip()
+        paragraphs = [plain] if plain else [""]
+    p_xmls = []
+    for p_content in paragraphs:
+        p_align = ""
+        if re.search(r"text-align:\s*center|align=['\"]center['\"]", p_content, re.IGNORECASE):
+            p_align = '<w:jc w:val="center"/>'
+        elif re.search(r"text-align:\s*right|align=['\"]right['\"]", p_content, re.IGNORECASE):
+            p_align = '<w:jc w:val="right"/>'
+        p_pr = f"<w:pPr>{p_align}</w:pPr>" if p_align else ""
+
+        runs_xml = ""
+        if 'data-vno-field="PAGE"' in p_content:
+            runs_xml += '<w:fldSimple w:instr="PAGE"><w:r><w:rPr/><w:t>1</w:t></w:r></w:fldSimple>'
+        elif 'data-vno-field="NUMPAGES"' in p_content:
+            runs_xml += '<w:fldSimple w:instr="NUMPAGES"><w:r><w:rPr/><w:t>1</w:t></w:r></w:fldSimple>'
+        else:
+            text = _writer_html_plain(p_content).strip()
+            runs_xml += f'<w:r><w:t xml:space="preserve">{_escape_xml(text)}</w:t></w:r>'
+        p_xmls.append(f"<w:p>{p_pr}{runs_xml}</w:p>")
+    body_xml = "".join(p_xmls) or "<w:p/>"
+    return (
+        f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        f'<{root_tag} xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+        f'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        f'{body_xml}</{root_tag}>'
+    )
+
+
+def _build_sect_pr_xml(
+    sec_meta: dict,
+    is_final: bool = False,
+    header_rid: str | None = None,
+    footer_rid: str | None = None,
+) -> str:
+    page_setup = sec_meta.get("pageSetup", {})
+    hf_meta = sec_meta.get("headerFooter", {})
+    sec_type = sec_meta.get("type", "nextPage")
+
+    refs_parts = []
+    if header_rid:
+        refs_parts.append(f'<w:headerReference w:type="default" r:id="{header_rid}"/>')
+    if footer_rid:
+        refs_parts.append(f'<w:footerReference w:type="default" r:id="{footer_rid}"/>')
+    refs_xml = "".join(refs_parts)
+
+    orient = page_setup.get("orientation", "portrait")
+    size_name = page_setup.get("size", "a4")
+    if size_name == "letter":
+        w, h = (15840, 12240) if orient == "landscape" else (12240, 15840)
+    elif size_name == "legal":
+        w, h = (20160, 12240) if orient == "landscape" else (12240, 20160)
+    elif size_name == "a3":
+        w, h = (23811, 16838) if orient == "landscape" else (16838, 23811)
+    elif size_name == "a5":
+        w, h = (11906, 8391) if orient == "landscape" else (8391, 11906)
+    elif size_name == "a4":
+        w, h = (16838, 11906) if orient == "landscape" else (11906, 16838)
+    else:
+        w_mm = float(page_setup.get("widthMm") or (297 if orient == "landscape" else 210))
+        h_mm = float(page_setup.get("heightMm") or (210 if orient == "landscape" else 297))
+        w_val = round(w_mm * 1440 / 25.4)
+        h_val = round(h_mm * 1440 / 25.4)
+        w, h = (max(w_val, h_val), min(w_val, h_val)) if orient == "landscape" else (min(w_val, h_val), max(w_val, h_val))
+    orient_attr = ' w:orient="landscape"' if orient == "landscape" else ""
+    pgsz_xml = f'<w:pgSz w:w="{w}" w:h="{h}"{orient_attr}/>'
+
+    margins = page_setup.get("margins", {})
+    top_dxa = round(float(margins.get("top", 20)) * 1440 / 25.4)
+    right_dxa = round(float(margins.get("right", 20)) * 1440 / 25.4)
+    bottom_dxa = round(float(margins.get("bottom", 20)) * 1440 / 25.4)
+    left_dxa = round(float(margins.get("left", 20)) * 1440 / 25.4)
+    hdr_dxa = round(float(page_setup.get("headerDistanceMm", 12.7)) * 1440 / 25.4)
+    ftr_dxa = round(float(page_setup.get("footerDistanceMm", 12.7)) * 1440 / 25.4)
+    pgmar_xml = f'<w:pgMar w:top="{top_dxa}" w:right="{right_dxa}" w:bottom="{bottom_dxa}" w:left="{left_dxa}" w:header="{hdr_dxa}" w:footer="{ftr_dxa}" w:gutter="0"/>'
+
+    pgnum_xml = ""
+    if hf_meta.get("pageNumberRestart"):
+        start_val = hf_meta.get("pageNumberStart", 1)
+        pgnum_xml = f'<w:pgNumType w:start="{start_val}"/>'
+
+    title_pg_xml = "<w:titlePg/>" if hf_meta.get("differentFirstPage") else ""
+
+    type_xml = ""
+    if not is_final:
+        type_xml = f'<w:type w:val="{sec_type}"/>'
+
+    return f'<w:sectPr>{refs_xml}{pgsz_xml}{pgmar_xml}{pgnum_xml}{title_pg_xml}{type_xml}</w:sectPr>'
 
 
 def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | None = None) -> bytes:

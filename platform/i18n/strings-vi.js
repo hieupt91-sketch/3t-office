@@ -755,9 +755,25 @@ export const viStrings = {
       marginBottom: "Lề dưới",
       marginLeft: "Lề trái",
       marginRight: "Lề phải",
+      applyTo: "Áp dụng cho",
+      thisSection: "Mục này",
+      wholeDocument: "Toàn bộ tài liệu",
       apply: "Áp dụng",
       cancel: "Hủy bỏ",
       close: "Đóng"
+    },
+    sections: {
+      nextPage: "Ngắt mục (Trang tiếp theo)",
+      continuous: "Ngắt mục (Liên tục)",
+      evenPage: "Ngắt mục (Trang chẵn)",
+      oddPage: "Ngắt mục (Trang lẻ)",
+      linkToPrevious: "Liên kết với phần trước",
+      differentFirstPage: "Trang đầu khác biệt",
+      differentOddEven: "Trang chẵn và lẻ khác nhau",
+      pageNumbers: "Định dạng số trang",
+      continueFromPrevious: "Tiếp tục từ phần trước",
+      startAt: "Bắt đầu tại:",
+      deleteSection: "Xóa ngắt mục"
     },
     wordCount: {
       title: "Đếm từ",

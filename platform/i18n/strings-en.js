@@ -756,9 +756,25 @@ export const enStrings = {
       marginBottom: "Bottom",
       marginLeft: "Left",
       marginRight: "Right",
+      applyTo: "Apply to",
+      thisSection: "This section",
+      wholeDocument: "Whole document",
       apply: "Apply",
       cancel: "Cancel",
       close: "Close"
+    },
+    sections: {
+      nextPage: "Section Break (Next Page)",
+      continuous: "Section Break (Continuous)",
+      evenPage: "Section Break (Even Page)",
+      oddPage: "Section Break (Odd Page)",
+      linkToPrevious: "Link to Previous",
+      differentFirstPage: "Different First Page",
+      differentOddEven: "Different Odd & Even Pages",
+      pageNumbers: "Page Number Format",
+      continueFromPrevious: "Continue from previous section",
+      startAt: "Start at:",
+      deleteSection: "Delete Section Break"
     },
     wordCount: {
       title: "Word Count",
