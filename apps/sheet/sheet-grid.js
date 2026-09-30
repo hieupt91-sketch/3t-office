@@ -232,6 +232,8 @@ export class SheetGridController {
     this.textBoxesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.pivotTablesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.scenariosBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.dataTablesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this._dataTableEvaluating = false;
     this.outlineGroupsBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.rowHeightsBySheet = Object.fromEntries(this.sheets.map(name => [name, new Map()]));
     this.colWidthsBySheet = Object.fromEntries(this.sheets.map(name => [name, new Map()]));
@@ -2235,7 +2237,7 @@ export class SheetGridController {
       "conditionalFormattingBySheet", "dataValidationsBySheet", "chartsBySheet",
       "imagesBySheet", "textBoxesBySheet", "pivotTablesBySheet", "outlineGroupsBySheet",
       "rowHeightsBySheet", "colWidthsBySheet", "userHiddenRowsBySheet", "userHiddenColsBySheet",
-      "protectionBySheet"
+      "protectionBySheet", "dataTablesBySheet"
     ];
   }
 
@@ -3826,6 +3828,7 @@ export class SheetGridController {
     if (this.calculationMode === "manual" && !force) return;
     this.formulaEngine?.clearCache?.();
     const activeSheet = this.activeSheet;
+    const changedFormulaCells = new Set();
     for (const sheetName of this.sheets) {
       const map = this.sheetsData[sheetName];
       if (!map) continue;
@@ -3852,6 +3855,7 @@ export class SheetGridController {
           // job at render time, driven by the cell's actual numberFormat.
           if (res !== itm.val) {
             itm.val = res;
+            if (sheetName === activeSheet) changedFormulaCells.add(k);
             this.formulaEngine?.bumpSheetVersion?.(sheetName);
           } else {
             itm.val = res;
@@ -3881,6 +3885,46 @@ export class SheetGridController {
     }
     this._refreshVisibleRuleVisuals();
     this._updateWatchWindow?.();
+    this._refreshDataTables(changedFormulaCells, excludeKey);
+  }
+
+  /**
+   * Excel TABLE() behaviour: khi ô công thức gốc hoặc ô đầu vào của một Bảng
+   * dữ liệu thay đổi, tính lại toàn bộ phần thân bảng. Chỉ chạy ngoài chế độ
+   * thử nghiệm (trial) để tránh đệ quy vô hạn.
+   */
+  _refreshDataTables(changedFormulaCells, editedKey) {
+    if (this._dataTableEvaluating || this._applyingHistory) return;
+    const tables = this.dataTablesBySheet[this.activeSheet];
+    if (!tables?.length) return;
+    for (const table of tables) {
+      const inputs = [table.rowInputCell, table.columnInputCell].filter(Boolean);
+      const affected = changedFormulaCells.has(table.formulaCell) ||
+        (editedKey && (editedKey === table.formulaCell || inputs.includes(editedKey)));
+      if (!affected) continue;
+      this._recomputeDataTable(table);
+    }
+  }
+
+  _recomputeDataTable(table) {
+    const before = this._snapshotCells(table.sheet);
+    const previousGuard = this._dataTableEvaluating;
+    this._dataTableEvaluating = true;
+    let output;
+    try {
+      output = this._evaluateDataTable(table);
+      this._writeDataTableResults(table, output);
+    } finally {
+      this._dataTableEvaluating = previousGuard;
+    }
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    if (this._applyingHistory) return;
+    const after = this._snapshotCells(table.sheet);
+    const changed = before.length !== after.length || before.some(([coord, item], index) => {
+      const other = after[index]?.[1];
+      return !other || item.val !== other.val || item.formula !== other.formula;
+    });
+    if (changed) this._recordHistory({ type: "what-if-cells", sheet: table.sheet, before, after });
   }
 
   enterArrayFormula(options = {}) {
@@ -8904,6 +8948,7 @@ export class SheetGridController {
       textBoxes: structuredClone(this.textBoxesBySheet[sheetName] || []),
       pivotTables: structuredClone(this.pivotTablesBySheet[sheetName] || []),
       scenarios: structuredClone(this.scenariosBySheet[sheetName] || []),
+      dataTables: structuredClone(this.dataTablesBySheet[sheetName] || []),
       namedRanges: structuredClone(this.namedRangesBySheet[sheetName] || []),
       comments: structuredClone(this.commentsBySheet[sheetName] || {}),
       printArea: this.printAreaBySheet[sheetName] || null,
@@ -8934,6 +8979,7 @@ export class SheetGridController {
     this.textBoxesBySheet[sheetName] = structuredClone(snapshot.textBoxes || []);
     this.pivotTablesBySheet[sheetName] = structuredClone(snapshot.pivotTables || []);
     this.scenariosBySheet[sheetName] = structuredClone(snapshot.scenarios || []);
+    this.dataTablesBySheet[sheetName] = structuredClone(snapshot.dataTables || []);
     this.namedRangesBySheet[sheetName] = structuredClone(snapshot.namedRanges || []);
     this.commentsBySheet[sheetName] = structuredClone(snapshot.comments || {});
     this.printAreaBySheet[sheetName] = snapshot.printArea || null;
@@ -10292,12 +10338,38 @@ export class SheetGridController {
     const columnInput = columnInputCell ? WhatIfAnalysisEngine.normalizeCoord(columnInputCell) : "";
     if (!rowInput && !columnInput) throw new Error(t("sheetDialogs.dataTableNeedsInput", "Hãy chọn ô đầu vào theo hàng hoặc theo cột."));
     if (rowInput && columnInput && rowInput === columnInput) throw new Error(t("sheetDialogs.dataTableDistinctInputs", "Hai ô đầu vào phải khác nhau."));
-    const grid = WhatIfAnalysisEngine.rangeCoords(this._normalizeRange(range), this.cols);
+    const normalizedRange = this._normalizeRange(range);
+    const grid = WhatIfAnalysisEngine.rangeCoords(normalizedRange, this.cols);
     if (grid.length < 2 || grid[0].length < 2) throw new Error(t("sheetDialogs.dataTableRangeSize", "Vùng Bảng dữ liệu phải có ít nhất 2 hàng và 2 cột."));
     const formulaCoord = grid[0][0];
     if (!this.cellsData.get(formulaCoord)?.formula) throw new Error(t("sheetDialogs.dataTableFormulaCorner", "Ô góc trên bên trái phải chứa công thức gốc."));
+    const table = { sheet: this.activeSheet, range: normalizedRange, rowInputCell: rowInput, columnInputCell: columnInput, formulaCell: formulaCoord };
     const before = this._snapshotCells();
-    const original = new Map(before.map(([coord, item]) => [coord, structuredClone(item)]));
+    const previousGuard = this._dataTableEvaluating;
+    this._dataTableEvaluating = true;
+    let output;
+    try {
+      output = this._evaluateDataTable(table);
+      this._writeDataTableResults(table, output);
+    } finally {
+      this._dataTableEvaluating = previousGuard;
+    }
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    if (recordUndo) this._recordHistory({ type: "what-if-cells", sheet: this.activeSheet, before, after: this._snapshotCells() });
+    this._registerDataTable(table);
+    return { formulaCell: formulaCoord, results: Object.fromEntries(output) };
+  }
+
+  /**
+   * Tính phần thân bảng: với mỗi cặp (giá trị hàng, giá trị cột) gán thử
+   * vào ô đầu vao, tính lại toàn bộ công thức rồi đọc giá trị ô công thức
+   * gốc — đúng như cơ chế TABLE() của Excel. Trạng thái ô thật được phục
+   * hồi nguyên vẹn sau khi thử.
+   */
+  _evaluateDataTable(table) {
+    const grid = WhatIfAnalysisEngine.rangeCoords(table.range, this.cols);
+    const original = new Map(this._snapshotCells(table.sheet).map(([coord, item]) => [coord, structuredClone(item)]));
+    const { rowInputCell: rowInput, columnInputCell: columnInput, formulaCell: formulaCoord } = table;
     const output = [];
     const assignTrial = (coord, value) => {
       const current = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
@@ -10309,6 +10381,8 @@ export class SheetGridController {
       this._recalculateAllFormulas(undefined, true);
       return structuredClone(this.cellsData.get(formulaCoord)?.val ?? "");
     };
+    const previousGuard = this._dataTableEvaluating;
+    this._dataTableEvaluating = true;
     try {
       if (rowInput && columnInput) {
         const rowValues = grid[0].slice(1).map(coord => original.get(coord)?.val ?? "");
@@ -10322,16 +10396,25 @@ export class SheetGridController {
         values.forEach((value, index) => output.push([grid[index + 1][1], evaluate(undefined, value)]));
       }
     } finally {
-      this.sheetsData[this.activeSheet] = new Map(before.map(([coord, item]) => [coord, structuredClone(item)]));
+      this._dataTableEvaluating = previousGuard;
+      this.sheetsData[table.sheet] = new Map(original);
     }
+    return output;
+  }
+
+  _writeDataTableResults(table, output) {
     for (const [coord, value] of output) {
       const current = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
       this.cellsData.set(coord, { ...current, val: value, formula: "" });
     }
     this._recalculateAllFormulas(undefined, true);
-    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
-    if (recordUndo) this._recordHistory({ type: "what-if-cells", sheet: this.activeSheet, before, after: this._snapshotCells() });
-    return { formulaCell: formulaCoord, results: Object.fromEntries(output) };
+  }
+
+  _registerDataTable(table) {
+    const tables = this.dataTablesBySheet[table.sheet] ||= [];
+    const index = tables.findIndex(item => item.formulaCell === table.formulaCell && item.range.start.c === table.range.start.c && item.range.start.r === table.range.start.r && item.range.end.c === table.range.end.c && item.range.end.r === table.range.end.r);
+    if (index >= 0) tables.splice(index, 1, structuredClone(table));
+    else tables.push(structuredClone(table));
   }
 
   getScenarios(sheetName = this.activeSheet) { return structuredClone(this.scenariosBySheet[sheetName] || []); }
