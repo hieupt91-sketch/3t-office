@@ -482,7 +482,7 @@ export const SHEET_HELP_ENTRIES = [
     app: "sheet",
     commandIds: ["sheet.view.normal", "sheet.view.pageBreakPreview", "sheet.view.pageLayout", "sheet.file.printPreview"],
     title: "Chế độ xem bảng tính",
-    summary: "Bình thường là lưới soạn thảo. Xem ngắt trang hiện đường chia trang và làm mờ vùng ngoài khổ in. Bố trí trang xem như tờ giấy, có dải đầu trang 3 ngăn. Xem trước khi in (Ctrl+F2) dựng đúng các trang sẽ được in thật, theo Khổ giấy/Lề/Tỷ lệ/Tiêu đề lặp lại đang đặt ở Bố trí trang, kể cả khi khổ giấy khiến dữ liệu tràn sang nhiều trang.",
+    summary: "Bình thường là lưới soạn thảo. Xem ngắt trang hiện đường chia trang và làm mờ vùng ngoài khổ in. Bố trí trang xem như tờ giấy. Ctrl+F2 mở hộp thoại In với ảnh các trang PDF thật theo Khổ giấy/Lề/Tỷ lệ/Tiêu đề lặp/Vùng in.",
     ribbon: { tab: "Chế độ xem", tabId: "view", group: "Chế độ xem bảng tính" },
     keywords: ["bình thường", "xem ngắt trang", "bố trí trang", "page break preview", "page layout", "normal view", "trang in", "xem trước khi in", "print preview", "in tài liệu", "ctrl+f2"],
     steps: [
@@ -490,7 +490,7 @@ export const SHEET_HELP_ENTRIES = [
       "Bình thường: lưới ô tiêu chuẩn để nhập liệu. Đây là mặc định.",
       "Xem ngắt trang: đường chia trang xanh đậm, vùng ngoài khổ in bị phủ tối, số «Trang 1» mờ trên nền. Dùng để chỉnh chỗ ngắt trước khi in (tab Bố trí trang, nhóm Ngắt trang).",
       "Bố trí trang: xem như giấy in, có dải đầu trang 3 ngăn. Không đổi dữ liệu ô. Quay lại Bình thường bất cứ lúc nào.",
-      "Xem trước khi in (Ctrl+F2): mở overlay hiển thị đúng từng trang sẽ in — có điều hướng Trang trước/sau nếu vùng in trải nhiều trang, và nút In tài liệu (Ctrl+P) để in ngay từ đây. Đóng bằng Esc hoặc nút ×."
+      "Xem trước khi in (Ctrl+F2) hoặc Ctrl+P: hộp thoại In tạo PDF tạm theo Page Setup, Print Area, tiêu đề lặp và ngắt trang. Dùng Trang trước/sau để xem ảnh trang thật; chọn máy in, số bản, Tất cả/Trang hiện tại/Trang từ–đến rồi nhấn In."
     ]
   },
   {
@@ -962,7 +962,7 @@ export const SHEET_HELP_ENTRIES = [
       "Màn hình Trang chủ: Cung cấp danh sách mẫu bảng tính chuẩn (Bảng tính trống, Dự toán kinh phí VN Office) cùng bảng danh sách 'Tài liệu mở gần đây'.",
       "Chọn mẫu bảng tính: Dùng phím mũi tên Phải để đi vào lưới mẫu, dùng mũi tên duyệt và nhấn Enter hoặc Space để khởi tạo bảng tính theo mẫu đang chọn.",
       "Mở và quản lý tệp gần đây: Dùng phím mũi tên Xuống để chuyển xuống bảng tệp gần đây. Nhấp chuột hoặc bấm Enter để mở lại bảng tính. Nhấp nút 'Gỡ khỏi danh sách' (biểu tượng ×) trên mỗi hàng để loại bỏ tệp đã bị xóa khỏi máy. Nhấp nút 'Xóa lịch sử' nếu muốn xóa toàn bộ danh sách tệp gần đây.",
-      "In ấn với Live Preview Thumbnail: Chọn mục «In» trên thanh bên trái (hoặc nhấn Ctrl+P). Panel In hiển thị nút 'In ngay', cụm chuyển trang (Trang trước/sau) và khung Live Preview mô phỏng chính xác bảng dữ liệu theo Vùng in (Print Area) và Thiết lập trang (Page Setup). Nhấn 'In ngay' để chuyển sang hộp thoại in của máy in.",
+      "In bảng tính: Chọn mục «In» trong Tệp hoặc nhấn Ctrl+P. Hộp thoại In xem ảnh các trang PDF do LibreOffice dựng theo Vùng in, thiết lập trang, tỷ lệ, tiêu đề lặp và ngắt trang; chọn máy in, số bản, phạm vi trang rồi nhấn In.",
       "Các thao tác tệp khác: 'Tạo mới' (Ctrl+N), 'Mở' (Ctrl+O), 'Lưu' (Ctrl+S), 'Lưu bản sao' (F12) và 'Xuất PDF' đều được bố trí trực quan và hỗ trợ phím tắt chuẩn Office.",
       "Đóng menu Tệp: Nhấn phím Escape hoặc nhấp nút '← Quay lại' ở góc trên bên trái bất kỳ lúc nào để đóng Backstage và khôi phục tiêu điểm chính xác về ô bảng tính bạn đang chọn trước đó."
     ]

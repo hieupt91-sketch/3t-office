@@ -401,14 +401,14 @@ export const SLIDES_HELP_ENTRIES = [
     app: "slides",
     commandIds: ["slides.file.printPreview"],
     title: "Xem trước khi in",
-    summary: "Ctrl+F2 mở bản xem trước THẬT của toàn bộ bản trình chiếu theo kiểu Full Page Slides của PowerPoint — mỗi trang chiếu không bị ẩn là một trang in, có điều hướng Trang trước/sau và nút In ngay trong overlay.",
+    summary: "Ctrl+P hoặc Ctrl+F2 mở hộp thoại In với ảnh các trang PDF do LibreOffice dựng từ bản trình chiếu hiện tại. Chọn máy in, số bản và phạm vi trang.",
     ribbon: { tab: "Chế độ xem", tabId: "view", group: "Dạng xem bản trình chiếu" },
     keywords: ["xem trước khi in", "print preview", "in tài liệu", "ctrl+f2", "full page slides", "in trang chiếu"],
     steps: [
-      "Tab Chế độ xem, nhóm Dạng xem bản trình chiếu, nút nhỏ Xem trước khi in (hoặc Ctrl+F2 từ bất cứ đâu trong Slides).",
-      "Overlay hiển thị từng trang chiếu như bản in thật: tiêu đề, nội dung, hình khối và chân trang (ngày/footer/số trang) nếu đã bật ở Chèn → Đầu trang & Chân trang.",
-      "Trang chiếu đang Ẩn (Hide Slide) không xuất hiện trong bản in, đúng mặc định của PowerPoint thật.",
-      "Nút In tài liệu trong overlay in ngay (Ctrl+P); Trang trước/sau điều hướng khi có nhiều trang chiếu. Đóng bằng Esc hoặc nút ×."
+      "Nhấn Ctrl+P, nhấp biểu tượng máy in trên thanh truy cập nhanh, hoặc mở tab Chế độ xem → Xem trước khi in (Ctrl+F2).",
+      "LibreOffice tạo PDF tạm từ các trang chiếu hiện tại; khung xem trước hiển thị ảnh từng trang. Dùng ◀/▶ hoặc ô số trang để di chuyển.",
+      "Chọn máy in, số bản và Tất cả, Trang hiện tại, hoặc Trang từ–đến. Mỗi trang PDF ứng với một trang chiếu được LibreOffice đưa vào bản in.",
+      "Nhấn In để gửi tài liệu. Khi chọn Microsoft Print to PDF, chọn thư mục và tên tệp PDF; Esc hoặc nút × đóng hộp thoại."
     ]
   },
   {

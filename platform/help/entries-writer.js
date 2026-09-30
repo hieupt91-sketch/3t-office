@@ -660,14 +660,14 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["writer.file.printPreview"],
     title: "Xem trước khi in",
-    summary: "Ctrl+F2 mở overlay phân trang thật: khổ/hướng/lề trên thanh công cụ, lật trang, thu phóng 30%–200%. In tài liệu gọi hộp in trình duyệt (Ctrl+P). Esc đóng.",
+    summary: "Ctrl+P hoặc Ctrl+F2 mở hộp thoại In dùng PDF do LibreOffice dựng từ nội dung hiện tại. Xem từng trang thật, chọn máy in, số bản và phạm vi trang.",
     ribbon: { tab: "Bố cục", tabId: "layout", group: "In ấn" },
     keywords: ["xem trước khi in", "print preview", "ctrl+f2", "phân trang", "in tài liệu"],
     steps: [
-      "Tab Bố cục, nhóm In ấn: Xem trước khi in (nút lớn, cạnh In tài liệu) — hoặc Ctrl+F2.",
-      "Thanh công cụ: In tài liệu (Ctrl+P → window.print), huy hiệu «Khổ: A4 · Dọc (Portrait) · Lề: T20 D20 T30 P15 mm» (số theo thiết lập trang), ◀ Trang trước / Trang sau ▶, ô số trang / tổng, − Thu nhỏ / + Phóng to (bước 0.15, kẹp 0.3–2.0), Vừa trang (0.35–1.2 theo chiều cao).",
-      "Mỗi tờ lặp đầu trang / chân trang, hình mờ, viền trang. Chú thích cuối trang theo tờ có mốc; chú thích cuối tài liệu nằm tờ cuối. Phím: Esc đóng, ← / PageUp tờ trước, → / PageDown tờ sau, Ctrl+P in.",
-      "Đây là xem HTML đã chia trang, không phải Backstage Word. Đóng bằng × hoặc Esc về soạn thảo."
+      "Nhấn Ctrl+P, nhấp biểu tượng máy in trên thanh truy cập nhanh, hoặc vào Tệp → In. Ctrl+F2 cũng mở cùng hộp thoại.",
+      "Chờ LibreOffice tạo PDF tạm từ nội dung đang soạn. Khung bên phải hiển thị trang thật; dùng nút ◀/▶ hoặc ô số trang để xem các trang khác.",
+      "Chọn máy in, nhập số bản. Chọn Tất cả, Trang hiện tại theo vị trí con trỏ, hoặc Trang từ–đến; phạm vi nhiều đoạn dùng dấu phẩy, ví dụ 1-3,5.",
+      "Khổ giấy và hướng in được lấy từ Thiết lập trang hiện tại. Nhấn In để gửi tài liệu; nếu chọn Microsoft Print to PDF, chọn nơi lưu tệp PDF. Esc hoặc nút × đóng hộp thoại."
     ]
   },
   {
@@ -861,7 +861,7 @@ export const WRITER_HELP_ENTRIES = [
       "Màn hình Trang chủ: Hiển thị danh sách mẫu tài liệu chuẩn Việt Nam (Văn bản trống, Quyết định ban hành tiêu chuẩn theo NĐ 30/2020/NĐ-CP) và bảng 'Tài liệu mở gần đây'.",
       "Chọn mẫu tài liệu: Dùng phím mũi tên Phải để đi vào lưới mẫu, dùng mũi tên duyệt và nhấn Enter hoặc phím Space để khởi tạo văn bản theo mẫu đang chọn.",
       "Mở và quản lý tệp gần đây: Dùng phím mũi tên Xuống để chuyển tới danh sách tệp gần đây. Nhấp chuột hoặc bấm Enter để mở lại tệp. Mỗi hàng tệp có nút 'Gỡ khỏi danh sách' (biểu tượng ×) giúp bạn chủ động loại bỏ tệp đã bị xóa hoặc đổi tên. Nút 'Xóa lịch sử' phía trên cho phép dọn sạch toàn bộ danh sách khi cần.",
-      "In với Xem trước trực tiếp: Chọn mục «In» trên thanh bên trái (hoặc nhấn Ctrl+P). Panel In hiển thị nút 'In ngay', cụm chuyển trang (Trang trước/sau) và khung Live Preview Thumbnail mô phỏng trang in A4 thực tế của tài liệu. Nhấn 'In ngay' để chuyển sang hộp thoại in của máy in.",
+      "In tài liệu: Chọn mục «In» trong Tệp hoặc nhấn Ctrl+P. Hộp thoại In tạo PDF tạm từ nội dung hiện tại, hiển thị ảnh từng trang, cho chọn máy in, số bản và phạm vi trang; nhấn In để gửi tài liệu.",
       "Các lệnh tài liệu khác: Các mục 'Tạo mới' (Ctrl+N), 'Mở' (Ctrl+O), 'Lưu' (Ctrl+S), 'Lưu bản sao' (F12) và 'Xuất PDF' đều có thể kích hoạt trực tiếp từ thanh bên trái.",
       "Đóng menu Tệp: Nhấn phím Escape hoặc nhấp nút '← Quay lại' ở góc trên bên trái bất kỳ lúc nào để đóng Backstage và khôi phục tiêu điểm chính xác về vị trí soạn thảo trước đó."
     ]
