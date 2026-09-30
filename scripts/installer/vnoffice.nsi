@@ -56,15 +56,33 @@ SetCompressor /SOLID zlib
 SetDatablockOptimize on
 CRCCheck on
 BrandingText "VN Office"
-Icon "${PackageDir}\icons\writer.ico"
-UninstallIcon "${PackageDir}\icons\writer.ico"
+Icon "${PackageDir}\icons\vnoffice.ico"
+UninstallIcon "${PackageDir}\icons\vnoffice.ico"
 VIProductVersion "1.0.0.0"
 
 !define MUI_ABORTWARNING
-!define MUI_ICON "${PackageDir}\icons\writer.ico"
-!define MUI_UNICON "${PackageDir}\icons\writer.ico"
-!define MUI_WELCOMEPAGE_TITLE "Cài đặt VN Office"
-!define MUI_WELCOMEPAGE_TEXT "Bộ cài sẽ thiết lập VN Office ${AppVersion} cho tài khoản Windows hiện tại. Không cần quyền quản trị viên. Sau khi cài, các ứng dụng có thể dùng ngoại tuyến. Hãy lưu tài liệu đang mở trước khi nâng cấp."
+!define MUI_ICON "${PackageDir}\icons\vnoffice.ico"
+!define MUI_UNICON "${PackageDir}\icons\vnoffice.ico"
+; Product artwork (branding\installer, designed separately) is used when present.
+!if /FileExists "${InstallerSourceDir}\..\..\branding\installer\welcome.bmp"
+  !define MUI_WELCOMEFINISHPAGE_BITMAP "${InstallerSourceDir}\..\..\branding\installer\welcome.bmp"
+  !define MUI_UNWELCOMEFINISHPAGE_BITMAP "${InstallerSourceDir}\..\..\branding\installer\welcome.bmp"
+!endif
+!if /FileExists "${InstallerSourceDir}\..\..\branding\installer\header.bmp"
+  !define MUI_HEADERIMAGE
+  !define MUI_HEADERIMAGE_BITMAP "${InstallerSourceDir}\..\..\branding\installer\header.bmp"
+  !define MUI_HEADERIMAGE_UNBITMAP "${InstallerSourceDir}\..\..\branding\installer\header.bmp"
+!endif
+!define MUI_WELCOMEPAGE_TITLE "Chào mừng đến với VN Office ${AppVersion}"
+!define MUI_WELCOMEPAGE_TEXT "Bộ ứng dụng văn phòng Việt gồm:$\r$\n$\r$\n    •  VN Writer — soạn thảo văn bản (Word)$\r$\n    •  VN Sheet — bảng tính (Excel)$\r$\n    •  VN Slides — trình chiếu (PowerPoint)$\r$\n$\r$\nMở và lưu trực tiếp tệp .docx, .doc, .xlsx, .xls, .pptx. Chạy hoàn toàn ngoại tuyến, tự lưu bản khôi phục, tự nhận bản cập nhật qua mạng nội bộ — không phải cài lại.$\r$\n$\r$\nCài cho tài khoản Windows hiện tại, không cần quyền quản trị. Bấm Tiến để tiếp tục."
+!define MUI_FINISHPAGE_TITLE "Đã cài đặt xong VN Office"
+!define MUI_FINISHPAGE_TEXT "VN Writer, VN Sheet và VN Slides đã có trong menu Start và trên Màn hình nền.$\r$\n$\r$\nCác bản cập nhật sau này sẽ tự tải về; bạn chỉ cần khởi động lại ứng dụng khi được nhắc."
+!define MUI_FINISHPAGE_RUN "$INSTDIR\python\pythonw.exe"
+!define MUI_FINISHPAGE_RUN_PARAMETERS "-s -E $\"$INSTDIR\app\main.py$\" --app=writer"
+!define MUI_FINISHPAGE_RUN_TEXT "Mở VN Writer ngay"
+!define MUI_FINISHPAGE_SHOWREADME "$INSTDIR\CAI-DAT.txt"
+!define MUI_FINISHPAGE_SHOWREADME_TEXT "Xem hướng dẫn cài đặt và sử dụng"
+!define MUI_FINISHPAGE_SHOWREADME_NOTCHECKED
 
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_LICENSE "${InstallerSourceDir}\NOTICE-VI.rtf"
@@ -171,19 +189,22 @@ Section "-Core" SEC_CORE
   SetOutPath "$INSTDIR"
   File "${PackageDir}\VERSION.txt"
   File "${PackageDir}\BUILD-INFO.txt"
+  File "${PackageDir}\CAI-DAT.txt"
 
   WriteUninstaller "$INSTDIR\Uninstall.exe"
+  ; Shortcut left by the older zip + install-pilot.ps1 flow (ASCII name); the NSIS uninstaller replaces it.
+  Delete "$SMPROGRAMS\VN Office\Go cai dat VN Office.lnk"
   CreateDirectory "$SMPROGRAMS\VN Office"
   CreateShortCut "$SMPROGRAMS\VN Office\VN Writer.lnk" "$INSTDIR\python\pythonw.exe" "-s -E $\"$INSTDIR\app\main.py$\" --app=writer" "$INSTDIR\icons\writer.ico" 0 SW_SHOWNORMAL "" "VN Writer" "$INSTDIR\app"
   CreateShortCut "$SMPROGRAMS\VN Office\VN Sheet.lnk" "$INSTDIR\python\pythonw.exe" "-s -E $\"$INSTDIR\app\main.py$\" --app=sheet" "$INSTDIR\icons\sheet.ico" 0 SW_SHOWNORMAL "" "VN Sheet" "$INSTDIR\app"
   CreateShortCut "$SMPROGRAMS\VN Office\VN Slides.lnk" "$INSTDIR\python\pythonw.exe" "-s -E $\"$INSTDIR\app\main.py$\" --app=slides" "$INSTDIR\icons\slides.ico" 0 SW_SHOWNORMAL "" "VN Slides" "$INSTDIR\app"
-  CreateShortCut "$SMPROGRAMS\VN Office\Gỡ cài đặt VN Office.lnk" "$INSTDIR\Uninstall.exe" "" "$INSTDIR\icons\writer.ico" 0 SW_SHOWNORMAL "" "Gỡ cài đặt VN Office" "$INSTDIR"
+  CreateShortCut "$SMPROGRAMS\VN Office\Gỡ cài đặt VN Office.lnk" "$INSTDIR\Uninstall.exe" "" "$INSTDIR\icons\vnoffice.ico" 0 SW_SHOWNORMAL "" "Gỡ cài đặt VN Office" "$INSTDIR"
 
   WriteRegStr HKCU "${UninstallRegKey}" "DisplayName" "VN Office"
   WriteRegStr HKCU "${UninstallRegKey}" "DisplayVersion" "${AppVersion}"
   WriteRegStr HKCU "${UninstallRegKey}" "Publisher" "VN Office"
   WriteRegStr HKCU "${UninstallRegKey}" "InstallLocation" "$INSTDIR"
-  WriteRegStr HKCU "${UninstallRegKey}" "DisplayIcon" "$INSTDIR\icons\writer.ico"
+  WriteRegStr HKCU "${UninstallRegKey}" "DisplayIcon" "$INSTDIR\icons\vnoffice.ico"
   WriteRegStr HKCU "${UninstallRegKey}" "UninstallString" "$\"$INSTDIR\Uninstall.exe$\""
   WriteRegStr HKCU "${UninstallRegKey}" "QuietUninstallString" "$\"$INSTDIR\Uninstall.exe$\" /S"
   WriteRegDWORD HKCU "${UninstallRegKey}" "NoModify" 1
