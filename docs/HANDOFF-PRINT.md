@@ -130,17 +130,33 @@ DEVELOPMENT VALIDATION:
 - `python -m unittest tests.test_print_office_com -v`: PASS, 8/8, including simulated Office-absent fallback and confirmation that timeout cleanup targets only a PID marked as owned by the job.
 - `node --test tests/unit/print-dialog.test.js`: PASS, 4/4 after the option-visibility fix.
 - `python -m py_compile scripts/layout-audit/_print_page_audit.py platform/print/office_com.py main.py`: PASS.
-- A direct Office export of the original `d03.docx` succeeded and produced a one-page PDF. Its page-1 text is extractable; comparison against the VN Print/Export PDFs is pending.
+- Direct Office exports and PDFium page-1 text extraction were run for d03, d12, d24, d01, d16, d20, and legacy01.doc. The per-file parity results are in the G10 live-verification section below.
 - Windows registry detection on this machine finds Microsoft Word, Excel, and PowerPoint; WPS is not registered.
 
-LIVE VERIFICATION: NOT RUN for the required d03/d12/d24/legacy `.doc`/lan05.xlsx/PPTX comparisons, the d01/d16/d20 and Sheet parity set, or the live LibreOffice-only audit. At the time of this handoff, a separate Office-oracle job has a headless Word process active, with an idle Excel automation process left by an earlier batch. G10 Office jobs have been held to honor the sequential-COM requirement. Do not claim the parity gate passes until the Office PDFs have been compared with original-file exports for both page count and normalized page-1 text. The product fallback path is covered by the Office-absent unit tests; a live simulated-absence app audit remains pending.
+LIVE VERIFICATION (IN PROGRESS): Office-backed Print and Export PDF both ran successfully for d03 (1 page), d12 (3), d24 (16), d01 (19), d16 (8), d20 (3), and legacy01.doc (5). Print and Export PDF page counts match direct Microsoft Word exports of the originals for all measured files. LibreOffice PDFium text extraction confirms page-1 text matches for d03, d24, d01, d20, and legacy01; d12 and d16 page-1 text differs because content crosses the first-page boundary differently after the shared Save conversion. A focused pristine-source OOXML restoration follow-up is planned below. lan05.xlsx fell back to LibreOffice after Excel COM returned RPC_E_CALL_REJECTED; direct Excel workbook export and lan11/lan28 active-sheet oracle checks remain pending a serial Office window. The real PPTX, simulated Office-absent app route, and live Sheet fallback audit are also pending.
 
 SHEET FALLBACK INVESTIGATION:
 - The G9 baseline remains lan05 14 Excel pages vs 3 LibreOffice pages, lan11 965 vs 357, and lan28 36 vs 35.
 - The original lan05 workbook has one visible sheet, print area `A1:I1072`, and source page setup scale 56%. The converted source retains that print area; restoring its original page-setup/margins alone previously left the LibreOffice PDF at 3 pages. The discrepancy is therefore not caused by choosing the wrong active tab on lan05.
 - lan11 has three sheets with `Reyee` active (zero-based `activeTab=1`); lan28 has twelve sheets with `Bảng Lương` active (`activeTab=6`). The existing Save route preserves active-sheet metadata and per-sheet print areas. No active-sheet-only change has been made because the Excel active-sheet export count has not yet been measured against the workbook-level `ExportAsFixedFormat` baseline, and Print and Export PDF must keep their intended sheet scope.
-- Before/after LibreOffice fallback counts are unchanged so far: 14/3, 965/357, and 36/35. Further active-sheet and scaling comparison is pending the serial Excel oracle run.
+- Current LibreOffice fallback measurement: lan05 remains 3 pages (baseline Excel workbook export 14); lan11 and lan28 have not yet been re-audited in this G10 run. The G9 LibreOffice counts were 357 and 35 against workbook-level Excel counts 965 and 36. Further active-sheet and scaling comparison is pending the serial Excel oracle run.
 
 REFERENCE ACCESS: `docs/REFERENCE-3T-READER.md` was read. The exact requested sibling-project `office_com.py` UNC path could not be opened from this machine (`\\192.168.1.8\d\PDF\3T_Reader_Phase1_Win\packages\document_core\office_com.py` did not resolve). The restricted `??ng k? bq` folder was not opened.
 
-CURRENT GATE: Node and Python test gates PASS. G10 live Office page parity is NOT RUN and the LibreOffice Sheet parity failures remain. This handoff must not be marked overall PASS until the queued live verification is completed.
+CURRENT GATE: Node and Python test gates PASS on the current implementation. G10 live verification is IN PROGRESS; d12/d16 first-page text and the required Sheet/Slides/fallback checks remain open. Do not mark the overall parity gate PASS yet.
+
+## G10 Follow-up Plan — untouched Writer OOXML fidelity
+
+OBJECTIVE: Make Office-rendered Print/Export PDF from an untouched `.docx` match the original file's page-1 text while retaining the shared Save conversion path.
+
+CURRENT CAPABILITY: Writer emits the `vno-pristine-document` marker when its opened document has no edits. `postprocess_writer_docx` already uses that marker for selected source restores, but the measured untouched d12 and d16 outputs still place different text on page 1. The intermediate is generated by the same HTML → DOCX → source-aware OOXML Save postprocess used by Save.
+
+FILES/MODULES: `main.py` will pass whether the restoration source is a real `.docx` (legacy `.doc` conversion must not be treated as an original OOXML package); `adapters/libreoffice/common/ooxml_zip_patch.py` will extend the existing pristine-only source restore; focused tests will cover pristine DOCX, edited DOCX, and legacy `.doc`; this handoff records results.
+
+DEPENDENCIES: None. Reuse the existing LibreOffice conversion and OOXML ZIP patcher.
+
+RISK: A pristine marker must remain limited to the unchanged editor state and source `.docx` path; edited documents and legacy binary `.doc` must continue through the current surgical conversion/postprocess. Read-only source access follows the existing Save restore behavior.
+
+TEST PLAN: Add a regression proving a pristine `.docx` still runs through HTML → DOCX conversion and then restores source OOXML; prove edited content is not replaced by the source package; prove legacy `.doc` stays on its intermediate DOCX path. Rerun serial Office d12/d16 Print and Export comparisons, then the requested full Node and Python gates when no competing soffice worker is active.
+
+ROLLBACK: Revert the follow-up implementation commit; no data migration or generated-file cleanup is required.
