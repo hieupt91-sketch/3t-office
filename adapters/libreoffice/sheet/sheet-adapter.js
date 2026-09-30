@@ -4118,12 +4118,8 @@ export class SheetAdapter {
     perfReport("row/column styles", phaseStart);
     const defaultRowHeight = this.grid?.rowHeight || 20;
     const defaultColWidth = this.grid?.defaultColWidth || 64;
-    const tableBlocks = [];
     phaseStart = perfNow();
-    tableXml.replace(/<table:table(?=[\s>/])([^>]*)>([\s\S]*?)<\/table:table>/gi, all => { tableBlocks.push(all); return all; });
-    perfReport("collect table blocks", phaseStart);
-    phaseStart = perfNow();
-    const workbookOnlyXml = tableBlocks.reduce((text, block) => text.replace(block, ""), tableXml);
+    const workbookOnlyXml = tableXml.replace(/<table:table(?=[\s>/])[^>]*>[\s\S]*?<\/table:table>/gi, "");
     perfReport("remove table blocks", phaseStart);
     let workbookNameIndex = 0;
     workbookOnlyXml.replace(/<table:named-range\b([^>]*)\/?\s*>/gi, (_, attrs) => {
@@ -4202,6 +4198,8 @@ export class SheetAdapter {
           const hiddenRows = new Set();
           let rowNumber = 1;
           const rowElements = Array.from(table.getElementsByTagNameNS("urn:oasis:names:tc:opendocument:xmlns:table:1.0", "table-row"));
+          // Reuse each row's cell children in the model pass below.
+          const rowCellsByElement = new WeakMap();
 
           // LibreOffice collapses the formatted-but-empty tail of a real XLSX into
           // one <table:table-row table:number-rows-repeated="1048570"> (and the
@@ -4220,8 +4218,10 @@ export class SheetAdapter {
               const scanRepeat = Math.max(1, Number(row.getAttribute("table:number-rows-repeated")) || 1);
               let scanCol = 1;
               let rowHasData = false;
-              for (const cell of Array.from(row.children)) {
-                if (!["table-cell", "covered-table-cell"].includes(cell.localName)) continue;
+              const rowCells = [];
+              for (const cell of row.children) {
+                if (cell.localName !== "table-cell" && cell.localName !== "covered-table-cell") continue;
+                rowCells.push(cell);
                 const colRepeat = Math.max(1, Number(cell.getAttribute("table:number-columns-repeated")) || 1);
                 // A border-only cell repeated across a whole row/column block is
                 // "format the entire row" (Excel writes it for 16384 columns and
@@ -4238,6 +4238,7 @@ export class SheetAdapter {
                 }
                 scanCol += colRepeat;
               }
+              rowCellsByElement.set(row, rowCells);
               if (rowHasData) lastDataRow = scanRow + scanRepeat - 1;
               scanRow += scanRepeat;
             }
@@ -4249,7 +4250,8 @@ export class SheetAdapter {
           const hiddenCols = new Set();
           let layoutColumn = 1;
           const effectiveColLimit = Math.max(lastDataCol, 26);
-          Array.from(table.children).filter(element => element.localName === "table-column").forEach(column => {
+          for (const column of table.children) {
+            if (column.localName !== "table-column") continue;
             const repeat = Math.max(1, Number(column.getAttribute("table:number-columns-repeated")) || 1);
             const styleName = this._tableAttr(column, "style-name");
             const visibility = this._tableAttr(column, "visibility").toLowerCase();
@@ -4264,7 +4266,7 @@ export class SheetAdapter {
               }
               layoutColumn++;
             }
-          });
+          }
 
           const modelStarted = perfNow();
           rowElements.forEach(row => {
@@ -4288,7 +4290,7 @@ export class SheetAdapter {
                 continue;
               }
               let columnNumber = 1;
-              Array.from(row.children).filter(cell => ["table-cell", "covered-table-cell"].includes(cell.localName)).forEach(cell => {
+              for (const cell of rowCellsByElement.get(row) || []) {
                 const columnRepeat = Math.max(1, Number(cell.getAttribute("table:number-columns-repeated")) || 1);
                 const attributes = Object.fromEntries(Array.from(cell.attributes).map(attr => [attr.name, attr.value]));
                 const isCovered = cell.localName === "covered-table-cell";
@@ -4356,7 +4358,7 @@ export class SheetAdapter {
                   images.push({ ...embeddedImage, anchor: { c: columnName(columnNumber), r: rowNumber } });
                 }
                 columnNumber += columnRepeat;
-              });
+              }
               rowNumber++;
             }
           });
@@ -5158,6 +5160,19 @@ export class SheetAdapter {
    * Mở một tệp XLSX/ODS/CSV thật từ đĩa, nạp dữ liệu vào bảng tính.
    */
   async open() {
+    if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
+      window.dispatchEvent(new Event("vno:document-open-progress"));
+    }
+    try {
+      return await this._openWorkbookFromDisk();
+    } finally {
+      if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
+        window.dispatchEvent(new Event("vno:document-open-complete"));
+      }
+    }
+  }
+
+  async _openWorkbookFromDisk() {
     const result = await globalUnoBridge.openRealFile("sheet");
     if (result.status === "ok") {
       // Overlay lockStructure from original XLSX onto FODS before parseFods.

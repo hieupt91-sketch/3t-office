@@ -6163,8 +6163,13 @@ def _overlay_xf_indices_in_table(table_xml: str, targets: dict[tuple[int, int], 
     return "".join(pieces)
 
 
-def _overlay_sheet_xf_indices_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
-    by_sheet = _xlsx_cells_with_xf_indices(xlsx_bytes)
+def _overlay_sheet_xf_indices_from_xlsx(
+    xlsx_bytes: bytes,
+    fods_xml: str,
+    by_sheet: dict[str, dict[tuple[int, int], int]] | None = None,
+) -> str:
+    if by_sheet is None:
+        by_sheet = _xlsx_cells_with_xf_indices(xlsx_bytes)
     if not by_sheet:
         return fods_xml
     pieces, cursor = [], 0
@@ -6370,7 +6375,10 @@ def _xlsx_cells_with_metadata(xlsx_bytes: bytes):
 def reoverlay_sheet_xf_indices(xlsx_bytes: bytes, fods_xml: str) -> str:
     """Reattach XF ownership after FODS cell-run normalization."""
     clean = re.sub(r'\s+vno:xf\s*=\s*(["\'])\d+\1', "", fods_xml, flags=re.IGNORECASE)
-    return _overlay_sheet_xf_indices_from_xlsx(normalize_source_xlsx(xlsx_bytes), clean)
+    normalized = normalize_source_xlsx(xlsx_bytes)
+    cached_metadata = _index_memo_get("sheet_metadata", normalized)
+    cached_xfs = cached_metadata[2] if cached_metadata is not _INDEX_MISS else None
+    return _overlay_sheet_xf_indices_from_xlsx(normalized, clean, cached_xfs)
 
 
 def _fods_cells_with_vno_xf(fods_xml: str) -> dict[str, dict[tuple[int, int], int]]:

@@ -7,7 +7,9 @@ cho các thao tác Mở/Lưu/Xuất PDF — cross-platform: Windows, Linux, macO
 
 import http.server
 import inspect
+import json
 import os
+import queue
 import socket
 import sys
 import base64
@@ -23,6 +25,7 @@ import subprocess
 import tempfile
 import threading
 import time
+import uuid
 import platform
 import zipfile
 from pathlib import Path
@@ -260,6 +263,330 @@ FORMAT_FILTERS = {
 }
 
 _convert_lock = threading.Lock()
+_PERSISTENT_SOFFICE_ENABLED = False
+
+
+def _open_perf_log(stage: str, elapsed_ms: float | None = None, **fields) -> None:
+    if os.environ.get("VNO_PERF_DEBUG") != "1":
+        return
+    suffix = "" if elapsed_ms is None else f" {elapsed_ms:.1f} ms"
+    details = "".join(f" {key}={value}" for key, value in fields.items())
+    print(f"[VNO Open Perf] {stage}:{suffix}{details}", flush=True)
+
+
+class _PersistentSofficeError(Exception):
+    """Base class for local UNO helper failures."""
+
+
+class _PersistentSofficeTransportError(_PersistentSofficeError):
+    """The helper or its UNO connection stopped responding."""
+
+
+class _PersistentSofficeConversionError(_PersistentSofficeError):
+    """UNO reported a document/filter failure while the helper stayed alive."""
+
+
+class _SofficeUnoWorker:
+    def __init__(self, app_kind: str):
+        self.app_kind = app_kind
+        self.process: subprocess.Popen[str] | None = None
+        self.responses: queue.Queue[dict | None] = queue.Queue()
+        self._write_lock = threading.Lock()
+
+    @staticmethod
+    def _python_path() -> str | None:
+        if not SOFFICE_PATH:
+            return None
+        candidate = Path(SOFFICE_PATH).resolve().parent / "python.exe"
+        return str(candidate) if candidate.is_file() else None
+
+    def start(self) -> None:
+        python_path = self._python_path()
+        if not python_path or not SOFFICE_PATH:
+            raise _PersistentSofficeTransportError(
+                "Không tìm thấy Python/UNO đi kèm LibreOffice."
+            )
+        worker_path = Path(ROOT_DIR) / "adapters" / "libreoffice" / "common" / "soffice_uno_worker.py"
+        if not worker_path.is_file():
+            raise _PersistentSofficeTransportError("Không tìm thấy helper UNO của VN Office.")
+
+        pipe_name = f"vnoffice_{os.getpid()}_{uuid.uuid4().hex}"
+        profile_uri = _profile_uri(self.app_kind)
+        env = os.environ.copy()
+        env["PYTHONUNBUFFERED"] = "1"
+        command = [python_path, "-u", str(worker_path), SOFFICE_PATH, profile_uri, pipe_name, self.app_kind]
+        flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        started = time.perf_counter()
+        try:
+            self.process = subprocess.Popen(
+                command,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                bufsize=1,
+                env=env,
+                creationflags=flags,
+                start_new_session=(os.name != "nt"),
+            )
+        except OSError as exc:
+            raise _PersistentSofficeTransportError(str(exc)) from exc
+
+        reader = threading.Thread(target=self._read_responses, daemon=True, name="VNO UNO helper reader")
+        reader.start()
+        try:
+            handshake = self._next_response(timeout=100)
+        except _PersistentSofficeTransportError:
+            self.stop(grace_seconds=0.5)
+            raise
+        if not handshake.get("ready"):
+            message = handshake.get("error") or "LibreOffice UNO helper did not start."
+            self.stop(grace_seconds=0.5)
+            raise _PersistentSofficeTransportError(str(message))
+        _open_perf_log(
+            "worker_start_and_profile_ready",
+            (time.perf_counter() - started) * 1000,
+            app=self.app_kind,
+        )
+
+    def _read_responses(self) -> None:
+        process = self.process
+        if process is None or process.stdout is None:
+            self.responses.put(None)
+            return
+        try:
+            for line in process.stdout:
+                try:
+                    payload = json.loads(line)
+                    if isinstance(payload, dict):
+                        self.responses.put(payload)
+                except (json.JSONDecodeError, TypeError):
+                    self.responses.put({"_protocol_error": "LibreOffice helper sent invalid JSON."})
+        finally:
+            self.responses.put(None)
+
+    def _next_response(self, timeout: float) -> dict:
+        try:
+            response = self.responses.get(timeout=timeout)
+        except queue.Empty as exc:
+            raise _PersistentSofficeTransportError("Hết thời gian chờ phản hồi từ LibreOffice.") from exc
+        if response is None:
+            code = self.process.poll() if self.process else None
+            raise _PersistentSofficeTransportError(
+                f"LibreOffice UNO helper đã dừng (exit={code})."
+            )
+        if response.get("_protocol_error"):
+            raise _PersistentSofficeTransportError(str(response["_protocol_error"]))
+        return response
+
+    def convert(
+        self,
+        source_path: str,
+        output_path: str,
+        filter_name: str | None,
+        input_filter: str | None,
+        input_filter_options: str | None,
+    ) -> str:
+        process = self.process
+        if process is None or process.poll() is not None or process.stdin is None:
+            raise _PersistentSofficeTransportError("LibreOffice UNO helper is not running.")
+        request_id = uuid.uuid4().hex
+        request = {
+            "id": request_id,
+            "op": "convert",
+            "source_path": source_path,
+            "output_path": output_path,
+            "filter_name": filter_name,
+            "input_filter": input_filter,
+            "input_filter_options": input_filter_options,
+        }
+        started = time.perf_counter()
+        try:
+            with self._write_lock:
+                process.stdin.write(json.dumps(request, ensure_ascii=False) + "\n")
+                process.stdin.flush()
+            response = self._next_response(timeout=120)
+        except (OSError, BrokenPipeError) as exc:
+            raise _PersistentSofficeTransportError(str(exc)) from exc
+        if response.get("id") != request_id:
+            raise _PersistentSofficeTransportError("LibreOffice UNO helper returned an unexpected response.")
+        if not response.get("ok"):
+            raise _PersistentSofficeConversionError(str(response.get("error") or "UNO conversion failed"))
+        _open_perf_log(
+            "uno_load_and_store",
+            (time.perf_counter() - started) * 1000,
+            app=self.app_kind,
+            bytes=response.get("output_bytes", 0),
+        )
+        return str(response["output_path"])
+
+    def stop(self, grace_seconds: float = 2.0) -> None:
+        process = self.process
+        if process is None or process.poll() is not None:
+            return
+        if process.stdin is not None:
+            try:
+                with self._write_lock:
+                    process.stdin.write('{"op":"shutdown"}\n')
+                    process.stdin.flush()
+            except (OSError, BrokenPipeError):
+                pass
+        try:
+            process.wait(timeout=grace_seconds)
+            return
+        except subprocess.TimeoutExpired:
+            pass
+
+        if os.name == "nt":
+            flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+            try:
+                subprocess.run(
+                    ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    check=False,
+                    timeout=3,
+                    creationflags=flags,
+                )
+            except (OSError, subprocess.TimeoutExpired):
+                pass
+        else:
+            try:
+                os.killpg(process.pid, 9)
+            except OSError:
+                pass
+        if process.poll() is None:
+            process.terminate()
+        try:
+            process.wait(timeout=2)
+        except subprocess.TimeoutExpired:
+            process.kill()
+
+
+class _PersistentSofficeManager:
+    def __init__(self):
+        self._lock = threading.RLock()
+        self._worker: _SofficeUnoWorker | None = None
+        self._shutdown_requested = threading.Event()
+
+    def _stop_locked(self) -> None:
+        worker = self._worker
+        self._worker = None
+        if worker:
+            worker.stop()
+
+    def _ensure_locked(self, app_kind: str) -> _SofficeUnoWorker:
+        if self._shutdown_requested.is_set():
+            raise _PersistentSofficeTransportError("VN Office đang đóng.")
+        if self._worker and self._worker.app_kind == app_kind:
+            if self._worker.process and self._worker.process.poll() is None:
+                return self._worker
+            self._stop_locked()
+        else:
+            self._stop_locked()
+
+        last_error: Exception | None = None
+        for _ in range(2):
+            if self._shutdown_requested.is_set():
+                break
+            worker = _SofficeUnoWorker(app_kind)
+            self._worker = worker
+            try:
+                worker.start()
+                if self._shutdown_requested.is_set():
+                    worker.stop(grace_seconds=0.1)
+                    self._worker = None
+                    raise _PersistentSofficeTransportError("VN Office đang đóng.")
+                return worker
+            except Exception as exc:
+                last_error = exc
+                self._stop_locked()
+        raise _PersistentSofficeTransportError(str(last_error or "LibreOffice helper is unavailable"))
+
+    def prepare(self, app_kind: str) -> None:
+        if app_kind not in {"writer", "sheet"} or not _PERSISTENT_SOFFICE_ENABLED:
+            return
+        try:
+            with self._lock:
+                self._ensure_locked(app_kind)
+            if app_kind in {"writer", "sheet"}:
+                _warmup_persistent_filter(app_kind)
+        except Exception as exc:
+            _open_perf_log("worker_background_start_failed", app=app_kind, error=str(exc)[:180])
+
+    def release_for_cli_fallback(self, app_kind: str | None) -> None:
+        """Release the profile lock before the original CLI conversion runs."""
+        kind = app_kind if app_kind in VALID_APP_KINDS else "shared"
+        with self._lock:
+            if self._worker and self._worker.app_kind == kind:
+                self._stop_locked()
+
+    def convert(
+        self,
+        app_kind: str | None,
+        source_path: str,
+        output_path: str,
+        filter_name: str | None,
+        input_filter: str | None,
+        input_filter_options: str | None,
+    ) -> str:
+        kind = app_kind if app_kind in VALID_APP_KINDS else "shared"
+        with self._lock:
+            worker = self._ensure_locked(kind)
+            try:
+                return worker.convert(
+                    source_path,
+                    output_path,
+                    filter_name,
+                    input_filter,
+                    input_filter_options,
+                )
+            except _PersistentSofficeConversionError:
+                # The local engine stayed alive but rejected this document/filter;
+                # release its profile before the original CLI fallback runs.
+                self._stop_locked()
+                raise
+            except _PersistentSofficeTransportError as first_error:
+                self._stop_locked()
+                if self._shutdown_requested.is_set():
+                    raise
+                try:
+                    worker = self._ensure_locked(kind)
+                    return worker.convert(
+                        source_path,
+                        output_path,
+                        filter_name,
+                        input_filter,
+                        input_filter_options,
+                    )
+                except Exception as retry_error:
+                    self._stop_locked()
+                    raise _PersistentSofficeTransportError(
+                        f"UNO helper restart failed: {retry_error} (first error: {first_error})"
+                    ) from retry_error
+
+    def shutdown(self) -> None:
+        self._shutdown_requested.set()
+        # Wait briefly for an in-progress prepare/conversion to publish its
+        # worker, then stop it directly if the manager lock is still occupied.
+        # This lets window close interrupt long conversions without racing past
+        # a helper that is just being spawned.
+        acquired = self._lock.acquire(timeout=1.0)
+        if acquired:
+            try:
+                self._stop_locked()
+            finally:
+                self._lock.release()
+            return
+        worker = self._worker
+        self._worker = None
+        if worker:
+            worker.stop(grace_seconds=0.5)
+
+
+_PERSISTENT_SOFFICE = _PersistentSofficeManager()
 
 
 class DocumentEngineError(Exception):
@@ -392,6 +719,27 @@ def _profile_uri(app_kind: str | None = None) -> str:
     return profile_dir.as_uri()
 
 
+def _persistent_writer_html_safe(source_path: str, app_kind: str | None, target_ext: str) -> bool:
+    """Keep Writer text-box exports on the proven CLI path.
+
+    LibreOffice's UNO storeToURL path omits w:txbxContent frames on complex
+    DOCX imports while --convert-to exports them. The DOCX XML marker is a
+    cheap, local preflight; when present, stop the persistent instance and
+    preserve the established command-line output.
+    """
+    if app_kind != "writer" or target_ext != "html" or Path(source_path).suffix.lower() != ".docx":
+        return True
+    try:
+        with zipfile.ZipFile(source_path) as archive:
+            for member in archive.namelist():
+                if member.startswith("word/") and member.endswith(".xml"):
+                    if b"txbxContent" in archive.read(member):
+                        return False
+    except Exception:
+        return False
+    return True
+
+
 def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind: str | None = None) -> str:
     """Chạy LibreOffice headless để chuyển đổi thật một tệp. Trả về đường dẫn tệp kết quả."""
     started_at = time.monotonic()
@@ -442,10 +790,13 @@ def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind:
         f"-env:UserInstallation={_profile_uri(app_kind)}",
     ]
 
+    input_filter = None
+    csv_filter_options = None
     if Path(src_path).suffix.lower() == ".csv":
         _, csv_filter_options = _detect_csv_import_options(src_path)
+        input_filter = "Text - txt - csv (StarCalc)"
         cmd.extend([
-            f"--infilter=Text - txt - csv (StarCalc):{csv_filter_options}",
+            f"--infilter={input_filter}:{csv_filter_options}",
         ])
 
     cmd.extend([
@@ -456,8 +807,56 @@ def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind:
         src_path,
     ])
 
-    # LibreOffice chỉ cho phép một tiến trình dùng chung một profile tại một thời điểm.
+    out_path = Path(out_dir) / f"{Path(src_path).stem}.{target_ext}"
+
+    # Reuse UNO only for the open-import pairs whose output was compared with
+    # the existing CLI path. Other import/export filters keep the proven CLI.
+    source_ext = Path(src_path).suffix.lower()
+    persistent_pair_is_validated = (
+        (app_kind == "writer" and target_ext == "html" and source_ext == ".docx")
+        or (app_kind == "writer" and target_ext == "docx" and source_ext == ".doc")
+        or (app_kind == "sheet" and target_ext == "fods" and source_ext in {".xlsx", ".xls"})
+    )
+    use_persistent_worker = (
+        _PERSISTENT_SOFFICE_ENABLED
+        and persistent_pair_is_validated
+        and not out_path.exists()
+    )
+    if use_persistent_worker and not _persistent_writer_html_safe(src_path, app_kind, target_ext):
+        _PERSISTENT_SOFFICE.release_for_cli_fallback(app_kind)
+        _open_perf_log("uno_fallback_to_convert_to", app=app_kind or "shared", reason="writer-docx-textboxes")
+        use_persistent_worker = False
+
     with _convert_lock:
+        if _PERSISTENT_SOFFICE_ENABLED and not use_persistent_worker:
+            # A persistent instance holds the profile lock. Preserve the old
+            # CLI path for unvalidated open/save/export filters without
+            # contending with the helper using that same user profile.
+            _PERSISTENT_SOFFICE.release_for_cli_fallback(app_kind)
+        if use_persistent_worker:
+            try:
+                persistent_path = _PERSISTENT_SOFFICE.convert(
+                    app_kind,
+                    src_path,
+                    str(out_path),
+                    filter_name,
+                    input_filter,
+                    csv_filter_options,
+                )
+                if Path(persistent_path).is_file():
+                    return persistent_path
+                raise _PersistentSofficeTransportError("UNO helper did not create its output file.")
+            except Exception as exc:
+                _open_perf_log("uno_fallback_to_convert_to", app=app_kind or "shared", error=str(exc)[:180])
+                # The output path was absent before UNO was called, so a partial
+                # file here belongs only to the failed helper attempt.
+                try:
+                    out_path.unlink(missing_ok=True)
+                except OSError:
+                    pass
+
+        # LibreOffice CLI remains the source of truth if UNO is missing, crashes,
+        # times out, or rejects a filter/document.
         try:
             result = subprocess.run(
                 cmd, capture_output=True, text=True, timeout=120, check=False
@@ -473,8 +872,6 @@ def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind:
         report_conversion_failure("SofficeExitError", message)
         raise DocumentEngineError(message)
 
-    base = Path(src_path).stem
-    out_path = Path(out_dir) / f"{base}.{target_ext}"
     if not out_path.is_file():
         detail = (result.stdout or "").strip()[:500]
         message = f"Không tạo được tệp đầu ra. Chi tiết: {detail or 'không rõ'}"
@@ -730,7 +1127,12 @@ def _read_pptx_pres_props_xml(src_path: str) -> str | None:
         return None
 
 
-def _apply_native_import_overlay(src_path: str, fods: str, app_kind: str | None) -> str:
+def _apply_native_import_overlay(
+    src_path: str,
+    fods: str,
+    app_kind: str | None,
+    source_bytes: bytes | None = None,
+) -> str:
     """After soffice convert, restore native flags LibreOffice dropped.
 
     Sheet XLSX: lockStructure → table:structure-protected. Failures return
@@ -746,8 +1148,10 @@ def _apply_native_import_overlay(src_path: str, fods: str, app_kind: str | None)
         if not src_path or not str(src_path).lower().endswith(".xlsx"):
             return fods
         try:
-            with open(src_path, "rb") as handle:
-                original = handle.read()
+            original = source_bytes
+            if original is None:
+                with open(src_path, "rb") as handle:
+                    original = handle.read()
             return _ooxml_zip_patch().overlay_sheet_xlsx_fods(
                 original,
                 fods,
@@ -1117,6 +1521,18 @@ def _active_window():
     return webview.windows[0] if webview.windows else None
 
 
+def _notify_document_open_progress() -> None:
+    """Tell the WebView that the user has selected a file and conversion began."""
+    window = _active_window()
+    if not window:
+        return
+    try:
+        window.evaluate_js("window.dispatchEvent(new Event('vno:document-open-progress'))")
+    except Exception:
+        # Progress is supplementary; a WebView timing issue must not block open.
+        pass
+
+
 class VnOfficeApi:
     """Python API phơi ra cho JavaScript giao tiếp (Bridge) — cầu nối thật tới LibreOffice."""
 
@@ -1324,7 +1740,14 @@ class VnOfficeApi:
                 return {"started": False, "error": "Trình cập nhật chỉ áp dụng được trên Windows."}
         except Exception as exc:
             return {"started": False, "error": f"Không thể chuẩn bị cập nhật: {type(exc).__name__}"}
-        timer = threading.Timer(0.4, lambda: os._exit(0))
+        def exit_for_update():
+            # The apply helper waits for every process of this install; stop the warm LibreOffice worker first.
+            try:
+                _PERSISTENT_SOFFICE.shutdown()
+            finally:
+                os._exit(0)
+
+        timer = threading.Timer(0.4, exit_for_update)
         timer.daemon = True
         timer.start()
         return {"started": True}
@@ -1359,7 +1782,11 @@ class VnOfficeApi:
         """Emit opt-in renderer timing to the foreground desktop launch console."""
         if os.environ.get("VNO_PERF_DEBUG") != "1":
             return False
-        if name not in {"parseFods", "loadFromFods", "first grid render", "first layout"} and not name.startswith("parseFods:"):
+        allowed_metrics = {
+            "parseFods", "loadFromFods", "first grid render", "first layout",
+            "writer.parseHtml", "writer.render", "writer.firstPaint",
+        }
+        if name not in allowed_metrics and not name.startswith("parseFods:"):
             return False
         try:
             value = float(elapsed_ms)
@@ -1391,6 +1818,8 @@ class VnOfficeApi:
                 return {"status": "cancelled"}
             src_path = result[0]
 
+        _notify_document_open_progress()
+
         self._reporting_file_path = src_path
         self._reporting_operation = f"open.{Path(src_path).suffix.lower().lstrip('.') or 'unknown'}"
 
@@ -1404,6 +1833,7 @@ class VnOfficeApi:
             return {"status": "error", "message": f"Loại ứng dụng không hợp lệ: {app_kind}"}
 
         writer_ooxml_metadata = None
+        original_xlsx = None
         try:
             with tempfile.TemporaryDirectory(prefix="vnoffice_open_") as tmp:
                 convert_src_path = src_path
@@ -1461,17 +1891,21 @@ class VnOfficeApi:
                 elif app_kind == "sheet":
                     # Overlay BEFORE the FODS leaves this process — SheetAdapter.parseFods
                     # must see table:structure-protected when the original XLSX is locked.
-                    content = _apply_native_import_overlay(src_path, content, app_kind)
+                    content = _apply_native_import_overlay(
+                        src_path, content, app_kind, source_bytes=original_xlsx
+                    )
                     # Optimize FODS: merge repeated empty cells, trim style-only tail.
                     content = _optimize_fods_for_sheet(content)
                     # Cell runs can move to their final logical coordinates during
                     # optimization. Reapply only XF ownership at those coordinates;
                     # all other native overlays retain their established ordering.
                     if src_path.lower().endswith(".xlsx") and os.path.isfile(src_path):
-                        with open(src_path, "rb") as source_file:
-                            content = _ooxml_zip_patch().reoverlay_sheet_xf_indices(
-                                source_file.read(), content
-                            )
+                        if original_xlsx is None:
+                            with open(src_path, "rb") as source_file:
+                                original_xlsx = source_file.read()
+                        content = _ooxml_zip_patch().reoverlay_sheet_xf_indices(
+                            original_xlsx, content
+                        )
                 elif app_kind == "slides":
                     # Overlay BEFORE the FODP leaves this process — SlidesAdapter.parseFodp
                     # must see vno:section-*, vno:master-theme, and Set Up Show vno:*
@@ -1709,9 +2143,138 @@ def _update_token_from_args(argv: list[str]) -> str | None:
     return None
 
 
+def _write_profile_warmup_docx(path: str) -> None:
+    members = {
+        "[Content_Types].xml": """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+</Types>""",
+        "_rels/.rels": """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>""",
+        "word/document.xml": """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>
+<w:p><w:r><w:t>VN Office local profile warm-up</w:t></w:r></w:p>
+<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr>
+</w:body></w:document>""",
+        "word/styles.xml": """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults>
+<w:rPrDefault><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/></w:rPr></w:rPrDefault>
+<w:pPrDefault><w:pPr/></w:pPrDefault></w:docDefaults></w:styles>""",
+    }
+    with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as package:
+        for name, content in members.items():
+            package.writestr(name, content)
+
+
+def _write_profile_warmup_xlsx(path: str) -> None:
+    members = {
+        "[Content_Types].xml": """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+</Types>""",
+        "_rels/.rels": """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>""",
+        "xl/workbook.xml": """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>""",
+        "xl/_rels/workbook.xml.rels": """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+</Relationships>""",
+        "xl/worksheets/sheet1.xml": """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>
+<row r="1"><c r="A1" t="inlineStr"><is><t>VN Office local profile warm-up</t></is></c></row>
+</sheetData></worksheet>""",
+    }
+    with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as package:
+        for name, content in members.items():
+            package.writestr(name, content)
+
+
+def _profile_filter_warm_marker(app_kind: str) -> Path:
+    return _user_data_dir() / f"lo-profile-{app_kind}" / ".vnoffice-open-filters-warm-v1"
+
+
+def _warmup_persistent_filter(app_kind: str) -> None:
+    """Prime the open filter while the window initializes, before the first user open."""
+    marker = _profile_filter_warm_marker(app_kind)
+    if marker.is_file():
+        _open_perf_log("background_filter_warmup_skipped", app=app_kind, reason="profile-already-primed")
+        return
+    with tempfile.TemporaryDirectory(prefix="vnoffice_filter_warmup_") as temp_dir:
+        if app_kind == "writer":
+            source_path = os.path.join(temp_dir, "vnoffice-filter-warmup.docx")
+            target_ext = "html"
+            _write_profile_warmup_docx(source_path)
+        elif app_kind == "sheet":
+            source_path = os.path.join(temp_dir, "vnoffice-filter-warmup.xlsx")
+            target_ext = "fods"
+            _write_profile_warmup_xlsx(source_path)
+        else:
+            return
+        started = time.perf_counter()
+        _run_soffice_convert(source_path, target_ext, temp_dir, app_kind=app_kind)
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.write_text("LibreOffice open import filter warmed by VN Office.\n", encoding="utf-8")
+        _open_perf_log(
+            "background_filter_warmup",
+            (time.perf_counter() - started) * 1000,
+            app=app_kind,
+        )
+
+
+def _warmup_libreoffice_profiles() -> int:
+    """Create the same local Writer/Sheet profiles used at runtime and prime their import filters."""
+    global _PERSISTENT_SOFFICE_ENABLED
+    if not SOFFICE_PATH:
+        print("[VN Office] LibreOffice profile warm-up skipped: soffice was not found.", flush=True)
+        return 1
+
+    previous_persistent_state = _PERSISTENT_SOFFICE_ENABLED
+    _PERSISTENT_SOFFICE_ENABLED = False
+    try:
+        with tempfile.TemporaryDirectory(prefix="vnoffice_lo_warmup_") as temp_dir:
+            writer_input = os.path.join(temp_dir, "vnoffice-profile-warmup.docx")
+            sheet_input = os.path.join(temp_dir, "vnoffice-profile-warmup.xlsx")
+            _write_profile_warmup_docx(writer_input)
+            _write_profile_warmup_xlsx(sheet_input)
+            writer_started = time.perf_counter()
+            _run_soffice_convert(writer_input, "html", temp_dir, app_kind="writer")
+            writer_marker = _profile_filter_warm_marker("writer")
+            writer_marker.parent.mkdir(parents=True, exist_ok=True)
+            writer_marker.write_text("LibreOffice open import filter warmed by VN Office.\n", encoding="utf-8")
+            _open_perf_log("install_profile_warmup", (time.perf_counter() - writer_started) * 1000, app="writer")
+            sheet_started = time.perf_counter()
+            _run_soffice_convert(sheet_input, "fods", temp_dir, app_kind="sheet")
+            sheet_marker = _profile_filter_warm_marker("sheet")
+            sheet_marker.parent.mkdir(parents=True, exist_ok=True)
+            sheet_marker.write_text("LibreOffice open import filter warmed by VN Office.\n", encoding="utf-8")
+            _open_perf_log("install_profile_warmup", (time.perf_counter() - sheet_started) * 1000, app="sheet")
+        print("[VN Office] LibreOffice Writer and Sheet profiles are ready for first open.", flush=True)
+        return 0
+    except Exception as exc:
+        print(f"[VN Office] LibreOffice profile warm-up failed: {exc}", file=sys.stderr, flush=True)
+        return 1
+    finally:
+        _PERSISTENT_SOFFICE_ENABLED = previous_persistent_state
+
+
 def main(argv: list[str] | None = None):
-    global _ERROR_REPORTER, _UPDATE_MANAGER, _UPDATE_DATA_DIR
+    global _ERROR_REPORTER, _UPDATE_MANAGER, _UPDATE_DATA_DIR, _PERSISTENT_SOFFICE_ENABLED
     launch_argv = list(sys.argv[1:] if argv is None else argv)
+    if launch_argv == ["--warmup-libreoffice-profiles"]:
+        return _warmup_libreoffice_profiles()
+
     try:
         app_kind, initial_file = parse_launch_args(launch_argv)
     except ValueError as exc:
@@ -1781,6 +2344,8 @@ def main(argv: list[str] | None = None):
 
     print(f"[VN Office] Embedded server ready at http://localhost:{port}")
 
+    _PERSISTENT_SOFFICE_ENABLED = os.environ.get("VNOFFICE_DISABLE_UNO") != "1"
+
     api = VnOfficeApi(app_kind=app_kind, initial_file=initial_file)
 
     window = webview.create_window(
@@ -1796,10 +2361,20 @@ def main(argv: list[str] | None = None):
     def on_closing():
         # Thoát tiến trình ngay lập tức khi người dùng bấm nút đóng (X), tránh lỗi COM teardown
         api.close_autorecover_session()
+        _PERSISTENT_SOFFICE.shutdown()
         os._exit(0)
 
     window.events.closing += on_closing
     window.events.closed += on_closing
+
+    startup_worker_kind = app_kind if app_kind in {"writer", "sheet"} else None
+    if _PERSISTENT_SOFFICE_ENABLED and startup_worker_kind:
+        threading.Thread(
+            target=_PERSISTENT_SOFFICE.prepare,
+            args=(startup_worker_kind,),
+            daemon=True,
+            name="VN Office LibreOffice warm start",
+        ).start()
 
     # Set Windows AppUserModelID so the taskbar groups and shows the app's specific icon
     if platform.system() == "Windows":
@@ -1851,8 +2426,9 @@ def main(argv: list[str] | None = None):
     except Exception as exc:
         print(f"[VN Office] Thoát cửa sổ: {exc}")
     finally:
+        _PERSISTENT_SOFFICE.shutdown()
         os._exit(0)
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

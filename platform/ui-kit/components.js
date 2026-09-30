@@ -850,3 +850,56 @@ export function createDropdownButton({
 }
 
 export { NotificationBar, createNotificationBar } from "./notification-bar.js";
+
+let documentOpenProgressElement = null;
+let documentOpenProgressRoot = null;
+
+/** Show one shared, indeterminate open status without stealing keyboard focus. */
+export function showDocumentOpenProgress(message = "Đang mở tài liệu…") {
+  if (typeof document === "undefined") return false;
+  const root = document.getElementById("vno-app-root") || document.body;
+  if (!documentOpenProgressElement) {
+    const status = document.createElement("div");
+    status.className = "vno-document-open-progress";
+    status.setAttribute("role", "status");
+    status.setAttribute("aria-live", "polite");
+    status.setAttribute("aria-atomic", "true");
+    status.setAttribute("aria-busy", "true");
+
+    const spinner = document.createElement("span");
+    spinner.className = "vno-document-open-progress-spinner";
+    spinner.setAttribute("aria-hidden", "true");
+
+    const label = document.createElement("span");
+    label.className = "vno-document-open-progress-label";
+
+    const progress = document.createElement("span");
+    progress.className = "vno-document-open-progress-track";
+    progress.setAttribute("role", "progressbar");
+    progress.setAttribute("aria-label", "Tiến độ mở tài liệu");
+    progress.setAttribute("aria-valuemin", "0");
+    progress.setAttribute("aria-valuemax", "100");
+    const indicator = document.createElement("span");
+    indicator.className = "vno-document-open-progress-indicator";
+    progress.appendChild(indicator);
+
+    status.append(spinner, label, progress);
+    document.body.appendChild(status);
+    documentOpenProgressElement = status;
+    documentOpenProgressRoot = root;
+  } else if (documentOpenProgressRoot !== root) {
+    documentOpenProgressRoot?.removeAttribute("aria-busy");
+    documentOpenProgressRoot = root;
+  }
+  documentOpenProgressElement.querySelector(".vno-document-open-progress-label").textContent = String(message);
+  documentOpenProgressElement.hidden = false;
+  documentOpenProgressRoot?.setAttribute("aria-busy", "true");
+  return true;
+}
+
+/** Hide the shared open status and return the document region to its idle state. */
+export function hideDocumentOpenProgress() {
+  documentOpenProgressRoot?.removeAttribute("aria-busy");
+  documentOpenProgressRoot = null;
+  if (documentOpenProgressElement) documentOpenProgressElement.hidden = true;
+}
