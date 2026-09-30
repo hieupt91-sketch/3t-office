@@ -39,6 +39,7 @@ export async function runSheetHelpTests() {
       "sheet.data.validation",
       "sheet.data.goalSeek",
       "sheet.edit.formatPainter",
+      "sheet.selection.range",
       "sheet.chart.insert",
       "sheet.view.freezePanes"
     ];

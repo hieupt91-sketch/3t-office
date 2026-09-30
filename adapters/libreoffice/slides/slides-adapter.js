@@ -6,6 +6,7 @@
 import { globalUnoBridge } from "../common/uno-bridge.js";
 import { showAlertDialog, showFindReplaceDialog } from "../../../platform/ui-kit/dialogs.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
+import { openPrintDialog } from "../../../platform/print/print-dialog.js";
 import { globalShortcutManager } from "../../../platform/commands/shortcut-manager.js";
 import { overlayFodpMasterLogo } from "./pptx-master-logo.js";
 import { overlayFodpSections } from "./pptx-section-list.js";
@@ -140,6 +141,7 @@ export class SlidesAdapter {
     // (Lỗi thật đã xảy ra: Ctrl+Z trong Slides gọi nhầm WriterAdapter.undo().)
     globalCommandBus.bindHandler("common.file.new", () => this.newDocument());
     globalCommandBus.bindHandler("common.file.close", () => this.closeDocument());
+    globalCommandBus.bindHandler("common.file.print", () => this.print());
     globalCommandBus.bindHandler("common.edit.undo", () => this.canvas.undo ? this.canvas.undo() : false);
     globalCommandBus.bindHandler("common.edit.redo", () => this.canvas.redo ? this.canvas.redo() : false);
     globalCommandBus.bindHandler("common.edit.selectAll", () => {
@@ -178,7 +180,7 @@ export class SlidesAdapter {
     // Command metadata is app-local because this feature is scoped to Slides;
     // bind explicitly instead of requiring a Platform registry change.
     globalCommandBus.bindHandler("slides.insert.chart", (options) => this.canvas.insertChart ? this.canvas.insertChart(options) : false);
-    globalCommandBus.bindHandler("slides.file.printPreview", () => Boolean(this.canvas.openPrintPreview ? this.canvas.openPrintPreview() : false));
+    globalCommandBus.bindHandler("slides.file.printPreview", () => this.print());
     globalCommandBus.bindHandler("slides.view.normal", () => this.canvas.setNormalView ? this.canvas.setNormalView() : false);
     globalCommandBus.bindHandler("slides.view.slideSorter", () => this.canvas.openSlideSorter ? this.canvas.openSlideSorter() : false);
     globalCommandBus.bindHandler("slides.notes.toggle", () => this.canvas.toggleNotes ? this.canvas.toggleNotes() : false);
@@ -3680,11 +3682,19 @@ export class SlidesAdapter {
   }
 
   print() {
-    if (this.canvas?.print) return this.canvas.print();
-    if (typeof window !== "undefined" && typeof window.print === "function") {
-      window.print();
-    }
-    return true;
+    const size = this.canvas?.slideSize || { width: 960, height: 540 };
+    const orientation = size.width >= size.height ? "Ngang" : "Dọc";
+    const slides = this.canvas?.slides || [];
+    const currentSlide = this.canvas?.currentSlideIndex || 0;
+    const currentPage = slides.slice(0, currentSlide + 1).filter((slide) => !slide.hidden).length || 1;
+    return openPrintDialog({
+      appKind: "slides",
+      content: this.serializeToFodp(),
+      documentName: this.sourceFileName || "Bản trình chiếu",
+      pageSetupLabel: `${size.width} × ${size.height} px · ${orientation}`,
+      currentPage,
+      engine: globalUnoBridge
+    });
   }
 
   /**
@@ -3940,7 +3950,7 @@ export class SlidesAdapter {
 
       case "slides.file.printPreview":
       case ".uno:PrintPreview":
-        return Boolean(this.canvas.openPrintPreview ? this.canvas.openPrintPreview() : false);
+        return this.print();
 
       case "slides.view.normal":
       case ".uno:NormalMultiPaneGUI":

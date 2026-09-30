@@ -6,6 +6,7 @@
 import { SlidesCanvasController } from "../../apps/slides/slides-canvas.js";
 import { SlidesAdapter } from "../../adapters/libreoffice/slides/slides-adapter.js";
 import { mapVnCommandToUno } from "../../adapters/libreoffice/common/command-dispatch-mapper.js";
+import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { SLIDES_COMMANDS } from "../../platform/commands/command-definitions.js";
 import { SLIDES_RIBBON_TABS } from "../../apps/slides/slides-ribbon.js";
 
@@ -237,38 +238,49 @@ export async function runSlidesPrintPreviewTests() {
       canvas.closePrintPreview();
     });
 
-    await test("openPrintPreview: nút In gọi window.print() thật đúng 1 lần", () => {
+    await test("openPrintPreview: nút In chuyển sang luồng in chung, không gọi trình duyệt", () => {
       const canvas = createController();
       fourSlideDeck(canvas);
       const overlay = canvas.openPrintPreview();
       printCalled = 0;
+      let printActionCalled = 0;
+      canvas.print = () => { printActionCalled++; };
       overlay.querySelector(".vno-slides-pp-print").click();
-      assert(printCalled === 1, "Nút In phải gọi window.print() đúng 1 lần");
+      assert(printActionCalled === 1, "Nút In phải chuyển sang canvas.print() dùng luồng in chung");
+      assert(printCalled === 0, "Luồng in không được gọi window.print()");
       canvas.closePrintPreview();
     });
 
-    await test("print(): dựng #vno-slides-print-only với đúng số trang thật (loại trang Ẩn), không phải canvas 1-trang-active", () => {
+    await test("print(): chuyển Ctrl+P sang common.file.print mà không gọi trình duyệt", () => {
       const canvas = createController();
       fourSlideDeck(canvas);
-      canvas.print();
-      const printOnly = fakeDoc.body.querySelector("#vno-slides-print-only");
-      assert(printOnly, "Phải dựng #vno-slides-print-only");
-      const pages = printOnly.querySelectorAll(".vno-slides-print-page");
-      assert(pages.length === 3, `Mong 3 trang in (bỏ trang ẩn), nhận ${pages.length}`);
-      assert(printOnly.textContent.includes("Nội dung chính") && !printOnly.textContent.includes("Trang ẩn"),
-        "Nội dung in phải là dữ liệu slide thật, loại đúng slide Ẩn");
+      const originalExecute = globalCommandBus.execute;
+      const executed = [];
+      globalCommandBus.execute = (commandId, ...args) => { executed.push([commandId, ...args]); return false; };
+      try { canvas.print(); } finally { globalCommandBus.execute = originalExecute; }
+      assert(executed[0]?.[0] === "common.file.print", "Slides print phải dùng lệnh in chung của Platform");
+      assert(printCalled === 0, "Luồng in không được gọi window.print()");
     });
 
-    await test("common.file.print (Ctrl+P) đi qua SlidesAdapter.print() gọi đúng canvas.print() thật", () => {
+    await test("common.file.print: adapter dùng nội dung hiện tại và không gọi window.print()", async () => {
       const canvas = createController();
       fourSlideDeck(canvas);
       const adapter = new SlidesAdapter(canvas);
-      const before = fakeDoc.body.querySelector("#vno-slides-print-only");
-      if (before) before.remove();
-      adapter.print();
-      const printOnly = fakeDoc.body.querySelector("#vno-slides-print-only");
-      assert(printOnly && printOnly.querySelectorAll(".vno-slides-print-page").length === 3,
-        "common.file.print phải render đủ deck thật (trừ slide ẩn), không chỉ gọi window.print() suông");
+      const originalDocumentValue = globalThis.document;
+      globalThis.document = undefined;
+      try { assert(await adapter.print() === false, "Không mở dialog khi DOM chưa sẵn sàng"); }
+      finally { globalThis.document = originalDocumentValue; }
+      assert(adapter.serializeToFodp().includes("Nội dung chính"), "Lệnh in phải lấy deck hiện tại trong bộ nhớ");
+      assert(printCalled === 0, "common.file.print không được gọi window.print()");
+    });
+
+    await test("Ctrl+P common.file.print được SlidesAdapter bind tới dialog in", async () => {
+      const adapter = new SlidesAdapter(createController());
+      let printCalls = 0;
+      adapter.print = () => { printCalls += 1; return true; };
+      adapter.attach();
+      await globalCommandBus.execute("common.file.print");
+      assert(printCalls === 1, "Command Bus common.file.print phải gọi SlidesAdapter.print()");
     });
   } finally {
     globalThis.document = originalDocument;

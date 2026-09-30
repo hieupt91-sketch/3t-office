@@ -142,7 +142,8 @@ export async function runSheetMouseShortcutsTests() {
     grid._isSelectingRange = false;
     grid.selectCell("G", 4, true);
     assert(grid.getSelectedRangeLabel() === "G2:G4", `_startRangeSelect Shift+G4 phải ra G2:G4, nhận: ${grid.getSelectedRangeLabel()}`);
-    assert(grid.selectedCoord.c === "G" && grid.selectedCoord.r === 2, "Neo selectedCoord phải giữ G2");
+    assert(grid._rangeAnchor.c === "G" && grid._rangeAnchor.r === 2, "Neo range phải giữ G2");
+    assert(grid.selectedCoord.c === "G" && grid.selectedCoord.r === 4, "selectedCoord phải theo ô cuối G4");
 
     grid._startRangeSelect({ shiftKey: false, button: 0 }, "G", 4);
     grid._isSelectingRange = false;
