@@ -23,7 +23,10 @@ export const viStrings = {
     switchLanguage: "Ngôn ngữ",
     toggleTheme: "Chế độ Tối / Sáng",
     themeDark: "Giao diện Tối",
-    themeLight: "Giao diện Sáng"
+    themeLight: "Giao diện Sáng",
+    notice: "Thông báo",
+    confirm: "Đồng ý",
+    featurePendingNotice: "Tính năng này đang được hoàn thiện và sẽ có trong bản cập nhật tới."
   },
   help: {
     panelTitle: "Trợ giúp",

@@ -24,7 +24,10 @@ export const enStrings = {
     switchLanguage: "Language",
     toggleTheme: "Dark / Light Mode",
     themeDark: "Dark Theme",
-    themeLight: "Light Theme"
+    themeLight: "Light Theme",
+    notice: "Notice",
+    confirm: "OK",
+    featurePendingNotice: "This feature is being completed and will be available in the next update."
   },
   help: {
     panelTitle: "Help",
