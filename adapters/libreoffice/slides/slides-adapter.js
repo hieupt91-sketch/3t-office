@@ -429,6 +429,68 @@ export class SlidesAdapter {
     return true;
   }
 
+  /** Giá trị ô Cỡ chữ trên ribbon ("1".."7" = 10/13/16/18/24/32/48) hoặc số pt trực tiếp. */
+  _ribbonFontSizeToPt(value) {
+    const raw = String(value ?? "").trim();
+    const index = { 1: 10, 2: 13, 3: 16, 4: 18, 5: 24, 6: 32, 7: 48 };
+    if (/^[1-7]$/.test(raw)) return index[raw];
+    const num = parseFloat(raw);
+    return Number.isFinite(num) && num > 0 ? num : null;
+  }
+
+  /**
+   * Đặt cỡ chữ đúng N pt cho vùng chọn (PowerPoint: ô Cỡ chữ). execCommand("fontSize") chỉ
+   * có 7 bậc từ khóa CSS (x-small…xxx-large); bản cũ lưu nguyên từ khóa đó, LibreOffice
+   * không hiểu và PowerPoint mở ra chữ cỡ 1 pt (đo bằng COM, G8). Ở đây đánh dấu vùng chọn
+   * bằng bậc 7 rồi thay bằng cỡ pt thật.
+   */
+  _applyFontSizePt(pt) {
+    if (!pt) return false;
+    this._restoreTextSelection();
+    if (typeof document === "undefined" || typeof document.execCommand !== "function") return false;
+    document.execCommand("fontSize", false, "7");
+    const root = this._savedEditable || this.canvas?.canvasEl || document.body;
+    const marked = [
+      ...(root?.querySelectorAll?.('font[size="7"]') || []),
+      ...[...(root?.querySelectorAll?.("span[style]") || [])].filter((el) => /xxx-large/i.test(el.style?.fontSize || ""))
+    ];
+    // Cỡ trên màn hình theo đơn vị canvas: N pt tài liệu = N / ptPerPx px (bản mới 1 px = 1 pt).
+    const px = Math.round((pt / this._ptPerPx()) * 100) / 100;
+    for (const el of marked) {
+      el.removeAttribute?.("size");
+      el.style.fontSize = `${px}px`;
+    }
+    this.canvas?._syncEditableFieldsFromDom?.();
+    this._syncTextFormatState();
+    return true;
+  }
+
+  /**
+   * Số pt tài liệu ứng với 1 px canvas. Bản trình chiếu MỚI dùng khổ PowerPoint thật
+   * (16:9 = 960 × 540 pt, 4:3 = 720 × 540 pt) trên canvas 960/720 × 540 px ⇒ 1 px = 1 pt.
+   * Tệp mở từ ngoài giữ khổ gốc theo 96 dpi ⇒ 1 px = 0,75 pt.
+   */
+  _ptPerPx() {
+    const value = Number(this.canvas?.ptPerPx);
+    return Number.isFinite(value) && value > 0 ? value : 0.75;
+  }
+
+  /** Cỡ chữ CSS (đang hiển thị trên canvas) → pt cho ODF theo đơn vị của tài liệu. */
+  _cssFontSizeToOdf(value) {
+    const raw = String(value || "").trim().toLowerCase();
+    const ptPerPx = this._ptPerPx();
+    const toPt = (px) => `${Math.round(px * ptPerPx * 10) / 10}pt`;
+    const keywords = { "xx-small": 9, "x-small": 10, small: 13, medium: 16, large: 18, "x-large": 24, "xx-large": 32, "xxx-large": 48, "-webkit-xxx-large": 48 };
+    if (keywords[raw]) return toPt(keywords[raw]);
+    const px = raw.match(/^([\d.]+)px$/);
+    if (px) return toPt(parseFloat(px[1]));
+    const pt = raw.match(/^([\d.]+)pt$/);
+    if (pt) return toPt(parseFloat(pt[1]) * 96 / 72);
+    if (/^[\d.]+(em|%)$/.test(raw)) return raw;
+    if (/^[\d.]+$/.test(raw)) return `${raw}pt`;
+    return null;
+  }
+
   _isTextFormatCommand(cmd) {
     return /^(slides\.text\.(bold|italic|underline|strike|clearFormat)|slides\.font\.(family|size|grow|shrink)|slides\.color\.(text|highlight)|slides\.list\.(bullet|numbered)|slides\.para\.(alignLeft|alignCenter|alignRight|justify|indentInc|indentDec|lineSpacing))$/.test(cmd || "");
   }
@@ -453,7 +515,7 @@ export class SlidesAdapter {
         if (args) this._applyExecCommand("fontName", args);
         return true;
       case "slides.font.size":
-        if (args) this._applyExecCommand("fontSize", args);
+        if (args) return this._applyFontSizePt(this._ribbonFontSizeToPt(args));
         return true;
       case "slides.font.grow":
         return this._adjustFontSize(1);
@@ -584,14 +646,25 @@ export class SlidesAdapter {
       const key = part.slice(0, colon).trim().toLowerCase();
       const value = part.slice(colon + 1).trim();
       if (!key || !value) continue;
-      if (key === "font-weight" && /^(bold|[7-9]00)$/i.test(value)) out.bold = true;
+      if (key === "font-weight" && /^(bold|bolder|[6-9]00)$/i.test(value)) out.bold = true;
+      // Bỏ đậm tường minh (vd tiêu đề mặc định đậm rồi bấm Ctrl+B) phải thắng định dạng gốc.
+      if (key === "font-weight" && /^(normal|lighter|[1-5]00)$/i.test(value)) out.bold = false;
       if (key === "font-style" && /italic/i.test(value)) out.italic = true;
+      if (key === "font-style" && /^normal$/i.test(value)) out.italic = false;
       if (key === "text-decoration" && /underline/i.test(value)) out.underline = true;
       if (key === "text-decoration" && /line-through/i.test(value)) out.strike = true;
       if (key === "color") out.color = this._cssColorToHex(value);
-      if (key === "background-color" || key === "background") out.bg = this._cssColorToHex(value);
+      if (key === "background-color" || key === "background") {
+        // Nền bán trong suốt (rgba alpha < 1) là màu tô khung đang chọn của giao diện mà
+        // Chromium execCommand chép vào span — không phải màu tô sáng người dùng chọn.
+        const alpha = value.match(/rgba\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+\s*,\s*([\d.]+)\s*\)/i)?.[1];
+        if (!(alpha !== undefined && parseFloat(alpha) < 1) && !/^transparent$/i.test(value)) out.bg = this._cssColorToHex(value);
+      }
       if (key === "font-family") out.family = value.replace(/['"]/g, "").split(",")[0].trim();
-      if (key === "font-size") out.size = /pt|px|em|%/i.test(value) ? value : `${value}pt`;
+      if (key === "font-size") {
+        const size = this._cssFontSizeToOdf(value);
+        if (size) out.size = size;
+      }
       if (key === "text-align") out.align = value;
       if (key === "line-height") out.lineHeight = value;
       if (key === "margin-left") out.indent = value;
@@ -636,11 +709,13 @@ export class SlidesAdapter {
     return `<text:p${styleAttr}>${inner}</text:p>`;
   }
 
-  _htmlToOdfXml(html, ctx) {
-    if (!this._htmlHasFormat(html)) return this._textParagraphsXml(this._plainFromHtml(html));
+  _htmlToOdfXml(html, ctx, base = null) {
+    if (!this._htmlHasFormat(html)) {
+      return base ? this._plainParagraphsWithBase(this._plainFromHtml(html), ctx, base) : this._textParagraphsXml(this._plainFromHtml(html));
+    }
     const blocks = [];
-    let current = { texts: [], align: null, lineHeight: null, indent: null, list: null };
-    const formatStack = [{}];
+    let current = { texts: [], align: base?.align || null, lineHeight: null, indent: null, list: null };
+    const formatStack = [base?.fmt ? { ...base.fmt } : {}];
     const currentFmt = () => Object.assign({}, ...formatStack);
     const flush = () => {
       if (current.texts.some((item) => item.text) || current.list) blocks.push(current);
@@ -675,7 +750,9 @@ export class SlidesAdapter {
       }
     });
     if (current.texts.length) flush();
-    if (!blocks.length) return this._textParagraphsXml(this._plainFromHtml(html));
+    if (!blocks.length) {
+      return base ? this._plainParagraphsWithBase(this._plainFromHtml(html), ctx, base) : this._textParagraphsXml(this._plainFromHtml(html));
+    }
 
     const parts = [];
     let listBuffer = null;
@@ -703,9 +780,56 @@ export class SlidesAdapter {
     return parts.join("") || "<text:p/>";
   }
 
-  _richOrPlainXml(plain, html, ctx) {
-    if (html && this._htmlHasFormat(html) && ctx) return this._htmlToOdfXml(html, ctx);
+  _richOrPlainXml(plain, html, ctx, base = null) {
+    if (html && this._htmlHasFormat(html) && ctx) return this._htmlToOdfXml(html, ctx, base);
+    if (base && ctx) return this._plainParagraphsWithBase(plain, ctx, base);
     return this._textParagraphsXml(plain);
+  }
+
+  /** Đoạn chữ thường mang định dạng gốc của khung (phông/cỡ/màu/đậm/căn lề của chủ đề). */
+  _plainParagraphsWithBase(plain, ctx, base) {
+    const lines = String(plain ?? "").split("\n");
+    if (lines.length === 1 && lines[0] === "") return "<text:p/>";
+    return lines.map((line) => this._spansToOdf(line ? [{ text: line, fmt: { ...(base.fmt || {}) } }] : [], { align: base.align }, ctx)).join("");
+  }
+
+  _firstAvailableFontFamily(list) {
+    const generic = new Set(["serif", "sans-serif", "monospace", "cursive", "fantasy", "system-ui", "ui-sans-serif", "ui-serif"]);
+    const names = String(list || "").split(",").map((name) => name.replace(/['"]/g, "").trim()).filter(Boolean);
+    for (const name of names) {
+      if (generic.has(name.toLowerCase())) continue;
+      if (isFontAvailable(name)) return name;
+    }
+    return resolveDisplayFont(names.find((name) => !generic.has(name.toLowerCase())) || "Arial", names.find((name) => generic.has(name.toLowerCase())));
+  }
+
+  /**
+   * Định dạng chữ mà trang chiếu VN đang HIỂN THỊ cho khung tiêu đề / nội dung (phông và
+   * màu của chủ đề, cỡ/độ đậm/căn lề theo slides.css), ghi thẳng vào từng đoạn khi lưu.
+   * LibreOffice bỏ qua text-properties của style presentation (prTitle/prBody) khi xuất
+   * PPTX (đo: mọi tiêu đề ra Arial 44pt đen, căn giữa, không đậm — khác hẳn màn hình), nên
+   * phải đặt ở mức đoạn/span thì PowerPoint mới mở ra đúng như VN Slides. Tệp mở từ ngoài
+   * (imported) giữ nguyên định dạng gốc của tệp, không áp chủ đề VN.
+   */
+  _themeTextBase(role, slide) {
+    if (this.canvas?.imported || slide?.imported) return null;
+    const theme = this._masterTheme();
+    if (!theme) return null;
+    const family = this._firstAvailableFontFamily(theme.fontFamily || "Arial");
+    // Cỡ chữ canvas (slides.css: tiêu đề 32 px, trang Tiêu đề 44 px, nội dung 20 px) quy
+    // ra pt theo đơn vị tài liệu — bản mới 1 px = 1 pt nên giữ đúng tỉ lệ chữ / khổ trang.
+    const pt = (px) => `${Math.round(px * this._ptPerPx() * 10) / 10}pt`;
+    if (role === "title") {
+      const titleOnly = (slide?.layoutType || "title-content") === "title-only";
+      return {
+        align: titleOnly ? "center" : "left",
+        fmt: { family, size: pt(titleOnly ? 44 : 32), bold: true, color: this._cssColorToHex(theme.titleColor || "#0f172a") }
+      };
+    }
+    return {
+      align: "left",
+      fmt: { family, size: pt(20), color: this._cssColorToHex(theme.bodyColor || "#334155") }
+    };
   }
 
   /**
@@ -732,7 +856,7 @@ export class SlidesAdapter {
     }
     if (/^([\d.]+)px$/.test(str)) {
       const px = parseFloat(str);
-      const pt = Math.round(px * 0.75 * 100) / 100;
+      const pt = Math.round(px * this._ptPerPx() * 100) / 100;
       return `${pt}pt`;
     }
     const n = parseFloat(str);
@@ -981,7 +1105,28 @@ export class SlidesAdapter {
   _pxToOdf(px) {
     const value = Number(px);
     if (!Number.isFinite(value)) return "0cm";
-    return `${Math.round((value / 37.795275591) * 1000) / 1000}cm`;
+    // px canvas → pt tài liệu (xem _ptPerPx) → cm. Tệp mở từ ngoài: 0,75 pt/px = 96 dpi như cũ.
+    const cm = value * this._ptPerPx() / 72 * 2.54;
+    return `${Math.round(cm * 1000) / 1000}cm`;
+  }
+
+  /**
+   * Khổ trang chiếu ghi vào FODP, ĐÚNG tới từng EMU: pt với đủ chữ số (1 pt = 12700 EMU).
+   * Tệp mở từ PowerPoint giữ nguyên <p:sldSz> gốc (sourceEmu) khi người dùng không đổi khổ.
+   */
+  _pageSizeOdf() {
+    const size = this.canvas?.slideSize || {};
+    const src = size.sourceEmu;
+    const fmt = (pt) => `${Math.round(pt * 1e6) / 1e6}pt`;
+    if (src && src.cx > 0 && src.cy > 0) {
+      return { width: fmt(src.cx / 12700), height: fmt(src.cy / 12700), type: src.type || "" };
+    }
+    const ptPerPx = this._ptPerPx();
+    const widthPt = (size.width || 960) * ptPerPx;
+    const heightPt = (size.height || 540) * ptPerPx;
+    // PowerPoint ghi type="screen4x3" cho khổ Standard (4:3) 10 × 7,5 in; Widescreen không có type.
+    const type = Math.round(widthPt * 12700) === 9144000 && Math.round(heightPt * 12700) === 6858000 ? "screen4x3" : "";
+    return { width: fmt(widthPt), height: fmt(heightPt), type };
   }
 
   _attr(attrs, name) {
@@ -1721,8 +1866,19 @@ export class SlidesAdapter {
     const fill = this._isTransparentFill(shape) ? "" : ` draw:fill-color="${this._escapeXml(shape.color)}"`;
     if (shape.rotation) {
       const radianOdf = -(shape.rotation * Math.PI / 180);
-      const xCm = this._pxToOdf(shape.x);
-      const yCm = this._pxToOdf(shape.y);
+      // ODF «rotate(a) translate(x y)» xoay hình quanh GÓC TRÊN-TRÁI rồi dời tới (x, y), nên
+      // (x, y) là vị trí góc trên-trái SAU khi xoay. VN (CSS) và PowerPoint xoay quanh TÂM hình
+      // với shape.x/y là góc chưa xoay — ghi thẳng shape.x/y làm PowerPoint mở ra lệch vị trí
+      // (đo COM, G8: hình 30° lệch ~38pt/54pt). Quy đổi: T = C − R(θ)·(w/2, h/2).
+      const theta = shape.rotation * Math.PI / 180;
+      const cos = Math.cos(theta);
+      const sin = Math.sin(theta);
+      const halfW = (Number(shape.w) || 0) / 2;
+      const halfH = (Number(shape.h) || 0) / 2;
+      const cx = (Number(shape.x) || 0) + halfW;
+      const cy = (Number(shape.y) || 0) + halfH;
+      const xCm = this._pxToOdf(cx - (halfW * cos - halfH * sin));
+      const yCm = this._pxToOdf(cy - (halfW * sin + halfH * cos));
       return `draw:id="${this._escapeXml(drawId)}" draw:name="${name}" draw:style-name="${styleName}" svg:width="${this._pxToOdf(shape.w)}" svg:height="${this._pxToOdf(shape.h)}" draw:transform="rotate (${radianOdf}) translate (${xCm} ${yCm})"${fill}`;
     }
     return `draw:id="${this._escapeXml(drawId)}" draw:name="${name}" draw:style-name="${styleName}" svg:x="${this._pxToOdf(shape.x)}" svg:y="${this._pxToOdf(shape.y)}" svg:width="${this._pxToOdf(shape.w)}" svg:height="${this._pxToOdf(shape.h)}"${fill}`;
@@ -1763,9 +1919,11 @@ export class SlidesAdapter {
     const slideWidthPx = this.canvas?.slideSize?.width || 960;
     const slideHeightPx = this.canvas?.slideSize?.height || 540;
     const pageOrientation = slideWidthPx >= slideHeightPx ? "landscape" : "portrait";
+    const page = this._pageSizeOdf();
+    const typeAttr = page.type ? ` vno:sld-type="${this._escapeXml(page.type)}"` : "";
     let xml = `
     <style:page-layout style:name="PM1">
-      <style:page-layout-properties fo:page-width="${this._pxToOdf(slideWidthPx)}" fo:page-height="${this._pxToOdf(slideHeightPx)}" style:print-orientation="${pageOrientation}"/>
+      <style:page-layout-properties fo:page-width="${page.width}" fo:page-height="${page.height}" style:print-orientation="${pageOrientation}"${typeAttr}/>
     </style:page-layout>
     <style:style style:name="dp1" style:family="drawing-page">
       <style:drawing-page-properties presentation:background-visible="true" presentation:background-objects-visible="true"${this._masterPageFillAttrs()}/>
@@ -1825,6 +1983,10 @@ export class SlidesAdapter {
     <style:style style:name="prBody" style:family="presentation">
       <style:graphic-properties draw:stroke="none" draw:fill="none"/>
       <style:text-properties fo:font-family="${this._escapeXml(themeFont)}" fo:font-size="32pt" fo:color="${this._escapeXml(bodyColor)}" style:font-name="${this._escapeXml(themeFont)}"/>
+    </style:style>
+    <style:style style:name="prNotes" style:family="presentation">
+      <style:graphic-properties draw:stroke="none" draw:fill="none"/>
+      <style:text-properties fo:font-size="12pt" fo:color="#000000"/>
     </style:style>
     <style:style style:name="grNone" style:family="graphic">
       <style:graphic-properties draw:stroke="none" draw:fill="none"/>
@@ -1995,8 +2157,12 @@ export class SlidesAdapter {
     }
 
     if (type === "textbox" || type === "text") {
+      const pClass = /^(title|subtitle|outline)$/.test(shape.presentationClass || "") ? shape.presentationClass : "";
+      const pAttrs = pClass
+        ? ` presentation:class="${pClass}" presentation:style-name="${pClass === "title" ? "prTitle" : "prBody"}" presentation:user-transformed="true"`
+        : "";
       return `
-        <draw:frame ${geom}>
+        <draw:frame ${geom}${pAttrs}>
           <draw:text-box>
             ${textXml}
           </draw:text-box>
@@ -2538,6 +2704,12 @@ export class SlidesAdapter {
       if (isPlaceholder) continue;
       const shape = this._parseFrameShape(match[1], match[2], graphicStyles);
       if (!shape) continue;
+      // Khung tiêu đề / phụ đề / nội dung của tệp PowerPoint mở vào thành hộp chữ tự do trên
+      // canvas; nhớ vai trò placeholder để khi lưu lại PowerPoint vẫn thấy đúng khung Tiêu đề
+      // (bản cũ lưu thành hộp chữ thường — mất tiêu đề trong dàn ý/điều hướng, đo COM G8).
+      if (shape.type === "textbox" && /^(title|subtitle|outline)$/i.test(cls || "")) {
+        shape.presentationClass = cls.toLowerCase();
+      }
       this._recordShapeId(match[1], shape, idMap);
       shapes.push(shape);
       blocks.push(match[0]);
@@ -2576,7 +2748,20 @@ export class SlidesAdapter {
     const rotateMatch = String(transform || "").match(/rotate\s*\(\s*(-?[\d.]+)\s*\)/i);
     const rotationDeg = rotateMatch ? -(parseFloat(rotateMatch[1]) * 180 / Math.PI) : 0;
     if (match) {
-      return { x: this._odfLengthToPx(match[1]), y: this._odfLengthToPx(match[2]), rotationDeg };
+      let x = this._odfLengthToPx(match[1], false);
+      let y = this._odfLengthToPx(match[2], false);
+      const w = this._odfLengthToPx(this._attr(attrs, "svg:width"), false);
+      const h = this._odfLengthToPx(this._attr(attrs, "svg:height"), false);
+      if (rotationDeg && w > 0 && h > 0) {
+        // translate = góc trên-trái SAU khi xoay (xoay quanh góc). VN/PowerPoint giữ góc
+        // CHƯA xoay và xoay quanh tâm: C = T + R(θ)·(w/2, h/2); x = Cx − w/2, y = Cy − h/2.
+        const theta = rotationDeg * Math.PI / 180;
+        const cx = x + (w / 2) * Math.cos(theta) - (h / 2) * Math.sin(theta);
+        const cy = y + (w / 2) * Math.sin(theta) + (h / 2) * Math.cos(theta);
+        x = cx - w / 2;
+        y = cy - h / 2;
+      }
+      return { x: Math.round(x), y: Math.round(y), rotationDeg };
     }
     return {
       x: this._odfLengthToPx(this._attr(attrs, "svg:x")),
@@ -2890,12 +3075,18 @@ export class SlidesAdapter {
 
     slides.forEach((slide, idx) => {
       const pageName = `page${idx + 1}`;
-      const titleXml = this._richOrPlainXml(slide.title || `Trang chiếu ${idx + 1}`, slide.titleHtml, richCtx);
+      // Tiêu đề trống giữ nguyên là placeholder trống như PowerPoint — không tự điền
+      // «Trang chiếu N» thành chữ thật vào tệp của người dùng.
+      const titleXml = this._richOrPlainXml(slide.title || "", slide.titleHtml, richCtx, this._themeTextBase("title", slide));
       const layoutType = slide.layoutType || "title-content";
 
+      // Ghi chú người thuyết trình phải là placeholder «notes» thật (presentation:style-name +
+      // ảnh trang chiếu) — thiếu style-name, LibreOffice xuất thành một hộp chữ xanh thường trên
+      // trang ghi chú và PowerPoint hiện khung Ghi chú TRỐNG (đo bằng PowerPoint COM, G8).
       const notesXml = slide.notes ? `
         <presentation:notes>
-          <draw:frame presentation:class="notes" svg:x="${cmX(2)}cm" svg:y="${cmY(2)}cm" svg:width="${cmX(20)}cm" svg:height="${cmY(15)}cm">
+          <draw:page-thumbnail presentation:class="page" svg:x="2.1cm" svg:y="2.1cm" svg:width="16.8cm" svg:height="9.45cm" draw:page-number="${idx + 1}"/>
+          <draw:frame presentation:style-name="prNotes" presentation:class="notes" svg:x="2.1cm" svg:y="12.7cm" svg:width="16.8cm" svg:height="12.8cm">
             <draw:text-box>
               ${slide.notes.split("\n").map((line) => `<text:p>${this._escapeXml(line)}</text:p>`).join("")}
             </draw:text-box>
@@ -2920,8 +3111,8 @@ export class SlidesAdapter {
           </draw:text-box>
         </draw:frame>`;
       } else if (layoutType === "two-content") {
-        const bodyParasXml = this._richOrPlainXml(slide.body, slide.bodyHtml, richCtx);
-        const body2ParasXml = this._richOrPlainXml(slide.body2, slide.body2Html, richCtx);
+        const bodyParasXml = this._richOrPlainXml(slide.body, slide.bodyHtml, richCtx, this._themeTextBase("body", slide));
+        const body2ParasXml = this._richOrPlainXml(slide.body2, slide.body2Html, richCtx, this._themeTextBase("body", slide));
 
         framesXml = `
         <draw:frame presentation:style-name="prTitle" presentation:class="title"${titleIds} svg:x="${cmX(2)}cm" svg:y="${cmY(2)}cm" svg:width="${cmX(24)}cm" svg:height="${cmY(3)}cm">
@@ -2940,7 +3131,7 @@ export class SlidesAdapter {
           </draw:text-box>
         </draw:frame>`;
       } else {
-        const bodyParasXml = this._richOrPlainXml(slide.body, slide.bodyHtml, richCtx);
+        const bodyParasXml = this._richOrPlainXml(slide.body, slide.bodyHtml, richCtx, this._themeTextBase("body", slide));
 
         framesXml = `
         <draw:frame presentation:style-name="prTitle" presentation:class="title"${titleIds} svg:x="${cmX(2)}cm" svg:y="${cmY(2)}cm" svg:width="${cmX(24)}cm" svg:height="${cmY(3)}cm">
@@ -3295,6 +3486,31 @@ export class SlidesAdapter {
    * before parseFodp (belt-and-suspenders; production File → Mở already
    * overlays in main.py).
    */
+  /**
+   * Khổ trang gốc tính bằng EMU: ưu tiên <p:sldSz> của PPTX gốc (chính xác tuyệt đối, kèm
+   * type như "screen4x3"), không có thì lấy page-layout của FODP (tệp ODP / bản khôi phục).
+   */
+  _sourcePageEmu(fodpXml, ooxmlPresentationXml) {
+    const sld = String(ooxmlPresentationXml || "").match(/<(?:\w+:)?sldSz\b([^>]*)\/?>/i)?.[1];
+    if (sld) {
+      const cx = Number(this._attr(sld, "cx"));
+      const cy = Number(this._attr(sld, "cy"));
+      if (cx > 0 && cy > 0) return { cx, cy, type: this._attr(sld, "type") || "" };
+    }
+    const props = String(fodpXml || "").match(/<style:page-layout-properties\b([^>]*)\/?>/i)?.[1];
+    if (!props) return null;
+    const toEmu = (raw) => {
+      const m = String(raw || "").trim().match(/^([\d.]+)\s*(cm|mm|in|pt)$/i);
+      if (!m) return 0;
+      const perUnit = { cm: 360000, mm: 36000, in: 914400, pt: 12700 }[m[2].toLowerCase()];
+      return Math.round(parseFloat(m[1]) * perUnit);
+    };
+    const cx = toEmu(this._attr(props, "fo:page-width"));
+    const cy = toEmu(this._attr(props, "fo:page-height"));
+    if (!(cx > 0 && cy > 0)) return null;
+    return { cx, cy, type: this._attr(props, "vno:sld-type") || "" };
+  }
+
   loadFromFodp(fodpText, ooxmlPresentationXml, ooxmlSlideMasterXml, ooxmlPresPropsXml) {
     if (!this.canvas) return;
     let xml = fodpText;
@@ -3304,6 +3520,8 @@ export class SlidesAdapter {
     const newSlides = this.parseFodp(xml);
     if (newSlides && newSlides.length > 0) {
       this.canvas.imported = true;
+      // Tệp mở từ ngoài: toạ độ canvas theo 96 dpi (1 px = 0,75 pt) như trước.
+      this.canvas.ptPerPx = 0.75;
       if (newSlides.slideWidth && newSlides.slideHeight) {
         const ratio = newSlides.slideWidth / newSlides.slideHeight;
         const preset = Math.abs(ratio - (4 / 3)) < 0.15 ? "standard" : "wide";
@@ -3312,6 +3530,13 @@ export class SlidesAdapter {
         } else {
           this.canvas.slideSize = { preset, width: newSlides.slideWidth, height: newSlides.slideHeight };
         }
+      }
+      // Giữ khổ trang GỐC tới từng EMU (px canvas đã làm tròn) để Lưu không đổi khổ của tệp.
+      const sourceEmu = this._sourcePageEmu(xml, ooxmlPresentationXml);
+      const size = this.canvas.slideSize;
+      if (sourceEmu && size
+        && Math.abs(sourceEmu.cx / 9525 - size.width) <= 2 && Math.abs(sourceEmu.cy / 9525 - size.height) <= 2) {
+        this.canvas.slideSize = { ...this.canvas.slideSize, sourceEmu };
       }
       this.canvas.slides = newSlides;
       this.canvas.sections = [...(newSlides.sections || [])];
@@ -3618,15 +3843,22 @@ export class SlidesAdapter {
         return this.canvas.startSlideShow();
 
       case "slides.text.insert":
-        if (this.canvas.bodyEl) {
-          this.canvas.bodyEl.innerText += "\n• Khung văn bản mới bổ sung";
-          const currentSlide = this.canvas.slides?.[this.canvas.currentSlideIndex];
-          if (currentSlide) {
-            currentSlide.body = this.canvas.bodyEl.innerText;
-          }
-        }
-        this.canvas._renderThumbnails?.();
-        return true;
+        // PowerPoint Chèn > Hộp văn bản: một đối tượng hộp chữ riêng trên trang (không phải
+        // thêm dòng chữ mẫu vào khung nội dung như bản cũ).
+        if (this.canvas.insertTextBox) return this.canvas.insertTextBox();
+        return this.canvas.insertShape ? this.canvas.insertShape("textbox") : false;
+
+      case "slides.arrange.bringForward":
+        return this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("forward") : false;
+
+      case "slides.arrange.sendBackward":
+        return this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("backward") : false;
+
+      case "slides.arrange.bringToFront":
+        return this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("front") : false;
+
+      case "slides.arrange.sendToBack":
+        return this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("back") : false;
 
       case "slides.shape.insert":
         return this.canvas.insertShape ? this.canvas.insertShape("rect") : false;

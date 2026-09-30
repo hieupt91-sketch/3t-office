@@ -161,6 +161,30 @@ function multilevelStyleFromClass(className) {
   return "";
 }
 
+/** Replace literal text in existing text nodes while preserving their DOM wrappers. */
+export function replaceTextInTextNodes(nodes, findText, replacementText, replaceAll = false) {
+  const needle = String(findText ?? "");
+  if (!needle) return 0;
+  const replacement = String(replacementText ?? "");
+  let replacements = 0;
+  for (const node of nodes || []) {
+    if (!node || typeof node.data !== "string") continue;
+    if (replaceAll) {
+      const count = node.data.split(needle).length - 1;
+      if (!count) continue;
+      node.data = node.data.split(needle).join(replacement);
+      replacements += count;
+    } else {
+      const index = node.data.indexOf(needle);
+      if (index < 0) continue;
+      node.data = node.data.slice(0, index) + replacement + node.data.slice(index + needle.length);
+      replacements++;
+      break;
+    }
+  }
+  return replacements;
+}
+
 export class WriterAdapter {
   constructor(editorDom) {
     this.editorDom = editorDom;
@@ -1794,8 +1818,8 @@ export class WriterAdapter {
    *
    * Header/Footer are different: StarWriter keeps them as
    * `<div title="header|footer">` (the same markers VN Writer already emits
-   * on save). PAGE/NUMPAGES become `<sdfield>` plus a gray span — unwrap so
-   * Print Preview can still replace `Trang N / M`.
+   * on save). PAGE/NUMPAGES become `<sdfield>` plus a gray span — preserve a VN field marker
+   * so DOCX save keeps native fields and Print Preview can update the displayed value.
    *
    * Footnotes/Endnotes are also kept (unlike Track Changes / Comments):
    * `<a class="sdfootnoteanc">` / `sdendnoteanc` plus
@@ -3306,7 +3330,16 @@ export class WriterAdapter {
         return fullElem;
       });
 
-      return `<${tagName}${attrs}>${newInner}</${tagName}>`;
+      let newAttrs = attrs;
+      if (pSpec.runs.length === 1 && pSpec.runs[0].isOdd) {
+        const oddPt = pSpec.runs[0].pt;
+        const curPtMatch = newAttrs.match(/\bfont-size:\s*(\d+(?:\.\d+)?)pt\b/i);
+        if (curPtMatch && Math.floor(parseFloat(curPtMatch[1])) === Math.floor(oddPt)) {
+          newAttrs = newAttrs.replace(/\bfont-size:\s*\d+(?:\.\d+)?pt\b/i, `font-size: ${oddPt}pt`);
+        }
+      }
+
+      return `<${tagName}${newAttrs}>${newInner}</${tagName}>`;
     });
   }
 
@@ -5111,13 +5144,18 @@ export class WriterAdapter {
   }
 
   /**
-   * Unwrap StarWriter PAGE/NUMPAGES fields. They are not valid HTML and the
-   * gray `<span>` wrapping them prevents Print Preview from matching
-   * `Trang N / M` (the replacement lives on the footer innerHTML string).
+   * Convert StarWriter PAGE/NUMPAGES markup into VN field spans. Keeping the
+   * markers lets DOCX export restore native Word fields and lets Print Preview
+   * replace their displayed values per page.
    */
   _normalizeImportedHeaderFooterHtml(html, zone = "header", ooxmlDocumentXml = "", ooxmlZoneXml = "", ooxmlStylesXml = "") {
     let out = String(html || "");
-    out = out.replace(/<sdfield\b[^>]*>([\s\S]*?)<\/sdfield>/gi, "$1");
+    out = out.replace(/<sdfield\b([^>]*)>([\s\S]*?)<\/sdfield>/gi, (_match, attrs, value) => {
+      const type = attrs.match(/\btype\s*=\s*["']?([A-Z]+)/i)?.[1]?.toUpperCase();
+      const subtype = attrs.match(/\bsubtype\s*=\s*["']?([A-Z]+)/i)?.[1]?.toUpperCase();
+      const field = type === "PAGE" ? "PAGE" : type === "DOCSTAT" && subtype === "PAGE" ? "NUMPAGES" : "";
+      return field ? `<span data-vno-field="${field}">${value}</span>` : value;
+    });
     out = out.replace(
       /<span\b[^>]*\bstyle=["'][^"']*background:\s*#c0c0c0[^"']*["'][^>]*>([\s\S]*?)<\/span>/gi,
       "$1"
@@ -6669,7 +6707,7 @@ export class WriterAdapter {
     // page-break-before on a real <p> element, so exporting this marker as a
     // <div> would silently produce zero real page breaks in DOCX/PDF (same
     // bug class found/fixed for Section Breaks and Labels).
-    const html = `<p style="page-break-before:always; break-before:page; border-top:2px dashed #94a3b8; margin:24px 0; text-align:center; color:#94a3b8; font-size:11px; user-select:none;">--- Phân tách trang (Page Break) ---</p><p><br></p>`;
+    const html = `<p data-vno-page-break="true" aria-hidden="true" style="page-break-before:always; break-before:page; border-top:2px dashed #94a3b8; margin:24px 0; user-select:none;"><br></p><p><br></p>`;
     let inserted = false;
     if (typeof document !== "undefined" && typeof document.execCommand === "function") {
       try {
@@ -6722,7 +6760,7 @@ export class WriterAdapter {
     if (!this.footerDom) return false;
     let modified = false;
     if (!this.footerDom.innerText?.trim()) {
-      this.footerDom.innerHTML = "<p style='text-align: center; font-size: 10pt; margin: 0;'>Trang 1 / 1</p>";
+      this.footerDom.innerHTML = "<p style='text-align: center; font-size: 10pt; margin: 0;'>Trang <span data-vno-field=\"PAGE\">1</span> / <span data-vno-field=\"NUMPAGES\">1</span></p>";
       modified = true;
     }
     this.footerDom.focus();
@@ -8531,10 +8569,8 @@ export class WriterAdapter {
       onReplace: (findText, repText) => {
         if (findText && repText !== null) {
           this.flushTyping();
-          const content = this.editorDom.innerHTML;
-          const idx = content.indexOf(findText);
-          if (idx !== -1) {
-            this.editorDom.innerHTML = content.substring(0, idx) + repText + content.substring(idx + findText.length);
+          const changed = this._replaceDocumentTextNodes(findText, repText, false);
+          if (changed) {
             this.isDirty = true;
             this.recordSnapshot("common.edit.replace");
           }
@@ -8543,12 +8579,26 @@ export class WriterAdapter {
       onReplaceAll: (findText, repText) => {
         if (findText && repText !== null) {
           this.flushTyping();
-          this.editorDom.innerHTML = this.editorDom.innerHTML.split(findText).join(repText);
-          this.isDirty = true;
-          this.recordSnapshot("common.edit.replaceAll");
+          const changed = this._replaceDocumentTextNodes(findText, repText, true);
+          if (changed) {
+            this.isDirty = true;
+            this.recordSnapshot("common.edit.replaceAll");
+          }
         }
       }
     });
+  }
+
+  _replaceDocumentTextNodes(findText, replacementText, replaceAll) {
+    if (!this.editorDom || typeof document === "undefined" || !document.createTreeWalker) return 0;
+    const walker = document.createTreeWalker(this.editorDom, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    let node;
+    while ((node = walker.nextNode())) {
+      if (node.parentElement?.closest?.('[contenteditable="false"]')) continue;
+      nodes.push(node);
+    }
+    return replaceTextInTextNodes(nodes, findText, replacementText, replaceAll);
   }
 
   _fodtError(detail) {
@@ -10900,6 +10950,22 @@ export class WriterAdapter {
     return result;
   }
 
+  _preserveEmptyParagraphFontSizesForExport(html) {
+    return String(html || "").replace(
+      /<(p|h[1-6])\b([^>]*\bfont-size:\s*([\d.]+)pt[^>]*)>([\s\S]*?)<\/\1>/gi,
+      (match, tag, attrs, pt, inner) => {
+        const stripped = inner.replace(/<\/?(?:span|font|br)\b[^>]*>/gi, "").replace(/&nbsp;|\s+/g, "");
+        if (stripped.length > 0 || /<(?:img|iframe|object|svg|canvas|div)\b|data-vno|vno-/i.test(inner)) {
+          return match;
+        }
+        if (/<span\b[^>]*\bstyle=[^>]*\bfont-size:/i.test(inner)) {
+          return match;
+        }
+        return `<${tag}${attrs}><span style="font-size: ${pt}pt;"><br/></span></${tag}>`;
+      }
+    );
+  }
+
   /**
    * Nội dung HTML thật sự gửi cho LibreOffice để lưu/xuất — có kèm `@page` CSS của
    * Page Setup hiện tại, để khổ giấy/lề trong DOCX/PDF xuất ra khớp với canvas.
@@ -10937,6 +11003,7 @@ export class WriterAdapter {
     bodyHtml = this._restoreProportionalLineHeightsForExport(bodyHtml);
     bodyHtml = this._simplifyFontFamiliesForExport(bodyHtml);
     bodyHtml = this._restoreLibreOfficeTableWidthsForExport(bodyHtml);
+    bodyHtml = this._preserveEmptyParagraphFontSizesForExport(bodyHtml);
 
     // LibreOffice's Writer HTML importer drops a class-only Drop Cap span
     // completely (including its first letter) because writer.css is not part
@@ -11903,7 +11970,10 @@ export class WriterAdapter {
 
       let pageFooterHtml = footerHtml;
       if (hasFooter) {
-        pageFooterHtml = footerHtml.replace(/Trang\s+\d+(\s*\/\s*\d+)?/gi, `Trang ${pageIndex} / ${totalPages}`);
+        pageFooterHtml = footerHtml
+          .replace(/(<span\b[^>]*\bdata-vno-field=["']PAGE["'][^>]*>)[\s\S]*?(<\/span>)/gi, `$1${pageIndex}$2`)
+          .replace(/(<span\b[^>]*\bdata-vno-field=["']NUMPAGES["'][^>]*>)[\s\S]*?(<\/span>)/gi, `$1${totalPages}$2`)
+          .replace(/Trang\s+\d+(\s*\/\s*\d+)?/gi, `Trang ${pageIndex} / ${totalPages}`);
       }
 
       const hasColumns = Boolean(this.columns && this.columns.count > 1);

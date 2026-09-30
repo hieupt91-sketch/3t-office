@@ -12,12 +12,14 @@ import { runSheetVndWordsTests } from "./unit/sheet-vnd-words.test.js";
 import { runSheetFormulaOdfTests } from "./unit/sheet-formula-odf.test.js";
 import { runFormulaAutocompleteTests } from "./unit/formula-autocomplete.test.js";
 import { runI18nTests } from "./unit/i18n.test.js";
+import { runI18nHardcodedEnglishTests } from "./unit/i18n-hardcoded-english.test.js";
 import { runSyntaxCheckTests } from "./unit/syntax-check.test.js";
 import { runHtmlSmokeTests } from "./smoke/html-smoke.test.js";
 import { runAiServiceTests } from "./unit/ai-service.test.js";
 import { runApiKeyManagerTests } from "./unit/api-key-manager.test.js";
 import { runCloudProviderTests } from "./unit/cloud-providers.test.js";
 import { runSheetFileIoTests } from "./unit/sheet-file-io.test.js";
+import { runSheetOpenPayloadTests } from "./unit/sheet-open-payload.test.js";
 import { runSlidesFileIoTests } from "./unit/slides-file-io.test.js";
 import { runMultiSheetTests } from "./unit/sheet-multi-sheet.test.js";
 import { runWriterCommentsTests } from "./unit/writer-comments.test.js";
@@ -81,6 +83,7 @@ import { runSheetMergeCellsTests } from "./unit/sheet-merge-cells.test.js";
 import { runSheetPasteSpecialTests } from "./unit/sheet-paste-special.test.js";
 import { runSlidesSmartartImportTests } from "./unit/slides-smartart-import.test.js";
 import { runSlidesRotatedShapePositionTests } from "./unit/slides-rotated-shape-position.test.js";
+import { runSlidesBasicsG8Tests } from "./unit/slides-basics-g8.test.js";
 import { runWriterHeaderFooterImportTests } from "./unit/writer-headerfooter-import.test.js";
 import { runWriterFootnotesImportTests } from "./unit/writer-footnotes-import.test.js";
 import { runSlidesDiagramGroupSelectTests } from "./unit/slides-diagram-group-select.test.js";
@@ -143,6 +146,7 @@ import { runSheetImageImportExportTests } from "./unit/sheet-image-import-export
 import { runSheetStatusBarSumTests } from "./unit/sheet-status-bar-sum.test.js";
 import { runSlidesPptxSetupShowOpenOverlayTests } from "./unit/slides-pptx-setup-show-open-overlay.test.js";
 import { runWriterParagraphSpacingTests } from "./unit/writer-paragraph-spacing.test.js";
+import { runWriterFindReplaceDomTests } from "./unit/writer-find-replace-dom.test.js";
 import { runWriterLineNumbersTests } from "./unit/writer-line-numbers.test.js";
 import { runSheetCellOrientationTests } from "./unit/sheet-cell-orientation.test.js";
 import { runWriterMultilevelListTests } from "./unit/writer-multilevel-list.test.js";
@@ -183,6 +187,8 @@ import { runNotificationBarTests } from "./unit/notification-bar.test.js";
 import { runOfflineResourcesTests } from "./unit/offline-resources.test.js";
 import { runErrorReportingTests } from "./unit/error-reporting.test.js";
 import { runAutoRecoverTests } from "./unit/autorecover.test.js";
+import { runUpdaterUiTests } from "./unit/updater-ui.test.js";
+import { run3tBrandUxTests } from "./unit/3t-brand-ux.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -204,6 +210,7 @@ async function runAll() {
     { title: "3d. Unit Tests — Sheet công thức #REF! ⇄ ODF", runner: runSheetFormulaOdfTests },
     { title: "4. Unit Tests — Formula Autocomplete & Parameter IntelliSense", runner: runFormulaAutocompleteTests },
     { title: "5. Unit Tests — Vietnamese i18n Localization Layer", runner: runI18nTests },
+    { title: "5b. Regression Guard — Hard-coded English UI Text Scan", runner: runI18nHardcodedEnglishTests },
     { title: "6. Smoke Tests — Suite & Vietnamese Unicode", runner: runSuiteSmokeTests },
     { title: "7. Syntax & Codebase Integrity — node --check", runner: runSyntaxCheckTests },
     { title: "7b. Regression Guard — Offline Resources (no external CDN runtime loads)", runner: runOfflineResourcesTests },
@@ -212,6 +219,7 @@ async function runAll() {
     { title: "9b. Unit Tests — AI API Key Manager", runner: runApiKeyManagerTests },
     { title: "9c. Unit Tests — AI Cloud Providers (mock fetch)", runner: runCloudProviderTests },
     { title: "10. Unit Tests — VN Sheet Real File I/O & CSV Adapter", runner: runSheetFileIoTests },
+    { title: "10b. Unit Tests — VN Sheet compact open payload and FODS fallback", runner: runSheetOpenPayloadTests },
     { title: "11. Unit Tests — VN Slides Real File I/O & FODP Adapter", runner: runSlidesFileIoTests },
     { title: "12. Unit Tests — VN Sheet Multi-Sheet Data Isolation", runner: runMultiSheetTests },
     { title: "13. Behavioral Tests — VN Writer Comments", runner: runWriterCommentsTests },
@@ -331,6 +339,7 @@ async function runAll() {
     { title: "115. Unit Tests — Slides native PPTX post-process (p:showPr Set Up Show)", runner: runSlidesPptxShowPropertiesTests },
     { title: "116. Unit Tests — Slides native PPTX open overlay (p:showPr → vno Set Up Show)", runner: runSlidesPptxSetupShowOpenOverlayTests },
     { title: "117. Unit Tests — Writer paragraph spacing before/after (pt)", runner: runWriterParagraphSpacingTests },
+    { title: "117b. Unit Tests — Writer find/replace preserves inline formatting nodes", runner: runWriterFindReplaceDomTests },
     { title: "118. Unit Tests — Writer line numbers (FODT linenumbering-configuration)", runner: runWriterLineNumbersTests },
     { title: "119. Unit Tests — VN Sheet cell text orientation (FODS rotation + XLSX textRotation)", runner: runSheetCellOrientationTests },
     { title: "120. Unit Tests — Writer multilevel list (3 presets × 3 levels)", runner: runWriterMultilevelListTests },
@@ -373,9 +382,12 @@ async function runAll() {
     { title: "153. Unit Tests — Writer doc font / line spacing (Word multiple x font ratio, anchor <br>, imported class)", runner: runWriterDocFontSpacingTests },
     { title: "154. Unit Tests — Sheet date/time cell values (office:date-value round trip)", runner: runSheetDateValuesTests },
     { title: "155. Unit Tests — UI Kit Notification Bar & WCAG AA Color Contrast", runner: runNotificationBarTests },
+    { title: "156. Unit Tests — Signed Updater UI and Help", runner: runUpdaterUiTests },
     { title: "156. Unit Tests — Writer legacy DOC keepNext import and pagination", runner: runWriterLegacyKeepNextTests },
     { title: "157. Unit Tests — Shared error reporting hooks, consent and feedback dialogs", runner: runErrorReportingTests },
-    { title: "158. Unit Tests — Shared AutoRecover dirty tracking, timer, and recovery dialog behavior", runner: runAutoRecoverTests }
+    { title: "158. Unit Tests — Shared AutoRecover dirty tracking, timer, and recovery dialog behavior", runner: runAutoRecoverTests },
+    { title: "159. Unit Tests — G8 VN Slides basics vs PowerPoint 2016 (slides, text, objects, show, notes, save)", runner: runSlidesBasicsG8Tests },
+    { title: "160. Unit Tests — 3T Office Brand UX (Splash Screen & About Dialog)", runner: run3tBrandUxTests }
   ];
 
   for (const suite of suites) {

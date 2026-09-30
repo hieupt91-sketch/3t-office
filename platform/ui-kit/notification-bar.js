@@ -20,6 +20,7 @@ export class NotificationBar {
    * @param {"warning"|"info"|"success"|"error"} [options.type="warning"] - Loại thông báo
    * @param {string} [options.icon] - SVG icon tùy chọn
    * @param {{ label: string, onClick: (event: MouseEvent) => void, ariaLabel?: string }} [options.action] - Nút hành động tùy chọn
+   * @param {Array<{ label: string, onClick: (event: MouseEvent) => void, ariaLabel?: string }>} [options.actions] - Nhiều hành động tùy chọn
    * @param {boolean} [options.dismissible=true] - Cho phép đóng thông báo
    * @param {() => void} [options.onDismiss] - Callback khi thanh bị đóng
    */
@@ -29,6 +30,7 @@ export class NotificationBar {
       type: options.type || "warning",
       icon: options.icon || (options.type === "info" ? INFO_CIRCLE_ICON : SECURITY_SHIELD_ICON),
       action: options.action || null,
+      actions: Array.isArray(options.actions) ? options.actions.filter((item) => item && item.label) : [],
       dismissible: options.dismissible !== false,
       onDismiss: options.onDismiss || null
     };
@@ -69,16 +71,20 @@ export class NotificationBar {
     const actions = document.createElement("div");
     actions.className = "vno-notification-bar-actions";
 
-    if (this.options.action && this.options.action.label) {
+    const actionItems = [
+      ...(this.options.action && this.options.action.label ? [this.options.action] : []),
+      ...this.options.actions
+    ];
+    for (const action of actionItems) {
       const actionBtn = document.createElement("button");
       actionBtn.type = "button";
       actionBtn.className = "vno-btn vno-notification-bar-action-btn";
-      actionBtn.textContent = this.options.action.label;
-      if (this.options.action.ariaLabel) {
-        actionBtn.setAttribute("aria-label", this.options.action.ariaLabel);
+      actionBtn.textContent = action.label;
+      if (action.ariaLabel) {
+        actionBtn.setAttribute("aria-label", action.ariaLabel);
       }
       actionBtn.addEventListener("click", (e) => {
-        this.options.action.onClick?.(e);
+        action.onClick?.(e);
       });
       actions.appendChild(actionBtn);
     }

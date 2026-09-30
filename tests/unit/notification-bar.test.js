@@ -216,6 +216,24 @@ export async function runNotificationBarTests() {
       error: `actionClicked = ${actionClicked}`
     });
 
+    const actionOrder = [];
+    const barWithActions = new NotificationBar({
+      message: "Có bản cập nhật VN Office 0.9.1.",
+      actions: [
+        { label: "Khởi động lại ngay", onClick: () => actionOrder.push("restart") },
+        { label: "Để sau", onClick: () => actionOrder.push("later") },
+        { label: "Xem thay đổi", onClick: () => actionOrder.push("notes") }
+      ]
+    });
+    const actionsElement = barWithActions.render();
+    const buttons = actionsElement.querySelectorAll(".vno-notification-bar-action-btn");
+    buttons[0]?.click(); buttons[1]?.click(); buttons[2]?.click();
+    results.push({
+      name: "NotificationBar: hiển thị và gọi lần lượt nhiều hành động cập nhật",
+      pass: buttons.length === 3 && actionOrder.join(",") === "restart,later,notes",
+      error: `buttons=${buttons.length}; calls=${actionOrder.join(",")}`
+    });
+
     // 3. Close button & dismiss callback
     let dismissed = false;
     const barDismiss = new NotificationBar({

@@ -45,7 +45,6 @@ export const SLIDES_RIBBON_TABS = [
             label: "Phần",
             labelKey: "slidesRibbon.section",
             icon: "slideSection",
-            isLarge: true,
             items: [
               { commandId: "slides.section.add" },
               { commandId: "slides.section.rename" },
@@ -202,7 +201,7 @@ export const SLIDES_RIBBON_TABS = [
       },
       {
         id: "drawing",
-        label: "Đối tượng vẽ",
+        label: "Vẽ",
         labelKey: "slidesRibbon.group.drawing",
         items: [
           { type: "button", commandId: "slides.text.insert", isLarge: true },
@@ -216,6 +215,10 @@ export const SLIDES_RIBBON_TABS = [
             icon: "shape",
             isLarge: true,
             items: [
+              { commandId: "slides.arrange.bringToFront" },
+              { commandId: "slides.arrange.bringForward" },
+              { commandId: "slides.arrange.sendBackward" },
+              { commandId: "slides.arrange.sendToBack" },
               { commandId: "slides.arrange.alignLeft" },
               { commandId: "slides.arrange.alignCenter" },
               { commandId: "slides.arrange.alignRight" },
@@ -522,7 +525,8 @@ export const SLIDES_RIBBON_TABS = [
         label: "Trợ giúp",
         labelKey: "slidesRibbon.group.help",
         items: [
-          { type: "button", commandId: "slides.help.open", isLarge: true }
+          { type: "button", commandId: "slides.help.open", isLarge: true },
+          { type: "about-button", isLarge: true, label: "Giới thiệu" }
         ]
       }
     ]

@@ -206,8 +206,9 @@ export async function runSlidesLayoutsTests() {
     if (canvas.bodyEl.style.display !== "block" || canvas.body2El.style.display !== "block") {
       throw new Error("Cả bodyEl và body2El đều phải hiển thị display: block");
     }
-    if (!canvas.slides[0].body2) {
-      throw new Error("Khi chuyển sang two-content, slide.body2 phải được khởi tạo nếu chưa có");
+    // body2 được khởi tạo là chuỗi RỖNG (placeholder trống như PowerPoint, không chèn chữ gợi ý).
+    if (canvas.slides[0].body2 !== "") {
+      throw new Error("Khi chuyển sang two-content, slide.body2 phải được khởi tạo (chuỗi rỗng) nếu chưa có");
     }
   });
 
@@ -334,7 +335,8 @@ export async function runSlidesLayoutsTests() {
 
     // Thêm slide mới chỉ định layout
     canvas.addNewSlide(false, "title-only");
-    const addedSlide = canvas.slides[canvas.slides.length - 1];
+    // Trang mới nằm ngay sau trang đang chọn (PowerPoint Ctrl+M), không phải cuối danh sách.
+    const addedSlide = canvas.slides[canvas.currentSlideIndex];
     if (addedSlide.layoutType !== "title-only") {
       throw new Error(`Slide mới thêm phải có layoutType title-only, nhận: ${addedSlide.layoutType}`);
     }

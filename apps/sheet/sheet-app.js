@@ -26,6 +26,8 @@ export class SheetApp {
     this.adapter = null;
     this.helpPanel = null;
     this._lifecycleObserver = null;
+    this._previousSheetOpenProgress = null;
+    this._sheetOpenProgressHandler = null;
   }
 
   async init(options = {}) {
@@ -92,6 +94,18 @@ export class SheetApp {
     this.adapter = new SheetAdapter(this.grid);
     this.adapter.setShell(this.shell);
     this.adapter.attach();
+    if (typeof window !== "undefined") {
+      this._previousSheetOpenProgress = window.__vnoSheetOpenProgress;
+      this._sheetOpenProgressHandler = (message, startTiming = false) => {
+        if (startTiming) {
+          window.__vnoSheetOpenStartedAt = performance.now();
+          window.__vnoSheetOpenElapsedMs = null;
+          window.__vnoSheetOpenFirstGridPending = false;
+        }
+        this.shell?.setStatus?.(String(message || "Đang mở bảng tính…"));
+      };
+      window.__vnoSheetOpenProgress = this._sheetOpenProgressHandler;
+    }
 
     await autoRecoverManager.register({
       appKind: "sheet",
@@ -122,6 +136,11 @@ export class SheetApp {
 
   destroy() {
     autoRecoverManager.detach(this.adapter);
+    if (typeof window !== "undefined" && window.__vnoSheetOpenProgress === this._sheetOpenProgressHandler) {
+      if (this._previousSheetOpenProgress) window.__vnoSheetOpenProgress = this._previousSheetOpenProgress;
+      else delete window.__vnoSheetOpenProgress;
+      this._sheetOpenProgressHandler = null;
+    }
     this._lifecycleObserver?.disconnect();
     this._lifecycleObserver = null;
     this.helpPanel?.destroy();

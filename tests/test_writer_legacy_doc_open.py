@@ -30,6 +30,7 @@ class WriterLegacyDocOpenTests(unittest.TestCase):
             patcher.inject_docx_default_font_css.side_effect = lambda _data, html: html + "|default-font"
             patcher.inject_docx_half_point_styles_css.side_effect = lambda _data, html: html + "|half-point"
             patcher.inject_docx_heading_styles_css.side_effect = lambda _data, html: html + "|heading"
+            patcher.restore_docx_html_half_points_and_empty_paras.side_effect = lambda _data, html: html + "|half-point-empty"
 
             with (
                 patch.object(main, "_run_soffice_convert", side_effect=fake_convert),
@@ -46,7 +47,7 @@ class WriterLegacyDocOpenTests(unittest.TestCase):
             self.assertEqual(calls, [(".doc", "docx"), (".docx", "html")])
             self.assertEqual(
                 result.get("content"),
-                "<p>legacy</p>|theme|default-font|half-point|heading",
+                "<p>legacy</p>|theme|default-font|half-point|heading|half-point-empty",
             )
             self.assertEqual(result.get("ooxmlDocumentXml"), "<w:document/>")
             self.assertEqual(result.get("ooxmlCommentsXml"), "<w:comments/>")
