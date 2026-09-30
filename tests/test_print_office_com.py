@@ -114,6 +114,14 @@ class OfficePdfTests(unittest.TestCase):
             "$document.Close($false)",
             "$workbook.Close($false)",
             "$application.Quit()",
+            "Invoke-ComWithRetry([string]$Operation, [scriptblock]$Action)",
+            "$delays = @(500, 1000, 2000, 4000)",
+            "Word.Documents.Open",
+            "Excel.Workbooks.Open",
+            "PowerPoint.Presentations.Open",
+            "$script:CurrentOperation, [string]$_.Exception.Message",
+            "$ownsOfficeProcess -and $quitFailed -and $processId -gt 0",
+            "Stop-Process -Id $processId -Force",
         ):
             with self.subTest(required=required):
                 self.assertIn(required, source)
@@ -203,6 +211,11 @@ class OfficePdfTests(unittest.TestCase):
             with patch.object(OFFICE.os, "kill") as kill:
                 OFFICE._terminate_owned_process(info)
             kill.assert_called_once_with(5678, OFFICE.signal.SIGTERM)
+
+    def test_com_retry_budget_has_five_attempts_and_bounded_increasing_backoff(self):
+        source = OFFICE._POWERSHELL_WORKER
+        self.assertIn("$attempt -lt 5", source)
+        self.assertIn("$delays = @(500, 1000, 2000, 4000)", source)
 
 
 if __name__ == "__main__":

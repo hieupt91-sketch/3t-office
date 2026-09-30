@@ -39,8 +39,9 @@ $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
 $OutputEncoding = [Console]::OutputEncoding
 
-function Invoke-ComWithRetry([scriptblock]$Action) {
-  $delays = @(250, 500, 1000, 2000)
+function Invoke-ComWithRetry([string]$Operation, [scriptblock]$Action) {
+  $script:CurrentOperation = $Operation
+  $delays = @(500, 1000, 2000, 4000)
   for ($attempt = 0; $attempt -lt 5; $attempt++) {
     try { return (& $Action) }
     catch {
@@ -60,7 +61,7 @@ function Get-ApplicationProcessId($Application) {
       $code = '[DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);'
       Add-Type -Namespace Vnoffice -Name WindowOwner -MemberDefinition $code
     }
-    $handleValue = Invoke-ComWithRetry { [long]$Application.Hwnd }
+    $handleValue = Invoke-ComWithRetry 'Application.Hwnd' { [long]$Application.Hwnd }
     $handle = [IntPtr]$handleValue
     [uint32]$processId = 0
     [void][Vnoffice.WindowOwner]::GetWindowThreadProcessId($handle, [ref]$processId)
@@ -93,10 +94,12 @@ $document = $null
 $workbook = $null
 $presentation = $null
 $ownsOfficeProcess = $false
+$processId = 0
+$script:CurrentOperation = 'Office initialization'
 
 try {
   if (-not (Test-Path -LiteralPath $InputPath -PathType Leaf)) { throw 'Saved native document was not found.' }
-  $application = Invoke-ComWithRetry { New-Object -ComObject $ProgId }
+  $application = Invoke-ComWithRetry 'Application activation' { New-Object -ComObject $ProgId }
   $processId = Get-ApplicationProcessId $application
   if ($processId -le 0) {
     $processName = Get-AppProcessName $ProgId
@@ -114,21 +117,21 @@ try {
   Save-ProcessInfo $processId $ownsOfficeProcess
   if (-not $ownsOfficeProcess) { throw 'Office returned a process that existed before this job.' }
 
-  Invoke-ComWithRetry { $application.Visible = $false } | Out-Null
-  Invoke-ComWithRetry { $application.DisplayAlerts = 0 } | Out-Null
+  Invoke-ComWithRetry 'Application.Visible' { $application.Visible = $false } | Out-Null
+  Invoke-ComWithRetry 'Application.DisplayAlerts' { $application.DisplayAlerts = 0 } | Out-Null
 
   switch ($AppKind) {
     'writer' {
-      $document = Invoke-ComWithRetry { $application.Documents.Open($InputPath, $false, $true, $false) }
-      Invoke-ComWithRetry { $document.ExportAsFixedFormat($OutputPath, 17) }
+      $document = Invoke-ComWithRetry 'Word.Documents.Open' { $application.Documents.Open($InputPath, $false, $true, $false) }
+      Invoke-ComWithRetry 'Word.ExportAsFixedFormat' { $document.ExportAsFixedFormat($OutputPath, 17) }
     }
     'sheet' {
-      $workbook = Invoke-ComWithRetry { $application.Workbooks.Open($InputPath, 0, $true) }
-      Invoke-ComWithRetry { $workbook.ExportAsFixedFormat(0, $OutputPath) }
+      $workbook = Invoke-ComWithRetry 'Excel.Workbooks.Open' { $application.Workbooks.Open($InputPath, 0, $true) }
+      Invoke-ComWithRetry 'Excel.ExportAsFixedFormat' { $workbook.ExportAsFixedFormat(0, $OutputPath) }
     }
     'slides' {
-      $presentation = Invoke-ComWithRetry { $application.Presentations.Open($InputPath, -1, 0, 0) }
-      Invoke-ComWithRetry { $presentation.SaveAs($OutputPath, 32) }
+      $presentation = Invoke-ComWithRetry 'PowerPoint.Presentations.Open' { $application.Presentations.Open($InputPath, -1, 0, 0) }
+      Invoke-ComWithRetry 'PowerPoint.SaveAs' { $presentation.SaveAs($OutputPath, 32) }
     }
     default { throw 'Unsupported application kind.' }
   }
@@ -139,20 +142,24 @@ try {
   exit 0
 }
 catch {
-  [Console]::Error.WriteLine([string]$_.Exception.Message)
+  [Console]::Error.WriteLine(('{0}: {1}' -f $script:CurrentOperation, [string]$_.Exception.Message))
   exit 1
 }
 finally {
+  $quitFailed = $false
   if ($ownsOfficeProcess) {
-    if ($document) { try { Invoke-ComWithRetry { $document.Close($false) } | Out-Null } catch { } }
-    if ($workbook) { try { Invoke-ComWithRetry { $workbook.Close($false) } | Out-Null } catch { } }
-    if ($presentation) { try { Invoke-ComWithRetry { $presentation.Close() } | Out-Null } catch { } }
-    if ($application) { try { Invoke-ComWithRetry { $application.Quit() } | Out-Null } catch { } }
+    if ($document) { try { Invoke-ComWithRetry 'Word.Close' { $document.Close($false) } | Out-Null } catch { } }
+    if ($workbook) { try { Invoke-ComWithRetry 'Excel.Close' { $workbook.Close($false) } | Out-Null } catch { } }
+    if ($presentation) { try { Invoke-ComWithRetry 'PowerPoint.Close' { $presentation.Close() } | Out-Null } catch { } }
+    if ($application) { try { Invoke-ComWithRetry 'Application.Quit' { $application.Quit() } | Out-Null } catch { $quitFailed = $true } }
   }
   foreach ($comObject in @($document, $workbook, $presentation, $application)) {
     if ($null -ne $comObject -and [System.Runtime.InteropServices.Marshal]::IsComObject($comObject)) {
       try { [void][System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($comObject) } catch { }
     }
+  }
+  if ($ownsOfficeProcess -and $quitFailed -and $processId -gt 0) {
+    try { Stop-Process -Id $processId -Force -ErrorAction Stop } catch { }
   }
 }
 '''
