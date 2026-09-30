@@ -1062,22 +1062,6 @@ export const SHEET_HELP_ENTRIES = [
       "Tra cứu danh sách phần mềm nguồn mở (Python, LibreOffice Core, pywebview) và nhấn nút Xem toàn văn giấy phép nếu cần kiểm tra chi tiết THIRD-PARTY-NOTICES.",
       "Nhấn nút Đóng hoặc bấm phím Esc trên bàn phím để trở về trang bảng tính đang làm việc."
     ]
-  },
-  {
-    id: "sheet.help.splash",
-    app: "sheet",
-    commandIds: ["sheet.help.open"],
-    title: "Màn hình chào 3T Office khi khởi động",
-    summary: "Hiển thị nhận diện thương hiệu 3T Office và tên ứng dụng 3T Sheet ngay khi mở cửa sổ, tự động ẩn khi lưới bảng tính sẵn sàng.",
-    ribbon: { tab: "Trợ giúp", tabId: "help", group: "Trợ giúp" },
-    keywords: ["màn hình chào", "splash", "khởi động", "3t office", "3t sheet", "logo 3t", "chào mừng"],
-    steps: [
-      "Khi khởi chạy 3T Sheet hoặc mở tệp bảng tính (.xlsx, .ods, .csv), màn hình chào xuất hiện tức thì trên cửa sổ.",
-      "Màn hình hiển thị logo 3T, tiêu đề thương hiệu 3T Office và nhãn màu xanh ngọc nhận diện 3T Sheet.",
-      "Dòng chữ trạng thái hiển thị «Đang khởi động…» kèm biểu tượng xoay trong khi hệ thống nạp engine bảng tính và công thức.",
-      "Ngay khi lưới ô và thanh công thức được tạo xong, màn hình chào tự động làm mờ và ẩn đi trong tích tắc.",
-      "Màn hình chào chạy 100% độc lập ngoại tuyến trên máy tính của bạn, không làm tăng thời gian chờ hay độ trễ khởi động."
-    ]
   }
 ];
 

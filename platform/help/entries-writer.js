@@ -978,22 +978,6 @@ export const WRITER_HELP_ENTRIES = [
       "Kiểm tra danh sách các thành phần nguồn mở bên thứ ba (Python 3.12, LibreOffice Core, pywebview, v.v.) và nhấn nút Xem toàn văn giấy phép nếu muốn đọc toàn văn THIRD-PARTY-NOTICES.",
       "Nhấn nút Đóng hoặc bấm phím Esc trên bàn phím để quay lại làm việc."
     ]
-  },
-  {
-    id: "writer.help.splash",
-    app: "writer",
-    commandIds: ["writer.help.open"],
-    title: "Màn hình chào 3T Office khi khởi động",
-    summary: "Hiển thị nhận diện thương hiệu 3T Office và tên ứng dụng 3T Doc ngay khi mở cửa sổ, tự động ẩn khi không gian soạn thảo sẵn sàng.",
-    ribbon: { tab: "Trợ giúp", tabId: "help", group: "Trợ giúp" },
-    keywords: ["màn hình chào", "splash", "khởi động", "3t office", "3t doc", "logo 3t", "chào mừng"],
-    steps: [
-      "Khi bạn khởi chạy 3T Office hoặc mở một tệp văn bản từ máy tính, màn hình chào xuất hiện ngay lập tức trên cửa sổ.",
-      "Màn hình hiển thị logo 3T, tiêu đề 3T Office và huy hiệu ứng dụng tương ứng (ví dụ: 3T Doc) trên nền gradient xanh hoàng gia đậm.",
-      "Thanh thông báo trạng thái hiển thị «Đang khởi động…» kèm chỉ báo xoay nhẹ nhàng trong khi hệ thống nạp các tài nguyên nền tảng.",
-      "Ngay khi giao diện soạn thảo hoàn tất nạp dữ liệu, màn hình chào sẽ tự động làm mờ và ẩn đi mà không làm chậm tốc độ làm việc.",
-      "Màn hình chào chạy hoàn toàn cục bộ ngoại tuyến (offline) trên máy tính của bạn, không gửi bất kỳ dữ liệu nào ra mạng."
-    ]
   }
 ];
 

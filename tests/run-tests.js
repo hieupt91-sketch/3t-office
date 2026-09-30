@@ -387,7 +387,7 @@ async function runAll() {
     { title: "157. Unit Tests — Shared error reporting hooks, consent and feedback dialogs", runner: runErrorReportingTests },
     { title: "158. Unit Tests — Shared AutoRecover dirty tracking, timer, and recovery dialog behavior", runner: runAutoRecoverTests },
     { title: "159. Unit Tests — G8 VN Slides basics vs PowerPoint 2016 (slides, text, objects, show, notes, save)", runner: runSlidesBasicsG8Tests },
-    { title: "160. Unit Tests — 3T Office Brand UX (Splash Screen & About Dialog)", runner: run3tBrandUxTests }
+    { title: "160. Unit Tests — 3T Office Brand UX (About Dialog)", runner: run3tBrandUxTests }
   ];
 
   for (const suite of suites) {

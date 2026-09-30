@@ -1,12 +1,11 @@
 /**
- * Test Suite: 3T Office Brand UX — Splash Screen & About Dialog
+ * Test Suite: 3T Office Brand UX — About Dialog
  * Kiểm tra màn hình chào khởi động và hộp thoại Giới thiệu 3T Office
  */
 
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { setSplashApp, setSplashStatus, hideSplashScreen, getSplashScreenElement } from "../../platform/splash/splash.js";
 import { showAboutDialog } from "../../platform/about/about-dialog.js";
 import { viStrings } from "../../platform/i18n/strings-vi.js";
 import { enStrings } from "../../platform/i18n/strings-en.js";
@@ -261,55 +260,6 @@ export async function run3tBrandUxTests() {
     if (!fs.existsSync(pngPath)) throw new Error("Thiếu branding/3t/3t-mark.png");
     if (!fs.existsSync(svgPath)) throw new Error("Thiếu branding/3t/3t-mark.svg");
     if (fs.statSync(pngPath).size < 1000) throw new Error("3t-mark.png không hợp lệ");
-  });
-
-  // 3. Kiểm tra Splash Screen: cập nhật tên ứng dụng (3T Doc/Sheet/Slide)
-  await test("Splash Screen: cập nhật chính xác tên ứng dụng 3T Doc, 3T Sheet, 3T Slide và trạng thái", () => {
-    const splash = new MockElement("div");
-    splash.setAttribute("id", "vno-splash-screen");
-    splash.className = "vno-splash-screen";
-
-    const badge = new MockElement("div");
-    badge.setAttribute("id", "vno-splash-app-name");
-    badge.textContent = "3T Doc";
-    splash.appendChild(badge);
-
-    const statusText = new MockElement("span");
-    statusText.setAttribute("id", "vno-splash-status-text");
-    statusText.textContent = "Đang khởi động…";
-    splash.appendChild(statusText);
-
-    document.body.appendChild(splash);
-
-    setSplashApp("sheet");
-    if (badge.textContent !== "3T Sheet" || badge.getAttribute("data-app") !== "sheet") {
-      throw new Error(`Badge không khớp sheet: ${badge.textContent}`);
-    }
-
-    setSplashApp("slides");
-    if (badge.textContent !== "3T Slide" || badge.getAttribute("data-app") !== "slides") {
-      throw new Error(`Badge không khớp slides: ${badge.textContent}`);
-    }
-
-    setSplashApp("writer");
-    if (badge.textContent !== "3T Doc" || badge.getAttribute("data-app") !== "writer") {
-      throw new Error(`Badge không khớp writer: ${badge.textContent}`);
-    }
-
-    setSplashStatus("Đang nạp công thức tính toán…");
-    if (statusText.textContent !== "Đang nạp công thức tính toán…") {
-      throw new Error(`Status text không cập nhật: ${statusText.textContent}`);
-    }
-  });
-
-  // 4. Kiểm tra Splash Screen: ẩn tự động mượt mà
-  await test("Splash Screen: hideSplashScreen áp dụng class is-hidden và ẩn phần tử", () => {
-    const splash = getSplashScreenElement();
-    if (!splash) throw new Error("Không tìm thấy splash screen");
-    hideSplashScreen();
-    if (!splash.classList.contains("is-hidden")) {
-      throw new Error("Splash screen chưa được gán class is-hidden");
-    }
   });
 
   // 5. Kiểm tra Hộp Giới thiệu (About Dialog): cấu trúc, thương hiệu 3T và thông tin bản quyền

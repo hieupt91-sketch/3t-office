@@ -647,22 +647,6 @@ export const SLIDES_HELP_ENTRIES = [
       "Tra cứu danh sách phần mềm nguồn mở bên thứ ba (Python, LibreOffice Core, pywebview) và nhấn nút Xem toàn văn giấy phép nếu muốn đọc toàn văn THIRD-PARTY-NOTICES.",
       "Nhấn nút Đóng hoặc bấm phím Esc trên bàn phím để trở lại bài thuyết trình."
     ]
-  },
-  {
-    id: "slides.help.splash",
-    app: "slides",
-    commandIds: ["slides.help.open"],
-    title: "Màn hình chào 3T Office khi khởi động",
-    summary: "Hiển thị nhận diện thương hiệu 3T Office và tên ứng dụng 3T Slide ngay khi mở cửa sổ, tự động ẩn khi không gian trình chiếu sẵn sàng.",
-    ribbon: { tab: "Trợ giúp", tabId: "help", group: "Trợ giúp" },
-    keywords: ["màn hình chào", "splash", "khởi động", "3t office", "3t slide", "logo 3t", "chào mừng"],
-    steps: [
-      "Khi bạn khởi chạy 3T Slide hoặc mở một tệp trình chiếu (.pptx, .odp), màn hình chào xuất hiện ngay lập tức trên cửa sổ.",
-      "Màn hình hiển thị logo 3T, tiêu đề 3T Office và huy hiệu ứng dụng màu cam đất 3T Slide trên nền gradient sang trọng.",
-      "Dòng chữ trạng thái hiển thị «Đang khởi động…» kèm biểu tượng xoay trong khi hệ thống nạp các tài nguyên trang chiếu và canvas.",
-      "Ngay khi khung slide và dải thumbnail hoàn tất chuẩn bị, màn hình chào sẽ tự động làm mờ và ẩn đi một cách mượt mà.",
-      "Màn hình chào được tối ưu hiển thị tức thời, chạy hoàn toàn offline không phụ thuộc internet và không gây độ trễ."
-    ]
   }
 ];
 
