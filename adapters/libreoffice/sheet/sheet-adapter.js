@@ -220,8 +220,8 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.format.currencyVND", () => this.grid.formatCurrentCellCurrencyVND());
     globalCommandBus.bindHandler("sheet.format.percent", () => this.grid.formatCurrentCellPercent());
     globalCommandBus.bindHandler("sheet.format.standard", () => this.grid.formatCurrentCellStandard());
-    globalCommandBus.bindHandler("sheet.font.family", (value) => this.grid.setFontFamily(value));
-    globalCommandBus.bindHandler("sheet.font.size", (value) => this.grid.setFontSize(value));
+    globalCommandBus.bindHandler("sheet.font.family", (value) => this.grid.setFontFamily(typeof value === "string" ? value : (value?.family || value?.value || "Calibri")));
+    globalCommandBus.bindHandler("sheet.font.size", (value) => this.grid.setFontSize((value && (typeof value === "number" || typeof value === "string")) ? value : (value?.size || value?.value || 11)));
     globalCommandBus.bindHandler("sheet.font.grow", () => this.grid.adjustFontSize(1));
     globalCommandBus.bindHandler("sheet.font.shrink", () => this.grid.adjustFontSize(-1));
     globalCommandBus.bindHandler("sheet.cell.alignTop", () => this.grid.setStyle("verticalAlign", "top"));
@@ -235,7 +235,7 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.cell.mergeAcross", () => this.grid.mergeCells("mergeAcross"));
     globalCommandBus.bindHandler("sheet.cell.mergeCells", () => this.grid.mergeCells("mergeCells"));
     globalCommandBus.bindHandler("sheet.cell.unmerge", () => this.grid.unmergeCells());
-    globalCommandBus.bindHandler("sheet.format.quickCategory", (value) => this.grid.applyQuickNumberCategory(value));
+    globalCommandBus.bindHandler("sheet.format.quickCategory", (value) => this.grid.applyQuickNumberCategory((typeof value === "string" ? value : (value?.category || value?.value)) || "general"));
     globalCommandBus.bindHandler("sheet.format.increaseDecimal", () => this.grid.adjustDecimalPlaces(1));
     globalCommandBus.bindHandler("sheet.format.decreaseDecimal", () => this.grid.adjustDecimalPlaces(-1));
     globalCommandBus.bindHandler("sheet.format.conditional", () => this.grid.showConditionalFormattingDialog());
@@ -447,6 +447,52 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.edit.clearContents", (options) => {
       options = options || {};
       return this.grid.clearContents ? this.grid.clearContents(options.range) : false;
+    });
+    globalCommandBus.bindHandler("sheet.cells.format", () => this.grid.showFormatCellsDialog());
+    globalCommandBus.bindHandler("sheet.edit.fill", (options) => {
+      options = options || {};
+      return this.grid.fillDown ? this.grid.fillDown(options.range) : false;
+    });
+    globalCommandBus.bindHandler("sheet.edit.clear", (options) => {
+      options = options || {};
+      return this.grid.clearContents ? this.grid.clearContents(options.range) : false;
+    });
+    globalCommandBus.bindHandler("sheet.data.sortAsc", () => {
+      return this.grid.sort ? this.grid.sort(this.grid.selectedCoord?.c || "A", true) : false;
+    });
+    globalCommandBus.bindHandler("sheet.data.sortDesc", () => {
+      return this.grid.sort ? this.grid.sort(this.grid.selectedCoord?.c || "A", false) : false;
+    });
+    globalCommandBus.bindHandler("sheet.data.filter", () => {
+      return this.grid.toggleFilter ? this.grid.toggleFilter() : false;
+    });
+    globalCommandBus.bindHandler("sheet.data.customSort", () => {
+      return this.grid.showCustomSortDialog ? this.grid.showCustomSortDialog() : false;
+    });
+    globalCommandBus.bindHandler("sheet.insert.image", async (args) => {
+      return await this._insertImageDialog(args || {});
+    });
+    globalCommandBus.bindHandler("sheet.chart.insert", () => {
+      this.grid.openChartBuilder();
+      return true;
+    });
+    globalCommandBus.bindHandler("sheet.insert.sparklineLine", (args) => {
+      let range = args?.range;
+      if (!range && typeof args === "string") range = this.grid._parseRange?.(args);
+      return Boolean(this.grid.insertSparkline("line", range));
+    });
+    globalCommandBus.bindHandler("sheet.insert.sparklineColumn", (args) => {
+      let range = args?.range;
+      if (!range && typeof args === "string") range = this.grid._parseRange?.(args);
+      return Boolean(this.grid.insertSparkline("column", range));
+    });
+    globalCommandBus.bindHandler("sheet.insert.hyperlink", async (args) => {
+      const url = args?.url || await showPromptDialog({ title: "Chèn liên kết", message: "Nhập địa chỉ liên kết (URL):", defaultValue: "https://", placeholder: "https://example.com" });
+      return url ? this.grid.insertHyperlink(url, args?.text) : false;
+    });
+    globalCommandBus.bindHandler("sheet.insert.textbox", async (args) => {
+      const text = args?.text || await showPromptDialog({ title: "Chèn hộp văn bản", message: "Nhập nội dung hộp văn bản:", defaultValue: "", placeholder: "Nội dung" });
+      return text ? this.grid.insertTextBox(text) : false;
     });
     globalCommandBus.bindHandler("common.edit.find", () => this._showFindReplaceDialog(false));
     globalCommandBus.bindHandler("common.edit.replace", () => this._showFindReplaceDialog(true));
