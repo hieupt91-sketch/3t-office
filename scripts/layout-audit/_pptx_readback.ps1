@@ -64,6 +64,7 @@ foreach ($f in $files) {
     $pres = $pp.Presentations.Open($f, -1, 0, 0)
     $res.slideWidth = [math]::Round($pres.PageSetup.SlideWidth, 1)
     $res.slideHeight = [math]::Round($pres.PageSetup.SlideHeight, 1)
+    $res.slideSizeType = [int]$pres.PageSetup.SlideSize
     $res.slideCount = $pres.Slides.Count
     $slides = @()
     foreach ($sl in $pres.Slides) {

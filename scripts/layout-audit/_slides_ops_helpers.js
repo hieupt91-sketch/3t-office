@@ -134,6 +134,7 @@ window.__t = (() => {
       };
       const css = (el) => { const st = getComputedStyle(el); return { family: rendered(st.fontFamily), sizePx: parseFloat(st.fontSize), weight: st.fontWeight, color: st.color, align: st.textAlign }; };
       o.titleCss = css(cc.titleEl);
+      o.ptPerPx = Number(cc.ptPerPx) > 0 ? Number(cc.ptPerPx) : 0.75;
       o.bodyCss = css(cc.bodyEl);
       cc.notesTextarea.focus();
       cc.notesTextarea.value = "Ghi chú dòng 1\nGhi chú dòng 2";
@@ -298,6 +299,7 @@ window.__t = (() => {
       await sleep(150);
       const scale = shapeEl(rect.id).getBoundingClientRect().width / rect.w;
       o.scale = Math.round(scale * 1000) / 1000;
+      o.ptPerPx = Number(cc.ptPerPx) > 0 ? Number(cc.ptPerPx) : 0.75;
       // Target: x=200px (150pt), y=160px (120pt), w=320px (240pt), h=120px (90pt), 30 deg.
       const startX = rect.x, startY = rect.y;
       await pointerDrag(shapeEl(rect.id), (200 - startX) * scale, (160 - startY) * scale);

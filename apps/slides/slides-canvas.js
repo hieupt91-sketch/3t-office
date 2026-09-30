@@ -299,6 +299,9 @@ export class SlidesCanvasController {
       showLogo: true,
       showFooter: true
     };
+    // Bản mới = khổ Widescreen PowerPoint (960 × 540 pt) với 1 px canvas = 1 pt; không còn là tệp mở từ ngoài.
+    this.imported = false;
+    this.ptPerPx = 1;
     this.slideSize = { preset: "wide", width: 960, height: 540 };
     this.headerFooter = {
       showDate: false,
@@ -7502,7 +7505,14 @@ export class SlidesCanvasController {
 
   setSlideSize(options, recordHistory = true) {
     options = options || {};
-    const presets = { wide: { preset: "wide", width: 960, height: 540 }, standard: { preset: "standard", width: 720, height: 540 } };
+    // Khổ đúng preset PowerPoint 2013+: Widescreen 13,333 × 7,5 in = 960 × 540 pt, Standard (4:3)
+    // 10 × 7,5 in = 720 × 540 pt; quy ra px theo đơn vị của tài liệu (bản mới 1 px = 1 pt,
+    // tệp mở từ ngoài 0,75 pt/px) để PowerPoint mở ra đúng «Widescreen» / «Standard (4:3)».
+    const ptPerPx = Number(this.ptPerPx) > 0 ? Number(this.ptPerPx) : 1;
+    const presets = {
+      wide: { preset: "wide", width: Math.round(960 / ptPerPx), height: Math.round(540 / ptPerPx) },
+      standard: { preset: "standard", width: Math.round(720 / ptPerPx), height: Math.round(540 / ptPerPx) }
+    };
     // Có width/height tường minh (khổ thật của file mở) thì ưu tiên hơn preset.
     let next = (options && options.width && options.height) ? null : (presets[options.preset || options] || null);
     if (!next && options && options.width && options.height) {
@@ -7542,8 +7552,8 @@ export class SlidesCanvasController {
       overlay.innerHTML = `<div class="vno-dialog-box" style="width:480px" role="dialog" aria-modal="true" aria-labelledby="vno-slide-size-title">
         <div class="vno-dialog-header"><span id="vno-slide-size-title">${t("slidesDialogs.slideSizeTitle")}</span><button type="button" class="vno-btn vno-dialog-close-btn" aria-label="${t("slidesDialogs.close")}">&times;</button></div>
         <div class="vno-dialog-body"><p style="font-size:12px;color:#475569">${t("slidesDialogs.slideSizeHint")}</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:14px" role="radiogroup" aria-labelledby="vno-slide-size-title">
-          <button type="button" role="radio" class="vno-theme-card" data-slide-size="wide" aria-checked="${this.slideSize.preset === "wide"}" aria-pressed="${this.slideSize.preset === "wide"}"><span style="display:block;aspect-ratio:16/9;background:#dbeafe;border:2px solid #2563eb" aria-hidden="true"></span><strong>${t("slidesDialogs.slideSizeWide")}</strong><small>16:9 · 960 × 540</small></button>
-          <button type="button" role="radio" class="vno-theme-card" data-slide-size="standard" aria-checked="${this.slideSize.preset === "standard"}" aria-pressed="${this.slideSize.preset === "standard"}"><span style="display:block;aspect-ratio:4/3;background:#ffedd5;border:2px solid #f97316" aria-hidden="true"></span><strong>${t("slidesDialogs.slideSizeStandard")}</strong><small>4:3 · 720 × 540</small></button>
+          <button type="button" role="radio" class="vno-theme-card" data-slide-size="wide" aria-checked="${this.slideSize.preset === "wide"}" aria-pressed="${this.slideSize.preset === "wide"}"><span style="display:block;aspect-ratio:16/9;background:#dbeafe;border:2px solid #2563eb" aria-hidden="true"></span><strong>${t("slidesDialogs.slideSizeWide")}</strong><small>16:9 · 33,867 × 19,05 cm</small></button>
+          <button type="button" role="radio" class="vno-theme-card" data-slide-size="standard" aria-checked="${this.slideSize.preset === "standard"}" aria-pressed="${this.slideSize.preset === "standard"}"><span style="display:block;aspect-ratio:4/3;background:#ffedd5;border:2px solid #f97316" aria-hidden="true"></span><strong>${t("slidesDialogs.slideSizeStandard")}</strong><small>4:3 · 25,4 × 19,05 cm</small></button>
         </div></div></div>`;
       document.body.appendChild(overlay);
       const dialogBox = overlay.querySelector(".vno-dialog-box");
@@ -9072,6 +9082,9 @@ export class SlidesCanvasController {
       showLogo: true,
       showFooter: true
     };
+    // Bản mới = khổ Widescreen PowerPoint (960 × 540 pt) với 1 px canvas = 1 pt; không còn là tệp mở từ ngoài.
+    this.imported = false;
+    this.ptPerPx = 1;
     this.slideSize = { preset: "wide", width: 960, height: 540 };
     this.headerFooter = {
       showDate: false,

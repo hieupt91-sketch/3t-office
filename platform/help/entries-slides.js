@@ -533,7 +533,7 @@ export const SLIDES_HELP_ENTRIES = [
     app: "slides",
     commandIds: ["slides.design.themeGallery", "slides.design.slideSize", "slides.master.apply"],
     title: "Chủ đề, mẫu chủ đạo và cỡ trang chiếu",
-    summary: "Sáu chủ đề màu/phông/logo áp cả bộ. Mẫu Slide Master cùng 6 bộ, thêm ô logo chữ. Cỡ: Màn hình rộng 16:9 (960×540, mặc định) hoặc Tiêu chuẩn 4:3 (720×540) — hình sẵn có bị co theo.",
+    summary: "Sáu chủ đề màu/phông/logo áp cả bộ. Mẫu Slide Master cùng 6 bộ, thêm ô logo chữ. Cỡ: Màn hình rộng 16:9 (33,867 × 19,05 cm, mặc định) hoặc Tiêu chuẩn 4:3 (25,4 × 19,05 cm) — đúng hai khổ chuẩn của PowerPoint; hình sẵn có bị co theo.",
     ribbon: { tab: "Thiết kế", tabId: "design", group: "Chủ đề" },
     keywords: ["chủ đề", "theme", "slide master", "cỡ trang chiếu", "16:9", "4:3", "960x540", "logo"],
     steps: [
@@ -541,7 +541,8 @@ export const SLIDES_HELP_ENTRIES = [
       "Nhóm Mẫu chủ đạo: Mẫu Slide Master. Hộp «Mẫu Slide Master» cùng 6 bộ, thêm ô «Tên đơn vị / Logo chữ góc trang» (mặc định «VN OFFICE» hoặc logo đang dùng). Chọn thẻ điền sẵn logo của mẫu. Hủy bỏ / Áp dụng mẫu. Khác thư viện Chủ đề: lần Áp dụng mẫu không đẩy Undo.",
       "File → Lưu dạng PowerPoint (*.pptx): sau khi LibreOffice chuyển FODP, VN Office gắn logo chữ vào Slide Master bằng một hình DrawingML chuẩn (p:sp không phải ô kế thừa title/body/chân trang). Logo lấy đúng ô «Tên đơn vị / Logo chữ góc trang», đặt ở dải trên của master, không đè khung chữ sẵn. Mở PPTX bằng PowerPoint hoặc LibreOffice vẫn thấy chữ logo. Lưu FODP/ODP giữ master-page ODF như trước; không có logo thì File → Lưu PPTX không vá thêm hình.",
       "File → Mở một .pptx đã có logo master (file vừa Lưu, hoặc file PowerPoint có hình tên VNOfficeMasterLogo trên Slide Master): LibreOffice chuyển PPTX→FODP giữ chữ trên master-page nhưng không phát vno:master-theme, nên ô logo trên canvas VN Slides sẽ trống nếu không overlay. VN Office đọc p:sp tên VNOfficeMasterLogo từ file PPTX gốc (không đoán hình khác trên master), lấy lại chữ / màu / phông, rồi gắn vno:master-theme lên FODP trước khi mở canvas. Ô «Tên đơn vị / Logo chữ góc trang» hiện lại đúng chữ, màu accent và phông. Nhiều hình trùng tên hoặc hình tên đó lại là ô kế thừa (p:ph) thì hộp thoại Mở báo lỗi rõ, không đoán. File .odp/.fodp không đi overlay này — chúng giữ vno:master-theme sẵn có.",
-      "Nhóm Tùy chỉnh: Cỡ trang chiếu. Hộp «Kích thước trang chiếu»: Màn hình rộng 16:9 · 960 × 540, hoặc Tiêu chuẩn 4:3 · 720 × 540. Nhấp thẻ áp ngay; mọi hình bị co x,y,w,h theo khung mới. Cùng preset thì không đổi. Ctrl+Z hoàn tác đổi cỡ.",
+      "Nhóm Tùy chỉnh: Cỡ trang chiếu. Hộp «Kích thước trang chiếu»: Màn hình rộng 16:9 · 33,867 × 19,05 cm, hoặc Tiêu chuẩn 4:3 · 25,4 × 19,05 cm. Nhấp thẻ áp ngay; mọi hình bị co x,y,w,h theo khung mới. Cùng preset thì không đổi. Ctrl+Z hoàn tác đổi cỡ.",
+      "Khi lưu PPTX, hai khổ này ghi đúng khổ chuẩn của PowerPoint nên PowerPoint mở ra thấy Thiết kế → Kích thước trang chiếu là «Màn hình rộng» / «Chuẩn (4:3)», không phải «Tùy chỉnh». Tệp mở từ PowerPoint giữ nguyên khổ gốc khi lưu lại, trừ khi bạn tự đổi cỡ.",
       "Không có dạng xem Master (không sửa khung chữ sẵn của từng bố cục). Không có cỡ tùy chỉnh / 16:10."
     ]
   },

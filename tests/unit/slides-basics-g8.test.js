@@ -98,7 +98,10 @@ export async function runSlidesBasicsG8Tests() {
   });
 
   await test("D3 Cỡ chữ: ô ribbon '6' = 32pt; từ khóa CSS/px quy đổi sang pt (không ghi 'xx-large')", () => {
-    const adapter = new SlidesAdapter(newCanvas());
+    // Tệp mở từ ngoài (96 dpi, 0,75 pt/px).
+    const importedCanvas = newCanvas();
+    importedCanvas.ptPerPx = 0.75;
+    const adapter = new SlidesAdapter(importedCanvas);
     assert(adapter._ribbonFontSizeToPt("6") === 32, "ô cỡ '6' phải là 32pt");
     assert(adapter._ribbonFontSizeToPt("20") === 20, "giá trị số phải giữ nguyên pt");
     const fromKeyword = adapter._styleFromHtmlAttrs("span", ' style="font-size: xx-large"');
@@ -107,6 +110,10 @@ export async function runSlidesBasicsG8Tests() {
     assert(fromPx.size === "36pt", `48px phải thành 36pt, nhận ${fromPx.size}`);
     const fromPt = adapter._styleFromHtmlAttrs("span", ' style="font-size: 32pt"');
     assert(fromPt.size === "32pt", `32pt giữ nguyên, nhận ${fromPt.size}`);
+    // Bản mới (khổ PowerPoint thật, 1 pt/px): 32 px trên canvas = 32 pt trong tệp.
+    const fresh = new SlidesAdapter(newCanvas());
+    const freshPx = fresh._styleFromHtmlAttrs("span", ' style="font-size: 32px"');
+    assert(freshPx.size === "32pt", `bản mới 32px phải thành 32pt, nhận ${freshPx.size}`);
   });
 
   await test("D3 Không lưu nền bán trong suốt của khung đang chọn thành màu tô sáng; font-weight normal bỏ đậm", () => {
@@ -125,8 +132,9 @@ export async function runSlidesBasicsG8Tests() {
     canvas.slides = [{ id: 1, title: "Doanh thu", body: "Dòng 1", layoutType: "title-content", shapes: [] }];
     const adapter = new SlidesAdapter(canvas);
     const fodp = adapter.serializeToFodp();
-    assert(/fo:font-weight="bold"[^>]*fo:color="#1e3a8a"[^>]*fo:font-family="Arial"[^>]*fo:font-size="24pt"/.test(fodp), "phải có style chữ tiêu đề Arial 24pt đậm #1e3a8a");
-    assert(/fo:color="#334155"[^>]*fo:font-family="Arial"[^>]*fo:font-size="15pt"/.test(fodp), "phải có style chữ nội dung Arial 15pt #334155");
+    // Bản mới: canvas 32 px / 20 px = 32 pt / 20 pt trên trang 960 × 540 pt (giữ đúng tỉ lệ màn hình).
+    assert(/fo:font-weight="bold"[^>]*fo:color="#1e3a8a"[^>]*fo:font-family="Arial"[^>]*fo:font-size="32pt"/.test(fodp), "phải có style chữ tiêu đề Arial 32pt đậm #1e3a8a");
+    assert(/fo:color="#334155"[^>]*fo:font-family="Arial"[^>]*fo:font-size="20pt"/.test(fodp), "phải có style chữ nội dung Arial 20pt #334155");
     assert(/fo:text-align="left"/.test(fodp), "tiêu đề/nội dung căn trái như màn hình (LibreOffice mặc định căn giữa tiêu đề)");
     canvas.imported = true;
     const imported = adapter.serializeToFodp();
@@ -186,10 +194,11 @@ export async function runSlidesBasicsG8Tests() {
     const fodp = adapter.serializeToFodp();
     const m = fodp.match(/translate \(([\d.]+)cm ([\d.]+)cm\)/);
     assert(m, "phải có draw:transform translate");
-    // T = C − R(30°)(160, 60) = (360 − 108.56, 220 − 131.96) px = (6.653cm, 2.329cm)
-    assert(Math.abs(parseFloat(m[1]) - 6.653) < 0.01 && Math.abs(parseFloat(m[2]) - 2.329) < 0.01, `translate sai: ${m[1]} ${m[2]}`);
+    // T = C − R(30°)(160, 60) = (251.44, 88.04) px; bản mới 1 px = 1 pt → (8.870cm, 3.106cm)
+    assert(Math.abs(parseFloat(m[1]) - 8.870) < 0.01 && Math.abs(parseFloat(m[2]) - 3.106) < 0.01, `translate sai: ${m[1]} ${m[2]}`);
+    // Đọc lại như tệp mở từ ngoài (96 dpi): 200/160 pt = 266.7/213.3 px.
     const back = adapter.parseFodp(fodp)[0].shapes.find(s => s.type === "rect" || s.type === "custom" || s.rotation);
-    assert(back && Math.abs(back.x - 200) <= 1 && Math.abs(back.y - 160) <= 1, `đọc lại phải về x=200 y=160, nhận ${back?.x} ${back?.y}`);
+    assert(back && Math.abs(back.x - 266.7) <= 1 && Math.abs(back.y - 213.3) <= 1, `đọc lại phải về x=266.7 y=213.3 px, nhận ${back?.x} ${back?.y}`);
   });
 
   await test("D8 Tệp PowerPoint mở rồi lưu lại: khung Tiêu đề giữ vai trò placeholder tiêu đề (không thành hộp chữ thường)", () => {
@@ -209,6 +218,43 @@ export async function runSlidesBasicsG8Tests() {
     const out = adapter.serializeToFodp();
     assert(/<draw:frame [^>]*presentation:class="title"[^>]*>\s*<draw:text-box>\s*<text:p>Báo cáo năm/.test(out), "lưu lại phải ghi khung Báo cáo năm với presentation:class=title");
     assert(/presentation:class="outline"[^>]*>\s*<draw:text-box>\s*<text:p>Nội dung/.test(out), "khung nội dung giữ presentation:class=outline");
+  });
+
+  // ---------------------------------------------------------------- D5
+  await test("D5 Khổ trang bản mới = preset PowerPoint: Widescreen 12192000×6858000 EMU, Standard (4:3) 9144000×6858000 type=screen4x3", async () => {
+    const { parseIntendedSlideSizeFromFodp, applyIntendedSlideSize } = await import("../../adapters/libreoffice/slides/pptx-master-logo.js");
+    const canvas = newCanvas();
+    assert(canvas.ptPerPx === 1, "bản mới phải dùng 1 px = 1 pt");
+    const adapter = new SlidesAdapter(canvas);
+    const wide = parseIntendedSlideSizeFromFodp(adapter.serializeToFodp());
+    assert(wide.cx === 12192000 && wide.cy === 6858000 && wide.type === "", `16:9 sai: ${JSON.stringify(wide)}`);
+    canvas.setSlideSize({ preset: "standard" }, false);
+    assert(canvas.slideSize.width === 720 && canvas.slideSize.height === 540, "canvas 4:3 vẫn 720 × 540 px (màn hình không đổi)");
+    const std = parseIntendedSlideSizeFromFodp(adapter.serializeToFodp());
+    assert(std.cx === 9144000 && std.cy === 6858000 && std.type === "screen4x3", `4:3 sai: ${JSON.stringify(std)}`);
+    const lo = '<p:presentation><p:sldSz cx="9144000" cy="6857999"/></p:presentation>';
+    assert(applyIntendedSlideSize(lo, std).includes('<p:sldSz cx="9144000" cy="6858000" type="screen4x3"/>'), "phải ghi đúng sldSz kèm type");
+    const lo2 = '<p:presentation><p:sldSz cx="12192120" cy="6858000" type="custom"/></p:presentation>';
+    assert(applyIntendedSlideSize(lo2, wide).includes('<p:sldSz cx="12192000" cy="6858000"/>'), "Widescreen không có type");
+  });
+
+  await test("D5 Tệp mở từ PowerPoint giữ NGUYÊN khổ gốc tới từng EMU khi lưu lại (không làm tròn qua px/cm)", async () => {
+    const { parseIntendedSlideSizeFromFodp } = await import("../../adapters/libreoffice/slides/pptx-master-logo.js");
+    const fodp = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0">
+<office:automatic-styles><style:page-layout style:name="PM1"><style:page-layout-properties fo:page-width="28.002cm" fo:page-height="15.752cm" style:print-orientation="landscape"/></style:page-layout></office:automatic-styles>
+<office:master-styles><style:master-page style:name="Office" style:page-layout-name="PM1"/></office:master-styles>
+<office:body><office:presentation><draw:page draw:name="S1" draw:master-page-name="Office"><draw:frame presentation:class="title" svg:x="1cm" svg:y="1cm" svg:width="20cm" svg:height="3cm"><draw:text-box><text:p>Tiêu đề</text:p></draw:text-box></draw:frame></draw:page></office:presentation></office:body></office:document>`;
+    const pres = '<p:presentation><p:sldSz cx="10080625" cy="5670550"/></p:presentation>';
+    const canvas = newCanvas();
+    const adapter = new SlidesAdapter(canvas);
+    adapter.loadFromFodp(fodp, pres);
+    assert(canvas.ptPerPx === 0.75, "tệp mở từ ngoài dùng 96 dpi");
+    const size = parseIntendedSlideSizeFromFodp(adapter.serializeToFodp());
+    assert(size.cx === 10080625 && size.cy === 5670550, `khổ gốc phải giữ nguyên, nhận ${JSON.stringify(size)}`);
+    canvas.setSlideSize({ preset: "wide" }, false);
+    const changed = parseIntendedSlideSizeFromFodp(adapter.serializeToFodp());
+    assert(changed.cx === 12192000 && changed.cy === 6858000, `đổi sang Widescreen phải ra đúng preset, nhận ${JSON.stringify(changed)}`);
   });
 
   // ---------------------------------------------------------------- D6
