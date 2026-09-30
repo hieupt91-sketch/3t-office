@@ -176,3 +176,19 @@ RISK: A hung owned Excel process may be force-stopped after `Close(False)`/`Quit
 TEST PLAN: Unit-test the five attempts, error stage, graceful `Quit`, and owned-PID-only cleanup. Then, with no competing Office client, rerun direct exports and app Print/Export for lan05, lan11, and lan28, followed by the active-sheet oracle.
 
 ROLLBACK: Revert the Excel worker hardening commit; Office failures will continue to use the existing silent LibreOffice fallback.
+
+## G10 Follow-up Plan — Excel export retry window
+
+OBJECTIVE: Let Excel finish a busy workbook PDF export before the COM job falls back to LibreOffice.
+
+CURRENT CAPABILITY: The previous worker hardening added stage-labelled errors and increased the five-total-attempt backoff to 7.5 seconds. A serial direct lan05 source export successfully activated Excel and opened the workbook, but all attempts at `Excel.ExportAsFixedFormat` still returned `RPC_E_CALL_REJECTED`; that job fell back and wrote no Office PDF.
+
+FILES/MODULES: `platform/print/office_com.py` will allow an initial attempt plus up to five busy retries with 1, 2, 4, 8, and 16 second backoff. `tests/test_print_office_com.py` will assert the retry limit and schedule. Live serial source exports and app Print/Export audits will determine whether this clears the failure.
+
+DEPENDENCIES: None. Keep the PowerShell 5.1 STA worker and existing 300-second process timeout.
+
+RISK: Busy Excel calls can extend a job by up to 31 seconds before fallback. A call that does not return remains bounded by the 300-second helper timeout; cleanup still only force-stops a job-owned Office PID when Quit retries fail.
+
+TEST PLAN: Run focused COM-worker tests and PowerShell syntax parsing. With the Office queue clear, repeat direct Excel exports for lan05, lan11, and lan28 one at a time, then run the app route and record actual engine and PDF parity.
+
+ROLLBACK: Revert the retry-window implementation; Excel failures continue to use the existing LibreOffice fallback.
