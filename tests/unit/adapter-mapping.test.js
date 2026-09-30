@@ -396,10 +396,14 @@ export async function runAdapterMappingTests() {
     results.push({ name: "SlidesAdapter Dispatch: Undo/Redo trình chiếu thất bại", pass: false });
   }
 
-  // Test chèn hộp văn bản
+  // Test chèn hộp văn bản: PowerPoint Insert > Text Box tạo đối tượng hộp chữ riêng
+  // (bản cũ chỉ nối dòng «• Khung văn bản mới bổ sung» vào khung nội dung — G8 đã sửa).
+  let textBoxCalls = 0;
+  mockCanvas.insertTextBox = () => { textBoxCalls++; return true; };
+  const bodyBefore = mockCanvas.bodyEl.innerText;
   const textRes = await slidesAdapter.handleDispatch(".uno:Text", null, "slides.text.insert");
-  if (textRes && mockCanvas.bodyEl.innerText.includes("Khung văn bản mới bổ sung")) {
-    results.push({ name: "SlidesAdapter Dispatch: Lệnh slides.text.insert bổ sung văn bản vào slide", pass: true });
+  if (textRes && textBoxCalls === 1 && mockCanvas.bodyEl.innerText === bodyBefore) {
+    results.push({ name: "SlidesAdapter Dispatch: Lệnh slides.text.insert chèn hộp văn bản riêng (không sửa khung nội dung)", pass: true });
   } else {
     results.push({ name: "SlidesAdapter Dispatch: slides.text.insert thất bại", pass: false });
   }
@@ -527,8 +531,11 @@ export async function runAdapterMappingTests() {
 
     // Test chèn Footer
     await structuredAdapter.handleDispatch(".uno:InsertPageFooter", null, "writer.footer.insert");
-    if (mockFooterEl.innerHTML.includes("Trang 1 / 1")) {
-      results.push({ name: "WriterAdapter Footer: Lệnh writer.footer.insert kích hoạt và điền nội dung vào footer zone", pass: true });
+    const footerText = mockFooterEl.innerHTML.replace(/<[^>]*>/g, "");
+    const hasLivePageFields = /data-vno-field=["']PAGE["']/i.test(mockFooterEl.innerHTML)
+      && /data-vno-field=["']NUMPAGES["']/i.test(mockFooterEl.innerHTML);
+    if (footerText.includes("Trang 1 / 1") && hasLivePageFields) {
+      results.push({ name: "WriterAdapter Footer: insert tạo Trang 1 / 1 với PAGE/NUMPAGES fields còn sống", pass: true });
     } else {
       results.push({ name: "WriterAdapter Footer: writer.footer.insert thất bại", pass: false });
     }

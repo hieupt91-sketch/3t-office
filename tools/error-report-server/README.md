@@ -90,3 +90,17 @@ Chỉ dùng HTTPS từ máy pilot tới proxy. Không bind Python server ra `0.0
 - Bảng `/` gom nhóm theo loại lỗi và khung ngăn xếp đầu tiên đã lọc, đếm số lần và hiện lần đầu/cuối, phiên bản app và app. Không ghi địa chỉ IP vào JSONL hay access log của Python receiver.
 - Attachment có thể chứa tài liệu người dùng đã chủ động chọn. Giới hạn mặc định 5 MiB; bảo vệ thư mục dữ liệu khỏi người dùng khác, sao lưu mã hóa nếu cần, đặt thời hạn xóa dữ liệu và xóa attachment theo chính sách pilot.
 - Không phục vụ trang này qua HTTP công khai. Không đưa token vào URL, lệnh shell đã lưu, ảnh chụp màn hình hay tài liệu hướng dẫn.
+
+## Xuất CSV để phân tích trong Excel
+
+Lệnh `export_csv.py` (chỉ dùng Python standard library) gom nhóm JSONL theo fingerprint và xuất một dòng mỗi nhóm lỗi để mở trong Excel:
+
+```sh
+python3 export_csv.py /var/lib/vnoffice-error-report-server /tmp/errors.csv \
+  --since 2026-09-01 --until 2026-09-30
+```
+
+- `--since` / `--until` (tùy chọn, định dạng `YYYY-MM-DD`, lấy theo ngày trong tên file `errors-YYYY-MM-DD.jsonl`, hai đầu đều có tính ngày đó).
+- Cột xuất ra: `fingerprint`, `error_type`, `operation`, `app`, `count`, `installations` (số `installation_id` khác nhau), `first_seen`, `last_seen`, `latest_app_version`, `file_extensions` (nối bằng `;`), `example_message` (thông điệp mới nhất). Sắp xếp giảm dần theo `count`.
+- File CSV mã hóa UTF-8 có BOM (`utf-8-sig`) để Excel hiển thị tiếng Việt đúng.
+- Dòng JSONL hỏng (không parse được JSON) bị bỏ qua; số dòng bị bỏ qua được in ra stderr. Thoát mã 1 nếu thư mục dữ liệu không tồn tại hoặc không có file nào khớp bộ lọc.

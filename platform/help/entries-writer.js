@@ -373,13 +373,13 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["writer.header.insert", "writer.footer.insert"],
     title: "Đầu trang và chân trang",
-    summary: "Nhảy vào vùng đầu trang hoặc chân trang của bố cục in để gõ tiêu đề, số trang. Nếu vùng còn trống, Writer điền sẵn «Tiêu đề đầu trang» hoặc «Trang 1 / 1» căn giữa cỡ 10 pt.",
+    summary: "Nhảy vào vùng đầu trang hoặc chân trang của bố cục in để gõ tiêu đề, số trang. Nếu vùng còn trống, Writer điền sẵn «Tiêu đề đầu trang» hoặc «Trang 1 / 1» căn giữa cỡ 10 pt; số trang là trường PAGE / NUMPAGES và tự cập nhật theo từng trang.",
     ribbon: { tab: "Chèn", tabId: "insert", group: "Đầu trang / Chân trang" },
     keywords: ["đầu trang", "chân trang", "header", "footer", "số trang", "tiêu đề trang"],
     steps: [
       "Mở tab Chèn, nhóm Đầu trang / Chân trang. Nhấn Đầu trang hoặc Chân trang (hai nút lớn).",
-      "Con trỏ nhảy vào vùng tương ứng trên trang giấy (chỉ thấy rõ ở Bố trí in). Nếu vùng trống, Writer chèn sẵn một dòng căn giữa 10 pt: «Tiêu đề đầu trang» hoặc «Trang 1 / 1». Gõ đè chữ mẫu.",
-      "Đầu trang / chân trang lặp trên mọi trang khi xem Bố trí in và khi in. Chế độ Bố trí Web ẩn hai vùng này.",
+      "Con trỏ nhảy vào vùng tương ứng trên trang giấy (chỉ thấy rõ ở Bố trí in). Nếu vùng trống, Writer chèn sẵn một dòng căn giữa 10 pt: «Tiêu đề đầu trang» hoặc «Trang 1 / 1». Hai số trong chân trang là trường sống, tự đổi theo trang hiện tại và tổng số trang; có thể gõ thêm nhãn như «Trang».",
+      "Đầu trang / chân trang lặp trên mọi trang khi xem Bố trí in, Print Preview và khi in; số trang hiển thị theo từng tờ. Chế độ Bố trí Web ẩn hai vùng này.",
       "Nhấp lại thân tài liệu để thoát vùng đầu/chân trang. Ctrl+Z hoàn tác lần chèn chữ mẫu nếu vùng vốn trống."
     ]
   },

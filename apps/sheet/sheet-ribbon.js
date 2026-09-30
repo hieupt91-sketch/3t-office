@@ -161,7 +161,7 @@ export const SHEET_RIBBON_TABS = [
       },
       {
         id: "number",
-        label: "Định dạng số",
+        label: "Số",
         labelKey: "sheetRibbon.group.number",
         launcherCommandId: "sheet.format.cellsDialog",
         launcherTooltip: "Định dạng ô (Ctrl+1)",
@@ -201,7 +201,7 @@ export const SHEET_RIBBON_TABS = [
       },
       {
         id: "styles",
-        label: "Kiểu ô",
+        label: "Kiểu",
         labelKey: "sheetRibbon.group.styles",
         items: [
           { type: "button", commandId: "sheet.format.conditional", isLarge: true },
@@ -263,28 +263,31 @@ export const SHEET_RIBBON_TABS = [
         items: [
           { type: "button", commandId: "sheet.formula.sum", isLarge: true },
           {
-            type: "dropdown",
-            id: "sheet.edit.fill",
-            label: "Điền",
-            labelKey: "sheetRibbon.editing.fill",
-            icon: "fillDown",
-            isLarge: true,
+            type: "column",
             items: [
-              { commandId: "sheet.edit.fillDown" },
-              { commandId: "sheet.edit.fillRight" }
-            ]
-          },
-          {
-            type: "dropdown",
-            id: "sheet.edit.clear",
-            label: "Xóa",
-            labelKey: "sheetRibbon.editing.clear",
-            icon: "clearAll",
-            isLarge: true,
-            items: [
-              { commandId: "sheet.edit.clearAll" },
-              { commandId: "sheet.edit.clearFormats" },
-              { commandId: "sheet.edit.clearContents" }
+              {
+                type: "dropdown",
+                id: "sheet.edit.fill",
+                label: "Điền",
+                labelKey: "sheetRibbon.editing.fill",
+                icon: "fillDown",
+                items: [
+                  { commandId: "sheet.edit.fillDown" },
+                  { commandId: "sheet.edit.fillRight" }
+                ]
+              },
+              {
+                type: "dropdown",
+                id: "sheet.edit.clear",
+                label: "Xóa",
+                labelKey: "sheetRibbon.editing.clear",
+                icon: "clearAll",
+                items: [
+                  { commandId: "sheet.edit.clearAll" },
+                  { commandId: "sheet.edit.clearFormats" },
+                  { commandId: "sheet.edit.clearContents" }
+                ]
+              }
             ]
           },
           {

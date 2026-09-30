@@ -1088,9 +1088,9 @@ export class AppShell {
           return pageDiv;
         },
         getInfo: (printResult) => [
-          { label: "Kích thước slide", val: `${canvas.slideSize?.width || 960}x${canvas.slideSize?.height || 540}` },
+          { label: t("slidesDialogs.slideSizeTitle", "Kích thước trang chiếu"), val: `${canvas.slideSize?.width || 960}x${canvas.slideSize?.height || 540}` },
           { label: "Tỷ lệ khung hình", val: "16:9 HD" },
-          { label: "Tổng số slide in", val: String(printResult.totalPages || 1) }
+          { label: t("slidesDialogs.totalPrintSlides", "Tổng số trang chiếu in"), val: String(printResult.totalPages || 1) }
         ]
       };
     }
