@@ -393,7 +393,7 @@ export class SlidesCanvasController {
     this.canvasEl.className = "vno-slide-canvas";
     this.canvasEl.tabIndex = -1;
     this.canvasEl.setAttribute("role", "region");
-    this.canvasEl.setAttribute("aria-label", "Vùng trình chiếu slide");
+    this.canvasEl.setAttribute("aria-label", t("slidesDialogs.canvasRegion", "Vùng trình chiếu"));
     this._applySlideSizeToDom();
 
     this.titleEl = document.createElement("div");
@@ -3184,11 +3184,12 @@ export class SlidesCanvasController {
     const nextLabel = t("slidesDialogs.printPreview.nextPage", "Trang sau ▶");
     const pagePrefix = t("slidesDialogs.printPreview.pagePrefix", "Trang ");
     const closeLabel = t("slidesDialogs.printPreview.closeTooltip", "Đóng xem trước (Esc)");
+    const slideCountLabel = t("slidesDialogs.printPreview.slideCount", { count: totalPages }) || `${totalPages} trang chiếu`;
 
     overlay.innerHTML = `
       <header class="vno-slides-print-preview-toolbar" role="toolbar" aria-label="${t("slidesDialogs.printPreview.title", "Xem trước khi in")}">
         <button type="button" class="vno-btn vno-btn-primary vno-slides-pp-print" title="${printLabel} (Ctrl+P)">${printLabel}</button>
-        <div class="vno-slides-pp-info">${this.slideSize.width}x${this.slideSize.height} · ${totalPages} slide</div>
+        <div class="vno-slides-pp-info">${this.slideSize.width}x${this.slideSize.height} · ${slideCountLabel}</div>
         <div class="vno-slides-pp-nav">
           <button type="button" class="vno-btn vno-slides-pp-prev" ${totalPages <= 1 ? "disabled" : ""} title="${prevLabel}">${prevLabel}</button>
           <div class="vno-slides-pp-page-indicator">${pagePrefix}<span class="vno-slides-pp-current">1</span> / <span class="vno-slides-pp-total">${totalPages}</span></div>
@@ -5899,12 +5900,12 @@ export class SlidesCanvasController {
     menu.style.cssText = `position:fixed;left:${clampedX}px;top:${clampedY}px;z-index:10040;min-width:190px;padding:6px;background:var(--vno-bg-surface,#ffffff);color:var(--vno-text-primary,#0f172a);border:1px solid var(--vno-border-default,#cbd5e1);border-radius:6px;box-shadow:0 8px 24px rgba(15,23,42,.2)`;
     
     let menuHtml = `
-      <button type="button" data-slide-action="new" role="menuitem" tabindex="0">Trang mới</button>
-      <button type="button" data-slide-action="duplicate" role="menuitem" tabindex="-1">Nhân đôi trang</button>
-      <button type="button" data-slide-action="delete" role="menuitem" tabindex="-1"${this.slides.length <= 1 ? " disabled style='opacity:0.5;cursor:not-allowed;'" : ""}>Xóa trang</button>
+      <button type="button" data-slide-action="new" role="menuitem" tabindex="0">${t("slides.newSlide", "Trang mới")}</button>
+      <button type="button" data-slide-action="duplicate" role="menuitem" tabindex="-1">${t("slides.duplicateSlide", "Nhân đôi trang")}</button>
+      <button type="button" data-slide-action="delete" role="menuitem" tabindex="-1"${this.slides.length <= 1 ? " disabled style='opacity:0.5;cursor:not-allowed;'" : ""}>${t("slides.deleteSlide", "Xóa trang")}</button>
       <div style="height:1px;background:var(--vno-border-default,#cbd5e1);margin:4px 0;"></div>
-      <button type="button" data-section-action="add" role="menuitem" tabindex="-1">Thêm Phần</button>
-      ${section ? `<button type="button" data-section-action="rename" role="menuitem" tabindex="-1">Đổi tên Phần</button><button type="button" data-section-action="remove" role="menuitem" tabindex="-1">Xóa Phần (giữ slide)</button>` : ""}
+      <button type="button" data-section-action="add" role="menuitem" tabindex="-1">${t("slidesDialogs.sectionAddTitle", "Thêm phần")}</button>
+      ${section ? `<button type="button" data-section-action="rename" role="menuitem" tabindex="-1">${t("slidesDialogs.sectionRenameTitle", "Đổi tên phần")}</button><button type="button" data-section-action="remove" role="menuitem" tabindex="-1">${t("slidesDialogs.removeSectionKeepSlides", "Xóa Phần (giữ trang chiếu)")}</button>` : ""}
     `;
     menu.innerHTML = menuHtml;
 
