@@ -6840,24 +6840,51 @@ export class SheetGridController {
     };
   }
 
-  /** Đọc "Hàng lặp lại" của Print Titles (vd "1" hoặc "1:2") thành {start, end} hoặc null. */
+  /** Đọc "Hàng lặp lại" của Print Titles (vd "1", "1:2" hoặc Excel "$1", "$1:$2") thành {start, end} hoặc null. */
   _parsePrintTitleRows(setup) {
     const raw = String(setup?.printTitles?.rows || "").trim();
-    const m = raw.match(/^(\d+)(?::(\d+))?$/);
+    const m = raw.match(/^\$?(\d+)(?::\$?(\d+))?$/);
     if (!m) return null;
     const a = parseInt(m[1], 10);
     const b = m[2] ? parseInt(m[2], 10) : a;
     return { start: Math.min(a, b), end: Math.max(a, b) };
   }
 
-  /** Đọc "Cột lặp lại" của Print Titles (vd "A" hoặc "A:B") thành {start, end} (số cột) hoặc null. */
+  /** Đọc "Cột lặp lại" của Print Titles (vd "A", "A:B" hoặc Excel "$A", "$A:$B") thành {start, end} (số cột) hoặc null. */
   _parsePrintTitleCols(setup) {
     const raw = String(setup?.printTitles?.cols || "").trim().toUpperCase();
-    const m = raw.match(/^([A-Z]+)(?::([A-Z]+))?$/);
+    const m = raw.match(/^\$?([A-Z]+)(?::\$?([A-Z]+))?$/);
     if (!m) return null;
     const a = this._columnNumber(m[1]);
     const b = m[2] ? this._columnNumber(m[2]) : a;
     return { start: Math.min(a, b), end: Math.max(a, b) };
+  }
+
+  /**
+   * Chuẩn hoá giá trị Print Titles nhập tay kiểu Excel: bỏ dấu $ ($1:$2 → 1:2, $A:$B → A:B),
+   * viết hoa chữ cái cột. Lưu trữ luôn ở dạng chuẩn không $ để round-trip FODS/XLSX ổn định.
+   */
+  _normalizePrintTitlesInput(rows, cols) {
+    return {
+      rows: String(rows || "").trim().replace(/\$/g, ""),
+      cols: String(cols || "").trim().toUpperCase().replace(/\$/g, "")
+    };
+  }
+
+  /**
+   * Chuyển kết quả chọn trực tiếp trên lưới thành giá trị Print Titles.
+   * field: "rows" (start/end là số hàng 1-based) hoặc "cols" (start/end là số cột 1-based).
+   * Trả về "1:2" / "A:B"; start === end thì trả về "1" / "A" (đúng chuẩn Excel).
+   */
+  formatPrintTitleSelection(field, start, end) {
+    const a = Math.min(start, end);
+    const b = Math.max(start, end);
+    if (field === "rows") return a === b ? String(a) : `${a}:${b}`;
+    if (field === "cols") {
+      const label = n => (typeof this._columnLabel === "function" ? this._columnLabel(n) : String(n));
+      return a === b ? label(a) : `${label(a)}:${label(b)}`;
+    }
+    return "";
   }
 
   /**
@@ -9445,8 +9472,9 @@ export class SheetGridController {
     const size = changes.size || before.size;
     if (!["portrait", "landscape"].includes(orientation) || !["a4", "letter", "legal"].includes(size)) return false;
     const printTitles = { ...before.printTitles, ...(changes.printTitles || {}) };
-    printTitles.rows = String(printTitles.rows || "").trim();
-    printTitles.cols = String(printTitles.cols || "").trim().toUpperCase();
+    const normalizedTitles = this._normalizePrintTitlesInput(printTitles.rows, printTitles.cols);
+    printTitles.rows = normalizedTitles.rows;
+    printTitles.cols = normalizedTitles.cols;
     if (printTitles.rows && !/^\d+(?::\d+)?$/.test(printTitles.rows)) return false;
     if (printTitles.cols && !/^[A-Z]+(?::[A-Z]+)?$/.test(printTitles.cols)) return false;
     const scale = { ...before.scale, ...(changes.scale || {}) };
@@ -9479,6 +9507,9 @@ export class SheetGridController {
   showPageSetupDialog(focusField = "margins") {
     if (typeof document === "undefined" || !document.body) return false;
     const setup = this.getPageSetup();
+    const pending = this._printTitleSelect;
+    const rowsValue = pending?.field === "rows" && pending.pendingValue ? pending.pendingValue : setup.printTitles.rows;
+    const colsValue = pending?.field === "cols" && pending.pendingValue ? pending.pendingValue : setup.printTitles.cols;
     const overlay = this._createSheetDialog("Thiết lập trang", `
       <label>Kiểu lề
         <select id="vno-sheet-margin-preset" class="vno-select" style="width:100%;margin-top:4px">
@@ -9490,7 +9521,7 @@ export class SheetGridController {
       </div>
       <label>Hướng trang<select id="vno-sheet-orientation" class="vno-select" style="width:100%;margin-top:4px"><option value="portrait" ${setup.orientation === "portrait" ? "selected" : ""}>Dọc</option><option value="landscape" ${setup.orientation === "landscape" ? "selected" : ""}>Ngang</option></select></label>
       <label>Khổ giấy<select id="vno-sheet-size" class="vno-select" style="width:100%;margin-top:4px"><option value="a4" ${setup.size === "a4" ? "selected" : ""}>A4</option><option value="letter" ${setup.size === "letter" ? "selected" : ""}>Letter</option><option value="legal" ${setup.size === "legal" ? "selected" : ""}>Legal</option></select></label>
-      <fieldset style="border:1px solid var(--vno-border-default);border-radius:6px"><legend>Tiêu đề in (tùy chọn)</legend><label>Hàng lặp lại (ví dụ 1:2)<input id="vno-sheet-title-rows" value="${this._escapeHtml(setup.printTitles.rows)}" class="vno-dialog-input"></label><label>Cột lặp lại (ví dụ A:B)<input id="vno-sheet-title-cols" value="${this._escapeHtml(setup.printTitles.cols)}" class="vno-dialog-input"></label></fieldset>
+      <fieldset style="border:1px solid var(--vno-border-default);border-radius:6px"><legend>Tiêu đề in (tùy chọn)</legend><label>Hàng lặp lại trên mỗi trang (ví dụ 1:2 hoặc $1:$2)<span style="display:flex;gap:4px;align-items:center;margin-top:4px"><input id="vno-sheet-title-rows" value="${this._escapeHtml(rowsValue)}" class="vno-dialog-input" style="flex:1" placeholder="vd: 1:2"><button type="button" id="vno-sheet-title-rows-pick" class="vno-btn vno-btn-icon-only" title="Chọn hàng trực tiếp trên lưới" aria-label="Chọn hàng trực tiếp trên lưới">⊞</button></span></label><label>Cột lặp lại ở bên trái (ví dụ A:B hoặc $A:$B)<span style="display:flex;gap:4px;align-items:center;margin-top:4px"><input id="vno-sheet-title-cols" value="${this._escapeHtml(colsValue)}" class="vno-dialog-input" style="flex:1" placeholder="vd: A:B"><button type="button" id="vno-sheet-title-cols-pick" class="vno-btn vno-btn-icon-only" title="Chọn cột trực tiếp trên lưới" aria-label="Chọn cột trực tiếp trên lưới">⊞</button></span></label></fieldset>
       <fieldset style="border:1px solid var(--vno-border-default);border-radius:6px"><legend>Tỷ lệ vừa trang</legend>
         <label><input type="radio" name="vno-sheet-scale-mode" value="percent" ${setup.scale.mode === "percent" ? "checked" : ""}> Vừa theo tỷ lệ <input id="vno-sheet-scale-percent" type="number" min="10" max="400" value="${setup.scale.percent}" class="vno-dialog-input" style="width:76px">%</label>
         <label><input type="radio" name="vno-sheet-scale-mode" value="pages" ${setup.scale.mode === "pages" ? "checked" : ""}> Vừa trong <input id="vno-sheet-scale-wide" type="number" min="0" max="1000" value="${setup.scale.pagesWide}" class="vno-dialog-input" style="width:64px"> trang ngang × <input id="vno-sheet-scale-tall" type="number" min="0" max="1000" value="${setup.scale.pagesTall}" class="vno-dialog-input" style="width:64px"> trang dọc <small>(0 = tự động)</small></label>
@@ -9515,11 +9546,118 @@ export class SheetGridController {
         printTitles: { rows: overlay.querySelector("#vno-sheet-title-rows").value, cols: overlay.querySelector("#vno-sheet-title-cols").value }
       });
       if (!result) { overlay.querySelector(".vno-rule-error").textContent = "Giá trị lề hoặc tiêu đề in không hợp lệ."; return; }
+      this._printTitleSelect = null;
       overlay.closeDialog();
     });
+    overlay.querySelector("#vno-sheet-title-rows-pick")?.addEventListener("click", () => this.beginPrintTitleSelection("rows", overlay));
+    overlay.querySelector("#vno-sheet-title-cols-pick")?.addEventListener("click", () => this.beginPrintTitleSelection("cols", overlay));
+    const clearPending = () => { this._printTitleSelect = null; };
+    overlay.querySelector(".vno-rule-cancel")?.addEventListener("click", clearPending);
+    overlay.querySelector(".vno-rule-close")?.addEventListener("click", clearPending);
     const focusIds = { margins: "vno-sheet-margin-preset", orientation: "vno-sheet-orientation", size: "vno-sheet-size", scale: "vno-sheet-scale-percent", printTitles: "vno-sheet-title-rows" };
     overlay.querySelector(`#${focusIds[focusField] || focusIds.margins}`)?.focus();
     return true;
+  }
+
+  /**
+   * Bắt đầu chọn Print Titles trực tiếp trên lưới (nút thu gọn ⊞ kiểu Excel).
+   * Hộp thoại được ẩn tạm; người dùng nhấp vào đầu hàng/cột để chọn,
+   * Shift+nhấn để mở rộng vùng. Nhấn Esc hoặc «Quay lại hộp thoại» để trở về.
+   */
+  beginPrintTitleSelection(field, overlay) {
+    if (typeof document === "undefined" || !document.body) return false;
+    if (!["rows", "cols"].includes(field)) return false;
+    this._teardownPrintTitleSelection();
+    const hint = document.createElement("div");
+    hint.className = "vno-print-title-hint";
+    hint.setAttribute("role", "status");
+    hint.style.cssText = "position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:10px;padding:6px 12px;background:var(--vno-primary,#1a5fb4);color:#fff;font-size:13px;";
+    const label = field === "rows" ? "Chọn HÀNG lặp lại trên mỗi trang" : "Chọn CỘT lặp lại ở bên trái";
+    hint.innerHTML = `<strong>${label}</strong><span class="vno-print-title-hint-value">—</span><span style="opacity:.85">Nhấp vào đầu hàng/cột trên lưới, Shift+nhấn để mở rộng.</span><button type="button" class="vno-btn vno-print-title-hint-back" style="margin-left:auto">Quay lại hộp thoại</button>`;
+    this.viewport?.insertBefore?.(hint, this.viewport.firstChild);
+    const state = { field, overlay, anchor: null, current: null, pendingValue: null, hint, onClick: null, onKey: null };
+    state.onClick = event => this._onPrintTitleGridClick(event);
+    state.onKey = event => { if (event.key === "Escape") this.endPrintTitleSelection(); };
+    this.table?.addEventListener?.("click", state.onClick, true);
+    document.addEventListener("keydown", state.onKey);
+    hint.querySelector(".vno-print-title-hint-back")?.addEventListener("click", () => this.endPrintTitleSelection());
+    this._printTitleSelect = state;
+    overlay.closeDialog();
+    return true;
+  }
+
+  /** Xử lý nhấp vào đầu hàng/cột khi đang ở chế độ chọn Print Titles trên lưới. */
+  _onPrintTitleGridClick(event) {
+    const state = this._printTitleSelect;
+    if (!state?.hint) return;
+    const header = event.target?.closest?.(".vno-row-header, .vno-col-header");
+    if (!header) return;
+    event.preventDefault?.();
+    event.stopPropagation?.();
+    if (state.field === "rows") {
+      const row = Number(header.dataset?.row);
+      if (!row) return;
+      if (event.shiftKey && state.anchor != null) {
+        state.current = { start: state.anchor, end: row };
+      } else {
+        state.anchor = row;
+        state.current = { start: row, end: row };
+      }
+    } else {
+      const col = header.dataset?.col;
+      if (!col) return;
+      const colNum = this._columnNumber(col);
+      if (event.shiftKey && state.anchor != null) {
+        state.current = { start: state.anchor, end: colNum };
+      } else {
+        state.anchor = colNum;
+        state.current = { start: colNum, end: colNum };
+      }
+    }
+    state.pendingValue = this.formatPrintTitleSelection(state.field, state.current.start, state.current.end);
+    this._refreshPrintTitleSelectionVisuals();
+  }
+
+  /** Tô sáng đầu hàng/cột đang chọn và cập nhật xem trước giá trị trong thanh gợi ý. */
+  _refreshPrintTitleSelectionVisuals() {
+    const state = this._printTitleSelect;
+    if (!state?.current) return;
+    this.container?.querySelectorAll?.(".vno-row-header.is-print-title-selected, .vno-col-header.is-print-title-selected").forEach(el => el.classList.remove("is-print-title-selected"));
+    const { start, end } = state.current;
+    if (state.field === "rows") {
+      for (let r = start; r <= end; r++) {
+        this.container?.querySelector?.(`.vno-row-header[data-row="${r}"]`)?.classList.add("is-print-title-selected");
+      }
+    } else {
+      for (let c = start; c <= end; c++) {
+        this.container?.querySelector?.(`.vno-col-header[data-col="${this._columnLabel(c)}"]`)?.classList.add("is-print-title-selected");
+      }
+    }
+    if (state.hint) {
+      const valueEl = state.hint.querySelector(".vno-print-title-hint-value");
+      if (valueEl) valueEl.textContent = state.pendingValue || "—";
+    }
+  }
+
+  /** Kết thúc chọn trên lưới: dọn dẹp và mở lại hộp thoại với giá trị đã chọn. */
+  endPrintTitleSelection() {
+    const state = this._printTitleSelect;
+    if (!state?.field) return false;
+    const { field, pendingValue } = state;
+    this._teardownPrintTitleSelection();
+    this._printTitleSelect = { field, pendingValue: pendingValue || null };
+    return this.showPageSetupDialog("printTitles");
+  }
+
+  /** Dọn dẹp listener/thanh gợi ý của chế độ chọn Print Titles trên lưới (giữ lại pendingValue nếu có). */
+  _teardownPrintTitleSelection() {
+    const state = this._printTitleSelect;
+    if (!state) return;
+    if (state.onClick) this.table?.removeEventListener?.("click", state.onClick, true);
+    if (state.onKey) document.removeEventListener("keydown", state.onKey);
+    state.hint?.remove?.();
+    this.container?.querySelectorAll?.(".vno-row-header.is-print-title-selected, .vno-col-header.is-print-title-selected").forEach(el => el.classList.remove("is-print-title-selected"));
+    if (!state.pendingValue) this._printTitleSelect = null;
   }
 
   showHeaderFooterDialog() {
