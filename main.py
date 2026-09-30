@@ -1468,29 +1468,15 @@ def _convert_save_source_to_native(
     target_format: str,
     source_document_path: str | None = None,
 ) -> str:
-    """Run the Save conversion and native-format postprocessing shared by all save routes."""
-    if app_kind == "writer" and target_format == "docx" and source_document_path:
-        source_suffix = Path(source_document_path).suffix.lower()
-        try:
-            with open(source_path, "r", encoding="utf-8", errors="replace") as handle:
-                pristine = "vno-pristine-document" in handle.read()
-        except OSError:
-            pristine = False
-        if pristine and source_suffix in {".doc", ".docx"} and os.path.isfile(source_document_path):
-            # An untouched document already has authoritative Word pagination.
-            # Keep its OOXML as the native Save artifact instead of round-tripping
-            # it through HTML, which can add HTML-import page breaks in LibreOffice.
-            out_path = os.path.join(os.path.dirname(source_path), "draft.docx")
-            if source_suffix == ".docx":
-                shutil.copyfile(source_document_path, out_path)
-            else:
-                source_docx_dir = os.path.join(os.path.dirname(source_path), "legacy_source")
-                os.makedirs(source_docx_dir, exist_ok=True)
-                source_docx = _run_soffice_convert(
-                    source_document_path, "docx", source_docx_dir, app_kind="writer",
-                )
-                shutil.copyfile(source_docx, out_path)
-            return out_path
+    """Run the Save conversion and native-format postprocessing shared by all save routes.
+
+    save_document_in_place, save_document_dialog, Export PDF and Print all call
+    this one function, so what is printed is exactly what Save writes to disk
+    (ROADMAP-V1 3b: display, save and print come from the same conversion).
+    ``source_document_path`` is the opened .docx/.xlsx (or legacy .doc, which
+    the postprocess converts to its intermediate .docx) whose OOXML
+    adapters/libreoffice/common/ooxml_zip_patch.py restores.
+    """
     if app_kind == "writer" and target_format == "doc" and WRITER_DOC_EXPORT_VIA_DOCX:
         return _convert_writer_html_to_doc(source_path, os.path.dirname(source_path), source_path=source_document_path)
     out_path = _run_soffice_convert(source_path, target_format, os.path.dirname(source_path), app_kind=app_kind)

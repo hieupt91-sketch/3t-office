@@ -9052,12 +9052,19 @@ def _restore_writer_matched_formatting(
     converted_xml: str, original_xml: str,
     trusted_untouched_texts: set[str] | None = None,
     trust_all_exact: bool = False,
+    table_paragraphs_only: bool = False,
 ) -> str:
     """Restore direct pPr/rPr only for paragraphs paired by exact text LCS.
 
     This is deliberately formatting-only: paragraph/run text and drawing XML
     always remain the converted app output. Exact text matching prevents a
     guessed or positional overlay when LibreOffice split/merged paragraphs.
+
+    ``table_paragraphs_only`` limits the marker-proven pass to paragraphs in
+    tables. The pristine (``trust_all_exact``) pass works on the body flow
+    only, so a pristine document runs this second pass for its table cells;
+    otherwise their LibreOffice pPr (e.g. a pageBreakBefore made from the
+    source's leading page break, d03) is never restored.
     """
     def paragraph_ranges(xml: str) -> list[tuple[int, int]]:
         ranges = _document_paragraph_ranges(xml)
@@ -9140,6 +9147,13 @@ def _restore_writer_matched_formatting(
             empty_pairs.extend(zip(source_empty, converted_empty))
     empty_paired_indices = {c_idx for _s, c_idx in empty_pairs}
     pairs = sorted(set([*pairs, *empty_pairs]))
+    if table_paragraphs_only:
+        converted_table_ranges = _xml_element_ranges(converted_xml, "w:tbl")
+        pairs = [
+            (source_index, converted_index) for source_index, converted_index in pairs
+            if any(table_start < converted_ranges[converted_index][0] < table_end
+                   for table_start, table_end in converted_table_ranges)
+        ]
 
     replacements: dict[int, str] = {}
     for source_index, converted_index in pairs:
@@ -10874,6 +10888,47 @@ def _strip_writer_shape_mutation_markers(xml: str) -> tuple[str, list[dict]]:
     return result, mutations
 
 
+def _strip_writer_pristine_marker_carrier(xml: str) -> str:
+    """Drop the empty body paragraph LibreOffice creates for the pristine marker.
+
+    The Writer bridge prefixes an untouched document with
+    ``<a name="vno-pristine-document"></a>``. LibreOffice's HTML import wraps
+    that lone anchor in a new, empty first body paragraph. The section pass then
+    gives that phantom paragraph a source sectPr, so an untouched d03.docx
+    (1 page in Word) saved/printed as 3 pages in Word and 2 in LibreOffice.
+    Only a leading paragraph holding nothing but that marker is removed; the
+    bookmark itself stays at body level so the pristine signal still reaches
+    the later passes (and ``_remove_writer_untouched_bookmarks`` deletes it).
+    """
+    body = re.search(r"<w:body\b[^>]*>", xml, re.IGNORECASE)
+    if not body or "vno-pristine-document" not in xml:
+        return xml
+    ranges = _writer_body_paragraph_ranges(xml)
+    if not ranges:
+        return xml
+    start, end = ranges[0]
+    if xml[body.end():start].strip():
+        return xml
+    paragraph = xml[start:end]
+    bookmarks = re.findall(r"<w:bookmark(?:Start|End)\b[^>]*/>", paragraph, re.IGNORECASE)
+    names = re.findall(r'<w:bookmarkStart\b[^>]*\bw:name=["\']([^"\']*)["\']', paragraph, re.IGNORECASE)
+    if names != ["vno-pristine-document"]:
+        return xml
+    # When the document opens with a table, LibreOffice also copies that
+    # table's page-break-before into the phantom paragraph as a literal page
+    # break (the table keeps its own pageBreakBefore). Any other break or
+    # content means the paragraph is real and is kept.
+    without_page_breaks = re.sub(
+        r'<w:br\b(?=[^>]*\bw:type=["\']page["\'])[^>]*/>', "", paragraph, flags=re.IGNORECASE,
+    )
+    if _paragraph_plain_text(paragraph) or re.search(
+        r"<w:(?:drawing|pict|object|sectPr|br|tab|fldChar|fldSimple|instrText|sym)\b|<mc:AlternateContent\b",
+        without_page_breaks, re.IGNORECASE,
+    ):
+        return xml
+    return xml[:start] + "".join(bookmarks) + xml[end:]
+
+
 def _writer_starwriter_shape_index(name: str | None) -> int | None:
     match = re.fullmatch(r"Shape(\d+)", name or "")
     return int(match.group(1)) - 1 if match else None
@@ -11297,6 +11352,7 @@ def postprocess_writer_docx(
     # deleted in Writer. Remove marker paragraphs from the final document, then
     # apply the mutations after passthrough has restored the native anchors.
     converted_xml, mutation_names = _strip_writer_shape_mutation_markers(converted_xml)
+    converted_xml = _strip_writer_pristine_marker_carrier(converted_xml)
 
     # W35b: numbering nguồn + LibreOffice (id dời +1000) — numPr nguồn được W35 trả lại phải trỏ đúng numbering nguồn
     source_numbering_bytes = read_zip_entry(source_docx, "word/numbering.xml")
@@ -11470,6 +11526,11 @@ def postprocess_writer_docx(
         new_xml, original_xml, trusted_untouched_texts=untouched_texts,
         trust_all_exact=pristine_document,
     )
+    if pristine_document:
+        new_xml = _restore_writer_matched_formatting(
+            new_xml, original_xml, trusted_untouched_texts=untouched_texts,
+            table_paragraphs_only=True,
+        )
     new_xml = _remove_writer_untouched_bookmarks(new_xml)
     new_xml = _writer_collapse_consecutive_page_breaks(new_xml)
     new_xml = _writer_unique_docpr_ids(new_xml)
