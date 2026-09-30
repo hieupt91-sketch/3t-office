@@ -779,11 +779,11 @@ export const SHEET_HELP_ENTRIES = [
     ],
     title: "Vùng in và ngắt trang",
     summary: "Đặt khối đang bôi làm vùng in (chỉ phần đó ra giấy/PDF); xóa vùng in để in theo dữ liệu. Chèn ngắt trang ghi cả ngắt hàng và ngắt cột tại ô đang chọn — thấy rõ ở Xem ngắt trang.",
-    ribbon: { tab: "Bố trí trang", tabId: "pageLayout", group: "Vùng in" },
+    ribbon: { tab: "Bố trí trang", tabId: "pageLayout", group: "Thiết lập trang" },
     keywords: ["vùng in", "print area", "ngắt trang", "page break", "xóa vùng in", "in excel"],
     steps: [
-      "Bôi vùng cần in. Tab Bố trí trang, nhóm Vùng in: Đặt vùng in (nút lớn) ghi nhãn vùng (ví dụ A1:G40) theo sheet; Xóa vùng in gỡ vùng (không làm gì nếu chưa đặt).",
-      "Nhóm Ngắt trang cạnh đó: Chèn ngắt trang (nút lớn) thêm ngắt tại hàng và cột của ô đang chọn (ví dụ đứng C15 → ngắt trước hàng 15 và trước cột C). Xóa ngắt trang gỡ đúng cặp hàng/cột đó. Trùng ngắt đã có thì lệnh không thêm lần nữa.",
+      "Bôi vùng cần in. Tab Bố trí trang, nhóm Thiết lập trang: Đặt vùng in (nút lớn) ghi nhãn vùng (ví dụ A1:G40) theo sheet; Xóa vùng in gỡ vùng (không làm gì nếu chưa đặt).",
+      "Cùng nhóm Thiết lập trang: Chèn ngắt trang (nút lớn) thêm ngắt tại hàng và cột của ô đang chọn (ví dụ đứng C15 → ngắt trước hàng 15 và trước cột C). Xóa ngắt trang gỡ đúng cặp hàng/cột đó. Trùng ngắt đã có thì lệnh không thêm lần nữa.",
       "Xem đường chia: tab Chế độ xem → Xem ngắt trang (đường xanh, vùng ngoài khổ in tối). Ctrl+Z hoàn tác lần đặt vùng / chèn ngắt.",
       "Lề, hướng, khổ giấy, tỷ lệ vừa trang: nhóm Thiết lập trang — bài «Thiết lập trang in nâng cao»."
     ]
@@ -887,7 +887,7 @@ export const SHEET_HELP_ENTRIES = [
   {
     id: "sheet.accessibility.keyboardNav",
     app: "sheet",
-    commandIds: ["common.file.backstage", "sheet.format.cells"],
+    commandIds: ["common.file.backstage"],
     title: "Điều hướng bằng bàn phím và trợ năng (VN Sheet)",
     summary: "Thao tác hoàn toàn bằng bàn phím không cần dùng chuột trên bảng tính: di chuyển ô bằng phím mũi tên, Enter, Tab; mở hộp thoại Định dạng ô bằng phím tắt Ctrl+1; bẫy tiêu điểm bên trong hộp thoại (kể cả khi chuyển tab) và tự động khôi phục tiêu điểm về ô lưới sau khi nhấn Escape.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Trợ năng" },

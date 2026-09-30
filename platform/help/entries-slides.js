@@ -573,10 +573,10 @@ export const SLIDES_HELP_ENTRIES = [
     commandIds: ["slides.show.rehearseTimings"],
     title: "Tập dượt hẹn giờ",
     summary: "Chiếu từ trang đang mở, đồng hồ «Trang: MM:SS» và «Tổng: MM:SS». Esc (hoặc hết trang) hỏi có lưu thời gian từng trang không. Thời gian lưu chỉ để tham khảo — F5 không tự chuyển trang theo mốc này.",
-    ribbon: { tab: "Trình chiếu", tabId: "slideshow", group: "Người thuyết trình" },
+    ribbon: { tab: "Trình chiếu", tabId: "slideshow", group: "Thiết lập" },
     keywords: ["tập dượt", "hẹn giờ", "rehearse timings", "đồng hồ", "thời gian trang"],
     steps: [
-      "Mở trang muốn bắt đầu tập. Tab Trình chiếu, nhóm Người thuyết trình: Tập dượt hẹn giờ (nút lớn, cạnh Ghi chú thuyết trình).",
+      "Mở trang muốn bắt đầu tập. Tab Trình chiếu, nhóm Thiết lập: Tập dượt hẹn giờ (nút lớn, cạnh Thiết lập trình chiếu và Ẩn trang).",
       "Overlay «Tập dượt thời gian trình chiếu» với đồng hồ «Trang: MM:SS» và «Tổng: MM:SS» (cập nhật 250 ms). Space / → / PageDown / click (trừ video/audio/đồng hồ) sang trang; ← / PageUp lùi; Esc kết thúc. Trang ẩn bị bỏ qua. Bắt đầu từ trang đang mở, không phải trang 1.",
       "Hết (Esc hoặc trang cuối, trừ khi đang lặp liên tục): hộp xác nhận «Tổng thời gian trình chiếu: {time}. Lưu thời gian tập dượt cho từng trang?» Đồng ý ghi rehearsedDuration (1 chữ số thập phân); Bộ sắp xếp trang hiện ⏱ Ns.",
       "Mốc đã lưu không tự chạy khi F5 — chỉ để xem lại. Muốn lặp không dừng: tab Trình chiếu → Thiết lập trình chiếu."

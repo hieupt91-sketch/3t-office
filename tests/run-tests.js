@@ -115,6 +115,7 @@ import { runWriterSectionBreaksPageColorTests } from "./unit/writer-sectionbreak
 import { runSheetHelpTests } from "./unit/sheet-help.test.js";
 import { runSlidesHelpTests } from "./unit/slides-help.test.js";
 import { runHelpCoverageTests } from "./unit/help-coverage.test.js";
+import { runHelpRibbonLocationTests } from "./unit/help-ribbon-location.test.js";
 import { runWriterWordArtTests } from "./unit/writer-wordart.test.js";
 import { runSlidesAnimationPaneSetupShowTests } from "./unit/slides-animation-pane-setup-show.test.js";
 import { runWriterIllustrationDialogTests } from "./unit/writer-illustration-dialogs.test.js";
@@ -313,6 +314,7 @@ async function runAll() {
     { title: "94. Behavioral Tests — VN Sheet In-app Help", runner: runSheetHelpTests },
     { title: "95. Behavioral Tests — VN Slides In-app Help", runner: runSlidesHelpTests },
     { title: "95b. Regression Guard — Help Coverage (100% Writer & Sheet Ribbon Commands)", runner: runHelpCoverageTests },
+    { title: "95c. Regression Guard — Help ⇄ Ribbon Location Consistency (commandIds thật, tab/nhóm khớp ribbon hiện tại)", runner: runHelpRibbonLocationTests },
     { title: "96. Behavioral Tests — VN Writer WordArt (chữ nghệ thuật)", runner: runWriterWordArtTests },
     { title: "98. Behavioral Tests — VN Slides Animation Pane & Set Up Slide Show", runner: runSlidesAnimationPaneSetupShowTests },
     { title: "101. Behavioral Tests — VN Writer Illustration Dialogs (Shape/Diagram/Chart pickers)", runner: runWriterIllustrationDialogTests },
