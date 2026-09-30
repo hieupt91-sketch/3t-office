@@ -20,7 +20,7 @@ VN Slides: chỉ cần mở/xem/sửa đơn giản/lưu được (ưu tiên sau,
 |---|---|---|
 | G1. Soạn thảo cơ bản Writer | Codex | 30 kịch bản văn bản hành chính (gõ, định dạng, danh sách, bảng, lề A4, số trang, tìm/thay, hoàn tác) cho kết quả giống Word; bản lưu Word mở không lỗi, cùng số trang |
 | G2. Bảng tính cơ bản Sheet | Codex | 30 kịch bản (nhập số/ngày/tiền VND, 10 hàm phổ biến, kéo điền, chép/dán, chèn/xóa hàng cột, lọc/sắp xếp, định dạng số, cố định dòng) giống Excel; Excel mở bản lưu cùng giá trị |
-| G3. Tốc độ | Codex | Word/Excel ≤ 20 trang hoặc ≤ 5 MB mở ≤ 3 s; file có khung chữ ≤ 5 s; Excel 20 MB ≤ 10 s; không đổi kết quả mở |
+| G3. Tốc độ — **nguyên tắc sống còn** (người phụ trách 30/9) | Codex | Mở file nhanh ngang Microsoft Office, LibreOffice và WPS: với cùng một tệp, thời gian VN Office từ lúc chọn tệp tới lúc thấy nội dung ≤ thời gian LibreOffice desktop và không quá 1,5 lần Word/Excel (đo Word/Excel/LibreOffice/WPS làm mốc trên bộ tệp cố định: d03, d12, d24, legacy .doc, lan05, lan11, lan14, legacy .xls). Excel rất lớn phải hiện vùng nhìn thấy trước (nạp dần phần còn lại). Không đổi kết quả mở |
 | G4. Giao diện & lần đầu dùng | agy | 100% chữ giao diện tiếng Việt; hộp thoại đồng ý chỉ 1 lần, không che tài liệu; có trạng thái "Đang mở…"; 20 thao tác cơ bản dùng được bằng bàn phím như Office |
 | G5. Máy chủ báo lỗi | Claude + người phụ trách | Có VPS/HTTPS; lỗi từ máy thử hiện trên trang quản trị ≤ 1 phút |
 | G6. Phát hành | Claude | Mỗi gói xong → bản vá tự động 0.9.x qua share; Setup.exe cho máy mới |
