@@ -1018,7 +1018,10 @@ export class AppShell {
     };
 
     homeNavBtn?.addEventListener("click", () => showTab("home"));
-    printNavBtn?.addEventListener("click", () => showTab("print"));
+    printNavBtn?.addEventListener("click", () => {
+      closeModal();
+      globalCommandBus.execute("common.file.print");
+    });
 
     modal.querySelectorAll("[data-backstage-cmd]").forEach(btn => {
       btn.addEventListener("click", () => {

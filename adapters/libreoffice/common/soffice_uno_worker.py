@@ -105,6 +105,95 @@ def _convert(desktop: Any, uno: Any, property_type: Any, request: dict[str, Any]
     }
 
 
+def _load_hidden_document(desktop: Any, uno: Any, property_type: Any, path: str) -> Any:
+    load_properties = (
+        _property(property_type, "Hidden", True),
+        _property(property_type, "Silent", True),
+        _property(property_type, "ReadOnly", True),
+    )
+    document = desktop.loadComponentFromURL(
+        uno.systemPathToFileUrl(str(Path(path).resolve())),
+        "_blank",
+        0,
+        load_properties,
+    )
+    if document is None:
+        raise RuntimeError("LibreOffice không mở được PDF để xử lý.")
+    return document
+
+
+def _close_hidden_document(document: Any) -> None:
+    try:
+        document.close(True)
+    except Exception:
+        try:
+            document.dispose()
+        except Exception:
+            pass
+
+
+def _inspect_pdf(desktop: Any, uno: Any, property_type: Any, request: dict[str, Any]) -> dict[str, Any]:
+    document = _load_hidden_document(desktop, uno, property_type, request["pdf_path"])
+    try:
+        pages = document.getDrawPages()
+        page_count = int(pages.getCount())
+        if page_count < 1:
+            raise RuntimeError("PDF không có trang để in.")
+        return {"ok": True, "page_count": page_count}
+    finally:
+        _close_hidden_document(document)
+
+
+def _render_pdf_page(desktop: Any, uno: Any, property_type: Any, request: dict[str, Any]) -> dict[str, Any]:
+    page_index = int(request["page_index"])
+    output_path = str(Path(request["output_path"]).resolve())
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    document = _load_hidden_document(desktop, uno, property_type, request["pdf_path"])
+    try:
+        pages = document.getDrawPages()
+        if page_index < 0 or page_index >= int(pages.getCount()):
+            raise ValueError("Số trang xem trước nằm ngoài PDF.")
+        controller = document.getCurrentController()
+        if controller is None:
+            raise RuntimeError("LibreOffice không tạo được bộ điều khiển trang PDF.")
+        controller.setCurrentPage(pages.getByIndex(page_index))
+        document.storeToURL(
+            uno.systemPathToFileUrl(output_path),
+            (
+                _property(property_type, "FilterName", "draw_png_Export"),
+                _property(property_type, "Overwrite", True),
+            ),
+        )
+        if not os.path.isfile(output_path) or os.path.getsize(output_path) <= 0:
+            raise RuntimeError("LibreOffice không tạo được ảnh trang PDF.")
+        return {"ok": True, "output_path": output_path, "output_bytes": os.path.getsize(output_path)}
+    finally:
+        _close_hidden_document(document)
+
+
+def _print_pdf(desktop: Any, uno: Any, property_type: Any, request: dict[str, Any]) -> dict[str, Any]:
+    printer_name = str(request.get("printer") or "").strip()
+    if not printer_name:
+        raise ValueError("Chưa chọn máy in.")
+    copies = int(request.get("copies", 1))
+    if not 1 <= copies <= 999:
+        raise ValueError("Số bản phải từ 1 đến 999.")
+    document = _load_hidden_document(desktop, uno, property_type, request["pdf_path"])
+    try:
+        options = [
+            _property(property_type, "PrinterName", printer_name),
+            _property(property_type, "CopyCount", uno.Any("short", copies)),
+            _property(property_type, "Wait", True),
+        ]
+        pages = str(request.get("pages") or "").strip()
+        if pages:
+            options.append(_property(property_type, "Pages", pages))
+        document.print(tuple(options))
+        return {"ok": True, "printer": printer_name}
+    finally:
+        _close_hidden_document(document)
+
+
 def _stop_server(desktop: Any, process: subprocess.Popen[str] | None) -> None:
     if desktop is not None:
         try:
@@ -191,9 +280,18 @@ def main(argv: list[str] | None = None) -> int:
                 if request.get("op") == "shutdown":
                     _write({"ok": True, "shutdown": True})
                     return 0
-                if request.get("op") != "convert":
+                operation = request.get("op")
+                if operation == "convert":
+                    response = _convert(desktop, uno, PropertyValue, request)
+                elif operation == "inspect_pdf":
+                    response = _inspect_pdf(desktop, uno, PropertyValue, request)
+                elif operation == "render_pdf_page":
+                    response = _render_pdf_page(desktop, uno, PropertyValue, request)
+                elif operation == "print_pdf":
+                    response = _print_pdf(desktop, uno, PropertyValue, request)
+                else:
                     raise ValueError("unsupported worker operation")
-                _write({"id": request.get("id"), **_convert(desktop, uno, PropertyValue, request)})
+                _write({"id": request.get("id"), **response})
             except Exception as exc:
                 _write({
                     "id": request.get("id") if isinstance(request, dict) else None,

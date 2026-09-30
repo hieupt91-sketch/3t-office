@@ -3219,14 +3219,9 @@ export class SlidesCanvasController {
     return { container, result };
   }
 
-  /** In thật: dựng lại toàn bộ deck (khác với canvas chỉ có 1 slide active) rồi gọi window.print(). */
+  /** Chuyển nút xem trước cũ về lệnh In dùng chung của Platform. */
   print() {
-    if (typeof document === "undefined") return true;
-    this._syncSlidesPrintOnlyDom();
-    if (typeof window !== "undefined" && typeof window.print === "function") {
-      window.print();
-    }
-    return true;
+    return globalCommandBus.execute("common.file.print");
   }
 
   closePrintPreview() {
