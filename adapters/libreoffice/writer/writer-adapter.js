@@ -5002,10 +5002,36 @@ export class WriterAdapter {
       });
     }
 
-    spanReplacements.sort((a, b) => b.start - a.start);
-    let finalHtml = src;
-    for (const rep of spanReplacements) {
-      finalHtml = finalHtml.slice(0, rep.start) + rep.value + finalHtml.slice(rep.end);
+    const orderedReplacements = spanReplacements.slice().sort((a, b) => a.start - b.start);
+    let replacementsAreDisjoint = true;
+    let replacementCursor = 0;
+    let previousStart = -1;
+    for (const rep of orderedReplacements) {
+      if (rep.start < replacementCursor || rep.start === previousStart || rep.end < rep.start) {
+        replacementsAreDisjoint = false;
+        break;
+      }
+      replacementCursor = rep.end;
+      previousStart = rep.start;
+    }
+
+    let finalHtml;
+    if (replacementsAreDisjoint) {
+      const pieces = [];
+      let cursor = 0;
+      for (const rep of orderedReplacements) {
+        pieces.push(src.slice(cursor, rep.start), rep.value);
+        cursor = rep.end;
+      }
+      pieces.push(src.slice(cursor));
+      finalHtml = pieces.join("");
+    } else {
+      // Preserve the established behavior for overlapping replacements.
+      spanReplacements.sort((a, b) => b.start - a.start);
+      finalHtml = src;
+      for (const rep of spanReplacements) {
+        finalHtml = finalHtml.slice(0, rep.start) + rep.value + finalHtml.slice(rep.end);
+      }
     }
 
     // Stable per-document ids let live pagination position page-relative

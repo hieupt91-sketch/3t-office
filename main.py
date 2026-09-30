@@ -672,27 +672,6 @@ def _profile_uri(app_kind: str | None = None) -> str:
     return profile_dir.as_uri()
 
 
-def _persistent_writer_html_safe(source_path: str, app_kind: str | None, target_ext: str) -> bool:
-    """Keep Writer text-box exports on the proven CLI path.
-
-    LibreOffice's UNO storeToURL path omits w:txbxContent frames on complex
-    DOCX imports while --convert-to exports them. The DOCX XML marker is a
-    cheap, local preflight; when present, stop the persistent instance and
-    preserve the established command-line output.
-    """
-    if app_kind != "writer" or target_ext != "html" or Path(source_path).suffix.lower() != ".docx":
-        return True
-    try:
-        with zipfile.ZipFile(source_path) as archive:
-            for member in archive.namelist():
-                if member.startswith("word/") and member.endswith(".xml"):
-                    if b"txbxContent" in archive.read(member):
-                        return False
-    except Exception:
-        return False
-    return True
-
-
 def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind: str | None = None) -> str:
     """Chạy LibreOffice headless để chuyển đổi thật một tệp. Trả về đường dẫn tệp kết quả."""
     started_at = time.monotonic()
@@ -762,6 +741,21 @@ def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind:
 
     out_path = Path(out_dir) / f"{Path(src_path).stem}.{target_ext}"
 
+    def finalize_output(output_path: str | Path) -> str:
+        if app_kind == "sheet" and target_ext == "fods":
+            try:
+                with open(output_path, "r", encoding="utf-8", errors="replace") as handle:
+                    fods_xml = handle.read()
+                canonical = _ooxml_zip_patch().canonicalize_fods_style_names(fods_xml)
+                if canonical != fods_xml:
+                    with open(output_path, "w", encoding="utf-8", newline="") as handle:
+                        handle.write(canonical)
+            except Exception as exc:
+                raise DocumentEngineError(
+                    f"KhÃ´ng chuáº©n hÃ³a Ä‘Æ°á»£c style FODS sau khi má»Ÿ: {exc}"
+                ) from exc
+        return str(output_path)
+
     # Reuse UNO only for the open-import pairs whose output was compared with
     # the existing CLI path. Other import/export filters keep the proven CLI.
     source_ext = Path(src_path).suffix.lower()
@@ -775,11 +769,6 @@ def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind:
         and persistent_pair_is_validated
         and not out_path.exists()
     )
-    if use_persistent_worker and not _persistent_writer_html_safe(src_path, app_kind, target_ext):
-        _PERSISTENT_SOFFICE.release_for_cli_fallback(app_kind)
-        _open_perf_log("uno_fallback_to_convert_to", app=app_kind or "shared", reason="writer-docx-textboxes")
-        use_persistent_worker = False
-
     with _convert_lock:
         if _PERSISTENT_SOFFICE_ENABLED and not use_persistent_worker:
             # A persistent instance holds the profile lock. Preserve the old
@@ -797,7 +786,7 @@ def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind:
                     csv_filter_options,
                 )
                 if Path(persistent_path).is_file():
-                    return persistent_path
+                    return finalize_output(persistent_path)
                 raise _PersistentSofficeTransportError("UNO helper did not create its output file.")
             except Exception as exc:
                 _open_perf_log("uno_fallback_to_convert_to", app=app_kind or "shared", error=str(exc)[:180])
@@ -831,7 +820,7 @@ def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind:
         report_conversion_failure("SofficeOutputMissing", message)
         raise DocumentEngineError(message)
 
-    return str(out_path)
+    return finalize_output(out_path)
 
 
 _OOXML_ZIP_PATCH = None

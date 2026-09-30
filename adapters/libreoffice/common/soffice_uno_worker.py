@@ -9,9 +9,11 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 import time
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +28,25 @@ def _property(property_type: Any, name: str, value: Any) -> Any:
     prop.Name = name
     prop.Value = value
     return prop
+
+
+def _docx_contains_textboxes(source_path: str) -> bool:
+    """Return whether a DOCX has Word text-box content in any OOXML part."""
+    if Path(source_path).suffix.lower() != ".docx":
+        return False
+    try:
+        with zipfile.ZipFile(source_path) as archive:
+            for name in archive.namelist():
+                if not (name.startswith("word/") and name.endswith(".xml")):
+                    continue
+                with archive.open(name) as entry:
+                    if b"txbxContent" in entry.read():
+                        return True
+    except (OSError, zipfile.BadZipFile):
+        # If preflight cannot read the package, avoid the hidden import path;
+        # LibreOffice will surface the actual load error below.
+        return True
+    return False
 
 
 def _connect(uno: Any, pipe_name: str, process: subprocess.Popen[str]) -> Any:
@@ -52,14 +73,24 @@ def _convert(desktop: Any, uno: Any, property_type: Any, request: dict[str, Any]
     output_path = str(Path(request["output_path"]).resolve())
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
-    load_properties = [
-        _property(property_type, "Hidden", True),
+    load_properties = []
+    # Writer imports DOCX text boxes differently when Hidden=True, which
+    # changes StarWriter HTML output even though the same filter is selected.
+    # Keep the faster hidden import for DOCX files without text boxes; for
+    # documents that contain them, match the CLI's non-hidden load path.
+    html_writer_textboxes = (
+        request.get("filter_name") == "HTML (StarWriter)"
+        and _docx_contains_textboxes(source_path)
+    )
+    if not html_writer_textboxes:
+        load_properties.append(_property(property_type, "Hidden", True))
+    load_properties.extend([
         _property(property_type, "Silent", True),
         # These conversions only import the source into an intermediate file;
         # opening read-only matches the CLI converter and handles DOCX files
         # that LibreOffice's interactive UNO loader otherwise declines.
         _property(property_type, "ReadOnly", True),
-    ]
+    ])
     input_filter = request.get("input_filter")
     if input_filter:
         load_properties.append(_property(property_type, "FilterName", str(input_filter)))
@@ -97,6 +128,20 @@ def _convert(desktop: Any, uno: Any, property_type: Any, request: dict[str, Any]
 
     if not os.path.isfile(output_path):
         raise RuntimeError("LibreOffice did not create the requested output file")
+    if request.get("filter_name") == "HTML (StarWriter)":
+        # The CLI HTML filter serializes PAGE fields as page 1 because HTML
+        # has no pagination. A headless UNO view can retain the DOCX's saved
+        # current page (for example 20), so normalize that field result to the
+        # same CLI representation without refreshing or mutating document data.
+        html_bytes = Path(output_path).read_bytes()
+        normalized_html = re.sub(
+            rb'(<sdfield\b[^>]*\btype=PAGE\b[^>]*>)[^<]*(</sdfield>)',
+            rb"\g<1>1\g<2>",
+            html_bytes,
+            flags=re.IGNORECASE,
+        )
+        if normalized_html != html_bytes:
+            Path(output_path).write_bytes(normalized_html)
     return {
         "ok": True,
         "output_path": output_path,

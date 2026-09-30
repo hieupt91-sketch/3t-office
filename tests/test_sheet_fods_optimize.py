@@ -26,6 +26,56 @@ class SheetFodsOptimizeTests(unittest.TestCase):
   </office:spreadsheet></office:body>
 </office:document>"""
 
+    def test_canonicalize_generated_fods_names_across_export_order(self):
+        prefix = '''<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+                 xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+                 xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"
+                 xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0">
+ <office:font-face-decls>'''
+        middle = '''</office:font-face-decls>
+ <office:automatic-styles>
+  <style:style style:name="ce1" style:family="table-cell"><style:text-properties style:font-name="{font}"/></style:style>
+  {layouts}
+ </office:automatic-styles>
+ <office:master-styles>
+  <style:master-page style:name="Default" style:page-layout-name="{page}"></style:master-page>
+ </office:master-styles>
+ <office:body><office:spreadsheet/></office:body>
+</office:document>'''
+        first = (
+            prefix
+            + '''
+  <style:font-face style:name="fontA" svg:font-family="Calibri" style:font-family-generic="roman"/>
+  <style:font-face style:name="fontB" svg:font-family="Calibri" style:font-family-generic="swiss"/>'''
+            + middle.format(
+                font="fontA",
+                page="pm1",
+                layouts='''<style:page-layout style:name="pm1"><style:page-layout-properties fo:page-width="210mm"/></style:page-layout>
+  <style:page-layout style:name="pm2"><style:page-layout-properties fo:page-width="297mm"/></style:page-layout>''',
+            )
+        )
+        second = (
+            prefix
+            + '''
+  <style:font-face style:name="fontA" svg:font-family="Calibri" style:font-family-generic="swiss"/>
+  <style:font-face style:name="fontB" svg:font-family="Calibri" style:font-family-generic="roman"/>'''
+            + middle.format(
+                font="fontB",
+                page="pm2",
+                layouts='''<style:page-layout style:name="pm1"><style:page-layout-properties fo:page-width="297mm"/></style:page-layout>
+  <style:page-layout style:name="pm2"><style:page-layout-properties fo:page-width="210mm"/></style:page-layout>''',
+            )
+        )
+
+        canonical_first = self.patcher.canonicalize_fods_style_names(first)
+        canonical_second = self.patcher.canonicalize_fods_style_names(second)
+        self.assertEqual(canonical_first, canonical_second)
+        self.assertEqual(
+            self.patcher.canonicalize_fods_style_names(canonical_first),
+            canonical_first,
+        )
+
     def test_merge_consecutive_empty_styled_cells(self):
         """Consecutive empty cells with same style should be merged with number-columns-repeated."""
         table_body = (

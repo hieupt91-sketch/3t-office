@@ -12392,10 +12392,17 @@ def optimize_fods_streaming(fods_xml: str, max_style_only_col_repeat: int = 64) 
         inner = _OPT_EMPTY_P_RE.sub("", inner)
         return "<" in inner
 
-    def _fods_cell_is_style_only(cell_xml: str) -> bool:
-        if _cell_has_content(cell_xml):
+    def _fods_cell_is_style_only(
+        cell_xml: str,
+        style: str | None = None,
+        has_content: bool | None = None,
+    ) -> bool:
+        if has_content is None:
+            has_content = _cell_has_content(cell_xml)
+        if has_content:
             return False
-        style = _get_cell_style(cell_xml)
+        if style is None:
+            style = _get_cell_style(cell_xml)
         if not style:
             return False
         if cell_visual_styles and style in cell_visual_styles:
@@ -12447,15 +12454,24 @@ def optimize_fods_streaming(fods_xml: str, max_style_only_col_repeat: int = 64) 
         if "<table:table-row" not in table_body:
             return match.group(0)
 
-        # First pass: find last data column across all rows (only actual content, not style-only)
+        # Cache each row's cell fragments and parsed metadata while finding the
+        # last data column. The former second pass reparsed every row and cell,
+        # including repeated-cell attributes, without changing the decisions.
+        rows = []
         last_data_col = 0
         for row_start, row_end in _flat_xml_blocks(table_body, ("table:table-row",)):
-            _row_open_tag, _row_self_close, row_content = _split_row(table_body[row_start:row_end])
+            row_xml = table_body[row_start:row_end]
+            row_open_tag, row_self_close, row_content = _split_row(row_xml)
+            row_repeat = _get_row_repeat(row_open_tag)
             scan_col = 1
             row_last_data_col = 0
+            cells = []
             for cell_xml in _extract_cells_from_row(row_content):
                 col_repeat = _get_cell_col_repeat(cell_xml)
                 has_content = _cell_has_content(cell_xml)
+                style = _get_cell_style(cell_xml)
+                is_style_only = _fods_cell_is_style_only(cell_xml, style, has_content)
+                cells.append((cell_xml, col_repeat, style, has_content, is_style_only))
 
                 if has_content:
                     row_last_data_col = max(row_last_data_col, scan_col + col_repeat - 1)
@@ -12464,12 +12480,10 @@ def optimize_fods_streaming(fods_xml: str, max_style_only_col_repeat: int = 64) 
 
             if row_last_data_col > 0:
                 last_data_col = max(last_data_col, row_last_data_col)
+            rows.append((row_start, row_end, row_open_tag, row_self_close, row_repeat, cells))
 
-        # Second pass: rebuild each row with merged cells and trimmed tail
-        def process_row(row_xml: str) -> str:
-            row_open_tag, row_self_close, row_content = _split_row(row_xml)
-            row_repeat = _get_row_repeat(row_open_tag)
-
+        # Rebuild each row from the cached cell metadata.
+        def process_row(row_open_tag: str, row_self_close: bool, row_repeat: int, cells: list[tuple]) -> str:
             new_row_content = []
             col_number = 1
             pending_cell = None
@@ -12484,13 +12498,7 @@ def optimize_fods_streaming(fods_xml: str, max_style_only_col_repeat: int = 64) 
                     pending_count = 0
                     pending_style = None
 
-            cells = _extract_cells_from_row(row_content)
-            for cell_xml in cells:
-                col_repeat = _get_cell_col_repeat(cell_xml)
-                style = _get_cell_style(cell_xml)
-                has_content = _cell_has_content(cell_xml)
-                is_style_only = _fods_cell_is_style_only(cell_xml)
-
+            for cell_xml, col_repeat, style, has_content, is_style_only in cells:
                 if is_style_only and not has_content:
                     # For style-only cells, calculate how many columns to keep
                     # Columns <= max_style_only_col_repeat are kept
@@ -12539,14 +12547,119 @@ def optimize_fods_streaming(fods_xml: str, max_style_only_col_repeat: int = 64) 
 
         pieces: list[str] = []
         cursor = 0
-        for row_start, row_end in _flat_xml_blocks(table_body, ("table:table-row",)):
+        for row_start, row_end, row_open_tag, row_self_close, row_repeat, cells in rows:
             pieces.append(table_body[cursor:row_start])
-            pieces.append(process_row(table_body[row_start:row_end]))
+            pieces.append(process_row(row_open_tag, row_self_close, row_repeat, cells))
             cursor = row_end
         pieces.append(table_body[cursor:])
         return table_open + "".join(pieces) + table_close
 
     return _FODS_TABLE_RE.sub(process_table, fods_xml)
+
+
+def canonicalize_fods_style_names(fods_xml: str) -> str:
+    """Stabilize Calc's generated style aliases across CLI and UNO exports.
+
+    LibreOffice can enumerate equivalent font and page-layout definitions in
+    process-local order. Canonical names and declaration order make those
+    exports byte-comparable while keeping every reference attached to the same
+    definition.
+    """
+    body_start = fods_xml.find("<office:body")
+    if body_start < 0:
+        return fods_xml
+
+    header = fods_xml[:body_start]
+    body = fods_xml[body_start:]
+
+    def canonicalize_named_blocks(
+        xml_header: str,
+        tag_name: str,
+        name_prefix: str,
+        reference_attributes: tuple[str, ...] = (),
+    ) -> tuple[str, dict[str, str]]:
+        tag = re.escape(tag_name)
+        block_re = re.compile(rf"<{tag}\b[^>]*?(?:/>|>[\s\S]*?</{tag}>)")
+        name_re = re.compile(r'\bstyle:name="([^"]*)"')
+        matches = list(block_re.finditer(xml_header))
+        if not matches:
+            return xml_header, {}
+
+        rows: list[tuple[str, str, str]] = []
+        for match in matches:
+            block = match.group(0)
+            name_match = name_re.search(block)
+            if not name_match:
+                return xml_header, {}
+            old_name = name_match.group(1)
+            key = name_re.sub("", block, count=1)
+            rows.append((old_name, block, key))
+
+        ordered_rows = sorted(rows, key=lambda row: (row[2], row[0]))
+        name_map = {
+            old_name: f"{name_prefix}{index:04d}"
+            for index, (old_name, _, _) in enumerate(ordered_rows, 1)
+        }
+
+        for attribute in reference_attributes:
+            reference_re = re.compile(rf'(\b{re.escape(attribute)}=")([^"]*)(")')
+            xml_header = reference_re.sub(
+                lambda reference: (
+                    reference.group(1)
+                    + name_map.get(reference.group(2), reference.group(2))
+                    + reference.group(3)
+                ),
+                xml_header,
+            )
+
+        current_blocks: dict[str, str] = {}
+        for match in block_re.finditer(xml_header):
+            block = match.group(0)
+            name_match = name_re.search(block)
+            if name_match:
+                current_blocks[name_match.group(1)] = block
+
+        ordered_blocks: list[str] = []
+        for old_name, original_block, _ in ordered_rows:
+            current = current_blocks.get(old_name, original_block)
+            new_name = name_map[old_name]
+            current = name_re.sub(
+                lambda name: f'{name.group(0).split("=")[0]}="{new_name}"',
+                current,
+                count=1,
+            )
+            ordered_blocks.append(current)
+
+        matches = list(block_re.finditer(xml_header))
+        for match, block in reversed(list(zip(matches, ordered_blocks))):
+            xml_header = xml_header[:match.start()] + block + xml_header[match.end():]
+        return xml_header, name_map
+
+    header, _font_names = canonicalize_named_blocks(
+        header,
+        "style:font-face",
+        "VNOfficeFont",
+        ("style:font-name", "style:font-name-asian", "style:font-name-complex"),
+    )
+    header, _page_layout_names = canonicalize_named_blocks(
+        header,
+        "style:page-layout",
+        "VNOfficeLayout",
+        ("style:page-layout-name",),
+    )
+
+    master_re = re.compile(r"<style:master-page\b[^>]*>[\s\S]*?</style:master-page>")
+    master_matches = list(master_re.finditer(header))
+    master_name_re = re.compile(r'\bstyle:name="([^"]*)"')
+    if master_matches:
+        master_blocks = sorted(
+            (match.group(0) for match in master_matches),
+            key=lambda block: (master_name_re.search(block).group(1)),
+        )
+        for match, block in reversed(list(zip(master_matches, master_blocks))):
+            header = header[:match.start()] + block + header[match.end():]
+
+    return header + body
 
 
 if __name__ == "__main__":
