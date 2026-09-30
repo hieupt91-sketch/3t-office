@@ -107,6 +107,7 @@ export class SlidesAdapter {
     this.canvas = canvasController;
     this.isDirty = false;
     this.sourceFileName = "TrinhChieu";
+    this.sourceFilePath = "";
     this.shell = null;
   }
 
@@ -121,15 +122,17 @@ export class SlidesAdapter {
 
   newDocument() {
     this.sourceFileName = "TrinhChieu";
+    this.sourceFilePath = "";
     this.isDirty = false;
     if (this.canvas?.resetToBlank) {
-      this.canvas.resetToBlank("BẢN TRÌNH CHIẾU MỚI");
+      this.canvas.resetToBlank();
     }
-    this.shell?.resetDocumentChrome?.("Bản trình chiếu 1.pptx", "home", false);
+    this.shell?.resetDocumentChrome?.("Bản trình bày 1.pptx", "home", false);
     return true;
   }
 
   closeDocument() {
+    if (this.shell?.requestCloseDocument) return this.shell.requestCloseDocument();
     return this.newDocument();
   }
 
@@ -139,7 +142,7 @@ export class SlidesAdapter {
     // (Writer/Sheet/Slides) PHẢI tự bindHandler() lại khi active, nếu không app kích hoạt
     // trước (mặc định Writer) sẽ chiếm vĩnh viễn phím Ctrl+Z/Ctrl+Y cho mọi app khác.
     // (Lỗi thật đã xảy ra: Ctrl+Z trong Slides gọi nhầm WriterAdapter.undo().)
-    globalCommandBus.bindHandler("common.file.new", () => this.newDocument());
+    globalCommandBus.bindHandler("common.file.new", () => this.shell?.requestNewDocumentWindow?.() ?? this.newDocument());
     globalCommandBus.bindHandler("common.file.close", () => this.closeDocument());
     globalCommandBus.bindHandler("common.file.print", () => this.print());
     globalCommandBus.bindHandler("common.edit.undo", () => this.canvas.undo ? this.canvas.undo() : false);
@@ -3606,7 +3609,7 @@ export class SlidesAdapter {
     if (!/<office:document\b/i.test(content) || !/<draw:page\b/i.test(content)) return false;
     this.loadFromFodp(content);
     if (!this.canvas?.slides?.length) return false;
-    const originalTitle = String(manifest.title || "Bản trình chiếu 1.pptx").split(/[\\/]/).filter(Boolean).pop().replace(/\.[^/.]+$/, "") || "Bản trình chiếu";
+    const originalTitle = String(manifest.title || "Bản trình bày 1.pptx").split(/[\\/]/).filter(Boolean).pop().replace(/\.[^/.]+$/, "") || "Bản trình bày";
     this.sourceFileName = `${originalTitle} (đã khôi phục)`;
     this.isDirty = true;
     this.shell?.resetDocumentChrome?.(`${this.sourceFileName}.pptx`, null, false);
@@ -3617,22 +3620,26 @@ export class SlidesAdapter {
    * Lưu bản trình chiếu thành tệp PPTX thật trên đĩa (qua LibreOffice headless engine).
    */
   async save() {
+    if (!this.sourceFilePath) return await this.saveAs();
     const fodpContent = this.serializeToFodp();
-    const suggestedName = (this.sourceFileName && this.sourceFileName !== "TrinhChieu")
-      ? this.sourceFileName
-      : (this.shell?.documentName ? this.shell.documentName.replace(/\.[^/.]+$/, "") : (this.sourceFileName || "TrinhChieu"));
-    const result = await globalUnoBridge.saveRealFile("slides", fodpContent, "pptx", suggestedName);
+    const result = await globalUnoBridge.saveRealFileInPlace(
+      "slides",
+      fodpContent,
+      this.sourceFilePath,
+      this.sourceFilePath
+    );
     if (result.status === "ok") {
       this.isDirty = false;
-      const savedPath = result.path || result.fileName;
+      const savedPath = result.path || this.sourceFilePath;
       if (savedPath) {
         const savedFileName = savedPath.split(/[/\\]/).pop();
         if (savedFileName) {
+          this.sourceFilePath = savedPath;
           this.sourceFileName = savedFileName.replace(/\.[^/.]+$/, "");
-          this.shell?.resetDocumentChrome?.(savedFileName, null);
+          this.shell?.resetDocumentChrome?.(savedFileName, null, true, savedPath);
         }
       }
-      await showAlertDialog({ title: "Đã lưu", message: result.message, type: "success" });
+      this.shell?.setStatus?.("Đã lưu");
       return true;
     }
     if (result.status === "cancelled") return false;
@@ -3641,27 +3648,87 @@ export class SlidesAdapter {
   }
 
   async saveAs() {
-    return await this.save();
+    const fodpContent = this.serializeToFodp();
+    const currentName = this.sourceFilePath
+      ? this.sourceFilePath.split(/[/\\]/).pop()
+      : (this.shell?.documentName || "Bản trình bày 1.pptx");
+    const targetFormat = this.sourceFilePath
+      ? (this.sourceFilePath.match(/\.([a-zA-Z0-9]+)$/)?.[1]?.toLowerCase() || "pptx")
+      : "pptx";
+    const result = await globalUnoBridge.saveRealFile(
+      "slides",
+      fodpContent,
+      targetFormat,
+      currentName,
+      this.sourceFilePath || null
+    );
+    if (result.status === "ok") {
+      const savedPath = result.path || result.fileName;
+      // Như PowerPoint: Lưu thành PDF chỉ xuất bản PDF; bản trình chiếu giữ tên, định dạng và trạng thái chưa lưu.
+      if (/\.pdf$/i.test(String(savedPath || ""))) {
+        this.shell?.setStatus?.(`Đã xuất PDF: ${String(savedPath).split(/[/\\]/).pop()}`);
+        return true;
+      }
+      this.isDirty = false;
+      if (savedPath) {
+        this.sourceFilePath = savedPath;
+        const savedFileName = savedPath.split(/[/\\]/).pop();
+        if (savedFileName) {
+          this.sourceFileName = savedFileName.replace(/\.[^/.]+$/, "");
+          this.shell?.resetDocumentChrome?.(savedFileName, null, true, savedPath);
+        }
+      }
+      this.shell?.setStatus?.("Đã lưu");
+      return true;
+    }
+    if (result.status === "cancelled") return false;
+    await showAlertDialog({ title: "Không thể lưu bản trình chiếu", message: result.message || "Lỗi không xác định khi lưu bản trình chiếu.", type: "error" });
+    return false;
   }
 
   /**
    * Mở một tệp PPTX/ODP thật từ đĩa, nạp các trang chiếu vào Canvas.
    */
   async open() {
+    if (typeof this.shell?.confirmUnsavedChangesBeforeReplace === "function"
+      && !(await this.shell.confirmUnsavedChangesBeforeReplace())) return false;
     const result = await globalUnoBridge.openRealFile("slides");
     if (result.status === "ok") {
-      this.loadFromFodp(
-        result.content,
-        result.ooxmlPresentationXml,
-        result.ooxmlSlideMasterXml,
-        result.ooxmlPresPropsXml
-      );
+      const previous = {
+        content: this.serializeToFodp(),
+        sourceFileName: this.sourceFileName,
+        sourceFilePath: this.sourceFilePath,
+        isDirty: this.isDirty
+      };
+      try {
+        this.loadFromFodp(
+          result.content,
+          result.ooxmlPresentationXml,
+          result.ooxmlSlideMasterXml,
+          result.ooxmlPresPropsXml
+        );
+        if (!this.canvas?.slides?.length) throw new Error("Tệp không có trang chiếu hợp lệ.");
+      } catch (error) {
+        try { this.loadFromFodp(previous.content); } catch (restoreError) {
+          console.error("[SlidesAdapter] Không khôi phục được bản trình chiếu sau khi mở tệp lỗi:", restoreError);
+        }
+        this.sourceFileName = previous.sourceFileName;
+        this.sourceFilePath = previous.sourceFilePath;
+        this.isDirty = previous.isDirty;
+        await showAlertDialog({
+          title: "Không thể mở tệp",
+          message: error?.message || "VN Slides không thể đọc nội dung tệp. Bản trình chiếu đang mở được giữ nguyên.",
+          type: "error"
+        });
+        return false;
+      }
       this.sourceFileName = (result.fileName || "TrinhChieu").replace(/\.[^/.]+$/, "");
+      this.sourceFilePath = result.sourcePath || "";
       this.isDirty = false;
       // Lỗi thật đã xác nhận: nội dung nạp đúng nhưng nhãn tên tệp trên tab
       // vẫn giữ nguyên tên demo cũ vì resetDocumentChrome() chỉ được gọi ở
       // File > Mới/Đóng, chưa bao giờ gọi sau khi Mở tệp thật.
-      this.shell?.resetDocumentChrome?.(result.fileName || "Bản trình chiếu 1.pptx");
+      this.shell?.resetDocumentChrome?.(result.fileName || "Bản trình bày 1.pptx", null, true, this.sourceFilePath);
       return true;
     }
     if (result.status === "cancelled") return false;

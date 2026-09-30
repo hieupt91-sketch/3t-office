@@ -6306,7 +6306,9 @@ export class WriterAdapter {
         return this.toggleStyleGallery(args);
 
       case "common.file.new":
-        return await this.newDocument();
+        return this.shell?.requestNewDocumentWindow
+          ? await this.shell.requestNewDocumentWindow()
+          : await this.newDocument();
 
       case "common.file.close":
         return await this.closeDocument();
@@ -11195,7 +11197,7 @@ export class WriterAdapter {
         const savedFileName = savedPath.split(/[/\\]/).pop();
         if (savedFileName) {
           this.sourceFileName = savedFileName.replace(/\.[^/.]+$/, "");
-          this.shell?.resetDocumentChrome?.(savedFileName, null);
+          this.shell?.resetDocumentChrome?.(savedFileName, null, true, savedPath);
         }
       }
       this.shell?.setStatus?.("Đã lưu");
@@ -11234,14 +11236,20 @@ export class WriterAdapter {
     );
 
     if (result.status === "ok") {
-      this.isDirty = false;
       const savedPath = result.path || result.fileName;
+      // Như Word: Lưu thành PDF chỉ xuất một bản PDF; tài liệu đang sửa vẫn giữ tên,
+      // định dạng và trạng thái chưa lưu của nó (Ctrl+S sau đó không ghi vào tệp PDF).
+      if (/\.pdf$/i.test(String(savedPath || ""))) {
+        this.shell?.setStatus?.(`Đã xuất PDF: ${String(savedPath).split(/[/\\]/).pop()}`);
+        return true;
+      }
+      this.isDirty = false;
       if (savedPath) {
         this._sourcePath = savedPath;
         const savedFileName = savedPath.split(/[/\\]/).pop();
         if (savedFileName) {
           this.sourceFileName = savedFileName.replace(/\.[^/.]+$/, "");
-          this.shell?.resetDocumentChrome?.(savedFileName, null);
+          this.shell?.resetDocumentChrome?.(savedFileName, null, true, savedPath);
         }
       }
       this.shell?.setStatus?.("Đã lưu");
@@ -11261,6 +11269,8 @@ export class WriterAdapter {
    * Mở một tệp DOCX/ODT thật từ đĩa, thay thế nội dung soạn thảo hiện tại.
    */
   async open() {
+    if (typeof this.shell?.confirmUnsavedChangesBeforeReplace === "function"
+      && !(await this.shell.confirmUnsavedChangesBeforeReplace())) return false;
     if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
       window.dispatchEvent(new Event("vno:document-open-progress"));
     }
@@ -11276,6 +11286,25 @@ export class WriterAdapter {
   async _openDocumentFromDisk() {
     const result = await globalUnoBridge.openRealFile("writer");
     if (result.status === "ok") {
+      let imported;
+      try {
+        imported = this._normalizeImportedHtml(
+          result.content || "",
+          result.ooxmlDocumentXml,
+          result.ooxmlCommentsXml,
+          result.ooxmlStylesXml,
+          result.ooxmlNumberingXml,
+          result.ooxmlHeaderXml,
+          result.ooxmlFooterXml
+        );
+      } catch (error) {
+        await showAlertDialog({
+          title: "Không thể mở tệp",
+          message: `${error?.message || "Tệp không đúng định dạng hoặc bị hỏng."} Tài liệu đang mở được giữ nguyên.`,
+          type: "error"
+        });
+        return false;
+      }
       this._initZones();
       this._sourcePath = result.sourcePath || null;
       // Comments chỉ thuộc tài liệu đang mở trong phiên; file khác không dùng lại anchor cũ.
@@ -11283,15 +11312,6 @@ export class WriterAdapter {
       this.trackChangesEnabled = false;
       this.activeCommentId = null;
       this._renderCommentsPanel();
-      const imported = this._normalizeImportedHtml(
-        result.content || "",
-        result.ooxmlDocumentXml,
-        result.ooxmlCommentsXml,
-        result.ooxmlStylesXml,
-        result.ooxmlNumberingXml,
-        result.ooxmlHeaderXml,
-        result.ooxmlFooterXml
-      );
       if (imported.page) {
         this.pageSetup = {
           size: imported.page.size || this.pageSetup.size,
@@ -11354,7 +11374,7 @@ export class WriterAdapter {
       this._openedEditorDomHash = this._editorDomFingerprint();
       this._updateTrackChangesCommandState();
       this.clearUndoRedo();
-      this.shell?.resetDocumentChrome?.(result.fileName || "Tài liệu 1.docx");
+      this.shell?.resetDocumentChrome?.(result.fileName || "Tài liệu 1.docx", null, true, result.sourcePath || "");
       this._recomputeLivePagination?.();
       if (typeof requestAnimationFrame !== "undefined") {
         requestAnimationFrame(() => this._recomputeLivePagination?.());
@@ -11473,6 +11493,7 @@ export class WriterAdapter {
   }
 
   async closeDocument() {
+    if (this.shell?.requestCloseDocument) return await this.shell.requestCloseDocument();
     return await this.newDocument();
   }
 
@@ -12403,9 +12424,14 @@ export class WriterAdapter {
    */
   _isSnapshotEqual(a, b) {
     if (!a || !b) return false;
-    if (a.bodyHtml !== b.bodyHtml) return false;
-    if (a.headerHtml !== b.headerHtml) return false;
-    if (a.footerHtml !== b.footerHtml) return false;
+    // Gạch chân kiểm tra chính tả được chèn/bỏ bất đồng bộ; đó là lớp hiển thị, không phải
+    // nội dung. Không bỏ qua nó thì Lưu xong chỉ cần bấm F12/lệnh bất kỳ là tài liệu tự
+    // thành "chưa lưu" và đóng cửa sổ hỏi Lưu dù người dùng không sửa gì (đo G7).
+    const comparable = html => (html == null ? html : String(html)
+      .replace(/<span\b(?=[^>]*\bclass=["'][^"']*\bvno-spelling-(?:error|uncertain)\b[^"']*["'])[^>]*>([\s\S]*?)<\/span>/gi, "$1"));
+    if (a.bodyHtml !== b.bodyHtml && comparable(a.bodyHtml) !== comparable(b.bodyHtml)) return false;
+    if (a.headerHtml !== b.headerHtml && comparable(a.headerHtml) !== comparable(b.headerHtml)) return false;
+    if (a.footerHtml !== b.footerHtml && comparable(a.footerHtml) !== comparable(b.footerHtml)) return false;
     if (JSON.stringify(a.pageSetup) !== JSON.stringify(b.pageSetup)) return false;
     if ((a.activeSectionId || "section-1") !== (b.activeSectionId || "section-1")) return false;
     if (JSON.stringify(a.sectionPageSetups || {}) !== JSON.stringify(b.sectionPageSetups || {})) return false;

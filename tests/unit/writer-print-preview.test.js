@@ -248,8 +248,10 @@ export async function runWriterPrintPreviewTests() {
     const fakeDoc = new FakeDocument();
     globalThis.document = fakeDoc;
     let windowPrintCalled = false;
+    let afterPrintCallback = null;
     globalThis.window = {
       print: () => { windowPrintCalled = true; },
+      addEventListener: (type, callback) => { if (type === "afterprint") afterPrintCallback = callback; },
       getSelection: () => null
     };
 

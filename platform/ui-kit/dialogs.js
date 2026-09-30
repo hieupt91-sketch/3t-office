@@ -225,6 +225,77 @@ export function showConfirmDialog({
 }
 
 /**
+ * Hỏi cách xử lý thay đổi chưa lưu trước khi thay tài liệu hoặc đóng cửa sổ.
+ * @returns {Promise<"save"|"discard"|"cancel">}
+ */
+export function showUnsavedChangesDialog({
+  title = "Lưu thay đổi?",
+  message = "Bạn có muốn lưu các thay đổi của tài liệu này không?",
+  saveText = "Lưu",
+  discardText = "Không lưu",
+  cancelText = "Hủy"
+} = {}) {
+  return new Promise((resolve) => {
+    if (typeof document === "undefined" || typeof document.createElement !== "function" || !document.body) {
+      resolve("cancel");
+      return;
+    }
+    const previousFocused = document.activeElement;
+    const overlay = document.createElement("div");
+    overlay.className = "vno-dialog-overlay";
+    const titleId = `vno-dialog-title-${++dialogIdCounter}`;
+    overlay.innerHTML = `
+      <div class="vno-dialog-box" style="width:460px;" role="alertdialog" aria-modal="true" aria-labelledby="${titleId}">
+        <div class="vno-dialog-header">
+          <span id="${titleId}">${title}</span>
+          <button class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${cancelText}" aria-label="${cancelText}">&times;</button>
+        </div>
+        <div class="vno-dialog-body">
+          <p style="margin:0;font-size:13px;line-height:1.6;color:var(--vno-text-primary);">${message}</p>
+        </div>
+        <div class="vno-dialog-footer">
+          <button class="vno-btn vno-dialog-cancel-btn" data-unsaved-choice="cancel">${cancelText}</button>
+          <button class="vno-btn vno-dialog-discard-btn" data-unsaved-choice="discard">${discardText}</button>
+          <button class="vno-btn vno-btn-primary vno-dialog-save-btn" data-unsaved-choice="save">${saveText}</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    const dialogBox = overlay.querySelector(".vno-dialog-box");
+    const saveBtn = overlay.querySelector(".vno-dialog-save-btn");
+    const cancelBtn = overlay.querySelector(".vno-dialog-cancel-btn");
+    const closeBtn = overlay.querySelector(".vno-dialog-close-btn");
+
+    const finish = (choice) => {
+      document.removeEventListener("keydown", onKeyDown);
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (previousFocused && typeof previousFocused.focus === "function") previousFocused.focus();
+      resolve(choice);
+    };
+    overlay.querySelectorAll("[data-unsaved-choice]").forEach(button => {
+      button.addEventListener("click", () => finish(button.getAttribute("data-unsaved-choice")));
+    });
+    closeBtn.addEventListener("click", () => finish("cancel"));
+    overlay.addEventListener("click", event => {
+      if (event.target === overlay) finish("cancel");
+    });
+    const onKeyDown = event => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        finish("cancel");
+      } else if (event.key === "Enter") {
+        event.preventDefault();
+        finish("save");
+      } else if (event.key === "Tab") {
+        trapFocus(dialogBox, event);
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    saveBtn.focus();
+  });
+}
+
+/**
  * Hiển thị Hộp thoại Nhập liệu (thay thế prompt)
  * @param {Object} options
  * @param {string} [options.title="Nhập dữ liệu"]

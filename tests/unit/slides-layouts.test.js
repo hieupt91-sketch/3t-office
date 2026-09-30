@@ -12,6 +12,7 @@
  */
 
 import { SlidesCanvasController, SLIDE_LAYOUT_TYPES } from "../../apps/slides/slides-canvas.js";
+import { createSlidesCanvasFixture } from "./slides-test-fixtures.js";
 import { SlidesAdapter } from "../../adapters/libreoffice/slides/slides-adapter.js";
 import { SLIDES_COMMANDS } from "../../platform/commands/command-definitions.js";
 import { mapVnCommandToUno } from "../../adapters/libreoffice/common/command-dispatch-mapper.js";
@@ -109,7 +110,7 @@ export async function runSlidesLayoutsTests() {
 
   function createMockCanvasController() {
     const container = { innerHTML: "", className: "", appendChild() {} };
-    const canvas = new SlidesCanvasController(container);
+    const canvas = createSlidesCanvasFixture(container);
 
     // Mock DOM elements
     canvas.titleEl = {

@@ -1,5 +1,6 @@
 /** Behavioral tests — deep, sheet-isolated VN Sheet undo/redo history. */
 import { SheetGridController } from "../../apps/sheet/sheet-grid.js";
+import { createSheetGridWithSheets } from "./sheet-test-fixtures.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 
 function container() {
@@ -33,7 +34,7 @@ export async function runSheetUndoRedoTests() {
   };
 
   test("Undo/Redo nhập liệu: gộp chuỗi gõ cùng ô nhưng giữ thao tác rời rạc", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     grid.setCellValue("A", 1, "a", true, { coalesce: true });
     grid.setCellValue("A", 1, "ab", true, { coalesce: true });
     grid.setCellValue("A", 1, "abc", true, { coalesce: true });
@@ -47,7 +48,7 @@ export async function runSheetUndoRedoTests() {
   });
 
   test("Undo/Redo history: giới hạn đúng 100 bước gần nhất", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     for (let index = 0; index < 105; index++) grid.setCellValue("A", 1, index);
     assert(grid.undoStack.length === 100, `History phải giới hạn 100, nhận ${grid.undoStack.length}`);
     for (let index = 0; index < 100; index++) assert(grid.undo(), `Bước undo ${index + 1} phải thực thi được`);
@@ -55,7 +56,7 @@ export async function runSheetUndoRedoTests() {
   });
 
   test("Conditional Formatting: thêm/xóa đều undo và redo đúng state thật", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     const rule = grid.addConditionalFormattingRule({ start: { c: "A", r: 1 }, end: { c: "A", r: 2 } }, { type: "greaterThan", value: 10, color: "#ff0000" });
     grid.undo();
     assert(grid.getConditionalFormattingRules().length === 0, "Undo add phải làm rule biến mất");
@@ -70,7 +71,7 @@ export async function runSheetUndoRedoTests() {
   });
 
   test("Data Validation: thêm/xóa undo và redo giữ nguyên cấu hình", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     const validation = grid.addDataValidation({ start: { c: "B", r: 2 }, end: { c: "B", r: 4 } }, { type: "list", values: "Mới, Xong" });
     grid.undo();
     assert(grid.getValidationForCell("B", 3) === null, "Undo add phải bỏ validation khỏi vùng");
@@ -84,7 +85,7 @@ export async function runSheetUndoRedoTests() {
   });
 
   test("Charts: insert/delete undo và redo cập nhật collection thật", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     grid.setCellValue("A", 1, 12);
     const chart = grid.insertChart("bar", { start: { c: "A", r: 1 }, end: { c: "A", r: 1 } });
     grid.undo();
@@ -99,7 +100,7 @@ export async function runSheetUndoRedoTests() {
   });
 
   test("Sort giảm dần: undo/redo đối xứng và không tạo history phụ", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     grid.setCellValue("A", 4, 1);
     grid.setCellValue("A", 5, 3);
     grid.setCellValue("A", 6, 2);
@@ -115,7 +116,7 @@ export async function runSheetUndoRedoTests() {
   });
 
   test("Filter: áp dụng và toggle đều có snapshot undo/redo", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     grid.setCellValue("A", 4, "Giữ");
     grid.setCellValue("A", 5, "Ẩn");
     grid.undoStack = [];
@@ -132,7 +133,7 @@ export async function runSheetUndoRedoTests() {
   });
 
   test("Freeze panes: undo/redo đúng sheet và không rò sang sheet khác", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     const first = grid.activeSheet;
     // Chọn C3 trước khi bấm Freeze Panes - đúng hành vi Excel thật là cố định
     // hàng trên/cột trái của Ô đang chọn; ở A1 (mặc định) sẽ không có gì để
@@ -150,7 +151,7 @@ export async function runSheetUndoRedoTests() {
   });
 
   test("Multi-sheet actions: undo chỉ đổi sheet sở hữu action", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     const first = grid.activeSheet;
     grid.addConditionalFormattingRule({ start: { c: "C", r: 1 }, end: { c: "C", r: 1 } }, { type: "blank", color: "#ffff00" });
     grid.switchSheet("Nhân sự");
@@ -163,7 +164,7 @@ export async function runSheetUndoRedoTests() {
   });
 
   test("Sheet add/delete: undo/redo phục hồi cả dữ liệu và rule", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     const original = grid.activeSheet;
     grid.addSheet("Báo cáo");
     grid.setCellValue("D", 8, "Nội dung");
@@ -185,7 +186,7 @@ export async function runSheetUndoRedoTests() {
   });
 
   test("Command state: Undo/Redo disabled chính xác theo stack", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     const changes = new Map();
     const originalUpdate = globalCommandBus.updateState;
     globalCommandBus.updateState = (id, state) => changes.set(id, { ...(changes.get(id) || {}), ...state });

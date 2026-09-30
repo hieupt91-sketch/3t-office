@@ -509,6 +509,8 @@ export function registerAllStandardCommands(bus) {
       globalShortcutManager.bind(cmd.shortcut, cmd.id, scope);
     }
   }
+  // Word/Excel/PowerPoint also use Ctrl+Shift+S for Save As; keep F12 as the primary label.
+  globalShortcutManager.bind("Ctrl+Shift+S", "common.file.saveAs", "common");
   applyLocaleToCommandDefinitions(bus);
 }
 

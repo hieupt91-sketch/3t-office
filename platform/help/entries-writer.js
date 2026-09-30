@@ -5,6 +5,34 @@
 
 export const WRITER_HELP_ENTRIES = [
   {
+    id: "writer.file.basics",
+    app: "writer",
+    commandIds: ["common.file.new", "common.file.open", "common.file.save", "common.file.saveAs", "common.file.close"],
+    title: "Tạo, mở và lưu tài liệu",
+    summary: "Tài liệu mới mở ra trang A4 trống. Dùng Tệp để mở hoặc lưu DOCX, DOC, ODT, RTF, TXT.",
+    ribbon: { tab: "Tệp", tabId: "file", group: "Tài liệu" },
+    keywords: ["tạo mới", "mở tệp", "lưu", "lưu thành", "in", "Ctrl+N", "Ctrl+O", "Ctrl+S", "F12", "Ctrl+P", "tài liệu trống"],
+    steps: [
+      "Tạo tài liệu trống: nhấn Ctrl+N hoặc mở Tệp > Mới. VN Writer mở một cửa sổ riêng tên Tài liệu 2, Tài liệu 3…; trang A4 có con trỏ ở đoạn đầu và chưa được đánh dấu là đã sửa.",
+      "Mở tài liệu: nhấn Ctrl+O hoặc chọn Tệp > Mở, chọn DOCX, DOC, ODT, RTF hoặc TXT. Nếu tài liệu hiện tại có thay đổi, chọn Lưu, Không lưu hoặc Hủy trước khi tiếp tục; Hủy hoặc đóng hộp chọn tệp sẽ giữ tài liệu hiện tại.",
+      "Lưu: Ctrl+S mở hộp thoại Lưu thành cho tài liệu mới. Với tệp đã mở/lưu, Ctrl+S ghi đúng định dạng hiện tại. Nhấn F12 (hoặc Ctrl+Shift+S), nhập tên trong hộp thoại Lưu bản sao rồi chọn DOCX, DOC, ODT, RTF, TXT hoặc PDF ở danh sách Loại tệp. Cũng có thể chọn Tệp > Lưu bản sao. Chọn PDF chỉ xuất một bản PDF; tài liệu đang mở giữ tên, định dạng và đường dẫn cũ. Khi ghi đè tệp đã có, xác nhận trong hộp thoại của Windows; sau khi lưu định dạng văn bản khác, tên tab và tiêu đề cửa sổ chuyển sang tệp mới."
+    ]
+  },
+  {
+    id: "writer.file.print",
+    app: "writer",
+    commandIds: ["common.file.print"],
+    title: "Xem trước và in tài liệu",
+    summary: "Xem các trang A4 trước khi in, chọn máy in, số bản và phạm vi trang.",
+    ribbon: { tab: "Bố cục", tabId: "layout", group: "In ấn" },
+    keywords: ["in", "Ctrl+P", "xem trước khi in", "máy in", "số bản", "phạm vi trang"],
+    steps: [
+      "Nhấn Ctrl+P hoặc chọn Bố cục > In ấn > In để mở Xem trước khi in.",
+      "Kiểm tra số trang và nội dung tài liệu trước khi in; nhấn Esc bất kỳ lúc nào để quay lại cửa sổ soạn thảo.",
+      "Chọn máy in, số bản và phạm vi trang trong hộp thoại in của Windows rồi nhấn In để in tài liệu."
+    ]
+  },
+  {
     id: "writer.section.breaks",
     app: "writer",
     commandIds: ["writer.page.break", "writer.break.column", "writer.section.nextPage", "writer.section.continuous", "writer.section.evenPage", "writer.section.oddPage"],

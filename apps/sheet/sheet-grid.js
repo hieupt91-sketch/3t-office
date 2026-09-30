@@ -151,28 +151,26 @@ export class SheetGridController {
   constructor(container, options = {}) {
     this.container = container;
     this.options = options;
-    this.isBlank = options.isBlank === true;
+    this.isBlank = options.isBlank ?? (options.templateId !== "budget_estimate");
     this.cols = Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i));
     this.rowCount = 200;
     this.rowHeight = DEFAULT_ROW_HEIGHT_PX;
     this.defaultColWidth = DEFAULT_COL_WIDTH_PX;
 
-    this.sheets = ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"];
-    this.activeSheet = "Dự toán chi phí";
+    this.sheets = options.templateId === "budget_estimate"
+      ? ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]
+      : ["Sheet1"];
+    this.activeSheet = this.sheets[0];
 
     /** @type {Record<string, Map<string, {val: string|number, formula: string, style: Object}>>} */
-    this.sheetsData = {
-      "Dự toán chi phí": new Map(),
-      "Kế hoạch Q3": new Map(),
-      "Nhân sự": new Map()
-    };
+    this.sheetsData = Object.fromEntries(this.sheets.map(name => [name, new Map()]));
 
     /** @type {Record<string, {hiddenRows: Set<number>, activeFilters: Map<string, Set<string>>, isFilterActive: boolean, isFrozenPanes: boolean, frozenRows: number, frozenCols: number, selectedCoord: {r: number, c: string}}>} */
-    this.sheetStates = {
-      "Dự toán chi phí": { hiddenRows: new Set(), activeFilters: new Map(), isFilterActive: false, isFrozenPanes: false, frozenRows: 0, frozenCols: 0, selectedCoord: { r: 1, c: "A" } },
-      "Kế hoạch Q3": { hiddenRows: new Set(), activeFilters: new Map(), isFilterActive: false, isFrozenPanes: false, frozenRows: 0, frozenCols: 0, selectedCoord: { r: 1, c: "A" } },
-      "Nhân sự": { hiddenRows: new Set(), activeFilters: new Map(), isFilterActive: false, isFrozenPanes: false, frozenRows: 0, frozenCols: 0, selectedCoord: { r: 1, c: "A" } }
-    };
+    this.sheetStates = Object.fromEntries(this.sheets.map(name => [name, {
+      hiddenRows: new Set(), activeFilters: new Map(), isFilterActive: false,
+      isFrozenPanes: false, frozenRows: 0, frozenCols: 0,
+      selectedCoord: { r: 1, c: "A" }
+    }]));
 
     this.namedRangesWorkbook = [];
     this.namedRangesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
@@ -1898,7 +1896,7 @@ export class SheetGridController {
     return true;
   }
 
-  resetToBlank(defaultSheetName = "Trang tính 1") {
+  resetToBlank(defaultSheetName = "Sheet1") {
     this.sheets = [defaultSheetName];
     this.activeSheet = defaultSheetName;
     this.sheetsData = { [defaultSheetName]: new Map() };
@@ -2081,7 +2079,7 @@ export class SheetGridController {
 
   addSheet(name, recordUndo = true) {
     const previousSheet = this.activeSheet;
-    const sheetName = name || `Trang tính ${this.sheets.length + 1}`;
+    const sheetName = name || `Sheet${this.sheets.length + 1}`;
     const isNewSheet = !this.sheets.includes(sheetName);
     if (isNewSheet && this._guardWorkbookStructure()) return false;
     if (isNewSheet) {
