@@ -975,7 +975,15 @@ def _ooxml_zip_patch():
     return _OOXML_ZIP_PATCH
 
 
-def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str | None, target_format: str, source_path: str | None = None) -> None:
+def _apply_native_export_postprocess(
+    src_path: str,
+    out_path: str,
+    app_kind: str | None,
+    target_format: str,
+    source_path: str | None = None,
+    *,
+    pristine_docx_source: bool | None = None,
+) -> None:
     """Patch native OOXML that LibreOffice omitted, after soffice convert.
 
     Why here (main.py), not the JS adapters: File → Lưu serializes FODS/FODP in
@@ -998,6 +1006,10 @@ def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str
     ppt/presentation.xml, and CT_ShowProperties on presentationPr.
     """
     fmt = str(target_format).lower()
+    if pristine_docx_source is None:
+        pristine_docx_source = bool(
+            source_path and Path(source_path).suffix.lower() == ".docx"
+        )
     if app_kind == "sheet" and fmt == "xlsx":
         if not src_path or not str(src_path).lower().endswith(".fods"):
             return
@@ -1075,7 +1087,11 @@ def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str
                 else:
                     with open(source_path, "rb") as handle:
                         original_docx = handle.read()
-                patched = patcher.postprocess_writer_docx(patched, source_docx=original_docx)
+                patched = patcher.postprocess_writer_docx(
+                    patched,
+                    source_docx=original_docx,
+                    preserve_pristine_source=pristine_docx_source,
+                )
             if patched != converted_docx:
                 with open(out_path, "wb") as handle:
                     handle.write(patched)
@@ -1095,13 +1111,21 @@ WRITER_DOC_EXPORT_VIA_DOCX = True
 def _convert_writer_html_to_doc(src_html: str, out_dir: str, source_path: str | None = None) -> str:
     """Export Writer HTML through the source-aware DOCX overlay before legacy DOC."""
     intermediate_docx = _run_soffice_convert(src_html, "docx", out_dir, app_kind="writer")
+    pristine_docx_source = bool(
+        source_path and Path(source_path).suffix.lower() == ".docx"
+    )
     source_docx = source_path
     if source_path and os.path.isfile(source_path) and Path(source_path).suffix.lower() == ".doc":
         source_dir = os.path.join(out_dir, "legacy_source")
         os.makedirs(source_dir, exist_ok=True)
         source_docx = _run_soffice_convert(source_path, "docx", source_dir, app_kind="writer")
     _apply_native_export_postprocess(
-        src_html, intermediate_docx, "writer", "docx", source_path=source_docx,
+        src_html,
+        intermediate_docx,
+        "writer",
+        "docx",
+        source_path=source_docx,
+        pristine_docx_source=pristine_docx_source,
     )
     if os.path.isfile(intermediate_docx):
         patcher = _ooxml_zip_patch()

@@ -30,8 +30,20 @@ def _write_docx(path: Path, document_xml: str) -> None:
         )
 
 
-def _document_xml(font_size: int, page_width: int, page_height: int, *, bookmark: bool = False) -> str:
-    marker = '<w:bookmarkStart w:id="0" w:name="vno-untouched-0"/>' if bookmark else ""
+def _document_xml(
+    font_size: int,
+    page_width: int,
+    page_height: int,
+    *,
+    bookmark: bool = False,
+    pristine_bookmark: bool = False,
+) -> str:
+    marker_parts = []
+    if bookmark:
+        marker_parts.append('<w:bookmarkStart w:id="0" w:name="vno-untouched-0"/>')
+    if pristine_bookmark:
+        marker_parts.append('<w:bookmarkStart w:id="1" w:name="vno-pristine-document"/>')
+    marker = "".join(marker_parts)
     return (
         f'<w:document xmlns:w="{_DOCUMENT_NS}"><w:body>'
         '<w:p>%s<w:r><w:rPr><w:sz w:val="%d"/></w:rPr><w:t>Same saved paragraph</w:t></w:r></w:p>'
@@ -63,7 +75,18 @@ class _FakeSoffice:
                 _write_docx(output_path, _document_xml(27, 12240, 15840))
             else:
                 # LibreOffice's HTML import rounds 13.5pt and forgets the Letter page.
-                _write_docx(output_path, _document_xml(26, 11906, 16838, bookmark=True))
+                source_html = source.read_text(encoding="utf-8", errors="replace")
+                pristine = "vno-pristine-document" in source_html
+                _write_docx(
+                    output_path,
+                    _document_xml(
+                        26,
+                        11906,
+                        16838,
+                        bookmark=True,
+                        pristine_bookmark=pristine,
+                    ),
+                )
         elif target_format in {"xlsx", "pptx"}:
             with zipfile.ZipFile(output_path, "w") as archive:
                 archive.writestr("[Content_Types].xml", "<Types/>")
@@ -134,7 +157,7 @@ class PrintSavePipelineTests(unittest.TestCase):
                         self.assertEqual(print_archive.read(member), save_archive.read(member))
 
     def test_untouched_document_is_not_short_circuited_around_save(self):
-        """A pristine document still prints through the Save conversion, never a raw copy."""
+        """The Save conversion runs, then pristine source OOXML is restored exactly."""
         with tempfile.TemporaryDirectory(prefix="vno_print_pristine_test_") as temp_dir:
             root = Path(temp_dir)
             original_docx = root / "source.docx"
@@ -148,6 +171,52 @@ class PrintSavePipelineTests(unittest.TestCase):
                 )
 
             self.assertEqual(fake.conversions, [(".html", "docx", "writer"), (".docx", "pdf", "writer")])
+            self.assertEqual((root / "draft.docx").read_bytes(), original_docx.read_bytes())
+
+    def test_pristine_save_and_print_share_restored_original_docx_package(self):
+        with tempfile.TemporaryDirectory(prefix="vno_pristine_save_print_same_") as temp_dir:
+            root = Path(temp_dir)
+            original_docx = root / "source.docx"
+            _write_docx(original_docx, _document_xml(27, 12240, 15840))
+            content = '<a name="vno-pristine-document"></a>' + _WRITER_HTML
+            fake = _FakeSoffice()
+            saved_docx = root / "saved.docx"
+            print_dir = root / "print"
+            print_dir.mkdir()
+
+            with patch.object(main, "_run_soffice_convert", side_effect=fake):
+                saved = main.VnOfficeApi()._save_document_in_place_impl(
+                    content, "writer", str(saved_docx), str(original_docx),
+                )
+                self.assertEqual(saved["status"], "ok", saved)
+                print_source = main._write_print_source(
+                    content, "writer", str(print_dir), source_document_path=str(original_docx),
+                )
+
+            self.assertEqual(saved_docx.read_bytes(), original_docx.read_bytes())
+            self.assertEqual(Path(print_source).read_bytes(), original_docx.read_bytes())
+            self.assertEqual(fake.conversions, [(".html", "docx", "writer")] * 2)
+
+    def test_legacy_doc_does_not_treat_its_intermediate_docx_as_original_source(self):
+        with tempfile.TemporaryDirectory(prefix="vno_pristine_legacy_print_") as temp_dir:
+            root = Path(temp_dir)
+            original_doc = root / "legacy.doc"
+            original_doc.write_bytes(b"\xd0\xcf\x11\xe0 fake OLE")
+            content = '<a name="vno-pristine-document"></a>' + _WRITER_HTML
+            fake = _FakeSoffice()
+
+            with patch.object(main, "_run_soffice_convert", side_effect=fake):
+                print_source = main._write_print_source(
+                    content, "writer", str(root), source_document_path=str(original_doc),
+                )
+
+            intermediate_source = root / "legacy_source" / "legacy.docx"
+            self.assertTrue(intermediate_source.is_file())
+            self.assertNotEqual(Path(print_source).read_bytes(), intermediate_source.read_bytes())
+            self.assertEqual(
+                fake.conversions,
+                [(".html", "docx", "writer"), (".doc", "docx", "writer")],
+            )
 
     def test_legacy_doc_prints_through_its_intermediate_docx(self):
         with tempfile.TemporaryDirectory(prefix="vno_print_doc_test_") as temp_dir:
