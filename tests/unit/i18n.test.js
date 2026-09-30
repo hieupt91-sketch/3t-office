@@ -15,6 +15,19 @@ export async function runI18nTests() {
     results.push({ name: "i18n: Locale mặc định không phải vi", pass: false });
   }
 
+  // 1b. Windows/WebView tiếng Anh, chưa từng chọn ngôn ngữ -> vẫn tiếng Việt (lỗi dùng thử 30/9: ribbon hiện tiếng Anh)
+  {
+    const originalNavigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+    Object.defineProperty(globalThis, "navigator", { value: { languages: ["en-US", "en"], language: "en-US" }, configurable: true });
+    try {
+      const fresh = await import("../../platform/i18n/i18n.js?english-windows");
+      results.push({ name: "i18n: Windows tiếng Anh vẫn mặc định tiếng Việt", pass: fresh.getLocale() === "vi", error: `got ${fresh.getLocale()}` });
+    } finally {
+      if (originalNavigator) Object.defineProperty(globalThis, "navigator", originalNavigator);
+      else delete globalThis.navigator;
+    }
+  }
+
   // 2. Kiểm tra tra cứu chuỗi chung
   if (t("common.save") === "Lưu tài liệu" && t("common.undo") === "Hoàn tác") {
     results.push({ name: "i18n: Tra cứu đúng các chuỗi common tiêu chuẩn", pass: true });
