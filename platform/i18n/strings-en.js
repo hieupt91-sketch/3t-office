@@ -436,6 +436,8 @@ export const enStrings = {
     ,"sheet.page.clearPrintArea": { label: "Clear Print Area", tooltip: "Clear the current worksheet's print area" }
     ,"sheet.page.insertPageBreak": { label: "Insert Page Break", tooltip: "Insert row and column page breaks at the active cell" }
     ,"sheet.page.removePageBreak": { label: "Remove Page Break", tooltip: "Remove row and column page breaks at the active cell" }
+    ,"sheet.insert.cells": { label: "Insert Cells...", tooltip: "Insert cells, rows, or columns (Ctrl+Shift++)" }
+    ,"sheet.sheet.insertBefore": { label: "Insert Sheet", tooltip: "Insert a new sheet before current sheet (Shift+F11)" }
     ,"sheet.row.insert": { label: "Insert Row", tooltip: "Insert a new row (Ctrl+Shift+=)" }
     ,"sheet.col.insert": { label: "Insert Column", tooltip: "Insert a new column" }
     ,"sheet.row.delete": { label: "Delete Row", tooltip: "Delete the row containing the active cell" }
@@ -575,6 +577,8 @@ export const enStrings = {
     "writer.text.strike": { label: "Strikethrough", tooltip: "Strikethrough" },
     "writer.font.grow": { label: "Increase Font Size", tooltip: "Increase font size (Ctrl+Shift+>)" },
     "writer.font.shrink": { label: "Decrease Font Size", tooltip: "Decrease font size (Ctrl+Shift+<)" },
+    "writer.font.grow1pt": { label: "Increase Font Size 1 pt", tooltip: "Increase font size by 1 point (Ctrl+])" },
+    "writer.font.shrink1pt": { label: "Decrease Font Size 1 pt", tooltip: "Decrease font size by 1 point (Ctrl+[)" },
     "writer.text.subscript": { label: "Subscript", tooltip: "Subscript X₂ (Ctrl+=)" },
     "writer.text.superscript": { label: "Superscript", tooltip: "Superscript X² (Ctrl+Shift++)" },
     "writer.text.clearFormat": { label: "Clear All Formatting", tooltip: "Clear all formatting (Ctrl+Space)" },

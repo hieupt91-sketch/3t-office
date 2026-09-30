@@ -81,6 +81,8 @@ export const WRITER_COMMANDS = [
   { id: "writer.text.strike", category: "format", label: "Gạch ngang", icon: "strike", tooltip: "Gạch ngang chữ", isToggle: true },
   { id: "writer.font.grow", category: "format", label: "Tăng cỡ chữ", shortcut: "Ctrl+Shift+>", icon: "fontGrow", tooltip: "Tăng cỡ chữ nhanh (Ctrl+Shift+>)" },
   { id: "writer.font.shrink", category: "format", label: "Giảm cỡ chữ", shortcut: "Ctrl+Shift+<", icon: "fontShrink", tooltip: "Giảm cỡ chữ nhanh (Ctrl+Shift+<)" },
+  { id: "writer.font.grow1pt", category: "format", label: "Tăng cỡ chữ 1 điểm", shortcut: "Ctrl+]", icon: "fontGrow", tooltip: "Tăng cỡ chữ thêm 1 điểm (Ctrl+])" },
+  { id: "writer.font.shrink1pt", category: "format", label: "Giảm cỡ chữ 1 điểm", shortcut: "Ctrl+[", icon: "fontShrink", tooltip: "Giảm cỡ chữ đi 1 điểm (Ctrl+[)" },
   { id: "writer.text.subscript", category: "format", label: "Chỉ số dưới", shortcut: "Ctrl+=", icon: "subscript", tooltip: "Chỉ số dưới X₂ (Ctrl+=)", isToggle: true },
   { id: "writer.text.superscript", category: "format", label: "Chỉ số trên", shortcut: "Ctrl+Shift++", icon: "superscript", tooltip: "Chỉ số trên X² (Ctrl+Shift++)", isToggle: true },
   { id: "writer.text.clearFormat", category: "format", label: "Xóa định dạng", shortcut: "Ctrl+Space", icon: "clearFormat", tooltip: "Xóa toàn bộ định dạng về mặc định (Ctrl+Space)" },
@@ -331,6 +333,8 @@ export const SHEET_COMMANDS = [
   { id: "sheet.page.headerFooter", category: "page", label: "Tiêu đề Đầu/Cuối trang", icon: "headerFooter", tooltip: "Đặt đầu trang và cuối trang khi in" },
 
   // Chèn hàng/cột & Biểu đồ
+  { id: "sheet.insert.cells", category: "insert", label: "Chèn ô/hàng/cột...", shortcut: "Ctrl+Shift++", icon: "insertRow", tooltip: "Chèn ô, hàng hoặc cột (Ctrl+Shift++)" },
+  { id: "sheet.sheet.insertBefore", category: "insert", label: "Chèn trang tính mới", shortcut: "Shift+F11", icon: "table", tooltip: "Chèn trang tính mới trước trang hiện tại (Shift+F11)" },
   { id: "sheet.row.insert", category: "insert", label: "Chèn hàng", shortcut: "Ctrl+Shift+=", icon: "insertRow", tooltip: "Chèn thêm hàng mới (Ctrl+Shift+=)" },
   { id: "sheet.col.insert", category: "insert", label: "Chèn cột", icon: "insertCol", tooltip: "Chèn thêm cột mới" },
   { id: "sheet.row.delete", category: "insert", label: "Xóa hàng", icon: "deleteRow", tooltip: "Xóa hàng chứa ô đang chọn" },

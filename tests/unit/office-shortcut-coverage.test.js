@@ -123,6 +123,7 @@ const BASELINE_BOUND = {
     "Ctrl+A", "Ctrl+F", "Ctrl+H", "Ctrl+B", "Ctrl+I", "Ctrl+U", "Ctrl+L", "Ctrl+E", "Ctrl+R",
     "Ctrl+J", "Ctrl+Shift+>", "Ctrl+Shift+<", "Ctrl+Enter", "Ctrl+M", "Ctrl+Shift+M",
     "Ctrl+1", "Ctrl+2", "Ctrl+5", "F12", "F7", "Shift+F3", "Ctrl+K", "Ctrl+Home", "Ctrl+End",
+    "Ctrl+]", "Ctrl+[",
   ],
   sheet: [
     "Ctrl+N", "Ctrl+O", "Ctrl+S", "Ctrl+P", "Ctrl+Z", "Ctrl+Y", "Ctrl+X", "Ctrl+C", "Ctrl+V",
@@ -130,6 +131,7 @@ const BASELINE_BOUND = {
     "Ctrl+;", "Ctrl+Shift+;", "Ctrl+Shift+L", "Alt+=", "Ctrl+D", "Ctrl+R", "Ctrl+Space",
     "Shift+Space", "Ctrl+ArrowUp", "Ctrl+ArrowDown", "Ctrl+ArrowLeft", "Ctrl+ArrowRight",
     "Ctrl+PageUp", "Ctrl+PageDown", "Alt+Enter",
+    "Ctrl+-", "Ctrl+Shift++", "F11", "Shift+F11",
   ],
   slides: [
     "Ctrl+N", "Ctrl+O", "Ctrl+S", "Ctrl+P", "Ctrl+Z", "Ctrl+Y", "Ctrl+X", "Ctrl+C", "Ctrl+V",
@@ -147,6 +149,8 @@ const DIRECTLY_HANDLED = {
     "Ctrl+PageUp": "sheet-grid.js keydown handler (previousSheet)",
     "Ctrl+PageDown": "sheet-grid.js keydown handler (nextSheet)",
     "Alt+Enter": "sheet-grid.js formulaInput keydown handler (newline in cell)",
+    "Ctrl+-": "sheet-grid.js keydown handler (delete cells/rows/cols dialog or immediate)",
+    "F11": "sheet-grid.js keydown handler (insert chart)",
   },
 };
 
