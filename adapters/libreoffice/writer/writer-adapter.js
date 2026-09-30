@@ -6248,7 +6248,9 @@ export class WriterAdapter {
         return this.toggleStyleGallery(args);
 
       case "common.file.new":
-        return await this.newDocument();
+        return this.shell?.requestNewDocumentWindow
+          ? await this.shell.requestNewDocumentWindow()
+          : await this.newDocument();
 
       case "common.file.close":
         return await this.closeDocument();
@@ -11094,7 +11096,7 @@ export class WriterAdapter {
         const savedFileName = savedPath.split(/[/\\]/).pop();
         if (savedFileName) {
           this.sourceFileName = savedFileName.replace(/\.[^/.]+$/, "");
-          this.shell?.resetDocumentChrome?.(savedFileName, null);
+          this.shell?.resetDocumentChrome?.(savedFileName, null, true, savedPath);
         }
       }
       this.shell?.setStatus?.("Đã lưu");
@@ -11140,7 +11142,7 @@ export class WriterAdapter {
         const savedFileName = savedPath.split(/[/\\]/).pop();
         if (savedFileName) {
           this.sourceFileName = savedFileName.replace(/\.[^/.]+$/, "");
-          this.shell?.resetDocumentChrome?.(savedFileName, null);
+          this.shell?.resetDocumentChrome?.(savedFileName, null, true, savedPath);
         }
       }
       this.shell?.setStatus?.("Đã lưu");
@@ -11160,6 +11162,8 @@ export class WriterAdapter {
    * Mở một tệp DOCX/ODT thật từ đĩa, thay thế nội dung soạn thảo hiện tại.
    */
   async open() {
+    if (typeof this.shell?.confirmUnsavedChangesBeforeReplace === "function"
+      && !(await this.shell.confirmUnsavedChangesBeforeReplace())) return false;
     if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
       window.dispatchEvent(new Event("vno:document-open-progress"));
     }
@@ -11175,6 +11179,25 @@ export class WriterAdapter {
   async _openDocumentFromDisk() {
     const result = await globalUnoBridge.openRealFile("writer");
     if (result.status === "ok") {
+      let imported;
+      try {
+        imported = this._normalizeImportedHtml(
+          result.content || "",
+          result.ooxmlDocumentXml,
+          result.ooxmlCommentsXml,
+          result.ooxmlStylesXml,
+          result.ooxmlNumberingXml,
+          result.ooxmlHeaderXml,
+          result.ooxmlFooterXml
+        );
+      } catch (error) {
+        await showAlertDialog({
+          title: "Không thể mở tệp",
+          message: `${error?.message || "Tệp không đúng định dạng hoặc bị hỏng."} Tài liệu đang mở được giữ nguyên.`,
+          type: "error"
+        });
+        return false;
+      }
       this._initZones();
       this._sourcePath = result.sourcePath || null;
       // Comments chỉ thuộc tài liệu đang mở trong phiên; file khác không dùng lại anchor cũ.
@@ -11182,15 +11205,6 @@ export class WriterAdapter {
       this.trackChangesEnabled = false;
       this.activeCommentId = null;
       this._renderCommentsPanel();
-      const imported = this._normalizeImportedHtml(
-        result.content || "",
-        result.ooxmlDocumentXml,
-        result.ooxmlCommentsXml,
-        result.ooxmlStylesXml,
-        result.ooxmlNumberingXml,
-        result.ooxmlHeaderXml,
-        result.ooxmlFooterXml
-      );
       if (imported.page) {
         this.pageSetup = {
           size: imported.page.size || this.pageSetup.size,
@@ -11253,7 +11267,7 @@ export class WriterAdapter {
       this._openedEditorDomHash = this._editorDomFingerprint();
       this._updateTrackChangesCommandState();
       this.clearUndoRedo();
-      this.shell?.resetDocumentChrome?.(result.fileName || "Tài liệu 1.docx");
+      this.shell?.resetDocumentChrome?.(result.fileName || "Tài liệu 1.docx", null, true, result.sourcePath || "");
       this._recomputeLivePagination?.();
       if (typeof requestAnimationFrame !== "undefined") {
         requestAnimationFrame(() => this._recomputeLivePagination?.());
@@ -11372,6 +11386,7 @@ export class WriterAdapter {
   }
 
   async closeDocument() {
+    if (this.shell?.requestCloseDocument) return await this.shell.requestCloseDocument();
     return await this.newDocument();
   }
 

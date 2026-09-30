@@ -12,7 +12,7 @@ import { RecentFilesManager } from "../recent/recent-manager.js";
 import { createEmptyState } from "../ui-kit/components.js";
 import { LocalAiService, ApiKeyManager } from "../ai/ai-service.js";
 import { isVoiceInputSupported, startVoiceInput, stopVoiceInput, isVoiceInputActive } from "../ai/voice-input.js";
-import { showAlertDialog, showConfirmDialog, showPromptDialog, showMacroManagerDialog } from "../ui-kit/dialogs.js";
+import { showAlertDialog, showConfirmDialog, showPromptDialog, showMacroManagerDialog, showUnsavedChangesDialog } from "../ui-kit/dialogs.js";
 import { t, getLocale, setLocale, getSupportedLocales } from "../i18n/i18n.js";
 import { getPlatformLaunchContext } from "../bootstrap.js";
 import { themeManager } from "../theme/theme-manager.js";
@@ -68,14 +68,16 @@ export class AppShell {
     this.rootEl.className = "vno-shell";
     this.rootEl.setAttribute("data-app", this.appName);
 
-    RecentFilesManager.recordFile({ name: this.documentName, app: this.appName });
-
     this._renderTopBar();
     this._renderRibbon();
     this._renderNotificationHost();
     this._renderWorkspace();
     this._renderStatusBar();
     this._setupGlobalShortcuts();
+    this._updateDocumentTitle();
+    if (typeof window !== "undefined") {
+      window.__vnoHandleNativeClose = () => this.requestCloseDocument();
+    }
   }
 
   _renderTopBar() {
@@ -230,6 +232,10 @@ export class AppShell {
       btn.addEventListener("click", () => {
         globalCommandBus.execute(btn.getAttribute("data-cmd"));
       });
+    });
+
+    bar.querySelector(".vno-tab-close")?.addEventListener("click", () => {
+      globalCommandBus.execute("common.file.close");
     });
 
     bar.querySelector("#vno-toggle-ai-btn").addEventListener("click", () => this.toggleAiSidebar());
@@ -658,7 +664,7 @@ export class AppShell {
         });
         return `
           <div class="vno-recent-row" role="button" tabindex="0" aria-label="${file.name}, sửa đổi: ${timeStr}, định dạng: ${file.format}"
-               data-recent-app="${file.app}" data-recent-name="${file.name}">
+               data-recent-app="${file.app}" data-recent-name="${file.name}" data-recent-path="${encodeURIComponent(file.path)}">
             <div style="min-width:0;flex:1;">
               <strong style="font-size:13px;color:var(--vno-text-primary);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${file.name}</strong>
               <div style="font-size:11px;color:var(--vno-text-muted);margin-top:2px;">Sửa đổi: ${timeStr}</div>
@@ -910,35 +916,18 @@ export class AppShell {
 
     // Xử lý nhấp chọn tài liệu gần đây
     modal.querySelectorAll(".vno-recent-row").forEach(row => {
-      const activateRecent = () => {
+      const activateRecent = async () => {
         const app = row.getAttribute("data-recent-app");
         const fileName = row.getAttribute("data-recent-name");
-        const isMissing = row.getAttribute("data-recent-missing") === "true";
-
-        if (isMissing) {
-          showConfirmDialog({
-            title: t("backstage.fileNotFoundTitle", "Không tìm thấy tệp"),
-            message: t("backstage.fileNotFoundMessage", "Tệp \"{name}\" không còn tồn tại tại vị trí cũ hoặc đã bị xóa. Bạn có muốn gỡ tệp này khỏi danh sách gần đây không?").replace("{name}", fileName),
-            confirmText: t("backstage.removeRecent", "Gỡ khỏi danh sách"),
-            cancelText: t("sheetDialogs.cancel", "Hủy"),
-            onConfirm: () => {
-              RecentFilesManager.removeFile({ name: fileName, app: app });
-              row.remove();
-              const remaining = modal.querySelectorAll(".vno-recent-row");
-              if (remaining.length === 0) {
-                const wrapper = modal.querySelector("#vno-recent-section-wrapper");
-                if (wrapper) {
-                  renderEmptyRecent(wrapper);
-                }
-              }
-            }
-          });
-          return;
-        }
-
+        const filePath = decodeURIComponent(row.getAttribute("data-recent-path") || "");
         closeModal();
-        if (app !== this.appName) {
-          this.requestAppSwitch(app);
+        const result = await globalUnoBridge.openFileInNewWindow(filePath, app);
+        if (result?.status !== "ok") {
+          await showAlertDialog({
+            title: t("backstage.fileNotFoundTitle", "Không thể mở tệp gần đây"),
+            message: result?.message || `Không mở được “${fileName}”.`,
+            type: "error"
+          });
         }
       };
       row.addEventListener("click", activateRecent);
@@ -1316,17 +1305,17 @@ export class AppShell {
       this.documentName = "Quyết định ban hành tiêu chuẩn 01.docx";
       const tabEl = this.rootEl.querySelector(".vno-doc-tab span");
       if (tabEl) tabEl.textContent = this.documentName;
-      RecentFilesManager.recordFile({ name: this.documentName, app: "writer" });
+      this._updateDocumentTitle();
     } else if (this.appName === "sheet" && templateId === "budget_estimate") {
       this.documentName = "Dự toán kinh phí VN Office 2026.xlsx";
       const tabEl = this.rootEl.querySelector(".vno-doc-tab span");
       if (tabEl) tabEl.textContent = this.documentName;
-      RecentFilesManager.recordFile({ name: this.documentName, app: "sheet" });
+      this._updateDocumentTitle();
     } else if (this.appName === "slides" && templateId === "presentation_outline") {
       this.documentName = "Báo cáo đề án phát triển VN Office 2026.pptx";
       const tabEl = this.rootEl.querySelector(".vno-doc-tab span");
       if (tabEl) tabEl.textContent = this.documentName;
-      RecentFilesManager.recordFile({ name: this.documentName, app: "slides" });
+      this._updateDocumentTitle();
     }
   }
 
@@ -1342,17 +1331,59 @@ export class AppShell {
    *   Recent Files (lỗi thật: File > Mới trước đó sẽ đẩy "Tài liệu 1.docx"
    *   giả lên đầu danh sách, đè lên tệp thật đã mở/lưu trước đó).
    */
-  resetDocumentChrome(newDocumentName, homeTabId = "home", recordRecent = true) {
+  resetDocumentChrome(newDocumentName, homeTabId = "home", recordRecent = true, filePath = "") {
     this.clearNotification();
     this.documentName = newDocumentName;
     const tabEl = this.rootEl?.querySelector(".vno-doc-tab span");
     if (tabEl) tabEl.textContent = this.documentName;
+    this._updateDocumentTitle();
     if (homeTabId) {
       this.ribbonHost?.selectTab(homeTabId);
     }
-    if (this.appName && recordRecent) {
-      RecentFilesManager.recordFile({ name: this.documentName, app: this.appName });
+    if (this.appName && recordRecent && filePath) {
+      RecentFilesManager.recordFile({ name: this.documentName, app: this.appName, path: filePath });
     }
+  }
+
+  _updateDocumentTitle() {
+    const title = this.documentName ? `${this.documentName} — ${this.appTitle}` : this.appTitle;
+    if (typeof document !== "undefined") document.title = title;
+    globalUnoBridge.setWindowTitle(title).catch(() => false);
+  }
+
+  async confirmUnsavedChangesBeforeReplace() {
+    if (!this.adapter?.isDirty) return true;
+    const choice = await showUnsavedChangesDialog({
+      title: "Lưu thay đổi?",
+      message: "Tài liệu hiện tại có thay đổi chưa lưu. Bạn muốn lưu trước khi mở tệp khác không?"
+    });
+    if (choice === "discard") return true;
+    if (choice !== "save") return false;
+    return (await this.adapter.save()) === true;
+  }
+
+  async requestNewDocumentWindow() {
+    const result = await globalUnoBridge.createNewDocumentWindow(this.appName);
+    if (result?.status === "ok") return true;
+    await showAlertDialog({
+      title: "Không thể tạo tài liệu mới",
+      message: result?.message || "VN Office không mở được cửa sổ tài liệu mới.",
+      type: "error"
+    });
+    return false;
+  }
+
+  async requestCloseDocument() {
+    if (this.adapter?.isDirty) {
+      const choice = await showUnsavedChangesDialog({
+        title: "Lưu thay đổi?",
+        message: "Tài liệu hiện tại có thay đổi chưa lưu. Bạn muốn lưu trước khi đóng không?"
+      });
+      if (choice !== "save" && choice !== "discard") return false;
+      if (choice === "save" && (await this.adapter.save()) !== true) return false;
+    }
+    const result = await globalUnoBridge.closeCurrentWindow();
+    return result?.status === "ok";
   }
 
   _setupGlobalShortcuts() {

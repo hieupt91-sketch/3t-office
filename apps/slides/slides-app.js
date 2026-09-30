@@ -28,7 +28,8 @@ export class SlidesApp {
     await bootstrapPlatform();
     globalShortcutManager.setActiveScope("slides");
 
-    const isBlank = options.templateId === "blank";
+    const templateId = options.templateId || "blank";
+    const isBlank = templateId === "blank";
     this.shell = new AppShell({
       appName: "slides",
       appTitle: "VN Slides",
@@ -51,21 +52,14 @@ export class SlidesApp {
     workspace.appendChild(studioWrap);
 
     this.canvasController = new SlidesCanvasController(studioWrap, {
+      isDemoTemplate: templateId === "presentation_outline",
+      isBlankTemplate: isBlank,
       onDocumentChange: () => { if (this.adapter) this.adapter.isDirty = true; },
       onChange: (current, total) => {
         this.shell.setStatus(`Trang chiếu ${current} / ${total}  |  Tỷ lệ 16:9 HD  |  Tiếng Việt`);
       }
     });
     this.canvasController.mount();
-
-    if (isBlank) {
-      this.canvasController.slides = [
-        { id: 1, title: "Tiêu đề trang chiếu", body: "• Nhập nội dung chính tại đây", layoutType: "title-content", shapes: [] }
-      ];
-      this.canvasController.selectSlide(0);
-      const tabEl = this.shell.rootEl.querySelector(".vno-doc-tab span");
-      if (tabEl) tabEl.textContent = "Bản trình chiếu 1.pptx";
-    }
 
     this.helpPanel = new HelpPanel({ app: "slides" });
     this.helpPanel.mount(workspace);
@@ -90,7 +84,7 @@ export class SlidesApp {
       options
     });
 
-    this.shell.setStatus("Trang chiếu 1 / 3  |  Tỷ lệ 16:9 HD  |  Tiếng Việt  |  Sẵn sàng");
+    this.shell.setStatus(`Trang chiếu 1 / ${this.canvasController.slides.length}  |  Tỷ lệ 16:9 HD  |  Tiếng Việt  |  Sẵn sàng`);
     console.log("[SlidesApp] Đã khởi tạo VN Slides chuẩn hóa cao cấp.");
   }
 

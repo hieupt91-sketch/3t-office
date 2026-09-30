@@ -34,10 +34,12 @@ export class SheetApp {
     await bootstrapPlatform();
     globalShortcutManager.setActiveScope("sheet");
 
+    const templateId = options.templateId || "blank";
+    const isBlank = templateId !== "budget_estimate";
     this.shell = new AppShell({
       appName: "sheet",
       appTitle: "VN Sheet",
-      documentName: options.documentName || "Dự toán kinh phí VN Office 2026.xlsx"
+      documentName: options.documentName || (isBlank ? "Bảng tính 1.xlsx" : "Dự toán kinh phí VN Office 2026.xlsx")
     });
     this.shell.mount(this.mountElement);
     this._watchLifecycle();
@@ -60,15 +62,10 @@ export class SheetApp {
       onSelect: (coord, data, stats) => {
         this.shell.setStatus(`SẴN SÀNG  |  Ô: ${coord}  |  ĐẾM: ${stats.count}  |  TRUNG BÌNH: ${stats.avg}  |  TỔNG CỘNG: ${stats.sum}`);
       },
-      isBlank: options.templateId === "blank"
+      isBlank,
+      templateId
     });
     this.grid.mount();
-
-    if (options.templateId === "blank") {
-      this.shell.documentName = "Bảng tính 1.xlsx";
-      const tabEl = this.shell.rootEl.querySelector(".vno-doc-tab span");
-      if (tabEl) tabEl.textContent = "Bảng tính 1.xlsx";
-    }
 
     this.helpPanel = new HelpPanel({ app: "sheet" });
     this.helpPanel.mount(workspace);

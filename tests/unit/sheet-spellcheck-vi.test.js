@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import { SheetGridController } from "../../apps/sheet/sheet-grid.js";
+import { createSheetGridWithSheets } from "./sheet-test-fixtures.js";
 import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
 import { SHEET_RIBBON_TABS } from "../../apps/sheet/sheet-ribbon.js";
 import { SHEET_COMMANDS } from "../../platform/commands/command-definitions.js";
@@ -53,7 +54,7 @@ export async function runSheetSpellcheckViTests() {
     });
 
     await test("Ô văn bản sai chính tả được phát hiện; ô đúng không bị báo", () => {
-      const grid = new SheetGridController(container());
+      const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
       grid.setCellValue("A", 1, "chínnh tả");
       grid.setCellValue("B", 1, "học sinh đọc sách");
       const issues = grid.collectSpellcheckIssues();
@@ -62,7 +63,7 @@ export async function runSheetSpellcheckViTests() {
     });
 
     await test("Ô số và ô công thức bị bỏ qua, kể cả khi kết quả công thức là chữ sai", () => {
-      const grid = new SheetGridController(container());
+      const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
       grid.setCellValue("C", 1, 12345);
       grid.setCellValue("D", 1, "98765");
       grid.setCellValue("E", 1, "25.000.000 ₫");
@@ -73,7 +74,7 @@ export async function runSheetSpellcheckViTests() {
     });
 
     await test("Thay thế một lần sửa đúng token trong ô, giữ phần còn lại", () => {
-      const grid = new SheetGridController(container());
+      const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
       grid.setCellValue("A", 2, "chínnh tả");
       const [issue] = grid.collectSpellcheckIssues().filter(item => item.word === "chínnh");
       assert(issue, "không tìm thấy chínnh để thay");
@@ -85,7 +86,7 @@ export async function runSheetSpellcheckViTests() {
     await test("Ignore All dùng checker phiên làm việc, không ghi từ điển cá nhân", () => {
       const values = new Map();
       const storage = { getItem: key => values.get(key) || null, setItem: (key, value) => values.set(key, value) };
-      const grid = new SheetGridController(container());
+      const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
       grid.spellChecker = new VietnameseSpellChecker(VIETNAMESE_DICTIONARY_WORDS, { storage });
       grid.setCellValue("A", 3, "chínnh");
       grid.setCellValue("B", 3, "chínnh");
@@ -98,7 +99,7 @@ export async function runSheetSpellcheckViTests() {
     await test("Thêm vào từ điển dùng chung key Writer/Slides", () => {
       const values = new Map();
       const storage = { getItem: key => values.get(key) || null, setItem: (key, value) => values.set(key, value) };
-      const grid = new SheetGridController(container());
+      const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
       grid.spellChecker = new VietnameseSpellChecker(VIETNAMESE_DICTIONARY_WORDS, { storage });
       grid.setCellValue("A", 4, "chínnh");
       grid.spellChecker.addToPersonalDictionary("chínnh");
@@ -109,7 +110,7 @@ export async function runSheetSpellcheckViTests() {
     });
 
     await test("Quét chỉ trang tính đang mở, không lẫn sheet khác", () => {
-      const grid = new SheetGridController(container());
+      const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
       const first = grid.activeSheet;
       grid.setCellValue("A", 5, "chínnh");
       grid.switchSheet("Kế hoạch Q3");
@@ -121,7 +122,7 @@ export async function runSheetSpellcheckViTests() {
     });
 
     await test("Gợi ý gần tái sử dụng checker, có chính cho chínnh", () => {
-      const grid = new SheetGridController(container());
+      const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
       assert(grid.suggestSpellcheckWord("chínnh").includes("chính"), "không gợi ý chính");
     });
 
@@ -134,7 +135,7 @@ export async function runSheetSpellcheckViTests() {
     });
 
     await test("Không có document.body thì showSpellcheckDialog trả về danh sách lỗi, không ném", () => {
-      const grid = new SheetGridController(container());
+      const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
       grid.setCellValue("A", 6, "chínnh");
       const issues = grid.showSpellcheckDialog();
       assert(Array.isArray(issues) && issues.some(item => item.word === "chínnh"), "thiếu fallback không DOM");

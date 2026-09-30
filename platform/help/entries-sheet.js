@@ -7,6 +7,21 @@ import { registerHelpEntries } from "./help-catalog.js";
 
 export const SHEET_HELP_ENTRIES = [
   {
+    id: "sheet.file.basics",
+    app: "sheet",
+    commandIds: ["common.file.new", "common.file.open", "common.file.save", "common.file.saveAs", "common.file.close", "common.file.print"],
+    title: "Tạo, mở, lưu và in sổ làm việc",
+    summary: "Sổ mới bắt đầu với một trang tính Sheet1 trống tại ô A1. Dùng Tệp để mở hoặc lưu XLSX, XLS, ODS, CSV; Ctrl+P mở bản xem trước in.",
+    ribbon: { tab: "Tệp", tabId: "file", group: "Sổ làm việc" },
+    keywords: ["tạo mới", "mở tệp", "lưu", "lưu thành", "in", "Ctrl+N", "Ctrl+O", "Ctrl+S", "F12", "Ctrl+P", "Sheet1"],
+    steps: [
+      "Tạo sổ trống: nhấn Ctrl+N hoặc mở Tệp > Mới. Một cửa sổ mới tên Bảng tính 2, Bảng tính 3… xuất hiện với duy nhất Sheet1, ô A1 đang chọn và chưa có dữ liệu.",
+      "Mở sổ: nhấn Ctrl+O hoặc chọn Tệp > Mở, chọn XLSX, XLS, ODS hoặc CSV. Nếu sổ hiện tại có thay đổi, chọn Lưu, Không lưu hoặc Hủy trước khi chọn tệp; Hủy thao tác mở sẽ giữ sổ hiện tại.",
+      "Lưu: Ctrl+S mở hộp thoại Lưu thành cho sổ mới. Với tệp đã mở/lưu, Ctrl+S giữ nguyên định dạng hiện tại. Dùng F12 hoặc Ctrl+Shift+S để lưu tên/định dạng khác; xác nhận ghi đè khi được hỏi.",
+      "In: nhấn Ctrl+P, xem vùng in và ngắt trang, rồi chọn máy in, số bản và phạm vi trang. Các thiết lập vùng in, ngắt trang và vừa trang được áp dụng vào bản xem trước."
+    ]
+  },
+  {
     id: "sheet.formula.vndWords",
     app: "sheet",
     commandIds: [],

@@ -402,9 +402,14 @@ export async function runHtmlSmokeTests() {
         const hasSorter = slidesDom.includes("vno-slide-sorter-overlay");
         const sorterThumbCount = (slidesDom.match(/class="vno-slide-sorter-item/g) || []).length;
 
-        if (slidesProc.status === 0 && hasStudio && hasNav && hasCanvas && hasNotes && hasNotesBar && hasAnimTab && hasShowTab && hasPresenterBtn && hasNotesToggleBtn && hasViewTab && hasSorter && sorterThumbCount === 3) {
+        const hasEmptyPlaceholders = slidesDom.includes('data-placeholder="Bấm để thêm tiêu đề"') && slidesDom.includes('data-placeholder="Bấm để thêm phụ đề"');
+        const hasNoSampleSlideText = !slidesDom.includes("VN OFFICE — BỘ ỨNG DỤNG VĂN PHÒNG VIỆT")
+          && !slidesDom.includes("KIẾN TRÚC HỆ THỐNG PHÂN TẦNG")
+          && !slidesDom.includes("KẾ HOẠCH TRIỂN KHAI & TIÊU CHUẨN KỸ THUẬT");
+
+        if (slidesProc.status === 0 && hasStudio && hasNav && hasCanvas && hasNotes && hasNotesBar && hasAnimTab && hasShowTab && hasPresenterBtn && hasNotesToggleBtn && hasViewTab && hasSorter && sorterThumbCount === 1 && hasEmptyPlaceholders && hasNoSampleSlideText) {
           results.push({
-            name: `Browser Headless (${browserName}): Nạp VN Slides và Slide Sorter với đủ thumbnail DOM thật thành công`,
+            name: `Browser Headless (${browserName}): VN Slides mở bằng một slide trống và Slide Sorter chỉ có một thumbnail`,
             pass: true
           });
         } else {
@@ -420,7 +425,9 @@ export async function runHtmlSmokeTests() {
             !hasNotesToggleBtn && "thiếu command slides.notes.toggle",
             !hasViewTab && "thiếu tab Chế độ xem",
             !hasSorter && "thiếu .vno-slide-sorter-overlay",
-            sorterThumbCount !== 3 && `Slide Sorter có ${sorterThumbCount}/3 thumbnail`
+            sorterThumbCount !== 1 && `Slide Sorter có ${sorterThumbCount}/1 thumbnail`,
+            !hasEmptyPlaceholders && "thiếu gợi ý nhập tiêu đề/phụ đề cho slide trống",
+            !hasNoSampleSlideText && "slide mới còn nội dung mẫu thật"
           ].filter(Boolean).join(", ");
 
           results.push({

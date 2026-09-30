@@ -30,6 +30,7 @@ import time
 import uuid
 import platform
 import zipfile
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from urllib.parse import urlencode, unquote
 
@@ -57,6 +58,10 @@ _ERROR_REPORTER: ErrorReporter | None = None
 _ERROR_REPORT_CONTEXT = threading.local()
 _UPDATE_MANAGER: UpdaterManager | None = None
 _UPDATE_DATA_DIR: Path | None = None
+_APP_WINDOW_APIS: dict[str, object] = {}
+_APP_WINDOW_LOCK = threading.RLock()
+_DOCUMENT_SEQUENCE: dict[str, int] = {}
+_DOCUMENT_SEQUENCE_LOCK = threading.Lock()
 
 
 def _load_update_config() -> dict[str, str]:
@@ -183,7 +188,7 @@ APP_TITLES = {
 }
 SUITE_TITLE = "VN Office — Bộ Ứng Dụng Văn Phòng Việt"
 FILE_APP_KINDS = {
-    ".docx": "writer", ".doc": "writer", ".odt": "writer", ".rtf": "writer",
+    ".docx": "writer", ".doc": "writer", ".odt": "writer", ".rtf": "writer", ".txt": "writer",
     ".xlsx": "sheet", ".xls": "sheet", ".ods": "sheet", ".csv": "sheet",
     ".pptx": "slides", ".ppt": "slides", ".odp": "slides",
 }
@@ -1306,9 +1311,9 @@ def _inline_html_images(html_text: str, html_path: str) -> str:
 
 
 OPEN_FILE_TYPES = {
-    "writer": ("Tài liệu Word (*.docx;*.odt;*.doc;*.rtf)", "Tất cả tệp (*.*)"),
-    "sheet": ("Bảng tính Excel (*.xlsx;*.ods;*.csv)", "Tất cả tệp (*.*)"),
-    "slides": ("Bản trình chiếu PowerPoint (*.pptx;*.odp)", "Tất cả tệp (*.*)"),
+    "writer": ("Tài liệu Word (*.docx;*.doc;*.odt;*.rtf;*.txt)", "Tất cả tệp (*.*)"),
+    "sheet": ("Bảng tính Excel (*.xlsx;*.xls;*.ods;*.csv)", "Tất cả tệp (*.*)"),
+    "slides": ("Bản trình chiếu PowerPoint (*.pptx;*.ppt;*.odp)", "Tất cả tệp (*.*)"),
 }
 
 DEFAULT_SAVE_FORMAT = {
@@ -1323,6 +1328,7 @@ SAVE_FILE_TYPES = {
         "Văn bản Word 97-2003 (*.doc)",
         "Tài liệu ODF (*.odt)",
         "Định dạng Rich Text (*.rtf)",
+        "Văn bản thuần (*.txt)",
         "Tài liệu PDF (*.pdf)",
         "Tất cả tệp (*.*)",
     ),
@@ -1336,6 +1342,7 @@ SAVE_FILE_TYPES = {
     ),
     "slides": (
         "Bản trình chiếu PowerPoint (*.pptx)",
+        "Bản trình chiếu PowerPoint 97-2003 (*.ppt)",
         "Bản trình chiếu ODF (*.odp)",
         "Tài liệu PDF (*.pdf)",
         "Tất cả tệp (*.*)",
@@ -1357,7 +1364,7 @@ def _infer_save_format_from_path(file_path: str, app_kind: str | None = None) ->
         return resolved_path, default_ext
 
     ext = suffix.lstrip(".")
-    if ext in FORMAT_FILTERS or ext in {"doc", "xls", "rtf", "docx", "xlsx", "pptx", "odt", "ods", "odp", "pdf", "csv"}:
+    if ext in FORMAT_FILTERS or ext in {"doc", "xls", "rtf", "txt", "docx", "xlsx", "ppt", "pptx", "odt", "ods", "odp", "pdf", "csv"}:
         return file_path, ext
 
     return file_path, default_ext
@@ -1519,20 +1526,26 @@ def _read_docx_header_footer_xmls(src_path: str) -> tuple[str | None, str | None
         return None, None
 
 
-def _active_window():
-    """Lấy cửa sổ pywebview hiện tại qua danh sách module-level `webview.windows`.
-
-    KHÔNG được lưu Window làm attribute trên VnOfficeApi: pywebview tự động quét đệ quy
-    mọi thuộc tính non-callable của js_api để build `window.pywebview.api`, và việc này
-    lần vào tận `Window` -> WinForms `AccessibilityObject.Bounds` -> `Rectangle.Empty.Empty...`
-    gây đệ quy vô hạn (RecursionError) khiến cửa sổ không bao giờ hiển thị được.
-    """
+def _active_window(api=None):
+    """Find a window without exposing a pywebview Window object through its JS API."""
+    window_uid = getattr(api, "_window_uid", None) if api is not None else None
+    if window_uid:
+        for window in webview.windows:
+            if getattr(window, "uid", None) == window_uid:
+                return window
+        return None
+    try:
+        active = webview.active_window()
+        if active is not None:
+            return active
+    except Exception:
+        pass
     return webview.windows[0] if webview.windows else None
 
 
-def _notify_document_open_progress() -> None:
+def _notify_document_open_progress(api=None) -> None:
     """Tell the WebView that the user has selected a file and conversion began."""
-    window = _active_window()
+    window = _active_window(api)
     if not window:
         return
     try:
@@ -1542,9 +1555,9 @@ def _notify_document_open_progress() -> None:
         pass
 
 
-def _notify_sheet_open_progress(message: str, start_timing: bool = False) -> None:
+def _notify_sheet_open_progress(message: str, start_timing: bool = False, api=None) -> None:
     """Update the Sheet status line while the desktop bridge converts a file."""
-    window = _active_window()
+    window = _active_window(api)
     if not window:
         return
     try:
@@ -1563,9 +1576,12 @@ def _notify_sheet_open_progress(message: str, start_timing: bool = False) -> Non
 class VnOfficeApi:
     """Python API phơi ra cho JavaScript giao tiếp (Bridge) — cầu nối thật tới LibreOffice."""
 
-    def __init__(self, app_kind: str | None = None, initial_file: str | None = None):
+    def __init__(self, app_kind: str | None = None, initial_file: str | None = None, server_port: int | None = None):
         self._app_kind = app_kind
         self._initial_file = initial_file
+        self._server_port = server_port
+        self._window_uid: str | None = None
+        self._allow_window_close = False
         self._reporter = _ERROR_REPORTER
         self._current_file_path: str | None = None
         self._reporting_file_path: str | None = initial_file
@@ -1940,6 +1956,96 @@ class VnOfficeApi:
         """Cho UI biết document engine thật có sẵn sàng hay không (không giả vờ)."""
         return {"available": SOFFICE_PATH is not None, "path": SOFFICE_PATH or ""}
 
+    def set_window_title(self, title):
+        window = _active_window(self)
+        if not window:
+            return False
+        try:
+            window.set_title(str(title or "VN Office")[:512])
+            return True
+        except Exception:
+            return False
+
+    def close_current_window(self):
+        window = _active_window(self)
+        if not window:
+            return {"status": "error", "message": "Cửa sổ tài liệu không còn mở."}
+        self._allow_window_close = True
+
+        def destroy_window():
+            time.sleep(0.1)
+            try:
+                window.destroy()
+            except Exception:
+                self._allow_window_close = False
+
+        threading.Thread(target=destroy_window, daemon=True, name="VN Office close window").start()
+        return {"status": "ok"}
+
+    def create_new_document_window(self, app_kind=None):
+        kind = app_kind if app_kind in VALID_APP_KINDS else self._app_kind
+        if kind not in VALID_APP_KINDS:
+            return {"status": "error", "message": "Không xác định được ứng dụng cần tạo tài liệu."}
+        if not self._server_port:
+            return {"status": "error", "message": "Máy chủ giao diện của VN Office chưa sẵn sàng."}
+
+        prefixes = {"writer": "Tài liệu", "sheet": "Bảng tính", "slides": "Bản trình chiếu"}
+        extensions = {"writer": "docx", "sheet": "xlsx", "slides": "pptx"}
+        with _DOCUMENT_SEQUENCE_LOCK:
+            next_number = _DOCUMENT_SEQUENCE.get(kind, 1) + 1
+            _DOCUMENT_SEQUENCE[kind] = next_number
+        document_name = f"{prefixes[kind]} {next_number}.{extensions[kind]}"
+        child_api = VnOfficeApi(app_kind=kind, server_port=self._server_port)
+        try:
+            child_window = webview.create_window(
+                title=f"{document_name} — {APP_TITLES[kind]}",
+                url=build_launch_url(kind, None, port=self._server_port, document_name=document_name),
+                width=1366,
+                height=820,
+                min_size=(960, 640),
+                js_api=child_api,
+                text_select=True,
+            )
+            if child_window is None:
+                return {"status": "error", "message": "Không tạo được cửa sổ tài liệu mới."}
+            _register_app_window(child_api, child_window)
+            return {"status": "ok", "documentName": document_name}
+        except Exception as exc:
+            return {"status": "error", "message": f"Không mở được cửa sổ tài liệu mới: {exc}"}
+
+    def open_file_in_new_window(self, file_path, app_kind):
+        if app_kind not in VALID_APP_KINDS:
+            return {"status": "error", "message": "Loại ứng dụng không hợp lệ."}
+        try:
+            source_path = Path(str(file_path or "")).expanduser().resolve()
+            if not source_path.is_file():
+                return {"status": "error", "message": "Không tìm thấy tệp gần đây tại đường dẫn đã lưu."}
+            if FILE_APP_KINDS.get(source_path.suffix.lower()) != app_kind:
+                return {"status": "error", "message": "Định dạng tệp không phù hợp với ứng dụng hiện tại."}
+        except (OSError, ValueError):
+            return {"status": "error", "message": "Đường dẫn tệp gần đây không hợp lệ."}
+        if not self._server_port:
+            return {"status": "error", "message": "Máy chủ giao diện của VN Office chưa sẵn sàng."}
+
+        file_name = source_path.name
+        child_api = VnOfficeApi(app_kind=app_kind, initial_file=str(source_path), server_port=self._server_port)
+        try:
+            child_window = webview.create_window(
+                title=f"{file_name} — {APP_TITLES[app_kind]}",
+                url=build_launch_url(app_kind, str(source_path), port=self._server_port),
+                width=1366,
+                height=820,
+                min_size=(960, 640),
+                js_api=child_api,
+                text_select=True,
+            )
+            if child_window is None:
+                return {"status": "error", "message": "Không tạo được cửa sổ để mở tệp gần đây."}
+            _register_app_window(child_api, child_window)
+            return {"status": "ok", "fileName": file_name}
+        except Exception as exc:
+            return {"status": "error", "message": f"Không mở được tệp gần đây: {exc}"}
+
     def report_perf_metric(self, name, elapsed_ms):
         """Emit opt-in renderer timing to the foreground desktop launch console."""
         if os.environ.get("VNO_PERF_DEBUG") != "1":
@@ -1958,6 +2064,47 @@ class VnOfficeApi:
         print(f"[VNO Sheet Perf] {name}: {value:.1f} ms", flush=True)
         return True
 
+    def _validate_open_package(self, source_path, app_kind):
+        """Reject malformed ZIP-based Office/ODF packages before conversion mutates UI state."""
+        required_parts = {
+            ("writer", ".docx"): ("[Content_Types].xml", "word/document.xml"),
+            ("writer", ".odt"): ("mimetype", "content.xml"),
+            ("sheet", ".xlsx"): ("[Content_Types].xml", "xl/workbook.xml"),
+            ("sheet", ".ods"): ("mimetype", "content.xml"),
+            ("slides", ".pptx"): ("[Content_Types].xml", "ppt/presentation.xml"),
+            ("slides", ".odp"): ("mimetype", "content.xml"),
+        }
+        extension = Path(str(source_path)).suffix.lower()
+        required = required_parts.get((app_kind, extension))
+        if not required:
+            return
+
+        try:
+            with zipfile.ZipFile(source_path) as package:
+                members = set(package.namelist())
+                missing = [part for part in required if part not in members]
+                if missing:
+                    raise ValueError(f"thiếu thành phần {missing[0]}")
+                xml_parts = ("[Content_Types].xml", "word/document.xml", "xl/workbook.xml",
+                             "ppt/presentation.xml", "content.xml")
+                for part in required:
+                    if part in xml_parts and part != "mimetype":
+                        ET.fromstring(package.read(part))
+                if extension in {".odt", ".ods", ".odp"}:
+                    expected_media_type = {
+                        ".odt": "application/vnd.oasis.opendocument.text",
+                        ".ods": "application/vnd.oasis.opendocument.spreadsheet",
+                        ".odp": "application/vnd.oasis.opendocument.presentation",
+                    }[extension]
+                    media_type = package.read("mimetype").decode("ascii", errors="replace").strip()
+                    if media_type != expected_media_type:
+                        raise ValueError("sai kiểu tài liệu ODF")
+        except (OSError, zipfile.BadZipFile, KeyError, ET.ParseError, ValueError, RuntimeError) as exc:
+            raise DocumentEngineError(
+                "Không thể mở tệp vì gói Office bị hỏng hoặc không đúng định dạng. "
+                "Tài liệu đang mở được giữ nguyên."
+            ) from exc
+
     def _open_document_dialog_impl(self, app_kind="writer"):
         """Mở hộp thoại chọn tệp NATIVE thật của hệ điều hành, chuyển đổi tệp thật sang
         định dạng trung gian mà UI có thể hiển thị."""
@@ -1967,7 +2114,7 @@ class VnOfficeApi:
             src_path = self._initial_file
             self._initial_file = None
         else:
-            window = _active_window()
+            window = _active_window(self)
             if not window:
                 return {"status": "error", "message": "Cửa sổ ứng dụng chưa sẵn sàng."}
 
@@ -1981,12 +2128,17 @@ class VnOfficeApi:
                 return {"status": "cancelled"}
             src_path = result[0]
 
-        _notify_document_open_progress()
+        _notify_document_open_progress(self)
 
         self._reporting_file_path = src_path
         self._reporting_operation = f"open.{Path(src_path).suffix.lower().lstrip('.') or 'unknown'}"
         if app_kind == "sheet" and src_path.lower().endswith(".xlsx"):
-            _notify_sheet_open_progress("Đã chọn tệp. Đang chuẩn bị mở bảng tính lớn…", True)
+            _notify_sheet_open_progress("Đã chọn tệp. Đang chuẩn bị mở bảng tính lớn…", True, self)
+
+        try:
+            self._validate_open_package(src_path, app_kind)
+        except DocumentEngineError as exc:
+            return {"status": "error", "message": str(exc)}
 
         if app_kind == "writer":
             target_ext = "html"
@@ -2024,7 +2176,7 @@ class VnOfficeApi:
                         with open(convert_src_path, "wb") as import_file:
                             import_file.write(import_xlsx)
                 if app_kind == "sheet" and src_path.lower().endswith(".xlsx"):
-                    _notify_sheet_open_progress("Đang chuyển workbook Excel sang dữ liệu bảng tính…")
+                    _notify_sheet_open_progress("Đang chuyển workbook Excel sang dữ liệu bảng tính…", api=self)
                 out_path = _run_soffice_convert(convert_src_path, target_ext, tmp, app_kind=app_kind)
                 with open(out_path, "r", encoding="utf-8", errors="replace") as f:
                     content = f.read()
@@ -2066,7 +2218,7 @@ class VnOfficeApi:
                     )
                     # Optimize FODS: merge repeated empty cells, trim style-only tail.
                     if src_path.lower().endswith(".xlsx"):
-                        _notify_sheet_open_progress("Đang tối ưu dữ liệu, công thức và định dạng…")
+                        _notify_sheet_open_progress("Đang tối ưu dữ liệu, công thức và định dạng…", api=self)
                     content = _optimize_fods_for_sheet(content)
                     # Cell runs can move to their final logical coordinates during
                     # optimization. Reapply only XF ownership at those coordinates;
@@ -2077,7 +2229,7 @@ class VnOfficeApi:
                     if src_path.lower().endswith(".xlsx") and original_xlsx is not None:
                         patcher = _ooxml_zip_patch()
                         if _sheet_open_payload_enabled():
-                            _notify_sheet_open_progress("Đang đóng gói dữ liệu để nạp nhanh vào VN Sheet…")
+                            _notify_sheet_open_progress("Đang đóng gói dữ liệu để nạp nhanh vào VN Sheet…", api=self)
                             try:
                                 from adapters.libreoffice.sheet.sheet_open_payload import build_sheet_open_payload
                                 final_fods, sheet_open_payload = build_sheet_open_payload(
@@ -2231,7 +2383,7 @@ class VnOfficeApi:
     def _save_document_dialog_impl(self, content, app_kind="writer", target_format=None, suggested_name="TaiLieu", source_path=None):
         """Mở hộp thoại lưu tệp NATIVE thật, chuyển đổi nội dung soạn thảo hiện tại
         sang định dạng Office/ODF thật và ghi ra đĩa thật."""
-        window = _active_window()
+        window = _active_window(self)
         if not window:
             return {"status": "error", "message": "Cửa sổ ứng dụng chưa sẵn sàng."}
 
@@ -2239,7 +2391,7 @@ class VnOfficeApi:
         default_stem = suggested_name or "TaiLieu"
         if suggested_name:
             s_ext = Path(suggested_name).suffix.lower().lstrip(".")
-            if s_ext in FORMAT_FILTERS or s_ext in {"doc", "xls", "rtf", "docx", "xlsx", "pptx"}:
+            if s_ext in FORMAT_FILTERS or s_ext in {"doc", "xls", "rtf", "txt", "docx", "xlsx", "ppt", "pptx"}:
                 default_ext = s_ext
                 default_stem = Path(suggested_name).stem
 
@@ -2304,6 +2456,46 @@ class VnOfficeApi:
         )
 
 
+def _register_app_window(api: VnOfficeApi, window) -> None:
+    """Bind window events while keeping the Window object out of pywebview's JS API scan."""
+    api._window_uid = str(window.uid)
+    with _APP_WINDOW_LOCK:
+        _APP_WINDOW_APIS[api._window_uid] = api
+
+    def on_closing(window=None, *_args):
+        if api._allow_window_close:
+            return None
+        target = window or _active_window(api)
+
+        def request_close_in_webview():
+            if not target:
+                return
+            try:
+                target.evaluate_js(
+                    "if (typeof window.__vnoHandleNativeClose === 'function') "
+                    "{ window.__vnoHandleNativeClose(); } "
+                    "else { window.pywebview?.api?.close_current_window?.(); }"
+                )
+            except Exception:
+                # If the renderer is gone, allow native shutdown rather than trap an unusable window.
+                api._allow_window_close = True
+                try:
+                    target.destroy()
+                except Exception:
+                    pass
+
+        threading.Thread(target=request_close_in_webview, daemon=True, name="VN Office close prompt").start()
+        return False
+
+    def on_closed(*_args):
+        api.close_autorecover_session()
+        with _APP_WINDOW_LOCK:
+            _APP_WINDOW_APIS.pop(api._window_uid or "", None)
+
+    window.events.closing += on_closing
+    window.events.closed += on_closed
+
+
 def parse_launch_args(argv: list[str]) -> tuple[str | None, str | None]:
     """Parse the app shortcut or Explorer file-association launch arguments."""
     app_kind = None
@@ -2328,12 +2520,19 @@ def parse_launch_args(argv: list[str]) -> tuple[str | None, str | None]:
     return app_kind, file_path
 
 
-def build_launch_url(app_kind: str | None, initial_file: str | None, port: int = _DEFAULT_STATIC_PORT) -> str:
+def build_launch_url(
+    app_kind: str | None,
+    initial_file: str | None,
+    port: int = _DEFAULT_STATIC_PORT,
+    document_name: str | None = None,
+) -> str:
     if not app_kind:
         return f"http://localhost:{port}"
     query = {"app": app_kind, "singleApp": "1"}
     if initial_file:
         query["openFile"] = "1"
+    if document_name:
+        query["documentName"] = document_name
     if os.environ.get("VNO_PERF_DEBUG") == "1":
         query["perfDebug"] = "1"
     return f"http://localhost:{port}/?{urlencode(query)}"
@@ -2551,7 +2750,10 @@ def main(argv: list[str] | None = None):
 
     _PERSISTENT_SOFFICE_ENABLED = os.environ.get("VNOFFICE_DISABLE_UNO") != "1"
 
-    api = VnOfficeApi(app_kind=app_kind, initial_file=initial_file)
+    api = VnOfficeApi(app_kind=app_kind, initial_file=initial_file, server_port=port)
+    if app_kind in VALID_APP_KINDS:
+        with _DOCUMENT_SEQUENCE_LOCK:
+            _DOCUMENT_SEQUENCE[app_kind] = 1
 
     window = webview.create_window(
         title=APP_TITLES.get(app_kind, SUITE_TITLE),
@@ -2563,14 +2765,7 @@ def main(argv: list[str] | None = None):
         text_select=True,
     )
 
-    def on_closing():
-        # Thoát tiến trình ngay lập tức khi người dùng bấm nút đóng (X), tránh lỗi COM teardown
-        api.close_autorecover_session()
-        _PERSISTENT_SOFFICE.shutdown()
-        os._exit(0)
-
-    window.events.closing += on_closing
-    window.events.closed += on_closing
+    _register_app_window(api, window)
 
     startup_worker_kind = app_kind if app_kind in {"writer", "sheet"} else None
     if _PERSISTENT_SOFFICE_ENABLED and startup_worker_kind:
@@ -2631,6 +2826,11 @@ def main(argv: list[str] | None = None):
     except Exception as exc:
         print(f"[VN Office] Thoát cửa sổ: {exc}")
     finally:
+        with _APP_WINDOW_LOCK:
+            remaining_apis = list(_APP_WINDOW_APIS.values())
+            _APP_WINDOW_APIS.clear()
+        for active_api in remaining_apis:
+            active_api.close_autorecover_session()
         _PERSISTENT_SOFFICE.shutdown()
         os._exit(0)
 

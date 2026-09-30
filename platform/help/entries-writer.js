@@ -5,6 +5,21 @@
 
 export const WRITER_HELP_ENTRIES = [
   {
+    id: "writer.file.basics",
+    app: "writer",
+    commandIds: ["common.file.new", "common.file.open", "common.file.save", "common.file.saveAs", "common.file.close", "common.file.print"],
+    title: "Tạo, mở, lưu và in tài liệu",
+    summary: "Tài liệu mới mở ra trang A4 trống. Dùng Tệp để mở hoặc lưu DOCX, DOC, ODT, RTF, TXT; Ctrl+P mở bản xem trước khi in.",
+    ribbon: { tab: "Tệp", tabId: "file", group: "Tài liệu" },
+    keywords: ["tạo mới", "mở tệp", "lưu", "lưu thành", "in", "Ctrl+N", "Ctrl+O", "Ctrl+S", "F12", "Ctrl+P", "tài liệu trống"],
+    steps: [
+      "Tạo tài liệu trống: nhấn Ctrl+N hoặc mở Tệp > Mới. VN Writer mở một cửa sổ riêng tên Tài liệu 2, Tài liệu 3…; trang A4 có con trỏ ở đoạn đầu và chưa được đánh dấu là đã sửa.",
+      "Mở tài liệu: nhấn Ctrl+O hoặc chọn Tệp > Mở, chọn DOCX, DOC, ODT, RTF hoặc TXT. Nếu tài liệu hiện tại có thay đổi, chọn Lưu, Không lưu hoặc Hủy trước khi tiếp tục; Hủy hoặc đóng hộp chọn tệp sẽ giữ tài liệu hiện tại.",
+      "Lưu: Ctrl+S mở hộp thoại Lưu thành cho tài liệu mới. Với tệp đã mở/lưu, Ctrl+S ghi đè đúng định dạng hiện tại. Nhấn F12 hoặc Ctrl+Shift+S để chọn tên và định dạng khác; xác nhận nếu tệp đích đã tồn tại.",
+      "In: nhấn Ctrl+P để mở Xem trước khi in, kiểm tra trang và chọn máy in, số bản hoặc phạm vi trang rồi nhấn In. Esc quay lại tài liệu."
+    ]
+  },
+  {
     id: "writer.section.breaks",
     app: "writer",
     commandIds: ["writer.page.break", "writer.break.column", "writer.section.nextPage", "writer.section.continuous", "writer.section.evenPage", "writer.section.oddPage"],

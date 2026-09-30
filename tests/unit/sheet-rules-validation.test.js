@@ -1,5 +1,6 @@
 /** Behavioral tests — Sheet conditional formatting and data validation. */
 import { SheetGridController } from "../../apps/sheet/sheet-grid.js";
+import { createSheetGridWithSheets } from "./sheet-test-fixtures.js";
 
 function container() {
   return {
@@ -26,7 +27,7 @@ export async function runSheetRulesValidationTests() {
   };
 
   test("Conditional Formatting: đánh giá lại khi giá trị ô thay đổi", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     const range = { start: { c: "A", r: 10 }, end: { c: "A", r: 12 } };
     grid.addConditionalFormattingRule(range, { type: "greaterThan", value: 10, color: "#ff0000" });
     grid.setCellValue("A", 10, 12);
@@ -41,7 +42,7 @@ export async function runSheetRulesValidationTests() {
   });
 
   test("Conditional Formatting: rules và kết quả không rò rỉ chéo sheet", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     grid.addConditionalFormattingRule({ start: { c: "B", r: 2 }, end: { c: "B", r: 2 } }, { type: "greaterThan", value: 50, color: "#abc123" });
     grid.setCellValue("B", 2, 100);
     assert(grid._matchingConditionalRule("B", 2), "sheet đầu phải áp dụng rule");
@@ -54,7 +55,7 @@ export async function runSheetRulesValidationTests() {
   });
 
   test("Data Validation danh sách: cho qua giá trị hợp lệ và cảnh báo giá trị lạ", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     const range = { start: { c: "C", r: 1 }, end: { c: "C", r: 3 } };
     grid.addDataValidation(range, { type: "list", values: "Mới, Đang làm, Hoàn tất" });
     assert(grid.validateCellValue("C", 2, "Hoàn tất").valid, "giá trị có trong danh sách phải hợp lệ");
@@ -64,7 +65,7 @@ export async function runSheetRulesValidationTests() {
   });
 
   test("Data Validation số: giữ input nhưng phân loại đúng min-max và độc lập theo sheet", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     const range = { start: { c: "D", r: 5 }, end: { c: "D", r: 6 } };
     grid.addDataValidation(range, { type: "numberRange", min: 10, max: 20 });
     grid.setCellValue("D", 5, 25);

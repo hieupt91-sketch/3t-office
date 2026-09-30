@@ -3,6 +3,7 @@
  * Không đụng Writer/Sheet.
  */
 import { SlidesCanvasController } from "../../apps/slides/slides-canvas.js";
+import { createSlidesCanvasFixture } from "./slides-test-fixtures.js";
 import { SlidesAdapter } from "../../adapters/libreoffice/slides/slides-adapter.js";
 import { SLIDES_COMMANDS } from "../../platform/commands/command-definitions.js";
 import { SLIDES_RIBBON_TABS } from "../../apps/slides/slides-ribbon.js";
@@ -130,7 +131,7 @@ function sixSlides() {
 }
 
 function createController() {
-  const canvas = new SlidesCanvasController(new FakeElement());
+  const canvas = createSlidesCanvasFixture(new FakeElement());
   canvas.titleEl = { innerText: "", innerHTML: "", style: {}, classList: new FakeClassList({ className: "" }) };
   canvas.bodyEl = { innerText: "", innerHTML: "", style: {} };
   canvas.body2El = { innerText: "", innerHTML: "", style: {} };

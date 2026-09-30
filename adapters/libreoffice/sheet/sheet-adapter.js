@@ -197,7 +197,7 @@ export class SheetAdapter {
     // common.edit.undo/redo dùng chung 1 handler toàn Suite qua Command Bus — mỗi app
     // (Writer/Sheet/Slides) PHẢI tự bindHandler() lại khi active, nếu không app kích hoạt
     // trước (mặc định Writer) sẽ chiếm vĩnh viễn phím Ctrl+Z/Ctrl+Y cho mọi app khác.
-    globalCommandBus.bindHandler("common.file.new", () => this.newDocument());
+    globalCommandBus.bindHandler("common.file.new", () => this.shell?.requestNewDocumentWindow?.() ?? this.newDocument());
     globalCommandBus.bindHandler("common.file.close", () => this.closeDocument());
     globalCommandBus.bindHandler("common.edit.undo", () => this.grid.undo ? this.grid.undo() : false);
     globalCommandBus.bindHandler("common.edit.redo", () => this.grid.redo ? this.grid.redo() : false);
@@ -5142,6 +5142,7 @@ export class SheetAdapter {
   }
 
   async closeDocument() {
+    if (this.shell?.requestCloseDocument) return await this.shell.requestCloseDocument();
     return await this.newDocument();
   }
 
@@ -5171,7 +5172,7 @@ export class SheetAdapter {
         const savedFileName = savedPath.split(/[/\\]/).pop();
         if (savedFileName) {
           this.sourceFileName = savedFileName.replace(/\.[^/.]+$/, "");
-          this.shell?.resetDocumentChrome?.(savedFileName, null);
+          this.shell?.resetDocumentChrome?.(savedFileName, null, true, savedPath);
         }
       }
       this.shell?.setStatus?.("Đã lưu");
@@ -5217,7 +5218,7 @@ export class SheetAdapter {
         const savedFileName = savedPath.split(/[/\\]/).pop();
         if (savedFileName) {
           this.sourceFileName = savedFileName.replace(/\.[^/.]+$/, "");
-          this.shell?.resetDocumentChrome?.(savedFileName, null);
+          this.shell?.resetDocumentChrome?.(savedFileName, null, true, savedPath);
         }
       }
       this.shell?.setStatus?.("Đã lưu");
@@ -5237,6 +5238,8 @@ export class SheetAdapter {
    * Mở một tệp XLSX/ODS/CSV thật từ đĩa, nạp dữ liệu vào bảng tính.
    */
   async open() {
+    if (typeof this.shell?.confirmUnsavedChangesBeforeReplace === "function"
+      && !(await this.shell.confirmUnsavedChangesBeforeReplace())) return false;
     if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
       window.dispatchEvent(new Event("vno:document-open-progress"));
     }
@@ -5250,6 +5253,7 @@ export class SheetAdapter {
   }
 
   async _openWorkbookFromDisk() {
+    let previous = null;
     let result = null;
     let openId = null;
     const reportOpenIssue = (type, message) => {
@@ -5279,6 +5283,12 @@ export class SheetAdapter {
         return false;
       }
       if (result?.status !== "ok") throw new Error("Phản hồi mở tệp không hợp lệ.");
+      previous = {
+        content: this.serializeToFods(),
+        sourceFileName: this.sourceFileName,
+        sourceFilePath: this.sourceFilePath,
+        isDirty: this.isDirty
+      };
 
       if (result.sheetPayload) {
         openId = result.openId || openId;
@@ -5311,9 +5321,19 @@ export class SheetAdapter {
       this.sourceFileName = (result.fileName || "BangTinh").replace(/\.[^/.]+$/, "");
       this.sourceFilePath = result.sourcePath || "";
       this.isDirty = false;
-      this.shell?.resetDocumentChrome?.(result.fileName || "Bảng tính 1.xlsx");
+      this.shell?.resetDocumentChrome?.(result.fileName || "Bảng tính 1.xlsx", null, true, result.sourcePath || "");
       return true;
     } catch {
+      try {
+        if (previous?.content) this.loadFromFods(previous.content);
+      } catch (restoreError) {
+        console.error("[SheetAdapter] Không khôi phục được bảng tính sau khi mở tệp lỗi:", restoreError);
+      }
+      if (previous) {
+        this.sourceFileName = previous.sourceFileName;
+        this.sourceFilePath = previous.sourceFilePath;
+        this.isDirty = previous.isDirty;
+      }
       reportOpenIssue("SheetOpenError", "Workbook opening failed; the previously open workbook was preserved.");
       if (typeof window !== "undefined") window.__vnoSheetOpenStartedAt = null;
       this.shell?.setStatus?.("Không thể mở tệp. Sổ làm việc đang mở được giữ nguyên.");

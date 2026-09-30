@@ -95,6 +95,7 @@
     await switchApp(initialApp, {
       singleApp: launchContext.singleAppMode,
       templateId: "blank",
+      documentName: launchContext.documentName || undefined,
       openInitialFile: launchContext.openInitialFile
     });
     await errorReportingUI.initialize();

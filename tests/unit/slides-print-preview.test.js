@@ -4,6 +4,7 @@
  */
 
 import { SlidesCanvasController } from "../../apps/slides/slides-canvas.js";
+import { createSlidesCanvasFixture } from "./slides-test-fixtures.js";
 import { SlidesAdapter } from "../../adapters/libreoffice/slides/slides-adapter.js";
 import { mapVnCommandToUno } from "../../adapters/libreoffice/common/command-dispatch-mapper.js";
 import { SLIDES_COMMANDS } from "../../platform/commands/command-definitions.js";
@@ -125,7 +126,7 @@ class FakeDocument {
 }
 
 function createController() {
-  const canvas = new SlidesCanvasController(new FakeElement());
+  const canvas = createSlidesCanvasFixture(new FakeElement());
   canvas.titleEl = { innerText: "", style: {}, classList: new FakeClassList({ className: "" }) };
   canvas.bodyEl = { innerText: "", style: {} };
   canvas.body2El = { innerText: "", style: {} };

@@ -420,6 +420,14 @@
   padding: 4px;
   transition: all 0.15s ease;
 }
+.vno-slide-title:empty::before,
+.vno-slide-body:empty::before {
+  color: #64748b;
+  font-weight: 400;
+  pointer-events: none;
+  user-select: none;
+  content: attr(data-placeholder);
+}
 .vno-slide-title:focus,
 .vno-slide-title.is-selected {
   border-color: var(--vno-slides-primary);
