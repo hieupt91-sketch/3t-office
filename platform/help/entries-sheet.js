@@ -981,6 +981,7 @@ export const SHEET_HELP_ENTRIES = [
     ribbon: { tab: "Tệp", tabId: "file", group: "Trang tính" },
     keywords: ["tệp", "file", "backstage", "alt+f", "mẫu bảng tính", "tệp gần đây", "lưu", "in", "xuất pdf", "dự toán", "menu tệp"],
     steps: [
+      "Trong phiên bản thử nghiệm đã bật nạp theo từng phần, mở workbook lớn ở Tệp > Mở hoặc nhấn Ctrl+O rồi chọn tệp .xlsx. VN Sheet hiện trang tính đang hoạt động và các hàng đầu; theo dõi thanh trạng thái để biết khi nạp xong. Chờ hoàn tất trước khi dùng công thức, tìm kiếm, lưu hoặc in.",
       "Mở menu Tệp: Nhấp vào nút màu xanh lá «Tệp» ở góc trên cùng bên trái thanh Ribbon hoặc nhấn tổ hợp phím Alt+F. Giao diện Backstage toàn màn hình sẽ mở ra với thanh điều hướng màu xanh bên trái và tiêu điểm tự động đặt vào nút 'Quay lại'.",
       "Màn hình Trang chủ: Cung cấp danh sách mẫu bảng tính chuẩn (Bảng tính trống, Dự toán kinh phí VN Office) cùng bảng danh sách 'Tài liệu mở gần đây'.",
       "Chọn mẫu bảng tính: Dùng phím mũi tên Phải để đi vào lưới mẫu, dùng mũi tên duyệt và nhấn Enter hoặc Space để khởi tạo bảng tính theo mẫu đang chọn.",
@@ -1089,5 +1090,4 @@ export const SHEET_HELP_ENTRIES = [
 ];
 
 registerHelpEntries(SHEET_HELP_ENTRIES);
-
 

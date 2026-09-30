@@ -117,6 +117,11 @@ export class UnoBridge {
     return await this.desktopApi.get_sheet_open_payload_chunk(openId || "", index);
   }
 
+  async getSheetOpenPayloadStatus(openId) {
+    if (!this.desktopApi) return { status: "error", message: "Không thể kiểm tra tiến độ nạp bảng tính." };
+    return await this.desktopApi.get_sheet_open_payload_status(openId || "");
+  }
+
   async getLatestSheetOpenFallback() {
     if (!this.desktopApi) return { status: "error", message: "Không thể lấy dữ liệu dự phòng của bảng tính." };
     return await this.desktopApi.get_latest_sheet_open_fallback();

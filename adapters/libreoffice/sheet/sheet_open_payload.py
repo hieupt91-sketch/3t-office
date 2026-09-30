@@ -17,6 +17,113 @@ from io import BytesIO
 
 _ROW_CHUNK_LIMIT = 1000
 _PREVIEW_ROW_LIMIT = 80
+_TABLE_TAG_RE = re.compile(r"</?table:table(?=[\s/>])[^>]*>", re.IGNORECASE)
+_TABLE_ROW_OPEN_RE = re.compile(r"<table:table-row(?=[\s/>])", re.IGNORECASE)
+_TABLE_COLUMN_RE = re.compile(r"<table:table-column(?=[\s/>])[^>]*(?:/>|>)", re.IGNORECASE)
+
+
+def build_sheet_open_preview(fods_xml: str, max_rows: int = _PREVIEW_ROW_LIMIT) -> dict:
+    """Extract a compact first-screen payload without traversing workbook rows.
+
+    The converted FODS already contains LibreOffice's cell styles and column
+    widths. Keep those for the initial viewport; the normal XLSX overlays are
+    applied by the background full-payload builder before hydration completes.
+    """
+    source = str(fods_xml or "")
+    stack = []
+    tables = []
+    for match in _TABLE_TAG_RE.finditer(source):
+        tag = match.group(0)
+        if tag.startswith("</"):
+            if stack:
+                opening = stack.pop()
+                if not stack and opening["name"].lower() != "local-table":
+                    tables.append({**opening, "end": match.end()})
+        else:
+            name_match = re.search(r"(?:^|\s)table:name=[\"']([^\"']*)[\"']", tag, re.IGNORECASE)
+            name = _html_unescape(name_match.group(1)) if name_match else ""
+            opening_end = match.end()
+            if tag.rstrip().endswith("/>"):
+                if not stack and name.lower() != "local-table":
+                    tables.append({"name": name, "start": match.start(), "open_end": opening_end, "end": opening_end})
+            else:
+                stack.append({"name": name, "start": match.start(), "open_end": opening_end})
+    if not tables:
+        raise ValueError("Converted FODS has no worksheet tables")
+
+    first_table = tables[0]["start"]
+    last_table = tables[-1]["end"]
+    prefix = source[:first_table]
+    active_match = re.search(
+        r"<config:config-item\b[^>]*config:name=[\"']ActiveTable[\"'][^>]*>([\s\S]*?)</config:config-item>",
+        prefix,
+        re.IGNORECASE,
+    )
+    active_sheet = _html_unescape(active_match.group(1).strip()) if active_match else ""
+    names = [table["name"] for table in tables]
+    if active_sheet not in names:
+        active_sheet = names[0]
+
+    compact_tables = []
+    preview_records = []
+    preview_rows = 0
+    retained_preview_rows = 0
+    row_limit = max(1, int(max_rows))
+    for table in tables:
+        opening = source[table["start"]:table["open_end"]]
+        table_end = table["end"]
+        first_row = _TABLE_ROW_OPEN_RE.search(source, table["open_end"], table_end)
+        column_end = first_row.start() if first_row else table_end
+        columns = [m.group(0) for m in _TABLE_COLUMN_RE.finditer(source, table["open_end"], column_end)]
+        compact_tables.append(opening + "".join(columns) + "</table:table>")
+        preview_records.append(["sheet", table["name"]])
+        if table["name"] == active_sheet:
+            cursor = first_row.start() if first_row else table_end
+            while retained_preview_rows < row_limit:
+                row_open = _TABLE_ROW_OPEN_RE.search(source, cursor, table_end)
+                if not row_open:
+                    break
+                tag_end = source.find(">", row_open.start(), table_end)
+                if tag_end < 0:
+                    break
+                if source[row_open.start():tag_end + 1].rstrip().endswith("/>"):
+                    row_end = tag_end + 1
+                else:
+                    close_at = source.find("</table:table-row", tag_end + 1, table_end)
+                    if close_at < 0:
+                        break
+                    close_end = source.find(">", close_at, table_end)
+                    if close_end < 0:
+                        break
+                    row_end = close_end + 1
+                preview_records.append(["row-xml", source[row_open.start():row_end]])
+                preview_rows += 1
+                retained_preview_rows += 1
+                cursor = row_end
+        preview_records.append(["end-sheet"])
+
+    suffix = source[last_table:]
+    support_xml = prefix + "".join(compact_tables) + suffix
+    raw_styles = {}
+    for tag in ("office:styles", "office:automatic-styles", "office:font-face-decls"):
+        match = re.search(r"<" + re.escape(tag) + r"\b[^>]*>[\s\S]*?</" + re.escape(tag) + r"\s*>", support_xml)
+        if match:
+            raw_styles[tag] = match.group(0)
+    jsonl = "".join(
+        json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n"
+        for record in preview_records
+    ).encode("utf-8")
+    return {
+        "format": "vno.sheet.payload.v2",
+        "rowsEncoding": "deflate-base64-jsonl-row-xml",
+        "sourceBytes": len(source),
+        "sheets": len(tables),
+        "rows": preview_rows,
+        "rowsDeflateBase64": base64.b64encode(zlib.compress(jsonl, level=6)).decode("ascii"),
+        "supportXml": support_xml,
+        "rawStyleXml": raw_styles,
+        "partialPreview": True,
+    }
 
 
 class _PayloadRows:

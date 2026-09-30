@@ -194,3 +194,69 @@ Theo mẫu `VN-Office-AI-Engineering-Standard-V2/VN-Office-AI-Engineering-Standa
 
 
 \n
+
+## S44 — Oracle đo thời gian mở và nạp viewport
+
+**TASK:** S44 — đo oracle và giảm thời gian mở tệp
+**AGENT/ROLE:** Codex — hiệu năng Writer/Sheet
+**BRANCH:** perf/open-speed-codex
+**WORKTREE:** E:\VNOffice-codex-openspeed
+
+### Oracle desktop trước/sau
+
+C = cold-ish: lần mở đầu sau khi đóng ứng dụng; W = warm: lần tiếp theo khi tiến trình/profile còn ấm. Mỗi ô ghi hai lần theo thứ tự chạy, đơn vị giây. Word/Excel đo thời gian lời gọi COM Open trả về với cửa sổ hiển thị. LibreOffice đo tới khi UI Automation thấy tiêu đề cửa sổ tài liệu; profile riêng được khởi động trước một lần. Dữ liệu sau đo cùng bộ tệp. WPS chưa cài trên máy này: **NOT RUN**.
+
+| Tệp | Office trước C (2 lần) | Office trước W (2 lần) | LO trước C (2 lần) | LO trước W (2 lần) | Office sau C (2 lần) | Office sau W (2 lần) | LO sau C (2 lần) | LO sau W (2 lần) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Writer d03.docx | 0.356 / 0.320 | 0.349 / 0.241 | 14.946 / 14.940 | 2.339 / 2.440 | 0.289 / 0.287 | 0.338 / 0.157 | 19.040 / 15.205 | 2.378 / 2.401 |
+| Writer d12.docx | 0.392 / 0.332 | 0.353 / 0.249 | 14.606 / 14.944 | 2.415 / 2.385 | 0.320 / 0.308 | 0.402 / 0.195 | 15.314 / 15.465 | 2.600 / 2.488 |
+| Writer d24.docx | 1.257 / 1.241 | 1.245 / 1.213 | 16.147 / 16.050 | 5.192 / 3.802 | 1.210 / 1.157 | 1.772 / 1.104 | 15.811 / 15.898 | 4.027 / 4.762 |
+| Writer legacy01.doc | 0.381 / 0.297 | 0.312 / 0.233 | 14.636 / 14.598 | 2.480 / 2.307 | 0.300 / 0.236 | 0.312 / 0.145 | 14.752 / 14.832 | 2.227 / 2.337 |
+| Sheet legacy01.xls | 0.447 / 1.677 | 0.428 / 0.072 | 15.416 / 15.363 | 2.704 / 2.721 | 0.618 / 1.424 | 0.425 / 0.067 | 19.117 / 16.029 | 2.562 / 2.442 |
+| Sheet lan05.xlsx | 1.667 / 1.580 | 0.408 / 0.074 | 16.662 / 15.783 | 2.426 / 2.700 | 1.456 / 1.438 | 0.425 / 0.067 | 15.009 / 15.191 | 2.664 / 2.386 |
+| Sheet lan11.xlsx | 2.454 / 2.027 | 0.893 / 0.397 | 16.754 / 16.637 | 3.431 / 5.363 | 2.141 / 1.931 | 0.898 / 0.411 | 18.932 / 15.406 | 2.860 / 3.492 |
+| Sheet lan12.xlsx | 2.400 / 2.120 | 0.958 / 0.434 | 19.345 / 19.459 | 4.024 / 3.993 | 2.077 / 1.987 | 0.981 / 0.462 | 16.525 / 18.593 | 3.326 / 3.808 |
+| Sheet lan14.xlsx | 17.243 / 16.988 | 16.009 / 15.384 | 20.523 / 19.784 | 6.964 / 6.615 | 14.348 / 14.666 | 13.468 / 12.920 | 18.460 / 18.192 | 6.038 / 6.613 |
+
+### VN Office trước/sau
+
+VN cold-ish tính từ chọn tệp tới first paint; warm là first paint ở phiên đã làm nóng bằng mở lại tệp. Các giá trị sau dùng chế độ preview payload để tách viewport khỏi nạp đầy đủ; lần lưu/round-trip vẫn dùng mô hình đầy đủ. Những ô không có phép đo tương ứng ghi NOT RUN. Số đôi là hai lần chạy.
+
+| Tệp | VN trước C | VN trước W | VN sau C | VN sau W (viewport) |
+|---|---:|---:|---:|---:|
+| Writer d03.docx | 15.781 / 15.291 | 2.541 / 2.883 | 15.694 / 16.607 | 2.469 / 2.492 |
+| Writer d12.docx | 16.785 / 16.214 | 2.561 / 2.531 | 17.048 / 15.775 | 2.599 / 2.535 |
+| Writer d24.docx | 25.989 / 22.267 | 12.801 / 12.730 | 22.112 / 23.009 | 11.048 / 10.244 |
+| Writer legacy01.doc | NOT RUN | 3.379 / 2.648 | 15.643 / 19.527 | 2.795 / 2.655 |
+| Sheet legacy01.xls | NOT RUN | 2.256 / 2.350 | 15.949 / 15.816 | 2.458 / 2.500 |
+| Sheet lan05.xlsx | 16.116 / 15.958 | 3.148 / 3.102 | 17.207 / 16.484 | 2.259 / 2.371 |
+| Sheet lan11.xlsx | 25.056 / 23.847 | 11.254 / 11.388 | 18.972 / 18.607 | 5.478 / 5.344 |
+| Sheet lan12.xlsx | 26.643 / 29.678 | NOT RUN | 27.161 / 23.645 | 8.144 / 8.171 |
+| Sheet lan14.xlsx | 267.698 / BLOCKED (free RAM <1 GB) | NOT RUN | 34.962 / 31.148 | 19.365 / 19.480 |
+
+Nạp toàn bộ sau first paint của VN (giây): lan05 18.518/17.828 cold, 3.535/3.637 warm; lan11 26.704/26.451 cold, 13.087/13.094 warm; lan12 36.586/32.373 cold, 16.163/16.097 warm; lan14 181.748/178.131 cold, 166.296/165.009 warm.
+
+### Kết quả triển khai và gates
+
+- Sheet có preview đầu màn hình, tên sheet, độ rộng cột/kiểu ô; phần còn lại được nạp theo chunk nền, có trạng thái tiếng Việt. Formula, tìm kiếm, lưu, in, AutoRecover và sửa ô chờ nạp đầy đủ. Payload vẫn mặc định OFF: 25/26 workbook đạt TONG=0, còn lan14 gặp WebView renderer "Error code: Out of Memory" và không hoàn tất round-trip.
+- Writer trì hoãn pagination trực tiếp với DOCX nhập có nội dung từ 50 KB cho tới sau first paint.
+- Bỏ qua lần post-process AutoFilter khi kiểm tra rẻ xác nhận không có filter nguồn hoặc vùng filter đã chuyển đổi.
+- Đã thêm mục Trợ giúp Sheet bằng tiếng Việt cho cách mở workbook lớn, xem tiến trình và chờ thao tác mô hình đầy đủ.
+- So với giới hạn owner, mục tiêu tốc độ **FAIL** trên cả 9 loại tệp có oracle: VN chưa đạt ngưỡng <=1.5x Word/Excel ở các lần so sánh cold/warm; một số trường hợp còn chậm hơn LO. Cải thiện viewport của lan11/lan14 rõ rệt so với VN trước, nhưng lan14 vẫn mất khoảng 19 giây warm tới viewport và khoảng 165 giây để nạp đầy đủ.
+- Excel COM mở tuần tự và retry RPC_E_CALL_REJECTED sau chờ ngắn; kiểm tra số worksheet khác 0.
+
+**COMMANDS RUN:** `node tests/run-tests.js`; `python -m unittest discover -s tests`; `_batch_writer.py` cho d01–d24 trừ d10; audit Sheet 26 tệp với SHEET_OPEN_PAYLOAD=1; oracle Word/Excel COM, LibreOffice UIA, VN timeline; `git diff --check` (final run pending).
+
+**BUILD RESULT:** NOT RUN (không có thay đổi build system).
+
+**TEST RESULTS:** Node tests PASS (2162/2162). Python unittest PASS (472 tests). Python compile, Node syntax, PowerShell AST và git diff --check PASS. Writer audit: PASS cho gate số trang Word=canvas=saved trên 23 tệp; d10 bị loại theo yêu cầu, một số tệp có lệch số paragraph nên không claim byte-identical. Sheet audit: 25/26 tệp lưu với TONG=0, lint sạch và Excel COM xác nhận worksheet count >0; lan14 FAIL vì WebView hiện Error code: Out of Memory trước khi tạo round-trip output. Excel checks tuần tự; retry RPC_E_CALL_REJECTED sau 250 ms.
+
+**KNOWN FAILURES:** Mục tiêu tốc độ owner FAIL. WPS NOT RUN (chưa cài). lan14 vẫn không qua audit payload sau lần thử kéo dài: WebView renderer OOM; không có output để tính TONG hoặc kiểm tra bằng Excel COM. VN lan14 full hydration mất khoảng 165–182 giây.
+
+**RISKS:** Preview Sheet chỉ phù hợp khi các thao tác phụ thuộc mô hình đầy đủ bị chặn đúng như hiện tại. Payload phải ở mặc định OFF cho tới khi đủ 26/26 audit đạt TONG=0. Phép thử lan14 cho thấy WebView có thể cạn bộ nhớ khi xử lý workbook lớn. Số trang Word đã khớp canvas/saved; paragraph-count sai khác ở một số fixture, không claim byte-identical.
+
+**DEPENDENCIES/BLOCKERS:** Cần xử lý WebView OOM trên lan14 rồi chạy lại audit 26 tệp; hiện giữ payload OFF.
+
+**CORE PATCH ID (if any):** None.
+
+**NEXT ACTION:** Giảm peak memory khi nạp/lưu lan14; sau đó chạy lại audit 26 tệp và chỉ bật payload mặc định khi mọi TONG=0. Commit S44 trên branch hiện tại; không merge vào main.

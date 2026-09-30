@@ -11375,9 +11375,16 @@ export class WriterAdapter {
       this._updateTrackChangesCommandState();
       this.clearUndoRedo();
       this.shell?.resetDocumentChrome?.(result.fileName || "Tài liệu 1.docx");
-      this._recomputeLivePagination?.();
-      if (typeof requestAnimationFrame !== "undefined") {
-        requestAnimationFrame(() => this._recomputeLivePagination?.());
+      const importedSize = String(result.content || "").length;
+      if (importedSize >= 50000 && typeof requestAnimationFrame !== "undefined") {
+        // Large imports already contain their full content. Let the browser paint the
+        // opening viewport before measuring every block and inserting live page gaps.
+        requestAnimationFrame(() => requestAnimationFrame(() => this._recomputeLivePagination?.()));
+      } else {
+        this._recomputeLivePagination?.();
+        if (typeof requestAnimationFrame !== "undefined") {
+          requestAnimationFrame(() => this._recomputeLivePagination?.());
+        }
       }
       return true;
     }

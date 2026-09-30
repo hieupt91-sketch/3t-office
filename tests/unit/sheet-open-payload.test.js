@@ -174,15 +174,28 @@ export async function runSheetOpenPayloadTests() {
     const preview = {
       ...source,
       rows: 12,
-      totalRows: 60,
       partialPreview: true,
-      chunkCount: 2,
       rowsDeflateBase64: encode([["sheet", "Data"], ...rowRecords.slice(0, 12), ["end-sheet"]]),
     };
     let beginFirstRequest;
     const firstRequestStarted = new Promise(resolve => { beginFirstRequest = resolve; });
     let releaseFirstChunk;
     const originalGetChunk = globalUnoBridge.getSheetOpenPayloadChunk;
+    const originalGetStatus = globalUnoBridge.getSheetOpenPayloadStatus;
+    let statusCalls = 0;
+    globalUnoBridge.getSheetOpenPayloadStatus = async () => {
+      statusCalls++;
+      return statusCalls === 1
+        ? { status: "building", phase: "overlay" }
+        : {
+          status: "ready",
+          metadata: {
+            totalRows: 60,
+            chunkCount: 2,
+            supportXml: source.supportXml,
+          },
+        };
+    };
     globalUnoBridge.getSheetOpenPayloadChunk = async (_openId, index) => {
       if (index === 0) {
         beginFirstRequest();
@@ -209,6 +222,7 @@ export async function runSheetOpenPayloadTests() {
       assert(grid.sheetsData.Data.size === 60, "chunk hydration did not restore the complete workbook");
     } finally {
       globalUnoBridge.getSheetOpenPayloadChunk = originalGetChunk;
+      globalUnoBridge.getSheetOpenPayloadStatus = originalGetStatus;
     }
   });
 

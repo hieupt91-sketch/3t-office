@@ -4789,6 +4789,9 @@ export class SheetAdapter {
     if (!this.grid) return false;
     const perfEnabled = typeof window !== "undefined" && window.__vnoPerfDebug === true;
     const perfStart = perfEnabled ? performance.now() : 0;
+    const selectionStartedAt = typeof window !== "undefined" && Number.isFinite(window.__vnoSheetOpenStartedAt)
+      ? window.__vnoSheetOpenStartedAt
+      : perfStart;
     if (perfEnabled) {
       this.grid.__vnoPerfLoadAt = perfStart;
       this.grid.__vnoPerfRenderLogged = false;
@@ -4811,12 +4814,22 @@ export class SheetAdapter {
       supportXml = overlayFodsStructureProtection(supportXml, ooxmlWorkbookXml);
       supportXml = overlayActiveSheetToFods(supportXml, ooxmlWorkbookXml);
       const parseStart = perfEnabled ? performance.now() : 0;
-      const onViewportReady = (partialWorkbook, progress) => {
+      const onViewportReady = async (partialWorkbook, progress) => {
         if (!partialWorkbook.sheets.length || viewportCommitted) return;
         this._commitWorkbook(partialWorkbook, perfStart, "loadFromPayloadViewport", { partial: true });
         viewportCommitted = true;
         this.grid.container?.classList?.add?.("vno-sheet-hydrating");
         this.grid.container?.setAttribute?.("aria-busy", "true");
+        await new Promise(resolve => {
+          if (typeof requestAnimationFrame === "function") {
+            requestAnimationFrame(() => requestAnimationFrame(resolve));
+          } else {
+            setTimeout(resolve, 0);
+          }
+        });
+        if (perfEnabled) {
+          window.__vnoPerfReport?.("first viewport paint", performance.now() - selectionStartedAt);
+        }
         this.shell?.setStatus?.(`Đã hiện ${progress.rows} hàng đầu; đang nạp tiếp dữ liệu bảng tính…`);
       };
       const onProgress = progress => {
@@ -4826,12 +4839,7 @@ export class SheetAdapter {
       };
       let workbook;
       if (payload?.partialPreview === true) {
-        const chunkCount = Number(payload.chunkCount);
-        const totalRows = Number(payload.totalRows);
-        if (!openId || !Number.isSafeInteger(chunkCount) || chunkCount < 1 || chunkCount > 100000
-          || !Number.isSafeInteger(totalRows) || totalRows < 1 || totalRows > 2_000_000) {
-          throw new TypeError("Sheet payload preview session metadata is invalid");
-        }
+        if (!openId) throw new TypeError("Sheet payload preview session metadata is invalid");
         await buildSheetPayloadModel(payload, this, supportXml, {
           initialRows: 50,
           progressChunkRows: 300,
@@ -4839,6 +4847,38 @@ export class SheetAdapter {
         });
         if (!viewportCommitted) throw new Error("Sheet payload preview did not render a viewport");
 
+        let metadata;
+        if (Number.isSafeInteger(Number(payload.chunkCount))
+          && Number(payload.chunkCount) > 0
+          && Number.isSafeInteger(Number(payload.totalRows))
+          && Number(payload.totalRows) > 0) {
+          metadata = payload;
+        } else {
+          const phaseMessages = {
+            preparing: "Đang chuẩn bị dữ liệu bảng tính…",
+            overlay: "Đang hoàn thiện công thức và định dạng…",
+            optimize: "Đang tối ưu dữ liệu bảng tính…",
+            payload: "Đang nạp tiếp các hàng của bảng tính…",
+          };
+          const deadline = Date.now() + 9 * 60 * 1000;
+          while (Date.now() < deadline) {
+            const state = await globalUnoBridge.getSheetOpenPayloadStatus(openId);
+            if (state?.status === "ready" && state.metadata) {
+              metadata = state.metadata;
+              break;
+            }
+            if (state?.status === "error") throw new Error(state.message || "Không thể hoàn tất dữ liệu bảng tính.");
+            this.shell?.setStatus?.(phaseMessages[state?.phase] || "Đang nạp tiếp dữ liệu bảng tính…");
+            await new Promise(resolve => setTimeout(resolve, 400));
+          }
+        }
+        const chunkCount = Number(metadata?.chunkCount);
+        const totalRows = Number(metadata?.totalRows);
+        if (!metadata || !Number.isSafeInteger(chunkCount) || chunkCount < 1 || chunkCount > 100000
+          || !Number.isSafeInteger(totalRows) || totalRows < 1 || totalRows > 2_000_000
+          || typeof metadata.supportXml !== "string") {
+          throw new TypeError("Sheet payload completion metadata is invalid");
+        }
         const rowChunksBase64 = [];
         let receivedRows = 0;
         for (let index = 0; index < chunkCount; index++) {
@@ -4857,13 +4897,14 @@ export class SheetAdapter {
         if (receivedRows !== totalRows) throw new Error("Số hàng nhận được không khớp với payload bảng tính.");
         const completePayload = {
           ...payload,
+          ...metadata,
           rows: totalRows,
           rowChunksBase64,
           partialPreview: false,
         };
         delete completePayload.rowsDeflateBase64;
         delete completePayload.chunkCount;
-        workbook = await buildSheetPayloadModel(completePayload, this, supportXml, {
+        workbook = await buildSheetPayloadModel(completePayload, this, metadata.supportXml, {
           progressChunkRows: 300,
           onProgress,
         });
@@ -5518,7 +5559,7 @@ export class SheetAdapter {
   }
 
   async print() {
-    await this._waitForHydration();
+    if (this.grid?.__vnoSheetHydrationPending) await this._waitForHydration();
     if (this.grid?.print) return this.grid.print();
     if (typeof window !== "undefined" && typeof window.print === "function") {
       window.print();
@@ -5528,6 +5569,7 @@ export class SheetAdapter {
 
   async handleDispatch(unoUrl, args, vnCmdId) {
     if (!this.grid) return false;
+    if (this.grid.__vnoSheetHydrationPending) await this._waitForHydration();
     const cmd = vnCmdId || (unoUrl ? getVnCommand(unoUrl) : null) || unoUrl;
 
     switch (cmd) {

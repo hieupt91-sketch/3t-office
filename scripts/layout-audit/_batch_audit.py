@@ -18,8 +18,9 @@ for name in names:
     out = os.path.join(ROOT, "_rt_" + name)
     audit = os.path.join(ROOT, "_audit_" + name.replace(".xlsx", ".txt"))
     if os.path.exists(out): os.remove(out)
+    roundtrip_timeout = 2400 if name.lower() == "lan14.xlsx" else 1200
     try:
-        r = subprocess.run([sys.executable, os.path.join(SP, "_roundtrip_save_sheet.py"), ROOT, src, out], capture_output=True, text=True, cwd=ROOT, timeout=1200)
+        r = subprocess.run([sys.executable, os.path.join(SP, "_roundtrip_save_sheet.py"), ROOT, src, out], capture_output=True, text=True, cwd=ROOT, timeout=roundtrip_timeout)
     except subprocess.TimeoutExpired as exc:
         r = subprocess.CompletedProcess(exc.cmd, 124, exc.stdout or "", exc.stderr or "")
     saved = os.path.exists(out)

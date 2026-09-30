@@ -8144,15 +8144,6 @@ def apply_tab_colors_to_fods(fods_xml: str, tab_colors: dict[str, str]) -> str:
 def _overlay_autofilter_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
     """Read <autoFilter ref> from each worksheetN.xml and inject
     <table:database-ranges> into FODS."""
-    # LibreOffice can synthesize a database range from rows hidden with the
-    # filter visibility flag even when the source XLSX has no AutoFilter.
-    # Source worksheet XML is authoritative; discard synthesized ranges first.
-    fods_xml = re.sub(
-        r"<table:database-ranges\b[^>]*>[\s\S]*?</table:database-ranges\s*>",
-        "",
-        fods_xml,
-        flags=re.IGNORECASE,
-    )
     sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
     if not sheet_entries:
         return fods_xml
@@ -8164,6 +8155,20 @@ def _overlay_autofilter_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
         ref = parse_autofilter_from_worksheet(entry_bytes.decode("utf-8", errors="replace"))
         if ref:
             autofilter_by_sheet[sheet_name] = ref
+    has_converted_ranges = "<table:database-ranges" in fods_xml
+    if not autofilter_by_sheet and not has_converted_ranges:
+        # The source has no filters and LibreOffice added no synthetic ranges;
+        # skip a full FODS substitution pass for this workbook.
+        return fods_xml
+    # LibreOffice can synthesize a database range from rows hidden with the
+    # filter visibility flag even when the source XLSX has no AutoFilter.
+    # Source worksheet XML is authoritative; discard synthesized ranges first.
+    fods_xml = re.sub(
+        r"<table:database-ranges\b[^>]*>[\s\S]*?</table:database-ranges\s*>",
+        "",
+        fods_xml,
+        flags=re.IGNORECASE,
+    )
     return apply_autofilter_to_fods(fods_xml, autofilter_by_sheet)
 
 
