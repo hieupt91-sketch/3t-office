@@ -37,12 +37,15 @@ def _document_xml(
     *,
     bookmark: bool = False,
     pristine_bookmark: bool = False,
+    edited_bookmark: bool = False,
 ) -> str:
     marker_parts = []
     if bookmark:
         marker_parts.append('<w:bookmarkStart w:id="0" w:name="vno-untouched-0"/>')
     if pristine_bookmark:
         marker_parts.append('<w:bookmarkStart w:id="1" w:name="vno-pristine-document"/>')
+    if edited_bookmark:
+        marker_parts.append('<w:bookmarkStart w:id="2" w:name="vno-edited-0"/>')
     marker = "".join(marker_parts)
     return (
         f'<w:document xmlns:w="{_DOCUMENT_NS}"><w:body>'
@@ -64,6 +67,7 @@ class _FakeSoffice:
 
     def __init__(self):
         self.conversions: list[tuple[str, str, str | None]] = []
+        self.inputs: list[str] = []
 
     def __call__(self, source_path, target_format, output_dir, app_kind=None):
         source = Path(source_path)
@@ -76,7 +80,9 @@ class _FakeSoffice:
             else:
                 # LibreOffice's HTML import rounds 13.5pt and forgets the Letter page.
                 source_html = source.read_text(encoding="utf-8", errors="replace")
+                self.inputs.append(source_html)
                 pristine = "vno-pristine-document" in source_html
+                edited = "vno-edited-" in source_html
                 _write_docx(
                     output_path,
                     _document_xml(
@@ -85,6 +91,7 @@ class _FakeSoffice:
                         16838,
                         bookmark=True,
                         pristine_bookmark=pristine,
+                        edited_bookmark=edited,
                     ),
                 )
         elif target_format in {"xlsx", "pptx"}:
@@ -196,6 +203,22 @@ class PrintSavePipelineTests(unittest.TestCase):
             self.assertEqual(saved_docx.read_bytes(), original_docx.read_bytes())
             self.assertEqual(Path(print_source).read_bytes(), original_docx.read_bytes())
             self.assertEqual(fake.conversions, [(".html", "docx", "writer")] * 2)
+
+    def test_edited_document_with_a_stale_pristine_marker_is_not_replaced_by_source(self):
+        with tempfile.TemporaryDirectory(prefix="vno_edited_pristine_marker_print_") as temp_dir:
+            root = Path(temp_dir)
+            original_docx = root / "source.docx"
+            _write_docx(original_docx, _document_xml(27, 12240, 15840))
+            content = '<a name="vno-pristine-document"></a><a name="vno-edited-0"></a>' + _WRITER_HTML
+            fake = _FakeSoffice()
+
+            with patch.object(main, "_run_soffice_convert", side_effect=fake):
+                print_source = main._write_print_source(
+                    content, "writer", str(root), source_document_path=str(original_docx),
+                )
+
+            self.assertNotEqual(Path(print_source).read_bytes(), original_docx.read_bytes())
+            self.assertIn("vno-edited-0", fake.inputs[0])
 
     def test_legacy_doc_does_not_treat_its_intermediate_docx_as_original_source(self):
         with tempfile.TemporaryDirectory(prefix="vno_pristine_legacy_print_") as temp_dir:
