@@ -2559,6 +2559,9 @@ def main(argv: list[str] | None = None):
         width=1366,
         height=820,
         min_size=(960, 640),
+        # Office opens maximized; a fixed-size window ended up in a screen corner (pilot 30/9).
+        # width/height remain the restore size when the user un-maximizes.
+        maximized=True,
         js_api=api,
         text_select=True,
     )
