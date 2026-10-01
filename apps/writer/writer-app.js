@@ -15,7 +15,7 @@ import { WriterViewController } from "./writer-view-controller.js";
 import { VietnameseSpellChecker } from "../../platform/text/vi-spellchecker.js";
 import { SpellcheckDomController } from "../../platform/text/spellcheck-dom-controller.js";
 import { VIETNAMESE_DICTIONARY_WORDS } from "../../platform/text/dictionaries/vi-dictionary.js";
-import { HelpPanel } from "../../platform/help/index.js";
+import { getHelpEntryById, HelpPanel } from "../../platform/help/index.js";
 import { autoRecoverManager } from "../../platform/autorecover/auto-recover.js";
 
 export class WriterApp {
@@ -179,6 +179,10 @@ export class WriterApp {
     this.helpPanel.mount(workspace);
     globalCommandBus.bindHandler("writer.help.open", (args) => {
       if (args?.entryId || args?.query != null) return this.helpPanel.open(args);
+      if (!this.helpPanel.isOpen()) {
+        const entryId = getWriterContextHelpEntryId(document.activeElement);
+        if (entryId) return this.helpPanel.open({ entryId });
+      }
       return this.helpPanel.toggle();
     });
 
@@ -273,6 +277,8 @@ export class WriterApp {
     this._lifecycleObserver = null;
     this._styleGalleryObserver?.disconnect();
     this._styleGalleryObserver = null;
+    this.viewController?.destroy();
+    this.viewController = null;
     this.arrangeController?.destroy();
     this.arrangeController = null;
     this.spellcheckController?.destroy();
@@ -378,4 +384,10 @@ export class WriterApp {
       : t("writerDialogs.wordCount.title");
     chip.setAttribute("aria-label", chip.textContent);
   }
+}
+
+export function getWriterContextHelpEntryId(activeElement) {
+  const commandId = activeElement?.closest?.("[data-command-id]")?.dataset?.commandId;
+  const entry = commandId ? getHelpEntryById(commandId) : null;
+  return entry?.app === "writer" ? entry.id : null;
 }

@@ -601,6 +601,7 @@ export const enStrings = {
     "writer.para.spacing2": { label: "Line Spacing 2.0", tooltip: "Double line spacing (Ctrl+2)" },
     "writer.para.spacingBefore": { label: "Spacing Before", tooltip: "Space before paragraph (pt)" },
     "writer.para.spacingAfter": { label: "Spacing After", tooltip: "Space after paragraph (pt)" },
+    "writer.para.firstLineIndent": { label: "First-line Indent", tooltip: "Set the first line indent for the paragraph" },
     "writer.list.bullet": { label: "Bullets", tooltip: "Create a bulleted list" },
     "writer.list.numbered": { label: "Numbering", tooltip: "Create a numbered list" },
     "writer.para.multilevelList": { label: "Multilevel List", tooltip: "Multilevel list: 1. / 1.1. / 1.1.1., 1. / a. / i., or Vietnamese Điều / Khoản / Điểm" },

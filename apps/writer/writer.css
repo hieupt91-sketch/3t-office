@@ -2476,6 +2476,15 @@ p.vno-style-emphasis {
   color: #b45309;
 }
 
+.vno-writer-body .vno-style-title,
+p.vno-style-title {
+  font-size: 26pt;
+  font-weight: 700;
+  color: #1f4e79;
+  text-align: center;
+  margin-bottom: 8pt;
+}
+
 /* ==========================================================================
    Hình mờ (Watermark) & Viền trang (Page Border)
    ========================================================================== */

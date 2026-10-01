@@ -107,6 +107,7 @@ export const WRITER_COMMANDS = [
   { id: "writer.para.lineSpacing", category: "paragraph", label: "Giãn dòng", icon: "lineSpacing", tooltip: "Khoảng cách giữa các dòng trong đoạn văn" },
   { id: "writer.para.spacingBefore", category: "paragraph", label: "Khoảng trước đoạn", icon: "spacingBefore", tooltip: "Khoảng cách trước đoạn văn (đơn vị pt)" },
   { id: "writer.para.spacingAfter", category: "paragraph", label: "Khoảng sau đoạn", icon: "spacingAfter", tooltip: "Khoảng cách sau đoạn văn (đơn vị pt)" },
+  { id: "writer.para.firstLineIndent", category: "paragraph", label: "Thụt đầu dòng", icon: "indentInc", tooltip: "Đặt khoảng thụt của dòng đầu đoạn văn" },
   { id: "writer.list.bullet", category: "paragraph", label: "Dấu đầu dòng", icon: "listBullet", tooltip: "Tạo danh sách dấu chấm tròn", isToggle: true },
   { id: "writer.list.numbered", category: "paragraph", label: "Đánh số", icon: "listNumber", tooltip: "Tạo danh sách đánh số thứ tự", isToggle: true },
   { id: "writer.para.multilevelList", category: "paragraph", label: "Danh sách đa cấp", icon: "listMultilevel", tooltip: "Danh sách nhiều cấp (1. / 1.1. / 1.1.1., 1. / a. / i., Điều / Khoản / Điểm)" },

@@ -30,7 +30,7 @@ export async function runHelpCoverageTests() {
         .join("; ");
       throw new Error(`Còn ${writer.uncoveredCount} lệnh Writer chưa có bài Help: ${details}`);
     }
-    if (writer.coveredCount !== writer.liveCount || writer.liveCount !== 131) {
+    if (writer.coveredCount !== writer.liveCount || writer.liveCount !== 133) {
       throw new Error(`Số lượng lệnh Writer không khớp: covered=${writer.coveredCount}, live=${writer.liveCount}`);
     }
   });

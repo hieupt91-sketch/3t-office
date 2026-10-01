@@ -77,6 +77,7 @@ export const WRITER_RIBBON_TABS = [
                       { value: "1", label: "10 pt" },
                       { value: "2", label: "12 pt" },
                       { value: "3", label: "14 pt (NĐ 30)" },
+                      { value: "13.5", label: "13,5 pt" },
                       { value: "4", label: "16 pt" },
                       { value: "5", label: "18 pt" },
                       { value: "6", label: "24 pt" }
@@ -154,7 +155,9 @@ export const WRITER_RIBBON_TABS = [
                     items: [
                       { commandId: "writer.para.spacing1" },
                       { commandId: "writer.para.spacing15" },
-                      { commandId: "writer.para.spacing2" }
+                      { commandId: "writer.para.spacing2" },
+                      { commandId: "writer.para.lineSpacing", args: "1.15", label: "1,15" },
+                      { commandId: "writer.para.lineSpacing", args: "exact", label: "Chính xác…" }
                     ]
                   },
                   { type: "button", commandId: "writer.para.shading", iconOnly: true },
@@ -406,7 +409,20 @@ export const WRITER_RIBBON_TABS = [
             items: [
               { commandId: "writer.para.spacing1" },
               { commandId: "writer.para.spacing15" },
-              { commandId: "writer.para.spacing2" }
+              { commandId: "writer.para.spacing2" },
+              { commandId: "writer.para.lineSpacing", args: "1.15", label: "1,15" },
+              { commandId: "writer.para.lineSpacing", args: "exact", label: "Chính xác…" }
+            ]
+          },
+          {
+            type: "select",
+            commandId: "writer.para.firstLineIndent",
+            defaultValue: "0",
+            ariaLabel: "Thụt đầu dòng",
+            options: [
+              { value: "0", label: "Đầu dòng: Không" },
+              { value: "14.17", label: "Đầu dòng: 0,5 cm" },
+              { value: "36", label: "Đầu dòng: 1,27 cm" }
             ]
           },
           {

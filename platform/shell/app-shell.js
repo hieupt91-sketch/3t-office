@@ -36,6 +36,8 @@ export class AppShell {
     this.singleAppMode = options.singleAppMode ?? getPlatformLaunchContext().singleAppMode;
     this._onSwitchApp = options.onSwitchApp || null;
     this.zoomLevel = 100;
+    this._zoomListeners = new Set();
+    this._setZoomControl = null;
     this.isAiOpen = false;
     this._aiRequestController = null;
     this.adapter = options.adapter || null;
@@ -55,6 +57,17 @@ export class AppShell {
 
   get onSwitchApp() {
     return (appType, options) => this.requestAppSwitch(appType, options);
+  }
+
+  subscribeZoom(listener) {
+    if (typeof listener !== "function") return () => {};
+    this._zoomListeners.add(listener);
+    return () => this._zoomListeners.delete(listener);
+  }
+
+  setZoomLevel(value) {
+    const level = Number(value);
+    if (Number.isFinite(level)) this._setZoomControl?.(level);
   }
 
   requestAppSwitch(appType, options) {
@@ -577,7 +590,9 @@ export class AppShell {
         canvas.style.transform = `scale(${this.zoomLevel / 100})`;
         canvas.style.transformOrigin = "top center";
       }
+      for (const listener of [...this._zoomListeners]) listener(this.zoomLevel);
     };
+    this._setZoomControl = updateZoom;
 
     zoomRange.addEventListener("input", (e) => updateZoom(Number(e.target.value)));
     sb.querySelector("#vno-zoom-out").addEventListener("click", () => updateZoom(this.zoomLevel - 10));

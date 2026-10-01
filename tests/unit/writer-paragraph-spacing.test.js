@@ -103,6 +103,54 @@ export async function runWriterParagraphSpacingTests() {
     assert.equal(adapter.applyParagraphSpacingAfter("-1"), false);
   });
 
+  await test("Writer paragraph layout: first-line indent and exact line spacing write point-valued styles", () => {
+    const { adapter } = adapterWithBody("<p>x</p>");
+    const calls = [];
+    adapter._applyParagraphVisualStyle = (styles, description) => { calls.push({ styles, description }); return true; };
+    assert.equal(adapter.applyParagraphFirstLineIndent("14.17"), true);
+    assert.deepEqual(calls[0], {
+      styles: { textIndent: "14.17pt" },
+      description: "writer.para.firstLineIndent"
+    });
+    assert.equal(adapter.applyParagraphFirstLineIndent("-1"), false);
+    const layout = WRITER_RIBBON_TABS.find(tab => tab.id === "layout");
+    const items = flattenRibbonItems(layout.groups.find(group => group.id === "paragraph").items);
+    assert.deepEqual(
+      items.find(item => item.commandId === "writer.para.firstLineIndent").options.map(option => option.value),
+      ["0", "14.17", "36"]
+    );
+    const spacingMenu = layout.groups.find(group => group.id === "paragraph").items
+      .find(item => item.id === "writer.para.lineSpacingLayout");
+    assert.ok(spacingMenu.items.some(item => item.args === "1.15"));
+    assert.ok(spacingMenu.items.some(item => item.args === "exact"));
+
+    const help = WRITER_HELP_ENTRIES.find(entry => entry.id === "writer.para.alignmentSpacing");
+    assert.ok(help.commandIds.includes("writer.para.lineSpacing"));
+    assert.match(help.steps.join(" "), /1\.15/);
+    assert.match(help.steps.join(" "), /Chính xác/);
+    assert.ok(WRITER_HELP_ENTRIES.some(entry => entry.id === "writer.para.firstLineIndent"));
+  });
+
+  await test("Writer line spacing: 1.15 is applied and enters Undo history", () => {
+    const { adapter } = adapterWithBody("<p>x</p>");
+    const style = {
+      setProperty(name, value) { this[name] = value; },
+      removeProperty(name) { delete this[name]; }
+    };
+    const paragraph = { nodeType: 1, tagName: "P", style };
+    const oldWindow = globalThis.window;
+    let snapshot = "";
+    try {
+      globalThis.window = { getSelection: () => ({ rangeCount: 1, anchorNode: paragraph }) };
+      adapter.recordSnapshot = name => { snapshot = name; };
+      assert.equal(adapter._setLineHeight("1.15"), true);
+      assert.equal(style["--vno-lh"], "1.15");
+      assert.equal(snapshot, "writer.para.lineSpacing");
+    } finally {
+      globalThis.window = oldWindow;
+    }
+  });
+
   await test("Writer FODT: spacing before/after serialize đúng fo:margin-top/bottom (pt)", () => {
     const { adapter } = adapterWithBody(
       '<p style="margin-top:12pt;margin-bottom:6pt">KHOANG_12_6</p>'
@@ -152,6 +200,20 @@ export async function runWriterParagraphSpacingTests() {
     assert.match(html, /margin-bottom:0pt/);
     assert.match(html, /text-align:center/);
     assert.match(html, />C<\/p>/);
+  });
+
+  await test("Writer FODT: first-line indent and exact line height survive serialize/parse", () => {
+    const initial = adapterWithBody('<p style="margin-left:0pt;text-indent:14.17pt;line-height:18pt">EXACT_LAYOUT</p>');
+    const fodt = initial.adapter.serializeToFodt();
+    assert.match(fodt, /fo:margin-left="0pt"/);
+    assert.match(fodt, /fo:text-indent="14\.17pt"/);
+    assert.match(fodt, /fo:line-height="18pt"/);
+    const parsed = adapterWithBody("<p>placeholder</p>");
+    const html = parsed.adapter.parseFodt(fodt);
+    assert.match(html, /margin-left:0pt/);
+    assert.match(html, /text-indent:14\.17pt/);
+    assert.match(html, /line-height:18pt/);
+    assert.equal(parsed.adapter.serializeToFodt(), fodt);
   });
 
   await test("Writer FODT: parse fo:margin cm (canonical LO) ra pt", () => {

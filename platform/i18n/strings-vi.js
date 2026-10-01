@@ -600,6 +600,7 @@ export const viStrings = {
     "writer.para.spacing2": { label: "Giãn dòng 2.0", tooltip: "Khoảng cách dòng 2.0 (Ctrl+2)" },
     "writer.para.spacingBefore": { label: "Khoảng trước đoạn", tooltip: "Khoảng cách trước đoạn văn (đơn vị pt)" },
     "writer.para.spacingAfter": { label: "Khoảng sau đoạn", tooltip: "Khoảng cách sau đoạn văn (đơn vị pt)" },
+    "writer.para.firstLineIndent": { label: "Thụt đầu dòng", tooltip: "Đặt khoảng thụt của dòng đầu đoạn văn" },
     "writer.list.bullet": { label: "Dấu đầu dòng", tooltip: "Tạo danh sách dấu chấm tròn" },
     "writer.list.numbered": { label: "Đánh số", tooltip: "Tạo danh sách đánh số thứ tự" },
     "writer.para.multilevelList": { label: "Danh sách đa cấp", tooltip: "Danh sách nhiều cấp: 1. / 1.1. / 1.1.1., 1. / a. / i., hoặc Điều / Khoản / Điểm (NĐ 30)" },

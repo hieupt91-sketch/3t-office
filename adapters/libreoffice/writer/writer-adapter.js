@@ -409,12 +409,25 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.para.borders", (args) => this.applyParagraphBorders(args));
     globalCommandBus.bindHandler("writer.para.spacingBefore", (args) => this.applyParagraphSpacingBefore(args));
     globalCommandBus.bindHandler("writer.para.spacingAfter", (args) => this.applyParagraphSpacingAfter(args));
+    globalCommandBus.bindHandler("writer.para.firstLineIndent", (args) => this.applyParagraphFirstLineIndent(args));
     globalCommandBus.bindHandler("writer.para.moveUp", () => this.moveParagraph("up"));
     globalCommandBus.bindHandler("writer.para.moveDown", () => this.moveParagraph("down"));
-    globalCommandBus.bindHandler("writer.para.lineSpacing", (args) => {
+    globalCommandBus.bindHandler("writer.para.lineSpacing", async (args) => {
       if (args === "1" || args === 1 || args === "1.0") return this._setLineHeight("1.0");
+      if (args === "1.15" || args === 1.15) return this._setLineHeight("1.15");
       if (args === "1.5" || args === 1.5) return this._setLineHeight("1.5");
       if (args === "2" || args === 2 || args === "2.0") return this._setLineHeight("2.0");
+      if (args === "exact") {
+        const raw = await showPromptDialog({
+          title: "Giãn dòng chính xác",
+          message: "Nhập chiều cao dòng tính bằng điểm (pt):",
+          defaultValue: "18",
+          placeholder: "18"
+        });
+        const pt = this._parseParagraphSpacingPt(raw);
+        if (pt == null || pt === 0) return false;
+        return this._applyParagraphVisualStyle({ lineHeight: `${pt}pt` }, "writer.para.lineSpacingExact");
+      }
       return this._setLineHeight("1.5");
     });
     globalCommandBus.bindHandler("writer.para.lineSpacingLayout", (args) => globalCommandBus.execute("writer.para.lineSpacing", args));
@@ -777,6 +790,12 @@ export class WriterAdapter {
     const pt = this._parseParagraphSpacingPt(args);
     if (pt == null) return false;
     return this._applyParagraphVisualStyle({ marginBottom: `${pt}pt` }, "writer.para.spacingAfter");
+  }
+
+  applyParagraphFirstLineIndent(args) {
+    const pt = this._parseParagraphSpacingPt(args);
+    if (pt == null) return false;
+    return this._applyParagraphVisualStyle({ textIndent: `${pt}pt` }, "writer.para.firstLineIndent");
   }
 
   applyMultilevelList(preset) {
@@ -6152,6 +6171,9 @@ export class WriterAdapter {
       case "writer.para.spacingAfter":
         return this.applyParagraphSpacingAfter(args);
 
+      case "writer.para.firstLineIndent":
+        return this.applyParagraphFirstLineIndent(args);
+
       case "writer.para.spacing1":
         this._setLineHeight("1.0");
         dispatchResult = true;
@@ -6198,6 +6220,7 @@ export class WriterAdapter {
         break;
 
       case "writer.font.size":
+        if (Number(args) === 13.5) return this._applyFontSizePt(13.5);
         if (args) document.execCommand("fontSize", false, args);
         dispatchResult = true;
         break;
@@ -6804,6 +6827,9 @@ export class WriterAdapter {
     } else if (styleKey === "emphasis" || styleKey === "nhanmanh") {
       targetTag = "p";
       addClass = "vno-style-emphasis";
+    } else if (styleKey === "title" || styleKey === "tieude") {
+      targetTag = "p";
+      addClass = "vno-style-title";
     } else {
       targetTag = "p";
     }
@@ -6819,6 +6845,15 @@ export class WriterAdapter {
     }
 
     this._updateCurrentBlockStyle(targetTag, addClass);
+    if (styleKey === "title" || styleKey === "tieude") {
+      this._getSelectedParagraphBlocks().forEach((block) => Object.assign(block.style, {
+        fontSize: "26pt",
+        fontWeight: "bold",
+        color: "#1f4e79",
+        textAlign: "center",
+        marginBottom: "8pt"
+      }));
+    }
 
     this.isDirty = true;
     this.recordSnapshot("writer.style.apply");
@@ -6886,6 +6921,11 @@ export class WriterAdapter {
     if (block) {
       block.classList?.remove?.("vno-style-quote");
       block.classList?.remove?.("vno-style-emphasis");
+      const wasTitle = block.classList?.contains?.("vno-style-title");
+      block.classList?.remove?.("vno-style-title");
+      if (wasTitle && block.style?.removeProperty) {
+        ["font-size", "font-weight", "color", "text-align", "margin-bottom"].forEach(property => block.style.removeProperty(property));
+      }
       if (addClass) {
         block.classList?.add?.(addClass);
       }
@@ -6909,9 +6949,11 @@ export class WriterAdapter {
       if (tag === "h3") return "h3";
       if (tag === "blockquote" || node.classList?.contains?.("vno-style-quote")) return "quote";
       if (node.classList?.contains?.("vno-style-emphasis")) return "emphasis";
+      if (node.classList?.contains?.("vno-style-title")) return "title";
       if (tag === "p") {
         if (node.classList?.contains?.("vno-style-quote")) return "quote";
         if (node.classList?.contains?.("vno-style-emphasis")) return "emphasis";
+        if (node.classList?.contains?.("vno-style-title")) return "title";
         return "normal";
       }
       node = node.parentNode;
@@ -8494,8 +8536,9 @@ export class WriterAdapter {
   }
 
   _setLineHeight(val) {
-    const sel = window.getSelection();
-    if (sel.rangeCount > 0) {
+    const sel = typeof window !== "undefined" ? window.getSelection?.() : null;
+    let applied = false;
+    if (sel?.rangeCount > 0) {
       let node = sel.anchorNode;
       if (node.nodeType === 3) node = node.parentNode;
       while (node && node !== this.editorDom && node.tagName !== "P" && node.tagName !== "DIV") {
@@ -8510,8 +8553,13 @@ export class WriterAdapter {
         } else {
           node.style.lineHeight = val;
         }
+        applied = true;
       }
     }
+    if (!applied) return false;
+    this.isDirty = true;
+    this.recordSnapshot("writer.para.lineSpacing");
+    return true;
   }
 
   _adjustFontSize(delta) {
@@ -8561,6 +8609,28 @@ export class WriterAdapter {
       this.isDirty = true;
       this.recordSnapshot?.(deltaPt > 0 ? "writer.font.grow1pt" : "writer.font.shrink1pt");
     }
+  }
+
+  _applyFontSizePt(sizePt) {
+    const pt = Number(sizePt);
+    if (!Number.isFinite(pt) || pt <= 0 || pt > 1638 || typeof document === "undefined") return false;
+    const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+    if (!selection?.rangeCount) return false;
+    this.flushTyping?.();
+    if (typeof document.execCommand === "function") document.execCommand("fontSize", false, "7");
+    let applied = false;
+    const fontElements = this.editorDom?.getElementsByTagName?.("font") || [];
+    for (const element of fontElements) {
+      if (element.size === "7") {
+        element.removeAttribute?.("size");
+        element.style.fontSize = `${pt}pt`;
+        applied = true;
+      }
+    }
+    if (!applied) return false;
+    this.isDirty = true;
+    this.recordSnapshot?.("writer.font.size");
+    return true;
   }
 
   async _pastePlainText() {
@@ -9576,7 +9646,11 @@ export class WriterAdapter {
       if (node.attrs.face) style.fontFamily = node.attrs.face.trim();
       if (node.attrs.size) throw this._fodtError("thuộc tính HTML font size legacy");
     }
-    const css = this._fodtCssMap(node.attrs.style);
+    const paragraphProps = ["margin-left", "text-indent", "line-height"];
+    const allowed = /^(?:p|h[1-6])$/.test(node.name)
+      ? ["font-weight", "font-style", "text-decoration", "text-decoration-line", "color", "background-color", "font-family", "font-size", "text-align", "margin-top", "margin-bottom", ...paragraphProps]
+      : undefined;
+    const css = allowed ? this._fodtCssMap(node.attrs.style, allowed) : this._fodtCssMap(node.attrs.style);
     if (/^(bold|[6-9]00)$/i.test(css["font-weight"] || "")) style.bold = true;
     if (/^(normal|[1-5]00)$/i.test(css["font-weight"] || "")) delete style.bold;
     if (/^italic$/i.test(css["font-style"] || "")) style.italic = true;
@@ -9987,7 +10061,10 @@ export class WriterAdapter {
       return inlineXml(node.children, this._fodtInlineStyle(node, inherited));
     }).join("");
     const paragraphXml = (node, extra = {}) => {
-      const css = this._fodtCssMap(node.attrs.style);
+      const css = this._fodtCssMap(node.attrs.style, [
+        "font-weight", "font-style", "text-decoration", "text-decoration-line", "color", "background-color",
+        "font-family", "font-size", "text-align", "margin-top", "margin-bottom", "margin-left", "text-indent", "line-height"
+      ]);
       const unexpected = Object.keys(node.attrs).filter(name => !["style", "class"].includes(name));
       if (unexpected.length) throw this._fodtError(`thuộc tính ${unexpected[0]} trên <${node.name}>`);
       const align = String(css["text-align"] || "left").toLowerCase();
@@ -9999,6 +10076,11 @@ export class WriterAdapter {
       if (extra.breakBefore) props.breakBefore = extra.breakBefore;
       if (css["margin-top"] !== undefined) props.marginTop = this._fodtNormalizeLengthToPt(css["margin-top"], "khoảng trước đoạn");
       if (css["margin-bottom"] !== undefined) props.marginBottom = this._fodtNormalizeLengthToPt(css["margin-bottom"], "khoảng sau đoạn");
+      if (css["margin-left"] !== undefined) props.marginLeft = this._fodtNormalizeLengthToPt(css["margin-left"], "lề trái đoạn");
+      if (css["text-indent"] !== undefined) props.textIndent = this._fodtNormalizeLengthToPt(css["text-indent"], "thụt đầu dòng");
+      if (css["line-height"] && /^(?:\d+(?:\.\d+)?)(?:pt|cm|mm|in|px)$/i.test(css["line-height"])) {
+        props.lineHeight = this._fodtNormalizeLengthToPt(css["line-height"], "giãn dòng chính xác");
+      }
       const pStyle = Object.keys(props).length ? ` text:style-name="${styleName(paragraphStyles, "P", props)}"` : "";
       const headingMatch = node.name.match(/^h([1-6])$/);
       const tag = headingMatch ? `text:h text:outline-level="${headingMatch[1]}"` : "text:p";
@@ -10377,6 +10459,9 @@ export class WriterAdapter {
       if (value.breakBefore) paraProps.push(`fo:break-before="${value.breakBefore}"`);
       if (value.marginTop) paraProps.push(`fo:margin-top="${value.marginTop}"`);
       if (value.marginBottom) paraProps.push(`fo:margin-bottom="${value.marginBottom}"`);
+      if (value.marginLeft) paraProps.push(`fo:margin-left="${value.marginLeft}"`);
+      if (value.textIndent) paraProps.push(`fo:text-indent="${value.textIndent}"`);
+      if (value.lineHeight) paraProps.push(`fo:line-height="${value.lineHeight}"`);
       const paraXml = paraProps.length ? `<style:paragraph-properties ${paraProps.join(" ")}/>` : "";
       return `<style:style ${styleAttrs.join(" ")}>${paraXml}</style:style>`;
     }).join("");
@@ -10464,7 +10549,10 @@ export class WriterAdapter {
           masterPageName: attrs["style:master-page-name"] || "",
           breakBefore,
           marginTop: props["fo:margin-top"] ? this._fodtNormalizeLengthToPt(props["fo:margin-top"], "khoảng trước đoạn") : "",
-          marginBottom: props["fo:margin-bottom"] ? this._fodtNormalizeLengthToPt(props["fo:margin-bottom"], "khoảng sau đoạn") : ""
+          marginBottom: props["fo:margin-bottom"] ? this._fodtNormalizeLengthToPt(props["fo:margin-bottom"], "khoảng sau đoạn") : "",
+          marginLeft: props["fo:margin-left"] ? this._fodtNormalizeLengthToPt(props["fo:margin-left"], "lề trái đoạn") : "",
+          textIndent: props["fo:text-indent"] ? this._fodtNormalizeLengthToPt(props["fo:text-indent"], "thụt đầu dòng") : "",
+          lineHeight: props["fo:line-height"] ? this._fodtNormalizeLengthToPt(props["fo:line-height"], "giãn dòng chính xác") : ""
         });
       } else if (family === "table-cell") {
         const propMatch = content.match(/<style:table-cell-properties\b([^>]*)\/?\s*>/i);
@@ -10761,6 +10849,9 @@ export class WriterAdapter {
       if (pStyle?.textAlign && pStyle.textAlign !== "left") cssRules.push(`text-align:${pStyle.textAlign}`);
       if (pStyle?.marginTop) cssRules.push(`margin-top:${pStyle.marginTop}`);
       if (pStyle?.marginBottom) cssRules.push(`margin-bottom:${pStyle.marginBottom}`);
+      if (pStyle?.marginLeft) cssRules.push(`margin-left:${pStyle.marginLeft}`);
+      if (pStyle?.textIndent) cssRules.push(`text-indent:${pStyle.textIndent}`);
+      if (pStyle?.lineHeight) cssRules.push(`line-height:${pStyle.lineHeight}`);
       const styleAttr = cssRules.length ? ` style="${this._escapeHtml(cssRules.join(";"))}"` : "";
       const paragraph = `<${tag}${styleAttr}>${inlineHtml(node.children)}</${tag}>`;
       if (!pStyle?.masterPageName) return paragraph;

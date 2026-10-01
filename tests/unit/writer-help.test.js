@@ -11,6 +11,7 @@ import { WRITER_RIBBON_TABS } from "../../apps/writer/writer-ribbon.js";
 import { ICONS } from "../../platform/ui-kit/icons.js";
 import { viStrings } from "../../platform/i18n/strings-vi.js";
 import { enStrings } from "../../platform/i18n/strings-en.js";
+import { getWriterContextHelpEntryId } from "../../apps/writer/writer-app.js";
 
 function flattenRibbonItems(items = []) {
   return items.flatMap((item) => (item.items ? flattenRibbonItems(item.items) : [item]));
@@ -83,6 +84,15 @@ export async function runWriterHelpTests() {
     const byCommand = getHelpEntryById("writer.trackChanges.acceptOne");
     if (!byGroup || byGroup.title !== "Theo dõi thay đổi") throw new Error("Sai bài theo id nhóm");
     if (!byCommand || byCommand.id !== "writer.trackChanges") throw new Error("Sai bài theo commandId");
+  });
+
+  await test("Help: F1 mở đúng bài theo nút ribbon đang focus", () => {
+    const trackToggle = { closest: () => ({ dataset: { commandId: "writer.trackChanges.toggle" } }) };
+    const tableInsert = { closest: () => ({ dataset: { commandId: "writer.table.insert" } }) };
+    const unknown = { closest: () => ({ dataset: { commandId: "sheet.cell.bold" } }) };
+    if (getWriterContextHelpEntryId(trackToggle) !== "writer.trackChanges") throw new Error("F1 không phân giải nút Theo dõi thay đổi");
+    if (getWriterContextHelpEntryId(tableInsert) !== "writer.table.insert") throw new Error("F1 không phân giải nút Chèn bảng");
+    if (getWriterContextHelpEntryId(unknown) !== null) throw new Error("Writer không nhận bài hướng dẫn của app khác");
   });
 
   await test("Help: lệnh writer.help.open (F1), icon, i18n và tab Trợ giúp trên ribbon Writer", () => {

@@ -20,6 +20,13 @@ export class WriterViewController {
     this._resizeHandler = () => {
       if (this.container?.classList.contains("vno-writer-page-width")) this.pageWidth();
     };
+    this._wheelHandler = event => {
+      if (!event.ctrlKey || !event.deltaY) return;
+      event.preventDefault?.();
+      if (event.deltaY < 0) this.zoomIn();
+      else this.zoomOut();
+    };
+    this._zoomUnsubscribe = null;
   }
 
   attach() {
@@ -37,6 +44,11 @@ export class WriterViewController {
     bind("writer.view.newWindow", () => this.newWindow());
     if (typeof document !== "undefined") document.addEventListener?.("keydown", this._escapeHandler);
     if (typeof window !== "undefined") window.addEventListener?.("resize", this._resizeHandler);
+    this.viewport?.addEventListener?.("wheel", this._wheelHandler, { passive: false });
+    this._zoomUnsubscribe = this.shell?.subscribeZoom?.((level) => {
+      this.zoomLevel = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Number(level) / 100));
+      this._applyViewState();
+    }) || null;
     this._applyViewState();
     this._syncCommandStates();
     return this;
@@ -45,6 +57,9 @@ export class WriterViewController {
   destroy() {
     if (typeof document !== "undefined") document.removeEventListener?.("keydown", this._escapeHandler);
     if (typeof window !== "undefined") window.removeEventListener?.("resize", this._resizeHandler);
+    this.viewport?.removeEventListener?.("wheel", this._wheelHandler);
+    this._zoomUnsubscribe?.();
+    this._zoomUnsubscribe = null;
   }
 
   setMode(mode) {
@@ -92,6 +107,7 @@ export class WriterViewController {
     this.zoomLevel = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(numeric * 100) / 100));
     this.container?.classList.toggle("vno-writer-page-width", pageWidth);
     this._applyViewState();
+    this.shell?.setZoomLevel?.(Math.round(this.zoomLevel * 100));
     return this.zoomLevel;
   }
 
