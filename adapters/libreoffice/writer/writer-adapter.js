@@ -26,6 +26,7 @@ import { DOCUMENT_THEMES, showThemeGalleryDialog } from "../../../apps/writer/th
 import { showSymbolPicker } from "../../../platform/ui-kit/symbol-picker.js";
 import { formatDateTime, showDateTimeDialog } from "../../../platform/ui-kit/datetime-picker.js";
 import { showEquationDialog, showBookmarkDialog, showCrossReferenceDialog, slugBookmarkName, showWordArtDialog, buildWriterWordArtHtml, applyWordArtCss, parseWordArtStyleAttr, resolveWordArtStyle, WORDART_PRESETS } from "../../../apps/writer/insert-dialogs.js";
+import { equationMarkerToken, linearToMathML, mathMLToLinear } from "../../../apps/writer/equation-editor.js";
 import { t } from "../../../platform/i18n/i18n.js";
 import { CITATION_STYLES, authorSortKey, citationMetadataHtml, formatBibliographyEntry, formatInTextCitation, normalizeSource, parseCitationMetadata, showInsertCitationDialog, showSourceManagerDialog } from "../../../apps/writer/citations.js";
 import {
@@ -314,6 +315,9 @@ export class WriterAdapter {
     this.selectedShapeId = null;
     this.selectedWordArtEl = null;
     this._wordArtEditing = false;
+    this.selectedEquationEl = null;
+    this._equationSequence = 0;
+    this._equationSelectionRange = null;
     this.documentTheme = "office";
     this.showFormattingMarks = false;
     this._styleSelectionHandler = null;
@@ -337,12 +341,145 @@ export class WriterAdapter {
     this.footerDom = this.editorDom.querySelector(".vno-writer-footer");
   }
 
+  _bindEquationInteractions() {
+    if (!this.bodyDom?.addEventListener || this._equationClickHandler) return;
+    this._selectEquation = (equation) => {
+      if (this.selectedEquationEl && this.selectedEquationEl !== equation) {
+        this.selectedEquationEl.classList?.remove("is-selected");
+      }
+      this.selectedEquationEl = equation;
+      equation.classList?.add("is-selected");
+    };
+    this._equationClickHandler = (event) => {
+      const equation = event.target?.closest?.(".vno-equation[data-vno-equation='true']");
+      if (!equation || !this.bodyDom.contains(equation)) {
+        this.selectedEquationEl?.classList?.remove("is-selected");
+        this.selectedEquationEl = null;
+        return;
+      }
+      this._selectEquation(equation);
+      equation.focus?.();
+    };
+    this._equationFocusHandler = (event) => {
+      const equation = event.target?.closest?.(".vno-equation[data-vno-equation='true']");
+      if (equation && this.bodyDom.contains(equation)) this._selectEquation(equation);
+    };
+    this._equationDoubleClickHandler = (event) => {
+      const equation = event.target?.closest?.(".vno-equation[data-vno-equation='true']");
+      if (!equation || !this.bodyDom.contains(equation)) return;
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      this._editEquation(equation);
+    };
+    this.bodyDom.addEventListener("click", this._equationClickHandler);
+    this.bodyDom.addEventListener("focusin", this._equationFocusHandler);
+    this.bodyDom.addEventListener("dblclick", this._equationDoubleClickHandler);
+  }
+
+  _makeEquationHtml({ linear, mathml, id = "", originalOmml = "", display = "inline" }) {
+    this._equationSequence += 1;
+    const equationId = id || "new-" + this._equationSequence;
+    const normalizedMathml = String(mathml || linearToMathML(linear || ""));
+    const safeId = this._escapeHtml(equationId);
+    const encodedMathml = this._escapeHtml(encodeURIComponent(normalizedMathml));
+    const originalAttribute = originalOmml
+      ? " data-vno-equation-original-omml=\"" + this._escapeHtml(originalOmml) + "\""
+      : "";
+    const displayAttribute = display === "block" ? " data-vno-equation-display=\"block\"" : "";
+    const label = this._escapeHtml(t("writer.insert.equation") + ": " + String(linear || "").trim());
+    return "<span class=\"vno-equation\" role=\"math\" tabindex=\"0\" contenteditable=\"false\""
+      + " data-vno-equation=\"true\" data-vno-equation-id=\"" + safeId + "\""
+      + " data-vno-equation-linear=\"" + this._escapeHtml(linear || "") + "\""
+      + " data-vno-equation-mathml=\"" + encodedMathml + "\"" + originalAttribute + displayAttribute
+      + " aria-label=\"" + label + "\">" + normalizedMathml + "</span>";
+  }
+
+  _captureEquationSelection() {
+    this._initZones();
+    this._equationSelectionRange = null;
+    try {
+      const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+      if (selection?.rangeCount && this.bodyDom?.contains?.(selection.anchorNode)) {
+        this._equationSelectionRange = selection.getRangeAt(0).cloneRange();
+      }
+    } catch {}
+  }
+
+  _restoreEquationSelection() {
+    const range = this._equationSelectionRange;
+    this._equationSelectionRange = null;
+    if (!range || !range.startContainer?.isConnected || !this.bodyDom?.contains?.(range.startContainer)) return false;
+    try {
+      const selection = window.getSelection?.();
+      if (!selection) return false;
+      selection.removeAllRanges();
+      selection.addRange(range);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  _equationDisplayAtSelection() {
+    try {
+      const selection = window.getSelection?.();
+      const node = selection?.anchorNode?.nodeType === 1
+        ? selection.anchorNode
+        : selection?.anchorNode?.parentElement;
+      const paragraph = node?.closest?.("p,li,h1,h2,h3,h4,h5,h6");
+      if (!paragraph || !this.bodyDom?.contains?.(paragraph)) return "inline";
+      const range = selection.getRangeAt(0);
+      const before = document.createRange();
+      before.selectNodeContents(paragraph);
+      before.setEnd(range.startContainer, range.startOffset);
+      const after = document.createRange();
+      after.selectNodeContents(paragraph);
+      after.setStart(range.endContainer, range.endOffset);
+      const left = before.toString().trim();
+      const right = after.toString().trim();
+      const otherObjects = Array.from(paragraph.querySelectorAll?.(".vno-equation") || [])
+        .filter(item => item !== this.selectedEquationEl).length;
+      return !left && !right && otherObjects === 0 ? "block" : "inline";
+    } catch {
+      return "inline";
+    }
+  }
+
+  async _editEquation(equation) {
+    if (!equation || equation.isConnected === false) return false;
+    const math = equation.querySelector?.("math");
+    const initial = equation.getAttribute?.("data-vno-equation-linear")
+      || (math ? mathMLToLinear(math.outerHTML) : "");
+    const picked = await showEquationDialog({ linear: initial });
+    if (!picked) return false;
+    return this.insertEquation({
+      linear: picked.linear,
+      mathml: picked.mathml,
+      targetEquationEl: equation,
+      originalOmml: equation.getAttribute?.("data-vno-equation-original-omml") || ""
+    });
+  }
+
+  _deleteSelectedEquation() {
+    const equation = this.selectedEquationEl;
+    if (!equation || equation.isConnected === false) {
+      this.selectedEquationEl = null;
+      return false;
+    }
+    equation.remove?.();
+    this.selectedEquationEl = null;
+    this.isDirty = true;
+    this.recordSnapshot("writer.insert.equation.delete");
+    return true;
+  }
+
   attach() {
     this._initZones();
     globalUnoBridge.attachDocument(this);
     this._applyPageSetup();
     this._bindCommentInteractions();
     this._bindContinuousEditingWorkflow();
+    this._bindEquationInteractions();
     this._bindTrackChanges();
     this._renderCommentsPanel();
     this._updateTrackChangesCommandState();
@@ -474,6 +611,44 @@ export class WriterAdapter {
     this._trackChangesBeforeInputHandler = (event) => this._handleTrackChangesBeforeInput(event);
     this.bodyDom.addEventListener("beforeinput", this._trackChangesBeforeInputHandler);
     this.bodyDom.addEventListener("input", () => this._updateTrackChangesCommandState());
+  }
+
+  _insertTabCharacter(root) {
+    if (!root || typeof document === "undefined" || typeof window === "undefined") return false;
+    const selection = window.getSelection?.();
+    if (!selection?.rangeCount) return false;
+    const range = selection.getRangeAt(0);
+    const commonNode = range?.commonAncestorContainer;
+    if (!range || !(commonNode === root || root.contains?.(commonNode))) return false;
+
+    this.flushTyping?.();
+    range.deleteContents?.();
+    const tab = document.createElement("span");
+    tab.className = "vno-tab-character";
+    tab.setAttribute("data-vno-tab-character", "true");
+    tab.textContent = "\t";
+    let inserted = tab;
+    if (this.trackChangesEnabled && root === this.bodyDom) {
+      const mark = document.createElement("ins");
+      mark.setAttribute("data-vno-change", "insert");
+      mark.appendChild(tab);
+      inserted = mark;
+    }
+
+    range.insertNode(inserted);
+    range.setStartAfter(inserted);
+    range.collapse(true);
+    selection.removeAllRanges?.();
+    selection.addRange?.(range);
+    const paragraph = tab.closest?.("p,li,h1,h2,h3,h4,h5,h6");
+    if (paragraph?.style) paragraph.style.tabSize = "1.27cm";
+
+    if (typeof Event === "function") {
+      root.dispatchEvent?.(new Event("input", { bubbles: true }));
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.text.insertTab");
+    return true;
   }
 
   /**
@@ -644,24 +819,6 @@ export class WriterAdapter {
     if (!selection || selection.rangeCount === 0) return false;
     const range = selection.getRangeAt(0);
     return range.startContainer === element && range.startOffset === 0;
-  }
-
-  _insertTabCharacter(root) {
-    if (typeof window === "undefined" || !window.getSelection) return false;
-    const selection = window.getSelection();
-    if (!selection.rangeCount) return false;
-    const range = selection.getRangeAt(0);
-    if (!root.contains(range.commonAncestorContainer)) return false;
-    range.deleteContents();
-    const tabText = document.createTextNode("\t");
-    range.insertNode(tabText);
-    range.setStartAfter(tabText);
-    range.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(range);
-    this.isDirty = true;
-    this.recordSnapshot("writer.text.insertTab");
-    return true;
   }
 
   _bindMouseAndKeyboardParity() {
@@ -8764,13 +8921,42 @@ export class WriterAdapter {
 
   async insertEquation(options = null) {
     options = options || {};
-    let expression = options.expression || options.text;
-    if (!expression) {
-      expression = await showEquationDialog({ expression: "E = mc²" });
-      if (!expression) return false;
+    const target = options.targetEquationEl || this.selectedEquationEl;
+    let picked = options;
+    if (!options.linear && !options.mathml && !options.expression && !options.text && !target) {
+      this._captureEquationSelection();
+      picked = await showEquationDialog({ linear: "x^2" });
+      if (!picked) {
+        this._equationSelectionRange = null;
+        return false;
+      }
     }
-    const html = `<span class="vno-equation" role="math" data-equation="true">${this._escapeHtml(expression)}</span>`;
-    this._insertHtmlAtCursor(html);
+
+    const linear = String(picked.linear || picked.expression || picked.text || (picked.mathml ? mathMLToLinear(picked.mathml) : "")).trim();
+    if (!linear && !picked.mathml) return false;
+    const display = picked.display || (target?.getAttribute?.("data-vno-equation-display") === "block" ? "block" : "inline");
+    const mathml = String(picked.mathml || linearToMathML(linear, display)).replace(/<math\b([^>]*)>/i, (_match, attrs) => {
+      const withoutDisplay = attrs.replace(/\sdisplay\s*=\s*(["'])[^"']*\1/i, "");
+      return `<math${withoutDisplay} display="${display}">`;
+    });
+
+    if (target && target.isConnected !== false) {
+      target.innerHTML = mathml;
+      target.setAttribute("data-vno-equation-linear", linear);
+      target.setAttribute("data-vno-equation-mathml", encodeURIComponent(mathml));
+      target.setAttribute("data-vno-equation-edited", "true");
+      target.setAttribute("aria-label", t("writer.insert.equation") + ": " + linear);
+      if (display === "block") target.setAttribute("data-vno-equation-display", "block");
+      else target.removeAttribute("data-vno-equation-display");
+      target.classList?.remove("is-selected");
+      this.selectedEquationEl = null;
+      this.isDirty = true;
+    } else {
+      this._restoreEquationSelection();
+      const insertDisplay = picked.display || this._equationDisplayAtSelection();
+      const resolvedMathml = insertDisplay === display ? mathml : linearToMathML(linear, insertDisplay);
+      this._insertHtmlAtCursor(this._makeEquationHtml({ linear, mathml: resolvedMathml, display: insertDisplay }));
+    }
     this.recordSnapshot("writer.insert.equation");
     return true;
   }
@@ -11818,6 +12004,34 @@ export class WriterAdapter {
     return result;
   }
 
+  _serializeEquationsForExport(root) {
+    if (!root?.querySelectorAll || typeof document === "undefined") return;
+    const equations = Array.from(root.querySelectorAll(".vno-equation[data-vno-equation='true']"));
+    for (const equation of equations) {
+      const id = equation.getAttribute("data-vno-equation-id") || ("new-" + (++this._equationSequence));
+      const token = equationMarkerToken(id);
+      const math = equation.querySelector("math");
+      let mathml = math?.outerHTML || decodeURIComponent(equation.getAttribute("data-vno-equation-mathml") || "");
+      const edited = equation.getAttribute("data-vno-equation-edited") === "true";
+      const originalOmml = edited ? "" : (equation.getAttribute("data-vno-equation-original-omml") || "");
+      if (equation.getAttribute("data-vno-equation-display") === "block") {
+        mathml = mathml.replace(/<math\b([^>]*)>/i, (_match, attrs) => {
+          const withoutDisplay = attrs.replace(/\sdisplay\s*=\s*(["'])[^"']*\1/i, "");
+          return `<math${withoutDisplay} display="block">`;
+        });
+      }
+      const marker = document.createElement("span");
+      marker.className = "vno-equation-export";
+      marker.setAttribute("style", "font-family: Cambria Math;");
+      marker.setAttribute("data-vno-equation-export", "true");
+      marker.setAttribute("data-vno-equation-id", id);
+      marker.setAttribute("data-vno-equation-mathml", encodeURIComponent(mathml));
+      if (originalOmml) marker.setAttribute("data-vno-equation-original-omml", originalOmml);
+      marker.textContent = token;
+      equation.replaceWith(marker);
+    }
+  }
+
   _preserveEmptyParagraphFontSizesForExport(html) {
     return String(html || "").replace(
       /<(p|h[1-6])\b([^>]*\bfont-size:\s*([\d.]+)pt[^>]*)>([\s\S]*?)<\/\1>/gi,
@@ -11863,6 +12077,7 @@ export class WriterAdapter {
     if (this.bodyDom) {
       const exportRoot = this.bodyDom.cloneNode?.(true) || this.bodyDom;
       this._markCurrentUntouchedParagraphs(exportRoot);
+      this._serializeEquationsForExport(exportRoot);
       bodyHtml = this._stripSessionMarkup(exportRoot.innerHTML);
     } else if (this.editorDom) {
       bodyHtml = this._stripSessionMarkup(this.editorDom.innerHTML);
@@ -13607,7 +13822,12 @@ export class WriterAdapter {
             gapBeforeEls.push({ el, soft: false, kind: "block" });
             pageCount++;
           }
-          pageStartTop = top - marginTopOf(el);
+          // Hidden section markers have a zero top in the canvas. Let the next
+          // real block establish the new page origin instead of counting its
+          // document offset as overflow from the marker.
+          pageStartTop = el.classList?.contains("vno-section-break")
+            ? null
+            : top - marginTopOf(el);
           continue;
         }
 
@@ -13932,6 +14152,25 @@ export class WriterAdapter {
 
     if (!this._undoKeyHandler && typeof target.addEventListener === "function") {
       this._undoKeyHandler = (event) => {
+        const active = typeof document !== "undefined" ? document.activeElement : null;
+        const inEquationDialog = !!active?.closest?.(".vno-equation-editor");
+        const equationHasFocus = !!this.selectedEquationEl && (
+          active === this.selectedEquationEl || this.selectedEquationEl.contains?.(event.target)
+        );
+        if (!inEquationDialog && (event.key === "Delete" || event.key === "Backspace")
+          && equationHasFocus && this.selectedEquationEl.isConnected !== false) {
+          event.preventDefault();
+          event.stopPropagation();
+          this._deleteSelectedEquation();
+          return;
+        }
+        if (!inEquationDialog && (event.key === "Enter" || event.key === "F2")
+          && equationHasFocus && this.selectedEquationEl.isConnected !== false) {
+          event.preventDefault();
+          event.stopPropagation();
+          this._editEquation(this.selectedEquationEl);
+          return;
+        }
         if ((event.key === "Delete" || event.key === "Backspace") && this.selectedWordArtEl && !this._wordArtEditing) {
           event.preventDefault();
           event.stopPropagation();
