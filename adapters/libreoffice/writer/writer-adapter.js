@@ -6884,6 +6884,11 @@ export class WriterAdapter {
           const html = serialized.html;
           this._clipboardMemory = { text, html };
           try {
+            if (globalUnoBridge.writeClipboardData) {
+              globalUnoBridge.writeClipboardData({ text, html }).catch(() => {});
+            }
+          } catch {}
+          try {
             if (typeof navigator !== "undefined" && typeof ClipboardItem !== "undefined" && navigator.clipboard?.write && html) {
               const item = new ClipboardItem({
                 "text/plain": new Blob([text], { type: "text/plain" }),
@@ -15104,6 +15109,11 @@ export class WriterAdapter {
         if (text) event.clipboardData.setData("text/plain", text);
         if (html) event.clipboardData.setData("text/html", html);
       }
+      try {
+        if (globalUnoBridge.writeClipboardData) {
+          globalUnoBridge.writeClipboardData({ text, html }).catch(() => {});
+        }
+      } catch {}
       try {
         if (typeof navigator !== "undefined" && typeof ClipboardItem !== "undefined" && navigator.clipboard?.write && html) {
           const item = new ClipboardItem({

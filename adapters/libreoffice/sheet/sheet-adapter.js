@@ -6151,6 +6151,11 @@ ${pristineXlsxMarker}
     if (!payload) return false;
     this._rememberClipboard(payload, isCut ? "cut" : "copy");
     try {
+      if (globalUnoBridge.writeClipboardData) {
+        await globalUnoBridge.writeClipboardData({ text: payload.text, html: payload.html });
+      }
+    } catch {}
+    try {
       if (typeof navigator !== "undefined" && typeof ClipboardItem !== "undefined" && navigator.clipboard?.write && payload.html) {
         const item = new ClipboardItem({
           "text/plain": new Blob([payload.text], { type: "text/plain" }),
@@ -6247,7 +6252,7 @@ ${pristineXlsxMarker}
         model = this._clipboardModelFromText(nativeText, nativeHtml);
       }
       if (globalThis.window?.__vnoClipboardDiagnostics) console.info("__VNO_CLIPBOARD_DIAG__" + JSON.stringify({ phase: "sheet-paste-model", cells: (model?.cells || []).map(row => row.map(cell => ({ val: cell.val, style: cell.style }))) }));
-      await this._pasteModelIntoGrid(model, nativeText, false);
+      await this._pasteModelIntoGrid(model, nativeText, !!isInternal);
     };
     container.addEventListener("copy", copy);
     container.addEventListener("cut", cut);
@@ -6355,9 +6360,14 @@ ${pristineXlsxMarker}
       }
       return this.grid.applyPasteSpecial(model, "values", coord, { coerceInput: true });
     }
+    const isInternal = Boolean(
+      this._clipboardModel?.cells?.length && (
+        !native || native.status !== "ok" || String(native.text || "").trim() === String(this._clipboardText || "").trim()
+      )
+    );
     if (native?.status === "ok" && native.html) {
       const model = parseOfficeHtmlTable(native.html, native.text || "");
-      if (model) return this._pasteModelIntoGrid(model, native.text || "", false);
+      if (model) return this._pasteModelIntoGrid(model, native.text || "", isInternal);
     }
     if (native?.status === "ok" && native.text) return this._pasteTextIntoGrid(native.text, native.html || "");
     if (this._clipboardModel?.cells?.length) return this._pasteModelIntoGrid(this._clipboardModel, this._clipboardText, true);

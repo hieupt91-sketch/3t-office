@@ -626,6 +626,7 @@ async function runDesktopRegression() {
         const html = bodyEl.innerHTML;
         const text = bodyEl.textContent;
         const hasNoStyle = !/style\s*=\s*["'][^"']*(color|background|font-weight)[^"']*["']/i.test(html);
+        bodyEl.blur();
         return { text: text.trim(), hasNoStyle };
       }
       return { text: "", hasNoStyle: true };
@@ -645,17 +646,37 @@ async function runDesktopRegression() {
     // MỤC 7: Hoàn tác đúng 1 bước (Ctrl+Z) trong mọi trường hợp
     // =========================================================================
     console.log("\n▶ Đo Tiêu chí 7: Hoàn tác đúng 1 bước (Ctrl+Z) sau khi dán...");
-    // Thử hoàn tác trên Slide vừa thêm Table Shape ở Tiêu chí 5
+    // Thử hoàn tác trên Slide:
+    // 1. Hoàn tác bước dán văn bản ở Tiêu chí 6c: chữ trong bodyEl được rút lại đúng 1 bước
+    // 2. Hoàn tác bước dán Table Shape ở Tiêu chí 5: Table Shape trên canvas được rút lại đúng 1 bước
     const t7Measurement = await slideCdp.evaluate(`(async () => {
       const canvas = window.__vnoAppInstance?.canvas || window.__vnoAppInstance?.canvasController || window.__vnoAppInstance?.adapter?.canvas;
-      const countBeforeUndo = canvas?.slides?.[canvas.currentSlideIndex]?.shapes?.length || 0;
+      const bodyEl = document.querySelector(".vno-slide-body");
+
+      const textBeforeUndo = (bodyEl?.textContent || "").trim();
+      const shapesBeforeUndo = canvas?.slides?.[canvas.currentSlideIndex]?.shapes?.length || 0;
+
+      // Lần undo 1: Hoàn tác bước dán văn bản ở Tiêu chí 6c
       await window.globalCommandBus?.execute("common.edit.undo");
-      const countAfterUndo = canvas?.slides?.[canvas.currentSlideIndex]?.shapes?.length || 0;
+      const textAfterUndo1 = (bodyEl?.textContent || "").trim();
+      const shapesAfterUndo1 = canvas?.slides?.[canvas.currentSlideIndex]?.shapes?.length || 0;
+
+      // Lần undo 2: Hoàn tác bước dán Table Shape ở Tiêu chí 5
+      await window.globalCommandBus?.execute("common.edit.undo");
+      const shapesAfterUndo2 = canvas?.slides?.[canvas.currentSlideIndex]?.shapes?.length || 0;
+
+      const textUndone = textBeforeUndo.length > 0 && textAfterUndo1.length === 0;
+      const shapeUndone = shapesAfterUndo1 === 1 && shapesAfterUndo2 === 0;
 
       return {
-        countBeforeUndo,
-        countAfterUndo,
-        undoneOneStep: countAfterUndo === countBeforeUndo - 1
+        textBeforeUndo: textBeforeUndo.slice(0, 30),
+        textAfterUndo1: textAfterUndo1.slice(0, 30),
+        shapesBeforeUndo,
+        shapesAfterUndo1,
+        shapesAfterUndo2,
+        textUndone,
+        shapeUndone,
+        undoneOneStep: textUndone && shapeUndone
       };
     })()`);
 
@@ -665,7 +686,7 @@ async function runDesktopRegression() {
       title: "Hoàn tác đúng 1 bước (Ctrl+Z) sau khi dán",
       pass: t7Pass,
       measured: t7Pass
-        ? `Ctrl+Z rút lại đúng 1 bước dán: số shape giảm từ ${t7Measurement.countBeforeUndo} về ${t7Measurement.countAfterUndo}`
+        ? `Ctrl+Z hoàn tác đúng 1 bước: dán văn bản rút lại ('${t7Measurement.textBeforeUndo}' -> rỗng), dán Table Shape rút lại (${t7Measurement.shapesAfterUndo1} -> ${t7Measurement.shapesAfterUndo2} shape)`
         : `Lỗi: ${JSON.stringify(t7Measurement)}`
     });
 

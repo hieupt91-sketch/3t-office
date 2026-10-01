@@ -4115,9 +4115,25 @@ export class SlidesAdapter {
         if (typeof document !== "undefined") document.execCommand("cut", false, null);
         return true;
 
-      case "common.edit.copy":
+      case "common.edit.copy": {
+        const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+        if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+          const text = selection.toString();
+          let html = "";
+          try {
+            const container = document.createElement("div");
+            for (let i = 0; i < selection.rangeCount; i++) {
+              container.appendChild(selection.getRangeAt(i).cloneContents());
+            }
+            html = container.innerHTML;
+            if (globalUnoBridge.writeClipboardData) {
+              globalUnoBridge.writeClipboardData({ text, html }).catch(() => {});
+            }
+          } catch {}
+        }
         if (typeof document !== "undefined") document.execCommand("copy", false, null);
         return true;
+      }
 
       case "common.edit.paste":
         return await this._paste();

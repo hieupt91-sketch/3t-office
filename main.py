@@ -2657,6 +2657,72 @@ def _read_windows_clipboard_data() -> dict[str, object]:
         user32.CloseClipboard()
 
 
+def _write_windows_clipboard_data(text: str = "", html: str = "") -> dict[str, object]:
+    """Write plain text and HTML locally to the Windows clipboard via Win32."""
+    if os.name != "nt":
+        return {"status": "error", "message": "Ghi bộ nhớ tạm hệ thống cần chạy 3T Office Desktop trên Windows."}
+
+    user32 = ctypes.WinDLL("user32", use_last_error=True)
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.GlobalAlloc.argtypes = [ctypes.c_uint, ctypes.c_size_t]
+    kernel32.GlobalAlloc.restype = ctypes.c_void_p
+    kernel32.GlobalLock.argtypes = [ctypes.c_void_p]
+    kernel32.GlobalLock.restype = ctypes.c_void_p
+    kernel32.GlobalUnlock.argtypes = [ctypes.c_void_p]
+    kernel32.GlobalUnlock.restype = ctypes.c_int
+    user32.OpenClipboard.argtypes = [ctypes.c_void_p]
+    user32.OpenClipboard.restype = ctypes.c_int
+    user32.CloseClipboard.argtypes = []
+    user32.CloseClipboard.restype = ctypes.c_int
+    user32.EmptyClipboard.argtypes = []
+    user32.EmptyClipboard.restype = ctypes.c_int
+    user32.SetClipboardData.argtypes = [ctypes.c_uint, ctypes.c_void_p]
+    user32.SetClipboardData.restype = ctypes.c_void_p
+    user32.RegisterClipboardFormatW.argtypes = [ctypes.c_wchar_p]
+    user32.RegisterClipboardFormatW.restype = ctypes.c_uint
+
+    GMEM_MOVEABLE = 0x0002
+    if not user32.OpenClipboard(None):
+        return {"status": "error", "message": "Không mở được bộ nhớ tạm Windows để ghi."}
+
+    try:
+        user32.EmptyClipboard()
+        if text:
+            encoded_text = (text + "\x00").encode("utf-16-le")
+            h_text = kernel32.GlobalAlloc(GMEM_MOVEABLE, len(encoded_text))
+            if h_text:
+                ptr = kernel32.GlobalLock(h_text)
+                if ptr:
+                    ctypes.memmove(ptr, encoded_text, len(encoded_text))
+                    kernel32.GlobalUnlock(h_text)
+                    user32.SetClipboardData(13, h_text)
+        if html:
+            tmpl = "Version:0.9\r\nStartHTML:{:08d}\r\nEndHTML:{:08d}\r\nStartFragment:{:08d}\r\nEndFragment:{:08d}\r\n"
+            prefix = "<html><body>\r\n<!--StartFragment-->"
+            suffix = "<!--EndFragment-->\r\n</body></html>"
+            dummy = tmpl.format(0, 0, 0, 0)
+            start_html = len(dummy.encode("utf-8"))
+            start_frag = start_html + len(prefix.encode("utf-8"))
+            end_frag = start_frag + len(html.encode("utf-8"))
+            end_html = end_frag + len(suffix.encode("utf-8"))
+            hdr = tmpl.format(start_html, end_html, start_frag, end_frag)
+            full = (hdr + prefix + html + suffix + "\x00").encode("utf-8")
+            fmt = int(user32.RegisterClipboardFormatW("HTML Format"))
+            if fmt:
+                h_html = kernel32.GlobalAlloc(GMEM_MOVEABLE, len(full))
+                if h_html:
+                    ptr = kernel32.GlobalLock(h_html)
+                    if ptr:
+                        ctypes.memmove(ptr, full, len(full))
+                        kernel32.GlobalUnlock(h_html)
+                        user32.SetClipboardData(fmt, h_html)
+        return {"status": "ok"}
+    except Exception as exc:
+        return {"status": "error", "message": str(exc)}
+    finally:
+        user32.CloseClipboard()
+
+
 class VnOfficeApi:
     """Python API phơi ra cho JavaScript giao tiếp (Bridge) — cầu nối thật tới LibreOffice."""
 
@@ -2734,6 +2800,13 @@ class VnOfficeApi:
             return result
         except Exception as exc:
             return {"status": "error", "message": f"Không đọc được bộ nhớ tạm: {exc}"}
+
+    def write_clipboard_data(self, text: str = "", html: str = "") -> dict[str, object]:
+        """Ghi CF_UNICODETEXT và HTML Format vào clipboard Windows cục bộ."""
+        try:
+            return _write_windows_clipboard_data(text, html)
+        except Exception as exc:
+            return {"status": "error", "message": f"Không ghi được bộ nhớ tạm: {exc}"}
 
     def get_about_info(self) -> dict[str, object]:
         """Trả về thông tin bản quyền và danh sách phần mềm nguồn mở bên thứ ba."""
