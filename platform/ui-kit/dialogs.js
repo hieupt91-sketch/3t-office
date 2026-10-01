@@ -285,7 +285,14 @@ export function showUnsavedChangesDialog({
         finish("cancel");
       } else if (event.key === "Enter") {
         event.preventDefault();
-        finish("save");
+        const activeChoice = document.activeElement?.getAttribute?.("data-unsaved-choice");
+        if (activeChoice) {
+          finish(activeChoice);
+        } else if (document.activeElement === closeBtn) {
+          finish("cancel");
+        } else {
+          finish("save");
+        }
       } else if (event.key === "Tab") {
         trapFocus(dialogBox, event);
       }

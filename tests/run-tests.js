@@ -221,6 +221,7 @@ import { runWriterVerticalRulerTests } from "./unit/writer-vertical-ruler.test.j
 import { runWriterSpellingSuggestionsTests } from "./unit/writer-spelling-suggestions.test.js";
 import { runWriterClipboardTests } from "./unit/writer-clipboard.test.js";
 import { runSlidesBasicsAuditTests } from "./unit/slides-basics-audit.test.js";
+import { runWriterDocNotRunBasicsTests } from "./unit/writer-doc-notrun-basics.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -451,7 +452,8 @@ async function runAll() {
     { title: "181. Unit Tests — VN Writer vertical ruler and scroll/zoom synchronization", runner: runWriterVerticalRulerTests },
     { title: "182. Unit Tests — VN Writer spelling suggestions and context ranking", runner: runWriterSpellingSuggestionsTests },
     { title: "183. Unit Tests — VN Writer Clipboard Cut/Copy/Paste & Sanitization", runner: runWriterClipboardTests },
-    { title: "184. Unit Tests — Slide basics editing, placeholders undo, Tab indent, shape Enter, picture resize & sorter keys", runner: runSlidesBasicsAuditTests }
+    { title: "184. Unit Tests — Slide basics editing, placeholders undo, Tab indent, shape Enter, picture resize & sorter keys", runner: runSlidesBasicsAuditTests },
+    { title: "185. Unit Tests — VN Writer font shortcut Ctrl+Shift+F & unsaved dialog keyboard navigation", runner: runWriterDocNotRunBasicsTests }
   ];
 
   for (const suite of suites) {
