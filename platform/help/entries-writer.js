@@ -1011,6 +1011,58 @@ export const WRITER_HELP_ENTRIES = [
       "Kiểm tra danh sách các thành phần nguồn mở bên thứ ba (Python 3.12, LibreOffice Core, pywebview, v.v.) và nhấn nút Xem toàn văn giấy phép nếu muốn đọc toàn văn THIRD-PARTY-NOTICES.",
       "Nhấn nút Đóng hoặc bấm phím Esc trên bàn phím để quay lại làm việc."
     ]
+  },
+  {
+    id: "writer.gettingStarted",
+    app: "writer",
+    commandIds: ["common.file.new", "common.file.open", "common.file.save", "common.file.saveAs", "common.file.print", "common.file.exportPdf"],
+    title: "Bắt đầu nhanh: tạo, mở, lưu, in, xuất PDF",
+    summary: "Tài liệu mới mở ra trang A4 trống (lề trái 30 mm, phải 15 mm theo NĐ 30). Dùng menu Tệp hoặc phím tắt để tạo mới, mở, lưu, lưu bản sao, in và xuất PDF.",
+    ribbon: { tab: "Bố cục", tabId: "layout", group: "In ấn" },
+    keywords: ["bắt đầu nhanh", "tạo mới", "mở tệp", "lưu", "lưu bản sao", "in", "xuất pdf", "ctrl+n", "ctrl+o", "ctrl+s", "f12", "ctrl+p", "tài liệu trống", "3t doc"],
+    steps: [
+      "Tạo tài liệu trống: nhấn Ctrl+N hoặc menu Tệp > Mới. 3T Doc mở một cửa sổ riêng tên Tài liệu 2, Tài liệu 3…; trang A4 có con trỏ ở đoạn đầu và chưa được đánh dấu là đã sửa.",
+      "Mở tài liệu: nhấn Ctrl+O hoặc menu Tệp > Mở, chọn DOCX, DOC, ODT, RTF hoặc TXT. Nếu tài liệu hiện tại có thay đổi, chọn Lưu, Không lưu hoặc Hủy trước khi tiếp tục; Hủy hoặc đóng hộp chọn tệp sẽ giữ tài liệu hiện tại.",
+      "Lưu (Ctrl+S): mở hộp thoại Lưu thành cho tài liệu mới. Với tệp đã mở/lưu, Ctrl+S ghi đúng định dạng hiện tại. Nhấn F12 để Lưu bản sao — nhập tên, chọn DOCX, DOC, ODT, RTF, TXT hoặc PDF ở Loại tệp. Chọn PDF chỉ xuất một bản PDF; tài liệu đang mở giữ tên, định dạng và đường dẫn cũ.",
+      "In (Ctrl+P): mở Xem trước khi in. Chọn máy in, số bản và phạm vi trang rồi nhấn In. Khi có Microsoft Office/WPS, 3T Doc dùng bộ dựng PDF đó để giữ phân trang sát bản gốc; nếu không có, LibreOffice tự tiếp tục.",
+      "Xuất PDF: menu Tệp > Xuất PDF > chọn nơi lưu. Cùng đường dựng với In: Microsoft Office/WPS nếu có, ngược lại LibreOffice."
+    ]
+  },
+  {
+    id: "writer.shortcuts",
+    app: "writer",
+    commandIds: [
+      "common.file.new", "common.file.open", "common.file.save", "common.file.saveAs", "common.file.print",
+      "common.edit.undo", "common.edit.redo", "common.edit.cut", "common.edit.copy",
+      "common.edit.paste", "common.edit.selectAll", "common.edit.find", "common.edit.replace",
+      "writer.text.bold", "writer.text.italic", "writer.text.underline"
+    ],
+    title: "Phím tắt thường dùng (15 phím tắt phổ biến nhất)",
+    summary: "15 phím tắt dùng nhiều nhất trong 3T Doc — tương thích Microsoft Word và LibreOffice Writer. Tất cả đã bind trong command-definitions.js và có hoàn tác (Ctrl+Z) khi áp dụng định dạng.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Phông chữ" },
+    keywords: ["phím tắt", "shortcut", "ctrl+n", "ctrl+o", "ctrl+s", "f12", "ctrl+p", "ctrl+z", "ctrl+y", "ctrl+x", "ctrl+c", "ctrl+v", "ctrl+a", "ctrl+f", "ctrl+h", "ctrl+b", "ctrl+i", "ctrl+u", "định dạng", "3t doc"],
+    steps: [
+      "Tạo mới: Ctrl+N  |  Mở: Ctrl+O  |  Lưu: Ctrl+S  |  Lưu bản sao: F12  |  In: Ctrl+P",
+      "Hoàn tác: Ctrl+Z  |  Làm lại: Ctrl+Y",
+      "Cắt: Ctrl+X  |  Sao chép: Ctrl+C  |  Dán: Ctrl+V  |  Chọn tất cả: Ctrl+A",
+      "Tìm kiếm: Ctrl+F  |  Thay thế: Ctrl+H",
+      "Chữ đậm: Ctrl+B  |  Chữ nghiêng: Ctrl+I  |  Gạch chân: Ctrl+U",
+      "Các phím tắt khác hữu ích: Ctrl+L/E/R/J (căn trái/giữa/phải/đều), Ctrl+Shift+>/< (tăng/giảm cỡ chữ), Ctrl+Enter (ngắt trang), Ctrl+M (thụt lề), Ctrl+Shift+M (giảm thụt), Ctrl+1/2/5 (giãn dòng 1.0/2.0/1.5), Shift+F3 (đổi chữ hoa/thường), Ctrl+K (liên kết), Ctrl+Home/End (đầu/cuối tài liệu), Ctrl+]/[ (tăng/giảm cỡ 1 pt)."
+    ]
+  },
+  {
+    id: "writer.differences",
+    app: "writer",
+    commandIds: ["writer.insert.equation", "writer.section.continuous"],
+    title: "Khác biệt cần biết (so với bộ Office khác)",
+    summary: "Công thức và Ngắt mục đã có mặt trong 3T Doc nhưng khác với Microsoft Word ở chỗ: Công thức là hộp chữ toán đơn giản (không có trình soạn LaTeX/MathJax WYSIWYG); Ngắt mục liên tục tạo mục mới với Page Setup riêng nhưng Header/Footer và khổ giấy ngang/dọc vẫn dùng chung trong xuất DOCX/PDF (giới hạn HTML filter của LibreOffice).",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Ký hiệu" },
+    keywords: ["khác biệt", "công thức", "equation", "ngắt mục", "section break", "header", "footer", "khổ giấy", "hướng giấy"],
+    steps: [
+      "Công thức (tab Chèn > nhóm Ký hiệu > Công thức): là hộp chữ toán rút gọn (mặc định E = mc²), cho phép nhập biểu thức dạng văn bản. Chưa có trình soạn LaTeX/MathJax WYSIWYG; xuất FODT/DOCX ghi span với data-equation, LibreOffice mở như văn bản thường — không xuất ODF/OOXML Math chuẩn.",
+      "Ngắt mục (tab Bố cục > nhóm Thiết lập trang > Ngắt trang > Ngắt mục): có 4 loại — Trang kế tiếp, Liên tục, Trang chẵn, Trang lẻ. Mỗi ngắt tạo một mục (section) mới với Page Setup riêng (lề, hướng, khổ giấy) được lưu trong data-vno-section-id. Trên canvas 3T Doc: mục mới áp dụng Page Setup riêng ngay. Khi xuất DOCX/PDF qua LibreOffice: Header/Footer và khổ giấy ngang/dọc vẫn dùng chung cho cả tài liệu (giới hạn bộ lọc HTML của LibreOffice), chỉ lề và khổ giấy cơ bản được giữ. Ngắt cột (menu Ngắt trang) chỉ có hiệu lực khi tài liệu đang chia từ 2 cột trở lên.",
+      "Các nút này vẫn hiển thị trên ribbon đúng vị trí chuẩn Microsoft Word. Khi bấm vào, hộp thoại/hành động chạy ngay thay vì chỉ hiện thông báo đang hoàn thiện."
+    ]
   }
 ];
 
