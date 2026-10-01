@@ -37,6 +37,29 @@ export const viStrings = {
     location: "Vị trí",
     stepsHeading: "Cách dùng"
   },
+  autoRecover: {
+    settingsTitle: "Tùy chọn · Tự động khôi phục",
+    enabled: "Bật lưu khôi phục tự động",
+    saveEvery: "Lưu mỗi",
+    minuteRange: "phút (1–60)",
+    showSaved: "Xem bản khôi phục",
+    dialogTitle: "Khôi phục tài liệu chưa lưu",
+    dialogDescription: "3T Office tìm thấy bản lưu tự động từ phiên làm việc trước chưa đóng bình thường.",
+    recover: "Khôi phục",
+    discard: "Bỏ",
+    later: "Để sau",
+    empty: "Không còn bản khôi phục nào."
+  },
+  performance: {
+    optionsTitle: "Tùy chọn",
+    logToggle: "Ghi nhật ký hiệu năng (không gửi đi)",
+    localOnly: "Nhật ký chỉ lưu trên thiết bị này; mặc định đang tắt.",
+    openFolder: "Mở thư mục nhật ký",
+    enabledStatus: "Đang ghi nhật ký hiệu năng trên thiết bị này.",
+    disabledStatus: "Đã tắt ghi nhật ký hiệu năng.",
+    folderOpened: "Đã mở thư mục nhật ký.",
+    desktopOnly: "Tùy chọn này khả dụng trong ứng dụng 3T Office Desktop."
+  },
   aiAssistant: {
     title: "Trợ lý 3T AI", provider: "Nhà cung cấp AI", local: "Cục bộ (mặc định)",
     activeProvider: "Đang dùng thực tế", configureKey: "Cấu hình API key", apiKey: "API key",
