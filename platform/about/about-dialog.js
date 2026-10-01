@@ -10,13 +10,13 @@ const FALLBACK_ABOUT_INFO = {
   developer: "3T Technology",
   copyright: "© 2024–2026 3T Technology. All rights reserved.",
   suite_components: [
-    { name: "3T Doc", role: "Soạn thảo văn bản và xử lý tài liệu hành chính" },
-    { name: "3T Sheet", role: "Bảng tính điện tử và phân tích số liệu" },
-    { name: "3T Slide", role: "Trình chiếu và thuyết trình đa phương tiện" }
+    { name: "Doc", role: "Soạn thảo văn bản và xử lý tài liệu hành chính" },
+    { name: "Sheet", role: "Bảng tính điện tử và phân tích số liệu" },
+    { name: "Slide", role: "Trình chiếu và thuyết trình đa phương tiện" }
   ],
   components: [
     { name: "Python", version: "3.12", license: "PSF License", purpose: "Ngôn ngữ nền tảng & logic ứng dụng" },
-    { name: "LibreOffice Core", version: "7.6+", license: "MPL-2.0", purpose: "Lõi xử lý định dạng tài liệu ODF và OOXML" },
+    { name: "LibreOffice Core", version: "7.6+", license: "MPL-2.0", purpose: "Xử lý tài liệu" },
     { name: "pywebview", version: "5.x", license: "BSD-3-Clause", purpose: "Khung hiển thị cửa sổ desktop native độc lập" },
     { name: "pythonnet & clr_loader", version: "3.x", license: "MIT", purpose: "Cầu nối Windows .NET / WebView2" },
     { name: "cffi & pycparser", version: "1.x", license: "MIT / BSD-3-Clause", purpose: "Giao tiếp nhị phân C native" },
@@ -75,7 +75,7 @@ export async function showAboutDialog() {
         <h1 class="vno-about-title" id="vno-about-dialog-title">
           <span class="vno-about-title-orange">3T</span> OFFICE
         </h1>
-        <p class="vno-about-subtitle">Bộ ứng dụng văn phòng: 3T Doc · 3T Sheet · 3T Slide</p>
+        <p class="vno-about-subtitle">Bộ ứng dụng văn phòng: Doc · Sheet · Slide</p>
       </div>
     </header>
 
@@ -89,15 +89,15 @@ export async function showAboutDialog() {
         </div>
         <div class="vno-about-row">
           <span class="vno-about-label">Nền tảng:</span>
-          <span class="vno-about-value">Windows · macOS · Linux (Offline Native Desktop)</span>
+          <span class="vno-about-value">Windows · macOS · Linux — chạy ngoại tuyến</span>
         </div>
         <div class="vno-about-row">
           <span class="vno-about-label">Bộ ứng dụng:</span>
-          <span class="vno-about-value">3T Doc (Văn bản) · 3T Sheet (Bảng tính) · 3T Slide (Trình chiếu)</span>
+          <span class="vno-about-value">Doc (Văn bản) · Sheet (Bảng tính) · Slide (Trình chiếu)</span>
         </div>
         <div class="vno-about-row">
           <span class="vno-about-label">Công nghệ:</span>
-          <span class="vno-about-value">Python 3.12 · LibreOffice Core Engine · pywebview</span>
+          <span class="vno-about-value">Ứng dụng chạy ngoại tuyến trên máy tính</span>
         </div>
         <div class="vno-about-row">
           <span class="vno-about-label">Nhà phát triển:</span>
@@ -118,7 +118,7 @@ export async function showAboutDialog() {
           ${compRowsHtml}
         </div>
         <div class="vno-about-full-notices" id="vno-about-full-notices" style="display:none;" aria-hidden="true">
-          ${escapeHtml(aboutData.third_party_notices || "Đang tải thông báo giấy phép THIRD-PARTY-NOTICES…")}
+          ${escapeHtml(aboutData.third_party_notices || "Đang tải thông báo giấy phép…")}
         </div>
       </div>
 

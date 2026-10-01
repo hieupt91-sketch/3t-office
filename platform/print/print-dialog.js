@@ -405,7 +405,10 @@ export async function openPrintDialog({
       printerSelect.add(new Option("Không tìm thấy máy in", ""));
       printerSelect.disabled = true;
     } else {
-      for (const printer of state.printers) printerSelect.add(new Option(printer.name, printer.name));
+      for (const printer of state.printers) printerSelect.add(new Option(
+        printer.name.replace(/Microsoft Print to PDF/gi, "In ra PDF").replace(/Microsoft XPS Document Writer/gi, "In ra XPS"),
+        printer.name
+      ));
       printerSelect.value = chooseDefaultPrinter(state.printers);
       printerSelect.disabled = false;
     }

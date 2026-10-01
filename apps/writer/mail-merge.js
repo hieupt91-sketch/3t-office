@@ -118,7 +118,7 @@ export function showMailMergeDataSourceDialog({
           <div style="display:flex;align-items:center;gap:8px;">
             <button type="button" class="vno-btn vno-btn-primary vno-merge-browse-btn" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:6px 14px;">
               <span aria-hidden="true">${ICONS.open || ""}</span>
-              <span>Chọn tệp Excel / CSV...</span>
+              <span>Chọn tệp bảng tính / CSV...</span>
             </button>
             <input type="file" class="vno-merge-file-input" accept=".xlsx,.xls,.ods,.csv,.tsv,.txt,.fods" style="display:none;" />
             <button type="button" class="vno-btn vno-btn-secondary vno-merge-toggle-paste-btn" style="font-size:12.5px;padding:6px 12px;">Dán CSV / Thủ công</button>
@@ -133,7 +133,7 @@ export function showMailMergeDataSourceDialog({
         <div class="vno-merge-paste-container" style="display:none;flex-direction:column;gap:8px;padding:10px;background:var(--vno-bg-surface-secondary, #f8fafc);border:1px solid var(--vno-border-default, #cbd5e1);border-radius:var(--vno-radius-md, 6px);">
           <div style="display:flex;align-items:center;justify-content:space-between;">
             <label for="vno-merge-csv-input" style="font-size:12.5px;font-weight:600;color:var(--vno-text-primary);">
-              Dán bảng dữ liệu (CSV / TSV / Excel sao chép):
+              Dán bảng dữ liệu (CSV / TSV / bảng tính sao chép):
             </label>
             <button type="button" class="vno-btn vno-btn-primary vno-merge-apply-paste-btn" style="font-size:12px;padding:3px 10px;">Áp dụng dữ liệu dán</button>
           </div>
@@ -184,7 +184,7 @@ export function showMailMergeDataSourceDialog({
             <tbody class="vno-merge-tbody">
               <tr>
                 <td colspan="2" style="padding:24px;text-align:center;color:var(--vno-text-muted, #94a3b8);">
-                  Chưa có dữ liệu người nhận. Hãy chọn tệp Excel (.xlsx/.xls) hoặc dán bảng CSV.
+                  Chưa có dữ liệu người nhận. Hãy chọn tệp bảng tính (.xlsx/.xls) hoặc dán bảng CSV.
                 </td>
               </tr>
             </tbody>
@@ -261,7 +261,7 @@ export function showMailMergeDataSourceDialog({
       tbody.innerHTML = `
         <tr>
           <td colspan="2" style="padding:24px;text-align:center;color:var(--vno-text-muted, #94a3b8);">
-            Chưa có dữ liệu người nhận. Hãy chọn tệp Excel (.xlsx/.xls) hoặc dán bảng CSV.
+            Chưa có dữ liệu người nhận. Hãy chọn tệp bảng tính (.xlsx/.xls) hoặc dán bảng CSV.
           </td>
         </tr>
       `;
@@ -397,7 +397,7 @@ export function showMailMergeDataSourceDialog({
       reader.readAsText(file);
     } else if (ext === "xlsx" || ext === "xls" || ext === "ods") {
       // Trường hợp trình duyệt web đơn thuần không có pywebview
-      statusBadge.textContent = "Tệp Excel cần được mở qua ứng dụng Desktop App để chuyển đổi qua LibreOffice.";
+      statusBadge.textContent = "Để chọn tệp .xlsx hoặc .xls, hãy mở Doc trên máy tính. Bạn cũng có thể dán bảng dữ liệu vào khung bên dưới.";
       statusBadge.setAttribute("data-status", "error");
     }
   };

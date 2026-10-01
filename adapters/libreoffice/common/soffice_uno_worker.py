@@ -38,13 +38,13 @@ def _connect(uno: Any, pipe_name: str, process: subprocess.Popen[str]) -> Any:
     last_error: Exception | None = None
     while time.monotonic() < deadline:
         if process.poll() is not None:
-            raise RuntimeError(f"soffice exited during startup ({process.returncode})")
+            raise RuntimeError(f"Bộ xử lý tài liệu đã dừng khi khởi động. Hãy thử lại.")
         try:
             return resolver.resolve(connection_url)
         except Exception as exc:  # pipe listener is not ready yet
             last_error = exc
             time.sleep(0.1)
-    raise TimeoutError(f"LibreOffice UNO pipe did not become ready: {last_error}")
+    raise TimeoutError(f"Bộ xử lý tài liệu chưa sẵn sàng. Hãy thử lại.")
 
 
 def _convert(desktop: Any, uno: Any, property_type: Any, request: dict[str, Any]) -> dict[str, Any]:
@@ -74,7 +74,7 @@ def _convert(desktop: Any, uno: Any, property_type: Any, request: dict[str, Any]
         uno.systemPathToFileUrl(source_path), "_blank", 0, tuple(load_properties)
     )
     if document is None:
-        raise RuntimeError("LibreOffice could not load the source document")
+        raise RuntimeError("Không mở được tài liệu gốc.")
 
     try:
         store_properties = [_property(property_type, "Overwrite", True)]
@@ -96,7 +96,7 @@ def _convert(desktop: Any, uno: Any, property_type: Any, request: dict[str, Any]
                 pass
 
     if not os.path.isfile(output_path):
-        raise RuntimeError("LibreOffice did not create the requested output file")
+        raise RuntimeError("Không tạo được tệp đầu ra.")
     return {
         "ok": True,
         "output_path": output_path,
@@ -118,7 +118,7 @@ def _load_hidden_document(desktop: Any, uno: Any, property_type: Any, path: str)
         load_properties,
     )
     if document is None:
-        raise RuntimeError("LibreOffice không mở được PDF để xử lý.")
+        raise RuntimeError("Không mở được PDF để xử lý.")
     return document
 
 
@@ -155,7 +155,7 @@ def _render_pdf_page(desktop: Any, uno: Any, property_type: Any, request: dict[s
             raise ValueError("Số trang xem trước nằm ngoài PDF.")
         controller = document.getCurrentController()
         if controller is None:
-            raise RuntimeError("LibreOffice không tạo được bộ điều khiển trang PDF.")
+            raise RuntimeError("Không đọc được trang PDF để xem trước.")
         controller.setCurrentPage(pages.getByIndex(page_index))
         document.storeToURL(
             uno.systemPathToFileUrl(output_path),
@@ -165,7 +165,7 @@ def _render_pdf_page(desktop: Any, uno: Any, property_type: Any, request: dict[s
             ),
         )
         if not os.path.isfile(output_path) or os.path.getsize(output_path) <= 0:
-            raise RuntimeError("LibreOffice không tạo được ảnh trang PDF.")
+            raise RuntimeError("Không tạo được ảnh trang PDF.")
         return {"ok": True, "output_path": output_path, "output_bytes": os.path.getsize(output_path)}
     finally:
         _close_hidden_document(document)
@@ -230,7 +230,7 @@ def _stop_server(desktop: Any, process: subprocess.Popen[str] | None) -> None:
 def main(argv: list[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     if len(args) != 4:
-        _write({"ready": False, "error": "expected soffice path, profile URI, pipe name, and app kind"})
+        _write({"ready": False, "error": "Không khởi động được bộ xử lý tài liệu. Vui lòng cài lại 3T Office."})
         return 2
 
     soffice_path, profile_uri, pipe_name, app_kind = args

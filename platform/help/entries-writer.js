@@ -13,7 +13,7 @@ export const WRITER_HELP_ENTRIES = [
     ribbon: { tab: "Tệp", tabId: "file", group: "Tài liệu" },
     keywords: ["tạo mới", "mở tệp", "lưu", "lưu thành", "in", "Ctrl+N", "Ctrl+O", "Ctrl+S", "F12", "Ctrl+P", "tài liệu trống", "cửa sổ riêng", "mở nhiều cửa sổ", "Explorer"],
     steps: [
-      "Tạo tài liệu trống: nhấn Ctrl+N hoặc mở Tệp > Mới. 3T Doc mở một cửa sổ riêng tên Tài liệu 2, Tài liệu 3…; trang A4 có con trỏ ở đoạn đầu và chưa được đánh dấu là đã sửa. Trong Desktop, khi Writer đang mở, nhấp đúp thêm một tệp DOCX/DOC/ODT/RTF/TXT trong Explorer hoặc bấm lại shortcut 3T Doc ở Start sẽ mở thêm cửa sổ trong cùng tiến trình đang chạy. Mỗi cửa sổ có tên tệp, trạng thái sửa, lệnh Lưu và lời nhắc Đóng riêng; cửa sổ cuối cùng mới kết thúc ứng dụng.",
+      "Tạo tài liệu trống: nhấn Ctrl+N hoặc mở Tệp > Mới. Doc mở một cửa sổ riêng tên Tài liệu 2, Tài liệu 3…; trang A4 có con trỏ ở đoạn đầu và chưa được đánh dấu là đã sửa. Trong Desktop, khi Doc đang mở, nhấp đúp thêm một tệp DOCX/DOC/ODT/RTF/TXT trong Explorer hoặc bấm lại shortcut Doc ở Start sẽ mở thêm cửa sổ trong cùng tiến trình đang chạy. Mỗi cửa sổ có tên tệp, trạng thái sửa, lệnh Lưu và lời nhắc Đóng riêng; cửa sổ cuối cùng mới kết thúc ứng dụng.",
       "Mở tài liệu: nhấn Ctrl+O hoặc chọn Tệp > Mở, chọn DOCX, DOC, ODT, RTF hoặc TXT. Nếu tài liệu hiện tại có thay đổi, chọn Lưu, Không lưu hoặc Hủy trước khi tiếp tục; Hủy hoặc đóng hộp chọn tệp sẽ giữ tài liệu hiện tại.",
       "Lưu: Ctrl+S mở hộp thoại Lưu thành cho tài liệu mới. Với tệp đã mở/lưu, Ctrl+S ghi đúng định dạng hiện tại. Nhấn F12 (hoặc Ctrl+Shift+S), nhập tên trong hộp thoại Lưu bản sao rồi chọn DOCX, DOC, ODT, RTF, TXT hoặc PDF ở danh sách Loại tệp. Cũng có thể chọn Tệp > Lưu bản sao. Chọn PDF chỉ xuất một bản PDF; tài liệu đang mở giữ tên, định dạng và đường dẫn cũ. Khi ghi đè tệp đã có, xác nhận trong hộp thoại của Windows; sau khi lưu định dạng văn bản khác, tên tab và tiêu đề cửa sổ chuyển sang tệp mới."
     ]
@@ -82,7 +82,7 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["writer.review.wordCount"],
     title: "Đếm từ",
-    summary: "Đếm số từ, ký tự, đoạn văn và dòng trong thân tài liệu 3T Doc. Từ tiếng Việt được tách theo khoảng trắng, không đếm token rỗng. Đầu trang và chân trang không được tính.",
+    summary: "Đếm số từ, ký tự, đoạn văn và dòng trong thân tài liệu Doc. Từ tiếng Việt được tách theo khoảng trắng, không đếm phần rỗng. Đầu trang và chân trang không được tính.",
     ribbon: { tab: "Đánh giá", tabId: "review", group: "Chính tả & Ngữ pháp" },
     keywords: ["đếm từ", "word count", "số từ", "ký tự", "thống kê", "status bar"],
     steps: [
@@ -173,7 +173,7 @@ export const WRITER_HELP_ENTRIES = [
       "Trong hộp thoại Phong bì, gõ Địa chỉ người nhận (nhiều dòng được). Địa chỉ người gửi có thể để trống hoặc chọn Ẩn địa chỉ người gửi.",
       "Chọn khổ: DL 220×110 mm, C5 229×162 mm, hoặc Number 10 / Danh thiếp 241,3×104,8 mm. Chọn thêm vào Đầu tài liệu hoặc Cuối tài liệu.",
       "Nếu đã dán nguồn Trộn thư (nhóm Bắt đầu trộn), có thể bật Dùng nguồn Trộn thư hiện có để tạo một trang phong bì cho mỗi bản ghi — địa chỉ người nhận lấy từ các cột CSV.",
-      "Nhấn Thêm vào tài liệu. Trang phong bì là mục riêng: canvas đổi khổ giấy theo phong bì. Ctrl+Z hoàn tác, Ctrl+Y làm lại. Xuất DOCX/PDF vẫn dùng một khổ giấy chung (giới hạn bộ lọc HTML của LibreOffice, giống Ngắt mục)."
+      "Nhấn Thêm vào tài liệu. Trang phong bì là mục riêng: vùng soạn thảo đổi khổ giấy theo phong bì. Ctrl+Z hoàn tác, Ctrl+Y làm lại. Xuất DOCX/PDF vẫn dùng một khổ giấy chung (giới hạn hiện tại khi lưu, giống Ngắt mục)."
     ]
   },
   {
@@ -189,7 +189,7 @@ export const WRITER_HELP_ENTRIES = [
       "Gõ Nội dung nhãn (nhiều dòng). Chọn kiểu lưới: Avery L7160 (3 cột × 7 hàng, 63,5×38,1 mm) hoặc 3 cột × 8 hàng trên A4.",
       "Nhấn Tạo trang nhãn mới. Mọi ô trên tờ có cùng nội dung. Trang nhãn được chèn sau nội dung hiện tại (ngắt trang/ngắt mục).",
       "Để in hàng loạt: trước hết dán CSV ở Nguồn dữ liệu (cùng tab Trộn thư), rồi trong hộp thoại Nhãn bật Điền hàng loạt từ nguồn Trộn thư. Mỗi ô nhận một bản ghi khác nhau; dư bản ghi thì sang tờ mới.",
-      "Ctrl+Z hoàn tác, Ctrl+Y làm lại. Tờ nhãn dùng khổ A4 nên xuất in/PDF giữ đúng lưới trên canvas."
+      "Ctrl+Z hoàn tác, Ctrl+Y làm lại. Tờ nhãn dùng khổ A4 nên xuất in/PDF giữ đúng lưới trên vùng soạn thảo."
     ]
   },
   {
@@ -237,8 +237,8 @@ export const WRITER_HELP_ENTRIES = [
     id: "writer.insert.wordart",
     app: "writer",
     commandIds: ["writer.insert.wordart"],
-    title: "Chữ nghệ thuật (WordArt)",
-    summary: "Chèn một dòng chữ trang trí (viền, đổ bóng hoặc gradient) ngay tại vị trí con trỏ trong đoạn văn. Khác Hộp văn bản: WordArt nằm trong dòng chữ, không phải khung kéo thả đè lên trang.",
+    title: "Chữ nghệ thuật (phần mềm văn phòng khácArt)",
+    summary: "Chèn một dòng chữ trang trí (viền, đổ bóng hoặc gradient) ngay tại vị trí con trỏ trong đoạn văn. Khác Hộp văn bản: phần mềm văn phòng khácArt nằm trong dòng chữ, không phải khung kéo thả đè lên trang.",
     ribbon: { tab: "Chèn", tabId: "insert", group: "Văn bản" },
     keywords: ["chữ nghệ thuật", "wordart", "word art", "tiêu đề", "gradient", "viền", "đổ bóng"],
     steps: [
@@ -344,14 +344,14 @@ export const WRITER_HELP_ENTRIES = [
       "writer.para.spacing2"
     ],
     title: "Căn lề đoạn văn và khoảng cách dòng",
-    summary: "Căn lề văn bản (trái, giữa, phải, đều hai bên) và chọn khoảng cách giữa các dòng (1.0, 1.5, 2.0). Các điều khiển bố trí trực tiếp trên ribbon Trang đầu và Bố cục giúp thao tác nhanh và an toàn tuyệt đối cho định dạng ODF chuẩn.",
+    summary: "Căn lề văn bản (trái, giữa, phải, đều hai bên) và chọn khoảng cách giữa các dòng (1.0, 1.5, 2.0). Các điều khiển bố trí trực tiếp trên ribbon Trang đầu và Bố cục giúp thao tác nhanh và an toàn tuyệt đối cho tài liệu.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Đoạn văn" },
     keywords: ["căn lề", "căn đoạn", "căn trái", "căn giữa", "căn phải", "căn đều", "giãn dòng", "line spacing", "paragraph alignment"],
     steps: [
       "Bôi đen một hoặc nhiều đoạn văn bản cần định dạng, hoặc đặt con trỏ chuột bên trong đoạn văn đó.",
       "Tại tab Trang đầu, nhóm Đoạn văn: nhấn Căn trái (Ctrl+L), Căn giữa (Ctrl+E), Căn phải (Ctrl+R), hoặc Căn đều (Ctrl+J) để đổi lề đoạn văn ngay tức thì.",
       "Nhấp vào menu Giãn dòng để chọn các tỷ lệ dòng chuẩn: 1.0 (chuẩn đơn), 1.5 (chuẩn phổ biến cho văn bản hành chính theo NĐ 30/2020), hoặc 2.0 (chuẩn dòng đôi). Thao tác tương tự có thể thực hiện tại tab Bố cục.",
-      "Tất cả thuộc tính căn lề và giãn dòng được lưu trữ trực tiếp vào ODF fo:text-align và fo:line-height, tương thích hoàn toàn khi mở lại trên LibreOffice và phần mềm soạn thảo văn bản khác."
+      "Nhấn Ctrl+S để lưu cách căn lề và giãn dòng cùng tài liệu. Mở lại tệp để kiểm tra bố cục; nếu muốn thay đổi, chọn đoạn văn rồi chọn lại các nút căn lề hoặc khoảng cách dòng. Ctrl+Z hoàn tác lần định dạng vừa thực hiện."
     ]
   },
   {
@@ -365,8 +365,8 @@ export const WRITER_HELP_ENTRIES = [
     steps: [
       "Đặt con trỏ trong đoạn cần chỉnh (hoặc bôi nhiều đoạn). Mở tab Bố cục, nhóm Đoạn văn — bên cạnh nút thụt lề và menu Giãn dòng có hai hộp chọn «Trước: … pt» và «Sau: … pt».",
       "Hộp Trước đặt margin phía trên đoạn; hộp Sau đặt margin phía dưới đoạn. Năm nấc: 0 pt, 6 pt, 8 pt, 12 pt, 18 pt. 0 pt khít đoạn kề; 6 pt khớp khoảng mặc định đang thấy trên trang soạn thảo; 8 pt giống kiểu Normal của phần mềm soạn thảo văn bản khác; 12/18 pt dùng khi cần tách đoạn rõ hơn trước khi in.",
-      "Chọn một nấc — khoảng cách áp ngay lên đoạn đang chọn trên canvas. Muốn vừa trước vừa sau thì chọn lần lượt hai hộp. Không nhầm với menu Giãn dòng 1.0/1.5/2.0 trên cùng nhóm (và trên tab Trang đầu): menu đó đổi chiều cao dòng, không đổi khoảng giữa các đoạn.",
-      "Lưu tài liệu để khoảng trước/sau đi theo file (FODT/DOCX). Ctrl+Z hoàn tác lần chọn vừa rồi."
+      "Chọn một nấc — khoảng cách áp ngay lên đoạn đang chọn trên vùng soạn thảo. Muốn vừa trước vừa sau thì chọn lần lượt hai hộp. Không nhầm với menu Giãn dòng 1.0/1.5/2.0 trên cùng nhóm (và trên tab Trang đầu): menu đó đổi chiều cao dòng, không đổi khoảng giữa các đoạn.",
+      "Lưu tài liệu để khoảng trước/sau đi theo file (DOCX). Ctrl+Z hoàn tác lần chọn vừa rồi."
     ]
   },
   {
@@ -379,8 +379,8 @@ export const WRITER_HELP_ENTRIES = [
     keywords: ["bảng", "table", "chèn bảng", "hàng", "cột", "ô bảng", "tiêu đề"],
     steps: [
       "Đặt con trỏ vào đoạn văn, chỗ muốn đặt bảng. Mở tab Chèn, nhóm Bảng biểu, nhấn nút lớn Bảng biểu.",
-      "3T Doc chèn ngay bảng 3 hàng × 4 cột (không mở hộp thoại chọn kích thước). Hàng 1 mỗi ô ghi «Tiêu đề» đậm; hàng 2–3 ghi «Dữ liệu». Viền 1px xám, đệm 6–10 pt, rộng 100% trang.",
-      "Nhấp vào ô rồi gõ đè chữ mẫu. Tab nhảy ô tiếp theo như bảng HTML. Có thể thêm hàng/cột bằng cách sao chép hàng trong bảng hoặc hoàn tác bằng Ctrl+Z nếu chèn nhầm.",
+      "Doc chèn ngay bảng 3 hàng × 4 cột (không mở hộp thoại chọn kích thước). Hàng 1 mỗi ô ghi «Tiêu đề» đậm; hàng 2–3 ghi «Dữ liệu». Viền 1px xám, đệm 6–10 pt, rộng 100% trang.",
+      "Nhấp vào ô rồi gõ đè chữ mẫu. Tab nhảy ô tiếp theo trong bảng. Có thể thêm hàng/cột bằng cách sao chép hàng trong bảng hoặc hoàn tác bằng Ctrl+Z nếu chèn nhầm.",
       "Cùng tab Chèn, nhóm Minh họa có Hình ảnh nếu cần đặt ảnh cạnh bảng."
     ]
   },
@@ -395,7 +395,7 @@ export const WRITER_HELP_ENTRIES = [
     steps: [
       "Đặt con trỏ tại chỗ cần ảnh. Tab Chèn, nhóm Minh họa, nhấn nút lớn Hình ảnh (cạnh Hình khối, Sơ đồ, Biểu đồ).",
       "Hộp chọn tệp của hệ thống hiện ra, lọc sẵn các file ảnh. Chọn một file rồi Mở. Ảnh được nhúng dạng data URL, rộng tối đa 100% trang, chiều cao tự giữ tỉ lệ, có đổ bóng nhẹ.",
-      "Khi mở DOCX có ảnh neo hoặc hộp văn bản nổi, 3T Doc giữ vị trí và kiểu bọc chữ từ tệp gốc. Các khung nhập hiện chưa hỗ trợ kéo để đổi vị trí; hãy chỉnh vị trí trong ứng dụng nguồn nếu cần.",
+      "Khi mở DOCX có ảnh neo hoặc hộp văn bản nổi, Doc giữ vị trí và kiểu bọc chữ từ tệp gốc. Các khung nhập hiện chưa hỗ trợ kéo để đổi vị trí; hãy chỉnh vị trí trong ứng dụng nguồn nếu cần.",
       "Nhấp ảnh để chọn (có tabindex). Delete khi đang chọn sẽ xóa ảnh. Ctrl+Z hoàn tác lần chèn.",
       "Muốn chú thích và đánh số hình: sau khi chèn, dùng tab Tham chiếu → nhóm Chú thích ảnh (bài «Chú thích ảnh và danh mục hình»)."
     ]
@@ -420,7 +420,7 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["writer.insert.textbox", "writer.insert.dateTime"],
     title: "Hộp văn bản và Ngày & Giờ",
-    summary: "Hộp văn bản là khung chữ độc lập, kéo-thả và đổi kích thước được, nằm đè lên trang — khác WordArt (chữ trong dòng). Ngày & Giờ mở hộp chọn định dạng rồi chèn chuỗi ngày giờ hiện tại tại con trỏ.",
+    summary: "Hộp văn bản là khung chữ độc lập, kéo-thả và đổi kích thước được, nằm đè lên trang — khác phần mềm văn phòng khácArt (chữ trong dòng). Ngày & Giờ mở hộp chọn định dạng rồi chèn chuỗi ngày giờ hiện tại tại con trỏ.",
     ribbon: { tab: "Chèn", tabId: "insert", group: "Văn bản" },
     keywords: ["hộp văn bản", "textbox", "khung chữ", "ngày giờ", "date time", "dd/mm/yyyy", "chèn ngày"],
     steps: [
@@ -536,7 +536,7 @@ export const WRITER_HELP_ENTRIES = [
     steps: [
       "Tab Thiết kế, nhóm Định dạng tài liệu, nhấn nút lớn Chủ đề văn bản.",
       "Hộp «Thư viện Kiểu & Chủ đề tài liệu»: chọn bộ rồi Áp dụng kiểu. Sáu mẫu — Tiêu chuẩn (Office, Times New Roman), Hành chính Việt Nam (NĐ 30, TNR chữ đen), Hiện đại (Be Vietnam Pro), Trang nhã (Georgia), Tối giản (Arial), Sáng tạo Emerald (Calibri).",
-      "Áp dụng gán phông/màu/giãn dòng lên toàn bộ tài liệu (thuộc tính data-vno-theme). Không phải file theme XML mở rộng — không có Variants.",
+      "Nhấn Áp dụng để đổi phông, màu và giãn dòng trên toàn bộ tài liệu. Tùy chọn này không có các biến thể chủ đề. Kiểm tra bố cục sau khi áp dụng; nhấn Ctrl+Z nếu muốn trở về cách trình bày trước đó.",
       "Esc / Hủy bỏ đóng không đổi. Ctrl+Z hoàn tác lần áp chủ đề."
     ]
   },
@@ -588,7 +588,7 @@ export const WRITER_HELP_ENTRIES = [
     steps: [
       "Tab Chèn, nhóm Minh họa: Hình khối, Sơ đồ, Biểu đồ (ba nút lớn, cạnh Hình ảnh). Mỗi nút mở hộp thoại chọn kiểu; Hủy, nút ×, Esc hoặc bấm ra ngoài thì không chèn gì.",
       "Hình khối: hộp «Chèn hình khối» — bảy thẻ radio: Hình chữ nhật (140×80, nền #2563eb), Chữ nhật bo tròn, Hình tròn / Elip (110×110, #0ea5e9), Hình tam giác (120×100, #16a34a), Hình thoi (120×100, #9333ea), Mũi tên sang phải (140×70, #f59e0b), Đường thẳng ngang. Chọn thẻ rồi Chèn. Lớp nổi tại x=100, y lệch dần 160+(n×25); kéo để đặt, nút × xóa khi đang chọn.",
-      "Sơ đồ: hộp «Chèn sơ đồ SmartArt» — Quy trình / Chu trình / Phân cấp / Danh sách, ô số bước 3–6 (mặc định 4). Chèn sơ đồ tạo khối HTML tiêu đề theo kiểu đã chọn, nút «Bước 1»… sửa được chữ, nút Xóa sơ đồ. Không phải SmartArt truyền thống.",
+      "Sơ đồ: hộp «Chèn sơ đồ SmartArt» — Quy trình / Chu trình / Phân cấp / Danh sách, ô số bước 3–6 (mặc định 4). Chèn sơ đồ tạo khối tiêu đề theo kiểu đã chọn, nút «Bước 1»… sửa được chữ, nút Xóa sơ đồ. Không phải SmartArt truyền thống.",
       "Biểu đồ: hộp «Chèn biểu đồ minh họa» — tiêu đề, kiểu Cột/Đường/Tròn/Miền, hàng nhãn & giá trị (mẫu Quý 1–4: 120, 190, 300, 250) và khung Xem trước trực quan. Chèn biểu đồ đưa SVG đã chọn vào trang. Ctrl+Z gỡ đối tượng vừa chèn. Hình ảnh cùng nhóm là bài riêng."
     ]
   },
@@ -611,12 +611,12 @@ export const WRITER_HELP_ENTRIES = [
     id: "writer.insert.equationHelp",
     app: "writer",
     commandIds: ["writer.insert.equation"],
-    title: "Chèn và sửa phương trình trong 3T Doc",
-    summary: "Tab Chèn > nhóm Ký hiệu > Phương trình mở bộ soạn dạng tuyến tính, cấu trúc toán học và xem trước MathML. Phương trình được lưu thành công thức toán học có thể sửa.",
+    title: "Chèn và sửa phương trình trong Doc",
+    summary: "Tab Chèn > nhóm Ký hiệu > Phương trình mở bộ soạn dạng tuyến tính, cấu trúc toán học và xem trước kết quả. Phương trình được lưu thành công thức toán học có thể sửa.",
     ribbon: { tab: "Chèn", tabId: "insert", group: "Ký hiệu" },
-    keywords: ["phương trình", "công thức", "equation", "Alt+=", "phân số", "căn", "ma trận", "MathML"],
+    keywords: ["phương trình", "công thức", "equation", "Alt+=", "phân số", "căn", "ma trận", "công thức toán học"],
     steps: [
-      "Trong 3T Doc, đặt con trỏ tại vị trí cần chèn. Mở tab Chèn, nhóm Ký hiệu, chọn Phương trình; có thể nhấn Alt+= để mở cùng hộp thoại.",
+      "Trong Doc, đặt con trỏ tại vị trí cần chèn. Mở tab Chèn, nhóm Ký hiệu, chọn Phương trình; có thể nhấn Alt+= để mở cùng hộp thoại.",
       "Nhập dạng tuyến tính ở ô Dạng tuyến tính, ví dụ a/b, x^2, x_1 hoặc \\sqrt(x). Gõ \\alpha rồi nhấn phím cách để đổi thành α. Các nút Phân số, chỉ số, căn, tích phân, tổng, tích, ngoặc và ma trận chèn mẫu tại vị trí con trỏ trong ô nhập; nhóm Ký hiệu thêm các chữ Hy Lạp và dấu toán học. Xem kết quả trong vùng Xem trước.",
       "Chọn Chèn vào tài liệu. Dùng bàn phím thì nhấn Tab tới nút này rồi nhấn Enter. Phương trình nằm ngay tại con trỏ; nếu dòng đang trống thì phương trình hiển thị giữa dòng riêng. Nhấn Esc hoặc Hủy để đóng mà không chèn.",
       "Bấm phương trình để chọn; nhấp đúp để mở lại và sửa tại chỗ. Khi đã chọn, nhấn Delete hoặc Backspace để xóa. Ctrl+Z hoàn tác và Ctrl+Y làm lại. Lưu tài liệu thành .docx để mở và tiếp tục sửa công thức trong phần mềm soạn thảo văn bản khác."
@@ -660,8 +660,8 @@ export const WRITER_HELP_ENTRIES = [
     ribbon: { tab: "Bố cục", tabId: "layout", group: "Thiết lập trang" },
     keywords: ["căn lề", "lề trang", "hướng giấy", "khổ giấy", "a4", "nđ 30", "portrait", "landscape", "thiết lập trang"],
     steps: [
-      "Tab Bố cục, nhóm Thiết lập trang: Căn lề, Hướng giấy, Khổ giấy (ba nút lớn). Cả ba mở hộp «Thiết lập trang» — Hướng giấy đặt focus vào hướng; Căn lề và Khổ giấy đặt focus vào khổ.",
-      "Khổ giấy: A4 (210 × 297 mm, mặc định), Letter (215.9 × 279.4 mm), Legal (216 × 356 mm). Khi mở DOCX có khổ không chuẩn, hộp hiển thị Tùy chỉnh kèm kích thước gốc và 3T Doc giữ nguyên kích thước đó khi lưu. Hướng: Dọc (Portrait) hoặc Ngang (Landscape).",
+      "Tab Bố cục, nhóm Thiết lập trang: Căn lề, Hướng giấy, Khổ giấy (ba nút lớn). Cả ba mở hộp «Thiết lập trang» — Hướng giấy đặt tiêu điểm vào hướng; Căn lề và Khổ giấy đặt tiêu điểm vào khổ.",
+      "Khổ giấy: A4 (210 × 297 mm, mặc định), Letter (215.9 × 279.4 mm), Legal (216 × 356 mm). Khi mở DOCX có khổ không chuẩn, hộp hiển thị Tùy chỉnh kèm kích thước gốc và Doc giữ nguyên kích thước đó khi lưu. Hướng: Dọc (Portrait) hoặc Ngang (Landscape).",
       "Lề trên / dưới / trái / phải (mm), mỗi ô 0–100. Mặc định trên 20, dưới 20, trái 30, phải 15 — đúng lề văn bản hành chính NĐ 30. Áp dụng / Hủy bỏ.",
       "Không có gallery Narrow/Wide như các phần mềm soạn thảo văn bản khác — chỉ số mm. Thước trên tab Chế độ xem phản ánh lề trái/phải sau khi áp dụng. Ctrl+Z hoàn tác."
     ]
@@ -671,14 +671,14 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["writer.layout.lineNumbers"],
     title: "Danh số dòng",
-    summary: "Bật cấu hình danh số dòng (Không có / Liên tục / Mỗi trang / Mỗi mục) để file FODT/DOCX mở bằng Word hoặc LibreOffice tự vẽ số ở lề trái. Canvas 3T Doc không vẽ số trên từng dòng — chỉ hiện trạng thái bật.",
+    summary: "Chọn danh số dòng: Không có, Liên tục, Mỗi trang hoặc Mỗi mục. Doc chỉ hiển thị trạng thái đã chọn, chưa vẽ số cạnh từng dòng trên vùng soạn thảo. Khi lưu .docx, có thể xem số dòng bằng phần mềm văn phòng khác hỗ trợ tính năng này.",
     ribbon: { tab: "Bố cục", tabId: "layout", group: "Thiết lập trang" },
     keywords: ["danh số dòng", "line numbers", "số dòng", "lề trái", "trích dẫn dòng", "continuous", "restart each page"],
     steps: [
       "Mở tab Bố cục, nhóm Thiết lập trang. Hộp «Danh số dòng» nằm ngay sau menu Ngắt (đúng chỗ Line Numbers trên thanh công cụ).",
-      "Chọn Liên tục để đánh số 1, 2, 3… suốt tài liệu; Mỗi trang để số bắt đầu lại từ 1 ở mỗi trang; Mỗi mục để canvas 3T Doc ghi nhận restart theo ngắt mục; Không có để tắt.",
-      "Canvas 3T Doc hiện khung chữ ở lề trái: «Danh số dòng: … Số hiện ở lề trái khi mở bằng Word hoặc LibreOffice — canvas 3T Doc không vẽ số.» Đây là cấu hình xuất file, không phải số đã in trên trang soạn thảo (engine trình duyệt không tách dòng visual như các phần mềm soạn thảo văn bản khác).",
-      "Lưu FODT: bật thì ghi text:linenumbering-configuration (increment=1). Mở file bằng Word hoặc LibreOffice Writer sẽ thấy số ở lề trái. «Mỗi mục» chỉ giữ trên 3T Doc/FODT; DOCX qua LibreOffice thành Liên tục vì ODF không có restart-each-section. Ctrl+Z hoàn tác."
+      "Chọn Liên tục để đánh số 1, 2, 3… suốt tài liệu; Mỗi trang để số bắt đầu lại từ 1 ở mỗi trang; Mỗi mục để vùng soạn thảo Doc ghi nhận restart theo ngắt mục; Không có để tắt.",
+      "Vùng soạn thảo chỉ hiện trạng thái danh số dòng ở lề trái, không vẽ số cạnh từng dòng. Để kiểm tra kết quả, lưu tài liệu rồi xem bằng phần mềm văn phòng khác có hỗ trợ số dòng. Bản xem trước khi in giúp kiểm tra bố cục trước khi in.",
+      "Lưu bằng Ctrl+S để giữ lựa chọn danh số dòng. Khi lưu .docx, lựa chọn Mỗi mục chuyển thành Liên tục; không bắt đầu lại số ở từng mục. Có thể dùng Mỗi trang để bắt đầu lại ở từng trang hoặc Không có để tắt. Ctrl+Z hoàn tác thay đổi vừa thực hiện."
     ]
   },
   {
@@ -721,15 +721,15 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["writer.file.printPreview", "common.file.print", "common.file.exportPdf"],
     title: "Xem trước khi in",
-    summary: "Ctrl+P hoặc Ctrl+F2 mở hộp thoại In. Khi có Microsoft Office/WPS, 3T Doc dùng bộ dựng PDF đó để giữ phân trang sát bản gốc; nếu không có hoặc gặp lỗi, LibreOffice tự tiếp tục.",
+    summary: "Ctrl+P hoặc Ctrl+F2 mở hộp thoại In. Khi có phần mềm văn phòng khác, Doc dùng bộ dựng PDF đó để giữ phân trang sát bản gốc; nếu không có hoặc gặp lỗi, bộ dựng tích hợp của 3T Office tự tiếp tục.",
     ribbon: { tab: "Bố cục", tabId: "layout", group: "In ấn" },
     keywords: ["xem trước khi in", "print preview", "ctrl+f2", "phân trang", "in tài liệu"],
     steps: [
       "Nhấn Ctrl+P, nhấp biểu tượng máy in trên thanh truy cập nhanh, hoặc vào Tệp → In. Ctrl+F2 cũng mở cùng hộp thoại.",
-      "Nếu máy có Microsoft Office/WPS, tùy chọn Dùng Microsoft Office/WPS để in được chọn sẵn. Khung Bộ máy dựng PDF cho biết ứng dụng nào đã tạo trang xem trước; bỏ chọn để dùng LibreOffice.",
+      "Nếu máy có phần mềm văn phòng khác, tùy chọn Dùng phần mềm văn phòng có sẵn trên máy để in được chọn sẵn. Khung Bộ dựng trang in cho biết ứng dụng nào đã tạo trang xem trước; bỏ chọn để dùng bộ dựng tích hợp của 3T Office.",
       "Chọn máy in, nhập số bản. Chọn Tất cả, Trang hiện tại theo vị trí con trỏ, hoặc Trang từ–đến; phạm vi nhiều đoạn dùng dấu phẩy, ví dụ 1-3,5.",
-      "Xuất PDF riêng: mở Tệp → Xuất PDF và chọn nơi lưu. 3T Doc dựng tệp qua cùng đường Lưu DOCX; nếu Microsoft Office/WPS dùng được thì ứng dụng đó tạo PDF, nếu không LibreOffice tiếp tục.",
-      "Khổ giấy và hướng in được lấy từ Thiết lập trang hiện tại. Nhấn In để gửi tài liệu; nếu chọn Microsoft Print to PDF, chọn nơi lưu tệp PDF. Esc hoặc nút × đóng hộp thoại."
+      "Xuất PDF riêng: mở Tệp → Xuất PDF và chọn nơi lưu. Doc dựng tệp qua cùng đường Lưu DOCX; nếu phần mềm văn phòng khác dùng được thì ứng dụng đó tạo PDF, nếu không bộ dựng tích hợp của 3T Office tiếp tục.",
+      "Khổ giấy và hướng in được lấy từ Thiết lập trang hiện tại. Nhấn In để gửi tài liệu; nếu chọn máy in PDF, chọn nơi lưu tệp PDF. Esc hoặc nút × đóng hộp thoại."
     ]
   },
   {
@@ -756,7 +756,7 @@ export const WRITER_HELP_ENTRIES = [
     ribbon: { tab: "Tệp", tabId: "file", group: "Tài liệu" },
     keywords: ["mở tệp", "mở file", "open", "ctrl+o", "docx", "word", "odt", "mở tài liệu"],
     steps: [
-      "Cách 1: Nhấn tổ hợp phím tắt Ctrl+O trên bàn phím tại bất kỳ màn hình nào trong 3T Doc.",
+      "Cách 1: Nhấn tổ hợp phím tắt Ctrl+O trên bàn phím tại bất kỳ màn hình nào trong Doc.",
       "Cách 2: Nhấn vào tab màu xanh «Tệp» ở góc trên cùng bên trái thanh công cụ để mở Backstage Menu, sau đó chọn mục «Mở tệp».",
       "Hộp thoại chọn tệp của hệ điều hành sẽ xuất hiện. Duyệt đến thư mục chứa tệp văn bản .docx (.docx, .doc, .odt, .rtf) cần mở, chọn tệp rồi nhấn Open.",
       "Hệ thống tự động chuyển đổi và hiển thị văn bản lên khổ giấy A4 chuẩn Nghị định 30/2020/NĐ-CP (lề trái 30 mm, lề phải 15 mm). Toàn bộ bảng biểu, tiêu đề căn giữa, định dạng phông chữ Times New Roman và tiêu đề tệp trên thanh tab được cập nhật tự động."
@@ -767,7 +767,7 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["common.file.save", "common.file.saveAs"],
     title: "Lưu tài liệu (Ctrl+S) và Lưu bản sao (F12)",
-    summary: "Lưu văn bản đang soạn thảo sang tệp thật trên đĩa máy tính thông qua LibreOffice Core headless. Hỗ trợ Ctrl+S lưu thẳng vào tệp đang mở như phần mềm soạn thảo văn bản khác, F12 lưu bản sao và tôn trọng định dạng gốc .doc (định dạng cũ (.doc)).",
+    summary: "Lưu văn bản đang soạn thảo sang tệp thật trên đĩa máy tính thông qua ứng dụng. Hỗ trợ Ctrl+S lưu thẳng vào tệp đang mở như phần mềm soạn thảo văn bản khác, F12 lưu bản sao và tôn trọng định dạng gốc .doc (định dạng cũ (.doc)).",
     ribbon: { tab: "Tệp", tabId: "file", group: "Tài liệu" },
     keywords: ["lưu tệp", "lưu file", "save", "save as", "ctrl+s", "f12", "docx", "doc", "lưu bản sao", "lưu tài liệu", "lưu tại chỗ"],
     steps: [
@@ -787,25 +787,25 @@ export const WRITER_HELP_ENTRIES = [
     ribbon: { tab: "Tệp", tabId: "file", group: "Tài liệu" },
     keywords: ["ảnh neo", "khung nổi", "nhóm hình", "anchor", "floating", "lưu docx"],
     steps: [
-      "Mở tài liệu DOCX bằng Tệp → Mở. 3T Doc hiển thị ảnh neo và khung nổi từ tài liệu gốc trên vùng soạn thảo.",
+      "Mở tài liệu DOCX bằng Tệp → Mở. Doc hiển thị ảnh neo và khung nổi từ tài liệu gốc trên vùng soạn thảo.",
       "Ảnh neo theo Trang được tính từ mép giấy; ảnh neo theo Lề hoặc Cột được tính từ vùng văn bản. Kiểu bọc Trên và dưới chừa chỗ cho nội dung kế tiếp, còn Không bọc cho phép chữ chồng theo thiết kế gốc.",
-      "Soạn sửa phần văn bản cần thiết. Các nhóm hình và ảnh neo chưa hỗ trợ kéo hoặc đổi kích thước trực tiếp; 3T Doc giữ dữ liệu gốc của các đối tượng này khi lưu.",
+      "Soạn sửa phần văn bản cần thiết. Các nhóm hình và ảnh neo chưa hỗ trợ kéo hoặc đổi kích thước trực tiếp; Doc giữ dữ liệu gốc của các đối tượng này khi lưu.",
       "Nhấn Ctrl+S hoặc chọn Tệp → Lưu/Lưu bản sao, chọn định dạng DOCX rồi xác nhận vị trí lưu.",
-      "Mở lại tệp bằng phần mềm soạn thảo văn bản khác hoặc LibreOffice Writer để kiểm tra bố cục. Nếu cần chỉnh vị trí hay thành phần bên trong nhóm hình, hãy chỉnh trong ứng dụng nguồn rồi mở lại trong 3T Doc."
+      "Mở lại tệp bằng phần mềm soạn thảo văn bản khác hoặc phần mềm văn phòng khác để kiểm tra bố cục. Nếu cần chỉnh vị trí hay thành phần bên trong nhóm hình, hãy chỉnh trong ứng dụng nguồn rồi mở lại trong Doc."
     ]
   },
   {
     id: "writer.accessibility.keyboardNav",
     app: "writer",
     commandIds: ["common.file.backstage"],
-    title: "Điều hướng bằng bàn phím và trợ năng (3T Doc)",
+    title: "Điều hướng bằng bàn phím và trợ năng (Doc)",
     summary: "Thao tác hoàn toàn bằng bàn phím không cần dùng chuột: mở menu Tệp (Alt+F), chuyển tab Ribbon bằng phím mũi tên Trái/Phải, di chuyển giữa các nút bằng Tab, bẫy tiêu điểm trong các hộp thoại (Tab/Shift+Tab) và đóng bằng Escape khôi phục tiêu điểm.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Trợ năng" },
-    keywords: ["bàn phím", "phím tắt", "trợ năng", "accessibility", "keyboard", "focus", "alt+f", "esc", "tab", "mũi tên"],
+    keywords: ["bàn phím", "phím tắt", "trợ năng", "accessibility", "keyboard", "tiêu điểm", "alt+f", "esc", "tab", "mũi tên"],
     steps: [
       "Mở menu Tệp (Backstage) bằng phím tắt Alt+F: Menu toàn màn hình mở ra với tiêu điểm tự động đặt vào nút 'Quay lại'. Dùng mũi tên Lên/Xuống để duyệt danh sách lệnh (Mới, Mở, Lưu, In...), dùng mũi tên Phải để đi vào các thẻ mẫu văn bản, và nhấn Escape để đóng menu trở về vùng soạn thảo.",
       "Chuyển tab trên thanh Ribbon: Nhấn Tab cho đến khi tiêu điểm nằm trên dải tab Ribbon, sau đó dùng phím mũi tên Trái (ArrowLeft) hoặc Phải (ArrowRight) để chuyển tab qua lại. Phím Home nhảy về tab Trang đầu, phím End nhảy tới tab cuối cùng. Dùng phím mũi tên Trái từ tab đầu tiên để đi sang nút 'Tệp'.",
-      "Duyệt các nút lệnh trên Ribbon: Nhấn phím Tab để di chuyển tiêu điểm tuần tự qua từng nhóm và nút lệnh trên thanh Ribbon. Mọi nút lệnh nhận tiêu điểm đều hiển thị viền focus rõ ràng (chuẩn tương phản WCAG 2.1 AA). Nhấn Enter hoặc Space để kích hoạt lệnh.",
+      "Duyệt các nút lệnh trên Ribbon: Nhấn phím Tab để di chuyển tiêu điểm tuần tự qua từng nhóm và nút lệnh trên thanh Ribbon. Mọi nút lệnh nhận tiêu điểm đều hiển thị viền tiêu điểm rõ ràng (chuẩn tương phản WCAG 2.1 AA). Nhấn Enter hoặc Space để kích hoạt lệnh.",
       "Thao tác trong hộp thoại và bẫy tiêu điểm (Focus Trap): Khi mở các hộp thoại như Thiết lập trang, Chèn cột, Thủy ấn hoặc Trộn thư, tiêu điểm bàn phím được bẫy hoàn toàn bên trong hộp thoại (phím Tab và Shift+Tab chỉ xoay vòng giữa các điều khiển hợp lệ của hộp thoại, không bị rơi ra ngoài nền). Nhấn Escape để đóng hộp thoại bất kỳ lúc nào và tự động khôi phục tiêu điểm về nút đã mở.",
       "Soạn thảo văn bản và phím tắt định dạng: Nhập văn bản trực tiếp trong vùng soạn thảo trang giấy. Sử dụng các tổ hợp phím tắt chuẩn như Ctrl+B (chữ đậm), Ctrl+I (chữ nghiêng), Ctrl+U (gạch chân), Ctrl+Z (hoàn tác), Ctrl+Y (làm lại)."
     ]
@@ -815,7 +815,7 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["common.macro.recordToggle", "common.macro.manager"],
     title: "Ghi và quản lý Macro (Tự động hóa thao tác)",
-    summary: "Ghi lại chuỗi thao tác lệnh trong 3T Doc để phát lại tự động. Giúp tiết kiệm thời gian cho các chuỗi định dạng lặp đi lặp lại. Hỗ trợ phím tắt Ctrl+Shift+R để bật/dừng ghi và Alt+F8 để mở hộp thoại Quản lý Macro.",
+    summary: "Ghi lại chuỗi thao tác lệnh trong Doc để phát lại tự động. Giúp tiết kiệm thời gian cho các chuỗi định dạng lặp đi lặp lại. Hỗ trợ phím tắt Ctrl+Shift+R để bật/dừng ghi và Alt+F8 để mở hộp thoại Quản lý Macro.",
     ribbon: { tab: "Chế độ xem", tabId: "view", group: "Macro" },
     keywords: ["macro", "ghi macro", "dừng ghi", "quản lý macro", "xem macro", "tự động hóa", "record macro", "alt+f8", "ctrl+shift+r"],
     steps: [
@@ -823,7 +823,7 @@ export const WRITER_HELP_ENTRIES = [
       "Thực hiện các thao tác: Tiến hành các thao tác lệnh bạn muốn ghi lại (ví dụ: bôi đậm, đổi màu chữ, căn giữa đoạn văn, chèn bảng, đổi hướng giấy...).",
       "Dừng ghi và đặt tên: Nhấn lại nút «Dừng ghi» trên Ribbon (hoặc nhấn Ctrl+Shift+R). Nhập tên cho Macro trong hộp thoại Lưu Macro và nhấn OK. Nếu không thực hiện thao tác nào trong lúc ghi, hệ thống sẽ thông báo và không lưu Macro rỗng.",
       "Xem và chạy Macro: Mở tab Chế độ xem, nhấn «Xem Macro» (hoặc nhấn Alt+F8) để mở hộp thoại Quản lý Macro. Tại đây bạn có thể nhấn nút «▶ Chạy» để phát lại các thao tác đã ghi, «Đổi tên» để cập nhật tên gọi, hoặc «Xóa» để gỡ bỏ Macro không dùng nữa.",
-      "Giới hạn trung thực: Macro cơ bản chỉ ghi lại các thao tác đi qua hệ thống lệnh (Command Bus) như định dạng, chèn bảng, đổi bố cục... Macro KHÔNG ghi lại nội dung gõ chữ tự do từ bàn phím vào trang soạn thảo (do đây là nhập liệu trực tiếp của trình duyệt). Nếu trong chuỗi ghi có bước mở hộp thoại cần người dùng tương tác, Macro sẽ tạm dừng tại hộp thoại đó chờ bạn thao tác. Macro được lưu trữ riêng biệt theo từng ứng dụng (Writer, Sheet, Slides) và không dùng chéo giữa các ứng dụng."
+      "Giới hạn trung thực: Macro cơ bản chỉ ghi lại các thao tác đi qua hệ thống lệnh (lệnh định dạng và chỉnh sửa) như định dạng, chèn bảng, đổi bố cục... Macro KHÔNG ghi lại nội dung gõ chữ tự do từ bàn phím vào trang soạn thảo (do đây là nhập liệu trực tiếp của trình duyệt). Nếu trong chuỗi ghi có bước mở hộp thoại cần người dùng tương tác, Macro sẽ tạm dừng tại hộp thoại đó chờ bạn thao tác. Macro được lưu trữ riêng biệt theo từng ứng dụng (Writer, Sheet, Slides) và không dùng chéo giữa các ứng dụng."
     ]
   },
   {
@@ -939,7 +939,7 @@ export const WRITER_HELP_ENTRIES = [
     steps: [
       "Bôi đen đoạn văn bản hoặc chọn đối tượng (bảng, hình ảnh) cần thao tác.",
       "Mở tab Trang đầu, nhóm Bảng nhớ tạm: nhấn Cắt (Ctrl+X) để di chuyển hoặc Sao chép (Ctrl+C) để nhân bản. Các phím Ctrl+X, Ctrl+C và Ctrl+V cũng dùng trực tiếp trong vùng soạn thảo.",
-      "Đặt con trỏ tại vị trí đích trong tài liệu rồi nhấn Dán (Ctrl+V). 3T Doc giữ định dạng HTML an toàn từ clipboard; nếu clipboard chỉ có văn bản, nội dung được dán dưới dạng chữ thuần.",
+      "Đặt con trỏ tại vị trí đích trong tài liệu rồi nhấn Dán (Ctrl+V). Doc giữ định dạng văn bản được hỗ trợ khi dán; nếu clipboard chỉ có văn bản, nội dung được dán dưới dạng chữ thuần.",
       "Để sao chép kiểu dáng chữ: bôi đen đoạn mẫu có định dạng ưng ý, nhấn Sao chép định dạng (Ctrl+Shift+C), sau đó quét chuột qua vùng văn bản cần áp dụng kiểu dáng.",
       "Có thể dùng Ctrl+Z để hoàn tác hoặc Ctrl+Y để làm lại mọi thao tác trên."
     ]
@@ -948,14 +948,14 @@ export const WRITER_HELP_ENTRIES = [
     id: "writer.keyboard.basicEditing",
     app: "writer",
     commandIds: [],
-    title: "Enter, Tab và xuống dòng trong 3T Doc — bàn phím điều hướng",
+    title: "Enter, Tab và xuống dòng trong Doc — bàn phím điều hướng",
     summary: "Enter tạo đoạn mới; Shift+Enter xuống dòng trong cùng đoạn. Tab nhập ký tự tab ở văn bản thường, đổi cấp ở đầu mục danh sách và chuyển ô trong bảng.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Bảng nhớ tạm" },
     keywords: ["Enter", "Shift+Enter", "Tab", "Shift+Tab", "đoạn mới", "xuống dòng", "danh sách", "ô bảng", "phím bàn phím", "F1"],
     steps: [
       "Nhấp vào vùng soạn thảo rồi gõ văn bản. Nhấn Enter để tạo đoạn mới và tiếp tục gõ; con trỏ ở đoạn mới sẽ được giữ nguyên khi kiểm tra chính tả tiếng Việt cập nhật dấu gạch dưới.",
       "Nhấn Shift+Enter để xuống dòng nhưng vẫn ở cùng đoạn. Khi bộ gõ tiếng Việt thay ký tự vừa nhập bằng insertText, tiếp tục gõ tại vị trí con trỏ hiện tại.",
-      "Trong đoạn văn thường, nhấn Tab để chèn ký tự tab; ký tự được giữ trong nội dung tài liệu và hiển thị theo điểm dừng 1,27 cm. Shift+Tab ở ngoài danh sách hoặc bảng không chuyển focus khỏi trang.",
+      "Trong đoạn văn thường, nhấn Tab để chèn ký tự tab; ký tự được giữ trong nội dung tài liệu và hiển thị theo điểm dừng 1,27 cm. Shift+Tab ở ngoài danh sách hoặc bảng không chuyển tiêu điểm khỏi trang.",
       "Ở đầu một mục danh sách, nhấn Tab để tăng cấp thụt lề hoặc Shift+Tab để giảm cấp. Trong bảng, Tab chuyển sang ô kế tiếp, Shift+Tab quay về ô trước; Tab ở ô cuối tạo thêm một hàng.",
       "Nhấn F1 để mở Trợ giúp 3T Office và tìm 'Tab', 'Enter' hoặc 'bảng nhớ tạm' khi cần tra lại."
     ]
@@ -964,13 +964,13 @@ export const WRITER_HELP_ENTRIES = [
     id: "writer.edit.findReplaceSelect",
     app: "writer",
     commandIds: ["common.edit.find", "common.edit.replace", "common.edit.selectAll"],
-    title: "Tìm kiếm và Thay thế trong 3T Doc",
-    summary: "Hộp thoại Tìm kiếm và Thay thế dùng chung phong cách Office cho 3T Doc với hai tab: Tìm (Ctrl+F) và Thay thế (Ctrl+H). Hỗ trợ tiếng Việt có dấu chuẩn Unicode NFC, bỏ qua dấu, tự động cuộn trang bôi đen kết quả và Hoàn tác một bước (Ctrl+Z).",
+    title: "Tìm kiếm và Thay thế trong Doc",
+    summary: "Hộp thoại Tìm kiếm và Thay thế dùng chung phong cách Office cho Doc với hai tab: Tìm (Ctrl+F) và Thay thế (Ctrl+H). Hỗ trợ tiếng Việt có dấu chuẩn Unicode NFC, bỏ qua dấu, tự động cuộn trang bôi đen kết quả và Hoàn tác một bước (Ctrl+Z).",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
-    keywords: ["tìm kiếm", "thay thế", "chọn tất cả", "find", "replace", "select all", "Ctrl+F", "Ctrl+H", "Ctrl+A", "3T Doc", "chỉnh sửa"],
+    keywords: ["tìm kiếm", "thay thế", "chọn tất cả", "find", "replace", "select all", "Ctrl+F", "Ctrl+H", "Ctrl+A", "Doc", "chỉnh sửa"],
     steps: [
       "Truy cập: Mở tab Trang đầu trên thanh ribbon, nhìn sang nhóm Chỉnh sửa ở phía ngoài cùng bên phải, nhấn nút Tìm kiếm (Ctrl+F) hoặc Thay thế (Ctrl+H) để mở hộp thoại Tìm kiếm và Thay thế gồm hai tab.",
-      "Tìm kiếm văn bản: Chọn tab «Tìm» (Ctrl+F), nhập từ hoặc cụm từ cần tìm vào ô «Tìm gì:». Nhấn nút «Tìm tiếp» để nhảy tới kết quả kế tiếp; nhấn «Tìm trước» để lùi lại kết quả trước. 3T Doc tự động cuộn trang và bôi đen vị trí khớp trong tài liệu.",
+      "Tìm kiếm văn bản: Chọn tab «Tìm» (Ctrl+F), nhập từ hoặc cụm từ cần tìm vào ô «Tìm gì:». Nhấn nút «Tìm tiếp» để nhảy tới kết quả kế tiếp; nhấn «Tìm trước» để lùi lại kết quả trước. Doc tự động cuộn trang và bôi đen vị trí khớp trong tài liệu.",
       "Thay thế nội dung: Chọn tab «Thay thế» (Ctrl+H), nhập chuỗi cần tìm vào «Tìm gì:» và nội dung mới vào «Thay bằng:». Nhấn nút «Thay thế» để đổi từng vị trí, hoặc nhấn «Thay thế tất cả» để thay thế toàn bộ văn bản khớp trong tài liệu và nhận thông báo tổng số lượng thay thế thành công.",
       "Tùy chọn tìm kiếm: Đánh dấu các ô chọn theo nhu cầu: «Khớp chữ hoa/thường» (phân biệt HOA/thường chính xác), «Chỉ toàn bộ từ» (không khớp các từ con), hoặc «Bỏ qua dấu» (tìm kiếm tiếng Việt không dấu khớp cả từ có dấu). Cả hai bên đều được chuẩn hóa Unicode NFC tự động.",
       "Đóng và Hoàn tác: Phím Esc đóng hộp thoại. Sau khi đóng hộp thoại, hệ thống vẫn duy trì phiên tìm kiếm cho tài liệu. Mọi thao tác «Thay thế tất cả» đều được ghi nhận là đúng 1 bước Hoàn tác (nhấn Ctrl+Z để phục hồi lại nguyên trạng ban đầu).",
@@ -1019,7 +1019,7 @@ export const WRITER_HELP_ENTRIES = [
     keywords: ["trợ giúp", "hướng dẫn", "help", "F1", "tra cứu", "hướng dẫn sử dụng", "tìm tính năng", "sử dụng writer"],
     steps: [
       "Nhấn phím F1 trên bàn phím tại bất kỳ màn hình nào, hoặc mở tab Trợ giúp trên ribbon rồi nhấn nút Trợ giúp.",
-      "Bảng Hướng dẫn sử dụng 3T Doc xuất hiện ở cạnh phải màn hình với danh mục các bài hướng dẫn chi tiết.",
+      "Bảng Hướng dẫn sử dụng Doc xuất hiện ở cạnh phải màn hình với danh mục các bài hướng dẫn chi tiết.",
       "Nhập tên tính năng hoặc từ khóa tiếng Việt (có dấu hoặc không dấu, ví dụ: «ngắt trang», «đếm từ», «màu trang») vào ô tìm kiếm ở đầu bảng.",
       "Nhấp vào bài viết trong danh sách kết quả để xem chi tiết: tóm tắt tính năng, vị trí tab/nhóm ribbon và các bước thao tác cụ thể.",
       "Nhấn nút đóng ở góc trên bảng trợ giúp hoặc nhấn lại F1 để thu gọn bảng khi không dùng."
@@ -1049,12 +1049,12 @@ export const WRITER_HELP_ENTRIES = [
     title: "Giới thiệu 3T Office và Giấy phép bản quyền",
     summary: "Xem thông tin phiên bản, bản quyền thương hiệu 3T Technology và danh sách các phần mềm nguồn mở bên thứ ba kèm giấy phép hợp pháp.",
     ribbon: { tab: "Trợ giúp", tabId: "help", group: "Trợ giúp" },
-    keywords: ["giới thiệu", "about", "phiên bản", "bản quyền", "3t office", "giấy phép", "nguồn mở", "third-party", "license", "3t doc"],
+    keywords: ["giới thiệu", "about", "phiên bản", "bản quyền", "3t office", "giấy phép", "nguồn mở", "third-party", "license", "doc"],
     steps: [
       "Mở tab Trợ giúp trên thanh ribbon, nhóm Trợ giúp rồi nhấn nút Giới thiệu (hoặc vào menu Tệp rồi chọn Giới thiệu).",
       "Hộp thoại Giới thiệu 3T Office xuất hiện với logo nhận diện 3T và tiêu đề 3T Office — Bộ ứng dụng văn phòng Việt.",
       "Quan sát số hiệu phiên bản hiện hành được lấy trực tiếp từ hệ thống, nhà phát triển 3T Technology và bản quyền sở hữu.",
-      "Kiểm tra danh sách các thành phần nguồn mở bên thứ ba (Python 3.12, LibreOffice Core, pywebview, v.v.) và nhấn nút Xem toàn văn giấy phép nếu muốn đọc toàn văn THIRD-PARTY-NOTICES.",
+      "Kiểm tra danh sách các thành phần nguồn mở bên thứ ba và nhấn nút Xem toàn văn giấy phép nếu muốn đọc thông báo giấy phép đầy đủ.",
       "Nhấn nút Đóng hoặc bấm phím Esc trên bàn phím để quay lại làm việc."
     ]
   },
@@ -1065,13 +1065,13 @@ export const WRITER_HELP_ENTRIES = [
     title: "Bắt đầu nhanh: tạo, mở, lưu, in, xuất PDF",
     summary: "Tài liệu mới mở ra trang A4 trống (lề trái 30 mm, phải 15 mm theo NĐ 30). Dùng menu Tệp hoặc phím tắt để tạo mới, mở, lưu, lưu bản sao, in và xuất PDF.",
     ribbon: { tab: "Bố cục", tabId: "layout", group: "In ấn" },
-    keywords: ["bắt đầu nhanh", "tạo mới", "mở tệp", "lưu", "lưu bản sao", "in", "xuất pdf", "ctrl+n", "ctrl+o", "ctrl+s", "f12", "ctrl+p", "tài liệu trống", "3t doc"],
+    keywords: ["bắt đầu nhanh", "tạo mới", "mở tệp", "lưu", "lưu bản sao", "in", "xuất pdf", "ctrl+n", "ctrl+o", "ctrl+s", "f12", "ctrl+p", "tài liệu trống", "doc"],
     steps: [
-      "Tạo tài liệu trống: nhấn Ctrl+N hoặc menu Tệp > Mới. 3T Doc mở một cửa sổ riêng tên Tài liệu 2, Tài liệu 3…; trang A4 có con trỏ ở đoạn đầu và chưa được đánh dấu là đã sửa.",
+      "Tạo tài liệu trống: nhấn Ctrl+N hoặc menu Tệp > Mới. Doc mở một cửa sổ riêng tên Tài liệu 2, Tài liệu 3…; trang A4 có con trỏ ở đoạn đầu và chưa được đánh dấu là đã sửa.",
       "Mở tài liệu: nhấn Ctrl+O hoặc menu Tệp > Mở, chọn DOCX, DOC, ODT, RTF hoặc TXT. Nếu tài liệu hiện tại có thay đổi, chọn Lưu, Không lưu hoặc Hủy trước khi tiếp tục; Hủy hoặc đóng hộp chọn tệp sẽ giữ tài liệu hiện tại.",
       "Lưu (Ctrl+S): mở hộp thoại Lưu thành cho tài liệu mới. Với tệp đã mở/lưu, Ctrl+S ghi đúng định dạng hiện tại. Nhấn F12 để Lưu bản sao — nhập tên, chọn DOCX, DOC, ODT, RTF, TXT hoặc PDF ở Loại tệp. Chọn PDF chỉ xuất một bản PDF; tài liệu đang mở giữ tên, định dạng và đường dẫn cũ.",
-      "In (Ctrl+P): mở Xem trước khi in. Chọn máy in, số bản và phạm vi trang rồi nhấn In. Khi có Microsoft Office/WPS, 3T Doc dùng bộ dựng PDF đó để giữ phân trang sát bản gốc; nếu không có, LibreOffice tự tiếp tục.",
-      "Xuất PDF: menu Tệp > Xuất PDF > chọn nơi lưu. Cùng đường dựng với In: Microsoft Office/WPS nếu có, ngược lại LibreOffice."
+      "In (Ctrl+P): mở Xem trước khi in. Chọn máy in, số bản và phạm vi trang rồi nhấn In. Khi có phần mềm văn phòng khác, Doc dùng bộ dựng PDF đó để giữ phân trang sát bản gốc; nếu không có, bộ dựng tích hợp của 3T Office tự tiếp tục.",
+      "Xuất PDF: menu Tệp > Xuất PDF > chọn nơi lưu. Cùng đường dựng với In: phần mềm văn phòng khác nếu có, ngược lại bộ dựng tích hợp của 3T Office."
     ]
   },
   {
@@ -1084,9 +1084,9 @@ export const WRITER_HELP_ENTRIES = [
       "writer.text.bold", "writer.text.italic", "writer.text.underline"
     ],
     title: "Phím tắt thường dùng (15 phím tắt phổ biến nhất)",
-    summary: "15 phím tắt dùng nhiều nhất trong 3T Doc — tương thích phần mềm soạn thảo văn bản khác và LibreOffice Writer. Tất cả đã bind trong command-definitions.js và có hoàn tác (Ctrl+Z) khi áp dụng định dạng.",
+    summary: "Các phím tắt thường dùng giúp thao tác nhanh trong 3T Office: tạo tài liệu, định dạng, tìm kiếm và in. Xem từng bước bên dưới để chọn tổ hợp phím phù hợp. Có thể hoàn tác các thao tác chỉnh sửa được hỗ trợ, rồi làm lại khi cần.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Phông chữ" },
-    keywords: ["phím tắt", "shortcut", "ctrl+n", "ctrl+o", "ctrl+s", "f12", "ctrl+p", "ctrl+z", "ctrl+y", "ctrl+x", "ctrl+c", "ctrl+v", "ctrl+a", "ctrl+f", "ctrl+h", "ctrl+b", "ctrl+i", "ctrl+u", "định dạng", "3t doc"],
+    keywords: ["phím tắt", "shortcut", "ctrl+n", "ctrl+o", "ctrl+s", "f12", "ctrl+p", "ctrl+z", "ctrl+y", "ctrl+x", "ctrl+c", "ctrl+v", "ctrl+a", "ctrl+f", "ctrl+h", "ctrl+b", "ctrl+i", "ctrl+u", "định dạng", "doc"],
     steps: [
       "Tạo mới: Ctrl+N  |  Mở: Ctrl+O  |  Lưu: Ctrl+S  |  Lưu bản sao: F12  |  In: Ctrl+P",
       "Hoàn tác: Ctrl+Z  |  Làm lại: Ctrl+Y",
@@ -1100,13 +1100,13 @@ export const WRITER_HELP_ENTRIES = [
     id: "writer.differences",
     app: "writer",
     commandIds: ["writer.insert.equation", "writer.section.continuous"],
-    title: "Khác biệt cần biết (so với bộ Office khác)",
-    summary: "Công thức và Ngắt mục đã có mặt trong 3T Doc nhưng khác với phần mềm soạn thảo văn bản khác ở chỗ: Công thức là hộp chữ toán đơn giản (không có trình soạn LaTeX/MathJax WYSIWYG); Ngắt mục liên tục tạo mục mới với Page Setup riêng nhưng Header/Footer và khổ giấy ngang/dọc vẫn dùng chung trong xuất DOCX/PDF (giới hạn HTML filter của LibreOffice).",
+    title: "Giới hạn cần biết khi soạn tài liệu",
+    summary: "Phương trình và Ngắt mục trong Doc giúp soạn nội dung toán học và chia bố cục tài liệu. Mở Chèn > Ký hiệu > Phương trình để nhập biểu thức. Mở Bố cục > Thiết lập trang > Ngắt trang để chia mục; khi lưu .docx hoặc PDF, đầu/chân trang và hướng giấy vẫn dùng chung cho cả tài liệu.",
     ribbon: { tab: "Chèn", tabId: "insert", group: "Ký hiệu" },
     keywords: ["khác biệt", "công thức", "equation", "ngắt mục", "section break", "header", "footer", "khổ giấy", "hướng giấy"],
     steps: [
-      "Công thức (tab Chèn > nhóm Ký hiệu > Công thức): là hộp chữ toán rút gọn (mặc định E = mc²), cho phép nhập biểu thức dạng văn bản. Chưa có trình soạn LaTeX/MathJax WYSIWYG; xuất FODT/DOCX ghi span với data-equation, LibreOffice mở như văn bản thường — không xuất ODF/OOXML Math chuẩn.",
-      "Ngắt mục (tab Bố cục > nhóm Thiết lập trang > Ngắt trang > Ngắt mục): có 4 loại — Trang kế tiếp, Liên tục, Trang chẵn, Trang lẻ. Mỗi ngắt tạo một mục (section) mới với Page Setup riêng (lề, hướng, khổ giấy) được lưu trong data-vno-section-id. Trên canvas 3T Doc: mục mới áp dụng Page Setup riêng ngay. Khi xuất DOCX/PDF qua LibreOffice: Header/Footer và khổ giấy ngang/dọc vẫn dùng chung cho cả tài liệu (giới hạn bộ lọc HTML của LibreOffice), chỉ lề và khổ giấy cơ bản được giữ. Ngắt cột (menu Ngắt trang) chỉ có hiệu lực khi tài liệu đang chia từ 2 cột trở lên.",
+      "Phương trình: mở Chèn > Ký hiệu > Phương trình hoặc nhấn Alt+=. Nhập biểu thức như a/b hoặc x^2, dùng các nút cấu trúc để thêm phân số, căn và ma trận. Kiểm tra vùng Xem trước rồi nhấn Chèn vào tài liệu. Nhấp đúp phương trình để sửa lại.",
+      "Ngắt mục: mở Bố cục > Thiết lập trang > Ngắt trang, chọn Trang kế tiếp, Liên tục, Trang chẵn hoặc Trang lẻ. Mục mới có thiết lập trang riêng trên vùng soạn thảo. Khi lưu .docx hoặc PDF, đầu/chân trang và hướng giấy vẫn dùng chung cho cả tài liệu. Ngắt cột chỉ có tác dụng khi tài liệu có từ hai cột trở lên.",
       "Các nút này vẫn hiển thị trên ribbon đúng vị trí chuẩn phần mềm soạn thảo văn bản khác. Khi bấm vào, hộp thoại/hành động chạy ngay thay vì chỉ hiện thông báo đang hoàn thiện."
     ]
   }

@@ -38,7 +38,7 @@ export class SheetApp {
     const isBlank = templateId !== "budget_estimate";
     this.shell = new AppShell({
       appName: "sheet",
-      appTitle: "3T Sheet",
+      appTitle: "Sheet",
       documentName: options.documentName || (isBlank ? "Bảng tính 1.xlsx" : "Dự toán kinh phí 3T Office 2026.xlsx")
     });
     this.shell.mount(this.mountElement);
@@ -156,7 +156,7 @@ export class SheetApp {
   async _ensureHelpPanel() {
     if (this.helpPanel) return this.helpPanel;
     if (!this._helpPanelPromise) {
-      this.shell?.setStatus?.("Đang tải Trợ giúp 3T Sheet…");
+      this.shell?.setStatus?.("Đang tải Trợ giúp Sheet…");
       this._helpPanelPromise = Promise.all([
         import("../../platform/help/index.js"),
         import("../../platform/help/entries-sheet.js")
@@ -169,7 +169,7 @@ export class SheetApp {
         return this.helpPanel;
       }).catch((error) => {
         this._helpPanelPromise = null;
-        this.shell?.setStatus?.("Không tải được Trợ giúp 3T Sheet.");
+        this.shell?.setStatus?.("Không tải được Trợ giúp Sheet.");
         throw error;
       });
     }
@@ -349,7 +349,7 @@ export class SheetApp {
       const unsupported = funcMatches.filter(fn => !supportedNames.has(fn.toUpperCase()));
 
       if (unsupported.length > 0) {
-        botMsg.innerHTML = `<div style="font-weight:bold;color:#dc2626;margin-bottom:6px;">⚠️ ${t("aiAssistant.formulaFromDescUnsupported", "Công thức chứa hàm 3T Sheet chưa hỗ trợ:")}</div>`;
+        botMsg.innerHTML = `<div style="font-weight:bold;color:#dc2626;margin-bottom:6px;">⚠️ ${t("aiAssistant.formulaFromDescUnsupported", "Công thức chứa hàm Sheet chưa hỗ trợ:")}</div>`;
         const replyEl = document.createElement("div");
         replyEl.style.cssText = "color:var(--vno-text-primary);font-size:12px;";
         replyEl.textContent = unsupported.join(", ");

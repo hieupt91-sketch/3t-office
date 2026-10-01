@@ -152,6 +152,7 @@ import { runSheetFreezePanesRealTests } from "./unit/sheet-freeze-panes-real.tes
 import { runSheetImageImportExportTests } from "./unit/sheet-image-import-export.test.js";
 import { runSheetStatusBarSumTests } from "./unit/sheet-status-bar-sum.test.js";
 import { runSheetRangeSelectionTests } from "./unit/sheet-range-selection.test.js";
+import { runSheetAutoFillTests } from "./unit/sheet-autofill.test.js";
 import { runSlidesPptxSetupShowOpenOverlayTests } from "./unit/slides-pptx-setup-show-open-overlay.test.js";
 import { runWriterParagraphSpacingTests } from "./unit/writer-paragraph-spacing.test.js";
 import { runWriterFindReplaceDomTests } from "./unit/writer-find-replace-dom.test.js";
@@ -208,6 +209,10 @@ import { runBasicEditingKeysTests } from "./unit/basic-editing-keys.test.js";
 import { runUiConsistencyAndStringScannerTests } from "./unit/ui-user-visible-strings.test.js";
 import { runOsInputGuardTests } from "./unit/os-input-guard.test.js";
 import { runPrintEngineNameTests } from "./unit/print-engine-name.test.js";
+import { runVietnameseImeUnitTests } from "./unit/vietnamese-ime.test.js";
+import { runSheetNativeCellValuesTests } from "./unit/sheet-native-cell-values.test.js";
+import { runSheetPrintSetupRoundTripTests } from "./unit/sheet-print-setup-roundtrip.test.js";
+import { runSheetC3C7C8GapTests } from "./unit/sheet-c3-c7-c8-gaps.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -425,7 +430,12 @@ async function runAll() {
     { title: "168. Unit Tests — Shared Find and Replace (CH-7.1) for 3T Doc, 3T Sheet and 3T Slide", runner: runSharedFindReplaceTests },
     { title: "169. Unit Tests — CH-8 UI Consistency, KeyTips, Contextual F1 & String Scanner", runner: runUiConsistencyAndStringScannerTests },
     { title: "170. Safety Regression — source and tests use CDP, not OS-level input", runner: runOsInputGuardTests },
-    { title: "171. CH-3/CH-8 — Hộp thoại In không lộ tên thư viện bên trong", runner: runPrintEngineNameTests }
+    { title: "171. CH-3/CH-8 — Hộp thoại In không lộ tên thư viện bên trong", runner: runPrintEngineNameTests },
+    { title: "172. CH-4.7 — Vietnamese IME typing, burst normalizer, caret preservation, undo coalescing & NFC normalization", runner: runVietnameseImeUnitTests },
+    { title: "173. Unit Tests — VN Sheet AutoFill date sequences and double-click fill", runner: runSheetAutoFillTests },
+    { title: "174. Unit Tests — VN Sheet native numeric/date cell values, external paste, fill and FODS types", runner: runSheetNativeCellValuesTests },
+    { title: "175. Unit Tests — VN Sheet print setup XLSX reopen round-trip", runner: runSheetPrintSetupRoundTripTests },
+    { title: "176. Unit Tests — VN Sheet C3/C7/C8 selection, tabs and sort", runner: runSheetC3C7C8GapTests }
   ];
 
   for (const suite of suites) {
