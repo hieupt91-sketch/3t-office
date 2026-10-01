@@ -53,6 +53,9 @@ export class NumberFormatter {
       case "date":
         return this.formatDate(rawVal, formatConfig);
 
+      case "time":
+        return this.formatTime(rawVal, formatConfig);
+
       case "currency":
         return this.formatCurrency(rawVal, formatConfig);
 
@@ -332,6 +335,22 @@ export class NumberFormatter {
     return { text: result, align: "right" };
   }
 
+  /** Format an Excel time serial using its actual time-of-day fraction. */
+  static formatTime(val, config = {}) {
+    const number = typeof val === "number" ? val : this.parseNumber(val);
+    if (number === null || !Number.isFinite(number)) return { text: String(val) };
+    const totalSeconds = Math.round(((number % 1) + 1) % 1 * 86400) % 86400;
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    const pattern = String(config.timeFormat || "hh:mm");
+    const pad = value => String(value).padStart(2, "0");
+    const text = pattern.includes("ss")
+      ? `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`
+      : `${pad(hours)}:${pad(minutes)}`;
+    return { text, align: "right" };
+  }
+
   /**
    * Định dạng Khoa học (Scientific)
    */
@@ -468,6 +487,94 @@ export class NumberFormatter {
 
     const timestamp = Date.parse(str);
     return isNaN(timestamp) ? null : new Date(timestamp);
+  }
+
+  /**
+   * Infer types only for literal user entry. Imports and programmatic cell
+   * updates continue to use normalizeInputForFormat() unchanged.
+   */
+  static inferUserInput(inputVal, formatConfig, locale = {}) {
+    if (typeof inputVal !== "string") return null;
+    const input = inputVal.trim();
+    if (inputVal === "") return { value: "" };
+    if (formatConfig?.category === "text") return { value: inputVal };
+    if (inputVal.startsWith("=")) return null;
+    if (inputVal.startsWith("'")) return { value: inputVal.slice(1), forceText: true };
+
+    const dateMatch = input.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (dateMatch) {
+      const day = Number(dateMatch[1]);
+      const month = Number(dateMatch[2]);
+      const year = Number(dateMatch[3]);
+      const date = new Date(Date.UTC(year, month - 1, day));
+      if (date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day) {
+        const excelEpoch = Date.UTC(1899, 11, 30);
+        return {
+          value: (date.getTime() - excelEpoch) / 86400000,
+          numberFormat: { category: "date", dateFormat: "dd/mm/yyyy" }
+        };
+      }
+    }
+
+    const timeMatch = input.match(/^(\d{1,2}):(\d{2})$/);
+    if (timeMatch) {
+      const hours = Number(timeMatch[1]);
+      const minutes = Number(timeMatch[2]);
+      if (hours < 24 && minutes < 60) {
+        return {
+          value: (hours * 60 + minutes) / 1440,
+          numberFormat: { category: "time", timeFormat: "hh:mm" }
+        };
+      }
+    }
+
+    const parseNumber = raw => {
+      const decimal = String(locale.decimalSeparator ?? ".");
+      const grouping = String(locale.thousandsSeparator ?? ",");
+      if (!raw || !decimal || decimal === grouping || decimal.length !== 1 || grouping.length > 2) return null;
+      const sign = /^[+-]/.test(raw) ? raw[0] : "";
+      const unsigned = sign ? raw.slice(1) : raw;
+      if (!unsigned) return null;
+      const decimalParts = unsigned.split(decimal);
+      if (decimalParts.length > 2) return null;
+      const integerPart = decimalParts[0];
+      const fractionPart = decimalParts.length === 2 ? decimalParts[1] : null;
+      if (fractionPart !== null && !/^\d*$/.test(fractionPart)) return null;
+      let integerDigits = integerPart;
+      if (grouping && integerPart.includes(grouping)) {
+        const groups = integerPart.split(grouping);
+        if (!/^\d{1,3}$/.test(groups[0]) || groups.slice(1).some(group => !/^\d{3}$/.test(group))) return null;
+        integerDigits = groups.join("");
+      }
+      if (integerDigits && !/^\d+$/.test(integerDigits)) return null;
+      if (!integerDigits && (fractionPart === null || fractionPart === "")) return null;
+      const normalized = `${sign}${integerDigits || "0"}${fractionPart === null ? "" : `.${fractionPart}`}`;
+      const number = Number(normalized);
+      return Number.isFinite(number) ? number : null;
+    };
+
+    const currency = /^(?:₫|đ|đồng|vnd|vnđ)\s*(.+)$/iu.exec(input)
+      || /^(.+?)\s*(?:₫|đ|đồng|vnd|vnđ)$/iu.exec(input);
+    if (currency) {
+      const number = parseNumber(currency[1].trim());
+      if (number !== null) {
+        return {
+          value: number,
+          numberFormat: { category: "currency", currencySymbol: "₫", decimals: 0, useThousands: true, symbolPosition: "after" }
+        };
+      }
+    }
+
+    if (input.endsWith("%")) {
+      const number = parseNumber(input.slice(0, -1).trim());
+      if (number !== null) {
+        return { value: number / 100, numberFormat: { category: "percentage", decimals: 0 } };
+      }
+    }
+
+    const number = parseNumber(input);
+    if (number !== null) return { value: number };
+    return { value: inputVal };
   }
 
   static normalizeInputForFormat(inputVal, formatConfig) {

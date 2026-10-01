@@ -177,6 +177,31 @@ export async function runSheetFormatCellsTests() {
     assert(NumberFormatter.normalizeInputForFormat("08:30", { category: "time", timeFormat: "hh:mm" }) === 8.5 / 24);
   });
 
+  test("C1: tự nhận dạng kiểu nhập theo vùng Windows và giữ văn bản có chủ ý", () => {
+    const us = { decimalSeparator: ".", thousandsSeparator: "," };
+    const vi = { decimalSeparator: ",", thousandsSeparator: "." };
+    const number = NumberFormatter.inferUserInput("1234.56", null, us);
+    assert(number.value === 1234.56, `Số thập phân US phải là number: ${number.value}`);
+    assert(NumberFormatter.inferUserInput("1,234.56", null, us).value === 1234.56, "US grouping phải theo dấu phẩy nghìn và chấm thập phân");
+    assert(NumberFormatter.inferUserInput("1.234,56", null, vi).value === 1234.56, "VN grouping phải theo dấu chấm nghìn và phẩy thập phân");
+    assert(NumberFormatter.inferUserInput("31/12/2026", null, vi).value === 46387, "Ngày phải thành serial Excel 46387");
+    const time = NumberFormatter.inferUserInput("13:45", null, vi);
+    assert(Math.abs(time.value - 0.5729166667) < 1e-10, `Giờ phải thành phần ngày Excel: ${time.value}`);
+    assert(time.numberFormat.category === "time" && NumberFormatter.formatValue(time.value, time.numberFormat).text === "13:45", "Giờ phải có định dạng hh:mm");
+    const percent = NumberFormatter.inferUserInput("25%", null, vi);
+    assert(percent.value === 0.25 && percent.numberFormat.category === "percentage" && percent.numberFormat.decimals === 0, "25% phải lưu 0.25 và định dạng 0%");
+    for (const currencyText of ["₫250000", "250000 ₫", "250.000 ₫"]) {
+      const currency = NumberFormatter.inferUserInput(currencyText, null, vi);
+      assert(currency.value === 250000, `${currencyText} phải thành 250000`);
+      assert(currency.numberFormat.category === "currency" && currency.numberFormat.currencySymbol === "₫", `${currencyText} phải có định dạng tiền VND`);
+    }
+    assert(NumberFormatter.inferUserInput("0123", null, us).value === 123, "Số 0 đầu vào General phải thành số 123");
+    assert(NumberFormatter.inferUserInput("0123", { category: "text" }, us).value === "0123", "Định dạng Text phải giữ số 0 đầu");
+    const forcedText = NumberFormatter.inferUserInput("'1234.56", null, us);
+    assert(forcedText.value === "1234.56" && forcedText.forceText, "Dấu nháy đơn phải ép kiểu văn bản");
+    assert(typeof NumberFormatter.inferUserInput("Tên mặt hàng", null, us).value === "string", "Chữ thường phải giữ kiểu văn bản");
+  });
+
   // 6. Unit Test Category Date
   test("Category Date: Định dạng chuẩn Việt Nam dd/mm/yyyy và mẫu văn bản hành chính", () => {
     const testDate = new Date(2024, 2, 14, 13, 30); // 14/03/2024 13:30

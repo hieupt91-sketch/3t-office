@@ -323,7 +323,7 @@ export class SheetGridController {
         <button type="button" class="vno-formula-btn" title="Nhập (Enter)" aria-label="Nhập (Enter)" id="vno-fx-ok">✓</button>
         <button type="button" class="vno-formula-btn vno-formula-btn-fx" title="Chèn hàm tính toán (fx)" aria-label="Chèn hàm tính toán (fx)" id="vno-fx-insert">fx</button>
       </div>
-      <input type="text" class="vno-formula-input" id="vno-formula-val" aria-label="Thanh công thức" placeholder="Nhập giá trị hoặc công thức (ví dụ: =SUM(F4:F7), =AVERAGE(E4:E7)...)" />
+      <textarea rows="1" class="vno-formula-input" id="vno-formula-val" aria-label="Thanh công thức" placeholder="Nhập giá trị hoặc công thức (ví dụ: =SUM(F4:F7), =AVERAGE(E4:E7)...)"></textarea>
     `;
     this.nameBox = fBar.querySelector("#vno-cell-name");
     this.formulaInput = fBar.querySelector("#vno-formula-val");
@@ -338,7 +338,8 @@ export class SheetGridController {
         this._notifySheetProtected();
         return;
       }
-      this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, e.target.value, true, { coalesce: true });
+      this._resizeFormulaInput();
+      this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, e.target.value, true, { coalesce: true, userInput: true });
       this.autocomplete.handleInput(e.target.value, this.formulaInput.selectionStart);
     });
 
@@ -346,20 +347,22 @@ export class SheetGridController {
       // Ngăn sự kiện phím trong formulaInput nổi bọt lên container lưới (tránh xử lý trùng lặp Enter, Tab, mũi tên...)
       e.stopPropagation();
 
+      if (e.key === "Enter" && e.altKey) {
+        e.preventDefault();
+        const start = this.formulaInput.selectionStart || 0;
+        const end = this.formulaInput.selectionEnd || 0;
+        const val = this.formulaInput.value;
+        this.formulaInput.value = val.substring(0, start) + "\n" + val.substring(end);
+        this.formulaInput.selectionStart = this.formulaInput.selectionEnd = start + 1;
+        this._resizeFormulaInput();
+        this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, this.formulaInput.value, true, { coalesce: true, userInput: true });
+        return;
+      }
+
       if (this.autocomplete.handleKeyDown(e)) {
         return;
       }
       if (e.key === "Enter") {
-        if (e.altKey) {
-          e.preventDefault();
-          const start = this.formulaInput.selectionStart || 0;
-          const end = this.formulaInput.selectionEnd || 0;
-          const val = this.formulaInput.value;
-          this.formulaInput.value = val.substring(0, start) + "\n" + val.substring(end);
-          this.formulaInput.selectionStart = this.formulaInput.selectionEnd = start + 1;
-          this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, this.formulaInput.value, true, { coalesce: true });
-          return;
-        }
         if (e.ctrlKey && e.shiftKey) {
           e.preventDefault();
           this.autocomplete.closeAll();
@@ -1421,7 +1424,10 @@ export class SheetGridController {
 
     if (this.nameBox) this.nameBox.textContent = this.getSelectionNameLabel();
     const data = this.cellsData.get(activeCoordKey);
-    if (this.formulaInput) this.formulaInput.value = data ? (data.formula || data.val) : "";
+    if (this.formulaInput) {
+      this.formulaInput.value = data ? (data.formula || data.val) : "";
+      this._resizeFormulaInput();
+    }
     this._showValidationDropdown(activeCell, this.selectedCoord.c, this.selectedCoord.r);
     this.options.onSelect?.(activeCoordKey, data, this._calculateStats());
     this.container?.focus?.({ preventScroll: true });
@@ -3605,7 +3611,7 @@ export class SheetGridController {
         const cur = this.cellsData.get(key);
         this._cellValueBeforeEdit = cur ? (cur.formula || cur.val || "") : "";
         this.formulaInput.value = e.key;
-        this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, e.key, true, { coalesce: true });
+        this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, e.key, true, { coalesce: true, userInput: true });
         this._focusFormulaInputAtEnd();
         if (this.autocomplete) {
           this.autocomplete.handleInput(e.key, 1);
@@ -3623,6 +3629,14 @@ export class SheetGridController {
       this.formulaInput.focus();
       this.formulaInput.select();
     }
+  }
+
+  _resizeFormulaInput() {
+    if (!this.formulaInput) return;
+    const lineCount = String(this.formulaInput.value || "").split(/\r\n|\r|\n/).length;
+    const visibleLines = Math.min(4, Math.max(1, lineCount));
+    this.formulaInput.style.height = `${visibleLines * 20 + 2}px`;
+    if (this.formulaBarEl) this.formulaBarEl.style.height = `${Math.max(30, visibleLines * 20 + 8)}px`;
   }
 
   /**
@@ -3756,26 +3770,57 @@ export class SheetGridController {
     if (recordUndo && this._guardProtectedMutation()) return false;
     const key = `${col}${row}`;
     let item = this.cellsData.get(key) || { val: "", formula: "", style: {} };
+    const previousValue = item.formula || (item.val ?? "");
+    const previousWasText = !item.formula && typeof item.val === "string";
+    const previousRichText = item.richText || null;
+    const previousStyle = structuredClone(item.style || {});
+    const previousRowHeight = this.getRowHeight(row);
+    let forceText = false;
+    let bypassFormatNormalization = false;
+    let nextStyle = structuredClone(item.style || {});
 
     if (recordUndo && val === "" && item.isArrayFormula && item.arrayRange) {
       return this._clearArrayFormula(item.arrayRange);
     }
 
+    if (historyOptions.userInput && typeof val === "string") {
+      const inferred = NumberFormatter.inferUserInput(val, item.style?.numberFormat, this.options.numberLocale);
+      if (inferred) {
+        val = inferred.value;
+        forceText = !!inferred.forceText;
+        bypassFormatNormalization = forceText || !!inferred.numberFormat;
+        if (inferred.numberFormat) {
+          nextStyle.numberFormat = structuredClone(inferred.numberFormat);
+        }
+      }
+    }
+
+    const isFormulaInput = !forceText && typeof val === "string" && val.startsWith("=");
+    const hasUserEnteredLineBreak = historyOptions.userInput && !isFormulaInput && typeof val === "string" && /\r\n|\r|\n/.test(val);
+    if (hasUserEnteredLineBreak) nextStyle.whiteSpace = "pre-wrap";
+    let historyAction = null;
     if (recordUndo) {
-      this._recordHistory({
+      historyAction = this._recordHistory({
         type: "cell",
         sheet: this.activeSheet,
         col,
         row,
-        prevVal: item.formula || item.val || "",
+        prevVal: previousValue,
         nextVal: val,
-        prevValRichText: item.richText || null,
+        prevWasText: previousWasText,
+        nextWasText: !isFormulaInput && (forceText || typeof val === "string"),
+        prevValRichText: previousRichText,
         nextValRichText: null,
+        prevStyle: previousStyle,
+        nextStyle: structuredClone(nextStyle),
+        prevRowHeight: previousRowHeight,
+        nextRowHeight: previousRowHeight,
         timestamp: Date.now()
       }, historyOptions);
     }
+    if (JSON.stringify(item.style || {}) !== JSON.stringify(nextStyle)) item.style = nextStyle;
 
-    const escapedText = typeof val === "string" && val.startsWith("'");
+    const escapedText = !forceText && typeof val === "string" && val.startsWith("'");
     if (escapedText) val = val.slice(1);
     if (!escapedText && typeof val === "string" && val.startsWith("=")) {
       item.formula = val;
@@ -3791,7 +3836,7 @@ export class SheetGridController {
       item.val = this.formulaEngine.evaluate(val);
     } else {
       item.formula = "";
-      item.val = NumberFormatter.normalizeInputForFormat(val, item.style?.numberFormat);
+      item.val = bypassFormatNormalization ? val : NumberFormatter.normalizeInputForFormat(val, item.style?.numberFormat);
     }
     // When user edits a cell, clear rich text formatting (Excel behavior)
     delete item.richText;
@@ -3803,6 +3848,10 @@ export class SheetGridController {
     if (cell) {
       this._renderCellVisual(cell, item, col, row);
       this._applyRuleVisuals(cell, col, row);
+    }
+    if (hasUserEnteredLineBreak) {
+      const fittedHeight = this.computeAutoFitRowHeight(row);
+      if (fittedHeight > this.getRowHeight(row)) this.setRowHeights(fittedHeight, [row], false);
     }
     const prevColNum = typeof this._columnNumber === "function" ? this._columnNumber(col) - 1 : 0;
     if (prevColNum >= 1) {
@@ -3819,6 +3868,12 @@ export class SheetGridController {
     }
     this.refreshCharts();
     this._updateWatchWindow?.();
+    if (historyAction) {
+      historyAction.nextVal = item.formula || (item.val ?? "");
+      historyAction.nextWasText = !item.formula && typeof item.val === "string";
+      historyAction.nextStyle = structuredClone(item.style || {});
+      historyAction.nextRowHeight = this.getRowHeight(row);
+    }
     return true;
   }
 
@@ -6955,6 +7010,9 @@ export class SheetGridController {
       action.timestamp - previous.timestamp <= this.historyMergeWindowMs;
     if (mergeCellEdit) {
       previous.nextVal = action.nextVal;
+      previous.nextWasText = action.nextWasText;
+      previous.nextStyle = structuredClone(action.nextStyle || {});
+      previous.nextRowHeight = action.nextRowHeight;
       previous.timestamp = action.timestamp;
     } else {
       this.undoStack.push(action);
@@ -6963,6 +7021,7 @@ export class SheetGridController {
     this.redoStack = [];
     this.options.onDocumentChange?.();
     this._syncCommandStates();
+    return mergeCellEdit ? previous : action;
   }
 
   _syncCommandStates() {
@@ -7684,6 +7743,30 @@ export class SheetGridController {
       this._restoreRowColLayout(direction === "undo" ? action.before : action.after);
     } else if (action.type === "cell") {
       this.setCellValue(action.col, action.row, action[value], false);
+      const styleSnapshot = action[direction === "undo" ? "prevStyle" : "nextStyle"];
+      if (styleSnapshot) {
+        const key = `${action.col}${action.row}`;
+        const itm = this.cellsData.get(key);
+        if (itm) {
+          let restoreCellVisual = false;
+          if (action[direction === "undo" ? "prevWasText" : "nextWasText"]) {
+            itm.val = String(action[value]);
+            itm.formula = "";
+            restoreCellVisual = true;
+          }
+          if (JSON.stringify(itm.style || {}) !== JSON.stringify(styleSnapshot)) {
+            itm.style = structuredClone(styleSnapshot);
+            restoreCellVisual = true;
+          }
+          if (restoreCellVisual) {
+            const dom = this.container.querySelector(`.vno-grid-cell[data-coord="${key}"]`);
+            if (dom) this._renderCellVisual(dom, itm, action.col, action.row);
+          }
+        }
+      }
+      const rowHeight = action[direction === "undo" ? "prevRowHeight" : "nextRowHeight"];
+      const oppositeRowHeight = action[direction === "undo" ? "nextRowHeight" : "prevRowHeight"];
+      if (Number.isFinite(rowHeight) && rowHeight !== oppositeRowHeight) this.setRowHeights(rowHeight, [action.row], false);
       // Restore richText from snapshot if present (edited cells lose richText in setCellValue)
       if (action[value + "RichText"]) {
         const key = `${action.col}${action.row}`;

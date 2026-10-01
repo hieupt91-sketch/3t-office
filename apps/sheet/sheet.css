@@ -95,6 +95,8 @@
 .vno-formula-input {
   flex: 1;
   height: 22px;
+  min-height: 22px;
+  max-height: 82px;
   padding: 2px 8px;
   border: 1px solid var(--vno-border-strong);
   border-radius: var(--vno-radius-sm);
@@ -103,6 +105,10 @@
   outline: none;
   background-color: var(--vno-bg-window);
   color: var(--vno-text-primary);
+  resize: none;
+  overflow: auto;
+  white-space: pre-wrap;
+  line-height: 16px;
 }
 .vno-formula-input:focus {
   border-color: var(--vno-sheet-primary-fg, var(--vno-sheet-primary));

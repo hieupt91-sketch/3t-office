@@ -36,6 +36,12 @@ export class SheetApp {
 
     const templateId = options.templateId || "blank";
     const isBlank = templateId !== "budget_estimate";
+    const launchParams = new URLSearchParams(globalThis.location?.search || "");
+    const browserNumberParts = new Intl.NumberFormat().formatToParts(1234.5);
+    const numberLocale = {
+      decimalSeparator: launchParams.has("numberDecimal") ? launchParams.get("numberDecimal") : browserNumberParts.find(part => part.type === "decimal")?.value || ".",
+      thousandsSeparator: launchParams.has("numberThousands") ? launchParams.get("numberThousands") : browserNumberParts.find(part => part.type === "group")?.value || ","
+    };
     this.shell = new AppShell({
       appName: "sheet",
       appTitle: "3T Sheet",
@@ -63,7 +69,8 @@ export class SheetApp {
         this.shell.setStatus(`SẴN SÀNG  |  Ô: ${coord}  |  ĐẾM: ${stats.count}  |  TRUNG BÌNH: ${stats.avg}  |  TỔNG CỘNG: ${stats.sum}`);
       },
       isBlank,
-      templateId
+      templateId,
+      numberLocale
     });
     this.grid.mount();
 

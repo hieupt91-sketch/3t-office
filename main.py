@@ -3264,6 +3264,10 @@ def build_launch_url(
     if not app_kind:
         return f"http://localhost:{port}"
     query = {"app": app_kind, "singleApp": "1"}
+    if app_kind == "sheet":
+        decimal_separator, thousands_separator = _system_number_separators()
+        query["numberDecimal"] = decimal_separator
+        query["numberThousands"] = thousands_separator
     if initial_file:
         query["openFile"] = "1"
     if document_name:
@@ -3271,6 +3275,36 @@ def build_launch_url(
     if os.environ.get("VNO_PERF_DEBUG") == "1":
         query["perfDebug"] = "1"
     return f"http://localhost:{port}/?{urlencode(query)}"
+
+
+def _system_number_separators() -> tuple[str, str]:
+    """Read Windows regional number separators for Excel-compatible entry."""
+    if os.name == "nt":
+        try:
+            import ctypes
+
+            get_locale_info = ctypes.windll.kernel32.GetLocaleInfoEx
+
+            def read_field(field: int) -> str:
+                buffer = ctypes.create_unicode_buffer(16)
+                if not get_locale_info(None, field, buffer, len(buffer)):
+                    return ""
+                return buffer.value
+
+            decimal_separator = read_field(0x0000000E)  # LOCALE_SDECIMAL
+            thousands_separator = read_field(0x0000000F)  # LOCALE_STHOUSAND
+            if decimal_separator:
+                return decimal_separator, thousands_separator
+        except (AttributeError, OSError, TypeError, ValueError):
+            pass
+
+    try:
+        import locale
+
+        number_locale = locale.localeconv()
+        return number_locale.get("decimal_point") or ".", number_locale.get("thousands_sep") or ","
+    except (ImportError, ValueError):
+        return ".", ","
 
 
 def _update_token_from_args(argv: list[str]) -> str | None:

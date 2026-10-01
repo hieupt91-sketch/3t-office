@@ -47,6 +47,31 @@ export async function runSheetUndoRedoTests() {
     assert(grid.undoStack.length === 2, "Một thao tác rời rạc phải tạo bước history riêng");
   });
 
+  test("C1: undo/redo khôi phục number format do nhận dạng tự động", () => {
+    const grid = createSheetGridWithSheets(container(), ["Sheet1"]);
+    grid.options.numberLocale = { decimalSeparator: ".", thousandsSeparator: "," };
+    grid.setCellValue("A", 1, "25%", true, { coalesce: true, userInput: true });
+    assert(grid.cellsData.get("A1")?.val === 0.25, "25% phải được lưu thành số 0.25");
+    assert(grid.cellsData.get("A1")?.style?.numberFormat?.category === "percentage", "Ô phải có number format phần trăm");
+    grid.undo();
+    assert(grid.cellsData.get("A1")?.val === "" && !grid.cellsData.get("A1")?.style?.numberFormat, "Undo phải xóa giá trị và number format phát sinh");
+    grid.redo();
+    assert(grid.cellsData.get("A1")?.val === 0.25 && grid.cellsData.get("A1")?.style?.numberFormat?.category === "percentage", "Redo phải khôi phục số và number format");
+  });
+
+  test("C1: Alt+Enter lưu newline, bật wrap text và tăng chiều cao hàng cùng một bước undo", () => {
+    const grid = createSheetGridWithSheets(container(), ["Sheet1"]);
+    grid.setCellValue("A", 2, "Dòng một\nDòng hai", true, { coalesce: true, userInput: true });
+    assert(grid.cellsData.get("A2")?.val === "Dòng một\nDòng hai", "Ô phải giữ newline thật");
+    assert(grid.cellsData.get("A2")?.style?.whiteSpace === "pre-wrap", "Newline phải bật wrap text");
+    assert(grid.getRowHeight(2) > grid.rowHeight, "Hàng chứa hai dòng phải cao hơn hàng thường");
+    grid.undo();
+    assert(grid.cellsData.get("A2")?.val === "" && !grid.cellsData.get("A2")?.style?.whiteSpace, "Undo phải khôi phục ô ban đầu");
+    assert(grid.getRowHeight(2) === grid.rowHeight, "Undo phải khôi phục chiều cao hàng");
+    grid.redo();
+    assert(grid.cellsData.get("A2")?.val === "Dòng một\nDòng hai" && grid.getRowHeight(2) > grid.rowHeight, "Redo phải phục hồi newline và chiều cao hàng");
+  });
+
   test("Undo/Redo history: giới hạn đúng 100 bước gần nhất", () => {
     const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     for (let index = 0; index < 105; index++) grid.setCellValue("A", 1, index);

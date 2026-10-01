@@ -935,12 +935,14 @@ export const SHEET_HELP_ENTRIES = [
     app: "sheet",
     commandIds: ["common.file.backstage"],
     title: "Điều hướng bằng bàn phím và trợ năng (3T Sheet)",
-    summary: "Thao tác hoàn toàn bằng bàn phím không cần dùng chuột trên bảng tính: di chuyển ô bằng phím mũi tên, Enter, Tab; mở hộp thoại Định dạng ô bằng phím tắt Ctrl+1; bẫy tiêu điểm bên trong hộp thoại (kể cả khi chuyển tab) và tự động khôi phục tiêu điểm về ô lưới sau khi nhấn Escape.",
+    summary: "Nhập và sửa dữ liệu bằng bàn phím: lưới tự nhận dạng số, ngày, giờ, phần trăm và tiền VND theo vùng Windows; Alt+Enter xuống dòng trong ô và tự tăng chiều cao hàng.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Trợ năng" },
-    keywords: ["bàn phím", "phím tắt", "trợ năng", "accessibility", "keyboard", "focus", "ctrl+1", "esc", "tab", "lưới", "ô"],
+    keywords: ["bàn phím", "phím tắt", "trợ năng", "accessibility", "keyboard", "focus", "ctrl+1", "esc", "tab", "lưới", "ô", "nhập dữ liệu", "tự nhận dạng", "Alt+Enter", "ngắt dòng", "số", "ngày", "giờ", "phần trăm", "VND"],
     steps: [
       "Di chuyển trên lưới ô tính: Dùng các phím mũi tên Lên/Xuống/Trái/Phải để chuyển qua các ô lân cận. Phím Tab di chuyển sang ô bên phải, Shift+Tab sang ô bên trái. Phím Enter di chuyển xuống ô bên dưới, Shift+Enter lên ô bên trên. Dùng Ctrl+Home để nhảy về ô A1 và Ctrl+End về ô cuối cùng có dữ liệu.",
-      "Nhập dữ liệu và công thức: Khi đang chọn một ô, chỉ cần gõ trực tiếp chữ số hoặc công thức (ví dụ: =SUM(A1:A10) hoặc =100+250) rồi nhấn Enter để xác nhận và tự động tính kết quả. Nhấn F2 để vào chế độ chỉnh sửa nội dung ô mà không làm mất dữ liệu hiện có.",
+      "Nhập dữ liệu: Chọn ô rồi gõ giá trị và nhấn Enter. Lưới tự nhận dạng số, ngày dạng dd/mm/yyyy, giờ hh:mm, phần trăm (25% thành 0,25) và tiền VND có ký hiệu ₫ theo dấu thập phân/dấu phân nhóm Windows. Số bắt đầu bằng 0 như 0123 trở thành 123 ở định dạng General; định dạng Text giữ nguyên 0123. Gõ dấu nháy đơn trước giá trị, ví dụ '0123, để giữ nội dung dạng văn bản.",
+      "Nhập công thức: Khi đang chọn một ô, gõ trực tiếp công thức (ví dụ: =SUM(A1:A10) hoặc =100+250) rồi nhấn Enter để xác nhận và tự động tính kết quả. Nhấn F2 để sửa nội dung ô đang có.",
+      "Xuống dòng trong cùng một ô: Khi đang nhập hoặc sửa nội dung tại ô hoặc thanh công thức, đặt con trỏ ở vị trí cần ngắt rồi nhấn Alt+Enter. Lưới chèn ký tự xuống dòng, bật Ngắt dòng tự động cho ô và tăng chiều cao hàng để hiện các dòng.",
       "Mở hộp thoại Định dạng ô (Ctrl+1): Nhấn tổ hợp phím Ctrl+1 tại bất kỳ ô nào để mở hộp thoại Định dạng ô toàn diện. Tiêu điểm sẽ tự động bẫy trong hộp thoại. Phím Tab và Shift+Tab chuyển qua lại giữa các trường nhập số, kiểu canh lề, phông chữ và viền. Ngay cả khi các tab khác đang ẩn, phím Tab không bao giờ bị rơi ra ngoài lưới nền.",
       "Đóng hộp thoại và khôi phục tiêu điểm: Nhấn phím Escape để đóng hộp thoại Định dạng ô. Tiêu điểm lập tức được khôi phục chính xác về ô bạn đang chọn trước đó, cho phép bạn tiếp tục điều hướng bằng các phím mũi tên ngay mà không cần dùng chuột.",
       "Mở menu Tệp (Backstage) bằng Alt+F: Menu mở ra và tiêu điểm đặt vào nút 'Quay lại'. Dùng mũi tên Lên/Xuống để duyệt danh sách lệnh, phím Escape để đóng menu trở về lưới ô tính."
