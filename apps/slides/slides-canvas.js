@@ -503,7 +503,12 @@ export class SlidesCanvasController {
     this.titleEl.addEventListener("keydown", (e) => {
       if (e.key === "Tab") {
         e.preventDefault();
-        this.selectNextObject(e.shiftKey);
+        e.stopPropagation();
+        if (this.bodyEl && this.bodyEl.style.display !== "none") {
+          this.bodyEl.focus();
+        } else {
+          this.selectNextObject(e.shiftKey);
+        }
       } else if (e.key === "Escape") {
         e.preventDefault();
         this.titleEl.blur();
@@ -513,7 +518,15 @@ export class SlidesCanvasController {
     this.bodyEl.addEventListener("keydown", (e) => {
       if (e.key === "Tab") {
         e.preventDefault();
-        this.selectNextObject(e.shiftKey);
+        e.stopPropagation();
+        if (e.shiftKey) {
+          document.execCommand("outdent", false, null);
+        } else {
+          document.execCommand("indent", false, null);
+        }
+        this._syncEditableFieldsFromDom();
+        this.options.onDocumentChange?.();
+        this._renderThumbnails();
       } else if (e.key === "Escape") {
         e.preventDefault();
         this.bodyEl.blur();
@@ -523,7 +536,15 @@ export class SlidesCanvasController {
     this.body2El.addEventListener("keydown", (e) => {
       if (e.key === "Tab") {
         e.preventDefault();
-        this.selectNextObject(e.shiftKey);
+        e.stopPropagation();
+        if (e.shiftKey) {
+          document.execCommand("outdent", false, null);
+        } else {
+          document.execCommand("indent", false, null);
+        }
+        this._syncEditableFieldsFromDom();
+        this.options.onDocumentChange?.();
+        this._renderThumbnails();
       } else if (e.key === "Escape") {
         e.preventDefault();
         this.body2El.blur();
@@ -531,11 +552,44 @@ export class SlidesCanvasController {
       }
     });
 
-    this.titleEl.addEventListener("focus", () => this.setSelectedTarget("title"));
+    const attachPlaceholderUndoTracking = (el, field) => {
+      let beforeSnapshot = null;
+      el.addEventListener("focus", () => {
+        this.setSelectedTarget(field);
+        beforeSnapshot = {
+          text: (el.innerText || "").normalize("NFC"),
+          html: this._captureEditableHtml(el)
+        };
+      });
+      el.addEventListener("blur", () => {
+        this._syncEditableFieldsFromDom();
+        if (beforeSnapshot) {
+          const afterText = (el.innerText || "").normalize("NFC");
+          const afterHtml = this._captureEditableHtml(el);
+          if (beforeSnapshot.text !== afterText || beforeSnapshot.html !== afterHtml) {
+            this.undoStack.push({
+              type: "placeholder-text-edit",
+              slideIndex: this.currentSlideIndex,
+              field,
+              before: beforeSnapshot.text,
+              beforeHtml: beforeSnapshot.html,
+              after: afterText,
+              afterHtml: afterHtml
+            });
+            this.redoStack = [];
+            this._syncUndoRedoState();
+          }
+          beforeSnapshot = null;
+        }
+      });
+    };
+
+    attachPlaceholderUndoTracking(this.titleEl, "title");
+    attachPlaceholderUndoTracking(this.bodyEl, "body");
+    attachPlaceholderUndoTracking(this.body2El, "body2");
+
     this.titleEl.addEventListener("click", () => this.setSelectedTarget("title"));
-    this.bodyEl.addEventListener("focus", () => this.setSelectedTarget("body"));
     this.bodyEl.addEventListener("click", () => this.setSelectedTarget("body"));
-    this.body2El.addEventListener("focus", () => this.setSelectedTarget("body2"));
     this.body2El.addEventListener("click", () => this.setSelectedTarget("body2"));
     this.titleEl.addEventListener("mouseup", () => this._onTextFieldFormatPainter("title"));
     this.bodyEl.addEventListener("mouseup", () => this._onTextFieldFormatPainter("body"));
@@ -4096,14 +4150,18 @@ export class SlidesCanvasController {
           }
         });
         textEl.addEventListener("keydown", (event) => {
-          if (event.key === "Enter" || event.key === "Escape") {
+          if (event.key === "Escape") {
             event.preventDefault();
             textEl.blur();
             el.focus?.();
           } else if (event.key === "Tab") {
             event.preventDefault();
-            textEl.blur();
-            this.selectNextObject(event.shiftKey);
+            event.stopPropagation();
+            if (event.shiftKey) {
+              document.execCommand("outdent", false, null);
+            } else {
+              document.execCommand("indent", false, null);
+            }
           }
           event.stopPropagation();
         });
@@ -4236,8 +4294,12 @@ export class SlidesCanvasController {
             el.focus?.();
           } else if (event.key === "Tab") {
             event.preventDefault();
-            textEl.blur();
-            this.selectNextObject(event.shiftKey);
+            event.stopPropagation();
+            if (event.shiftKey) {
+              document.execCommand("outdent", false, null);
+            } else {
+              document.execCommand("indent", false, null);
+            }
           }
           event.stopPropagation();
         });
@@ -4347,14 +4409,18 @@ export class SlidesCanvasController {
             }
           });
           textEl.addEventListener("keydown", (event) => {
-            if (event.key === "Enter" || event.key === "Escape") {
+            if (event.key === "Escape") {
               event.preventDefault();
               textEl.blur();
               el.focus?.();
             } else if (event.key === "Tab") {
               event.preventDefault();
-              textEl.blur();
-              this.selectNextObject(event.shiftKey);
+              event.stopPropagation();
+              if (event.shiftKey) {
+                document.execCommand("outdent", false, null);
+              } else {
+                document.execCommand("indent", false, null);
+              }
             }
             event.stopPropagation();
           });
@@ -4523,7 +4589,7 @@ export class SlidesCanvasController {
         let newH = origH;
 
         const isCorner = ["nw", "ne", "se", "sw"].includes(dir);
-        const keepAspect = isCorner && moveEvent.shiftKey;
+        const keepAspect = isCorner && (shape.type === "image" || moveEvent.shiftKey);
 
         if (dir.includes("e")) {
           newW = Math.max(20, origW + localDx);
@@ -5630,7 +5696,17 @@ export class SlidesCanvasController {
         this._openSlideSectionMenu(idx, event.clientX || 0, event.clientY || 0);
       });
       item.addEventListener("keydown", (event) => {
-        if (event.key === "ArrowDown" || event.key === "ArrowRight") {
+        if ((event.ctrlKey || event.metaKey) && event.key === "ArrowUp" && idx > 0) {
+          event.preventDefault();
+          event.stopPropagation();
+          this.moveSlide(idx, idx - 1, true, this.slides[idx - 1]?.sectionId || null);
+          this.slideListContainer?.querySelector(`[data-slide-index="${idx - 1}"]`)?.focus();
+        } else if ((event.ctrlKey || event.metaKey) && event.key === "ArrowDown" && idx < this.slides.length - 1) {
+          event.preventDefault();
+          event.stopPropagation();
+          this.moveSlide(idx, idx + 1, true, this.slides[idx + 1]?.sectionId || null);
+          this.slideListContainer?.querySelector(`[data-slide-index="${idx + 1}"]`)?.focus();
+        } else if (event.key === "ArrowDown" || event.key === "ArrowRight") {
           event.preventDefault();
           event.stopPropagation();
           const nextIdx = Math.min(this.slides.length - 1, idx + 1);
@@ -5674,12 +5750,12 @@ export class SlidesCanvasController {
           event.preventDefault();
           event.stopPropagation();
           if (this.slides.length > 1) {
-            this.deleteCurrentSlide();
+            this.deleteCurrentSlide(true, true);
           }
         } else if ((event.ctrlKey || event.metaKey) && (event.key === "d" || event.key === "D")) {
           event.preventDefault();
           event.stopPropagation();
-          this.duplicateCurrentSlide();
+          this.duplicateCurrentSlide(true, true);
           this.slideListContainer?.querySelector(`[data-slide-index="${this.currentSlideIndex}"]`)?.focus();
         } else if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
           event.preventDefault();
@@ -5856,8 +5932,8 @@ export class SlidesCanvasController {
     return true;
   }
 
-  duplicateCurrentSlide(recordUndo = true) {
-    if (!this.slideSorterOverlay && this.selectedShapeIds && this.selectedShapeIds.size > 0) {
+  duplicateCurrentSlide(recordUndo = true, forceSlide = false) {
+    if (!forceSlide && !this.slideSorterOverlay && this.selectedShapeIds && this.selectedShapeIds.size > 0) {
       return this.duplicateSelectedShapes();
     }
     const cur = this.slides[this.currentSlideIndex];
@@ -5895,8 +5971,8 @@ export class SlidesCanvasController {
     return true;
   }
 
-  deleteCurrentSlide(recordUndo = true) {
-    if (!this.slideSorterOverlay && this.selectedShapeIds && this.selectedShapeIds.size > 0) {
+  deleteCurrentSlide(recordUndo = true, forceSlide = false) {
+    if (!forceSlide && !this.slideSorterOverlay && this.selectedShapeIds && this.selectedShapeIds.size > 0) {
       return this.deleteSelectedShapes();
     }
     if (this.slides.length <= 1) return false;
@@ -6301,12 +6377,12 @@ export class SlidesCanvasController {
     menu.querySelector('[data-slide-action="duplicate"]')?.addEventListener("click", () => {
       close(false);
       this.selectSlide(slideIndex);
-      this.duplicateCurrentSlide();
+      this.duplicateCurrentSlide(true, true);
     });
     menu.querySelector('[data-slide-action="delete"]')?.addEventListener("click", () => {
       close(false);
       this.selectSlide(slideIndex);
-      this.deleteCurrentSlide();
+      this.deleteCurrentSlide(true, true);
     });
     menu.querySelector('[data-section-action="add"]')?.addEventListener("click", async () => {
       close(false);
@@ -6644,6 +6720,48 @@ export class SlidesCanvasController {
           event.preventDefault();
           this.selectSlide(index);
           this.closeSlideSorter();
+        } else if (event.key === "Delete" || event.key === "Backspace") {
+          event.preventDefault();
+          if (this.slides.length > 1) {
+            this.selectSlide(index);
+            this.deleteCurrentSlide(true, true);
+            this._renderSlideSorterGrid();
+            const nextIdx = Math.min(index, this.slides.length - 1);
+            grid.querySelector(`[data-slide-index="${nextIdx}"]`)?.focus?.();
+          }
+        } else if ((event.ctrlKey || event.metaKey) && (event.key === "d" || event.key === "D")) {
+          event.preventDefault();
+          this.selectSlide(index);
+          this.duplicateCurrentSlide(true, true);
+          this._renderSlideSorterGrid();
+          grid.querySelector(`[data-slide-index="${index + 1}"]`)?.focus?.();
+        } else if ((event.ctrlKey || event.metaKey) && (event.key === "ArrowLeft" || event.key === "ArrowUp") && index > 0) {
+          event.preventDefault();
+          this.moveSlide(index, index - 1, true, this.slides[index - 1]?.sectionId || null);
+          this._renderSlideSorterGrid();
+          grid.querySelector(`[data-slide-index="${index - 1}"]`)?.focus?.();
+        } else if ((event.ctrlKey || event.metaKey) && (event.key === "ArrowRight" || event.key === "ArrowDown") && index < this.slides.length - 1) {
+          event.preventDefault();
+          this.moveSlide(index, index + 1, true, this.slides[index + 1]?.sectionId || null);
+          this._renderSlideSorterGrid();
+          grid.querySelector(`[data-slide-index="${index + 1}"]`)?.focus?.();
+        } else if (event.key === "ArrowLeft" && index > 0) {
+          event.preventDefault();
+          this.selectSlide(index - 1);
+          grid.querySelector(`[data-slide-index="${index - 1}"]`)?.focus?.();
+        } else if (event.key === "ArrowRight" && index < this.slides.length - 1) {
+          event.preventDefault();
+          this.selectSlide(index + 1);
+          grid.querySelector(`[data-slide-index="${index + 1}"]`)?.focus?.();
+        } else if (event.key === "Home" && this.slides.length > 0) {
+          event.preventDefault();
+          this.selectSlide(0);
+          grid.querySelector('[data-slide-index="0"]')?.focus?.();
+        } else if (event.key === "End" && this.slides.length > 0) {
+          event.preventDefault();
+          const lastIdx = this.slides.length - 1;
+          this.selectSlide(lastIdx);
+          grid.querySelector(`[data-slide-index="${lastIdx}"]`)?.focus?.();
         } else if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
           event.preventDefault();
           const rect = item.getBoundingClientRect?.() || { left: 100, top: 100 };
@@ -6676,13 +6794,13 @@ export class SlidesCanvasController {
       item.querySelector('[data-action="duplicate"]')?.addEventListener("click", (event) => {
         event.stopPropagation();
         this.selectSlide(index);
-        this.duplicateCurrentSlide();
+        this.duplicateCurrentSlide(true, true);
         this._renderSlideSorterGrid();
       });
       item.querySelector('[data-action="delete"]')?.addEventListener("click", (event) => {
         event.stopPropagation();
         this.selectSlide(index);
-        this.deleteCurrentSlide();
+        this.deleteCurrentSlide(true, true);
         this._renderSlideSorterGrid();
       });
       grid.appendChild(item);
@@ -6784,6 +6902,27 @@ export class SlidesCanvasController {
       this.redoStack.push(action);
       this.selectSlide(action.slideIndex);
       this._renderShapesLayer();
+      return true;
+    } else if (action.type === "placeholder-text-edit") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      if (action.field === "title") {
+        slide.title = action.before;
+        if (action.beforeHtml) slide.titleHtml = action.beforeHtml;
+        else delete slide.titleHtml;
+      } else if (action.field === "body") {
+        slide.body = action.before;
+        if (action.beforeHtml) slide.bodyHtml = action.beforeHtml;
+        else delete slide.bodyHtml;
+      } else if (action.field === "body2") {
+        slide.body2 = action.before;
+        if (action.beforeHtml) slide.body2Html = action.beforeHtml;
+        else delete slide.body2Html;
+      }
+      this.redoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderThumbnails();
+      this.options.onDocumentChange?.();
       return true;
     } else if (action.type === "shape-text-edit") {
       const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
@@ -7068,6 +7207,27 @@ export class SlidesCanvasController {
       this.undoStack.push(action);
       this.selectSlide(action.slideIndex);
       this._renderShapesLayer();
+      return true;
+    } else if (action.type === "placeholder-text-edit") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      if (action.field === "title") {
+        slide.title = action.after;
+        if (action.afterHtml) slide.titleHtml = action.afterHtml;
+        else delete slide.titleHtml;
+      } else if (action.field === "body") {
+        slide.body = action.after;
+        if (action.afterHtml) slide.bodyHtml = action.afterHtml;
+        else delete slide.bodyHtml;
+      } else if (action.field === "body2") {
+        slide.body2 = action.after;
+        if (action.afterHtml) slide.body2Html = action.afterHtml;
+        else delete slide.body2Html;
+      }
+      this.undoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderThumbnails();
+      this.options.onDocumentChange?.();
       return true;
     } else if (action.type === "shape-text-edit") {
       const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
@@ -9420,6 +9580,20 @@ export class SlidesCanvasController {
    */
   startRehearseTimings(startIndex) {
     return this.startSlideShow(startIndex, { rehearsal: true });
+  }
+
+  exitSlideShow() {
+    if (typeof this._activeShowCleanup === "function") {
+      this._activeShowCleanup();
+      this._activeShowCleanup = null;
+      return true;
+    }
+    const overlay = typeof document !== "undefined" ? document.querySelector(".vno-slideshow-overlay") : null;
+    if (overlay) {
+      overlay.remove();
+      return true;
+    }
+    return false;
   }
 
   startPresenterMode(startIndex) {
