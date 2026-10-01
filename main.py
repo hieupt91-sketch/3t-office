@@ -675,7 +675,7 @@ class _SofficeUnoWorker:
         except (TypeError, ValueError):
             soffice_pid = 0
         if _PROCESS_TRACKER is not None and soffice_pid > 0:
-            _PROCESS_TRACKER.register(soffice_pid, "soffice")
+            _PROCESS_TRACKER.register_tree(soffice_pid, "soffice")
         if _PERFORMANCE_LOGGER is not None:
             _PERFORMANCE_LOGGER.record(
                 "soffice_start", app=self.app_kind,

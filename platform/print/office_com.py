@@ -317,6 +317,7 @@ def export_pdf_with_office(
         script_path = worker_root / "office-pdf-export.ps1"
         process_info_path = worker_root / "office-process.json"
         script_path.write_bytes(_POWERSHELL_WORKER.encode("ascii"))
+        environment = getattr(os, "environ", {})
         command = [
             powershell, "-NoProfile", "-NonInteractive", "-STA", "-ExecutionPolicy", "Bypass",
             "-File", str(script_path),
@@ -325,9 +326,9 @@ def export_pdf_with_office(
             "-InputPath", str(source),
             "-OutputPath", str(output_path),
             "-ProcessInfoPath", str(process_info_path),
-            "-ProcessTrackerPath", os.environ.get("VNO_PROCESS_TRACKER_STATE", ""),
-            "-ProcessTrackerOwnerPid", os.environ.get("VNO_PROCESS_TRACKER_ROOT_PID", ""),
-            "-ProcessTrackerOwnerCreatedAt", os.environ.get("VNO_PROCESS_TRACKER_ROOT_CREATED_AT", ""),
+            "-ProcessTrackerPath", environment.get("VNO_PROCESS_TRACKER_STATE", ""),
+            "-ProcessTrackerOwnerPid", environment.get("VNO_PROCESS_TRACKER_ROOT_PID", ""),
+            "-ProcessTrackerOwnerCreatedAt", environment.get("VNO_PROCESS_TRACKER_ROOT_CREATED_AT", ""),
         ]
         try:
             process = runner(
@@ -340,7 +341,7 @@ def export_pdf_with_office(
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
             )
             process_id = int(getattr(process, "pid", 0) or 0)
-            tracker_state = os.environ.get("VNO_PROCESS_TRACKER_STATE", "")
+            tracker_state = environment.get("VNO_PROCESS_TRACKER_STATE", "")
             if process_id > 0 and tracker_state:
                 tracker_path = Path(__file__).resolve().parents[2] / "platform" / "process_lifecycle" / "process_tracker.py"
                 tracker_name = "_vno_process_tracker_office_com"

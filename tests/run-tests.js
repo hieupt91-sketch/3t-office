@@ -203,6 +203,9 @@ import { runOfficeShortcutCoverageTests } from "./unit/office-shortcut-coverage.
 import { runMissingOfficeShortcutsTests } from "./unit/missing-office-shortcuts.test.js";
 import { runSlidesPenLaserTests } from "./unit/slides-pen-laser.test.js";
 import { runBasicEditingKeysTests } from "./unit/basic-editing-keys.test.js";
+import { runCh9AutoRecoverTests } from "./unit/ch9-autorecover.test.js";
+import { runCh9ProcessCleanupTests } from "./unit/ch9-process-cleanup.test.js";
+import { runCh9PerformanceLogTests } from "./unit/ch9-performance-log.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -415,7 +418,10 @@ async function runAll() {
     { title: "164. Unit Tests — Office Missing Shortcuts (Ctrl+], Ctrl+[, Ctrl+Shift++, Shift+F11, Ctrl+-, F11) & Undo", runner: runMissingOfficeShortcutsTests },
     { title: "165. Unit Tests — Slides F5 Pen and Laser Pointer (Ctrl+P, Ctrl+L, Ctrl+A, E, Color, Keep/Discard ink)", runner: runSlidesPenLaserTests },
     { title: "166. Unit Tests — VN Sheet range selection anchors, multi-area status and drag auto-scroll math", runner: runSheetRangeSelectionTests },
-    { title: "167. Unit Tests — 3T Doc and 3T Sheet basic editing keys and clipboard", runner: runBasicEditingKeysTests }
+    { title: "167. Unit Tests — 3T Doc and 3T Sheet basic editing keys and clipboard", runner: runBasicEditingKeysTests },
+    { title: "168. CH-9.2 — AutoRecover 2 phút, dialog và Help cho 3 app", runner: runCh9AutoRecoverTests },
+    { title: "169. CH-9.4 — PID ledger, orphan sweep an toàn và Help", runner: runCh9ProcessCleanupTests },
+    { title: "170. CH-9.5 — JSONL hiệu năng, Options bridge, rotation và Help", runner: runCh9PerformanceLogTests }
   ];
 
   for (const suite of suites) {
