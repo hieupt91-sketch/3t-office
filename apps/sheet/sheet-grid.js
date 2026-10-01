@@ -2338,6 +2338,26 @@ export class SheetGridController {
     };
   }
 
+  _showTabColorMenu(event, sheetName) {
+    const colors = ["", "#f44336", "#ff9800", "#ffeb3b", "#4caf50", "#2196f3", "#673ab7", "#e91e63"];
+    const menu = document.createElement("div");
+    menu.className = "vno-sheet-context-menu";
+    menu.setAttribute("role", "menu");
+    menu.setAttribute("aria-label", "Màu tab");
+    colors.forEach(color => {
+      const button = document.createElement("button");
+      button.type = "button"; button.className = "vno-sheet-context-item"; button.setAttribute("role", "menuitem");
+      button.textContent = color || "Không màu";
+      if (color) button.style.borderLeft = `12px solid ${color}`;
+      button.addEventListener("click", () => { this._closeContextMenu(); this.setTabColor(color, sheetName); });
+      menu.appendChild(button);
+    });
+    menu.style.cssText = `position:fixed;left:${Math.max(10, event.clientX)}px;top:${Math.max(10, event.clientY)}px;z-index:81;`;
+    document.body.appendChild(menu); this._activeContextMenu = menu;
+    menu._vnoCleanup = () => {};
+    menu.querySelector("button")?.focus();
+  }
+
   _closeContextMenu() {
     if (this._activeContextMenu) {
       this._activeContextMenu._vnoCleanup?.();
@@ -2356,7 +2376,36 @@ export class SheetGridController {
     }
   }
 
+  _currentRegionFromSelection() {
+    const start = { ...(this.selectedCoord || { c: "A", r: 1 }) };
+    const hasValue = (c, r) => {
+      const item = this.cellsData.get(`${c}${r}`);
+      return !!item && (item.val !== undefined && item.val !== "" || item.formula);
+    };
+    if (!hasValue(start.c, start.r)) return null;
+    let left = this._columnNumber(start.c), right = left, top = start.r, bottom = start.r;
+    let changed = true;
+    while (changed) {
+      changed = false;
+      if (left > 1 && Array.from({ length: bottom - top + 1 }, (_, i) => hasValue(this._columnLabel(left - 1), top + i)).some(Boolean)) { left--; changed = true; }
+      if (right < this.cols.length && Array.from({ length: bottom - top + 1 }, (_, i) => hasValue(this._columnLabel(right + 1), top + i)).some(Boolean)) { right++; changed = true; }
+      if (top > 1 && Array.from({ length: right - left + 1 }, (_, i) => hasValue(this._columnLabel(left + i), top - 1)).some(Boolean)) { top--; changed = true; }
+      if (bottom < this.rowCount && Array.from({ length: right - left + 1 }, (_, i) => hasValue(this._columnLabel(left + i), bottom + 1)).some(Boolean)) { bottom++; changed = true; }
+    }
+    return { start: { c: this._columnLabel(left), r: top }, end: { c: this._columnLabel(right), r: bottom } };
+  }
+
   selectAll() {
+    const region = this._currentRegionFromSelection();
+    const current = this._normalizeRange(this.selectionRange);
+    if (region && (!current || this._rangeLabel(region) !== this._rangeLabel(current))) {
+      this.selectionRange = structuredClone(region);
+      this.selectionRanges = [this.selectionRange];
+      this.selectionKind = "cell";
+      this._renderSelection?.();
+      this._syncSelectionUi?.();
+      return true;
+    }
     this.selectCell("A", 1);
     this.selectCell(this.cols[this.cols.length - 1], this.rowCount, true);
     return true;
@@ -2808,6 +2857,11 @@ export class SheetGridController {
     const items = [
       { label: t("sheetDialogs.renameSheetMenu", "Đổi tên trang tính..."), action: () => this.showRenameSheetDialog(sheetName) },
       { label: t("sheetDialogs.moveCopyMenu", "Di chuyển hoặc Sao chép trang tính..."), action: () => this.showMoveCopySheetDialog(sheetName) },
+      { label: "Xóa trang tính", action: () => {
+        if (this.sheets.length <= 1) { this._showDataNotice("Không thể xóa trang tính cuối cùng."); return; }
+        if (globalThis.confirm?.(`Xóa trang tính «${sheetName}»?`) !== false) this.deleteSheet(sheetName);
+      } },
+      { label: "Màu tab", action: () => this._showTabColorMenu(event, sheetName) },
       { label: this.isSheetProtected(sheetName)
         ? t("sheetDialogs.unprotectSheet", "Bỏ bảo vệ trang tính...")
         : t("sheetDialogs.protectSheet", "Bảo vệ trang tính..."), action: () => this.showProtectSheetDialog(sheetName) }
@@ -4019,6 +4073,10 @@ _bindGridKeyboardNavigation() {
         e.preventDefault();
         this.selectCurrentRow();
         return;
+      } else if (e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey && (e.key === "a" || e.key === "A")) {
+        e.preventDefault();
+        this.selectAll();
+        return;
       } else if (e.key === "`" && e.ctrlKey) {
         e.preventDefault();
         this.toggleShowFormulas();
@@ -4337,6 +4395,21 @@ _bindGridKeyboardNavigation() {
     }
     this.refreshCharts();
     this._updateWatchWindow?.();
+    return true;
+  }
+
+  setTabColor(color = "", sheetName = this.activeSheet, recordUndo = true) {
+    if (!sheetName || !this.sheets.includes(sheetName) || this._guardWorkbookStructure()) return false;
+    const state = this.sheetStates[sheetName] ||= {};
+    const previous = state.tabColor || this.tabColors?.[sheetName] || "";
+    const next = String(color || "").toLowerCase();
+    if (previous === next) return true;
+    if (next) state.tabColor = next; else delete state.tabColor;
+    this.tabColors ||= {};
+    if (next) this.tabColors[sheetName] = next; else delete this.tabColors[sheetName];
+    this._renderSheetTabs();
+    if (recordUndo) this._recordHistory({ type: "sheet-tab-color", sheet: sheetName, previous, next });
+    this.options.onDocumentChange?.();
     return true;
   }
 
@@ -8227,6 +8300,9 @@ _bindGridKeyboardNavigation() {
       const index = direction === "undo" ? action.fromIndex : action.toIndex;
       return this._moveSheetToIndex(action.name, index);
     }
+    if (action.type === "sheet-tab-color") {
+      return this.setTabColor(direction === "undo" ? action.previous : action.next, action.sheet, false);
+    }
     if (action.sheet && action.sheet !== this.activeSheet) this.switchSheet(action.sheet);
     const value = direction === "undo" ? "prevVal" : "nextVal";
     if (action.type === "merge-cells") {
@@ -8447,6 +8523,14 @@ _bindGridKeyboardNavigation() {
     }
 
     if (rowsWithData.length < 2) return false;
+
+    // Excel treats a text first row as a header when sorting a contiguous table.
+    // Keep it in place for the simple A-Z/Z-A commands; the custom dialog already
+    // exposes an explicit "Dữ liệu có hàng tiêu đề" choice.
+    const firstRow = Math.min(...rowsWithData);
+    const firstRowValues = this.cols.map(c => this.cellsData.get(`${c}${firstRow}`)?.val).filter(v => v !== undefined && v !== "");
+    const hasHeader = firstRowValues.length > 0 && firstRowValues.every(v => typeof v === "string" && Number.isNaN(Number(String(v).replace(/[,\.]/g, ""))));
+    if (hasHeader) rowsWithData.splice(rowsWithData.indexOf(firstRow), 1);
 
     rowsWithData.sort((a, b) => a - b);
     const minRow = rowsWithData[0];

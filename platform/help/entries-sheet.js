@@ -435,6 +435,18 @@ export const SHEET_HELP_ENTRIES = [
     ]
   },
   {
+    id: "sheet.sheet.deleteAndTabColor", app: "sheet",
+    commandIds: [],
+    title: "Xóa trang tính và đổi màu tab",
+    summary: "Quản lý tab trang tính bằng menu chuột phải, gồm xóa trang tính và đặt màu tab.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Ô" },
+    keywords: ["xóa trang tính", "màu tab", "delete sheet", "tab color"],
+    steps: [
+      "Nhấp phải tab trang tính ở thanh dưới lưới rồi chọn Xóa trang tính. 3T Sheet hỏi xác nhận; không thể xóa trang tính cuối cùng. Dùng Ctrl+Z để hoàn tác.",
+      "Nhấp phải tab, chọn Màu tab rồi chọn màu hoặc Không màu. Màu được lưu cùng tệp XLSX và khôi phục khi mở lại."
+    ]
+  },
+  {
     id: "sheet.sheet.protect",
     app: "sheet",
     commandIds: ["sheet.sheet.protect"],
