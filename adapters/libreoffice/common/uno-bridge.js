@@ -14,6 +14,10 @@ export class UnoBridge {
     this.hasRealEngine = false;
     this._listeners = new Map();
     this._browserDocumentSequences = { writer: 1, sheet: 1, slides: 1 };
+    // Bind standard command handlers immediately upon module import.
+    // This runs AFTER bootstrapPlatform() registers commands (see index.html order),
+    // but BEFORE app attach() binds its own handlers, so apps can overwrite as needed.
+    this._bindAllStandardCommands();
   }
 
   /**
@@ -70,7 +74,8 @@ export class UnoBridge {
       );
     }
 
-    this._bindAllStandardCommands();
+    // _bindAllStandardCommands() already called in constructor during module import.
+    // Do not call again here to avoid overwriting app-specific handlers bound in attach().
   }
 
   /**
