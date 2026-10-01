@@ -14,7 +14,7 @@ SPEC.loader.exec_module(PIPELINE)
 
 
 class PrintPipelineTests(unittest.TestCase):
-    def make_pipeline(self, fake_printer_command):
+    def make_pipeline(self, fake_printer_command, *, office_candidates=None, convert_office_pdf=None):
         self.written_source_paths = []
 
         def write_source(content, app_kind, temp_dir, source_path=None):
@@ -38,6 +38,8 @@ class PrintPipelineTests(unittest.TestCase):
         return PIPELINE.PrintPipeline(
             write_source=write_source,
             convert_pdf=convert_pdf,
+            office_candidates=office_candidates,
+            convert_office_pdf=convert_office_pdf,
             inspect_pdf=inspect_pdf,
             render_page=render_page,
             print_pdf=fake_printer_command,
@@ -71,6 +73,46 @@ class PrintPipelineTests(unittest.TestCase):
         self.assertTrue(temp_dir.is_dir())
         self.assertTrue(pipeline.cancel(prepared["sessionId"]))
         self.assertFalse(temp_dir.exists())
+
+    def test_pipeline_reports_libreoffice_when_office_is_not_installed(self):
+        office_calls = []
+        pipeline = self.make_pipeline(
+            lambda *args: {"ok": True},
+            office_candidates=lambda _kind: (),
+            convert_office_pdf=lambda *args: office_calls.append(args),
+        )
+        prepared = pipeline.prepare("writer", "<p>Offline fallback</p>", "Draft.docx")
+        self.assertEqual(prepared["status"], "ok")
+        self.assertEqual(prepared["engine"], "LibreOffice")
+        self.assertEqual(pipeline.engine_status("writer")["officeAvailable"], False)
+        self.assertEqual(office_calls, [])
+        pipeline.cancel(prepared["sessionId"])
+
+    def test_pipeline_uses_office_pdf_and_respects_unchecked_fallback_option(self):
+        office_calls = []
+
+        def office_pdf(source, app_kind, output_dir, provider):
+            office_calls.append((source, app_kind, provider["engine"]))
+            path = Path(output_dir) / "draft.pdf"
+            path.write_bytes(b"office-pdf")
+            return str(path)
+
+        providers = ({"engine": "Microsoft Office", "progid": "Word.Application"},)
+        pipeline = self.make_pipeline(
+            lambda *args: {"ok": True},
+            office_candidates=lambda _kind: providers,
+            convert_office_pdf=office_pdf,
+        )
+        prepared = pipeline.prepare("writer", "<p>Office render</p>", "Draft.docx")
+        self.assertEqual(prepared["engine"], "Microsoft Office")
+        self.assertEqual(pipeline.engine_status("writer")["preferredEngine"], "Microsoft Office")
+        self.assertEqual(len(office_calls), 1)
+        pipeline.cancel(prepared["sessionId"])
+
+        prepared = pipeline.prepare("writer", "<p>Force LibreOffice</p>", "Draft.docx", use_office=False)
+        self.assertEqual(prepared["engine"], "LibreOffice")
+        self.assertEqual(len(office_calls), 1)
+        pipeline.cancel(prepared["sessionId"])
 
     def test_pipeline_returns_clear_fake_printer_failure(self):
         pipeline = self.make_pipeline(lambda *args: {"ok": False, "error": "Máy in đang ngoại tuyến"})

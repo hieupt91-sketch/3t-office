@@ -11572,9 +11572,14 @@ def postprocess_writer_docx(
     docx_bytes: bytes,
     *,
     source_docx: bytes | None = None,
+    preserve_pristine_source: bool = False,
 ) -> bytes:
     """Re-inject section structure, header/footer XML from the original DOCX
     into the converted DOCX that LibreOffice generated from HTML.
+
+    With preserve_pristine_source=True, an untouched imported DOCX uses the
+    original OOXML package after the Save conversion has run. Edited documents
+    and legacy .doc imports stay on the surgical restore path.
 
     When source_docx is None or the original has no header/footer references,
     returns docx_bytes unchanged (safe no-op).
@@ -11630,6 +11635,15 @@ def postprocess_writer_docx(
     # This is narrowly gated to short, anchor-heavy bodies; ordinary Writer
     # documents and every touched document continue through the surgical passes.
     if "vno-pristine-document" in converted_xml:
+        # For an untouched document opened from a real DOCX, the original
+        # OOXML package is already the exact Save result. The HTML → DOCX
+        # conversion above still runs; this final source-restore step prevents
+        # small layout shifts from LibreOffice's HTML import from changing
+        # page boundaries in Word. main.py leaves this disabled for legacy
+        # binary DOC sources, whose source_docx is itself a LibreOffice import.
+        if preserve_pristine_source and not mutation_names and "vno-edited-" not in converted_xml:
+            return source_docx
+
         source_flow = _writer_body_paragraph_ranges(original_xml)
         safe_anchors = [
             anchor for anchor in _writer_outer_anchor_blocks(original_xml)

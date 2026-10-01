@@ -2848,6 +2848,8 @@ export class SheetAdapter {
   serializeToFods() {
     if (!this.grid) return "";
     const isNewWorkbook = !this.sourceFilePath;
+    const sourceIsPristineXlsx = !this.isDirty && /\.xlsx$/i.test(String(this.sourceFilePath || ""));
+    const pristineXlsxMarker = sourceIsPristineXlsx ? "<!-- vno-pristine-xlsx-source -->\n" : "";
     const sheetNames = (this.grid.sheets && this.grid.sheets.length)
       ? [...this.grid.sheets]
       : Object.keys(this.grid.sheetsData || {});
@@ -3559,6 +3561,7 @@ export class SheetAdapter {
     // lockStructure; native-export post-process restores it (see xlsx-native-postprocess.js).
     const structureAttr = structureProtected ? ' table:structure-protected="true"' : "";
     return `<?xml version="1.0" encoding="UTF-8"?>
+${pristineXlsxMarker}
 <office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
                  xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
                  xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"

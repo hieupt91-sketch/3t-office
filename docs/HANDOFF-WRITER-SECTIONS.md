@@ -4,41 +4,39 @@ TASK: `writer.section.continuous` — Word-like Writer section breaks and DOCX r
 AGENT/ROLE: Codex / implementation and integration
 BRANCH: `feat/writer-sections-agy`
 WORKTREE: `E:\VNOffice-agy-sections`
-OBJECTIVE: Support Next Page, Continuous, Even Page, and Odd Page section breaks; independent per-section page setup and header/footer options; preserve section OOXML through the existing LibreOffice open/save path; add Vietnamese help, tests, and backlog status.
+OBJECTIVE: Preserve Writer section-break save/open behavior while integrating the current `main` single-instance, print, and soffice worker changes. Keep this work on the feature branch.
 
 FINDINGS:
-- Merged `main` into this branch as `58d5eca`; no changes were made to `main`.
-- Review of the d03 source and saved XML found three `w:sectPr` elements: two paragraph-level properties and the final body properties. The second paragraph-level `sectPr` is carried by an empty paragraph and has `w:type="continuous"`.
-- The import bridge only inserted a section marker when it matched paragraph text or an HTML page-break style. The empty continuous-break paragraph matched neither. Export then defaulted that section metadata to `nextPage`, and the metadata postprocessor rewrote every section. In the regression output, the second paragraph `sectPr` changed from `continuous` to `nextPage`, the final `continuous` type was removed, and 810-twip top/bottom margins rounded to 811. Word consequently opened the saved d03/d23 files as 3 pages.
-- The main baseline saved d03/d23 with the original section XML and as one Word page. The fix now compares exported metadata with source section properties at the importer's precision, applies only actual changes, preserves a source break type when there is no exported marker, and retains source `sectPr` attributes including `w:rsid*`.
+- The d03/d23 regression was caused by rewriting unchanged `w:sectPr` data after LibreOffice conversion. The fix compares source and exported metadata at the importer's precision, preserves an unchanged section XML part, and avoids defaulting a missing section marker to `nextPage`.
+- `git merge main` conflicted in `main.py`. The resolution retains both pipelines: call `postprocess_writer_docx(..., preserve_pristine_source=pristine_docx_source)`, then apply `postprocess_writer_section_metadata(...)` when source HTML is available.
+- The merged `main.py` retains main's G11 per-app single-instance and multi-window launch/router flow, G10 print flow, persistent soffice worker shutdown, and both document-open and Sheet-open progress notifiers.
+- Other changes from `main` merged without manual conflict resolution. No changes were made to the `main` branch.
 
 IMPLEMENTATION SUMMARY:
-- Added `breakMarkerPresent` to exported section metadata so the postprocessor can distinguish a deliberate section break from a missing HTML marker.
-- Source-backed saves now leave unchanged `sectPr` XML untouched. Geometry, first-page flags, page-number restart, and break types are only rewritten when their corresponding metadata differs from the source.
-- Added generated DOCX round-trip coverage for a continuous break, unchanged page size/margins, exact `sectPr` preservation, and the empty-carrier/no-marker case.
-- The existing section commands, per-section page setup, header/footer options, Vietnamese Help entry, and 3T user-visible naming remain in the committed feature implementation; this regression fix adds no UI strings.
+- Section-break save/open behavior and source OOXML preservation from the feature branch remain intact.
+- Main's pristine-source DOCX behavior is retained alongside the section metadata postprocessor.
+- The single-instance, print, soffice shutdown, and progress-notifier code from `main` remains in the merge result.
 
 FILES CHANGED:
-- `adapters/libreoffice/common/ooxml_zip_patch.py`
-- `adapters/libreoffice/writer/writer-adapter.js`
-- `tests/test_writer_sections_roundtrip.py`
-- `docs/HANDOFF-WRITER-SECTIONS.md`
+- `main.py` — resolved the overlap between the Writer DOCX postprocessors while retaining the main-branch launch, print, and shutdown paths.
+- `adapters/libreoffice/common/ooxml_zip_patch.py` and Writer adapter/tests — existing section round-trip regression fix plus merged source-preservation behavior.
+- `platform/single_instance.py`, `platform/print/**`, and related tests/docs — main-branch changes included in the merge.
+- `docs/HANDOFF-WRITER-SECTIONS.md` — this handoff update.
 
 COMMANDS RUN:
-- `node tests/run-tests.js` — PASS, 2189/2189.
-- `python -m unittest discover -s tests` — PASS, 502/502. This full run preceded the final added no-marker assertion path; the updated focused module passed afterward.
-- `python -m unittest tests.test_writer_sections_roundtrip -v` — PASS, 3/3 on the final regression test file, including both continuous-section save paths.
-- `python -m py_compile adapters/libreoffice/common/ooxml_zip_patch.py tests/test_writer_sections_roundtrip.py` — PASS.
-- `node --check adapters/libreoffice/writer/writer-adapter.js` — PASS.
-- `git diff --check` — PASS (Git reports line-ending normalization warnings only).
-- Full Writer layout audit: `E:\VNOffice-dist\audit-sections-fixed\_batch_writer_report.md`.
-- Standalone d10 retry: `E:\VNOffice-dist\audit-sections-d10-retry\_batch_writer_report.md`.
-- Standalone d19 retry: `E:\VNOffice-dist\audit-sections-d19-retry\_batch_writer_report.md`.
+- `git merge main` — completed after resolving the `main.py` conflict.
+- `node tests/run-tests.js` — PASS, 2201/2201.
+- `python -m unittest discover -s tests` — PASS, 528 tests in 434.451s; no FODS-to-XLSX concurrency failures occurred, so an isolated rerun was not needed.
+- `python scripts/test_single_instance_live.py` — PASS: cold open 20,189 ms; warm launches opened two additional windows in the same owner process (244 ms and 439 ms); three-window count passed; normal close and killed-owner recovery passed (recovery open 5,809 ms).
+- `python -m unittest tests.test_writer_sections_roundtrip -v` — PASS, 3/3.
+- Build — NOT RUN; this task requested merge and test gates, not a build.
 
-BUILD RESULT: NOT RUN — no build was required for the adapter and metadata change.
-TEST RESULTS: PASS — Node 2189/2189; Python discovery 502/502; final Writer section module 3/3. In the full layout audit, d03 and d23 are each Word/canvas/saved Word 1/1/1, and their saved `sectPr` sequences match source XML exactly. d19 is 2/2/2 in the full audit and standalone retry. All other Word-measured corpus files keep the same saved Word page count; d24 remains Word 16, canvas 18, saved Word 16.
-KNOWN FAILURES: d10's Word oracle timed out behind a modal error dialog in both the full run and standalone retry. Its canvas reported 1 page and the probe saved a 1-page file, but the app did not identify the document as loaded (`loaded=False`); Word page count is BLOCKED. No foreign Office process was stopped. d24's 18-page canvas vs 16-page Word count is unchanged from the prior report.
-RISKS: Section metadata is compared with source OOXML using the same 0.1 mm precision as the Writer import bridge. Explicit metadata edits still update the affected section; unedited source section XML is preserved exactly after relationship-ID remapping.
-DEPENDENCIES/BLOCKERS: None. No dependencies were added. The standalone d10 Word count remains blocked by Word's modal dialog behavior.
+BUILD RESULT: NOT RUN — no build command was requested.
+TEST RESULTS: PASS — all four requested gates passed.
+KNOWN FAILURES:
+- No failures in the requested gates.
+- Historical layout-audit notes remain: d10's Word oracle was blocked by a modal dialog, and d24 showed 18 canvas pages versus 16 Word pages. These layout-audit cases were not rerun as part of this merge task.
+RISKS: `main.py` now combines the source-aware pristine-DOCX path and section metadata overlay; the focused section tests and full Python suite both passed on the merge result.
+DEPENDENCIES/BLOCKERS: None. No dependencies were added.
 CORE PATCH ID (if any): None — no LibreOffice Core patch.
-NEXT ACTION: Review this commit on `feat/writer-sections-agy`; do not merge into `main` without the maintainer's instruction.
+NEXT ACTION: Review the merge commit on `feat/writer-sections-agy`. Do not merge into `main`; that was not requested.

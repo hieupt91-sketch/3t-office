@@ -34,6 +34,65 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from urllib.parse import urlencode, unquote
 
+_EARLY_SINGLE_INSTANCE_REQUEST_ID = None
+
+
+def _early_forward_if_running(argv: list[str]) -> bool:
+    """Forward a secondary launch before importing the desktop/engine stack."""
+    global _EARLY_SINGLE_INSTANCE_REQUEST_ID
+    if __name__ != "__main__":
+        return False
+    app_kind = None
+    file_path = None
+    app_by_extension = {
+        ".docx": "writer", ".doc": "writer", ".odt": "writer", ".rtf": "writer", ".txt": "writer",
+        ".xlsx": "sheet", ".xls": "sheet", ".ods": "sheet", ".csv": "sheet",
+        ".pptx": "slides", ".ppt": "slides", ".odp": "slides",
+    }
+    for arg in argv:
+        if arg.startswith("--app="):
+            app_kind = arg.split("=", 1)[1].lower()
+        elif not arg.startswith("-") and file_path is None:
+            file_path = str(Path(arg).expanduser().resolve())
+    if file_path:
+        inferred_app = app_by_extension.get(Path(file_path).suffix.lower())
+        if app_kind and app_kind != inferred_app:
+            return False
+        app_kind = inferred_app
+    if app_kind not in {"writer", "sheet", "slides"}:
+        return False
+
+    system = platform.system()
+    if system == "Windows":
+        data_dir = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local") / "VNOffice"
+    elif system == "Darwin":
+        data_dir = Path.home() / "Library" / "Application Support" / "VNOffice"
+    else:
+        data_dir = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share") / "VNOffice"
+    endpoint_path = data_dir / f"single-instance-{app_kind}.json"
+    if not endpoint_path.is_file():
+        return False
+
+    module_path = Path(__file__).resolve().parent / "platform" / "single_instance.py"
+    spec = importlib.util.spec_from_file_location("_vno_single_instance_early", module_path)
+    if spec is None or spec.loader is None:
+        return False
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    _EARLY_SINGLE_INSTANCE_REQUEST_ID = uuid.uuid4().hex
+    result = module.forward_launch_request(
+        data_dir,
+        app_kind,
+        file_path,
+        timeout=0.75,
+        request_id=_EARLY_SINGLE_INSTANCE_REQUEST_ID,
+    )
+    return bool(result and result.get("accepted") is True)
+
+
+if _early_forward_if_running(sys.argv[1:]):
+    raise SystemExit(0)
+
 import webview
 from adapters.error_reporting import ErrorReporter, load_client_config
 from adapters.updater import UpdaterManager
@@ -51,6 +110,17 @@ sys.modules[_AUTORECOVER_STORE_SPEC.name] = _AUTORECOVER_STORE_MODULE
 _AUTORECOVER_STORE_SPEC.loader.exec_module(_AUTORECOVER_STORE_MODULE)
 AutoRecoverStore = _AUTORECOVER_STORE_MODULE.AutoRecoverStore
 
+_SINGLE_INSTANCE_PATH = Path(__file__).resolve().parent / "platform" / "single_instance.py"
+_SINGLE_INSTANCE_SPEC = importlib.util.spec_from_file_location("_vno_single_instance", _SINGLE_INSTANCE_PATH)
+if _SINGLE_INSTANCE_SPEC is None or _SINGLE_INSTANCE_SPEC.loader is None:
+    raise ImportError(f"Cannot load single-instance service: {_SINGLE_INSTANCE_PATH}")
+_SINGLE_INSTANCE_MODULE = importlib.util.module_from_spec(_SINGLE_INSTANCE_SPEC)
+sys.modules[_SINGLE_INSTANCE_SPEC.name] = _SINGLE_INSTANCE_MODULE
+_SINGLE_INSTANCE_SPEC.loader.exec_module(_SINGLE_INSTANCE_MODULE)
+SingleInstanceServer = _SINGLE_INSTANCE_MODULE.SingleInstanceServer
+InstanceAlreadyRunning = _SINGLE_INSTANCE_MODULE.InstanceAlreadyRunning
+forward_launch_request = _SINGLE_INSTANCE_MODULE.forward_launch_request
+
 _PRINT_PIPELINE_PATH = Path(__file__).resolve().parent / "platform" / "print" / "print_pipeline.py"
 _PRINT_PIPELINE_SPEC = importlib.util.spec_from_file_location("_vno_print_pipeline", _PRINT_PIPELINE_PATH)
 if _PRINT_PIPELINE_SPEC is None or _PRINT_PIPELINE_SPEC.loader is None:
@@ -59,6 +129,14 @@ _PRINT_PIPELINE_MODULE = importlib.util.module_from_spec(_PRINT_PIPELINE_SPEC)
 sys.modules[_PRINT_PIPELINE_SPEC.name] = _PRINT_PIPELINE_MODULE
 _PRINT_PIPELINE_SPEC.loader.exec_module(_PRINT_PIPELINE_MODULE)
 PrintPipeline = _PRINT_PIPELINE_MODULE.PrintPipeline
+
+_OFFICE_COM_PATH = Path(__file__).resolve().parent / "platform" / "print" / "office_com.py"
+_OFFICE_COM_SPEC = importlib.util.spec_from_file_location("_vno_office_com", _OFFICE_COM_PATH)
+if _OFFICE_COM_SPEC is None or _OFFICE_COM_SPEC.loader is None:
+    raise ImportError(f"Cannot load Office COM print integration: {_OFFICE_COM_PATH}")
+_OFFICE_COM_MODULE = importlib.util.module_from_spec(_OFFICE_COM_SPEC)
+sys.modules[_OFFICE_COM_SPEC.name] = _OFFICE_COM_MODULE
+_OFFICE_COM_SPEC.loader.exec_module(_OFFICE_COM_MODULE)
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 INDEX_HTML = os.path.join(ROOT_DIR, "index.html")
@@ -69,8 +147,12 @@ _UPDATE_MANAGER: UpdaterManager | None = None
 _UPDATE_DATA_DIR: Path | None = None
 _APP_WINDOW_APIS: dict[str, object] = {}
 _APP_WINDOW_LOCK = threading.RLock()
+_NEW_WINDOW_CREATE_LOCK = threading.RLock()
 _DOCUMENT_SEQUENCE: dict[str, int] = {}
 _DOCUMENT_SEQUENCE_LOCK = threading.Lock()
+_INSTANCE_LAUNCH_QUEUE: queue.Queue[tuple[dict[str, object], threading.Event]] = queue.Queue()
+_INSTANCE_DISPATCH_READY = threading.Event()
+_INSTANCE_DISPATCH_STOP = threading.Event()
 
 
 def _load_update_config() -> dict[str, str]:
@@ -975,7 +1057,15 @@ def _ooxml_zip_patch():
     return _OOXML_ZIP_PATCH
 
 
-def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str | None, target_format: str, source_path: str | None = None) -> None:
+def _apply_native_export_postprocess(
+    src_path: str,
+    out_path: str,
+    app_kind: str | None,
+    target_format: str,
+    source_path: str | None = None,
+    *,
+    pristine_docx_source: bool | None = None,
+) -> None:
     """Patch native OOXML that LibreOffice omitted, after soffice convert.
 
     Why here (main.py), not the JS adapters: File → Lưu serializes FODS/FODP in
@@ -998,6 +1088,10 @@ def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str
     ppt/presentation.xml, and CT_ShowProperties on presentationPr.
     """
     fmt = str(target_format).lower()
+    if pristine_docx_source is None:
+        pristine_docx_source = bool(
+            source_path and Path(source_path).suffix.lower() == ".docx"
+        )
     if app_kind == "sheet" and fmt == "xlsx":
         if not src_path or not str(src_path).lower().endswith(".fods"):
             return
@@ -1018,7 +1112,15 @@ def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str
                 with open(source_path, "rb") as handle:
                     source_xlsx_bytes = handle.read()
             # Read source FODS for activeTab preservation
-            patched = patcher.postprocess_sheet_xlsx(original, source_fods=fods, source_xlsx_bytes=source_xlsx_bytes)
+            if source_xlsx_bytes is not None and "<!-- vno-pristine-xlsx-source -->" in fods:
+                # An untouched imported XLSX is the exact Save-pipeline source
+                # after conversion. Restore its package so formatting-only
+                # blank ranges and other Excel-native print state survive.
+                patched = source_xlsx_bytes
+            else:
+                patched = patcher.postprocess_sheet_xlsx(
+                    original, source_fods=fods, source_xlsx_bytes=source_xlsx_bytes,
+                )
             if patched != original:
                 with open(out_path, "wb") as handle:
                     handle.write(patched)
@@ -1075,7 +1177,11 @@ def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str
                 else:
                     with open(source_path, "rb") as handle:
                         original_docx = handle.read()
-                patched = patcher.postprocess_writer_docx(patched, source_docx=original_docx)
+                patched = patcher.postprocess_writer_docx(
+                    patched,
+                    source_docx=original_docx,
+                    preserve_pristine_source=pristine_docx_source,
+                )
             if source_html:
                 patched = patcher.postprocess_writer_section_metadata(
                     patched,
@@ -1101,13 +1207,21 @@ WRITER_DOC_EXPORT_VIA_DOCX = True
 def _convert_writer_html_to_doc(src_html: str, out_dir: str, source_path: str | None = None) -> str:
     """Export Writer HTML through the source-aware DOCX overlay before legacy DOC."""
     intermediate_docx = _run_soffice_convert(src_html, "docx", out_dir, app_kind="writer")
+    pristine_docx_source = bool(
+        source_path and Path(source_path).suffix.lower() == ".docx"
+    )
     source_docx = source_path
     if source_path and os.path.isfile(source_path) and Path(source_path).suffix.lower() == ".doc":
         source_dir = os.path.join(out_dir, "legacy_source")
         os.makedirs(source_dir, exist_ok=True)
         source_docx = _run_soffice_convert(source_path, "docx", source_dir, app_kind="writer")
     _apply_native_export_postprocess(
-        src_html, intermediate_docx, "writer", "docx", source_path=source_docx,
+        src_html,
+        intermediate_docx,
+        "writer",
+        "docx",
+        source_path=source_docx,
+        pristine_docx_source=pristine_docx_source,
     )
     if os.path.isfile(intermediate_docx):
         patcher = _ooxml_zip_patch()
@@ -1538,15 +1652,60 @@ def _convert_print_source_to_pdf(source_path: str, app_kind: str, output_dir: st
     return _run_soffice_convert(source_path, "pdf", output_dir, app_kind=app_kind)
 
 
+def _convert_print_source_with_office(
+    source_path: str, app_kind: str, output_dir: str, candidate: dict[str, str],
+) -> str:
+    return _OFFICE_COM_MODULE.export_pdf_with_office(
+        source_path,
+        app_kind,
+        output_dir,
+        engine_info=candidate["engine_info"],
+    )
+
+
+def _office_candidates_for_print(app_kind: str) -> tuple[dict[str, str], ...]:
+    info = _OFFICE_COM_MODULE.get_office_engine_info(app_kind)
+    if not info.get("available"):
+        return ()
+    return ({
+        "engine": str(info["engine"]),
+        "progid": str(info["progId"]),
+        "engine_info": info,
+    },)
+
+
+def _render_print_source_to_pdf(
+    source_path: str, app_kind: str, output_dir: str, *, use_office: bool = True,
+) -> tuple[str, str]:
+    info = _OFFICE_COM_MODULE.get_office_engine_info(app_kind)
+    return _OFFICE_COM_MODULE.convert_pdf_with_office_fallback(
+        source_path,
+        app_kind,
+        output_dir,
+        _convert_print_source_to_pdf,
+        use_office=use_office,
+        office_info=info,
+        office_exporter=lambda source, kind, out, *, engine_info=None: _OFFICE_COM_MODULE.export_pdf_with_office(
+            source, kind, out, engine_info=engine_info,
+        ),
+    )
+
+
 def _export_content_to_pdf(
     content: str,
     app_kind: str,
     temp_dir: str,
     source_document_path: str | None = None,
-) -> str:
+    *,
+    use_office: bool = True,
+    return_engine: bool = False,
+) -> str | tuple[str, str]:
     """Export PDF only after running the source-aware native Save conversion."""
     native_path = _write_print_source(content, app_kind, temp_dir, source_document_path)
-    return _convert_print_source_to_pdf(native_path, app_kind, temp_dir)
+    pdf_path, engine_name = _render_print_source_to_pdf(
+        native_path, app_kind, temp_dir, use_office=use_office,
+    )
+    return (pdf_path, engine_name) if return_engine else pdf_path
 
 
 def _print_pdf_to_target_file(pdf_path: str, printer: str, destination_path: str, app_kind: str) -> dict:
@@ -1841,6 +2000,110 @@ def _active_window(api=None):
     return webview.windows[0] if webview.windows else None
 
 
+def _queue_single_instance_request(request: dict[str, object]) -> bool:
+    """Queue a path-only launch request for a fresh, independent app window."""
+    if _INSTANCE_DISPATCH_STOP.is_set():
+        raise RuntimeError("The application is shutting down.")
+    completion = threading.Event()
+    _INSTANCE_LAUNCH_QUEUE.put_nowait((request, completion))
+    # During startup, accept into the queue immediately. Once the GUI loop is
+    # live, wait briefly for create_window so a hung router can be detected.
+    if not _INSTANCE_DISPATCH_READY.is_set():
+        return True
+    if completion.wait(timeout=0.6):
+        return request.get("_dispatch_ok") is True
+    return False
+
+
+def _ping_single_instance_router() -> bool:
+    """Use the same serialized router queue as window creation for liveness."""
+    if _INSTANCE_DISPATCH_STOP.is_set():
+        return False
+    if not _INSTANCE_DISPATCH_READY.is_set():
+        return True
+    completion = threading.Event()
+    request: dict[str, object] = {"action": "ping"}
+    _INSTANCE_LAUNCH_QUEUE.put_nowait((request, completion))
+    return completion.wait(timeout=0.3) and request.get("_dispatch_ok") is True
+
+
+def _dispatch_single_instance_requests() -> None:
+    """Create secondary windows after pywebview's GUI loop is ready."""
+    while not _INSTANCE_DISPATCH_STOP.is_set():
+        try:
+            request, completion = _INSTANCE_LAUNCH_QUEUE.get(timeout=0.2)
+        except queue.Empty:
+            continue
+        if not _INSTANCE_DISPATCH_READY.wait(timeout=60):
+            logging.getLogger("vnoffice.single_instance").warning(
+                "A launch request expired before the desktop window loop became ready."
+            )
+            request["_dispatch_ok"] = False
+            completion.set()
+            continue
+        if _INSTANCE_DISPATCH_STOP.is_set():
+            request["_dispatch_ok"] = False
+            completion.set()
+            continue
+        if request.get("action") == "ping":
+            request["_dispatch_ok"] = True
+            completion.set()
+            continue
+
+        app_kind = request.get("app_kind")
+        file_path = request.get("path")
+        with _APP_WINDOW_LOCK:
+            api = next(
+                (item for item in _APP_WINDOW_APIS.values() if getattr(item, "_app_kind", None) == app_kind),
+                None,
+            )
+        if api is None:
+            logging.getLogger("vnoffice.single_instance").warning(
+                "Could not route a launch request because no %s window remains.", app_kind
+            )
+            request["_dispatch_ok"] = False
+            completion.set()
+            continue
+        try:
+            if file_path is None:
+                result = api.create_new_document_window(app_kind)
+            else:
+                result = api.open_file_in_new_window(file_path, app_kind)
+            if not isinstance(result, dict) or result.get("status") != "ok":
+                logging.getLogger("vnoffice.single_instance").warning(
+                    "Could not create a requested %s window.", app_kind
+                )
+                request["_dispatch_ok"] = False
+            else:
+                request["_dispatch_ok"] = True
+        except Exception as exc:
+            logging.getLogger("vnoffice.single_instance").warning(
+                "Could not create a requested %s window (%s).", app_kind, type(exc).__name__
+            )
+            request["_dispatch_ok"] = False
+        finally:
+            completion.set()
+
+
+def _on_single_instance_ownership_lost() -> None:
+    """Stop a fenced old owner after another launch has taken over its endpoint."""
+    logging.getLogger("vnoffice.single_instance").warning(
+        "This app session lost its single-instance endpoint; preserving recovery data and exiting."
+    )
+    _INSTANCE_DISPATCH_STOP.set()
+    with _APP_WINDOW_LOCK:
+        active_apis = list(_APP_WINDOW_APIS.values())
+    for api in active_apis:
+        try:
+            api.close_print_sessions()
+        except Exception:
+            pass
+    try:
+        _PERSISTENT_SOFFICE.shutdown()
+    finally:
+        os._exit(0)
+
+
 def _notify_document_open_progress(api=None) -> None:
     """Tell the WebView that the user has selected a file and conversion began."""
     window = _active_window(api)
@@ -1893,6 +2156,8 @@ class VnOfficeApi:
         self._print_pipeline = PrintPipeline(
             write_source=_write_print_source,
             convert_pdf=_convert_print_source_to_pdf,
+            office_candidates=_office_candidates_for_print,
+            convert_office_pdf=_convert_print_source_with_office,
             inspect_pdf=lambda kind, pdf_path: int(
                 _PERSISTENT_SOFFICE.operation(kind, "inspect_pdf", pdf_path=pdf_path)["page_count"]
             ),
@@ -2188,7 +2453,7 @@ class VnOfficeApi:
             content, app_kind, suggested_name, source_path,
         )
 
-    def prepare_print_document(self, app_kind, content, suggested_name="TaiLieu", source_path=None):
+    def prepare_print_document(self, app_kind, content, suggested_name="TaiLieu", source_path=None, use_office=True):
         return self._invoke_reported_api(
             "prepare_print_document",
             self._print_pipeline.prepare,
@@ -2196,7 +2461,11 @@ class VnOfficeApi:
             content,
             suggested_name,
             source_path,
+            use_office,
         )
+
+    def get_print_engine_status(self, app_kind):
+        return self._print_pipeline.engine_status(str(app_kind or ""))
 
     def get_print_preview_page(self, session_id, page_number):
         try:
@@ -2443,18 +2712,19 @@ class VnOfficeApi:
         document_name = f"{prefixes[kind]} {next_number}.{extensions[kind]}"
         child_api = VnOfficeApi(app_kind=kind, server_port=self._server_port)
         try:
-            child_window = webview.create_window(
-                title=f"{document_name} — {APP_TITLES[kind]}",
-                url=build_launch_url(kind, None, port=self._server_port, document_name=document_name),
-                width=1366,
-                height=820,
-                min_size=(960, 640),
-                js_api=child_api,
-                text_select=True,
-            )
-            if child_window is None:
-                return {"status": "error", "message": "Không tạo được cửa sổ tài liệu mới."}
-            _register_app_window(child_api, child_window)
+            with _NEW_WINDOW_CREATE_LOCK:
+                child_window = webview.create_window(
+                    title=f"{document_name} — {APP_TITLES[kind]}",
+                    url=build_launch_url(kind, None, port=self._server_port, document_name=document_name),
+                    width=1366,
+                    height=820,
+                    min_size=(960, 640),
+                    js_api=child_api,
+                    text_select=True,
+                )
+                if child_window is None:
+                    return {"status": "error", "message": "Không tạo được cửa sổ tài liệu mới."}
+                _register_app_window(child_api, child_window)
             return {"status": "ok", "documentName": document_name}
         except Exception as exc:
             return {"status": "error", "message": f"Không mở được cửa sổ tài liệu mới: {exc}"}
@@ -2476,18 +2746,19 @@ class VnOfficeApi:
         file_name = source_path.name
         child_api = VnOfficeApi(app_kind=app_kind, initial_file=str(source_path), server_port=self._server_port)
         try:
-            child_window = webview.create_window(
-                title=f"{file_name} — {APP_TITLES[app_kind]}",
-                url=build_launch_url(app_kind, str(source_path), port=self._server_port),
-                width=1366,
-                height=820,
-                min_size=(960, 640),
-                js_api=child_api,
-                text_select=True,
-            )
-            if child_window is None:
-                return {"status": "error", "message": "Không tạo được cửa sổ để mở tệp gần đây."}
-            _register_app_window(child_api, child_window)
+            with _NEW_WINDOW_CREATE_LOCK:
+                child_window = webview.create_window(
+                    title=f"{file_name} — {APP_TITLES[app_kind]}",
+                    url=build_launch_url(app_kind, str(source_path), port=self._server_port),
+                    width=1366,
+                    height=820,
+                    min_size=(960, 640),
+                    js_api=child_api,
+                    text_select=True,
+                )
+                if child_window is None:
+                    return {"status": "error", "message": "Không tạo được cửa sổ để mở tệp gần đây."}
+                _register_app_window(child_api, child_window)
             return {"status": "ok", "fileName": file_name}
         except Exception as exc:
             return {"status": "error", "message": f"Không mở được tệp gần đây: {exc}"}
@@ -2964,12 +3235,14 @@ class VnOfficeApi:
                 return {"status": "cancelled"}
         self._reporting_file_path = dest_path
         self._reporting_operation = f"{'export' if target_format == 'pdf' else 'save'}.{target_format}"
+        pdf_engine = None
 
         try:
             with tempfile.TemporaryDirectory(prefix="vnoffice_save_") as tmp:
                 if target_format == "pdf":
-                    out_path = _export_content_to_pdf(
+                    out_path, pdf_engine = _export_content_to_pdf(
                         content, app_kind, tmp, source_document_path=source_path,
+                        return_engine=True,
                     )
                 else:
                     src_path = _write_save_source(content, app_kind, tmp, target_format)
@@ -2984,7 +3257,10 @@ class VnOfficeApi:
             return {"status": "error", "message": f"Lỗi không xác định khi lưu tệp: {exc}"}
 
         self._current_file_path = dest_path
-        return {"status": "ok", "message": f"Đã lưu tại {dest_path}", "path": dest_path}
+        response = {"status": "ok", "message": f"Đã lưu tại {dest_path}", "path": dest_path}
+        if target_format == "pdf":
+            response["engine"] = pdf_engine or "LibreOffice"
+        return response
 
     def _export_pdf_dialog_impl(self, content, app_kind="writer", suggested_name="TaiLieu", source_path=None):
         return self.save_document_dialog(
@@ -3222,6 +3498,53 @@ def main(argv: list[str] | None = None):
         print(f"[3T Office] {exc}", file=sys.stderr)
         return 2
 
+    instance_server = None
+    if app_kind in VALID_APP_KINDS:
+        _INSTANCE_DISPATCH_READY.clear()
+        _INSTANCE_DISPATCH_STOP.clear()
+        request_id = _EARLY_SINGLE_INSTANCE_REQUEST_ID or uuid.uuid4().hex
+        lock_contention_started = time.monotonic()
+        for _attempt in range(200):
+            candidate = SingleInstanceServer(
+                app_kind,
+                _user_data_dir(),
+                _queue_single_instance_request,
+                on_ownership_lost=_on_single_instance_ownership_lost,
+                on_ping=_ping_single_instance_router,
+            )
+            try:
+                candidate.start()
+                instance_server = candidate
+                break
+            except InstanceAlreadyRunning:
+                forwarded = forward_launch_request(
+                    _user_data_dir(), app_kind, initial_file, timeout=0.75, request_id=request_id
+                )
+                if forwarded and forwarded.get("accepted") is True:
+                    return 0
+                if _attempt >= 3:
+                    try:
+                        missing_endpoint_grace_elapsed = time.monotonic() - lock_contention_started >= 8.0
+                        if candidate.take_over_unresponsive(
+                            timeout=0.45,
+                            allow_missing=missing_endpoint_grace_elapsed,
+                        ):
+                            instance_server = candidate
+                            break
+                    except OSError as exc:
+                        print(f"[3T Office] Không thể tiếp quản IPC cục bộ cho {app_kind}: {exc}", file=sys.stderr)
+                        return 4
+                time.sleep(0.05)
+            except OSError as exc:
+                print(f"[3T Office] Không thể mở IPC cục bộ cho {app_kind}: {exc}", file=sys.stderr)
+                return 4
+        if instance_server is None:
+            print(
+                f"[3T Office] Không thể kết nối phiên {app_kind} đang chạy và khóa IPC chưa được giải phóng.",
+                file=sys.stderr,
+            )
+            return 4
+
     report_config = load_client_config(ROOT_DIR)
     _UPDATE_DATA_DIR = _user_data_dir() / "updates"
     try:
@@ -3281,6 +3604,9 @@ def main(argv: list[str] | None = None):
                 print(f"[3T Office] {msg}", file=sys.stderr)
         else:
             print(f"[3T Office] {msg}", file=sys.stderr)
+        if instance_server is not None:
+            _INSTANCE_DISPATCH_STOP.set()
+            instance_server.stop()
         return 3
 
     print(f"[3T Office] Embedded server ready at http://localhost:{port}")
@@ -3306,6 +3632,13 @@ def main(argv: list[str] | None = None):
     )
 
     _register_app_window(api, window)
+
+    if instance_server is not None:
+        threading.Thread(
+            target=_dispatch_single_instance_requests,
+            daemon=True,
+            name=f"3T Office {app_kind} window router",
+        ).start()
 
     startup_worker_kind = app_kind if app_kind in {"writer", "sheet"} else None
     if _PERSISTENT_SOFFICE_ENABLED and startup_worker_kind:
@@ -3358,6 +3691,7 @@ def main(argv: list[str] | None = None):
 
     try:
         webview.start(
+            lambda: _INSTANCE_DISPATCH_READY.set(),
             debug=os.environ.get("VNO_PERF_DEBUG") == "1",
             icon=app_icon,
         )
@@ -3366,12 +3700,27 @@ def main(argv: list[str] | None = None):
     except Exception as exc:
         print(f"[3T Office] Thoát cửa sổ: {exc}")
     finally:
+        _INSTANCE_DISPATCH_STOP.set()
+        _INSTANCE_DISPATCH_READY.set()
+        if instance_server is not None:
+            # Stop accepting windows first, but keep the owner lock until the shared
+            # LibreOffice worker has shut down so a replacement process cannot overlap it.
+            instance_server.stop_listener()
         with _APP_WINDOW_LOCK:
             remaining_apis = list(_APP_WINDOW_APIS.values())
             _APP_WINDOW_APIS.clear()
         for active_api in remaining_apis:
             active_api.close_autorecover_session()
-        _PERSISTENT_SOFFICE.shutdown()
+        try:
+            _PERSISTENT_SOFFICE.shutdown()
+        finally:
+            if instance_server is not None:
+                instance_server.release_owner_lock()
+            try:
+                server.shutdown()
+                server.server_close()
+            except Exception:
+                pass
         os._exit(0)
 
 
