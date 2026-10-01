@@ -94,7 +94,9 @@
 
 .vno-formula-input {
   flex: 1;
-  height: 22px;
+  height: auto;
+  min-height: 22px;
+  max-height: 96px;
   padding: 2px 8px;
   border: 1px solid var(--vno-border-strong);
   border-radius: var(--vno-radius-sm);
@@ -103,6 +105,11 @@
   outline: none;
   background-color: var(--vno-bg-window);
   color: var(--vno-text-primary);
+  box-sizing: border-box;
+  resize: none;
+  overflow-y: auto;
+  line-height: 16px;
+  white-space: pre-wrap;
 }
 .vno-formula-input:focus {
   border-color: var(--vno-sheet-primary-fg, var(--vno-sheet-primary));
@@ -314,6 +321,18 @@
 }
 
 .vno-grid-cell.is-range-selected { background-image: linear-gradient(rgba(15, 109, 56, 0.08), rgba(15, 109, 56, 0.08)); }
+
+.vno-grid-cell.is-clipboard-source {
+  outline: 1px dashed #18864b;
+  outline-offset: -2px;
+  animation: vno-sheet-clipboard-outline 0.7s steps(2, end) infinite;
+}
+
+.vno-grid-cell.is-cut-source { outline-color: #0f6d38; }
+
+@keyframes vno-sheet-clipboard-outline {
+  50% { outline-offset: -4px; }
+}
 
 [data-theme="dark"] .vno-grid-cell.is-selected {
   outline-color: var(--vno-sheet-primary-fg, #4ade80);

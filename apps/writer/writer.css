@@ -708,6 +708,14 @@ li.vno-page-auto-gap {
   z-index: 1;
 }
 
+/* Tab nhập trong Writer là ký tự thật trong mô hình nội dung; hiển thị theo các điểm dừng 1,27 cm. */
+.vno-writer-body,
+.vno-writer-header,
+.vno-writer-footer {
+  tab-size: 1.27cm;
+  white-space: pre-wrap;
+}
+
 .vno-writer-header:empty,
 .vno-writer-footer:empty {
   /* W29a: vùng rỗng chỉ giữ một dải bấm mỏng (Word: nháy đúp vào lề để mở header); 26px cũ đè dòng đầu
