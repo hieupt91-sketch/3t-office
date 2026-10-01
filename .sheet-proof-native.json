@@ -1,0 +1,55 @@
+{
+  "ok": true,
+  "result": {
+    "state": [
+      {
+        "coord": "A1",
+        "value": 1250,
+        "type": "number",
+        "formula": "",
+        "style": {}
+      },
+      {
+        "coord": "A2",
+        "value": 46387,
+        "type": "number",
+        "formula": "",
+        "style": {
+          "numberFormat": {
+            "category": "date",
+            "dateFormat": "dd/mm/yyyy"
+          }
+        }
+      },
+      {
+        "coord": "A3",
+        "value": 0.25,
+        "type": "number",
+        "formula": "",
+        "style": {
+          "numberFormat": {
+            "category": "percentage",
+            "decimalPlaces": 0
+          }
+        }
+      },
+      {
+        "coord": "A4",
+        "value": 1234.56,
+        "type": "number",
+        "formula": "",
+        "style": {}
+      },
+      {
+        "coord": "B1",
+        "value": 48871.81,
+        "type": "number",
+        "formula": "=SUM(A1:A4)",
+        "style": {}
+      }
+    ],
+    "saved": {
+      "path": "E:/VNOffice-codex-sheetfix/.sheet-native-proof.xlsx"
+    }
+  }
+}

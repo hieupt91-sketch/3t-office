@@ -1,0 +1,63 @@
+{
+  "ok": true,
+  "result": {
+    "reopen": {
+      "setup": {
+        "size": "a4",
+        "orientation": "landscape",
+        "margins": {
+          "top": 1.4999999999999996,
+          "bottom": 1.6000000000000008,
+          "left": 1.6999999999999995,
+          "right": 1.8000000000000012
+        },
+        "scale": {
+          "mode": "pages",
+          "percent": 100,
+          "pagesWide": 1,
+          "pagesTall": 1
+        },
+        "headerFooter": {
+          "header": {
+            "left": "",
+            "center": "",
+            "right": ""
+          },
+          "footer": {
+            "left": "",
+            "center": "Trang &P / &N",
+            "right": ""
+          }
+        },
+        "centerOnPage": {
+          "horizontal": false,
+          "vertical": false
+        },
+        "printOptions": {
+          "gridlines": false,
+          "headings": false
+        },
+        "printTitles": {
+          "rows": "1:2",
+          "cols": ""
+        }
+      },
+      "area": "A1:B3",
+      "color": "#F44336",
+      "tab": "<div class=\"vno-sheet-tab-item is-active has-tab-color\" data-sheet=\"Sheet1\" role=\"tab\" aria-selected=\"true\" tabindex=\"0\" title=\"Sheet1\" aria-label=\"Sheet1\" style=\"background: linear-gradient(to top, rgba(244, 67, 54, 0.15) 0%, rgb(255, 255, 255) 100%) rgb(255, 255, 255); border-bottom: 3px solid rgb(244, 67, 54);\"><span class=\"vno-sheet-tab-label\">Sheet1</span></div>"
+    },
+    "dialog": {
+      "orientation": "landscape",
+      "size": "a4",
+      "margins": [
+        "1.4999999999999996",
+        "1.6000000000000008",
+        "1.6999999999999995",
+        "1.8000000000000012"
+      ],
+      "rows": "1:2",
+      "wide": "1",
+      "tall": "1"
+    }
+  }
+}

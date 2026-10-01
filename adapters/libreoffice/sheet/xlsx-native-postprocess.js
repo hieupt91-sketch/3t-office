@@ -22,6 +22,7 @@ import {
 
 export const XLSX_WORKBOOK_ENTRY = "xl/workbook.xml";
 export const XLSX_WORKBOOK_RELS_ENTRY = "xl/_rels/workbook.xml.rels";
+const SHEET_VNO_NS = "https://vnoffice.vn/ns/spreadsheet/1.0";
 
 // --- Sheet visibility (veryHidden) helpers ---
 
@@ -37,6 +38,46 @@ function unescapeXml(value) {
     .replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'")
     .replace(/&amp;/g, "&");
+}
+
+export function parsePrintTitlesFromWorkbook(workbookXml) {
+  const sheetNames = parseSheetNamesFromWorkbook(workbookXml || "");
+  const result = {};
+  String(workbookXml || "").replace(/<definedName\b([^>]*)>([\s\S]*?)<\/definedName>/gi, (_, rawAttrs, rawExpression) => {
+    const name = rawAttrs.match(/\bname="([^"]*)"/i)?.[1] || "";
+    const localSheetId = Number(rawAttrs.match(/\blocalSheetId="(\d+)"/i)?.[1]);
+    if (name.toLowerCase() !== "_xlnm.print_titles" || !Number.isInteger(localSheetId) || !sheetNames[localSheetId]) return "";
+    const titles = { rows: "", cols: "" };
+    const expression = unescapeXml(rawExpression);
+    const rangeRe = /(?:'((?:[^']|'')*)'|([^!,]+))!\$([A-Z]+|\d+):\$([A-Z]+|\d+)/gi;
+    let range;
+    while ((range = rangeRe.exec(expression)) !== null) {
+      const start = range[3].toUpperCase();
+      const end = range[4].toUpperCase();
+      if (/^\d+$/.test(start) && /^\d+$/.test(end)) titles.rows = start === end ? start : `${start}:${end}`;
+      else if (/^[A-Z]+$/.test(start) && /^[A-Z]+$/.test(end)) titles.cols = start === end ? start : `${start}:${end}`;
+    }
+    if (titles.rows || titles.cols) result[sheetNames[localSheetId]] = titles;
+    return "";
+  });
+  return result;
+}
+
+export function applyPrintTitlesToFods(fodsXml, titlesBySheet) {
+  if (!Object.keys(titlesBySheet || {}).length) return String(fodsXml || "");
+  let xml = String(fodsXml || "").replace(TABLE_TAG_RE, (full, attrs) => {
+    const name = unescapeXml(attrs.match(/table:name="([^"]*)"/i)?.[1] || "");
+    const titles = titlesBySheet[name];
+    if (!titles) return full;
+    const nextAttrs = attrs
+      .replace(/\s+vno:print-title-rows="[^"]*"/i, "")
+      .replace(/\s+vno:print-title-cols="[^"]*"/i, "");
+    return `<table:table${nextAttrs} vno:print-title-rows="${titles.rows || ""}" vno:print-title-cols="${titles.cols || ""}">`;
+  });
+  if (!/xmlns:vno\s*=/.test(xml)) {
+    xml = xml.replace(/<office:document\b([^>]*)>/i, `<office:document$1 xmlns:vno="${SHEET_VNO_NS}">`);
+  }
+  return xml;
 }
 
 /** Read sheet state from xl/workbook.xml <sheet state="..."> elements. */
@@ -429,6 +470,8 @@ export function overlaySheetXlsxFods(xlsxPathOrBuffer, fodsXml) {
     }
     // Active sheet (activeTab -> ActiveTable): soffice headless drops ActiveTable
     xml = overlayActiveSheetToFods(xml, workbookXml);
+    // LibreOffice drops _xlnm.Print_Titles while converting XLSX to FODS.
+    xml = applyPrintTitlesToFods(xml, parsePrintTitlesFromWorkbook(workbookXml));
   }
   xml = overlaySheetXlsxFreezePanes(source, xml);
   // AutoFilter: read <autoFilter ref> from worksheet XMLs and inject
