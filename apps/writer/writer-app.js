@@ -170,8 +170,22 @@ export class WriterApp {
 
     viewport.appendChild(this.canvas);
 
+    // Thước đo dọc (Vertical Ruler)
+    const verticalRuler = document.createElement("div");
+    verticalRuler.className = "vno-writer-ruler-vertical";
+    verticalRuler.setAttribute("role", "presentation");
+    verticalRuler.setAttribute("aria-hidden", "true");
+    verticalRuler.innerHTML = `
+      <div class="vno-ruler-vertical-track">
+        <div class="vno-ruler-marker-top" title="Lề trên: 20mm (NĐ 30/2020/NĐ-CP)"></div>
+        <div class="vno-ruler-vertical-scale"></div>
+        <div class="vno-ruler-marker-bottom" title="Lề dưới: 20mm (NĐ 30/2020/NĐ-CP)"></div>
+      </div>
+    `;
+
     const workspace = document.createElement("div");
     workspace.className = "vno-writer-workspace";
+    workspace.appendChild(verticalRuler);
     workspace.appendChild(viewport);
 
     const commentsPanel = document.createElement("aside");
@@ -234,6 +248,7 @@ export class WriterApp {
       viewport,
       page: this.canvas,
       ruler,
+      verticalRuler,
       shell: this.shell
     }).attach();
 

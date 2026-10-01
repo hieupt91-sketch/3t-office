@@ -756,7 +756,7 @@ export const enStrings = {
     "writer.view.printLayout": { label: "Print Layout", tooltip: "Show page boundaries, headers, and footers" },
     "writer.view.webLayout": { label: "Web Layout", tooltip: "Flow document content continuously across the window" },
     "writer.view.readMode": { label: "Read Mode", tooltip: "Hide the ribbon and expand the reading area; press Esc to exit" },
-    "writer.view.ruler": { label: "Ruler", tooltip: "Show or hide the ruler based on page setup" },
+    "writer.view.ruler": { label: "Ruler", tooltip: "Show or hide horizontal and vertical rulers based on page setup" },
     "writer.view.gridlines": { label: "Gridlines", tooltip: "Show or hide non-printing alignment gridlines" },
     "writer.view.zoomIn": { label: "Zoom In", tooltip: "Increase document zoom" },
     "writer.view.zoomOut": { label: "Zoom Out", tooltip: "Decrease document zoom" },

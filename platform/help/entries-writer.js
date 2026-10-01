@@ -500,15 +500,15 @@ export const WRITER_HELP_ENTRIES = [
       "writer.view.pageWidth",
       "writer.view.newWindow"
     ],
-    title: "Thước, đường lưới, vừa khổ trang và cửa sổ mới",
-    summary: "Thước ngang mặc định bật, đánh dấu lề 30 mm trái / 15 mm phải (NĐ 30). Đường lưới 5 mm chỉ để căn, không in. Vừa khổ trang co 50%–200% theo chiều rộng cửa sổ. Cửa sổ mới mở tab trình duyệt cùng URL.",
+    title: "Thước ngang và thước dọc, đường lưới, vừa khổ trang và cửa sổ mới",
+    summary: "Thước đo ngang và thước đo dọc mặc định bật, đánh dấu lề 30 mm trái / 15 mm phải, lề trên 20 mm / lề dưới 20 mm (NĐ 30/2020/NĐ-CP). Đường lưới 5 mm chỉ để căn, không in. Vừa khổ trang co 50%–200% theo chiều rộng cửa sổ. Cửa sổ mới mở tab trình duyệt cùng URL.",
     ribbon: { tab: "Chế độ xem", tabId: "view", group: "Hiển thị" },
-    keywords: ["thước", "đường lưới", "vừa khổ trang", "chiều rộng trang", "cửa sổ mới", "nđ 30", "lề 30mm"],
+    keywords: ["thước", "thước ngang", "thước dọc", "ruler", "vertical ruler", "đường lưới", "vừa khổ trang", "chiều rộng trang", "cửa sổ mới", "nđ 30", "lề 30mm"],
     steps: [
-      "Tab Chế độ xem, nhóm Hiển thị: Thước và Đường lưới (nút bật/tắt). Nhóm Thu phóng cạnh đó có Chiều rộng trang (cùng cột với 100%). Nhóm Cửa sổ có nút lớn Cửa sổ mới.",
-      "Thước là thanh ngang 22 px trên trang, mặc định hiện. Nhấn để ẩn. Vạch trái ghi «Lề trái: 30mm (NĐ 30/2020/NĐ-CP)», vạch phải «Lề phải: 15mm». Không kéo được để đổi lề — đổi lề ở tab Bố cục → Căn lề. Chế độ đọc cũng ẩn thước.",
-      "Đường lưới mặc định tắt. Bật thì phủ lưới 18.8976 px (~5 mm), màu xanh rất nhạt — chỉ trên màn hình, không in, không xuất file. Chiều rộng trang tính (viewport − 40) / bề rộng giấy (A4 ~794 px), kẹp 50%–200%, tự chỉnh khi đổi cỡ cửa sổ.",
-      "Cửa sổ mới gọi window.open cùng địa chỉ. Trình duyệt chặn pop-up thì thanh trạng thái: «Trình duyệt đã chặn cửa sổ mới. Hãy cho phép pop-up cho 3T Office.» Tab mới là phiên độc lập, không chia undo."
+      "Mở tab Chế độ xem, tại nhóm Hiển thị: nhấp vào nút «Thước» để bật hoặc tắt đồng thời thước đo ngang và thước đo dọc của trang tài liệu.",
+      "Thước ngang hiển thị trên đầu trang văn bản (đánh dấu lề trái 30 mm, lề phải 15 mm theo chuẩn hành chính). Thước dọc hiển thị dọc mép trái vùng soạn thảo (đánh dấu lề trên 20 mm, lề dưới 20 mm) và tự động đồng bộ vị trí khi cuộn trang hoặc thay đổi tỉ lệ thu phóng (zoom).",
+      "Nút «Đường lưới» phủ lưới 18.8976 px (~5 mm) màu xanh nhạt giúp căn lề hình ảnh và bảng biểu; đường lưới chỉ hiển thị trên màn hình, không xuất hiện khi in ấn hoặc xuất tệp.",
+      "Nhóm Thu phóng cung cấp tùy chọn «Chiều rộng trang» giúp tự động co giãn khổ giấy vừa khít chiều rộng cửa sổ (kẹp trong phạm vi 50%–200%). Nhóm Cửa sổ cung cấp nút «Cửa sổ mới» để nhân bản tài liệu sang cửa sổ mới phục vụ đối chiếu."
     ]
   },
   {

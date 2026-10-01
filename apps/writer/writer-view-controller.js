@@ -4,11 +4,12 @@ const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2;
 
 export class WriterViewController {
-  constructor({ container, viewport, page, ruler, shell }) {
+  constructor({ container, viewport, page, ruler, verticalRuler = null, shell }) {
     this.container = container;
     this.viewport = viewport;
     this.page = page;
     this.ruler = ruler;
+    this.verticalRuler = verticalRuler;
     this.shell = shell;
     this.mode = "printLayout";
     this.zoomLevel = 1;
@@ -19,6 +20,10 @@ export class WriterViewController {
     };
     this._resizeHandler = () => {
       if (this.container?.classList.contains("vno-writer-page-width")) this.pageWidth();
+      this._syncVerticalRuler();
+    };
+    this._scrollHandler = () => {
+      this._syncVerticalRuler();
     };
     this._wheelHandler = event => {
       if (!event.ctrlKey || !event.deltaY) return;
@@ -44,6 +49,7 @@ export class WriterViewController {
     bind("writer.view.newWindow", () => this.newWindow());
     if (typeof document !== "undefined") document.addEventListener?.("keydown", this._escapeHandler);
     if (typeof window !== "undefined") window.addEventListener?.("resize", this._resizeHandler);
+    this.viewport?.addEventListener?.("scroll", this._scrollHandler, { passive: true });
     this.viewport?.addEventListener?.("wheel", this._wheelHandler, { passive: false });
     this._zoomUnsubscribe = this.shell?.subscribeZoom?.((level) => {
       this.zoomLevel = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Number(level) / 100));
@@ -57,6 +63,7 @@ export class WriterViewController {
   destroy() {
     if (typeof document !== "undefined") document.removeEventListener?.("keydown", this._escapeHandler);
     if (typeof window !== "undefined") window.removeEventListener?.("resize", this._resizeHandler);
+    this.viewport?.removeEventListener?.("scroll", this._scrollHandler);
     this.viewport?.removeEventListener?.("wheel", this._wheelHandler);
     this._zoomUnsubscribe?.();
     this._zoomUnsubscribe = null;
@@ -77,7 +84,7 @@ export class WriterViewController {
   }
 
   _ensureReadToolbar() {
-    if (this.container?.querySelector?.(".vno-writer-read-toolbar")) return;
+    if (typeof document === "undefined" || this.container?.querySelector?.(".vno-writer-read-toolbar")) return;
     const toolbar = document.createElement("div");
     toolbar.className = "vno-writer-read-toolbar";
     toolbar.setAttribute("role", "toolbar");
@@ -145,7 +152,28 @@ export class WriterViewController {
       this.viewport.style.setProperty("--vno-writer-scaled-height", Math.ceil(height * this.zoomLevel) + "px");
     }
     if (this.ruler) this.ruler.hidden = !this.rulerVisible || this.mode === "readMode";
+    if (this.verticalRuler) this.verticalRuler.hidden = !this.rulerVisible || this.mode === "readMode";
     this.container?.classList.toggle("vno-writer-gridlines", this.gridlinesVisible);
+    this._syncVerticalRuler();
+  }
+
+  _syncVerticalRuler() {
+    if (!this.verticalRuler || !this.page || !this.viewport) return;
+    const track = this.verticalRuler.querySelector?.(".vno-ruler-vertical-track") || this.verticalRuler.firstElementChild;
+    if (!track) return;
+    try {
+      const pageRect = this.page.getBoundingClientRect?.();
+      const viewportRect = this.viewport.getBoundingClientRect?.();
+      if (pageRect && viewportRect) {
+        const relativeTop = pageRect.top - viewportRect.top;
+        const baseHeight = this.page.scrollHeight || this.page.offsetHeight || 1123;
+        const scaledHeight = Math.ceil(baseHeight * this.zoomLevel);
+        track.style.height = `${scaledHeight}px`;
+        track.style.transform = `translateY(${relativeTop}px)`;
+      }
+    } catch (_) {
+      // Fallback in mock environments
+    }
   }
 
   _syncCommandStates() {

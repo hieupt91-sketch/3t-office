@@ -757,7 +757,7 @@ export const viStrings = {
     "writer.view.printLayout": { label: "Bố trí in", tooltip: "Hiển thị ranh giới trang, đầu trang và chân trang" },
     "writer.view.webLayout": { label: "Bố trí Web", tooltip: "Hiển thị nội dung liên tục theo chiều rộng cửa sổ" },
     "writer.view.readMode": { label: "Chế độ đọc", tooltip: "Ẩn ribbon và mở rộng vùng đọc; nhấn Esc để thoát" },
-    "writer.view.ruler": { label: "Thước", tooltip: "Ẩn hoặc hiện thước ngang theo thiết lập trang" },
+    "writer.view.ruler": { label: "Thước", tooltip: "Ẩn hoặc hiện thước đo ngang và thước đo dọc theo thiết lập trang" },
     "writer.view.gridlines": { label: "Đường lưới", tooltip: "Ẩn hoặc hiện lưới căn chỉnh không in" },
     "writer.view.zoomIn": { label: "Phóng to", tooltip: "Tăng tỉ lệ hiển thị tài liệu" },
     "writer.view.zoomOut": { label: "Thu nhỏ", tooltip: "Giảm tỉ lệ hiển thị tài liệu" },

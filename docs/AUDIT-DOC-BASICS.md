@@ -134,7 +134,7 @@ The previous draft cited `scripts/test_g7_file_basics.py` and `pywebview.evaluat
 | B9 | Hyperlink | NOT RUN | An initial test produced `https://https://example.com` because the dialog prefix was not cleared; a corrected field-entry test was not completed. |
 | B9 | DOCX/Word round trip and Undo for inserted objects | NOT RUN | Image/shape/textbox/link were not saved as one copy and verified in Word. |
 | B10 | Horizontal ruler | PASS | Horizontal ruler rendered in the Writer canvas. |
-| B10 | Vertical ruler | FAIL | No vertical ruler rendered in Print Layout. |
+| B10 | Vertical ruler | PASS | Desktop CDP verified: vertical ruler rendered with width 22px, scale, top/bottom margin markers (20mm according to NĐ 30), scroll synchronization (translateY aligns with page), and toggling via View tab ribbon button. |
 | B10 | Print Layout | PASS | View command displayed the paginated page canvas. |
 | B10 | Word count and page count in status bar | PASS | Status showed word count and `Trang 1 / 1`. |
 | B10 | View/ruler settings save and reopen | NOT RUN | Persistence of ruler and view settings was not checked. |

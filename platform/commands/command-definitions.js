@@ -63,7 +63,7 @@ export const WRITER_COMMANDS = [
   { id: "writer.view.printLayout", category: "view", label: "Bố trí in", icon: "writerPrintLayout", tooltip: "Hiển thị ranh giới trang, đầu trang và chân trang", isToggle: true },
   { id: "writer.view.webLayout", category: "view", label: "Bố trí Web", icon: "writerWebLayout", tooltip: "Hiển thị nội dung liên tục theo chiều rộng cửa sổ", isToggle: true },
   { id: "writer.view.readMode", category: "view", label: "Chế độ đọc", icon: "writerReadMode", tooltip: "Ẩn ribbon và mở rộng vùng đọc; nhấn Esc để thoát", isToggle: true },
-  { id: "writer.view.ruler", category: "view", label: "Thước", icon: "writerRuler", tooltip: "Ẩn hoặc hiện thước ngang theo thiết lập trang", isToggle: true },
+  { id: "writer.view.ruler", category: "view", label: "Thước", icon: "writerRuler", tooltip: "Ẩn hoặc hiện thước đo ngang và thước đo dọc theo thiết lập trang", isToggle: true },
   { id: "writer.view.gridlines", category: "view", label: "Đường lưới", icon: "writerGridlines", tooltip: "Ẩn hoặc hiện lưới căn chỉnh không in", isToggle: true },
   { id: "writer.view.zoomIn", category: "view", label: "Phóng to", icon: "zoomIn", tooltip: "Tăng tỉ lệ hiển thị tài liệu" },
   { id: "writer.view.zoomOut", category: "view", label: "Thu nhỏ", icon: "zoomOut", tooltip: "Giảm tỉ lệ hiển thị tài liệu" },

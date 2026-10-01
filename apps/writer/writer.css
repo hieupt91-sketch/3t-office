@@ -67,6 +67,57 @@
   border-top: 7px solid var(--vno-writer-primary);
 }
 
+/* Thước đo dọc (Vertical Ruler) */
+.vno-writer-ruler-vertical {
+  width: 22px;
+  background-color: var(--vno-bg-muted);
+  border-right: 1px solid var(--vno-border-default);
+  display: flex;
+  justify-content: flex-end;
+  user-select: none;
+  position: relative;
+  overflow: hidden;
+  z-index: 9;
+  flex-shrink: 0;
+}
+.vno-ruler-vertical-track {
+  width: 100%;
+  height: var(--vno-page-height, 1123px);
+  background-color: var(--vno-bg-window);
+  border-top: 1px solid var(--vno-border-strong);
+  border-bottom: 1px solid var(--vno-border-strong);
+  position: relative;
+  box-sizing: border-box;
+}
+.vno-ruler-vertical-scale {
+  width: 8px;
+  height: 100%;
+  position: absolute;
+  right: 0;
+  top: 0;
+  background-image: repeating-linear-gradient(to bottom, #94a3b8 0, #94a3b8 1px, transparent 1px, transparent 10px);
+}
+.vno-ruler-marker-top {
+  position: absolute;
+  top: var(--vno-margin-top, 76px);
+  right: 0;
+  width: 0;
+  height: 0;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-right: 7px solid var(--vno-writer-primary);
+}
+.vno-ruler-marker-bottom {
+  position: absolute;
+  bottom: var(--vno-margin-bottom, 76px);
+  right: 0;
+  width: 0;
+  height: 0;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-right: 7px solid var(--vno-writer-primary);
+}
+
 /* Viewport cuộn trang */
 .vno-writer-viewport {
   flex: 1;
@@ -83,8 +134,8 @@
 .vno-writer-gridlines .vno-writer-page {
   background-image: linear-gradient(rgba(37, 99, 235, 0.09) 1px, transparent 1px), linear-gradient(90deg, rgba(37, 99, 235, 0.09) 1px, transparent 1px);
   background-size: 18.8976px 18.8976px;
-}
-.vno-writer-web-layout .vno-writer-ruler { display: none; }
+.vno-writer-web-layout .vno-writer-ruler,
+.vno-writer-web-layout .vno-writer-ruler-vertical { display: none; }
 .vno-writer-web-layout .vno-writer-viewport { padding: 0; align-items: stretch; }
 .vno-writer-web-layout .vno-writer-page { width: 100% !important; min-height: 100%; padding: 38px clamp(32px, 8vw, 128px) !important; box-shadow: none; border: 1px solid var(--vno-border-subtle); border-radius: 0; }
 .vno-writer-web-layout .vno-page-auto-gap,
