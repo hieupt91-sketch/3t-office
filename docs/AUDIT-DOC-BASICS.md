@@ -139,8 +139,8 @@ The previous draft cited `scripts/test_g7_file_basics.py` and `pywebview.evaluat
 | B10 | Word count and page count in status bar | PASS | Status showed word count and `Trang 1 / 1`. |
 | B10 | View/ruler settings save and reopen | NOT RUN | Persistence of ruler and view settings was not checked. |
 | B11 | Vietnamese spelling underline | PASS | Misspelled `đinh` had a red wavy underline. |
-| B11 | Vietnamese correction suggestion | FAIL | Right-click menu suggestions were `đanh`, `đành`, `đánh`, `đênh`, `đễnh`; expected `định` was absent for `quyết đinh`. |
-| B11 | Suggestion application and Undo | NOT RUN | No suggestion was applied. |
+| B11 | Vietnamese correction suggestion | PASS | Desktop CDP verified: candidate ranking prioritizes tone variations on the same base syllable and preceding word context; right-click suggestions for `quyết đinh` rank `định` at index 0 (#1). |
+| B11 | Suggestion application and Undo | PASS | Desktop CDP verified: clicking suggestion `định` replaces text node with `quyết định`, closes context menu, and fires input event. |
 | B12 | Track Changes UI | PASS | Review toggle enabled tracking; inserted text rendered inside `<ins data-vno-change="insert">`. |
 | B12 | Comment UI | PASS | Comment was anchored to the selected text and displayed in the comments panel. |
 | B12 | Track Changes survives DOCX reopen in Word | FAIL | Hidden Word COM reported `Revisions.Count=0`; tracked text reopened as plain text in 3T. |

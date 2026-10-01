@@ -260,14 +260,32 @@ export class SpellcheckDomController {
   openMenu(marker, x, y) {
     this.closeMenu();
     const word = marker.textContent;
+
+    let contextPrev = "";
+    const parentBlock = marker.closest?.("p,li,td,th,h1,h2,h3,h4,h5,h6,blockquote,div");
+    if (parentBlock) {
+      const fullText = parentBlock.textContent || "";
+      const markerIndex = fullText.indexOf(word);
+      if (markerIndex > 0) {
+        const textBefore = fullText.slice(0, markerIndex).trim();
+        const match = textBefore.match(/[\p{L}\p{M}]+$/u);
+        if (match) contextPrev = match[0];
+      }
+    }
+
     const menu = document.createElement("div");
     menu.className = "vno-spellcheck-menu";
     menu.setAttribute("role", "menu");
     menu.setAttribute("aria-label", `Gợi ý chính tả cho ${word}`);
-    const suggestions = this.checker.suggest(word);
+    const suggestions = this.checker.suggest(word, { contextPrev });
     for (const suggestion of suggestions) {
       this._appendAction(menu, suggestion, () => {
-        marker.replaceWith(document.createTextNode(suggestion));
+        const textNode = document.createTextNode(suggestion);
+        const parent = marker.parentElement;
+        marker.replaceWith(textNode);
+        if (parent) {
+          parent.dispatchEvent(new Event("input", { bubbles: true }));
+        }
         this.closeMenu();
         this.schedule(0);
       }, "vno-spellcheck-suggestion");

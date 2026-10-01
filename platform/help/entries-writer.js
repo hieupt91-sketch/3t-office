@@ -1013,16 +1013,15 @@ export const WRITER_HELP_ENTRIES = [
     id: "writer.review.spellCheck",
     app: "writer",
     commandIds: ["ai.assistant.grammarCheck"],
-    title: "Soát lỗi chính tả và ngữ pháp tiếng Việt",
-    summary: "Kiểm tra toàn diện lỗi chính tả dấu thanh, phụ âm đầu và ngữ pháp văn bản tiếng Việt theo chuẩn từ điển tiếng Việt và Nghị định 30 bằng phím tắt F7.",
+    title: "Soát lỗi chính tả và gợi ý sửa từ tiếng Việt",
+    summary: "Kiểm tra toàn diện lỗi chính tả dấu thanh, phụ âm đầu và ngữ pháp văn bản tiếng Việt; gợi ý sửa lỗi trực tiếp qua menu chuột phải hoặc phím tắt F7.",
     ribbon: { tab: "Đánh giá", tabId: "review", group: "Chính tả & Ngữ pháp" },
-    keywords: ["soát lỗi chính tả", "chính tả", "ngữ pháp", "kiểm tra chính tả", "spell check", "grammar", "F7", "tiếng việt", "nghị định 30"],
+    keywords: ["soát lỗi chính tả", "chính tả", "ngữ pháp", "kiểm tra chính tả", "spell check", "grammar", "F7", "tiếng việt", "nghị định 30", "gợi ý chính tả", "chuột phải"],
     steps: [
-      "Mở tab Đánh giá trên thanh ribbon.",
-      "Trong nhóm Chính tả & Ngữ pháp, nhấn nút Soát lỗi chính tả (hoặc bấm phím F7 trên bàn phím).",
-      "Hệ thống tự động quét toàn bộ văn bản hiện tại, phát hiện các từ sai chính tả tiếng Việt (nhầm lẫn hỏi/ngã, s/x, tr/ch, d/gi/r) và lỗi dấu câu.",
-      "Bảng Trợ lý 3T AI mở ra hiển thị danh sách các từ nghi ngờ kèm ngữ cảnh và gợi ý chỉnh sửa đúng.",
-      "Nhấn vào từ gợi ý để tự động thay thế vào tài liệu, hoặc nhấn Bỏ qua để giữ nguyên từ đó."
+      "Khi soạn thảo văn bản, các từ nghi ngờ sai chính tả tiếng Việt sẽ tự động được đánh dấu bằng đường gạch dưới lượn sóng màu đỏ.",
+      "Nhấp chuột phải trực tiếp vào từ bị gạch chân để mở menu ngữ cảnh gợi ý: hệ thống tự động ưu tiên các từ đúng dấu thanh và ngữ cảnh liên kết (ví dụ: gợi ý chuẩn «định» khi gõ «quyết đinh»).",
+      "Nhấp vào từ gợi ý mong muốn để thay thế ngay lập tức trong văn bản, hoặc nhấp «Bỏ qua» để bỏ qua từ đó, hoặc «Thêm vào từ điển» để lưu vào từ điển cá nhân.",
+      "Để soát lỗi toàn diện, mở tab Đánh giá trên thanh ribbon, tại nhóm Chính tả & Ngữ pháp nhấn nút «Soát lỗi chính tả» (hoặc nhấn phím F7) để quét toàn bộ tài liệu."
     ]
   },
   {
