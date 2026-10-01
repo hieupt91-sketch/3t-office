@@ -1,9 +1,9 @@
 [
   {
     "app": "writer",
-    "port": 65324,
+    "port": 49182,
     "command": "python -s main.py --app=writer",
-    "browserArguments": "--remote-debugging-port=65324",
+    "browserArguments": "--remote-debugging-port=49182",
     "stages": [
       {
         "stage": "initial",
@@ -16,8 +16,8 @@
       {
         "stage": "F1 help",
         "title": "Tài liệu 1.docx — Doc",
-        "textNodes": 192,
-        "attributes": 141,
+        "textNodes": 196,
+        "attributes": 142,
         "matchCount": 0,
         "matches": []
       },
@@ -35,9 +35,9 @@
   },
   {
     "app": "sheet",
-    "port": 49472,
+    "port": 49393,
     "command": "python -s main.py --app=sheet",
-    "browserArguments": "--remote-debugging-port=49472",
+    "browserArguments": "--remote-debugging-port=49393",
     "stages": [
       {
         "stage": "initial",
@@ -69,9 +69,9 @@
   },
   {
     "app": "slides",
-    "port": 50065,
+    "port": 49775,
     "command": "python -s main.py --app=slides",
-    "browserArguments": "--remote-debugging-port=50065",
+    "browserArguments": "--remote-debugging-port=49775",
     "stages": [
       {
         "stage": "initial",
@@ -84,8 +84,8 @@
       {
         "stage": "F1 help",
         "title": "Bản trình bày 1.pptx — Slide",
-        "textNodes": 174,
-        "attributes": 139,
+        "textNodes": 170,
+        "attributes": 138,
         "matchCount": 0,
         "matches": []
       },

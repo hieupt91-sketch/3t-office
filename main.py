@@ -3533,7 +3533,7 @@ class VnOfficeApi:
         try:
             self._validate_open_package(src_path, app_kind)
         except DocumentEngineError as exc:
-            return {"status": "error", "message": "Không xử lý được tài liệu. Hãy kiểm tra tệp, quyền truy cập và dung lượng trống rồi thử lại."}
+            return {"status": "error", "message": str(exc)}
 
         if app_kind == "writer":
             target_ext = "html"
@@ -3667,7 +3667,7 @@ class VnOfficeApi:
                     # p:showPr showNarration=0 or p:penClr.
                     content = _apply_native_import_overlay(src_path, content, app_kind)
         except DocumentEngineError as exc:
-            return {"status": "error", "message": "Không xử lý được tài liệu. Hãy kiểm tra tệp, quyền truy cập và dung lượng trống rồi thử lại."}
+            return {"status": "error", "message": str(exc)}
 
         payload = {
             "status": "ok",
@@ -3837,7 +3837,7 @@ class VnOfficeApi:
                 _atomic_replace_file(out_path, target_path)
                 _verify_saved_file(target_path)
         except DocumentEngineError as exc:
-            return {"status": "error", "message": "Không xử lý được tài liệu. Hãy kiểm tra tệp, quyền truy cập và dung lượng trống rồi thử lại."}
+            return {"status": "error", "message": str(exc)}
         except Exception as exc:
             return {"status": "error", "message": f"Không lưu được tệp. Hãy kiểm tra quyền ghi, dung lượng trống và thử lại."}
 
@@ -3918,7 +3918,7 @@ class VnOfficeApi:
                 _atomic_replace_file(out_path, dest_path)
                 _verify_saved_file(dest_path)
         except DocumentEngineError as exc:
-            return {"status": "error", "message": "Không xử lý được tài liệu. Hãy kiểm tra tệp, quyền truy cập và dung lượng trống rồi thử lại."}
+            return {"status": "error", "message": str(exc)}
         except Exception as exc:
             return {"status": "error", "message": f"Không lưu được tệp. Hãy kiểm tra quyền ghi, dung lượng trống và thử lại."}
 
