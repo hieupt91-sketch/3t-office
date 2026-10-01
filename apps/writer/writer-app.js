@@ -12,6 +12,7 @@ import { globalShortcutManager } from "../../platform/commands/shortcut-manager.
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { withLazyFeatureProgress } from "../../platform/startup/lazy-feature.js";
 import { WriterViewController } from "./writer-view-controller.js";
+import { InputNormalizer } from "../../platform/keyboard/input-normalizer.js";
 
 export class WriterApp {
   constructor(mountElement) {
@@ -37,7 +38,7 @@ export class WriterApp {
     const isBlank = templateId === "blank";
     this.shell = new AppShell({
       appName: "writer",
-      appTitle: "3T Doc",
+      appTitle: "Doc",
       documentName: options.documentName || (isBlank ? "Tài liệu 1.docx" : "Quyết định ban hành tiêu chuẩn 01.docx")
     });
     this.shell.mount(this.mountElement);
@@ -136,9 +137,9 @@ export class WriterApp {
 
       <h2>QUYẾT ĐỊNH:</h2>
 
-      <p><strong>Điều 1.</strong> Phê duyệt và chính thức áp dụng bộ giải pháp phần mềm văn phòng <strong>3T Office</strong> (bao gồm <strong>3T Doc</strong>, <strong>3T Sheet</strong> và <strong>3T Slide</strong>) tại các cơ quan, đơn vị, doanh nghiệp trên địa bàn.</p>
+      <p><strong>Điều 1.</strong> Phê duyệt và chính thức áp dụng bộ giải pháp phần mềm văn phòng <strong>3T Office</strong> (bao gồm <strong>Doc</strong>, <strong>Sheet</strong> và <strong>Slide</strong>) tại các cơ quan, đơn vị, doanh nghiệp trên địa bàn.</p>
 
-      <p><strong>Điều 2.</strong> Bộ ứng dụng 3T Office đáp ứng đầy đủ quy chuẩn bảo mật dữ liệu, kế thừa sức mạnh xử lý định dạng ODF/OOXML của LibreOffice Core, đồng thời mang giao diện thuần Việt trực quan, hiện đại và chuẩn mực.</p>
+      <p><strong>Điều 2.</strong> Nhân viên sử dụng Doc để soạn công văn, Sheet để lập bảng theo dõi và Slide để chuẩn bị báo cáo cuộc họp. Tài liệu được lưu trên máy tính; cần kiểm tra nội dung và bố cục trước khi gửi.</p>
 
       <p><strong>Điều 3.</strong> Quyết định này có hiệu lực kể từ ngày ký. Chánh Văn phòng UBND Thành phố, Thủ trưởng các cơ quan, ban, ngành chịu trách nhiệm thi hành Quyết định này./.</p>
 
@@ -224,6 +225,10 @@ export class WriterApp {
     };
     this._setupContentObserver();
     this._editableRoots = [header, body, footer];
+    this._normalizers = this._editableRoots.map(root => new InputNormalizer({
+      target: root,
+      onWordCommit: () => this.adapter?.recordSnapshot?.("Gõ chữ")
+    }).attach(root));
     this._autoRecoverOptions = options;
     console.log("[WriterApp] Đã khởi tạo 3T Doc chuẩn hóa cao cấp.");
   }
@@ -256,7 +261,7 @@ export class WriterApp {
   async _ensureHelpPanel() {
     if (this.helpPanel) return this.helpPanel;
     if (!this._helpPanelPromise) {
-      this.shell?.setStatus?.("Đang tải Trợ giúp 3T Doc…");
+      this.shell?.setStatus?.("Đang tải Trợ giúp Doc…");
       this._helpPanelPromise = Promise.all([
         import("../../platform/help/index.js"),
         import("../../platform/help/entries-writer.js")
@@ -269,7 +274,7 @@ export class WriterApp {
         return this.helpPanel;
       }).catch((error) => {
         this._helpPanelPromise = null;
-        this.shell?.setStatus?.("Không tải được Trợ giúp 3T Doc.");
+        this.shell?.setStatus?.("Không tải được Trợ giúp Doc.");
         throw error;
       });
     }
@@ -335,6 +340,8 @@ export class WriterApp {
     this.arrangeController = null;
     this.spellcheckController?.destroy();
     this.spellcheckController = null;
+    this._normalizers?.forEach(n => n.destroy());
+    this._normalizers = [];
     this.helpPanel?.destroy();
     this.helpPanel = null;
   }

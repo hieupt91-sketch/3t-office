@@ -11,6 +11,7 @@ import { createLazyDialogs } from "../../platform/ui-kit/lazy-dialogs.js";
 import { resolveWordArtStyle, buildWordArtCss, applyWordArtCss } from "./slides-wordart.js";
 import { normalizeSlidesChart } from "./slides-chart-data.js";
 import { createMatcher } from "../../platform/find/find-engine.js";
+import { InputNormalizer } from "../../platform/keyboard/input-normalizer.js";
 
 const { showPromptDialog } = createLazyDialogs("slides");
 
@@ -220,34 +221,34 @@ export class SlidesCanvasController {
       {
         id: 1,
         title: "3T OFFICE — BỘ ỨNG DỤNG VĂN PHÒNG VIỆT",
-        body: "• Giải pháp công nghệ độc lập, bảo mật và chuẩn mực quốc gia\n• Tận dụng sức mạnh xử lý tài liệu vượt trội từ LibreOffice Core Engine\n• Giao diện thuần Việt, hiện đại, quen thuộc và thân thiện với người dùng",
+        body: "• Doc: soạn công văn và biên bản\n• Sheet: theo dõi công việc và tổng hợp số liệu\n• Slide: chuẩn bị báo cáo cuộc họp",
         layoutType: "title-content",
         shapes: [],
         comments: [],
-        notes: "Giới thiệu tổng quan về bộ ứng dụng 3T Office, nhấn mạnh tính độc lập công nghệ và bảo mật dữ liệu theo tiêu chuẩn quốc gia.",
+        notes: "Giới thiệu ba ứng dụng trong 3T Office và công việc phù hợp với từng ứng dụng.",
         titleAnimation: { type: "fadeIn", duration: 600, delay: 100 },
         bodyAnimation: { type: "flyIn", duration: 700, delay: 300 },
         hidden: false
       },
       {
         id: 2,
-        title: "KIẾN TRÚC HỆ THỐNG PHÂN TẦNG",
-        body: "1. VN App UI (Writer, Sheet, Slides đồng bộ phát triển)\n2. VN Shared Platform & Global Command Bus\n3. VN LibreOffice Adapter Layer (UNO Bridge & PyUNO)\n4. LibreOffice Core Engine C++",
+        title: "QUY TRÌNH CHUẨN BỊ BÁO CÁO",
+        body: "1. Thu thập số liệu tuần trong Sheet\n2. Viết nội dung báo cáo trong Doc\n3. Tóm tắt các điểm chính trong Slide\n4. Kiểm tra và lưu tài liệu trước cuộc họp",
         layoutType: "title-content",
         shapes: [],
         comments: [],
-        notes: "Làm rõ vai trò của UNO Bridge kết nối giữa tầng giao diện web và tầng lõi LibreOffice C++ headless mà không phát sinh chi phí bản quyền.",
+        notes: "Hướng dẫn nhóm chuẩn bị báo cáo tuần: tổng hợp số liệu, viết nội dung và trình bày kết quả.",
         titleAnimation: { type: "fadeIn", duration: 500, delay: 0 },
         hidden: false
       },
       {
         id: 3,
-        title: "KẾ HOẠCH TRIỂN KHAI & TIÊU CHUẨN KỸ THUẬT",
-        body: "• Hỗ trợ toàn diện định dạng văn bản hành chính theo Nghị định 30/2020/NĐ-CP\n• Tương thích 100% hai chiều với hệ sinh thái OOXML (DOCX, XLSX, PPTX)\n• Tích hợp trợ lý AI bảo mật cục bộ, bảo vệ quyền riêng tư tuyệt đối",
+        title: "KIỂM TRA TRƯỚC KHI CHIA SẺ",
+        body: "• Đọc lại nội dung và đối chiếu số liệu\n• Xem trước bố cục và các trang in\n• Lưu bản làm việc và xuất PDF khi cần chia sẻ",
         layoutType: "title-content",
         shapes: [],
         comments: [],
-        notes: "Nhấn mạnh khả năng tương thích định dạng DOCX/XLSX/PPTX và tuân thủ Nghị định 30/2020/NĐ-CP về thể thức văn bản hành chính.",
+        notes: "Nhắc người thuyết trình kiểm tra số liệu, bố cục và lưu tài liệu trước khi chia sẻ.",
         titleAnimation: { type: "zoomIn", duration: 600, delay: 200 },
         hidden: false
       }
@@ -425,6 +426,7 @@ export class SlidesCanvasController {
     this.titleEl.setAttribute("aria-label", "Tiêu đề trang chiếu");
     this.titleEl.setAttribute("aria-multiline", "false");
     this.titleEl.setAttribute("data-placeholder", "Bấm để thêm tiêu đề");
+    this.titleEl.dataset.vnoNativeClipboard = "true";
 
     this.bodyRowEl = document.createElement("div");
     this.bodyRowEl.className = "vno-slide-body-row";
@@ -437,6 +439,7 @@ export class SlidesCanvasController {
     this.bodyEl.setAttribute("aria-label", "Nội dung trang chiếu");
     this.bodyEl.setAttribute("aria-multiline", "true");
     this.bodyEl.setAttribute("data-placeholder", "Bấm để thêm văn bản");
+    this.bodyEl.dataset.vnoNativeClipboard = "true";
 
     this.body2El = document.createElement("div");
     this.body2El.className = "vno-slide-body vno-slide-body-col2 vno-slide-body-col-2";
@@ -446,6 +449,7 @@ export class SlidesCanvasController {
     this.body2El.setAttribute("aria-label", "Nội dung trang chiếu cột 2");
     this.body2El.setAttribute("aria-multiline", "true");
     this.body2El.setAttribute("data-placeholder", "Bấm để thêm văn bản");
+    this.body2El.dataset.vnoNativeClipboard = "true";
     this.body2El.style.display = "none";
 
     this.bodyRowEl.appendChild(this.bodyEl);
@@ -469,10 +473,45 @@ export class SlidesCanvasController {
       this._renderThumbnails();
     });
 
+    this._titleNormalizer = new InputNormalizer({
+      target: this.titleEl,
+      onWordCommit: () => {
+        this._syncEditableFieldsFromDom();
+        this.options.onDocumentChange?.();
+        this._renderThumbnails();
+        this._syncUndoRedoState();
+      }
+    }).attach(this.titleEl);
+
+    this._bodyNormalizer = new InputNormalizer({
+      target: this.bodyEl,
+      onWordCommit: () => {
+        this._syncEditableFieldsFromDom();
+        this.options.onDocumentChange?.();
+        this._renderThumbnails();
+        this._syncUndoRedoState();
+      }
+    }).attach(this.bodyEl);
+
+    this._body2Normalizer = new InputNormalizer({
+      target: this.body2El,
+      onWordCommit: () => {
+        this._syncEditableFieldsFromDom();
+        this.options.onDocumentChange?.();
+        this._renderThumbnails();
+        this._syncUndoRedoState();
+      }
+    }).attach(this.body2El);
+
     this.titleEl.addEventListener("keydown", (e) => {
       if (e.key === "Tab") {
         e.preventDefault();
-        this.selectNextObject(e.shiftKey);
+        e.stopPropagation();
+        if (this.bodyEl && this.bodyEl.style.display !== "none") {
+          this.bodyEl.focus();
+        } else {
+          this.selectNextObject(e.shiftKey);
+        }
       } else if (e.key === "Escape") {
         e.preventDefault();
         this.titleEl.blur();
@@ -482,7 +521,15 @@ export class SlidesCanvasController {
     this.bodyEl.addEventListener("keydown", (e) => {
       if (e.key === "Tab") {
         e.preventDefault();
-        this.selectNextObject(e.shiftKey);
+        e.stopPropagation();
+        if (e.shiftKey) {
+          document.execCommand("outdent", false, null);
+        } else {
+          document.execCommand("indent", false, null);
+        }
+        this._syncEditableFieldsFromDom();
+        this.options.onDocumentChange?.();
+        this._renderThumbnails();
       } else if (e.key === "Escape") {
         e.preventDefault();
         this.bodyEl.blur();
@@ -492,7 +539,15 @@ export class SlidesCanvasController {
     this.body2El.addEventListener("keydown", (e) => {
       if (e.key === "Tab") {
         e.preventDefault();
-        this.selectNextObject(e.shiftKey);
+        e.stopPropagation();
+        if (e.shiftKey) {
+          document.execCommand("outdent", false, null);
+        } else {
+          document.execCommand("indent", false, null);
+        }
+        this._syncEditableFieldsFromDom();
+        this.options.onDocumentChange?.();
+        this._renderThumbnails();
       } else if (e.key === "Escape") {
         e.preventDefault();
         this.body2El.blur();
@@ -500,11 +555,44 @@ export class SlidesCanvasController {
       }
     });
 
-    this.titleEl.addEventListener("focus", () => this.setSelectedTarget("title"));
+    const attachPlaceholderUndoTracking = (el, field) => {
+      let beforeSnapshot = null;
+      el.addEventListener("focus", () => {
+        this.setSelectedTarget(field);
+        beforeSnapshot = {
+          text: (el.innerText || "").normalize("NFC"),
+          html: this._captureEditableHtml(el)
+        };
+      });
+      el.addEventListener("blur", () => {
+        this._syncEditableFieldsFromDom();
+        if (beforeSnapshot) {
+          const afterText = (el.innerText || "").normalize("NFC");
+          const afterHtml = this._captureEditableHtml(el);
+          if (beforeSnapshot.text !== afterText || beforeSnapshot.html !== afterHtml) {
+            this.undoStack.push({
+              type: "placeholder-text-edit",
+              slideIndex: this.currentSlideIndex,
+              field,
+              before: beforeSnapshot.text,
+              beforeHtml: beforeSnapshot.html,
+              after: afterText,
+              afterHtml: afterHtml
+            });
+            this.redoStack = [];
+            this._syncUndoRedoState();
+          }
+          beforeSnapshot = null;
+        }
+      });
+    };
+
+    attachPlaceholderUndoTracking(this.titleEl, "title");
+    attachPlaceholderUndoTracking(this.bodyEl, "body");
+    attachPlaceholderUndoTracking(this.body2El, "body2");
+
     this.titleEl.addEventListener("click", () => this.setSelectedTarget("title"));
-    this.bodyEl.addEventListener("focus", () => this.setSelectedTarget("body"));
     this.bodyEl.addEventListener("click", () => this.setSelectedTarget("body"));
-    this.body2El.addEventListener("focus", () => this.setSelectedTarget("body2"));
     this.body2El.addEventListener("click", () => this.setSelectedTarget("body2"));
     this.titleEl.addEventListener("mouseup", () => this._onTextFieldFormatPainter("title"));
     this.bodyEl.addEventListener("mouseup", () => this._onTextFieldFormatPainter("body"));
@@ -608,10 +696,23 @@ export class SlidesCanvasController {
       this.options.onDocumentChange?.();
       const s = this.slides[this.currentSlideIndex];
       if (s) {
-        s.notes = this.notesTextarea.value;
+        s.notes = this.notesTextarea.value.normalize("NFC");
         this._updateNotesCharCount();
       }
     });
+
+    if (this.notesTextarea) {
+      this._notesNormalizer = new InputNormalizer({
+        target: this.notesTextarea,
+        onWordCommit: () => {
+          const s = this.slides[this.currentSlideIndex];
+          if (s) {
+            s.notes = this.notesTextarea.value.normalize("NFC");
+            this._updateNotesCharCount();
+          }
+        }
+      }).attach(this.notesTextarea);
+    }
 
     this._autoRecoverInputHandler = (event) => {
       if (event.target?.closest?.("[contenteditable='true'], [contenteditable=true], .vno-slide-notes-input")) {
@@ -1370,19 +1471,19 @@ export class SlidesCanvasController {
     const slide = this.slides[this.currentSlideIndex];
     if (!slide) return;
     if (this.titleEl) {
-      slide.title = this.titleEl.innerText || "";
+      slide.title = (this.titleEl.innerText || "").normalize("NFC");
       const html = this._captureEditableHtml(this.titleEl);
       if (this._htmlLooksFormatted(html)) slide.titleHtml = html;
       else delete slide.titleHtml;
     }
     if (this.bodyEl) {
-      slide.body = this.bodyEl.innerText || "";
+      slide.body = (this.bodyEl.innerText || "").normalize("NFC");
       const html = this._captureEditableHtml(this.bodyEl);
       if (this._htmlLooksFormatted(html)) slide.bodyHtml = html;
       else delete slide.bodyHtml;
     }
     if (this.body2El) {
-      slide.body2 = this.body2El.innerText || "";
+      slide.body2 = (this.body2El.innerText || "").normalize("NFC");
       const html = this._captureEditableHtml(this.body2El);
       if (this._htmlLooksFormatted(html)) slide.body2Html = html;
       else delete slide.body2Html;
@@ -3505,9 +3606,10 @@ export class SlidesCanvasController {
     const shape = this.slides[this.currentSlideIndex]?.shapes?.find(item => String(item.id) === String(shapeId));
     if (!shape || shape.type === "connector") return false;
     // Hộp văn bản giữ nhiều đoạn (mỗi dòng = một đoạn khi lưu PPTX); các hình khác giữ 1 dòng.
+    const normalized = String(text || "").normalize("NFC");
     shape.text = shape.type === "textbox"
-      ? String(text || "").replace(/\r\n?/g, "\n").replace(/\n+$/, "")
-      : String(text || "").replace(/\r?\n/g, " ");
+      ? normalized.replace(/\r\n?/g, "\n").replace(/\n+$/, "")
+      : normalized.replace(/\r?\n/g, " ");
     if (html !== undefined) {
       if (this._htmlLooksFormatted(html)) shape.textHtml = html;
       else delete shape.textHtml;
@@ -3559,7 +3661,7 @@ export class SlidesCanvasController {
 
     const MAX_MEDIA_SIZE_MB = 10;
     if (sizeBytes > MAX_MEDIA_SIZE_MB * 1024 * 1024) {
-      console.warn(`[3T Slide] Tệp media ${(sizeBytes / 1024 / 1024).toFixed(1)}MB vượt ngưỡng khuyến nghị ${MAX_MEDIA_SIZE_MB}MB — có thể làm chậm lưu/mở tệp vì được nhúng dạng Data URL.`);
+      console.warn(`[Slide] Tệp media ${(sizeBytes / 1024 / 1024).toFixed(1)}MB vượt ngưỡng khuyến nghị ${MAX_MEDIA_SIZE_MB}MB — có thể làm chậm lưu/mở tệp vì được nhúng dạng Data URL.`);
     }
 
     const offset = slide.shapes.length * 24;
@@ -3636,7 +3738,11 @@ export class SlidesCanvasController {
   _syncUndoRedoState() {
     this.options.onDocumentChange?.();
     if (typeof globalCommandBus === "undefined" || !globalCommandBus?.updateState) return;
-    globalCommandBus.updateState("common.edit.undo", { enabled: this.undoStack.length > 0 });
+    const hasTextUndo = (this._titleNormalizer?.customUndoStack?.length > 1)
+      || (this._bodyNormalizer?.customUndoStack?.length > 1)
+      || (this._body2Normalizer?.customUndoStack?.length > 1)
+      || (this._notesNormalizer?.customUndoStack?.length > 1);
+    globalCommandBus.updateState("common.edit.undo", { enabled: this.undoStack.length > 0 || hasTextUndo });
     globalCommandBus.updateState("common.edit.redo", { enabled: this.redoStack.length > 0 });
   }
 
@@ -4020,11 +4126,12 @@ export class SlidesCanvasController {
         textEl.setAttribute?.("role", "textbox");
         textEl.setAttribute?.("aria-label", shape.text || "WordArt");
         applyWordArtCss(textEl, shape);
-        const startEditing = (initialText) => {
-          if (textEl.contentEditable !== "true") textEl.dataset.originalText = shape.text || "";
-          textEl.contentEditable = "true";
-          if (initialText !== undefined) textEl.textContent = initialText;
-          textEl.focus();
+const startEditing = (initialText) => {
+            if (textEl.contentEditable !== "true") textEl.dataset.originalText = shape.text || "";
+            textEl.contentEditable = "true";
+            textEl.dataset.vnoNativeClipboard = "true";
+            if (initialText !== undefined) textEl.textContent = initialText;
+            textEl.focus();
           if (initialText !== undefined) {
             const selection = window.getSelection();
             const range = document.createRange();
@@ -4035,6 +4142,7 @@ export class SlidesCanvasController {
           }
         };
         textEl.addEventListener("input", () => this.updateShapeText(shape.id, textEl.textContent));
+        new InputNormalizer({ target: textEl, onWordCommit: (val) => this.updateShapeText(shape.id, val) }).attach(textEl);
         textEl.addEventListener("blur", () => {
           textEl.contentEditable = "false";
           const before = textEl.dataset.originalText ?? "";
@@ -4046,14 +4154,18 @@ export class SlidesCanvasController {
           }
         });
         textEl.addEventListener("keydown", (event) => {
-          if (event.key === "Enter" || event.key === "Escape") {
+          if (event.key === "Escape") {
             event.preventDefault();
             textEl.blur();
             el.focus?.();
           } else if (event.key === "Tab") {
             event.preventDefault();
-            textEl.blur();
-            this.selectNextObject(event.shiftKey);
+            event.stopPropagation();
+            if (event.shiftKey) {
+              document.execCommand("outdent", false, null);
+            } else {
+              document.execCommand("indent", false, null);
+            }
           }
           event.stopPropagation();
         });
@@ -4097,6 +4209,7 @@ export class SlidesCanvasController {
           (row || []).forEach((cell, c) => {
             const td = document.createElement(r === 0 ? "th" : "td");
             td.contentEditable = "true";
+            td.dataset.vnoNativeClipboard = "true";
             if (this._htmlLooksFormatted(cell)) td.innerHTML = cell;
             else td.textContent = cell || "";
             td.style.cssText = "border:1px solid #94a3b8;padding:6px 8px;font-size:13px;background:#fff;font-weight:" + (r === 0 ? "700" : "400") + ";";
@@ -4153,6 +4266,7 @@ export class SlidesCanvasController {
         const startEditing = (initialText) => {
           if (textEl.contentEditable !== "true") textEl.dataset.originalText = shape.text || "";
           textEl.contentEditable = "true";
+          textEl.dataset.vnoNativeClipboard = "true";
           if (initialText !== undefined) textEl.textContent = initialText;
           textEl.focus();
           if (initialText !== undefined) {
@@ -4165,6 +4279,7 @@ export class SlidesCanvasController {
           }
         };
         textEl.addEventListener("input", () => this.updateShapeText(shape.id, textEl.innerText || textEl.textContent, this._captureEditableHtml(textEl)));
+        new InputNormalizer({ target: textEl, onWordCommit: (val) => this.updateShapeText(shape.id, val, this._captureEditableHtml(textEl)) }).attach(textEl);
         textEl.addEventListener("blur", () => {
           textEl.contentEditable = "false";
           const before = textEl.dataset.originalText ?? "";
@@ -4185,8 +4300,12 @@ export class SlidesCanvasController {
             el.focus?.();
           } else if (event.key === "Tab") {
             event.preventDefault();
-            textEl.blur();
-            this.selectNextObject(event.shiftKey);
+            event.stopPropagation();
+            if (event.shiftKey) {
+              document.execCommand("outdent", false, null);
+            } else {
+              document.execCommand("indent", false, null);
+            }
           }
           event.stopPropagation();
         });
@@ -4267,11 +4386,12 @@ export class SlidesCanvasController {
           textEl.contentEditable = "false";
           textEl.setAttribute?.("role", "textbox");
           textEl.setAttribute?.("aria-label", shape.text || t("slidesDialogs.diagramItem", { number: 1 }));
-          const startEditing = (initialText) => {
-            if (textEl.contentEditable !== "true") textEl.dataset.originalText = shape.text || "";
-            textEl.contentEditable = "true";
-            if (initialText !== undefined) textEl.textContent = initialText;
-            textEl.focus();
+const startEditing = (initialText) => {
+          if (textEl.contentEditable !== "true") textEl.dataset.originalText = shape.text || "";
+          textEl.contentEditable = "true";
+          textEl.dataset.vnoNativeClipboard = "true";
+          if (initialText !== undefined) textEl.textContent = initialText;
+          textEl.focus();
             if (initialText !== undefined) {
               // Replacing textContent after focus resets the caret to the start in Chromium.
               // Put it after the seed character so click-then-type preserves keyboard order.
@@ -4284,6 +4404,7 @@ export class SlidesCanvasController {
             }
           };
           textEl.addEventListener("input", () => this.updateShapeText(shape.id, textEl.innerText || textEl.textContent, this._captureEditableHtml(textEl)));
+          new InputNormalizer({ target: textEl, onWordCommit: (val) => this.updateShapeText(shape.id, val, this._captureEditableHtml(textEl)) }).attach(textEl);
           textEl.addEventListener("blur", () => {
             textEl.contentEditable = "false";
             const before = textEl.dataset.originalText ?? "";
@@ -4295,14 +4416,18 @@ export class SlidesCanvasController {
             }
           });
           textEl.addEventListener("keydown", (event) => {
-            if (event.key === "Enter" || event.key === "Escape") {
+            if (event.key === "Escape") {
               event.preventDefault();
               textEl.blur();
               el.focus?.();
             } else if (event.key === "Tab") {
               event.preventDefault();
-              textEl.blur();
-              this.selectNextObject(event.shiftKey);
+              event.stopPropagation();
+              if (event.shiftKey) {
+                document.execCommand("outdent", false, null);
+              } else {
+                document.execCommand("indent", false, null);
+              }
             }
             event.stopPropagation();
           });
@@ -4471,7 +4596,7 @@ export class SlidesCanvasController {
         let newH = origH;
 
         const isCorner = ["nw", "ne", "se", "sw"].includes(dir);
-        const keepAspect = isCorner && moveEvent.shiftKey;
+        const keepAspect = isCorner && (shape.type === "image" || moveEvent.shiftKey);
 
         if (dir.includes("e")) {
           newW = Math.max(20, origW + localDx);
@@ -5578,7 +5703,17 @@ export class SlidesCanvasController {
         this._openSlideSectionMenu(idx, event.clientX || 0, event.clientY || 0);
       });
       item.addEventListener("keydown", (event) => {
-        if (event.key === "ArrowDown" || event.key === "ArrowRight") {
+        if ((event.ctrlKey || event.metaKey) && event.key === "ArrowUp" && idx > 0) {
+          event.preventDefault();
+          event.stopPropagation();
+          this.moveSlide(idx, idx - 1, true, this.slides[idx - 1]?.sectionId || null);
+          this.slideListContainer?.querySelector(`[data-slide-index="${idx - 1}"]`)?.focus();
+        } else if ((event.ctrlKey || event.metaKey) && event.key === "ArrowDown" && idx < this.slides.length - 1) {
+          event.preventDefault();
+          event.stopPropagation();
+          this.moveSlide(idx, idx + 1, true, this.slides[idx + 1]?.sectionId || null);
+          this.slideListContainer?.querySelector(`[data-slide-index="${idx + 1}"]`)?.focus();
+        } else if (event.key === "ArrowDown" || event.key === "ArrowRight") {
           event.preventDefault();
           event.stopPropagation();
           const nextIdx = Math.min(this.slides.length - 1, idx + 1);
@@ -5622,12 +5757,12 @@ export class SlidesCanvasController {
           event.preventDefault();
           event.stopPropagation();
           if (this.slides.length > 1) {
-            this.deleteCurrentSlide();
+            this.deleteCurrentSlide(true, true);
           }
         } else if ((event.ctrlKey || event.metaKey) && (event.key === "d" || event.key === "D")) {
           event.preventDefault();
           event.stopPropagation();
-          this.duplicateCurrentSlide();
+          this.duplicateCurrentSlide(true, true);
           this.slideListContainer?.querySelector(`[data-slide-index="${this.currentSlideIndex}"]`)?.focus();
         } else if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
           event.preventDefault();
@@ -5804,8 +5939,8 @@ export class SlidesCanvasController {
     return true;
   }
 
-  duplicateCurrentSlide(recordUndo = true) {
-    if (!this.slideSorterOverlay && this.selectedShapeIds && this.selectedShapeIds.size > 0) {
+  duplicateCurrentSlide(recordUndo = true, forceSlide = false) {
+    if (!forceSlide && !this.slideSorterOverlay && this.selectedShapeIds && this.selectedShapeIds.size > 0) {
       return this.duplicateSelectedShapes();
     }
     const cur = this.slides[this.currentSlideIndex];
@@ -5843,8 +5978,8 @@ export class SlidesCanvasController {
     return true;
   }
 
-  deleteCurrentSlide(recordUndo = true) {
-    if (!this.slideSorterOverlay && this.selectedShapeIds && this.selectedShapeIds.size > 0) {
+  deleteCurrentSlide(recordUndo = true, forceSlide = false) {
+    if (!forceSlide && !this.slideSorterOverlay && this.selectedShapeIds && this.selectedShapeIds.size > 0) {
       return this.deleteSelectedShapes();
     }
     if (this.slides.length <= 1) return false;
@@ -6249,12 +6384,12 @@ export class SlidesCanvasController {
     menu.querySelector('[data-slide-action="duplicate"]')?.addEventListener("click", () => {
       close(false);
       this.selectSlide(slideIndex);
-      this.duplicateCurrentSlide();
+      this.duplicateCurrentSlide(true, true);
     });
     menu.querySelector('[data-slide-action="delete"]')?.addEventListener("click", () => {
       close(false);
       this.selectSlide(slideIndex);
-      this.deleteCurrentSlide();
+      this.deleteCurrentSlide(true, true);
     });
     menu.querySelector('[data-section-action="add"]')?.addEventListener("click", async () => {
       close(false);
@@ -6592,6 +6727,48 @@ export class SlidesCanvasController {
           event.preventDefault();
           this.selectSlide(index);
           this.closeSlideSorter();
+        } else if (event.key === "Delete" || event.key === "Backspace") {
+          event.preventDefault();
+          if (this.slides.length > 1) {
+            this.selectSlide(index);
+            this.deleteCurrentSlide(true, true);
+            this._renderSlideSorterGrid();
+            const nextIdx = Math.min(index, this.slides.length - 1);
+            grid.querySelector(`[data-slide-index="${nextIdx}"]`)?.focus?.();
+          }
+        } else if ((event.ctrlKey || event.metaKey) && (event.key === "d" || event.key === "D")) {
+          event.preventDefault();
+          this.selectSlide(index);
+          this.duplicateCurrentSlide(true, true);
+          this._renderSlideSorterGrid();
+          grid.querySelector(`[data-slide-index="${index + 1}"]`)?.focus?.();
+        } else if ((event.ctrlKey || event.metaKey) && (event.key === "ArrowLeft" || event.key === "ArrowUp") && index > 0) {
+          event.preventDefault();
+          this.moveSlide(index, index - 1, true, this.slides[index - 1]?.sectionId || null);
+          this._renderSlideSorterGrid();
+          grid.querySelector(`[data-slide-index="${index - 1}"]`)?.focus?.();
+        } else if ((event.ctrlKey || event.metaKey) && (event.key === "ArrowRight" || event.key === "ArrowDown") && index < this.slides.length - 1) {
+          event.preventDefault();
+          this.moveSlide(index, index + 1, true, this.slides[index + 1]?.sectionId || null);
+          this._renderSlideSorterGrid();
+          grid.querySelector(`[data-slide-index="${index + 1}"]`)?.focus?.();
+        } else if (event.key === "ArrowLeft" && index > 0) {
+          event.preventDefault();
+          this.selectSlide(index - 1);
+          grid.querySelector(`[data-slide-index="${index - 1}"]`)?.focus?.();
+        } else if (event.key === "ArrowRight" && index < this.slides.length - 1) {
+          event.preventDefault();
+          this.selectSlide(index + 1);
+          grid.querySelector(`[data-slide-index="${index + 1}"]`)?.focus?.();
+        } else if (event.key === "Home" && this.slides.length > 0) {
+          event.preventDefault();
+          this.selectSlide(0);
+          grid.querySelector('[data-slide-index="0"]')?.focus?.();
+        } else if (event.key === "End" && this.slides.length > 0) {
+          event.preventDefault();
+          const lastIdx = this.slides.length - 1;
+          this.selectSlide(lastIdx);
+          grid.querySelector(`[data-slide-index="${lastIdx}"]`)?.focus?.();
         } else if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
           event.preventDefault();
           const rect = item.getBoundingClientRect?.() || { left: 100, top: 100 };
@@ -6624,13 +6801,13 @@ export class SlidesCanvasController {
       item.querySelector('[data-action="duplicate"]')?.addEventListener("click", (event) => {
         event.stopPropagation();
         this.selectSlide(index);
-        this.duplicateCurrentSlide();
+        this.duplicateCurrentSlide(true, true);
         this._renderSlideSorterGrid();
       });
       item.querySelector('[data-action="delete"]')?.addEventListener("click", (event) => {
         event.stopPropagation();
         this.selectSlide(index);
-        this.deleteCurrentSlide();
+        this.deleteCurrentSlide(true, true);
         this._renderSlideSorterGrid();
       });
       grid.appendChild(item);
@@ -6638,6 +6815,40 @@ export class SlidesCanvasController {
   }
 
   undo() {
+    const activeEl = typeof document !== "undefined" ? document.activeElement : null;
+    if (activeEl) {
+      if ((activeEl === this.titleEl || this.titleEl?.contains?.(activeEl)) && this._titleNormalizer?._handleCtrlZ?.()) {
+        this._syncEditableFieldsFromDom();
+        this.options.onDocumentChange?.();
+        this._renderThumbnails();
+        return true;
+      }
+      if ((activeEl === this.bodyEl || this.bodyEl?.contains?.(activeEl)) && this._bodyNormalizer?._handleCtrlZ?.()) {
+        this._syncEditableFieldsFromDom();
+        this.options.onDocumentChange?.();
+        this._renderThumbnails();
+        return true;
+      }
+      if ((activeEl === this.body2El || this.body2El?.contains?.(activeEl)) && this._body2Normalizer?._handleCtrlZ?.()) {
+        this._syncEditableFieldsFromDom();
+        this.options.onDocumentChange?.();
+        this._renderThumbnails();
+        return true;
+      }
+      if ((activeEl === this.notesTextarea) && this._notesNormalizer?._handleCtrlZ?.()) {
+        const s = this.slides[this.currentSlideIndex];
+        if (s) {
+          s.notes = this.notesTextarea.value.normalize("NFC");
+          this._updateNotesCharCount();
+        }
+        return true;
+      }
+      const shapeTextEl = activeEl.closest?.("[data-shape-text-id]") || (activeEl.isContentEditable ? activeEl : null);
+      if (shapeTextEl?._vnoNormalizer?._handleCtrlZ?.()) {
+        return true;
+      }
+    }
+
     const result = this._undoImpl();
     this._syncUndoRedoState();
     return result;
@@ -6698,6 +6909,27 @@ export class SlidesCanvasController {
       this.redoStack.push(action);
       this.selectSlide(action.slideIndex);
       this._renderShapesLayer();
+      return true;
+    } else if (action.type === "placeholder-text-edit") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      if (action.field === "title") {
+        slide.title = action.before;
+        if (action.beforeHtml) slide.titleHtml = action.beforeHtml;
+        else delete slide.titleHtml;
+      } else if (action.field === "body") {
+        slide.body = action.before;
+        if (action.beforeHtml) slide.bodyHtml = action.beforeHtml;
+        else delete slide.bodyHtml;
+      } else if (action.field === "body2") {
+        slide.body2 = action.before;
+        if (action.beforeHtml) slide.body2Html = action.beforeHtml;
+        else delete slide.body2Html;
+      }
+      this.redoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderThumbnails();
+      this.options.onDocumentChange?.();
       return true;
     } else if (action.type === "shape-text-edit") {
       const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
@@ -6982,6 +7214,27 @@ export class SlidesCanvasController {
       this.undoStack.push(action);
       this.selectSlide(action.slideIndex);
       this._renderShapesLayer();
+      return true;
+    } else if (action.type === "placeholder-text-edit") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      if (action.field === "title") {
+        slide.title = action.after;
+        if (action.afterHtml) slide.titleHtml = action.afterHtml;
+        else delete slide.titleHtml;
+      } else if (action.field === "body") {
+        slide.body = action.after;
+        if (action.afterHtml) slide.bodyHtml = action.afterHtml;
+        else delete slide.bodyHtml;
+      } else if (action.field === "body2") {
+        slide.body2 = action.after;
+        if (action.afterHtml) slide.body2Html = action.afterHtml;
+        else delete slide.body2Html;
+      }
+      this.undoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderThumbnails();
+      this.options.onDocumentChange?.();
       return true;
     } else if (action.type === "shape-text-edit") {
       const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
@@ -8553,7 +8806,7 @@ export class SlidesCanvasController {
               <input type="checkbox" id="vno-setup-narration" ${current.showWithoutNarration ? "checked" : ""}>
               <span>${t("slidesDialogs.setupShowNoNarration", "Trình chiếu không có thuyết minh")}</span>
             </label>
-            <p style="margin:0 0 0 24px;font-size:11px;color:var(--vno-text-muted);">${t("slidesDialogs.setupShowNoNarrationHint", "Chưa có thuyết minh/audio narration trong 3T Slide — tùy chọn này chỉ lưu cờ, chưa ẩn hay tắt âm thanh nào.")}</p>
+            <p style="margin:0 0 0 24px;font-size:11px;color:var(--vno-text-muted);">${t("slidesDialogs.setupShowNoNarrationHint", "Chưa có thuyết minh/audio narration trong Slide — tùy chọn này chỉ lưu cờ, chưa ẩn hay tắt âm thanh nào.")}</p>
             <div style="display:flex;flex-direction:column;gap:6px;">
               <label for="vno-setup-pointer-color" style="font-size:12px;font-weight:600;color:var(--vno-text-primary);">${t("slidesDialogs.setupShowPointerColor", "Màu con trỏ bút / laser")}</label>
               <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -9170,7 +9423,7 @@ export class SlidesCanvasController {
           inkOverlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10002;";
           inkOverlay.innerHTML = `
             <div class="vno-dialog-box" style="width:380px;background:var(--vno-bg-surface, #fff);border-radius:8px;padding:20px;box-shadow:0 12px 32px rgba(0,0,0,0.3);color:var(--vno-text-primary, #0f172a);" role="dialog" aria-modal="true">
-              <h3 style="margin:0 0 10px;font-size:16px;font-weight:700;">${t("slidesDialogs.keepInkTitle", "3T Slide")}</h3>
+              <h3 style="margin:0 0 10px;font-size:16px;font-weight:700;">${t("slidesDialogs.keepInkTitle", "Slide")}</h3>
               <p style="margin:0 0 20px;font-size:13px;line-height:1.5;">${t("slidesDialogs.keepInkPrompt", "Bạn có muốn giữ lại các chú thích bằng nét vẽ không?")}</p>
               <div style="display:flex;justify-content:flex-end;gap:10px;">
                 <button type="button" class="vno-btn vno-btn-primary" id="vno-ink-keep-btn" style="padding:6px 16px;">${t("slidesDialogs.keepInkKeep", "Giữ")}</button>
@@ -9336,6 +9589,20 @@ export class SlidesCanvasController {
     return this.startSlideShow(startIndex, { rehearsal: true });
   }
 
+  exitSlideShow() {
+    if (typeof this._activeShowCleanup === "function") {
+      this._activeShowCleanup();
+      this._activeShowCleanup = null;
+      return true;
+    }
+    const overlay = typeof document !== "undefined" ? document.querySelector(".vno-slideshow-overlay") : null;
+    if (overlay) {
+      overlay.remove();
+      return true;
+    }
+    return false;
+  }
+
   startPresenterMode(startIndex) {
     if (typeof document === "undefined" || !document.createElement) return false;
     const previousFocused = document.activeElement;
@@ -9367,7 +9634,7 @@ export class SlidesCanvasController {
       <div class="vno-presenter-header">
         <div class="vno-presenter-brand">
           <strong>${t("slidesDialogs.presenterHeader", "CHẾ ĐỘ NGƯỜI THUYẾT TRÌNH (PRESENTER VIEW)")}</strong>
-          <span style="font-size:11px;opacity:0.7;margin-left:8px;">• 3T Slide</span>
+          <span style="font-size:11px;opacity:0.7;margin-left:8px;">• Slide</span>
         </div>
         <div class="vno-presenter-clocks">
           <div class="vno-presenter-timer-box" title="${t("slidesDialogs.elapsedTime", "Thời gian thuyết trình")}" role="timer" aria-label="${t("slidesDialogs.elapsedTime", "Thời gian thuyết trình")}">

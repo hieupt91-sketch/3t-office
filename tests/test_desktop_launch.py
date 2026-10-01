@@ -37,9 +37,9 @@ class DesktopLaunchTests(unittest.TestCase):
 
     def test_taskbar_relaunch_labels_are_short_and_keep_app_window_titles(self):
         expected = {
-            "writer": ("VNOffice.Writer", "Doc", "3T Doc"),
-            "sheet": ("VNOffice.Sheet", "Sheet", "3T Sheet"),
-            "slides": ("VNOffice.Slides", "Slide", "3T Slide"),
+            "writer": ("VNOffice.Writer", "Doc", "Doc"),
+            "sheet": ("VNOffice.Sheet", "Sheet", "Sheet"),
+            "slides": ("VNOffice.Slides", "Slide", "Slide"),
         }
         for app_kind, (app_user_model_id, display_name, title_prefix) in expected.items():
             with self.subTest(app_kind=app_kind):
@@ -48,7 +48,7 @@ class DesktopLaunchTests(unittest.TestCase):
                 self.assertEqual(info["app_user_model_id"], app_user_model_id)
                 self.assertEqual(info["display_name"], display_name)
                 self.assertIn(f"--app={app_kind}", info["command"])
-                self.assertIn(title_prefix, main.APP_TITLES[app_kind])
+                self.assertEqual(title_prefix, main.APP_TITLES[app_kind])
         self.assertIsNone(main._taskbar_relaunch_info("suite"))
 
     def test_each_window_api_owns_document_state_and_shares_process_services(self):

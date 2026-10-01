@@ -6,9 +6,9 @@
 export const enStrings = {
   app: {
     suiteName: "3T Office",
-    writer: "3T Doc (Word Processor)",
-    sheet: "3T Sheet (Spreadsheet)",
-    slides: "3T Slide (Presentation)"
+    writer: "Doc (Text Documents)",
+    sheet: "Sheet (Spreadsheet)",
+    slides: "Slide (Presentation)"
   },
   common: {
     save: "Save document",
@@ -31,7 +31,7 @@ export const enStrings = {
   },
   help: {
     panelTitle: "Help",
-    searchPlaceholder: "Search a feature, e.g. Word Count",
+    searchPlaceholder: "Search a feature, e.g. Document Statistics",
     topicList: "Topic list",
     noResults: "No matching help topic.",
     pickTopic: "Select a feature in the list to read its guide.",
@@ -86,7 +86,7 @@ export const enStrings = {
     formulaFromDescPlaceholder: "Describe the formula to create...",
     formulaFromDescPreview: "Formula Preview",
     formulaFromDescApply: "Apply to selected cell",
-    formulaFromDescInvalid: "The generated formula is not compatible with 3T Sheet. Please try a different description.",
+    formulaFromDescInvalid: "The generated formula is not compatible with Sheet. Please try a different description.",
     formulaFromDescUnsupported: "Formula contains unsupported functions:"
   },
   backstage: {
@@ -163,7 +163,7 @@ export const enStrings = {
   sheetFormulaEntry: {
     status: { enter: "Enter", edit: "Edit", point: "Point" },
     referenceHint: "Click or drag across cells to insert references; press F2 to switch between Edit and Point.",
-    formulaBarLabel: "3T Sheet Formula Bar"
+    formulaBarLabel: "Sheet Formula Bar"
   },
   slidesRibbon: {
     tab: { home: "Home", insert: "Insert", design: "Design", transitions: "Transitions", animations: "Animations", slideshow: "Slide Show", review: "Review", view: "View", help: "Help", ai: "3T AI Assistant" },
@@ -320,8 +320,8 @@ export const enStrings = {
     formatBackgroundTitle: "Format Background", formatBackgroundHint: "Change this slide's background. This does not replace the presentation theme.", formatBackgroundSolid: "Solid fill", formatBackgroundGradient: "Two-color gradient", formatBackgroundPicture: "Picture", formatBackgroundColor: "Fill color", formatBackgroundFrom: "Color 1", formatBackgroundTo: "Color 2", formatBackgroundDirection: "Direction", formatBackgroundHorizontal: "Horizontal", formatBackgroundVertical: "Vertical", formatBackgroundChoosePicture: "Choose picture…", formatBackgroundApplyCurrent: "Apply to this slide", formatBackgroundApplyAll: "Apply to all slides", formatBackgroundClear: "Remove custom background",
     spellcheckTitle: "Spelling", spellcheckNotInDictionary: "Not in Dictionary:", spellcheckLocation: "Location", spellcheckContext: "Text", spellcheckSuggestions: "Suggestions:", spellcheckNoSuggestions: "(No close suggestions)", spellcheckIgnore: "Ignore Once", spellcheckIgnoreAll: "Ignore All", spellcheckAdd: "Add to Dictionary", spellcheckReplace: "Change", spellcheckReplaceAll: "Change All", spellcheckClose: "Close", spellcheckStatus: "Issue {current} of {total}", spellcheckComplete: "The spelling check is complete for this slide. No misspellings were found.", spellcheckCompleteRemaining: "The spelling check is complete. No misspellings remain.", spellcheckFieldTitle: "Title", spellcheckFieldBody: "Body", spellcheckFieldBody2: "Second column", spellcheckFieldShape: "Shape",
     animationPaneTitle: "Animation Pane", animationPaneHint: "Every animation on the current slide. Reorder with Up/Down, choose how it starts, or remove the animation without deleting the object.", animationPaneEmpty: "This slide has no animations. Apply an object animation on the Animations tab, then open this pane to sequence them.", animStartLabel: "Start", animStartOnClick: "On Click", animStartWithPrevious: "With Previous", animStartAfterPrevious: "After Previous", animMoveUp: "Move up", animMoveDown: "Move down", animMoveUpShort: "↑", animMoveDownShort: "↓", animRemove: "Remove animation", animRemoveShort: "Remove", shapeWordArt: "WordArt", shapeChart: "Chart", shapeTable: "Table", shapeTextBox: "Text box",
-    setupShowTitle: "Set Up Slide Show", setupShowHint: "Slide show options for this presentation. Loop until Esc applies immediately in F5. Default pen and laser pointer color during slide show (toggle with Ctrl+P, Ctrl+L).", setupShowLoop: "Loop continuously until Esc", setupShowNoNarration: "Show without narration", setupShowNoNarrationHint: "3T Slide does not have audio narration yet — this option only stores a flag and does not mute or hide audio.", setupShowPointerColor: "Pen / laser pointer color",
-    keepInkTitle: "3T Slide", keepInkPrompt: "Do you want to keep your ink annotations?", keepInkKeep: "Keep", keepInkDiscard: "Discard",
+    setupShowTitle: "Set Up Slide Show", setupShowHint: "Slide show options for this presentation. Loop until Esc applies immediately in F5. Default pen and laser pointer color during slide show (toggle with Ctrl+P, Ctrl+L).", setupShowLoop: "Loop continuously until Esc", setupShowNoNarration: "Show without narration", setupShowNoNarrationHint: "Slide does not have audio narration yet — this option only stores a flag and does not mute or hide audio.", setupShowPointerColor: "Pen / laser pointer color",
+    keepInkTitle: "Slide", keepInkPrompt: "Do you want to keep your ink annotations?", keepInkKeep: "Keep", keepInkDiscard: "Discard",
     slideshowNext: "Next", slideshowPrev: "Previous", slideshowPointerOptions: "Pointer Options", slideshowArrow: "Arrow", slideshowPen: "Pen", slideshowLaser: "Laser Pointer", slideshowPenColor: "Pen Color", slideshowEraseInk: "Erase Ink on Slide", slideshowEndShow: "End Show",
     colorRed: "Red", colorBlue: "Blue", colorYellow: "Yellow", colorGreen: "Green", colorBlack: "Black"
   },
@@ -689,7 +689,7 @@ export const enStrings = {
     "writer.format.dropCap": { label: "Drop Cap", tooltip: "Enlarge the first letter of the paragraph" },
     "writer.insert.dateTime": { label: "Date & Time", tooltip: "Insert the current date and time at the cursor" },
     "writer.insert.equation": { label: "Equation", tooltip: "Insert a math equation at the cursor (Alt+=)" },
-    "writer.equation.dialog.title": "Equation — 3T Doc",
+    "writer.equation.dialog.title": "Equation — Doc",
     "writer.equation.dialog.instructions": "Enter linear format and preview native MathML. Use a/b, x^2, x_1, \\sqrt(x), or type \\alpha then press Space.",
     "writer.equation.dialog.linearFormat": "Linear format",
     "writer.equation.dialog.linearHint": "Example: a/b + x^2 = \\sqrt(y). Press Ctrl+Enter to insert.",
@@ -723,7 +723,7 @@ export const enStrings = {
     "writer.trackChanges.rejectOne": { label: "Reject This", tooltip: "Reject the selected change" },
     "writer.trackChanges.acceptAll": { label: "Accept All Changes", tooltip: "Accept all changes in document" },
     "writer.trackChanges.rejectAll": { label: "Reject All Changes", tooltip: "Reject all changes in document" },
-    "writer.review.wordCount": { label: "Word Count", tooltip: "Show words, characters, paragraphs and lines in the document" },
+    "writer.review.wordCount": { label: "Document Statistics", tooltip: "Show words, characters, paragraphs and lines in the document" },
     "writer.help.open": { label: "Help", tooltip: "Open the in-app user guide (F1)" },
     "writer.page.margins": { label: "Margins", tooltip: "Adjust document margins" },
     "writer.page.orientation": { label: "Orientation", tooltip: "Switch page orientation between portrait and landscape" },
@@ -744,7 +744,7 @@ export const enStrings = {
     "writer.pageNumber.format": { label: "Page Number Format", tooltip: "Continue or restart page numbering in this section" },
     "writer.section.delete": { label: "Delete Section Break", tooltip: "Delete the selected section break" },
     "writer.layout.sectionOptions": { label: "Section Options", tooltip: "Set headers, footers, and page numbering for this section" },
-    "writer.layout.lineNumbers": { label: "Line Numbers", tooltip: "Line numbers for Word/LibreOffice: None, Continuous, Restart each page, Restart each section" },
+    "writer.layout.lineNumbers": { label: "Line Numbers", tooltip: "Line numbers in saved documents: None, Continuous, Restart each page, Restart each section" },
     "writer.page.watermark": { label: "Watermark", tooltip: "Add or remove a background watermark" },
     "writer.page.color": { label: "Page Color", tooltip: "Set a solid page background color" },
     "writer.page.border": { label: "Page Borders", tooltip: "Add or change border around the page" },
@@ -771,7 +771,7 @@ export const enStrings = {
     "writer.reference.captionInsert": { label: "Insert Caption", tooltip: "Insert an auto-numbered caption for a picture, table, or equation" },
     "writer.reference.tofInsert": { label: "Insert Table of Figures", tooltip: "Insert a table of figures or tables from existing captions" },
     "writer.reference.tofUpdate": { label: "Update Table of Figures", tooltip: "Refresh the table of figures from captions in the document" },
-    "writer.mailMerge.open": { label: "Select Recipients", tooltip: "Open mail merge recipient list from Excel (.xlsx, .xls) or CSV/TSV file" },
+    "writer.mailMerge.open": { label: "Select Recipients", tooltip: "Open mail merge recipient list from spreadsheet (.xlsx, .xls) or CSV/TSV file" },
     "writer.mailMerge.insertField": { label: "Insert Merge Field", tooltip: "Insert a mail merge field" },
     "writer.mailMerge.preview": { label: "Preview Results", tooltip: "Preview merged records" },
     "writer.mailMerge.prevRecord": { label: "Previous Record", tooltip: "Go to previous record" },
@@ -875,7 +875,7 @@ export const enStrings = {
       firstSection: "The first section cannot link to a previous section."
     },
     wordCount: {
-      title: "Word Count",
+      title: "Document Statistics",
       scopeDocument: "Statistics for the whole document",
       scopeSelection: "Statistics for the current selection",
       words: "Words",
@@ -1008,8 +1008,8 @@ export const enStrings = {
       contentRequired: "Enter label text, or turn on the Mail Merge source."
     },
     mailMerge: {
-      dataSourceTitle: "Mail Merge — Recipient Data Source (Excel / CSV)",
-      pastePrompt: "Select an Excel (.xlsx, .xls) / CSV file, or paste table data below:",
+      dataSourceTitle: "Mail Merge — Recipient Data Source (spreadsheet / CSV)",
+      pastePrompt: "Select an spreadsheet (.xlsx, .xls) / CSV file, or paste table data below:",
       pasteSampleBtn: "📋 Paste Sample Data",
       noData: "No data",
       invalidCsv: "Invalid data (missing column headers)",
@@ -1019,9 +1019,9 @@ export const enStrings = {
       selectFieldPrompt: "Select field to insert into document:",
       insertBtn: "Insert Field",
       noDataWarningTitle: "Mail Merge Preview",
-      noDataWarningMsg: "No mail merge data source found. Please open 'Select Recipients' to choose an Excel/CSV file first.",
+      noDataWarningMsg: "No mail merge data source found. Please open 'Select Recipients' to choose an spreadsheet/CSV file first.",
       finishTitle: "Finish & Merge",
-      finishNoData: "No mail merge data source to create documents. Please open 'Select Recipients' to select an Excel/CSV file.",
+      finishNoData: "No mail merge data source to create documents. Please open 'Select Recipients' to select an spreadsheet/CSV file.",
       finishNoFields: "Current document contains no merge fields. Use 'Insert Merge Field' to insert at least one field.",
       finishSuccess: "Successfully merged {count} records into document. You can preview or export the document."
     },

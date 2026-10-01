@@ -4,8 +4,8 @@ export const AUTORECOVER_HELP_ENTRIES = [
     id: "writer.file.autoRecover",
     app: "writer",
     commandIds: [],
-    title: "Tự động khôi phục tài liệu 3T Doc",
-    summary: "AutoRecover lưu bản HTML tạm trên thiết bị khi tài liệu đã thay đổi. Sau khi ứng dụng đóng bất thường, bạn có thể mở bản khôi phục dưới dạng tài liệu mới chưa lưu.",
+    title: "Tự động khôi phục tài liệu Doc",
+    summary: "AutoRecover lưu bản khôi phục tạm trên thiết bị khi tài liệu đã thay đổi. Sau khi ứng dụng đóng bất thường, bạn có thể mở bản khôi phục dưới dạng tài liệu mới chưa lưu.",
     ribbon: { tab: "Trợ giúp", tabId: "help", group: "Tự động khôi phục" },
     keywords: ["autorecover", "tự động khôi phục", "phục hồi tài liệu", "mất điện", "ứng dụng bị lỗi", "khôi phục bản lưu"],
     steps: [
@@ -20,8 +20,8 @@ export const AUTORECOVER_HELP_ENTRIES = [
     id: "sheet.file.autoRecover",
     app: "sheet",
     commandIds: [],
-    title: "Tự động khôi phục bảng tính 3T Sheet",
-    summary: "AutoRecover lưu bản FODS cục bộ theo chu kỳ khi bảng tính đã thay đổi. Bản tìm được sau khi ứng dụng đóng bất thường được mở như một bảng tính mới chưa lưu.",
+    title: "Tự động khôi phục bảng tính Sheet",
+    summary: "AutoRecover lưu bản khôi phục cục bộ theo chu kỳ khi bảng tính đã thay đổi. Bản tìm được sau khi ứng dụng đóng bất thường được mở như một bảng tính mới chưa lưu.",
     ribbon: { tab: "Trợ giúp", tabId: "help", group: "Tự động khôi phục" },
     keywords: ["autorecover", "tự động khôi phục", "phục hồi bảng tính", "mất điện", "ứng dụng bị lỗi", "khôi phục bản lưu"],
     steps: [
@@ -36,8 +36,8 @@ export const AUTORECOVER_HELP_ENTRIES = [
     id: "slides.file.autoRecover",
     app: "slides",
     commandIds: [],
-    title: "Tự động khôi phục bản trình chiếu 3T Slide",
-    summary: "AutoRecover giữ bản FODP cục bộ của bản trình chiếu đang thay đổi. Khi ứng dụng khởi động lại sau sự cố, bạn có thể mở bản đó mà không ghi đè tệp ban đầu.",
+    title: "Tự động khôi phục bản trình chiếu Slide",
+    summary: "AutoRecover giữ bản khôi phục cục bộ của bản trình chiếu đang thay đổi. Khi ứng dụng khởi động lại sau sự cố, bạn có thể mở bản đó mà không ghi đè tệp ban đầu.",
     ribbon: { tab: "Trợ giúp", tabId: "help", group: "Tự động khôi phục" },
     keywords: ["autorecover", "tự động khôi phục", "phục hồi slide", "bản trình chiếu", "mất điện", "ứng dụng bị lỗi"],
     steps: [

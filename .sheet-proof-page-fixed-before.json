@@ -1,0 +1,47 @@
+{
+  "ok": true,
+  "result": {
+    "setup": {
+      "margins": {
+        "top": 1.5,
+        "bottom": 1.6,
+        "left": 1.7,
+        "right": 1.8
+      },
+      "orientation": "landscape",
+      "size": "a4",
+      "scale": {
+        "mode": "pages",
+        "percent": 100,
+        "pagesWide": 1,
+        "pagesTall": 1
+      },
+      "headerFooter": {
+        "header": {
+          "left": "",
+          "center": "",
+          "right": ""
+        },
+        "footer": {
+          "left": "",
+          "center": "Trang &P / &N",
+          "right": ""
+        }
+      },
+      "centerOnPage": {
+        "horizontal": false,
+        "vertical": false
+      },
+      "printOptions": {
+        "gridlines": false,
+        "headings": false
+      },
+      "printTitles": {
+        "rows": "1:2",
+        "cols": ""
+      }
+    },
+    "area": "A1:B3",
+    "color": "#F44336"
+  }
+}

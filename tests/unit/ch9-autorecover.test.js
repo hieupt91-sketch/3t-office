@@ -40,8 +40,8 @@ export async function runCh9AutoRecoverTests() {
     check(viStrings.autoRecover.discard === "Bỏ", "Thiếu nút Bỏ.");
   });
 
-  await test("CH-9.2: Help có hướng dẫn 2 phút cụ thể cho 3T Doc/Sheet/Slide", () => {
-    const names = { writer: "3T Doc", sheet: "3T Sheet", slides: "3T Slide" };
+  await test("CH-9.2: Help có hướng dẫn 2 phút cụ thể cho Doc/Sheet/Slide", () => {
+    const names = { writer: "Doc", sheet: "Sheet", slides: "Slide" };
     for (const [app, name] of Object.entries(names)) {
       const entry = AUTORECOVER_HELP_ENTRIES.find(item => item.app === app);
       check(entry?.title.includes(name), `Thiếu Help AutoRecover cho ${name}.`);

@@ -105,9 +105,9 @@ export class AppShell {
           <div id="vno-switcher-menu" role="menu" aria-label="Bộ ứng dụng 3T Office"
                style="display:none; position:absolute; top:36px; left:0; background:var(--vno-bg-window); color:var(--vno-text-primary); border:1px solid var(--vno-border-default); border-radius:var(--vno-radius-md); box-shadow:var(--vno-shadow-lg); width:230px; z-index:200; padding:6px 0;">
             <div style="padding:6px 14px; font-size:11px; font-weight:bold; color:var(--vno-text-muted); text-transform:uppercase;" role="presentation">Bộ ứng dụng 3T Office</div>
-            <div class="vno-switcher-item" data-switch="writer" role="menuitem" tabindex="0" style="display:flex; align-items:center; gap:10px; padding:8px 14px; cursor:pointer; font-size:13px; font-weight:500;">${ICONS.appWriter} <span>3T Doc (Soạn thảo)</span></div>
-            <div class="vno-switcher-item" data-switch="sheet" role="menuitem" tabindex="0" style="display:flex; align-items:center; gap:10px; padding:8px 14px; cursor:pointer; font-size:13px; font-weight:500;">${ICONS.appSheet} <span>3T Sheet (Bảng tính)</span></div>
-            <div class="vno-switcher-item" data-switch="slides" role="menuitem" tabindex="0" style="display:flex; align-items:center; gap:10px; padding:8px 14px; cursor:pointer; font-size:13px; font-weight:500;">${ICONS.appSlides} <span>3T Slide (Trình chiếu)</span></div>
+            <div class="vno-switcher-item" data-switch="writer" role="menuitem" tabindex="0" style="display:flex; align-items:center; gap:10px; padding:8px 14px; cursor:pointer; font-size:13px; font-weight:500;">${ICONS.appWriter} <span>Doc (Soạn thảo)</span></div>
+            <div class="vno-switcher-item" data-switch="sheet" role="menuitem" tabindex="0" style="display:flex; align-items:center; gap:10px; padding:8px 14px; cursor:pointer; font-size:13px; font-weight:500;">${ICONS.appSheet} <span>Sheet (Bảng tính)</span></div>
+            <div class="vno-switcher-item" data-switch="slides" role="menuitem" tabindex="0" style="display:flex; align-items:center; gap:10px; padding:8px 14px; cursor:pointer; font-size:13px; font-weight:500;">${ICONS.appSlides} <span>Slide (Trình chiếu)</span></div>
           </div>
         </div>`;
 
@@ -1030,7 +1030,7 @@ export class AppShell {
           this.applyTemplate(tmplId);
         } else {
           if (!this.requestAppSwitch(tmplApp, { templateId: tmplId })) {
-            const appDisplayName = tmplApp === "writer" ? "3T Doc" : tmplApp === "sheet" ? "3T Sheet" : "3T Slide";
+            const appDisplayName = tmplApp === "writer" ? "Doc" : tmplApp === "sheet" ? "Sheet" : "Slide";
             showAlertDialog({
               title: "Mẫu tài liệu",
               message: `Mẫu này dành cho ứng dụng ${appDisplayName}. Vui lòng chuyển sang ứng dụng đó để sử dụng.`
@@ -1751,7 +1751,7 @@ export class AppShell {
     if (!isVoiceInputSupported()) {
       showAlertDialog({
         title: "Nhập liệu bằng giọng nói",
-        message: "Trình duyệt hiện tại không hỗ trợ nhận dạng giọng nói.\n\nVui lòng dùng Microsoft Edge hoặc Google Chrome trên Windows để sử dụng tính năng này.",
+        message: "Trình duyệt hiện tại không hỗ trợ nhận dạng giọng nói.\n\nVui lòng dùng trình duyệt có hỗ trợ nhận dạng giọng nói trên Windows để sử dụng tính năng này.",
         type: "warning"
       });
       return;

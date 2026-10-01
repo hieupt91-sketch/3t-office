@@ -1,7 +1,7 @@
 3T OFFICE - THÔNG BÁO BẢN DÙNG THỬ NỘI BỘ
 
-3T Office gồm Python 3.12 (PSF License), LibreOffice (MPL-2.0 và thông báo các thành phần), pywebview (BSD), pythonnet (MIT), clr_loader (MIT), cffi (MIT), pycparser (BSD), bottle (MIT), proxy_tools (MIT), typing_extensions (PSF License) và phông chữ Be Vietnam Pro (OFL). Văn bản giấy phép đầy đủ nằm trong thư mục THIRD-PARTY-NOTICES sau khi cài đặt.
+3T Office sử dụng các thành phần nguồn mở. Xem danh sách ghi công và giấy phép trong Trợ giúp > Giới thiệu 3T Office. Văn bản giấy phép đầy đủ nằm trong thư mục THIRD-PARTY-NOTICES sau khi cài đặt.
 
 Trong đợt dùng thử, hãy giữ bản sao dự phòng của tài liệu quan trọng. Nên dùng Lưu thành để tạo bản thử riêng.
 
-Bộ cài đặt này chưa được ký số. Windows có thể hiện cảnh báo Microsoft Defender SmartScreen; hãy làm theo hướng dẫn trong tệp CAI-DAT.txt và chỉ chạy bộ cài từ kênh nội bộ đáng tin cậy.
+Bộ cài đặt này chưa được ký số. Windows có thể hiện cảnh báo SmartScreen; hãy làm theo hướng dẫn trong tệp CAI-DAT.txt và chỉ chạy bộ cài từ kênh nội bộ đáng tin cậy.

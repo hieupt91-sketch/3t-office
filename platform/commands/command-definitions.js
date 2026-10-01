@@ -173,7 +173,7 @@ export const WRITER_COMMANDS = [
   { id: "writer.pageNumber.format", category: "layout", label: "Định dạng số trang", icon: "sectionBreak", tooltip: "Tiếp tục hoặc đặt lại số trang trong mục hiện tại" },
   { id: "writer.section.delete", category: "layout", label: "Xóa ngắt mục", icon: "sectionBreak", tooltip: "Xóa ngắt mục đang chọn" },
   { id: "writer.layout.sectionOptions", category: "layout", label: "Tùy chọn mục", icon: "sectionBreak", tooltip: "Thiết lập đầu trang, chân trang và số trang cho mục hiện tại" },
-  { id: "writer.layout.lineNumbers", category: "layout", label: "Danh số dòng", icon: "lineNumbers", tooltip: "Bật danh số dòng cho file Word/LibreOffice (Không có, Liên tục, Mỗi trang, Mỗi mục)" },
+  { id: "writer.layout.lineNumbers", category: "layout", label: "Danh số dòng", icon: "lineNumbers", tooltip: "Bật danh số dòng khi lưu tài liệu (Không có, Liên tục, Mỗi trang, Mỗi mục)" },
   { id: "writer.page.watermark", category: "layout", label: "Hình mờ", icon: "pageWatermark", tooltip: "Thiết lập hoặc xóa hình mờ văn bản (Dự thảo, Mật, Khẩn...)" },
   { id: "writer.page.color", category: "layout", label: "Màu trang", icon: "pageColor", tooltip: "Đặt màu nền đặc cho trang tài liệu" },
   { id: "writer.page.border", category: "layout", label: "Viền trang", icon: "pageBorder", tooltip: "Thiết lập viền bao quanh trang tài liệu" },
@@ -197,7 +197,7 @@ export const WRITER_COMMANDS = [
   { id: "writer.reference.tofUpdate", category: "reference", label: "Cập nhật danh mục", icon: "tofUpdate", tooltip: "Cập nhật lại danh mục hình ảnh/bảng từ các chú thích hiện có" },
 
   // Trộn thư (Mail Merge)
-  { id: "writer.mailMerge.open", category: "mailmerge", label: "Nguồn dữ liệu", icon: "mailMerge", tooltip: "Chọn danh sách người nhận trộn thư từ Excel (.xlsx, .xls) hoặc CSV/TSV" },
+  { id: "writer.mailMerge.open", category: "mailmerge", label: "Nguồn dữ liệu", icon: "mailMerge", tooltip: "Chọn danh sách người nhận trộn thư từ bảng tính (.xlsx, .xls) hoặc CSV/TSV" },
   { id: "writer.mailMerge.insertField", category: "mailmerge", label: "Chèn trường", icon: "mergeInsertField", tooltip: "Chèn trường trộn thư tại vị trí con trỏ" },
   { id: "writer.mailMerge.preview", category: "mailmerge", label: "Xem trước kết quả", icon: "mergePreview", tooltip: "Bật/tắt xem trước bản ghi trộn thư", isToggle: true },
   { id: "writer.mailMerge.prevRecord", category: "mailmerge", label: "Bản ghi trước", icon: "mergePrev", tooltip: "Chuyển tới bản ghi trước" },

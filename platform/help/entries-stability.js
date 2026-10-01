@@ -2,17 +2,17 @@
 
 const APP_GUIDANCE = {
   writer: {
-    name: "3T Doc",
+    name: "Doc",
     noun: "tài liệu",
     example: "mở hoặc xuất PDF một tệp DOCX"
   },
   sheet: {
-    name: "3T Sheet",
+    name: "Sheet",
     noun: "bảng tính",
     example: "mở, in hoặc xuất PDF một tệp XLSX"
   },
   slides: {
-    name: "3T Slide",
+    name: "Slide",
     noun: "bản trình chiếu",
     example: "mở hoặc xuất PDF một tệp PPTX"
   }
@@ -23,13 +23,13 @@ export const PROCESS_CLEANUP_HELP_ENTRIES = Object.entries(APP_GUIDANCE).map(([a
   app,
   commandIds: [],
   title: `Dọn tiến trình hỗ trợ của ${info.name}`,
-  summary: `${info.name} tự đóng LibreOffice, Office ẩn và helper do chính ứng dụng khởi tạo; ứng dụng không đóng Word, Excel, PowerPoint hay LibreOffice do người dùng tự mở.`,
+  summary: `${info.name} tự đóng bộ xử lý tài liệu và tiến trình hỗ trợ do chính ứng dụng khởi tạo; ứng dụng không đóng các ứng dụng tài liệu do người dùng tự mở.`,
   ribbon: { tab: "Trợ giúp", tabId: "help", group: "Ổn định và quyền riêng tư" },
-  keywords: ["tiến trình treo", "soffice", "office ẩn", "helper", "đóng ứng dụng", "khởi động lại"],
+  keywords: ["tiến trình treo", "bộ xử lý tài liệu", "tiến trình hỗ trợ", "đóng ứng dụng", "khởi động lại"],
   steps: [
     `Làm việc và đóng ${info.name} bằng nút Đóng hoặc Tệp → Đóng như bình thường. Không cần bật tùy chọn riêng.`,
-    `${info.name} chỉ ghi nhận PID cùng thời điểm tạo của LibreOffice, Office ẩn và helper mà chính phiên hiện tại đã mở khi bạn ${info.example}.`,
-    "Khi cửa sổ 3T Office cuối cùng đóng, ứng dụng dừng các PID đã ghi nhận. Các ứng dụng Office hoặc LibreOffice bạn tự mở trước đó không bị ảnh hưởng.",
+    `${info.name} chỉ ghi nhận PID cùng thời điểm tạo của bộ xử lý tài liệu và tiến trình hỗ trợ mà chính phiên hiện tại đã mở khi bạn ${info.example}.`,
+    "Khi cửa sổ 3T Office cuối cùng đóng, ứng dụng dừng các PID đã ghi nhận. Các ứng dụng tài liệu bạn tự mở trước đó không bị ảnh hưởng.",
     "Nếu máy hoặc 3T Office tắt đột ngột, hãy mở lại bất kỳ ứng dụng 3T Office nào. Lần khởi động này tự quét sổ PID cục bộ và chỉ dọn mục có tiến trình chủ cũ đã chết.",
     `Sau khi mở lại, tiếp tục dùng ${info.name} và kiểm tra ${info.noun}; bản khôi phục chưa lưu (nếu có) xuất hiện trong hộp thoại Khôi phục tài liệu chưa lưu.`
   ]
@@ -40,7 +40,7 @@ export const PERFORMANCE_HELP_ENTRIES = Object.entries(APP_GUIDANCE).map(([app, 
   app,
   commandIds: [],
   title: `Nhật ký hiệu năng của ${info.name}`,
-  summary: `${info.name} có thể ghi thời gian mở, lưu, in/xuất PDF, thời gian khởi động LibreOffice và bộ nhớ vào JSONL cục bộ; nhật ký mặc định tắt và không được gửi đi.`,
+  summary: `${info.name} có thể ghi thời gian mở, lưu, in/xuất PDF, thời gian khởi động bộ xử lý tài liệu và bộ nhớ vào JSONL cục bộ; nhật ký mặc định tắt và không được gửi đi.`,
   ribbon: { tab: "Trợ giúp", tabId: "help", group: "Tùy chọn" },
   keywords: ["nhật ký hiệu năng", "performance log", "chậm", "jsonl", "bộ nhớ", "không gửi đi"],
   steps: [

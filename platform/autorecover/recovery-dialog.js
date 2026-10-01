@@ -1,5 +1,5 @@
-const APP_NAMES = { writer: "3T Doc", sheet: "3T Sheet", slides: "3T Slide" };
 import { t } from "../i18n/i18n.js";
+const APP_NAMES = { writer: "Doc", sheet: "Sheet", slides: "Slide" };
 
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);

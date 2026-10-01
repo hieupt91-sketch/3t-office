@@ -33,6 +33,20 @@ function selectedPages(state) {
   return { pageRange: "", pages: null };
 }
 
+/**
+ * Tên bộ dựng trang in hiển thị cho người dùng. Người dùng không cần biết tên thư viện bên
+ * trong (bản quyền của chúng được ghi đầy đủ trong Trợ giúp → Giới thiệu và THIRD-PARTY-NOTICES),
+ * nên giao diện chỉ nói "bộ dựng tích hợp" hay "phần mềm văn phòng trên máy".
+ */
+export function engineDisplayName(engineId) {
+  const value = String(engineId || "").trim().toLowerCase();
+  if (!value) return "đang kiểm tra…";
+  if (value.includes("libre") || value.includes("soffice") || value.includes("open")) {
+    return "bộ dựng tích hợp của 3T Office";
+  }
+  return "phần mềm văn phòng có sẵn trên máy";
+}
+
 /** Open the shared, document-backed print dialog. The engine is supplied by an adapter. */
 export async function openPrintDialog({
   appKind,
@@ -89,8 +103,8 @@ export async function openPrintDialog({
           <input id="vno-print-copies" name="copies" type="number" min="1" max="999" value="1" inputmode="numeric">
 
           <div class="vno-print-engine-options">
-            <label class="vno-print-office-option" hidden><input id="vno-print-use-office" type="checkbox" checked disabled> <span>Dùng Microsoft Office để in (chính xác nhất)</span></label>
-            <p class="vno-print-engine-used" role="status" aria-live="polite">Bộ máy dựng PDF: đang kiểm tra…</p>
+            <label class="vno-print-office-option" hidden><input id="vno-print-use-office" type="checkbox" checked disabled> <span>Dùng phần mềm văn phòng có sẵn trên máy để in (chính xác nhất)</span></label>
+            <p class="vno-print-engine-used" role="status" aria-live="polite">Bộ dựng trang in: đang kiểm tra…</p>
           </div>
 
           <fieldset class="vno-print-sheet-scope"${appKind === "sheet" ? "" : " hidden"}>
@@ -260,7 +274,7 @@ export async function openPrintDialog({
       state.preparedSheetScope = state.sheetScope;
       state.currentDocumentPage = Math.min(state.currentDocumentPage, state.totalPages);
       state.currentPreviewPage = Math.min(state.currentPreviewPage, state.totalPages);
-      engineUsedLabel.textContent = `Bộ máy dựng PDF: ${state.engineUsed}`;
+      engineUsedLabel.textContent = `Bộ dựng trang in: ${engineDisplayName(state.engineUsed)}`;
       updatePreviewControls();
       if (previousSession && previousSession !== prepared.sessionId) {
         try { await engine.cancelPrintDocument?.(previousSession); } catch { /* old preview expires with the app */ }
@@ -370,7 +384,7 @@ export async function openPrintDialog({
   overlay.querySelector(".vno-print-close").focus();
   try {
     if (!engine?.preparePrintDocument || !engine?.getInstalledPrinters) {
-      throw new Error("Dịch vụ in chỉ khả dụng trong 3T Office Desktop có LibreOffice.");
+      throw new Error("Dịch vụ in chỉ hoạt động trong 3T Office bản cài trên máy.");
     }
     const [engineStatus, printerResult] = await Promise.all([
       engine.getPrintEngineStatus?.(appKind) || Promise.resolve({ officeAvailable: false, preferredEngine: "LibreOffice" }),
@@ -380,12 +394,10 @@ export async function openPrintDialog({
     state.officeAvailable = engineStatus?.status === "ok" && Boolean(engineStatus.officeAvailable);
     state.preferredEngine = String(engineStatus?.preferredEngine || "LibreOffice");
     officeOption.parentElement.hidden = !state.officeAvailable;
-    officeOptionLabel.textContent = state.preferredEngine === "WPS"
-      ? "Dùng WPS để in (chính xác nhất)"
-      : "Dùng Microsoft Office để in (chính xác nhất)";
+    officeOptionLabel.textContent = "Dùng phần mềm văn phòng có sẵn trên máy để in (chính xác nhất)";
     officeOption.checked = state.officeAvailable;
     state.useOfficeSelected = state.officeAvailable;
-    engineUsedLabel.textContent = `Bộ máy dựng PDF: ${state.preferredEngine}`;
+    engineUsedLabel.textContent = `Bộ dựng trang in: ${engineDisplayName(state.preferredEngine)}`;
     if (printerResult?.status !== "ok") throw new Error(printerResult?.message || "Không đọc được danh sách máy in Windows.");
     state.printers = Array.isArray(printerResult.printers) ? printerResult.printers : [];
     printerSelect.replaceChildren();
@@ -393,7 +405,10 @@ export async function openPrintDialog({
       printerSelect.add(new Option("Không tìm thấy máy in", ""));
       printerSelect.disabled = true;
     } else {
-      for (const printer of state.printers) printerSelect.add(new Option(printer.name, printer.name));
+      for (const printer of state.printers) printerSelect.add(new Option(
+        printer.name.replace(/Microsoft Print to PDF/gi, "In ra PDF").replace(/Microsoft XPS Document Writer/gi, "In ra XPS"),
+        printer.name
+      ));
       printerSelect.value = chooseDefaultPrinter(state.printers);
       printerSelect.disabled = false;
     }

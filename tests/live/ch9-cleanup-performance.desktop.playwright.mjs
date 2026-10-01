@@ -12,7 +12,12 @@ const toolsRoot = process.env.VNO_PLAYWRIGHT_ROOT || "C:/Users/3T Computer/AppDa
 const { chromium } = await import(pathToFileURL(path.join(toolsRoot, "node_modules/playwright-core/index.mjs")));
 const scratch = await fs.mkdtemp(path.join(os.tmpdir(), "ch9-desktop-"));
 const fixture = path.join(scratch, "small.xlsx");
-const dataName = `VNOffice-CH9-Proof-${process.pid}`;
+const dataName = path.join(scratch, "recovery-state");
+const ownedDescendants = [];
+function rememberDescendants(pid) {
+  const rows = JSON.parse(execFileSync("python", ["-c", "import main,json,sys; t=main._PROCESS_TRACKER_MODULE; print(json.dumps([{'pid':p,'created_at':t.process_identity(p)} for p,_ in t.process_tree(int(sys.argv[1])) if t.process_identity(p)]))", String(pid)], { cwd: root, encoding: "utf8", windowsHide: true }));
+  ownedDescendants.push(...rows);
+}
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const ps = script => execFileSync("powershell", ["-NoProfile", "-Command", script], { encoding: "utf8", windowsHide: true }).trim();
 const python = (...args) => execFileSync("python", [bootstrap, ...args], { cwd: root, encoding: "utf8", windowsHide: true }).trim();
@@ -48,7 +53,10 @@ const sessions = [];
 async function start() {
   await memoryGate();
   const port = await freePort();
-  const child = spawn("python", [bootstrap, "desktop", String(port), dataName, fixture], { cwd: root, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
+  const localAppData = path.join("E:/VNOffice-profiles", `codex-ch9-merge-${process.pid}-${sessions.length + 1}`);
+  await fs.mkdir(localAppData, { recursive: true });
+  console.log(`DESKTOP_PROFILE\t${localAppData}`);
+  const child = spawn("python", [bootstrap, "desktop", String(port), dataName, fixture], { cwd: root, env: { ...process.env, LOCALAPPDATA: localAppData }, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
   const session = { child, output: "" }; sessions.push(session);
   child.stdout.on("data", b => { session.output += b; }); child.stderr.on("data", b => { session.output += b; });
   for (let i = 0; i < 150; i++) {
@@ -62,8 +70,14 @@ async function start() {
     if (session.page) break;
     await sleep(200);
   }
-  await session.page.waitForSelector(".vno-sheet-container", { timeout: 30000 });
+  try {
+    await session.page.waitForSelector(".vno-sheet-container", { timeout: 30000 });
+  } catch (error) {
+    console.log(`STARTUP_DIAGNOSTIC\t${JSON.stringify({ port, output: session.output, pages: await Promise.all(session.browser.contexts()[0].pages().map(async page => ({ url: page.url(), body: await page.evaluate(() => document.body?.innerText || "").catch(String) }))) })}`);
+    throw error;
+  }
   await session.page.waitForFunction(() => window.__vnoAppInstance?.adapter && window.pywebview?.api?.proof_records);
+  rememberDescendants(child.pid);
   session.page.setDefaultTimeout(120000);
   return session;
 }
@@ -89,6 +103,7 @@ async function print(session) {
   return { prepared, printed, bytes: (await fs.stat(dest)).size };
 }
 async function close(session) {
+  rememberDescendants(session.child.pid);
   const closed = session.page.waitForEvent("close", { timeout: 15000 });
   await session.page.evaluate(() => window.pywebview.api.close_current_window());
   await closed;
@@ -191,6 +206,7 @@ try {
   await sleep(1000);
   const liveBefore = alive(beforeKill); assert.ok(liveBefore.length > 0);
   // Deliberately kill only main: /T would remove the orphans that this proof must exercise.
+  rememberDescendants(second.child.pid);
   execFileSync("taskkill", ["/F", "/PID", String(second.child.pid)], { stdio: "ignore" });
   await sleep(1500); await second.browser.close().catch(() => {});
   const orphans = alive(beforeKill); assert.ok(orphans.length > 0);
@@ -206,6 +222,7 @@ try {
   failed = true; console.log(`FAIL\t${error.stack}`);
 } finally {
   for (const s of sessions) {
+    if (s.child.exitCode === null) rememberDescendants(s.child.pid);
     if (s.child.exitCode === null) { try { await s.page?.evaluate(() => window.pywebview.api.close_current_window()); } catch {} await sleep(2000); }
     if (s.child.exitCode === null) { try { execFileSync("taskkill", ["/F", "/PID", String(s.child.pid)], { stdio: "ignore" }); } catch {} }
     await s.browser?.close().catch(() => {});
@@ -213,6 +230,12 @@ try {
   if (office) { await fs.writeFile(stop, "stop"); for (let i = 0; i < 50 && office.exitCode === null; i++) await sleep(100); }
   if (loIdentities.length) {
     execFileSync("python", ["-c", "import main,json,sys; t=main._PROCESS_TRACKER_MODULE; rows=json.loads(sys.argv[1]); [t._terminate(r['pid']) for r in reversed(rows) if t.process_identity(r['pid'])==r['created_at']]", JSON.stringify(loIdentities)], { cwd: root, windowsHide: true });
+  }
+  if (ownedDescendants.length) {
+    execFileSync("python", ["-c", "import main,json,sys; t=main._PROCESS_TRACKER_MODULE; rows=json.loads(sys.argv[1]); [t._terminate(r['pid']) for r in reversed(rows) if t.process_identity(r['pid'])==r['created_at']]", JSON.stringify(ownedDescendants)], { cwd: root, windowsHide: true });
+    const remaining = alive(ownedDescendants);
+    console.log(`OWNED_DESCENDANTS_REMAINING\t${JSON.stringify(remaining)}`);
+    if (remaining.length) failed = true;
   }
   console.log(`KET QUA CH9 DESKTOP: ${passes} PASS, ${failed ? 1 : 0} FAIL; scratch=${scratch}`);
 }
