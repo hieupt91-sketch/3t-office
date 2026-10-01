@@ -21,4 +21,6 @@ KNOWN FAILURES: C3 `Ctrl+A` selects A1:Z200 instead of the Excel current region;
 RISKS: Numeric/date values may be treated as text in XLSX and yield incorrect formula results in Excel. Print layout values are not stable through a 3T reopen. Do not treat the observed UI-path passes as full Excel parity for C3–C9.
 DEPENDENCIES/BLOCKERS: Finish the C3–C9 acceptance matrix and large-workbook check; implement or hand off the listed app gaps. Shared Excel processes may belong to other worktrees; only inspect hidden COM when no Excel process is active and do not attach to or kill another owner's process.
 CORE PATCH ID (if any): None.
-NEXT ACTION: Complete `C4-C9-SHEET-FULL-ACCEPTANCE-MATRIX` and remaining C3 save/reopen coverage, then prioritize `C4/C6/C12-SHEET-NATIVE-VALUE-ROUNDTRIP`, `C11-SHEET-PAGE-SETUP-ROUNDTRIP`, and the C3/C7/C8 follow-up tasks. Add Vietnamese in-app instructions with each new feature per AGENTS.md.
+NEXT ACTION: Run the required desktop CDP + hidden Excel COM proof for the three continuation commits and the fixed save path, then run the final gates and complete the handoff. The 26×200 grid extent remains a separate NOT DONE limitation.
+
+CONTINUATION COMMITS: `2652f6f9` native numeric/date values; `2153a7c4` print setup round-trip; `0f2e9aae` C3 Ctrl+A, C7 delete/tab colour, and C8 header-aware sort. Focused unit tests for all three continuation areas pass; desktop CDP/COM proof is NOT RUN in this continuation.

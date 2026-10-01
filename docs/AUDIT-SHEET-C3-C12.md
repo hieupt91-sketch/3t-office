@@ -88,6 +88,16 @@ Status meanings: **ĐẠT** = the specific UI path named in the evidence worked;
 
 ## Verification record
 
+## Follow-up fixes completed on `fix/sheet-c3-gaps-codex`
+
+The continuation work is committed as separate item commits:
+
+- `2652f6f9` — native numeric/date entry and save-path typing. Numeric input, external pasted numbers, fill results, and dd/mm/yyyy dates are emitted as native numeric/date cells; date styles remain attached. The focused unit suite covers FODS native value types. Desktop CDP + hidden Excel COM acceptance proof is still required before calling the end-to-end item PASS.
+- `2153a7c4` — print setup round-trip. XLSX `_xlnm.Print_Titles` is restored before FODS parsing, and standard FODS page metadata restores paper, orientation, margins, fit-to-pages, print area, and header/footer. Focused JavaScript and Python tests pass. Desktop CDP + hidden Excel COM PageSetup comparison is still NOT RUN in this continuation.
+- `0f2e9aae` — C3/C7/C8 Sheet-layer gaps. Ctrl+A now selects the contiguous current region first and the whole available sheet on the second press; tab context menu now exposes `Xóa trang tính` and `Màu tab` with last-sheet protection and undo; simple sort detects a text header and leaves it out of the sorted rows. Focused unit tests pass. Desktop CDP proof is still NOT RUN in this continuation.
+
+The 26-column × 200-row interaction cap remains out of scope for this patch and is reported separately as NOT DONE; it is not used as the first Ctrl+A selection boundary anymore when a populated contiguous region exists.
+
 - `node tests/run-tests.js`: PASS (2228/2228, 0 failures, including the FODS→XLSX round-trip tests).
 - Saved chart and print-setting workbook: reopened in 3T and hidden Excel COM; outcomes are recorded above.
 - Large-workbook responsiveness: NOT RUN. C3–C9 per-sub-point save/reopen coverage is NOT RUN. C4 fill parity is BLOCKED; C5–C9 hidden-Excel parity and mouse/keyboard dual-path coverage beyond the recorded checks are NOT RUN. Undo results are likewise recorded only where explicitly stated.
