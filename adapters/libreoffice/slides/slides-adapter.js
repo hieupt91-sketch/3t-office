@@ -218,14 +218,16 @@ export class SlidesAdapter {
     try {
       showFindReplaceDialog({
         isReplace,
-        onFind: (text) => this.canvas.findNext ? this.canvas.findNext(text) : false,
-        onReplace: (findText, replaceText) => {
+        app: "slides",
+        onFind: (text, options) => this.canvas.findNext ? this.canvas.findNext(text, options) : false,
+        onFindPrev: (text, options) => this.canvas.findPrev ? this.canvas.findPrev(text, options) : false,
+        onReplace: (findText, replaceText, options) => {
           if (!findText) return false;
-          return this.canvas.replaceOne ? this.canvas.replaceOne(findText, replaceText) : false;
+          return this.canvas.replaceOne ? this.canvas.replaceOne(findText, replaceText, options) : false;
         },
-        onReplaceAll: (findText, replaceText) => {
+        onReplaceAll: (findText, replaceText, options) => {
           if (!findText) return 0;
-          return this.canvas.replaceAll ? this.canvas.replaceAll(findText, replaceText) : 0;
+          return this.canvas.replaceAll ? this.canvas.replaceAll(findText, replaceText, options) : 0;
         }
       });
     } catch (_) {

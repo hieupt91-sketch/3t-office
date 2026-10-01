@@ -964,16 +964,17 @@ export const WRITER_HELP_ENTRIES = [
     id: "writer.edit.findReplaceSelect",
     app: "writer",
     commandIds: ["common.edit.find", "common.edit.replace", "common.edit.selectAll"],
-    title: "Tìm kiếm, Thay thế và Chọn tất cả",
-    summary: "Tìm nhanh từ ngữ trong văn bản với Ctrl+F, thay thế hàng loạt hoặc từng vị trí với Ctrl+H, và bôi đen nhanh toàn bộ nội dung tài liệu với Ctrl+A.",
+    title: "Tìm kiếm và Thay thế trong 3T Doc",
+    summary: "Hộp thoại Tìm kiếm và Thay thế dùng chung phong cách Office cho 3T Doc với hai tab: Tìm (Ctrl+F) và Thay thế (Ctrl+H). Hỗ trợ tiếng Việt có dấu chuẩn Unicode NFC, bỏ qua dấu, tự động cuộn trang bôi đen kết quả và Hoàn tác một bước (Ctrl+Z).",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
-    keywords: ["tìm kiếm", "thay thế", "chọn tất cả", "find", "replace", "select all", "Ctrl+F", "Ctrl+H", "Ctrl+A", "chỉnh sửa"],
+    keywords: ["tìm kiếm", "thay thế", "chọn tất cả", "find", "replace", "select all", "Ctrl+F", "Ctrl+H", "Ctrl+A", "3T Doc", "chỉnh sửa"],
     steps: [
-      "Mở tab Trang đầu, nhìn sang nhóm Chỉnh sửa ở phía bên phải thanh ribbon.",
-      "Để tìm từ khóa: nhấn Tìm kiếm (hoặc bấm tổ hợp phím Ctrl+F), nhập từ hoặc cụm từ cần tìm vào ô tra cứu để duyệt các vị trí xuất hiện trong tài liệu.",
-      "Để thay thế từ ngữ: nhấn Thay thế (hoặc bấm tổ hợp phím Ctrl+H), nhập nội dung cần tìm vào ô Tìm kiếm và nội dung mới vào ô Thay thế, sau đó chọn Thay thế hoặc Thay thế tất cả.",
-      "Để bôi đen toàn bộ văn bản và đối tượng trong tài liệu: nhấn nút Chọn tất cả (hoặc bấm tổ hợp phím Ctrl+A).",
-      "Dùng phím Esc để đóng hộp thoại tìm kiếm thay thế khi hoàn thành."
+      "Truy cập: Mở tab Trang đầu trên thanh ribbon, nhìn sang nhóm Chỉnh sửa ở phía ngoài cùng bên phải, nhấn nút Tìm kiếm (Ctrl+F) hoặc Thay thế (Ctrl+H) để mở hộp thoại Tìm kiếm và Thay thế gồm hai tab.",
+      "Tìm kiếm văn bản: Chọn tab «Tìm» (Ctrl+F), nhập từ hoặc cụm từ cần tìm vào ô «Tìm gì:». Nhấn nút «Tìm tiếp» để nhảy tới kết quả kế tiếp; nhấn «Tìm trước» để lùi lại kết quả trước. 3T Doc tự động cuộn trang và bôi đen vị trí khớp trong tài liệu.",
+      "Thay thế nội dung: Chọn tab «Thay thế» (Ctrl+H), nhập chuỗi cần tìm vào «Tìm gì:» và nội dung mới vào «Thay bằng:». Nhấn nút «Thay thế» để đổi từng vị trí, hoặc nhấn «Thay thế tất cả» để thay thế toàn bộ văn bản khớp trong tài liệu và nhận thông báo tổng số lượng thay thế thành công.",
+      "Tùy chọn tìm kiếm: Đánh dấu các ô chọn theo nhu cầu: «Khớp chữ hoa/thường» (phân biệt HOA/thường chính xác), «Chỉ toàn bộ từ» (không khớp các từ con), hoặc «Bỏ qua dấu» (tìm kiếm tiếng Việt không dấu khớp cả từ có dấu). Cả hai bên đều được chuẩn hóa Unicode NFC tự động.",
+      "Đóng và Hoàn tác: Phím Esc đóng hộp thoại. Sau khi đóng hộp thoại, hệ thống vẫn duy trì phiên tìm kiếm cho tài liệu. Mọi thao tác «Thay thế tất cả» đều được ghi nhận là đúng 1 bước Hoàn tác (nhấn Ctrl+Z để phục hồi lại nguyên trạng ban đầu).",
+      "Để chọn nhanh toàn bộ tài liệu: Nhấn nút «Chọn tất cả» trong nhóm Chỉnh sửa hoặc bấm tổ hợp phím Ctrl+A."
     ]
   },
   {
