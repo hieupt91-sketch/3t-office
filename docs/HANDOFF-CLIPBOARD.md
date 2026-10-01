@@ -1,0 +1,335 @@
+# Agent Handoff — CH-4.2 / CH-4.3
+
+TASK: Real desktop Microsoft Office clipboard interoperability.
+AGENT/ROLE: Codex / clipboard integration and QA.
+BRANCH: `feat/clipboard-office-interop-agy`.
+WORKTREE: `E:\VNOffice-agy-clipboard`.
+OBJECTIVE: Excel and Word rich copy → desktop Sheet/Doc, ribbon Paste, Paste Special and one Undo.
+
+FINDINGS:
+- Resume started with `git log -3` and `git diff HEAD~1 --stat`: WIP `bd89271c` over `ead89557`; no earlier clipboard handoff/notes exist in this worktree. Existing uncommitted work was preserved.
+- Chromium DOES expose Windows CF_HTML as `text/html`, including `<style>` in the real Excel/Word samples. Excel native probe: types `text/plain,text/html,text/rtf,Files`, HTML 2505 characters, CSS present, no `x:num`. Word native event: types `text/plain,text/html,text/rtf`, HTML 45146 characters on the final run, CSS present; the native event is used directly.
+- Sheet Ctrl+V on a noneditable grid invokes the platform shortcut command and adapter `_pasteIntoSelectedCell`, rather than a native paste event. Ribbon uses the same command. Those paths read the Python clipboard bridge. The old bridge returned only StartFragment..EndFragment, discarding Office head CSS and sometimes table wrappers.
+- Python bridge now retains Office styles plus the copied body/table. Real Excel bridge: HTML 1892 characters with styles, no `x:num`; displayed values therefore need typed parsing.
+- vi-VN Excel uses `mso-displayed-*` separators and can emit `#.##000` for the invariant two-decimal format. Date strings without `x:num` must become Sheet date serials using the existing NumberFormatter.
+- Word bullet detection scanned decimal CSS values such as `7.0pt` and wrongly selected `<ol>`; marker detection now examines the beginning of visible text.
+
+IMPLEMENTATION SUMMARY:
+- Preserve existing clipboard parser, adapters, command bus, desktop bridge and snapshot Undo.
+- Keep complete trusted native event HTML; use bridge enrichment only when HTML is absent or Office class CSS is missing. This also avoids replacing an event payload with an unrelated later clipboard read.
+- Excel destination: A1 bold/yellow; B2 numeric 1250 → `1,250`; C2 serial 46387 → `31/12/2026`; B3 0.25 → `25%`; C3 1234.56 → `1,234.56`; numeric/date cells right-aligned.
+- Writer keeps heading, bold sentence, two unordered bullet items and 2×2 table. Writer Paste Special uses the existing module translation function rather than nonexistent `this.t`.
+- Vietnamese help is included in existing Sheet/Writer help entries. No core, framework, dependency, save-path or OOXML zip-patch changes.
+- Diagnostic logging is opt-in in JavaScript, safe in Node environments with no window. Python logs clipboard metadata only, never document content.
+- CDP acceptance helper creates hidden Office COM documents and identifies the exact Office PID from that instance's own HWND; closes only that PID/COM instance. No OS-level input.
+- Audit checks now evaluate the desktop exclusively through WebView2 CDP; Python still owns the embedded server. Audit Excel helper no longer terminates all Excel processes. Fixed external linters are selected with `VNO_AUDIT_LINTER_DIR`.
+- `git rm --ignore-unmatch -- 'test_output*.txt' tests/live/clipboard-office.ready.json` run: no tracked test_output files remained at resume; tracked runtime marker removed and runtime markers ignored.
+
+FILES CHANGED:
+- Prior WIP: `main.py`, clipboard platform, Sheet/Writer adapters, help entries, Python/parser tests and CDP/hidden COM probes.
+- Completion: the same adapters/parser/probes plus `tests/unit/basic-editing-keys.test.js`, `.gitignore`, CDP audit helper and existing batch/Excel/roundtrip audit scripts; this handoff and resume plan.
+
+COMMANDS RUN:
+- `node --experimental-websocket tests/live/cdp_paste.mjs 9396 sheet {paste-com,ribbon-com,special-com,probe-com}` (sequential).
+- `node --experimental-websocket tests/live/cdp_paste.mjs 9397 writer {paste-com,ribbon-com,special-com}` (sequential).
+- `node tests/run-tests.js` — once.
+- `python -m unittest discover -s tests` — once.
+- `python scripts/layout-audit/_batch_audit.py E:\VNOffice-agy-clipboard lan01.xlsx ... lan26.xlsx`, fixed linter directory `E:\VNOffice-codex-audit-sheet\scripts\layout-audit`.
+
+BUILD RESULT: NOT RUN — no separate packaging build requested; JavaScript/Python gates below.
+TEST RESULTS:
+- Desktop: all six Ctrl+V/ribbon/Paste Special cases PASS with one-step Undo; Excel Chromium native probe PASS.
+- JS full gate: 2283/2288 PASS, 5 FAIL. Three known soffice failures listed below; two clipboard failures were then fixed without altering expected outputs. Targeted Sheet keyboard suite: 5/5 PASS; basic editing suite including new event/bridge regression: 10/10 PASS; clipboard parser suite: 61/61 PASS. Full gate not repeated, as requested.
+- Python full gate: 531/532 PASS, 1 FAIL (`test_main_returns_exit_code_when_no_port_available`, got 0 instead of 3). Its launch request was accepted by another still-open Writer window belonging to this session. Closed all remaining pages on this session's CDP port 9397, without OS input; reran unchanged `test_desktop_launch.py`: 6/6 PASS. No Python full rerun.
+- 26 LAN gate: pending completion.
+
+KNOWN FAILURES:
+1. `Sheet FODS save: LibreOffice giữ CF và validation qua FODS -> XLSX -> FODS` — EBUSY unlink.
+2. `Sheet Pivot save: LibreOffice giữ DataPilot qua FODS -> XLSX -> FODS` — soffice XLSX conversion failed.
+3. `FODS thật qua soffice: FODS → XLSX → FODS giữ height/width/visibility` — soffice XLSX conversion failed.
+- Resolved environmental Python failure: `test_main_returns_exit_code_when_no_port_available`; unchanged targeted desktop launch suite PASS after closing all own Writer windows.
+- Resolved after JS full run: `SheetAdapter: Clipboard cache fallback hoạt động khi navigator.clipboard bị chặn` (diagnostic window guard); `Writer paste event uses clipboard HTML/text and the plain-text command selects text only` (complete event HTML precedence). Focused reruns PASS.
+
+RISKS: Web-only clipboard paths depend on browser permissions; local desktop bridge is Windows-specific. No Office sample/document content is sent to cloud.
+DEPENDENCIES/BLOCKERS: Installed WebView2 and hidden Excel/Word COM; LAN files are local ignored test data, not committed.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Finish required gates, commit on this branch; do not merge.
+
+Desktop evidence (stdout from the real CDP test, including destination model and Undo):
+
+<details>
+<summary>sheet-paste</summary>
+
+```text
+OFFICE_COM_READY app=sheet officePid=20964 hidden=true
+{
+  "app": "sheet",
+  "target": "http://localhost:8080/?app=sheet&singleApp=1",
+  "diagnostics": [
+    "__VNO_CLIPBOARD_DIAG__{\"phase\":\"clipboard-bridge-result\",\"status\":\"ok\",\"textLength\":63,\"htmlLength\":1892,\"htmlHasStyle\":true,\"htmlHasXNum\":false,\"message\":\"\"}",
+    "__VNO_CLIPBOARD_DIAG__{\"phase\":\"sheet-paste-destination\",\"selectedCoord\":{\"c\":\"A\",\"r\":1},\"isInternal\":false,\"cellsBefore\":[]}",
+    "__VNO_CLIPBOARD_DIAG__{\"phase\":\"sheet-paste-applied\",\"applied\":true,\"cellsAfter\":[{\"coord\":\"A1\",\"val\":\"Tên\",\"style\":{\"fontWeight\":\"bold\",\"backgroundColor\":\"yellow\"}},{\"coord\":\"B2\",\"val\":1250,\"style\":{\"textAlign\":\"right\",\"numberFormat\":{\"category\":\"number\",\"decimals\":0,\"useSeparator\":true,\"useThousands\":true}}},{\"coord\":\"C2\",\"val\":46387,\"style\":{\"textAlign\":\"right\",\"numberFormat\":{\"category\":\"date\",\"formatPattern\":\"dd/mm/yyyy\"}}},{\"coord\":\"B3\",\"val\":0.25,\"style\":{\"textAlign\":\"right\",\"numberFormat\":{\"category\":\"percentage\",\"decimals\":0}}},{\"coord\":\"C3\",\"val\":1234.56,\"style\":{\"textAlign\":\"right\",\"numberFormat\":{\"category\":\"number\",\"decimals\":2,\"useSeparator\":true,\"useThousands\":true}}}]}"
+  ],
+  "output": {
+    "cells": [
+      {
+        "coord": "A1",
+        "text": "Tên",
+        "style": "font-weight: bold; background-color: yellow; width: 64px; min-width: 64px; max-width: 64px; height: 20px; overflow: hidden; text-overflow: clip;"
+      },
+      {
+        "coord": "B1",
+        "text": "Số lượng",
+        "style": "font-weight: bold; background-color: yellow; width: 64px; min-width: 64px; max-width: 64px; height: 20px; overflow: hidden; text-overflow: clip;"
+      },
+      {
+        "coord": "C1",
+        "text": "Ngày",
+        "style": "font-weight: bold; background-color: yellow; width: 64px; min-width: 64px; max-width: 64px; height: 20px; overflow: visible;"
+      },
+      {
+        "coord": "A2",
+        "text": "Bút",
+        "style": "width: 64px; min-width: 64px; max-width: 64px; height: 20px; overflow: hidden; text-overflow: clip;"
+      },
+      {
+        "coord": "B2",
+        "text": "1,250",
+        "style": "text-align: right; width: 64px; min-width: 64px; max-width: 64px; height: 20px; overflow: hidden; text-overflow: clip;"
+      },
+      {
+        "coord": "C2",
+        "text": "31/12/2026",
+        "style": "text-align: right; width: 64px; min-width: 64px; max-width: 64px; height: 20px; overflow: hidden; text-overflow: clip;"
+      },
+      {
+        "coord": "A3",
+        "text": "Giấy",
+        "style": "width: 64px; min-width: 64px; max-width: 64px; height: 20px; overflow: hidden; text-overflow: clip;"
+      },
+      {
+        "coord": "B3",
+        "text": "25%",
+        "style": "text-align: right; width: 64px; min-width: 64px; max-width: 64px; height: 20px; overflow: hidden; text-overflow: clip;"
+      },
+      {
+        "coord": "C3",
+        "text": "1,234.56",
+        "style": "text-align: right; width: 64px; min-width: 64px; max-width: 64px; height: 20px; overflow: hidden; text-overflow: clip;"
+      }
+    ]
+  },
+  "afterUndo": {
+    "cells": [
+      {
+        "coord": "A1",
+        "text": "",
+        "style": "width: 64px; min-width: 64px; max-width: 64px; height: 20px;"
+      },
+      {
+        "coord": "B1",
+        "text": "",
+        "style": "width: 64px; min-width: 64px; max-width: 64px; height: 20px;"
+      },
+      {
+        "coord": "C1",
+        "text": "",
+        "style": "width: 64px; min-width: 64px; max-width: 64px; height: 20px;"
+      },
+      {
+        "coord": "A2",
+        "text": "",
+        "style": "width: 64px; min-width: 64px; max-width: 64px; height: 20px;"
+      },
+      {
+        "coord": "B2",
+        "text": "",
+        "style": "width: 64px; min-width: 64px; max-width: 64px; height: 20px;"
+      },
+      {
+        "coord": "C2",
+        "text": "",
+        "style": "width: 64px; min-width: 64px; max-width: 64px; height: 20px;"
+      },
+      {
+        "coord": "A3",
+        "text": "",
+        "style": "width: 64px; min-width: 64px; max-width: 64px; height: 20px;"
+      },
+      {
+        "coord": "B3",
+        "text": "",
+        "style": "width: 64px; min-width: 64px; max-width: 64px; height: 20px;"
+      },
+      {
+        "coord": "C3",
+        "text": "",
+        "style": "width: 64px; min-width: 64px; max-width: 64px; height: 20px;"
+      }
+    ]
+  }
+}
+ACCEPTANCE_PASS app=sheet action=paste-com undo=one-step
+OFFICE_COM_CLOSED app=sheet officePid=20964
+```
+
+</details>
+
+<details>
+<summary>sheet-probe</summary>
+
+```text
+OFFICE_COM_READY app=sheet officePid=17680 hidden=true
+{
+  "app": "sheet",
+  "target": "http://localhost:8080/?app=sheet&singleApp=1",
+  "diagnostics": [
+    "__VNO_CLIPBOARD_DIAG__{\"phase\":\"chromium-native-paste-probe\",\"types\":[\"text/plain\",\"text/html\",\"text/rtf\",\"Files\"],\"textLength\":63,\"htmlLength\":2505,\"htmlHasStyle\":true,\"htmlHasXNum\":false}",
+    "__VNO_CLIPBOARD_DIAG__{\"phase\":\"clipboard-bridge-result\",\"status\":\"ok\",\"textLength\":63,\"htmlLength\":1892,\"htmlHasStyle\":true,\"htmlHasXNum\":false,\"message\":\"\"}",
+    "__VNO_CLIPBOARD_DIAG__{\"phase\":\"sheet-paste-destination\",\"selectedCoord\":{\"c\":\"A\",\"r\":1},\"isInternal\":false,\"cellsBefore\":[]}",
+    "__VNO_CLIPBOARD_DIAG__{\"phase\":\"sheet-paste-applied\",\"applied\":true,\"cellsAfter\":[{\"coord\":\"A1\",\"val\":\"Tên\",\"style\":{\"fontWeight\":\"bold\",\"backgroundColor\":\"yellow\"}},{\"coord\":\"B2\",\"val\":1250,\"style\":{\"textAlign\":\"right\",\"numberFormat\":{\"category\":\"number\",\"decimals\":0,\"useSeparator\":true,\"useThousands\":true}}},{\"coord\":\"C2\",\"val\":46387,\"style\":{\"textAlign\":\"right\",\"numberFormat\":{\"category\":\"date\",\"formatPattern\":\"dd/mm/yyyy\"}}},{\"coord\":\"B3\",\"val\":0.25,\"style\":{\"textAlign\":\"right\",\"numberFormat\":{\"category\":\"percentage\",\"decimals\":0}}},{\"coord\":\"C3\",\"val\":1234.56,\"style\":{\"textAlign\":\"right\",\"numberFormat\":{\"category\":\"number\",\"decimals\":2,\"useSeparator\":true,\"useThousands\":true}}}]}"
+  ],
+  "output": {
+    "cells": [
+      {
+        "coord": "A1",
+        "text": "Tên",
+        "style": "font-weight: bold; background-color: yellow; width: 64px; min-width: 64px; max-width: 64px; height: 20px; overflow: hidden; text-overflow: clip;"
+      },
+      {
+        "coord": "B1",
+        "text": "Số lượng",
+        "style": "font-weight: bold; background-color: yellow; width: 64px; min-width: 64px; max-width: 64px; height: 20px; overflow: hidden; text-overflow: clip;"
+      },
+      {
+        "coord": "C1",
+        "text": "Ngày",
+        "style": "font-weight: bold; background-color: yellow; width: 64px; min-width: 64px; max-width: 64px; height: 20px; overflow: visible;"
+      },
+      {
+        "coord": "A2",
+        "text": "Bút",
+        "style": "width: 64px; min-width: 64px; max-width: 64px; height: 20px; overflow: hidden; text-overflow: clip;"
+      },
+      {
+        "coord": "B2",
+        "text": "1,250",
+        "style": "text-align: right; width: 64px; min-width: 64px; max-width: 64px; height: 20px; overflow: hidden; text-overflow: clip;"
+      },
+      {
+        "coord": "C2",
+        "text": "31/12/2026",
+        "style": "text-align: right; width: 64px; min-width: 64px; max-width: 64px; height: 20px; overflow: hidden; text-overflow: clip;"
+      },
+      {
+        "coord": "A3",
+        "text": "Giấy",
+        "style": "width: 64px; min-width: 64px; max-width: 64px; height: 20px; overflow: hidden; text-overflow: clip;"
+      },
+      {
+        "coord": "B3",
+        "text": "25%",
+        "style": "text-align: right; width: 64px; min-width: 64px; max-width: 64px; height: 20px; overflow: hidden; text-overflow: clip;"
+      },
+      {
+        "coord": "C3",
+        "text": "1,234.56",
+        "style": "text-align: right; width: 64px; min-width: 64px; max-width: 64px; height: 20px; overflow: hidden; text-overflow: clip;"
+      }
+    ]
+  },
+  "afterUndo": {
+    "cells": [
+      {
+        "coord": "A1",
+        "text": "",
+        "style": "width: 64px; min-width: 64px; max-width: 64px; height: 20px;"
+      },
+      {
+        "coord": "B1",
+        "text": "",
+        "style": "width: 64px; min-width: 64px; max-width: 64px; height: 20px;"
+      },
+      {
+        "coord": "C1",
+        "text": "",
+        "style": "width: 64px; min-width: 64px; max-width: 64px; height: 20px;"
+      },
+      {
+        "coord": "A2",
+        "text": "",
+        "style": "width: 64px; min-width: 64px; max-width: 64px; height: 20px;"
+      },
+      {
+        "coord": "B2",
+        "text": "",
+        "style": "width: 64px; min-width: 64px; max-width: 64px; height: 20px;"
+      },
+      {
+        "coord": "C2",
+        "text": "",
+        "style": "width: 64px; min-width: 64px; max-width: 64px; height: 20px;"
+      },
+      {
+        "coord": "A3",
+        "text": "",
+        "style": "width: 64px; min-width: 64px; max-width: 64px; height: 20px;"
+      },
+      {
+        "coord": "B3",
+        "text": "",
+        "style": "width: 64px; min-width: 64px; max-width: 64px; height: 20px;"
+      },
+      {
+        "coord": "C3",
+        "text": "",
+        "style": "width: 64px; min-width: 64px; max-width: 64px; height: 20px;"
+      }
+    ]
+  }
+}
+ACCEPTANCE_PASS app=sheet action=probe-com undo=one-step
+OFFICE_COM_CLOSED app=sheet officePid=17680
+```
+
+</details>
+
+<details>
+<summary>writer-paste (final event HTML precedence and own HWND cleanup)</summary>
+
+```text
+OFFICE_COM_READY app=writer officePid=31000 hidden=true
+{
+  "app": "writer",
+  "target": "http://localhost:8081/?app=writer&singleApp=1&documentName=T%C3%A0i+li%E1%BB%87u+3.docx",
+  "diagnostics": [
+    "__VNO_CLIPBOARD_DIAG__{\"phase\":\"writer-paste-event\",\"types\":[\"text/plain\",\"text/html\",\"text/rtf\"],\"textLength\":119,\"htmlLength\":45146,\"htmlHasStyle\":true}",
+    "__VNO_CLIPBOARD_DIAG__{\"phase\":\"writer-paste-source\",\"status\":\"event\",\"textLength\":119,\"htmlLength\":45146,\"htmlHasStyle\":true}"
+  ],
+  "output": {
+    "html": "<p>\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n<!--StartFragment-->\n\n</p><h1>Heading <span class=\"vno-spelling-uncertain\" data-vno-spelling-uncertain=\"clipboard\" aria-label=\"clipboard: từ chưa chắc chắn\">clipboard</span> <span class=\"vno-spelling-uncertain\" data-vno-spelling-uncertain=\"test\" aria-label=\"test: từ chưa chắc chắn\">test</span></h1><p>\n\n</p><p class=\"MsoNormal\"><b>Bold <span class=\"vno-spelling-uncertain\" data-vno-spelling-uncertain=\"sentence\" aria-label=\"sentence: từ chưa chắc chắn\">sentence</span></b></p><p>\n\n</p><ul data-vno-mso-list=\"1\"><li><!--[if !supportLists]--><!--[endif]-->Bullet <span class=\"vno-spelling-uncertain\" data-vno-spelling-uncertain=\"item\" aria-label=\"item: từ chưa chắc chắn\">item</span> <span class=\"vno-spelling-uncertain\" data-vno-spelling-uncertain=\"one\" aria-label=\"one: từ chưa chắc chắn\">one</span></li>\n<li><!--[if !supportLists]--><!--[endif]-->Bullet <span class=\"vno-spelling-uncertain\" data-vno-spelling-uncertain=\"item\" aria-label=\"item: từ chưa chắc chắn\">item</span> <span class=\"vno-spelling-uncertain\" data-vno-spelling-uncertain=\"two\" aria-label=\"two: từ chưa chắc chắn\">two</span></li></ul><p>\n\n</p><div class=\"vno-page-auto-gap\" contenteditable=\"false\" data-vno-auto-page-gap=\"true\" data-vno-soft-break=\"true\"></div><table class=\"MsoNormalTable\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\">\n <tbody><tr>\n  <td width=\"301\" valign=\"top\" style=\"width:225.65pt;padding:0cm 5.4pt 0cm 5.4pt\">\n  <p class=\"MsoNormal\">Table 1,1</p>\n  </td>\n  <td width=\"301\" valign=\"top\" style=\"width:225.65pt;padding:0cm 5.4pt 0cm 5.4pt\">\n  <p class=\"MsoNormal\">Table 1,2</p>\n  </td>\n </tr>\n <tr>\n  <td width=\"301\" valign=\"top\" style=\"width:225.65pt;padding:0cm 5.4pt 0cm 5.4pt\">\n  <p class=\"MsoNormal\">Table 2,1</p>\n  </td>\n  <td width=\"301\" valign=\"top\" style=\"width:225.65pt;padding:0cm 5.4pt 0cm 5.4pt\">\n  <p class=\"MsoNormal\">Table 2,2</p>\n  </td>\n </tr>\n</tbody></table><p>\n\n<!--EndFragment-->\n\n\n</p>",
+    "text": "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nHEADING CLIPBOARD TEST\n\n\n\n\n\nBold sentence\n\n\n\n\n\nBullet item one\n\n\nBullet item two\n\n\n\n\n\n\n  \n\nTable 1,1\n\n\n  \t\n  \n\nTable 1,2\n\n\n  \n\n  \n\nTable 2,1\n\n\n  \t\n  \n\nTable 2,2\n\n\n  \n\n\n\n\n\n\n"
+  },
+  "afterUndo": {
+    "html": "<p><br></p>",
+    "text": "\n"
+  }
+}
+ACCEPTANCE_PASS app=writer action=paste-com undo=one-step
+OFFICE_COM_CLOSED app=writer officePid=31000
+```
+
+</details>
+
+Other desktop acceptance outputs:
+
+```text
+ACCEPTANCE_PASS app=sheet action=ribbon-com undo=one-step
+OFFICE_COM_CLOSED app=sheet officePid=13168
+ACCEPTANCE_PASS app=sheet action=special-com undo=one-step
+OFFICE_COM_CLOSED app=sheet officePid=26692
+ACCEPTANCE_PASS app=writer action=ribbon-com undo=one-step
+OFFICE_COM_CLOSED app=writer officePid=34248
+ACCEPTANCE_PASS app=writer action=special-com undo=one-step
+OFFICE_COM_CLOSED app=writer officePid=21072
+```

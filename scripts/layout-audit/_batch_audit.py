@@ -4,6 +4,7 @@ Excel COM open check, and a summary table written to _batch_audit_report.md."""
 import os, sys, subprocess, re, glob, time
 ROOT = os.path.abspath(sys.argv[1])
 SP = os.path.dirname(os.path.abspath(__file__))
+LINTER_SP = os.environ.get("VNO_AUDIT_LINTER_DIR", SP)
 names = sys.argv[2:] or sorted(os.path.basename(p) for p in glob.glob(os.path.join(ROOT, "file test", "lan", "lan*.xlsx")))
 mapping = {}
 mp = os.path.join(ROOT, "file test", "lan", "_map.txt")
@@ -23,7 +24,7 @@ for name in names:
     except subprocess.TimeoutExpired as exc:
         r = subprocess.CompletedProcess(exc.cmd, 124, exc.stdout or "", exc.stderr or "")
     saved = os.path.exists(out)
-    loaded = ("LOADED: " + name) in (r.stdout or "")
+    loaded = r.returncode == 0 and ("LOADED: " + name) in (r.stdout or "")
     total = ""; per_kind = ""
     if saved:
         with open(audit, "w", encoding="utf-8") as f:
@@ -39,10 +40,12 @@ for name in names:
         e = subprocess.run(["powershell", "-NoProfile", "-File", os.path.join(SP, "_excel_open_test.ps1"), "-Files", out], capture_output=True, text=True, timeout=240)
         excel = (e.stdout.strip().splitlines() or ["?"])[-1]
         # Lint XML (well-formed, count=, chỉ số, thứ tự ô) để phân biệt file hỏng thật với Excel COM bị tranh
-        lint_run = subprocess.run([sys.executable, os.path.join(SP, "_xlsx_lint.py"), out], capture_output=True, text=True, timeout=300)
-        parts_run = subprocess.run([sys.executable, os.path.join(SP, "_xlsx_parts_lint.py"), out], capture_output=True, text=True, timeout=300)
+        lint_run = subprocess.run([sys.executable, os.path.join(LINTER_SP, "_xlsx_lint.py"), out], capture_output=True, text=True, timeout=300)
+        parts_run = subprocess.run([sys.executable, os.path.join(LINTER_SP, "_xlsx_parts_lint.py"), out], capture_output=True, text=True, timeout=300)
         issues = [line for line in ((lint_run.stdout or "") + (parts_run.stdout or "")).splitlines()
                   if line.strip() and line.strip() not in ("lint done", "parts lint done")]
+        if lint_run.returncode or parts_run.returncode:
+            issues.append("linter failed: " + (lint_run.stderr or "") + (parts_run.stderr or ""))
         lint = "clean" if not issues else f"{len(issues)} issue(s): " + "; ".join(issues[:3])
     seconds = round(time.monotonic() - started, 1)
     rows.append((name, mapping.get(name, ""), ("yes" if saved else "NO") + ("" if loaded else " (not loaded)"), total, excel, lint, per_kind, seconds))
@@ -52,3 +55,4 @@ with open(os.path.join(ROOT, "_batch_audit_report.md"), "w", encoding="utf-8") a
     for r in rows:
         f.write("| " + " | ".join(str(x) for x in r) + " |\n")
 print("report: _batch_audit_report.md")
+sys.exit(0 if rows and all(r[2] == "yes" and r[3] == "0" and " OK sheets=" in r[4] and r[5] == "clean" for r in rows) else 1)

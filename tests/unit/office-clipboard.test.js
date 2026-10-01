@@ -40,6 +40,18 @@ export async function runOfficeClipboardTests() {
     }
   };
 
+  test("Excel date without x:num becomes a date serial", () => {
+    const result = parseOfficeHtmlTable('<table><tr><td style="mso-number-format:dd/mm/yyyy">31/12/2026</td></tr></table>');
+    assertEqual(result.cells[0][0].val, 46387);
+    assertEqual(result.cells[0][0].style.numberFormat.category, "date");
+  });
+
+  test("Word bullet marker CSS decimal is not a numbered list", () => {
+    const cleaned = cleanWordHtml('<p class="MsoListParagraph" style="mso-list:l0 level1 lfo1"><span style="font-size:7.0pt">Bullet item one</span></p><p class="MsoListParagraph" style="mso-list:l0 level1 lfo1">Bullet item two</p>');
+    assert(cleaned.includes("<ul"), "Real Word bullets must remain unordered");
+    assert(!cleaned.includes("<ol"), "CSS decimals must not select numbering");
+  });
+
   // =============================================================================
   // PHẦN 1: TIỆN ÍCH CSS & HTML
   // =============================================================================
@@ -148,6 +160,20 @@ export async function runOfficeClipboardTests() {
     assertEqual(fmt.category, "number");
     assertEqual(fmt.decimals, 2);
     assertEqual(fmt.useSeparator, true);
+  });
+
+  test("parseOfficeHtmlTable - localized Excel CF_HTML decimal placeholders", () => {
+    const html = `<style>
+      table { mso-displayed-decimal-separator:"\\,"; mso-displayed-thousand-separator:"\\."; }
+      .xl66 { mso-number-format:"\\#\\.\\#\\#0"; }
+      .xl69 { mso-number-format:"\\#\\.\\#\\#000"; }
+    </style><table><tr><td class=xl66 align=right>1250,0</td><td class=xl69 align=right>1234,56000</td></tr></table>`;
+    const result = parseOfficeHtmlTable(html);
+    assertEqual(result.cells[0][0].val, 1250);
+    assertEqual(result.cells[0][0].style.numberFormat.decimals, 0);
+    assertEqual(result.cells[0][1].val, 1234.56);
+    assertEqual(result.cells[0][1].style.numberFormat.decimals, 2);
+    assertEqual(result.cells[0][1].style.numberFormat.useThousands, true);
   });
 
   // =============================================================================

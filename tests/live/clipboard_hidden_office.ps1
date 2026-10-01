@@ -50,12 +50,13 @@ try {
     $office.DisplayAlerts = 0
     $document = $office.Documents.Add()
     $selection = $office.Selection
-    $selection.Style = 'Heading 1'
+    $selection.Style = -2 # wdStyleHeading1 (locale-independent)
     $selection.TypeText('Heading clipboard test')
     $selection.TypeParagraph()
-    $selection.Style = 'Normal'
+    $selection.Style = -1 # wdStyleNormal
+    $selection.Font.Bold = 1
     $selection.TypeText('Bold sentence')
-    $selection.Range.Font.Bold = 1
+    $selection.Font.Bold = 0
     $selection.TypeParagraph()
     $bulletStart = $document.Content.End - 1
     $selection.TypeText('Bullet item one')
@@ -79,7 +80,14 @@ try {
     Add-Type 'using System; using System.Runtime.InteropServices; public static class ClipboardOfficeWindow { [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId); }'
   }
   [uint32]$officeProcessId = 0
-  [void][ClipboardOfficeWindow]::GetWindowThreadProcessId([IntPtr]$office.Hwnd, [ref]$officeProcessId)
+  $officeHwnd = $null
+  try { $officeHwnd = if ($App -eq 'writer') { $office.ActiveWindow.Hwnd } else { $office.Hwnd } } catch { $officeHwnd = $null }
+  if ($null -ne $officeHwnd -and [IntPtr]$officeHwnd -ne [IntPtr]::Zero) {
+    [void][ClipboardOfficeWindow]::GetWindowThreadProcessId([IntPtr]$officeHwnd, [ref]$officeProcessId)
+  }
+  if ($officeProcessId -eq 0) {
+    throw 'Cannot identify the hidden Office COM instance from its own window handle.'
+  }
   $process = Get-Process -Id $officeProcessId -ErrorAction Stop
   $officeProcessStart = $process.StartTime
   [pscustomobject]@{

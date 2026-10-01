@@ -8,17 +8,18 @@ const action = process.argv[4] || "paste";
 const root = new URL("../../", import.meta.url);
 const worktree = fileURLToPath(root);
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+const readJson = async path => JSON.parse((await readFile(path, "utf8")).replace(/^\uFEFF/, ""));
 let officeHelper = null;
 let officeReady = null;
 let officeOutput = "";
 let officeHelperExited = false;
+const officeReadyPath = new URL("tests/live/clipboard-office.ready.json", root);
+const officeStopPath = new URL("tests/live/clipboard-office.stop", root);
 
 const startOfficeClipboardHelper = async () => {
-  const readyPath = new URL("tests/live/clipboard-office.ready.json", root);
-  const stopPath = new URL("tests/live/clipboard-office.stop", root);
   const copyPath = new URL("tests/live/clipboard-office.copy", root);
   const donePath = new URL("tests/live/clipboard-office.copy-done", root);
-  for (const file of [readyPath, stopPath, copyPath, donePath]) {
+  for (const file of [officeReadyPath, officeStopPath, copyPath, donePath]) {
     try { await unlink(file); } catch { /* No stale helper marker. */ }
   }
   officeHelper = spawn("powershell.exe", [
@@ -28,10 +29,10 @@ const startOfficeClipboardHelper = async () => {
   officeHelper.stdout.on("data", chunk => { officeOutput += chunk.toString(); });
   officeHelper.stderr.on("data", chunk => { officeOutput += chunk.toString(); });
   officeHelper.once("exit", () => { officeHelperExited = true; });
-  for (let attempt = 0; attempt < 120; attempt += 1) {
+  for (let attempt = 0; attempt < 600; attempt += 1) {
     if (officeHelper.exitCode !== null) throw new Error(`Hidden Office COM helper exited early: ${officeOutput}`);
     try {
-      officeReady = JSON.parse(await readFile(readyPath, "utf8"));
+      officeReady = await readJson(officeReadyPath);
       console.log(`OFFICE_COM_READY app=${app} officePid=${officeReady.officeProcessId} hidden=true`);
       return;
     } catch { /* Office is still creating the copied range. */ }
@@ -42,7 +43,11 @@ const startOfficeClipboardHelper = async () => {
 
 const stopOfficeClipboardHelper = async () => {
   if (!officeHelper) return;
-  if (officeReady?.stopFile) await writeFile(officeReady.stopFile, "stop", "ascii");
+  if (!officeReady) {
+    try { officeReady = await readJson(officeReadyPath); }
+    catch { /* The helper may still be starting; the stop marker is still authoritative. */ }
+  }
+  await writeFile(officeReady?.stopFile || officeStopPath, "stop", "ascii");
   let exited = officeHelperExited;
   if (!exited) {
     exited = await Promise.race([
@@ -54,7 +59,7 @@ const stopOfficeClipboardHelper = async () => {
     const id = Number(officeReady.officeProcessId);
     const name = app === "sheet" ? "EXCEL" : "WINWORD";
     const start = String(officeReady.officeProcessStart).replaceAll("'", "''");
-    const command = `$p=Get-Process -Id ${id} -ErrorAction SilentlyContinue; if ($p -and $p.ProcessName -eq '${name}' -and $p.Path -eq 'C:\\Program Files\\Microsoft Office\\Office16\\${name}.EXE' -and $p.StartTime.ToString('o') -eq '${start}') { Stop-Process -Id ${id} -Force }`;
+    const command = `$p=Get-Process -Id ${id} -ErrorAction SilentlyContinue; if ($p -and $p.ProcessName -eq '${name}' -and $p.StartTime.ToString('o') -eq '${start}') { Stop-Process -Id ${id} -Force }`;
     try { execFileSync("powershell.exe", ["-NoProfile", "-Command", command], { cwd: worktree, stdio: "ignore", timeout: 5000 }); } catch { /* Only the Office PID recorded by this COM helper is targeted. */ }
     if (!officeHelperExited) {
       exited = await Promise.race([
@@ -63,7 +68,10 @@ const stopOfficeClipboardHelper = async () => {
       ]);
     }
   }
-  if (!exited) console.error(`OFFICE_COM_CLEANUP_TIMEOUT app=${app} officePid=${officeReady?.officeProcessId} ${officeOutput}`);
+  if (!exited) {
+    console.error(`OFFICE_COM_CLEANUP_TIMEOUT app=${app} officePid=${officeReady?.officeProcessId} ${officeOutput}`);
+    process.exitCode = 1;
+  }
   else console.log(`OFFICE_COM_CLOSED app=${app} officePid=${officeReady?.officeProcessId}`);
 };
 
@@ -119,6 +127,12 @@ const evaluate = async expression => {
 try {
   await send("Runtime.enable");
   await send("Page.enable");
+  if (action.endsWith("-com")) {
+    await send("Page.reload");
+    await sleep(700);
+  }
+  await send("Runtime.discardConsoleEntries");
+  consoleLines.length = 0;
   await evaluate(`new Promise((resolve, reject) => {
     const started = Date.now();
     const poll = () => {
@@ -130,7 +144,36 @@ try {
     poll();
   })`);
 
-  if (action === "paste-com") await startOfficeClipboardHelper();
+  if (action.endsWith("-com")) await startOfficeClipboardHelper();
+
+  if (action === "probe-com") {
+    await evaluate(`(() => {
+      const probe = document.createElement("div");
+      probe.id = "clipboard-cdp-probe";
+      probe.contentEditable = "true";
+      probe.style.cssText = "position:fixed;left:30px;top:30px;width:30px;height:30px;z-index:99999";
+      document.body.append(probe);
+      probe.addEventListener("paste", event => {
+        const html = event.clipboardData.getData("text/html");
+        window.__clipboardCdpProbe = { phase: "chromium-native-paste-probe", types: [...event.clipboardData.types],
+          textLength: event.clipboardData.getData("text/plain").length, htmlLength: html.length,
+          htmlHasStyle: /<style\\b/i.test(html), htmlHasXNum: /x:num/i.test(html) };
+        event.preventDefault();
+        event.stopPropagation();
+      }, { once: true });
+      window.addEventListener("keydown", event => event.stopImmediatePropagation(), { capture: true, once: true });
+      probe.focus();
+    })()`);
+    await send("Input.dispatchMouseEvent", { type: "mousePressed", x: 45, y: 45, button: "left", clickCount: 1 });
+    await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: 45, y: 45, button: "left", clickCount: 1 });
+    await send("Input.dispatchKeyEvent", { type: "keyDown", key: "F24", code: "F24", windowsVirtualKeyCode: 135, nativeVirtualKeyCode: 135, commands: ["paste"] });
+    await send("Input.dispatchKeyEvent", { type: "keyUp", key: "F24", code: "F24", windowsVirtualKeyCode: 135, nativeVirtualKeyCode: 135 });
+    await sleep(300);
+    const probe = await evaluate("window.__clipboardCdpProbe");
+    await evaluate("document.getElementById('clipboard-cdp-probe').remove()");
+    if (!probe) throw new Error("Chromium did not deliver the native clipboard probe event");
+    consoleLines.push("__VNO_CLIPBOARD_DIAG__" + JSON.stringify(probe));
+  }
 
   if (action === "inspect") {
     const clipboard = await evaluate(`Promise.all([
@@ -200,8 +243,32 @@ try {
     })()`);
   }
 
-  await send("Input.dispatchKeyEvent", { type: "keyDown", key: "v", code: "KeyV", windowsVirtualKeyCode: 86, nativeVirtualKeyCode: 86, modifiers: 2, commands: ["paste"] });
-  await send("Input.dispatchKeyEvent", { type: "keyUp", key: "v", code: "KeyV", windowsVirtualKeyCode: 86, nativeVirtualKeyCode: 86, modifiers: 2 });
+  if (action === "ribbon-com") {
+    await evaluate(`(() => {
+      const commandId = ${JSON.stringify(app)} === "writer" ? "common.edit.paste" : "common.edit.paste";
+      const button = document.querySelector('button[data-command-id="' + commandId + '"]');
+      if (!button) throw new Error("Ribbon Paste button not found");
+      button.click();
+      return true;
+    })()`);
+  } else if (action === "special-com") {
+    await send("Input.dispatchKeyEvent", { type: "keyDown", key: "v", code: "KeyV", windowsVirtualKeyCode: 86, nativeVirtualKeyCode: 86, modifiers: 3 });
+    await send("Input.dispatchKeyEvent", { type: "keyUp", key: "v", code: "KeyV", windowsVirtualKeyCode: 86, nativeVirtualKeyCode: 86, modifiers: 3 });
+    await sleep(700);
+    await evaluate(`(() => {
+      const dialog = document.querySelector(".vno-paste-special-dialog");
+      if (!dialog) throw new Error("Ctrl+Alt+V did not open Paste Special");
+      const source = dialog.querySelector('input[name="paste-special-mode"][value="source"]');
+      if (source) source.checked = true;
+      const apply = document.querySelector(${JSON.stringify(app)} === "writer" ? ".vno-dialog-ok-btn" : ".vno-rule-apply");
+      if (!apply) throw new Error("Paste Special apply button not found");
+      apply.click();
+      return true;
+    })()`);
+  } else {
+    await send("Input.dispatchKeyEvent", { type: "keyDown", key: "v", code: "KeyV", windowsVirtualKeyCode: 86, nativeVirtualKeyCode: 86, modifiers: 2, commands: ["paste"] });
+    await send("Input.dispatchKeyEvent", { type: "keyUp", key: "v", code: "KeyV", windowsVirtualKeyCode: 86, nativeVirtualKeyCode: 86, modifiers: 2 });
+  }
   await sleep(1800);
 
   const output = await evaluate(app === "writer"
@@ -219,7 +286,34 @@ try {
       const el = document.querySelector('.vno-grid-cell[data-coord="' + coord + '"]');
       return {coord, text: el?.innerText || "", style: el?.getAttribute("style") || ""};
     })}))()`);
+  if (app === "sheet") {
+    const cells = Object.fromEntries(output.cells.map(cell => [cell.coord, cell]));
+    const expected = { A1: "Tên", B1: "Số lượng", C1: "Ngày", A2: "Bút", B2: "1,250", C2: "31/12/2026", A3: "Giấy", B3: "25%", C3: "1,234.56" };
+    for (const [coord, text] of Object.entries(expected)) {
+      if (cells[coord]?.text !== text) throw new Error(`${coord}: expected ${text}, got ${cells[coord]?.text}`);
+    }
+    if (!/font-weight: bold/.test(cells.A1.style) || !/background-color: yellow/.test(cells.A1.style)) throw new Error("Excel header formatting lost");
+    for (const coord of ["B2", "C2", "B3", "C3"]) {
+      if (!/text-align: right/.test(cells[coord].style)) throw new Error(`${coord}: numeric/date alignment lost`);
+    }
+    if (afterUndo.cells.some(cell => cell.text || /font-weight: bold|background-color: yellow/.test(cell.style))) throw new Error("Sheet paste was not undone in one step");
+  } else {
+    const preserved = await evaluate(`(() => {
+      // The output snapshot precedes Undo, so parse that snapshot without changing the editor.
+      const doc = new DOMParser().parseFromString(${JSON.stringify(output.html)}, "text/html");
+      return { heading: doc.querySelector("h1")?.textContent, bold: doc.querySelector("b,strong")?.textContent,
+        bullets: [...doc.querySelectorAll("ul li")].map(li => li.textContent.trim()),
+        table: [...doc.querySelectorAll("table td")].map(td => td.textContent.trim()) };
+    })()`);
+    if (preserved.heading !== "Heading clipboard test" || preserved.bold !== "Bold sentence" ||
+        JSON.stringify(preserved.bullets) !== JSON.stringify(["Bullet item one", "Bullet item two"]) ||
+        JSON.stringify(preserved.table) !== JSON.stringify(["Table 1,1", "Table 1,2", "Table 2,1", "Table 2,2"])) {
+      throw new Error(`Word formatting lost: ${JSON.stringify(preserved)}`);
+    }
+    if (afterUndo.text.trim()) throw new Error("Writer paste was not undone in one step");
+  }
   console.log(JSON.stringify({ app, target: target.url, diagnostics: consoleLines, output, afterUndo }, null, 2));
+  console.log(`ACCEPTANCE_PASS app=${app} action=${action} undo=one-step`);
 } finally {
   try { await stopOfficeClipboardHelper(); }
   catch (error) { console.error(`OFFICE_COM_CLEANUP_ERROR ${error.message}`); process.exitCode = 1; }

@@ -9413,7 +9413,7 @@ export class WriterAdapter {
   _showPasteSpecialDialog() {
     if (typeof document === "undefined") return;
     const previousFocused = document.activeElement;
-    const title = this.t("sheetDialogs.pasteSpecialTitle", "Dán đặc biệt");
+    const title = t("sheetDialogs.pasteSpecialTitle", "Dán đặc biệt");
     const overlay = document.createElement("div");
     overlay.className = "vno-dialog-overlay";
     const titleId = `vno-dialog-title-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -9425,15 +9425,15 @@ export class WriterAdapter {
         </div>
         <div class="vno-dialog-body">
           <form class="vno-paste-special-dialog" aria-label="${title}">
-            <fieldset><legend>${this.t("sheetDialogs.pasteSpecialGroup", "Dán")}</legend>
-              <label><input type="radio" name="paste-special-mode" value="source" checked> ${this.t("sheetDialogs.pasteSpecialKeepSource", "Giữ định dạng nguồn")}</label>
-              <label><input type="radio" name="paste-special-mode" value="text"> ${this.t("sheetDialogs.pasteSpecialText", "Chỉ giữ văn bản")}</label>
+            <fieldset><legend>${t("sheetDialogs.pasteSpecialGroup", "Dán")}</legend>
+              <label><input type="radio" name="paste-special-mode" value="source" checked> ${t("sheetDialogs.pasteSpecialKeepSource", "Giữ định dạng nguồn")}</label>
+              <label><input type="radio" name="paste-special-mode" value="text"> ${t("sheetDialogs.pasteSpecialText", "Chỉ giữ văn bản")}</label>
             </fieldset>
           </form>
         </div>
         <div class="vno-dialog-footer">
-          <button class="vno-btn vno-dialog-cancel-btn">${this.t("sheetDialogs.cancel", "Hủy bỏ")}</button>
-          <button class="vno-btn vno-btn-primary vno-dialog-ok-btn">${this.t("sheetDialogs.apply", "Đồng ý")}</button>
+          <button class="vno-btn vno-dialog-cancel-btn">${t("sheetDialogs.cancel", "Hủy bỏ")}</button>
+          <button class="vno-btn vno-btn-primary vno-dialog-ok-btn">${t("sheetDialogs.apply", "Đồng ý")}</button>
         </div>
       </div>
     `;
@@ -14087,11 +14087,12 @@ export class WriterAdapter {
       const eventText = clipboard.getData("text/plain") || "";
       if (!eventHtml && !eventText) return;
       event.preventDefault();
-      if (window.__vnoClipboardDiagnostics) console.info("__VNO_CLIPBOARD_DIAG__" + JSON.stringify({ phase: "writer-paste-event", types: Array.from(clipboard.types || []), textLength: eventText.length, htmlLength: eventHtml.length, htmlHasStyle: /<style\b/i.test(eventHtml) }));
-      const native = await this._readClipboardFromSystem();
+      if (globalThis.window?.__vnoClipboardDiagnostics) console.info("__VNO_CLIPBOARD_DIAG__" + JSON.stringify({ phase: "writer-paste-event", types: Array.from(clipboard.types || []), textLength: eventText.length, htmlLength: eventHtml.length, htmlHasStyle: /<style\b/i.test(eventHtml) }));
+      const needsNativeHtml = !eventHtml || (/\bMso[a-z0-9_-]+\b/i.test(eventHtml) && !/<style\b/i.test(eventHtml));
+      const native = needsNativeHtml ? await this._readClipboardFromSystem() : null;
       const html = native?.html || eventHtml;
       const text = native?.text || eventText;
-      if (window.__vnoClipboardDiagnostics) console.info("__VNO_CLIPBOARD_DIAG__" + JSON.stringify({ phase: "writer-paste-source", status: native?.status || "unavailable", textLength: text.length, htmlLength: html.length, htmlHasStyle: /<style\b/i.test(html) }));
+      if (globalThis.window?.__vnoClipboardDiagnostics) console.info("__VNO_CLIPBOARD_DIAG__" + JSON.stringify({ phase: "writer-paste-source", status: native?.status || "event", textLength: text.length, htmlLength: html.length, htmlHasStyle: /<style\b/i.test(html) }));
       this._insertClipboardContent({ html, text });
     };
     this._copyEventHandler = event => {
@@ -14170,7 +14171,7 @@ export class WriterAdapter {
   async _readClipboardFromSystem() {
     try {
       const native = await globalUnoBridge.readClipboardData?.();
-      if (window.__vnoClipboardDiagnostics) console.info("__VNO_CLIPBOARD_DIAG__" + JSON.stringify({ phase: "writer-clipboard-bridge-result", status: native?.status, textLength: native?.text?.length || 0, htmlLength: native?.html?.length || 0, htmlHasStyle: /<style\b/i.test(native?.html || ""), message: native?.message || "" }));
+      if (globalThis.window?.__vnoClipboardDiagnostics) console.info("__VNO_CLIPBOARD_DIAG__" + JSON.stringify({ phase: "writer-clipboard-bridge-result", status: native?.status, textLength: native?.text?.length || 0, htmlLength: native?.html?.length || 0, htmlHasStyle: /<style\b/i.test(native?.html || ""), message: native?.message || "" }));
       if (native?.status === "ok") return native;
     } catch { /* Browser clipboard is the web-mode fallback. */ }
     try {

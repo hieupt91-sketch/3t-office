@@ -233,9 +233,10 @@ function unescapeExcelFormat(fmt) {
  * @param {string} formatStr
  * @param {string} cellText
  * @param {any} rawValue
+ * @param {{ decimal?: string, thousand?: string }|null} displayedSeparators
  * @returns {{ category: string, decimals?: number, formatPattern?: string, symbol?: string }|null}
  */
-export function detectNumberFormat(formatStr, cellText = "", rawValue = null) {
+export function detectNumberFormat(formatStr, cellText = "", rawValue = null, displayedSeparators = null) {
   let fmt = (formatStr || "").trim();
   // Bỏ escape backslash (Excel format: \#\.\#\#0 -> #.##0)
   fmt = unescapeExcelFormat(fmt);
@@ -316,8 +317,14 @@ export function detectNumberFormat(formatStr, cellText = "", rawValue = null) {
       const placeholderCount = digitPlaceholders ? digitPlaceholders.length : 0;
       // Nếu sau dấu phân cách có đúng 3 placeholder (##0, ###, 000...) và không có exponent part
       // thì đây là thousand separator (dạng số nguyên), không phải decimal
+      const isDisplayedThousandSep = displayedSeparators?.thousand === sep.char;
       const isThousandSep = placeholderCount === 3 && /^[#0]{3}$/.test(afterSep);
-      if (!isThousandSep && placeholderCount > 0) {
+      if (isDisplayedThousandSep && placeholderCount >= 3 && /^[#0]+$/.test(afterSep)) {
+        // Excel CF_HTML in locales such as vi-VN can collapse the invariant
+        // '#,##0.00' into '#.##000'. The first three placeholders belong to
+        // the thousands group; only the remainder are decimal places.
+        decimals = placeholderCount - 3;
+      } else if (!isThousandSep && placeholderCount > 0) {
         decimals = placeholderCount;
       }
       // Nếu là thousand separator -> decimals = 0 (số nguyên)
@@ -372,7 +379,7 @@ export function extractCellValueAndFormula(attrs, innerHtml, numberFormat = null
         val = parsed > 1 ? parsed / 100 : parsed;
       }
     } else if (numberFormat?.category === "date") {
-      val = plainText;
+      val = NumberFormatter.normalizeInputForFormat(plainText, numberFormat);
     } else {
       // Thử chuyển đổi sang số bằng NumberFormatter.parseNumber chuẩn của 3T Sheet
       const parsedNumber = NumberFormatter.parseNumber(plainText);
@@ -522,6 +529,10 @@ export function parseOfficeHtmlTable(html, fallbackPlainText = "") {
   }
 
   const cssRules = parseCssStyleBlocks(html);
+  const displayedSeparators = {
+    decimal: unescapeExcelFormat(cssRules.table?.["mso-displayed-decimal-separator"] || ""),
+    thousand: unescapeExcelFormat(cssRules.table?.["mso-displayed-thousand-separator"] || "")
+  };
 
   // 1. Phân tích độ rộng các cột từ <col> hoặc <colgroup>
   const colWidths = [];
@@ -588,7 +599,7 @@ export function parseOfficeHtmlTable(html, fallbackPlainText = "") {
       // Nhận diện number format
       const msoFormat = combinedStyles["mso-number-format"] || cellAttrs["sdnum"];
       const innerHtml = cellMatch[3];
-      const numberFormat = detectNumberFormat(msoFormat, stripHtmlTags(innerHtml));
+      const numberFormat = detectNumberFormat(msoFormat, stripHtmlTags(innerHtml), null, displayedSeparators);
 
       // Trích xuất giá trị & công thức
       const { val, formula } = extractCellValueAndFormula(cellAttrs, innerHtml, numberFormat);
@@ -1013,8 +1024,7 @@ export function convertMsoListsToHtmlLists(html) {
   return html.replace(listParaRegex, (match, pAttrs, content) => {
     // Xác định xem đây là bullet (unordered) hay numbering (ordered)
     // Word thường chèn ký tự bullet trong span font Symbol/Wingdings hoặc ký tự · / o
-    const isNumbered = /^\s*(?:<span[^>]*>)?\s*(?:\d+|[a-zA-Z]|[ivxIVX]+)[\.\)]/i.test(content) ||
-      /mso-list:\s*l\d+\s+level\d+\s+lfo\d+/i.test(pAttrs) && /\d+[\.\)]/i.test(content);
+    const isNumbered = /^\s*(?:\d+|[a-zA-Z]|[ivxIVX]+)[.)]\s+/.test(stripHtmlTags(content));
 
     // Bỏ đoạn span chứa ký tự đánh số/bullet gốc của Word
     const cleanedContent = content

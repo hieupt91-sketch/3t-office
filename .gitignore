@@ -41,6 +41,12 @@ $RECYCLE.BIN/
 # Tool logs
 *.log
 
+# Runtime markers created by the hidden COM clipboard acceptance helper.
+/tests/live/clipboard-office.ready.json
+/tests/live/clipboard-office.stop
+/tests/live/clipboard-office.copy
+/tests/live/clipboard-office.copy-done
+
 # Người dùng: kho file thật (hợp đồng, giấy tờ...) dùng để quét lỗi thật -
 # KHÔNG BAO GIỜ được commit (dữ liệu cá nhân/doanh nghiệp thật của người dùng).
 /file test/

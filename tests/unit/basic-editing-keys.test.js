@@ -160,6 +160,42 @@ export async function runBasicEditingKeysTests() {
     assert(prevented && captured.at(-1).html === "<strong>giữ kiểu</strong>", "paste event phải dùng HTML đã có trong clipboard");
   }));
 
+  results.push(await test("Writer native paste preserves event HTML and recovers missing Office CSS through the bridge", async () => {
+    const adapter = Object.create(WriterAdapter.prototype);
+    const root = { listeners: {}, addEventListener(type, handler) { this.listeners[type] = handler; } };
+    adapter.bodyDom = root;
+    const captured = [];
+    let bridgeCalls = 0;
+    adapter._insertClipboardContent = data => captured.push(data);
+    const rich = '<style>.MsoNormal{font-weight:bold}</style><p class="MsoNormal">copied</p>';
+    adapter._readClipboardFromSystem = async () => { bridgeCalls++; return { status: "ok", html: rich, text: "copied" }; };
+    adapter._bindClipboardEvents();
+    const paste = html => root.listeners.paste({ clipboardData: { getData: type => type === "text/html" ? html : "copied" }, preventDefault() {} });
+    await paste('<strong>event HTML</strong>');
+    assert(bridgeCalls === 0 && captured.at(-1).html === '<strong>event HTML</strong>', "Complete event HTML must survive a different system clipboard");
+    await paste('<p class="MsoNormal">copied</p>');
+    assert(bridgeCalls === 1 && captured.at(-1).html === rich, "Missing Office head CSS must be restored from desktop bridge");
+    await paste(rich);
+    assert(bridgeCalls === 1 && captured.at(-1).html === rich, "Complete Office HTML needs no second clipboard read");
+  }));
+
+  results.push(await test("Sheet native paste keeps complete HTML and restores missing Excel class CSS", async () => {
+    const adapter = Object.create(SheetAdapter.prototype);
+    const root = { listeners: {}, addEventListener(type, handler) { this.listeners[type] = handler; } };
+    adapter.grid = { container: root };
+    let bridgeCalls = 0;
+    const captured = [];
+    const rich = '<style>.xl65{font-weight:bold;background:yellow}</style><table><tr><td class="xl65">Header</td></tr></table>';
+    adapter._readClipboardData = async () => { bridgeCalls++; return { status: "ok", html: rich, text: "Header" }; };
+    adapter._pasteModelIntoGrid = async model => captured.push(model);
+    adapter._bindNativeClipboardEvents();
+    const paste = html => root.listeners.paste({ clipboardData: { getData: type => type === "text/html" ? html : "Header" }, preventDefault() {} });
+    await paste(rich);
+    assert(bridgeCalls === 0 && captured.at(-1).cells[0][0].style.fontWeight === "bold", "Complete native Excel CSS must be parsed directly");
+    await paste('<table><tr><td class="xl65">Header</td></tr></table>');
+    assert(bridgeCalls === 1 && captured.at(-1).cells[0][0].style.backgroundColor === "yellow", "Missing native Excel class CSS must be recovered");
+  }));
+
   results.push(await test("Sheet Enter after a Tab sequence returns to its starting column and focus target is callable", () => {
     const container = mockGridContainer();
     const grid = new SheetGridController(container);
