@@ -7,16 +7,12 @@ import { WRITER_RIBBON_TABS, applyLocaleToWriterRibbon } from "./writer-ribbon.j
 import { WriterArrangeController } from "./writer-arrange.js";
 import { WriterAdapter } from "../../adapters/libreoffice/writer/writer-adapter.js";
 import { bootstrapPlatform } from "../../platform/bootstrap.js";
-import { createStyleGalleryStrip } from "./style-gallery.js";
 import { t } from "../../platform/i18n/i18n.js";
 import { globalShortcutManager } from "../../platform/commands/shortcut-manager.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
+import { withLazyFeatureProgress } from "../../platform/startup/lazy-feature.js";
 import { WriterViewController } from "./writer-view-controller.js";
-import { VietnameseSpellChecker } from "../../platform/text/vi-spellchecker.js";
-import { SpellcheckDomController } from "../../platform/text/spellcheck-dom-controller.js";
-import { VIETNAMESE_DICTIONARY_WORDS } from "../../platform/text/dictionaries/vi-dictionary.js";
-import { HelpPanel } from "../../platform/help/index.js";
-import { autoRecoverManager } from "../../platform/autorecover/auto-recover.js";
+import { InputNormalizer } from "../../platform/keyboard/input-normalizer.js";
 
 export class WriterApp {
   constructor(mountElement) {
@@ -28,6 +24,10 @@ export class WriterApp {
     this.viewController = null;
     this.spellcheckController = null;
     this.helpPanel = null;
+    this.autoRecoverManager = null;
+    this.workspace = null;
+    this._styleGalleryModulePromise = null;
+    this._helpPanelPromise = null;
   }
 
   async init(options = {}) {
@@ -38,7 +38,7 @@ export class WriterApp {
     const isBlank = templateId === "blank";
     this.shell = new AppShell({
       appName: "writer",
-      appTitle: "3T Doc",
+      appTitle: "Doc",
       documentName: options.documentName || (isBlank ? "Tài liệu 1.docx" : "Quyết định ban hành tiêu chuẩn 01.docx")
     });
     this.shell.mount(this.mountElement);
@@ -137,9 +137,9 @@ export class WriterApp {
 
       <h2>QUYẾT ĐỊNH:</h2>
 
-      <p><strong>Điều 1.</strong> Phê duyệt và chính thức áp dụng bộ giải pháp phần mềm văn phòng <strong>3T Office</strong> (bao gồm <strong>3T Doc</strong>, <strong>3T Sheet</strong> và <strong>3T Slide</strong>) tại các cơ quan, đơn vị, doanh nghiệp trên địa bàn.</p>
+      <p><strong>Điều 1.</strong> Phê duyệt và chính thức áp dụng bộ giải pháp phần mềm văn phòng <strong>3T Office</strong> (bao gồm <strong>Doc</strong>, <strong>Sheet</strong> và <strong>Slide</strong>) tại các cơ quan, đơn vị, doanh nghiệp trên địa bàn.</p>
 
-      <p><strong>Điều 2.</strong> Bộ ứng dụng 3T Office đáp ứng đầy đủ quy chuẩn bảo mật dữ liệu, kế thừa sức mạnh xử lý định dạng ODF/OOXML của LibreOffice Core, đồng thời mang giao diện thuần Việt trực quan, hiện đại và chuẩn mực.</p>
+      <p><strong>Điều 2.</strong> Nhân viên sử dụng Doc để soạn công văn, Sheet để lập bảng theo dõi và Slide để chuẩn bị báo cáo cuộc họp. Tài liệu được lưu trên máy tính; cần kiểm tra nội dung và bố cục trước khi gửi.</p>
 
       <p><strong>Điều 3.</strong> Quyết định này có hiệu lực kể từ ngày ký. Chánh Văn phòng UBND Thành phố, Thủ trưởng các cơ quan, ban, ngành chịu trách nhiệm thi hành Quyết định này./.</p>
 
@@ -178,11 +178,12 @@ export class WriterApp {
     commentsPanel.hidden = true;
     workspace.appendChild(commentsPanel);
 
-    this.helpPanel = new HelpPanel({ app: "writer" });
-    this.helpPanel.mount(workspace);
+    this.workspace = workspace;
     globalCommandBus.bindHandler("writer.help.open", (args) => {
-      if (args?.entryId || args?.query != null) return this.helpPanel.open(args);
-      return this.helpPanel.toggle();
+      return withLazyFeatureProgress("writer", "Trợ giúp", () => this._ensureHelpPanel()).then((panel) => {
+        if (args?.entryId || args?.query != null) return panel.open(args);
+        return panel.toggle();
+      });
     });
 
     container.appendChild(workspace);
@@ -219,20 +220,79 @@ export class WriterApp {
       shell: this.shell
     }).attach();
 
-    this._mountStyleGalleryRibbonStrip();
-    this._watchRibbonForStyleGalleryStrip();
+    this.shell.onZoomChange = (percent) => {
+      this.viewController.setZoom(percent / 100);
+    };
     this._setupContentObserver();
-    this._setupVietnameseSpellcheck([header, body, footer]);
+    this._editableRoots = [header, body, footer];
+    this._normalizers = this._editableRoots.map(root => new InputNormalizer({
+      target: root,
+      onWordCommit: () => this.adapter?.recordSnapshot?.("Gõ chữ")
+    }).attach(root));
+    this._autoRecoverOptions = options;
+    console.log("[WriterApp] Đã khởi tạo 3T Doc chuẩn hóa cao cấp.");
+  }
+
+  async initializeBackgroundServices() {
+    const [helpPanel] = await Promise.all([
+      this._ensureHelpPanel(),
+      this._mountStyleGalleryRibbonStrip(),
+      this._loadSpellcheck()
+    ]);
+    this._watchRibbonForStyleGalleryStrip();
+    const { autoRecoverManager } = await import("../../platform/autorecover/auto-recover.js");
+    this.autoRecoverManager = autoRecoverManager;
     await autoRecoverManager.register({
       appKind: "writer",
       adapter: this.adapter,
       shell: this.shell,
-      helpPanel: this.helpPanel,
+      helpPanel,
       serialize: () => this.adapter._contentForExport(),
       restore: (content, manifest) => this.adapter.restoreFromAutoRecover(content, manifest),
-      options
+      options: this._autoRecoverOptions
     });
-    console.log("[WriterApp] Đã khởi tạo 3T Doc chuẩn hóa cao cấp.");
+  }
+
+  async showStartupRecovery() {
+    const { autoRecoverManager } = await import("../../platform/autorecover/auto-recover.js");
+    await autoRecoverManager.showStartupRecovery();
+  }
+
+  async _ensureHelpPanel() {
+    if (this.helpPanel) return this.helpPanel;
+    if (!this._helpPanelPromise) {
+      this.shell?.setStatus?.("Đang tải Trợ giúp Doc…");
+      this._helpPanelPromise = Promise.all([
+        import("../../platform/help/index.js"),
+        import("../../platform/help/entries-writer.js")
+      ]).then(([{ HelpPanel }]) => {
+        if (!this.helpPanel && this.workspace) {
+          this.helpPanel = new HelpPanel({ app: "writer" });
+          this.helpPanel.mount(this.workspace);
+          this.shell?.setStatus?.("Sẵn sàng");
+        }
+        return this.helpPanel;
+      }).catch((error) => {
+        this._helpPanelPromise = null;
+        this.shell?.setStatus?.("Không tải được Trợ giúp Doc.");
+        throw error;
+      });
+    }
+    return this._helpPanelPromise;
+  }
+
+  async _loadSpellcheck() {
+    try {
+      const [{ VietnameseSpellChecker }, { SpellcheckDomController }, { VIETNAMESE_DICTIONARY_WORDS }] = await Promise.all([
+        import("../../platform/text/vi-spellchecker.js"),
+        import("../../platform/text/spellcheck-dom-controller.js"),
+        import("../../platform/text/dictionaries/vi-dictionary.js")
+      ]);
+      this._setupVietnameseSpellcheck(this._editableRoots, { VietnameseSpellChecker, SpellcheckDomController, VIETNAMESE_DICTIONARY_WORDS });
+    } catch (error) {
+      this.canvas.dataset.spellcheckStatus = "error";
+      console.warn("[WriterApp] Không thể tải kiểm tra chính tả tiếng Việt:", error);
+    }
   }
 
   /**
@@ -271,7 +331,7 @@ export class WriterApp {
   }
 
   destroy() {
-    autoRecoverManager.detach(this.adapter);
+    this.autoRecoverManager?.detach(this.adapter);
     this._lifecycleObserver?.disconnect();
     this._lifecycleObserver = null;
     this._styleGalleryObserver?.disconnect();
@@ -280,11 +340,13 @@ export class WriterApp {
     this.arrangeController = null;
     this.spellcheckController?.destroy();
     this.spellcheckController = null;
+    this._normalizers?.forEach(n => n.destroy());
+    this._normalizers = [];
     this.helpPanel?.destroy();
     this.helpPanel = null;
   }
 
-  _setupVietnameseSpellcheck(editableRoots) {
+  _setupVietnameseSpellcheck(editableRoots, { VietnameseSpellChecker, SpellcheckDomController, VIETNAMESE_DICTIONARY_WORDS }) {
     this.canvas.dataset.spellcheckStatus = "loading";
     try {
       const checker = new VietnameseSpellChecker(VIETNAMESE_DICTIONARY_WORDS);
@@ -298,6 +360,11 @@ export class WriterApp {
   }
 
   _mountStyleGalleryRibbonStrip() {
+    if (!this._styleGalleryModulePromise) this._styleGalleryModulePromise = import("./style-gallery.js");
+    return this._styleGalleryModulePromise.then(({ createStyleGalleryStrip }) => this._mountStyleGalleryStrip(createStyleGalleryStrip));
+  }
+
+  _mountStyleGalleryStrip(createStyleGalleryStrip) {
     if (typeof document === "undefined") return;
     const groups = this.mountElement?.querySelectorAll?.(".vno-ribbon-group") || [];
     let stylesGroup = null;

@@ -251,7 +251,7 @@ class SingleInstanceServer:
         port = int(self._server.server_address[1])
         self._server_thread = threading.Thread(
             target=self._server.serve_forever,
-            name=f"VN Office {self.app_kind} IPC",
+            name=f"3T Office {self.app_kind} IPC",
             daemon=True,
         )
         self._server_thread.start()
@@ -271,7 +271,7 @@ class SingleInstanceServer:
         self._watcher_stop.clear()
         self._watcher_thread = threading.Thread(
             target=self._watch_endpoint,
-            name=f"VN Office {self.app_kind} IPC ownership watcher",
+            name=f"3T Office {self.app_kind} IPC ownership watcher",
             daemon=True,
         )
         self._watcher_thread.start()

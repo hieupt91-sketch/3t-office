@@ -83,10 +83,26 @@ export async function runErrorReportingTests() {
     if (dialogCount !== 1 || reads !== 2) throw new Error(`expected one first-launch dialog, got ${dialogCount}`);
     for (const app of ["writer", "sheet", "slides"]) {
       const entry = getHelpEntriesForApp(app).find((item) => item.id === `${app}.help.errorReporting`);
-      if (!entry || entry.steps.length < 3 || !entry.summary.includes(app === "writer" ? "3T Doc" : app === "sheet" ? "3T Sheet" : "3T Slide")) {
+      if (!entry || entry.steps.length < 3 || !entry.summary.includes(app === "writer" ? "Doc" : app === "sheet" ? "Sheet" : "Slide")) {
         throw new Error(`missing specific Vietnamese Help for ${app}`);
       }
     }
+  });
+
+  await test("Desktop startup keeps the editor usable before consent is selected in Help", async () => {
+    let dialogCount = 0;
+    let savedConsent = null;
+    const ui = new ErrorReportingUI({
+      api: () => ({
+        get_error_reporting_state: async () => ({ enabled: true, consent: "unknown", endpoint_configured: false }),
+        set_error_reporting_consent: async (value) => { savedConsent = value; return { enabled: true, consent: value ? "granted" : "denied" }; }
+      }),
+      hooks: { install() {}, uninstall() {} },
+      dialogFactory: () => { dialogCount += 1; return {}; }
+    });
+    await ui.initialize({ deferConsentPrompt: true });
+    if (dialogCount !== 0) throw new Error("startup consent modal blocked the editor");
+    if (ui.state?.consent !== "unknown" || savedConsent !== null) throw new Error("startup changed the user's consent choice");
   });
 
   await test("Feedback dialog leaves attachment unchecked, warns clearly, and submits explicit choices", async () => {

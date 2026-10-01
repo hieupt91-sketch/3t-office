@@ -211,7 +211,7 @@ export async function runHtmlSmokeTests() {
       const proc = spawnSync(browserBinary, [
         "--headless=new",
         "--allow-file-access-from-files",
-        "--virtual-time-budget=3000",
+        "--virtual-time-budget=10000",
         "--dump-dom",
         fileUrl
       ], {

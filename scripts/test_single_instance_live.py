@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import ctypes
 import os
+import socket
 import shutil
 import subprocess
 import sys
@@ -20,7 +21,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "tests" / "fixtures" / "real-office-samples"
 CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-WM_CLOSE = 0x0010
 
 
 class NativeWindow(ctypes.Structure):
@@ -39,10 +39,6 @@ _user32.GetWindowTextW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
 _user32.GetWindowTextW.restype = ctypes.c_int
 _user32.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
 _user32.GetWindowThreadProcessId.restype = wintypes.DWORD
-_user32.PostMessageW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
-_user32.PostMessageW.restype = wintypes.BOOL
-
-
 def _windows_for_pid(process_id: int) -> list[NativeWindow]:
     windows: list[NativeWindow] = []
 
@@ -114,9 +110,32 @@ def _wait_doc_window_count(process_id: int, expected: int, timeout: float = 10) 
     raise TimeoutError(f"Process {process_id} had {len(_doc_windows(process_id))} document windows, expected {expected}: {titles}")
 
 
-def _close_window(window: NativeWindow) -> None:
-    if not _user32.PostMessageW(window.handle, WM_CLOSE, 0, 0):
-        raise ctypes.WinError(ctypes.get_last_error())
+def _free_loopback_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
+        listener.bind(("127.0.0.1", 0))
+        return int(listener.getsockname()[1])
+
+
+def _cdp_document_action(port: int, mode: str, document_title: str, timeout: int = 120) -> None:
+    helper = ROOT / "scripts" / "cdp-single-instance-control.mjs"
+    result = subprocess.run(
+        [
+            "node", "--experimental-websocket", str(helper),
+            "--port", str(port), "--mode", mode,
+            "--document-title", document_title,
+            "--timeout-seconds", str(timeout),
+        ],
+        cwd=ROOT,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        timeout=timeout + 20,
+        creationflags=CREATE_NO_WINDOW,
+    )
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout).strip()
+        raise RuntimeError(f"CDP {mode} failed for {document_title}: {detail}")
+    print(result.stdout.strip())
 
 
 def _remove_test_data(temp_dir: str) -> None:
@@ -165,12 +184,17 @@ def run() -> None:
     try:
         env = os.environ.copy()
         env["LOCALAPPDATA"] = temp_dir
+        cdp_port = _free_loopback_port()
+        env["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = f"--remote-debugging-port={cdp_port}"
         Path(env["LOCALAPPDATA"]).mkdir(parents=True, exist_ok=True)
         try:
             cold, cold_started, log = _start_writer(files[0], Path(temp_dir) / "cold.log", env)
             processes.append(cold)
             logs.append(log)
-            cold_window, cold_ms = _wait_title(cold, cold_started, files[0].name, 120)
+            _wait_title(cold, cold_started, files[0].name, 120)
+            _cdp_document_action(cdp_port, "wait-open", files[0].name)
+            cold_ms = round((time.perf_counter() - cold_started) * 1000)
+            cold_window = next(window for window in _windows_for_pid(cold.pid) if files[0].name in window.title)
             print(f"cold_fixture_open_ms={cold_ms}; pid={cold.pid}; title={cold_window.title}")
             time.sleep(5)  # allow the app's background LibreOffice worker warm-up to finish
 
@@ -179,14 +203,16 @@ def run() -> None:
                 processes.append(launcher)
                 logs.append(log)
                 _wait_launcher_exit(launcher)
-                _window, elapsed_ms = _wait_title(cold, started, path.name, 35)
+                _wait_title(cold, started, path.name, 35)
+                _cdp_document_action(cdp_port, "wait-open", path.name, 35)
+                elapsed_ms = round((time.perf_counter() - started) * 1000)
                 print(f"warm_fixture_open_{index}_ms={elapsed_ms}; owner_pid={cold.pid}; launcher_pid={launcher.pid}")
 
             windows = _wait_doc_window_count(cold.pid, 3)
             print(f"three_windows_same_process=PASS; owner_pid={cold.pid}; window_count={len(windows)}")
             for remaining, path in zip((2, 1, 0), files):
                 target = next(window for window in _wait_doc_window_count(cold.pid, remaining + 1) if path.name in window.title)
-                _close_window(target)
+                _cdp_document_action(cdp_port, "close", path.name, 30)
                 if remaining:
                     _wait_doc_window_count(cold.pid, remaining, 20)
                     print(f"close_window={path.name}; remaining={remaining}")
@@ -204,8 +230,9 @@ def run() -> None:
             processes.append(recovered)
             logs.append(log)
             recovered_window, recovered_ms = _wait_title(recovered, recovered_started, files[1].name, 120)
+            _cdp_document_action(cdp_port, "wait-open", files[1].name)
             print(f"killed_owner_recovery=PASS; open_ms={recovered_ms}; pid={recovered.pid}; title={recovered_window.title}")
-            _close_window(recovered_window)
+            _cdp_document_action(cdp_port, "close", files[1].name, 30)
             recovered.wait(timeout=45)
             print(f"recovered_owner_closed=PASS; process_exit={recovered.returncode}")
         finally:

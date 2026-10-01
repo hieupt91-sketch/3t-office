@@ -10,15 +10,16 @@ import { RibbonHost } from "../ribbon/ribbon-host.js";
 import { OFFICE_TEMPLATES } from "../templates/template-registry.js";
 import { RecentFilesManager } from "../recent/recent-manager.js";
 import { createEmptyState } from "../ui-kit/components.js";
-import { LocalAiService, ApiKeyManager } from "../ai/ai-service.js";
+import { withLazyFeatureProgress } from "../startup/lazy-feature.js";
 import { isVoiceInputSupported, startVoiceInput, stopVoiceInput, isVoiceInputActive } from "../ai/voice-input.js";
-import { showAlertDialog, showConfirmDialog, showPromptDialog, showMacroManagerDialog, showUnsavedChangesDialog, showPendingFeatureNotice } from "../ui-kit/dialogs.js";
+import { createLazyDialogs } from "../ui-kit/lazy-dialogs.js";
 import { t, getLocale, setLocale, getSupportedLocales } from "../i18n/i18n.js";
 import { getPlatformLaunchContext } from "../bootstrap.js";
 import { themeManager } from "../theme/theme-manager.js";
 import { globalUnoBridge } from "../../adapters/libreoffice/common/uno-bridge.js";
 import { NotificationBar } from "../ui-kit/notification-bar.js";
-import { showAboutDialog } from "../about/about-dialog.js";
+
+const { showAlertDialog, showConfirmDialog, showPromptDialog, showMacroManagerDialog, showUnsavedChangesDialog } = createLazyDialogs("common");
 
 export class AppShell {
   /**
@@ -38,6 +39,9 @@ export class AppShell {
     this.zoomLevel = 100;
     this.isAiOpen = false;
     this._aiRequestController = null;
+    this._aiServices = null;
+    this._aiServicesPromise = null;
+    this._refreshAiProviderUi = null;
     this.adapter = options.adapter || null;
     this.grid = options.grid || null;
     this.canvas = options.canvas || null;
@@ -101,9 +105,9 @@ export class AppShell {
           <div id="vno-switcher-menu" role="menu" aria-label="Bộ ứng dụng 3T Office"
                style="display:none; position:absolute; top:36px; left:0; background:var(--vno-bg-window); color:var(--vno-text-primary); border:1px solid var(--vno-border-default); border-radius:var(--vno-radius-md); box-shadow:var(--vno-shadow-lg); width:230px; z-index:200; padding:6px 0;">
             <div style="padding:6px 14px; font-size:11px; font-weight:bold; color:var(--vno-text-muted); text-transform:uppercase;" role="presentation">Bộ ứng dụng 3T Office</div>
-            <div class="vno-switcher-item" data-switch="writer" role="menuitem" tabindex="0" style="display:flex; align-items:center; gap:10px; padding:8px 14px; cursor:pointer; font-size:13px; font-weight:500;">${ICONS.appWriter} <span>3T Doc (Soạn thảo)</span></div>
-            <div class="vno-switcher-item" data-switch="sheet" role="menuitem" tabindex="0" style="display:flex; align-items:center; gap:10px; padding:8px 14px; cursor:pointer; font-size:13px; font-weight:500;">${ICONS.appSheet} <span>3T Sheet (Bảng tính)</span></div>
-            <div class="vno-switcher-item" data-switch="slides" role="menuitem" tabindex="0" style="display:flex; align-items:center; gap:10px; padding:8px 14px; cursor:pointer; font-size:13px; font-weight:500;">${ICONS.appSlides} <span>3T Slide (Trình chiếu)</span></div>
+            <div class="vno-switcher-item" data-switch="writer" role="menuitem" tabindex="0" style="display:flex; align-items:center; gap:10px; padding:8px 14px; cursor:pointer; font-size:13px; font-weight:500;">${ICONS.appWriter} <span>Doc (Soạn thảo)</span></div>
+            <div class="vno-switcher-item" data-switch="sheet" role="menuitem" tabindex="0" style="display:flex; align-items:center; gap:10px; padding:8px 14px; cursor:pointer; font-size:13px; font-weight:500;">${ICONS.appSheet} <span>Sheet (Bảng tính)</span></div>
+            <div class="vno-switcher-item" data-switch="slides" role="menuitem" tabindex="0" style="display:flex; align-items:center; gap:10px; padding:8px 14px; cursor:pointer; font-size:13px; font-weight:500;">${ICONS.appSlides} <span>Slide (Trình chiếu)</span></div>
           </div>
         </div>`;
 
@@ -421,6 +425,7 @@ export class AppShell {
     const providerLabels = { openai: "OpenAI (ChatGPT)", gemini: "Google Gemini", claude: "Anthropic Claude", ollama: "Ollama", "rule-based": "Quy tắc cục bộ" };
 
     const refreshProviderUi = async () => {
+      const { LocalAiService, ApiKeyManager } = await this._loadAiServices();
       const selected = providerSelect.value;
       const isCloud = Boolean(disclosureKeys[selected]);
       keyPanel.style.display = isCloud ? "block" : "none";
@@ -437,8 +442,9 @@ export class AppShell {
       providerStatus.textContent = `${t("aiAssistant.activeProvider")}: ${active.label}`;
     };
 
-    providerSelect.value = LocalAiService.getSelectedProviderId();
+    this._refreshAiProviderUi = refreshProviderUi;
     providerSelect.addEventListener("change", async () => {
+      const { LocalAiService } = await this._loadAiServices();
       LocalAiService.setSelectedProviderId(providerSelect.value);
       keyFeedback.textContent = "";
       await refreshProviderUi();
@@ -450,17 +456,18 @@ export class AppShell {
     });
     this.aiSidebar.querySelector("#vno-ai-key-save").addEventListener("click", async () => {
       try {
+        const { ApiKeyManager } = await this._loadAiServices();
         ApiKeyManager.setApiKey(providerSelect.value, keyInput.value);
         keyFeedback.textContent = t("aiAssistant.keySaved");
         await refreshProviderUi();
       } catch (error) { keyFeedback.textContent = error.message; }
     });
     keyRemove.addEventListener("click", async () => {
+      const { ApiKeyManager } = await this._loadAiServices();
       ApiKeyManager.removeApiKey(providerSelect.value);
       keyFeedback.textContent = t("aiAssistant.keyRemoved");
       await refreshProviderUi();
     });
-    refreshProviderUi();
 
     const handleAiSend = async () => {
       const query = inputEl.value.trim();
@@ -488,6 +495,7 @@ export class AppShell {
       sendBtn.disabled = true;
       stopBtn.style.display = "inline-block";
       try {
+        const { LocalAiService } = await this._loadAiServices();
         const res = await LocalAiService.query(query, { documentText: docText, appName: this.appName, signal: this._aiRequestController.signal });
         botMsg.innerHTML = `<div style="font-weight:bold;color:#16a34a;margin-bottom:6px;">✨ ${t("aiAssistant.title")}</div>`;
         const replyEl = document.createElement("div");
@@ -531,6 +539,14 @@ export class AppShell {
       }
     });
 
+    ws.addEventListener("wheel", (e) => {
+      if (e.ctrlKey) {
+        e.preventDefault();
+        const delta = e.deltaY < 0 ? 10 : -10;
+        this.setZoom(this.zoomLevel + delta);
+      }
+    }, { capture: true, passive: false });
+
     ws.appendChild(this.editorContainer);
     ws.appendChild(this.aiSidebar);
     this.rootEl.appendChild(ws);
@@ -556,34 +572,59 @@ export class AppShell {
       <div class="vno-statusbar-right">
         <div class="vno-zoom-slider" role="group" aria-label="Điều chỉnh thu phóng">
           <button type="button" id="vno-zoom-out" aria-label="Thu nhỏ" title="Thu nhỏ">-</button>
-          <input type="range" id="vno-zoom-range" min="50" max="200" value="100"
-                 aria-label="Tỷ lệ thu phóng" aria-valuemin="50" aria-valuemax="200" aria-valuenow="100" />
+          <input type="range" id="vno-zoom-range" min="50" max="200" value="${this.zoomLevel}"
+                 aria-label="Tỷ lệ thu phóng" aria-valuemin="50" aria-valuemax="200" aria-valuenow="${this.zoomLevel}" />
           <button type="button" id="vno-zoom-in" aria-label="Phóng to" title="Phóng to">+</button>
-          <span id="vno-zoom-text" style="min-width:38px;text-align:right;" aria-live="polite">100%</span>
+          <span id="vno-zoom-text" style="min-width:38px;text-align:right;" aria-live="polite">${this.zoomLevel}%</span>
         </div>
       </div>
     `;
 
     const zoomRange = sb.querySelector("#vno-zoom-range");
-    const zoomText = sb.querySelector("#vno-zoom-text");
-
-    const updateZoom = (val) => {
-      this.zoomLevel = Math.max(50, Math.min(200, val));
-      zoomRange.value = this.zoomLevel;
-      zoomRange.setAttribute("aria-valuenow", String(this.zoomLevel));
-      zoomText.textContent = `${this.zoomLevel}%`;
-      const canvas = this.editorContainer.querySelector(".vno-writer-page, .vno-slide-canvas");
-      if (canvas) {
-        canvas.style.transform = `scale(${this.zoomLevel / 100})`;
-        canvas.style.transformOrigin = "top center";
-      }
-    };
-
-    zoomRange.addEventListener("input", (e) => updateZoom(Number(e.target.value)));
-    sb.querySelector("#vno-zoom-out").addEventListener("click", () => updateZoom(this.zoomLevel - 10));
-    sb.querySelector("#vno-zoom-in").addEventListener("click", () => updateZoom(this.zoomLevel + 10));
+    zoomRange.addEventListener("input", (e) => this.setZoom(Number(e.target.value)));
+    sb.querySelector("#vno-zoom-out").addEventListener("click", () => this.setZoom(this.zoomLevel - 10));
+    sb.querySelector("#vno-zoom-in").addEventListener("click", () => this.setZoom(this.zoomLevel + 10));
 
     this.rootEl.appendChild(sb);
+  }
+
+  setZoom(val) {
+    this.zoomLevel = Math.max(50, Math.min(200, Math.round(Number(val) || 100)));
+    const zoomRange = this.rootEl?.querySelector("#vno-zoom-range");
+    const zoomText = this.rootEl?.querySelector("#vno-zoom-text");
+    if (zoomRange) {
+      zoomRange.value = this.zoomLevel;
+      zoomRange.setAttribute("aria-valuenow", String(this.zoomLevel));
+    }
+    if (zoomText) {
+      zoomText.textContent = `${this.zoomLevel}%`;
+    }
+    if (typeof this.onZoomChange === "function") {
+      try {
+        this.onZoomChange(this.zoomLevel);
+      } catch (err) {
+        console.error("[AppShell] onZoomChange error:", err);
+      }
+    }
+    const canvas = this.editorContainer?.querySelector(".vno-writer-page, .vno-slide-canvas");
+    if (canvas) {
+      canvas.style.transform = `scale(${this.zoomLevel / 100})`;
+      canvas.style.transformOrigin = "top center";
+    }
+    return this.zoomLevel;
+  }
+
+  setZoomDisplay(val) {
+    this.zoomLevel = Math.max(50, Math.min(200, Math.round(Number(val) || 100)));
+    const zoomRange = this.rootEl?.querySelector("#vno-zoom-range");
+    const zoomText = this.rootEl?.querySelector("#vno-zoom-text");
+    if (zoomRange) {
+      zoomRange.value = this.zoomLevel;
+      zoomRange.setAttribute("aria-valuenow", String(this.zoomLevel));
+    }
+    if (zoomText) {
+      zoomText.textContent = `${this.zoomLevel}%`;
+    }
   }
 
   /**
@@ -602,9 +643,45 @@ export class AppShell {
     this.isAiOpen = forceState !== undefined ? forceState : !this.isAiOpen;
     if (this.isAiOpen) {
       this.aiSidebar.classList.remove("is-hidden");
+      void this._loadAiServices()
+        .then(({ LocalAiService }) => {
+          if (!this.isAiOpen) return;
+          const providerSelect = this.aiSidebar.querySelector("#vno-ai-provider");
+          if (providerSelect) providerSelect.value = LocalAiService.getSelectedProviderId();
+          return this._refreshAiProviderUi?.();
+        })
+        .catch((error) => {
+          const status = this.aiSidebar.querySelector("#vno-ai-provider-status");
+          if (status) status.textContent = `Không tải được Trợ lý 3T AI: ${error.message}`;
+        });
     } else {
       this.aiSidebar.classList.add("is-hidden");
     }
+  }
+
+  _loadAiServices() {
+    if (this._aiServices) return Promise.resolve(this._aiServices);
+    if (!this._aiServicesPromise) {
+      this._aiServicesPromise = withLazyFeatureProgress(this.appName, "Trợ lý AI", () => import("../ai/ai-service.js"))
+        .then((services) => {
+          this._aiServices = services;
+          return services;
+        })
+        .catch((error) => {
+          this._aiServicesPromise = null;
+          throw error;
+        });
+    }
+    return this._aiServicesPromise;
+  }
+
+  async _showAboutDialog() {
+    const { showAboutDialog } = await withLazyFeatureProgress(
+      this.appName,
+      "Giới thiệu 3T Office",
+      () => import("../about/about-dialog.js")
+    );
+    return showAboutDialog();
   }
 
   showBackstageMenu() {
@@ -712,8 +789,10 @@ export class AppShell {
         <button type="button" class="vno-backstage-nav-btn" data-backstage-cmd="common.file.saveAs">${t("backstage.saveAs")}</button>
         <button type="button" class="vno-backstage-nav-btn" data-backstage-tab="print" id="vno-backstage-nav-print">${t("backstage.print")}</button>
         <button type="button" class="vno-backstage-nav-btn" data-backstage-cmd="common.file.exportPdf">${t("backstage.exportPdf")}</button>
+        <button type="button" class="vno-backstage-nav-btn" data-backstage-action="closeDocument" id="vno-backstage-close">${t("backstage.close", "Đóng")}</button>
         <div style="flex:1;"></div>
         <button type="button" class="vno-backstage-nav-btn" id="vno-backstage-about">${t("backstage.about")}</button>
+        <button type="button" class="vno-backstage-nav-btn" id="vno-backstage-options">${t("backstage.options", "Tùy chọn")}</button>
       </div>
 
       <div class="vno-backstage-content" role="main" aria-label="Nội dung menu tệp">
@@ -951,9 +1030,10 @@ export class AppShell {
           this.applyTemplate(tmplId);
         } else {
           if (!this.requestAppSwitch(tmplApp, { templateId: tmplId })) {
+            const appDisplayName = tmplApp === "writer" ? "Doc" : tmplApp === "sheet" ? "Sheet" : "Slide";
             showAlertDialog({
               title: "Mẫu tài liệu",
-              message: `Mẫu này dành cho ứng dụng VN ${tmplApp.toUpperCase()}. Vui lòng chuyển sang ứng dụng đó để sử dụng.`
+              message: `Mẫu này dành cho ứng dụng ${appDisplayName}. Vui lòng chuyển sang ứng dụng đó để sử dụng.`
             });
           }
         }
@@ -969,8 +1049,14 @@ export class AppShell {
 
     modal.querySelector("#vno-backstage-back").addEventListener("click", closeModal);
 
-    modal.querySelector("#vno-backstage-about").addEventListener("click", () => {
-      showAboutDialog();
+    modal.querySelector("#vno-backstage-about")?.addEventListener("click", () => {
+      closeModal();
+      this._showAboutDialog();
+    });
+
+    modal.querySelector("#vno-backstage-options")?.addEventListener("click", () => {
+      closeModal();
+      this.showOptionsDialog();
     });
 
     const homeNavBtn = modal.querySelector("#vno-backstage-nav-home");
@@ -1020,8 +1106,141 @@ export class AppShell {
       });
     });
 
+    modal.querySelectorAll("[data-backstage-action]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const act = btn.getAttribute("data-backstage-action");
+        if (act === "closeDocument") {
+          closeModal();
+          this.requestCloseDocument();
+        }
+      });
+    });
+
     // Tự động focus nút Quay lại khi mở
     modal.querySelector("#vno-backstage-back")?.focus();
+  }
+
+  /**
+   * Hộp thoại Tùy chọn 3T Office (Theme, Cỡ chữ giao diện)
+   * Tuân thủ CH-8.1 & CH-8.5: Enter default, Esc cancel, focus trap
+   */
+  showOptionsDialog() {
+    if (typeof document === "undefined" || !document.body) return;
+    const previousFocused = document.activeElement;
+    const overlay = document.createElement("div");
+    overlay.className = "vno-dialog-overlay";
+    const currentTheme = themeManager.getTheme();
+    const currentFontSize = themeManager.getFontSize();
+
+    overlay.innerHTML = `
+      <div class="vno-dialog-box" style="width: 480px; max-width: calc(100vw - 32px);" role="dialog" aria-modal="true" aria-labelledby="vno-options-dialog-title">
+        <div class="vno-dialog-header">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-weight:700;font-size:15px;" id="vno-options-dialog-title">Tùy chọn 3T Office</span>
+          </div>
+          <button class="vno-btn vno-btn-icon-only vno-options-close-btn" title="Đóng" aria-label="Đóng">&times;</button>
+        </div>
+        <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:16px;">
+          <!-- Section Giao diện -->
+          <fieldset style="border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md);padding:12px 16px;margin:0;">
+            <legend style="font-size:13px;font-weight:600;color:var(--vno-text-primary);padding:0 6px;">Giao diện (Theme)</legend>
+            <div style="display:flex;gap:24px;margin-top:6px;">
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+                <input type="radio" name="vno-opt-theme" value="light" ${currentTheme === "light" ? "checked" : ""} />
+                <span>Giao diện Sáng (Mặc định)</span>
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+                <input type="radio" name="vno-opt-theme" value="dark" ${currentTheme === "dark" ? "checked" : ""} />
+                <span>Giao diện Tối</span>
+              </label>
+            </div>
+          </fieldset>
+
+          <!-- Section Cỡ chữ -->
+          <fieldset style="border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md);padding:12px 16px;margin:0;">
+            <legend style="font-size:13px;font-weight:600;color:var(--vno-text-primary);padding:0 6px;">Cỡ chữ giao diện</legend>
+            <div style="display:flex;gap:20px;margin-top:6px;">
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+                <input type="radio" name="vno-opt-fontsize" value="normal" ${currentFontSize === "normal" ? "checked" : ""} />
+                <span>Tiêu chuẩn (100%)</span>
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+                <input type="radio" name="vno-opt-fontsize" value="large" ${currentFontSize === "large" ? "checked" : ""} />
+                <span>Lớn (115%)</span>
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+                <input type="radio" name="vno-opt-fontsize" value="xlarge" ${currentFontSize === "xlarge" ? "checked" : ""} />
+                <span>Rất lớn (130%)</span>
+              </label>
+            </div>
+          </fieldset>
+        </div>
+        <div class="vno-dialog-footer" style="display:flex;justify-content:flex-end;gap:8px;">
+          <button type="button" class="vno-btn vno-options-cancel-btn">Hủy bỏ</button>
+          <button type="button" class="vno-btn vno-btn-primary vno-options-ok-btn">Đồng ý</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+    const dialogBox = overlay.querySelector(".vno-dialog-box");
+    const okBtn = overlay.querySelector(".vno-options-ok-btn");
+    const cancelBtn = overlay.querySelector(".vno-options-cancel-btn");
+    const closeBtn = overlay.querySelector(".vno-options-close-btn");
+
+    const closeDialog = () => {
+      document.removeEventListener("keydown", onKeyDown);
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (previousFocused && typeof previousFocused.focus === "function") {
+        previousFocused.focus();
+      }
+    };
+
+    const applyOptions = () => {
+      const selectedTheme = overlay.querySelector('input[name="vno-opt-theme"]:checked')?.value || "light";
+      const selectedFontSize = overlay.querySelector('input[name="vno-opt-fontsize"]:checked')?.value || "normal";
+      themeManager.setTheme(selectedTheme);
+      themeManager.setFontSize(selectedFontSize);
+      closeDialog();
+    };
+
+    okBtn.addEventListener("click", applyOptions);
+    cancelBtn.addEventListener("click", closeDialog);
+    closeBtn.addEventListener("click", closeDialog);
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) closeDialog();
+    });
+
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeDialog();
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (document.activeElement === cancelBtn || document.activeElement === closeBtn) {
+          closeDialog();
+        } else {
+          applyOptions();
+        }
+      } else if (e.key === "Tab") {
+        const focusables = Array.from(dialogBox.querySelectorAll(
+          'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )).filter(el => el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0);
+        if (focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        if (e.shiftKey && (document.activeElement === first || !dialogBox.contains(document.activeElement))) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && (document.activeElement === last || !dialogBox.contains(document.activeElement))) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    okBtn.focus();
   }
 
   _getPrintPreviewProvider() {
@@ -1409,9 +1628,23 @@ export class AppShell {
       return true;
     });
 
+    // Thu phóng (Ctrl+0 đặt lại 100%, Ctrl+= / Ctrl++ phóng to, Ctrl+- thu nhỏ)
+    globalCommandBus.bindHandler("common.view.zoomReset", () => {
+      this.setZoom(100);
+      return true;
+    });
+    globalCommandBus.bindHandler("common.view.zoomIn", () => {
+      this.setZoom(this.zoomLevel + 10);
+      return true;
+    });
+    globalCommandBus.bindHandler("common.view.zoomOut", () => {
+      this.setZoom(this.zoomLevel - 10);
+      return true;
+    });
+
     // Mở hộp thoại Giới thiệu 3T Office
     globalCommandBus.bindHandler("common.help.about", () => {
-      showAboutDialog();
+      this._showAboutDialog();
       return true;
     });
 
@@ -1518,7 +1751,7 @@ export class AppShell {
     if (!isVoiceInputSupported()) {
       showAlertDialog({
         title: "Nhập liệu bằng giọng nói",
-        message: "Trình duyệt hiện tại không hỗ trợ nhận dạng giọng nói.\n\nVui lòng dùng Microsoft Edge hoặc Google Chrome trên Windows để sử dụng tính năng này.",
+        message: "Trình duyệt hiện tại không hỗ trợ nhận dạng giọng nói.\n\nVui lòng dùng trình duyệt có hỗ trợ nhận dạng giọng nói trên Windows để sử dụng tính năng này.",
         type: "warning"
       });
       return;
@@ -1581,6 +1814,7 @@ export class AppShell {
 
     try {
       const prompt = `Tóm tắt cuộc họp sau thành cấu trúc rõ ràng. YÊU CẦU BẮT BUỘC:\n1. **ĐIỂM CHÍNH**: Liệt kê các vấn đề chính được bàn luận\n2. **QUYẾT ĐỊNH**: Các quyết định đã được đưa ra\n3. **VIỆC CẦN LÀM**: Các action items, ghi rõ người phụ trách nếu có\n\nNội dung ghi chép cuộc họp:\n${transcript.trim()}`;
+      const { LocalAiService } = await this._loadAiServices();
       const res = await LocalAiService.query(prompt, { documentText: transcript.trim(), appName: this.appName });
 
       botMsg.innerHTML = `<div style="font-weight:bold;color:#16a34a;margin-bottom:6px;">✨ Tóm tắt cuộc họp</div>`;
@@ -1650,6 +1884,7 @@ export class AppShell {
 
     try {
       const prompt = `Tìm kiếm trong nội dung tài liệu bên dưới và trả lời câu hỏi của người dùng. YÊU CẦU:\n- Trích xuất các đoạn văn bản liên quan nhất tìm thấy trong tài liệu\n- Chỉ rõ vị trí (đoạn nào, nội dung gì)\n- Nếu không tìm thấy, nói rõ\n\nCâu hỏi: ${question.trim()}\n\nNội dung tài liệu:\n${docText.trim().substring(0, 8000)}`;
+      const { LocalAiService } = await this._loadAiServices();
       const res = await LocalAiService.query(prompt, { documentText: docText, appName: this.appName });
 
       botMsg.innerHTML = `<div style="font-weight:bold;color:#2563eb;margin-bottom:6px;">🔍 Kết quả tìm kiếm: "${question.trim()}"</div>`;
@@ -1706,6 +1941,7 @@ export class AppShell {
 
     try {
       const prompt = `Dịch đoạn văn bản sau sang ${langLabel}. YÊU CẦU:\n- Giữ nguyên định dạng và ý nghĩa gốc\n- Không diễn giải thêm, không bớt nội dung\n- Dịch chính xác, tự nhiên\n\nVăn bản cần dịch:\n${textToTranslate.substring(0, 8000)}`;
+      const { LocalAiService } = await this._loadAiServices();
       const res = await LocalAiService.query(prompt, { documentText: textToTranslate, appName: this.appName });
 
       botMsg.innerHTML = `<div style="font-weight:bold;color:#16a34a;margin-bottom:6px;">✨ ${t("aiAssistant.translateResult", "Kết quả dịch thuật")}</div>`;
@@ -1839,6 +2075,7 @@ export class AppShell {
 
     try {
       const prompt = `Tạo bản nháp văn bản hành chính tiếng Việt theo yêu cầu sau. YÊU CẦU:\n- Cấu trúc phù hợp loại văn bản (tiêu đề, kính gửi, nội dung, ký tên nếu là thư/công văn)\n- Ngôn ngữ hành chính trang trọng tiếng Việt\n- Đầy đủ ý, rõ ràng\n\nYêu cầu: ${description.trim()}\n\n${docText.trim() ? `Nội dung tài liệu hiện tại:\n${docText.trim().substring(0, 4000)}` : "(Tài liệu trống — tạo mới)"}`;
+      const { LocalAiService } = await this._loadAiServices();
       const res = await LocalAiService.query(prompt, { documentText: docText, appName: this.appName });
 
       botMsg.innerHTML = `<div style="font-weight:bold;color:#16a34a;margin-bottom:6px;">✨ ${t("aiAssistant.draftTitle", "AI Viết nháp")}</div>`;
@@ -1890,4 +2127,4 @@ export class AppShell {
   }
 }
 
-export { showPendingFeatureNotice } from "../ui-kit/dialogs.js";
+export { showPendingFeatureNotice } from "../ui-kit/lazy-dialogs.js";

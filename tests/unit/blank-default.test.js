@@ -33,8 +33,8 @@ const DEMO_KEYWORDS_SHEET = [
 
 const DEMO_KEYWORDS_SLIDES = [
   "BÁO CÁO ĐỀ ÁN PHÁT TRIỂN VN OFFICE 2026",
-  "KIẾN TRÚC HỆ THỐNG PHÂN TẦNG",
-  "KẾ HOẠCH TRIỂN KHAI"
+  "QUY TRÌNH CHUẨN BỊ BÁO CÁO PHÂN TẦNG",
+  "KIỂM TRA TRƯỚC KHI CHIA SẺ"
 ];
 
 export async function runBlankDefaultTests() {
@@ -173,7 +173,7 @@ export async function runBlankDefaultTests() {
   // ── Slides: nội dung mẫu vẫn tồn tại trong code ──
   test("Slides: demo slide content vẫn tồn tại trong slides-canvas.js constructor (template gallery)", () => {
     const src = fs.readFileSync(path.join(ROOT_DIR, "apps/slides/slides-canvas.js"), "utf8");
-    if (!src.includes("KIẾN TRÚC HỆ THỐNG") || !src.includes("KẾ HOẠCH TRIỂN KHAI")) {
+    if (!src.includes("QUY TRÌNH CHUẨN BỊ BÁO CÁO") || !src.includes("KIỂM TRA TRƯỚC KHI CHIA SẺ")) {
       throw new Error("Nội dung mẫu Slides đã bị xóa khỏi slides-canvas.js");
     }
   });

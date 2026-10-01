@@ -30,6 +30,8 @@ import os
 import posixpath
 import re
 import sys
+import xml.etree.ElementTree as ET
+from urllib.parse import quote as url_quote, unquote as url_unquote
 import uuid
 import zipfile
 
@@ -1475,6 +1477,66 @@ def _overlay_scenarios_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
     return re.sub(r'<table:table\b([^>]*)>', _replace_table, fods_xml, flags=re.IGNORECASE)
 
 
+def parse_page_margins_from_fods(fods_xml: str | None) -> dict[str, dict[str, float]]:
+    """Read the Sheet UI's existing margin metadata (centimeters)."""
+    result = {}
+    for match in re.finditer(r'<table:table(?=\s|>)([^>]*)>', fods_xml or '', re.IGNORECASE):
+        attrs = _xml_attrs(match.group(1))
+        if not attrs.get('table:name') or not attrs.get('vno:page-margins'):
+            continue
+        try:
+            margins = json.loads(attrs['vno:page-margins'])
+            values = {side: float(margins[side]) for side in ('top', 'bottom', 'left', 'right')}
+        except (ValueError, TypeError, KeyError):
+            continue
+        if all(math.isfinite(value) and value >= 0 for value in values.values()):
+            result[attrs['table:name']] = values
+    return result
+
+
+def apply_page_margins_to_worksheet(sheet_xml: str, margins: dict[str, float]) -> str:
+    """Avoid LibreOffice adding header/footer heights to Excel's page margins."""
+    match = re.search(r'<pageMargins\b([^>]*)/\s*>', sheet_xml, re.IGNORECASE)
+    attrs = _xml_attrs(match.group(1)) if match else {'header': '0.3', 'footer': '0.3'}
+    attrs.update({side: format(value / 2.54, '.15g') for side, value in margins.items()})
+    element = '<pageMargins ' + ' '.join(f'{key}="{_escape_xml(value)}"' for key, value in attrs.items()) + '/>'
+    if match:
+        return sheet_xml[:match.start()] + element + sheet_xml[match.end():]
+    return _insert_worksheet_child_in_schema_order(sheet_xml, element, 'pageMargins')
+
+
+def overlay_page_margins_to_fods(xlsx_bytes: bytes, fods_xml: str) -> str:
+    """Native XLSX margins are authoritative; ODF uses different header spacing."""
+    margins_by_sheet = {}
+    for name, entry in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
+        content = read_zip_entry(xlsx_bytes, entry)
+        match = re.search(r'<pageMargins\b([^>]*)/\s*>', content.decode('utf-8', errors='replace') if content else '', re.IGNORECASE)
+        if not match:
+            continue
+        attrs = _xml_attrs(match.group(1))
+        try:
+            margins = {side: round(float(attrs[side]) * 2.54, 12) for side in ('top', 'bottom', 'left', 'right')}
+        except (ValueError, KeyError):
+            continue
+        if all(math.isfinite(value) and value >= 0 for value in margins.values()):
+            margins_by_sheet[name] = margins
+    if not margins_by_sheet:
+        return fods_xml
+
+    def replace_table(match):
+        attrs = match.group(1)
+        margins = margins_by_sheet.get(_xml_attrs(attrs).get('table:name'))
+        if margins is None:
+            return match.group(0)
+        attrs = re.sub(r'\s+vno:page-margins="[^"]*"', '', attrs, flags=re.IGNORECASE)
+        return f'<table:table{attrs} vno:page-margins="{_escape_xml(json.dumps(margins))}">'
+
+    xml = re.sub(r'<table:table(?=\s|>)([^>]*)>', replace_table, fods_xml, flags=re.IGNORECASE)
+    if not re.search(r'xmlns:vno\s*=', xml, re.IGNORECASE):
+        xml = re.sub(r'<office:document\b', f'<office:document xmlns:vno="{SHEET_VNO_NS}"', xml, count=1)
+    return xml
+
+
 def parse_print_titles_from_fods(fods_xml: str | None) -> list[tuple[str, str, str]]:
     """Return [(sheet name, row titles, column titles)] in workbook order."""
     result: list[tuple[str, str, str]] = []
@@ -1515,6 +1577,62 @@ def apply_print_titles_to_workbook(workbook_xml: str, titles: list[tuple[str, st
     if sheets_end:
         return xml[:sheets_end.end()] + f"<definedNames>{block}</definedNames>" + xml[sheets_end.end():]
     return xml
+
+
+def parse_print_titles_from_workbook(workbook_xml: str | None) -> dict[str, dict[str, str]]:
+    """Read local _xlnm.Print_Titles definitions from an OOXML workbook."""
+    sheet_names = [
+        _unescape_xml(match.group(1))
+        for match in re.finditer(r'<sheet\b[^>]*\bname="([^"]*)"[^>]*/?>', workbook_xml or "", re.IGNORECASE)
+    ]
+    result: dict[str, dict[str, str]] = {}
+    for match in re.finditer(r'<definedName\b([^>]*)>([\s\S]*?)</definedName\s*>', workbook_xml or "", re.IGNORECASE):
+        attrs, expression = match.group(1), _unescape_xml(match.group(2))
+        name = re.search(r'\bname="([^"]*)"', attrs, re.IGNORECASE)
+        local_id = re.search(r'\blocalSheetId="(\d+)"', attrs, re.IGNORECASE)
+        if not name or name.group(1).casefold() != "_xlnm.print_titles" or not local_id:
+            continue
+        index = int(local_id.group(1))
+        if index < 0 or index >= len(sheet_names):
+            continue
+        titles = {"rows": "", "cols": ""}
+        for area in re.finditer(r"(?:'((?:[^']|'')*)'|([^!,]+))!\$([A-Z]+|\d+):\$([A-Z]+|\d+)", expression, re.IGNORECASE):
+            start, end = area.group(3).upper(), area.group(4).upper()
+            if start.isdigit() and end.isdigit():
+                titles["rows"] = start if start == end else f"{start}:{end}"
+            elif start.isalpha() and end.isalpha():
+                titles["cols"] = start if start == end else f"{start}:{end}"
+        if titles["rows"] or titles["cols"]:
+            result[sheet_names[index]] = titles
+    return result
+
+
+def apply_print_titles_to_fods(fods_xml: str, titles_by_sheet: dict[str, dict[str, str]]) -> str:
+    """Stamp print-title metadata onto FODS tables before SheetAdapter parses them."""
+    if not titles_by_sheet:
+        return fods_xml
+
+    def replace_table(match: re.Match[str]) -> str:
+        attrs = match.group(1) or ""
+        name_match = re.search(r'table:name="([^"]*)"', attrs, re.IGNORECASE)
+        sheet_name = _unescape_xml(name_match.group(1)) if name_match else ""
+        titles = titles_by_sheet.get(sheet_name)
+        if not titles:
+            return match.group(0)
+        attrs = re.sub(r'\s+vno:print-title-rows="[^"]*"', "", attrs, flags=re.IGNORECASE)
+        attrs = re.sub(r'\s+vno:print-title-cols="[^"]*"', "", attrs, flags=re.IGNORECASE)
+        return (
+            f'<table:table{attrs} vno:print-title-rows="{titles.get("rows", "")}"'
+            f' vno:print-title-cols="{titles.get("cols", "")}">'
+        )
+
+    result = re.sub(r'<table:table\b([^>]*)>', replace_table, fods_xml, flags=re.IGNORECASE)
+    if re.search(r"xmlns:vno\s*=", result, re.IGNORECASE):
+        return result
+    match = _OFFICE_DOCUMENT_OPEN_RE.search(result)
+    if not match:
+        return result
+    return result[:match.start()] + f'<office:document{match.group(1)} xmlns:vno="{SHEET_VNO_NS}">' + result[match.end():]
 
 
 def _resolve_xlsx_sheet_entries(xlsx_bytes: bytes) -> dict[str, str]:
@@ -3100,6 +3218,20 @@ def postprocess_sheet_xlsx(
             next_sheet_xml = apply_scenarios_to_worksheet(sheet_xml, scens)
             if next_sheet_xml != sheet_xml:
                 replacements[entry_path] = next_sheet_xml
+
+    # Excel margins exclude the header/footer spacing LibreOffice adds on export.
+    sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+    for sheet_name, margins in parse_page_margins_from_fods(source_fods).items():
+        entry_path = _sheet_name_equivalent_value(sheet_entries, sheet_name)
+        if not entry_path:
+            continue
+        sheet_xml = replacements.get(entry_path)
+        if sheet_xml is None:
+            content = read_zip_entry(xlsx_bytes, entry_path)
+            if not content:
+                continue
+            sheet_xml = content.decode('utf-8', errors='replace')
+        replacements[entry_path] = apply_page_margins_to_worksheet(sheet_xml, margins)
 
     # Print Titles: LibreOffice drops the app's vno:print-title-* metadata
     # during FODS -> XLSX, so rebuild the standard workbook defined names.
@@ -6277,6 +6409,9 @@ def overlay_sheet_xlsx_fods(
         # Active sheet (activeTab -> ActiveTable): soffice headless drops
         # ActiveTable in office:settings, so we restore it from xl/workbook.xml.
         xml = overlay_active_sheet_to_fods(xml, workbook_xml)
+        # LibreOffice drops _xlnm.Print_Titles during XLSX -> FODS.
+        xml = apply_print_titles_to_fods(xml, parse_print_titles_from_workbook(workbook_xml))
+    xml = overlay_page_margins_to_fods(xlsx_bytes, xml)
     xml = overlay_sheet_xlsx_freeze_panes(xlsx_bytes, xml)
     # AutoFilter: read <autoFilter ref> from original worksheet XMLs and
     # inject <table:database-ranges> into FODS so parseFods can restore
@@ -13198,6 +13333,390 @@ def _restore_writer_html_page_breaks(document_xml: str, source_html: str) -> str
     return result
 
 
+_WRITER_MATH_NS = "http://schemas.openxmlformats.org/officeDocument/2006/math"
+_WRITER_MATHML_NS = "http://www.w3.org/1998/Math/MathML"
+_WRITER_MATH_NS_PREFIX = "{%s}" % _WRITER_MATH_NS
+_WRITER_MATHML_NS_PREFIX = "{%s}" % _WRITER_MATHML_NS
+
+
+def _writer_math_local_name(element: ET.Element) -> str:
+    return element.tag.rsplit("}", 1)[-1].lower()
+
+
+def _writer_math_child(element: ET.Element, name: str) -> ET.Element | None:
+    return next((child for child in list(element) if _writer_math_local_name(child) == name.lower()), None)
+
+
+def _writer_math_attribute(element: ET.Element | None, name: str, default: str = "") -> str:
+    if element is None:
+        return default
+    for key, value in element.attrib.items():
+        if key.rsplit("}", 1)[-1].lower() == name.lower():
+            return value
+    return default
+
+
+def _writer_math_text_element(tag: str, value: str, attrs: str = "") -> str:
+    return "<" + tag + attrs + ">" + html.escape(value, quote=False) + "</" + tag + ">"
+
+
+def _writer_omml_children_to_mathml(element: ET.Element) -> str:
+    children = list(element)
+    return "".join(_writer_omml_to_mathml_node(child) for child in children)
+
+
+def _writer_omml_to_mathml_node(element: ET.Element) -> str:
+    kind = _writer_math_local_name(element)
+    children = list(element)
+    if kind.endswith("pr") or kind in {"argpr", "ctrlpr", "phantpr"}:
+        return ""
+    if kind == "r":
+        text = "".join(
+            child.text or ""
+            for child in element.iter()
+            if _writer_math_local_name(child) in {"t", "deltext"}
+        )
+        if not text:
+            return ""
+        if re.fullmatch(r"[0-9]+(?:[.,][0-9]+)?", text):
+            tag = "mn"
+        elif text in {"≤", "≥", "≠", "±", "×", "÷", "∞", "→", "∈", "∑", "∏", "∫", "+", "-", "=", "(", ")", "[", "]", ","}:
+            tag = "mo"
+        else:
+            tag = "mi"
+        return _writer_math_text_element(tag, text)
+    if kind == "f":
+        numerator = _writer_math_child(element, "num")
+        denominator = _writer_math_child(element, "den")
+        return "<mfrac><mrow>" + (_writer_omml_children_to_mathml(numerator) if numerator is not None else "") \
+            + "</mrow><mrow>" + (_writer_omml_children_to_mathml(denominator) if denominator is not None else "") \
+            + "</mrow></mfrac>"
+    if kind == "rad":
+        degree = _writer_math_child(element, "deg")
+        radicand = _writer_math_child(element, "e")
+        rad_pr = _writer_math_child(element, "radpr")
+        hidden = _writer_math_child(rad_pr, "deghide") if rad_pr is not None else None
+        body = _writer_omml_children_to_mathml(radicand) if radicand is not None else ""
+        if degree is None or _writer_math_attribute(hidden, "val", "0") in {"1", "true"}:
+            return "<msqrt><mrow>" + body + "</mrow></msqrt>"
+        return "<mroot><mrow>" + body + "</mrow><mrow>" + _writer_omml_children_to_mathml(degree) + "</mrow></mroot>"
+    if kind in {"ssup", "ssub", "ssubsup"}:
+        base = _writer_math_child(element, "e")
+        sub = _writer_math_child(element, "sub")
+        sup = _writer_math_child(element, "sup")
+        tag = {"ssup": "msup", "ssub": "msub", "ssubsup": "msubsup"}[kind]
+        pieces = [_writer_omml_children_to_mathml(base) if base is not None else ""]
+        if kind in {"ssub", "ssubsup"}:
+            pieces.append(_writer_omml_children_to_mathml(sub) if sub is not None else "")
+        if kind in {"ssup", "ssubsup"}:
+            pieces.append(_writer_omml_children_to_mathml(sup) if sup is not None else "")
+        return "<" + tag + ">" + "".join(pieces) + "</" + tag + ">"
+    if kind == "nary":
+        properties = _writer_math_child(element, "narypr")
+        char = _writer_math_child(properties, "chr") if properties is not None else None
+        symbol = _writer_math_attribute(char, "val", "∫")
+        body = _writer_math_child(element, "e")
+        sub = _writer_math_child(element, "sub")
+        sup = _writer_math_child(element, "sup")
+        base = _writer_math_text_element("mo", symbol, ' largeop="true"')
+        if sub is not None and sup is not None:
+            return "<munderover>" + base + "<mrow>" + _writer_omml_children_to_mathml(sub) \
+                + "</mrow><mrow>" + _writer_omml_children_to_mathml(sup) + "</mrow></munderover>" \
+                + (_writer_omml_children_to_mathml(body) if body is not None else "")
+        if sub is not None:
+            return "<munder>" + base + "<mrow>" + _writer_omml_children_to_mathml(sub) + "</mrow></munder>" \
+                + (_writer_omml_children_to_mathml(body) if body is not None else "")
+        if sup is not None:
+            return "<mover>" + base + "<mrow>" + _writer_omml_children_to_mathml(sup) + "</mrow></mover>" \
+                + (_writer_omml_children_to_mathml(body) if body is not None else "")
+        return base + (_writer_omml_children_to_mathml(body) if body is not None else "")
+    if kind == "m":
+        rows = []
+        for row_element in children:
+            if _writer_math_local_name(row_element) != "mr":
+                continue
+            cells = []
+            for cell in list(row_element):
+                if _writer_math_local_name(cell) != "e":
+                    continue
+                cells.append("<mtd><mrow>" + _writer_omml_children_to_mathml(cell) + "</mrow></mtd>")
+            rows.append("<mtr>" + "".join(cells) + "</mtr>")
+        return "<mtable>" + "".join(rows) + "</mtable>"
+    if kind == "d":
+        props = _writer_math_child(element, "dpr")
+        begin = _writer_math_attribute(_writer_math_child(props, "begchr") if props is not None else None, "val", "(")
+        end = _writer_math_attribute(_writer_math_child(props, "endchr") if props is not None else None, "val", ")")
+        body = _writer_math_child(element, "e")
+        return _writer_math_text_element("mo", begin) + "<mrow>" \
+            + (_writer_omml_children_to_mathml(body) if body is not None else "") \
+            + "</mrow>" + _writer_math_text_element("mo", end)
+    if kind == "func":
+        name = _writer_math_child(element, "funcname")
+        argument = _writer_math_child(element, "e")
+        return (_writer_omml_children_to_mathml(name) if name is not None else "") \
+            + (_writer_omml_children_to_mathml(argument) if argument is not None else "")
+    if kind in {"acc", "bar", "groupchr"}:
+        body = _writer_math_child(element, "e")
+        props = _writer_math_child(element, kind + "pr")
+        chr_node = _writer_math_child(props, "chr") if props is not None else None
+        symbol = _writer_math_attribute(chr_node, "val", "¯" if kind == "bar" else "ˆ")
+        return "<mover accent=\"true\"><mrow>" \
+            + (_writer_omml_children_to_mathml(body) if body is not None else "") \
+            + "</mrow>" + _writer_math_text_element("mo", symbol) + "</mover>"
+    if kind in {"omath", "omathpara", "e", "num", "den", "sub", "sup", "funcname", "mr"}:
+        return _writer_omml_children_to_mathml(element)
+    return _writer_omml_children_to_mathml(element)
+
+
+def _writer_omml_fragment_to_mathml(omml: str, display: str = "inline") -> str:
+    wrapped = (
+        '<root xmlns:m="' + _WRITER_MATH_NS + '" '
+        'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+        + omml + "</root>"
+    )
+    root = ET.fromstring(wrapped)
+    content = _writer_omml_children_to_mathml(root)
+    return '<math xmlns="' + _WRITER_MATHML_NS + '" display="' + ("block" if display == "block" else "inline") + '">' \
+        + content + "</math>"
+
+
+def writer_docx_equations_to_mathml_html(docx_bytes: bytes, html_content: str) -> str:
+    """Replace LibreOffice's equation GIFs with MathML at their existing HTML slots."""
+    try:
+        document = read_zip_entry(docx_bytes, "word/document.xml")
+        if not document:
+            return html_content
+        xml = document.decode("utf-8", errors="replace")
+        para_ranges = _xml_element_ranges(xml, "m:oMathPara")
+        formulas = [
+            {"start": start, "end": end, "xml": xml[start:end], "display": "block"}
+            for start, end in para_ranges
+        ]
+        for start, end in _xml_element_ranges(xml, "m:oMath"):
+            if any(outer_start <= start < outer_end for outer_start, outer_end in para_ranges):
+                continue
+            formulas.append({"start": start, "end": end, "xml": xml[start:end], "display": "inline"})
+        formulas.sort(key=lambda item: item["start"])
+        if not formulas:
+            return html_content
+
+        events = [(item["start"], "equation", item) for item in formulas]
+        events.extend((start, "object", None) for start, _end in _xml_element_ranges(xml, "w:object"))
+        events.sort(key=lambda item: item[0])
+        object_images = list(re.finditer(
+            r'<img\b(?=[^>]*\bname=["\']Object(\d+)["\'])[^>]*>',
+            html_content,
+            re.IGNORECASE,
+        ))
+        replacements = []
+        for image in object_images:
+            object_number = int(image.group(1))
+            event_index = object_number - 1
+            if event_index < 0 or event_index >= len(events):
+                continue
+            _position, event_kind, formula = events[event_index]
+            if event_kind != "equation" or formula is None:
+                continue
+            ordinal = next(index for index, item in enumerate(formulas, start=1) if item is formula)
+            source_id = "source-" + str(ordinal).zfill(6)
+            mathml = _writer_omml_fragment_to_mathml(formula["xml"], formula["display"])
+            original = url_quote(formula["xml"], safe="")
+            encoded_mathml = url_quote(mathml, safe="")
+            block_attr = ' data-vno-equation-display="block"' if formula["display"] == "block" else ""
+            replacement = (
+                '<span class="vno-equation" role="math" tabindex="0" contenteditable="false"'
+                ' data-vno-equation="true" data-vno-equation-id="' + source_id + '"'
+                ' data-vno-equation-original-omml="' + original + '"'
+                ' data-vno-equation-mathml="' + encoded_mathml + '"' + block_attr + '>'
+                + mathml + "</span>"
+            )
+            replacements.append((image.start(), image.end(), replacement))
+
+        # Small Math-only documents have one Object image per equation and no
+        # other OLE objects. Keep this tested fallback for packages without a
+        # resolvable OOXML object sequence.
+        if not replacements and len(object_images) == len(formulas):
+            for ordinal, (image, formula) in enumerate(zip(object_images, formulas), start=1):
+                mathml = _writer_omml_fragment_to_mathml(formula["xml"], formula["display"])
+                replacement = (
+                    '<span class="vno-equation" role="math" tabindex="0" contenteditable="false"'
+                    ' data-vno-equation="true" data-vno-equation-id="source-' + str(ordinal).zfill(6) + '"'
+                    ' data-vno-equation-original-omml="' + url_quote(formula["xml"], safe="") + '"'
+                    ' data-vno-equation-mathml="' + url_quote(mathml, safe="") + '">'
+                    + mathml + "</span>"
+                )
+                replacements.append((image.start(), image.end(), replacement))
+        for start, end, replacement in reversed(replacements):
+            html_content = html_content[:start] + replacement + html_content[end:]
+        return html_content
+    except (ET.ParseError, ValueError, KeyError, TypeError):
+        return html_content
+
+
+def _writer_mathml_to_omml_node(element: ET.Element) -> str:
+    kind = _writer_math_local_name(element)
+    children = list(element)
+    if kind in {"math", "mrow", "mstyle", "mphantom"}:
+        return "".join(_writer_mathml_to_omml_node(child) for child in children)
+    if kind in {"mi", "mn", "mo", "mtext", "ms"}:
+        text = "".join(element.itertext())
+        if not text:
+            return ""
+        return "<m:r><m:t xml:space=\"preserve\">" + html.escape(text, quote=False) + "</m:t></m:r>"
+    if kind == "mfrac":
+        numerator = children[0] if children else None
+        denominator = children[1] if len(children) > 1 else None
+        return "<m:f><m:fPr/><m:num>" + (_writer_mathml_to_omml_node(numerator) if numerator is not None else "") \
+            + "</m:num><m:den>" + (_writer_mathml_to_omml_node(denominator) if denominator is not None else "") \
+            + "</m:den></m:f>"
+    if kind == "msqrt":
+        value = _writer_mathml_to_omml_node(children[0]) if children else ""
+        return "<m:rad><m:radPr><m:degHide m:val=\"1\"/></m:radPr><m:deg/><m:e>" + value + "</m:e></m:rad>"
+    if kind == "mroot":
+        value = _writer_mathml_to_omml_node(children[0]) if children else ""
+        degree = _writer_mathml_to_omml_node(children[1]) if len(children) > 1 else ""
+        return "<m:rad><m:radPr/><m:deg>" + degree + "</m:deg><m:e>" + value + "</m:e></m:rad>"
+    if kind in {"msup", "msub", "msubsup"}:
+        base = _writer_mathml_to_omml_node(children[0]) if children else ""
+        if kind == "msup":
+            exponent = _writer_mathml_to_omml_node(children[1]) if len(children) > 1 else ""
+            return "<m:sSup><m:supPr/><m:e>" + base + "</m:e><m:sup>" + exponent + "</m:sup></m:sSup>"
+        if kind == "msub":
+            subscript = _writer_mathml_to_omml_node(children[1]) if len(children) > 1 else ""
+            return "<m:sSub><m:subPr/><m:e>" + base + "</m:e><m:sub>" + subscript + "</m:sub></m:sSub>"
+        subscript = _writer_mathml_to_omml_node(children[1]) if len(children) > 1 else ""
+        exponent = _writer_mathml_to_omml_node(children[2]) if len(children) > 2 else ""
+        return "<m:sSubSup><m:sSubSupPr/><m:e>" + base + "</m:e><m:sub>" + subscript \
+            + "</m:sub><m:sup>" + exponent + "</m:sup></m:sSubSup>"
+    if kind == "mtable":
+        rows = []
+        for row in children:
+            if _writer_math_local_name(row) != "mtr":
+                continue
+            cells = []
+            for cell in list(row):
+                if _writer_math_local_name(cell) == "mtd":
+                    cells.append("<m:e>" + _writer_mathml_to_omml_node(cell) + "</m:e>")
+            rows.append("<m:mr>" + "".join(cells) + "</m:mr>")
+        return "<m:m><m:mPr/>" + "".join(rows) + "</m:m>"
+    if kind in {"munder", "mover", "munderover"}:
+        base = children[0] if children else None
+        symbol = "".join(base.itertext()) if base is not None else "∑"
+        body = _writer_mathml_to_omml_node(base) if base is not None else ""
+        sub = _writer_mathml_to_omml_node(children[1]) if kind in {"munder", "munderover"} and len(children) > 1 else ""
+        sup_index = 2 if kind == "munderover" else 1
+        sup = _writer_mathml_to_omml_node(children[sup_index]) if kind in {"mover", "munderover"} and len(children) > sup_index else ""
+        nary = '<m:nary><m:naryPr><m:chr m:val="' + html.escape(symbol, quote=True) + '"/><m:limLoc m:val="undOvr"/></m:naryPr>'
+        return nary + "<m:sub>" + sub + "</m:sub><m:sup>" + sup + "</m:sup><m:e>" + body + "</m:e></m:nary>"
+    if kind == "mfenced":
+        begin = html.escape(element.attrib.get("open", "("), quote=True)
+        end = html.escape(element.attrib.get("close", ")"), quote=True)
+        body = "".join(_writer_mathml_to_omml_node(child) for child in children)
+        return "<m:d><m:dPr><m:begChr m:val=\"" + begin + "\"/><m:endChr m:val=\"" + end \
+            + "\"/></m:dPr><m:e>" + body + "</m:e></m:d>"
+    return "".join(_writer_mathml_to_omml_node(child) for child in children)
+
+
+def _writer_mathml_to_omml(mathml: str) -> str:
+    root = ET.fromstring(mathml)
+    body = _writer_mathml_to_omml_node(root)
+    display = root.attrib.get("display", "inline").lower() == "block"
+    equation = "<m:oMath>" + body + "</m:oMath>"
+    return "<m:oMathPara>" + equation + "</m:oMathPara>" if display else equation
+
+
+def _writer_equation_marker_entries(source_html: str) -> list[dict[str, str]]:
+    entries: list[dict[str, str]] = []
+    span_re = re.compile(r"<span\b([^>]*)>([\s\S]*?)</span\s*>", re.IGNORECASE)
+    attr_re = re.compile(r"\b([a-z][\w:-]*)\s*=\s*([\"'])(.*?)\2", re.IGNORECASE | re.DOTALL)
+    for match in span_re.finditer(source_html or ""):
+        attrs = {name.lower(): html.unescape(value) for name, _quote, value in attr_re.findall(match.group(1))}
+        if attrs.get("data-vno-equation-export", "").lower() != "true":
+            continue
+        equation_id = attrs.get("data-vno-equation-id", "")
+        safe_id = re.sub(r"[^A-Za-z0-9]", "", equation_id).upper()
+        token = "VNOEQ" + safe_id + "MARKER"
+        if not safe_id:
+            raise ValueError("Phương trình xuất thiếu mã nhận diện.")
+        original = url_unquote(attrs["data-vno-equation-original-omml"]) if attrs.get("data-vno-equation-original-omml") else ""
+        mathml = url_unquote(attrs["data-vno-equation-mathml"]) if attrs.get("data-vno-equation-mathml") else ""
+        entries.append({"token": token, "original": original, "mathml": mathml})
+    return entries
+
+
+def _writer_equation_text_run(run_xml: str, token: str, equation_xml: str) -> str | None:
+    run_open = re.match(r"<w:r\b[^>]*>", run_xml, re.IGNORECASE)
+    if not run_open:
+        return None
+    text_nodes = list(re.finditer(r"(<w:t\b[^>]*>)([\s\S]*?)(</w:t\s*>)", run_xml, re.IGNORECASE))
+    hits = []
+    for text_node in text_nodes:
+        text = html.unescape(text_node.group(2))
+        if token in text:
+            hits.append((text_node, text))
+    if len(hits) != 1:
+        return None
+    text_node, text = hits[0]
+    if text.count(token) != 1:
+        return None
+    prefix, suffix = text.split(token, 1)
+    run_pr = re.search(r"<w:rPr\b[^>]*(?:/>|>[\s\S]*?</w:rPr\s*>)", run_xml, re.IGNORECASE)
+    stripped = run_xml[run_open.end():]
+    stripped = re.sub(r"</w:r\s*>$", "", stripped, flags=re.IGNORECASE)
+    stripped = re.sub(r"<w:rPr\b[^>]*(?:/>|>[\s\S]*?</w:rPr\s*>)", "", stripped, count=1, flags=re.IGNORECASE)
+    stripped = re.sub(r"<w:t\b[^>]*>[\s\S]*?</w:t\s*>", "", stripped, count=1, flags=re.IGNORECASE)
+    if stripped.strip():
+        return None
+    properties = run_pr.group(0) if run_pr else ""
+    text_open = text_node.group(1)
+
+    def text_run(value: str) -> str:
+        if not value:
+            return ""
+        encoded = html.escape(value, quote=False)
+        tag_open = text_open
+        if re.search(r"\s", value) and "xml:space=" not in tag_open:
+            tag_open = tag_open[:-1] + ' xml:space="preserve">'
+        return run_open.group(0) + properties + tag_open + encoded + text_node.group(3) + "</w:r>"
+
+    return text_run(prefix) + equation_xml + text_run(suffix)
+
+
+def _writer_restore_equation_markers(document_xml: str, source_html: str) -> str:
+    entries = _writer_equation_marker_entries(source_html)
+    if not entries:
+        return document_xml
+    result = document_xml
+    for entry in entries:
+        token = entry["token"]
+        if result.count(token) != 1:
+            raise ValueError("Không tìm thấy đúng một vị trí cho phương trình " + token + ".")
+        equation_xml = entry["original"] or _writer_mathml_to_omml(entry["mathml"])
+        if not equation_xml.startswith("<m:oMath"):
+            raise ValueError("Cấu trúc OMML không hợp lệ cho phương trình " + token + ".")
+        matched = False
+
+        def replace_run(match: re.Match) -> str:
+            nonlocal matched
+            run_xml = match.group(0)
+            if token not in run_xml:
+                return run_xml
+            replacement = _writer_equation_text_run(run_xml, token, equation_xml)
+            if replacement is None:
+                raise ValueError("LibreOffice đã thay đổi dấu vị trí của phương trình " + token + ".")
+            matched = True
+            return replacement
+
+        result = re.sub(r"<w:r\b[^>]*>[\s\S]*?</w:r\s*>", replace_run, result, flags=re.IGNORECASE)
+        if not matched:
+            raise ValueError("LibreOffice không giữ lại dấu vị trí của phương trình " + token + ".")
+    root_open = re.search(r"<w:document\b[^>]*>", result, re.IGNORECASE)
+    if root_open and not re.search(r"\bxmlns:m\s*=", root_open.group(0), re.IGNORECASE):
+        result = result[:root_open.end() - 1] + ' xmlns:m="' + _WRITER_MATH_NS + '"' + result[root_open.end() - 1:]
+    return result
+
+
+
 def _restore_created_writer_section_metadata(
     document_xml: str,
     section_meta: list[dict],
@@ -13834,6 +14353,7 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
 
         document_xml = re.sub(r'<w:p\b[^>]*>[\s\S]*?</w:p\s*>', patch_tab_stop, document_xml, flags=re.IGNORECASE)
 
+    document_xml = _writer_restore_equation_markers(document_xml, source_html)
     replacements = {"word/document.xml": document_xml.encode("utf-8")}
     numbering_bytes = read_zip_entry(docx_bytes, "word/numbering.xml")
     numbering = numbering_bytes.decode("utf-8", errors="replace") if numbering_bytes else ""

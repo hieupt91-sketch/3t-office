@@ -35,6 +35,34 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from urllib.parse import urlencode, unquote
 
+_STARTUP_TRACE_PATH = os.environ.get("VNO_STARTUP_TRACE_FILE", "")
+try:
+    _STARTUP_TRACE_EPOCH = float(os.environ.get("VNO_STARTUP_TRACE_T0", ""))
+except (TypeError, ValueError):
+    _STARTUP_TRACE_EPOCH = time.perf_counter()
+_STARTUP_TRACE_LOCK = threading.Lock()
+
+
+def _startup_trace(stage: str, **fields) -> None:
+    """Write opt-in local startup timings without putting document data in the trace."""
+    if not _STARTUP_TRACE_PATH:
+        return
+    event = {
+        "stage": str(stage),
+        "elapsed_ms": round((time.perf_counter() - _STARTUP_TRACE_EPOCH) * 1000, 1),
+        **fields,
+    }
+    try:
+        line = json.dumps(event, ensure_ascii=False, separators=(",", ":")) + "\n"
+        with _STARTUP_TRACE_LOCK:
+            with open(_STARTUP_TRACE_PATH, "a", encoding="utf-8") as trace_file:
+                trace_file.write(line)
+    except OSError:
+        # Opt-in diagnostics must never hold up the user's document window.
+        pass
+
+
+_startup_trace("python_runtime_started")
 _EARLY_SINGLE_INSTANCE_REQUEST_ID = None
 
 
@@ -95,10 +123,9 @@ if _early_forward_if_running(sys.argv[1:]):
     raise SystemExit(0)
 
 import webview
-from adapters.error_reporting import ErrorReporter, load_client_config
-from adapters.updater import UpdaterManager
-from adapters.updater.trust import get_public_key
-from adapters.updater.updater import queue_rollback_report, write_health_marker
+if os.environ.get("VNO_CDP_DEBUG_PORT"):
+    # Test-only WebView2/CDP access; production shortcuts leave this unset.
+    webview.settings["REMOTE_DEBUGGING_PORT"] = int(os.environ["VNO_CDP_DEBUG_PORT"])
 
 # ``platform`` is also a Python standard-library module, so load the shared
 # storage backend from its explicit path instead of shadowing that module.
@@ -123,31 +150,99 @@ InstanceAlreadyRunning = _SINGLE_INSTANCE_MODULE.InstanceAlreadyRunning
 forward_launch_request = _SINGLE_INSTANCE_MODULE.forward_launch_request
 
 _PRINT_PIPELINE_PATH = Path(__file__).resolve().parent / "platform" / "print" / "print_pipeline.py"
-_PRINT_PIPELINE_SPEC = importlib.util.spec_from_file_location("_vno_print_pipeline", _PRINT_PIPELINE_PATH)
-if _PRINT_PIPELINE_SPEC is None or _PRINT_PIPELINE_SPEC.loader is None:
-    raise ImportError(f"Cannot load print pipeline: {_PRINT_PIPELINE_PATH}")
-_PRINT_PIPELINE_MODULE = importlib.util.module_from_spec(_PRINT_PIPELINE_SPEC)
-sys.modules[_PRINT_PIPELINE_SPEC.name] = _PRINT_PIPELINE_MODULE
-_PRINT_PIPELINE_SPEC.loader.exec_module(_PRINT_PIPELINE_MODULE)
-PrintPipeline = _PRINT_PIPELINE_MODULE.PrintPipeline
-
+_PRINT_PIPELINE_MODULE = None
 _OFFICE_COM_PATH = Path(__file__).resolve().parent / "platform" / "print" / "office_com.py"
-_OFFICE_COM_SPEC = importlib.util.spec_from_file_location("_vno_office_com", _OFFICE_COM_PATH)
-if _OFFICE_COM_SPEC is None or _OFFICE_COM_SPEC.loader is None:
-    raise ImportError(f"Cannot load Office COM print integration: {_OFFICE_COM_PATH}")
-_OFFICE_COM_MODULE = importlib.util.module_from_spec(_OFFICE_COM_SPEC)
-sys.modules[_OFFICE_COM_SPEC.name] = _OFFICE_COM_MODULE
-_OFFICE_COM_SPEC.loader.exec_module(_OFFICE_COM_MODULE)
+_OFFICE_COM_MODULE = None
+_LAZY_LOCAL_MODULE_LOCK = threading.Lock()
+
+
+def _load_local_module(module_name: str, module_path: Path):
+    """Import an optional local module only when its feature is first used."""
+    with _LAZY_LOCAL_MODULE_LOCK:
+        module = sys.modules.get(module_name)
+        if module is not None:
+            return module
+        spec = importlib.util.spec_from_file_location(module_name, module_path)
+        if spec is None or spec.loader is None:
+            raise ImportError(f"Cannot load optional module: {module_path}")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        try:
+            spec.loader.exec_module(module)
+        except Exception:
+            sys.modules.pop(module_name, None)
+            raise
+        return module
+
+
+class _LazyLocalModuleProxy:
+    """Keep legacy patch points without importing optional modules at startup."""
+
+    def __init__(self, module_name: str, module_path: Path):
+        object.__setattr__(self, "_module_name", module_name)
+        object.__setattr__(self, "_module_path", module_path)
+        object.__setattr__(self, "_module", None)
+
+    def _get_module(self):
+        module = object.__getattribute__(self, "_module")
+        if module is None:
+            module = _load_local_module(
+                object.__getattribute__(self, "_module_name"),
+                object.__getattribute__(self, "_module_path"),
+            )
+            object.__setattr__(self, "_module", module)
+        return module
+
+    def __getattr__(self, name: str):
+        return getattr(self._get_module(), name)
+
+    def __setattr__(self, name: str, value):
+        if name.startswith("_"):
+            object.__setattr__(self, name, value)
+        else:
+            object.__setattr__(self, name, value)
+
+    def __delattr__(self, name: str):
+        if name in object.__getattribute__(self, "__dict__"):
+            object.__delattr__(self, name)
+        else:
+            delattr(self._get_module(), name)
+
+
+def _get_print_pipeline_module():
+    global _PRINT_PIPELINE_MODULE
+    if _PRINT_PIPELINE_MODULE is None:
+        _PRINT_PIPELINE_MODULE = _load_local_module("_vno_print_pipeline", _PRINT_PIPELINE_PATH)
+    return _PRINT_PIPELINE_MODULE
+
+
+def _get_office_com_module():
+    if _OFFICE_COM_MODULE is None:
+        # Tests and older integrations may reset this module global explicitly.
+        return _load_local_module("_vno_office_com", _OFFICE_COM_PATH)
+    return _OFFICE_COM_MODULE
+
+
+_OFFICE_COM_MODULE = _LazyLocalModuleProxy("_vno_office_com", _OFFICE_COM_PATH)
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 INDEX_HTML = os.path.join(ROOT_DIR, "index.html")
 APP_VERSION = "0.9.0-pilot1"
-_ERROR_REPORTER: ErrorReporter | None = None
+_ERROR_REPORTER: object | None = None
 _ERROR_REPORT_CONTEXT = threading.local()
-_UPDATE_MANAGER: UpdaterManager | None = None
+_UPDATE_MANAGER: object | None = None
 _UPDATE_DATA_DIR: Path | None = None
+_UPDATE_HEALTH_TOKEN: str | None = None
+_UPDATE_HEALTH_FILE = ""
 _APP_WINDOW_APIS: dict[str, object] = {}
 _APP_WINDOW_LOCK = threading.RLock()
+_UPDATE_RESTART_CONDITION = threading.Condition()
+_UPDATE_RESTART_PENDING: dict[str, object] | None = None
+_DEFERRED_STARTUP_LOCK = threading.Lock()
+_DEFERRED_STARTUP_STARTED = False
+_BACKGROUND_SERVICES_READY = threading.Event()
+_PROFILE_WARMUP_LOCK = threading.Lock()
+_PROFILE_WARMUP_STARTED: set[str] = set()
 _NEW_WINDOW_CREATE_LOCK = threading.RLock()
 _DOCUMENT_SEQUENCE: dict[str, int] = {}
 _DOCUMENT_SEQUENCE_LOCK = threading.Lock()
@@ -194,6 +289,81 @@ def _notify_update_ui(state: dict[str, object]) -> None:
         window.evaluate_js(f"window.dispatchEvent(new CustomEvent('vno-office-update-state', {{detail:{payload}}}))")
     except Exception:
         pass
+
+
+def _initialize_deferred_services(api, app_kind: str, launch_args: list[str]) -> None:
+    """Start opt-in reporting and update services after the first document paint."""
+    global _ERROR_REPORTER, _UPDATE_MANAGER
+    from adapters.error_reporting import ErrorReporter, load_client_config
+    from adapters.updater import UpdaterManager
+    from adapters.updater.trust import get_public_key
+    from adapters.updater.updater import queue_rollback_report
+
+    report_config = load_client_config(ROOT_DIR)
+    try:
+        _ERROR_REPORTER = ErrorReporter(
+            APP_VERSION,
+            app_kind,
+            _user_data_dir(),
+            endpoint=str(report_config["endpoint"]),
+            token=str(report_config["token"]),
+            enabled=bool(report_config["enabled"]),
+        )
+        _ERROR_REPORTER.install_exception_hooks()
+    except Exception:
+        # Reporting storage/configuration failures must never prevent offline document work.
+        _ERROR_REPORTER = None
+    api._reporter = _ERROR_REPORTER
+
+    install_root = _update_install_root()
+    if install_root:
+        try:
+            installed_version = (install_root / "VERSION.txt").read_text(encoding="ascii").strip() or APP_VERSION
+            update_config = _load_update_config()
+            _UPDATE_MANAGER = UpdaterManager(
+                install_dir=install_root,
+                updates_dir=_UPDATE_DATA_DIR,
+                current_version=installed_version,
+                source=update_config["source"],
+                channel=update_config["channel"],
+                public_key=get_public_key(),
+                on_state=_notify_update_ui,
+            )
+            _UPDATE_MANAGER.set_launch_args(launch_args)
+            # This function is entered only after the renderer's first paint. Start
+            # the first check here so it is independent of optional Help/UI imports.
+            _UPDATE_MANAGER.start()
+        except Exception as exc:
+            logging.getLogger("vnoffice.updater").debug("Updater initialization unavailable: %s", type(exc).__name__)
+            _UPDATE_MANAGER = None
+    else:
+        _UPDATE_MANAGER = None
+    api._updater = _UPDATE_MANAGER
+    try:
+        queue_rollback_report(_ERROR_REPORTER, _UPDATE_DATA_DIR)
+    except Exception as exc:
+        logging.getLogger("vnoffice.updater").debug("Rollback report queue unavailable: %s", type(exc).__name__)
+    finally:
+        _startup_trace("background_services_ready", app=app_kind)
+        _BACKGROUND_SERVICES_READY.set()
+
+
+def _start_deferred_startup(api, app_kind: str, launch_args: list[str]) -> None:
+    global _DEFERRED_STARTUP_STARTED
+    with _DEFERRED_STARTUP_LOCK:
+        if _DEFERRED_STARTUP_STARTED:
+            api._reporter = _ERROR_REPORTER
+            api._updater = _UPDATE_MANAGER
+            return
+        _DEFERRED_STARTUP_STARTED = True
+
+    services_thread = threading.Thread(
+        target=_initialize_deferred_services,
+        args=(api, app_kind, launch_args),
+        daemon=True,
+        name="3T Office background services",
+    )
+    services_thread.start()
 
 # ---------------------------------------------------------------------------
 # Embedded static-file server (runs inside the Python process)
@@ -258,9 +428,8 @@ def _start_static_server():
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
 
-        # Quick readiness check
-        import time
-        time.sleep(0.05)
+        # Binding the socket above makes it listen-ready. Starting the request loop
+        # needs no fixed sleep; Thread.start() reports whether it was scheduled.
         if thread.is_alive():
             return server, port
         # Thread died immediately — port was not truly free
@@ -274,16 +443,134 @@ def _start_static_server():
 APP_DATA_DIR_NAME = "VNOffice"
 VALID_APP_KINDS = ("writer", "sheet", "slides")
 APP_TITLES = {
-    "writer": "3T Doc — Soạn thảo văn bản",
-    "sheet": "3T Sheet — Bảng tính",
-    "slides": "3T Slide — Trình chiếu",
+    "writer": "Doc",
+    "sheet": "Sheet",
+    "slides": "Slide",
 }
+TASKBAR_APP_USER_MODEL_IDS = {
+    "writer": "VNOffice.Writer",
+    "sheet": "VNOffice.Sheet",
+    "slides": "VNOffice.Slides",
+}
+TASKBAR_RELAUNCH_DISPLAY_NAMES = {"writer": "Doc", "sheet": "Sheet", "slides": "Slide"}
 SUITE_TITLE = "3T Office — Bộ Ứng Dụng Văn Phòng Việt"
 FILE_APP_KINDS = {
     ".docx": "writer", ".doc": "writer", ".odt": "writer", ".rtf": "writer", ".txt": "writer",
     ".xlsx": "sheet", ".xls": "sheet", ".ods": "sheet", ".csv": "sheet",
     ".pptx": "slides", ".ppt": "slides", ".odp": "slides",
 }
+
+
+def _taskbar_relaunch_info(app_kind: str) -> dict[str, str] | None:
+    """Return the stable per-app identity and short Windows taskbar relaunch label."""
+    app_user_model_id = TASKBAR_APP_USER_MODEL_IDS.get(app_kind)
+    display_name = TASKBAR_RELAUNCH_DISPLAY_NAMES.get(app_kind)
+    if not app_user_model_id or not display_name:
+        return None
+    command = subprocess.list2cmdline([
+        sys.executable,
+        "-s",
+        "-E",
+        str(Path(__file__).resolve()),
+        f"--app={app_kind}",
+    ])
+    return {
+        "app_user_model_id": app_user_model_id,
+        "display_name": display_name,
+        "command": command,
+    }
+
+
+def _set_windows_taskbar_relaunch_info(window, app_kind: str) -> bool:
+    """Set the window's explicit AppUserModelID and short taskbar relaunch name."""
+    if platform.system() != "Windows":
+        return False
+    info = _taskbar_relaunch_info(app_kind)
+    if info is None:
+        return False
+
+    class GUID(ctypes.Structure):
+        _fields_ = [
+            ("data1", ctypes.c_uint32),
+            ("data2", ctypes.c_uint16),
+            ("data3", ctypes.c_uint16),
+            ("data4", ctypes.c_ubyte * 8),
+        ]
+
+    class PROPERTYKEY(ctypes.Structure):
+        _fields_ = [("fmtid", GUID), ("pid", ctypes.c_uint32)]
+
+    class PROPVARIANT_VALUE(ctypes.Union):
+        _fields_ = [("pwszVal", ctypes.c_wchar_p), ("pointer", ctypes.c_void_p), ("padding", ctypes.c_uint64)]
+
+    class PROPVARIANT(ctypes.Structure):
+        _anonymous_ = ("value",)
+        _fields_ = [
+            ("vt", ctypes.c_ushort),
+            ("reserved1", ctypes.c_ushort),
+            ("reserved2", ctypes.c_ushort),
+            ("reserved3", ctypes.c_ushort),
+            ("value", PROPVARIANT_VALUE),
+        ]
+
+    property_format_id = GUID.from_buffer_copy(uuid.UUID("9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3").bytes_le)
+    property_store_iid = GUID.from_buffer_copy(uuid.UUID("886D8EEB-8CF2-4446-8D02-CDBA1DBDCF99").bytes_le)
+    property_values = (
+        (2, info["command"]),
+        (4, info["display_name"]),
+        (5, info["app_user_model_id"]),
+    )
+
+    property_store = ctypes.c_void_p()
+    try:
+        hwnd = int(window.native.Handle.ToInt64())
+        shell32 = ctypes.WinDLL("shell32", use_last_error=True)
+        get_property_store = shell32.SHGetPropertyStoreForWindow
+        get_property_store.argtypes = (
+            ctypes.c_void_p,
+            ctypes.POINTER(GUID),
+            ctypes.POINTER(ctypes.c_void_p),
+        )
+        get_property_store.restype = ctypes.c_long
+        result = get_property_store(hwnd, ctypes.byref(property_store_iid), ctypes.byref(property_store))
+        if result < 0:
+            raise OSError(f"SHGetPropertyStoreForWindow failed: HRESULT 0x{result & 0xFFFFFFFF:08X}")
+
+        vtable = ctypes.cast(property_store, ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p))).contents
+        set_value = ctypes.WINFUNCTYPE(
+            ctypes.c_long,
+            ctypes.c_void_p,
+            ctypes.POINTER(PROPERTYKEY),
+            ctypes.POINTER(PROPVARIANT),
+        )(vtable[6])
+        commit = ctypes.WINFUNCTYPE(ctypes.c_long, ctypes.c_void_p)(vtable[7])
+        for property_id, text_value in property_values:
+            key = PROPERTYKEY(property_format_id, property_id)
+            value = PROPVARIANT()
+            value.vt = 31  # VT_LPWSTR
+            value.pwszVal = text_value
+            result = set_value(property_store, ctypes.byref(key), ctypes.byref(value))
+            if result < 0:
+                raise OSError(
+                    f"IPropertyStore.SetValue({property_id}) failed: HRESULT 0x{result & 0xFFFFFFFF:08X}"
+                )
+        result = commit(property_store)
+        if result < 0:
+            raise OSError(f"IPropertyStore.Commit failed: HRESULT 0x{result & 0xFFFFFFFF:08X}")
+        return True
+    except Exception as exc:
+        logging.getLogger("vnoffice.taskbar").warning(
+            "Could not set the %s taskbar relaunch identity: %s", app_kind, exc,
+        )
+        return False
+    finally:
+        if property_store:
+            try:
+                vtable = ctypes.cast(property_store, ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p))).contents
+                release = ctypes.WINFUNCTYPE(ctypes.c_ulong, ctypes.c_void_p)(vtable[2])
+                release(property_store)
+            except Exception as exc:
+                logging.getLogger("vnoffice.taskbar").debug("Could not release the taskbar property store: %s", exc)
 
 
 def _user_data_dir() -> Path:
@@ -410,11 +697,11 @@ class _SofficeUnoWorker:
         python_path = self._python_path()
         if not python_path or not SOFFICE_PATH:
             raise _PersistentSofficeTransportError(
-                "Không tìm thấy Python/UNO đi kèm LibreOffice."
+                "Không khởi động được bộ xử lý tài liệu. Vui lòng cài lại 3T Office."
             )
         worker_path = Path(ROOT_DIR) / "adapters" / "libreoffice" / "common" / "soffice_uno_worker.py"
         if not worker_path.is_file():
-            raise _PersistentSofficeTransportError("Không tìm thấy helper UNO của 3T Office.")
+            raise _PersistentSofficeTransportError("Không tìm thấy bộ xử lý tài liệu. Vui lòng cài lại 3T Office.")
 
         pipe_name = f"vnoffice_{os.getpid()}_{uuid.uuid4().hex}"
         profile_uri = _profile_uri(self.app_kind)
@@ -448,7 +735,7 @@ class _SofficeUnoWorker:
             self.stop(grace_seconds=0.5)
             raise
         if not handshake.get("ready"):
-            message = handshake.get("error") or "LibreOffice UNO helper did not start."
+            message = handshake.get("error") or "Không khởi động được bộ xử lý tài liệu."
             self.stop(grace_seconds=0.5)
             raise _PersistentSofficeTransportError(str(message))
         _open_perf_log(
@@ -469,7 +756,7 @@ class _SofficeUnoWorker:
                     if isinstance(payload, dict):
                         self.responses.put(payload)
                 except (json.JSONDecodeError, TypeError):
-                    self.responses.put({"_protocol_error": "LibreOffice helper sent invalid JSON."})
+                    self.responses.put({"_protocol_error": "Bộ xử lý tài liệu gửi phản hồi không hợp lệ."})
         finally:
             self.responses.put(None)
 
@@ -477,11 +764,11 @@ class _SofficeUnoWorker:
         try:
             response = self.responses.get(timeout=timeout)
         except queue.Empty as exc:
-            raise _PersistentSofficeTransportError("Hết thời gian chờ phản hồi từ LibreOffice.") from exc
+            raise _PersistentSofficeTransportError("Hết thời gian chờ xử lý tài liệu.") from exc
         if response is None:
             code = self.process.poll() if self.process else None
             raise _PersistentSofficeTransportError(
-                f"LibreOffice UNO helper đã dừng (exit={code})."
+                f"Bộ xử lý tài liệu đã dừng. Vui lòng thử lại."
             )
         if response.get("_protocol_error"):
             raise _PersistentSofficeTransportError(str(response["_protocol_error"]))
@@ -497,7 +784,7 @@ class _SofficeUnoWorker:
     ) -> str:
         process = self.process
         if process is None or process.poll() is not None or process.stdin is None:
-            raise _PersistentSofficeTransportError("LibreOffice UNO helper is not running.")
+            raise _PersistentSofficeTransportError("Bộ xử lý tài liệu chưa sẵn sàng. Vui lòng thử lại.")
         request_id = uuid.uuid4().hex
         request = {
             "id": request_id,
@@ -517,9 +804,9 @@ class _SofficeUnoWorker:
         except (OSError, BrokenPipeError) as exc:
             raise _PersistentSofficeTransportError(str(exc)) from exc
         if response.get("id") != request_id:
-            raise _PersistentSofficeTransportError("LibreOffice UNO helper returned an unexpected response.")
+            raise _PersistentSofficeTransportError("Không nhận được kết quả xử lý tài liệu hợp lệ.")
         if not response.get("ok"):
-            raise _PersistentSofficeConversionError(str(response.get("error") or "UNO conversion failed"))
+            raise _PersistentSofficeConversionError(str(response.get("error") or "Không chuyển đổi được tài liệu."))
         _open_perf_log(
             "uno_load_and_store",
             (time.perf_counter() - started) * 1000,
@@ -531,7 +818,7 @@ class _SofficeUnoWorker:
     def operation(self, operation: str, payload: dict, timeout: float = 180) -> dict:
         process = self.process
         if process is None or process.poll() is not None or process.stdin is None:
-            raise _PersistentSofficeTransportError("LibreOffice UNO helper is not running.")
+            raise _PersistentSofficeTransportError("Bộ xử lý tài liệu chưa sẵn sàng. Vui lòng thử lại.")
         request_id = uuid.uuid4().hex
         request = {"id": request_id, "op": operation, **payload}
         started = time.perf_counter()
@@ -543,9 +830,9 @@ class _SofficeUnoWorker:
         except (OSError, BrokenPipeError) as exc:
             raise _PersistentSofficeTransportError(str(exc)) from exc
         if response.get("id") != request_id:
-            raise _PersistentSofficeTransportError("LibreOffice UNO helper returned an unexpected response.")
+            raise _PersistentSofficeTransportError("Không nhận được kết quả xử lý tài liệu hợp lệ.")
         if not response.get("ok"):
-            raise _PersistentSofficeConversionError(str(response.get("error") or "LibreOffice operation failed"))
+            raise _PersistentSofficeConversionError(str(response.get("error") or "Không xử lý được tài liệu."))
         _open_perf_log(
             f"uno_{operation}",
             (time.perf_counter() - started) * 1000,
@@ -634,18 +921,27 @@ class _PersistentSofficeManager:
             except Exception as exc:
                 last_error = exc
                 self._stop_locked()
-        raise _PersistentSofficeTransportError(str(last_error or "LibreOffice helper is unavailable"))
+        raise _PersistentSofficeTransportError(str(last_error or "Bộ xử lý tài liệu chưa sẵn sàng."))
 
     def prepare(self, app_kind: str) -> None:
-        if app_kind not in {"writer", "sheet"} or not _PERSISTENT_SOFFICE_ENABLED:
+        if app_kind not in {"writer", "sheet", "slides"} or not _PERSISTENT_SOFFICE_ENABLED:
             return
+        started = time.perf_counter()
         try:
             with self._lock:
                 self._ensure_locked(app_kind)
-            if app_kind in {"writer", "sheet"}:
-                _warmup_persistent_filter(app_kind)
+            _startup_trace("lo_worker_ready", app=app_kind, worker_elapsed_ms=round((time.perf_counter() - started) * 1000, 1))
         except Exception as exc:
+            _startup_trace("lo_worker_failed", app=app_kind, error=type(exc).__name__)
             _open_perf_log("worker_background_start_failed", app=app_kind, error=str(exc)[:180])
+
+    def warm_profile_filter(self, app_kind: str) -> None:
+        if app_kind not in {"writer", "sheet"} or not _PERSISTENT_SOFFICE_ENABLED:
+            return
+        try:
+            _warmup_persistent_filter(app_kind)
+        except Exception as exc:
+            logging.getLogger("vnoffice.startup").debug("LibreOffice profile warmup unavailable: %s", type(exc).__name__)
 
     def release_for_cli_fallback(self, app_kind: str | None) -> None:
         """Release the profile lock before the original CLI conversion runs."""
@@ -718,8 +1014,8 @@ class _PersistentSofficeManager:
                 except Exception as retry_error:
                     self._stop_locked()
                     raise _PersistentSofficeTransportError(
-                        f"LibreOffice could not recover for {operation}: {retry_error} "
-                        f"(first error: {first_error})"
+                        f"Không thể tiếp tục xử lý tài liệu. "
+                        f"Hãy thử lại hoặc khởi động lại 3T Office."
                     ) from retry_error
             finally:
                 if operation == "print_pdf" and self._worker is worker:
@@ -920,8 +1216,8 @@ def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind:
 
     if not SOFFICE_PATH:
         error = DocumentEngineError(
-            "Không tìm thấy LibreOffice engine (soffice). Vui lòng cài đặt LibreOffice "
-            "hoặc đặt biến môi trường VNOFFICE_SOFFICE_PATH trỏ tới soffice."
+            "Không tìm thấy bộ xử lý tài liệu. "
+            "Vui lòng cài lại 3T Office rồi thử lại."
         )
         report_conversion_failure(type(error).__name__, str(error))
         raise error
@@ -1005,7 +1301,7 @@ def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind:
                 )
                 if Path(persistent_path).is_file():
                     return persistent_path
-                raise _PersistentSofficeTransportError("UNO helper did not create its output file.")
+                raise _PersistentSofficeTransportError("Không tạo được tệp kết quả. Hãy thử lại.")
             except Exception as exc:
                 _open_perf_log("uno_fallback_to_convert_to", app=app_kind or "shared", error=str(exc)[:180])
                 # The output path was absent before UNO was called, so a partial
@@ -1028,13 +1324,13 @@ def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind:
 
     if result.returncode != 0:
         detail = (result.stderr or result.stdout or "").strip()[:500]
-        message = f"LibreOffice báo lỗi khi chuyển đổi: {detail or 'không rõ nguyên nhân'}"
+        message = f"Không chuyển đổi được tài liệu. Hãy kiểm tra tệp và thử lại."
         report_conversion_failure("SofficeExitError", message)
         raise DocumentEngineError(message)
 
     if not out_path.is_file():
         detail = (result.stdout or "").strip()[:500]
-        message = f"Không tạo được tệp đầu ra. Chi tiết: {detail or 'không rõ'}"
+        message = f"Không tạo được tệp đầu ra. Hãy kiểm tra tệp và thử lại."
         report_conversion_failure("SofficeOutputMissing", message)
         raise DocumentEngineError(message)
 
@@ -1206,7 +1502,7 @@ def _apply_native_export_postprocess(
             raise
         except Exception as exc:
             raise DocumentEngineError(
-                f"Không khôi phục được section/header/footer cho DOCX: {exc}"
+                f"Không thể hoàn tất cấu trúc DOCX (mục, đầu/chân trang hoặc phương trình): {exc}"
             ) from exc
 
 
@@ -1725,7 +2021,7 @@ def _write_print_source(
         except DocumentEngineError:
             raise
         except Exception as exc:
-            raise DocumentEngineError(f"3T Sheet không chuẩn bị được phạm vi in: {exc}") from exc
+            raise DocumentEngineError(f"Sheet không chuẩn bị được phạm vi in: {exc}") from exc
     return native_path
 
 
@@ -1737,7 +2033,7 @@ def _convert_print_source_to_pdf(source_path: str, app_kind: str, output_dir: st
 def _convert_print_source_with_office(
     source_path: str, app_kind: str, output_dir: str, candidate: dict[str, str],
 ) -> str:
-    return _OFFICE_COM_MODULE.export_pdf_with_office(
+    return _get_office_com_module().export_pdf_with_office(
         source_path,
         app_kind,
         output_dir,
@@ -1746,7 +2042,7 @@ def _convert_print_source_with_office(
 
 
 def _office_candidates_for_print(app_kind: str) -> tuple[dict[str, str], ...]:
-    info = _OFFICE_COM_MODULE.get_office_engine_info(app_kind)
+    info = _get_office_com_module().get_office_engine_info(app_kind)
     if not info.get("available"):
         return ()
     return ({
@@ -1759,15 +2055,16 @@ def _office_candidates_for_print(app_kind: str) -> tuple[dict[str, str], ...]:
 def _render_print_source_to_pdf(
     source_path: str, app_kind: str, output_dir: str, *, use_office: bool = True,
 ) -> tuple[str, str]:
-    info = _OFFICE_COM_MODULE.get_office_engine_info(app_kind)
-    return _OFFICE_COM_MODULE.convert_pdf_with_office_fallback(
+    office_com = _get_office_com_module()
+    info = office_com.get_office_engine_info(app_kind)
+    return office_com.convert_pdf_with_office_fallback(
         source_path,
         app_kind,
         output_dir,
         _convert_print_source_to_pdf,
         use_office=use_office,
         office_info=info,
-        office_exporter=lambda source, kind, out, *, engine_info=None: _OFFICE_COM_MODULE.export_pdf_with_office(
+        office_exporter=lambda source, kind, out, *, engine_info=None: _get_office_com_module().export_pdf_with_office(
             source, kind, out, engine_info=engine_info,
         ),
     )
@@ -1793,7 +2090,7 @@ def _export_content_to_pdf(
 def _print_pdf_to_target_file(pdf_path: str, printer: str, destination_path: str, app_kind: str) -> dict:
     """Use LibreOffice batch print-to-file for the Microsoft PDF printer without its prompt."""
     if not SOFFICE_PATH:
-        raise DocumentEngineError("Không tìm thấy LibreOffice engine để gửi lệnh in.")
+        raise DocumentEngineError("Bộ xử lý tài liệu chưa sẵn sàng để in. Vui lòng cài lại 3T Office.")
     destination = Path(destination_path).expanduser().resolve()
     if destination.suffix.lower() != ".pdf":
         destination = destination.with_suffix(".pdf")
@@ -1838,7 +2135,7 @@ def _print_pdf_to_target_file(pdf_path: str, printer: str, destination_path: str
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
-            raise RuntimeError(f"LibreOffice không hoàn tất lệnh in: {exc}") from exc
+            raise RuntimeError(f"Không hoàn tất lệnh in. Hãy kiểm tra máy in và thử lại.") from exc
         generated_pdf = output_dir / source_copy.name
         if completed.returncode != 0 or not generated_pdf.is_file() or generated_pdf.stat().st_size <= 0:
             detail = (completed.stderr or completed.stdout or "").strip()
@@ -2307,29 +2604,39 @@ class VnOfficeApi:
         self._sheet_open_sessions: dict[str, dict[str, object]] = {}
         self._sheet_open_session_lock = threading.RLock()
         self._last_sheet_open_id: str | None = None
-        self._print_pipeline = PrintPipeline(
-            write_source=_write_print_source,
-            convert_pdf=_convert_print_source_to_pdf,
-            office_candidates=_office_candidates_for_print,
-            convert_office_pdf=_convert_print_source_with_office,
-            inspect_pdf=lambda kind, pdf_path: int(
-                _PERSISTENT_SOFFICE.operation(kind, "inspect_pdf", pdf_path=pdf_path)["page_count"]
-            ),
-            render_page=lambda kind, pdf_path, page_index, output_path: _PERSISTENT_SOFFICE.operation(
-                kind,
-                "render_pdf_page",
-                pdf_path=pdf_path,
-                page_index=page_index,
-                output_path=output_path,
-            ),
-            print_pdf=_print_pdf_job,
-        )
+        self._print_pipeline = None
+        self._print_pipeline_lock = threading.Lock()
         try:
             self._autorecover_store = AutoRecoverStore(_user_data_dir())
         except OSError:
             # AutoRecover storage failure must never prevent opening the editor.
             self._autorecover_store = None
         self._autorecover_session_closed = False
+
+    def _get_print_pipeline(self):
+        if self._print_pipeline is not None:
+            return self._print_pipeline
+        with self._print_pipeline_lock:
+            if self._print_pipeline is None:
+                print_pipeline_type = _get_print_pipeline_module().PrintPipeline
+                self._print_pipeline = print_pipeline_type(
+                    write_source=_write_print_source,
+                    convert_pdf=_convert_print_source_to_pdf,
+                    office_candidates=_office_candidates_for_print,
+                    convert_office_pdf=_convert_print_source_with_office,
+                    inspect_pdf=lambda kind, pdf_path: int(
+                        _PERSISTENT_SOFFICE.operation(kind, "inspect_pdf", pdf_path=pdf_path)["page_count"]
+                    ),
+                    render_page=lambda kind, pdf_path, page_index, output_path: _PERSISTENT_SOFFICE.operation(
+                        kind,
+                        "render_pdf_page",
+                        pdf_path=pdf_path,
+                        page_index=page_index,
+                        output_path=output_path,
+                    ),
+                    print_pdf=_print_pdf_job,
+                )
+        return self._print_pipeline
 
     def get_app_version(self) -> str:
         """Trả về phiên bản ứng dụng hiện tại."""
@@ -2375,14 +2682,14 @@ class VnOfficeApi:
             "developer": "3T Technology",
             "copyright": "© 2024–2026 3T Technology. All rights reserved.",
             "suite_components": [
-                {"name": "3T Doc", "role": "Soạn thảo văn bản và tài liệu hành chính"},
-                {"name": "3T Sheet", "role": "Bảng tính điện tử và phân tích số liệu"},
-                {"name": "3T Slide", "role": "Trình chiếu và thuyết trình đa phương tiện"}
+                {"name": "Doc", "role": "Soạn thảo văn bản và tài liệu hành chính"},
+                {"name": "Sheet", "role": "Bảng tính điện tử và phân tích số liệu"},
+                {"name": "Slide", "role": "Trình chiếu và thuyết trình đa phương tiện"}
             ],
             "third_party_notices": notices_text,
             "components": [
                 {"name": "Python", "version": "3.12", "license": "PSF License", "purpose": "Ngôn ngữ nền tảng & logic ứng dụng"},
-                {"name": "LibreOffice", "version": "7.6+", "license": "MPL-2.0", "purpose": "Lõi xử lý định dạng tài liệu ODF và OOXML"},
+                {"name": "LibreOffice", "version": "7.6+", "license": "MPL-2.0", "purpose": "Xử lý tài liệu"},
                 {"name": "pywebview", "version": "5.x", "license": "BSD-3-Clause", "purpose": "Khung hiển thị cửa sổ desktop native độc lập"},
                 {"name": "pythonnet & clr_loader", "version": "3.x", "license": "MIT", "purpose": "Cầu nối Windows .NET / WebView2"},
                 {"name": "cffi & pycparser", "version": "1.x", "license": "MIT / BSD-3-Clause", "purpose": "Giao tiếp nhị phân C native"},
@@ -2391,6 +2698,24 @@ class VnOfficeApi:
                 {"name": "Be Vietnam Pro", "version": "1.002", "license": "SIL Open Font License 1.1", "purpose": "Bộ phông chữ tiếng Việt chuẩn quốc gia"}
             ]
         }
+
+    def get_release_notes(self) -> dict[str, object]:
+        """Đọc ghi chú phát hành của phiên bản hiện tại (CH-8.3)."""
+        candidates = [
+            Path(ROOT_DIR) / f"notes-{APP_VERSION}.txt",
+            Path(ROOT_DIR) / "release-notes.txt",
+            Path(ROOT_DIR) / "RELEASE-NOTES.md",
+            Path(ROOT_DIR) / "docs" / "RELEASE-NOTES.md",
+        ]
+        for candidate in candidates:
+            if candidate.is_file():
+                try:
+                    content = candidate.read_text(encoding="utf-8")
+                    if content and content.strip():
+                        return {"found": True, "version": APP_VERSION, "content": content.strip()}
+                except Exception:
+                    pass
+        return {"found": False, "version": APP_VERSION, "content": ""}
 
     def get_autorecover_settings(self):
         return self._autorecover_store.get_settings() if self._autorecover_store else {"enabled": True, "interval_minutes": 5}
@@ -2591,7 +2916,12 @@ class VnOfficeApi:
                 _ERROR_REPORT_CONTEXT.failure_reported = False
 
     def open_document_dialog(self, app_kind="writer"):
+        self._start_document_engine()
         return self._invoke_reported_api("open_document_dialog", self._open_document_dialog_impl, app_kind)
+
+    def start_document_engine(self):
+        """Start LibreOffice after the user first needs a document operation."""
+        return {"started": self._start_document_engine()}
 
     def open_mail_merge_data_dialog(self):
         return self._invoke_reported_api("open_mail_merge_data_dialog", self._open_mail_merge_data_dialog_impl)
@@ -2620,7 +2950,7 @@ class VnOfficeApi:
     ):
         return self._invoke_reported_api(
             "prepare_print_document",
-            self._print_pipeline.prepare,
+            self._get_print_pipeline().prepare,
             app_kind,
             content,
             suggested_name,
@@ -2630,16 +2960,16 @@ class VnOfficeApi:
         )
 
     def get_print_engine_status(self, app_kind):
-        return self._print_pipeline.engine_status(str(app_kind or ""))
+        return self._get_print_pipeline().engine_status(str(app_kind or ""))
 
     def get_print_preview_page(self, session_id, page_number):
         try:
-            return self._print_pipeline.preview_page(session_id, page_number)
+            return self._get_print_pipeline().preview_page(session_id, page_number)
         except Exception as exc:
-            return {"status": "error", "message": f"Không tải được trang xem trước: {exc}"}
+            return {"status": "error", "message": f"Không tải được trang xem trước. Hãy đóng hộp thoại In và thử lại."}
 
     def get_installed_printers(self):
-        return _PRINT_PIPELINE_MODULE.list_installed_printers()
+        return _get_print_pipeline_module().list_installed_printers()
 
     def print_document(self, session_id, settings):
         return self._invoke_reported_api(
@@ -2664,7 +2994,7 @@ class VnOfficeApi:
             window = _active_window()
             if not window:
                 return {"status": "error", "message": "Cửa sổ ứng dụng chưa sẵn sàng để chọn nơi lưu PDF."}
-            suggested_name = self._print_pipeline.suggested_name(session_id)
+            suggested_name = self._get_print_pipeline().suggested_name(session_id)
             try:
                 save_result = window.create_file_dialog(
                     webview.SAVE_DIALOG,
@@ -2678,7 +3008,7 @@ class VnOfficeApi:
             destination_path = save_result if isinstance(save_result, str) else save_result[0]
             if not str(destination_path).lower().endswith(".pdf"):
                 destination_path = f"{destination_path}.pdf"
-        result = self._print_pipeline.print_document(
+        result = self._get_print_pipeline().print_document(
             session_id,
             printer,
             copies,
@@ -2690,10 +3020,11 @@ class VnOfficeApi:
         return result
 
     def cancel_print_document(self, session_id):
-        return self._print_pipeline.cancel(session_id)
+        return self._get_print_pipeline().cancel(session_id)
 
     def close_print_sessions(self):
-        self._print_pipeline.close()
+        if self._print_pipeline is not None:
+            self._print_pipeline.close()
 
     def _default_operation(self, method_name, method, args, kwargs):
         if method_name == "open_mail_merge_data_dialog":
@@ -2772,10 +3103,45 @@ class VnOfficeApi:
             }
         return self._updater.get_state()
 
+    def confirm_update_health(self):
+        """Confirm the replacement app only after its WebView bridge is live."""
+        from adapters.updater.updater import write_health_marker
+
+        token = _UPDATE_HEALTH_TOKEN
+        updates_dir = _UPDATE_DATA_DIR
+        if not token or not re.fullmatch(r"[0-9a-f]{32}", token) or updates_dir is None:
+            return {"healthy": False, "pending": False}
+        expected = updates_dir / f"health-{token}.ok"
+        if _UPDATE_HEALTH_FILE:
+            candidate = Path(_UPDATE_HEALTH_FILE)
+            if candidate.name != expected.name:
+                return {"healthy": False, "pending": True}
+            try:
+                if candidate.parent.resolve() != updates_dir.resolve():
+                    return {"healthy": False, "pending": True}
+            except OSError:
+                return {"healthy": False, "pending": True}
+        return {"healthy": write_health_marker(updates_dir, token), "pending": True}
+
     def start_update_checks(self):
         if self._updater is None:
             return {"started": False, "state": self.get_update_status()}
         return {"started": self._updater.start(), "state": self._updater.get_state()}
+
+    def confirm_update_restart(self, request_id, saved):
+        if not isinstance(request_id, str) or type(saved) is not bool:
+            return {"accepted": False}
+        with _UPDATE_RESTART_CONDITION:
+            pending = _UPDATE_RESTART_PENDING
+            if not pending or pending.get("request_id") != request_id:
+                return {"accepted": False}
+            window_uid = self._window_uid
+            expected = pending.get("expected", set())
+            if not window_uid or window_uid not in expected:
+                return {"accepted": False}
+            pending["acks"][window_uid] = saved
+            _UPDATE_RESTART_CONDITION.notify_all()
+        return {"accepted": True}
 
     def check_for_updates(self):
         if self._updater is None:
@@ -2791,24 +3157,115 @@ class VnOfficeApi:
         install_root = _update_install_root()
         if install_root is None:
             return {"started": False, "error": "Không tìm thấy thư mục cài đặt 3T Office."}
+        global _UPDATE_RESTART_PENDING
+        with _APP_WINDOW_LOCK:
+            app_windows = [
+                (api, _active_window(api))
+                for api in _APP_WINDOW_APIS.values()
+                if getattr(api, "_app_kind", None) == self._app_kind
+            ]
+        app_windows = [(api, window) for api, window in app_windows if window is not None and api._window_uid]
+        if not app_windows:
+            return {"started": False, "error": "Không tìm thấy cửa sổ tài liệu đang mở."}
+
+        request_id = uuid.uuid4().hex
+        expected = {api._window_uid for api, _window in app_windows}
+        with _UPDATE_RESTART_CONDITION:
+            if _UPDATE_RESTART_PENDING is not None:
+                return {"started": False, "error": "Một yêu cầu cập nhật khác đang được xử lý."}
+            _UPDATE_RESTART_PENDING = {"request_id": request_id, "expected": expected, "acks": {}}
+
+        request_payload = json.dumps({"requestId": request_id}, separators=(",", ":"))
+        for api, window in app_windows:
+            try:
+                window.evaluate_js(
+                    "window.dispatchEvent(new CustomEvent('vno-office-update-restart-request', {detail:"
+                    + request_payload
+                    + "}))"
+                )
+            except Exception:
+                with _UPDATE_RESTART_CONDITION:
+                    pending = _UPDATE_RESTART_PENDING
+                    if pending and pending.get("request_id") == request_id:
+                        pending["acks"][api._window_uid] = False
+                        _UPDATE_RESTART_CONDITION.notify_all()
+
+        deadline = time.monotonic() + 180
         try:
-            task_path = self._updater.create_apply_task(app_kind=self._app_kind, install_root=install_root)
+            with _UPDATE_RESTART_CONDITION:
+                while True:
+                    pending = _UPDATE_RESTART_PENDING
+                    if not pending or pending.get("request_id") != request_id:
+                        return {"started": False, "error": "Yêu cầu lưu tài liệu đã bị hủy."}
+                    acks = pending["acks"]
+                    if any(value is False for value in acks.values()):
+                        return {"started": False, "cancelled": True}
+                    if expected.issubset(acks):
+                        break
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        return {"started": False, "error": "Hết thời gian chờ xác nhận lưu ở các cửa sổ tài liệu."}
+                    _UPDATE_RESTART_CONDITION.wait(timeout=min(remaining, 1.0))
+
+            documents = []
+            seen_documents = set()
+            for api, _window in app_windows:
+                path = api._current_file_path or api._initial_file
+                if not path:
+                    continue
+                try:
+                    resolved = str(Path(path).expanduser().resolve())
+                    if not Path(resolved).is_file():
+                        continue
+                except OSError:
+                    continue
+                folded = resolved.casefold()
+                if folded not in seen_documents:
+                    seen_documents.add(folded)
+                    documents.append(resolved)
+
+            task_path = self._updater.create_apply_task(
+                app_kind=self._app_kind,
+                install_root=install_root,
+                launch_args=[f"--app={self._app_kind}"],
+                restore_documents=documents,
+            )
             if not self._updater.launch_apply_helper(task_path):
                 return {"started": False, "error": "Trình cập nhật chỉ áp dụng được trên Windows."}
         except Exception as exc:
             return {"started": False, "error": f"Không thể chuẩn bị cập nhật: {type(exc).__name__}"}
-        def exit_for_update():
-            # The apply helper waits for every process of this install; stop the warm LibreOffice worker first.
-            try:
-                self.close_print_sessions()
-                _PERSISTENT_SOFFICE.shutdown()
-            finally:
-                os._exit(0)
+        finally:
+            with _UPDATE_RESTART_CONDITION:
+                if _UPDATE_RESTART_PENDING and _UPDATE_RESTART_PENDING.get("request_id") == request_id:
+                    _UPDATE_RESTART_PENDING = None
+                _UPDATE_RESTART_CONDITION.notify_all()
 
-        timer = threading.Timer(0.4, exit_for_update)
+        def close_all_windows():
+            for api, window in app_windows:
+                api._allow_window_close = True
+                try:
+                    window.destroy()
+                except Exception:
+                    logging.getLogger("vnoffice.updater").warning(
+                        "Could not close an app window for update restart.", exc_info=True
+                    )
+
+        timer = threading.Timer(0.25, close_all_windows)
         timer.daemon = True
         timer.start()
         return {"started": True}
+
+    def consume_update_failure(self):
+        if _UPDATE_DATA_DIR is None:
+            return None
+        failure_path = _UPDATE_DATA_DIR / "update-failure.json"
+        try:
+            payload = json.loads(failure_path.read_text(encoding="utf-8"))
+            failure_path.unlink(missing_ok=True)
+            message = payload.get("message") if isinstance(payload, dict) else None
+            return {"message": str(message)} if message else None
+        except (OSError, ValueError, TypeError):
+            return None
 
     def set_error_reporting_consent(self, granted):
         if self._reporter is None:
@@ -2850,14 +3307,17 @@ class VnOfficeApi:
         window = _active_window(self)
         if not window:
             return {"status": "error", "message": "Cửa sổ tài liệu không còn mở."}
+        _startup_trace("window_close_api_requested", app=self._app_kind)
         self._allow_window_close = True
 
         def destroy_window():
             time.sleep(0.1)
             try:
                 window.destroy()
+                _startup_trace("window_destroy_requested", app=self._app_kind)
             except Exception:
                 self._allow_window_close = False
+                _startup_trace("window_destroy_failed", app=self._app_kind)
 
         threading.Thread(target=destroy_window, daemon=True, name="3T Office close window").start()
         return {"status": "ok"}
@@ -2910,6 +3370,7 @@ class VnOfficeApi:
 
         file_name = source_path.name
         child_api = VnOfficeApi(app_kind=app_kind, initial_file=str(source_path), server_port=self._server_port)
+        child_api._start_document_engine()
         try:
             with _NEW_WINDOW_CREATE_LOCK:
                 child_window = webview.create_window(
@@ -2945,6 +3406,68 @@ class VnOfficeApi:
             return False
         print(f"[VNO Sheet Perf] {name}: {value:.1f} ms", flush=True)
         return True
+
+    def report_startup_metric(self, name, renderer_elapsed_ms=None):
+        """Record opt-in local boot milestones. The payload contains no document content."""
+        allowed = {
+            "pywebview_ready", "renderer_entry", "uno_bridge_ready", "ribbon_interactive",
+            "blank_document_first_paint", "initial_file_open_resolved", "help_ready",
+            "editable_surface_ready", "error_reporting_ready", "updater_ui_ready", "first_editor_key", "document_open_complete",
+        }
+        if name not in allowed:
+            return False
+        fields = {"app": self._app_kind}
+        if renderer_elapsed_ms is not None:
+            try:
+                fields["renderer_elapsed_ms"] = round(float(renderer_elapsed_ms), 1)
+            except (TypeError, ValueError):
+                return False
+        _startup_trace(name, **fields)
+        if name == "document_open_complete" and self._app_kind in {"writer", "sheet"}:
+            with _PROFILE_WARMUP_LOCK:
+                should_warm = self._app_kind not in _PROFILE_WARMUP_STARTED
+                _PROFILE_WARMUP_STARTED.add(self._app_kind)
+            if should_warm:
+                threading.Thread(
+                    target=_PERSISTENT_SOFFICE.warm_profile_filter,
+                    args=(self._app_kind,),
+                    daemon=True,
+                    name=f"3T Office {self._app_kind} profile warmup",
+                ).start()
+        return True
+
+    def start_deferred_startup(self):
+        """Start services which are intentionally kept off the first-paint path."""
+        if self._app_kind in VALID_APP_KINDS:
+            _start_deferred_startup(self, self._app_kind, getattr(self, "_startup_launch_args", []))
+        return {"started": True}
+
+    def _start_document_engine(self):
+        """Start the document worker once, on demand or early for a launch with a file."""
+        if self._app_kind not in VALID_APP_KINDS or not _PERSISTENT_SOFFICE_ENABLED:
+            return False
+        if getattr(self, "_document_engine_start_requested", False):
+            return True
+        self._document_engine_start_requested = True
+        _startup_trace("lo_worker_start_requested", app=self._app_kind)
+        try:
+            threading.Thread(
+                target=_PERSISTENT_SOFFICE.prepare,
+                args=(self._app_kind,),
+                daemon=True,
+                name="3T Office LibreOffice warm start",
+            ).start()
+        except RuntimeError:
+            self._document_engine_start_requested = False
+            raise
+        return True
+
+    def wait_for_background_services(self, timeout_seconds=30):
+        try:
+            timeout = max(0.0, min(60.0, float(timeout_seconds)))
+        except (TypeError, ValueError):
+            timeout = 30.0
+        return {"ready": _BACKGROUND_SERVICES_READY.wait(timeout)}
 
     def _validate_open_package(self, source_path, app_kind):
         """Reject malformed ZIP-based Office/ODF packages before conversion mutates UI state.
@@ -3077,13 +3600,14 @@ class VnOfficeApi:
                 with open(out_path, "r", encoding="utf-8", errors="replace") as f:
                     content = f.read()
                 if app_kind == "writer":
-                    content = _inline_html_images(content, out_path)
                     # Quy ước W9: font/cỡ mặc định từ docDefaults + theme khi LibreOffice không ghi p.western.
                     if convert_src_path.lower().endswith(".docx"):
                         try:
                             with open(convert_src_path, "rb") as f:
                                 docx_bytes = f.read()
                             patcher = _ooxml_zip_patch()
+                            # Restore native equations at LibreOffice's HTML image slots.
+                            content = patcher.writer_docx_equations_to_mathml_html(docx_bytes, content)
                             # W12b: font theme của tài liệu tiếng Việt = typeface script="Viet" (Word), không phải latin
                             content = patcher.apply_docx_theme_script_fonts(docx_bytes, content)
                             content = patcher.inject_docx_default_font_css(docx_bytes, content)
@@ -3094,6 +3618,7 @@ class VnOfficeApi:
                             content = patcher.restore_docx_html_half_points_and_empty_paras(docx_bytes, content)
                         except OSError:
                             pass
+                    content = _inline_html_images(content, out_path)
                     if convert_src_path.lower().endswith(".docx"):
                         # The intermediate DOCX is temporary; collect its
                         # OOXML sidecars before TemporaryDirectory removes it.
@@ -3129,7 +3654,7 @@ class VnOfficeApi:
                     if src_path.lower().endswith(".xlsx") and original_xlsx is not None:
                         patcher = _ooxml_zip_patch()
                         if _sheet_open_payload_enabled():
-                            _notify_sheet_open_progress("Đang đóng gói dữ liệu để nạp nhanh vào 3T Sheet…", api=self)
+                            _notify_sheet_open_progress("Đang đóng gói dữ liệu để nạp nhanh vào Sheet…", api=self)
                             try:
                                 from adapters.libreoffice.sheet.sheet_open_payload import build_sheet_open_payload
                                 final_fods, sheet_open_payload = build_sheet_open_payload(
@@ -3312,7 +3837,7 @@ class VnOfficeApi:
                     "content": fods_content,
                 }
             except Exception as exc:
-                return {"status": "error", "message": f"Không chuyển đổi được tệp {file_name}: {exc}"}
+                return {"status": "error", "message": f"Không đọc được tệp bảng tính {file_name}. Hãy kiểm tra tệp và thử lại."}
 
         return {"status": "error", "message": f"Định dạng tệp không được hỗ trợ: {ext}"}
 
@@ -3338,7 +3863,7 @@ class VnOfficeApi:
         except DocumentEngineError as exc:
             return {"status": "error", "message": str(exc)}
         except Exception as exc:
-            return {"status": "error", "message": f"Lỗi không xác định khi lưu tệp: {exc}"}
+            return {"status": "error", "message": f"Không lưu được tệp. Hãy kiểm tra quyền ghi, dung lượng trống và thử lại."}
 
         self._current_file_path = target_path
         return {"status": "ok", "message": f"Đã lưu tại {target_path}", "path": target_path}
@@ -3419,7 +3944,7 @@ class VnOfficeApi:
         except DocumentEngineError as exc:
             return {"status": "error", "message": str(exc)}
         except Exception as exc:
-            return {"status": "error", "message": f"Lỗi không xác định khi lưu tệp: {exc}"}
+            return {"status": "error", "message": f"Không lưu được tệp. Hãy kiểm tra quyền ghi, dung lượng trống và thử lại."}
 
         self._current_file_path = dest_path
         response = {"status": "ok", "message": f"Đã lưu tại {dest_path}", "path": dest_path}
@@ -3438,9 +3963,36 @@ def _register_app_window(api: VnOfficeApi, window) -> None:
     api._window_uid = str(window.uid)
     with _APP_WINDOW_LOCK:
         _APP_WINDOW_APIS[api._window_uid] = api
+    close_finalized = False
+    close_finalization_lock = threading.Lock()
+
+    def finalize_close() -> None:
+        nonlocal close_finalized
+        with close_finalization_lock:
+            if close_finalized:
+                return
+            close_finalized = True
+        _startup_trace("window_close_cleanup_started", app=api._app_kind)
+        try:
+            api.close_autorecover_session()
+        except Exception as exc:
+            logging.getLogger("vnoffice.autorecover").debug("Close cleanup unavailable: %s", type(exc).__name__)
+        _startup_trace("autorecover_session_closed", app=api._app_kind)
+        try:
+            api.close_print_sessions()
+        except Exception as exc:
+            logging.getLogger("vnoffice.print").debug("Print session close unavailable: %s", type(exc).__name__)
+        _startup_trace("print_sessions_closed", app=api._app_kind)
+        with _APP_WINDOW_LOCK:
+            _APP_WINDOW_APIS.pop(api._window_uid or "", None)
+            remaining_windows = len(_APP_WINDOW_APIS)
+        _startup_trace("pywebview_window_closed", app=api._app_kind, remaining_app_windows=remaining_windows)
 
     def on_closing(window=None, *_args):
+        _startup_trace("native_window_closing", app=api._app_kind, approved=bool(api._allow_window_close))
         if api._allow_window_close:
+            # Finalize synchronously after approval; pywebview's closed event is asynchronous.
+            finalize_close()
             return None
         target = window or _active_window(api)
 
@@ -3465,10 +4017,7 @@ def _register_app_window(api: VnOfficeApi, window) -> None:
         return False
 
     def on_closed(*_args):
-        api.close_autorecover_session()
-        api.close_print_sessions()
-        with _APP_WINDOW_LOCK:
-            _APP_WINDOW_APIS.pop(api._window_uid or "", None)
+        finalize_close()
 
     window.events.closing += on_closing
     window.events.closed += on_closed
@@ -3652,8 +4201,11 @@ def _warmup_libreoffice_profiles() -> int:
 
 
 def main(argv: list[str] | None = None):
-    global _ERROR_REPORTER, _UPDATE_MANAGER, _UPDATE_DATA_DIR, _PERSISTENT_SOFFICE_ENABLED
+    global _ERROR_REPORTER, _UPDATE_MANAGER, _UPDATE_DATA_DIR, _UPDATE_HEALTH_TOKEN, _UPDATE_HEALTH_FILE, _PERSISTENT_SOFFICE_ENABLED
+    _startup_trace("python_imports_complete")
     launch_argv = list(sys.argv[1:] if argv is None else argv)
+    _UPDATE_HEALTH_TOKEN = _update_token_from_args(launch_argv) or os.environ.get("VNO_UPDATE_HEALTH_TOKEN", "").lower()
+    _UPDATE_HEALTH_FILE = os.environ.get("VNO_UPDATE_HEALTH_FILE", "")
     if launch_argv == ["--warmup-libreoffice-profiles"]:
         return _warmup_libreoffice_profiles()
 
@@ -3662,6 +4214,25 @@ def main(argv: list[str] | None = None):
     except ValueError as exc:
         print(f"[3T Office] {exc}", file=sys.stderr)
         return 2
+
+    restore_documents = []
+    for argument in launch_argv:
+        if not argument.startswith("--restore-document="):
+            continue
+        raw_path = argument.split("=", 1)[1]
+        if not raw_path:
+            continue
+        try:
+            path = str(Path(raw_path).expanduser().resolve())
+        except OSError:
+            continue
+        if path.casefold() != str(initial_file or "").casefold() and path.casefold() not in {
+            existing.casefold() for existing in restore_documents
+        }:
+            if initial_file is None:
+                initial_file = path
+            else:
+                restore_documents.append(path)
 
     instance_server = None
     if app_kind in VALID_APP_KINDS:
@@ -3710,49 +4281,13 @@ def main(argv: list[str] | None = None):
             )
             return 4
 
-    report_config = load_client_config(ROOT_DIR)
     _UPDATE_DATA_DIR = _user_data_dir() / "updates"
-    try:
-        _ERROR_REPORTER = ErrorReporter(
-            APP_VERSION,
-            app_kind,
-            _user_data_dir(),
-            endpoint=str(report_config["endpoint"]),
-            token=str(report_config["token"]),
-            enabled=bool(report_config["enabled"]),
-        )
-        _ERROR_REPORTER.install_exception_hooks()
-    except Exception:
-        # Reporting storage/configuration failures must never prevent offline startup.
-        _ERROR_REPORTER = None
-
-    install_root = _update_install_root()
-    if install_root:
-        try:
-            installed_version = (install_root / "VERSION.txt").read_text(encoding="ascii").strip() or APP_VERSION
-            update_config = _load_update_config()
-            _UPDATE_MANAGER = UpdaterManager(
-                install_dir=install_root,
-                updates_dir=_UPDATE_DATA_DIR,
-                current_version=installed_version,
-                source=update_config["source"],
-                channel=update_config["channel"],
-                public_key=get_public_key(),
-                on_state=_notify_update_ui,
-            )
-            _UPDATE_MANAGER.set_launch_args(launch_argv)
-        except Exception as exc:
-            # A malformed update config/version must never prevent offline document work.
-            logging.getLogger("vnoffice.updater").debug("Updater initialization unavailable: %s", type(exc).__name__)
-            _UPDATE_MANAGER = None
-    else:
-        _UPDATE_MANAGER = None
-    queue_rollback_report(_ERROR_REPORTER, _UPDATE_DATA_DIR)
 
     # Start embedded static-file server BEFORE creating the webview window
     # so the UI is guaranteed to load without ERR_CONNECTION_REFUSED.
     try:
         server, port = _start_static_server()
+        _startup_trace("static_server_ready", port=port)
     except RuntimeError as exc:
         msg = (
             f"3T Office không thể khởi động.\n\n"
@@ -3779,6 +4314,7 @@ def main(argv: list[str] | None = None):
     _PERSISTENT_SOFFICE_ENABLED = os.environ.get("VNOFFICE_DISABLE_UNO") != "1"
 
     api = VnOfficeApi(app_kind=app_kind, initial_file=initial_file, server_port=port)
+    api._startup_launch_args = launch_argv
     if app_kind in VALID_APP_KINDS:
         with _DOCUMENT_SEQUENCE_LOCK:
             _DOCUMENT_SEQUENCE[app_kind] = 1
@@ -3795,8 +4331,20 @@ def main(argv: list[str] | None = None):
         js_api=api,
         text_select=True,
     )
+    _startup_trace("pywebview_window_created", app=app_kind)
 
     _register_app_window(api, window)
+
+    for restore_path in restore_documents:
+        if not Path(restore_path).is_file():
+            continue
+        request = {"app_kind": app_kind, "path": restore_path}
+        _INSTANCE_LAUNCH_QUEUE.put_nowait((request, threading.Event()))
+
+    # For a launch that already names a file, overlap the required document engine
+    # startup with WebView2 creation. Blank launches still defer it until first paint.
+    if initial_file:
+        api._start_document_engine()
 
     if instance_server is not None:
         threading.Thread(
@@ -3805,23 +4353,30 @@ def main(argv: list[str] | None = None):
             name=f"3T Office {app_kind} window router",
         ).start()
 
-    startup_worker_kind = app_kind if app_kind in {"writer", "sheet"} else None
-    if _PERSISTENT_SOFFICE_ENABLED and startup_worker_kind:
-        threading.Thread(
-            target=_PERSISTENT_SOFFICE.prepare,
-            args=(startup_worker_kind,),
-            daemon=True,
-            name="3T Office LibreOffice warm start",
-        ).start()
-
-    # Set Windows AppUserModelID so the taskbar groups and shows the app's specific icon
+    # Set Windows AppUserModelID so the taskbar groups and shows the app's specific icon;
+    # short pin labels (Doc/Sheet/Slide) are set on the native window below.
     if platform.system() == "Windows":
         try:
-            import ctypes
-            aumid = f"VNOffice.{app_kind.capitalize() if app_kind in VALID_APP_KINDS else 'Suite'}"
-            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(aumid)
-        except Exception:
-            pass
+            set_app_id = ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID
+            set_app_id.argtypes = (ctypes.c_wchar_p,)
+            set_app_id.restype = ctypes.c_long
+            aumid = TASKBAR_APP_USER_MODEL_IDS.get(app_kind, "VNOffice.Suite")
+            result = set_app_id(aumid)
+            if result < 0:
+                raise OSError(f"SetCurrentProcessExplicitAppUserModelID failed: HRESULT 0x{result & 0xFFFFFFFF:08X}")
+        except Exception as exc:
+            logging.getLogger("vnoffice.taskbar").warning("Could not set the taskbar process identity: %s", exc)
+
+    if app_kind in TASKBAR_RELAUNCH_DISPLAY_NAMES:
+        def set_taskbar_relaunch_info(*_args):
+            _set_windows_taskbar_relaunch_info(window, app_kind)
+
+        try:
+            window.events.shown += set_taskbar_relaunch_info
+        except Exception as exc:
+            logging.getLogger("vnoffice.taskbar").warning(
+                "Could not register the %s taskbar relaunch identity: %s", app_kind, exc,
+            )
 
     icon_name = f"{app_kind}.ico" if app_kind in VALID_APP_KINDS else "vnoffice.ico"
     icon_path = os.path.join(ROOT_DIR, "branding", "icons", icon_name)
@@ -3829,25 +4384,8 @@ def main(argv: list[str] | None = None):
         icon_path = os.path.join(ROOT_DIR, "branding", "icons", "vnoffice.ico")
     app_icon = icon_path if os.path.isfile(icon_path) else None
 
-    health_token = _update_token_from_args(launch_argv) or os.environ.get("VNO_UPDATE_HEALTH_TOKEN", "").lower()
-    expected_health_file = os.environ.get("VNO_UPDATE_HEALTH_FILE", "")
-
     def on_loaded(*_args):
-        if not health_token or not re.fullmatch(r"[0-9a-f]{32}", health_token):
-            return
-        health_root = _UPDATE_DATA_DIR
-        if expected_health_file:
-            candidate = Path(expected_health_file)
-            if candidate.name != f"health-{health_token}.ok":
-                return
-            try:
-                if _UPDATE_DATA_DIR and candidate.parent.resolve() != _UPDATE_DATA_DIR.resolve():
-                    return
-            except OSError:
-                return
-            health_root = candidate.parent
-        if health_root:
-            write_health_marker(health_root, health_token)
+        _startup_trace("webview_loaded", app=app_kind)
 
     try:
         window.events.loaded += on_loaded
@@ -3865,6 +4403,7 @@ def main(argv: list[str] | None = None):
     except Exception as exc:
         print(f"[3T Office] Thoát cửa sổ: {exc}")
     finally:
+        _startup_trace("pywebview_loop_returned", app=app_kind)
         _INSTANCE_DISPATCH_STOP.set()
         _INSTANCE_DISPATCH_READY.set()
         if instance_server is not None:
@@ -3878,6 +4417,7 @@ def main(argv: list[str] | None = None):
             active_api.close_autorecover_session()
         try:
             _PERSISTENT_SOFFICE.shutdown()
+            _startup_trace("lo_worker_shutdown_complete", app=app_kind)
         finally:
             if instance_server is not None:
                 instance_server.release_owner_lock()
