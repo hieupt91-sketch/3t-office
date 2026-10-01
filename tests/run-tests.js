@@ -203,6 +203,7 @@ import { runOfficeShortcutCoverageTests } from "./unit/office-shortcut-coverage.
 import { runMissingOfficeShortcutsTests } from "./unit/missing-office-shortcuts.test.js";
 import { runSlidesPenLaserTests } from "./unit/slides-pen-laser.test.js";
 import { runBasicEditingKeysTests } from "./unit/basic-editing-keys.test.js";
+import { runSheetNativeCellValuesTests } from "./unit/sheet-native-cell-values.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -416,6 +417,7 @@ async function runAll() {
     { title: "166. Unit Tests — VN Sheet range selection anchors, multi-area status and drag auto-scroll math", runner: runSheetRangeSelectionTests },
     { title: "168. Unit Tests — VN Sheet AutoFill date sequences and double-click fill", runner: runSheetAutoFillTests },
     { title: "167. Unit Tests — 3T Doc and 3T Sheet basic editing keys and clipboard", runner: runBasicEditingKeysTests }
+    ,{ title: "169. Unit Tests — VN Sheet native numeric/date cell values, external paste, fill and FODS types", runner: runSheetNativeCellValuesTests }
   ];
 
   for (const suite of suites) {

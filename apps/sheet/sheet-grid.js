@@ -4274,20 +4274,8 @@ _bindGridKeyboardNavigation() {
       return this._clearArrayFormula(item.arrayRange);
     }
 
-    if (recordUndo) {
-      this._recordHistory({
-        type: "cell",
-        sheet: this.activeSheet,
-        col,
-        row,
-        prevVal: item.formula || item.val || "",
-        nextVal: val,
-        prevValRichText: item.richText || null,
-        nextValRichText: null,
-        timestamp: Date.now()
-      }, historyOptions);
-    }
-
+    const prevVal = item.formula || (item.val ?? "");
+    const prevStyle = structuredClone(item.style || {});
     const escapedText = typeof val === "string" && val.startsWith("'");
     if (escapedText) val = val.slice(1);
     if (!escapedText && typeof val === "string" && val.startsWith("=")) {
@@ -4304,7 +4292,24 @@ _bindGridKeyboardNavigation() {
       item.val = this.formulaEngine.evaluate(val);
     } else {
       item.formula = "";
-      item.val = NumberFormatter.normalizeInputForFormat(val, item.style?.numberFormat);
+      const normalized = this._normalizeCellInput(val, item.style, escapedText);
+      item.val = normalized.value;
+      item.style = normalized.style;
+    }
+    if (recordUndo) {
+      this._recordHistory({
+        type: "cell",
+        sheet: this.activeSheet,
+        col,
+        row,
+        prevVal,
+        nextVal: item.formula || (item.val ?? ""),
+        prevStyle,
+        nextStyle: structuredClone(item.style || {}),
+        prevValRichText: item.richText || null,
+        nextValRichText: null,
+        timestamp: Date.now()
+      }, historyOptions);
     }
     // When user edits a cell, clear rich text formatting (Excel behavior)
     delete item.richText;
@@ -4333,6 +4338,20 @@ _bindGridKeyboardNavigation() {
     this.refreshCharts();
     this._updateWatchWindow?.();
     return true;
+  }
+
+  _normalizeCellInput(value, style = {}, escapedText = false) {
+    const nextStyle = { ...(style || {}) };
+    if (escapedText) return { value: String(value ?? ""), style: nextStyle };
+    const category = nextStyle.numberFormat?.category;
+    if (typeof value === "string" && category !== "text"
+      && (!category || category === "general") && NumberFormatter.isDateInput(value)) {
+      nextStyle.numberFormat = { category: "date", dateFormat: "dd/mm/yyyy" };
+    }
+    return {
+      value: NumberFormatter.normalizeInputForFormat(value, nextStyle.numberFormat),
+      style: nextStyle
+    };
   }
 
   _recalculateAllFormulas(excludeKey, force = false) {
@@ -6687,6 +6706,11 @@ _bindGridKeyboardNavigation() {
           next.formula = formula;
           if (mode !== "formulas") next.style = structuredClone(source.style || {});
         }
+        if (options.coerceInput && !next.formula) {
+          const normalized = this._normalizeCellInput(next.val, next.style);
+          next.val = normalized.value;
+          next.style = normalized.style;
+        }
         after[coord] = structuredClone(next);
       }
     }
@@ -8217,11 +8241,18 @@ _bindGridKeyboardNavigation() {
       this._restoreRowColLayout(direction === "undo" ? action.before : action.after);
     } else if (action.type === "cell") {
       this.setCellValue(action.col, action.row, action[value], false);
+      const styleKey = direction === "undo" ? "prevStyle" : "nextStyle";
+      const key = `${action.col}${action.row}`;
+      const itm = this.cellsData.get(key);
+      if (itm && action[styleKey]) {
+        itm.style = structuredClone(action[styleKey]);
+        const dom = this.container.querySelector(`.vno-grid-cell[data-coord="${key}"]`);
+        if (dom) this._renderCellVisual(dom, itm, action.col, action.row);
+      }
       // Restore richText from snapshot if present (edited cells lose richText in setCellValue)
       if (action[value + "RichText"]) {
-        const key = `${action.col}${action.row}`;
-        const itm = this.cellsData.get(key);
-        if (itm) itm.richText = action[value + "RichText"];
+        const richItem = this.cellsData.get(key);
+        if (richItem) richItem.richText = action[value + "RichText"];
       }
       this.selectCell(action.col, action.row);
     } else if (action.type === "array-formula") {

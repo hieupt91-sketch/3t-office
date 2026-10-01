@@ -6222,7 +6222,8 @@ ${pristineXlsxMarker}
       : null;
     const applied = this.grid.applyPasteSpecial(model, "all", this.grid.selectedCoord, {
       moveRange,
-      sourceSheet: this._clipboardSourceSheet
+      sourceSheet: this._clipboardSourceSheet,
+      coerceInput: !isInternal
     });
     if (applied && moveRange) this.grid.clearClipboardRange?.();
     return applied;
