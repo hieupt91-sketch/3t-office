@@ -98,8 +98,8 @@ export const SLIDES_HELP_ENTRIES = [
     steps: [
       "Nhấp vào tiêu đề, nội dung slide hoặc hộp văn bản, rồi bôi chữ cần đổi (hoặc đặt con trỏ trong đoạn).",
       "Nhóm Phông chữ: chọn Calibri / Arial / Times New Roman / Be Vietnam Pro / Roboto; chọn cỡ (10–48); nút Tăng/Giảm cỡ chữ; Đậm (Ctrl+B), Nghiêng (Ctrl+I), Gạch chân (Ctrl+U), Gạch ngang; Xóa định dạng; Màu chữ và Màu nền chữ.",
-      "Nhóm Đoạn văn (ngay bên phải): Dấu đầu dòng, Đánh số, Giảm/Tăng thụt lề, hộp Giãn dòng 1.0 / 1.5 / 2.0; hàng dưới là Căn trái (Ctrl+L), Căn giữa (Ctrl+E), Căn phải (Ctrl+R), Căn đều (Ctrl+J).",
-      "Định dạng áp dụng cho vùng chữ đang chọn trên slide, không phải cho cả bài trừ khi bôi hết. Xóa định dạng giữ nguyên nội dung, bỏ kiểu chữ."
+      "Nhóm Đoạn văn (ngay bên phải): Dấu đầu dòng, Đánh số, Giảm/Tăng thụt lề, hộp Giãn dòng 1.0 / 1.5 / 2.0; hàng dưới là Căn trái (Ctrl+L), Căn giữa (Ctrl+E), Căn phải (Ctrl+R), Căn đều (Ctrl+J). Trong khung nội dung slide, có thể dùng phím Tab để tăng thụt lề và nhấn giữ Shift cùng Tab để giảm thụt lề.",
+      "Định dạng áp dụng cho vùng chữ đang chọn trên slide, không phải cho cả bài trừ khi bôi hết. Thay đổi nội dung tiêu đề và văn bản tự động ghi nhận vào lịch sử Hoàn tác (Ctrl+Z) và Làm lại (Ctrl+Y)."
     ]
   },
   {
@@ -157,7 +157,7 @@ export const SLIDES_HELP_ENTRIES = [
     keywords: ["bộ sắp xếp", "slide sorter", "kéo thả", "thứ tự", "lưới trang"],
     steps: [
       "Tab Chế độ xem, nhóm Dạng xem bản trình chiếu, nhấn Bộ sắp xếp trang (cạnh Bình thường, Ghi chú thuyết trình, Chế độ đọc).",
-      "Lưới hiện mọi trang. Kéo một trang thả vào vị trí mới để đổi thứ tự. Trang ẩn vẫn hiện kèm dấu ⊘.",
+      "Lưới hiện mọi trang. Kéo một trang thả vào vị trí mới để đổi thứ tự. Có thể dùng các phím mũi tên ← → ↑ ↓ để duyệt qua các trang, phím Delete hoặc Backspace để xóa trang đang chọn, phím Ctrl+D để nhân đôi trang, hoặc giữ phím Ctrl cùng mũi tên để di chuyển thứ tự trang. Trang ẩn vẫn hiện kèm dấu ⊘.",
       "Nhấn × trên thanh tiêu đề hoặc Esc để đóng và trở về dạng xem Bình thường. Có thể mở lại bất cứ lúc nào; thứ tự mới được giữ.",
       "Muốn ẩn/hiện trang: chọn trang rồi dùng Ẩn trang chiếu trên tab Trình chiếu, kể cả khi đang mở sorter."
     ]
@@ -304,8 +304,8 @@ export const SLIDES_HELP_ENTRIES = [
     steps: [
       "Tab Trang đầu, nhóm Trang chiếu: Trang mới (Ctrl+M, nút lớn), Bố cục (nút lớn), cột Nhân đôi (Ctrl+D) / Xóa trang. Nút + trên dải thumbnail trái cũng thêm trang. Bố cục còn có trên tab Thiết kế, nhóm Bố cục trang.",
       "Trang mới (Ctrl+M) được chèn NGAY SAU trang đang chọn (giống các phần mềm trình chiếu khác), bố cục Tiêu đề + Nội dung, tiêu đề và nội dung để trống để bạn gõ. Khung để trống khi lưu vẫn là khung trống trong tệp PPTX — không tự sinh chữ. Nhân đôi copy y nguyên tiêu đề, nội dung, hình, ghi chú, hiệu ứng, nền — chèn ngay sau trang hiện tại và chuyển tới bản sao.",
-      "Đổi thứ tự trang: trong dải thumbnail bên trái, nhấn giữ chuột trên một trang rồi kéo thả vào vị trí mới (hoặc dùng Bộ sắp xếp trang ở tab Chế độ xem). Ctrl+Z hoàn tác việc di chuyển.",
-      "Xóa trang: không xóa được nếu chỉ còn 1 trang. Nếu đang chọn hình trên vùng soạn thảo, lệnh Xóa trang / phím Delete sẽ xóa hình chứ không xóa trang — bấm ra ngoài hình, hoặc xóa từ dải thumbnail / Bộ sắp xếp trang.",
+      "Đổi thứ tự trang: trong dải thumbnail bên trái, nhấn giữ chuột trên một trang rồi kéo thả vào vị trí mới (hoặc dùng Bộ sắp xếp trang ở tab Chế độ xem). Có thể giữ phím Ctrl cùng mũi tên lên hoặc mũi tên xuống trên dải thumbnail để di chuyển đổi chỗ trang. Ctrl+Z hoàn tác việc di chuyển.",
+      "Xóa trang: không xóa được nếu chỉ còn 1 trang. Nhấn nút Xóa trang trên ribbon, phím Delete trong dải thumbnail hoặc trong Bộ sắp xếp trang để xóa trang. Nếu đang chọn hình khối hoặc chữ trên slide, phím Delete sẽ xóa hình đó — nhấp chuột ra ngoài trang hoặc xóa từ thumbnail để xóa trang chiếu.",
       "Bố cục (và lệnh Chọn bố cục, cùng hộp thoại): lưới 4 thẻ — Tiêu đề (chữ lớn giữa trang), Tiêu đề + Nội dung (mặc định), Hai nội dung (cột trái/phải độc lập), Trống (vùng soạn thảo trắng). Nhấp đúp thẻ để áp dụng ngay, hoặc chọn rồi Áp dụng cho trang này / Áp dụng tất cả. Ctrl+Z hoàn tác."
     ]
   },
@@ -340,8 +340,8 @@ export const SLIDES_HELP_ENTRIES = [
     steps: [
       "Tab Trang đầu, nhóm Đối tượng vẽ: Hộp văn bản, Hình khối, Hình ảnh (ba nút lớn). Cùng lệnh còn trên tab Chèn: Hộp văn bản ở nhóm Văn bản, Hình khối ở Minh họa, Hình ảnh ở nhóm Hình ảnh.",
       "Hình khối: chèn chữ nhật xanh (~200×120 px) lên vùng soạn thảo, lệch dần nếu chèn nhiều cái. Kéo để đặt, kéo góc để đổi cỡ, Delete khi đang chọn để xóa. Ctrl+Z gỡ hình vừa chèn.",
-      "Hình ảnh: hộp chọn tệp trên máy, ảnh thành đối tượng trên slide (kéo/đổi cỡ như hình khối).",
-      "Hộp văn bản: chèn một khung chữ riêng (không viền, nền trong suốt) lên trang và đặt con trỏ vào trong để gõ ngay. Enter xuống dòng mới; Esc kết thúc gõ. Kéo khung để di chuyển, kéo tay cầm góc để đổi cỡ, nhấp đúp để sửa lại chữ. Chọn chữ trong khung rồi dùng nhóm Phông chữ / Đoạn văn (đậm, cỡ, màu, gạch đầu dòng, đánh số, căn lề) như chữ trong tiêu đề."
+      "Hình ảnh: hộp chọn tệp trên máy, ảnh thành đối tượng trên slide. Khi kéo tay cầm ở 4 góc của ảnh, Slide tự động giữ nguyên tỷ lệ khung hình (rộng/cao) để hình không bị méo (kéo các cạnh bên nếu muốn đổi tỷ lệ tự do).",
+      "Hộp văn bản: chèn một khung chữ riêng (không viền, nền trong suốt) lên trang và đặt con trỏ vào trong để gõ ngay. Nhấn Enter để xuống dòng mới trong khung chữ, nhấn phím Tab để tăng thụt lề hoặc giữ Shift cùng Tab để giảm thụt lề; nhấn Esc để hoàn tất và thoát chế độ sửa chữ. Kéo khung để di chuyển, kéo tay cầm góc để đổi cỡ, nhấp đúp để sửa lại chữ. Chọn chữ trong khung rồi dùng nhóm Phông chữ / Đoạn văn (đậm, cỡ, màu, gạch đầu dòng, đánh số, căn lề) như chữ trong tiêu đề."
     ]
   },
   {

@@ -213,6 +213,7 @@ import { runVietnameseImeUnitTests } from "./unit/vietnamese-ime.test.js";
 import { runSheetNativeCellValuesTests } from "./unit/sheet-native-cell-values.test.js";
 import { runSheetPrintSetupRoundTripTests } from "./unit/sheet-print-setup-roundtrip.test.js";
 import { runSheetC3C7C8GapTests } from "./unit/sheet-c3-c7-c8-gaps.test.js";
+import { runSlidesBasicsAuditTests } from "./unit/slides-basics-audit.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -435,7 +436,8 @@ async function runAll() {
     { title: "173. Unit Tests — VN Sheet AutoFill date sequences and double-click fill", runner: runSheetAutoFillTests },
     { title: "174. Unit Tests — VN Sheet native numeric/date cell values, external paste, fill and FODS types", runner: runSheetNativeCellValuesTests },
     { title: "175. Unit Tests — VN Sheet print setup XLSX reopen round-trip", runner: runSheetPrintSetupRoundTripTests },
-    { title: "176. Unit Tests — VN Sheet C3/C7/C8 selection, tabs and sort", runner: runSheetC3C7C8GapTests }
+    { title: "176. Unit Tests — VN Sheet C3/C7/C8 selection, tabs and sort", runner: runSheetC3C7C8GapTests },
+    { title: "177. Unit Tests — Slide basics editing, placeholders undo, Tab indent, shape Enter, picture resize & sorter keys", runner: runSlidesBasicsAuditTests }
   ];
 
   for (const suite of suites) {
