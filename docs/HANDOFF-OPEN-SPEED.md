@@ -384,3 +384,37 @@ The earlier S44 table is historical and used visible Office / LibreOffice UIA ob
 | Sheet lan14.xlsx | 21391.1 / 21426.5 | 19563.6 / BLOCKED (RPC_E_CALL_REJECTED after 19 retries) | NOT RUN | NOT RUN |
 
 LibreOffice desktop measurements are **NOT RUN** under the owner rule that prohibits desktop/UIA checks; WPS remains **NOT RUN** because it is unavailable on this machine. The hidden Office timings are not directly comparable to the historical visible-window values. The nine-file 3T CDP measurement still needs to run on a quiet machine with at least 5 GB free RAM.
+
+## S45 agent handoff
+
+**TASK:** Continue S45 after the latest main merge; reduce LAN14 payload allocations and complete the required audits when the shared automation machine is available.
+
+**AGENT/ROLE:** Codex — integration and Writer/Sheet performance.
+
+**BRANCH:** `perf/open-speed-codex`.
+
+**WORKTREE:** `E:\VNOffice-codex-openspeed`.
+
+**OBJECTIVE:** Preserve main's print/save, rename, sections, scenarios, and data-table changes with S44 opening work; keep LAN14 within WebView memory; finish the 26 workbook audit, Writer page-count audit, and current nine-file timing matrix.
+
+**FINDINGS:** `main` at `ca448272` merged cleanly into `7f56c794`. Before the last parser allocation reduction, the merged source opened and round-tripped LAN14 without OOM; peak JS heap was 1.43 GB and total WebView working set 2.27 GB, but hydration took 177.2 s. The local parser change reduces redundant per-cell object allocation and skips text/image extraction when their XML is absent. Its post-change LAN14 memory measurement is still NOT RUN. Payload remains OFF by default.
+
+**IMPLEMENTATION SUMMARY:** Committed the parser allocation reduction and regression, explicit UTF-8 subprocess decoding for the LAN audit, a timeout result that records Excel COM as blocked while continuing the audit, an Excel COM preflight against concurrent hidden Office jobs, and a hidden-only Office oracle mode with RPC retry reporting. Legacy LibreOffice UIA oracle mode is disabled. No app UI, file semantics, shared model, build system, external dependency, or Core code changed.
+
+**FILES CHANGED:** `adapters/libreoffice/sheet/sheet-payload-parser.js`; `tests/unit/sheet-open-payload.test.js`; `scripts/layout-audit/_batch_audit.py`; `scripts/layout-audit/_excel_open_test.ps1`; `scripts/layout-audit/_oracle_open_speed_s44.ps1`; `docs/PLAN-OPEN-SPEED-S44.md`; `docs/HANDOFF-OPEN-SPEED.md`.
+
+**COMMANDS RUN:** `git merge main`; `node tests/run-tests.js` twice; isolated CF/validation and row/column layout Node suites; `python -m unittest discover -s tests`; `_roundtrip_save_sheet.py` for LAN14 on the merged source before the local parser change; `_batch_audit.py` partial run; hidden Office oracle for the nine-file matrix; Python compile; PowerShell AST parse; `git diff --check`.
+
+**BUILD RESULT:** NOT RUN (no build-system change).
+
+**TEST RESULTS:** Node suite PASS, 2,231/2,231 on its second run; two FODS conversion suites passed when rerun alone after the first full run failed under concurrent LibreOffice load. Python unittest PASS, 542 tests. Python compile, both PowerShell AST parses, and `git diff --check` PASS. The earlier merged-source LAN14 round-trip completed without OOM; current post-allocation-change memory probe NOT RUN. LAN audit only reached `lan01`–`lan05`; it is NOT PASS for the 26-file gate. The hidden Office timing matrix recorded 35/36 successful opens; LAN14 warm run 2 returned `RPC_E_CALL_REJECTED` after 19 retries, and its isolated retry was NOT RUN because free RAM was 3.56 GB. Writer page-count audit and nine-file 3T CDP timing matrix NOT RUN. LO and WPS timings NOT RUN.
+
+**KNOWN FAILURES:** LAN14 full hydration remains slow (177.2 s on merged source before the latest parser change). Partial LAN audit reported four cell-row lint mismatches on lan02 and one on lan03; it did not reach lan06. Historical speed target remains FAIL. WPS is unavailable; LO desktop measurement is prohibited by the owner rule.
+
+**RISKS:** The partial Sheet preview still has a large memory footprint. Do not change `SHEET_OPEN_PAYLOAD` default until all 26 workbooks report `TONG=0` and hidden Excel COM confirms a positive worksheet count for each. Do not treat the hidden Office timing as comparable to historical visible-window timings.
+
+**DEPENDENCIES/BLOCKERS:** Other worktrees continue to run LibreOffice conversion, Sheet CDP round-trip, and hidden Office COM jobs; free RAM varied from 0.23 GB to 7.78 GB during checks. No external process was terminated. Resume heavy probes only when shared jobs clear and free RAM is at least 5 GB.
+
+**CORE PATCH ID:** None.
+
+**NEXT ACTION:** Rerun LAN14 with `VNO_MEASURE_MEMORY=1` and payload enabled through CDP; complete 26-file LAN audit; run the Writer page-count audit; measure current 3T opens for all nine file types through CDP and update the table; rerun an isolated LAN14 Office timing if memory and COM state permit. Keep payload OFF, update this handoff with truthful statuses, and commit on this branch without merging into main.
