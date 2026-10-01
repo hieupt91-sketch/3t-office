@@ -13,6 +13,8 @@ const specialKeys = {
   ArrowDown: { code: "ArrowDown", keyCode: 40, text: "" },
   Home: { code: "Home", keyCode: 36, text: "" },
   End: { code: "End", keyCode: 35, text: "" },
+  PageUp: { code: "PageUp", keyCode: 33, text: "" },
+  PageDown: { code: "PageDown", keyCode: 34, text: "" },
   F12: { code: "F12", keyCode: 123, text: "" },
 };
 
