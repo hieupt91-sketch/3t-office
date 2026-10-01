@@ -39,7 +39,11 @@ class WriterLegacyDocOpenTests(unittest.TestCase):
                 patch.object(main, "_read_docx_document_xml", return_value="<w:document/>") as read_document,
                 patch.object(main, "_read_docx_comments_xml", return_value="<w:comments/>") as read_comments,
                 patch.object(main, "_read_docx_zip_entry", side_effect=lambda _path, entry: f"<{entry}/>") as read_entry,
-                patch.object(main, "_read_docx_header_footer_xmls", return_value=("<w:hdr/>", "<w:ftr/>")) as read_zones,
+                patch.object(
+                    main,
+                    "_read_all_docx_headers_footers",
+                    return_value=("<w:hdr/>", "<w:ftr/>", {"rId1": "<w:hdr/>"}, {"rId2": "<w:ftr/>"}, {}),
+                ) as read_zones,
                 patch.object(main, "_active_window", return_value=None),
             ):
                 result = main.VnOfficeApi("writer", str(source)).open_document_dialog("writer")
