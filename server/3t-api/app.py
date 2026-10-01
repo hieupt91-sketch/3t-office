@@ -27,6 +27,8 @@ from typing import AsyncIterator, Literal
 
 from fastapi import FastAPI, Header, HTTPException, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 MAX_REPORT_BYTES = 64 * 1024
@@ -59,6 +61,7 @@ class Settings:
     admin_username: str
     admin_password: str
     product: str = "3t-office"
+    web_dir: Path | None = None
     token_ttl_seconds: int = TOKEN_TTL_SECONDS
     report_rate: int = 30
     token_rate: int = 20
@@ -73,6 +76,7 @@ class Settings:
             reports_dir=Path(os.environ.get("REPORTS_DIR", "/reports")),
             backups_dir=Path(os.environ.get("BACKUPS_DIR", "/backups")),
             logs_dir=Path(os.environ.get("LOGS_DIR", "/logs")),
+            web_dir=Path(os.environ["WEB_DIR"]) if os.environ.get("WEB_DIR") else None,
             install_token_secret=os.environ.get("INSTALL_TOKEN_SECRET", ""),
             admin_username=os.environ.get("ADMIN_USERNAME", ""),
             admin_password=os.environ.get("ADMIN_PASSWORD", ""),
@@ -575,7 +579,28 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             ).fetchall()
         return {"groups": [dict(row) for row in rows]}
 
+    # Trang web sản phẩm (tĩnh). Gắn CUỐI CÙNG để không che /health, /api/v1/* và /updates/*.
+    if cfg.web_dir is not None and cfg.web_dir.is_dir():
+        app.mount("/", _ProductWebsite(directory=cfg.web_dir, html=True), name="web")
+
     return app
+
+
+class _ProductWebsite(StaticFiles):
+    """Phục vụ website tĩnh; đường dẫn sai trả về trang 404 tiếng Việt thay vì chữ trần."""
+
+    async def get_response(self, path: str, scope):  # type: ignore[override]
+        try:
+            return await super().get_response(path, scope)
+        except StarletteHTTPException as exc:
+            if exc.status_code != 404:
+                raise
+            try:
+                response = await super().get_response("404.html", scope)
+            except StarletteHTTPException:
+                raise exc from None
+            response.status_code = 404
+            return response
 
 
 app = create_app() if os.environ.get("INSTALL_TOKEN_SECRET") and os.environ.get("ADMIN_PASSWORD") else FastAPI(

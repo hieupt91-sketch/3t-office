@@ -166,3 +166,49 @@ def test_report_rate_limit(tmp_path):
             assert (await client.post("/api/v1/reports", json=valid_payload(installation_id), headers=headers)).status_code == 200
             assert (await client.post("/api/v1/reports", json=valid_payload(installation_id), headers=headers)).status_code == 429
     asyncio.run(run())
+
+
+def test_website_is_served_without_shadowing_the_api(tmp_path: Path):
+    """Trang web tĩnh phải phục vụ ở /, nhưng không được che /health và /api/v1/*."""
+    web = tmp_path / "web"
+    web.mkdir()
+    (web / "index.html").write_text("<!doctype html><title>3T Office</title>Trang chu", encoding="utf-8")
+    (web / "404.html").write_text("<!doctype html><title>Khong tim thay</title>404", encoding="utf-8")
+    (web / "robots.txt").write_text("User-agent: *\n", encoding="utf-8")
+
+    async def scenario():
+        client, _ = make_client(tmp_path, web_dir=web)
+        async with client:
+            health = await client.get("/health")
+            assert health.status_code == 200 and health.json() == {"status": "ok"}
+
+            home = await client.get("/")
+            assert home.status_code == 200
+            assert "3T Office" in home.text
+
+            robots = await client.get("/robots.txt")
+            assert robots.status_code == 200
+
+            missing = await client.get("/khong-co-trang-nay")
+            assert missing.status_code == 404
+            assert "Khong tim thay" in missing.text
+
+            # Đường dẫn API vẫn trả lỗi của API (401/429/400), không phải trang 404 của web.
+            api = await client.post("/api/v1/reports/token", json={})
+            assert api.status_code != 404
+
+    asyncio.run(scenario())
+
+
+def test_website_is_optional(tmp_path: Path):
+    """Không cấu hình WEB_DIR thì API vẫn chạy và / trả 404 của API."""
+
+    async def scenario():
+        client, _ = make_client(tmp_path)
+        async with client:
+            health = await client.get("/health")
+            assert health.status_code == 200
+            home = await client.get("/")
+            assert home.status_code == 404
+
+    asyncio.run(scenario())

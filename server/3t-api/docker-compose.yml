@@ -16,6 +16,7 @@ services:
       REPORTS_DIR: /reports
       BACKUPS_DIR: /backups
       LOGS_DIR: /logs
+      WEB_DIR: /web
     ports:
       - "127.0.0.1:8002:8000"
     volumes:
@@ -24,6 +25,7 @@ services:
       - /srv/3t-office-cloud/reports:/reports
       - /srv/3t-office-cloud/backups:/backups
       - /srv/3t-office-cloud/logs:/logs
+      - /srv/3t-office-cloud/web:/web:ro
     read_only: true
     tmpfs:
       - /tmp:size=16m,noexec,nosuid,nodev
