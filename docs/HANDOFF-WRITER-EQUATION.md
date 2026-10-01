@@ -7,10 +7,10 @@ WORKTREE: `E:\VNOffice-codex-equation`
 OBJECTIVE: Merge equation export/preservation with the section-break save logic from `main`, retain both implementations, pass the requested equation, section, Node, Python, and page-count gates, and commit only on this branch.
 
 FINDINGS:
-- Current `main` was merged into this branch at `8093bb71` and again at `3eb7a286` after `main` advanced to `69133660`. The equation OMML pipeline and pristine `w:sectPr` preservation/section metadata overlay coexist in `adapters/libreoffice/common/ooxml_zip_patch.py`.
+- Current `main` was merged into this branch at `8093bb71`, `3eb7a286`, and `ce7ebd69`. The equation OMML pipeline and pristine `w:sectPr` preservation/section metadata overlay coexist in `adapters/libreoffice/common/ooxml_zip_patch.py`.
 - Equation tests cover original OMML preservation and new editable OMML. Section tests cover continuous breaks, page orientation, headers, and metadata round trips.
 - The imported DOCX page audit matched the requested Word/canvas/saved Word counts for d03, d23, and d24 using WebView2 remote debugging + CDP and hidden Word COM. The repository `_batch_writer.py` was not used because it checks the WebView through `win.evaluate_js`, outside the required CDP path.
-- The final Node run had three LibreOffice FODS-to-XLSX conversion failures while separate worktrees still had LibreOffice-backed audit jobs active. The isolated retries are pending until those jobs release the shared installation.
+- The final Node run had three LibreOffice FODS-to-XLSX conversion failures while separate worktrees had LibreOffice-backed audit jobs active. An earlier Pivot retry also failed with an `EBUSY` profile lock while the shared load was active; that was not an isolated retry.
 
 IMPLEMENTATION SUMMARY:
 - Added the Writer equation editor, MathML rendering and parser, equation selection/edit/delete/undo/redo, and OMML conversion/preservation in the existing OOXML adapter.
@@ -53,11 +53,12 @@ TEST RESULTS:
 - PASS — Python discovery: 534 tests in 710.823s, `OK`. This ran before the final JS-only `main` merge; that merge did not change Python sources.
 - PASS — equation Python tests: 3/3.
 - PASS — section round-trip Python tests: 3/3.
-- FAIL — Node suite: 2225/2228. The three failures were LibreOffice conversions for CF/validation FODS, Pivot DataPilot FODS, and FODS sheet row/column layout round trip. Other worktrees had concurrent LibreOffice audit jobs during this run; isolated retries are pending.
+- FAIL — Node suite: 2225/2228. The three failures were LibreOffice conversions for CF/validation FODS, Pivot DataPilot FODS, and FODS sheet row/column layout round trip. Other worktrees had concurrent LibreOffice audit jobs during this run.
+- NOT RUN — isolated retries of those three conversions, because other worktrees continued running LibreOffice-backed tests and audits. The earlier Pivot retry hit an `EBUSY` profile lock under that concurrent load.
 - PASS — requested page counts: d03 `1/1/1`, d23 `1/1/1`, d24 `16/16/16` (Word source / canvas / saved Word).
 - PASS — `git diff --check` (only line-ending conversion warnings).
 
-KNOWN FAILURES: The full Node suite is currently FAIL because of the three FODS-to-XLSX conversion failures listed above. Run those round trips sequentially after the concurrent LibreOffice jobs finish, and record the retry result without replacing the full-suite result.
+KNOWN FAILURES: The full Node suite is FAIL on the three FODS-to-XLSX conversion launches listed above. The isolated retries remain NOT RUN; the shared LibreOffice installation did not reach a quiet window during this task.
 
 RISKS: FODS-to-XLSX tests may be sensitive to concurrent LibreOffice jobs. The page-count audit covered the three requested documents and used CDP/hidden COM; the full 24-document audit was not run.
 
@@ -65,4 +66,4 @@ DEPENDENCIES/BLOCKERS: Isolated FODS retries await the other active LibreOffice-
 
 CORE PATCH ID (if any): None.
 
-NEXT ACTION: Retry the three failing FODS conversions sequentially after the shared LibreOffice jobs finish; update this handoff with both the full Node result and isolated retry results. Keep all commits on `feat/writer-equation-codex`; do not merge into `main`.
+NEXT ACTION: After the shared LibreOffice jobs finish, retry the three FODS conversions sequentially and add those results alongside the full Node result. Keep all commits on `feat/writer-equation-codex`; do not merge into `main`.
