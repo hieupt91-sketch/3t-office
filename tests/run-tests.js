@@ -206,6 +206,7 @@ import { runSlidesPenLaserTests } from "./unit/slides-pen-laser.test.js";
 import { runBasicEditingKeysTests } from "./unit/basic-editing-keys.test.js";
 import { runUiConsistencyAndStringScannerTests } from "./unit/ui-user-visible-strings.test.js";
 import { runOsInputGuardTests } from "./unit/os-input-guard.test.js";
+import { runPrintEngineNameTests } from "./unit/print-engine-name.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -421,7 +422,8 @@ async function runAll() {
     { title: "167. Unit Tests — 3T Doc and 3T Sheet basic editing keys and clipboard", runner: runBasicEditingKeysTests },
     { title: "168. Unit Tests — Shared Find and Replace (CH-7.1) for 3T Doc, 3T Sheet and 3T Slide", runner: runSharedFindReplaceTests },
     { title: "169. Unit Tests — CH-8 UI Consistency, KeyTips, Contextual F1 & String Scanner", runner: runUiConsistencyAndStringScannerTests },
-    { title: "170. Safety Regression — source and tests use CDP, not OS-level input", runner: runOsInputGuardTests }
+    { title: "170. Safety Regression — source and tests use CDP, not OS-level input", runner: runOsInputGuardTests },
+    { title: "171. CH-3/CH-8 — Hộp thoại In không lộ tên thư viện bên trong", runner: runPrintEngineNameTests }
   ];
 
   for (const suite of suites) {
