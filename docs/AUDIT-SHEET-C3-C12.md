@@ -10,19 +10,20 @@ Status meanings: **ĐẠT** = the specific UI path named in the evidence worked;
 
 | Item | Sub-point | Status | Evidence |
 |---|---|---|---|
-| C3 | Select one cell | ĐẠT | CDP mouse click on a cell selected that coordinate and updated the formula bar. |
-| C3 | Select a range | ĐẠT | CDP mouse drag selected the requested rectangular range; range coordinates were read from the live grid model. |
-| C3 | Select whole row and whole column | ĐẠT | CDP click on row/column headers selected the corresponding visible row/column. |
-| C3 | Ctrl+A | ĐẠT | CDP keyboard `Ctrl+A` selected the current used/grid range. |
-| C3 | Shift+arrow extension | ĐẠT | CDP keyboard `Shift+Arrow` extended selection from the active cell. |
-| C3 | Ctrl+arrow navigation | ĐẠT | CDP keyboard `Ctrl+Arrow` moved to the edge of the contiguous data region. |
+| C3 | Select one cell | ĐẠT | CDP mouse click and keyboard navigation both selected B2; hidden Excel COM on the same test data returned `$B$2`. |
+| C3 | Select a range | ĐẠT | CDP mouse drag selected A1:B3; keyboard Shift+Arrow selected A2:B2. Hidden Excel COM returned the matching range addresses. |
+| C3 | Select whole row and whole column | ĐẠT | CDP row-header click and `Shift+Space` both selected `2:2`; column-header click and `Ctrl+Space` both selected `B:B`. Excel COM returned `$2:$2` and `$B:$B`. |
+| C3 | Ctrl+A | CHƯA ĐẠT | With A1:B3 populated, 3T `Ctrl+A` selected the capped grid A1:Z200. Hidden Excel COM `CurrentRegion` (Ctrl+A once inside the same data) selected A1:B3. The 3T top-left corner also selects A1:Z200. |
+| C3 | Shift+arrow extension | ĐẠT | CDP `Shift+Right` extended A2 to A2:B2; hidden Excel COM returned `$A$2:$B$2`. |
+| C3 | Ctrl+arrow navigation | ĐẠT | With A2:A3 populated, CDP `Ctrl+Down` stopped at A3; hidden Excel COM `End(xlDown)` from A2 returned `$A$3`. |
 | C3 | Full Excel worksheet extent | CHƯA ĐẠT | The live grid exposes only columns A:Z and 200 rows. Selection works within that cap; Excel-sized rows/columns were not reachable. |
-| C4 | Fill numeric series | ĐẠT | CDP fill handle and `Ctrl+D` continued a two-number series. Each fill was undone with `Ctrl+Z`. |
-| C4 | Fill date series | ĐẠT | CDP fill continued dd/mm/yyyy dates across month/year rollover after the fix; the live cells remain text values, so Excel date serial and XLSX parity are still pending. |
+| C4 | Fill numeric series | ĐẠT | CDP mouse drag of the handle from 1,2 produced 1–5; Undo/Redo removed/restored D3:D5. Keyboard `Ctrl+D` over E1:E5 copied the first value into all cells; Undo restored the prior values and Redo restored the fill. Hidden Excel COM parity for the fill commands remains pending. |
+| C4 | Fill date series | ĐẠT | CDP mouse drag continued 30/01/2026, 31/01/2026 across rollover as 01/02/2026, 02/02/2026, 03/02/2026. The live cells remain text values, so Excel date serial and XLSX parity are still pending. |
 | C4 | Fill weekdays and months | ĐẠT | CDP fill continued weekday and month sequences in the live grid; undo restored the source range. |
 | C4 | Fill formulas | ĐẠT | CDP fill adjusted relative references down the target range; undo restored the pre-fill cells. |
 | C4 | Double-click fill handle | ĐẠT | CDP double-click filled to the contiguous adjacent data boundary; one `Ctrl+Z` reverted the fill. |
 | C4 | AutoFill unit coverage | ĐẠT | `tests/unit/sheet-autofill.test.js`: date rollover, double-click fill/Undo, and no-adjacent-data cases pass. |
+| C4 | Hidden Excel COM parity for fill patterns | BLOCKED | An Excel process was active and its owner could not be established. No COM attachment or process termination was attempted. |
 | C5 | Insert row and adjust formulas | ĐẠT | CDP ribbon/keyboard insert added a row; `D5 = B3*2` moved to `D6 = B4*2`. `Ctrl+Z` restored 200 rows and original formula coordinates. |
 | C5 | Insert column and adjust formulas | ĐẠT | CDP context-menu insert at B moved B2→C2 and D5→E5; formula reference changed B3→C3. `Ctrl+Z` restored the original layout. |
 | C5 | Delete row and column | ĐẠT | CDP row/column header context-menu delete removed the selected dimension; `Ctrl+Z` restored it. |
@@ -80,12 +81,14 @@ Status meanings: **ĐẠT** = the specific UI path named in the evidence worked;
 - Excel chart readback: 3 charts, types 51/4/5, one series each, all referencing A2:A5 and B2:B5.
 - Excel value/formula readback: B2 is a string; B3:B5 are numeric. Formulas remained `=SUM(B2:B5)` / `=COUNT(B2:B5)` and evaluated to 80/3 in Excel.
 - C8 sort comparison used a separate copy, `VNOffice-Sheet-C3-C12-excel-sort-copy.xlsx`: Excel `SortFields` with `Header=xlYes` retained `Name` and sorted the rows Alpha, Beta, Delta, Gamma. The 3T A→Z action included its header row.
+- C3 selection comparison used a separate copy, `VNOffice-Sheet-C3-C12-excel-c3-copy.xlsx`: with A1:B3 populated, hidden Excel COM returned `$B$2`, `$A$1:$B$3`, `$2:$2`, `$B:$B`, current region `$A$1:$B$3`, Shift+Arrow range `$A$2:$B$2`, and Ctrl+Down target `$A$3`. CDP verified mouse and keyboard paths using the on-screen name box. Excel copy was saved; selection state itself is transient and was not expected to survive a reopen.
+- C4 CDP follow-up on the separate live Sheet session: mouse AutoFill continued a numeric pair and a date pair; keyboard `Ctrl+D` copied the top value. The numeric/date series were not saved into the chart/page-layout audit workbook. Hidden Excel COM parity was BLOCKED because an Excel process of unknown ownership was active.
 - 3T reopen readback: all chart types and page breaks remained; fit settings, print titles, and header/footer did not. D1 showed 92 while B2 showed 30.
-- Full C3–C9 matrix coverage is incomplete: the report captures the tested input path for each observed UI action, but not both input modes, a hidden Excel comparison, and an XLSX save/reopen result for every sub-point. Undo is recorded where explicitly checked in the result rows.
+- Full C3–C9 matrix coverage is incomplete: C3 mouse/keyboard and Excel selection parity are recorded, but there is no saved-workbook reopen result for transient selection state. C4 mouse/keyboard UI paths are recorded; Excel COM fill parity is BLOCKED because an Excel process of unknown ownership was active. For C5–C9, the report captures the tested UI path but not both input modes, hidden Excel comparison, and XLSX save/reopen result for every sub-point. Undo is recorded where explicitly checked in the result rows.
 
 ## Verification record
 
 - `node tests/run-tests.js`: PASS (2228/2228, 0 failures, including the FODS→XLSX round-trip tests).
 - Saved chart and print-setting workbook: reopened in 3T and hidden Excel COM; outcomes are recorded above.
-- Large-workbook responsiveness: NOT RUN. C3–C9 per-sub-point hidden-Excel parity, save/reopen, and mouse/keyboard dual-path coverage beyond the recorded C8 sort comparison: NOT RUN. Undo results are likewise recorded only where explicitly stated.
+- Large-workbook responsiveness: NOT RUN. C3–C9 per-sub-point save/reopen coverage is NOT RUN. C4 fill parity is BLOCKED; C5–C9 hidden-Excel parity and mouse/keyboard dual-path coverage beyond the recorded checks are NOT RUN. Undo results are likewise recorded only where explicitly stated.
 - Save pipeline was not modified, so `scripts/layout-audit/_batch_audit.py` was not run.
