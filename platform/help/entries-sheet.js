@@ -13,12 +13,12 @@ export const SHEET_HELP_ENTRIES = [
     title: "Tạo, mở, lưu và in sổ làm việc",
     summary: "Sổ mới bắt đầu với một trang tính Sheet1 trống tại ô A1. Dùng Tệp để mở hoặc lưu XLSX, XLS, ODS, CSV; Ctrl+P mở bản xem trước in.",
     ribbon: { tab: "Tệp", tabId: "file", group: "Sổ làm việc" },
-    keywords: ["tạo mới", "mở tệp", "lưu", "lưu thành", "in", "Ctrl+N", "Ctrl+O", "Ctrl+S", "F12", "Ctrl+P", "Sheet1", "cửa sổ riêng", "mở nhiều cửa sổ", "Explorer"],
+    keywords: ["tạo mới", "mở tệp", "lưu", "lưu thành", "in", "phạm vi sổ làm việc", "trang tính hiện hoạt", "toàn bộ sổ làm việc", "in vùng chọn", "Ctrl+N", "Ctrl+O", "Ctrl+S", "F12", "Ctrl+P", "Sheet1", "cửa sổ riêng", "mở nhiều cửa sổ", "Explorer"],
     steps: [
       "Tạo sổ trống: nhấn Ctrl+N hoặc mở Tệp > Mới. Một cửa sổ mới tên Bảng tính 2, Bảng tính 3… xuất hiện với duy nhất Sheet1, ô A1 đang chọn và chưa có dữ liệu. Trong Desktop, khi Sheet đang mở, nhấp đúp thêm tệp XLSX/XLS/ODS/CSV trong Explorer hoặc bấm lại shortcut 3T Sheet ở Start sẽ mở thêm cửa sổ trong cùng tiến trình. Mỗi cửa sổ có sổ làm việc, trạng thái sửa, lệnh Lưu và lời nhắc Đóng riêng; cửa sổ cuối cùng mới kết thúc ứng dụng.",
       "Mở sổ: nhấn Ctrl+O hoặc chọn Tệp > Mở, chọn XLSX, XLS, ODS hoặc CSV. Nếu sổ hiện tại có thay đổi, chọn Lưu, Không lưu hoặc Hủy trước khi chọn tệp; Hủy thao tác mở sẽ giữ sổ hiện tại.",
       "Lưu: Ctrl+S mở hộp thoại Lưu thành cho sổ mới. Với tệp đã mở/lưu, Ctrl+S giữ nguyên định dạng hiện tại. Dùng F12 hoặc Ctrl+Shift+S để lưu tên/định dạng khác; xác nhận ghi đè khi được hỏi. Chọn PDF trong Lưu thành chỉ xuất một bản PDF; tệp đang mở vẫn giữ tên và định dạng cũ.",
-      "In: nhấn Ctrl+P, xem vùng in và ngắt trang, rồi chọn máy in, số bản và phạm vi trang. Các thiết lập vùng in, ngắt trang và vừa trang được áp dụng vào bản xem trước."
+      "In: chọn Tệp > In hoặc nhấn Ctrl+P để mở bản xem trước. Trong Phạm vi sổ làm việc, chọn In các trang tính hiện hoạt (mặc định, theo trang tính đang hoạt động hoặc các tab đang được chọn), In toàn bộ sổ làm việc, hoặc In vùng chọn. Muốn in vùng chọn, bôi đen ô hoặc dải ô trên lưới trước khi mở hộp thoại; lựa chọn này chỉ khả dụng khi đã có vùng ô. Mỗi lần đổi phạm vi, 3T dựng lại PDF và cập nhật tổng số trang. Phạm vi trang ở bên dưới chọn trang trong PDF đó. Kiểm tra bản xem trước, chọn máy in và số bản rồi nhấn In. Khi Microsoft Office có sẵn, Dùng Microsoft Office để in được chọn sẵn; nhãn Bộ máy dựng PDF cho biết bộ máy đã tạo bản xem trước. Bỏ chọn tùy chọn này để dùng LibreOffice."
     ]
   },
   {
@@ -552,7 +552,7 @@ export const SHEET_HELP_ENTRIES = [
       "Bình thường: lưới ô tiêu chuẩn để nhập liệu. Đây là mặc định.",
       "Xem ngắt trang: đường chia trang xanh đậm, vùng ngoài khổ in bị phủ tối, số «Trang 1» mờ trên nền. Dùng để chỉnh chỗ ngắt trước khi in (tab Bố trí trang, nhóm Ngắt trang).",
       "Bố trí trang: xem như giấy in, có dải đầu trang 3 ngăn. Không đổi dữ liệu ô. Quay lại Bình thường bất cứ lúc nào.",
-      "Xem trước khi in (Ctrl+F2) hoặc Ctrl+P: hộp thoại In tạo PDF tạm theo Page Setup, Print Area, tiêu đề lặp và ngắt trang. Khi có Microsoft Office/WPS, tùy chọn Dùng Microsoft Office/WPS để in được chọn sẵn; nhãn Bộ máy dựng PDF cho biết ứng dụng đã tạo trang xem trước. Bỏ chọn để dùng LibreOffice. Dùng Trang trước/sau, chọn máy in, số bản và phạm vi trang rồi nhấn In."
+      "Xem trước khi in (Ctrl+F2) hoặc Ctrl+P mở hộp thoại In. Trong Phạm vi sổ làm việc, chọn In các trang tính hiện hoạt (mặc định, theo tab đang hoạt động/được chọn), In toàn bộ sổ làm việc, hoặc In vùng chọn. Muốn in vùng chọn, bôi đen các ô trên lưới trước khi mở hộp thoại; vùng chọn có nhiều dải vẫn được giữ. Mỗi lần đổi phạm vi, 3T tạo lại PDF và cập nhật tổng trang xem trước. Khi có Microsoft Office/WPS, Dùng Microsoft Office/WPS để in được chọn sẵn; nhãn Bộ máy dựng PDF cho biết bộ máy đã tạo PDF. Bỏ chọn để dùng LibreOffice. Dùng Trang trước/sau, chọn máy in, số bản và phạm vi trang, rồi nhấn In."
     ]
   },
   {

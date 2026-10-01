@@ -29,7 +29,7 @@ Thứ tự làm: **CH-1 → CH-9**, xong phần chung mới sang 3T Doc → 3T S
 |---|---|---|
 | CH-1.1 | Khởi động lạnh: hiện tài liệu trống và gõ được trước; LibreOffice, kiểm tra cập nhật, báo lỗi, chỉ mục Trợ giúp, hộp thoại nặng chạy SAU khi hiện | Tài liệu trống gõ được **< 3 s** cho cả 3 app; bảng thời gian từng bước trong `docs/HANDOFF-COLD-START.md` |
 | CH-1.2 | LibreOffice luôn ấm: khởi động UNO worker ngầm ngay khi app mở; mở file khi worker đang ấm lên thì dùng lại, không bật soffice thứ hai | Mở d03.docx / lan05.xlsx lần đầu sau khi bật app **≤ 5 s** (trước 16–26 s) |
-| CH-1.3 | "3T Office Khởi động nhanh" (tùy chọn): giữ 1 soffice ấm từ lúc đăng nhập Windows; tắt sạch khi cập nhật/gỡ cài | RAM nhàn rỗi đo và báo; chỉ bật mặc định nếu **< 150 MB**; mở file đầu tiên trong ngày ≤ 3 s |
+| CH-1.3 | "3T Office Khởi động nhanh": giữ 1 soffice ấm từ lúc đăng nhập Windows; tắt sạch khi cập nhật/gỡ cài | **ĐÃ CHỐT (Người phụ trách 01/10):** BẬT mặc định nếu RAM nhàn rỗi đo được **< 150 MB**; máy có RAM ≤ 4 GB thì mặc định TẮT; người dùng tắt/bật được trong Tùy chọn và ở bộ cài (ô chọn). Mở file đầu tiên trong ngày ≤ 3 s |
 | CH-1.4 | Mở xlsx không qua LibreOffice (payload đọc trực tiếp, cờ `SHEET_OPEN_PAYLOAD`) | 26/26 file LAN TONG 0 + lint sạch với cờ BẬT; lan14 mở không tràn bộ nhớ; rồi mới bật mặc định |
 | CH-1.5 | Hiển thị trang: Doc hiện trang 1 ngay, dàn trang sau từng phần; Sheet cuộn ảo hàng/cột | d24 (16 trang), d01 (19 trang): trang 1 hiện < 1 s sau khi có nội dung; cuộn hết tài liệu không có tác vụ > 100 ms; lan11/lan09 cuộn nhanh không đơ |
 | CH-1.6 | Bảng đo chuẩn so sánh | Bảng 9 loại tệp: 3T vs Word/Excel/LibreOffice/WPS, lạnh/ấm, cập nhật mỗi lần phát hành |
