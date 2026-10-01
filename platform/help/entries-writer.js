@@ -341,17 +341,33 @@ export const WRITER_HELP_ENTRIES = [
       "writer.para.justify",
       "writer.para.spacing1",
       "writer.para.spacing15",
-      "writer.para.spacing2"
+      "writer.para.spacing2",
+      "writer.para.lineSpacing"
     ],
     title: "Căn lề đoạn văn và khoảng cách dòng",
-    summary: "Căn lề văn bản (trái, giữa, phải, đều hai bên) và chọn khoảng cách giữa các dòng (1.0, 1.5, 2.0). Các điều khiển bố trí trực tiếp trên ribbon Trang đầu và Bố cục giúp thao tác nhanh và an toàn tuyệt đối cho tài liệu.",
+    summary: "Căn lề văn bản (trái, giữa, phải, đều hai bên) và chọn khoảng cách giữa các dòng (1.0, 1.15, 1.5, 2.0 hoặc nhập chiều cao chính xác bằng pt). Các điều khiển bố trí trực tiếp trên ribbon Trang đầu và Bố cục giúp thao tác nhanh và an toàn tuyệt đối cho tài liệu.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Đoạn văn" },
     keywords: ["căn lề", "căn đoạn", "căn trái", "căn giữa", "căn phải", "căn đều", "giãn dòng", "line spacing", "paragraph alignment"],
     steps: [
       "Bôi đen một hoặc nhiều đoạn văn bản cần định dạng, hoặc đặt con trỏ chuột bên trong đoạn văn đó.",
       "Tại tab Trang đầu, nhóm Đoạn văn: nhấn Căn trái (Ctrl+L), Căn giữa (Ctrl+E), Căn phải (Ctrl+R), hoặc Căn đều (Ctrl+J) để đổi lề đoạn văn ngay tức thì.",
-      "Nhấp vào menu Giãn dòng để chọn các tỷ lệ dòng chuẩn: 1.0 (chuẩn đơn), 1.5 (chuẩn phổ biến cho văn bản hành chính theo NĐ 30/2020), hoặc 2.0 (chuẩn dòng đôi). Thao tác tương tự có thể thực hiện tại tab Bố cục.",
-      "Nhấn Ctrl+S để lưu cách căn lề và giãn dòng cùng tài liệu. Mở lại tệp để kiểm tra bố cục; nếu muốn thay đổi, chọn đoạn văn rồi chọn lại các nút căn lề hoặc khoảng cách dòng. Ctrl+Z hoàn tác lần định dạng vừa thực hiện."
+      "Nhấp Giãn dòng để chọn các tỷ lệ dòng chuẩn: 1.0, 1.15, 1.5 (chuẩn NĐ 30/2020), 2.0 hoặc chọn Chính xác… để nhập chiều cao dòng tính bằng pt. Menu có trên tab Trang đầu và tab Bố cục.",
+      "Chọn Chính xác… rồi nhập số lớn hơn 0, chẳng hạn 18 pt. Nhấn Ctrl+S để lưu cách căn lề và giãn dòng cùng tài liệu; Ctrl+Z hoàn tác thao tác vừa thực hiện."
+    ]
+  },
+  {
+    id: "writer.para.firstLineIndent",
+    app: "writer",
+    commandIds: ["writer.para.firstLineIndent"],
+    title: "Thụt đầu dòng đoạn văn",
+    summary: "Đặt dòng đầu tiên của đoạn văn lùi vào so với các dòng còn lại.",
+    ribbon: { tab: "Bố cục", tabId: "layout", group: "Đoạn văn" },
+    keywords: ["thụt đầu dòng", "first line indent", "đầu đoạn", "thụt lề"],
+    steps: [
+      "Đặt con trỏ trong đoạn văn cần chỉnh hoặc chọn nhiều đoạn.",
+      "Mở tab Bố cục, nhóm Đoạn văn, hộp Thụt đầu dòng.",
+      "Chọn Không, 0,5 cm hoặc 1,27 cm. Dòng đầu tiên được thụt vào; các dòng tiếp theo giữ nguyên lề trái.",
+      "Chọn lại một giá trị khác để đổi hoặc chọn Không để xóa; Ctrl+Z hoàn tác thao tác."
     ]
   },
   {
@@ -484,15 +500,15 @@ export const WRITER_HELP_ENTRIES = [
       "writer.view.pageWidth",
       "writer.view.newWindow"
     ],
-    title: "Thước, đường lưới, vừa khổ trang và cửa sổ mới",
-    summary: "Thước ngang mặc định bật, đánh dấu lề 30 mm trái / 15 mm phải (NĐ 30). Đường lưới 5 mm chỉ để căn, không in. Vừa khổ trang co 50%–200% theo chiều rộng cửa sổ. Cửa sổ mới mở tab trình duyệt cùng URL.",
+    title: "Thước ngang và thước dọc, đường lưới, vừa khổ trang và cửa sổ mới",
+    summary: "Thước đo ngang và thước đo dọc mặc định bật, đánh dấu lề 30 mm trái / 15 mm phải, lề trên 20 mm / lề dưới 20 mm (NĐ 30/2020/NĐ-CP). Đường lưới 5 mm chỉ để căn, không in. Vừa khổ trang co 50%–200% theo chiều rộng cửa sổ. Cửa sổ mới mở tab trình duyệt cùng URL.",
     ribbon: { tab: "Chế độ xem", tabId: "view", group: "Hiển thị" },
-    keywords: ["thước", "đường lưới", "vừa khổ trang", "chiều rộng trang", "cửa sổ mới", "nđ 30", "lề 30mm"],
+    keywords: ["thước", "thước ngang", "thước dọc", "ruler", "vertical ruler", "đường lưới", "vừa khổ trang", "chiều rộng trang", "cửa sổ mới", "nđ 30", "lề 30mm"],
     steps: [
-      "Tab Chế độ xem, nhóm Hiển thị: Thước và Đường lưới (nút bật/tắt). Nhóm Thu phóng cạnh đó có Chiều rộng trang (cùng cột với 100%). Nhóm Cửa sổ có nút lớn Cửa sổ mới.",
-      "Thước là thanh ngang 22 px trên trang, mặc định hiện. Nhấn để ẩn. Vạch trái ghi «Lề trái: 30mm (NĐ 30/2020/NĐ-CP)», vạch phải «Lề phải: 15mm». Không kéo được để đổi lề — đổi lề ở tab Bố cục → Căn lề. Chế độ đọc cũng ẩn thước.",
-      "Đường lưới mặc định tắt. Bật thì phủ lưới 18.8976 px (~5 mm), màu xanh rất nhạt — chỉ trên màn hình, không in, không xuất file. Chiều rộng trang tính (viewport − 40) / bề rộng giấy (A4 ~794 px), kẹp 50%–200%, tự chỉnh khi đổi cỡ cửa sổ.",
-      "Cửa sổ mới gọi window.open cùng địa chỉ. Trình duyệt chặn pop-up thì thanh trạng thái: «Trình duyệt đã chặn cửa sổ mới. Hãy cho phép pop-up cho 3T Office.» Tab mới là phiên độc lập, không chia undo."
+      "Mở tab Chế độ xem, tại nhóm Hiển thị: nhấp vào nút «Thước» để bật hoặc tắt đồng thời thước đo ngang và thước đo dọc của trang tài liệu.",
+      "Thước ngang hiển thị trên đầu trang văn bản (đánh dấu lề trái 30 mm, lề phải 15 mm theo chuẩn hành chính). Thước dọc hiển thị dọc mép trái vùng soạn thảo (đánh dấu lề trên 20 mm, lề dưới 20 mm) và tự động đồng bộ vị trí khi cuộn trang hoặc thay đổi tỉ lệ thu phóng (zoom).",
+      "Nút «Đường lưới» phủ lưới 18.8976 px (~5 mm) màu xanh nhạt giúp căn lề hình ảnh và bảng biểu; đường lưới chỉ hiển thị trên màn hình, không xuất hiện khi in ấn hoặc xuất tệp.",
+      "Nhóm Thu phóng cung cấp tùy chọn «Chiều rộng trang» giúp tự động co giãn khổ giấy vừa khít chiều rộng cửa sổ (kẹp trong phạm vi 50%–200%). Nhóm Cửa sổ cung cấp nút «Cửa sổ mới» để nhân bản tài liệu sang cửa sổ mới phục vụ đối chiếu."
     ]
   },
   {
@@ -974,7 +990,7 @@ export const WRITER_HELP_ENTRIES = [
       "Nhấn Shift+Enter để xuống dòng nhưng vẫn ở cùng đoạn. Khi bộ gõ tiếng Việt thay ký tự vừa nhập bằng insertText, tiếp tục gõ tại vị trí con trỏ hiện tại.",
       "Trong đoạn văn thường, nhấn Tab để chèn ký tự tab; ký tự được giữ trong nội dung tài liệu và hiển thị theo điểm dừng 1,27 cm. Shift+Tab ở ngoài danh sách hoặc bảng không chuyển tiêu điểm khỏi trang.",
       "Ở đầu một mục danh sách, nhấn Tab để tăng cấp thụt lề hoặc Shift+Tab để giảm cấp. Trong bảng, Tab chuyển sang ô kế tiếp, Shift+Tab quay về ô trước; Tab ở ô cuối tạo thêm một hàng.",
-      "Nhấn F1 để mở Trợ giúp 3T Office và tìm 'Tab', 'Enter' hoặc 'bảng nhớ tạm' khi cần tra lại."
+      "Nhấn F1 để mở Trợ giúp Doc và tìm 'Tab', 'Enter' hoặc 'bảng nhớ tạm' khi cần tra lại."
     ]
   },
   {
@@ -1014,16 +1030,15 @@ export const WRITER_HELP_ENTRIES = [
     id: "writer.review.spellCheck",
     app: "writer",
     commandIds: ["ai.assistant.grammarCheck"],
-    title: "Soát lỗi chính tả và ngữ pháp tiếng Việt",
-    summary: "Kiểm tra toàn diện lỗi chính tả dấu thanh, phụ âm đầu và ngữ pháp văn bản tiếng Việt theo chuẩn từ điển tiếng Việt và Nghị định 30 bằng phím tắt F7.",
+    title: "Soát lỗi chính tả và gợi ý sửa từ tiếng Việt",
+    summary: "Kiểm tra toàn diện lỗi chính tả dấu thanh, phụ âm đầu và ngữ pháp văn bản tiếng Việt; gợi ý sửa lỗi trực tiếp qua menu chuột phải hoặc phím tắt F7.",
     ribbon: { tab: "Đánh giá", tabId: "review", group: "Chính tả & Ngữ pháp" },
-    keywords: ["soát lỗi chính tả", "chính tả", "ngữ pháp", "kiểm tra chính tả", "spell check", "grammar", "F7", "tiếng việt", "nghị định 30"],
+    keywords: ["soát lỗi chính tả", "chính tả", "ngữ pháp", "kiểm tra chính tả", "spell check", "grammar", "F7", "tiếng việt", "nghị định 30", "gợi ý chính tả", "chuột phải"],
     steps: [
-      "Mở tab Đánh giá trên thanh ribbon.",
-      "Trong nhóm Chính tả & Ngữ pháp, nhấn nút Soát lỗi chính tả (hoặc bấm phím F7 trên bàn phím).",
-      "Hệ thống tự động quét toàn bộ văn bản hiện tại, phát hiện các từ sai chính tả tiếng Việt (nhầm lẫn hỏi/ngã, s/x, tr/ch, d/gi/r) và lỗi dấu câu.",
-      "Bảng Trợ lý 3T AI mở ra hiển thị danh sách các từ nghi ngờ kèm ngữ cảnh và gợi ý chỉnh sửa đúng.",
-      "Nhấn vào từ gợi ý để tự động thay thế vào tài liệu, hoặc nhấn Bỏ qua để giữ nguyên từ đó."
+      "Khi soạn thảo văn bản, các từ nghi ngờ sai chính tả tiếng Việt sẽ tự động được đánh dấu bằng đường gạch dưới lượn sóng màu đỏ.",
+      "Nhấp chuột phải trực tiếp vào từ bị gạch chân để mở menu ngữ cảnh gợi ý: hệ thống tự động ưu tiên các từ đúng dấu thanh và ngữ cảnh liên kết (ví dụ: gợi ý chuẩn «định» khi gõ «quyết đinh»).",
+      "Nhấp vào từ gợi ý mong muốn để thay thế ngay lập tức trong văn bản, hoặc nhấp «Bỏ qua» để bỏ qua từ đó, hoặc «Thêm vào từ điển» để lưu vào từ điển cá nhân.",
+      "Để soát lỗi toàn diện, mở tab Đánh giá trên thanh ribbon, tại nhóm Chính tả & Ngữ pháp nhấn nút «Soát lỗi chính tả» (hoặc nhấn phím F7) để quét toàn bộ tài liệu."
     ]
   },
   {
@@ -1125,6 +1140,122 @@ export const WRITER_HELP_ENTRIES = [
       "Phương trình: mở Chèn > Ký hiệu > Phương trình hoặc nhấn Alt+=. Nhập biểu thức như a/b hoặc x^2, dùng các nút cấu trúc để thêm phân số, căn và ma trận. Kiểm tra vùng Xem trước rồi nhấn Chèn vào tài liệu. Nhấp đúp phương trình để sửa lại.",
       "Ngắt mục: mở Bố cục > Thiết lập trang > Ngắt trang, chọn Trang kế tiếp, Liên tục, Trang chẵn hoặc Trang lẻ. Mục mới có thiết lập trang riêng trên vùng soạn thảo. Khi lưu .docx hoặc PDF, đầu/chân trang và hướng giấy vẫn dùng chung cho cả tài liệu. Ngắt cột chỉ có tác dụng khi tài liệu có từ hai cột trở lên.",
       "Các nút này vẫn hiển thị trên ribbon đúng vị trí chuẩn phần mềm soạn thảo văn bản khác. Khi bấm vào, hộp thoại/hành động chạy ngay thay vì chỉ hiện thông báo đang hoàn thiện."
+    ]
+  },
+  {
+    id: "writer.table.designHelp",
+    app: "writer",
+    commandIds: [
+      "writer.table.toggleHeaderRow",
+      "writer.table.toggleBandedRows",
+      "writer.table.cellBg",
+      "writer.table.borders"
+    ],
+    title: "Thiết kế bảng: kiểu hàng, tô màu và viền ô",
+    summary: "Tùy biến hiển thị bảng biểu với hàng tiêu đề nổi bật, màu nền xen kẽ, màu tô ô và viền bảng trên tab ngữ cảnh Thiết kế Bảng.",
+    ribbon: { tab: "Thiết kế Bảng", tabId: "tableDesign", group: "Tùy chọn kiểu bảng" },
+    keywords: ["thiết kế bảng", "table design", "hàng tiêu đề", "hàng xen kẽ", "tô màu ô", "viền bảng", "borders", "shading"],
+    steps: [
+      "Đặt con trỏ soạn thảo vào bên trong bảng bất kỳ để thanh công cụ tự động hiển thị thêm tab ngữ cảnh Thiết kế Bảng.",
+      "Trong nhóm Tùy chọn kiểu bảng, nhấp «Hàng tiêu đề» để bật hoặc tắt chữ đậm và nền sáng cho hàng đầu; nhấp «Hàng xen kẽ» để bật dải màu nền so le giúp bảng nhiều dòng dễ đọc hơn.",
+      "Trong nhóm Màu & Viền, nhấp «Tô màu ô» để đổi màu nền cho ô hiện tại hoặc các ô đang chọn; nhấp «Đường viền bảng» để chuyển đổi nhanh giữa có viền đầy đủ hoặc xóa viền bảng.",
+      "Mọi thay đổi định dạng bảng đều có thể hoàn tác ngay bằng tổ hợp phím Ctrl+Z hoặc làm lại bằng Ctrl+Y."
+    ]
+  },
+  {
+    id: "writer.table.layoutSelectionHelp",
+    app: "writer",
+    commandIds: [
+      "writer.table.selectCell",
+      "writer.table.selectRow",
+      "writer.table.selectCol",
+      "writer.table.selectTable",
+      "writer.table.deleteTable"
+    ],
+    title: "Bố cục bảng: chọn vùng và xóa bảng",
+    summary: "Thao tác chọn nhanh ô, hàng, cột hoặc toàn bộ bảng, cũng như xóa toàn bộ bảng qua tab ngữ cảnh Bố cục Bảng.",
+    ribbon: { tab: "Bố cục Bảng", tabId: "tableLayout", group: "Bảng" },
+    keywords: ["bố cục bảng", "table layout", "chọn ô", "chọn hàng", "chọn cột", "chọn bảng", "xóa bảng", "tay cầm di chuyển bảng"],
+    steps: [
+      "Nhấp chuột vào một ô bất kỳ trong bảng để kích hoạt tab ngữ cảnh Bố cục Bảng trên thanh công cụ ribbon.",
+      "Trong nhóm Bảng, nhấp nút «Chọn ô» để bôi đen riêng ô đang chọn; nhấp «Chọn hàng» hoặc «Chọn cột» để chọn toàn bộ hàng hoặc cột chứa con trỏ.",
+      "Nhấp «Chọn bảng» hoặc bấm vào nút tay cầm 4 chiều xuất hiện ở góc trên bên trái bảng để chọn toàn bộ cấu trúc bảng và tất cả dữ liệu.",
+      "Nhấp «Xóa bảng» khi cần gỡ bỏ hoàn toàn bảng biểu khỏi tài liệu mà không để lại ô trống thừa. Nhấn Ctrl+Z nếu muốn khôi phục lại bảng."
+    ]
+  },
+  {
+    id: "writer.table.layoutRowsColsHelp",
+    app: "writer",
+    commandIds: [
+      "writer.table.insertRowAbove",
+      "writer.table.insertRowBelow",
+      "writer.table.deleteRow",
+      "writer.table.insertColLeft",
+      "writer.table.insertColRight",
+      "writer.table.deleteCol"
+    ],
+    title: "Chèn và xóa hàng, cột trong bảng",
+    summary: "Thêm hàng trên/dưới hoặc cột trái/phải, xóa hàng hoặc cột hiện tại một cách trực quan trên tab Bố cục Bảng.",
+    ribbon: { tab: "Bố cục Bảng", tabId: "tableLayout", group: "Hàng & Cột" },
+    keywords: ["chèn hàng", "chèn cột", "xóa hàng", "xóa cột", "insert row", "insert column", "delete row", "delete column", "hàng và cột"],
+    steps: [
+      "Đặt con trỏ vào ô tại vị trí cần thêm hoặc bớt dữ liệu, sau đó chuyển sang tab Bố cục Bảng.",
+      "Để thêm hàng: trong nhóm Hàng & Cột, nhấp «Chèn hàng phía trên» hoặc «Chèn hàng phía dưới». Một hàng mới nguyên vẹn sẽ được tạo ngay sát vị trí con trỏ.",
+      "Để thêm cột: trong cùng nhóm, nhấp «Chèn cột bên trái» hoặc «Chèn cột bên phải». Tất cả các hàng trong bảng sẽ tự động nhận thêm một ô cột mới tương ứng.",
+      "Để xóa: nhấp «Xóa hàng» để bỏ hàng đang chứa con trỏ, hoặc «Xóa cột» để bỏ cột hiện tại. Nếu xóa hàng hoặc cột duy nhất còn lại, bảng sẽ tự động được xóa an toàn."
+    ]
+  },
+  {
+    id: "writer.table.layoutMergeDistributeHelp",
+    app: "writer",
+    commandIds: [
+      "writer.table.mergeCells",
+      "writer.table.splitCells",
+      "writer.table.distributeRows",
+      "writer.table.distributeCols",
+      "writer.table.alignTop",
+      "writer.table.alignMiddle",
+      "writer.table.alignBottom"
+    ],
+    title: "Gộp, tách ô, phân bố kích thước và căn lề ô",
+    summary: "Gộp nhiều ô thành một, tách ô, phân bố kích thước hàng cột đồng đều và căn chỉnh vị trí dọc cho chữ trong ô bảng.",
+    ribbon: { tab: "Bố cục Bảng", tabId: "tableLayout", group: "Hợp nhất" },
+    keywords: ["gộp ô", "tách ô", "merge cells", "split cells", "phân bố đều", "distribute rows", "distribute columns", "căn lề ô", "căn đỉnh", "căn giữa dọc", "căn đáy"],
+    steps: [
+      "Kéo chuột quét chọn nhiều ô liền kề trong bảng, sau đó tại nhóm Hợp nhất trên tab Bố cục Bảng, nhấp «Gộp ô» để hợp nhất các ô thành một ô lớn. Nội dung chữ giữa các ô được nối lại tự động.",
+      "Để tách một ô đã gộp trở lại trạng thái ban đầu hoặc chia đôi một ô thường, đặt con trỏ vào ô đó rồi nhấp «Tách ô».",
+      "Trong nhóm Kích cỡ ô, nhấp «Phân bố đều hàng» để cân bằng chiều cao các dòng, hoặc «Phân bố đều cột» để chia lại chiều rộng các cột đều nhau 100%. Bạn cũng có thể rê chuột vào vạch ngăn giữa hai cột để kéo chuột chỉnh độ rộng từng cột tùy ý.",
+      "Trong nhóm Căn lề ô, nhấp «Căn đỉnh ô», «Căn giữa dọc ô» hoặc «Căn đáy ô» để bố trí vị trí chữ theo chiều dọc bên trong ô theo đúng ý muốn."
+    ]
+  },
+  {
+    id: "writer.image.resizeWrap",
+    app: "writer",
+    commandIds: ["writer.image.resize", "writer.image.wrap"],
+    title: "Thay đổi kích thước và ngắt dòng ảnh",
+    summary: "Thay đổi kích thước hình ảnh bằng 8 tay cầm co giãn hoặc nhập số đo trực tiếp; tùy chỉnh ngắt dòng văn bản quanh ảnh.",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Minh họa" },
+    keywords: ["thay đổi kích thước ảnh", "resize", "ngắt dòng ảnh", "wrap text", "tay cầm", "tỷ lệ khung hình", "aspect ratio", "hình ảnh", "kích thước"],
+    steps: [
+      "Nhấp chuột vào hình ảnh trong tài liệu để chọn ảnh. Thanh công cụ sẽ xuất hiện tab ngữ cảnh Định dạng Hình ảnh và trên ảnh hiển thị khung viền cùng 8 tay cầm co giãn.",
+      "Kéo một trong 4 tay cầm ở các góc để thay đổi kích thước ảnh mà vẫn giữ nguyên tỷ lệ khung hình; hoặc kéo các tay cầm ở 4 cạnh để kéo giãn theo một chiều.",
+      "Nhập trực tiếp số đo chiều Cao (px) và chiều Rộng (px) tại nhóm Sắp xếp & Kích thước trên tab Định dạng Hình ảnh để đặt kích thước chính xác.",
+      "Nhấp vào nút biểu tượng ngắt dòng nhanh ở góc trên bên phải khung ảnh hoặc chọn danh sách Ngắt dòng văn bản trên thanh ribbon để chọn kiểu ngắt dòng mong muốn (Vuông, Khít, Phía sau văn bản, Phía trước văn bản, Trên và dưới, Cùng dòng với văn bản)."
+    ]
+  },
+  {
+    id: "writer.list.restartContinue",
+    app: "writer",
+    commandIds: ["writer.list.restartNumbering", "writer.list.continueNumbering"],
+    title: "Đánh số lại từ 1 và tiếp tục đánh số danh sách",
+    summary: "Bắt đầu lại việc đánh số thứ tự từ 1 cho danh sách hoặc tiếp tục đánh số liền mạch từ danh sách trước đó.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Đoạn văn" },
+    keywords: ["đánh số lại từ 1", "restart numbering", "tiếp tục đánh số", "continue numbering", "danh sách số", "đánh số", "thứ tự", "chuột phải danh sách"],
+    steps: [
+      "Đặt con trỏ vào mục danh sách số cần thay đổi đánh số trong tài liệu.",
+      "Mở menu tùy chọn bằng một trong hai cách: (1) Nhấp chuột phải trực tiếp vào mục danh sách số để mở menu ngữ cảnh; hoặc (2) Trên tab Trang đầu, nhóm Đoạn văn, nhấp vào mũi tên Tùy chọn đánh số cạnh nút Đánh số.",
+      "Chọn «Đánh số lại từ 1» để bắt đầu đánh số lại thứ tự từ 1 cho danh sách hiện tại. Các mục kế tiếp sẽ tự động tăng số theo thứ tự 2, 3…",
+      "Chọn «Tiếp tục đánh số» để liên kết số thứ tự nối tiếp với danh sách số phía trước trong tài liệu. Bạn có thể nhấn Ctrl+Z để hoàn tác bất kỳ lúc nào."
     ]
   }
 ];
