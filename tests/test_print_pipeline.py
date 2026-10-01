@@ -16,6 +16,7 @@ SPEC.loader.exec_module(PIPELINE)
 class PrintPipelineTests(unittest.TestCase):
     def make_pipeline(self, fake_printer_command, *, office_candidates=None, convert_office_pdf=None):
         self.written_source_paths = []
+        self.preview_pdf_paths = []
 
         def write_source(content, app_kind, temp_dir, source_path=None):
             self.written_source_paths.append(source_path)
@@ -33,6 +34,7 @@ class PrintPipelineTests(unittest.TestCase):
             return 6
 
         def render_page(app_kind, pdf_path, page_index, output_path):
+            self.preview_pdf_paths.append((pdf_path, page_index))
             Path(output_path).write_bytes(f"png-page-{page_index + 1}".encode("ascii"))
 
         return PIPELINE.PrintPipeline(
@@ -69,6 +71,8 @@ class PrintPipelineTests(unittest.TestCase):
         self.assertEqual(printed["path"], "C:/Temp/ket-qua.pdf")
         self.assertEqual(commands[0][0], "writer")
         self.assertEqual(commands[0][2:], ("Máy in LAN", 2, "1-3,5", "C:/Temp/ket-qua.pdf"))
+        self.assertEqual(self.preview_pdf_paths, [(commands[0][1], 1)])
+        self.assertEqual(commands[0][1], self.preview_pdf_paths[0][0])
         temp_dir = Path(commands[0][1]).parent
         self.assertTrue(temp_dir.is_dir())
         self.assertTrue(pipeline.cancel(prepared["sessionId"]))

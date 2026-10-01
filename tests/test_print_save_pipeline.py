@@ -40,6 +40,57 @@ def _write_xlsx(path: Path, marker: str) -> None:
         archive.writestr("xl/workbook.xml", f"<workbook>{marker}</workbook>")
 
 
+def _write_multi_sheet_xlsx(path: Path, *, active: int = 1, selected: tuple[int, ...] = (1,)) -> None:
+    names = ("Alpha", "Beta", "Gamma")
+    sheets = "".join(
+        f'<sheet name="{name}" sheetId="{index + 1}" r:id="rId{index + 1}"/>'
+        for index, name in enumerate(names)
+    )
+    workbook = (
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        f'<bookViews><workbookView activeTab="{active}"/></bookViews><sheets>{sheets}</sheets></workbook>'
+    )
+    relationships = (
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        + "".join(
+            f'<Relationship Id="rId{index + 1}" '
+            'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" '
+            f'Target="worksheets/sheet{index + 1}.xml"/>'
+            for index in range(len(names))
+        )
+        + "</Relationships>"
+    )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("xl/workbook.xml", workbook)
+        archive.writestr("xl/_rels/workbook.xml.rels", relationships)
+        for index in range(len(names)):
+            is_selected = index in selected
+            selected_attr = ' tabSelected="1"' if is_selected else ""
+            archive.writestr(
+                f"xl/worksheets/sheet{index + 1}.xml",
+                '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+                f'<sheetViews><sheetView workbookViewId="0"{selected_attr}/></sheetViews>'
+                '<sheetData/></worksheet>',
+            )
+
+
+def _pristine_sheet_fods(active_sheet: str) -> str:
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<!-- vno-pristine-xlsx-source -->\n'
+        '<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" '
+        'xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0" '
+        'xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0">'
+        '<office:settings><config:config-item config:name="ActiveTable" config:type="string">'
+        f'{active_sheet}</config:config-item></office:settings>'
+        '<office:body><office:spreadsheet>'
+        '<table:table table:name="Alpha"/><table:table table:name="Beta"/><table:table table:name="Gamma"/>'
+        '</office:spreadsheet></office:body></office:document>'
+    )
+
+
 def _document_xml(
     font_size: int,
     page_width: int,
@@ -322,6 +373,53 @@ class PrintSavePipelineTests(unittest.TestCase):
             self.assertEqual(Path(print_source).read_bytes(), original_bytes)
             self.assertEqual(fake.conversions, [(".fods", "xlsx", "sheet")] * 2)
             postprocess.assert_not_called()
+
+    def test_sheet_print_copy_uses_active_or_group_selected_tabs_and_keeps_saved_xlsx_untouched(self):
+        with tempfile.TemporaryDirectory(prefix="vno_sheet_print_scope_") as temp_dir:
+            root = Path(temp_dir)
+            original_xlsx = root / "source.xlsx"
+            _write_multi_sheet_xlsx(original_xlsx, active=1, selected=(1, 2))
+            original_bytes = original_xlsx.read_bytes()
+            saved_xlsx = root / "saved.xlsx"
+            print_dir = root / "print"
+            print_dir.mkdir()
+            fake = _FakeSoffice()
+            content = _pristine_sheet_fods("Beta")
+
+            with patch.object(main, "_run_soffice_convert", side_effect=fake):
+                saved = main.VnOfficeApi()._save_document_in_place_impl(
+                    content, "sheet", str(saved_xlsx), str(original_xlsx),
+                )
+                self.assertEqual(saved["status"], "ok", saved)
+                print_source = main._write_print_source(
+                    content, "sheet", str(print_dir), source_document_path=str(original_xlsx),
+                )
+
+            self.assertEqual(saved_xlsx.read_bytes(), original_bytes)
+            self.assertEqual(original_xlsx.read_bytes(), original_bytes)
+            scoped = Path(print_source).read_bytes()
+            patcher = main._ooxml_zip_patch()
+            workbook_xml = patcher.read_zip_entry(scoped, "xl/workbook.xml").decode("utf-8")
+            self.assertEqual(patcher.parse_selected_sheet_names_from_xlsx(scoped), ["Beta", "Gamma"])
+            self.assertEqual(
+                patcher.parse_sheet_visibility_from_workbook(workbook_xml), {"Alpha": "hidden"},
+            )
+
+            # A changed active tab discards the source's old grouped selection.
+            changed_print_dir = root / "changed-print"
+            changed_print_dir.mkdir()
+            with patch.object(main, "_run_soffice_convert", side_effect=fake):
+                changed_source = main._write_print_source(
+                    _pristine_sheet_fods("Gamma"), "sheet", str(changed_print_dir),
+                    source_document_path=str(original_xlsx),
+                )
+            changed_bytes = Path(changed_source).read_bytes()
+            changed_workbook = patcher.read_zip_entry(changed_bytes, "xl/workbook.xml").decode("utf-8")
+            self.assertEqual(patcher.parse_selected_sheet_names_from_xlsx(changed_bytes), ["Gamma"])
+            self.assertEqual(
+                patcher.parse_sheet_visibility_from_workbook(changed_workbook),
+                {"Alpha": "hidden", "Beta": "hidden"},
+            )
 
     def test_edited_or_non_xlsx_sheet_source_stays_on_native_postprocess_path(self):
         patcher = main._ooxml_zip_patch()

@@ -1,4 +1,4 @@
-# Agent Handoff
+﻿# Agent Handoff
 
 TASK: Implement G10 Office/WPS PDF rendering for Print and Export PDF, preserve the LibreOffice fallback, and investigate Sheet fallback page counts.
 AGENT/ROLE: Codex / implementation
@@ -67,3 +67,44 @@ DEPENDENCIES/BLOCKERS: No new runtime dependency. Office COM work is paused beca
 CORE PATCH ID (if any): N/A; no LibreOffice Core modifications.
 
 NEXT ACTION: Rerun the full Python suite when no competing soffice job is active. After the external Office queue clears, run the fresh Writer comparisons, then the Office source/app Print and Export audits for lan05/lan11/lan28 and one real PPTX strictly one COM job at a time. Update this handoff and `docs/HANDOFF-PRINT.md` with exact results before claiming G10 complete.
+
+## G10 Current-Turn Handoff — 2026-10-01
+
+TASK: Complete G10 print parity evidence, correct Sheet print scope, and align preview page counts with the PDF used by Print.
+AGENT/ROLE: Codex / implementation
+BRANCH: fix/print-real-document-codex
+WORKTREE: E:\VNOffice-codex-print
+OBJECTIVE: Record original Office, 3T Office, and LibreOffice page counts/page-1 text for the requested documents; follow Excel active/selected sheet behavior in fallback output; make preview and Print share one generated PDF.
+FINDINGS:
+- `git merge main` was run first; it fast-forwarded to `f9e1101`. This branch has not been merged into main.
+- Sheet print-only source now renders the saved active or grouped-selected tabs. In-scope fallback counts are lan05 3→3, lan11 345→232, lan28 35→2. lan11/lan28 previous counts included every visible sheet, while current counts honor the stored active selection. Excel active-sheet oracle evidence is BLOCKED.
+- lan05 has one selected sheet, print area A1:I1072, Letter portrait, 56% scale, no fit-to-page, breaks, print titles, or hidden rows/columns. Populated data ends at row 84 and LibreOffice omits the blank formatted tail; Excel active-sheet PDF is unavailable, so the 14-vs-3 difference is unresolved and no page count was forced.
+- Full page-count/page-1 evidence, including BLOCKED cells and extracted text, is in `docs/HANDOFF-PRINT.md` under G10 current-turn follow-up.
+IMPLEMENTATION SUMMARY:
+- Added OOXML helpers to read visible selected tabs and create a print-only scoped XLSX without editing saved workbook bytes.
+- Applied the scope after source-aware Sheet save conversion. If active tab changed since load, it prints alone; untouched selected groups stay selected.
+- Shared print preview and Print tests assert they use the same prepared PDF path; Sheet ribbon and UNO preview tests cover shared PDF flow.
+FILES CHANGED:
+- `main.py`, `adapters/libreoffice/common/ooxml_zip_patch.py`
+- `tests/test_print_pipeline.py`, `tests/test_print_save_pipeline.py`, `tests/test_g7_save_as_dialog.py`, `tests/unit/sheet-print-preview.test.js`
+- `docs/HANDOFF-PRINT.md`, `docs/AGENT-HANDOFF-PRINT-G10.md`
+COMMANDS RUN:
+- `git merge main`
+- `node tests/run-tests.js`
+- `python -m unittest discover -s tests` (multiple contention/fix/recovery runs; final isolated run PASS 516/516 in 324.007s)
+- Focused Python Sheet-scope and Save As tests; Python compile; `git diff --check`
+- Sequential LibreOffice live Sheet fallback audit and PDFium page-1 extraction
+- Office COM attempt for Excel active-sheet PDF; failed on null `ActiveSheet`; no shared Office process was terminated and no further COM attempts were made
+BUILD RESULT: NOT RUN.
+TEST RESULTS:
+- Node full gate: PASS 2187/2187.
+- Python full gate: concurrent failures were 3/516 (two soffice file locks and one stale mock), then 1/516 (stale mock). After fixing the mock, 516/516 passed in 321.125 seconds, but this run overlapped the fallback audit. The isolated run started after a zero-soffice process snapshot and passed 516/516 in 324.007 seconds.
+- Focused Sheet scope test PASS 1/1; focused Save As regression PASS; compile and diff checks PASS.
+- Preview path tests PASS as part of Node gate; build NOT RUN.
+KNOWN FAILURES:
+- lan05 fallback page count remains 3 vs earlier workbook export 14. Required Excel active-sheet PDF and fresh 3T Office render are BLOCKED, so root-cause parity is not proven.
+- Fresh Excel active-sheet exports for lan11/lan28, fresh Office reruns for d12/d16, and PowerPoint source/app Office parity remain BLOCKED by shared Office automation state.
+RISKS: Do not compare all-sheet historical counts 965/36 with new active-sheet output 232/2. Do not label Office parity complete. The saved workbook stays byte-identical in the Sheet scope regression; active/selected scope is applied only to a temporary print workbook.
+DEPENDENCIES/BLOCKERS: No new dependencies. Office COM is shared: sequential calls only, retry `RPC_E_CALL_REJECTED`, and terminate no process unless positively known to have been started by this job. This task made no further Office calls after the failed Excel attempt.
+CORE PATCH ID (if any): N/A; no LibreOffice Core modification.
+NEXT ACTION: Run final diff/status review, then commit on `fix/print-real-document-codex`; do not merge into main.

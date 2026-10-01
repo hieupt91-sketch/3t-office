@@ -593,6 +593,105 @@ def parse_active_sheet_from_workbook(workbook_xml: str | None) -> str | None:
     return sheet_names[0]
 
 
+def parse_selected_sheet_names_from_xlsx(xlsx_bytes: bytes | None) -> list[str]:
+    """Read the visible worksheet tabs selected in the workbook view.
+
+    Excel stores a multi-sheet selection as ``tabSelected="1"`` on each
+    selected worksheet's sheetView. A workbook with no explicit selection
+    resolves to its active sheet.
+    """
+    if not xlsx_bytes:
+        return []
+    workbook = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
+    workbook_xml = workbook.decode("utf-8", errors="replace") if workbook else ""
+    names = parse_sheet_names_from_workbook(workbook_xml)
+    if not names:
+        return []
+    visibility = parse_sheet_visibility_from_workbook(workbook_xml)
+    entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+    selected: list[str] = []
+    for name in names:
+        if visibility.get(name, "visible").lower() != "visible":
+            continue
+        sheet_bytes = read_zip_entry(xlsx_bytes, entries.get(name, "")) if entries.get(name) else None
+        if not sheet_bytes:
+            continue
+        sheet_xml = sheet_bytes.decode("utf-8", errors="replace")
+        if re.search(r'<(?:[\w.-]+:)?sheetView\b[^>]*\btabSelected\s*=\s*(["\'])1\1', sheet_xml, re.IGNORECASE):
+            selected.append(name)
+    if selected:
+        return selected
+    active = parse_active_sheet_from_workbook(workbook_xml)
+    return [active] if active and visibility.get(active, "visible").lower() == "visible" else []
+
+
+def make_print_scope_xlsx(
+    xlsx_bytes: bytes,
+    *,
+    active_sheet_name: str | None = None,
+    selected_sheet_names: list[str] | None = None,
+) -> bytes:
+    """Make a temporary XLSX package that prints only the selected sheet tabs.
+
+    The workbook and every worksheet remain in the package. Nonselected visible
+    tabs are hidden only in this print copy, allowing both Excel and LibreOffice
+    to export the active/selected sheets without losing formula dependencies.
+    """
+    workbook_raw = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
+    workbook_xml = workbook_raw.decode("utf-8", errors="replace") if workbook_raw else ""
+    names = parse_sheet_names_from_workbook(workbook_xml)
+    entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+    if not workbook_xml or not names or any(name not in entries for name in names):
+        # Minimal/unsupported packages are left to the native renderer.
+        return xlsx_bytes
+
+    visibility = parse_sheet_visibility_from_workbook(workbook_xml)
+    visible_names = [name for name in names if visibility.get(name, "visible").lower() == "visible"]
+    active = active_sheet_name if active_sheet_name in visible_names else None
+    if active is None:
+        current_active = parse_active_sheet_from_workbook(workbook_xml)
+        active = current_active if current_active in visible_names else (visible_names[0] if visible_names else None)
+    selected = [name for name in (selected_sheet_names or []) if name in visible_names]
+    if not selected:
+        selected = [active] if active else []
+    if not selected:
+        return xlsx_bytes
+    if active not in selected:
+        active = selected[0]
+
+    selected_set = set(selected)
+    sheet_index = {name: index for index, name in enumerate(names)}
+
+    def patch_sheet_states(match: re.Match[str]) -> str:
+        attrs = match.group(1) or ""
+        name_match = re.search(r'\bname\s*=\s*(["\'])(.*?)\1', attrs)
+        if not name_match:
+            return match.group(0)
+        name = _unescape_xml(name_match.group(2))
+        if name not in names:
+            return match.group(0)
+        existing = visibility.get(name)
+        state = existing if existing and existing.lower() != "visible" else (None if name in selected_set else "hidden")
+        attrs = re.sub(r"/\s*$", "", attrs)
+        attrs = re.sub(r'\s+state\s*=\s*(["\'])[^"\']*\1', "", attrs, flags=re.IGNORECASE)
+        if state:
+            attrs = f'{attrs.rstrip()} state="{state}"'
+        tag_match = re.match(r"<((?:[A-Za-z_][\w.-]*:)?sheet)\b", match.group(0), re.IGNORECASE)
+        tag_name = tag_match.group(1) if tag_match else "sheet"
+        return f"<{tag_name}{attrs}/>"
+
+    workbook_xml = _WB_SHEET_TAG_RE.sub(patch_sheet_states, workbook_xml)
+    workbook_xml = apply_active_tab_to_workbook(workbook_xml, sheet_index[active])
+    replacements: dict[str, str | bytes | None] = {XLSX_WORKBOOK_ENTRY: workbook_xml}
+    for name in names:
+        raw = read_zip_entry(xlsx_bytes, entries[name])
+        if not raw:
+            continue
+        sheet_xml = raw.decode("utf-8", errors="replace")
+        replacements[entries[name]] = apply_sheet_view_selection(sheet_xml, name in selected_set)
+    return patch_ooxml_zip(xlsx_bytes, replacements)
+
+
 def parse_active_sheet_from_fods(fods_xml: str | None) -> str | None:
     """Read ActiveTable from FODS office:settings config:name="ActiveTable".
     
