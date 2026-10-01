@@ -493,7 +493,7 @@ export class WriterAdapter {
     };
     this.bodyDom.addEventListener("input", this._workflowInputHandler);
 
-    this._tabEditableRoots = [this.headerDom, this.bodyDom, this.footerDom].filter(Boolean);
+    this._tabEditableRoots = [this.headerDom, this.bodyDom, this.footerDom].filter(root => root?.addEventListener);
     this._workflowKeydownHandler = (event) => {
       if (event.key !== "Tab") return;
       const selection = typeof window !== "undefined" ? window.getSelection?.() : null;

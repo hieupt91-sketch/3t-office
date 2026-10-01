@@ -7802,10 +7802,11 @@ export class SheetGridController {
         if (!snap) {
           this.cellsData.delete(coord);
         } else {
-          const itm = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
-          itm.val = snap.val ?? "";
-          itm.formula = snap.formula ?? "";
-          itm.style = structuredClone(snap.style || {});
+          const itm = {
+            val: snap.val ?? "",
+            formula: snap.formula ?? "",
+            style: structuredClone(snap.style || {})
+          };
           this.cellsData.set(coord, itm);
         }
         const [c, r] = this._splitCoord(coord);

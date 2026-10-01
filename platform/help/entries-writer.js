@@ -915,11 +915,11 @@ export const WRITER_HELP_ENTRIES = [
       "Có thể dùng Ctrl+Z để hoàn tác hoặc Ctrl+Y để làm lại mọi thao tác trên."
     ]
   },
-  {
+{
     id: "writer.keyboard.basicEditing",
     app: "writer",
     commandIds: [],
-    title: "Enter, Tab và xuống dòng trong 3T Doc",
+    title: "Enter, Tab và xuống dòng trong 3T Doc — bàn phím điều hướng",
     summary: "Enter tạo đoạn mới; Shift+Enter xuống dòng trong cùng đoạn. Tab nhập ký tự tab ở văn bản thường, đổi cấp ở đầu mục danh sách và chuyển ô trong bảng.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Bảng nhớ tạm" },
     keywords: ["Enter", "Shift+Enter", "Tab", "Shift+Tab", "đoạn mới", "xuống dòng", "danh sách", "ô bảng", "phím bàn phím", "F1"],
@@ -928,7 +928,7 @@ export const WRITER_HELP_ENTRIES = [
       "Nhấn Shift+Enter để xuống dòng nhưng vẫn ở cùng đoạn. Khi bộ gõ tiếng Việt thay ký tự vừa nhập bằng insertText, tiếp tục gõ tại vị trí con trỏ hiện tại.",
       "Trong đoạn văn thường, nhấn Tab để chèn ký tự tab; ký tự được giữ trong nội dung tài liệu và hiển thị theo điểm dừng 1,27 cm. Shift+Tab ở ngoài danh sách hoặc bảng không chuyển focus khỏi trang.",
       "Ở đầu một mục danh sách, nhấn Tab để tăng cấp thụt lề hoặc Shift+Tab để giảm cấp. Trong bảng, Tab chuyển sang ô kế tiếp, Shift+Tab quay về ô trước; Tab ở ô cuối tạo thêm một hàng.",
-      "Nhấn F1 để mở Trợ giúp 3T Office và tìm ‘Tab’, ‘Enter’ hoặc ‘bảng nhớ tạm’ khi cần tra lại."
+      "Nhấn F1 để mở Trợ giúp 3T Office và tìm 'Tab', 'Enter' hoặc 'bảng nhớ tạm' khi cần tra lại."
     ]
   },
   {
