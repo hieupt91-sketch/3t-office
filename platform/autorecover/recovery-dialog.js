@@ -1,4 +1,5 @@
 const APP_NAMES = { writer: "3T Doc", sheet: "3T Sheet", slides: "3T Slide" };
+import { t } from "../i18n/i18n.js";
 
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
@@ -37,10 +38,10 @@ export class RecoveryDialog {
     overlay.className = "vno-recovery-overlay";
     overlay.innerHTML = `
       <section class="vno-recovery-dialog" role="dialog" aria-modal="true" aria-labelledby="vno-recovery-title" aria-describedby="vno-recovery-description" tabindex="-1">
-        <header class="vno-recovery-header"><div><h2 id="vno-recovery-title">Khôi phục tài liệu</h2><p id="vno-recovery-description">3T Office tìm thấy bản lưu tự động từ phiên làm việc trước chưa đóng bình thường.</p></div></header>
+        <header class="vno-recovery-header"><div><h2 id="vno-recovery-title">${t("autoRecover.dialogTitle")}</h2><p id="vno-recovery-description">${t("autoRecover.dialogDescription")}</p></div></header>
         <div class="vno-recovery-list" role="list"></div>
         <div class="vno-recovery-message" aria-live="polite" role="status"></div>
-        <footer><button type="button" class="vno-btn vno-recovery-later">Để sau</button></footer>
+        <footer><button type="button" class="vno-btn vno-recovery-later">${t("autoRecover.later")}</button></footer>
       </section>`;
     this.root = overlay;
     this.document.body.appendChild(overlay);
@@ -97,7 +98,7 @@ export class RecoveryDialog {
     if (!this.items.length) {
       const empty = this.document.createElement("p");
       empty.className = "vno-recovery-empty";
-      empty.textContent = "Không còn bản khôi phục nào.";
+      empty.textContent = t("autoRecover.empty");
       list.appendChild(empty);
       return;
     }
@@ -115,8 +116,8 @@ export class RecoveryDialog {
           <time>${escapeHtml(when)}</time>
         </div>
         <div class="vno-recovery-item-actions">
-          <button type="button" class="vno-btn vno-btn-primary" data-recovery-action="recover" data-snapshot-id="${escapeHtml(item.snapshot_id)}">Mở bản khôi phục</button>
-          <button type="button" class="vno-btn" data-recovery-action="delete" data-snapshot-id="${escapeHtml(item.snapshot_id)}">Xóa</button>
+          <button type="button" class="vno-btn vno-btn-primary" data-recovery-action="recover" data-snapshot-id="${escapeHtml(item.snapshot_id)}">${t("autoRecover.recover")}</button>
+          <button type="button" class="vno-btn" data-recovery-action="delete" data-snapshot-id="${escapeHtml(item.snapshot_id)}">${t("autoRecover.discard")}</button>
         </div>`;
       list.appendChild(card);
     }

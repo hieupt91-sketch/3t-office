@@ -1,8 +1,9 @@
 import { globalUnoBridge } from "../../adapters/libreoffice/common/uno-bridge.js";
+import { t } from "../i18n/i18n.js";
 import { RecoveryDialog } from "./recovery-dialog.js";
 
 const APP_NAMES = { writer: "3T Doc", sheet: "3T Sheet", slides: "3T Slide" };
-const DEFAULT_SETTINGS = Object.freeze({ enabled: true, interval_minutes: 5 });
+const DEFAULT_SETTINGS = Object.freeze({ enabled: true, interval_minutes: 2 });
 const MIN_INTERVAL_MINUTES = 1;
 const MAX_INTERVAL_MINUTES = 60;
 
@@ -70,6 +71,8 @@ export class AutoRecoverManager {
     }
     await this._loadLeftovers();
     this.mountSettings(helpPanel);
+    const { mountPerformanceOptions } = await import("../performance/performance-options.js");
+    mountPerformanceOptions(helpPanel, { bridge: this.bridge, documentRef: this.document });
     this._configureTimer();
     if (options.recoverySnapshotId) this._setHelpStatus("Đang mở bản khôi phục đã chọn…");
     return true;
@@ -211,11 +214,11 @@ export class AutoRecoverManager {
     section.className = "vno-autorecover-settings";
     section.setAttribute("aria-labelledby", "vno-autorecover-settings-title");
     section.innerHTML = `
-      <h3 id="vno-autorecover-settings-title">Tự động khôi phục</h3>
-      <label class="vno-autorecover-toggle"><input type="checkbox" class="vno-autorecover-enabled"><span>Bật lưu khôi phục tự động</span></label>
-      <label class="vno-autorecover-interval-label" for="vno-autorecover-interval">Lưu mỗi</label>
-      <div class="vno-autorecover-interval-row"><input type="number" id="vno-autorecover-interval" class="vno-autorecover-interval" min="1" max="60" step="1"><span>phút (1–60)</span></div>
-      <div class="vno-autorecover-actions"><button type="button" class="vno-btn vno-autorecover-show">Xem bản khôi phục</button></div>
+      <h3 id="vno-autorecover-settings-title">${t("autoRecover.settingsTitle")}</h3>
+      <label class="vno-autorecover-toggle"><input type="checkbox" class="vno-autorecover-enabled"><span>${t("autoRecover.enabled")}</span></label>
+      <label class="vno-autorecover-interval-label" for="vno-autorecover-interval">${t("autoRecover.saveEvery")}</label>
+      <div class="vno-autorecover-interval-row"><input type="number" id="vno-autorecover-interval" class="vno-autorecover-interval" min="1" max="60" step="1"><span>${t("autoRecover.minuteRange")}</span></div>
+      <div class="vno-autorecover-actions"><button type="button" class="vno-btn vno-autorecover-show">${t("autoRecover.showSaved")}</button></div>
       <p class="vno-autorecover-status" role="status" aria-live="polite"></p>`;
     root.insertBefore(section, root.querySelector(".vno-help-body"));
     this._settingsPanels.add(root);

@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import csv
 import functools
+import importlib.util
 import json
 import os
 import shutil
 import signal
 import subprocess
+import sys
 import tempfile
 import threading
 from pathlib import Path
@@ -32,7 +34,10 @@ _POWERSHELL_WORKER = r'''param(
   [Parameter(Mandatory = $true)][string]$ProgId,
   [Parameter(Mandatory = $true)][string]$InputPath,
   [Parameter(Mandatory = $true)][string]$OutputPath,
-  [Parameter(Mandatory = $true)][string]$ProcessInfoPath
+  [Parameter(Mandatory = $true)][string]$ProcessInfoPath,
+  [string]$ProcessTrackerPath = '',
+  [string]$ProcessTrackerOwnerPid = '',
+  [string]$ProcessTrackerOwnerCreatedAt = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -84,8 +89,37 @@ function Get-AppProcessName([string]$id) {
 }
 
 function Save-ProcessInfo([int]$ProcessId, [bool]$Owned) {
-  $record = [ordered]@{ pid = $ProcessId; owned = $Owned }
+  $createdAt = ''
+  try { $createdAt = [string](Get-Process -Id $ProcessId -ErrorAction Stop).StartTime.ToUniversalTime().ToFileTimeUtc() } catch { }
+  $record = [ordered]@{ pid = $ProcessId; owned = $Owned; created_at = $createdAt; parent_pid = $PID }
   [System.IO.File]::WriteAllText($ProcessInfoPath, ($record | ConvertTo-Json -Compress), [System.Text.Encoding]::ASCII)
+  if (-not $Owned -or -not $createdAt -or -not $ProcessTrackerPath -or -not $ProcessTrackerOwnerPid -or -not $ProcessTrackerOwnerCreatedAt) { return }
+  $entry = [ordered]@{
+    pid = $ProcessId; created_at = $createdAt; role = 'office-com';
+    owner_pid = $ProcessTrackerOwnerPid; owner_created_at = $ProcessTrackerOwnerCreatedAt;
+    parent_pid = $PID; recorded_at = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() / 1000.0
+  }
+  $line = [System.Text.Encoding]::UTF8.GetBytes(($entry | ConvertTo-Json -Compress) + "`n")
+  $lockPath = [System.IO.Path]::ChangeExtension($ProcessTrackerPath, '.lock')
+  $lock = $null
+  for ($attempt = 0; $attempt -lt 100 -and $null -eq $lock; $attempt++) {
+    try {
+      $lock = [System.IO.File]::Open($lockPath, [System.IO.FileMode]::OpenOrCreate, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::ReadWrite)
+      if ($lock.Length -eq 0) { $lock.WriteByte(0); $lock.Flush() }
+      $lock.Lock(0, 1)
+    } catch {
+      if ($lock) { $lock.Dispose(); $lock = $null }
+      Start-Sleep -Milliseconds 25
+    }
+  }
+  if ($null -eq $lock) { return }
+  try {
+    $ledger = [System.IO.File]::Open($ProcessTrackerPath, [System.IO.FileMode]::Append, [System.IO.FileAccess]::Write, [System.IO.FileShare]::ReadWrite)
+    try { $ledger.Write($line, 0, $line.Length); $ledger.Flush($true) } finally { $ledger.Dispose() }
+  } finally {
+    try { $lock.Unlock(0, 1) } catch { }
+    $lock.Dispose()
+  }
 }
 
 $priorPids = @((Get-Process -Name @('WINWORD', 'EXCEL', 'POWERPNT', 'wps', 'et', 'wpp') -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id))
@@ -291,6 +325,9 @@ def export_pdf_with_office(
             "-InputPath", str(source),
             "-OutputPath", str(output_path),
             "-ProcessInfoPath", str(process_info_path),
+            "-ProcessTrackerPath", os.environ.get("VNO_PROCESS_TRACKER_STATE", ""),
+            "-ProcessTrackerOwnerPid", os.environ.get("VNO_PROCESS_TRACKER_ROOT_PID", ""),
+            "-ProcessTrackerOwnerCreatedAt", os.environ.get("VNO_PROCESS_TRACKER_ROOT_CREATED_AT", ""),
         ]
         try:
             process = runner(
@@ -302,6 +339,22 @@ def export_pdf_with_office(
                 errors="replace",
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
             )
+            process_id = int(getattr(process, "pid", 0) or 0)
+            tracker_state = os.environ.get("VNO_PROCESS_TRACKER_STATE", "")
+            if process_id > 0 and tracker_state:
+                tracker_path = Path(__file__).resolve().parents[2] / "platform" / "process_lifecycle" / "process_tracker.py"
+                tracker_name = "_vno_process_tracker_office_com"
+                tracker_module = sys.modules.get(tracker_name)
+                if tracker_module is None:
+                    tracker_spec = importlib.util.spec_from_file_location(tracker_name, tracker_path)
+                    if tracker_spec and tracker_spec.loader:
+                        tracker_module = importlib.util.module_from_spec(tracker_spec)
+                        sys.modules[tracker_name] = tracker_module
+                        tracker_spec.loader.exec_module(tracker_module)
+                if tracker_module is not None:
+                    identity = tracker_module.process_identity(process_id)
+                    if identity:
+                        tracker_module.append_process_record_from_env(process_id, identity, "office-com-worker")
             try:
                 stdout, stderr = process.communicate(timeout=max(1, int(timeout_seconds)))
             except subprocess.TimeoutExpired as exc:

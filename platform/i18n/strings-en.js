@@ -38,6 +38,29 @@ export const enStrings = {
     location: "Location",
     stepsHeading: "How to use"
   },
+  autoRecover: {
+    settingsTitle: "AutoRecover",
+    enabled: "Save recovery copies automatically",
+    saveEvery: "Save every",
+    minuteRange: "minutes (1–60)",
+    showSaved: "View recovery copies",
+    dialogTitle: "Recover unsaved documents",
+    dialogDescription: "3T Office found automatic recovery copies from a session that did not close normally.",
+    recover: "Recover",
+    discard: "Discard",
+    later: "Later",
+    empty: "No recovery copies remain."
+  },
+  performance: {
+    optionsTitle: "Options",
+    logToggle: "Record performance log (not sent)",
+    localOnly: "The log is stored on this device only; it is off by default.",
+    openFolder: "Open log folder",
+    enabledStatus: "Performance logging is on for this device.",
+    disabledStatus: "Performance logging is off.",
+    folderOpened: "Log folder opened.",
+    desktopOnly: "This option is available in 3T Office Desktop."
+  },
   aiAssistant: {
     title: "3T AI Assistant", provider: "AI provider", local: "Local (default)",
     activeProvider: "Actually in use", configureKey: "Configure API key", apiKey: "API key",

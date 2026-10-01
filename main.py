@@ -6,6 +6,7 @@ cho các thao tác Mở/Lưu/Xuất PDF — cross-platform: Windows, Linux, macO
 """
 
 import http.server
+import atexit
 import inspect
 import json
 import os
@@ -134,6 +135,62 @@ _AUTORECOVER_STORE_MODULE = importlib.util.module_from_spec(_AUTORECOVER_STORE_S
 sys.modules[_AUTORECOVER_STORE_SPEC.name] = _AUTORECOVER_STORE_MODULE
 _AUTORECOVER_STORE_SPEC.loader.exec_module(_AUTORECOVER_STORE_MODULE)
 AutoRecoverStore = _AUTORECOVER_STORE_MODULE.AutoRecoverStore
+
+_PROCESS_TRACKER_PATH = Path(__file__).resolve().parent / "platform" / "process_lifecycle" / "process_tracker.py"
+_PROCESS_TRACKER_SPEC = importlib.util.spec_from_file_location("_vno_process_tracker", _PROCESS_TRACKER_PATH)
+if _PROCESS_TRACKER_SPEC is None or _PROCESS_TRACKER_SPEC.loader is None:
+    raise ImportError(f"Cannot load process tracker: {_PROCESS_TRACKER_PATH}")
+_PROCESS_TRACKER_MODULE = importlib.util.module_from_spec(_PROCESS_TRACKER_SPEC)
+sys.modules[_PROCESS_TRACKER_SPEC.name] = _PROCESS_TRACKER_MODULE
+_PROCESS_TRACKER_SPEC.loader.exec_module(_PROCESS_TRACKER_MODULE)
+ProcessTracker = _PROCESS_TRACKER_MODULE.ProcessTracker
+_PROCESS_TRACKER = None
+
+_PERFORMANCE_LOG_PATH = Path(__file__).resolve().parent / "platform" / "performance" / "performance_log.py"
+_PERFORMANCE_LOG_SPEC = importlib.util.spec_from_file_location("_vno_performance_log", _PERFORMANCE_LOG_PATH)
+if _PERFORMANCE_LOG_SPEC is None or _PERFORMANCE_LOG_SPEC.loader is None:
+    raise ImportError(f"Cannot load performance logger: {_PERFORMANCE_LOG_PATH}")
+_PERFORMANCE_LOG_MODULE = importlib.util.module_from_spec(_PERFORMANCE_LOG_SPEC)
+sys.modules[_PERFORMANCE_LOG_SPEC.name] = _PERFORMANCE_LOG_MODULE
+_PERFORMANCE_LOG_SPEC.loader.exec_module(_PERFORMANCE_LOG_MODULE)
+PerformanceLog = _PERFORMANCE_LOG_MODULE.PerformanceLog
+_PERFORMANCE_LOGGER = None
+
+
+def _initialize_process_tracker() -> ProcessTracker:
+    """Sweep only known app-owned PIDs, then publish this process as their owner."""
+    global _PROCESS_TRACKER
+    if _PROCESS_TRACKER is not None:
+        return _PROCESS_TRACKER
+    tracker = ProcessTracker(_user_data_dir())
+    swept = tracker.startup_sweep()
+    if swept.get("stopped"):
+        _startup_trace("orphan_processes_swept", **swept)
+    _PROCESS_TRACKER = tracker
+    global _PERFORMANCE_LOGGER
+    try:
+        _PERFORMANCE_LOGGER = PerformanceLog(_user_data_dir())
+    except OSError:
+        _PERFORMANCE_LOGGER = None
+    os.environ["VNO_PROCESS_TRACKER_STATE"] = str(tracker.state_path)
+    os.environ["VNO_PROCESS_TRACKER_ROOT_PID"] = str(tracker.root_pid)
+    os.environ["VNO_PROCESS_TRACKER_ROOT_CREATED_AT"] = str(tracker.root_created_at)
+    atexit.register(_cleanup_tracked_processes)
+    return tracker
+
+
+def _cleanup_tracked_processes() -> None:
+    tracker = _PROCESS_TRACKER
+    if tracker is None:
+        return
+    try:
+        result = tracker.cleanup()
+        if result.get("stopped"):
+            _startup_trace("tracked_processes_closed", **result)
+    except Exception as exc:
+        logging.getLogger("vnoffice.process_lifecycle").warning(
+            "Could not clean tracked child processes (%s).", type(exc).__name__
+        )
 
 _SINGLE_INSTANCE_PATH = Path(__file__).resolve().parent / "platform" / "single_instance.py"
 _SINGLE_INSTANCE_SPEC = importlib.util.spec_from_file_location("_vno_single_instance", _SINGLE_INSTANCE_PATH)
@@ -599,6 +656,9 @@ class _SofficeUnoWorker:
         except OSError as exc:
             raise _PersistentSofficeTransportError(str(exc)) from exc
 
+        if _PROCESS_TRACKER is not None:
+            _PROCESS_TRACKER.register(self.process.pid, "uno-worker")
+
         reader = threading.Thread(target=self._read_responses, daemon=True, name="VNO UNO helper reader")
         reader.start()
         try:
@@ -610,6 +670,18 @@ class _SofficeUnoWorker:
             message = handshake.get("error") or "LibreOffice UNO helper did not start."
             self.stop(grace_seconds=0.5)
             raise _PersistentSofficeTransportError(str(message))
+        try:
+            soffice_pid = int(handshake.get("soffice_pid", 0))
+        except (TypeError, ValueError):
+            soffice_pid = 0
+        if _PROCESS_TRACKER is not None and soffice_pid > 0:
+            _PROCESS_TRACKER.register(soffice_pid, "soffice")
+        if _PERFORMANCE_LOGGER is not None:
+            _PERFORMANCE_LOGGER.record(
+                "soffice_start", app=self.app_kind,
+                duration_ms=(time.perf_counter() - started) * 1000,
+                event="soffice_start",
+            )
         _open_perf_log(
             "worker_start_and_profile_ready",
             (time.perf_counter() - started) * 1000,
@@ -2328,6 +2400,7 @@ def _on_single_instance_ownership_lost() -> None:
     try:
         _PERSISTENT_SOFFICE.shutdown()
     finally:
+        _cleanup_tracked_processes()
         os._exit(0)
 
 
@@ -2454,6 +2527,12 @@ class VnOfficeApi:
         self._last_sheet_open_id: str | None = None
         self._print_pipeline = None
         self._print_pipeline_lock = threading.Lock()
+        self._performance_log = _PERFORMANCE_LOGGER
+        if self._performance_log is None:
+            try:
+                self._performance_log = PerformanceLog(_user_data_dir())
+            except OSError:
+                self._performance_log = None
         try:
             self._autorecover_store = AutoRecoverStore(_user_data_dir())
         except OSError:
@@ -2548,7 +2627,7 @@ class VnOfficeApi:
         }
 
     def get_autorecover_settings(self):
-        return self._autorecover_store.get_settings() if self._autorecover_store else {"enabled": True, "interval_minutes": 5}
+        return self._autorecover_store.get_settings() if self._autorecover_store else {"enabled": True, "interval_minutes": 2}
 
     def set_autorecover_settings(self, settings):
         try:
@@ -2593,6 +2672,38 @@ class VnOfficeApi:
                 return False
         self._autorecover_session_closed = True
         return True
+
+    def get_performance_log_settings(self):
+        if not self._performance_log:
+            return {"enabled": False}
+        return self._performance_log.get_settings()
+
+    def set_performance_log_settings(self, settings):
+        if not self._performance_log:
+            return {"status": "error", "message": "Không thể mở thư mục nhật ký hiệu năng cục bộ."}
+        try:
+            return self._performance_log.set_settings(settings)
+        except OSError as exc:
+            return {"status": "error", "message": f"Không thể lưu tùy chọn nhật ký hiệu năng: {exc}"}
+
+    def open_performance_log_folder(self):
+        if not self._performance_log:
+            return {"status": "error", "message": "Không thể mở thư mục nhật ký hiệu năng cục bộ."}
+        try:
+            folder = self._performance_log.folder_path()
+            if os.name == "nt":
+                os.startfile(folder)
+            elif platform.system() == "Darwin":
+                process = subprocess.Popen(["open", folder], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                if _PROCESS_TRACKER is not None:
+                    _PROCESS_TRACKER.register(process.pid, "open-performance-folder")
+            else:
+                process = subprocess.Popen(["xdg-open", folder], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                if _PROCESS_TRACKER is not None:
+                    _PROCESS_TRACKER.register(process.pid, "open-performance-folder")
+            return {"status": "ok", "path": folder}
+        except (OSError, AttributeError) as exc:
+            return {"status": "error", "message": f"Không mở được thư mục nhật ký: {exc}"}
 
     def _prune_sheet_open_sessions(self):
         now = time.monotonic()
@@ -2718,13 +2829,16 @@ class VnOfficeApi:
         started_at = time.monotonic()
         self._reporting_file_path = self._current_file_path or self._initial_file
         self._reporting_operation = self._default_operation(method_name, method, args, kwargs)
+        operation_result = "error"
         if outermost:
             _ERROR_REPORT_CONTEXT.active = True
             _ERROR_REPORT_CONTEXT.failure_reported = False
         try:
             try:
                 result = method(*args, **kwargs)
+                operation_result = str(result.get("status") or "ok") if isinstance(result, dict) else "ok"
             except Exception as exc:
+                operation_result = "error"
                 if outermost and not getattr(_ERROR_REPORT_CONTEXT, "failure_reported", False):
                     self._record_api_failure(exc, started_at)
                 raise
@@ -2740,6 +2854,25 @@ class VnOfficeApi:
                 )
             return result
         finally:
+            if outermost and self._performance_log is not None:
+                performance_operation = {
+                    "open_document_dialog": "open",
+                    "save_document_in_place": "save",
+                    "save_document_dialog": "export_pdf" if kwargs.get("target_format") == "pdf" or (len(args) > 2 and args[2] == "pdf") else "save",
+                    "export_pdf_dialog": "export_pdf",
+                    "prepare_print_document": "print_prepare",
+                    "print_document": "print",
+                }.get(method_name)
+                if performance_operation:
+                    try:
+                        self._performance_log.record(
+                            performance_operation,
+                            app=self._reporting_app_kind or self._app_kind or "suite",
+                            duration_ms=(time.monotonic() - started_at) * 1000,
+                            outcome=operation_result,
+                        )
+                    except Exception:
+                        pass
             self._api_report_depth -= 1
             if outermost:
                 _ERROR_REPORT_CONTEXT.active = False
@@ -2964,6 +3097,7 @@ class VnOfficeApi:
                 self.close_print_sessions()
                 _PERSISTENT_SOFFICE.shutdown()
             finally:
+                _cleanup_tracked_processes()
                 os._exit(0)
 
         timer = threading.Timer(0.4, exit_for_update)
@@ -3917,6 +4051,8 @@ def main(argv: list[str] | None = None):
         print(f"[3T Office] {exc}", file=sys.stderr)
         return 2
 
+    _initialize_process_tracker()
+
     instance_server = None
     if app_kind in VALID_APP_KINDS:
         _INSTANCE_DISPATCH_READY.clear()
@@ -4099,6 +4235,7 @@ def main(argv: list[str] | None = None):
             _PERSISTENT_SOFFICE.shutdown()
             _startup_trace("lo_worker_shutdown_complete", app=app_kind)
         finally:
+            _cleanup_tracked_processes()
             if instance_server is not None:
                 instance_server.release_owner_lock()
             try:
