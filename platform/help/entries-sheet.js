@@ -1109,6 +1109,71 @@ export const SHEET_HELP_ENTRIES = [
       "Tra cứu danh sách phần mềm nguồn mở (Python, LibreOffice Core, pywebview) và nhấn nút Xem toàn văn giấy phép nếu cần kiểm tra chi tiết THIRD-PARTY-NOTICES.",
       "Nhấn nút Đóng hoặc bấm phím Esc trên bàn phím để trở về trang bảng tính đang làm việc."
     ]
+  },
+  {
+    id: "sheet.gettingStarted",
+    app: "sheet",
+    commandIds: ["common.file.new", "common.file.open", "common.file.save", "common.file.saveAs", "common.file.print", "common.file.exportPdf"],
+    title: "Bắt đầu nhanh: tạo, mở, lưu, in, xuất PDF",
+    summary: "Sổ mới bắt đầu với một trang tính Sheet1 trống tại ô A1 (Calibri 11 pt). Dùng menu Tệp hoặc phím tắt để tạo mới, mở, lưu, lưu bản sao, in và xuất PDF.",
+    ribbon: { tab: "Tệp", tabId: "file", group: "Sổ làm việc" },
+    keywords: ["bắt đầu nhanh", "tạo mới", "mở tệp", "lưu", "lưu bản sao", "in", "xuất pdf", "ctrl+n", "ctrl+o", "ctrl+s", "f12", "ctrl+p", "sheet1", "3t sheet"],
+    steps: [
+      "Tạo sổ trống: nhấn Ctrl+N hoặc menu Tệp > Mới. Một cửa sổ mới tên Bảng tính 2, Bảng tính 3… xuất hiện với duy nhất Sheet1, ô A1 đang chọn và chưa có dữ liệu. Ứng dụng hiển thị tên 3T Sheet trên thanh tiêu đề cửa sổ.",
+      "Mở sổ: nhấn Ctrl+O hoặc menu Tệp > Mở, chọn XLSX, XLS, ODS hoặc CSV. Nếu sổ hiện tại có thay đổi, chọn Lưu, Không lưu hoặc Hủy trước khi chọn tệp; Hủy thao tác mở sẽ giữ sổ hiện tại.",
+      "Lưu (Ctrl+S): mở hộp thoại Lưu thành cho sổ mới. Với tệp đã mở/lưu, Ctrl+S giữ nguyên định dạng hiện tại. Nhấn F12 để Lưu bản sao — nhập tên, chọn XLSX, XLS, ODS, CSV hoặc PDF ở Loại tệp. Chọn PDF chỉ xuất một bản PDF; sổ đang mở vẫn giữ tên và định dạng cũ.",
+      "In (Ctrl+P): mở Xem trước khi in. Chọn máy in, số bản và phạm vi trang. Các thiết lập Vùng in, ngắt trang và Vừa trang được áp dụng vào bản xem trước. Khi có Microsoft Office/WPS, dùng bộ dựng PDF đó; ngược lại LibreOffice.",
+      "Xuất PDF: menu Tệp > Xuất PDF > chọn nơi lưu. Cùng đường dựng với In."
+    ]
+  },
+  {
+    id: "sheet.shortcuts",
+    app: "sheet",
+    commandIds: [
+      "common.file.new", "common.file.open", "common.file.save", "common.file.print",
+      "common.edit.undo", "common.edit.redo", "common.edit.cut", "common.edit.copy",
+      "common.edit.paste", "common.edit.selectAll", "common.edit.find", "common.edit.replace",
+      "sheet.cell.bold", "sheet.cell.edit", "sheet.format.cellsDialog",
+      "sheet.formula.sum", "sheet.data.filter", "sheet.edit.fillDown", "sheet.edit.fillRight",
+      "sheet.select.column", "sheet.select.row", "sheet.insert.cells"
+    ],
+    title: "Phím tắt thường dùng (15 phím tắt phổ biến nhất)",
+    summary: "15 phím tắt dùng nhiều nhất trong 3T Sheet — tương thích Microsoft Excel và LibreOffice Calc. Tất cả đã bind trong command-definitions.js; có hoàn tác (Ctrl+Z) khi áp dụng định dạng.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Bảng nhớ tạm" },
+    keywords: ["phím tắt", "shortcut", "ctrl+n", "ctrl+o", "ctrl+s", "ctrl+p", "ctrl+z", "ctrl+y", "ctrl+x", "ctrl+c", "ctrl+v", "ctrl+a", "ctrl+f", "ctrl+h", "ctrl+b", "f2", "ctrl+1", "alt+=", "ctrl+shift+l", "ctrl+d", "ctrl+r", "ctrl+space", "shift+space", "ctrl+shift++", "3t sheet"],
+    steps: [
+      "Tạo mới: Ctrl+N  |  Mở: Ctrl+O  |  Lưu: Ctrl+S  |  In: Ctrl+P",
+      "Hoàn tác: Ctrl+Z  |  Làm lại: Ctrl+Y",
+      "Cắt: Ctrl+X  |  Sao chép: Ctrl+C  |  Dán: Ctrl+V  |  Chọn tất cả: Ctrl+A",
+      "Tìm kiếm: Ctrl+F  |  Thay thế: Ctrl+H",
+      "Chữ đậm: Ctrl+B  |  Chỉnh sửa ô: F2  |  Định dạng ô: Ctrl+1",
+      "AutoSum: Alt+=  |  Bộ lọc: Ctrl+Shift+L  |  Điền xuống: Ctrl+D  |  Điền phải: Ctrl+R",
+      "Chọn cột: Ctrl+Space  |  Chọn hàng: Shift+Space  |  Chèn ô/hàng/cột: Ctrl+Shift++",
+      "Các phím tắt khác hữu ích: Ctrl+- (Xóa ô/hàng/cột), Ctrl+; (Chèn ngày), Ctrl+Shift+; (Chèn giờ), F11 (Chèn biểu đồ), Shift+F11 (Chèn trang tính mới)."
+    ]
+  },
+{
+    id: "sheet.differences",
+    app: "sheet",
+    commandIds: [
+      "sheet.data.scenarioManager",
+      "sheet.data.dataTable",
+      "sheet.formula.watchWindow",
+      "sheet.formula.evaluateFormula",
+      "sheet.page.printTitles"
+    ],
+    title: "Khác biệt cần biết (so với bộ Office khác)",
+    summary: "Tất cả tính năng trong RIBBON-BACKLOG.md cho 3T Sheet đã hoàn thành (Scenario Manager, Bảng dữ liệu 2 biến, Watch Window, Ước lượng công thức, Print Titles). Các nút trên ribbon hiện hành đều hoạt động đầy đủ. Không có mục pending nào còn lại cho Sheet.",
+    ribbon: { tab: "Dữ liệu", tabId: "data", group: "Công cụ dữ liệu" },
+    keywords: ["khác biệt", "không có", "chưa hỗ trợ", "pending", "scenario", "data table", "watch window", "evaluate formula", "print titles", "đã hoàn thành"],
+    steps: [
+      "Trình quản lý kịch bản (Scenario Manager): tab Dữ liệu > nhóm Công cụ dữ liệu > Phân tích What-If > Trình quản lý kịch bản — đã hoàn thành Patch 1.0.1 (thêm/sửa/xóa kịch bản, Hiển thị, Gộp, Báo cáo Tóm tắt, lưu/đọc XLSX/FODS).",
+      "Bảng dữ liệu hai biến: tab Dữ liệu > nhóm Công cụ dữ liệu > Phân tích What-If > Bảng dữ liệu — đã hoàn thành Patch 1.1 (hỗ trợ 1 biến và 2 biến, tự tính lại khi đổi đầu vào, lưu XLSX dạng giá trị tĩnh).",
+      "Cửa sổ theo dõi (Watch Window): tab Công thức > nhóm Kiểm tra công thức > Cửa sổ theo dõi — đã hoàn thành Patch 1.0.1 (cửa sổ nổi 6 cột, thêm/xóa ô đa sheet, tự cập nhật).",
+      "Ước lượng công thức: tab Công thức > nhóm Kiểm tra công thức > Ước lượng công thức — đã hoàn thành Patch 1.1 (hộp thoại gạch chân phần sắp tính, nút Ước lượng/Bước vào/Bước ra/Khởi động lại/Đóng, hiển thị lỗi #DIV/0!/#N/A/#REF!).",
+      "Tiêu đề in (Print Titles): tab Bố trí trang > nhóm Thiết lập trang > Tiêu đề in — đã hoàn thành Patch 1.0.1 (nhập tham chiếu $1:$2/$A:$B, nút ⊞ chọn trực tiếp hàng/cột trên lưới, lưu qua _xlnm.Print_Titles).",
+      "Liên kết ngoài: công thức như =[BaoCao.xlsx]Sheet1!A1 hiển thị giá trị lưu lần cuối, giữ liên kết khi lưu XLSX, không tự cập nhật (ứng dụng chạy offline). Thanh cảnh báo vàng dưới ribbon báo số ô có liên kết."
+    ]
   }
 ];
 
