@@ -29,6 +29,7 @@ from .manifest import (
 from .source import UpdateSourceError, download_blob, read_source_bytes
 
 LOG = logging.getLogger("vnoffice.updater")
+_UPDATE_LOG_LOCK = threading.Lock()
 MAX_CHANNEL_BYTES = 16 * 1024
 MAX_SIGNATURE_BYTES = 1024
 MAX_STAGE_AGE_SECONDS = 14 * 24 * 60 * 60
@@ -54,6 +55,18 @@ def _atomic_write(path: Path, content: bytes) -> None:
         stream.flush()
         os.fsync(stream.fileno())
     temp.replace(path)
+
+
+def _append_update_log(updates_dir: Path, message: str) -> None:
+    """Keep the updater handoff visible even when PowerShell never starts."""
+    try:
+        updates_dir.mkdir(parents=True, exist_ok=True)
+        with _UPDATE_LOG_LOCK, (updates_dir / "update-log.txt").open("a", encoding="utf-8", newline="\n") as stream:
+            stream.write(f"{_utc_now()} STEP {message}\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+    except OSError:
+        LOG.warning("Could not append to the local update log", exc_info=True)
 
 
 def _safe_install_path(install_dir: Path, relative: str) -> Path:
@@ -364,18 +377,42 @@ class UpdaterManager:
             except (ManifestError, OSError):
                 continue
 
-    def create_apply_task(self, *, app_kind: str, install_root: str | Path, launch_args: list[str] | None = None) -> Path:
+    def create_apply_task(
+        self,
+        *,
+        app_kind: str,
+        install_root: str | Path,
+        launch_args: list[str] | None = None,
+        restore_documents: list[str] | None = None,
+    ) -> Path:
         if not self._manifest or not self._manifest_bytes or not self._signature:
             raise UpdateRefused("Chưa có bản cập nhật đã xác minh để áp dụng")
         if app_kind not in {"writer", "sheet", "slides"}:
             raise UpdateRefused("Ứng dụng khởi chạy không hợp lệ")
+        _append_update_log(
+            self.updates_dir,
+            f"task-create-start app={app_kind} old={self.current_version} new={self._manifest['version']}",
+        )
         install = Path(install_root).resolve()
         stage = self.updates_dir / str(self._manifest["version"])
-        source_helper = self.install_dir / "app" / "adapters" / "updater" / "apply-helper.ps1"
-        if not source_helper.is_file():
-            raise UpdateRefused("Thiếu helper cập nhật Windows trong gói đã cài")
         staged_helper = stage / "apply-helper.ps1"
-        shutil.copyfile(source_helper, staged_helper)
+        helper_relative = "app/adapters/updater/apply-helper.ps1"
+        helper_replacement = next((item for item in self._changed if item["path"] == helper_relative), None)
+        if helper_replacement:
+            helper_blob = stage / "blobs" / str(helper_replacement["sha256"])
+            if not helper_blob.is_file():
+                raise UpdateRefused("Thiếu helper cập nhật đã xác minh trong staging")
+            helper_size, helper_digest = sha256_file(helper_blob)
+            if helper_size != helper_replacement["size"] or helper_digest != helper_replacement["sha256"]:
+                raise UpdateRefused("Helper cập nhật không khớp với manifest đã ký")
+            shutil.copyfile(helper_blob, staged_helper)
+            helper_source = f"signed-patch sha256={helper_digest}"
+        else:
+            source_helper = self.install_dir / helper_relative
+            if not source_helper.is_file():
+                raise UpdateRefused("Thiếu helper cập nhật Windows trong gói đã cài")
+            shutil.copyfile(source_helper, staged_helper)
+            helper_source = "installed-package"
         token = uuid.uuid4().hex
         health_file = self.updates_dir / f"health-{token}.ok"
         managed_new = {str(item["path"]) for item in self._manifest["files"]}
@@ -392,35 +429,61 @@ class UpdaterManager:
             "removals": removals,
             "launch_app": app_kind,
             "launch_args": list(self._launch_args if launch_args is None else launch_args),
+            "restore_documents": [str(path) for path in (restore_documents or [])],
             "launch_executable": str((install / "python" / "pythonw.exe").resolve()),
             "launch_prefix_args": ["-s", "-E", str((install / "app" / "main.py").resolve())],
             "health_token": token,
             "health_timeout_seconds": 90,
+            "process_wait_seconds": 45,
+            "soffice_exit_wait_seconds": 12,
+            "log_file": str((self.updates_dir / "update-log.txt").resolve()),
         }
         task_path = stage / "apply-task.json"
         encoded = json.dumps(task, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         _atomic_write(task_path, encoded)
+        _append_update_log(
+            self.updates_dir,
+            f"task-created path=\"{task_path}\" helper-source={helper_source} replacements={len(self._changed)} removals={len(removals)} documents={len(task['restore_documents'])}",
+        )
         return task_path
 
     def launch_apply_helper(self, task_path: str | Path) -> bool:
+        task_path = Path(task_path).resolve()
+        helper_path = task_path.parent / "apply-helper.ps1"
+        _append_update_log(self.updates_dir, f"helper-launch-request helper=\"{helper_path}\" task=\"{task_path}\"")
         if os.name != "nt":
+            _append_update_log(self.updates_dir, "helper-launch-refused reason=windows-required")
             return False
         powershell = shutil.which("powershell.exe") or shutil.which("powershell")
         if not powershell:
+            _append_update_log(self.updates_dir, "helper-launch-failed reason=powershell-not-found")
             raise UpdateRefused("Không tìm thấy Windows PowerShell")
-        helper_path = Path(task_path).parent / "apply-helper.ps1"
         if not helper_path.is_file():
+            _append_update_log(self.updates_dir, f"helper-launch-failed reason=helper-missing path=\"{helper_path}\"")
             raise UpdateRefused("Không tìm thấy apply-helper.ps1 trong staging")
-        flags = getattr(subprocess, "DETACHED_PROCESS", 0x00000008) | getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
-        subprocess.Popen(
-            [powershell, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", str(helper_path), "-Task", str(task_path)],
-            cwd=str(helper_path.parent),
-            creationflags=flags,
-            close_fds=True,
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+        # DETACHED_PROCESS prevents Windows PowerShell from executing -File in
+        # the packaged launch path. CREATE_NO_WINDOW keeps the helper invisible.
+        flags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+        _append_update_log(self.updates_dir, f"helper-launch-start powershell=\"{powershell}\" execution_policy=Bypass")
+        try:
+            process = subprocess.Popen(
+                [powershell, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", str(helper_path), "-Task", str(task_path)],
+                cwd=str(helper_path.parent),
+                creationflags=flags,
+                close_fds=True,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except OSError as exc:
+            _append_update_log(self.updates_dir, f"helper-launch-failed error={type(exc).__name__}: {exc}")
+            raise
+        _append_update_log(self.updates_dir, f"helper-process-started pid={process.pid}")
+        threading.Thread(
+            target=process.wait,
+            name="vnoffice-update-helper-reaper",
+            daemon=True,
+        ).start()
         return True
 
 
