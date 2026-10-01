@@ -953,10 +953,10 @@ export const WRITER_HELP_ENTRIES = [
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Bảng nhớ tạm" },
     keywords: ["dán đặc biệt", "paste special", "giữ định dạng", "chỉ giữ văn bản", "plain text", "Ctrl+Alt+V", "Ctrl+Shift+V", "bảng nhớ tạm"],
     steps: [
-      "Trong Word, bôi đen tiêu đề, đoạn chữ, danh sách hoặc bảng cần chuyển rồi nhấn Ctrl+C.",
-      "Đặt con trỏ trong tài liệu 3T Doc tại vị trí muốn dán.",
+      "Trong phần mềm soạn thảo khác, bôi đen tiêu đề, đoạn chữ, danh sách hoặc bảng cần chuyển rồi nhấn Ctrl+C.",
+      "Đặt con trỏ trong tài liệu Doc tại vị trí muốn dán.",
       "Mở tab Trang đầu, nhóm Bảng nhớ tạm: nhấn mũi tên nhỏ bên dưới nút Dán (hoặc Ctrl+Alt+V) để mở hộp thoại Dán đặc biệt.",
-      "Chọn Giữ định dạng nguồn để dán theo định dạng Word, gồm tiêu đề, chữ đậm/nghiêng, danh sách và bảng.",
+      "Chọn Giữ định dạng nguồn để dán theo định dạng nguồn, gồm tiêu đề, chữ đậm/nghiêng, danh sách và bảng.",
       "Chọn Chỉ giữ văn bản để dán nội dung thuần túy, loại bỏ mọi định dạng, kiểu chữ và cấu trúc.",
       "Nhấn Đồng ý hoặc Enter để dán. Mỗi lần dán là một bước Undo (Ctrl+Z) duy nhất."
     ]
