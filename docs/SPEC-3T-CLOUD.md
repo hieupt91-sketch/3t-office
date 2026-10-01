@@ -95,7 +95,7 @@ Mỗi GĐ: agent làm trong nhánh riêng; Claude kiểm (test API tự động 
 
 ## 8. Cần Người phụ trách quyết / cung cấp
 1. **Dùng chung máy `3tserver`** (như 3T Reader) hay thuê VPS riêng?
-2. **Tên miền**: đề xuất `office.3tcomputer.com` (thêm vào Cloudflare Tunnel hiện có).
+2. **Tên miền**: ✅ **ĐÃ CHỐT (01/10): `office.3tcomputer.com` trước mắt**, có thể đổi sau → tên miền là CẤU HÌNH (`app/vnoffice-config.json` phía app, `.env` phía máy chủ), không viết cứng trong mã; app hỗ trợ danh sách nguồn dự phòng (tên miền mới + cũ + kho LAN) để chuyển tên miền bằng một bản vá mà không làm máy cũ mất kết nối.
 3. **Quyền SSH** vào máy chủ cho agent triển khai (tài khoản riêng, không dùng root) — hoặc Người phụ trách tự chạy script triển khai.
 4. **Dùng chung API bản quyền với 3T Reader** (một tài khoản/key cho nhiều sản phẩm) hay tách riêng?
 5. **Chính sách bản quyền**: số máy mỗi key, số ngày dùng ngoại tuyến (đề xuất 30), số ngày dùng thử, giá/gói (vĩnh viễn + 1 năm cập nhật, thuê bao).
