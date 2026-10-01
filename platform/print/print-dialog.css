@@ -42,6 +42,12 @@
 .vno-print-office-option input { width: 16px; height: 16px; margin: 1px 0 0; accent-color: #0f4c81; }
 .vno-print-office-option input:disabled { cursor: not-allowed; }
 .vno-print-engine-used { margin: 7px 0 0 24px; color: var(--vno-text-muted, #64748b); font-size: 11px; }
+.vno-print-sheet-scope { display: flex; flex-direction: column; gap: 9px; margin: 8px 0 0; padding: 12px; border: 1px solid var(--vno-border-default, #cbd5e1); border-radius: 8px; }
+.vno-print-sheet-scope legend { padding: 0 4px; font-size: 13px; font-weight: 650; }
+.vno-print-sheet-scope label { display: flex; align-items: center; gap: 8px; font-size: 12px; line-height: 1.4; cursor: pointer; }
+.vno-print-sheet-scope input[type="radio"] { width: 16px; height: 16px; accent-color: #0f4c81; }
+.vno-print-sheet-scope input:disabled { cursor: not-allowed; }
+.vno-print-selection-help { padding-left: 24px; }
 .vno-print-range { display: flex; flex-direction: column; gap: 10px; margin: 8px 0 0; padding: 12px; border: 1px solid var(--vno-border-default, #cbd5e1); border-radius: 8px; }
 .vno-print-range legend { padding: 0 4px; }
 .vno-print-range label { display: flex; align-items: center; gap: 8px; font-size: 13px; }

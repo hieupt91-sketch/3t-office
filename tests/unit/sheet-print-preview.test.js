@@ -154,6 +154,17 @@ export async function runSheetPrintPreviewTests() {
     assert(group.items.some(item => item.commandId === "sheet.file.printPreview"), "Thiếu nút sheet.file.printPreview trong nhóm");
   });
 
+  await test("sheet.file.printPreview: lệnh xem trước dùng cùng luồng PDF để đếm trang và in", async () => {
+    const adapter = new SheetAdapter(new SheetGridController(container()));
+    let printCalls = 0;
+    adapter.print = () => { printCalls += 1; return true; };
+    adapter.attach();
+    await globalCommandBus.execute("sheet.file.printPreview");
+    const handled = await adapter.handleDispatch(".uno:PrintPreview", null, "sheet.file.printPreview");
+    assert(handled === true, "UNO PrintPreview phải được xử lý");
+    assert(printCalls === 2, `Ribbon và UNO phải mở cùng luồng xem PDF/in, nhận ${printCalls} lần gọi`);
+  });
+
   await test("computePrintPages: vùng nhỏ vừa 1 trang A4 dọc mặc định", () => {
     const grid = new SheetGridController(container());
     put(grid, "A1", "x"); put(grid, "C5", "y");

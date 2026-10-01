@@ -247,14 +247,16 @@ export class UnoBridge {
     return await this.desktopApi.export_pdf_dialog(content, appKind, suggestedName, sourcePath);
   }
 
-  async preparePrintDocument(appKind, content, suggestedName, sourcePath, useOffice = true) {
+  async preparePrintDocument(appKind, content, suggestedName, sourcePath, useOffice = true, printOptions = null) {
     if (!this.desktopApi || !this.hasRealEngine) {
       return {
         status: "error",
         message: "Chức năng In chỉ khả dụng trong 3T Office Desktop có LibreOffice.",
       };
     }
-    return await this.desktopApi.prepare_print_document(appKind, content, suggestedName, sourcePath, useOffice);
+    return await this.desktopApi.prepare_print_document(
+      appKind, content, suggestedName, sourcePath, useOffice, printOptions,
+    );
   }
 
   async getPrintEngineStatus(appKind) {
