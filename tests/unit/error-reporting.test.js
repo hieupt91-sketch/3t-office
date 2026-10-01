@@ -83,7 +83,7 @@ export async function runErrorReportingTests() {
     if (dialogCount !== 1 || reads !== 2) throw new Error(`expected one first-launch dialog, got ${dialogCount}`);
     for (const app of ["writer", "sheet", "slides"]) {
       const entry = getHelpEntriesForApp(app).find((item) => item.id === `${app}.help.errorReporting`);
-      if (!entry || entry.steps.length < 3 || !entry.summary.includes(app === "writer" ? "3T Doc" : app === "sheet" ? "3T Sheet" : "3T Slide")) {
+      if (!entry || entry.steps.length < 3 || !entry.summary.includes(app === "writer" ? "Doc" : app === "sheet" ? "Sheet" : "Slide")) {
         throw new Error(`missing specific Vietnamese Help for ${app}`);
       }
     }

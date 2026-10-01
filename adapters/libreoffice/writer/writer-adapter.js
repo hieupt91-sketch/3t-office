@@ -9420,9 +9420,9 @@ export class WriterAdapter {
     const restart = this.lineNumbers.restart;
     const modeLabel = restart === "page" ? "Mỗi trang" : restart === "section" ? "Mỗi mục" : "Liên tục";
     const sectionNote = restart === "section"
-      ? " File Word/LibreOffice ghi Liên tục vì ODF không có restart-each-section."
+      ? " Khi lưu .docx, lựa chọn Mỗi mục chuyển thành Liên tục."
       : "";
-    badge.textContent = `Danh số dòng: ${modeLabel}. Số hiện ở lề trái khi mở bằng Word hoặc LibreOffice — canvas 3T Doc không vẽ số.${sectionNote}`;
+    badge.textContent = `Danh số dòng: ${modeLabel}. Số hiện ở lề trái khi mở bằng phần mềm văn phòng khác có hỗ trợ — Doc chưa vẽ số cạnh từng dòng.${sectionNote}`;
     badge.setAttribute("title", badge.textContent);
   }
 
@@ -12507,7 +12507,7 @@ export class WriterAdapter {
       } catch (error) {
         await showAlertDialog({
           title: "Không thể mở tệp",
-          message: `${error?.message || "Tệp không đúng định dạng hoặc bị hỏng."} Tài liệu đang mở được giữ nguyên.`,
+          message: "Doc không thể đọc nội dung tệp. Hãy kiểm tra tệp gốc hoặc thử lưu một bản sao ở định dạng .docx. Tài liệu đang mở được giữ nguyên.",
           type: "error"
         });
         return false;

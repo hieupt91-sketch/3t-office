@@ -59,14 +59,14 @@ export const CONSISTENCY_HELP_ENTRIES = [
     app: "common",
     commandIds: [],
     title: "Giao diện Sáng/Tối và Cỡ chữ hiển thị",
-    summary: "Tùy biến giao diện làm việc với chế độ Sáng hoặc Tối và điều chỉnh cỡ chữ giao diện (Tiêu chuẩn, Lớn, Rất lớn) đồng bộ trên cả 3T Doc, 3T Sheet và 3T Slide.",
+    summary: "Tùy biến giao diện làm việc với chế độ Sáng hoặc Tối và điều chỉnh cỡ chữ giao diện (Tiêu chuẩn, Lớn, Rất lớn) đồng bộ trên cả Doc, Sheet và Slide.",
     ribbon: { tab: "Tệp", tabId: "file", group: "Tùy chọn" },
     keywords: ["giao diện", "chế độ tối", "chế độ sáng", "dark mode", "light mode", "cỡ chữ", "font size", "tùy chọn"],
     steps: [
       "Bấm vào menu Tệp > chọn 'Tùy chọn' (hoặc nhấn nút biểu tượng Mặt trăng / Mặt trời ở góc trên thanh tiêu đề để đổi nhanh nền sáng/tối).",
       "Trong hộp thoại Tùy chọn 3T Office: chọn Giao diện Sáng (mặc định) hoặc Giao diện Tối để bảo vệ mắt khi làm việc ban đêm.",
       "Tại mục Cỡ chữ giao diện: chọn Tiêu chuẩn (100%), Lớn (115%) hoặc Rất lớn (130%) phù hợp với độ phân giải màn hình của bạn.",
-      "Nhấn phím Enter hoặc bấm 'Đồng ý' để lưu và áp dụng tức thì cho cả 3 ứng dụng 3T Doc, 3T Sheet và 3T Slide."
+      "Nhấn phím Enter hoặc bấm 'Đồng ý' để lưu và áp dụng tức thì cho cả 3 ứng dụng Doc, Sheet và Slide."
     ]
   },
   {

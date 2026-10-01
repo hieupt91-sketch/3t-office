@@ -33,7 +33,7 @@ export class SlidesApp {
     const isBlank = templateId === "blank";
     this.shell = new AppShell({
       appName: "slides",
-      appTitle: "3T Slide",
+      appTitle: "Slide",
       documentName: options.documentName || (isBlank ? "Bản trình bày 1.pptx" : "Báo cáo đề án phát triển 3T Office 2026.pptx")
     });
     this.shell.mount(this.mountElement);
@@ -112,7 +112,7 @@ export class SlidesApp {
   async _ensureHelpPanel() {
     if (this.helpPanel) return this.helpPanel;
     if (!this._helpPanelPromise) {
-      this.shell?.setStatus?.("Đang tải Trợ giúp 3T Slide…");
+      this.shell?.setStatus?.("Đang tải Trợ giúp Slide…");
       this._helpPanelPromise = Promise.all([
         import("../../platform/help/index.js"),
         import("../../platform/help/entries-slides.js")
@@ -125,7 +125,7 @@ export class SlidesApp {
         return this.helpPanel;
       }).catch((error) => {
         this._helpPanelPromise = null;
-        this.shell?.setStatus?.("Không tải được Trợ giúp 3T Slide.");
+        this.shell?.setStatus?.("Không tải được Trợ giúp Slide.");
         throw error;
       });
     }

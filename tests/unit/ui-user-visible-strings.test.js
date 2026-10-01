@@ -20,6 +20,12 @@ import { findHelpEntryForContext } from "../../platform/help/help-service.js";
 import { AppShell } from "../../platform/shell/app-shell.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { ShortcutManager, globalShortcutManager } from "../../platform/commands/shortcut-manager.js";
+import { viStrings } from "../../platform/i18n/strings-vi.js";
+import { enStrings } from "../../platform/i18n/strings-en.js";
+import { COMMON_COMMANDS, WRITER_COMMANDS, SHEET_COMMANDS, SLIDES_COMMANDS } from "../../platform/commands/command-definitions.js";
+import { scanDisplayedSource, BANNED_DISPLAY_TEXT } from "./user-visible-source-scanner.js";
+import "../../platform/help/entries-sheet.js";
+import "../../platform/help/entries-slides.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = path.resolve(__dirname, "../..");
@@ -38,6 +44,90 @@ export async function runUiConsistencyAndStringScannerTests() {
   // =========================================================================
   // CH-8.4: User-Visible Strings Scanner Test
   // =========================================================================
+  const checkText = (value, location) => {
+    assert.ok(!BANNED_DISPLAY_TEXT.test(String(value)), `${location}: ${value}`);
+  };
+  runTest("Names: all help titles, summaries, steps, keywords and notes use public names", () => {
+    for (const entry of HELP_ENTRIES) {
+      for (const field of ["title", "summary", "steps", "keywords", "note", "ribbon"]) {
+        checkText(JSON.stringify(entry[field] ?? ""), `${entry.id}.${field}`);
+      }
+    }
+  });
+  runTest("Names: all Vietnamese and English translation values use public names", () => {
+    const walk = (value, location) => {
+      if (typeof value === "string") checkText(value, location);
+      else if (value && typeof value === "object") {
+        for (const [key, child] of Object.entries(value)) walk(child, `${location}.${key}`);
+      }
+    };
+    walk(viStrings, "vi");
+    walk(enStrings, "en");
+    for (const file of ["strings.vi.json", "strings.en.json"]) {
+      const fullPath = path.join(ROOT_DIR, "platform/i18n", file);
+      if (fs.existsSync(fullPath)) walk(JSON.parse(fs.readFileSync(fullPath, "utf8")), file);
+    }
+  });
+  runTest("Names: ribbon command labels and tooltips use public names", () => {
+    for (const command of [...COMMON_COMMANDS, ...WRITER_COMMANDS, ...SHEET_COMMANDS, ...SLIDES_COMMANDS]) {
+      checkText(command.label, `${command.id}.label`);
+      checkText(command.tooltip ?? "", `${command.id}.tooltip`);
+    }
+  });
+  runTest("Names: dialogs, status messages, ribbon configuration and demo prose use public names", () => {
+    const violations = [];
+    const walk = directory => {
+      for (const item of fs.readdirSync(directory, { withFileTypes: true })) {
+        const fullPath = path.join(directory, item.name);
+        if (item.isDirectory()) walk(fullPath);
+        else if (item.name.endsWith(".js")) {
+          const relative = path.relative(ROOT_DIR, fullPath).replaceAll("\\", "/");
+          violations.push(...scanDisplayedSource(fs.readFileSync(fullPath, "utf8"), relative));
+        }
+      }
+    };
+    walk(path.join(ROOT_DIR, "apps"));
+    walk(path.join(ROOT_DIR, "platform"));
+    walk(path.join(ROOT_DIR, "adapters/libreoffice"));
+    violations.push(...scanDisplayedSource(fs.readFileSync(path.join(ROOT_DIR, "index.html"), "utf8"), "index.html"));
+    assert.deepEqual(violations, []);
+  });
+  runTest("Names: installer wizard, pilot guide, release notes and desktop app titles use public names", () => {
+    const installer = fs.readFileSync(path.join(ROOT_DIR, "scripts/installer/vnoffice.nsi"), "utf8");
+    for (const line of installer.split("\n")) {
+      if (/^!define MUI_.*(?:TITLE|TEXT) |^LangString /.test(line)) checkText(line, "installer displayed text");
+    }
+    for (const file of ["scripts/pilot/CAI-DAT.txt", "release-notes.txt"]) {
+      checkText(fs.readFileSync(path.join(ROOT_DIR, file), "utf8"), file);
+    }
+    const main = fs.readFileSync(path.join(ROOT_DIR, "main.py"), "utf8");
+    const titles = main.match(/APP_TITLES = \{([^}]+)\}/)?.[1];
+    assert.ok(titles);
+    for (const [app, name] of [["writer", "Doc"], ["sheet", "Sheet"], ["slides", "Slide"]]) {
+      assert.ok(titles.includes(`"${app}": "${name}"`));
+    }
+    checkText(titles, "APP_TITLES");
+    for (const file of ["main.py", "adapters/libreoffice/common/soffice_uno_worker.py"]) {
+      const source = fs.readFileSync(path.join(ROOT_DIR, file), "utf8");
+      for (const line of source.split("\n")) {
+        if (/raise .*Error\(|\bmessage =/.test(line) && !line.trim().startsWith("#")) {
+          assert.deepEqual(scanDisplayedSource(line, file), [], line);
+        }
+      }
+    }
+  });
+  runTest("Names: scanner rejects every forbidden token and permits only the legal attribution", () => {
+    for (const token of ["LibreOffice", "soffice", "OpenOffice", "UNO", "headless", "FODT", "FODS", "FODP", "Microsoft", "PowerPoint", "Office 365", "WPS", "Word", "Excel", "3T Doc", "3T Sheet", "3T Slide", "chuan chuan", "chuẩn chuẩn", "command-definitions.js"]) {
+      assert.ok(BANNED_DISPLAY_TEXT.test(token), token);
+      assert.equal(scanDisplayedSource(`const label = "Dùng ${token} ở đây";`, "apps/example/dialog.js").length, 1, token);
+    }
+    assert.deepEqual(scanDisplayedSource('const components = [{ name: "LibreOffice", license: "MPL-2.0" }];', "platform/about/about-dialog.js"), []);
+    assert.equal(scanDisplayedSource('const label = "Dùng LibreOffice";', "platform/about/about-dialog.js").length, 1);
+    assert.equal(scanDisplayedSource('dialog.innerHTML = "LibreOffice";', "apps/example.js").length, 1);
+    assert.equal(scanDisplayedSource('dialog.innerHTML = `<p>LibreOffice</p>${t("label", "3T Doc")}`;', "apps/example.js").length, 2);
+    assert.deepEqual(scanDisplayedSource('const regex = /["\']/g; const label = "Doc"; // Word', "apps/example.js"), []);
+    assert.deepEqual(scanDisplayedSource('// LibreOffice\nimport x from "./command-definitions.js";', "apps/example.js"), []);
+  });
   runTest("CH-8.4 Scanner: Quét sạch các tên cũ VN Writer, VN Sheet, VN Slides, VN Office, VN AI trong i18n", () => {
     const i18nFiles = [
       "platform/i18n/strings-vi.js",
