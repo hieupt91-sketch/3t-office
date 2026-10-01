@@ -11,6 +11,7 @@ import { runSheetExternalLinksTests } from "./unit/sheet-external-links.test.js"
 import { runSheetVndWordsTests } from "./unit/sheet-vnd-words.test.js";
 import { runSheetFormulaOdfTests } from "./unit/sheet-formula-odf.test.js";
 import { runFormulaAutocompleteTests } from "./unit/formula-autocomplete.test.js";
+import { runSheetFormulaEntryTests } from "./unit/sheet-formula-entry.test.js";
 import { runI18nTests } from "./unit/i18n.test.js";
 import { run3TDisplayNameTests } from "./unit/3t-display-name.test.js";
 import { runI18nHardcodedEnglishTests } from "./unit/i18n-hardcoded-english.test.js";
@@ -219,6 +220,7 @@ async function runAll() {
     { title: "3c. Unit Tests — VND() số tiền bằng chữ", runner: runSheetVndWordsTests },
     { title: "3d. Unit Tests — Sheet công thức #REF! ⇄ ODF", runner: runSheetFormulaOdfTests },
     { title: "4. Unit Tests — Formula Autocomplete & Parameter IntelliSense", runner: runFormulaAutocompleteTests },
+    { title: "4a. Unit Tests — Sheet Excel-Style Formula Entry", runner: runSheetFormulaEntryTests },
     { title: "5. Unit Tests — Vietnamese i18n Localization Layer", runner: runI18nTests },
     { title: "5a. Regression Guard — 3T display names in i18n and Help", runner: run3TDisplayNameTests },
     { title: "5b. Regression Guard — Hard-coded English UI Text Scan", runner: runI18nHardcodedEnglishTests },
