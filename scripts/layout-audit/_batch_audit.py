@@ -3,7 +3,7 @@ For each xlsx in "file test/lan" (or the given names): real-app round-trip save,
 Excel COM open check, and a summary table written to _batch_audit_report.md."""
 import os, sys, subprocess, re, glob, time
 ROOT = os.path.abspath(sys.argv[1])
-SP = os.path.dirname(os.path.abspath(__file__))
+SP = os.path.join(ROOT, "scripts", "layout-audit") if os.path.exists(os.path.join(ROOT, "scripts", "layout-audit", "_xlsx_lint.py")) else os.path.dirname(os.path.abspath(__file__))
 names = sys.argv[2:] or sorted(os.path.basename(p) for p in glob.glob(os.path.join(ROOT, "file test", "lan", "lan*.xlsx")))
 mapping = {}
 mp = os.path.join(ROOT, "file test", "lan", "_map.txt")
