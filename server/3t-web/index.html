@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3T Office — Bộ ứng dụng văn phòng chạy ngoại tuyến cho Windows</title>
+  <meta name="description" content="3T Office là bộ ứng dụng văn phòng ngoại tuyến cho Windows gồm 3T Doc, 3T Sheet và 3T Slide. Mở và lưu định dạng .docx, .xlsx, .pptx, cập nhật một chạm an toàn.">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="alternate icon" href="favicon.ico">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Chuyển đến nội dung chính</a>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="index.html" class="brand-link" aria-label="Trang chủ 3T Office">
+        <img src="assets/icons/3t-mark.svg" alt="Biểu trưng 3T Office" class="brand-icon">
+        <div class="brand-text">
+          <span class="brand-name">3T <span>Office</span></span>
+          <span class="brand-tagline">Văn phòng ngoại tuyến</span>
+        </div>
+      </a>
+
+      <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="primary-nav" aria-label="Mở trình đơn chuyển hướng">
+        ☰ Trình đơn
+      </button>
+
+      <nav id="primary-nav" class="main-nav" aria-label="Điều hướng chính">
+        <ul class="nav-list">
+          <li><a href="index.html" class="nav-link active" aria-current="page">Trang chủ</a></li>
+          <li><a href="tinh-nang.html" class="nav-link">Tính năng</a></li>
+          <li><a href="tai-ve.html" class="nav-link">Tải về</a></li>
+          <li><a href="co-gi-moi.html" class="nav-link">Có gì mới</a></li>
+          <li><a href="huong-dan.html" class="nav-link">Hướng dẫn</a></li>
+          <li><a href="ban-quyen.html" class="nav-link">Bản quyền</a></li>
+          <li><a href="trang-thai.html" class="nav-link">Trạng thái</a></li>
+          <li><a href="lien-he.html" class="nav-link">Liên hệ</a></li>
+          <li><a href="tai-ve.html" class="nav-link nav-cta">Tải 0.9.6 Pilot</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main-content">
+    <!-- Khối Hero giới thiệu bộ ứng dụng -->
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="container hero-grid">
+        <div class="hero-content">
+          <span class="section-badge">Bộ ứng dụng văn phòng Việt cho Windows</span>
+          <h1 id="hero-title">Soạn thảo, tính toán và trình chiếu <span class="highlight">ngoại tuyến 100%</span></h1>
+          <p class="hero-lead">
+            3T Office gồm bộ ba ứng dụng mạnh mẽ: <strong>3T Doc</strong>, <strong>3T Sheet</strong> và <strong>3T Slide</strong>. 
+            Mở và lưu trực tiếp định dạng .docx, .xlsx, .pptx; bản vá cập nhật gọn nhẹ có chữ ký số chỉ với một lần khởi động lại.
+          </p>
+
+          <div class="hero-actions">
+            <a href="tai-ve.html" class="btn btn-primary">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+              </svg>
+              Tải bản 0.9.6 Pilot
+            </a>
+            <a href="huong-dan.html" class="btn btn-secondary">
+              Xem hướng dẫn sử dụng
+            </a>
+          </div>
+
+          <div class="hero-badges">
+            <div class="badge-item">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+              <span>Chạy hoàn toàn ngoại tuyến</span>
+            </div>
+            <div class="badge-item">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+              <span>Chuẩn định dạng .docx, .xlsx, .pptx</span>
+            </div>
+            <div class="badge-item">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+              <span>Cập nhật một chạm an toàn</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="hero-visual">
+          <div class="preview-card">
+            <div class="preview-header">
+              <div class="window-dots">
+                <span class="dot red"></span>
+                <span class="dot yellow"></span>
+                <span class="dot green"></span>
+              </div>
+              <span class="preview-title">3T Doc — Soạn thảo văn bản</span>
+              <span></span>
+            </div>
+            <div class="preview-body">
+              <picture>
+                <source srcset="assets/screenshots/doc-preview.webp" type="image/webp">
+                <img src="assets/screenshots/doc-preview.png" alt="Giao diện làm việc của 3T Doc" width="1280" height="720" loading="eager">
+              </picture>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Khối 3 ứng dụng cốt lõi -->
+    <section class="section" aria-labelledby="apps-title">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-badge">Bộ công cụ hoàn chỉnh</span>
+          <h2 id="apps-title" class="section-title">Ba ứng dụng đáp ứng mọi nhu cầu văn phòng</h2>
+          <p class="section-lead">
+            Được tối ưu cho người dùng Việt Nam với giao diện chuẩn mực, phím tắt quen thuộc và tốc độ làm việc tức thì.
+          </p>
+        </div>
+
+        <div class="app-grid">
+          <!-- 3T Doc -->
+          <article class="app-card">
+            <div class="app-icon-wrap">
+              <img src="assets/icons/writer.svg" alt="Biểu tượng 3T Doc" width="64" height="64">
+            </div>
+            <div class="app-card-title">
+              <span>3T Doc</span>
+              <span class="app-format-tag">.docx .doc</span>
+            </div>
+            <p class="app-card-desc">
+              Phần mềm soạn thảo văn bản chuyên nghiệp. Định dạng chuẩn Nghị định 30, chia cột, đánh số trang, tạo mục lục tự động, kiểm tra chính tả tiếng Việt và trộn thư từ bảng tính.
+            </p>
+            <ul class="app-feature-list">
+              <li><span class="check-icon">✓</span> Mở và lưu định dạng .docx, .doc, .odt, .rtf</li>
+              <li><span class="check-icon">✓</span> Ngắt mục độc lập (liên tục, trang kế tiếp, chẵn lẻ)</li>
+              <li><span class="check-icon">✓</span> Theo dõi thay đổi và ghi chú lề trang chuẩn xác</li>
+              <li><span class="check-icon">✓</span> Xuất bản in và PDF đúng bố cục</li>
+            </ul>
+            <a href="tinh-nang.html#doc" class="btn btn-secondary">Khám phá 3T Doc</a>
+          </article>
+
+          <!-- 3T Sheet -->
+          <article class="app-card">
+            <div class="app-icon-wrap">
+              <img src="assets/icons/sheet.svg" alt="Biểu tượng 3T Sheet" width="64" height="64">
+            </div>
+            <div class="app-card-title">
+              <span>3T Sheet</span>
+              <span class="app-format-tag">.xlsx .xls</span>
+            </div>
+            <p class="app-card-desc">
+              Bảng tính số linh hoạt với hơn 96 hàm tài chính kế toán, phân tích What-If, vẽ biểu đồ SVG tự động cập nhật, lọc nâng cao và định dạng ô theo chuẩn tiền tệ kế toán Việt Nam.
+            </p>
+            <ul class="app-feature-list">
+              <li><span class="check-icon">✓</span> Mở và lưu bảo toàn mọi sheet trong tệp .xlsx, .xls</li>
+              <li><span class="check-icon">✓</span> Nhóm hàm nâng cao: XLOOKUP, INDEX, MATCH, PMT, IRR</li>
+              <li><span class="check-icon">✓</span> Hộp thoại Định dạng ô (Ctrl+1) chuẩn kế toán Việt Nam</li>
+              <li><span class="check-icon">✓</span> Bảng tổng hợp Pivot Table và quản lý tên vùng</li>
+            </ul>
+            <a href="tinh-nang.html#sheet" class="btn btn-secondary">Khám phá 3T Sheet</a>
+          </article>
+
+          <!-- 3T Slide -->
+          <article class="app-card">
+            <div class="app-icon-wrap">
+              <img src="assets/icons/slides.svg" alt="Biểu tượng 3T Slide" width="64" height="64">
+            </div>
+            <div class="app-card-title">
+              <span>3T Slide</span>
+              <span class="app-format-tag">.pptx .ppt</span>
+            </div>
+            <p class="app-card-desc">
+              Thiết kế bài thuyết trình sinh động tỉ lệ chuẩn 16:9. Hỗ trợ Slide Master đồng bộ chủ đề, hiệu ứng chuyển trang mượt mà, ghi chú thuyết minh và chế độ trình chiếu hai màn hình.
+            </p>
+            <ul class="app-feature-list">
+              <li><span class="check-icon">✓</span> Mở và lưu định dạng .pptx, .ppt, .odp</li>
+              <li><span class="check-icon">✓</span> Chuyển trang đa dạng: Fade, Slide, Zoom, Flip</li>
+              <li><span class="check-icon">✓</span> Bút vẽ và bút laser chỉ điểm khi trình chiếu F5</li>
+              <li><span class="check-icon">✓</span> Ghi chú người thuyết trình (Speaker Notes) độc lập</li>
+            </ul>
+            <a href="tinh-nang.html#slide" class="btn btn-secondary">Khám phá 3T Slide</a>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Khối 3 Lợi ích thực tế -->
+    <section class="section section-alt" aria-labelledby="benefits-title">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-badge">Giá trị cốt lõi</span>
+          <h2 id="benefits-title" class="section-title">Ba lợi thế thực tế của 3T Office</h2>
+          <p class="section-lead">
+            Được phát triển với nguyên tắc thực chất: tối ưu cho thiết bị của bạn, bảo vệ tài liệu và đem lại hiệu quả bền bỉ.
+          </p>
+        </div>
+
+        <div class="benefits-grid">
+          <div class="benefit-card">
+            <div class="benefit-num">01</div>
+            <h3 class="benefit-title">Hoạt động ngoại tuyến 100% & Bảo mật dữ liệu</h3>
+            <p class="benefit-text">
+              Ứng dụng desktop độc lập trên máy tính Windows. Không gửi nội dung tài liệu ra Internet hoặc máy chủ đám mây. Bạn hoàn toàn làm chủ dữ liệu của cơ quan và doanh nghiệp mình mọi lúc mọi nơi.
+            </p>
+          </div>
+
+          <div class="benefit-card">
+            <div class="benefit-num">02</div>
+            <h3 class="benefit-title">Tương thích trọn vẹn định dạng .docx, .xlsx, .pptx</h3>
+            <p class="benefit-text">
+              Dễ dàng mở tài liệu sẵn có và lưu lại dưới định dạng tiêu chuẩn quốc tế. Cấu trúc bảng biểu, công thức tính toán và bố cục trang chiếu được bảo toàn nguyên vẹn khi trao đổi với đồng nghiệp.
+            </p>
+          </div>
+
+          <div class="benefit-card">
+            <div class="benefit-num">03</div>
+            <h3 class="benefit-title">Cập nhật một chạm & Khởi động nhanh</h3>
+            <p class="benefit-text">
+              Người dùng không bao giờ phải gỡ ra cài lại. Bản vá cập nhật nhỏ gọn được tải về tự động và áp dụng chỉ với một lần bấm Khởi động lại. Tài liệu trống mở ra sẵn sàng làm việc tức thì.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Khối Bộ sưu tập ảnh chụp màn hình thật -->
+    <section class="section" aria-labelledby="gallery-title">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-badge">Giao diện thực tế</span>
+          <h2 id="gallery-title" class="section-title">Hình ảnh thực tế từ ứng dụng desktop</h2>
+          <p class="section-lead">
+            Ảnh chụp thực tế từ phiên bản 3T Office đang vận hành trên máy tính Windows.
+          </p>
+        </div>
+
+        <div class="gallery-tabs" role="tablist" aria-label="Lựa chọn ứng dụng xem ảnh">
+          <button type="button" class="tab-btn active" role="tab" aria-selected="true" data-target="panel-doc" id="tab-doc">3T Doc (Soạn thảo)</button>
+          <button type="button" class="tab-btn" role="tab" aria-selected="false" data-target="panel-sheet" id="tab-sheet">3T Sheet (Bảng tính)</button>
+          <button type="button" class="tab-btn" role="tab" aria-selected="false" data-target="panel-slide" id="tab-slide">3T Slide (Trình chiếu)</button>
+        </div>
+
+        <!-- Pa-nen 3T Doc -->
+        <div class="gallery-panel active" id="panel-doc" role="tabpanel" aria-labelledby="tab-doc">
+          <figure class="screenshot-figure">
+            <picture>
+              <source srcset="assets/screenshots/doc-preview.webp" type="image/webp">
+              <img src="assets/screenshots/doc-preview.png" alt="Ảnh chụp thực tế ứng dụng 3T Doc với văn bản tiếng Việt mẫu" width="1280" height="720" loading="lazy">
+            </picture>
+            <figcaption class="screenshot-caption">
+              <span><strong>3T Doc</strong> — Soạn thảo văn bản A4 chuẩn Nghị định 30, rà soát chính tả tiếng Việt.</span>
+              <span class="tag tag-ready">Đã thử nghiệm thực tế</span>
+            </figcaption>
+          </figure>
+        </div>
+
+        <!-- Pa-nen 3T Sheet -->
+        <div class="gallery-panel" id="panel-sheet" role="tabpanel" aria-labelledby="tab-sheet">
+          <figure class="screenshot-figure">
+            <picture>
+              <source srcset="assets/screenshots/sheet-preview.webp" type="image/webp">
+              <img src="assets/screenshots/sheet-preview.png" alt="Ảnh chụp thực tế bảng tính 3T Sheet với công thức tính toán" width="1280" height="720" loading="lazy">
+            </picture>
+            <figcaption class="screenshot-caption">
+              <span><strong>3T Sheet</strong> — Lưới ô tính toán doanh thu, công thức tự động tính và thanh trạng thái tiếng Việt.</span>
+              <span class="tag tag-ready">Đã thử nghiệm thực tế</span>
+            </figcaption>
+          </figure>
+        </div>
+
+        <!-- Pa-nen 3T Slide -->
+        <div class="gallery-panel" id="panel-slide" role="tabpanel" aria-labelledby="tab-slide">
+          <figure class="screenshot-figure">
+            <picture>
+              <source srcset="assets/screenshots/slide-preview.webp" type="image/webp">
+              <img src="assets/screenshots/slide-preview.png" alt="Ảnh chụp thực tế trình chiếu 3T Slide với trang chiếu tỉ lệ 16:9" width="1280" height="720" loading="lazy">
+            </picture>
+            <figcaption class="screenshot-caption">
+              <span><strong>3T Slide</strong> — Khung trình chiếu 16:9, dải phim trang chiếu bên trái và các công cụ vẽ trực quan.</span>
+              <span class="tag tag-ready">Đã thử nghiệm thực tế</span>
+            </figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- Khối Kêu gọi hành động (Call To Action) -->
+    <section class="section section-alt" aria-labelledby="cta-title">
+      <div class="container" style="text-align: center; max-width: 800px;">
+        <span class="section-badge">Bắt đầu trải nghiệm</span>
+        <h2 id="cta-title" class="section-title">Sẵn sàng nâng cao hiệu suất làm việc văn phòng</h2>
+        <p class="section-lead" style="margin-bottom: 32px;">
+          Tải ngay phiên bản 0.9.6 thử nghiệm nội bộ để trải nghiệm sự mượt mà và an toàn của bộ ứng dụng văn phòng Việt.
+        </p>
+        <div style="display: flex; justify-content: center; gap: 16px; flex-wrap: wrap;">
+          <a href="tai-ve.html" class="btn btn-primary">
+            Xem trang Tải về & Thông số
+          </a>
+          <a href="huong-dan.html" class="btn btn-secondary">
+            Tra cứu hướng dẫn sử dụng
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <div class="brand-link" style="margin-bottom: 14px;">
+            <img src="assets/icons/3t-mark.svg" alt="3T Logo" class="brand-icon">
+            <div class="brand-text">
+              <span class="brand-name">3T <span>Office</span></span>
+              <span class="brand-tagline">Văn phòng ngoại tuyến</span>
+            </div>
+          </div>
+          <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;">
+            Bộ ứng dụng văn phòng chạy ngoại tuyến cho Windows phát triển bởi 3T Computer / 3T Technology.
+            Tôn trọng quyền riêng tư dữ liệu, xử lý trực tiếp trên thiết bị của bạn.
+          </p>
+        </div>
+
+        <div class="footer-col">
+          <h4>Ứng dụng</h4>
+          <ul class="footer-links">
+            <li><a href="tinh-nang.html#doc">3T Doc (.docx)</a></li>
+            <li><a href="tinh-nang.html#sheet">3T Sheet (.xlsx)</a></li>
+            <li><a href="tinh-nang.html#slide">3T Slide (.pptx)</a></li>
+            <li><a href="tinh-nang.html">Toàn bộ tính năng</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h4>Thông tin</h4>
+          <ul class="footer-links">
+            <li><a href="tai-ve.html">Tải bộ cài 0.9.6</a></li>
+            <li><a href="co-gi-moi.html">Ghi chú phát hành</a></li>
+            <li><a href="ban-quyen.html">Chính sách bản quyền</a></li>
+            <li><a href="trang-thai.html">Kiểm tra trạng thái</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h4>Hỗ trợ</h4>
+          <ul class="footer-links">
+            <li><a href="huong-dan.html">Hướng dẫn sử dụng</a></li>
+            <li><a href="huong-dan.html#shortcuts">Phím tắt thường dùng</a></li>
+            <li><a href="huong-dan.html#faq">Khác biệt cần biết</a></li>
+            <li><a href="lien-he.html">Liên hệ 3T Computer</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <div>
+          © 2024–2026 3T Computer / 3T Technology. Bảo lưu mọi quyền.
+        </div>
+        <div>
+          Trang web chính thức: <a href="https://office.3tcomputer.com" style="color: var(--brand-orange); text-decoration: none;">office.3tcomputer.com</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

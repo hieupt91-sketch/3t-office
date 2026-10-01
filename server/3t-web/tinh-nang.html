@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tính năng 3T Office — Chi tiết công cụ 3T Doc, 3T Sheet và 3T Slide</title>
+  <meta name="description" content="Danh mục tính năng thực tế của 3T Doc, 3T Sheet và 3T Slide. Khám phá các công cụ đã hoàn thiện và lộ trình tính năng đang phát triển.">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="alternate icon" href="favicon.ico">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Chuyển đến nội dung chính</a>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="index.html" class="brand-link" aria-label="Trang chủ 3T Office">
+        <img src="assets/icons/3t-mark.svg" alt="Biểu trưng 3T Office" class="brand-icon">
+        <div class="brand-text">
+          <span class="brand-name">3T <span>Office</span></span>
+          <span class="brand-tagline">Văn phòng ngoại tuyến</span>
+        </div>
+      </a>
+
+      <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="primary-nav" aria-label="Mở trình đơn chuyển hướng">
+        ☰ Trình đơn
+      </button>
+
+      <nav id="primary-nav" class="main-nav" aria-label="Điều hướng chính">
+        <ul class="nav-list">
+          <li><a href="index.html" class="nav-link">Trang chủ</a></li>
+          <li><a href="tinh-nang.html" class="nav-link active" aria-current="page">Tính năng</a></li>
+          <li><a href="tai-ve.html" class="nav-link">Tải về</a></li>
+          <li><a href="co-gi-moi.html" class="nav-link">Có gì mới</a></li>
+          <li><a href="huong-dan.html" class="nav-link">Hướng dẫn</a></li>
+          <li><a href="ban-quyen.html" class="nav-link">Bản quyền</a></li>
+          <li><a href="trang-thai.html" class="nav-link">Trạng thái</a></li>
+          <li><a href="lien-he.html" class="nav-link">Liên hệ</a></li>
+          <li><a href="tai-ve.html" class="nav-link nav-cta">Tải 0.9.6 Pilot</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main-content">
+    <!-- Tiêu đề trang -->
+    <section class="section" style="padding-bottom: 20px;">
+      <div class="container">
+        <div class="section-header" style="margin-bottom: 24px;">
+          <span class="section-badge">Báo cáo năng lực sản phẩm</span>
+          <h1 class="section-title">Tính năng thực tế của 3T Office</h1>
+          <p class="section-lead">
+            Toàn bộ tính năng dưới đây được tổng hợp trung thực từ mã nguồn kiểm thử và lộ trình kỹ thuật thực tế. 
+            Mọi tính năng được gắn nhãn minh bạch giữa công cụ <strong>Sẵn sàng</strong> và công cụ <strong>Sắp có</strong>.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Ứng dụng 1: 3T Doc -->
+    <section id="doc" class="section section-alt" aria-labelledby="doc-section-title">
+      <div class="container">
+        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 28px;">
+          <img src="assets/icons/writer.svg" alt="Biểu tượng 3T Doc" width="48" height="48">
+          <div>
+            <h2 id="doc-section-title" style="font-size: 1.85rem; font-weight: 800; color: var(--app-doc);">3T Doc — Soạn thảo văn bản</h2>
+            <p style="color: var(--text-dim); font-size: 0.938rem; font-weight: 600;">Tương thích định dạng: .docx, .doc, .odt, .rtf, .txt</p>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px;">
+          <!-- Thẻ tính năng 1 -->
+          <div class="app-card">
+            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <span>Định dạng & Tiêu chuẩn NĐ 30</span>
+              <span class="tag tag-ready">Sẵn sàng</span>
+            </h3>
+            <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;">
+              Hỗ trợ cỡ chữ hành chính 13–14pt, phông Times New Roman và Be Vietnam Pro; thiết lập trang lề trái 30mm, lề phải 15mm chuẩn văn bản Việt Nam.
+            </p>
+          </div>
+
+          <!-- Thẻ tính năng 2 -->
+          <div class="app-card">
+            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <span>Chia cột & Ngắt mục độc lập</span>
+              <span class="tag tag-ready">Sẵn sàng</span>
+            </h3>
+            <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;">
+              Chia 1, 2, 3 cột với đường kẻ phân cách. Bốn loại ngắt mục (Trang kế tiếp, Liên tục, Trang chẵn, Trang lẻ) giữ nguyên thuộc tính khi lưu .docx.
+            </p>
+          </div>
+
+          <!-- Thẻ tính năng 3 -->
+          <div class="app-card">
+            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <span>Mục lục & Chú thích chân trang</span>
+              <span class="tag tag-ready">Sẵn sàng</span>
+            </h3>
+            <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;">
+              Tạo mục lục tự động phân cấp Heading 1/2/3 với dấu chấm dóng hàng. Chèn Footnote và Endnote đánh số tự động kèm điều hướng hai chiều.
+            </p>
+          </div>
+
+          <!-- Thẻ tính năng 4 -->
+          <div class="app-card">
+            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <span>Bảng biểu, Gộp ô & Tô màu</span>
+              <span class="tag tag-ready">Sẵn sàng</span>
+            </h3>
+            <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;">
+              Chèn bảng phức tạp, gộp ô theo hàng/cột (rowspan/colspan), tô màu nền và tùy chỉnh đường viền riêng biệt từng cạnh.
+            </p>
+          </div>
+
+          <!-- Thẻ tính năng 5 -->
+          <div class="app-card">
+            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <span>Trộn thư (Mail Merge) từ bảng tính</span>
+              <span class="tag tag-ready">Sẵn sàng</span>
+            </h3>
+            <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;">
+              Nhận nguồn dữ liệu từ tệp .xlsx và .csv, chèn các trường trộn vào mẫu văn bản, xem trước dữ liệu thực và hợp nhất hàng loạt.
+            </p>
+          </div>
+
+          <!-- Thẻ tính năng 6 -->
+          <div class="app-card">
+            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <span>Kiểm tra chính tả tiếng Việt</span>
+              <span class="tag tag-ready">Sẵn sàng</span>
+            </h3>
+            <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;">
+              Phát hiện lỗi dấu thanh và phụ âm tiếng Việt với gạch chân lượn sóng màu đỏ theo thời gian thực; hỗ trợ menu chuột phải gợi ý từ thay thế.
+            </p>
+          </div>
+
+          <!-- Thẻ tính năng 7: Sắp có -->
+          <div class="app-card" style="border-style: dashed;">
+            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <span>Bộ soạn công thức toán học mở rộng</span>
+              <span class="tag tag-pending">Sắp có</span>
+            </h3>
+            <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;">
+              Hiện tại hỗ trợ chèn biểu thức văn bản toán học cơ bản. Trình soạn công thức toán trực quan WYSIWYG và OMML chuyên sâu đang được phát triển.
+            </p>
+          </div>
+
+          <!-- Thẻ tính năng 8: Sắp có -->
+          <div class="app-card" style="border-style: dashed;">
+            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <span>Macro tự động hóa quy trình</span>
+              <span class="tag tag-pending">Sắp có</span>
+            </h3>
+            <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;">
+              Tính năng ghi lại thao tác người dùng để phát lại tự động thuộc kế hoạch nâng cấp giai đoạn sau của dự án.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Ứng dụng 2: 3T Sheet -->
+    <section id="sheet" class="section" aria-labelledby="sheet-section-title">
+      <div class="container">
+        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 28px;">
+          <img src="assets/icons/sheet.svg" alt="Biểu tượng 3T Sheet" width="48" height="48">
+          <div>
+            <h2 id="sheet-section-title" style="font-size: 1.85rem; font-weight: 800; color: var(--app-sheet);">3T Sheet — Bảng tính điện tử</h2>
+            <p style="color: var(--text-dim); font-size: 0.938rem; font-weight: 600;">Tương thích định dạng: .xlsx, .xls, .ods, .csv</p>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px;">
+          <!-- Thẻ tính năng 1 -->
+          <div class="app-card">
+            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <span>Bảo toàn đa trang tính (Multi-Sheet)</span>
+              <span class="tag tag-ready">Sẵn sàng</span>
+            </h3>
+            <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;">
+              Mở và lưu giữ nguyên vẹn 100% tất cả các sheet trong sổ làm việc .xlsx, cô lập dữ liệu và trạng thái hoàn tác riêng biệt từng sheet.
+            </p>
+          </div>
+
+          <!-- Thẻ tính năng 2 -->
+          <div class="app-card">
+            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <span>96+ Hàm công thức & Tra cứu hiện đại</span>
+              <span class="tag tag-ready">Sẵn sàng</span>
+            </h3>
+            <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;">
+              Đầy đủ nhóm hàm XLOOKUP, VLOOKUP, INDEX, MATCH, hàm tài chính PMT, NPV, IRR, cùng khả năng tính toán công thức tham chiếu chéo giữa các sheet.
+            </p>
+          </div>
+
+          <!-- Thẻ tính năng 3 -->
+          <div class="app-card">
+            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <span>Định dạng ô Kế toán Việt Nam (Ctrl+1)</span>
+              <span class="tag tag-ready">Sẵn sàng</span>
+            </h3>
+            <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;">
+              Hộp thoại Định dạng ô đầy đủ với thiết lập chuẩn kế toán: ký hiệu VNĐ căn trái, số liệu căn phải, số 0 biểu thị bằng dấu gạch ngang, số âm trong ngoặc đơn.
+            </p>
+          </div>
+
+          <!-- Thẻ tính năng 4 -->
+          <div class="app-card">
+            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <span>Biểu đồ thống kê tự động vẽ</span>
+              <span class="tag tag-ready">Sẵn sàng</span>
+            </h3>
+            <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;">
+              Bốn loại biểu đồ vector sắc nét (Cột, Đường, Tròn, Miền); tự động cập nhật ngay lập tức khi người dùng thay đổi số liệu trong bảng tính.
+            </p>
+          </div>
+
+          <!-- Thẻ tính năng 5 -->
+          <div class="app-card">
+            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <span>Pivot Table & Phân tích What-If</span>
+              <span class="tag tag-ready">Sẵn sàng</span>
+            </h3>
+            <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;">
+              Tạo bảng tổng hợp dữ liệu Pivot Table. Hỗ trợ Trình quản lý kịch bản (Scenario Manager), Bảng dữ liệu hai biến và Cửa sổ theo dõi (Watch Window).
+            </p>
+          </div>
+
+          <!-- Thẻ tính năng 6 -->
+          <div class="app-card">
+            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <span>Lọc, Sắp xếp & Đặt tên vùng</span>
+              <span class="tag tag-ready">Sẵn sàng</span>
+            </h3>
+            <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;">
+              Bộ lọc tự động AutoFilter theo giá trị; sắp xếp A-Z / Z-A; đặt và quản lý tên vùng (Name Manager) dùng trực tiếp trong các biểu thức tính toán.
+            </p>
+          </div>
+
+          <!-- Thẻ tính năng 7: Sắp có -->
+          <div class="app-card" style="border-style: dashed;">
+            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <span>Biểu đồ Radar & Phân tán Scatter</span>
+              <span class="tag tag-pending">Sắp có</span>
+            </h3>
+            <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;">
+              Các họ biểu đồ chuyên ngành kỹ thuật nâng cao đang được xây dựng bộ dựng dữ liệu để đưa vào các bản vá kế tiếp.
+            </p>
+          </div>
+
+          <!-- Thẻ tính năng 8: Sắp có -->
+          <div class="app-card" style="border-style: dashed;">
+            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <span>Đồng bộ dữ liệu cơ sở dữ liệu ngoài</span>
+              <span class="tag tag-pending">Sắp có</span>
+            </h3>
+            <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;">
+              Cơ chế kết nối nguồn cấp dữ liệu SQL trực tiếp vào bảng tính thuộc lộ trình phát triển giai đoạn mở rộng.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Ứng dụng 3: 3T Slide -->
+    <section id="slide" class="section section-alt" aria-labelledby="slide-section-title">
+      <div class="container">
+        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 28px;">
+          <img src="assets/icons/slides.svg" alt="Biểu tượng 3T Slide" width="48" height="48">
+          <div>
+            <h2 id="slide-section-title" style="font-size: 1.85rem; font-weight: 800; color: var(--app-slide);">3T Slide — Bài thuyết trình</h2>
+            <p style="color: var(--text-dim); font-size: 0.938rem; font-weight: 600;">Tương thích định dạng: .pptx, .ppt, .odp</p>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px;">
+          <!-- Thẻ tính năng 1 -->
+          <div class="app-card">
+            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <span>Khung chiếu 16:9 & Slide Master</span>
+              <span class="tag tag-ready">Sẵn sàng</span>
+            </h3>
+            <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;">
+              Thiết kế chuẩn màn ảnh rộng 16:9. Quản lý Slide Master đồng bộ các chủ đề, màu sắc, phông chữ và logo thương hiệu trên toàn bộ bài nói.
+            </p>
+          </div>
+
+          <!-- Thẻ tính năng 2 -->
+          <div class="app-card">
+            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <span>Hiệu ứng chuyển trang (Transitions)</span>
+              <span class="tag tag-ready">Sẵn sàng</span>
+            </h3>
+            <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;">
+              Hỗ trợ 4 kiểu chuyển trang mượt mà gồm Fade, Slide, Zoom, Flip với khả năng cấu hình thời gian chuyển cảnh từ 0.3s đến 1.0s khi chiếu F5.
+            </p>
+          </div>
+
+          <!-- Thẻ tính năng 3 -->
+          <div class="app-card">
+            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <span>Hoạt họa đối tượng (Animations)</span>
+              <span class="tag tag-ready">Sẵn sàng</span>
+            </h3>
+            <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;">
+              Các hiệu ứng xuất hiện đối tượng hình học và đoạn văn: Fade In, Fly In, Zoom In, Bounce In... kèm tùy chỉnh độ trễ và thời gian hiển thị.
+            </p>
+          </div>
+
+          <!-- Thẻ tính năng 4 -->
+          <div class="app-card">
+            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <span>Bút vẽ mực & Laser chỉ điểm F5</span>
+              <span class="tag tag-ready">Sẵn sàng</span>
+            </h3>
+            <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;">
+              Công cụ tương tác trực tiếp khi thuyết trình: Bút vẽ tay ghi chú trên màn hình (Ctrl+P) và Bút laser phát sáng nhấn mạnh điểm quan trọng (Ctrl+L).
+            </p>
+          </div>
+
+          <!-- Thẻ tính năng 5 -->
+          <div class="app-card">
+            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <span>Ghi chú thuyết minh (Speaker Notes)</span>
+              <span class="tag tag-ready">Sẵn sàng</span>
+            </h3>
+            <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;">
+              Mỗi trang chiếu sở hữu một vùng ghi chú diễn giả riêng biệt; lưu trữ chuẩn xác trong tệp .pptx và hoàn toàn ẩn đi khi phát chiếu cho khán giả.
+            </p>
+          </div>
+
+          <!-- Thẻ tính năng 6 -->
+          <div class="app-card">
+            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <span>Chế độ Presenter 2 màn hình</span>
+              <span class="tag tag-ready">Sẵn sàng</span>
+            </h3>
+            <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;">
+              Bật chế độ điều khiển thuyết trình qua phím Alt+F5: Màn hình diễn giả hiển thị trang hiện tại, trang kế tiếp, nội dung ghi chú và đồng hồ theo dõi.
+            </p>
+          </div>
+
+          <!-- Thẻ tính năng 7: Sắp có -->
+          <div class="app-card" style="border-style: dashed;">
+            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <span>Hiệu ứng Morph chuyển hóa thông minh</span>
+              <span class="tag tag-pending">Sắp có</span>
+            </h3>
+            <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;">
+              Tự động phân tích và nội suy vị trí đối tượng giữa hai trang chiếu liền kề đang được xây dựng (dự kiến trong lộ trình kế tiếp).
+            </p>
+          </div>
+
+          <!-- Thẻ tính năng 8: Sắp có -->
+          <div class="app-card" style="border-style: dashed;">
+            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <span>Thu âm thuyết minh trực tiếp từng slide</span>
+              <span class="tag tag-pending">Sắp có</span>
+            </h3>
+            <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;">
+              Hiện tại hỗ trợ chèn tệp âm thanh có sẵn từ ổ đĩa; tính năng thu âm qua microphone tích hợp đang được phát triển.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Khối Tóm tắt cam kết chất lượng -->
+    <section class="section" style="text-align: center;">
+      <div class="container" style="max-width: 760px;">
+        <h2 style="font-size: 1.75rem; font-weight: 800; margin-bottom: 16px;">Cam kết về tính minh bạch của tính năng</h2>
+        <p style="color: var(--text-muted); font-size: 1.05rem; line-height: 1.7; margin-bottom: 28px;">
+          Đội ngũ kỹ thuật 3T Office chỉ công bố các tính năng đã vượt qua các bài kiểm thử tự động và kiểm tra thủ công thực tế. 
+          Không thổi phồng tính năng, không dùng ảnh minh họa giả tạo.
+        </p>
+        <a href="tai-ve.html" class="btn btn-primary">Tải bộ cài trải nghiệm ngay</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <div class="brand-link" style="margin-bottom: 14px;">
+            <img src="assets/icons/3t-mark.svg" alt="3T Logo" class="brand-icon">
+            <div class="brand-text">
+              <span class="brand-name">3T <span>Office</span></span>
+              <span class="brand-tagline">Văn phòng ngoại tuyến</span>
+            </div>
+          </div>
+          <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;">
+            Bộ ứng dụng văn phòng chạy ngoại tuyến cho Windows phát triển bởi 3T Computer / 3T Technology.
+            Tôn trọng quyền riêng tư dữ liệu, xử lý trực tiếp trên thiết bị của bạn.
+          </p>
+        </div>
+
+        <div class="footer-col">
+          <h4>Ứng dụng</h4>
+          <ul class="footer-links">
+            <li><a href="tinh-nang.html#doc">3T Doc (.docx)</a></li>
+            <li><a href="tinh-nang.html#sheet">3T Sheet (.xlsx)</a></li>
+            <li><a href="tinh-nang.html#slide">3T Slide (.pptx)</a></li>
+            <li><a href="tinh-nang.html">Toàn bộ tính năng</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h4>Thông tin</h4>
+          <ul class="footer-links">
+            <li><a href="tai-ve.html">Tải bộ cài 0.9.6</a></li>
+            <li><a href="co-gi-moi.html">Ghi chú phát hành</a></li>
+            <li><a href="ban-quyen.html">Chính sách bản quyền</a></li>
+            <li><a href="trang-thai.html">Kiểm tra trạng thái</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h4>Hỗ trợ</h4>
+          <ul class="footer-links">
+            <li><a href="huong-dan.html">Hướng dẫn sử dụng</a></li>
+            <li><a href="huong-dan.html#shortcuts">Phím tắt thường dùng</a></li>
+            <li><a href="huong-dan.html#faq">Khác biệt cần biết</a></li>
+            <li><a href="lien-he.html">Liên hệ 3T Computer</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <div>
+          © 2024–2026 3T Computer / 3T Technology. Bảo lưu mọi quyền.
+        </div>
+        <div>
+          Trang web chính thức: <a href="https://office.3tcomputer.com" style="color: var(--brand-orange); text-decoration: none;">office.3tcomputer.com</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

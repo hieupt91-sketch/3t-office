@@ -1,0 +1,94 @@
+{
+  "product": "3T Office",
+  "current_version": "0.9.6",
+  "version_family": "0.9.x",
+  "channel": "pilot",
+  "release_date": "2026-10-01",
+  "download": {
+    "file_name": "VNOffice-Setup-0.9.6.exe",
+    "alias_file_name": "Setup-0.9.6.exe",
+    "file_size_bytes": 526479307,
+    "file_size_formatted": "502 MB",
+    "sha256": "6387f9358327e442a6ba9c0367a2277a57b06d8b4b3cd9f37ffef9b228c46f11",
+    "status": "ready_for_staging",
+    "public_download_status": "Chờ kích hoạt máy chủ cập nhật chính thức (TODO-CONFIRM: Ngày mở tải công khai)",
+    "requirements": {
+      "os": "Windows 10 hoặc Windows 11, 64-bit",
+      "ram": "Tối thiểu 4 GB (khuyến nghị 8 GB trở lên)",
+      "disk": "Khoảng 1.5 GB dung lượng đĩa trống",
+      "runtime": "Edge WebView2 Runtime (đã tích hợp sẵn trên Windows 10/11 hiện đại)"
+    }
+  },
+  "releases": [
+    {
+      "version": "0.9.6",
+      "channel": "pilot",
+      "date": "2026-10-01",
+      "summary": "Tối ưu hóa bàn phím, clipboard, nhập công thức và ngắt mục",
+      "highlights": [
+        "3T Doc: Bấm Enter xuống dòng đúng chuẩn, chữ gõ tiếp không còn dính vào dòng trên.",
+        "3T Doc: Phím tắt Ctrl+V dán và Ctrl+X cắt hoạt động trơn tru; bấm Tab chèn khoảng tab chuẩn văn bản và không làm mất chữ đang gõ.",
+        "3T Doc: Ngắt mục chuẩn định dạng tài liệu (trang tiếp theo, liên tục, trang chẵn/lẻ), giữ nguyên định dạng mục khi lưu tệp .docx.",
+        "3T Sheet: Nhập hàm công thức trực quan — gõ =SUM rồi nhấn Tab, bấm hoặc kéo chuột chọn ô/vùng khi đang gõ công thức, tô màu vùng tham chiếu trực quan, phím F4 chuyển đổi $A$1.",
+        "3T Sheet: Bàn phím tự động chuyển tiêu điểm trở lại bảng tính sau khi đóng hộp thoại.",
+        "3T Sheet: Gõ được ngay vào ô A1 khi vừa mở ứng dụng.",
+        "Tốc độ: Mở nhiều tài liệu cùng lúc nhanh hơn — tài liệu thứ hai mở trong khoảng nửa giây.",
+        "Trợ giúp: Bổ sung các bài viết Bắt đầu nhanh, Phím tắt thường dùng, Khác biệt cần biết ngay trong ứng dụng."
+      ]
+    },
+    {
+      "version": "0.9.5",
+      "channel": "pilot",
+      "date": "2026-10-01",
+      "summary": "Bộ ứng dụng thương hiệu 3T Office, What-If Analysis và công cụ trình chiếu",
+      "highlights": [
+        "Đổi tên nhận diện thương hiệu: Bộ 3T Office gồm 3T Doc, 3T Sheet, 3T Slide và Trợ lý 3T AI.",
+        "Mở ứng dụng vào ngay tài liệu trống, cửa sổ tối ưu sẵn sàng làm việc.",
+        "Các thao tác Mới, Mở, Lưu, Lưu bản sao (chuyển đổi .docx, .xlsx, .pptx, cảnh báo ghi đè) và Đóng hoạt động hoàn chỉnh.",
+        "In ấn và Xuất PDF dựng đúng nội dung tài liệu chuẩn xác.",
+        "3T Sheet: Kéo chuột chọn vùng dữ liệu; Bảng dữ liệu What-If 2 biến; Trình quản lý kịch bản và báo cáo tóm tắt; Ước lượng công thức từng bước; Cửa sổ theo dõi ô tính; Tiêu đề in lặp lại.",
+        "3T Doc: Trộn thư Mail Merge lấy dữ liệu nguồn từ bảng tính .xlsx và .csv.",
+        "3T Slide: Bút vẽ và bút laser khi trình chiếu toàn màn hình; kích thước trang chiếu chuẩn xác.",
+        "Cải thiện tốc độ mở tài liệu."
+      ]
+    },
+    {
+      "version": "0.9.4",
+      "channel": "pilot",
+      "date": "2026-09-30",
+      "summary": "Bản địa hóa tiếng Việt toàn diện và tăng tốc mở tệp",
+      "highlights": [
+        "Giao diện mặc định 100% tiếng Việt chuẩn mực.",
+        "Mở tài liệu nhanh hơn: Tệp .docx và .xlsx thông thường chỉ 2–3 giây; tệp .doc và .xls cũ nhanh gấp 2–3 lần.",
+        "Thanh trạng thái 'Đang mở tài liệu...' phản hồi trực quan khi nạp tệp."
+      ]
+    },
+    {
+      "version": "0.9.2",
+      "channel": "pilot",
+      "date": "2026-09-30",
+      "summary": "Độ chính xác định dạng phông chữ và bố cục trang",
+      "highlights": [
+        "3T Doc giữ đúng cỡ chữ lẻ nửa điểm (ví dụ 13.5 pt) và chiều cao dòng khi mở và lưu tài liệu .docx, số trang khớp chuẩn xác."
+      ]
+    },
+    {
+      "version": "0.9.1",
+      "channel": "pilot",
+      "date": "2026-09-29",
+      "summary": "Cơ chế cập nhật tự động một chạm",
+      "highlights": [
+        "Bản đầu tiên tích hợp cơ chế tự động kiểm tra và áp dụng bản vá cập nhật qua mạng nội bộ có chữ ký số."
+      ]
+    },
+    {
+      "version": "0.9.0-pilot1",
+      "channel": "pilot",
+      "date": "2026-09-29",
+      "summary": "Bản nền tảng thử nghiệm nội bộ 3T Office",
+      "highlights": [
+        "Khởi động bộ 3 ứng dụng văn phòng ngoại tuyến 3T Doc, 3T Sheet, 3T Slide trên Windows."
+      ]
+    }
+  ]
+}
