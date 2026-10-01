@@ -6878,18 +6878,20 @@ export class WriterAdapter {
       case "common.edit.copy": {
         const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
         if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
-          const text = selection.toString();
-          let html = "";
+          const range = selection.getRangeAt(0);
+          const serialized = serializeWriterSelectionToClipboard(range, this.bodyDom);
+          const text = serialized.text || selection.toString();
+          const html = serialized.html;
+          this._clipboardMemory = { text, html };
           try {
-            if (typeof document !== "undefined") {
-              const container = document.createElement("div");
-              for (let i = 0; i < selection.rangeCount; i++) {
-                container.appendChild(selection.getRangeAt(i).cloneContents());
-              }
-              html = container.innerHTML;
+            if (typeof navigator !== "undefined" && typeof ClipboardItem !== "undefined" && navigator.clipboard?.write && html) {
+              const item = new ClipboardItem({
+                "text/plain": new Blob([text], { type: "text/plain" }),
+                "text/html": new Blob([html], { type: "text/html" })
+              });
+              navigator.clipboard.write([item]).catch(() => {});
             }
           } catch {}
-          this._clipboardMemory = { text, html };
         }
         document.execCommand("copy", false, null);
         return true;
@@ -15102,6 +15104,15 @@ export class WriterAdapter {
         if (text) event.clipboardData.setData("text/plain", text);
         if (html) event.clipboardData.setData("text/html", html);
       }
+      try {
+        if (typeof navigator !== "undefined" && typeof ClipboardItem !== "undefined" && navigator.clipboard?.write && html) {
+          const item = new ClipboardItem({
+            "text/plain": new Blob([text], { type: "text/plain" }),
+            "text/html": new Blob([html], { type: "text/html" })
+          });
+          navigator.clipboard.write([item]).catch(() => {});
+        }
+      } catch {}
       event?.preventDefault?.();
     };
 
@@ -15184,7 +15195,9 @@ export class WriterAdapter {
     ]);
     const allowedStyles = new Set([
       "font-weight", "font-style", "text-decoration", "color", "background-color", "font-family",
-      "font-size", "text-align", "vertical-align", "white-space"
+      "font-size", "text-align", "vertical-align", "white-space",
+      "border", "border-top", "border-right", "border-bottom", "border-left",
+      "border-collapse", "border-spacing", "width", "height", "padding"
     ]);
     const elements = [...template.content.querySelectorAll("*")].reverse();
     for (const element of elements) {
@@ -15210,12 +15223,19 @@ export class WriterAdapter {
           else element.removeAttribute("style");
         } else if (element.tagName === "A" && name === "href") {
           if (!/^(?:https?:|mailto:)/i.test(attribute.value.trim())) element.removeAttribute(attribute.name);
-        } else if (!((element.tagName === "TD" || element.tagName === "TH") && ["colspan", "rowspan"].includes(name))) {
+        } else if (element.tagName === "TABLE" && ["border", "cellpadding", "cellspacing", "width"].includes(name)) {
+          // Cho phép thuộc tính bố cục cơ bản của bảng
+        } else if (!((element.tagName === "TD" || element.tagName === "TH") && ["colspan", "rowspan", "width", "height"].includes(name))) {
           element.removeAttribute(attribute.name);
         }
       }
     }
     return template.innerHTML;
+  }
+
+  static sanitizeClipboardHtml(html) {
+    const adapter = new WriterAdapter();
+    return adapter._sanitizeClipboardHtml(html);
   }
 
   _insertClipboardContent({ html = "", text = "" } = {}) {

@@ -85,6 +85,7 @@ import { runSheetPivotSaveFodsTests } from "./unit/sheet-pivot-save-fods.test.js
 import { runSheetMergeCellsTests } from "./unit/sheet-merge-cells.test.js";
 import { runSheetPasteSpecialTests } from "./unit/sheet-paste-special.test.js";
 import { runOfficeClipboardTests } from "./unit/office-clipboard.test.js";
+import { runCrossAppPasteTests } from "./unit/cross-app-paste.test.js";
 import { runSlidesSmartartImportTests } from "./unit/slides-smartart-import.test.js";
 import { runSlidesRotatedShapePositionTests } from "./unit/slides-rotated-shape-position.test.js";
 import { runSlidesBasicsG8Tests } from "./unit/slides-basics-g8.test.js";
@@ -459,7 +460,8 @@ async function runAll() {
     { title: "219. Unit Tests — VN Writer vertical ruler and scroll/zoom synchronization", runner: runWriterVerticalRulerTests },
     { title: "220. Unit Tests — VN Writer spelling suggestions and context ranking", runner: runWriterSpellingSuggestionsTests },
     { title: "221. Unit Tests — VN Writer Clipboard Cut/Copy/Paste & Sanitization", runner: runWriterClipboardTests },
-    { title: "222. Unit Tests — Office Clipboard Interop (Sheet Excel/Calc HTML, TSV, Writer Word HTML cleaning)", runner: runOfficeClipboardTests }
+    { title: "222. Unit Tests — Office Clipboard Interop (Sheet Excel/Calc HTML, TSV, Writer Word HTML cleaning)", runner: runOfficeClipboardTests },
+    { title: "223. Unit Tests — Cross-App Paste (Doc, Sheet, Slide Interoperability)", runner: runCrossAppPasteTests }
   ];
 
   for (const suite of suites) {

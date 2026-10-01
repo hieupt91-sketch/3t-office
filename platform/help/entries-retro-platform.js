@@ -188,5 +188,28 @@ export const RETRO_PLATFORM_HELP_ENTRIES = [
       "Nhấn phím Ctrl+S để lưu tệp chính thức vào thư mục làm việc của bạn.",
       "Lưu ý: Bạn có thể vào tab Trợ giúp để điều chỉnh chu kỳ lưu khôi phục từ 1 đến 60 phút tùy theo nhu cầu làm việc."
     ]
+  },
+  {
+    id: "common.platform.crossAppPasteHelp",
+    app: "common",
+    commandIds: [
+      "common.edit.paste",
+      "common.edit.pastePlain",
+      "writer.clipboard.paste",
+      "sheet.edit.paste",
+      "slides.edit.paste"
+    ],
+    title: "Dán giữa Doc, Sheet và Slide",
+    summary: "Sao chép và dán chéo nội dung linh hoạt giữa Doc, Sheet và Slide: tự động nhận diện bảng biểu, chuyển đổi số liệu, giữ định dạng phông chữ hoặc dán văn bản thuần.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Bảng nhớ tạm" },
+    keywords: ["dán chéo", "sao chép giữa các ứng dụng", "dán giữa doc sheet slide", "copy paste doc sheet slide", "bảng biểu", "dán không định dạng"],
+    steps: [
+      "Sao chép dữ liệu từ ứng dụng gốc: Chọn đoạn văn bản trong Doc, vùng ô dữ liệu trong Sheet (ví dụ bảng tính A1:C3), hoặc hộp văn bản trong Slide, sau đó nhấn phím tắt Ctrl+C (hoặc nút Sao chép trên tab Trang đầu).",
+      "Dán từ Sheet sang Doc: Chuyển sang Doc, đặt con trỏ tại vị trí muốn chèn rồi nhấn Ctrl+V. Dữ liệu bảng tính từ Sheet sẽ tự động chuyển hóa thành một bảng biểu hoàn chỉnh trong Doc, giữ nguyên kiểu chữ đậm ở hàng tiêu đề và các giá trị số, ngày tháng hiển thị chuẩn xác.",
+      "Dán từ Doc sang Sheet: Chọn bảng biểu trong Doc, nhấn Ctrl+C, chuyển sang Sheet và chọn ô bắt đầu (ví dụ B2) rồi nhấn Ctrl+V. Dữ liệu tự động điền vào các ô tương ứng; các giá trị số tự động nhận diện thành kiểu số để tính toán công thức (như hàm SUM), chữ và định dạng đậm được giữ nguyên vẹn.",
+      "Dán giữa Doc và Slide: Khi sao chép đoạn văn từ Doc sang hộp chữ trong Slide (hoặc từ Slide sang Doc), phím tắt Ctrl+V sẽ dán văn bản trực tiếp vào hộp chữ đang soạn thảo, giữ nguyên định dạng in đậm và in nghiêng. Nếu dán trực tiếp ngoài trang trình chiếu Slide, bảng tính từ Sheet sẽ tạo thành bảng đối tượng chuẩn trên slide, hoặc văn bản phân tách bằng tab dễ đọc.",
+      "Dán chỉ giữ văn bản thuần: Nhấn Ctrl+Shift+V (hoặc chọn lệnh Dán văn bản thuần trong nhóm Bảng nhớ tạm) trên bất kỳ ứng dụng nào để dán chữ sạch không mang theo màu nền, kẻ viền hay kiểu chữ cũ.",
+      "Hoàn tác một bước: Trong mọi thao tác dán chéo, bạn chỉ cần nhấn Ctrl+Z đúng 1 lần để hoàn tác toàn bộ dữ liệu vừa dán mà không để lại nội dung thừa."
+    ]
   }
 ];

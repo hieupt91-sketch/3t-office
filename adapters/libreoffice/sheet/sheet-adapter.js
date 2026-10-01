@@ -215,8 +215,8 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("common.edit.repeat", () => this.grid.redo ? this.grid.redo() : false);
     globalCommandBus.bindHandler("common.edit.copy", () => this._copySelectedCell(false));
     globalCommandBus.bindHandler("common.edit.cut", () => this._copySelectedCell(true));
-    globalCommandBus.bindHandler("common.edit.paste", () => this._pasteIntoSelectedCell());
-    globalCommandBus.bindHandler("common.edit.pastePlain", () => this._pasteIntoSelectedCell());
+    globalCommandBus.bindHandler("common.edit.paste", () => this._pasteIntoSelectedCell(false));
+    globalCommandBus.bindHandler("common.edit.pastePlain", () => this._pasteIntoSelectedCell(true));
     globalCommandBus.bindHandler("sheet.edit.pasteSpecial", () => this._openPasteSpecialFromClipboard());
     this._bindNativeClipboardEvents();
     globalCommandBus.bindHandler("sheet.edit.formatPainter", (args) => this.grid.toggleFormatPainter?.(args || {}));
@@ -6064,10 +6064,10 @@ ${pristineXlsxMarker}
         return await this._copySelectedCell(false);
 
       case "common.edit.paste":
-        return await this._pasteIntoSelectedCell();
+        return await this._pasteIntoSelectedCell(false);
 
       case "common.edit.pastePlain":
-        return await this._pasteIntoSelectedCell();
+        return await this._pasteIntoSelectedCell(true);
 
       case "sheet.edit.pasteSpecial":
         return this.grid.showPasteSpecialDialog ? this.grid.showPasteSpecialDialog(this._clipboardModel) : false;
@@ -6151,7 +6151,13 @@ ${pristineXlsxMarker}
     if (!payload) return false;
     this._rememberClipboard(payload, isCut ? "cut" : "copy");
     try {
-      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      if (typeof navigator !== "undefined" && typeof ClipboardItem !== "undefined" && navigator.clipboard?.write && payload.html) {
+        const item = new ClipboardItem({
+          "text/plain": new Blob([payload.text], { type: "text/plain" }),
+          "text/html": new Blob([payload.html], { type: "text/html" })
+        });
+        await navigator.clipboard.write([item]);
+      } else if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(payload.text);
       }
     } catch {
@@ -6334,11 +6340,21 @@ ${pristineXlsxMarker}
 
   /**
    * Dán nội dung Clipboard thật vào ô đang chọn.
+   * @param {boolean} plainTextOnly Nếu true thì chỉ dán giá trị thuần, không nhận diện định dạng hay HTML
    */
-  async _pasteIntoSelectedCell() {
+  async _pasteIntoSelectedCell(plainTextOnly = false) {
     const coord = this.grid.selectedCoord;
     if (!coord || !this.grid.setCellValue) return false;
     const native = await this._readClipboardData();
+    if (plainTextOnly) {
+      const text = native?.status === "ok" ? (native.text || "") : (this._clipboardText || "");
+      if (!text) return false;
+      const model = parseOfficeTsv(text);
+      if (model?.cells) {
+        model.cells.forEach(row => row.forEach(cell => { cell.style = {}; }));
+      }
+      return this.grid.applyPasteSpecial(model, "values", coord, { coerceInput: true });
+    }
     if (native?.status === "ok" && native.html) {
       const model = parseOfficeHtmlTable(native.html, native.text || "");
       if (model) return this._pasteModelIntoGrid(model, native.text || "", false);

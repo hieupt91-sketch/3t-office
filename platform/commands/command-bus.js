@@ -211,3 +211,9 @@ export class CommandBus {
 
 // Global default singleton instance
 export const globalCommandBus = new CommandBus();
+if (typeof globalThis !== "undefined") {
+  globalThis.globalCommandBus = globalCommandBus;
+}
+if (typeof window !== "undefined") {
+  window.globalCommandBus = globalCommandBus;
+}

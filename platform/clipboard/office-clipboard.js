@@ -1040,7 +1040,60 @@ export function convertMsoListsToHtmlLists(html) {
 }
 
 /**
- * Đóng gói vùng chọn hoặc toàn bộ nội dung 3T Doc thành HTML chuẩn để dán sang Microsoft Word.
+ * Trích xuất văn bản có cấu trúc từ DOM: bảng thành các hàng/cột tab-separated (\t, \n),
+ * các đoạn văn ngăn cách bằng dòng mới.
+ * @param {HTMLElement|DocumentFragment} root
+ * @returns {string}
+ */
+export function extractStructuredTextFromDom(root) {
+  if (!root) return "";
+  if (typeof document === "undefined") {
+    return String(root.textContent || "").trim();
+  }
+
+  // Nếu chứa bảng biểu: trích xuất theo định dạng TSV chuẩn Office
+  const tables = root.querySelectorAll ? root.querySelectorAll("table") : [];
+  if (tables.length > 0) {
+    const tableTexts = [];
+    tables.forEach(tbl => {
+      const rows = tbl.querySelectorAll("tr");
+      const rowTexts = [];
+      rows.forEach(tr => {
+        const cells = tr.querySelectorAll("th, td");
+        const cellTexts = [];
+        cells.forEach(td => {
+          cellTexts.push((td.textContent || "").trim());
+        });
+        if (cellTexts.length > 0) {
+          rowTexts.push(cellTexts.join("\t"));
+        }
+      });
+      if (rowTexts.length > 0) {
+        tableTexts.push(rowTexts.join("\n"));
+      }
+    });
+    return tableTexts.join("\n");
+  }
+
+  // Xử lý các khối đoạn văn p, div, li
+  if (root.querySelectorAll) {
+    const blocks = root.querySelectorAll("p, div, h1, h2, h3, h4, h5, h6, li");
+    if (blocks.length > 0) {
+      const lines = [];
+      blocks.forEach(b => {
+        const t = (b.textContent || "").trim();
+        if (t) lines.push(t);
+      });
+      if (lines.length > 0) return lines.join("\n");
+    }
+  }
+
+  return (root.textContent || "").trim();
+}
+
+/**
+ * Đóng gói vùng chọn hoặc toàn bộ nội dung 3T Doc thành HTML chuẩn để dán sang Microsoft Word,
+ * 3T Sheet và 3T Slide. Bảo toàn thẻ <table> và trích xuất text/plain dạng TSV chuẩn.
  * @param {Range|null} selectionRange
  * @param {HTMLElement} bodyDom
  * @returns {{ html: string, text: string }}
@@ -1053,14 +1106,28 @@ export function serializeWriterSelectionToClipboard(selectionRange, bodyDom) {
     const fragment = selectionRange.cloneContents();
     const tempDiv = document.createElement("div");
     tempDiv.appendChild(fragment);
+
+    // Kiểm tra nếu vùng chọn chứa tr/td nhưng thiếu thẻ table bao bọc
+    const hasTr = tempDiv.querySelector("tr");
+    const hasTd = tempDiv.querySelector("td, th");
+    const hasTable = tempDiv.querySelector("table");
+
+    if ((hasTr || hasTd) && !hasTable) {
+      if (hasTr) {
+        tempDiv.innerHTML = `<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;width:100%;"><tbody>${tempDiv.innerHTML}</tbody></table>`;
+      } else {
+        tempDiv.innerHTML = `<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;width:100%;"><tbody><tr>${tempDiv.innerHTML}</tr></tbody></table>`;
+      }
+    }
+
+    text = extractStructuredTextFromDom(tempDiv);
     html = tempDiv.innerHTML;
-    text = tempDiv.textContent || "";
   } else if (bodyDom) {
+    text = extractStructuredTextFromDom(bodyDom);
     html = bodyDom.innerHTML || "";
-    text = bodyDom.textContent || "";
   }
 
-  // Đảm bảo HTML bọc trong container có styles cơ bản cho Word
+  // Đảm bảo HTML bọc trong container có styles cơ bản cho Word và các app khác
   const wrappedHtml = `<div style="font-family:'Times New Roman',Calibri,serif;font-size:13pt;line-height:1.3;color:#000000;">\n${html}\n</div>`;
 
   return {

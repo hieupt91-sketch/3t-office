@@ -386,3 +386,9 @@ export class UnoBridge {
 }
 
 export const globalUnoBridge = new UnoBridge();
+if (typeof globalThis !== "undefined") {
+  globalThis.globalUnoBridge = globalUnoBridge;
+}
+if (typeof window !== "undefined") {
+  window.globalUnoBridge = globalUnoBridge;
+}
