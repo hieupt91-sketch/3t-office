@@ -7,7 +7,7 @@ WORKTREE: `E:\VNOffice-codex-equation`
 OBJECTIVE: Merge equation export/preservation with the section-break save logic from `main`, retain both implementations, pass the requested equation, section, Node, Python, and page-count gates, and commit only on this branch.
 
 FINDINGS:
-- Current `main` was merged into this branch at `8093bb71`, `3eb7a286`, and `ce7ebd69`. The equation OMML pipeline and pristine `w:sectPr` preservation/section metadata overlay coexist in `adapters/libreoffice/common/ooxml_zip_patch.py`.
+- Current `main` was merged into this branch at `8093bb71`, `3eb7a286`, `ce7ebd69`, and `b00d36c0` (through `main` commit `17c25e2e`). The equation OMML pipeline and pristine `w:sectPr` preservation/section metadata overlay coexist in `adapters/libreoffice/common/ooxml_zip_patch.py`.
 - Equation tests cover original OMML preservation and new editable OMML. Section tests cover continuous breaks, page orientation, headers, and metadata round trips.
 - The imported DOCX page audit matched the requested Word/canvas/saved Word counts for d03, d23, and d24 using WebView2 remote debugging + CDP and hidden Word COM. The repository `_batch_writer.py` was not used because it checks the WebView through `win.evaluate_js`, outside the required CDP path.
 - The final Node run had three LibreOffice FODS-to-XLSX conversion failures while separate worktrees had LibreOffice-backed audit jobs active. An earlier Pivot retry also failed with an `EBUSY` profile lock while the shared load was active; that was not an isolated retry.
