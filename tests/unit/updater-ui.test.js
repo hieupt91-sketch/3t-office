@@ -42,17 +42,14 @@ export async function runUpdaterUiTests() {
   try {
     // The shared confirmation dialog returns its documented affirmative fallback without a DOM.
     globalThis.document = undefined;
-    let saveCalls = 0;
     let restartCalls = 0;
-    const dirtyApp = { adapter: { isDirty: true, async save() { saveCalls++; this.isDirty = false; return true; } } };
+    const dirtyApp = { adapter: { isDirty: true, async save() { throw new Error("save is coordinated per window"); } } };
     const dirtyApi = { async request_update_restart() { restartCalls++; return { started: true }; } };
     const restarted = await restartWithSaveCheck(dirtyApp, dirtyApi);
-    test("Updater restart: lưu tài liệu bẩn trước khi khởi động lại", restarted && saveCalls === 1 && restartCalls === 1);
+    test("Updater restart: giao việc lưu từng cửa sổ cho bộ điều phối", restarted && restartCalls === 1);
 
-    let refusedRestartCalls = 0;
-    const saveFailedApp = { adapter: { isDirty: true, async save() { return false; } } };
-    const saveFailed = await restartWithSaveCheck(saveFailedApp, { async request_update_restart() { refusedRestartCalls++; return { started: true }; } });
-    test("Updater restart: không khởi động lại nếu thao tác lưu thất bại", !saveFailed && refusedRestartCalls === 0);
+    const cancelled = await restartWithSaveCheck(dirtyApp, { async request_update_restart() { return { started: false, cancelled: true }; } });
+    test("Updater restart: một cửa sổ hủy lưu thì không khởi động lại", !cancelled);
   } finally {
     globalThis.document = originalDocument;
   }

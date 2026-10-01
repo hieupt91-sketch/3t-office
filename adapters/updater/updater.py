@@ -364,7 +364,14 @@ class UpdaterManager:
             except (ManifestError, OSError):
                 continue
 
-    def create_apply_task(self, *, app_kind: str, install_root: str | Path, launch_args: list[str] | None = None) -> Path:
+    def create_apply_task(
+        self,
+        *,
+        app_kind: str,
+        install_root: str | Path,
+        launch_args: list[str] | None = None,
+        restore_documents: list[str] | None = None,
+    ) -> Path:
         if not self._manifest or not self._manifest_bytes or not self._signature:
             raise UpdateRefused("Chưa có bản cập nhật đã xác minh để áp dụng")
         if app_kind not in {"writer", "sheet", "slides"}:
@@ -392,10 +399,14 @@ class UpdaterManager:
             "removals": removals,
             "launch_app": app_kind,
             "launch_args": list(self._launch_args if launch_args is None else launch_args),
+            "restore_documents": [str(path) for path in (restore_documents or [])],
             "launch_executable": str((install / "python" / "pythonw.exe").resolve()),
             "launch_prefix_args": ["-s", "-E", str((install / "app" / "main.py").resolve())],
             "health_token": token,
             "health_timeout_seconds": 90,
+            "process_wait_seconds": 45,
+            "soffice_exit_wait_seconds": 12,
+            "log_file": str((self.updates_dir / "update-log.txt").resolve()),
         }
         task_path = stage / "apply-task.json"
         encoded = json.dumps(task, ensure_ascii=False, separators=(",", ":")).encode("utf-8")

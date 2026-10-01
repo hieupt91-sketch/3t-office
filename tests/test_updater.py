@@ -80,10 +80,11 @@ def create_fake_package(base: Path, version: str, payload: bytes, *, broken_star
         (helper.parent / "trust.py").write_bytes(release_tool._public_module(key))
     (app / "main.py").write_text(f'APP_VERSION = "{version}"\n', encoding="utf-8")
     (app / "fake_start.py").write_text(
-        "import os, pathlib, sys\n"
+        "import json, os, pathlib, sys\n"
         "app = pathlib.Path(__file__).parent\n"
         "version = (app.parent / 'VERSION.txt').read_text(encoding='ascii').strip()\n"
         "with pathlib.Path(sys.argv[1]).open('a', encoding='utf-8') as stream: stream.write(version + '\\n')\n"
+        "pathlib.Path(sys.argv[1] + '.args').write_text(json.dumps(sys.argv[2:], ensure_ascii=False), encoding='utf-8')\n"
         "if (app / 'fail-start.txt').exists(): raise SystemExit(7)\n"
         "health = os.environ.get('VNO_UPDATE_HEALTH_FILE')\n"
         "if health:\n"
@@ -266,19 +267,24 @@ class UpdaterTests(unittest.TestCase):
         if not powershell:
             self.skipTest("Windows PowerShell 5.1 is unavailable")
         with tempfile.TemporaryDirectory() as temp:
-            root = Path(temp)
+            root = Path(temp) / "VN Office scratch root"
+            root.mkdir()
             source, package_dir = root / "source", root / "packages"
             source.mkdir(); package_dir.mkdir()
-            package_090 = create_fake_package(package_dir, "0.9.0", b"old payload", key=self.key)
-            install = root / "VNOffice" / "app-install"
+            package_090 = create_fake_package(package_dir, "0.9.5", b"old payload", key=self.key)
+            install = root / "Local AppData" / "VNOffice" / "app-install"
             install.parent.mkdir(parents=True)
             shutil.copytree(package_090, install)
             (install / "app" / "vnoffice-config.json").write_text('{"update":{"source":"\\\\server\\share"}}', encoding="utf-8")
-            updates = root / "user-data" / "updates"
+            updates = root / "Local AppData" / "VNOffice" / "updates"
             launch_log = root / "launches.txt"
+            document_path = root / "Tài liệu kiểm tra.docx"
+            document_path.write_bytes(b"scratch document fixture")
 
             def run_helper(manager: UpdaterManager, app_version: str, expected_code: int):
-                task_path = manager.create_apply_task(app_kind="writer", install_root=install)
+                task_path = manager.create_apply_task(
+                    app_kind="writer", install_root=install, restore_documents=[str(document_path)]
+                )
                 task = json.loads(task_path.read_text(encoding="utf-8"))
                 task["launch_executable"] = sys.executable
                 task["launch_prefix_args"] = ["-u", str(install / "app" / "fake_start.py")]
@@ -294,32 +300,42 @@ class UpdaterTests(unittest.TestCase):
                 self.assertEqual(result.returncode, expected_code, result.stdout + result.stderr + helper_error)
                 self.assertEqual((install / "VERSION.txt").read_text(encoding="ascii").strip(), app_version)
 
-            package_091 = self._publish_package(source, package_dir, "0.9.1", b"new payload")
-            manager_091 = self._manager(install, updates, source)
+            package_091 = self._publish_package(source, package_dir, "0.9.6", b"new payload")
+            manager_091 = self._manager(install, updates, source, version="0.9.5")
             state = manager_091.check_and_stage()
             self.assertTrue(state["ready"])
-            run_helper(manager_091, "0.9.1", 0)
+            run_helper(manager_091, "0.9.6", 0)
             self.assertEqual((install / "app" / "vnoffice-config.json").read_text(encoding="utf-8"), '{"update":{"source":"\\\\server\\share"}}')
-            self.assertEqual(launch_log.read_text(encoding="utf-8").splitlines(), ["0.9.1"])
+            self.assertEqual(launch_log.read_text(encoding="utf-8").splitlines(), ["0.9.6"])
             self.assertEqual(Path(str(launch_log) + ".health").read_text(encoding="ascii"), "OK")
+            restored_args = json.loads(Path(str(launch_log) + ".args").read_text(encoding="utf-8"))
+            self.assertEqual(restored_args[0], f"--restore-document={document_path}")
+            self.assertTrue(restored_args[1].startswith("--update-health-token=") and len(restored_args[1].split("=", 1)[1]) == 32)
             self.assertTrue((install / "app" / "payload.bin").read_bytes() == b"new payload")
-            print("END-TO-END 0.9.1 apply=OK health_marker=OK relaunch=OK")
+            self.assertIn('APP_VERSION = "0.9.6"', (install / "app" / "main.py").read_text(encoding="utf-8"))
+            self.assertTrue((updates / "update-log.txt").is_file())
+            update_log = (updates / "update-log.txt").read_text(encoding="utf-8")
+            self.assertIn("STEP old-app-exited", update_log)
+            self.assertIn("STEP health-check-passed version=0.9.6", update_log)
+            print("END-TO-END 0.9.5 -> 0.9.6 apply=OK health_marker=OK relaunch=OK path-with-spaces=OK")
 
-            self._publish_package(source, package_dir, "0.9.2", b"broken payload", broken_start=True)
-            manager_092 = self._manager(install, updates, source, version="0.9.1")
+            self._publish_package(source, package_dir, "0.9.7", b"broken payload", broken_start=True)
+            manager_092 = self._manager(install, updates, source, version="0.9.6")
             state = manager_092.check_and_stage()
             self.assertTrue(state["ready"])
-            run_helper(manager_092, "0.9.1", 2)
+            run_helper(manager_092, "0.9.6", 2)
             self.assertFalse((install / "app" / "fail-start.txt").exists())
             self.assertEqual((install / "app" / "payload.bin").read_bytes(), b"new payload")
-            self.assertEqual(launch_log.read_text(encoding="utf-8").splitlines(), ["0.9.1", "0.9.2", "0.9.1"])
+            self.assertEqual(launch_log.read_text(encoding="utf-8").splitlines(), ["0.9.6", "0.9.7", "0.9.6"])
             self.assertTrue((updates / "rollback-report.json").is_file())
-            print("END-TO-END 0.9.2 crash=detected rollback=OK relaunch_old=OK")
+            self.assertTrue((updates / "update-failure.json").is_file())
+            self.assertIn("STEP rollback-complete restored-version=0.9.6", (updates / "update-log.txt").read_text(encoding="utf-8"))
+            print("END-TO-END 0.9.7 health-failure=detected rollback=OK relaunch_old=OK")
 
             # Tampering a signed manifest is rejected before any content-addressed blob is read.
-            manifest_path = source / "0.9.2" / "manifest.json"
+            manifest_path = source / "0.9.7" / "manifest.json"
             manifest_path.write_bytes(manifest_path.read_bytes() + b" ")
-            tampered_manager = self._manager(install, updates, source, version="0.9.1")
+            tampered_manager = self._manager(install, updates, source, version="0.9.6")
             with mock.patch("adapters.updater.updater.download_blob") as download:
                 with self.assertRaises(UpdateRefused):
                     tampered_manager.check_and_stage()

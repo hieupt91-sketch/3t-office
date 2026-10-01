@@ -1,11 +1,37 @@
-# Runs from a staged copy after the 3T Office process exits. Keep this PowerShell 5.1 compatible.
+﻿# Runs from a staged copy after the 3T Office process exits. Keep this PowerShell 5.1 compatible.
 param([Parameter(Mandatory = $true)][string]$Task)
 
 $ErrorActionPreference = "Stop"
-$taskData = Get-Content -LiteralPath $Task -Raw -Encoding UTF8 | ConvertFrom-Json
-$install = [System.IO.Path]::GetFullPath([string]$taskData.install_dir).TrimEnd('\')
-$stage = [System.IO.Path]::GetFullPath([string]$taskData.stage_dir).TrimEnd('\')
-$updates = [System.IO.Path]::GetFullPath([string]$taskData.updates_dir).TrimEnd('\')
+$script:LogFile = Join-Path (Join-Path $env:LOCALAPPDATA 'VNOffice') 'updates\update-log.txt'
+function Write-UpdateLog([string]$message) {
+    try {
+        $parent = Split-Path -Parent $script:LogFile
+        New-Item -ItemType Directory -Force -Path $parent | Out-Null
+        $line = ('{0} {1}{2}' -f [DateTime]::UtcNow.ToString('o'), $message, [Environment]::NewLine)
+        [System.IO.File]::AppendAllText($script:LogFile, $line, (New-Object System.Text.UTF8Encoding($false)))
+    } catch { }
+}
+Write-UpdateLog 'STEP helper-started'
+Write-UpdateLog ('STEP task-read path="{0}"' -f $Task)
+try {
+    $taskData = Get-Content -LiteralPath $Task -Raw -Encoding UTF8 | ConvertFrom-Json
+    $install = [System.IO.Path]::GetFullPath([string]$taskData.install_dir).TrimEnd('\')
+    $stage = [System.IO.Path]::GetFullPath([string]$taskData.stage_dir).TrimEnd('\')
+    $updates = [System.IO.Path]::GetFullPath([string]$taskData.updates_dir).TrimEnd('\')
+    $script:LogFile = if ($taskData.log_file) { [System.IO.Path]::GetFullPath([string]$taskData.log_file) } else { Join-Path $updates 'update-log.txt' }
+} catch {
+    Write-UpdateLog ('STEP task-read-failed message="{0}"' -f $_.Exception.Message)
+    exit 1
+}
+Write-UpdateLog ('STEP task-loaded install="{0}" stage="{1}" old={2} new={3}' -f $install, $stage, $taskData.old_version, $taskData.new_version)
+Add-Type -TypeDefinition @"
+using System.Runtime.InteropServices;
+using System.Text;
+public static class VnoUpdatePathApi {
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    public static extern uint GetLongPathName(string shortPath, StringBuilder longPath, uint bufferLength);
+}
+"@ -ErrorAction Stop
 $healthFile = [string]$taskData.health_file
 $backup = Join-Path $updates ("backup-" + [string]$taskData.old_version)
 $changedPaths = @()
@@ -64,21 +90,68 @@ function Move-FileAtomically([string]$source, [string]$target) {
     }
 }
 
-function Get-InstallProcesses {
-    $managedExecutables = @(
-        [System.IO.Path]::GetFullPath((Join-Path $install 'python\pythonw.exe')),
-        [System.IO.Path]::GetFullPath((Join-Path $install 'python\python.exe')),
-        [System.IO.Path]::GetFullPath((Join-Path $install 'app\tools\libreoffice\program\soffice.exe')),
-        [System.IO.Path]::GetFullPath((Join-Path $install 'app\tools\libreoffice\program\soffice.bin'))
-    )
-    return @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
-        $_.ExecutablePath -and $managedExecutables -contains [System.IO.Path]::GetFullPath([string]$_.ExecutablePath)
-    })
+function Normalize-ProcessPath([string]$path) {
+    $full = [System.IO.Path]::GetFullPath($path)
+    try {
+        $buffer = New-Object System.Text.StringBuilder 32768
+        $length = [VnoUpdatePathApi]::GetLongPathName($full, $buffer, [uint32]$buffer.Capacity)
+        if ($length -gt 0 -and $length -lt $buffer.Capacity) { $full = $buffer.ToString() }
+    } catch { }
+    return $full.TrimEnd('\')
 }
 
-function Wait-InstallProcesses([int]$seconds) {
+function Get-InstallProcesses {
+    $appExecutables = @(
+        (Normalize-ProcessPath (Join-Path $install 'python\pythonw.exe')),
+        (Normalize-ProcessPath (Join-Path $install 'python\python.exe'))
+    )
+    $sofficeExecutables = @(
+        (Normalize-ProcessPath (Join-Path $install 'app\tools\libreoffice\program\soffice.exe')),
+        (Normalize-ProcessPath (Join-Path $install 'app\tools\libreoffice\program\soffice.bin'))
+    )
+    $workerPython = Normalize-ProcessPath (Join-Path $install 'app\tools\libreoffice\program\python.exe')
+    $found = @()
+    foreach ($process in @(Get-CimInstance Win32_Process -ErrorAction Stop)) {
+        if (-not $process.ExecutablePath) { continue }
+        $executable = Normalize-ProcessPath ([string]$process.ExecutablePath)
+        if ($appExecutables -contains $executable) {
+            $found += [pscustomobject]@{ ProcessId = [int]$process.ProcessId; ExecutablePath = $executable; Role = 'app' }
+        } elseif ($sofficeExecutables -contains $executable) {
+            $found += [pscustomobject]@{ ProcessId = [int]$process.ProcessId; ExecutablePath = $executable; Role = 'soffice' }
+        } elseif ($executable -eq $workerPython -and ([string]$process.CommandLine).IndexOf('soffice_uno_worker.py', [StringComparison]::OrdinalIgnoreCase) -ge 0) {
+            $found += [pscustomobject]@{ ProcessId = [int]$process.ProcessId; ExecutablePath = $executable; Role = 'soffice-worker' }
+        }
+    }
+    return $found
+}
+
+function Stop-InstallSofficeProcesses {
+    $owned = @(Get-InstallProcesses | Where-Object { $_.Role -in @('soffice', 'soffice-worker') })
+    foreach ($process in $owned) {
+        Write-UpdateLog ('STEP stop-owned-soffice pid={0} role={1} path="{2}"' -f $process.ProcessId, $process.Role, $process.ExecutablePath)
+        Stop-Process -Id $process.ProcessId -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Wait-InstallProcesses([int]$seconds, [bool]$stopOwnedSofficeOnTimeout = $false) {
     $deadline = [DateTime]::UtcNow.AddSeconds($seconds)
+    $lastCount = -1
     while ([DateTime]::UtcNow -lt $deadline) {
+        $processes = @(Get-InstallProcesses)
+        if ($processes.Count -eq 0) { return $true }
+        if ($processes.Count -ne $lastCount) {
+            Write-UpdateLog ('STEP waiting-for-install-processes count={0} pids={1}' -f $processes.Count, (($processes | ForEach-Object { '{0}:{1}' -f $_.ProcessId, $_.Role }) -join ','))
+            $lastCount = $processes.Count
+        }
+        Start-Sleep -Milliseconds 500
+    }
+    $processes = @(Get-InstallProcesses)
+    if ($processes.Count -eq 0) { return $true }
+    Write-UpdateLog ('STEP process-wait-timeout count={0} pids={1}' -f $processes.Count, (($processes | ForEach-Object { '{0}:{1}' -f $_.ProcessId, $_.Role }) -join ','))
+    if (-not $stopOwnedSofficeOnTimeout) { return $false }
+    Stop-InstallSofficeProcesses
+    $sofficeDeadline = [DateTime]::UtcNow.AddSeconds([int]$taskData.soffice_exit_wait_seconds)
+    while ([DateTime]::UtcNow -lt $sofficeDeadline) {
         if (@(Get-InstallProcesses).Count -eq 0) { return $true }
         Start-Sleep -Milliseconds 500
     }
@@ -89,6 +162,7 @@ function Start-VNOffice([bool]$withHealthToken) {
     $arguments = @()
     $arguments += @($taskData.launch_prefix_args | ForEach-Object { [string]$_ })
     $arguments += @($taskData.launch_args | ForEach-Object { [string]$_ })
+    $arguments += @($taskData.restore_documents | ForEach-Object { '--restore-document=' + [string]$_ })
     if ($withHealthToken) { $arguments += ('--update-health-token=' + [string]$taskData.health_token) }
     $quoted = @($arguments | ForEach-Object { Quote-ProcessArgument $_ }) -join ' '
     $info = New-Object System.Diagnostics.ProcessStartInfo
@@ -100,6 +174,7 @@ function Start-VNOffice([bool]$withHealthToken) {
         $info.EnvironmentVariables['VNO_UPDATE_HEALTH_FILE'] = $healthFile
         $info.EnvironmentVariables['VNO_UPDATE_HEALTH_TOKEN'] = [string]$taskData.health_token
     }
+    Write-UpdateLog ('STEP relaunch-start version={0} health={1} documents={2}' -f $(if ($withHealthToken) { $taskData.new_version } else { $taskData.old_version }), $withHealthToken, @($taskData.restore_documents).Count)
     return [System.Diagnostics.Process]::Start($info)
 }
 
@@ -120,14 +195,19 @@ function Restore-Backup {
 }
 
 try {
-    if (-not (Wait-InstallProcesses 600)) { throw '3T Office is still running; update was not applied.' }
+    Remove-Item -LiteralPath (Join-Path $updates 'update-failure.json') -Force -ErrorAction SilentlyContinue
+    Write-UpdateLog 'STEP wait-for-old-app-start'
+    $processWait = if ($taskData.process_wait_seconds) { [int]$taskData.process_wait_seconds } else { 45 }
+    if (-not (Wait-InstallProcesses $processWait $true)) { throw 'Không thể đóng hoàn toàn 3T Office và LibreOffice trong thời gian chờ; bản cập nhật chưa được áp dụng.' }
     $originalExited = $true
+    Write-UpdateLog 'STEP old-app-exited'
     if (Test-Path -LiteralPath $backup) {
         $preservedBackup = Join-Path $updates ("backup-" + [string]$taskData.old_version + "-previous-" + [Guid]::NewGuid().ToString('N'))
         Move-Item -LiteralPath $backup -Destination $preservedBackup
     }
     New-Item -ItemType Directory -Force -Path $backup | Out-Null
     $createdBackup = $true
+    Write-UpdateLog ('STEP backup-created path="{0}" files={1}' -f $backup, $changedPaths.Count)
 
     # Save every affected old file before changing or removing anything.
     foreach ($relative in $changedPaths) {
@@ -142,6 +222,7 @@ try {
     $applyStarted = $true
     foreach ($item in @($taskData.replacements)) {
         $relative = [string]$item.path
+        Write-UpdateLog ('STEP apply-file path="{0}"' -f $relative)
         $target = Resolve-InstallPath $relative
         $blob = Join-Path (Join-Path $stage 'blobs') ([string]$item.sha256)
         if (-not (Test-Path -LiteralPath $blob -PathType Leaf)) { throw "Staged blob is missing: $relative" }
@@ -156,6 +237,7 @@ try {
         Move-FileAtomically $temp $target
     }
     foreach ($relative in @($taskData.removals)) {
+        Write-UpdateLog ('STEP remove-file path="{0}"' -f $relative)
         $target = Resolve-InstallPath ([string]$relative)
         if (Test-Path -LiteralPath $target -PathType Leaf) { [System.IO.File]::Delete($target) }
     }
@@ -163,8 +245,10 @@ try {
     if (-not (Test-Path -LiteralPath $versionFile -PathType Leaf) -or (Get-Content -LiteralPath $versionFile -Raw -Encoding ASCII).Trim() -ne [string]$taskData.new_version) {
         throw 'VERSION.txt does not match the signed release manifest.'
     }
+    Write-UpdateLog ('STEP version-verified version={0}' -f $taskData.new_version)
 
     Remove-Item -LiteralPath $healthFile -Force -ErrorAction SilentlyContinue
+    Write-UpdateLog ('STEP health-check-start timeout={0}' -f $taskData.health_timeout_seconds)
     $newProcess = Start-VNOffice $true
     $healthy = $false
     $deadline = [DateTime]::UtcNow.AddSeconds([int]$taskData.health_timeout_seconds)
@@ -175,11 +259,14 @@ try {
     }
     if ($healthy) {
         Remove-Item -LiteralPath $healthFile -Force -ErrorAction SilentlyContinue
+        Write-UpdateLog ('STEP health-check-passed version={0}' -f $taskData.new_version)
         exit 0
     }
 
+    Write-UpdateLog ('STEP health-check-failed version={0}; stopping launched app' -f $taskData.new_version)
     try { $newProcess.Refresh(); if (-not $newProcess.HasExited) { Stop-Process -Id $newProcess.Id -Force -ErrorAction SilentlyContinue } } catch { }
-    if (-not (Wait-InstallProcesses 60)) { throw 'Failed app process did not exit; rollback is waiting for the install to unlock.' }
+    if (-not (Wait-InstallProcesses 20 $true)) { throw 'Không thể đóng phiên bản mới để quay lại phiên bản trước.' }
+    Write-UpdateLog 'STEP rollback-start reason=health-marker-missing'
     Restore-Backup
     $report = @{
         old_version = [string]$taskData.old_version
@@ -188,12 +275,17 @@ try {
         created_at = [DateTime]::UtcNow.ToString('o')
     } | ConvertTo-Json -Compress
     [System.IO.File]::WriteAllText((Join-Path $updates 'rollback-report.json'), $report, (New-Object System.Text.UTF8Encoding($false)))
+    $failure = @{ message = 'Bản cập nhật chưa khởi động thành công. 3T Office đã khôi phục phiên bản trước.'; created_at = [DateTime]::UtcNow.ToString('o') } | ConvertTo-Json -Compress
+    [System.IO.File]::WriteAllText((Join-Path $updates 'update-failure.json'), $failure, (New-Object System.Text.UTF8Encoding($false)))
+    Write-UpdateLog ('STEP rollback-complete restored-version={0}' -f $taskData.old_version)
     $null = Start-VNOffice $false
     exit 2
 } catch {
     $failureMessage = [string]$_.Exception.Message
+    Write-UpdateLog ('STEP failed message="{0}"' -f $failureMessage.Replace('"', "'"))
     try {
         if ($applyStarted -and $createdBackup -and (Test-Path -LiteralPath $backup -PathType Container)) {
+            Write-UpdateLog 'STEP restoring-backup-after-error'
             Restore-Backup
             $null = Start-VNOffice $false
             $oldRelaunched = $true
@@ -207,11 +299,16 @@ try {
         }
     } catch { }
     if ($originalExited -and -not $oldRelaunched) {
-        try { $null = Start-VNOffice $false; $oldRelaunched = $true } catch { }
+        try { $null = Start-VNOffice $false; $oldRelaunched = $true } catch { Write-UpdateLog ('STEP old-version-relaunch-failed message="{0}"' -f $_.Exception.Message) }
     }
     try {
         $log = Join-Path $updates 'apply-error.txt'
         [System.IO.File]::WriteAllText($log, $failureMessage, (New-Object System.Text.UTF8Encoding($false)))
     } catch { }
+    try {
+        $failure = @{ message = 'Không thể áp dụng bản cập nhật. 3T Office đang mở lại phiên bản trước.'; created_at = [DateTime]::UtcNow.ToString('o') } | ConvertTo-Json -Compress
+        [System.IO.File]::WriteAllText((Join-Path $updates 'update-failure.json'), $failure, (New-Object System.Text.UTF8Encoding($false)))
+    } catch { }
+    Write-UpdateLog ('STEP helper-exit code=1 old-relaunched={0}' -f $oldRelaunched)
     exit 1
 }

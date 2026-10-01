@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3T Office — Bộ Ứng Dụng Văn Phòng Việt</title>
+  <link rel="icon" id="vno-favicon" href="branding/icons/vnoffice.ico" type="image/x-icon">
+  
+  <!-- Phông chữ Tiếng Việt chuẩn quốc gia -->
+  <!-- Đóng gói sẵn trong app (SIL OFL) để không cần mạng — ứng dụng desktop chạy offline -->
+  <link rel="stylesheet" href="platform/theme/fonts/fonts.css">
+
+  <!-- Design System & Tokens -->
+  <link rel="stylesheet" href="platform/theme/tokens.css">
+  <link rel="stylesheet" href="platform/ui-kit/ui-kit.css">
+  <link rel="stylesheet" href="platform/ribbon/ribbon.css">
+  <link rel="stylesheet" href="platform/shell/shell.css">
+  <link rel="stylesheet" href="platform/print/print-dialog.css">
+  <link rel="stylesheet" href="platform/error_reporting/error-reporting.css">
+  <link rel="stylesheet" href="platform/about/about-dialog.css">
+
+  <!-- Apps Specific Styles -->
+  <link rel="stylesheet" href="apps/writer/writer.css">
+  <link rel="stylesheet" href="apps/sheet/sheet.css">
+  <link rel="stylesheet" href="apps/slides/slides.css">
+</head>
+<body>
+
+  <!-- App Mount Root -->
+  <div id="vno-app-root"></div>
+
+  <script type="module">
+    import { WriterApp } from "./apps/writer/writer-app.js";
+    import { SheetApp } from "./apps/sheet/sheet-app.js";
+    import { SlidesApp } from "./apps/slides/slides-app.js";
+    import { themeManager } from "./platform/theme/theme-manager.js";
+    import { globalCommandBus } from "./platform/commands/command-bus.js";
+    import { bootstrapPlatform, configurePlatformLaunchContext, resolveLaunchContext } from "./platform/bootstrap.js";
+    import { ErrorReportingUI } from "./platform/error_reporting/error-reporting-ui.js";
+    import { autoRecoverManager } from "./platform/autorecover/auto-recover.js";
+    import { connectUpdaterUi } from "./platform/updater/update-ui.js";
+    import { showDocumentOpenProgress, hideDocumentOpenProgress } from "./platform/ui-kit/components.js";
+
+    window.addEventListener("vno:document-open-progress", () => {
+      showDocumentOpenProgress("Đang mở tài liệu…");
+    });
+    window.addEventListener("vno:document-open-complete", () => {
+      requestAnimationFrame(() => requestAnimationFrame(hideDocumentOpenProgress));
+    });
+
+    const mountEl = document.getElementById("vno-app-root");
+    window.__vnoPerfDebug = new URLSearchParams(window.location.search).get("perfDebug") === "1";
+    window.__vnoPerfReport = (name, elapsedMs) => {
+      if (!window.__vnoPerfDebug) return;
+      console.info(`[VNO Sheet Perf] ${name}: ${elapsedMs.toFixed(1)} ms`);
+      window.pywebview?.api?.report_perf_metric?.(name, elapsedMs);
+    };
+    let currentAppInstance = null;
+    const launchContext = configurePlatformLaunchContext(resolveLaunchContext(window.location.search));
+    const errorReportingUI = new ErrorReportingUI().mount();
+
+    async function switchApp(appType, options = {}) {
+      if (launchContext.singleAppMode && appType !== launchContext.appKind) return false;
+      themeManager.setApp(appType);
+      const faviconEl = document.getElementById("vno-favicon");
+      if (faviconEl) {
+        faviconEl.href = `branding/icons/${appType}.ico`;
+      }
+
+      if (appType === "writer") {
+        currentAppInstance = new WriterApp(mountEl);
+      } else if (appType === "sheet") {
+        currentAppInstance = new SheetApp(mountEl);
+      } else if (appType === "slides") {
+        currentAppInstance = new SlidesApp(mountEl);
+      }
+
+      await currentAppInstance.init({ ...options, singleApp: launchContext.singleAppMode });
+      await errorReportingUI.refresh();
+      // Bộ đo (scripts/layout-audit/_create_new_*.py) điều khiển app thật qua handle này; không dùng trong code sản phẩm.
+      window.__vnoAppInstance = currentAppInstance;
+      await connectUpdaterUi(currentAppInstance);
+
+      // Cập nhật callback chuyển đổi app vào shell hiện tại
+      if (currentAppInstance.shell) {
+        currentAppInstance.shell.onSwitchApp = (nextApp, opt) => switchApp(nextApp, opt);
+      }
+      return true;
+    }
+
+    // Khởi tạo theme (Light/Dark từ localStorage)
+    themeManager.init();
+
+    // Bootstrap suite tập trung một lần duy nhất rồi khởi động 3T Doc
+    await bootstrapPlatform();
+    const initialApp = launchContext.appKind || "writer";
+    await switchApp(initialApp, {
+      singleApp: launchContext.singleAppMode,
+      templateId: "blank",
+      documentName: launchContext.documentName || undefined,
+      openInitialFile: launchContext.openInitialFile
+    });
+    await errorReportingUI.initialize();
+    if (launchContext.openInitialFile) {
+      await globalCommandBus.execute("common.file.open");
+    }
+    await autoRecoverManager.showStartupRecovery();
+  </script>
+</body>
+</html>

@@ -148,6 +148,8 @@ _UPDATE_MANAGER: UpdaterManager | None = None
 _UPDATE_DATA_DIR: Path | None = None
 _APP_WINDOW_APIS: dict[str, object] = {}
 _APP_WINDOW_LOCK = threading.RLock()
+_UPDATE_RESTART_CONDITION = threading.Condition()
+_UPDATE_RESTART_PENDING: dict[str, object] | None = None
 _NEW_WINDOW_CREATE_LOCK = threading.RLock()
 _DOCUMENT_SEQUENCE: dict[str, int] = {}
 _DOCUMENT_SEQUENCE_LOCK = threading.Lock()
@@ -2692,6 +2694,21 @@ class VnOfficeApi:
             return {"started": False, "state": self.get_update_status()}
         return {"started": self._updater.start(), "state": self._updater.get_state()}
 
+    def confirm_update_restart(self, request_id, saved):
+        if not isinstance(request_id, str) or type(saved) is not bool:
+            return {"accepted": False}
+        with _UPDATE_RESTART_CONDITION:
+            pending = _UPDATE_RESTART_PENDING
+            if not pending or pending.get("request_id") != request_id:
+                return {"accepted": False}
+            window_uid = self._window_uid
+            expected = pending.get("expected", set())
+            if not window_uid or window_uid not in expected:
+                return {"accepted": False}
+            pending["acks"][window_uid] = saved
+            _UPDATE_RESTART_CONDITION.notify_all()
+        return {"accepted": True}
+
     def check_for_updates(self):
         if self._updater is None:
             return {"queued": False, "state": self.get_update_status()}
@@ -2706,24 +2723,115 @@ class VnOfficeApi:
         install_root = _update_install_root()
         if install_root is None:
             return {"started": False, "error": "Không tìm thấy thư mục cài đặt 3T Office."}
+        global _UPDATE_RESTART_PENDING
+        with _APP_WINDOW_LOCK:
+            app_windows = [
+                (api, _active_window(api))
+                for api in _APP_WINDOW_APIS.values()
+                if getattr(api, "_app_kind", None) == self._app_kind
+            ]
+        app_windows = [(api, window) for api, window in app_windows if window is not None and api._window_uid]
+        if not app_windows:
+            return {"started": False, "error": "Không tìm thấy cửa sổ tài liệu đang mở."}
+
+        request_id = uuid.uuid4().hex
+        expected = {api._window_uid for api, _window in app_windows}
+        with _UPDATE_RESTART_CONDITION:
+            if _UPDATE_RESTART_PENDING is not None:
+                return {"started": False, "error": "Một yêu cầu cập nhật khác đang được xử lý."}
+            _UPDATE_RESTART_PENDING = {"request_id": request_id, "expected": expected, "acks": {}}
+
+        request_payload = json.dumps({"requestId": request_id}, separators=(",", ":"))
+        for api, window in app_windows:
+            try:
+                window.evaluate_js(
+                    "window.dispatchEvent(new CustomEvent('vno-office-update-restart-request', {detail:"
+                    + request_payload
+                    + "}))"
+                )
+            except Exception:
+                with _UPDATE_RESTART_CONDITION:
+                    pending = _UPDATE_RESTART_PENDING
+                    if pending and pending.get("request_id") == request_id:
+                        pending["acks"][api._window_uid] = False
+                        _UPDATE_RESTART_CONDITION.notify_all()
+
+        deadline = time.monotonic() + 180
         try:
-            task_path = self._updater.create_apply_task(app_kind=self._app_kind, install_root=install_root)
+            with _UPDATE_RESTART_CONDITION:
+                while True:
+                    pending = _UPDATE_RESTART_PENDING
+                    if not pending or pending.get("request_id") != request_id:
+                        return {"started": False, "error": "Yêu cầu lưu tài liệu đã bị hủy."}
+                    acks = pending["acks"]
+                    if any(value is False for value in acks.values()):
+                        return {"started": False, "cancelled": True}
+                    if expected.issubset(acks):
+                        break
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        return {"started": False, "error": "Hết thời gian chờ xác nhận lưu ở các cửa sổ tài liệu."}
+                    _UPDATE_RESTART_CONDITION.wait(timeout=min(remaining, 1.0))
+
+            documents = []
+            seen_documents = set()
+            for api, _window in app_windows:
+                path = api._current_file_path or api._initial_file
+                if not path:
+                    continue
+                try:
+                    resolved = str(Path(path).expanduser().resolve())
+                    if not Path(resolved).is_file():
+                        continue
+                except OSError:
+                    continue
+                folded = resolved.casefold()
+                if folded not in seen_documents:
+                    seen_documents.add(folded)
+                    documents.append(resolved)
+
+            task_path = self._updater.create_apply_task(
+                app_kind=self._app_kind,
+                install_root=install_root,
+                launch_args=[f"--app={self._app_kind}"],
+                restore_documents=documents,
+            )
             if not self._updater.launch_apply_helper(task_path):
                 return {"started": False, "error": "Trình cập nhật chỉ áp dụng được trên Windows."}
         except Exception as exc:
             return {"started": False, "error": f"Không thể chuẩn bị cập nhật: {type(exc).__name__}"}
-        def exit_for_update():
-            # The apply helper waits for every process of this install; stop the warm LibreOffice worker first.
-            try:
-                self.close_print_sessions()
-                _PERSISTENT_SOFFICE.shutdown()
-            finally:
-                os._exit(0)
+        finally:
+            with _UPDATE_RESTART_CONDITION:
+                if _UPDATE_RESTART_PENDING and _UPDATE_RESTART_PENDING.get("request_id") == request_id:
+                    _UPDATE_RESTART_PENDING = None
+                _UPDATE_RESTART_CONDITION.notify_all()
 
-        timer = threading.Timer(0.4, exit_for_update)
+        def close_all_windows():
+            for api, window in app_windows:
+                api._allow_window_close = True
+                try:
+                    window.destroy()
+                except Exception:
+                    logging.getLogger("vnoffice.updater").warning(
+                        "Could not close an app window for update restart.", exc_info=True
+                    )
+
+        timer = threading.Timer(0.25, close_all_windows)
         timer.daemon = True
         timer.start()
         return {"started": True}
+
+    def consume_update_failure(self):
+        if _UPDATE_DATA_DIR is None:
+            return None
+        failure_path = _UPDATE_DATA_DIR / "update-failure.json"
+        try:
+            payload = json.loads(failure_path.read_text(encoding="utf-8"))
+            failure_path.unlink(missing_ok=True)
+            message = payload.get("message") if isinstance(payload, dict) else None
+            return {"message": str(message)} if message else None
+        except (OSError, ValueError, TypeError):
+            return None
 
     def set_error_reporting_consent(self, granted):
         if self._reporter is None:
@@ -3578,6 +3686,25 @@ def main(argv: list[str] | None = None):
         print(f"[3T Office] {exc}", file=sys.stderr)
         return 2
 
+    restore_documents = []
+    for argument in launch_argv:
+        if not argument.startswith("--restore-document="):
+            continue
+        raw_path = argument.split("=", 1)[1]
+        if not raw_path:
+            continue
+        try:
+            path = str(Path(raw_path).expanduser().resolve())
+        except OSError:
+            continue
+        if path.casefold() != str(initial_file or "").casefold() and path.casefold() not in {
+            existing.casefold() for existing in restore_documents
+        }:
+            if initial_file is None:
+                initial_file = path
+            else:
+                restore_documents.append(path)
+
     instance_server = None
     if app_kind in VALID_APP_KINDS:
         _INSTANCE_DISPATCH_READY.clear()
@@ -3713,6 +3840,12 @@ def main(argv: list[str] | None = None):
 
     _register_app_window(api, window)
 
+    for restore_path in restore_documents:
+        if not Path(restore_path).is_file():
+            continue
+        request = {"app_kind": app_kind, "path": restore_path}
+        _INSTANCE_LAUNCH_QUEUE.put_nowait((request, threading.Event()))
+
     if instance_server is not None:
         threading.Thread(
             target=_dispatch_single_instance_requests,
@@ -3748,6 +3881,11 @@ def main(argv: list[str] | None = None):
     expected_health_file = os.environ.get("VNO_UPDATE_HEALTH_FILE", "")
 
     def on_loaded(*_args):
+        if _UPDATE_MANAGER is not None:
+            # Checking starts after WebView is ready and runs off the UI thread.
+            timer = threading.Timer(0.25, _UPDATE_MANAGER.start)
+            timer.daemon = True
+            timer.start()
         if not health_token or not re.fullmatch(r"[0-9a-f]{32}", health_token):
             return
         health_root = _UPDATE_DATA_DIR

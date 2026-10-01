@@ -1,0 +1,12009 @@
+/**
+ * 3T Sheet — Enterprise Grid Controller & Microsoft Formula Calculation Engine
+ */
+
+import { FormulaEngine, FUNCTION_CATALOG } from "./formula-engine.js";
+import { createEvaluateFormulaSessionFromGrid, formatFormulaValue, renderFormulaHtml } from "./evaluate-formula.js";
+import { SheetChartBuilder } from "./sheet-chart.js";
+import { FormulaAutocompleteController } from "./formula-autocomplete.js";
+import {
+  FormulaEntrySession,
+  cycleAbsoluteReference,
+  findFormulaReferences,
+  isFormulaReferenceInsertionPoint,
+  makeCellReference
+} from "./formula-entry.js";
+import { PivotTableEngine } from "./pivot-table.js";
+import { WhatIfAnalysisEngine } from "./what-if-analysis.js";
+import { NumberFormatter } from "./number-formatter.js";
+import { FormatCellsDialog } from "./format-cells-dialog.js";
+import { showCellStylesDialog, showFormatAsTableDialog, CELL_STYLE_PRESETS, TABLE_STYLE_PRESETS } from "./cell-styles.js";
+import { globalCommandBus } from "../../platform/commands/command-bus.js";
+import { t } from "../../platform/i18n/i18n.js";
+import { SheetDataTools } from "./data-tools.js";
+import { computeConsolidate, formatSheetRange, parseConsolidateReference, CONSOLIDATE_FUNCTIONS } from "./consolidate.js";
+import { showAlertDialog, showConfirmDialog, showPromptDialog, showFindReplaceDialog } from "../../platform/ui-kit/dialogs.js";
+import { VietnameseSpellChecker, normalizeVietnameseWord, tokenizeVietnamese } from "../../platform/text/vi-spellchecker.js";
+import { VIETNAMESE_DICTIONARY_WORDS } from "../../platform/text/dictionaries/vi-dictionary.js";
+
+export const DEFAULT_SHEET_PAGE_SETUP = Object.freeze({
+  margins: Object.freeze({ top: 1.91, bottom: 1.91, left: 1.78, right: 1.78 }),
+  orientation: "portrait",
+  size: "a4",
+  scale: Object.freeze({ mode: "percent", percent: 100, pagesWide: 1, pagesTall: 0 }),
+  headerFooter: Object.freeze({ header: Object.freeze({ left: "", center: "", right: "" }), footer: Object.freeze({ left: "", center: "Trang &P / &N", right: "" }) }),
+  centerOnPage: Object.freeze({ horizontal: false, vertical: false }),
+  printOptions: Object.freeze({ gridlines: false, headings: false }),
+  printTitles: Object.freeze({ rows: "", cols: "" })
+});
+
+export const DEFAULT_ROW_HEIGHT_PX = 20;
+export const DEFAULT_COL_WIDTH_PX = 64;
+export const MIN_ROW_HEIGHT_PX = 1;
+export const MAX_ROW_HEIGHT_PX = 409;
+export const MIN_COL_WIDTH_PX = 8;
+export const MAX_COL_WIDTH_PX = 500;
+export const MAX_SHEET_NAME_LENGTH = 31;
+export const INVALID_SHEET_NAME_CHARS = /[/\\?*\[\]:]/;
+export const SHEET_MOVE_TO_END = "__end__";
+
+// Cùng bảng khổ giấy (mm) và hệ số quy đổi 96dpi mà Writer đã dùng cho Print Preview,
+// để 3 app có cùng một kích thước A4/Letter/Legal thực tế khi in.
+export const SHEET_PAGE_SIZES_MM = Object.freeze({
+  a4: Object.freeze({ label: "A4 (210 × 297 mm)", w: 210, h: 297 }),
+  letter: Object.freeze({ label: "Letter (216 × 279 mm)", w: 216, h: 279 }),
+  legal: Object.freeze({ label: "Legal (216 × 356 mm)", w: 216, h: 356 })
+});
+export const SHEET_MM_TO_PX = 3.7795275591; // 96dpi
+// Lề trong pageSetupBySheet lưu bằng CM (xem showPageSetupDialog: input "(cm)"), khác mm.
+export const SHEET_CM_TO_PX = SHEET_MM_TO_PX * 10;
+
+/** Build a directed selection range without losing the fixed anchor. */
+export function createSheetSelectionRange(anchor, active) {
+  return {
+    start: { c: anchor.c, r: anchor.r },
+    end: { c: active.c, r: active.r }
+  };
+}
+
+/** Normalize a directed range for operations that need its top-left/bottom-right. */
+export function normalizeSheetSelectionRange(range, cols) {
+  const start = range?.start || { c: cols[0], r: 1 };
+  const end = range?.end || start;
+  const startCol = Math.max(0, cols.indexOf(start.c));
+  const endCol = Math.max(0, cols.indexOf(end.c));
+  return {
+    start: { c: cols[Math.min(startCol, endCol)], r: Math.min(start.r, end.r) },
+    end: { c: cols[Math.max(startCol, endCol)], r: Math.max(start.r, end.r) }
+  };
+}
+
+/** Smooth, distance-based edge auto-scroll delta (pixels for one animation frame). */
+export function getSheetSelectionAutoScrollDelta(pointer, start, end, elapsedMs, options = {}) {
+  const edgeZone = Math.max(1, options.edgeZone ?? 48);
+  const maxSpeed = Math.max(0, options.maxSpeed ?? 900);
+  const duration = Math.max(0, Math.min(50, Number(elapsedMs) || 0));
+  let direction = 0;
+  let penetration = 0;
+  if (pointer < start + edgeZone) {
+    direction = -1;
+    penetration = start + edgeZone - pointer;
+  } else if (pointer > end - edgeZone) {
+    direction = 1;
+    penetration = pointer - (end - edgeZone);
+  }
+  if (!direction || !maxSpeed || !duration) return 0;
+  const intensity = Math.min(1, penetration / edgeZone);
+  return direction * maxSpeed * intensity * intensity * duration / 1000;
+}
+
+export function _getTabContrastTextColor(hexColor) {
+  if (!hexColor || typeof hexColor !== "string") return "#000000";
+  let hex = hexColor.trim().replace(/^#/, "");
+  if (hex.length === 3) {
+    hex = hex.split("").map(c => c + c).join("");
+  }
+  if (hex.length >= 6) {
+    const r = parseInt(hex.substring(0, 2), 16) || 0;
+    const g = parseInt(hex.substring(2, 4), 16) || 0;
+    const b = parseInt(hex.substring(4, 6), 16) || 0;
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    return brightness >= 130 ? "#000000" : "#ffffff";
+  }
+  return "#000000";
+}
+
+function newSheetPageSetup(overrides = {}) {
+  return {
+    margins: { ...DEFAULT_SHEET_PAGE_SETUP.margins, ...(overrides.margins || {}) },
+    orientation: overrides.orientation || DEFAULT_SHEET_PAGE_SETUP.orientation,
+    size: overrides.size || DEFAULT_SHEET_PAGE_SETUP.size,
+    scale: { ...DEFAULT_SHEET_PAGE_SETUP.scale, ...(overrides.scale || {}) },
+    headerFooter: {
+      header: { ...DEFAULT_SHEET_PAGE_SETUP.headerFooter.header, ...(overrides.headerFooter?.header || {}) },
+      footer: { ...DEFAULT_SHEET_PAGE_SETUP.headerFooter.footer, ...(overrides.headerFooter?.footer || {}) }
+    },
+    centerOnPage: { ...DEFAULT_SHEET_PAGE_SETUP.centerOnPage, ...(overrides.centerOnPage || {}) },
+    printOptions: { ...DEFAULT_SHEET_PAGE_SETUP.printOptions, ...(overrides.printOptions || {}) },
+    printTitles: { ...DEFAULT_SHEET_PAGE_SETUP.printTitles, ...(overrides.printTitles || {}) }
+  };
+}
+
+function trapFocus(element, event) {
+  if (event.key !== "Tab" || !element) return;
+  const focusables = Array.from(element.querySelectorAll(
+    'button:not([disabled]):not([style*="display: none"]):not([style*="display:none"]), ' +
+    '[href], input:not([disabled]):not([type="hidden"]):not([style*="display: none"]):not([style*="display:none"]), ' +
+    'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  )).filter(el => el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0);
+
+  if (!focusables || focusables.length === 0) return;
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+
+  if (event.shiftKey) {
+    if (document.activeElement === first || !element.contains(document.activeElement)) {
+      event.preventDefault();
+      last.focus();
+    }
+  } else {
+    if (document.activeElement === last || !element.contains(document.activeElement)) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+}
+
+export class SheetGridController {
+  constructor(container, options = {}) {
+    this.container = container;
+    this.options = options;
+    this.isBlank = options.isBlank ?? (options.templateId !== "budget_estimate");
+    this.cols = Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i));
+    this.rowCount = 200;
+    this.rowHeight = DEFAULT_ROW_HEIGHT_PX;
+    this.defaultColWidth = DEFAULT_COL_WIDTH_PX;
+
+    this.sheets = options.templateId === "budget_estimate"
+      ? ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]
+      : ["Sheet1"];
+    this.activeSheet = this.sheets[0];
+
+    /** @type {Record<string, Map<string, {val: string|number, formula: string, style: Object}>>} */
+    this.sheetsData = Object.fromEntries(this.sheets.map(name => [name, new Map()]));
+
+    /** @type {Record<string, {hiddenRows: Set<number>, activeFilters: Map<string, Set<string>>, isFilterActive: boolean, isFrozenPanes: boolean, frozenRows: number, frozenCols: number, selectedCoord: {r: number, c: string}}>} */
+    this.sheetStates = Object.fromEntries(this.sheets.map(name => [name, {
+      hiddenRows: new Set(), activeFilters: new Map(), isFilterActive: false,
+      isFrozenPanes: false, frozenRows: 0, frozenCols: 0,
+      selectedCoord: { r: 1, c: "A" }
+    }]));
+
+    this.namedRangesWorkbook = [];
+    this.namedRangesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.commentsBySheet = Object.fromEntries(this.sheets.map(name => [name, {}]));
+    this.printAreaBySheet = Object.fromEntries(this.sheets.map(name => [name, null]));
+    this.pageBreaksBySheet = Object.fromEntries(this.sheets.map(name => [name, { rows: [], cols: [] }]));
+    this.pageSetupBySheet = Object.fromEntries(this.sheets.map(name => [name, newSheetPageSetup()]));
+    this.mergedRangesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.formulaEngine = new FormulaEngine(
+      () => this.cellsData,
+      name => this.resolveNamedRange(name),
+      sheetName => this.sheetsData?.[sheetName] || null,
+      () => this.activeSheet,
+      () => this.sheets
+    );
+    this.autocomplete = new FormulaAutocompleteController(this);
+    this.formulaEntry = null;
+    this.formulaReferenceOverlay = null;
+    this.formulaReferenceOverlayContent = null;
+    this._isFormulaComposing = false;
+    this._isSelectingFormulaReference = false;
+    this._formulaPointCoord = null;
+
+    this.undoStack = [];
+    this.redoStack = [];
+    this.maxHistorySteps = 100;
+    this.historyMergeWindowMs = 750;
+
+    this.selectedCoord = { r: 1, c: "A" };
+    this.selectionRange = { start: { r: 1, c: "A" }, end: { r: 1, c: "A" } };
+    this.selectionRanges = [this.selectionRange];
+    this.selectionKind = "cell";
+    this.showFormulas = false;
+    this.calculationMode = "automatic"; // "automatic" | "manual"
+    this.auditArrows = [];
+    this.watchedCells = new Set();
+    this._isAutofilling = false;
+    this._autofillSource = null;
+    this._autofillTarget = null;
+    this._isMovingCell = false;
+    this._moveSource = null;
+    this._moveTarget = null;
+    this._isSelectingRange = false;
+    this._rangeAnchor = null;
+    this._rangePointer = null;
+    this._rangeScrollFrame = 0;
+    this._rangeScrollTimestamp = 0;
+    this._rangeSelectionAdditive = false;
+    this._rangeSelectionBaseAreas = null;
+    this._activeContextMenu = null;
+    this._contextMenuPreviousFocus = null;
+    this.formatPainter = null;
+    this._formatPainterActivatedAt = 0;
+    this._formatPainterEscHandler = null;
+
+    // Rules are workbook state, partitioned explicitly by sheet. They are evaluated,
+    // never copied into a shared cell style, so switching tabs cannot leak visuals.
+    this.conditionalFormattingBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.dataValidationsBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.chartsBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.imagesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.selectedImageId = null;
+    this.textBoxesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.pivotTablesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.scenariosBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.dataTablesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this._dataTableEvaluating = false;
+    this.outlineGroupsBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.rowHeightsBySheet = Object.fromEntries(this.sheets.map(name => [name, new Map()]));
+    this.colWidthsBySheet = Object.fromEntries(this.sheets.map(name => [name, new Map()]));
+    this.userHiddenRowsBySheet = Object.fromEntries(this.sheets.map(name => [name, new Set()]));
+    this.userHiddenColsBySheet = Object.fromEntries(this.sheets.map(name => [name, new Set()]));
+    this.protectionBySheet = Object.fromEntries(this.sheets.map(name => [name, { enabled: false, password: "" }]));
+    this.workbookProtection = { enabled: false, password: "" };
+    this.watchedCells = new Set();
+    this.documentName = options.documentName || null;
+    this.dataTools = new SheetDataTools(this);
+
+    // Freeze Panes & Sort/Filter state (phản ánh sheet đang active)
+    this.isFrozenPanes = false;
+    this.frozenRows = 0;
+    this.frozenCols = 0;
+    this.isFilterActive = false;
+    this.hiddenRows = new Set();
+    this.activeFilters = new Map();
+
+    // View state is workbook UI state. Gridlines/headings default to visible.
+    this.zoomLevel = 1;
+    this.gridlinesVisible = true;
+    this.headingsVisible = true;
+    this.workbookView = "normal"; // "normal" | "pageBreakPreview" | "pageLayout"
+    this.formulaBarVisible = true;
+    this.formulaBarEl = null;
+    this.spellChecker = null;
+    this._spellcheckOverlay = null;
+
+    // Virtual scroll state
+    this.currentStartRow = 1;
+    this.currentEndRow = 35;
+    this.topSpacer = null;
+    this.bottomSpacer = null;
+    this.viewport = null;
+    this.tbody = null;
+    this.tabBar = null;
+
+    // Prefix-sum row tops cache (per sheet) for virtual scroll with variable row heights.
+    // _rowTopsCache[sheetName] = { tops: number[], totalHeight: number, valid: boolean }
+    this._rowTopsCache = {};
+    this._tabSequenceAnchor = null;
+    this._clipboardRange = null;
+  }
+
+  get cellsData() {
+    if (!this.sheetsData) {
+      this.sheetsData = {};
+    }
+    if (!this.sheetsData[this.activeSheet]) {
+      this.sheetsData[this.activeSheet] = new Map();
+    }
+    return this.sheetsData[this.activeSheet];
+  }
+
+  set cellsData(val) {
+    if (!this.sheetsData) {
+      this.sheetsData = {};
+    }
+    this.sheetsData[this.activeSheet] = val;
+  }
+
+  mount() {
+    this.container.innerHTML = "";
+    this.container.className = "vno-sheet-container";
+    // The grid is an explicit keyboard focus target at app startup and after
+    // toolbars/dialogs. Clipboard keys are handled by native ClipboardEvents.
+    this.container.setAttribute("tabindex", "0");
+    this.container.dataset.vnoNativeClipboard = "true";
+    this.container.style.outline = "none";
+
+    // 1. Formula Bar
+    const fBar = document.createElement("div");
+    this.formulaBarEl = fBar;
+    this.formulaBarVisible = true;
+    this.workbookView = "normal";
+    fBar.className = "vno-formula-bar";
+    fBar.setAttribute("role", "region");
+    fBar.setAttribute("aria-label", t("sheetFormulaEntry.formulaBarLabel"));
+    fBar.innerHTML = `
+      <div class="vno-name-box" id="vno-cell-name" role="status" aria-label="Hộp tên ô">A1</div>
+      <div class="vno-formula-actions" role="toolbar" aria-label="Thao tác công thức">
+        <button type="button" class="vno-formula-btn" title="Hủy bỏ (Esc)" aria-label="Hủy bỏ (Esc)" id="vno-fx-cancel">✕</button>
+        <button type="button" class="vno-formula-btn" title="Nhập (Enter)" aria-label="Nhập (Enter)" id="vno-fx-ok">✓</button>
+        <button type="button" class="vno-formula-btn vno-formula-btn-fx" title="Chèn hàm tính toán (fx)" aria-label="Chèn hàm tính toán (fx)" id="vno-fx-insert">fx</button>
+      </div>
+      <textarea class="vno-formula-input" id="vno-formula-val" rows="1" aria-label="Thanh công thức" placeholder="Nhập giá trị hoặc công thức (ví dụ: =SUM(F4:F7), =AVERAGE(E4:E7)...)"></textarea>
+    `;
+    this.nameBox = fBar.querySelector("#vno-cell-name");
+    this.formulaInput = fBar.querySelector("#vno-formula-val");
+    this.formulaInput.setAttribute("aria-label", t("sheetFormulaEntry.formulaBarLabel"));
+    this.formulaInput.title = t("sheetFormulaEntry.referenceHint");
+    const formulaInputWrap = document.createElement("div");
+    formulaInputWrap.className = "vno-formula-input-wrap";
+    this.formulaReferenceOverlay = document.createElement("div");
+    this.formulaReferenceOverlay.className = "vno-formula-reference-overlay";
+    this.formulaReferenceOverlay.setAttribute("aria-hidden", "true");
+    this.formulaReferenceOverlayContent = document.createElement("span");
+    this.formulaReferenceOverlayContent.className = "vno-formula-reference-overlay-content";
+    this.formulaReferenceOverlay.appendChild(this.formulaReferenceOverlayContent);
+    this.formulaInput.before(formulaInputWrap);
+    formulaInputWrap.append(this.formulaReferenceOverlay, this.formulaInput);
+
+    this.autocomplete.mount();
+
+    this.formulaInput.addEventListener("focus", () => {
+      if (!this.formulaEntry) this._beginFormulaEntry("edit");
+    });
+
+    this.formulaInput.addEventListener("input", (e) => {
+      if (this.isSheetProtected()) {
+        e.target.value = this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.formula
+          || this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.val
+          || "";
+        this._notifySheetProtected();
+        return;
+      }
+      if (!this.formulaEntry) this._beginFormulaEntry("edit");
+      this._setFormulaEntryValue(e.target.value, this.formulaInput.selectionStart, {
+        source: "input",
+        composing: this._isFormulaComposing || e.isComposing
+      });
+      this.autocomplete.handleInput(e.target.value, this.formulaInput.selectionStart);
+      this._syncFormulaBarHeight();
+    });
+
+    this.formulaInput.addEventListener("compositionstart", () => { this._isFormulaComposing = true; });
+    this.formulaInput.addEventListener("compositionend", () => {
+      this._isFormulaComposing = false;
+      if (!this.formulaEntry) this._beginFormulaEntry("edit");
+      this._setFormulaEntryValue(this.formulaInput.value, this.formulaInput.selectionStart, { source: "input" });
+    });
+    this.formulaInput.addEventListener("scroll", () => this._renderFormulaReferenceOverlay());
+
+    this.formulaInput.addEventListener("keydown", (e) => {
+      // Ngăn sự kiện phím trong formulaInput nổi bọt lên container lưới (tránh xử lý trùng lặp Enter, Tab, mũi tên...)
+      e.stopPropagation();
+
+      if (this._isFormulaComposing || e.isComposing || e.keyCode === 229) return;
+
+      if (e.key === "Enter" && e.ctrlKey && e.shiftKey) {
+        e.preventDefault();
+        this.autocomplete.closeAll();
+        this._commitFormulaEntry({ move: false });
+        globalCommandBus.execute("sheet.formula.arrayEnter");
+        return;
+      }
+
+      if (this.autocomplete.handleKeyDown(e)) {
+        return;
+      }
+      if (e.key === "F2") {
+        e.preventDefault();
+        if (!this.formulaEntry) this._beginFormulaEntry("edit");
+        this.formulaEntry.mode = this.formulaEntry.mode === "point" ? "edit" : "point";
+        this._updateFormulaEntryStatus();
+        return;
+      }
+      if (e.key === "F4") {
+        e.preventDefault();
+        this._cycleFormulaReferenceAtCaret();
+        return;
+      }
+      if (this.formulaEntry?.mode === "point" && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+        e.preventDefault();
+        this._movePointReferenceWithArrow(e.key);
+        return;
+      }
+      if (e.key === "Enter") {
+        if (e.altKey) {
+          e.preventDefault();
+          const start = this.formulaInput.selectionStart || 0;
+          const end = this.formulaInput.selectionEnd || 0;
+          const val = this.formulaInput.value;
+          this.formulaInput.value = val.substring(0, start) + "\n" + val.substring(end);
+          this.formulaInput.selectionStart = this.formulaInput.selectionEnd = start + 1;
+          this._setFormulaEntryValue(this.formulaInput.value, start + 1, { source: "input" });
+          return;
+        }
+        e.preventDefault();
+        this.autocomplete.closeAll();
+        this._commitFormulaEntry({ move: true, shift: e.shiftKey });
+        return;
+      } else if (e.key === "Tab") {
+        e.preventDefault();
+        this.autocomplete.closeAll();
+        this._commitFormulaEntry({ move: true, shift: e.shiftKey, tab: true });
+        return;
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        this.autocomplete.closeAll();
+        this._cancelFormulaEntry();
+        return;
+      }
+    });
+
+    fBar.querySelector("#vno-fx-cancel").addEventListener("click", () => {
+      this.autocomplete.closeAll();
+      this._cancelFormulaEntry();
+    });
+
+    fBar.querySelector("#vno-fx-ok").addEventListener("click", () => {
+      this.autocomplete.closeAll();
+      this._commitFormulaEntry({ move: true });
+    });
+
+    fBar.querySelector("#vno-fx-insert").addEventListener("click", () => {
+      this.autocomplete.closeAll();
+      this.showFunctionDialog();
+    });
+
+    this.container.appendChild(fBar);
+
+    // 2. Grid Table Viewport
+    const vp = document.createElement("div");
+    vp.className = "vno-grid-viewport";
+    vp.style.position = "relative";
+    this.viewport = vp;
+    vp.addEventListener("scroll", () => {
+      this.autocomplete.updatePosition();
+      this._onViewportScroll();
+      this.renderAuditArrows?.();
+    });
+
+    const table = document.createElement("table");
+    table.className = "vno-grid-table";
+    table.setAttribute("role", "grid");
+    table.setAttribute("aria-label", "Lưới bảng tính");
+    this.table = table;
+    this._applyViewState();
+
+    const thead = document.createElement("thead");
+    const trHead = document.createElement("tr");
+    this.theadRow = trHead;
+    trHead.innerHTML = `<th class="vno-grid-corner-header" title="Chọn tất cả (Ctrl+A)"></th>`;
+    trHead.querySelector(".vno-grid-corner-header")?.addEventListener("click", () => this.selectAll());
+    this.cols.forEach(col => {
+      const th = document.createElement("th");
+      this._bindColumnHeader(th, col);
+      trHead.appendChild(th);
+    });
+    thead.appendChild(trHead);
+    table.appendChild(thead);
+
+    // Filter button click listener via delegation
+    thead.addEventListener("click", (e) => {
+      const btn = e.target.closest(".vno-filter-btn");
+      if (btn) {
+        e.stopPropagation();
+        this.openFilterMenu(btn.dataset.col, btn);
+      }
+    });
+
+    // Virtualization Rows
+    const tbody = document.createElement("tbody");
+    this.tbody = tbody;
+
+    this.topSpacer = document.createElement("tr");
+    this.topSpacer.className = "vno-grid-spacer-top";
+    this.topSpacer.innerHTML = `<td colspan="${this.cols.length + 1}" style="height:0px;padding:0;border:none;"></td>`;
+    tbody.appendChild(this.topSpacer);
+
+    this.bottomSpacer = document.createElement("tr");
+    this.bottomSpacer.className = "vno-grid-spacer-bottom";
+    this.bottomSpacer.innerHTML = `<td colspan="${this.cols.length + 1}" style="height:0px;padding:0;border:none;"></td>`;
+    tbody.appendChild(this.bottomSpacer);
+
+    table.appendChild(tbody);
+    vp.appendChild(table);
+    const chartLayer = document.createElement("div");
+    chartLayer.className = "vno-sheet-chart-layer";
+    chartLayer.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:6";
+    this.chartLayer = chartLayer;
+    vp.appendChild(chartLayer);
+    const imageLayer = document.createElement("div");
+    imageLayer.className = "vno-sheet-image-layer";
+    imageLayer.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:7";
+    this.imageLayer = imageLayer;
+    vp.appendChild(imageLayer);
+    const textBoxLayer = document.createElement("div");
+    textBoxLayer.className = "vno-sheet-textbox-layer";
+    textBoxLayer.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:8";
+    this.textBoxLayer = textBoxLayer;
+    vp.appendChild(textBoxLayer);
+    const auditLayer = document.createElement("div");
+    auditLayer.className = "vno-sheet-audit-layer";
+    auditLayer.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:9";
+    this.auditLayer = auditLayer;
+    vp.appendChild(auditLayer);
+    this.container.appendChild(vp);
+
+    // 3. Sheet Tab Bar dưới đáy
+    const tabBar = document.createElement("div");
+    tabBar.className = "vno-sheet-tab-bar";
+    tabBar.setAttribute("role", "region");
+    tabBar.setAttribute("aria-label", "Thanh trang tính");
+    tabBar.innerHTML = `
+      <div class="vno-sheet-tab-scroll">
+        <button class="vno-sheet-scroll-btn" title="Cuộn trái" aria-label="Cuộn trái">◀</button>
+        <button class="vno-sheet-scroll-btn" title="Cuộn phải" aria-label="Cuộn phải">▶</button>
+      </div>
+      <div id="vno-sheet-tabs-list" role="tablist" aria-label="Danh sách trang tính" style="display:flex;gap:3px;"></div>
+      <button class="vno-sheet-add-btn" title="Thêm trang tính mới" aria-label="Thêm trang tính mới">+</button>
+    `;
+    this.tabBar = tabBar;
+
+    const tabsListEl = tabBar.querySelector("#vno-sheet-tabs-list");
+    this._renderSheetTabs();
+
+    if (tabsListEl) {
+      tabsListEl.addEventListener("keydown", (e) => {
+        const tabs = Array.from(tabsListEl.querySelectorAll(".vno-sheet-tab-item"));
+        const curIdx = tabs.findIndex(t => t.dataset.sheet === this.activeSheet);
+        let targetIdx = -1;
+        if (e.key === "ArrowRight") {
+          targetIdx = (curIdx + 1) % tabs.length;
+        } else if (e.key === "ArrowLeft") {
+          targetIdx = (curIdx - 1 + tabs.length) % tabs.length;
+        } else if (e.key === "Home") {
+          targetIdx = 0;
+        } else if (e.key === "End") {
+          targetIdx = tabs.length - 1;
+        }
+        if (targetIdx >= 0 && tabs[targetIdx]) {
+          e.preventDefault();
+          const nextSheet = tabs[targetIdx].dataset.sheet;
+          this.switchSheet(nextSheet);
+          tabs[targetIdx].focus();
+        }
+      });
+    }
+
+    const addBtn = tabBar.querySelector(".vno-sheet-add-btn");
+    if (addBtn) {
+      addBtn.addEventListener("click", () => {
+        this.addSheet();
+      });
+    }
+
+    this.container.appendChild(tabBar);
+
+    if (!this.isBlank) {
+      this._populateInitialData();
+    }
+    this.undoStack = [];
+    this.redoStack = [];
+    this._syncCommandStates();
+    this._renderVirtualRows(1, 40);
+    this.renderCharts();
+    this.renderImages();
+    this.renderTextBoxes();
+    this.selectCell("A", 1);
+    this.focusGrid();
+    this._bindGridKeyboardNavigation();
+  }
+
+  destroy() {
+    this._closeSpellcheckDialog();
+    this._closeContextMenu();
+    this.autocomplete?.destroy?.();
+  }
+
+  selectCurrentColumn() {
+    const col = this.selectedCoord.c;
+    this._selectHeaderRange("column", col);
+    return true;
+  }
+
+  selectCurrentRow() {
+    const row = this.selectedCoord.r;
+    this._selectHeaderRange("row", row);
+    return true;
+  }
+
+  toggleShowFormulas() {
+    this.showFormulas = !this.showFormulas;
+    if (this.container) {
+      this.container.classList.toggle("is-formula-view-mode", this.showFormulas);
+    }
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    return this.showFormulas;
+  }
+
+  insertCurrentTime() {
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, "0");
+    const mm = String(now.getMinutes()).padStart(2, "0");
+    const ss = String(now.getSeconds()).padStart(2, "0");
+    const timeStr = `${hh}:${mm}:${ss}`;
+    this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, timeStr, true);
+    if (this.formulaInput) this.formulaInput.value = timeStr;
+    return timeStr;
+  }
+
+  setCalculationMode(mode = "automatic") {
+    if (!["automatic", "manual"].includes(mode)) return false;
+    const prev = this.calculationMode;
+    this.calculationMode = mode;
+    if (prev === "manual" && mode === "automatic") {
+      this.recalculateAll();
+    }
+    return this.calculationMode;
+  }
+
+  calculateSheet(sheetName = this.activeSheet) {
+    const map = this.sheetsData[sheetName];
+    if (!map) return false;
+    const prevActive = this.activeSheet;
+    this.activeSheet = sheetName;
+    for (const [k, itm] of map.entries()) {
+      if (itm.formula) {
+        let res;
+        if (itm.isArrayFormula && itm.arrayRange) {
+          const results = this.formulaEngine.evaluateArray(itm.formula);
+          const coords = this.formulaEngine.expandRange(itm.arrayRange);
+          res = Array.isArray(results) ? results[coords.indexOf(k)] : results;
+        } else {
+          res = this.formulaEngine.evaluate(itm.formula);
+        }
+        itm.val = res;
+        const dom = sheetName === prevActive ? this.container.querySelector(`.vno-grid-cell[data-coord="${k}"]`) : null;
+        if (dom) {
+          const [cCoord, rCoord] = this._splitCoord(k);
+          this._renderCellVisual(dom, itm, cCoord, rCoord);
+          this._applyRuleVisuals(dom, cCoord, rCoord);
+        }
+      }
+    }
+    this.activeSheet = prevActive;
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this._updateWatchWindow?.();
+    return true;
+  }
+
+  recalculateAll() {
+    this._recalculateAllFormulas(undefined, true);
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this._updateWatchWindow?.();
+    return true;
+  }
+
+  previousSheet() {
+    const idx = this.sheets.indexOf(this.activeSheet);
+    if (idx > 0) {
+      this.switchSheet(this.sheets[idx - 1]);
+      return true;
+    }
+    return false;
+  }
+
+  nextSheet() {
+    const idx = this.sheets.indexOf(this.activeSheet);
+    if (idx < this.sheets.length - 1) {
+      this.switchSheet(this.sheets[idx + 1]);
+      return true;
+    }
+    return false;
+  }
+
+  _ensureRowColLayout(sheetName = this.activeSheet) {
+    this.rowHeightsBySheet ||= {};
+    this.colWidthsBySheet ||= {};
+    this.userHiddenRowsBySheet ||= {};
+    this.userHiddenColsBySheet ||= {};
+    if (!this.rowHeightsBySheet[sheetName]) this.rowHeightsBySheet[sheetName] = new Map();
+    if (!this.colWidthsBySheet[sheetName]) this.colWidthsBySheet[sheetName] = new Map();
+    if (!this.userHiddenRowsBySheet[sheetName]) this.userHiddenRowsBySheet[sheetName] = new Set();
+    if (!this.userHiddenColsBySheet[sheetName]) this.userHiddenColsBySheet[sheetName] = new Set();
+  }
+
+  _rowHeights(sheetName = this.activeSheet) {
+    this._ensureRowColLayout(sheetName);
+    return this.rowHeightsBySheet[sheetName];
+  }
+
+  _colWidths(sheetName = this.activeSheet) {
+    this._ensureRowColLayout(sheetName);
+    return this.colWidthsBySheet[sheetName];
+  }
+
+  _userHiddenRows(sheetName = this.activeSheet) {
+    this._ensureRowColLayout(sheetName);
+    return this.userHiddenRowsBySheet[sheetName];
+  }
+
+  _userHiddenCols(sheetName = this.activeSheet) {
+    this._ensureRowColLayout(sheetName);
+    return this.userHiddenColsBySheet[sheetName];
+  }
+
+  // --- Prefix-sum row tops cache for virtual scroll with variable row heights ---
+  _ensureRowTopsCache(sheetName = this.activeSheet) {
+    if (!this._rowTopsCache) this._rowTopsCache = {};
+    if (!this._rowTopsCache[sheetName] || !this._rowTopsCache[sheetName].valid) {
+      this._buildRowTopsCache(sheetName);
+    }
+    return this._rowTopsCache[sheetName];
+  }
+
+  _buildRowTopsCache(sheetName = this.activeSheet) {
+    const count = this.rowCount || 200;
+    const tops = new Float64Array(count + 2);
+    tops[1] = 0;
+    for (let r = 1; r <= count; r++) {
+      tops[r + 1] = tops[r] + (this._isRowSkipped(r) ? 0 : this.getRowHeight(r, sheetName));
+    }
+    if (!this._rowTopsCache) this._rowTopsCache = {};
+    this._rowTopsCache[sheetName] = { tops, totalHeight: tops[count + 1], valid: true };
+    return this._rowTopsCache[sheetName];
+  }
+
+  _invalidateRowTopsCache(sheetName = this.activeSheet) {
+    if (!this._rowTopsCache) return;
+    if (sheetName) {
+      if (this._rowTopsCache[sheetName]) this._rowTopsCache[sheetName].valid = false;
+    } else {
+      for (const k of Object.keys(this._rowTopsCache)) this._rowTopsCache[k].valid = false;
+    }
+  }
+
+  _rowTop(r, sheetName = this.activeSheet) {
+    const cache = this._ensureRowTopsCache(sheetName);
+    if (r < 1) return 0;
+    if (r > this.rowCount) return cache.totalHeight;
+    return cache.tops[r];
+  }
+
+  _rowBottom(r, sheetName = this.activeSheet) {
+    return this._rowTop(r, sheetName) + this.getRowHeight(r, sheetName);
+  }
+
+  _totalHeight(sheetName = this.activeSheet) {
+    return this._ensureRowTopsCache(sheetName).totalHeight;
+  }
+
+  _firstVisibleRow(scrollTop, sheetName = this.activeSheet) {
+    const cache = this._ensureRowTopsCache(sheetName);
+    const count = this.rowCount || 200;
+    let lo = 1, hi = count;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (cache.tops[mid + 1] <= scrollTop) lo = mid + 1;
+      else hi = mid;
+    }
+    return Math.max(1, Math.min(count, lo));
+  }
+
+  _lastVisibleRow(scrollTop, viewportHeight, sheetName = this.activeSheet) {
+    const bottom = scrollTop + viewportHeight;
+    const cache = this._ensureRowTopsCache(sheetName);
+    const count = this.rowCount || 200;
+    let lo = 1, hi = count;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (cache.tops[mid] >= bottom) hi = mid - 1;
+      else lo = mid;
+    }
+    return Math.max(1, Math.min(count, lo));
+  }
+
+  _snapshotRowColLayout(sheetName = this.activeSheet) {
+    this._ensureRowColLayout(sheetName);
+    return {
+      sheetName,
+      rowHeights: [...this._rowHeights(sheetName).entries()],
+      colWidths: [...this._colWidths(sheetName).entries()],
+      userHiddenRows: [...this._userHiddenRows(sheetName)],
+      userHiddenCols: [...this._userHiddenCols(sheetName)]
+    };
+  }
+
+  _restoreRowColLayout(snapshot, { render = true } = {}) {
+    if (!snapshot) return false;
+    const sheetName = snapshot.sheetName || this.activeSheet;
+    this._ensureRowColLayout(sheetName);
+    this.rowHeightsBySheet[sheetName] = new Map(snapshot.rowHeights || []);
+    this.colWidthsBySheet[sheetName] = new Map(snapshot.colWidths || []);
+    this.userHiddenRowsBySheet[sheetName] = new Set(snapshot.userHiddenRows || []);
+    this.userHiddenColsBySheet[sheetName] = new Set(snapshot.userHiddenCols || []);
+    this._invalidateRowTopsCache(sheetName);
+    if (render && sheetName === this.activeSheet) {
+      this._renderColumnHeaders();
+      this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    }
+    return true;
+  }
+
+  _selectedRows(range = this.selectionRange) {
+    const area = this._normalizeRange(range || { start: this.selectedCoord, end: this.selectedCoord });
+    const rows = [];
+    for (let row = area.start.r; row <= area.end.r; row++) rows.push(row);
+    return rows;
+  }
+
+  _selectedCols(range = this.selectionRange) {
+    const area = this._normalizeRange(range || { start: this.selectedCoord, end: this.selectedCoord });
+    const start = this._columnNumber(area.start.c);
+    const end = this._columnNumber(area.end.c);
+    const cols = [];
+    for (let number = start; number <= end; number++) cols.push(this._columnLabel(number));
+    return cols;
+  }
+
+  getRowHeight(row, sheetName = this.activeSheet) {
+    const stored = this._rowHeights(sheetName).get(Number(row));
+    return Number.isFinite(stored) ? stored : this.rowHeight;
+  }
+
+  getColumnWidth(col, sheetName = this.activeSheet) {
+    const stored = this._colWidths(sheetName).get(col);
+    return Number.isFinite(stored) ? stored : this.defaultColWidth;
+  }
+
+  isRowUserHidden(row, sheetName = this.activeSheet) {
+    return this._userHiddenRows(sheetName).has(Number(row));
+  }
+
+  isColUserHidden(col, sheetName = this.activeSheet) {
+    return this._userHiddenCols(sheetName).has(col);
+  }
+
+  _isColumnHidden(col) {
+    return this._isOutlineColumnHidden(col) || this.isColUserHidden(col);
+  }
+
+  _isRowSkipped(row) {
+    return this.hiddenRows.has(row) || this._isOutlineRowHidden(row) || this.isRowUserHidden(row);
+  }
+
+  _clampRowHeight(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return null;
+    return Math.max(MIN_ROW_HEIGHT_PX, Math.min(MAX_ROW_HEIGHT_PX, Math.round(numeric)));
+  }
+
+  _clampColWidth(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return null;
+    return Math.max(MIN_COL_WIDTH_PX, Math.min(MAX_COL_WIDTH_PX, Math.round(numeric)));
+  }
+
+  _recordRowColLayoutChange(before) {
+    const after = this._snapshotRowColLayout();
+    const same = JSON.stringify(before) === JSON.stringify(after);
+    if (same) return false;
+    this._recordHistory({ type: "row-col-layout", sheet: this.activeSheet, before, after });
+    return true;
+  }
+
+  _refreshRowColLayoutView() {
+    this._renderColumnHeaders();
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+  }
+
+  _moveSelectionOffHidden() {
+    let { c, r } = this.selectedCoord || { c: "A", r: 1 };
+    if (this._isRowSkipped(r)) {
+      let next = r + 1;
+      while (next <= this.rowCount && this._isRowSkipped(next)) next++;
+      if (next > this.rowCount) {
+        next = r - 1;
+        while (next >= 1 && this._isRowSkipped(next)) next--;
+      }
+      if (next >= 1 && next <= this.rowCount) r = next;
+    }
+    if (this._isColumnHidden(c)) {
+      const start = this._columnNumber(c);
+      let next = start + 1;
+      while (next <= this.cols.length && this._isColumnHidden(this._columnLabel(next))) next++;
+      if (next > this.cols.length) {
+        next = start - 1;
+        while (next >= 1 && this._isColumnHidden(this._columnLabel(next))) next--;
+      }
+      if (next >= 1 && next <= this.cols.length) c = this._columnLabel(next);
+    }
+    this.selectCell(c, r);
+  }
+
+  setRowHeights(heightPx, rows = this._selectedRows(), recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    const height = this._clampRowHeight(heightPx);
+    const targets = (rows || []).map(Number).filter(row => Number.isInteger(row) && row >= 1 && row <= this.rowCount);
+    if (height == null || !targets.length) return false;
+    const before = recordUndo ? this._snapshotRowColLayout() : null;
+    const map = this._rowHeights();
+    for (const row of targets) {
+      if (height === this.rowHeight) map.delete(row);
+      else map.set(row, height);
+    }
+    this._invalidateRowTopsCache();
+    this._refreshRowColLayoutView();
+    if (recordUndo) this._recordRowColLayoutChange(before);
+    return height;
+  }
+
+  setColumnWidths(widthPx, cols = this._selectedCols(), recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    const width = this._clampColWidth(widthPx);
+    const targets = (cols || []).filter(col => this.cols.includes(col));
+    if (width == null || !targets.length) return false;
+    const before = recordUndo ? this._snapshotRowColLayout() : null;
+    const map = this._colWidths();
+    for (const col of targets) {
+      if (width === this.defaultColWidth) map.delete(col);
+      else map.set(col, width);
+    }
+    this._refreshRowColLayoutView();
+    if (recordUndo) this._recordRowColLayoutChange(before);
+    return width;
+  }
+
+  computeAutoFitColumnWidth(col) {
+    let maxLen = 4;
+    for (let r = 1; r <= this.rowCount; r++) {
+      const itm = this.cellsData.get(`${col}${r}`);
+      if (itm) {
+        const text = String(itm.formula || itm.val || "");
+        if (text.length > maxLen) maxLen = text.length;
+      }
+    }
+    return Math.max(64, Math.min(MAX_COL_WIDTH_PX, Math.round(maxLen * 8.5 + 28)));
+  }
+
+  computeAutoFitRowHeight(row) {
+    let maxLines = 1;
+    for (const c of this.cols) {
+      const itm = this.cellsData.get(`${c}${row}`);
+      if (itm) {
+        const text = String(itm.formula || itm.val || "");
+        const lines = text.split("\n").length;
+        if (lines > maxLines) maxLines = lines;
+      }
+    }
+    return Math.max(this.rowHeight, Math.min(MAX_ROW_HEIGHT_PX, maxLines * 22 + 4));
+  }
+
+  autoFitColumn(col, recordUndo = true) {
+    const width = this.computeAutoFitColumnWidth(col);
+    this.setColumnWidths(width, [col], recordUndo);
+    return width;
+  }
+
+  autoFitRow(row, recordUndo = true) {
+    const height = this.computeAutoFitRowHeight(row);
+    this.setRowHeights(height, [row], recordUndo);
+    return height;
+  }
+
+  autoFitSelectedRows(recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    const rows = this._selectedRows();
+    if (!rows.length) return false;
+    const before = recordUndo ? this._snapshotRowColLayout() : null;
+    for (const row of rows) this.setRowHeights(this.computeAutoFitRowHeight(row), [row], false);
+    this._refreshRowColLayoutView();
+    if (recordUndo) this._recordRowColLayoutChange(before);
+    return true;
+  }
+
+  autoFitSelectedColumns(recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    const cols = this._selectedCols();
+    if (!cols.length) return false;
+    const before = recordUndo ? this._snapshotRowColLayout() : null;
+    for (const col of cols) this.setColumnWidths(this.computeAutoFitColumnWidth(col), [col], false);
+    this._refreshRowColLayoutView();
+    if (recordUndo) this._recordRowColLayoutChange(before);
+    return true;
+  }
+
+  hideRows(rows = this._selectedRows(), recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    const targets = (rows || []).map(Number).filter(row => Number.isInteger(row) && row >= 1 && row <= this.rowCount);
+    if (!targets.length) return false;
+    const before = recordUndo ? this._snapshotRowColLayout() : null;
+    const hidden = this._userHiddenRows();
+    for (const row of targets) hidden.add(row);
+    this._invalidateRowTopsCache();
+    this._refreshRowColLayoutView();
+    this._moveSelectionOffHidden();
+    if (recordUndo) this._recordRowColLayoutChange(before);
+    return true;
+  }
+
+  unhideRows(rows = this._selectedRows(), recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    let targets = (rows || []).map(Number).filter(row => Number.isInteger(row) && row >= 1 && row <= this.rowCount);
+    const hidden = this._userHiddenRows();
+    if (!targets.some(row => hidden.has(row))) {
+      const min = Math.min(...targets);
+      const max = Math.max(...targets);
+      const nearby = [...hidden].filter(row => row >= min - 1 && row <= max + 1);
+      if (nearby.length) targets = nearby;
+    }
+    const toShow = targets.filter(row => hidden.has(row));
+    if (!toShow.length) return false;
+    const before = recordUndo ? this._snapshotRowColLayout() : null;
+    for (const row of toShow) hidden.delete(row);
+    this._invalidateRowTopsCache();
+    this._refreshRowColLayoutView();
+    if (recordUndo) this._recordRowColLayoutChange(before);
+    return true;
+  }
+
+  hideColumns(cols = this._selectedCols(), recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    const targets = (cols || []).filter(col => this.cols.includes(col));
+    if (!targets.length) return false;
+    const before = recordUndo ? this._snapshotRowColLayout() : null;
+    const hidden = this._userHiddenCols();
+    for (const col of targets) hidden.add(col);
+    this._refreshRowColLayoutView();
+    this._moveSelectionOffHidden();
+    if (recordUndo) this._recordRowColLayoutChange(before);
+    return true;
+  }
+
+  unhideColumns(cols = this._selectedCols(), recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    let targets = (cols || []).filter(col => this.cols.includes(col));
+    const hidden = this._userHiddenCols();
+    if (!targets.some(col => hidden.has(col))) {
+      const numbers = targets.map(col => this._columnNumber(col));
+      const min = Math.min(...numbers);
+      const max = Math.max(...numbers);
+      const nearby = [...hidden].filter(col => {
+        const number = this._columnNumber(col);
+        return number >= min - 1 && number <= max + 1;
+      });
+      if (nearby.length) targets = nearby;
+    }
+    const toShow = targets.filter(col => hidden.has(col));
+    if (!toShow.length) return false;
+    const before = recordUndo ? this._snapshotRowColLayout() : null;
+    for (const col of toShow) hidden.delete(col);
+    this._refreshRowColLayoutView();
+    if (recordUndo) this._recordRowColLayoutChange(before);
+    return true;
+  }
+
+  async showRowHeightDialog(args = {}) {
+    if (Number.isFinite(Number(args?.height))) {
+      return this.setRowHeights(Number(args.height), args.rows || this._selectedRows());
+    }
+    const rows = this._selectedRows();
+    const current = this.getRowHeight(rows[0] || this.selectedCoord.r);
+    const value = await showPromptDialog({
+      title: t("sheetDialogs.rowHeightTitle", "Chiều cao hàng"),
+      message: t("sheetDialogs.rowHeightMessage", "Chiều cao hàng (pixel):"),
+      defaultValue: String(current),
+      confirmText: t("sheetDialogs.apply", "Áp dụng"),
+      cancelText: t("sheetDialogs.cancel", "Hủy")
+    });
+    if (value == null) return false;
+    const parsed = Number(String(value).trim().replace(",", "."));
+    if (this._clampRowHeight(parsed) == null) {
+      await showAlertDialog({
+        title: t("sheetDialogs.rowHeightTitle", "Chiều cao hàng"),
+        message: t("sheetDialogs.invalidRowColSize", "Vui lòng nhập một số hợp lệ trong khoảng cho phép.")
+      });
+      return false;
+    }
+    return this.setRowHeights(parsed, rows);
+  }
+
+  async showColumnWidthDialog(args = {}) {
+    if (Number.isFinite(Number(args?.width))) {
+      return this.setColumnWidths(Number(args.width), args.cols || this._selectedCols());
+    }
+    const cols = this._selectedCols();
+    const current = this.getColumnWidth(cols[0] || this.selectedCoord.c);
+    const value = await showPromptDialog({
+      title: t("sheetDialogs.colWidthTitle", "Độ rộng cột"),
+      message: t("sheetDialogs.colWidthMessage", "Độ rộng cột (pixel):"),
+      defaultValue: String(current),
+      confirmText: t("sheetDialogs.apply", "Áp dụng"),
+      cancelText: t("sheetDialogs.cancel", "Hủy")
+    });
+    if (value == null) return false;
+    const parsed = Number(String(value).trim().replace(",", "."));
+    if (this._clampColWidth(parsed) == null) {
+      await showAlertDialog({
+        title: t("sheetDialogs.colWidthTitle", "Độ rộng cột"),
+        message: t("sheetDialogs.invalidRowColSize", "Vui lòng nhập một số hợp lệ trong khoảng cho phép.")
+      });
+      return false;
+    }
+    return this.setColumnWidths(parsed, cols);
+  }
+
+  _applyRowColSizeToCell(td, col, row) {
+    if (!td?.style) return;
+    if (!this._isColumnHidden(col)) {
+      const colSpan = td.colSpan || 1;
+      let width = 0;
+      const startColNum = typeof this._columnNumber === "function" ? this._columnNumber(col) : 1;
+      for (let i = 0; i < colSpan; i++) {
+        const cLabel = typeof this._columnLabel === "function" ? this._columnLabel(startColNum + i) : col;
+        if (!this._isColumnHidden(cLabel)) {
+          width += this.getColumnWidth(cLabel);
+        }
+      }
+      td.style.width = `${width}px`;
+      td.style.minWidth = `${width}px`;
+      td.style.maxWidth = `${width}px`;
+    }
+    const rowSpan = td.rowSpan || 1;
+    let height = 0;
+    for (let i = 0; i < rowSpan; i++) {
+      height += this.getRowHeight(row + i);
+    }
+    td.style.height = `${height}px`;
+  }
+
+  _bindColumnHeader(th, col) {
+    th.className = "vno-col-header";
+    if (!th.dataset) th.dataset = {};
+    th.dataset.col = col;
+    th.hidden = this._isColumnHidden(col);
+    const width = this.getColumnWidth(col);
+    if (!th.hidden) {
+      th.style.width = `${width}px`;
+      th.style.minWidth = `${width}px`;
+      th.style.maxWidth = `${width}px`;
+    }
+    th.innerHTML = `
+      ${this._outlineToggleHtml("col", col)}
+      <span class="vno-col-title">${col}</span>
+      <button class="vno-filter-btn" data-col="${col}" title="Lọc và sắp xếp cột ${col}" style="display:none;">▼</button>
+      <div class="vno-col-resizer" data-col="${col}" title="Nhấp đúp để tự động vừa độ rộng cột ${col}"></div>
+    `;
+    th.querySelector(".vno-outline-toggle")?.addEventListener("click", event => {
+      event.stopPropagation();
+      this.toggleOutlineGroup(event.currentTarget.dataset.groupId);
+    });
+    th.addEventListener("mousedown", event => {
+      if (event.button !== 0 || event.target.closest(".vno-filter-btn, .vno-col-resizer, .vno-outline-toggle")) return;
+      this._startRangeSelect(event, col, 1, "column");
+    });
+    th.addEventListener("click", (e) => {
+      if (e.target.closest(".vno-filter-btn") || e.target.closest(".vno-col-resizer")) return;
+      if (e.detail === 0) this._selectHeaderRange("column", col);
+    });
+    th.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      this._selectHeaderRange("column", col);
+      this.showContextMenu(e, "col", col);
+    });
+    th.querySelector(".vno-col-resizer")?.addEventListener("dblclick", (e) => {
+      e.stopPropagation();
+      this.autoFitColumn(col);
+    });
+  }
+
+  _attachAutofillHandle(td) {
+    if (!td || typeof document?.createElement !== "function" || td.querySelector?.(".vno-cell-autofill-handle")) return;
+    const handle = document.createElement("div");
+    handle.className = "vno-cell-autofill-handle";
+    handle.title = "Kéo để tự động điền (AutoFill)";
+    handle.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this._startAutofill(e);
+    });
+    td.appendChild(handle);
+  }
+
+  _attachMoveHandles(td) {
+    if (!td || typeof document?.createElement !== "function" || td.querySelector?.(".vno-cell-move-handle")) return;
+    for (const side of ["top", "bottom", "left", "right"]) {
+      const mh = document.createElement("div");
+      mh.className = `vno-cell-move-handle ${side}`;
+      mh.title = "Kéo viền để di chuyển ô (Drag border to move)";
+      mh.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this._startCellMove(e);
+      });
+      td.appendChild(mh);
+    }
+  }
+
+  _commitEditBeforeRangeSelection() {
+    if (this._isRestoringFormulaEntry) return;
+    if (this.formulaEntry) {
+      this._commitFormulaEntry({ move: false });
+      return;
+    }
+    if (!this.formulaInput || typeof document === "undefined" || document.activeElement !== this.formulaInput) return;
+    const coord = { ...this.selectedCoord };
+    const current = this.cellsData.get(`${coord.c}${coord.r}`);
+    const currentValue = current ? (current.formula || current.val || "") : "";
+    const editedValue = this.formulaInput.value;
+    if (String(currentValue) !== String(editedValue)) this.setCellValue(coord.c, coord.r, editedValue, true, { coalesce: true });
+    this._cellValueBeforeEdit = undefined;
+    this.autocomplete?.closeAll?.();
+  }
+
+  _cellEditorValue(item) {
+    if (!item) return "";
+    if (item.formula) return item.formula;
+    return item.val ?? "";
+  }
+
+  _beginFormulaEntry(mode = "edit", initialValue) {
+    if (this.formulaEntry) return this.formulaEntry;
+    const coord = { ...this.selectedCoord };
+    const item = this.sheetsData?.[this.activeSheet]?.get(`${coord.c}${coord.r}`);
+    const original = this._cellValueBeforeEdit !== undefined ? this._cellValueBeforeEdit : this._cellEditorValue(item);
+    this._cellValueBeforeEdit = original;
+    const value = initialValue !== undefined
+      ? String(initialValue)
+      : String(this.formulaInput?.value ?? this._cellEditorValue(item));
+    this.formulaEntry = new FormulaEntrySession({ original, value, caret: value.length, mode, sheet: this.activeSheet, coord });
+    this._updateFormulaEntryStatus();
+    this._renderFormulaReferenceOverlay();
+    return this.formulaEntry;
+  }
+
+  _setFormulaEntryValue(value, caret = String(value ?? "").length, options = {}) {
+    if (!this.formulaEntry) this._beginFormulaEntry("edit", value);
+    const session = this.formulaEntry;
+    if (options.result) {
+      session.value = String(value ?? "");
+      session.caret = caret;
+      session.lastReference = options.result.reference || null;
+    } else {
+      session.update(value, caret);
+    }
+    if (this.formulaInput) {
+      this.formulaInput.value = session.value;
+      if (typeof this.formulaInput.setSelectionRange === "function") {
+        this.formulaInput.setSelectionRange(session.caret, session.caret);
+      }
+    }
+    if (session.sheet === this.activeSheet && session.coord?.c === this.selectedCoord.c && session.coord?.r === this.selectedCoord.r) {
+      this.setCellValue(session.coord.c, session.coord.r, session.value, true, { coalesce: true });
+    }
+    this._refreshFormulaEntryVisuals();
+    if (!options.composing && options.source !== "autocomplete") {
+      this.autocomplete?.handleInput?.(session.value, session.caret);
+    }
+    return session.value;
+  }
+
+  _refreshFormulaEntryVisuals() {
+    this._renderFormulaReferenceOverlay();
+    this._updateFormulaReferenceVisuals();
+    this._updateFormulaEntryStatus();
+  }
+
+  _renderFormulaReferenceOverlay() {
+    if (!this.formulaInput || !this.formulaReferenceOverlay || !this.formulaReferenceOverlayContent) return;
+    const formula = this.formulaEntry?.value || "";
+    const references = this.formulaEntry && formula.startsWith("=")
+      ? findFormulaReferences(formula, this.formulaEntry.sheet)
+      : [];
+    const colors = ["#2563eb", "#dc2626", "#16a34a", "#9333ea", "#ea580c", "#0891b2"];
+    let html = "";
+    let cursor = 0;
+    for (const [index, ref] of references.entries()) {
+      const start = Math.max(cursor, ref.start);
+      html += this._escapeHtml(formula.slice(cursor, start));
+      html += `<span style="color:${colors[index % colors.length]}">${this._escapeHtml(formula.slice(start, ref.end))}</span>`;
+      cursor = ref.end;
+    }
+    html += this._escapeHtml(formula.slice(cursor));
+    this.formulaReferenceOverlayContent.innerHTML = html;
+    this.formulaReferenceOverlayContent.style.transform = `translateX(-${this.formulaInput.scrollLeft || 0}px)`;
+    this.formulaReferenceOverlay.classList.toggle("is-visible", references.length > 0);
+    this.formulaInput.classList.toggle("has-reference-colors", references.length > 0);
+  }
+
+  _updateFormulaReferenceVisuals() {
+    const cells = this.container?.querySelectorAll?.(".vno-grid-cell[data-coord]") || [];
+    const refClasses = ["is-formula-reference", "is-formula-reference-top", "is-formula-reference-bottom", "is-formula-reference-left", "is-formula-reference-right"];
+    cells.forEach(cell => {
+      cell.classList.remove(...refClasses);
+      cell.style.removeProperty("--vno-formula-reference-color");
+      cell.removeAttribute("data-formula-reference-index");
+    });
+    if (!this.formulaEntry?.value?.startsWith("=")) return;
+    const references = findFormulaReferences(this.formulaEntry.value, this.formulaEntry.sheet);
+    const colors = ["#2563eb", "#dc2626", "#16a34a", "#9333ea", "#ea580c", "#0891b2"];
+    for (const [index, ref] of references.entries()) {
+      if (ref.sheet !== this.activeSheet) continue;
+      const parse = address => {
+        const match = String(address || "").match(/\$?([A-Z]{1,3})\$?(\d+)/i);
+        if (!match) return null;
+        return { c: this._columnNumber(match[1].toUpperCase()), r: Number(match[2]) };
+      };
+      const start = parse(ref.startCell);
+      const end = parse(ref.endCell);
+      if (!start || !end) continue;
+      const c1 = Math.min(start.c, end.c), c2 = Math.max(start.c, end.c);
+      const r1 = Math.min(start.r, end.r), r2 = Math.max(start.r, end.r);
+      for (const cell of cells) {
+        const col = this._columnNumber(cell.dataset.col);
+        const row = Number(cell.dataset.row);
+        if (col < c1 || col > c2 || row < r1 || row > r2) continue;
+        cell.classList.add("is-formula-reference");
+        cell.style.setProperty("--vno-formula-reference-color", colors[index % colors.length]);
+        cell.dataset.formulaReferenceIndex = String(index);
+        if (row === r1) cell.classList.add("is-formula-reference-top");
+        if (row === r2) cell.classList.add("is-formula-reference-bottom");
+        if (col === c1) cell.classList.add("is-formula-reference-left");
+        if (col === c2) cell.classList.add("is-formula-reference-right");
+      }
+    }
+  }
+
+  _updateFormulaEntryStatus() {
+    if (!this.formulaEntry) return;
+    const key = this.formulaEntry.mode === "point" ? "point" : this.formulaEntry.mode === "enter" ? "enter" : "edit";
+    const label = t(`sheetFormulaEntry.status.${key}`);
+    this.options.onFormulaEntryMode?.(label, key);
+  }
+
+  _setFormulaEntryResult(result) {
+    if (!result || !this.formulaEntry) return;
+    this._setFormulaEntryValue(result.formula, result.caret, { result, source: "point" });
+  }
+
+  _canInsertPointReference() {
+    if (!this.formulaEntry) return false;
+    const start = this.formulaInput && typeof document !== "undefined" && document.activeElement === this.formulaInput
+      ? this.formulaInput.selectionStart
+      : this.formulaEntry.caret;
+    const end = this.formulaInput && typeof document !== "undefined" && document.activeElement === this.formulaInput
+      ? this.formulaInput.selectionEnd
+      : start;
+    return isFormulaReferenceInsertionPoint(this.formulaEntry.value, start, end);
+  }
+
+  _startFormulaPointSelect(event, col, row) {
+    if (!event || event.button !== 0 || !this._canInsertPointReference()) return false;
+    event.preventDefault();
+    event.stopPropagation();
+    const session = this.formulaEntry;
+    const start = this.formulaInput && typeof document !== "undefined" && document.activeElement === this.formulaInput
+      ? this.formulaInput.selectionStart
+      : session.caret;
+    const end = this.formulaInput && typeof document !== "undefined" && document.activeElement === this.formulaInput
+      ? this.formulaInput.selectionEnd
+      : start;
+    session.mode = "point";
+    this._formulaPointCoord = { c: col, r: row, sheet: this.activeSheet };
+    const address = makeCellReference(col, row, this.activeSheet, session.sheet);
+    session.beginDrag(address, { start, end, shift: event.shiftKey, ctrl: event.ctrlKey });
+    this._setFormulaEntryResult({ formula: session.value, caret: session.caret, reference: session.lastReference });
+    this._updateFormulaEntryStatus();
+    this._isSelectingFormulaReference = true;
+
+    const onMove = moveEvent => {
+      if (!this._isSelectingFormulaReference) return;
+      const target = this._rangeSelectionTargetAt(moveEvent.clientX, moveEvent.clientY, "cell");
+      if (!target) return;
+      this._formulaPointCoord = { ...target, sheet: this.activeSheet };
+      const targetAddress = makeCellReference(target.c, target.r, this.activeSheet, session.sheet);
+      const result = session.updateDrag(targetAddress);
+      this._setFormulaEntryResult(result);
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      this._isSelectingFormulaReference = false;
+      session.endDrag();
+      this.formulaInput?.focus({ preventScroll: true });
+      if (this.formulaInput && typeof this.formulaInput.setSelectionRange === "function") {
+        this.formulaInput.setSelectionRange(session.caret, session.caret);
+      }
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    }
+    return true;
+  }
+
+  _movePointReferenceWithArrow(key) {
+    const deltaCol = key === "ArrowRight" ? 1 : key === "ArrowLeft" ? -1 : 0;
+    const deltaRow = key === "ArrowDown" ? 1 : key === "ArrowUp" ? -1 : 0;
+    let result = this.formulaEntry.moveReference(deltaCol, deltaRow);
+    if (!result && this._canInsertPointReference()) {
+      const origin = this._formulaPointCoord || { ...this.selectedCoord, sheet: this.activeSheet };
+      const currentCol = this._columnNumber(origin.c);
+      const nextCol = this._columnLabel(Math.max(1, Math.min(this.cols.length, currentCol + deltaCol)));
+      const nextRow = Math.max(1, Math.min(this.rowCount, origin.r + deltaRow));
+      const address = makeCellReference(nextCol, nextRow, origin.sheet, this.formulaEntry.sheet);
+      result = this.formulaEntry.insertPoint(address);
+      this._formulaPointCoord = { c: nextCol, r: nextRow, sheet: origin.sheet };
+    } else if (result) {
+      const address = result.address?.match(/\$?([A-Z]{1,3})\$?(\d+)/i);
+      if (address) this._formulaPointCoord = { c: address[1].toUpperCase(), r: Number(address[2]), sheet: this._formulaPointCoord?.sheet || this.activeSheet };
+    }
+    if (result) this._setFormulaEntryResult(result);
+  }
+
+  _cycleFormulaReferenceAtCaret() {
+    if (!this.formulaEntry) return;
+    const result = cycleAbsoluteReference(this.formulaEntry.value, this.formulaInput?.selectionStart ?? this.formulaEntry.caret);
+    if (result.changed) this._setFormulaEntryResult(result);
+  }
+
+  _commitFormulaEntry({ move = false, shift = false, tab = false } = {}) {
+    const session = this.formulaEntry;
+    if (!session) return false;
+    if (this.formulaInput) session.update(this.formulaInput.value, this.formulaInput.selectionStart ?? this.formulaInput.value.length);
+    const finalValue = session.commit();
+    const coord = { ...session.coord };
+    const ownerSheet = session.sheet;
+    if (this.activeSheet !== ownerSheet) {
+      this.sheetStates[ownerSheet] = { ...(this.sheetStates[ownerSheet] || {}), selectedCoord: { ...coord } };
+      this.switchSheet(ownerSheet, { formulaReturn: true });
+    }
+    this.selectedCoord = { ...coord };
+    this.setCellValue(coord.c, coord.r, finalValue, true, { coalesce: true });
+    if (this.formulaInput) this.formulaInput.value = finalValue;
+    this.formulaEntry = null;
+    this._cellValueBeforeEdit = undefined;
+    this._formulaPointCoord = null;
+    this.autocomplete?.closeAll?.();
+    this._refreshFormulaEntryVisuals();
+    if (move) {
+      if (tab) {
+        const colIndex = this.cols.indexOf(coord.c);
+        const nextCol = shift ? this.cols[Math.max(0, colIndex - 1)] : this.cols[Math.min(this.cols.length - 1, colIndex + 1)];
+        this.selectCell(nextCol, coord.r);
+      } else {
+        const nextRow = shift ? Math.max(1, coord.r - 1) : Math.min(this.rowCount, coord.r + 1);
+        this.selectCell(coord.c, nextRow);
+      }
+    } else {
+      this.options.onSelect?.(`${coord.c}${coord.r}`, this.cellsData.get(`${coord.c}${coord.r}`), this._calculateStats());
+    }
+    return true;
+  }
+
+  _cancelFormulaEntry() {
+    const session = this.formulaEntry;
+    if (!session) return false;
+    const coord = { ...session.coord };
+    const ownerSheet = session.sheet;
+    const original = session.cancel();
+    if (this.activeSheet !== ownerSheet) {
+      this.sheetStates[ownerSheet] = { ...(this.sheetStates[ownerSheet] || {}), selectedCoord: { ...coord } };
+      this.switchSheet(ownerSheet, { formulaReturn: true });
+    }
+    this.selectedCoord = { ...coord };
+    this.setCellValue(coord.c, coord.r, original, false);
+    if (this.formulaInput) this.formulaInput.value = String(original ?? "");
+    this.formulaEntry = null;
+    this._cellValueBeforeEdit = undefined;
+    this._formulaPointCoord = null;
+    this.autocomplete?.closeAll?.();
+    this._refreshFormulaEntryVisuals();
+    this.container?.focus?.({ preventScroll: true });
+    this.options.onSelect?.(`${coord.c}${coord.r}`, this.cellsData.get(`${coord.c}${coord.r}`), this._calculateStats());
+    return true;
+  }
+
+  _selectionRangeForPointer(anchor, active, kind = "cell") {
+    if (kind === "row") {
+      return createSheetSelectionRange(
+        { c: this.cols[0], r: anchor.r },
+        { c: this.cols[this.cols.length - 1], r: active.r }
+      );
+    }
+    if (kind === "column") {
+      return createSheetSelectionRange(
+        { c: anchor.c, r: 1 },
+        { c: active.c, r: this.rowCount }
+      );
+    }
+    return createSheetSelectionRange(anchor, active);
+  }
+
+  _applySelectionRange(range, activeCoord, options = {}) {
+    this.selectionRange = range;
+    this.selectedCoord = { c: activeCoord.c, r: activeCoord.r };
+    this._rangeAnchor = { ...(options.anchor || range.start) };
+    this.selectionKind = options.kind || "cell";
+    if (options.additive) {
+      this.selectionRanges = [
+        ...(options.baseAreas || this._rangeSelectionBaseAreas || this.selectionRanges || []),
+        range
+      ];
+    } else {
+      this.selectionRanges = [range];
+    }
+    if (options.scrollActive && this.viewport &&
+        (activeCoord.r < this.currentStartRow || activeCoord.r > this.currentEndRow)) {
+      this.viewport.scrollTop = Math.max(0, this._rowTop(activeCoord.r) - 5 * this.rowHeight);
+      this._onViewportScroll();
+    }
+    this._updateRangeSelectionVisuals();
+    this.focusGrid();
+  }
+
+  focusGrid() {
+    if (!this.container || typeof this.container.focus !== "function") return false;
+    this.container.focus({ preventScroll: true });
+    return true;
+  }
+
+  _beginTabSequence() {
+    if (!this._tabSequenceAnchor) this._tabSequenceAnchor = { ...this.selectedCoord };
+  }
+
+  _enterDestination(shiftKey = false) {
+    const anchor = this._tabSequenceAnchor;
+    this._tabSequenceAnchor = null;
+    if (anchor) {
+      return {
+        c: anchor.c,
+        r: shiftKey ? Math.max(1, anchor.r - 1) : Math.min(this.rowCount, anchor.r + 1)
+      };
+    }
+    return {
+      c: this.selectedCoord.c,
+      r: shiftKey ? Math.max(1, this.selectedCoord.r - 1) : Math.min(this.rowCount, this.selectedCoord.r + 1)
+    };
+  }
+
+  _rangeSelectionTargetAt(x, y, kind = "cell") {
+    if (typeof document === "undefined") return null;
+    let element = document.elementFromPoint(x, y);
+    let cell = element?.closest?.(".vno-grid-cell");
+    if (!cell && this.viewport?.getBoundingClientRect) {
+      const rect = this.viewport.getBoundingClientRect();
+      const rowHeaderWidth = this.tbody?.querySelector?.(".vno-row-header")?.getBoundingClientRect?.().width || 44;
+      const headerHeight = this.theadRow?.getBoundingClientRect?.().height || 24;
+      const clampedX = Math.max(rect.left + rowHeaderWidth + 1, Math.min(rect.right - 1, x));
+      const clampedY = Math.max(rect.top + headerHeight + 1, Math.min(rect.bottom - 1, y));
+      element = document.elementFromPoint(clampedX, clampedY);
+      cell = element?.closest?.(".vno-grid-cell");
+    }
+
+    if (kind === "row") {
+      const rowHeader = element?.closest?.(".vno-row-header");
+      const row = Number(rowHeader?.dataset.row || cell?.dataset.row);
+      return Number.isInteger(row) && row >= 1 && row <= this.rowCount
+        ? { c: this.cols[0], r: row }
+        : null;
+    }
+    if (kind === "column") {
+      const colHeader = element?.closest?.(".vno-col-header");
+      const col = colHeader?.dataset.col || cell?.dataset.col;
+      return this.cols.includes(col) ? { c: col, r: 1 } : null;
+    }
+    return cell?.dataset.col && cell?.dataset.row
+      ? { c: cell.dataset.col, r: Number(cell.dataset.row) }
+      : null;
+  }
+
+  _updateRangeFromPointer() {
+    if (!this._isSelectingRange || !this._rangePointer || !this._rangeAnchor) return;
+    const kind = this._rangeSelectionKind || "cell";
+    const active = this._rangeSelectionTargetAt(this._rangePointer.x, this._rangePointer.y, kind);
+    if (!active) return;
+    const range = this._selectionRangeForPointer(this._rangeAnchor, active, kind);
+    const activeCoord = kind === "row"
+      ? { c: this.cols[0], r: active.r }
+      : kind === "column"
+        ? { c: active.c, r: 1 }
+        : active;
+    const current = this.selectionRange;
+    if (current?.end.c === range.end.c && current?.end.r === range.end.r &&
+        this.selectedCoord.c === activeCoord.c && this.selectedCoord.r === activeCoord.r) return;
+    this._applySelectionRange(range, activeCoord, {
+      anchor: this._rangeAnchor,
+      additive: this._rangeSelectionAdditive,
+      kind
+    });
+  }
+
+  _startRangeAutoScroll() {
+    if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function" || !this.viewport) return;
+    this._rangeScrollTimestamp = 0;
+    const tick = timestamp => {
+      if (!this._isSelectingRange || !this._rangePointer || !this.viewport) return;
+      const elapsed = this._rangeScrollTimestamp ? timestamp - this._rangeScrollTimestamp : 16;
+      this._rangeScrollTimestamp = timestamp;
+      const rect = this.viewport.getBoundingClientRect();
+      const deltaY = getSheetSelectionAutoScrollDelta(this._rangePointer.y, rect.top, rect.bottom, elapsed);
+      const deltaX = getSheetSelectionAutoScrollDelta(this._rangePointer.x, rect.left, rect.right, elapsed);
+      if (deltaX || deltaY) {
+        const oldTop = this.viewport.scrollTop;
+        const oldLeft = this.viewport.scrollLeft;
+        this.viewport.scrollTop += deltaY;
+        this.viewport.scrollLeft += deltaX;
+        if (this.viewport.scrollTop !== oldTop || this.viewport.scrollLeft !== oldLeft) {
+          this._onViewportScroll();
+          this._updateFrozenImages();
+        }
+      }
+      this._updateRangeFromPointer();
+      this._rangeScrollFrame = window.requestAnimationFrame(tick);
+    };
+    this._rangeScrollFrame = window.requestAnimationFrame(tick);
+  }
+
+  _stopRangeAutoScroll() {
+    if (this._rangeScrollFrame && typeof window !== "undefined") {
+      window.cancelAnimationFrame?.(this._rangeScrollFrame);
+    }
+    this._rangeScrollFrame = 0;
+    this._rangeScrollTimestamp = 0;
+  }
+
+  _selectHeaderRange(kind, index) {
+    const anchor = kind === "row" ? { c: this.cols[0], r: Number(index) } : { c: index, r: 1 };
+    const active = kind === "row" ? { c: this.cols[0], r: Number(index) } : { c: index, r: 1 };
+    const range = this._selectionRangeForPointer(anchor, active, kind);
+    this._applySelectionRange(range, active, { anchor, scrollActive: false, kind });
+  }
+
+  _startRangeSelect(e, col, row, kind = "cell") {
+    if (this._isSelectingRange) return;
+    e?.preventDefault?.();
+    this._commitEditBeforeRangeSelection();
+    this._isSelectingRange = true;
+    const extendRange = !!(e && e.shiftKey && this.selectionRange);
+    const additive = !!(e && e.ctrlKey && !e.shiftKey && kind === "cell");
+    const anchor = extendRange
+      ? { ...(this._rangeAnchor || this.selectedCoord || this.selectionRange.start) }
+      : kind === "row"
+        ? { c: this.cols[0], r: row }
+        : kind === "column"
+          ? { c: col, r: 1 }
+          : { c: col, r: row };
+    this._rangeSelectionKind = kind;
+    this._rangeSelectionAdditive = additive;
+    this._rangeSelectionBaseAreas = additive
+      ? this._getSelectionRanges().map(range => structuredClone(range))
+      : null;
+    this._rangePointer = { x: e?.clientX ?? 0, y: e?.clientY ?? 0 };
+
+    const initial = { c: col, r: row };
+    const range = this._selectionRangeForPointer(anchor, initial, kind);
+    const active = kind === "row"
+      ? { c: this.cols[0], r: row }
+      : kind === "column"
+        ? { c: col, r: 1 }
+        : initial;
+    this._applySelectionRange(range, active, { anchor, additive, scrollActive: false, kind });
+
+    const onMove = moveEvt => {
+      if (!this._isSelectingRange) return;
+      this._rangePointer = { x: moveEvt.clientX, y: moveEvt.clientY };
+      this._updateRangeFromPointer();
+    };
+    const onUp = () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      }
+      this._stopRangeAutoScroll();
+      this._updateRangeFromPointer();
+      this._isSelectingRange = false;
+      if (this.formatPainter) this.applyFormatPainterToSelection();
+      this._rangeSelectionAdditive = false;
+      this._rangeSelectionBaseAreas = null;
+      this._rangePointer = null;
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    }
+    this._startRangeAutoScroll();
+  }
+
+  _updateRangeSelectionVisuals() {
+    const ranges = this._getSelectionRanges();
+    const isMulti = ranges.length > 1 || ranges.some(range =>
+      range.start.c !== range.end.c || range.start.r !== range.end.r
+    );
+    const activeCoordKey = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+
+    this.container?.querySelectorAll?.(".vno-grid-cell[data-coord]").forEach(cell => {
+      const row = Number(cell.dataset.row);
+      const selected = ranges.some(range => this._rangeContains(range, cell.dataset.col, row));
+      const isActive = cell.dataset.coord === activeCoordKey;
+      cell.classList.toggle("is-selected", isActive);
+      cell.classList.toggle("is-range-selected", selected && isMulti);
+      this._applyClipboardVisual(cell, cell.dataset.col, row);
+      if (!isActive) {
+        cell.querySelectorAll?.(".vno-cell-move-handle, .vno-cell-validation-select").forEach(el => el.remove());
+      }
+    });
+
+    const activeCell = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${activeCoordKey}"]`);
+    if (activeCell) this._attachMoveHandles(activeCell);
+    this.container?.querySelectorAll?.(".vno-cell-autofill-handle").forEach(handle => handle.remove());
+    const norm = this._normalizeRange(this.selectionRange);
+    const endCell = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${norm.end.c}${norm.end.r}"]`);
+    if (endCell) this._attachAutofillHandle(endCell);
+
+    if (this.nameBox) this.nameBox.textContent = this.getSelectionNameLabel();
+    const data = this.cellsData.get(activeCoordKey);
+    if (this.formulaInput) this.formulaInput.value = data ? (data.formula || data.val) : "";
+    this._syncFormulaBarHeight();
+    this._showValidationDropdown(activeCell, this.selectedCoord.c, this.selectedCoord.r);
+    this.options.onSelect?.(activeCoordKey, data, this._calculateStats());
+    this.container?.focus?.({ preventScroll: true });
+  }
+
+  _syncFormulaBarHeight() {
+    if (!this.formulaInput || !this.formulaBarEl) return;
+    const lines = String(this.formulaInput.value || "").split("\n").length;
+    const rows = Math.max(1, Math.min(4, lines));
+    this.formulaInput.rows = rows;
+    this.formulaBarEl.style.height = String(Math.max(30, rows * 24 + 8)) + "px";
+    this.formulaBarEl.style.alignItems = "center";
+  }
+
+  setClipboardRange(range, mode = "copy", sheet = this.activeSheet) {
+    const normalized = this._normalizeRange(range);
+    this._clipboardRange = normalized ? { range: structuredClone(normalized), mode, sheet } : null;
+    this.container?.querySelectorAll?.(".vno-grid-cell[data-coord]").forEach(cell =>
+      this._applyClipboardVisual(cell, cell.dataset.col, Number(cell.dataset.row))
+    );
+  }
+
+  clearClipboardRange() {
+    if (!this._clipboardRange) return false;
+    this._clipboardRange = null;
+    this.container?.querySelectorAll?.(".vno-grid-cell[data-coord]").forEach(cell =>
+      this._applyClipboardVisual(cell, cell.dataset.col, Number(cell.dataset.row))
+    );
+    return true;
+  }
+
+  _applyClipboardVisual(cell, col, row) {
+    if (!cell?.classList) return;
+    const clipboard = this._clipboardRange;
+    const active = clipboard?.sheet === this.activeSheet &&
+      this._rangeContains(clipboard.range, col, row);
+    cell.classList.toggle("is-clipboard-source", !!active);
+    cell.classList.toggle("is-cut-source", !!active && clipboard.mode === "cut");
+  }
+
+  _startAutofill(e) {
+    if (this._isAutofilling) return;
+    this._isAutofilling = true;
+    const norm = this._normalizeRange(this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    this._autofillSource = norm;
+    this._autofillTarget = null;
+
+    const onMove = (moveEvt) => this._onAutofillMouseMove(moveEvt);
+    const onUp = (upEvt) => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      }
+      this._onAutofillMouseUp(upEvt);
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    }
+  }
+
+  _onAutofillMouseMove(e) {
+    if (!this._isAutofilling || !this._autofillSource) return;
+    const el = typeof document !== "undefined" ? document.elementFromPoint(e.clientX, e.clientY) : null;
+    const cell = el?.closest?.(".vno-grid-cell");
+    this.container?.querySelectorAll?.(".is-autofill-preview").forEach(c => c.classList.remove("is-autofill-preview"));
+
+    if (cell && cell.dataset.col && cell.dataset.row) {
+      const targetCol = cell.dataset.col;
+      const targetRow = Number(cell.dataset.row);
+      const src = this._autofillSource;
+      const srcMaxRow = src.end.r;
+      const srcMaxColNum = this._columnNumber(src.end.c);
+      const targetColNum = this._columnNumber(targetCol);
+
+      if (targetRow > srcMaxRow) {
+        // Vertical Fill Down
+        this._autofillTarget = {
+          direction: "down",
+          startCol: src.start.c,
+          endCol: src.end.c,
+          startRow: srcMaxRow + 1,
+          endRow: targetRow
+        };
+        for (let r = srcMaxRow + 1; r <= targetRow; r++) {
+          for (let cNum = this._columnNumber(src.start.c); cNum <= srcMaxColNum; cNum++) {
+            const td = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${this._columnLabel(cNum)}${r}"]`);
+            if (td) td.classList.add("is-autofill-preview");
+          }
+        }
+      } else if (targetColNum > srcMaxColNum) {
+        // Horizontal Fill Right
+        this._autofillTarget = {
+          direction: "right",
+          startColNum: srcMaxColNum + 1,
+          endColNum: targetColNum,
+          startRow: src.start.r,
+          endRow: src.end.r
+        };
+        for (let r = src.start.r; r <= src.end.r; r++) {
+          for (let cNum = srcMaxColNum + 1; cNum <= targetColNum; cNum++) {
+            const td = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${this._columnLabel(cNum)}${r}"]`);
+            if (td) td.classList.add("is-autofill-preview");
+          }
+        }
+      } else {
+        this._autofillTarget = null;
+      }
+    }
+
+    if (this.viewport && this.viewport.getBoundingClientRect) {
+      const r = this.viewport.getBoundingClientRect();
+      if (e.clientY > r.bottom - 25) this.viewport.scrollTop += 20;
+      else if (e.clientY < r.top + 25) this.viewport.scrollTop -= 20;
+      if (e.clientX > r.right - 25) this.viewport.scrollLeft += 20;
+      else if (e.clientX < r.left + 25) this.viewport.scrollLeft -= 20;
+    }
+  }
+
+  _onAutofillMouseUp() {
+    this.container?.querySelectorAll?.(".is-autofill-preview").forEach(c => c.classList.remove("is-autofill-preview"));
+    this._isAutofilling = false;
+    if (this._autofillSource && this._autofillTarget) {
+      this._executeAutofill(this._autofillSource, this._autofillTarget);
+    }
+    this._autofillSource = null;
+    this._autofillTarget = null;
+  }
+
+  _executeAutofill(src, target) {
+    const before = {};
+    const after = {};
+
+    const monthsVi = ["Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6", "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"];
+    const monthsEn = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const daysVi = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"];
+
+    if (target.direction === "down") {
+      const srcStartRow = src.start.r;
+      const srcEndRow = src.end.r;
+      const srcCount = srcEndRow - srcStartRow + 1;
+      const minColNum = this._columnNumber(src.start.c);
+      const maxColNum = this._columnNumber(src.end.c);
+
+      for (let cNum = minColNum; cNum <= maxColNum; cNum++) {
+        const colLetter = this._columnLabel(cNum);
+        const sourceCells = [];
+        for (let r = srcStartRow; r <= srcEndRow; r++) {
+          sourceCells.push(this.cellsData.get(`${colLetter}${r}`) || { val: "", formula: "", style: {} });
+        }
+
+        for (let r = target.startRow; r <= target.endRow; r++) {
+          const destKey = `${colLetter}${r}`;
+          const existing = this.cellsData.get(destKey) || { val: "", formula: "", style: {} };
+          before[destKey] = structuredClone(existing);
+
+          const stepOffset = r - srcEndRow;
+          const cycleIdx = (stepOffset - 1) % srcCount;
+          const sourceCell = sourceCells[cycleIdx];
+
+          let newVal = sourceCell.val;
+          let newFormula = "";
+          const newStyle = structuredClone(sourceCell.style || {});
+
+          if (sourceCell.formula && String(sourceCell.formula).startsWith("=")) {
+            const deltaR = r - (srcStartRow + cycleIdx);
+            newFormula = this._offsetFormula(sourceCell.formula, 0, deltaR);
+            newVal = this.formulaEngine.evaluate(newFormula);
+          } else if (srcCount === 1) {
+            const rawVal = String(sourceCell.val || "").trim();
+            const numVal = Number(rawVal);
+            const numEndMatch = rawVal.match(/^(.*?)(\d+)$/);
+            const mViIdx = monthsVi.indexOf(rawVal);
+            const mEnIdx = monthsEn.indexOf(rawVal);
+            const dViIdx = daysVi.indexOf(rawVal);
+
+            if (Number.isFinite(numVal) && rawVal !== "") {
+              newVal = numVal + stepOffset;
+            } else if (numEndMatch) {
+              const prefix = numEndMatch[1];
+              const digits = numEndMatch[2];
+              const nextNum = parseInt(digits, 10) + stepOffset;
+              newVal = `${prefix}${String(nextNum).padStart(digits.length, "0")}`;
+            } else if (mViIdx !== -1) {
+              newVal = monthsVi[(mViIdx + stepOffset) % monthsVi.length];
+            } else if (mEnIdx !== -1) {
+              newVal = monthsEn[(mEnIdx + stepOffset) % monthsEn.length];
+            } else if (dViIdx !== -1) {
+              newVal = daysVi[(dViIdx + stepOffset) % daysVi.length];
+            } else {
+              newVal = sourceCell.val;
+            }
+          } else {
+            const vals = sourceCells.map(c => Number(c.val));
+            if (vals.every(v => Number.isFinite(v))) {
+              const step = (vals[vals.length - 1] - vals[0]) / (srcCount - 1);
+              newVal = vals[vals.length - 1] + step * stepOffset;
+            } else {
+              newVal = sourceCell.val;
+            }
+          }
+
+          const newItem = { val: newVal, formula: newFormula, style: newStyle };
+          this.cellsData.set(destKey, newItem);
+          after[destKey] = structuredClone(newItem);
+        }
+      }
+
+      this.selectionRange = { start: src.start, end: { c: src.end.c, r: target.endRow } };
+    } else if (target.direction === "right") {
+      const srcStartColNum = this._columnNumber(src.start.c);
+      const srcEndColNum = this._columnNumber(src.end.c);
+      const srcCount = srcEndColNum - srcStartColNum + 1;
+
+      for (let r = target.startRow; r <= target.endRow; r++) {
+        const sourceCells = [];
+        for (let cNum = srcStartColNum; cNum <= srcEndColNum; cNum++) {
+          sourceCells.push(this.cellsData.get(`${this._columnLabel(cNum)}${r}`) || { val: "", formula: "", style: {} });
+        }
+
+        for (let cNum = target.startColNum; cNum <= target.endColNum; cNum++) {
+          const colLetter = this._columnLabel(cNum);
+          const destKey = `${colLetter}${r}`;
+          const existing = this.cellsData.get(destKey) || { val: "", formula: "", style: {} };
+          before[destKey] = structuredClone(existing);
+
+          const stepOffset = cNum - srcEndColNum;
+          const cycleIdx = (stepOffset - 1) % srcCount;
+          const sourceCell = sourceCells[cycleIdx];
+
+          let newVal = sourceCell.val;
+          let newFormula = "";
+          const newStyle = structuredClone(sourceCell.style || {});
+
+          if (sourceCell.formula && String(sourceCell.formula).startsWith("=")) {
+            const deltaC = cNum - (srcStartColNum + cycleIdx);
+            newFormula = this._offsetFormula(sourceCell.formula, deltaC, 0);
+            newVal = this.formulaEngine.evaluate(newFormula);
+          } else if (srcCount === 1) {
+            const rawVal = String(sourceCell.val || "").trim();
+            const numVal = Number(rawVal);
+            const numEndMatch = rawVal.match(/^(.*?)(\d+)$/);
+            if (Number.isFinite(numVal) && rawVal !== "") {
+              newVal = numVal + stepOffset;
+            } else if (numEndMatch) {
+              const prefix = numEndMatch[1];
+              const digits = numEndMatch[2];
+              const nextNum = parseInt(digits, 10) + stepOffset;
+              newVal = `${prefix}${String(nextNum).padStart(digits.length, "0")}`;
+            } else {
+              newVal = sourceCell.val;
+            }
+          } else {
+            const vals = sourceCells.map(c => Number(c.val));
+            if (vals.every(v => Number.isFinite(v))) {
+              const step = (vals[vals.length - 1] - vals[0]) / (srcCount - 1);
+              newVal = vals[vals.length - 1] + step * stepOffset;
+            } else {
+              newVal = sourceCell.val;
+            }
+          }
+
+          const newItem = { val: newVal, formula: newFormula, style: newStyle };
+          this.cellsData.set(destKey, newItem);
+          after[destKey] = structuredClone(newItem);
+        }
+      }
+
+      this.selectionRange = { start: src.start, end: { c: this._columnLabel(target.endColNum), r: src.end.r } };
+    }
+
+    this._recordHistory({
+      type: "fill",
+      sheet: this.activeSheet,
+      before,
+      after
+    });
+
+    this._recalculateAllFormulas();
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this._updateRangeSelectionVisuals();
+  }
+
+  _startCellMove(e) {
+    if (this._isMovingCell) return;
+    this._isMovingCell = true;
+    this._moveSource = { ...this.selectedCoord };
+    this._moveTarget = null;
+
+    const onMove = (moveEvt) => {
+      const el = typeof document !== "undefined" ? document.elementFromPoint(moveEvt.clientX, moveEvt.clientY) : null;
+      const cell = el?.closest?.(".vno-grid-cell");
+      this.container?.querySelectorAll?.(".is-move-target-preview").forEach(c => c.classList.remove("is-move-target-preview"));
+      if (cell && (cell.dataset.col !== this._moveSource.c || Number(cell.dataset.row) !== this._moveSource.r)) {
+        this._moveTarget = { c: cell.dataset.col, r: Number(cell.dataset.row) };
+        cell.classList.add("is-move-target-preview");
+      } else {
+        this._moveTarget = null;
+      }
+    };
+
+    const onUp = () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      }
+      this.container?.querySelectorAll?.(".is-move-target-preview").forEach(c => c.classList.remove("is-move-target-preview"));
+      this._isMovingCell = false;
+      if (this._moveTarget && (this._moveTarget.c !== this._moveSource.c || this._moveTarget.r !== this._moveSource.r)) {
+        this._executeCellMove(this._moveSource, this._moveTarget);
+      }
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    }
+  }
+
+  _executeCellMove(src, dest) {
+    const srcKey = `${src.c}${src.r}`;
+    const destKey = `${dest.c}${dest.r}`;
+    const srcData = this.cellsData.get(srcKey) || { val: "", formula: "", style: {} };
+    const destData = this.cellsData.get(destKey) || { val: "", formula: "", style: {} };
+
+    const before = {
+      [srcKey]: structuredClone(srcData),
+      [destKey]: structuredClone(destData)
+    };
+
+    const after = {
+      [srcKey]: { val: "", formula: "", style: {} },
+      [destKey]: structuredClone(srcData)
+    };
+
+    this.cellsData.set(destKey, structuredClone(srcData));
+    this.cellsData.delete(srcKey);
+
+    this._recordHistory({
+      type: "fill",
+      sheet: this.activeSheet,
+      before,
+      after
+    });
+
+    this.selectCell(dest.c, dest.r);
+    this._recalculateAllFormulas();
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+  }
+
+  showContextMenu(e, type, target) {
+    this._closeContextMenu();
+    if (typeof document === "undefined") return;
+    const active = document.activeElement;
+    this._contextMenuPreviousFocus = (active && active !== document.body && active !== document.documentElement && (this.container === active || this.container?.contains?.(active)))
+      ? active
+      : this.container;
+
+    const menu = document.createElement("div");
+    menu.className = "vno-sheet-context-menu";
+    menu.setAttribute("role", "menu");
+    menu.setAttribute("aria-label", "Menu ngữ cảnh bảng tính");
+
+    let items = [];
+    if (type === "cell") {
+      items = [
+        { label: "Cắt", shortcut: "Ctrl+X", action: () => globalCommandBus.execute("common.edit.cut") },
+        { label: "Sao chép", shortcut: "Ctrl+C", action: () => globalCommandBus.execute("common.edit.copy") },
+        { label: "Dán", shortcut: "Ctrl+V", action: () => globalCommandBus.execute("common.edit.paste") },
+        { label: "Dán văn bản thuần", shortcut: "Ctrl+Shift+V", action: () => globalCommandBus.execute("common.edit.pastePlain") },
+        { sep: true },
+        { label: "Chèn hàng", shortcut: "Ctrl+Shift+=", action: () => globalCommandBus.execute("sheet.row.insert") },
+        { label: "Chèn cột", action: () => globalCommandBus.execute("sheet.col.insert") },
+        { label: "Xóa hàng", action: () => globalCommandBus.execute("sheet.row.delete") },
+        { label: "Xóa cột", action: () => globalCommandBus.execute("sheet.col.delete") },
+        { sep: true },
+        { label: "Xóa nội dung", shortcut: "Delete", action: () => globalCommandBus.execute("sheet.edit.clearContents") },
+        { label: "Định dạng ô...", shortcut: "Ctrl+1", action: () => globalCommandBus.execute("sheet.format.cellsDialog") },
+        { label: "Thêm ghi chú", shortcut: "Shift+F2", action: () => this.showCommentDialog({ source: "contextmenu" }) }
+      ];
+    } else if (type === "col") {
+      items = [
+        { label: "Cắt", shortcut: "Ctrl+X", action: () => globalCommandBus.execute("common.edit.cut") },
+        { label: "Sao chép", shortcut: "Ctrl+C", action: () => globalCommandBus.execute("common.edit.copy") },
+        { label: "Dán", shortcut: "Ctrl+V", action: () => globalCommandBus.execute("common.edit.paste") },
+        { sep: true },
+        { label: "Chèn cột", action: () => globalCommandBus.execute("sheet.col.insert") },
+        { label: "Xóa cột", action: () => globalCommandBus.execute("sheet.col.delete") },
+        { label: "Xóa nội dung cột", shortcut: "Delete", action: () => globalCommandBus.execute("sheet.edit.clearContents") },
+        { sep: true },
+        { label: "Tự vừa khít độ rộng cột", action: () => this.autoFitColumn(target) },
+        { label: "Ẩn cột", action: () => this.hideColumns([target]) },
+        { label: "Hiện cột", action: () => this.unhideColumns([target]) },
+        { label: "Định dạng ô...", shortcut: "Ctrl+1", action: () => globalCommandBus.execute("sheet.format.cellsDialog") }
+      ];
+    } else if (type === "row") {
+      items = [
+        { label: "Cắt", shortcut: "Ctrl+X", action: () => globalCommandBus.execute("common.edit.cut") },
+        { label: "Sao chép", shortcut: "Ctrl+C", action: () => globalCommandBus.execute("common.edit.copy") },
+        { label: "Dán", shortcut: "Ctrl+V", action: () => globalCommandBus.execute("common.edit.paste") },
+        { sep: true },
+        { label: "Chèn hàng", shortcut: "Ctrl+Shift+=", action: () => globalCommandBus.execute("sheet.row.insert") },
+        { label: "Xóa hàng", action: () => globalCommandBus.execute("sheet.row.delete") },
+        { label: "Xóa nội dung hàng", shortcut: "Delete", action: () => globalCommandBus.execute("sheet.edit.clearContents") },
+        { sep: true },
+        { label: "Tự vừa khít chiều cao hàng", action: () => this.autoFitRow(target) },
+        { label: "Ẩn hàng", action: () => this.hideRows([target]) },
+        { label: "Hiện hàng", action: () => this.unhideRows([target]) },
+        { label: "Định dạng ô...", shortcut: "Ctrl+1", action: () => globalCommandBus.execute("sheet.format.cellsDialog") }
+      ];
+    }
+
+    items.forEach(item => {
+      if (item.sep) {
+        const sep = document.createElement("div");
+        sep.className = "vno-sheet-context-sep";
+        sep.setAttribute("role", "separator");
+        menu.appendChild(sep);
+        return;
+      }
+      const el = document.createElement("button");
+      el.type = "button";
+      el.className = "vno-sheet-context-item";
+      el.setAttribute("role", "menuitem");
+      el.setAttribute("tabindex", "-1");
+      el.innerHTML = `<span>${item.label}</span>${item.shortcut ? `<span class="shortcut">${item.shortcut}</span>` : ""}`;
+      el.addEventListener("click", () => {
+        this._closeContextMenu();
+        item.action();
+      });
+      menu.appendChild(el);
+    });
+
+    document.body.appendChild(menu);
+    this._activeContextMenu = menu;
+
+    const x = Math.min(e.clientX, (window.innerWidth || 1200) - 240);
+    const y = Math.min(e.clientY, (window.innerHeight || 800) - 380);
+    menu.style.left = `${Math.max(10, x)}px`;
+    menu.style.top = `${Math.max(10, y)}px`;
+
+    const closeHandler = (evt) => {
+      if (!menu.contains(evt.target)) {
+        this._closeContextMenu();
+      }
+    };
+    const keyHandler = (evt) => {
+      if (evt.key === "Escape") {
+        evt.preventDefault();
+        evt.stopPropagation();
+        this._closeContextMenu();
+      } else if (evt.key === "ArrowDown" || evt.key === "ArrowUp") {
+        evt.preventDefault();
+        const actionItems = Array.from(menu.querySelectorAll(".vno-sheet-context-item"));
+        if (!actionItems.length) return;
+        const currentIdx = actionItems.indexOf(document.activeElement);
+        let nextIdx;
+        if (evt.key === "ArrowDown") {
+          nextIdx = currentIdx < actionItems.length - 1 ? currentIdx + 1 : 0;
+        } else {
+          nextIdx = currentIdx > 0 ? currentIdx - 1 : actionItems.length - 1;
+        }
+        actionItems[nextIdx]?.focus();
+      }
+    };
+
+    document.addEventListener("keydown", keyHandler);
+    menu.querySelector(".vno-sheet-context-item")?.focus();
+
+    let mousedownTimer = setTimeout(() => {
+      mousedownTimer = null;
+      document.addEventListener("mousedown", closeHandler);
+    }, 10);
+
+    menu._vnoCleanup = () => {
+      if (mousedownTimer) {
+        clearTimeout(mousedownTimer);
+        mousedownTimer = null;
+      }
+      document.removeEventListener("mousedown", closeHandler);
+      document.removeEventListener("keydown", keyHandler);
+    };
+  }
+
+  _closeContextMenu() {
+    if (this._activeContextMenu) {
+      this._activeContextMenu._vnoCleanup?.();
+      this._activeContextMenu.remove();
+      this._activeContextMenu = null;
+      // Trả focus về nơi đã mở menu (thường là lưới) — nếu không, focus rơi vào
+      // <body> sau khi menu bị xóa khỏi DOM và điều hướng bàn phím trên lưới sẽ ngừng
+      // hoạt động cho đến khi người dùng click chuột lại (đo được qua Shift+F10 → Escape).
+      const previousFocus = this._contextMenuPreviousFocus;
+      this._contextMenuPreviousFocus = null;
+      if (previousFocus && document.contains(previousFocus) && previousFocus !== document.body && previousFocus !== document.documentElement && typeof previousFocus.focus === "function") {
+        try { previousFocus.focus(); } catch (_) { /* noop */ }
+      } else if (this.container && typeof this.container.focus === "function") {
+        try { this.container.focus({ preventScroll: true }); } catch (_) { /* noop */ }
+      }
+    }
+  }
+
+  selectAll() {
+    this.selectCell("A", 1);
+    this.selectCell(this.cols[this.cols.length - 1], this.rowCount, true);
+    return true;
+  }
+
+  resetToBlank(defaultSheetName = "Sheet1") {
+    this.sheets = [defaultSheetName];
+    this.activeSheet = defaultSheetName;
+    this.sheetsData = { [defaultSheetName]: new Map() };
+    this.sheetStates = {
+      [defaultSheetName]: { hiddenRows: new Set(), activeFilters: new Map(), isFilterActive: false, isFrozenPanes: false, frozenRows: 0, frozenCols: 0, selectedCoord: { r: 1, c: "A" } }
+    };
+    this.namedRangesWorkbook = [];
+    this.namedRangesBySheet = { [defaultSheetName]: [] };
+    this.commentsBySheet = { [defaultSheetName]: {} };
+    this.printAreaBySheet = { [defaultSheetName]: null };
+    this.pageBreaksBySheet = { [defaultSheetName]: { rows: [], cols: [] } };
+    this.pageSetupBySheet = { [defaultSheetName]: newSheetPageSetup() };
+    this.conditionalFormattingBySheet = { [defaultSheetName]: [] };
+    this.dataValidationsBySheet = { [defaultSheetName]: [] };
+    this.chartsBySheet = { [defaultSheetName]: [] };
+    this.imagesBySheet = { [defaultSheetName]: [] };
+    this.textBoxesBySheet = { [defaultSheetName]: [] };
+    this.pivotTablesBySheet = { [defaultSheetName]: [] };
+    this.scenariosBySheet = { [defaultSheetName]: [] };
+    this.rowHeightsBySheet = { [defaultSheetName]: new Map() };
+    this.colWidthsBySheet = { [defaultSheetName]: new Map() };
+    this.userHiddenRowsBySheet = { [defaultSheetName]: new Set() };
+    this.userHiddenColsBySheet = { [defaultSheetName]: new Set() };
+    this.protectionBySheet = { [defaultSheetName]: { enabled: false, password: "" } };
+    this.workbookProtection = { enabled: false, password: "" };
+    this.isFrozenPanes = false;
+    this.frozenRows = 0;
+    this.frozenCols = 0;
+    this.isFilterActive = false;
+    this.hiddenRows = new Set();
+    this.activeFilters = new Map();
+    this.undoStack = [];
+    this.redoStack = [];
+
+    if (this.chartLayer) this.chartLayer.innerHTML = "";
+    if (this.imageLayer) this.imageLayer.innerHTML = "";
+
+    this._renderSheetTabs();
+
+    if (this.container && typeof this.container.querySelectorAll === "function") {
+      this.container.querySelectorAll(".vno-grid-cell").forEach((td) => {
+        td.textContent = "";
+        td.className = "vno-grid-cell";
+        td.style.cssText = "";
+      });
+    }
+
+    this._renderVirtualRows(1, 40);
+    this.renderCharts();
+    this.renderImages();
+    this.renderTextBoxes();
+    this.selectCell("A", 1);
+    if (this.formulaInput) this.formulaInput.value = "";
+    this._syncCommandStates();
+    this.updateStatus();
+    return true;
+  }
+
+  switchSheet(sheetName, options = {}) {
+    const skipSave = options.skipSave === true;
+    if (!sheetName) return false;
+    const preservedFormulaEntry = this.formulaEntry && (options.pointMode || options.formulaReturn)
+      ? this.formulaEntry
+      : null;
+    if (options.pointMode && this.formulaEntry) {
+      this.formulaEntry.mode = "point";
+      this._updateFormulaEntryStatus();
+    }
+    if (!this.sheets.includes(sheetName)) {
+      this.sheets.push(sheetName);
+    }
+    if (!this.sheetsData) {
+      this.sheetsData = {};
+    }
+    if (!this.sheetsData[sheetName]) {
+      this.sheetsData[sheetName] = new Map();
+    }
+    if (!this.conditionalFormattingBySheet[sheetName]) this.conditionalFormattingBySheet[sheetName] = [];
+    if (!this.dataValidationsBySheet[sheetName]) this.dataValidationsBySheet[sheetName] = [];
+    if (!this.chartsBySheet[sheetName]) this.chartsBySheet[sheetName] = [];
+    if (!this.imagesBySheet[sheetName]) this.imagesBySheet[sheetName] = [];
+    if (!this.textBoxesBySheet[sheetName]) this.textBoxesBySheet[sheetName] = [];
+    if (!this.pivotTablesBySheet[sheetName]) this.pivotTablesBySheet[sheetName] = [];
+    if (!this.scenariosBySheet[sheetName]) this.scenariosBySheet[sheetName] = [];
+    if (!this.namedRangesBySheet[sheetName]) this.namedRangesBySheet[sheetName] = [];
+    if (!this.commentsBySheet[sheetName]) this.commentsBySheet[sheetName] = {};
+    if (!(sheetName in this.printAreaBySheet)) this.printAreaBySheet[sheetName] = null;
+    if (!this.pageBreaksBySheet[sheetName]) this.pageBreaksBySheet[sheetName] = { rows: [], cols: [] };
+    if (!this.pageSetupBySheet[sheetName]) this.pageSetupBySheet[sheetName] = newSheetPageSetup();
+    if (!this.mergedRangesBySheet[sheetName]) this.mergedRangesBySheet[sheetName] = [];
+    if (!this.protectionBySheet) this.protectionBySheet = {};
+    if (!this.protectionBySheet[sheetName]) this.protectionBySheet[sheetName] = { enabled: false, password: "" };
+    this._ensureRowColLayout(sheetName);
+    this._invalidateRowTopsCache(sheetName);
+
+    // 1. Lưu trạng thái sheet hiện tại (giữ các khoá khác như filterRange/tabColor mà adapter đã gắn)
+    // Bỏ qua khi tải từ workbook (skipSave) vì trạng thái đã được nạp từ workbook
+    if (!skipSave && this.activeSheet && this.sheetStates) {
+      this.sheetStates[this.activeSheet] = {
+        ...(this.sheetStates[this.activeSheet] || {}),
+        hiddenRows: new Set(this.hiddenRows || []),
+        activeFilters: new Map(this.activeFilters || []),
+        isFilterActive: !!this.isFilterActive,
+        isFrozenPanes: !!this.isFrozenPanes,
+        frozenRows: this.frozenRows || 0,
+        frozenCols: this.frozenCols || 0,
+        selectedCoord: { ...(this.selectedCoord || { r: 1, c: "A" }) }
+      };
+    }
+
+    // 2. Chuyển sang sheet mới
+    this.activeSheet = sheetName;
+
+    // 3. Khôi phục trạng thái cho sheet mới
+    if (!this.sheetStates) {
+      this.sheetStates = {};
+    }
+    if (!this.sheetStates[sheetName]) {
+      this.sheetStates[sheetName] = {
+        hiddenRows: new Set(),
+        activeFilters: new Map(),
+        isFilterActive: false,
+        isFrozenPanes: false,
+        frozenRows: 0,
+        frozenCols: 0,
+        selectedCoord: { r: 1, c: "A" }
+      };
+    }
+    const nextState = this.sheetStates[sheetName];
+    this.hiddenRows = new Set(nextState.hiddenRows);
+    this.activeFilters = new Map(nextState.activeFilters);
+    this.isFilterActive = nextState.isFilterActive;
+    this.frozenRows = nextState.frozenRows || 0;
+    this.frozenCols = nextState.frozenCols || 0;
+    this.isFrozenPanes = !!nextState.isFrozenPanes;
+    this.selectedCoord = { ...nextState.selectedCoord };
+    this.selectionRange = { start: { ...this.selectedCoord }, end: { ...this.selectedCoord } };
+
+    if (this.container && this.container.classList) {
+      if (this.isFilterActive) {
+        this.container.classList.add("vno-filter-mode");
+      } else {
+        this.container.classList.remove("vno-filter-mode");
+      }
+      this.container.classList.toggle?.("vno-freeze-panes", this.isFrozenPanes);
+    }
+    if (typeof this._updateFilterButtons === "function") {
+      this._updateFilterButtons();
+    }
+
+    // 4. Đồng bộ FormulaEngine với dữ liệu sheet active
+    if (this.formulaEngine) {
+      if (typeof this.formulaEngine.setCellsData === "function") {
+        this.formulaEngine.setCellsData(this.cellsData);
+      } else {
+        this.formulaEngine.cellsData = this.cellsData;
+      }
+    }
+
+    // 5. Cập nhật trạng thái visual của tab bar
+    if (this.tabBar && typeof this.tabBar.querySelectorAll === "function") {
+      const tabs = this.tabBar.querySelectorAll(".vno-sheet-tab-item");
+      tabs.forEach(t => {
+        if (t.dataset?.sheet === sheetName || t.textContent === sheetName) {
+          t.classList.add("is-active");
+        } else {
+          t.classList.remove("is-active");
+        }
+      });
+    }
+
+    // 6. Re-render lưới hiển thị ảo
+    this._renderColumnHeaders();
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this.renderCharts();
+    this.renderImages();
+    this.renderTextBoxes();
+
+    // 7. Cập nhật ô chọn và thanh công thức
+    if (preservedFormulaEntry) this._isRestoringFormulaEntry = true;
+    this.selectCell(this.selectedCoord.c, this.selectedCoord.r);
+    if (preservedFormulaEntry) {
+      this._isRestoringFormulaEntry = false;
+      this.formulaInput.value = preservedFormulaEntry.value;
+      this.formulaInput.focus({ preventScroll: true });
+      this.formulaInput.setSelectionRange?.(preservedFormulaEntry.caret, preservedFormulaEntry.caret);
+      this._refreshFormulaEntryVisuals();
+    }
+    this._syncCommandStates();
+    this._applyProtectionUi();
+    this._updateWatchWindow?.();
+
+    return true;
+  }
+
+  addSheet(name, recordUndo = true) {
+    const previousSheet = this.activeSheet;
+    const sheetName = name || `Sheet${this.sheets.length + 1}`;
+    const isNewSheet = !this.sheets.includes(sheetName);
+    if (isNewSheet && this._guardWorkbookStructure()) return false;
+    if (isNewSheet) {
+      this.sheets.push(sheetName);
+    }
+    if (!this.sheetsData) {
+      this.sheetsData = {};
+    }
+    if (!this.sheetsData[sheetName]) {
+      this.sheetsData[sheetName] = new Map();
+    }
+    if (!this.conditionalFormattingBySheet[sheetName]) this.conditionalFormattingBySheet[sheetName] = [];
+    if (!this.dataValidationsBySheet[sheetName]) this.dataValidationsBySheet[sheetName] = [];
+    if (!this.chartsBySheet[sheetName]) this.chartsBySheet[sheetName] = [];
+    if (!this.imagesBySheet[sheetName]) this.imagesBySheet[sheetName] = [];
+    if (!this.textBoxesBySheet[sheetName]) this.textBoxesBySheet[sheetName] = [];
+    if (!this.pivotTablesBySheet[sheetName]) this.pivotTablesBySheet[sheetName] = [];
+    if (!this.scenariosBySheet[sheetName]) this.scenariosBySheet[sheetName] = [];
+    if (!this.namedRangesBySheet[sheetName]) this.namedRangesBySheet[sheetName] = [];
+    if (!this.commentsBySheet[sheetName]) this.commentsBySheet[sheetName] = {};
+    if (!(sheetName in this.printAreaBySheet)) this.printAreaBySheet[sheetName] = null;
+    if (!this.pageBreaksBySheet[sheetName]) this.pageBreaksBySheet[sheetName] = { rows: [], cols: [] };
+    if (!this.pageSetupBySheet[sheetName]) this.pageSetupBySheet[sheetName] = newSheetPageSetup();
+    if (!this.mergedRangesBySheet[sheetName]) this.mergedRangesBySheet[sheetName] = [];
+    if (!this.protectionBySheet) this.protectionBySheet = {};
+    if (!this.protectionBySheet[sheetName]) this.protectionBySheet[sheetName] = { enabled: false, password: "" };
+    this._ensureRowColLayout(sheetName);
+    if (!this.sheetStates) {
+      this.sheetStates = {};
+    }
+    if (!this.sheetStates[sheetName]) {
+      this.sheetStates[sheetName] = {
+        hiddenRows: new Set(),
+        activeFilters: new Map(),
+        isFilterActive: false,
+        isFrozenPanes: false,
+        frozenRows: 0,
+        frozenCols: 0,
+        selectedCoord: { r: 1, c: "A" }
+      };
+    }
+
+    this._renderSheetTabs();
+    this.switchSheet(sheetName);
+    if (recordUndo && isNewSheet) this._recordHistory({ type: "sheet-add", sheet: previousSheet, sheetName, previousSheet, snapshot: this._snapshotSheet(sheetName) });
+    return sheetName;
+  }
+
+  addSheetBefore(targetSheet = this.activeSheet, name, recordUndo = true) {
+    if (this._guardWorkbookStructure()) return false;
+    const targetIdx = this.sheets.indexOf(targetSheet);
+    const insertIdx = targetIdx >= 0 ? targetIdx : 0;
+    const previousSheet = this.activeSheet;
+
+    let sheetName = name;
+    if (!sheetName) {
+      let counter = this.sheets.length + 1;
+      while (this.sheets.includes(`Trang tính ${counter}`)) counter++;
+      sheetName = `Trang tính ${counter}`;
+    }
+    const isNewSheet = !this.sheets.includes(sheetName);
+    if (!isNewSheet) return false;
+
+    this.sheets.splice(insertIdx, 0, sheetName);
+    if (!this.sheetsData) this.sheetsData = {};
+    if (!this.sheetsData[sheetName]) this.sheetsData[sheetName] = new Map();
+    if (!this.conditionalFormattingBySheet[sheetName]) this.conditionalFormattingBySheet[sheetName] = [];
+    if (!this.dataValidationsBySheet[sheetName]) this.dataValidationsBySheet[sheetName] = [];
+    if (!this.chartsBySheet[sheetName]) this.chartsBySheet[sheetName] = [];
+    if (!this.imagesBySheet[sheetName]) this.imagesBySheet[sheetName] = [];
+    if (!this.textBoxesBySheet[sheetName]) this.textBoxesBySheet[sheetName] = [];
+    if (!this.pivotTablesBySheet[sheetName]) this.pivotTablesBySheet[sheetName] = [];
+    if (!this.scenariosBySheet[sheetName]) this.scenariosBySheet[sheetName] = [];
+    if (!this.namedRangesBySheet[sheetName]) this.namedRangesBySheet[sheetName] = [];
+    if (!this.commentsBySheet[sheetName]) this.commentsBySheet[sheetName] = {};
+    if (!(sheetName in this.printAreaBySheet)) this.printAreaBySheet[sheetName] = null;
+    if (!this.pageBreaksBySheet[sheetName]) this.pageBreaksBySheet[sheetName] = { rows: [], cols: [] };
+    if (!this.pageSetupBySheet[sheetName]) this.pageSetupBySheet[sheetName] = newSheetPageSetup();
+    if (!this.mergedRangesBySheet[sheetName]) this.mergedRangesBySheet[sheetName] = [];
+    if (!this.protectionBySheet) this.protectionBySheet = {};
+    if (!this.protectionBySheet[sheetName]) this.protectionBySheet[sheetName] = { enabled: false, password: "" };
+    this._ensureRowColLayout(sheetName);
+    if (!this.sheetStates) this.sheetStates = {};
+    if (!this.sheetStates[sheetName]) {
+      this.sheetStates[sheetName] = {
+        hiddenRows: new Set(),
+        activeFilters: new Map(),
+        isFilterActive: false,
+        isFrozenPanes: false,
+        frozenRows: 0,
+        frozenCols: 0,
+        selectedCoord: { r: 1, c: "A" }
+      };
+    }
+
+    this._renderSheetTabs();
+    this.switchSheet(sheetName);
+    if (recordUndo) {
+      this._recordHistory({
+        type: "sheet-add",
+        sheet: previousSheet,
+        sheetName,
+        previousSheet,
+        index: insertIdx,
+        snapshot: this._snapshotSheet(sheetName)
+      });
+    }
+    return sheetName;
+  }
+
+  deleteSheet(sheetName = this.activeSheet, recordUndo = true) {
+    if (this._guardWorkbookStructure()) return false;
+    const index = this.sheets.indexOf(sheetName);
+    if (index < 0 || this.sheets.length <= 1) return false;
+    const snapshot = this._snapshotSheet(sheetName);
+    const nextSheet = this.sheets[index === 0 ? 1 : index - 1];
+    this.sheets.splice(index, 1);
+    delete this.sheetsData[sheetName];
+    delete this.sheetStates[sheetName];
+    delete this.conditionalFormattingBySheet[sheetName];
+    delete this.dataValidationsBySheet[sheetName];
+    delete this.chartsBySheet[sheetName];
+    delete this.imagesBySheet[sheetName];
+    delete this.textBoxesBySheet[sheetName];
+    delete this.pivotTablesBySheet[sheetName];
+    delete this.scenariosBySheet[sheetName];
+    delete this.namedRangesBySheet[sheetName];
+    delete this.commentsBySheet[sheetName];
+    delete this.printAreaBySheet[sheetName];
+    delete this.pageBreaksBySheet[sheetName];
+    delete this.pageSetupBySheet[sheetName];
+    delete this.mergedRangesBySheet[sheetName];
+    delete this.rowHeightsBySheet[sheetName];
+    delete this.colWidthsBySheet[sheetName];
+    delete this.userHiddenRowsBySheet[sheetName];
+    delete this.userHiddenColsBySheet[sheetName];
+    if (this.protectionBySheet) delete this.protectionBySheet[sheetName];
+    if (this.outlineGroupsBySheet) delete this.outlineGroupsBySheet[sheetName];
+    this._renderSheetTabs();
+    if (this.activeSheet === sheetName) {
+      this.activeSheet = "";
+      this.switchSheet(nextSheet);
+    }
+    this._recalculateAllFormulas();
+    if (recordUndo) this._recordHistory({ type: "sheet-delete", sheet: sheetName, index, snapshot, nextSheet });
+    return true;
+  }
+
+  _sheetKeyedCollections() {
+    return [
+      "sheetsData", "sheetStates", "namedRangesBySheet", "commentsBySheet",
+      "printAreaBySheet", "pageBreaksBySheet", "pageSetupBySheet", "mergedRangesBySheet",
+      "conditionalFormattingBySheet", "dataValidationsBySheet", "chartsBySheet",
+      "imagesBySheet", "textBoxesBySheet", "pivotTablesBySheet", "outlineGroupsBySheet",
+      "rowHeightsBySheet", "colWidthsBySheet", "userHiddenRowsBySheet", "userHiddenColsBySheet",
+      "protectionBySheet", "dataTablesBySheet"
+    ];
+  }
+
+  _flushActiveSheetState() {
+    if (!this.activeSheet) return;
+    if (!this.sheetStates) this.sheetStates = {};
+    this.sheetStates[this.activeSheet] = {
+      ...(this.sheetStates[this.activeSheet] || {}),
+      hiddenRows: new Set(this.hiddenRows || []),
+      activeFilters: new Map(this.activeFilters || []),
+      isFilterActive: !!this.isFilterActive,
+      isFrozenPanes: !!this.isFrozenPanes,
+      frozenRows: this.frozenRows || 0,
+      frozenCols: this.frozenCols || 0,
+      selectedCoord: { ...(this.selectedCoord || { r: 1, c: "A" }) }
+    };
+  }
+
+  _renderSheetTabs() {
+    const tabsListEl = this.tabBar?.querySelector?.("#vno-sheet-tabs-list");
+    if (!tabsListEl || typeof document === "undefined" || typeof document.createElement !== "function") return;
+    tabsListEl.innerHTML = "";
+    this.sheets.forEach(sheetName => {
+      const visState = (this.sheetVisibilityBySheet?.[sheetName] || "").toLowerCase();
+      if (visState === "hidden" || visState === "veryhidden") return;
+      const isActive = sheetName === this.activeSheet;
+      const protectedSheet = this.isSheetProtected(sheetName);
+      const tab = document.createElement("div");
+      tab.className = `vno-sheet-tab-item${isActive ? " is-active" : ""}${protectedSheet ? " is-protected" : ""}`;
+      tab.dataset.sheet = sheetName;
+      tab.setAttribute("role", "tab");
+      tab.setAttribute("aria-selected", isActive ? "true" : "false");
+      tab.setAttribute("tabindex", isActive ? "0" : "-1");
+      tab.title = protectedSheet
+        ? t("sheetDialogs.sheetTabProtectedTitle", { name: sheetName })
+        : sheetName;
+      tab.setAttribute("aria-label", protectedSheet
+        ? t("sheetDialogs.sheetTabProtectedAria", { name: sheetName })
+        : sheetName);
+      // Tab color: Excel 2016 style
+      // Inactive tab: full background color + auto text color (white/black by brightness)
+      // Active tab: white background with 15% tint + 3px colored bottom border
+      // Tab without color: keep default style untouched
+      const tabColor = (this.sheetStates?.[sheetName]?.tabColor) || (this.tabColors?.[sheetName]);
+      if (tabColor) {
+        tab.classList.add("has-tab-color");
+        if (isActive) {
+          tab.style.background = `linear-gradient(to top, ${tabColor}26 0%, #ffffff 100%)`;
+          tab.style.backgroundColor = "#ffffff";
+          tab.style.borderBottom = `3px solid ${tabColor}`;
+        } else {
+          tab.style.background = tabColor;
+          tab.style.backgroundColor = tabColor;
+          tab.style.color = _getTabContrastTextColor(tabColor);
+          tab.style.borderBottom = "3px solid transparent";
+        }
+      }
+      const label = document.createElement("span");
+      label.className = "vno-sheet-tab-label";
+      label.textContent = sheetName;
+      tab.appendChild(label);
+      tab.addEventListener("click", () => {
+        const pointMode = this.formulaEntry && this._canInsertPointReference();
+        this.switchSheet(sheetName, pointMode ? { pointMode: true } : {});
+      });
+      tab.addEventListener("dblclick", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        this.switchSheet(sheetName);
+        this.showRenameSheetDialog(sheetName);
+      });
+      tab.addEventListener("contextmenu", event => {
+        event.preventDefault();
+        this.switchSheet(sheetName);
+        this._showSheetTabContextMenu(event, sheetName);
+      });
+      tabsListEl.appendChild(tab);
+    });
+  }
+
+  _showSheetTabContextMenu(event, sheetName) {
+    this._closeContextMenu();
+    if (typeof document === "undefined") return;
+    this._contextMenuPreviousFocus = document.activeElement;
+    const menu = document.createElement("div");
+    menu.className = "vno-sheet-context-menu";
+    menu.setAttribute("role", "menu");
+    menu.setAttribute("aria-label", "Tùy chọn trang tính");
+    const items = [
+      { label: t("sheetDialogs.renameSheetMenu", "Đổi tên trang tính..."), action: () => this.showRenameSheetDialog(sheetName) },
+      { label: t("sheetDialogs.moveCopyMenu", "Di chuyển hoặc Sao chép trang tính..."), action: () => this.showMoveCopySheetDialog(sheetName) },
+      { label: this.isSheetProtected(sheetName)
+        ? t("sheetDialogs.unprotectSheet", "Bỏ bảo vệ trang tính...")
+        : t("sheetDialogs.protectSheet", "Bảo vệ trang tính..."), action: () => this.showProtectSheetDialog(sheetName) }
+    ];
+    items.forEach(item => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "vno-sheet-context-item";
+      btn.setAttribute("role", "menuitem");
+      btn.setAttribute("tabindex", "-1");
+      btn.textContent = item.label;
+      btn.addEventListener("click", () => {
+        this._closeContextMenu();
+        item.action();
+      });
+      menu.appendChild(btn);
+    });
+    menu.style.position = "fixed";
+    const x = Math.min(event.clientX, (window.innerWidth || 1200) - 240);
+    const y = Math.min(event.clientY, (window.innerHeight || 800) - 150);
+    menu.style.left = `${Math.max(10, x)}px`;
+    menu.style.top = `${Math.max(10, y)}px`;
+    menu.style.zIndex = "80";
+    document.body.appendChild(menu);
+    this._activeContextMenu = menu;
+
+    const onDoc = ev => {
+      if (!menu.contains(ev.target)) {
+        this._closeContextMenu();
+      }
+    };
+    const keyHandler = evt => {
+      if (evt.key === "Escape") {
+        evt.preventDefault();
+        this._closeContextMenu();
+      } else if (evt.key === "ArrowDown" || evt.key === "ArrowUp") {
+        evt.preventDefault();
+        const actionItems = Array.from(menu.querySelectorAll(".vno-sheet-context-item"));
+        if (!actionItems.length) return;
+        const currentIdx = actionItems.indexOf(document.activeElement);
+        let nextIdx;
+        if (evt.key === "ArrowDown") {
+          nextIdx = currentIdx < actionItems.length - 1 ? currentIdx + 1 : 0;
+        } else {
+          nextIdx = currentIdx > 0 ? currentIdx - 1 : actionItems.length - 1;
+        }
+        actionItems[nextIdx]?.focus();
+      }
+    };
+    menu._vnoCleanup = () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", keyHandler);
+    };
+    setTimeout(() => {
+      document.addEventListener("mousedown", onDoc);
+      document.addEventListener("keydown", keyHandler);
+      menu.querySelector(".vno-sheet-context-item")?.focus();
+    }, 10);
+  }
+
+  validateSheetName(name, options = {}) {
+    const exclude = options.excludeName;
+    const trimmed = String(name ?? "").trim();
+    if (!trimmed) {
+      return { ok: false, error: t("sheetDialogs.sheetNameEmpty", "Tên trang tính không được để trống.") };
+    }
+    if (trimmed.length > MAX_SHEET_NAME_LENGTH) {
+      return { ok: false, error: t("sheetDialogs.sheetNameTooLong", { max: String(MAX_SHEET_NAME_LENGTH) }) };
+    }
+    if (INVALID_SHEET_NAME_CHARS.test(trimmed) || trimmed.includes("'")) {
+      return { ok: false, error: t("sheetDialogs.sheetNameInvalidChars", "Tên không được chứa các ký tự / \\ ? * [ ] : hoặc dấu nháy đơn.") };
+    }
+    const duplicate = this.sheets.some(existing =>
+      existing.localeCompare(trimmed, undefined, { sensitivity: "accent" }) === 0 && existing !== exclude
+    );
+    if (duplicate) {
+      return { ok: false, error: t("sheetDialogs.sheetNameDuplicate", "Đã có trang tính cùng tên trong workbook này.") };
+    }
+    return { ok: true, name: trimmed };
+  }
+
+  _quoteSheetName(name) {
+    return `'${String(name).replace(/'/g, "''")}'`;
+  }
+
+  _sheetNameNeedsQuotes(name) {
+    return !/^[A-Za-z_][A-Za-z0-9_.]*$/.test(String(name));
+  }
+
+  _rewriteSheetNameInText(text, oldName, newName) {
+    if (!text || typeof text !== "string" || oldName === newName) return text;
+    let out = "";
+    let i = 0;
+    const source = text;
+    while (i < source.length) {
+      if (source[i] === '"') {
+        out += source[i++];
+        while (i < source.length) {
+          out += source[i];
+          if (source[i] === '"') {
+            if (source[i + 1] === '"') {
+              out += source[++i];
+              i++;
+              continue;
+            }
+            i++;
+            break;
+          }
+          i++;
+        }
+        continue;
+      }
+      if (source[i] === "'") {
+        let j = i + 1;
+        let inner = "";
+        while (j < source.length) {
+          if (source[j] === "'" && source[j + 1] === "'") {
+            inner += "'";
+            j += 2;
+            continue;
+          }
+          if (source[j] === "'") {
+            j++;
+            break;
+          }
+          inner += source[j++];
+        }
+        const rewritten = inner.split(":").map(part => (part === oldName ? newName : part)).join(":");
+        out += `'${rewritten.replace(/'/g, "''")}'`;
+        i = j;
+        continue;
+      }
+      if (/[A-Za-z_]/.test(source[i])) {
+        let j = i;
+        while (j < source.length && /[A-Za-z0-9_.]/.test(source[j])) j++;
+        const ident = source.slice(i, j);
+        if (ident === oldName && (source[j] === "!" || source[j] === ":")) {
+          out += this._sheetNameNeedsQuotes(newName) ? this._quoteSheetName(newName) : newName;
+          i = j;
+          continue;
+        }
+        out += ident;
+        i = j;
+        continue;
+      }
+      out += source[i++];
+    }
+    return out;
+  }
+
+  _rewriteWorkbookSheetName(oldName, newName) {
+    if (oldName === newName) return;
+    for (const sheetName of this.sheets) {
+      const map = this.sheetsData?.[sheetName];
+      if (!map) continue;
+      for (const item of map.values()) {
+        if (item?.formula) item.formula = this._rewriteSheetNameInText(item.formula, oldName, newName);
+      }
+    }
+    const rewriteNamed = collection => {
+      (collection || []).forEach(item => {
+        if (item.sheet === oldName) item.sheet = newName;
+        if (item.ref) item.ref = this._rewriteSheetNameInText(item.ref, oldName, newName);
+      });
+    };
+    rewriteNamed(this.namedRangesWorkbook);
+    Object.values(this.namedRangesBySheet || {}).forEach(rewriteNamed);
+    Object.values(this.pivotTablesBySheet || {}).forEach(list => {
+      (list || []).forEach(pivot => {
+        if (pivot.sourceSheet === oldName) pivot.sourceSheet = newName;
+        if (pivot.targetSheet === oldName) pivot.targetSheet = newName;
+      });
+    });
+  }
+
+  _renameSheetKey(oldName, newName) {
+    if (oldName === newName) return;
+    for (const key of this._sheetKeyedCollections()) {
+      const bag = this[key];
+      if (!bag || typeof bag !== "object") continue;
+      if (Object.prototype.hasOwnProperty.call(bag, oldName)) {
+        bag[newName] = bag[oldName];
+        delete bag[oldName];
+      }
+    }
+  }
+
+  renameSheet(oldName, newName, recordUndo = true) {
+    if (this._guardWorkbookStructure()) return false;
+    const from = oldName || this.activeSheet;
+    if (!this.sheets.includes(from)) return false;
+    const validated = this.validateSheetName(newName, { excludeName: from });
+    if (!validated.ok) return false;
+    const to = validated.name;
+    if (to === from) return to;
+    this._flushActiveSheetState();
+    const index = this.sheets.indexOf(from);
+    this.sheets.splice(index, 1, to);
+    this._renameSheetKey(from, to);
+    this._rewriteWorkbookSheetName(from, to);
+    if (this.activeSheet === from) this.activeSheet = to;
+    this._renderSheetTabs();
+    this._recalculateAllFormulas();
+    if (recordUndo) this._recordHistory({ type: "sheet-rename", sheet: to, oldName: from, newName: to });
+    return to;
+  }
+
+  async showRenameSheetDialog(sheetName = this.activeSheet) {
+    if (this._guardWorkbookStructure()) return false;
+    const target = sheetName || this.activeSheet;
+    if (!this.sheets.includes(target)) return false;
+    if (typeof document === "undefined") return false;
+    const overlay = this._createSheetDialog(t("sheetDialogs.renameSheetTitle", "Đổi tên trang tính"), `
+      <label for="vno-rename-sheet">${t("sheetDialogs.renameSheetMessage", "Tên trang tính:")}
+        <input id="vno-rename-sheet" class="vno-dialog-input" maxlength="${MAX_SHEET_NAME_LENGTH}" value="${this._escapeHtml(target)}" autocomplete="off">
+      </label>
+      <p class="vno-dialog-hint">${t("sheetDialogs.renameSheetHint", "Tối đa 31 ký tự. Không trùng tên trang khác và không chứa / \\ ? * [ ] :")}</p>
+      <div class="vno-rule-error" role="alert"></div>`);
+    if (!overlay) return false;
+    overlay.querySelector(".vno-rule-apply").textContent = t("common.ok", "Đồng ý");
+    const input = overlay.querySelector("#vno-rename-sheet");
+    input?.focus();
+    input?.select?.();
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      const validated = this.validateSheetName(input.value, { excludeName: target });
+      if (!validated.ok) {
+        overlay.querySelector(".vno-rule-error").textContent = validated.error;
+        input.focus();
+        return;
+      }
+      this.renameSheet(target, validated.name);
+      overlay.closeDialog();
+    });
+    input?.addEventListener("keydown", event => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        overlay.querySelector(".vno-rule-apply").click();
+      }
+    });
+    return true;
+  }
+
+  _moveSheetToIndex(sheetName, index) {
+    const from = this.sheets.indexOf(sheetName);
+    if (from < 0) return false;
+    const bounded = Math.max(0, Math.min(this.sheets.length - 1, Number(index)));
+    if (from === bounded) return true;
+    this.sheets.splice(from, 1);
+    this.sheets.splice(bounded, 0, sheetName);
+    this._renderSheetTabs();
+    return true;
+  }
+
+  moveSheet(sheetName, beforeName, recordUndo = true) {
+    if (this._guardWorkbookStructure()) return false;
+    const name = sheetName || this.activeSheet;
+    const from = this.sheets.indexOf(name);
+    if (from < 0) return false;
+    const others = this.sheets.filter(item => item !== name);
+    let to;
+    if (beforeName == null || beforeName === SHEET_MOVE_TO_END) to = others.length;
+    else {
+      const beforeIndex = others.indexOf(beforeName);
+      to = beforeIndex < 0 ? others.length : beforeIndex;
+    }
+    if (from === to) return true;
+    this.sheets.splice(from, 1);
+    this.sheets.splice(to, 0, name);
+    this._renderSheetTabs();
+    if (recordUndo) this._recordHistory({ type: "sheet-move", sheet: name, name, fromIndex: from, toIndex: to });
+    return true;
+  }
+
+  _nextCopiedSheetName(sourceName) {
+    const match = String(sourceName).match(/^(.*) \((\d+)\)$/);
+    const base = match ? match[1] : sourceName;
+    let n = match ? Number(match[2]) + 1 : 2;
+    let candidate = `${base} (${n})`;
+    while (this.sheets.includes(candidate)) {
+      n += 1;
+      candidate = `${base} (${n})`;
+    }
+    if (candidate.length > MAX_SHEET_NAME_LENGTH) {
+      const trimmedBase = base.slice(0, Math.max(1, MAX_SHEET_NAME_LENGTH - ` (${n})`.length));
+      candidate = `${trimmedBase} (${n})`;
+      while (this.sheets.includes(candidate)) {
+        n += 1;
+        candidate = `${trimmedBase} (${n})`;
+      }
+    }
+    return candidate;
+  }
+
+  _cloneSheetCollections(sourceName, targetName) {
+    const cells = this.sheetsData[sourceName] || new Map();
+    this.sheetsData[targetName] = new Map([...cells.entries()].map(([key, value]) => [key, structuredClone(value)]));
+    const state = this.sheetStates[sourceName] || {};
+    this.sheetStates[targetName] = {
+      hiddenRows: new Set(state.hiddenRows || []),
+      activeFilters: new Map([...(state.activeFilters || [])].map(([key, values]) => [key, new Set(values)])),
+      isFilterActive: !!state.isFilterActive,
+      isFrozenPanes: !!state.isFrozenPanes,
+      frozenRows: state.frozenRows || 0,
+      frozenCols: state.frozenCols || 0,
+      selectedCoord: { ...(state.selectedCoord || { r: 1, c: "A" }) }
+    };
+    this.conditionalFormattingBySheet[targetName] = structuredClone(this.conditionalFormattingBySheet[sourceName] || []);
+    this.dataValidationsBySheet[targetName] = structuredClone(this.dataValidationsBySheet[sourceName] || []);
+    this.chartsBySheet[targetName] = structuredClone(this.chartsBySheet[sourceName] || []);
+    this.imagesBySheet[targetName] = structuredClone(this.imagesBySheet[sourceName] || []);
+    this.textBoxesBySheet[targetName] = structuredClone(this.textBoxesBySheet[sourceName] || []);
+    this.pivotTablesBySheet[targetName] = structuredClone(this.pivotTablesBySheet[sourceName] || []);
+    this.scenariosBySheet[targetName] = structuredClone(this.scenariosBySheet[sourceName] || []);
+    this.namedRangesBySheet[targetName] = structuredClone(this.namedRangesBySheet[sourceName] || []);
+    this.commentsBySheet[targetName] = structuredClone(this.commentsBySheet[sourceName] || {});
+    this.printAreaBySheet[targetName] = structuredClone(this.printAreaBySheet[sourceName] || null);
+    this.pageBreaksBySheet[targetName] = structuredClone(this.pageBreaksBySheet[sourceName] || { rows: [], cols: [] });
+    this.pageSetupBySheet[targetName] = newSheetPageSetup(this.pageSetupBySheet[sourceName] || {});
+    this.mergedRangesBySheet[targetName] = structuredClone(this.mergedRangesBySheet[sourceName] || []);
+    this.outlineGroupsBySheet[targetName] = structuredClone(this.outlineGroupsBySheet[sourceName] || []);
+    this.rowHeightsBySheet[targetName] = new Map(this.rowHeightsBySheet[sourceName] || []);
+    this.colWidthsBySheet[targetName] = new Map(this.colWidthsBySheet[sourceName] || []);
+    this.userHiddenRowsBySheet[targetName] = new Set(this.userHiddenRowsBySheet[sourceName] || []);
+    this.userHiddenColsBySheet[targetName] = new Set(this.userHiddenColsBySheet[sourceName] || []);
+    this.protectionBySheet[targetName] = structuredClone(this.protectionBySheet[sourceName] || { enabled: false, password: "" });
+  }
+
+  copySheet(sourceName, beforeName, recordUndo = true) {
+    if (this._guardWorkbookStructure()) return false;
+    const source = sourceName || this.activeSheet;
+    if (!this.sheets.includes(source)) return false;
+    this._flushActiveSheetState();
+    const newName = this._nextCopiedSheetName(source);
+    this._cloneSheetCollections(source, newName);
+    const others = [...this.sheets];
+    let insertAt;
+    if (beforeName == null || beforeName === SHEET_MOVE_TO_END) insertAt = others.length;
+    else {
+      const beforeIndex = others.indexOf(beforeName);
+      insertAt = beforeIndex < 0 ? others.length : beforeIndex;
+    }
+    this.sheets.splice(insertAt, 0, newName);
+    this._renderSheetTabs();
+    this.switchSheet(newName);
+    if (recordUndo) this._recordHistory({ type: "sheet-add", sheet: source, sheetName: newName, previousSheet: source, snapshot: this._snapshotSheet(newName) });
+    return newName;
+  }
+
+  async showMoveCopySheetDialog(sheetName = this.activeSheet) {
+    if (this._guardWorkbookStructure()) return false;
+    const target = sheetName || this.activeSheet;
+    if (!this.sheets.includes(target)) return false;
+    if (typeof document === "undefined") return false;
+    const options = this.sheets.map(name =>
+      `<option value="${this._escapeHtml(name)}"${name === target ? " selected" : ""}>${this._escapeHtml(name)}</option>`
+    ).join("");
+    const overlay = this._createSheetDialog(t("sheetDialogs.moveCopyTitle", "Di chuyển hoặc Sao chép"), `
+      <p style="margin:0 0 6px;font-size:13px;">${t("sheetDialogs.moveCopyIntro", { name: this._escapeHtml(target) })}</p>
+      <label for="vno-move-before">${t("sheetDialogs.moveCopyBefore", "Chèn trước trang tính:")}
+        <select id="vno-move-before" class="vno-dialog-input">${options}
+          <option value="${SHEET_MOVE_TO_END}">${t("sheetDialogs.moveCopyToEnd", "(chuyển đến cuối)")}</option>
+        </select>
+      </label>
+      <label class="vno-dialog-check" for="vno-move-copy">
+        <input type="checkbox" id="vno-move-copy">
+        ${t("sheetDialogs.moveCopyCreateCopy", "Tạo một bản sao")}
+      </label>
+      <div class="vno-rule-error" role="alert"></div>`);
+    if (!overlay) return false;
+    overlay.querySelector(".vno-rule-apply").textContent = t("common.ok", "Đồng ý");
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      const before = overlay.querySelector("#vno-move-before").value;
+      const createCopy = overlay.querySelector("#vno-move-copy").checked;
+      const beforeArg = before === SHEET_MOVE_TO_END ? SHEET_MOVE_TO_END : before;
+      if (createCopy) this.copySheet(target, beforeArg);
+      else this.moveSheet(target, beforeArg);
+      overlay.closeDialog();
+    });
+    return true;
+  }
+
+  isSheetProtected(sheetName = this.activeSheet) {
+    return !!this.protectionBySheet?.[sheetName || this.activeSheet]?.enabled;
+  }
+
+  getSheetProtection(sheetName = this.activeSheet) {
+    return this.protectionBySheet?.[sheetName || this.activeSheet] || { enabled: false, password: "" };
+  }
+
+  _notifySheetProtected() {
+    if (typeof document === "undefined" || !document.body) return;
+    showAlertDialog({
+      title: t("sheetDialogs.protectSheet", "Bảo vệ trang tính"),
+      message: t("sheetDialogs.sheetProtectedEdit", "Trang tính đang được bảo vệ. Không thể sửa nội dung ô, định dạng, hay xóa hàng/cột. Chọn Bỏ bảo vệ trang tính để mở khóa (chỉ là khóa giao diện, không phải bảo mật thật)."),
+      type: "warning"
+    });
+  }
+
+  _guardProtectedMutation() {
+    if (!this.isSheetProtected()) return false;
+    this._notifySheetProtected();
+    return true;
+  }
+
+  _applyProtectionUi({ renderTabs = false } = {}) {
+    const locked = this.isSheetProtected();
+    this.container?.classList?.toggle?.("vno-sheet-protected", locked);
+    if (this.formulaInput) {
+      this.formulaInput.readOnly = locked;
+      this.formulaInput.title = locked
+        ? t("sheetDialogs.sheetProtectedEdit", "Trang tính đang được bảo vệ.")
+        : "";
+    }
+    globalCommandBus?.updateState?.("sheet.sheet.protect", {
+      label: locked
+        ? t("sheetDialogs.unprotectSheet", "Bỏ bảo vệ trang tính...")
+        : t("sheetDialogs.protectSheet", "Bảo vệ trang tính..."),
+      tooltip: locked
+        ? t("sheetDialogs.unprotectSheetTooltip", "Tắt khóa giao diện của trang tính hiện tại")
+        : t("sheetDialogs.protectSheetTooltip", "Khóa sửa ô, định dạng và xóa hàng/cột trên trang tính hiện tại (khóa giao diện, không phải bảo mật thật)")
+    });
+    this._applyWorkbookProtectionUi();
+    if (renderTabs) this._renderSheetTabs();
+  }
+
+  protectSheet(options = {}, recordUndo = false) {
+    const sheetName = options.sheetName || this.activeSheet;
+    if (!this.sheets.includes(sheetName)) return false;
+    if (!this.protectionBySheet) this.protectionBySheet = {};
+    this.protectionBySheet[sheetName] = {
+      enabled: true,
+      password: String(options.password || "")
+    };
+    if (sheetName === this.activeSheet) this._applyProtectionUi({ renderTabs: true });
+    else this._renderSheetTabs();
+    this._syncCommandStates();
+    return true;
+  }
+
+  unprotectSheet(options = {}, recordUndo = false) {
+    const sheetName = options.sheetName || this.activeSheet;
+    const current = this.getSheetProtection(sheetName);
+    if (!current.enabled) return true;
+    const supplied = options.password == null ? "" : String(options.password);
+    if (current.password && supplied !== current.password) return false;
+    this.protectionBySheet[sheetName] = { enabled: false, password: "" };
+    if (sheetName === this.activeSheet) this._applyProtectionUi({ renderTabs: true });
+    else this._renderSheetTabs();
+    this._syncCommandStates();
+    return true;
+  }
+
+  async showProtectSheetDialog(sheetName = this.activeSheet) {
+    const target = sheetName || this.activeSheet;
+    if (!this.sheets.includes(target)) return false;
+    if (this.isSheetProtected(target)) {
+      const current = this.getSheetProtection(target);
+      if (!current.password) return this.unprotectSheet({ sheetName: target });
+      if (typeof document === "undefined") return false;
+      const overlay = this._createSheetDialog(t("sheetDialogs.unprotectSheet", "Bỏ bảo vệ trang tính"), `
+        <p style="margin:0 0 6px;font-size:13px;">${t("sheetDialogs.unprotectPasswordMessage", "Nhập mật khẩu để bỏ bảo vệ trang tính (khóa giao diện, không phải bảo mật thật).")}</p>
+        <label for="vno-unprotect-password">${t("sheetDialogs.protectPassword", "Mật khẩu")}
+          <input id="vno-unprotect-password" class="vno-dialog-input" type="password" autocomplete="off">
+        </label>
+        <div class="vno-rule-error" role="alert"></div>`);
+      if (!overlay) return false;
+      overlay.querySelector(".vno-rule-apply").textContent = t("common.ok", "Đồng ý");
+      overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+        const ok = this.unprotectSheet({ sheetName: target, password: overlay.querySelector("#vno-unprotect-password").value });
+        if (!ok) {
+          overlay.querySelector(".vno-rule-error").textContent = t("sheetDialogs.unprotectPasswordWrong", "Mật khẩu không đúng.");
+          return;
+        }
+        overlay.closeDialog();
+      });
+      return true;
+    }
+    if (typeof document === "undefined") return false;
+    const overlay = this._createSheetDialog(t("sheetDialogs.protectSheetTitle", "Bảo vệ trang tính"), `
+      <label class="vno-dialog-check" for="vno-protect-enable">
+        <input type="checkbox" id="vno-protect-enable" checked>
+        ${t("sheetDialogs.protectSheetCheckbox", "Bảo vệ trang tính và nội dung các ô bị khóa")}
+      </label>
+      <p class="vno-dialog-hint">${t("sheetDialogs.protectSheetHint", "Khi bật: không sửa nội dung ô, không đổi định dạng, không chèn/xóa hàng hoặc cột. Đây là khóa giao diện, mật khẩu lưu dạng chữ thường trong phiên làm việc — không phải bảo mật thật.")}</p>
+      <label for="vno-protect-password">${t("sheetDialogs.protectPassword", "Mật khẩu (tùy chọn)")}
+        <input id="vno-protect-password" class="vno-dialog-input" type="password" autocomplete="new-password">
+      </label>
+      <label for="vno-protect-password2">${t("sheetDialogs.protectPasswordConfirm", "Nhập lại mật khẩu")}
+        <input id="vno-protect-password2" class="vno-dialog-input" type="password" autocomplete="new-password">
+      </label>
+      <div class="vno-rule-error" role="alert"></div>`);
+    if (!overlay) return false;
+    overlay.querySelector(".vno-rule-apply").textContent = t("common.ok", "Đồng ý");
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      if (!overlay.querySelector("#vno-protect-enable").checked) {
+        overlay.closeDialog();
+        return;
+      }
+      const password = overlay.querySelector("#vno-protect-password").value;
+      const confirm = overlay.querySelector("#vno-protect-password2").value;
+      if (password !== confirm) {
+        overlay.querySelector(".vno-rule-error").textContent = t("sheetDialogs.protectPasswordMismatch", "Hai mật khẩu không khớp.");
+        return;
+      }
+      this.protectSheet({ sheetName: target, password });
+      overlay.closeDialog();
+    });
+    return true;
+  }
+
+  isWorkbookProtected() {
+    return !!this.workbookProtection?.enabled;
+  }
+
+  getWorkbookProtection() {
+    return this.workbookProtection || { enabled: false, password: "" };
+  }
+
+  _notifyWorkbookProtected() {
+    if (typeof document === "undefined" || !document.body) return;
+    const existing = document.querySelector?.(".vno-dialog-overlay");
+    if (existing && /Bảo vệ workbook|Protect Workbook/i.test(existing.textContent || "")) return;
+    showAlertDialog({
+      title: t("sheetDialogs.protectWorkbookTitle", "Bảo vệ workbook"),
+      message: t("sheetDialogs.workbookProtectedStructure", "Workbook đang được bảo vệ cấu trúc. Không thể thêm, xóa, đổi tên, di chuyển hoặc sao chép trang tính. Nội dung ô vẫn sửa được. Chọn Bỏ bảo vệ workbook để mở khóa (chỉ là khóa giao diện, không phải bảo mật thật)."),
+      type: "warning"
+    });
+  }
+
+  _guardWorkbookStructure() {
+    if (this._applyingHistory) return false;
+    if (!this.isWorkbookProtected()) return false;
+    this._notifyWorkbookProtected();
+    return true;
+  }
+
+  _applyWorkbookProtectionUi() {
+    const locked = this.isWorkbookProtected();
+    this.container?.classList?.toggle?.("vno-workbook-protected", locked);
+    const addBtn = this.tabBar?.querySelector?.(".vno-sheet-add-btn");
+    if (addBtn) {
+      addBtn.disabled = locked;
+      addBtn.setAttribute("aria-disabled", locked ? "true" : "false");
+      addBtn.title = locked
+        ? t("sheetDialogs.workbookProtectedStructure", "Workbook đang được bảo vệ cấu trúc. Không thể thêm trang tính.")
+        : t("sheetDialogs.addSheet", "Thêm trang tính mới");
+    }
+    globalCommandBus?.updateState?.("sheet.workbook.protect", {
+      label: locked
+        ? t("sheetDialogs.unprotectWorkbook", "Bỏ bảo vệ workbook...")
+        : t("sheetDialogs.protectWorkbook", "Bảo vệ workbook..."),
+      tooltip: locked
+        ? t("sheetDialogs.unprotectWorkbookTooltip", "Tắt khóa cấu trúc workbook (thêm/xóa/đổi tên/di chuyển/sao chép trang tính)")
+        : t("sheetDialogs.protectWorkbookTooltip", "Khóa cấu trúc workbook: không thêm, xóa, đổi tên, di chuyển hay sao chép trang tính. Không khóa nội dung ô.")
+    });
+  }
+
+  protectWorkbook(options = {}) {
+    if (!this.workbookProtection) this.workbookProtection = { enabled: false, password: "" };
+    this.workbookProtection = {
+      enabled: true,
+      password: String(options.password || "")
+    };
+    this._applyWorkbookProtectionUi();
+    this._syncCommandStates();
+    return true;
+  }
+
+  unprotectWorkbook(options = {}) {
+    const current = this.getWorkbookProtection();
+    if (!current.enabled) return true;
+    const supplied = options.password == null ? "" : String(options.password);
+    if (current.password && supplied !== current.password) return false;
+    this.workbookProtection = { enabled: false, password: "" };
+    this._applyWorkbookProtectionUi();
+    this._syncCommandStates();
+    return true;
+  }
+
+  async showProtectWorkbookDialog() {
+    if (this.isWorkbookProtected()) {
+      const current = this.getWorkbookProtection();
+      if (!current.password) return this.unprotectWorkbook();
+      if (typeof document === "undefined") return false;
+      const overlay = this._createSheetDialog(t("sheetDialogs.unprotectWorkbook", "Bỏ bảo vệ workbook"), `
+        <p style="margin:0 0 6px;font-size:13px;">${t("sheetDialogs.unprotectWorkbookPasswordMessage", "Nhập mật khẩu để bỏ bảo vệ cấu trúc workbook (khóa giao diện, không phải bảo mật thật).")}</p>
+        <label for="vno-unprotect-wb-password">${t("sheetDialogs.protectPassword", "Mật khẩu")}
+          <input id="vno-unprotect-wb-password" class="vno-dialog-input" type="password" autocomplete="off">
+        </label>
+        <div class="vno-rule-error" role="alert"></div>`);
+      if (!overlay) return false;
+      overlay.querySelector(".vno-rule-apply").textContent = t("common.ok", "Đồng ý");
+      overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+        const ok = this.unprotectWorkbook({ password: overlay.querySelector("#vno-unprotect-wb-password").value });
+        if (!ok) {
+          overlay.querySelector(".vno-rule-error").textContent = t("sheetDialogs.unprotectPasswordWrong", "Mật khẩu không đúng.");
+          return;
+        }
+        overlay.closeDialog();
+      });
+      return true;
+    }
+    if (typeof document === "undefined") return false;
+    const overlay = this._createSheetDialog(t("sheetDialogs.protectWorkbookTitle", "Bảo vệ workbook"), `
+      <label class="vno-dialog-check" for="vno-protect-wb-enable">
+        <input type="checkbox" id="vno-protect-wb-enable" checked>
+        ${t("sheetDialogs.protectWorkbookCheckbox", "Bảo vệ cấu trúc workbook (trang tính)")}
+      </label>
+      <p class="vno-dialog-hint">${t("sheetDialogs.protectWorkbookHint", "Khi bật: không thêm, xóa, đổi tên, di chuyển hay sao chép trang tính. Nội dung ô vẫn sửa được — khác Bảo vệ trang tính. Đây là khóa giao diện, mật khẩu lưu dạng chữ thường trong phiên làm việc — không phải bảo mật thật.")}</p>
+      <label for="vno-protect-wb-password">${t("sheetDialogs.protectPassword", "Mật khẩu (tùy chọn)")}
+        <input id="vno-protect-wb-password" class="vno-dialog-input" type="password" autocomplete="new-password">
+      </label>
+      <label for="vno-protect-wb-password2">${t("sheetDialogs.protectPasswordConfirm", "Nhập lại mật khẩu")}
+        <input id="vno-protect-wb-password2" class="vno-dialog-input" type="password" autocomplete="new-password">
+      </label>
+      <div class="vno-rule-error" role="alert"></div>`);
+    if (!overlay) return false;
+    overlay.querySelector(".vno-rule-apply").textContent = t("common.ok", "Đồng ý");
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      if (!overlay.querySelector("#vno-protect-wb-enable").checked) {
+        overlay.closeDialog();
+        return;
+      }
+      const password = overlay.querySelector("#vno-protect-wb-password").value;
+      const confirm = overlay.querySelector("#vno-protect-wb-password2").value;
+      if (password !== confirm) {
+        overlay.querySelector(".vno-rule-error").textContent = t("sheetDialogs.protectPasswordMismatch", "Hai mật khẩu không khớp.");
+        return;
+      }
+      this.protectWorkbook({ password });
+      overlay.closeDialog();
+    });
+    return true;
+  }
+
+  _buildRowTr(r) {
+    const tr = document.createElement("tr");
+    tr.dataset.row = r;
+    const rowHeight = this.getRowHeight(r);
+    tr.style.height = `${rowHeight}px`;
+
+    const thRow = document.createElement("th");
+    thRow.className = "vno-row-header";
+    thRow.dataset.row = r;
+    thRow.style.height = `${rowHeight}px`;
+    thRow.innerHTML = `
+      ${this._outlineToggleHtml("row", r)}
+      <span class="vno-row-title">${r}</span>
+      <div class="vno-row-resizer" data-row="${r}" title="Nhấp đúp để tự động vừa chiều cao hàng ${r}"></div>
+    `;
+    thRow.querySelector(".vno-outline-toggle")?.addEventListener("click", event => {
+      event.stopPropagation();
+      this.toggleOutlineGroup(event.currentTarget.dataset.groupId);
+    });
+    thRow.addEventListener("mousedown", event => {
+      if (event.button !== 0 || event.target.closest(".vno-row-resizer, .vno-outline-toggle")) return;
+      this._startRangeSelect(event, this.cols[0], r, "row");
+    });
+    thRow.addEventListener("click", (e) => {
+      if (e.target.closest(".vno-row-resizer")) return;
+      if (e.detail === 0) this._selectHeaderRange("row", r);
+    });
+    thRow.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      this._selectHeaderRange("row", r);
+      this.showContextMenu(e, "row", r);
+    });
+    thRow.querySelector(".vno-row-resizer")?.addEventListener("dblclick", (e) => {
+      e.stopPropagation();
+      this.autoFitRow(r);
+    });
+    tr.appendChild(thRow);
+
+    const normRange = this._normalizeRange(this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const isMulti = this._isMultiRangeSelection();
+
+    this.cols.forEach(c => {
+      const mergedRange = this.getMergedRangeForCell(c, r);
+      if (mergedRange && (mergedRange.start.c !== c || mergedRange.start.r !== r)) return;
+      const td = document.createElement("td");
+      td.hidden = this._isColumnHidden(c);
+      td.className = "vno-grid-cell";
+      const coordKey = `${c}${r}`;
+      td.dataset.coord = coordKey;
+      td.dataset.col = c;
+      td.dataset.row = r;
+      if (mergedRange) {
+        td.colSpan = this._columnNumber(mergedRange.end.c) - this._columnNumber(mergedRange.start.c) + 1;
+        td.rowSpan = mergedRange.end.r - mergedRange.start.r + 1;
+        td.dataset.mergedRange = this._rangeLabel(mergedRange);
+        td.classList.add("is-merged-cell");
+      }
+
+      const itm = this.cellsData.get(coordKey);
+      this._renderCellVisual(td, itm, c, r);
+      this._applyClipboardVisual(td, c, r);
+      this._applyRowColSizeToCell(td, c, r);
+      this._applyRuleVisuals(td, c, r);
+      this._applyAnnotationAndPageVisuals(td, c, r);
+
+      if (this.selectedCoord.c === c && this.selectedCoord.r === r) {
+        td.classList.add("is-selected");
+        this._attachMoveHandles(td);
+      }
+      if (this._isCoordInSelection(c, r) && isMulti) {
+        td.classList.add("is-range-selected");
+      }
+      if (normRange.end.c === c && normRange.end.r === r) {
+        this._attachAutofillHandle(td);
+      }
+
+      td.addEventListener("mousedown", (e) => {
+        if (e.button !== 0) return;
+        if (e.target.closest(".vno-cell-autofill-handle") || e.target.closest(".vno-cell-move-handle")) return;
+        if (this._startFormulaPointSelect(e, c, r)) return;
+        this._startRangeSelect(e, c, r);
+      });
+      td.addEventListener("click", event => {
+        if (event.detail !== 0 || event.defaultPrevented) return;
+        this.selectCell(c, r, event.shiftKey, event.ctrlKey);
+      });
+      td.addEventListener("dblclick", (e) => {
+        e.preventDefault();
+        if (this.formatPainter) return;
+        if (this._guardProtectedMutation()) return;
+        this._focusFormulaInputAtEnd();
+      });
+      td.addEventListener("contextmenu", event => {
+        event.preventDefault();
+        const inRange = this._isCoordInSelection(c, r);
+        if (!inRange) {
+          this.selectCell(c, r);
+        }
+        this.showContextMenu(event, "cell", coordKey);
+      });
+
+      tr.appendChild(td);
+    });
+
+    return tr;
+  }
+
+  _renderVirtualRows(startRow, endRow) {
+    const perfEnabled = typeof window !== "undefined" && window.__vnoPerfDebug === true;
+    const perfStart = perfEnabled ? performance.now() : 0;
+    if (!this.tbody || !this.topSpacer || !this.bottomSpacer) return;
+
+    startRow = Math.max(1, startRow);
+    endRow = Math.min(this.rowCount, endRow);
+    this.currentStartRow = startRow;
+    this.currentEndRow = endRow;
+
+    const frozenRows = Math.min(this.frozenRows || 0, this.rowCount);
+
+    // Cập nhật khoảng cách cuộn ảo - loại trừ các hàng cố định (freeze) khỏi
+    // vùng đệm phía trên, vì chúng luôn được dựng riêng bên dưới, không nằm
+    // trong cửa sổ ảo hóa theo cuộn.
+    const topHeight = frozenRows > 0 && startRow > frozenRows
+      ? this._rowTop(startRow) - this._rowBottom(frozenRows)
+      : this._rowTop(startRow);
+    const bottomHeight = Math.max(0, this._totalHeight() - this._rowTop(endRow + 1));
+    const topTd = this.topSpacer.querySelector("td");
+    if (topTd) topTd.style.height = `${topHeight}px`;
+    const bottomTd = this.bottomSpacer.querySelector("td");
+    if (bottomTd) bottomTd.style.height = `${bottomHeight}px`;
+
+    // Xóa các hàng cố định cũ nằm trước topSpacer (tránh tích tụ qua các lần render hoặc đổi sheet)
+    while (this.topSpacer.previousSibling) {
+      const prev = this.topSpacer.previousSibling;
+      this.tbody.removeChild(prev);
+      if (this.topSpacer.previousSibling === prev) break;
+    }
+
+    // Xóa các hàng cũ nằm giữa topSpacer và bottomSpacer
+    // (sẽ được dựng lại ngay dưới đây để phản ánh đúng dữ liệu/lựa chọn hiện tại).
+    while (this.topSpacer.nextSibling && this.topSpacer.nextSibling !== this.bottomSpacer) {
+      this.tbody.removeChild(this.topSpacer.nextSibling);
+    }
+
+    // Hàng cố định (Freeze Panes) LUÔN được dựng, bất kể vị trí cuộn hiện tại -
+    // khác hàng thường chỉ dựng trong cửa sổ ảo hóa [startRow, endRow]. Lỗi
+    // thật đã xác nhận: nếu không có bước này, hàng cố định biến mất khỏi DOM
+    // (và khỏi màn hình) ngay khi cuộn đủ xa để rơi ra ngoài cửa sổ ảo hóa
+    // (buffer ảo hóa mặc định chỉ 8 hàng - dễ xảy ra với sheet trên ~40 hàng).
+    const frozenFrag = document.createDocumentFragment();
+    for (let r = 1; r <= frozenRows; r++) {
+      if (this._isRowSkipped(r)) continue;
+      const tr = this._buildRowTr(r);
+      tr.classList.add("vno-frozen-row");
+      frozenFrag.appendChild(tr);
+    }
+    this.tbody.insertBefore(frozenFrag, this.topSpacer);
+
+    const frag = document.createDocumentFragment();
+    for (let r = startRow; r <= endRow; r++) {
+      if (r <= frozenRows) continue; // đã dựng riêng ở trên, tránh trùng lặp DOM
+      if (this._isRowSkipped(r)) continue;
+      frag.appendChild(this._buildRowTr(r));
+    }
+
+    this.tbody.insertBefore(frag, this.bottomSpacer);
+    this._applyFreezeVisuals();
+    this._updateFrozenImages();
+    this._updateImagePositions();
+    this.renderAuditArrows?.();
+    if (perfEnabled && this.__vnoPerfLoadAt && !this.__vnoPerfRenderLogged) {
+      this.__vnoPerfRenderLogged = true;
+      window.__vnoPerfReport?.("first grid render", performance.now() - this.__vnoPerfLoadAt);
+    }
+    const openStartedAt = typeof window !== "undefined" ? window.__vnoSheetOpenStartedAt : null;
+    if (perfEnabled && Number.isFinite(openStartedAt) && !window.__vnoSheetOpenFirstGridPending) {
+      window.__vnoSheetOpenFirstGridPending = true;
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        // Wait until the populated grid has passed a paint opportunity before
+        // reporting the user-visible open time.
+        if (window.__vnoSheetOpenStartedAt !== openStartedAt) return;
+        const openElapsed = performance.now() - openStartedAt;
+        window.__vnoSheetOpenElapsedMs = openElapsed;
+        window.__vnoSheetOpenFirstGridAt = performance.now();
+        window.__vnoSheetOpenStartedAt = null;
+        window.__vnoSheetOpenFirstGridPending = false;
+        window.__vnoPerfReport?.("selection-to-first-grid", openElapsed);
+      }));
+    }
+  }
+
+  /**
+   * Áp dụng vị trí sticky (top/left theo pixel tích lũy thật) cho hàng/cột đang
+   * cố định (Freeze Panes) - thay cho cách cũ hardcode luôn hàng 1/cột A qua
+   * CSS tĩnh. Chạy lại sau mỗi lần render để phản ánh đúng frozenRows/frozenCols
+   * hiện tại và chiều cao/rộng hàng/cột thật (có thể khác mặc định).
+   */
+  _applyFreezeVisuals() {
+    if (!this.tbody) return;
+    const frozenRows = Math.min(this.frozenRows || 0, this.rowCount);
+    const frozenCols = Math.min(this.frozenCols || 0, this.cols.length);
+
+    this.tbody.querySelectorAll(".is-frozen-row-cell, .is-frozen-col-cell").forEach(el => {
+      el.classList.remove("is-frozen-row-cell", "is-frozen-col-cell", "is-frozen-corner-cell", "is-frozen-row-last", "is-frozen-col-last");
+      el.style.position = "";
+      el.style.top = "";
+      el.style.left = "";
+      el.style.zIndex = "";
+    });
+    if (this.theadRow) {
+      this.theadRow.querySelectorAll(".is-frozen-col-header").forEach(el => {
+        el.classList.remove("is-frozen-col-header", "is-frozen-col-last");
+        el.style.position = "";
+        el.style.left = "";
+        el.style.zIndex = "";
+      });
+    }
+
+    if (frozenRows === 0 && frozenCols === 0) return;
+
+    // Offset dọc tích lũy cho từng hàng cố định, cộng thêm 24px chiều cao
+    // header cột (luôn sticky top:0 riêng, không nằm trong tbody ảo hóa).
+    const rowTops = new Map();
+    let rowTop = 24;
+    for (let r = 1; r <= frozenRows; r++) {
+      rowTops.set(r, rowTop);
+      rowTop += this.getRowHeight(r);
+    }
+
+    // Offset ngang tích lũy cho từng cột cố định, cộng thêm 44px chiều rộng
+    // header hàng.
+    const colLefts = new Map();
+    let colLeft = 44;
+    for (let i = 0; i < frozenCols; i++) {
+      const col = this.cols[i];
+      colLefts.set(col, colLeft);
+      colLeft += this.getColumnWidth(col);
+    }
+
+    const lastFrozenCol = frozenCols > 0 ? this.cols[frozenCols - 1] : null;
+
+    if (this.theadRow && colLefts.size) {
+      this.theadRow.querySelectorAll("th[data-col]").forEach(th => {
+        const left = colLefts.get(th.dataset.col);
+        if (left === undefined) return;
+        th.classList.add("is-frozen-col-header");
+        if (th.dataset.col === lastFrozenCol) th.classList.add("is-frozen-col-last");
+        th.style.position = "sticky";
+        th.style.left = `${left}px`;
+        th.style.zIndex = "21";
+      });
+    }
+
+    this.tbody.querySelectorAll("tr[data-row]").forEach(tr => {
+      const r = Number(tr.dataset.row);
+      const rowTopPx = rowTops.get(r);
+      const isFrozenRow = rowTopPx !== undefined;
+      const isLastFrozenRow = r === frozenRows;
+      if (isFrozenRow) {
+        const th = tr.querySelector("th.vno-row-header");
+        if (th) {
+          th.classList.add("is-frozen-row-cell");
+          if (isLastFrozenRow) th.classList.add("is-frozen-row-last");
+          th.style.position = "sticky";
+          th.style.top = `${rowTopPx}px`;
+          th.style.zIndex = "18";
+        }
+      }
+      tr.querySelectorAll("td[data-col]").forEach(td => {
+        const leftPx = colLefts.get(td.dataset.col);
+        const isFrozenCol = leftPx !== undefined;
+        if (!isFrozenRow && !isFrozenCol) return;
+        td.style.position = "sticky";
+        if (isFrozenRow) {
+          td.classList.add("is-frozen-row-cell");
+          if (isLastFrozenRow) td.classList.add("is-frozen-row-last");
+          td.style.top = `${rowTopPx}px`;
+        }
+        if (isFrozenCol) {
+          td.classList.add("is-frozen-col-cell");
+          if (td.dataset.col === lastFrozenCol) td.classList.add("is-frozen-col-last");
+          td.style.left = `${leftPx}px`;
+        }
+        if (isFrozenRow && isFrozenCol) { td.classList.add("is-frozen-corner-cell"); td.style.zIndex = "19"; }
+        else td.style.zIndex = "8";
+      });
+    });
+  }
+
+  _onViewportScroll() {
+    if (!this.viewport) return;
+    const scrollTop = this.viewport.scrollTop;
+    const viewportHeight = this.viewport.clientHeight || 500;
+    const buffer = 8;
+    const startRow = Math.max(1, this._firstVisibleRow(scrollTop) - buffer);
+    const endRow = Math.min(this.rowCount, this._lastVisibleRow(scrollTop, viewportHeight) + buffer);
+
+    if (Math.abs(startRow - this.currentStartRow) >= 3 || Math.abs(endRow - this.currentEndRow) >= 3) {
+      this._renderVirtualRows(startRow, endRow);
+    }
+    this._updateFormulaReferenceVisuals();
+    this._updateFrozenImages();
+  }
+
+  _updateFrozenImages() {
+    if (!this.viewport || !this.imageLayer) return;
+    const scrollTop = this.viewport.scrollTop;
+    const scrollLeft = this.viewport.scrollLeft;
+    const frozenRows = Math.min(this.frozenRows || 0, this.rowCount);
+    const frozenCols = Math.min(this.frozenCols || 0, this.cols.length);
+    if (frozenRows === 0 && frozenCols === 0) return;
+    const frozenImages = this.imageLayer.querySelectorAll('[data-frozen="true"]');
+    for (const panel of frozenImages) {
+      let tx = 0, ty = 0;
+      const isFrozenRow = panel.dataset.frozenRow === "true" || (!panel.dataset.frozenRow && !panel.dataset.frozenCol && frozenRows > 0);
+      const isFrozenCol = panel.dataset.frozenCol === "true" || (!panel.dataset.frozenRow && !panel.dataset.frozenCol && frozenCols > 0);
+      if (isFrozenRow && frozenRows > 0) ty = scrollTop;
+      if (isFrozenCol && frozenCols > 0) tx = scrollLeft;
+      if (tx === 0 && ty === 0) panel.style.transform = "";
+      else panel.style.transform = `translate(${tx}px, ${ty}px)`;
+    }
+  }
+
+  _updateImagePositions() {
+    if (!this.imageLayer || !this.tbody || typeof document === "undefined") return;
+    const images = this.imagesBySheet?.[this.activeSheet] || [];
+    for (const image of images) {
+      const panel = this.imageLayer.querySelector(`.vno-sheet-image[data-image-id="${image.id}"]`);
+      if (!panel) continue;
+      const anchor = this._resolveImageAnchor(image);
+      if (!anchor) continue;
+      const targetTr = this.tbody.querySelector(`tr[data-row="${anchor.r}"]`);
+      if (!targetTr || typeof targetTr.offsetTop !== "number") continue;
+      const offsetYPx = Number.isFinite(Number(image.offsetYCm))
+        ? Number(image.offsetYCm) * 37.79527559055118
+        : (Number.isFinite(Number(image.offsetY)) ? Number(image.offsetY) : 0);
+      const topVal = targetTr.offsetTop + offsetYPx;
+      panel.style.top = `${topVal}px`;
+      const targetTd = (targetTr && typeof targetTr.querySelector === "function")
+        ? targetTr.querySelector(`td[data-col="${anchor.c}"]`)
+        : null;
+      if (targetTd && typeof targetTd.offsetLeft === "number") {
+        const offsetXPx = Number.isFinite(Number(image.offsetXCm))
+          ? Number(image.offsetXCm) * 37.79527559055118
+          : (Number.isFinite(Number(image.offsetX)) ? Number(image.offsetX) : 0);
+        panel.style.left = `${targetTd.offsetLeft + offsetXPx}px`;
+      }
+    }
+  }
+
+_bindGridKeyboardNavigation() {
+      this.container.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && this._clipboardRange) {
+          e.preventDefault();
+          this.clearClipboardRange();
+          return;
+        }
+        if (e.isComposing || e.keyCode === 229) return;
+        if (e.key === "Escape" && this.formatPainter) {
+          e.preventDefault();
+          this.cancelFormatPainter();
+          return;
+        }
+        if (typeof document !== "undefined" && document?.activeElement === this.formulaInput) return;
+        if (this._tabSequenceAnchor && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(e.key)) {
+          this._tabSequenceAnchor = null;
+        }
+
+        if (this.formulaEntry && e.key === "F2") {
+          e.preventDefault();
+          this.formulaEntry.mode = this.formulaEntry.mode === "point" ? "edit" : "point";
+          this._updateFormulaEntryStatus();
+          this.formulaInput?.focus({ preventScroll: true });
+          return;
+        }
+        if (this.formulaEntry && e.key === "F4") {
+          e.preventDefault();
+          this._cycleFormulaReferenceAtCaret();
+          this.formulaInput?.focus({ preventScroll: true });
+          return;
+        }
+        if (this.formulaEntry && e.key === "Escape") {
+          e.preventDefault();
+          this._cancelFormulaEntry();
+          return;
+        }
+        if (this.formulaEntry && e.key === "Enter") {
+          e.preventDefault();
+          this._commitFormulaEntry({ move: true, shift: e.shiftKey });
+          return;
+        }
+        if (this.formulaEntry?.mode === "point" && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+          e.preventDefault();
+          this._movePointReferenceWithArrow(e.key);
+          return;
+        }
+
+        if (this.selectedImageId) {
+        if (e.key === "Delete" || e.key === "Backspace") {
+          e.preventDefault();
+          this.deleteImage(this.selectedImageId);
+          this.selectedImageId = null;
+          return;
+        }
+        if (e.key === "Escape") {
+          e.preventDefault();
+          this.selectedImageId = null;
+          this._updateImageSelection();
+          return;
+        }
+      }
+
+      const colIdx = this.cols.indexOf(this.selectedCoord.c);
+      let nextCol = this.selectedCoord.c;
+      let nextRow = this.selectedCoord.r;
+      let extendRange = false;
+
+      if (e.key === "ArrowUp") {
+        if (e.ctrlKey) {
+          const curVal = this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.val;
+          let r = this.selectedCoord.r - 1;
+          if (curVal !== undefined && curVal !== "") {
+            while (r > 1) {
+              const nextVal = this.cellsData.get(`${this.selectedCoord.c}${r}`)?.val;
+              if (nextVal === undefined || nextVal === "") { r++; break; }
+              r--;
+            }
+          } else {
+            while (r > 1) {
+              const nextVal = this.cellsData.get(`${this.selectedCoord.c}${r}`)?.val;
+              if (nextVal !== undefined && nextVal !== "") break;
+              r--;
+            }
+          }
+          nextRow = Math.max(1, r);
+        } else {
+          nextRow = Math.max(1, nextRow - 1);
+        }
+        extendRange = e.shiftKey;
+      } else if (e.key === "ArrowDown") {
+        if (e.ctrlKey) {
+          const curVal = this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.val;
+          let r = this.selectedCoord.r + 1;
+          if (curVal !== undefined && curVal !== "") {
+            while (r < this.rowCount) {
+              const nextVal = this.cellsData.get(`${this.selectedCoord.c}${r}`)?.val;
+              if (nextVal === undefined || nextVal === "") { r--; break; }
+              r++;
+            }
+          } else {
+            while (r < this.rowCount) {
+              const nextVal = this.cellsData.get(`${this.selectedCoord.c}${r}`)?.val;
+              if (nextVal !== undefined && nextVal !== "") break;
+              r++;
+            }
+          }
+          nextRow = Math.min(this.rowCount, r);
+        } else {
+          nextRow = Math.min(this.rowCount, nextRow + 1);
+        }
+        extendRange = e.shiftKey;
+      } else if (e.key === "ArrowLeft") {
+        if (e.ctrlKey) {
+          const curVal = this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.val;
+          let idx = colIdx - 1;
+          if (curVal !== undefined && curVal !== "") {
+            while (idx > 0) {
+              const nextVal = this.cellsData.get(`${this.cols[idx]}${this.selectedCoord.r}`)?.val;
+              if (nextVal === undefined || nextVal === "") { idx++; break; }
+              idx--;
+            }
+          } else {
+            while (idx > 0) {
+              const nextVal = this.cellsData.get(`${this.cols[idx]}${this.selectedCoord.r}`)?.val;
+              if (nextVal !== undefined && nextVal !== "") break;
+              idx--;
+            }
+          }
+          nextCol = this.cols[Math.max(0, idx)];
+        } else {
+          nextCol = this.cols[Math.max(0, colIdx - 1)];
+        }
+        extendRange = e.shiftKey;
+      } else if (e.key === "ArrowRight") {
+        if (e.ctrlKey) {
+          const curVal = this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.val;
+          let idx = colIdx + 1;
+          if (curVal !== undefined && curVal !== "") {
+            while (idx < this.cols.length - 1) {
+              const nextVal = this.cellsData.get(`${this.cols[idx]}${this.selectedCoord.r}`)?.val;
+              if (nextVal === undefined || nextVal === "") { idx--; break; }
+              idx++;
+            }
+          } else {
+            while (idx < this.cols.length - 1) {
+              const nextVal = this.cellsData.get(`${this.cols[idx]}${this.selectedCoord.r}`)?.val;
+              if (nextVal !== undefined && nextVal !== "") break;
+              idx++;
+            }
+          }
+          nextCol = this.cols[Math.min(this.cols.length - 1, idx)];
+        } else {
+          nextCol = this.cols[Math.min(this.cols.length - 1, colIdx + 1)];
+        }
+        extendRange = e.shiftKey;
+      } else if (e.key === "Home" && e.ctrlKey) {
+        nextCol = "A";
+        nextRow = 1;
+      } else if (e.key === "End" && e.ctrlKey) {
+        let maxC = 0;
+        let maxR = 1;
+        for (const [coord, data] of this.cellsData.entries()) {
+          if (data && (data.val || data.formula)) {
+            const [colLetter, rowNum] = this._splitCoord(coord);
+            const cIdx = this.cols.indexOf(colLetter);
+            if (cIdx > maxC) maxC = cIdx;
+            if (rowNum > maxR) maxR = rowNum;
+          }
+        }
+        nextCol = this.cols[maxC];
+        nextRow = maxR;
+      } else if (e.key === "PageUp" && e.ctrlKey) {
+        e.preventDefault();
+        this.previousSheet();
+        return;
+      } else if (e.key === "PageDown" && e.ctrlKey) {
+        e.preventDefault();
+        this.nextSheet();
+        return;
+      } else if (e.key === "PageUp" && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        // PageUp không Ctrl: di chuyển ô lên ~15 hàng (giống Excel thật),
+        // cuộn viewport tương ứng
+        e.preventDefault();
+        const pageRows = Math.max(1, Math.floor((this.viewport?.clientHeight || 390) / this.rowHeight) - 1);
+        nextRow = Math.max(1, nextRow - pageRows);
+        extendRange = e.shiftKey;
+        if (this.viewport) this.viewport.scrollTop = Math.max(0, (nextRow - 1) * this.rowHeight);
+        this.selectCell(nextCol, nextRow, extendRange);
+        return;
+      } else if (e.key === "PageDown" && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        // PageDown không Ctrl: di chuyển ô xuống ~15 hàng (giống Excel thật),
+        // cuộn viewport tương ứng
+        e.preventDefault();
+        const pageRows = Math.max(1, Math.floor((this.viewport?.clientHeight || 390) / this.rowHeight) - 1);
+        nextRow = Math.min(this.rowCount, nextRow + pageRows);
+        extendRange = e.shiftKey;
+        if (this.viewport) this.viewport.scrollTop = Math.max(0, (nextRow - 1) * this.rowHeight);
+        this.selectCell(nextCol, nextRow, extendRange);
+        return;
+      } else if ((e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey)) && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        // Shift+F10 hoặc ContextMenu key: mở context menu trên ô đang chọn
+        // (giống chuột phải) mà không cần chuột — chuẩn accessibility
+        e.preventDefault();
+        const cellSelector = `.vno-grid-cell[data-coord="${this.selectedCoord.c}${this.selectedCoord.r}"]`;
+        const cellEl = this.container.querySelector(cellSelector);
+        let clientX = 8;
+        let clientY = 80;
+        if (cellEl) {
+          const rect = cellEl.getBoundingClientRect();
+          clientX = rect.left + 4;
+          clientY = rect.bottom - 2;
+        }
+        this.showContextMenu(
+          { clientX, clientY, preventDefault: () => {} },
+          "cell",
+          `${this.selectedCoord.c}${this.selectedCoord.r}`
+        );
+        return;
+      } else if (e.key === " " && e.ctrlKey) {
+        e.preventDefault();
+        this.selectCurrentColumn();
+        return;
+      } else if (e.key === " " && e.shiftKey) {
+        e.preventDefault();
+        this.selectCurrentRow();
+        return;
+      } else if (e.key === "`" && e.ctrlKey) {
+        e.preventDefault();
+        this.toggleShowFormulas();
+        return;
+      } else if ((e.key === ";" || e.key === ":") && e.ctrlKey && e.shiftKey) {
+        e.preventDefault();
+        this.insertCurrentTime();
+        return;
+      } else if (e.key === "F11" && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        e.preventDefault();
+        this.addSheetBefore();
+        return;
+      } else if (e.key === "F11" && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        e.preventDefault();
+        globalCommandBus?.execute?.("sheet.chart.insert");
+        return;
+      } else if (e.ctrlKey && e.shiftKey && (e.key === "+" || e.key === "=")) {
+        e.preventDefault();
+        this.handleInsertShortcut();
+        return;
+      } else if (e.ctrlKey && !e.shiftKey && !e.altKey && (e.key === "-" || e.key === "_")) {
+        e.preventDefault();
+        this.handleDeleteShortcut();
+        return;
+      } else if (e.key === "F9") {
+        e.preventDefault();
+        this.recalculateAll();
+        return;
+      } else if (e.key === "F4") {
+        e.preventDefault();
+        this.redo();
+        return;
+      } else if (e.key === "Enter") {
+        const next = this._enterDestination(e.shiftKey);
+        nextCol = next.c;
+        nextRow = next.r;
+      } else if (e.key === "Tab") {
+        this._beginTabSequence();
+        nextCol = e.shiftKey ? this.cols[Math.max(0, colIdx - 1)] : this.cols[Math.min(this.cols.length - 1, colIdx + 1)];
+      } else if (e.key === "F2") {
+        e.preventDefault();
+        if (this._guardProtectedMutation()) return;
+        const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+        const cur = this.cellsData.get(key);
+        this._cellValueBeforeEdit = this._cellEditorValue(cur);
+        this._beginFormulaEntry("edit");
+        this._focusFormulaInputAtEnd();
+        return;
+      } else if (e.key === "=" && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        e.preventDefault();
+        if (this._guardProtectedMutation()) return;
+        const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+        const cur = this.cellsData.get(key);
+        this._cellValueBeforeEdit = this._cellEditorValue(cur);
+        this.formulaInput.value = "=";
+        this._beginFormulaEntry("enter", "=");
+        this._setFormulaEntryValue("=", 1, { source: "input" });
+        this._focusFormulaInputAtEnd();
+        return;
+      } else if ((e.key === "Delete" || e.key === "Backspace") && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        // Xóa nội dung ô hoặc vùng đang chọn ngay, đúng hành vi Excel thật
+        e.preventDefault();
+        if (this._guardProtectedMutation()) return;
+        if (this._isMultiRangeSelection()) {
+          const cells = [...new Set(this._getSelectionRanges().flatMap(range =>
+            this.formulaEngine.expandRange(this._rangeLabel(this._normalizeRange(range)))
+          ))];
+          cells.forEach(coord => {
+            const [c, r] = this._splitCoord(coord);
+            this.setCellValue(c, r, "");
+          });
+        } else {
+          this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, "");
+        }
+        if (this.formulaInput) this.formulaInput.value = "";
+        return;
+      } else if (e.ctrlKey && e.altKey && !e.metaKey && (e.key === "v" || e.key === "V")) {
+        e.preventDefault();
+        globalCommandBus?.execute?.("sheet.edit.pasteSpecial");
+        return;
+      } else if (e.ctrlKey && !e.altKey && !e.metaKey && e.key === "1") {
+        e.preventDefault();
+        this.showFormatCellsDialog();
+        return;
+      } else if (e.ctrlKey && !e.altKey && !e.metaKey && (e.key === "d" || e.key === "D")) {
+        e.preventDefault();
+        this.fillDown();
+        return;
+      } else if (e.ctrlKey && !e.altKey && !e.metaKey && (e.key === "r" || e.key === "R")) {
+        e.preventDefault();
+        this.fillRight();
+        return;
+      } else if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        // Gõ TRỰC TIẾP bất kỳ ký tự in được nào khi đang chọn ô (không bấm F2 trước) phải
+        // THAY THẾ nội dung ô đó và vào chế độ sửa — đúng hành vi cơ bản nhất của Excel.
+        e.preventDefault();
+        if (this._guardProtectedMutation()) return;
+        const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+        const cur = this.cellsData.get(key);
+        this._cellValueBeforeEdit = this._cellEditorValue(cur);
+        this.formulaInput.value = e.key;
+        this._beginFormulaEntry("enter", e.key);
+        this._setFormulaEntryValue(e.key, e.key.length, { source: "input" });
+        this._focusFormulaInputAtEnd();
+        return;
+      } else return;
+
+      e.preventDefault();
+      this.selectCell(nextCol, nextRow, extendRange);
+    });
+  }
+
+  focusFormulaInput() {
+    if (this.formulaInput) {
+      this.formulaInput.focus();
+      this.formulaInput.select();
+    }
+  }
+
+  /**
+   * Focus ô công thức với con trỏ đặt Ở CUỐI nội dung hiện có, KHÔNG bôi đen chọn hết
+   * (khác `focusFormulaInput()`). Dùng khi vừa gán 1 ký tự mở đầu (vd "=" để bắt đầu
+   * công thức, hoặc ký tự đầu tiên khi gõ trực tiếp thay thế nội dung ô) — nếu dùng
+   * `focusFormulaInput()` (bôi đen chọn hết) ở đây, ký tự tiếp theo gõ vào sẽ THAY THẾ
+   * (xóa mất) ký tự vừa đặt thay vì nối tiếp theo sau, dẫn đến gõ "=PMT(...)" chỉ còn
+   * lại "PMT(...)" (mất dấu "="). Lỗi thật, phát hiện 04/09/2026.
+   */
+  _focusFormulaInputAtEnd() {
+    if (!this.formulaInput) return;
+    this.formulaInput.focus();
+    const end = this.formulaInput.value.length;
+    if (typeof this.formulaInput.setSelectionRange === "function") {
+      this.formulaInput.setSelectionRange(end, end);
+    }
+  }
+
+  _populateInitialData() {
+    this.setCellValue("A", 1, "BẢNG DỰ TOÁN KINH PHÍ PHÁT TRIỂN 3T OFFICE 2026");
+    this.setStyle("fontWeight", "bold");
+    this.setStyle("fontSize", "14px");
+    this.setStyle("color", "#0f6d38");
+
+    const headers = [
+      { col: "A", val: "STT" },
+      { col: "B", val: "Hạng mục nhiệm vụ" },
+      { col: "C", val: "Khối lượng" },
+      { col: "D", val: "Đơn vị tính" },
+      { col: "E", val: "Đơn giá (VNĐ)" },
+      { col: "F", val: "Thành tiền (VNĐ)" }
+    ];
+
+    headers.forEach(h => {
+      this.setCellValue(h.col, 3, h.val);
+      this.selectedCoord = { c: h.col, r: 3 };
+      this.setStyle("fontWeight", "bold");
+      this.setStyle("backgroundColor", "#f1f5f9");
+    });
+
+    const rows = [
+      ["1", "Thiết kế giao diện thuần Việt & UI Kit", "1", "Gói", "25.000.000 ₫", "25.000.000 ₫"],
+      ["2", "Tích hợp lõi xử lý văn bản LibreOffice Core", "1", "Hệ thống", "45.000.000 ₫", "45.000.000 ₫"],
+      ["3", "Xây dựng cầu nối UNO Bridge & Command Bus", "1", "Module", "30.000.000 ₫", "30.000.000 ₫"],
+      ["4", "Bộ kiểm thử tương thích chuẩn OOXML", "2", "Đợt", "10.000.000 ₫", "20.000.000 ₫"]
+    ];
+
+    rows.forEach((rData, idx) => {
+      const r = 4 + idx;
+      this.setCellValue("A", r, rData[0]);
+      this.setCellValue("B", r, rData[1]);
+      this.setCellValue("C", r, rData[2]);
+      this.setCellValue("D", r, rData[3]);
+      this.setCellValue("E", r, rData[4]);
+      this.setCellValue("F", r, rData[5]);
+    });
+
+    this.setCellValue("B", 8, "TỔNG CỘNG:");
+    this.setCellValue("F", 8, "=SUM(F4:F7)");
+    this.selectedCoord = { c: "B", r: 8 };
+    this.setStyle("fontWeight", "bold");
+    this.selectedCoord = { c: "F", r: 8 };
+    this.setStyle("fontWeight", "bold");
+    this.setStyle("color", "#0f6d38");
+  }
+
+  selectCell(col, row, extendRange = false, addRange = false) {
+    if (row < 1 || row > this.rowCount) return;
+    if (this.formulaInput && typeof document !== "undefined" && document.activeElement === this.formulaInput) {
+      this._commitEditBeforeRangeSelection();
+    }
+    if (this.selectedImageId) {
+      this.selectedImageId = null;
+      this._updateImageSelection();
+    }
+    if (this.autocomplete) {
+      this.autocomplete.closeAll();
+    }
+
+    const mergedRange = this.getMergedRangeForCell(col, row);
+    let anchor;
+    let active;
+    let range;
+    if (mergedRange && !extendRange) {
+      range = structuredClone(mergedRange);
+      anchor = { ...mergedRange.start };
+      active = { ...mergedRange.start };
+    } else {
+      active = { c: col, r: row };
+      anchor = extendRange && this.selectionRange
+        ? { ...(this._rangeAnchor || this.selectionRange.start) }
+        : { ...active };
+      range = createSheetSelectionRange(anchor, active);
+    }
+
+    const previousAreas = this._getSelectionRanges();
+    this._applySelectionRange(range, active, {
+      anchor,
+      additive: addRange,
+      kind: "cell",
+      baseAreas: addRange ? previousAreas.map(area => structuredClone(area)) : null,
+      scrollActive: true
+    });
+  }
+
+  navigateHome() {
+    this.selectCell("A", 1);
+    if (this.viewport) this.viewport.scrollLeft = 0;
+    return true;
+  }
+
+  navigateToDataEnd() {
+    let maxRow = 1;
+    let maxCol = 1;
+    for (const [coord, cell] of this.cellsData.entries()) {
+      if (!cell || (cell.val === "" && cell.formula === "")) continue;
+      const match = /^([A-Z]+)(\d+)$/i.exec(coord);
+      if (!match) continue;
+      maxRow = Math.max(maxRow, Number(match[2]));
+      maxCol = Math.max(maxCol, this._columnNumber(match[1].toUpperCase()));
+    }
+    const col = this._columnLabel(maxCol);
+    this.selectCell(col, maxRow);
+    const target = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${col}${maxRow}"]`);
+    target?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+    return true;
+  }
+
+  setCellValue(col, row, val, recordUndo = true, historyOptions = {}) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    const key = `${col}${row}`;
+    let item = this.cellsData.get(key) || { val: "", formula: "", style: {} };
+
+    if (recordUndo && val === "" && item.isArrayFormula && item.arrayRange) {
+      return this._clearArrayFormula(item.arrayRange);
+    }
+
+    if (recordUndo) {
+      this._recordHistory({
+        type: "cell",
+        sheet: this.activeSheet,
+        col,
+        row,
+        prevVal: item.formula || item.val || "",
+        nextVal: val,
+        prevValRichText: item.richText || null,
+        nextValRichText: null,
+        timestamp: Date.now()
+      }, historyOptions);
+    }
+
+    const escapedText = typeof val === "string" && val.startsWith("'");
+    if (escapedText) val = val.slice(1);
+    if (!escapedText && typeof val === "string" && val.startsWith("=")) {
+      item.formula = val;
+      // Store the raw computed value (number, string, or #ERROR!). Do NOT
+      // pre-format as VNĐ currency text here: that both destroys precision
+      // for non-money formulas (percentages, ratios, statistics...) and
+      // corrupts any later formula that references this cell, because
+      // getCellValue()'s Vietnamese-currency-string parser strips "." as a
+      // thousands separator - which mangles a formatted decimal string back
+      // into the wrong number. Display formatting belongs solely to
+      // NumberFormatter at render time, driven by the cell's actual
+      // numberFormat (General by default, Currency only if the user set it).
+      item.val = this.formulaEngine.evaluate(val);
+    } else {
+      item.formula = "";
+      item.val = NumberFormatter.normalizeInputForFormat(val, item.style?.numberFormat);
+    }
+    // When user edits a cell, clear rich text formatting (Excel behavior)
+    delete item.richText;
+
+    this.cellsData.set(key, item);
+    this.formulaEngine?.bumpSheetVersion?.(this.activeSheet);
+
+    const cell = this.container.querySelector(`.vno-grid-cell[data-coord="${key}"]`);
+    if (cell) {
+      this._renderCellVisual(cell, item, col, row);
+      this._applyRuleVisuals(cell, col, row);
+    }
+    const prevColNum = typeof this._columnNumber === "function" ? this._columnNumber(col) - 1 : 0;
+    if (prevColNum >= 1) {
+      const prevCol = this._columnLabel(prevColNum);
+      const prevCell = this.container.querySelector(`.vno-grid-cell[data-coord="${prevCol}${row}"]`);
+      if (prevCell) {
+        this._renderCellVisual(prevCell, this.cellsData.get(`${prevCol}${row}`), prevCol, row);
+      }
+    }
+
+    // Tự động tính toán lại các ô có công thức khác (trừ khi ở chế độ Manual)
+    if (this.calculationMode !== "manual") {
+      this._recalculateAllFormulas(key);
+    }
+    this.refreshCharts();
+    this._updateWatchWindow?.();
+    return true;
+  }
+
+  _recalculateAllFormulas(excludeKey, force = false) {
+    if (this.calculationMode === "manual" && !force) return;
+    this.formulaEngine?.clearCache?.();
+    const activeSheet = this.activeSheet;
+    const changedFormulaCells = new Set();
+    for (const sheetName of this.sheets) {
+      const map = this.sheetsData[sheetName];
+      if (!map) continue;
+      this.activeSheet = sheetName;
+      if (this.formulaEngine) {
+        if (typeof this.formulaEngine.setCellsData === "function") this.formulaEngine.setCellsData(map);
+        else this.formulaEngine.cellsData = map;
+      }
+      for (const [k, itm] of map.entries()) {
+        if ((sheetName !== activeSheet || k !== excludeKey) && itm.formula) {
+          // A link to another (closed) workbook keeps its cached value, as in
+          // Excel; evaluating it here would overwrite the value with an error.
+          if (itm.externalLink && itm.externalLink.formula === itm.formula) continue;
+          let res;
+          if (itm.isArrayFormula && itm.arrayRange) {
+            const results = this.formulaEngine.evaluateArray(itm.formula);
+            const coords = this.formulaEngine.expandRange(itm.arrayRange);
+            res = Array.isArray(results) ? results[coords.indexOf(k)] : results;
+          } else res = this.formulaEngine.evaluate(itm.formula);
+          // Store the raw computed value - see setCellValue() for why
+          // auto-formatting a formula result as VNĐ currency text here is
+          // wrong (destroys precision and corrupts any formula chain that
+          // references this cell). Display formatting is NumberFormatter's
+          // job at render time, driven by the cell's actual numberFormat.
+          if (res !== itm.val) {
+            itm.val = res;
+            if (sheetName === activeSheet) changedFormulaCells.add(k);
+            this.formulaEngine?.bumpSheetVersion?.(sheetName);
+          } else {
+            itm.val = res;
+          }
+          if (sheetName === activeSheet && this.container) {
+            const [, rCoord] = this._splitCoord(k);
+            const rNum = Number(rCoord);
+            const startR = this.currentStartRow || 1;
+            const endR = this.currentEndRow || 40;
+            if (rNum >= startR && rNum <= endR) {
+              const dom = this.container.querySelector(`.vno-grid-cell[data-coord="${k}"]`);
+              if (dom) {
+                const [cCoord] = this._splitCoord(k);
+                this._renderCellVisual(dom, itm, cCoord, rCoord);
+                this._applyRuleVisuals(dom, cCoord, rCoord);
+              }
+            }
+          }
+        }
+      }
+    }
+    this.activeSheet = activeSheet;
+    if (this.formulaEngine) {
+      const activeMap = this.sheetsData[activeSheet];
+      if (typeof this.formulaEngine.setCellsData === "function") this.formulaEngine.setCellsData(activeMap);
+      else this.formulaEngine.cellsData = activeMap;
+    }
+    this._refreshVisibleRuleVisuals();
+    this._updateWatchWindow?.();
+    this._refreshDataTables(changedFormulaCells, excludeKey);
+  }
+
+  /**
+   * Excel TABLE() behaviour: khi ô công thức gốc hoặc ô đầu vào của một Bảng
+   * dữ liệu thay đổi, tính lại toàn bộ phần thân bảng. Chỉ chạy ngoài chế độ
+   * thử nghiệm (trial) để tránh đệ quy vô hạn.
+   */
+  _refreshDataTables(changedFormulaCells, editedKey) {
+    if (this._dataTableEvaluating || this._applyingHistory) return;
+    const tables = this.dataTablesBySheet[this.activeSheet];
+    if (!tables?.length) return;
+    for (const table of tables) {
+      const inputs = [table.rowInputCell, table.columnInputCell].filter(Boolean);
+      const affected = changedFormulaCells.has(table.formulaCell) ||
+        (editedKey && (editedKey === table.formulaCell || inputs.includes(editedKey)));
+      if (!affected) continue;
+      this._recomputeDataTable(table);
+    }
+  }
+
+  _recomputeDataTable(table) {
+    const before = this._snapshotCells(table.sheet);
+    const previousGuard = this._dataTableEvaluating;
+    this._dataTableEvaluating = true;
+    let output;
+    try {
+      output = this._evaluateDataTable(table);
+      this._writeDataTableResults(table, output);
+    } finally {
+      this._dataTableEvaluating = previousGuard;
+    }
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    if (this._applyingHistory) return;
+    const after = this._snapshotCells(table.sheet);
+    const changed = before.length !== after.length || before.some(([coord, item], index) => {
+      const other = after[index]?.[1];
+      return !other || item.val !== other.val || item.formula !== other.formula;
+    });
+    if (changed) this._recordHistory({ type: "what-if-cells", sheet: table.sheet, before, after });
+  }
+
+  enterArrayFormula(options = {}) {
+    options = options || {};
+    const formula = String(options.formula ?? this.formulaInput?.value ?? "").trim();
+    if (!formula.startsWith("=")) return false;
+    const range = this._normalizeRange();
+    const coords = [];
+    for (let row = range.start.r; row <= range.end.r; row++) {
+      for (let col = this.cols.indexOf(range.start.c); col <= this.cols.indexOf(range.end.c); col++) coords.push(`${this.cols[col]}${row}`);
+    }
+    const result = this.formulaEngine.evaluateArray(formula);
+    const values = Array.isArray(result) ? result : [result];
+    if (values.length !== coords.length) return false;
+    const pending = this.undoStack[this.undoStack.length - 1];
+    const activeKey = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const consumesPending = pending?.type === "cell" && pending.sheet === this.activeSheet && `${pending.col}${pending.row}` === activeKey;
+    const before = coords.map(coord => {
+      const item = structuredClone(this.cellsData.get(coord) || null);
+      if (consumesPending && coord === activeKey) return pending.prevVal ? { val: pending.prevVal, formula: pending.prevVal.startsWith?.("=") ? pending.prevVal : "", style: item?.style || {} } : null;
+      return item;
+    });
+    if (consumesPending) this.undoStack.pop();
+    const arrayRange = this.getSelectedRangeLabel();
+    coords.forEach((coord, index) => {
+      const [col, row] = this._splitCoord(coord);
+      const old = this.cellsData.get(coord) || { style: {} };
+      this.cellsData.set(coord, { ...old, val: values[index], formula, isArrayFormula: true, arrayRange });
+      const dom = this.container.querySelector?.(`.vno-grid-cell[data-coord="${coord}"]`);
+      if (dom) dom.textContent = values[index];
+    });
+    const after = coords.map(coord => structuredClone(this.cellsData.get(coord)));
+    this._recordHistory({ type: "array-formula", sheet: this.activeSheet, coords, before, after });
+    this.refreshCharts();
+    return true;
+  }
+
+  _clearArrayFormula(arrayRange) {
+    const coords = this.formulaEngine.expandRange(arrayRange);
+    const before = coords.map(coord => structuredClone(this.cellsData.get(coord) || null));
+    coords.forEach(coord => {
+      this.cellsData.delete(coord);
+      const dom = this.container.querySelector?.(`.vno-grid-cell[data-coord="${coord}"]`);
+      if (dom) dom.textContent = "";
+    });
+    this._recordHistory({ type: "array-formula", sheet: this.activeSheet, coords, before, after: coords.map(() => null) });
+    this.refreshCharts();
+    return true;
+  }
+
+  insertFormula(funcName = "SUM") {
+    const col = this.selectedCoord.c;
+    const r = this.selectedCoord.r;
+    const startR = Math.max(1, r - 4);
+    const endR = Math.max(1, r - 1);
+    const formulaStr = `=${funcName}(${col}${startR}:${col}${endR})`;
+    this.setCellValue(col, r, formulaStr);
+    if (this.formulaInput) this.formulaInput.value = formulaStr;
+    return true;
+  }
+
+  showFunctionDialog(categoryFilter = null) {
+    if (typeof document === "undefined") return false;
+    const modal = document.createElement("div");
+    modal.className = "vno-dialog-overlay vno-func-dialog";
+
+    let selectedCat = categoryFilter || t("sheetDialogs.allCategory");
+    let searchQuery = "";
+    let selectedFunc = FUNCTION_CATALOG[0];
+
+    const getFilteredFunctions = () => {
+      return FUNCTION_CATALOG.filter(f => {
+        const matchCat = (selectedCat === t("sheetDialogs.allCategory") || selectedCat === "Tất cả")
+          ? true
+          : (f.category.toLowerCase().includes(selectedCat.toLowerCase()) || selectedCat.toLowerCase().includes(f.category.toLowerCase()));
+        if (!matchCat) return false;
+        if (!searchQuery) return true;
+        const q = searchQuery.toLowerCase();
+        return f.name.toLowerCase().includes(q) || f.desc.toLowerCase().includes(q) || f.category.toLowerCase().includes(q);
+      });
+    };
+
+    const renderFuncList = () => {
+      const listEl = modal.querySelector("#vno-func-list");
+      if (!listEl) return;
+      listEl.innerHTML = "";
+
+      const filtered = getFilteredFunctions();
+      if (filtered.length === 0) {
+        listEl.innerHTML = `<div style="padding:12px;color:#94a3b8;font-size:12px;text-align:center;">Không tìm thấy hàm phù hợp.</div>`;
+        return;
+      }
+
+      if (!filtered.some(f => f.name === selectedFunc?.name)) {
+        selectedFunc = filtered[0];
+      }
+
+      filtered.forEach(f => {
+        const isSel = f.name === selectedFunc?.name;
+        const item = document.createElement("div");
+        item.className = `vno-func-item ${isSel ? "is-selected" : ""}`;
+        item.dataset.funcName = f.name;
+        item.style.cssText = `padding:5px 8px; cursor:pointer; font-size:12px; font-weight:600; font-family:var(--vno-font-ui, sans-serif); border-radius:3px; display:flex; justify-content:space-between; align-items:center; background:${isSel ? "#e7f4ec" : "transparent"}; color:${isSel ? "#0f6d38" : "#0f172a"}; transition:background-color 0.1s;`;
+        item.innerHTML = `<span>${f.name}</span><span style="font-size:10px;color:${isSel ? "#0f6d38" : "#94a3b8"};font-weight:400;">${f.category}</span>`;
+
+        item.addEventListener("click", () => {
+          selectedFunc = f;
+          renderFuncList();
+          renderDesc();
+        });
+        item.addEventListener("dblclick", () => {
+          selectedFunc = f;
+          insertChosenFunction();
+        });
+        listEl.appendChild(item);
+      });
+    };
+
+    const renderDesc = () => {
+      const syntaxEl = modal.querySelector("#vno-func-syntax");
+      const descEl = modal.querySelector("#vno-func-desc");
+      const catEl = modal.querySelector("#vno-func-cat-badge");
+      if (syntaxEl && selectedFunc) syntaxEl.textContent = `=${selectedFunc.syntax}`;
+      if (descEl && selectedFunc) descEl.textContent = selectedFunc.desc;
+      if (catEl && selectedFunc) catEl.textContent = `Nhóm: ${selectedFunc.category}`;
+    };
+
+    const insertChosenFunction = () => {
+      close();
+      if (!selectedFunc) return;
+      let formulaText;
+      if (this.formulaInput && document.activeElement === this.formulaInput) {
+        const start = this.formulaInput.selectionStart || 0;
+        const end = this.formulaInput.selectionEnd || 0;
+        const cur = this.formulaInput.value;
+        const insertStr = cur.startsWith("=") ? `${selectedFunc.name}()` : `=${selectedFunc.name}()`;
+        formulaText = cur.slice(0, start) + insertStr + cur.slice(end);
+      } else {
+        formulaText = `=${selectedFunc.syntax.replace(/\s*\[.*?\]/g, "")}`;
+      }
+      this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, formulaText);
+      if (this.formulaInput) this.formulaInput.value = formulaText;
+      this.focusFormulaInput();
+    };
+
+    modal.innerHTML = `
+      <div class="vno-dialog-box" style="width:620px;">
+        <div class="vno-dialog-header">
+          <span>${t("sheetDialogs.functionTitle") || "Chèn Hàm (Insert Function fx)"}</span>
+          <button class="vno-dialog-close-btn" id="vno-fx-close" aria-label="${t("sheetDialogs.close") || "Đóng"}">&times;</button>
+        </div>
+        <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:12px;">
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <label style="font-size:12px;font-weight:600;color:#334155;">${t("sheetDialogs.searchFunction") || "Tìm kiếm hàm:"}</label>
+            <input id="vno-func-search" class="vno-input" autocomplete="off" placeholder="${t("sheetDialogs.searchPlaceholder") || "Gõ tên hàm hoặc mô tả để tìm kiếm..."}" style="padding:6px 10px;font-size:12px;border:1px solid #cbd5e1;border-radius:4px;outline:none;">
+          </div>
+
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="font-size:12px;font-weight:600;color:#334155;">${t("sheetDialogs.functionCategory") || "Danh mục hàm:"}</span>
+            <select class="vno-select" id="vno-func-cat-select" style="flex:1;">
+              <option value="${t("sheetDialogs.allCategory")}">${t("sheetDialogs.allFunctions") || "Tất cả các hàm"}</option>
+              <option value="Tài chính">${t("sheetDialogs.financialFunctions") || "Tài chính (PMT, FV, PV...)"}</option>
+              <option value="Logic">${t("sheetDialogs.logicFunctions") || "Logic (IF, AND, OR...)"}</option>
+              <option value="Văn bản">${t("sheetDialogs.textFunctions") || "Văn bản (CONCAT, LEN...)"}</option>
+              <option value="Ngày tháng">${t("sheetDialogs.dateFunctions") || "Ngày & Giờ (TODAY, NOW...)"}</option>
+              <option value="Tra cứu">${t("sheetDialogs.lookupFunctions") || "Tra cứu & Tham chiếu (VLOOKUP, INDEX...)"}</option>
+              <option value="Toán học">${t("sheetDialogs.mathFunctions") || "Toán học & Lượng giác"}</option>
+              <option value="Thống kê">${t("sheetDialogs.statsFunctions") || "Thống kê (AVERAGE, COUNT...)"}</option>
+            </select>
+          </div>
+
+          <div style="display:flex;gap:12px;height:220px;">
+            <div id="vno-func-list" style="width:230px;border:1px solid #cbd5e1;border-radius:4px;overflow-y:auto;padding:4px;background:#ffffff;"></div>
+            <div style="flex:1;background:#f8fafc;border:1px solid #cbd5e1;border-radius:4px;padding:12px;display:flex;flex-direction:column;gap:8px;overflow-y:auto;">
+              <div id="vno-func-cat-badge" style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;"></div>
+              <strong id="vno-func-syntax" style="font-family:Consolas, monospace;color:#0f6d38;font-size:13px;word-break:break-all;"></strong>
+              <p id="vno-func-desc" style="font-size:12px;color:#334155;line-height:1.5;margin:0;"></p>
+            </div>
+          </div>
+        </div>
+        <div class="vno-dialog-footer">
+          <button class="vno-btn" id="vno-fx-cancel-btn">${t("sheetDialogs.cancelLong") || "Hủy bỏ"}</button>
+          <button class="vno-btn vno-btn-primary" id="vno-fx-insert-btn">${t("sheetDialogs.insertFunction") || "Chèn hàm vào ô"}</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    if (categoryFilter) {
+      const select = modal.querySelector("#vno-func-cat-select");
+      if (select) {
+        for (const opt of select.options) {
+          if (opt.value.toLowerCase() === categoryFilter.toLowerCase() || categoryFilter.toLowerCase().includes(opt.value.toLowerCase())) {
+            select.value = opt.value;
+            selectedCat = opt.value;
+            break;
+          }
+        }
+      }
+    }
+
+    renderFuncList();
+    renderDesc();
+
+    const searchInput = modal.querySelector("#vno-func-search");
+    searchInput?.focus();
+    searchInput?.addEventListener("input", (e) => {
+      searchQuery = e.target.value.trim();
+      renderFuncList();
+      renderDesc();
+    });
+
+    const close = () => { if (modal.parentNode) modal.parentNode.removeChild(modal); };
+    modal.querySelector("#vno-fx-close").addEventListener("click", close);
+    modal.querySelector("#vno-fx-cancel-btn").addEventListener("click", close);
+
+    modal.querySelector("#vno-func-cat-select").addEventListener("change", (e) => {
+      selectedCat = e.target.value;
+      renderFuncList();
+      renderDesc();
+    });
+
+    modal.querySelector("#vno-fx-insert-btn").addEventListener("click", insertChosenFunction);
+    return true;
+  }
+
+  showDefineNameDialog() {
+    if (typeof document === "undefined") return false;
+    const currentRef = this.getSelectedRangeLabel();
+    const overlay = this._createSheetDialog(
+      t("sheetDialogs.defineNameTitle", "Đặt tên vùng (Define Name)"),
+      `<div class="vno-define-name-form" style="display:flex;flex-direction:column;gap:12px;min-width:360px;">
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;">
+          ${t("sheetDialogs.nameLabel", "Tên:")}
+          <input id="vno-defname-name" class="vno-input" autocomplete="off" placeholder="${t("sheetDialogs.namePlaceholder", "Ví dụ: BangLuong, DonGia")}" style="padding:6px;font-size:12px;border:1px solid #cbd5e1;border-radius:4px;">
+        </label>
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;">
+          ${t("sheetDialogs.scopeLabel", "Phạm vi:")}
+          <select id="vno-defname-scope" class="vno-select" style="padding:6px;font-size:12px;">
+            <option value="workbook">${t("sheetDialogs.scopeWorkbook", "Workbook (Toàn bảng tính)")}</option>
+            <option value="sheet">Sheet (${this._escapeHtml(this.activeSheet)})</option>
+          </select>
+        </label>
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;">
+          ${t("sheetDialogs.refersTo", "Tham chiếu đến:")}
+          <input id="vno-defname-ref" class="vno-input" value="${this._escapeHtml(currentRef)}" style="padding:6px;font-size:12px;border:1px solid #cbd5e1;border-radius:4px;">
+        </label>
+        <div class="vno-rule-error" role="alert" style="color:#dc2626;font-size:11px;"></div>
+      </div>`
+    );
+    if (!overlay) return false;
+    const nameInput = overlay.querySelector("#vno-defname-name");
+    nameInput?.focus();
+
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      const name = overlay.querySelector("#vno-defname-name").value.trim();
+      const ref = overlay.querySelector("#vno-defname-ref").value.trim();
+      const scope = overlay.querySelector("#vno-defname-scope").value;
+      const res = this.saveNamedRange({ name, ref, scope, sheet: this.activeSheet });
+      if (!res) {
+        overlay.querySelector(".vno-rule-error").textContent = t("sheetDialogs.invalidName", "Tên không hợp lệ hoặc đã tồn tại.");
+        return;
+      }
+      overlay.remove();
+    });
+    return true;
+  }
+
+  showUseInFormulaDialog() {
+    if (typeof document === "undefined") return false;
+    const names = [...(this.namedRangesWorkbook || []), ...(this.namedRangesBySheet?.[this.activeSheet] || [])];
+    if (names.length === 0) {
+      this.showNameManager();
+      return false;
+    }
+
+    const overlay = this._createSheetDialog(
+      t("sheetDialogs.useInFormulaTitle", "Dùng tên trong công thức (Paste Name)"),
+      `<div class="vno-use-in-formula-dialog" style="min-width:320px;display:flex;flex-direction:column;gap:10px;">
+        <p style="font-size:12px;color:#475569;margin:0;">${t("sheetDialogs.useInFormulaPrompt", "Chọn một tên để chèn vào công thức:")}</p>
+        <div style="max-height:180px;overflow-y:auto;border:1px solid #cbd5e1;border-radius:4px;padding:4px;">
+          ${names.map((item, idx) => `
+            <div class="vno-paste-name-item ${idx === 0 ? "is-selected" : ""}" data-name="${this._escapeHtml(item.name)}" style="padding:6px 10px;cursor:pointer;font-size:12px;border-radius:3px;display:flex;justify-content:space-between;background:${idx === 0 ? "#e7f4ec" : "transparent"};">
+              <strong style="color:#0f6d38;">${this._escapeHtml(item.name)}</strong>
+              <span style="color:#64748b;font-family:monospace;">${this._escapeHtml(item.ref)}</span>
+            </div>
+          `).join("")}
+        </div>
+      </div>`
+    );
+    if (!overlay) return false;
+
+    let selectedName = names[0]?.name;
+    const items = overlay.querySelectorAll(".vno-paste-name-item");
+    items.forEach(item => {
+      item.addEventListener("click", () => {
+        items.forEach(i => i.style.backgroundColor = "transparent");
+        item.style.backgroundColor = "#e7f4ec";
+        selectedName = item.dataset.name;
+      });
+      item.addEventListener("dblclick", () => {
+        selectedName = item.dataset.name;
+        applyName();
+      });
+    });
+
+    const applyName = () => {
+      if (!selectedName) return;
+      overlay.remove();
+      if (this.formulaInput) {
+        const start = this.formulaInput.selectionStart || 0;
+        const end = this.formulaInput.selectionEnd || 0;
+        const cur = this.formulaInput.value;
+        const nextVal = cur ? cur.slice(0, start) + selectedName + cur.slice(end) : `=${selectedName}`;
+        this.formulaInput.value = nextVal;
+        this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, nextVal);
+        this.focusFormulaInput();
+      } else {
+        this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, `=${selectedName}`);
+      }
+    };
+
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", applyName);
+    return true;
+  }
+
+  createNamesFromSelection() {
+    const range = this._normalizeRange(this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const startRow = range.start.r;
+    const endRow = range.end.r;
+    const startCol = range.start.c;
+    const endCol = range.end.c;
+
+    if (endRow <= startRow) return false;
+
+    let createdCount = 0;
+    const startColIdx = this.cols.indexOf(startCol);
+    const endColIdx = this.cols.indexOf(endCol);
+
+    for (let c = startColIdx; c <= endColIdx; c++) {
+      const colLetter = this.cols[c];
+      const headerCell = this.cellsData.get(`${colLetter}${startRow}`);
+      const rawHeader = headerCell?.val || "";
+      const cleanName = String(rawHeader).trim().replace(/[^\w]/g, "_").replace(/^[^A-Za-z_]+/, "");
+      if (cleanName && cleanName.length >= 1) {
+        const refRange = `${colLetter}${startRow + 1}:${colLetter}${endRow}`;
+        this.saveNamedRange({ name: cleanName, ref: refRange, scope: "workbook", sheet: this.activeSheet });
+        createdCount++;
+      }
+    }
+    return createdCount > 0;
+  }
+
+  extractFormulaReferences(formula) {
+    if (!formula || typeof formula !== "string" || !formula.startsWith("=")) return [];
+    const text = formula.substring(1).trim();
+    const refs = new Set();
+    // Range references: A1:B10 or Sheet1!A1:B10
+    const rangeRegex = /(?:(?:'[^']+'|[A-Za-z0-9_]+)!)?\$?([A-Z]+)\$?(\d+):\$?([A-Z]+)\$?(\d+)/gi;
+    let match;
+    while ((match = rangeRegex.exec(text)) !== null) {
+      const rangeStr = `${match[1].toUpperCase()}${match[2]}:${match[3].toUpperCase()}${match[4]}`;
+      try {
+        const coords = this.formulaEngine.expandRange(rangeStr);
+        for (const c of coords) refs.add(c.toUpperCase());
+      } catch (_) {}
+    }
+    const stripped = text.replace(rangeRegex, " ");
+    // Single cell references: A1, $A$1, etc.
+    const singleRegex = /(?:(?:'[^']+'|[A-Za-z0-9_]+)!)?\$?([A-Z]+)\$?(\d+)/gi;
+    while ((match = singleRegex.exec(stripped)) !== null) {
+      refs.add(`${match[1].toUpperCase()}${match[2]}`);
+    }
+    // Also resolve named ranges if any
+    const names = [...(this.namedRangesWorkbook || []), ...(this.namedRangesBySheet?.[this.activeSheet] || [])];
+    for (const nr of names) {
+      if (new RegExp(`\\b${nr.name}\\b`, "i").test(text)) {
+        try {
+          const coords = this.formulaEngine.expandRange(nr.ref);
+          for (const c of coords) refs.add(c.toUpperCase());
+        } catch (_) {}
+      }
+    }
+    return Array.from(refs);
+  }
+
+  tracePrecedents() {
+    const coordKey = `${this.selectedCoord.c}${this.selectedCoord.r}`.toUpperCase();
+    const item = this.cellsData.get(coordKey);
+    if (!item || !item.formula) {
+      return { type: "precedents", target: coordKey, cells: [] };
+    }
+    const precedents = this.extractFormulaReferences(item.formula);
+    if (!this.auditArrows) this.auditArrows = [];
+    this.auditArrows = this.auditArrows.filter(a => !(a.type === "precedents" && a.target === coordKey));
+    this.auditArrows.push({ type: "precedents", target: coordKey, cells: precedents });
+    this.renderAuditArrows();
+    for (const c of precedents) {
+      const el = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${c}"]`);
+      if (el?.classList) el.classList.add("vno-cell-precedent");
+    }
+    return { type: "precedents", target: coordKey, cells: precedents };
+  }
+
+  traceDependents() {
+    const coordKey = `${this.selectedCoord.c}${this.selectedCoord.r}`.toUpperCase();
+    const dependents = [];
+    for (const [k, itm] of this.cellsData.entries()) {
+      if (k !== coordKey && itm && itm.formula) {
+        const refs = this.extractFormulaReferences(itm.formula);
+        if (refs.includes(coordKey)) {
+          dependents.push(k);
+        }
+      }
+    }
+    if (!this.auditArrows) this.auditArrows = [];
+    this.auditArrows = this.auditArrows.filter(a => !(a.type === "dependents" && a.source === coordKey));
+    this.auditArrows.push({ type: "dependents", source: coordKey, cells: dependents });
+    this.renderAuditArrows();
+    for (const c of dependents) {
+      const el = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${c}"]`);
+      if (el?.classList) el.classList.add("vno-cell-dependent");
+    }
+    return { type: "dependents", source: coordKey, cells: dependents };
+  }
+
+  removeArrows() {
+    this.auditArrows = [];
+    if (this.auditLayer) this.auditLayer.innerHTML = "";
+    if (this.container?.querySelectorAll) {
+      this.container.querySelectorAll(".vno-cell-precedent, .vno-cell-dependent").forEach(el => {
+        el.classList?.remove?.("vno-cell-precedent", "vno-cell-dependent");
+      });
+    }
+    return true;
+  }
+
+  renderAuditArrows() {
+    if (!this.auditLayer || typeof document === "undefined" || typeof document.createElementNS !== "function") return;
+    this.auditLayer.innerHTML = "";
+    if (!this.auditArrows || !this.auditArrows.length) return;
+
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("class", "vno-audit-svg");
+    svg.style.cssText = "position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;overflow:visible;";
+
+    const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+    defs.innerHTML = `
+      <marker id="vno-arrow-precedent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 1 L 10 5 L 0 9 z" fill="#2563EB"/>
+      </marker>
+      <marker id="vno-arrow-dependent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 1 L 10 5 L 0 9 z" fill="#0F6D38"/>
+      </marker>
+    `;
+    svg.appendChild(defs);
+
+    const getCellCenter = (coord) => {
+      const [c, r] = this._splitCoord(coord);
+      const colIdx = this.cols.indexOf(c);
+      const rNum = parseInt(r, 10);
+      const cellEl = this.container?.querySelector(`.vno-grid-cell[data-coord="${coord}"]`);
+      if (cellEl && this.viewport) {
+        const rect = cellEl.getBoundingClientRect();
+        const vpRect = this.viewport.getBoundingClientRect();
+        return {
+          x: rect.left - vpRect.left + this.viewport.scrollLeft + rect.width / 2,
+          y: rect.top - vpRect.top + this.viewport.scrollTop + rect.height / 2
+        };
+      }
+      return {
+        x: 46 + Math.max(0, colIdx) * 100 + 50,
+        y: 28 + Math.max(0, rNum - 1) * this.rowHeight + this.rowHeight / 2
+      };
+    };
+
+    for (const audit of this.auditArrows) {
+      if (audit.type === "precedents") {
+        const targetPt = getCellCenter(audit.target);
+        for (const cellCoord of audit.cells) {
+          const fromPt = getCellCenter(cellCoord);
+          const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+          circle.setAttribute("cx", fromPt.x);
+          circle.setAttribute("cy", fromPt.y);
+          circle.setAttribute("r", "4");
+          circle.setAttribute("fill", "#2563EB");
+          circle.setAttribute("stroke", "#FFFFFF");
+          circle.setAttribute("stroke-width", "1");
+          svg.appendChild(circle);
+
+          const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+          line.setAttribute("x1", fromPt.x);
+          line.setAttribute("y1", fromPt.y);
+          line.setAttribute("x2", targetPt.x);
+          line.setAttribute("y2", targetPt.y);
+          line.setAttribute("stroke", "#2563EB");
+          line.setAttribute("stroke-width", "2");
+          line.setAttribute("marker-end", "url(#vno-arrow-precedent)");
+          svg.appendChild(line);
+        }
+      } else if (audit.type === "dependents") {
+        const fromPt = getCellCenter(audit.source);
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("cx", fromPt.x);
+        circle.setAttribute("cy", fromPt.y);
+        circle.setAttribute("r", "4");
+        circle.setAttribute("fill", "#0F6D38");
+        circle.setAttribute("stroke", "#FFFFFF");
+        circle.setAttribute("stroke-width", "1");
+        svg.appendChild(circle);
+
+        for (const cellCoord of audit.cells) {
+          const targetPt = getCellCenter(cellCoord);
+          const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+          line.setAttribute("x1", fromPt.x);
+          line.setAttribute("y1", fromPt.y);
+          line.setAttribute("x2", targetPt.x);
+          line.setAttribute("y2", targetPt.y);
+          line.setAttribute("stroke", "#0F6D38");
+          line.setAttribute("stroke-width", "2");
+          line.setAttribute("marker-end", "url(#vno-arrow-dependent)");
+          svg.appendChild(line);
+        }
+      }
+    }
+
+    this.auditLayer.appendChild(svg);
+  }
+
+  showErrorCheckingDialog() {
+    if (typeof document === "undefined") return false;
+    const errors = [];
+    for (const [k, itm] of this.cellsData.entries()) {
+      if (itm && this.formulaEngine && this.formulaEngine._isError(itm.val)) {
+        errors.push({ coord: k, val: String(itm.val), formula: itm.formula || "" });
+      }
+    }
+
+    const overlay = this._createSheetDialog(
+      t("sheetDialogs.errorCheckingTitle") || "Kiểm tra lỗi công thức (Error Checking)",
+      `<div class="vno-error-checking-dialog" style="min-width:480px;display:flex;flex-direction:column;gap:12px;">
+        ${errors.length === 0 ? `
+          <div style="padding:16px;text-align:center;color:#0f6d38;font-size:13px;font-weight:600;">
+            ✓ ${t("sheetDialogs.noErrorsFound") || "Kiểm tra hoàn tất. Không tìm thấy ô nào có giá trị lỗi trong trang tính."}
+          </div>
+        ` : `
+          <p style="font-size:12px;color:#475569;margin:0;">${t("sheetDialogs.errorsFoundPrompt", { count: errors.length }) || `Phát hiện <strong>${errors.length}</strong> ô có lỗi công thức trong trang tính hiện tại:`}</p>
+          <div style="max-height:220px;overflow-y:auto;border:1px solid #cbd5e1;border-radius:4px;">
+            <table class="vno-dialog-table" style="width:100%;border-collapse:collapse;font-size:12px;">
+              <thead>
+                <tr style="background:#f1f5f9;border-bottom:1px solid #cbd5e1;text-align:left;">
+                  <th style="padding:6px 10px;">${t("sheetDialogs.errorColCell", "Ô")}</th>
+                  <th style="padding:6px 10px;">${t("sheetDialogs.errorColCode", "Mã lỗi")}</th>
+                  <th style="padding:6px 10px;">${t("sheetDialogs.errorColFormula", "Công thức")}</th>
+                  <th style="padding:6px 10px;">${t("sheetDialogs.errorColReason", "Nguyên nhân")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${errors.map((err, i) => {
+                  let reason = t("sheetDialogs.calcError", "Lỗi tính toán");
+                  if (err.val.includes("DIV/0")) reason = t("sheetDialogs.divZero", "Chia cho số 0 hoặc ô trống");
+                  else if (err.val.includes("REF")) reason = t("sheetDialogs.invalidRef", "Tham chiếu ô không hợp lệ");
+                  else if (err.val.includes("VALUE")) reason = t("sheetDialogs.wrongType", "Sai kiểu dữ liệu (số vs chữ)");
+                  else if (err.val.includes("N/A")) reason = t("sheetDialogs.naError", "Giá trị không tồn tại");
+                  else if (err.val.includes("NAME")) reason = t("sheetDialogs.nameError", "Tên hàm/vùng không xác định");
+                  else if (err.val.includes("NUM")) reason = t("sheetDialogs.numError", "Giá trị số ngoài phạm vi");
+                  return `
+                    <tr class="vno-error-row" data-coord="${err.coord}" style="cursor:pointer;border-bottom:1px solid #f1f5f9;${i % 2 === 1 ? "background:#f8fafc;" : ""}">
+                      <td style="padding:6px 10px;font-weight:700;color:#0f6d38;">${err.coord}</td>
+                      <td style="padding:6px 10px;color:#dc2626;font-weight:700;">${this._escapeHtml(err.val)}</td>
+                      <td style="padding:6px 10px;font-family:monospace;">${this._escapeHtml(err.formula || "")}</td>
+                      <td style="padding:6px 10px;color:#64748b;">${reason}</td>
+                    </tr>
+                  `;
+                }).join("")}
+              </tbody>
+            </table>
+          </div>
+        `}
+      </div>`
+    );
+    if (!overlay) return false;
+    const applyBtn = overlay.querySelector(".vno-rule-apply");
+    if (applyBtn) applyBtn.style.display = "none";
+    const cancelBtn = overlay.querySelector(".vno-rule-cancel");
+    if (cancelBtn) cancelBtn.textContent = "Đóng";
+
+    overlay.querySelectorAll(".vno-error-row").forEach(row => {
+      row.addEventListener("click", () => {
+        const coord = row.dataset.coord;
+        if (coord) {
+          const [c, r] = this._splitCoord(coord);
+          this.selectCell(c, r);
+          overlay.remove();
+        }
+      });
+    });
+    return true;
+  }
+
+  get workbookName() {
+    return this.documentName || this.options?.documentName || this.adapter?.shell?.documentName || "Bảng tính 1.xlsx";
+  }
+
+  _getNamedRangeForCell(sheetName, coord) {
+    if (!coord) return "";
+    const cleanCoord = coord.replace(/\$/g, "").toUpperCase();
+    const [c, r] = this._splitCoord(cleanCoord);
+    const rNum = Number(r);
+    const cIdx = this.cols.indexOf(c);
+
+    // Check sheet-scoped named ranges first
+    const sheetRanges = this.namedRangesBySheet?.[sheetName] || [];
+    for (const item of sheetRanges) {
+      if (this._coordMatchesNamedRange(cleanCoord, cIdx, rNum, item.ref)) {
+        return item.name;
+      }
+    }
+
+    // Check workbook-scoped named ranges
+    const wbRanges = this.namedRangesWorkbook || [];
+    for (const item of wbRanges) {
+      if (item.sheet && item.sheet !== sheetName) continue;
+      if (this._coordMatchesNamedRange(cleanCoord, cIdx, rNum, item.ref)) {
+        return item.name;
+      }
+    }
+
+    return "";
+  }
+
+  _coordMatchesNamedRange(coord, cIdx, rNum, ref) {
+    if (!ref) return false;
+    const cleanRef = String(ref).replace(/\$/g, "").toUpperCase();
+    if (cleanRef === coord) return true;
+    if (cleanRef.includes(":")) {
+      const [start, end] = cleanRef.split(":");
+      const [sc, sr] = this._splitCoord(start);
+      const [ec, er] = this._splitCoord(end);
+      const sColIdx = this.cols.indexOf(sc);
+      const eColIdx = this.cols.indexOf(ec);
+      if (sColIdx >= 0 && eColIdx >= 0 && sr && er) {
+        const minCol = Math.min(sColIdx, eColIdx);
+        const maxCol = Math.max(sColIdx, eColIdx);
+        const minRow = Math.min(Number(sr), Number(er));
+        const maxRow = Math.max(Number(sr), Number(er));
+        if (cIdx >= minCol && cIdx <= maxCol && rNum >= minRow && rNum <= maxRow) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  addWatchedCell(cellRef, targetSheet = this.activeSheet) {
+    if (!this.watchedCells) this.watchedCells = new Set();
+    if (!cellRef || typeof cellRef !== "string") return false;
+
+    let ref = cellRef.trim();
+    if (ref.startsWith("=")) ref = ref.slice(1).trim();
+
+    let sheet = targetSheet;
+    let coordPart = ref;
+    if (ref.includes("!")) {
+      const idx = ref.lastIndexOf("!");
+      sheet = ref.slice(0, idx).trim().replace(/^'|'$/g, "");
+      coordPart = ref.slice(idx + 1).trim();
+    }
+
+    coordPart = coordPart.replace(/\$/g, "").toUpperCase();
+
+    // Dải ô (Range) ví dụ: A1:A3 hoặc B2:C4
+    if (coordPart.includes(":")) {
+      const [start, end] = coordPart.split(":");
+      const [sc, sr] = this._splitCoord(start);
+      const [ec, er] = this._splitCoord(end);
+      const sColIdx = this.cols.indexOf(sc);
+      const eColIdx = this.cols.indexOf(ec);
+      if (sColIdx >= 0 && eColIdx >= 0 && sr && er) {
+        const minCol = Math.min(sColIdx, eColIdx);
+        const maxCol = Math.max(sColIdx, eColIdx);
+        const minRow = Math.min(Number(sr), Number(er));
+        const maxRow = Math.max(Number(sr), Number(er));
+        for (let r = minRow; r <= maxRow; r++) {
+          for (let c = minCol; c <= maxCol; c++) {
+            this.watchedCells.add(`${sheet}!${this.cols[c]}${r}`);
+          }
+        }
+        this._updateWatchWindow();
+        return true;
+      }
+    }
+
+    // Ô đơn ví dụ: A1
+    if (!/^[A-Z]+\d+$/.test(coordPart)) return false;
+    this.watchedCells.add(`${sheet}!${coordPart}`);
+    this._updateWatchWindow();
+    return true;
+  }
+
+  removeWatchedCell(key) {
+    if (!this.watchedCells) return false;
+    let deleted = this.watchedCells.delete(key);
+    if (!deleted && !key.includes("!")) {
+      deleted = this.watchedCells.delete(`${this.activeSheet}!${key}`);
+    }
+    if (deleted) {
+      this._updateWatchWindow();
+    }
+    return deleted;
+  }
+
+  clearWatchedCells() {
+    if (!this.watchedCells) return;
+    this.watchedCells.clear();
+    this._updateWatchWindow();
+  }
+
+  getWatchedCellsList() {
+    if (!this.watchedCells) return [];
+    const list = [];
+    const bookName = this.workbookName;
+    for (const key of this.watchedCells) {
+      const lastExcl = key.lastIndexOf("!");
+      const sheetName = lastExcl >= 0 ? key.slice(0, lastExcl).replace(/^'|'$/g, "") : this.activeSheet;
+      const coord = lastExcl >= 0 ? key.slice(lastExcl + 1).replace(/\$/g, "").toUpperCase() : key;
+      const map = (sheetName === this.activeSheet) ? this.cellsData : this.sheetsData?.[sheetName];
+      const itm = map?.get(coord);
+      const val = itm ? (itm.val ?? "") : "";
+      const formula = itm ? (itm.formula || "") : "";
+      const name = this._getNamedRangeForCell(sheetName, coord);
+      list.push({
+        workbook: bookName,
+        sheet: sheetName,
+        name,
+        cell: coord,
+        value: val,
+        formula,
+        key
+      });
+    }
+    return list;
+  }
+
+  showWatchWindow() {
+    if (typeof document === "undefined" || typeof document.querySelector !== "function") return false;
+    let win = document.querySelector("#vno-watch-window");
+    if (win) {
+      win.style.display = win.style.display === "none" ? "flex" : "none";
+      if (win.style.display !== "none") {
+        this._updateWatchWindow();
+        win.focus();
+      }
+      return true;
+    }
+
+    if (!this.watchedCells) this.watchedCells = new Set();
+    const coordKey = `${this.activeSheet}!${this.selectedCoord.c}${this.selectedCoord.r}`;
+    if (this.watchedCells.size === 0) {
+      this.watchedCells.add(coordKey);
+    }
+
+    win = document.createElement("div");
+    win.id = "vno-watch-window";
+    win.className = "vno-watch-window";
+    win.setAttribute("role", "dialog");
+    win.setAttribute("aria-label", t("sheetDialogs.watchWindowTitle", "Cửa sổ theo dõi (Watch Window)"));
+    win.tabIndex = -1;
+    win.style.cssText = `
+      position:fixed;right:24px;bottom:36px;width:580px;height:280px;min-width:420px;min-height:180px;
+      resize:both;background:#ffffff;border:1px solid #cbd5e1;border-radius:6px;
+      box-shadow:0 10px 30px rgba(15,23,42,0.18);z-index:9999;display:flex;flex-direction:column;
+      font-size:12px;overflow:hidden;
+    `;
+
+    win.innerHTML = `
+      <div id="vno-watch-header" class="vno-watch-header" style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#f1f5f9;color:#0f172a;font-weight:600;border-bottom:1px solid #cbd5e1;cursor:move;user-select:none;">
+        <span style="font-size:12px;display:flex;align-items:center;gap:6px;">${t("sheetDialogs.watchWindowTitle", "Cửa sổ theo dõi (Watch Window)")}</span>
+        <button id="vno-watch-close" type="button" class="vno-dialog-close-btn" aria-label="${t("sheetDialogs.close", "Đóng")}" title="${t("sheetDialogs.close", "Đóng")} (Esc)" style="width:24px;height:24px;min-width:24px;min-height:24px;padding:0;font-size:16px;line-height:1;border:none;background:transparent;cursor:pointer;border-radius:3px;">&times;</button>
+      </div>
+      <div class="vno-watch-toolbar" style="display:flex;gap:8px;padding:6px 12px;background:#f8fafc;border-bottom:1px solid #e2e8f0;align-items:center;">
+        <button id="vno-watch-add" type="button" class="vno-btn" style="font-size:11px;padding:4px 10px;height:26px;background:#ffffff;border:1px solid #cbd5e1;border-radius:4px;font-weight:500;cursor:pointer;">+ ${t("sheetDialogs.addWatch", "Thêm ô theo dõi")}</button>
+        <button id="vno-watch-del" type="button" class="vno-btn" style="font-size:11px;padding:4px 10px;height:26px;background:#ffffff;border:1px solid #cbd5e1;border-radius:4px;font-weight:500;cursor:pointer;">- ${t("sheetDialogs.deleteWatch", "Xóa theo dõi")}</button>
+      </div>
+      <div class="vno-watch-table-container" style="flex:1;overflow:auto;padding:0;outline:none;" tabindex="0" role="region" aria-label="${t("sheetDialogs.watchWindowTitle", "Cửa sổ theo dõi")}">
+        <table class="vno-watch-table" style="width:100%;border-collapse:collapse;font-size:11px;text-align:left;">
+          <thead>
+            <tr style="background:#f8fafc;border-bottom:1px solid #cbd5e1;text-align:left;color:#475569;font-size:11px;position:sticky;top:0;z-index:1;">
+              <th style="padding:6px 8px;border-right:1px solid #e2e8f0;font-weight:600;white-space:nowrap;">${t("sheetDialogs.watchWindowColBook", "Sổ làm việc")}</th>
+              <th style="padding:6px 8px;border-right:1px solid #e2e8f0;font-weight:600;white-space:nowrap;">${t("sheetDialogs.watchWindowColSheet", "Trang tính")}</th>
+              <th style="padding:6px 8px;border-right:1px solid #e2e8f0;font-weight:600;white-space:nowrap;">${t("sheetDialogs.watchWindowColName", "Tên")}</th>
+              <th style="padding:6px 8px;border-right:1px solid #e2e8f0;font-weight:600;white-space:nowrap;">${t("sheetDialogs.watchWindowColCell", "Ô")}</th>
+              <th style="padding:6px 8px;border-right:1px solid #e2e8f0;font-weight:600;white-space:nowrap;">${t("sheetDialogs.watchWindowColValue", "Giá trị")}</th>
+              <th style="padding:6px 8px;font-weight:600;white-space:nowrap;">${t("sheetDialogs.watchWindowColFormula", "Công thức")}</th>
+            </tr>
+          </thead>
+          <tbody id="vno-watch-tbody"></tbody>
+        </table>
+      </div>
+      <div class="vno-watch-footer" style="padding:4px 12px;background:#f8fafc;border-top:1px solid #e2e8f0;font-size:11px;color:#64748b;display:flex;justify-content:space-between;align-items:center;">
+        <span id="vno-watch-count">0 ${t("sheetDialogs.watchWindowCountSuffix", "ô theo dõi")}</span>
+        <span style="font-size:10px;color:#94a3b8;">${t("sheetDialogs.watchWindowKeyboardHint", "Phím tắt: Delete để xóa, Enter để chuyển đến ô, Esc để đóng")}</span>
+      </div>
+    `;
+
+    document.body.appendChild(win);
+
+    // Kéo thả cửa sổ nổi qua header
+    const header = win.querySelector("#vno-watch-header");
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let initialLeft = 0;
+    let initialTop = 0;
+
+    const onMouseDown = (e) => {
+      if (e.target?.closest?.("button") || e.target?.closest?.("input")) return;
+      isDragging = true;
+      dragStartX = e.clientX ?? 0;
+      dragStartY = e.clientY ?? 0;
+      const rect = win.getBoundingClientRect?.() || { left: 100, top: 100 };
+      initialLeft = rect.left;
+      initialTop = rect.top;
+      win.style.right = "auto";
+      win.style.bottom = "auto";
+      win.style.left = `${initialLeft}px`;
+      win.style.top = `${initialTop}px`;
+      if (document.body) document.body.style.userSelect = "none";
+
+      const onMouseMove = (ev) => {
+        if (!isDragging) return;
+        const dx = (ev.clientX ?? 0) - dragStartX;
+        const dy = (ev.clientY ?? 0) - dragStartY;
+        let nextLeft = initialLeft + dx;
+        let nextTop = initialTop + dy;
+        const viewportW = (typeof window !== "undefined" ? window.innerWidth : 1024) || 1024;
+        const viewportH = (typeof window !== "undefined" ? window.innerHeight : 768) || 768;
+        const maxLeft = Math.max(0, viewportW - (win.offsetWidth || 580));
+        const maxTop = Math.max(0, viewportH - (win.offsetHeight || 280));
+        nextLeft = Math.max(0, Math.min(maxLeft, nextLeft));
+        nextTop = Math.max(0, Math.min(maxTop, nextTop));
+        win.style.left = `${nextLeft}px`;
+        win.style.top = `${nextTop}px`;
+      };
+
+      const onMouseUp = () => {
+        isDragging = false;
+        if (document.body) document.body.style.userSelect = "";
+        document.removeEventListener("mousemove", onMouseMove);
+        document.removeEventListener("mouseup", onMouseUp);
+      };
+
+      document.addEventListener("mousemove", onMouseMove);
+      document.addEventListener("mouseup", onMouseUp);
+    };
+
+    if (header) header.addEventListener("mousedown", onMouseDown);
+
+    // Đóng cửa sổ
+    win.querySelector("#vno-watch-close")?.addEventListener("click", () => {
+      win.style.display = "none";
+    });
+
+    // Thêm ô theo dõi
+    win.querySelector("#vno-watch-add")?.addEventListener("click", () => {
+      this._showAddWatchDialog(win);
+    });
+
+    // Xóa ô theo dõi
+    win.querySelector("#vno-watch-del")?.addEventListener("click", () => {
+      const selectedRow = win.querySelector(".vno-watch-row.is-selected");
+      if (selectedRow) {
+        const rows = Array.from(win.querySelectorAll(".vno-watch-row"));
+        const currentIndex = rows.indexOf(selectedRow);
+        this.removeWatchedCell(selectedRow.dataset.watchKey);
+        const newRows = Array.from(win.querySelectorAll(".vno-watch-row"));
+        if (newRows.length > 0) {
+          const nextIndex = Math.min(currentIndex, newRows.length - 1);
+          newRows[nextIndex].classList.add("is-selected");
+        }
+      }
+    });
+
+    // Phím tắt và điều hướng bàn phím trên cửa sổ
+    win.addEventListener("keydown", (e) => {
+      const addDialog = win.querySelector("#vno-watch-add-dialog");
+      if (addDialog) {
+        if (e.key === "Escape") {
+          e.preventDefault?.();
+          e.stopPropagation?.();
+          addDialog.remove();
+          win.querySelector("#vno-watch-backdrop")?.remove();
+          win.querySelector("#vno-watch-add")?.focus();
+        }
+        return;
+      }
+
+      if (e.key === "Escape") {
+        e.preventDefault?.();
+        win.style.display = "none";
+        return;
+      }
+
+      const rows = Array.from(win.querySelectorAll(".vno-watch-row"));
+      if (rows.length === 0) return;
+
+      let selectedIndex = rows.findIndex(r => r.classList.contains("is-selected"));
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault?.();
+        const nextIndex = selectedIndex < rows.length - 1 ? selectedIndex + 1 : 0;
+        rows.forEach(r => r.classList.remove("is-selected"));
+        rows[nextIndex].classList.add("is-selected");
+        rows[nextIndex].scrollIntoView?.({ block: "nearest" });
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault?.();
+        const prevIndex = selectedIndex > 0 ? selectedIndex - 1 : rows.length - 1;
+        rows.forEach(r => r.classList.remove("is-selected"));
+        rows[prevIndex].classList.add("is-selected");
+        rows[prevIndex].scrollIntoView?.({ block: "nearest" });
+      } else if (e.key === "Delete" || e.key === "Backspace") {
+        if (e.target?.tagName !== "INPUT" && selectedIndex >= 0) {
+          e.preventDefault?.();
+          const keyToDelete = rows[selectedIndex].dataset.watchKey;
+          this.removeWatchedCell(keyToDelete);
+          const newRows = Array.from(win.querySelectorAll(".vno-watch-row"));
+          if (newRows.length > 0) {
+            newRows.forEach(r => r.classList.remove("is-selected"));
+            const nextSel = Math.min(selectedIndex, newRows.length - 1);
+            newRows[nextSel].classList.add("is-selected");
+          }
+        }
+      } else if (e.key === "Enter") {
+        if (e.target?.tagName !== "BUTTON" && e.target?.tagName !== "INPUT" && selectedIndex >= 0) {
+          e.preventDefault?.();
+          const row = rows[selectedIndex];
+          const key = row.dataset.watchKey;
+          const lastExcl = key.lastIndexOf("!");
+          const sheetName = lastExcl >= 0 ? key.slice(0, lastExcl).replace(/^'|'$/g, "") : this.activeSheet;
+          const coord = lastExcl >= 0 ? key.slice(lastExcl + 1).replace(/\$/g, "").toUpperCase() : key;
+          if (this.sheets?.includes(sheetName)) {
+            this.switchSheet(sheetName);
+          }
+          const [col, r] = this._splitCoord(coord);
+          this.selectCell(col, Number(r));
+        }
+      }
+    });
+
+    this._updateWatchWindow();
+    return true;
+  }
+
+  _showAddWatchDialog(win) {
+    if (!win) return;
+    const oldDialog = win.querySelector("#vno-watch-add-dialog");
+    if (oldDialog) oldDialog.remove();
+    win.querySelector("#vno-watch-backdrop")?.remove();
+
+    const backdrop = document.createElement("div");
+    backdrop.id = "vno-watch-backdrop";
+    backdrop.className = "vno-watch-add-dialog-backdrop";
+    backdrop.style.cssText = "position:absolute;inset:0;background:rgba(15,23,42,0.25);z-index:10000;";
+
+    const dialog = document.createElement("div");
+    dialog.id = "vno-watch-add-dialog";
+    dialog.className = "vno-watch-add-dialog";
+    dialog.setAttribute("role", "dialog");
+    dialog.setAttribute("aria-label", t("sheetDialogs.addWatchTitle", "Thêm ô theo dõi"));
+    dialog.style.cssText = `
+      position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:360px;max-width:90%;
+      background:#ffffff;border:1px solid #cbd5e1;border-radius:6px;box-shadow:0 12px 32px rgba(15,23,42,0.22);
+      z-index:10001;display:flex;flex-direction:column;font-size:12px;overflow:hidden;
+    `;
+
+    const defaultRef = `='${this.activeSheet}'!$${this.selectedCoord.c}$${this.selectedCoord.r}`;
+
+    dialog.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#f1f5f9;border-bottom:1px solid #cbd5e1;font-weight:600;color:#0f172a;">
+        <span>${t("sheetDialogs.addWatchTitle", "Thêm ô theo dõi")}</span>
+        <button id="vno-watch-add-close" type="button" class="vno-dialog-close-btn" aria-label="${t("sheetDialogs.close", "Đóng")}" style="width:22px;height:22px;min-width:22px;min-height:22px;padding:0;font-size:16px;line-height:1;border:none;background:transparent;cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:12px;display:flex;flex-direction:column;gap:8px;">
+        <label for="vno-watch-add-input" style="font-weight:500;color:#334155;">${t("sheetDialogs.addWatchPrompt", "Chọn ô bạn muốn theo dõi giá trị:")}</label>
+        <input id="vno-watch-add-input" type="text" value="${this._escapeHtml(defaultRef)}" style="width:100%;height:28px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:4px;font-size:12px;font-family:Consolas, monospace;" />
+        <div id="vno-watch-add-error" style="color:#dc2626;font-size:11px;display:none;"></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;padding:8px 12px;background:#f8fafc;border-top:1px solid #e2e8f0;">
+        <button id="vno-watch-add-confirm" type="button" class="vno-btn vno-btn-primary" style="font-size:11px;padding:4px 12px;height:26px;background:#0f6d38;color:#ffffff;border:none;border-radius:4px;cursor:pointer;font-weight:500;">${t("sheetDialogs.addWatchBtn", "Thêm")}</button>
+        <button id="vno-watch-add-cancel" type="button" class="vno-btn" style="font-size:11px;padding:4px 12px;height:26px;background:#ffffff;border:1px solid #cbd5e1;border-radius:4px;cursor:pointer;">${t("sheetDialogs.cancel", "Hủy")}</button>
+      </div>
+    `;
+
+    win.appendChild(backdrop);
+    win.appendChild(dialog);
+
+    const input = dialog.querySelector("#vno-watch-add-input");
+    const errorEl = dialog.querySelector("#vno-watch-add-error");
+    const closeDialog = () => {
+      dialog.remove();
+      backdrop.remove();
+      win.querySelector("#vno-watch-add")?.focus();
+    };
+
+    dialog.querySelector("#vno-watch-add-close")?.addEventListener("click", closeDialog);
+    dialog.querySelector("#vno-watch-add-cancel")?.addEventListener("click", closeDialog);
+
+    const doSubmit = () => {
+      const val = (input?.value || "").trim();
+      const added = this.addWatchedCell(val);
+      if (!added) {
+        if (errorEl) {
+          errorEl.textContent = t("sheetDialogs.watchWindowInvalidCoord", "Địa chỉ ô không hợp lệ.");
+          errorEl.style.display = "block";
+        }
+        input?.focus?.();
+        return;
+      }
+      closeDialog();
+    };
+
+    dialog.querySelector("#vno-watch-add-confirm")?.addEventListener("click", doSubmit);
+
+    input?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault?.();
+        doSubmit();
+      } else if (e.key === "Escape") {
+        e.preventDefault?.();
+        e.stopPropagation?.();
+        closeDialog();
+      }
+    });
+
+    if (typeof setTimeout === "function") {
+      setTimeout(() => {
+        input?.focus?.();
+        input?.select?.();
+      }, 10);
+    }
+  }
+
+  _updateWatchWindow() {
+    if (typeof document === "undefined" || typeof document.querySelector !== "function") return;
+    const tbody = document.querySelector("#vno-watch-tbody");
+    if (!tbody || !this.watchedCells) return;
+    const countEl = document.querySelector("#vno-watch-count");
+
+    const currentSelectedRow = tbody.querySelector(".vno-watch-row.is-selected");
+    let preservedKey = currentSelectedRow?.dataset?.watchKey;
+
+    tbody.innerHTML = "";
+    if (this.watchedCells.size === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:24px 16px;color:#94a3b8;font-size:12px;">${t("sheetDialogs.watchWindowEmpty", "Chưa có ô theo dõi nào.")}</td></tr>`;
+      if (countEl) countEl.textContent = `0 ${t("sheetDialogs.watchWindowCountSuffix", "ô theo dõi")}`;
+      return;
+    }
+
+    const items = this.getWatchedCellsList();
+    if (countEl) countEl.textContent = `${items.length} ${t("sheetDialogs.watchWindowCountSuffix", "ô theo dõi")}`;
+
+    let selectedKeyToApply = preservedKey;
+    if (!selectedKeyToApply || !items.some(it => it.key === selectedKeyToApply)) {
+      selectedKeyToApply = items[0]?.key;
+    }
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const tr = document.createElement("tr");
+      tr.className = "vno-watch-row";
+      tr.dataset.watchKey = item.key;
+      tr.dataset.sheet = item.sheet;
+      tr.dataset.coord = item.cell;
+      tr.tabIndex = -1;
+      tr.style.cssText = "border-bottom:1px solid #f1f5f9;cursor:pointer;transition:background-color 0.1s;";
+      if (item.key === selectedKeyToApply) {
+        tr.classList.add("is-selected");
+      }
+
+      tr.innerHTML = `
+        <td style="padding:5px 8px;border-right:1px solid #f1f5f9;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px;" title="${this._escapeHtml(item.workbook)}">${this._escapeHtml(item.workbook)}</td>
+        <td style="padding:5px 8px;font-weight:600;border-right:1px solid #f1f5f9;color:#1e293b;white-space:nowrap;">${this._escapeHtml(item.sheet)}</td>
+        <td style="padding:5px 8px;border-right:1px solid #e2e8f0;color:#0284c7;white-space:nowrap;">${this._escapeHtml(item.name || "")}</td>
+        <td style="padding:5px 8px;font-weight:700;color:#0f6d38;border-right:1px solid #f1f5f9;white-space:nowrap;">${this._escapeHtml(item.cell)}</td>
+        <td style="padding:5px 8px;border-right:1px solid #f1f5f9;color:#0f172a;white-space:nowrap;font-weight:500;">${this._escapeHtml(String(item.value))}</td>
+        <td style="padding:5px 8px;font-family:Consolas, monospace;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;" title="${this._escapeHtml(item.formula)}">${this._escapeHtml(item.formula)}</td>
+      `;
+
+      tr.addEventListener("click", () => {
+        tbody.querySelectorAll(".vno-watch-row").forEach(r => r.classList.remove("is-selected"));
+        tr.classList.add("is-selected");
+      });
+
+      tr.addEventListener("dblclick", () => {
+        if (this.sheets?.includes(item.sheet)) {
+          this.switchSheet(item.sheet);
+        }
+        const [col, row] = this._splitCoord(item.cell);
+        this.selectCell(col, Number(row));
+      });
+
+      tbody.appendChild(tr);
+    }
+  }
+
+  showEvaluateFormulaDialog() {
+    if (typeof document === "undefined") return false;
+    const coord = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const session = createEvaluateFormulaSessionFromGrid(this);
+    const title = t("sheetDialogs.evaluateFormulaTitle", "Ước lượng công thức");
+    const overlay = this._createSheetDialog(title, `
+      <div class="vno-eval-dialog" id="vno-eval-dialog">
+        <p class="vno-eval-ref" id="vno-eval-ref"></p>
+        <p class="vno-eval-hint">${this._escapeHtml(t("sheetDialogs.evaluateFormulaHint", "Phần được gạch chân và in nghiêng sẽ được tính ở bước tiếp theo."))}</p>
+        <div class="vno-eval-formula-box" id="vno-eval-formula" role="status" aria-live="polite"></div>
+        <p class="vno-eval-step-value" id="vno-eval-step-value" role="status" aria-live="polite"></p>
+        <p class="vno-eval-final" id="vno-eval-final"></p>
+        <p class="vno-eval-error" id="vno-eval-error" role="alert"></p>
+      </div>`);
+    if (!overlay) return false;
+    overlay.classList.add("vno-evaluate-formula-dialog");
+    const dialogBox = overlay.querySelector(".vno-dialog-box");
+    if (dialogBox) dialogBox.setAttribute("aria-label", title);
+
+    const footer = overlay.querySelector(".vno-dialog-footer");
+    const applyBtn = overlay.querySelector(".vno-rule-apply");
+    const cancelBtn = overlay.querySelector(".vno-rule-cancel");
+    if (applyBtn) applyBtn.remove();
+    if (cancelBtn) cancelBtn.textContent = t("sheetDialogs.evaluateFormulaClose", t("sheetDialogs.close", "Đóng"));
+    const evaluateBtn = document.createElement("button");
+    evaluateBtn.type = "button";
+    evaluateBtn.className = "vno-btn vno-btn-primary vno-eval-btn-evaluate";
+    const stepInBtn = document.createElement("button");
+    stepInBtn.type = "button";
+    stepInBtn.className = "vno-btn vno-eval-btn-step-in";
+    stepInBtn.textContent = t("sheetDialogs.evaluateFormulaStepIn", "Bước vào");
+    const stepOutBtn = document.createElement("button");
+    stepOutBtn.type = "button";
+    stepOutBtn.className = "vno-btn vno-eval-btn-step-out";
+    stepOutBtn.textContent = t("sheetDialogs.evaluateFormulaStepOut", "Bước ra");
+    if (footer) {
+      footer.innerHTML = "";
+      footer.append(evaluateBtn, stepInBtn, stepOutBtn, cancelBtn);
+    }
+
+    const focusables = () => Array.from(dialogBox?.querySelectorAll(
+      'button:not([disabled]):not([style*="display: none"]):not([style*="display:none"]), ' +
+      'input:not([disabled]):not([type="hidden"]):not([style*="display: none"]):not([style*="display:none"]), ' +
+      'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    ).filter(el => el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0) || []);
+
+    const trapFocus = (event) => {
+      if (event.key !== "Tab") return;
+      const items = focusables();
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey) {
+        if (document.activeElement === first || !dialogBox?.contains(document.activeElement)) {
+          event.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (document.activeElement === last || !dialogBox?.contains(document.activeElement)) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+    };
+
+    const closeDialog = () => {
+      document.removeEventListener("keydown", onKeyDown);
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    };
+
+    const render = () => {
+      const state = session.getState();
+      const refEl = overlay.querySelector("#vno-eval-ref");
+      const formulaEl = overlay.querySelector("#vno-eval-formula");
+      const stepEl = overlay.querySelector("#vno-eval-step-value");
+      const finalEl = overlay.querySelector("#vno-eval-final");
+      const errorEl = overlay.querySelector("#vno-eval-error");
+      if (refEl) {
+        refEl.textContent = t("sheetDialogs.evaluateFormulaRef", {
+          sheet: state.sheetName || this.activeSheet,
+          coord: state.coord || coord
+        });
+      }
+      if (state.error === "not-formula") {
+        if (formulaEl) formulaEl.innerHTML = "";
+        if (stepEl) stepEl.textContent = "";
+        if (errorEl) errorEl.textContent = t("sheetDialogs.evaluateFormulaNoFormula", "Ô đang chọn không chứa công thức. Hãy chọn một ô bắt đầu bằng dấu = rồi mở lại Ước lượng công thức.");
+        if (finalEl) finalEl.textContent = "";
+        evaluateBtn.disabled = true;
+        stepInBtn.disabled = true;
+        stepOutBtn.disabled = true;
+        evaluateBtn.textContent = t("sheetDialogs.evaluateFormulaEvaluate", "Ước lượng");
+        cancelBtn?.focus();
+        return;
+      }
+      if (errorEl) errorEl.textContent = "";
+      if (formulaEl) formulaEl.innerHTML = renderFormulaHtml(state.formula, state.underline);
+      const last = state.steps[state.steps.length - 1];
+      if (stepEl) {
+        stepEl.textContent = last
+          ? t("sheetDialogs.evaluateFormulaStepResult", { value: formatFormulaValue(last.value) })
+          : "";
+      }
+      const cellText = formatFormulaValue(state.cellValue);
+      if (state.done) {
+        const finalText = formatFormulaValue(state.finalValue);
+        const match = String(finalText) === String(cellText) || Number(finalText) === Number(state.cellValue);
+        if (finalEl) {
+          finalEl.textContent = `${t("sheetDialogs.evaluateFormulaDone", { value: finalText })} ${
+            match
+              ? t("sheetDialogs.evaluateFormulaDoneMatch", "Kết quả khớp giá trị ô.")
+              : t("sheetDialogs.evaluateFormulaDoneMismatch", { value: cellText })
+          }`;
+        }
+        evaluateBtn.disabled = false;
+        evaluateBtn.textContent = t("sheetDialogs.evaluateFormulaRestart", "Khởi động lại");
+      } else {
+        if (finalEl) {
+          finalEl.textContent = t("sheetDialogs.evaluateFormulaCellValue", { value: cellText });
+        }
+        evaluateBtn.disabled = !state.canEvaluate;
+        evaluateBtn.textContent = t("sheetDialogs.evaluateFormulaEvaluate", "Ước lượng");
+      }
+      stepInBtn.disabled = !state.canStepIn;
+      stepOutBtn.disabled = !state.canStepOut;
+      if (state.canEvaluate && !state.done) evaluateBtn.focus();
+    };
+
+    evaluateBtn.addEventListener("click", () => {
+      const state = session.getState();
+      if (state.done) {
+        session.restart();
+      } else {
+        session.evaluate();
+      }
+      render();
+    });
+    stepInBtn.addEventListener("click", () => {
+      session.stepIn();
+      render();
+    });
+    stepOutBtn.addEventListener("click", () => {
+      session.stepOut();
+      render();
+    });
+
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeDialog();
+        return;
+      }
+      if (event.key === "Enter") {
+        if (document.activeElement === cancelBtn) return;
+        if (evaluateBtn.disabled) return;
+        event.preventDefault();
+        const state = session.getState();
+        if (state.done) {
+          session.restart();
+        } else {
+          session.evaluate();
+        }
+        render();
+        return;
+      }
+      if (event.key === "Tab") {
+        trapFocus(event);
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    render();
+    return true;
+  }
+
+  openChartBuilder() {
+    const range = this._normalizeRange(this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const extracted = SheetChartBuilder.extractRangeData(this.cellsData, range, this.cols);
+    const dataItems = extracted.labels.map((label, index) => ({ label, value: extracted.data[index] }));
+    const rangeLabel = this._rangeLabel(range);
+    return SheetChartBuilder.showChartModal(dataItems, chartType => this.insertChart(chartType, range), {
+      rangeLabel,
+      title: `Biểu đồ ${rangeLabel}`
+    });
+  }
+
+  openPivotChartBuilder() {
+    let targetSheet = this.activeSheet;
+    let pivot = this.pivotTablesBySheet[targetSheet]?.[0];
+    if (!pivot) {
+      const linked = Object.entries(this.pivotTablesBySheet).find(([, items]) => items?.some(item => item.sourceSheet === this.activeSheet));
+      if (linked) { targetSheet = linked[0]; pivot = linked[1][0]; }
+    }
+    if (!pivot || !this.sheetsData[targetSheet]) { this._showDataNotice(t("sheetDialogs.pivotChartNeedsPivot", "Hãy chọn một trang Pivot hoặc tạo Pivot Table trước.")); return false; }
+    if (targetSheet !== this.activeSheet) this.switchSheet(targetSheet);
+    const range = pivot.resultRange || this._usedRangeForCells(this.cellsData);
+    const extracted = SheetChartBuilder.extractRangeData(this.cellsData, range, this.cols);
+    const dataItems = extracted.labels.map((label, index) => ({ label, value: extracted.data[index] }));
+    return SheetChartBuilder.showChartModal(dataItems, type => this.insertPivotChart(type, pivot, range), { rangeLabel: this._rangeLabel(range), title: t("sheetDialogs.pivotChartTitle", "Biểu đồ Pivot"), types: ["bar", "pie"] });
+  }
+
+  _usedRangeForCells(cells) {
+    let maxCol = 0, maxRow = 1;
+    for (const coord of cells.keys()) { const [col, row] = this._splitCoord(coord); maxCol = Math.max(maxCol, this.cols.indexOf(col)); maxRow = Math.max(maxRow, row); }
+    return { start: { c: "A", r: 1 }, end: { c: this.cols[Math.max(0, maxCol)], r: maxRow } };
+  }
+
+  insertPivotChart(type, pivot = this.pivotTablesBySheet[this.activeSheet]?.[0], range = pivot?.resultRange, recordUndo = true) {
+    if (!pivot || !["bar", "pie"].includes(type)) return false;
+    const chart = this.insertChart(type, range || this._usedRangeForCells(this.cellsData), false);
+    chart.kind = "pivot"; chart.pivotId = pivot.id; chart.pivotSheet = pivot.targetSheet || this.activeSheet; chart.title = t("sheetDialogs.pivotChartTitle", "Biểu đồ Pivot");
+    this._updateChartData(chart, chart.pivotSheet); this.renderCharts();
+    if (recordUndo) this._recordHistory({ type: "collection", sheet: this.activeSheet, collection: "chartsBySheet", operation: "insert", index: this.chartsBySheet[this.activeSheet].length - 1, item: structuredClone(chart) });
+    return chart;
+  }
+
+  insertChart(type, range = this.selectionRange, recordUndo = true) {
+    if (!SheetChartBuilder.supportedTypes.includes(type)) return false;
+    const normalizedRange = this._normalizeRange(range);
+    const chart = {
+      id: `chart-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      type,
+      range: normalizedRange,
+      title: `Biểu đồ ${this._rangeLabel(normalizedRange)}`,
+      labels: [],
+      data: []
+    };
+    this.chartsBySheet[this.activeSheet] ||= [];
+    this.chartsBySheet[this.activeSheet].push(chart);
+    this._updateChartData(chart);
+    this.renderCharts();
+    if (recordUndo) this._recordHistory({ type: "collection", sheet: this.activeSheet, collection: "chartsBySheet", operation: "insert", index: this.chartsBySheet[this.activeSheet].length - 1, item: structuredClone(chart) });
+    return chart;
+  }
+
+  getCharts(sheetName = this.activeSheet) {
+    return [...(this.chartsBySheet[sheetName] || [])];
+  }
+
+  deleteChart(chartId, sheetName = this.activeSheet, recordUndo = true) {
+    const charts = this.chartsBySheet[sheetName] || [];
+    const index = charts.findIndex(chart => chart.id === chartId);
+    if (index < 0) return false;
+    const [chart] = charts.splice(index, 1);
+    if (sheetName === this.activeSheet) this.renderCharts();
+    if (recordUndo) this._recordHistory({ type: "collection", sheet: sheetName, collection: "chartsBySheet", operation: "delete", index, item: structuredClone(chart) });
+    return true;
+  }
+
+  _rangeLabel(range) {
+    const first = `${range.start.c}${range.start.r}`;
+    const last = `${range.end.c}${range.end.r}`;
+    return first === last ? first : `${first}:${last}`;
+  }
+
+  _updateChartData(chart, sheetName = this.activeSheet) {
+    const extracted = SheetChartBuilder.extractRangeData(this.sheetsData[sheetName] || this.cellsData, chart.range, this.cols);
+    chart.labels = extracted.labels;
+    chart.data = extracted.data;
+    return chart;
+  }
+
+  refreshCharts(sheetName = this.activeSheet) {
+    for (const chart of this.chartsBySheet[sheetName] || []) this._updateChartData(chart, sheetName);
+    if (sheetName === this.activeSheet) this.renderCharts();
+  }
+
+  renderCharts() {
+    if (!this.chartLayer || typeof document === "undefined") return;
+    this.chartLayer.innerHTML = "";
+    for (const chart of this.chartsBySheet[this.activeSheet] || []) {
+      const panel = document.createElement("section");
+      const colOffset = Math.max(0, this.cols.indexOf(chart.range.end.c) + 1) * 100 + 46;
+      const rowOffset = Math.max(0, chart.range.start.r - 1) * this.rowHeight + 28;
+      panel.className = "vno-sheet-chart";
+      panel.dataset.chartId = chart.id;
+      panel.dataset.sheet = this.activeSheet;
+      panel.style.cssText = `position:absolute;left:${colOffset}px;top:${rowOffset}px;width:520px;height:300px;background:#fff;border:1px solid #cbd5e1;border-radius:8px;box-shadow:0 8px 24px rgba(15,23,42,.18);pointer-events:auto;overflow:hidden`;
+      panel.innerHTML = `<button type="button" data-chart-delete aria-label="Xóa biểu đồ" title="Xóa biểu đồ" style="position:absolute;right:6px;top:4px;z-index:1;border:0;background:#fff;border-radius:4px;font-size:18px;cursor:pointer">&times;</button>${SheetChartBuilder.generateSvg(chart)}`;
+      panel.querySelector("[data-chart-delete]")?.addEventListener("click", () => this.deleteChart(chart.id));
+      this.chartLayer.appendChild(panel);
+    }
+  }
+
+  _extractImageDimensions(dataUrl) {
+    if (typeof dataUrl !== "string" || !dataUrl.startsWith("data:image/")) return null;
+    const match = dataUrl.match(/^data:image\/([^;]+);base64,(.+)$/);
+    if (!match) return null;
+    const base64 = match[2];
+    let binary = "";
+    try {
+      const chunk = base64.slice(0, 4096);
+      if (typeof atob === "function") {
+        binary = atob(chunk);
+      } else if (typeof Buffer !== "undefined") {
+        binary = Buffer.from(chunk, "base64").toString("binary");
+      }
+    } catch (_) {
+      return null;
+    }
+    if (!binary || binary.length < 16) return null;
+    const b = (i) => binary.charCodeAt(i) & 0xff;
+
+    // PNG
+    if (b(0) === 0x89 && b(1) === 0x50 && b(2) === 0x4e && b(3) === 0x47) {
+      if (binary.length >= 24) {
+        const width = (b(16) << 24) | (b(17) << 16) | (b(18) << 8) | b(19);
+        const height = (b(20) << 24) | (b(21) << 16) | (b(22) << 8) | b(23);
+        if (width > 0 && height > 0) return { width, height };
+      }
+    }
+
+    // GIF
+    if (b(0) === 0x47 && b(1) === 0x49 && b(2) === 0x46) {
+      if (binary.length >= 10) {
+        const width = b(6) | (b(7) << 8);
+        const height = b(8) | (b(9) << 8);
+        if (width > 0 && height > 0) return { width, height };
+      }
+    }
+
+    // JPEG
+    if (b(0) === 0xff && b(1) === 0xd8) {
+      let offset = 2;
+      while (offset < binary.length - 8) {
+        if (b(offset) !== 0xff) { offset++; continue; }
+        const marker = b(offset + 1);
+        if (marker === 0xd9 || marker === 0xda) break;
+        const len = (b(offset + 2) << 8) | b(offset + 3);
+        if ((marker >= 0xc0 && marker <= 0xc3) || (marker >= 0xc5 && marker <= 0xc7) || (marker >= 0xc9 && marker <= 0xcb) || (marker >= 0xcd && marker <= 0xcf)) {
+          const height = (b(offset + 5) << 8) | b(offset + 6);
+          const width = (b(offset + 7) << 8) | b(offset + 8);
+          if (width > 0 && height > 0) return { width, height };
+        }
+        offset += 2 + len;
+      }
+    }
+
+    // WebP
+    if (binary.length >= 30 && binary.slice(0, 4) === "RIFF" && binary.slice(8, 12) === "WEBP") {
+      const type = binary.slice(12, 16);
+      if (type === "VP8 " && binary.length >= 30) {
+        const width = (b(26) | (b(27) << 8)) & 0x3fff;
+        const height = (b(28) | (b(29) << 8)) & 0x3fff;
+        if (width > 0 && height > 0) return { width, height };
+      } else if (type === "VP8L" && binary.length >= 25) {
+        const b1 = b(21), b2 = b(22), b3 = b(23), b4 = b(24);
+        const width = 1 + (((b2 & 0x3f) << 8) | b1);
+        const height = 1 + (((b4 & 0xf) << 10) | (b3 << 2) | ((b2 & 0xc0) >> 6));
+        if (width > 0 && height > 0) return { width, height };
+      } else if (type === "VP8X" && binary.length >= 30) {
+        const width = 1 + (b(24) | (b(25) << 8) | (b(26) << 16));
+        const height = 1 + (b(27) | (b(28) << 8) | (b(29) << 16));
+        if (width > 0 && height > 0) return { width, height };
+      }
+    }
+
+    return null;
+  }
+
+  insertImage(src, anchor = this.selectedCoord, recordUndo = true, options = {}) {
+    if (typeof src !== "string" || !src.startsWith("data:image/")) return false;
+    let widthCm = options?.widthCm;
+    let heightCm = options?.heightCm;
+    if ((!Number.isFinite(widthCm) || !Number.isFinite(heightCm)) && typeof src === "string") {
+      const dims = this._extractImageDimensions(src);
+      if (dims && dims.width > 0 && dims.height > 0) {
+        let wPx = dims.width;
+        let hPx = dims.height;
+        const maxW = 480;
+        const maxH = 480;
+        if (wPx > maxW || hPx > maxH) {
+          const ratio = Math.min(maxW / wPx, maxH / hPx);
+          wPx = Math.round(wPx * ratio);
+          hPx = Math.round(hPx * ratio);
+        }
+        widthCm = parseFloat((wPx / 37.79527559055118).toFixed(3));
+        heightCm = parseFloat((hPx / 37.79527559055118).toFixed(3));
+      } else {
+        widthCm = 6.35;
+        heightCm = 2.117;
+      }
+    }
+    const image = {
+      id: `image-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      src,
+      anchor: { c: anchor?.c || this.selectedCoord.c, r: Number(anchor?.r || this.selectedCoord.r) },
+      ...(Number.isFinite(widthCm) && widthCm > 0 ? { widthCm } : {}),
+      ...(Number.isFinite(heightCm) && heightCm >= 0 ? { heightCm } : {}),
+      ...(Number.isFinite(options?.offsetXCm) ? { offsetXCm: options.offsetXCm } : {}),
+      ...(Number.isFinite(options?.offsetYCm) ? { offsetYCm: options.offsetYCm } : {})
+    };
+    this.imagesBySheet[this.activeSheet] ||= [];
+    this.imagesBySheet[this.activeSheet].push(image);
+    this.selectedImageId = image.id;
+    this.renderImages();
+    if (recordUndo) this._recordHistory({ type: "collection", sheet: this.activeSheet, collection: "imagesBySheet", operation: "insert", index: this.imagesBySheet[this.activeSheet].length - 1, item: structuredClone(image) });
+    return image;
+  }
+
+  deleteImage(imageId, sheetName = this.activeSheet, recordUndo = true) {
+    const images = this.imagesBySheet[sheetName] || [];
+    const index = images.findIndex(image => image.id === imageId);
+    if (index < 0) return false;
+    const [image] = images.splice(index, 1);
+    if (this.selectedImageId === imageId) this.selectedImageId = null;
+    if (sheetName === this.activeSheet) this.renderImages();
+    if (recordUndo) this._recordHistory({ type: "collection", sheet: sheetName, collection: "imagesBySheet", operation: "delete", index, item: structuredClone(image) });
+    return true;
+  }
+
+  _updateImageSelection() {
+    if (!this.imageLayer) return;
+    const panels = this.imageLayer.querySelectorAll?.(".vno-sheet-image") || [];
+    for (const p of panels) {
+      const isSelected = p.dataset?.imageId === this.selectedImageId;
+      if (isSelected) {
+        p.classList?.add?.("is-selected");
+        if (typeof p.className === "string" && !p.className.includes("is-selected")) {
+          p.className = `${p.className} is-selected`.trim();
+        }
+      } else {
+        p.classList?.remove?.("is-selected");
+        if (typeof p.className === "string") {
+          p.className = p.className.replace(/\bis-selected\b/g, "").trim();
+        }
+      }
+    }
+  }
+
+  _getAnchorFromPixel(left, top) {
+    // Lỗi thật đã xác nhận: renderImages() dùng offset header 44px(cột)/
+    // 24px(hàng) (thống nhất với _applyFreezeVisuals(), xem
+    // HANDOFF-SHEET-IMAGE-FREEZE-PANE-SCROLL.md), nhưng hàm này (chuyển
+    // pixel thả chuột về lại ô neo khi kéo-thả ảnh) trước đó vẫn dùng
+    // 46/28 cũ — lệch offset khiến kéo-thả tính sai ô neo gần biên ô.
+    const headerLeft = 44;
+    const headerTop = 24;
+    const rowH = this.rowHeight || 28;
+
+    // Tính cột gần nhất
+    let chosenCol = this.cols[0] || "A";
+    let accumX = headerLeft;
+    for (let i = 0; i < this.cols.length; i++) {
+      const col = this.cols[i];
+      const colW = typeof this.getColumnWidth === "function" ? this.getColumnWidth(col) : 100;
+      if (left < accumX + colW / 2) {
+        chosenCol = col;
+        break;
+      }
+      accumX += colW;
+      chosenCol = col;
+    }
+
+    // Tính hàng gần nhất (dung prefix-sum binary search)
+    const pixelY = top - headerTop;
+    let chosenRow = this._firstVisibleRow(Math.max(0, pixelY));
+    if (chosenRow > 1) {
+      const rowTopPx = this._rowTop(chosenRow);
+      const rowHeight = this.getRowHeight(chosenRow);
+      if (pixelY < rowTopPx - rowHeight / 2) chosenRow = Math.max(1, chosenRow - 1);
+      else if (pixelY > rowTopPx + rowHeight / 2) chosenRow = Math.min(this.rowCount, chosenRow + 1);
+    }
+
+    return { c: chosenCol, r: chosenRow };
+  }
+
+  _attachImageDrag(panel, image) {
+    panel.addEventListener("pointerdown", (event) => {
+      if (event.target?.closest?.("[data-image-delete]")) return;
+      if (event.button != null && event.button !== 0) return;
+
+      this.selectedImageId = image.id;
+      this._updateImageSelection();
+
+      const pointerId = event.pointerId;
+      if (panel.setPointerCapture && pointerId != null) {
+        try { panel.setPointerCapture(pointerId); } catch (_) { /* ignore */ }
+      }
+
+      const startX = event.clientX;
+      const startY = event.clientY;
+      const startLeft = parseFloat(panel.style.left) || 0;
+      const startTop = parseFloat(panel.style.top) || 0;
+
+      let moved = false;
+      let currentLeft = startLeft;
+      let currentTop = startTop;
+
+      const targetWindow = typeof window !== "undefined" ? window : (typeof document !== "undefined" ? document : null);
+
+      const move = (moveEvent) => {
+        const dx = moveEvent.clientX - startX;
+        const dy = moveEvent.clientY - startY;
+        if (!moved && Math.abs(dx) + Math.abs(dy) < 3) return;
+        if (!moved) {
+          moved = true;
+          panel.classList?.add?.("is-dragging");
+        }
+
+        currentLeft = Math.max(0, startLeft + dx);
+        currentTop = Math.max(0, startTop + dy);
+        panel.style.left = `${currentLeft}px`;
+        panel.style.top = `${currentTop}px`;
+
+        // Highlight ô đích thời gian thực trong lúc kéo
+        const hoverAnchor = this._getAnchorFromPixel(currentLeft, currentTop);
+        const targetCoordKey = `${hoverAnchor.c}${hoverAnchor.r}`;
+        const prevTarget = this.container?.querySelector?.(".vno-grid-cell.is-drop-target");
+        if (prevTarget && prevTarget.dataset.coord !== targetCoordKey) {
+          prevTarget.classList.remove("is-drop-target");
+        }
+        const newTarget = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${targetCoordKey}"]`);
+        if (newTarget && !newTarget.classList.contains("is-drop-target")) {
+          newTarget.classList.add("is-drop-target");
+        }
+      };
+
+      const up = () => {
+        if (panel.releasePointerCapture && pointerId != null) {
+          try { panel.releasePointerCapture(pointerId); } catch (_) { /* ignore */ }
+        }
+        panel.classList?.remove?.("is-dragging");
+        this.container?.querySelectorAll?.(".vno-grid-cell.is-drop-target")?.forEach?.(c => c.classList.remove("is-drop-target"));
+        if (targetWindow?.removeEventListener) {
+          targetWindow.removeEventListener("pointermove", move);
+          targetWindow.removeEventListener("pointerup", up);
+          targetWindow.removeEventListener("pointercancel", up);
+        }
+
+        if (!moved) return;
+
+        const newAnchor = this._getAnchorFromPixel(currentLeft, currentTop);
+        const oldAnchor = { c: image.anchor.c, r: Number(image.anchor.r) };
+
+        if (newAnchor.c === oldAnchor.c && Number(newAnchor.r) === oldAnchor.r) {
+          this.renderImages();
+          return;
+        }
+
+        image.anchor = { c: newAnchor.c, r: Number(newAnchor.r) };
+        this._recordHistory({
+          type: "collection",
+          sheet: this.activeSheet,
+          collection: "imagesBySheet",
+          operation: "update",
+          id: image.id,
+          before: { anchor: structuredClone(oldAnchor) },
+          after: { anchor: structuredClone(image.anchor) },
+          item: structuredClone(image)
+        });
+        this.renderImages();
+      };
+
+      if (targetWindow?.addEventListener) {
+        targetWindow.addEventListener("pointermove", move);
+        targetWindow.addEventListener("pointerup", up);
+        targetWindow.addEventListener("pointercancel", up);
+      }
+    });
+  }
+
+  _parseEndCellAddress(endCellAddress) {
+    if (!endCellAddress) return null;
+    const match = String(endCellAddress).match(/\$?([A-Z]{1,3})\$?(\d+)/i);
+    if (!match) return null;
+    return { c: match[1].toUpperCase(), r: Number(match[2]) };
+  }
+
+  _resolveImageAnchor(image) {
+    if (image.anchor?.c && image.anchor?.r) {
+      return { c: image.anchor.c, r: image.anchor.r };
+    }
+    if (image.endCellAddress) {
+      const parsed = this._parseEndCellAddress(image.endCellAddress);
+      if (parsed) return parsed;
+    }
+    return null;
+  }
+
+  renderImages() {
+    if (!this.imageLayer || typeof document === "undefined") return;
+    this.imageLayer.innerHTML = "";
+    const frozenRows = Math.min(this.frozenRows || 0, this.rowCount);
+    const frozenCols = Math.min(this.frozenCols || 0, this.cols.length);
+    for (const image of this.imagesBySheet[this.activeSheet] || []) {
+      const anchor = this._resolveImageAnchor(image);
+      if (!anchor) {
+        console.warn("[SheetGrid] Skipping image without valid anchor:", image.id, image);
+        continue;
+      }
+      const panel = document.createElement("figure");
+      const colIdx = Math.max(0, this.cols.indexOf(anchor.c));
+      const isInFrozenRow = anchor.r >= 1 && anchor.r <= frozenRows;
+      const isInFrozenCol = colIdx < frozenCols && frozenCols > 0;
+      const isFrozen = isInFrozenRow || isInFrozenCol;
+
+      const targetTr = this.tbody ? this.tbody.querySelector(`tr[data-row="${anchor.r}"]`) : null;
+      let topAcc = (targetTr && typeof targetTr.offsetTop === "number")
+        ? targetTr.offsetTop
+        : (24 + this._rowTop(anchor.r));
+      const offsetYPx = Number.isFinite(Number(image.offsetYCm))
+        ? Number(image.offsetYCm) * 37.79527559055118
+        : (Number.isFinite(Number(image.offsetY)) ? Number(image.offsetY) : 0);
+      const topVal = topAcc + offsetYPx;
+
+      const targetTd = (targetTr && typeof targetTr.querySelector === "function")
+        ? targetTr.querySelector(`td[data-col="${anchor.c}"]`)
+        : null;
+      let leftAcc;
+      if (targetTd && typeof targetTd.offsetLeft === "number") {
+        leftAcc = targetTd.offsetLeft;
+      } else {
+        leftAcc = 44;
+        for (let i = 0; i < colIdx; i++) {
+          leftAcc += typeof this.getColumnWidth === "function" ? this.getColumnWidth(this.cols[i]) : (this.defaultColWidth || DEFAULT_COL_WIDTH_PX);
+        }
+      }
+      const offsetXPx = Number.isFinite(Number(image.offsetXCm))
+        ? Number(image.offsetXCm) * 37.79527559055118
+        : (Number.isFinite(Number(image.offsetX)) ? Number(image.offsetX) : 0);
+      const leftVal = leftAcc + offsetXPx;
+
+      const isSelected = this.selectedImageId === image.id;
+      panel.className = isSelected ? "vno-sheet-image is-selected" : "vno-sheet-image";
+      panel.dataset.imageId = image.id;
+      panel.dataset.sheet = this.activeSheet;
+      panel.dataset.anchor = `${anchor.c}${anchor.r}`;
+      if (isFrozen) {
+        panel.dataset.frozen = "true";
+        if (isInFrozenRow) panel.dataset.frozenRow = "true";
+        if (isInFrozenCol) panel.dataset.frozenCol = "true";
+      }
+      const zIdx = isFrozen ? 10 : 7;
+
+      const hasWidth = Number.isFinite(Number(image.widthCm)) && Number(image.widthCm) > 0;
+      const hasHeight = Number.isFinite(Number(image.heightCm)) && Number(image.heightCm) >= 0;
+
+      let cssText = `position:absolute;left:${leftVal}px;top:${topVal}px;z-index:${zIdx};margin:0;padding:0;pointer-events:auto;box-sizing:border-box;`;
+      if (hasWidth) {
+        const widthPx = Math.round(Number(image.widthCm) * 37.79527559055118);
+        panel.style.width = `${widthPx}px`;
+        cssText += `width:${widthPx}px;`;
+      }
+      if (hasHeight) {
+        const heightPx = Math.round(Number(image.heightCm) * 37.79527559055118);
+        panel.style.height = `${heightPx}px`;
+        cssText += `height:${heightPx}px;`;
+      }
+      panel.style.cssText = cssText;
+      panel.style.position = "absolute";
+      panel.style.left = `${leftVal}px`;
+      panel.style.top = `${topVal}px`;
+      panel.style.zIndex = `${zIdx}`;
+      panel.style.margin = "0";
+      panel.style.padding = "0";
+      panel.style.pointerEvents = "auto";
+      panel.style.boxSizing = "border-box";
+      if (hasWidth) panel.style.width = `${Math.round(Number(image.widthCm) * 37.79527559055118)}px`;
+      if (hasHeight) panel.style.height = `${Math.round(Number(image.heightCm) * 37.79527559055118)}px`;
+
+      const img = document.createElement("img");
+      img.src = image.src;
+      img.alt = t("sheetDialogs.insertedImageAlt");
+      img.draggable = false;
+      img.style.cssText = "display:block;width:100%;height:100%;object-fit:fill;pointer-events:none;user-select:none;-webkit-user-drag:none";
+
+      // Handle broken images (WMF/EMF that browser can't decode) - hide broken placeholder
+      img.onerror = () => {
+        img.style.display = "none";
+        // Show empty placeholder with correct size instead of broken image icon
+        if (!panel.querySelector(".vno-image-broken")) {
+          const placeholder = document.createElement("div");
+          placeholder.className = "vno-image-broken";
+          placeholder.style.cssText = "width:100%;height:100%;background:transparent;border:1px dashed #94a3b8;pointer-events:none;box-sizing:border-box;";
+          placeholder.title = t("sheetDialogs.imageFormatUnsupported");
+          panel.insertBefore(placeholder, img);
+        }
+      };
+
+      if (!hasWidth || !hasHeight) {
+        img.onload = () => {
+          if (!image.widthCm || !image.heightCm) {
+            let natW = img.naturalWidth || img.width;
+            let natH = img.naturalHeight || img.height;
+            if (natW > 0 && natH > 0) {
+              if (natW > 480 || natH > 480) {
+                const ratio = Math.min(480 / natW, 480 / natH);
+                natW = Math.round(natW * ratio);
+                natH = Math.round(natH * ratio);
+              }
+              if (!hasWidth) {
+                panel.style.width = `${natW}px`;
+                image.widthCm = parseFloat((natW / 37.79527559055118).toFixed(3));
+              }
+              if (!hasHeight) {
+                panel.style.height = `${natH}px`;
+                image.heightCm = parseFloat((natH / 37.79527559055118).toFixed(3));
+              }
+            }
+          }
+        };
+      }
+
+      panel.appendChild(img);
+
+      // 8 resize handles for selection (Excel/Slides fidelity)
+      const handles = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
+      for (const dir of handles) {
+        const h = document.createElement("div");
+        h.className = `vno-shape-resize-handle vno-image-resize-handle vno-handle-${dir}`;
+        h.dataset.handleDir = dir;
+        panel.appendChild(h);
+      }
+
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.dataset.imageDelete = "";
+      remove.setAttribute("aria-label", t("sheetDialogs.deleteImage"));
+      remove.title = t("sheetDialogs.deleteImage");
+      remove.textContent = "×";
+      remove.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.deleteImage(image.id);
+      });
+      panel.appendChild(remove);
+
+      this._attachImageDrag(panel, image);
+      this.imageLayer.appendChild(panel);
+    }
+    this._updateFrozenImages();
+  }
+
+  insertSparkline(type, range = this.selectionRange) {
+    if (!["line", "column"].includes(type)) return false;
+    const sourceRange = this._normalizeRange(range || { start: this.selectedCoord, end: this.selectedCoord });
+    const values = [];
+    for (let row = sourceRange.start.r; row <= sourceRange.end.r; row++) {
+      for (let col = this._columnNumber(sourceRange.start.c); col <= this._columnNumber(sourceRange.end.c); col++) {
+        const raw = this.cellsData.get(`${this._columnLabel(col)}${row}`)?.val;
+        const value = Number(String(raw ?? "").replace(/\s/g, "").replace(/[₫%]/g, "").replace(/\.(?=\d{3}(?:\D|$))/g, "").replace(",", ".").replace(/[^\d.+-]/g, ""));
+        if (String(raw ?? "").trim() && Number.isFinite(value)) values.push(value);
+      }
+    }
+    if (!values.length) return false;
+    const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const item = this.cellsData.get(key) || { val: "", formula: "", style: {} };
+    item.sparkline = { type, values, sourceRange };
+    this.cellsData.set(key, item);
+    this._renderCellVisual(this.container?.querySelector?.(`.vno-grid-cell[data-coord="${key}"]`), item, this.selectedCoord.c, this.selectedCoord.r);
+    return item.sparkline;
+  }
+
+  insertHyperlink(url, text = "") {
+    const safeUrl = String(url || "").trim();
+    if (!/^(https?:|mailto:)/i.test(safeUrl)) return false;
+    const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const item = this.cellsData.get(key) || { val: "", formula: "", style: {} };
+    item.hyperlink = safeUrl;
+    if (text) item.val = text;
+    else if (!item.val) item.val = safeUrl;
+    this.cellsData.set(key, item);
+    this._renderCellVisual(this.container?.querySelector?.(`.vno-grid-cell[data-coord="${key}"]`), item, this.selectedCoord.c, this.selectedCoord.r);
+    return true;
+  }
+
+  insertTextBox(text, anchor = this.selectedCoord) {
+    const box = { id: `textbox-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, text: String(text), anchor: { c: anchor.c, r: anchor.r } };
+    this.textBoxesBySheet[this.activeSheet] ||= [];
+    this.textBoxesBySheet[this.activeSheet].push(box);
+    this.renderTextBoxes();
+    this._recordHistory({ type: "collection", sheet: this.activeSheet, collection: "textBoxesBySheet", operation: "insert", index: this.textBoxesBySheet[this.activeSheet].length - 1, item: structuredClone(box) });
+    return box;
+  }
+
+  renderTextBoxes() {
+    if (!this.textBoxLayer || typeof document === "undefined") return;
+    this.textBoxLayer.innerHTML = "";
+    for (const box of this.textBoxesBySheet[this.activeSheet] || []) {
+      const el = document.createElement("div");
+      el.className = "vno-sheet-textbox";
+      el.dataset.textboxId = box.id;
+      el.contentEditable = "true";
+      el.textContent = box.text;
+      el.style.cssText = `position:absolute;left:${Math.max(0, this.cols.indexOf(box.anchor.c)) * 100 + 46}px;top:${Math.max(0, box.anchor.r - 1) * this.rowHeight + 28}px;min-width:180px;min-height:54px;padding:10px;background:#fff;border:1px solid #64748b;box-shadow:0 4px 12px rgba(15,23,42,.16);pointer-events:auto;resize:both;overflow:auto`;
+      el.addEventListener("input", () => { box.text = el.textContent || ""; });
+      this.textBoxLayer.appendChild(el);
+    }
+  }
+
+  insertCurrentDate() {
+    const now = new Date();
+    const dateStr = `${String(now.getDate()).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(2, "0")}/${now.getFullYear()}`;
+    this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, dateStr);
+    return true;
+  }
+
+  showFormatCellsDialog(initialTab = "number") {
+    const activeKey = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const item = this.cellsData.get(activeKey);
+    const tabName = typeof initialTab === "string" ? initialTab : (initialTab?.tab || "number");
+    FormatCellsDialog.show({
+      grid: this,
+      initialTab: tabName,
+      currentConfig: item?.style?.numberFormat,
+      currentStyle: item?.style,
+      isMerged: Boolean(this.getMergedRangeForCell(this.selectedCoord.c, this.selectedCoord.r)),
+      sampleValue: item?.val,
+      onApply: (config) => {
+        if (config && config.category) {
+          this.applyNumberFormat(config);
+        }
+        if (typeof this.container?.focus === "function") {
+          this.container.focus({ preventScroll: true });
+        }
+      },
+      onClose: () => {
+        if (typeof this.container?.focus === "function") {
+          this.container.focus({ preventScroll: true });
+        }
+      }
+    });
+    return true;
+  }
+
+  applyNumberFormat(config, range = null, recordUndo = true) {
+    const targetRange = this._normalizeRange(range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const coords = this.formulaEngine.expandRange(this._rangeLabel(targetRange));
+
+    const before = {};
+    const after = {};
+
+    coords.forEach(coord => {
+      const existing = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+      before[coord] = {
+        numberFormat: existing.style?.numberFormat ? structuredClone(existing.style.numberFormat) : null,
+        style: structuredClone(existing.style || {}),
+        val: existing.val
+      };
+
+      existing.style = existing.style ? structuredClone(existing.style) : {};
+
+      if (!config || config.category === "general") {
+        delete existing.style.numberFormat;
+      } else {
+        existing.style.numberFormat = structuredClone(config);
+      }
+
+      if (config?.category === "text") {
+        existing.style.textAlign = "left";
+      }
+
+      after[coord] = {
+        numberFormat: existing.style?.numberFormat ? structuredClone(existing.style.numberFormat) : null,
+        style: structuredClone(existing.style || {}),
+        val: existing.val
+      };
+
+      this.cellsData.set(coord, existing);
+
+      const [c, r] = this._splitCoord(coord);
+      const dom = this.container.querySelector(`.vno-grid-cell[data-coord="${coord}"]`);
+      if (dom) {
+        this._renderCellVisual(dom, existing, c, r);
+      }
+    });
+
+    if (recordUndo) {
+      this._recordHistory({
+        type: "format-cells",
+        sheet: this.activeSheet,
+        before,
+        after
+      });
+    }
+
+    return true;
+  }
+
+  formatCurrentCellCurrencyVND() {
+    return this.applyNumberFormat({
+      category: "currency",
+      currencySymbol: "₫",
+      decimals: 0,
+      useThousands: true,
+      negativeStyle: 0
+    });
+  }
+
+  formatCurrentCellPercent() {
+    return this.applyNumberFormat({
+      category: "percentage",
+      decimals: 2
+    });
+  }
+
+  formatCurrentCellStandard() {
+    return this.applyNumberFormat({
+      category: "number",
+      decimals: 2,
+      useThousands: true,
+      negativeStyle: 0
+    });
+  }
+
+  applyQuickNumberCategory(category) {
+    const defaults = {
+      general: { category: "general" },
+      number: { category: "number", decimals: 2, useThousands: true, negativeStyle: 0 },
+      currency: { category: "currency", currencySymbol: "₫", decimals: 2, useThousands: true, negativeStyle: 0 },
+      accounting: { category: "accounting", currencySymbol: "₫", decimals: 2 },
+      date: { category: "date", dateFormat: "dd/mm/yyyy" },
+      percentage: { category: "percentage", decimals: 2 },
+      scientific: { category: "scientific", decimals: 2 },
+      text: { category: "text" }
+    };
+    return defaults[category] ? this.applyNumberFormat(defaults[category]) : false;
+  }
+
+  adjustDecimalPlaces(direction) {
+    const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const current = this.cellsData.get(key)?.style?.numberFormat;
+    const config = structuredClone(current || {
+      category: "number",
+      decimals: 0,
+      useThousands: false,
+      negativeStyle: 0
+    });
+    if (["general", "text", "date"].includes(config.category)) return false;
+    config.decimals = Math.max(0, Math.min(30, (Number(config.decimals) || 0) + (direction > 0 ? 1 : -1)));
+    return this.applyNumberFormat(config);
+  }
+
+  applyCellStyle(presetOrId, range = null, recordUndo = true) {
+    let preset = presetOrId;
+    if (typeof presetOrId === "string") {
+      preset = CELL_STYLE_PRESETS.find(p => p.id === presetOrId) || { id: presetOrId, style: {} };
+    }
+    if (!preset) return false;
+
+    const targetRange = this._normalizeRange(range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const coords = this.formulaEngine.expandRange(this._rangeLabel(targetRange));
+
+    const before = {};
+    const after = {};
+
+    coords.forEach(coord => {
+      const existing = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+      before[coord] = {
+        val: existing.val,
+        formula: existing.formula,
+        style: structuredClone(existing.style || {})
+      };
+
+      existing.style = existing.style ? structuredClone(existing.style) : {};
+
+      if (preset.id === "normal") {
+        delete existing.style.backgroundColor;
+        delete existing.style.color;
+        delete existing.style.fontWeight;
+        delete existing.style.fontStyle;
+        delete existing.style.textDecoration;
+        delete existing.style.border;
+        delete existing.style.borderTop;
+        delete existing.style.borderBottom;
+        delete existing.style.fontSize;
+      } else if (preset.style) {
+        Object.assign(existing.style, preset.style);
+      }
+
+      if (preset.numberFormat) {
+        existing.style.numberFormat = structuredClone(preset.numberFormat);
+      }
+
+      after[coord] = {
+        val: existing.val,
+        formula: existing.formula,
+        style: structuredClone(existing.style || {})
+      };
+
+      this.cellsData.set(coord, existing);
+
+      const [c, r] = this._splitCoord(coord);
+      const dom = this.container.querySelector(`.vno-grid-cell[data-coord="${coord}"]`);
+      if (dom) {
+        this._renderCellVisual(dom, existing, c, r);
+      }
+    });
+
+    if (recordUndo) {
+      this._recordHistory({
+        type: "cell-style",
+        sheet: this.activeSheet,
+        before,
+        after
+      });
+    }
+
+    return true;
+  }
+
+  showCellStylesDialog() {
+    return showCellStylesDialog(this);
+  }
+
+  formatAsTable(presetOrId, range = null, recordUndo = true) {
+    let preset = presetOrId;
+    if (typeof presetOrId === "string") {
+      preset = TABLE_STYLE_PRESETS.find(p => p.id === presetOrId) || TABLE_STYLE_PRESETS[0];
+    }
+    if (!preset) return false;
+
+    const targetRange = this._normalizeRange(range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const coords = this.formulaEngine.expandRange(this._rangeLabel(targetRange));
+
+    const minRow = Math.min(targetRange.start.r, targetRange.end.r);
+
+    const before = {};
+    const after = {};
+
+    coords.forEach(coord => {
+      const [c, r] = this._splitCoord(coord);
+      const rowNum = Number(r);
+      const existing = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+
+      before[coord] = {
+        val: existing.val,
+        formula: existing.formula,
+        style: structuredClone(existing.style || {})
+      };
+
+      existing.style = existing.style ? structuredClone(existing.style) : {};
+
+      if (rowNum === minRow) {
+        Object.assign(existing.style, preset.headerStyle);
+      } else {
+        const isEvenBanded = (rowNum - minRow) % 2 === 1;
+        const rowStyle = isEvenBanded ? preset.evenRowStyle : preset.oddRowStyle;
+        Object.assign(existing.style, rowStyle);
+      }
+
+      after[coord] = {
+        val: existing.val,
+        formula: existing.formula,
+        style: structuredClone(existing.style || {})
+      };
+
+      this.cellsData.set(coord, existing);
+
+      const dom = this.container.querySelector(`.vno-grid-cell[data-coord="${coord}"]`);
+      if (dom) {
+        this._renderCellVisual(dom, existing, c, r);
+      }
+    });
+
+    if (recordUndo) {
+      this._recordHistory({
+        type: "format-table",
+        sheet: this.activeSheet,
+        before,
+        after
+      });
+    }
+
+    return true;
+  }
+
+  showFormatAsTableDialog() {
+    return showFormatAsTableDialog(this);
+  }
+
+  _offsetFormula(formula, deltaCol, deltaRow) {
+    if (!formula || typeof formula !== "string" || !formula.startsWith("=")) return formula;
+    return formula.split(/("(?:""|[^"])*")/).map((segment, index) => {
+      if (index % 2 === 1) return segment;
+      return segment.replace(/(^|[^A-Z0-9_])(\$?)([A-Z]{1,3})(\$?)(\d+)(?![A-Z0-9_])/gi, (match, prefix, colAbs, col, rowAbs, row) => {
+        let nextCol = col.toUpperCase();
+        let nextRow = Number(row);
+        if (!colAbs && deltaCol !== 0) {
+          const colNum = this._columnNumber(nextCol) + deltaCol;
+          if (colNum >= 1 && colNum <= 26) {
+            nextCol = this._columnLabel(colNum);
+          }
+        }
+        if (!rowAbs && deltaRow !== 0) {
+          const rNum = nextRow + deltaRow;
+          if (rNum >= 1) {
+            nextRow = rNum;
+          }
+        }
+        return `${prefix}${colAbs}${nextCol}${rowAbs}${nextRow}`;
+      });
+    }).join("");
+  }
+
+  applyPasteSpecial(clipboard, mode = "all", destination = this.selectedCoord, options = {}) {
+    if (!clipboard?.cells?.length || !destination) return false;
+    const sourceRows = clipboard.cells;
+    const transpose = mode === "transpose";
+    const height = transpose ? sourceRows[0].length : sourceRows.length;
+    const width = transpose ? sourceRows.length : sourceRows[0].length;
+    const before = {};
+    const after = {};
+    const sourceStartCol = this._columnNumber(clipboard.range?.start?.c || "A");
+    const sourceStartRow = Number(clipboard.range?.start?.r || 1);
+    const destStartCol = this._columnNumber(destination.c);
+
+    const moveRange = options.moveRange && options.sourceSheet === this.activeSheet
+      ? this._normalizeRange(options.moveRange)
+      : null;
+    if (moveRange && mode === "all") {
+      for (let row = moveRange.start.r; row <= moveRange.end.r; row++) {
+        for (let col = this._columnNumber(moveRange.start.c); col <= this._columnNumber(moveRange.end.c); col++) {
+          const coord = `${this._columnLabel(col)}${row}`;
+          const existing = structuredClone(this.cellsData.get(coord) || { val: "", formula: "", style: {} });
+          before[coord] = existing;
+          after[coord] = { val: "", formula: "", style: structuredClone(existing.style || {}) };
+        }
+      }
+    }
+
+    for (let rowOffset = 0; rowOffset < height; rowOffset++) {
+      for (let colOffset = 0; colOffset < width; colOffset++) {
+        const source = structuredClone(transpose ? sourceRows[colOffset][rowOffset] : sourceRows[rowOffset][colOffset]);
+        const destColNumber = destStartCol + colOffset;
+        const destRow = Number(destination.r) + rowOffset;
+        if (destColNumber < 1 || destColNumber > this.cols.length || destRow < 1 || destRow > this.rowCount) continue;
+        const coord = `${this._columnLabel(destColNumber)}${destRow}`;
+        const existing = structuredClone(this.cellsData.get(coord) || { val: "", formula: "", style: {} });
+        if (!Object.prototype.hasOwnProperty.call(before, coord)) before[coord] = existing;
+        let next = structuredClone(existing);
+        if (mode === "formats") {
+          next.style = structuredClone(source.style || {});
+        } else if (mode === "values") {
+          next.val = source.val ?? "";
+          next.formula = "";
+        } else {
+          const sourceColOffset = transpose ? rowOffset : colOffset;
+          const sourceRowOffset = transpose ? colOffset : rowOffset;
+          const formula = source.formula
+            ? this._offsetFormula(source.formula, destColNumber - (sourceStartCol + sourceColOffset), destRow - (sourceStartRow + sourceRowOffset))
+            : "";
+          next.val = mode === "formulas" && !formula ? "" : (source.val ?? "");
+          next.formula = formula;
+          if (mode !== "formulas") next.style = structuredClone(source.style || {});
+        }
+        after[coord] = structuredClone(next);
+      }
+    }
+    if (!Object.keys(after).length) return false;
+    for (const [coord, item] of Object.entries(after)) this.cellsData.set(coord, item);
+    this._recordHistory({ type: "batch-cells", sheet: this.activeSheet, before, after });
+    this._recalculateAllFormulas();
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this.selectCell(destination.c, destination.r);
+    return true;
+  }
+
+  toggleFormatPainter(opts = {}) {
+    const locked = !!opts.locked;
+    const now = Date.now();
+    if (this.formatPainter) {
+      if (locked) {
+        this.formatPainter.locked = true;
+        this._syncFormatPainterUi();
+        return true;
+      }
+      if (now - (this._formatPainterActivatedAt || 0) < 400) {
+        return true;
+      }
+      this.cancelFormatPainter();
+      return false;
+    }
+    return this.startFormatPainter({ locked });
+  }
+
+  startFormatPainter({ locked = false } = {}) {
+    const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const item = this.cellsData.get(key);
+    this.formatPainter = {
+      locked: !!locked,
+      sourceCoord: key,
+      style: structuredClone(item?.style || {})
+    };
+    this._formatPainterActivatedAt = Date.now();
+    this._bindFormatPainterEscape();
+    this._syncFormatPainterUi();
+    return true;
+  }
+
+  cancelFormatPainter() {
+    if (!this.formatPainter) return false;
+    this.formatPainter = null;
+    this._unbindFormatPainterEscape();
+    this._syncFormatPainterUi();
+    return true;
+  }
+
+  applyFormatPainterToSelection(range = null) {
+    if (!this.formatPainter) return false;
+    const sourceStyle = structuredClone(this.formatPainter.style || {});
+    const ranges = range ? [range] : this._getSelectionRanges();
+    const coords = [...new Set(ranges.flatMap(selection => {
+      const normalized = this._normalizeRange(selection || { start: this.selectedCoord, end: this.selectedCoord });
+      return this.formulaEngine.expandRange(this._rangeLabel(normalized));
+    }))];
+    if (!coords.length) return false;
+
+    const before = {};
+    const after = {};
+    for (const coord of coords) {
+      const existing = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+      before[coord] = {
+        val: existing.val,
+        formula: existing.formula,
+        style: structuredClone(existing.style || {})
+      };
+      const next = {
+        ...existing,
+        val: existing.val,
+        formula: existing.formula,
+        style: structuredClone(sourceStyle)
+      };
+      this.cellsData.set(coord, next);
+      after[coord] = {
+        val: next.val,
+        formula: next.formula,
+        style: structuredClone(next.style)
+      };
+      const [c, r] = this._splitCoord(coord);
+      const dom = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${coord}"]`);
+      if (dom) {
+        dom.style.cssText = "";
+        this._renderCellVisual(dom, next, c, r);
+        this._applyRuleVisuals?.(dom, c, r);
+      }
+    }
+
+    this._recordHistory({ type: "batch-cells", sheet: this.activeSheet, before, after });
+    if (!this.formatPainter.locked) this.cancelFormatPainter();
+    return true;
+  }
+
+  _syncFormatPainterUi() {
+    const active = !!this.formatPainter;
+    const locked = !!this.formatPainter?.locked;
+    this.container?.classList?.toggle?.("vno-format-painter-active", active);
+    this.container?.classList?.toggle?.("vno-format-painter-locked", locked);
+    if (this.container?.dataset) {
+      if (active) this.container.dataset.formatPainter = locked ? "locked" : "on";
+      else delete this.container.dataset.formatPainter;
+    }
+    globalCommandBus?.updateState?.("sheet.edit.formatPainter", { checked: active });
+  }
+
+  _bindFormatPainterEscape() {
+    this._unbindFormatPainterEscape();
+    if (typeof document === "undefined" || typeof document.addEventListener !== "function") return;
+    this._formatPainterEscHandler = (event) => {
+      if (event.key === "Escape" && this.formatPainter) {
+        event.preventDefault();
+        this.cancelFormatPainter();
+      }
+    };
+    document.addEventListener("keydown", this._formatPainterEscHandler, true);
+  }
+
+  _unbindFormatPainterEscape() {
+    if (this._formatPainterEscHandler && typeof document !== "undefined" && typeof document.removeEventListener === "function") {
+      document.removeEventListener("keydown", this._formatPainterEscHandler, true);
+    }
+    this._formatPainterEscHandler = null;
+  }
+
+  showPasteSpecialDialog(clipboard) {
+    if (typeof document === "undefined" || !clipboard?.cells?.length) return false;
+    const title = t("sheetDialogs.pasteSpecialTitle", "Dán đặc biệt");
+    const overlay = this._createSheetDialog(title, `
+      <form class="vno-paste-special-dialog" aria-label="${title}">
+        <fieldset><legend>${t("sheetDialogs.pasteSpecialGroup", "Dán")}</legend>
+          <label><input type="radio" name="paste-special-mode" value="all" checked> ${t("sheetDialogs.pasteSpecialAll", "Tất cả")}</label>
+          <label><input type="radio" name="paste-special-mode" value="values"> ${t("sheetDialogs.pasteSpecialValues", "Chỉ giá trị")}</label>
+          <label><input type="radio" name="paste-special-mode" value="formulas"> ${t("sheetDialogs.pasteSpecialFormulas", "Chỉ công thức")}</label>
+          <label><input type="radio" name="paste-special-mode" value="formats"> ${t("sheetDialogs.pasteSpecialFormats", "Chỉ định dạng")}</label>
+          <label><input type="radio" name="paste-special-mode" value="transpose"> ${t("sheetDialogs.pasteSpecialTranspose", "Chuyển vị (đổi hàng/cột)")}</label>
+        </fieldset>
+      </form>`);
+    if (!overlay) return false;
+    const form = overlay.querySelector(".vno-paste-special-dialog");
+    const paste = () => {
+      const mode = form.querySelector('input[name="paste-special-mode"]:checked')?.value || "all";
+      const cut = !!clipboard.sourceSheet && clipboard.sourceSheet === this.activeSheet &&
+        this._clipboardRange?.mode === "cut" && this._clipboardRange.sheet === this.activeSheet;
+      const applied = this.applyPasteSpecial(clipboard, mode, this.selectedCoord, {
+        moveRange: cut ? this._clipboardRange.range : null,
+        sourceSheet: clipboard.sourceSheet
+      });
+      if (applied && cut) this.clearClipboardRange();
+      overlay.closeDialog();
+    };
+    form.addEventListener("submit", event => { event.preventDefault(); paste(); });
+    form.addEventListener("keydown", event => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        paste();
+      }
+    });
+    overlay.querySelector(".vno-rule-apply")?.addEventListener("click", paste);
+    form.querySelector('input[name="paste-special-mode"]')?.focus();
+    return true;
+  }
+
+  fillDown(range = null, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    const rawRange = range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord };
+    const norm = this._normalizeRange(rawRange);
+    const minColNum = this._columnNumber(norm.start.c);
+    const maxColNum = this._columnNumber(norm.end.c);
+    const minRow = norm.start.r;
+    const maxRow = norm.end.r;
+
+    const isSingleRow = (minRow === maxRow);
+    const sourceRow = isSingleRow ? (minRow - 1) : minRow;
+    if (sourceRow < 1) return false;
+
+    const destStartRow = isSingleRow ? minRow : (minRow + 1);
+    const destEndRow = maxRow;
+    if (destStartRow > destEndRow) return false;
+
+    const before = {};
+    const after = {};
+
+    for (let colNum = minColNum; colNum <= maxColNum; colNum++) {
+      const colLabel = this._columnLabel(colNum);
+      const sourceKey = `${colLabel}${sourceRow}`;
+      const sourceCell = this.cellsData.get(sourceKey) || { val: "", formula: "", style: {} };
+
+      for (let r = destStartRow; r <= destEndRow; r++) {
+        const destKey = `${colLabel}${r}`;
+        const existing = this.cellsData.get(destKey) || { val: "", formula: "", style: {} };
+        before[destKey] = {
+          val: existing.val,
+          formula: existing.formula,
+          style: structuredClone(existing.style || {})
+        };
+
+        const deltaRow = r - sourceRow;
+        let newFormula = "";
+        let newVal = "";
+        const newStyle = structuredClone(sourceCell.style || {});
+
+        if (sourceCell.formula && sourceCell.formula.startsWith("=")) {
+          newFormula = this._offsetFormula(sourceCell.formula, 0, deltaRow);
+          newVal = this.formulaEngine.evaluate(newFormula);
+        } else {
+          newFormula = "";
+          newVal = sourceCell.val;
+        }
+
+        const newItem = { val: newVal, formula: newFormula, style: newStyle };
+        this.cellsData.set(destKey, newItem);
+
+        after[destKey] = {
+          val: newItem.val,
+          formula: newItem.formula,
+          style: structuredClone(newItem.style)
+        };
+
+        const dom = this.container.querySelector(`.vno-grid-cell[data-coord="${destKey}"]`);
+        if (dom) {
+          this._renderCellVisual(dom, newItem, colLabel, r);
+          this._applyRuleVisuals?.(dom, colLabel, r);
+        }
+      }
+    }
+
+    if (recordUndo) {
+      this._recordHistory({
+        type: "fill",
+        sheet: this.activeSheet,
+        before,
+        after
+      });
+    }
+
+    this._recalculateAllFormulas();
+    return true;
+  }
+
+  fillRight(range = null, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    const rawRange = range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord };
+    const norm = this._normalizeRange(rawRange);
+    const minColNum = this._columnNumber(norm.start.c);
+    const maxColNum = this._columnNumber(norm.end.c);
+    const minRow = norm.start.r;
+    const maxRow = norm.end.r;
+
+    const isSingleCol = (minColNum === maxColNum);
+    const sourceColNum = isSingleCol ? (minColNum - 1) : minColNum;
+    if (sourceColNum < 1) return false;
+
+    const destStartCol = isSingleCol ? minColNum : (minColNum + 1);
+    const destEndCol = maxColNum;
+    if (destStartCol > destEndCol) return false;
+
+    const before = {};
+    const after = {};
+
+    for (let r = minRow; r <= maxRow; r++) {
+      const sourceColLabel = this._columnLabel(sourceColNum);
+      const sourceKey = `${sourceColLabel}${r}`;
+      const sourceCell = this.cellsData.get(sourceKey) || { val: "", formula: "", style: {} };
+
+      for (let colNum = destStartCol; colNum <= destEndCol; colNum++) {
+        const destColLabel = this._columnLabel(colNum);
+        const destKey = `${destColLabel}${r}`;
+        const existing = this.cellsData.get(destKey) || { val: "", formula: "", style: {} };
+        before[destKey] = {
+          val: existing.val,
+          formula: existing.formula,
+          style: structuredClone(existing.style || {})
+        };
+
+        const deltaCol = colNum - sourceColNum;
+        let newFormula = "";
+        let newVal = "";
+        const newStyle = structuredClone(sourceCell.style || {});
+
+        if (sourceCell.formula && sourceCell.formula.startsWith("=")) {
+          newFormula = this._offsetFormula(sourceCell.formula, deltaCol, 0);
+          newVal = this.formulaEngine.evaluate(newFormula);
+        } else {
+          newFormula = "";
+          newVal = sourceCell.val;
+        }
+
+        const newItem = { val: newVal, formula: newFormula, style: newStyle };
+        this.cellsData.set(destKey, newItem);
+
+        after[destKey] = {
+          val: newItem.val,
+          formula: newItem.formula,
+          style: structuredClone(newItem.style)
+        };
+
+        const dom = this.container.querySelector(`.vno-grid-cell[data-coord="${destKey}"]`);
+        if (dom) {
+          this._renderCellVisual(dom, newItem, destColLabel, r);
+          this._applyRuleVisuals?.(dom, destColLabel, r);
+        }
+      }
+    }
+
+    if (recordUndo) {
+      this._recordHistory({
+        type: "fill",
+        sheet: this.activeSheet,
+        before,
+        after
+      });
+    }
+
+    this._recalculateAllFormulas();
+    return true;
+  }
+
+  clearAll(range = null, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    const targetRange = this._normalizeRange(range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const coords = this.formulaEngine.expandRange(this._rangeLabel(targetRange));
+
+    const before = {};
+    const after = {};
+
+    coords.forEach(coord => {
+      const existing = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+      before[coord] = {
+        val: existing.val,
+        formula: existing.formula,
+        style: structuredClone(existing.style || {})
+      };
+
+      const newItem = { val: "", formula: "", style: {} };
+      this.cellsData.set(coord, newItem);
+
+      after[coord] = {
+        val: "",
+        formula: "",
+        style: {}
+      };
+
+      const [c, r] = this._splitCoord(coord);
+      const dom = this.container.querySelector(`.vno-grid-cell[data-coord="${coord}"]`);
+      if (dom) {
+        dom.style.cssText = "";
+        this._renderCellVisual(dom, newItem, c, r);
+      }
+    });
+
+    if (this.formulaInput && coords.includes(`${this.selectedCoord.c}${this.selectedCoord.r}`)) {
+      this.formulaInput.value = "";
+    }
+
+    if (recordUndo) {
+      this._recordHistory({
+        type: "clear",
+        sheet: this.activeSheet,
+        before,
+        after
+      });
+    }
+
+    this._recalculateAllFormulas();
+    return true;
+  }
+
+  clearFormats(range = null, recordUndo = true) {
+    const targetRange = this._normalizeRange(range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const coords = this.formulaEngine.expandRange(this._rangeLabel(targetRange));
+
+    const before = {};
+    const after = {};
+
+    coords.forEach(coord => {
+      const existing = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+      before[coord] = {
+        val: existing.val,
+        formula: existing.formula,
+        style: structuredClone(existing.style || {})
+      };
+
+      existing.style = {};
+      this.cellsData.set(coord, existing);
+
+      after[coord] = {
+        val: existing.val,
+        formula: existing.formula,
+        style: {}
+      };
+
+      const [c, r] = this._splitCoord(coord);
+      const dom = this.container.querySelector(`.vno-grid-cell[data-coord="${coord}"]`);
+      if (dom) {
+        dom.style.cssText = "";
+        this._renderCellVisual(dom, existing, c, r);
+      }
+    });
+
+    if (recordUndo) {
+      this._recordHistory({
+        type: "clear",
+        sheet: this.activeSheet,
+        before,
+        after
+      });
+    }
+
+    return true;
+  }
+
+  clearContents(range = null, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    const targetRange = this._normalizeRange(range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const coords = this.formulaEngine.expandRange(this._rangeLabel(targetRange));
+
+    const before = {};
+    const after = {};
+
+    coords.forEach(coord => {
+      const existing = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+      before[coord] = {
+        val: existing.val,
+        formula: existing.formula,
+        style: structuredClone(existing.style || {})
+      };
+
+      existing.val = "";
+      existing.formula = "";
+      this.cellsData.set(coord, existing);
+
+      after[coord] = {
+        val: "",
+        formula: "",
+        style: structuredClone(existing.style || {})
+      };
+
+      const [c, r] = this._splitCoord(coord);
+      const dom = this.container.querySelector(`.vno-grid-cell[data-coord="${coord}"]`);
+      if (dom) {
+        this._renderCellVisual(dom, existing, c, r);
+      }
+    });
+
+    if (this.formulaInput && coords.includes(`${this.selectedCoord.c}${this.selectedCoord.r}`)) {
+      this.formulaInput.value = "";
+    }
+
+    if (recordUndo) {
+      this._recordHistory({
+        type: "clear",
+        sheet: this.activeSheet,
+        before,
+        after
+      });
+    }
+
+    this._recalculateAllFormulas();
+    return true;
+  }
+
+  _cellTextMatchesFind(item, needleLower) {
+    if (!item || !needleLower) return false;
+    if (item.sparkline || item.isArrayFormula) return false;
+    const valStr = String(item.val ?? "").toLowerCase();
+    const formulaStr = String(item.formula ?? "").toLowerCase();
+    return valStr.includes(needleLower) || formulaStr.includes(needleLower);
+  }
+
+  _replaceIgnoreCase(source, findText, replaceText, all) {
+    const src = String(source ?? "");
+    const find = String(findText ?? "");
+    if (!find) return { text: src, count: 0 };
+    const findLower = find.toLowerCase();
+    const replacement = String(replaceText ?? "");
+    const lower = src.toLowerCase();
+    if (!all) {
+      const idx = lower.indexOf(findLower);
+      if (idx < 0) return { text: src, count: 0 };
+      return { text: src.slice(0, idx) + replacement + src.slice(idx + find.length), count: 1 };
+    }
+    let out = "";
+    let i = 0;
+    let count = 0;
+    while (i < src.length) {
+      const idx = lower.indexOf(findLower, i);
+      if (idx < 0) {
+        out += src.slice(i);
+        break;
+      }
+      out += src.slice(i, idx) + replacement;
+      i = idx + find.length;
+      count++;
+    }
+    return { text: out, count };
+  }
+
+  _replaceCellMatch(item, findText, replaceText, all) {
+    if (!item || item.sparkline || item.isArrayFormula) return null;
+    const formula = String(item.formula ?? "");
+    if (formula) {
+      const next = this._replaceIgnoreCase(formula, findText, replaceText, all);
+      if (!next.count) return null;
+      return { formula: next.text, count: next.count };
+    }
+    const valStr = String(item.val ?? "");
+    const next = this._replaceIgnoreCase(valStr, findText, replaceText, all);
+    if (!next.count) return null;
+    return { val: next.text, count: next.count };
+  }
+
+  findNext(query) {
+    const needle = String(query ?? "").trim();
+    if (!needle) return false;
+    const needleLower = needle.toLowerCase();
+    const entries = Array.from(this.cellsData.entries());
+    if (!entries.length) return false;
+    if (this._findLastQuery !== needleLower) {
+      this._findLastCoord = null;
+      this._findLastQuery = needleLower;
+    }
+    let startIndex = 0;
+    if (this._findLastCoord) {
+      const idx = entries.findIndex(([coord]) => coord === this._findLastCoord);
+      if (idx >= 0) startIndex = idx + 1;
+    }
+    for (let i = 0; i < entries.length; i++) {
+      const [coord, item] = entries[(startIndex + i) % entries.length];
+      if (!this._cellTextMatchesFind(item, needleLower)) continue;
+      this._findLastCoord = coord;
+      const [col, row] = this._splitCoord(coord);
+      this.selectCell(col, row);
+      return coord;
+    }
+    return false;
+  }
+
+  replaceOne(findText, replaceText) {
+    if (this._guardProtectedMutation()) return false;
+    const needle = String(findText ?? "").trim();
+    if (!needle) return false;
+    const entries = Array.from(this.cellsData.entries());
+    if (!entries.length) return false;
+    const selectedKey = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const startIndex = Math.max(0, entries.findIndex(([coord]) => coord === selectedKey));
+    for (let i = 0; i < entries.length; i++) {
+      const [coord, item] = entries[(startIndex + i) % entries.length];
+      const patch = this._replaceCellMatch(item, needle, replaceText, false);
+      if (!patch) continue;
+      const [col, row] = this._splitCoord(coord);
+      this.setCellValue(col, row, patch.formula != null ? patch.formula : patch.val, true);
+      this._findLastCoord = coord;
+      this._findLastQuery = needle.toLowerCase();
+      this.selectCell(col, row);
+      return true;
+    }
+    return false;
+  }
+
+  replaceAll(findText, replaceText) {
+    if (this._guardProtectedMutation()) return 0;
+    const needle = String(findText ?? "").trim();
+    if (!needle) return 0;
+    const before = {};
+    const after = {};
+    let total = 0;
+    for (const [coord, item] of [...this.cellsData.entries()]) {
+      const patch = this._replaceCellMatch(item, needle, replaceText, true);
+      if (!patch) continue;
+      before[coord] = structuredClone(item);
+      const [col, row] = this._splitCoord(coord);
+      this.setCellValue(col, row, patch.formula != null ? patch.formula : patch.val, false);
+      after[coord] = structuredClone(this.cellsData.get(coord));
+      total += patch.count;
+    }
+    if (!total) return 0;
+    this._recordHistory({ type: "batch-cells", sheet: this.activeSheet, before, after });
+    return total;
+  }
+
+  showFindDialog(isReplace = false) {
+    if (typeof document === "undefined" || typeof document.createElement !== "function" || !document.body?.appendChild) {
+      return true;
+    }
+    showFindReplaceDialog({
+      isReplace: !!isReplace,
+      onFind: (text) => this.findNext(text),
+      onReplace: (findText, replaceText) => {
+        if (!findText) return false;
+        return this.replaceOne(findText, replaceText);
+      },
+      onReplaceAll: (findText, replaceText) => {
+        if (!findText) return 0;
+        return this.replaceAll(findText, replaceText);
+      }
+    });
+    return true;
+  }
+
+  setStyle(prop, val, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    let item = this.cellsData.get(key) || { val: "", formula: "", style: {} };
+    const prevVal = item.style[prop] || "";
+
+    if (recordUndo) {
+      this._recordHistory({
+        type: "style",
+        sheet: this.activeSheet,
+        col: this.selectedCoord.c,
+        row: this.selectedCoord.r,
+        prop,
+        prevVal,
+        nextVal: val
+      });
+    }
+
+    item.style[prop] = val;
+    this.cellsData.set(key, item);
+
+    const cell = this.container.querySelector(`.vno-grid-cell[data-coord="${key}"]`);
+    if (cell) cell.style[prop] = val;
+    return true;
+  }
+
+  toggleStyle(prop, valOn, valOff) {
+    const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    let item = this.cellsData.get(key) || { val: "", formula: "", style: {} };
+    const cur = item.style[prop];
+    const next = cur === valOn ? valOff : valOn;
+    return this.setStyle(prop, next);
+  }
+
+  setFontFamily(family) {
+    const allowed = [
+      "Times New Roman", "Calibri", "Arial", "Be Vietnam Pro", "Roboto",
+      "Book Antiqua", "Cambria", "Candara", "Century Gothic", "Comic Sans MS",
+      "Consolas", "Constantia", "Corbel", "Courier New", "Franklin Gothic Medium",
+      "Garamond", "Georgia", "Impact", "Lucida Console", "Palatino Linotype",
+      "Segoe UI", "Tahoma", "Trebuchet MS", "Verdana"
+    ];
+    return allowed.includes(family) ? this.setStyle("fontFamily", family) : false;
+  }
+
+  setFontSize(size) {
+    const numericSize = Number.parseFloat(size);
+    if (!Number.isFinite(numericSize) || numericSize < 1 || numericSize > 409) return false;
+    const px = Math.round(numericSize * 4 / 3 * 100) / 100;
+    return this.setStyle("fontSize", `${px}px`);
+  }
+
+  adjustFontSize(direction) {
+    const steps = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 36, 48, 72];
+    const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const currentPx = Number.parseFloat(this.cellsData.get(key)?.style?.fontSize);
+    const current = Number.isFinite(currentPx) ? currentPx * 3 / 4 : 11;
+    const next = direction > 0
+      ? (steps.find(size => size > current) || steps[steps.length - 1])
+      : ([...steps].reverse().find(size => size < current) || steps[0]);
+    return this.setFontSize(next);
+  }
+
+  setCellOrientation(value) {
+    const allowed = new Set([0, 45, -45, 90, -90, 255]);
+    const rotation = Number(value);
+    if (!allowed.has(rotation)) return false;
+    const result = this.setStyle("textRotation", rotation);
+    const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const cell = this.container.querySelector?.('.vno-grid-cell[data-coord="' + key + '"]');
+    const item = this.cellsData.get(key);
+    if (cell && item) this._renderCellVisual(cell, item, this.selectedCoord.c, this.selectedCoord.r);
+    return result;
+  }
+
+  toggleWrapText() {
+    const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const current = this.cellsData.get(key)?.style?.whiteSpace;
+    const result = this.setStyle("whiteSpace", current === "normal" ? "nowrap" : "normal");
+    const cell = this.container.querySelector?.(`.vno-grid-cell[data-coord="${key}"]`);
+    cell?.classList?.toggle?.("is-wrap-text", current !== "normal");
+    const row = cell?.closest?.("tr");
+    if (row) {
+      row.style.height = current !== "normal" ? `${Math.max(this.rowHeight, cell.scrollHeight)}px` : `${this.rowHeight}px`;
+    }
+    return result;
+  }
+
+  adjustIndent(direction) {
+    const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const current = Number.parseInt(this.cellsData.get(key)?.style?.paddingLeft, 10) || 8;
+    const next = Math.max(8, Math.min(56, current + (direction > 0 ? 12 : -12)));
+    const level = Math.max(0, Math.round((next - 8) / 12));
+    const changed = this.setStyle("paddingLeft", `${next}px`);
+    this.setStyle("indentLevel", level);
+    return changed;
+  }
+
+  _rangeLabel(range) {
+    const normalized = this._normalizeRange(range);
+    return `${normalized.start.c}${normalized.start.r}:${normalized.end.c}${normalized.end.r}`;
+  }
+
+  getMergedRanges(sheetName = this.activeSheet) {
+    return this.mergedRangesBySheet[sheetName] ||= [];
+  }
+
+  getMergedRangeForCell(col, row, sheetName = this.activeSheet) {
+    return this.getMergedRanges(sheetName).find(range => this._rangeContains(range, col, row)) || null;
+  }
+
+  _rangesIntersect(left, right) {
+    const a = this._normalizeRange(left);
+    const b = this._normalizeRange(right);
+    return !(this._columnNumber(a.end.c) < this._columnNumber(b.start.c) ||
+      this._columnNumber(a.start.c) > this._columnNumber(b.end.c) ||
+      a.end.r < b.start.r || a.start.r > b.end.r);
+  }
+
+  async mergeCells(mode = "mergeCenter", range = this.selectionRange, { confirmDataLoss = true } = {}) {
+    if (this._guardProtectedMutation()) return false;
+    const normalized = this._normalizeRange(range || { start: this.selectedCoord, end: this.selectedCoord });
+    const width = this._columnNumber(normalized.end.c) - this._columnNumber(normalized.start.c) + 1;
+    const height = normalized.end.r - normalized.start.r + 1;
+    if (width === 1 && height === 1) return false;
+    if (this.getMergedRanges().some(existing => this._rangesIntersect(existing, normalized))) return false;
+
+    const ranges = mode === "mergeAcross"
+      ? Array.from({ length: height }, (_, index) => ({ start: { c: normalized.start.c, r: normalized.start.r + index }, end: { c: normalized.end.c, r: normalized.start.r + index } }))
+      : [normalized];
+    const populated = [];
+    for (const mergeRange of ranges) {
+      for (let row = mergeRange.start.r; row <= mergeRange.end.r; row++) {
+        for (let colNumber = this._columnNumber(mergeRange.start.c); colNumber <= this._columnNumber(mergeRange.end.c); colNumber++) {
+          const coord = `${this._columnLabel(colNumber)}${row}`;
+          const item = this.cellsData.get(coord);
+          if (item && (item.formula || item.val !== "" && item.val !== null && item.val !== undefined)) populated.push(coord);
+        }
+      }
+    }
+    if (confirmDataLoss && populated.length > ranges.length) {
+      const confirmed = await showConfirmDialog({
+        title: t("sheetDialogs.mergeConfirmTitle", "Trộn ô"),
+        message: t("sheetDialogs.mergeConfirmMessage", "Vùng chọn có nhiều ô chứa dữ liệu. Chỉ dữ liệu ở ô trên cùng bên trái của mỗi vùng gộp được giữ lại."),
+        confirmText: t("sheetDialogs.mergeConfirmOk", "Tiếp tục gộp"),
+        cancelText: t("sheetDialogs.cancel", "Hủy")
+      });
+      if (!confirmed) return false;
+    }
+
+    const beforeCells = this._snapshotCells();
+    const beforeRanges = structuredClone(this.getMergedRanges());
+    for (const mergeRange of ranges) {
+      const topLeft = `${mergeRange.start.c}${mergeRange.start.r}`;
+      for (let row = mergeRange.start.r; row <= mergeRange.end.r; row++) {
+        for (let colNumber = this._columnNumber(mergeRange.start.c); colNumber <= this._columnNumber(mergeRange.end.c); colNumber++) {
+          const coord = `${this._columnLabel(colNumber)}${row}`;
+          if (coord !== topLeft) this.cellsData.delete(coord);
+        }
+      }
+      if (mode === "mergeCenter") {
+        const item = this.cellsData.get(topLeft) || { val: "", formula: "", style: {} };
+        item.style = { ...(item.style || {}), textAlign: "center", verticalAlign: "middle" };
+        this.cellsData.set(topLeft, item);
+      }
+      this.getMergedRanges().push(structuredClone(mergeRange));
+    }
+    this.selectionRange = structuredClone(normalized);
+    this.selectedCoord = { ...normalized.start };
+    const action = { type: "merge-cells", sheet: this.activeSheet, beforeCells, afterCells: this._snapshotCells(), beforeRanges, afterRanges: structuredClone(this.getMergedRanges()), selection: structuredClone(normalized) };
+    this._recordHistory(action);
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this.selectCell(normalized.start.c, normalized.start.r);
+    return true;
+  }
+
+  unmergeCells(range = this.selectionRange) {
+    const normalized = this._normalizeRange(range || { start: this.selectedCoord, end: this.selectedCoord });
+    const beforeRanges = structuredClone(this.getMergedRanges());
+    const removed = beforeRanges.filter(existing => this._rangesIntersect(existing, normalized));
+    if (!removed.length) return false;
+    const beforeCells = this._snapshotCells();
+    this.mergedRangesBySheet[this.activeSheet] = beforeRanges.filter(existing => !this._rangesIntersect(existing, normalized));
+    this.selectionRange = structuredClone(normalized);
+    this.selectedCoord = { ...normalized.start };
+    this._recordHistory({ type: "merge-cells", sheet: this.activeSheet, beforeCells, afterCells: this._snapshotCells(), beforeRanges, afterRanges: structuredClone(this.getMergedRanges()), selection: structuredClone(normalized) });
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this.selectCell(normalized.start.c, normalized.start.r);
+    return true;
+  }
+
+  _recordHistory(action, { coalesce = false } = {}) {
+    const previous = this.undoStack[this.undoStack.length - 1];
+    const mergeCellEdit = coalesce && previous?.type === "cell" && action.type === "cell" &&
+      previous.sheet === action.sheet && previous.col === action.col && previous.row === action.row &&
+      action.timestamp - previous.timestamp <= this.historyMergeWindowMs;
+    if (mergeCellEdit) {
+      previous.nextVal = action.nextVal;
+      previous.timestamp = action.timestamp;
+    } else {
+      this.undoStack.push(action);
+      if (this.undoStack.length > this.maxHistorySteps) this.undoStack.shift();
+    }
+    this.redoStack = [];
+    this.options.onDocumentChange?.();
+    this._syncCommandStates();
+  }
+
+  _syncCommandStates() {
+    globalCommandBus?.updateState?.("common.edit.undo", { enabled: this.undoStack.length > 0 });
+    globalCommandBus?.updateState?.("common.edit.redo", { enabled: this.redoStack.length > 0 });
+    globalCommandBus?.updateState?.("sheet.view.freezePanes", { checked: !!this.isFrozenPanes });
+    globalCommandBus?.updateState?.("sheet.view.freezeTopRow", { checked: this.frozenRows === 1 && this.frozenCols === 0 });
+    globalCommandBus?.updateState?.("sheet.view.freezeFirstColumn", { checked: this.frozenCols === 1 && this.frozenRows === 0 });
+    globalCommandBus?.updateState?.("sheet.data.filter", { checked: !!this.isFilterActive });
+    globalCommandBus?.updateState?.("sheet.view.gridlines", { checked: this.gridlinesVisible });
+    globalCommandBus?.updateState?.("sheet.view.headings", { checked: this.headingsVisible });
+    globalCommandBus?.updateState?.("sheet.view.formulaBar", { checked: this.formulaBarVisible });
+    globalCommandBus?.updateState?.("sheet.view.normal", { checked: this.workbookView === "normal" });
+    globalCommandBus?.updateState?.("sheet.view.pageBreakPreview", { checked: this.workbookView === "pageBreakPreview" });
+    globalCommandBus?.updateState?.("sheet.view.pageLayout", { checked: this.workbookView === "pageLayout" });
+    globalCommandBus?.updateState?.("sheet.edit.formatPainter", { checked: !!this.formatPainter });
+    const locked = this.isSheetProtected();
+    globalCommandBus?.updateState?.("sheet.sheet.protect", {
+      label: locked
+        ? t("sheetDialogs.unprotectSheet", "Bỏ bảo vệ trang tính...")
+        : t("sheetDialogs.protectSheet", "Bảo vệ trang tính..."),
+      tooltip: locked
+        ? t("sheetDialogs.unprotectSheetTooltip", "Tắt khóa giao diện của trang tính hiện tại")
+        : t("sheetDialogs.protectSheetTooltip", "Khóa sửa ô, định dạng và xóa hàng/cột trên trang tính hiện tại (khóa giao diện, không phải bảo mật thật)")
+    });
+    this._applyWorkbookProtectionUi();
+  }
+
+  _applyViewState() {
+    if (this.table) {
+      if (this.zoomLevel === 1 && typeof document !== "undefined" && typeof HTMLElement !== "undefined" && this.table instanceof HTMLElement) {
+        this.table.style.transform = "";
+        this.table.style.transformOrigin = "";
+      } else {
+        this.table.style.transform = `scale(${this.zoomLevel})`;
+        this.table.style.transformOrigin = "top left";
+      }
+      this.table.dataset.zoom = String(this.zoomLevel);
+    }
+    this.container?.classList.toggle("vno-hide-gridlines", !this.gridlinesVisible);
+    this.container?.classList.toggle("vno-hide-headings", !this.headingsVisible);
+    this.container?.classList.toggle("vno-hide-formula-bar", !this.formulaBarVisible);
+    this.container?.classList.toggle("vno-sheet-page-break-preview", this.workbookView === "pageBreakPreview");
+    this.container?.classList.toggle("vno-sheet-page-layout", this.workbookView === "pageLayout");
+    if (this.formulaBarEl) {
+      this.formulaBarEl.style.display = this.formulaBarVisible ? "" : "none";
+    }
+    this._renderPageBreakPreviewOverlay();
+    this._renderPageLayoutChrome();
+  }
+
+  setWorkbookView(viewMode) {
+    if (!["normal", "pageBreakPreview", "pageLayout"].includes(viewMode)) return false;
+    this.workbookView = viewMode;
+    this._applyViewState();
+    this._refreshPageAndCommentVisuals();
+    this._syncCommandStates();
+    return this.workbookView;
+  }
+
+  toggleFormulaBar() {
+    this.formulaBarVisible = !this.formulaBarVisible;
+    this._applyViewState();
+    this._syncCommandStates();
+    return this.formulaBarVisible;
+  }
+
+  setZoom(level) {
+    const next = Math.min(2, Math.max(0.5, Math.round(Number(level) * 10) / 10));
+    if (!Number.isFinite(next)) return false;
+    this.zoomLevel = next;
+    this._applyViewState();
+    return this.zoomLevel;
+  }
+
+  zoomIn() { return this.setZoom(this.zoomLevel + 0.1); }
+  zoomOut() { return this.setZoom(this.zoomLevel - 0.1); }
+  zoomReset() { return this.setZoom(1); }
+
+  zoomToSelection() {
+    const range = this.selectedRange || {
+      start: { c: this.selectedCoord.c, r: this.selectedCoord.r },
+      end: { c: this.selectedCoord.c, r: this.selectedCoord.r }
+    };
+    const startColIdx = Math.min(this.cols.indexOf(range.start.c), this.cols.indexOf(range.end.c));
+    const endColIdx = Math.max(this.cols.indexOf(range.start.c), this.cols.indexOf(range.end.c));
+    const startRow = Math.min(range.start.r, range.end.r);
+    const endRow = Math.max(range.start.r, range.end.r);
+
+    const numCols = Math.max(1, endColIdx - startColIdx + 1);
+    const numRows = Math.max(1, endRow - startRow + 1);
+
+    const selWidth = numCols * 85 + 40;
+    const selHeight = numRows * 26 + 30;
+
+    const vpWidth = this.viewport?.clientWidth || 800;
+    const vpHeight = this.viewport?.clientHeight || 600;
+
+    const scale = Math.min(2.0, Math.max(0.5, Math.round(Math.min((vpWidth - 60) / selWidth, (vpHeight - 60) / selHeight) * 10) / 10));
+    this.setZoom(scale);
+    this.selectCell(this.selectedCoord.c, this.selectedCoord.r);
+    return scale;
+  }
+
+  newWindow() {
+    if (typeof window === "undefined") return false;
+    const opened = window.open?.(window.location.href, "_blank");
+    if (!opened) {
+      this.options?.shell?.setStatus?.("Trình duyệt đã chặn cửa sổ mới. Hãy cho phép pop-up cho 3T Office.");
+      return false;
+    }
+    try { opened.opener = null; } catch (_) {}
+    return true;
+  }
+
+  _getEffectivePrintArea() {
+    const explicit = this.printAreaBySheet[this.activeSheet];
+    if (explicit) return this._parseRange(explicit);
+    const sheetData = this.cellsData;
+    let minColIdx = this.cols.length - 1;
+    let maxColIdx = 0;
+    let minRow = this.rowCount;
+    let maxRow = 1;
+    let hasData = false;
+
+    if (sheetData && typeof sheetData.forEach === "function") {
+      sheetData.forEach((cell, coord) => {
+        if (cell && ((cell.val !== "" && cell.val !== null && cell.val !== undefined) || cell.formula)) {
+          const parsed = this._splitCoord(coord);
+          if (parsed) {
+            const colIdx = this.cols.indexOf(parsed[0]);
+            const row = parsed[1];
+            if (colIdx >= 0 && row >= 1) {
+              hasData = true;
+              if (colIdx < minColIdx) minColIdx = colIdx;
+              if (colIdx > maxColIdx) maxColIdx = colIdx;
+              if (row < minRow) minRow = row;
+              if (row > maxRow) maxRow = row;
+            }
+          }
+        }
+      });
+    }
+
+    if (!hasData) {
+      minColIdx = 0;
+      maxColIdx = Math.min(9, this.cols.length - 1);
+      minRow = 1;
+      maxRow = Math.min(30, this.rowCount);
+    } else {
+      minColIdx = 0;
+      maxColIdx = Math.max(maxColIdx, Math.min(7, this.cols.length - 1));
+      minRow = 1;
+      maxRow = Math.max(maxRow, Math.min(25, this.rowCount));
+    }
+
+    return {
+      start: { c: this.cols[minColIdx], r: minRow },
+      end: { c: this.cols[maxColIdx], r: maxRow }
+    };
+  }
+
+  /** Đọc "Hàng lặp lại" của Print Titles (vd "1", "1:2" hoặc Excel "$1", "$1:$2") thành {start, end} hoặc null. */
+  _parsePrintTitleRows(setup) {
+    const raw = String(setup?.printTitles?.rows || "").trim();
+    const m = raw.match(/^\$?(\d+)(?::\$?(\d+))?$/);
+    if (!m) return null;
+    const a = parseInt(m[1], 10);
+    const b = m[2] ? parseInt(m[2], 10) : a;
+    return { start: Math.min(a, b), end: Math.max(a, b) };
+  }
+
+  /** Đọc "Cột lặp lại" của Print Titles (vd "A", "A:B" hoặc Excel "$A", "$A:$B") thành {start, end} (số cột) hoặc null. */
+  _parsePrintTitleCols(setup) {
+    const raw = String(setup?.printTitles?.cols || "").trim().toUpperCase();
+    const m = raw.match(/^\$?([A-Z]+)(?::\$?([A-Z]+))?$/);
+    if (!m) return null;
+    const a = this._columnNumber(m[1]);
+    const b = m[2] ? this._columnNumber(m[2]) : a;
+    return { start: Math.min(a, b), end: Math.max(a, b) };
+  }
+
+  /**
+   * Chuẩn hoá giá trị Print Titles nhập tay kiểu Excel: bỏ dấu $ ($1:$2 → 1:2, $A:$B → A:B),
+   * viết hoa chữ cái cột. Lưu trữ luôn ở dạng chuẩn không $ để round-trip FODS/XLSX ổn định.
+   */
+  _normalizePrintTitlesInput(rows, cols) {
+    return {
+      rows: String(rows || "").trim().replace(/\$/g, ""),
+      cols: String(cols || "").trim().toUpperCase().replace(/\$/g, "")
+    };
+  }
+
+  /**
+   * Chuyển kết quả chọn trực tiếp trên lưới thành giá trị Print Titles.
+   * field: "rows" (start/end là số hàng 1-based) hoặc "cols" (start/end là số cột 1-based).
+   * Trả về "1:2" / "A:B"; start === end thì trả về "1" / "A" (đúng chuẩn Excel).
+   */
+  formatPrintTitleSelection(field, start, end) {
+    const a = Math.min(start, end);
+    const b = Math.max(start, end);
+    if (field === "rows") return a === b ? String(a) : `${a}:${b}`;
+    if (field === "cols") {
+      const label = n => (typeof this._columnLabel === "function" ? this._columnLabel(n) : String(n));
+      return a === b ? label(a) : `${label(a)}:${label(b)}`;
+    }
+    return "";
+  }
+
+  /**
+   * Tính toán phân trang in THẬT dựa trên Page Setup (khổ giấy, lề, hướng, tỷ lệ,
+   * tiêu đề lặp lại) và Vùng in hiệu lực hiện tại. Dùng chung cho cả Print Preview
+   * và bản đồ trang hiện tại; bản in cuối cùng do PDF LibreOffice quyết định.
+   * Hàng/cột ẩn (thủ công hoặc outline) không được đưa vào trang in, giống Excel thật.
+   */
+  computePrintPages(sheetName = this.activeSheet) {
+    const setup = this.getPageSetup(sheetName);
+    const area = this._getEffectivePrintArea();
+    const startColIdx = this._columnNumber(area.start.c);
+    const endColIdx = this._columnNumber(area.end.c);
+    const startRow = area.start.r;
+    const endRow = area.end.r;
+
+    const base = SHEET_PAGE_SIZES_MM[setup.size] || SHEET_PAGE_SIZES_MM.a4;
+    const isLandscape = setup.orientation === "landscape";
+    const widthMm = isLandscape ? base.h : base.w;
+    const heightMm = isLandscape ? base.w : base.h;
+    const { top, right, bottom, left } = setup.margins;
+    const pageWidthPx = Math.round(widthMm * SHEET_MM_TO_PX);
+    const pageHeightPx = Math.round(heightMm * SHEET_MM_TO_PX);
+    const hasHeaderText = Boolean(setup.headerFooter?.header?.left || setup.headerFooter?.header?.center || setup.headerFooter?.header?.right);
+    const hasFooterText = Boolean(setup.headerFooter?.footer?.left || setup.headerFooter?.footer?.center || setup.headerFooter?.footer?.right);
+    const printableWidthPx = Math.max(100, pageWidthPx - Math.round((left + right) * SHEET_CM_TO_PX));
+    const printableHeightPx = Math.max(100,
+      pageHeightPx - Math.round((top + bottom) * SHEET_CM_TO_PX) - (hasHeaderText ? 34 : 0) - (hasFooterText ? 34 : 0));
+
+    const titleRowRange = this._parsePrintTitleRows(setup);
+    const titleColRange = this._parsePrintTitleCols(setup);
+    const titleRowNums = [];
+    if (titleRowRange) {
+      for (let r = titleRowRange.start; r <= titleRowRange.end; r++) {
+        if (!this._isRowSkipped(r)) titleRowNums.push(r);
+      }
+    }
+    const titleColNums = [];
+    if (titleColRange) {
+      for (let c = titleColRange.start; c <= titleColRange.end; c++) {
+        if (!this._isColumnHidden(this._columnLabel(c))) titleColNums.push(c);
+      }
+    }
+    const titleRowSet = new Set(titleRowNums);
+    const titleColSet = new Set(titleColNums);
+
+    const bodyRowNums = [];
+    for (let r = startRow; r <= endRow; r++) {
+      if (titleRowSet.has(r) || this._isRowSkipped(r)) continue;
+      bodyRowNums.push(r);
+    }
+    const bodyColNums = [];
+    for (let c = startColIdx; c <= endColIdx; c++) {
+      if (titleColSet.has(c) || this._isColumnHidden(this._columnLabel(c))) continue;
+      bodyColNums.push(c);
+    }
+
+    const naturalHeight = (r) => this.getRowHeight(r, sheetName);
+    const naturalWidth = (c) => this.getColumnWidth(this._columnLabel(c), sheetName);
+    const titleRowsHeightPx = titleRowNums.reduce((sum, r) => sum + naturalHeight(r), 0);
+    const titleColsWidthPx = titleColNums.reduce((sum, c) => sum + naturalWidth(c), 0);
+    const bodyWidthPx = bodyColNums.reduce((sum, c) => sum + naturalWidth(c), 0);
+    const bodyHeightPx = bodyRowNums.reduce((sum, r) => sum + naturalHeight(r), 0);
+
+    // Xác định tỷ lệ hiển thị/in: "percent" (nhập tay) hoặc "pages" (vừa N trang rộng x M trang cao).
+    // Với "pages", đây là một phép tính gần đúng một bước (không lặp lại như Excel thật):
+    // không tính riêng chi phí tiêu đề lặp lại trên MỖI trang, coi như chỉ tốn một lần.
+    let scale;
+    if (setup.scale?.mode === "pages" && (setup.scale.pagesWide > 0 || setup.scale.pagesTall > 0)) {
+      const pagesWide = setup.scale.pagesWide || 0;
+      const pagesTall = setup.scale.pagesTall || 0;
+      const totalWidthPx = titleColsWidthPx + bodyWidthPx || 1;
+      const totalHeightPx = titleRowsHeightPx + bodyHeightPx || 1;
+      const widthScale = pagesWide > 0 ? (printableWidthPx * pagesWide) / totalWidthPx : Infinity;
+      const heightScale = pagesTall > 0 ? (printableHeightPx * pagesTall) / totalHeightPx : Infinity;
+      scale = Math.min(widthScale, heightScale, 4);
+      if (!Number.isFinite(scale) || scale <= 0) scale = 1;
+      scale = Math.max(0.1, scale);
+    } else {
+      scale = Math.max(0.1, Math.min(4, (setup.scale?.percent || 100) / 100));
+    }
+
+    const scaledHeight = (r) => naturalHeight(r) * scale;
+    const scaledWidth = (c) => naturalWidth(c) * scale;
+    const titleRowsHeightScaledPx = titleRowNums.reduce((sum, r) => sum + scaledHeight(r), 0);
+    const titleColsWidthScaledPx = titleColNums.reduce((sum, c) => sum + scaledWidth(c), 0);
+    const availableHeightForBody = Math.max(20, printableHeightPx - titleRowsHeightScaledPx);
+    const availableWidthForBody = Math.max(20, printableWidthPx - titleColsWidthScaledPx);
+
+    const groupByCapacity = (nums, sizeOf, capacity) => {
+      const groups = [];
+      let current = [];
+      let currentSize = 0;
+      for (const n of nums) {
+        const size = sizeOf(n);
+        if (current.length > 0 && currentSize + size > capacity) {
+          groups.push(current);
+          current = [];
+          currentSize = 0;
+        }
+        current.push(n);
+        currentSize += size;
+      }
+      if (current.length > 0) groups.push(current);
+      if (groups.length === 0) groups.push([]);
+      return groups;
+    };
+
+    const rowGroups = groupByCapacity(bodyRowNums, scaledHeight, availableHeightForBody);
+    const colGroups = groupByCapacity(bodyColNums, scaledWidth, availableWidthForBody);
+
+    // Thứ tự trang mặc định của Excel thật: "Xuống, rồi qua" (Down, then Over).
+    const pages = [];
+    let pageNumber = 1;
+    for (const colGroup of colGroups) {
+      for (const rowGroup of rowGroups) {
+        pages.push({
+          pageNumber: pageNumber++,
+          rowNums: [...titleRowNums, ...rowGroup],
+          colNums: [...titleColNums, ...colGroup],
+          titleRowCount: titleRowNums.length,
+          titleColCount: titleColNums.length
+        });
+      }
+    }
+
+    return {
+      pages,
+      totalPages: pages.length,
+      scale,
+      pageWidthPx,
+      pageHeightPx,
+      printableWidthPx,
+      printableHeightPx,
+      orientation: setup.orientation,
+      sizeKey: setup.size,
+      sizeLabel: base.label,
+      margins: setup.margins,
+      headerFooter: setup.headerFooter,
+      printOptions: setup.printOptions,
+      centerOnPage: setup.centerOnPage
+    };
+  }
+
+  /**
+   * Thay &P (số trang hiện tại), &N (tổng số trang) và &D (ngày) trong chuỗi
+   * header/footer của Page Setup - đúng cú pháp mã Excel thật dùng.
+   */
+  _formatSheetHeaderFooterText(template, pageNumber, totalPages) {
+    if (!template) return "";
+    return String(template)
+      .replace(/&P/g, String(pageNumber))
+      .replace(/&N/g, String(totalPages))
+      .replace(/&D/g, new Date().toLocaleDateString("vi-VN"));
+  }
+
+  /** Dựng một bảng <table> DOM thật cho một trang in, dùng lại _renderCellVisual để đảm bảo hiển thị giống hệt lưới sống. */
+  _renderPrintPageTable(page) {
+    const table = document.createElement("table");
+    table.className = "vno-sheet-print-table";
+    if (this.pageSetupBySheet?.[this.activeSheet]?.printOptions?.gridlines) {
+      table.classList.add("has-gridlines");
+    }
+    const showHeadings = Boolean(this.getPageSetup().printOptions?.headings);
+    const tbody = document.createElement("tbody");
+
+    if (showHeadings) {
+      const headRow = document.createElement("tr");
+      headRow.className = "vno-sheet-print-heading-row";
+      const corner = document.createElement("th");
+      headRow.appendChild(corner);
+      for (const c of page.colNums) {
+        const th = document.createElement("th");
+        th.textContent = this._columnLabel(c);
+        th.style.width = `${this.getColumnWidth(this._columnLabel(c)) * this._lastPrintScale}px`;
+        headRow.appendChild(th);
+      }
+      tbody.appendChild(headRow);
+    }
+
+    const renderedMerges = new Set();
+    for (const r of page.rowNums) {
+      const tr = document.createElement("tr");
+      if (showHeadings) {
+        const th = document.createElement("th");
+        th.textContent = String(r);
+        th.style.height = `${this.getRowHeight(r) * this._lastPrintScale}px`;
+        tr.appendChild(th);
+      }
+      for (const c of page.colNums) {
+        const colLabel = this._columnLabel(c);
+        const key = `${colLabel}${r}`;
+        if (renderedMerges.has(key)) continue;
+        const mergedRange = this.getMergedRangeForCell(colLabel, r);
+        const td = document.createElement("td");
+        if (mergedRange && (mergedRange.start.c !== colLabel || mergedRange.start.r !== r)) {
+          continue;
+        }
+        if (mergedRange) {
+          const pageColSet = new Set(page.colNums);
+          const pageRowSet = new Set(page.rowNums);
+          let colSpan = 0;
+          for (let cc = this._columnNumber(mergedRange.start.c); cc <= this._columnNumber(mergedRange.end.c); cc++) {
+            if (pageColSet.has(cc)) { colSpan++; renderedMerges.add(`${this._columnLabel(cc)}${r}`); }
+          }
+          let rowSpan = 0;
+          for (let rr = mergedRange.start.r; rr <= mergedRange.end.r; rr++) {
+            if (pageRowSet.has(rr)) rowSpan++;
+          }
+          if (colSpan > 1) td.colSpan = colSpan;
+          if (rowSpan > 1) td.rowSpan = rowSpan;
+          for (let rr = mergedRange.start.r; rr <= mergedRange.end.r; rr++) {
+            for (let cc = this._columnNumber(mergedRange.start.c); cc <= this._columnNumber(mergedRange.end.c); cc++) {
+              if (rr === r && cc === this._columnNumber(colLabel)) continue;
+              renderedMerges.add(`${this._columnLabel(cc)}${rr}`);
+            }
+          }
+        }
+        const itm = this.cellsData.get(key);
+        this._renderCellVisual(td, itm, colLabel, r);
+        td.style.width = `${this.getColumnWidth(colLabel) * this._lastPrintScale}px`;
+        td.style.height = `${this.getRowHeight(r) * this._lastPrintScale}px`;
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+    return table;
+  }
+
+  /** Dựng (hoặc cập nhật) vùng DOM CHỈ-DÙNG-ĐỂ-IN, ẩn khi xem bình thường và chỉ hiện trong @media print.
+   * Vì lưới sống dùng ảo hóa hàng (row virtualization), không thể in trực tiếp DOM đang hiển thị -
+   * nó chỉ chứa vài chục hàng quanh vị trí cuộn hiện tại. Vùng in thật phải dựng lại từ cellsData. */
+  _syncSheetPrintOnlyDom() {
+    if (typeof document === "undefined") return null;
+    const result = this.computePrintPages();
+    this._lastPrintScale = result.scale;
+
+    let container = document.querySelector("#vno-sheet-print-only");
+    if (!container) {
+      container = document.createElement("div");
+      container.id = "vno-sheet-print-only";
+      container.className = "vno-sheet-print-only";
+      if (typeof container.setAttribute === "function") container.setAttribute("id", "vno-sheet-print-only");
+      document.body.appendChild(container);
+    }
+    container.innerHTML = "";
+
+    result.pages.forEach((page, index) => {
+      const pageDiv = document.createElement("div");
+      pageDiv.className = "vno-sheet-print-page";
+      pageDiv.style.width = `${result.pageWidthPx}px`;
+      pageDiv.style.minHeight = `${result.pageHeightPx}px`;
+      pageDiv.style.padding =
+        `${Math.round(result.margins.top * SHEET_CM_TO_PX)}px ${Math.round(result.margins.right * SHEET_CM_TO_PX)}px ` +
+        `${Math.round(result.margins.bottom * SHEET_CM_TO_PX)}px ${Math.round(result.margins.left * SHEET_CM_TO_PX)}px`;
+      if (index < result.pages.length - 1) pageDiv.style.pageBreakAfter = "always";
+
+      const headerText = this._formatSheetHeaderFooterText(result.headerFooter?.header?.center, page.pageNumber, result.totalPages);
+      if (headerText) {
+        const header = document.createElement("div");
+        header.className = "vno-sheet-print-header";
+        header.textContent = headerText;
+        pageDiv.appendChild(header);
+      }
+
+      const table = this._renderPrintPageTable(page);
+      pageDiv.appendChild(table);
+
+      const footerText = this._formatSheetHeaderFooterText(result.headerFooter?.footer?.center, page.pageNumber, result.totalPages);
+      if (footerText) {
+        const footer = document.createElement("div");
+        footer.className = "vno-sheet-print-footer";
+        footer.textContent = footerText;
+        pageDiv.appendChild(footer);
+      }
+
+      container.appendChild(pageDiv);
+    });
+
+    return { container, result };
+  }
+
+  /** Chuyển nút xem trước cũ về lệnh In dùng chung của Platform. */
+  print() {
+    return globalCommandBus.execute("common.file.print");
+  }
+
+  closePrintPreview() {
+    if (typeof document === "undefined") return false;
+    const overlay = document.querySelector(".vno-sheet-print-preview-overlay");
+    if (overlay) {
+      document.removeEventListener("keydown", overlay._onKey);
+      overlay.remove();
+      if (this._printPreviewPrevFocus && typeof this._printPreviewPrevFocus.focus === "function") {
+        try { this._printPreviewPrevFocus.focus(); } catch (_) {}
+      }
+      this._printPreviewPrevFocus = null;
+      return true;
+    }
+    return false;
+  }
+
+  /** Mở overlay Xem trước khi in THẬT - render đúng những trang sẽ được in, dùng chung logic phân trang với print(). */
+  openPrintPreview() {
+    if (typeof document === "undefined") return null;
+    this.closePrintPreview();
+    this._previewPageIndex = 0;
+
+    const result = this.computePrintPages();
+    this._lastPrintScale = result.scale;
+    const totalPages = result.totalPages;
+
+    this._printPreviewPrevFocus = document.activeElement;
+    const overlay = document.createElement("div");
+    overlay.className = "vno-sheet-print-preview-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-label", t("sheetDialogs.printPreview.title", "Xem trước khi in"));
+
+    const printLabel = t("sheetDialogs.printPreview.printBtn", "In tài liệu");
+    const prevLabel = t("sheetDialogs.printPreview.prevPage", "◀ Trang trước");
+    const nextLabel = t("sheetDialogs.printPreview.nextPage", "Trang sau ▶");
+    const pagePrefix = t("sheetDialogs.printPreview.pagePrefix", "Trang ");
+    const closeLabel = t("sheetDialogs.printPreview.closeTooltip", "Đóng xem trước (Esc)");
+
+    overlay.innerHTML = `
+      <header class="vno-sheet-print-preview-toolbar" role="toolbar" aria-label="${t("sheetDialogs.printPreview.title", "Xem trước khi in")}">
+        <button type="button" class="vno-btn vno-btn-primary vno-sheet-pp-print" title="${printLabel} (Ctrl+P)">${printLabel}</button>
+        <div class="vno-sheet-pp-info">${result.sizeLabel} · ${result.orientation === "landscape" ? "Ngang" : "Dọc"} · ${Math.round(result.scale * 100)}%</div>
+        <div class="vno-sheet-pp-nav">
+          <button type="button" class="vno-btn vno-sheet-pp-prev" ${totalPages <= 1 ? "disabled" : ""} title="${prevLabel}">${prevLabel}</button>
+          <div class="vno-sheet-pp-page-indicator">${pagePrefix}<span class="vno-sheet-pp-current">1</span> / <span class="vno-sheet-pp-total">${totalPages}</span></div>
+          <button type="button" class="vno-btn vno-sheet-pp-next" ${totalPages <= 1 ? "disabled" : ""} title="${nextLabel}">${nextLabel}</button>
+        </div>
+        <button type="button" class="vno-btn vno-btn-icon-only vno-sheet-pp-close" title="${closeLabel}" aria-label="${closeLabel}">&times;</button>
+      </header>
+      <main class="vno-sheet-print-preview-viewport"></main>
+    `;
+
+    const viewport = overlay.querySelector(".vno-sheet-print-preview-viewport");
+    const renderPage = (index) => {
+      this._previewPageIndex = Math.max(0, Math.min(totalPages - 1, index));
+      viewport.innerHTML = "";
+      const pageDiv = document.createElement("div");
+      pageDiv.className = "vno-sheet-print-preview-page";
+      pageDiv.style.width = `${result.pageWidthPx}px`;
+      pageDiv.style.minHeight = `${result.pageHeightPx}px`;
+      pageDiv.style.padding =
+        `${Math.round(result.margins.top * SHEET_CM_TO_PX)}px ${Math.round(result.margins.right * SHEET_CM_TO_PX)}px ` +
+        `${Math.round(result.margins.bottom * SHEET_CM_TO_PX)}px ${Math.round(result.margins.left * SHEET_CM_TO_PX)}px`;
+      const page = result.pages[this._previewPageIndex] || result.pages[0];
+      if (page) pageDiv.appendChild(this._renderPrintPageTable(page));
+      viewport.appendChild(pageDiv);
+      overlay.querySelector(".vno-sheet-pp-current").textContent = String(this._previewPageIndex + 1);
+      overlay.querySelector(".vno-sheet-pp-prev").disabled = this._previewPageIndex <= 0;
+      overlay.querySelector(".vno-sheet-pp-next").disabled = this._previewPageIndex >= totalPages - 1;
+    };
+
+    overlay.querySelector(".vno-sheet-pp-print").addEventListener("click", () => this.print());
+    overlay.querySelector(".vno-sheet-pp-prev").addEventListener("click", () => renderPage(this._previewPageIndex - 1));
+    overlay.querySelector(".vno-sheet-pp-next").addEventListener("click", () => renderPage(this._previewPageIndex + 1));
+    overlay.querySelector(".vno-sheet-pp-close").addEventListener("click", () => this.closePrintPreview());
+
+    const onKey = (event) => {
+      if (event.key === "Escape") { this.closePrintPreview(); }
+      else if (event.key === "ArrowRight") { renderPage(this._previewPageIndex + 1); }
+      else if (event.key === "ArrowLeft") { renderPage(this._previewPageIndex - 1); }
+    };
+    overlay._onKey = onKey;
+    document.addEventListener("keydown", onKey);
+
+    document.body.appendChild(overlay);
+    renderPage(0);
+    overlay.querySelector(".vno-sheet-pp-close")?.focus();
+    return overlay;
+  }
+
+  _renderPageBreakPreviewOverlay() {
+    if (!this.viewport || typeof document === "undefined") return;
+    let watermark = this.viewport.querySelector?.(".vno-sheet-page-break-watermark");
+    if (this.workbookView === "pageBreakPreview") {
+      if (!watermark && typeof document.createElement === "function") {
+        watermark = document.createElement("div");
+        watermark.className = "vno-sheet-page-break-watermark";
+        watermark.setAttribute?.("aria-hidden", "true");
+        watermark.textContent = "Trang 1";
+        this.viewport.appendChild?.(watermark);
+      }
+      if (watermark?.style) watermark.style.display = "block";
+    } else if (watermark?.style) {
+      watermark.style.display = "none";
+    }
+  }
+
+  _renderPageLayoutChrome() {
+    if (!this.viewport || typeof document === "undefined") return;
+    let chrome = this.viewport.querySelector?.(".vno-sheet-page-layout-chrome");
+    if (this.workbookView === "pageLayout") {
+      if (!chrome && typeof document.createElement === "function") {
+        chrome = document.createElement("div");
+        chrome.className = "vno-sheet-page-layout-chrome";
+        chrome.innerHTML = `
+          <div class="vno-sheet-page-header-band" role="region" aria-label="Đầu trang">
+            <div class="vno-sheet-page-header-cell">Bấm để thêm đầu trang (trái)</div>
+            <div class="vno-sheet-page-header-cell">Bấm để thêm đầu trang (giữa)</div>
+            <div class="vno-sheet-page-header-cell">Bấm để thêm đầu trang (phải)</div>
+          </div>
+        `;
+        this.viewport.insertBefore?.(chrome, this.table);
+      }
+      if (chrome?.style) chrome.style.display = "block";
+    } else if (chrome?.style) {
+      chrome.style.display = "none";
+    }
+  }
+
+  toggleGridlines() {
+    this.gridlinesVisible = !this.gridlinesVisible;
+    this._applyViewState();
+    this._syncCommandStates();
+    return this.gridlinesVisible;
+  }
+
+  toggleHeadings() {
+    this.headingsVisible = !this.headingsVisible;
+    this._applyViewState();
+    this._syncCommandStates();
+    return this.headingsVisible;
+  }
+
+  canUndo() {
+    return (this.undoStack?.length || 0) > 0;
+  }
+
+  canRedo() {
+    return (this.redoStack?.length || 0) > 0;
+  }
+
+  undo() {
+    const action = this.undoStack.pop();
+    if (!action) { this._syncCommandStates(); return false; }
+    const applied = this._applyHistoryAction(action, "undo");
+    if (applied) this.redoStack.push(action);
+    else this.undoStack.push(action);
+    if (applied) this.options.onDocumentChange?.();
+    this._syncCommandStates();
+    return applied;
+  }
+
+  redo() {
+    const action = this.redoStack.pop();
+    if (!action) { this._syncCommandStates(); return false; }
+    const applied = this._applyHistoryAction(action, "redo");
+    if (applied) {
+      this.undoStack.push(action);
+      if (this.undoStack.length > this.maxHistorySteps) this.undoStack.shift();
+    } else this.redoStack.push(action);
+    if (applied) this.options.onDocumentChange?.();
+    this._syncCommandStates();
+    return applied;
+  }
+
+  _applyHistoryAction(action, direction) {
+    this._applyingHistory = true;
+    try {
+      return this._applyHistoryActionImpl(action, direction);
+    } finally {
+      this._applyingHistory = false;
+    }
+  }
+
+  _applyHistoryActionImpl(action, direction) {
+    if (action.type === "sheet-add") {
+      if (direction === "undo") {
+        const removed = this.deleteSheet(action.sheetName, false);
+        if (removed && this.sheets.includes(action.previousSheet)) this.switchSheet(action.previousSheet);
+        return removed;
+      }
+      this._restoreSheet(action.sheetName, action.snapshot, action.index !== undefined ? action.index : this.sheets.length);
+      this.switchSheet(action.sheetName);
+      return true;
+    }
+    if (action.type === "sheet-delete") {
+      if (direction === "undo") {
+        this._restoreSheet(action.sheet, action.snapshot, action.index);
+        this.switchSheet(action.sheet);
+        return true;
+      }
+      return this.deleteSheet(action.sheet, false);
+    }
+    if (action.type === "sheet-rename") {
+      const from = direction === "undo" ? action.newName : action.oldName;
+      const to = direction === "undo" ? action.oldName : action.newName;
+      return !!this.renameSheet(from, to, false);
+    }
+    if (action.type === "sheet-move") {
+      const index = direction === "undo" ? action.fromIndex : action.toIndex;
+      return this._moveSheetToIndex(action.name, index);
+    }
+    if (action.sheet && action.sheet !== this.activeSheet) this.switchSheet(action.sheet);
+    const value = direction === "undo" ? "prevVal" : "nextVal";
+    if (action.type === "merge-cells") {
+      const useBefore = direction === "undo";
+      this.sheetsData[action.sheet] = new Map((useBefore ? action.beforeCells : action.afterCells).map(([key, item]) => [key, structuredClone(item)]));
+      this.mergedRangesBySheet[action.sheet] = structuredClone(useBefore ? action.beforeRanges : action.afterRanges);
+      this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+      this.selectCell(action.selection.start.c, action.selection.start.r);
+    } else if (action.type === "grid-structure") {
+      this._restoreGridStructure(direction === "undo" ? action.before : action.after);
+    } else if (action.type === "row-col-layout") {
+      this._restoreRowColLayout(direction === "undo" ? action.before : action.after);
+    } else if (action.type === "cell") {
+      this.setCellValue(action.col, action.row, action[value], false);
+      // Restore richText from snapshot if present (edited cells lose richText in setCellValue)
+      if (action[value + "RichText"]) {
+        const key = `${action.col}${action.row}`;
+        const itm = this.cellsData.get(key);
+        if (itm) itm.richText = action[value + "RichText"];
+      }
+      this.selectCell(action.col, action.row);
+    } else if (action.type === "array-formula") {
+      const snapshots = direction === "undo" ? action.before : action.after;
+      action.coords.forEach((coord, index) => snapshots[index] ? this.cellsData.set(coord, structuredClone(snapshots[index])) : this.cellsData.delete(coord));
+      this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+      this.selectCell(...this._splitCoord(action.coords[0]));
+    } else if (action.type === "style") {
+      this.selectedCoord = { c: action.col, r: action.row };
+      this.setStyle(action.prop, action[value], false);
+    } else if (action.type === "format-cells") {
+      const snapshots = direction === "undo" ? action.before : action.after;
+      for (const [coord, snap] of Object.entries(snapshots)) {
+        const itm = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+        itm.style = structuredClone(snap.style || {});
+        if (snap.numberFormat) {
+          itm.style.numberFormat = structuredClone(snap.numberFormat);
+        } else {
+          delete itm.style.numberFormat;
+        }
+        this.cellsData.set(coord, itm);
+        const [c, r] = this._splitCoord(coord);
+        const dom = this.container.querySelector(`.vno-grid-cell[data-coord="${coord}"]`);
+        if (dom) {
+          this._renderCellVisual(dom, itm, c, r);
+        }
+      }
+    } else if (action.type === "cell-style" || action.type === "format-table" || action.type === "fill" || action.type === "clear" || action.type === "batch-cells") {
+      const snapshots = direction === "undo" ? action.before : action.after;
+      for (const [coord, snap] of Object.entries(snapshots)) {
+        if (!snap) {
+          this.cellsData.delete(coord);
+        } else {
+          const itm = {
+            val: snap.val ?? "",
+            formula: snap.formula ?? "",
+            style: structuredClone(snap.style || {})
+          };
+          this.cellsData.set(coord, itm);
+        }
+        const [c, r] = this._splitCoord(coord);
+        const dom = this.container.querySelector(`.vno-grid-cell[data-coord="${coord}"]`);
+        if (dom) {
+          const itm = this.cellsData.get(coord);
+          if (itm) {
+            this._renderCellVisual(dom, itm, c, r);
+            this._applyRuleVisuals?.(dom, c, r);
+          } else {
+            dom.textContent = "";
+            dom.style.cssText = "";
+          }
+        }
+      }
+      this._recalculateAllFormulas();
+    } else if (action.type === "sort") {
+      this._restoreCells(direction === "undo" ? action.before : action.after);
+    } else if (action.type === "pivot-refresh") {
+      this._restoreCells(direction === "undo" ? action.before : action.after);
+    } else if (action.type === "what-if-cells") {
+      this._restoreCells(direction === "undo" ? action.before : action.after);
+    } else if (action.type === "scenario-state") {
+      this.scenariosBySheet[action.sheet] = structuredClone(direction === "undo" ? action.before : action.after);
+    } else if (action.type === "collection") {
+      const collection = this[action.collection][action.sheet] ||= [];
+      if (action.operation === "update" || action.operation === "move") {
+        const target = collection.find(item => item.id === action.id || (action.item && item.id === action.item.id));
+        if (target) {
+          const state = direction === "undo" ? action.before : action.after;
+          if (state) {
+            if (state.anchor) target.anchor = structuredClone(state.anchor);
+            else Object.assign(target, structuredClone(state));
+          }
+        }
+      } else {
+        const shouldInsert = (action.operation === "insert") === (direction === "redo");
+        if (shouldInsert) collection.splice(action.index, 0, structuredClone(action.item));
+        else {
+          const index = collection.findIndex(item => item.id === action.item.id);
+          if (index >= 0) collection.splice(index, 1);
+        }
+      }
+      if (action.collection === "chartsBySheet") this.renderCharts();
+      else if (action.collection === "imagesBySheet") this.renderImages();
+      else if (action.collection === "textBoxesBySheet") this.renderTextBoxes();
+      else this._refreshVisibleRuleVisuals();
+    } else if (action.type === "named-range") {
+      const collection = action.scope === "workbook" ? this.namedRangesWorkbook : (this.namedRangesBySheet[action.sheet] ||= []);
+      const desired = direction === "undo" ? action.before : action.after;
+      const currentIndex = collection.findIndex(item => item.id === action.id);
+      if (currentIndex >= 0) collection.splice(currentIndex, 1);
+      if (desired) collection.splice(Math.min(action.index, collection.length), 0, structuredClone(desired));
+      this._recalculateAllFormulas();
+    } else if (action.type === "comment") {
+      const comments = this.commentsBySheet[action.sheet] ||= {};
+      const desired = direction === "undo" ? action.before : action.after;
+      if (desired) comments[action.coord] = structuredClone(desired);
+      else delete comments[action.coord];
+      this._refreshPageAndCommentVisuals();
+    } else if (action.type === "sheet-page-layout") {
+      const desired = structuredClone(action[direction === "undo" ? "before" : "after"]);
+      if (action.property === "printAreaBySheet") this.printAreaBySheet[action.sheet] = desired;
+      else if (action.property === "pageBreaksBySheet") this.pageBreaksBySheet[action.sheet] = desired;
+      else this.pageSetupBySheet[action.sheet] = desired;
+      this._refreshPageAndCommentVisuals();
+    } else if (action.type === "freeze") {
+      if (direction === "undo") this._setFreezePanes(action.prevRows, action.prevCols, false);
+      else this._setFreezePanes(action.nextRows, action.nextCols, false);
+    } else if (action.type === "filter") {
+      this._restoreFilterState(action[value]);
+    } else return false;
+    return true;
+  }
+
+  /**
+   * Cố định ô (Freeze Panes) tại Ô đang chọn - đúng hành vi Excel/Calc thật:
+   * cố định các hàng PHÍA TRÊN và cột BÊN TRÁI ô đang chọn, không phải luôn
+   * cố định cứng hàng 1/cột A như trước đây. Bấm lại khi đang cố định sẽ bỏ
+   * cố định (tiện dụng, khớp hành vi nút bật/tắt cũ người dùng đã quen).
+   */
+  toggleFreezePanes() {
+    if ((this.frozenRows || 0) > 0 || (this.frozenCols || 0) > 0) {
+      return this._setFreezePanes(0, 0, true);
+    }
+    const rows = Math.max(0, this.selectedCoord.r - 1);
+    const cols = Math.max(0, this._columnNumber(this.selectedCoord.c) - 1);
+    return this._setFreezePanes(rows, cols, true);
+  }
+
+  /** Cố định Hàng trên cùng (Freeze Top Row) - đúng mục thứ 2 trong dropdown Freeze Panes thật của Excel. */
+  freezeTopRow() {
+    if (this.frozenRows === 1 && this.frozenCols === 0) return this._setFreezePanes(0, 0, true);
+    return this._setFreezePanes(1, 0, true);
+  }
+
+  /** Cố định Cột đầu tiên (Freeze First Column) - đúng mục thứ 3 trong dropdown Freeze Panes thật của Excel. */
+  freezeFirstColumn() {
+    if (this.frozenCols === 1 && this.frozenRows === 0) return this._setFreezePanes(0, 0, true);
+    return this._setFreezePanes(0, 1, true);
+  }
+
+  _setFreezePanes(rows, cols, recordUndo = false) {
+    const prevRows = this.frozenRows || 0;
+    const prevCols = this.frozenCols || 0;
+    const nextRows = Math.max(0, Math.min(Number(rows) || 0, this.rowCount - 1));
+    const nextCols = Math.max(0, Math.min(Number(cols) || 0, this.cols.length - 1));
+    this.frozenRows = nextRows;
+    this.frozenCols = nextCols;
+    this.isFrozenPanes = nextRows > 0 || nextCols > 0;
+    if (this.container) {
+      if (this.isFrozenPanes) {
+        this.container.classList.add("vno-freeze-panes");
+      } else {
+        this.container.classList.remove("vno-freeze-panes");
+      }
+    }
+    if (this.sheetStates[this.activeSheet]) {
+      this.sheetStates[this.activeSheet].isFrozenPanes = this.isFrozenPanes;
+      this.sheetStates[this.activeSheet].frozenRows = nextRows;
+      this.sheetStates[this.activeSheet].frozenCols = nextCols;
+    }
+    if (recordUndo && (prevRows !== nextRows || prevCols !== nextCols)) {
+      this._recordHistory({ type: "freeze", sheet: this.activeSheet, prevRows, prevCols, nextRows, nextCols });
+    }
+    this._syncCommandStates();
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this.renderImages();
+    this._updateFrozenImages();
+    return this.isFrozenPanes;
+  }
+
+  sort(col = this.selectedCoord.c, ascending = true) {
+    const before = this._snapshotCells();
+    // Ưu tiên đúng vùng người dùng đã chọn. Trước đây hàm hard-code r >= 4,
+    // khiến Sort không làm gì với bảng bắt đầu ở hàng 1/2 dù dispatch vẫn chạy.
+    const selectedRange = this._normalizeRange(this.selectionRange);
+    const hasRowSelection = selectedRange.end.r > selectedRange.start.r;
+    const rowsWithData = hasRowSelection
+      ? Array.from({ length: selectedRange.end.r - selectedRange.start.r + 1 }, (_, index) => selectedRange.start.r + index)
+      : [];
+    for (const [key, item] of this.cellsData.entries()) {
+      if (hasRowSelection) break;
+      if ((item.val !== "" && item.val !== undefined) || item.formula) {
+        const m = key.match(/^([A-Z]+)(\d+)$/);
+        if (m) {
+          const r = parseInt(m[2], 10);
+          const isTotalRow = (item.formula && item.formula.toLowerCase().includes("sum")) || String(item.val).toLowerCase().includes("tổng");
+          if (!isTotalRow && !rowsWithData.includes(r)) {
+            rowsWithData.push(r);
+          }
+        }
+      }
+    }
+
+    if (rowsWithData.length < 2) return false;
+
+    rowsWithData.sort((a, b) => a - b);
+    const minRow = rowsWithData[0];
+    const maxRow = rowsWithData[rowsWithData.length - 1];
+
+    const rowSnapshots = [];
+    for (let r = minRow; r <= maxRow; r++) {
+      const rowData = {};
+      this.cols.forEach(c => {
+        const k = `${c}${r}`;
+        const itm = this.cellsData.get(k);
+        if (itm) rowData[c] = { ...itm, style: { ...itm.style } };
+      });
+      const sortVal = rowData[col]?.val ?? "";
+      rowSnapshots.push({ originalRow: r, data: rowData, sortVal });
+    }
+
+    rowSnapshots.sort((a, b) => {
+      const vA = a.sortVal;
+      const vB = b.sortVal;
+      const numA = typeof vA === "number" ? vA : parseFloat(String(vA).replace(/\./g, "").replace(/[^\d-]/g, ""));
+      const numB = typeof vB === "number" ? vB : parseFloat(String(vB).replace(/\./g, "").replace(/[^\d-]/g, ""));
+
+      if (!isNaN(numA) && !isNaN(numB)) {
+        return ascending ? numA - numB : numB - numA;
+      }
+      return ascending 
+        ? String(vA).localeCompare(String(vB), "vi-VN") 
+        : String(vB).localeCompare(String(vA), "vi-VN");
+    });
+
+    rowSnapshots.forEach((snap, idx) => {
+      const targetRow = minRow + idx;
+      this.cols.forEach(c => {
+        const k = `${c}${targetRow}`;
+        if (snap.data[c]) {
+          this.cellsData.set(k, { ...snap.data[c] });
+        } else {
+          this.cellsData.delete(k);
+        }
+      });
+    });
+
+    this._renderVirtualRows(this.currentStartRow, this.currentEndRow);
+    this._recalculateAllFormulas();
+    this._recordHistory({ type: "sort", sheet: this.activeSheet, col, ascending, before, after: this._snapshotCells() });
+    return true;
+  }
+
+  toggleFilter() {
+    const previous = this._snapshotFilterState();
+    this.isFilterActive = !this.isFilterActive;
+    const state = this.sheetStates?.[this.activeSheet];
+    if (state) {
+      state.filterSetByUser = true;
+      if (this.isFilterActive) {
+        const selected = this._normalizeRange(this.selectionRange);
+        if (selected.start.c !== selected.end.c || selected.start.r !== selected.end.r) state.filterRange = this._rangeLabel(selected);
+      }
+    }
+    if (this.container) {
+      if (this.isFilterActive) {
+        this.container.classList.add("vno-filter-mode");
+      } else {
+        this.container.classList.remove("vno-filter-mode");
+        this.hiddenRows.clear();
+        this.activeFilters.clear();
+      }
+    }
+    this._updateFilterButtons();
+    this._renderVirtualRows(this.currentStartRow, this.currentEndRow);
+    this._recordHistory({ type: "filter", sheet: this.activeSheet, prevVal: previous, nextVal: this._snapshotFilterState() });
+    this._syncCommandStates();
+    return this.isFilterActive;
+  }
+
+  _updateFilterButtons() {
+    if (!this.container) return;
+    const btns = this.container.querySelectorAll(".vno-filter-btn");
+    btns.forEach(btn => {
+      btn.style.display = this.isFilterActive ? "inline-flex" : "none";
+      const col = btn.dataset.col;
+      if (this.activeFilters.has(col)) {
+        btn.classList.add("is-active");
+      } else {
+        btn.classList.remove("is-active");
+      }
+    });
+  }
+
+  openFilterMenu(col, anchorBtn) {
+    if (typeof document === "undefined") return;
+    const old = document.querySelector(".vno-filter-popover");
+    if (old) old.remove();
+
+    const popover = document.createElement("div");
+    popover.className = "vno-filter-popover";
+    popover.setAttribute("role", "dialog");
+    popover.setAttribute("aria-label", `Lọc và sắp xếp cột ${col}`);
+    popover.setAttribute("tabindex", "-1");
+
+    const valuesSet = new Set();
+    for (const [k, itm] of this.cellsData.entries()) {
+      const m = k.match(/^([A-Z]+)(\d+)$/);
+      if (m && m[1] === col) {
+        const r = parseInt(m[2], 10);
+        if (r >= 4 && itm.val !== undefined && itm.val !== "") {
+          valuesSet.add(String(itm.val));
+        }
+      }
+    }
+    const uniqueVals = Array.from(valuesSet);
+    const currentAllowed = this.activeFilters.get(col) || new Set(uniqueVals);
+
+    popover.innerHTML = `
+      <div class="vno-filter-popover-item" id="vno-filter-sort-asc" role="button" tabindex="0" aria-label="Sắp xếp tăng dần A-Z">
+        <span>▲ Sắp xếp tăng dần (A-Z)</span>
+      </div>
+      <div class="vno-filter-popover-item" id="vno-filter-sort-desc" role="button" tabindex="0" aria-label="Sắp xếp giảm dần Z-A">
+        <span>▼ Sắp xếp giảm dần (Z-A)</span>
+      </div>
+      <div class="vno-filter-divider"></div>
+      <div class="vno-filter-label">Lọc theo giá trị:</div>
+      <div class="vno-filter-values-list" role="group" aria-label="Danh sách giá trị cần lọc">
+        ${uniqueVals.map(val => `
+          <label class="vno-filter-value-row">
+            <input type="checkbox" value="${val}" ${currentAllowed.has(val) ? "checked" : ""} aria-label="${val}" />
+            <span>${val}</span>
+          </label>
+        `).join("")}
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:4px;">
+        <button type="button" class="vno-btn" id="vno-filter-select-all" style="font-size:10px;padding:2px 6px;">Tất cả</button>
+        <button type="button" class="vno-btn" id="vno-filter-clear-all" style="font-size:10px;padding:2px 6px;">Bỏ chọn</button>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:6px;justify-content:flex-end;">
+        <button type="button" class="vno-btn" id="vno-filter-cancel" style="padding:4px 8px;font-size:11px;">Hủy</button>
+        <button type="button" class="vno-btn vno-btn-primary" id="vno-filter-apply" style="padding:4px 8px;font-size:11px;">Áp dụng</button>
+      </div>
+    `;
+
+    document.body.appendChild(popover);
+
+    if (anchorBtn && anchorBtn.getBoundingClientRect) {
+      const rect = anchorBtn.getBoundingClientRect();
+      popover.style.top = `${rect.bottom + (window.scrollY || 0) + 2}px`;
+      popover.style.left = `${Math.min((window.innerWidth || 800) - 220, Math.max(10, rect.left + (window.scrollX || 0) - 80))}px`;
+    }
+
+    let docClickTimer = null;
+    const closeMenu = () => {
+      if (docClickTimer) {
+        clearTimeout(docClickTimer);
+        docClickTimer = null;
+      }
+      document.removeEventListener("keydown", onPopoverKey);
+      document.removeEventListener("click", onDocClick);
+      popover.remove();
+      if (anchorBtn && document.contains(anchorBtn) && typeof anchorBtn.focus === "function") {
+        try { anchorBtn.focus(); } catch (_) {}
+      } else if (this.container && typeof this.container.focus === "function") {
+        try { this.container.focus({ preventScroll: true }); } catch (_) {}
+      }
+    };
+
+    const applyFilterAndClose = () => {
+      const allowed = new Set();
+      popover.querySelectorAll(".vno-filter-value-row input:checked").forEach(cb => allowed.add(cb.value));
+      this.applyFilter(col, allowed);
+      closeMenu();
+    };
+
+    popover.querySelector("#vno-filter-sort-asc")?.addEventListener("click", () => {
+      this.sort(col, true);
+      closeMenu();
+    });
+    popover.querySelector("#vno-filter-sort-asc")?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        this.sort(col, true);
+        closeMenu();
+      }
+    });
+
+    popover.querySelector("#vno-filter-sort-desc")?.addEventListener("click", () => {
+      this.sort(col, false);
+      closeMenu();
+    });
+    popover.querySelector("#vno-filter-sort-desc")?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        this.sort(col, false);
+        closeMenu();
+      }
+    });
+
+    popover.querySelector("#vno-filter-select-all")?.addEventListener("click", () => {
+      popover.querySelectorAll(".vno-filter-value-row input").forEach(cb => cb.checked = true);
+    });
+    popover.querySelector("#vno-filter-clear-all")?.addEventListener("click", () => {
+      popover.querySelectorAll(".vno-filter-value-row input").forEach(cb => cb.checked = false);
+    });
+
+    popover.querySelector("#vno-filter-cancel")?.addEventListener("click", closeMenu);
+    popover.querySelector("#vno-filter-apply")?.addEventListener("click", applyFilterAndClose);
+
+    const onPopoverKey = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeMenu();
+      } else if (e.key === "Enter" && e.target?.tagName !== "BUTTON" && !e.target?.classList?.contains("vno-filter-popover-item")) {
+        e.preventDefault();
+        applyFilterAndClose();
+      } else if (e.key === "Tab") {
+        const focusables = Array.from(popover.querySelectorAll('button:not([disabled]), input:not([disabled]), [tabindex="0"]')).filter(el => el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0);
+        if (focusables.length > 0) {
+          const first = focusables[0];
+          const last = focusables[focusables.length - 1];
+          if (e.shiftKey && (document.activeElement === first || !popover.contains(document.activeElement))) {
+            e.preventDefault();
+            last.focus();
+          } else if (!e.shiftKey && (document.activeElement === last || !popover.contains(document.activeElement))) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+    document.addEventListener("keydown", onPopoverKey);
+    popover.querySelector("#vno-filter-sort-asc")?.focus();
+
+    const onDocClick = (e) => {
+      if (!popover.contains(e.target) && e.target !== anchorBtn) {
+        closeMenu();
+      }
+    };
+    docClickTimer = setTimeout(() => {
+      docClickTimer = null;
+      document.addEventListener("click", onDocClick);
+    }, 10);
+  }
+
+  applyFilter(col, allowedSet, recordUndo = true) {
+    const previous = this._snapshotFilterState();
+    this.activeFilters.set(col, allowedSet);
+    this.hiddenRows.clear();
+
+    for (let r = 4; r <= this.rowCount; r++) {
+      let shouldHide = false;
+      for (const [filterCol, allowed] of this.activeFilters.entries()) {
+        const key = `${filterCol}${r}`;
+        const itm = this.cellsData.get(key);
+        const val = itm ? String(itm.val ?? "") : "";
+        if (val && !allowed.has(val)) {
+          shouldHide = true;
+          break;
+        }
+      }
+      if (shouldHide) this.hiddenRows.add(r);
+    }
+
+    this._updateFilterButtons();
+    this._renderVirtualRows(this.currentStartRow, this.currentEndRow);
+    if (recordUndo) this._recordHistory({ type: "filter", sheet: this.activeSheet, prevVal: previous, nextVal: this._snapshotFilterState() });
+  }
+
+  _snapshotCells(sheetName = this.activeSheet) {
+    return Array.from((this.sheetsData[sheetName] || new Map()).entries(), ([key, value]) => [key, structuredClone(value)]);
+  }
+
+  _snapshotGridStructure(sheetName = this.activeSheet) {
+    const state = this.sheetStates[sheetName] || {};
+    return {
+      sheetName,
+      cells: this._snapshotCells(sheetName),
+      rowCount: this.rowCount,
+      cols: [...this.cols],
+      conditionalFormatting: structuredClone(this.conditionalFormattingBySheet[sheetName] || []),
+      dataValidations: structuredClone(this.dataValidationsBySheet[sheetName] || []),
+      comments: structuredClone(this.commentsBySheet[sheetName] || {}),
+      printArea: this.printAreaBySheet[sheetName] || null,
+      pageBreaks: structuredClone(this.pageBreaksBySheet[sheetName] || { rows: [], cols: [] }),
+      pageSetup: structuredClone(this.pageSetupBySheet[sheetName] || newSheetPageSetup()),
+      hiddenRows: [...(sheetName === this.activeSheet ? this.hiddenRows : (state.hiddenRows || []))],
+      activeFilters: Array.from(sheetName === this.activeSheet ? this.activeFilters : (state.activeFilters || []), ([col, values]) => [col, [...values]]),
+      selectedCoord: { ...(sheetName === this.activeSheet ? this.selectedCoord : (state.selectedCoord || { r: 1, c: "A" })) },
+      selectionRange: structuredClone(this.selectionRange),
+      outlineGroups: structuredClone(this.outlineGroupsBySheet[sheetName] || [])
+      ,mergedRanges: structuredClone(this.mergedRangesBySheet[sheetName] || []),
+      rowColLayout: this._snapshotRowColLayout(sheetName)
+    };
+  }
+
+  _restoreGridStructure(snapshot) {
+    this.rowCount = snapshot.rowCount;
+    this.cols = [...snapshot.cols];
+    this.sheetsData[snapshot.sheetName] = new Map(snapshot.cells.map(([key, value]) => [key, structuredClone(value)]));
+    this.conditionalFormattingBySheet[snapshot.sheetName] = structuredClone(snapshot.conditionalFormatting);
+    this.dataValidationsBySheet[snapshot.sheetName] = structuredClone(snapshot.dataValidations);
+    this.commentsBySheet[snapshot.sheetName] = structuredClone(snapshot.comments);
+    this.printAreaBySheet[snapshot.sheetName] = snapshot.printArea;
+    this.pageBreaksBySheet[snapshot.sheetName] = structuredClone(snapshot.pageBreaks);
+    this.pageSetupBySheet[snapshot.sheetName] = newSheetPageSetup(snapshot.pageSetup);
+    this.hiddenRows = new Set(snapshot.hiddenRows);
+    this.activeFilters = new Map(snapshot.activeFilters.map(([col, values]) => [col, new Set(values)]));
+    this.selectedCoord = { ...snapshot.selectedCoord };
+    this.selectionRange = structuredClone(snapshot.selectionRange);
+    this.outlineGroupsBySheet[snapshot.sheetName] = structuredClone(snapshot.outlineGroups || []);
+    this.mergedRangesBySheet[snapshot.sheetName] = structuredClone(snapshot.mergedRanges || []);
+    if (snapshot.rowColLayout) this._restoreRowColLayout({ ...snapshot.rowColLayout, sheetName: snapshot.sheetName }, { render: false });
+    if (this.sheetStates[snapshot.sheetName]) {
+      Object.assign(this.sheetStates[snapshot.sheetName], {
+        hiddenRows: new Set(this.hiddenRows),
+        activeFilters: new Map(this.activeFilters),
+        selectedCoord: { ...this.selectedCoord }
+      });
+    }
+    this._renderColumnHeaders();
+    this._renderVirtualRows(this.currentStartRow || 1, Math.min(this.currentEndRow || 40, this.rowCount));
+    this._recalculateAllFormulas();
+    this.refreshCharts();
+    this.selectCell(this.selectedCoord.c, this.selectedCoord.r);
+  }
+
+  _columnNumber(label) {
+    return String(label).toUpperCase().split("").reduce((value, char) => value * 26 + char.charCodeAt(0) - 64, 0);
+  }
+
+  _columnLabel(number) {
+    let value = number;
+    let label = "";
+    while (value > 0) {
+      value--;
+      label = String.fromCharCode(65 + (value % 26)) + label;
+      value = Math.floor(value / 26);
+    }
+    return label;
+  }
+
+  _shiftCellReference(reference, axis, insertionPoint, direction = 1) {
+    return String(reference).split(/("(?:""|[^"])*")/).map((segment, index) => {
+      if (index % 2 === 1) return segment;
+      return segment.replace(/(^|[^A-Z0-9_])(\$?)([A-Z]{1,3})(\$?)(\d+)(?![A-Z0-9_])/gi, (match, prefix, colAbs, col, rowAbs, row) => {
+        let nextCol = col.toUpperCase();
+        let nextRow = Number(row);
+        const cmp = value => direction > 0 ? value >= insertionPoint : value > insertionPoint;
+        if (axis === "row" && cmp(nextRow)) nextRow += direction;
+        if (axis === "col" && cmp(this._columnNumber(nextCol))) nextCol = this._columnLabel(this._columnNumber(nextCol) + direction);
+        return `${prefix}${colAbs}${nextCol}${rowAbs}${nextRow}`;
+      });
+    }).join("");
+  }
+
+  _shiftRange(range, axis, insertionPoint, direction = 1) {
+    if (!range?.start || !range?.end) return range;
+    const cmp = value => direction > 0 ? value >= insertionPoint : value > insertionPoint;
+    const shift = point => ({
+      c: axis === "col" && cmp(this._columnNumber(point.c)) ? this._columnLabel(this._columnNumber(point.c) + direction) : point.c,
+      r: axis === "row" && cmp(point.r) ? point.r + direction : point.r
+    });
+    return { ...structuredClone(range), start: shift(range.start), end: shift(range.end) };
+  }
+
+  _renderColumnHeaders() {
+    if (typeof document === "undefined") return;
+    const row = this.table?.querySelector?.("thead tr");
+    if (row) {
+      row.innerHTML = `<th class="vno-grid-corner-header" title="Chọn tất cả (Ctrl+A)"></th>`;
+      row.querySelector(".vno-grid-corner-header")?.addEventListener("click", () => this.selectAll());
+      this.cols.forEach(col => {
+        const th = document.createElement("th");
+        this._bindColumnHeader(th, col);
+        row.appendChild(th);
+      });
+    }
+    this.topSpacer?.querySelector?.("td")?.setAttribute?.("colspan", String(this.cols.length + 1));
+    this.bottomSpacer?.querySelector?.("td")?.setAttribute?.("colspan", String(this.cols.length + 1));
+    this._updateFilterButtons();
+  }
+
+  _shiftGridMetadata(axis, insertionPoint, direction = 1) {
+    const sheet = this.activeSheet;
+    const cmp = value => direction > 0 ? value >= insertionPoint : value > insertionPoint;
+    const shiftRange = range => this._shiftRange(range, axis, insertionPoint, direction);
+    this.conditionalFormattingBySheet[sheet] = (this.conditionalFormattingBySheet[sheet] || []).map(rule => ({ ...rule, range: shiftRange(rule.range) }));
+    this.dataValidationsBySheet[sheet] = (this.dataValidationsBySheet[sheet] || []).map(rule => ({ ...rule, range: shiftRange(rule.range) }));
+    this.mergedRangesBySheet[sheet] = (this.mergedRangesBySheet[sheet] || []).flatMap(range => {
+      if (direction > 0) return [shiftRange(range)];
+      const normalized = this._normalizeRange(range);
+      const start = axis === "row" ? normalized.start.r : this._columnNumber(normalized.start.c);
+      const end = axis === "row" ? normalized.end.r : this._columnNumber(normalized.end.c);
+      if (insertionPoint < start) return [shiftRange(normalized)];
+      if (insertionPoint > end) return [normalized];
+      if (start === end) return [];
+      const next = structuredClone(normalized);
+      if (axis === "row") next.end.r--;
+      else next.end.c = this._columnLabel(end - 1);
+      return [next];
+    });
+
+    const comments = {};
+    for (const [coord, comment] of Object.entries(this.commentsBySheet[sheet] || {})) {
+      const shifted = this._shiftCellReference(coord, axis, insertionPoint, direction);
+      comments[shifted] = { ...structuredClone(comment), coord: shifted };
+    }
+    this.commentsBySheet[sheet] = comments;
+
+    if (this.printAreaBySheet[sheet]) this.printAreaBySheet[sheet] = this._shiftCellReference(this.printAreaBySheet[sheet], axis, insertionPoint, direction);
+    const breaks = structuredClone(this.pageBreaksBySheet[sheet] || { rows: [], cols: [] });
+    if (axis === "row") breaks.rows = breaks.rows.map(row => cmp(row) ? row + direction : row);
+    else breaks.cols = breaks.cols.map(col => cmp(this._columnNumber(col)) ? this._columnLabel(this._columnNumber(col) + direction) : col);
+    this.pageBreaksBySheet[sheet] = breaks;
+
+    this.hiddenRows = new Set([...this.hiddenRows].map(row => axis === "row" && cmp(row) ? row + direction : row));
+    if (axis === "col") this.activeFilters = new Map([...this.activeFilters].map(([col, values]) => [cmp(this._columnNumber(col)) ? this._columnLabel(this._columnNumber(col) + direction) : col, values]));
+
+    const shiftKeyedMap = (source, toKey) => {
+      const next = new Map();
+      for (const [key, value] of source.entries()) {
+        const numeric = axis === "row" ? Number(key) : this._columnNumber(key);
+        if (direction < 0 && numeric === insertionPoint) continue;
+        next.set(toKey(cmp(numeric) ? numeric + direction : numeric), value);
+      }
+      return next;
+    };
+    const shiftKeyedSet = (source, toKey) => {
+      const next = new Set();
+      for (const key of source) {
+        const numeric = axis === "row" ? Number(key) : this._columnNumber(key);
+        if (direction < 0 && numeric === insertionPoint) continue;
+        next.add(toKey(cmp(numeric) ? numeric + direction : numeric));
+      }
+      return next;
+    };
+    if (axis === "row") {
+      this.rowHeightsBySheet[sheet] = shiftKeyedMap(this._rowHeights(sheet), value => value);
+      this.userHiddenRowsBySheet[sheet] = shiftKeyedSet(this._userHiddenRows(sheet), value => value);
+    } else {
+      this.colWidthsBySheet[sheet] = shiftKeyedMap(this._colWidths(sheet), value => this._columnLabel(value));
+      this.userHiddenColsBySheet[sheet] = shiftKeyedSet(this._userHiddenCols(sheet), value => this._columnLabel(value));
+    }
+  }
+
+  insertRow(atRow = this.selectedCoord.r, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    atRow = Number(atRow);
+    if (!Number.isInteger(atRow) || atRow < 1 || atRow > this.rowCount) return false;
+    const before = this._snapshotGridStructure();
+    const shifted = new Map();
+    for (const [key, item] of this.cellsData.entries()) {
+      const [col, row] = this._splitCoord(key);
+      const nextKey = `${col}${row >= atRow ? row + 1 : row}`;
+      const nextItem = structuredClone(item);
+      if (nextItem.formula) nextItem.formula = this._shiftCellReference(nextItem.formula, "row", atRow);
+      shifted.set(nextKey, nextItem);
+    }
+    this.sheetsData[this.activeSheet] = shifted;
+    this.rowCount++;
+    this._shiftGridMetadata("row", atRow);
+    this.selectedCoord = { c: this.selectedCoord.c, r: atRow };
+    this.selectionRange = { start: { ...this.selectedCoord }, end: { ...this.selectedCoord } };
+    this._renderVirtualRows(this.currentStartRow || 1, Math.min(this.currentEndRow || 40, this.rowCount));
+    this._recalculateAllFormulas();
+    this.refreshCharts();
+    this.selectCell(this.selectedCoord.c, this.selectedCoord.r);
+    if (recordUndo) this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+    return true;
+  }
+
+  insertColumn(atCol = this.selectedCoord.c, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    const atColumnNumber = typeof atCol === "number" ? atCol : this._columnNumber(atCol);
+    if (!Number.isInteger(atColumnNumber) || atColumnNumber < 1 || atColumnNumber > this.cols.length) return false;
+    const before = this._snapshotGridStructure();
+    const shifted = new Map();
+    for (const [key, item] of this.cellsData.entries()) {
+      const [col, row] = this._splitCoord(key);
+      const colNumber = this._columnNumber(col);
+      const nextKey = `${colNumber >= atColumnNumber ? this._columnLabel(colNumber + 1) : col}${row}`;
+      const nextItem = structuredClone(item);
+      if (nextItem.formula) nextItem.formula = this._shiftCellReference(nextItem.formula, "col", atColumnNumber);
+      shifted.set(nextKey, nextItem);
+    }
+    this.sheetsData[this.activeSheet] = shifted;
+    this.cols = Array.from({ length: this.cols.length + 1 }, (_, index) => this._columnLabel(index + 1));
+    this._shiftGridMetadata("col", atColumnNumber);
+    this.selectedCoord = { c: this._columnLabel(atColumnNumber), r: this.selectedCoord.r };
+    this.selectionRange = { start: { ...this.selectedCoord }, end: { ...this.selectedCoord } };
+    this._renderColumnHeaders();
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this._recalculateAllFormulas();
+    this.refreshCharts();
+    this.selectCell(this.selectedCoord.c, this.selectedCoord.r);
+    if (recordUndo) this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+    return true;
+  }
+
+  deleteRow(atRow = this.selectedCoord.r, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    atRow = Number(atRow);
+    if (!Number.isInteger(atRow) || atRow < 1 || atRow > this.rowCount || this.rowCount <= 1) return false;
+    const before = this._snapshotGridStructure();
+    const shifted = new Map();
+    for (const [key, item] of this.cellsData.entries()) {
+      const [col, row] = this._splitCoord(key);
+      if (row === atRow) continue;
+      const nextRow = row > atRow ? row - 1 : row;
+      const nextItem = structuredClone(item);
+      if (nextItem.formula) nextItem.formula = this._shiftCellReference(nextItem.formula, "row", atRow, -1);
+      shifted.set(`${col}${nextRow}`, nextItem);
+    }
+    this.sheetsData[this.activeSheet] = shifted;
+    this.rowCount--;
+    this._shiftGridMetadata("row", atRow, -1);
+    this.selectedCoord = { c: this.selectedCoord.c, r: Math.min(atRow, this.rowCount) };
+    this.selectionRange = { start: { ...this.selectedCoord }, end: { ...this.selectedCoord } };
+    this._renderVirtualRows(this.currentStartRow || 1, Math.min(this.currentEndRow || 40, this.rowCount));
+    this._recalculateAllFormulas();
+    this.refreshCharts();
+    this.selectCell(this.selectedCoord.c, this.selectedCoord.r);
+    if (recordUndo) this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+    return true;
+  }
+
+  deleteColumn(atCol = this.selectedCoord.c, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    const atColumnNumber = typeof atCol === "number" ? atCol : this._columnNumber(atCol);
+    if (!Number.isInteger(atColumnNumber) || atColumnNumber < 1 || atColumnNumber > this.cols.length || this.cols.length <= 1) return false;
+    const before = this._snapshotGridStructure();
+    const shifted = new Map();
+    for (const [key, item] of this.cellsData.entries()) {
+      const [col, row] = this._splitCoord(key);
+      const colNumber = this._columnNumber(col);
+      if (colNumber === atColumnNumber) continue;
+      const nextCol = colNumber > atColumnNumber ? this._columnLabel(colNumber - 1) : col;
+      const nextItem = structuredClone(item);
+      if (nextItem.formula) nextItem.formula = this._shiftCellReference(nextItem.formula, "col", atColumnNumber, -1);
+      shifted.set(`${nextCol}${row}`, nextItem);
+    }
+    this.sheetsData[this.activeSheet] = shifted;
+    this.cols = Array.from({ length: this.cols.length - 1 }, (_, index) => this._columnLabel(index + 1));
+    this._shiftGridMetadata("col", atColumnNumber, -1);
+    this.selectedCoord = { c: this._columnLabel(Math.min(atColumnNumber, this.cols.length)), r: this.selectedCoord.r };
+    this.selectionRange = { start: { ...this.selectedCoord }, end: { ...this.selectedCoord } };
+    this._renderColumnHeaders();
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this._recalculateAllFormulas();
+    this.refreshCharts();
+    this.selectCell(this.selectedCoord.c, this.selectedCoord.r);
+    if (recordUndo) this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+    return true;
+  }
+
+  isEntireRowSelected(range = this.selectionRange) {
+    const norm = this._normalizeRange(range);
+    const startColIdx = this.cols.indexOf(norm.start.c);
+    const endColIdx = this.cols.indexOf(norm.end.c);
+    return startColIdx === 0 && endColIdx === this.cols.length - 1;
+  }
+
+  isEntireColumnSelected(range = this.selectionRange) {
+    const norm = this._normalizeRange(range);
+    return norm.start.r === 1 && norm.end.r === this.rowCount;
+  }
+
+  shiftCellsRight(range = this.selectionRange, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    const normalized = this._normalizeRange(range);
+    const startColIdx = this.cols.indexOf(normalized.start.c);
+    const endColIdx = this.cols.indexOf(normalized.end.c);
+    const shiftAmount = endColIdx - startColIdx + 1;
+    if (startColIdx < 0 || endColIdx < 0 || shiftAmount <= 0) return false;
+
+    const before = this._snapshotGridStructure();
+
+    let maxColIdx = endColIdx;
+    for (const [key] of this.cellsData.entries()) {
+      const [col, r] = this._splitCoord(key);
+      if (r >= normalized.start.r && r <= normalized.end.r) {
+        const cIdx = this.cols.indexOf(col);
+        if (cIdx > maxColIdx) maxColIdx = cIdx;
+      }
+    }
+    while (this.cols.length <= maxColIdx + shiftAmount) {
+      this.cols.push(this._columnLabel(this.cols.length + 1));
+    }
+
+    for (let r = normalized.start.r; r <= normalized.end.r; r++) {
+      for (let cIdx = this.cols.length - 1; cIdx >= startColIdx; cIdx--) {
+        const col = this.cols[cIdx];
+        const key = `${col}${r}`;
+        const sourceColIdx = cIdx - shiftAmount;
+        if (sourceColIdx >= startColIdx) {
+          const sourceCol = this.cols[sourceColIdx];
+          const sourceKey = `${sourceCol}${r}`;
+          const item = this.cellsData.get(sourceKey);
+          if (item) {
+            this.cellsData.set(key, structuredClone(item));
+          } else {
+            this.cellsData.delete(key);
+          }
+        } else {
+          this.cellsData.delete(key);
+        }
+      }
+    }
+
+    this._renderColumnHeaders();
+    this._renderVirtualRows(this.currentStartRow || 1, Math.min(this.currentEndRow || 40, this.rowCount));
+    this._recalculateAllFormulas();
+    this.refreshCharts();
+    this.selectCell(normalized.start.c, normalized.start.r);
+    if (recordUndo) {
+      this._recordHistory({
+        type: "grid-structure",
+        sheet: this.activeSheet,
+        before,
+        after: this._snapshotGridStructure()
+      });
+    }
+    return true;
+  }
+
+  shiftCellsDown(range = this.selectionRange, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    const normalized = this._normalizeRange(range);
+    const startColIdx = this.cols.indexOf(normalized.start.c);
+    const endColIdx = this.cols.indexOf(normalized.end.c);
+    const shiftAmount = normalized.end.r - normalized.start.r + 1;
+    if (startColIdx < 0 || endColIdx < 0 || shiftAmount <= 0) return false;
+
+    const before = this._snapshotGridStructure();
+
+    let maxRow = normalized.end.r;
+    for (const [key] of this.cellsData.entries()) {
+      const [col, r] = this._splitCoord(key);
+      const cIdx = this.cols.indexOf(col);
+      if (cIdx >= startColIdx && cIdx <= endColIdx) {
+        if (r > maxRow) maxRow = r;
+      }
+    }
+    if (maxRow + shiftAmount > this.rowCount) {
+      this.rowCount = maxRow + shiftAmount;
+    }
+
+    for (let cIdx = startColIdx; cIdx <= endColIdx; cIdx++) {
+      const col = this.cols[cIdx];
+      for (let r = this.rowCount; r >= normalized.start.r; r--) {
+        const key = `${col}${r}`;
+        const sourceRow = r - shiftAmount;
+        if (sourceRow >= normalized.start.r) {
+          const sourceKey = `${col}${sourceRow}`;
+          const item = this.cellsData.get(sourceKey);
+          if (item) {
+            this.cellsData.set(key, structuredClone(item));
+          } else {
+            this.cellsData.delete(key);
+          }
+        } else {
+          this.cellsData.delete(key);
+        }
+      }
+    }
+
+    this._renderVirtualRows(this.currentStartRow || 1, Math.min(this.currentEndRow || 40, this.rowCount));
+    this._recalculateAllFormulas();
+    this.refreshCharts();
+    this.selectCell(normalized.start.c, normalized.start.r);
+    if (recordUndo) {
+      this._recordHistory({
+        type: "grid-structure",
+        sheet: this.activeSheet,
+        before,
+        after: this._snapshotGridStructure()
+      });
+    }
+    return true;
+  }
+
+  shiftCellsLeft(range = this.selectionRange, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    const normalized = this._normalizeRange(range);
+    const startColIdx = this.cols.indexOf(normalized.start.c);
+    const endColIdx = this.cols.indexOf(normalized.end.c);
+    const shiftAmount = endColIdx - startColIdx + 1;
+    if (startColIdx < 0 || endColIdx < 0 || shiftAmount <= 0) return false;
+
+    const before = this._snapshotGridStructure();
+
+    for (let r = normalized.start.r; r <= normalized.end.r; r++) {
+      for (let cIdx = startColIdx; cIdx < this.cols.length; cIdx++) {
+        const col = this.cols[cIdx];
+        const key = `${col}${r}`;
+        const sourceColIdx = cIdx + shiftAmount;
+        if (sourceColIdx < this.cols.length) {
+          const sourceCol = this.cols[sourceColIdx];
+          const sourceKey = `${sourceCol}${r}`;
+          const item = this.cellsData.get(sourceKey);
+          if (item) {
+            this.cellsData.set(key, structuredClone(item));
+          } else {
+            this.cellsData.delete(key);
+          }
+        } else {
+          this.cellsData.delete(key);
+        }
+      }
+    }
+
+    this._renderVirtualRows(this.currentStartRow || 1, Math.min(this.currentEndRow || 40, this.rowCount));
+    this._recalculateAllFormulas();
+    this.refreshCharts();
+    this.selectCell(normalized.start.c, normalized.start.r);
+    if (recordUndo) {
+      this._recordHistory({
+        type: "grid-structure",
+        sheet: this.activeSheet,
+        before,
+        after: this._snapshotGridStructure()
+      });
+    }
+    return true;
+  }
+
+  shiftCellsUp(range = this.selectionRange, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    const normalized = this._normalizeRange(range);
+    const startColIdx = this.cols.indexOf(normalized.start.c);
+    const endColIdx = this.cols.indexOf(normalized.end.c);
+    const shiftAmount = normalized.end.r - normalized.start.r + 1;
+    if (startColIdx < 0 || endColIdx < 0 || shiftAmount <= 0) return false;
+
+    const before = this._snapshotGridStructure();
+
+    for (let cIdx = startColIdx; cIdx <= endColIdx; cIdx++) {
+      const col = this.cols[cIdx];
+      for (let r = normalized.start.r; r <= this.rowCount; r++) {
+        const key = `${col}${r}`;
+        const sourceRow = r + shiftAmount;
+        if (sourceRow <= this.rowCount) {
+          const sourceKey = `${col}${sourceRow}`;
+          const item = this.cellsData.get(sourceKey);
+          if (item) {
+            this.cellsData.set(key, structuredClone(item));
+          } else {
+            this.cellsData.delete(key);
+          }
+        } else {
+          this.cellsData.delete(key);
+        }
+      }
+    }
+
+    this._renderVirtualRows(this.currentStartRow || 1, Math.min(this.currentEndRow || 40, this.rowCount));
+    this._recalculateAllFormulas();
+    this.refreshCharts();
+    this.selectCell(normalized.start.c, normalized.start.r);
+    if (recordUndo) {
+      this._recordHistory({
+        type: "grid-structure",
+        sheet: this.activeSheet,
+        before,
+        after: this._snapshotGridStructure()
+      });
+    }
+    return true;
+  }
+
+  showInsertCellsDialog(range = this.selectionRange) {
+    const normalized = this._normalizeRange(range);
+    if (typeof document === "undefined" || !document.body) {
+      this.shiftCellsDown(normalized);
+      return true;
+    }
+    const previousFocused = document.activeElement;
+    const overlay = document.createElement("div");
+    overlay.className = "vno-dialog-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:99999;";
+
+    overlay.innerHTML = `
+      <div class="vno-dialog-box" style="width: 320px; background:var(--vno-bg-surface, #fff); border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,0.2); font-family:sans-serif; overflow:hidden;" role="document">
+        <div class="vno-dialog-header" style="padding:12px 16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; font-weight:600; font-size:14px;">
+          <span>Chèn</span>
+          <button class="vno-dialog-close-btn" style="border:none;background:transparent;cursor:pointer;font-size:18px;" aria-label="Đóng">&times;</button>
+        </div>
+        <div class="vno-dialog-body" style="padding:16px; font-size:13px; display:flex; flex-direction:column; gap:10px;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="radio" name="vno-insert-action" value="shiftRight">
+            <span>Chuyển ô sang phải</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="radio" name="vno-insert-action" value="shiftDown" checked>
+            <span>Chuyển ô xuống dưới</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="radio" name="vno-insert-action" value="entireRow">
+            <span>Toàn bộ hàng</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="radio" name="vno-insert-action" value="entireCol">
+            <span>Toàn bộ cột</span>
+          </label>
+        </div>
+        <div class="vno-dialog-footer" style="padding:12px 16px; display:flex; justify-content:flex-end; gap:8px; border-top:1px solid #e2e8f0; background:#f8fafc;">
+          <button class="vno-btn vno-dialog-ok-btn" style="padding:6px 16px; border-radius:4px; font-size:13px; cursor:pointer; background:var(--vno-primary, #0f6d38); color:#fff; border:none; font-weight:500;">Đồng ý</button>
+          <button class="vno-btn vno-dialog-cancel-btn" style="padding:6px 16px; border-radius:4px; font-size:13px; cursor:pointer; background:#fff; border:1px solid #cbd5e1; color:#334155;">Hủy</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+    const dialogBox = overlay.querySelector(".vno-dialog-box");
+    const okBtn = overlay.querySelector(".vno-dialog-ok-btn");
+    const cancelBtn = overlay.querySelector(".vno-dialog-cancel-btn");
+    const closeBtn = overlay.querySelector(".vno-dialog-close-btn");
+
+    const cleanup = () => {
+      document.removeEventListener("keydown", onKeyDown);
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (previousFocused && typeof previousFocused.focus === "function") {
+        previousFocused.focus();
+      }
+    };
+
+    const executeChoice = () => {
+      const selected = overlay.querySelector('input[name="vno-insert-action"]:checked')?.value || "shiftDown";
+      cleanup();
+      if (selected === "shiftRight") {
+        this.shiftCellsRight(normalized);
+      } else if (selected === "shiftDown") {
+        this.shiftCellsDown(normalized);
+      } else if (selected === "entireRow") {
+        const rowCount = normalized.end.r - normalized.start.r + 1;
+        const before = this._snapshotGridStructure();
+        for (let i = 0; i < rowCount; i++) {
+          this.insertRow(normalized.start.r, false);
+        }
+        this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+      } else if (selected === "entireCol") {
+        const startColIdx = this.cols.indexOf(normalized.start.c);
+        const endColIdx = this.cols.indexOf(normalized.end.c);
+        const colCount = endColIdx - startColIdx + 1;
+        const before = this._snapshotGridStructure();
+        for (let i = 0; i < colCount; i++) {
+          this.insertColumn(normalized.start.c, false);
+        }
+        this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+      }
+    };
+
+    okBtn.addEventListener("click", executeChoice);
+    cancelBtn.addEventListener("click", cleanup);
+    closeBtn.addEventListener("click", cleanup);
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) cleanup(); });
+
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        cleanup();
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        executeChoice();
+      } else if (e.key === "Tab") {
+        const focusables = Array.from(dialogBox.querySelectorAll('button, input[type="radio"]:checked, input'));
+        if (focusables.length > 0) {
+          const first = focusables[0];
+          const last = focusables[focusables.length - 1];
+          if (e.shiftKey && (document.activeElement === first || !dialogBox.contains(document.activeElement))) {
+            e.preventDefault();
+            last.focus();
+          } else if (!e.shiftKey && (document.activeElement === last || !dialogBox.contains(document.activeElement))) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    okBtn.focus();
+    return true;
+  }
+
+  showDeleteCellsDialog(range = this.selectionRange) {
+    const normalized = this._normalizeRange(range);
+    if (typeof document === "undefined" || !document.body) {
+      this.shiftCellsLeft(normalized);
+      return true;
+    }
+    const previousFocused = document.activeElement;
+    const overlay = document.createElement("div");
+    overlay.className = "vno-dialog-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:99999;";
+
+    overlay.innerHTML = `
+      <div class="vno-dialog-box" style="width: 320px; background:var(--vno-bg-surface, #fff); border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,0.2); font-family:sans-serif; overflow:hidden;" role="document">
+        <div class="vno-dialog-header" style="padding:12px 16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; font-weight:600; font-size:14px;">
+          <span>Xóa</span>
+          <button class="vno-dialog-close-btn" style="border:none;background:transparent;cursor:pointer;font-size:18px;" aria-label="Đóng">&times;</button>
+        </div>
+        <div class="vno-dialog-body" style="padding:16px; font-size:13px; display:flex; flex-direction:column; gap:10px;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="radio" name="vno-delete-action" value="shiftLeft" checked>
+            <span>Chuyển ô sang trái</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="radio" name="vno-delete-action" value="shiftUp">
+            <span>Chuyển ô lên trên</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="radio" name="vno-delete-action" value="entireRow">
+            <span>Toàn bộ hàng</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="radio" name="vno-delete-action" value="entireCol">
+            <span>Toàn bộ cột</span>
+          </label>
+        </div>
+        <div class="vno-dialog-footer" style="padding:12px 16px; display:flex; justify-content:flex-end; gap:8px; border-top:1px solid #e2e8f0; background:#f8fafc;">
+          <button class="vno-btn vno-dialog-ok-btn" style="padding:6px 16px; border-radius:4px; font-size:13px; cursor:pointer; background:var(--vno-primary, #0f6d38); color:#fff; border:none; font-weight:500;">Đồng ý</button>
+          <button class="vno-btn vno-dialog-cancel-btn" style="padding:6px 16px; border-radius:4px; font-size:13px; cursor:pointer; background:#fff; border:1px solid #cbd5e1; color:#334155;">Hủy</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+    const dialogBox = overlay.querySelector(".vno-dialog-box");
+    const okBtn = overlay.querySelector(".vno-dialog-ok-btn");
+    const cancelBtn = overlay.querySelector(".vno-dialog-cancel-btn");
+    const closeBtn = overlay.querySelector(".vno-dialog-close-btn");
+
+    const cleanup = () => {
+      document.removeEventListener("keydown", onKeyDown);
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (previousFocused && typeof previousFocused.focus === "function") {
+        previousFocused.focus();
+      }
+    };
+
+    const executeChoice = () => {
+      const selected = overlay.querySelector('input[name="vno-delete-action"]:checked')?.value || "shiftLeft";
+      cleanup();
+      if (selected === "shiftLeft") {
+        this.shiftCellsLeft(normalized);
+      } else if (selected === "shiftUp") {
+        this.shiftCellsUp(normalized);
+      } else if (selected === "entireRow") {
+        const rowCount = normalized.end.r - normalized.start.r + 1;
+        const before = this._snapshotGridStructure();
+        for (let i = 0; i < rowCount; i++) {
+          this.deleteRow(normalized.start.r, false);
+        }
+        this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+      } else if (selected === "entireCol") {
+        const startColIdx = this.cols.indexOf(normalized.start.c);
+        const endColIdx = this.cols.indexOf(normalized.end.c);
+        const colCount = endColIdx - startColIdx + 1;
+        const before = this._snapshotGridStructure();
+        for (let i = 0; i < colCount; i++) {
+          this.deleteColumn(normalized.start.c, false);
+        }
+        this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+      }
+    };
+
+    okBtn.addEventListener("click", executeChoice);
+    cancelBtn.addEventListener("click", cleanup);
+    closeBtn.addEventListener("click", cleanup);
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) cleanup(); });
+
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        cleanup();
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        executeChoice();
+      } else if (e.key === "Tab") {
+        const focusables = Array.from(dialogBox.querySelectorAll('button, input[type="radio"]:checked, input'));
+        if (focusables.length > 0) {
+          const first = focusables[0];
+          const last = focusables[focusables.length - 1];
+          if (e.shiftKey && (document.activeElement === first || !dialogBox.contains(document.activeElement))) {
+            e.preventDefault();
+            last.focus();
+          } else if (!e.shiftKey && (document.activeElement === last || !dialogBox.contains(document.activeElement))) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    okBtn.focus();
+    return true;
+  }
+
+  handleInsertShortcut() {
+    if (this._guardProtectedMutation()) return false;
+    const range = this._normalizeRange();
+    const entireRow = this.isEntireRowSelected(range);
+    const entireCol = this.isEntireColumnSelected(range);
+    if (entireRow && !entireCol) {
+      const rowCount = range.end.r - range.start.r + 1;
+      const before = this._snapshotGridStructure();
+      for (let i = 0; i < rowCount; i++) {
+        this.insertRow(range.start.r, false);
+      }
+      this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+      return true;
+    }
+    if (entireCol && !entireRow) {
+      const startColIdx = this.cols.indexOf(range.start.c);
+      const endColIdx = this.cols.indexOf(range.end.c);
+      const colCount = endColIdx - startColIdx + 1;
+      const before = this._snapshotGridStructure();
+      for (let i = 0; i < colCount; i++) {
+        this.insertColumn(range.start.c, false);
+      }
+      this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+      return true;
+    }
+    return this.showInsertCellsDialog(range);
+  }
+
+  handleDeleteShortcut() {
+    if (this._guardProtectedMutation()) return false;
+    const range = this._normalizeRange();
+    const entireRow = this.isEntireRowSelected(range);
+    const entireCol = this.isEntireColumnSelected(range);
+    if (entireRow && !entireCol) {
+      const rowCount = range.end.r - range.start.r + 1;
+      const before = this._snapshotGridStructure();
+      for (let i = 0; i < rowCount; i++) {
+        this.deleteRow(range.start.r, false);
+      }
+      this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+      return true;
+    }
+    if (entireCol && !entireRow) {
+      const startColIdx = this.cols.indexOf(range.start.c);
+      const endColIdx = this.cols.indexOf(range.end.c);
+      const colCount = endColIdx - startColIdx + 1;
+      const before = this._snapshotGridStructure();
+      for (let i = 0; i < colCount; i++) {
+        this.deleteColumn(range.start.c, false);
+      }
+      this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+      return true;
+    }
+    return this.showDeleteCellsDialog(range);
+  }
+
+  _restoreCells(entries) {
+    this.sheetsData[this.activeSheet] = new Map(entries.map(([key, value]) => [key, structuredClone(value)]));
+    this._renderVirtualRows(this.currentStartRow, this.currentEndRow);
+    this._recalculateAllFormulas();
+    this.refreshCharts();
+  }
+
+  _snapshotFilterState() {
+    return {
+      isFilterActive: !!this.isFilterActive,
+      hiddenRows: [...this.hiddenRows],
+      activeFilters: Array.from(this.activeFilters, ([col, values]) => [col, [...values]])
+    };
+  }
+
+  _restoreFilterState(snapshot) {
+    this.isFilterActive = !!snapshot.isFilterActive;
+    this.hiddenRows = new Set(snapshot.hiddenRows);
+    this.activeFilters = new Map(snapshot.activeFilters.map(([col, values]) => [col, new Set(values)]));
+    const state = this.sheetStates[this.activeSheet];
+    if (state) Object.assign(state, { isFilterActive: this.isFilterActive, hiddenRows: new Set(this.hiddenRows), activeFilters: new Map(this.activeFilters) });
+    this.container?.classList?.toggle?.("vno-filter-mode", this.isFilterActive);
+    this._updateFilterButtons();
+    this._renderVirtualRows(this.currentStartRow, this.currentEndRow);
+  }
+
+  _snapshotSheet(sheetName) {
+    const savedState = this.sheetStates[sheetName] || {};
+    const state = sheetName === this.activeSheet ? {
+      hiddenRows: this.hiddenRows,
+      activeFilters: this.activeFilters,
+      isFilterActive: this.isFilterActive,
+      isFrozenPanes: this.isFrozenPanes,
+      frozenRows: this.frozenRows,
+      frozenCols: this.frozenCols,
+      selectedCoord: this.selectedCoord
+    } : savedState;
+    return {
+      cells: this._snapshotCells(sheetName),
+      state: {
+        hiddenRows: [...(state.hiddenRows || [])],
+        activeFilters: Array.from(state.activeFilters || [], ([col, values]) => [col, [...values]]),
+        isFilterActive: !!state.isFilterActive,
+        isFrozenPanes: !!state.isFrozenPanes,
+        frozenRows: state.frozenRows || 0,
+        frozenCols: state.frozenCols || 0,
+        selectedCoord: { ...(state.selectedCoord || { r: 1, c: "A" }) }
+      },
+      conditionalFormatting: structuredClone(this.conditionalFormattingBySheet[sheetName] || []),
+      dataValidations: structuredClone(this.dataValidationsBySheet[sheetName] || []),
+      charts: structuredClone(this.chartsBySheet[sheetName] || []),
+      images: structuredClone(this.imagesBySheet[sheetName] || []),
+      textBoxes: structuredClone(this.textBoxesBySheet[sheetName] || []),
+      pivotTables: structuredClone(this.pivotTablesBySheet[sheetName] || []),
+      scenarios: structuredClone(this.scenariosBySheet[sheetName] || []),
+      dataTables: structuredClone(this.dataTablesBySheet[sheetName] || []),
+      namedRanges: structuredClone(this.namedRangesBySheet[sheetName] || []),
+      comments: structuredClone(this.commentsBySheet[sheetName] || {}),
+      printArea: this.printAreaBySheet[sheetName] || null,
+      pageBreaks: structuredClone(this.pageBreaksBySheet[sheetName] || { rows: [], cols: [] }),
+      pageSetup: structuredClone(this.pageSetupBySheet[sheetName] || newSheetPageSetup()),
+      mergedRanges: structuredClone(this.mergedRangesBySheet[sheetName] || []),
+      rowColLayout: this._snapshotRowColLayout(sheetName),
+      protection: structuredClone(this.protectionBySheet?.[sheetName] || { enabled: false, password: "" })
+    };
+  }
+
+  _restoreSheet(sheetName, snapshot, index) {
+    if (!this.sheets.includes(sheetName)) this.sheets.splice(Math.min(index, this.sheets.length), 0, sheetName);
+    this.sheetsData[sheetName] = new Map(snapshot.cells.map(([key, value]) => [key, structuredClone(value)]));
+    this.sheetStates[sheetName] = {
+      hiddenRows: new Set(snapshot.state.hiddenRows),
+      activeFilters: new Map(snapshot.state.activeFilters.map(([col, values]) => [col, new Set(values)])),
+      isFilterActive: snapshot.state.isFilterActive,
+      isFrozenPanes: snapshot.state.isFrozenPanes,
+      frozenRows: snapshot.state.frozenRows || 0,
+      frozenCols: snapshot.state.frozenCols || 0,
+      selectedCoord: { ...snapshot.state.selectedCoord }
+    };
+    this.conditionalFormattingBySheet[sheetName] = structuredClone(snapshot.conditionalFormatting);
+    this.dataValidationsBySheet[sheetName] = structuredClone(snapshot.dataValidations);
+    this.chartsBySheet[sheetName] = structuredClone(snapshot.charts);
+    this.imagesBySheet[sheetName] = structuredClone(snapshot.images || []);
+    this.textBoxesBySheet[sheetName] = structuredClone(snapshot.textBoxes || []);
+    this.pivotTablesBySheet[sheetName] = structuredClone(snapshot.pivotTables || []);
+    this.scenariosBySheet[sheetName] = structuredClone(snapshot.scenarios || []);
+    this.dataTablesBySheet[sheetName] = structuredClone(snapshot.dataTables || []);
+    this.namedRangesBySheet[sheetName] = structuredClone(snapshot.namedRanges || []);
+    this.commentsBySheet[sheetName] = structuredClone(snapshot.comments || {});
+    this.printAreaBySheet[sheetName] = snapshot.printArea || null;
+    this.pageBreaksBySheet[sheetName] = structuredClone(snapshot.pageBreaks || { rows: [], cols: [] });
+    this.pageSetupBySheet[sheetName] = newSheetPageSetup(snapshot.pageSetup);
+    this.mergedRangesBySheet[sheetName] = structuredClone(snapshot.mergedRanges || []);
+    if (!this.protectionBySheet) this.protectionBySheet = {};
+    this.protectionBySheet[sheetName] = structuredClone(snapshot.protection || { enabled: false, password: "" });
+    if (snapshot.rowColLayout) this._restoreRowColLayout({ ...snapshot.rowColLayout, sheetName }, { render: false });
+    else this._ensureRowColLayout(sheetName);
+    this._renderSheetTabs();
+  }
+
+  _deleteCollectionItem(collectionName, itemId, sheetName, recordUndo) {
+    const collection = this[collectionName][sheetName] || [];
+    const index = collection.findIndex(item => item.id === itemId);
+    if (index < 0) return false;
+    const [item] = collection.splice(index, 1);
+    if (sheetName === this.activeSheet) this._refreshVisibleRuleVisuals();
+    if (recordUndo) this._recordHistory({ type: "collection", sheet: sheetName, collection: collectionName, operation: "delete", index, item: structuredClone(item) });
+    return true;
+  }
+
+  updateStatus() {
+    const coordKey = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const data = this.cellsData.get(coordKey);
+    if (this.options.onSelect) {
+      this.options.onSelect(coordKey, data, this._calculateStats());
+    }
+  }
+
+  _splitCoord(coord) {
+    const match = String(coord).match(/^([A-Z]+)(\d+)$/);
+    return match ? [match[1], Number(match[2])] : ["A", 1];
+  }
+
+  _normalizeRange(range = this.selectionRange) {
+    return normalizeSheetSelectionRange(range || { start: this.selectedCoord, end: this.selectedCoord }, this.cols);
+  }
+
+  getSelectedRangeLabel() {
+    const range = this._normalizeRange();
+    const first = `${range.start.c}${range.start.r}`;
+    const last = `${range.end.c}${range.end.r}`;
+    return first === last ? first : `${first}:${last}`;
+  }
+
+  getSelectionNameLabel() {
+    const ranges = this._getSelectionRanges();
+    if (ranges.length === 1 && this.selectionKind === "row") {
+      const normalized = this._normalizeRange(ranges[0]);
+      return `${normalized.start.r}:${normalized.end.r}`;
+    }
+    if (ranges.length === 1 && this.selectionKind === "column") {
+      const normalized = this._normalizeRange(ranges[0]);
+      return `${normalized.start.c}:${normalized.end.c}`;
+    }
+    return ranges.map(range => {
+      const normalized = this._normalizeRange(range);
+      const first = `${normalized.start.c}${normalized.start.r}`;
+      const last = `${normalized.end.c}${normalized.end.r}`;
+      return first === last ? first : `${first}:${last}`;
+    }).join(",");
+  }
+
+  resolveNamedRange(name, sheetName = this.activeSheet) {
+    const key = String(name).trim().toLocaleLowerCase();
+    return (this.namedRangesBySheet[sheetName] || []).find(item => item.name.toLocaleLowerCase() === key) ||
+      this.namedRangesWorkbook.find(item => item.name.toLocaleLowerCase() === key) || null;
+  }
+
+  validateNamedRangeName(name, editingId = null, scope = "workbook", sheetName = this.activeSheet) {
+    const value = String(name || "").trim();
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(value) || /^[A-Za-z]+\d+$/.test(value)) return false;
+    const collection = scope === "workbook" ? this.namedRangesWorkbook : (this.namedRangesBySheet[sheetName] || []);
+    return !collection.some(item => item.id !== editingId && item.name.toLocaleLowerCase() === value.toLocaleLowerCase());
+  }
+
+  saveNamedRange(config, recordUndo = true) {
+    config = config || {};
+    const scope = config.scope === "sheet" ? "sheet" : "workbook";
+    const sheet = config.sheet || this.activeSheet;
+    const ref = String(config.ref || "").replace(/\$/g, "").toUpperCase();
+    if (!this.validateNamedRangeName(config.name, config.id, scope, sheet) || !/^[A-Z]+\d+(?::[A-Z]+\d+)?$/.test(ref)) return false;
+    const collection = scope === "workbook" ? this.namedRangesWorkbook : (this.namedRangesBySheet[sheet] ||= []);
+    const oldIndex = collection.findIndex(item => item.id === config.id);
+    const before = oldIndex >= 0 ? structuredClone(collection[oldIndex]) : null;
+    const item = { id: config.id || `name-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, name: String(config.name).trim(), ref, scope, sheet };
+    const index = oldIndex >= 0 ? oldIndex : collection.length;
+    oldIndex >= 0 ? collection.splice(oldIndex, 1, item) : collection.push(item);
+    if (recordUndo) this._recordHistory({ type: "named-range", sheet, scope, id: item.id, index, before, after: structuredClone(item) });
+    this._recalculateAllFormulas();
+    return item;
+  }
+
+  deleteNamedRange(id, scope = "workbook", sheetName = this.activeSheet, recordUndo = true) {
+    const collection = scope === "workbook" ? this.namedRangesWorkbook : (this.namedRangesBySheet[sheetName] || []);
+    const index = collection.findIndex(item => item.id === id);
+    if (index < 0) return false;
+    const [before] = collection.splice(index, 1);
+    if (recordUndo) this._recordHistory({ type: "named-range", sheet: sheetName, scope, id, index, before: structuredClone(before), after: null });
+    this._recalculateAllFormulas();
+    return true;
+  }
+
+  showNameManager(options = {}) {
+    options = options || {};
+    if (typeof document === "undefined") return false;
+    const overlay = this._createSheetDialog(t("sheetDialogs.nameManagerTitle", "Trình quản lý tên"), `<div class="vno-name-manager">
+      <div class="vno-name-list" role="list"></div>
+      <div class="vno-name-actions"><button type="button" class="vno-btn" id="vno-name-new">${t("sheetDialogs.nameNew", "Thêm mới")}</button><button type="button" class="vno-btn" id="vno-name-edit">${t("sheetDialogs.nameEdit", "Sửa")}</button><button type="button" class="vno-btn" id="vno-name-delete">${t("sheetDialogs.nameDelete", "Xóa")}</button></div>
+      <div class="vno-name-form" hidden><label>${t("sheetDialogs.nameLabel", "Tên")}<input id="vno-name-value" autocomplete="off"></label><label>${t("sheetDialogs.refersTo", "Vùng tham chiếu")}<input id="vno-name-ref" value="${this._escapeHtml(this.getSelectedRangeLabel())}"></label><label>${t("sheetDialogs.scopeLabel", "Phạm vi")}<select id="vno-name-scope"><option value="workbook">Workbook</option><option value="sheet">Sheet: ${this._escapeHtml(this.activeSheet)}</option></select></label></div>
+      <div class="vno-rule-error" role="alert"></div></div>`);
+    if (!overlay) return false;
+    overlay.querySelector(".vno-rule-apply").textContent = t("sheetDialogs.save", "Lưu");
+    let selected = null;
+    const form = overlay.querySelector(".vno-name-form");
+    const render = () => {
+      const names = [...this.namedRangesWorkbook, ...(this.namedRangesBySheet[this.activeSheet] || [])];
+      overlay.querySelector(".vno-name-list").innerHTML = names.length ? names.map(item => `<button type="button" class="vno-name-row" data-id="${item.id}"><strong>${this._escapeHtml(item.name)}</strong><span>${this._escapeHtml(item.ref)}</span><span>${item.scope === "workbook" ? "Workbook" : this._escapeHtml(item.sheet)}</span></button>`).join("") : `<p class="vno-name-empty">${t("sheetDialogs.noNamedRanges", "Chưa có vùng được đặt tên.")}</p>`;
+      overlay.querySelectorAll(".vno-name-row").forEach(row => row.addEventListener("click", () => { selected = names.find(item => item.id === row.dataset.id); overlay.querySelectorAll(".vno-name-row").forEach(item => item.classList.toggle("is-selected", item === row)); }));
+    };
+    const openForm = item => { form.hidden = false; selected = item || null; overlay.querySelector("#vno-name-value").value = item?.name || ""; overlay.querySelector("#vno-name-ref").value = item?.ref || this.getSelectedRangeLabel(); overlay.querySelector("#vno-name-scope").value = item?.scope || "workbook"; overlay.querySelector("#vno-name-scope").disabled = !!item; overlay.querySelector("#vno-name-value").focus(); };
+    overlay.querySelector("#vno-name-new").addEventListener("click", () => openForm(null));
+    overlay.querySelector("#vno-name-edit").addEventListener("click", () => selected && openForm(selected));
+    overlay.querySelector("#vno-name-delete").addEventListener("click", () => { if (selected && this.deleteNamedRange(selected.id, selected.scope, selected.sheet || this.activeSheet)) { selected = null; render(); } });
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      if (form.hidden) { openForm(null); return; }
+      const result = this.saveNamedRange({ id: selected?.id, name: overlay.querySelector("#vno-name-value").value, ref: overlay.querySelector("#vno-name-ref").value, scope: overlay.querySelector("#vno-name-scope").value, sheet: this.activeSheet });
+      if (!result) { overlay.querySelector(".vno-rule-error").textContent = t("sheetDialogs.invalidNameOrRef", "Tên hoặc vùng tham chiếu không hợp lệ/trùng lặp."); return; }
+      selected = result; form.hidden = true; overlay.querySelector(".vno-rule-error").textContent = ""; render();
+    });
+    render();
+    return true;
+  }
+
+  _rangeContains(range, col, row) {
+    const normalized = this._normalizeRange(range);
+    const colIndex = this.cols.indexOf(col);
+    return colIndex >= this.cols.indexOf(normalized.start.c) &&
+      colIndex <= this.cols.indexOf(normalized.end.c) &&
+      row >= normalized.start.r && row <= normalized.end.r;
+  }
+
+  _getSelectionRanges() {
+    if (!this.selectionRange) return [];
+    if (!Array.isArray(this.selectionRanges) || !this.selectionRanges.length ||
+        !this.selectionRanges.includes(this.selectionRange)) {
+      this.selectionRanges = [this.selectionRange];
+    }
+    return this.selectionRanges;
+  }
+
+  _isCoordInSelection(col, row) {
+    const ranges = this._getSelectionRanges();
+    return ranges.some(range => this._rangeContains(range, col, row));
+  }
+
+  _isMultiRangeSelection() {
+    const ranges = this._getSelectionRanges();
+    return ranges.length > 1 || ranges.some(range =>
+      range && (range.start.c !== range.end.c || range.start.r !== range.end.r)
+    );
+  }
+
+  addConditionalFormattingRule(range, config, recordUndo = true) {
+    const validTypes = ["greaterThan", "lessThan", "blank"];
+    if (!config || !validTypes.includes(config.type)) return false;
+    const numericThreshold = config.type === "blank" ? null : Number(config.value);
+    if (config.type !== "blank" && !Number.isFinite(numericThreshold)) return false;
+    const rule = {
+      id: `cf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      range: this._normalizeRange(range),
+      type: config.type,
+      value: numericThreshold,
+      color: config.color || "#fff2cc"
+    };
+    this.conditionalFormattingBySheet[this.activeSheet].push(rule);
+    this._refreshVisibleRuleVisuals();
+    if (recordUndo) this._recordHistory({ type: "collection", sheet: this.activeSheet, collection: "conditionalFormattingBySheet", operation: "insert", index: this.conditionalFormattingBySheet[this.activeSheet].length - 1, item: structuredClone(rule) });
+    return rule;
+  }
+
+  deleteConditionalFormattingRule(ruleId, sheetName = this.activeSheet, recordUndo = true) {
+    return this._deleteCollectionItem("conditionalFormattingBySheet", ruleId, sheetName, recordUndo);
+  }
+
+  getConditionalFormattingRules(sheetName = this.activeSheet) {
+    return [...(this.conditionalFormattingBySheet[sheetName] || [])];
+  }
+
+  _numericCellValue(value) {
+    if (typeof value === "number") return value;
+    const text = String(value ?? "").trim();
+    if (!text) return NaN;
+    const normalized = text.replace(/\s/g, "").replace(/₫/g, "").replace(/\./g, "").replace(",", ".");
+    return Number(normalized);
+  }
+
+  _matchingConditionalRule(col, row) {
+    const value = this.cellsData.get(`${col}${row}`)?.val ?? "";
+    return (this.conditionalFormattingBySheet[this.activeSheet] || []).find(rule => {
+      if (!this._rangeContains(rule.range, col, row)) return false;
+      if (rule.type === "blank") return String(value).trim() === "";
+      if (rule.type === "duplicate") {
+        if (String(value).trim() === "") return false;
+        let count = 0;
+        const norm = String(value).trim().toLowerCase();
+        for (let r = rule.range.start.r; r <= rule.range.end.r; r++) {
+          for (let cNum = this._columnNumber(rule.range.start.c); cNum <= this._columnNumber(rule.range.end.c); cNum++) {
+            const v = this.cellsData.get(`${this._columnLabel(cNum)}${r}`)?.val ?? "";
+            if (String(v).trim().toLowerCase() === norm) {
+              count++;
+              if (count > 1) return true;
+            }
+          }
+        }
+        return false;
+      }
+      const numeric = this._numericCellValue(value);
+      if (!Number.isFinite(numeric)) return false;
+      return rule.type === "greaterThan" ? numeric > rule.value : numeric < rule.value;
+    }) || null;
+  }
+
+  addDataValidation(range, config, recordUndo = true) {
+    if (!config || !["list", "numberRange"].includes(config.type)) return false;
+    let normalizedConfig;
+    if (config.type === "list") {
+      const values = Array.isArray(config.values)
+        ? config.values.map(String).map(v => v.trim()).filter(Boolean)
+        : String(config.values || "").split(",").map(v => v.trim()).filter(Boolean);
+      if (!values.length) return false;
+      normalizedConfig = { type: "list", values: [...new Set(values)] };
+    } else {
+      const min = Number(config.min);
+      const max = Number(config.max);
+      if (!Number.isFinite(min) || !Number.isFinite(max) || min > max) return false;
+      normalizedConfig = { type: "numberRange", min, max };
+    }
+    const validation = {
+      id: `dv-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      range: this._normalizeRange(range),
+      ...normalizedConfig
+    };
+    this.dataValidationsBySheet[this.activeSheet].push(validation);
+    this._refreshVisibleRuleVisuals();
+    if (recordUndo) this._recordHistory({ type: "collection", sheet: this.activeSheet, collection: "dataValidationsBySheet", operation: "insert", index: this.dataValidationsBySheet[this.activeSheet].length - 1, item: structuredClone(validation) });
+    return validation;
+  }
+
+  deleteDataValidation(validationId, sheetName = this.activeSheet, recordUndo = true) {
+    return this._deleteCollectionItem("dataValidationsBySheet", validationId, sheetName, recordUndo);
+  }
+
+  getDataValidations(sheetName = this.activeSheet) {
+    return [...(this.dataValidationsBySheet[sheetName] || [])];
+  }
+
+  getValidationForCell(col, row) {
+    const rules = this.dataValidationsBySheet[this.activeSheet] || [];
+    return [...rules].reverse().find(rule => this._rangeContains(rule.range, col, row)) || null;
+  }
+
+  validateCellValue(col, row, value = this.cellsData.get(`${col}${row}`)?.val ?? "") {
+    const rule = this.getValidationForCell(col, row);
+    if (!rule || String(value).trim() === "") return { valid: true, rule };
+    if (rule.type === "list") {
+      const valid = rule.values.includes(String(value).trim());
+      return { valid, rule, message: valid ? "" : `Giá trị phải thuộc danh sách: ${rule.values.join(", ")}` };
+    }
+    const numeric = this._numericCellValue(value);
+    const valid = Number.isFinite(numeric) && numeric >= rule.min && numeric <= rule.max;
+    return { valid, rule, message: valid ? "" : `Giá trị phải là số từ ${rule.min} đến ${rule.max}` };
+  }
+
+  _applyRuleVisuals(dom, col, row) {
+    if (!dom) return;
+    const item = this.cellsData.get(`${col}${row}`);
+    const conditionalRule = this._matchingConditionalRule(col, row);
+    dom.style.backgroundColor = conditionalRule?.color || item?.style?.backgroundColor || "";
+    dom.classList.toggle("has-validation", !!this.getValidationForCell(col, row));
+    const validation = this.validateCellValue(col, row);
+    dom.classList.toggle("is-validation-invalid", !validation.valid);
+    if (!validation.valid) {
+      dom.title = `Cảnh báo kiểm tra dữ liệu: ${validation.message}`;
+      dom.setAttribute("aria-invalid", "true");
+    } else {
+      if (dom.title?.startsWith("Cảnh báo kiểm tra dữ liệu:")) dom.title = "";
+      dom.removeAttribute?.("aria-invalid");
+    }
+  }
+
+  _refreshVisibleRuleVisuals() {
+    if (!this.container?.querySelectorAll) return;
+    this.container.querySelectorAll(".vno-grid-cell[data-coord]").forEach(dom => {
+      this._applyRuleVisuals(dom, dom.dataset.col, Number(dom.dataset.row));
+    });
+  }
+
+  _showValidationDropdown(cell, col, row) {
+    if (!cell || typeof document === "undefined") return;
+    const rule = this.getValidationForCell(col, row);
+    if (!rule || rule.type !== "list") return;
+    const select = document.createElement("select");
+    select.className = "vno-cell-validation-select";
+    select.setAttribute("aria-label", t("sheetDialogs.selectCellValue", { col, row }) || `Chọn giá trị cho ô ${col}${row}`);
+    select.innerHTML = `<option value="">${t("sheetDialogs.chooseOption", "-- Chọn --")}</option>` + rule.values
+      .map(value => `<option value="${this._escapeHtml(value)}">${this._escapeHtml(value)}</option>`).join("");
+    const current = String(this.cellsData.get(`${col}${row}`)?.val ?? "");
+    if (rule.values.includes(current)) select.value = current;
+    select.addEventListener("click", event => event.stopPropagation());
+    select.addEventListener("change", () => {
+      this.setCellValue(col, row, select.value);
+      if (this.formulaInput) this.formulaInput.value = select.value;
+      this.selectCell(col, row);
+    });
+    cell.appendChild(select);
+    select.focus();
+  }
+
+  _escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[char]);
+  }
+
+  _parseRange(label) {
+    const match = String(label || "").toUpperCase().match(/^([A-Z]+)(\d+)(?::([A-Z]+)(\d+))?$/);
+    if (!match || !this.cols.includes(match[1]) || (match[3] && !this.cols.includes(match[3]))) return null;
+    return {
+      start: { c: match[1], r: Number(match[2]) },
+      end: { c: match[3] || match[1], r: Number(match[4] || match[2]) }
+    };
+  }
+
+  _refreshPageAndCommentVisuals() {
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+  }
+
+  _applyAnnotationAndPageVisuals(cell, col, row) {
+    if (typeof cell?.classList?.remove === "function") {
+      cell.classList.remove("is-outside-print-area", "is-print-area-top", "is-print-area-bottom", "is-print-area-left", "is-print-area-right", "has-page-break-row", "has-page-break-col");
+    }
+    const coord = `${col}${row}`;
+    const comment = this.commentsBySheet[this.activeSheet]?.[coord];
+    if (comment) {
+      cell.classList.add("has-comment");
+      cell.classList.toggle?.("is-comment-resolved", !!comment.resolved);
+      const popup = document.createElement("span");
+      popup.className = "vno-cell-comment-popup";
+      popup.setAttribute("role", "tooltip");
+      popup.textContent = comment.author ? `${comment.author}: ${comment.text}` : comment.text;
+      cell.appendChild(popup);
+    }
+
+    const isPageBreakPreview = this.workbookView === "pageBreakPreview";
+    const area = this.printAreaBySheet[this.activeSheet]
+      ? this._parseRange(this.printAreaBySheet[this.activeSheet])
+      : (isPageBreakPreview ? this._getEffectivePrintArea() : null);
+
+    if (area) {
+      const inArea = this._rangeContains(area, col, row);
+      if (inArea) {
+        if (row === Math.min(area.start.r, area.end.r)) cell.classList.add("is-print-area-top");
+        if (row === Math.max(area.start.r, area.end.r)) cell.classList.add("is-print-area-bottom");
+        const startCol = this.cols.indexOf(area.start.c);
+        const endCol = this.cols.indexOf(area.end.c);
+        const colIndex = this.cols.indexOf(col);
+        if (colIndex === Math.min(startCol, endCol)) cell.classList.add("is-print-area-left");
+        if (colIndex === Math.max(startCol, endCol)) cell.classList.add("is-print-area-right");
+      } else if (isPageBreakPreview) {
+        cell.classList.add("is-outside-print-area");
+      }
+    }
+
+    const breaks = this.pageBreaksBySheet[this.activeSheet] || { rows: [], cols: [] };
+    if (breaks.rows.includes(row)) cell.classList.add("has-page-break-row");
+    if (breaks.cols.includes(col)) cell.classList.add("has-page-break-col");
+  }
+
+  saveComment(options = {}) {
+    options = options || {};
+    const coord = String(options.coord || `${this.selectedCoord.c}${this.selectedCoord.r}`).toUpperCase();
+    const text = String(options.text || "").trim();
+    const parsedCoord = this._parseRange(coord);
+    if (!parsedCoord || parsedCoord.start.r < 1 || parsedCoord.start.r > this.rowCount || !text) return false;
+    const comments = this.commentsBySheet[this.activeSheet] ||= {};
+    const before = comments[coord] ? structuredClone(comments[coord]) : null;
+    const after = { coord, text, author: String(options.author || before?.author || "Người dùng 3T Office"), timestamp: options.timestamp || new Date().toISOString() };
+    comments[coord] = after;
+    this._recordHistory({ type: "comment", sheet: this.activeSheet, coord, before, after: structuredClone(after) });
+    this._refreshPageAndCommentVisuals();
+    return after;
+  }
+
+  deleteComment(options = {}) {
+    options = options || {};
+    const coord = String(options.coord || `${this.selectedCoord.c}${this.selectedCoord.r}`).toUpperCase();
+    const comments = this.commentsBySheet[this.activeSheet] ||= {};
+    if (!comments[coord]) return false;
+    const before = structuredClone(comments[coord]);
+    delete comments[coord];
+    this._recordHistory({ type: "comment", sheet: this.activeSheet, coord, before, after: null });
+    this._refreshPageAndCommentVisuals();
+    return true;
+  }
+
+  _listComments() {
+    const result = [];
+    for (const sheet of this.sheets) {
+      const entries = Object.values(this.commentsBySheet[sheet] || {});
+      entries.sort((a, b) => {
+        const pa = this._parseRange(a.coord)?.start || { r: 0, c: "A" };
+        const pb = this._parseRange(b.coord)?.start || { r: 0, c: "A" };
+        return pa.r - pb.r || this.cols.indexOf(pa.c) - this.cols.indexOf(pb.c);
+      });
+      entries.forEach(comment => result.push({ sheet, comment }));
+    }
+    return result;
+  }
+
+  _focusComment(entry) {
+    if (!entry) return false;
+    if (entry.sheet !== this.activeSheet) this.switchSheet(entry.sheet);
+    const cell = this._parseRange(entry.comment.coord)?.start;
+    if (!cell) return false;
+    this.selectCell(cell.c, cell.r);
+    this.container?.querySelector?.(`.vno-grid-cell[data-coord="${entry.comment.coord}"]`)?.scrollIntoView?.({ block: "center", inline: "center" });
+    return entry.comment;
+  }
+
+  nextComment() {
+    const comments = this._listComments();
+    if (!comments.length) return false;
+    const coord = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const index = comments.findIndex(entry => entry.sheet === this.activeSheet && entry.comment.coord === coord);
+    return this._focusComment(comments[(index + 1) % comments.length]);
+  }
+
+  previousComment() {
+    const comments = this._listComments();
+    if (!comments.length) return false;
+    const coord = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const index = comments.findIndex(entry => entry.sheet === this.activeSheet && entry.comment.coord === coord);
+    return this._focusComment(comments[index <= 0 ? comments.length - 1 : index - 1]);
+  }
+
+  deleteCurrentComment() { return this.deleteComment(); }
+
+  toggleCurrentCommentResolved() {
+    const coord = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const comments = this.commentsBySheet[this.activeSheet] ||= {};
+    const before = comments[coord] ? structuredClone(comments[coord]) : null;
+    if (!before) return false;
+    const after = { ...before, resolved: !before.resolved };
+    comments[coord] = after;
+    this._recordHistory({ type: "comment", sheet: this.activeSheet, coord, before, after: structuredClone(after) });
+    this._refreshPageAndCommentVisuals();
+    return after.resolved;
+  }
+
+  _ensureSpellChecker() {
+    if (!this.spellChecker) {
+      this.spellChecker = new VietnameseSpellChecker(VIETNAMESE_DICTIONARY_WORDS);
+    }
+    return this.spellChecker;
+  }
+
+  isSpellcheckableCell(item) {
+    if (!item) return false;
+    if (String(item.formula || "").startsWith("=")) return false;
+    const val = item.val;
+    if (val == null || val === "") return false;
+    if (typeof val === "number" || typeof val === "boolean") return false;
+    const text = String(val).trim();
+    if (!text || text.startsWith("#")) return false;
+    return /[\p{L}]/u.test(text);
+  }
+
+  _compareCellCoords(left, right) {
+    const [leftCol, leftRow] = this._splitCoord(left);
+    const [rightCol, rightRow] = this._splitCoord(right);
+    if (leftRow !== rightRow) return leftRow - rightRow;
+    return this.cols.indexOf(leftCol) - this.cols.indexOf(rightCol);
+  }
+
+  collectSpellcheckIssues(sheetName = this.activeSheet) {
+    const checker = this._ensureSpellChecker();
+    const map = this.sheetsData?.[sheetName] || this.cellsData;
+    const issues = [];
+    for (const [coord, item] of map.entries()) {
+      if (!this.isSpellcheckableCell(item)) continue;
+      const text = String(item.val ?? "");
+      for (const token of checker.checkText(text)) {
+        issues.push({
+          coord,
+          sheet: sheetName,
+          word: token.word,
+          normalized: token.normalized,
+          start: token.start,
+          end: token.end,
+          text
+        });
+      }
+    }
+    issues.sort((a, b) => this._compareCellCoords(a.coord, b.coord) || a.start - b.start);
+    return issues;
+  }
+
+  suggestSpellcheckWord(word) {
+    return this._ensureSpellChecker().suggest(word);
+  }
+
+  replaceSpellcheckIssue(issue, replacement) {
+    if (!issue?.coord) return false;
+    const item = this.cellsData.get(issue.coord);
+    if (!item || !this.isSpellcheckableCell(item)) return false;
+    const source = String(item.val ?? "");
+    const nextReplacement = String(replacement ?? "");
+    let next;
+    if (source.slice(issue.start, issue.end) === issue.word) {
+      next = source.slice(0, issue.start) + nextReplacement + source.slice(issue.end);
+    } else {
+      const index = source.indexOf(issue.word);
+      if (index < 0) return false;
+      next = source.slice(0, index) + nextReplacement + source.slice(index + issue.word.length);
+    }
+    const [col, row] = this._splitCoord(issue.coord);
+    this.setCellValue(col, row, next, true);
+    return true;
+  }
+
+  replaceAllSpellcheckWord(word, replacement) {
+    const target = normalizeVietnameseWord(word);
+    if (!target) return 0;
+    const nextReplacement = String(replacement ?? "");
+    const coords = [];
+    for (const issue of this.collectSpellcheckIssues()) {
+      if (issue.normalized === target && !coords.includes(issue.coord)) coords.push(issue.coord);
+    }
+    let count = 0;
+    for (const coord of coords) {
+      const item = this.cellsData.get(coord);
+      if (!item || !this.isSpellcheckableCell(item)) continue;
+      const tokens = tokenizeVietnamese(String(item.val ?? ""));
+      let text = String(item.val ?? "");
+      for (let index = tokens.length - 1; index >= 0; index--) {
+        const token = tokens[index];
+        if (token.normalized !== target) continue;
+        text = text.slice(0, token.start) + nextReplacement + text.slice(token.end);
+        count++;
+      }
+      const [col, row] = this._splitCoord(coord);
+      this.setCellValue(col, row, text, true);
+    }
+    return count;
+  }
+
+  _closeSpellcheckDialog() {
+    this._spellcheckOverlay?.closeDialog?.();
+    this._spellcheckOverlay = null;
+  }
+
+  showSpellcheckDialog(options = {}) {
+    options = options || {};
+    const issues = this.collectSpellcheckIssues();
+    if (typeof document === "undefined" || !document.createElement || !document.body) return issues;
+    this._closeSpellcheckDialog();
+
+    const overlay = document.createElement("div");
+    overlay.className = "vno-dialog-overlay vno-sheet-rule-dialog vno-sheet-spellcheck-dialog";
+    overlay.dataset.dialog = "sheet-spellcheck";
+    overlay.innerHTML = `
+      <div class="vno-dialog-box" role="dialog" aria-modal="true" aria-labelledby="vno-spell-title" style="width:460px;">
+        <div class="vno-dialog-header">
+          <strong id="vno-spell-title">${this._escapeHtml(t("sheetDialogs.spellcheckTitle", "Chính tả"))}</strong>
+          <button type="button" class="vno-btn vno-rule-close" aria-label="${this._escapeHtml(t("sheetDialogs.close", "Đóng"))}">&times;</button>
+        </div>
+        <div class="vno-dialog-body" id="vno-spell-body"></div>
+        <div class="vno-dialog-footer vno-spell-footer"></div>
+      </div>`;
+
+    const previousActive = document.activeElement;
+    const body = overlay.querySelector("#vno-spell-body");
+    const footer = overlay.querySelector(".vno-spell-footer");
+    let currentIndex = 0;
+    let sessionIssues = issues;
+
+    const close = () => {
+      document.removeEventListener("keydown", onKey);
+      overlay.remove();
+      if (this._spellcheckOverlay === overlay) this._spellcheckOverlay = null;
+      if (previousActive && typeof previousActive.focus === "function") {
+        try { previousActive.focus(); } catch (_) {}
+      }
+    };
+    overlay.closeDialog = close;
+
+    const onKey = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        close();
+      } else {
+        trapFocus(overlay.querySelector(".vno-dialog-box"), event);
+      }
+    };
+
+    const refreshIssues = () => {
+      sessionIssues = this.collectSpellcheckIssues();
+      if (currentIndex >= sessionIssues.length) currentIndex = Math.max(0, sessionIssues.length - 1);
+    };
+
+    const renderComplete = (messageKey) => {
+      overlay.dataset.spellcheckState = "done";
+      overlay.removeAttribute("data-spell-word");
+      overlay.removeAttribute("data-spell-coord");
+      body.innerHTML = `<p class="vno-spell-complete" role="status">${this._escapeHtml(t(messageKey, "Đã kiểm tra xong toàn bộ trang tính. Không tìm thấy lỗi chính tả."))}</p>`;
+      footer.innerHTML = `<button type="button" class="vno-btn vno-btn-primary" id="vno-spell-close">${this._escapeHtml(t("sheetDialogs.spellcheckClose", "Đóng"))}</button>`;
+      footer.querySelector("#vno-spell-close").addEventListener("click", close);
+      footer.querySelector("#vno-spell-close").focus();
+    };
+
+    const renderIssue = () => {
+      if (!sessionIssues.length) {
+        renderComplete("sheetDialogs.spellcheckComplete");
+        return;
+      }
+      const issue = sessionIssues[currentIndex];
+      const suggestions = this.suggestSpellcheckWord(issue.word);
+      overlay.dataset.spellcheckState = "issue";
+      overlay.dataset.spellWord = issue.word;
+      overlay.dataset.spellCoord = issue.coord;
+      const [col, row] = this._splitCoord(issue.coord);
+      this.selectCell(col, row);
+      const suggestionOptions = suggestions.length
+        ? suggestions.map((word, index) => `<option value="${this._escapeHtml(word)}" ${index === 0 ? "selected" : ""}>${this._escapeHtml(word)}</option>`).join("")
+        : `<option value="">${this._escapeHtml(t("sheetDialogs.spellcheckNoSuggestions", "(Không có gợi ý gần)"))}</option>`;
+      body.innerHTML = `
+        <p class="vno-spell-status" role="status">${this._escapeHtml(t("sheetDialogs.spellcheckStatus", { current: currentIndex + 1, total: sessionIssues.length }))}</p>
+        <label>${this._escapeHtml(t("sheetDialogs.spellcheckNotInDictionary", "Không có trong từ điển:"))}
+          <input id="vno-spell-word" class="vno-dialog-input" value="${this._escapeHtml(issue.word)}" autocomplete="off">
+        </label>
+        <p class="vno-spell-meta">${this._escapeHtml(t("sheetDialogs.spellcheckCell", "Ô"))}: <strong id="vno-spell-coord">${this._escapeHtml(issue.coord)}</strong></p>
+        <p class="vno-spell-context">${this._escapeHtml(t("sheetDialogs.spellcheckContext", "Nội dung ô"))}: <span id="vno-spell-context">${this._escapeHtml(issue.text)}</span></p>
+        <label>${this._escapeHtml(t("sheetDialogs.spellcheckSuggestions", "Gợi ý:"))}
+          <select id="vno-spell-suggestions" class="vno-select" size="${Math.min(5, Math.max(2, suggestions.length || 1))}">${suggestionOptions}</select>
+        </label>`;
+      footer.innerHTML = `
+        <button type="button" class="vno-btn" id="vno-spell-ignore">${this._escapeHtml(t("sheetDialogs.spellcheckIgnore", "Bỏ qua"))}</button>
+        <button type="button" class="vno-btn" id="vno-spell-ignore-all">${this._escapeHtml(t("sheetDialogs.spellcheckIgnoreAll", "Bỏ qua tất cả"))}</button>
+        <button type="button" class="vno-btn" id="vno-spell-add">${this._escapeHtml(t("sheetDialogs.spellcheckAdd", "Thêm vào từ điển"))}</button>
+        <button type="button" class="vno-btn vno-btn-primary" id="vno-spell-replace">${this._escapeHtml(t("sheetDialogs.spellcheckReplace", "Thay thế"))}</button>
+        <button type="button" class="vno-btn" id="vno-spell-replace-all">${this._escapeHtml(t("sheetDialogs.spellcheckReplaceAll", "Thay thế tất cả"))}</button>
+        <button type="button" class="vno-btn" id="vno-spell-close">${this._escapeHtml(t("sheetDialogs.spellcheckClose", "Đóng"))}</button>`;
+
+      const wordInput = body.querySelector("#vno-spell-word");
+      const suggestionList = body.querySelector("#vno-spell-suggestions");
+      suggestionList.addEventListener("change", () => {
+        if (suggestionList.value) wordInput.value = suggestionList.value;
+      });
+      suggestionList.addEventListener("dblclick", () => {
+        if (suggestionList.value) {
+          wordInput.value = suggestionList.value;
+          applyReplace(false);
+        }
+      });
+
+      const skipCurrent = () => {
+        currentIndex += 1;
+        if (currentIndex >= sessionIssues.length) renderComplete("sheetDialogs.spellcheckCompleteRemaining");
+        else renderIssue();
+      };
+
+      const applyReplace = (all) => {
+        const replacement = wordInput.value;
+        if (!replacement) return;
+        if (all) this.replaceAllSpellcheckWord(issue.word, replacement);
+        else this.replaceSpellcheckIssue(issue, replacement);
+        refreshIssues();
+        renderIssue();
+      };
+
+      footer.querySelector("#vno-spell-ignore").addEventListener("click", skipCurrent);
+      footer.querySelector("#vno-spell-ignore-all").addEventListener("click", () => {
+        this._ensureSpellChecker().ignore(issue.word);
+        refreshIssues();
+        renderIssue();
+      });
+      footer.querySelector("#vno-spell-add").addEventListener("click", () => {
+        this._ensureSpellChecker().addToPersonalDictionary(issue.word);
+        refreshIssues();
+        renderIssue();
+      });
+      footer.querySelector("#vno-spell-replace").addEventListener("click", () => applyReplace(false));
+      footer.querySelector("#vno-spell-replace-all").addEventListener("click", () => applyReplace(true));
+      footer.querySelector("#vno-spell-close").addEventListener("click", close);
+      wordInput.focus();
+      wordInput.select();
+    };
+
+    overlay.querySelector(".vno-rule-close").addEventListener("click", close);
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) close();
+    });
+    document.addEventListener("keydown", onKey);
+    document.body.appendChild(overlay);
+    this._spellcheckOverlay = overlay;
+    renderIssue();
+    return true;
+  }
+
+  showCommentDialog(options = {}) {
+    options = options || {};
+    const coord = String(options.coord || `${this.selectedCoord.c}${this.selectedCoord.r}`).toUpperCase();
+    const existing = this.commentsBySheet[this.activeSheet]?.[coord] || null;
+    const overlay = this._createSheetDialog(t(existing ? "sheetDialogs.editComment" : "sheetDialogs.newComment", { coord }), `
+      <label class="vno-comment-field">${t("sheetDialogs.commentContent")}<textarea id="vno-comment-text" rows="5" maxlength="2000" placeholder="${t("sheetDialogs.commentPlaceholder", { coord })}">${this._escapeHtml(existing?.text || "")}</textarea></label>
+      <label class="vno-comment-field">${t("sheetDialogs.author")}<input id="vno-comment-author" maxlength="100" value="${this._escapeHtml(existing?.author || t("sheetDialogs.defaultAuthor"))}"></label>
+      <div class="vno-rule-error" role="alert"></div>`);
+    if (!overlay) return false;
+    const apply = overlay.querySelector(".vno-rule-apply");
+    apply.textContent = t(existing ? "sheetDialogs.saveChanges" : "sheetDialogs.addComment");
+    if (existing) {
+      const remove = document.createElement("button");
+      remove.className = "vno-btn vno-btn-danger vno-comment-delete";
+      remove.textContent = t("sheetDialogs.deleteComment");
+      overlay.querySelector(".vno-dialog-footer").prepend(remove);
+      remove.addEventListener("click", () => { this.deleteComment({ coord }); overlay.closeDialog(); });
+    }
+    apply.addEventListener("click", () => {
+      const text = overlay.querySelector("#vno-comment-text").value.trim();
+      if (!text) { overlay.querySelector(".vno-rule-error").textContent = t("sheetDialogs.emptyComment"); return; }
+      this.saveComment({ coord, text, author: overlay.querySelector("#vno-comment-author").value });
+      overlay.closeDialog();
+    });
+    overlay.querySelector("#vno-comment-text")?.focus();
+    return true;
+  }
+
+  getPageSetup(sheetName = this.activeSheet) {
+    return structuredClone(this.pageSetupBySheet[sheetName] || newSheetPageSetup());
+  }
+
+  setPageSetup(changes = {}) {
+    const before = this.getPageSetup();
+    const presets = {
+      normal: { top: 1.91, bottom: 1.91, left: 1.78, right: 1.78 },
+      wide: { top: 2.54, bottom: 2.54, left: 5.08, right: 5.08 },
+      narrow: { top: 1.27, bottom: 1.27, left: 1.27, right: 1.27 }
+    };
+    const marginInput = presets[changes.marginPreset] || changes.margins || {};
+    const margins = { ...before.margins };
+    for (const side of ["top", "bottom", "left", "right"]) {
+      if (marginInput[side] === undefined) continue;
+      const value = Number(marginInput[side]);
+      if (!Number.isFinite(value) || value < 0 || value > 25) return false;
+      margins[side] = Math.round(value * 1000) / 1000;
+    }
+    const orientation = changes.orientation || before.orientation;
+    const size = changes.size || before.size;
+    if (!["portrait", "landscape"].includes(orientation) || !["a4", "letter", "legal"].includes(size)) return false;
+    const printTitles = { ...before.printTitles, ...(changes.printTitles || {}) };
+    const normalizedTitles = this._normalizePrintTitlesInput(printTitles.rows, printTitles.cols);
+    printTitles.rows = normalizedTitles.rows;
+    printTitles.cols = normalizedTitles.cols;
+    if (printTitles.rows && !/^\d+(?::\d+)?$/.test(printTitles.rows)) return false;
+    if (printTitles.cols && !/^[A-Z]+(?::[A-Z]+)?$/.test(printTitles.cols)) return false;
+    const scale = { ...before.scale, ...(changes.scale || {}) };
+    if (!["percent", "pages"].includes(scale.mode)) return false;
+    scale.percent = Number(scale.percent);
+    scale.pagesWide = Number(scale.pagesWide);
+    scale.pagesTall = Number(scale.pagesTall);
+    if (!Number.isInteger(scale.percent) || scale.percent < 10 || scale.percent > 400) return false;
+    if (![scale.pagesWide, scale.pagesTall].every(value => Number.isInteger(value) && value >= 0 && value <= 1000)) return false;
+    const headerFooter = {
+      header: { ...before.headerFooter.header, ...(changes.headerFooter?.header || {}) },
+      footer: { ...before.headerFooter.footer, ...(changes.headerFooter?.footer || {}) }
+    };
+    for (const section of [headerFooter.header, headerFooter.footer]) {
+      for (const position of ["left", "center", "right"]) section[position] = String(section[position] || "").slice(0, 500);
+    }
+    const centerOnPage = { ...before.centerOnPage, ...(changes.centerOnPage || {}) };
+    centerOnPage.horizontal = Boolean(centerOnPage.horizontal);
+    centerOnPage.vertical = Boolean(centerOnPage.vertical);
+    const printOptions = { ...before.printOptions, ...(changes.printOptions || {}) };
+    printOptions.gridlines = Boolean(printOptions.gridlines);
+    printOptions.headings = Boolean(printOptions.headings);
+    const after = { margins, orientation, size, scale, headerFooter, centerOnPage, printOptions, printTitles };
+    if (JSON.stringify(before) === JSON.stringify(after)) return after;
+    this.pageSetupBySheet[this.activeSheet] = after;
+    this._recordHistory({ type: "sheet-page-layout", sheet: this.activeSheet, property: "pageSetupBySheet", before, after: structuredClone(after) });
+    return structuredClone(after);
+  }
+
+  showPageSetupDialog(focusField = "margins") {
+    if (typeof document === "undefined" || !document.body) return false;
+    const setup = this.getPageSetup();
+    const pending = this._printTitleSelect;
+    const rowsValue = pending?.field === "rows" && pending.pendingValue ? pending.pendingValue : setup.printTitles.rows;
+    const colsValue = pending?.field === "cols" && pending.pendingValue ? pending.pendingValue : setup.printTitles.cols;
+    const overlay = this._createSheetDialog("Thiết lập trang", `
+      <label>Kiểu lề
+        <select id="vno-sheet-margin-preset" class="vno-select" style="width:100%;margin-top:4px">
+          <option value="custom">Tùy chỉnh</option><option value="normal">Thường</option><option value="wide">Rộng</option><option value="narrow">Hẹp</option>
+        </select>
+      </label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        ${["top", "bottom", "left", "right"].map(side => `<label>${({ top: "Trên", bottom: "Dưới", left: "Trái", right: "Phải" })[side]} (cm)<input id="vno-sheet-margin-${side}" type="number" min="0" max="25" step="0.01" value="${setup.margins[side]}" class="vno-dialog-input" style="width:100%;box-sizing:border-box"></label>`).join("")}
+      </div>
+      <label>Hướng trang<select id="vno-sheet-orientation" class="vno-select" style="width:100%;margin-top:4px"><option value="portrait" ${setup.orientation === "portrait" ? "selected" : ""}>Dọc</option><option value="landscape" ${setup.orientation === "landscape" ? "selected" : ""}>Ngang</option></select></label>
+      <label>Khổ giấy<select id="vno-sheet-size" class="vno-select" style="width:100%;margin-top:4px"><option value="a4" ${setup.size === "a4" ? "selected" : ""}>A4</option><option value="letter" ${setup.size === "letter" ? "selected" : ""}>Letter</option><option value="legal" ${setup.size === "legal" ? "selected" : ""}>Legal</option></select></label>
+      <fieldset style="border:1px solid var(--vno-border-default);border-radius:6px"><legend>Tiêu đề in (tùy chọn)</legend><label>Hàng lặp lại trên mỗi trang (ví dụ 1:2 hoặc $1:$2)<span style="display:flex;gap:4px;align-items:center;margin-top:4px"><input id="vno-sheet-title-rows" value="${this._escapeHtml(rowsValue)}" class="vno-dialog-input" style="flex:1" placeholder="vd: 1:2"><button type="button" id="vno-sheet-title-rows-pick" class="vno-btn vno-btn-icon-only" title="Chọn hàng trực tiếp trên lưới" aria-label="Chọn hàng trực tiếp trên lưới">⊞</button></span></label><label>Cột lặp lại ở bên trái (ví dụ A:B hoặc $A:$B)<span style="display:flex;gap:4px;align-items:center;margin-top:4px"><input id="vno-sheet-title-cols" value="${this._escapeHtml(colsValue)}" class="vno-dialog-input" style="flex:1" placeholder="vd: A:B"><button type="button" id="vno-sheet-title-cols-pick" class="vno-btn vno-btn-icon-only" title="Chọn cột trực tiếp trên lưới" aria-label="Chọn cột trực tiếp trên lưới">⊞</button></span></label></fieldset>
+      <fieldset style="border:1px solid var(--vno-border-default);border-radius:6px"><legend>Tỷ lệ vừa trang</legend>
+        <label><input type="radio" name="vno-sheet-scale-mode" value="percent" ${setup.scale.mode === "percent" ? "checked" : ""}> Vừa theo tỷ lệ <input id="vno-sheet-scale-percent" type="number" min="10" max="400" value="${setup.scale.percent}" class="vno-dialog-input" style="width:76px">%</label>
+        <label><input type="radio" name="vno-sheet-scale-mode" value="pages" ${setup.scale.mode === "pages" ? "checked" : ""}> Vừa trong <input id="vno-sheet-scale-wide" type="number" min="0" max="1000" value="${setup.scale.pagesWide}" class="vno-dialog-input" style="width:64px"> trang ngang × <input id="vno-sheet-scale-tall" type="number" min="0" max="1000" value="${setup.scale.pagesTall}" class="vno-dialog-input" style="width:64px"> trang dọc <small>(0 = tự động)</small></label>
+      </fieldset>
+      <fieldset style="border:1px solid var(--vno-border-default);border-radius:6px"><legend>Căn giữa trang khi in</legend><label><input id="vno-sheet-center-horizontal" type="checkbox" ${setup.centerOnPage.horizontal ? "checked" : ""}> Theo chiều ngang</label><label><input id="vno-sheet-center-vertical" type="checkbox" ${setup.centerOnPage.vertical ? "checked" : ""}> Theo chiều dọc</label></fieldset>
+      <fieldset style="border:1px solid var(--vno-border-default);border-radius:6px"><legend>Tùy chọn in</legend><label><input id="vno-sheet-print-gridlines" type="checkbox" ${setup.printOptions.gridlines ? "checked" : ""}> In đường kẻ ô</label><label><input id="vno-sheet-print-headings" type="checkbox" ${setup.printOptions.headings ? "checked" : ""}> In tiêu đề hàng và cột</label></fieldset>
+      <div class="vno-rule-error" role="alert"></div>`);
+    if (!overlay) return false;
+    const presets = { normal: [1.91, 1.91, 1.78, 1.78], wide: [2.54, 2.54, 5.08, 5.08], narrow: [1.27, 1.27, 1.27, 1.27] };
+    overlay.querySelector("#vno-sheet-margin-preset").addEventListener("change", event => {
+      const values = presets[event.target.value];
+      if (values) ["top", "bottom", "left", "right"].forEach((side, index) => { overlay.querySelector(`#vno-sheet-margin-${side}`).value = values[index]; });
+    });
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      const result = this.setPageSetup({
+        margins: Object.fromEntries(["top", "bottom", "left", "right"].map(side => [side, overlay.querySelector(`#vno-sheet-margin-${side}`).value])),
+        orientation: overlay.querySelector("#vno-sheet-orientation").value,
+        size: overlay.querySelector("#vno-sheet-size").value,
+        scale: { mode: overlay.querySelector('[name="vno-sheet-scale-mode"]:checked').value, percent: overlay.querySelector("#vno-sheet-scale-percent").value, pagesWide: overlay.querySelector("#vno-sheet-scale-wide").value, pagesTall: overlay.querySelector("#vno-sheet-scale-tall").value },
+        centerOnPage: { horizontal: overlay.querySelector("#vno-sheet-center-horizontal").checked, vertical: overlay.querySelector("#vno-sheet-center-vertical").checked },
+        printOptions: { gridlines: overlay.querySelector("#vno-sheet-print-gridlines").checked, headings: overlay.querySelector("#vno-sheet-print-headings").checked },
+        printTitles: { rows: overlay.querySelector("#vno-sheet-title-rows").value, cols: overlay.querySelector("#vno-sheet-title-cols").value }
+      });
+      if (!result) { overlay.querySelector(".vno-rule-error").textContent = "Giá trị lề hoặc tiêu đề in không hợp lệ."; return; }
+      this._printTitleSelect = null;
+      overlay.closeDialog();
+    });
+    overlay.querySelector("#vno-sheet-title-rows-pick")?.addEventListener("click", () => this.beginPrintTitleSelection("rows", overlay));
+    overlay.querySelector("#vno-sheet-title-cols-pick")?.addEventListener("click", () => this.beginPrintTitleSelection("cols", overlay));
+    const clearPending = () => { this._printTitleSelect = null; };
+    overlay.querySelector(".vno-rule-cancel")?.addEventListener("click", clearPending);
+    overlay.querySelector(".vno-rule-close")?.addEventListener("click", clearPending);
+    const focusIds = { margins: "vno-sheet-margin-preset", orientation: "vno-sheet-orientation", size: "vno-sheet-size", scale: "vno-sheet-scale-percent", printTitles: "vno-sheet-title-rows" };
+    overlay.querySelector(`#${focusIds[focusField] || focusIds.margins}`)?.focus();
+    return true;
+  }
+
+  /**
+   * Bắt đầu chọn Print Titles trực tiếp trên lưới (nút thu gọn ⊞ kiểu Excel).
+   * Hộp thoại được ẩn tạm; người dùng nhấp vào đầu hàng/cột để chọn,
+   * Shift+nhấn để mở rộng vùng. Nhấn Esc hoặc «Quay lại hộp thoại» để trở về.
+   */
+  beginPrintTitleSelection(field, overlay) {
+    if (typeof document === "undefined" || !document.body) return false;
+    if (!["rows", "cols"].includes(field)) return false;
+    this._teardownPrintTitleSelection();
+    const hint = document.createElement("div");
+    hint.className = "vno-print-title-hint";
+    hint.setAttribute("role", "status");
+    hint.style.cssText = "position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:10px;padding:6px 12px;background:var(--vno-primary,#1a5fb4);color:#fff;font-size:13px;";
+    const label = field === "rows" ? "Chọn HÀNG lặp lại trên mỗi trang" : "Chọn CỘT lặp lại ở bên trái";
+    hint.innerHTML = `<strong>${label}</strong><span class="vno-print-title-hint-value">—</span><span style="opacity:.85">Nhấp vào đầu hàng/cột trên lưới, Shift+nhấn để mở rộng.</span><button type="button" class="vno-btn vno-print-title-hint-back" style="margin-left:auto">Quay lại hộp thoại</button>`;
+    this.viewport?.insertBefore?.(hint, this.viewport.firstChild);
+    const state = { field, overlay, anchor: null, current: null, pendingValue: null, hint, onClick: null, onKey: null };
+    state.onClick = event => this._onPrintTitleGridClick(event);
+    state.onKey = event => { if (event.key === "Escape") this.endPrintTitleSelection(); };
+    this.table?.addEventListener?.("click", state.onClick, true);
+    document.addEventListener("keydown", state.onKey);
+    hint.querySelector(".vno-print-title-hint-back")?.addEventListener("click", () => this.endPrintTitleSelection());
+    this._printTitleSelect = state;
+    overlay.closeDialog();
+    return true;
+  }
+
+  /** Xử lý nhấp vào đầu hàng/cột khi đang ở chế độ chọn Print Titles trên lưới. */
+  _onPrintTitleGridClick(event) {
+    const state = this._printTitleSelect;
+    if (!state?.hint) return;
+    const header = event.target?.closest?.(".vno-row-header, .vno-col-header");
+    if (!header) return;
+    event.preventDefault?.();
+    event.stopPropagation?.();
+    if (state.field === "rows") {
+      const row = Number(header.dataset?.row);
+      if (!row) return;
+      if (event.shiftKey && state.anchor != null) {
+        state.current = { start: state.anchor, end: row };
+      } else {
+        state.anchor = row;
+        state.current = { start: row, end: row };
+      }
+    } else {
+      const col = header.dataset?.col;
+      if (!col) return;
+      const colNum = this._columnNumber(col);
+      if (event.shiftKey && state.anchor != null) {
+        state.current = { start: state.anchor, end: colNum };
+      } else {
+        state.anchor = colNum;
+        state.current = { start: colNum, end: colNum };
+      }
+    }
+    state.pendingValue = this.formatPrintTitleSelection(state.field, state.current.start, state.current.end);
+    this._refreshPrintTitleSelectionVisuals();
+  }
+
+  /** Tô sáng đầu hàng/cột đang chọn và cập nhật xem trước giá trị trong thanh gợi ý. */
+  _refreshPrintTitleSelectionVisuals() {
+    const state = this._printTitleSelect;
+    if (!state?.current) return;
+    this.container?.querySelectorAll?.(".vno-row-header.is-print-title-selected, .vno-col-header.is-print-title-selected").forEach(el => el.classList.remove("is-print-title-selected"));
+    const { start, end } = state.current;
+    if (state.field === "rows") {
+      for (let r = start; r <= end; r++) {
+        this.container?.querySelector?.(`.vno-row-header[data-row="${r}"]`)?.classList.add("is-print-title-selected");
+      }
+    } else {
+      for (let c = start; c <= end; c++) {
+        this.container?.querySelector?.(`.vno-col-header[data-col="${this._columnLabel(c)}"]`)?.classList.add("is-print-title-selected");
+      }
+    }
+    if (state.hint) {
+      const valueEl = state.hint.querySelector(".vno-print-title-hint-value");
+      if (valueEl) valueEl.textContent = state.pendingValue || "—";
+    }
+  }
+
+  /** Kết thúc chọn trên lưới: dọn dẹp và mở lại hộp thoại với giá trị đã chọn. */
+  endPrintTitleSelection() {
+    const state = this._printTitleSelect;
+    if (!state?.field) return false;
+    const { field, pendingValue } = state;
+    this._teardownPrintTitleSelection();
+    this._printTitleSelect = { field, pendingValue: pendingValue || null };
+    return this.showPageSetupDialog("printTitles");
+  }
+
+  /** Dọn dẹp listener/thanh gợi ý của chế độ chọn Print Titles trên lưới (giữ lại pendingValue nếu có). */
+  _teardownPrintTitleSelection() {
+    const state = this._printTitleSelect;
+    if (!state) return;
+    if (state.onClick) this.table?.removeEventListener?.("click", state.onClick, true);
+    if (state.onKey) document.removeEventListener("keydown", state.onKey);
+    state.hint?.remove?.();
+    this.container?.querySelectorAll?.(".vno-row-header.is-print-title-selected, .vno-col-header.is-print-title-selected").forEach(el => el.classList.remove("is-print-title-selected"));
+    if (!state.pendingValue) this._printTitleSelect = null;
+  }
+
+  showHeaderFooterDialog() {
+    if (typeof document === "undefined" || !document.body) return false;
+    const current = this.getPageSetup().headerFooter;
+    const fieldset = (kind, title) => `<fieldset style="border:1px solid var(--vno-border-default);border-radius:6px"><legend>${title}</legend>
+      <label>${t("sheetDialogs.hfPresetLabel", "Mẫu dùng sẵn")}<select class="vno-select vno-sheet-hf-preset" data-kind="${kind}" style="width:100%"><option value="custom">${t("sheetDialogs.hfPresetCustom", "Tùy chỉnh")}</option><option value="page">${t("sheetDialogs.hfPresetPage", "Trang X")}</option><option value="sheet">${t("sheetDialogs.hfPresetSheet", "Tên trang tính")}</option><option value="date">${t("sheetDialogs.hfPresetDate", "Ngày")}</option><option value="none">${t("sheetDialogs.hfPresetNone", "Không có")}</option></select></label>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${["left", "center", "right"].map((position, index) => `<label>${[t("sheetDialogs.hfLeft", "Trái"), t("sheetDialogs.hfCenter", "Giữa"), t("sheetDialogs.hfRight", "Phải")][index]}<input id="vno-sheet-${kind}-${position}" class="vno-dialog-input" maxlength="500" value="${this._escapeHtml(current[kind][position])}"></label>`).join("")}</div>
+    </fieldset>`;
+    const overlay = this._createSheetDialog(t("sheetDialogs.headerFooterTitle", "Tiêu đề Đầu/Cuối trang"), `${fieldset("header", t("sheetDialogs.headerTitle", "Đầu trang"))}${fieldset("footer", t("sheetDialogs.footerTitle", "Cuối trang"))}<p><small>${t("sheetDialogs.hfDynamicCodesHint", "Mã động: &P số trang, &N tổng số trang, &D ngày, &T giờ, &F tên tệp, &A tên trang tính.")}</small></p><div class="vno-rule-error" role="alert"></div>`);
+    if (!overlay) return false;
+    overlay.querySelectorAll(".vno-sheet-hf-preset").forEach(select => select.addEventListener("change", event => {
+      const kind = event.target.dataset.kind;
+      const preset = { page: t("sheetDialogs.hfPresetPageVal", "Trang &P"), sheet: t("sheetDialogs.hfPresetSheetVal", "Tên trang tính: &A"), date: t("sheetDialogs.hfPresetDateVal", "Ngày: &D"), none: "" }[event.target.value];
+      if (preset === undefined) return;
+      ["left", "center", "right"].forEach(position => { overlay.querySelector(`#vno-sheet-${kind}-${position}`).value = position === "center" ? preset : ""; });
+    }));
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      const read = kind => Object.fromEntries(["left", "center", "right"].map(position => [position, overlay.querySelector(`#vno-sheet-${kind}-${position}`).value]));
+      if (!this.setPageSetup({ headerFooter: { header: read("header"), footer: read("footer") } })) return;
+      overlay.closeDialog();
+    });
+    overlay.querySelector("#vno-sheet-header-left")?.focus();
+    return true;
+  }
+
+  setPrintArea(options = {}) {
+    options = options || {};
+    const next = options.range || this.getSelectedRangeLabel();
+    if (!this._parseRange(next)) return false;
+    const before = this.printAreaBySheet[this.activeSheet] || null;
+    if (before === next) return next;
+    this.printAreaBySheet[this.activeSheet] = next;
+    this._recordHistory({ type: "sheet-page-layout", sheet: this.activeSheet, property: "printAreaBySheet", before, after: next });
+    this._refreshPageAndCommentVisuals();
+    return next;
+  }
+
+  clearPrintArea(options = {}) {
+    options = options || {};
+    const before = this.printAreaBySheet[this.activeSheet] || null;
+    if (!before) return false;
+    this.printAreaBySheet[this.activeSheet] = null;
+    this._recordHistory({ type: "sheet-page-layout", sheet: this.activeSheet, property: "printAreaBySheet", before, after: null });
+    this._refreshPageAndCommentVisuals();
+    return true;
+  }
+
+  insertPageBreak(options = {}) {
+    options = options || {};
+    const before = structuredClone(this.pageBreaksBySheet[this.activeSheet] || { rows: [], cols: [] });
+    const row = Number(options.row || this.selectedCoord.r);
+    const col = String(options.col || this.selectedCoord.c).toUpperCase();
+    if (!Number.isInteger(row) || row < 1 || row > this.rowCount || !this.cols.includes(col)) return false;
+    const after = structuredClone(before);
+    if (!after.rows.includes(row)) after.rows.push(row);
+    if (!after.cols.includes(col)) after.cols.push(col);
+    after.rows.sort((a, b) => a - b);
+    after.cols.sort((a, b) => this.cols.indexOf(a) - this.cols.indexOf(b));
+    if (JSON.stringify(before) === JSON.stringify(after)) return false;
+    this.pageBreaksBySheet[this.activeSheet] = after;
+    this._recordHistory({ type: "sheet-page-layout", sheet: this.activeSheet, property: "pageBreaksBySheet", before, after: structuredClone(after) });
+    this._refreshPageAndCommentVisuals();
+    return true;
+  }
+
+  removePageBreak(options = {}) {
+    options = options || {};
+    const before = structuredClone(this.pageBreaksBySheet[this.activeSheet] || { rows: [], cols: [] });
+    const row = Number(options.row || this.selectedCoord.r);
+    const col = String(options.col || this.selectedCoord.c).toUpperCase();
+    if (!Number.isInteger(row) || row < 1 || row > this.rowCount || !this.cols.includes(col)) return false;
+    const after = { rows: before.rows.filter(item => item !== row), cols: before.cols.filter(item => item !== col) };
+    if (JSON.stringify(before) === JSON.stringify(after)) return false;
+    this.pageBreaksBySheet[this.activeSheet] = after;
+    this._recordHistory({ type: "sheet-page-layout", sheet: this.activeSheet, property: "pageBreaksBySheet", before, after });
+    this._refreshPageAndCommentVisuals();
+    return true;
+  }
+
+  _outlineGroups() { return this.outlineGroupsBySheet[this.activeSheet] ||= []; }
+
+  _isOutlineRowHidden(row) {
+    return this._outlineGroups().some(group => group.axis === "row" && group.collapsed && row > group.start && row <= group.end);
+  }
+
+  _isOutlineColumnHidden(col) {
+    const number = this._columnNumber(col);
+    return this._outlineGroups().some(group => group.axis === "col" && group.collapsed && number > group.start && number <= group.end);
+  }
+
+  _outlineToggleHtml(axis, value) {
+    const numeric = axis === "row" ? Number(value) : this._columnNumber(value);
+    const group = this._outlineGroups().find(item => item.axis === axis && item.start === numeric);
+    return group ? `<button type="button" class="vno-outline-toggle" data-group-id="${group.id}" aria-label="${group.collapsed ? "Mở rộng" : "Thu gọn"} nhóm">${group.collapsed ? "+" : "−"}</button>` : "";
+  }
+
+  groupSelection() {
+    const area = this._normalizeRange(this.selectionRange);
+    const wholeRows = area.start.c === this.cols[0] && area.end.c === this.cols[this.cols.length - 1];
+    const wholeCols = area.start.r === 1 && area.end.r === this.rowCount;
+    const axis = wholeCols ? "col" : "row";
+    const start = axis === "row" ? area.start.r : this._columnNumber(area.start.c);
+    const end = axis === "row" ? area.end.r : this._columnNumber(area.end.c);
+    if (end <= start || (!wholeRows && !wholeCols)) return false;
+    if (this._outlineGroups().some(group => group.axis === axis && group.start === start && group.end === end)) return false;
+    const before = this._snapshotGridStructure();
+    this._outlineGroups().push({ id: `outline-${Date.now()}`, axis, start, end, collapsed: false });
+    this._renderColumnHeaders(); this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+    return true;
+  }
+
+  ungroupSelection() {
+    const area = this._normalizeRange(this.selectionRange);
+    const before = this._snapshotGridStructure();
+    const previous = this._outlineGroups();
+    const remaining = previous.filter(group => group.axis === "row"
+      ? group.end < area.start.r || group.start > area.end.r
+      : group.end < this._columnNumber(area.start.c) || group.start > this._columnNumber(area.end.c));
+    if (remaining.length === previous.length) return false;
+    this.outlineGroupsBySheet[this.activeSheet] = remaining;
+    this._renderColumnHeaders(); this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+    return true;
+  }
+
+  toggleOutlineGroup(id) {
+    const group = this._outlineGroups().find(item => item.id === id);
+    if (!group) return false;
+    group.collapsed = !group.collapsed;
+    this._renderColumnHeaders(); this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    return group.collapsed;
+  }
+
+  removeDuplicates(options) { return this.dataTools.removeDuplicates(options); }
+  createSubtotal(options) { return this.dataTools.subtotal(options); }
+  sortMultiLevel(options) { return this.dataTools.sortMultiLevel(options); }
+  applyTextToColumns(options) { return this.dataTools.textToColumns(options); }
+  applyFlashFill(options) { return this.dataTools.flashFill(options); }
+
+  applyConsolidate(options = {}) {
+    if (this._guardProtectedMutation()) return { ok: false, error: "protected" };
+    const dest = options.destination || { ...this.selectedCoord };
+    const destSheet = options.destinationSheet || this.activeSheet;
+    if (destSheet !== this.activeSheet) this.switchSheet(destSheet);
+    const computed = computeConsolidate({
+      engine: this.formulaEngine,
+      functionName: options.functionName,
+      references: options.references,
+      topRow: !!options.topRow,
+      leftColumn: !!options.leftColumn,
+      fallbackSheet: destSheet
+    });
+    if (!computed.ok) return computed;
+    const startCol = this._columnNumber(dest.c);
+    const startRow = Number(dest.r);
+    const before = {};
+    const after = {};
+    for (const cell of computed.cells) {
+      const colNumber = startCol + cell.colOffset;
+      const row = startRow + cell.rowOffset;
+      if (colNumber < 1 || colNumber > this.cols.length || row < 1 || row > this.rowCount) continue;
+      const coord = `${this._columnLabel(colNumber)}${row}`;
+      const existing = this.cellsData.get(coord);
+      before[coord] = existing ? structuredClone(existing) : null;
+      const next = {
+        val: cell.value === "" || cell.value == null ? "" : cell.value,
+        formula: "",
+        style: structuredClone(existing?.style || {})
+      };
+      this.cellsData.set(coord, next);
+      after[coord] = structuredClone(next);
+    }
+    if (!Object.keys(after).length) return { ok: false, error: "no-output" };
+    this._recordHistory({ type: "batch-cells", sheet: this.activeSheet, before, after });
+    this._recalculateAllFormulas();
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this.selectCell(dest.c, dest.r);
+    return { ...computed, ok: true, destination: { ...dest }, destinationSheet: this.activeSheet };
+  }
+
+  showRemoveDuplicatesDialog() {
+    const area = this._normalizeRange(this.selectionRange);
+    const columns = this.dataTools.columns(area);
+    const overlay = this._createSheetDialog(t("sheetDialogs.removeDuplicatesTitle", "Xóa trùng lặp"), `
+      <p>${t("sheetDialogs.rangeLabel", "Vùng:")} <strong>${this.getSelectedRangeLabel()}</strong></p>
+      <label><input id="vno-rd-header" type="checkbox" checked> ${t("sheetDialogs.myHeaderRow", "Dữ liệu có hàng tiêu đề")}</label>
+      <fieldset><legend>${t("sheetDialogs.columnsToCompare", "Cột dùng để xét trùng")}</legend>${columns.map(col => `<label><input class="vno-rd-col" type="checkbox" value="${col}" checked> ${col}: ${String(this.dataTools.value(col, area.start.r))}</label>`).join("")}</fieldset>
+      <div class="vno-rule-error" role="alert"></div>`);
+    if (!overlay) return false;
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      const selected = [...overlay.querySelectorAll(".vno-rd-col:checked")].map(input => input.value);
+      if (!selected.length) { overlay.querySelector(".vno-rule-error").textContent = t("sheetDialogs.selectAtLeastOneColumn", "Hãy chọn ít nhất một cột."); return; }
+      const result = this.removeDuplicates({ hasHeader: overlay.querySelector("#vno-rd-header").checked, columns: selected });
+      if (!result) return;
+      overlay.closeDialog();
+      this._showDataNotice(t("sheetDialogs.duplicatesRemovedResult", { removed: result.removed, remaining: result.remaining }) || `Đã xóa ${result.removed} hàng trùng lặp; còn ${result.remaining} hàng dữ liệu.`);
+    });
+    return true;
+  }
+
+  showSubtotalDialog() {
+    const area = this._normalizeRange(this.selectionRange), columns = this.dataTools.columns(area);
+    const overlay = this._createSheetDialog(t("sheetDialogs.subtotalTitle", "Tổng phụ"), `
+      <p>${t("sheetDialogs.subtotalHint", "Vùng đã chọn phải có tiêu đề và được sắp xếp theo cột nhóm.")}</p>
+      <label>${t("sheetDialogs.atEachChangeIn", "Mỗi khi thay đổi ở")}<select id="vno-st-group">${columns.map(col => `<option value="${col}">${col}: ${String(this.dataTools.value(col, area.start.r))}</option>`).join("")}</select></label>
+      <label>${t("sheetDialogs.useFunction", "Hàm")}<select id="vno-st-op"><option>SUM</option><option>COUNT</option><option>AVERAGE</option></select></label>
+      <fieldset><legend>${t("sheetDialogs.addToSubtotal", "Cộng tổng vào")}</legend>${columns.slice(1).map(col => `<label><input class="vno-st-col" type="checkbox" value="${col}" checked> ${col}: ${String(this.dataTools.value(col, area.start.r))}</label>`).join("")}</fieldset>
+      <div class="vno-rule-error" role="alert"></div>`);
+    if (!overlay) return false;
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      const valueColumns = [...overlay.querySelectorAll(".vno-st-col:checked")].map(input => input.value);
+      const result = this.createSubtotal({ groupColumn: overlay.querySelector("#vno-st-group").value, valueColumns, operation: overlay.querySelector("#vno-st-op").value });
+      if (!result) { overlay.querySelector(".vno-rule-error").textContent = t("sheetDialogs.selectRangeAndCol", "Hãy chọn vùng và ít nhất một cột giá trị."); return; }
+      overlay.closeDialog(); this._showDataNotice(t("sheetDialogs.subtotalResult", { groups: result.groups }) || `Đã chèn ${result.groups} nhóm tổng phụ và hàng tổng cộng.`);
+    });
+    return true;
+  }
+
+  showCustomSortDialog() {
+    const area = this._normalizeRange(this.selectionRange);
+    const columns = this.dataTools.columns(area);
+    if (columns.length < 1 || area.end.r <= area.start.r) return false;
+    const columnLabel = col => {
+      const preview = String(this.dataTools.value(col, area.start.r) ?? "").trim();
+      return preview ? `${col}: ${preview}` : col;
+    };
+    const overlay = this._createSheetDialog(t("sheetDialogs.customSortTitle", "Sắp xếp"), `
+      <p>${t("sheetDialogs.rangeLabel", "Vùng:")} <strong>${this.getSelectedRangeLabel()}</strong></p>
+      <label><input id="vno-cs-header" type="checkbox" checked> ${t("sheetDialogs.myHeaderRow", "Dữ liệu có hàng tiêu đề")}</label>
+      <div id="vno-cs-levels" class="vno-cs-levels"></div>
+      <button type="button" class="vno-btn vno-cs-add-level">+ ${t("sheetDialogs.addLevel", "Thêm cấp")}</button>
+      <div class="vno-rule-error" role="alert"></div>`);
+    if (!overlay) return false;
+
+    const levelsContainer = overlay.querySelector("#vno-cs-levels");
+    const state = [{ col: columns[0], ascending: true }];
+    if (columns.length > 1) state.push({ col: columns[1], ascending: true });
+
+    const renderLevels = () => {
+      levelsContainer.innerHTML = state.map((level, index) => `
+        <div class="vno-cs-level" data-index="${index}" style="display:flex;gap:6px;align-items:center;margin:6px 0;">
+          <span style="min-width:88px;">${index === 0 ? t("sheetDialogs.sortBy", "Sắp xếp theo") : t("sheetDialogs.thenBy", "Sau đó theo")}</span>
+          <select class="vno-cs-col" aria-label="${t("sheetDialogs.sortByColumn", "Cột sắp xếp")}">${columns.map(col => `<option value="${col}" ${col === level.col ? "selected" : ""}>${columnLabel(col)}</option>`).join("")}</select>
+          <select class="vno-cs-order" aria-label="${t("sheetDialogs.sortOrder", "Thứ tự")}">
+            <option value="asc" ${level.ascending ? "selected" : ""}>${t("sheetDialogs.sortAtoZ", "A → Z")}</option>
+            <option value="desc" ${!level.ascending ? "selected" : ""}>${t("sheetDialogs.sortZtoA", "Z → A")}</option>
+          </select>
+          ${state.length > 1 ? `<button type="button" class="vno-btn vno-btn-icon-only vno-cs-remove-level" title="${t("sheetDialogs.removeLevel", "Xóa cấp")}" aria-label="${t("sheetDialogs.removeLevel", "Xóa cấp")}">&times;</button>` : ""}
+        </div>`).join("");
+      overlay.querySelector(".vno-cs-add-level").disabled = state.length >= Math.min(columns.length, 4);
+    };
+    renderLevels();
+
+    levelsContainer.addEventListener("change", (event) => {
+      const row = event.target.closest(".vno-cs-level");
+      if (!row) return;
+      const index = Number(row.dataset.index);
+      if (event.target.classList.contains("vno-cs-col")) state[index].col = event.target.value;
+      else if (event.target.classList.contains("vno-cs-order")) state[index].ascending = event.target.value === "asc";
+    });
+    levelsContainer.addEventListener("click", (event) => {
+      const removeBtn = event.target.closest(".vno-cs-remove-level");
+      if (!removeBtn) return;
+      const row = removeBtn.closest(".vno-cs-level");
+      state.splice(Number(row.dataset.index), 1);
+      renderLevels();
+    });
+    overlay.querySelector(".vno-cs-add-level").addEventListener("click", () => {
+      const usedCols = new Set(state.map(level => level.col));
+      const nextCol = columns.find(col => !usedCols.has(col)) || columns[0];
+      state.push({ col: nextCol, ascending: true });
+      renderLevels();
+    });
+
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      const hasHeader = overlay.querySelector("#vno-cs-header").checked;
+      const result = this.sortMultiLevel({ range: area, hasHeader, levels: state });
+      if (result === false) {
+        overlay.querySelector(".vno-rule-error").textContent = t("sheetDialogs.selectRangeAndCol", "Hãy chọn vùng và ít nhất một cột giá trị.");
+        return;
+      }
+      overlay.closeDialog();
+    });
+    return true;
+  }
+
+  /**
+   * Find a numeric input which makes a formula cell reach the requested value.
+   * Trial values never enter history. The sheet is restored before this method
+   * returns; callers explicitly commit result.value through applyGoalSeekResult().
+   */
+  findGoalSeekSolution({ setCell, targetValue, changingCell, tolerance = 0.001, maxIterations = 100 } = {}) {
+    const normalizeCoord = value => String(value || "").trim().replace(/^\$/, "").replace(/\$/g, "").toUpperCase();
+    const setKey = normalizeCoord(setCell);
+    const changingKey = normalizeCoord(changingCell);
+    const fail = error => ({ success: false, error });
+    if (!/^[A-Z]+[1-9]\d*$/.test(setKey) || !/^[A-Z]+[1-9]\d*$/.test(changingKey)) {
+      return fail("Địa chỉ ô không hợp lệ.");
+    }
+    if (setKey === changingKey) return fail("Ô đặt và ô thay đổi phải khác nhau.");
+    const targetCell = this.cellsData.get(setKey);
+    const inputCell = this.cellsData.get(changingKey);
+    if (!targetCell?.formula) return fail("Ô đặt phải chứa công thức.");
+    if (inputCell?.formula) return fail("Ô thay đổi phải là ô giá trị, không được chứa công thức.");
+    const target = Number(targetValue);
+    const originalInput = structuredClone(inputCell || null);
+    const initial = Number(this.formulaEngine.getCellValue(changingKey));
+    if (!Number.isFinite(target)) return fail("Giá trị mục tiêu phải là một số hợp lệ.");
+    if (!Number.isFinite(initial)) return fail("Ô thay đổi phải chứa giá trị số.");
+
+    const evaluateAt = value => {
+      const item = this.cellsData.get(changingKey) || { val: "", formula: "", style: {} };
+      item.formula = "";
+      item.val = value;
+      this.cellsData.set(changingKey, item);
+      // Repeat to settle indirect dependencies regardless of Map insertion order.
+      const formulaCount = [...this.cellsData.values()].filter(cell => cell?.formula).length;
+      for (let pass = 0; pass < Math.max(1, formulaCount); pass++) {
+        for (const cell of this.cellsData.values()) {
+          if (cell?.formula) cell.val = this.formulaEngine.evaluate(cell.formula);
+        }
+      }
+      const output = Number(this.cellsData.get(setKey)?.val);
+      return Number.isFinite(output) ? output - target : NaN;
+    };
+    const restore = () => {
+      if (originalInput) this.cellsData.set(changingKey, structuredClone(originalInput));
+      else this.cellsData.delete(changingKey);
+      this._recalculateAllFormulas(undefined, true);
+    };
+
+    let iterations = 0;
+    let best = { x: initial, error: Infinity };
+    let left = null;
+    let right = null;
+    const samples = [];
+    const sample = x => {
+      const fx = evaluateAt(x);
+      iterations++;
+      if (Number.isFinite(fx) && Math.abs(fx) < best.error) best = { x, error: Math.abs(fx) };
+      if (!left) {
+        for (const point of samples) {
+          if (Number.isFinite(fx) && point.fx * fx < 0) {
+            left = point.x < x ? point : { x, fx };
+            right = point.x < x ? { x, fx } : point;
+            break;
+          }
+        }
+      }
+      samples.push({ x, fx });
+      return fx;
+    };
+
+    try {
+      let x0 = initial;
+      let f0 = sample(x0);
+      if (Number.isFinite(f0) && Math.abs(f0) <= tolerance) return { success: true, value: x0, residual: Math.abs(f0), iterations };
+      let step = Math.max(1, Math.abs(initial) * 0.1);
+      let x1 = initial + step;
+      let f1 = sample(x1);
+      for (let probe = 0; probe < 20 && !left && iterations < maxIterations; probe++) {
+        if (Number.isFinite(f1) && Math.abs(f1) <= tolerance) return { success: true, value: x1, residual: Math.abs(f1), iterations };
+        step *= 2;
+        const x = initial + (probe % 2 === 0 ? -step : step);
+        const fx = sample(x);
+        if (Number.isFinite(fx) && Math.abs(fx) <= tolerance) return { success: true, value: x, residual: Math.abs(fx), iterations };
+        if (Number.isFinite(fx) && (!Number.isFinite(f1) || fx !== f1)) { x0 = x1; f0 = f1; x1 = x; f1 = fx; }
+      }
+
+      while (iterations < maxIterations) {
+        let next;
+        if (left && right) {
+          next = (left.x + right.x) / 2;
+        } else if (Number.isFinite(f0) && Number.isFinite(f1) && Math.abs(f1 - f0) > Number.EPSILON) {
+          next = x1 - f1 * (x1 - x0) / (f1 - f0);
+        } else break;
+        if (!Number.isFinite(next)) break;
+        const fn = sample(next);
+        if (Number.isFinite(fn) && Math.abs(fn) <= tolerance) return { success: true, value: next, residual: Math.abs(fn), iterations };
+        if (left && right && Number.isFinite(fn)) {
+          if (left.fx * fn <= 0) right = { x: next, fx: fn };
+          else left = { x: next, fx: fn };
+        }
+        x0 = x1; f0 = f1; x1 = next; f1 = fn;
+      }
+      return fail("Goal Seek không tìm được đáp án phù hợp.");
+    } finally {
+      restore();
+    }
+  }
+
+  applyGoalSeekResult(changingCell, value) {
+    const match = /^([A-Z]+)([1-9]\d*)$/.exec(String(changingCell || "").trim().replace(/\$/g, "").toUpperCase());
+    if (!match || !Number.isFinite(Number(value))) return false;
+    this.setCellValue(match[1], Number(match[2]), Number(value), true);
+    return true;
+  }
+
+  goalSeek(config = {}) {
+    const result = this.findGoalSeekSolution(config);
+    if (result.success && config.apply !== false) this.applyGoalSeekResult(config.changingCell, result.value);
+    return result;
+  }
+
+  calculateDataTable({ range = this.selectionRange, rowInputCell = "", columnInputCell = "" } = {}, recordUndo = true) {
+    const rowInput = rowInputCell ? WhatIfAnalysisEngine.normalizeCoord(rowInputCell) : "";
+    const columnInput = columnInputCell ? WhatIfAnalysisEngine.normalizeCoord(columnInputCell) : "";
+    if (!rowInput && !columnInput) throw new Error(t("sheetDialogs.dataTableNeedsInput", "Hãy chọn ô đầu vào theo hàng hoặc theo cột."));
+    if (rowInput && columnInput && rowInput === columnInput) throw new Error(t("sheetDialogs.dataTableDistinctInputs", "Hai ô đầu vào phải khác nhau."));
+    const normalizedRange = this._normalizeRange(range);
+    const grid = WhatIfAnalysisEngine.rangeCoords(normalizedRange, this.cols);
+    if (grid.length < 2 || grid[0].length < 2) throw new Error(t("sheetDialogs.dataTableRangeSize", "Vùng Bảng dữ liệu phải có ít nhất 2 hàng và 2 cột."));
+    const formulaCoord = grid[0][0];
+    if (!this.cellsData.get(formulaCoord)?.formula) throw new Error(t("sheetDialogs.dataTableFormulaCorner", "Ô góc trên bên trái phải chứa công thức gốc."));
+    const table = { sheet: this.activeSheet, range: normalizedRange, rowInputCell: rowInput, columnInputCell: columnInput, formulaCell: formulaCoord };
+    const before = this._snapshotCells();
+    const previousGuard = this._dataTableEvaluating;
+    this._dataTableEvaluating = true;
+    let output;
+    try {
+      output = this._evaluateDataTable(table);
+      this._writeDataTableResults(table, output);
+    } finally {
+      this._dataTableEvaluating = previousGuard;
+    }
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    if (recordUndo) this._recordHistory({ type: "what-if-cells", sheet: this.activeSheet, before, after: this._snapshotCells() });
+    this._registerDataTable(table);
+    return { formulaCell: formulaCoord, results: Object.fromEntries(output) };
+  }
+
+  /**
+   * Tính phần thân bảng: với mỗi cặp (giá trị hàng, giá trị cột) gán thử
+   * vào ô đầu vao, tính lại toàn bộ công thức rồi đọc giá trị ô công thức
+   * gốc — đúng như cơ chế TABLE() của Excel. Trạng thái ô thật được phục
+   * hồi nguyên vẹn sau khi thử.
+   */
+  _evaluateDataTable(table) {
+    const grid = WhatIfAnalysisEngine.rangeCoords(table.range, this.cols);
+    const original = new Map(this._snapshotCells(table.sheet).map(([coord, item]) => [coord, structuredClone(item)]));
+    const { rowInputCell: rowInput, columnInputCell: columnInput, formulaCell: formulaCoord } = table;
+    const output = [];
+    const assignTrial = (coord, value) => {
+      const current = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+      this.cellsData.set(coord, { ...current, val: value, formula: "" });
+    };
+    const evaluate = (rowValue, columnValue) => {
+      if (rowInput) assignTrial(rowInput, rowValue);
+      if (columnInput) assignTrial(columnInput, columnValue);
+      this._recalculateAllFormulas(undefined, true);
+      return structuredClone(this.cellsData.get(formulaCoord)?.val ?? "");
+    };
+    const previousGuard = this._dataTableEvaluating;
+    this._dataTableEvaluating = true;
+    try {
+      if (rowInput && columnInput) {
+        const rowValues = grid[0].slice(1).map(coord => original.get(coord)?.val ?? "");
+        const columnValues = grid.slice(1).map(row => original.get(row[0])?.val ?? "");
+        columnValues.forEach((columnValue, rowIndex) => rowValues.forEach((rowValue, colIndex) => output.push([grid[rowIndex + 1][colIndex + 1], evaluate(rowValue, columnValue)])));
+      } else if (rowInput) {
+        const values = grid[0].slice(1).map(coord => original.get(coord)?.val ?? "");
+        values.forEach((value, index) => output.push([grid[1][index + 1], evaluate(value, undefined)]));
+      } else {
+        const values = grid.slice(1).map(row => original.get(row[0])?.val ?? "");
+        values.forEach((value, index) => output.push([grid[index + 1][1], evaluate(undefined, value)]));
+      }
+    } finally {
+      this._dataTableEvaluating = previousGuard;
+      this.sheetsData[table.sheet] = new Map(original);
+    }
+    return output;
+  }
+
+  _writeDataTableResults(table, output) {
+    for (const [coord, value] of output) {
+      const current = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+      this.cellsData.set(coord, { ...current, val: value, formula: "" });
+    }
+    this._recalculateAllFormulas(undefined, true);
+  }
+
+  _registerDataTable(table) {
+    const tables = this.dataTablesBySheet[table.sheet] ||= [];
+    const index = tables.findIndex(item => item.formulaCell === table.formulaCell && item.range.start.c === table.range.start.c && item.range.start.r === table.range.start.r && item.range.end.c === table.range.end.c && item.range.end.r === table.range.end.r);
+    if (index >= 0) tables.splice(index, 1, structuredClone(table));
+    else tables.push(structuredClone(table));
+  }
+
+  getScenarios(sheetName = this.activeSheet) { return structuredClone(this.scenariosBySheet[sheetName] || []); }
+
+  saveScenario(config, editingId = null, recordUndo = true) {
+    const validated = WhatIfAnalysisEngine.validateScenario(config?.name, config?.changingCells, config?.values, config?.comment);
+    const scenarios = this.scenariosBySheet[this.activeSheet] ||= [];
+    if (scenarios.some(item => item.id !== editingId && item.name.toLocaleLowerCase() === validated.name.toLocaleLowerCase())) throw new Error(t("sheetDialogs.scenarioNameExists", "Tên kịch bản đã tồn tại."));
+    const before = structuredClone(scenarios);
+    const index = editingId ? scenarios.findIndex(item => item.id === editingId) : -1;
+    const scenario = { id: editingId || `scenario-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, ...validated };
+    if (index >= 0) scenarios.splice(index, 1, scenario); else scenarios.push(scenario);
+    if (recordUndo) this._recordHistory({ type: "scenario-state", sheet: this.activeSheet, before, after: structuredClone(scenarios) });
+    return structuredClone(scenario);
+  }
+
+  deleteScenario(id, recordUndo = true) {
+    const scenarios = this.scenariosBySheet[this.activeSheet] ||= [];
+    const index = scenarios.findIndex(item => item.id === id);
+    if (index < 0) return false;
+    const before = structuredClone(scenarios);
+    scenarios.splice(index, 1);
+    if (recordUndo) this._recordHistory({ type: "scenario-state", sheet: this.activeSheet, before, after: structuredClone(scenarios) });
+    return true;
+  }
+
+  mergeScenariosFromSheet(sourceSheetName, recordUndo = true) {
+    if (!this.sheets.includes(sourceSheetName)) throw new Error(t("sheetDialogs.sheetNotFound", "Trang tính nguồn không tồn tại."));
+    const sourceList = this.getScenarios(sourceSheetName);
+    if (!sourceList.length) return 0;
+    const currentList = this.scenariosBySheet[this.activeSheet] ||= [];
+    const before = structuredClone(currentList);
+    for (const item of sourceList) {
+      let resolvedName = item.name;
+      if (currentList.some(s => s.name.toLocaleLowerCase() === resolvedName.toLocaleLowerCase())) {
+        resolvedName = `${item.name} (${sourceSheetName})`;
+        let counter = 2;
+        while (currentList.some(s => s.name.toLocaleLowerCase() === resolvedName.toLocaleLowerCase())) {
+          resolvedName = `${item.name} (${sourceSheetName} ${counter++})`;
+        }
+      }
+      const newScenario = {
+        id: `scenario-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        name: resolvedName,
+        changingCells: structuredClone(item.changingCells),
+        values: structuredClone(item.values),
+        comment: item.comment || `${t("sheetDialogs.mergedFrom", "Gộp từ")} ${sourceSheetName}`
+      };
+      currentList.push(newScenario);
+    }
+    if (recordUndo) {
+      this._recordHistory({
+        type: "scenario-state",
+        sheet: this.activeSheet,
+        before,
+        after: structuredClone(currentList)
+      });
+    }
+    return sourceList.length;
+  }
+
+  generateScenarioSummary({ resultCells, reportType = "summary", recordUndo = true } = {}) {
+    const scenarios = this.getScenarios(this.activeSheet);
+    if (!scenarios.length) throw new Error(t("sheetDialogs.noScenariosForSummary", "Không có kịch bản nào để tạo tóm tắt."));
+
+    const sourceSheetName = this.activeSheet;
+    const parsedResultCells = resultCells ? WhatIfAnalysisEngine.expandCellReferences(resultCells) : [];
+    const allChangingCells = [...new Set(scenarios.flatMap(s => s.changingCells))];
+
+    // Snapshot current values on source sheet
+    const originalChangingSnap = new Map();
+    const currentChangingVals = {};
+    for (const coord of allChangingCells) {
+      const cell = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+      originalChangingSnap.set(coord, structuredClone(cell));
+      currentChangingVals[coord] = cell.val ?? "";
+    }
+
+    const currentResultVals = {};
+    for (const coord of parsedResultCells) {
+      currentResultVals[coord] = this.cellsData.get(coord)?.val ?? "";
+    }
+
+    // Evaluate each scenario to calculate corresponding result values
+    const evaluatedScenarios = scenarios.map(scen => {
+      for (let i = 0; i < scen.changingCells.length; i++) {
+        const coord = scen.changingCells[i];
+        const cur = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+        this.cellsData.set(coord, { ...cur, val: scen.values[i], formula: "" });
+      }
+      this._recalculateAllFormulas(undefined, true);
+
+      const results = {};
+      for (const rCoord of parsedResultCells) {
+        results[rCoord] = this.cellsData.get(rCoord)?.val ?? "";
+      }
+      return { ...scen, results };
+    });
+
+    // Restore original values on source sheet
+    for (const [coord, cellObj] of originalChangingSnap.entries()) {
+      this.cellsData.set(coord, cellObj);
+    }
+    this._recalculateAllFormulas(undefined, true);
+
+    // Create unique summary sheet name
+    const baseName = t("sheetDialogs.scenarioSummaryTitle", "Tóm tắt kịch bản");
+    let summarySheetName = baseName;
+    let counter = 1;
+    while (this.sheets.includes(summarySheetName)) {
+      summarySheetName = `${baseName} ${counter++}`;
+    }
+
+    this.addSheet(summarySheetName);
+    this.switchSheet(summarySheetName);
+
+    const setCell = (col, row, val, style = {}, formula = "") => {
+      const coord = `${col}${row}`;
+      this.cellsData.set(coord, { val, formula, style });
+    };
+
+    setCell("B", 2, t("sheetDialogs.scenarioSummaryTitle", "Tóm tắt kịch bản"), {
+      bold: true,
+      fontSize: "15pt",
+      color: "#1E293B"
+    });
+
+    const nowStr = new Date().toLocaleString("vi-VN");
+    setCell("B", 3, `${t("sheetDialogs.createdDate", "Thời gian tạo")}: ${nowStr}`, {
+      italic: true,
+      fontSize: "9pt",
+      color: "#64748B"
+    });
+
+    // Table header row 5
+    const colLetters = [];
+    let cIdx = WhatIfAnalysisEngine.colToIdx("D");
+    setCell("D", 5, t("sheetDialogs.currentValues", "Giá trị hiện tại"), {
+      bold: true,
+      bgColor: "#F1F5F9",
+      align: "center",
+      borderTop: "1px solid #94A3B8",
+      borderBottom: "1px solid #94A3B8",
+      borderLeft: "1px solid #CBD5E1",
+      borderRight: "1px solid #CBD5E1"
+    });
+
+    evaluatedScenarios.forEach((scen, idx) => {
+      const cLetter = WhatIfAnalysisEngine.idxToCol(cIdx + 1 + idx);
+      colLetters.push(cLetter);
+      setCell(cLetter, 5, scen.name, {
+        bold: true,
+        bgColor: "#F1F5F9",
+        align: "center",
+        borderTop: "1px solid #94A3B8",
+        borderBottom: "1px solid #94A3B8",
+        borderLeft: "1px solid #CBD5E1",
+        borderRight: "1px solid #CBD5E1"
+      });
+    });
+
+    // Row 6: "Các ô thay đổi:"
+    setCell("B", 6, t("sheetDialogs.changingCellsHeader", "Các ô thay đổi:"), {
+      bold: true,
+      color: "#334155"
+    });
+
+    let curRow = 7;
+    for (const coord of allChangingCells) {
+      const parsed = WhatIfAnalysisEngine.parseCoord(coord);
+      let label = "";
+      if (parsed.c !== "A") {
+        const leftCol = WhatIfAnalysisEngine.idxToCol(WhatIfAnalysisEngine.colToIdx(parsed.c) - 1);
+        const leftVal = this.sheetsData[sourceSheetName]?.get(`${leftCol}${parsed.r}`)?.val;
+        if (typeof leftVal === "string" && leftVal.trim()) label = leftVal.trim();
+      }
+
+      if (label) setCell("B", curRow, label, { align: "right", color: "#475569" });
+      setCell("C", curRow, `$${coord}`, {
+        bgColor: "#F8FAFC",
+        align: "left",
+        borderTop: "1px solid #E2E8F0",
+        borderBottom: "1px solid #E2E8F0",
+        borderLeft: "1px solid #CBD5E1",
+        borderRight: "1px solid #CBD5E1"
+      });
+      setCell("D", curRow, currentChangingVals[coord] ?? "", {
+        align: "right",
+        borderTop: "1px solid #E2E8F0",
+        borderBottom: "1px solid #E2E8F0",
+        borderLeft: "1px solid #CBD5E1",
+        borderRight: "1px solid #CBD5E1"
+      });
+
+      evaluatedScenarios.forEach((scen, idx) => {
+        const cLetter = colLetters[idx];
+        const sIdx = scen.changingCells.indexOf(coord);
+        const sVal = sIdx >= 0 ? scen.values[sIdx] : currentChangingVals[coord];
+        setCell(cLetter, curRow, sVal, {
+          bold: true,
+          align: "right",
+          borderTop: "1px solid #E2E8F0",
+          borderBottom: "1px solid #E2E8F0",
+          borderLeft: "1px solid #CBD5E1",
+          borderRight: "1px solid #CBD5E1"
+        });
+      });
+      curRow++;
+    }
+
+    // Result cells section
+    if (parsedResultCells.length > 0) {
+      curRow++;
+      setCell("B", curRow, t("sheetDialogs.resultCellsHeader", "Các ô kết quả:"), {
+        bold: true,
+        color: "#334155"
+      });
+      curRow++;
+
+      for (const coord of parsedResultCells) {
+        const parsed = WhatIfAnalysisEngine.parseCoord(coord);
+        let label = "";
+        if (parsed.c !== "A") {
+          const leftCol = WhatIfAnalysisEngine.idxToCol(WhatIfAnalysisEngine.colToIdx(parsed.c) - 1);
+          const leftVal = this.sheetsData[sourceSheetName]?.get(`${leftCol}${parsed.r}`)?.val;
+          if (typeof leftVal === "string" && leftVal.trim()) label = leftVal.trim();
+        }
+
+        if (label) setCell("B", curRow, label, { align: "right", color: "#475569" });
+        setCell("C", curRow, `$${coord}`, {
+          bgColor: "#F8FAFC",
+          align: "left",
+          borderTop: "1px solid #E2E8F0",
+          borderBottom: "1px solid #E2E8F0",
+          borderLeft: "1px solid #CBD5E1",
+          borderRight: "1px solid #CBD5E1"
+        });
+        setCell("D", curRow, currentResultVals[coord] ?? "", {
+          align: "right",
+          borderTop: "1px solid #E2E8F0",
+          borderBottom: "1px solid #E2E8F0",
+          borderLeft: "1px solid #CBD5E1",
+          borderRight: "1px solid #CBD5E1"
+        });
+
+        evaluatedScenarios.forEach((scen, idx) => {
+          const cLetter = colLetters[idx];
+          setCell(cLetter, curRow, scen.results[coord] ?? "", {
+            align: "right",
+            borderTop: "1px solid #E2E8F0",
+            borderBottom: "1px solid #E2E8F0",
+            borderLeft: "1px solid #CBD5E1",
+            borderRight: "1px solid #CBD5E1"
+          });
+        });
+        curRow++;
+      }
+    }
+
+    // Footnote
+    curRow += 2;
+    setCell("B", curRow, t("sheetDialogs.summaryNotes", "Ghi chú: Cột Giá trị hiện tại thể hiện giá trị của các ô thay đổi tại thời điểm báo cáo Tóm tắt kịch bản được tạo. Các ô thay đổi cho mỗi kịch bản được tô đậm."), {
+      italic: true,
+      fontSize: "9pt",
+      color: "#64748B"
+    });
+
+    this.colWidths = this.colWidths || {};
+    this.colWidths["A"] = 30;
+    this.colWidths["B"] = 160;
+    this.colWidths["C"] = 90;
+    this.colWidths["D"] = 130;
+    colLetters.forEach(c => { this.colWidths[c] = 130; });
+
+    this._recalculateAllFormulas(undefined, true);
+    this._renderVirtualRows(1, Math.max(curRow + 5, 40));
+
+    return { success: true, sheetName: summarySheetName };
+  }
+
+  applyScenario(id, recordUndo = true) {
+    const scenario = (this.scenariosBySheet[this.activeSheet] || []).find(item => item.id === id);
+    if (!scenario) return false;
+    const before = this._snapshotCells();
+    scenario.changingCells.forEach((coord, index) => {
+      const current = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+      this.cellsData.set(coord, { ...current, val: scenario.values[index], formula: "" });
+    });
+    this._recalculateAllFormulas(undefined, true);
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this.refreshCharts();
+    if (recordUndo) this._recordHistory({ type: "what-if-cells", sheet: this.activeSheet, before, after: this._snapshotCells() });
+    return structuredClone(scenario);
+  }
+
+  showDataTableDialog() {
+    const overlay = this._createSheetDialog(t("sheetDialogs.dataTableTitle", "Bảng dữ liệu"), `
+      <p style="margin:0 0 4px;font-size:13px;">${t("sheetDialogs.dataTableRange", "Vùng đã chọn")}: <strong>${this.getSelectedRangeLabel()}</strong></p>
+      <p class="vno-dialog-hint">${t("sheetDialogs.dataTableHint", "Đặt công thức gốc ở ô góc trên-trái; giá trị thay thế ở hàng trên và/hoặc cột trái.")}</p>
+      <label for="vno-data-table-row-input">${t("sheetDialogs.rowInputCell", "Ô đầu vào theo hàng")}
+        <input id="vno-data-table-row-input" autocomplete="off" placeholder="ví dụ: A1">
+      </label>
+      <label for="vno-data-table-column-input">${t("sheetDialogs.columnInputCell", "Ô đầu vào theo cột")}
+        <input id="vno-data-table-column-input" autocomplete="off" placeholder="ví dụ: A2">
+      </label>
+      <div class="vno-rule-error" role="alert"></div>`);
+    if (!overlay) return false;
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      try { this.calculateDataTable({ rowInputCell: overlay.querySelector("#vno-data-table-row-input").value, columnInputCell: overlay.querySelector("#vno-data-table-column-input").value }); overlay.closeDialog(); }
+      catch (error) { overlay.querySelector(".vno-rule-error").textContent = error.message; }
+    });
+    return true;
+  }
+
+  showScenarioManagerDialog() {
+    const overlay = this._createSheetDialog(t("sheetDialogs.scenarioManagerTitle", "Trình quản lý kịch bản"), `
+      <div class="vno-scenario-manager" style="display:flex;flex-direction:column;gap:8px;min-width:420px;">
+        <label for="vno-scenario-list" style="display:flex;flex-direction:column;gap:4px;font-weight:600;">${t("sheetDialogs.scenarios", "Kịch bản")}
+          <select id="vno-scenario-list" size="5" style="width:100%;height:110px;padding:4px;" aria-label="${t("sheetDialogs.scenarios", "Kịch bản")}"></select>
+        </label>
+        <div style="display:grid;grid-template-columns:120px 1fr;gap:6px;align-items:center;">
+          <label for="vno-scenario-name" style="font-size:13px;">${t("sheetDialogs.scenarioName", "Tên kịch bản")}:</label>
+          <input id="vno-scenario-name" autocomplete="off" style="padding:4px 6px;">
+          <label for="vno-scenario-cells" style="font-size:13px;">${t("sheetDialogs.changingCells", "Các ô thay đổi")}:</label>
+          <input id="vno-scenario-cells" placeholder="B2, B3 hoặc B1:B3" autocomplete="off" style="padding:4px 6px;">
+          <label for="vno-scenario-values" style="font-size:13px;">${t("sheetDialogs.scenarioValues", "Các giá trị")}:</label>
+          <input id="vno-scenario-values" placeholder="100, 0.08" autocomplete="off" style="padding:4px 6px;">
+          <label for="vno-scenario-comment" style="font-size:13px;">${t("sheetDialogs.scenarioComment", "Ghi chú")}:</label>
+          <input id="vno-scenario-comment" placeholder="${t("sheetDialogs.scenarioCommentPlaceholder", "Ghi chú kịch bản")}" autocomplete="off" style="padding:4px 6px;">
+        </div>
+        <div class="vno-scenario-actions" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">
+          <button type="button" class="vno-btn" data-scenario-add>${t("sheetDialogs.add", "Thêm")}</button>
+          <button type="button" class="vno-btn" data-scenario-edit>${t("sheetDialogs.edit", "Sửa")}</button>
+          <button type="button" class="vno-btn" data-scenario-delete>${t("sheetDialogs.delete", "Xóa")}</button>
+          <button type="button" class="vno-btn" data-scenario-merge>${t("sheetDialogs.scenarioMerge", "Gộp...")}</button>
+          <button type="button" class="vno-btn" data-scenario-summary>${t("sheetDialogs.scenarioSummary", "Tóm tắt...")}</button>
+        </div>
+        <div class="vno-rule-error" role="alert" style="min-height:18px;font-size:12px;color:#DC2626;"></div>
+      </div>`);
+    if (!overlay) return false;
+    const list = overlay.querySelector("#vno-scenario-list"), error = overlay.querySelector(".vno-rule-error");
+    const nameInput = overlay.querySelector("#vno-scenario-name");
+    const cellsInput = overlay.querySelector("#vno-scenario-cells");
+    const valuesInput = overlay.querySelector("#vno-scenario-values");
+    const commentInput = overlay.querySelector("#vno-scenario-comment");
+
+    const render = selectedId => {
+      list.innerHTML = this.getScenarios().map(item => `<option value="${item.id}"${item.id === selectedId ? " selected" : ""}>${this._escapeHtml(item.name)}</option>`).join("");
+      list.dispatchEvent(new Event("change"));
+    };
+
+    list.addEventListener("change", () => {
+      const item = this.getScenarios().find(value => value.id === list.value);
+      if (!item) return;
+      nameInput.value = item.name;
+      cellsInput.value = item.changingCells.join(", ");
+      valuesInput.value = item.values.join(", ");
+      commentInput.value = item.comment || "";
+    });
+
+    const values = () => ({
+      name: nameInput.value,
+      changingCells: cellsInput.value,
+      values: valuesInput.value,
+      comment: commentInput.value
+    });
+
+    const save = editing => {
+      try {
+        const item = this.saveScenario(values(), editing ? list.value : null);
+        error.style.color = "#16A34A";
+        error.textContent = editing ? t("sheetDialogs.scenarioUpdated", "Đã cập nhật kịch bản thành công.") : t("sheetDialogs.scenarioAdded", "Đã thêm kịch bản mới thành công.");
+        render(item.id);
+      } catch (err) {
+        error.style.color = "#DC2626";
+        error.textContent = err.message;
+      }
+    };
+
+    overlay.querySelector("[data-scenario-add]").addEventListener("click", () => save(false));
+    overlay.querySelector("[data-scenario-edit]").addEventListener("click", () => save(true));
+    overlay.querySelector("[data-scenario-delete]").addEventListener("click", () => {
+      if (this.deleteScenario(list.value)) {
+        error.style.color = "#16A34A";
+        error.textContent = t("sheetDialogs.scenarioDeleted", "Đã xóa kịch bản.");
+        render();
+      } else {
+        error.style.color = "#DC2626";
+        error.textContent = t("sheetDialogs.selectScenario", "Hãy chọn một kịch bản.");
+      }
+    });
+
+    overlay.querySelector("[data-scenario-merge]").addEventListener("click", () => {
+      const otherSheets = this.sheets.filter(name => name !== this.activeSheet);
+      if (!otherSheets.length) {
+        error.style.color = "#DC2626";
+        error.textContent = t("sheetDialogs.noOtherSheetsForMerge", "Không có trang tính khác để gộp kịch bản.");
+        return;
+      }
+      const sheetOptions = otherSheets.map(s => `<option value="${this._escapeHtml(s)}">${this._escapeHtml(s)}</option>`).join("");
+      const mergeDlg = this._createSheetDialog(t("sheetDialogs.scenarioMergeTitle", "Gộp kịch bản"), `
+        <label for="vno-merge-sheet-select" style="display:flex;flex-direction:column;gap:6px;">
+          ${t("sheetDialogs.selectSourceSheet", "Chọn trang tính nguồn chứa kịch bản cần gộp:")}
+          <select id="vno-merge-sheet-select" style="padding:4px;">${sheetOptions}</select>
+        </label>
+        <div class="vno-rule-error" role="alert" style="margin-top:6px;color:#DC2626;"></div>
+      `);
+      if (!mergeDlg) return;
+      mergeDlg.querySelector(".vno-rule-apply").textContent = t("sheetDialogs.merge", "Gộp");
+      mergeDlg.querySelector(".vno-rule-apply").addEventListener("click", () => {
+        const selSheet = mergeDlg.querySelector("#vno-merge-sheet-select").value;
+        try {
+          const count = this.mergeScenariosFromSheet(selSheet);
+          mergeDlg.closeDialog();
+          error.style.color = "#16A34A";
+          error.textContent = count > 0 ? t("sheetDialogs.mergedCountSuccess", { count }) || `Đã gộp thành công ${count} kịch bản từ «${selSheet}».` : t("sheetDialogs.noScenariosFoundOnSheet", "Trang tính này không có kịch bản nào.");
+          render();
+        } catch (mErr) {
+          mergeDlg.querySelector(".vno-rule-error").textContent = mErr.message;
+        }
+      });
+    });
+
+    overlay.querySelector("[data-scenario-summary]").addEventListener("click", () => {
+      const defaultResult = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+      const summaryDlg = this._createSheetDialog(t("sheetDialogs.scenarioSummaryDialogTitle", "Tóm tắt kịch bản"), `
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div>
+            <strong>${t("sheetDialogs.reportType", "Kiểu báo cáo")}:</strong>
+            <label style="display:flex;align-items:center;gap:6px;margin-top:4px;">
+              <input type="radio" name="vno-summary-type" value="summary" checked>
+              ${t("sheetDialogs.scenarioSummaryType", "Tóm tắt kịch bản (Scenario summary)")}
+            </label>
+          </div>
+          <label for="vno-summary-result-cells" style="display:flex;flex-direction:column;gap:4px;">
+            <strong>${t("sheetDialogs.resultCells", "Các ô kết quả")}:</strong>
+            <input id="vno-summary-result-cells" value="${this._escapeHtml(defaultResult)}" placeholder="ví dụ: B4 hoặc B4, B5" autocomplete="off" style="padding:4px 6px;">
+          </label>
+          <div class="vno-rule-error" role="alert" style="color:#DC2626;font-size:12px;"></div>
+        </div>
+      `);
+      if (!summaryDlg) return;
+      summaryDlg.querySelector(".vno-rule-apply").textContent = t("sheetDialogs.apply", "Đồng ý");
+      summaryDlg.querySelector(".vno-rule-apply").addEventListener("click", () => {
+        const resCells = summaryDlg.querySelector("#vno-summary-result-cells").value;
+        try {
+          this.generateScenarioSummary({ resultCells: resCells });
+          summaryDlg.closeDialog();
+          overlay.closeDialog();
+        } catch (sErr) {
+          summaryDlg.querySelector(".vno-rule-error").textContent = sErr.message;
+        }
+      });
+    });
+
+    overlay.querySelector(".vno-rule-apply").textContent = t("sheetDialogs.showScenario", "Hiển thị");
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      const applied = this.applyScenario(list.value);
+      if (applied) {
+        error.style.color = "#16A34A";
+        error.textContent = t("sheetDialogs.scenarioApplied", { name: applied.name }) || `Đã hiển thị kịch bản «${applied.name}» lên trang tính.`;
+      } else {
+        error.style.color = "#DC2626";
+        error.textContent = t("sheetDialogs.selectScenario", "Hãy chọn một kịch bản.");
+      }
+    });
+
+    overlay.querySelector(".vno-rule-cancel").textContent = t("sheetDialogs.close", "Đóng");
+
+    render();
+    return true;
+  }
+
+  showGoalSeekDialog() {
+    const selected = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const overlay = this._createSheetDialog(t("sheetDialogs.goalSeekTitle", "Dò tìm mục tiêu"), `
+      <label for="vno-goal-set-cell">${t("sheetDialogs.goalSeekSetCell", "Ô đặt")}<input id="vno-goal-set-cell" value="${this._escapeHtml(selected)}" autocomplete="off"></label>
+      <label for="vno-goal-value">${t("sheetDialogs.goalSeekToValue", "Đến giá trị")}<input id="vno-goal-value" type="number" step="any" autocomplete="off"></label>
+      <label for="vno-goal-changing-cell">${t("sheetDialogs.goalSeekByChangingCell", "Bằng cách đổi ô")}<input id="vno-goal-changing-cell" autocomplete="off"></label>
+      <div class="vno-rule-error" role="alert" aria-live="assertive"></div>
+      <div class="vno-goal-result" role="status" aria-live="polite" hidden></div>`);
+    if (!overlay) return false;
+    const apply = overlay.querySelector(".vno-rule-apply");
+    const error = overlay.querySelector(".vno-rule-error");
+    const resultBox = overlay.querySelector(".vno-goal-result");
+    let pending = null;
+    apply.textContent = t("sheetDialogs.goalSeekFind", "Tìm kết quả");
+    apply.addEventListener("click", () => {
+      if (pending) {
+        this.applyGoalSeekResult(pending.changingCell, pending.value);
+        overlay.closeDialog();
+        return;
+      }
+      const config = {
+        setCell: overlay.querySelector("#vno-goal-set-cell").value,
+        targetValue: overlay.querySelector("#vno-goal-value").value,
+        changingCell: overlay.querySelector("#vno-goal-changing-cell").value,
+        apply: false
+      };
+      const result = this.findGoalSeekSolution(config);
+      if (!result.success) {
+        error.textContent = result.error;
+        resultBox.hidden = true;
+        return;
+      }
+      error.textContent = "";
+      pending = { changingCell: config.changingCell, value: result.value };
+      resultBox.hidden = false;
+      const formattedVal = NumberFormatter.formatGeneralNumber(result.value);
+      const residualVal = result.residual.toPrecision(3);
+      resultBox.textContent = t("sheetDialogs.goalSeekResult", {
+        cell: config.changingCell.toUpperCase(),
+        value: formattedVal,
+        residual: residualVal
+      }) || `Đã tìm thấy ${config.changingCell.toUpperCase()} = ${formattedVal} (sai số ${residualVal}). Chọn Đồng ý để áp dụng.`;
+      apply.textContent = t("sheetDialogs.apply", "Đồng ý");
+      overlay.querySelectorAll("input").forEach(input => { input.disabled = true; });
+    });
+    return true;
+  }
+
+  showTextToColumnsDialog() {
+    const preview = value => this.dataTools.splitText(this.dataTools.value(this.selectedCoord.c, this.selectedCoord.r), value).join(" | ");
+    const overlay = this._createSheetDialog(t("sheetDialogs.textToColumnsTitle", "Tách văn bản thành cột"), `
+      <label>${t("sheetDialogs.ttcMode", "Kiểu tách")}<select id="vno-ttc-mode"><option value="delimiter">${t("sheetDialogs.ttcDelimited", "Dấu phân cách")}</option><option value="fixed">${t("sheetDialogs.ttcFixedWidth", "Độ rộng cố định")}</option></select></label>
+      <label id="vno-ttc-del-row">${t("sheetDialogs.ttcDelimited", "Dấu phân cách")}<select id="vno-ttc-del"><option value=",">${t("sheetDialogs.ttcComma", "Dấu phẩy")}</option><option value=";">${t("sheetDialogs.ttcSemicolon", "Dấu chấm phẩy")}</option><option value="space">${t("sheetDialogs.ttcSpace", "Khoảng trắng")}</option><option value="tab">Tab</option><option value="custom">${t("sheetDialogs.ttcCustom", "Tùy chọn")}</option></select></label>
+      <label id="vno-ttc-custom-row" hidden>${t("sheetDialogs.ttcCustomChar", "Ký tự tùy chọn")}<input id="vno-ttc-custom" maxlength="3"></label>
+      <label id="vno-ttc-width-row" hidden>${t("sheetDialogs.ttcWidths", "Độ rộng (cách nhau bằng dấu phẩy)")}<input id="vno-ttc-width" value="5,5"></label>
+      <div class="vno-data-preview" role="status"></div><div class="vno-rule-error" role="alert"></div>`);
+    if (!overlay) return false;
+    const options = () => { const mode = overlay.querySelector("#vno-ttc-mode").value; const selected = overlay.querySelector("#vno-ttc-del").value; return { mode, delimiter: selected === "custom" ? overlay.querySelector("#vno-ttc-custom").value : selected, widths: overlay.querySelector("#vno-ttc-width").value.split(",") }; };
+    const update = () => { const config = options(); overlay.querySelector("#vno-ttc-del-row").hidden = config.mode !== "delimiter"; overlay.querySelector("#vno-ttc-width-row").hidden = config.mode !== "fixed"; overlay.querySelector("#vno-ttc-custom-row").hidden = overlay.querySelector("#vno-ttc-del").value !== "custom" || config.mode !== "delimiter"; overlay.querySelector(".vno-data-preview").textContent = `${t("sheetDialogs.ttcPreview", "Xem trước: ")}${preview(config)}`; };
+    overlay.querySelectorAll("select,input").forEach(input => input.addEventListener("input", update)); update();
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => { const result = this.applyTextToColumns(options()); if (!result) { overlay.querySelector(".vno-rule-error").textContent = t("sheetDialogs.selectSingleCol", "Chỉ chọn dữ liệu trong một cột."); return; } overlay.closeDialog(); });
+    return true;
+  }
+
+  runFlashFill() {
+    const result = this.applyFlashFill();
+    this._showDataNotice(result ? (t("sheetDialogs.flashFillSuccess", { filled: result.filled, pattern: result.pattern }) || `Flash Fill đã điền ${result.filled} ô (${result.pattern}).`) : t("sheetDialogs.flashFillFailure", "Không nhận diện được mẫu. Hãy nhập 1–2 ví dụ ở cột kết quả kế bên dữ liệu nguồn."));
+    return result;
+  }
+
+  showConsolidateDialog() {
+    if (typeof document === "undefined") return false;
+    const destSheet = this.activeSheet;
+    const destCell = { ...this.selectedCoord };
+    const title = t("sheetDialogs.consolidateTitle", "Hợp nhất dữ liệu");
+    const functionOptions = CONSOLIDATE_FUNCTIONS.map(name => `<option value="${name}">${name}</option>`).join("");
+    const overlay = this._createSheetDialog(title, `
+      <div class="vno-consolidate-main">
+        <p class="vno-consolidate-hint">${this._escapeHtml(t("sheetDialogs.consolidateHint", "Gộp nhiều vùng (có thể từ các trang tính khác nhau) thành một bảng tại ô đang chọn. Kết quả là giá trị tĩnh; hoàn tác bằng Ctrl+Z."))}</p>
+        <p class="vno-consolidate-dest">${this._escapeHtml(t("sheetDialogs.consolidateDest", { sheet: destSheet, coord: `${destCell.c}${destCell.r}` }))}</p>
+        <label for="vno-consolidate-function">${t("sheetDialogs.consolidateFunction", "Hàm")}</label>
+        <select id="vno-consolidate-function">${functionOptions}</select>
+        <label for="vno-consolidate-ref">${t("sheetDialogs.consolidateReference", "Tham chiếu")}</label>
+        <div class="vno-consolidate-ref-row">
+          <input id="vno-consolidate-ref" type="text" autocomplete="off" spellcheck="false" placeholder="TrangTinh!A1:B10" aria-label="${t("sheetDialogs.consolidateReference", "Tham chiếu")}">
+          <button type="button" class="vno-btn vno-consolidate-add">${t("sheetDialogs.consolidateAdd", "Thêm")}</button>
+          <button type="button" class="vno-btn vno-consolidate-browse">${t("sheetDialogs.consolidateBrowse", "Duyệt")}</button>
+        </div>
+        <label for="vno-consolidate-list">${t("sheetDialogs.consolidateAllRefs", "Tất cả tham chiếu")}</label>
+        <select id="vno-consolidate-list" size="6" aria-label="${t("sheetDialogs.consolidateAllRefs", "Tất cả tham chiếu")}"></select>
+        <div class="vno-consolidate-list-actions">
+          <button type="button" class="vno-btn vno-consolidate-delete">${t("sheetDialogs.consolidateDelete", "Xóa")}</button>
+        </div>
+        <div class="vno-consolidate-flags">
+          <label class="vno-consolidate-check" for="vno-consolidate-top-row"><input id="vno-consolidate-top-row" type="checkbox"> ${t("sheetDialogs.consolidateTopRow", "Nhãn ở hàng trên")}</label>
+          <label class="vno-consolidate-check" for="vno-consolidate-left-col"><input id="vno-consolidate-left-col" type="checkbox"> ${t("sheetDialogs.consolidateLeftCol", "Nhãn ở cột trái")}</label>
+        </div>
+        <div class="vno-rule-error" role="alert" aria-live="assertive"></div>
+      </div>
+      <div class="vno-consolidate-pick-bar">
+        <label for="vno-consolidate-pick-ref" class="vno-consolidate-pick-label">${t("sheetDialogs.consolidatePickLabel", "Chọn vùng trên lưới")}
+          <input id="vno-consolidate-pick-ref" type="text" autocomplete="off" spellcheck="false" aria-label="${t("sheetDialogs.consolidatePickLabel", "Chọn vùng trên lưới")}">
+        </label>
+        <button type="button" class="vno-btn vno-btn-primary vno-consolidate-pick-ok">${t("sheetDialogs.consolidatePickOk", "Chọn")}</button>
+        <button type="button" class="vno-btn vno-consolidate-pick-cancel">${t("common.cancel", "Hủy bỏ")}</button>
+      </div>`);
+    if (!overlay) return false;
+    overlay.classList.add("vno-consolidate-dialog");
+    const applyBtn = overlay.querySelector(".vno-rule-apply");
+    if (applyBtn) applyBtn.textContent = t("common.ok", "Đồng ý");
+    const errorEl = overlay.querySelector(".vno-rule-error");
+    const refInput = overlay.querySelector("#vno-consolidate-ref");
+    const listEl = overlay.querySelector("#vno-consolidate-list");
+    const pickInput = overlay.querySelector("#vno-consolidate-pick-ref");
+    const setError = message => { if (errorEl) errorEl.textContent = message || ""; };
+    const currentSelectionRef = () => formatSheetRange(this.activeSheet, this.getSelectedRangeLabel());
+    if (refInput && !refInput.value) refInput.value = currentSelectionRef();
+
+    const addReference = raw => {
+      const text = String(raw || "").trim() || currentSelectionRef();
+      const parsed = parseConsolidateReference(this.formulaEngine, text, this.activeSheet);
+      if (parsed.error) {
+        setError(t("sheetDialogs.consolidateBadRef", "Tham chiếu không hợp lệ. Dùng dạng TênTrang!A1:B10 và bảo đảm trang tính tồn tại."));
+        return false;
+      }
+      const display = parsed.display;
+      const existing = Array.from(listEl.options).map(option => option.value);
+      if (existing.includes(display)) {
+        setError(t("sheetDialogs.consolidateDuplicateRef", "Tham chiếu này đã có trong danh sách."));
+        return false;
+      }
+      const option = document.createElement("option");
+      option.value = display;
+      option.textContent = display;
+      listEl.appendChild(option);
+      option.selected = true;
+      refInput.value = "";
+      setError("");
+      return true;
+    };
+
+    overlay.querySelector(".vno-consolidate-add").addEventListener("click", () => addReference(refInput.value));
+    overlay.querySelector(".vno-consolidate-delete").addEventListener("click", () => {
+      Array.from(listEl.selectedOptions).forEach(option => option.remove());
+      setError("");
+    });
+    refInput.addEventListener("keydown", event => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        addReference(refInput.value);
+      }
+    });
+
+    let picking = false;
+    const onGridMouseUp = () => {
+      if (!picking) return;
+      const value = currentSelectionRef();
+      if (pickInput) pickInput.value = value;
+      if (refInput) refInput.value = value;
+    };
+    const endPick = accept => {
+      if (!picking) return;
+      picking = false;
+      overlay.classList.remove("is-picking-range");
+      this.container?.removeEventListener?.("mouseup", onGridMouseUp);
+      if (accept && pickInput?.value) refInput.value = pickInput.value;
+      refInput?.focus();
+    };
+    overlay.querySelector(".vno-consolidate-browse").addEventListener("click", () => {
+      picking = true;
+      overlay.classList.add("is-picking-range");
+      if (pickInput) pickInput.value = currentSelectionRef();
+      this.container?.addEventListener?.("mouseup", onGridMouseUp);
+      pickInput?.focus();
+      pickInput?.select();
+    });
+    overlay.querySelector(".vno-consolidate-pick-ok").addEventListener("click", () => endPick(true));
+    overlay.querySelector(".vno-consolidate-pick-cancel").addEventListener("click", () => endPick(false));
+    overlay.addEventListener("click", event => {
+      if (overlay.classList.contains("is-picking-range") && event.target === overlay) {
+        event.stopImmediatePropagation();
+      }
+    }, true);
+    const pickKey = event => {
+      if (!overlay.classList.contains("is-picking-range")) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        endPick(false);
+      } else if (event.key === "Enter" && document.activeElement !== pickInput) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        endPick(true);
+      }
+    };
+    document.addEventListener("keydown", pickKey, true);
+    const originalClose = overlay.closeDialog;
+    overlay.closeDialog = () => {
+      endPick(false);
+      document.removeEventListener("keydown", pickKey, true);
+      originalClose();
+    };
+
+    applyBtn?.addEventListener("click", () => {
+      const references = Array.from(listEl.options).map(option => option.value);
+      const result = this.applyConsolidate({
+        functionName: overlay.querySelector("#vno-consolidate-function").value,
+        references,
+        topRow: overlay.querySelector("#vno-consolidate-top-row").checked,
+        leftColumn: overlay.querySelector("#vno-consolidate-left-col").checked,
+        destination: destCell,
+        destinationSheet: destSheet
+      });
+      if (!result?.ok) {
+        const messages = {
+          "no-references": t("sheetDialogs.consolidateNeedRefs", "Hãy thêm ít nhất một tham chiếu nguồn."),
+          "bad-reference": t("sheetDialogs.consolidateBadRef", "Tham chiếu không hợp lệ. Dùng dạng TênTrang!A1:B10 và bảo đảm trang tính tồn tại."),
+          "size-mismatch": t("sheetDialogs.consolidateSizeMismatch", "Khi gộp theo vị trí, mọi vùng nguồn phải cùng số hàng và số cột."),
+          "size-mismatch-rows": t("sheetDialogs.consolidateSizeMismatchRows", "Khi chỉ dùng nhãn hàng trên, các vùng phải có cùng số hàng dữ liệu."),
+          "size-mismatch-cols": t("sheetDialogs.consolidateSizeMismatchCols", "Khi chỉ dùng nhãn cột trái, các vùng phải có cùng số cột dữ liệu."),
+          "no-data": t("sheetDialogs.consolidateNoData", "Không đọc được dữ liệu số sau hàng/cột nhãn. Kiểm tra vùng nguồn."),
+          "bad-function": t("sheetDialogs.consolidateBadFunction", "Chọn hàm SUM, AVERAGE, COUNT, MAX hoặc MIN."),
+          "protected": t("sheetDialogs.sheetProtectedEdit", "Trang tính đang được bảo vệ."),
+          "no-output": t("sheetDialogs.consolidateNoOutput", "Không ghi được kết quả vào lưới. Chọn ô đích còn chỗ trống trong trang.")
+        };
+        setError(messages[result?.error] || t("sheetDialogs.consolidateFailed", "Không hợp nhất được dữ liệu."));
+        return;
+      }
+      overlay.closeDialog();
+    });
+    return true;
+  }
+
+  _showDataNotice(message) {
+    if (typeof document === "undefined") return;
+    const overlay = this._createSheetDialog(t("sheetDialogs.resultTitle", "Kết quả"), `<p class="vno-data-result" role="status">${message}</p>`);
+    overlay?.querySelector(".vno-rule-apply")?.addEventListener("click", () => overlay.closeDialog());
+  }
+
+  _createSheetDialog(title, bodyHtml) {
+    if (typeof document === "undefined") return null;
+    const previousActive = document.activeElement;
+    const overlay = document.createElement("div");
+    overlay.className = "vno-dialog-overlay vno-sheet-rule-dialog";
+    const titleId = `vno-sheet-dlg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    overlay.innerHTML = `<div class="vno-dialog-box" role="dialog" aria-modal="true" aria-labelledby="${titleId}">
+      <div class="vno-dialog-header"><strong id="${titleId}" class="vno-dialog-title">${title}</strong><button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn vno-rule-close" title="${t("sheetDialogs.close", "Đóng")}" aria-label="${t("sheetDialogs.close", "Đóng")}">&times;</button></div>
+      <div class="vno-dialog-body">${bodyHtml}</div>
+      <div class="vno-dialog-footer"><button type="button" class="vno-btn vno-rule-cancel">${t("sheetDialogs.cancel", "Hủy bỏ")}</button><button type="button" class="vno-btn vno-btn-primary vno-rule-apply">${t("sheetDialogs.apply", "Đồng ý")}</button></div>
+    </div>`;
+    const onKey = (event) => {
+      if (event.key === "Escape") {
+        close();
+      } else if (event.key === "Enter") {
+        const target = event.target;
+        if (target && target.tagName !== "TEXTAREA" && !target.classList.contains("vno-rule-cancel") && !target.classList.contains("vno-rule-close")) {
+          if (target.tagName !== "BUTTON" || target.classList.contains("vno-rule-apply")) {
+            const applyBtn = overlay.querySelector(".vno-rule-apply");
+            if (applyBtn && !applyBtn.disabled && (applyBtn.offsetParent !== null || applyBtn.offsetWidth > 0)) {
+              event.preventDefault();
+              applyBtn.click();
+            }
+          }
+        }
+      } else if (event.key === "Tab") {
+        const dialogBox = overlay.querySelector(".vno-dialog-box");
+        const focusables = dialogBox ? Array.from(dialogBox.querySelectorAll('button:not([disabled]):not([style*="display: none"]):not([style*="display:none"]), select:not([disabled]), input:not([disabled]):not([type="hidden"]):not([style*="display: none"]):not([style*="display:none"]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')).filter(el => el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0) : [];
+        if (focusables.length > 0) {
+          const first = focusables[0];
+          const last = focusables[focusables.length - 1];
+          if (event.shiftKey && (document.activeElement === first || !dialogBox.contains(document.activeElement))) {
+            event.preventDefault();
+            last.focus();
+          } else if (!event.shiftKey && (document.activeElement === last || !dialogBox.contains(document.activeElement))) {
+            event.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+    const close = () => {
+      document.removeEventListener("keydown", onKey);
+      overlay.remove();
+      if (previousActive && typeof previousActive.focus === "function") {
+        try { previousActive.focus(); } catch (_) {}
+      }
+    };
+    overlay.closeDialog = close;
+    overlay.querySelector(".vno-rule-close").addEventListener("click", close);
+    overlay.querySelector(".vno-rule-cancel").addEventListener("click", close);
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) close();
+    });
+    document.addEventListener("keydown", onKey);
+    document.body.appendChild(overlay);
+    const initialFocus = overlay.querySelector("input:not([disabled]):not([type='hidden']), select:not([disabled]), textarea:not([disabled]), .vno-btn-primary");
+    initialFocus?.focus();
+    return overlay;
+  }
+
+  showConditionalFormattingDialog() {
+    const overlay = this._createSheetDialog(t("sheetDialogs.conditionalFormatting"), `
+      <p class="vno-rule-range">${t("sheetDialogs.range")}: <strong>${this.getSelectedRangeLabel()}</strong></p>
+      <label>${t("sheetDialogs.rule")}<select id="vno-cf-type" aria-label="${t("sheetDialogs.rule")}"><option value="greaterThan">${t("sheetDialogs.greaterThan")}</option><option value="lessThan">${t("sheetDialogs.lessThan")}</option><option value="blank">${t("sheetDialogs.blankCell")}</option></select></label>
+      <label id="vno-cf-value-row">${t("sheetDialogs.value")}<input id="vno-cf-value" type="number" value="0" aria-label="${t("sheetDialogs.value")}"></label>
+      <label>${t("sheetDialogs.fillColor")}<input id="vno-cf-color" type="color" value="#fff2cc" aria-label="${t("sheetDialogs.fillColor")}"></label>
+      <div class="vno-rule-error" role="alert"></div>`);
+    if (!overlay) return false;
+    const type = overlay.querySelector("#vno-cf-type");
+    const valueRow = overlay.querySelector("#vno-cf-value-row");
+    type.addEventListener("change", () => { valueRow.hidden = type.value === "blank"; });
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      const result = this.addConditionalFormattingRule(this.selectionRange, {
+        type: type.value,
+        value: overlay.querySelector("#vno-cf-value").value,
+        color: overlay.querySelector("#vno-cf-color").value
+      });
+      if (!result) overlay.querySelector(".vno-rule-error").textContent = t("sheetDialogs.invalidNumber");
+      else overlay.closeDialog();
+    });
+    return true;
+  }
+
+  showDataValidationDialog() {
+    const overlay = this._createSheetDialog(t("sheetDialogs.dataValidation"), `
+      <p class="vno-rule-range">${t("sheetDialogs.range")}: <strong>${this.getSelectedRangeLabel()}</strong></p>
+      <label>${t("sheetDialogs.allow")}<select id="vno-dv-type" aria-label="${t("sheetDialogs.allow")}"><option value="list">${t("sheetDialogs.list")}</option><option value="numberRange">${t("sheetDialogs.numberRange")}</option></select></label>
+      <label id="vno-dv-list-row">${t("sheetDialogs.listValues")}<input id="vno-dv-list" type="text" placeholder="${t("sheetDialogs.listPlaceholder")}" aria-label="${t("sheetDialogs.listValues")}"></label>
+      <div id="vno-dv-number-row" hidden><label>${t("sheetDialogs.minimum")}<input id="vno-dv-min" type="number" value="0" aria-label="${t("sheetDialogs.minimum")}"></label><label>${t("sheetDialogs.maximum")}<input id="vno-dv-max" type="number" value="100" aria-label="${t("sheetDialogs.maximum")}"></label></div>
+      <div class="vno-rule-error" role="alert"></div>`);
+    if (!overlay) return false;
+    const type = overlay.querySelector("#vno-dv-type");
+    type.addEventListener("change", () => {
+      overlay.querySelector("#vno-dv-list-row").hidden = type.value !== "list";
+      overlay.querySelector("#vno-dv-number-row").hidden = type.value !== "numberRange";
+    });
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      const config = type.value === "list"
+        ? { type: "list", values: overlay.querySelector("#vno-dv-list").value }
+        : { type: "numberRange", min: overlay.querySelector("#vno-dv-min").value, max: overlay.querySelector("#vno-dv-max").value };
+      const result = this.addDataValidation(this.selectionRange, config);
+      if (!result) overlay.querySelector(".vno-rule-error").textContent = t("sheetDialogs.invalidValidation");
+      else overlay.closeDialog();
+    });
+    return true;
+  }
+
+  createPivotTable(config, recordUndo = true) {
+    if (this._guardWorkbookStructure()) return false;
+    const sourceSheet = config.sourceSheet || this.activeSheet;
+    const sourceCells = this.sheetsData[sourceSheet];
+    if (!sourceCells) throw new Error(t("sheetDialogs.sourceSheetNotFound"));
+    const table = PivotTableEngine.aggregate(sourceCells, config);
+    const baseName = `${sourceSheet} (2)`;
+    let targetSheet = config.targetSheet || baseName;
+    let suffix = 3;
+    while (this.sheets.includes(targetSheet)) targetSheet = `${sourceSheet} (${suffix++})`;
+    const previousSheet = this.activeSheet;
+    if (this.addSheet(targetSheet, false) === false) return false;
+    this.sheetsData[targetSheet] = PivotTableEngine.toCells(table);
+    const pivot = { ...structuredClone(config), id: config.id || `pivot-${Date.now()}`, sourceSheet, targetSheet, resultRange: PivotTableEngine.resultRange(table) };
+    this.pivotTablesBySheet[targetSheet] = [pivot];
+    this._renderVirtualRows(1, Math.min(40, this.rowCount));
+    this.selectCell("A", 1);
+    if (recordUndo) this._recordHistory({ type: "sheet-add", sheet: previousSheet, sheetName: targetSheet, previousSheet, snapshot: this._snapshotSheet(targetSheet) });
+    return pivot;
+  }
+
+  refreshPivotTable(sheetName = this.activeSheet, recordUndo = true) {
+    const pivot = this.pivotTablesBySheet[sheetName]?.[0];
+    if (!pivot) return false;
+    const sourceCells = this.sheetsData[pivot.sourceSheet];
+    if (!sourceCells) return false;
+    const before = this._snapshotCells(sheetName);
+    const table = PivotTableEngine.aggregate(sourceCells, pivot);
+    this.sheetsData[sheetName] = PivotTableEngine.toCells(table);
+    pivot.resultRange = PivotTableEngine.resultRange(table);
+    for (const chart of this.chartsBySheet[sheetName] || []) if (chart.kind === "pivot" && chart.pivotId === pivot.id) chart.range = structuredClone(pivot.resultRange);
+    this.refreshCharts(sheetName);
+    if (sheetName === this.activeSheet) {
+      this._renderVirtualRows(1, Math.min(40, this.rowCount));
+      this.selectCell("A", 1);
+    }
+    if (recordUndo) this._recordHistory({ type: "pivot-refresh", sheet: sheetName, before, after: this._snapshotCells(sheetName) });
+    return true;
+  }
+
+  showPivotTableDialog() {
+    const sourceSheet = this.activeSheet;
+    const defaultRange = this.getSelectedRangeLabel();
+    const overlay = this._createSheetDialog(t("sheetDialogs.pivotTitle"), `
+      <div class="vno-pivot-dialog">
+        <label>${t("sheetDialogs.pivotSource")}<input id="vno-pivot-range" value="${this._escapeHtml(defaultRange)}" aria-label="${t("sheetDialogs.pivotSource")}"></label>
+        <button class="vno-btn" id="vno-pivot-load-fields" type="button">${t("sheetDialogs.loadFields")}</button>
+        <div class="vno-pivot-fields" aria-live="polite"></div>
+        <div class="vno-rule-error" role="alert"></div>
+      </div>`);
+    if (!overlay) return false;
+    const fieldsHost = overlay.querySelector(".vno-pivot-fields");
+    const error = overlay.querySelector(".vno-rule-error");
+    const loadFields = () => {
+      try {
+        const { headers } = PivotTableEngine.readSource(this.sheetsData[sourceSheet], overlay.querySelector("#vno-pivot-range").value);
+        fieldsHost.innerHTML = `<p>${t("sheetDialogs.chooseFields")}</p>${headers.map((header, index) => `
+          <div class="vno-pivot-field" data-field="${this._escapeHtml(header)}">
+            <strong>${this._escapeHtml(header)}</strong>
+            <label><input type="checkbox" data-zone="rows" data-index="${index}"> Rows</label>
+            <label><input type="checkbox" data-zone="columns" data-index="${index}"> Columns</label>
+            <label><input type="checkbox" data-zone="values" data-index="${index}"> Values</label>
+            <select data-aggregate="${index}" aria-label="${t("sheetDialogs.aggregateFor", { field: this._escapeHtml(header) })}"><option>SUM</option><option>COUNT</option><option>AVERAGE</option><option>MIN</option><option>MAX</option></select>
+          </div>`).join("")}`;
+        fieldsHost.dataset.headers = JSON.stringify(headers);
+        error.textContent = "";
+      } catch (err) {
+        fieldsHost.innerHTML = "";
+        error.textContent = err.message;
+      }
+    };
+    overlay.querySelector("#vno-pivot-load-fields").addEventListener("click", loadFields);
+    overlay.querySelector(".vno-rule-apply").textContent = t("sheetDialogs.createPivotBtn", "Tạo Pivot Table");
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      try {
+        const headers = JSON.parse(fieldsHost.dataset.headers || "[]");
+        const selected = zone => [...fieldsHost.querySelectorAll(`input[data-zone="${zone}"]:checked`)].map(input => headers[+input.dataset.index]);
+        const valueFields = [...fieldsHost.querySelectorAll('input[data-zone="values"]:checked')].map(input => ({ field: headers[+input.dataset.index], aggregate: fieldsHost.querySelector(`select[data-aggregate="${input.dataset.index}"]`).value }));
+        this.createPivotTable({ sourceSheet, sourceRange: overlay.querySelector("#vno-pivot-range").value, rows: selected("rows"), columns: selected("columns"), values: valueFields });
+        overlay.closeDialog();
+      } catch (err) {
+        error.textContent = err.message;
+      }
+    });
+    loadFields();
+    return true;
+  }
+
+  /**
+   * Lỗi thật đã xác nhận: hàm này trước đây (1) duyệt TOÀN BỘ this.cellsData
+   * (cả sheet) thay vì chỉ vùng đang CHỌN — giống thanh trạng thái Excel
+   * thật, Sum/Average/Count chỉ tính trên vùng/ô đang bôi đen; (2) gọi
+   * itm.val.toString().replace(/\./g, "") vô điều kiện — nếu itm.val là
+   * SỐ THỰC (number) có phần thập phân thật (ví dụ 23814000.5), dấu chấm
+   * thập phân bị xóa nhầm thành dấu phân cách nghìn, biến 23814000.5
+   * thành 238140005 (SAI GẤP ~10 LẦN) — cùng lớp lỗi "xén dấu thập phân"
+   * đã sửa trước đây ở formula engine; (3) loại bỏ hẳn các ô có công thức
+   * (itm.formula) dù itm.val đã là KẾT QUẢ TÍNH TOÁN mới nhất (gán ở dòng
+   * ~559 sau mỗi lần recalculate) — Excel thật VẪN cộng ô công thức vào
+   * Sum/Average của vùng chọn.
+   */
+  _calculateStats() {
+    const ranges = this._getSelectionRanges();
+    let total = 0;
+    let count = 0;
+    const seenCoords = new Set();
+    for (const selection of ranges) {
+      const range = this._normalizeRange(selection);
+      const startCol = this.cols.indexOf(range.start.c);
+      const endCol = this.cols.indexOf(range.end.c);
+      for (let r = range.start.r; r <= range.end.r; r++) {
+        for (let ci = startCol; ci <= endCol; ci++) {
+          const col = this.cols[ci];
+          if (!col) continue;
+          const coord = `${col}${r}`;
+          if (seenCoords.has(coord)) continue;
+          seenCoords.add(coord);
+          const itm = this.cellsData.get(coord);
+          if (!itm || itm.val === undefined || itm.val === null || itm.val === "") continue;
+          const num = typeof itm.val === "number"
+            ? itm.val
+            : parseFloat(String(itm.val).replace(/\./g, "").replace(/,/g, ".").replace(/[^\d.-]/g, ""));
+          if (!Number.isFinite(num)) continue;
+          count++;
+          total += num;
+        }
+      }
+    }
+    const avg = count > 0 ? total / count : 0;
+    const formatter = new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+      maximumFractionDigits: 10
+    });
+    return {
+      count: count,
+      sum: formatter.format(total),
+      avg: formatter.format(avg)
+    };
+  }
+
+  _applyStylesToDom(dom, styles) {
+    if (!dom || !styles) return;
+    for (const [k, v] of Object.entries(styles)) {
+      if (k === "numberFormat" || k === "textRotation") continue;
+      // S29a: Excel giữ khoảng trắng liên tiếp trong ô; model ghi "nowrap"/"normal" (ý nghĩa: có bọc chữ hay không)
+      // → DOM dùng pre / pre-wrap để không gộp dấu cách (lan02 A17 "Phí chuyển tiền:" + 15 dấu cách + "□ Người…").
+      if (k === "whiteSpace") { dom.style.whiteSpace = v === "normal" ? "pre-wrap" : (v === "nowrap" ? "pre" : v); continue; }
+      dom.style[k] = v;
+    }
+    this._applyTextRotationToDom(dom, styles.textRotation);
+  }
+
+  _applyTextRotationToDom(dom, rotation) {
+    if (!dom) return;
+    const rot = Number(rotation);
+    if (!Number.isFinite(rot) || rot === 0) return;
+    if (rot === 255) {
+      dom.style.writingMode = "vertical-rl";
+      dom.style.textOrientation = "upright";
+      return;
+    }
+    dom.style.transform = `rotate(${-rot}deg)`;
+    dom.style.transformOrigin = "center center";
+  }
+
+  _renderCellVisual(td, itm, col, row) {
+    if (!td) return;
+    td.style.cssText = "";
+    const isWrap = itm?.style?.whiteSpace === "normal" || itm?.style?.whiteSpace === "pre-wrap";
+    td.classList?.toggle?.("is-wrap-text", isWrap);
+    if (!itm) {
+      td.textContent = "";
+      td.classList?.remove?.("can-overflow", "has-content");
+      if (col && row && typeof this._applyRowColSizeToCell === "function") {
+        this._applyRowColSizeToCell(td, col, row);
+      }
+      return;
+    }
+
+    if (itm.style) {
+      this._applyStylesToDom(td, itm.style);
+    }
+
+    if (itm.sparkline) {
+      const values = itm.sparkline.values;
+      const min = Math.min(...values), max = Math.max(...values), span = max - min || 1;
+      if (itm.sparkline.type === "column") {
+        const width = 96 / values.length;
+        td.innerHTML = `<svg data-sparkline="column" viewBox="0 0 100 24" width="100%" height="24" aria-label="${t("sheetDialogs.sparklineColumn", "Biểu đồ mini dạng cột")}">${values.map((value, i) => `<rect x="${i * width + 1}" y="${22 - (value - min) / span * 20}" width="${Math.max(1, width - 2)}" height="${Math.max(1, (value - min) / span * 20)}" fill="#0f6d38"/>`).join("")}</svg>`;
+      } else {
+        const points = values.map((value, i) => `${values.length === 1 ? 50 : i * 100 / (values.length - 1)},${22 - (value - min) / span * 20}`).join(" ");
+        td.innerHTML = `<svg data-sparkline="line" viewBox="0 0 100 24" width="100%" height="24" aria-label="${t("sheetDialogs.sparklineLine", "Biểu đồ mini dạng đường")}"><polyline points="${points}" fill="none" stroke="#0f6d38" stroke-width="2"/></svg>`;
+      }
+      if (col && row && typeof this._applyRowColSizeToCell === "function") this._applyRowColSizeToCell(td, col, row);
+      return;
+    }
+
+    if (itm.hyperlink) {
+      td.innerHTML = `<a href="${this._escapeHtml(itm.hyperlink)}" target="_blank" rel="noopener noreferrer">${this._escapeHtml(itm.val || itm.hyperlink)}</a>`;
+      if (col && row && typeof this._applyRowColSizeToCell === "function") this._applyRowColSizeToCell(td, col, row);
+      return;
+    }
+
+    if (this.showFormulas && itm.formula) {
+      td.textContent = itm.formula;
+      td.style.textAlign = "left";
+      if (col && row && typeof this._applyRowColSizeToCell === "function") this._applyRowColSizeToCell(td, col, row);
+      return;
+    }
+
+    // Rich text: render multiple styled <span> elements
+    if (Array.isArray(itm.richText) && itm.richText.length > 0) {
+      const escapeHtml = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const spanHtml = itm.richText.map(run => {
+        const styles = [];
+        if (run.style?.color) styles.push(`color:${run.style.color}`);
+        if (run.style?.fontWeight) styles.push(`font-weight:${run.style.fontWeight}`);
+        if (run.style?.fontStyle) styles.push(`font-style:${run.style.fontStyle}`);
+        if (run.style?.textDecoration) styles.push(`text-decoration:${run.style.textDecoration}`);
+        if (run.style?.fontFamily) styles.push(`font-family:${run.style.fontFamily}`);
+        if (run.style?.fontSize) styles.push(`font-size:${run.style.fontSize}`);
+        const styleAttr = styles.length ? ` style="${styles.join(";")}"` : "";
+        return `<span${styleAttr}>${escapeHtml(run.text)}</span>`;
+      }).join("");
+      td.innerHTML = spanHtml;
+      if (itm.style?.textAlign) td.style.textAlign = itm.style.textAlign;
+    } else if (itm.style?.numberFormat && typeof itm.val === "number") {
+      const formatted = NumberFormatter.formatValue(itm.val, itm.style.numberFormat);
+      if (formatted.isAccounting) {
+        td.innerHTML = `<span class="vno-cell-accounting-symbol" style="float:left;user-select:none;color:inherit;">${formatted.symbol || ""}</span><span class="vno-cell-accounting-num" style="float:right;color:inherit;">${formatted.numberText}</span>`;
+        td.style.textAlign = "right";
+      } else {
+        td.textContent = formatted.text;
+        if (formatted.isRed) td.style.color = "#dc2626";
+        else if (itm.style?.color) td.style.color = itm.style.color;
+        if (formatted.align) td.style.textAlign = formatted.align;
+        else if (itm.style?.textAlign) td.style.textAlign = itm.style.textAlign;
+      }
+    } else {
+      let text = typeof itm.val === "number" ? NumberFormatter.formatGeneralNumber(itm.val) : (itm.val ?? "");
+      // S29a: ô không bọc chữ dùng white-space: pre (giữ dấu cách liên tiếp) nên phải tự bỏ xuống dòng như Excel
+      // (Excel không hiện Alt+Enter khi Wrap Text tắt).
+      if (!isWrap && typeof text === "string" && text.includes("\n")) text = text.replace(/\r?\n/g, "");
+      td.textContent = text;
+    }
+
+    if (col && row && typeof this._applyRowColSizeToCell === "function") {
+      this._applyRowColSizeToCell(td, col, row);
+    }
+
+    // Xử lý tràn chữ (text overflow) sang ô trống bên phải như Excel (S25c):
+    // Ô kề coi là trống khi val === "" và không có công thức
+    const hasRichText = Array.isArray(itm.richText) && itm.richText.length > 0;
+    const hasVal = (itm.val !== undefined && itm.val !== null && itm.val !== "") || hasRichText;
+    if (hasVal) {
+      const isText = typeof itm.val === "string" || hasRichText;
+      const align = itm.style?.textAlign || td.style?.textAlign;
+      const isLeftAlign = !align || align === "left" || align === "start";
+
+      if (isText && !isWrap && isLeftAlign && col && row) {
+        const colSpan = td.colSpan || 1;
+        const startColNum = typeof this._columnNumber === "function" ? this._columnNumber(col) : 1;
+        const nextColNum = startColNum + colSpan;
+        const nextCol = typeof this._columnLabel === "function" ? this._columnLabel(nextColNum) : null;
+        let nextIsEmpty = true;
+        if (nextCol && this.cellsData) {
+          const nextItem = this.cellsData.get(`${nextCol}${row}`);
+          if (nextItem) {
+            const nextHasRichText = Array.isArray(nextItem.richText) && nextItem.richText.length > 0;
+            const nextHasVal = (nextItem.val !== undefined && nextItem.val !== null && nextItem.val !== "") || nextHasRichText;
+            const nextHasFormula = nextItem.formula !== undefined && nextItem.formula !== null && nextItem.formula !== "";
+            if (nextHasVal || nextHasFormula) {
+              nextIsEmpty = false;
+            }
+          }
+        }
+        if (nextIsEmpty) {
+          td.classList.add("can-overflow");
+          td.classList.remove("has-content");
+          td.style.overflow = "visible";
+        } else {
+          td.classList.remove("can-overflow");
+          td.classList.add("has-content");
+          td.style.overflow = "hidden";
+          td.style.textOverflow = "clip";
+        }
+      } else {
+        td.classList.remove("can-overflow");
+        td.classList.add("has-content");
+        td.style.overflow = "hidden";
+        td.style.textOverflow = "clip";
+      }
+    } else {
+      td.classList.remove("can-overflow", "has-content");
+    }
+  }
+}

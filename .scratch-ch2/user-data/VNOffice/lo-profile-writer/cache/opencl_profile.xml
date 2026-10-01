@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<profile>
+ <version>LibreOffice v1</version>
+ <device>
+  <type>opencl</type>
+  <name>Intel(R) UHD Graphics 630</name>
+  <driver>31.0.101.1999</driver>
+  <time>19775</time>
+  <errors>false</errors>
+ </device>
+ <device>
+  <type>native</type>
+  <time>3076608</time>
+  <errors>false</errors>
+ </device>
+</profile>
