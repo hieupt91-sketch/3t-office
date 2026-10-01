@@ -26,12 +26,21 @@ class _CaptureHandler(BaseHTTPRequestHandler):
         pass
 
     def do_POST(self):
-        if self.headers.get("Authorization") != "Bearer test-token":
+        size = int(self.headers.get("Content-Length", "0"))
+        body = self.rfile.read(size)
+        if self.path.endswith("/token"):
+            type(self).received.append((self.path, self.headers.get("Content-Type", ""), body))
+            token_body = json.dumps({"token": "test-issued-token", "expires_at": int(time.time()) + 3600}).encode("ascii")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(token_body)))
+            self.end_headers()
+            self.wfile.write(token_body)
+            return
+        if self.headers.get("Authorization") != "Bearer test-token" and self.headers.get("X-Install-Token") != "test-issued-token":
             self.send_response(401)
             self.end_headers()
             return
-        size = int(self.headers.get("Content-Length", "0"))
-        body = self.rfile.read(size)
         type(self).received.append((self.path, self.headers.get("Content-Type", ""), body))
         self.send_response(200)
         self.end_headers()
@@ -120,7 +129,35 @@ class ErrorReportingTests(unittest.TestCase):
         config_path.parent.mkdir(parents=True)
         config_path.write_text(json.dumps({"errorReporting": {"enabled": False, "endpoint": "https://config", "token": "config-token"}}), encoding="utf-8")
         value = load_client_config(self.data_dir, {"VNOFFICE_REPORT_ENDPOINT": "http://127.0.0.1:9/api/v1/reports", "VNOFFICE_REPORT_TOKEN": "env-token"})
-        self.assertEqual(value, {"enabled": False, "endpoint": "http://127.0.0.1:9/api/v1/reports", "token": "env-token"})
+        self.assertEqual(value, {"enabled": False, "endpoint": "http://127.0.0.1:9/api/v1/reports", "token": ""})
+
+    def test_cloud_base_config_derives_reporting_endpoint_without_baking_in_a_host(self):
+        config_path = self.data_dir / "vnoffice-config.json"
+        config_path.parent.mkdir(parents=True)
+        config_path.write_text(json.dumps({
+            "cloudBaseUrl": "https://cloud.example.test/office",
+            "errorReporting": {"enabled": True},
+        }), encoding="utf-8")
+        value = load_client_config(self.data_dir, {})
+        self.assertEqual(value["endpoint"], "https://cloud.example.test/office/api/v1/reports")
+        self.assertEqual(value["token"], "")
+
+    def test_update_source_config_orders_cloud_before_lan(self):
+        import main
+
+        config_path = self.data_dir / "vnoffice-config.json"
+        config_path.parent.mkdir(parents=True)
+        config_path.write_text(json.dumps({
+            "cloudBaseUrl": "https://cloud.example.test/office",
+            "update": {"source": r"\\192.168.1.252\company1\Software\VNOffice\updates", "channel": "pilot"},
+        }), encoding="utf-8")
+        with patch.object(main, "ROOT_DIR", self.data_dir):
+            value = main._load_update_config()
+        self.assertEqual(value["sources"], [
+            "https://cloud.example.test/office/updates",
+            r"\\192.168.1.252\company1\Software\VNOffice\updates",
+        ])
+        self.assertEqual(value["channel"], "pilot")
 
     def test_consent_unknown_granted_denied_and_persists(self):
         reporter = ErrorReporter("0.9.0-pilot1", "writer", self.data_dir, sender_thread=False)
@@ -183,6 +220,34 @@ class ErrorReportingTests(unittest.TestCase):
         self.assertNotIn("Tuyệt mật.pptx", sent)
         self.assertNotIn("C:\\Users", sent)
 
+    def test_dynamic_install_token_is_requested_only_after_consent_and_sends_allowlisted_fields(self):
+        _CaptureHandler.received = []
+        server = ThreadingHTTPServer(("127.0.0.1", 0), _CaptureHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        reporter = ErrorReporter(
+            "0.9.6", "writer", self.data_dir,
+            endpoint=f"http://127.0.0.1:{server.server_port}/api/v1/reports",
+            sender_thread=False, timeout=1,
+        )
+        reporter.record_error(error_type="RuntimeError", message="Lỗi giao diện", stack="at render (<anonymous>:4:2)")
+        self.assertFalse(reporter.send_once())
+        self.assertEqual(_CaptureHandler.received, [])
+        reporter.set_consent(True)
+        self.assertTrue(reporter.send_once())
+        self.assertEqual([record[0] for record in _CaptureHandler.received], [
+            "/api/v1/reports/token", "/api/v1/reports",
+        ])
+        token_request = json.loads(_CaptureHandler.received[0][2])
+        sent_report = json.loads(_CaptureHandler.received[1][2])
+        self.assertEqual(set(token_request), {"installation_id"})
+        self.assertEqual(set(sent_report), {
+            "event_id", "app", "version", "os", "error_type", "message", "stack", "installation_id",
+        })
+        self.assertEqual(sent_report["version"], "0.9.6")
+
     def test_unreachable_endpoint_keeps_report_queued(self):
         reporter = ErrorReporter(
             "0.9.0-pilot1", "writer", self.data_dir, endpoint="http://127.0.0.1:9/api/v1/reports",
@@ -238,7 +303,7 @@ class ErrorReportingTests(unittest.TestCase):
         time.sleep(0.2)
         self.assertEqual(len(attempts), 1, "new reports must not skip the exponential retry delay")
 
-    def test_feedback_attachment_is_copied_only_after_explicit_choice(self):
+    def test_feedback_is_local_only_and_document_attachments_are_rejected(self):
         source = Path(self.temp.name) / "Tài liệu riêng.docx"
         source.write_bytes(b"private document bytes")
         reporter = ErrorReporter("0.9.0-pilot1", "writer", self.data_dir, sender_thread=False)
@@ -246,10 +311,33 @@ class ErrorReportingTests(unittest.TestCase):
         self.assertTrue(local_feedback["queued"])
         self.assertEqual(list(reporter.attachments_dir.glob("*")), [])
         attached_feedback = reporter.submit_user_feedback("Nút lưu báo lỗi", current_file=source, attach_current_file=True)
-        self.assertTrue(attached_feedback["queued"])
-        self.assertEqual(len(list(reporter.attachments_dir.glob("*"))), 1)
-        json_events = [json.loads(path.read_text(encoding="utf-8")) for path in reporter.queue_dir.glob("*.json")]
-        self.assertTrue(all("Tài liệu riêng.docx" not in json.dumps(event, ensure_ascii=False) for event in json_events))
+        self.assertFalse(attached_feedback["queued"])
+        self.assertIn("không gửi", attached_feedback["error"])
+        self.assertEqual(list(reporter.attachments_dir.glob("*")), [])
+        self.assertEqual(list(reporter.queue_dir.glob("*.json")), [])
+        feedback_files = list((reporter.reports_dir / "local-feedback").glob("*.json"))
+        self.assertEqual(len(feedback_files), 1)
+        stored = feedback_files[0].read_text(encoding="utf-8")
+        self.assertIn("Nút lưu báo lỗi", stored)
+        self.assertNotIn("private document bytes", stored)
+
+    def test_local_feedback_is_never_sent_to_configured_server(self):
+        _CaptureHandler.received = []
+        server = ThreadingHTTPServer(("127.0.0.1", 0), _CaptureHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        reporter = ErrorReporter(
+            "0.9.0-pilot1", "writer", self.data_dir, endpoint=f"http://127.0.0.1:{server.server_port}/api/v1/reports",
+            token="test-token", sender_thread=False,
+        )
+        reporter.set_consent(True)
+        result = reporter.submit_user_feedback("Góp ý chỉ được lưu trên máy")
+        self.assertTrue(result["queued"])
+        self.assertEqual(result["status"], "saved_local")
+        self.assertFalse(reporter.send_once())
+        self.assertEqual(_CaptureHandler.received, [])
 
     def test_pywebview_save_api_failure_reports_safe_operation_and_never_content(self):
         import main

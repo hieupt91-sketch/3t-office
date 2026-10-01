@@ -9,15 +9,24 @@ param(
     [string]$OutDir = "E:\VNOffice-dist",
     [string]$PythonDir = (Join-Path $env:LOCALAPPDATA "Programs\Python\Python312"),
     [string]$LibreOfficeDir = (Join-Path $HOME "tools\libreoffice"),
-    # Where installed copies look for signed patches, e.g. \\192.168.1.252\company1\Software\VNOffice\updates
-    # (written to app\vnoffice-config.json, which updates never overwrite). Empty = updates off.
-    [string]$UpdateSource = "",
+    # Local fallback for signed patches. The Cloud origin is written once to app\vnoffice-config.json.
+    [string]$UpdateSource = "\\192.168.1.252\company1\Software\VNOffice\updates",
+    [string]$CloudBaseUrl = $env:VNOFFICE_CLOUD_BASE_URL,
     [string]$UpdateChannel = "pilot",
     [switch]$Zip
 )
 
 $ErrorActionPreference = "Stop"
 $repo = Split-Path -Parent $PSScriptRoot
+if ($null -eq $CloudBaseUrl) { $CloudBaseUrl = "" }
+$CloudBaseUrl = $CloudBaseUrl.Trim().TrimEnd('/')
+if ($CloudBaseUrl) {
+    $cloudUri = $null
+    if (-not [Uri]::TryCreate($CloudBaseUrl, [UriKind]::Absolute, [ref]$cloudUri) -or
+        $cloudUri.Scheme -ne "https" -or $cloudUri.UserInfo -or $cloudUri.Query -or $cloudUri.Fragment) {
+        throw "CloudBaseUrl must be a clean HTTPS origin/path without credentials, query or fragment."
+    }
+}
 $versionPattern = '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$'
 if ($Version -notmatch $versionPattern) { throw "Version must use semantic x.y.z syntax: $Version" }
 $trustPath = Join-Path $repo "adapters\updater\trust.py"
@@ -62,10 +71,11 @@ foreach ($dir in @("apps", "platform", "adapters", "branding")) {
 }
 $example = Join-Path $repo "vnoffice-config.example.json"
 if (Test-Path -LiteralPath $example) { Copy-Item -LiteralPath $example -Destination $appDir }
-if ($UpdateSource) {
+if ($UpdateSource -or $CloudBaseUrl) {
     $config = [ordered]@{
-        errorReporting = [ordered]@{ enabled = $true; endpoint = ""; token = "" }
-        update = [ordered]@{ source = $UpdateSource; channel = $UpdateChannel }
+        cloudBaseUrl = $CloudBaseUrl
+        errorReporting = [ordered]@{ enabled = $true; endpoint = "" }
+        update = [ordered]@{ source = $UpdateSource; channel = $UpdateChannel; product = "3t-office" }
     }
     $configJson = $config | ConvertTo-Json -Depth 4
     [System.IO.File]::WriteAllText((Join-Path $appDir "vnoffice-config.json"), $configJson, (New-Object System.Text.UTF8Encoding $false))

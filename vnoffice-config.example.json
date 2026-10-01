@@ -1,8 +1,8 @@
 {
+  "cloudBaseUrl": "",
   "errorReporting": {
     "enabled": true,
-    "endpoint": "",
-    "token": ""
+    "endpoint": ""
   },
   "update": {
     "source": "",

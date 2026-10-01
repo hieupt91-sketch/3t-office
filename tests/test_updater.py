@@ -194,6 +194,31 @@ class UpdaterTests(unittest.TestCase):
             public_key=self.public_key,
         )
 
+    def test_cloud_source_failure_falls_back_to_lan_and_keeps_signature_check(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source, packages = root / "lan", root / "packages"
+            source.mkdir(); packages.mkdir()
+            old_package = create_fake_package(packages, "0.9.0", b"old", key=self.key)
+            install = root / "install"
+            shutil.copytree(old_package, install)
+            self._publish_package(source, packages, "0.9.1", b"new")
+            manager = UpdaterManager(
+                install_dir=install,
+                updates_dir=root / "stage",
+                current_version="0.9.0",
+                source="https://127.0.0.1:1/updates",
+                sources=["https://127.0.0.1:1/updates", str(source)],
+                channel="pilot",
+                public_key=self.public_key,
+                timeout=0.1,
+            )
+            state = manager.check_and_stage()
+            self.assertTrue(state["ready"])
+            self.assertEqual(state["available_version"], "0.9.1")
+            self.assertEqual(state["source_index"], 1)
+            self.assertTrue((root / "stage" / "0.9.1" / "manifest.sig").is_file())
+
     def test_signed_delta_stages_only_missing_blobs_and_refuses_downgrade(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

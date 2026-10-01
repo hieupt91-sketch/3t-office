@@ -113,7 +113,8 @@ class UpdaterManager:
         install_dir: str | Path,
         updates_dir: str | Path,
         current_version: str,
-        source: str,
+        source: str = "",
+        sources: list[str] | tuple[str, ...] | None = None,
         channel: str = "pilot",
         public_key: tuple[int, int] | None = None,
         timeout: int = 12,
@@ -124,7 +125,9 @@ class UpdaterManager:
         self.updates_dir = Path(updates_dir)
         self.current_version = str(current_version)
         version_key(self.current_version)
-        self.source = str(source or "").strip()
+        configured_sources = sources if sources is not None else [source]
+        self.sources = list(dict.fromkeys(str(value).strip() for value in configured_sources if str(value).strip()))
+        self.source = self.sources[0] if self.sources else ""
         self.channel = str(channel or "pilot")
         self.public_key = public_key
         self.timeout = timeout
@@ -143,8 +146,9 @@ class UpdaterManager:
             "release_notes": "",
             "ready": False,
             "bytes_downloaded": 0,
-            "status": "idle" if self.source and self.public_key is not None else ("disabled" if not self.source else "unavailable"),
+            "status": "idle" if self.sources and self.public_key is not None else ("disabled" if not self.sources else "unavailable"),
             "checked_at": None,
+            "source_index": None,
         }
         self._manifest: dict[str, object] | None = None
         self._manifest_bytes: bytes | None = None
@@ -171,7 +175,7 @@ class UpdaterManager:
         return state
 
     def start(self, *, interval_seconds: int = CHECK_INTERVAL_SECONDS) -> bool:
-        if not self.source or self.public_key is None:
+        if not self.sources or self.public_key is None:
             return False
         if self._periodic_thread and self._periodic_thread.is_alive():
             return True
@@ -194,7 +198,7 @@ class UpdaterManager:
             self.schedule_check()
 
     def schedule_check(self) -> bool:
-        if not self.source or self.public_key is None:
+        if not self.sources or self.public_key is None:
             return False
         if self._check_thread and self._check_thread.is_alive():
             return False
@@ -211,7 +215,7 @@ class UpdaterManager:
             self._set_state(status="unavailable", checked_at=_utc_now(), ready=False)
 
     def check_and_stage(self) -> dict[str, object]:
-        if not self.source:
+        if not self.sources:
             raise UpdateSourceError("Chưa cấu hình nguồn cập nhật")
         if self.public_key is None:
             raise UpdateRefused("Chưa nhúng khóa công khai phát hành vào ứng dụng")
@@ -219,41 +223,50 @@ class UpdaterManager:
             self._set_state(status="checking", checked_at=None, ready=False, bytes_downloaded=0)
             self.updates_dir.mkdir(parents=True, exist_ok=True)
             self._cleanup_old_stages()
-            pointer_raw = read_source_bytes(
-                self.source,
-                f"channels/{self.channel}.json",
-                max_bytes=MAX_CHANNEL_BYTES,
-                timeout=self.timeout,
-            )
-            try:
-                pointer = json.loads(pointer_raw.decode("utf-8"))
-            except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-                raise UpdateRefused("Con trỏ kênh phát hành không hợp lệ") from exc
-            if not isinstance(pointer, dict) or pointer.get("channel") != self.channel:
-                raise UpdateRefused("Con trỏ phát hành không khớp kênh đã cấu hình")
-            version = pointer.get("version")
-            if not isinstance(version, str):
-                raise UpdateRefused("Con trỏ phát hành thiếu version")
-            version_key(version)
-            # The pointer is untrusted. Fetch only the signed metadata before any package blob.
-            manifest_raw = read_source_bytes(
-                self.source,
-                f"{version}/manifest.json",
-                max_bytes=MAX_MANIFEST_BYTES,
-                timeout=self.timeout,
-            )
-            signature = read_source_bytes(
-                self.source,
-                f"{version}/manifest.sig",
-                max_bytes=MAX_SIGNATURE_BYTES,
-                timeout=self.timeout,
-            )
-            modulus, exponent = self.public_key
-            if not verify_sha256_pkcs1v15(manifest_raw, signature, modulus, exponent):
-                raise UpdateRefused("Chữ ký manifest không hợp lệ")
-            manifest = parse_manifest(manifest_raw, expected_channel=self.channel)
-            if manifest["version"] != version:
-                raise UpdateRefused("Version trong manifest không khớp con trỏ kênh")
+            metadata = None
+            last_error: Exception | None = None
+            for source_index, candidate_source in enumerate(self.sources):
+                try:
+                    pointer_raw = read_source_bytes(
+                        candidate_source,
+                        f"channels/{self.channel}.json",
+                        max_bytes=MAX_CHANNEL_BYTES,
+                        timeout=self.timeout,
+                    )
+                    pointer = json.loads(pointer_raw.decode("utf-8"))
+                    if not isinstance(pointer, dict) or pointer.get("channel") != self.channel:
+                        raise UpdateRefused("Con trỏ phát hành không khớp kênh đã cấu hình")
+                    version = pointer.get("version")
+                    if not isinstance(version, str):
+                        raise UpdateRefused("Con trỏ phát hành thiếu version")
+                    version_key(version)
+                    # The pointer is untrusted. Fetch metadata from one source, then verify as before.
+                    manifest_raw = read_source_bytes(
+                        candidate_source,
+                        f"{version}/manifest.json",
+                        max_bytes=MAX_MANIFEST_BYTES,
+                        timeout=self.timeout,
+                    )
+                    signature = read_source_bytes(
+                        candidate_source,
+                        f"{version}/manifest.sig",
+                        max_bytes=MAX_SIGNATURE_BYTES,
+                        timeout=self.timeout,
+                    )
+                    modulus, exponent = self.public_key
+                    if not verify_sha256_pkcs1v15(manifest_raw, signature, modulus, exponent):
+                        raise UpdateRefused("Chữ ký manifest không hợp lệ")
+                    manifest = parse_manifest(manifest_raw, expected_channel=self.channel)
+                    if manifest["version"] != version:
+                        raise UpdateRefused("Version trong manifest không khớp con trỏ kênh")
+                    metadata = (source_index, version, manifest_raw, signature, manifest)
+                    break
+                except (UpdateSourceError, UpdateRefused, UnicodeDecodeError, json.JSONDecodeError, ManifestError, ValueError) as exc:
+                    last_error = exc
+                    continue
+            if metadata is None:
+                raise UpdateRefused("Không có nguồn cập nhật nào cung cấp manifest hợp lệ") from last_error
+            selected_source_index, version, manifest_raw, signature, manifest = metadata
             version_order = compare_versions(version, self.current_version)
             if version_order == 0:
                 self._manifest = None
@@ -269,6 +282,7 @@ class UpdaterManager:
                     bytes_downloaded=0,
                     checked_at=_utc_now(),
                     status="up-to-date",
+                    source_index=selected_source_index,
                 )
             if version_order < 0:
                 raise UpdateRefused("Từ chối hạ cấp hoặc cài lại cùng phiên bản")
@@ -294,13 +308,24 @@ class UpdaterManager:
             self._ensure_disk_space(blob_dir, required)
             downloaded = 0
             for digest, size in required.items():
-                downloaded += download_blob(
-                    self.source,
-                    digest,
-                    blob_dir / digest,
-                    expected_size=size,
-                    timeout=self.timeout,
-                )
+                blob_failure = None
+                for source_index, candidate_source in enumerate(self.sources):
+                    try:
+                        downloaded += download_blob(
+                            candidate_source,
+                            digest,
+                            blob_dir / digest,
+                            expected_size=size,
+                            timeout=self.timeout,
+                        )
+                        blob_failure = None
+                        break
+                    except UpdateSourceError as exc:
+                        blob_failure = exc
+                        if source_index < len(self.sources) - 1:
+                            (blob_dir / f"{digest}.part").unlink(missing_ok=True)
+                if blob_failure is not None:
+                    raise blob_failure
             _atomic_write(stage_dir / "manifest.json", manifest_raw)
             _atomic_write(stage_dir / "manifest.sig", signature)
             manifest_paths = {str(item["path"]) for item in manifest["files"]}
@@ -321,6 +346,7 @@ class UpdaterManager:
                 removed_files=len(removals),
                 checked_at=_utc_now(),
                 status="update-ready",
+                source_index=selected_source_index,
             )
             return state
 

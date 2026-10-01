@@ -138,7 +138,7 @@ class ErrorReportReceiverTests(unittest.TestCase):
         self.assertEqual(page.status, 200)
         self.assertIn("Báo cáo lỗi VN Office", page.read().decode("utf-8"))
 
-    def test_client_sender_posts_feedback_json_then_attachment_as_second_request(self):
+    def test_client_keeps_user_feedback_and_documents_local(self):
         source = Path(self.temp.name) / "Bản thử.docx"
         source.write_bytes(b"contents selected by the user")
         local_data = Path(self.temp.name) / "client-data"
@@ -147,15 +147,16 @@ class ErrorReportReceiverTests(unittest.TestCase):
             endpoint=f"{self.base_url}/api/v1/reports", token="server-test-token", sender_thread=False,
         )
         reporter.set_consent(True)
-        queued = reporter.submit_user_feedback(
-            "Tôi xác nhận gửi tệp để tái hiện lỗi.", attach_current_file=True, current_file=source,
+        result = reporter.submit_user_feedback(
+            "Tôi góp ý về thao tác lưu.", attach_current_file=True, current_file=source,
         )
-        self.assertTrue(queued["queued"])
-        self.assertTrue(reporter.send_once())
-        report_line = next(self.data_dir.glob("errors-*.jsonl")).read_text(encoding="utf-8")
-        self.assertIn("Tôi xác nhận gửi tệp", report_line)
-        self.assertEqual(len(list((self.data_dir / "attachments").glob("*.bin"))), 1)
+        self.assertFalse(result["queued"])
+        self.assertFalse(reporter.send_once())
+        self.assertEqual(list(self.data_dir.glob("errors-*.jsonl")), [])
+        self.assertEqual(list((self.data_dir / "attachments").glob("*.bin")), [])
         self.assertEqual(list((local_data / "reports" / "queue").glob("*.json")), [])
+        feedback = list((local_data / "reports" / "local-feedback").glob("*.json"))
+        self.assertEqual(feedback, [])
 
 
 if __name__ == "__main__":

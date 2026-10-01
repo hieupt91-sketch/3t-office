@@ -193,9 +193,6 @@ time.sleep(45)
         direct = reporter.record_error(
             error_type="RuntimeError", message="failure", file_path=recovery_path, operation="open.docx"
         )
-        with self.assertRaises(OSError):
-            reporter._post_attachment("event-id", recovery_path)
-
         self.assertFalse(feedback["queued"])
         self.assertIsNone(direct)
         self.assertEqual(list(reporter.queue_dir.glob("*.json")), [])

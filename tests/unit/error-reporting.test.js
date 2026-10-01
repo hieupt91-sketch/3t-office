@@ -89,7 +89,7 @@ export async function runErrorReportingTests() {
     }
   });
 
-  await test("Feedback dialog leaves attachment unchecked, warns clearly, and submits explicit choices", async () => {
+  await test("Feedback dialog stores the description locally and never offers document attachments", async () => {
     let options;
     const calls = [];
     const previousDocument = globalThis.document;
@@ -101,19 +101,18 @@ export async function runErrorReportingTests() {
     });
     ui.state = { consent: "denied" };
     ui.showFeedbackDialog();
-    if (!options.body.includes("toàn bộ nội dung tệp hiện đang mở sẽ được gửi riêng")) throw new Error("attachment warning is missing");
-    if (options.body.includes('id="vno-report-attach" type="checkbox" checked')) throw new Error("attachment must be unchecked by default");
+    if (!options.body.includes("không gửi lên máy chủ")) throw new Error("local-only feedback note is missing");
+    if (options.body.includes("vno-report-attach")) throw new Error("document attachment control must not be offered");
     const elements = {
       "#vno-report-description": { value: "Lỗi lưu tệp", focus() {} },
-      "#vno-report-attach": { checked: true },
       ".vno-report-dialog-status": { textContent: "" },
       "[data-dialog-action='submit']": { disabled: false }
     };
     let closed = null;
     try {
       await options.onSubmit("submit", { querySelector: (selector) => elements[selector] }, (value) => { closed = value; });
-      if (calls.length !== 1 || calls[0][0] !== "Lỗi lưu tệp" || calls[0][1] !== true || calls[0][2] !== "writer") throw new Error("explicit feedback choices were not passed to Python");
-      if (elements[".vno-report-dialog-status"].textContent !== "Đã lưu cục bộ. Bật gửi tự động trong tab Trợ giúp để gửi khi có máy chủ.") throw new Error("offline status was not shown");
+      if (calls.length !== 1 || calls[0][0] !== "Lỗi lưu tệp" || calls[0][1] !== false || calls[0][2] !== "writer") throw new Error("feedback text or attachment choice was not passed as local-only");
+      if (elements[".vno-report-dialog-status"].textContent !== "Đã lưu góp ý cục bộ trên máy này. Nội dung không được gửi qua mạng.") throw new Error("local-only status was not shown");
       if (closed !== null) throw new Error("feedback should remain visible long enough to read status");
     } finally { globalThis.document = previousDocument; }
   });

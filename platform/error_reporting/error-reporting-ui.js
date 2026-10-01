@@ -140,10 +140,10 @@ export class ErrorReportingUI {
       body: `
         <p>3T Office có thể gửi dữ liệu kỹ thuật để nhóm phát triển sửa lỗi. ${escapeHtml(networkNote)}</p>
         <h3>Dữ liệu có thể được gửi</h3>
-        <ul><li>Loại lỗi, thông điệp và ngăn xếp đã lọc.</li><li>Ứng dụng, phiên bản, thao tác, thời gian, phiên bản Windows.</li><li>Chỉ phần mở rộng và kích thước tệp đã làm tròn; mã cài đặt ngẫu nhiên.</li></ul>
+        <ul><li>Ứng dụng, phiên bản, hệ điều hành.</li><li>Loại lỗi, thông điệp và ngăn xếp đã lọc.</li><li>Mã cài đặt ngẫu nhiên để gom nhóm lỗi trùng.</li></ul>
         <h3>Không bao giờ được gửi tự động</h3>
         <p>Nội dung tài liệu, tên hoặc đường dẫn tệp, ô tính, đoạn văn, tên trang tính, công thức, clipboard và tên người dùng Windows.</p>
-        <p>Bạn có thể đổi lựa chọn trong tab Trợ giúp. Tệp chỉ được gửi nếu tự mở “Báo lỗi / Góp ý” và đánh dấu ô đính kèm.</p>
+        <p>Bạn có thể đổi lựa chọn trong tab Trợ giúp. Mô tả góp ý tự nhập chỉ được lưu trên máy; 3T Office không gửi tài liệu hoặc tệp đính kèm.</p>
         <p class="vno-report-dialog-status" role="status" aria-live="polite"></p>`,
       actions: `<button type="button" class="vno-btn" data-dialog-action="deny">Chỉ ghi cục bộ</button>
         <button type="button" class="vno-btn vno-btn-primary" data-dialog-action="grant">Cho phép gửi tự động</button>`,
@@ -158,26 +158,21 @@ export class ErrorReportingUI {
   }
 
   showFeedbackDialog() {
-    const stateNote = this.state?.consent === "granted"
-      ? "Góp ý sẽ được xếp hàng và gửi nền khi có máy chủ."
-      : "Báo cáo chỉ được giữ cục bộ cho đến khi bạn bật gửi tự động trong Trợ giúp.";
+    const stateNote = "Mô tả góp ý được lưu trên máy này và không gửi lên máy chủ.";
     return this.dialogFactory({
       title: "Báo lỗi / Góp ý",
       focusSelector: "textarea",
       body: `
-        <p>Mô tả bạn nhập sẽ được gửi cho nhóm phát triển (tối đa 4.000 ký tự). ${escapeHtml(stateNote)}</p>
+        <p>Mô tả tối đa 4.000 ký tự. ${escapeHtml(stateNote)}</p>
         <label for="vno-report-description">Mô tả</label>
-        <textarea id="vno-report-description" maxlength="4000" rows="6" aria-describedby="vno-report-attachment-warning"></textarea>
-        <label class="vno-report-attachment-option"><input id="vno-report-attach" type="checkbox">
-          Đính kèm tệp đang mở</label>
-        <p id="vno-report-attachment-warning" class="vno-report-warning">Cảnh báo: nếu đánh dấu ô này, toàn bộ nội dung tệp hiện đang mở sẽ được gửi riêng cho nhóm phát triển. Chỉ chọn khi bạn đã kiểm tra và đồng ý chia sẻ.</p>
+        <textarea id="vno-report-description" maxlength="4000" rows="6"></textarea>
+        <p class="vno-report-warning">Tài liệu, tệp đính kèm và nội dung mô tả tự nhập không được gửi qua mạng.</p>
         <p class="vno-report-dialog-status" role="status" aria-live="polite"></p>`,
       actions: `<button type="button" class="vno-btn" data-dialog-action="cancel">Hủy</button>
         <button type="button" class="vno-btn vno-btn-primary" data-dialog-action="submit">Gửi góp ý</button>`,
       onSubmit: async (action, dialog, close) => {
         if (action !== "submit") return true;
       const description = dialog.querySelector("#vno-report-description").value.trim();
-      const attach = dialog.querySelector("#vno-report-attach").checked;
         const status = dialog.querySelector(".vno-report-dialog-status");
         if (!description) {
           status.textContent = "Vui lòng nhập mô tả trước khi gửi.";
@@ -193,11 +188,9 @@ export class ErrorReportingUI {
           const app = typeof document.querySelector === "function"
             ? document.querySelector("#vno-app-root")?.getAttribute?.("data-app")
             : undefined;
-          const result = await bridge.submit_user_feedback(description, attach, app);
+          const result = await bridge.submit_user_feedback(description, false, app);
           if (!result?.queued) throw new Error(result?.error || "Không lưu được báo cáo.");
-          status.textContent = result.status === "saved_local"
-            ? "Đã lưu cục bộ. Bật gửi tự động trong tab Trợ giúp để gửi khi có máy chủ."
-            : "Đã xếp góp ý vào hàng đợi gửi nền.";
+          status.textContent = "Đã lưu góp ý cục bộ trên máy này. Nội dung không được gửi qua mạng.";
           setTimeout(() => close("submitted"), 900);
         } catch (error) {
           status.textContent = String(error?.message || "Không gửi được góp ý. Hãy thử lại.");

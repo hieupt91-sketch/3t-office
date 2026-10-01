@@ -1,0 +1,36 @@
+services:
+  3t-office-cloud-api:
+    container_name: 3t-office-cloud-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    command:
+      - sh
+      - -c
+      - exec uvicorn app:app --host 0.0.0.0 --port 8000 --no-access-log >> /logs/uvicorn.log 2>&1
+    environment:
+      DATA_DIR: /data
+      UPDATES_DIR: /updates
+      REPORTS_DIR: /reports
+      BACKUPS_DIR: /backups
+      LOGS_DIR: /logs
+    ports:
+      - "127.0.0.1:8002:8000"
+    volumes:
+      - /srv/3t-office-cloud/data:/data
+      - /srv/3t-office-cloud/updates:/updates:ro
+      - /srv/3t-office-cloud/reports:/reports
+      - /srv/3t-office-cloud/backups:/backups
+      - /srv/3t-office-cloud/logs:/logs
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,noexec,nosuid,nodev
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped
+    logging:
+      driver: none

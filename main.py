@@ -33,7 +33,7 @@ import platform
 import zipfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from urllib.parse import urlencode, unquote
+from urllib.parse import urlencode, unquote, urlsplit
 
 _EARLY_SINGLE_INSTANCE_REQUEST_ID = None
 
@@ -156,22 +156,39 @@ _INSTANCE_DISPATCH_READY = threading.Event()
 _INSTANCE_DISPATCH_STOP = threading.Event()
 
 
-def _load_update_config() -> dict[str, str]:
+def _load_update_config() -> dict[str, object]:
     config_path = Path(ROOT_DIR) / "vnoffice-config.json"
     try:
         config = json.loads(config_path.read_text(encoding="utf-8"))
     except (OSError, ValueError, TypeError):
-        return {"source": "", "channel": "pilot"}
+        return {"source": "", "sources": [], "channel": "pilot", "product": "3t-office"}
     update = config.get("update", {}) if isinstance(config, dict) else {}
     if not isinstance(update, dict):
         update = {}
     source = update.get("source", "")
     channel = update.get("channel", "pilot")
+    product = update.get("product", "3t-office")
     if not isinstance(source, str):
         source = ""
     if not isinstance(channel, str) or not re.fullmatch(r"[a-z][a-z0-9-]{0,31}", channel):
         channel = "pilot"
-    return {"source": source.strip(), "channel": channel}
+    if not isinstance(product, str) or not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,63}", product):
+        product = "3t-office"
+    sources: list[str] = []
+    cloud_base = config.get("cloudBaseUrl", "") if isinstance(config, dict) else ""
+    if isinstance(cloud_base, str) and cloud_base.strip():
+        cloud_base = cloud_base.strip().rstrip("/")
+        parsed = urlsplit(cloud_base)
+        if parsed.scheme.lower() == "https" and parsed.netloc and not parsed.username and not parsed.password and not parsed.query and not parsed.fragment:
+            sources.append(f"{cloud_base}/updates")
+    configured_sources = update.get("sources")
+    if isinstance(configured_sources, list):
+        for value in configured_sources:
+            if isinstance(value, str) and value.strip() and value.strip() not in sources:
+                sources.append(value.strip())
+    if source.strip() and source.strip() not in sources:
+        sources.append(source.strip())
+    return {"source": sources[0] if sources else "", "sources": sources, "channel": channel, "product": product}
 
 
 def _update_install_root() -> Path | None:
@@ -3712,6 +3729,7 @@ def main(argv: list[str] | None = None):
                 updates_dir=_UPDATE_DATA_DIR,
                 current_version=installed_version,
                 source=update_config["source"],
+                sources=update_config["sources"],
                 channel=update_config["channel"],
                 public_key=get_public_key(),
                 on_state=_notify_update_ui,
