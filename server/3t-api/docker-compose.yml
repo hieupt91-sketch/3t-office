@@ -25,7 +25,7 @@ services:
       - /srv/3t-office-cloud/reports:/reports
       - /srv/3t-office-cloud/backups:/backups
       - /srv/3t-office-cloud/logs:/logs
-      - /srv/3t-office-cloud/web:/web:ro
+      - /srv/3t-office-cloud/app/web:/web:ro
     read_only: true
     tmpfs:
       - /tmp:size=16m,noexec,nosuid,nodev

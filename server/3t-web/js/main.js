@@ -127,11 +127,11 @@ function initHeroAppSwitcher() {
 
   const appData = {
     doc: {
-      title: "3T Doc — Soạn thảo văn bản (.docx)",
+      title: "Doc — Soạn thảo văn bản (.docx)",
       icon: "assets/icons/writer.svg",
       webp: "assets/screenshots/doc-preview.webp",
       png: "assets/screenshots/doc-preview.png",
-      alt: "Giao diện làm việc của 3T Doc — Soạn thảo văn bản hành chính",
+      alt: "Giao diện làm việc của Doc — Soạn thảo văn bản hành chính",
       bullets: [
         "Soạn thảo và định dạng văn bản chuẩn hành chính Việt Nam (Nghị định 30/2020/NĐ-CP).",
         "Mở, chỉnh sửa và lưu trực tiếp định dạng .docx, .odt, .doc; xuất tệp PDF chính xác từng trang.",
@@ -139,11 +139,11 @@ function initHeroAppSwitcher() {
       ]
     },
     sheet: {
-      title: "3T Sheet — Bảng tính & Công thức (.xlsx)",
+      title: "Sheet — Bảng tính & Công thức (.xlsx)",
       icon: "assets/icons/sheet.svg",
       webp: "assets/screenshots/sheet-preview.webp",
       png: "assets/screenshots/sheet-preview.png",
-      alt: "Giao diện làm việc của 3T Sheet — Bảng tính điện tử và công thức",
+      alt: "Giao diện làm việc của Sheet — Bảng tính điện tử và công thức",
       bullets: [
         "Tính toán công thức toán học, thống kê, tài chính và tra cứu (VLOOKUP, XLOOKUP, SUMIFS).",
         "Tích hợp Pivot Table (DataPilot), định dạng có điều kiện và lọc dữ liệu đa tiêu chí chuẩn .xlsx.",
@@ -151,11 +151,11 @@ function initHeroAppSwitcher() {
       ]
     },
     slide: {
-      title: "3T Slide — Trình chiếu thuyết trình (.pptx)",
+      title: "Slide — Trình chiếu thuyết trình (.pptx)",
       icon: "assets/icons/slides.svg",
       webp: "assets/screenshots/slide-preview.webp",
       png: "assets/screenshots/slide-preview.png",
-      alt: "Giao diện làm việc của 3T Slide — Thiết kế bài thuyết trình",
+      alt: "Giao diện làm việc của Slide — Thiết kế bài thuyết trình",
       bullets: [
         "Thiết kế bài thuyết trình đa phương tiện trực quan, tương thích tuyệt đối chuẩn .pptx và .odp.",
         "Hiệu ứng chuyển trang (Transitions), hoạt hình và quản lý Slide Master chuyên nghiệp.",

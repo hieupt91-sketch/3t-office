@@ -1,6 +1,6 @@
 # 3T Office Website (`server/3t-web`)
 
-Trang web tĩnh chính thức giới thiệu bộ ứng dụng văn phòng **3T Office** (gồm 3T Doc, 3T Sheet và 3T Slide), phục vụ tên miền `https://office.3tcomputer.com`.
+Trang web tĩnh chính thức giới thiệu bộ ứng dụng văn phòng **3T Office** (gồm Doc, Sheet và Slide), phục vụ tên miền `https://office.3tcomputer.com`.
 
 ---
 
@@ -47,9 +47,9 @@ Trang web sử dụng hệ thống thiết kế nhất quán được xây dựn
   - `--color-navy-800`: `#1e293b` (Xanh đen thẻ / container)
   - `--color-navy-700`: `#334155` (Xanh đen viền / tương phản)
 - **Màu sắc sản phẩm**:
-  - 3T Doc (Văn bản): `#2563eb` (Xanh dương)
-  - 3T Sheet (Bảng tính): `#16a34a` (Xanh lá cây)
-  - 3T Slide (Trình chiếu): `#ea580c` (Cam đỏ)
+  - Doc (Văn bản): `#2563eb` (Xanh dương)
+  - Sheet (Bảng tính): `#16a34a` (Xanh lá cây)
+  - Slide (Trình chiếu): `#ea580c` (Cam đỏ)
 
 ### 2.2. Chủ đề Sáng & Tối (Light & Dark Themes)
 Hệ thống hỗ trợ 2 chế độ màu với chuẩn độ tương phản WCAG AA:

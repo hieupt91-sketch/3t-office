@@ -26,12 +26,12 @@
       "date": "2026-10-01",
       "summary": "Tối ưu hóa bàn phím, clipboard, nhập công thức và ngắt mục",
       "highlights": [
-        "3T Doc: Bấm Enter xuống dòng đúng chuẩn, chữ gõ tiếp không còn dính vào dòng trên.",
-        "3T Doc: Phím tắt Ctrl+V dán và Ctrl+X cắt hoạt động trơn tru; bấm Tab chèn khoảng tab chuẩn văn bản và không làm mất chữ đang gõ.",
-        "3T Doc: Ngắt mục chuẩn định dạng tài liệu (trang tiếp theo, liên tục, trang chẵn/lẻ), giữ nguyên định dạng mục khi lưu tệp .docx.",
-        "3T Sheet: Nhập hàm công thức trực quan — gõ =SUM rồi nhấn Tab, bấm hoặc kéo chuột chọn ô/vùng khi đang gõ công thức, tô màu vùng tham chiếu trực quan, phím F4 chuyển đổi $A$1.",
-        "3T Sheet: Bàn phím tự động chuyển tiêu điểm trở lại bảng tính sau khi đóng hộp thoại.",
-        "3T Sheet: Gõ được ngay vào ô A1 khi vừa mở ứng dụng.",
+        "Doc: Bấm Enter xuống dòng đúng chuẩn, chữ gõ tiếp không còn dính vào dòng trên.",
+        "Doc: Phím tắt Ctrl+V dán và Ctrl+X cắt hoạt động trơn tru; bấm Tab chèn khoảng tab chuẩn văn bản và không làm mất chữ đang gõ.",
+        "Doc: Ngắt mục chuẩn định dạng tài liệu (trang tiếp theo, liên tục, trang chẵn/lẻ), giữ nguyên định dạng mục khi lưu tệp .docx.",
+        "Sheet: Nhập hàm công thức trực quan — gõ =SUM rồi nhấn Tab, bấm hoặc kéo chuột chọn ô/vùng khi đang gõ công thức, tô màu vùng tham chiếu trực quan, phím F4 chuyển đổi $A$1.",
+        "Sheet: Bàn phím tự động chuyển tiêu điểm trở lại bảng tính sau khi đóng hộp thoại.",
+        "Sheet: Gõ được ngay vào ô A1 khi vừa mở ứng dụng.",
         "Tốc độ: Mở nhiều tài liệu cùng lúc nhanh hơn — tài liệu thứ hai mở trong khoảng nửa giây.",
         "Trợ giúp: Bổ sung các bài viết Bắt đầu nhanh, Phím tắt thường dùng, Khác biệt cần biết ngay trong ứng dụng."
       ]
@@ -42,13 +42,13 @@
       "date": "2026-10-01",
       "summary": "Bộ ứng dụng thương hiệu 3T Office, What-If Analysis và công cụ trình chiếu",
       "highlights": [
-        "Đổi tên nhận diện thương hiệu: Bộ 3T Office gồm 3T Doc, 3T Sheet, 3T Slide và Trợ lý 3T AI.",
+        "Đổi tên nhận diện thương hiệu: Bộ 3T Office gồm Doc, Sheet, Slide và Trợ lý 3T AI.",
         "Mở ứng dụng vào ngay tài liệu trống, cửa sổ tối ưu sẵn sàng làm việc.",
         "Các thao tác Mới, Mở, Lưu, Lưu bản sao (chuyển đổi .docx, .xlsx, .pptx, cảnh báo ghi đè) và Đóng hoạt động hoàn chỉnh.",
         "In ấn và Xuất PDF dựng đúng nội dung tài liệu chuẩn xác.",
-        "3T Sheet: Kéo chuột chọn vùng dữ liệu; Bảng dữ liệu What-If 2 biến; Trình quản lý kịch bản và báo cáo tóm tắt; Ước lượng công thức từng bước; Cửa sổ theo dõi ô tính; Tiêu đề in lặp lại.",
-        "3T Doc: Trộn thư Mail Merge lấy dữ liệu nguồn từ bảng tính .xlsx và .csv.",
-        "3T Slide: Bút vẽ và bút laser khi trình chiếu toàn màn hình; kích thước trang chiếu chuẩn xác.",
+        "Sheet: Kéo chuột chọn vùng dữ liệu; Bảng dữ liệu What-If 2 biến; Trình quản lý kịch bản và báo cáo tóm tắt; Ước lượng công thức từng bước; Cửa sổ theo dõi ô tính; Tiêu đề in lặp lại.",
+        "Doc: Trộn thư Mail Merge lấy dữ liệu nguồn từ bảng tính .xlsx và .csv.",
+        "Slide: Bút vẽ và bút laser khi trình chiếu toàn màn hình; kích thước trang chiếu chuẩn xác.",
         "Cải thiện tốc độ mở tài liệu."
       ]
     },
@@ -69,7 +69,7 @@
       "date": "2026-09-30",
       "summary": "Độ chính xác định dạng phông chữ và bố cục trang",
       "highlights": [
-        "3T Doc giữ đúng cỡ chữ lẻ nửa điểm (ví dụ 13.5 pt) và chiều cao dòng khi mở và lưu tài liệu .docx, số trang khớp chuẩn xác."
+        "Doc giữ đúng cỡ chữ lẻ nửa điểm (ví dụ 13.5 pt) và chiều cao dòng khi mở và lưu tài liệu .docx, số trang khớp chuẩn xác."
       ]
     },
     {
@@ -87,7 +87,7 @@
       "date": "2026-09-29",
       "summary": "Bản nền tảng thử nghiệm nội bộ 3T Office",
       "highlights": [
-        "Khởi động bộ 3 ứng dụng văn phòng ngoại tuyến 3T Doc, 3T Sheet, 3T Slide trên Windows."
+        "Khởi động bộ 3 ứng dụng văn phòng ngoại tuyến Doc, Sheet, Slide trên Windows."
       ]
     }
   ]
