@@ -3,6 +3,7 @@
  */
 
 import { SheetGridController } from "../../apps/sheet/sheet-grid.js";
+import { createSheetGridWithSheets } from "./sheet-test-fixtures.js";
 
 function createMockContainer() {
   const listeners = {};
@@ -41,7 +42,7 @@ export async function runMultiSheetTests() {
 
   // 1. Kiểm tra kiến trúc sheetsData riêng biệt cho từng sheet
   test("Multi-Sheet Architecture: Mỗi sheet sở hữu Map cellsData riêng biệt", () => {
-    const grid = new SheetGridController(createMockContainer());
+    const grid = createSheetGridWithSheets(createMockContainer(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     if (!grid.sheetsData || typeof grid.sheetsData !== "object") {
       throw new Error("grid.sheetsData chưa được khai báo hoặc không phải object/Map");
     }
@@ -61,7 +62,7 @@ export async function runMultiSheetTests() {
 
   // 2. Kiểm tra cô lập dữ liệu khi đổi sheet: A1 sheet 1 không rò rỉ sang sheet 2
   test("Multi-Sheet Isolation: Gõ ô A1 sheet 1, đổi sang sheet 2 ô A1 rỗng, đổi về sheet 1 dữ liệu còn nguyên", () => {
-    const grid = new SheetGridController(createMockContainer());
+    const grid = createSheetGridWithSheets(createMockContainer(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
 
     if (typeof grid.switchSheet !== "function") {
       throw new Error("grid.switchSheet(sheetName) chưa được hiện thực");
@@ -111,7 +112,7 @@ export async function runMultiSheetTests() {
 
   // 3. Kiểm tra FormulaEngine tính toán chính xác theo ngữ cảnh sheet đang active
   test("Multi-Sheet Formula: FormulaEngine tính toán độc lập theo từng sheet", () => {
-    const grid = new SheetGridController(createMockContainer());
+    const grid = createSheetGridWithSheets(createMockContainer(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     if (typeof grid.switchSheet !== "function") {
       throw new Error("grid.switchSheet(sheetName) chưa được hiện thực");
     }
@@ -143,7 +144,7 @@ export async function runMultiSheetTests() {
 
   // 4. Thêm trang tính mới bằng addSheet
   test("Multi-Sheet Add: addSheet tạo sheet mới với data Map riêng và chuyển active", () => {
-    const grid = new SheetGridController(createMockContainer());
+    const grid = createSheetGridWithSheets(createMockContainer(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     if (typeof grid.addSheet !== "function") {
       throw new Error("grid.addSheet chưa được hiện thực");
     }
@@ -167,7 +168,7 @@ export async function runMultiSheetTests() {
 
   // 5. Kiểm tra Undo/Redo ghi nhận đúng sheet
   test("Multi-Sheet Undo/Redo: Hoàn tác tự động quay về sheet đã thực hiện thao tác", () => {
-    const grid = new SheetGridController(createMockContainer());
+    const grid = createSheetGridWithSheets(createMockContainer(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     grid.setCellValue("C", 1, "Ban đầu Sheet 1");
     grid.setCellValue("C", 1, "Đã sửa Sheet 1");
 
@@ -199,7 +200,7 @@ export async function runMultiSheetTests() {
 
   // 6. Kiểm tra cách ly trạng thái bộ lọc (Filter) giữa các sheet
   test("Multi-Sheet Filter Isolation: Trạng thái lọc không bị ảnh hưởng chéo giữa các sheet", () => {
-    const grid = new SheetGridController(createMockContainer());
+    const grid = createSheetGridWithSheets(createMockContainer(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     grid.activeFilters.set("A", new Set(["SP01"]));
     grid.hiddenRows.add(5);
     grid.hiddenRows.add(6);

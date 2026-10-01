@@ -1,5 +1,6 @@
 import { readFileSync } from "fs";
 import { SheetGridController, _getTabContrastTextColor } from "../../apps/sheet/sheet-grid.js";
+import { createSheetGridWithSheets } from "./sheet-test-fixtures.js";
 import { ICONS } from "../../platform/ui-kit/icons.js";
 import { SHEET_RIBBON_TABS } from "../../apps/sheet/sheet-ribbon.js";
 import { VN_TO_UNO_MAP } from "../../adapters/libreoffice/common/command-dispatch-mapper.js";
@@ -83,7 +84,7 @@ export async function runSheetImageTests() {
     });
 
     test("Sheet Image: chèn tại anchor, render, xóa và Undo/Redo đối xứng", () => {
-      const grid = new SheetGridController(container());
+      const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
       grid.imageLayer = layer();
       const image = grid.insertImage("data:image/png;base64,AA==", { c: "C", r: 5 });
       assert(image.anchor.c === "C" && image.anchor.r === 5, "Anchor C5 không được lưu");
@@ -95,7 +96,7 @@ export async function runSheetImageTests() {
     });
 
     test("Sheet Image: state và DOM cô lập theo sheet", () => {
-      const grid = new SheetGridController(container());
+      const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
       grid.imageLayer = layer();
       const firstSheet = grid.activeSheet;
       grid.insertImage("data:image/png;base64,AA==", { c: "A", r: 1 });
@@ -106,7 +107,7 @@ export async function runSheetImageTests() {
     });
 
     test("Sheet Image: _getAnchorFromPixel tính ngược pixel sang tọa độ ô gần nhất", () => {
-      const grid = new SheetGridController(container());
+      const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
       // Header offset: left=46, top=28, colWidth=100, rowHeight=28
       // Ô A1: left=46, top=28
       const a1 = grid._getAnchorFromPixel(46, 28);
@@ -130,7 +131,7 @@ export async function runSheetImageTests() {
     });
 
     test("Sheet Image: di chuyển ảnh (move) cập nhật anchor, DOM và Undo/Redo đối xứng", () => {
-      const grid = new SheetGridController(container());
+      const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
       grid.imageLayer = layer();
       const image = grid.insertImage("data:image/png;base64,AA==", { c: "B", r: 2 });
       assert(grid.imageLayer.children[0]?.dataset.anchor === "B2", "Ảnh ban đầu không neo tại B2");
@@ -168,7 +169,7 @@ export async function runSheetImageTests() {
     });
 
     test("Sheet Image: render đúng kích thước widthCm/heightCm và vị trí tích lũy hàng/cột + offset (mock getRowHeight hàng 1 = 198px, ảnh B5 không đè hàng 1)", () => {
-      const grid = new SheetGridController(container());
+      const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
       grid.imageLayer = layer();
       // Mock getRowHeight: hàng 1 cao 198px (như file Dahua thật), các hàng khác 28px
       grid.getRowHeight = (r) => Number(r) === 1 ? 198 : 28;
@@ -231,7 +232,7 @@ export async function runSheetImageTests() {
     });
 
     test("Sheet Image: bỏ khung thẻ mặc định khi chưa chọn, hiện viền chọn + 8 handles khi được chọn", () => {
-      const grid = new SheetGridController(container());
+      const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
       grid.imageLayer = layer();
       grid.imagesBySheet[grid.activeSheet] = [{
         id: "img-1",
@@ -274,7 +275,7 @@ export async function runSheetImageTests() {
       assert(_getTabContrastTextColor("#4A86E8") === "#ffffff", "Xanh duong toi phai co chu trang");
 
       // DOM tab rendering
-      const grid = new SheetGridController(container());
+      const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
       const tabsList = new FakeElement("div");
       tabsList.id = "vno-sheet-tabs-list";
       const tabBar = new FakeElement("div");
@@ -336,7 +337,7 @@ export async function runSheetImageTests() {
       assert(cornerZ >= 25, `Corner header z-index phai >= 25, thuc te: ${cornerZ}`);
 
       // Kiem tra z-index cua imageLayer va image panel trong sheet-grid.js
-      const grid = new SheetGridController(container());
+      const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
       grid.imageLayer = layer();
       grid.imagesBySheet[grid.activeSheet] = [
         { id: "img-normal", src: "data:image/png;base64,AA==", anchor: { c: "C", r: 5 } },
@@ -363,7 +364,7 @@ export async function runSheetImageTests() {
     });
 
     test("Sheet Image: anh anchor hang 7 co top = top hang 7 (DOM offsetTop)", () => {
-      const grid = new SheetGridController(container());
+      const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
       grid.imageLayer = layer();
       grid.tbody = {
         querySelector: (sel) => {
@@ -381,7 +382,7 @@ export async function runSheetImageTests() {
     });
 
     test("Sheet Image: page-anchored image with endCellAddress (no anchor) duoc render dung vi tri", () => {
-      const grid = new SheetGridController(container());
+      const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
       grid.imageLayer = layer();
       grid.tbody = {
         querySelector: (sel) => {
@@ -403,7 +404,7 @@ export async function runSheetImageTests() {
     });
 
     test("Sheet Image: image khong co anchor va khong co endCellAddress bi bo qua (khong crash)", () => {
-      const grid = new SheetGridController(container());
+      const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
       grid.imageLayer = layer();
       grid.imagesBySheet[grid.activeSheet] = [
         { id: "img-no-anchor", src: "data:image/png;base64,AA==" },
@@ -415,7 +416,7 @@ export async function runSheetImageTests() {
     });
 
     test("Sheet Image: anh hien thi placeholder khi onerror (WMF/EMF khong decode duoc) (S25g)", () => {
-      const grid = new SheetGridController(container());
+      const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
       grid.imageLayer = layer();
       grid.imagesBySheet[grid.activeSheet] = [
         { id: "img-broken", src: "data:image/x-wmf;base64,AA==", anchor: { c: "A", r: 1 }, widthCm: 5, heightCm: 5 }
@@ -435,7 +436,7 @@ export async function runSheetImageTests() {
     });
 
     test("Sheet Image: S28d leftVal can chinh theo targetTd.offsetLeft cua DOM tranh tran cot", () => {
-      const grid = new SheetGridController(container());
+      const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
       grid.imageLayer = layer();
       const mockTd = { offsetLeft: 44, dataset: { col: "A" } };
       const mockTr = {
@@ -462,7 +463,7 @@ export async function runSheetImageTests() {
     });
 
     test("Sheet Image: S28e banner sheet phu render day du theo anchor A1, giu dung kich thuoc cm va co lap z-index/frozen", () => {
-      const grid = new SheetGridController(container());
+      const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
       grid.imageLayer = layer();
       const mockTd = { offsetLeft: 44, dataset: { col: "A" } };
       const mockTr = {

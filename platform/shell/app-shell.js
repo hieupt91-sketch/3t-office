@@ -1,5 +1,5 @@
 /**
- * VN Office Platform — Enterprise Application Shell
+ * 3T Office Platform — Enterprise Application Shell
  */
 
 import { ICONS } from "../ui-kit/icons.js";
@@ -12,7 +12,7 @@ import { RecentFilesManager } from "../recent/recent-manager.js";
 import { createEmptyState } from "../ui-kit/components.js";
 import { LocalAiService, ApiKeyManager } from "../ai/ai-service.js";
 import { isVoiceInputSupported, startVoiceInput, stopVoiceInput, isVoiceInputActive } from "../ai/voice-input.js";
-import { showAlertDialog, showConfirmDialog, showPromptDialog, showMacroManagerDialog, showPendingFeatureNotice } from "../ui-kit/dialogs.js";
+import { showAlertDialog, showConfirmDialog, showPromptDialog, showMacroManagerDialog, showUnsavedChangesDialog, showPendingFeatureNotice } from "../ui-kit/dialogs.js";
 import { t, getLocale, setLocale, getSupportedLocales } from "../i18n/i18n.js";
 import { getPlatformLaunchContext } from "../bootstrap.js";
 import { themeManager } from "../theme/theme-manager.js";
@@ -69,14 +69,16 @@ export class AppShell {
     this.rootEl.className = "vno-shell";
     this.rootEl.setAttribute("data-app", this.appName);
 
-    RecentFilesManager.recordFile({ name: this.documentName, app: this.appName });
-
     this._renderTopBar();
     this._renderRibbon();
     this._renderNotificationHost();
     this._renderWorkspace();
     this._renderStatusBar();
     this._setupGlobalShortcuts();
+    this._updateDocumentTitle();
+    if (typeof window !== "undefined") {
+      window.__vnoHandleNativeClose = () => this.requestCloseDocument();
+    }
   }
 
   _renderTopBar() {
@@ -90,18 +92,18 @@ export class AppShell {
         <div style="position:relative;">
           <button class="vno-app-switcher-btn" id="vno-switcher-toggle"
                   aria-haspopup="true" aria-expanded="false" aria-controls="vno-switcher-menu"
-                  aria-label="Chuyển đổi ứng dụng trong bộ VN Office: ${this.appTitle}"
-                  title="Chuyển đổi ứng dụng trong bộ VN Office">
+                  aria-label="Chuyển đổi ứng dụng trong bộ 3T Office: ${this.appTitle}"
+                  title="Chuyển đổi ứng dụng trong bộ 3T Office">
             ${ICONS.brandLogo}
             <span>${this.appTitle}</span>
             <span style="display:flex;margin-left:2px;" aria-hidden="true">${ICONS.chevronDown}</span>
           </button>
-          <div id="vno-switcher-menu" role="menu" aria-label="Bộ ứng dụng VN Office"
+          <div id="vno-switcher-menu" role="menu" aria-label="Bộ ứng dụng 3T Office"
                style="display:none; position:absolute; top:36px; left:0; background:var(--vno-bg-window); color:var(--vno-text-primary); border:1px solid var(--vno-border-default); border-radius:var(--vno-radius-md); box-shadow:var(--vno-shadow-lg); width:230px; z-index:200; padding:6px 0;">
-            <div style="padding:6px 14px; font-size:11px; font-weight:bold; color:var(--vno-text-muted); text-transform:uppercase;" role="presentation">Bộ ứng dụng VN Office</div>
-            <div class="vno-switcher-item" data-switch="writer" role="menuitem" tabindex="0" style="display:flex; align-items:center; gap:10px; padding:8px 14px; cursor:pointer; font-size:13px; font-weight:500;">${ICONS.appWriter} <span>VN Writer (Soạn thảo)</span></div>
-            <div class="vno-switcher-item" data-switch="sheet" role="menuitem" tabindex="0" style="display:flex; align-items:center; gap:10px; padding:8px 14px; cursor:pointer; font-size:13px; font-weight:500;">${ICONS.appSheet} <span>VN Sheet (Bảng tính)</span></div>
-            <div class="vno-switcher-item" data-switch="slides" role="menuitem" tabindex="0" style="display:flex; align-items:center; gap:10px; padding:8px 14px; cursor:pointer; font-size:13px; font-weight:500;">${ICONS.appSlides} <span>VN Slides (Trình chiếu)</span></div>
+            <div style="padding:6px 14px; font-size:11px; font-weight:bold; color:var(--vno-text-muted); text-transform:uppercase;" role="presentation">Bộ ứng dụng 3T Office</div>
+            <div class="vno-switcher-item" data-switch="writer" role="menuitem" tabindex="0" style="display:flex; align-items:center; gap:10px; padding:8px 14px; cursor:pointer; font-size:13px; font-weight:500;">${ICONS.appWriter} <span>3T Doc (Soạn thảo)</span></div>
+            <div class="vno-switcher-item" data-switch="sheet" role="menuitem" tabindex="0" style="display:flex; align-items:center; gap:10px; padding:8px 14px; cursor:pointer; font-size:13px; font-weight:500;">${ICONS.appSheet} <span>3T Sheet (Bảng tính)</span></div>
+            <div class="vno-switcher-item" data-switch="slides" role="menuitem" tabindex="0" style="display:flex; align-items:center; gap:10px; padding:8px 14px; cursor:pointer; font-size:13px; font-weight:500;">${ICONS.appSlides} <span>3T Slide (Trình chiếu)</span></div>
           </div>
         </div>`;
 
@@ -160,9 +162,9 @@ export class AppShell {
           <span class="vno-theme-icon" aria-hidden="true" style="display:flex;">${themeManager.getTheme() === "dark" ? ICONS.themeSun : ICONS.themeMoon}</span>
           <span class="vno-theme-label">${themeManager.getTheme() === "dark" ? (getLocale() === "vi" ? "Sáng" : "Light") : (getLocale() === "vi" ? "Tối" : "Dark")}</span>
         </button>
-        <button class="vno-ai-trigger-btn" id="vno-toggle-ai-btn" aria-label="Trợ lý VN AI (Alt+J)" title="Trợ lý VN AI (Alt+J)">
+        <button class="vno-ai-trigger-btn" id="vno-toggle-ai-btn" aria-label="Trợ lý 3T AI (Alt+J)" title="Trợ lý 3T AI (Alt+J)">
           <span style="color:#d97706;display:flex;" aria-hidden="true">${ICONS.aiSparkle}</span>
-          <span>Trợ lý VN AI</span>
+          <span>Trợ lý 3T AI</span>
         </button>
       </div>
     `;
@@ -231,6 +233,10 @@ export class AppShell {
       btn.addEventListener("click", () => {
         globalCommandBus.execute(btn.getAttribute("data-cmd"));
       });
+    });
+
+    bar.querySelector(".vno-tab-close")?.addEventListener("click", () => {
+      globalCommandBus.execute("common.file.close");
     });
 
     bar.querySelector("#vno-toggle-ai-btn").addEventListener("click", () => this.toggleAiSidebar());
@@ -349,14 +355,14 @@ export class AppShell {
     this.aiSidebar = document.createElement("aside");
     this.aiSidebar.className = "vno-ai-sidebar is-hidden";
     this.aiSidebar.setAttribute("role", "complementary");
-    this.aiSidebar.setAttribute("aria-label", "Trợ lý VN AI");
+    this.aiSidebar.setAttribute("aria-label", "Trợ lý 3T AI");
     this.aiSidebar.innerHTML = `
       <div class="vno-ai-header">
         <div style="display:flex;align-items:center;gap:8px;">
           <span style="color:#d97706;display:flex;" aria-hidden="true">${ICONS.aiSparkle}</span>
-          <span>Trợ lý VN AI</span>
+          <span>Trợ lý 3T AI</span>
         </div>
-        <button type="button" class="vno-btn" id="vno-ai-close" aria-label="Đóng bảng Trợ lý VN AI" title="Đóng" style="font-size:16px;">&times;</button>
+        <button type="button" class="vno-btn" id="vno-ai-close" aria-label="Đóng bảng Trợ lý 3T AI" title="Đóng" style="font-size:16px;">&times;</button>
       </div>
       <div style="padding:10px 12px;border-bottom:1px solid var(--vno-border-default);font-size:12px;display:grid;gap:8px;">
         <label for="vno-ai-provider" style="font-weight:600;">${t("aiAssistant.provider")}</label>
@@ -383,7 +389,7 @@ export class AppShell {
       </div>
       <div class="vno-ai-messages" id="vno-ai-messages" role="log" aria-live="polite">
         <div style="background:var(--vno-bg-subtle);border:1px solid var(--vno-border-default);padding:14px;border-radius:var(--vno-radius-md);font-size:12px;line-height:1.5;">
-          <strong>Xin chào!</strong> Tôi là Trợ lý VN AI tích hợp trong VN Office.<br>
+          <strong>Xin chào!</strong> Tôi là Trợ lý 3T AI tích hợp trong 3T Office.<br>
           • Bảo mật trên thiết bị (Privacy-first)<br>
           • Trau chuốt văn phong tiếng Việt<br>
           • Tóm tắt & soát lỗi văn bản hành chính
@@ -398,7 +404,7 @@ export class AppShell {
 
     this.aiSidebar.querySelector("#vno-ai-close").addEventListener("click", () => this.toggleAiSidebar(false));
 
-    // Xử lý gửi yêu cầu tới Trợ lý VN AI
+    // Xử lý gửi yêu cầu tới Trợ lý 3T AI
     const sendBtn = this.aiSidebar.querySelector("#vno-ai-send");
     const inputEl = this.aiSidebar.querySelector("#vno-ai-input");
     const messagesEl = this.aiSidebar.querySelector("#vno-ai-messages");
@@ -659,7 +665,7 @@ export class AppShell {
         });
         return `
           <div class="vno-recent-row" role="button" tabindex="0" aria-label="${file.name}, sửa đổi: ${timeStr}, định dạng: ${file.format}"
-               data-recent-app="${file.app}" data-recent-name="${file.name}">
+               data-recent-app="${file.app}" data-recent-name="${file.name}" data-recent-path="${encodeURIComponent(file.path)}">
             <div style="min-width:0;flex:1;">
               <strong style="font-size:13px;color:var(--vno-text-primary);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${file.name}</strong>
               <div style="font-size:11px;color:var(--vno-text-muted);margin-top:2px;">Sửa đổi: ${timeStr}</div>
@@ -911,35 +917,18 @@ export class AppShell {
 
     // Xử lý nhấp chọn tài liệu gần đây
     modal.querySelectorAll(".vno-recent-row").forEach(row => {
-      const activateRecent = () => {
+      const activateRecent = async () => {
         const app = row.getAttribute("data-recent-app");
         const fileName = row.getAttribute("data-recent-name");
-        const isMissing = row.getAttribute("data-recent-missing") === "true";
-
-        if (isMissing) {
-          showConfirmDialog({
-            title: t("backstage.fileNotFoundTitle", "Không tìm thấy tệp"),
-            message: t("backstage.fileNotFoundMessage", "Tệp \"{name}\" không còn tồn tại tại vị trí cũ hoặc đã bị xóa. Bạn có muốn gỡ tệp này khỏi danh sách gần đây không?").replace("{name}", fileName),
-            confirmText: t("backstage.removeRecent", "Gỡ khỏi danh sách"),
-            cancelText: t("sheetDialogs.cancel", "Hủy"),
-            onConfirm: () => {
-              RecentFilesManager.removeFile({ name: fileName, app: app });
-              row.remove();
-              const remaining = modal.querySelectorAll(".vno-recent-row");
-              if (remaining.length === 0) {
-                const wrapper = modal.querySelector("#vno-recent-section-wrapper");
-                if (wrapper) {
-                  renderEmptyRecent(wrapper);
-                }
-              }
-            }
-          });
-          return;
-        }
-
+        const filePath = decodeURIComponent(row.getAttribute("data-recent-path") || "");
         closeModal();
-        if (app !== this.appName) {
-          this.requestAppSwitch(app);
+        const result = await globalUnoBridge.openFileInNewWindow(filePath, app);
+        if (result?.status !== "ok") {
+          await showAlertDialog({
+            title: t("backstage.fileNotFoundTitle", "Không thể mở tệp gần đây"),
+            message: result?.message || `Không mở được “${fileName}”.`,
+            type: "error"
+          });
         }
       };
       row.addEventListener("click", activateRecent);
@@ -1018,7 +1007,10 @@ export class AppShell {
     };
 
     homeNavBtn?.addEventListener("click", () => showTab("home"));
-    printNavBtn?.addEventListener("click", () => showTab("print"));
+    printNavBtn?.addEventListener("click", () => {
+      closeModal();
+      globalCommandBus.execute("common.file.print");
+    });
 
     modal.querySelectorAll("[data-backstage-cmd]").forEach(btn => {
       btn.addEventListener("click", () => {
@@ -1314,17 +1306,17 @@ export class AppShell {
       this.documentName = "Quyết định ban hành tiêu chuẩn 01.docx";
       const tabEl = this.rootEl.querySelector(".vno-doc-tab span");
       if (tabEl) tabEl.textContent = this.documentName;
-      RecentFilesManager.recordFile({ name: this.documentName, app: "writer" });
+      this._updateDocumentTitle();
     } else if (this.appName === "sheet" && templateId === "budget_estimate") {
-      this.documentName = "Dự toán kinh phí VN Office 2026.xlsx";
+      this.documentName = "Dự toán kinh phí 3T Office 2026.xlsx";
       const tabEl = this.rootEl.querySelector(".vno-doc-tab span");
       if (tabEl) tabEl.textContent = this.documentName;
-      RecentFilesManager.recordFile({ name: this.documentName, app: "sheet" });
+      this._updateDocumentTitle();
     } else if (this.appName === "slides" && templateId === "presentation_outline") {
-      this.documentName = "Báo cáo đề án phát triển VN Office 2026.pptx";
+      this.documentName = "Báo cáo đề án phát triển 3T Office 2026.pptx";
       const tabEl = this.rootEl.querySelector(".vno-doc-tab span");
       if (tabEl) tabEl.textContent = this.documentName;
-      RecentFilesManager.recordFile({ name: this.documentName, app: "slides" });
+      this._updateDocumentTitle();
     }
   }
 
@@ -1340,17 +1332,59 @@ export class AppShell {
    *   Recent Files (lỗi thật: File > Mới trước đó sẽ đẩy "Tài liệu 1.docx"
    *   giả lên đầu danh sách, đè lên tệp thật đã mở/lưu trước đó).
    */
-  resetDocumentChrome(newDocumentName, homeTabId = "home", recordRecent = true) {
+  resetDocumentChrome(newDocumentName, homeTabId = "home", recordRecent = true, filePath = "") {
     this.clearNotification();
     this.documentName = newDocumentName;
     const tabEl = this.rootEl?.querySelector(".vno-doc-tab span");
     if (tabEl) tabEl.textContent = this.documentName;
+    this._updateDocumentTitle();
     if (homeTabId) {
       this.ribbonHost?.selectTab(homeTabId);
     }
-    if (this.appName && recordRecent) {
-      RecentFilesManager.recordFile({ name: this.documentName, app: this.appName });
+    if (this.appName && recordRecent && filePath) {
+      RecentFilesManager.recordFile({ name: this.documentName, app: this.appName, path: filePath });
     }
+  }
+
+  _updateDocumentTitle() {
+    const title = this.documentName ? `${this.documentName} — ${this.appTitle}` : this.appTitle;
+    if (typeof document !== "undefined") document.title = title;
+    globalUnoBridge.setWindowTitle(title).catch(() => false);
+  }
+
+  async confirmUnsavedChangesBeforeReplace() {
+    if (!this.adapter?.isDirty) return true;
+    const choice = await showUnsavedChangesDialog({
+      title: "Lưu thay đổi?",
+      message: "Tài liệu hiện tại có thay đổi chưa lưu. Bạn muốn lưu trước khi mở tệp khác không?"
+    });
+    if (choice === "discard") return true;
+    if (choice !== "save") return false;
+    return (await this.adapter.save()) === true;
+  }
+
+  async requestNewDocumentWindow() {
+    const result = await globalUnoBridge.createNewDocumentWindow(this.appName);
+    if (result?.status === "ok") return true;
+    await showAlertDialog({
+      title: "Không thể tạo tài liệu mới",
+      message: result?.message || "3T Office không mở được cửa sổ tài liệu mới.",
+      type: "error"
+    });
+    return false;
+  }
+
+  async requestCloseDocument() {
+    if (this.adapter?.isDirty) {
+      const choice = await showUnsavedChangesDialog({
+        title: "Lưu thay đổi?",
+        message: "Tài liệu hiện tại có thay đổi chưa lưu. Bạn muốn lưu trước khi đóng không?"
+      });
+      if (choice !== "save" && choice !== "discard") return false;
+      if (choice === "save" && (await this.adapter.save()) !== true) return false;
+    }
+    const result = await globalUnoBridge.closeCurrentWindow();
+    return result?.status === "ok";
   }
 
   _setupGlobalShortcuts() {

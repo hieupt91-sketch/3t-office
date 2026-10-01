@@ -1,5 +1,5 @@
 /**
- * VN Sheet Application Entrypoint — Refined Enterprise Edition
+ * 3T Sheet Application Entrypoint — Refined Enterprise Edition
  */
 
 import { AppShell } from "../../platform/shell/app-shell.js";
@@ -34,10 +34,12 @@ export class SheetApp {
     await bootstrapPlatform();
     globalShortcutManager.setActiveScope("sheet");
 
+    const templateId = options.templateId || "blank";
+    const isBlank = templateId !== "budget_estimate";
     this.shell = new AppShell({
       appName: "sheet",
-      appTitle: "VN Sheet",
-      documentName: options.documentName || "Dự toán kinh phí VN Office 2026.xlsx"
+      appTitle: "3T Sheet",
+      documentName: options.documentName || (isBlank ? "Bảng tính 1.xlsx" : "Dự toán kinh phí 3T Office 2026.xlsx")
     });
     this.shell.mount(this.mountElement);
     this._watchLifecycle();
@@ -60,15 +62,10 @@ export class SheetApp {
       onSelect: (coord, data, stats) => {
         this.shell.setStatus(`SẴN SÀNG  |  Ô: ${coord}  |  ĐẾM: ${stats.count}  |  TRUNG BÌNH: ${stats.avg}  |  TỔNG CỘNG: ${stats.sum}`);
       },
-      isBlank: options.templateId === "blank"
+      isBlank,
+      templateId
     });
     this.grid.mount();
-
-    if (options.templateId === "blank") {
-      this.shell.documentName = "Bảng tính 1.xlsx";
-      const tabEl = this.shell.rootEl.querySelector(".vno-doc-tab span");
-      if (tabEl) tabEl.textContent = "Bảng tính 1.xlsx";
-    }
 
     this.helpPanel = new HelpPanel({ app: "sheet" });
     this.helpPanel.mount(workspace);
@@ -127,7 +124,7 @@ export class SheetApp {
     });
 
     this.grid.updateStatus();
-    console.log("[SheetApp] Đã khởi tạo VN Sheet chuẩn hóa cao cấp.");
+    console.log("[SheetApp] Đã khởi tạo 3T Sheet chuẩn hóa cao cấp.");
   }
 
   _watchLifecycle() {
@@ -242,7 +239,7 @@ export class SheetApp {
     }
 
     try {
-      const prompt = `Tạo công thức Excel từ mô tả sau. YÊU CẦU BẮT BUỘC:\n- CHỈ dùng các hàm trong danh sách: ${supportedFunctions}\n- Trả về ĐÚNG MỘT công thức duy nhất bắt đầu bằng dấu =\n- Không giải thích, không văn bản thừa — chỉ công thức\n- Đảm bảo cú pháp chính xác, tương thích VN Sheet\n\nMô tả: ${description.trim()}`;
+      const prompt = `Tạo công thức Excel từ mô tả sau. YÊU CẦU BẮT BUỘC:\n- CHỈ dùng các hàm trong danh sách: ${supportedFunctions}\n- Trả về ĐÚNG MỘT công thức duy nhất bắt đầu bằng dấu =\n- Không giải thích, không văn bản thừa — chỉ công thức\n- Đảm bảo cú pháp chính xác, tương thích 3T Sheet\n\nMô tả: ${description.trim()}`;
       const res = await LocalAiService.query(prompt, { documentText: "", appName: "sheet" });
 
       let formula = (res.reply || "").trim();
@@ -260,7 +257,7 @@ export class SheetApp {
       const unsupported = funcMatches.filter(fn => !supportedNames.has(fn.toUpperCase()));
 
       if (unsupported.length > 0) {
-        botMsg.innerHTML = `<div style="font-weight:bold;color:#dc2626;margin-bottom:6px;">⚠️ ${t("aiAssistant.formulaFromDescUnsupported", "Công thức chứa hàm VN Sheet chưa hỗ trợ:")}</div>`;
+        botMsg.innerHTML = `<div style="font-weight:bold;color:#dc2626;margin-bottom:6px;">⚠️ ${t("aiAssistant.formulaFromDescUnsupported", "Công thức chứa hàm 3T Sheet chưa hỗ trợ:")}</div>`;
         const replyEl = document.createElement("div");
         replyEl.style.cssText = "color:var(--vno-text-primary);font-size:12px;";
         replyEl.textContent = unsupported.join(", ");

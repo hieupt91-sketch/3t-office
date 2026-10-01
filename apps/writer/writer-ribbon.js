@@ -1,5 +1,5 @@
 /**
- * VN Writer — Enterprise Ribbon Structure
+ * 3T Doc — Enterprise Ribbon Structure
  * Cấu hình đầy đủ Icon Vector chuẩn Office Suite
  */
 
@@ -721,7 +721,7 @@ export const WRITER_RIBBON_TABS = [
   },
   {
     id: "ai",
-    label: "Trợ lý VN AI",
+    label: "Trợ lý 3T AI",
     labelKey: "writerRibbon.tab.ai",
     groups: [
       {

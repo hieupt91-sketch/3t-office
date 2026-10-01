@@ -1,5 +1,5 @@
 /**
- * VN Slides Application Entrypoint — Refined Enterprise Edition
+ * 3T Slide Application Entrypoint — Refined Enterprise Edition
  */
 
 import { AppShell } from "../../platform/shell/app-shell.js";
@@ -28,11 +28,12 @@ export class SlidesApp {
     await bootstrapPlatform();
     globalShortcutManager.setActiveScope("slides");
 
-    const isBlank = options.templateId === "blank";
+    const templateId = options.templateId || "blank";
+    const isBlank = templateId === "blank";
     this.shell = new AppShell({
       appName: "slides",
-      appTitle: "VN Slides",
-      documentName: options.documentName || (isBlank ? "Bản trình chiếu 1.pptx" : "Báo cáo đề án phát triển VN Office 2026.pptx")
+      appTitle: "3T Slide",
+      documentName: options.documentName || (isBlank ? "Bản trình bày 1.pptx" : "Báo cáo đề án phát triển 3T Office 2026.pptx")
     });
     this.shell.mount(this.mountElement);
     this._watchLifecycle();
@@ -51,21 +52,14 @@ export class SlidesApp {
     workspace.appendChild(studioWrap);
 
     this.canvasController = new SlidesCanvasController(studioWrap, {
+      isDemoTemplate: templateId === "presentation_outline",
+      isBlankTemplate: isBlank,
       onDocumentChange: () => { if (this.adapter) this.adapter.isDirty = true; },
       onChange: (current, total) => {
         this.shell.setStatus(`Trang chiếu ${current} / ${total}  |  Tỷ lệ 16:9 HD  |  Tiếng Việt`);
       }
     });
     this.canvasController.mount();
-
-    if (isBlank) {
-      this.canvasController.slides = [
-        { id: 1, title: "Tiêu đề trang chiếu", body: "• Nhập nội dung chính tại đây", layoutType: "title-content", shapes: [] }
-      ];
-      this.canvasController.selectSlide(0);
-      const tabEl = this.shell.rootEl.querySelector(".vno-doc-tab span");
-      if (tabEl) tabEl.textContent = "Bản trình chiếu 1.pptx";
-    }
 
     this.helpPanel = new HelpPanel({ app: "slides" });
     this.helpPanel.mount(workspace);
@@ -90,8 +84,8 @@ export class SlidesApp {
       options
     });
 
-    this.shell.setStatus("Trang chiếu 1 / 3  |  Tỷ lệ 16:9 HD  |  Tiếng Việt  |  Sẵn sàng");
-    console.log("[SlidesApp] Đã khởi tạo VN Slides chuẩn hóa cao cấp.");
+    this.shell.setStatus(`Trang chiếu 1 / ${this.canvasController.slides.length}  |  Tỷ lệ 16:9 HD  |  Tiếng Việt  |  Sẵn sàng`);
+    console.log("[SlidesApp] Đã khởi tạo 3T Slide chuẩn hóa cao cấp.");
   }
 
   _watchLifecycle() {

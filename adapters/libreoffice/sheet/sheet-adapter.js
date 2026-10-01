@@ -1,11 +1,12 @@
 /**
- * VN Office LibreOffice Adapter — VN Sheet Adapter
+ * 3T Office LibreOffice Adapter — 3T Sheet Adapter
  * Quản lý tương tác với StarCalc (sc) Document Model & Phím tắt Microsoft/LibreOffice
  */
 
 import { globalUnoBridge } from "../common/uno-bridge.js";
 import { showAlertDialog, showPromptDialog, showFindReplaceDialog } from "../../../platform/ui-kit/dialogs.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
+import { openPrintDialog } from "../../../platform/print/print-dialog.js";
 import { globalShortcutManager } from "../../../platform/commands/shortcut-manager.js";
 import { getVnCommand } from "../common/command-dispatch-mapper.js";
 import { SheetChartBuilder } from "../../../apps/sheet/sheet-chart.js";
@@ -206,8 +207,9 @@ export class SheetAdapter {
     // common.edit.undo/redo dùng chung 1 handler toàn Suite qua Command Bus — mỗi app
     // (Writer/Sheet/Slides) PHẢI tự bindHandler() lại khi active, nếu không app kích hoạt
     // trước (mặc định Writer) sẽ chiếm vĩnh viễn phím Ctrl+Z/Ctrl+Y cho mọi app khác.
-    globalCommandBus.bindHandler("common.file.new", () => this.newDocument());
+    globalCommandBus.bindHandler("common.file.new", () => this.shell?.requestNewDocumentWindow?.() ?? this.newDocument());
     globalCommandBus.bindHandler("common.file.close", () => this.closeDocument());
+    globalCommandBus.bindHandler("common.file.print", () => this.print());
     globalCommandBus.bindHandler("common.edit.undo", () => this.grid.undo ? this.grid.undo() : false);
     globalCommandBus.bindHandler("common.edit.redo", () => this.grid.redo ? this.grid.redo() : false);
     globalCommandBus.bindHandler("common.edit.repeat", () => this.grid.redo ? this.grid.redo() : false);
@@ -314,7 +316,7 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.review.commentResolve", () => this.grid.toggleCurrentCommentResolved?.());
     globalCommandBus.bindHandler("sheet.file.printPreview", async () => {
       await this._waitForHydration();
-      return Boolean(this.grid.openPrintPreview ? this.grid.openPrintPreview() : false);
+      return this.print();
     });
     globalCommandBus.bindHandler("sheet.view.normal", () => this.grid.setWorkbookView ? this.grid.setWorkbookView("normal") : false);
     globalCommandBus.bindHandler("sheet.view.pageBreakPreview", () => this.grid.setWorkbookView ? this.grid.setWorkbookView("pageBreakPreview") : false);
@@ -705,7 +707,7 @@ export class SheetAdapter {
    * -> style:page-layout[style:name]. Đây là cách MỌI file ODF/FODS thật (kể cả file do
    * chính LibreOffice/Excel thật tạo ra, không đi qua các thuộc tính vno:* riêng của app)
    * lưu Page Setup - dùng làm fallback khi thuộc tính vno:page-* (chỉ tồn tại khi FODS này
-   * do chính VN Office ghi ra và chưa qua bất kỳ vòng chuyển đổi thật nào) không có sẵn.
+   * do chính 3T Office ghi ra và chưa qua bất kỳ vòng chuyển đổi thật nào) không có sẵn.
    */
   _parseStandardOdfPageLayout(xml, tableStyleName) {
     if (!tableStyleName) return null;
@@ -774,7 +776,7 @@ export class SheetAdapter {
   }
 
   /**
-   * Đọc tab-color từ style:style family="table" trong FODS do LibreOffice hoặc VN Office tạo ra.
+   * Đọc tab-color từ style:style family="table" trong FODS do LibreOffice hoặc 3T Office tạo ra.
    */
   _parseStandardOdfTabColor(xml, tableStyleName) {
     if (!tableStyleName || !xml) return "";
@@ -1799,7 +1801,7 @@ export class SheetAdapter {
 
   _parseNumberStyles(xmlText) {
     // LibreOffice replaces common custom styles with its built-in N* styles during
-    // XLSX import; seed the subset produced by the formats VN Sheet writes.
+    // XLSX import; seed the subset produced by the formats 3T Sheet writes.
     const dataStyles = new Map([
       ["N0", { category: "number", decimals: 0, useThousands: false }],
       ["N4", { category: "number", decimals: 2, useThousands: true }],
@@ -2502,7 +2504,7 @@ export class SheetAdapter {
    * Ghi một ảnh (imagesBySheet item: { id, src, anchor, widthCm?, heightCm? }) thành
    * <draw:frame><draw:image> nhúng NGAY BÊN TRONG ô neo của nó — cùng định dạng chuẩn
    * ODF thật mà soffice tự ghi khi convert XLSX→FODS (đã xác nhận qua probe thật),
-   * để lần đọc lại (kể cả từ file VN Office tự lưu) dùng chung một đường phân tích
+   * để lần đọc lại (kể cả từ file 3T Office tự lưu) dùng chung một đường phân tích
    * _parseCellEmbeddedImage()/_parseCellEmbeddedImageDom() với file thật bên ngoài.
    */
   /**
@@ -2672,13 +2674,13 @@ export class SheetAdapter {
   }
 
   /**
-   * vno:frozen-rows/cols (đọc lại từ chính FODS VN Office tự ghi - xem
+   * vno:frozen-rows/cols (đọc lại từ chính FODS 3T Office tự ghi - xem
    * serializeToFods()). soffice thật KHÔNG khôi phục Freeze Panes vào
    * office:settings khi chuyển đổi headless XLSX->FODS (xác nhận qua vòng
    * chuyển đổi soffice thật, xem docs/HANDOFF-SHEET-FREEZE-PANES.md) - khi mở
    * FILE XLSX THẬT từ Excel/nguồn khác, dùng sheet-xlsx-open-overlay đọc trực
    * tiếp <pane> từ XLSX gốc thay vì hàm này (hàm này chỉ phục vụ tự round-trip
-   * FODS nội bộ của VN Office).
+   * FODS nội bộ của 3T Office).
    */
   _attachImportedFreezePanes(workbook, xmlText) {
     workbook.freezePanesBySheet = {};
@@ -2693,7 +2695,7 @@ export class SheetAdapter {
   }
 
   /**
-   * vno:sheet-state (hidden/veryHidden) — read back from FODS that VN Office
+   * vno:sheet-state (hidden/veryHidden) — read back from FODS that 3T Office
    * self-wrote during File → Mở overlay.  LibreOffice downgrades veryHidden
    * to hidden during XLSX→FODS; the Python overlay writes vno:sheet-state so
    * we can round-trip correctly.
@@ -2715,7 +2717,7 @@ export class SheetAdapter {
   }
 
   /**
-   * <table:database-ranges> — read back from FODS that VN Office self-wrote
+   * <table:database-ranges> — read back from FODS that 3T Office self-wrote
    * during File → Mở overlay.  These represent AutoFilter ranges that
    * LibreOffice preserves in FODS but may drop during FODS→XLSX export.
    * Only activate filter when display-filter-buttons="true" (S25d).
@@ -2867,6 +2869,8 @@ export class SheetAdapter {
     }
     if (!this.grid) return "";
     const isNewWorkbook = !this.sourceFilePath;
+    const sourceIsPristineXlsx = !this.isDirty && /\.xlsx$/i.test(String(this.sourceFilePath || ""));
+    const pristineXlsxMarker = sourceIsPristineXlsx ? "<!-- vno-pristine-xlsx-source -->\n" : "";
     const sheetNames = (this.grid.sheets && this.grid.sheets.length)
       ? [...this.grid.sheets]
       : Object.keys(this.grid.sheetsData || {});
@@ -3513,7 +3517,7 @@ export class SheetAdapter {
       // vno:frozen-rows/cols: LibreOffice thật KHÔNG ghi lại trạng thái Freeze
       // Panes vào office:settings khi chuyển đổi headless XLSX<->FODS (đã xác
       // nhận qua vòng chuyển đổi soffice thật - xem HANDOFF-SHEET-FREEZE-PANES.md).
-      // Lưu riêng ở đây để tự round-trip đúng trong VN Office; khi xuất XLSX
+      // Lưu riêng ở đây để tự round-trip đúng trong 3T Office; khi xuất XLSX
       // thật, postprocess_sheet_xlsx() đọc thuộc tính này để ghi <pane> chuẩn.
       const freezeAttr = (freezeRows > 0 || freezeCols > 0) ? ` vno:frozen-rows="${freezeRows}" vno:frozen-cols="${freezeCols}"` : "";
       // vno:sheet-state: preserve hidden/veryHidden through round-trip.
@@ -3530,7 +3534,9 @@ export class SheetAdapter {
       // S27c: retain how many images entered the editable model at open time.
       // If all are later deleted, the save-side repair must not resurrect them.
       const imagesAtOpen = Math.max(0, Number(this.grid.imagesAtOpenBySheet?.[sheetName]) || 0);
-      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}" vno:images-at-open="${imagesAtOpen}"${freezeAttr}${sheetStateAttr}${tabColorAttr}${this._untouchedAutoRowsAttr(sheetName)}`;
+      const scenarios = this.grid.getScenarios ? this.grid.getScenarios(sheetName) : (this.grid.scenariosBySheet?.[sheetName] || []);
+      const scenariosAttr = scenarios && scenarios.length ? ` vno:scenarios="${this._escapeXml(JSON.stringify(scenarios))}"` : "";
+      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}" vno:images-at-open="${imagesAtOpen}"${freezeAttr}${sheetStateAttr}${tabColorAttr}${scenariosAttr}${this._untouchedAutoRowsAttr(sheetName)}`;
       const conditionalXml = conditionalFormatsBySheet[sheetName];
       const chartsXml = this._serializeChartsXml(sheetName);
       const sparklinesXml = this._serializeSparklinesXml(sheetName);
@@ -3576,6 +3582,7 @@ export class SheetAdapter {
     // lockStructure; native-export post-process restores it (see xlsx-native-postprocess.js).
     const structureAttr = structureProtected ? ' table:structure-protected="true"' : "";
     return `<?xml version="1.0" encoding="UTF-8"?>
+${pristineXlsxMarker}
 <office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
                  xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
                  xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
@@ -4044,11 +4051,11 @@ export class SheetAdapter {
 
   /**
    * Map ODF `<chart:chart>` (LibreOffice Calc / Excel chart after soffice XLSX→FODS)
-   * onto the existing VN Sheet chartsBySheet object:
+   * onto the existing 3T Sheet chartsBySheet object:
    * { id, type, range, title, labels, data }.
    *
    * Supported classes: bar/column, line, area, circle/ring/pie — the four SVG types
-   * VN Sheet already renders. First series only (engine is single-series).
+   * 3T Sheet already renders. First series only (engine is single-series).
    * Same-sheet source range required because extractRangeData reads one sheet Map.
    */
   _attachImportedCharts(workbook, xmlText) {
@@ -4108,7 +4115,7 @@ export class SheetAdapter {
 
   /**
    * Map ODF DataPilot (LibreOffice Calc / Excel Pivot Table after soffice XLSX→FODS)
-   * onto the existing VN Sheet pivotTablesBySheet object:
+   * onto the existing 3T Sheet pivotTablesBySheet object:
    * { id, name, sourceSheet, sourceRange, rows, columns, values[{field,aggregate}], targetSheet }.
    *
    * Only cell-range DataPilots with a value field using SUM/COUNT/AVERAGE/MIN/MAX.
@@ -4233,7 +4240,7 @@ export class SheetAdapter {
           try { pageCentering = JSON.parse(table.getAttribute("vno:page-centering") || "{}"); } catch (_) { pageCentering = {}; }
           let pagePrintOptions = {};
           try { pagePrintOptions = JSON.parse(table.getAttribute("vno:page-print-options") || "{}"); } catch (_) { pagePrintOptions = {}; }
-          // Thuộc tính vno:page-* chỉ tồn tại khi chính VN Office ghi ra và CHƯA từng qua vòng
+          // Thuộc tính vno:page-* chỉ tồn tại khi chính 3T Office ghi ra và CHƯA từng qua vòng
           // chuyển đổi thật nào (LibreOffice/Excel không giữ lại thuộc tính lạ khi convert).
           // Với file thật (mở lần đầu từ Excel/LibreOffice, hoặc đã convert qua lại), phải đọc
           // Page Setup chuẩn ODF thật (style:page-layout-properties) làm nguồn dự phòng.
@@ -4473,6 +4480,16 @@ export class SheetAdapter {
             workbook.tabColors = workbook.tabColors || {};
             workbook.tabColors[name] = tabColor;
           }
+          const scenariosRaw = table.getAttribute("vno:scenarios");
+          if (scenariosRaw) {
+            try {
+              const scens = JSON.parse(scenariosRaw);
+              if (scens && scens.length) {
+                workbook.scenariosBySheet = workbook.scenariosBySheet || {};
+                workbook.scenariosBySheet[name] = scens;
+              }
+            } catch (_) {}
+          }
         });
         perfReport("DOM worksheet traversal", phaseStart);
         if (perfEnabled) {
@@ -4508,7 +4525,7 @@ export class SheetAdapter {
         try { pageCentering = JSON.parse(pageAttr("vno:page-centering") || "{}"); } catch (_) { pageCentering = {}; }
         let pagePrintOptions = {};
         try { pagePrintOptions = JSON.parse(pageAttr("vno:page-print-options") || "{}"); } catch (_) { pagePrintOptions = {}; }
-        // Xem chú thích ở nhánh DOM phía trên: vno:page-* chỉ có khi VN Office ghi ra và chưa
+        // Xem chú thích ở nhánh DOM phía trên: vno:page-* chỉ có khi 3T Office ghi ra và chưa
         // qua vòng chuyển đổi thật nào; file thật cần đọc style:page-layout-properties chuẩn ODF.
         const tableStyleMatch = tableMatch[1].match(/table:style-name=["']([^"']*)["']/i);
         const standardLayout = this._parseStandardOdfPageLayout(tableXml, this._unescapeXml(tableStyleMatch?.[1] || ""));
@@ -4728,6 +4745,16 @@ export class SheetAdapter {
         if (tabColor) {
           workbook.tabColors = workbook.tabColors || {};
           workbook.tabColors[name] = tabColor;
+        }
+        const scenariosRaw = pageAttr("vno:scenarios");
+        if (scenariosRaw) {
+          try {
+            const scens = JSON.parse(scenariosRaw);
+            if (scens && scens.length) {
+              workbook.scenariosBySheet = workbook.scenariosBySheet || {};
+              workbook.scenariosBySheet[name] = scens;
+            }
+          } catch (_) {}
         }
       }
     }
@@ -5014,6 +5041,7 @@ export class SheetAdapter {
     this.grid.sheetVisibilityBySheet = workbook.sheetVisibilityBySheet || {};
     // Store tabColors on grid for fallback access in _renderSheetTabs
     this.grid.tabColors = workbook.tabColors || {};
+    this.grid.scenariosBySheet = workbook.scenariosBySheet || {};
     const equivalentSheetValue = (mapping, sheetName) => {
       if (!mapping) return undefined;
       if (Object.prototype.hasOwnProperty.call(mapping, sheetName)) return mapping[sheetName];
@@ -5022,6 +5050,7 @@ export class SheetAdapter {
       return found === undefined ? undefined : mapping[found];
     };
     for (const sheetName of workbook.sheets) {
+      this.grid.scenariosBySheet[sheetName] = workbook.scenariosBySheet?.[sheetName] || [];
       this.grid.conditionalFormattingBySheet[sheetName] = workbook.conditionalFormattingBySheet?.[sheetName] || [];
       this.grid.dataValidationsBySheet[sheetName] = workbook.dataValidationsBySheet?.[sheetName] || [];
       this.grid.pivotTablesBySheet[sheetName] = workbook.pivotTablesBySheet?.[sheetName] || [];
@@ -5093,13 +5122,13 @@ export class SheetAdapter {
     this._invalidateRowTopsCache?.();
     // LibreOffice recalculates add-in functions it does not have (e.g. the Vietnamese
     // VND() "amount in words" XLL) to #ADDIN?/#NAME? on import and drops the cached
-    // text. When VN Sheet implements the function, compute the value once on open.
+    // text. When 3T Sheet implements the function, compute the value once on open.
     const engine = this.grid.formulaEngine;
     if (!options.partial && engine?.evaluate) {
       const openSheet = this.grid.activeSheet;
       for (const [sheetName, sheetData] of Object.entries(this.grid.sheetsData || {})) {
         for (const item of sheetData?.values?.() || []) {
-          // Only functions LibreOffice lacks but VN Sheet implements: a broad "#NAME?" rule
+          // Only functions LibreOffice lacks but 3T Sheet implements: a broad "#NAME?" rule
           // replaced Excel's cached #REF! with numbers (lan04.xlsx, 23 cells, 28/9).
           if (!item?.formula || item.externalLink || !/^#(ADDIN|NAME)\?$/.test(String(item.val))
             || !/(^|[^A-Z0-9_.])(_XLL\.)?VND\s*\(/i.test(item.formula)) continue;
@@ -5111,7 +5140,7 @@ export class SheetAdapter {
       this.grid.activeSheet = openSheet;
     }
     // Excel opens such a workbook with a notice and shows the last saved values;
-    // VN Office is offline and never opens the other workbook itself.
+    // 3T Office is offline and never opens the other workbook itself.
     let externalLinkCells = 0;
     for (const sheetData of Object.values(this.grid.sheetsData || {})) {
       for (const item of sheetData?.values?.() || []) {
@@ -5122,7 +5151,7 @@ export class SheetAdapter {
     if (externalLinkCells > 0) {
       this.shell?.setStatus?.(`Tệp có ${externalLinkCells} ô liên kết tới sổ làm việc khác — đang hiển thị giá trị lưu lần cuối (không tự cập nhật).`);
       this.shell?.showNotification?.({
-        message: `Tệp có ${externalLinkCells} ô liên kết tới sổ làm việc khác. VN Office hiển thị giá trị lưu lần cuối và không tự cập nhật (ứng dụng chạy ngoại tuyến).`,
+        message: `Tệp có ${externalLinkCells} ô liên kết tới sổ làm việc khác. 3T Office hiển thị giá trị lưu lần cuối và không tự cập nhật (ứng dụng chạy ngoại tuyến).`,
         type: "warning",
         action: {
           label: "Tìm hiểu thêm",
@@ -5354,6 +5383,7 @@ export class SheetAdapter {
   }
 
   async closeDocument() {
+    if (this.shell?.requestCloseDocument) return await this.shell.requestCloseDocument();
     return await this.newDocument();
   }
 
@@ -5384,7 +5414,7 @@ export class SheetAdapter {
         const savedFileName = savedPath.split(/[/\\]/).pop();
         if (savedFileName) {
           this.sourceFileName = savedFileName.replace(/\.[^/.]+$/, "");
-          this.shell?.resetDocumentChrome?.(savedFileName, null);
+          this.shell?.resetDocumentChrome?.(savedFileName, null, true, savedPath);
         }
       }
       this.shell?.setStatus?.("Đã lưu");
@@ -5424,14 +5454,19 @@ export class SheetAdapter {
     );
 
     if (result.status === "ok") {
-      this.isDirty = false;
       const savedPath = result.path || result.fileName;
+      // Như Excel: Lưu thành PDF chỉ xuất bản PDF; sổ đang mở giữ tên, định dạng và trạng thái chưa lưu.
+      if (/\.pdf$/i.test(String(savedPath || ""))) {
+        this.shell?.setStatus?.(`Đã xuất PDF: ${String(savedPath).split(/[/\\]/).pop()}`);
+        return true;
+      }
+      this.isDirty = false;
       if (savedPath) {
         this.sourceFilePath = savedPath;
         const savedFileName = savedPath.split(/[/\\]/).pop();
         if (savedFileName) {
           this.sourceFileName = savedFileName.replace(/\.[^/.]+$/, "");
-          this.shell?.resetDocumentChrome?.(savedFileName, null);
+          this.shell?.resetDocumentChrome?.(savedFileName, null, true, savedPath);
         }
       }
       this.shell?.setStatus?.("Đã lưu");
@@ -5451,6 +5486,8 @@ export class SheetAdapter {
    * Mở một tệp XLSX/ODS/CSV thật từ đĩa, nạp dữ liệu vào bảng tính.
    */
   async open() {
+    if (typeof this.shell?.confirmUnsavedChangesBeforeReplace === "function"
+      && !(await this.shell.confirmUnsavedChangesBeforeReplace())) return false;
     if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
       window.dispatchEvent(new Event("vno:document-open-progress"));
     }
@@ -5465,6 +5502,7 @@ export class SheetAdapter {
 
   async _openWorkbookFromDisk() {
     await this._waitForHydration();
+    let previous = null;
     let result = null;
     let openId = null;
     const reportOpenIssue = (type, message) => {
@@ -5494,6 +5532,12 @@ export class SheetAdapter {
         return false;
       }
       if (result?.status !== "ok") throw new Error("Phản hồi mở tệp không hợp lệ.");
+      previous = {
+        content: this.serializeToFods(),
+        sourceFileName: this.sourceFileName,
+        sourceFilePath: this.sourceFilePath,
+        isDirty: this.isDirty
+      };
 
       if (result.sheetPayload) {
         openId = result.openId || openId;
@@ -5526,15 +5570,25 @@ export class SheetAdapter {
       this.sourceFileName = (result.fileName || "BangTinh").replace(/\.[^/.]+$/, "");
       this.sourceFilePath = result.sourcePath || "";
       this.isDirty = false;
-      this.shell?.resetDocumentChrome?.(result.fileName || "Bảng tính 1.xlsx");
+      this.shell?.resetDocumentChrome?.(result.fileName || "Bảng tính 1.xlsx", null, true, result.sourcePath || "");
       return true;
     } catch {
+      try {
+        if (previous?.content) this.loadFromFods(previous.content);
+      } catch (restoreError) {
+        console.error("[SheetAdapter] Không khôi phục được bảng tính sau khi mở tệp lỗi:", restoreError);
+      }
+      if (previous) {
+        this.sourceFileName = previous.sourceFileName;
+        this.sourceFilePath = previous.sourceFilePath;
+        this.isDirty = previous.isDirty;
+      }
       reportOpenIssue("SheetOpenError", "Workbook opening failed; the previously open workbook was preserved.");
       if (typeof window !== "undefined") window.__vnoSheetOpenStartedAt = null;
       this.shell?.setStatus?.("Không thể mở tệp. Sổ làm việc đang mở được giữ nguyên.");
       await showAlertDialog({
         title: "Không thể mở tệp",
-        message: "VN Sheet không thể nạp bảng tính bằng dữ liệu chính hoặc bản FODS dự phòng. Sổ làm việc đang mở được giữ nguyên.",
+        message: "3T Sheet không thể nạp bảng tính bằng dữ liệu chính hoặc bản FODS dự phòng. Sổ làm việc đang mở được giữ nguyên.",
         type: "error"
       });
       return false;
@@ -5548,7 +5602,9 @@ export class SheetAdapter {
   async exportPdf() {
     await this._waitForHydration();
     const fodsContent = this.serializeToFods();
-    const result = await globalUnoBridge.exportRealPdf("sheet", fodsContent, this.sourceFileName);
+    const result = await globalUnoBridge.exportRealPdf(
+      "sheet", fodsContent, this.sourceFileName, this.sourceFilePath || null,
+    );
     if (result.status === "ok") {
       await showAlertDialog({ title: "Đã xuất PDF", message: result.message, type: "success" });
       return true;
@@ -5559,12 +5615,25 @@ export class SheetAdapter {
   }
 
   async print() {
-    if (this.grid?.__vnoSheetHydrationPending) await this._waitForHydration();
-    if (this.grid?.print) return this.grid.print();
-    if (typeof window !== "undefined" && typeof window.print === "function") {
-      window.print();
-    }
-    return true;
+    await this._waitForHydration();
+    const grid = this.grid;
+    const setup = grid?.getPageSetup?.(grid.activeSheet) || grid?.pageSetupBySheet?.[grid?.activeSheet] || {};
+    const pages = grid?.computePrintPages?.(grid.activeSheet)?.pages || [];
+    const selected = grid?.selectedCoord || grid?.selectionRange?.start || { r: 1, c: "A" };
+    const selectedRow = Number(selected.r) || 1;
+    const selectedCol = grid?._columnNumber?.(selected.c) || 1;
+    const activePage = pages.findIndex((page) => page.rowNums?.includes(selectedRow) && page.colNums?.includes(selectedCol));
+    const pageSize = String(setup.size || "a4").toUpperCase();
+    const orientation = setup.orientation === "landscape" ? "Ngang" : "Dọc";
+    return openPrintDialog({
+      appKind: "sheet",
+      content: this.serializeToFods(),
+      documentName: this.sourceFileName || "Bảng tính",
+      sourcePath: this.sourceFilePath || null,
+      pageSetupLabel: `${pageSize} · ${orientation}`,
+      currentPage: activePage >= 0 ? activePage + 1 : 1,
+      engine: globalUnoBridge
+    });
   }
 
   async handleDispatch(unoUrl, args, vnCmdId) {
@@ -5576,7 +5645,7 @@ export class SheetAdapter {
       case "sheet.file.printPreview":
       case ".uno:PrintPreview":
         await this._waitForHydration();
-        return Boolean(this.grid.openPrintPreview ? this.grid.openPrintPreview() : false);
+        return this.print();
 
       case "sheet.view.normal":
       case ".uno:NormalViewMode":

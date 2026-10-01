@@ -6,6 +6,7 @@
 import { SheetGridController } from "../../apps/sheet/sheet-grid.js";
 import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
 import { mapVnCommandToUno } from "../../adapters/libreoffice/common/command-dispatch-mapper.js";
+import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { SHEET_COMMANDS } from "../../platform/commands/command-definitions.js";
 import { SHEET_RIBBON_TABS } from "../../apps/sheet/sheet-ribbon.js";
 import { t } from "../../platform/i18n/i18n.js";
@@ -285,39 +286,52 @@ export async function runSheetPrintPreviewTests() {
       assert(fakeDoc.body.querySelector(".vno-sheet-print-preview-overlay") === null, "Overlay phải bị gỡ khỏi DOM sau khi đóng");
     });
 
-    await test("openPrintPreview: nút In tài liệu trong overlay gọi đúng print() thật (window.print)", () => {
+    await test("openPrintPreview: nút In chuyển sang luồng in chung, không gọi trình duyệt", () => {
       const grid = new SheetGridController(container());
       put(grid, "A1", "x");
       grid.printAreaBySheet[grid.activeSheet] = "A1:A1";
       const overlay = grid.openPrintPreview();
       printCalled = 0;
+      let printActionCalled = 0;
+      grid.print = () => { printActionCalled++; };
       overlay.querySelector(".vno-sheet-pp-print").click();
-      assert(printCalled === 1, "Nút In phải gọi window.print() đúng 1 lần");
+      assert(printActionCalled === 1, "Nút In phải chuyển sang grid.print() dùng luồng in chung");
+      assert(printCalled === 0, "Luồng in không được gọi window.print()");
       grid.closePrintPreview();
     });
 
-    await test("print(): dựng #vno-sheet-print-only với đúng số trang và dữ liệu thật (không phải DOM ảo hóa)", () => {
+    await test("print(): chuyển Ctrl+P sang common.file.print mà không gọi trình duyệt", () => {
       const grid = new SheetGridController(container());
       [["A1", "Tên"], ["B1", "Điểm"], ["A2", "An"], ["B2", 9]].forEach(([c, v]) => put(grid, c, v));
       grid.printAreaBySheet[grid.activeSheet] = "A1:B2";
-      grid.print();
-      const printOnly = fakeDoc.body.querySelector("#vno-sheet-print-only");
-      assert(printOnly, "Phải dựng #vno-sheet-print-only");
-      const pages = printOnly.querySelectorAll(".vno-sheet-print-page");
-      assert(pages.length === 1, `Mong 1 trang in, nhận ${pages.length}`);
-      assert(printOnly.textContent.includes("An") && printOnly.textContent.includes("9"), "Nội dung in phải là dữ liệu ô thật, không phải placeholder");
+      const originalExecute = globalCommandBus.execute;
+      const executed = [];
+      globalCommandBus.execute = (commandId, ...args) => { executed.push([commandId, ...args]); return false; };
+      try { grid.print(); } finally { globalCommandBus.execute = originalExecute; }
+      assert(executed[0]?.[0] === "common.file.print", "Sheet print phải dùng lệnh in chung của Platform");
+      assert(printCalled === 0, "Luồng in không được gọi window.print()");
     });
 
-    await test("common.file.print (Ctrl+P) đi qua SheetAdapter.print() gọi đúng grid.print() thật, không còn window.print() trần", () => {
+    await test("common.file.print: adapter dùng nội dung hiện tại và không gọi window.print()", async () => {
       const grid = new SheetGridController(container());
       put(grid, "A1", "kiểm tra in thật");
       grid.printAreaBySheet[grid.activeSheet] = "A1:A1";
       const adapter = new SheetAdapter(grid);
-      const printOnlyBefore = fakeDoc.body.querySelector("#vno-sheet-print-only");
-      if (printOnlyBefore) printOnlyBefore.remove();
-      adapter.print();
-      const printOnly = fakeDoc.body.querySelector("#vno-sheet-print-only");
-      assert(printOnly && printOnly.textContent.includes("kiểm tra in thật"), "common.file.print phải render đúng nội dung thật trước khi in, không chỉ gọi window.print() suông");
+      const originalDocumentValue = globalThis.document;
+      globalThis.document = undefined;
+      try { assert(await adapter.print() === false, "Không mở dialog khi DOM chưa sẵn sàng"); }
+      finally { globalThis.document = originalDocumentValue; }
+      assert(adapter.serializeToFods().includes("kiểm tra in thật"), "Lệnh in phải lấy workbook hiện tại trong bộ nhớ");
+      assert(printCalled === 0, "common.file.print không được gọi window.print()");
+    });
+
+    await test("Ctrl+P common.file.print được SheetAdapter bind tới dialog in", async () => {
+      const adapter = new SheetAdapter(new SheetGridController(container()));
+      let printCalls = 0;
+      adapter.print = () => { printCalls += 1; return true; };
+      adapter.attach();
+      await globalCommandBus.execute("common.file.print");
+      assert(printCalls === 1, "Command Bus common.file.print phải gọi SheetAdapter.print()");
     });
   } finally {
     globalThis.document = originalDocument;

@@ -1,11 +1,26 @@
 /**
- * Hướng dẫn sử dụng VN Slides — nội dung tiếng Việt thật, khớp UI hiện có.
+ * Hướng dẫn sử dụng 3T Slide — nội dung tiếng Việt thật, khớp UI hiện có.
  * Tự đăng ký vào catalog dùng chung qua registerHelpEntries().
  */
 
 import { registerHelpEntries } from "./help-catalog.js";
 
 export const SLIDES_HELP_ENTRIES = [
+  {
+    id: "slides.file.basics",
+    app: "slides",
+    commandIds: ["common.file.new", "common.file.open", "common.file.save", "common.file.saveAs", "common.file.close", "common.file.print"],
+    title: "Tạo, mở, lưu và in bản trình chiếu",
+    summary: "Bản trình chiếu mới có một trang chiếu với chỗ gợi ý xám «Bấm để thêm tiêu đề» và «Bấm để thêm văn bản» nhưng chưa có chữ trong nội dung. Dùng Tệp để mở hoặc lưu PPTX, PPT, ODP; Ctrl+P xem trước bản in.",
+    ribbon: { tab: "Tệp", tabId: "file", group: "Bản trình chiếu" },
+    keywords: ["tạo mới", "mở tệp", "lưu", "lưu thành", "in", "Ctrl+N", "Ctrl+O", "Ctrl+S", "F12", "Ctrl+P", "trang chiếu trống"],
+    steps: [
+      "Tạo bản mới: nhấn Ctrl+N hoặc mở Tệp > Mới. 3T Slide mở cửa sổ riêng tên Bản trình bày 2, Bản trình bày 3… với một trang chiếu trống. Chữ gợi ý xám trong khung tiêu đề và khung văn bản chỉ là hướng dẫn trên màn hình, không phải nội dung được lưu.",
+      "Mở bản trình chiếu: nhấn Ctrl+O hoặc chọn Tệp > Mở, chọn PPTX, PPT hoặc ODP. Nếu bản đang mở có thay đổi, chọn Lưu, Không lưu hoặc Hủy trước khi tiếp tục.",
+      "Lưu: Ctrl+S mở hộp thoại Lưu thành cho bản mới; với tệp đã mở/lưu, lệnh này giữ nguyên định dạng. Nhấn F12 (hoặc Ctrl+Shift+S), nhập tên trong hộp thoại Lưu bản sao rồi chọn PPTX, PPT, ODP hoặc PDF ở danh sách Loại tệp. Cũng có thể chọn Tệp > Lưu bản sao. Khi lưu sang PPTX/PPT/ODP, tên tab và tiêu đề cửa sổ chuyển theo tệp mới; chọn PDF chỉ xuất bản sao và giữ nguyên bản trình chiếu đang mở. Khi ghi đè tệp đã có, xác nhận trong hộp thoại của Windows.",
+      "In: nhấn Ctrl+P để xem trước từng trang chiếu. Chọn máy in, số bản và phạm vi trang rồi nhấn In; mỗi trang chiếu chiếm một trang in."
+    ]
+  },
   {
     id: "slides.diagram.insert",
     app: "slides",
@@ -97,7 +112,7 @@ export const SLIDES_HELP_ENTRIES = [
     keywords: ["chữ nghệ thuật", "wordart", "word art", "tiêu đề", "gradient", "viền"],
     steps: [
       "Tab Chèn, nhóm Văn bản, nhấn Chữ nghệ thuật (nút lớn, cạnh Hộp văn bản).",
-      "Hộp thoại Chèn chữ nghệ thuật: ô Nội dung chữ (mặc định «VN Office», tối đa 80 ký tự) và lưới mẫu (ví dụ Xanh đậm viền trắng, vàng viền, gradient…). Chọn mẫu để xem chữ «Aa».",
+      "Hộp thoại Chèn chữ nghệ thuật: ô Nội dung chữ (mặc định «3T Office», tối đa 80 ký tự) và lưới mẫu (ví dụ Xanh đậm viền trắng, vàng viền, gradient…). Chọn mẫu để xem chữ «Aa».",
       "Nhấn Chèn. Khối chữ xuất hiện trên slide; kéo để đặt, nhấp vào chữ để sửa nội dung. Ctrl+Z gỡ khối vừa chèn.",
       "Cùng nhóm Văn bản còn Hộp văn bản thường (không hiệu ứng) và Đầu trang & Chân trang / Ngày & Giờ / Số trang chiếu."
     ]
@@ -199,7 +214,7 @@ export const SLIDES_HELP_ENTRIES = [
     summary: "Duyệt nhận xét xuyên suốt các trang chiếu, đánh dấu đã xử lý, mở lại hoặc xóa.",
     ribbon: { tab: "Đánh giá", tabId: "review", group: "Nhận xét" },
     keywords: ["nhận xét", "trang chiếu", "trước", "sau", "xử lý", "resolve", "xóa"],
-    steps: ["Mở tab Đánh giá, nhóm Nhận xét.", "Nhấn Nhận xét trước hoặc Nhận xét sau; VN Slides chuyển tới đúng trang, mở bảng nhận xét, tô sáng mục và quay vòng ở cuối.", "Nhấn Đã xử lý để làm mờ và gạch nội dung nhưng vẫn giữ nhận xét; nhấn lại để mở lại.", "Nhấn Xóa nhận xét để xóa mục đang chọn. Dùng Ctrl+Z/Ctrl+Y để hoàn tác/làm lại."]
+    steps: ["Mở tab Đánh giá, nhóm Nhận xét.", "Nhấn Nhận xét trước hoặc Nhận xét sau; 3T Slide chuyển tới đúng trang, mở bảng nhận xét, tô sáng mục và quay vòng ở cuối.", "Nhấn Đã xử lý để làm mờ và gạch nội dung nhưng vẫn giữ nhận xét; nhấn lại để mở lại.", "Nhấn Xóa nhận xét để xóa mục đang chọn. Dùng Ctrl+Z/Ctrl+Y để hoàn tác/làm lại."]
   },
   {
     id: "slides.show.setupShow",
@@ -212,10 +227,10 @@ export const SLIDES_HELP_ENTRIES = [
     steps: [
       "Tab Trình chiếu, nhóm Thiết lập, nhấn Thiết lập trình chiếu (cạnh Ẩn trang chiếu).",
       "Đánh dấu Lặp lại liên tục cho đến khi nhấn Esc nếu muốn hết trang cuối thì quay lại trang đầu (trang không ẩn đầu tiên). Không đánh dấu thì hết trang cuối F5 thoát như trước. Esc luôn thoát. Lưu PPTX: LibreOffice đã ghi p:showPr loop trên ppt/presProps.xml — VN không vá thêm cờ này.",
-      "Trình chiếu không có thuyết minh: lưu cờ cho bản trình chiếu (FODP: vno:without-narration). VN Slides chưa có audio thuyết minh trên màn hình chiếu. Khi Lưu PPTX, VN ghi showNarration=\"0\" vào p:showPr (LibreOffice luôn để \"1\" nếu không vá).",
+      "Trình chiếu không có thuyết minh: lưu cờ cho bản trình chiếu (FODP: vno:without-narration). 3T Slide chưa có audio thuyết minh trên màn hình chiếu. Khi Lưu PPTX, VN ghi showNarration=\"0\" vào p:showPr (LibreOffice luôn để \"1\" nếu không vá).",
       "Màu con trỏ bút / laser: chọn màu bằng ô màu hoặc các nút màu nhanh (Đỏ, Xanh lam, Vàng, Xanh lá, Đen). Màu này được làm mặc định khi bắt đầu trình chiếu F5. Trong lúc chiếu, dùng Ctrl+P để bật Bút vẽ trực tiếp bằng chuột, Ctrl+L để bật Con trỏ laser chấm sáng theo chuột, E để xóa toàn bộ nét vẽ trên trang, và Ctrl+A để trở lại con trỏ mũi tên. Nhấn chuột phải trong màn chiếu để mở menu đổi màu bút tức thì.",
-      "Khi kết thúc trình chiếu (Esc hoặc hết slide cuối), nếu có nét vẽ, VN Slides hiển thị hộp thoại 'Giữ nét vẽ? (Giữ / Bỏ)'. Chọn Giữ sẽ chuyển các nét vẽ thành hình vẽ vĩnh viễn trên trang chiếu và lưu chuẩn ra tệp PPTX/FODP. Chọn Bỏ để xóa các nét vẽ tạm thời.",
-      "File → Mở một .pptx đã có Thiết lập trình chiếu: VN Office đọc ppt/presProps.xml của file gốc rồi gắn lại vno:without-narration / vno:pointer-color lên presentation:settings trước khi mở canvas — hộp thoại Thiết lập trình chiếu hiện lại đúng các giá trị đó."
+      "Khi kết thúc trình chiếu (Esc hoặc hết slide cuối), nếu có nét vẽ, 3T Slide hiển thị hộp thoại 'Giữ nét vẽ? (Giữ / Bỏ)'. Chọn Giữ sẽ chuyển các nét vẽ thành hình vẽ vĩnh viễn trên trang chiếu và lưu chuẩn ra tệp PPTX/FODP. Chọn Bỏ để xóa các nét vẽ tạm thời.",
+      "File → Mở một .pptx đã có Thiết lập trình chiếu: 3T Office đọc ppt/presProps.xml của file gốc rồi gắn lại vno:without-narration / vno:pointer-color lên presentation:settings trước khi mở canvas — hộp thoại Thiết lập trình chiếu hiện lại đúng các giá trị đó."
     ]
   },
   {
@@ -266,9 +281,9 @@ export const SLIDES_HELP_ENTRIES = [
       "Chọn trang sẽ là trang đầu của nhóm. Tab Trang đầu, nhóm Trang chiếu, mở dropdown Phần (cạnh Trang mới / Bố cục / Nhân đôi / Xóa trang), chọn Thêm phần. Hộp thoại điền tên — mặc định Phần 1, Phần 2, … — rồi Thêm. Phần bắt đầu từ trang đang chọn và chạy tới phần kế tiếp (hoặc hết bài).",
       "Dải thumbnail trái và Bộ sắp xếp trang (tab Chế độ xem) hiện thanh tiêu đề trước nhóm: tên phần + số trang trong ngoặc. Nút ▾/▸ thu gọn hoặc mở rộng cả nhóm — khi thu gọn chỉ còn thanh tiêu đề, các thumbnail bên trong bị ẩn. Nhấp thanh tiêu đề để nhảy tới trang đầu nhóm. Chuột phải thumbnail hoặc thanh tiêu đề cũng mở menu Thêm / Đổi tên / Xóa phần.",
       "Đổi tên phần / Xóa phần / Chuyển phần lên / Chuyển phần xuống nằm cùng dropdown Phần. Xóa phần chỉ bỏ nhóm (trang vẫn còn, đúng thứ tự). Chuyển lên/xuống đổi chỗ cả khối trang của phần với phần kề, giữ thứ tự trang bên trong nhóm.",
-      "Hoàn tác / Làm lại (Ctrl+Z / Ctrl+Y) dùng chung ngăn lịch sử của VN Slides: thêm, đổi tên, xóa phần và chuyển cả nhóm đều hoàn tác được. Thu gọn/mở rộng chỉ là trạng thái xem, không vào lịch sử.",
-      "File → Lưu dạng PowerPoint (*.pptx): sau khi LibreOffice chuyển FODP, VN Office gắn các phần vào ppt/presentation.xml bằng p14:sectionLst (chuẩn PowerPoint 2010, URI {521415D9-36F7-43E2-AB2F-B90AF26B5E84} — không dùng namespace vno:). Mỗi phần giữ đúng tên đã đặt và đúng danh sách id trang thật trong file (256, 257, … theo thứ tự trang, không đoán). Mở PPTX bằng Microsoft PowerPoint sẽ thấy nhóm phần trên dải thumbnail. LibreOffice Impress có thể không hiện phần khi mở lại PPTX (filter convert không đọc extension này) — file không hỏng. Lưu FODP/ODP giữ vno:section-id / vno:section-name như trước; bài không có phần thì File → Lưu PPTX không vá thêm.",
-      "File → Mở một .pptx đã có phần (file vừa Lưu, hoặc file PowerPoint 2010+ có sẵn p14:sectionLst): LibreOffice chuyển PPTX→FODP không map ngược extension này, nên VN Office đọc ppt/presentation.xml của file gốc rồi gắn vno:section-id / vno:section-name lên đúng draw:page — theo thứ tự p:sldIdLst khớp thứ tự trang, không đoán. Thanh phần hiện lại trên dải thumbnail trái và Bộ sắp xếp trang, đúng tên và đúng nhóm trang. Nếu số trang FODP lệch số id trong PPTX (file sửa tay, hỏng), hộp thoại Mở báo lỗi rõ, không gán bừa phần vào sai trang. File .odp/.fodp không đi overlay này — chúng giữ vno:section-* sẵn có."
+      "Hoàn tác / Làm lại (Ctrl+Z / Ctrl+Y) dùng chung ngăn lịch sử của 3T Slide: thêm, đổi tên, xóa phần và chuyển cả nhóm đều hoàn tác được. Thu gọn/mở rộng chỉ là trạng thái xem, không vào lịch sử.",
+      "File → Lưu dạng PowerPoint (*.pptx): sau khi LibreOffice chuyển FODP, 3T Office gắn các phần vào ppt/presentation.xml bằng p14:sectionLst (chuẩn PowerPoint 2010, URI {521415D9-36F7-43E2-AB2F-B90AF26B5E84} — không dùng namespace vno:). Mỗi phần giữ đúng tên đã đặt và đúng danh sách id trang thật trong file (256, 257, … theo thứ tự trang, không đoán). Mở PPTX bằng Microsoft PowerPoint sẽ thấy nhóm phần trên dải thumbnail. LibreOffice Impress có thể không hiện phần khi mở lại PPTX (filter convert không đọc extension này) — file không hỏng. Lưu FODP/ODP giữ vno:section-id / vno:section-name như trước; bài không có phần thì File → Lưu PPTX không vá thêm.",
+      "File → Mở một .pptx đã có phần (file vừa Lưu, hoặc file PowerPoint 2010+ có sẵn p14:sectionLst): LibreOffice chuyển PPTX→FODP không map ngược extension này, nên 3T Office đọc ppt/presentation.xml của file gốc rồi gắn vno:section-id / vno:section-name lên đúng draw:page — theo thứ tự p:sldIdLst khớp thứ tự trang, không đoán. Thanh phần hiện lại trên dải thumbnail trái và Bộ sắp xếp trang, đúng tên và đúng nhóm trang. Nếu số trang FODP lệch số id trong PPTX (file sửa tay, hỏng), hộp thoại Mở báo lỗi rõ, không gán bừa phần vào sai trang. File .odp/.fodp không đi overlay này — chúng giữ vno:section-* sẵn có."
     ]
   },
   {
@@ -403,16 +418,17 @@ export const SLIDES_HELP_ENTRIES = [
   {
     id: "slides.file.printPreview",
     app: "slides",
-    commandIds: ["slides.file.printPreview"],
+    commandIds: ["slides.file.printPreview", "common.file.print", "common.file.exportPdf"],
     title: "Xem trước khi in",
-    summary: "Ctrl+F2 mở bản xem trước THẬT của toàn bộ bản trình chiếu theo kiểu Full Page Slides của PowerPoint — mỗi trang chiếu không bị ẩn là một trang in, có điều hướng Trang trước/sau và nút In ngay trong overlay.",
+    summary: "Ctrl+P hoặc Ctrl+F2 mở hộp thoại In. Khi có Microsoft Office/WPS, 3T Slide dùng bộ dựng PDF đó để khớp trang chiếu; nếu không có hoặc gặp lỗi, LibreOffice tự tiếp tục.",
     ribbon: { tab: "Chế độ xem", tabId: "view", group: "Dạng xem bản trình chiếu" },
     keywords: ["xem trước khi in", "print preview", "in tài liệu", "ctrl+f2", "full page slides", "in trang chiếu"],
     steps: [
-      "Tab Chế độ xem, nhóm Dạng xem bản trình chiếu, nút nhỏ Xem trước khi in (hoặc Ctrl+F2 từ bất cứ đâu trong Slides).",
-      "Overlay hiển thị từng trang chiếu như bản in thật: tiêu đề, nội dung, hình khối và chân trang (ngày/footer/số trang) nếu đã bật ở Chèn → Đầu trang & Chân trang.",
-      "Trang chiếu đang Ẩn (Hide Slide) không xuất hiện trong bản in, đúng mặc định của PowerPoint thật.",
-      "Nút In tài liệu trong overlay in ngay (Ctrl+P); Trang trước/sau điều hướng khi có nhiều trang chiếu. Đóng bằng Esc hoặc nút ×."
+      "Nhấn Ctrl+P, nhấp biểu tượng máy in trên thanh truy cập nhanh, hoặc mở tab Chế độ xem → Xem trước khi in (Ctrl+F2).",
+      "Nếu máy có Microsoft Office/WPS, tùy chọn Dùng Microsoft Office/WPS để in được chọn sẵn. Khung Bộ máy dựng PDF cho biết ứng dụng nào đã tạo trang xem trước; bỏ chọn để dùng LibreOffice.",
+      "Chọn máy in, số bản và Tất cả, Trang hiện tại, hoặc Trang từ–đến. Mỗi trang PDF ứng với một trang chiếu được bộ máy dựng PDF đưa vào bản in.",
+      "Nhấn In để gửi tài liệu. Khi chọn Microsoft Print to PDF, chọn thư mục và tên tệp PDF; Esc hoặc nút × đóng hộp thoại.",
+      "Xuất PDF riêng: mở Tệp → Xuất PDF và chọn nơi lưu. 3T Slide dựng tệp qua cùng đường Lưu PPTX; nếu Microsoft Office/WPS dùng được thì ứng dụng đó tạo PDF, nếu không LibreOffice tiếp tục."
     ]
   },
   {
@@ -509,7 +525,7 @@ export const SLIDES_HELP_ENTRIES = [
     keywords: ["đầu trang", "chân trang", "số trang chiếu", "ngày giờ", "header footer", "trang n / n"],
     steps: [
       "Tab Chèn, nhóm Văn bản, cột nhỏ: Đầu trang & Chân trang, Ngày & Giờ, Số trang chiếu (dưới Hộp văn bản / Chữ nghệ thuật).",
-      "Đầu trang & Chân trang mở hộp cùng tên: tick Ngày tháng, Số trang chiếu (mặc định bật), Chân trang (mặc định bật, chữ mẫu «Tài liệu trình chiếu tiêu chuẩn VN Office»), Áp dụng cho mọi trang chiếu (mặc định bật). Áp dụng / Hủy bỏ. Thanh dưới sân khấu: ngày | chữ chân | «Trang n / N».",
+      "Đầu trang & Chân trang mở hộp cùng tên: tick Ngày tháng, Số trang chiếu (mặc định bật), Chân trang (mặc định bật, chữ mẫu «Tài liệu trình chiếu tiêu chuẩn 3T Office»), Áp dụng cho mọi trang chiếu (mặc định bật). Áp dụng / Hủy bỏ. Thanh dưới sân khấu: ngày | chữ chân | «Trang n / N».",
       "Ngày & Giờ mở hộp «Ngày & Giờ»: 5 mẫu dd/MM/yyyy (mặc định), dd/MM/yyyy HH:mm, «6 tháng 9 năm 2026», yyyy-MM-dd, HH:mm — giá trị lúc bấm, tự lấy Date mới mỗi lần vẽ. Chèn bật ngày cho mọi trang (trừ khi tắt Áp dụng cho mọi trang). Số trang chiếu không hỏi, bật «Trang n / N» cho mọi trang ngay.",
       "Không có vùng đầu trang riêng, không «ẩn trên trang tiêu đề». Khi chiếu F5, overlay dùng chữ chân mẫu chủ đạo + bộ đếm riêng, không đọc hết tùy chọn hộp này."
     ]
@@ -538,10 +554,10 @@ export const SLIDES_HELP_ENTRIES = [
     ribbon: { tab: "Thiết kế", tabId: "design", group: "Chủ đề" },
     keywords: ["chủ đề", "theme", "slide master", "cỡ trang chiếu", "16:9", "4:3", "960x540", "logo"],
     steps: [
-      "Tab Thiết kế, nhóm Chủ đề: nút lớn Chủ đề. Hộp «Thư viện Chủ đề» — nhấp thẻ là áp ngay cả bộ (không nút Áp dụng). Sáu mẫu: Xanh Doanh Nghiệp (Inter, mặc định modern-blue), Terracotta Ấm Áp (Times New Roman), Xanh Lá Thiên Nhiên, Than Chì Hiện Đại, Đơn Sắc Tối Giản (Arial), Cam Năng Động (Verdana). Mỗi mẫu có logo chữ kiểu «VN OFFICE • DOANH NGHIỆP». Ctrl+Z hoàn tác lần chọn chủ đề.",
-      "Nhóm Mẫu chủ đạo: Mẫu Slide Master. Hộp «Mẫu Slide Master» cùng 6 bộ, thêm ô «Tên đơn vị / Logo chữ góc trang» (mặc định «VN OFFICE» hoặc logo đang dùng). Chọn thẻ điền sẵn logo của mẫu. Hủy bỏ / Áp dụng mẫu. Khác thư viện Chủ đề: lần Áp dụng mẫu không đẩy Undo.",
-      "File → Lưu dạng PowerPoint (*.pptx): sau khi LibreOffice chuyển FODP, VN Office gắn logo chữ vào Slide Master bằng một hình DrawingML chuẩn (p:sp không phải ô kế thừa title/body/chân trang). Logo lấy đúng ô «Tên đơn vị / Logo chữ góc trang», đặt ở dải trên của master, không đè khung chữ sẵn. Mở PPTX bằng PowerPoint hoặc LibreOffice vẫn thấy chữ logo. Lưu FODP/ODP giữ master-page ODF như trước; không có logo thì File → Lưu PPTX không vá thêm hình.",
-      "File → Mở một .pptx đã có logo master (file vừa Lưu, hoặc file PowerPoint có hình tên VNOfficeMasterLogo trên Slide Master): LibreOffice chuyển PPTX→FODP giữ chữ trên master-page nhưng không phát vno:master-theme, nên ô logo trên canvas VN Slides sẽ trống nếu không overlay. VN Office đọc p:sp tên VNOfficeMasterLogo từ file PPTX gốc (không đoán hình khác trên master), lấy lại chữ / màu / phông, rồi gắn vno:master-theme lên FODP trước khi mở canvas. Ô «Tên đơn vị / Logo chữ góc trang» hiện lại đúng chữ, màu accent và phông. Nhiều hình trùng tên hoặc hình tên đó lại là ô kế thừa (p:ph) thì hộp thoại Mở báo lỗi rõ, không đoán. File .odp/.fodp không đi overlay này — chúng giữ vno:master-theme sẵn có.",
+      "Tab Thiết kế, nhóm Chủ đề: nút lớn Chủ đề. Hộp «Thư viện Chủ đề» — nhấp thẻ là áp ngay cả bộ (không nút Áp dụng). Sáu mẫu: Xanh Doanh Nghiệp (Inter, mặc định modern-blue), Terracotta Ấm Áp (Times New Roman), Xanh Lá Thiên Nhiên, Than Chì Hiện Đại, Đơn Sắc Tối Giản (Arial), Cam Năng Động (Verdana). Mỗi mẫu có logo chữ kiểu «3T OFFICE • DOANH NGHIỆP». Ctrl+Z hoàn tác lần chọn chủ đề.",
+      "Nhóm Mẫu chủ đạo: Mẫu Slide Master. Hộp «Mẫu Slide Master» cùng 6 bộ, thêm ô «Tên đơn vị / Logo chữ góc trang» (mặc định «3T OFFICE» hoặc logo đang dùng). Chọn thẻ điền sẵn logo của mẫu. Hủy bỏ / Áp dụng mẫu. Khác thư viện Chủ đề: lần Áp dụng mẫu không đẩy Undo.",
+      "File → Lưu dạng PowerPoint (*.pptx): sau khi LibreOffice chuyển FODP, 3T Office gắn logo chữ vào Slide Master bằng một hình DrawingML chuẩn (p:sp không phải ô kế thừa title/body/chân trang). Logo lấy đúng ô «Tên đơn vị / Logo chữ góc trang», đặt ở dải trên của master, không đè khung chữ sẵn. Mở PPTX bằng PowerPoint hoặc LibreOffice vẫn thấy chữ logo. Lưu FODP/ODP giữ master-page ODF như trước; không có logo thì File → Lưu PPTX không vá thêm hình.",
+      "File → Mở một .pptx đã có logo master (file vừa Lưu, hoặc file PowerPoint có hình tên VNOfficeMasterLogo trên Slide Master): LibreOffice chuyển PPTX→FODP giữ chữ trên master-page nhưng không phát vno:master-theme, nên ô logo trên canvas 3T Slide sẽ trống nếu không overlay. 3T Office đọc p:sp tên VNOfficeMasterLogo từ file PPTX gốc (không đoán hình khác trên master), lấy lại chữ / màu / phông, rồi gắn vno:master-theme lên FODP trước khi mở canvas. Ô «Tên đơn vị / Logo chữ góc trang» hiện lại đúng chữ, màu accent và phông. Nhiều hình trùng tên hoặc hình tên đó lại là ô kế thừa (p:ph) thì hộp thoại Mở báo lỗi rõ, không đoán. File .odp/.fodp không đi overlay này — chúng giữ vno:master-theme sẵn có.",
       "Nhóm Tùy chỉnh: Cỡ trang chiếu. Hộp «Kích thước trang chiếu»: Màn hình rộng 16:9 · 33,867 × 19,05 cm, hoặc Tiêu chuẩn 4:3 · 25,4 × 19,05 cm. Nhấp thẻ áp ngay; mọi hình bị co x,y,w,h theo khung mới. Cùng preset thì không đổi. Ctrl+Z hoàn tác đổi cỡ.",
       "Khi lưu PPTX, hai khổ này ghi đúng khổ chuẩn của PowerPoint nên PowerPoint mở ra thấy Thiết kế → Kích thước trang chiếu là «Màn hình rộng» / «Chuẩn (4:3)», không phải «Tùy chỉnh». Tệp mở từ PowerPoint giữ nguyên khổ gốc khi lưu lại, trừ khi bạn tự đổi cỡ.",
       "Không có dạng xem Master (không sửa khung chữ sẵn của từng bố cục). Không có cỡ tùy chỉnh / 16:10."
@@ -565,7 +581,7 @@ export const SLIDES_HELP_ENTRIES = [
       "Tab Chế độ xem, nhóm Dạng xem bản trình chiếu: Chế độ đọc (nút lớn, cạnh Bình thường / Bộ sắp xếp / Ghi chú). Overlay «Dạng xem Đọc (Reading View)»: ‹ › đổi trang, «Trang n / N», ✕ Đóng. Esc thoát; ← / PageUp trước; → / PageDown / Space sau. Chỉ hiện tiêu đề và nội dung chữ đã thoát HTML — không hình, media, biểu đồ, cột 2, chân trang, hiệu ứng.",
       "Nhóm Hiển thị: Thước, Đường lưới, Đường hướng dẫn (ba nút bật/tắt, mặc định tắt). Thước SVG ngang+dọc, vạch 10 px, số 0 / 100 / 200… theo pixel (không phải cm). Lưới ô 20×20 px, không bắt dính hình.",
       "Đường hướng dẫn: đúng hai đường (dọc + ngang), mặc định tâm 480×270 trên khung 960×540. Kéo tay cầm «Kéo để chỉnh đường gióng dọc/ngang»; tooltip X/Y px, kẹp trong khổ trang. Không thêm/bớt đường, không tự căn lại khi đổi 4:3.",
-      "Nhóm Cửa sổ: Cửa sổ mới mở tab cùng URL. Bị chặn pop-up: «Trình duyệt đã chặn cửa sổ mới. Hãy cho phép pop-up cho VN Office.»"
+      "Nhóm Cửa sổ: Cửa sổ mới mở tab cùng URL. Bị chặn pop-up: «Trình duyệt đã chặn cửa sổ mới. Hãy cho phép pop-up cho 3T Office.»"
     ]
   },
   {
@@ -605,7 +621,7 @@ export const SLIDES_HELP_ENTRIES = [
     id: "slides.accessibility.keyboardNav",
     app: "slides",
     commandIds: ["common.file.backstage"],
-    title: "Điều hướng bằng bàn phím và trợ năng (VN Slides)",
+    title: "Điều hướng bằng bàn phím và trợ năng (3T Slide)",
     summary: "Thao tác hoàn toàn bằng bàn phím không cần dùng chuột trên trang chiếu: duyệt qua các đối tượng (tiêu đề, khối văn bản, hình vẽ) bằng phím Tab và Shift+Tab, dịch chuyển vị trí đối tượng bằng các phím mũi tên, mở menu Tệp bằng Alt+F và đóng bằng phím Escape.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Trợ năng" },
     keywords: ["bàn phím", "phím tắt", "trợ năng", "accessibility", "keyboard", "focus", "tab", "shift+tab", "đối tượng", "slide", "mũi tên"],
@@ -622,7 +638,7 @@ export const SLIDES_HELP_ENTRIES = [
     app: "slides",
     commandIds: ["common.macro.recordToggle", "common.macro.manager"],
     title: "Ghi và quản lý Macro trong bản trình chiếu",
-    summary: "Ghi lại chuỗi thao tác định dạng và xử lý slide trong VN Slides để phát lại nhanh chóng. Sử dụng Ctrl+Shift+R để bật/dừng ghi và Alt+F8 để mở hộp thoại Quản lý Macro.",
+    summary: "Ghi lại chuỗi thao tác định dạng và xử lý slide trong 3T Slide để phát lại nhanh chóng. Sử dụng Ctrl+Shift+R để bật/dừng ghi và Alt+F8 để mở hộp thoại Quản lý Macro.",
     ribbon: { tab: "Chế độ xem", tabId: "view", group: "Macro" },
     keywords: ["macro", "ghi macro", "dừng ghi", "quản lý macro", "xem macro", "tự động hóa", "record macro", "alt+f8", "ctrl+shift+r"],
     steps: [
@@ -630,7 +646,7 @@ export const SLIDES_HELP_ENTRIES = [
       "Thao tác trên slide: Thực hiện các lệnh trình chiếu muốn ghi lại (ví dụ: tạo slide mới, đổi bố cục slide, căn chỉnh hình vẽ, định dạng khối chữ...).",
       "Dừng ghi: Bấm nút «Dừng ghi» (hoặc Ctrl+Shift+R), nhập tên gợi nhớ cho Macro trong hộp thoại Lưu Macro và nhấn OK.",
       "Phát lại và chỉnh sửa: Bấm «Xem Macro» (hoặc Alt+F8) để mở hộp thoại Quản lý Macro. Nhấn «▶ Chạy» để thực thi lại chuỗi thao tác đã ghi trên trang chiếu hiện tại, hoặc chọn «Đổi tên», «Xóa» tùy ý.",
-      "Giới hạn trung thực: Macro chỉ ghi lại các thao tác lệnh có trong Command Bus của VN Slides (bố cục, hình khối, định dạng). Macro không ghi lại văn bản gõ tay trực tiếp vào hộp chữ tự do. Macro được lưu riêng cho VN Slides và phân tách độc lập với Writer và Sheet."
+      "Giới hạn trung thực: Macro chỉ ghi lại các thao tác lệnh có trong Command Bus của 3T Slide (bố cục, hình khối, định dạng). Macro không ghi lại văn bản gõ tay trực tiếp vào hộp chữ tự do. Macro được lưu riêng cho 3T Slide và phân tách độc lập với Writer và Sheet."
     ]
   },
   {

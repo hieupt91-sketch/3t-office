@@ -9,6 +9,7 @@
  */
 
 import { SlidesCanvasController } from "../../apps/slides/slides-canvas.js";
+import { createSlidesCanvasFixture } from "./slides-test-fixtures.js";
 import { SlidesAdapter } from "../../adapters/libreoffice/slides/slides-adapter.js";
 import { mapVnCommandToUno, getVnCommand } from "../../adapters/libreoffice/common/command-dispatch-mapper.js";
 
@@ -39,7 +40,7 @@ export async function runSlidesAnimationsNotesTests() {
 
   test("Animations Config: Lưu đúng hiệu ứng fadeIn, flyIn, zoomIn vào Title, Body và Shape", () => {
     const container = { innerHTML: "", className: "", appendChild() {} };
-    const canvas = new SlidesCanvasController(container);
+    const canvas = createSlidesCanvasFixture(container);
 
     // 1. Áp animation cho Title
     canvas.setObjectAnimation("title", { type: "fadeIn", duration: 600, delay: 200 });
@@ -75,7 +76,7 @@ export async function runSlidesAnimationsNotesTests() {
 
   test("Animations Copy: Nhân đôi slide (duplicate) sao chép nguyên vẹn cấu hình animation mà không làm biến dạng bản gốc", () => {
     const container = { innerHTML: "", className: "", appendChild() {} };
-    const canvas = new SlidesCanvasController(container);
+    const canvas = createSlidesCanvasFixture(container);
     canvas.currentSlideIndex = 0;
     canvas.setObjectAnimation("title", { type: "fadeIn", duration: 600, delay: 150 });
     canvas.slides[0].shapes = [
@@ -110,7 +111,7 @@ export async function runSlidesAnimationsNotesTests() {
 
   test("Speaker Notes Isolation: Gõ ghi chú ở slide 1, chuyển sang slide 2 ghi chú hoàn toàn độc lập, không rò rỉ chéo", () => {
     const container = { innerHTML: "", className: "", appendChild() {} };
-    const canvas = new SlidesCanvasController(container);
+    const canvas = createSlidesCanvasFixture(container);
 
     // Thiết lập mock DOM elements cho notesTextarea
     let mockTextareaVal = "";
@@ -156,7 +157,7 @@ export async function runSlidesAnimationsNotesTests() {
 
   test("Speaker Notes Add/Delete: Tạo slide mới có notes rỗng, xóa slide chuyển ghi chú đúng vị trí", () => {
     const container = { innerHTML: "", className: "", appendChild() {} };
-    const canvas = new SlidesCanvasController(container);
+    const canvas = createSlidesCanvasFixture(container);
 
     let mockTextareaVal = "";
     canvas.notesTextarea = {
@@ -211,7 +212,7 @@ export async function runSlidesAnimationsNotesTests() {
 
     try {
       const container = { innerHTML: "", className: "", appendChild() {} };
-      const canvas = new SlidesCanvasController(container);
+      const canvas = createSlidesCanvasFixture(container);
       canvas.slides[0].notes = "BÍ MẬT NỘI BỘ: Không được để khán giả thấy ghi chú này!";
 
       canvas.startSlideShow(0);
@@ -263,7 +264,7 @@ export async function runSlidesAnimationsNotesTests() {
 
     try {
       const container = { innerHTML: "", className: "", appendChild() {} };
-      const canvas = new SlidesCanvasController(container);
+      const canvas = createSlidesCanvasFixture(container);
       canvas.slides[0].notes = "Ghi chú dành riêng cho Presenter Console.";
 
       const ok = canvas.startPresenterMode(0);
@@ -383,7 +384,7 @@ export async function runSlidesAnimationsNotesTests() {
   });
 
   test("Morph: matches only same-id same-type shapes with finite geometry", () => {
-    const canvas = new SlidesCanvasController({ innerHTML: "", className: "", appendChild() {} });
+    const canvas = createSlidesCanvasFixture({ innerHTML: "", className: "", appendChild() {} });
     const matches = canvas._getMorphMatches(
       { shapes: [
         { id: "stable", type: "rect", x: 10, y: 20, w: 100, h: 60, color: "#ff0000" },

@@ -1,7 +1,7 @@
 /**
- * VN Writer — Insert dialogs (Equation, Bookmark, Cross-reference, WordArt)
+ * 3T Doc — Insert dialogs (Equation, Bookmark, Cross-reference, WordArt)
  * Rút gọn so với Word: phương trình là hộp text/MathML cơ bản, không có trình soạn đồ họa.
- * WordArt: copy logic CSS/preset từ VN Slides (không import chéo apps/slides — AGENTS.md §4).
+ * WordArt: copy logic CSS/preset từ 3T Slide (không import chéo apps/slides — AGENTS.md §4).
  */
 
 import { t, getLocale } from "../../platform/i18n/i18n.js";
@@ -519,7 +519,7 @@ export function parseWordArtStyleAttr(raw) {
 export function buildWriterWordArtHtml(text, options = {}) {
   const style = resolveWordArtStyle(options);
   const css = buildWordArtCss(style, options);
-  const visible = String(text || "VN Office").trim() || "VN Office";
+  const visible = String(text || "3T Office").trim() || "3T Office";
   const safeText = escapeWordArtText(visible);
   const encoded = encodeURIComponent(JSON.stringify({
     presetId: style.id,
@@ -541,7 +541,7 @@ export function buildWriterWordArtHtml(text, options = {}) {
  * @returns {Promise<{text:string, presetId:string}|null>}
  */
 export function showWordArtDialog(options = {}) {
-  const defaultText = String(options.text || "VN Office");
+  const defaultText = String(options.text || "3T Office");
   const defaultPreset = resolveWordArtPreset(options.presetId || options.styleId).id;
   if (typeof document === "undefined" || !document.body || typeof document.createElement !== "function") {
     return Promise.resolve({ text: defaultText, presetId: defaultPreset });

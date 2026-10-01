@@ -1,13 +1,25 @@
-param([string]$File, [string]$OwnedPidFile)
+param([string]$File, [string]$OwnedPidFile, [int]$Retries = 20, [int]$RetryDelayMilliseconds = 2500)
 # Word 2016 page-count oracle. Exports the document to PDF (real print layout) and counts
 # /Type /Page objects. ComputeStatistics(wdStatisticPages) is NOT used: in a hidden COM
 # window it returned 12 for a 5-page contract and 88 for a 44-page manual (2026-09-14).
+# COM calls are synchronous; Word can reject calls while busy (RPC_E_CALL_REJECTED,
+# 0x80010001) - that HRESULT only is waited on and retried, never skipped.
 if (-not $OwnedPidFile) {
   $OwnedPidFile = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), "vno_oracle_" + [guid]::NewGuid().ToString("N") + ".pid")
 }
 $ownedPidFile = $OwnedPidFile
 $job = Start-Job -ScriptBlock {
-  param($f, $pidFile)
+  param($f, $pidFile, $retries, $retryDelay)
+  function Invoke-ComWithRetry([scriptblock]$Action, [string]$Operation) {
+    for ($attempt = 0; $attempt -le $retries; $attempt++) {
+      try { return (& $Action) }
+      catch {
+        $hr = $_.Exception.HResult
+        if ($hr -ne -2147418111 -or $attempt -ge $retries) { throw "${Operation}: $($_.Exception.Message)" }
+        Start-Sleep -Milliseconds $retryDelay
+      }
+    }
+  }
   $before = @(Get-Process -Name WINWORD -ErrorAction SilentlyContinue | ForEach-Object { $_.Id })
   Add-Type -TypeDefinition @"
 using System;
@@ -16,7 +28,7 @@ public static class VnoOracleWindow {
   [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
 }
 "@ -ErrorAction SilentlyContinue
-  $word = New-Object -ComObject Word.Application
+  $word = Invoke-ComWithRetry { New-Object -ComObject Word.Application } 'Create Word'
   # Capture this COM run's process using the process list snapshot around activation.
   # If activation reused an existing Word process or the result is ambiguous, do not
   # leave an unsafe PID that a timeout handler could mistake for the user's instance.
@@ -41,21 +53,24 @@ public static class VnoOracleWindow {
   $word.Visible = $false
   $word.DisplayAlerts = 0
   $pdf = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), "vno_oracle_" + [guid]::NewGuid().ToString("N") + ".pdf")
+  $doc = $null
   try {
-    $doc = $word.Documents.Open($f, $false, $true, $false)
-    $doc.ExportAsFixedFormat($pdf, 17)   # wdExportFormatPDF
-    $doc.Close(0)
+    $doc = Invoke-ComWithRetry { $word.Documents.Open($f, $false, $true, $false) } 'Open document'
+    Invoke-ComWithRetry { $doc.ExportAsFixedFormat($pdf, 17) } 'Export PDF' | Out-Null   # wdExportFormatPDF
+    Invoke-ComWithRetry { $doc.Close(0) } 'Close document' | Out-Null
+    $doc = $null
     $bytes = [System.IO.File]::ReadAllBytes($pdf)
     $text = [System.Text.Encoding]::GetEncoding(28591).GetString($bytes)
     $n = ([regex]::Matches($text, "/Type\s*/Page[^s]")).Count
     "OK pages=$n"
   } catch { "FAIL " + ($_.Exception.Message -replace "`r|`n"," ") }
   finally {
+    if ($doc) { try { $doc.Close(0) } catch {} }
     try { $word.Quit() } catch {}
     [void][Runtime.InteropServices.Marshal]::ReleaseComObject($word)
     if (Test-Path $pdf) { Remove-Item $pdf -Force -ErrorAction SilentlyContinue }
   }
-} -ArgumentList $File, $ownedPidFile
+} -ArgumentList $File, $ownedPidFile, $Retries, $RetryDelayMilliseconds
 if (Wait-Job $job -Timeout 240) {
   Receive-Job $job
 } else {

@@ -1,4 +1,4 @@
-/** VN Sheet data transformations. All mutations stay local and are undoable. */
+/** 3T Sheet data transformations. All mutations stay local and are undoable. */
 export class SheetDataTools {
   constructor(grid) { this.grid = grid; }
 

@@ -1,5 +1,5 @@
 /**
- * VN Office Platform — Danh mục định nghĩa toàn bộ Command IDs & Microsoft Shortcuts
+ * 3T Office Platform — Danh mục định nghĩa toàn bộ Command IDs & Microsoft Shortcuts
  * Tiếng Việt chuẩn hóa, tích hợp 100% phím tắt Microsoft Office & LibreOffice
  */
 
@@ -39,7 +39,7 @@ export const COMMON_COMMANDS = [
   { id: "common.view.toggleTheme", category: "view", label: "Chế độ Tối/Sáng", icon: "themeMoon", tooltip: "Chuyển đổi giao diện Tối/Sáng (Dark Mode)", isToggle: true },
 
   // Trợ lý AI (AI Assistant)
-  { id: "ai.assistant.toggle", category: "ai", label: "Trợ lý VN AI", shortcut: "Alt+J", icon: "aiSparkle", tooltip: "Mở bảng trợ lý VN AI (Alt+J)", isToggle: true },
+  { id: "ai.assistant.toggle", category: "ai", label: "Trợ lý 3T AI", shortcut: "Alt+J", icon: "aiSparkle", tooltip: "Mở bảng trợ lý 3T AI (Alt+J)", isToggle: true },
   { id: "ai.assistant.summarize", category: "ai", label: "Tóm tắt nhanh", icon: "aiSummarize", tooltip: "Tóm tắt nội dung vùng chọn bằng AI" },
   { id: "ai.assistant.rewrite", category: "ai", label: "Viết lại", icon: "aiRewrite", tooltip: "Viết lại câu từ chuẩn văn phong tiếng Việt" },
   { id: "ai.assistant.grammarCheck", category: "ai", label: "Soát lỗi chính tả", shortcut: "F7", icon: "aiGrammar", tooltip: "Kiểm tra chính tả và ngữ pháp tiếng Việt (F7)" },
@@ -190,12 +190,12 @@ export const WRITER_COMMANDS = [
   { id: "writer.reference.tofUpdate", category: "reference", label: "Cập nhật danh mục", icon: "tofUpdate", tooltip: "Cập nhật lại danh mục hình ảnh/bảng từ các chú thích hiện có" },
 
   // Trộn thư (Mail Merge)
-  { id: "writer.mailMerge.open", category: "mailmerge", label: "Nguồn dữ liệu", icon: "mailMerge", tooltip: "Mở bảng nhập dữ liệu trộn thư (CSV)" },
+  { id: "writer.mailMerge.open", category: "mailmerge", label: "Nguồn dữ liệu", icon: "mailMerge", tooltip: "Chọn danh sách người nhận trộn thư từ Excel (.xlsx, .xls) hoặc CSV/TSV" },
   { id: "writer.mailMerge.insertField", category: "mailmerge", label: "Chèn trường", icon: "mergeInsertField", tooltip: "Chèn trường trộn thư tại vị trí con trỏ" },
   { id: "writer.mailMerge.preview", category: "mailmerge", label: "Xem trước kết quả", icon: "mergePreview", tooltip: "Bật/tắt xem trước bản ghi trộn thư", isToggle: true },
   { id: "writer.mailMerge.prevRecord", category: "mailmerge", label: "Bản ghi trước", icon: "mergePrev", tooltip: "Chuyển tới bản ghi trước" },
   { id: "writer.mailMerge.nextRecord", category: "mailmerge", label: "Bản ghi sau", icon: "mergeNext", tooltip: "Chuyển tới bản ghi tiếp theo" },
-  { id: "writer.mailMerge.finish", category: "mailmerge", label: "Hoàn tất trộn", icon: "mergeFinish", tooltip: "Hoàn tất trộn và tạo tài liệu kết quả cho toàn bộ bản ghi" },
+  { id: "writer.mailMerge.finish", category: "mailmerge", label: "Hoàn tất trộn", icon: "mergeFinish", tooltip: "Hoàn tất trộn: tạo tài liệu mới hoặc in trực tiếp" },
   { id: "writer.mailings.envelopes", category: "mailmerge", label: "Phong bì", icon: "envelope", tooltip: "Tạo trang phong bì với địa chỉ người nhận và người gửi" },
   { id: "writer.mailings.labels", category: "mailmerge", label: "Nhãn", icon: "labels", tooltip: "Tạo trang nhãn — một nội dung hoặc hàng loạt từ Trộn thư" }
 ];
@@ -509,6 +509,8 @@ export function registerAllStandardCommands(bus) {
       globalShortcutManager.bind(cmd.shortcut, cmd.id, scope);
     }
   }
+  // Word/Excel/PowerPoint also use Ctrl+Shift+S for Save As; keep F12 as the primary label.
+  globalShortcutManager.bind("Ctrl+Shift+S", "common.file.saveAs", "common");
   applyLocaleToCommandDefinitions(bus);
 }
 

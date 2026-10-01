@@ -1,5 +1,5 @@
 /**
- * VN Office Platform — Macro Manager (ghi & phát lại thao tác)
+ * 3T Office Platform — Macro Manager (ghi & phát lại thao tác)
  *
  * Macro "cơ bản": ghi lại chuỗi LỆNH (Command Bus) người dùng thực thi khi
  * đang bật ghi, lưu lại có tên, và phát lại (gọi đúng lại từng lệnh theo

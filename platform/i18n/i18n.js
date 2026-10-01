@@ -1,5 +1,5 @@
 /**
- * VN Office Platform — i18n Localization Layer (Đa ngôn ngữ: Tiếng Việt + English)
+ * 3T Office Platform — i18n Localization Layer (Đa ngôn ngữ: Tiếng Việt + English)
  * Tuân thủ 03-ui-ux/VIETNAMESE-I18N.md & 00-governance/NON-NEGOTIABLE-RULES.md (#16)
  */
 
@@ -9,7 +9,7 @@ import { enStrings } from "./strings-en.js";
 const STORAGE_KEY = "vno-locale";
 const SUPPORTED_LOCALES = ["vi", "en"];
 
-// VN Office là bộ ứng dụng cho người dùng Việt: mặc định luôn là tiếng Việt, kể cả khi Windows
+// 3T Office là bộ ứng dụng cho người dùng Việt: mặc định luôn là tiếng Việt, kể cả khi Windows
 // cài tiếng Anh (đa số máy văn phòng). Trước đây lấy theo ngôn ngữ hệ thống nên nhân viên dùng thử
 // thấy toàn bộ ribbon tiếng Anh (30/9/2026). Tiếng Anh chỉ khi người dùng tự chọn.
 const DEFAULT_LOCALE = "vi";

@@ -1,19 +1,19 @@
-VN OFFICE - HƯỚNG DẪN CÀI ĐẶT BẢN DÙNG THỬ NỘI BỘ
+3T OFFICE - HƯỚNG DẪN CÀI ĐẶT BẢN DÙNG THỬ NỘI BỘ
 ====================================================
 
 YÊU CẦU MÁY
 - Windows 10 hoặc Windows 11, 64-bit.
 - Microsoft Edge WebView2 Runtime. Nếu bộ cài thông báo chưa có, tải miễn phí từ trang Microsoft: https://developer.microsoft.com/microsoft-edge/webview2/
 - Ổ đĩa cài đặt cần dung lượng trống xấp xỉ gói ứng dụng cộng thêm 256 MiB.
-- Không cần Internet để dùng VN Office sau khi cài. Không cần quyền quản trị viên.
+- Không cần Internet để dùng 3T Office sau khi cài. Không cần quyền quản trị viên.
 
 CÀI ĐẶT BẰNG VNOffice-Setup-<phiên-bản>.exe (KHUYÊN DÙNG)
 1. Tải bộ cài từ kênh nội bộ do người phụ trách cung cấp.
 2. Nhấp đúp VNOffice-Setup-<phiên-bản>.exe. Giao diện bộ cài dùng tiếng Việt.
 3. Đọc trang thông báo giấy phép và bản dùng thử. Giữ bản sao dự phòng của tài liệu quan trọng.
 4. Chấp nhận thư mục mặc định trong hồ sơ người dùng. Không cần chọn Run as administrator.
-5. Tùy chọn tạo lối tắt Desktop được chọn sẵn. Tùy chọn đăng ký phần mở rộng tệp không được chọn; chỉ đánh dấu nếu muốn VN Office mở các định dạng được liệt kê.
-6. Nhấn Cài đặt. Sau khi hoàn tất, mở VN Writer, VN Sheet hoặc VN Slides từ Start Menu > VN Office hoặc từ Desktop.
+5. Tùy chọn tạo lối tắt Desktop được chọn sẵn. Tùy chọn đăng ký phần mở rộng tệp không được chọn; chỉ đánh dấu nếu muốn 3T Office mở các định dạng được liệt kê.
+6. Nhấn Cài đặt. Sau khi hoàn tất, mở 3T Doc, 3T Sheet hoặc 3T Slide từ Start Menu > 3T Office hoặc từ Desktop.
 
 CẢNH BÁO SMARTSCREEN
 Bộ cài hiện chưa được ký số nên Windows có thể hiện “Windows protected your PC” hoặc cảnh báo Microsoft Defender SmartScreen. Chỉ tiếp tục khi bộ cài đúng phiên bản và được lấy từ kênh nội bộ đáng tin cậy: chọn More info (Thông tin khác), kiểm tra tên VNOffice-Setup-<phiên-bản>.exe, rồi chọn Run anyway (Vẫn chạy). Nếu tên hoặc nguồn tệp không khớp thông báo của người phụ trách, hãy hủy và hỏi lại; không tắt SmartScreen.
@@ -21,16 +21,16 @@ Bộ cài hiện chưa được ký số nên Windows có thể hiện “Window
 Trong bản phát hành có chữ ký số, chữ ký của nhà phát hành sẽ giúp Windows xác nhận nguồn bộ cài. Bản hiện tại chưa có chứng thư ký mã.
 
 SAU KHI CÀI
-- VN Office chạy ngoại tuyến; một số tính năng mạng tùy chọn có thể cần kết nối riêng.
-- Nếu không bật đăng ký phần mở rộng, nhấp đúp tệp DOCX/XLSX/PPTX vẫn mở bằng ứng dụng mặc định hiện có. Có thể mở VN Writer, VN Sheet hoặc VN Slides rồi dùng Ctrl+O.
+- 3T Office chạy ngoại tuyến; một số tính năng mạng tùy chọn có thể cần kết nối riêng.
+- Nếu không bật đăng ký phần mở rộng, nhấp đúp tệp DOCX/XLSX/PPTX vẫn mở bằng ứng dụng mặc định hiện có. Có thể mở 3T Doc, 3T Sheet hoặc 3T Slide rồi dùng Ctrl+O.
 - Luôn giữ bản gốc của tài liệu quan trọng. Khi dùng thử, hãy dùng Lưu thành (Ctrl+Shift+S) để tạo bản làm việc riêng.
-- Excel rất lớn, có hàng chục nghìn dòng hoặc nhiều công thức có thể mở chậm.
+- Bảng tính có hàng chục nghìn dòng hoặc nhiều công thức có thể mở chậm.
 - Khi chạy lần đầu, ứng dụng có thể hỏi đồng ý gửi báo cáo lỗi kỹ thuật. Báo cáo không gửi nội dung tài liệu hoặc tên tệp; có thể bật/tắt trong Trợ giúp.
 - Khi gặp lỗi, vào Trợ giúp > Báo lỗi / Góp ý và mô tả ngắn tình huống.
 
 CẬP NHẬT VÀ GỠ CÀI ĐẶT
-- Cài phiên bản mới bằng cách chạy bộ VNOffice-Setup mới; trình cài đặt nâng cấp trong cùng thư mục. Hãy lưu công việc và đóng VN Office trước khi cập nhật.
-- Mở Settings > Apps > Installed apps (hoặc Apps & Features), chọn VN Office > Uninstall; có thể dùng lối tắt Gỡ cài đặt VN Office trong Start Menu.
+- Cài phiên bản mới bằng cách chạy bộ VNOffice-Setup mới; trình cài đặt nâng cấp trong cùng thư mục. Hãy lưu công việc và đóng 3T Office trước khi cập nhật.
+- Mở Settings > Apps > Installed apps (hoặc Apps & Features), chọn 3T Office > Uninstall; có thể dùng lối tắt Gỡ cài đặt 3T Office trong Start Menu.
 - Khi gỡ, dữ liệu trong %APPDATA%\VNOffice (thiết lập đồng ý, khôi phục và hàng đợi báo cáo lỗi) được giữ lại. Chỉ chọn ô xóa dữ liệu nếu muốn xóa cả thư mục này.
 
 PHƯƠNG ÁN DỰ PHÒNG: INSTALL-PILOT.PS1

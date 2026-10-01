@@ -1,7 +1,7 @@
 import { globalUnoBridge } from "../../adapters/libreoffice/common/uno-bridge.js";
 import { RecoveryDialog } from "./recovery-dialog.js";
 
-const APP_NAMES = { writer: "VN Writer", sheet: "VN Sheet", slides: "VN Slides" };
+const APP_NAMES = { writer: "3T Doc", sheet: "3T Sheet", slides: "3T Slide" };
 const DEFAULT_SETTINGS = Object.freeze({ enabled: true, interval_minutes: 5 });
 const MIN_INTERVAL_MINUTES = 1;
 const MAX_INTERVAL_MINUTES = 60;
@@ -229,7 +229,7 @@ export class AutoRecoverManager {
     if (!this.bridge.desktopApi) {
       enabled.disabled = true;
       interval.disabled = true;
-      this._setHelpStatus("Tự động khôi phục khả dụng trong ứng dụng VN Office Desktop.");
+      this._setHelpStatus("Tự động khôi phục khả dụng trong ứng dụng 3T Office Desktop.");
     } else {
       this._setHelpStatus(this.settings.enabled ? `Đang bật — mỗi ${this.settings.interval_minutes} phút.` : "Đang tắt.");
     }

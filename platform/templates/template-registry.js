@@ -1,5 +1,5 @@
 /**
- * VN Office Platform — Template Registry
+ * 3T Office Platform — Template Registry
  * Danh mục và nội dung mẫu tài liệu tiêu chuẩn thuần Việt
  * Tuân thủ 01-architecture/ARCHITECTURE.md & 03-ui-ux/VIETNAMESE-I18N.md
  */

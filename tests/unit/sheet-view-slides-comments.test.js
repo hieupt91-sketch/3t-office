@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { SheetGridController } from "../../apps/sheet/sheet-grid.js";
 import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
 import { SlidesCanvasController } from "../../apps/slides/slides-canvas.js";
+import { createSlidesCanvasFixture } from "./slides-test-fixtures.js";
 import { SlidesAdapter } from "../../adapters/libreoffice/slides/slides-adapter.js";
 import { SHEET_RIBBON_TABS } from "../../apps/sheet/sheet-ribbon.js";
 import { SLIDES_RIBBON_TABS } from "../../apps/slides/slides-ribbon.js";
@@ -27,7 +28,7 @@ function sheetGrid() {
 }
 
 function slidesCanvas() {
-  const canvas = new SlidesCanvasController({});
+  const canvas = createSlidesCanvasFixture({});
   canvas.titleEl = { innerText: "", style: {}, classList: { add() {}, remove() {} } };
   canvas.bodyEl = { innerText: "", style: {} };
   canvas.body2El = { innerText: "", style: {} };

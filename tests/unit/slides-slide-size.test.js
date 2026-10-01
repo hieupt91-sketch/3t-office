@@ -1,4 +1,5 @@
 import { SlidesCanvasController } from "../../apps/slides/slides-canvas.js";
+import { createSlidesCanvasFixture } from "./slides-test-fixtures.js";
 import { SLIDES_RIBBON_TABS } from "../../apps/slides/slides-ribbon.js";
 import { ICONS } from "../../platform/ui-kit/icons.js";
 import { VN_TO_UNO_MAP } from "../../adapters/libreoffice/common/command-dispatch-mapper.js";
@@ -22,7 +23,7 @@ export async function runSlidesSlideSizeTests() {
   });
 
   test("Slides Slide Size: 16:9 sang 4:3 scale mọi shape và connector", () => {
-    const canvas = new SlidesCanvasController(container());
+    const canvas = createSlidesCanvasFixture(container());
     canvas.slides[0].shapes = [
       { id: "box", type: "rect", x: 800, y: 400, w: 160, h: 100 },
       { id: "line", type: "connector", x: 100, y: 100, w: 700, h: 300, x1: 100, y1: 100, x2: 800, y2: 400 }
@@ -36,7 +37,7 @@ export async function runSlidesSlideSizeTests() {
   });
 
   test("Slides Slide Size: Undo/Redo khôi phục tỷ lệ và geometry chính xác", () => {
-    const canvas = new SlidesCanvasController(container());
+    const canvas = createSlidesCanvasFixture(container());
     canvas.slides[0].shapes = [{ id: "box", type: "rect", x: 320, y: 90, w: 200, h: 120 }];
     canvas.setSlideSize({ preset: "standard" });
     assert(canvas.undo() && canvas.slideSize.preset === "wide" && canvas.slides[0].shapes[0].x === 320, "Undo Slide Size sai");

@@ -1,12 +1,13 @@
 /**
- * VN Office LibreOffice Adapter — VN Writer Adapter
+ * 3T Office LibreOffice Adapter — 3T Doc Adapter
  * Quản lý tương tác với StarWriter (sw) Document Model & Phím tắt Microsoft/LibreOffice
  */
 
 import { globalUnoBridge } from "../common/uno-bridge.js";
 import { showPromptDialog, showFindReplaceDialog, showAlertDialog } from "../../../platform/ui-kit/dialogs.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
-import { parseCsv, replaceMergeFields, showMailMergeDataSourceDialog, showInsertMergeFieldDialog } from "../../../apps/writer/mail-merge.js";
+import { openPrintDialog } from "../../../platform/print/print-dialog.js";
+import { parseCsv, parseDelimitedText, parseFodsData, replaceMergeFields, showMailMergeDataSourceDialog, showInsertMergeFieldDialog, showFinishMailMergeDialog } from "../../../apps/writer/mail-merge.js";
 import {
   ENVELOPE_SIZES,
   LABEL_LAYOUTS,
@@ -252,7 +253,11 @@ export class WriterAdapter {
     this.mailMergeData = {
       fields: [],
       records: [],
-      rawCsv: ""
+      sheets: [],
+      activeSheetName: "",
+      rawCsv: "",
+      rawFods: "",
+      sourceFileName: ""
     };
     this.mailMergePreview = {
       enabled: false,
@@ -311,7 +316,8 @@ export class WriterAdapter {
     this._bindTrackChanges();
     this._renderCommentsPanel();
     this._updateTrackChangesCommandState();
-    globalCommandBus.bindHandler("writer.file.printPreview", () => this.openPrintPreview());
+    globalCommandBus.bindHandler("common.file.print", () => this.print());
+    globalCommandBus.bindHandler("writer.file.printPreview", () => this.print());
 
     // Bind Review (Ghi chú & Theo dõi thay đổi)
     globalCommandBus.bindHandler("writer.comment.insert", (args) => this.insertComment(args));
@@ -1829,14 +1835,14 @@ export class WriterAdapter {
    * `<ins>` / `<del>` / `<mark data-comment-id>` before the body is mounted.
    *
    * Header/Footer are different: StarWriter keeps them as
-   * `<div title="header|footer">` (the same markers VN Writer already emits
+   * `<div title="header|footer">` (the same markers 3T Doc already emits
    * on save). PAGE/NUMPAGES become `<sdfield>` plus a gray span — preserve a VN field marker
    * so DOCX save keeps native fields and Print Preview can update the displayed value.
    *
    * Footnotes/Endnotes are also kept (unlike Track Changes / Comments):
    * `<a class="sdfootnoteanc">` / `sdendnoteanc` plus
    * `<div id="sdfootnoteN">` / `sdendnoteN` bodies. Map those onto the
-   * existing VN Writer `data-vno-footnote-ref` / `data-vno-endnote-ref`
+   * existing 3T Doc `data-vno-footnote-ref` / `data-vno-endnote-ref`
    * containers so session click-to-jump, renumber, and Print Preview work.
    * No OOXML sidecar is required for this path.
    *
@@ -5330,7 +5336,7 @@ export class WriterAdapter {
    * (`id="textboxN"`, `id="FrameN"`, etc.) into `<span>` elements with
    * `position: absolute` and page-relative top/left coordinates.
    *
-   * VN Writer renders the whole document inside a single container, so
+   * 3T Doc renders the whole document inside a single container, so
    * all absolute coordinates are measured from the same origin — causing
    * elements from pages 2+ to overlap unrelated content.
    *
@@ -5483,7 +5489,7 @@ export class WriterAdapter {
    * StarWriter HTML of a real Word DOCX keeps footnotes/endnotes as
    * `a.sdfootnoteanc` / `a.sdendnoteanc` citations plus
    * `div#sdfootnoteN` / `div#sdendnoteN` bodies (LibreOffice 26.2 measured).
-   * Map them onto VN Writer session markup. Do not invent notes when the
+   * Map them onto 3T Doc session markup. Do not invent notes when the
    * HTML has no StarWriter markers.
    */
   _normalizeImportedStarWriterNotes(html) {
@@ -6326,7 +6332,9 @@ export class WriterAdapter {
         return this.toggleStyleGallery(args);
 
       case "common.file.new":
-        return await this.newDocument();
+        return this.shell?.requestNewDocumentWindow
+          ? await this.shell.requestNewDocumentWindow()
+          : await this.newDocument();
 
       case "common.file.close":
         return await this.closeDocument();
@@ -6347,7 +6355,7 @@ export class WriterAdapter {
         return this.print();
 
       case "writer.file.printPreview":
-        return Boolean(this.openPrintPreview());
+        return this.print();
 
       case "writer.page.margins":
         return await this._openPageSetup("margins");
@@ -7977,7 +7985,7 @@ export class WriterAdapter {
     const hasExplicit = typeof options.text === "string" || options.presetId || options.styleId;
     const picked = hasExplicit ? options : await showWordArtDialog(options);
     if (!picked) return false;
-    const text = String(picked.text || options.text || "VN Office").trim() || "VN Office";
+    const text = String(picked.text || options.text || "3T Office").trim() || "3T Office";
     const presetId = picked.presetId || options.presetId || options.styleId || "navy-outline";
     const style = resolveWordArtStyle({ ...picked, ...options, presetId, text });
     const html = buildWriterWordArtHtml(text, { ...picked, ...options, presetId });
@@ -8083,7 +8091,7 @@ export class WriterAdapter {
       else textEl.contentEditable = "false";
       el.classList?.remove?.("is-editing");
       this._wordArtEditing = false;
-      const next = String(textEl.textContent || "").trim() || "VN Office";
+      const next = String(textEl.textContent || "").trim() || "3T Office";
       textEl.textContent = next;
       el.setAttribute?.("data-vno-wordart-text", next);
       el.setAttribute?.("aria-label", `Chữ nghệ thuật: ${next}`);
@@ -8366,7 +8374,7 @@ export class WriterAdapter {
     const sectionNote = restart === "section"
       ? " File Word/LibreOffice ghi Liên tục vì ODF không có restart-each-section."
       : "";
-    badge.textContent = `Danh số dòng: ${modeLabel}. Số hiện ở lề trái khi mở bằng Word hoặc LibreOffice — canvas VN Writer không vẽ số.${sectionNote}`;
+    badge.textContent = `Danh số dòng: ${modeLabel}. Số hiện ở lề trái khi mở bằng Word hoặc LibreOffice — canvas 3T Doc không vẽ số.${sectionNote}`;
     badge.setAttribute("title", badge.textContent);
   }
 
@@ -9283,16 +9291,16 @@ export class WriterAdapter {
       // Lỗi thật đã xác nhận qua probe soffice thật: file DOCX thật (Word
       // thật) chèn hình cơ bản (hình chữ nhật, elip, bo góc — rất phổ biến,
       // dùng qua "Insert Shapes" của Word) không được soffice ghi thành
-      // <draw:rect>/<draw:ellipse> chuẩn ODF như VN Writer tự ghi, mà LUÔN
+      // <draw:rect>/<draw:ellipse> chuẩn ODF như 3T Doc tự ghi, mà LUÔN
       // thành <draw:custom-shape> với draw:enhanced-geometry draw:type=
       // "ooxml-<prstGeom>" (ví dụ "ooxml-rect", "ooxml-ellipse",
       // "ooxml-roundRect"). Trước đây parseFodt() NÉM LỖI ngay khi gặp bất
       // kỳ type nào khác "right-arrow" — khiến file DOCX có MỘT hình chữ
       // nhật/elip bình thường (không cần xoay, không gì đặc biệt) cũng
       // KHÔNG MỞ ĐƯỢC. Ánh xạ 5 kiểu có tương đương chính xác trong model
-      // hình của VN Writer (apps/writer/writer-illustrations.js: rectangle/
+      // hình của 3T Doc (apps/writer/writer-illustrations.js: rectangle/
       // round-rect/circle/triangle/diamond) — các kiểu KHÁC (pentagon,
-      // star5, hexagon...) VN Writer chưa có renderer tương ứng nên VẪN
+      // star5, hexagon...) 3T Doc chưa có renderer tương ứng nên VẪN
       // từ chối rõ ràng, không âm thầm vẽ sai hình.
       // "ooxml-straightConnector1" (OOXML thật) và "mso-spt32" (id 32 =
       // Straight Connector, LibreOffice tự dùng khi convert file .doc cũ)
@@ -10528,7 +10536,7 @@ export class WriterAdapter {
       if (node.name === "text:line-break") return "<br>";
       if (node.name === "text:bookmark" || node.name === "text:bookmark-start" || node.name === "text:bookmark-end") {
         // Điểm neo (anchor) vô hình dùng cho tham chiếu chéo/mục lục nội bộ
-        // của Word — không có nội dung hiển thị, VN Writer chưa có tính
+        // của Word — không có nội dung hiển thị, 3T Doc chưa có tính
         // năng tham chiếu chéo nên bỏ qua an toàn (không mất nội dung
         // hiển thị nào, chỉ mất khả năng nhảy tới điểm neo đó).
         return "";
@@ -10677,7 +10685,7 @@ export class WriterAdapter {
       // Lỗi thật đã xác nhận: file DOCX thật có ảnh neo nổi (Word thường dùng
       // kiểu này cho logo/letterhead có chữ chạy quanh — wp:anchor với
       // wrapSquare) được soffice convert sang FODT với text:anchor-type="char"
-      // (không phải "as-char" mà VN Office tự ghi khi chèn ảnh). Trước đây
+      // (không phải "as-char" mà 3T Office tự ghi khi chèn ảnh). Trước đây
       // parseFodt() NÉM LỖI ngay khi gặp anchor-type khác "as-char", khiến
       // TOÀN BỘ file không mở được (không chỉ mất 1 ảnh). Vì kiến trúc hiện
       // tại đặt draw:frame ngay trong luồng nội dung đoạn văn (inlineNodeHtml)
@@ -11215,7 +11223,7 @@ export class WriterAdapter {
         const savedFileName = savedPath.split(/[/\\]/).pop();
         if (savedFileName) {
           this.sourceFileName = savedFileName.replace(/\.[^/.]+$/, "");
-          this.shell?.resetDocumentChrome?.(savedFileName, null);
+          this.shell?.resetDocumentChrome?.(savedFileName, null, true, savedPath);
         }
       }
       this.shell?.setStatus?.("Đã lưu");
@@ -11254,14 +11262,20 @@ export class WriterAdapter {
     );
 
     if (result.status === "ok") {
-      this.isDirty = false;
       const savedPath = result.path || result.fileName;
+      // Như Word: Lưu thành PDF chỉ xuất một bản PDF; tài liệu đang sửa vẫn giữ tên,
+      // định dạng và trạng thái chưa lưu của nó (Ctrl+S sau đó không ghi vào tệp PDF).
+      if (/\.pdf$/i.test(String(savedPath || ""))) {
+        this.shell?.setStatus?.(`Đã xuất PDF: ${String(savedPath).split(/[/\\]/).pop()}`);
+        return true;
+      }
+      this.isDirty = false;
       if (savedPath) {
         this._sourcePath = savedPath;
         const savedFileName = savedPath.split(/[/\\]/).pop();
         if (savedFileName) {
           this.sourceFileName = savedFileName.replace(/\.[^/.]+$/, "");
-          this.shell?.resetDocumentChrome?.(savedFileName, null);
+          this.shell?.resetDocumentChrome?.(savedFileName, null, true, savedPath);
         }
       }
       this.shell?.setStatus?.("Đã lưu");
@@ -11281,6 +11295,8 @@ export class WriterAdapter {
    * Mở một tệp DOCX/ODT thật từ đĩa, thay thế nội dung soạn thảo hiện tại.
    */
   async open() {
+    if (typeof this.shell?.confirmUnsavedChangesBeforeReplace === "function"
+      && !(await this.shell.confirmUnsavedChangesBeforeReplace())) return false;
     if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
       window.dispatchEvent(new Event("vno:document-open-progress"));
     }
@@ -11296,6 +11312,25 @@ export class WriterAdapter {
   async _openDocumentFromDisk() {
     const result = await globalUnoBridge.openRealFile("writer");
     if (result.status === "ok") {
+      let imported;
+      try {
+        imported = this._normalizeImportedHtml(
+          result.content || "",
+          result.ooxmlDocumentXml,
+          result.ooxmlCommentsXml,
+          result.ooxmlStylesXml,
+          result.ooxmlNumberingXml,
+          result.ooxmlHeaderXml,
+          result.ooxmlFooterXml
+        );
+      } catch (error) {
+        await showAlertDialog({
+          title: "Không thể mở tệp",
+          message: `${error?.message || "Tệp không đúng định dạng hoặc bị hỏng."} Tài liệu đang mở được giữ nguyên.`,
+          type: "error"
+        });
+        return false;
+      }
       this._initZones();
       this._sourcePath = result.sourcePath || null;
       // Comments chỉ thuộc tài liệu đang mở trong phiên; file khác không dùng lại anchor cũ.
@@ -11303,15 +11338,6 @@ export class WriterAdapter {
       this.trackChangesEnabled = false;
       this.activeCommentId = null;
       this._renderCommentsPanel();
-      const imported = this._normalizeImportedHtml(
-        result.content || "",
-        result.ooxmlDocumentXml,
-        result.ooxmlCommentsXml,
-        result.ooxmlStylesXml,
-        result.ooxmlNumberingXml,
-        result.ooxmlHeaderXml,
-        result.ooxmlFooterXml
-      );
       if (imported.page) {
         this.pageSetup = {
           size: imported.page.size || this.pageSetup.size,
@@ -11374,11 +11400,10 @@ export class WriterAdapter {
       this._openedEditorDomHash = this._editorDomFingerprint();
       this._updateTrackChangesCommandState();
       this.clearUndoRedo();
-      this.shell?.resetDocumentChrome?.(result.fileName || "Tài liệu 1.docx");
+      this.shell?.resetDocumentChrome?.(result.fileName || "T\u00e0i li\u1ec7u 1.docx", null, true, result.sourcePath || "");
       const importedSize = String(result.content || "").length;
       if (importedSize >= 50000 && typeof requestAnimationFrame !== "undefined") {
-        // Large imports already contain their full content. Let the browser paint the
-        // opening viewport before measuring every block and inserting live page gaps.
+        // Let the opening viewport paint before recomputing pagination for large imports.
         requestAnimationFrame(() => requestAnimationFrame(() => this._recomputeLivePagination?.()));
       } else {
         this._recomputeLivePagination?.();
@@ -11481,7 +11506,7 @@ export class WriterAdapter {
     this.docStyles = null;
     this._applyDocStyles();
 
-    this.mailMergeData = { fields: [], records: [], rawCsv: "" };
+    this.mailMergeData = { fields: [], records: [], sheets: [], activeSheetName: "", rawCsv: "", rawFods: "", sourceFileName: "" };
     this.mailMergePreview = { enabled: false, recordIndex: 0 };
     this.citationStyle = "apa";
     this.citationSources = [];
@@ -11500,12 +11525,15 @@ export class WriterAdapter {
   }
 
   async closeDocument() {
+    if (this.shell?.requestCloseDocument) return await this.shell.requestCloseDocument();
     return await this.newDocument();
   }
 
   async exportPdf() {
     this.documentContent = this.editorDom.innerHTML;
-    const result = await globalUnoBridge.exportRealPdf("writer", this._contentForExport(), this.sourceFileName);
+    const result = await globalUnoBridge.exportRealPdf(
+      "writer", this._contentForExport(), this.sourceFileName, this._sourcePath || null,
+    );
     if (result.status === "ok") {
       await showAlertDialog({ title: "Đã xuất PDF", message: result.message, type: "success" });
       return true;
@@ -11516,10 +11544,32 @@ export class WriterAdapter {
   }
 
   print() {
-    if (typeof window !== "undefined" && typeof window.print === "function") {
-      window.print();
-    }
-    return true;
+    this.documentContent = this.editorDom?.innerHTML || this.documentContent;
+    const page = this.getPageDimensions();
+    const pageSetupLabel = `${this.pageSetup?.size?.toUpperCase() || "A4"} · ${this.pageSetup?.orientation === "landscape" ? "Ngang" : "Dọc"}`;
+    let currentPage = 1;
+    try {
+      const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+      const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+      if (range && this.bodyDom?.contains?.(range.startContainer)) {
+        const bodyRect = this.bodyDom.getBoundingClientRect?.();
+        const caretRect = range.getBoundingClientRect?.();
+        if (bodyRect && caretRect && page.heightPx > 0) {
+          const bodyHeight = Math.max(1, page.heightPx - page.topPx - page.bottomPx);
+          const offset = Math.max(0, caretRect.top - bodyRect.top + (this.bodyDom.scrollTop || 0));
+          currentPage = Math.max(1, Math.min(this._livePageCount || 1, Math.floor(offset / bodyHeight) + 1));
+        }
+      }
+    } catch { currentPage = 1; }
+    return openPrintDialog({
+      appKind: "writer",
+      content: this._contentForExport(),
+      documentName: this.sourceFileName || "Tài liệu",
+      sourcePath: this._sourcePath || null,
+      pageSetupLabel,
+      currentPage,
+      engine: globalUnoBridge
+    });
   }
 
   /**
@@ -12406,9 +12456,14 @@ export class WriterAdapter {
    */
   _isSnapshotEqual(a, b) {
     if (!a || !b) return false;
-    if (a.bodyHtml !== b.bodyHtml) return false;
-    if (a.headerHtml !== b.headerHtml) return false;
-    if (a.footerHtml !== b.footerHtml) return false;
+    // Gạch chân kiểm tra chính tả được chèn/bỏ bất đồng bộ; đó là lớp hiển thị, không phải
+    // nội dung. Không bỏ qua nó thì Lưu xong chỉ cần bấm F12/lệnh bất kỳ là tài liệu tự
+    // thành "chưa lưu" và đóng cửa sổ hỏi Lưu dù người dùng không sửa gì (đo G7).
+    const comparable = html => (html == null ? html : String(html)
+      .replace(/<span\b(?=[^>]*\bclass=["'][^"']*\bvno-spelling-(?:error|uncertain)\b[^"']*["'])[^>]*>([\s\S]*?)<\/span>/gi, "$1"));
+    if (a.bodyHtml !== b.bodyHtml && comparable(a.bodyHtml) !== comparable(b.bodyHtml)) return false;
+    if (a.headerHtml !== b.headerHtml && comparable(a.headerHtml) !== comparable(b.headerHtml)) return false;
+    if (a.footerHtml !== b.footerHtml && comparable(a.footerHtml) !== comparable(b.footerHtml)) return false;
     if (JSON.stringify(a.pageSetup) !== JSON.stringify(b.pageSetup)) return false;
     if ((a.activeSectionId || "section-1") !== (b.activeSectionId || "section-1")) return false;
     if (JSON.stringify(a.sectionPageSetups || {}) !== JSON.stringify(b.sectionPageSetups || {})) return false;
@@ -14324,33 +14379,79 @@ export class WriterAdapter {
   // =========================================================================
 
   /**
-   * Thiết lập nguồn dữ liệu trộn thư từ chuỗi CSV
-   * @param {string} csvText
-   * @returns {{ fields: string[], records: Array<Record<string, string>> }}
+   * Lấy danh sách các bản ghi trộn thư đang được chọn (không bị bỏ chọn)
+   * @returns {Array<Record<string, string>>}
    */
-  setMailMergeData(csvText) {
-    if (typeof csvText !== "string") {
-      this.mailMergeData = { fields: [], records: [], rawCsv: "" };
+  _getActiveMailMergeRecords() {
+    return (this.mailMergeData?.records || []).filter((r) => r._selected !== false);
+  }
+
+  /**
+   * Thiết lập nguồn dữ liệu trộn thư từ chuỗi (CSV, TSV, FODS) hoặc đối tượng nguồn dữ liệu
+   * @param {string|Object} dataInput
+   * @param {Object} [options={}]
+   * @returns {{ fields: string[], records: Array<Record<string, string>>, sheets?: Array<any> }}
+   */
+  setMailMergeData(dataInput, options = {}) {
+    if (!dataInput) {
+      this.mailMergeData = { fields: [], records: [], sheets: [], activeSheetName: "", rawCsv: "", rawFods: "", sourceFileName: "" };
       this._updateMailMergeCommandStates();
       return { fields: [], records: [] };
     }
-    const { fields, records } = parseCsv(csvText);
-    this.mailMergeData = {
-      rawCsv: csvText,
-      fields,
-      records
-    };
+
+    if (typeof dataInput === "object" && Array.isArray(dataInput.records) && Array.isArray(dataInput.fields)) {
+      const records = dataInput.records.map((r) => ({ ...r, _selected: r._selected !== false }));
+      this.mailMergeData = {
+        fields: dataInput.fields,
+        records,
+        sheets: dataInput.sheets || [],
+        activeSheetName: dataInput.activeSheetName || "",
+        rawCsv: dataInput.rawCsv || "",
+        rawFods: dataInput.rawFods || "",
+        sourceFileName: dataInput.sourceFileName || ""
+      };
+    } else if (typeof dataInput === "string") {
+      const isFods = dataInput.includes("<office:document") || dataInput.includes("<table:table");
+      if (isFods) {
+        const { sheets } = parseFodsData(dataInput, options);
+        const activeSheet = sheets[0] || { fields: [], records: [] };
+        this.mailMergeData = {
+          rawFods: dataInput,
+          rawCsv: "",
+          sheets,
+          activeSheetName: activeSheet.name || "",
+          fields: activeSheet.fields,
+          records: activeSheet.records
+        };
+      } else {
+        const { fields, records } = parseDelimitedText(dataInput, options);
+        this.mailMergeData = {
+          rawCsv: dataInput,
+          rawFods: "",
+          sheets: [{ name: "Trang tính 1", fields, records }],
+          activeSheetName: "Trang tính 1",
+          fields,
+          records
+        };
+      }
+    } else {
+      this.mailMergeData = { fields: [], records: [], sheets: [], activeSheetName: "", rawCsv: "", rawFods: "", sourceFileName: "" };
+      this._updateMailMergeCommandStates();
+      return { fields: [], records: [] };
+    }
+
     this.mailMergePreview.recordIndex = 0;
+    const activeRecords = this._getActiveMailMergeRecords();
     if (this.mailMergePreview.enabled) {
-      if (records.length > 0) {
-        this._renderMergePreview(records[0]);
+      if (activeRecords.length > 0) {
+        this._renderMergePreview(activeRecords[0]);
       } else {
         this._clearMergePreview();
         this.mailMergePreview.enabled = false;
       }
     }
     this._updateMailMergeCommandStates();
-    return { fields, records };
+    return { fields: this.mailMergeData.fields, records: this.mailMergeData.records, sheets: this.mailMergeData.sheets };
   }
 
   /**
@@ -15086,15 +15187,18 @@ export class WriterAdapter {
 
   async openMailMergeDataSourceDialog(options = {}) {
     options = options || {};
-    const csvInput = options.csv !== undefined ? options.csv : options.csvText;
-    if (csvInput !== undefined) {
-      return this.setMailMergeData(csvInput);
+    const inputData = options.csv !== undefined ? options.csv : (options.csvText !== undefined ? options.csvText : (options.fods !== undefined ? options.fods : options.data));
+    if (inputData !== undefined) {
+      return this.setMailMergeData(inputData, options);
     }
     return new Promise((resolve) => {
       showMailMergeDataSourceDialog({
         currentCsv: this.mailMergeData?.rawCsv || "",
-        onSave: (csv) => {
-          const res = this.setMailMergeData(csv);
+        rawFods: this.mailMergeData?.rawFods || "",
+        sheets: this.mailMergeData?.sheets || [],
+        activeSheetName: this.mailMergeData?.activeSheetName || "",
+        onSave: (result) => {
+          const res = this.setMailMergeData(result);
           resolve(res);
         },
         onCancel: () => {
@@ -15219,7 +15323,8 @@ export class WriterAdapter {
     }
 
     if (this.mailMergePreview.enabled) {
-      const record = this.mailMergeData.records[this.mailMergePreview.recordIndex];
+      const activeRecords = this._getActiveMailMergeRecords();
+      const record = activeRecords[this.mailMergePreview.recordIndex];
       if (record && record[fieldName] !== undefined) {
         span.textContent = record[fieldName];
         if (span.classList?.add) span.classList.add("vno-merge-preview");
@@ -15245,7 +15350,7 @@ export class WriterAdapter {
       ? options.force
       : (typeof options === "boolean" ? options : null);
 
-    const records = this.mailMergeData?.records || [];
+    const records = this._getActiveMailMergeRecords();
     if (records.length === 0) {
       if (typeof document !== "undefined" && typeof document.createElement === "function" && document.body) {
         const previewWarnTitle = (typeof t === "function" && t("writerDialogs.mailMerge.noDataWarningTitle") !== "writerDialogs.mailMerge.noDataWarningTitle")
@@ -15253,7 +15358,7 @@ export class WriterAdapter {
           : "Xem trước trộn thư";
         const previewWarnMsg = (typeof t === "function" && t("writerDialogs.mailMerge.noDataWarningMsg") !== "writerDialogs.mailMerge.noDataWarningMsg")
           ? t("writerDialogs.mailMerge.noDataWarningMsg")
-          : "Chưa có nguồn dữ liệu trộn thư. Vui lòng mở 'Nguồn dữ liệu' để dán bảng CSV trước.";
+          : "Chưa có nguồn dữ liệu trộn thư. Vui lòng mở 'Nguồn dữ liệu' để chọn tệp hoặc dán bảng CSV trước.";
         showAlertDialog({
           title: previewWarnTitle,
           message: previewWarnMsg,
@@ -15291,7 +15396,7 @@ export class WriterAdapter {
    */
   prevMailMergeRecord(options = {}) {
     options = options || {};
-    const records = this.mailMergeData?.records || [];
+    const records = this._getActiveMailMergeRecords();
     if (records.length === 0) return false;
 
     if (!this.mailMergePreview.enabled) {
@@ -15314,7 +15419,7 @@ export class WriterAdapter {
    */
   nextMailMergeRecord(options = {}) {
     options = options || {};
-    const records = this.mailMergeData?.records || [];
+    const records = this._getActiveMailMergeRecords();
     if (records.length === 0) return false;
 
     if (!this.mailMergePreview.enabled) {
@@ -15332,6 +15437,7 @@ export class WriterAdapter {
 
   /**
    * Hoàn tất trộn thư: tạo ra N bản sao nội dung thật, nối bằng ngắt trang page-break-before
+   * hoặc in trực tiếp qua options.mode === "print".
    * @param {Object} [options={}]
    * @returns {boolean}
    */
@@ -15341,6 +15447,28 @@ export class WriterAdapter {
     this._initZones();
     if (!this.bodyDom) return false;
 
+    const activeRecords = this._getActiveMailMergeRecords();
+
+    // Nếu gọi trực tiếp từ thanh Ribbon (không tham số mode) và có DOM -> mở hộp thoại Hoàn tất trộn
+    if (
+      options.mode === undefined &&
+      options.records === undefined &&
+      typeof document !== "undefined" &&
+      typeof document.createElement === "function" &&
+      document.body &&
+      activeRecords.length > 0 &&
+      (this.bodyDom.innerHTML || "").includes("vno-merge-field")
+    ) {
+      showFinishMailMergeDialog({
+        totalRecords: activeRecords.length,
+        currentIndex: this.mailMergePreview.recordIndex,
+        onFinish: (dialogOpts) => {
+          this.finishMailMerge(dialogOpts);
+        }
+      });
+      return true;
+    }
+
     // Tắt chế độ preview trước để lấy HTML mẫu nguyên bản chứa field marker
     if (this.mailMergePreview.enabled) {
       this._clearMergePreview();
@@ -15348,16 +15476,26 @@ export class WriterAdapter {
       this._updateMailMergeCommandStates();
     }
 
-    const records = (options.records && options.records.length > 0)
-      ? options.records
-      : (this.mailMergeData?.records || []);
+    let records = (options.records && options.records.length > 0) ? options.records : null;
+    if (!records) {
+      if (options.range === "current") {
+        const cur = activeRecords[this.mailMergePreview.recordIndex] || activeRecords[0];
+        records = cur ? [cur] : [];
+      } else if (options.range === "from_to") {
+        const from = Math.max(0, (parseInt(options.from, 10) || 1) - 1);
+        const to = Math.min(activeRecords.length, parseInt(options.to, 10) || activeRecords.length);
+        records = activeRecords.slice(from, to);
+      } else {
+        records = activeRecords;
+      }
+    }
 
     const finishTitle = (typeof t === "function" && t("writerDialogs.mailMerge.finishTitle") !== "writerDialogs.mailMerge.finishTitle")
       ? t("writerDialogs.mailMerge.finishTitle")
       : "Hoàn tất trộn thư";
     const finishNoData = (typeof t === "function" && t("writerDialogs.mailMerge.finishNoData") !== "writerDialogs.mailMerge.finishNoData")
       ? t("writerDialogs.mailMerge.finishNoData")
-      : "Chưa có nguồn dữ liệu trộn thư để tạo tài liệu. Vui lòng mở 'Nguồn dữ liệu' để dán bảng CSV.";
+      : "Chưa có nguồn dữ liệu trộn thư để tạo tài liệu. Vui lòng mở 'Nguồn dữ liệu' để chọn tệp hoặc dán bảng CSV.";
     const finishNoFields = (typeof t === "function" && t("writerDialogs.mailMerge.finishNoFields") !== "writerDialogs.mailMerge.finishNoFields")
       ? t("writerDialogs.mailMerge.finishNoFields")
       : "Tài liệu hiện tại chưa chứa trường trộn thư nào. Hãy dùng lệnh 'Chèn trường' để chèn ít nhất một trường trộn.";
@@ -15405,15 +15543,19 @@ export class WriterAdapter {
     this.isDirty = true;
     this.recordSnapshot("writer.mailMerge.finish");
 
-    if (typeof document !== "undefined" && typeof document.createElement === "function" && document.body) {
-      const pattern = (typeof t === "function" && t("writerDialogs.mailMerge.finishSuccess") !== "writerDialogs.mailMerge.finishSuccess")
-        ? t("writerDialogs.mailMerge.finishSuccess")
-        : "Đã hoàn tất trộn thư thành công {count} bản ghi vào tài liệu. Bạn có thể xem trước khi in hoặc xuất tệp.";
-      showAlertDialog({
-        title: finishTitle,
-        message: pattern.replace("{count}", records.length),
-        type: "success"
-      });
+    if (options.mode === "print") {
+      this.print();
+    } else {
+      if (typeof document !== "undefined" && typeof document.createElement === "function" && document.body && options.range !== undefined) {
+        const pattern = (typeof t === "function" && t("writerDialogs.mailMerge.finishSuccess") !== "writerDialogs.mailMerge.finishSuccess")
+          ? t("writerDialogs.mailMerge.finishSuccess")
+          : "Đã hoàn tất trộn thư thành công {count} bản ghi vào tài liệu. Bạn có thể xem trước khi in hoặc xuất tệp.";
+        showAlertDialog({
+          title: finishTitle,
+          message: pattern.replace("{count}", records.length),
+          type: "success"
+        });
+      }
     }
 
     return true;
@@ -15489,10 +15631,11 @@ export class WriterAdapter {
   _updateMailMergeCommandStates() {
     if (typeof globalCommandBus?.updateState !== "function") return;
 
-    const hasData = Boolean(this.mailMergeData?.records?.length > 0);
+    const activeRecords = this._getActiveMailMergeRecords();
+    const hasData = Boolean(activeRecords.length > 0);
     const isPreview = Boolean(this.mailMergePreview?.enabled);
     const currentIndex = this.mailMergePreview?.recordIndex || 0;
-    const totalRecords = this.mailMergeData?.records?.length || 0;
+    const totalRecords = activeRecords.length;
 
     globalCommandBus.updateState("writer.mailMerge.preview", {
       checked: isPreview,
@@ -15509,4 +15652,3 @@ export class WriterAdapter {
     });
   }
 }
-

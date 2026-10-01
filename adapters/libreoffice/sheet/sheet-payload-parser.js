@@ -1,6 +1,6 @@
-// VN Sheet's owned parser for the compact v2 open payload. Workbook state is
-// returned as an intermediate model; SheetAdapter may commit a validated
-// viewport preview, then commits the complete model after all chunks hydrate.
+// 3T Sheet's owned parser for the compact v2 open payload. Workbook state is
+// returned as an intermediate model; SheetAdapter commits a validated viewport
+// preview, then commits the complete model after all chunks hydrate.
 
 const LOCAL_TABLE_RE = /<table:table(?=[\s/>])([^>]*)>([\s\S]*?)<\/table:table>/gi;
 const NS_TABLE = "table";

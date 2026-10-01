@@ -1,11 +1,12 @@
 /**
- * VN Office LibreOffice Adapter — VN Slides Adapter
+ * 3T Office LibreOffice Adapter — 3T Slide Adapter
  * Quản lý tương tác với StarImpress (sd) Document Model & Phím tắt Microsoft/LibreOffice
  */
 
 import { globalUnoBridge } from "../common/uno-bridge.js";
 import { showAlertDialog, showFindReplaceDialog } from "../../../platform/ui-kit/dialogs.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
+import { openPrintDialog } from "../../../platform/print/print-dialog.js";
 import { globalShortcutManager } from "../../../platform/commands/shortcut-manager.js";
 import { overlayFodpMasterLogo } from "./pptx-master-logo.js";
 import { overlayFodpSections } from "./pptx-section-list.js";
@@ -106,6 +107,7 @@ export class SlidesAdapter {
     this.canvas = canvasController;
     this.isDirty = false;
     this.sourceFileName = "TrinhChieu";
+    this.sourceFilePath = "";
     this.shell = null;
   }
 
@@ -120,15 +122,17 @@ export class SlidesAdapter {
 
   newDocument() {
     this.sourceFileName = "TrinhChieu";
+    this.sourceFilePath = "";
     this.isDirty = false;
     if (this.canvas?.resetToBlank) {
-      this.canvas.resetToBlank("BẢN TRÌNH CHIẾU MỚI");
+      this.canvas.resetToBlank();
     }
-    this.shell?.resetDocumentChrome?.("Bản trình chiếu 1.pptx", "home", false);
+    this.shell?.resetDocumentChrome?.("Bản trình bày 1.pptx", "home", false);
     return true;
   }
 
   closeDocument() {
+    if (this.shell?.requestCloseDocument) return this.shell.requestCloseDocument();
     return this.newDocument();
   }
 
@@ -138,8 +142,9 @@ export class SlidesAdapter {
     // (Writer/Sheet/Slides) PHẢI tự bindHandler() lại khi active, nếu không app kích hoạt
     // trước (mặc định Writer) sẽ chiếm vĩnh viễn phím Ctrl+Z/Ctrl+Y cho mọi app khác.
     // (Lỗi thật đã xảy ra: Ctrl+Z trong Slides gọi nhầm WriterAdapter.undo().)
-    globalCommandBus.bindHandler("common.file.new", () => this.newDocument());
+    globalCommandBus.bindHandler("common.file.new", () => this.shell?.requestNewDocumentWindow?.() ?? this.newDocument());
     globalCommandBus.bindHandler("common.file.close", () => this.closeDocument());
+    globalCommandBus.bindHandler("common.file.print", () => this.print());
     globalCommandBus.bindHandler("common.edit.undo", () => this.canvas.undo ? this.canvas.undo() : false);
     globalCommandBus.bindHandler("common.edit.redo", () => this.canvas.redo ? this.canvas.redo() : false);
     globalCommandBus.bindHandler("common.edit.selectAll", () => {
@@ -178,7 +183,7 @@ export class SlidesAdapter {
     // Command metadata is app-local because this feature is scoped to Slides;
     // bind explicitly instead of requiring a Platform registry change.
     globalCommandBus.bindHandler("slides.insert.chart", (options) => this.canvas.insertChart ? this.canvas.insertChart(options) : false);
-    globalCommandBus.bindHandler("slides.file.printPreview", () => Boolean(this.canvas.openPrintPreview ? this.canvas.openPrintPreview() : false));
+    globalCommandBus.bindHandler("slides.file.printPreview", () => this.print());
     globalCommandBus.bindHandler("slides.view.normal", () => this.canvas.setNormalView ? this.canvas.setNormalView() : false);
     globalCommandBus.bindHandler("slides.view.slideSorter", () => this.canvas.openSlideSorter ? this.canvas.openSlideSorter() : false);
     globalCommandBus.bindHandler("slides.notes.toggle", () => this.canvas.toggleNotes ? this.canvas.toggleNotes() : false);
@@ -814,7 +819,7 @@ export class SlidesAdapter {
    * màu của chủ đề, cỡ/độ đậm/căn lề theo slides.css), ghi thẳng vào từng đoạn khi lưu.
    * LibreOffice bỏ qua text-properties của style presentation (prTitle/prBody) khi xuất
    * PPTX (đo: mọi tiêu đề ra Arial 44pt đen, căn giữa, không đậm — khác hẳn màn hình), nên
-   * phải đặt ở mức đoạn/span thì PowerPoint mới mở ra đúng như VN Slides. Tệp mở từ ngoài
+   * phải đặt ở mức đoạn/span thì PowerPoint mới mở ra đúng như 3T Slide. Tệp mở từ ngoài
    * (imported) giữ nguyên định dạng gốc của tệp, không áp chủ đề VN.
    */
   _themeTextBase(role, slide) {
@@ -1942,7 +1947,10 @@ export class SlidesAdapter {
 
     const isImported = Boolean(this.canvas?.imported);
     const theme = this._masterTheme();
-    const isVnDefaultLogo = !theme?.logoText || theme?.logoText === "VN OFFICE • THUYẾT TRÌNH" || theme?.logoText === "VN OFFICE";
+    const isVnDefaultLogo = !theme?.logoText || [
+      "VN OFFICE • THUYẾT TRÌNH", "VN OFFICE",
+      "3T OFFICE • THUYẾT TRÌNH", "3T OFFICE"
+    ].includes(theme.logoText);
     const effectiveLogoText = (isImported && isVnDefaultLogo) ? "" : (theme?.logoText || "");
     const effectiveFooterText = theme?.footerText || "";
 
@@ -3005,7 +3013,7 @@ export class SlidesAdapter {
   _masterPageFillAttrs() {
     const isImported = Boolean(this.canvas?.imported);
     const theme = this._masterTheme();
-    // Default VN Office theme bgColor - don't serialize for imported docs
+    // Default 3T Office theme bgColor - don't serialize for imported docs
     const defaultBgColor = "#f8fafc";
     if (isImported && (!theme?.bgColor || theme.bgColor === defaultBgColor)) return "";
     const color = this._cssColorToHex(theme?.bgColor || "") || theme?.bgColor;
@@ -3019,7 +3027,10 @@ export class SlidesAdapter {
     if (!theme) {
       return `<style:master-page style:name="Standard" style:page-layout-name="PM1" draw:style-name="dp1"/>`;
     }
-    const isVnDefaultLogo = !theme.logoText || theme.logoText === "VN OFFICE • THUYẾT TRÌNH" || theme.logoText === "VN OFFICE";
+    const isVnDefaultLogo = !theme.logoText || [
+      "VN OFFICE • THUYẾT TRÌNH", "VN OFFICE",
+      "3T OFFICE • THUYẾT TRÌNH", "3T OFFICE"
+    ].includes(theme.logoText);
     const effectiveLogoText = (isImported && isVnDefaultLogo) ? "" : (theme.logoText || "");
     const effectiveFooterText = theme.footerText || "";
     const payload = {
@@ -3604,7 +3615,7 @@ export class SlidesAdapter {
     if (!/<office:document\b/i.test(content) || !/<draw:page\b/i.test(content)) return false;
     this.loadFromFodp(content);
     if (!this.canvas?.slides?.length) return false;
-    const originalTitle = String(manifest.title || "Bản trình chiếu 1.pptx").split(/[\\/]/).filter(Boolean).pop().replace(/\.[^/.]+$/, "") || "Bản trình chiếu";
+    const originalTitle = String(manifest.title || "Bản trình bày 1.pptx").split(/[\\/]/).filter(Boolean).pop().replace(/\.[^/.]+$/, "") || "Bản trình bày";
     this.sourceFileName = `${originalTitle} (đã khôi phục)`;
     this.isDirty = true;
     this.shell?.resetDocumentChrome?.(`${this.sourceFileName}.pptx`, null, false);
@@ -3615,22 +3626,26 @@ export class SlidesAdapter {
    * Lưu bản trình chiếu thành tệp PPTX thật trên đĩa (qua LibreOffice headless engine).
    */
   async save() {
+    if (!this.sourceFilePath) return await this.saveAs();
     const fodpContent = this.serializeToFodp();
-    const suggestedName = (this.sourceFileName && this.sourceFileName !== "TrinhChieu")
-      ? this.sourceFileName
-      : (this.shell?.documentName ? this.shell.documentName.replace(/\.[^/.]+$/, "") : (this.sourceFileName || "TrinhChieu"));
-    const result = await globalUnoBridge.saveRealFile("slides", fodpContent, "pptx", suggestedName);
+    const result = await globalUnoBridge.saveRealFileInPlace(
+      "slides",
+      fodpContent,
+      this.sourceFilePath,
+      this.sourceFilePath
+    );
     if (result.status === "ok") {
       this.isDirty = false;
-      const savedPath = result.path || result.fileName;
+      const savedPath = result.path || this.sourceFilePath;
       if (savedPath) {
         const savedFileName = savedPath.split(/[/\\]/).pop();
         if (savedFileName) {
+          this.sourceFilePath = savedPath;
           this.sourceFileName = savedFileName.replace(/\.[^/.]+$/, "");
-          this.shell?.resetDocumentChrome?.(savedFileName, null);
+          this.shell?.resetDocumentChrome?.(savedFileName, null, true, savedPath);
         }
       }
-      await showAlertDialog({ title: "Đã lưu", message: result.message, type: "success" });
+      this.shell?.setStatus?.("Đã lưu");
       return true;
     }
     if (result.status === "cancelled") return false;
@@ -3639,27 +3654,87 @@ export class SlidesAdapter {
   }
 
   async saveAs() {
-    return await this.save();
+    const fodpContent = this.serializeToFodp();
+    const currentName = this.sourceFilePath
+      ? this.sourceFilePath.split(/[/\\]/).pop()
+      : (this.shell?.documentName || "Bản trình bày 1.pptx");
+    const targetFormat = this.sourceFilePath
+      ? (this.sourceFilePath.match(/\.([a-zA-Z0-9]+)$/)?.[1]?.toLowerCase() || "pptx")
+      : "pptx";
+    const result = await globalUnoBridge.saveRealFile(
+      "slides",
+      fodpContent,
+      targetFormat,
+      currentName,
+      this.sourceFilePath || null
+    );
+    if (result.status === "ok") {
+      const savedPath = result.path || result.fileName;
+      // Như PowerPoint: Lưu thành PDF chỉ xuất bản PDF; bản trình chiếu giữ tên, định dạng và trạng thái chưa lưu.
+      if (/\.pdf$/i.test(String(savedPath || ""))) {
+        this.shell?.setStatus?.(`Đã xuất PDF: ${String(savedPath).split(/[/\\]/).pop()}`);
+        return true;
+      }
+      this.isDirty = false;
+      if (savedPath) {
+        this.sourceFilePath = savedPath;
+        const savedFileName = savedPath.split(/[/\\]/).pop();
+        if (savedFileName) {
+          this.sourceFileName = savedFileName.replace(/\.[^/.]+$/, "");
+          this.shell?.resetDocumentChrome?.(savedFileName, null, true, savedPath);
+        }
+      }
+      this.shell?.setStatus?.("Đã lưu");
+      return true;
+    }
+    if (result.status === "cancelled") return false;
+    await showAlertDialog({ title: "Không thể lưu bản trình chiếu", message: result.message || "Lỗi không xác định khi lưu bản trình chiếu.", type: "error" });
+    return false;
   }
 
   /**
    * Mở một tệp PPTX/ODP thật từ đĩa, nạp các trang chiếu vào Canvas.
    */
   async open() {
+    if (typeof this.shell?.confirmUnsavedChangesBeforeReplace === "function"
+      && !(await this.shell.confirmUnsavedChangesBeforeReplace())) return false;
     const result = await globalUnoBridge.openRealFile("slides");
     if (result.status === "ok") {
-      this.loadFromFodp(
-        result.content,
-        result.ooxmlPresentationXml,
-        result.ooxmlSlideMasterXml,
-        result.ooxmlPresPropsXml
-      );
+      const previous = {
+        content: this.serializeToFodp(),
+        sourceFileName: this.sourceFileName,
+        sourceFilePath: this.sourceFilePath,
+        isDirty: this.isDirty
+      };
+      try {
+        this.loadFromFodp(
+          result.content,
+          result.ooxmlPresentationXml,
+          result.ooxmlSlideMasterXml,
+          result.ooxmlPresPropsXml
+        );
+        if (!this.canvas?.slides?.length) throw new Error("Tệp không có trang chiếu hợp lệ.");
+      } catch (error) {
+        try { this.loadFromFodp(previous.content); } catch (restoreError) {
+          console.error("[SlidesAdapter] Không khôi phục được bản trình chiếu sau khi mở tệp lỗi:", restoreError);
+        }
+        this.sourceFileName = previous.sourceFileName;
+        this.sourceFilePath = previous.sourceFilePath;
+        this.isDirty = previous.isDirty;
+        await showAlertDialog({
+          title: "Không thể mở tệp",
+          message: error?.message || "3T Slide không thể đọc nội dung tệp. Bản trình chiếu đang mở được giữ nguyên.",
+          type: "error"
+        });
+        return false;
+      }
       this.sourceFileName = (result.fileName || "TrinhChieu").replace(/\.[^/.]+$/, "");
+      this.sourceFilePath = result.sourcePath || "";
       this.isDirty = false;
       // Lỗi thật đã xác nhận: nội dung nạp đúng nhưng nhãn tên tệp trên tab
       // vẫn giữ nguyên tên demo cũ vì resetDocumentChrome() chỉ được gọi ở
       // File > Mới/Đóng, chưa bao giờ gọi sau khi Mở tệp thật.
-      this.shell?.resetDocumentChrome?.(result.fileName || "Bản trình chiếu 1.pptx");
+      this.shell?.resetDocumentChrome?.(result.fileName || "Bản trình bày 1.pptx", null, true, this.sourceFilePath);
       return true;
     }
     if (result.status === "cancelled") return false;
@@ -3680,11 +3755,19 @@ export class SlidesAdapter {
   }
 
   print() {
-    if (this.canvas?.print) return this.canvas.print();
-    if (typeof window !== "undefined" && typeof window.print === "function") {
-      window.print();
-    }
-    return true;
+    const size = this.canvas?.slideSize || { width: 960, height: 540 };
+    const orientation = size.width >= size.height ? "Ngang" : "Dọc";
+    const slides = this.canvas?.slides || [];
+    const currentSlide = this.canvas?.currentSlideIndex || 0;
+    const currentPage = slides.slice(0, currentSlide + 1).filter((slide) => !slide.hidden).length || 1;
+    return openPrintDialog({
+      appKind: "slides",
+      content: this.serializeToFodp(),
+      documentName: this.sourceFileName || "Bản trình chiếu",
+      pageSetupLabel: `${size.width} × ${size.height} px · ${orientation}`,
+      currentPage,
+      engine: globalUnoBridge
+    });
   }
 
   /**
@@ -3940,7 +4023,7 @@ export class SlidesAdapter {
 
       case "slides.file.printPreview":
       case ".uno:PrintPreview":
-        return Boolean(this.canvas.openPrintPreview ? this.canvas.openPrintPreview() : false);
+        return this.print();
 
       case "slides.view.normal":
       case ".uno:NormalMultiPaneGUI":

@@ -1,5 +1,5 @@
 /**
- * VN Office AI — Rule-Based Local Provider
+ * Trợ lý 3T AI — Rule-Based Local Provider
  * Không dùng mô hình AI thật — xử lý theo quy tắc/từ khóa cục bộ, luôn khả dụng
  * (không cần cài đặt gì thêm, không có dữ liệu nào rời khỏi tiến trình trình duyệt).
  * Dùng làm fallback khi không có Local Model Provider (vd: Ollama) khả dụng.
@@ -62,7 +62,7 @@ export class RuleBasedProvider {
 
     if (p.includes("phím tắt") || p.includes("shortcut")) {
       return {
-        reply: "Một số phím tắt thông dụng trong VN Office:\n• **Ctrl+S**: Lưu tài liệu\n• **Ctrl+Z / Ctrl+Y**: Hoàn tác / Làm lại\n• **Ctrl+B / I / U**: Đậm / Nghiêng / Gạch chân\n• **Ctrl+N / Ctrl+O**: Tạo mới / Mở tệp\n• **Alt+Q**: Tìm kiếm tính năng"
+        reply: "Một số phím tắt thông dụng trong 3T Office:\n• **Ctrl+S**: Lưu tài liệu\n• **Ctrl+Z / Ctrl+Y**: Hoàn tác / Làm lại\n• **Ctrl+B / I / U**: Đậm / Nghiêng / Gạch chân\n• **Ctrl+N / Ctrl+O**: Tạo mới / Mở tệp\n• **Alt+Q**: Tìm kiếm tính năng"
       };
     }
 
@@ -108,7 +108,7 @@ export class RuleBasedProvider {
 
     if (p.includes("tạo công thức") || p.includes("formula from") || p.includes("công thức từ mô tả") || p.includes("sinh công thức")) {
       return {
-        reply: `**Tạo công thức từ mô tả (Chế độ cục bộ — giới hạn):**\n\n⚠️ Chế độ quy tắc cục bộ không thể tạo công thức phức tạp từ mô tả ngôn ngữ tự nhiên.\n\n**Khuyến nghị:** Kết nối AI cloud (OpenAI, Gemini hoặc Claude) hoặc cài Ollama để AI tạo công thức Excel tương thích với VN Sheet từ mô tả của bạn.`
+        reply: `**Tạo công thức từ mô tả (Chế độ cục bộ — giới hạn):**\n\n⚠️ Chế độ quy tắc cục bộ không thể tạo công thức phức tạp từ mô tả ngôn ngữ tự nhiên.\n\n**Khuyến nghị:** Kết nối AI cloud (OpenAI, Gemini hoặc Claude) hoặc cài Ollama để AI tạo công thức Excel tương thích với 3T Sheet từ mô tả của bạn.`
       };
     }
 

@@ -1,5 +1,5 @@
 /**
- * VN Office Platform — Recent Files Manager
+ * 3T Office Platform — Recent Files Manager
  * Quản lý danh sách tài liệu vừa mở thật, tuân thủ 01-architecture/ARCHITECTURE.md
  */
 
@@ -14,7 +14,8 @@ export class RecentFilesManager {
     try {
       if (typeof window === "undefined" || !window.localStorage) return [];
       const data = localStorage.getItem(STORAGE_KEY);
-      return data ? JSON.parse(data) : [];
+      const parsed = data ? JSON.parse(data) : [];
+      return Array.isArray(parsed) ? parsed.filter(item => typeof item?.path === "string" && item.path.length > 0) : [];
     } catch {
       return [];
     }
@@ -23,16 +24,17 @@ export class RecentFilesManager {
   /**
    * Thêm hoặc cập nhật tài liệu vào danh sách gần đây
    */
-  static recordFile({ name, app, format }) {
+  static recordFile({ name, app, format, path }) {
     try {
-      if (typeof window === "undefined" || !window.localStorage) return;
+      if (typeof window === "undefined" || !window.localStorage || typeof path !== "string" || !path.trim()) return false;
       const list = this.getRecentFiles();
-      const existingIdx = list.findIndex(item => item.name === name && item.app === app);
+      const existingIdx = list.findIndex(item => item.path === path && item.app === app);
       
       const entry = {
         id: `${app}_${name}`,
         name,
         app,
+        path,
         format: format || (app === "writer" ? "DOCX Document" : app === "sheet" ? "XLSX Spreadsheet" : "PPTX Presentation"),
         lastModified: Date.now()
       };
@@ -45,8 +47,10 @@ export class RecentFilesManager {
       // Giới hạn tối đa 10 tài liệu gần đây nhất
       const trimmed = list.slice(0, 10);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+      return true;
     } catch (e) {
       console.warn("[RecentFilesManager] Không thể lưu tài liệu gần đây:", e);
+      return false;
     }
   }
 

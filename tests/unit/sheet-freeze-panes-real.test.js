@@ -6,6 +6,7 @@
  * Tuân thủ chuẩn 06-testing/TESTING-STANDARD.md & AGENTS.md
  */
 import { SheetGridController } from "../../apps/sheet/sheet-grid.js";
+import { createSheetGridWithSheets } from "./sheet-test-fixtures.js";
 import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
 import { mapVnCommandToUno } from "../../adapters/libreoffice/common/command-dispatch-mapper.js";
 import { SHEET_COMMANDS } from "../../platform/commands/command-definitions.js";
@@ -41,7 +42,7 @@ export async function runSheetFreezePanesRealTests() {
   });
 
   test("toggleFreezePanes(): cố định ĐÚNG hàng trên/cột trái của Ô đang chọn (không hardcode hàng 1/cột A)", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     grid.selectedCoord = { c: "D", r: 5 };
     const result = grid.toggleFreezePanes();
     assert(result === true, "Phải trả về true khi bật freeze");
@@ -51,7 +52,7 @@ export async function runSheetFreezePanesRealTests() {
   });
 
   test("toggleFreezePanes(): bấm lại khi đã cố định đúng vị trí sẽ bỏ cố định", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     grid.selectedCoord = { c: "D", r: 5 };
     grid.toggleFreezePanes();
     const result2 = grid.toggleFreezePanes();
@@ -60,7 +61,7 @@ export async function runSheetFreezePanesRealTests() {
   });
 
   test("toggleFreezePanes() tại A1: không có gì để cố định (0 hàng, 0 cột) — đúng hành vi Excel thật", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     grid.selectedCoord = { c: "A", r: 1 };
     const result = grid.toggleFreezePanes();
     assert(result === false, "Freeze tại A1 không tạo ra freeze thật nào");
@@ -68,7 +69,7 @@ export async function runSheetFreezePanesRealTests() {
   });
 
   test("freezeTopRow(): chỉ cố định hàng 1, không đụng cột; bấm lại bỏ cố định", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     grid.freezeTopRow();
     assert(grid.frozenRows === 1 && grid.frozenCols === 0, `Sai: rows=${grid.frozenRows} cols=${grid.frozenCols}`);
     grid.freezeTopRow();
@@ -76,7 +77,7 @@ export async function runSheetFreezePanesRealTests() {
   });
 
   test("freezeFirstColumn(): chỉ cố định cột A, không đụng hàng; bấm lại bỏ cố định", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     grid.freezeFirstColumn();
     assert(grid.frozenCols === 1 && grid.frozenRows === 0, `Sai: rows=${grid.frozenRows} cols=${grid.frozenCols}`);
     grid.freezeFirstColumn();
@@ -84,7 +85,7 @@ export async function runSheetFreezePanesRealTests() {
   });
 
   test("Undo/Redo: khôi phục đúng frozenRows/frozenCols (không chỉ boolean isFrozenPanes)", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     // Dùng _setFreezePanes() trực tiếp để kiểm tra đúng cơ chế undo/redo của
     // engine, tách biệt khỏi ngữ nghĩa "bấm lại thì bỏ cố định" của
     // toggleFreezePanes()/freezeTopRow() (đúng hành vi nút đơn của Excel thật:
@@ -100,7 +101,7 @@ export async function runSheetFreezePanesRealTests() {
   });
 
   test("Freeze panes theo TỪNG SHEET riêng biệt, không rò rỉ khi chuyển sheet", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     const first = grid.activeSheet;
     grid.selectedCoord = { c: "C", r: 3 };
     grid.toggleFreezePanes();
@@ -111,7 +112,7 @@ export async function runSheetFreezePanesRealTests() {
   });
 
   test("_renderVirtualRows(): hàng cố định LUÔN được dựng trong DOM dù cuộn xa (sửa lỗi ảo hóa thật)", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     grid.rowCount = 200;
     grid.frozenRows = 2;
     grid.frozenCols = 0;
@@ -220,7 +221,7 @@ export async function runSheetFreezePanesRealTests() {
   });
 
   test("S28b: _renderVirtualRows() don dep hang co dinh cu truoc topSpacer khi doi sheet", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     grid.rowCount = 50;
 
     const children = [];

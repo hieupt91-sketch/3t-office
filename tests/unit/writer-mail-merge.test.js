@@ -4,7 +4,7 @@
  */
 
 import { WriterAdapter } from "../../adapters/libreoffice/writer/writer-adapter.js";
-import { parseCsv, replaceMergeFields } from "../../apps/writer/mail-merge.js";
+import { parseCsv, replaceMergeFields, parseFodsData, parseDelimitedText } from "../../apps/writer/mail-merge.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { mapVnCommandToUno } from "../../adapters/libreoffice/common/command-dispatch-mapper.js";
 import { WRITER_COMMANDS } from "../../platform/commands/command-definitions.js";
@@ -767,6 +767,232 @@ Lê Văn C, Chuyên viên, "Quận 1, TP. Hồ Chí Minh", "Khen thưởng"
     if (adapter.mailMergePreview.enabled !== false || adapter.mailMergePreview.recordIndex !== 0) {
       throw new Error("newDocument() không reset mailMergePreview");
     }
+  });
+
+  // Test 16: FODS Excel Parser trích xuất đúng nhiều sheet và danh sách trường
+  await test("Writer Mail Merge: parseFodsData trích xuất đúng danh sách nhiều trang tính và trường dòng đầu", async () => {
+    const sampleFods = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+  xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+  xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0">
+  <office:body>
+    <office:spreadsheet>
+      <table:table table:name="Danh sách 1">
+        <table:table-row>
+          <table:table-cell office:value-type="string"><text:p>HoTen</text:p></table:table-cell>
+          <table:table-cell office:value-type="string"><text:p>LuongCoBan</text:p></table:table-cell>
+          <table:table-cell office:value-type="string"><text:p>NgaySinh</text:p></table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell office:value-type="string"><text:p>Nguyễn Văn A</text:p></table:table-cell>
+          <table:table-cell office:value-type="float" office:value="1500000"><text:p>1.500.000</text:p></table:table-cell>
+          <table:table-cell office:value-type="date" office:date-value="2026-09-30"><text:p>30/09/2026</text:p></table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell office:value-type="string"><text:p>Trần Thị B</text:p></table:table-cell>
+          <table:table-cell office:value-type="float" office:value="2300000"><text:p>2.300.000</text:p></table:table-cell>
+          <table:table-cell office:value-type="date" office:date-value="1995-12-15"><text:p>15/12/1995</text:p></table:table-cell>
+        </table:table-row>
+      </table:table>
+      <table:table table:name="Chi phí phụ cấp">
+        <table:table-row>
+          <table:table-cell office:value-type="string"><text:p>KhoanMuc</text:p></table:table-cell>
+          <table:table-cell office:value-type="string"><text:p>SoTien</text:p></table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell office:value-type="string"><text:p>Xăng xe</text:p></table:table-cell>
+          <table:table-cell office:value-type="currency" office:value="500000"><text:p>500.000 ₫</text:p></table:table-cell>
+        </table:table-row>
+      </table:table>
+    </office:spreadsheet>
+  </office:body>
+</office:document>`;
+
+    const parsed = parseFodsData(sampleFods);
+    if (!parsed || !Array.isArray(parsed.sheets) || parsed.sheets.length !== 2) {
+      throw new Error("parseFodsData không nhận diện được 2 sheet trong tệp FODS");
+    }
+    if (parsed.sheets[0].name !== "Danh sách 1" || parsed.sheets[1].name !== "Chi phí phụ cấp") {
+      throw new Error(`Tên trang tính không khớp: ${parsed.sheets.map(s => s.name).join(", ")}`);
+    }
+    if (!parsed.sheets[0].fields.includes("HoTen") || !parsed.sheets[0].fields.includes("LuongCoBan")) {
+      throw new Error("Không nhận diện đúng trường dòng đầu của sheet 1");
+    }
+    if (parsed.sheets[0].records.length !== 2) {
+      throw new Error(`Số bản ghi sheet 1 không đúng: ${parsed.sheets[0].records.length}`);
+    }
+  });
+
+  // Test 17: FODS Excel Parser bảo toàn định dạng số, ngày tháng và tiếng Việt
+  await test("Writer Mail Merge: parseFodsData bảo toàn chính xác định dạng số (1.500.000), ngày tháng (30/09/2026) và tiếng Việt", async () => {
+    const sampleFods = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+  xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+  xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0">
+  <office:body>
+    <office:spreadsheet>
+      <table:table table:name="BangLuong">
+        <table:table-row>
+          <table:table-cell><text:p>Họ và Tên</text:p></table:table-cell>
+          <table:table-cell><text:p>Lương Thưởng</text:p></table:table-cell>
+          <table:table-cell><text:p>Ngày Hiệu Lực</text:p></table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell><text:p>Vũ Thị Hồng Nhung</text:p></table:table-cell>
+          <table:table-cell office:value-type="float" office:value="1500000"><text:p>1.500.000</text:p></table:table-cell>
+          <table:table-cell office:value-type="date" office:date-value="2026-09-30"><text:p>30/09/2026</text:p></table:table-cell>
+        </table:table-row>
+      </table:table>
+    </office:spreadsheet>
+  </office:body>
+</office:document>`;
+
+    const parsed = parseFodsData(sampleFods);
+    const rec = parsed.sheets[0].records[0];
+    if (rec["Họ và Tên"] !== "Vũ Thị Hồng Nhung") {
+      throw new Error(`Tiếng Việt bị sai: nhận được "${rec["Họ và Tên"]}"`);
+    }
+    if (rec["Lương Thưởng"] !== "1.500.000") {
+      throw new Error(`Định dạng số bị biến đổi: nhận được "${rec["Lương Thưởng"]}" thay vì "1.500.000"`);
+    }
+    if (rec["Ngày Hiệu Lực"] !== "30/09/2026") {
+      throw new Error(`Định dạng ngày bị biến đổi: nhận được "${rec["Ngày Hiệu Lực"]}" thay vì "30/09/2026"`);
+    }
+  });
+
+  // Test 18: FODS Excel Parser tùy chọn dòng đầu không phải tiêu đề và lặp cột
+  await test("Writer Mail Merge: parseFodsData hỗ trợ tùy chọn hasHeaders=false và xử lý lặp cột", async () => {
+    const fods = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+  xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+  xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0">
+  <office:body>
+    <office:spreadsheet>
+      <table:table table:name="Data">
+        <table:table-row>
+          <table:table-cell><text:p>Giá trị A</text:p></table:table-cell>
+          <table:table-cell><text:p>Giá trị B</text:p></table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell><text:p>100</text:p></table:table-cell>
+          <table:table-cell table:number-columns-repeated="2"><text:p>Đồng đều</text:p></table:table-cell>
+        </table:table-row>
+      </table:table>
+    </office:spreadsheet>
+  </office:body>
+</office:document>`;
+
+    const parsedNoHeader = parseFodsData(fods, { hasHeaders: false });
+    if (parsedNoHeader.sheets[0].records.length !== 2) {
+      throw new Error(`Khi hasHeaders=false, cả 2 dòng phải thành bản ghi, nhận được: ${parsedNoHeader.sheets[0].records.length}`);
+    }
+    if (parsedNoHeader.sheets[0].fields[0] !== "Cột 1" && parsedNoHeader.sheets[0].fields[0] !== "Column 1") {
+      throw new Error(`Tên cột mặc định không đúng: ${parsedNoHeader.sheets[0].fields[0]}`);
+    }
+  });
+
+  // Test 19: TSV và phân tách đa dạng
+  await test("Writer Mail Merge: parseDelimitedText phân tích chính xác TSV và CSV chấm phẩy", async () => {
+    const tsvData = "HoTen\tChucVu\tDonVi\nNguyễn Văn An\tChuyên viên\tSở TTTT\nTrần Văn Bình\tPhó phòng\tUBND";
+    const resTsv = parseDelimitedText(tsvData);
+    if (resTsv.fields.length !== 3 || resTsv.records.length !== 2) {
+      throw new Error("parseDelimitedText không phân tích đúng TSV");
+    }
+    if (resTsv.records[0]["ChucVu"] !== "Chuyên viên") {
+      throw new Error("Dữ liệu TSV cột 2 bị sai");
+    }
+
+    const semiData = "HoTen;SoDienThoai;TienThuong\nLê Thị Cúc;0987654321;1.500.000";
+    const resSemi = parseDelimitedText(semiData);
+    if (resSemi.fields.length !== 3 || resSemi.records.length !== 1) {
+      throw new Error("parseDelimitedText không phân tích đúng CSV chấm phẩy");
+    }
+    if (resSemi.records[0]["TienThuong"] !== "1.500.000") {
+      throw new Error("Dữ liệu CSV chấm phẩy bị sai");
+    }
+  });
+
+  // Test 20: Lọc và bỏ chọn người nhận trong xem trước
+  await test("Writer Mail Merge: Xem trước chỉ duyệt qua người nhận được chọn, bỏ qua người nhận bị bỏ chọn", async () => {
+    const { page, body } = createMockWriterDoc("<p>Xin chào <span class=\"vno-merge-field\" data-field=\"HoTen\">«HoTen»</span></p>");
+    const adapter = new WriterAdapter(page);
+    adapter.attach();
+
+    const csvData = "HoTen,ChucVu\nNgười Nhận 1,CV1\nNgười Nhận 2,CV2\nNgười Nhận 3,CV3";
+    adapter.setMailMergeData(csvData);
+
+    // Bỏ chọn người nhận 2
+    adapter.mailMergeData.records[1]._selected = false;
+
+    // Bật xem trước
+    adapter.toggleMailMergePreview({ force: true, recordIndex: 0 });
+    if (!body.innerHTML.includes("Người Nhận 1")) {
+      throw new Error(`Xem trước bản ghi 1 bị sai: "${body.innerHTML}"`);
+    }
+
+    // Chuyển sang bản ghi tiếp theo: phải nhảy cóc qua Người Nhận 3 (bỏ qua Người Nhận 2)
+    adapter.nextMailMergeRecord();
+    if (!body.innerHTML.includes("Người Nhận 3")) {
+      throw new Error(`Xem trước không bỏ qua người nhận bị uncheck, nhận được: "${body.innerHTML}"`);
+    }
+
+    // Quay lại bản ghi trước: phải về Người Nhận 1
+    adapter.prevMailMergeRecord();
+    if (!body.innerHTML.includes("Người Nhận 1")) {
+      throw new Error(`Quay lại xem trước không về đúng Người Nhận 1: "${body.innerHTML}"`);
+    }
+  });
+
+  // Test 21: Hoàn tất và Trộn ra tài liệu mới hoặc in trực tiếp
+  await test("Writer Mail Merge: finishMailMerge hỗ trợ mode 'document' và mode 'print'", async () => {
+    const { page } = createMockWriterDoc("<p>Kính gửi <span class=\"vno-merge-field\" data-field=\"HoTen\">«HoTen»</span></p>");
+    const adapter = new WriterAdapter(page);
+    adapter.attach();
+
+    let printCalled = false;
+    adapter.print = () => { printCalled = true; return true; };
+
+    const csvData = "HoTen\nBác A\nCô B";
+    adapter.setMailMergeData(csvData);
+
+    // Test mode 'print'
+    const printRes = adapter.finishMailMerge({ mode: "print" });
+    if (!printRes || !printCalled) {
+      throw new Error("finishMailMerge mode 'print' không gọi adapter.print()");
+    }
+
+    // Reset tài liệu mẫu
+    page.querySelector(".vno-writer-body").innerHTML = "<p>Kính gửi <span class=\"vno-merge-field\" data-field=\"HoTen\">«HoTen»</span></p>";
+
+    // Test mode 'document'
+    const docRes = adapter.finishMailMerge({ mode: "document" });
+    if (!docRes) {
+      throw new Error("finishMailMerge mode 'document' thất bại");
+    }
+    const mergedHtml = page.querySelector(".vno-writer-body").innerHTML;
+    if (!mergedHtml.includes("Bác A") || !mergedHtml.includes("Cô B")) {
+      throw new Error("Tài liệu trộn thiếu người nhận");
+    }
+  });
+
+  // Test 22: Hoàn tất trộn loại trừ người nhận bị bỏ chọn
+  await test("Writer Mail Merge: Hoàn tất trộn loại trừ người nhận bị bỏ chọn khỏi tài liệu kết quả", async () => {
+    const { page } = createMockWriterDoc("<p>Kính gửi <span class=\"vno-merge-field\" data-field=\"HoTen\">«HoTen»</span></p>");
+    const adapter = new WriterAdapter(page);
+    adapter.attach();
+
+    const csvData = "HoTen\nKhách Hàng 1\nKhách Hàng 2\nKhách Hàng 3";
+    adapter.setMailMergeData(csvData);
+
+    // Bỏ chọn Khách Hàng 2
+    adapter.mailMergeData.records[1]._selected = false;
+
+    adapter.finishMailMerge();
+    const resultHtml = page.querySelector(".vno-writer-body").innerHTML;
+
+    if (!resultHtml.includes("Khách Hàng 1")) throw new Error("Thiếu Khách Hàng 1");
+    if (resultHtml.includes("Khách Hàng 2")) throw new Error("Khách Hàng 2 đã bị bỏ chọn nhưng vẫn xuất hiện trong tài liệu kết quả");
+    if (!resultHtml.includes("Khách Hàng 3")) throw new Error("Thiếu Khách Hàng 3");
   });
   } finally {
     globalThis.document = originalDoc;
