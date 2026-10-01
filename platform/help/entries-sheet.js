@@ -854,14 +854,15 @@ export const SHEET_HELP_ENTRIES = [
     app: "sheet",
     commandIds: ["sheet.review.spellCheck"],
     title: "Kiểm tra chính tả tiếng Việt trên trang tính",
-    summary: "F7 (khi đang ở Sheet) hoặc nút Chính tả quét các ô chữ của sheet hiện tại — bỏ qua số, công thức, ô trống. Hộp thoại Bỏ qua / Thay thế / Thêm vào từ điển, dùng chung từ điển cá nhân với Writer và Slides.",
+    summary: "F7 (khi đang ở Sheet) hoặc nút Chính tả quét các ô chữ của sheet hiện tại — bỏ qua số, công thức, ô trống. Hộp thoại Bỏ qua / Thay thế / Thêm vào từ điển, dùng chung từ điển cá nhân với Doc và Slide.",
     ribbon: { tab: "Xem xét", tabId: "review", group: "Chứng minh" },
-    keywords: ["chính tả", "spell check", "f7", "từ điển", "tiếng việt", "bỏ qua", "thay thế"],
+    keywords: ["chính tả", "spell check", "f7", "từ điển", "tiếng việt", "bỏ qua", "thay thế", "ctrl+z"],
     steps: [
-      "Tab Xem xét, nhóm Chứng minh, nhấn nút lớn Chính tả — hoặc F7 khi cửa sổ Sheet đang active (F7 không ghi trong command-definitions vì Writer dùng F7 cho Soát lỗi AI).",
-      "Hộp «Chính tả» (460 px) quét ô có chữ cái, không phải công thức (=...), không phải số/boolean, không bắt đầu bằng #. Thứ tự A1. Hiện từ không có trong từ điển, tọa độ ô, nội dung ô, danh sách gợi ý.",
-      "Bỏ qua, Bỏ qua tất cả (phiên hiện tại), Thêm vào từ điển (localStorage chung Writer/Slides: vno-spellcheck-vi-personal), Thay thế, Thay thế tất cả, Đóng. Esc đóng. Thay thế đi qua setCellValue nên Ctrl+Z hoàn tác.",
-      "Không gạch chân realtime từng ô (khác Writer). Hết lỗi: «Đã kiểm tra xong toàn bộ trang tính. Không tìm thấy lỗi chính tả.» Chỉ quét sheet đang mở."
+      "Tab Xem xét, nhóm Chứng minh, nhấn nút lớn Chính tả — hoặc nhấn phím F7 khi cửa sổ Sheet đang hoạt động.",
+      "Hộp «Chính tả» (460 px) quét ô có chữ cái, bỏ qua công thức (=...), số và ô trống theo thứ tự bảng tính. Hiển thị từ chưa có trong từ điển, tọa độ ô, nội dung ô và danh sách các từ gợi ý tiếng Việt chuẩn.",
+      "Hỗ trợ đầy đủ các thao tác: Bỏ qua, Bỏ qua tất cả (trong phiên làm việc), Thêm vào từ điển (lưu vào bộ nhớ dùng chung bộ ba Doc, Sheet, Slide: vno-spellcheck-vi-personal), Thay thế, Thay thế tất cả và Đóng (hoặc nhấn Esc).",
+      "Thao tác thay thế từ trong ô đi qua hệ thống dữ liệu bảng tính nên bạn có thể nhấn Ctrl+Z để hoàn tác ngay lập tức.",
+      "Sheet không gạch chân trực tiếp trên lưới để bảo vệ tốc độ cuộn và hiển thị hàng ngàn ô dữ liệu tương tự các ứng dụng bảng tính lớn."
     ]
   },
   {

@@ -747,7 +747,46 @@ export class SlidesCanvasController {
     this.spellcheckController = new this._spellcheckTools.SpellcheckDomController({
       roots: this._spellcheckRoots(),
       checker: this.spellcheckChecker,
-      debounceMs: 400
+      debounceMs: 400,
+      onReplace: ({ root, textBefore, textAfter, htmlBefore, htmlAfter }) => {
+        const slide = this.slides[this.currentSlideIndex];
+        if (!slide) return;
+        let field = null;
+        if (root === this.titleEl) field = "title";
+        else if (root === this.bodyEl) field = "body";
+        else if (root === this.body2El) field = "body2";
+
+        if (field) {
+          this.undoStack.push({
+            type: "placeholder-text-edit",
+            slideIndex: this.currentSlideIndex,
+            field,
+            before: textBefore.normalize("NFC"),
+            beforeHtml: htmlBefore,
+            after: textAfter.normalize("NFC"),
+            afterHtml: htmlAfter
+          });
+          this.redoStack = [];
+          this._syncUndoRedoState();
+          this._syncEditableFieldsFromDom();
+          this.options.onDocumentChange?.();
+          this._renderThumbnails();
+        } else if (root?.dataset?.shapeTextId) {
+          const shapeId = root.dataset.shapeTextId;
+          this.undoStack.push({
+            type: "shape-text-edit",
+            slideIndex: this.currentSlideIndex,
+            shapeId,
+            before: textBefore,
+            after: textAfter
+          });
+          this.redoStack = [];
+          this._syncUndoRedoState();
+          this._syncVisibleSpellcheckText();
+          this.options.onDocumentChange?.();
+          this._renderThumbnails();
+        }
+      }
     }).attach();
   }
 

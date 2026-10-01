@@ -187,6 +187,7 @@ export class InputNormalizer {
   attach(element) {
     if (!element) return this;
     this.target = element;
+    element._vnoNormalizer = this;
 
     // 1. Keydown listener: detect Backspace bursts and handle word-level Ctrl+Z
     const onKeyDown = (e) => {
@@ -260,6 +261,7 @@ export class InputNormalizer {
 
   destroy() {
     if (this._burstSettleTimer) clearTimeout(this._burstSettleTimer);
+    if (this.target && this.target._vnoNormalizer === this) delete this.target._vnoNormalizer;
     for (const remove of this._listeners) remove();
     this._listeners = [];
   }
@@ -296,7 +298,7 @@ export class InputNormalizer {
     } else {
       let p = this.target.querySelector?.("p") || this.target;
       p.textContent = value;
-      if (typeof window !== "undefined") {
+      if (typeof window !== "undefined" && typeof document !== "undefined") {
         const sel = window.getSelection?.();
         const range = document.createRange?.();
         if (sel && range) {
