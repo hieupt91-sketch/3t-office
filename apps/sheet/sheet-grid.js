@@ -4,20 +4,18 @@
 
 import { FormulaEngine, FUNCTION_CATALOG } from "./formula-engine.js";
 import { createEvaluateFormulaSessionFromGrid, formatFormulaValue, renderFormulaHtml } from "./evaluate-formula.js";
-import { SheetChartBuilder } from "./sheet-chart.js";
 import { FormulaAutocompleteController } from "./formula-autocomplete.js";
-import { PivotTableEngine } from "./pivot-table.js";
 import { WhatIfAnalysisEngine } from "./what-if-analysis.js";
 import { NumberFormatter } from "./number-formatter.js";
 import { FormatCellsDialog } from "./format-cells-dialog.js";
 import { showCellStylesDialog, showFormatAsTableDialog, CELL_STYLE_PRESETS, TABLE_STYLE_PRESETS } from "./cell-styles.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { t } from "../../platform/i18n/i18n.js";
+import { withLazyFeatureProgress } from "../../platform/startup/lazy-feature.js";
+import { extractSheetRangeData, SHEET_CHART_TYPES } from "./sheet-chart-data.js";
 import { SheetDataTools } from "./data-tools.js";
 import { computeConsolidate, formatSheetRange, parseConsolidateReference, CONSOLIDATE_FUNCTIONS } from "./consolidate.js";
 import { showAlertDialog, showConfirmDialog, showPromptDialog, showFindReplaceDialog } from "../../platform/ui-kit/dialogs.js";
-import { VietnameseSpellChecker, normalizeVietnameseWord, tokenizeVietnamese } from "../../platform/text/vi-spellchecker.js";
-import { VIETNAMESE_DICTIONARY_WORDS } from "../../platform/text/dictionaries/vi-dictionary.js";
 
 export const DEFAULT_SHEET_PAGE_SETUP = Object.freeze({
   margins: Object.freeze({ top: 1.91, bottom: 1.91, left: 1.78, right: 1.78 }),
@@ -242,6 +240,10 @@ export class SheetGridController {
     this.watchedCells = new Set();
     this.documentName = options.documentName || null;
     this.dataTools = new SheetDataTools(this);
+    this.sheetChartBuilder = null;
+    this.pivotTableEngine = null;
+    this._chartBuilderPromise = null;
+    this._pivotEnginePromise = null;
 
     // Freeze Panes & Sort/Filter state (phản ánh sheet đang active)
     this.isFrozenPanes = false;
@@ -259,6 +261,8 @@ export class SheetGridController {
     this.formulaBarVisible = true;
     this.formulaBarEl = null;
     this.spellChecker = null;
+    this._spellcheckTools = null;
+    this._spellcheckModulePromise = null;
     this._spellcheckOverlay = null;
 
     // Virtual scroll state
@@ -5203,7 +5207,43 @@ export class SheetGridController {
     return true;
   }
 
-  openChartBuilder() {
+  initializeOptionalDocumentFeatures() {
+    return Promise.all([this._loadChartBuilder(false), this._loadPivotEngine(false)]);
+  }
+
+  _loadChartBuilder(showProgress = true) {
+    if (!this._chartBuilderPromise) {
+      this._chartBuilderPromise = import("./sheet-chart.js").then((module) => {
+        this.sheetChartBuilder = module.SheetChartBuilder;
+        this.refreshCharts();
+        return this.sheetChartBuilder;
+      }).catch((error) => {
+        this._chartBuilderPromise = null;
+        throw error;
+      });
+    }
+    return showProgress
+      ? withLazyFeatureProgress("sheet", "Biểu đồ", () => this._chartBuilderPromise)
+      : this._chartBuilderPromise;
+  }
+
+  _loadPivotEngine(showProgress = true) {
+    if (!this._pivotEnginePromise) {
+      this._pivotEnginePromise = import("./pivot-table.js").then((module) => {
+        this.pivotTableEngine = module.PivotTableEngine;
+        return this.pivotTableEngine;
+      }).catch((error) => {
+        this._pivotEnginePromise = null;
+        throw error;
+      });
+    }
+    return showProgress
+      ? withLazyFeatureProgress("sheet", "Pivot Table", () => this._pivotEnginePromise)
+      : this._pivotEnginePromise;
+  }
+
+  async openChartBuilder() {
+    const SheetChartBuilder = await this._loadChartBuilder();
     const range = this._normalizeRange(this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
     const extracted = SheetChartBuilder.extractRangeData(this.cellsData, range, this.cols);
     const dataItems = extracted.labels.map((label, index) => ({ label, value: extracted.data[index] }));
@@ -5214,7 +5254,8 @@ export class SheetGridController {
     });
   }
 
-  openPivotChartBuilder() {
+  async openPivotChartBuilder() {
+    const SheetChartBuilder = await this._loadChartBuilder();
     let targetSheet = this.activeSheet;
     let pivot = this.pivotTablesBySheet[targetSheet]?.[0];
     if (!pivot) {
@@ -5245,7 +5286,7 @@ export class SheetGridController {
   }
 
   insertChart(type, range = this.selectionRange, recordUndo = true) {
-    if (!SheetChartBuilder.supportedTypes.includes(type)) return false;
+    if (!SHEET_CHART_TYPES.includes(type)) return false;
     const normalizedRange = this._normalizeRange(range);
     const chart = {
       id: `chart-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -5259,6 +5300,12 @@ export class SheetGridController {
     this.chartsBySheet[this.activeSheet].push(chart);
     this._updateChartData(chart);
     this.renderCharts();
+    if (!this.sheetChartBuilder) {
+      this._loadChartBuilder(true).catch((error) => {
+        console.error("3T Sheet could not load chart tools.", error);
+        this.showNotification?.("Không tải được công cụ Biểu đồ của 3T Sheet.");
+      });
+    }
     if (recordUndo) this._recordHistory({ type: "collection", sheet: this.activeSheet, collection: "chartsBySheet", operation: "insert", index: this.chartsBySheet[this.activeSheet].length - 1, item: structuredClone(chart) });
     return chart;
   }
@@ -5284,7 +5331,7 @@ export class SheetGridController {
   }
 
   _updateChartData(chart, sheetName = this.activeSheet) {
-    const extracted = SheetChartBuilder.extractRangeData(this.sheetsData[sheetName] || this.cellsData, chart.range, this.cols);
+    const extracted = extractSheetRangeData(this.sheetsData[sheetName] || this.cellsData, chart.range, this.cols);
     chart.labels = extracted.labels;
     chart.data = extracted.data;
     return chart;
@@ -5297,6 +5344,7 @@ export class SheetGridController {
 
   renderCharts() {
     if (!this.chartLayer || typeof document === "undefined") return;
+    if (!this.sheetChartBuilder) return;
     this.chartLayer.innerHTML = "";
     for (const chart of this.chartsBySheet[this.activeSheet] || []) {
       const panel = document.createElement("section");
@@ -5306,7 +5354,7 @@ export class SheetGridController {
       panel.dataset.chartId = chart.id;
       panel.dataset.sheet = this.activeSheet;
       panel.style.cssText = `position:absolute;left:${colOffset}px;top:${rowOffset}px;width:520px;height:300px;background:#fff;border:1px solid #cbd5e1;border-radius:8px;box-shadow:0 8px 24px rgba(15,23,42,.18);pointer-events:auto;overflow:hidden`;
-      panel.innerHTML = `<button type="button" data-chart-delete aria-label="Xóa biểu đồ" title="Xóa biểu đồ" style="position:absolute;right:6px;top:4px;z-index:1;border:0;background:#fff;border-radius:4px;font-size:18px;cursor:pointer">&times;</button>${SheetChartBuilder.generateSvg(chart)}`;
+      panel.innerHTML = `<button type="button" data-chart-delete aria-label="Xóa biểu đồ" title="Xóa biểu đồ" style="position:absolute;right:6px;top:4px;z-index:1;border:0;background:#fff;border-radius:4px;font-size:18px;cursor:pointer">&times;</button>${this.sheetChartBuilder.generateSvg(chart)}`;
       panel.querySelector("[data-chart-delete]")?.addEventListener("click", () => this.deleteChart(chart.id));
       this.chartLayer.appendChild(panel);
     }
@@ -9487,9 +9535,31 @@ export class SheetGridController {
 
   _ensureSpellChecker() {
     if (!this.spellChecker) {
-      this.spellChecker = new VietnameseSpellChecker(VIETNAMESE_DICTIONARY_WORDS);
+      if (!this._spellcheckTools) return null;
+      this.spellChecker = new this._spellcheckTools.VietnameseSpellChecker(this._spellcheckTools.words);
     }
     return this.spellChecker;
+  }
+
+  initializeSpellcheck() {
+    if (this._spellcheckModulePromise) return this._spellcheckModulePromise;
+    this._spellcheckModulePromise = Promise.all([
+      import("../../platform/text/vi-spellchecker.js"),
+      import("../../platform/text/dictionaries/vi-dictionary.js")
+    ]).then(([spellcheck, dictionary]) => {
+      this._spellcheckTools = {
+        VietnameseSpellChecker: spellcheck.VietnameseSpellChecker,
+        normalizeVietnameseWord: spellcheck.normalizeVietnameseWord,
+        tokenizeVietnamese: spellcheck.tokenizeVietnamese,
+        words: dictionary.VIETNAMESE_DICTIONARY_WORDS
+      };
+      this._ensureSpellChecker();
+      return true;
+    }).catch((error) => {
+      this._spellcheckModulePromise = null;
+      throw error;
+    });
+    return this._spellcheckModulePromise;
   }
 
   isSpellcheckableCell(item) {
@@ -9512,6 +9582,7 @@ export class SheetGridController {
 
   collectSpellcheckIssues(sheetName = this.activeSheet) {
     const checker = this._ensureSpellChecker();
+    if (!checker) return [];
     const map = this.sheetsData?.[sheetName] || this.cellsData;
     const issues = [];
     for (const [coord, item] of map.entries()) {
@@ -9534,7 +9605,7 @@ export class SheetGridController {
   }
 
   suggestSpellcheckWord(word) {
-    return this._ensureSpellChecker().suggest(word);
+    return this._ensureSpellChecker()?.suggest(word) || [];
   }
 
   replaceSpellcheckIssue(issue, replacement) {
@@ -9557,7 +9628,7 @@ export class SheetGridController {
   }
 
   replaceAllSpellcheckWord(word, replacement) {
-    const target = normalizeVietnameseWord(word);
+    const target = this._spellcheckTools?.normalizeVietnameseWord?.(word) || "";
     if (!target) return 0;
     const nextReplacement = String(replacement ?? "");
     const coords = [];
@@ -9568,7 +9639,7 @@ export class SheetGridController {
     for (const coord of coords) {
       const item = this.cellsData.get(coord);
       if (!item || !this.isSpellcheckableCell(item)) continue;
-      const tokens = tokenizeVietnamese(String(item.val ?? ""));
+      const tokens = this._spellcheckTools?.tokenizeVietnamese?.(String(item.val ?? "")) || [];
       let text = String(item.val ?? "");
       for (let index = tokens.length - 1; index >= 0; index--) {
         const token = tokens[index];
@@ -9587,8 +9658,11 @@ export class SheetGridController {
     this._spellcheckOverlay = null;
   }
 
-  showSpellcheckDialog(options = {}) {
+  async showSpellcheckDialog(options = {}) {
     options = options || {};
+    if (!this._spellcheckTools) {
+      await withLazyFeatureProgress("sheet", "Chính tả", () => this.initializeSpellcheck());
+    }
     const issues = this.collectSpellcheckIssues();
     if (typeof document === "undefined" || !document.createElement || !document.body) return issues;
     this._closeSpellcheckDialog();
@@ -11281,19 +11355,20 @@ export class SheetGridController {
   }
 
   createPivotTable(config, recordUndo = true) {
+    if (!this.pivotTableEngine) return false;
     if (this._guardWorkbookStructure()) return false;
     const sourceSheet = config.sourceSheet || this.activeSheet;
     const sourceCells = this.sheetsData[sourceSheet];
     if (!sourceCells) throw new Error(t("sheetDialogs.sourceSheetNotFound"));
-    const table = PivotTableEngine.aggregate(sourceCells, config);
+    const table = this.pivotTableEngine.aggregate(sourceCells, config);
     const baseName = `${sourceSheet} (2)`;
     let targetSheet = config.targetSheet || baseName;
     let suffix = 3;
     while (this.sheets.includes(targetSheet)) targetSheet = `${sourceSheet} (${suffix++})`;
     const previousSheet = this.activeSheet;
     if (this.addSheet(targetSheet, false) === false) return false;
-    this.sheetsData[targetSheet] = PivotTableEngine.toCells(table);
-    const pivot = { ...structuredClone(config), id: config.id || `pivot-${Date.now()}`, sourceSheet, targetSheet, resultRange: PivotTableEngine.resultRange(table) };
+    this.sheetsData[targetSheet] = this.pivotTableEngine.toCells(table);
+    const pivot = { ...structuredClone(config), id: config.id || `pivot-${Date.now()}`, sourceSheet, targetSheet, resultRange: this.pivotTableEngine.resultRange(table) };
     this.pivotTablesBySheet[targetSheet] = [pivot];
     this._renderVirtualRows(1, Math.min(40, this.rowCount));
     this.selectCell("A", 1);
@@ -11302,14 +11377,15 @@ export class SheetGridController {
   }
 
   refreshPivotTable(sheetName = this.activeSheet, recordUndo = true) {
+    if (!this.pivotTableEngine) return false;
     const pivot = this.pivotTablesBySheet[sheetName]?.[0];
     if (!pivot) return false;
     const sourceCells = this.sheetsData[pivot.sourceSheet];
     if (!sourceCells) return false;
     const before = this._snapshotCells(sheetName);
-    const table = PivotTableEngine.aggregate(sourceCells, pivot);
-    this.sheetsData[sheetName] = PivotTableEngine.toCells(table);
-    pivot.resultRange = PivotTableEngine.resultRange(table);
+    const table = this.pivotTableEngine.aggregate(sourceCells, pivot);
+    this.sheetsData[sheetName] = this.pivotTableEngine.toCells(table);
+    pivot.resultRange = this.pivotTableEngine.resultRange(table);
     for (const chart of this.chartsBySheet[sheetName] || []) if (chart.kind === "pivot" && chart.pivotId === pivot.id) chart.range = structuredClone(pivot.resultRange);
     this.refreshCharts(sheetName);
     if (sheetName === this.activeSheet) {
@@ -11320,7 +11396,8 @@ export class SheetGridController {
     return true;
   }
 
-  showPivotTableDialog() {
+  async showPivotTableDialog() {
+    await this._loadPivotEngine();
     const sourceSheet = this.activeSheet;
     const defaultRange = this.getSelectedRangeLabel();
     const overlay = this._createSheetDialog(t("sheetDialogs.pivotTitle"), `
@@ -11335,7 +11412,7 @@ export class SheetGridController {
     const error = overlay.querySelector(".vno-rule-error");
     const loadFields = () => {
       try {
-        const { headers } = PivotTableEngine.readSource(this.sheetsData[sourceSheet], overlay.querySelector("#vno-pivot-range").value);
+        const { headers } = this.pivotTableEngine.readSource(this.sheetsData[sourceSheet], overlay.querySelector("#vno-pivot-range").value);
         fieldsHost.innerHTML = `<p>${t("sheetDialogs.chooseFields")}</p>${headers.map((header, index) => `
           <div class="vno-pivot-field" data-field="${this._escapeHtml(header)}">
             <strong>${this._escapeHtml(header)}</strong>

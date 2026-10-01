@@ -34,6 +34,34 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from urllib.parse import urlencode, unquote
 
+_STARTUP_TRACE_PATH = os.environ.get("VNO_STARTUP_TRACE_FILE", "")
+try:
+    _STARTUP_TRACE_EPOCH = float(os.environ.get("VNO_STARTUP_TRACE_T0", ""))
+except (TypeError, ValueError):
+    _STARTUP_TRACE_EPOCH = time.perf_counter()
+_STARTUP_TRACE_LOCK = threading.Lock()
+
+
+def _startup_trace(stage: str, **fields) -> None:
+    """Write opt-in local startup timings without putting document data in the trace."""
+    if not _STARTUP_TRACE_PATH:
+        return
+    event = {
+        "stage": str(stage),
+        "elapsed_ms": round((time.perf_counter() - _STARTUP_TRACE_EPOCH) * 1000, 1),
+        **fields,
+    }
+    try:
+        line = json.dumps(event, ensure_ascii=False, separators=(",", ":")) + "\n"
+        with _STARTUP_TRACE_LOCK:
+            with open(_STARTUP_TRACE_PATH, "a", encoding="utf-8") as trace_file:
+                trace_file.write(line)
+    except OSError:
+        # Opt-in diagnostics must never hold up the user's document window.
+        pass
+
+
+_startup_trace("python_runtime_started")
 _EARLY_SINGLE_INSTANCE_REQUEST_ID = None
 
 
@@ -147,6 +175,11 @@ _UPDATE_MANAGER: UpdaterManager | None = None
 _UPDATE_DATA_DIR: Path | None = None
 _APP_WINDOW_APIS: dict[str, object] = {}
 _APP_WINDOW_LOCK = threading.RLock()
+_DEFERRED_STARTUP_LOCK = threading.Lock()
+_DEFERRED_STARTUP_STARTED = False
+_BACKGROUND_SERVICES_READY = threading.Event()
+_PROFILE_WARMUP_LOCK = threading.Lock()
+_PROFILE_WARMUP_STARTED: set[str] = set()
 _NEW_WINDOW_CREATE_LOCK = threading.RLock()
 _DOCUMENT_SEQUENCE: dict[str, int] = {}
 _DOCUMENT_SEQUENCE_LOCK = threading.Lock()
@@ -193,6 +226,81 @@ def _notify_update_ui(state: dict[str, object]) -> None:
         window.evaluate_js(f"window.dispatchEvent(new CustomEvent('vno-office-update-state', {{detail:{payload}}}))")
     except Exception:
         pass
+
+
+def _initialize_deferred_services(api, app_kind: str, launch_args: list[str]) -> None:
+    """Start opt-in reporting and update services after the first document paint."""
+    global _ERROR_REPORTER, _UPDATE_MANAGER
+    report_config = load_client_config(ROOT_DIR)
+    try:
+        _ERROR_REPORTER = ErrorReporter(
+            APP_VERSION,
+            app_kind,
+            _user_data_dir(),
+            endpoint=str(report_config["endpoint"]),
+            token=str(report_config["token"]),
+            enabled=bool(report_config["enabled"]),
+        )
+        _ERROR_REPORTER.install_exception_hooks()
+    except Exception:
+        # Reporting storage/configuration failures must never prevent offline document work.
+        _ERROR_REPORTER = None
+    api._reporter = _ERROR_REPORTER
+
+    install_root = _update_install_root()
+    if install_root:
+        try:
+            installed_version = (install_root / "VERSION.txt").read_text(encoding="ascii").strip() or APP_VERSION
+            update_config = _load_update_config()
+            _UPDATE_MANAGER = UpdaterManager(
+                install_dir=install_root,
+                updates_dir=_UPDATE_DATA_DIR,
+                current_version=installed_version,
+                source=update_config["source"],
+                channel=update_config["channel"],
+                public_key=get_public_key(),
+                on_state=_notify_update_ui,
+            )
+            _UPDATE_MANAGER.set_launch_args(launch_args)
+        except Exception as exc:
+            logging.getLogger("vnoffice.updater").debug("Updater initialization unavailable: %s", type(exc).__name__)
+            _UPDATE_MANAGER = None
+    else:
+        _UPDATE_MANAGER = None
+    api._updater = _UPDATE_MANAGER
+    try:
+        queue_rollback_report(_ERROR_REPORTER, _UPDATE_DATA_DIR)
+    except Exception as exc:
+        logging.getLogger("vnoffice.updater").debug("Rollback report queue unavailable: %s", type(exc).__name__)
+    finally:
+        _startup_trace("background_services_ready", app=app_kind)
+        _BACKGROUND_SERVICES_READY.set()
+
+
+def _start_deferred_startup(api, app_kind: str, launch_args: list[str]) -> None:
+    global _DEFERRED_STARTUP_STARTED
+    with _DEFERRED_STARTUP_LOCK:
+        if _DEFERRED_STARTUP_STARTED:
+            api._reporter = _ERROR_REPORTER
+            api._updater = _UPDATE_MANAGER
+            return
+        _DEFERRED_STARTUP_STARTED = True
+
+    services_thread = threading.Thread(
+        target=_initialize_deferred_services,
+        args=(api, app_kind, launch_args),
+        daemon=True,
+        name="3T Office background services",
+    )
+    services_thread.start()
+
+    if _PERSISTENT_SOFFICE_ENABLED and app_kind in {"writer", "sheet", "slides"}:
+        threading.Thread(
+            target=_PERSISTENT_SOFFICE.prepare,
+            args=(app_kind,),
+            daemon=True,
+            name="3T Office LibreOffice warm start",
+        ).start()
 
 # ---------------------------------------------------------------------------
 # Embedded static-file server (runs inside the Python process)
@@ -257,9 +365,8 @@ def _start_static_server():
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
 
-        # Quick readiness check
-        import time
-        time.sleep(0.05)
+        # Binding the socket above makes it listen-ready. Starting the request loop
+        # needs no fixed sleep; Thread.start() reports whether it was scheduled.
         if thread.is_alive():
             return server, port
         # Thread died immediately — port was not truly free
@@ -636,15 +743,24 @@ class _PersistentSofficeManager:
         raise _PersistentSofficeTransportError(str(last_error or "LibreOffice helper is unavailable"))
 
     def prepare(self, app_kind: str) -> None:
-        if app_kind not in {"writer", "sheet"} or not _PERSISTENT_SOFFICE_ENABLED:
+        if app_kind not in {"writer", "sheet", "slides"} or not _PERSISTENT_SOFFICE_ENABLED:
             return
+        started = time.perf_counter()
         try:
             with self._lock:
                 self._ensure_locked(app_kind)
-            if app_kind in {"writer", "sheet"}:
-                _warmup_persistent_filter(app_kind)
+            _startup_trace("lo_worker_ready", app=app_kind, worker_elapsed_ms=round((time.perf_counter() - started) * 1000, 1))
         except Exception as exc:
+            _startup_trace("lo_worker_failed", app=app_kind, error=type(exc).__name__)
             _open_perf_log("worker_background_start_failed", app=app_kind, error=str(exc)[:180])
+
+    def warm_profile_filter(self, app_kind: str) -> None:
+        if app_kind not in {"writer", "sheet"} or not _PERSISTENT_SOFFICE_ENABLED:
+            return
+        try:
+            _warmup_persistent_filter(app_kind)
+        except Exception as exc:
+            logging.getLogger("vnoffice.startup").debug("LibreOffice profile warmup unavailable: %s", type(exc).__name__)
 
     def release_for_cli_fallback(self, app_kind: str | None) -> None:
         """Release the profile lock before the original CLI conversion runs."""
@@ -2719,6 +2835,48 @@ class VnOfficeApi:
         print(f"[VNO Sheet Perf] {name}: {value:.1f} ms", flush=True)
         return True
 
+    def report_startup_metric(self, name, renderer_elapsed_ms=None):
+        """Record opt-in local boot milestones. The payload contains no document content."""
+        allowed = {
+            "pywebview_ready", "renderer_entry", "uno_bridge_ready", "ribbon_interactive",
+            "blank_document_first_paint", "initial_file_open_resolved", "help_ready",
+            "editable_surface_ready", "error_reporting_ready", "updater_ui_ready", "first_editor_key", "document_open_complete",
+        }
+        if name not in allowed:
+            return False
+        fields = {"app": self._app_kind}
+        if renderer_elapsed_ms is not None:
+            try:
+                fields["renderer_elapsed_ms"] = round(float(renderer_elapsed_ms), 1)
+            except (TypeError, ValueError):
+                return False
+        _startup_trace(name, **fields)
+        if name == "document_open_complete" and self._app_kind in {"writer", "sheet"}:
+            with _PROFILE_WARMUP_LOCK:
+                should_warm = self._app_kind not in _PROFILE_WARMUP_STARTED
+                _PROFILE_WARMUP_STARTED.add(self._app_kind)
+            if should_warm:
+                threading.Thread(
+                    target=_PERSISTENT_SOFFICE.warm_profile_filter,
+                    args=(self._app_kind,),
+                    daemon=True,
+                    name=f"3T Office {self._app_kind} profile warmup",
+                ).start()
+        return True
+
+    def start_deferred_startup(self):
+        """Start services which are intentionally kept off the first-paint path."""
+        if self._app_kind in VALID_APP_KINDS:
+            _start_deferred_startup(self, self._app_kind, getattr(self, "_startup_launch_args", []))
+        return {"started": True}
+
+    def wait_for_background_services(self, timeout_seconds=30):
+        try:
+            timeout = max(0.0, min(60.0, float(timeout_seconds)))
+        except (TypeError, ValueError):
+            timeout = 30.0
+        return {"ready": _BACKGROUND_SERVICES_READY.wait(timeout)}
+
     def _validate_open_package(self, source_path, app_kind):
         """Reject malformed ZIP-based Office/ODF packages before conversion mutates UI state.
 
@@ -3410,6 +3568,7 @@ def _warmup_libreoffice_profiles() -> int:
 
 def main(argv: list[str] | None = None):
     global _ERROR_REPORTER, _UPDATE_MANAGER, _UPDATE_DATA_DIR, _PERSISTENT_SOFFICE_ENABLED
+    _startup_trace("python_imports_complete")
     launch_argv = list(sys.argv[1:] if argv is None else argv)
     if launch_argv == ["--warmup-libreoffice-profiles"]:
         return _warmup_libreoffice_profiles()
@@ -3467,49 +3626,13 @@ def main(argv: list[str] | None = None):
             )
             return 4
 
-    report_config = load_client_config(ROOT_DIR)
     _UPDATE_DATA_DIR = _user_data_dir() / "updates"
-    try:
-        _ERROR_REPORTER = ErrorReporter(
-            APP_VERSION,
-            app_kind,
-            _user_data_dir(),
-            endpoint=str(report_config["endpoint"]),
-            token=str(report_config["token"]),
-            enabled=bool(report_config["enabled"]),
-        )
-        _ERROR_REPORTER.install_exception_hooks()
-    except Exception:
-        # Reporting storage/configuration failures must never prevent offline startup.
-        _ERROR_REPORTER = None
-
-    install_root = _update_install_root()
-    if install_root:
-        try:
-            installed_version = (install_root / "VERSION.txt").read_text(encoding="ascii").strip() or APP_VERSION
-            update_config = _load_update_config()
-            _UPDATE_MANAGER = UpdaterManager(
-                install_dir=install_root,
-                updates_dir=_UPDATE_DATA_DIR,
-                current_version=installed_version,
-                source=update_config["source"],
-                channel=update_config["channel"],
-                public_key=get_public_key(),
-                on_state=_notify_update_ui,
-            )
-            _UPDATE_MANAGER.set_launch_args(launch_argv)
-        except Exception as exc:
-            # A malformed update config/version must never prevent offline document work.
-            logging.getLogger("vnoffice.updater").debug("Updater initialization unavailable: %s", type(exc).__name__)
-            _UPDATE_MANAGER = None
-    else:
-        _UPDATE_MANAGER = None
-    queue_rollback_report(_ERROR_REPORTER, _UPDATE_DATA_DIR)
 
     # Start embedded static-file server BEFORE creating the webview window
     # so the UI is guaranteed to load without ERR_CONNECTION_REFUSED.
     try:
         server, port = _start_static_server()
+        _startup_trace("static_server_ready", port=port)
     except RuntimeError as exc:
         msg = (
             f"3T Office không thể khởi động.\n\n"
@@ -3536,6 +3659,7 @@ def main(argv: list[str] | None = None):
     _PERSISTENT_SOFFICE_ENABLED = os.environ.get("VNOFFICE_DISABLE_UNO") != "1"
 
     api = VnOfficeApi(app_kind=app_kind, initial_file=initial_file, server_port=port)
+    api._startup_launch_args = launch_argv
     if app_kind in VALID_APP_KINDS:
         with _DOCUMENT_SEQUENCE_LOCK:
             _DOCUMENT_SEQUENCE[app_kind] = 1
@@ -3552,6 +3676,7 @@ def main(argv: list[str] | None = None):
         js_api=api,
         text_select=True,
     )
+    _startup_trace("pywebview_window_created", app=app_kind)
 
     _register_app_window(api, window)
 
@@ -3560,15 +3685,6 @@ def main(argv: list[str] | None = None):
             target=_dispatch_single_instance_requests,
             daemon=True,
             name=f"3T Office {app_kind} window router",
-        ).start()
-
-    startup_worker_kind = app_kind if app_kind in {"writer", "sheet"} else None
-    if _PERSISTENT_SOFFICE_ENABLED and startup_worker_kind:
-        threading.Thread(
-            target=_PERSISTENT_SOFFICE.prepare,
-            args=(startup_worker_kind,),
-            daemon=True,
-            name="3T Office LibreOffice warm start",
         ).start()
 
     # Set Windows AppUserModelID so the taskbar groups and shows the app's specific icon
@@ -3590,6 +3706,7 @@ def main(argv: list[str] | None = None):
     expected_health_file = os.environ.get("VNO_UPDATE_HEALTH_FILE", "")
 
     def on_loaded(*_args):
+        _startup_trace("webview_loaded", app=app_kind)
         if not health_token or not re.fullmatch(r"[0-9a-f]{32}", health_token):
             return
         health_root = _UPDATE_DATA_DIR

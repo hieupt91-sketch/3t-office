@@ -10,13 +10,8 @@ import { bootstrapPlatform } from "../../platform/bootstrap.js";
 import { applyLocaleToTabs } from "../../platform/i18n/i18n.js";
 import { globalShortcutManager } from "../../platform/commands/shortcut-manager.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
-import { HelpPanel } from "../../platform/help/index.js";
-import { LocalAiService } from "../../platform/ai/ai-service.js";
-import { showAlertDialog, showPromptDialog } from "../../platform/ui-kit/dialogs.js";
 import { t } from "../../platform/i18n/i18n.js";
-import { FUNCTION_CATALOG } from "./formula-engine.js";
-import { autoRecoverManager } from "../../platform/autorecover/auto-recover.js";
-import "../../platform/help/entries-sheet.js";
+import { withLazyFeatureProgress } from "../../platform/startup/lazy-feature.js";
 
 export class SheetApp {
   constructor(mountElement) {
@@ -25,6 +20,9 @@ export class SheetApp {
     this.grid = null;
     this.adapter = null;
     this.helpPanel = null;
+    this.autoRecoverManager = null;
+    this.workspace = null;
+    this._helpPanelPromise = null;
     this._lifecycleObserver = null;
     this._previousSheetOpenProgress = null;
     this._sheetOpenProgressHandler = null;
@@ -67,11 +65,12 @@ export class SheetApp {
     });
     this.grid.mount();
 
-    this.helpPanel = new HelpPanel({ app: "sheet" });
-    this.helpPanel.mount(workspace);
+    this.workspace = workspace;
     globalCommandBus.bindHandler("sheet.help.open", (args) => {
-      if (args?.entryId || args?.query != null) return this.helpPanel.open(args);
-      return this.helpPanel.toggle();
+      return withLazyFeatureProgress("sheet", "Trợ giúp", () => this._ensureHelpPanel()).then((panel) => {
+        if (args?.entryId || args?.query != null) return panel.open(args);
+        return panel.toggle();
+      });
     });
 
     // Sheet AI: Giải thích công thức
@@ -104,22 +103,60 @@ export class SheetApp {
       window.__vnoSheetOpenProgress = this._sheetOpenProgressHandler;
     }
 
+    this.grid.updateStatus();
+    this._autoRecoverOptions = options;
+    console.log("[SheetApp] Đã khởi tạo 3T Sheet chuẩn hóa cao cấp.");
+  }
+
+  async initializeBackgroundServices() {
+    const [helpPanel] = await Promise.all([
+      this._ensureHelpPanel(),
+      this.grid.initializeSpellcheck(),
+      this.grid.initializeOptionalDocumentFeatures()
+    ]);
+    const { autoRecoverManager } = await import("../../platform/autorecover/auto-recover.js");
+    this.autoRecoverManager = autoRecoverManager;
     await autoRecoverManager.register({
       appKind: "sheet",
       adapter: this.adapter,
       shell: this.shell,
-      helpPanel: this.helpPanel,
+      helpPanel,
       serialize: () => this.adapter.serializeToFods(),
       restore: (content, manifest) => {
         const restored = this.adapter.restoreFromAutoRecover(content, manifest);
         if (restored) this.grid.updateStatus();
         return restored;
       },
-      options
+      options: this._autoRecoverOptions
     });
+  }
 
-    this.grid.updateStatus();
-    console.log("[SheetApp] Đã khởi tạo 3T Sheet chuẩn hóa cao cấp.");
+  async showStartupRecovery() {
+    const { autoRecoverManager } = await import("../../platform/autorecover/auto-recover.js");
+    await autoRecoverManager.showStartupRecovery();
+  }
+
+  async _ensureHelpPanel() {
+    if (this.helpPanel) return this.helpPanel;
+    if (!this._helpPanelPromise) {
+      this.shell?.setStatus?.("Đang tải Trợ giúp 3T Sheet…");
+      this._helpPanelPromise = Promise.all([
+        import("../../platform/help/index.js"),
+        import("../../platform/help/entries-sheet.js")
+      ]).then(([{ HelpPanel }]) => {
+        if (!this.helpPanel && this.workspace) {
+          this.helpPanel = new HelpPanel({ app: "sheet" });
+          this.helpPanel.mount(this.workspace);
+          this.shell?.setStatus?.("Sẵn sàng");
+        }
+        return this.helpPanel;
+      }).catch((error) => {
+        this._helpPanelPromise = null;
+        this.shell?.setStatus?.("Không tải được Trợ giúp 3T Sheet.");
+        throw error;
+      });
+    }
+    return this._helpPanelPromise;
   }
 
   _watchLifecycle() {
@@ -132,7 +169,7 @@ export class SheetApp {
   }
 
   destroy() {
-    autoRecoverManager.detach(this.adapter);
+    this.autoRecoverManager?.detach(this.adapter);
     if (typeof window !== "undefined" && window.__vnoSheetOpenProgress === this._sheetOpenProgressHandler) {
       if (this._previousSheetOpenProgress) window.__vnoSheetOpenProgress = this._previousSheetOpenProgress;
       else delete window.__vnoSheetOpenProgress;
@@ -148,6 +185,10 @@ export class SheetApp {
 
   /** Giải thích công thức — lấy công thức từ ô đang chọn, gọi AI giải thích */
   async _handleExplainFormula() {
+    const [{ LocalAiService }, { showAlertDialog }] = await withLazyFeatureProgress("sheet", "Trợ lý AI", () => Promise.all([
+      import("../../platform/ai/ai-service.js"),
+      import("../../platform/ui-kit/dialogs.js")
+    ]));
     const grid = this.grid;
     if (!grid) return;
 
@@ -201,6 +242,11 @@ export class SheetApp {
 
   /** Tạo công thức từ mô tả — mở hộp thoại, gọi AI, validate, cho áp dụng */
   async _handleFormulaFromDescription() {
+    const [{ LocalAiService }, { showPromptDialog }, { FUNCTION_CATALOG }] = await withLazyFeatureProgress("sheet", "Trợ lý AI", () => Promise.all([
+      import("../../platform/ai/ai-service.js"),
+      import("../../platform/ui-kit/dialogs.js"),
+      import("./formula-engine.js")
+    ]));
     const grid = this.grid;
     if (!grid) return;
 
