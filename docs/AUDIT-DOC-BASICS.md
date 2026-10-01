@@ -126,7 +126,7 @@ The previous draft cited `scripts/test_g7_file_basics.py` and `pywebview.evaluat
 | B8 | Header/footer and different-first-page DOCX round trip in Word | FAIL | Word COM reopened with blank header/footer content. Package had `w:titlePg` but no `w:headerReference` or `w:footerReference` in `word/document.xml` section properties. |
 | B9 | Insert image | PASS | Image picker was exercised through CDP file-input selection; image appeared in the body. |
 | B9 | Drag/drop image | NOT RUN | A desktop drag-and-drop path was not exercised. |
-| B9 | Resize image | FAIL | Picture Format showed wrap/position options but no size control; CDP drag of the visible edge did not change image dimensions. |
+| B9 | Resize image | PASS | Desktop CDP verified: 8 resize handles active, corner handle drag locks aspect ratio (200x100 -> 260x130), quick wrap menu offers 6 styles, and ribbon width/height inputs set exact dimensions (360x180 px). |
 | B9 | Text wrapping | PASS | Square wrapping set `data-vno-wrap="square"` and float styling. |
 | B9 | Insert shape | PASS | Circle shape was inserted through the shape picker. |
 | B9 | Insert text box | PASS | CDP placed the box at page-relative x=72, y=120; the box accepted text, and Ctrl+Z/Ctrl+Y removed/restored the shape. |
@@ -176,6 +176,7 @@ The previous draft cited `scripts/test_g7_file_basics.py` and `pywebview.evaluat
 | TOC insertion beside a heading avoids invalid nested block markup. | `tests/unit/writer-toc-footnotes.test.js` | CDP confirmed the TOC is a sibling after Heading 1; Undo/Redo removed/restored it. |
 | Text box overlay remains anchored to the page instead of flowing after document text. | `tests/unit/writer-slides-insert-gaps.test.js` | CDP confirmed page-relative x=72/y=120, text entry, and shape Undo/Redo. |
 | Added table editing controls (insert/delete row & col, table move handle, drag column border resize, cell selection, merge/split, design/layout contextual ribbon tabs). | `tests/unit/writer-table-controls.test.js` | Desktop CDP verified table move handle, contextual tabs tableDesign/tableLayout, row insert (3->4), col insert (4->5), and header toggle. |
+| Added picture resize handles (8 handles, corner aspect ratio locking, edge scaling), quick wrap menu (6 wrap styles), and ribbon width/height size inputs. | `tests/unit/writer-picture-resize-wrap.test.js` | Desktop CDP verified 8 handles, corner SE drag keeping aspect ratio (200x100 -> 260x130), quick wrap menu, square wrap float, and ribbon direct sizing. |
 
 ## Verification and handoff
 

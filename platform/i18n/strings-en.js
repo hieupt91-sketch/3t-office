@@ -678,6 +678,8 @@ export const enStrings = {
     "writer.table.toggleHeaderRow": { label: "Header Row", tooltip: "Toggle table header row formatting" },
     "writer.table.toggleBandedRows": { label: "Banded Rows", tooltip: "Toggle banded rows formatting" },
     "writer.image.insert": { label: "Pictures", tooltip: "Insert pictures from your computer" },
+    "writer.image.resize": { label: "Resize Picture", tooltip: "Resize picture and adjust aspect ratio" },
+    "writer.image.wrap": { label: "Wrap Text", tooltip: "Configure text wrapping around picture" },
     "writer.shape.insert": { label: "Shapes", tooltip: "Insert basic shapes (rectangle, circle, arrow, line)" },
     "writer.diagram.insert": { label: "SmartArt", tooltip: "Insert a SmartArt diagram (process, cycle, hierarchy, list)" },
     "writer.chart.insert": { label: "Chart", tooltip: "Insert an illustration chart" },

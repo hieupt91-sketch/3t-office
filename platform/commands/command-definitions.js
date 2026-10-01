@@ -158,6 +158,8 @@ export const WRITER_COMMANDS = [
   { id: "writer.insert.symbol", category: "insert", label: "Ký hiệu", icon: "symbol", tooltip: "Chèn ký tự đặc biệt tại vị trí con trỏ" },
   { id: "writer.insert.bookmark", category: "insert", label: "Đánh dấu", icon: "bookmark", tooltip: "Đánh dấu vị trí trong tài liệu để nhảy tới sau" },
   { id: "writer.insert.crossReference", category: "insert", label: "Tham chiếu chéo", icon: "crossReference", tooltip: "Chèn liên kết nội bộ tới tiêu đề hoặc đánh dấu" },
+  { id: "writer.image.resize", category: "format", label: "Đổi kích thước ảnh", tooltip: "Thay đổi kích thước và tỷ lệ ảnh" },
+  { id: "writer.image.wrap", category: "format", label: "Ngắt dòng văn bản", tooltip: "Tùy chọn ngắt dòng chữ quanh ảnh" },
 
   // Đánh giá (Review)
   { id: "writer.comment.insert", category: "review", label: "Thêm ghi chú", shortcut: "Ctrl+Alt+M", icon: "comment", tooltip: "Thêm ghi chú vào đoạn văn bản đang chọn (Ctrl+Alt+M)" },

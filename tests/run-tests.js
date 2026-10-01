@@ -215,6 +215,7 @@ import { runVietnameseImeUnitTests } from "./unit/vietnamese-ime.test.js";
 import { runSheetNativeCellValuesTests } from "./unit/sheet-native-cell-values.test.js";
 import { runSheetPrintSetupRoundTripTests } from "./unit/sheet-print-setup-roundtrip.test.js";
 import { runSheetC3C7C8GapTests } from "./unit/sheet-c3-c7-c8-gaps.test.js";
+import { runWriterPictureResizeWrapTests } from "./unit/writer-picture-resize-wrap.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -439,7 +440,8 @@ async function runAll() {
     { title: "175. Unit Tests — VN Sheet native numeric/date cell values, external paste, fill and FODS types", runner: runSheetNativeCellValuesTests },
     { title: "176. Unit Tests — VN Sheet print setup XLSX reopen round-trip", runner: runSheetPrintSetupRoundTripTests },
     { title: "177. Unit Tests — VN Sheet C3/C7/C8 selection, tabs and sort", runner: runSheetC3C7C8GapTests },
-    { title: "178. Unit Tests — VN Writer table controls, move handle, drag resize and contextual ribbon tabs", runner: runWriterTableControlsTests }
+    { title: "178. Unit Tests — VN Writer table controls, move handle, drag resize and contextual ribbon tabs", runner: runWriterTableControlsTests },
+    { title: "179. Unit Tests — VN Writer picture resize handles, aspect ratio & wrap text", runner: runWriterPictureResizeWrapTests }
   ];
 
   for (const suite of suites) {

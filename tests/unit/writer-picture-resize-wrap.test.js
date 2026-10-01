@@ -13,6 +13,11 @@ class MockClassList {
   add(n) { const s = this._set(); s.add(n); this.owner.className = [...s].join(" "); }
   remove(n) { const s = this._set(); s.delete(n); this.owner.className = [...s].join(" "); }
   contains(n) { return this._set().has(n); }
+  toggle(n, force) {
+    const shouldAdd = typeof force === "boolean" ? force : !this.contains(n);
+    if (shouldAdd) this.add(n); else this.remove(n);
+    return shouldAdd;
+  }
 }
 
 class MockElement {

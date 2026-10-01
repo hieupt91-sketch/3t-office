@@ -1211,6 +1211,21 @@ export const WRITER_HELP_ENTRIES = [
       "Trong nhóm Kích cỡ ô, nhấp «Phân bố đều hàng» để cân bằng chiều cao các dòng, hoặc «Phân bố đều cột» để chia lại chiều rộng các cột đều nhau 100%. Bạn cũng có thể rê chuột vào vạch ngăn giữa hai cột để kéo chuột chỉnh độ rộng từng cột tùy ý.",
       "Trong nhóm Căn lề ô, nhấp «Căn đỉnh ô», «Căn giữa dọc ô» hoặc «Căn đáy ô» để bố trí vị trí chữ theo chiều dọc bên trong ô theo đúng ý muốn."
     ]
+  },
+  {
+    id: "writer.image.resizeWrap",
+    app: "writer",
+    commandIds: ["writer.image.resize", "writer.image.wrap"],
+    title: "Thay đổi kích thước và ngắt dòng ảnh",
+    summary: "Thay đổi kích thước hình ảnh bằng 8 tay cầm co giãn hoặc nhập số đo trực tiếp; tùy chỉnh ngắt dòng văn bản quanh ảnh.",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Minh họa" },
+    keywords: ["thay đổi kích thước ảnh", "resize", "ngắt dòng ảnh", "wrap text", "tay cầm", "tỷ lệ khung hình", "aspect ratio", "hình ảnh", "kích thước"],
+    steps: [
+      "Nhấp chuột vào hình ảnh trong tài liệu để chọn ảnh. Thanh công cụ sẽ xuất hiện tab ngữ cảnh Định dạng Hình ảnh và trên ảnh hiển thị khung viền cùng 8 tay cầm co giãn.",
+      "Kéo một trong 4 tay cầm ở các góc để thay đổi kích thước ảnh mà vẫn giữ nguyên tỷ lệ khung hình; hoặc kéo các tay cầm ở 4 cạnh để kéo giãn theo một chiều.",
+      "Nhập trực tiếp số đo chiều Cao (px) và chiều Rộng (px) tại nhóm Sắp xếp & Kích thước trên tab Định dạng Hình ảnh để đặt kích thước chính xác.",
+      "Nhấp vào nút biểu tượng ngắt dòng nhanh ở góc trên bên phải khung ảnh hoặc chọn danh sách Ngắt dòng văn bản trên thanh ribbon để chọn kiểu ngắt dòng mong muốn (Vuông, Khít, Phía sau văn bản, Phía trước văn bản, Trên và dưới, Cùng dòng với văn bản)."
+    ]
   }
 ];
 

@@ -59,7 +59,7 @@ export class WriterArrangeController {
         this.selectImage(image);
       } else if (!event.target?.closest?.(".vno-writer-arrange-group") &&
                  !event.target?.closest?.(".vno-image-resize-overlay") &&
-                 !event.target?.closest?.(".vno-image-wrap-menu")) {
+                 !event.target?.closest?.(".vno-image-wrap-popup")) {
         this.clearSelection();
       }
     };
@@ -269,7 +269,7 @@ export class WriterArrangeController {
       return;
     }
     const menu = document.createElement("div");
-    menu.className = "vno-image-wrap-menu";
+    menu.className = "vno-image-wrap-popup";
     menu.style.cssText = `position:absolute; top:26px; right:0; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 4px 14px rgba(0,0,0,0.15); z-index:1003; min-width:210px; padding:4px 0; font-size:12px; pointer-events:auto;`;
 
     const title = document.createElement("div");
@@ -475,7 +475,7 @@ export class WriterArrangeController {
     group.className = "vno-ribbon-group vno-writer-arrange-group";
     group.dataset.groupId = "writerArrange";
     group.innerHTML = `<div class="vno-ribbon-group-items">
-      <label>Ngắt dòng văn bản<select data-arrange="wrap" class="vno-image-wrap-menu" aria-label="Kiểu ngắt dòng văn bản">${optionList(WRAP_STYLES, this.selectedImage.dataset.vnoWrap || "inline")}</select></label>
+      <label>Ngắt dòng văn bản<select data-arrange="wrap" aria-label="Kiểu ngắt dòng văn bản">${optionList(WRAP_STYLES, this.selectedImage.dataset.vnoWrap || "inline")}</select></label>
       <label>Vị trí<select data-arrange="position" aria-label="Vị trí ảnh trên trang"><option value="">Chọn vị trí…</option>${optionList(POSITION_LABELS, this.selectedImage.dataset.vnoPosition || "")}</select></label>
       <div class="vno-writer-arrange-buttons"><button type="button" data-arrange="forward">Đưa lên</button><button type="button" data-arrange="backward">Đưa xuống</button></div>
       <label>Căn chỉnh<select data-arrange="align" aria-label="Căn ảnh theo trang"><option value="">Chọn căn…</option><option value="left">Trái</option><option value="center">Giữa ngang</option><option value="right">Phải</option><option value="top">Trên</option><option value="middle">Giữa dọc</option><option value="bottom">Dưới</option></select></label>

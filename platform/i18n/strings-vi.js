@@ -679,6 +679,8 @@ export const viStrings = {
     "writer.table.toggleHeaderRow": { label: "Hàng tiêu đề", tooltip: "Bật hoặc tắt định dạng hàng tiêu đề bảng" },
     "writer.table.toggleBandedRows": { label: "Hàng xen kẽ", tooltip: "Bật hoặc tắt màu xen kẽ giữa các hàng trong bảng" },
     "writer.image.insert": { label: "Hình ảnh", tooltip: "Chèn hình ảnh từ máy tính" },
+    "writer.image.resize": { label: "Đổi kích thước ảnh", tooltip: "Thay đổi kích thước và tỷ lệ ảnh" },
+    "writer.image.wrap": { label: "Ngắt dòng văn bản", tooltip: "Tùy chọn ngắt dòng chữ quanh ảnh" },
     "writer.shape.insert": { label: "Hình khối", tooltip: "Chèn hình khối cơ bản (chữ nhật, hình tròn, mũi tên, đường thẳng)" },
     "writer.diagram.insert": { label: "Sơ đồ", tooltip: "Chèn sơ đồ quy trình, chu trình hoặc phân cấp" },
     "writer.chart.insert": { label: "Biểu đồ", tooltip: "Chèn biểu đồ minh họa dữ liệu" },
