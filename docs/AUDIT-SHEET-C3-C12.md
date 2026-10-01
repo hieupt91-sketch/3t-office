@@ -4,7 +4,7 @@
 **Branch:** `audit/sheet-c3-c12-codex`  
 **Audit method:** real desktop WebView2 started by `main.py`; all worksheet and ribbon input was sent through CDP (`page.mouse` / `page.keyboard`) with a dedicated remote-debugging port. Excel checks use hidden COM only (`Visible = False`). C1 and C2 are excluded as requested; see `E:\VNOffice-codex-audit-sheet\docs\AUDIT-SHEET-BASICS.md`.
 
-Status meanings: **ĐẠT** = observed to work in this audit; **CHƯA ĐẠT** = observed mismatch or missing UI; **NOT RUN** = no result; **BLOCKED** = test could not proceed for the stated reason. A UI result alone does not establish XLSX persistence.
+Status meanings: **ĐẠT** = the specific UI path named in the evidence worked; **CHƯA ĐẠT** = observed mismatch or missing UI; **NOT RUN** = no result; **BLOCKED** = test could not proceed for the stated reason. A UI result alone does not establish keyboard/mouse parity or XLSX persistence.
 
 ## Results
 
@@ -37,24 +37,23 @@ Status meanings: **ĐẠT** = observed to work in this audit; **CHƯA ĐẠT** =
 | C7 | Move and copy sheet | ĐẠT | CDP tab context-menu Move changed order and `Ctrl+Z` restored it; Move or Copy dialog created `AuditCopy (2)`. |
 | C7 | Delete sheet | CHƯA ĐẠT | Sheet tab context menu contains Rename, Move or Copy, and Protect; no delete-sheet command was present. |
 | C7 | Tab colour | CHƯA ĐẠT | No tab-colour command or control is exposed in the live sheet-tab UI. |
-| C8 | Sort ascending | CHƯA ĐẠT | CDP A→Z sorted all rows including the `Name` header into the data (`three`, `two`, `two`, `one`, `Name`). `Ctrl+Z` restored order. Excel COM comparison is pending. |
+| C8 | Sort ascending | CHƯA ĐẠT | CDP A→Z sorted all rows including the `Name` header into the data; `Ctrl+Z` restored order. On a copy, hidden Excel COM sorted `Name / Alpha / Beta / Gamma / Delta` as `Name / Alpha / Beta / Delta / Gamma`, preserving the header. |
 | C8 | AutoFilter range and arrows | ĐẠT | Fixed behavior verified through CDP: explicit A1:B3 range stores A1:B3 and shows arrows only for A/B; single-cell selection infers the used range and limits arrows accordingly. |
 | C8 | Freeze panes | ĐẠT | CDP freeze at C3 set frozenRows=2/frozenCols=2; `Ctrl+Z` returned both to zero. |
-| C8 | Data validation | ĐẠТ | CDP list validation `Red,Green,Blue` rejects `Yellow`, restores the prior value, shows a localized validation alert, accepts `Red`, and has one valid Undo entry. Focused unit tests cover rejected commits and no Undo entry. |
-| C8 | Remove duplicates | ĐẠТ | CDP Remove Duplicates removed the repeated row; `Ctrl+Z` restored it. |
-| C9 | Conditional formatting basics | ĐẠТ | CDP rule “greater than 1” applied red to matching E2; `Ctrl+Z` removed the rule. XLSX/Excel persistence pending. |
-| C10 | Insert column, line, and pie charts | ĐẠТ | CDP chart builder selected and inserted bar/column, line, and pie types from the selected data range. Focused Undo check confirmed chart count 1→0 after `Ctrl+Z`. |
-| C10 | Save chart XLSX and reopen in 3T | BLOCKED | Pending save and reopen while another worktree's 26-file LibreOffice layout batch is still converting files; no XLSX persistence result claimed. |
-| C10 | Reopen saved charts in hidden Excel COM | BLOCKED | No saved 3T-produced XLSX is available yet for COM inspection; Excel COM check remains pending with the save/reopen gate. |
-| C11 | Print area | ĐẠТ | CDP Page Layout command set A1:B3; `Ctrl+Z` cleared it. |
-| C11 | Fit to one page | ĐẠТ | CDP Page Layout scale dialog set mode=pages, width=1, height=1; `Ctrl+Z` restored percent mode. |
-| C11 | Print titles | ĐẠТ | CDP set repeating rows to 1:1; `Ctrl+Z` restored empty rows/columns. |
-| C11 | Header and footer | ĐẠТ | CDP Insert dialog set center header/footer; `Ctrl+Z` restored defaults. |
-| C11 | Page breaks | ĐẠТ | CDP inserted breaks at row 5 and column B; `Ctrl+Z` removed both. |
-| C11 | XLSX persistence and hidden Excel comparison | BLOCKED | Page settings were verified in the live model and Undo stack only; saved-workbook inspection awaits an idle LibreOffice conversion slot. |
-| C12 | Automatic formula recalculation | ĐẠТ | CDP formula H3=`=H1+H2` evaluated 3+4=7; editing H1 to 8 updated H3 to 12 automatically, and F9 retained 12. |
+| C8 | Data validation | ĐẠT | CDP list validation `Red,Green,Blue` rejects `Yellow`, restores the prior value, shows a localized validation alert, accepts `Red`, and has one valid Undo entry. Focused unit tests cover rejected commits and no Undo entry. |
+| C8 | Remove duplicates | ĐẠT | CDP Remove Duplicates removed the repeated row; `Ctrl+Z` restored it. |
+| C9 | Conditional formatting basics | ĐẠT | CDP rule “greater than 1” applied red to matching E2; `Ctrl+Z` removed the rule. XLSX/Excel persistence was not separately compared. |
+| C10 | Insert column, line, and pie charts | ĐẠT | CDP inserted column, line, and pie charts from A1:B5. Chart count Undo/Redo was checked (3→2→3). |
+| C10 | Save chart XLSX and reopen in 3T | ĐẠT | Saved `VNOffice-Sheet-C3-C12-audit-ddccc66d38014b5eb1f3df07760a5de5.xlsx`; reopening in 3T retained all three chart SVG types (`bar`, `line`, `pie`) and their source data. |
+| C10 | Reopen saved charts in hidden Excel COM | ĐẠT | Read-only hidden COM inspection found 3 ChartObjects / 3 Shapes: chart types 51 (column), 4 (line), and 5 (pie); each has one series with category range A2:A5 and value range B2:B5. |
+| C11 | Print area | ĐẠT | CDP set A1:B5 and checked Undo/Redo. Hidden Excel COM read `PrintArea=$A$1:$B$5`. The 3T reopen value was not independently captured. |
+| C11 | Fit to one page | CHƯA ĐẠT | CDP set width=1 and height=1 and checked Undo/Redo. Hidden Excel COM read `FitToPagesWide=1`, `FitToPagesTall=1`, `Zoom=False`; reopening in 3T reset to percent mode (width=1, height=0). |
+| C11 | Print titles | CHƯA ĐẠT | CDP set repeating row 1 and checked Undo/Redo. Hidden Excel COM read `PrintTitleRows=$1:$1`; reopening in 3T showed blank repeating rows. |
+| C11 | Header and footer | CHƯA ĐẠT | CDP set center header `VN Sheet Audit` and center footer `Audit &P / &N`, with Undo/Redo. Hidden Excel COM read both exact strings; reopening in 3T reset the header and restored its default footer `Trang &P / &N`. |
+| C11 | Page breaks | ĐẠT | CDP inserted row 5 and column B breaks and checked Undo/Redo. Reopening in 3T retained both; hidden Excel COM found one horizontal and one vertical break. |
+| C12 | Automatic formula recalculation | ĐẠT | CDP changed B2 from 12 to 30; live `D1=SUM(B2:B5)` updated 92→110. Undo restored 12/92, Redo and F9 restored 30/110. |
 | C12 | Large workbook responsiveness | NOT RUN | Live grid is capped at 200×26 and no large workbook was loaded for timing. |
-| C12 | Save/reopen recalculation in Excel | BLOCKED | No audit XLSX has been saved and reopened in hidden Excel COM yet. |
+| C12 | Save/reopen calculation and value parity | CHƯA ĐẠT | On 3T reopen, B2=30 but D1 showed stale 92. Hidden Excel COM read B2 as text, B3:B5 as numbers, `D1=SUM(B2:B5)` as 80 and `D2=COUNT(B2:B5)` as 3; expected numeric-input results are 110 and 4. This isolates a numeric value serialization/cache mismatch, not a live formula-engine failure. |
 
 ## Focused changes
 
@@ -68,13 +67,25 @@ Status meanings: **ĐẠT** = observed to work in this audit; **CHƯA ĐẠT** =
 1. **C3-SHEET-GRID-EXTENT** — Replace the 26-column/200-row interaction cap with viewport virtualization over Excel worksheet bounds; preserve header/keyboard navigation and selection performance. Add boundary tests at XFD/1,048,576 and a desktop large-range responsiveness check. Add specific Vietnamese in-app instructions for selecting/navigating large ranges.
 2. **C7-SHEET-DELETE-AND-TAB-COLOUR** — Add worksheet-tab Delete and Tab Colour actions, with confirmation for deletion and protection for the last remaining sheet. Cover Undo, XLSX save/reopen in 3T and Excel, and Vietnamese in-app instructions for both actions.
 3. **C8-SHEET-SORT-HEADER-DETECTION** — Make ascending/descending sort preserve a header row when the selected data has headers, and match Excel's sort range semantics. Compare the same workbook copy using hidden Excel COM; cover keyboard, ribbon, Undo, XLSX reopen, and Vietnamese in-app instructions.
-4. **C10/C11-SHEET-XLSX-PERSISTENCE-AUDIT** — Save representative charts and page layout settings from 3T to XLSX, reopen in 3T and hidden Excel COM, compare chart type/series and page properties, and record Undo/save behavior.
+4. **C11-SHEET-PAGE-SETUP-ROUNDTRIP** — Keep print area, fit-to-one-page, print titles, header/footer, and page breaks consistent after XLSX save/reopen in 3T. Current COM evidence shows the XLSX contains all settings, but 3T reopen resets fit mode, print titles, and header/footer. Add round-trip tests and Vietnamese in-app help for print layout settings.
 5. **C12-SHEET-LARGE-WORKBOOK** — Load a measured XLSX larger than the current grid cap, exercise selection/edit/recalc/scroll through CDP, and decide whether the cap or rendering path truncates worksheet content. Record timings and Excel COM comparison.
-6. **C4/C6-SHEET-NATIVE-DATE-VALUES** — Verify and, if needed, fix typed numeric/date serialization so dates and numeric formats use Excel-compatible underlying values; compare with hidden Excel COM. C1/C2 audit work remains owned by the earlier audit branch.
+6. **C4/C6/C12-SHEET-NATIVE-VALUE-ROUNDTRIP** — Serialize numeric and date input as Excel numeric/date cells rather than text. Current COM evidence: B2 displays `30` but `ISTEXT(B2)=TRUE`, causing `SUM`/`COUNT` to omit it. Cover numeric formats, date serials, formula recalc, XLSX reopen in 3T and hidden Excel COM, and Undo. C1/C2 remain owned by the earlier audit branch.
+7. **C3-C9-SHEET-FULL-ACCEPTANCE-MATRIX** — For every listed sub-point, exercise both available mouse and keyboard paths through CDP, capture an Undo/Redo result, compare equivalent behavior in hidden Excel COM on a copy, save the 3T workbook, and reopen it in 3T and hidden Excel. The present report records the observed UI path per row; requested dual-path, per-sub-point Excel parity and round-trip evidence is incomplete outside the C8 sort comparison.
+
+## Saved-workbook inspection
+
+- Test artifact: `C:\Users\3TCOMP~1\AppData\Local\Temp\VNOffice-Sheet-C3-C12-audit-ddccc66d38014b5eb1f3df07760a5de5.xlsx` (14,786 bytes; outside the repository).
+- Hidden Excel COM was used with `Visible=False`; the workbook was opened read-only. COM was started only when no Excel process was active, and no Office process was killed.
+- Excel page setup readback: print area `$A$1:$B$5`; fit width/height `1/1`; print titles `$1:$1`; header `VN Sheet Audit`; footer `Audit &P / &N`; one horizontal and one vertical page break.
+- Excel chart readback: 3 charts, types 51/4/5, one series each, all referencing A2:A5 and B2:B5.
+- Excel value/formula readback: B2 is a string; B3:B5 are numeric. Formulas remained `=SUM(B2:B5)` / `=COUNT(B2:B5)` and evaluated to 80/3 in Excel.
+- C8 sort comparison used a separate copy, `VNOffice-Sheet-C3-C12-excel-sort-copy.xlsx`: Excel `SortFields` with `Header=xlYes` retained `Name` and sorted the rows Alpha, Beta, Delta, Gamma. The 3T A→Z action included its header row.
+- 3T reopen readback: all chart types and page breaks remained; fit settings, print titles, and header/footer did not. D1 showed 92 while B2 showed 30.
+- Full C3–C9 matrix coverage is incomplete: the report captures the tested input path for each observed UI action, but not both input modes, a hidden Excel comparison, and an XLSX save/reopen result for every sub-point. Undo is recorded where explicitly checked in the result rows.
 
 ## Verification record
 
-- `node --input-type=module ... sheet-autofill.test.js`: PASS (3 focused AutoFill cases).
-- `runSheetDataToolsTests()`: PASS (13 focused data-tool cases, including the two additions).
-- `node tests/run-tests.js`: pending final gate.
-- Save/reopen, hidden Excel COM comparison, and large-workbook test: pending as recorded above.
+- `node tests/run-tests.js`: PASS (2228/2228, 0 failures, including the FODS→XLSX round-trip tests).
+- Saved chart and print-setting workbook: reopened in 3T and hidden Excel COM; outcomes are recorded above.
+- Large-workbook responsiveness: NOT RUN. C3–C9 per-sub-point hidden-Excel parity, save/reopen, and mouse/keyboard dual-path coverage beyond the recorded C8 sort comparison: NOT RUN. Undo results are likewise recorded only where explicitly stated.
+- Save pipeline was not modified, so `scripts/layout-audit/_batch_audit.py` was not run.
