@@ -9,11 +9,14 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { WriterAdapter } from "../../adapters/libreoffice/writer/writer-adapter.js";
 import { buildWriterWordArtHtml } from "../../apps/writer/insert-dialogs.js";
 import { convertWithSoffice, findSoffice } from "../helpers/soffice-convert.mjs";
 import { listZipEntries, readZipEntry } from "../helpers/zip-package.mjs";
 
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 assert.ok(findSoffice(), "LibreOffice soffice is required for Writer real-export fidelity audit");
 
 function createAdapter(bodyHtml, { headerHtml = "", footerHtml = "" } = {}) {
@@ -58,11 +61,17 @@ function packageXml(docx, entry) {
 
 function convertAdapter(temp, name, adapter) {
   const source = path.join(temp, `${name}.html`);
+  const outputDir = path.join(temp, `${name}-docx`);
   fs.writeFileSync(source, `<!doctype html><html><head><meta charset="utf-8"></head><body>${adapter._contentForExport()}</body></html>`, "utf8");
-  return convertWithSoffice(source, "docx", path.join(temp, `${name}-docx`), {
+  const docxPath = convertWithSoffice(source, "docx", outputDir, {
     appKind: "writer",
     profileDir: path.join(temp, `${name}-profile`)
   });
+  execFileSync("python", ["-c", "import main,sys; main._apply_native_export_postprocess(sys.argv[1],sys.argv[2],'writer','docx')", source, docxPath], {
+    cwd: repoRoot,
+    stdio: "inherit"
+  });
+  return docxPath;
 }
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), "vno-writer-realexport-audit-"));
@@ -71,23 +80,37 @@ try {
   const headerFooter = createAdapter("<p>BODY_UNIQUE</p>", {
     headerHtml: "<p>HEADER_UNIQUE</p>", footerHtml: "<p>FOOTER_UNIQUE</p>"
   });
+  headerFooter.sectionHeadersFooters["section-1"].differentFirstPage = true;
   const headerFooterDocx = convertAdapter(temp, "header-footer", headerFooter);
   const entries = listZipEntries(headerFooterDocx).map((entry) => entry.name);
   const headerPart = entries.find((name) => /^word\/header\d+\.xml$/.test(name));
   const footerPart = entries.find((name) => /^word\/footer\d+\.xml$/.test(name));
   assert.ok(headerPart, "Header must be exported as a native repeating DOCX header part");
   assert.ok(footerPart, "Footer must be exported as a native repeating DOCX footer part");
+  const headerDocumentXml = packageXml(headerFooterDocx, "word/document.xml");
+  assert.match(headerDocumentXml, /<w:headerReference\b/, "Section properties must reference the native header part");
+  assert.match(headerDocumentXml, /<w:footerReference\b/, "Section properties must reference the native footer part");
+  assert.match(headerDocumentXml, /<w:titlePg\b/, "Different first page must survive in section properties");
   assert.match(xmlText(packageXml(headerFooterDocx, headerPart)), /HEADER_UNIQUE/, "Native DOCX header part must contain the header text");
   assert.match(xmlText(packageXml(headerFooterDocx, footerPart)), /FOOTER_UNIQUE/, "Native DOCX footer part must contain the footer text");
 
-  // Priority group: Track Changes export intentionally emits accepted view.
-  const tracked = createAdapter('<p>BASE <ins data-vno-change="insert">INSERT_ACCEPTED</ins> <del data-vno-change="delete">DELETE_REJECTED</del></p>');
+  // Priority group: inserted/deleted text and comments must be real Word review markup.
+  const tracked = createAdapter('<p>BASE <ins data-vno-change="insert" data-vno-author="Tran Thi Hoa" data-vno-date="2026-10-01T10:00:00Z">INSERT_TRACKED <mark data-comment-id="comment-1">COMMENT_ANCHOR</mark></ins> <del data-vno-change="delete" data-vno-author="Tran Thi Hoa" data-vno-date="2026-10-01T10:01:00Z">DELETE_TRACKED</del></p>');
+  tracked.trackChangesEnabled = true;
+  tracked.comments = [{ id: "comment-1", content: "Comment body", author: "Tran Thi Hoa", createdAt: "2026-10-01T10:02:00Z" }];
   const trackedDocx = convertAdapter(temp, "track-changes", tracked);
   const trackedXml = packageXml(trackedDocx, "word/document.xml");
   const trackedText = xmlText(trackedXml);
-  assert.match(trackedText, /INSERT_ACCEPTED/, "Accepted-view export must retain inserted text");
-  assert.doesNotMatch(trackedText, /DELETE_REJECTED/, "Accepted-view export must omit deleted text");
-  assert.doesNotMatch(trackedXml, /<w:(?:ins|del)\b/, "Accepted-view export must not leak tracked-change markup");
+  const commentsXml = packageXml(trackedDocx, "word/comments.xml");
+  const relsXml = packageXml(trackedDocx, "word/_rels/document.xml.rels");
+  const settingsXml = packageXml(trackedDocx, "word/settings.xml");
+  assert.match(trackedXml, /<w:ins\b[^>]*w:author="Tran Thi Hoa"[^>]*w:date="2026-10-01T10:00:00Z"/, "Insert must be a native Word revision with author/date");
+  assert.match(trackedXml, /<w:del\b[^>]*w:author="Tran Thi Hoa"[^>]*w:date="2026-10-01T10:01:00Z"/, "Deletion must be a native Word revision with author/date");
+  assert.match(trackedXml, /<w:delText[^>]*>DELETE_TRACKED<\/w:delText>/, "Deleted text must remain in w:delText");
+  assert.match(trackedXml, /<w:commentRangeStart\b[\s\S]*COMMENT_ANCHOR[\s\S]*<w:commentRangeEnd\b[\s\S]*<w:commentReference\b/, "Comment must retain its Word anchor range and reference inside tracked insertion");
+  assert.match(commentsXml, /w:author="Tran Thi Hoa"[\s\S]*Comment body/, "Comment body/author must be in word/comments.xml");
+  assert.match(relsXml, /relationships\/comments/, "Comments part must have a document relationship");
+  assert.match(settingsXml, /<w:trackRevisions\b/, "Review tracking setting must be present in settings.xml");
 
   // Priority group: TOC is currently a static generated TOC; its visible entries and links must survive.
   const toc = createAdapter('<div data-vno-toc="true"><div class="vno-toc-header">MUC_LUC</div><div><a href="#chuong-1">CHUONG_MOT</a></div></div><h1 id="chuong-1">CHUONG_MOT</h1>');
@@ -133,7 +156,7 @@ try {
   assert.match(citationsText, /\(Nguyen, 2026\)/, "In-text citation must remain visible in real DOCX export");
   assert.match(citationsText, /TAI_LIEU_THAM_KHAO[\s\S]*SACH_THU_NGHIEM/, "Bibliography must remain visible in real DOCX export");
 
-  console.log("PASS: Writer real-export fidelity assertions passed for header/footer, accepted Track Changes, TOC, columns, Drop Cap, WordArt, notes, and citations.");
+  console.log("PASS: Writer real-export fidelity assertions passed for header/footer section references, native revisions/comments, TOC, columns, Drop Cap, WordArt, notes, and citations.");
 } finally {
   fs.rmSync(temp, { recursive: true, force: true });
 }
