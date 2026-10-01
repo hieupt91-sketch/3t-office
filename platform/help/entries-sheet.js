@@ -26,16 +26,16 @@ export const SHEET_HELP_ENTRIES = [
     app: "sheet",
     commandIds: [],
     title: "Đọc số tiền thành chữ (hàm VND)",
-    summary: "Hàm =VND(ô) viết số tiền bằng chữ tiếng Việt, ví dụ 3193080 → \"Ba triệu một trăm chín mươi ba ngàn không trăm tám mươi đồng chẵn.\" Tương thích hàm VND của add-in Excel quen thuộc, không cần cài thêm gì.",
+    summary: "Hàm =VND(ô) viết số tiền bằng chữ tiếng Việt, ví dụ 3193080 → \"Ba triệu một trăm chín mươi ba ngàn không trăm tám mươi đồng chẵn.\" Tương thích hàm VND của add-in phần mềm bảng tính khác quen thuộc, không cần cài thêm gì.",
     ribbon: { tab: "Công thức", tabId: "formulas", group: "Hàm tính toán" },
     keywords: ["VND", "đọc số", "bằng chữ", "số tiền bằng chữ", "hóa đơn", "đồng chẵn", "add-in", "_xll.VND"],
     steps: [
       "Chọn ô cần hiện số tiền bằng chữ (thường là dòng \"Bằng chữ:\" trên hóa đơn, báo giá).",
       "Gõ =VND( rồi bấm vào ô chứa số tiền, đóng ngoặc và nhấn Enter, ví dụ =VND(H13).",
       "Số chẵn kết thúc bằng \"đồng chẵn.\"; số có phần lẻ đọc thêm \"… xu.\"; số âm bắt đầu bằng \"Âm\".",
-      "Mở tệp Excel đã dùng hàm VND của add-in: 3T Sheet tự tính lại và hiện đúng chữ thay cho lỗi #ADDIN? hoặc #NAME?.",
-      "Khi lưu .xlsx, ô vẫn giữ công thức VND và dòng chữ: máy có cài add-in VND tiếp tục tự cập nhật, máy khác vẫn thấy chữ đã lưu (Excel không có add-in sẽ báo #NAME? khi tính lại).",
-      "Khi lưu dạng cũ .xls (Excel 97-2003), 3T Sheet lưu dòng chữ thành giá trị cố định để không bị lỗi #N/A; nếu cần công thức tự cập nhật, hãy lưu .xlsx."
+      "Mở tệp bảng tính .xlsx đã dùng hàm VND của add-in: 3T Sheet tự tính lại và hiện đúng chữ thay cho lỗi #ADDIN? hoặc #NAME?.",
+      "Khi lưu .xlsx, ô vẫn giữ công thức VND và dòng chữ: máy có cài add-in VND tiếp tục tự cập nhật, máy khác vẫn thấy chữ đã lưu (phần mềm bảng tính khác không có add-in sẽ báo #NAME? khi tính lại).",
+      "Khi lưu dạng cũ .xls (phần mềm bảng tính khác 97-2003), 3T Sheet lưu dòng chữ thành giá trị cố định để không bị lỗi #N/A; nếu cần công thức tự cập nhật, hãy lưu .xlsx."
     ]
   },
   {
@@ -43,15 +43,15 @@ export const SHEET_HELP_ENTRIES = [
     app: "sheet",
     commandIds: [],
     title: "Liên kết tới sổ làm việc khác",
-    summary: "Công thức như =[BaoCao.xlsx]Sheet1!A1 lấy số liệu từ một tệp Excel khác. 3T Sheet hiển thị giá trị đã lưu lần cuối trong tệp, giữ nguyên liên kết khi lưu và không tự mở tệp nguồn (ứng dụng chạy offline).",
+    summary: "Công thức như =[BaoCao.xlsx]Sheet1!A1 lấy số liệu từ một tệp bảng tính .xlsx khác. 3T Sheet hiển thị giá trị đã lưu lần cuối trong tệp, giữ nguyên liên kết khi lưu và không tự mở tệp nguồn (ứng dụng chạy offline).",
     ribbon: { tab: "Công thức", tabId: "formulas", group: "Kiểm tra công thức" },
     keywords: ["liên kết ngoài", "external link", "sổ làm việc khác", "tệp khác", "[Book.xlsx]", "cập nhật liên kết", "NA", "#N/A"],
     steps: [
       "Khi mở bảng tính có liên kết tới tệp khác, một thanh cảnh báo màu vàng hiển thị ngay dưới ribbon: \"Tệp có N ô liên kết tới sổ làm việc khác. 3T Office hiển thị giá trị lưu lần cuối và không tự cập nhật (ứng dụng chạy ngoại tuyến).\", đồng thời thanh trạng thái phía dưới cũng báo số ô có liên kết.",
       "Nhấn nút \"Tìm hiểu thêm\" trên thanh cảnh báo để mở nhanh bài hướng dẫn này, hoặc nhấn nút đóng (×) hay phím Esc khi đang ở trong thanh để ẩn thông báo.",
-      "Chọn ô để xem công thức trên thanh công thức, viết giống Excel: =[BaoCao.xlsx]Sheet1!A1 hoặc ='[Bao cao.xlsx]So lieu'!B2 khi tên có khoảng trắng.",
-      "Giá trị của các ô này không tự cập nhật khi bạn sửa bảng tính: 3T Sheet giữ đúng số liệu đã lưu, giống Excel khi tệp nguồn đang đóng. Các công thức khác dựa trên ô liên kết vẫn tính bình thường với giá trị đó.",
-      "Nhấn Ctrl+S để lưu: liên kết được giữ nguyên, mở lại bằng Excel vẫn cập nhật được từ tệp nguồn.",
+      "Chọn ô để xem công thức trên thanh công thức, viết giống phần mềm bảng tính khác: =[BaoCao.xlsx]Sheet1!A1 hoặc ='[Bao cao.xlsx]So lieu'!B2 khi tên có khoảng trắng.",
+      "Giá trị của các ô này không tự cập nhật khi bạn sửa bảng tính: 3T Sheet giữ đúng số liệu đã lưu, giống phần mềm bảng tính khác khi tệp nguồn đang đóng. Các công thức khác dựa trên ô liên kết vẫn tính bình thường với giá trị đó.",
+      "Nhấn Ctrl+S để lưu: liên kết được giữ nguyên, mở lại bằng phần mềm bảng tính khác vẫn cập nhật được từ tệp nguồn.",
       "Nếu gõ lại công thức khác vào ô liên kết, ô đó trở thành công thức thường và không còn liên kết tới tệp kia.",
       "Muốn đánh dấu ô chưa có dữ liệu, dùng =NA() để trả về lỗi #N/A; bắt lỗi này bằng =IFNA(ô; \"giá trị thay thế\") hoặc kiểm tra bằng =ISNA(ô)."
     ]
@@ -61,12 +61,12 @@ export const SHEET_HELP_ENTRIES = [
     app: "sheet",
     commandIds: ["sheet.font.family", "sheet.font.size", "sheet.font.grow", "sheet.font.shrink"],
     title: "Mặc định trang tính mới và cỡ chữ",
-    summary: "Trang tính mới dùng Calibri 11 pt, hàng cao 20 px và cột rộng 64 px như Excel 2016. Cỡ chữ trên ribbon được tính theo point (pt).",
+    summary: "Trang tính mới dùng Calibri 11 pt, hàng cao 20 px và cột rộng 64 px như phần mềm bảng tính khác 2016. Cỡ chữ trên ribbon được tính theo point (pt).",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Phông chữ" },
     keywords: ["mặc định", "Calibri 11", "cỡ chữ", "font size", "chiều cao hàng", "độ rộng cột", "point", "pt"],
     steps: [
       "Tạo bảng tính mới: các ô chưa định dạng dùng Calibri 11 pt; hàng mặc định cao 20 px và cột mặc định rộng 64 px.",
-      "Để đổi cỡ chữ, chọn ô hoặc vùng rồi mở tab Trang đầu, nhóm Phông chữ và chọn số trong hộp Cỡ chữ. Số 14 nghĩa là 14 pt và khi lưu XLSX, Excel đọc lại đúng 14 pt.",
+      "Để đổi cỡ chữ, chọn ô hoặc vùng rồi mở tab Trang đầu, nhóm Phông chữ và chọn số trong hộp Cỡ chữ. Số 14 nghĩa là 14 pt và khi lưu XLSX, phần mềm bảng tính khác đọc lại đúng 14 pt.",
       "Dùng nút Tăng cỡ chữ hoặc Giảm cỡ chữ cạnh hộp Cỡ chữ để chuyển theo các bậc 8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 36, 48 và 72 pt.",
       "Muốn đổi kích thước hàng hoặc cột riêng: tab Trang đầu → nhóm Ô → Định dạng → Chiều cao hàng... hoặc Độ rộng cột...."
     ]
@@ -249,15 +249,15 @@ export const SHEET_HELP_ENTRIES = [
       "Mở tab Dữ liệu, nhóm Công cụ dữ liệu, nhấn Phân tích What-If rồi chọn Dò tìm mục tiêu, Bảng dữ liệu hoặc Trình quản lý kịch bản.",
       "Bảng dữ liệu: đặt công thức gốc ở ô góc trên-trái của vùng; đặt các giá trị thử ngang hàng trên và/hoặc dọc cột trái. Bôi toàn bộ vùng, mở Bảng dữ liệu và nhập Ô đầu vào theo hàng, theo cột, hoặc cả hai rồi nhấn Áp dụng.",
       "Với một biến, chỉ nhập đúng một ô đầu vào (giá trị thử nằm ngang hàng trên, kết quả nằm ở hàng dưới). Với hai biến — ví dụ bảng PMT với lãi suất ngang hàng trên và số năm dọc cột trái — nhập cả Ô đầu vào theo hàng lẫn Ô đầu vào theo cột (hai ô phải khác nhau); 3T Sheet điền kết quả vào phần thân bảng nhưng giữ nguyên công thức gốc.",
-      "Kết quả Bảng dữ liệu tự tính lại khi bạn đổi ô đầu vào hoặc bất kỳ ô nào mà công thức gốc phụ thuộc (giống công thức mảng TABLE() của Excel) — ví dụ đổi tiền vay trong bảng PMT là toàn bộ phần thân cập nhật ngay.",
+      "Kết quả Bảng dữ liệu tự tính lại khi bạn đổi ô đầu vào hoặc bất kỳ ô nào mà công thức gốc phụ thuộc (giống công thức mảng TABLE() của phần mềm bảng tính khác) — ví dụ đổi tiền vay trong bảng PMT là toàn bộ phần thân cập nhật ngay.",
       "Khi lưu tệp xlsx, 3T Sheet ghi kết quả Bảng dữ liệu dạng giá trị tĩnh (chưa ghi được công thức mảng TABLE()); mở tệp bằng chương trình bảng tính khác vẫn hiển thị đúng các giá trị này nhưng phần thân bảng không tự tính lại ở đó.",
       "Trình quản lý kịch bản: Quản lý và chuyển đổi linh hoạt nhiều bộ giả định dữ liệu có tên trên trang tính:",
       "- Thêm kịch bản: Nhập Tên kịch bản, Các ô thay đổi (hỗ trợ ô đơn, danh sách phân tách bằng dấu phẩy như $B$1, $B$2 hoặc dải ô $B$1:$B$3), các Giá trị tương ứng và Ghi chú mô tả. Nhấn Thêm để lưu.",
       "- Hiển thị kịch bản: Chọn kịch bản trong danh sách rồi nhấn nút Hiển thị. 3T Sheet lập tức ghi các giá trị giả định vào ô thật trên lưới và tự động tính toán lại mọi công thức phụ thuộc.",
       "- Sửa và Xóa: Chọn kịch bản cần chỉnh sửa để cập nhật giá trị hoặc ghi chú, hoặc nhấn Xóa khi không còn nhu cầu sử dụng.",
       "- Gộp kịch bản: Nhấn nút Gộp..., chọn trang tính nguồn để nạp kịch bản từ trang tính khác vào trang hiện tại; kịch bản trùng tên sẽ được tự động đổi tên kèm tên trang nguồn.",
-      "- Báo cáo Tóm tắt kịch bản: Nhấn nút Tóm tắt..., chọn Kiểu báo cáo Tóm tắt kịch bản và nhập Các ô kết quả (ví dụ $B$4, $B$5). Ứng dụng sẽ tự động sinh một trang tính mới trình bày bảng so sánh toàn diện chuẩn Excel gồm Giá trị hiện tại, giá trị từng kịch bản và kết quả tính toán tương ứng.",
-      "Lưu trữ tương thích: Toàn bộ cấu hình kịch bản và trang báo cáo Tóm tắt được lưu trực tiếp vào tệp .xlsx và .fods, tương thích đầy đủ với Microsoft Excel.",
+      "- Báo cáo Tóm tắt kịch bản: Nhấn nút Tóm tắt..., chọn Kiểu báo cáo Tóm tắt kịch bản và nhập Các ô kết quả (ví dụ $B$4, $B$5). Ứng dụng sẽ tự động sinh một trang tính mới trình bày bảng so sánh toàn diện chuẩn phần mềm bảng tính khác gồm Giá trị hiện tại, giá trị từng kịch bản và kết quả tính toán tương ứng.",
+      "Lưu trữ tương thích: Toàn bộ cấu hình kịch bản và trang báo cáo Tóm tắt được lưu trực tiếp vào tệp .xlsx và .fods, tương thích đầy đủ với phần mềm bảng tính khác.",
       "Nhấn Ctrl+Z/Ctrl+Y để hoàn tác/làm lại kết quả Bảng dữ liệu, thao tác quản lý kịch bản hoặc bộ giá trị vừa Hiển thị."
     ]
   },
@@ -304,7 +304,7 @@ export const SHEET_HELP_ENTRIES = [
     keywords: ["biểu đồ", "chart", "cột", "đường", "tròn", "miền", "pie", "bar"],
     steps: [
       "Bôi vùng dữ liệu: thường cột nhãn (chữ) kèm cột số, có thể gồm hàng tiêu đề. Vùng không có số sẽ báo lỗi.",
-      "Mở tab Chèn, nhóm Biểu đồ, nhấn nút lớn Biểu đồ (hoặc nhấn nút mũi tên mở rộng ở góc dưới phải nhóm Biểu đồ chuẩn Excel).",
+      "Mở tab Chèn, nhóm Biểu đồ, nhấn nút lớn Biểu đồ (hoặc nhấn nút mũi tên mở rộng ở góc dưới phải nhóm Biểu đồ chuẩn phần mềm bảng tính khác).",
       "Hộp thoại Chèn biểu đồ từ «vùng» có bốn kiểu: Cột, Đường, Tròn, Miền. Chọn kiểu để xem trước. Biểu đồ tròn cần giá trị dương.",
       "Nhấn Chèn vào bảng tính. Biểu đồ nằm trên lưới, dùng dữ liệu của vùng đã chọn. Đổi số trong vùng nguồn rồi biểu đồ cập nhật theo dữ liệu sheet.",
       "Cùng tab Chèn còn Biểu đồ thu nhỏ (Đường / Cột sparkline) — đó là mini-chart trong ô, khác biểu đồ lớn này."
@@ -330,7 +330,7 @@ export const SHEET_HELP_ENTRIES = [
     app: "sheet",
     commandIds: ["sheet.view.freezePanes", "sheet.view.freezeTopRow", "sheet.view.freezeFirstColumn"],
     title: "Cố định ô và tiêu đề hàng/cột (Freeze Panes)",
-    summary: "Cố định các hàng phía trên và cột bên trái ô đang chọn, hoặc chỉ cố định hàng 1 / cột A khi cuộn bảng tính. Menu thả xuống trên tab Chế độ xem gồm 3 tùy chọn chuẩn Excel; trạng thái được nhớ riêng theo từng sheet.",
+    summary: "Cố định các hàng phía trên và cột bên trái ô đang chọn, hoặc chỉ cố định hàng 1 / cột A khi cuộn bảng tính. Menu thả xuống trên tab Chế độ xem gồm 3 tùy chọn chuẩn phần mềm bảng tính khác; trạng thái được nhớ riêng theo từng sheet.",
     ribbon: { tab: "Chế độ xem", tabId: "view", group: "Cửa sổ" },
     keywords: ["cố định", "freeze panes", "đóng băng", "hàng trên cùng", "cột đầu tiên", "hàng 1", "cột A", "cuộn", "tiêu đề bảng"],
     steps: [
@@ -355,10 +355,10 @@ export const SHEET_HELP_ENTRIES = [
       "Đánh dấu In đường kẻ ô hoặc In tiêu đề hàng và cột nếu cần chúng xuất hiện trên giấy/PDF, rồi nhấn Áp dụng.",
       "Để tạo đầu/cuối trang, nhấn Tiêu đề Đầu/Cuối trang. Chọn mẫu Trang X, Tên sheet, Ngày hoặc nhập ba vùng Trái/Giữa/Phải.",
       "Trong ô tùy chỉnh có thể chèn &P (số trang), &N (tổng trang), &D (ngày), &T (giờ), &F (tệp), &A (tên sheet), rồi nhấn Áp dụng. Các thiết lập chỉ áp dụng cho sheet hiện tại và có thể hoàn tác bằng Ctrl+Z.",
-      "Để đặt hàng lặp lại trên mỗi trang in, nhấn Tiêu đề in. Ở mục Hàng lặp lại trên mỗi trang, nhập tham chiếu kiểu Excel như 1:2 hoặc $1:$2 (một hàng đơn gõ 1 hoặc $1).",
+      "Để đặt hàng lặp lại trên mỗi trang in, nhấn Tiêu đề in. Ở mục Hàng lặp lại trên mỗi trang, nhập tham chiếu kiểu phần mềm bảng tính khác như 1:2 hoặc $1:$2 (một hàng đơn gõ 1 hoặc $1).",
       "Cách khác: nhấn nút ⊞ bên cạnh ô Hàng lặp lại để thu gọn hộp thoại, rồi nhấp trực tiếp vào số hàng trên lưới; để mở rộng vùng, nhấn giữ phím Shift rồi nhấp hàng khác. Nhấn Esc hoặc nút Quay lại hộp thoại để trở về — ô tự điền giá trị đã chọn.",
       "Tương tự cho Cột lặp lại ở bên trái: nhập A:B hoặc $A:$B, hoặc nhấn nút ⊞ và nhấp vào chữ cái cột trên lưới (nhấn giữ Shift rồi nhấp cột khác để mở rộng). Giá trị lưu riêng theo từng sheet, nhấn Áp dụng để lưu.",
-      "Print Titles được ghi vào tệp dưới dạng defined name _xlnm.Print_Titles của Excel nên mở lại bằng Excel vẫn giữ nguyên; mở lại trong 3T Sheet cũng đọc đúng giá trị đã lưu."
+      "Print Titles được ghi vào tệp dưới dạng defined name _xlnm.Print_Titles của phần mềm bảng tính khác nên mở lại bằng phần mềm bảng tính khác vẫn giữ nguyên; mở lại trong 3T Sheet cũng đọc đúng giá trị đã lưu."
     ]
   },
   {
@@ -415,7 +415,7 @@ export const SHEET_HELP_ENTRIES = [
       "Hoặc chuột phải tab trang tính. Hộp thoại có ô «Bảo vệ trang tính và nội dung các ô bị khóa». Có thể nhập mật khẩu rồi nhập lại để xác nhận (để trống nếu không cần).",
       "Khi đã bảo vệ: không gõ vào ô, không F2, không xóa nội dung, không đổi định dạng, không chèn/xóa hàng cột. Tab có ký hiệu khóa. Có thể đổi tên, di chuyển tab, sao chép và chọn ô.",
       "Bỏ bảo vệ: chọn lại cùng mục. Nếu đã đặt mật khẩu, nhập đúng mật khẩu. Sai mật khẩu hiện lỗi trong hộp thoại.",
-      "Đây là khóa giao diện giống Excel/LibreOffice tự làm trên máy, mật khẩu không mã hóa, không chống người cố tình sửa file. Trạng thái khóa không đi vào Undo."
+      "Đây là khóa giao diện giống phần mềm bảng tính khác/LibreOffice tự làm trên máy, mật khẩu không mã hóa, không chống người cố tình sửa file. Trạng thái khóa không đi vào Undo."
     ]
   },
   {
@@ -431,7 +431,7 @@ export const SHEET_HELP_ENTRIES = [
       "Hộp thoại có ô «Bảo vệ cấu trúc workbook (trang tính)». Có thể nhập mật khẩu rồi nhập lại để xác nhận (để trống nếu không cần).",
       "Khi đã bảo vệ workbook: không thêm trang (nút + dưới lưới bị tắt), không xóa, không đổi tên (kể cả nhấp đúp tab), không di chuyển hay sao chép trang tính. Sửa nội dung ô, định dạng và chèn/xóa hàng cột vẫn được — trừ khi trang đó còn đang Bảo vệ trang tính.",
       "Bỏ bảo vệ: nhấn lại Bỏ bảo vệ workbook... Nếu đã đặt mật khẩu, nhập đúng mật khẩu. Sai mật khẩu hiện lỗi trong hộp thoại.",
-      "Lưu tệp: File → Lưu thành .fods/.ods giữ thuộc tính ODF table:structure-protected. Khi Lưu thành .xlsx, 3T Office bổ sung phần tử chuẩn OOXML <workbookProtection lockStructure=\"1\"/> vào xl/workbook.xml (LibreOffice convert không sinh thuộc tính này) — Excel thật sẽ khóa cấu trúc workbook.",
+      "Lưu tệp: File → Lưu thành .fods/.ods giữ thuộc tính ODF table:structure-protected. Khi Lưu thành .xlsx, 3T Office bổ sung phần tử chuẩn OOXML <workbookProtection lockStructure=\"1\"/> vào xl/workbook.xml (LibreOffice convert không sinh thuộc tính này) — phần mềm bảng tính khác thật sẽ khóa cấu trúc workbook.",
       "Mở lại: File → Mở một .xlsx đã khóa cấu trúc. LibreOffice convert XLSX→FODS không map lockStructure ngược lại, nên 3T Office đọc xl/workbook.xml của file gốc rồi gắn table:structure-protected vào FODS trước khi nạp canvas. Nút Xem xét > Bảo vệ > Bỏ bảo vệ workbook... phải hiện đúng trạng thái đã khóa; không thêm/xóa/đổi tên trang tính. Mật khẩu phiên không ghi hash vào file. Trạng thái khóa không đi vào Undo. Đây là khóa giao diện, không phải bảo mật mã hóa."
     ]
   },
@@ -487,7 +487,7 @@ export const SHEET_HELP_ENTRIES = [
     keywords: ["căn giữa", "căn trái", "căn phải", "căn trên", "ngắt dòng", "wrap", "thụt lề", "trộn ô", "merge", "unmerge", "hợp nhất", "xoay chữ", "orientation", "hướng chữ", "format cells", "định dạng ô", "căn chỉnh ô"],
     steps: [
       "Chọn ô hoặc vùng. Tab Trang đầu, nhóm Căn chỉnh: hàng trên Căn trên / Căn giữa dọc / Căn dưới / Ngắt dòng tự động / Hướng chữ (dropdown); hàng giữa Căn trái / giữa / phải, Giảm/Tăng thụt lề; hàng dưới bốn nút trộn ô. Nhấn mũi tên nhỏ ở góc phải nhóm để mở hộp thoại Căn chỉnh chi tiết (Format Cells - thẻ Căn chỉnh).",
-      "Hướng chữ: mở dropdown chọn 0° (ngang), 45°, -45°, 90° (xoay lên), -90° (xoay xuống), hoặc «Dọc từ dưới lên» (chữ xếp dọc, Excel textRotation 255). Góc lưu trong kiểu ô và khi Lưu ra file thật (FODS/XLSX). Ngắt dòng tự động cho chữ dài xuống dòng trong ô và tăng chiều cao hàng. Tăng thụt lề thêm 12 px (tối đa 56 px); Giảm thụt lề hạ dần về 8 px.",
+      "Hướng chữ: mở dropdown chọn 0° (ngang), 45°, -45°, 90° (xoay lên), -90° (xoay xuống), hoặc «Dọc từ dưới lên» (chữ xếp dọc, phần mềm bảng tính khác textRotation 255). Góc lưu trong kiểu ô và khi Lưu ra file thật (FODS/XLSX). Ngắt dòng tự động cho chữ dài xuống dòng trong ô và tăng chiều cao hàng. Tăng thụt lề thêm 12 px (tối đa 56 px); Giảm thụt lề hạ dần về 8 px.",
       "Bôi ít nhất 2 ô rồi: Trộn & căn giữa gộp thành một ô và căn giữa; Trộn ô gộp nhưng giữ căn đang có; Trộn theo hàng gộp riêng từng hàng trong vùng. Nếu nhiều ô có dữ liệu, hộp «Trộn ô» cảnh báo chỉ giữ ô trên cùng bên trái — chọn Tiếp tục gộp hoặc Hủy.",
       "Tách ô hoàn tác vùng đã trộn (dữ liệu đã mất khi gộp không tự hiện lại, trừ khi Ctrl+Z ngay). Không trộn đè lên vùng đã trộn sẵn.",
       "Hộp thoại Định dạng ô (thẻ Căn chỉnh): cho phép chọn căn ngang (Chung, Trái, Giữa, Phải, Đều), căn dọc (Trên, Giữa, Dưới), thụt lề từ 0 đến 4, ngắt dòng, hợp nhất ô, góc xoay độ chính xác kèm khung xem trước trực quan."
@@ -504,7 +504,7 @@ export const SHEET_HELP_ENTRIES = [
     steps: [
       "Bôi bảng (gồm hàng tiêu đề nếu có) hoặc đứng trên một ô trong cột khóa. Tab Dữ liệu, nhóm Sắp xếp & Lọc — ba nút lớn: Sắp xếp A-Z, Sắp xếp Z-A, Bộ lọc, và nút nhỏ Sắp xếp tùy chỉnh. Cùng lệnh cũng có trên tab Trang đầu, nhóm Chỉnh sửa.",
       "A–Z / Z–A sắp cả hàng theo cột đang chọn. Số so sánh như số; chữ theo locale vi-VN. Hàng «Tổng» (chữ Tổng hoặc công thức SUM) được bỏ qua khi không bôi vùng. Cần ít nhất 2 hàng dữ liệu.",
-      "Sắp xếp tùy chỉnh mở hộp thoại nhiều cấp (như Excel Data > Sort): đánh dấu Dữ liệu có hàng tiêu đề nếu có, chọn cột và thứ tự A→Z/Z→A cho từng cấp «Sắp xếp theo» / «Sau đó theo», bấm + Thêm cấp để thêm tối đa 4 cấp, dấu × để xóa một cấp. Hàng trùng ở cấp trước giữ nguyên thứ tự tương đối và được phân theo cấp sau.",
+      "Sắp xếp tùy chỉnh mở hộp thoại nhiều cấp (như phần mềm bảng tính khác Data > Sort): đánh dấu Dữ liệu có hàng tiêu đề nếu có, chọn cột và thứ tự A→Z/Z→A cho từng cấp «Sắp xếp theo» / «Sau đó theo», bấm + Thêm cấp để thêm tối đa 4 cấp, dấu × để xóa một cấp. Hàng trùng ở cấp trước giữ nguyên thứ tự tương đối và được phân theo cấp sau.",
       "Bộ lọc (Ctrl+Shift+L) bật/tắt AutoFilter: nút lọc hiện trên tiêu đề cột. Nhấn nút cột để mở menu: ▲ Sắp xếp tăng dần, ▼ Sắp xếp giảm dần, rồi danh sách giá trị kèm Tất cả / Bỏ chọn / Áp dụng.",
       "Tắt Bộ lọc gỡ điều kiện và hiện lại mọi hàng đã ẩn vì lọc. Ctrl+Z hoàn tác lần sắp hoặc lần bật/tắt lọc."
     ]
@@ -589,13 +589,13 @@ export const SHEET_HELP_ENTRIES = [
     app: "sheet",
     commandIds: ["sheet.row.insert", "sheet.col.insert", "sheet.row.delete", "sheet.col.delete", "sheet.insert.cells", "sheet.sheet.insertBefore"],
     title: "Chèn và xóa hàng, cột, ô và trang tính",
-    summary: "Chèn hàng tại hàng đang chọn (dữ liệu bên dưới dịch xuống); chèn cột tại cột đang chọn (dữ liệu bên phải dịch sang). Xóa hàng/cột chứa ô đang chọn. Hỗ trợ hộp thoại Chèn/Xóa ô và chèn trang tính mới trước trang hiện tại theo chuẩn Microsoft Excel.",
+    summary: "Chèn hàng tại hàng đang chọn (dữ liệu bên dưới dịch xuống); chèn cột tại cột đang chọn (dữ liệu bên phải dịch sang). Xóa hàng/cột chứa ô đang chọn. Hỗ trợ hộp thoại Chèn/Xóa ô và chèn trang tính mới trước trang hiện tại theo chuẩn phần mềm bảng tính khác.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Ô" },
     keywords: ["chèn hàng", "chèn cột", "xóa hàng", "xóa cột", "chèn ô", "xóa ô", "insert row", "insert column", "insert cells", "ctrl+shift+=", "ctrl+shift++", "ctrl+-", "shift+f11", "dịch ô"],
     steps: [
       "Chọn một ô (hoặc bấm số hàng / chữ cột). Tab Trang đầu, nhóm Ô: cột trái Chèn hàng / Chèn cột; cột giữa Xóa hàng / Xóa cột.",
-      "Phím tắt Chèn Ctrl+Shift++ (hoặc Ctrl+Shift+=): Khi chọn cả hàng hoặc cả cột, lệnh sẽ chèn ngay hàng hoặc cột mới. Khi đang chọn ô hoặc dải ô, hệ thống mở hộp thoại Chèn chuẩn Excel cho phép chọn: Chuyển ô sang phải, Chuyển ô xuống dưới (mặc định), Toàn bộ hàng hoặc Toàn bộ cột.",
-      "Phím tắt Xóa Ctrl+-: Khi chọn cả hàng hoặc cột sẽ xóa ngay; khi chọn ô sẽ mở hộp thoại Xóa chuẩn Excel để chuyển ô sang trái, chuyển ô lên trên, xóa cả hàng hoặc xóa cả cột. Phím Shift+F11 chèn ngay một trang tính mới trước trang tính hiện tại.",
+      "Phím tắt Chèn Ctrl+Shift++ (hoặc Ctrl+Shift+=): Khi chọn cả hàng hoặc cả cột, lệnh sẽ chèn ngay hàng hoặc cột mới. Khi đang chọn ô hoặc dải ô, hệ thống mở hộp thoại Chèn chuẩn phần mềm bảng tính khác cho phép chọn: Chuyển ô sang phải, Chuyển ô xuống dưới (mặc định), Toàn bộ hàng hoặc Toàn bộ cột.",
+      "Phím tắt Xóa Ctrl+-: Khi chọn cả hàng hoặc cột sẽ xóa ngay; khi chọn ô sẽ mở hộp thoại Xóa chuẩn phần mềm bảng tính khác để chuyển ô sang trái, chuyển ô lên trên, xóa cả hàng hoặc xóa cả cột. Phím Shift+F11 chèn ngay một trang tính mới trước trang tính hiện tại.",
       "Mọi thao tác chèn, xóa ô, hàng, cột hoặc chèn trang tính mới đều hỗ trợ hoàn tác nguyên tử qua Ctrl+Z và làm lại qua Ctrl+Y."
     ]
   },
@@ -643,7 +643,7 @@ export const SHEET_HELP_ENTRIES = [
       "Chọn ô neo (góc trên-trái hộp sẽ bám ô này). Tab Chèn, nhóm Văn bản, nhấn Hộp văn bản.",
       "Hộp «Chèn hộp văn bản» hỏi nội dung. Nhập chữ rồi xác nhận. Hộp trắng, viền xám, tối thiểu khoảng 180×54 px, hiện trên lớp nổi của sheet.",
       "Nhấp vào hộp để sửa chữ. Kéo góc (resize trình duyệt) để đổi cỡ. Xóa hộp bằng hoàn tác Ctrl+Z ngay sau khi chèn.",
-      "Mỗi trang tính có danh sách hộp riêng. Hộp không đi cùng khi in như một đối tượng Excel đầy đủ — dùng cho chú thích trên màn hình."
+      "Mỗi trang tính có danh sách hộp riêng. Hộp không đi cùng khi in như một đối tượng phần mềm bảng tính khác đầy đủ — dùng cho chú thích trên màn hình."
     ]
   },
   {
@@ -725,7 +725,7 @@ export const SHEET_HELP_ENTRIES = [
       "Tìm ô tiền lệ phân tích công thức (ô đơn, dải A1:B10, named range) rồi vẽ mũi tên SVG xanh dương (#2563EB) từ ô nguồn tới ô đang chọn, viền nét đứt class precedent. Tìm ô phụ thuộc quét cả sheet, mũi tên xanh lá (#0F6D38) tới các ô công thức đang tham chiếu ô này. Ô không có công thức thì tiền lệ trả danh sách rỗng. Xóa mũi tên gỡ mọi đường và viền.",
       "Hiện công thức (cùng lệnh với phím Ctrl+` — sheet.view.toggleFormulas, không có nút riêng trên tab Chế độ xem) bật/tắt lớp is-formula-view-mode: ô hiện chuỗi =SUM(...) thay vì kết quả. Nhấn lại để về giá trị.",
       "Kiểm tra lỗi: hộp «Kiểm tra lỗi công thức (Error Checking)» quét mã #DIV/0! (chia 0/ô trống), #REF!, #VALUE! (sai kiểu), #N/A, #NAME?, #NUM!. Không lỗi thì báo «Không tìm thấy ô nào có giá trị lỗi». Có lỗi: bảng Ô / Mã lỗi / Công thức / Nguyên nhân — nhấp hàng để nhảy tới ô.",
-      "Cửa sổ theo dõi (Watch Window): Mở cửa sổ nổi có thể kéo di chuyển bằng thanh tiêu đề. Bảng theo dõi chuẩn Excel với 6 cột: Sổ làm việc, Trang tính, Tên (nếu ô thuộc vùng đặt tên), Ô, Giá trị, Công thức. Nhấn «+ Thêm ô theo dõi» để nhập tọa độ ô đơn (ví dụ B5), dải ô (A1:A5) hoặc ô ở trang tính khác (Sheet2!C10). Dùng phím mũi tên lên/xuống để duyệt, nhấn Enter hoặc nhấp đúp hàng để chuyển ngay tới ô đó, nhấn Delete hoặc nút Xóa để bỏ theo dõi ô đang chọn, và nhấn Esc để đóng cửa sổ."
+      "Cửa sổ theo dõi (Watch Window): Mở cửa sổ nổi có thể kéo di chuyển bằng thanh tiêu đề. Bảng theo dõi chuẩn phần mềm bảng tính khác với 6 cột: Sổ làm việc, Trang tính, Tên (nếu ô thuộc vùng đặt tên), Ô, Giá trị, Công thức. Nhấn «+ Thêm ô theo dõi» để nhập tọa độ ô đơn (ví dụ B5), dải ô (A1:A5) hoặc ô ở trang tính khác (Sheet2!C10). Dùng phím mũi tên lên/xuống để duyệt, nhấn Enter hoặc nhấp đúp hàng để chuyển ngay tới ô đó, nhấn Delete hoặc nút Xóa để bỏ theo dõi ô đang chọn, và nhấn Esc để đóng cửa sổ."
     ]
   },
   {
@@ -878,7 +878,7 @@ export const SHEET_HELP_ENTRIES = [
       "Bôi vùng. Tab Trang đầu, nhóm Kiểu ô: Định dạng có điều kiện (nút lớn, bài riêng) rồi cột Định dạng bảng / Kiểu ô.",
       "Định dạng bảng — hộp «Định dạng theo bảng (Format as Table)» (650 px) hiện «Vùng áp dụng bảng: A1:D10» (nhãn vùng đang bôi) và 5 mẫu: Bảng Xanh Lam (#2563eb), Xanh Lá (#16a34a), Xám Đậm (#334155), Cam Ấm (#ea580c), Tím Hiện Đại (#7c3aed). Hàng đầu chữ trắng nền màu; hàng chẵn/lẻ xen kẽ. Nhấp mẫu để áp ngay. Esc / × đóng.",
       "Kiểu ô — hộp «Thư viện kiểu ô (Cell Styles)» (720 px), lưới 2 cột: Bình thường (xóa màu, chữ #0f172a 13px), Tốt (nền #c6efce chữ #006100), Kém / Xấu (#ffc7ce / #9c0006), Trung tính (#ffeb9c / #9c6500), Tiêu đề 1 (16px đậm #1e3a8a, gạch dưới 2px), Tiêu đề 2 (14px, gạch 1px), Ô nhập liệu (nền #fff2cc), Tiền tệ (căn phải, ký hiệu ₫ sau số, 0 thập phân), Tổng cộng (viền trên đơn, dưới đôi), Điểm nhấn (nền #dbeafe). Nhấp thẻ áp ngay cho vùng chọn.",
-      "Đây là tô kiểu, không tạo đối tượng Table Excel (không auto-filter riêng). Ctrl+Z hoàn tác. Xóa định dạng (menu Xóa) gỡ màu/kiểu, giữ số."
+      "Đây là tô kiểu, không tạo đối tượng Table phần mềm bảng tính khác (không auto-filter riêng). Ctrl+Z hoàn tác. Xóa định dạng (menu Xóa) gỡ màu/kiểu, giữ số."
     ]
   },
   {
@@ -907,7 +907,7 @@ export const SHEET_HELP_ENTRIES = [
     app: "sheet",
     commandIds: ["common.edit.find", "common.edit.replace"],
     title: "Tìm kiếm và Thay thế trong 3T Sheet",
-    summary: "Hộp thoại Tìm kiếm và Thay thế dùng chung phong cách Microsoft Excel cho 3T Sheet. Hỗ trợ tìm trong Trang tính hoặc toàn bộ Sổ làm việc, tìm theo Hàng/Cột, tìm trong Công thức hoặc Giá trị, cùng Hoàn tác một bước (Ctrl+Z).",
+    summary: "Hộp thoại Tìm kiếm và Thay thế dùng chung phong cách phần mềm bảng tính khác cho 3T Sheet. Hỗ trợ tìm trong Trang tính hoặc toàn bộ Sổ làm việc, tìm theo Hàng/Cột, tìm trong Công thức hoặc Giá trị, cùng Hoàn tác một bước (Ctrl+Z).",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
     keywords: ["tìm", "thay thế", "find", "replace", "ctrl+f", "ctrl+h", "3T Sheet", "tìm kiếm", "công thức", "giá trị", "sổ làm việc"],
     steps: [
@@ -931,7 +931,7 @@ export const SHEET_HELP_ENTRIES = [
       "Chọn ô đang chứa công thức (ô bắt đầu bằng dấu =, ví dụ F1 =IF(SUM(A1:A3)>10,B1*C1,D1+E1)). Mở tab Công thức, nhóm Kiểm tra công thức — nút Ước lượng công thức nằm cột Hiện công thức / Kiểm tra lỗi, ngay trên Cửa sổ theo dõi.",
       "Hộp «Ước lượng công thức» hiện tham chiếu Sheet!Ô, khung công thức monospace, và phần sắp tính được gạch chân + in nghiêng. Ví dụ bước 1 gạch chân SUM(A1:A3). Nhấn Ước lượng (hoặc Enter): engine tính thật phần đó rồi thay bằng giá trị (SUM thành 12 nếu A1:A3 là 5,4,3). Bước tiếp gạch chân 12>10, rồi nhánh IF được chọn (B1*C1), rồi kết quả cuối. Nhánh không được chọn không bị tính.",
       "Nếu phần đang gạch chân là một ô khác có công thức riêng, nút Bước vào mở công thức của ô đó. Bước ra trở về công thức đang ước lượng. Khởi động lại đưa về công thức gốc. Đóng hoặc Esc tắt hộp — không ghi gì vào ô, không tạo Undo.",
-      "Dòng «Giá trị hiện tại của ô» dùng để đối chiếu: khi ước lượng xong, kết quả cuối phải khớp giá trị đang hiện trên lưới. Ô không có công thức thì hộp báo «Ô đang chọn không chứa công thức» và chỉ còn nút Đóng. Độ chi tiết: bước theo nhóm hàm/so sánh/nhánh IF/phép toán, không thay từng token ô lẻ như Excel đầy đủ."
+      "Dòng «Giá trị hiện tại của ô» dùng để đối chiếu: khi ước lượng xong, kết quả cuối phải khớp giá trị đang hiện trên lưới. Ô không có công thức thì hộp báo «Ô đang chọn không chứa công thức» và chỉ còn nút Đóng. Độ chi tiết: bước theo nhóm hàm/so sánh/nhánh IF/phép toán, không thay từng token ô lẻ như phần mềm bảng tính khác đầy đủ."
     ]
   },
   {
@@ -1002,13 +1002,13 @@ export const SHEET_HELP_ENTRIES = [
     app: "sheet",
     commandIds: ["sheet.ai.formulaFromDescription"],
     title: "Tạo công thức từ mô tả (AI)",
-    summary: "AI tạo công thức Excel tương thích 3T Sheet từ mô tả bằng ngôn ngữ tự nhiên. Công thức được validate trước khi áp dụng — chỉ dùng hàm engine hỗ trợ.",
+    summary: "AI tạo công thức phần mềm bảng tính khác tương thích 3T Sheet từ mô tả bằng ngôn ngữ tự nhiên. Công thức được validate trước khi áp dụng — chỉ dùng hàm engine hỗ trợ.",
     ribbon: { tab: "Trợ lý 3T AI", tabId: "ai", group: "Phân tích dữ liệu AI" },
     keywords: ["tạo công thức", "formula from description", "công thức AI", "sinh công thức", "mô tả công thức", "tự động công thức"],
     steps: [
       "Mở tab Trợ lý 3T AI trên ribbon, trong nhóm Phân tích dữ liệu AI nhấn nút «Tạo công thức».",
       "Hộp thoại «Tạo công thức từ mô tả» xuất hiện. Nhập mô tả công thức bạn muốn bằng ngôn ngữ tự nhiên, ví dụ: «tính tổng cột B khi cột A lớn hơn 100», «đếm số ô có giá trị > 50 trong vùng D1:D100».",
-      "Nhấn «Tạo công thức». AI sẽ tạo công thức Excel tương thích với 3T Sheet.",
+      "Nhấn «Tạo công thức». AI sẽ tạo công thức phần mềm bảng tính khác tương thích với 3T Sheet.",
       "Kết quả hiển thị trong bảng Trợ lý 3T AI: công thức dạng chữ trên nền xám để xem trước. Nhấn «Áp dụng vào ô đang chọn» để ghi công thức vào ô.",
       "Công thức được validate trước khi áp dụng — nếu chứa hàm 3T Sheet chưa hỗ trợ, hệ thống sẽ báo lỗi rõ ràng thay vì ghi công thức lỗi vào ô.",
       "Lưu ý: Kết quả phụ thuộc vào AI provider đang dùng. Chế độ quy tắc cục bộ chỉ đưa ra gợi ý chung."
@@ -1038,15 +1038,15 @@ export const SHEET_HELP_ENTRIES = [
     app: "sheet",
     commandIds: ["common.file.save", "common.file.saveAs"],
     title: "Lưu bảng tính (Ctrl+S) và Lưu bản sao (F12)",
-    summary: "Lưu bảng tính sang tệp thật trên đĩa máy tính thông qua LibreOffice Core headless. Hỗ trợ Ctrl+S lưu thẳng vào tệp đang mở như Microsoft Excel, F12 lưu bản sao và tôn trọng định dạng gốc .xls (Excel 97-2003).",
+    summary: "Lưu bảng tính sang tệp thật trên đĩa máy tính thông qua LibreOffice Core headless. Hỗ trợ Ctrl+S lưu thẳng vào tệp đang mở như phần mềm bảng tính khác, F12 lưu bản sao và tôn trọng định dạng gốc .xls (phần mềm bảng tính khác 97-2003).",
     ribbon: { tab: "Tệp", tabId: "file", group: "Trang tính" },
     keywords: ["lưu bảng tính", "lưu file", "save", "save as", "ctrl+s", "f12", "xlsx", "xls", "lưu bản sao", "lưu tại chỗ"],
     steps: [
       "Lưu nhanh vào tệp đang mở (Ctrl+S): Nhấn phím tắt Ctrl+S hoặc nhấp biểu tượng đĩa mềm trên thanh truy cập nhanh ở góc trên bên trái. Nếu bảng tính đã có đường dẫn trên đĩa (XLSX, XLS, ODS, CSV), hệ thống sẽ lưu thẳng trực tiếp vào tệp đó mà không mở hộp thoại, kèm thông báo 'Đã lưu' trên thanh trạng thái.",
       "Lưu bảng tính mới: Nếu bảng tính vừa tạo mới chưa lưu lần nào, thao tác Ctrl+S hoặc nút Lưu sẽ tự động mở hộp thoại Lưu bản sao để bạn chọn thư mục và đặt tên tệp.",
       "Lưu bản sao (F12 / Tệp → Lưu bản sao): Nhấn F12 hoặc vào Tệp → Lưu bản sao, nhập tên rồi chọn XLSX, XLS, ODS, CSV hoặc PDF trong danh sách Loại tệp. Lưu XLSX sang ODS đổi tên tab và tiêu đề cửa sổ theo tệp mới; chọn PDF chỉ xuất bản sao, không đổi sổ đang mở. CSV chỉ chứa trang tính đang hoạt động: trước khi lưu, bấm tab trang tính cần xuất. Nếu sổ có nhiều trang tính, xác nhận cảnh báo để tiếp tục; chọn Hủy sẽ giữ nguyên tệp đích.",
-      "Chế độ tương thích định dạng cũ (.xls): Khi mở một tệp .xls từ cơ quan hoặc ổ LAN, thao tác Ctrl+S sẽ lưu lại đúng chuẩn nhị phân Excel 97-2003 (.xls), không âm thầm chuyển đổi sang .xlsx.",
-      "Bảo vệ dữ liệu nguyên tử: Hệ thống luôn ghi ra tệp tạm và thay thế nguyên tử (atomic replace); nếu có sự cố hoặc lỗi chuyển đổi, tệp gốc trên đĩa hoàn toàn không bị hư hại. Nếu tệp đang ở chế độ chỉ đọc hoặc bị Excel khóa, hệ thống sẽ thông báo rõ ràng để bạn chọn Lưu bản sao."
+      "Chế độ tương thích định dạng cũ (.xls): Khi mở một tệp .xls từ cơ quan hoặc ổ LAN, thao tác Ctrl+S sẽ lưu lại đúng chuẩn nhị phân chuẩn định dạng (.xls), không âm thầm chuyển đổi sang .xlsx.",
+      "Bảo vệ dữ liệu nguyên tử: Hệ thống luôn ghi ra tệp tạm và thay thế nguyên tử (atomic replace); nếu có sự cố hoặc lỗi chuyển đổi, tệp gốc trên đĩa hoàn toàn không bị hư hại. Nếu tệp đang ở chế độ chỉ đọc hoặc bị khóa bởi tiến trình khác, hệ thống sẽ thông báo rõ ràng để bạn chọn Lưu bản sao."
     ]
   },
 {
@@ -1174,7 +1174,7 @@ export const SHEET_HELP_ENTRIES = [
       "sheet.select.column", "sheet.select.row", "sheet.insert.cells"
     ],
     title: "Phím tắt thường dùng (15 phím tắt phổ biến nhất)",
-    summary: "15 phím tắt dùng nhiều nhất trong 3T Sheet — tương thích Microsoft Excel và LibreOffice Calc. Tất cả đã bind trong command-definitions.js; có hoàn tác (Ctrl+Z) khi áp dụng định dạng.",
+    summary: "15 phím tắt dùng nhiều nhất trong 3T Sheet — tương thích phần mềm bảng tính khác và LibreOffice Calc. Tất cả đã bind trong command-definitions.js; có hoàn tác (Ctrl+Z) khi áp dụng định dạng.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Bảng nhớ tạm" },
     keywords: ["phím tắt", "shortcut", "ctrl+n", "ctrl+o", "ctrl+s", "ctrl+p", "ctrl+z", "ctrl+y", "ctrl+x", "ctrl+c", "ctrl+v", "ctrl+a", "ctrl+f", "ctrl+h", "ctrl+b", "f2", "ctrl+1", "alt+=", "ctrl+shift+l", "ctrl+d", "ctrl+r", "ctrl+space", "shift+space", "ctrl+shift++", "3t sheet"],
     steps: [
