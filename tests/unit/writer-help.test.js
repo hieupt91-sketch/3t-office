@@ -212,8 +212,8 @@ export async function runWriterHelpTests() {
     for (const detail of ["Alt+=", "a/b", "x^2", "\\sqrt(x)", "Tab", "Enter", "Delete", ".docx"]) {
       if (!equationSteps.includes(detail)) throw new Error(`HÆ°á»›ng dáº«n phÆ°Æ¡ng trÃ¬nh thiáº¿u bÆ°á»›c ${detail}`);
     }
-    if (!equationHelp.title.includes("3T Doc") || !equationHelp.summary.includes("MathML")) {
-      throw new Error("HÆ°á»›ng dáº«n phÆ°Æ¡ng trÃ¬nh pháº£i khá»›p UI 3T Doc vÃ  cÃ³ mÃ´ táº£ xem trÆ°á»›c");
+    if (!equationHelp.title.includes("Doc") || !equationHelp.summary.includes("xem trước kết quả")) {
+      throw new Error("HÆ°á»›ng dáº«n phÆ°Æ¡ng trÃ¬nh pháº£i khá»›p UI Doc vÃ  cÃ³ mÃ´ táº£ xem trÆ°á»›c");
     }
     if (byId["writer.page.setup"].ribbon.tab !== "Bố cục") {
       throw new Error("Bài thiết lập trang phải ở tab Bố cục");

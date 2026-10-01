@@ -102,7 +102,7 @@ export class UnoBridge {
     if (!this.desktopApi || !this.hasRealEngine) {
       return {
         status: "error",
-        message: "Chức năng Mở tệp thật chỉ khả dụng trong 3T Office Desktop App (đã cài LibreOffice).",
+        message: "Chức năng Mở tệp thật chỉ khả dụng trong 3T Office bản cài trên máy.",
       };
     }
     return await this.desktopApi.open_document_dialog(appKind);
@@ -154,7 +154,7 @@ export class UnoBridge {
     if (!this.desktopApi || !this.hasRealEngine) {
       return {
         status: "error",
-        message: "Chức năng đọc tệp Excel chỉ khả dụng trong 3T Office Desktop App (đã cài LibreOffice).",
+        message: "Chức năng đọc tệp bảng tính chỉ khả dụng trong 3T Office bản cài trên máy.",
       };
     }
     if (typeof this.desktopApi.open_mail_merge_data_dialog === "function") {
@@ -198,7 +198,7 @@ export class UnoBridge {
     if (!this.desktopApi || !this.hasRealEngine) {
       return {
         status: "error",
-        message: "Chức năng Lưu tệp thật chỉ khả dụng trong 3T Office Desktop App (đã cài LibreOffice).",
+        message: "Chức năng Lưu tệp thật chỉ khả dụng trong 3T Office bản cài trên máy.",
       };
     }
     return await this.desktopApi.save_document_dialog(content, appKind, targetFormat, suggestedName, sourcePath);
@@ -215,7 +215,7 @@ export class UnoBridge {
     if (!this.desktopApi || !this.hasRealEngine) {
       return {
         status: "error",
-        message: "Chức năng Lưu tệp thật chỉ khả dụng trong 3T Office Desktop App (đã cài LibreOffice).",
+        message: "Chức năng Lưu tệp thật chỉ khả dụng trong 3T Office bản cài trên máy.",
       };
     }
     return await this.desktopApi.save_document_in_place(content, appKind, targetPath, sourcePath || targetPath);
@@ -231,7 +231,7 @@ export class UnoBridge {
     if (!this.desktopApi || !this.hasRealEngine) {
       return {
         status: "error",
-        message: "Chức năng Xuất PDF thật chỉ khả dụng trong 3T Office Desktop App (đã cài LibreOffice).",
+        message: "Chức năng Xuất PDF thật chỉ khả dụng trong 3T Office bản cài trên máy.",
       };
     }
     return await this.desktopApi.export_pdf_dialog(content, appKind, suggestedName, sourcePath);
@@ -241,7 +241,7 @@ export class UnoBridge {
     if (!this.desktopApi || !this.hasRealEngine) {
       return {
         status: "error",
-        message: "Chức năng In chỉ khả dụng trong 3T Office Desktop có LibreOffice.",
+        message: "Chức năng In chỉ khả dụng trong 3T Office bản cài trên máy.",
       };
     }
     return await this.desktopApi.prepare_print_document(
@@ -266,7 +266,7 @@ export class UnoBridge {
 
   async printDocument(sessionId, settings) {
     if (!this.desktopApi || !this.hasRealEngine) {
-      return { status: "error", message: "Không tìm thấy dịch vụ in LibreOffice trên máy này." };
+      return { status: "error", message: "Không tìm thấy dịch vụ in trên máy này." };
     }
     return await this.desktopApi.print_document(sessionId, settings);
   }

@@ -42,8 +42,8 @@ const EN_WORD_RE_GI = new RegExp(`\\b(${EN_UI_WORDS.join("|")})\\b`, "gi");
 // mà xuất hiện false positive mới, bổ sung entry tại đây.
 const ALLOWLIST = [
   {
-    pattern: /\b(VN|3T) (Office|Writer|Doc|Sheet|Slide|Slides)\b/i,
-    reason: "Tên thương hiệu sản phẩm (proper noun) — không dịch, giữ nguyên trong mọi ngôn ngữ (vd: đoạn văn bản pháp lý mẫu trong writer-app.js, thương hiệu 3T Office/Doc/Sheet/Slide).",
+    pattern: /\b3T Office\b|\b(?:Doc|Sheet|Slide)\b/,
+    reason: "Tên sản phẩm theo quyết định chủ sở hữu: bộ 3T Office, các ứng dụng Doc/Sheet/Slide; giữ nguyên ở mọi ngôn ngữ.",
   },
 ];
 

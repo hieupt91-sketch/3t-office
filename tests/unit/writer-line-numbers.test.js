@@ -100,8 +100,9 @@ export async function runWriterLineNumbersTests() {
     assert.match(blob, /Không có/);
     assert.match(blob, /Liên tục/);
     assert.match(blob, /không vẽ số/i);
-    assert.match(blob, /Word/);
-    assert.match(blob, /LibreOffice/);
+    assert.match(blob, /phần mềm văn phòng khác/);
+    assert.match(blob, /Mỗi mục chuyển thành Liên tục/);
+    assert.doesNotMatch(blob, /Word|LibreOffice|FODT/);
     assert.ok(!/lorem|todo|placeholder/i.test(blob));
   });
 

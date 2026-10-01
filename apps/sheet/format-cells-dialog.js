@@ -515,7 +515,7 @@ export class FormatCellsDialog {
           case "text": {
             optionsPanel.innerHTML = `
               <div style="font-size: 12px; color: #475569; line-height: 1.6; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px;">
-                ${t("sheetFormatCells.textDesc", "Các ô định dạng Văn bản được xử lý như chuỗi ký tự thô, ngay cả khi ô chứa số. Ô sẽ được căn lề trái tự nhiên và các hàm tính toán tổng số học như SUM sẽ bỏ qua ô này giống chuẩn Excel.")}
+                ${t("sheetFormatCells.textDesc", "Các ô định dạng Văn bản được xử lý như chuỗi ký tự thô, ngay cả khi ô chứa số. Ô sẽ được căn lề trái tự nhiên và các hàm tính toán tổng số học như SUM sẽ bỏ qua ô này giống chuẩn bảng tính.")}
               </div>
             `;
             break;

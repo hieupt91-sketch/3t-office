@@ -1,0 +1,104 @@
+[
+  {
+    "app": "writer",
+    "port": 65324,
+    "command": "python -s main.py --app=writer",
+    "browserArguments": "--remote-debugging-port=65324",
+    "stages": [
+      {
+        "stage": "initial",
+        "title": "Tài liệu 1.docx — Doc",
+        "textNodes": 46,
+        "attributes": 121,
+        "matchCount": 0,
+        "matches": []
+      },
+      {
+        "stage": "F1 help",
+        "title": "Tài liệu 1.docx — Doc",
+        "textNodes": 192,
+        "attributes": 141,
+        "matchCount": 0,
+        "matches": []
+      },
+      {
+        "stage": "print",
+        "title": "Tài liệu 1.docx — Doc",
+        "textNodes": 80,
+        "attributes": 143,
+        "matchCount": 0,
+        "matches": []
+      }
+    ],
+    "printStatus": "Sẵn sàng in.",
+    "printPreviewImages": 1
+  },
+  {
+    "app": "sheet",
+    "port": 49472,
+    "command": "python -s main.py --app=sheet",
+    "browserArguments": "--remote-debugging-port=49472",
+    "stages": [
+      {
+        "stage": "initial",
+        "title": "Bảng tính 1.xlsx — Sheet",
+        "textNodes": 124,
+        "attributes": 254,
+        "matchCount": 0,
+        "matches": []
+      },
+      {
+        "stage": "F1 help",
+        "title": "Bảng tính 1.xlsx — Sheet",
+        "textNodes": 271,
+        "attributes": 262,
+        "matchCount": 0,
+        "matches": []
+      },
+      {
+        "stage": "print",
+        "title": "Bảng tính 1.xlsx — Sheet",
+        "textNodes": 150,
+        "attributes": 263,
+        "matchCount": 0,
+        "matches": []
+      }
+    ],
+    "printStatus": "Sẵn sàng in.",
+    "printPreviewImages": 1
+  },
+  {
+    "app": "slides",
+    "port": 50065,
+    "command": "python -s main.py --app=slides",
+    "browserArguments": "--remote-debugging-port=50065",
+    "stages": [
+      {
+        "stage": "initial",
+        "title": "Bản trình bày 1.pptx — Slide",
+        "textNodes": 62,
+        "attributes": 131,
+        "matchCount": 0,
+        "matches": []
+      },
+      {
+        "stage": "F1 help",
+        "title": "Bản trình bày 1.pptx — Slide",
+        "textNodes": 174,
+        "attributes": 139,
+        "matchCount": 0,
+        "matches": []
+      },
+      {
+        "stage": "print",
+        "title": "Bản trình bày 1.pptx — Slide",
+        "textNodes": 84,
+        "attributes": 140,
+        "matchCount": 0,
+        "matches": []
+      }
+    ],
+    "printStatus": "Sẵn sàng in.",
+    "printPreviewImages": 1
+  }
+]

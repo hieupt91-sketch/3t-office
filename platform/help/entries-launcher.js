@@ -16,7 +16,7 @@ export const LAUNCHER_HELP_ENTRIES = apps.map(({ app, name, kind }) => ({
   keywords: ["mở ứng dụng", "khởi động", "lối tắt", "shortcut", "Start Menu", "Màn hình nền", name.toLowerCase()],
   steps: [
     "Mở tab Trợ giúp rồi nhấn Trợ giúp hoặc F1 để tra cứu hướng dẫn này.",
-    `Mở Start Menu của Windows, vào thư mục 3T Office rồi chọn ${name}. Lối tắt này mở 3T ${name}.`,
+    `Mở Start Menu của Windows, vào thư mục 3T Office rồi chọn ${name}. Lối tắt này mở ${name}.`,
     `Nếu đã chọn tạo lối tắt trên Màn hình nền khi cài đặt, nhấp đúp ${name} trên Màn hình nền để mở ứng dụng.`,
     "Để mở một tài liệu có sẵn, chọn Tệp > Mở tệp hoặc nhấn Ctrl+O trong ứng dụng."
   ]
