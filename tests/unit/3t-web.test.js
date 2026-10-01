@@ -147,7 +147,11 @@ export async function run3tWebTests() {
       }
     }
 
-    // 7. Kiểm tra từ cấm: Tuyệt đối không xuất hiện "Microsoft" trong toàn bộ server/3t-web
+    // 7. Kiểm tra từ cấm: không được dùng tên sản phẩm của hãng khác (Microsoft, Word, Excel,
+    //    PowerPoint, Office 365...). Chỉ nói về định dạng .docx/.xlsx/.pptx và tên 3T.
+    // Lưu ý: không bắt nhầm thuộc tính CSS như word-break / overflow-wrap, nên loại trừ khi
+    // chữ đứng cạnh dấu gạch nối (word-break) hoặc là một phần của từ khác.
+    const BANNED_NAME_PATTERN = /microsoft|powerpoint|office\s?365|(?<![-\w])ms[- ]?office(?![-\w])|(?<![-\w])(?:word|excel)(?![-\w])/i;
     const scanDir = (dir) => {
       const entries = fs.readdirSync(dir, { withFileTypes: true });
       for (const entry of entries) {
@@ -156,11 +160,11 @@ export async function run3tWebTests() {
           scanDir(fullPath);
         } else if (/\.(html|css|js|json|xml|txt|md)$/i.test(entry.name)) {
           const content = fs.readFileSync(fullPath, "utf-8");
-          const hasBannedWord = /microsoft/i.test(content);
+          const match = content.match(BANNED_NAME_PATTERN);
           assert(
-            `Tệp ${path.relative(repoRoot, fullPath)} không chứa từ cấm "Microsoft"`,
-            !hasBannedWord,
-            `Phát hiện từ cấm trong ${fullPath}`
+            `Tệp ${path.relative(repoRoot, fullPath)} không chứa tên sản phẩm của hãng khác`,
+            !match,
+            `Phát hiện từ cấm "${match && match[0]}" trong ${fullPath}`
           );
         }
       }
