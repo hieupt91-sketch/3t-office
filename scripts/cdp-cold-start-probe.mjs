@@ -58,9 +58,38 @@ class CdpClient {
     this.socket = socket;
     this.nextId = 1;
     this.pending = new Map();
+    this.diagnostics = [];
+    this.networkUrls = new Map();
     socket.addEventListener("message", event => {
       let message;
       try { message = JSON.parse(String(event.data)); } catch { return; }
+      if (message.method === "Runtime.exceptionThrown") {
+        const details = message.params?.exceptionDetails || {};
+        const exception = details.exception || {};
+        this.diagnostics.push({
+          kind: "javascript-exception",
+          className: exception.className || "Error",
+          description: options.open_file ? undefined : String(exception.description || details.text || "").slice(0, 400),
+          url: details.url || "",
+          line: details.lineNumber,
+          column: details.columnNumber
+        });
+      } else if (message.method === "Network.requestWillBeSent") {
+        const url = message.params?.request?.url || "";
+        this.networkUrls.set(message.params?.requestId, url.startsWith("http://localhost") ? url : "");
+      } else if (message.method === "Network.loadingFailed") {
+        this.diagnostics.push({
+          kind: "request-failed",
+          url: this.networkUrls.get(message.params?.requestId) || "",
+          error: message.params?.errorText || ""
+        });
+      } else if (message.method === "Network.responseReceived" && Number(message.params?.response?.status) >= 400) {
+        this.diagnostics.push({
+          kind: "request-error",
+          url: message.params?.response?.url || "",
+          status: Number(message.params.response.status)
+        });
+      }
       if (!message.id) return;
       const pending = this.pending.get(message.id);
       if (!pending) return;
@@ -114,6 +143,7 @@ async function connectCdp(page) {
   const cdp = new CdpClient(socket);
   await cdp.send("Page.enable");
   await cdp.send("Runtime.enable");
+  await cdp.send("Network.enable");
   await cdp.evaluate("document.readyState");
   return cdp;
 }
@@ -275,6 +305,7 @@ if (options.verify_first_input) {
   console.log(`CDP input state: ${inputState ? JSON.stringify(inputState) : "not verified"}`);
 }
 if (screenshotPath) console.log(`CDP screenshot: ${screenshotPath}`);
+if (cdp?.diagnostics.length) console.log(`CDP startup diagnostics: ${JSON.stringify(cdp.diagnostics)}`);
 if (error) {
   console.error(`CDP probe: FAIL — ${error.message}`);
   process.exitCode = 1;

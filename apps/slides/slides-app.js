@@ -85,8 +85,7 @@ export class SlidesApp {
   async initializeBackgroundServices() {
     const [helpPanel] = await Promise.all([
       this._ensureHelpPanel(),
-      this.canvasController.initializeSpellcheck(),
-      this.canvasController.initializeOptionalDocumentFeatures()
+      this.canvasController.initializeSpellcheck()
     ]);
     const { autoRecoverManager } = await import("../../platform/autorecover/auto-recover.js");
     this.autoRecoverManager = autoRecoverManager;

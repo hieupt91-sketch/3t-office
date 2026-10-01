@@ -116,8 +116,7 @@ export class SheetApp {
   async initializeBackgroundServices() {
     const [helpPanel] = await Promise.all([
       this._ensureHelpPanel(),
-      this.grid.initializeSpellcheck(),
-      this.grid.initializeOptionalDocumentFeatures()
+      this.grid.initializeSpellcheck()
     ]);
     const { autoRecoverManager } = await import("../../platform/autorecover/auto-recover.js");
     this.autoRecoverManager = autoRecoverManager;

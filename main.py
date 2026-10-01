@@ -122,10 +122,6 @@ if _early_forward_if_running(sys.argv[1:]):
     raise SystemExit(0)
 
 import webview
-from adapters.error_reporting import ErrorReporter, load_client_config
-from adapters.updater import UpdaterManager
-from adapters.updater.trust import get_public_key
-from adapters.updater.updater import queue_rollback_report, write_health_marker
 
 # ``platform`` is also a Python standard-library module, so load the shared
 # storage backend from its explicit path instead of shadowing that module.
@@ -150,28 +146,87 @@ InstanceAlreadyRunning = _SINGLE_INSTANCE_MODULE.InstanceAlreadyRunning
 forward_launch_request = _SINGLE_INSTANCE_MODULE.forward_launch_request
 
 _PRINT_PIPELINE_PATH = Path(__file__).resolve().parent / "platform" / "print" / "print_pipeline.py"
-_PRINT_PIPELINE_SPEC = importlib.util.spec_from_file_location("_vno_print_pipeline", _PRINT_PIPELINE_PATH)
-if _PRINT_PIPELINE_SPEC is None or _PRINT_PIPELINE_SPEC.loader is None:
-    raise ImportError(f"Cannot load print pipeline: {_PRINT_PIPELINE_PATH}")
-_PRINT_PIPELINE_MODULE = importlib.util.module_from_spec(_PRINT_PIPELINE_SPEC)
-sys.modules[_PRINT_PIPELINE_SPEC.name] = _PRINT_PIPELINE_MODULE
-_PRINT_PIPELINE_SPEC.loader.exec_module(_PRINT_PIPELINE_MODULE)
-PrintPipeline = _PRINT_PIPELINE_MODULE.PrintPipeline
-
+_PRINT_PIPELINE_MODULE = None
 _OFFICE_COM_PATH = Path(__file__).resolve().parent / "platform" / "print" / "office_com.py"
-_OFFICE_COM_SPEC = importlib.util.spec_from_file_location("_vno_office_com", _OFFICE_COM_PATH)
-if _OFFICE_COM_SPEC is None or _OFFICE_COM_SPEC.loader is None:
-    raise ImportError(f"Cannot load Office COM print integration: {_OFFICE_COM_PATH}")
-_OFFICE_COM_MODULE = importlib.util.module_from_spec(_OFFICE_COM_SPEC)
-sys.modules[_OFFICE_COM_SPEC.name] = _OFFICE_COM_MODULE
-_OFFICE_COM_SPEC.loader.exec_module(_OFFICE_COM_MODULE)
+_OFFICE_COM_MODULE = None
+_LAZY_LOCAL_MODULE_LOCK = threading.Lock()
+
+
+def _load_local_module(module_name: str, module_path: Path):
+    """Import an optional local module only when its feature is first used."""
+    with _LAZY_LOCAL_MODULE_LOCK:
+        module = sys.modules.get(module_name)
+        if module is not None:
+            return module
+        spec = importlib.util.spec_from_file_location(module_name, module_path)
+        if spec is None or spec.loader is None:
+            raise ImportError(f"Cannot load optional module: {module_path}")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        try:
+            spec.loader.exec_module(module)
+        except Exception:
+            sys.modules.pop(module_name, None)
+            raise
+        return module
+
+
+class _LazyLocalModuleProxy:
+    """Keep legacy patch points without importing optional modules at startup."""
+
+    def __init__(self, module_name: str, module_path: Path):
+        object.__setattr__(self, "_module_name", module_name)
+        object.__setattr__(self, "_module_path", module_path)
+        object.__setattr__(self, "_module", None)
+
+    def _get_module(self):
+        module = object.__getattribute__(self, "_module")
+        if module is None:
+            module = _load_local_module(
+                object.__getattribute__(self, "_module_name"),
+                object.__getattribute__(self, "_module_path"),
+            )
+            object.__setattr__(self, "_module", module)
+        return module
+
+    def __getattr__(self, name: str):
+        return getattr(self._get_module(), name)
+
+    def __setattr__(self, name: str, value):
+        if name.startswith("_"):
+            object.__setattr__(self, name, value)
+        else:
+            object.__setattr__(self, name, value)
+
+    def __delattr__(self, name: str):
+        if name in object.__getattribute__(self, "__dict__"):
+            object.__delattr__(self, name)
+        else:
+            delattr(self._get_module(), name)
+
+
+def _get_print_pipeline_module():
+    global _PRINT_PIPELINE_MODULE
+    if _PRINT_PIPELINE_MODULE is None:
+        _PRINT_PIPELINE_MODULE = _load_local_module("_vno_print_pipeline", _PRINT_PIPELINE_PATH)
+    return _PRINT_PIPELINE_MODULE
+
+
+def _get_office_com_module():
+    if _OFFICE_COM_MODULE is None:
+        # Tests and older integrations may reset this module global explicitly.
+        return _load_local_module("_vno_office_com", _OFFICE_COM_PATH)
+    return _OFFICE_COM_MODULE
+
+
+_OFFICE_COM_MODULE = _LazyLocalModuleProxy("_vno_office_com", _OFFICE_COM_PATH)
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 INDEX_HTML = os.path.join(ROOT_DIR, "index.html")
 APP_VERSION = "0.9.0-pilot1"
-_ERROR_REPORTER: ErrorReporter | None = None
+_ERROR_REPORTER: object | None = None
 _ERROR_REPORT_CONTEXT = threading.local()
-_UPDATE_MANAGER: UpdaterManager | None = None
+_UPDATE_MANAGER: object | None = None
 _UPDATE_DATA_DIR: Path | None = None
 _APP_WINDOW_APIS: dict[str, object] = {}
 _APP_WINDOW_LOCK = threading.RLock()
@@ -231,6 +286,11 @@ def _notify_update_ui(state: dict[str, object]) -> None:
 def _initialize_deferred_services(api, app_kind: str, launch_args: list[str]) -> None:
     """Start opt-in reporting and update services after the first document paint."""
     global _ERROR_REPORTER, _UPDATE_MANAGER
+    from adapters.error_reporting import ErrorReporter, load_client_config
+    from adapters.updater import UpdaterManager
+    from adapters.updater.trust import get_public_key
+    from adapters.updater.updater import queue_rollback_report
+
     report_config = load_client_config(ROOT_DIR)
     try:
         _ERROR_REPORTER = ErrorReporter(
@@ -293,8 +353,6 @@ def _start_deferred_startup(api, app_kind: str, launch_args: list[str]) -> None:
         name="3T Office background services",
     )
     services_thread.start()
-
-    api._start_document_engine()
 
 # ---------------------------------------------------------------------------
 # Embedded static-file server (runs inside the Python process)
@@ -1765,7 +1823,7 @@ def _convert_print_source_to_pdf(source_path: str, app_kind: str, output_dir: st
 def _convert_print_source_with_office(
     source_path: str, app_kind: str, output_dir: str, candidate: dict[str, str],
 ) -> str:
-    return _OFFICE_COM_MODULE.export_pdf_with_office(
+    return _get_office_com_module().export_pdf_with_office(
         source_path,
         app_kind,
         output_dir,
@@ -1774,7 +1832,7 @@ def _convert_print_source_with_office(
 
 
 def _office_candidates_for_print(app_kind: str) -> tuple[dict[str, str], ...]:
-    info = _OFFICE_COM_MODULE.get_office_engine_info(app_kind)
+    info = _get_office_com_module().get_office_engine_info(app_kind)
     if not info.get("available"):
         return ()
     return ({
@@ -1787,15 +1845,16 @@ def _office_candidates_for_print(app_kind: str) -> tuple[dict[str, str], ...]:
 def _render_print_source_to_pdf(
     source_path: str, app_kind: str, output_dir: str, *, use_office: bool = True,
 ) -> tuple[str, str]:
-    info = _OFFICE_COM_MODULE.get_office_engine_info(app_kind)
-    return _OFFICE_COM_MODULE.convert_pdf_with_office_fallback(
+    office_com = _get_office_com_module()
+    info = office_com.get_office_engine_info(app_kind)
+    return office_com.convert_pdf_with_office_fallback(
         source_path,
         app_kind,
         output_dir,
         _convert_print_source_to_pdf,
         use_office=use_office,
         office_info=info,
-        office_exporter=lambda source, kind, out, *, engine_info=None: _OFFICE_COM_MODULE.export_pdf_with_office(
+        office_exporter=lambda source, kind, out, *, engine_info=None: _get_office_com_module().export_pdf_with_office(
             source, kind, out, engine_info=engine_info,
         ),
     )
@@ -2263,29 +2322,39 @@ class VnOfficeApi:
         self._sheet_open_sessions: dict[str, dict[str, object]] = {}
         self._sheet_open_session_lock = threading.RLock()
         self._last_sheet_open_id: str | None = None
-        self._print_pipeline = PrintPipeline(
-            write_source=_write_print_source,
-            convert_pdf=_convert_print_source_to_pdf,
-            office_candidates=_office_candidates_for_print,
-            convert_office_pdf=_convert_print_source_with_office,
-            inspect_pdf=lambda kind, pdf_path: int(
-                _PERSISTENT_SOFFICE.operation(kind, "inspect_pdf", pdf_path=pdf_path)["page_count"]
-            ),
-            render_page=lambda kind, pdf_path, page_index, output_path: _PERSISTENT_SOFFICE.operation(
-                kind,
-                "render_pdf_page",
-                pdf_path=pdf_path,
-                page_index=page_index,
-                output_path=output_path,
-            ),
-            print_pdf=_print_pdf_job,
-        )
+        self._print_pipeline = None
+        self._print_pipeline_lock = threading.Lock()
         try:
             self._autorecover_store = AutoRecoverStore(_user_data_dir())
         except OSError:
             # AutoRecover storage failure must never prevent opening the editor.
             self._autorecover_store = None
         self._autorecover_session_closed = False
+
+    def _get_print_pipeline(self):
+        if self._print_pipeline is not None:
+            return self._print_pipeline
+        with self._print_pipeline_lock:
+            if self._print_pipeline is None:
+                print_pipeline_type = _get_print_pipeline_module().PrintPipeline
+                self._print_pipeline = print_pipeline_type(
+                    write_source=_write_print_source,
+                    convert_pdf=_convert_print_source_to_pdf,
+                    office_candidates=_office_candidates_for_print,
+                    convert_office_pdf=_convert_print_source_with_office,
+                    inspect_pdf=lambda kind, pdf_path: int(
+                        _PERSISTENT_SOFFICE.operation(kind, "inspect_pdf", pdf_path=pdf_path)["page_count"]
+                    ),
+                    render_page=lambda kind, pdf_path, page_index, output_path: _PERSISTENT_SOFFICE.operation(
+                        kind,
+                        "render_pdf_page",
+                        pdf_path=pdf_path,
+                        page_index=page_index,
+                        output_path=output_path,
+                    ),
+                    print_pdf=_print_pdf_job,
+                )
+        return self._print_pipeline
 
     def get_app_version(self) -> str:
         """Trả về phiên bản ứng dụng hiện tại."""
@@ -2540,7 +2609,12 @@ class VnOfficeApi:
                 _ERROR_REPORT_CONTEXT.failure_reported = False
 
     def open_document_dialog(self, app_kind="writer"):
+        self._start_document_engine()
         return self._invoke_reported_api("open_document_dialog", self._open_document_dialog_impl, app_kind)
+
+    def start_document_engine(self):
+        """Start LibreOffice after the user first needs a document operation."""
+        return {"started": self._start_document_engine()}
 
     def open_mail_merge_data_dialog(self):
         return self._invoke_reported_api("open_mail_merge_data_dialog", self._open_mail_merge_data_dialog_impl)
@@ -2566,7 +2640,7 @@ class VnOfficeApi:
     def prepare_print_document(self, app_kind, content, suggested_name="TaiLieu", source_path=None, use_office=True):
         return self._invoke_reported_api(
             "prepare_print_document",
-            self._print_pipeline.prepare,
+            self._get_print_pipeline().prepare,
             app_kind,
             content,
             suggested_name,
@@ -2575,16 +2649,16 @@ class VnOfficeApi:
         )
 
     def get_print_engine_status(self, app_kind):
-        return self._print_pipeline.engine_status(str(app_kind or ""))
+        return self._get_print_pipeline().engine_status(str(app_kind or ""))
 
     def get_print_preview_page(self, session_id, page_number):
         try:
-            return self._print_pipeline.preview_page(session_id, page_number)
+            return self._get_print_pipeline().preview_page(session_id, page_number)
         except Exception as exc:
             return {"status": "error", "message": f"Không tải được trang xem trước: {exc}"}
 
     def get_installed_printers(self):
-        return _PRINT_PIPELINE_MODULE.list_installed_printers()
+        return _get_print_pipeline_module().list_installed_printers()
 
     def print_document(self, session_id, settings):
         return self._invoke_reported_api(
@@ -2609,7 +2683,7 @@ class VnOfficeApi:
             window = _active_window()
             if not window:
                 return {"status": "error", "message": "Cửa sổ ứng dụng chưa sẵn sàng để chọn nơi lưu PDF."}
-            suggested_name = self._print_pipeline.suggested_name(session_id)
+            suggested_name = self._get_print_pipeline().suggested_name(session_id)
             try:
                 save_result = window.create_file_dialog(
                     webview.SAVE_DIALOG,
@@ -2623,7 +2697,7 @@ class VnOfficeApi:
             destination_path = save_result if isinstance(save_result, str) else save_result[0]
             if not str(destination_path).lower().endswith(".pdf"):
                 destination_path = f"{destination_path}.pdf"
-        result = self._print_pipeline.print_document(
+        result = self._get_print_pipeline().print_document(
             session_id,
             printer,
             copies,
@@ -2635,10 +2709,11 @@ class VnOfficeApi:
         return result
 
     def cancel_print_document(self, session_id):
-        return self._print_pipeline.cancel(session_id)
+        return self._get_print_pipeline().cancel(session_id)
 
     def close_print_sessions(self):
-        self._print_pipeline.close()
+        if self._print_pipeline is not None:
+            self._print_pipeline.close()
 
     def _default_operation(self, method_name, method, args, kwargs):
         if method_name == "open_mail_merge_data_dialog":
@@ -2795,14 +2870,17 @@ class VnOfficeApi:
         window = _active_window(self)
         if not window:
             return {"status": "error", "message": "Cửa sổ tài liệu không còn mở."}
+        _startup_trace("window_close_api_requested", app=self._app_kind)
         self._allow_window_close = True
 
         def destroy_window():
             time.sleep(0.1)
             try:
                 window.destroy()
+                _startup_trace("window_destroy_requested", app=self._app_kind)
             except Exception:
                 self._allow_window_close = False
+                _startup_trace("window_destroy_failed", app=self._app_kind)
 
         threading.Thread(target=destroy_window, daemon=True, name="3T Office close window").start()
         return {"status": "ok"}
@@ -2855,6 +2933,7 @@ class VnOfficeApi:
 
         file_name = source_path.name
         child_api = VnOfficeApi(app_kind=app_kind, initial_file=str(source_path), server_port=self._server_port)
+        child_api._start_document_engine()
         try:
             with _NEW_WINDOW_CREATE_LOCK:
                 child_window = webview.create_window(
@@ -3445,9 +3524,36 @@ def _register_app_window(api: VnOfficeApi, window) -> None:
     api._window_uid = str(window.uid)
     with _APP_WINDOW_LOCK:
         _APP_WINDOW_APIS[api._window_uid] = api
+    close_finalized = False
+    close_finalization_lock = threading.Lock()
+
+    def finalize_close() -> None:
+        nonlocal close_finalized
+        with close_finalization_lock:
+            if close_finalized:
+                return
+            close_finalized = True
+        _startup_trace("window_close_cleanup_started", app=api._app_kind)
+        try:
+            api.close_autorecover_session()
+        except Exception as exc:
+            logging.getLogger("vnoffice.autorecover").debug("Close cleanup unavailable: %s", type(exc).__name__)
+        _startup_trace("autorecover_session_closed", app=api._app_kind)
+        try:
+            api.close_print_sessions()
+        except Exception as exc:
+            logging.getLogger("vnoffice.print").debug("Print session close unavailable: %s", type(exc).__name__)
+        _startup_trace("print_sessions_closed", app=api._app_kind)
+        with _APP_WINDOW_LOCK:
+            _APP_WINDOW_APIS.pop(api._window_uid or "", None)
+            remaining_windows = len(_APP_WINDOW_APIS)
+        _startup_trace("pywebview_window_closed", app=api._app_kind, remaining_app_windows=remaining_windows)
 
     def on_closing(window=None, *_args):
+        _startup_trace("native_window_closing", app=api._app_kind, approved=bool(api._allow_window_close))
         if api._allow_window_close:
+            # Finalize synchronously after approval; pywebview's closed event is asynchronous.
+            finalize_close()
             return None
         target = window or _active_window(api)
 
@@ -3472,10 +3578,7 @@ def _register_app_window(api: VnOfficeApi, window) -> None:
         return False
 
     def on_closed(*_args):
-        api.close_autorecover_session()
-        api.close_print_sessions()
-        with _APP_WINDOW_LOCK:
-            _APP_WINDOW_APIS.pop(api._window_uid or "", None)
+        finalize_close()
 
     window.events.closing += on_closing
     window.events.closed += on_closed
@@ -3818,6 +3921,7 @@ def main(argv: list[str] | None = None):
                 return
             health_root = candidate.parent
         if health_root:
+            from adapters.updater.updater import write_health_marker
             write_health_marker(health_root, health_token)
 
     try:
@@ -3836,6 +3940,7 @@ def main(argv: list[str] | None = None):
     except Exception as exc:
         print(f"[3T Office] Thoát cửa sổ: {exc}")
     finally:
+        _startup_trace("pywebview_loop_returned", app=app_kind)
         _INSTANCE_DISPATCH_STOP.set()
         _INSTANCE_DISPATCH_READY.set()
         if instance_server is not None:
@@ -3849,6 +3954,7 @@ def main(argv: list[str] | None = None):
             active_api.close_autorecover_session()
         try:
             _PERSISTENT_SOFFICE.shutdown()
+            _startup_trace("lo_worker_shutdown_complete", app=app_kind)
         finally:
             if instance_server is not None:
                 instance_server.release_owner_lock()

@@ -5,7 +5,6 @@
 import { FormulaEngine, FUNCTION_CATALOG } from "./formula-engine.js";
 import { createEvaluateFormulaSessionFromGrid, formatFormulaValue, renderFormulaHtml } from "./evaluate-formula.js";
 import { FormulaAutocompleteController } from "./formula-autocomplete.js";
-import { SheetChartBuilder } from "./sheet-chart.js";
 import {
   FormulaEntrySession,
   cycleAbsoluteReference,
@@ -13,18 +12,18 @@ import {
   isFormulaReferenceInsertionPoint,
   makeCellReference
 } from "./formula-entry.js";
-import { PivotTableEngine } from "./pivot-table.js";
 import { WhatIfAnalysisEngine } from "./what-if-analysis.js";
 import { NumberFormatter } from "./number-formatter.js";
-import { FormatCellsDialog } from "./format-cells-dialog.js";
-import { showCellStylesDialog, showFormatAsTableDialog, CELL_STYLE_PRESETS, TABLE_STYLE_PRESETS } from "./cell-styles.js";
+import { CELL_STYLE_PRESETS, TABLE_STYLE_PRESETS } from "./cell-style-presets.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { t } from "../../platform/i18n/i18n.js";
 import { withLazyFeatureProgress } from "../../platform/startup/lazy-feature.js";
+import { createLazyDialogs } from "../../platform/ui-kit/lazy-dialogs.js";
 import { extractSheetRangeData, SHEET_CHART_TYPES } from "./sheet-chart-data.js";
 import { SheetDataTools } from "./data-tools.js";
 import { computeConsolidate, formatSheetRange, parseConsolidateReference, CONSOLIDATE_FUNCTIONS } from "./consolidate.js";
-import { showAlertDialog, showConfirmDialog, showPromptDialog, showFindReplaceDialog } from "../../platform/ui-kit/dialogs.js";
+
+const { showAlertDialog, showConfirmDialog, showPromptDialog, showFindReplaceDialog } = createLazyDialogs("sheet");
 
 export const DEFAULT_SHEET_PAGE_SETUP = Object.freeze({
   margins: Object.freeze({ top: 1.91, bottom: 1.91, left: 1.78, right: 1.78 }),
@@ -5560,6 +5559,28 @@ export class SheetGridController {
     return Promise.all([this._loadChartBuilder(false), this._loadPivotEngine(false)]);
   }
 
+  _loadFormatCellsDialog() {
+    if (!this._formatCellsDialogPromise) {
+      this._formatCellsDialogPromise = withLazyFeatureProgress("sheet", "Định dạng ô", () => import("./format-cells-dialog.js"))
+        .catch((error) => {
+          this._formatCellsDialogPromise = null;
+          throw error;
+        });
+    }
+    return this._formatCellsDialogPromise;
+  }
+
+  _loadCellStylesDialogs() {
+    if (!this._cellStylesDialogsPromise) {
+      this._cellStylesDialogsPromise = withLazyFeatureProgress("sheet", "Kiểu ô", () => import("./cell-styles.js"))
+        .catch((error) => {
+          this._cellStylesDialogsPromise = null;
+          throw error;
+        });
+    }
+    return this._cellStylesDialogsPromise;
+  }
+
   _loadChartBuilder(showProgress = true) {
     if (!this._chartBuilderPromise) {
       this._chartBuilderPromise = import("./sheet-chart.js").then((module) => {
@@ -5693,9 +5714,17 @@ export class SheetGridController {
 
   renderCharts() {
     if (!this.chartLayer || typeof document === "undefined") return;
-    if (!this.sheetChartBuilder) return;
+    const charts = this.chartsBySheet[this.activeSheet] || [];
+    if (!this.sheetChartBuilder) {
+      if (charts.length) {
+        void this._loadChartBuilder().catch((error) => {
+          console.error("3T Sheet could not load chart tools.", error);
+        });
+      }
+      return;
+    }
     this.chartLayer.innerHTML = "";
-    for (const chart of this.chartsBySheet[this.activeSheet] || []) {
+    for (const chart of charts) {
       const panel = document.createElement("section");
       const colOffset = Math.max(0, this.cols.indexOf(chart.range.end.c) + 1) * 100 + 46;
       const rowOffset = Math.max(0, chart.range.start.r - 1) * this.rowHeight + 28;
@@ -6222,7 +6251,8 @@ export class SheetGridController {
     return true;
   }
 
-  showFormatCellsDialog(initialTab = "number") {
+  async showFormatCellsDialog(initialTab = "number") {
+    const { FormatCellsDialog } = await this._loadFormatCellsDialog();
     const activeKey = `${this.selectedCoord.c}${this.selectedCoord.r}`;
     const item = this.cellsData.get(activeKey);
     const tabName = typeof initialTab === "string" ? initialTab : (initialTab?.tab || "number");
@@ -6426,7 +6456,8 @@ export class SheetGridController {
     return true;
   }
 
-  showCellStylesDialog() {
+  async showCellStylesDialog() {
+    const { showCellStylesDialog } = await this._loadCellStylesDialogs();
     return showCellStylesDialog(this);
   }
 
@@ -6492,7 +6523,8 @@ export class SheetGridController {
     return true;
   }
 
-  showFormatAsTableDialog() {
+  async showFormatAsTableDialog() {
+    const { showFormatAsTableDialog } = await this._loadCellStylesDialogs();
     return showFormatAsTableDialog(this);
   }
 

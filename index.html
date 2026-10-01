@@ -97,6 +97,27 @@
       window.__vnoFirstEditorKey = true;
       window.__vnoStartupMark?.("first_editor_key");
     }, true);
+    let documentEngineStartScheduled = false;
+    const startDocumentEngineAfterFirstInput = (event) => {
+      if (documentEngineStartScheduled || !event.isTrusted) return;
+      documentEngineStartScheduled = true;
+      for (const eventName of ["pointerdown", "keydown", "paste", "drop"]) {
+        document.removeEventListener(eventName, startDocumentEngineAfterFirstInput, true);
+      }
+      const startDocumentEngine = () => {
+        const api = window.pywebview?.api;
+        if (!api?.start_document_engine) {
+          window.addEventListener("pywebviewready", startDocumentEngine, { once: true });
+          return;
+        }
+        Promise.resolve(api.start_document_engine()).catch(() => {});
+      };
+      // Let the first pointer/key event finish before LibreOffice starts using CPU.
+      setTimeout(startDocumentEngine, 250);
+    };
+    for (const eventName of ["pointerdown", "keydown", "paste", "drop"]) {
+      document.addEventListener(eventName, startDocumentEngineAfterFirstInput, true);
+    }
     let currentAppInstance = null;
     const launchContext = configurePlatformLaunchContext(resolveLaunchContext(window.location.search));
     let errorReportingUI = null;

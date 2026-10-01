@@ -6,11 +6,12 @@ import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { globalShortcutManager } from "../../platform/commands/shortcut-manager.js";
 import { withLazyFeatureProgress } from "../../platform/startup/lazy-feature.js";
 import { t, getLocale } from "../../platform/i18n/i18n.js";
-import { formatDateTime, showDateTimeDialog } from "../../platform/ui-kit/datetime-picker.js";
-import { showSymbolPicker } from "../../platform/ui-kit/symbol-picker.js";
+import { formatDateTime } from "../../platform/ui-kit/datetime-format.js";
+import { createLazyDialogs } from "../../platform/ui-kit/lazy-dialogs.js";
 import { resolveWordArtStyle, buildWordArtCss, applyWordArtCss } from "./slides-wordart.js";
 import { normalizeSlidesChart } from "./slides-chart-data.js";
-import { showPromptDialog } from "../../platform/ui-kit/dialogs.js";
+
+const { showPromptDialog } = createLazyDialogs("slides");
 
 export function trapFocus(dialogBox, event) {
   if (!dialogBox || event.key !== "Tab") return;
@@ -685,6 +686,34 @@ export class SlidesCanvasController {
     });
   }
 
+  _loadDateTimeDialog() {
+    if (!this._dateTimeDialogPromise) {
+      this._dateTimeDialogPromise = withLazyFeatureProgress(
+        "slides",
+        "Ngày và giờ",
+        () => import("../../platform/ui-kit/datetime-picker.js")
+      ).catch((error) => {
+        this._dateTimeDialogPromise = null;
+        throw error;
+      });
+    }
+    return this._dateTimeDialogPromise;
+  }
+
+  _loadSymbolPicker() {
+    if (!this._symbolPickerPromise) {
+      this._symbolPickerPromise = withLazyFeatureProgress(
+        "slides",
+        "Ký hiệu",
+        () => import("../../platform/ui-kit/symbol-picker.js")
+      ).catch((error) => {
+        this._symbolPickerPromise = null;
+        throw error;
+      });
+    }
+    return this._symbolPickerPromise;
+  }
+
   _loadSlidesChartTools(showProgress = true) {
     const load = () => {
       if (!this._slidesChartModulePromise) {
@@ -714,6 +743,11 @@ export class SlidesCanvasController {
 
   _renderChartSvg(shape) {
     if (this._slidesChartTools?.generateSlidesChartSvg) return this._slidesChartTools.generateSlidesChartSvg(shape);
+    if (!this._slidesChartModulePromise) {
+      void this._loadSlidesChartTools(true).catch((error) => {
+        console.error("3T Slide could not load chart tools.", error);
+      });
+    }
     const title = this._escapeShapeText(shape?.title || "Biểu đồ dữ liệu");
     return `<div class="vno-slides-chart-loading" role="status" aria-label="${title}">Đang tải biểu đồ…</div>`;
   }
@@ -2694,6 +2728,7 @@ export class SlidesCanvasController {
     options = options || {};
     let format = options.format;
     if (!format) {
+      const { showDateTimeDialog } = await this._loadDateTimeDialog();
       const picked = await showDateTimeDialog({ defaultFormat: this.headerFooter?.dateFormat || "dd/MM/yyyy" });
       if (!picked) return false;
       format = picked.format;
@@ -2716,6 +2751,7 @@ export class SlidesCanvasController {
     options = options || {};
     let ch = options.char || options.symbol;
     if (!ch) {
+      const { showSymbolPicker } = await this._loadSymbolPicker();
       ch = await showSymbolPicker();
       if (!ch) return false;
     }
