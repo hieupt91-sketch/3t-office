@@ -2547,6 +2547,24 @@ class VnOfficeApi:
             ]
         }
 
+    def get_release_notes(self) -> dict[str, object]:
+        """Đọc ghi chú phát hành của phiên bản hiện tại (CH-8.3)."""
+        candidates = [
+            Path(ROOT_DIR) / f"notes-{APP_VERSION}.txt",
+            Path(ROOT_DIR) / "release-notes.txt",
+            Path(ROOT_DIR) / "RELEASE-NOTES.md",
+            Path(ROOT_DIR) / "docs" / "RELEASE-NOTES.md",
+        ]
+        for candidate in candidates:
+            if candidate.is_file():
+                try:
+                    content = candidate.read_text(encoding="utf-8")
+                    if content and content.strip():
+                        return {"found": True, "version": APP_VERSION, "content": content.strip()}
+                except Exception:
+                    pass
+        return {"found": False, "version": APP_VERSION, "content": ""}
+
     def get_autorecover_settings(self):
         return self._autorecover_store.get_settings() if self._autorecover_store else {"enabled": True, "interval_minutes": 5}
 

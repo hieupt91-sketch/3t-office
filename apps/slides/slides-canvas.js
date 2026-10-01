@@ -10051,6 +10051,7 @@ export class SlidesCanvasController {
     this.zoomLevel = next;
     this._applyViewState();
     this._syncCommandStates();
+    this.options.onZoomChange?.(this.zoomLevel);
     return this.zoomLevel;
   }
 

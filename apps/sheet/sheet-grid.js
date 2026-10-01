@@ -7545,6 +7545,7 @@ _bindGridKeyboardNavigation() {
     if (!Number.isFinite(next)) return false;
     this.zoomLevel = next;
     this._applyViewState();
+    this.options.onZoomChange?.(this.zoomLevel);
     return this.zoomLevel;
   }
 
