@@ -14096,18 +14096,27 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
     section_starts = []
     for section_id in section_ids[1:]:
         start = re.search(
-            rf'<div\b[^>]*data-vno-export-section=["\']{re.escape(section_id)}["\'][^>]*>\s*<p\b[^>]*>([\s\S]*?)</p\s*>',
+            rf'<div\b[^>]*data-vno-export-section=["\']{re.escape(section_id)}["\'][^>]*>\s*<p\b([^>]*)>([\s\S]*?)</p\s*>',
             source_html,
             re.IGNORECASE,
         )
         if start:
-            section_starts.append(_writer_html_plain(start.group(1)))
-    for section_text in section_starts:
-        if not section_text:
+            bookmark = re.search(r"\bid=[\"'](vno-(?:untouched|edited)-\d+)[\"']", start.group(1), re.IGNORECASE)
+            section_starts.append((_writer_html_plain(start.group(2)), bookmark.group(1) if bookmark else ""))
+    for section_text, section_bookmark in section_starts:
+        if not section_text and not section_bookmark:
             continue
         paragraphs = list(re.finditer(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", document_xml, re.IGNORECASE))
+        # Equation markers have already become OMML, so the HTML text is no
+        # longer equal to the OOXML text. Use the paragraph's conversion
+        # bookmark first to keep its section boundary and header/footer edits.
         target_index = next((index for index, match in enumerate(paragraphs)
-                             if _paragraph_plain_text(match.group(0)).strip() == section_text), None)
+                             if section_bookmark and re.search(
+                                 rf'<w:bookmarkStart\b[^>]*\bw:name=["\']{re.escape(section_bookmark)}["\']',
+                                 match.group(0), re.IGNORECASE)), None)
+        if target_index is None:
+            target_index = next((index for index, match in enumerate(paragraphs)
+                                 if _paragraph_plain_text(match.group(0)).strip() == section_text), None)
         final_sect = re.search(r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>", document_xml, re.IGNORECASE)
         if target_index is not None and target_index > 0 and final_sect:
             carrier_match = paragraphs[target_index - 1]
@@ -14528,7 +14537,8 @@ def _writer_wrap_revision_fragment(
     )
     boundary_re = re.compile(
         r'<w:commentRange(?:Start|End)\b[^>]*/>'
-        r'|<w:r\b[^>]*>[\s\S]*?<w:commentReference\b[^>]*/>[\s\S]*?</w:r\s*>',
+        r'|<w:r\b[^>]*>[\s\S]*?<w:commentReference\b[^>]*/>[\s\S]*?</w:r\s*>'
+        r'|</w:p\s*>|<w:p\b[^>]*>|<w:pPr\b[^>]*>[\s\S]*?</w:pPr\s*>',
         re.IGNORECASE,
     )
     pieces = boundary_re.split(fragment)
@@ -14598,9 +14608,6 @@ def postprocess_writer_review_markup(docx_bytes: bytes, *, source_html: str | No
         end_name_match, end_bookmark_end = _writer_find_review_bookmark_pair(document_xml, end_name)
         if start_match.start() >= end_name_match.start() or start_bookmark_end.end() > end_name_match.start():
             raise ValueError("Phạm vi comment trong DOCX không đúng thứ tự.")
-        paragraph_close = re.search(r"</w:p\s*>", document_xml[start_bookmark_end.end():], re.IGNORECASE)
-        if not paragraph_close or start_bookmark_end.end() + paragraph_close.start() < end_name_match.start():
-            raise ValueError("Comment qua ngắt đoạn chưa được hỗ trợ; bản gốc chưa bị ghi đè.")
         existing_comment_ids = [
             int(value) for value in re.findall(
                 r'<w:comment\b[^>]*\bw:id=["\'](\d+)["\']', comments_xml, re.IGNORECASE,
@@ -14648,10 +14655,9 @@ def postprocess_writer_review_markup(docx_bytes: bytes, *, source_html: str | No
         end_name_start, end_bookmark_end = _writer_find_review_bookmark_pair(document_xml, end_name)
         if start_match.start() >= end_name_start.start() or start_bookmark_end.end() > end_name_start.start():
             raise ValueError("Phạm vi Track Changes trong DOCX không đúng thứ tự.")
-        paragraph_close = re.search(r"</w:p\s*>", document_xml[start_bookmark_end.end():], re.IGNORECASE)
-        if not paragraph_close or start_bookmark_end.end() + paragraph_close.start() < end_name_start.start():
-            raise ValueError("Track Changes qua ngắt đoạn chưa được hỗ trợ; bản gốc chưa bị ghi đè.")
         fragment = document_xml[start_bookmark_end.end():end_name_start.start()]
+        if re.search(r"</?w:(?:tbl|tr|tc)\b", fragment, re.IGNORECASE):
+            raise ValueError("Track Changes qua ranh giới bảng chưa được hỗ trợ; bản gốc chưa bị ghi đè.")
         if not re.search(r"<w:t\b", fragment, re.IGNORECASE):
             raise ValueError("Không tìm thấy nội dung chữ trong phạm vi Track Changes.")
         kind = "delete" if record.get("kind") == "delete" else "insert"

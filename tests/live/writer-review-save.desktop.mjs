@@ -35,7 +35,17 @@ import sys,zipfile
 from pathlib import Path
 sys.path.insert(0, str(Path(sys.argv[2]) / "tests"))
 from test_writer_review_roundtrip import _source_docx
-target=Path(sys.argv[1]); _source_docx(target)
+target=Path(sys.argv[1])
+if sys.argv[3]=='new':
+    import main,json
+    header='<p>HEADER_SOURCE</p>'
+    footer='<p><span data-vno-field="PAGE">1</span> / <span data-vno-field="NUMPAGES">1</span> FOOTER_SOURCE</p>'
+    section={"id":"section-1","active":True,"type":"nextPage","pageSetup":{"size":"a4","orientation":"portrait","margins":{"top":20,"right":15,"bottom":20,"left":30}},"headerFooter":{"linkToPrevious":False,"header":header,"footer":footer,"headers":{"default":header},"footers":{"default":footer},"differentFirstPage":True,"differentOddEven":False}}
+    html='<div title="header">'+header+'</div><p>Base NEW_DOC_BODY</p><div title="footer">'+footer+'</div><!--vno-sections-meta:'+json.dumps([section])+'-->'
+    result=main.VnOfficeApi().save_document_in_place(html,'writer',str(target),None)
+    assert result.get('status')=='ok',result
+else:
+    _source_docx(target)
 replacement=target.with_suffix('.tmp.docx')
 with zipfile.ZipFile(target) as source, zipfile.ZipFile(replacement,'w',zipfile.ZIP_DEFLATED) as output:
     for item in source.infolist():
@@ -45,7 +55,7 @@ with zipfile.ZipFile(target) as source, zipfile.ZipFile(replacement,'w',zipfile.
         output.writestr(item,data)
 replacement.replace(target)
 `;
-execFileSync("python", ["-c", seedCode, seedPath, repoRoot], { cwd: repoRoot, stdio: "inherit" });
+execFileSync("python", ["-s", "-c", seedCode, seedPath, repoRoot, process.argv.includes("--new") ? "new" : "word"], { cwd: repoRoot, stdio: "inherit" });
 
 async function startWriter(filePath) {
   const debugPort = await freePort();
@@ -53,7 +63,7 @@ async function startWriter(filePath) {
     throw new Error(`Selected CDP port ${debugPort} was claimed by another process before launch.`);
   }
   log("INFO", "Starting VN Writer WebView2 CDP", debugPort);
-  const bootstrap = "import sys,main; main.APP_DATA_DIR_NAME=sys.argv[1]; main.main(['--app=writer',sys.argv[2]])";
+  const bootstrap = "import sys,main; main._DEFAULT_STATIC_PORT=19180; main.APP_DATA_DIR_NAME=sys.argv[1]; main.main(['--app=writer',sys.argv[2]])";
   const child = spawn("python", ["-c", bootstrap, appDataName, filePath], {
     cwd: repoRoot,
     env: {
@@ -152,10 +162,10 @@ async function closeWriter(session) {
   if (!exited) throw new Error("VN Writer did not exit after close_current_window; process was left running.");
 }
 
-function readWordCom(filePath) {
+function readWordCom(filePath, normalize = false) {
   const scriptPath = path.join(tempRoot, "word-hidden-readback.ps1");
   const script = String.raw`
-param([string]$Path)
+param([string]$Path, [string]$Normalize)
 $ErrorActionPreference='Stop'
 function Invoke-Com([scriptblock]$Call) {
   for ($i=0; $i -lt 120; $i++) {
@@ -167,6 +177,8 @@ function Invoke-Com([scriptblock]$Call) {
   }
   throw 'RPC_E_CALL_REJECTED persisted'
 }
+$audit=@(Get-CimInstance Win32_Process -Filter "name = 'python.exe'" | Where-Object { $_.CommandLine -match '_batch_writer_legacy.py' })
+if ($audit.Count) { throw 'Another legacy Word audit owns the machine; run this phase after it exits.' }
 $before=@(Get-Process WINWORD -ErrorAction SilentlyContinue | ForEach-Object Id)
 $word=$null; $doc=$null; $owned=$false; $result=@{}
 try {
@@ -174,12 +186,14 @@ try {
   $word.Visible=$false; $word.DisplayAlerts=0
   $after=@(Get-Process WINWORD -ErrorAction SilentlyContinue | ForEach-Object Id)
   $owned=@($after | Where-Object { $before -notcontains $_ }).Count -eq 1
-  $doc=Invoke-Com { $word.Documents.Open((Resolve-Path -LiteralPath $Path).Path,$false,$true,$false) }
+  $doc=Invoke-Com { $word.Documents.Open((Resolve-Path -LiteralPath $Path).Path,$false,($Normalize -ne "normalize"),$false) }
+  if ($Normalize -eq "normalize") { Invoke-Com { $doc.Save() } | Out-Null }
   Invoke-Com { $doc.Repaginate() } | Out-Null
   $section=Invoke-Com { $doc.Sections.Item(1) }
   $result.header= [string](Invoke-Com { $section.Headers.Item(1).Range.Text })
   $result.footer=[string](Invoke-Com { $section.Footers.Item(1).Range.Text })
   $result.footerFields=[string](Invoke-Com { ($section.Footers.Item(1).Range.Fields | ForEach-Object { $_.Code.Text }) -join ';' })
+  $result.equations=[string](Invoke-Com { $doc.OMaths.Count })
   $result.revisions=[string](Invoke-Com { $doc.Revisions.Count })
   $result.comments=[string](Invoke-Com { $doc.Comments.Count })
   $result.trackRevisions=[string](Invoke-Com { $doc.TrackRevisions })
@@ -192,7 +206,7 @@ finally {
 $result | ConvertTo-Json -Compress -Depth 5
 `;
   fs.writeFileSync(scriptPath, script, "utf8");
-  const output = execFileSync("powershell", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", scriptPath, filePath], {
+  const output = execFileSync("powershell", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", scriptPath, filePath, normalize ? "normalize" : "read"], {
     cwd: repoRoot, encoding: "utf8", timeout: 120000
   }).trim();
   return JSON.parse(output);
@@ -201,6 +215,34 @@ $result | ConvertTo-Json -Compress -Depth 5
 let session;
 let secondSession;
 try {
+  // Serialize Word-authored packages with Word itself before testing the app.
+  // New-document mode keeps the package produced by the production app pipeline.
+  if (!process.argv.includes("--new") && !process.argv.includes("--cdp-only")) {
+    const before = readWordCom(seedPath, true);
+    assert.ok(!before.error, JSON.stringify(before));
+    const unchangedPath = path.join(tempRoot, "word-unchanged.docx");
+    const bodyEditedPath = path.join(tempRoot, "word-body-edited.docx");
+    const pipeline = String.raw`
+import sys
+from pathlib import Path
+sys.path.insert(0,str(Path(sys.argv[4])/'tests'))
+from test_writer_review_roundtrip import _open_docx,_review_html_for_edited_source
+import main
+source=Path(sys.argv[1]);opened=_open_docx(source)
+r=main.VnOfficeApi().save_document_in_place('<a name="vno-pristine-document"></a>'+opened['content'],'writer',sys.argv[2],str(source))
+assert r.get('status')=='ok',r
+assert Path(sys.argv[2]).read_bytes()==source.read_bytes()
+r=main.VnOfficeApi().save_document_in_place(_review_html_for_edited_source(opened),'writer',sys.argv[3],str(source))
+assert r.get('status')=='ok',r
+`;
+    execFileSync("python", ["-s", "-c", pipeline, seedPath, unchangedPath, bodyEditedPath, repoRoot], { cwd: repoRoot, stdio: "inherit" });
+    for (const file of [unchangedPath, bodyEditedPath]) {
+      const after = readWordCom(file);
+      assert.ok(!after.error, JSON.stringify(after));
+      for (const key of ["header", "footerFields", "revisions", "comments", "equations"]) assert.equal(after[key], before[key], `Word body-only/pristine roundtrip changed ${key}`);
+    }
+    log("PASS", "Word-authored unchanged and body-only edit preserve header, fields, revisions and comments");
+  }
   session = await startWriter(seedPath);
   const { page } = session;
   const header = page.locator(".vno-writer-header");
@@ -261,6 +303,7 @@ try {
       headerHtml: adapter?.headerDom?.innerHTML || ""
     };
   });
+  fs.writeFileSync(path.join(tempRoot, "export-snapshot.json"), JSON.stringify(exportSnapshot, null, 2));
   const sectionSnapshot = exportSnapshot.html.match(/<!--vno-sections-meta:\s*(\[.*?\])\s*-->/s);
   assert.ok(sectionSnapshot, "Writer export is missing section metadata.");
   const exportedSections = JSON.parse(sectionSnapshot[1]);
@@ -324,6 +367,9 @@ try {
   log("PASS", "Reopened Writer displays saved header, tracked insertion, and comment");
   await closeWriter(secondSession); secondSession = null;
 
+  if (process.argv.includes("--cdp-only")) {
+    log("NOT RUN", "Hidden Word COM phase deferred while a layout audit owns Word");
+  } else {
   const word = readWordCom(seedPath);
   assert.ok(!word.error, `Hidden Word COM could not read the saved DOCX: ${word.error || ""}`);
   assert.ok(word.header.includes("CDP_HEADER_SAVED"), `Word header readback mismatch: ${word.header}`);
@@ -332,7 +378,9 @@ try {
   assert.match(word.footerFields, /PAGE/i, `Word footer PAGE field missing: ${word.footerFields}`);
   assert.match(word.footerFields, /NUMPAGES/i, `Word footer NUMPAGES field missing: ${word.footerFields}`);
   assert.match(word.trackRevisions, /True/i, `Word TrackRevisions setting is false: ${word.trackRevisions}`);
+  if (!process.argv.includes("--new")) assert.ok(Number(word.equations) >= 1, "Body/header/review edits lost the source equation.");
   log("PASS", "Hidden Word COM readback", JSON.stringify({ revisions: word.revisions, comments: word.comments, trackRevisions: word.trackRevisions, header: word.header.trim(), footerFields: word.footerFields }));
+  }
 } catch (error) {
   log("FAIL", "CH-5.6 WebView2 CDP / hidden Word verification", error?.stack || String(error));
   process.exitCode = 1;

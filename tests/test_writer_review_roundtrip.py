@@ -251,6 +251,59 @@ class WriterReviewRoundtripTests(unittest.TestCase):
         self.assertRegex(footer_xml, r"w:instrText[^>]*>\s*PAGE\s*</w:instrText>")
         self.assertRegex(footer_xml, r"w:instrText[^>]*>\s*NUMPAGES\s*</w:instrText>")
 
+    def test_new_document_creates_native_revisions_and_comment_ranges(self):
+        target = self.root / "new-review.docx"
+        records = [
+            {"type": "revision", "kind": "insert", "author": "Synthetic Author", "date": "2026-10-02T00:00:00Z", "startBookmark": "vno-review-start-00001", "endBookmark": "vno-review-end-00001"},
+            {"type": "revision", "kind": "delete", "author": "Synthetic Author", "date": "2026-10-02T00:01:00Z", "startBookmark": "vno-review-start-00002", "endBookmark": "vno-review-end-00002"},
+            {"type": "comment", "author": "Synthetic Reviewer", "date": "2026-10-02T00:02:00Z", "content": "Synthetic comment", "startBookmark": "vno-review-start-00003", "endBookmark": "vno-review-end-00003"},
+        ]
+        metadata = {"version": 1, "trackingEnabled": True, "records": records}
+        html = ('<p><a name="vno-review-start-00001"></a>NEW_INSERT<a name="vno-review-end-00001"></a> '
+                '<a name="vno-review-start-00002"></a>NEW_DELETE<a name="vno-review-end-00002"></a> '
+                '<a name="vno-review-start-00003"></a>NEW_ANCHOR<a name="vno-review-end-00003"></a></p>'
+                f'<!--vno-review-meta-hex:{json.dumps(metadata).encode("utf-8").hex()}-->')
+        result = main.VnOfficeApi().save_document_in_place(html, "writer", str(target), None)
+        self.assertEqual(result.get("status"), "ok", result)
+        parts = _parts(target)
+        document = _text(parts["word/document.xml"])
+        self.assertRegex(document, r'<w:ins\b[^>]*w:author="Synthetic Author"[^>]*w:date="2026-10-02T00:00:00Z"')
+        self.assertRegex(document, r'<w:del\b[^>]*w:author="Synthetic Author"[^>]*w:date="2026-10-02T00:01:00Z"')
+        self.assertIn("<w:delText>NEW_DELETE", document)
+        self.assertIn("w:commentRangeStart", document)
+        self.assertIn("w:commentRangeEnd", document)
+        self.assertIn("w:commentReference", document)
+        self.assertIn("Synthetic comment", _text(parts["word/comments.xml"]))
+        self.assertIn("Synthetic Reviewer", _text(parts["word/comments.xml"]))
+        self.assertIn("relationships/comments", _text(parts["word/_rels/document.xml.rels"]))
+        self.assertIn("trackRevisions", _text(parts["word/settings.xml"]))
+
+    def test_review_ranges_across_paragraphs_keep_valid_native_markup(self):
+        import xml.etree.ElementTree as ET
+        target = self.root / "cross-paragraph-review.docx"
+        records = [
+            {"type": "revision", "kind": "delete", "author": "Test", "date": "2026-10-02T00:00:00Z", "startBookmark": "vno-review-start-00001", "endBookmark": "vno-review-end-00001"},
+            {"type": "comment", "author": "Test", "date": "2026-10-02T00:00:00Z", "content": "Across paragraphs", "startBookmark": "vno-review-start-00002", "endBookmark": "vno-review-end-00002"},
+        ]
+        metadata = {"version": 1, "trackingEnabled": True, "records": records}
+        html = ('<p><a name="vno-review-start-00001"></a><a name="vno-review-start-00002"></a>FIRST_DELETE</p>'
+                '<p>SECOND_DELETE<a name="vno-review-end-00002"></a><a name="vno-review-end-00001"></a></p>'
+                f'<!--vno-review-meta-hex:{json.dumps(metadata).encode("utf-8").hex()}-->')
+        result = main.VnOfficeApi().save_document_in_place(html, "writer", str(target), None)
+        self.assertEqual(result.get("status"), "ok", result)
+        parts = _parts(target)
+        root = ET.fromstring(parts["word/document.xml"])
+        paragraphs = root.findall(f".//{{{W}}}body/{{{W}}}p")
+        self.assertEqual(len(paragraphs), 2)
+        self.assertEqual(len(root.findall(f".//{{{W}}}del")), 2)
+        for paragraph in paragraphs:
+            self.assertIsNotNone(paragraph.find(f"{{{W}}}del"))
+        for revision in root.findall(f".//{{{W}}}del"):
+            self.assertIsNone(revision.find(f".//{{{W}}}p"), "A revision must wrap paragraph runs, not the paragraph itself")
+        self.assertIsNotNone(paragraphs[0].find(f"{{{W}}}commentRangeStart"))
+        self.assertIsNotNone(paragraphs[1].find(f"{{{W}}}commentRangeEnd"))
+        self.assertIn("Across paragraphs", _text(parts["word/comments.xml"]))
+
     def test_open_save_without_edits_preserves_source_package_byte_for_byte(self):
         source_bytes = self.source.read_bytes()
         opened = _open_docx(self.source)
@@ -301,6 +354,25 @@ class WriterReviewRoundtripTests(unittest.TestCase):
         self.assertIn("relationships/comments", rels)
         self.assertIn("trackRevisions", settings)
         self.assertIn("<m:oMath", document, "Untouched OMML equation must survive body-only edit")
+
+    def test_equation_marker_at_section_start_keeps_edited_header(self):
+        from urllib.parse import quote
+        opened = _open_docx(self.source)
+        html = _review_html_for_edited_source(opened, header_suffix=" HEADER_EDITED")
+        omml = '<m:oMath><m:r><m:t>x</m:t></m:r><m:r><m:t> + y</m:t></m:r></m:oMath>'
+        mathml = '<math xmlns="http://www.w3.org/1998/Math/MathML"><mi>x</mi><mo>+</mo><mi>y</mi></math>'
+        marker = ('<span data-vno-equation-export="true" data-vno-equation-id="source-000001" '
+                  f'data-vno-equation-mathml="{quote(mathml, safe="")}" '
+                  f'data-vno-equation-original-omml="{quote(omml, safe="")}">VNOEQSOURCE000001MARKER</span>')
+        html = html.replace('<p id="vno-untouched-2">Equation: x + y</p>', '<p id="vno-edited-2">Equation: ' + marker + '</p>')
+        target = self.root / "equation-section-header-edited.docx"
+        result = main.VnOfficeApi().save_document_in_place(html, "writer", str(target), str(self.source))
+        self.assertEqual(result.get("status"), "ok", result)
+        parts = _parts(target)
+        document = _text(parts["word/document.xml"])
+        self.assertEqual(len(re.findall(r"<w:sectPr\b", document)), 2)
+        self.assertIn("<m:oMath", document)
+        self.assertTrue(any("HEADER_EDITED" in _text(data) for name, data in parts.items() if re.fullmatch(r"word/header\d+\.xml", name)))
 
     def test_header_footer_edits_replace_source_parts_without_losing_page_fields(self):
         opened = _open_docx(self.source)

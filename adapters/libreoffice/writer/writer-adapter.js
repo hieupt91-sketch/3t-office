@@ -2690,7 +2690,12 @@ export class WriterAdapter {
             if (!inserted) {
               const pbRegex = /<p\b[^>]*style=["'][^"']*(?:page-break-before|break-before):\s*(?:always|page)[^"']*["'][^>]*>[\s\S]*?<\/p>/i;
               if (pbRegex.test(html)) {
-                html = html.replace(pbRegex, markerHtml);
+                // The break-before paragraph can contain user text, revisions and
+                // comments. Preserve it when replacing its layout break with a
+                // section marker; deleting the paragraph loses content on reopen.
+                html = html.replace(pbRegex, paragraph => markerHtml + paragraph.replace(
+                  /(?:page-break-before|break-before):\s*(?:always|page)\s*;?/gi, ""
+                ));
                 inserted = true;
               }
             }
@@ -7933,12 +7938,12 @@ export class WriterAdapter {
         foundRun = true;
         const rAttrs = rMatch[1];
         const rInner = rMatch[2];
-        if (rAttrs.includes("PAGE")) {
-          pText += `<span data-vno-field="PAGE">1</span>`;
-          continue;
-        }
         if (rAttrs.includes("NUMPAGES")) {
           pText += `<span data-vno-field="NUMPAGES">1</span>`;
+          continue;
+        }
+        if (/\bPAGE\b/.test(rAttrs)) {
+          pText += `<span data-vno-field="PAGE">1</span>`;
           continue;
         }
         const isBold = /<w:b(\/|\s|>)/i.test(rInner);

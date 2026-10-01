@@ -8,6 +8,17 @@ export async function runWriterReviewExportTests() {
     '<w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:trackRevisions/></w:settings>'
   );
   assert.equal(imported.trackingEnabled, true, "Word's trackRevisions setting must initialize the session state");
+  const sectionXml = '<w:document><w:body><w:p><w:pPr><w:sectPr><w:pgSz w:w="11906" w:h="16838"/></w:sectPr></w:pPr><w:r><w:t>Base</w:t></w:r></w:p><w:p><w:ins w:author="Test" w:date="2026-10-01T10:00:00Z"><w:r><w:t>REOPEN_INSERT</w:t></w:r></w:ins></w:p><w:sectPr><w:pgSz w:w="11906" w:h="16838"/></w:sectPr></w:body></w:document>';
+  const withSection = adapter._normalizeImportedHtml(
+    '<p>Base</p><p style="page-break-before: always">REOPEN_INSERT</p>', sectionXml, ""
+  );
+  assert.match(withSection.body, /REOPEN_INSERT/, "Section import must retain the text in the paragraph carrying break-before");
+  assert.match(withSection.body, /<ins\b[^>]*data-vno-change="insert"[^>]*>REOPEN_INSERT<\/ins>/);
+  assert.match(withSection.body, /data-vno-section-break=/);
+  assert.doesNotMatch(withSection.body, /<p[^>]*page-break-before:\s*always/);
+  const footerFields = adapter._htmlFromHeaderFooterXml('<w:ftr><w:p><w:fldSimple w:instr=" PAGE "><w:r><w:t>1</w:t></w:r></w:fldSimple><w:fldSimple w:instr=" NUMPAGES "><w:r><w:t>2</w:t></w:r></w:fldSimple></w:p></w:ftr>');
+  assert.equal((footerFields.match(/data-vno-field="PAGE"/g) || []).length, 1);
+  assert.equal((footerFields.match(/data-vno-field="NUMPAGES"/g) || []).length, 1);
   adapter.trackChangesEnabled = true;
   adapter.comments = [{
     id: "comment-1",
