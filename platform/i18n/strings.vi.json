@@ -1,9 +1,9 @@
 {
   "app": {
-    "suiteName": "VN Office",
-    "writer": "VN Writer (Soạn thảo)",
-    "sheet": "VN Sheet (Bảng tính)",
-    "slides": "VN Slides (Trình chiếu)"
+    "suiteName": "3T Office",
+    "writer": "3T Doc (Soạn thảo)",
+    "sheet": "3T Sheet (Bảng tính)",
+    "slides": "3T Slide (Trình chiếu)"
   },
   "common": {
     "save": "Lưu tài liệu",
@@ -24,7 +24,7 @@
     "saveAs": "Lưu bản sao (F12)",
     "print": "In ấn (Ctrl+P)",
     "exportPdf": "Xuất tệp PDF",
-    "about": "Giới thiệu VN Office",
+    "about": "Giới thiệu 3T Office",
     "templateTitle": "Mẫu văn bản tiêu chuẩn Việt Nam",
     "templateSubtitle": "Khởi tạo tài liệu mới nhanh chóng theo mẫu quy chuẩn hành chính và doanh nghiệp",
     "recentTitle": "Tài liệu mở gần đây",

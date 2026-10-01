@@ -1,5 +1,5 @@
 /**
- * VN Sheet — Enterprise Stylesheet
+ * 3T Sheet — Enterprise Stylesheet
  * Tiêu chuẩn bảng tính bảng biểu doanh nghiệp chuẩn mực
  */
 
@@ -1286,12 +1286,27 @@ tr.is-filtered-out {
 
 /* Fallback CSS cũ nếu WebView hiển thị vùng in HTML; thao tác In hiện dùng PDF LibreOffice. */
 @media print {
-  .vno-sheet-container,
-  .vno-sheet-print-preview-overlay {
+  html,
+  body {
+    width: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+  body > :not(#vno-sheet-print-only) {
     display: none !important;
   }
-  .vno-sheet-print-only {
+  #vno-sheet-print-only {
+    position: static !important;
     display: block !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 }
 
@@ -1720,7 +1735,7 @@ tr.is-filtered-out {
   color: #ecfdf5;
 }
 
-/* --- VN Sheet: Watch Window (Cửa sổ theo dõi ô) chuẩn Excel --- */
+/* --- 3T Sheet: Watch Window (Cửa sổ theo dõi ô) chuẩn Excel --- */
 .vno-watch-window {
   box-sizing: border-box;
   font-family: inherit;

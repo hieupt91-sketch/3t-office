@@ -2,6 +2,7 @@
 
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
@@ -35,23 +36,37 @@ class DesktopLaunchTests(unittest.TestCase):
         self.assertIn("lo-profile-shared", uris[None])
 
     def test_initial_file_is_consumed_once_through_existing_open_api(self):
-        api = main.VnOfficeApi("sheet", r"C:\Tai lieu\Bao cao.xlsx")
-        converted = {"calls": 0}
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source_path = Path(temp_dir) / "Bao cao.xlsx"
+            with zipfile.ZipFile(source_path, "w") as package:
+                package.writestr("[Content_Types].xml", "<Types/>")
+                package.writestr(
+                    "_rels/.rels",
+                    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+                    '<Relationship Id="rId1" Target="xl/workbook.xml" Type="http://schemas.openxmlformats.org/'
+                    'officeDocument/2006/relationships/officeDocument"/></Relationships>',
+                )
+                package.writestr(
+                    "xl/workbook.xml",
+                    '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"/>',
+                )
+            api = main.VnOfficeApi("sheet", str(source_path))
+            converted = {"calls": 0}
 
-        def fake_convert(src_path, target_ext, out_dir, app_kind=None):
-            converted["calls"] += 1
-            self.assertTrue(src_path.endswith("Bao cao.xlsx"))
-            self.assertEqual((target_ext, app_kind), ("fods", "sheet"))
-            output = Path(out_dir) / "Bao cao.fods"
-            output.write_text("<office:document/>", encoding="utf-8")
-            return str(output)
+            def fake_convert(src_path, target_ext, out_dir, app_kind=None):
+                converted["calls"] += 1
+                self.assertTrue(src_path.endswith("Bao cao.xlsx"))
+                self.assertEqual((target_ext, app_kind), ("fods", "sheet"))
+                output = Path(out_dir) / "Bao cao.fods"
+                output.write_text("<office:document/>", encoding="utf-8")
+                return str(output)
 
-        with patch.object(main, "_run_soffice_convert", side_effect=fake_convert):
-            result = api.open_document_dialog("sheet")
+            with patch.object(main, "_run_soffice_convert", side_effect=fake_convert):
+                result = api.open_document_dialog("sheet")
 
-        self.assertEqual(result["status"], "ok")
-        self.assertEqual(converted["calls"], 1)
-        self.assertIsNone(api._initial_file)
+            self.assertEqual(result["status"], "ok")
+            self.assertEqual(converted["calls"], 1)
+            self.assertIsNone(api._initial_file)
 
     def test_main_returns_exit_code_when_no_port_available(self):
         with patch.object(main, "_start_static_server", side_effect=RuntimeError(

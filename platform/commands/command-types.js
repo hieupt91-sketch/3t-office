@@ -1,5 +1,5 @@
 ﻿/**
- * VN Office Platform — Command Types & Interfaces
+ * 3T Office Platform — Command Types & Interfaces
  * 
  * Command Bus là ranh giới trừu tượng duy nhất giữa UI và các tầng xử lý dữ liệu.
  * Mọi hành vi của người dùng trên giao diện đều được đóng gói thành Command.

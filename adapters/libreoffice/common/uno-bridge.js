@@ -1,5 +1,5 @@
 /**
- * VN Office LibreOffice Adapter — UNO Bridge & Dispatch Manager
+ * 3T Office LibreOffice Adapter — UNO Bridge & Dispatch Manager
  * Kết nối Command Bus với LibreOffice UNO Service / Dispatch Framework
  */
 
@@ -13,6 +13,7 @@ export class UnoBridge {
     this.desktopApi = null; // window.pywebview.api — cầu nối Python thật tới LibreOffice headless
     this.hasRealEngine = false;
     this._listeners = new Map();
+    this._browserDocumentSequences = { writer: 1, sheet: 1, slides: 1 };
   }
 
   /**
@@ -101,10 +102,49 @@ export class UnoBridge {
     if (!this.desktopApi || !this.hasRealEngine) {
       return {
         status: "error",
-        message: "Chức năng Mở tệp thật chỉ khả dụng trong VN Office Desktop App (đã cài LibreOffice).",
+        message: "Chức năng Mở tệp thật chỉ khả dụng trong 3T Office Desktop App (đã cài LibreOffice).",
       };
     }
     return await this.desktopApi.open_document_dialog(appKind);
+  }
+
+  async createNewDocumentWindow(appKind) {
+    if (this.desktopApi?.create_new_document_window) {
+      return await this.desktopApi.create_new_document_window(appKind);
+    }
+    if (typeof window === "undefined" || typeof window.open !== "function") {
+      return { status: "error", message: "Không thể mở cửa sổ tài liệu mới." };
+    }
+    const prefixes = { writer: "Tài liệu", sheet: "Bảng tính", slides: "Bản trình bày" };
+    const extensions = { writer: "docx", sheet: "xlsx", slides: "pptx" };
+    if (!prefixes[appKind]) return { status: "error", message: "Loại tài liệu không hợp lệ." };
+    const sequence = ++this._browserDocumentSequences[appKind];
+    const url = new URL(window.location.href);
+    url.searchParams.delete("openFile");
+    url.searchParams.set("documentName", `${prefixes[appKind]} ${sequence}.${extensions[appKind]}`);
+    const opened = window.open(url.toString(), "_blank");
+    return opened
+      ? { status: "ok" }
+      : { status: "error", message: "Trình duyệt đã chặn cửa sổ tài liệu mới." };
+  }
+
+  async openFileInNewWindow(filePath, appKind) {
+    if (this.desktopApi?.open_file_in_new_window) {
+      return await this.desktopApi.open_file_in_new_window(filePath, appKind);
+    }
+    return { status: "error", message: "Mở tệp gần đây trong cửa sổ mới chỉ khả dụng trong 3T Office Desktop." };
+  }
+
+  async setWindowTitle(title) {
+    if (!this.desktopApi?.set_window_title) return false;
+    return await this.desktopApi.set_window_title(String(title || "3T Office"));
+  }
+
+  async closeCurrentWindow() {
+    if (this.desktopApi?.close_current_window) {
+      return await this.desktopApi.close_current_window();
+    }
+    return { status: "error", message: "Không thể đóng cửa sổ tài liệu hiện tại." };
   }
 
   /**
@@ -114,7 +154,7 @@ export class UnoBridge {
     if (!this.desktopApi || !this.hasRealEngine) {
       return {
         status: "error",
-        message: "Chức năng đọc tệp Excel chỉ khả dụng trong VN Office Desktop App (đã cài LibreOffice).",
+        message: "Chức năng đọc tệp Excel chỉ khả dụng trong 3T Office Desktop App (đã cài LibreOffice).",
       };
     }
     if (typeof this.desktopApi.open_mail_merge_data_dialog === "function") {
@@ -158,7 +198,7 @@ export class UnoBridge {
     if (!this.desktopApi || !this.hasRealEngine) {
       return {
         status: "error",
-        message: "Chức năng Lưu tệp thật chỉ khả dụng trong VN Office Desktop App (đã cài LibreOffice).",
+        message: "Chức năng Lưu tệp thật chỉ khả dụng trong 3T Office Desktop App (đã cài LibreOffice).",
       };
     }
     return await this.desktopApi.save_document_dialog(content, appKind, targetFormat, suggestedName, sourcePath);
@@ -175,7 +215,7 @@ export class UnoBridge {
     if (!this.desktopApi || !this.hasRealEngine) {
       return {
         status: "error",
-        message: "Chức năng Lưu tệp thật chỉ khả dụng trong VN Office Desktop App (đã cài LibreOffice).",
+        message: "Chức năng Lưu tệp thật chỉ khả dụng trong 3T Office Desktop App (đã cài LibreOffice).",
       };
     }
     return await this.desktopApi.save_document_in_place(content, appKind, targetPath, sourcePath || targetPath);
@@ -191,7 +231,7 @@ export class UnoBridge {
     if (!this.desktopApi || !this.hasRealEngine) {
       return {
         status: "error",
-        message: "Chức năng Xuất PDF thật chỉ khả dụng trong VN Office Desktop App (đã cài LibreOffice).",
+        message: "Chức năng Xuất PDF thật chỉ khả dụng trong 3T Office Desktop App (đã cài LibreOffice).",
       };
     }
     return await this.desktopApi.export_pdf_dialog(content, appKind, suggestedName, sourcePath);
@@ -201,7 +241,7 @@ export class UnoBridge {
     if (!this.desktopApi || !this.hasRealEngine) {
       return {
         status: "error",
-        message: "Chức năng In chỉ khả dụng trong VN Office Desktop có LibreOffice.",
+        message: "Chức năng In chỉ khả dụng trong 3T Office Desktop có LibreOffice.",
       };
     }
     return await this.desktopApi.prepare_print_document(appKind, content, suggestedName, sourcePath, useOffice);
@@ -218,7 +258,7 @@ export class UnoBridge {
   }
 
   async getInstalledPrinters() {
-    if (!this.desktopApi) return { status: "error", message: "Danh sách máy in chỉ khả dụng trong VN Office Desktop." };
+    if (!this.desktopApi) return { status: "error", message: "Danh sách máy in chỉ khả dụng trong 3T Office Desktop." };
     return await this.desktopApi.get_installed_printers();
   }
 
@@ -251,12 +291,12 @@ export class UnoBridge {
   }
 
   async readAutoRecoverSnapshot(snapshotId) {
-    if (!this.desktopApi) return { status: "error", message: "AutoRecover chỉ khả dụng trong VN Office Desktop." };
+    if (!this.desktopApi) return { status: "error", message: "AutoRecover chỉ khả dụng trong 3T Office Desktop." };
     return await this.desktopApi.read_autorecover_snapshot(snapshotId);
   }
 
   async writeAutoRecoverSnapshot({ docId, appKind, content, originalPath = "", title = "", format }) {
-    if (!this.desktopApi) return { status: "error", message: "AutoRecover chỉ khả dụng trong VN Office Desktop." };
+    if (!this.desktopApi) return { status: "error", message: "AutoRecover chỉ khả dụng trong 3T Office Desktop." };
     return await this.desktopApi.write_autorecover_snapshot(docId, appKind, content, originalPath, title, format);
   }
 

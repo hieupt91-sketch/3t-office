@@ -7,7 +7,7 @@
  * hai chiều qua ODF) - một giới hạn thật của bản thân soffice, không phải lỗi
  * cú pháp. Vì vậy Freeze Panes phải đi qua đúng 2 lớp overlay/postprocess như
  * Slide Master logo / p14:sectionLst / p:showPr / khổ trang chiếu của Slides:
- *   - Export: VN Office tự lưu frozenRows/frozenCols dạng vno:frozen-rows/cols
+ *   - Export: 3T Office tự lưu frozenRows/frozenCols dạng vno:frozen-rows/cols
  *     trên <table:table> trong FODS của chính nó -> postprocess đọc lại giá
  *     trị này và ghi thẳng <pane> chuẩn vào XLSX thật SAU KHI soffice xuất ra.
  *   - Mở file XLSX thật (từ Excel hoặc nguồn khác): đọc trực tiếp <pane> từ
@@ -46,7 +46,7 @@ export function columnLabelFromIndex(oneBasedIndex) {
 }
 
 /**
- * Đọc vno:frozen-rows/vno:frozen-cols từ FODS chính VN Office đã tự ghi
+ * Đọc vno:frozen-rows/vno:frozen-cols từ FODS chính 3T Office đã tự ghi
  * (xem SheetAdapter.serializeToFods()'s <table:table> attrs).
  * @returns {Record<string, {rows: number, cols: number}>}
  */
@@ -139,7 +139,7 @@ export function applyFreezePanesToFods(fodsXml, freezeBySheetName) {
   return xml;
 }
 
-/** Ánh xạ tên sheet (VN Office) -> {rows, cols} -> tên sheet -> r:id -> ánh xạ tới file worksheetN.xml thật, dùng ở lớp Node/Python có quyền đọc ZIP. */
+/** Ánh xạ tên sheet (3T Office) -> {rows, cols} -> tên sheet -> r:id -> ánh xạ tới file worksheetN.xml thật, dùng ở lớp Node/Python có quyền đọc ZIP. */
 export function resolveSheetRidMap(workbookXml) {
   const xml = String(workbookXml || "");
   const result = {};

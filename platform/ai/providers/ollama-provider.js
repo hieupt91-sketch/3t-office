@@ -1,5 +1,5 @@
 /**
- * VN Office AI — Ollama Local Model Provider
+ * Trợ lý 3T AI — Ollama Local Model Provider
  * Gọi thật tới một tiến trình Ollama (https://ollama.com) chạy cục bộ trên máy người dùng
  * (mã nguồn mở, model chạy hoàn toàn trên thiết bị — không có dữ liệu tài liệu rời khỏi máy).
  * Tuân thủ 07-security-ai/AI-ARCHITECTURE.md: chỉ dùng khi có sự đồng ý (consent) rõ ràng
@@ -65,7 +65,7 @@ export class OllamaProvider {
     const docText = (context.documentText || "").slice(0, 6000); // giới hạn để tránh prompt quá lớn
 
     const systemPrompt =
-      "Bạn là Trợ lý VN AI, tích hợp trong bộ phần mềm văn phòng VN Office. " +
+      "Bạn là Trợ lý 3T AI, tích hợp trong bộ phần mềm văn phòng 3T Office. " +
       "Trả lời ngắn gọn, chính xác, bằng tiếng Việt, theo phong cách hành chính khi phù hợp. " +
       "Không tự ý bịa nội dung tài liệu không có trong ngữ cảnh được cung cấp.";
 

@@ -1,5 +1,5 @@
 /**
- * VN Office — Format Cells Dialog (Ctrl+1)
+ * 3T Office — Format Cells Dialog (Ctrl+1)
  * Hộp thoại Định dạng ô chuẩn phong cách Microsoft Excel & LibreOffice Calc
  */
 

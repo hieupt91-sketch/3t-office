@@ -1,5 +1,5 @@
 /**
- * VN Office LibreOffice Adapter — VN Writer Adapter
+ * 3T Office LibreOffice Adapter — 3T Doc Adapter
  * Quản lý tương tác với StarWriter (sw) Document Model & Phím tắt Microsoft/LibreOffice
  */
 
@@ -1835,14 +1835,14 @@ export class WriterAdapter {
    * `<ins>` / `<del>` / `<mark data-comment-id>` before the body is mounted.
    *
    * Header/Footer are different: StarWriter keeps them as
-   * `<div title="header|footer">` (the same markers VN Writer already emits
+   * `<div title="header|footer">` (the same markers 3T Doc already emits
    * on save). PAGE/NUMPAGES become `<sdfield>` plus a gray span — preserve a VN field marker
    * so DOCX save keeps native fields and Print Preview can update the displayed value.
    *
    * Footnotes/Endnotes are also kept (unlike Track Changes / Comments):
    * `<a class="sdfootnoteanc">` / `sdendnoteanc` plus
    * `<div id="sdfootnoteN">` / `sdendnoteN` bodies. Map those onto the
-   * existing VN Writer `data-vno-footnote-ref` / `data-vno-endnote-ref`
+   * existing 3T Doc `data-vno-footnote-ref` / `data-vno-endnote-ref`
    * containers so session click-to-jump, renumber, and Print Preview work.
    * No OOXML sidecar is required for this path.
    *
@@ -5310,7 +5310,7 @@ export class WriterAdapter {
    * (`id="textboxN"`, `id="FrameN"`, etc.) into `<span>` elements with
    * `position: absolute` and page-relative top/left coordinates.
    *
-   * VN Writer renders the whole document inside a single container, so
+   * 3T Doc renders the whole document inside a single container, so
    * all absolute coordinates are measured from the same origin — causing
    * elements from pages 2+ to overlap unrelated content.
    *
@@ -5463,7 +5463,7 @@ export class WriterAdapter {
    * StarWriter HTML of a real Word DOCX keeps footnotes/endnotes as
    * `a.sdfootnoteanc` / `a.sdendnoteanc` citations plus
    * `div#sdfootnoteN` / `div#sdendnoteN` bodies (LibreOffice 26.2 measured).
-   * Map them onto VN Writer session markup. Do not invent notes when the
+   * Map them onto 3T Doc session markup. Do not invent notes when the
    * HTML has no StarWriter markers.
    */
   _normalizeImportedStarWriterNotes(html) {
@@ -6306,7 +6306,9 @@ export class WriterAdapter {
         return this.toggleStyleGallery(args);
 
       case "common.file.new":
-        return await this.newDocument();
+        return this.shell?.requestNewDocumentWindow
+          ? await this.shell.requestNewDocumentWindow()
+          : await this.newDocument();
 
       case "common.file.close":
         return await this.closeDocument();
@@ -7957,7 +7959,7 @@ export class WriterAdapter {
     const hasExplicit = typeof options.text === "string" || options.presetId || options.styleId;
     const picked = hasExplicit ? options : await showWordArtDialog(options);
     if (!picked) return false;
-    const text = String(picked.text || options.text || "VN Office").trim() || "VN Office";
+    const text = String(picked.text || options.text || "3T Office").trim() || "3T Office";
     const presetId = picked.presetId || options.presetId || options.styleId || "navy-outline";
     const style = resolveWordArtStyle({ ...picked, ...options, presetId, text });
     const html = buildWriterWordArtHtml(text, { ...picked, ...options, presetId });
@@ -8063,7 +8065,7 @@ export class WriterAdapter {
       else textEl.contentEditable = "false";
       el.classList?.remove?.("is-editing");
       this._wordArtEditing = false;
-      const next = String(textEl.textContent || "").trim() || "VN Office";
+      const next = String(textEl.textContent || "").trim() || "3T Office";
       textEl.textContent = next;
       el.setAttribute?.("data-vno-wordart-text", next);
       el.setAttribute?.("aria-label", `Chữ nghệ thuật: ${next}`);
@@ -8346,7 +8348,7 @@ export class WriterAdapter {
     const sectionNote = restart === "section"
       ? " File Word/LibreOffice ghi Liên tục vì ODF không có restart-each-section."
       : "";
-    badge.textContent = `Danh số dòng: ${modeLabel}. Số hiện ở lề trái khi mở bằng Word hoặc LibreOffice — canvas VN Writer không vẽ số.${sectionNote}`;
+    badge.textContent = `Danh số dòng: ${modeLabel}. Số hiện ở lề trái khi mở bằng Word hoặc LibreOffice — canvas 3T Doc không vẽ số.${sectionNote}`;
     badge.setAttribute("title", badge.textContent);
   }
 
@@ -9263,16 +9265,16 @@ export class WriterAdapter {
       // Lỗi thật đã xác nhận qua probe soffice thật: file DOCX thật (Word
       // thật) chèn hình cơ bản (hình chữ nhật, elip, bo góc — rất phổ biến,
       // dùng qua "Insert Shapes" của Word) không được soffice ghi thành
-      // <draw:rect>/<draw:ellipse> chuẩn ODF như VN Writer tự ghi, mà LUÔN
+      // <draw:rect>/<draw:ellipse> chuẩn ODF như 3T Doc tự ghi, mà LUÔN
       // thành <draw:custom-shape> với draw:enhanced-geometry draw:type=
       // "ooxml-<prstGeom>" (ví dụ "ooxml-rect", "ooxml-ellipse",
       // "ooxml-roundRect"). Trước đây parseFodt() NÉM LỖI ngay khi gặp bất
       // kỳ type nào khác "right-arrow" — khiến file DOCX có MỘT hình chữ
       // nhật/elip bình thường (không cần xoay, không gì đặc biệt) cũng
       // KHÔNG MỞ ĐƯỢC. Ánh xạ 5 kiểu có tương đương chính xác trong model
-      // hình của VN Writer (apps/writer/writer-illustrations.js: rectangle/
+      // hình của 3T Doc (apps/writer/writer-illustrations.js: rectangle/
       // round-rect/circle/triangle/diamond) — các kiểu KHÁC (pentagon,
-      // star5, hexagon...) VN Writer chưa có renderer tương ứng nên VẪN
+      // star5, hexagon...) 3T Doc chưa có renderer tương ứng nên VẪN
       // từ chối rõ ràng, không âm thầm vẽ sai hình.
       // "ooxml-straightConnector1" (OOXML thật) và "mso-spt32" (id 32 =
       // Straight Connector, LibreOffice tự dùng khi convert file .doc cũ)
@@ -10508,7 +10510,7 @@ export class WriterAdapter {
       if (node.name === "text:line-break") return "<br>";
       if (node.name === "text:bookmark" || node.name === "text:bookmark-start" || node.name === "text:bookmark-end") {
         // Điểm neo (anchor) vô hình dùng cho tham chiếu chéo/mục lục nội bộ
-        // của Word — không có nội dung hiển thị, VN Writer chưa có tính
+        // của Word — không có nội dung hiển thị, 3T Doc chưa có tính
         // năng tham chiếu chéo nên bỏ qua an toàn (không mất nội dung
         // hiển thị nào, chỉ mất khả năng nhảy tới điểm neo đó).
         return "";
@@ -10657,7 +10659,7 @@ export class WriterAdapter {
       // Lỗi thật đã xác nhận: file DOCX thật có ảnh neo nổi (Word thường dùng
       // kiểu này cho logo/letterhead có chữ chạy quanh — wp:anchor với
       // wrapSquare) được soffice convert sang FODT với text:anchor-type="char"
-      // (không phải "as-char" mà VN Office tự ghi khi chèn ảnh). Trước đây
+      // (không phải "as-char" mà 3T Office tự ghi khi chèn ảnh). Trước đây
       // parseFodt() NÉM LỖI ngay khi gặp anchor-type khác "as-char", khiến
       // TOÀN BỘ file không mở được (không chỉ mất 1 ảnh). Vì kiến trúc hiện
       // tại đặt draw:frame ngay trong luồng nội dung đoạn văn (inlineNodeHtml)
@@ -11195,7 +11197,7 @@ export class WriterAdapter {
         const savedFileName = savedPath.split(/[/\\]/).pop();
         if (savedFileName) {
           this.sourceFileName = savedFileName.replace(/\.[^/.]+$/, "");
-          this.shell?.resetDocumentChrome?.(savedFileName, null);
+          this.shell?.resetDocumentChrome?.(savedFileName, null, true, savedPath);
         }
       }
       this.shell?.setStatus?.("Đã lưu");
@@ -11234,14 +11236,20 @@ export class WriterAdapter {
     );
 
     if (result.status === "ok") {
-      this.isDirty = false;
       const savedPath = result.path || result.fileName;
+      // Như Word: Lưu thành PDF chỉ xuất một bản PDF; tài liệu đang sửa vẫn giữ tên,
+      // định dạng và trạng thái chưa lưu của nó (Ctrl+S sau đó không ghi vào tệp PDF).
+      if (/\.pdf$/i.test(String(savedPath || ""))) {
+        this.shell?.setStatus?.(`Đã xuất PDF: ${String(savedPath).split(/[/\\]/).pop()}`);
+        return true;
+      }
+      this.isDirty = false;
       if (savedPath) {
         this._sourcePath = savedPath;
         const savedFileName = savedPath.split(/[/\\]/).pop();
         if (savedFileName) {
           this.sourceFileName = savedFileName.replace(/\.[^/.]+$/, "");
-          this.shell?.resetDocumentChrome?.(savedFileName, null);
+          this.shell?.resetDocumentChrome?.(savedFileName, null, true, savedPath);
         }
       }
       this.shell?.setStatus?.("Đã lưu");
@@ -11261,6 +11269,8 @@ export class WriterAdapter {
    * Mở một tệp DOCX/ODT thật từ đĩa, thay thế nội dung soạn thảo hiện tại.
    */
   async open() {
+    if (typeof this.shell?.confirmUnsavedChangesBeforeReplace === "function"
+      && !(await this.shell.confirmUnsavedChangesBeforeReplace())) return false;
     if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
       window.dispatchEvent(new Event("vno:document-open-progress"));
     }
@@ -11276,6 +11286,25 @@ export class WriterAdapter {
   async _openDocumentFromDisk() {
     const result = await globalUnoBridge.openRealFile("writer");
     if (result.status === "ok") {
+      let imported;
+      try {
+        imported = this._normalizeImportedHtml(
+          result.content || "",
+          result.ooxmlDocumentXml,
+          result.ooxmlCommentsXml,
+          result.ooxmlStylesXml,
+          result.ooxmlNumberingXml,
+          result.ooxmlHeaderXml,
+          result.ooxmlFooterXml
+        );
+      } catch (error) {
+        await showAlertDialog({
+          title: "Không thể mở tệp",
+          message: `${error?.message || "Tệp không đúng định dạng hoặc bị hỏng."} Tài liệu đang mở được giữ nguyên.`,
+          type: "error"
+        });
+        return false;
+      }
       this._initZones();
       this._sourcePath = result.sourcePath || null;
       // Comments chỉ thuộc tài liệu đang mở trong phiên; file khác không dùng lại anchor cũ.
@@ -11283,15 +11312,6 @@ export class WriterAdapter {
       this.trackChangesEnabled = false;
       this.activeCommentId = null;
       this._renderCommentsPanel();
-      const imported = this._normalizeImportedHtml(
-        result.content || "",
-        result.ooxmlDocumentXml,
-        result.ooxmlCommentsXml,
-        result.ooxmlStylesXml,
-        result.ooxmlNumberingXml,
-        result.ooxmlHeaderXml,
-        result.ooxmlFooterXml
-      );
       if (imported.page) {
         this.pageSetup = {
           size: imported.page.size || this.pageSetup.size,
@@ -11354,7 +11374,7 @@ export class WriterAdapter {
       this._openedEditorDomHash = this._editorDomFingerprint();
       this._updateTrackChangesCommandState();
       this.clearUndoRedo();
-      this.shell?.resetDocumentChrome?.(result.fileName || "Tài liệu 1.docx");
+      this.shell?.resetDocumentChrome?.(result.fileName || "Tài liệu 1.docx", null, true, result.sourcePath || "");
       this._recomputeLivePagination?.();
       if (typeof requestAnimationFrame !== "undefined") {
         requestAnimationFrame(() => this._recomputeLivePagination?.());
@@ -11473,6 +11493,7 @@ export class WriterAdapter {
   }
 
   async closeDocument() {
+    if (this.shell?.requestCloseDocument) return await this.shell.requestCloseDocument();
     return await this.newDocument();
   }
 
@@ -12403,9 +12424,14 @@ export class WriterAdapter {
    */
   _isSnapshotEqual(a, b) {
     if (!a || !b) return false;
-    if (a.bodyHtml !== b.bodyHtml) return false;
-    if (a.headerHtml !== b.headerHtml) return false;
-    if (a.footerHtml !== b.footerHtml) return false;
+    // Gạch chân kiểm tra chính tả được chèn/bỏ bất đồng bộ; đó là lớp hiển thị, không phải
+    // nội dung. Không bỏ qua nó thì Lưu xong chỉ cần bấm F12/lệnh bất kỳ là tài liệu tự
+    // thành "chưa lưu" và đóng cửa sổ hỏi Lưu dù người dùng không sửa gì (đo G7).
+    const comparable = html => (html == null ? html : String(html)
+      .replace(/<span\b(?=[^>]*\bclass=["'][^"']*\bvno-spelling-(?:error|uncertain)\b[^"']*["'])[^>]*>([\s\S]*?)<\/span>/gi, "$1"));
+    if (a.bodyHtml !== b.bodyHtml && comparable(a.bodyHtml) !== comparable(b.bodyHtml)) return false;
+    if (a.headerHtml !== b.headerHtml && comparable(a.headerHtml) !== comparable(b.headerHtml)) return false;
+    if (a.footerHtml !== b.footerHtml && comparable(a.footerHtml) !== comparable(b.footerHtml)) return false;
     if (JSON.stringify(a.pageSetup) !== JSON.stringify(b.pageSetup)) return false;
     if ((a.activeSectionId || "section-1") !== (b.activeSectionId || "section-1")) return false;
     if (JSON.stringify(a.sectionPageSetups || {}) !== JSON.stringify(b.sectionPageSetups || {})) return false;

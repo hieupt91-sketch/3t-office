@@ -2,7 +2,7 @@ import { NumberFormatter } from "./number-formatter.js";
 import { vndInWords } from "./vnd-words.js";
 
 /**
- * VN Sheet — Enterprise Spreadsheet Formula Calculation Engine
+ * 3T Sheet — Enterprise Spreadsheet Formula Calculation Engine
  * Tương thích 100% cú pháp và hàm tính toán Microsoft Excel & LibreOffice Calc (sc)
  */
 
@@ -1698,6 +1698,10 @@ export class FormulaEngine {
       try {
         // eslint-disable-next-line no-new-func
         const result = Function(`"use strict"; return (${jsExpr})`)();
+        if (!Number.isFinite(result)) {
+          if (resolved.includes("/")) return "#DIV/0!";
+          return "#NUM!";
+        }
         // Store/return full native double precision - Excel itself does the
         // same internally, which is exactly why (1/3)*3 evaluates to a true
         // 1 in real Excel (and in native JS: (1/3)*3 === 1). Rounding here

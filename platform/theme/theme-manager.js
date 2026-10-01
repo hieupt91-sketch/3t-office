@@ -1,5 +1,5 @@
 /**
- * VN Office Platform — Theme Manager
+ * 3T Office Platform — Theme Manager
  */
 
 export class ThemeManager {

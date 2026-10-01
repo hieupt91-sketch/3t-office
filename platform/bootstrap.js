@@ -1,5 +1,5 @@
 /**
- * VN Office Platform — Unified Suite Bootstrap
+ * 3T Office Platform — Unified Suite Bootstrap
  * Khởi tạo Command Bus và UNO Bridge tập trung một lần duy nhất cho toàn bộ Suite.
  * Tuân thủ 01-architecture/SHARED-PLATFORM.md & 00-governance/NON-NEGOTIABLE-RULES.md
  */
@@ -20,7 +20,8 @@ export function resolveLaunchContext(search = "") {
   return Object.freeze({
     appKind,
     singleAppMode: Boolean(appKind && params.get("singleApp") === "1"),
-    openInitialFile: Boolean(appKind && params.get("openFile") === "1")
+    openInitialFile: Boolean(appKind && params.get("openFile") === "1"),
+    documentName: params.get("documentName") || ""
   });
 }
 
@@ -28,7 +29,8 @@ export function configurePlatformLaunchContext(context = {}) {
   _launchContext = Object.freeze({
     appKind: ["writer", "sheet", "slides"].includes(context.appKind) ? context.appKind : null,
     singleAppMode: context.singleAppMode === true,
-    openInitialFile: context.openInitialFile === true
+    openInitialFile: context.openInitialFile === true,
+    documentName: typeof context.documentName === "string" ? context.documentName : ""
   });
   return _launchContext;
 }
@@ -38,7 +40,7 @@ export function getPlatformLaunchContext() {
 }
 
 /**
- * Bootstrap toàn bộ hệ thống VN Office.
+ * Bootstrap toàn bộ hệ thống 3T Office.
  * Đảm bảo chỉ khởi tạo một lần duy nhất khi suite khởi động.
  */
 export async function bootstrapPlatform() {
@@ -51,7 +53,7 @@ export async function bootstrapPlatform() {
     themeManager.init();
     await globalUnoBridge.init();
     _isBootstrapped = true;
-    console.log("[VN Office Platform] Hoàn tất bootstrap suite thành công.");
+    console.log("[3T Office Platform] Hoàn tất bootstrap suite thành công.");
   })();
 
   return _bootstrapPromise;

@@ -1,5 +1,6 @@
 /** Behavioral tests — real row/column insertion for VN Sheet. */
 import { SheetGridController } from "../../apps/sheet/sheet-grid.js";
+import { createSheetGridWithSheets } from "./sheet-test-fixtures.js";
 import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 
@@ -10,7 +11,7 @@ function container() {
 function assert(condition, message) { if (!condition) throw new Error(message); }
 
 function seedGrid() {
-  const grid = new SheetGridController(container());
+  const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
   for (let row = 1; row <= 5; row++) for (const col of ["A", "B", "C"]) grid.setCellValue(col, row, `${col}${row}-old`, false);
   grid.undoStack = [];
   grid.redoStack = [];

@@ -1,5 +1,6 @@
 /** Behavioral tests — Rename / Move-Copy / Protect Sheet for VN Sheet. */
 import { SheetGridController, MAX_SHEET_NAME_LENGTH, INVALID_SHEET_NAME_CHARS } from "../../apps/sheet/sheet-grid.js";
+import { createSheetGridWithSheets } from "./sheet-test-fixtures.js";
 import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
 import { SHEET_RIBBON_TABS } from "../../apps/sheet/sheet-ribbon.js";
 import { SHEET_COMMANDS } from "../../platform/commands/command-definitions.js";
@@ -56,7 +57,7 @@ export async function runSheetRenameMoveProtectTests() {
   });
 
   await test("validateSheetName từ chối trống, trùng, quá dài và ký tự Excel cấm", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     assert(!grid.validateSheetName("").ok, "Tên trống phải lỗi");
     assert(!grid.validateSheetName("   ").ok, "Tên khoảng trắng phải lỗi");
     assert(!grid.validateSheetName("Dự toán chi phí").ok, "Trùng tên mặc định phải lỗi");
@@ -73,7 +74,7 @@ export async function runSheetRenameMoveProtectTests() {
   });
 
   await test("Đổi tên sheet cập nhật công thức tham chiếu trên sheet khác", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     grid.setCellValue("A", 1, 25, false);
     grid.switchSheet("Kế hoạch Q3");
     grid.setCellValue("B", 2, "='Dự toán chi phí'!A1", false);
@@ -88,7 +89,7 @@ export async function runSheetRenameMoveProtectTests() {
   });
 
   await test("Đổi tên cập nhật named range và nguồn Pivot; chuỗi trong dấu nháy kép không đổi", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     grid.saveNamedRange({ name: "DonGia", ref: "A1", scope: "workbook", sheet: "Dự toán chi phí" });
     grid.pivotTablesBySheet["Kế hoạch Q3"] = [{ id: "p1", sourceSheet: "Dự toán chi phí", targetSheet: "Kế hoạch Q3" }];
     grid.switchSheet("Nhân sự");
@@ -100,7 +101,7 @@ export async function runSheetRenameMoveProtectTests() {
   });
 
   await test("Undo/Redo đổi tên dùng stack hiện có và khôi phục công thức", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     grid.switchSheet("Kế hoạch Q3");
     grid.setCellValue("A", 1, "='Dự toán chi phí'!A1", false);
     grid.renameSheet("Dự toán chi phí", "BaoCao");
@@ -114,7 +115,7 @@ export async function runSheetRenameMoveProtectTests() {
   });
 
   await test("Di chuyển tab: chèn trước một sheet hoặc chuyển đến cuối", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     const first = grid.sheets[0];
     const last = grid.sheets[2];
     assert(grid.moveSheet(first, last) === true, "moveSheet trước sheet cuối");
@@ -127,7 +128,7 @@ export async function runSheetRenameMoveProtectTests() {
   });
 
   await test("Sao chép trang tính nhân bản dữ liệu, định dạng, Page Setup và đặt tên (2)", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     const source = grid.activeSheet;
     grid.setCellValue("A", 1, 42, false);
     grid.setCellValue("B", 1, "hello", false);
@@ -153,7 +154,7 @@ export async function runSheetRenameMoveProtectTests() {
     const originalDocument = globalThis.document;
     globalThis.document = undefined;
     try {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     grid.setCellValue("A", 1, "ok", false);
     assert(grid.protectSheet({ password: "secret" }) === true, "protectSheet");
     assert(grid.isSheetProtected() === true, "isSheetProtected");
@@ -171,7 +172,7 @@ export async function runSheetRenameMoveProtectTests() {
   });
 
   await test("Adapter handleDispatch rename / move / protect", async () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     const adapter = new SheetAdapter(grid);
     const old = grid.activeSheet;
     assert(await adapter.handleDispatch(".uno:RenameTable", { newName: "DispatchTen" }, "sheet.sheet.rename"), "dispatch rename");

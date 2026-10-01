@@ -83,7 +83,7 @@ def _generate_prime(bits: int, exponent: int = PUBLIC_EXPONENT) -> int:
 
 def generate_rsa_key(bits: int = 3072) -> dict[str, int]:
     if bits != 3072:
-        raise ValueError("VN Office release keys must be exactly 3072 bits")
+        raise ValueError("3T Office release keys must be exactly 3072 bits")
     half = bits // 2
     while True:
         p = _generate_prime(half)

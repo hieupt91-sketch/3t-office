@@ -1,5 +1,5 @@
 /**
- * VN Office — VN Writer Page Decorations (Hình mờ & Viền trang)
+ * 3T Office — 3T Doc Page Decorations (Hình mờ & Viền trang)
  * Hộp thoại và tiện ích cấu hình Watermark & Page Border chuẩn Word
  */
 
@@ -37,7 +37,7 @@ export const PAGE_BORDER_WIDTHS = [
 ];
 
 export const PAGE_BORDER_COLORS = [
-  { label: "Xanh VN Office", value: "#0f4c81" },
+  { label: "Xanh 3T Office", value: "#0f4c81" },
   { label: "Đen than", value: "#1e293b" },
   { label: "Xám trung tính", value: "#64748b" },
   { label: "Đỏ hành chính", value: "#dc2626" },
@@ -395,7 +395,7 @@ export async function showPageBorderDialog(currentBorder = null) {
       6: isEn ? "6 pt (Extra Thick)" : "6 pt (Rất đậm)"
     };
     const colorLabelMap = {
-      "#0f4c81": isEn ? "VN Office Blue" : "Xanh VN Office",
+      "#0f4c81": isEn ? "3T Office Blue" : "Xanh 3T Office",
       "#1e293b": isEn ? "Charcoal" : "Đen than",
       "#64748b": isEn ? "Neutral Gray" : "Xám trung tính",
       "#dc2626": isEn ? "Official Red" : "Đỏ hành chính",

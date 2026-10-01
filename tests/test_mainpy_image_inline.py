@@ -12,6 +12,7 @@ import os
 import re
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
@@ -39,6 +40,28 @@ def _data_uri_payload(html_text: str, mime: str = "image/png") -> bytes:
     prefix = f"data:{mime};base64,"
     encoded = match.group(1)[len(prefix) :]
     return base64.b64decode(encoded)
+
+
+def _write_minimal_ooxml(path: Path, app_kind: str) -> None:
+    main_part = {
+        "writer": (
+            "word/document.xml",
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body/></w:document>',
+        ),
+        "sheet": (
+            "xl/workbook.xml",
+            '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"/>',
+        ),
+    }[app_kind]
+    with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as package:
+        package.writestr("[Content_Types].xml", "<Types/>")
+        package.writestr(
+            "_rels/.rels",
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            f'<Relationship Id="rId1" Target="{main_part[0]}" Type="http://schemas.openxmlformats.org/'
+            'officeDocument/2006/relationships/officeDocument"/></Relationships>',
+        )
+        package.writestr(*main_part)
 
 
 class InlineHtmlImagesUnitTests(unittest.TestCase):
@@ -160,7 +183,6 @@ class InlineHtmlImagesUnitTests(unittest.TestCase):
 class OpenDocumentDialogInlineTests(unittest.TestCase):
     def test_writer_inlines_sidecar_before_tempdir_is_deleted(self):
         captured = {}
-        api = main.VnOfficeApi("writer", r"C:\Tai lieu\sample-writer-image.docx")
 
         def fake_convert(src_path, target_ext, out_dir, app_kind=None):
             self.assertEqual((target_ext, app_kind), ("html", "writer"))
@@ -175,8 +197,12 @@ class OpenDocumentDialogInlineTests(unittest.TestCase):
             captured["png_path"] = str(png_path)
             return str(html_path)
 
-        with patch.object(main, "_run_soffice_convert", side_effect=fake_convert):
-            result = api.open_document_dialog("writer")
+        with tempfile.TemporaryDirectory(prefix="vno_inline_writer_source_") as tmp:
+            source_path = Path(tmp) / "sample-writer-image.docx"
+            _write_minimal_ooxml(source_path, "writer")
+            api = main.VnOfficeApi("writer", str(source_path))
+            with patch.object(main, "_run_soffice_convert", side_effect=fake_convert):
+                result = api.open_document_dialog("writer")
 
         self.assertEqual(result["status"], "ok")
         self.assertEqual(result["format"], "html")
@@ -187,8 +213,6 @@ class OpenDocumentDialogInlineTests(unittest.TestCase):
         self.assertFalse(os.path.exists(captured["png_path"]))
 
     def test_sheet_open_does_not_inline_html_images(self):
-        api = main.VnOfficeApi("sheet", r"C:\Tai lieu\bang.xlsx")
-
         def fake_convert(src_path, target_ext, out_dir, app_kind=None):
             self.assertEqual((target_ext, app_kind), ("fods", "sheet"))
             output = Path(out_dir) / "bang.fods"
@@ -199,8 +223,12 @@ class OpenDocumentDialogInlineTests(unittest.TestCase):
             )
             return str(output)
 
-        with patch.object(main, "_run_soffice_convert", side_effect=fake_convert):
-            result = api.open_document_dialog("sheet")
+        with tempfile.TemporaryDirectory(prefix="vno_inline_sheet_source_") as tmp:
+            source_path = Path(tmp) / "bang.xlsx"
+            _write_minimal_ooxml(source_path, "sheet")
+            api = main.VnOfficeApi("sheet", str(source_path))
+            with patch.object(main, "_run_soffice_convert", side_effect=fake_convert):
+                result = api.open_document_dialog("sheet")
 
         self.assertEqual(result["status"], "ok")
         self.assertIn("sidecar.png", result["content"])

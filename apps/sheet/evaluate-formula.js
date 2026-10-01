@@ -1,5 +1,5 @@
 /**
- * VN Sheet — Evaluate Formula stepper.
+ * 3T Sheet — Evaluate Formula stepper.
  *
  * FormulaEngine.evaluate() chỉ trả kết quả cuối (hàm lồng nhau được
  * _resolveSingleValue gọi đệ quy). Module này không viết lại engine:
@@ -263,6 +263,20 @@ function findArithmeticSpan(expr) {
     if (findAllFunctions(token).length) continue;
     if (findComparisonSpan(token)) continue;
     if (/[+\-*/^]/.test(token) && /[A-Z0-9)]/i.test(token)) {
+      const subSpan = findPrecedenceSpan(token);
+      if (subSpan) {
+        let start = arg.start;
+        const raw = String(expr).slice(arg.start, arg.end);
+        const lead = raw.match(/^\s*/)?.[0].length || 0;
+        start += lead + subSpan.start;
+        return {
+          start,
+          end: start + subSpan.length,
+          text: subSpan.text,
+          kind: "arithmetic"
+        };
+      }
+      // Fallback: whole token if no precedence span found
       let start = arg.start;
       const raw = String(expr).slice(arg.start, arg.end);
       const lead = raw.match(/^\s*/)?.[0].length || 0;
@@ -277,6 +291,85 @@ function findArithmeticSpan(expr) {
     }
   }
   return null;
+}
+
+function findPrecedenceSpan(expr) {
+  // Tìm phép toán có độ ưu tiên cao nhất, trái sang phải
+  // ^ (exponentiation) > */ > +-
+  // Duyệt trái -> phải, tìm phép toán ở độ ưu tiên cao nhất
+  const text = String(expr || "");
+  let inQuotes = false;
+  let parenDepth = 0;
+
+  // Mảng lưu các phép toán tìm thấy: { pos, op, precedence, leftStart, rightEnd }
+  const operations = [];
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === '"') {
+      inQuotes = !inQuotes;
+      continue;
+    }
+    if (inQuotes) continue;
+    if (ch === "(") { parenDepth++; continue; }
+    if (ch === ")") { parenDepth = Math.max(0, parenDepth - 1); continue; }
+    if (parenDepth !== 0) continue;
+
+    let precedence = 0;
+    let op = null;
+    if (ch === "^") { precedence = 3; op = "^"; }
+    else if (ch === "*" || ch === "/") { precedence = 2; op = ch; }
+    else if (ch === "+" || ch === "-") {
+      // Phân biệt unary minus và binary minus
+      const prev = text.slice(0, i).trimRight().slice(-1);
+      if (i === 0 || prev === "(" || prev === "+" || prev === "-" || prev === "*" || prev === "/" || prev === "^" || prev === "," || prev === ";") {
+        continue; // unary minus, bỏ qua
+      }
+      precedence = 1; op = ch;
+    }
+    if (!op) continue;
+
+    // Tìm operand trái
+    let leftStart = i - 1;
+    while (leftStart >= 0 && text[leftStart] === " ") leftStart--;
+    const leftEnd = leftStart;
+    while (leftStart >= 0) {
+      const c = text[leftStart];
+      if (c === " " || /[A-Za-z0-9_$)]/.test(c)) { leftStart--; continue; }
+      if (c === "(") break;
+      break;
+    }
+    leftStart++;
+
+    // Tìm operand phải
+    let rightStart = i + 1;
+    while (rightStart < text.length && text[rightStart] === " ") rightStart++;
+    let rightEnd = rightStart;
+    let pDepth = 0;
+    let rInQuotes = false;
+    while (rightEnd < text.length) {
+      const c = text[rightEnd];
+      if (c === '"') { rInQuotes = !rInQuotes; rightEnd++; continue; }
+      if (rInQuotes) { rightEnd++; continue; }
+      if (c === "(") { pDepth++; rightEnd++; continue; }
+      if (c === ")") { if (pDepth === 0) break; pDepth--; rightEnd++; continue; }
+      if (pDepth === 0 && (c === "+" || c === "-" || c === "*" || c === "/" || c === "^" || c === "," || c === ";")) break;
+      rightEnd++;
+    }
+
+    operations.push({ pos: i, op, precedence, leftStart, rightEnd, text: text.slice(leftStart, rightEnd).trim() });
+  }
+
+  if (!operations.length) return null;
+
+  // Chọn phép toán có precedence cao nhất, nếu bằng nhau lấy trái nhất
+  let best = operations[0];
+  for (const op of operations) {
+    if (op.precedence > best.precedence || (op.precedence === best.precedence && op.pos < best.pos)) {
+      best = op;
+    }
+  }
+  return { start: best.leftStart, end: best.rightEnd, text: best.text, length: best.rightEnd - best.leftStart };
 }
 
 function offsetSpan(span, delta) {

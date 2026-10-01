@@ -1,5 +1,5 @@
 /**
- * VN Office AI — Consent Manager
+ * Trợ lý 3T AI — Consent Manager
  * Quản lý sự đồng ý của người dùng trước khi nội dung tài liệu được gửi cho một
  * AI Provider chạy ngoài tiến trình trình duyệt (vd: Ollama cục bộ qua HTTP).
  * Mặc định TẮT — không có nội dung nào rời khỏi luồng xử lý JS nếu người dùng

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VN Office — Bộ Ứng Dụng Văn Phòng Việt</title>
+  <title>3T Office — Bộ Ứng Dụng Văn Phòng Việt</title>
   <link rel="icon" id="vno-favicon" href="branding/icons/vnoffice.ico" type="image/x-icon">
   
   <!-- Phông chữ Tiếng Việt chuẩn quốc gia -->
@@ -91,12 +91,13 @@
     // Khởi tạo theme (Light/Dark từ localStorage)
     themeManager.init();
 
-    // Bootstrap suite tập trung một lần duy nhất rồi khởi động VN Writer
+    // Bootstrap suite tập trung một lần duy nhất rồi khởi động 3T Doc
     await bootstrapPlatform();
     const initialApp = launchContext.appKind || "writer";
     await switchApp(initialApp, {
       singleApp: launchContext.singleAppMode,
       templateId: "blank",
+      documentName: launchContext.documentName || undefined,
       openInitialFile: launchContext.openInitialFile
     });
     await errorReportingUI.initialize();

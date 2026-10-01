@@ -39,7 +39,8 @@ LO_MASTER_XML = (
 
 LO_PRESENTATION_XML = (
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-    '<p:presentation xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">'
+    '<p:presentation xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" '
+    'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
     '<p:sldIdLst><p:sldId id="256" r:id="rId2"/></p:sldIdLst>'
     '<p:sldSz cx="10080625" cy="5670550"/>'
     "</p:presentation>"

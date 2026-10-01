@@ -1,4 +1,5 @@
 import { SheetGridController } from "../../apps/sheet/sheet-grid.js";
+import { createSheetGridWithSheets } from "./sheet-test-fixtures.js";
 import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { SHEET_COMMANDS } from "../../platform/commands/command-definitions.js";
@@ -19,7 +20,7 @@ export async function runSheetArrayFormulaTests() {
   const test = async (name, fn) => { try { await fn(); results.push({ name, pass: true }); } catch (error) { results.push({ name, pass: false, error: error.message }); } };
 
   await test("Cross-sheet: SUM sheet có khoảng trắng trả đúng tổng và recalc khi nguồn đổi", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     grid.switchSheet("Kế hoạch Q3");
     [1, 2, 3, 4, 5].forEach((value, index) => grid.setCellValue("A", index + 1, value, false));
     grid.switchSheet("Dự toán chi phí");
@@ -31,7 +32,7 @@ export async function runSheetArrayFormulaTests() {
   });
 
   await test("Cross-sheet: tham chiếu ô đơn và xóa sheet trả #REF! không crash", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     grid.switchSheet("Kế hoạch Q3"); grid.setCellValue("B", 2, 42, false);
     grid.switchSheet("Dự toán chi phí"); grid.setCellValue("C", 2, "='Kế hoạch Q3'!B2", false);
     assert(numberAt(grid, "Dự toán chi phí", "C2") === 42, "Ô đơn cross-sheet phải bằng 42");
@@ -40,7 +41,7 @@ export async function runSheetArrayFormulaTests() {
   });
 
   await test("Named Range workbook giữ sheet đích khi dùng từ sheet khác", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     grid.switchSheet("Kế hoạch Q3");
     grid.setCellValue("A", 1, 7, false); grid.setCellValue("A", 2, 8, false);
     grid.saveNamedRange({ name: "DoanhThu_Q3", ref: "A1:A2", scope: "workbook" }, false);
@@ -49,7 +50,7 @@ export async function runSheetArrayFormulaTests() {
   });
 
   await test("Array formula: nhân hai vùng điền từng ô và recalc element-wise", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     for (let row = 1; row <= 5; row++) { grid.setCellValue("A", row, row, false); grid.setCellValue("B", row, row + 1, false); }
     grid.undoStack = []; grid.selectionRange = { start: { c: "C", r: 1 }, end: { c: "C", r: 5 } }; grid.selectedCoord = { c: "C", r: 1 };
     assert(grid.enterArrayFormula({ formula: "=A1:A5*B1:B5" }), "Nhập array formula phải thành công");
@@ -60,7 +61,7 @@ export async function runSheetArrayFormulaTests() {
   });
 
   await test("Array formula: một bước Undo/Redo khôi phục nguyên cả vùng", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     for (let row = 1; row <= 5; row++) { grid.setCellValue("A", row, row, false); grid.setCellValue("B", row, 2, false); grid.setCellValue("C", row, `old-${row}`, false); }
     grid.undoStack = []; grid.selectionRange = { start: { c: "C", r: 1 }, end: { c: "C", r: 5 } }; grid.selectedCoord = { c: "C", r: 1 };
     grid.enterArrayFormula({ formula: "=A1:A5+B1:B5" });
@@ -70,13 +71,13 @@ export async function runSheetArrayFormulaTests() {
   });
 
   await test("Array aggregate: SUM(A1:A5*B1:B5) trả một giá trị", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     for (let row = 1; row <= 5; row++) { grid.setCellValue("A", row, row, false); grid.setCellValue("B", row, 2, false); }
     assert(grid.formulaEngine.evaluateArray("=SUM(A1:A5*B1:B5)") === 30, "SUMPRODUCT-style phải bằng 30");
   });
 
   await test("Xóa một ô thuộc array formula xóa cả vùng trong một bước undo", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     for (let row = 1; row <= 3; row++) grid.setCellValue("A", row, row, false);
     grid.selectionRange = { start: { c: "C", r: 1 }, end: { c: "C", r: 3 } }; grid.selectedCoord = { c: "C", r: 1 };
     grid.enterArrayFormula({ formula: "=A1:A3+10" }); grid.undoStack = [];
@@ -89,13 +90,13 @@ export async function runSheetArrayFormulaTests() {
     const command = SHEET_COMMANDS.find(item => item.id === "sheet.formula.arrayEnter");
     assert(command?.shortcut === "Ctrl+Shift+Enter" && command.icon, "Command phải có shortcut và icon thật");
     assert(viStrings.commands[command.id]?.label && viStrings.commands[command.id]?.tooltip && enStrings.commands[command.id]?.label && enStrings.commands[command.id]?.tooltip, "Phải có i18n song ngữ");
-    const grid = new SheetGridController(container()); grid.selectionRange = { start: { c: "C", r: 1 }, end: { c: "C", r: 1 } }; grid.selectedCoord = { c: "C", r: 1 };
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]); grid.selectionRange = { start: { c: "C", r: 1 }, end: { c: "C", r: 1 } }; grid.selectedCoord = { c: "C", r: 1 };
     const adapter = new SheetAdapter(grid); adapter.attach();
     assert(await adapter.handleDispatch(null, { formula: "=1+2" }, command.id), "handleDispatch phải xử lý command thật");
     assert(await globalCommandBus.execute(command.id, { formula: "=2+3" }), "bindHandler phải xử lý command thật");
   });
   await test("Array formula: FODS matrix spans round-trip và loadFromFods khôi phục toàn vùng", () => {
-    const grid = new SheetGridController(container());
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     for (let row = 1; row <= 3; row++) {
       grid.setCellValue("A", row, row, false);
       grid.setCellValue("B", row, 10, false);
@@ -112,7 +113,7 @@ export async function runSheetArrayFormulaTests() {
     assert([1, 2, 3].every(row => parsed.sheetsData[sheet].get(`C${row}`)?.isArrayFormula), "Parser không khôi phục metadata toàn vùng");
     assert(parsed.sheetsData[sheet].get("C2")?.arrayRange === "C1:C3", "Parser khôi phục sai arrayRange");
 
-    const loaded = new SheetGridController(container());
+    const loaded = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     assert(new SheetAdapter(loaded).loadFromFods(xml), "loadFromFods thất bại");
     assert(loaded.sheetsData[sheet].get("C3")?.formula === "=A1:A3*B1:B3", "loadFromFods không khôi phục array formula");
   });

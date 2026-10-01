@@ -1,5 +1,5 @@
 /**
- * VN Office — VN Writer Illustrations Module
+ * 3T Office — 3T Doc Illustrations Module
  * Cung cấp chức năng Hình khối (Shapes), Sơ đồ (SmartArt-like Diagrams) và Biểu đồ (Charts)
  */
 

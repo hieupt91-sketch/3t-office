@@ -1,5 +1,5 @@
 /**
- * VN Office — Number Formatter for VN Sheet
+ * 3T Office — Number Formatter for 3T Sheet
  * Xử lý định dạng hiển thị giá trị ô theo chuẩn Microsoft Excel & LibreOffice Calc
  * Hỗ trợ đầy đủ các Category: General, Number, Currency, Accounting, Date, Percentage, Text, Custom.
  */

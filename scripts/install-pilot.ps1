@@ -1,7 +1,7 @@
-# Install (or uninstall) a VN Office pilot package for the current Windows user. No admin rights needed.
+# Install (or uninstall) a 3T Office pilot package for the current Windows user. No admin rights needed.
 # Run from the unpacked package folder:  powershell -ExecutionPolicy Bypass -File install-pilot.ps1 [-Uninstall] [-NoDesktopShortcuts] [-NoLibreOfficeWarmup]
-# Installs to %LOCALAPPDATA%\VNOffice\app-install, creates Start Menu (+ Desktop) shortcuts for VN Writer / VN Sheet / VN Slides.
-# Does NOT change file associations, so Microsoft Office keeps opening documents by default during the pilot.
+# Installs to %LOCALAPPDATA%\VNOffice\app-install, creates Start Menu (+ Desktop) shortcuts for 3T Doc / 3T Sheet / 3T Slide.
+# Does NOT change file associations, so existing default apps continue opening documents during the pilot.
 # ASCII only: Windows PowerShell 5.1 reads BOM-less scripts in the ANSI code page.
 param(
     [switch]$Uninstall,
@@ -12,19 +12,34 @@ param(
 
 $ErrorActionPreference = "Stop"
 $source = $PSScriptRoot
-$startMenu = Join-Path ([Environment]::GetFolderPath("Programs")) "VN Office"
+$startMenu = Join-Path ([Environment]::GetFolderPath("Programs")) "3T Office"
+$legacyStartMenu = Join-Path ([Environment]::GetFolderPath("Programs")) "VN Office"
 $desktop = [Environment]::GetFolderPath("Desktop")
 $apps = @(
-    @{ Id = "writer"; Name = "VN Writer" },
-    @{ Id = "sheet"; Name = "VN Sheet" },
-    @{ Id = "slides"; Name = "VN Slides" }
+    @{ Id = "writer"; Name = "3T Doc" },
+    @{ Id = "sheet"; Name = "3T Sheet" },
+    @{ Id = "slides"; Name = "3T Slide" }
 )
 
 function Remove-Shortcuts {
+    $legacyShortcutNames = @("VN Writer", "VN Sheet", "VN Slides", "Go cai dat VN Office")
+    foreach ($menuFolder in @($legacyStartMenu, $startMenu)) {
+        foreach ($shortcutName in $legacyShortcutNames) {
+            $legacyLink = Join-Path $menuFolder "$shortcutName.lnk"
+            if (Test-Path -LiteralPath $legacyLink) { Remove-Item -LiteralPath $legacyLink -Force }
+        }
+    }
     if (Test-Path -LiteralPath $startMenu) { Remove-Item -LiteralPath $startMenu -Recurse -Force }
+    if ((Test-Path -LiteralPath $legacyStartMenu) -and -not (Get-ChildItem -LiteralPath $legacyStartMenu -Force | Select-Object -First 1)) {
+        Remove-Item -LiteralPath $legacyStartMenu -Force
+    }
     foreach ($app in $apps) {
         $link = Join-Path $desktop "$($app.Name).lnk"
         if (Test-Path -LiteralPath $link) { Remove-Item -LiteralPath $link -Force }
+    }
+    foreach ($legacyName in @("VN Writer", "VN Sheet", "VN Slides")) {
+        $legacyLink = Join-Path $desktop "$legacyName.lnk"
+        if (Test-Path -LiteralPath $legacyLink) { Remove-Item -LiteralPath $legacyLink -Force }
     }
 }
 
@@ -32,7 +47,7 @@ if ($Uninstall) {
     Get-Process pythonw -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$InstallDir*" } | Stop-Process -Force
     Remove-Shortcuts
     if (Test-Path -LiteralPath $InstallDir) { Remove-Item -LiteralPath $InstallDir -Recurse -Force }
-    Write-Host "Da go VN Office (ban thu nghiem). Du lieu cai dat/bao loi trong %APPDATA%\VNOffice duoc giu lai."
+    Write-Host "Da go 3T Office (ban thu nghiem). Du lieu cai dat/bao loi trong %APPDATA%\VNOffice duoc giu lai."
     return
 }
 
@@ -51,9 +66,9 @@ if (-not ($webView2Keys | Where-Object { Test-Path $_ })) {
 }
 
 $running = Get-Process pythonw -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$InstallDir*" }
-if ($running) { throw "VN Office dang chay. Hay dong tat ca cua so VN Writer/Sheet/Slides roi cai lai." }
+if ($running) { throw "3T Office dang chay. Hay dong tat ca cua so 3T Doc/3T Sheet/3T Slide roi cai lai." }
 
-Write-Host "Dang chep VN Office vao $InstallDir (co the mat vai phut)..."
+Write-Host "Dang chep 3T Office vao $InstallDir (co the mat vai phut)..."
 $staging = "$InstallDir.new"
 if (Test-Path -LiteralPath $staging) { Remove-Item -LiteralPath $staging -Recurse -Force }
 # Skip only package archives lying next to this script: a bare /XF *.zip also dropped LibreOffice's
@@ -76,7 +91,7 @@ if (-not $NoLibreOfficeWarmup) {
     & $warmupPython -s -E $mainScript --warmup-libreoffice-profiles
     $warmupExitCode = $LASTEXITCODE
     if ($warmupExitCode -ne 0) {
-        Write-Warning "LibreOffice profile warm-up did not finish. VN Office will try again in the background when it starts."
+        Write-Warning "LibreOffice profile warm-up did not finish. 3T Office will try again in the background when it starts."
     }
 }
 
@@ -92,14 +107,14 @@ foreach ($app in $apps) {
         $link.Arguments = "-s -E `"$(Join-Path $InstallDir 'app\main.py')`" --app=$($app.Id)"
         $link.WorkingDirectory = Join-Path $InstallDir "app"
         $link.IconLocation = Join-Path $InstallDir "icons\$($app.Id).ico"
-        $link.Description = "$($app.Name) - VN Office (ban thu nghiem)"
+        $link.Description = "$($app.Name) - 3T Office (ban thu nghiem)"
         $link.Save()
     }
 }
-$uninstallLink = $shell.CreateShortcut((Join-Path $startMenu "Go cai dat VN Office.lnk"))
+$uninstallLink = $shell.CreateShortcut((Join-Path $startMenu "Go cai dat 3T Office.lnk"))
 $uninstallLink.TargetPath = "powershell.exe"
 $uninstallLink.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $InstallDir 'install-pilot.ps1')`" -Uninstall"
 $uninstallLink.Save()
 
 $version = Get-Content -LiteralPath (Join-Path $InstallDir "VERSION.txt") -ErrorAction SilentlyContinue
-Write-Host "Da cai VN Office $version. Mo VN Writer / VN Sheet / VN Slides tu Start Menu hoac Desktop."
+Write-Host "Da cai 3T Office $version. Mo 3T Doc / 3T Sheet / 3T Slide tu Start Menu hoac Desktop."
