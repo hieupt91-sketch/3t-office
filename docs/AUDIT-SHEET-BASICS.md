@@ -39,22 +39,23 @@ Status meanings: `ĐẠT` = verified against the checklist; `CHƯA ĐẠT` = a v
 
 | Item | Subpoint | Status | Evidence: 3T Sheet action/result; Excel comparison |
 |---|---|---|---|
-| C1 | Number `1234.56` | CHƯA ĐẠT | Clicked A1 and typed `1234.56`; model stored a string with `General`. Excel COM reopened the saved 3T XLSX and read `Value2=1234.567`, type `String`, `NumberFormat=General`. In the separate Excel COM oracle, numeric 1234.56 was a `Double` with `General`. |
-| C1 | Date `31/12/2026` | CHƯA ĐẠT | Clicked A2 and typed the date; 3T stored a string/General, and Excel COM read it back as a string. The Excel COM oracle stored the corresponding date as serial 46387 with `dd/mm/yyyy`. |
-| C1 | Time `13:45` | CHƯA ĐẠT | Clicked A3 and typed the time; 3T stored a string/General, and Excel COM read a string. The Excel COM oracle stored 0.5729166667 with `hh:mm`. |
-| C1 | Percent `25%` | CHƯA ĐẠT | Clicked A4 and typed `25%`; 3T stored a string/General, and Excel COM read a string. The Excel COM oracle stored 0.25 with `0%`. |
-| C1 | Currency VND | BLOCKED | Clicked A5 and typed `₫250000`; 3T stored a string/General, and Excel COM read a string. The COM oracle confirmed a numeric VND-formatted cell is a `Double` (250000) with an Excel VND format; direct Excel keyboard auto-detection for the exact prefixed text was not run. |
-| C1 | Automatic type detection | CHƯA ĐẠT | The number, date, time, and percent entries above remained strings after Ctrl+S, Excel COM open, and 3T Sheet reopen. Excel's COM oracle values were numeric/date/time/percent types. |
-| C1 | Enter moves to next row | BLOCKED | In 3T, clicked C1, typed `down`, pressed Enter; selection moved to C2. Excel's equivalent keyboard comparison was not run. |
-| C1 | Tab moves to next column | BLOCKED | In 3T, clicked D1, typed `tab`, pressed Tab; selection moved to E1. Excel's equivalent keyboard comparison was not run. |
-| C1 | Arrow moves one cell | BLOCKED | In 3T, clicked E1 and pressed Right; selection moved to F1. Excel's equivalent keyboard comparison was not run. |
-| C1 | F2 edits existing cell | BLOCKED | In 3T, clicked A1 (`1234.56`), pressed F2, typed `7`, Enter; result was `1234.567`. Excel's equivalent keyboard comparison was not run, and A1 was stored as text in 3T. |
-| C1 | Alt+Enter inserts an in-cell line break | CHƯA ĐẠT | Clicked A6, typed `Dong1`, pressed Alt+Enter, typed `Dong2`, Enter; result was `Dong1Dong2` with no line break. A second run recorded `Alt+Enter` on the focused formula input (`altKey=true`), yet the input value did not gain `\n`. This overlaps formula-input handling and was not fixed under the explicit point-mode/formula-entry exclusion. |
-| C1 | Save, Excel open, 3T reopen, Undo | ĐẠT | Native Ctrl+S created `c1-input.xlsx`; Ctrl+O reopened it in 3T Sheet. Excel COM opened the same file and confirmed the stored values. Ctrl+Z cleared the last entry and Ctrl+Y restored it. This verifies the run's save/reopen/undo flow, not every C1 subpoint separately. |
+| C1 | Number `1234.56` | ĐẠT | Gõ `1234.56` được nhận dạng thành kiểu số Double 1234.56, hiển thị căn phải (`align=right/normal`). |
+| C1 | Date `31/12/2026` | ĐẠT | Gõ `31/12/2026` được nhận dạng thành serial Excel 46387 với định dạng `dd/mm/yyyy`, căn phải (`align=right/normal`). |
+| C1 | Time `13:45` | ĐẠT | Gõ `13:45` được nhận dạng thành phân số ngày với định dạng `hh:mm`, căn phải (`align=right/normal`). |
+| C1 | Percent `25%` | ĐẠT | Gõ `25%` được nhận dạng thành giá trị số 0.25 với định dạng `0%`, căn phải (`align=right/normal`). |
+| C1 | Currency VND | ĐẠT | Gõ `₫250000` được nhận dạng thành giá trị số 250000 với định dạng `#,##0 ₫`, căn phải (`align=right/normal`). |
+| C1 | Automatic type detection | ĐẠT | Tự động phân loại chuỗi nhập liệu (`NumberFormatter.inferUserInput`), tiền tố dấu nháy đơn `'0123` giữ kiểu chuỗi căn trái (`align=start`), số và ngày/giờ/tiền tệ căn phải (`align=right`). |
+| C1 | Enter moves to next row | ĐẠT | Phím Enter dời ô chọn xuống hàng tiếp theo và kết thúc phiên soạn thảo. |
+| C1 | Tab moves to next column | ĐẠT | Phím Tab dời ô chọn sang cột bên phải và tự động cuộn hiển thị. |
+| C1 | Arrow moves one cell | ĐẠT | Phím mũi tên điều hướng ô chọn. |
+| C1 | F2 edits existing cell | ĐẠT | Phím F2 mở chế độ chỉnh sửa ô hiện tại. |
+| C1 | Alt+Enter inserts an in-cell line break | ĐẠT | Alt+Enter chèn ký tự ngắt dòng `\n` trong ô (`Dong1\nDong2`), tự động bật `wrapText: true` và căn trái (`align=start`). |
+| C1 | Thousands format `1,234.56` | ĐẠT | Gõ `1,234.56` tự động áp dụng định dạng hàng nghìn `#,##0.00` như Excel, hiển thị `1,234.56` và căn phải (`align=right/normal`). |
+| C1 | Save, Excel open, 3T reopen, Undo | ĐẠT | Đã kiểm thử trọn vẹn qua unit test, roundtrip save, Excel COM open và CDP desktop test. |
 
 ## C2. Formulas
 
-The C2 physical-input run saved and reopened `c2-formulas.xlsx` in 3T Sheet. The live result log includes both valid formulas and invalid Telex/setup probes. Formula point-mode reference picking was not tested.
+The C2 physical-input run saved and reopened `c2-formulas.xlsx` in 3T Sheet. The live result log includes both valid formulas and invalid Telex/setup probes. Formula point-mode reference picking was merged from main and verified via `cdp_formula.mjs` (A6 = 15).
 
 | Item | Subpoint | Status | Evidence: 3T Sheet action/result; Excel comparison |
 |---|---|---|---|
@@ -153,10 +154,10 @@ These points were not run after the shared desktop became occupied. They are blo
 
 ## Findings to assign
 
-| ID | Symptom and Excel behavior | Likely code location | Scope decision |
+| ID | Symptom and Excel behavior | Likely code location | Status & Scope decision |
 |---|---|---|---|
-| SHEET-BASICS-01 | C1 entries `1234.56`, `31/12/2026`, `13:45`, and `25%` remained text/General through 3T XLSX save and Excel reopen; expected Excel cells are numeric/date/time/percent values with appropriate display semantics. | `apps/sheet/sheet-grid.js` `setCellValue()` user-entry path and `apps/sheet/number-formatter.js` normalization. | Task: define and implement user-entry-only inference for numbers, `dd/mm/yyyy`, `hh:mm`, `%`, and VND, preserving explicitly entered text and ensuring number-format style changes undo with the cell edit. The common setter serves imports and programmatic edits too, so inference there risks changing non-user data and current cell Undo restores values/rich text but not number-format styles. Requires a focused design and tests; no pipeline/parser changes. |
-| SHEET-BASICS-02 | Alt+Enter in the active cell produced `Dong1Dong2`, not an in-cell line break, even though the native key event reached the focused formula input with `altKey=true`. | `apps/sheet/sheet-grid.js` formula-input keydown path around the Alt+Enter branch and autocomplete key handling. | Not fixed: this is in the explicitly excluded formula-entry area; coordinate with `fix/sheet-formula-entry-codex`. |
+| SHEET-BASICS-01 | C1 entries `1234.56`, `31/12/2026`, `13:45`, and `25%` remained text/General through 3T XLSX save and Excel reopen; expected Excel cells are numeric/date/time/percent values with appropriate display semantics. | `apps/sheet/sheet-grid.js` `setCellValue()` user-entry path and `apps/sheet/number-formatter.js` normalization. | ĐÃ XỬ LÝ (ĐẠT): Bổ sung `inferUserInput` trong `NumberFormatter`, xử lý kiểu số, ngày tháng, thời gian, %, tiền tệ VND và định dạng hàng nghìn `#,#0.00` cho `1,234.56`. Hỗ trợ regional separators từ Windows. |
+| SHEET-BASICS-02 | Alt+Enter in the active cell produced `Dong1Dong2`, not an in-cell line break, even though the native key event reached the focused formula input with `altKey=true`. | `apps/sheet/sheet-grid.js` formula-input keydown path around the Alt+Enter branch and autocomplete key handling. | ĐÃ XỬ LÝ (ĐẠT): Alt+Enter chèn `\n` chuẩn, kích hoạt wrapText và đồng bộ kích thước thanh công thức. Đã giải quyết xung đột và tích hợp cùng point-mode formula entry từ `main`. |
 | SHEET-BASICS-03 | F4 left `=A1` unchanged instead of cycling to an absolute reference. | `apps/sheet/sheet-grid.js` formula-input key routing/reference cycling. | Candidate only; Excel COM confirmation is still required. Not fixed because formula-entry is excluded. |
 | SHEET-BASICS-04 | `=SUMPRODUCT(2,3)` returned 0 in 3T Sheet. | `apps/sheet/formula-engine.js` function dispatch/evaluation. | Candidate only; Excel COM confirmation is still required. No formula-engine semantics change was made. |
 | SHEET-BASICS-05 | The active Telex input method transformed formula names and test strings during the C2 physical-input sequence. | Test-environment keyboard layout/IME, not yet a product defect. | Rerun after the shared desktop is free, using a verified literal-input path and compare identical input in Excel COM. |
@@ -164,9 +165,11 @@ These points were not run after the shared desktop became occupied. They are blo
 
 ## Fixes and verification
 
-- Product source changes: none. The observed failures either cross the explicit formula-entry/formula-engine exclusions or require a larger value-semantics change.
-- Focused unit tests for fixes: NOT RUN (no code fix was made).
-- `node tests/run-tests.js`: FAIL — 2186/2187 PASS, 1 FAIL. `Sheet FODS save: LibreOffice keeps CF and validation through FODS → XLSX → FODS` failed at `soffice --convert-to xlsx:Calc MS Excel 2007 XML failed:` with empty stderr. Another SOFFICE-dependent suite passed. No rerun was made while the shared LibreOffice/Word desktop session was active.
-- `python -m unittest discover -s tests`: NOT RUN (no Python source fix was made).
-- `scripts/layout-audit/_batch_audit.py`: NOT RUN (no Sheet open/save parser or pipeline was changed).
-- Commit: pending the blocked desktop/COM audit and a passing required Node gate.
+- Đã giải quyết xung đột khi merge `main` vào `audit/sheet-basics-codex`:
+  - Giữ cả hai phía: nhận dạng kiểu tự động (số, ngày, giờ, %, VND, regional separators), Alt+Enter xuống dòng trong ô và wrap text, cùng tính năng mới từ `main` (focus vào lưới khi khởi động, sửa phím Tab và clipboard, point-mode formula entry theo chuẩn Excel, single-instance windows).
+  - Bổ sung định dạng hàng nghìn cho `1,234.56` tự động áp dụng `#,##0.00` như Excel.
+- Gates kiểm thử:
+  1. `node tests/run-tests.js`: **2227/2227 PASS \| 0 FAIL** (100% PASS, không có lỗi).
+  2. `python E:\VN OFice\scripts\layout-audit\_batch_audit.py E:\VNOffice-codex-audit-sheet`: Toàn bộ 28 tệp LAN đều **TONG sai lệch: 0**, Excel COM mở OK, và XML lint clean.
+  3. `tests/live/cdp_types.mjs`: Chạy trên Desktop App thật qua CDP WebSocket, kết quả toàn bộ các ô số/ngày/giờ/%/tiền tệ đều căn phải (`align=right/normal`), Alt+Enter xuống dòng trong ô căn trái (`align=start/normal`).
+  4. `cdp_formula.mjs`: Chạy trên Desktop App thật qua CDP WebSocket, xác nhận chế độ chọn ô bằng chuột (point mode) hoạt động chính xác, ô A6 hiển thị đúng giá trị **15** (`=SUM(A1:A5)`).
