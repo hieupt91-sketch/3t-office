@@ -5,6 +5,7 @@
  */
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { WriterViewController } from "../../apps/writer/writer-view-controller.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { WRITER_COMMANDS } from "../../platform/commands/command-definitions.js";
@@ -103,6 +104,20 @@ export async function runWriterVerticalRulerTests() {
       results.push({ name, pass: false, error: err.stack || err.message });
     }
   };
+
+  await test("Vertical Ruler: stylesheet blocks close so document metrics do not depend on gridlines", () => {
+    // Ignore comments and quoted values: their braces are not CSS block delimiters.
+    const css = readFileSync(new URL("../../apps/writer/writer.css", import.meta.url), "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'/g, "");
+    let depth = 0;
+    for (const char of css) {
+      if (char === "{") depth++;
+      if (char === "}") depth--;
+      assert.ok(depth >= 0, "Unexpected closing CSS block");
+    }
+    assert.equal(depth, 0, "Unclosed CSS block can scope page font/line-height to gridlines");
+  });
 
   await test("Vertical Ruler: Định nghĩa lệnh và chuỗi bản dịch VI/EN thể hiện cả thước ngang và dọc", () => {
     const def = WRITER_COMMANDS.find(c => c.id === "writer.view.ruler");

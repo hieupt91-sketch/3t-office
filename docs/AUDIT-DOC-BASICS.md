@@ -219,3 +219,66 @@ CORE PATCH ID (if any): None.
 NEXT ACTION: Ready for review and merge into main.
 
 **Overall status:** Priority Doc UI/editing gaps DAT. All 2399 automated tests and 554 Python tests PASS.
+
+## Pagination regression check
+
+Date: 2026-10-02. Branch: `fix/doc-gaps-agy`. This check supersedes the earlier layout gate above for the current branch. Only numerical audit results are included; LAN documents and generated outputs remain local and are not committed or uploaded.
+
+**Cause and fix:** `b99d731c` (vertical ruler) removed the closing `}` of `.vno-writer-gridlines .vno-writer-page`. Subsequent document CSS, including imported page font and line-height, became nested under gridlines. With gridlines off, d02 and d03 inherited the UI font instead of `.VnTime` and `Times New Roman`. Page/body widths were unchanged (d02: 793.6875/623.609375 px; d03: 816/664.8125 px). Restoring this single brace restores document metrics while retaining all six features and the vertical ruler. The new block-balance test failed before the fix and passes after it (focused vertical-ruler suite: 7/7).
+
+Commit snapshot bisection used only this worktree, kept the branch pointer unchanged, and restored HEAD after probing. Desktop checks used WebView2 `--remote-debugging-port` + CDP, with font/image readiness and five seconds without pagination updates before status-bar readings. The standard `main.py` launcher did not reach the editor on the historical snapshot; the successful bisect used the same embedded Python-server/WebView2 window as the legacy audit, with all desktop evaluation through CDP.
+
+| Snapshot | d02 canvas | d03 canvas | Result |
+|---|---:|---:|---|
+| HEAD before fix (`8be582ce`) | 8 | 2 | FAIL |
+| `10cc50a6` (parent of first bad commit) | 11 | 1 | PASS |
+| `bce14f74` (spelling suggestions) | 8 | 2 | FAIL |
+| `b99d731c` (vertical ruler, first bad commit) | 8 | 2 | FAIL |
+| HEAD with CSS fix | 11 | 1 | PASS; vertical ruler present |
+
+The full legacy audit ran all 24 files sequentially. It retained the existing bold + `ZZ` insertion + Save As operation, read canvas status through CDP after pagination idle (`_paginating` false, no pending pagination debounce, fonts/images ready, five quiet seconds), and measured original/saved pages using hidden Word COM PDF export. The accidentally committed `_batch_writer_legacy.py` was removed from the index and kept untracked locally, along with its CDP bridge. No OS input APIs were used and no other Word instances were closed.
+
+**Result: 24 attempted; 23 loaded/valid; 23/23 canvas counts equal Word; 23/23 saved Word counts equal original Word; 23/23 paragraph/section/page-break/pageBreakBefore/header/footer/media statistics equal the sections baseline. All 23 saved files contain `ZZ`, with `insert=true` and no save error.** Before the fix, 12/23 valid files differed from Word; 13/23 differed from the older sections canvas baseline because that baseline itself counted d24 as 18 while Word counted 16. After the fix d24 is 16/16/16. Main `da59b302` report contains only d02/d03/d07/d23; other reference counts below are explicitly labeled as the earlier sections baseline.
+
+| File | Word original | Branch before | Main / earlier canvas baseline | Fixed canvas | Saved Word | Stats vs baseline | Load |
+|---|---:|---:|---|---:|---:|---|---|
+| d01.docx | 19 | 18 | 19 (sections baseline) | 19 | 19 | equal | yes |
+| d02.docx | 11 | 8 | 11 (main da59b302) | 11 | 11 | equal | yes |
+| d03.docx | 1 | 2 | 1 (main da59b302) | 1 | 1 | equal | yes |
+| d04.docx | 5 | 5 | 5 (sections baseline) | 5 | 5 | equal | yes |
+| d05.docx | 2 | 1 | 2 (sections baseline) | 2 | 2 | equal | yes |
+| d06.docx | 3 | 3 | 3 (sections baseline) | 3 | 3 | equal | yes |
+| d07.docx | 23 | 20 | 23 (main da59b302) | 23 | 23 | equal | yes |
+| d08.docx | 1 | 1 | 1 (sections baseline) | 1 | 1 | equal | yes |
+| d09.docx | 14 | 13 | 14 (sections baseline) | 14 | 14 | equal | yes |
+| d10.docx | BLOCKED | ? | 1 (sections baseline) | ? | 1 | BLOCKED (no source DOCX stats) | NO |
+| d11.docx | 5 | 6 | 5 (sections baseline) | 5 | 5 | equal | yes |
+| d12.docx | 3 | 3 | 3 (sections baseline) | 3 | 3 | equal | yes |
+| d13.docx | 10 | 10 | 10 (sections baseline) | 10 | 10 | equal | yes |
+| d14.docx | 3 | 3 | 3 (sections baseline) | 3 | 3 | equal | yes |
+| d15.docx | 10 | 10 | 10 (sections baseline) | 10 | 10 | equal | yes |
+| d16.docx | 8 | 8 | 8 (sections baseline) | 8 | 8 | equal | yes |
+| d17.docx | 5 | 4 | 5 (sections baseline) | 5 | 5 | equal | yes |
+| d18.docx | 2 | 2 | 2 (sections baseline) | 2 | 2 | equal | yes |
+| d19.docx | 2 | 3 | 2 (sections baseline) | 2 | 2 | equal | yes |
+| d20.docx | 3 | 3 | 3 (sections baseline) | 3 | 3 | equal | yes |
+| d21.docx | 9 | 10 | 9 (sections baseline) | 9 | 9 | equal | yes |
+| d22.docx | 5 | 4 | 5 (sections baseline) | 5 | 5 | equal | yes |
+| d23.docx | 1 | 2 | 1 (main da59b302) | 1 | 1 | equal | yes |
+| d24.docx | 16 | 16 | 18 (sections baseline) | 16 | 16 | equal | yes |
+
+**d10 is BLOCKED, not PASS:** the source is 823,958 bytes and is not a valid ZIP DOCX. Hidden Word timed out with `FAIL (timeout - Word blocked by modal error dialog)` and app load was `NO`. The `?` canvas reading and saved blank one-page document are not a successful source round trip. This is the same pre-existing invalid-input case recorded in the baseline.
+
+Evidence (local): `E:\VNOffice-dist\audit-docgaps-pagination-fixed\_batch_writer_report.md`; comparison: `E:\VNOffice-dist\audit-docgaps-pagination-comparison.md`; bisect log: `E:\VNOffice-dist\audit-docgaps-pagination-bisect.txt`. Baseline: `audit-sections-fixed`; prior branch: `audit-docgaps`; measured main samples: `audit-docmain`.
+
+Full test gates (run sequentially in the foreground):
+
+- Initial Node run: `KẾT QUẢ KIỂM THỬ: 2404/2407 PASS | 3 FAIL` (exit 1). Only the known external soffice FODS conversion tests failed; all other tests, including all six Doc feature suites and the new stylesheet regression, passed. Foreground Node rerun also ended with `KẾT QUẢ KIỂM THỬ: 2404/2407 PASS | 3 FAIL` (exit 1), with exactly the same three failing conversions and no additional failures.
+- Failing names: `Sheet FODS save: LibreOffice giữ CF và validation qua FODS -> XLSX -> FODS`; `Sheet Pivot save: LibreOffice giữ DataPilot qua FODS -> XLSX -> FODS`; `FODS thật qua soffice: FODS → XLSX → FODS giữ height/width/visibility`. Each reported `soffice --convert-to xlsx:Calc MS Excel 2007 XML failed:`. Another worktree's full unittest run was active during these gates; these are conversion failures, not proof of a product regression or proof of a specific load cause.
+- Initial Python gate: `Ran 554 tests in 517.651s`, `FAILED (failures=3)` (exit 1). Failures were `test_all_fixtures_roundtrip` subtests for `sample-writer-headerfooter.docx` and `sample-writer-image.docx` (save conversion error), and `test_paragraph_spacing_inline_margin_survives_roundtrip` (open conversion error), all in `WriterSaveRoundtripTests`. This is 3 failure records, including two subtests of one test method; it is not reported as 551/554 passing methods. The concurrent worktrees were using the same `E:\VNOffice-profiles\codex3\VNOffice\lo-profile-*` location.
+- Full Python rerun: same `python -m unittest discover -s tests`, with `LOCALAPPDATA=E:\VNOffice-agy-docgaps\_pagination-test-profile` to isolate the LibreOffice profiles from other worktrees. Completed: `Ran 554 tests in 751.878s`, `FAILED (errors=1)` (exit 1), with no Writer round-trip failures. The remaining error was `UpdaterTests.test_detached_helper_process_runs_from_a_path_with_spaces`: Windows `WinError 32` while cleaning its temporary updater directory, after the detached helper wrote its marker. No updater source or test was changed.
+- Focused updater rerun: `Ran 1 test in 0.422s`, `OK` (exit 0). This does not replace a full Python gate. A final full discovery run, still with the isolated profile, is pending.
+- `git diff --check`: PASS.
+- Build: NOT RUN (not requested; no build-system change).
+
+Local complete gate logs: `E:\VNOffice-dist\audit-docgaps-pagination-fixed\node-tests.log` and `python-tests.log`.
