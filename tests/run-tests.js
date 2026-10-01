@@ -110,6 +110,7 @@ import { runSheetRenameMoveProtectTests } from "./unit/sheet-rename-move-protect
 import { runSheetProtectWorkbookTests } from "./unit/sheet-protect-workbook.test.js";
 import { runSlidesEditingGroupTests } from "./unit/slides-editing-group.test.js";
 import { runSlidesFormatPainterTests } from "./unit/slides-format-painter.test.js";
+import { runSlidesClipboardTests } from "./unit/slides-clipboard.test.js";
 import { runSlidesSpellcheckRibbonTests } from "./unit/slides-spellcheck-ribbon.test.js";
 import { runSlidesFormatBackgroundTests } from "./unit/slides-format-background.test.js";
 import { runWriterWordCountTests } from "./unit/writer-word-count.test.js";
@@ -331,6 +332,7 @@ async function runAll() {
     { title: "99. Behavioral Tests — VN Sheet Protect Workbook", runner: runSheetProtectWorkbookTests },
     { title: "100. Behavioral Tests — VN Slides Home Editing group (Find/Replace/Select)", runner: runSlidesEditingGroupTests },
     { title: "89. Behavioral Tests — VN Slides Format Painter", runner: runSlidesFormatPainterTests },
+    { title: "89b. Behavioral Tests — VN Slides Clipboard (Cut/Copy/Paste in text boxes)", runner: runSlidesClipboardTests },
     { title: "90. Behavioral Tests — VN Slides Review Spellcheck Ribbon", runner: runSlidesSpellcheckRibbonTests },
     { title: "91. Behavioral Tests — VN Slides Format Background", runner: runSlidesFormatBackgroundTests },
     { title: "92. Behavioral Tests — VN Writer Word Count", runner: runWriterWordCountTests },

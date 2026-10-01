@@ -426,6 +426,7 @@ export class SlidesCanvasController {
     this.titleEl.setAttribute("aria-label", "Tiêu đề trang chiếu");
     this.titleEl.setAttribute("aria-multiline", "false");
     this.titleEl.setAttribute("data-placeholder", "Bấm để thêm tiêu đề");
+    this.titleEl.dataset.vnoNativeClipboard = "true";
 
     this.bodyRowEl = document.createElement("div");
     this.bodyRowEl.className = "vno-slide-body-row";
@@ -438,6 +439,7 @@ export class SlidesCanvasController {
     this.bodyEl.setAttribute("aria-label", "Nội dung trang chiếu");
     this.bodyEl.setAttribute("aria-multiline", "true");
     this.bodyEl.setAttribute("data-placeholder", "Bấm để thêm văn bản");
+    this.bodyEl.dataset.vnoNativeClipboard = "true";
 
     this.body2El = document.createElement("div");
     this.body2El.className = "vno-slide-body vno-slide-body-col2 vno-slide-body-col-2";
@@ -447,6 +449,7 @@ export class SlidesCanvasController {
     this.body2El.setAttribute("aria-label", "Nội dung trang chiếu cột 2");
     this.body2El.setAttribute("aria-multiline", "true");
     this.body2El.setAttribute("data-placeholder", "Bấm để thêm văn bản");
+    this.body2El.dataset.vnoNativeClipboard = "true";
     this.body2El.style.display = "none";
 
     this.bodyRowEl.appendChild(this.bodyEl);
@@ -4069,11 +4072,12 @@ export class SlidesCanvasController {
         textEl.setAttribute?.("role", "textbox");
         textEl.setAttribute?.("aria-label", shape.text || "WordArt");
         applyWordArtCss(textEl, shape);
-        const startEditing = (initialText) => {
-          if (textEl.contentEditable !== "true") textEl.dataset.originalText = shape.text || "";
-          textEl.contentEditable = "true";
-          if (initialText !== undefined) textEl.textContent = initialText;
-          textEl.focus();
+const startEditing = (initialText) => {
+            if (textEl.contentEditable !== "true") textEl.dataset.originalText = shape.text || "";
+            textEl.contentEditable = "true";
+            textEl.dataset.vnoNativeClipboard = "true";
+            if (initialText !== undefined) textEl.textContent = initialText;
+            textEl.focus();
           if (initialText !== undefined) {
             const selection = window.getSelection();
             const range = document.createRange();
@@ -4147,6 +4151,7 @@ export class SlidesCanvasController {
           (row || []).forEach((cell, c) => {
             const td = document.createElement(r === 0 ? "th" : "td");
             td.contentEditable = "true";
+            td.dataset.vnoNativeClipboard = "true";
             if (this._htmlLooksFormatted(cell)) td.innerHTML = cell;
             else td.textContent = cell || "";
             td.style.cssText = "border:1px solid #94a3b8;padding:6px 8px;font-size:13px;background:#fff;font-weight:" + (r === 0 ? "700" : "400") + ";";
@@ -4203,6 +4208,7 @@ export class SlidesCanvasController {
         const startEditing = (initialText) => {
           if (textEl.contentEditable !== "true") textEl.dataset.originalText = shape.text || "";
           textEl.contentEditable = "true";
+          textEl.dataset.vnoNativeClipboard = "true";
           if (initialText !== undefined) textEl.textContent = initialText;
           textEl.focus();
           if (initialText !== undefined) {
@@ -4318,11 +4324,12 @@ export class SlidesCanvasController {
           textEl.contentEditable = "false";
           textEl.setAttribute?.("role", "textbox");
           textEl.setAttribute?.("aria-label", shape.text || t("slidesDialogs.diagramItem", { number: 1 }));
-          const startEditing = (initialText) => {
-            if (textEl.contentEditable !== "true") textEl.dataset.originalText = shape.text || "";
-            textEl.contentEditable = "true";
-            if (initialText !== undefined) textEl.textContent = initialText;
-            textEl.focus();
+const startEditing = (initialText) => {
+          if (textEl.contentEditable !== "true") textEl.dataset.originalText = shape.text || "";
+          textEl.contentEditable = "true";
+          textEl.dataset.vnoNativeClipboard = "true";
+          if (initialText !== undefined) textEl.textContent = initialText;
+          textEl.focus();
             if (initialText !== undefined) {
               // Replacing textContent after focus resets the caret to the start in Chromium.
               // Put it after the seed character so click-then-type preserves keyboard order.
