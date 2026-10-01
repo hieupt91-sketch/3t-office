@@ -625,11 +625,112 @@ def parse_selected_sheet_names_from_xlsx(xlsx_bytes: bytes | None) -> list[str]:
     return [active] if active and visibility.get(active, "visible").lower() == "visible" else []
 
 
+_PRINT_AREA_CELL_RANGE_RE = re.compile(
+    r"\$?([A-Z]{1,3})\$?([1-9][0-9]{0,6})(?::\$?([A-Z]{1,3})\$?([1-9][0-9]{0,6}))?\Z",
+    re.IGNORECASE,
+)
+
+
+def _print_area_column_number(column: str) -> int:
+    number = 0
+    for character in column.upper():
+        number = number * 26 + ord(character) - ord("A") + 1
+    return number
+
+
+def _normalize_print_area_ranges(ranges: list[str] | tuple[str, ...] | None) -> list[str]:
+    if not ranges:
+        raise ValueError("In vùng chọn cần có ít nhất một dải ô hợp lệ.")
+    normalized: list[str] = []
+    for item in ranges:
+        match = _PRINT_AREA_CELL_RANGE_RE.fullmatch(str(item or "").strip())
+        if not match:
+            raise ValueError(f"Dải ô in không hợp lệ: {item}")
+        start_column, start_row, end_column, end_row = match.groups()
+        start_column = start_column.upper()
+        start_row_number = int(start_row)
+        end_column = (end_column or start_column).upper()
+        end_row_number = int(end_row or start_row)
+        if (
+            _print_area_column_number(start_column) > 16384
+            or _print_area_column_number(end_column) > 16384
+            or start_row_number > 1048576
+            or end_row_number > 1048576
+            or _print_area_column_number(end_column) < _print_area_column_number(start_column)
+            or end_row_number < start_row_number
+        ):
+            raise ValueError(f"Dải ô in không hợp lệ: {item}")
+        start = f"${start_column}${start_row_number}"
+        end = f"${end_column}${end_row_number}"
+        value = start if start == end else f"{start}:{end}"
+        if value not in normalized:
+            normalized.append(value)
+    return normalized
+
+
+def _set_local_print_area(
+    workbook_xml: str, sheet_index: int, sheet_name: str, ranges: list[str],
+) -> str:
+    """Replace the active sheet's Excel print-area name in a temporary workbook."""
+    quoted_sheet = "'" + sheet_name.replace("'", "''") + "'"
+    expression = ",".join(f"{quoted_sheet}!{range_ref}" for range_ref in ranges)
+    expression = _escape_xml(expression)
+
+    def is_target_defined_name(attributes: str) -> bool:
+        name_match = re.search(r'\bname\s*=\s*(["\'])(.*?)\1', attributes, re.IGNORECASE)
+        index_match = re.search(r'\blocalSheetId\s*=\s*(["\'])(\d+)\1', attributes, re.IGNORECASE)
+        return bool(
+            name_match
+            and name_match.group(2).casefold() == "_xlnm.print_area"
+            and index_match
+            and int(index_match.group(2)) == sheet_index
+        )
+
+    container_match = re.search(
+        r"<(?P<tag>(?:[\w.-]+:)?definedNames)\b(?P<attrs>[^>]*)>(?P<body>[\s\S]*?)</(?P=tag)\s*>",
+        workbook_xml,
+        re.IGNORECASE,
+    )
+    if container_match:
+        container_tag = container_match.group("tag")
+        name_tag = f"{container_tag.split(':', 1)[0]}:definedName" if ":" in container_tag else "definedName"
+        body = container_match.group("body")
+        definition_pattern = re.compile(
+            r"<(?P<tag>(?:[\w.-]+:)?definedName)\b(?P<attrs>[^>]*?)(?:\s*/>|>(?P<text>[\s\S]*?)</(?P=tag)\s*>)",
+            re.IGNORECASE,
+        )
+        kept = []
+        for definition in definition_pattern.finditer(body):
+            if not is_target_defined_name(definition.group("attrs")):
+                kept.append(definition.group(0))
+        replacement = (
+            f"<{container_tag}{container_match.group('attrs')}>"
+            + "".join(kept)
+            + f'<{name_tag} name="_xlnm.Print_Area" localSheetId="{sheet_index}">{expression}</{name_tag}>'
+            + f"</{container_tag}>"
+        )
+        return workbook_xml[:container_match.start()] + replacement + workbook_xml[container_match.end():]
+
+    name = f'<definedName name="_xlnm.Print_Area" localSheetId="{sheet_index}">{expression}</definedName>'
+    block = f"<definedNames>{name}</definedNames>"
+    insertion = re.search(r"<(?:[\w.-]+:)?calcPr\b", workbook_xml, re.IGNORECASE)
+    if insertion is None:
+        insertion = re.search(r"</(?:[\w.-]+:)?sheets\s*>", workbook_xml, re.IGNORECASE)
+        position = insertion.end() if insertion else workbook_xml.rfind("</workbook>")
+    else:
+        position = insertion.start()
+    if position < 0:
+        return workbook_xml
+    return workbook_xml[:position] + block + workbook_xml[position:]
+
+
 def make_print_scope_xlsx(
     xlsx_bytes: bytes,
     *,
     active_sheet_name: str | None = None,
     selected_sheet_names: list[str] | None = None,
+    include_all_sheets: bool = False,
+    print_area_ranges: list[str] | tuple[str, ...] | None = None,
 ) -> bytes:
     """Make a temporary XLSX package that prints only the selected sheet tabs.
 
@@ -651,7 +752,9 @@ def make_print_scope_xlsx(
     if active is None:
         current_active = parse_active_sheet_from_workbook(workbook_xml)
         active = current_active if current_active in visible_names else (visible_names[0] if visible_names else None)
-    selected = [name for name in (selected_sheet_names or []) if name in visible_names]
+    selected = visible_names if include_all_sheets else [
+        name for name in (selected_sheet_names or []) if name in visible_names
+    ]
     if not selected:
         selected = [active] if active else []
     if not selected:
@@ -682,6 +785,13 @@ def make_print_scope_xlsx(
 
     workbook_xml = _WB_SHEET_TAG_RE.sub(patch_sheet_states, workbook_xml)
     workbook_xml = apply_active_tab_to_workbook(workbook_xml, sheet_index[active])
+    if print_area_ranges is not None:
+        workbook_xml = _set_local_print_area(
+            workbook_xml,
+            sheet_index[active],
+            active,
+            _normalize_print_area_ranges(print_area_ranges),
+        )
     replacements: dict[str, str | bytes | None] = {XLSX_WORKBOOK_ENTRY: workbook_xml}
     for name in names:
         raw = read_zip_entry(xlsx_bytes, entries[name])

@@ -1630,6 +1630,7 @@ def _write_print_source(
     app_kind: str,
     temp_dir: str,
     source_document_path: str | None = None,
+    print_options: dict | None = None,
 ) -> str:
     """Build the print source through the same source-aware Save path as its native format."""
     target_format = _PRINT_NATIVE_FORMAT.get(app_kind)
@@ -1641,6 +1642,10 @@ def _write_print_source(
     )
     if app_kind == "sheet" and target_format == "xlsx":
         try:
+            options = print_options if isinstance(print_options, dict) else {}
+            print_scope = str(options.get("sheetScope") or "active").strip().casefold()
+            if print_scope not in {"active", "workbook", "selection"}:
+                raise DocumentEngineError("Phạm vi in sổ làm việc không hợp lệ.")
             fods = Path(interchange_path).read_text(encoding="utf-8", errors="replace")
             source_bytes = None
             if source_document_path and str(source_document_path).lower().endswith(".xlsx"):
@@ -1662,11 +1667,28 @@ def _write_print_source(
                     active_sheet = active_sheet or source_active
                     selected_sheets = patcher.parse_selected_sheet_names_from_xlsx(source_bytes)
             native_bytes = Path(native_path).read_bytes()
-            scoped_bytes = patcher.make_print_scope_xlsx(
-                native_bytes,
-                active_sheet_name=active_sheet,
-                selected_sheet_names=selected_sheets,
-            )
+            if print_scope == "workbook":
+                scoped_bytes = patcher.make_print_scope_xlsx(
+                    native_bytes,
+                    active_sheet_name=active_sheet,
+                    include_all_sheets=True,
+                )
+            elif print_scope == "selection":
+                selected_ranges = options.get("selectionRanges")
+                if not isinstance(selected_ranges, (list, tuple)) or not selected_ranges:
+                    raise DocumentEngineError("Hãy chọn ít nhất một vùng ô trước khi in vùng chọn.")
+                scoped_bytes = patcher.make_print_scope_xlsx(
+                    native_bytes,
+                    active_sheet_name=active_sheet,
+                    selected_sheet_names=[active_sheet] if active_sheet else None,
+                    print_area_ranges=selected_ranges,
+                )
+            else:
+                scoped_bytes = patcher.make_print_scope_xlsx(
+                    native_bytes,
+                    active_sheet_name=active_sheet,
+                    selected_sheet_names=selected_sheets,
+                )
             if scoped_bytes != native_bytes:
                 Path(native_path).write_bytes(scoped_bytes)
         except DocumentEngineError:
@@ -2426,7 +2448,10 @@ class VnOfficeApi:
             content, app_kind, suggested_name, source_path,
         )
 
-    def prepare_print_document(self, app_kind, content, suggested_name="TaiLieu", source_path=None, use_office=True):
+    def prepare_print_document(
+        self, app_kind, content, suggested_name="TaiLieu", source_path=None,
+        use_office=True, print_options=None,
+    ):
         return self._invoke_reported_api(
             "prepare_print_document",
             self._print_pipeline.prepare,
@@ -2435,6 +2460,7 @@ class VnOfficeApi:
             suggested_name,
             source_path,
             use_office,
+            print_options,
         )
 
     def get_print_engine_status(self, app_kind):

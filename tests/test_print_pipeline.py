@@ -16,10 +16,12 @@ SPEC.loader.exec_module(PIPELINE)
 class PrintPipelineTests(unittest.TestCase):
     def make_pipeline(self, fake_printer_command, *, office_candidates=None, convert_office_pdf=None):
         self.written_source_paths = []
+        self.written_print_options = []
         self.preview_pdf_paths = []
 
-        def write_source(content, app_kind, temp_dir, source_path=None):
+        def write_source(content, app_kind, temp_dir, source_path=None, print_options=None):
             self.written_source_paths.append(source_path)
+            self.written_print_options.append(print_options)
             path = Path(temp_dir) / f"draft.{app_kind}"
             path.write_text(content, encoding="utf-8")
             return str(path)
@@ -46,6 +48,16 @@ class PrintPipelineTests(unittest.TestCase):
             render_page=render_page,
             print_pdf=fake_printer_command,
         )
+
+    def test_sheet_scope_options_are_forwarded_to_source_writer(self):
+        pipeline = self.make_pipeline(lambda *args: {"ok": True})
+        options = {"sheetScope": "workbook", "selectionRanges": ["A1:B4"]}
+
+        prepared = pipeline.prepare("sheet", "<fods/>", "BaoCao.xlsx", print_options=options)
+
+        self.assertEqual(prepared["status"], "ok")
+        self.assertEqual(self.written_print_options, [options])
+        pipeline.cancel(prepared["sessionId"])
 
     def test_pipeline_prepares_pdf_preview_and_sends_requested_range_to_fake_printer(self):
         commands = []

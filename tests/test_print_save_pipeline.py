@@ -421,6 +421,83 @@ class PrintSavePipelineTests(unittest.TestCase):
                 {"Alpha": "hidden", "Beta": "hidden"},
             )
 
+    def test_sheet_print_entire_workbook_selects_every_visible_tab_without_hiding_them(self):
+        with tempfile.TemporaryDirectory(prefix="vno_sheet_print_workbook_scope_") as temp_dir:
+            root = Path(temp_dir)
+            original_xlsx = root / "source.xlsx"
+            _write_multi_sheet_xlsx(original_xlsx, active=1, selected=(1, 2))
+            original_bytes = original_xlsx.read_bytes()
+            fake = _FakeSoffice()
+
+            with patch.object(main, "_run_soffice_convert", side_effect=fake):
+                print_source = main._write_print_source(
+                    _pristine_sheet_fods("Beta"),
+                    "sheet",
+                    str(root),
+                    source_document_path=str(original_xlsx),
+                    print_options={"sheetScope": "workbook"},
+                )
+
+            package = Path(print_source).read_bytes()
+            workbook_xml = main._ooxml_zip_patch().read_zip_entry(package, "xl/workbook.xml").decode("utf-8")
+            self.assertEqual(main._ooxml_zip_patch().parse_selected_sheet_names_from_xlsx(package), ["Alpha", "Beta", "Gamma"])
+            self.assertEqual(main._ooxml_zip_patch().parse_sheet_visibility_from_workbook(workbook_xml), {})
+            self.assertEqual(original_xlsx.read_bytes(), original_bytes)
+
+    def test_sheet_print_selection_overrides_only_the_temporary_active_sheet_print_area(self):
+        with tempfile.TemporaryDirectory(prefix="vno_sheet_print_selection_scope_") as temp_dir:
+            root = Path(temp_dir)
+            original_xlsx = root / "source.xlsx"
+            _write_multi_sheet_xlsx(original_xlsx, active=1, selected=(1, 2))
+            original_bytes = original_xlsx.read_bytes()
+            fake = _FakeSoffice()
+
+            with patch.object(main, "_run_soffice_convert", side_effect=fake):
+                print_source = main._write_print_source(
+                    _pristine_sheet_fods("Beta"),
+                    "sheet",
+                    str(root),
+                    source_document_path=str(original_xlsx),
+                    print_options={
+                        "sheetScope": "selection",
+                        "selectionRanges": ["B2:C5", "E1"],
+                    },
+                )
+
+            package = Path(print_source).read_bytes()
+            patcher = main._ooxml_zip_patch()
+            workbook_xml = patcher.read_zip_entry(package, "xl/workbook.xml").decode("utf-8")
+            self.assertEqual(patcher.parse_selected_sheet_names_from_xlsx(package), ["Beta"])
+            self.assertEqual(
+                patcher.parse_sheet_visibility_from_workbook(workbook_xml),
+                {"Alpha": "hidden", "Gamma": "hidden"},
+            )
+            self.assertRegex(
+                workbook_xml,
+                r'<definedName name="_xlnm\.Print_Area" localSheetId="1">\x27Beta\x27!\$B\$2:\$C\$5,\x27Beta\x27!\$E\$1</definedName>',
+            )
+            self.assertEqual(original_xlsx.read_bytes(), original_bytes)
+
+    def test_sheet_print_selection_rejects_invalid_ranges(self):
+        with tempfile.TemporaryDirectory(prefix="vno_sheet_print_selection_invalid_") as temp_dir:
+            root = Path(temp_dir)
+            original_xlsx = root / "source.xlsx"
+            _write_multi_sheet_xlsx(original_xlsx)
+            fake = _FakeSoffice()
+
+            with patch.object(main, "_run_soffice_convert", side_effect=fake):
+                with self.assertRaisesRegex(main.DocumentEngineError, "Dải ô in không hợp lệ"):
+                    main._write_print_source(
+                        _pristine_sheet_fods("Beta"),
+                        "sheet",
+                        str(root),
+                        source_document_path=str(original_xlsx),
+                        print_options={
+                            "sheetScope": "selection",
+                            "selectionRanges": ["A1;DROP"],
+                        },
+                    )
+
     def test_edited_or_non_xlsx_sheet_source_stays_on_native_postprocess_path(self):
         patcher = main._ooxml_zip_patch()
         with tempfile.TemporaryDirectory(prefix="vno_edited_sheet_print_") as temp_dir:

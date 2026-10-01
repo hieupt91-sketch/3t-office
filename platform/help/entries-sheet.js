@@ -535,7 +535,7 @@ export const SHEET_HELP_ENTRIES = [
       "Bình thường: lưới ô tiêu chuẩn để nhập liệu. Đây là mặc định.",
       "Xem ngắt trang: đường chia trang xanh đậm, vùng ngoài khổ in bị phủ tối, số «Trang 1» mờ trên nền. Dùng để chỉnh chỗ ngắt trước khi in (tab Bố trí trang, nhóm Ngắt trang).",
       "Bố trí trang: xem như giấy in, có dải đầu trang 3 ngăn. Không đổi dữ liệu ô. Quay lại Bình thường bất cứ lúc nào.",
-      "Xem trước khi in (Ctrl+F2) hoặc Ctrl+P: hộp thoại In tạo PDF tạm theo Page Setup, Print Area, tiêu đề lặp và ngắt trang. Khi có Microsoft Office/WPS, tùy chọn Dùng Microsoft Office/WPS để in được chọn sẵn; nhãn Bộ máy dựng PDF cho biết ứng dụng đã tạo trang xem trước. Bỏ chọn để dùng LibreOffice. Dùng Trang trước/sau, chọn máy in, số bản và phạm vi trang rồi nhấn In."
+      "Xem trước khi in (Ctrl+F2) hoặc Ctrl+P mở hộp thoại In. Trong Phạm vi sổ làm việc, chọn In các trang tính hiện hoạt (mặc định, theo tab đang hoạt động/được chọn), In toàn bộ sổ làm việc, hoặc In vùng chọn. Muốn in vùng chọn, bôi đen các ô trên lưới trước khi mở hộp thoại; vùng chọn có nhiều dải vẫn được giữ. Mỗi lần đổi phạm vi, 3T tạo lại PDF và cập nhật tổng trang xem trước. Khi có Microsoft Office/WPS, Dùng Microsoft Office/WPS để in được chọn sẵn; nhãn Bộ máy dựng PDF cho biết bộ máy đã tạo PDF. Bỏ chọn để dùng LibreOffice. Dùng Trang trước/sau, chọn máy in, số bản và phạm vi trang, rồi nhấn In."
     ]
   },
   {
