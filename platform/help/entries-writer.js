@@ -979,6 +979,26 @@ export const WRITER_HELP_ENTRIES = [
     ]
   },
   {
+    id: "writer.insert.equation",
+    app: "writer",
+    commandIds: ["writer.insert.equation"],
+    title: "Phương trình toán học",
+    summary: "Chèn và chỉnh sửa phương trình toán học với bộ gõ dạng linear format (giống Word: a/b, x^2, \\sqrt(x), \\alpha...) và xem trước MathML.",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Ký hiệu" },
+    keywords: ["phương trình", "công thức", "toán học", "equation", "math", "Alt+=", "linear format", "MathML", "phân số", "chỉ số", "căn", "tích phân", "ma trận"],
+    steps: [
+      "Đặt con trỏ tại vị trí cần chèn phương trình trong văn bản.",
+      "Mở tab Chèn trên ribbon, nhóm Ký hiệu, nhấn nút Phương trình (hoặc bấm Alt+=).",
+      "Hộp thoại Bộ gõ phương trình xuất hiện với thanh công cụ cấu trúc (phân số, chỉ số, căn, tích phân, ma trận...) và ký hiệu (chữ Hy Lạp, toán tử...).",
+      "Nhập công thức ở khung Định dạng tuyến tính: gõ a/b cho phân số, x^2 cho chỉ số trên, x_1 cho chỉ số dưới, \\sqrt(x) cho căn bậc hai, \\alpha cho α, \\le cho ≤...",
+      "Nhấn Space để chuyển đổi định dạng tuyến tính thành MathML, hoặc nhấn nút cấu trúc trên thanh công cụ để chèn mẫu.",
+      "Xem kết quả tại khung Xem trước bên cạnh.",
+      "Nhấn Chèn để đưa phương trình vào tài liệu.",
+      "Để chỉnh sửa: nhấp đúp vào phương trình đã chèn, sửa ở khung Định dạng tuyến tính, rồi nhấn Cập nhật.",
+      "Xóa phương trình: chọn nó và nhấn Delete/Backspace."
+    ]
+  },
+  {
     id: "writer.ai.core",
     app: "writer",
     commandIds: ["ai.assistant.toggle", "ai.assistant.summarize", "ai.assistant.rewrite"],

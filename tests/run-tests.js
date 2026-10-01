@@ -116,6 +116,7 @@ import { runSheetHelpTests } from "./unit/sheet-help.test.js";
 import { runSlidesHelpTests } from "./unit/slides-help.test.js";
 import { runHelpCoverageTests } from "./unit/help-coverage.test.js";
 import { runHelpRibbonLocationTests } from "./unit/help-ribbon-location.test.js";
+import { runEquationEditorTests } from "./unit/equation-editor.test.js";
 import { runHelpShortcutConsistencyTests } from "./unit/help-shortcut-consistency.test.js";
 import { runWriterWordArtTests } from "./unit/writer-wordart.test.js";
 import { runSlidesAnimationPaneSetupShowTests } from "./unit/slides-animation-pane-setup-show.test.js";
@@ -405,7 +406,8 @@ async function runAll() {
     { title: "163. Regression Guard — Microsoft Office Shortcut Coverage (Word/Excel/PowerPoint)", runner: runOfficeShortcutCoverageTests },
     { title: "164. Unit Tests — Office Missing Shortcuts (Ctrl+], Ctrl+[, Ctrl+Shift++, Shift+F11, Ctrl+-, F11) & Undo", runner: runMissingOfficeShortcutsTests },
     { title: "165. Unit Tests — Slides F5 Pen and Laser Pointer (Ctrl+P, Ctrl+L, Ctrl+A, E, Color, Keep/Discard ink)", runner: runSlidesPenLaserTests },
-    { title: "166. Unit Tests — VN Sheet range selection anchors, multi-area status and drag auto-scroll math", runner: runSheetRangeSelectionTests }
+    { title: "166. Unit Tests — VN Sheet range selection anchors, multi-area status and drag auto-scroll math", runner: runSheetRangeSelectionTests },
+    { title: "167. Unit Tests — Equation Editor Linear Format & MathML", runner: runEquationEditorTests }
   ];
 
   for (const suite of suites) {

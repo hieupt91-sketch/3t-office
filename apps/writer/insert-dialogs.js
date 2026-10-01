@@ -1,10 +1,11 @@
 /**
  * VN Writer — Insert dialogs (Equation, Bookmark, Cross-reference, WordArt)
- * Rút gọn so với Word: phương trình là hộp text/MathML cơ bản, không có trình soạn đồ họa.
+ * Phương trình: bộ gõ linear format (Word-like) + render MathML native WebView2
  * WordArt: copy logic CSS/preset từ VN Slides (không import chéo apps/slides — AGENTS.md §4).
  */
 
 import { t, getLocale } from "../../platform/i18n/i18n.js";
+import { showEquationEditor, linearToMathML } from "./equation-editor.js";
 
 function trapFocus(dialogBox, event) {
   if (event.key !== "Tab") return;
@@ -35,94 +36,24 @@ export function slugBookmarkName(name) {
   return slug || "bookmark";
 }
 
-const EQUATION_PRESETS = [
-  "E = mc²",
-  "a² + b² = c²",
-  "x = (−b ± √(b² − 4ac)) / 2a",
-  "∑ᵢ xᵢ / n"
-];
-
 /**
  * @param {Object} [options]
  * @param {string} [options.expression]
- * @returns {Promise<string|null>}
+ * @param {string} [options.mathml]
+ * @param {string} [options.linear]
+ * @param {Element} [options.targetEquationEl] — existing equation element to edit
+ * @returns {Promise<{mathml:string, linear:string}|null>}
  */
-export function showEquationDialog(options = {}) {
-  const defaultExpr = options.expression || "E = mc²";
+export async function showEquationDialog(options = {}) {
   if (typeof document === "undefined" || !document.body || typeof document.createElement !== "function") {
-    return Promise.resolve(defaultExpr);
+    return Promise.resolve(null);
   }
-
-  return new Promise((resolve) => {
-    const previousFocused = document.activeElement;
-    const isEn = getLocale() === "en";
-    const overlay = document.createElement("div");
-    overlay.className = "vno-dialog-overlay";
-    overlay.dataset.vnoDialog = "equation";
-    overlay.innerHTML = `
-      <div class="vno-dialog-box" style="width: 460px;" role="dialog" aria-modal="true" aria-labelledby="vno-equation-title">
-        <div class="vno-dialog-header">
-          <span id="vno-equation-title">${isEn ? "Equation" : "Công thức"}</span>
-          <button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${t("common.close")}" aria-label="${t("common.close")}">&times;</button>
-        </div>
-        <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:10px;">
-          <p style="margin:0;font-size:12px;color:#64748b;">
-            ${isEn
-              ? "Reduced editor: insert a styled math text box. No graphical equation designer."
-              : "Bản rút gọn: chèn hộp công thức dạng chữ. Không có trình soạn đồ họa như Word."}
-          </p>
-          <label for="vno-equation-input" style="font-size:13px;font-weight:500;">${isEn ? "Expression" : "Biểu thức"}</label>
-          <input id="vno-equation-input" class="vno-dialog-input" type="text" value="${defaultExpr.replace(/"/g, "&quot;")}"
-            style="width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid var(--vno-border-default);border-radius:6px;font-family:Cambria,'Times New Roman',serif;font-style:italic;font-size:16px;" />
-          <div class="vno-equation-presets" style="display:flex;flex-wrap:wrap;gap:6px;">
-            ${EQUATION_PRESETS.map(preset => `<button type="button" class="vno-btn vno-equation-preset" data-equation="${preset.replace(/"/g, "&quot;")}">${preset}</button>`).join("")}
-          </div>
-        </div>
-        <div class="vno-dialog-footer">
-          <button type="button" class="vno-btn vno-dialog-cancel-btn">${t("common.cancel")}</button>
-          <button type="button" class="vno-btn vno-btn-primary vno-dialog-ok-btn">${isEn ? "Insert" : "Chèn"}</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(overlay);
-    const dialogBox = overlay.querySelector(".vno-dialog-box");
-    const input = overlay.querySelector("#vno-equation-input");
-    input.focus();
-    input.select();
-
-    overlay.querySelectorAll(".vno-equation-preset").forEach(btn => {
-      btn.addEventListener("click", () => {
-        input.value = btn.getAttribute("data-equation") || "";
-        input.focus();
-      });
-    });
-
-    const cleanup = (value) => {
-      document.removeEventListener("keydown", onKeyDown);
-      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-      if (previousFocused && typeof previousFocused.focus === "function") previousFocused.focus();
-      resolve(value);
-    };
-
-    overlay.querySelector(".vno-dialog-ok-btn")?.addEventListener("click", () => cleanup((input.value || "").trim() || null));
-    overlay.querySelector(".vno-dialog-cancel-btn")?.addEventListener("click", () => cleanup(null));
-    overlay.querySelector(".vno-dialog-close-btn")?.addEventListener("click", () => cleanup(null));
-    overlay.addEventListener("click", (event) => {
-      if (event.target === overlay) cleanup(null);
-    });
-
-    const onKeyDown = (event) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        cleanup(null);
-      } else if (event.key === "Enter") {
-        event.preventDefault();
-        cleanup((input.value || "").trim() || null);
-      } else if (event.key === "Tab") {
-        trapFocus(dialogBox, event);
-      }
-    };
-    document.addEventListener("keydown", onKeyDown);
+  return showEquationEditor({
+    mathml: options.mathml,
+    linear: options.linear,
+    targetEquationEl: options.targetEquationEl,
+    onInsert: (result) => result,
+    onCancel: () => null,
   });
 }
 
@@ -140,6 +71,7 @@ export function showBookmarkDialog(options = {}) {
   return new Promise((resolve) => {
     const previousFocused = document.activeElement;
     const isEn = getLocale() === "en";
+    const escapedDefaultName = String(defaultName).replace(/\"/g, "&" + "quot;");
     const overlay = document.createElement("div");
     overlay.className = "vno-dialog-overlay";
     overlay.dataset.vnoDialog = "bookmark";
@@ -151,7 +83,7 @@ export function showBookmarkDialog(options = {}) {
         </div>
         <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:10px;">
           <label for="vno-bookmark-input" style="font-size:13px;font-weight:500;">${isEn ? "Bookmark name" : "Tên đánh dấu"}</label>
-          <input id="vno-bookmark-input" class="vno-dialog-input" type="text" value="${String(defaultName).replace(/"/g, "&quot;")}"
+          <input id="vno-bookmark-input" class="vno-dialog-input" type="text" value="${escapedDefaultName}"
             style="width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid var(--vno-border-default);border-radius:6px;font-size:13px;" />
         </div>
         <div class="vno-dialog-footer">
@@ -227,8 +159,8 @@ export function showCrossReferenceDialog(targets = []) {
             ? `<p class="vno-xref-empty" style="margin:0;font-size:13px;color:#b45309;">${isEn ? "No headings or bookmarks yet." : "Chưa có tiêu đề hoặc đánh dấu nào."}</p>`
             : `<label for="vno-xref-select" style="font-size:13px;font-weight:500;">${isEn ? "Reference to" : "Tham chiếu tới"}</label>
                <select id="vno-xref-select" class="vno-dialog-input" style="width:100%;padding:8px 12px;border:1px solid var(--vno-border-default);border-radius:6px;">
-                 ${targets.map(item => `<option value="${item.id}" data-xref-type="${item.type}">${item.type === "bookmark" ? "⚑ " : "H "}${item.label}</option>`).join("")}
-               </select>`}
+                  ${targets.map(item => `<option value="${item.id}" data-xref-type="${item.type}">${item.type === "bookmark" ? "⚑ " : "H "}${item.label}</option>`).join("")}
+                </select>`}
         </div>
         <div class="vno-dialog-footer">
           <button type="button" class="vno-btn vno-dialog-cancel-btn">${t("common.cancel")}</button>
@@ -494,10 +426,10 @@ export function applyWordArtCss(el, shapeOrOptions = {}, options = {}) {
 
 function escapeWordArtText(value) {
   return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/&/g, "&" + "amp;")
+    .replace(/</g, "&" + "lt;")
+    .replace(/>/g, "&" + "gt;")
+    .replace(/\"/g, "&" + "quot;");
 }
 
 export function parseWordArtStyleAttr(raw) {
@@ -561,6 +493,7 @@ export function showWordArtDialog(options = {}) {
         <strong class="vno-writer-wordart-preset-name">${label}</strong>
       </button>`;
     }).join("");
+    const escapedDefaultText = String(defaultText).replace(/\"/g, "&" + "quot;");
     overlay.innerHTML = `
       <div class="vno-dialog-box" style="width: 640px;" role="dialog" aria-modal="true" aria-labelledby="vno-writer-wordart-title">
         <div class="vno-dialog-header">
@@ -569,7 +502,7 @@ export function showWordArtDialog(options = {}) {
         </div>
         <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:12px;">
           <label for="vno-wordart-text" style="font-size:13px;font-weight:500;">${isEn ? "Text" : "Nội dung chữ"}</label>
-          <input id="vno-wordart-text" type="text" value="${String(defaultText).replace(/"/g, "&quot;")}" maxlength="80"
+          <input id="vno-wordart-text" type="text" value="${escapedDefaultText}" maxlength="80"
             placeholder="${isEn ? "Enter decorative text" : "Nhập chữ nghệ thuật"}"
             style="width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid var(--vno-border-default);border-radius:6px;" />
           <div id="vno-writer-wordart-gallery" class="vno-writer-wordart-gallery" role="radiogroup" aria-labelledby="vno-writer-wordart-title">

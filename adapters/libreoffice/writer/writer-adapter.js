@@ -26,6 +26,7 @@ import { DOCUMENT_THEMES, showThemeGalleryDialog } from "../../../apps/writer/th
 import { showSymbolPicker } from "../../../platform/ui-kit/symbol-picker.js";
 import { formatDateTime, showDateTimeDialog } from "../../../platform/ui-kit/datetime-picker.js";
 import { showEquationDialog, showBookmarkDialog, showCrossReferenceDialog, slugBookmarkName, showWordArtDialog, buildWriterWordArtHtml, applyWordArtCss, parseWordArtStyleAttr, resolveWordArtStyle, WORDART_PRESETS } from "../../../apps/writer/insert-dialogs.js";
+import { linearToMathML, mathMLToLinear } from "../../../apps/writer/equation-editor.js";
 import { t } from "../../../platform/i18n/i18n.js";
 import { CITATION_STYLES, authorSortKey, citationMetadataHtml, formatBibliographyEntry, formatInTextCitation, normalizeSource, parseCitationMetadata, showInsertCitationDialog, showSourceManagerDialog } from "../../../apps/writer/citations.js";
 import {
@@ -477,6 +478,12 @@ export class WriterAdapter {
     this.bodyDom.addEventListener("input", this._workflowInputHandler);
 
     this._workflowKeydownHandler = (event) => {
+      if (event.key === "=" && event.altKey && !event.ctrlKey && !event.shiftKey) {
+        event.preventDefault();
+        event.stopPropagation();
+        this.insertEquation();
+        return;
+      }
       if (event.key !== "Tab") return;
       const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
       const anchor = selection?.anchorNode?.nodeType === 1 ? selection.anchorNode : selection?.anchorNode?.parentElement;
@@ -529,6 +536,13 @@ export class WriterAdapter {
         e.preventDefault?.();
         e.stopPropagation?.();
         this._beginWordArtEdit(wordArt);
+        return;
+      }
+      const equation = e.target?.closest?.(".vno-equation, [data-equation='true']");
+      if (equation) {
+        e.preventDefault?.();
+        e.stopPropagation?.();
+        this._editEquation(equation);
         return;
       }
       const cell = e.target?.closest?.("td, th");
@@ -2240,6 +2254,9 @@ export class WriterAdapter {
     const bodyMatch = html.match(/<body\b[^>]*>([\s\S]*?)<\/body>/i);
     if (bodyMatch) html = bodyMatch[1];
 
+    // Convert OMML (m:oMath) equations to MathML for display
+    html = this._convertOMMLToMathML(html);
+
     // W33: KHÔNG bóc `<ol><li><hN>` thành `<hN>` nữa — tiêu đề có numPr trong Word vẫn hiện số (d20: "3." "4."… của
     // heading 2 trong ô bảng bị mất, `<ol><ol start=3><li>` thành `<ol><h2>`); cấp numFmt="none" do W33 đặt list-style none.
     html = html.replace(/<\/img>/gi, "");
@@ -2265,6 +2282,109 @@ export class WriterAdapter {
     html = this._applyGdiDeviceFontPixels(html);
     html = this._encodeProportionalLineHeights(html);
     return { body: html.trim(), header, footer, page, comments, docStyles, shapes };
+  }
+
+  /**
+   * Convert OMML (Office Math ML - m:oMath/m:oMathPara) to MathML for display in WebView2
+   * This runs on the HTML that LibreOffice produces from DOCX import
+   */
+  _convertOMMLToMathML(html) {
+    // LibreOffice exports OMML as <m:oMath> elements. Convert them to MathML spans.
+    return String(html || "").replace(/<m:oMathPara\b[^>]*>([\s\S]*?)<\/m:oMathPara>/gi, (match, inner) => {
+      const mathml = this._ommlToMathML(inner);
+      return `<span class="vno-equation" role="math" data-equation="true" data-mathml="${this._escapeHtml(mathml)}" contenteditable="false" tabindex="0">${mathml}</span>`;
+    }).replace(/<m:oMath\b[^>]*>([\s\S]*?)<\/m:oMath>/gi, (match, inner) => {
+      const mathml = this._ommlToMathML(inner);
+      return `<span class="vno-equation" role="math" data-equation="true" data-mathml="${this._escapeHtml(mathml)}" contenteditable="false" tabindex="0">${mathml}</span>`;
+    });
+  }
+
+  _ommlToMathML(omml) {
+    // Simple OMML to MathML conversion for common structures
+    let mathml = String(omml || "");
+    // Remove m: namespace prefix for easier parsing
+    mathml = mathml.replace(/m:/g, "");
+    // Convert common OMML elements to MathML
+    mathml = mathml.replace(/<f>/gi, "<mfrac>").replace(/<\/f>/gi, "</mfrac>");
+    mathml = mathml.replace(/<num>/gi, "<mrow>").replace(/<\/num>/gi, "</mrow>");
+    mathml = mathml.replace(/<den>/gi, "<mrow>").replace(/<\/den>/gi, "</mrow>");
+    mathml = mathml.replace(/<rad>/gi, "<msqrt>").replace(/<\/rad>/gi, "</msqrt>");
+    mathml = mathml.replace(/<radPr>/gi, "").replace(/<\/radPr>/gi, "");
+    mathml = mathml.replace(/<deg>/gi, "<mrow>").replace(/<\/deg>/gi, "</mrow>");
+    mathml = mathml.replace(/<e>/gi, "<mrow>").replace(/<\/e>/gi, "</mrow>");
+    mathml = mathml.replace(/<r>/gi, "").replace(/<\/r>/gi, "");
+    mathml = mathml.replace(/<t>/gi, "<mi>").replace(/<\/t>/gi, "</mi>");
+    mathml = mathml.replace(/<rPr>/gi, "").replace(/<\/rPr>/gi, "");
+    mathml = mathml.replace(/<sup>/gi, "<msup><mrow>").replace(/<\/sup>/gi, "</mrow></msup>");
+    mathml = mathml.replace(/<sub>/gi, "<msub><mrow>").replace(/<\/sub>/gi, "</mrow></msub>");
+    mathml = mathml.replace(/<sSup>/gi, "<msup>").replace(/<\/sSup>/gi, "</msup>");
+    mathml = mathml.replace(/<sSub>/gi, "<msub>").replace(/<\/sSub>/gi, "</msub>");
+    mathml = mathml.replace(/<sSupSub>/gi, "<msubsup>").replace(/<\/sSupSub>/gi, "</msubsup>");
+    mathml = mathml.replace(/<nary>/gi, "<mrow>").replace(/<\/nary>/gi, "</mrow>");
+    mathml = mathml.replace(/<naryPr>/gi, "").replace(/<\/naryPr>/gi, "");
+    mathml = mathml.replace(/<chr\s+[^>]*val=["']([^"']*)["'][^>]*\/>/gi, (m, val) => `<mo>${this._escapeHtml(val)}</mo>`);
+    mathml = mathml.replace(/<int>/gi, "<mrow><mo>∫</mo>").replace(/<\/int>/gi, "</mrow>");
+    mathml = mathml.replace(/<limLow>/gi, "<msub><mrow>").replace(/<\/limLow>/gi, "</mrow></msub>");
+    mathml = mathml.replace(/<limUpp>/gi, "<msup><mrow>").replace(/<\/limUpp>/gi, "</mrow></msup>");
+    mathml = mathml.replace(/<acc>/gi, "<mover>").replace(/<\/acc>/gi, "</mover>");
+    mathml = mathml.replace(/<accPr>/gi, "").replace(/<\/accPr>/gi, "");
+    mathml = mathml.replace(/<chr\s+[^>]*val=["']([^"']*)["'][^>]*\/>/gi, (m, val) => `<mo>${this._escapeHtml(val)}</mo>`);
+    mathml = mathml.replace(/<eqArr>/gi, "<mtable>").replace(/<\/eqArr>/gi, "</mtable>");
+    mathml = mathml.replace(/<e>/gi, "<mtr><mtd>").replace(/<\/e>/gi, "</mtd></mtr>");
+    // Clean up remaining OMML-specific tags
+    mathml = mathml.replace(/<\/?[a-z]+Pr\b[^>]*>/gi, "");
+    mathml = mathml.replace(/<\/?(?:oMath|oMathPara|fName|f|num|den|rad|radPr|deg|e|r|rPr|t|sup|sub|sSup|sSub|sSupSub|nary|naryPr|int|limLow|limUpp|acc|accPr|eqArr|chr|groupChr|d|dPr|begChr|endChr|brk|ctrlPr|ins|del|moveFrom|moveTo)\b[^>]*>/gi, "");
+    // Wrap in math tag if not already
+    if (!mathml.trim().startsWith("<math")) {
+      mathml = `<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline">${mathml}</math>`;
+    }
+    return mathml;
+  }
+
+  /**
+   * Convert MathML equations to OMML for LibreOffice export to DOCX
+   * This runs on the HTML before sending to LibreOffice for save
+   */
+  _convertMathMLToOMML(html) {
+    return String(html || "").replace(/<span\b[^>]*class=["'][^"']*\bvno-equation\b[^"']*["'][^>]*data-mathml=["']([^"']*)["'][^>]*>([\s\S]*?)<\/span>/gi, (match, mathmlAttr, inner) => {
+      const mathml = decodeURIComponent(mathmlAttr);
+      const omml = this._mathMLToOMML(mathml);
+      return omml;
+    });
+  }
+
+  _mathMLToOMML(mathml) {
+    // Simple MathML to OMML conversion for common structures
+    let omml = String(mathml || "");
+    // Extract content from math tag
+    const mathMatch = omml.match(/<math\b[^>]*>([\s\S]*?)<\/math>/i);
+    if (mathMatch) {
+      omml = mathMatch[1];
+    }
+    // Convert common MathML elements to OMML
+    omml = omml.replace(/<mfrac>/gi, "<m:f>").replace(/<\/mfrac>/gi, "</m:f>");
+    omml = omml.replace(/<mrow>/gi, "").replace(/<\/mrow>/gi, "");
+    omml = omml.replace(/<msqrt>/gi, "<m:rad>").replace(/<\/msqrt>/gi, "</m:rad>");
+    omml = omml.replace(/<msup>/gi, "<m:sSup>").replace(/<\/msup>/gi, "</m:sSup>");
+    omml = omml.replace(/<msub>/gi, "<m:sSub>").replace(/<\/msub>/gi, "</m:sSub>");
+    omml = omml.replace(/<msubsup>/gi, "<m:sSupSub>").replace(/<\/msubsup>/gi, "</m:sSupSub>");
+    omml = omml.replace(/<mi>/gi, "<m:r><m:t>").replace(/<\/mi>/gi, "</m:t></m:r>");
+    omml = omml.replace(/<mn>/gi, "<m:r><m:t>").replace(/<\/mn>/gi, "</m:t></m:r>");
+    omml = omml.replace(/<mo>/gi, "<m:r><m:t>").replace(/<\/mo>/gi, "</m:t></m:r>");
+    omml = omml.replace(/<mtable>/gi, "<m:eqArr>").replace(/<\/mtable>/gi, "</m:eqArr>");
+    omml = omml.replace(/<mtr>/gi, "<m:e>").replace(/<\/mtr>/gi, "</m:e>");
+    omml = omml.replace(/<mtd>/gi, "").replace(/<\/mtd>/gi, "");
+    omml = omml.replace(/<mover>/gi, "<m:acc>").replace(/<\/mover>/gi, "</m:acc>");
+    omml = omml.replace(/<munderover>/gi, "<m:nary>").replace(/<\/munderover>/gi, "</m:nary>");
+    omml = omml.replace(/<msub><mrow>/gi, "<m:nary><m:limLow>").replace(/<\/mrow><\/msub>/gi, "</m:limLow></m:nary>");
+    omml = omml.replace(/<msup><mrow>/gi, "<m:nary><m:limUpp>").replace(/<\/mrow><\/msup>/gi, "</m:limUpp></m:nary>");
+    // Clean up
+    omml = omml.replace(/<mrow>/gi, "").replace(/<\/mrow>/gi, "");
+    // Wrap in oMath
+    if (!omml.trim().startsWith("<m:oMath")) {
+      omml = `<m:oMath>${omml}</m:oMath>`;
+    }
+    return omml;
   }
 
   /**
@@ -7927,14 +8047,41 @@ export class WriterAdapter {
 
   async insertEquation(options = null) {
     options = options || {};
-    let expression = options.expression || options.text;
-    if (!expression) {
-      expression = await showEquationDialog({ expression: "E = mc²" });
-      if (!expression) return false;
+    let mathml = options.mathml;
+    let linear = options.linear;
+    if (!mathml && !linear) {
+      const result = await showEquationDialog({ mathml: options.mathml, linear: options.linear });
+      if (!result) return false;
+      mathml = result.mathml;
+      linear = result.linear;
+    } else if (linear && !mathml) {
+      mathml = linearToMathML(linear);
+    } else if (mathml && !linear) {
+      // Keep as-is, linear will be derived on edit
     }
-    const html = `<span class="vno-equation" role="math" data-equation="true">${this._escapeHtml(expression)}</span>`;
+    const escapedMathML = this._escapeHtml(mathml);
+    const escapedLinear = this._escapeHtml(linear || "");
+    const html = `<span class="vno-equation" role="math" data-equation="true" data-mathml="${escapedMathML}" data-linear="${escapedLinear}" contenteditable="false" tabindex="0">${mathml}</span>`;
     this._insertHtmlAtCursor(html);
     this.recordSnapshot("writer.insert.equation");
+    return true;
+  }
+
+  async _editEquation(equationEl) {
+    if (!equationEl) return false;
+    const mathml = equationEl.getAttribute("data-mathml") || equationEl.innerHTML;
+    const linear = equationEl.getAttribute("data-linear") || mathMLToLinear(mathml);
+    const result = await showEquationDialog({ mathml, linear, targetEquationEl: equationEl });
+    if (!result) return false;
+    const newMathML = result.mathml;
+    const newLinear = result.linear;
+    const escapedMathML = this._escapeHtml(newMathML);
+    const escapedLinear = this._escapeHtml(newLinear);
+    equationEl.innerHTML = newMathML;
+    equationEl.setAttribute("data-mathml", escapedMathML);
+    equationEl.setAttribute("data-linear", escapedLinear);
+    this.isDirty = true;
+    this.recordSnapshot("writer.equation.edit");
     return true;
   }
 
@@ -11112,7 +11259,7 @@ export class WriterAdapter {
 
   _stripSessionMarkup(html) {
     const withoutComments = this._stripCommentMarkup(html);
-    return withoutComments
+    let result = withoutComments
       .replace(/\s+data-vno-src-hash=["'][^"']*["']/gi, "")
       .replace(/\s+data-vno-edited=["'][^"']*["']/gi, "")
       .replace(/\s+data-vno-keep-next=["'][^"']*["']/gi, "")
@@ -11134,6 +11281,9 @@ export class WriterAdapter {
       .replace(/\s*\bvno-merge-preview\b/gi, "")
       .replace(/<(div|tr|li)\b[^>]*data-vno-auto-page-gap=["']true["'][^>]*>[\s\S]*?<\/\1>/gi, "")
       .replace(/<span\b[^>]*data-vno-format-mark=["'][^"']+["'][^>]*>([\s\S]*?)<\/span>/gi, "$1");
+    // Convert MathML equations to OMML for LibreOffice export
+    result = this._convertMathMLToOMML(result);
+    return result;
   }
 
   _shapesForExport() {

@@ -1042,5 +1042,42 @@ export const enStrings = {
     savedNotice: "Macro saved",
     noActionsNotice: "No actions were recorded — Macro was not saved.",
     emptyCancelled: "Cancelled — Macro was not saved."
+  },
+  equation: {
+    insert: "Insert Equation",
+    edit: "Edit Equation",
+    linearFormat: "Linear format (LaTeX-like)",
+    preview: "Preview",
+    previewError: "Preview error",
+    struct: {
+      frac: "Fraction",
+      sup: "Superscript",
+      sub: "Subscript",
+      sqrt: "Square Root",
+      nthroot: "N-th Root",
+      int: "Integral",
+      sum: "Sum",
+      prod: "Product",
+      bracket: "Bracket",
+      matrix2: "2×2 Matrix",
+      matrix3: "3×3 Matrix"
+    },
+    help: {
+      title: "Equation",
+      summary: "Insert and edit mathematical equations with a linear format input (like Word) and MathML preview.",
+      ribbon: "Insert tab > Symbols group > Equation",
+      shortcut: "Alt+=",
+      steps: [
+        "Place the cursor where you want to insert an equation.",
+        "Open the Insert tab on the ribbon, go to the Symbols group, and click Equation (or press Alt+=).",
+        "The Equation Editor dialog appears with a structure toolbar (fraction, script, radical, integral, matrix...) and symbols (Greek letters, operators...).",
+        "Type the formula in the Linear format box: a/b for fraction, x^2 for superscript, x_1 for subscript, \\sqrt(x) for square root, \\alpha for α, \\le for ≤, etc.",
+        "Press Space to convert linear format to MathML, or click structure buttons to insert templates.",
+        "View the rendered result in the Preview pane.",
+        "Click Insert to place the equation in the document.",
+        "To edit: double-click an existing equation, modify the Linear format, then click Update.",
+        "Delete an equation: select it and press Delete/Backspace."
+      ]
+    }
   }
 };

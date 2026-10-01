@@ -12461,12 +12461,52 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
         if indent and text:
             indent_by_text[text] = round(float(indent.group(1)) / 2.54 * 1440)
 
-    def patch_indent(match: re.Match) -> str:
-        paragraph = match.group(0)
-        twips = indent_by_text.get(_paragraph_plain_text(paragraph).strip())
-        return _writer_upsert_ppr_empty(paragraph, "ind", f'<w:ind w:firstLine="{twips}"/>') if twips else paragraph
-
-    document_xml = re.sub(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", patch_indent, document_xml, flags=re.IGNORECASE)
+    return result
+ 
+ 
+def _restore_equations_from_html(document_xml: str, source_html: str) -> str:
+    """Restore equations from source HTML MathML spans to DOCX as OMML.
+    
+    The editor stores equations as <span class="vno-equation" data-mathml="...">.
+    This function extracts the MathML and converts it to OMML for the DOCX.
+    """
+    # Find all equation spans in the source HTML
+    equation_spans = list(re.finditer(
+        r'<span\b[^>]*class=["\'][^"\']*\bvno-equation\b[^"\']*["\'][^>]*data-mathml=["\']([^"\']*)["\'][^>]*>[\s\S]*?</span\s*>',
+        source_html,
+        re.IGNORECASE,
+    ))
+    if not equation_spans:
+        return document_xml
+    
+    # Parse each equation's MathML and convert to OMML
+    omml_equations = []
+    for span in equation_spans:
+        mathml_escaped = span.group(1)
+        mathml = html.unescape(mathml_escaped)
+        omml = _mathml_to_omml(mathml)
+        if omml:
+            omml_equations.append(omml)
+    
+    if not omml_equations:
+        return document_xml
+    
+    # Insert OMML equations into the document body
+    # We insert them at the end of the body before the section properties
+    # This is a simple approach - in reality we'd match by paragraph content
+    body_end = document_xml.rfind("</w:body>")
+    if body_end == -1:
+        return document_xml
+    
+    omml_xml = "".join(omml_equations)
+    # Wrap each OMML in a paragraph with a run
+    wrapped_omml = []
+    for omml in omml_equations:
+        wrapped_omml.append(f'<w:p><w:r>{omml}</w:r></w:p>')
+    
+    insertion = "".join(wrapped_omml)
+    document_xml = document_xml[:body_end] + insertion + document_xml[body_end:]
+    return document_xml
     document_xml = _writer_restore_created_paragraph_css(document_xml, source_html)
 
     section_ids = re.findall(r'data-vno-export-section=["\']([^"\']+)["\']', source_html, re.IGNORECASE)
@@ -12774,6 +12814,10 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
             document_xml = re.sub(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", assign_bullet, document_xml, flags=re.IGNORECASE)
             replacements["word/document.xml"] = document_xml.encode("utf-8")
             replacements["word/numbering.xml"] = numbering.encode("utf-8")
+
+    # Restore equations from source HTML (MathML spans with data-mathml)
+    if source_html:
+        document_xml = _restore_equations_from_html(document_xml, source_html)
 
     page_fields = list(re.finditer(
         r'<span\b(?=[^>]*\bdata-vno-field=["\'](PAGE|NUMPAGES)["\'])[^>]*>([\s\S]*?)</span\s*>',

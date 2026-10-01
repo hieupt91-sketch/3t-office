@@ -1041,5 +1041,42 @@ export const viStrings = {
     savedNotice: "Đã lưu Macro",
     noActionsNotice: "Không có thao tác nào được ghi lại — Macro không được lưu.",
     emptyCancelled: "Đã hủy — Macro không được lưu."
+  },
+  equation: {
+    insert: "Chèn phương trình",
+    edit: "Chỉnh sửa phương trình",
+    linearFormat: "Định dạng tuyến tính (LaTeX-like)",
+    preview: "Xem trước",
+    previewError: "Lỗi hiển thị",
+    struct: {
+      frac: "Phân số",
+      sup: "Chỉ số trên",
+      sub: "Chỉ số dưới",
+      sqrt: "Căn bậc 2",
+      nthroot: "Căn bậc n",
+      int: "Tích phân",
+      sum: "Tổng",
+      prod: "Tích",
+      bracket: "Ngoặc",
+      matrix2: "Ma trận 2×2",
+      matrix3: "Ma trận 3×3"
+    },
+    help: {
+      title: "Phương trình toán học",
+      summary: "Chèn và chỉnh sửa phương trình toán học với bộ gõ dạng linear format (giống Word) và xem trước MathML.",
+      ribbon: "Tab Chèn > Nhóm Ký hiệu > Phương trình",
+      shortcut: "Alt+=",
+      steps: [
+        "Đặt con trỏ tại vị trí cần chèn phương trình trong văn bản.",
+        "Mở tab Chèn trên ribbon, nhóm Ký hiệu, nhấn nút Phương trình (hoặc bấm Alt+=).",
+        "Hộp thoại Bộ gõ phương trình xuất hiện với thanh công cụ cấu trúc (phân số, chỉ số, căn, tích phân, ma trận...) và ký hiệu (chữ Hy Lạp, toán tử...).",
+        "Nhập công thức ở khung Định dạng tuyến tính: gõ a/b cho phân số, x^2 cho chỉ số trên, x_1 cho chỉ số dưới, \\sqrt(x) cho căn bậc hai, \\alpha cho α, \\le cho ≤, ...",
+        "Nhấn Space để chuyển đổi định dạng tuyến tính thành MathML, hoặc nhấn nút cấu trúc trên thanh công cụ để chèn mẫu.",
+        "Xem kết quả tại khung Xem trước bên cạnh.",
+        "Nhấn Chèn để đưa phương trình vào tài liệu.",
+        "Để chỉnh sửa: nhấp đúp vào phương trình đã chèn, sửa ở khung Định dạng tuyến tính, rồi nhấn Cập nhật.",
+        "Xóa phương trình: chọn nó và nhấn Delete/Backspace."
+      ]
+    }
   }
 };
