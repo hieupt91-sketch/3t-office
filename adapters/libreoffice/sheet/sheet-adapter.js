@@ -6154,27 +6154,22 @@ ${pristineXlsxMarker}
       if (!isGridClipboardTarget(event)) return;
       const text = event.clipboardData?.getData("text/plain") || "";
       const html = event.clipboardData?.getData("text/html") || "";
-      // If no HTML from browser clipboard API, try Python bridge (which reads CF_HTML directly)
+      if (window.__vnoClipboardDiagnostics) console.info("__VNO_CLIPBOARD_DIAG__" + JSON.stringify({ phase: "sheet-paste-event", types: Array.from(event.clipboardData?.types || []), textLength: text.length, htmlLength: html.length, htmlHasStyle: /<style\b/i.test(html), htmlHasXNum: /x:num/i.test(html) }));
+      if (!text && !html) return;
+      if (event.clipboardData) event.preventDefault();
+      const native = await this._readClipboardData();
       let model = null;
-      let nativeText = text;
-      let nativeHtml = html;
-      if (!html) {
-        if (event.clipboardData) event.preventDefault();
-        const native = await this._readClipboardData();
-        if (native?.html) {
-          nativeHtml = native.html;
-          nativeText = native.text || text;
-        } else if (native?.text) {
-          nativeText = native.text;
-        }
-      }
+      const nativeText = native?.status === "ok" ? (native.text || text) : text;
+      const nativeHtml = native?.status === "ok" ? (native.html || html) : html;
+      const isInternal = nativeText === this._clipboardText && this._clipboardModel?.cells?.length;
+      if (isInternal) model = this._clipboardModel;
       if (nativeHtml) {
-        model = parseOfficeHtmlTable(nativeHtml, nativeText);
+        model ||= parseOfficeHtmlTable(nativeHtml, nativeText);
       }
       if (!model) {
-        const isInternal = nativeText === this._clipboardText && this._clipboardModel?.cells?.length;
-        model = isInternal ? this._clipboardModel : this._clipboardModelFromText(nativeText, nativeHtml);
+        model = this._clipboardModelFromText(nativeText, nativeHtml);
       }
+      if (window.__vnoClipboardDiagnostics) console.info("__VNO_CLIPBOARD_DIAG__" + JSON.stringify({ phase: "sheet-paste-model", cells: (model?.cells || []).map(row => row.map(cell => ({ val: cell.val, style: cell.style }))) }));
       await this._pasteModelIntoGrid(model, nativeText, false);
     };
     container.addEventListener("copy", copy);
@@ -6194,6 +6189,7 @@ ${pristineXlsxMarker}
   async _readClipboardData() {
     try {
       const native = await globalUnoBridge.readClipboardData?.();
+      if (window.__vnoClipboardDiagnostics) console.info("__VNO_CLIPBOARD_DIAG__" + JSON.stringify({ phase: "clipboard-bridge-result", status: native?.status, textLength: native?.text?.length || 0, htmlLength: native?.html?.length || 0, htmlHasStyle: /<style\b/i.test(native?.html || ""), htmlHasXNum: /x:num/i.test(native?.html || ""), message: native?.message || "" }));
       if (native?.status === "ok") return native;
     } catch { /* Browser clipboard is the web-mode fallback. */ }
     try {
@@ -6226,6 +6222,7 @@ ${pristineXlsxMarker}
 
   async _pasteModelIntoGrid(model, text, isInternal = false) {
     if (!model?.cells?.length || !this.grid.selectedCoord || !this.grid.applyPasteSpecial) return false;
+    if (window.__vnoClipboardDiagnostics) console.info("__VNO_CLIPBOARD_DIAG__" + JSON.stringify({ phase: "sheet-paste-destination", selectedCoord: this.grid.selectedCoord, isInternal, cellsBefore: [...this.grid.cellsData.entries()].filter(([coord]) => /^(A1|B2|C2|B3|C3)$/.test(coord)).map(([coord, cell]) => ({ coord, val: cell.val, style: cell.style })) }));
     const clipboardState = this.grid._clipboardRange;
     const moveRange = isInternal && clipboardState?.mode === "cut" &&
       clipboardState.sheet === this.grid.activeSheet && this._clipboardSourceSheet === this.grid.activeSheet
@@ -6235,6 +6232,7 @@ ${pristineXlsxMarker}
       moveRange,
       sourceSheet: this._clipboardSourceSheet
     });
+    if (window.__vnoClipboardDiagnostics) console.info("__VNO_CLIPBOARD_DIAG__" + JSON.stringify({ phase: "sheet-paste-applied", applied, cellsAfter: [...this.grid.cellsData.entries()].filter(([coord]) => /^(A1|B2|C2|B3|C3)$/.test(coord)).map(([coord, cell]) => ({ coord, val: cell.val, style: cell.style })) }));
     if (applied && moveRange) this.grid.clearClipboardRange?.();
     return applied;
   }

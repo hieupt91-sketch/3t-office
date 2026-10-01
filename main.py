@@ -2155,6 +2155,29 @@ def _extract_clipboard_html_fragment(raw: bytes) -> str:
     return ""
 
 
+def _extract_clipboard_html_with_styles(raw: bytes) -> str:
+    """Return the copied HTML body plus its Office stylesheet as a self-contained fragment."""
+    if not raw:
+        return ""
+    data = raw.rstrip(b"\x00")
+    start_html_match = re.search(rb"(?im)^StartHTML:\s*(\d+)\s*$", data)
+    end_html_match = re.search(rb"(?im)^EndHTML:\s*(\d+)\s*$", data)
+    html_document = data
+    if start_html_match and end_html_match:
+        start_html, end_html = int(start_html_match.group(1)), int(end_html_match.group(1))
+        if 0 <= start_html <= end_html <= len(data):
+            html_document = data[start_html:end_html]
+
+    decoded = html_document.decode("utf-8", errors="replace")
+    style_blocks = re.findall(r"<style\b[^>]*>[\s\S]*?</style\s*>", decoded, re.IGNORECASE)
+    body_match = re.search(r"<body\b[^>]*>([\s\S]*?)</body\s*>", decoded, re.IGNORECASE)
+    if body_match:
+        body = body_match.group(1)
+    else:
+        body = _extract_clipboard_html_fragment(raw) or decoded
+    return "\n".join(part for part in ("\n".join(style_blocks), body) if part).strip()
+
+
 def _read_windows_clipboard_data() -> dict[str, object]:
     """Read plain text and HTML locally from the Windows clipboard via Win32."""
     if os.name != "nt":
@@ -2201,7 +2224,7 @@ def _read_windows_clipboard_data() -> dict[str, object]:
         return {
             "status": "ok",
             "text": text,
-            "html": _extract_clipboard_html_fragment(html_bytes),
+            "html": _extract_clipboard_html_with_styles(html_bytes),
         }
     finally:
         user32.CloseClipboard()
@@ -2257,7 +2280,15 @@ class VnOfficeApi:
     def read_clipboard_data(self) -> dict[str, object]:
         """Đọc CF_UNICODETEXT và HTML Format từ clipboard Windows cục bộ."""
         try:
-            return _read_windows_clipboard_data()
+            result = _read_windows_clipboard_data()
+            print("__VNO_CLIPBOARD_PYTHON__ " + json.dumps({
+                "status": result.get("status"),
+                "textLength": len(result.get("text", "")),
+                "htmlLength": len(result.get("html", "")),
+                "htmlHasStyle": "<style" in result.get("html", "").lower(),
+                "htmlHasXNum": "x:num" in result.get("html", "").lower(),
+            }), flush=True)
+            return result
         except Exception as exc:
             return {"status": "error", "message": f"Không đọc được bộ nhớ tạm: {exc}"}
 

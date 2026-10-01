@@ -325,7 +325,7 @@ export function detectNumberFormat(formatStr, cellText = "", rawValue = null) {
     // Nếu không có dấu phân cách -> decimals = 0
     
     const useSeparator = hasThousandSep;
-    return { category: "number", decimals, useSeparator };
+    return { category: "number", decimals, useSeparator, useThousands: useSeparator };
   }
 
   return null;

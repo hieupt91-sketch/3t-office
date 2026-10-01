@@ -14080,13 +14080,18 @@ export class WriterAdapter {
   _bindClipboardEvents() {
     if (this._clipboardEventRoots) return;
     this._clipboardEventRoots = [this.headerDom, this.bodyDom, this.footerDom].filter(root => root?.addEventListener);
-    this._pasteEventHandler = event => {
+    this._pasteEventHandler = async event => {
       const clipboard = event.clipboardData;
       if (!clipboard) return;
-      const html = clipboard.getData("text/html") || "";
-      const text = clipboard.getData("text/plain") || "";
-      if (!html && !text) return;
+      const eventHtml = clipboard.getData("text/html") || "";
+      const eventText = clipboard.getData("text/plain") || "";
+      if (!eventHtml && !eventText) return;
       event.preventDefault();
+      if (window.__vnoClipboardDiagnostics) console.info("__VNO_CLIPBOARD_DIAG__" + JSON.stringify({ phase: "writer-paste-event", types: Array.from(clipboard.types || []), textLength: eventText.length, htmlLength: eventHtml.length, htmlHasStyle: /<style\b/i.test(eventHtml) }));
+      const native = await this._readClipboardFromSystem();
+      const html = native?.html || eventHtml;
+      const text = native?.text || eventText;
+      if (window.__vnoClipboardDiagnostics) console.info("__VNO_CLIPBOARD_DIAG__" + JSON.stringify({ phase: "writer-paste-source", status: native?.status || "unavailable", textLength: text.length, htmlLength: html.length, htmlHasStyle: /<style\b/i.test(html) }));
       this._insertClipboardContent({ html, text });
     };
     this._copyEventHandler = event => {
@@ -14165,6 +14170,7 @@ export class WriterAdapter {
   async _readClipboardFromSystem() {
     try {
       const native = await globalUnoBridge.readClipboardData?.();
+      if (window.__vnoClipboardDiagnostics) console.info("__VNO_CLIPBOARD_DIAG__" + JSON.stringify({ phase: "writer-clipboard-bridge-result", status: native?.status, textLength: native?.text?.length || 0, htmlLength: native?.html?.length || 0, htmlHasStyle: /<style\b/i.test(native?.html || ""), message: native?.message || "" }));
       if (native?.status === "ok") return native;
     } catch { /* Browser clipboard is the web-mode fallback. */ }
     try {
