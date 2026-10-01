@@ -87,11 +87,28 @@ export const SHEET_HELP_ENTRIES = [
     ribbon: { tab: "Công thức", tabId: "formulas", group: "Hàm tính toán" },
     keywords: ["công thức", "formula", "hàm", "fx", "autosum", "sum", "average", "thanh công thức", "chèn hàm"],
     steps: [
-      "Chọn ô kết quả. Trên thanh công thức (dưới ribbon) gõ dấu = rồi tên hàm, ví dụ =SUM(A1:A10) hoặc =AVERAGE(B2:B8). Danh sách gợi ý hiện khi gõ; chọn hàm rồi Enter.",
+      "Chọn ô kết quả. Trên Thanh công thức 3T Sheet gõ dấu = rồi tên hàm, ví dụ =SUM(A1:A10) hoặc =AVERAGE(B2:B8). Danh sách gợi ý hiện khi gõ; nhấn Tab để chèn hàm, tiếp tục nhập đối số rồi nhấn Enter để tính.",
       "Cách khác: mở tab Công thức, nhóm Hàm tính toán, nhấn Chèn hàm (hoặc Shift+F3, hoặc nút fx trên thanh công thức). Chọn danh mục (Toán học, Logic, Văn bản, Ngày & Giờ, Tài chính, Tra cứu…), chọn hàm rồi nhấn Chèn hàm vào ô.",
       "Muốn tổng nhanh: chọn ô ngay dưới (hoặc bên phải) dải số, nhấn AutoSum trên tab Công thức hoặc tab Trang đầu nhóm Chỉnh sửa (Alt+=). AVERAGE / Đếm số / Lớn nhất / Nhỏ nhất nằm cạnh đó.",
       "Nhấn Enter hoặc nút ✓ trên thanh công thức để xác nhận. Esc hoặc nút ✕ hủy bản đang soạn. Ctrl+Shift+Enter nhập công thức mảng cho vùng đã chọn.",
       "Nút Chèn hàm trên tab Công thức còn các nhóm Tài chính, Logic, Văn bản, Ngày & Giờ, Tra cứu & Tham chiếu, Toán & Lượng giác — mỗi nút mở cùng hộp thoại fx đã lọc sẵn danh mục."
+    ]
+  },
+  {
+    id: "sheet.formula.excelEntry",
+    app: "sheet",
+    commandIds: ["sheet.formula.insertFunction", "sheet.formula.arrayEnter"],
+    title: "Nhập công thức và chọn tham chiếu bằng chuột",
+    summary: "Dùng gợi ý hàm, chú giải tham số và chế độ Trỏ để nhập công thức ngay trong lưới hoặc Thanh công thức 3T Sheet mà không mất nội dung đang sửa.",
+    ribbon: { tab: "Công thức", tabId: "formulas", group: "Hàm tính toán" },
+    keywords: ["công thức", "gợi ý hàm", "autocomplete", "trỏ ô", "chọn vùng bằng chuột", "F2", "F4", "tham chiếu", "SUM", "formula bar"],
+    steps: [
+      "Chọn ô kết quả trong lưới 3T Sheet hoặc bấm Thanh công thức ngay dưới ribbon. Gõ = rồi tên hàm, chẳng hạn =SU; danh sách chỉ hiện hàm mà công cụ tính 3T Sheet hỗ trợ, kèm mô tả tiếng Việt ngắn.",
+      "Dùng mũi tên Lên/Xuống để chọn hàm rồi nhấn Tab, hoặc nhấp đúp tên hàm. 3T Sheet chèn tên hàm cùng dấu mở ngoặc, giữ nguyên chế độ sửa và hiện cú pháp tham số bên dưới; tham số đang nhập được in đậm và đổi khi bạn gõ dấu phẩy.",
+      "Đặt con trỏ sau dấu =, dấu (, dấu phẩy hoặc toán tử rồi nhấp ô trên lưới để chèn địa chỉ. Kéo chuột để chèn cả vùng như A1:A5. Giữ Shift và nhấp ô để mở rộng tham chiếu vừa chèn; giữ Ctrl và nhấp ô để thêm một tham chiếu mới, phân cách bằng dấu phẩy.",
+      "Trong khi công thức đang mở, nhấp tab trang tính khác rồi chọn/kéo vùng để thêm tham chiếu như Sheet2!A1. Nhấn Enter để hoàn tất; 3T Sheet quay về trang tính chứa ô công thức. Tham chiếu được đánh dấu viền màu trên lưới và cùng màu trong công thức.",
+      "Nhấn F2 để chuyển giữa Sửa và Trỏ; trạng thái Nhập/Sửa/Trỏ hiện ở thanh trạng thái phía dưới. Trong chế độ Trỏ, dùng phím mũi tên để di chuyển địa chỉ tham chiếu. Đặt con trỏ vào địa chỉ rồi nhấn F4 để lần lượt đổi $A$1, A$1, $A1 và A1.",
+      "Nhấn Enter để lưu công thức; dấu ngoặc đóng còn thiếu sẽ được thêm tự động. Nhấn Esc để hủy toàn bộ lần sửa và khôi phục nội dung cũ. Nếu danh sách gợi ý đang mở, Esc lần đầu chỉ đóng danh sách. Dùng Ctrl+Shift+Enter để nhập công thức mảng như trước đây."
     ]
   },
   {

@@ -36,15 +36,30 @@ export const WRITER_HELP_ENTRIES = [
     id: "writer.section.breaks",
     app: "writer",
     commandIds: ["writer.page.break", "writer.break.column", "writer.section.nextPage", "writer.section.continuous", "writer.section.evenPage", "writer.section.oddPage"],
-    title: "Ngắt trang, ngắt cột và ngắt mục",
+    title: "Ngắt, ngắt cột và ngắt mục",
     summary: "Chia tài liệu thành các mục có khổ giấy, hướng giấy và lề riêng. Trang kế tiếp/chẵn/lẻ bắt đầu ở trang phù hợp; Liên tục đặt mốc ngay tại con trỏ.",
     ribbon: { tab: "Bố cục", tabId: "layout", group: "Thiết lập trang" },
     keywords: ["ngắt mục", "section break", "ngắt trang", "ngắt cột", "trang ngang", "trang chẵn", "trang lẻ"],
     steps: [
       "Đặt con trỏ tại vị trí cần bắt đầu vùng định dạng mới.",
-      "Mở tab Bố cục, nhóm Thiết lập trang, mở Ngắt trang rồi chọn Trang kế tiếp, Liên tục, Trang chẵn hoặc Trang lẻ trong nhóm Ngắt mục.",
+      "Mở tab Bố cục, nhóm Thiết lập trang, mở Ngắt rồi chọn Trang kế tiếp, Liên tục, Trang chẵn hoặc Trang lẻ trong nhóm Ngắt mục.",
       "Sau mốc ngắt, chọn Căn lề, Hướng giấy hoặc Khổ giấy trên cùng nhóm. Thay đổi chỉ được lưu cho mục đang hoạt động; mục trước giữ nguyên.",
       "Ngắt cột chỉ có hiệu lực rõ khi tài liệu đang dùng từ hai cột trở lên. Dùng Ctrl+Z/Ctrl+Y để hoàn tác hoặc làm lại mốc ngắt cùng thiết lập trang."
+    ]
+  },
+  {
+    id: "writer.section.headers-footers",
+    app: "writer",
+    commandIds: ["writer.section.options", "writer.section.linkToPrevious", "writer.section.differentFirstPage", "writer.section.differentOddEven", "writer.pageNumber.format", "writer.section.delete", "writer.layout.sectionOptions"],
+    title: "Đầu trang, chân trang và số trang theo mục",
+    summary: "Tách đầu trang, chân trang và cách đánh số trang giữa các mục; có thể kế thừa từ mục trước.",
+    ribbon: { tab: "Bố cục", tabId: "layout", group: "Thiết lập trang" },
+    keywords: ["đầu trang theo mục", "chân trang theo mục", "liên kết với phần trước", "trang đầu khác biệt", "trang chẵn lẻ", "đánh số trang", "bắt đầu tại"],
+    steps: [
+      "Đặt con trỏ trong mục cần chỉnh. Nếu chưa có mục riêng, mở Bố cục > Thiết lập trang > Ngắt và chèn một trong bốn kiểu Ngắt mục.",
+      "Mở Bố cục > Thiết lập trang > Tùy chọn mục. Bỏ chọn Liên kết với phần trước để sửa đầu trang hoặc chân trang của mục này riêng; chọn lại để dùng nội dung từ mục ngay trước đó.",
+      "Trong cùng hộp thoại, bật Trang đầu khác biệt hoặc Trang chẵn và lẻ khác nhau khi cần. Chỉnh nội dung trong vùng Đầu trang hoặc Chân trang khi con trỏ đang ở đúng mục.",
+      "Chọn Định dạng số trang để tiếp tục cách đánh số hiện tại hoặc chọn Bắt đầu tại và nhập số đầu tiên của mục. Nhấn Áp dụng; Ctrl+Z/Ctrl+Y hoàn tác hoặc làm lại thay đổi."
     ]
   },
   {
@@ -646,7 +661,7 @@ export const WRITER_HELP_ENTRIES = [
     ribbon: { tab: "Bố cục", tabId: "layout", group: "Thiết lập trang" },
     keywords: ["danh số dòng", "line numbers", "số dòng", "lề trái", "trích dẫn dòng", "continuous", "restart each page"],
     steps: [
-      "Mở tab Bố cục, nhóm Thiết lập trang. Hộp «Danh số dòng» nằm ngay sau menu Ngắt trang (đúng chỗ Line Numbers trên Word).",
+      "Mở tab Bố cục, nhóm Thiết lập trang. Hộp «Danh số dòng» nằm ngay sau menu Ngắt (đúng chỗ Line Numbers trên Word).",
       "Chọn Liên tục để đánh số 1, 2, 3… suốt tài liệu; Mỗi trang để số bắt đầu lại từ 1 ở mỗi trang; Mỗi mục để canvas 3T Doc ghi nhận restart theo ngắt mục; Không có để tắt.",
       "Canvas 3T Doc hiện khung chữ ở lề trái: «Danh số dòng: … Số hiện ở lề trái khi mở bằng Word hoặc LibreOffice — canvas 3T Doc không vẽ số.» Đây là cấu hình xuất file, không phải số đã in trên trang soạn thảo (engine trình duyệt không tách dòng visual như Word).",
       "Lưu FODT: bật thì ghi text:linenumbering-configuration (increment=1). Mở file bằng Microsoft Word hoặc LibreOffice Writer sẽ thấy số ở lề trái. «Mỗi mục» chỉ giữ trên 3T Doc/FODT; DOCX qua LibreOffice thành Liên tục vì ODF không có restart-each-section. Ctrl+Z hoàn tác."
@@ -669,7 +684,7 @@ export const WRITER_HELP_ENTRIES = [
       "Tab Bố cục, nhóm Thiết lập trang: nút lớn Cột, rồi cột 1 cột / 2 cột / 3 cột.",
       "1 cột: một luồng, khe 0, không kẻ. 2 cột / 3 cột: count 2 hoặc 3, khe 10 mm, không kẻ. Áp ngay, không hỏi.",
       "Nút Cột mở hộp «Chia cột văn bản (Columns)»: mẫu Một cột / Hai cột / Ba cột; Số cột 1–4; Khoảng cách giữa các cột 0–50 mm; tick Đường kẻ phân cách cột; khung Xem trước. Đang chia nhiều cột thì có Bỏ chia cột (1 cột). Áp dụng.",
-      "Chia cột CSS trên toàn bộ thân, không theo vùng bôi hay từng section. Ngắt cột (menu Ngắt trang cùng nhóm) đẩy chữ sau con trỏ sang cột kế. Ctrl+Z hoàn tác."
+      "Chia cột CSS trên toàn bộ thân, không theo vùng bôi hay từng section. Ngắt cột (menu Ngắt cùng nhóm) đẩy chữ sau con trỏ sang cột kế. Ctrl+Z hoàn tác."
     ]
   },
   {
