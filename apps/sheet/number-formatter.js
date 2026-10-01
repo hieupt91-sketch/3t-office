@@ -470,11 +470,52 @@ export class NumberFormatter {
     return isNaN(timestamp) ? null : new Date(timestamp);
   }
 
+  /** True only for the unambiguous date spellings accepted by Sheet input. */
+  static isDateInput(val) {
+    if (typeof val !== "string") return false;
+    const str = val.trim();
+    const match = str.match(/^(?:(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})|(\d{4})[\/-](\d{1,2})[\/-](\d{1,2}))(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+    if (!match) return false;
+    const day = Number(match[1] || match[6]);
+    const month = Number(match[2] || match[5]);
+    const year = Number(match[3] || match[4]);
+    const hour = Number(match[7] || 0);
+    const minute = Number(match[8] || 0);
+    const second = Number(match[9] || 0);
+    if (month < 1 || month > 12 || day < 1 || hour > 23 || minute > 59 || second > 59) return false;
+    const date = new Date(Date.UTC(year, month - 1, day));
+    return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+  }
+
+  static _dateInputToSerial(inputVal) {
+    const date = this._parseDate(inputVal);
+    if (!date || isNaN(date.getTime())) return inputVal;
+    const epoch = Date.UTC(1899, 11, 30);
+    const utcValue = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes(), date.getSeconds());
+    return Math.round((utcValue - epoch) / 86400000 * 1000000) / 1000000;
+  }
+
   static normalizeInputForFormat(inputVal, formatConfig) {
     if (inputVal === null || inputVal === undefined || inputVal === "") return "";
     if (typeof inputVal === "string" && inputVal.startsWith("=")) return inputVal;
 
-    if (!formatConfig || !formatConfig.category) return inputVal;
+    if (!formatConfig || !formatConfig.category || formatConfig.category === "general") {
+      if (typeof inputVal !== "string") return inputVal;
+      const str = inputVal.trim();
+      if (this.isDateInput(str)) return this._dateInputToSerial(str);
+      const strictNumber = /^[+-]?(?:(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i;
+      if (strictNumber.test(str)) {
+        const parsed = this.parseNumber(str);
+        return parsed !== null && Number.isFinite(parsed) ? parsed : inputVal;
+      }
+      // A single comma with one or two trailing digits is a decimal in the
+      // Vietnamese locale; comma groups of three remain thousands separators.
+      if (/^[+-]?\d+,\d{1,2}$/.test(str) && !/^[+-]?\d{1,3},\d{3}$/.test(str)) {
+        const parsed = this.parseNumber(str);
+        return parsed !== null && Number.isFinite(parsed) ? parsed : inputVal;
+      }
+      return inputVal;
+    }
 
     const { category } = formatConfig;
 
@@ -512,13 +553,7 @@ export class NumberFormatter {
     }
 
     if (category === "date") {
-      const date = this._parseDate(inputVal);
-      if (date && !isNaN(date.getTime())) {
-        const epoch = Date.UTC(1899, 11, 30);
-        const utcValue = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes(), date.getSeconds());
-        return Math.round((utcValue - epoch) / 86400000 * 1000000) / 1000000;
-      }
-      return inputVal;
+      return this._dateInputToSerial(inputVal);
     }
 
     return inputVal;
