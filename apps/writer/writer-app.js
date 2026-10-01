@@ -76,6 +76,7 @@ export class WriterApp {
     const header = document.createElement("div");
     header.className = "vno-writer-header";
     header.setAttribute("contenteditable", "true");
+    header.dataset.vnoNativeClipboard = "true";
     header.setAttribute("spellcheck", "false");
     header.setAttribute("role", "textbox");
     header.setAttribute("aria-label", "Đầu trang");
@@ -85,6 +86,7 @@ export class WriterApp {
     const body = document.createElement("div");
     body.className = "vno-writer-body";
     body.setAttribute("contenteditable", "true");
+    body.dataset.vnoNativeClipboard = "true";
     body.setAttribute("spellcheck", "false");
     body.setAttribute("role", "textbox");
     body.setAttribute("aria-label", "Nội dung văn bản");
@@ -93,6 +95,7 @@ export class WriterApp {
     const footer = document.createElement("div");
     footer.className = "vno-writer-footer";
     footer.setAttribute("contenteditable", "true");
+    footer.dataset.vnoNativeClipboard = "true";
     footer.setAttribute("spellcheck", "false");
     footer.setAttribute("role", "textbox");
     footer.setAttribute("aria-label", "Chân trang");
