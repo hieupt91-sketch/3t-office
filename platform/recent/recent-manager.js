@@ -1,5 +1,5 @@
 /**
- * VN Office Platform — Recent Files Manager
+ * 3T Office Platform — Recent Files Manager
  * Quản lý danh sách tài liệu vừa mở thật, tuân thủ 01-architecture/ARCHITECTURE.md
  */
 

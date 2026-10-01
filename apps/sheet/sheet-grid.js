@@ -1,5 +1,5 @@
 /**
- * VN Sheet — Enterprise Grid Controller & Microsoft Formula Calculation Engine
+ * 3T Sheet — Enterprise Grid Controller & Microsoft Formula Calculation Engine
  */
 
 import { FormulaEngine, FUNCTION_CATALOG } from "./formula-engine.js";
@@ -3643,7 +3643,7 @@ export class SheetGridController {
   }
 
   _populateInitialData() {
-    this.setCellValue("A", 1, "BẢNG DỰ TOÁN KINH PHÍ PHÁT TRIỂN VN OFFICE 2026");
+    this.setCellValue("A", 1, "BẢNG DỰ TOÁN KINH PHÍ PHÁT TRIỂN 3T OFFICE 2026");
     this.setStyle("fontWeight", "bold");
     this.setStyle("fontSize", "14px");
     this.setStyle("color", "#0f6d38");
@@ -7071,7 +7071,7 @@ export class SheetGridController {
     if (typeof window === "undefined") return false;
     const opened = window.open?.(window.location.href, "_blank");
     if (!opened) {
-      this.options?.shell?.setStatus?.("Trình duyệt đã chặn cửa sổ mới. Hãy cho phép pop-up cho VN Office.");
+      this.options?.shell?.setStatus?.("Trình duyệt đã chặn cửa sổ mới. Hãy cho phép pop-up cho 3T Office.");
       return false;
     }
     try { opened.opener = null; } catch (_) {}
@@ -9412,7 +9412,7 @@ export class SheetGridController {
     if (!parsedCoord || parsedCoord.start.r < 1 || parsedCoord.start.r > this.rowCount || !text) return false;
     const comments = this.commentsBySheet[this.activeSheet] ||= {};
     const before = comments[coord] ? structuredClone(comments[coord]) : null;
-    const after = { coord, text, author: String(options.author || before?.author || "Người dùng VN Office"), timestamp: options.timestamp || new Date().toISOString() };
+    const after = { coord, text, author: String(options.author || before?.author || "Người dùng 3T Office"), timestamp: options.timestamp || new Date().toISOString() };
     comments[coord] = after;
     this._recordHistory({ type: "comment", sheet: this.activeSheet, coord, before, after: structuredClone(after) });
     this._refreshPageAndCommentVisuals();

@@ -1,5 +1,5 @@
 /**
- * Hướng dẫn sử dụng VN Writer — nội dung tiếng Việt thật, khớp UI hiện có.
+ * Hướng dẫn sử dụng 3T Doc — nội dung tiếng Việt thật, khớp UI hiện có.
  * Task sau thêm entry mới vào mảng này (hoặc file catalog app tương ứng).
  */
 
@@ -13,7 +13,7 @@ export const WRITER_HELP_ENTRIES = [
     ribbon: { tab: "Tệp", tabId: "file", group: "Tài liệu" },
     keywords: ["tạo mới", "mở tệp", "lưu", "lưu thành", "in", "Ctrl+N", "Ctrl+O", "Ctrl+S", "F12", "Ctrl+P", "tài liệu trống"],
     steps: [
-      "Tạo tài liệu trống: nhấn Ctrl+N hoặc mở Tệp > Mới. VN Writer mở một cửa sổ riêng tên Tài liệu 2, Tài liệu 3…; trang A4 có con trỏ ở đoạn đầu và chưa được đánh dấu là đã sửa.",
+      "Tạo tài liệu trống: nhấn Ctrl+N hoặc mở Tệp > Mới. 3T Doc mở một cửa sổ riêng tên Tài liệu 2, Tài liệu 3…; trang A4 có con trỏ ở đoạn đầu và chưa được đánh dấu là đã sửa.",
       "Mở tài liệu: nhấn Ctrl+O hoặc chọn Tệp > Mở, chọn DOCX, DOC, ODT, RTF hoặc TXT. Nếu tài liệu hiện tại có thay đổi, chọn Lưu, Không lưu hoặc Hủy trước khi tiếp tục; Hủy hoặc đóng hộp chọn tệp sẽ giữ tài liệu hiện tại.",
       "Lưu: Ctrl+S mở hộp thoại Lưu thành cho tài liệu mới. Với tệp đã mở/lưu, Ctrl+S ghi đúng định dạng hiện tại. Nhấn F12 (hoặc Ctrl+Shift+S), nhập tên trong hộp thoại Lưu bản sao rồi chọn DOCX, DOC, ODT, RTF, TXT hoặc PDF ở danh sách Loại tệp. Cũng có thể chọn Tệp > Lưu bản sao. Chọn PDF chỉ xuất một bản PDF; tài liệu đang mở giữ tên, định dạng và đường dẫn cũ. Khi ghi đè tệp đã có, xác nhận trong hộp thoại của Windows; sau khi lưu định dạng văn bản khác, tên tab và tiêu đề cửa sổ chuyển sang tệp mới."
     ]
@@ -82,7 +82,7 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["writer.review.wordCount"],
     title: "Đếm từ",
-    summary: "Đếm số từ, ký tự, đoạn văn và dòng trong thân tài liệu VN Writer. Từ tiếng Việt được tách theo khoảng trắng, không đếm token rỗng. Đầu trang và chân trang không được tính.",
+    summary: "Đếm số từ, ký tự, đoạn văn và dòng trong thân tài liệu 3T Doc. Từ tiếng Việt được tách theo khoảng trắng, không đếm token rỗng. Đầu trang và chân trang không được tính.",
     ribbon: { tab: "Đánh giá", tabId: "review", group: "Chính tả & Ngữ pháp" },
     keywords: ["đếm từ", "word count", "số từ", "ký tự", "thống kê", "status bar"],
     steps: [
@@ -244,7 +244,7 @@ export const WRITER_HELP_ENTRIES = [
     steps: [
       "Đặt con trỏ vào đoạn văn, chỗ muốn chèn chữ nghệ thuật.",
       "Mở tab Chèn, nhóm Văn bản, nhấn nút lớn Chữ nghệ thuật (cạnh Hộp văn bản).",
-      "Hộp thoại Chèn chữ nghệ thuật: gõ nội dung (mặc định «VN Office», tối đa 80 ký tự) rồi chọn một mẫu trong lưới (ví dụ Xanh đậm viền trắng, Gradient đại dương, Viền đậm trắng).",
+      "Hộp thoại Chèn chữ nghệ thuật: gõ nội dung (mặc định «3T Office», tối đa 80 ký tự) rồi chọn một mẫu trong lưới (ví dụ Xanh đậm viền trắng, Gradient đại dương, Viền đậm trắng).",
       "Nhấn Chèn. Khối chữ xuất hiện ngay tại con trỏ. Nhấp một lần để chọn (viền xanh); nhấp đúp để sửa chữ; Delete hoặc Backspace khi đang chọn sẽ xóa cả khối. Ctrl+Z hoàn tác, Ctrl+Y làm lại.",
       "Cùng nhóm Văn bản còn Hộp văn bản (khung kéo-thả độc lập), Chữ đầu đoạn và Ngày & Giờ."
     ]
@@ -379,7 +379,7 @@ export const WRITER_HELP_ENTRIES = [
     keywords: ["bảng", "table", "chèn bảng", "hàng", "cột", "ô bảng", "tiêu đề"],
     steps: [
       "Đặt con trỏ vào đoạn văn, chỗ muốn đặt bảng. Mở tab Chèn, nhóm Bảng biểu, nhấn nút lớn Bảng biểu.",
-      "VN Writer chèn ngay bảng 3 hàng × 4 cột (không mở hộp thoại chọn kích thước). Hàng 1 mỗi ô ghi «Tiêu đề» đậm; hàng 2–3 ghi «Dữ liệu». Viền 1px xám, đệm 6–10 pt, rộng 100% trang.",
+      "3T Doc chèn ngay bảng 3 hàng × 4 cột (không mở hộp thoại chọn kích thước). Hàng 1 mỗi ô ghi «Tiêu đề» đậm; hàng 2–3 ghi «Dữ liệu». Viền 1px xám, đệm 6–10 pt, rộng 100% trang.",
       "Nhấp vào ô rồi gõ đè chữ mẫu. Tab nhảy ô tiếp theo như bảng HTML. Có thể thêm hàng/cột bằng cách sao chép hàng trong bảng hoặc hoàn tác bằng Ctrl+Z nếu chèn nhầm.",
       "Cùng tab Chèn, nhóm Minh họa có Hình ảnh nếu cần đặt ảnh cạnh bảng."
     ]
@@ -395,7 +395,7 @@ export const WRITER_HELP_ENTRIES = [
     steps: [
       "Đặt con trỏ tại chỗ cần ảnh. Tab Chèn, nhóm Minh họa, nhấn nút lớn Hình ảnh (cạnh Hình khối, Sơ đồ, Biểu đồ).",
       "Hộp chọn tệp của hệ thống hiện ra, lọc sẵn các file ảnh. Chọn một file rồi Mở. Ảnh được nhúng dạng data URL, rộng tối đa 100% trang, chiều cao tự giữ tỉ lệ, có đổ bóng nhẹ.",
-      "Khi mở DOCX có ảnh neo hoặc hộp văn bản nổi, VN Writer giữ vị trí và kiểu bọc chữ từ tệp gốc. Các khung nhập hiện chưa hỗ trợ kéo để đổi vị trí; hãy chỉnh vị trí trong ứng dụng nguồn nếu cần.",
+      "Khi mở DOCX có ảnh neo hoặc hộp văn bản nổi, 3T Doc giữ vị trí và kiểu bọc chữ từ tệp gốc. Các khung nhập hiện chưa hỗ trợ kéo để đổi vị trí; hãy chỉnh vị trí trong ứng dụng nguồn nếu cần.",
       "Nhấp ảnh để chọn (có tabindex). Delete khi đang chọn sẽ xóa ảnh. Ctrl+Z hoàn tác lần chèn.",
       "Muốn chú thích và đánh số hình: sau khi chèn, dùng tab Tham chiếu → nhóm Chú thích ảnh (bài «Chú thích ảnh và danh mục hình»)."
     ]
@@ -492,7 +492,7 @@ export const WRITER_HELP_ENTRIES = [
       "Tab Chế độ xem, nhóm Hiển thị: Thước và Đường lưới (nút bật/tắt). Nhóm Thu phóng cạnh đó có Chiều rộng trang (cùng cột với 100%). Nhóm Cửa sổ có nút lớn Cửa sổ mới.",
       "Thước là thanh ngang 22 px trên trang, mặc định hiện. Nhấn để ẩn. Vạch trái ghi «Lề trái: 30mm (NĐ 30/2020/NĐ-CP)», vạch phải «Lề phải: 15mm». Không kéo được để đổi lề — đổi lề ở tab Bố cục → Căn lề. Chế độ đọc cũng ẩn thước.",
       "Đường lưới mặc định tắt. Bật thì phủ lưới 18.8976 px (~5 mm), màu xanh rất nhạt — chỉ trên màn hình, không in, không xuất file. Chiều rộng trang tính (viewport − 40) / bề rộng giấy (A4 ~794 px), kẹp 50%–200%, tự chỉnh khi đổi cỡ cửa sổ.",
-      "Cửa sổ mới gọi window.open cùng địa chỉ. Trình duyệt chặn pop-up thì thanh trạng thái: «Trình duyệt đã chặn cửa sổ mới. Hãy cho phép pop-up cho VN Office.» Tab mới là phiên độc lập, không chia undo."
+      "Cửa sổ mới gọi window.open cùng địa chỉ. Trình duyệt chặn pop-up thì thanh trạng thái: «Trình duyệt đã chặn cửa sổ mới. Hãy cho phép pop-up cho 3T Office.» Tab mới là phiên độc lập, không chia undo."
     ]
   },
   {
@@ -647,7 +647,7 @@ export const WRITER_HELP_ENTRIES = [
     keywords: ["căn lề", "lề trang", "hướng giấy", "khổ giấy", "a4", "nđ 30", "portrait", "landscape", "thiết lập trang"],
     steps: [
       "Tab Bố cục, nhóm Thiết lập trang: Căn lề, Hướng giấy, Khổ giấy (ba nút lớn). Cả ba mở hộp «Thiết lập trang» — Hướng giấy đặt focus vào hướng; Căn lề và Khổ giấy đặt focus vào khổ.",
-      "Khổ giấy: A4 (210 × 297 mm, mặc định), Letter (215.9 × 279.4 mm), Legal (216 × 356 mm). Khi mở DOCX có khổ không chuẩn, hộp hiển thị Tùy chỉnh kèm kích thước gốc và VN Writer giữ nguyên kích thước đó khi lưu. Hướng: Dọc (Portrait) hoặc Ngang (Landscape).",
+      "Khổ giấy: A4 (210 × 297 mm, mặc định), Letter (215.9 × 279.4 mm), Legal (216 × 356 mm). Khi mở DOCX có khổ không chuẩn, hộp hiển thị Tùy chỉnh kèm kích thước gốc và 3T Doc giữ nguyên kích thước đó khi lưu. Hướng: Dọc (Portrait) hoặc Ngang (Landscape).",
       "Lề trên / dưới / trái / phải (mm), mỗi ô 0–100. Mặc định trên 20, dưới 20, trái 30, phải 15 — đúng lề văn bản hành chính NĐ 30. Áp dụng / Hủy bỏ.",
       "Không có gallery Narrow/Wide như Word — chỉ số mm. Thước trên tab Chế độ xem phản ánh lề trái/phải sau khi áp dụng. Ctrl+Z hoàn tác."
     ]
@@ -657,14 +657,14 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["writer.layout.lineNumbers"],
     title: "Danh số dòng",
-    summary: "Bật cấu hình danh số dòng (Không có / Liên tục / Mỗi trang / Mỗi mục) để file FODT/DOCX mở bằng Word hoặc LibreOffice tự vẽ số ở lề trái. Canvas VN Writer không vẽ số trên từng dòng — chỉ hiện trạng thái bật.",
+    summary: "Bật cấu hình danh số dòng (Không có / Liên tục / Mỗi trang / Mỗi mục) để file FODT/DOCX mở bằng Word hoặc LibreOffice tự vẽ số ở lề trái. Canvas 3T Doc không vẽ số trên từng dòng — chỉ hiện trạng thái bật.",
     ribbon: { tab: "Bố cục", tabId: "layout", group: "Thiết lập trang" },
     keywords: ["danh số dòng", "line numbers", "số dòng", "lề trái", "trích dẫn dòng", "continuous", "restart each page"],
     steps: [
       "Mở tab Bố cục, nhóm Thiết lập trang. Hộp «Danh số dòng» nằm ngay sau menu Ngắt (đúng chỗ Line Numbers trên Word).",
-      "Chọn Liên tục để đánh số 1, 2, 3… suốt tài liệu; Mỗi trang để số bắt đầu lại từ 1 ở mỗi trang; Mỗi mục để canvas VN Writer ghi nhận restart theo ngắt mục; Không có để tắt.",
-      "Canvas VN Writer hiện khung chữ ở lề trái: «Danh số dòng: … Số hiện ở lề trái khi mở bằng Word hoặc LibreOffice — canvas VN Writer không vẽ số.» Đây là cấu hình xuất file, không phải số đã in trên trang soạn thảo (engine trình duyệt không tách dòng visual như Word).",
-      "Lưu FODT: bật thì ghi text:linenumbering-configuration (increment=1). Mở file bằng Microsoft Word hoặc LibreOffice Writer sẽ thấy số ở lề trái. «Mỗi mục» chỉ giữ trên VN Writer/FODT; DOCX qua LibreOffice thành Liên tục vì ODF không có restart-each-section. Ctrl+Z hoàn tác."
+      "Chọn Liên tục để đánh số 1, 2, 3… suốt tài liệu; Mỗi trang để số bắt đầu lại từ 1 ở mỗi trang; Mỗi mục để canvas 3T Doc ghi nhận restart theo ngắt mục; Không có để tắt.",
+      "Canvas 3T Doc hiện khung chữ ở lề trái: «Danh số dòng: … Số hiện ở lề trái khi mở bằng Word hoặc LibreOffice — canvas 3T Doc không vẽ số.» Đây là cấu hình xuất file, không phải số đã in trên trang soạn thảo (engine trình duyệt không tách dòng visual như Word).",
+      "Lưu FODT: bật thì ghi text:linenumbering-configuration (increment=1). Mở file bằng Microsoft Word hoặc LibreOffice Writer sẽ thấy số ở lề trái. «Mỗi mục» chỉ giữ trên 3T Doc/FODT; DOCX qua LibreOffice thành Liên tục vì ODF không có restart-each-section. Ctrl+Z hoàn tác."
     ]
   },
   {
@@ -698,7 +698,7 @@ export const WRITER_HELP_ENTRIES = [
     steps: [
       "Tab Thiết kế, nhóm Nền & Viền trang: Hình mờ, Màu trang (bài riêng), Viền trang — ba nút lớn. Cùng Hình mờ / Viền trang còn trên tab Bố cục, nhóm Nền & Viền trang.",
       "Hình mờ (440 px): chip DỰ THẢO, MẬT, TUYỆT MẬT, KHẨN, BẢN SAO; hoặc gõ chữ. Màu: Đỏ nhạt #dc2626 (mặc định), Xám, Xanh dương, Vàng hổ phách. Góc: Chéo 45° (chuẩn), −45°, Nằm ngang 0°. Độ mờ 0.05–0.60 (bước 0.05), mặc định 0.2. Cỡ chữ cố định 72. Áp dụng. Đã có hình mờ thì thêm Xóa hình mờ.",
-      "Viền trang: nét Liền / Đứt / Đôi / Không có viền; dày 1, 1.5, 2 (mặc định), 3, 4.5, 6 pt; màu Xanh VN Office #0f4c81, Đen than, Xám, Đỏ hành chính, Xanh lá. Xem trước khung. Đang có viền thì Xóa viền trang.",
+      "Viền trang: nét Liền / Đứt / Đôi / Không có viền; dày 1, 1.5, 2 (mặc định), 3, 4.5, 6 pt; màu Xanh 3T Office #0f4c81, Đen than, Xám, Đỏ hành chính, Xanh lá. Xem trước khung. Đang có viền thì Xóa viền trang.",
       "Hình mờ và viền phủ overlay soạn thảo và mỗi tờ khi Xem trước khi in. Không có hình mờ ảnh. Ctrl+Z hoàn tác."
     ]
   },
@@ -741,7 +741,7 @@ export const WRITER_HELP_ENTRIES = [
     ribbon: { tab: "Tệp", tabId: "file", group: "Tài liệu" },
     keywords: ["mở tệp", "mở file", "open", "ctrl+o", "docx", "word", "odt", "mở tài liệu"],
     steps: [
-      "Cách 1: Nhấn tổ hợp phím tắt Ctrl+O trên bàn phím tại bất kỳ màn hình nào trong VN Writer.",
+      "Cách 1: Nhấn tổ hợp phím tắt Ctrl+O trên bàn phím tại bất kỳ màn hình nào trong 3T Doc.",
       "Cách 2: Nhấn vào tab màu xanh «Tệp» ở góc trên cùng bên trái thanh công cụ để mở Backstage Menu, sau đó chọn mục «Mở tệp».",
       "Hộp thoại chọn tệp của hệ điều hành sẽ xuất hiện. Duyệt đến thư mục chứa tệp Word (.docx, .doc, .odt, .rtf) cần mở, chọn tệp rồi nhấn Open.",
       "Hệ thống tự động chuyển đổi và hiển thị văn bản lên khổ giấy A4 chuẩn Nghị định 30/2020/NĐ-CP (lề trái 30 mm, lề phải 15 mm). Toàn bộ bảng biểu, tiêu đề căn giữa, định dạng phông chữ Times New Roman và tiêu đề tệp trên thanh tab được cập nhật tự động."
@@ -772,18 +772,18 @@ export const WRITER_HELP_ENTRIES = [
     ribbon: { tab: "Tệp", tabId: "file", group: "Tài liệu" },
     keywords: ["ảnh neo", "khung nổi", "nhóm hình", "anchor", "floating", "lưu docx"],
     steps: [
-      "Mở tài liệu DOCX bằng Tệp → Mở. VN Writer hiển thị ảnh neo và khung nổi từ tài liệu gốc trên vùng soạn thảo.",
+      "Mở tài liệu DOCX bằng Tệp → Mở. 3T Doc hiển thị ảnh neo và khung nổi từ tài liệu gốc trên vùng soạn thảo.",
       "Ảnh neo theo Trang được tính từ mép giấy; ảnh neo theo Lề hoặc Cột được tính từ vùng văn bản. Kiểu bọc Trên và dưới chừa chỗ cho nội dung kế tiếp, còn Không bọc cho phép chữ chồng theo thiết kế gốc.",
-      "Soạn sửa phần văn bản cần thiết. Các nhóm hình và ảnh neo chưa hỗ trợ kéo hoặc đổi kích thước trực tiếp; VN Writer giữ dữ liệu gốc của các đối tượng này khi lưu.",
+      "Soạn sửa phần văn bản cần thiết. Các nhóm hình và ảnh neo chưa hỗ trợ kéo hoặc đổi kích thước trực tiếp; 3T Doc giữ dữ liệu gốc của các đối tượng này khi lưu.",
       "Nhấn Ctrl+S hoặc chọn Tệp → Lưu/Lưu bản sao, chọn định dạng DOCX rồi xác nhận vị trí lưu.",
-      "Mở lại tệp bằng Microsoft Word hoặc LibreOffice Writer để kiểm tra bố cục. Nếu cần chỉnh vị trí hay thành phần bên trong nhóm hình, hãy chỉnh trong ứng dụng nguồn rồi mở lại trong VN Writer."
+      "Mở lại tệp bằng Microsoft Word hoặc LibreOffice Writer để kiểm tra bố cục. Nếu cần chỉnh vị trí hay thành phần bên trong nhóm hình, hãy chỉnh trong ứng dụng nguồn rồi mở lại trong 3T Doc."
     ]
   },
   {
     id: "writer.accessibility.keyboardNav",
     app: "writer",
     commandIds: ["common.file.backstage"],
-    title: "Điều hướng bằng bàn phím và trợ năng (VN Writer)",
+    title: "Điều hướng bằng bàn phím và trợ năng (3T Doc)",
     summary: "Thao tác hoàn toàn bằng bàn phím không cần dùng chuột: mở menu Tệp (Alt+F), chuyển tab Ribbon bằng phím mũi tên Trái/Phải, di chuyển giữa các nút bằng Tab, bẫy tiêu điểm trong các hộp thoại (Tab/Shift+Tab) và đóng bằng Escape khôi phục tiêu điểm.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Trợ năng" },
     keywords: ["bàn phím", "phím tắt", "trợ năng", "accessibility", "keyboard", "focus", "alt+f", "esc", "tab", "mũi tên"],
@@ -800,7 +800,7 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["common.macro.recordToggle", "common.macro.manager"],
     title: "Ghi và quản lý Macro (Tự động hóa thao tác)",
-    summary: "Ghi lại chuỗi thao tác lệnh trong VN Writer để phát lại tự động. Giúp tiết kiệm thời gian cho các chuỗi định dạng lặp đi lặp lại. Hỗ trợ phím tắt Ctrl+Shift+R để bật/dừng ghi và Alt+F8 để mở hộp thoại Quản lý Macro.",
+    summary: "Ghi lại chuỗi thao tác lệnh trong 3T Doc để phát lại tự động. Giúp tiết kiệm thời gian cho các chuỗi định dạng lặp đi lặp lại. Hỗ trợ phím tắt Ctrl+Shift+R để bật/dừng ghi và Alt+F8 để mở hộp thoại Quản lý Macro.",
     ribbon: { tab: "Chế độ xem", tabId: "view", group: "Macro" },
     keywords: ["macro", "ghi macro", "dừng ghi", "quản lý macro", "xem macro", "tự động hóa", "record macro", "alt+f8", "ctrl+shift+r"],
     steps: [
@@ -817,10 +817,10 @@ export const WRITER_HELP_ENTRIES = [
     commandIds: ["ai.voice.input"],
     title: "Nhập liệu bằng giọng nói (Voice Input)",
     summary: "Nhập văn bản vào tài liệu bằng giọng nói tiếng Việt qua microphone. Dùng Web Speech API tích hợp sẵn trong trình duyệt — không cần cài thêm phần mềm. Nhận dạng giọng nói được xử lý cục bộ trong WebView2, không gửi dữ liệu ra ngoài.",
-    ribbon: { tab: "Trợ lý VN AI", tabId: "ai", group: "AI Thông minh" },
+    ribbon: { tab: "Trợ lý 3T AI", tabId: "ai", group: "AI Thông minh" },
     keywords: ["giọng nói", "voice input", "speech to text", "nhập liệu", "microphone", "micro", "nhận dạng giọng", "nói", "vi-VN"],
     steps: [
-      "Mở tab Trợ lý VN AI trên ribbon, trong nhóm AI Thông minh nhấn nút «Nhập liệu bằng giọng nói».",
+      "Mở tab Trợ lý 3T AI trên ribbon, trong nhóm AI Thông minh nhấn nút «Nhập liệu bằng giọng nói».",
       "Nếu đây là lần đầu tiên sử dụng, trình duyệt sẽ hỏi quyền truy cập microphone — nhấn Cho phép.",
       "Trạng thái «Đang lắng nghe — hãy nói vào microphone...» sẽ hiển thị trên thanh trạng thái dưới cùng màn hình.",
       "Nói rõ ràng nội dung cần nhập. Văn bản nhận dạng được sẽ tự động chèn vào vị trí con trỏ hiện tại trong tài liệu.",
@@ -834,14 +834,14 @@ export const WRITER_HELP_ENTRIES = [
     commandIds: ["ai.assistant.summarizeMeeting"],
     title: "Tóm tắt cuộc họp (Meeting Summary)",
     summary: "Tóm tắt nội dung ghi chép/transcript cuộc họp thành cấu trúc rõ ràng: Điểm chính, Quyết định, Việc cần làm (kèm người phụ trách). Khác với Tóm tắt nhanh (tóm tắt tài liệu hiện tại), tính năng này cho phép dán nội dung ghi chép từ nguồn bên ngoài vào hộp thoại để AI xử lý.",
-    ribbon: { tab: "Trợ lý VN AI", tabId: "ai", group: "AI Thông minh" },
+    ribbon: { tab: "Trợ lý 3T AI", tabId: "ai", group: "AI Thông minh" },
     keywords: ["tóm tắt cuộc họp", "meeting summary", "ghi chép", "transcript", "điểm chính", "quyết định", "việc cần làm", "action items"],
     steps: [
-      "Mở tab Trợ lý VN AI trên ribbon, trong nhóm AI Thông minh nhấn nút «Tóm tắt cuộc họp».",
+      "Mở tab Trợ lý 3T AI trên ribbon, trong nhóm AI Thông minh nhấn nút «Tóm tắt cuộc họp».",
       "Hộp thoại «Tóm tắt cuộc họp» xuất hiện. Dán hoặc nhập nội dung ghi chép/transcript cuộc họp vào ô văn bản.",
       "Nhấn nút «Tóm tắt» để bắt đầu xử lý. AI sẽ phân tích nội dung và tạo bản tóm tắt có cấu trúc với 3 phần: Điểm chính, Quyết định, Việc cần làm.",
-      "Kết quả tóm tắt hiển thị trong bảng Trợ lý VN AI bên phải. Nhấn «Chèn vào tài liệu» để thêm nội dung tóm tắt vào vị trí con trỏ trong tài liệu.",
-      "Nếu chưa kết nối AI cloud nào (chỉ dùng chế độ quy tắc cục bộ), tính năng sẽ hoạt động ở mức cơ bản. Để có kết quả tóm tắt chính xác hơn, vui lòng kết nối OpenAI, Gemini hoặc Claude trong phần cài đặt AI trên thanh Trợ lý VN AI."
+      "Kết quả tóm tắt hiển thị trong bảng Trợ lý 3T AI bên phải. Nhấn «Chèn vào tài liệu» để thêm nội dung tóm tắt vào vị trí con trỏ trong tài liệu.",
+      "Nếu chưa kết nối AI cloud nào (chỉ dùng chế độ quy tắc cục bộ), tính năng sẽ hoạt động ở mức cơ bản. Để có kết quả tóm tắt chính xác hơn, vui lòng kết nối OpenAI, Gemini hoặc Claude trong phần cài đặt AI trên thanh Trợ lý 3T AI."
     ]
   },
   {
@@ -850,13 +850,13 @@ export const WRITER_HELP_ENTRIES = [
     commandIds: ["ai.assistant.smartSearch"],
     title: "Tìm kiếm thông minh (Smart Search)",
     summary: "Tìm kiếm nội dung trong tài liệu bằng ngôn ngữ tự nhiên thay vì chỉ tìm chuỗi chính xác như Ctrl+F. AI sẽ phân tích câu hỏi và tìm các đoạn văn bản liên quan nhất trong tài liệu.",
-    ribbon: { tab: "Trợ lý VN AI", tabId: "ai", group: "AI Thông minh" },
+    ribbon: { tab: "Trợ lý 3T AI", tabId: "ai", group: "AI Thông minh" },
     keywords: ["tìm kiếm thông minh", "smart search", "tìm kiếm AI", "ngôn ngữ tự nhiên", "natural language search", "tìm đoạn"],
     steps: [
-      "Mở tab Trợ lý VN AI trên ribbon, trong nhóm AI Thông minh nhấn nút «Tìm kiếm thông minh».",
+      "Mở tab Trợ lý 3T AI trên ribbon, trong nhóm AI Thông minh nhấn nút «Tìm kiếm thông minh».",
       "Hộp thoại «Tìm kiếm thông minh» xuất hiện. Nhập câu hỏi tìm kiếm bằng ngôn ngữ tự nhiên, ví dụ: «tìm đoạn nói về ngân sách quý 2» hoặc «tìm phần thảo luận về nhân sự».",
       "Nhấn nút «Tìm kiếm» để bắt đầu. AI sẽ phân tích nội dung tài liệu và tìm các đoạn liên quan đến câu hỏi.",
-      "Kết quả hiển thị trong bảng Trợ lý VN AI bên phải, bao gồm các đoạn văn bản tìm thấy và vị trí trong tài liệu.",
+      "Kết quả hiển thị trong bảng Trợ lý 3T AI bên phải, bao gồm các đoạn văn bản tìm thấy và vị trí trong tài liệu.",
       "Nếu tài liệu trống hoặc không tìm thấy nội dung phù hợp, hệ thống sẽ thông báo rõ ràng.",
       "Lưu ý: Tính năng này hoạt động tốt nhất với tài liệu có nội dung dài. Kết quả phụ thuộc vào AI provider đang dùng — kết nối AI cloud (OpenAI/Gemini/Claude) sẽ cho kết quả chính xác hơn chế độ quy tắc cục bộ."
     ]
@@ -867,13 +867,13 @@ export const WRITER_HELP_ENTRIES = [
     commandIds: ["ai.assistant.translate"],
     title: "Dịch thuật",
     summary: "Dịch đoạn văn bản được chọn (hoặc toàn bộ tài liệu nếu không chọn gì) sang ngôn ngữ đích bằng AI. Hỗ trợ 6 ngôn ngữ: Tiếng Anh, Tiếng Việt, Tiếng Trung, Tiếng Nhật, Tiếng Hàn, Tiếng Français.",
-    ribbon: { tab: "Trợ lý VN AI", tabId: "ai", group: "AI Thông minh" },
+    ribbon: { tab: "Trợ lý 3T AI", tabId: "ai", group: "AI Thông minh" },
     keywords: ["dịch thuật", "translate", "dịch", "tiếng anh", "tiếng trung", "tiếng nhật", "tiếng hàn", "tiếng pháp", "dịch văn bản", "translation"],
     steps: [
       "Bôi đen đoạn văn bản cần dịch. Nếu không chọn gì, toàn bộ nội dung tài liệu sẽ được dịch.",
-      "Mở tab Trợ lý VN AI trên ribbon, trong nhóm AI Thông minh nhấn nút «Dịch thuật».",
+      "Mở tab Trợ lý 3T AI trên ribbon, trong nhóm AI Thông minh nhấn nút «Dịch thuật».",
       "Hộp thoại «Dịch thuật» xuất hiện với 6 ngôn ngữ đích để chọn: Tiếng Anh, Tiếng Việt, Tiếng Trung, Tiếng Nhật, Tiếng Hàn, Tiếng Pháp. Chọn ngôn ngữ cần dịch rồi nhấn «Dịch».",
-      "Kết quả hiển thị trong bảng Trợ lý VN AI bên phải. Nếu đã bôi đen văn bản, có 2 nút: «Thay thế vùng chọn» (thay nội dung gốc bằng bản dịch) và «Chèn bên dưới» (giữ bản gốc, thêm bản dịch phía dưới).",
+      "Kết quả hiển thị trong bảng Trợ lý 3T AI bên phải. Nếu đã bôi đen văn bản, có 2 nút: «Thay thế vùng chọn» (thay nội dung gốc bằng bản dịch) và «Chèn bên dưới» (giữ bản gốc, thêm bản dịch phía dưới).",
       "Nếu không bôi đen, chỉ có nút «Chèn bên dưới» để thêm bản dịch vào tài liệu.",
       "Lưu ý: Bản dịch có thể cần chỉnh sửa lại cho phù hợp ngữ cảnh. Ctrl+Z hoàn tác nếu chèn nhầm."
     ]
@@ -884,13 +884,13 @@ export const WRITER_HELP_ENTRIES = [
     commandIds: ["ai.assistant.draftDocument"],
     title: "AI Viết nháp",
     summary: "AI tạo bản nháp văn bản hành chính tiếng Việt theo yêu cầu bằng ngôn ngữ tự nhiên. Phù hợp cho thư mời, công văn, hợp đồng, báo cáo và các loại văn bản hành chính khác.",
-    ribbon: { tab: "Trợ lý VN AI", tabId: "ai", group: "AI Thông minh" },
+    ribbon: { tab: "Trợ lý 3T AI", tabId: "ai", group: "AI Thông minh" },
     keywords: ["viết nháp", "draft", "soạn thảo", "soạn thư", "soạn hợp đồng", "văn bản hành chính", "AI viết", "tạo văn bản"],
     steps: [
-      "Mở tab Trợ lý VN AI trên ribbon, trong nhóm AI Thông minh nhấn nút «Viết nháp».",
+      "Mở tab Trợ lý 3T AI trên ribbon, trong nhóm AI Thông minh nhấn nút «Viết nháp».",
       "Hộp thoại «AI Viết nháp» xuất hiện. Nhập mô tả nội dung bạn muốn AI soạn, ví dụ: «soạn thư mời họp giao ban tuần», «soạn hợp đồng thuê nhà cơ bản», «soạn công văn đề nghị».",
       "Nhấn «Tạo nháp» để bắt đầu. AI sẽ tạo bản nháp có cấu trúc phù hợp loại văn bản (tiêu đề, kính gửi, nội dung, ký tên nếu là thư/công văn).",
-      "Kết quả hiển thị trong bảng Trợ lý VN AI với cảnh báo: đây là bản nháp do AI tạo, cần tự kiểm tra lại nội dung trước khi sử dụng, đặc biệt với hợp đồng/văn bản có giá trị pháp lý.",
+      "Kết quả hiển thị trong bảng Trợ lý 3T AI với cảnh báo: đây là bản nháp do AI tạo, cần tự kiểm tra lại nội dung trước khi sử dụng, đặc biệt với hợp đồng/văn bản có giá trị pháp lý.",
       "Nhấn «Chèn vào tài liệu» để thêm bản nháp vào vị trí con trỏ. Ctrl+Z hoàn tác nếu chèn nhầm.",
       "Lưu ý: Chế độ quy tắc cục bộ chỉ đưa ra gợi ý chung. Để có bản nháp tốt, nên kết nối AI cloud (OpenAI/Gemini/Claude) hoặc cài Ollama."
     ]
@@ -973,7 +973,7 @@ export const WRITER_HELP_ENTRIES = [
       "Mở tab Đánh giá trên thanh ribbon.",
       "Trong nhóm Chính tả & Ngữ pháp, nhấn nút Soát lỗi chính tả (hoặc bấm phím F7 trên bàn phím).",
       "Hệ thống tự động quét toàn bộ văn bản hiện tại, phát hiện các từ sai chính tả tiếng Việt (nhầm lẫn hỏi/ngã, s/x, tr/ch, d/gi/r) và lỗi dấu câu.",
-      "Bảng Trợ lý VN AI mở ra hiển thị danh sách các từ nghi ngờ kèm ngữ cảnh và gợi ý chỉnh sửa đúng.",
+      "Bảng Trợ lý 3T AI mở ra hiển thị danh sách các từ nghi ngờ kèm ngữ cảnh và gợi ý chỉnh sửa đúng.",
       "Nhấn vào từ gợi ý để tự động thay thế vào tài liệu, hoặc nhấn Bỏ qua để giữ nguyên từ đó."
     ]
   },
@@ -987,7 +987,7 @@ export const WRITER_HELP_ENTRIES = [
     keywords: ["trợ giúp", "hướng dẫn", "help", "F1", "tra cứu", "hướng dẫn sử dụng", "tìm tính năng", "sử dụng writer"],
     steps: [
       "Nhấn phím F1 trên bàn phím tại bất kỳ màn hình nào, hoặc mở tab Trợ giúp trên ribbon rồi nhấn nút Trợ giúp.",
-      "Bảng Hướng dẫn sử dụng VN Writer xuất hiện ở cạnh phải màn hình với danh mục các bài hướng dẫn chi tiết.",
+      "Bảng Hướng dẫn sử dụng 3T Doc xuất hiện ở cạnh phải màn hình với danh mục các bài hướng dẫn chi tiết.",
       "Nhập tên tính năng hoặc từ khóa tiếng Việt (có dấu hoặc không dấu, ví dụ: «ngắt trang», «đếm từ», «màu trang») vào ô tìm kiếm ở đầu bảng.",
       "Nhấp vào bài viết trong danh sách kết quả để xem chi tiết: tóm tắt tính năng, vị trí tab/nhóm ribbon và các bước thao tác cụ thể.",
       "Nhấn nút đóng ở góc trên bảng trợ giúp hoặc nhấn lại F1 để thu gọn bảng khi không dùng."
@@ -997,17 +997,17 @@ export const WRITER_HELP_ENTRIES = [
     id: "writer.ai.core",
     app: "writer",
     commandIds: ["ai.assistant.toggle", "ai.assistant.summarize", "ai.assistant.rewrite"],
-    title: "Trợ lý VN AI: Tóm tắt nhanh và Viết lại văn phong",
-    summary: "Bật/tắt thanh bên Trợ lý VN AI (Alt+J), tự động tóm tắt ý chính của văn bản hoặc trau chuốt lại câu từ theo văn phong hành chính tiếng Việt chuẩn mực.",
-    ribbon: { tab: "Trợ lý VN AI", tabId: "ai", group: "Tính năng AI thuần Việt" },
+    title: "Trợ lý 3T AI: Tóm tắt nhanh và Viết lại văn phong",
+    summary: "Bật/tắt thanh bên Trợ lý 3T AI (Alt+J), tự động tóm tắt ý chính của văn bản hoặc trau chuốt lại câu từ theo văn phong hành chính tiếng Việt chuẩn mực.",
+    ribbon: { tab: "Trợ lý 3T AI", tabId: "ai", group: "Tính năng AI thuần Việt" },
     keywords: ["trợ lý ai", "tóm tắt nhanh", "viết lại", "ai", "trau chuốt", "văn phong", "Alt+J", "summarize", "rewrite"],
     steps: [
       "Bôi đen đoạn văn bản cần xử lý trong tài liệu (hoặc để trống để xử lý toàn bộ tài liệu).",
-      "Mở tab Trợ lý VN AI trên ribbon, nhóm Tính năng AI thuần Việt.",
-      "Nhấn nút Trợ lý VN AI (hoặc bấm Alt+J) để mở bảng điều khiển AI bên phải màn hình.",
+      "Mở tab Trợ lý 3T AI trên ribbon, nhóm Tính năng AI thuần Việt.",
+      "Nhấn nút Trợ lý 3T AI (hoặc bấm Alt+J) để mở bảng điều khiển AI bên phải màn hình.",
       "Nhấn Tóm tắt nhanh để AI cô đọng nội dung chính thành các điểm gạch đầu dòng rõ ràng, súc tích.",
       "Nhấn Viết lại để AI trau chuốt lại câu từ, sửa câu cụt, chuẩn hóa ngữ pháp và nâng cao độ trang trọng theo phong cách văn bản hành chính Việt Nam.",
-      "Xem kết quả hiển thị trên bảng Trợ lý VN AI và nhấn Chèn vào tài liệu nếu đồng ý với nội dung mới."
+      "Xem kết quả hiển thị trên bảng Trợ lý 3T AI và nhấn Chèn vào tài liệu nếu đồng ý với nội dung mới."
     ]
   },
   {

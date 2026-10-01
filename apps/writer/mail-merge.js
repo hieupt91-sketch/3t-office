@@ -1,5 +1,5 @@
 /**
- * VN Writer — Mail Merge (Trộn thư) Engine & UI Dialogs
+ * 3T Doc — Mail Merge (Trộn thư) Engine & UI Dialogs
  * Xử lý phân tích dữ liệu nguồn: Excel (.xlsx, .xls, .ods qua FODS), CSV, TSV.
  * Hỗ trợ chọn trang tính, dòng đầu là tên trường, xem trước từng bản ghi,
  * lọc / bỏ chọn người nhận, chèn trường trộn, hoàn tất ra tài liệu mới hoặc in.

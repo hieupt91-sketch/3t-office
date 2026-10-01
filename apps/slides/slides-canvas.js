@@ -1,5 +1,5 @@
 /**
- * VN Slides — Enterprise Canvas Controller & Presentation Engine
+ * 3T Slide — Enterprise Canvas Controller & Presentation Engine
  */
 
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
@@ -49,7 +49,7 @@ export const SLIDE_MASTER_THEMES = [
     bodyColor: "#334155",
     accentColor: "#2563eb",
     bgColor: "#f8fafc",
-    logoText: "VN OFFICE • DOANH NGHIỆP"
+    logoText: "3T OFFICE • DOANH NGHIỆP"
   },
   {
     id: "corporate-red",
@@ -60,7 +60,7 @@ export const SLIDE_MASTER_THEMES = [
     bodyColor: "#1f2937",
     accentColor: "#b53818",
     bgColor: "#fffdfa",
-    logoText: "VN OFFICE • SÁNG TẠO"
+    logoText: "3T OFFICE • SÁNG TẠO"
   },
   {
     id: "emerald-green",
@@ -71,7 +71,7 @@ export const SLIDE_MASTER_THEMES = [
     bodyColor: "#334155",
     accentColor: "#059669",
     bgColor: "#f0fdf4",
-    logoText: "VN OFFICE • BỀN VỮNG"
+    logoText: "3T OFFICE • BỀN VỮNG"
   },
   {
     id: "minimal-dark",
@@ -82,7 +82,7 @@ export const SLIDE_MASTER_THEMES = [
     bodyColor: "#cbd5e1",
     accentColor: "#38bdf8",
     bgColor: "#0f172a",
-    logoText: "VN OFFICE • HIỆN ĐẠI"
+    logoText: "3T OFFICE • HIỆN ĐẠI"
   },
   {
     id: "minimal-monochrome",
@@ -93,7 +93,7 @@ export const SLIDE_MASTER_THEMES = [
     bodyColor: "#4b5563",
     accentColor: "#9ca3af",
     bgColor: "#ffffff",
-    logoText: "VN OFFICE • TỐI GIẢN"
+    logoText: "3T OFFICE • TỐI GIẢN"
   },
   {
     id: "energetic-orange",
@@ -104,7 +104,7 @@ export const SLIDE_MASTER_THEMES = [
     bodyColor: "#431407",
     accentColor: "#f97316",
     bgColor: "#fff7ed",
-    logoText: "VN OFFICE • NĂNG ĐỘNG"
+    logoText: "3T OFFICE • NĂNG ĐỘNG"
   }
 ];
 
@@ -216,12 +216,12 @@ export class SlidesCanvasController {
         }] : [
       {
         id: 1,
-        title: "VN OFFICE — BỘ ỨNG DỤNG VĂN PHÒNG VIỆT",
+        title: "3T OFFICE — BỘ ỨNG DỤNG VĂN PHÒNG VIỆT",
         body: "• Giải pháp công nghệ độc lập, bảo mật và chuẩn mực quốc gia\n• Tận dụng sức mạnh xử lý tài liệu vượt trội từ LibreOffice Core Engine\n• Giao diện thuần Việt, hiện đại, quen thuộc và thân thiện với người dùng",
         layoutType: "title-content",
         shapes: [],
         comments: [],
-        notes: "Giới thiệu tổng quan về bộ ứng dụng VN Office, nhấn mạnh tính độc lập công nghệ và bảo mật dữ liệu theo tiêu chuẩn quốc gia.",
+        notes: "Giới thiệu tổng quan về bộ ứng dụng 3T Office, nhấn mạnh tính độc lập công nghệ và bảo mật dữ liệu theo tiêu chuẩn quốc gia.",
         titleAnimation: { type: "fadeIn", duration: 600, delay: 100 },
         bodyAnimation: { type: "flyIn", duration: 700, delay: 300 },
         hidden: false
@@ -306,8 +306,8 @@ export class SlidesCanvasController {
       bodyColor: "#334155",
       accentColor: "#2563eb",
       bgColor: "#f8fafc",
-      logoText: options.isBlankTemplate !== false ? "" : "VN OFFICE • THUYẾT TRÌNH",
-      footerText: options.isBlankTemplate !== false ? "" : "Tài liệu trình chiếu tiêu chuẩn VN Office",
+      logoText: options.isBlankTemplate !== false ? "" : "3T OFFICE • THUYẾT TRÌNH",
+      footerText: options.isBlankTemplate !== false ? "" : "Tài liệu trình chiếu tiêu chuẩn 3T Office",
       showLogo: options.isBlankTemplate === false,
       showFooter: options.isBlankTemplate === false
     };
@@ -2484,7 +2484,7 @@ export class SlidesCanvasController {
       w: 560,
       h: 120,
       color: "transparent",
-      text: String(picked.text || "VN Office"),
+      text: String(picked.text || "3T Office"),
       presetId: style.id,
       fontFamily: style.fontFamily,
       fontSize: style.fontSize,
@@ -3149,7 +3149,7 @@ export class SlidesCanvasController {
    * Danh sách trang sẽ in - mặc định "Full Page Slides" của PowerPoint thật:
    * mỗi trang chiếu KHÔNG ẩn là một trang in. Trang chiếu ẩn (Hide Slide)
    * không được in mặc định, đúng hành vi PowerPoint thật (Print Hidden Slides
-   * phải bật riêng - VN Slides chưa có tùy chọn đó, xem GAP trong handoff).
+   * phải bật riêng - 3T Slide chưa có tùy chọn đó, xem GAP trong handoff).
    */
   computePrintPages() {
     const pages = [];
@@ -3385,7 +3385,7 @@ export class SlidesCanvasController {
 
     const MAX_MEDIA_SIZE_MB = 10;
     if (sizeBytes > MAX_MEDIA_SIZE_MB * 1024 * 1024) {
-      console.warn(`[VN Slides] Tệp media ${(sizeBytes / 1024 / 1024).toFixed(1)}MB vượt ngưỡng khuyến nghị ${MAX_MEDIA_SIZE_MB}MB — có thể làm chậm lưu/mở tệp vì được nhúng dạng Data URL.`);
+      console.warn(`[3T Slide] Tệp media ${(sizeBytes / 1024 / 1024).toFixed(1)}MB vượt ngưỡng khuyến nghị ${MAX_MEDIA_SIZE_MB}MB — có thể làm chậm lưu/mở tệp vì được nhúng dạng Data URL.`);
     }
 
     const offset = slide.shapes.length * 24;
@@ -7706,7 +7706,7 @@ export class SlidesCanvasController {
             </div>
             <div style="display:flex;flex-direction:column;gap:4px;margin-top:4px;">
               <label for="vno-master-logo-input" style="font-size:11px;font-weight:600;color:#334155;">${t("slidesDialogs.masterLogoLabel", "Tên đơn vị / Logo chữ góc trang:")}</label>
-              <input type="text" class="vno-input" id="vno-master-logo-input" value="${this.masterTheme.logoText || "VN OFFICE"}" aria-label="${t("slidesDialogs.masterLogoAria", "Tên đơn vị hoặc logo chữ góc trang")}" style="padding:4px 8px;font-size:12px;" />
+              <input type="text" class="vno-input" id="vno-master-logo-input" value="${this.masterTheme.logoText || "3T OFFICE"}" aria-label="${t("slidesDialogs.masterLogoAria", "Tên đơn vị hoặc logo chữ góc trang")}" style="padding:4px 8px;font-size:12px;" />
             </div>
           </div>
           <div class="vno-dialog-footer">
@@ -7767,7 +7767,7 @@ export class SlidesCanvasController {
 
       overlay.querySelector("#vno-master-apply")?.addEventListener("click", () => {
         const logoInp = overlay.querySelector("#vno-master-logo-input");
-        const logoVal = logoInp ? logoInp.value : "VN OFFICE";
+        const logoVal = logoInp ? logoInp.value : "3T OFFICE";
         const found = SLIDE_MASTER_THEMES.find(t => t.id === selectedId);
         if (found) {
           this.applySlideMaster({ ...found, themeId: selectedId, logoText: logoVal });
@@ -8379,7 +8379,7 @@ export class SlidesCanvasController {
               <input type="checkbox" id="vno-setup-narration" ${current.showWithoutNarration ? "checked" : ""}>
               <span>${t("slidesDialogs.setupShowNoNarration", "Trình chiếu không có thuyết minh")}</span>
             </label>
-            <p style="margin:0 0 0 24px;font-size:11px;color:var(--vno-text-muted);">${t("slidesDialogs.setupShowNoNarrationHint", "Chưa có thuyết minh/audio narration trong VN Slides — tùy chọn này chỉ lưu cờ, chưa ẩn hay tắt âm thanh nào.")}</p>
+            <p style="margin:0 0 0 24px;font-size:11px;color:var(--vno-text-muted);">${t("slidesDialogs.setupShowNoNarrationHint", "Chưa có thuyết minh/audio narration trong 3T Slide — tùy chọn này chỉ lưu cờ, chưa ẩn hay tắt âm thanh nào.")}</p>
             <div style="display:flex;flex-direction:column;gap:6px;">
               <label for="vno-setup-pointer-color" style="font-size:12px;font-weight:600;color:var(--vno-text-primary);">${t("slidesDialogs.setupShowPointerColor", "Màu con trỏ bút / laser")}</label>
               <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -8626,8 +8626,8 @@ export class SlidesCanvasController {
       }
 
       // Màn chiếu chỉ hiện đúng những gì có trên trang (như PowerPoint): logo / chân trang của
-      // mẫu chủ đạo chỉ khi mẫu thật sự bật và có chữ — không tự chèn chữ «VN OFFICE» hay
-      // «Tài liệu thuyết trình VN Office» vào bài của người dùng.
+      // mẫu chủ đạo chỉ khi mẫu thật sự bật và có chữ — không tự chèn chữ «3T OFFICE» hay
+      // «Tài liệu thuyết trình 3T Office» vào bài của người dùng.
       const showLogo = theme.showLogo !== false && !!theme.logoText;
       const showFooter = theme.showFooter !== false && !!theme.footerText;
       content.innerHTML = `
@@ -8996,7 +8996,7 @@ export class SlidesCanvasController {
           inkOverlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10002;";
           inkOverlay.innerHTML = `
             <div class="vno-dialog-box" style="width:380px;background:var(--vno-bg-surface, #fff);border-radius:8px;padding:20px;box-shadow:0 12px 32px rgba(0,0,0,0.3);color:var(--vno-text-primary, #0f172a);" role="dialog" aria-modal="true">
-              <h3 style="margin:0 0 10px;font-size:16px;font-weight:700;">${t("slidesDialogs.keepInkTitle", "VN Slides")}</h3>
+              <h3 style="margin:0 0 10px;font-size:16px;font-weight:700;">${t("slidesDialogs.keepInkTitle", "3T Slide")}</h3>
               <p style="margin:0 0 20px;font-size:13px;line-height:1.5;">${t("slidesDialogs.keepInkPrompt", "Bạn có muốn giữ lại các chú thích bằng nét vẽ không?")}</p>
               <div style="display:flex;justify-content:flex-end;gap:10px;">
                 <button type="button" class="vno-btn vno-btn-primary" id="vno-ink-keep-btn" style="padding:6px 16px;">${t("slidesDialogs.keepInkKeep", "Giữ")}</button>
@@ -9193,7 +9193,7 @@ export class SlidesCanvasController {
       <div class="vno-presenter-header">
         <div class="vno-presenter-brand">
           <strong>${t("slidesDialogs.presenterHeader", "CHẾ ĐỘ NGƯỜI THUYẾT TRÌNH (PRESENTER VIEW)")}</strong>
-          <span style="font-size:11px;opacity:0.7;margin-left:8px;">• VN Slides</span>
+          <span style="font-size:11px;opacity:0.7;margin-left:8px;">• 3T Slide</span>
         </div>
         <div class="vno-presenter-clocks">
           <div class="vno-presenter-timer-box" title="${t("slidesDialogs.elapsedTime", "Thời gian thuyết trình")}" role="timer" aria-label="${t("slidesDialogs.elapsedTime", "Thời gian thuyết trình")}">
@@ -9317,7 +9317,7 @@ export class SlidesCanvasController {
         slideViewEl.innerHTML = `
           <div class="vno-presenter-slide-card" style="font-family:${theme.fontFamily || "sans-serif"};background:${theme.bgColor || "#ffffff"};display:flex;flex-direction:column;">
             <div class="vno-slide-master-accent" style="background:${theme.accentColor || "#b53818"};"></div>
-            <div style="font-size:10px;font-weight:700;color:${theme.accentColor || "#b53818"};margin-bottom:8px;">${theme.logoText || "VN OFFICE"}</div>
+            <div style="font-size:10px;font-weight:700;color:${theme.accentColor || "#b53818"};margin-bottom:8px;">${theme.logoText || "3T OFFICE"}</div>
             ${cardBodyHtml}
             <div style="font-size:9px;color:${theme.bodyColor || "#475569"};display:flex;justify-content:space-between;border-top:1px solid #e2e8f0;padding-top:4px;margin-top:auto;">
               <span>${theme.footerText || t("slidesDialogs.footerDoc", "Tài liệu thuyết trình")}</span>
@@ -9952,7 +9952,7 @@ export class SlidesCanvasController {
     if (typeof window === "undefined") return false;
     const opened = window.open?.(window.location.href, "_blank");
     if (!opened) {
-      this.options?.shell?.setStatus?.("Trình duyệt đã chặn cửa sổ mới. Hãy cho phép pop-up cho VN Office.");
+      this.options?.shell?.setStatus?.("Trình duyệt đã chặn cửa sổ mới. Hãy cho phép pop-up cho 3T Office.");
       return false;
     }
     try { opened.opener = null; } catch (_) {}

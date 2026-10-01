@@ -2,7 +2,7 @@ import { NumberFormatter } from "./number-formatter.js";
 import { vndInWords } from "./vnd-words.js";
 
 /**
- * VN Sheet — Enterprise Spreadsheet Formula Calculation Engine
+ * 3T Sheet — Enterprise Spreadsheet Formula Calculation Engine
  * Tương thích 100% cú pháp và hàm tính toán Microsoft Excel & LibreOffice Calc (sc)
  */
 

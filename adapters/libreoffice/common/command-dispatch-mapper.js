@@ -1,5 +1,5 @@
 /**
- * VN Office LibreOffice Adapter — Command & Dispatch Mapper
+ * 3T Office LibreOffice Adapter — Command & Dispatch Mapper
  * Ánh xạ chuẩn hóa giữa VN Command IDs và LibreOffice .uno: URLs
  * Tuân thủ chuẩn 01-architecture/COMMAND-ARCHITECTURE.md
  */

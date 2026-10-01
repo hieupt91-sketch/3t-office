@@ -140,7 +140,7 @@ export function parseSlideSize(presentationXml) {
 
 /**
  * Đọc khổ trang chiếu THẬT NGƯỜI DÙNG ĐANG DÙNG (canvas.slideSize) từ chính FODP
- * do VN Office ghi ra (style:page-layout-properties fo:page-width/height, cm).
+ * do 3T Office ghi ra (style:page-layout-properties fo:page-width/height, cm).
  * Cần thiết vì đã đo thực tế: soffice --convert-to pptx BỎ QUA hoàn toàn giá trị
  * này khi chuyển FODP -> PPTX, luôn tự ý ghi ra đúng DEFAULT_SLIDE_CX/CY
  * (28cm x 15.75cm) bất kể FODP khai báo gì - dùng để PHỤC HỒI đúng <p:sldSz>
@@ -149,7 +149,7 @@ export function parseSlideSize(presentationXml) {
 const LENGTH_EMU = { cm: CM_EMU, mm: CM_EMU / 10, in: 914400, pt: 12700 };
 
 /**
- * Hỗ trợ cm / mm / in / pt. VN Slides ghi khổ bằng pt đủ chữ số để <p:sldSz> khớp TỪNG EMU
+ * Hỗ trợ cm / mm / in / pt. 3T Slide ghi khổ bằng pt đủ chữ số để <p:sldSz> khớp TỪNG EMU
  * preset PowerPoint (16:9 = 12192000 × 6858000, 4:3 = 9144000 × 6858000 type="screen4x3") hoặc
  * khổ gốc của tệp mở từ PowerPoint; khi đó trả thêm `type` (chuỗi rỗng = không có type).
  * Bản Python song sinh: ooxml_zip_patch._parse_page_layout_props.

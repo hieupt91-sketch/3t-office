@@ -26,9 +26,9 @@ function updateHelpSection(app) {
     section = document.createElement("section");
     section.className = "vno-help-update-section";
     section.setAttribute("data-vno-update-section", "1");
-    section.setAttribute("aria-label", "Cập nhật VN Office");
+    section.setAttribute("aria-label", "Cập nhật 3T Office");
     section.innerHTML = `
-      <div class="vno-help-update-heading">Cập nhật VN Office</div>
+      <div class="vno-help-update-heading">Cập nhật 3T Office</div>
       <p data-vno-update-version>Đang đọc phiên bản…</p>
       <p data-vno-update-status role="status" aria-live="polite">Có thể kiểm tra bản cập nhật khi kết nối được nguồn nội bộ.</p>
       <button type="button" class="vno-btn" data-vno-update-check>Kiểm tra cập nhật</button>
@@ -48,7 +48,7 @@ function updateHelpSection(app) {
         const result = await bridge.check_for_updates();
         if (!result?.queued) status.textContent = "Đang kiểm tra hoặc nguồn cập nhật chưa được cấu hình.";
       } catch {
-        status.textContent = "Không thể bắt đầu kiểm tra. VN Office vẫn dùng bình thường.";
+        status.textContent = "Không thể bắt đầu kiểm tra. 3T Office vẫn dùng bình thường.";
       } finally {
         button.disabled = false;
       }
@@ -74,9 +74,9 @@ function setHelpState(state) {
   } else if (state.status === "checking") {
     status.textContent = "Đang kiểm tra bản cập nhật…";
   } else if (state.status === "up-to-date") {
-    status.textContent = "VN Office đang ở phiên bản mới nhất của kênh này.";
+    status.textContent = "3T Office đang ở phiên bản mới nhất của kênh này.";
   } else if (state.status === "unavailable") {
-    status.textContent = "Chưa kiểm tra được nguồn cập nhật. VN Office vẫn dùng bình thường.";
+    status.textContent = "Chưa kiểm tra được nguồn cập nhật. 3T Office vẫn dùng bình thường.";
   } else if (state.status === "update-ready") {
     status.textContent = `Có bản cập nhật ${state.available_version}.`;
   } else {
@@ -89,7 +89,7 @@ function showReleaseNotes(state) {
   const notes = String(state.release_notes || "").trim();
   const safeNotes = escapeHtml(notes).replace(/\r?\n/g, "<br>");
   return showAlertDialog({
-    title: `Có gì mới trong VN Office ${state.available_version || ""}`.trim(),
+    title: `Có gì mới trong 3T Office ${state.available_version || ""}`.trim(),
     message: safeNotes || "Bản cập nhật này không có ghi chú phát hành.",
     type: "info"
   });
@@ -100,7 +100,7 @@ export async function restartWithSaveCheck(app, api = getBridge()) {
   if (adapter?.isDirty === true) {
     const shouldSave = await showConfirmDialog({
       title: "Lưu tài liệu trước khi khởi động lại?",
-      message: "Tài liệu đang có thay đổi chưa lưu. Hãy lưu trước khi VN Office đóng để áp dụng bản cập nhật.",
+      message: "Tài liệu đang có thay đổi chưa lưu. Hãy lưu trước khi 3T Office đóng để áp dụng bản cập nhật.",
       confirmText: "Lưu tài liệu",
       cancelText: "Hủy khởi động lại"
     });
@@ -121,7 +121,7 @@ export async function restartWithSaveCheck(app, api = getBridge()) {
   if (!result?.started) {
     await showAlertDialog({
       title: "Chưa thể khởi động lại để cập nhật",
-      message: escapeHtml(result?.error || "VN Office chưa chuẩn bị xong bản cập nhật."),
+      message: escapeHtml(result?.error || "3T Office chưa chuẩn bị xong bản cập nhật."),
       type: "warning"
     });
     return false;
@@ -136,16 +136,16 @@ export function renderUpdateNotification(app, state, api = getBridge()) {
   const version = state.available_version;
   return app.shell.showNotification({
     type: "info",
-    message: `Có bản cập nhật VN Office ${version}. Khởi động lại để áp dụng.`,
+    message: `Có bản cập nhật 3T Office ${version}. Khởi động lại để áp dụng.`,
     dismissible: true,
     actions: [
       {
         label: "Khởi động lại ngay",
-        ariaLabel: `Lưu tài liệu và khởi động lại để cài VN Office ${version}`,
+        ariaLabel: `Lưu tài liệu và khởi động lại để cài 3T Office ${version}`,
         onClick: () => restartWithSaveCheck(app, api)
       },
       { label: "Để sau", ariaLabel: "Để cài bản cập nhật sau", onClick: () => app.shell.clearNotification() },
-      { label: "Xem thay đổi", ariaLabel: `Xem ghi chú VN Office ${version}`, onClick: () => showReleaseNotes(state) }
+      { label: "Xem thay đổi", ariaLabel: `Xem ghi chú 3T Office ${version}`, onClick: () => showReleaseNotes(state) }
     ]
   });
 }

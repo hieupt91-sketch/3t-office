@@ -1,5 +1,5 @@
 /**
- * VN Sheet — Enterprise Ribbon Structure
+ * 3T Sheet — Enterprise Ribbon Structure
  * Cấu hình đầy đủ Icon Vector chuẩn Office Suite
  * Parity Round 1: Home, Insert, Page Layout, Formulas
  */
@@ -723,7 +723,7 @@ export const SHEET_RIBBON_TABS = [
   },
   {
     id: "ai",
-    label: "Trợ lý VN AI",
+    label: "Trợ lý 3T AI",
     labelKey: "sheetRibbon.tab.ai",
     groups: [
       {

@@ -108,7 +108,7 @@ export function postProcessSlidesPptx(pptxPathOrBuffer, options = {}) {
   // soffice --convert-to pptx BỎ QUA style:page-layout-properties của FODP khi
   // xuất PPTX, luôn tự ghi <p:sldSz> mặc định 28cm x 15.75cm bất kể canvas.slideSize
   // thật của người dùng - đo thực tế bằng vòng chuyển đổi thật, xác nhận đây là
-  // giới hạn của bản thân soffice, không phải lỗi FODP do VN Office ghi ra. Khôi
+  // giới hạn của bản thân soffice, không phải lỗi FODP do 3T Office ghi ra. Khôi
   // phục lại khổ trang THẬT ở đây, độc lập với logo/sections/show (luôn áp dụng
   // nếu phát hiện khác biệt thật, không chỉ khi các tính năng khác cũng cần sửa).
   const intendedSize = options.sourceFodp ? parseIntendedSlideSizeFromFodp(options.sourceFodp) : null;

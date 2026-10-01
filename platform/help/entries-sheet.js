@@ -1,5 +1,5 @@
 /**
- * Hướng dẫn sử dụng VN Sheet — nội dung tiếng Việt thật, khớp UI hiện có.
+ * Hướng dẫn sử dụng 3T Sheet — nội dung tiếng Việt thật, khớp UI hiện có.
  * Tự đăng ký vào catalog dùng chung qua registerHelpEntries().
  */
 
@@ -33,9 +33,9 @@ export const SHEET_HELP_ENTRIES = [
       "Chọn ô cần hiện số tiền bằng chữ (thường là dòng \"Bằng chữ:\" trên hóa đơn, báo giá).",
       "Gõ =VND( rồi bấm vào ô chứa số tiền, đóng ngoặc và nhấn Enter, ví dụ =VND(H13).",
       "Số chẵn kết thúc bằng \"đồng chẵn.\"; số có phần lẻ đọc thêm \"… xu.\"; số âm bắt đầu bằng \"Âm\".",
-      "Mở tệp Excel đã dùng hàm VND của add-in: VN Sheet tự tính lại và hiện đúng chữ thay cho lỗi #ADDIN? hoặc #NAME?.",
+      "Mở tệp Excel đã dùng hàm VND của add-in: 3T Sheet tự tính lại và hiện đúng chữ thay cho lỗi #ADDIN? hoặc #NAME?.",
       "Khi lưu .xlsx, ô vẫn giữ công thức VND và dòng chữ: máy có cài add-in VND tiếp tục tự cập nhật, máy khác vẫn thấy chữ đã lưu (Excel không có add-in sẽ báo #NAME? khi tính lại).",
-      "Khi lưu dạng cũ .xls (Excel 97-2003), VN Sheet lưu dòng chữ thành giá trị cố định để không bị lỗi #N/A; nếu cần công thức tự cập nhật, hãy lưu .xlsx."
+      "Khi lưu dạng cũ .xls (Excel 97-2003), 3T Sheet lưu dòng chữ thành giá trị cố định để không bị lỗi #N/A; nếu cần công thức tự cập nhật, hãy lưu .xlsx."
     ]
   },
   {
@@ -43,14 +43,14 @@ export const SHEET_HELP_ENTRIES = [
     app: "sheet",
     commandIds: [],
     title: "Liên kết tới sổ làm việc khác",
-    summary: "Công thức như =[BaoCao.xlsx]Sheet1!A1 lấy số liệu từ một tệp Excel khác. VN Sheet hiển thị giá trị đã lưu lần cuối trong tệp, giữ nguyên liên kết khi lưu và không tự mở tệp nguồn (ứng dụng chạy offline).",
+    summary: "Công thức như =[BaoCao.xlsx]Sheet1!A1 lấy số liệu từ một tệp Excel khác. 3T Sheet hiển thị giá trị đã lưu lần cuối trong tệp, giữ nguyên liên kết khi lưu và không tự mở tệp nguồn (ứng dụng chạy offline).",
     ribbon: { tab: "Công thức", tabId: "formulas", group: "Kiểm tra công thức" },
     keywords: ["liên kết ngoài", "external link", "sổ làm việc khác", "tệp khác", "[Book.xlsx]", "cập nhật liên kết", "NA", "#N/A"],
     steps: [
-      "Khi mở bảng tính có liên kết tới tệp khác, một thanh cảnh báo màu vàng hiển thị ngay dưới ribbon: \"Tệp có N ô liên kết tới sổ làm việc khác. VN Office hiển thị giá trị lưu lần cuối và không tự cập nhật (ứng dụng chạy ngoại tuyến).\", đồng thời thanh trạng thái phía dưới cũng báo số ô có liên kết.",
+      "Khi mở bảng tính có liên kết tới tệp khác, một thanh cảnh báo màu vàng hiển thị ngay dưới ribbon: \"Tệp có N ô liên kết tới sổ làm việc khác. 3T Office hiển thị giá trị lưu lần cuối và không tự cập nhật (ứng dụng chạy ngoại tuyến).\", đồng thời thanh trạng thái phía dưới cũng báo số ô có liên kết.",
       "Nhấn nút \"Tìm hiểu thêm\" trên thanh cảnh báo để mở nhanh bài hướng dẫn này, hoặc nhấn nút đóng (×) hay phím Esc khi đang ở trong thanh để ẩn thông báo.",
       "Chọn ô để xem công thức trên thanh công thức, viết giống Excel: =[BaoCao.xlsx]Sheet1!A1 hoặc ='[Bao cao.xlsx]So lieu'!B2 khi tên có khoảng trắng.",
-      "Giá trị của các ô này không tự cập nhật khi bạn sửa bảng tính: VN Sheet giữ đúng số liệu đã lưu, giống Excel khi tệp nguồn đang đóng. Các công thức khác dựa trên ô liên kết vẫn tính bình thường với giá trị đó.",
+      "Giá trị của các ô này không tự cập nhật khi bạn sửa bảng tính: 3T Sheet giữ đúng số liệu đã lưu, giống Excel khi tệp nguồn đang đóng. Các công thức khác dựa trên ô liên kết vẫn tính bình thường với giá trị đó.",
       "Nhấn Ctrl+S để lưu: liên kết được giữ nguyên, mở lại bằng Excel vẫn cập nhật được từ tệp nguồn.",
       "Nếu gõ lại công thức khác vào ô liên kết, ô đó trở thành công thức thường và không còn liên kết tới tệp kia.",
       "Muốn đánh dấu ô chưa có dữ liệu, dùng =NA() để trả về lỗi #N/A; bắt lỗi này bằng =IFNA(ô; \"giá trị thay thế\") hoặc kiểm tra bằng =ISNA(ô)."
@@ -169,7 +169,7 @@ export const SHEET_HELP_ENTRIES = [
       "Chuẩn bị bảng nguồn: hàng đầu là tiêu đề cột duy nhất, các hàng dưới là dữ liệu. Bôi vùng (ví dụ A1:D20).",
       "Mở tab Dữ liệu, nhóm Bảng tổng hợp, nhấn Bảng tổng hợp.",
       "Hộp thoại Tạo Bảng tổng hợp điền sẵn vùng nguồn. Nhấn Đọc tên cột, rồi với mỗi trường đánh dấu Rows, Columns và/hoặc Values. Cột Values chọn phép SUM / COUNT / AVERAGE / MIN / MAX.",
-      "Nhấn Tạo Pivot Table. VN Sheet tạo trang mới tên dạng «TênSheet (2)» và ghi bảng tổng hợp bắt đầu từ A1.",
+      "Nhấn Tạo Pivot Table. 3T Sheet tạo trang mới tên dạng «TênSheet (2)» và ghi bảng tổng hợp bắt đầu từ A1.",
       "Khi sửa dữ liệu nguồn, mở trang Pivot rồi nhấn Làm mới Pivot trên cùng nhóm để tính lại. Hoàn tác bằng Ctrl+Z."
     ]
   },
@@ -231,12 +231,12 @@ export const SHEET_HELP_ENTRIES = [
     steps: [
       "Mở tab Dữ liệu, nhóm Công cụ dữ liệu, nhấn Phân tích What-If rồi chọn Dò tìm mục tiêu, Bảng dữ liệu hoặc Trình quản lý kịch bản.",
       "Bảng dữ liệu: đặt công thức gốc ở ô góc trên-trái của vùng; đặt các giá trị thử ngang hàng trên và/hoặc dọc cột trái. Bôi toàn bộ vùng, mở Bảng dữ liệu và nhập Ô đầu vào theo hàng, theo cột, hoặc cả hai rồi nhấn Áp dụng.",
-      "Với một biến, chỉ nhập đúng một ô đầu vào (giá trị thử nằm ngang hàng trên, kết quả nằm ở hàng dưới). Với hai biến — ví dụ bảng PMT với lãi suất ngang hàng trên và số năm dọc cột trái — nhập cả Ô đầu vào theo hàng lẫn Ô đầu vào theo cột (hai ô phải khác nhau); VN Sheet điền kết quả vào phần thân bảng nhưng giữ nguyên công thức gốc.",
+      "Với một biến, chỉ nhập đúng một ô đầu vào (giá trị thử nằm ngang hàng trên, kết quả nằm ở hàng dưới). Với hai biến — ví dụ bảng PMT với lãi suất ngang hàng trên và số năm dọc cột trái — nhập cả Ô đầu vào theo hàng lẫn Ô đầu vào theo cột (hai ô phải khác nhau); 3T Sheet điền kết quả vào phần thân bảng nhưng giữ nguyên công thức gốc.",
       "Kết quả Bảng dữ liệu tự tính lại khi bạn đổi ô đầu vào hoặc bất kỳ ô nào mà công thức gốc phụ thuộc (giống công thức mảng TABLE() của Excel) — ví dụ đổi tiền vay trong bảng PMT là toàn bộ phần thân cập nhật ngay.",
-      "Khi lưu tệp xlsx, VN Sheet ghi kết quả Bảng dữ liệu dạng giá trị tĩnh (chưa ghi được công thức mảng TABLE()); mở tệp bằng chương trình bảng tính khác vẫn hiển thị đúng các giá trị này nhưng phần thân bảng không tự tính lại ở đó.",
+      "Khi lưu tệp xlsx, 3T Sheet ghi kết quả Bảng dữ liệu dạng giá trị tĩnh (chưa ghi được công thức mảng TABLE()); mở tệp bằng chương trình bảng tính khác vẫn hiển thị đúng các giá trị này nhưng phần thân bảng không tự tính lại ở đó.",
       "Trình quản lý kịch bản: Quản lý và chuyển đổi linh hoạt nhiều bộ giả định dữ liệu có tên trên trang tính:",
       "- Thêm kịch bản: Nhập Tên kịch bản, Các ô thay đổi (hỗ trợ ô đơn, danh sách phân tách bằng dấu phẩy như $B$1, $B$2 hoặc dải ô $B$1:$B$3), các Giá trị tương ứng và Ghi chú mô tả. Nhấn Thêm để lưu.",
-      "- Hiển thị kịch bản: Chọn kịch bản trong danh sách rồi nhấn nút Hiển thị. VN Sheet lập tức ghi các giá trị giả định vào ô thật trên lưới và tự động tính toán lại mọi công thức phụ thuộc.",
+      "- Hiển thị kịch bản: Chọn kịch bản trong danh sách rồi nhấn nút Hiển thị. 3T Sheet lập tức ghi các giá trị giả định vào ô thật trên lưới và tự động tính toán lại mọi công thức phụ thuộc.",
       "- Sửa và Xóa: Chọn kịch bản cần chỉnh sửa để cập nhật giá trị hoặc ghi chú, hoặc nhấn Xóa khi không còn nhu cầu sử dụng.",
       "- Gộp kịch bản: Nhấn nút Gộp..., chọn trang tính nguồn để nạp kịch bản từ trang tính khác vào trang hiện tại; kịch bản trùng tên sẽ được tự động đổi tên kèm tên trang nguồn.",
       "- Báo cáo Tóm tắt kịch bản: Nhấn nút Tóm tắt..., chọn Kiểu báo cáo Tóm tắt kịch bản và nhập Các ô kết quả (ví dụ $B$4, $B$5). Ứng dụng sẽ tự động sinh một trang tính mới trình bày bảng so sánh toàn diện chuẩn Excel gồm Giá trị hiện tại, giá trị từng kịch bản và kết quả tính toán tương ứng.",
@@ -305,7 +305,7 @@ export const SHEET_HELP_ENTRIES = [
       "Tạo Pivot Table trước. Đứng trên trang Pivot; hoặc đứng ở trang dữ liệu nguồn đã có Pivot liên kết rồi mở tab Chèn, nhóm Biểu đồ, nhấn Biểu đồ Pivot cạnh nút Biểu đồ thường.",
       "Trong hộp xem trước, chọn Cột để so sánh các hạng mục hoặc Tròn để xem tỷ trọng, rồi nhấn Chèn vào bảng tính. PivotChart chỉ dùng bảng kết quả đã tổng hợp, không đọc trực tiếp dữ liệu thô.",
       "Khi dữ liệu nguồn thay đổi, mở trang Pivot và vào tab Dữ liệu, nhóm Bảng tổng hợp, nhấn Làm mới Pivot. Bảng và PivotChart liên kết được cập nhật cùng nhau.",
-      "Dùng nút × trên góc biểu đồ để xóa. Chèn/xóa PivotChart và Làm mới Pivot đều dùng Ctrl+Z/Ctrl+Y của VN Sheet."
+      "Dùng nút × trên góc biểu đồ để xóa. Chèn/xóa PivotChart và Làm mới Pivot đều dùng Ctrl+Z/Ctrl+Y của 3T Sheet."
     ]
   },
   {
@@ -341,7 +341,7 @@ export const SHEET_HELP_ENTRIES = [
       "Để đặt hàng lặp lại trên mỗi trang in, nhấn Tiêu đề in. Ở mục Hàng lặp lại trên mỗi trang, nhập tham chiếu kiểu Excel như 1:2 hoặc $1:$2 (một hàng đơn gõ 1 hoặc $1).",
       "Cách khác: nhấn nút ⊞ bên cạnh ô Hàng lặp lại để thu gọn hộp thoại, rồi nhấp trực tiếp vào số hàng trên lưới; để mở rộng vùng, nhấn giữ phím Shift rồi nhấp hàng khác. Nhấn Esc hoặc nút Quay lại hộp thoại để trở về — ô tự điền giá trị đã chọn.",
       "Tương tự cho Cột lặp lại ở bên trái: nhập A:B hoặc $A:$B, hoặc nhấn nút ⊞ và nhấp vào chữ cái cột trên lưới (nhấn giữ Shift rồi nhấp cột khác để mở rộng). Giá trị lưu riêng theo từng sheet, nhấn Áp dụng để lưu.",
-      "Print Titles được ghi vào tệp dưới dạng defined name _xlnm.Print_Titles của Excel nên mở lại bằng Excel vẫn giữ nguyên; mở lại trong VN Sheet cũng đọc đúng giá trị đã lưu."
+      "Print Titles được ghi vào tệp dưới dạng defined name _xlnm.Print_Titles của Excel nên mở lại bằng Excel vẫn giữ nguyên; mở lại trong 3T Sheet cũng đọc đúng giá trị đã lưu."
     ]
   },
   {
@@ -351,7 +351,7 @@ export const SHEET_HELP_ENTRIES = [
     summary: "Duyệt nhận xét theo thứ tự ô và trang tính, đánh dấu đã xử lý, mở lại hoặc xóa.",
     ribbon: { tab: "Xem xét", tabId: "review", group: "Ghi chú" },
     keywords: ["nhận xét", "ghi chú ô", "trước", "sau", "xử lý", "resolve", "xóa"],
-    steps: ["Mở tab Xem xét, nhóm Ghi chú.", "Nhấn Nhận xét trước hoặc Nhận xét sau; VN Sheet chọn ô có ghi chú và tự chuyển sheet khi cần, rồi quay vòng ở cuối danh sách.", "Nhấn Đã xử lý để đổi dấu góc sang màu xám nhưng vẫn giữ ghi chú; nhấn lại để mở lại.", "Nhấn Xóa nhận xét để xóa ghi chú ở ô đang chọn. Dùng Ctrl+Z/Ctrl+Y để hoàn tác/làm lại."]
+    steps: ["Mở tab Xem xét, nhóm Ghi chú.", "Nhấn Nhận xét trước hoặc Nhận xét sau; 3T Sheet chọn ô có ghi chú và tự chuyển sheet khi cần, rồi quay vòng ở cuối danh sách.", "Nhấn Đã xử lý để đổi dấu góc sang màu xám nhưng vẫn giữ ghi chú; nhấn lại để mở lại.", "Nhấn Xóa nhận xét để xóa ghi chú ở ô đang chọn. Dùng Ctrl+Z/Ctrl+Y để hoàn tác/làm lại."]
   },
   {
     id: "sheet.sheet.rename",
@@ -365,7 +365,7 @@ export const SHEET_HELP_ENTRIES = [
       "Mở tab Trang đầu, nhóm Ô, nhấn nút lớn Định dạng, chọn Đổi tên trang tính...",
       "Hoặc nhấp đúp tab trang tính ở thanh dưới lưới, hoặc chuột phải tab rồi chọn Đổi tên trang tính...",
       "Hộp thoại điền sẵn tên hiện tại. Gõ tên mới rồi Đồng ý. Tên trống, trùng, quá 31 ký tự, hoặc chứa / \\ ? * [ ] : sẽ hiện lỗi ngay trong hộp thoại.",
-      "VN Sheet đổi khóa mọi dữ liệu theo tên mới và sửa công thức tham chiếu 'TênCũ'!A1 thành 'TênMới'!A1, kể cả named range và nguồn Pivot. Chuỗi chữ trong dấu \"...\" không đổi.",
+      "3T Sheet đổi khóa mọi dữ liệu theo tên mới và sửa công thức tham chiếu 'TênCũ'!A1 thành 'TênMới'!A1, kể cả named range và nguồn Pivot. Chuỗi chữ trong dấu \"...\" không đổi.",
       "Hoàn tác bằng Ctrl+Z. Thanh tab dưới lưới hiện tên mới ngay."
     ]
   },
@@ -414,8 +414,8 @@ export const SHEET_HELP_ENTRIES = [
       "Hộp thoại có ô «Bảo vệ cấu trúc workbook (trang tính)». Có thể nhập mật khẩu rồi nhập lại để xác nhận (để trống nếu không cần).",
       "Khi đã bảo vệ workbook: không thêm trang (nút + dưới lưới bị tắt), không xóa, không đổi tên (kể cả nhấp đúp tab), không di chuyển hay sao chép trang tính. Sửa nội dung ô, định dạng và chèn/xóa hàng cột vẫn được — trừ khi trang đó còn đang Bảo vệ trang tính.",
       "Bỏ bảo vệ: nhấn lại Bỏ bảo vệ workbook... Nếu đã đặt mật khẩu, nhập đúng mật khẩu. Sai mật khẩu hiện lỗi trong hộp thoại.",
-      "Lưu tệp: File → Lưu thành .fods/.ods giữ thuộc tính ODF table:structure-protected. Khi Lưu thành .xlsx, VN Office bổ sung phần tử chuẩn OOXML <workbookProtection lockStructure=\"1\"/> vào xl/workbook.xml (LibreOffice convert không sinh thuộc tính này) — Excel thật sẽ khóa cấu trúc workbook.",
-      "Mở lại: File → Mở một .xlsx đã khóa cấu trúc. LibreOffice convert XLSX→FODS không map lockStructure ngược lại, nên VN Office đọc xl/workbook.xml của file gốc rồi gắn table:structure-protected vào FODS trước khi nạp canvas. Nút Xem xét > Bảo vệ > Bỏ bảo vệ workbook... phải hiện đúng trạng thái đã khóa; không thêm/xóa/đổi tên trang tính. Mật khẩu phiên không ghi hash vào file. Trạng thái khóa không đi vào Undo. Đây là khóa giao diện, không phải bảo mật mã hóa."
+      "Lưu tệp: File → Lưu thành .fods/.ods giữ thuộc tính ODF table:structure-protected. Khi Lưu thành .xlsx, 3T Office bổ sung phần tử chuẩn OOXML <workbookProtection lockStructure=\"1\"/> vào xl/workbook.xml (LibreOffice convert không sinh thuộc tính này) — Excel thật sẽ khóa cấu trúc workbook.",
+      "Mở lại: File → Mở một .xlsx đã khóa cấu trúc. LibreOffice convert XLSX→FODS không map lockStructure ngược lại, nên 3T Office đọc xl/workbook.xml của file gốc rồi gắn table:structure-protected vào FODS trước khi nạp canvas. Nút Xem xét > Bảo vệ > Bỏ bảo vệ workbook... phải hiện đúng trạng thái đã khóa; không thêm/xóa/đổi tên trang tính. Mật khẩu phiên không ghi hash vào file. Trạng thái khóa không đi vào Undo. Đây là khóa giao diện, không phải bảo mật mã hóa."
     ]
   },
   {
@@ -779,7 +779,7 @@ export const SHEET_HELP_ENTRIES = [
     keywords: ["vừa vùng chọn", "zoom to selection", "cửa sổ mới", "new window", "pop-up", "thu phóng vùng"],
     steps: [
       "Bôi một ô hoặc một khối. Tab Chế độ xem, nhóm Thu phóng, nhấn Thu phóng vùng chọn (cạnh 100%). Tỉ lệ = min(rộng khung, cao khung) so với khối (mỗi cột ~85 px + 40, mỗi hàng ~26 px + 30), kẹp 50%–200%, làm tròn 0.1.",
-      "Cùng tab, nhóm Cửa sổ: Cửa sổ mới (nút lớn, cạnh Cố định hàng/cột) gọi window.open cùng địa chỉ VN Sheet. Nếu trình duyệt chặn: thanh trạng thái «Trình duyệt đã chặn cửa sổ mới. Hãy cho phép pop-up cho VN Office.»",
+      "Cùng tab, nhóm Cửa sổ: Cửa sổ mới (nút lớn, cạnh Cố định hàng/cột) gọi window.open cùng địa chỉ 3T Sheet. Nếu trình duyệt chặn: thanh trạng thái «Trình duyệt đã chặn cửa sổ mới. Hãy cho phép pop-up cho 3T Office.»",
       "Cửa sổ mới là phiên bản độc lập trên tab khác, không nhân bản undo của cửa sổ cũ.",
       "Phóng to / thu nhỏ / 100% nằm cùng nhóm Thu phóng — bài «Thu phóng bảng tính»."
     ]
@@ -809,7 +809,7 @@ export const SHEET_HELP_ENTRIES = [
     keywords: ["ghi chú", "nhận xét", "comment", "shift+f2", "ghi chú ô", "tác giả"],
     steps: [
       "Chọn ô. Tab Xem xét, nhóm Ghi chú, nhấn nút lớn Ghi chú mới — cùng lệnh cũng có trên tab Chèn, nhóm Ghi chú. Chuột phải ô → Thêm ghi chú (Shift+F2).",
-      "Ô trống: hộp «Ghi chú mới A1» — Nội dung ghi chú (bắt buộc, tối đa 2000 ký tự), Tác giả (mặc định «Người dùng VN Office», tối đa 100). Thêm ghi chú. Để trống nội dung bị báo «Nội dung ghi chú không được để trống.»",
+      "Ô trống: hộp «Ghi chú mới A1» — Nội dung ghi chú (bắt buộc, tối đa 2000 ký tự), Tác giả (mặc định «Người dùng 3T Office», tối đa 100). Thêm ghi chú. Để trống nội dung bị báo «Nội dung ghi chú không được để trống.»",
       "Ô đã có ghi chú: hộp «Sửa ghi chú A1», nút Lưu thay đổi và Xóa ghi chú. Ô có ghi chú hiện dấu góc; Đã xử lý đổi dấu xám — bài «Duyệt và xử lý nhận xét ô».",
       "Ctrl+Z hoàn tác thêm/sửa/xóa. Ghi chú theo từng sheet, lưu trong file."
     ]
@@ -934,7 +934,7 @@ export const SHEET_HELP_ENTRIES = [
     id: "sheet.accessibility.keyboardNav",
     app: "sheet",
     commandIds: ["common.file.backstage"],
-    title: "Điều hướng bằng bàn phím và trợ năng (VN Sheet)",
+    title: "Điều hướng bằng bàn phím và trợ năng (3T Sheet)",
     summary: "Thao tác hoàn toàn bằng bàn phím không cần dùng chuột trên bảng tính: di chuyển ô bằng phím mũi tên, Enter, Tab; mở hộp thoại Định dạng ô bằng phím tắt Ctrl+1; bẫy tiêu điểm bên trong hộp thoại (kể cả khi chuyển tab) và tự động khôi phục tiêu điểm về ô lưới sau khi nhấn Escape.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Trợ năng" },
     keywords: ["bàn phím", "phím tắt", "trợ năng", "accessibility", "keyboard", "focus", "ctrl+1", "esc", "tab", "lưới", "ô"],
@@ -951,7 +951,7 @@ export const SHEET_HELP_ENTRIES = [
     app: "sheet",
     commandIds: ["common.macro.recordToggle", "common.macro.manager"],
     title: "Ghi và quản lý Macro trong bảng tính",
-    summary: "Tự động hóa các chuỗi thao tác thường dùng trong VN Sheet như tô màu, căn lề, sắp xếp, lọc dữ liệu. Bật/dừng ghi bằng Ctrl+Shift+R và quản lý danh sách macro bằng Alt+F8.",
+    summary: "Tự động hóa các chuỗi thao tác thường dùng trong 3T Sheet như tô màu, căn lề, sắp xếp, lọc dữ liệu. Bật/dừng ghi bằng Ctrl+Shift+R và quản lý danh sách macro bằng Alt+F8.",
     ribbon: { tab: "Chế độ xem", tabId: "view", group: "Macro" },
     keywords: ["macro", "ghi macro", "dừng ghi", "quản lý macro", "xem macro", "tự động hóa", "record macro", "alt+f8", "ctrl+shift+r"],
     steps: [
@@ -959,7 +959,7 @@ export const SHEET_HELP_ENTRIES = [
       "Thực hiện thao tác: Thực hiện các lệnh bảng tính cần tự động hóa (ví dụ: bôi đậm ô, căn giữa, đổi màu nền ô, sắp xếp tăng dần A-Z, chèn hàng/cột...).",
       "Dừng và lưu: Nhấn lại nút «Dừng ghi» trên Ribbon (hoặc Ctrl+Shift+R). Hộp thoại hiển thị yêu cầu nhập tên cho Macro, điền tên mong muốn và bấm OK.",
       "Quản lý và phát lại: Nhấn nút «Xem Macro» trong nhóm Macro (hoặc bấm Alt+F8) để mở danh sách Macro. Bấm «▶ Chạy» để thực thi ngay chuỗi lệnh trên vùng ô đang chọn, «Đổi tên» hoặc «Xóa» khi cần chỉnh lý.",
-      "Giới hạn trung thực: Macro cơ bản chỉ ghi lại các lệnh đi qua Command Bus của VN Sheet (định dạng ô, sắp xếp, căn chỉnh, chèn cấu trúc). Macro không ghi nhận việc gõ nhập ký tự tự do từng phím vào ô tính nếu không qua lệnh xác nhận. Macro được lưu cục bộ theo VN Sheet và không chạy chéo sang VN Writer hoặc VN Slides."
+      "Giới hạn trung thực: Macro cơ bản chỉ ghi lại các lệnh đi qua Command Bus của 3T Sheet (định dạng ô, sắp xếp, căn chỉnh, chèn cấu trúc). Macro không ghi nhận việc gõ nhập ký tự tự do từng phím vào ô tính nếu không qua lệnh xác nhận. Macro được lưu cục bộ theo 3T Sheet và không chạy chéo sang 3T Doc hoặc 3T Slide."
     ]
   },
   {
@@ -968,12 +968,12 @@ export const SHEET_HELP_ENTRIES = [
     commandIds: ["sheet.ai.explainFormula"],
     title: "Giải thích công thức (AI)",
     summary: "AI giải thích công thức trong ô đang chọn bằng tiếng Việt dễ hiểu: công thức đang làm gì, tham chiếu tới đâu, kết quả mang ý nghĩa gì.",
-    ribbon: { tab: "Trợ lý VN AI", tabId: "ai", group: "Phân tích dữ liệu AI" },
+    ribbon: { tab: "Trợ lý 3T AI", tabId: "ai", group: "Phân tích dữ liệu AI" },
     keywords: ["giải thích công thức", "explain formula", "công thức", "formula", "giải thích AI", "AI formula", "ô công thức"],
     steps: [
       "Chọn ô đang chứa công thức (bắt đầu bằng dấu =). Nếu ô không có công thức, hệ thống sẽ thông báo.",
-      "Mở tab Trợ lý VN AI trên ribbon, trong nhóm Phân tích dữ liệu AI nhấn nút «Giải thích công thức».",
-      "AI sẽ phân tích công thức và giải thích bằng tiếng Việt trong bảng Trợ lý VN AI bên phải: công thức đang làm gì, tham chiếu tới ô/vùng nào, kết quả mang ý nghĩa gì.",
+      "Mở tab Trợ lý 3T AI trên ribbon, trong nhóm Phân tích dữ liệu AI nhấn nút «Giải thích công thức».",
+      "AI sẽ phân tích công thức và giải thích bằng tiếng Việt trong bảng Trợ lý 3T AI bên phải: công thức đang làm gì, tham chiếu tới ô/vùng nào, kết quả mang ý nghĩa gì.",
       "Nếu công thức phức tạp, AI sẽ giải thích từng phần của công thức.",
       "Lưu ý: Kết quả phụ thuộc vào AI provider đang dùng. Chế độ quy tắc cục bộ chỉ đưa ra gợi ý chung."
     ]
@@ -983,15 +983,15 @@ export const SHEET_HELP_ENTRIES = [
     app: "sheet",
     commandIds: ["sheet.ai.formulaFromDescription"],
     title: "Tạo công thức từ mô tả (AI)",
-    summary: "AI tạo công thức Excel tương thích VN Sheet từ mô tả bằng ngôn ngữ tự nhiên. Công thức được validate trước khi áp dụng — chỉ dùng hàm engine hỗ trợ.",
-    ribbon: { tab: "Trợ lý VN AI", tabId: "ai", group: "Phân tích dữ liệu AI" },
+    summary: "AI tạo công thức Excel tương thích 3T Sheet từ mô tả bằng ngôn ngữ tự nhiên. Công thức được validate trước khi áp dụng — chỉ dùng hàm engine hỗ trợ.",
+    ribbon: { tab: "Trợ lý 3T AI", tabId: "ai", group: "Phân tích dữ liệu AI" },
     keywords: ["tạo công thức", "formula from description", "công thức AI", "sinh công thức", "mô tả công thức", "tự động công thức"],
     steps: [
-      "Mở tab Trợ lý VN AI trên ribbon, trong nhóm Phân tích dữ liệu AI nhấn nút «Tạo công thức».",
+      "Mở tab Trợ lý 3T AI trên ribbon, trong nhóm Phân tích dữ liệu AI nhấn nút «Tạo công thức».",
       "Hộp thoại «Tạo công thức từ mô tả» xuất hiện. Nhập mô tả công thức bạn muốn bằng ngôn ngữ tự nhiên, ví dụ: «tính tổng cột B khi cột A lớn hơn 100», «đếm số ô có giá trị > 50 trong vùng D1:D100».",
-      "Nhấn «Tạo công thức». AI sẽ tạo công thức Excel tương thích với VN Sheet.",
-      "Kết quả hiển thị trong bảng Trợ lý VN AI: công thức dạng chữ trên nền xám để xem trước. Nhấn «Áp dụng vào ô đang chọn» để ghi công thức vào ô.",
-      "Công thức được validate trước khi áp dụng — nếu chứa hàm VN Sheet chưa hỗ trợ, hệ thống sẽ báo lỗi rõ ràng thay vì ghi công thức lỗi vào ô.",
+      "Nhấn «Tạo công thức». AI sẽ tạo công thức Excel tương thích với 3T Sheet.",
+      "Kết quả hiển thị trong bảng Trợ lý 3T AI: công thức dạng chữ trên nền xám để xem trước. Nhấn «Áp dụng vào ô đang chọn» để ghi công thức vào ô.",
+      "Công thức được validate trước khi áp dụng — nếu chứa hàm 3T Sheet chưa hỗ trợ, hệ thống sẽ báo lỗi rõ ràng thay vì ghi công thức lỗi vào ô.",
       "Lưu ý: Kết quả phụ thuộc vào AI provider đang dùng. Chế độ quy tắc cục bộ chỉ đưa ra gợi ý chung."
     ]
   },
@@ -1005,7 +1005,7 @@ export const SHEET_HELP_ENTRIES = [
     keywords: ["tệp", "file", "backstage", "alt+f", "mẫu bảng tính", "tệp gần đây", "lưu", "in", "xuất pdf", "dự toán", "menu tệp"],
     steps: [
       "Mở menu Tệp: Nhấp vào nút màu xanh lá «Tệp» ở góc trên cùng bên trái thanh Ribbon hoặc nhấn tổ hợp phím Alt+F. Giao diện Backstage toàn màn hình sẽ mở ra với thanh điều hướng màu xanh bên trái và tiêu điểm tự động đặt vào nút 'Quay lại'.",
-      "Màn hình Trang chủ: Cung cấp danh sách mẫu bảng tính chuẩn (Bảng tính trống, Dự toán kinh phí VN Office) cùng bảng danh sách 'Tài liệu mở gần đây'.",
+      "Màn hình Trang chủ: Cung cấp danh sách mẫu bảng tính chuẩn (Bảng tính trống, Dự toán kinh phí 3T Office) cùng bảng danh sách 'Tài liệu mở gần đây'.",
       "Chọn mẫu bảng tính: Dùng phím mũi tên Phải để đi vào lưới mẫu, dùng mũi tên duyệt và nhấn Enter hoặc Space để khởi tạo bảng tính theo mẫu đang chọn.",
       "Mở và quản lý tệp gần đây: Dùng phím mũi tên Xuống để chuyển xuống bảng tệp gần đây. Nhấp chuột hoặc bấm Enter để mở lại bảng tính. Nhấp nút 'Gỡ khỏi danh sách' (biểu tượng ×) trên mỗi hàng để loại bỏ tệp đã bị xóa khỏi máy. Nhấp nút 'Xóa lịch sử' nếu muốn xóa toàn bộ danh sách tệp gần đây.",
       "In bảng tính: Chọn mục «In» trong Tệp hoặc nhấn Ctrl+P. Hộp thoại In xem ảnh các trang PDF do LibreOffice dựng theo Vùng in, thiết lập trang, tỷ lệ, tiêu đề lặp và ngắt trang; chọn máy in, số bản, phạm vi trang rồi nhấn In.",
@@ -1038,7 +1038,7 @@ export const SHEET_HELP_ENTRIES = [
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Bảng nhớ tạm" },
     keywords: ["cắt", "sao chép", "dán", "cut", "copy", "paste", "clipboard", "Ctrl+X", "Ctrl+C", "Ctrl+V", "ô dữ liệu"],
     steps: [
-      "Chọn một ô hoặc kéo chuột bôi đen vùng ô cần thao tác trên bảng tính VN Sheet.",
+      "Chọn một ô hoặc kéo chuột bôi đen vùng ô cần thao tác trên bảng tính 3T Sheet.",
       "Mở tab Trang đầu, nhóm Bảng nhớ tạm: nhấn Cắt (Ctrl+X) nếu muốn chuyển hẳn dữ liệu sang nơi khác, hoặc nhấn Sao chép (Ctrl+C) để nhân bản dữ liệu.",
       "Vùng ô đang chọn sẽ được sao chép vào bộ nhớ tạm. Nhấp chọn ô góc trên bên trái của vùng đích.",
       "Nhấn nút Dán (Ctrl+V) trên thanh ribbon hoặc bấm phím Ctrl+V để dán dữ liệu vào bảng tính.",
@@ -1054,7 +1054,7 @@ export const SHEET_HELP_ENTRIES = [
     ribbon: { tab: "Bố trí trang", tabId: "pageLayout", group: "Thiết lập trang" },
     keywords: ["hướng giấy", "khổ giấy", "orientation", "page size", "portrait", "landscape", "khổ a4", "trang in", "bố trí trang"],
     steps: [
-      "Mở tab Bố trí trang trên thanh ribbon của VN Sheet.",
+      "Mở tab Bố trí trang trên thanh ribbon của 3T Sheet.",
       "Trong nhóm Thiết lập trang, nhấn Hướng giấy để mở hộp thoại và chọn Giấy đứng (phù hợp bảng ít cột) hoặc Giấy ngang (phù hợp bảng nhiều cột).",
       "Nhấn nút Khổ giấy để chọn kích thước trang chuẩn như A4 (210 × 297 mm, chuẩn văn bản Việt Nam theo Nghị định 30) hoặc Letter, A3.",
       "Các đường ngắt trang ảo sẽ tự động điều chỉnh hiển thị ranh giới in theo khổ giấy và hướng giấy vừa chọn.",
@@ -1065,13 +1065,13 @@ export const SHEET_HELP_ENTRIES = [
     id: "sheet.help.guide",
     app: "sheet",
     commandIds: ["sheet.help.open"],
-    title: "Tra cứu Trợ giúp và Hướng dẫn sử dụng VN Sheet",
-    summary: "Mở bảng Hướng dẫn sử dụng VN Sheet tích hợp ngay trong ứng dụng bằng phím tắt F1, hỗ trợ tra cứu công thức, hàm tính toán, định dạng và thao tác bảng tính.",
+    title: "Tra cứu Trợ giúp và Hướng dẫn sử dụng 3T Sheet",
+    summary: "Mở bảng Hướng dẫn sử dụng 3T Sheet tích hợp ngay trong ứng dụng bằng phím tắt F1, hỗ trợ tra cứu công thức, hàm tính toán, định dạng và thao tác bảng tính.",
     ribbon: { tab: "Trợ giúp", tabId: "help", group: "Trợ giúp" },
     keywords: ["trợ giúp", "hướng dẫn", "help", "F1", "tra cứu", "hướng dẫn sử dụng", "sử dụng sheet", "hàm excel"],
     steps: [
       "Nhấn phím F1 trên bàn phím tại bất kỳ lúc nào, hoặc mở tab Trợ giúp trên ribbon và nhấn nút Trợ giúp.",
-      "Bảng Trợ giúp VN Sheet xuất hiện ở cạnh phải màn hình với danh sách các bài hướng dẫn chi tiết.",
+      "Bảng Trợ giúp 3T Sheet xuất hiện ở cạnh phải màn hình với danh sách các bài hướng dẫn chi tiết.",
       "Nhập tên chức năng hoặc từ khóa (ví dụ: «vlookup», «định dạng có điều kiện», «pivot table», «cố định hàng») vào ô tìm kiếm ở đầu bảng.",
       "Nhấp vào bài viết trong kết quả để xem tóm tắt, vị trí tab/nhóm ribbon và các bước thực hiện chi tiết kèm ví dụ.",
       "Nhấn phím F1 hoặc nút đóng (×) ở góc trên bảng trợ giúp để thu gọn bảng khi không dùng."
@@ -1081,16 +1081,16 @@ export const SHEET_HELP_ENTRIES = [
     id: "sheet.ai.analysis",
     app: "sheet",
     commandIds: ["ai.assistant.toggle", "ai.assistant.summarize"],
-    title: "Trợ lý VN AI: Bảng trợ lý và Tóm tắt dữ liệu bảng tính",
-    summary: "Bật/tắt thanh bên Trợ lý VN AI (Alt+J) và tự động tóm tắt, phân tích xu hướng hoặc chỉ số nổi bật từ dữ liệu vùng bảng tính đang chọn.",
-    ribbon: { tab: "Trợ lý VN AI", tabId: "ai", group: "Phân tích dữ liệu AI" },
+    title: "Trợ lý 3T AI: Bảng trợ lý và Tóm tắt dữ liệu bảng tính",
+    summary: "Bật/tắt thanh bên Trợ lý 3T AI (Alt+J) và tự động tóm tắt, phân tích xu hướng hoặc chỉ số nổi bật từ dữ liệu vùng bảng tính đang chọn.",
+    ribbon: { tab: "Trợ lý 3T AI", tabId: "ai", group: "Phân tích dữ liệu AI" },
     keywords: ["trợ lý ai", "tóm tắt nhanh", "phân tích dữ liệu", "ai", "Alt+J", "summarize", "bảng tính", "thống kê"],
     steps: [
       "Chọn vùng dữ liệu bảng tính cần phân tích hoặc tóm tắt.",
-      "Mở tab Trợ lý VN AI trên ribbon, nhóm Phân tích dữ liệu AI.",
-      "Nhấn Trợ lý VN AI (hoặc bấm Alt+J) để mở bảng điều khiển AI bên cạnh phải màn hình.",
+      "Mở tab Trợ lý 3T AI trên ribbon, nhóm Phân tích dữ liệu AI.",
+      "Nhấn Trợ lý 3T AI (hoặc bấm Alt+J) để mở bảng điều khiển AI bên cạnh phải màn hình.",
       "Nhấn nút Tóm tắt nhanh để AI phân tích cấu trúc bảng, tổng hợp các con số nổi bật, giá trị lớn nhất/nhỏ nhất và xu hướng dữ liệu.",
-      "Kết quả tóm tắt bằng tiếng Việt hiển thị trong bảng Trợ lý VN AI; có thể xem trước hoặc sao chép để đưa vào báo cáo."
+      "Kết quả tóm tắt bằng tiếng Việt hiển thị trong bảng Trợ lý 3T AI; có thể xem trước hoặc sao chép để đưa vào báo cáo."
     ]
   },
   {

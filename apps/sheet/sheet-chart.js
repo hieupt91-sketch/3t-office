@@ -1,4 +1,4 @@
-/** VN Sheet — dependency-free SVG charts for spreadsheet ranges. */
+/** 3T Sheet — dependency-free SVG charts for spreadsheet ranges. */
 const TYPES = ["bar", "line", "pie", "area"];
 const COLORS = ["#0f6d38", "#2563eb", "#d97706", "#dc2626", "#7c3aed", "#0891b2"];
 const esc = value => String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&apos;");

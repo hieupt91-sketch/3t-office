@@ -1,5 +1,5 @@
 /**
- * VN Office Platform — Ribbon Host Framework
+ * 3T Office Platform — Ribbon Host Framework
  * Quản lý kết cấu Ribbon động theo app context và cơ chế tự co giãn (adaptive scaling) chuẩn Office
  */
 

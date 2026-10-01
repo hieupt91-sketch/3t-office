@@ -1,4 +1,4 @@
-/** Pure helpers for VN Sheet What-If Analysis. */
+/** Pure helpers for 3T Sheet What-If Analysis. */
 export class WhatIfAnalysisEngine {
   static normalizeCoord(value) {
     const coord = String(value || "").trim().replace(/\$/g, "").toUpperCase();

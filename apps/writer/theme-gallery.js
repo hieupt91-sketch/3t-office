@@ -1,5 +1,5 @@
 /**
- * VN Office — VN Writer Theme Gallery (Thư viện Kiểu & Chủ đề tài liệu)
+ * 3T Office — 3T Doc Theme Gallery (Thư viện Kiểu & Chủ đề tài liệu)
  * Cấp độ tài liệu: Đổi font-family toàn văn bản + màu heading + khoảng cách đoạn
  * Chuẩn hóa Microsoft Word Document Formatting / Themes
  */

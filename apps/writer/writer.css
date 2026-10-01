@@ -1,5 +1,5 @@
 /**
- * VN Writer — Enterprise Stylesheet
+ * 3T Doc — Enterprise Stylesheet
  * Tiêu chuẩn văn bản hành chính Việt Nam (Nghị định 30/2020/NĐ-CP)
  */
 
@@ -1053,7 +1053,7 @@ li.vno-page-auto-gap {
 }
 
 /* ==========================================================================
-   VN Writer — Print Preview (Xem trước khi in) Enterprise Styles
+   3T Doc — Print Preview (Xem trước khi in) Enterprise Styles
    ========================================================================== */
 
 .vno-print-preview-overlay {
@@ -2656,7 +2656,7 @@ p.vno-style-emphasis {
 
 
 /* ==========================================================================
-   VN Writer — Chia cột văn bản (Multi-column Layout)
+   3T Doc — Chia cột văn bản (Multi-column Layout)
    ========================================================================== */
 
 .vno-writer-body.vno-columns-active,
@@ -2714,7 +2714,7 @@ p.vno-style-emphasis {
 }
 
 /* ==========================================================================
-   VN Writer — Minh họa (Shapes, Diagrams, Charts)
+   3T Doc — Minh họa (Shapes, Diagrams, Charts)
    ========================================================================== */
 
 .vno-writer-shapes-layer {

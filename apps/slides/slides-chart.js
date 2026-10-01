@@ -1,4 +1,4 @@
-/** Dependency-free chart renderer/dialog for VN Slides. Sheet source is intentionally not imported. */
+/** Dependency-free chart renderer/dialog for 3T Slide. Sheet source is intentionally not imported. */
 export const SLIDES_CHART_TYPES = ["bar", "line", "pie", "area"];
 
 const COLORS = ["#0f6d38", "#2563eb", "#d97706", "#dc2626", "#7c3aed", "#0891b2"];

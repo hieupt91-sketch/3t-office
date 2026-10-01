@@ -1,5 +1,5 @@
 /**
- * VN Slides Application Entrypoint — Refined Enterprise Edition
+ * 3T Slide Application Entrypoint — Refined Enterprise Edition
  */
 
 import { AppShell } from "../../platform/shell/app-shell.js";
@@ -32,8 +32,8 @@ export class SlidesApp {
     const isBlank = templateId === "blank";
     this.shell = new AppShell({
       appName: "slides",
-      appTitle: "VN Slides",
-      documentName: options.documentName || (isBlank ? "Bản trình bày 1.pptx" : "Báo cáo đề án phát triển VN Office 2026.pptx")
+      appTitle: "3T Slide",
+      documentName: options.documentName || (isBlank ? "Bản trình bày 1.pptx" : "Báo cáo đề án phát triển 3T Office 2026.pptx")
     });
     this.shell.mount(this.mountElement);
     this._watchLifecycle();
@@ -85,7 +85,7 @@ export class SlidesApp {
     });
 
     this.shell.setStatus(`Trang chiếu 1 / ${this.canvasController.slides.length}  |  Tỷ lệ 16:9 HD  |  Tiếng Việt  |  Sẵn sàng`);
-    console.log("[SlidesApp] Đã khởi tạo VN Slides chuẩn hóa cao cấp.");
+    console.log("[SlidesApp] Đã khởi tạo 3T Slide chuẩn hóa cao cấp.");
   }
 
   _watchLifecycle() {

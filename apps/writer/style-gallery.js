@@ -1,5 +1,5 @@
 /**
- * VN Office — VN Writer Style Gallery (Thư viện Kiểu dáng trực quan)
+ * 3T Office — 3T Doc Style Gallery (Thư viện Kiểu dáng trực quan)
  * Chuẩn hóa Quick Styles Microsoft Word 365 / LibreOffice Writer
  */
 

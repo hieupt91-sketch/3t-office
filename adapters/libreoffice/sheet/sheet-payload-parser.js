@@ -1,4 +1,4 @@
-// VN Sheet's owned parser for the compact v2 open payload. Workbook state is
+// 3T Sheet's owned parser for the compact v2 open payload. Workbook state is
 // returned as an intermediate model; SheetAdapter commits only after parsing
 // and validating the complete payload.
 

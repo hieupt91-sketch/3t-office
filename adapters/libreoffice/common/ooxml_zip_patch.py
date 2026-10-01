@@ -301,7 +301,7 @@ def column_label_from_index(one_based_index: int) -> str:
 
 
 def parse_freeze_panes_from_fods(fods_xml: str | None) -> dict[str, dict[str, int]]:
-    """{sheet_name: {"rows": int, "cols": int}} từ vno:frozen-rows/cols VN Office tự ghi."""
+    """{sheet_name: {"rows": int, "cols": int}} từ vno:frozen-rows/cols 3T Office tự ghi."""
     xml = fods_xml or ""
     result: dict[str, dict[str, int]] = {}
     for match in _FREEZE_TABLE_TAG_RE.finditer(xml):
@@ -455,7 +455,7 @@ def apply_sheet_visibility_to_fods(fods_xml: str, visibility_by_sheet: dict[str,
 
 
 def parse_sheet_visibility_from_fods(fods_xml: str | None) -> dict[str, str]:
-    """Read vno:sheet-state from FODS <table:table> tags (VN Office self-written)."""
+    """Read vno:sheet-state from FODS <table:table> tags (3T Office self-written)."""
     result: dict[str, str] = {}
     if not fods_xml:
         return result
@@ -1030,7 +1030,7 @@ _TABLE_PART_NAME_RE = re.compile(r'<table\b[^>]*\bname="([^"]*)"', re.IGNORECASE
 def strip_autofilter_table_parts(xlsx_bytes: bytes, replacements: dict[str, str | bytes | None]) -> None:
     """Drop Excel Table parts LibreOffice generates for AutoFilter database ranges.
 
-    A named database range (``AutoFilter_<sheet>`` from older VN Office saves or
+    A named database range (``AutoFilter_<sheet>`` from older 3T Office saves or
     LibreOffice's own ``__Anonymous_Sheet_DB__<n>``) is exported as
     ``xl/tables/tableN.xml``. Excel refuses to open such a table when the range is
     header-only (``ref="A3:F3"``) or a column caption is empty — measured on
@@ -2069,7 +2069,7 @@ _VND_FORMULA_RE = re.compile(r"^=?\s*(?:_xll\.)?VND\s*\(", re.IGNORECASE)
 def _fods_vnd_cells(fods_xml: str) -> dict[str, dict[tuple[int, int], tuple[str, str]]]:
     """{sheet: {(row, col): (excel_formula_without_eq, text)}} for VND() cells the app sent.
 
-    VN Sheet computes VND() (amount in words) itself; LibreOffice does not know the
+    3T Sheet computes VND() (amount in words) itself; LibreOffice does not know the
     add-in function and writes #NAME? (xlsx) / #N/A (xls) on export.
     """
     result: dict[str, dict[tuple[int, int], tuple[str, str]]] = {}
@@ -2124,7 +2124,7 @@ def fods_vnd_cells_as_text(fods_xml: str) -> str:
 def _source_vnd_error_refs(source_xlsx_bytes: bytes | None) -> dict[str, set[str]]:
     """{sheet: refs} of VND() cells whose cached value in the source XLSX is an error.
 
-    The author saved them without the add-in (Excel shows #NAME?); writing VN Sheet's
+    The author saved them without the add-in (Excel shows #NAME?); writing 3T Sheet's
     computed words there would invent a value the document never had (lan02.xlsx).
     """
     result: dict[str, set[str]] = {}
@@ -2816,7 +2816,7 @@ def postprocess_sheet_xlsx(
     # Freeze Panes: soffice thật không khôi phục <pane> qua ODF office:settings
     # khi chuyển đổi headless FODS<->XLSX (xác nhận qua vòng chuyển đổi soffice
     # thật) - ghi thẳng <pane> chuẩn vào (các) worksheetN.xml thật dựa theo
-    # vno:frozen-rows/cols VN Office tự lưu trong FODS nguồn.
+    # vno:frozen-rows/cols 3T Office tự lưu trong FODS nguồn.
     freeze_by_sheet = parse_freeze_panes_from_fods(source_fods)
     if freeze_by_sheet:
         sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
@@ -2964,7 +2964,7 @@ def postprocess_sheet_xlsx(
             pass
 
     # S13: ô chuỗi rỗng của file gốc bị soffice bỏ khi nhập -> chèn lại (xf qua cùng bộ chép của S8)
-    # S24b: a document created in VN Sheet has no source XLSX to restore from;
+    # S24b: a document created in 3T Sheet has no source XLSX to restore from;
     # enforce the Excel 2016 Normal/layout defaults after LibreOffice export.
     if not source_xlsx_bytes and source_fods:
         _apply_new_workbook_defaults(xlsx_bytes, source_fods, replacements)
@@ -3906,7 +3906,7 @@ def _resolve_slide_page_layout_name(fodp_xml: str) -> str | None:
 
 
 def parse_intended_slide_size_from_fodp(fodp_xml: str | None) -> dict[str, int] | None:
-    """Đọc khổ trang chiếu THẬT (canvas.slideSize) từ chính FODP do VN Office ghi ra.
+    """Đọc khổ trang chiếu THẬT (canvas.slideSize) từ chính FODP do 3T Office ghi ra.
 
     Cần thiết vì đã đo thực tế: soffice --convert-to pptx BỎ QUA hoàn toàn
     style:page-layout-properties khi chuyển FODP -> PPTX, luôn tự ý ghi
@@ -3962,7 +3962,7 @@ _LENGTH_EMU = {"cm": CM_EMU, "mm": CM_EMU // 10, "in": 914400, "pt": 12700}
 def _parse_page_layout_props(attrs: str) -> dict[str, int] | None:
     """Trích xuất fo:page-width / fo:page-height (cm, mm, in hoặc pt) và đổi sang EMU.
 
-    VN Slides ghi khổ bằng pt đủ chữ số (1 pt = 12700 EMU) để <p:sldSz> khớp TUYỆT ĐỐI
+    3T Slide ghi khổ bằng pt đủ chữ số (1 pt = 12700 EMU) để <p:sldSz> khớp TUYỆT ĐỐI
     preset PowerPoint (16:9 = 12192000 × 6858000, 4:3 = 9144000 × 6858000) hoặc khổ gốc của
     tệp mở từ PowerPoint. vno:sld-type (nếu có) là thuộc tính type của <p:sldSz>
     ("screen4x3"...); có mặt nhưng rỗng nghĩa là KHÔNG có type (Widescreen).
@@ -3977,7 +3977,7 @@ def _parse_page_layout_props(attrs: str) -> dict[str, int] | None:
         return None
     size: dict = {"cx": cx, "cy": cy}
     if width_match.group(2).lower() == "pt":
-        # Khổ do VN Slides ghi (pt): quyết định luôn thuộc tính type (có hoặc không).
+        # Khổ do 3T Slide ghi (pt): quyết định luôn thuộc tính type (có hoặc không).
         type_match = re.search(r'\bvno:sld-type=["\']([^"\']*)["\']', attrs, re.IGNORECASE)
         size["type"] = type_match.group(1) if type_match else ""
     return size
@@ -5324,14 +5324,14 @@ def postprocess_slides_pptx(
     # soffice --convert-to pptx BỎ QUA style:page-layout-properties của FODP khi
     # xuất PPTX, luôn tự ghi <p:sldSz> mặc định 28cm x 15.75cm bất kể canvas.slideSize
     # thật của người dùng - đo thực tế bằng vòng chuyển đổi thật qua soffice, xác
-    # nhận đây là giới hạn của bản thân soffice, không phải lỗi FODP do VN Office ghi
+    # nhận đây là giới hạn của bản thân soffice, không phải lỗi FODP do 3T Office ghi
     # ra. Khôi phục khổ trang THẬT ở đây, độc lập với logo/sections/show (luôn áp
     # dụng nếu phát hiện khác biệt thật, không chỉ khi các tính năng khác cũng cần sửa).
     intended_size = parse_intended_slide_size_from_fodp(source_fodp) if source_fodp else None
     real_size = parse_slide_size(presentation_xml)
     # Dung sai 1000 EMU (~0.0028cm) — tránh vá giả do sai số làm tròn giữa
     # FODP (cm, làm tròn 3 chữ số thập phân) và PPTX (EMU, integer).
-    # Khổ ghi bằng pt (VN Slides, có "type") phải khớp TỪNG EMU và đúng thuộc tính type như
+    # Khổ ghi bằng pt (3T Slide, có "type") phải khớp TỪNG EMU và đúng thuộc tính type như
     # PowerPoint (G8: soffice ghi 12192120 thay vì 12192000 → PowerPoint báo khổ «Custom»).
     real_type_match = re.search(r'<(?:[\w]+:)?sldSz\b[^>]*\btype=["\']([^"\']*)["\']', presentation_xml or "", re.IGNORECASE)
     real_type = real_type_match.group(1) if real_type_match else ""
@@ -5758,7 +5758,7 @@ def _restore_untouched_drawings_step(
         # count exceed the original anchor count and still blocks restoration.
         # With no ids, restore only for legacy FODS (marker absent) or when
         # Calc imported zero images.  N>0 means the user deleted all imported
-        # images in VN Sheet, so restoring the source drawing would resurrect them.
+        # images in 3T Sheet, so restoring the source drawing would resurrect them.
         calc_imported_no_images = (
             current_count == 0
             and fods_images_at_open.get(sheet_name, 0) == 0

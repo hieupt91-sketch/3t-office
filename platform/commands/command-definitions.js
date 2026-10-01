@@ -1,5 +1,5 @@
 /**
- * VN Office Platform — Danh mục định nghĩa toàn bộ Command IDs & Microsoft Shortcuts
+ * 3T Office Platform — Danh mục định nghĩa toàn bộ Command IDs & Microsoft Shortcuts
  * Tiếng Việt chuẩn hóa, tích hợp 100% phím tắt Microsoft Office & LibreOffice
  */
 
@@ -39,7 +39,7 @@ export const COMMON_COMMANDS = [
   { id: "common.view.toggleTheme", category: "view", label: "Chế độ Tối/Sáng", icon: "themeMoon", tooltip: "Chuyển đổi giao diện Tối/Sáng (Dark Mode)", isToggle: true },
 
   // Trợ lý AI (AI Assistant)
-  { id: "ai.assistant.toggle", category: "ai", label: "Trợ lý VN AI", shortcut: "Alt+J", icon: "aiSparkle", tooltip: "Mở bảng trợ lý VN AI (Alt+J)", isToggle: true },
+  { id: "ai.assistant.toggle", category: "ai", label: "Trợ lý 3T AI", shortcut: "Alt+J", icon: "aiSparkle", tooltip: "Mở bảng trợ lý 3T AI (Alt+J)", isToggle: true },
   { id: "ai.assistant.summarize", category: "ai", label: "Tóm tắt nhanh", icon: "aiSummarize", tooltip: "Tóm tắt nội dung vùng chọn bằng AI" },
   { id: "ai.assistant.rewrite", category: "ai", label: "Viết lại", icon: "aiRewrite", tooltip: "Viết lại câu từ chuẩn văn phong tiếng Việt" },
   { id: "ai.assistant.grammarCheck", category: "ai", label: "Soát lỗi chính tả", shortcut: "F7", icon: "aiGrammar", tooltip: "Kiểm tra chính tả và ngữ pháp tiếng Việt (F7)" },

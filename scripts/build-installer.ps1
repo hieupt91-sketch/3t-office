@@ -1,4 +1,4 @@
-# Build a single per-user VN Office Setup.exe with the current-user NSIS compiler.
+# Build a single per-user 3T Office Setup.exe with the current-user NSIS compiler.
 # Usage: powershell -ExecutionPolicy Bypass -File scripts\build-installer.ps1 -PackageDir E:\VNOffice-dist\VNOffice-0.9.0-pilot1
 # ASCII only: compatible with Windows PowerShell 5.1.
 param(
@@ -105,7 +105,7 @@ $makensisArgs = @(
     $nsiPath
 )
 $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
-Write-Host "Compiling VN Office $version with NSIS $compilerVersion ($compilerPath)"
+Write-Host "Compiling 3T Office $version with NSIS $compilerVersion ($compilerPath)"
 Write-Host "Required free space at install target: $([Math]::Round($requiredFreeBytes / 1MB, 1)) MiB"
 & $compilerPath @makensisArgs
 $compilerExit = $LASTEXITCODE

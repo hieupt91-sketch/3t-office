@@ -1,6 +1,6 @@
 /**
- * VN Office UI Kit — Enterprise Dialog Framework
- * Thay thế hoàn toàn alert() và prompt() của trình duyệt bằng hộp thoại đồ họa chuẩn VN Office.
+ * 3T Office UI Kit — Enterprise Dialog Framework
+ * Thay thế hoàn toàn alert() và prompt() của trình duyệt bằng hộp thoại đồ họa chuẩn 3T Office.
  * Tuân thủ 03-ui-ux/UI-KIT-RULES.md & 01-architecture/SHARED-PLATFORM.md
  */
 
