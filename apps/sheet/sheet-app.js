@@ -131,6 +131,10 @@ export class SheetApp {
     // so mount()'s initial focus call cannot take effect. Restore it once the
     // canvas and any startup recovery UI are in place.
     this._restoreGridFocusIfIdle();
+    // Also ensure focus after a microtask to catch any late-arriving dialogs
+    if (typeof queueMicrotask === "function") {
+      queueMicrotask(() => this._restoreGridFocusIfIdle());
+    }
     console.log("[SheetApp] Đã khởi tạo 3T Sheet chuẩn hóa cao cấp.");
   }
 
@@ -166,6 +170,8 @@ export class SheetApp {
     if (document.querySelector(".vno-dialog-overlay")) return false;
     const active = document.activeElement;
     if (active?.isContentEditable || active?.matches?.("input,textarea,select")) return false;
+    const container = this.grid.container;
+    if (!container || !document.body.contains(container)) return false;
     return this.grid.focusGrid();
   }
 
