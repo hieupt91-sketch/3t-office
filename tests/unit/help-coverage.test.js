@@ -30,8 +30,8 @@ export async function runHelpCoverageTests() {
         .join("; ");
       throw new Error(`Còn ${writer.uncoveredCount} lệnh Writer chưa có bài Help: ${details}`);
     }
-    // Section options add three supported Writer ribbon commands.
-    if (writer.coveredCount !== writer.liveCount || writer.liveCount !== 134) {
+    // Section options add three supported Writer ribbon commands. writer.edit.pasteSpecial added to clipboard group.
+    if (writer.coveredCount !== writer.liveCount || writer.liveCount !== 135) {
       throw new Error(`Số lượng lệnh Writer không khớp: covered=${writer.coveredCount}, live=${writer.liveCount}`);
     }
   });

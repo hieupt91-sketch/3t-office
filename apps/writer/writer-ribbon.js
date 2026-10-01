@@ -22,7 +22,13 @@ export const WRITER_RIBBON_TABS = [
             items: [
               { type: "button", commandId: "common.edit.cut" },
               { type: "button", commandId: "common.edit.copy" },
-              { type: "button", commandId: "common.edit.formatPainter" }
+              {
+                type: "row",
+                items: [
+                  { type: "button", commandId: "writer.edit.pasteSpecial" },
+                  { type: "button", commandId: "common.edit.formatPainter" }
+                ]
+              }
             ]
           }
         ]

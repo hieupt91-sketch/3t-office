@@ -28,7 +28,7 @@ import { formatDateTime, showDateTimeDialog } from "../../../platform/ui-kit/dat
 import { showEquationDialog, showBookmarkDialog, showCrossReferenceDialog, slugBookmarkName, showWordArtDialog, buildWriterWordArtHtml, applyWordArtCss, parseWordArtStyleAttr, resolveWordArtStyle, WORDART_PRESETS } from "../../../apps/writer/insert-dialogs.js";
 import { t } from "../../../platform/i18n/i18n.js";
 import { CITATION_STYLES, authorSortKey, citationMetadataHtml, formatBibliographyEntry, formatInTextCitation, normalizeSource, parseCitationMetadata, showInsertCitationDialog, showSourceManagerDialog } from "../../../apps/writer/citations.js";
-import { cleanWordHtml } from "../../../platform/clipboard/office-clipboard.js";
+import { cleanWordHtml, serializeWriterSelectionToClipboard } from "../../../platform/clipboard/office-clipboard.js";
 import {
   buildCaptionHtml,
   captionKindLabel,
@@ -14089,7 +14089,42 @@ export class WriterAdapter {
       event.preventDefault();
       this._insertClipboardContent({ html, text });
     };
-    for (const root of this._clipboardEventRoots) root.addEventListener("paste", this._pasteEventHandler);
+    this._copyEventHandler = event => {
+      if (!this._isContentEditableTarget(event)) return;
+      const selection = window.getSelection?.();
+      if (!selection?.rangeCount) return;
+      const range = selection.getRangeAt(0);
+      if (range.collapsed) return;
+      const { html, text } = serializeWriterSelectionToClipboard(range, this.bodyDom);
+      if (text) event.clipboardData.setData("text/plain", text);
+      if (html) event.clipboardData.setData("text/html", html);
+      event.preventDefault();
+    };
+    this._cutEventHandler = event => {
+      if (!this._isContentEditableTarget(event)) return;
+      const selection = window.getSelection?.();
+      if (!selection?.rangeCount) return;
+      const range = selection.getRangeAt(0);
+      if (range.collapsed) return;
+      const { html, text } = serializeWriterSelectionToClipboard(range, this.bodyDom);
+      if (text) event.clipboardData.setData("text/plain", text);
+      if (html) event.clipboardData.setData("text/html", html);
+      event.preventDefault();
+      this.flushTyping();
+      range.deleteContents();
+      this.isDirty = true;
+      this.recordSnapshot("writer.edit.cut");
+    };
+    for (const root of this._clipboardEventRoots) {
+      root.addEventListener("paste", this._pasteEventHandler);
+      root.addEventListener("copy", this._copyEventHandler);
+      root.addEventListener("cut", this._cutEventHandler);
+    }
+  }
+
+  _isContentEditableTarget(event) {
+    const target = event.target;
+    return target?.isContentEditable || target?.closest?.("[contenteditable='true']") || this.bodyDom?.contains?.(target);
   }
 
   _insertClipboardContent({ html = "", text = "" } = {}) {

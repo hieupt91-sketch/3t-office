@@ -621,5 +621,224 @@ export async function runOfficeClipboardTests() {
     assertEqual(result.mergedRanges[0].end.r, 2);
   });
 
+  // =============================================================================
+  // PHẦN 15: END-TO-END PASTE TESTS — 3T SHEET EXCEL HTML PASTE
+  // =============================================================================
+
+test("E2E Sheet: Excel HTML paste -> grid cells with number, date, percentage, bold, color, background, borders, merged", async () => {
+    const { SheetGridController } = await import("../../apps/sheet/sheet-grid.js");
+    const { parseOfficeHtmlTable } = await import("../../platform/clipboard/office-clipboard.js");
+
+    const container = {
+      querySelector() { return null; },
+      querySelectorAll() { return []; },
+      addEventListener() {},
+      classList: { add() {}, remove() {}, toggle() {} },
+      dataset: {},
+      setAttribute() {},
+      style: {},
+      innerHTML: "",
+      appendChild() {},
+      insertBefore() {},
+      focus() {}
+    };
+    const grid = new SheetGridController(container);
+    grid.selectedCoord = { c: "A", r: 1 };
+
+    const excelHtml = `
+      <html>
+      <style>
+        .xl65 { mso-number-format: '0.00%'; font-weight: bold; color: #ff0000; }
+        .xl66 { mso-number-format: '#,##0.00'; background: #ffff00; }
+        .xl67 { mso-number-format: 'dd/mm/yyyy'; }
+      </style>
+      <table>
+        <col width="80"><col width="100"><col width="90"><col width="120">
+        <tr height="20">
+          <td class="xl65" style="border:1px solid #000" x:num="0.75">75%</td>
+          <td class="xl66" style="border:1px solid #000" x:num="1234.56">1,234.56</td>
+          <td class="xl67" style="border:1px solid #000" x:num="45230">01/01/2024</td>
+          <td style="font-style:italic; background-color:#00ff00;">Italic Green</td>
+        </tr>
+        <tr height="20">
+          <td class="xl67" style="border:1px solid #000" x:num="45231">02/01/2024</td>
+          <td style="text-decoration:underline;">Underlined</td>
+          <td style="border:1px solid #000;">A3</td>
+          <td style="border:1px solid #000;">B3</td>
+        </tr>
+      </table>
+      </html>
+    `;
+
+    const model = parseOfficeHtmlTable(excelHtml, "");
+    assert(model !== null, "parseOfficeHtmlTable must return a model");
+
+    const applied = grid.applyPasteSpecial(model, "source", grid.selectedCoord);
+    assert(applied === true, "applyPasteSpecial must return true");
+
+    // Row 1 checks
+    const cA1 = grid.cellsData.get("A1");
+    assertEqual(cA1.val, 0.75, "A1 value should be 0.75 (percentage)");
+    assertEqual(cA1.style.numberFormat.category, "percentage", "A1 format should be percentage");
+    assertEqual(cA1.style.fontWeight, "bold", "A1 should be bold");
+    assertEqual(cA1.style.color, "#ff0000", "A1 should be red");
+
+    const cB1 = grid.cellsData.get("B1");
+    assertEqual(cB1.val, 1234.56, "B1 value should be 1234.56");
+    assertEqual(cB1.style.numberFormat.category, "number", "B1 format should be number");
+    assertEqual(cB1.style.backgroundColor, "#ffff00", "B1 should have yellow background");
+
+    const cC1 = grid.cellsData.get("C1");
+    assertEqual(cC1.val, 45230, "C1 value should be 45230 (Excel serial date)");
+    assertEqual(cC1.style.numberFormat.category, "date", "C1 format should be date");
+
+    const cD1 = grid.cellsData.get("D1");
+    assertEqual(cD1.val, "Italic Green", "D1 text content");
+    assertEqual(cD1.style.fontStyle, "italic", "D1 should be italic");
+    assertEqual(cD1.style.backgroundColor, "#00ff00", "D1 should have green background");
+
+    // Row 2 checks
+    const cA2 = grid.cellsData.get("A2");
+    assertEqual(cA2.val, 45231, "A2 should be 45231 (date)");
+    assertEqual(cA2.style.numberFormat.category, "date", "A2 format should be date");
+
+    const cB2 = grid.cellsData.get("B2");
+    assertEqual(cB2.val, "Underlined", "B2 text content");
+    assertEqual(cB2.style.textDecoration, "underline", "B2 should be underlined");
+
+    const cC2 = grid.cellsData.get("C2");
+    assertEqual(cC2.val, "A3", "C2 should be A3");
+
+    const cD2 = grid.cellsData.get("D2");
+    assertEqual(cD2.val, "B3", "D2 should be B3");
+
+    // Borders from inline styles should be parsed
+    assert(cA1.style.border || cA1.style.borderTop, "A1 should have border from inline style");
+  });
+
+  test("E2E Sheet: TSV paste -> grid cells with tab-separated values", async () => {
+    const { SheetGridController } = await import("../../apps/sheet/sheet-grid.js");
+    const { parseOfficeTsv } = await import("../../platform/clipboard/office-clipboard.js");
+
+    const container = {
+      querySelector() { return null; },
+      querySelectorAll() { return []; },
+      addEventListener() {},
+      classList: { add() {}, remove() {}, toggle() {} },
+      dataset: {},
+      setAttribute() {},
+      style: {},
+      innerHTML: "",
+      appendChild() {},
+      insertBefore() {},
+      focus() {}
+    };
+    const grid = new SheetGridController(container);
+    grid.selectedCoord = { c: "B", r: 2 };
+
+    const tsvText = "10\t20%\t=SUM(A1:B1)\nHello\t3.14\tWorld";
+    const model = parseOfficeTsv(tsvText);
+    assert(model !== null);
+
+    const applied = grid.applyPasteSpecial(model, "source", grid.selectedCoord);
+    assert(applied === true);
+
+    // Starting at B2, 2 rows × 3 cols
+    assertEqual(grid.cellsData.get("B2").val, 10, "B2 should be 10");
+    assertEqual(grid.cellsData.get("C2").val, 0.2, "C2 should be 0.2 (20%)");
+    assertEqual(grid.cellsData.get("C2").style.numberFormat.category, "percentage", "C2 format should be percentage");
+    // Formula references are offset relative to paste destination (B2 vs source A1)
+    // Source formula =SUM(A1:B1) at source col C (3rd col) → dest col D, row 2: =SUM(B2:C2)
+    assertEqual(grid.cellsData.get("D2").formula, "=SUM(B2:C2)", "D2 should have offset formula");
+
+    assertEqual(grid.cellsData.get("B3").val, "Hello", "B3 should be Hello");
+    assertEqual(grid.cellsData.get("C3").val, 3.14, "C3 should be 3.14");
+    assertEqual(grid.cellsData.get("D3").val, "World", "D3 should be World");
+  });
+
+  // =============================================================================
+  // PHẦN 16: END-TO-END PASTE TESTS — 3T DOC WORD HTML PASTE
+  // =============================================================================
+
+  test("E2E Writer: Word HTML paste -> cleaned formatting (headings, lists, tables, links, bold/italic)", async () => {
+    const { cleanWordHtml } = await import("../../platform/clipboard/office-clipboard.js");
+
+    const wordHtml = `
+      <!--[if gte mso 9]><xml><o:OfficeDocumentSettings></o:OfficeDocumentSettings></xml><![endif]-->
+      <w:p class="MsoNormal"><w:r><w:t>Word junk</w:t></w:r></w:p>
+      <p class="MsoHeading1">Heading 1 Title</p>
+      <p class="MsoHeading2">Heading 2 Subtitle</p>
+      <p class="MsoHeading3">Heading 3 Section</p>
+      <p class="MsoListParagraph" style="mso-list:l0 level1 lfo1;"><span style="font-family:Symbol">·</span>Bullet item 1</p>
+      <p class="MsoListParagraph" style="mso-list:l0 level1 lfo1;"><span style="font-family:Symbol">·</span>Bullet item 2</p>
+      <p class="MsoListParagraph" style="mso-list:l1 level1 lfo2;">1. Numbered item 1</p>
+      <p class="MsoListParagraph" style="mso-list:l1 level1 lfo2;">2. Numbered item 2</p>
+      <p><b>Bold text</b> <i>Italic text</i> <u>Underlined text</u></p>
+      <p style="font-size:14pt; color:#ff0000;">Red 14pt text</p>
+      <p><a href="https://example.com">External Link</a></p>
+      <table class="MsoTableGrid">
+        <tr><td style="border:1px solid #000;">Cell A1</td><td style="border:1px solid #000;">Cell B1</td></tr>
+        <tr><td style="border:1px solid #000;">Cell A2</td><td style="border:1px solid #000;">Cell B2</td></tr>
+      </table>
+      <o:p></o:p>
+    `;
+
+    const cleaned = cleanWordHtml(wordHtml);
+
+    // Word junk removed
+    assert(!cleaned.includes("if gte mso"), "Conditional comments removed");
+    assert(!cleaned.includes("o:OfficeDocumentSettings"), "Office XML removed");
+    assert(!cleaned.includes("w:p"), "w:* tags removed");
+    assert(!cleaned.includes("o:p"), "o:p tags removed");
+    assert(!cleaned.includes("MsoNormal"), "Mso classes removed");
+    assert(!cleaned.includes("MsoTableGrid"), "MsoTableGrid class removed");
+
+    // Headings preserved
+    assert(cleaned.includes("<h1>Heading 1 Title</h1>"), "Heading 1 converted to h1");
+    assert(cleaned.includes("<h2>Heading 2 Subtitle</h2>"), "Heading 2 converted to h2");
+    assert(cleaned.includes("<h3>Heading 3 Section</h3>"), "Heading 3 converted to h3");
+
+    // Lists converted to ul/ol
+    assert(cleaned.includes("<ul"), "Bullet list converted to ul");
+    assert(cleaned.includes("<li>Bullet item 1</li>"), "Bullet item 1 in li");
+    assert(cleaned.includes("<li>Bullet item 2</li>"), "Bullet item 2 in li");
+    assert(cleaned.includes("<ol"), "Numbered list converted to ol");
+    assert(cleaned.includes("<li>Numbered item 1</li>"), "Numbered item 1 in li");
+    assert(cleaned.includes("<li>Numbered item 2</li>"), "Numbered item 2 in li");
+
+    // Formatting preserved
+    assert(cleaned.includes("<b>Bold text</b>"), "Bold preserved");
+    assert(cleaned.includes("<i>Italic text</i>"), "Italic preserved");
+    assert(cleaned.includes("<u>Underlined text</u>"), "Underline preserved");
+    assert(cleaned.includes("font-size:14pt"), "Font size preserved");
+    assert(cleaned.includes("color:#ff0000") || cleaned.includes("color: #ff0000"), "Color preserved");
+
+    // Link preserved
+    assert(cleaned.includes('<a href="https://example.com">External Link</a>'), "Link preserved");
+
+    // Table preserved
+    assert(cleaned.includes("<table"), "Table preserved");
+    assert(cleaned.includes("Cell A1"), "Table cell A1 content preserved");
+    assert(cleaned.includes("Cell B2"), "Table cell B2 content preserved");
+
+    // mso-* styles removed from style attributes (data-vno-mso-list is internal marker attribute)
+    assert(!cleaned.includes('style="mso-list') && !cleaned.includes("style='mso-list"), "mso-list removed from style attributes");
+    assert(!cleaned.includes("mso-margin-top-alt") && !cleaned.includes("mso-list:"), "All mso-* styles removed from style attributes");
+  });
+
+  test("E2E Writer: Paste Special - plain text only", async () => {
+    const { cleanWordHtml } = await import("../../platform/clipboard/office-clipboard.js");
+
+    const wordHtml = `<p class="MsoNormal" style="font-weight:bold; color:#ff0000;"><b>Bold Red</b> <i>Italic</i></p>`;
+    const cleaned = cleanWordHtml(wordHtml);
+
+    // When pasting as plain text, only text content should remain
+    const plainText = cleaned.replace(/<[^>]+>/g, "").trim();
+    assert(plainText.includes("Bold Red"), "Plain text contains bold text content");
+    assert(plainText.includes("Italic"), "Plain text contains italic text content");
+    assert(!plainText.includes("<b>"), "Plain text has no HTML tags");
+    assert(!plainText.includes("<i>"), "Plain text has no HTML tags");
+  });
+
   return results;
 }

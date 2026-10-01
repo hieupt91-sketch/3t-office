@@ -563,6 +563,11 @@ export function parseOfficeHtmlTable(html, fallbackPlainText = "") {
         });
       }
 
+      // Chèn các ô bị che bởi colspan (trừ ô đầu tiên đã push ở trên)
+      for (let c = 1; c < colSpan; c++) {
+        currentRowCells.push({ val: "", formula: "", style: {}, covered: true });
+      }
+
       colIndex += colSpan;
     }
 
