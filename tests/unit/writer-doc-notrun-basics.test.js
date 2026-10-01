@@ -40,6 +40,13 @@ export async function runWriterDocNotRunBasicsTests() {
     assert(content.includes("phông chữ"), "Help bài viết phải có nội dung hướng dẫn chọn phông chữ");
   });
 
+  await test("writer.font.family: bài hướng dẫn retro-dialogs và entries-writer thống nhất hành vi Ctrl+Shift+F", () => {
+    const retroFile = path.join(repoRoot, "platform/help/entries-retro-dialogs.js");
+    const content = fs.readFileSync(retroFile, "utf8");
+    assert(!content.includes("Nhấn Ctrl+D hoặc Ctrl+Shift+F để mở nhanh hộp thoại Phông chữ"), "Không được mô tả Ctrl+Shift+F mở hộp thoại Phông chữ");
+    assert(content.includes("Ctrl+Shift+F để chuyển tiêu điểm trực tiếp vào ô chọn Phông chữ"), "Retro dialogs help phải mô tả Ctrl+Shift+F chuyển tiêu điểm vào ô chọn phông trên ribbon");
+  });
+
   await test("showUnsavedChangesDialog: xử lý phím Escape để hủy và trả về cancel", () => {
     const dialogsCode = fs.readFileSync(path.join(repoRoot, "platform/ui-kit/dialogs.js"), "utf8");
     assert(dialogsCode.includes('if (event.key === "Escape")'), "Phải lắng nghe sự kiện phím Escape");

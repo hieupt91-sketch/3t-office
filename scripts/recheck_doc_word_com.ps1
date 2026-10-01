@@ -1,4 +1,4 @@
-﻿param(
+param(
     [Parameter(Mandatory=$true)]
     [string]$FilePath
 )
@@ -182,9 +182,19 @@ try {
     $leftMargin = [double]$doc.PageSetup.LeftMargin
     $rightMargin = [double]$doc.PageSetup.RightMargin
 
+    # B9: Inserted objects (InlineShapes, Shapes, Hyperlinks)
+    $inlineShapesCount = [int]$doc.InlineShapes.Count
+    $shapesCount = [int]$doc.Shapes.Count
+    $hyperlinksCount = [int]$doc.Hyperlinks.Count
+
     $result = @{
         status = "ok"
         ownedPid = $ownedPid
+        insertedObjects = @{
+            inlineShapes = $inlineShapesCount
+            shapes = $shapesCount
+            hyperlinks = $hyperlinksCount
+        }
         characters = @{
             isBold = $isBold
             isItalic = $isItalic

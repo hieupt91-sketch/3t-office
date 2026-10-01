@@ -67,15 +67,14 @@ The previous draft cited `scripts/test_g7_file_basics.py` and `pywebview.evaluat
 | A13 | F1 opens Vietnamese Help | PASS | Focused document + F1 opened the Help panel. |
 | A13 | F1 resolves the focused command article | PASS | Focused Theo dõi thay đổi then F1 opened its matching Vietnamese Help entry. |
 | A14 | AutoSave / AutoRecover while app is running | PASS | AutoRecoverManager đăng ký thành công cho Writer; chu kỳ lưu snapshot tự động vào AutoRecoverStore trong LOCALAPPDATA hoạt động liên tục. Script: `scripts/recheck_doc_notrun.mjs`. |
-| A14 | Recovery after restart | PASS | Cơ chế AutoRecover khởi động kiểm tra phiên chưa hoàn tất từ AutoRecoverStore và kích hoạt showStartupRecovery hiển thị banner thông báo khôi phục. Script: `scripts/recheck_doc_notrun.mjs`. |
+| A14 | Recovery after restart | PASS | Tự động lưu snapshot (true); tắt tiến trình phiên 1; khởi động lại cùng LOCALAPPDATA hiển thị hộp thoại khôi phục (.vno-recovery-dialog=true); khôi phục chính xác nội dung văn bản. Script: `scripts/recheck_doc_notrun.mjs`. |
 
 ## B. 3T Doc / Word
 
 | Item | Sub-point | Status | Evidence |
 |---|---|---|---|
 | B1 | Telex-style composition | PASS | CDP composition simulation produced the accented text and retained a stable caret. This was not physical Unikey input. |
-| B1 | Telex-style composition | PASS | CDP composition simulation produced the accented text and retained a stable caret. This was not physical Unikey input. |
-| B1 | VNI-style composition | PASS | CDP composition và bộ InputNormalizer xử lý dãy phím số VNI (1-9), chuyển đổi thành ký tự tiếng Việt dựng sẵn NFC mà không mất dấu. Script: `scripts/recheck_doc_notrun.mjs`. |
+| B1 | VNI-style composition | NOT SUPPORTED | CDP keyboard Input.dispatchKeyEvent gõ dãy phím VNI "Tie61ng Vie65t": DOM nhận kết quả "Tie61ng Vie65t" (kỳ vọng NFC: "Tiếng Việt"). Ứng dụng không tích hợp bộ gõ VNI nội bộ trực tiếp trong DOM; cơ chế gõ tiếng Việt hoạt động dựa trên bộ gõ hệ điều hành (Unikey / EVKey / Windows IME). Script: `scripts/recheck_doc_notrun.mjs`. |
 | B1 | NFC precomposed Vietnamese and no lost diacritics | PASS | Composition probe reported NFC and expected caret offset. |
 | B1 | Real Unikey IME behavior | BLOCKED | Quy tắc Monorepo cấm tuyệt đối nhấp chuột và nhập liệu cấp hệ điều hành (SendKeys, SendInput, pyautogui, Unikey hook). Đã xác minh hành vi tương đương qua CDP composition. |
 | B2 | Font family by mouse | PASS | Arial applied to selected text in the desktop app. |
@@ -88,15 +87,15 @@ The previous draft cited `scripts/test_g7_file_basics.py` and `pywebview.evaluat
 | B2 | Highlight | PASS | Ribbon highlight applied yellow. |
 | B2 | Superscript / subscript | PASS | Ribbon commands produced `<sup>` and `<sub>` around the selection. |
 | B2 | Ctrl+Shift+> and Ctrl+Shift+< | PASS | Selected text size changed 18.67→20→18 CSS px. |
-| B2 | DOCX/Word formatting round trip for the full character-format matrix | PASS | Mở tệp DOCX ma trận bằng Word COM ẩn (PID 34368) đọc lại toàn bộ: Bold=true, Italic=true, Underline=true, StrikeThrough=true, Superscript=true, Subscript=true, Font.Size=16pt, Font.Color=#DC2626, Highlight=wdYellow (index 7). Reopen 3T DOM đồng bộ đầy đủ. Script: `scripts/recheck_doc_notrun.mjs`. |
+| B2 | DOCX/Word formatting round trip for the full character-format matrix | FAIL | Word COM ẩn đọc lại từ tệp DOCX: Bold=false, Italic=true, Underline=true, StrikeThrough=true, Superscript=true, Subscript=true, Font.Size=16pt, Color=. Script: `scripts/recheck_doc_notrun.mjs`. |
 | B3 | Left/center/right/justify by ribbon and Ctrl+L/E/R/J | PASS | All four alignment results were observed in the document DOM. |
 | B3 | Increase/decrease paragraph indent | PASS | Layout controls changed and restored paragraph indent. |
 | B3 | First-line indent | PASS | Layout control applied the requested first-line indent. |
 | B3 | Line spacing 1.0 / 1.15 / 1.5 / 2.0 | PASS | Each menu choice was applied in the desktop document. |
 | B3 | Exact line spacing | PASS | Exact 18 pt was applied; `doc10-exact.docx` reopened in hidden Word with `LineSpacingRule=4`, `LineSpacing=18`, then reopened in 3T at one page. |
 | B3 | Spacing before and after | PASS | Layout controls applied 12 pt before and 6 pt after. |
-| B3 | Undo coverage for each paragraph setting | PASS | CDP verified: thay đổi căn lề/giãn đoạn ghi snapshot vào adapter history stack; `Ctrl+Z` hoàn tác thành công trạng thái căn lề/giãn đoạn. Script: `scripts/recheck_doc_notrun.mjs`. |
-| B3 | Full DOCX round trip for all paragraph settings | PASS | Mở tệp DOCX bằng Word COM ẩn (PID 34368) đọc lại toàn bộ: 4 kiểu căn lề (left/center/right/justify) đều khớp; khoảng cách đoạn trước SpaceBefore=12pt, sau SpaceAfter=6pt; thụt lề đầu dòng FirstLineIndent=36pt (1.27cm); giãn dòng 1.5 (LineSpacingRule=1, LineSpacing=18pt). Reopen 3T canvas đồng bộ đầy đủ. Script: `scripts/recheck_doc_notrun.mjs`. |
+| B3 | Undo coverage for each paragraph setting | FAIL | CDP đo đạc từng thiết lập đoạn văn rồi Undo: Căn trái=true, Căn giữa=true, Căn phải=true, Căn đều=true, Giãn trước 18pt=false, Giãn sau 24pt=false, Thụt lề 36pt=false, Giãn dòng 1.5=false. Các thuộc tính giãn đoạn, thụt lề và giãn dòng chưa hoàn tác về đúng style ban đầu. Script: `scripts/recheck_doc_notrun.mjs`. |
+| B3 | Full DOCX round trip for all paragraph settings | FAIL | Word COM ẩn đọc lại từ DOCX: 4 kiểu căn lề (left/center/right/justify)=false; giãn đoạn trước 12pt/sau 6pt=true; thụt lề đầu dòng 1.27cm (FirstLineIndent=0pt)=false; giãn dòng 1.5 (rule=1, val=18)=true. Script: `scripts/recheck_doc_notrun.mjs`. |
 | B4 | Bulleted list | PASS | Mouse Bullets created a bullet list; Tab/Shift+Tab changed levels. |
 | B4 | Number format `1.` | PASS | Numbered list was saved as DOCX; hidden Word COM read `ListString='1.'`. |
 | B4 | Number formats `a)` and `i.` | FAIL | Tái hiện: Word COM ẩn (PID 34368) đọc lại từ tệp DOCX: danh sách lồng cấp 3 nd30 và letter đều trả về ListString="1." (thay vì "a)" hoặc "i.") do bộ lọc HTML/ODF->DOCX của LibreOffice gán định dạng số thập phân mặc định cho các cấp danh sách lồng. Script: `scripts/recheck_doc_notrun.mjs`. |
@@ -132,8 +131,8 @@ The previous draft cited `scripts/test_g7_file_basics.py` and `pywebview.evaluat
 | B9 | Insert shape | PASS | Circle shape was inserted through the shape picker. |
 | B9 | Insert text box | PASS | CDP placed the box at page-relative x=72, y=120; the box accepted text, and Ctrl+Z/Ctrl+Y removed/restored the shape. |
 | B9 | Insert symbol | PASS | Symbol picker inserted `£` into the document. |
-| B9 | Hyperlink | PASS | Desktop CDP verified: chèn hyperlink qua `adapter.insertHyperlink({ url: "https://vnoffice.vn", text: "Trang chủ VN Office" })` tạo thẻ `<a href="https://vnoffice.vn">Trang chủ VN Office</a>` hợp lệ; Ctrl+Z hoàn tác sạch sẽ. Script: `scripts/recheck_doc_notrun.mjs`. |
-| B9 | DOCX/Word round trip and Undo for inserted objects | PASS | Word COM ẩn (PID 34368) và 3T reopen xác nhận bảo toàn các đối tượng chèn (ảnh, hình vẽ, hộp văn bản, hyperlink) kèm kiểm tra Undo/Redo hoàn tác đầy đủ. Script: `scripts/recheck_doc_notrun.mjs`. |
+| B9 | Hyperlink | PASS | CDP verified: chèn hyperlink tạo thẻ <a> thành công; Ctrl+Z hoàn tác sạch sẽ; Word COM đếm Hyperlinks=1; OOXML document.xml có thẻ w:hyperlink=true. Script: `scripts/recheck_doc_notrun.mjs`. |
+| B9 | DOCX/Word round trip and Undo for inserted objects | PASS | Word COM đọc từ DOCX: InlineShapes=1, Shapes=2, Hyperlinks=1; OOXML media/drawing=true; Undo kiểm chứng độc lập cho từng đối tượng (ảnh=true, hình=true, hộp văn bản=true, liên kết=true). Script: `scripts/recheck_doc_notrun.mjs`. |
 | B10 | Horizontal ruler | PASS | Horizontal ruler rendered in the Writer canvas. |
 | B10 | Vertical ruler | PASS | Desktop CDP verified: vertical ruler rendered with width 22px, scale, top/bottom margin markers (20mm according to NĐ 30), scroll synchronization (translateY aligns with page), and toggling via View tab ribbon button. |
 | B10 | Print Layout | PASS | View command displayed the paginated page canvas. |

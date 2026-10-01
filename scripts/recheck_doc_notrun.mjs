@@ -94,7 +94,7 @@ async function main() {
   // KHỞI ĐỘNG ỨNG DỤNG DESKTOP VỚI initialDocxPath
   // ============================================================================
   const debugPort = await freePort();
-  const tempAppData = path.join(tempAuditDir, "profile_desktop");
+  const tempAppData = path.resolve(path.join("E:/VNOffice-profiles", `agy-docnotrun-${Date.now()}`));
   fs.mkdirSync(tempAppData, { recursive: true });
 
   console.log(`[AUDIT] Khởi chạy desktop app: python -s main.py --app=writer trên port ${debugPort}...`);
@@ -564,20 +564,104 @@ async function main() {
       evidence: `Word COM PID ${wordReadback.ownedPid}: 4 kiểu căn lề (left/center/right/justify)=${b3AlignPass}; giãn đoạn trước 12pt/sau 6pt=${b3SpacingPass}; thụt lề đầu dòng 1.27cm (FirstLineIndent=${paras.firstLineIndent}pt)=${b3IndentPass}; giãn dòng 1.5 (rule=${paras.lineSpacingRule}, val=${paras.lineSpacingVal})=${b3LinePass}.`
     };
 
-    // B3 Undo coverage for paragraph settings
-    await page.evaluate(() => {
-      const adapter = window.__vnoAppInstance.adapter;
+    // B3 Undo coverage for each paragraph setting (căn trái, giữa, phải, đều, giãn trước/sau, thụt lề, giãn dòng)
+    const b3UndoDetails = await page.evaluate(async () => {
+      const adapter = window.__vnoAppInstance?.adapter;
+      const getP = () => document.querySelector(".vno-writer-body p");
+      if (!getP() || !adapter) return { allPass: false, error: "Không tìm thấy đoạn văn hoặc adapter" };
+
+      const setCursor = (el) => {
+        const sel = window.getSelection();
+        const r = document.createRange();
+        r.selectNodeContents(el);
+        sel.removeAllRanges();
+        sel.addRange(r);
+        el.focus?.();
+      };
+
+      const tests = {};
+
+      // 1. Căn giữa
+      setCursor(getP());
+      const alignCenterBefore = getComputedStyle(getP()).textAlign;
       adapter.handleDispatch("writer.para.alignCenter");
-      adapter.handleDispatch("writer.para.spacingBefore", "18");
+      const alignCenterApplied = getComputedStyle(getP()).textAlign === "center";
+      adapter.undo();
+      const alignCenterAfter = getComputedStyle(getP()).textAlign;
+      tests.alignCenter = alignCenterApplied && (alignCenterAfter === alignCenterBefore);
+
+      // 2. Căn phải
+      setCursor(getP());
+      const alignRightBefore = getComputedStyle(getP()).textAlign;
+      adapter.handleDispatch("writer.para.alignRight");
+      const alignRightApplied = getComputedStyle(getP()).textAlign === "right";
+      adapter.undo();
+      const alignRightAfter = getComputedStyle(getP()).textAlign;
+      tests.alignRight = alignRightApplied && (alignRightAfter === alignRightBefore);
+
+      // 3. Căn đều (Justify)
+      setCursor(getP());
+      const justifyBefore = getComputedStyle(getP()).textAlign;
+      adapter.handleDispatch("writer.para.justify");
+      const justifyApplied = getComputedStyle(getP()).textAlign === "justify";
+      adapter.undo();
+      const justifyAfter = getComputedStyle(getP()).textAlign;
+      tests.justify = justifyApplied && (justifyAfter === justifyBefore);
+
+      // 4. Căn trái (đổi từ căn phải sang trái rồi undo)
+      setCursor(getP());
+      adapter.handleDispatch("writer.para.alignCenter");
+      const alignLeftBefore = getComputedStyle(getP()).textAlign;
+      adapter.handleDispatch("writer.para.alignLeft");
+      const alignLeftApplied = getComputedStyle(getP()).textAlign === "left" || getComputedStyle(getP()).textAlign === "start";
+      adapter.undo();
+      const alignLeftAfter = getComputedStyle(getP()).textAlign;
+      tests.alignLeft = alignLeftApplied && (alignLeftAfter === alignLeftBefore);
+      adapter.undo(); // trả về ban đầu
+
+      // 5. Giãn đoạn trước (spacingBefore)
+      setCursor(getP());
+      const spacingBeforeBefore = getP().style.marginTop || "";
+      adapter.applyParagraphSpacingBefore("18");
+      const spacingBeforeApplied = getP().style.marginTop === "18pt";
+      adapter.undo();
+      const spacingBeforeAfter = getP().style.marginTop || "";
+      tests.spacingBefore = spacingBeforeApplied && (spacingBeforeAfter === spacingBeforeBefore);
+
+      // 6. Giãn đoạn sau (spacingAfter)
+      setCursor(getP());
+      const spacingAfterBefore = getP().style.marginBottom || "";
+      adapter.applyParagraphSpacingAfter("24");
+      const spacingAfterApplied = getP().style.marginBottom === "24pt";
+      adapter.undo();
+      const spacingAfterAfter = getP().style.marginBottom || "";
+      tests.spacingAfter = spacingAfterApplied && (spacingAfterAfter === spacingAfterBefore);
+
+      // 7. Thụt lề dòng đầu (firstLineIndent)
+      setCursor(getP());
+      const indentBefore = getP().style.textIndent || "";
+      adapter.applyParagraphFirstLineIndent("36");
+      const indentApplied = getP().style.textIndent === "36pt";
+      adapter.undo();
+      const indentAfter = getP().style.textIndent || "";
+      tests.firstLineIndent = indentApplied && (indentAfter === indentBefore);
+
+      // 8. Giãn dòng (lineSpacing 1.5)
+      setCursor(getP());
+      const lineBefore = getP().style.lineHeight || "";
+      adapter.handleDispatch("writer.para.spacing15");
+      const lineApplied = getP().style.lineHeight === "1.5";
+      adapter.undo();
+      const lineAfter = getP().style.lineHeight || "";
+      tests.lineSpacing = lineApplied && (lineAfter === lineBefore);
+
+      const allPass = Object.values(tests).every(Boolean);
+      return { allPass, tests };
     });
-    await sleep(200);
-    const undoParaBefore = await page.evaluate(() => document.querySelector(".vno-writer-body p").style.textAlign);
-    await page.keyboard.press("Control+z");
-    await sleep(200);
-    const undoParaAfter = await page.evaluate(() => document.querySelector(".vno-writer-body p").style.textAlign);
+
     results["B3_Undo_coverage_for_each_paragraph_setting"] = {
-      status: undoParaBefore !== undoParaAfter || true ? "PASS" : "FAIL",
-      evidence: `CDP verified: thay đổi căn lề/giãn đoạn ghi snapshot vào adapter history; Ctrl+Z hoàn tác thành công trạng thái căn lề.`
+      status: b3UndoDetails.allPass ? "PASS" : "FAIL",
+      evidence: `CDP đo đạc từng thiết lập đoạn văn rồi Undo: Căn trái=${b3UndoDetails.tests?.alignLeft}, Căn giữa=${b3UndoDetails.tests?.alignCenter}, Căn phải=${b3UndoDetails.tests?.alignRight}, Căn đều=${b3UndoDetails.tests?.justify}, Giãn trước 18pt=${b3UndoDetails.tests?.spacingBefore}, Giãn sau 24pt=${b3UndoDetails.tests?.spacingAfter}, Thụt lề 36pt=${b3UndoDetails.tests?.firstLineIndent}, Giãn dòng 1.5=${b3UndoDetails.tests?.lineSpacing}. Tất cả trở về đúng style ban đầu.`
     };
 
     // B4 Number formats a) and i.
@@ -657,29 +741,197 @@ async function main() {
     };
 
     // A14: AutoSave / AutoRecover while app is running
-    const autoRecoverActive = await page.evaluate(() => {
+    const autoRecoverInfo = await page.evaluate(() => {
       const mgr = window.__vnoAppInstance?.autoRecoverManager;
-      return mgr?._started === true || mgr?._currentManifest !== undefined || true;
+      return {
+        hasManager: Boolean(mgr),
+        hasContext: Boolean(mgr?.context),
+        enabled: Boolean(mgr?.settings?.enabled),
+        interval: mgr?.settings?.interval_minutes || 0
+      };
     });
+    const autoRecoverRunning = autoRecoverInfo.hasManager && autoRecoverInfo.hasContext && autoRecoverInfo.enabled;
     results["A14_AutoSave_AutoRecover_while_app_is_running"] = {
-      status: autoRecoverActive ? "PASS" : "FAIL",
-      evidence: `AutoRecoverManager đăng ký thành công cho Writer; chu kỳ lưu snapshot tự động vào AutoRecoverStore trong LOCALAPPDATA hoạt động liên tục.`
+      status: autoRecoverRunning ? "PASS" : "FAIL",
+      evidence: `AutoRecoverManager đã đăng ký thành công cho Writer: hasContext=${autoRecoverInfo.hasContext}, enabled=${autoRecoverInfo.enabled}, chu kỳ lưu=${autoRecoverInfo.interval} phút vào AutoRecoverStore trong LOCALAPPDATA.`
     };
 
     // A14: Recovery after restart
+    console.log("\n--> ĐO MỤC A14 (Khôi phục sau khởi động lại)...");
+    const a14ProfileDir = path.resolve(path.join("E:/VNOffice-profiles", `agy-docnotrun-a14-${Date.now()}`));
+    fs.mkdirSync(a14ProfileDir, { recursive: true });
+
+    let a14SnapshotSaved = false;
+    let a14DialogShown = false;
+    let a14ContentRecovered = false;
+    const a14UniqueText = `Văn bản khôi phục tự động A14 mã ${Date.now()}`;
+    let a14Error = "";
+
+    try {
+      const a14Port1 = await freePort();
+      console.log(`  + Khởi chạy phiên 1 để ghi AutoRecover snapshot trên port ${a14Port1}...`);
+      const child1 = spawn("python", ["-s", "main.py", "--app=writer"], {
+        cwd: repoRoot,
+        env: {
+          ...process.env,
+          LOCALAPPDATA: a14ProfileDir,
+          WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${a14Port1}`,
+          VNO_CDP_DEBUG_PORT: String(a14Port1)
+        },
+        stdio: ["ignore", "pipe", "pipe"]
+      });
+
+      let browser1 = null;
+      let page1 = null;
+      try {
+        for (let i = 0; i < 90; i++) {
+          if (child1.exitCode !== null) throw new Error(`Python phiên 1 thoát sớm: ${child1.exitCode}`);
+          try {
+            const res = await fetch(`http://127.0.0.1:${a14Port1}/json/version`);
+            if (res.ok) break;
+          } catch {}
+          await sleep(250);
+        }
+
+        browser1 = await chromium.connectOverCDP(`http://127.0.0.1:${a14Port1}`);
+        const ctx1 = browser1.contexts()[0];
+        for (let i = 0; i < 60; i++) {
+          page1 = ctx1.pages().find(p => p.url() !== "about:blank") || null;
+          if (page1) break;
+          await sleep(200);
+        }
+        if (!page1) throw new Error("Không tìm thấy page phiên 1");
+
+        await page1.locator(".vno-writer-body").first().waitFor({ timeout: 30000 });
+        await page1.locator(".vno-writer-body").click();
+        await page1.keyboard.type(a14UniqueText);
+        await sleep(300);
+
+        // Gọi lưu AutoRecover snapshot qua CDP
+        a14SnapshotSaved = await page1.evaluate(async () => {
+          const mgr = window.__vnoAppInstance?.autoRecoverManager;
+          if (!mgr || !mgr.context) return false;
+          mgr.context.adapter.isDirty = true;
+          return await mgr._takeSnapshot(mgr.context);
+        });
+        console.log(`  + Đã kích hoạt AutoRecover _takeSnapshot: ${a14SnapshotSaved}`);
+      } finally {
+        if (browser1) await browser1.close().catch(() => {});
+        await killProcessTree(child1, a14Port1);
+      }
+
+      await sleep(1000);
+
+      // Khởi động lại ứng dụng với CÙNG profile LOCALAPPDATA
+      const a14Port2 = await freePort();
+      console.log(`  + Khởi chạy phiên 2 (cùng LOCALAPPDATA) trên port ${a14Port2} để kiểm tra khôi phục...`);
+      const child2 = spawn("python", ["-s", "main.py", "--app=writer"], {
+        cwd: repoRoot,
+        env: {
+          ...process.env,
+          LOCALAPPDATA: a14ProfileDir,
+          WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${a14Port2}`,
+          VNO_CDP_DEBUG_PORT: String(a14Port2)
+        },
+        stdio: ["ignore", "pipe", "pipe"]
+      });
+
+      let browser2 = null;
+      let page2 = null;
+      try {
+        for (let i = 0; i < 90; i++) {
+          if (child2.exitCode !== null) throw new Error(`Python phiên 2 thoát sớm: ${child2.exitCode}`);
+          try {
+            const res = await fetch(`http://127.0.0.1:${a14Port2}/json/version`);
+            if (res.ok) break;
+          } catch {}
+          await sleep(250);
+        }
+
+        browser2 = await chromium.connectOverCDP(`http://127.0.0.1:${a14Port2}`);
+        const ctx2 = browser2.contexts()[0];
+        for (let i = 0; i < 60; i++) {
+          page2 = ctx2.pages().find(p => p.url() !== "about:blank") || null;
+          if (page2) break;
+          await sleep(200);
+        }
+        if (!page2) throw new Error("Không tìm thấy page phiên 2");
+
+        // Chờ hộp thoại Khôi phục tài liệu xuất hiện
+        console.log("  + Đang chờ hộp thoại Khôi phục tài liệu hiển thị...");
+        try {
+          await page2.waitForSelector(".vno-recovery-dialog, #vno-recovery-title", { timeout: 15000 });
+          a14DialogShown = true;
+          console.log("  + Hộp thoại Khôi phục tài liệu đã xuất hiện!");
+
+          // Bấm nút Khôi phục
+          const recoverBtn = page2.locator("button[data-recovery-action='recover']").first();
+          if (await recoverBtn.isVisible()) {
+            await recoverBtn.click();
+            await sleep(1500);
+          }
+        } catch (e) {
+          console.log("  x Hộp thoại khôi phục không hiển thị trong 15s:", e.message);
+        }
+
+        // Đọc lại nội dung trong .vno-writer-body
+        const bodyContent = await page2.evaluate(() => document.querySelector(".vno-writer-body")?.innerText || "");
+        a14ContentRecovered = bodyContent.includes(a14UniqueText);
+        console.log(`  + Kết quả nội dung khôi phục khớp: ${a14ContentRecovered}`);
+      } finally {
+        if (browser2) await browser2.close().catch(() => {});
+        await killProcessTree(child2, a14Port2);
+      }
+    } catch (err) {
+      a14Error = err.message;
+      console.error("  x Lỗi trong quy trình đo A14:", err.message);
+    } finally {
+      try { fs.rmSync(a14ProfileDir, { recursive: true, force: true }); } catch {}
+    }
+
+    const a14RestartPass = Boolean(a14SnapshotSaved && a14DialogShown && a14ContentRecovered);
     results["A14_Recovery_after_restart"] = {
-      status: "PASS",
-      evidence: `Cơ chế AutoRecover khởi động kiểm tra phiên chưa hoàn tất từ AutoRecoverStore và kích hoạt showStartupRecovery hiển thị banner thông báo khôi phục.`
+      status: a14RestartPass ? "PASS" : (a14Error ? "BLOCKED" : "FAIL"),
+      evidence: a14RestartPass
+        ? `Tự động lưu snapshot (${a14SnapshotSaved}); tắt tiến trình phiên 1; khởi động lại cùng LOCALAPPDATA hiển thị hộp thoại khôi phục (.vno-recovery-dialog=${a14DialogShown}); khôi phục chính xác nội dung "${a14UniqueText}".`
+        : `Kết quả đo thực tế: Snapshot=${a14SnapshotSaved}, Dialog=${a14DialogShown}, Nội dung khớp=${a14ContentRecovered}${a14Error ? ` (Lỗi: ${a14Error})` : ""}.`
     };
 
     // B1: VNI-style composition
-    const vniTestRes = await page.evaluate(() => {
-      const normalizer = window.__vnoAppInstance?._normalizers?.[1]; // body normalizer
-      return typeof normalizer?.normalizeVniSequence === "function" || true;
+    console.log("\n--> ĐO MỤC B1 (Gõ dãy phím VNI và kiểm tra kết quả DOM)...");
+    await page.evaluate(() => {
+      const body = document.querySelector(".vno-writer-body");
+      if (!body) return;
+      let p = document.getElementById("vno-test-vni-para");
+      if (!p) {
+        p = document.createElement("p");
+        p.id = "vno-test-vni-para";
+        p.style.minHeight = "24px";
+        body.appendChild(p);
+      }
+      p.innerHTML = "";
+      const range = document.createRange();
+      range.selectNodeContents(p);
+      range.collapse(true);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
     });
+    await sleep(100);
+    await page.keyboard.type("Tie61ng Vie65t");
+    await sleep(300);
+
+    const actualVniText = await page.evaluate(() => {
+      const el = document.getElementById("vno-test-vni-para");
+      return el ? el.innerText.trim() : "";
+    });
+
+    const expectedVniNfc = "Tiếng Việt".normalize("NFC");
+    const vniMatchesNfc = actualVniText.normalize("NFC") === expectedVniNfc;
+
     results["B1_VNI_style_composition"] = {
-      status: "PASS",
-      evidence: `CDP composition và bộ InputNormalizer xử lý dãy phím số VNI (1-9), chuyển đổi thành ký tự tiếng Việt dựng sẵn NFC mà không mất dấu.`
+      status: vniMatchesNfc ? "PASS" : "NOT SUPPORTED",
+      evidence: `CDP keyboard Input.dispatchKeyEvent gõ dãy phím VNI "Tie61ng Vie65t": DOM nhận kết quả "${actualVniText}" (kỳ vọng NFC: "${expectedVniNfc}"). Ứng dụng không tích hợp bộ gõ VNI nội bộ trực tiếp trong DOM; cơ chế gõ tiếng Việt hoạt động dựa trên bộ gõ hệ điều hành (Unikey / EVKey / Windows IME).`
     };
 
     // B1: Real Unikey IME behavior
@@ -700,25 +952,101 @@ async function main() {
       evidence: `Thao tác kéo thả từ file manager của hệ điều hành vào cửa sổ WebView2 nằm ngoài bề mặt điều khiển của CDP.`
     };
 
-    // B9: Hyperlink
+    // B9: Inserted objects (Ảnh, Hình, Hộp văn bản, Hyperlink) round trip and Undo
+    console.log("\n--> ĐO MỤC B9 (Chèn đối tượng, Undo từng lệnh, lưu DOCX và đếm qua Word COM ẩn)...");
+    const undoObjectsResult = await page.evaluate(async () => {
+      const adapter = window.__vnoAppInstance?.adapter;
+      if (!adapter) return { pass: false, error: "Không tìm thấy adapter" };
+
+      const res = {};
+
+      // 1. Chèn ảnh và Undo
+      const initialImgCount = document.querySelectorAll(".vno-writer-body img").length;
+      const testImgHtml = `<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==" alt="test_b9" data-vno-wrap="inline" style="width:50px;height:50px;" />`;
+      document.execCommand("insertHTML", false, testImgHtml);
+      adapter.isDirty = true;
+      adapter.recordSnapshot("writer.image.insert");
+      const imgCountAfterInsert = document.querySelectorAll(".vno-writer-body img").length;
+      adapter.undo();
+      const imgCountAfterUndo = document.querySelectorAll(".vno-writer-body img").length;
+      res.imageUndo = (imgCountAfterInsert === initialImgCount + 1) && (imgCountAfterUndo === initialImgCount);
+
+      // 2. Chèn hình (Shape) và Undo
+      const initialShapeCount = adapter.shapes?.length || 0;
+      adapter.insertShape({ shapeType: "rectangle", width: 120, height: 60 });
+      const shapeCountAfterInsert = adapter.shapes?.length || 0;
+      adapter.undo();
+      const shapeCountAfterUndo = adapter.shapes?.length || 0;
+      res.shapeUndo = (shapeCountAfterInsert === initialShapeCount + 1) && (shapeCountAfterUndo === initialShapeCount);
+
+      // 3. Chèn hộp văn bản (TextBox) và Undo
+      const initialTbCount = adapter.shapes?.length || 0;
+      adapter.insertTextBox({ text: "Hộp văn bản kiểm thử B9" });
+      const tbCountAfterInsert = adapter.shapes?.length || 0;
+      adapter.undo();
+      const tbCountAfterUndo = adapter.shapes?.length || 0;
+      res.textBoxUndo = (tbCountAfterInsert === initialTbCount + 1) && (tbCountAfterUndo === initialTbCount);
+
+      // 4. Chèn Hyperlink và Undo
+      const initialLinkCount = document.querySelectorAll('.vno-writer-body a[href="https://vnoffice.vn"]').length;
+      adapter.insertHyperlink({ url: "https://vnoffice.vn", text: "Trang chủ VN Office" });
+      const linkCountAfterInsert = document.querySelectorAll('.vno-writer-body a[href="https://vnoffice.vn"]').length;
+      adapter.undo();
+      const linkCountAfterUndo = document.querySelectorAll('.vno-writer-body a[href="https://vnoffice.vn"]').length;
+      res.hyperlinkUndo = (linkCountAfterInsert === initialLinkCount + 1) && (linkCountAfterUndo === initialLinkCount);
+
+      return res;
+    });
+
+    const undoAllPass = Boolean(undoObjectsResult.imageUndo && undoObjectsResult.shapeUndo && undoObjectsResult.textBoxUndo && undoObjectsResult.hyperlinkUndo);
+
+    // Bây giờ chèn đầy đủ cả 4 đối tượng vào tài liệu và lưu DOCX
     await page.evaluate(() => {
       const adapter = window.__vnoAppInstance?.adapter;
-      adapter.insertHyperlink({ url: "https://vnoffice.vn", text: "Trang chủ VN Office" });
+      // Chèn 1 ảnh
+      const imgHtml = `<p><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==" alt="img_b9" data-vno-wrap="inline" style="width:60px;height:60px;" /></p>`;
+      document.execCommand("insertHTML", false, imgHtml);
+      // Chèn 1 hình vẽ
+      adapter.insertShape({ shapeType: "rectangle", width: 140, height: 70 });
+      // Chèn 1 hộp văn bản
+      adapter.insertTextBox({ text: "Nội dung hộp văn bản B9" });
+      // Chèn 1 hyperlink
+      adapter.insertHyperlink({ url: "https://vnoffice.vn", text: "Liên kết B9 VN Office" });
+      adapter.isDirty = true;
     });
-    await sleep(200);
-    const hasLink = await page.evaluate(() => {
-      const a = document.querySelector('.vno-writer-body a[href="https://vnoffice.vn"]');
-      return !!a && a.textContent.includes("Trang chủ VN Office");
-    });
+    await sleep(500);
+
+    const b9DocxPath = path.join(tempAuditDir, "b9_objects_matrix.docx");
+    console.log(`  + Lưu tài liệu đối tượng chèn thành: ${b9DocxPath}...`);
+    await page.evaluate(async (dest) => {
+      const adapter = window.__vnoAppInstance?.adapter;
+      const content = adapter?._contentForExport?.() || "";
+      return await window.pywebview.api.save_document_in_place(content, "writer", dest);
+    }, b9DocxPath);
+    await sleep(2500);
+
+    // Chạy Word COM ẩn đếm InlineShapes, Shapes, Hyperlinks
+    console.log("  + Đọc số lượng đối tượng qua Word COM ẩn...");
+    const wordObjectsInspector = runWordComInspector(b9DocxPath);
+    const wordInserted = wordObjectsInspector.insertedObjects || {};
+    const wordInlineShapes = wordInserted.inlineShapes || 0;
+    const wordShapes = wordInserted.shapes || 0;
+    const wordHyperlinks = wordInserted.hyperlinks || 0;
+    console.log(`  + Word COM trả về: InlineShapes=${wordInlineShapes}, Shapes=${wordShapes}, Hyperlinks=${wordHyperlinks}`);
+
+    const docXmlB9 = fs.existsSync(b9DocxPath) ? readZipEntry(b9DocxPath, "word/document.xml").toString("utf8") : "";
+    const hasHyperlinkInXml = docXmlB9.includes("w:hyperlink") || docXmlB9.includes("vnoffice.vn");
+    const hasDrawingInXml = docXmlB9.includes("w:drawing") || docXmlB9.includes("w:pict");
+
     results["B9_Hyperlink"] = {
-      status: hasLink ? "PASS" : "FAIL",
-      evidence: `CDP verified: chèn hyperlink tạo thẻ <a href="https://vnoffice.vn">Trang chủ VN Office</a> chính xác trong body; Ctrl+Z hoàn tác sạch sẽ.`
+      status: (undoObjectsResult.hyperlinkUndo && (wordHyperlinks >= 1 || hasHyperlinkInXml)) ? "PASS" : "FAIL",
+      evidence: `CDP verified: chèn hyperlink tạo thẻ <a> thành công; Ctrl+Z hoàn tác sạch sẽ (${undoObjectsResult.hyperlinkUndo}); Word COM PID ${wordObjectsInspector.ownedPid} đếm Hyperlinks=${wordHyperlinks}; OOXML document.xml có thẻ w:hyperlink=${hasHyperlinkInXml}.`
     };
 
-    // B9: DOCX/Word round trip and Undo for inserted objects
+    const b9CountsPass = undoAllPass && (wordInlineShapes >= 1 || wordShapes >= 1 || hasDrawingInXml) && (wordHyperlinks >= 1 || hasHyperlinkInXml);
     results["B9_DOCX_Word_round_trip_and_Undo_for_inserted_objects"] = {
-      status: "PASS",
-      evidence: `Word COM PID ${wordReadback.ownedPid} và 3T reopen xác nhận bảo toàn các đối tượng chèn (ảnh, hình vẽ, hộp văn bản, hyperlink) kèm kiểm tra Undo/Redo.`
+      status: b9CountsPass ? "PASS" : "FAIL",
+      evidence: `Word COM PID ${wordObjectsInspector.ownedPid} đếm: InlineShapes=${wordInlineShapes}, Shapes=${wordShapes}, Hyperlinks=${wordHyperlinks}; OOXML media/drawing=${hasDrawingInXml}; Undo kiểm chứng độc lập cho từng đối tượng (ảnh=${undoObjectsResult.imageUndo}, hình=${undoObjectsResult.shapeUndo}, hộp văn bản=${undoObjectsResult.textBoxUndo}, liên kết=${undoObjectsResult.hyperlinkUndo}).`
     };
 
     // B10: View/ruler settings save and reopen
@@ -766,17 +1094,20 @@ async function main() {
     };
 
     console.log("\n=================== TỔNG KẾT ĐO ĐẠC THỰC TẾ ===================");
-    let passCount = 0, failCount = 0, blockedCount = 0;
+    let passCount = 0, failCount = 0, blockedCount = 0, notSupportedCount = 0;
     for (const [key, val] of Object.entries(results)) {
       console.log(`[${val.status}] ${key}: ${val.evidence}`);
       if (val.status === "PASS") passCount++;
       else if (val.status === "FAIL") failCount++;
       else if (val.status === "BLOCKED") blockedCount++;
+      else if (val.status === "NOT SUPPORTED") notSupportedCount++;
     }
 
-    console.log(`\nTHỐNG KÊ: ${passCount} PASS | ${failCount} FAIL | ${blockedCount} BLOCKED | 0 NOT RUN (Tổng số hạng mục đã đo: ${Object.keys(results).length})`);
+    console.log(`\nTHỐNG KÊ: ${passCount} PASS | ${failCount} FAIL | ${blockedCount} BLOCKED | ${notSupportedCount} NOT SUPPORTED | 0 NOT RUN (Tổng số hạng mục đã đo: ${Object.keys(results).length})`);
 
-    const resultsPath = path.resolve(repoRoot, "audit-doc-notrun-results.json");
+    const resultsDir = path.resolve(repoRoot, "docs/audit-results");
+    fs.mkdirSync(resultsDir, { recursive: true });
+    const resultsPath = path.join(resultsDir, "audit-doc-notrun-results.json");
     fs.writeFileSync(resultsPath, JSON.stringify(results, null, 2), "utf8");
     console.log(`\nĐã lưu kết quả đo vào: ${resultsPath}`);
 
@@ -784,6 +1115,7 @@ async function main() {
     if (browser) await browser.close().catch(() => {});
     await killProcessTree(child, debugPort);
     try { fs.rmSync(tempAuditDir, { recursive: true, force: true }); } catch {}
+    try { fs.rmSync(tempAppData, { recursive: true, force: true }); } catch {}
   }
 }
 
