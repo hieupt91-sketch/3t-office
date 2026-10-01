@@ -12,6 +12,7 @@ import os
 import queue
 import socket
 import sys
+import ctypes
 import base64
 import csv
 import json
@@ -1182,6 +1183,12 @@ def _apply_native_export_postprocess(
                     source_docx=original_docx,
                     preserve_pristine_source=pristine_docx_source,
                 )
+            if source_html:
+                patched = patcher.postprocess_writer_section_metadata(
+                    patched,
+                    source_html=source_html,
+                    source_docx=original_docx if source_path and os.path.isfile(source_path) else None,
+                )
             if patched != converted_docx:
                 with open(out_path, "wb") as handle:
                     handle.write(patched)
@@ -1978,6 +1985,62 @@ def _read_docx_header_footer_xmls(src_path: str) -> tuple[str | None, str | None
         return None, None
 
 
+def _read_all_docx_headers_footers(src_path: str) -> tuple[str | None, str | None, dict[str, str], dict[str, str], dict[str, str]]:
+    """Đọc toàn bộ các part header/footer XML và rels từ DOCX cho tất cả các section.
+    Trả về: (default_header_xml, default_footer_xml, headers_dict, footers_dict, rels_dict)
+    Trong đó headers_dict và footers_dict ánh xạ theo cả tên part (e.g. 'header1.xml', 'word/header1.xml') và rId.
+    """
+    if not src_path or not str(src_path).lower().endswith(".docx"):
+        return None, None, {}, {}, {}
+    try:
+        with zipfile.ZipFile(src_path) as z:
+            namelist = set(z.namelist())
+            if "word/document.xml" not in namelist:
+                return None, None, {}, {}, {}
+
+            rels: dict[str, str] = {}
+            if "word/_rels/document.xml.rels" in namelist:
+                rels_xml = z.read("word/_rels/document.xml.rels").decode("utf-8", errors="replace")
+                for match in re.finditer(r"<Relationship\b([^>]*?)/?>", rels_xml, re.IGNORECASE):
+                    attrs = match.group(1) or ""
+                    id_match = re.search(r'\bId\s*=\s*["\']([^"\']+)["\']', attrs, re.IGNORECASE)
+                    target_match = re.search(r'\bTarget\s*=\s*["\']([^"\']+)["\']', attrs, re.IGNORECASE)
+                    if id_match and target_match:
+                        rels[id_match.group(1)] = target_match.group(1)
+
+            headers_dict: dict[str, str] = {}
+            footers_dict: dict[str, str] = {}
+
+            for name in namelist:
+                if re.match(r"word/header\d+\.xml$", name, re.IGNORECASE):
+                    content = z.read(name).decode("utf-8", errors="replace")
+                    headers_dict[name] = content
+                    base_name = name.replace("word/", "")
+                    headers_dict[base_name] = content
+                elif re.match(r"word/footer\d+\.xml$", name, re.IGNORECASE):
+                    content = z.read(name).decode("utf-8", errors="replace")
+                    footers_dict[name] = content
+                    base_name = name.replace("word/", "")
+                    footers_dict[base_name] = content
+
+            for r_id, target in rels.items():
+                norm_target = target if target.startswith("word/") else f"word/{target.lstrip('/')}"
+                base_target = norm_target.replace("word/", "")
+                if norm_target in headers_dict:
+                    headers_dict[r_id] = headers_dict[norm_target]
+                elif base_target in headers_dict:
+                    headers_dict[r_id] = headers_dict[base_target]
+                if norm_target in footers_dict:
+                    footers_dict[r_id] = footers_dict[norm_target]
+                elif base_target in footers_dict:
+                    footers_dict[r_id] = footers_dict[base_target]
+
+            default_header, default_footer = _read_docx_header_footer_xmls(src_path)
+            return default_header, default_footer, headers_dict, footers_dict, rels
+    except Exception:
+        return None, None, {}, {}, {}
+
+
 def _active_window(api=None):
     """Find a window without exposing a pywebview Window object through its JS API."""
     window_uid = getattr(api, "_window_uid", None) if api is not None else None
@@ -2129,6 +2192,78 @@ def _notify_sheet_open_progress(message: str, start_timing: bool = False, api=No
         pass
 
 
+def _extract_clipboard_html_fragment(raw: bytes) -> str:
+    """Read the fragment offsets from Windows' registered ``HTML Format`` payload."""
+    if not raw:
+        return ""
+    data = raw.rstrip(b"\x00")
+    start_match = re.search(rb"(?im)^StartFragment:\s*(\d+)\s*$", data)
+    end_match = re.search(rb"(?im)^EndFragment:\s*(\d+)\s*$", data)
+    if start_match and end_match:
+        start, end = int(start_match.group(1)), int(end_match.group(1))
+        if 0 <= start <= end <= len(data):
+            return data[start:end].decode("utf-8", errors="replace")
+    start_marker = b"<!--StartFragment-->"
+    end_marker = b"<!--EndFragment-->"
+    start = data.find(start_marker)
+    end = data.find(end_marker, start + len(start_marker)) if start >= 0 else -1
+    if start >= 0 and end >= 0:
+        return data[start + len(start_marker):end].decode("utf-8", errors="replace")
+    return ""
+
+
+def _read_windows_clipboard_data() -> dict[str, object]:
+    """Read plain text and HTML locally from the Windows clipboard via Win32."""
+    if os.name != "nt":
+        return {"status": "error", "message": "Đọc bộ nhớ tạm hệ thống cần chạy 3T Office Desktop trên Windows."}
+
+    user32 = ctypes.WinDLL("user32", use_last_error=True)
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    user32.OpenClipboard.argtypes = [ctypes.c_void_p]
+    user32.OpenClipboard.restype = ctypes.c_int
+    user32.CloseClipboard.argtypes = []
+    user32.CloseClipboard.restype = ctypes.c_int
+    user32.GetClipboardData.argtypes = [ctypes.c_uint]
+    user32.GetClipboardData.restype = ctypes.c_void_p
+    user32.RegisterClipboardFormatW.argtypes = [ctypes.c_wchar_p]
+    user32.RegisterClipboardFormatW.restype = ctypes.c_uint
+    kernel32.GlobalLock.argtypes = [ctypes.c_void_p]
+    kernel32.GlobalLock.restype = ctypes.c_void_p
+    kernel32.GlobalUnlock.argtypes = [ctypes.c_void_p]
+    kernel32.GlobalUnlock.restype = ctypes.c_int
+    kernel32.GlobalSize.argtypes = [ctypes.c_void_p]
+    kernel32.GlobalSize.restype = ctypes.c_size_t
+
+    if not user32.OpenClipboard(None):
+        return {"status": "error", "message": "Không mở được bộ nhớ tạm Windows. Hãy thử lại."}
+
+    def read_format(format_id: int) -> bytes:
+        handle = user32.GetClipboardData(format_id)
+        if not handle:
+            return b""
+        pointer = kernel32.GlobalLock(handle)
+        if not pointer:
+            return b""
+        try:
+            size = int(kernel32.GlobalSize(handle) or 0)
+            return ctypes.string_at(pointer, size) if size else b""
+        finally:
+            kernel32.GlobalUnlock(handle)
+
+    try:
+        text_bytes = read_format(13)  # CF_UNICODETEXT
+        text = text_bytes.decode("utf-16-le", errors="replace").split("\x00", 1)[0] if text_bytes else ""
+        html_format = int(user32.RegisterClipboardFormatW("HTML Format"))
+        html_bytes = read_format(html_format) if html_format else b""
+        return {
+            "status": "ok",
+            "text": text,
+            "html": _extract_clipboard_html_fragment(html_bytes),
+        }
+    finally:
+        user32.CloseClipboard()
+
+
 class VnOfficeApi:
     """Python API phơi ra cho JavaScript giao tiếp (Bridge) — cầu nối thật tới LibreOffice."""
 
@@ -2175,6 +2310,13 @@ class VnOfficeApi:
     def get_app_version(self) -> str:
         """Trả về phiên bản ứng dụng hiện tại."""
         return APP_VERSION
+
+    def read_clipboard_data(self) -> dict[str, object]:
+        """Đọc CF_UNICODETEXT và HTML Format từ clipboard Windows cục bộ."""
+        try:
+            return _read_windows_clipboard_data()
+        except Exception as exc:
+            return {"status": "error", "message": f"Không đọc được bộ nhớ tạm: {exc}"}
 
     def get_about_info(self) -> dict[str, object]:
         """Trả về thông tin bản quyền và danh sách phần mềm nguồn mở bên thứ ba."""
@@ -2936,10 +3078,14 @@ class VnOfficeApi:
                             "ooxmlCommentsXml": _read_docx_comments_xml(convert_src_path),
                             "ooxmlStylesXml": _read_docx_zip_entry(convert_src_path, "word/styles.xml"),
                             "ooxmlNumberingXml": _read_docx_zip_entry(convert_src_path, "word/numbering.xml"),
+                            "ooxmlSettingsXml": _read_docx_zip_entry(convert_src_path, "word/settings.xml"),
                         }
-                        header_xml, footer_xml = _read_docx_header_footer_xmls(convert_src_path)
+                        header_xml, footer_xml, all_hdrs, all_ftrs, all_rels = _read_all_docx_headers_footers(convert_src_path)
                         writer_ooxml_metadata["ooxmlHeaderXml"] = header_xml
                         writer_ooxml_metadata["ooxmlFooterXml"] = footer_xml
+                        writer_ooxml_metadata["ooxmlHeaders"] = all_hdrs
+                        writer_ooxml_metadata["ooxmlFooters"] = all_ftrs
+                        writer_ooxml_metadata["ooxmlRels"] = all_rels
                 elif app_kind == "sheet":
                     # Overlay BEFORE the FODS leaves this process — SheetAdapter.parseFods
                     # must see table:structure-protected when the original XLSX is locked.
@@ -3043,10 +3189,22 @@ class VnOfficeApi:
                 payload["ooxmlNumberingXml"] = numbering_xml
             # Quy ước W26b: header/footer XML để chuẩn hóa đoạn rỗng theo cỡ dấu đoạn zone.
             if writer_ooxml_metadata is not None:
-                header_xml = writer_ooxml_metadata["ooxmlHeaderXml"]
-                footer_xml = writer_ooxml_metadata["ooxmlFooterXml"]
+                header_xml = writer_ooxml_metadata.get("ooxmlHeaderXml")
+                footer_xml = writer_ooxml_metadata.get("ooxmlFooterXml")
+                payload["ooxmlHeaders"] = writer_ooxml_metadata.get("ooxmlHeaders", {})
+                payload["ooxmlFooters"] = writer_ooxml_metadata.get("ooxmlFooters", {})
+                payload["ooxmlRels"] = writer_ooxml_metadata.get("ooxmlRels", {})
+                if writer_ooxml_metadata.get("ooxmlSettingsXml"):
+                    payload["ooxmlSettingsXml"] = writer_ooxml_metadata["ooxmlSettingsXml"]
             else:
-                header_xml, footer_xml = _read_docx_header_footer_xmls(src_path)
+                hdr_xml, ftr_xml, all_hdrs, all_ftrs, all_rels = _read_all_docx_headers_footers(src_path)
+                header_xml, footer_xml = hdr_xml, ftr_xml
+                payload["ooxmlHeaders"] = all_hdrs
+                payload["ooxmlFooters"] = all_ftrs
+                payload["ooxmlRels"] = all_rels
+                settings_xml = _read_docx_zip_entry(src_path, "word/settings.xml")
+                if settings_xml:
+                    payload["ooxmlSettingsXml"] = settings_xml
             if header_xml:
                 payload["ooxmlHeaderXml"] = header_xml
             if footer_xml:

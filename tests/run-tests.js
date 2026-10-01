@@ -11,6 +11,7 @@ import { runSheetExternalLinksTests } from "./unit/sheet-external-links.test.js"
 import { runSheetVndWordsTests } from "./unit/sheet-vnd-words.test.js";
 import { runSheetFormulaOdfTests } from "./unit/sheet-formula-odf.test.js";
 import { runFormulaAutocompleteTests } from "./unit/formula-autocomplete.test.js";
+import { runSheetFormulaEntryTests } from "./unit/sheet-formula-entry.test.js";
 import { runI18nTests } from "./unit/i18n.test.js";
 import { run3TDisplayNameTests } from "./unit/3t-display-name.test.js";
 import { runI18nHardcodedEnglishTests } from "./unit/i18n-hardcoded-english.test.js";
@@ -200,6 +201,7 @@ import { runSheetWatchWindowTests } from "./unit/sheet-watch-window.test.js";
 import { runOfficeShortcutCoverageTests } from "./unit/office-shortcut-coverage.test.js";
 import { runMissingOfficeShortcutsTests } from "./unit/missing-office-shortcuts.test.js";
 import { runSlidesPenLaserTests } from "./unit/slides-pen-laser.test.js";
+import { runBasicEditingKeysTests } from "./unit/basic-editing-keys.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -220,6 +222,7 @@ async function runAll() {
     { title: "3c. Unit Tests — VND() số tiền bằng chữ", runner: runSheetVndWordsTests },
     { title: "3d. Unit Tests — Sheet công thức #REF! ⇄ ODF", runner: runSheetFormulaOdfTests },
     { title: "4. Unit Tests — Formula Autocomplete & Parameter IntelliSense", runner: runFormulaAutocompleteTests },
+    { title: "4a. Unit Tests — Sheet Excel-Style Formula Entry", runner: runSheetFormulaEntryTests },
     { title: "5. Unit Tests — Vietnamese i18n Localization Layer", runner: runI18nTests },
     { title: "5a. Regression Guard — 3T display names in i18n and Help", runner: run3TDisplayNameTests },
     { title: "5b. Regression Guard — Hard-coded English UI Text Scan", runner: runI18nHardcodedEnglishTests },
@@ -409,7 +412,8 @@ async function runAll() {
     { title: "163. Regression Guard — Microsoft Office Shortcut Coverage (Word/Excel/PowerPoint)", runner: runOfficeShortcutCoverageTests },
     { title: "164. Unit Tests — Office Missing Shortcuts (Ctrl+], Ctrl+[, Ctrl+Shift++, Shift+F11, Ctrl+-, F11) & Undo", runner: runMissingOfficeShortcutsTests },
     { title: "165. Unit Tests — Slides F5 Pen and Laser Pointer (Ctrl+P, Ctrl+L, Ctrl+A, E, Color, Keep/Discard ink)", runner: runSlidesPenLaserTests },
-    { title: "166. Unit Tests — VN Sheet range selection anchors, multi-area status and drag auto-scroll math", runner: runSheetRangeSelectionTests }
+    { title: "166. Unit Tests — VN Sheet range selection anchors, multi-area status and drag auto-scroll math", runner: runSheetRangeSelectionTests },
+    { title: "167. Unit Tests — 3T Doc and 3T Sheet basic editing keys and clipboard", runner: runBasicEditingKeysTests }
   ];
 
   for (const suite of suites) {

@@ -4,6 +4,7 @@
  */
 
 import { parseFormulaContext, formatSyntaxHtml } from "./formula-engine.js";
+import { insertFunctionSuggestion } from "./formula-entry.js";
 import { createAutocompletePopup, createSyntaxTooltip } from "../../platform/ui-kit/components.js";
 
 export class FormulaAutocompleteController {
@@ -138,19 +139,25 @@ export class FormulaAutocompleteController {
     }
 
     const currentFormula = this.grid.formulaInput.value;
-    const before = currentFormula.slice(0, this.lastContext.tokenStartIndex);
-    const after = currentFormula.slice(this.lastContext.tokenEndIndex);
-    const inserted = `${item.name}(`;
-    const newFormula = before + inserted + after;
-    const newCursorPos = this.lastContext.tokenStartIndex + inserted.length;
+    const result = insertFunctionSuggestion(
+      currentFormula,
+      this.lastContext.tokenStartIndex,
+      this.lastContext.tokenEndIndex,
+      item.name
+    );
+    const newFormula = result.formula;
+    const newCursorPos = result.caret;
 
-    this.grid.formulaInput.value = newFormula;
-    this.grid.formulaInput.focus();
-    if (typeof this.grid.formulaInput.setSelectionRange === "function") {
-      this.grid.formulaInput.setSelectionRange(newCursorPos, newCursorPos);
+    if (typeof this.grid._setFormulaEntryValue === "function") {
+      this.grid._setFormulaEntryValue(newFormula, newCursorPos, { source: "autocomplete" });
+    } else {
+      this.grid.formulaInput.value = newFormula;
+      this.grid.formulaInput.focus();
+      if (typeof this.grid.formulaInput.setSelectionRange === "function") {
+        this.grid.formulaInput.setSelectionRange(newCursorPos, newCursorPos);
+      }
+      this.grid.setCellValue(this.grid.selectedCoord.c, this.grid.selectedCoord.r, newFormula);
     }
-
-    this.grid.setCellValue(this.grid.selectedCoord.c, this.grid.selectedCoord.r, newFormula);
 
     this.popup.hide();
     // Chuyển sang hiển thị tooltip cú pháp tham số cho hàm vừa chèn
