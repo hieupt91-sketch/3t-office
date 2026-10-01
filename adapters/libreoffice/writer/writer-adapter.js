@@ -619,6 +619,51 @@ export class WriterAdapter {
     });
   }
 
+  _placeCaretInEditable(element, root, selectAll = false) {
+    if (!element || typeof window === "undefined" || !window.getSelection) return false;
+    const range = document.createRange();
+    if (selectAll) {
+      range.selectNodeContents(element);
+    } else {
+      const firstText = element.querySelector("*") || element.firstChild;
+      if (firstText?.nodeType === 3) {
+        range.setStart(firstText, 0);
+        range.collapse(true);
+      } else {
+        range.setStart(element, 0);
+        range.collapse(true);
+      }
+    }
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    return true;
+  }
+
+  _selectionAtElementStart(element, selection) {
+    if (!selection || selection.rangeCount === 0) return false;
+    const range = selection.getRangeAt(0);
+    return range.startContainer === element && range.startOffset === 0;
+  }
+
+  _insertTabCharacter(root) {
+    if (typeof window === "undefined" || !window.getSelection) return false;
+    const selection = window.getSelection();
+    if (!selection.rangeCount) return false;
+    const range = selection.getRangeAt(0);
+    if (!root.contains(range.commonAncestorContainer)) return false;
+    range.deleteContents();
+    const tabText = document.createTextNode("\t");
+    range.insertNode(tabText);
+    range.setStartAfter(tabText);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    this.isDirty = true;
+    this.recordSnapshot("writer.text.insertTab");
+    return true;
+  }
+
   _bindMouseAndKeyboardParity() {
     if (!this.bodyDom?.addEventListener) return;
 
