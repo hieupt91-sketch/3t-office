@@ -359,7 +359,8 @@ export const WRITER_RIBBON_TABS = [
           {
             type: "dropdown",
             id: "writer.layout.breaks",
-            label: "Ngắt trang",
+            label: "Ngắt",
+            labelKey: "writer.layout.breaks",
             icon: "sectionBreak",
             isLarge: true,
             items: [
@@ -381,6 +382,18 @@ export const WRITER_RIBBON_TABS = [
               { value: "continuous", label: "Số dòng: Liên tục" },
               { value: "restartPage", label: "Số dòng: Mỗi trang" },
               { value: "restartSection", label: "Số dòng: Mỗi mục" }
+            ]
+          },
+          {
+            type: "dropdown",
+            id: "writer.layout.sectionOptions",
+            label: "Tùy chọn mục",
+            labelKey: "writer.layout.sectionOptions",
+            icon: "sectionBreak",
+            items: [
+              { commandId: "writer.section.options" },
+              { commandId: "writer.pageNumber.format" },
+              { commandId: "writer.section.delete" }
             ]
           }
         ]
