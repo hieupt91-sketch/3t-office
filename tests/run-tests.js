@@ -208,6 +208,7 @@ import { runUiConsistencyAndStringScannerTests } from "./unit/ui-user-visible-st
 import { runOsInputGuardTests } from "./unit/os-input-guard.test.js";
 import { runPrintEngineNameTests } from "./unit/print-engine-name.test.js";
 import { runVietnameseImeUnitTests } from "./unit/vietnamese-ime.test.js";
+import { runSlidesBasicsAuditTests } from "./unit/slides-basics-audit.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -425,7 +426,8 @@ async function runAll() {
     { title: "169. Unit Tests — CH-8 UI Consistency, KeyTips, Contextual F1 & String Scanner", runner: runUiConsistencyAndStringScannerTests },
     { title: "170. Safety Regression — source and tests use CDP, not OS-level input", runner: runOsInputGuardTests },
     { title: "171. CH-3/CH-8 — Hộp thoại In không lộ tên thư viện bên trong", runner: runPrintEngineNameTests },
-    { title: "172. CH-4.7 — Vietnamese IME typing, burst normalizer, caret preservation, undo coalescing & NFC normalization", runner: runVietnameseImeUnitTests }
+    { title: "172. CH-4.7 — Vietnamese IME typing, burst normalizer, caret preservation, undo coalescing & NFC normalization", runner: runVietnameseImeUnitTests },
+    { title: "173. Unit Tests — Slide basics editing, placeholders undo, Tab indent, shape Enter, picture resize & sorter keys", runner: runSlidesBasicsAuditTests }
   ];
 
   for (const suite of suites) {

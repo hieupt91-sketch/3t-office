@@ -51,7 +51,17 @@ class FakeElement {
   dispatchEvent(event) {
     for (const handler of this.listeners[event.type] || []) handler(event);
   }
-  querySelector(selector) { return this.querySelectorAll(selector)[0] || null; }
+  querySelector(selector) {
+    const found = this.querySelectorAll(selector)[0];
+    if (found) return found;
+    if (selector.startsWith("#") || selector.startsWith(".")) {
+      const el = new FakeElement("div");
+      if (selector.startsWith("#")) el.id = selector.slice(1);
+      this.appendChild(el);
+      return el;
+    }
+    return null;
+  }
   querySelectorAll(selector) {
     const matches = (el) => {
       if (selector.startsWith(".")) return el.classList.contains(selector.slice(1));
@@ -97,12 +107,7 @@ class FakeDocument {
 function createTestController() {
   const container = new FakeElement("div");
   const canvas = createSlidesCanvasFixture(container, 3);
-  canvas.titleEl = new FakeElement("div");
-  canvas.bodyEl = new FakeElement("div");
-  canvas.body2El = new FakeElement("div");
-  canvas.bodyRowEl = new FakeElement("div");
-  canvas.canvasEl = new FakeElement("div");
-  canvas.slideListContainer = new FakeElement("div");
+  canvas.mount();
   canvas._renderShapesLayer = () => {};
   return canvas;
 }
