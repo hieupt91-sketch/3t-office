@@ -5465,6 +5465,14 @@ ${pristineXlsxMarker}
     const selectedRow = Number(selected.r) || 1;
     const selectedCol = grid?._columnNumber?.(selected.c) || 1;
     const activePage = pages.findIndex((page) => page.rowNums?.includes(selectedRow) && page.colNums?.includes(selectedCol));
+    const selectionRanges = (grid?._getSelectionRanges?.() || [grid?.selectionRange].filter(Boolean))
+      .map((range) => grid?._normalizeRange?.(range) || range)
+      .filter((range) => range?.start?.c && range?.start?.r && range?.end?.c && range?.end?.r)
+      .map((range) => {
+        const start = `${range.start.c}${range.start.r}`;
+        const end = `${range.end.c}${range.end.r}`;
+        return start === end ? start : `${start}:${end}`;
+      });
     const pageSize = String(setup.size || "a4").toUpperCase();
     const orientation = setup.orientation === "landscape" ? "Ngang" : "Dọc";
     return openPrintDialog({
@@ -5474,6 +5482,7 @@ ${pristineXlsxMarker}
       sourcePath: this.sourceFilePath || null,
       pageSetupLabel: `${pageSize} · ${orientation}`,
       currentPage: activePage >= 0 ? activePage + 1 : 1,
+      selectionRanges,
       engine: globalUnoBridge
     });
   }
