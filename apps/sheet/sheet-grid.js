@@ -38,6 +38,25 @@ export const DEFAULT_SHEET_PAGE_SETUP = Object.freeze({
   printTitles: Object.freeze({ rows: "", cols: "" })
 });
 
+export const MAX_ROW_COUNT = 1048576;
+export const MAX_COL_COUNT = 16384;
+
+function generateAllCols() {
+  const cols = new Array(MAX_COL_COUNT);
+  for (let i = 1; i <= MAX_COL_COUNT; i++) {
+    let value = i;
+    let label = "";
+    while (value > 0) {
+      value--;
+      label = String.fromCharCode(65 + (value % 26)) + label;
+      value = Math.floor(value / 26);
+    }
+    cols[i - 1] = label;
+  }
+  return cols;
+}
+export const ALL_COLS = Object.freeze(generateAllCols());
+
 export const DEFAULT_ROW_HEIGHT_PX = 20;
 export const DEFAULT_COL_WIDTH_PX = 64;
 export const MIN_ROW_HEIGHT_PX = 1;
@@ -71,11 +90,17 @@ export function createSheetSelectionRange(anchor, active) {
 export function normalizeSheetSelectionRange(range, cols) {
   const start = range?.start || { c: cols[0], r: 1 };
   const end = range?.end || start;
-  const startCol = Math.max(0, cols.indexOf(start.c));
-  const endCol = Math.max(0, cols.indexOf(end.c));
+  const colNumber = (col) => {
+    if (typeof col === "number") return col;
+    return String(col).toUpperCase().split("").reduce((v, ch) => v * 26 + ch.charCodeAt(0) - 64, 0);
+  };
+  const startNum = colNumber(start.c);
+  const endNum = colNumber(end.c);
+  const minNum = Math.max(1, Math.min(cols.length, Math.min(startNum, endNum)));
+  const maxNum = Math.max(1, Math.min(cols.length, Math.max(startNum, endNum)));
   return {
-    start: { c: cols[Math.min(startCol, endCol)], r: Math.min(start.r, end.r) },
-    end: { c: cols[Math.max(startCol, endCol)], r: Math.max(start.r, end.r) }
+    start: { c: cols[minNum - 1] || start.c, r: Math.min(start.r, end.r) },
+    end: { c: cols[maxNum - 1] || end.c, r: Math.max(start.r, end.r) }
   };
 }
 
@@ -160,10 +185,14 @@ export class SheetGridController {
     this.container = container;
     this.options = options;
     this.isBlank = options.isBlank ?? (options.templateId !== "budget_estimate");
-    this.cols = Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i));
-    this.rowCount = 200;
+    this.rowCount = options.rowCount ?? MAX_ROW_COUNT;
+    this.cols = typeof options.cols === "number"
+      ? Array.from({ length: options.cols }, (_, i) => this._columnLabel(i + 1))
+      : (Array.isArray(options.cols) ? options.cols : ALL_COLS);
     this.rowHeight = DEFAULT_ROW_HEIGHT_PX;
     this.defaultColWidth = DEFAULT_COL_WIDTH_PX;
+    this.currentStartColNum = 1;
+    this.currentEndColNum = Math.min(this.cols.length, 30);
 
     this.sheets = options.templateId === "budget_estimate"
       ? ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]
@@ -293,6 +322,7 @@ export class SheetGridController {
     // Prefix-sum row tops cache (per sheet) for virtual scroll with variable row heights.
     // _rowTopsCache[sheetName] = { tops: number[], totalHeight: number, valid: boolean }
     this._rowTopsCache = {};
+    this._colLeftsCache = {};
     this._tabSequenceAnchor = null;
     this._clipboardRange = null;
   }
@@ -332,7 +362,7 @@ export class SheetGridController {
     fBar.setAttribute("role", "region");
     fBar.setAttribute("aria-label", t("sheetFormulaEntry.formulaBarLabel"));
     fBar.innerHTML = `
-      <div class="vno-name-box" id="vno-cell-name" role="status" aria-label="Hộp tên ô">A1</div>
+      <input type="text" class="vno-name-box" id="vno-cell-name" value="A1" role="status" aria-label="Hộp tên ô" spellcheck="false" autocomplete="off" />
       <div class="vno-formula-actions" role="toolbar" aria-label="Thao tác công thức">
         <button type="button" class="vno-formula-btn" title="Hủy bỏ (Esc)" aria-label="Hủy bỏ (Esc)" id="vno-fx-cancel">✕</button>
         <button type="button" class="vno-formula-btn" title="Nhập (Enter)" aria-label="Nhập (Enter)" id="vno-fx-ok">✓</button>
@@ -341,6 +371,19 @@ export class SheetGridController {
       <textarea class="vno-formula-input" id="vno-formula-val" rows="1" aria-label="Thanh công thức" placeholder="Nhập giá trị hoặc công thức (ví dụ: =SUM(F4:F7), =AVERAGE(E4:E7)...)"></textarea>
     `;
     this.nameBox = fBar.querySelector("#vno-cell-name");
+    this.nameBox?.addEventListener("focus", () => {
+      this.nameBox.select?.();
+    });
+    this.nameBox?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        this._jumpToNameBoxAddress(this.nameBox.value);
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        this.nameBox.value = this.getSelectionNameLabel();
+        this.focusGrid();
+      }
+    });
     this.formulaInput = fBar.querySelector("#vno-formula-val");
     this.formulaInput.setAttribute("aria-label", t("sheetFormulaEntry.formulaBarLabel"));
     this.formulaInput.title = t("sheetFormulaEntry.referenceHint");
@@ -490,13 +533,6 @@ export class SheetGridController {
     const thead = document.createElement("thead");
     const trHead = document.createElement("tr");
     this.theadRow = trHead;
-    trHead.innerHTML = `<th class="vno-grid-corner-header" title="Chọn tất cả (Ctrl+A)"></th>`;
-    trHead.querySelector(".vno-grid-corner-header")?.addEventListener("click", () => this.selectAll());
-    this.cols.forEach(col => {
-      const th = document.createElement("th");
-      this._bindColumnHeader(th, col);
-      trHead.appendChild(th);
-    });
     thead.appendChild(trHead);
     table.appendChild(thead);
 
@@ -515,15 +551,16 @@ export class SheetGridController {
 
     this.topSpacer = document.createElement("tr");
     this.topSpacer.className = "vno-grid-spacer-top";
-    this.topSpacer.innerHTML = `<td colspan="${this.cols.length + 1}" style="height:0px;padding:0;border:none;"></td>`;
+    this.topSpacer.innerHTML = `<td style="height:0px;padding:0;border:none;"></td>`;
     tbody.appendChild(this.topSpacer);
 
     this.bottomSpacer = document.createElement("tr");
     this.bottomSpacer.className = "vno-grid-spacer-bottom";
-    this.bottomSpacer.innerHTML = `<td colspan="${this.cols.length + 1}" style="height:0px;padding:0;border:none;"></td>`;
+    this.bottomSpacer.innerHTML = `<td style="height:0px;padding:0;border:none;"></td>`;
     tbody.appendChild(this.bottomSpacer);
 
     table.appendChild(tbody);
+    this._renderColumnHeaders();
     vp.appendChild(table);
     const chartLayer = document.createElement("div");
     chartLayer.className = "vno-sheet-chart-layer";
@@ -748,6 +785,16 @@ export class SheetGridController {
   }
 
   // --- Prefix-sum row tops cache for virtual scroll with variable row heights ---
+  _hasCustomRowHeightsOrHidden(sheetName = this.activeSheet) {
+    const customHeights = this.rowHeightsBySheet?.[sheetName];
+    if (customHeights && customHeights.size > 0) return true;
+    const hiddenRows = this.sheetStates?.[sheetName]?.hiddenRows;
+    if (hiddenRows && hiddenRows.size > 0) return true;
+    const userHidden = this.userHiddenRowsBySheet?.[sheetName];
+    if (userHidden && userHidden.size > 0) return true;
+    return false;
+  }
+
   _ensureRowTopsCache(sheetName = this.activeSheet) {
     if (!this._rowTopsCache) this._rowTopsCache = {};
     if (!this._rowTopsCache[sheetName] || !this._rowTopsCache[sheetName].valid) {
@@ -757,14 +804,29 @@ export class SheetGridController {
   }
 
   _buildRowTopsCache(sheetName = this.activeSheet) {
-    const count = this.rowCount || 200;
-    const tops = new Float64Array(count + 2);
+    const count = this.rowCount || MAX_ROW_COUNT;
+    let maxCustomRow = 1;
+    const customHeights = this.rowHeightsBySheet?.[sheetName];
+    if (customHeights) {
+      for (const r of customHeights.keys()) if (r > maxCustomRow) maxCustomRow = r;
+    }
+    const hiddenRows = this.sheetStates?.[sheetName]?.hiddenRows;
+    if (hiddenRows) {
+      for (const r of hiddenRows) if (r > maxCustomRow) maxCustomRow = r;
+    }
+    const userHidden = this.userHiddenRowsBySheet?.[sheetName];
+    if (userHidden) {
+      for (const r of userHidden) if (r > maxCustomRow) maxCustomRow = r;
+    }
+    const limit = Math.min(count, maxCustomRow);
+    const tops = new Float64Array(limit + 2);
     tops[1] = 0;
-    for (let r = 1; r <= count; r++) {
+    for (let r = 1; r <= limit; r++) {
       tops[r + 1] = tops[r] + (this._isRowSkipped(r) ? 0 : this.getRowHeight(r, sheetName));
     }
+    const totalHeight = tops[limit + 1] + (count - limit) * this.rowHeight;
     if (!this._rowTopsCache) this._rowTopsCache = {};
-    this._rowTopsCache[sheetName] = { tops, totalHeight: tops[count + 1], valid: true };
+    this._rowTopsCache[sheetName] = { tops, limit, totalHeight, valid: true };
     return this._rowTopsCache[sheetName];
   }
 
@@ -778,10 +840,14 @@ export class SheetGridController {
   }
 
   _rowTop(r, sheetName = this.activeSheet) {
+    if (r <= 1) return 0;
+    if (r > this.rowCount) return this._totalHeight(sheetName);
+    if (!this._hasCustomRowHeightsOrHidden(sheetName)) {
+      return (r - 1) * this.rowHeight;
+    }
     const cache = this._ensureRowTopsCache(sheetName);
-    if (r < 1) return 0;
-    if (r > this.rowCount) return cache.totalHeight;
-    return cache.tops[r];
+    if (r <= cache.limit + 1) return cache.tops[r];
+    return cache.tops[cache.limit + 1] + (r - (cache.limit + 1)) * this.rowHeight;
   }
 
   _rowBottom(r, sheetName = this.activeSheet) {
@@ -789,32 +855,159 @@ export class SheetGridController {
   }
 
   _totalHeight(sheetName = this.activeSheet) {
+    if (!this._hasCustomRowHeightsOrHidden(sheetName)) {
+      return this.rowCount * this.rowHeight;
+    }
     return this._ensureRowTopsCache(sheetName).totalHeight;
   }
 
   _firstVisibleRow(scrollTop, sheetName = this.activeSheet) {
+    if (!this._hasCustomRowHeightsOrHidden(sheetName)) {
+      return Math.max(1, Math.min(this.rowCount, Math.floor(scrollTop / this.rowHeight) + 1));
+    }
     const cache = this._ensureRowTopsCache(sheetName);
-    const count = this.rowCount || 200;
-    let lo = 1, hi = count;
+    if (scrollTop >= cache.tops[cache.limit + 1]) {
+      return Math.max(1, Math.min(this.rowCount, cache.limit + 1 + Math.floor((scrollTop - cache.tops[cache.limit + 1]) / this.rowHeight)));
+    }
+    let lo = 1, hi = cache.limit;
     while (lo < hi) {
       const mid = (lo + hi) >> 1;
       if (cache.tops[mid + 1] <= scrollTop) lo = mid + 1;
       else hi = mid;
     }
-    return Math.max(1, Math.min(count, lo));
+    return Math.max(1, Math.min(this.rowCount, lo));
   }
 
   _lastVisibleRow(scrollTop, viewportHeight, sheetName = this.activeSheet) {
     const bottom = scrollTop + viewportHeight;
+    if (!this._hasCustomRowHeightsOrHidden(sheetName)) {
+      return Math.max(1, Math.min(this.rowCount, Math.ceil(bottom / this.rowHeight)));
+    }
     const cache = this._ensureRowTopsCache(sheetName);
-    const count = this.rowCount || 200;
-    let lo = 1, hi = count;
+    if (bottom >= cache.tops[cache.limit + 1]) {
+      return Math.max(1, Math.min(this.rowCount, cache.limit + 1 + Math.ceil((bottom - cache.tops[cache.limit + 1]) / this.rowHeight)));
+    }
+    let lo = 1, hi = cache.limit;
     while (lo < hi) {
       const mid = (lo + hi + 1) >> 1;
       if (cache.tops[mid] >= bottom) hi = mid - 1;
       else lo = mid;
     }
-    return Math.max(1, Math.min(count, lo));
+    return Math.max(1, Math.min(this.rowCount, lo));
+  }
+
+  // --- Prefix-sum col lefts cache for 2D virtual scroll ---
+  _hasCustomColWidthsOrHidden(sheetName = this.activeSheet) {
+    const customWidths = this.colWidthsBySheet?.[sheetName];
+    if (customWidths && customWidths.size > 0) return true;
+    const userHidden = this.userHiddenColsBySheet?.[sheetName];
+    if (userHidden && userHidden.size > 0) return true;
+    return false;
+  }
+
+  _ensureColLeftsCache(sheetName = this.activeSheet) {
+    if (!this._colLeftsCache) this._colLeftsCache = {};
+    if (!this._colLeftsCache[sheetName] || !this._colLeftsCache[sheetName].valid) {
+      this._buildColLeftsCache(sheetName);
+    }
+    return this._colLeftsCache[sheetName];
+  }
+
+  _buildColLeftsCache(sheetName = this.activeSheet) {
+    const count = this.cols.length;
+    let maxCustomCol = 1;
+    const customWidths = this.colWidthsBySheet?.[sheetName];
+    if (customWidths) {
+      for (const col of customWidths.keys()) {
+        const cNum = this._columnNumber(col);
+        if (cNum > maxCustomCol) maxCustomCol = cNum;
+      }
+    }
+    const userHidden = this.userHiddenColsBySheet?.[sheetName];
+    if (userHidden) {
+      for (const col of userHidden) {
+        const cNum = this._columnNumber(col);
+        if (cNum > maxCustomCol) maxCustomCol = cNum;
+      }
+    }
+    const limit = Math.min(count, maxCustomCol);
+    const lefts = new Float64Array(limit + 2);
+    lefts[1] = 0;
+    for (let c = 1; c <= limit; c++) {
+      lefts[c + 1] = lefts[c] + this._colWidth(c, sheetName);
+    }
+    const totalWidth = lefts[limit + 1] + (count - limit) * this.defaultColWidth;
+    if (!this._colLeftsCache) this._colLeftsCache = {};
+    this._colLeftsCache[sheetName] = { lefts, limit, totalWidth, valid: true };
+    return this._colLeftsCache[sheetName];
+  }
+
+  _invalidateColLeftsCache(sheetName = this.activeSheet) {
+    if (!this._colLeftsCache) return;
+    if (sheetName) {
+      if (this._colLeftsCache[sheetName]) this._colLeftsCache[sheetName].valid = false;
+    } else {
+      for (const k of Object.keys(this._colLeftsCache)) this._colLeftsCache[k].valid = false;
+    }
+  }
+
+  _colWidth(cNum, sheetName = this.activeSheet) {
+    const col = this.cols[cNum - 1] || this._columnLabel(cNum);
+    if (this._isColumnHidden(col)) return 0;
+    return this.getColumnWidth(col, sheetName);
+  }
+
+  _colLeft(cNum, sheetName = this.activeSheet) {
+    if (cNum <= 1) return 0;
+    if (cNum > this.cols.length) return this._totalWidth(sheetName);
+    if (!this._hasCustomColWidthsOrHidden(sheetName)) {
+      return (cNum - 1) * this.defaultColWidth;
+    }
+    const cache = this._ensureColLeftsCache(sheetName);
+    if (cNum <= cache.limit + 1) return cache.lefts[cNum];
+    return cache.lefts[cache.limit + 1] + (cNum - (cache.limit + 1)) * this.defaultColWidth;
+  }
+
+  _totalWidth(sheetName = this.activeSheet) {
+    if (!this._hasCustomColWidthsOrHidden(sheetName)) {
+      return this.cols.length * this.defaultColWidth;
+    }
+    return this._ensureColLeftsCache(sheetName).totalWidth;
+  }
+
+  _firstVisibleCol(scrollLeft, sheetName = this.activeSheet) {
+    if (!this._hasCustomColWidthsOrHidden(sheetName)) {
+      return Math.max(1, Math.min(this.cols.length, Math.floor(scrollLeft / this.defaultColWidth) + 1));
+    }
+    const cache = this._ensureColLeftsCache(sheetName);
+    if (scrollLeft >= cache.lefts[cache.limit + 1]) {
+      return Math.max(1, Math.min(this.cols.length, cache.limit + 1 + Math.floor((scrollLeft - cache.lefts[cache.limit + 1]) / this.defaultColWidth)));
+    }
+    let lo = 1, hi = cache.limit;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (cache.lefts[mid + 1] <= scrollLeft) lo = mid + 1;
+      else hi = mid;
+    }
+    return Math.max(1, Math.min(this.cols.length, lo));
+  }
+
+  _lastVisibleCol(scrollLeft, viewportWidth, sheetName = this.activeSheet) {
+    const right = scrollLeft + viewportWidth;
+    if (!this._hasCustomColWidthsOrHidden(sheetName)) {
+      return Math.max(1, Math.min(this.cols.length, Math.ceil(right / this.defaultColWidth)));
+    }
+    const cache = this._ensureColLeftsCache(sheetName);
+    if (right >= cache.lefts[cache.limit + 1]) {
+      return Math.max(1, Math.min(this.cols.length, cache.limit + 1 + Math.ceil((right - cache.lefts[cache.limit + 1]) / this.defaultColWidth)));
+    }
+    let lo = 1, hi = cache.limit;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (cache.lefts[mid] >= right) hi = mid - 1;
+      else lo = mid;
+    }
+    return Math.max(1, Math.min(this.cols.length, lo));
   }
 
   _snapshotRowColLayout(sheetName = this.activeSheet) {
@@ -1580,10 +1773,20 @@ export class SheetGridController {
     } else {
       this.selectionRanges = [range];
     }
-    if (options.scrollActive && this.viewport &&
-        (activeCoord.r < this.currentStartRow || activeCoord.r > this.currentEndRow)) {
-      this.viewport.scrollTop = Math.max(0, this._rowTop(activeCoord.r) - 5 * this.rowHeight);
-      this._onViewportScroll();
+    if (options.scrollActive && this.viewport) {
+      let scrolled = false;
+      const cNum = this._columnNumber(activeCoord.c);
+      if (activeCoord.r < (this.currentStartRow || 1) || activeCoord.r > (this.currentEndRow || 40)) {
+        this.viewport.scrollTop = Math.max(0, this._rowTop(activeCoord.r) - 5 * this.rowHeight);
+        scrolled = true;
+      }
+      if (cNum < (this.currentStartColNum || 1) || cNum > (this.currentEndColNum || Math.min(this.cols.length, 30))) {
+        this.viewport.scrollLeft = Math.max(0, this._colLeft(cNum) - 3 * this.defaultColWidth);
+        scrolled = true;
+      }
+      if (scrolled) {
+        this._onViewportScroll();
+      }
     }
     this._updateRangeSelectionVisuals();
     this.focusGrid();
@@ -1789,7 +1992,13 @@ export class SheetGridController {
     const endCell = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${norm.end.c}${norm.end.r}"]`);
     if (endCell) this._attachAutofillHandle(endCell);
 
-    if (this.nameBox) this.nameBox.textContent = this.getSelectionNameLabel();
+    if (this.nameBox) {
+      const label = this.getSelectionNameLabel();
+      if (typeof document === "undefined" || document.activeElement !== this.nameBox) {
+        this.nameBox.value = label;
+      }
+      this.nameBox.textContent = label;
+    }
     const data = this.cellsData.get(activeCoordKey);
     if (this.formulaInput) this.formulaInput.value = data ? (data.formula || data.val) : "";
     this._syncFormulaBarHeight();
@@ -2475,8 +2684,14 @@ export class SheetGridController {
     this.isFilterActive = false;
     this.hiddenRows = new Set();
     this.activeFilters = new Map();
-    this.undoStack = [];
-    this.redoStack = [];
+    this.rowCount = MAX_ROW_COUNT;
+    this.cols = ALL_COLS;
+    this.currentStartRow = 1;
+    this.currentEndRow = 40;
+    this.currentStartColNum = 1;
+    this.currentEndColNum = Math.min(this.cols.length, 30);
+    this._invalidateRowTopsCache();
+    this._invalidateColLeftsCache();
 
     if (this.chartLayer) this.chartLayer.innerHTML = "";
     if (this.imageLayer) this.imageLayer.innerHTML = "";
@@ -2491,6 +2706,7 @@ export class SheetGridController {
       });
     }
 
+    this._renderColumnHeaders();
     this._renderVirtualRows(1, 40);
     this.renderCharts();
     this.renderImages();
