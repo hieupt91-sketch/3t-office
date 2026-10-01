@@ -6154,32 +6154,28 @@ ${pristineXlsxMarker}
       if (!isGridClipboardTarget(event)) return;
       const text = event.clipboardData?.getData("text/plain") || "";
       const html = event.clipboardData?.getData("text/html") || "";
-      if (!text && !html) {
+      // If no HTML from browser clipboard API, try Python bridge (which reads CF_HTML directly)
+      let model = null;
+      let nativeText = text;
+      let nativeHtml = html;
+      if (!html) {
         if (event.clipboardData) event.preventDefault();
         const native = await this._readClipboardData();
         if (native?.html) {
-          const model = parseOfficeHtmlTable(native.html, native.text || "");
-          if (model) {
-            await this._pasteModelIntoGrid(model, native.text || "", false);
-            return;
-          }
+          nativeHtml = native.html;
+          nativeText = native.text || text;
+        } else if (native?.text) {
+          nativeText = native.text;
         }
-        if (native?.text) await this._pasteTextIntoGrid(native.text);
-        else if (this._clipboardModel?.cells?.length) {
-          await this._pasteModelIntoGrid(this._clipboardModel, this._clipboardText, true);
-        }
-        return;
       }
-      event.preventDefault();
-      let model = null;
-      if (html) {
-        model = parseOfficeHtmlTable(html, text);
+      if (nativeHtml) {
+        model = parseOfficeHtmlTable(nativeHtml, nativeText);
       }
       if (!model) {
-        const isInternal = text === this._clipboardText && this._clipboardModel?.cells?.length;
-        model = isInternal ? this._clipboardModel : this._clipboardModelFromText(text);
+        const isInternal = nativeText === this._clipboardText && this._clipboardModel?.cells?.length;
+        model = isInternal ? this._clipboardModel : this._clipboardModelFromText(nativeText, nativeHtml);
       }
-      await this._pasteModelIntoGrid(model, text, false);
+      await this._pasteModelIntoGrid(model, nativeText, false);
     };
     container.addEventListener("copy", copy);
     container.addEventListener("cut", cut);
