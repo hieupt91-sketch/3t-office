@@ -13,7 +13,7 @@ The committed G12 WIP already:
 - Defers several Writer, Sheet, and Slides features behind dynamic imports and provides a shared first-use progress event.
 - Includes `scripts/measure-cold-start.ps1` and `scripts/cdp-cold-start-probe.mjs`; the probe drives and reads the app using WebView2 CDP.
 
-This plan was executed and the measurements are recorded in `docs/HANDOFF-COLD-START.md`. The final installed-like source run reached the first editor key in under 3 seconds for all three apps. Isolated staged-package repeats also met 3 seconds, though the first staged-package measurement set did not, so the package result is mixed. The requested `d03.docx` and `lan25.xlsx` fixtures are absent; repository samples were used for the before/current comparison. A formal installer was not built.
+This plan was revalidated after merging local main at commit 192826b8. Source first-editor-key timings were 2.82 s (3T Doc), 1.90 s (3T Sheet), and 1.66 s (3T Slide). The fresh pilot payload result was mixed: the first packaged 3T Doc launch took 6.58 s, an isolated repeat took 2.78 s, and packaged 3T Sheet/Slide took 1.59/1.41 s. The exact d03.docx and lan25.xlsx fixtures are absent; the formal installer was not built.
 
 ## Files and modules in scope
 
@@ -39,10 +39,10 @@ Use existing Python, pywebview/WebView2, the Python standard-library `http.serve
 
 ## Test and measurement plan
 
-1. **DONE** — Recorded source-layout milestones for Writer, Sheet, and Slides, including the first CDP editor key and LibreOffice worker readiness.
-2. **DONE WITH LIMITS** — Repeated the blank launch in the staged package payload and measured repository DOCX/XLSX/PPTX samples. Exact `d03.docx`/`lan25.xlsx` files and the formal installer were unavailable; the first package measurement set and one extra Sheet repeat failed, while isolated package repeats passed.
-3. **DONE** — Ran the requested Node suite twice; both full runs had the same 3 failures. A quiet isolated HTML smoke rerun passed 21/21 (an earlier loaded rerun had 2 Writer browser failures), and the isolated FODS round-trip suite passed. The Python suite and live single-instance check passed.
-4. **DONE** — Recorded PASS, FAIL, BLOCKED, and NOT RUN statuses in the handoff without changing importer parsers or suppressing failures.
+1. **DONE** — Re-ran source-layout CDP timelines for 3T Doc, 3T Sheet, and 3T Slide. All three accepted the first editor key under 3 seconds; LibreOffice workers became ready later in the background.
+2. **DONE WITH LIMITS** — Built and measured a fresh pilot payload. First packaged 3T Doc missed the target at 6.58 s, its isolated repeat passed at 2.78 s, and packaged Sheet/Slide passed at 1.59/1.41 s. Exact target DOCX/XLSX fixtures and a formal installer were unavailable.
+3. **PASS** — `node tests/run-tests.js` passed 2,242/2,242; `python -m unittest discover -s tests` passed 536 tests in 436.519 s when run alone; `python scripts/test_single_instance_live.py` passed using CDP.
+4. **DONE WITH LIMITS** — Recorded fresh sample-file timings and all PASS/FAIL/BLOCKED/NOT RUN statuses in the handoff. Sample opens remain 14.84–23.73 s; import parsers were left untouched.
 
 ## Rollback
 
