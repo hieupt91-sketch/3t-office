@@ -290,6 +290,8 @@ export class SheetGridController {
     // Prefix-sum row tops cache (per sheet) for virtual scroll with variable row heights.
     // _rowTopsCache[sheetName] = { tops: number[], totalHeight: number, valid: boolean }
     this._rowTopsCache = {};
+    this._tabSequenceAnchor = null;
+    this._clipboardRange = null;
   }
 
   get cellsData() {
@@ -312,17 +314,10 @@ export class SheetGridController {
   mount() {
     this.container.innerHTML = "";
     this.container.className = "vno-sheet-container";
-    // `tabindex="-1"` làm container CÓ THỂ nhận focus qua .focus() (không lọt vào thứ tự
-    // Tab của trang) — bắt buộc phải có thì `selectCell()` mới gọi `.focus()` được. Nếu
-    // không, click chọn ô để lại `document.activeElement === document.body`, khiến TOÀN
-    // BỘ tương tác bàn phím của lưới (mũi tên, Enter, Tab, F2, gõ "=" để bắt đầu công
-    // thức, và mọi cách gõ trực tiếp giá trị vào ô) không bao giờ tới được listener
-    // `keydown` gắn trên `this.container` — vì sự kiện bàn phím chỉ nổi bọt (bubble) từ
-    // phần tử đang có focus, và `document.body` không phải hậu duệ của container. Lỗi
-    // thật nghiêm trọng nhất tìm được trong toàn phiên (04/09/2026) — xác nhận qua
-    // Playwright: gõ trực tiếp vào ô đã chọn hoàn toàn không có tác dụng gì, kể cả với
-    // `=PMT(...)` vừa được Codex thêm.
-    this.container.setAttribute("tabindex", "-1");
+    // The grid is an explicit keyboard focus target at app startup and after
+    // toolbars/dialogs. Clipboard keys are handled by native ClipboardEvents.
+    this.container.setAttribute("tabindex", "0");
+    this.container.dataset.vnoNativeClipboard = "true";
     this.container.style.outline = "none";
 
     // 1. Formula Bar
@@ -340,7 +335,7 @@ export class SheetGridController {
         <button type="button" class="vno-formula-btn" title="Nhập (Enter)" aria-label="Nhập (Enter)" id="vno-fx-ok">✓</button>
         <button type="button" class="vno-formula-btn vno-formula-btn-fx" title="Chèn hàm tính toán (fx)" aria-label="Chèn hàm tính toán (fx)" id="vno-fx-insert">fx</button>
       </div>
-      <input type="text" class="vno-formula-input" id="vno-formula-val" aria-label="Thanh công thức" placeholder="Nhập giá trị hoặc công thức (ví dụ: =SUM(F4:F7), =AVERAGE(E4:E7)...)" />
+      <textarea class="vno-formula-input" id="vno-formula-val" rows="1" aria-label="Thanh công thức" placeholder="Nhập giá trị hoặc công thức (ví dụ: =SUM(F4:F7), =AVERAGE(E4:E7)...)"></textarea>
     `;
     this.nameBox = fBar.querySelector("#vno-cell-name");
     this.formulaInput = fBar.querySelector("#vno-formula-val");
@@ -376,6 +371,8 @@ export class SheetGridController {
         source: "input",
         composing: this._isFormulaComposing || e.isComposing
       });
+      this.autocomplete.handleInput(e.target.value, this.formulaInput.selectionStart);
+      this._syncFormulaBarHeight();
     });
 
     this.formulaInput.addEventListener("compositionstart", () => { this._isFormulaComposing = true; });
@@ -611,6 +608,7 @@ export class SheetGridController {
     this.renderImages();
     this.renderTextBoxes();
     this.selectCell("A", 1);
+    this.focusGrid();
     this._bindGridKeyboardNavigation();
   }
 
@@ -1615,6 +1613,32 @@ export class SheetGridController {
       if (scrollChanged) this._onViewportScroll();
     }
     this._updateRangeSelectionVisuals();
+    this.focusGrid();
+  }
+
+  focusGrid() {
+    if (!this.container || typeof this.container.focus !== "function") return false;
+    this.container.focus({ preventScroll: true });
+    return true;
+  }
+
+  _beginTabSequence() {
+    if (!this._tabSequenceAnchor) this._tabSequenceAnchor = { ...this.selectedCoord };
+  }
+
+  _enterDestination(shiftKey = false) {
+    const anchor = this._tabSequenceAnchor;
+    this._tabSequenceAnchor = null;
+    if (anchor) {
+      return {
+        c: anchor.c,
+        r: shiftKey ? Math.max(1, anchor.r - 1) : Math.min(this.rowCount, anchor.r + 1)
+      };
+    }
+    return {
+      c: this.selectedCoord.c,
+      r: shiftKey ? Math.max(1, this.selectedCoord.r - 1) : Math.min(this.rowCount, this.selectedCoord.r + 1)
+    };
   }
 
   _rangeSelectionTargetAt(x, y, kind = "cell") {
@@ -1779,6 +1803,7 @@ export class SheetGridController {
       const isActive = cell.dataset.coord === activeCoordKey;
       cell.classList.toggle("is-selected", isActive);
       cell.classList.toggle("is-range-selected", selected && isMulti);
+      this._applyClipboardVisual(cell, cell.dataset.col, row);
       if (!isActive) {
         cell.querySelectorAll?.(".vno-cell-move-handle, .vno-cell-validation-select").forEach(el => el.remove());
       }
@@ -1794,9 +1819,45 @@ export class SheetGridController {
     if (this.nameBox) this.nameBox.textContent = this.getSelectionNameLabel();
     const data = this.cellsData.get(activeCoordKey);
     if (this.formulaInput) this.formulaInput.value = data ? (data.formula || data.val) : "";
+    this._syncFormulaBarHeight();
     this._showValidationDropdown(activeCell, this.selectedCoord.c, this.selectedCoord.r);
     this.options.onSelect?.(activeCoordKey, data, this._calculateStats());
     this.container?.focus?.({ preventScroll: true });
+  }
+
+  _syncFormulaBarHeight() {
+    if (!this.formulaInput || !this.formulaBarEl) return;
+    const lines = String(this.formulaInput.value || "").split("\n").length;
+    const rows = Math.max(1, Math.min(4, lines));
+    this.formulaInput.rows = rows;
+    this.formulaBarEl.style.height = String(Math.max(30, rows * 24 + 8)) + "px";
+    this.formulaBarEl.style.alignItems = "center";
+  }
+
+  setClipboardRange(range, mode = "copy", sheet = this.activeSheet) {
+    const normalized = this._normalizeRange(range);
+    this._clipboardRange = normalized ? { range: structuredClone(normalized), mode, sheet } : null;
+    this.container?.querySelectorAll?.(".vno-grid-cell[data-coord]").forEach(cell =>
+      this._applyClipboardVisual(cell, cell.dataset.col, Number(cell.dataset.row))
+    );
+  }
+
+  clearClipboardRange() {
+    if (!this._clipboardRange) return false;
+    this._clipboardRange = null;
+    this.container?.querySelectorAll?.(".vno-grid-cell[data-coord]").forEach(cell =>
+      this._applyClipboardVisual(cell, cell.dataset.col, Number(cell.dataset.row))
+    );
+    return true;
+  }
+
+  _applyClipboardVisual(cell, col, row) {
+    if (!cell?.classList) return;
+    const clipboard = this._clipboardRange;
+    const active = clipboard?.sheet === this.activeSheet &&
+      this._rangeContains(clipboard.range, col, row);
+    cell.classList.toggle("is-clipboard-source", !!active);
+    cell.classList.toggle("is-cut-source", !!active && clipboard.mode === "cut");
   }
 
   _startAutofill(e) {
@@ -3463,6 +3524,7 @@ export class SheetGridController {
 
         const itm = this.cellsData.get(coordKey);
         this._renderCellVisual(td, itm, c, r);
+        this._applyClipboardVisual(td, c, r);
         this._applyRowColSizeToCell(td, c, r);
         this._applyRuleVisuals(td, c, r);
         this._applyAnnotationAndPageVisuals(td, c, r);
@@ -3873,46 +3935,54 @@ export class SheetGridController {
     }
   }
 
-  _bindGridKeyboardNavigation() {
-    this.container.addEventListener("keydown", (e) => {
-      if (e.isComposing || e.keyCode === 229) return;
-      if (e.key === "Escape" && this.formatPainter) {
-        e.preventDefault();
-        this.cancelFormatPainter();
-        return;
-      }
-      if (typeof document !== "undefined" && document?.activeElement === this.formulaInput) return;
+_bindGridKeyboardNavigation() {
+      this.container.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && this._clipboardRange) {
+          e.preventDefault();
+          this.clearClipboardRange();
+          return;
+        }
+        if (e.isComposing || e.keyCode === 229) return;
+        if (e.key === "Escape" && this.formatPainter) {
+          e.preventDefault();
+          this.cancelFormatPainter();
+          return;
+        }
+        if (typeof document !== "undefined" && document?.activeElement === this.formulaInput) return;
+        if (this._tabSequenceAnchor && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(e.key)) {
+          this._tabSequenceAnchor = null;
+        }
 
-      if (this.formulaEntry && e.key === "F2") {
-        e.preventDefault();
-        this.formulaEntry.mode = this.formulaEntry.mode === "point" ? "edit" : "point";
-        this._updateFormulaEntryStatus();
-        this.formulaInput?.focus({ preventScroll: true });
-        return;
-      }
-      if (this.formulaEntry && e.key === "F4") {
-        e.preventDefault();
-        this._cycleFormulaReferenceAtCaret();
-        this.formulaInput?.focus({ preventScroll: true });
-        return;
-      }
-      if (this.formulaEntry && e.key === "Escape") {
-        e.preventDefault();
-        this._cancelFormulaEntry();
-        return;
-      }
-      if (this.formulaEntry && e.key === "Enter") {
-        e.preventDefault();
-        this._commitFormulaEntry({ move: true, shift: e.shiftKey });
-        return;
-      }
-      if (this.formulaEntry?.mode === "point" && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
-        e.preventDefault();
-        this._movePointReferenceWithArrow(e.key);
-        return;
-      }
+        if (this.formulaEntry && e.key === "F2") {
+          e.preventDefault();
+          this.formulaEntry.mode = this.formulaEntry.mode === "point" ? "edit" : "point";
+          this._updateFormulaEntryStatus();
+          this.formulaInput?.focus({ preventScroll: true });
+          return;
+        }
+        if (this.formulaEntry && e.key === "F4") {
+          e.preventDefault();
+          this._cycleFormulaReferenceAtCaret();
+          this.formulaInput?.focus({ preventScroll: true });
+          return;
+        }
+        if (this.formulaEntry && e.key === "Escape") {
+          e.preventDefault();
+          this._cancelFormulaEntry();
+          return;
+        }
+        if (this.formulaEntry && e.key === "Enter") {
+          e.preventDefault();
+          this._commitFormulaEntry({ move: true, shift: e.shiftKey });
+          return;
+        }
+        if (this.formulaEntry?.mode === "point" && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+          e.preventDefault();
+          this._movePointReferenceWithArrow(e.key);
+          return;
+        }
 
-      if (this.selectedImageId) {
+        if (this.selectedImageId) {
         if (e.key === "Delete" || e.key === "Backspace") {
           e.preventDefault();
           this.deleteImage(this.selectedImageId);
@@ -4124,8 +4194,11 @@ export class SheetGridController {
         this.redo();
         return;
       } else if (e.key === "Enter") {
-        nextRow = e.shiftKey ? Math.max(1, nextRow - 1) : Math.min(this.rowCount, nextRow + 1);
+        const next = this._enterDestination(e.shiftKey);
+        nextCol = next.c;
+        nextRow = next.r;
       } else if (e.key === "Tab") {
+        this._beginTabSequence();
         nextCol = e.shiftKey ? this.cols[Math.max(0, colIdx - 1)] : this.cols[Math.min(this.cols.length - 1, colIdx + 1)];
       } else if (e.key === "F2") {
         e.preventDefault();
@@ -4164,21 +4237,9 @@ export class SheetGridController {
         }
         if (this.formulaInput) this.formulaInput.value = "";
         return;
-      } else if (e.ctrlKey && !e.altKey && !e.metaKey && (e.key === "c" || e.key === "C")) {
-        e.preventDefault();
-        globalCommandBus?.execute?.("common.edit.copy");
-        return;
-      } else if (e.ctrlKey && !e.altKey && !e.metaKey && (e.key === "v" || e.key === "V")) {
-        e.preventDefault();
-        globalCommandBus?.execute?.("common.edit.paste");
-        return;
       } else if (e.ctrlKey && e.altKey && !e.metaKey && (e.key === "v" || e.key === "V")) {
         e.preventDefault();
         globalCommandBus?.execute?.("sheet.edit.pasteSpecial");
-        return;
-      } else if (e.ctrlKey && !e.altKey && !e.metaKey && (e.key === "x" || e.key === "X")) {
-        e.preventDefault();
-        globalCommandBus?.execute?.("common.edit.cut");
         return;
       } else if (e.ctrlKey && !e.altKey && !e.metaKey && e.key === "1") {
         e.preventDefault();
@@ -6718,7 +6779,7 @@ export class SheetGridController {
     }).join("");
   }
 
-  applyPasteSpecial(clipboard, mode = "all", destination = this.selectedCoord) {
+  applyPasteSpecial(clipboard, mode = "all", destination = this.selectedCoord, options = {}) {
     if (!clipboard?.cells?.length || !destination) return false;
     const sourceRows = clipboard.cells;
     const transpose = mode === "transpose";
@@ -6730,6 +6791,20 @@ export class SheetGridController {
     const sourceStartRow = Number(clipboard.range?.start?.r || 1);
     const destStartCol = this._columnNumber(destination.c);
 
+    const moveRange = options.moveRange && options.sourceSheet === this.activeSheet
+      ? this._normalizeRange(options.moveRange)
+      : null;
+    if (moveRange && mode === "all") {
+      for (let row = moveRange.start.r; row <= moveRange.end.r; row++) {
+        for (let col = this._columnNumber(moveRange.start.c); col <= this._columnNumber(moveRange.end.c); col++) {
+          const coord = `${this._columnLabel(col)}${row}`;
+          const existing = structuredClone(this.cellsData.get(coord) || { val: "", formula: "", style: {} });
+          before[coord] = existing;
+          after[coord] = { val: "", formula: "", style: structuredClone(existing.style || {}) };
+        }
+      }
+    }
+
     for (let rowOffset = 0; rowOffset < height; rowOffset++) {
       for (let colOffset = 0; colOffset < width; colOffset++) {
         const source = structuredClone(transpose ? sourceRows[colOffset][rowOffset] : sourceRows[rowOffset][colOffset]);
@@ -6738,7 +6813,7 @@ export class SheetGridController {
         if (destColNumber < 1 || destColNumber > this.cols.length || destRow < 1 || destRow > this.rowCount) continue;
         const coord = `${this._columnLabel(destColNumber)}${destRow}`;
         const existing = structuredClone(this.cellsData.get(coord) || { val: "", formula: "", style: {} });
-        before[coord] = existing;
+        if (!Object.prototype.hasOwnProperty.call(before, coord)) before[coord] = existing;
         let next = structuredClone(existing);
         if (mode === "formats") {
           next.style = structuredClone(source.style || {});
@@ -6755,11 +6830,11 @@ export class SheetGridController {
           next.formula = formula;
           if (mode !== "formulas") next.style = structuredClone(source.style || {});
         }
-        this.cellsData.set(coord, next);
         after[coord] = structuredClone(next);
       }
     }
     if (!Object.keys(after).length) return false;
+    for (const [coord, item] of Object.entries(after)) this.cellsData.set(coord, item);
     this._recordHistory({ type: "batch-cells", sheet: this.activeSheet, before, after });
     this._recalculateAllFormulas();
     this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
@@ -6900,7 +6975,13 @@ export class SheetGridController {
     const form = overlay.querySelector(".vno-paste-special-dialog");
     const paste = () => {
       const mode = form.querySelector('input[name="paste-special-mode"]:checked')?.value || "all";
-      this.applyPasteSpecial(clipboard, mode);
+      const cut = !!clipboard.sourceSheet && clipboard.sourceSheet === this.activeSheet &&
+        this._clipboardRange?.mode === "cut" && this._clipboardRange.sheet === this.activeSheet;
+      const applied = this.applyPasteSpecial(clipboard, mode, this.selectedCoord, {
+        moveRange: cut ? this._clipboardRange.range : null,
+        sourceSheet: clipboard.sourceSheet
+      });
+      if (applied && cut) this.clearClipboardRange();
       overlay.closeDialog();
     };
     form.addEventListener("submit", event => { event.preventDefault(); paste(); });
@@ -8319,10 +8400,11 @@ export class SheetGridController {
         if (!snap) {
           this.cellsData.delete(coord);
         } else {
-          const itm = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
-          itm.val = snap.val ?? "";
-          itm.formula = snap.formula ?? "";
-          itm.style = structuredClone(snap.style || {});
+          const itm = {
+            val: snap.val ?? "",
+            formula: snap.formula ?? "",
+            style: structuredClone(snap.style || {})
+          };
           this.cellsData.set(coord, itm);
         }
         const [c, r] = this._splitCoord(coord);

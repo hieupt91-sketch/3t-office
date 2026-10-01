@@ -140,6 +140,15 @@ export class ShortcutManager {
 
     // Guard: single keys without modifier in text inputs or contenteditable must type/delete naturally
     const target = e.target;
+    // Writer contenteditable hosts receive native ClipboardEvents. Keep their
+    // Ctrl+C/X/V in the trusted browser path; Sheet routes those shortcuts to
+    // its grid adapter because a focused, noneditable grid has no text selection.
+    const clipboardRoot = target?.closest?.("[data-vno-native-clipboard]");
+    const nativeClipboardTarget = !!clipboardRoot?.isContentEditable;
+    const textControlTarget = !!target?.matches?.("input:not([type='button']):not([type='checkbox']):not([type='radio']),textarea");
+    if ((nativeClipboardTarget || textControlTarget) && /^CTRL\+(X|C|V)$/.test(combo)) {
+      return;
+    }
     const isInput = target && (target.isContentEditable || target.tagName === "INPUT" || target.tagName === "TEXTAREA");
     if (isInput && !e.ctrlKey && !e.altKey && !e.metaKey) {
       return;
