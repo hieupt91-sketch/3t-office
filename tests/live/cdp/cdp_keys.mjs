@@ -34,11 +34,24 @@ export async function runKeysProbe(session) {
     };
   }
   if (app === "slides") {
-    await click(cdp, ".vno-slide-canvas");
+    const selector = await cdp.evaluate(
+      "document.querySelector('.vno-slide-title') ? '.vno-slide-title'"
+      + " : document.querySelector('.vno-slide-body') ? '.vno-slide-body' : ''",
+    );
+    if (!selector) return { pass: false, detail: "No editable slide title or body was available for keyboard verification." };
+    await click(cdp, selector);
+    await typeText(cdp, "CDPSlideEnterA");
     await press(cdp, "Enter");
+    await typeText(cdp, "CDPSlideEnterB");
     await press(cdp, "Tab");
-    const exists = await cdp.evaluate("!!document.querySelector('.vno-slide-canvas')");
-    return { pass: exists, detail: "Enter and Tab reached the 3T Slide canvas without closing the document." };
+    const state = await cdp.evaluate(
+      "(() => ({text:document.querySelector(" + JSON.stringify(selector) + ")?.innerText || '',"
+      + " canvas:!!document.querySelector('.vno-slide-canvas'), active:document.activeElement?.className || ''}))()",
+    );
+    return {
+      pass: state.canvas && state.text.includes("CDPSlideEnterA") && state.text.includes("CDPSlideEnterB"),
+      detail: JSON.stringify(state),
+    };
   }
   throw new Error("Unsupported app: " + app);
 }
@@ -73,12 +86,29 @@ export async function runClipboardProbe(session) {
     await press(cdp, "Enter");
     await click(cdp, '[data-coord="A1"]');
     await press(cdp, "c", { ctrl: true });
+    await cdp.waitFor(
+      "document.querySelector('[data-coord=\"A1\"]')?.textContent?.trim() === 'Clipboard'",
+      { timeoutMilliseconds: 5000 },
+    );
     await click(cdp, '[data-coord="B1"]');
     await press(cdp, "v", { ctrl: true });
+    await cdp.waitFor(
+      "document.querySelector('[data-coord=\"B1\"]')?.textContent?.trim() === 'Clipboard'",
+      { timeoutMilliseconds: 5000 },
+    );
     await click(cdp, '[data-coord="B1"]');
     await press(cdp, "x", { ctrl: true });
+    await cdp.waitFor(
+      "document.querySelector('[data-coord=\"B1\"]')?.classList.contains('is-cut-source')",
+      { timeoutMilliseconds: 5000 },
+    );
     await click(cdp, '[data-coord="C1"]');
     await press(cdp, "v", { ctrl: true });
+    await cdp.waitFor(
+      "document.querySelector('[data-coord=\"B1\"]')?.textContent?.trim() === ''"
+      + " && document.querySelector('[data-coord=\"C1\"]')?.textContent?.trim() === 'Clipboard'",
+      { timeoutMilliseconds: 5000 },
+    );
     const state = await cdp.evaluate(
       "(() => { const get = c => document.querySelector('[data-coord=\"' + c + '\"]')?.textContent?.trim() || '';"
       + " return {a1:get('A1'), b1:get('B1'), c1:get('C1')}; })()",
@@ -101,16 +131,33 @@ export async function runClipboardProbe(session) {
     );
     if (!selected) return { pass: false, detail: "Could not select text inside the slide placeholder." };
     await press(cdp, "c", { ctrl: true });
+    const clipboardHasMarker = await cdp.evaluate(
+      "(async () => { const data = await window.pywebview.api.read_clipboard_data();"
+      + " return String(data?.text || '').includes('CDPSlideClipboard'); })()",
+    );
     await press(cdp, "x", { ctrl: true });
     const afterCut = await cdp.evaluate("document.querySelector(" + JSON.stringify(selector) + ")?.innerText || ''");
-    await click(cdp, selector);
-    await press(cdp, "End");
+    await cdp.waitFor(
+      "!document.querySelector(" + JSON.stringify(selector) + ")?.innerText?.includes('CDPSlideClipboard')",
+      { timeoutMilliseconds: 5000 },
+    );
+    const caretReady = await cdp.evaluate(
+      "(() => { const node = document.querySelector(" + JSON.stringify(selector) + ");"
+      + " if (!node?.isContentEditable) return false; node.focus();"
+      + " const range = document.createRange(); range.selectNodeContents(node); range.collapse(false);"
+      + " const selection = getSelection(); selection.removeAllRanges(); selection.addRange(range);"
+      + " return document.activeElement === node || node.contains(document.activeElement); })()",
+    );
+    if (!caretReady) return { pass: false, detail: "Could not restore the slide text caret after Cut." };
     await press(cdp, "v", { ctrl: true });
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await cdp.waitFor(
+      "document.querySelector(" + JSON.stringify(selector) + ")?.innerText?.includes('CDPSlideClipboard')",
+      { timeoutMilliseconds: 5000 },
+    ).catch(() => false);
     const afterPaste = await cdp.evaluate("document.querySelector(" + JSON.stringify(selector) + ")?.innerText || ''");
     return {
-      pass: afterPaste.includes("CDPSlideClipboard") && afterCut.length < afterPaste.length,
-      detail: JSON.stringify({ afterCut, afterPaste }),
+      pass: clipboardHasMarker && caretReady && afterPaste.includes("CDPSlideClipboard") && afterCut.length < afterPaste.length,
+      detail: JSON.stringify({ clipboardHasMarker, caretReady, afterCutLength: afterCut.length, afterPasteLength: afterPaste.length }),
     };
   }
   throw new Error("Unsupported app: " + app);

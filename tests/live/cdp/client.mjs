@@ -123,7 +123,7 @@ export async function connectToPort(port, options = {}) {
       const pages = targets.filter(target => target.type === "page");
       const target = options.targetId
         ? pages.find(page => page.id === options.targetId)
-        : pages.find(page => /127\\.0\\.0\\.1|localhost/.test(page.url || "")) || pages[0];
+        : pages.find(page => /127\.0\.0\.1|localhost/.test(page.url || "")) || pages[0];
       if (target) return await new CdpClient(target).open();
     } catch (error) {
       lastError = error;

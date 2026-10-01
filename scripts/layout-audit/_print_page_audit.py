@@ -120,6 +120,7 @@ def _run_one(output_dir: Path, source: Path) -> dict[str, Any]:
     result: dict[str, Any] = {
         "file": source.name,
         "app": app,
+        "app_status": "NOT RUN",
         "office_status": "NOT RUN",
         "office_pages": None,
         "office_detail": "",
@@ -130,16 +131,24 @@ def _run_one(output_dir: Path, source: Path) -> dict[str, Any]:
 
     app_result = _run_app_audit(app, source, pdf)
     result.update(app_result)
-    if app_result.get("status") != "PASS":
-        result["seconds"] = round(time.monotonic() - started, 1)
-        return result
-
     office_status, office_pages, office_detail = _run_office_oracle(app, source)
     result.update({
+        "app_status": app_result.get("status", "FAIL"),
         "office_status": office_status,
         "office_pages": office_pages,
         "office_detail": office_detail,
     })
+    if app_result.get("status") != "PASS":
+        result["status"] = app_result.get("status", "FAIL")
+        result["seconds"] = round(time.monotonic() - started, 1)
+        print(
+            source.name, result["status"],
+            "Office=" + str(office_pages),
+            "app=" + str(result["app_status"]),
+            "seconds=" + str(result["seconds"]),
+            flush=True,
+        )
+        return result
     try:
         reference_pages = int(office_pages)
         result["print_delta_vs_office"] = int(result["print_pages"]) - reference_pages
@@ -150,11 +159,12 @@ def _run_one(output_dir: Path, source: Path) -> dict[str, Any]:
         result["export_delta_vs_office"] = None
         result["print_export_delta"] = int(result["print_pages"]) - int(result["export_pages"])
     result["seconds"] = round(time.monotonic() - started, 1)
-    if office_status == "FAIL":
-        result["status"] = "FAIL"
+    if office_status in {"FAIL", "BLOCKED"}:
+        result["status"] = office_status
     print(
         source.name,
         result.get("status"),
+        "app=" + str(result.get("app_status")),
         "Office=" + str(office_pages),
         "print=" + str(result.get("print_pages")),
         "PDF=" + str(result.get("export_pages")),
@@ -171,7 +181,7 @@ def _write_reports(output_dir: Path, results: list[dict[str, Any]]) -> None:
         json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8",
     )
     columns = [
-        "app", "file", "status", "office_status", "office_pages",
+        "app", "file", "status", "app_status", "office_status", "office_pages",
         "canvas_pages", "print_pages", "export_pages",
         "print_delta_vs_office", "export_delta_vs_office", "print_export_delta", "app_print_engine", "seconds",
     ]

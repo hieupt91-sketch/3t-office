@@ -1,12 +1,13 @@
 param([Parameter(Mandatory=$true)][string]$File, [int]$Retries = 20, [int]$RetryDelayMilliseconds = 500)
 $ErrorActionPreference = "Stop"
 
-function Invoke-ComWithRetry([scriptblock]$Action, [string]$Operation) {
-  for ($attempt = 0; $attempt -le $Retries; $attempt++) {
+function Invoke-ComWithRetry([scriptblock]$Action, [string]$Operation, [int]$TransientRetries = 0, [int[]]$TransientHResults = @()) {
+  for ($attempt = 0; ; $attempt++) {
     try { return (& $Action) }
     catch {
       $hr = $_.Exception.HResult
-      if ($hr -ne -2147418111 -or $attempt -ge $Retries) {
+      $retryLimit = if ($hr -eq -2147418111) { $Retries } elseif ($TransientHResults -contains $hr) { $TransientRetries } else { -1 }
+      if ($retryLimit -lt 0 -or $attempt -ge $retryLimit) {
         throw ("{0}: {1}" -f $Operation, $_.Exception.Message)
       }
       Start-Sleep -Milliseconds $RetryDelayMilliseconds
@@ -43,7 +44,7 @@ try {
   $fullPath = (Resolve-Path -LiteralPath $File).Path
   $presentation = Invoke-ComWithRetry { $powerpoint.Presentations.Open($fullPath, -1, 0, 0) } "Open presentation"
   $slideCount = [int](Invoke-ComWithRetry { $presentation.Slides.Count } "Read slide count")
-  Invoke-ComWithRetry { $presentation.ExportAsFixedFormat($pdf, 2) } "Export presentation PDF" | Out-Null
+  Invoke-ComWithRetry { $presentation.SaveAs($pdf, 32) } "Export presentation PDF" 2 @(-2147467259) | Out-Null
   $bytes = [System.IO.File]::ReadAllBytes($pdf)
   $text = [System.Text.Encoding]::GetEncoding(28591).GetString($bytes)
   $pageCount = ([regex]::Matches($text, "/Type\s*/Page\b")).Count

@@ -222,10 +222,10 @@ async function exerciseApp(app) {
   } catch (error) {
     for (const item of [
       "startup typing", "Enter/Tab", "Ctrl+C/X/V", "type detection", "formula point mode",
-      "New/Open/Save/Save As", "Print to PDF",
+      "Writer Tab character insertion", "New/Open/Save/Save As", "Print to PDF",
     ]) {
       const relevant = (app !== "sheet" && ["type detection", "formula point mode"].includes(item))
-        || (app !== "writer" && item === "Enter/Tab" && app === "slides");
+        || (app !== "writer" && item === "Writer Tab character insertion");
       report(relevant ? "N/A" : "BLOCKED", prefix + " " + item, relevant ? "App-specific behavior." : error?.message || error);
     }
     return;
@@ -292,7 +292,11 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
       report("FAIL", "Desktop regression argument", "Unknown app: " + app);
       continue;
     }
-    await exerciseApp(app);
+    try {
+      await exerciseApp(app);
+    } catch (error) {
+      report("FAIL", appLabels[app] + " unexpected regression error", error?.stack || error);
+    }
   }
   const widths = {
     status: Math.max(6, ...rows.map(row => row.status.length)),

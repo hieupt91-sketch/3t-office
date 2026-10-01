@@ -29,6 +29,8 @@ export async function launchApp(app, options = {}) {
     WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: "--remote-debugging-port=" + debugPort,
   };
   const child = spawn(python, args, { cwd: root, env, stdio: ["ignore", "pipe", "pipe"] });
+  let spawnError = null;
+  child.once("error", error => { spawnError = error; });
   let output = "";
   const append = chunk => {
     output = (output + chunk.toString()).slice(-30000);
@@ -39,6 +41,7 @@ export async function launchApp(app, options = {}) {
   const session = {
     app, root, debugPort, profileRoot, localAppData, child, exited,
     get output() { return output; },
+    get spawnError() { return spawnError; },
     cdp: null,
     async close() { await closeApp(session); },
   };
@@ -47,6 +50,9 @@ export async function launchApp(app, options = {}) {
     const readyAt = Date.now();
     let endpointReady = false;
     while (Date.now() - readyAt < (options.startTimeoutMilliseconds || 90000)) {
+      if (spawnError) {
+        throw new Error("Could not start " + python + ": " + spawnError.message);
+      }
       if (child.exitCode !== null) {
         throw new Error("main.py exited with code " + child.exitCode + "\n" + output);
       }
@@ -102,7 +108,7 @@ async function closeApp(session) {
   } catch {}
   if (cdp) await cdp.close().catch(() => {});
 
-  if (child && child.exitCode === null && child.signalCode === null) {
+  if (child && child.pid != null && child.exitCode === null && child.signalCode === null) {
     await Promise.race([session.exited, sleep(10000)]);
     if (child.exitCode === null && child.signalCode === null) {
       // Only the Python process launched by this harness is ever stopped here.
@@ -110,7 +116,8 @@ async function closeApp(session) {
       await Promise.race([session.exited, sleep(5000)]);
     }
   }
-  if (profileRoot && (child?.exitCode !== null || child?.signalCode !== null || !child)) {
+  const stopped = !child || child.pid == null || child.exitCode !== null || child.signalCode !== null;
+  if (profileRoot && stopped) {
     await rm(profileRoot, { recursive: true, force: true }).catch(() => {});
   }
 }

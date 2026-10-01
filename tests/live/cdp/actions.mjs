@@ -1,3 +1,5 @@
+import { sleep } from "./client.mjs";
+
 const modifierBits = { alt: 1, ctrl: 2, meta: 4, shift: 8 };
 const specialKeys = {
   Enter: { code: "Enter", keyCode: 13, text: "\r" },
@@ -37,7 +39,7 @@ function modifierMask(modifiers = {}) {
   ), 0);
 }
 
-export async function press(cdp, key, modifiers = {}) {
+export async function press(cdp, key, modifiers = {}, settleMilliseconds = 250) {
   const info = keyInfo(key);
   const mask = modifierMask(modifiers);
   const text = mask ? "" : info.text;
@@ -50,6 +52,7 @@ export async function press(cdp, key, modifiers = {}) {
     type: "keyUp", key: info.key, code: info.code,
     windowsVirtualKeyCode: info.keyCode, modifiers: mask,
   });
+  if (settleMilliseconds > 0) await sleep(settleMilliseconds);
 }
 
 export async function typeText(cdp, value, delayMilliseconds = 50) {
@@ -66,6 +69,7 @@ export async function typeText(cdp, value, delayMilliseconds = 50) {
     });
     if (delayMilliseconds > 0) await new Promise(resolve => setTimeout(resolve, delayMilliseconds));
   }
+  await sleep(300);
 }
 
 export async function click(cdp, selector, index = 0) {
@@ -83,6 +87,7 @@ export async function click(cdp, selector, index = 0) {
 export async function mouseClick(cdp, x, y) {
   await cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", buttons: 1, clickCount: 1 });
   await cdp.send("Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", buttons: 0, clickCount: 1 });
+  await sleep(300);
 }
 
 export async function drag(cdp, fromSelector, toSelector) {
@@ -104,6 +109,7 @@ export async function drag(cdp, fromSelector, toSelector) {
     });
   }
   await cdp.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: end.x, y: end.y, button: "left", buttons: 0 });
+  await sleep(300);
   return { start, end };
 }
 

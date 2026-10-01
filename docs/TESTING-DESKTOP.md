@@ -54,7 +54,7 @@ Một entry point dùng chung cho DOCX/XLSX/PPTX:
 
 xlsx mặc định đọc file test/lan. all ghi chung một batch_document_audit_report.md. Hai lệnh cũ _batch_audit.py và _batch_writer.py vẫn tồn tại làm entry tương thích và chuyển tiếp vào lệnh chung. Linter XLSX đọc XML theo namespace, nên <row/> hợp lệ và thẻ shared-string có prefix như <x:si> không bị báo giả.
 
-pptx đã có hook ổn định tại scripts/layout-audit/_batch_pptx.py:run_batch(root, input_dir, out_dir, names). CH-5 bổ sung phần thực thi của hook; trước đó báo cáo sẽ ghi rõ BLOCKED.
+Chế độ pptx nạp hook scripts/layout-audit/_batch_pptx.py với hàm run_batch(root, input_dir, out_dir, names). CH-5 cần bổ sung module hook này; nếu chưa có, báo cáo ghi rõ BLOCKED.
 
 So sánh số trang của ba app với Office:
 

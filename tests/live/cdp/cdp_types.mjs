@@ -14,12 +14,20 @@ export async function runTypeProbe(session) {
     + " const coords = ['A1','A2','A3','A4','A5','A6'];"
     + " return coords.map(c => { const model = grid?.cellsData?.get(c);"
     + " const el = document.querySelector('[data-coord=\"' + c + '\"]');"
-    + " return {coord:c, value:model?.val ?? el?.innerText ?? '', formula:model?.formula || '',"
-    + " dataType:model?.dataType || '', numberFormat:model?.style?.numberFormat || ''}; }); })()",
+    + " const value = model?.val ?? el?.innerText ?? '';"
+    + " return {coord:c, value, valueType:typeof value, formula:model?.formula || '',"
+    + " dataType:model?.dataType || '', numberFormat:model?.style?.numberFormat || null,"
+    + " formatCategory:model?.style?.numberFormat?.category || ''}; }); })()",
   );
-  const valuesOk = state?.length === 6
-    && String(state[0].value).includes("1234.56")
-    && String(state[4].value).toLowerCase().includes("abc")
-    && String(state[5].value).includes("0123");
-  return { pass: Boolean(valuesOk), detail: JSON.stringify(state) };
+  const detected = {
+    numberDetected: state?.[0]?.valueType === "number" && Number(state[0].value) === 1234.56,
+    dateDetected: state?.[1]?.valueType === "number" && state[1].formatCategory === "date",
+    timeDetected: state?.[2]?.valueType === "number" && state[2].formatCategory === "time",
+    percentageDetected: state?.[3]?.valueType === "number"
+      && Math.abs(Number(state[3].value) - 0.25) < 0.000001
+      && state[3].formatCategory === "percentage",
+    textPreserved: state?.[4]?.valueType === "string" && String(state[4].value).toLowerCase() === "abc",
+    leadingZeroPreserved: state?.[5]?.valueType === "string" && String(state[5].value) === "0123",
+  };
+  return { pass: Object.values(detected).every(Boolean), detail: JSON.stringify({ detected, state }) };
 }
