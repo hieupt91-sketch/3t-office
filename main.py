@@ -95,6 +95,7 @@ if _early_forward_if_running(sys.argv[1:]):
     raise SystemExit(0)
 
 import webview
+from adapters.libreoffice.common.document_open_errors import is_password_protected_ooxml, open_failure_message
 from adapters.error_reporting import ErrorReporter, load_client_config
 from adapters.updater import UpdaterManager
 from adapters.updater.trust import get_public_key
@@ -2875,6 +2876,12 @@ class VnOfficeApi:
             ("slides", ".odp"): "application/vnd.oasis.opendocument.presentation",
         }
         key = (app_kind, extension)
+        document_label = {"writer": "Tài liệu", "sheet": "Sổ làm việc", "slides": "Bản trình chiếu"}.get(app_kind, "Tài liệu")
+        source = Path(str(source_path))
+        if not source.exists():
+            raise DocumentEngineError(open_failure_message(source, FileNotFoundError(str(source)), document_label=document_label))
+        if source.with_name("~$" + source.name).exists():
+            raise DocumentEngineError(open_failure_message(source, "file is locked by an Office owner file", document_label=document_label))
         if key not in ooxml and key not in odf_media_types:
             return
 
@@ -2884,6 +2891,8 @@ class VnOfficeApi:
             # A legacy binary file saved with an OOXML/ODF extension: Word/Excel and
             # LibreOffice detect the real format, so let the engine decide.
             if signature == b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1":
+                if key in ooxml and is_password_protected_ooxml(source_path):
+                    raise DocumentEngineError(open_failure_message(source_path, "password-protected encrypted OOXML", document_label=document_label))
                 return
             with zipfile.ZipFile(source_path) as package:
                 members = set(package.namelist())
@@ -2949,7 +2958,8 @@ class VnOfficeApi:
         try:
             self._validate_open_package(src_path, app_kind)
         except DocumentEngineError as exc:
-            return {"status": "error", "message": str(exc)}
+            label = {"writer": "Tài liệu", "sheet": "Sổ làm việc", "slides": "Bản trình chiếu"}.get(app_kind, "Tài liệu")
+            return {"status": "error", "message": open_failure_message(src_path, exc, document_label=label)}
 
         if app_kind == "writer":
             target_ext = "html"
@@ -3081,7 +3091,8 @@ class VnOfficeApi:
                     # p:showPr showNarration=0 or p:penClr.
                     content = _apply_native_import_overlay(src_path, content, app_kind)
         except DocumentEngineError as exc:
-            return {"status": "error", "message": str(exc)}
+            label = {"writer": "Tài liệu", "sheet": "Sổ làm việc", "slides": "Bản trình chiếu"}.get(app_kind, "Tài liệu")
+            return {"status": "error", "message": open_failure_message(src_path, exc, document_label=label)}
 
         payload = {
             "status": "ok",

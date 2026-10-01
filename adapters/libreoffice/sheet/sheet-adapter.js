@@ -4,6 +4,7 @@
  */
 
 import { globalUnoBridge } from "../common/uno-bridge.js";
+import { getOpenErrorMessage } from "../common/document-open-errors.js";
 import { showAlertDialog, showPromptDialog, showFindReplaceDialog } from "../../../platform/ui-kit/dialogs.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
 import { openPrintDialog } from "../../../platform/print/print-dialog.js";
@@ -5372,7 +5373,7 @@ ${pristineXlsxMarker}
       }
       if (result?.status === "cancelled") return false;
       if (result?.status === "error") {
-        await showAlertDialog({ title: "Không thể mở tệp", message: result.message, type: "error" });
+        await showAlertDialog({ title: "Không thể mở tệp", message: getOpenErrorMessage(result.message, "Sổ làm việc"), type: "error" });
         return false;
       }
       if (result?.status !== "ok") throw new Error("Phản hồi mở tệp không hợp lệ.");
@@ -5416,7 +5417,7 @@ ${pristineXlsxMarker}
       this.isDirty = false;
       this.shell?.resetDocumentChrome?.(result.fileName || "Bảng tính 1.xlsx", null, true, result.sourcePath || "");
       return true;
-    } catch {
+    } catch (error) {
       try {
         if (previous?.content) this.loadFromFods(previous.content);
       } catch (restoreError) {
@@ -5432,7 +5433,7 @@ ${pristineXlsxMarker}
       this.shell?.setStatus?.("Không thể mở tệp. Sổ làm việc đang mở được giữ nguyên.");
       await showAlertDialog({
         title: "Không thể mở tệp",
-        message: "3T Sheet không thể nạp bảng tính bằng dữ liệu chính hoặc bản FODS dự phòng. Sổ làm việc đang mở được giữ nguyên.",
+        message: getOpenErrorMessage(error, "Sổ làm việc"),
         type: "error"
       });
       return false;

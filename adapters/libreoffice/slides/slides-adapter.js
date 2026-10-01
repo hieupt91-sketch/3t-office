@@ -4,6 +4,7 @@
  */
 
 import { globalUnoBridge } from "../common/uno-bridge.js";
+import { getOpenErrorMessage } from "../common/document-open-errors.js";
 import { showAlertDialog, showFindReplaceDialog } from "../../../platform/ui-kit/dialogs.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
 import { openPrintDialog } from "../../../platform/print/print-dialog.js";
@@ -3723,7 +3724,7 @@ export class SlidesAdapter {
         this.isDirty = previous.isDirty;
         await showAlertDialog({
           title: "Không thể mở tệp",
-          message: error?.message || "3T Slide không thể đọc nội dung tệp. Bản trình chiếu đang mở được giữ nguyên.",
+          message: getOpenErrorMessage(error, "Bản trình chiếu"),
           type: "error"
         });
         return false;
@@ -3738,7 +3739,7 @@ export class SlidesAdapter {
       return true;
     }
     if (result.status === "cancelled") return false;
-    await showAlertDialog({ title: "Không thể mở tệp", message: result.message, type: "error" });
+    await showAlertDialog({ title: "Không thể mở tệp", message: getOpenErrorMessage(result.message, "Bản trình chiếu"), type: "error" });
     return false;
   }
 
