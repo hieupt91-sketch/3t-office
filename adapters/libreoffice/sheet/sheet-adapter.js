@@ -521,14 +521,16 @@ export class SheetAdapter {
     try {
       showFindReplaceDialog({
         isReplace: !!isReplace,
-        onFind: (text) => this.grid.findNext ? this.grid.findNext(text) : false,
-        onReplace: (findText, replaceText) => {
+        app: "sheet",
+        onFind: (text, options) => this.grid.findNext ? this.grid.findNext(text, options) : false,
+        onFindPrev: (text, options) => this.grid.findPrev ? this.grid.findPrev(text, options) : false,
+        onReplace: (findText, replaceText, options) => {
           if (!findText) return false;
-          return this.grid.replaceOne ? this.grid.replaceOne(findText, replaceText) : false;
+          return this.grid.replaceOne ? this.grid.replaceOne(findText, replaceText, options) : false;
         },
-        onReplaceAll: (findText, replaceText) => {
+        onReplaceAll: (findText, replaceText, options) => {
           if (!findText) return 0;
-          return this.grid.replaceAll ? this.grid.replaceAll(findText, replaceText) : 0;
+          return this.grid.replaceAll ? this.grid.replaceAll(findText, replaceText, options) : 0;
         }
       });
     } catch (_) {

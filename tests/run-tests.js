@@ -154,6 +154,7 @@ import { runSheetRangeSelectionTests } from "./unit/sheet-range-selection.test.j
 import { runSlidesPptxSetupShowOpenOverlayTests } from "./unit/slides-pptx-setup-show-open-overlay.test.js";
 import { runWriterParagraphSpacingTests } from "./unit/writer-paragraph-spacing.test.js";
 import { runWriterFindReplaceDomTests } from "./unit/writer-find-replace-dom.test.js";
+import { runSharedFindReplaceTests } from "./unit/find-replace-shared.test.js";
 import { runWriterLineNumbersTests } from "./unit/writer-line-numbers.test.js";
 import { runSheetCellOrientationTests } from "./unit/sheet-cell-orientation.test.js";
 import { runWriterMultilevelListTests } from "./unit/writer-multilevel-list.test.js";
@@ -206,6 +207,8 @@ import { runBasicEditingKeysTests } from "./unit/basic-editing-keys.test.js";
 import { runCh9AutoRecoverTests } from "./unit/ch9-autorecover.test.js";
 import { runCh9ProcessCleanupTests } from "./unit/ch9-process-cleanup.test.js";
 import { runCh9PerformanceLogTests } from "./unit/ch9-performance-log.test.js";
+import { runUiConsistencyAndStringScannerTests } from "./unit/ui-user-visible-strings.test.js";
+import { runOsInputGuardTests } from "./unit/os-input-guard.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -419,9 +422,12 @@ async function runAll() {
     { title: "165. Unit Tests — Slides F5 Pen and Laser Pointer (Ctrl+P, Ctrl+L, Ctrl+A, E, Color, Keep/Discard ink)", runner: runSlidesPenLaserTests },
     { title: "166. Unit Tests — VN Sheet range selection anchors, multi-area status and drag auto-scroll math", runner: runSheetRangeSelectionTests },
     { title: "167. Unit Tests — 3T Doc and 3T Sheet basic editing keys and clipboard", runner: runBasicEditingKeysTests },
-    { title: "168. CH-9.2 — AutoRecover 2 phút, dialog và Help cho 3 app", runner: runCh9AutoRecoverTests },
-    { title: "169. CH-9.4 — PID ledger, orphan sweep an toàn và Help", runner: runCh9ProcessCleanupTests },
-    { title: "170. CH-9.5 — JSONL hiệu năng, Options bridge, rotation và Help", runner: runCh9PerformanceLogTests }
+    { title: "168. Unit Tests — Shared Find and Replace (CH-7.1) for 3T Doc, 3T Sheet and 3T Slide", runner: runSharedFindReplaceTests },
+    { title: "169. Unit Tests — CH-8 UI Consistency, KeyTips, Contextual F1 & String Scanner", runner: runUiConsistencyAndStringScannerTests },
+    { title: "170. Safety Regression — source and tests use CDP, not OS-level input", runner: runOsInputGuardTests },
+    { title: "171. CH-9.2 — AutoRecover 2 phút, dialog và Help cho 3 app", runner: runCh9AutoRecoverTests },
+    { title: "172. CH-9.4 — PID ledger, orphan sweep an toàn và Help", runner: runCh9ProcessCleanupTests },
+    { title: "173. CH-9.5 — JSONL hiệu năng, Options bridge, rotation và Help", runner: runCh9PerformanceLogTests }
   ];
 
   for (const suite of suites) {

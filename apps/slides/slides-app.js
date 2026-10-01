@@ -56,10 +56,14 @@ export class SlidesApp {
       isDemoTemplate: templateId === "presentation_outline",
       isBlankTemplate: isBlank,
       onDocumentChange: () => { if (this.adapter) this.adapter.isDirty = true; },
+      onZoomChange: (level) => this.shell?.setZoomDisplay?.(Math.round(level * 100)),
       onChange: (current, total) => {
         this.shell.setStatus(`Trang chiếu ${current} / ${total}  |  Tỷ lệ 16:9 HD  |  Tiếng Việt`);
       }
     });
+    this.shell.onZoomChange = (percent) => {
+      this.canvasController.setZoom(percent / 100);
+    };
     this.canvasController.mount();
 
     this.workspace = workspace;

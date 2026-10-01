@@ -8,6 +8,7 @@ import { searchHelpEntries } from "../../platform/help/help-service.js";
 import { WRITER_HELP_ENTRIES } from "../../platform/help/entries-writer.js";
 import { SHEET_HELP_ENTRIES } from "../../platform/help/entries-sheet.js";
 import { AUTORECOVER_HELP_ENTRIES } from "../../platform/help/entries-autorecover.js";
+import { LAUNCHER_HELP_ENTRIES } from "../../platform/help/entries-launcher.js";
 
 export async function runHelpCoverageTests() {
   const results = [];
@@ -137,6 +138,28 @@ export async function runHelpCoverageTests() {
       const result = searchHelpEntries("tự động khôi phục", { app });
       if (!result.some((candidate) => candidate.id === entry.id)) {
         throw new Error(`Không tìm thấy bài AutoRecover tiếng Việt cho ${app}.`);
+      }
+    }
+  });
+
+  await test("Help Coverage: có hướng dẫn mở Doc, Sheet và Slide từ Start Menu hoặc Desktop", () => {
+    const expected = [
+      { app: "writer", name: "Doc" },
+      { app: "sheet", name: "Sheet" },
+      { app: "slides", name: "Slide" }
+    ];
+    for (const { app, name } of expected) {
+      const entry = LAUNCHER_HELP_ENTRIES.find((candidate) => candidate.app === app);
+      if (!entry || !entry.title.includes(name)) throw new Error(`Thiếu bài Help mở ${name}.`);
+      if (!entry.summary.includes("Start Menu > 3T Office") || !entry.summary.includes("Màn hình nền")) {
+        throw new Error(`Bài Help ${name} phải nêu đúng thư mục Start Menu và Desktop.`);
+      }
+      if (!entry.steps.some((step) => step.includes(`rồi chọn ${name}`)) ||
+          !entry.steps.some((step) => step.includes(`${name} trên Màn hình nền`))) {
+        throw new Error(`Bài Help ${name} thiếu các bước mở từ Start Menu hoặc Desktop.`);
+      }
+      if (!searchHelpEntries(`Mở ${name} từ lối tắt`, { app }).some((candidate) => candidate.id === entry.id)) {
+        throw new Error(`Không thể tìm bài Help mở ${name} trong ứng dụng ${app}.`);
       }
     }
   });

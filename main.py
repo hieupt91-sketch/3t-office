@@ -124,6 +124,9 @@ if _early_forward_if_running(sys.argv[1:]):
     raise SystemExit(0)
 
 import webview
+if os.environ.get("VNO_CDP_DEBUG_PORT"):
+    # Test-only WebView2/CDP access; production shortcuts leave this unset.
+    webview.settings["REMOTE_DEBUGGING_PORT"] = int(os.environ["VNO_CDP_DEBUG_PORT"])
 
 # ``platform`` is also a Python standard-library module, so load the shared
 # storage backend from its explicit path instead of shadowing that module.
@@ -286,8 +289,12 @@ _ERROR_REPORTER: object | None = None
 _ERROR_REPORT_CONTEXT = threading.local()
 _UPDATE_MANAGER: object | None = None
 _UPDATE_DATA_DIR: Path | None = None
+_UPDATE_HEALTH_TOKEN: str | None = None
+_UPDATE_HEALTH_FILE = ""
 _APP_WINDOW_APIS: dict[str, object] = {}
 _APP_WINDOW_LOCK = threading.RLock()
+_UPDATE_RESTART_CONDITION = threading.Condition()
+_UPDATE_RESTART_PENDING: dict[str, object] | None = None
 _DEFERRED_STARTUP_LOCK = threading.Lock()
 _DEFERRED_STARTUP_STARTED = False
 _BACKGROUND_SERVICES_READY = threading.Event()
@@ -380,6 +387,9 @@ def _initialize_deferred_services(api, app_kind: str, launch_args: list[str]) ->
                 on_state=_notify_update_ui,
             )
             _UPDATE_MANAGER.set_launch_args(launch_args)
+            # This function is entered only after the renderer's first paint. Start
+            # the first check here so it is independent of optional Help/UI imports.
+            _UPDATE_MANAGER.start()
         except Exception as exc:
             logging.getLogger("vnoffice.updater").debug("Updater initialization unavailable: %s", type(exc).__name__)
             _UPDATE_MANAGER = None
@@ -494,12 +504,130 @@ APP_TITLES = {
     "sheet": "3T Sheet — Bảng tính",
     "slides": "3T Slide — Trình chiếu",
 }
+TASKBAR_APP_USER_MODEL_IDS = {
+    "writer": "VNOffice.Writer",
+    "sheet": "VNOffice.Sheet",
+    "slides": "VNOffice.Slides",
+}
+TASKBAR_RELAUNCH_DISPLAY_NAMES = {"writer": "Doc", "sheet": "Sheet", "slides": "Slide"}
 SUITE_TITLE = "3T Office — Bộ Ứng Dụng Văn Phòng Việt"
 FILE_APP_KINDS = {
     ".docx": "writer", ".doc": "writer", ".odt": "writer", ".rtf": "writer", ".txt": "writer",
     ".xlsx": "sheet", ".xls": "sheet", ".ods": "sheet", ".csv": "sheet",
     ".pptx": "slides", ".ppt": "slides", ".odp": "slides",
 }
+
+
+def _taskbar_relaunch_info(app_kind: str) -> dict[str, str] | None:
+    """Return the stable per-app identity and short Windows taskbar relaunch label."""
+    app_user_model_id = TASKBAR_APP_USER_MODEL_IDS.get(app_kind)
+    display_name = TASKBAR_RELAUNCH_DISPLAY_NAMES.get(app_kind)
+    if not app_user_model_id or not display_name:
+        return None
+    command = subprocess.list2cmdline([
+        sys.executable,
+        "-s",
+        "-E",
+        str(Path(__file__).resolve()),
+        f"--app={app_kind}",
+    ])
+    return {
+        "app_user_model_id": app_user_model_id,
+        "display_name": display_name,
+        "command": command,
+    }
+
+
+def _set_windows_taskbar_relaunch_info(window, app_kind: str) -> bool:
+    """Set the window's explicit AppUserModelID and short taskbar relaunch name."""
+    if platform.system() != "Windows":
+        return False
+    info = _taskbar_relaunch_info(app_kind)
+    if info is None:
+        return False
+
+    class GUID(ctypes.Structure):
+        _fields_ = [
+            ("data1", ctypes.c_uint32),
+            ("data2", ctypes.c_uint16),
+            ("data3", ctypes.c_uint16),
+            ("data4", ctypes.c_ubyte * 8),
+        ]
+
+    class PROPERTYKEY(ctypes.Structure):
+        _fields_ = [("fmtid", GUID), ("pid", ctypes.c_uint32)]
+
+    class PROPVARIANT_VALUE(ctypes.Union):
+        _fields_ = [("pwszVal", ctypes.c_wchar_p), ("pointer", ctypes.c_void_p), ("padding", ctypes.c_uint64)]
+
+    class PROPVARIANT(ctypes.Structure):
+        _anonymous_ = ("value",)
+        _fields_ = [
+            ("vt", ctypes.c_ushort),
+            ("reserved1", ctypes.c_ushort),
+            ("reserved2", ctypes.c_ushort),
+            ("reserved3", ctypes.c_ushort),
+            ("value", PROPVARIANT_VALUE),
+        ]
+
+    property_format_id = GUID.from_buffer_copy(uuid.UUID("9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3").bytes_le)
+    property_store_iid = GUID.from_buffer_copy(uuid.UUID("886D8EEB-8CF2-4446-8D02-CDBA1DBDCF99").bytes_le)
+    property_values = (
+        (2, info["command"]),
+        (4, info["display_name"]),
+        (5, info["app_user_model_id"]),
+    )
+
+    property_store = ctypes.c_void_p()
+    try:
+        hwnd = int(window.native.Handle.ToInt64())
+        shell32 = ctypes.WinDLL("shell32", use_last_error=True)
+        get_property_store = shell32.SHGetPropertyStoreForWindow
+        get_property_store.argtypes = (
+            ctypes.c_void_p,
+            ctypes.POINTER(GUID),
+            ctypes.POINTER(ctypes.c_void_p),
+        )
+        get_property_store.restype = ctypes.c_long
+        result = get_property_store(hwnd, ctypes.byref(property_store_iid), ctypes.byref(property_store))
+        if result < 0:
+            raise OSError(f"SHGetPropertyStoreForWindow failed: HRESULT 0x{result & 0xFFFFFFFF:08X}")
+
+        vtable = ctypes.cast(property_store, ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p))).contents
+        set_value = ctypes.WINFUNCTYPE(
+            ctypes.c_long,
+            ctypes.c_void_p,
+            ctypes.POINTER(PROPERTYKEY),
+            ctypes.POINTER(PROPVARIANT),
+        )(vtable[6])
+        commit = ctypes.WINFUNCTYPE(ctypes.c_long, ctypes.c_void_p)(vtable[7])
+        for property_id, text_value in property_values:
+            key = PROPERTYKEY(property_format_id, property_id)
+            value = PROPVARIANT()
+            value.vt = 31  # VT_LPWSTR
+            value.pwszVal = text_value
+            result = set_value(property_store, ctypes.byref(key), ctypes.byref(value))
+            if result < 0:
+                raise OSError(
+                    f"IPropertyStore.SetValue({property_id}) failed: HRESULT 0x{result & 0xFFFFFFFF:08X}"
+                )
+        result = commit(property_store)
+        if result < 0:
+            raise OSError(f"IPropertyStore.Commit failed: HRESULT 0x{result & 0xFFFFFFFF:08X}")
+        return True
+    except Exception as exc:
+        logging.getLogger("vnoffice.taskbar").warning(
+            "Could not set the %s taskbar relaunch identity: %s", app_kind, exc,
+        )
+        return False
+    finally:
+        if property_store:
+            try:
+                vtable = ctypes.cast(property_store, ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p))).contents
+                release = ctypes.WINFUNCTYPE(ctypes.c_ulong, ctypes.c_void_p)(vtable[2])
+                release(property_store)
+            except Exception as exc:
+                logging.getLogger("vnoffice.taskbar").debug("Could not release the taskbar property store: %s", exc)
 
 
 def _user_data_dir() -> Path:
@@ -2626,6 +2754,24 @@ class VnOfficeApi:
             ]
         }
 
+    def get_release_notes(self) -> dict[str, object]:
+        """Đọc ghi chú phát hành của phiên bản hiện tại (CH-8.3)."""
+        candidates = [
+            Path(ROOT_DIR) / f"notes-{APP_VERSION}.txt",
+            Path(ROOT_DIR) / "release-notes.txt",
+            Path(ROOT_DIR) / "RELEASE-NOTES.md",
+            Path(ROOT_DIR) / "docs" / "RELEASE-NOTES.md",
+        ]
+        for candidate in candidates:
+            if candidate.is_file():
+                try:
+                    content = candidate.read_text(encoding="utf-8")
+                    if content and content.strip():
+                        return {"found": True, "version": APP_VERSION, "content": content.strip()}
+                except Exception:
+                    pass
+        return {"found": False, "version": APP_VERSION, "content": ""}
+
     def get_autorecover_settings(self):
         return self._autorecover_store.get_settings() if self._autorecover_store else {"enabled": True, "interval_minutes": 2}
 
@@ -3066,10 +3212,45 @@ class VnOfficeApi:
             }
         return self._updater.get_state()
 
+    def confirm_update_health(self):
+        """Confirm the replacement app only after its WebView bridge is live."""
+        from adapters.updater.updater import write_health_marker
+
+        token = _UPDATE_HEALTH_TOKEN
+        updates_dir = _UPDATE_DATA_DIR
+        if not token or not re.fullmatch(r"[0-9a-f]{32}", token) or updates_dir is None:
+            return {"healthy": False, "pending": False}
+        expected = updates_dir / f"health-{token}.ok"
+        if _UPDATE_HEALTH_FILE:
+            candidate = Path(_UPDATE_HEALTH_FILE)
+            if candidate.name != expected.name:
+                return {"healthy": False, "pending": True}
+            try:
+                if candidate.parent.resolve() != updates_dir.resolve():
+                    return {"healthy": False, "pending": True}
+            except OSError:
+                return {"healthy": False, "pending": True}
+        return {"healthy": write_health_marker(updates_dir, token), "pending": True}
+
     def start_update_checks(self):
         if self._updater is None:
             return {"started": False, "state": self.get_update_status()}
         return {"started": self._updater.start(), "state": self._updater.get_state()}
+
+    def confirm_update_restart(self, request_id, saved):
+        if not isinstance(request_id, str) or type(saved) is not bool:
+            return {"accepted": False}
+        with _UPDATE_RESTART_CONDITION:
+            pending = _UPDATE_RESTART_PENDING
+            if not pending or pending.get("request_id") != request_id:
+                return {"accepted": False}
+            window_uid = self._window_uid
+            expected = pending.get("expected", set())
+            if not window_uid or window_uid not in expected:
+                return {"accepted": False}
+            pending["acks"][window_uid] = saved
+            _UPDATE_RESTART_CONDITION.notify_all()
+        return {"accepted": True}
 
     def check_for_updates(self):
         if self._updater is None:
@@ -3085,25 +3266,126 @@ class VnOfficeApi:
         install_root = _update_install_root()
         if install_root is None:
             return {"started": False, "error": "Không tìm thấy thư mục cài đặt 3T Office."}
+        global _UPDATE_RESTART_PENDING
+        with _APP_WINDOW_LOCK:
+            app_windows = [
+                (api, _active_window(api))
+                for api in _APP_WINDOW_APIS.values()
+                if getattr(api, "_app_kind", None) == self._app_kind
+            ]
+        app_windows = [(api, window) for api, window in app_windows if window is not None and api._window_uid]
+        if not app_windows:
+            return {"started": False, "error": "Không tìm thấy cửa sổ tài liệu đang mở."}
+
+        request_id = uuid.uuid4().hex
+        expected = {api._window_uid for api, _window in app_windows}
+        with _UPDATE_RESTART_CONDITION:
+            if _UPDATE_RESTART_PENDING is not None:
+                return {"started": False, "error": "Một yêu cầu cập nhật khác đang được xử lý."}
+            _UPDATE_RESTART_PENDING = {"request_id": request_id, "expected": expected, "acks": {}}
+
+        request_payload = json.dumps({"requestId": request_id}, separators=(",", ":"))
+        for api, window in app_windows:
+            try:
+                window.evaluate_js(
+                    "window.dispatchEvent(new CustomEvent('vno-office-update-restart-request', {detail:"
+                    + request_payload
+                    + "}))"
+                )
+            except Exception:
+                with _UPDATE_RESTART_CONDITION:
+                    pending = _UPDATE_RESTART_PENDING
+                    if pending and pending.get("request_id") == request_id:
+                        pending["acks"][api._window_uid] = False
+                        _UPDATE_RESTART_CONDITION.notify_all()
+
+        deadline = time.monotonic() + 180
         try:
-            task_path = self._updater.create_apply_task(app_kind=self._app_kind, install_root=install_root)
+            with _UPDATE_RESTART_CONDITION:
+                while True:
+                    pending = _UPDATE_RESTART_PENDING
+                    if not pending or pending.get("request_id") != request_id:
+                        return {"started": False, "error": "Yêu cầu lưu tài liệu đã bị hủy."}
+                    acks = pending["acks"]
+                    if any(value is False for value in acks.values()):
+                        return {"started": False, "cancelled": True}
+                    if expected.issubset(acks):
+                        break
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        return {"started": False, "error": "Hết thời gian chờ xác nhận lưu ở các cửa sổ tài liệu."}
+                    _UPDATE_RESTART_CONDITION.wait(timeout=min(remaining, 1.0))
+
+            documents = []
+            seen_documents = set()
+            for api, _window in app_windows:
+                path = api._current_file_path or api._initial_file
+                if not path:
+                    continue
+                try:
+                    resolved = str(Path(path).expanduser().resolve())
+                    if not Path(resolved).is_file():
+                        continue
+                except OSError:
+                    continue
+                folded = resolved.casefold()
+                if folded not in seen_documents:
+                    seen_documents.add(folded)
+                    documents.append(resolved)
+
+            task_path = self._updater.create_apply_task(
+                app_kind=self._app_kind,
+                install_root=install_root,
+                launch_args=[f"--app={self._app_kind}"],
+                restore_documents=documents,
+            )
             if not self._updater.launch_apply_helper(task_path):
                 return {"started": False, "error": "Trình cập nhật chỉ áp dụng được trên Windows."}
         except Exception as exc:
             return {"started": False, "error": f"Không thể chuẩn bị cập nhật: {type(exc).__name__}"}
-        def exit_for_update():
-            # The apply helper waits for every process of this install; stop the warm LibreOffice worker first.
+        finally:
+            with _UPDATE_RESTART_CONDITION:
+                if _UPDATE_RESTART_PENDING and _UPDATE_RESTART_PENDING.get("request_id") == request_id:
+                    _UPDATE_RESTART_PENDING = None
+                _UPDATE_RESTART_CONDITION.notify_all()
+
+        def close_all_windows():
+            # The apply helper waits for every process of this install; stop the warm LibreOffice
+            # worker and the hidden Office print sessions first so no orphan survives (CH-9.4).
             try:
                 self.close_print_sessions()
                 _PERSISTENT_SOFFICE.shutdown()
+            except Exception:
+                logging.getLogger("vnoffice.updater").warning(
+                    "Could not stop the document engine before the update restart.", exc_info=True
+                )
             finally:
                 _cleanup_tracked_processes()
-                os._exit(0)
+            for api, window in app_windows:
+                api._allow_window_close = True
+                try:
+                    window.destroy()
+                except Exception:
+                    logging.getLogger("vnoffice.updater").warning(
+                        "Could not close an app window for update restart.", exc_info=True
+                    )
 
-        timer = threading.Timer(0.4, exit_for_update)
+        timer = threading.Timer(0.25, close_all_windows)
         timer.daemon = True
         timer.start()
         return {"started": True}
+
+    def consume_update_failure(self):
+        if _UPDATE_DATA_DIR is None:
+            return None
+        failure_path = _UPDATE_DATA_DIR / "update-failure.json"
+        try:
+            payload = json.loads(failure_path.read_text(encoding="utf-8"))
+            failure_path.unlink(missing_ok=True)
+            message = payload.get("message") if isinstance(payload, dict) else None
+            return {"message": str(message)} if message else None
+        except (OSError, ValueError, TypeError):
+            return None
 
     def set_error_reporting_consent(self, granted):
         if self._reporter is None:
@@ -4039,9 +4321,11 @@ def _warmup_libreoffice_profiles() -> int:
 
 
 def main(argv: list[str] | None = None):
-    global _ERROR_REPORTER, _UPDATE_MANAGER, _UPDATE_DATA_DIR, _PERSISTENT_SOFFICE_ENABLED
+    global _ERROR_REPORTER, _UPDATE_MANAGER, _UPDATE_DATA_DIR, _UPDATE_HEALTH_TOKEN, _UPDATE_HEALTH_FILE, _PERSISTENT_SOFFICE_ENABLED
     _startup_trace("python_imports_complete")
     launch_argv = list(sys.argv[1:] if argv is None else argv)
+    _UPDATE_HEALTH_TOKEN = _update_token_from_args(launch_argv) or os.environ.get("VNO_UPDATE_HEALTH_TOKEN", "").lower()
+    _UPDATE_HEALTH_FILE = os.environ.get("VNO_UPDATE_HEALTH_FILE", "")
     if launch_argv == ["--warmup-libreoffice-profiles"]:
         return _warmup_libreoffice_profiles()
 
@@ -4052,6 +4336,25 @@ def main(argv: list[str] | None = None):
         return 2
 
     _initialize_process_tracker()
+
+    restore_documents = []
+    for argument in launch_argv:
+        if not argument.startswith("--restore-document="):
+            continue
+        raw_path = argument.split("=", 1)[1]
+        if not raw_path:
+            continue
+        try:
+            path = str(Path(raw_path).expanduser().resolve())
+        except OSError:
+            continue
+        if path.casefold() != str(initial_file or "").casefold() and path.casefold() not in {
+            existing.casefold() for existing in restore_documents
+        }:
+            if initial_file is None:
+                initial_file = path
+            else:
+                restore_documents.append(path)
 
     instance_server = None
     if app_kind in VALID_APP_KINDS:
@@ -4154,6 +4457,12 @@ def main(argv: list[str] | None = None):
 
     _register_app_window(api, window)
 
+    for restore_path in restore_documents:
+        if not Path(restore_path).is_file():
+            continue
+        request = {"app_kind": app_kind, "path": restore_path}
+        _INSTANCE_LAUNCH_QUEUE.put_nowait((request, threading.Event()))
+
     # For a launch that already names a file, overlap the required document engine
     # startup with WebView2 creation. Blank launches still defer it until first paint.
     if initial_file:
@@ -4166,14 +4475,30 @@ def main(argv: list[str] | None = None):
             name=f"3T Office {app_kind} window router",
         ).start()
 
-    # Set Windows AppUserModelID so the taskbar groups and shows the app's specific icon
+    # Set Windows AppUserModelID so the taskbar groups and shows the app's specific icon;
+    # short pin labels (Doc/Sheet/Slide) are set on the native window below.
     if platform.system() == "Windows":
         try:
-            import ctypes
-            aumid = f"VNOffice.{app_kind.capitalize() if app_kind in VALID_APP_KINDS else 'Suite'}"
-            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(aumid)
-        except Exception:
-            pass
+            set_app_id = ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID
+            set_app_id.argtypes = (ctypes.c_wchar_p,)
+            set_app_id.restype = ctypes.c_long
+            aumid = TASKBAR_APP_USER_MODEL_IDS.get(app_kind, "VNOffice.Suite")
+            result = set_app_id(aumid)
+            if result < 0:
+                raise OSError(f"SetCurrentProcessExplicitAppUserModelID failed: HRESULT 0x{result & 0xFFFFFFFF:08X}")
+        except Exception as exc:
+            logging.getLogger("vnoffice.taskbar").warning("Could not set the taskbar process identity: %s", exc)
+
+    if app_kind in TASKBAR_RELAUNCH_DISPLAY_NAMES:
+        def set_taskbar_relaunch_info(*_args):
+            _set_windows_taskbar_relaunch_info(window, app_kind)
+
+        try:
+            window.events.shown += set_taskbar_relaunch_info
+        except Exception as exc:
+            logging.getLogger("vnoffice.taskbar").warning(
+                "Could not register the %s taskbar relaunch identity: %s", app_kind, exc,
+            )
 
     icon_name = f"{app_kind}.ico" if app_kind in VALID_APP_KINDS else "vnoffice.ico"
     icon_path = os.path.join(ROOT_DIR, "branding", "icons", icon_name)
@@ -4181,27 +4506,8 @@ def main(argv: list[str] | None = None):
         icon_path = os.path.join(ROOT_DIR, "branding", "icons", "vnoffice.ico")
     app_icon = icon_path if os.path.isfile(icon_path) else None
 
-    health_token = _update_token_from_args(launch_argv) or os.environ.get("VNO_UPDATE_HEALTH_TOKEN", "").lower()
-    expected_health_file = os.environ.get("VNO_UPDATE_HEALTH_FILE", "")
-
     def on_loaded(*_args):
         _startup_trace("webview_loaded", app=app_kind)
-        if not health_token or not re.fullmatch(r"[0-9a-f]{32}", health_token):
-            return
-        health_root = _UPDATE_DATA_DIR
-        if expected_health_file:
-            candidate = Path(expected_health_file)
-            if candidate.name != f"health-{health_token}.ok":
-                return
-            try:
-                if _UPDATE_DATA_DIR and candidate.parent.resolve() != _UPDATE_DATA_DIR.resolve():
-                    return
-            except OSError:
-                return
-            health_root = candidate.parent
-        if health_root:
-            from adapters.updater.updater import write_health_marker
-            write_health_marker(health_root, health_token)
 
     try:
         window.events.loaded += on_loaded

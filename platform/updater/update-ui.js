@@ -4,6 +4,7 @@ import { showAlertDialog, showConfirmDialog } from "../ui-kit/dialogs.js";
 
 let activeApp = null;
 let eventBound = false;
+let restartRequestBound = false;
 const notifiedVersions = new WeakMap();
 let bridgeRetryPending = false;
 
@@ -96,28 +97,9 @@ function showReleaseNotes(state) {
 }
 
 export async function restartWithSaveCheck(app, api = getBridge()) {
-  const adapter = app?.adapter;
-  if (adapter?.isDirty === true) {
-    const shouldSave = await showConfirmDialog({
-      title: "Lưu tài liệu trước khi khởi động lại?",
-      message: "Tài liệu đang có thay đổi chưa lưu. Hãy lưu trước khi 3T Office đóng để áp dụng bản cập nhật.",
-      confirmText: "Lưu tài liệu",
-      cancelText: "Hủy khởi động lại"
-    });
-    if (!shouldSave) return false;
-    if (typeof adapter.save !== "function") {
-      await showAlertDialog({ title: "Không thể lưu tài liệu", message: "Ứng dụng hiện tại chưa cung cấp thao tác lưu. Bản cập nhật chưa được áp dụng.", type: "error" });
-      return false;
-    }
-    try {
-      const saved = await adapter.save();
-      if (saved !== true || adapter.isDirty === true) return false;
-    } catch {
-      return false;
-    }
-  }
   if (!api?.request_update_restart) return false;
   const result = await api.request_update_restart();
+  if (result?.cancelled) return false;
   if (!result?.started) {
     await showAlertDialog({
       title: "Chưa thể khởi động lại để cập nhật",
@@ -127,6 +109,56 @@ export async function restartWithSaveCheck(app, api = getBridge()) {
     return false;
   }
   return true;
+}
+
+async function handleRestartSaveRequest(event) {
+  const requestId = event?.detail?.requestId;
+  const bridge = getBridge();
+  if (!requestId || !bridge?.confirm_update_restart) return;
+  const adapter = activeApp?.adapter;
+  let saved = true;
+  if (adapter?.isDirty === true) {
+    const shouldSave = await showConfirmDialog({
+      title: "Lưu tài liệu trước khi khởi động lại?",
+      message: "Tài liệu đang có thay đổi chưa lưu. Hãy lưu trước khi 3T Office đóng để áp dụng bản cập nhật.",
+      confirmText: "Lưu tài liệu",
+      cancelText: "Hủy khởi động lại"
+    });
+    if (!shouldSave) {
+      saved = false;
+    } else if (typeof adapter.save !== "function") {
+      saved = false;
+      await showAlertDialog({
+        title: "Không thể lưu tài liệu",
+        message: "Ứng dụng hiện tại chưa cung cấp thao tác lưu. Bản cập nhật chưa được áp dụng.",
+        type: "error"
+      });
+    } else {
+      try {
+        const result = await adapter.save();
+        saved = result === true && adapter.isDirty !== true;
+        if (!saved) {
+          await showAlertDialog({
+            title: "Tài liệu chưa được lưu",
+            message: "Hãy lưu xong tài liệu ở tất cả cửa sổ rồi thử khởi động lại để cập nhật.",
+            type: "warning"
+          });
+        }
+      } catch {
+        saved = false;
+        await showAlertDialog({
+          title: "Không thể lưu tài liệu",
+          message: "3T Office chưa áp dụng bản cập nhật. Hãy kiểm tra tài liệu rồi thử lại.",
+          type: "error"
+        });
+      }
+    }
+  }
+  try {
+    await bridge.confirm_update_restart(requestId, saved);
+  } catch {
+    // The app remains open if a window cannot acknowledge its save decision.
+  }
 }
 
 export function renderUpdateNotification(app, state, api = getBridge()) {
@@ -164,6 +196,10 @@ export async function connectUpdaterUi(app) {
     window.addEventListener("vno-office-update-state", handleUpdateState);
     eventBound = true;
   }
+  if (!restartRequestBound) {
+    window.addEventListener("vno-office-update-restart-request", handleRestartSaveRequest);
+    restartRequestBound = true;
+  }
   const bridge = getBridge();
   if (!bridge?.get_update_status) {
     setHelpState({ current_version: "không xác định", status: "unavailable" });
@@ -185,8 +221,26 @@ export async function connectUpdaterUi(app) {
   }
   try {
     const state = await bridge.get_update_status();
+    if (bridge.confirm_update_health) {
+      try {
+        const health = await bridge.confirm_update_health();
+        if (health?.pending && health.healthy !== true) console.warn("3T Office could not confirm the update startup health marker.");
+      } catch (error) {
+        console.warn("3T Office could not confirm the update startup health marker.", error);
+      }
+    }
     setHelpState(state || {});
     renderUpdateNotification(activeApp, state, bridge);
+    if (bridge.consume_update_failure) {
+      const failure = await bridge.consume_update_failure();
+      if (failure?.message) {
+        await showAlertDialog({
+          title: "Cập nhật chưa hoàn tất",
+          message: escapeHtml(failure.message),
+          type: "warning"
+        });
+      }
+    }
     if (bridge.start_update_checks) await bridge.start_update_checks();
     return true;
   } catch {

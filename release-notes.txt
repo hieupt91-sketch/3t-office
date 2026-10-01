@@ -1,0 +1,20 @@
+3T Office — Thông tin phát hành phiên bản 0.9.0-pilot1
+Ngày phát hành: 01/10/2026
+
+1. Giao diện và Trợ giúp thống nhất (Hạng mục CH-8):
+- Đồng bộ hóa dải ruy-băng (Ribbon) giữa 3T Doc, 3T Sheet và 3T Slide: thứ tự tab chuẩn mực (Trang đầu, Chèn, Bố cục, ...), khoảng cách nút và bố cục trực quan.
+- Hệ thống phím tắt KeyTips chuẩn Office: bấm và thả phím Alt để hiển thị ký tự phím tắt bằng tiếng Việt trực quan (T cho Tệp, D cho Trang đầu, C cho Chèn, B cho Bố cục, M cho Công thức, L cho Dữ liệu, S cho Tham chiếu/Trình chiếu, U cho Gửi thư, P cho Chuyển tiếp, H cho Hoạt hình, X cho Xem lại, V cho Xem, G cho Trợ giúp, A cho 3T AI); Esc quay lại từng cấp.
+- Trợ giúp F1 theo ngữ cảnh: nhấn F1 trên bất kỳ nút Ribbon hay hộp thoại nào để mở ngay bài hướng dẫn tương ứng; bổ sung trang "Có gì mới" tra cứu thông tin bản vá của phiên bản hiện tại.
+- Thanh trạng thái chuẩn hóa: tích hợp thông tin bên trái và thanh trượt thu phóng mượt mà bên phải (50% – 200%), nút trừ (-) và cộng (+), hiển thị phần trăm rõ ràng; hỗ trợ Ctrl + lăn con lăn chuột và Ctrl+0 đặt lại 100%.
+- Hộp thoại Tùy chọn đồng bộ: chuyển đổi Giao diện Sáng/Tối và điều chỉnh Cỡ chữ giao diện (Tiêu chuẩn 100%, Lớn 115%, Rất lớn 130%) tức thì cho cả 3 ứng dụng.
+- Menu Tệp Backstage chuẩn hóa: đầy đủ các lệnh Mới, Mở, Lưu, Lưu bản sao, In, Xuất PDF, Đóng, Tùy chọn, Giới thiệu 3T Office và danh sách tệp gần đây.
+- Chuẩn hóa bàn phím hộp thoại: Enter kích hoạt nút mặc định, Esc hủy bỏ/đóng, bẫy tiêu điểm phím Tab/Shift+Tab an toàn.
+
+2. Tính năng ứng dụng chuyên sâu:
+- 3T Doc: Tối ưu hóa dàn trang văn bản hành chính theo Nghị định 30/2020/NĐ-CP, hỗ trợ mục lục tự động, đầu/chân trang và chú thích cuối trang.
+- 3T Sheet: Tích hợp hàm =VND() đọc số tiền thành chữ tiếng Việt chuẩn xác, hỗ trợ lọc, sắp xếp, vẽ biểu đồ và phím tắt quen thuộc.
+- 3T Slide: Trình chiếu đa phương tiện 16:9 HD, hiệu ứng hoạt hình và chuyển tiếp trang chiếu mượt mà, hỗ trợ công cụ bút vẽ và con trỏ laser.
+
+3. Khả năng tương thích và Hoạt động Ngoại tuyến:
+- Hoạt động 100% độc lập trên máy tính (offline desktop), không phụ thuộc mạng Internet hay dịch vụ đám mây bên ngoài.
+- Kế thừa và tương thích cao độ với định dạng Microsoft Office (.docx, .xlsx, .pptx) và LibreOffice (.odt, .ods, .odp).

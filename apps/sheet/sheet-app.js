@@ -67,9 +67,13 @@ export class SheetApp {
         this.shell.setStatus(`SẴN SÀNG  |  Ô: ${coord}  |  ĐẾM: ${stats.count}  |  TRUNG BÌNH: ${stats.avg}  |  TỔNG CỘNG: ${stats.sum}`);
       },
       onFormulaEntryMode: (label) => this.shell?.setStatus?.(label),
+      onZoomChange: (level) => this.shell?.setZoomDisplay?.(Math.round(level * 100)),
       isBlank,
       templateId
     });
+    this.shell.onZoomChange = (percent) => {
+      this.grid.setZoom(percent / 100);
+    };
     this.grid.mount();
     this._bindGridFocusRestoration();
 
