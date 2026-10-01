@@ -275,7 +275,9 @@ Thời gian nạp tiếp sau viewport (giây), tính từ `mở xong - viewport`
 
 ### Findings và implementation
 
-- Merge main thành công ở `23b0ef2`; giải quyết bốn conflict trong Sheet adapter/parser, Writer adapter và `main.py`. Không merge branch này ngược vào main.
+- Sau WIP `13913006`, đã tích hợp main theo hai bước: `dfa59eec` lấy main tại `1f5c85f7`, sau đó `bf16f691` lấy main hiện tại `73cacde6`. Merge mới nhất tự động áp dụng sạch; merge `dfa59eec` có một conflict văn bản ở `tests/test_g7_save_as_dialog.py`, giữ mock `return_engine` của main. Không merge branch này ngược vào main.
+- Main hiện tại gồm luồng lưu/in G7–G10, tên 3T, sections, formula entry, Help nhanh, file basics và basic editing keys. Các module Sheet/Writer, `main.py`, tests và Help đã được đưa vào cùng nhánh với đường mở nhanh S44.
+- Commit `0ec80c24` chuyển desktop audit sang WebView2 CDP, Excel/Word chỉ dùng hidden COM, đồng thời giữ payload opt-in tới khi đủ 26/26 audit. Các probe mới không gửi input OS.
 - Tối ưu payload Sheet: stream chunk theo yêu cầu thay vì giữ toàn bộ compressed chunk array cạnh workbook model; intern style trong lúc materialize và dùng copy-on-write khi sửa style cell.
 - Lưu `.xlsx` chưa sửa từ snapshot bytes của tệp đang mở. Save As `.xlsx` chép snapshot chính xác; các định dạng khác/PDF tiếp tục qua conversion/export pipeline hiện có.
 - Sửa tên hiển thị cũ “VN Sheet” thành “3T Sheet” trong bài Hướng dẫn; regression guard tên thương hiệu đạt.
@@ -283,31 +285,34 @@ Thời gian nạp tiếp sau viewport (giây), tính từ `mở xong - viewport`
 
 ### Lan14 — memory và round-trip
 
-Đo trên cùng probe WebView với `SHEET_OPEN_PAYLOAD=1`:
+Đo qua cùng WebView2/CDP probe, đặt `SHEET_OPEN_PAYLOAD=1`. Trước là source S44 tại `d60ac6f`; sau là source đã có tối ưu memory ở WIP trước khi gộp main `73cacde6`:
 
 | Chỉ số | Trước tối ưu | Sau tối ưu |
 |---|---:|---:|
-| Peak JavaScript heap (`performance.memory`) | 1,975,092,189 bytes | 1,510,295,374 bytes |
-| Peak process-tree working set | 3,453,009,920 bytes | 3,388,145,664 bytes |
-| Thời gian viewport | 21.65 s | 26.96 s |
-| Nạp tiếp sau viewport | 140.31 s | 153.98 s |
+| Peak JavaScript heap (`performance.memory`) | 1,890,409,684 bytes | 1,166,054,338 bytes |
+| Peak WebView renderer working set | 4,004,040,704 bytes | 1,567,551,488 bytes |
+| Peak tổng WebView working set | 4,288,397,312 bytes | 1,871,249,408 bytes |
+| Thời gian process→viewport | 33.584 s | 33.609 s |
+| Thời gian process→đầy đủ model | 251.097 s | 219.234 s |
 
-Heap giảm khoảng 23.5%; process-tree working set giảm khoảng 1.9%. Thời gian trong probe này tăng, nên không claim cải thiện tốc độ. Trước sửa, Save As làm renderer mất và không có output. Sau sửa, Save As hoàn tất, output 9,742,160 bytes có SHA-256 khớp snapshot nguồn (`5B27A3382B938DBAF8E242548A26B5D4B4AEA9A20742F7E88D2A0D0B72AB6560`); fidelity audit trên 4 worksheet báo `TONG sai lech: 0`.
+Heap giảm 38.3%, renderer working set giảm 60.8%, tổng WebView working set giảm 56.4%. Bản trước chết renderer trong Save As, không tạo output. Bản sau Save As hoàn tất không OOM, tạo file 9,742,160 bytes; số byte bằng nguồn. Cần audit 26 tệp và Excel COM để xác nhận fidelity trên toàn bộ tập.
+
+Phép đo sau được thực hiện trước merge `73cacde6`; sẽ đo lại lan14 với source hiện tại sau khi hết tải LibreOffice. Mở vẫn chậm: full hydration khoảng 219 giây, chưa đạt Word/Excel, LibreOffice hay WPS.
 
 ### Gates và tình trạng hiện tại
 
-**COMMANDS RUN:** `node tests/run-tests.js`; `python -m unittest discover -s tests`; `python scripts/layout-audit/_batch_writer.py ...`; `SHEET_OPEN_PAYLOAD=1 python scripts/layout-audit/_batch_audit.py ...`; `scripts/layout-audit/_oracle_open_speed_s44.ps1 -Mode All`; VN S44 timing runner; `node scripts/audit-sheet-import.mjs --xlsx-vs-xlsx ...`; `git diff --check`.
+**COMMANDS RUN:** `git merge main` (twice, latest `bf16f691`); `node tests/run-tests.js`; `python -m unittest discover -s tests` (interrupted before completion due concurrent LibreOffice runs); Python compile, Node syntax and `git diff --check`.
 
 **BUILD RESULT:** NOT RUN (không sửa build system).
 
-**TEST RESULTS:** Node từng PASS (2193/2193); lần chạy lại sau khi Việt hóa thông báo có 2192/2193 PASS, với lỗi duy nhất ở FODS→XLSX Pivot round-trip trong lúc có LibreOffice khác đang chạy; lượt chạy lại khi LibreOffice rảnh đang chờ. Python unittest PASS (521 tests); Writer page parity PASS trên 12/12 tài liệu hợp lệ hiện có; Sheet audit PASS trên 26/26 tệp bắt buộc, tất cả `TONG=0` và Excel COM xác nhận worksheet count; hai tệp thêm lan27/lan28 cũng `TONG=0` và Excel mở được. Oracle desktop PASS cho cả 9 fixture; một số Excel Open cần retry `RPC_E_CALL_REJECTED` nhưng cuối cùng đều thành công. VN timing runner hoàn tất 36/36 lượt.
+**TEST RESULTS:** Python compile PASS; Node syntax checks PASS; `git diff --check` PASS. Lần `node tests/run-tests.js` trước merge `bf16f691`: 2,222/2,223 PASS, một FAIL ở LibreOffice FODS→XLSX của CF/validation khi có các LibreOffice job khác chạy. Cần chạy lại trên source merge mới khi LibreOffice rảnh. `python -m unittest discover -s tests` BLOCKED/interrupted trước summary vì phát hiện unittest/soffice khác đang hoạt động; rerun đầy đủ chưa xong. Sheet 26-file audit, Writer page-count audit, chín loại timing sau merge và phép đo lan14 sau merge: NOT RUN.
 
-**KNOWN FAILURES:** Mục tiêu tốc độ owner **FAIL**: VN vẫn vượt ngưỡng 1.5x Word/Excel ở các so sánh; lan14 mất 21.6–22.5 s warm tới viewport và 161–175 s tới khi `adapter.open()` xong. Hai lượt cold lan14 có nhiễu vì một worktree khác chạy desktop/Word cùng lúc. WPS **NOT RUN** (không tìm thấy WPS trong các đường dẫn cài đặt đã kiểm tra). d10 DOCX corrupt; d13–d23 không có trong thư mục fixture của worktree này nên Writer audit chạy trên 12 tài liệu hợp lệ còn lại. Lint cảnh báo row references/SST trên một số XLSX dù các lượt TONG và Excel worksheet check đều đạt.
+**KNOWN FAILURES:** Lượt Node đầu có một FAIL trong conversion test khi nhiều LibreOffice process chạy; chưa rõ có tái hiện khi chạy một mình. Lượt Python unittest chưa hoàn tất. Owner speed target hiện **FAIL / chưa đạt** theo phép đo lan14: viewport khoảng 33.6 giây, full hydration khoảng 219 giây; chưa có oracle mới sau merge. WPS, full LAN audit và Writer page audit: NOT RUN.
 
-**RISKS:** Giảm peak heap chưa làm thời gian mở đạt mục tiêu. Preview giữ một số lệnh bị khóa cho đến khi model nạp xong. `SHEET_OPEN_PAYLOAD` được bật mặc định trong commit riêng sau khi audit 26/26 đạt; có thể tắt bằng `SHEET_OPEN_PAYLOAD=0`. Việc bật mặc định không đồng nghĩa PASS về tốc độ.
+**RISKS:** Preview giữ một số lệnh bị khóa cho đến khi model nạp xong. `SHEET_OPEN_PAYLOAD` đang mặc định OFF; chỉ chuyển sang ON trong commit riêng sau khi 26/26 đạt `TONG=0` và Excel COM xác nhận số worksheet. Dù payload đạt fidelity, speed target vẫn chưa đạt.
 
-**DEPENDENCIES/BLOCKERS:** Không có blocker cho merge, round-trip hay các audit đã chạy. Cần tiếp tục tối ưu thời gian conversion/hydration để đạt owner target.
+**DEPENDENCIES/BLOCKERS:** Máy đang được worktree khác dùng cho unittest, soffice, Writer CDP và hidden Office COM. Chờ các job này kết thúc để chạy các gate tuần tự, tránh ghi kết quả dưới tải cạnh tranh.
 
 **CORE PATCH ID (if any):** None.
 
-**NEXT ACTION:** Tiếp tục tối ưu latency conversion/hydration, nhất là lan14; không merge vào main.
+**NEXT ACTION:** Khi tài nguyên dùng chung rảnh, chạy lại Node và Python suites; chạy oracle cho 9 tệp, 26 LAN workbook audit và Writer page-count audit. Cập nhật số đo source sau `bf16f691`; chỉ bật default payload trong commit riêng nếu đủ điều kiện. Giữ branch chưa merge vào main.
