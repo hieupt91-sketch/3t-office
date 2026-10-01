@@ -171,9 +171,9 @@ Toàn bộ các bài kiểm tra đều đạt chuẩn chất lượng.
 
 ### 6.3. Python Test Suite (`python -m unittest discover -s tests`)
 ```text
-Ran 549 tests in 7.424s
+Ran 549 tests in 454.610s
 
-OK (skipped=1)
+OK
 ```
 
 ---
