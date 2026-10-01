@@ -134,7 +134,7 @@ function extractShortcutTokens(text) {
     .replace(/Alt\+Shift\+↑\/↓/g, "Alt+Shift+Up Alt+Shift+Down")
     .replace(/Ctrl\+Shift\+\>\/</g, "Ctrl+Shift+> Ctrl+Shift+<")
     .replace(/Ctrl\+\]\/\[/g, "Ctrl+] Ctrl+[")
-    .replace(/Ctrl\+\+\/-\/g, "Ctrl++ Ctrl+-");
+    .replace(/Ctrl\+\+\/-/g, "Ctrl++ Ctrl+-");
   for (const m of cleaned.matchAll(comboRe)) tokens.push(m[0]);
   for (const m of cleaned.matchAll(fkeyRe)) tokens.push(m[0]);
   for (const m of cleaned.matchAll(pageRe)) tokens.push(m[0]);
@@ -166,7 +166,7 @@ export async function runHelpGettingStartedTests() {
   };
 
   // --- Writer tests ---
-  await test("Help Writer Getting Started: entry writer.gettingStarted tồn tại và ribbon location khớp", () => {
+  await test("Help Writer Getting Started: entry writer.gettingStarted tồn tại và ribbon location khớp", async () => {
     const { WRITER_HELP_ENTRIES } = await import("../../platform/help/entries-writer.js");
     const entry = WRITER_HELP_ENTRIES.find(e => e.id === "writer.gettingStarted");
     if (!entry) throw new Error("Thiếu entry writer.gettingStarted");
@@ -175,7 +175,7 @@ export async function runHelpGettingStartedTests() {
     if (problems.length > 0) throw new Error(problems.join("\n"));
   });
 
-  await test("Help Writer Shortcuts: entry writer.shortcuts tồn tại và shortcuts hợp lệ", () => {
+  await test("Help Writer Shortcuts: entry writer.shortcuts tồn tại và shortcuts hợp lệ", async () => {
     const { WRITER_HELP_ENTRIES } = await import("../../platform/help/entries-writer.js");
     const entry = WRITER_HELP_ENTRIES.find(e => e.id === "writer.shortcuts");
     if (!entry) throw new Error("Thiếu entry writer.shortcuts");
@@ -187,7 +187,7 @@ export async function runHelpGettingStartedTests() {
     if (shortcutProblems.length > 0) throw new Error(shortcutProblems.join("\n"));
   });
 
-  await test("Help Writer Differences: entry writer.differences tồn tại và ribbon location khớp", () => {
+  await test("Help Writer Differences: entry writer.differences tồn tại và ribbon location khớp", async () => {
     const { WRITER_HELP_ENTRIES } = await import("../../platform/help/entries-writer.js");
     const entry = WRITER_HELP_ENTRIES.find(e => e.id === "writer.differences");
     if (!entry) throw new Error("Thiếu entry writer.differences");
@@ -197,7 +197,7 @@ export async function runHelpGettingStartedTests() {
   });
 
   // --- Sheet tests ---
-  await test("Help Sheet Getting Started: entry sheet.gettingStarted tồn tại và ribbon location khớp", () => {
+  await test("Help Sheet Getting Started: entry sheet.gettingStarted tồn tại và ribbon location khớp", async () => {
     const { SHEET_HELP_ENTRIES } = await import("../../platform/help/entries-sheet.js");
     const entry = SHEET_HELP_ENTRIES.find(e => e.id === "sheet.gettingStarted");
     if (!entry) throw new Error("Thiếu entry sheet.gettingStarted");
@@ -206,7 +206,7 @@ export async function runHelpGettingStartedTests() {
     if (problems.length > 0) throw new Error(problems.join("\n"));
   });
 
-  await test("Help Sheet Shortcuts: entry sheet.shortcuts tồn tại và shortcuts hợp lệ", () => {
+  await test("Help Sheet Shortcuts: entry sheet.shortcuts tồn tại và shortcuts hợp lệ", async () => {
     const { SHEET_HELP_ENTRIES } = await import("../../platform/help/entries-sheet.js");
     const entry = SHEET_HELP_ENTRIES.find(e => e.id === "sheet.shortcuts");
     if (!entry) throw new Error("Thiếu entry sheet.shortcuts");
@@ -218,7 +218,7 @@ export async function runHelpGettingStartedTests() {
     if (shortcutProblems.length > 0) throw new Error(shortcutProblems.join("\n"));
   });
 
-  await test("Help Sheet Differences: entry sheet.differences tồn tại và ribbon location khớp", () => {
+  await test("Help Sheet Differences: entry sheet.differences tồn tại và ribbon location khớp", async () => {
     const { SHEET_HELP_ENTRIES } = await import("../../platform/help/entries-sheet.js");
     const entry = SHEET_HELP_ENTRIES.find(e => e.id === "sheet.differences");
     if (!entry) throw new Error("Thiếu entry sheet.differences");
@@ -228,7 +228,7 @@ export async function runHelpGettingStartedTests() {
   });
 
   // --- Slides tests ---
-  await test("Help Slides Getting Started: entry slides.gettingStarted tồn tại và ribbon location khớp", () => {
+  await test("Help Slides Getting Started: entry slides.gettingStarted tồn tại và ribbon location khớp", async () => {
     const { SLIDES_HELP_ENTRIES } = await import("../../platform/help/entries-slides.js");
     const entry = SLIDES_HELP_ENTRIES.find(e => e.id === "slides.gettingStarted");
     if (!entry) throw new Error("Thiếu entry slides.gettingStarted");
@@ -237,7 +237,7 @@ export async function runHelpGettingStartedTests() {
     if (problems.length > 0) throw new Error(problems.join("\n"));
   });
 
-  await test("Help Slides Shortcuts: entry slides.shortcuts tồn tại và shortcuts hợp lệ", () => {
+  await test("Help Slides Shortcuts: entry slides.shortcuts tồn tại và shortcuts hợp lệ", async () => {
     const { SLIDES_HELP_ENTRIES } = await import("../../platform/help/entries-slides.js");
     const entry = SLIDES_HELP_ENTRIES.find(e => e.id === "slides.shortcuts");
     if (!entry) throw new Error("Thiếu entry slides.shortcuts");
@@ -249,7 +249,7 @@ export async function runHelpGettingStartedTests() {
     if (shortcutProblems.length > 0) throw new Error(shortcutProblems.join("\n"));
   });
 
-  await test("Help Slides Differences: entry slides.differences tồn tại và ribbon location khớp", () => {
+  await test("Help Slides Differences: entry slides.differences tồn tại và ribbon location khớp", async () => {
     const { SLIDES_HELP_ENTRIES } = await import("../../platform/help/entries-slides.js");
     const entry = SLIDES_HELP_ENTRIES.find(e => e.id === "slides.differences");
     if (!entry) throw new Error("Thiếu entry slides.differences");
@@ -259,7 +259,7 @@ export async function runHelpGettingStartedTests() {
   });
 
   // --- Verify names: no old product names ---
-  await test("Help entries: không dùng tên cũ (VN Writer/VN Sheet/VN Slides/Microsoft/Word/Excel/PowerPoint)", () => {
+  await test("Help entries: không dùng tên cũ (VN Writer/VN Sheet/VN Slides/Microsoft/Word/Excel/PowerPoint)", async () => {
     const { WRITER_HELP_ENTRIES } = await import("../../platform/help/entries-writer.js");
     const { SHEET_HELP_ENTRIES } = await import("../../platform/help/entries-sheet.js");
     const { SLIDES_HELP_ENTRIES } = await import("../../platform/help/entries-slides.js");

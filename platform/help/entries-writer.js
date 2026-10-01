@@ -1055,7 +1055,7 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["writer.insert.equation", "writer.section.continuous"],
     title: "Khác biệt cần biết (so với bộ Office khác)",
-    summary: "Một số tính năng nâng cao đang được hoàn thiện và sẽ cập nhật trong các bản vá tới. Các nút vẫn hiện trên ribbon đúng vị trí chuẩn; khi bấm sẽ hiện thông báo «Tính năng này đang được tối ưu hóa và sẽ được cập nhật trong phiên bản tiếp theo.»",
+    summary: "Một số tính năng nâng cao đang được hoàn thiện và sẽ cập nhật trong các bản vá tới. Các nút vẫn hiện trên ribbon đúng vị trí chuẩn; khi bấm sẽ hiện thông báo «Tính năng này đang được hoàn thiện và sẽ có trong bản cập nhật tới.»",
     ribbon: { tab: "Chèn", tabId: "insert", group: "Ký hiệu" },
     keywords: ["khác biệt", "không có", "chưa hỗ trợ", "pending", "phương trình", "ngắt mục", "toán học", "latex", "section"],
     steps: [

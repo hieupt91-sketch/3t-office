@@ -714,7 +714,7 @@ export const SLIDES_HELP_ENTRIES = [
     app: "slides",
     commandIds: ["slides.transition.apply", "slides.show.presenterMode", "slides.media.insertAudio"],
     title: "Khác biệt cần biết (so với bộ Office khác)",
-    summary: "Một số tính năng nâng cao đang được hoàn thiện và sẽ cập nhật trong các bản vá tới. Các nút vẫn hiện trên ribbon đúng vị trí chuẩn; khi bấm sẽ hiện thông báo «Tính năng này đang được tối ưu hóa và sẽ được cập nhật trong phiên bản tiếp theo.»",
+    summary: "Một số tính năng nâng cao đang được hoàn thiện và sẽ cập nhật trong các bản vá tới. Các nút vẫn hiện trên ribbon đúng vị trí chuẩn; khi bấm sẽ hiện thông báo «Tính năng này đang được hoàn thiện và sẽ có trong bản cập nhật tới.»",
     ribbon: { tab: "Chuyển tiếp", tabId: "transitions", group: "Hiệu ứng chuyển trang" },
     keywords: ["khác biệt", "không có", "chưa hỗ trợ", "pending", "morph", "broadcast", "ghi âm", "thuyết minh", "laser", "online"],
     steps: [
