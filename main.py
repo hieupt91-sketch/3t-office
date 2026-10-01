@@ -1375,9 +1375,9 @@ def _sheet_open_skip_initial_xf_enabled() -> bool:
 
 
 def _sheet_open_payload_enabled() -> bool:
-    """Return whether the compact Sheet XLSX payload path is enabled (default on)."""
+    """Use the compact Sheet XLSX payload only when its audit gate is opted into."""
     value = os.environ.get("SHEET_OPEN_PAYLOAD", "").strip().lower()
-    return value not in {"0", "false", "no", "off"}
+    return value in {"1", "true", "yes", "on"}
 
 
 def _optimize_fods_for_sheet(fods_xml: str) -> str:

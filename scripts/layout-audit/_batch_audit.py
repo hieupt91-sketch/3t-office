@@ -20,11 +20,29 @@ for name in names:
     if os.path.exists(out): os.remove(out)
     roundtrip_timeout = 2400 if name.lower() == "lan14.xlsx" else 1200
     try:
-        r = subprocess.run([sys.executable, os.path.join(SP, "_roundtrip_save_sheet.py"), ROOT, src, out], capture_output=True, text=True, cwd=ROOT, timeout=roundtrip_timeout)
+        audit_env = os.environ.copy()
+        audit_env["SHEET_OPEN_PAYLOAD"] = "1"
+        r = subprocess.run(
+            [sys.executable, os.path.join(SP, "_roundtrip_save_sheet.py"), ROOT, src, out],
+            capture_output=True,
+            text=True,
+            cwd=ROOT,
+            timeout=roundtrip_timeout,
+            env=audit_env,
+        )
     except subprocess.TimeoutExpired as exc:
         r = subprocess.CompletedProcess(exc.cmd, 124, exc.stdout or "", exc.stderr or "")
+    with open(out + ".cdp.log", "w", encoding="utf-8", errors="replace") as log:
+        log.write(r.stdout or "")
+        log.write(r.stderr or "")
     saved = os.path.exists(out)
-    loaded = ("LOADED: " + name) in (r.stdout or "")
+    viewport = re.search(r"PROCESS_TO_VIEWPORT_MS:\s*(\d+)", r.stdout or "")
+    hydrated = re.search(r"PROCESS_TO_HYDRATED_MS:\s*(\d+)", r.stdout or "")
+    memories = re.findall(r"MEMORY_SUMMARY:\s*(\{[^\n]+\})", r.stdout or "")
+    viewport_ms = viewport.group(1) if viewport else "-"
+    hydrated_ms = hydrated.group(1) if hydrated else "-"
+    memory_summary = memories[-1] if memories else "-"
+    loaded = viewport is not None
     total = ""; per_kind = ""
     if saved:
         with open(audit, "w", encoding="utf-8") as f:
@@ -46,10 +64,10 @@ for name in names:
                   if line.strip() and line.strip() not in ("lint done", "parts lint done")]
         lint = "clean" if not issues else f"{len(issues)} issue(s): " + "; ".join(issues[:3])
     seconds = round(time.monotonic() - started, 1)
-    rows.append((name, mapping.get(name, ""), ("yes" if saved else "NO") + ("" if loaded else " (not loaded)"), total, excel, lint, per_kind, seconds))
-    print(name, "saved" if saved else "NOT SAVED", "total", total, "excel", excel, "lint", lint, "seconds", seconds, flush=True)
+    rows.append((name, mapping.get(name, ""), ("yes" if saved else "NO") + ("" if loaded else " (not loaded)"), total, excel, lint, per_kind, viewport_ms, hydrated_ms, memory_summary, seconds))
+    print(name, "saved" if saved else "NOT SAVED", "total", total, "excel", excel, "lint", lint, "viewport_ms", viewport_ms, "hydrated_ms", hydrated_ms, "seconds", seconds, flush=True)
 with open(os.path.join(ROOT, "_batch_audit_report.md"), "w", encoding="utf-8") as f:
-    f.write("| file | original name | saved | total diffs | Excel opens | lint | diffs by kind | seconds |\n|---|---|---|---:|---|---|---|---:|\n")
+    f.write("| file | original name | saved | total diffs | Excel opens | lint | diffs by kind | process→viewport ms | process→hydrated ms | memory peak summary | seconds |\n|---|---|---|---:|---|---|---|---:|---:|---|---:|\n")
     for r in rows:
         f.write("| " + " | ".join(str(x) for x in r) + " |\n")
 print("report: _batch_audit_report.md")
