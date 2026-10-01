@@ -227,7 +227,7 @@ export class WriterApp {
     this._editableRoots = [header, body, footer];
     this._normalizers = this._editableRoots.map(root => new InputNormalizer({
       target: root,
-      onWordCommit: () => this.adapter?.recordSnapshot?.("Typing Word")
+      onWordCommit: () => this.adapter?.recordSnapshot?.("Gõ chữ")
     }).attach(root));
     this._autoRecoverOptions = options;
     console.log("[WriterApp] Đã khởi tạo 3T Doc chuẩn hóa cao cấp.");
