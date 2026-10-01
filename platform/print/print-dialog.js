@@ -1,5 +1,26 @@
 import { chooseDefaultPrinter, getPrintErrorMessage, parsePageRange } from "./print-model.js";
 
+let _printStylesPromise = null;
+
+function ensurePrintStyles() {
+  if (typeof document === "undefined") return Promise.resolve();
+  if (document.getElementById("vno-print-dialog-styles")) return Promise.resolve();
+  if (_printStylesPromise) return _printStylesPromise;
+  _printStylesPromise = new Promise((resolve, reject) => {
+    const link = document.createElement("link");
+    link.id = "vno-print-dialog-styles";
+    link.rel = "stylesheet";
+    link.href = new URL("./print-dialog.css", import.meta.url).href;
+    link.onload = resolve;
+    link.onerror = () => reject(new Error("Không tải được giao diện hộp thoại in của 3T Office."));
+    document.head.appendChild(link);
+  }).catch((error) => {
+    _printStylesPromise = null;
+    throw error;
+  });
+  return _printStylesPromise;
+}
+
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (character) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"
@@ -24,6 +45,7 @@ export async function openPrintDialog({
   engine
 } = {}) {
   if (typeof document === "undefined") return false;
+  await ensurePrintStyles();
 
   const safeCurrentPage = Math.max(1, Number.isInteger(Number(currentPage)) ? Number(currentPage) : 1);
   const printableSelectionRanges = Array.isArray(selectionRanges)

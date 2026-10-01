@@ -10,7 +10,7 @@ import { SLIDES_RIBBON_TABS } from "../../apps/slides/slides-ribbon.js";
 import { ICONS } from "../../platform/ui-kit/icons.js";
 import { tCommand, setLocale } from "../../platform/i18n/i18n.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
-import { VietnameseSpellChecker, VI_PERSONAL_DICTIONARY_KEY } from "../../platform/text/vi-spellchecker.js";
+import { VietnameseSpellChecker, VI_PERSONAL_DICTIONARY_KEY, tokenizeVietnamese, normalizeVietnameseWord } from "../../platform/text/vi-spellchecker.js";
 import { VIETNAMESE_DICTIONARY_WORDS } from "../../platform/text/dictionaries/vi-dictionary.js";
 
 function assert(condition, message) {
@@ -32,6 +32,7 @@ function container() {
 
 function canvasForSpell() {
   const canvas = new SlidesCanvasController(container());
+  canvas._spellcheckTools = { VietnameseSpellChecker, tokenizeVietnamese, normalizeVietnameseWord, words: VIETNAMESE_DICTIONARY_WORDS };
   canvas.shapesLayer = null;
   canvas._renderThumbnails = () => {};
   canvas._renderShapesLayer = () => {};
@@ -134,12 +135,12 @@ export async function runSlidesSpellcheckRibbonTests() {
     assert(canvas.suggestSpellcheckWord("chínnh").includes("chính"), "không gợi ý chính");
   });
 
-  await test("Không có document.body thì showSpellcheckDialog trả về danh sách lỗi, không ném", () => {
+  await test("Không có document.body thì showSpellcheckDialog trả về danh sách lỗi, không ném", async () => {
     const canvas = canvasForSpell();
     const originalDocument = globalThis.document;
     globalThis.document = { createElement: () => ({ className: "", textContent: "", setAttribute() {} }) };
     try {
-      const issues = canvas.showSpellcheckDialog();
+      const issues = await canvas.showSpellcheckDialog();
       assert(Array.isArray(issues) && issues.some((item) => item.word === "chínnh"), "thiếu fallback không DOM");
     } finally {
       globalThis.document = originalDocument;

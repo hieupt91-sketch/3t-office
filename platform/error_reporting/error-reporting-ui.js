@@ -98,10 +98,10 @@ export class ErrorReportingUI {
     return this;
   }
 
-  async initialize() {
+  async initialize({ deferConsentPrompt = false } = {}) {
     this.mount();
     await this.refresh();
-    if (this.state?.enabled && this.state.consent === "unknown" && !this._consentDialogShown) {
+    if (!deferConsentPrompt && this.state?.enabled && this.state.consent === "unknown" && !this._consentDialogShown) {
       this._consentDialogShown = true;
       this.showConsentDialog();
     }

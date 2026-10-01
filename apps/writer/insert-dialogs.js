@@ -1,10 +1,17 @@
 /**
  * 3T Doc — Insert dialogs (Equation, Bookmark, Cross-reference, WordArt)
- * Rút gọn so với Word: phương trình là hộp text/MathML cơ bản, không có trình soạn đồ họa.
+ * Equations are composed as linear input with native MathML preview and no external renderer.
  * WordArt: copy logic CSS/preset từ 3T Slide (không import chéo apps/slides — AGENTS.md §4).
  */
 
 import { t, getLocale } from "../../platform/i18n/i18n.js";
+export { slugBookmarkName } from "./bookmark-utils.js";
+import {
+  EQUATION_STRUCTURES,
+  EQUATION_SYMBOLS,
+  linearToMathML,
+  replaceGreekCommandAtCursor
+} from "./equation-editor.js";
 
 function trapFocus(dialogBox, event) {
   if (event.key !== "Tab") return;
@@ -25,107 +32,154 @@ function trapFocus(dialogBox, event) {
   }
 }
 
-export function slugBookmarkName(name) {
-  const slug = String(name || "bookmark")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-zA-Z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .toLowerCase();
-  return slug || "bookmark";
-}
-
-const EQUATION_PRESETS = [
-  "E = mc²",
-  "a² + b² = c²",
-  "x = (−b ± √(b² − 4ac)) / 2a",
-  "∑ᵢ xᵢ / n"
-];
-
 /**
  * @param {Object} [options]
+ * @param {string} [options.linear]
  * @param {string} [options.expression]
- * @returns {Promise<string|null>}
+ * @returns {Promise<{linear:string, mathml:string}|null>}
  */
 export function showEquationDialog(options = {}) {
-  const defaultExpr = options.expression || "E = mc²";
-  if (typeof document === "undefined" || !document.body || typeof document.createElement !== "function") {
-    return Promise.resolve(defaultExpr);
+  const initial = options.linear || options.expression || "x^2";
+  if (typeof document === "undefined" || !document.body) {
+    return Promise.resolve({ linear: initial, mathml: linearToMathML(initial) });
   }
-
   return new Promise((resolve) => {
     const previousFocused = document.activeElement;
-    const isEn = getLocale() === "en";
-    const overlay = document.createElement("div");
-    overlay.className = "vno-dialog-overlay";
+    const make = (tag, className, label) => {
+      const element = document.createElement(tag);
+      if (className) element.className = className;
+      if (label != null) element.textContent = label;
+      return element;
+    };
+    const overlay = make("div", "vno-dialog-overlay");
     overlay.dataset.vnoDialog = "equation";
-    overlay.innerHTML = `
-      <div class="vno-dialog-box" style="width: 460px;" role="dialog" aria-modal="true" aria-labelledby="vno-equation-title">
-        <div class="vno-dialog-header">
-          <span id="vno-equation-title">${isEn ? "Equation" : "Công thức"}</span>
-          <button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${t("common.close")}" aria-label="${t("common.close")}">&times;</button>
-        </div>
-        <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:10px;">
-          <p style="margin:0;font-size:12px;color:#64748b;">
-            ${isEn
-              ? "Reduced editor: insert a styled math text box. No graphical equation designer."
-              : "Bản rút gọn: chèn hộp công thức dạng chữ. Không có trình soạn đồ họa như Word."}
-          </p>
-          <label for="vno-equation-input" style="font-size:13px;font-weight:500;">${isEn ? "Expression" : "Biểu thức"}</label>
-          <input id="vno-equation-input" class="vno-dialog-input" type="text" value="${defaultExpr.replace(/"/g, "&quot;")}"
-            style="width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid var(--vno-border-default);border-radius:6px;font-family:Cambria,'Times New Roman',serif;font-style:italic;font-size:16px;" />
-          <div class="vno-equation-presets" style="display:flex;flex-wrap:wrap;gap:6px;">
-            ${EQUATION_PRESETS.map(preset => `<button type="button" class="vno-btn vno-equation-preset" data-equation="${preset.replace(/"/g, "&quot;")}">${preset}</button>`).join("")}
-          </div>
-        </div>
-        <div class="vno-dialog-footer">
-          <button type="button" class="vno-btn vno-dialog-cancel-btn">${t("common.cancel")}</button>
-          <button type="button" class="vno-btn vno-btn-primary vno-dialog-ok-btn">${isEn ? "Insert" : "Chèn"}</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(overlay);
-    const dialogBox = overlay.querySelector(".vno-dialog-box");
-    const input = overlay.querySelector("#vno-equation-input");
-    input.focus();
-    input.select();
+    const box = make("div", "vno-dialog-box vno-equation-editor");
+    box.style.width = "min(820px, calc(100vw - 32px))";
+    box.setAttribute("role", "dialog");
+    box.setAttribute("aria-modal", "true");
+    box.setAttribute("aria-labelledby", "vno-equation-title");
 
-    overlay.querySelectorAll(".vno-equation-preset").forEach(btn => {
-      btn.addEventListener("click", () => {
-        input.value = btn.getAttribute("data-equation") || "";
-        input.focus();
-      });
-    });
+    const header = make("div", "vno-dialog-header");
+    const title = make("span", "", t("writer.equation.dialog.title"));
+    title.id = "vno-equation-title";
+    const close = make("button", "vno-btn vno-btn-icon-only vno-dialog-close-btn", "×");
+    close.type = "button";
+    close.title = t("common.close");
+    close.setAttribute("aria-label", t("common.close"));
+    header.append(title, close);
+
+    const body = make("div", "vno-dialog-body vno-equation-dialog-body");
+    const guidance = make("p", "vno-equation-guidance", t("writer.equation.dialog.instructions"));
+    const structures = make("div", "vno-equation-structures");
+    structures.setAttribute("role", "group");
+    structures.setAttribute("aria-label", t("writer.equation.dialog.structures"));
+    const glyphs = {
+      fraction: "a⁄b", superscript: "x²", subscript: "x₁", squareRoot: "√x",
+      nthRoot: "ⁿ√x", integral: "∫", sum: "∑", product: "∏", brackets: "( )",
+      matrix2: "▦ 2×2", matrix3: "▦ 3×3"
+    };
+
+    const editorGrid = make("div", "vno-equation-editor-grid");
+    const inputPane = make("div", "vno-equation-input-pane");
+    const inputLabel = make("label", "", t("writer.equation.dialog.linearFormat"));
+    inputLabel.htmlFor = "vno-equation-input";
+    const input = make("textarea", "vno-dialog-input vno-equation-linear");
+    input.id = "vno-equation-input";
+    input.rows = 5;
+    input.value = initial;
+    input.setAttribute("spellcheck", "false");
+    input.setAttribute("aria-describedby", "vno-equation-hint");
+    const hint = make("div", "vno-equation-hint", t("writer.equation.dialog.linearHint"));
+    hint.id = "vno-equation-hint";
+    inputPane.append(inputLabel, input, hint);
+
+    const previewPane = make("div", "vno-equation-preview-pane");
+    const previewLabel = make("div", "vno-equation-preview-label", t("writer.equation.dialog.preview"));
+    const preview = make("div", "vno-equation-preview");
+    preview.setAttribute("role", "math");
+    preview.setAttribute("aria-live", "polite");
+    previewPane.append(previewLabel, preview);
+    editorGrid.append(inputPane, previewPane);
+
+    const symbols = make("div", "vno-equation-symbols");
+    symbols.setAttribute("role", "group");
+    symbols.setAttribute("aria-label", t("writer.equation.dialog.symbols"));
+    const footer = make("div", "vno-dialog-footer");
+    const cancel = make("button", "vno-btn vno-dialog-cancel-btn", t("common.cancel"));
+    cancel.type = "button";
+    const insert = make("button", "vno-btn vno-btn-primary vno-dialog-ok-btn", t("writer.equation.dialog.insert"));
+    insert.type = "button";
+    footer.append(cancel, insert);
+
+    const updatePreview = () => { preview.innerHTML = linearToMathML(input.value || ""); };
+    const insertTextAtSelection = (value) => {
+      const startAt = input.selectionStart ?? input.value.length;
+      const endAt = input.selectionEnd ?? startAt;
+      input.setRangeText(value, startAt, endAt, "end");
+      input.focus();
+      updatePreview();
+    };
+    for (const item of EQUATION_STRUCTURES) {
+      const button = make("button", "vno-btn vno-equation-structure", glyphs[item.id] || item.id);
+      button.type = "button";
+      button.title = t(item.labelKey);
+      button.setAttribute("aria-label", t(item.labelKey));
+      button.addEventListener("click", () => insertTextAtSelection(item.insert));
+      structures.appendChild(button);
+    }
+    for (const item of EQUATION_SYMBOLS) {
+      const button = make("button", "vno-btn vno-equation-symbol", item.symbol);
+      button.type = "button";
+      button.title = item.value;
+      button.setAttribute("aria-label", item.value);
+      button.addEventListener("click", () => insertTextAtSelection(item.value));
+      symbols.appendChild(button);
+    }
+    body.append(guidance, structures, symbols, editorGrid);
+    box.append(header, body, footer);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
 
     const cleanup = (value) => {
       document.removeEventListener("keydown", onKeyDown);
-      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-      if (previousFocused && typeof previousFocused.focus === "function") previousFocused.focus();
+      overlay.remove();
+      previousFocused?.focus?.();
       resolve(value);
     };
-
-    overlay.querySelector(".vno-dialog-ok-btn")?.addEventListener("click", () => cleanup((input.value || "").trim() || null));
-    overlay.querySelector(".vno-dialog-cancel-btn")?.addEventListener("click", () => cleanup(null));
-    overlay.querySelector(".vno-dialog-close-btn")?.addEventListener("click", () => cleanup(null));
-    overlay.addEventListener("click", (event) => {
-      if (event.target === overlay) cleanup(null);
-    });
-
+    const commit = () => {
+      const linear = input.value.trim();
+      cleanup(linear ? { linear, mathml: linearToMathML(linear) } : null);
+    };
+    input.addEventListener("input", updatePreview);
+    insert.addEventListener("click", commit);
+    cancel.addEventListener("click", () => cleanup(null));
+    close.addEventListener("click", () => cleanup(null));
+    overlay.addEventListener("click", event => { if (event.target === overlay) cleanup(null); });
     const onKeyDown = (event) => {
       if (event.key === "Escape") {
         event.preventDefault();
         cleanup(null);
-      } else if (event.key === "Enter") {
+      } else if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
         event.preventDefault();
-        cleanup((input.value || "").trim() || null);
+        commit();
+      } else if (event.key === " " && document.activeElement === input && !event.ctrlKey && !event.altKey && !event.metaKey) {
+        const converted = replaceGreekCommandAtCursor(input.value, input.selectionStart);
+        if (converted) {
+          event.preventDefault();
+          input.value = converted.value;
+          input.setSelectionRange(converted.cursor, converted.cursor);
+          updatePreview();
+        }
       } else if (event.key === "Tab") {
-        trapFocus(dialogBox, event);
+        trapFocus(box, event);
       }
     };
     document.addEventListener("keydown", onKeyDown);
+    input.focus();
+    input.select();
+    updatePreview();
   });
 }
-
 /**
  * @param {Object} [options]
  * @param {string} [options.name]
@@ -279,267 +333,9 @@ export function showCrossReferenceDialog(targets = []) {
   });
 }
 
-/**
- * Original VN WordArt presets (fill / outline / shadow / gradient).
- * Copied from Slides insert-dialogs.js — Writer cannot import apps/slides (AGENTS.md §4).
- * Inspired by common title styles, not Microsoft Office assets.
- */
-export const WORDART_PRESETS = [
-  {
-    id: "navy-outline",
-    nameVi: "Xanh đậm viền trắng",
-    nameEn: "Navy outline",
-    previewBg: "#e2e8f0",
-    fontFamily: "Impact, 'Arial Black', Arial, sans-serif",
-    fontSize: 48,
-    fillColor: "#1e3a8a",
-    gradient: null,
-    strokeColor: "#ffffff",
-    strokeWidth: 2,
-    shadow: { offsetX: 3, offsetY: 3, blur: 6, color: "rgba(15, 23, 42, 0.45)" }
-  },
-  {
-    id: "gold-outline",
-    nameVi: "Vàng kim viền nâu",
-    nameEn: "Gold outline",
-    previewBg: "#fff7ed",
-    fontFamily: "Impact, 'Arial Black', Arial, sans-serif",
-    fontSize: 48,
-    fillColor: "#d97706",
-    gradient: null,
-    strokeColor: "#78350f",
-    strokeWidth: 2,
-    shadow: { offsetX: 2, offsetY: 3, blur: 4, color: "rgba(120, 53, 15, 0.4)" }
-  },
-  {
-    id: "ocean-gradient",
-    nameVi: "Gradient đại dương",
-    nameEn: "Ocean gradient",
-    previewBg: "#0f172a",
-    fontFamily: "Impact, 'Arial Black', Arial, sans-serif",
-    fontSize: 48,
-    fillColor: "#1d4ed8",
-    gradient: { from: "#38bdf8", to: "#1d4ed8", angle: 90 },
-    strokeColor: "#0c4a6e",
-    strokeWidth: 1.5,
-    shadow: { offsetX: 2, offsetY: 4, blur: 8, color: "rgba(12, 74, 110, 0.55)" }
-  },
-  {
-    id: "sunset-gradient",
-    nameVi: "Gradient hoàng hôn",
-    nameEn: "Sunset gradient",
-    previewBg: "#1c1917",
-    fontFamily: "Impact, 'Arial Black', Arial, sans-serif",
-    fontSize: 48,
-    fillColor: "#dc2626",
-    gradient: { from: "#fb923c", to: "#dc2626", angle: 90 },
-    strokeColor: "#7f1d1d",
-    strokeWidth: 1.5,
-    shadow: { offsetX: 2, offsetY: 4, blur: 8, color: "rgba(127, 29, 29, 0.5)" }
-  },
-  {
-    id: "heavy-outline",
-    nameVi: "Viền đậm trắng",
-    nameEn: "Heavy outline",
-    previewBg: "#334155",
-    fontFamily: "Impact, 'Arial Black', Arial, sans-serif",
-    fontSize: 48,
-    fillColor: "#ffffff",
-    gradient: null,
-    strokeColor: "#0f172a",
-    strokeWidth: 3,
-    shadow: { offsetX: 3, offsetY: 3, blur: 0, color: "rgba(15, 23, 42, 0.35)" }
-  },
-  {
-    id: "emerald-glow",
-    nameVi: "Lục bảo phát sáng",
-    nameEn: "Emerald glow",
-    previewBg: "#ecfdf5",
-    fontFamily: "Georgia, 'Times New Roman', serif",
-    fontSize: 48,
-    fillColor: "#059669",
-    gradient: null,
-    strokeColor: "#064e3b",
-    strokeWidth: 1.5,
-    shadow: { offsetX: 0, offsetY: 0, blur: 12, color: "rgba(5, 150, 105, 0.75)" }
-  },
-  {
-    id: "violet-gradient",
-    nameVi: "Gradient tím hồng",
-    nameEn: "Violet gradient",
-    previewBg: "#1e1b4b",
-    fontFamily: "Impact, 'Arial Black', Arial, sans-serif",
-    fontSize: 48,
-    fillColor: "#7c3aed",
-    gradient: { from: "#8b5cf6", to: "#db2777", angle: 90 },
-    strokeColor: "#4c1d95",
-    strokeWidth: 1.5,
-    shadow: { offsetX: 2, offsetY: 4, blur: 10, color: "rgba(76, 29, 149, 0.5)" }
-  },
-  {
-    id: "frost-shadow",
-    nameVi: "Trắng đổ bóng",
-    nameEn: "Frost shadow",
-    previewBg: "#0f172a",
-    fontFamily: "Arial, Helvetica, sans-serif",
-    fontSize: 48,
-    fillColor: "#f8fafc",
-    gradient: null,
-    strokeColor: "#334155",
-    strokeWidth: 1,
-    shadow: { offsetX: 4, offsetY: 6, blur: 0, color: "rgba(15, 23, 42, 0.85)" }
-  }
-];
+import { WORDART_PRESETS, resolveWordArtPreset, resolveWordArtStyle, buildWordArtCss, applyWordArtCss, parseWordArtStyleAttr, buildWriterWordArtHtml } from "./writer-wordart.js";
+export { WORDART_PRESETS, resolveWordArtPreset, resolveWordArtStyle, buildWordArtCss, applyWordArtCss, parseWordArtStyleAttr, buildWriterWordArtHtml } from "./writer-wordart.js";
 
-export function resolveWordArtPreset(presetId) {
-  return WORDART_PRESETS.find((item) => item.id === presetId) || WORDART_PRESETS[0];
-}
-
-export function resolveWordArtStyle(shapeOrOptions = {}) {
-  const preset = resolveWordArtPreset(shapeOrOptions.presetId || shapeOrOptions.styleId);
-  const gradient = shapeOrOptions.gradient === undefined ? preset.gradient : shapeOrOptions.gradient;
-  const shadow = shapeOrOptions.shadow === undefined ? preset.shadow : shapeOrOptions.shadow;
-  return {
-    id: shapeOrOptions.presetId || shapeOrOptions.styleId || preset.id,
-    fontFamily: shapeOrOptions.fontFamily || preset.fontFamily,
-    fontSize: Number(shapeOrOptions.fontSize) > 0 ? Number(shapeOrOptions.fontSize) : preset.fontSize,
-    fillColor: shapeOrOptions.fillColor || preset.fillColor,
-    gradient: gradient ? { ...gradient } : null,
-    strokeColor: shapeOrOptions.strokeColor != null ? shapeOrOptions.strokeColor : preset.strokeColor,
-    strokeWidth: shapeOrOptions.strokeWidth != null ? Number(shapeOrOptions.strokeWidth) : preset.strokeWidth,
-    shadow: shadow ? { ...shadow } : null
-  };
-}
-
-export function buildWordArtCss(shapeOrOptions = {}, options = {}) {
-  const style = resolveWordArtStyle(shapeOrOptions);
-  const scale = Number(options.fontScale) > 0 ? Number(options.fontScale) : 1;
-  const fontSize = Math.max(8, Math.round(style.fontSize * scale));
-  const strokeWidth = Math.max(0, style.strokeWidth * scale);
-  const parts = [
-    `font-family:${style.fontFamily}`,
-    `font-size:${fontSize}px`,
-    "font-weight:800",
-    "letter-spacing:0.02em",
-    "line-height:1.1",
-    "text-align:center",
-    "display:inline-block"
-  ];
-  if (style.gradient?.from && style.gradient?.to) {
-    const angle = Number.isFinite(Number(style.gradient.angle)) ? Number(style.gradient.angle) : 90;
-    parts.push(`background-image:linear-gradient(${angle}deg, ${style.gradient.from}, ${style.gradient.to})`);
-    parts.push("-webkit-background-clip:text");
-    parts.push("background-clip:text");
-    parts.push("-webkit-text-fill-color:transparent");
-    parts.push("color:transparent");
-  } else {
-    parts.push(`color:${style.fillColor}`);
-    parts.push(`-webkit-text-fill-color:${style.fillColor}`);
-  }
-  if (strokeWidth > 0 && style.strokeColor) {
-    parts.push(`-webkit-text-stroke:${strokeWidth}px ${style.strokeColor}`);
-  }
-  if (style.shadow) {
-    const ox = Number(style.shadow.offsetX) || 0;
-    const oy = Number(style.shadow.offsetY) || 0;
-    const blur = Number(style.shadow.blur) || 0;
-    parts.push(`text-shadow:${ox * scale}px ${oy * scale}px ${blur * scale}px ${style.shadow.color || "rgba(0,0,0,0.4)"}`);
-  }
-  return parts.join(";");
-}
-
-export function applyWordArtCss(el, shapeOrOptions = {}, options = {}) {
-  if (!el?.style) return "";
-  const style = resolveWordArtStyle(shapeOrOptions);
-  const css = buildWordArtCss(style, options);
-  const scale = Number(options.fontScale) > 0 ? Number(options.fontScale) : 1;
-  el.style.fontFamily = style.fontFamily;
-  el.style.fontSize = `${Math.max(8, Math.round(style.fontSize * scale))}px`;
-  el.style.fontWeight = "800";
-  el.style.letterSpacing = "0.02em";
-  el.style.lineHeight = "1.1";
-  el.style.textAlign = "center";
-  el.style.display = "inline-block";
-  if (style.gradient?.from && style.gradient?.to) {
-    const angle = Number.isFinite(Number(style.gradient.angle)) ? Number(style.gradient.angle) : 90;
-    el.style.backgroundImage = `linear-gradient(${angle}deg, ${style.gradient.from}, ${style.gradient.to})`;
-    el.style.webkitBackgroundClip = "text";
-    el.style.backgroundClip = "text";
-    el.style.setProperty("-webkit-background-clip", "text");
-    el.style.setProperty("background-clip", "text");
-    el.style.webkitTextFillColor = "transparent";
-    el.style.color = "transparent";
-  } else {
-    el.style.backgroundImage = "none";
-    el.style.webkitTextFillColor = style.fillColor;
-    el.style.color = style.fillColor;
-  }
-  if (style.strokeWidth > 0 && style.strokeColor) {
-    const stroke = `${style.strokeWidth * scale}px ${style.strokeColor}`;
-    el.style.webkitTextStroke = stroke;
-    el.style.setProperty("-webkit-text-stroke", stroke);
-  } else {
-    el.style.webkitTextStroke = "";
-  }
-  if (style.shadow) {
-    const ox = (Number(style.shadow.offsetX) || 0) * scale;
-    const oy = (Number(style.shadow.offsetY) || 0) * scale;
-    const blur = (Number(style.shadow.blur) || 0) * scale;
-    el.style.textShadow = `${ox}px ${oy}px ${blur}px ${style.shadow.color || "rgba(0,0,0,0.4)"}`;
-  } else {
-    el.style.textShadow = "none";
-  }
-  return css;
-}
-
-function escapeWordArtText(value) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-export function parseWordArtStyleAttr(raw) {
-  if (!raw) return null;
-  try {
-    const decoded = decodeURIComponent(String(raw));
-    const parsed = JSON.parse(decoded);
-    return parsed && typeof parsed === "object" ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Inline WordArt markup for a Writer flow document (span at the caret).
- * @param {string} text
- * @param {Object} [options]
- */
-export function buildWriterWordArtHtml(text, options = {}) {
-  const style = resolveWordArtStyle(options);
-  const css = buildWordArtCss(style, options);
-  const visible = String(text || "3T Office").trim() || "3T Office";
-  const safeText = escapeWordArtText(visible);
-  const encoded = encodeURIComponent(JSON.stringify({
-    presetId: style.id,
-    fontFamily: style.fontFamily,
-    fontSize: style.fontSize,
-    fillColor: style.fillColor,
-    gradient: style.gradient,
-    strokeColor: style.strokeColor,
-    strokeWidth: style.strokeWidth,
-    shadow: style.shadow
-  }));
-  return `<span class="vno-writer-wordart" data-vno-wordart="true" data-vno-wordart-preset="${escapeWordArtText(style.id)}" data-vno-wordart-text="${safeText}" data-vno-wordart-style="${encoded}" contenteditable="false" role="img" aria-label="Chữ nghệ thuật: ${safeText}" tabindex="0"><span class="vno-wordart-text" style="${css}">${safeText}</span></span>`;
-}
-
-/**
- * @param {Object} [options]
- * @param {string} [options.text]
- * @param {string} [options.presetId]
- * @returns {Promise<{text:string, presetId:string}|null>}
- */
 export function showWordArtDialog(options = {}) {
   const defaultText = String(options.text || "3T Office");
   const defaultPreset = resolveWordArtPreset(options.presetId || options.styleId).id;

@@ -1,7 +1,7 @@
-# Spec triển khai — Hạng mục CHUNG của 3T Office (CH-1 → CH-9)
+﻿# Spec triển khai — Hạng mục CHUNG của 3T Office (CH-1 → CH-9)
 
 Ngày: 01/10/2026 · Người quyết định thứ tự: Người phụ trách dự án · Điều phối và nghiệm thu: Claude (chỉ giao việc + kiểm tra, không tự viết code).
-Thứ tự làm: **CH-1 → CH-9**, xong phần chung mới sang 3T Doc → 3T Sheet → 3T Slide.
+Thứ tự ưu tiên: phần chung trước, rồi 3T Doc → 3T Sheet → 3T Slide. **Cập nhật 01/10 17:50:** KHÔNG chờ xong hết phần chung mới làm từng app — xem mục "Kế hoạch theo đợt" ở cuối tài liệu (Đợt A làm ngay, Đợt B chạy song song với việc từng app).
 
 ## 0. Quy tắc áp dụng cho mọi hạng mục
 
@@ -102,6 +102,7 @@ Thứ tự làm: **CH-1 → CH-9**, xong phần chung mới sang 3T Doc → 3T S
 | CH-5.3 | Định dạng cũ .doc / .xls / .ppt | Mở được, hiển thị đúng; Lưu thành định dạng mới không mất nội dung; đo trên mẫu LAN |
 | CH-5.4 | Không ghi đè giá trị file gốc đã lưu sẵn (ví dụ #REF!, #NAME? trong xlsx) | Kiểm qua bộ 26 file |
 | CH-5.5 | Thông báo lỗi khi mở tệp hỏng/khóa/mật khẩu | Tiếng Việt, rõ nguyên nhân, giữ tài liệu đang mở |
+| **CH-5.6** | **Mất dữ liệu khi lưu docx (Người phụ trách duyệt 01/10, ưu tiên cao nhất trong CH-5):** đầu/chân trang trống khi mở bằng Word; mất theo dõi thay đổi; mất chú thích | Word mở bản lưu thấy đúng đầu/chân trang + trang đầu khác, `Revisions.Count` và `Comments.Count` đúng; tài liệu tạo bằng Word mở → lưu không mất gì |
 
 ---
 
@@ -148,7 +149,7 @@ Thứ tự làm: **CH-1 → CH-9**, xong phần chung mới sang 3T Doc → 3T S
 
 | Mã | Việc | Tiêu chí nghiệm thu |
 |---|---|---|
-| CH-9.1 | Báo lỗi gửi về VPS | **Cần Người phụ trách cung cấp địa chỉ VPS + khóa**; khi có: báo lỗi xin phép người dùng, không gửi nội dung tài liệu |
+| CH-9.1 | Báo lỗi gửi về VPS | **Đã mở khóa (01/10):** địa chỉ lấy từ 3T Cloud (`office.3tcomputer.com`, cấu hình được, xem `docs/SPEC-3T-CLOUD.md`); báo lỗi xin phép người dùng, không gửi nội dung tài liệu; làm sau khi 3T Cloud GĐ1 chạy |
 | CH-9.2 | Tự lưu khôi phục cho cả 3 app | Tắt ngang app → mở lại có hộp thoại khôi phục |
 | CH-9.3 | Một tiến trình nhiều cửa sổ, tự phục hồi khi tiến trình chính chết | Đã có (G11); thêm vào bộ CH-6 |
 | CH-9.4 | Dọn tiến trình treo (soffice, Office ẩn do app mở) khi thoát | Không còn tiến trình mồ côi sau khi đóng app |
@@ -156,16 +157,48 @@ Thứ tự làm: **CH-1 → CH-9**, xong phần chung mới sang 3T Doc → 3T S
 
 ---
 
+## Kế hoạch theo đợt (cập nhật 01/10/2026 17:50)
+
+Quyết định của Người phụ trách: tập trung làm xong **việc ngắn trước (tối 01/10 và sáng 02/10)**; việc dài chạy **song song** với việc chi tiết từng app, không chờ nhau.
+
+**Đợt A — làm ngay, mục tiêu xong tối nay / sáng mai (để có bản 0.9.7):**
+
+| Mục | Việc còn lại | Người làm |
+|---|---|---|
+| CH-2 | Sửa launcher (chỉ `CREATE_NO_WINDOW`), nhật ký, mở lại, banner ≤ 2 phút; Claude thử bản cài thử 0.9.7 + bản vá 0.9.8; máy ≤ 0.9.6 cài Setup 0.9.7 một lần | Codex |
+| CH-8 | Gỡ xung đột `platform/shell/app-shell.js` với nhánh khởi động nhanh; Claude thử F1/Ctrl+0 trên desktop rồi gộp (F1 đã thử đạt trên Doc, Sheet) | agy (gemini-3.8-flash) |
+| CH-4.2/4.3 | Dán Excel/Word thật trên app desktop (opencode đã hỏng 3 lần) | Codex |
+| CH-9.2/9.4/9.5 | Tự lưu khôi phục, dọn tiến trình mồ côi, nhật ký hiệu năng | Codex |
+| CH-6 | Thư viện CDP chung, hồi quy desktop một lệnh, quét cấm nhập liệu HĐH | Codex |
+| 3T Cloud GĐ1 | Dịch vụ cập nhật + `/health` trên 3tserver (đĩa HDD `/srv`) | Codex |
+| Lối tắt | Doc / Sheet / Slide, xóa tên cũ khi nâng cấp | Codex |
+| CH-7.1 | Tìm/Thay thế chung (opencode chết 504, chuyển cho agy) | agy |
+| CH-1 (đo) | Đo lại tốc độ mở file, kiểm 26 file với cờ payload | Codex |
+
+**Đợt B — việc dài, chạy song song khi bước vào từng app:**
+
+| Mục | Ghi chú | Người làm |
+|---|---|---|
+| CH-1.2/1.3/1.5 | Mở file lần đầu còn 13–23 s; giữ MỘT luồng Codex đo và cải thiện liên tục (quy tắc sống còn) | Codex |
+| CH-5 (gồm 5.6) | pptx, .doc/.xls cũ, mất dữ liệu docx (đầu/chân trang, theo dõi thay đổi, chú thích) | Codex |
+| CH-7.2–7.6 | Chính tả, chèn, phương trình cho Slide, biểu đồ, chú thích | agy (opencode chỉ phụ trợ) |
+| CH-4.1/4.4–4.7 | Gom module chung, dán chéo, Unikey/EVKey | agy + Codex |
+| 3T Cloud GĐ2–GĐ4 | Khóa bản quyền, thư viện tải về, web | Codex |
+| Từng app | Doc (12 mục CHƯA ĐẠT), Sheet (5 lỗi từ rà soát C3–C12), Slide (rà soát D1–D8) | **Codex** |
+
+**Phân công agent:** Codex làm việc chi tiết và nặng (từng app, lưu/mở, server); agy (gemini-3.8-flash-high) làm phụ trợ chung; opencode chỉ làm việc phụ nhỏ, không đụng đường lưu/mở (đã làm hỏng lưu docx, hay chết 504). Claude chỉ giao việc và nghiệm thu; xung đột và test lỗi trả lại cho agent.
+
 ## Theo dõi tiến độ
 
-| Hạng mục | Trạng thái 01/10 14:30 | Người làm |
+| Hạng mục | Trạng thái 01/10 17:50 | Người làm |
 |---|---|---|
-| CH-1 Tốc độ | Đang làm | Codex ×3 |
-| CH-2 Cập nhật | 0.9.6 đang phát hành; thử thật ngay sau | Claude kiểm |
-| CH-3 In/PDF | Qua Office đã khớp, chờ gộp | Codex |
-| CH-4 Bàn phím & Clipboard | Phím xong; dán định dạng đang làm | opencode |
-| CH-5 Mở/Lưu | docx/xlsx tốt; pptx, .doc/.xls chưa đo | Chưa giao |
-| CH-6 Bộ kiểm tra chung | Chưa giao | — |
-| CH-7 Công cụ soạn thảo | Chưa giao | — |
-| CH-8 Giao diện & Trợ giúp | Phần lớn đã chung, chưa soát | — |
-| CH-9 Ổn định & báo lỗi | Chờ địa chỉ VPS | — |
+| CH-1 Tốc độ | Khởi động nhanh (1.1) đã gộp: phím đầu 2,1–2,6 s; mở file lần đầu còn chậm; payload Sheet chờ kiểm 26 file | Codex |
+| CH-2 Cập nhật | Nguyên nhân gốc đã xác minh; đang sửa + thử bản cài thử | Codex, Claude kiểm |
+| CH-3 In/PDF | Đã xong và gộp (khớp Office ở các mẫu đã đo) | — |
+| CH-4 Bàn phím & Clipboard | Phím xong; dán Excel/Word thật đang làm lại | Codex |
+| CH-5 Mở/Lưu | docx/xlsx tốt; pptx, .doc/.xls, mất dữ liệu docx đang làm | Codex |
+| CH-6 Bộ kiểm tra chung | Đang làm | Codex |
+| CH-7 Công cụ soạn thảo | Tìm/Thay thế đang làm; phương trình Doc đã gộp | agy |
+| CH-8 Giao diện & Trợ giúp | Xong nhánh, F1 đạt trên desktop; đang gỡ xung đột để gộp | agy |
+| CH-9 Ổn định & báo lỗi | 9.2/9.4/9.5 đang làm; 9.1 chờ 3T Cloud GĐ1 | Codex |
+| 3T Cloud | GĐ1 đang làm; tên miền `office.3tcomputer.com` đã chốt | Codex |
