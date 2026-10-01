@@ -182,9 +182,10 @@ export async function runSheetPivotImportTests() {
     assertPivotConfig(grid.pivotTablesBySheet.BangTongHop[0], "loadFromFods");
   });
 
-  test("Config import tương thích PivotTableEngine.refresh (không throw)", () => {
+  await asyncTest("Config import tương thích PivotTableEngine.refresh (không throw)", async () => {
     const grid = new SheetGridController(container());
     assert(new SheetAdapter(grid).loadFromFods(fs.readFileSync(FODS, "utf8")), "loadFromFods thất bại");
+    await grid.initializeOptionalDocumentFeatures();
     const ok = grid.refreshPivotTable("BangTongHop", false);
     assert(ok, "refreshPivotTable phải chạy được với config import");
     assert(grid.sheetsData.BangTongHop.get("A2")?.val === "Bắc", `A2 sau refresh=${grid.sheetsData.BangTongHop.get("A2")?.val}`);

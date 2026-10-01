@@ -10,15 +10,16 @@ import { RibbonHost } from "../ribbon/ribbon-host.js";
 import { OFFICE_TEMPLATES } from "../templates/template-registry.js";
 import { RecentFilesManager } from "../recent/recent-manager.js";
 import { createEmptyState } from "../ui-kit/components.js";
-import { LocalAiService, ApiKeyManager } from "../ai/ai-service.js";
+import { withLazyFeatureProgress } from "../startup/lazy-feature.js";
 import { isVoiceInputSupported, startVoiceInput, stopVoiceInput, isVoiceInputActive } from "../ai/voice-input.js";
-import { showAlertDialog, showConfirmDialog, showPromptDialog, showMacroManagerDialog, showUnsavedChangesDialog, showPendingFeatureNotice } from "../ui-kit/dialogs.js";
+import { createLazyDialogs } from "../ui-kit/lazy-dialogs.js";
 import { t, getLocale, setLocale, getSupportedLocales } from "../i18n/i18n.js";
 import { getPlatformLaunchContext } from "../bootstrap.js";
 import { themeManager } from "../theme/theme-manager.js";
 import { globalUnoBridge } from "../../adapters/libreoffice/common/uno-bridge.js";
 import { NotificationBar } from "../ui-kit/notification-bar.js";
-import { showAboutDialog } from "../about/about-dialog.js";
+
+const { showAlertDialog, showConfirmDialog, showPromptDialog, showMacroManagerDialog, showUnsavedChangesDialog } = createLazyDialogs("common");
 
 export class AppShell {
   /**
@@ -38,6 +39,9 @@ export class AppShell {
     this.zoomLevel = 100;
     this.isAiOpen = false;
     this._aiRequestController = null;
+    this._aiServices = null;
+    this._aiServicesPromise = null;
+    this._refreshAiProviderUi = null;
     this.adapter = options.adapter || null;
     this.grid = options.grid || null;
     this.canvas = options.canvas || null;
@@ -421,6 +425,7 @@ export class AppShell {
     const providerLabels = { openai: "OpenAI (ChatGPT)", gemini: "Google Gemini", claude: "Anthropic Claude", ollama: "Ollama", "rule-based": "Quy tắc cục bộ" };
 
     const refreshProviderUi = async () => {
+      const { LocalAiService, ApiKeyManager } = await this._loadAiServices();
       const selected = providerSelect.value;
       const isCloud = Boolean(disclosureKeys[selected]);
       keyPanel.style.display = isCloud ? "block" : "none";
@@ -437,8 +442,9 @@ export class AppShell {
       providerStatus.textContent = `${t("aiAssistant.activeProvider")}: ${active.label}`;
     };
 
-    providerSelect.value = LocalAiService.getSelectedProviderId();
+    this._refreshAiProviderUi = refreshProviderUi;
     providerSelect.addEventListener("change", async () => {
+      const { LocalAiService } = await this._loadAiServices();
       LocalAiService.setSelectedProviderId(providerSelect.value);
       keyFeedback.textContent = "";
       await refreshProviderUi();
@@ -450,17 +456,18 @@ export class AppShell {
     });
     this.aiSidebar.querySelector("#vno-ai-key-save").addEventListener("click", async () => {
       try {
+        const { ApiKeyManager } = await this._loadAiServices();
         ApiKeyManager.setApiKey(providerSelect.value, keyInput.value);
         keyFeedback.textContent = t("aiAssistant.keySaved");
         await refreshProviderUi();
       } catch (error) { keyFeedback.textContent = error.message; }
     });
     keyRemove.addEventListener("click", async () => {
+      const { ApiKeyManager } = await this._loadAiServices();
       ApiKeyManager.removeApiKey(providerSelect.value);
       keyFeedback.textContent = t("aiAssistant.keyRemoved");
       await refreshProviderUi();
     });
-    refreshProviderUi();
 
     const handleAiSend = async () => {
       const query = inputEl.value.trim();
@@ -488,6 +495,7 @@ export class AppShell {
       sendBtn.disabled = true;
       stopBtn.style.display = "inline-block";
       try {
+        const { LocalAiService } = await this._loadAiServices();
         const res = await LocalAiService.query(query, { documentText: docText, appName: this.appName, signal: this._aiRequestController.signal });
         botMsg.innerHTML = `<div style="font-weight:bold;color:#16a34a;margin-bottom:6px;">✨ ${t("aiAssistant.title")}</div>`;
         const replyEl = document.createElement("div");
@@ -635,9 +643,45 @@ export class AppShell {
     this.isAiOpen = forceState !== undefined ? forceState : !this.isAiOpen;
     if (this.isAiOpen) {
       this.aiSidebar.classList.remove("is-hidden");
+      void this._loadAiServices()
+        .then(({ LocalAiService }) => {
+          if (!this.isAiOpen) return;
+          const providerSelect = this.aiSidebar.querySelector("#vno-ai-provider");
+          if (providerSelect) providerSelect.value = LocalAiService.getSelectedProviderId();
+          return this._refreshAiProviderUi?.();
+        })
+        .catch((error) => {
+          const status = this.aiSidebar.querySelector("#vno-ai-provider-status");
+          if (status) status.textContent = `Không tải được Trợ lý 3T AI: ${error.message}`;
+        });
     } else {
       this.aiSidebar.classList.add("is-hidden");
     }
+  }
+
+  _loadAiServices() {
+    if (this._aiServices) return Promise.resolve(this._aiServices);
+    if (!this._aiServicesPromise) {
+      this._aiServicesPromise = withLazyFeatureProgress(this.appName, "Trợ lý AI", () => import("../ai/ai-service.js"))
+        .then((services) => {
+          this._aiServices = services;
+          return services;
+        })
+        .catch((error) => {
+          this._aiServicesPromise = null;
+          throw error;
+        });
+    }
+    return this._aiServicesPromise;
+  }
+
+  async _showAboutDialog() {
+    const { showAboutDialog } = await withLazyFeatureProgress(
+      this.appName,
+      "Giới thiệu 3T Office",
+      () => import("../about/about-dialog.js")
+    );
+    return showAboutDialog();
   }
 
   showBackstageMenu() {
@@ -1007,7 +1051,7 @@ export class AppShell {
 
     modal.querySelector("#vno-backstage-about")?.addEventListener("click", () => {
       closeModal();
-      showAboutDialog();
+      this._showAboutDialog();
     });
 
     modal.querySelector("#vno-backstage-options")?.addEventListener("click", () => {
@@ -1600,7 +1644,7 @@ export class AppShell {
 
     // Mở hộp thoại Giới thiệu 3T Office
     globalCommandBus.bindHandler("common.help.about", () => {
-      showAboutDialog();
+      this._showAboutDialog();
       return true;
     });
 
@@ -1770,6 +1814,7 @@ export class AppShell {
 
     try {
       const prompt = `Tóm tắt cuộc họp sau thành cấu trúc rõ ràng. YÊU CẦU BẮT BUỘC:\n1. **ĐIỂM CHÍNH**: Liệt kê các vấn đề chính được bàn luận\n2. **QUYẾT ĐỊNH**: Các quyết định đã được đưa ra\n3. **VIỆC CẦN LÀM**: Các action items, ghi rõ người phụ trách nếu có\n\nNội dung ghi chép cuộc họp:\n${transcript.trim()}`;
+      const { LocalAiService } = await this._loadAiServices();
       const res = await LocalAiService.query(prompt, { documentText: transcript.trim(), appName: this.appName });
 
       botMsg.innerHTML = `<div style="font-weight:bold;color:#16a34a;margin-bottom:6px;">✨ Tóm tắt cuộc họp</div>`;
@@ -1839,6 +1884,7 @@ export class AppShell {
 
     try {
       const prompt = `Tìm kiếm trong nội dung tài liệu bên dưới và trả lời câu hỏi của người dùng. YÊU CẦU:\n- Trích xuất các đoạn văn bản liên quan nhất tìm thấy trong tài liệu\n- Chỉ rõ vị trí (đoạn nào, nội dung gì)\n- Nếu không tìm thấy, nói rõ\n\nCâu hỏi: ${question.trim()}\n\nNội dung tài liệu:\n${docText.trim().substring(0, 8000)}`;
+      const { LocalAiService } = await this._loadAiServices();
       const res = await LocalAiService.query(prompt, { documentText: docText, appName: this.appName });
 
       botMsg.innerHTML = `<div style="font-weight:bold;color:#2563eb;margin-bottom:6px;">🔍 Kết quả tìm kiếm: "${question.trim()}"</div>`;
@@ -1895,6 +1941,7 @@ export class AppShell {
 
     try {
       const prompt = `Dịch đoạn văn bản sau sang ${langLabel}. YÊU CẦU:\n- Giữ nguyên định dạng và ý nghĩa gốc\n- Không diễn giải thêm, không bớt nội dung\n- Dịch chính xác, tự nhiên\n\nVăn bản cần dịch:\n${textToTranslate.substring(0, 8000)}`;
+      const { LocalAiService } = await this._loadAiServices();
       const res = await LocalAiService.query(prompt, { documentText: textToTranslate, appName: this.appName });
 
       botMsg.innerHTML = `<div style="font-weight:bold;color:#16a34a;margin-bottom:6px;">✨ ${t("aiAssistant.translateResult", "Kết quả dịch thuật")}</div>`;
@@ -2028,6 +2075,7 @@ export class AppShell {
 
     try {
       const prompt = `Tạo bản nháp văn bản hành chính tiếng Việt theo yêu cầu sau. YÊU CẦU:\n- Cấu trúc phù hợp loại văn bản (tiêu đề, kính gửi, nội dung, ký tên nếu là thư/công văn)\n- Ngôn ngữ hành chính trang trọng tiếng Việt\n- Đầy đủ ý, rõ ràng\n\nYêu cầu: ${description.trim()}\n\n${docText.trim() ? `Nội dung tài liệu hiện tại:\n${docText.trim().substring(0, 4000)}` : "(Tài liệu trống — tạo mới)"}`;
+      const { LocalAiService } = await this._loadAiServices();
       const res = await LocalAiService.query(prompt, { documentText: docText, appName: this.appName });
 
       botMsg.innerHTML = `<div style="font-weight:bold;color:#16a34a;margin-bottom:6px;">✨ ${t("aiAssistant.draftTitle", "AI Viết nháp")}</div>`;
@@ -2079,4 +2127,4 @@ export class AppShell {
   }
 }
 
-export { showPendingFeatureNotice } from "../ui-kit/dialogs.js";
+export { showPendingFeatureNotice } from "../ui-kit/lazy-dialogs.js";
