@@ -16,7 +16,7 @@ Status meanings: **ĐẠT** = the specific UI path named in the evidence worked;
 | C3 | Ctrl+A | ĐẠT | CDP test confirmed: inside populated region A2:A4, 1st Ctrl+A selects current region A2:A4; 2nd Ctrl+A selects full sheet extent A1:XFD1048576. Corner header click also selects full sheet extent. |
 | C3 | Shift+arrow extension | ĐẠT | CDP `Shift+Right` extended A2 to A2:B2; hidden Excel COM returned `$A$2:$B$2`. |
 | C3 | Ctrl+arrow navigation | ĐẠT | With A2:A3 populated, CDP `Ctrl+Down` stopped at A3; hidden Excel COM `End(xlDown)` from A2 returned `$A$3`. |
-| C3 | Full Excel worksheet extent | ĐẠT | Viewport virtualization over full Excel bounds 1,048,576 rows x 16,384 columns (A..XFD). Name Box jumps to A1, XFD1048576, B2:D10, C:E, 5:8. DOM node count stays bounded (~1,040-1,200 cells). Scrolling to row 1,000,000 takes 51ms (0 long tasks > 100ms). Fast Ctrl+Down jump to row 1,048,576 takes 295ms. Heap growth < 1MB after typing in XFD1048576. Verified via tests/live/cdp/sheet-grid-extent.desktop.mjs (13/13 PASS). |
+| C3 | Full Excel worksheet extent | ĐẠT | Viewport virtualization over full Excel bounds 1,048,576 rows x 16,384 columns (A..XFD). Name Box jumps to A1, XFD1048576, B2:D10, C:E, 5:8. DOM node count stays bounded (~1,040-1,200 cells). Scrolling to row 1,000,000 takes 54ms (0 long tasks > 100ms). Fast Ctrl+Down jump to row 1,048,576 takes 297ms. Heap growth < 1MB after typing in XFD1048576. Verified via tests/live/cdp/sheet-grid-extent.desktop.mjs (14/14 PASS) including live render parity across lan02.xlsx, lan11.xlsx, lan09.xlsx (79,500 cells compared, 0 differing). |
 | C4 | Fill numeric series | ĐẠT | CDP mouse drag of the handle from 1,2 produced 1–5; Undo/Redo removed/restored D3:D5. Keyboard `Ctrl+D` over E1:E5 copied the first value into all cells; Undo restored the prior values and Redo restored the fill. Hidden Excel COM parity for the fill commands remains pending. |
 | C4 | Fill date series | ĐẠT | CDP mouse drag continued 30/01/2026, 31/01/2026 across rollover as 01/02/2026, 02/02/2026, 03/02/2026. The live cells remain text values, so Excel date serial and XLSX parity are still pending. |
 | C4 | Fill weekdays and months | ĐẠT | CDP fill continued weekday and month sequences in the live grid; undo restored the source range. |
@@ -205,8 +205,8 @@ Key achievements:
    - **Scrollbar Scroll to Row 1,000,000**: 47.2ms, 0 long tasks > 100ms, DOM cells: 1040.
    - **Ctrl+Down Jump to Row 1,048,576**: 312ms, 0 long tasks > 100ms.
    - **JS Heap Growth**: +0.48 MB after jumping to XFD1048576 and typing (limit: 20 MB).
-   - **LAN Files Parity**: `lan02.xlsx` and `lan11.xlsx` verified to render identical sheets and cell texts as main.
-   - **Desktop CDP Suite**: 13/13 PASS (100%).
+   - **LAN Files Parity**: `lan02.xlsx`, `lan11.xlsx`, and `lan09.xlsx` verified live against `main` (via detached temporary worktree) to render identical sheets and cell texts (79,500 cells compared across 53 sheets, 0 differing cells).
+   - **Desktop CDP Suite**: 14/14 PASS (100%).
    - **Shared Desktop Regression**: 26 PASS, 1 FAIL, 0 BLOCKED (unchanged from main).
    - **Unit Tests**: 2361/2361 PASS (100%), increased from 2353 on main.
 
