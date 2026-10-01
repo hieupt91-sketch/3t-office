@@ -163,11 +163,11 @@ TOTAL: 17/17 PASS (100%)
 Đã đăng ký Suite 172 (`CH-4.7 — Vietnamese IME typing, burst normalizer, caret preservation, undo coalescing & NFC normalization`).
 ```text
 ==================================================
-KẾT QUẢ KIỂM THỬ: 2314/2314 PASS | 0 FAIL
+KẾT QUẢ KIỂM THỬ: 2318/2318 PASS | 0 FAIL
 ==================================================
 Toàn bộ các bài kiểm tra đều đạt chuẩn chất lượng.
 ```
-*(Số lượng bài kiểm tra vượt chuẩn đã tăng thêm 10 bài, từ 2304 lên 2314, không có bài nào thất bại).*
+*(Số bài test đạt chuẩn đã tăng từ **2304** lên **2318** bài test, không có bài nào thất bại).*
 
 ### 6.3. Python Test Suite (`python -m unittest discover -s tests`)
 ```text
