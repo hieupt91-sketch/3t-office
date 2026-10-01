@@ -23,6 +23,7 @@ import { extractSheetRangeData, SHEET_CHART_TYPES } from "./sheet-chart-data.js"
 import { SheetDataTools } from "./data-tools.js";
 import { computeConsolidate, formatSheetRange, parseConsolidateReference, CONSOLIDATE_FUNCTIONS } from "./consolidate.js";
 import { createMatcher } from "../../platform/find/find-engine.js";
+import { InputNormalizer } from "../../platform/keyboard/input-normalizer.js";
 
 const { showAlertDialog, showConfirmDialog, showPromptDialog, showFindReplaceDialog } = createLazyDialogs("sheet");
 
@@ -354,6 +355,10 @@ export class SheetGridController {
     this.formulaInput.before(formulaInputWrap);
     formulaInputWrap.append(this.formulaReferenceOverlay, this.formulaInput);
 
+    this._formulaInputNormalizer = new InputNormalizer({
+      target: this.formulaInput
+    }).attach(this.formulaInput);
+
     this.autocomplete.mount();
 
     this.formulaInput.addEventListener("focus", () => {
@@ -610,6 +615,7 @@ export class SheetGridController {
   destroy() {
     this._closeSpellcheckDialog();
     this._closeContextMenu();
+    this._formulaInputNormalizer?.destroy?.();
     this.autocomplete?.destroy?.();
   }
 
@@ -1215,6 +1221,11 @@ export class SheetGridController {
       e.stopPropagation();
       this._startAutofill(e);
     });
+    handle.addEventListener("dblclick", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this._autofillDownToAdjacentData();
+    });
     td.appendChild(handle);
   }
 
@@ -1244,9 +1255,27 @@ export class SheetGridController {
     const current = this.cellsData.get(`${coord.c}${coord.r}`);
     const currentValue = current ? (current.formula || current.val || "") : "";
     const editedValue = this.formulaInput.value;
-    if (String(currentValue) !== String(editedValue)) this.setCellValue(coord.c, coord.r, editedValue, true, { coalesce: true });
+    if (String(currentValue) !== String(editedValue)) {
+      const original = this._cellValueBeforeEdit !== undefined ? this._cellValueBeforeEdit : currentValue;
+      if (!this._validateDataValidationCommit(coord.c, coord.r, editedValue, original)) return;
+      this.setCellValue(coord.c, coord.r, editedValue, true, { coalesce: true });
+    }
     this._cellValueBeforeEdit = undefined;
     this.autocomplete?.closeAll?.();
+  }
+
+  _validateDataValidationCommit(col, row, value, originalValue) {
+    const result = this.validateCellValue(col, row, value);
+    if (result.valid) return true;
+    showAlertDialog({
+      title: t("sheetDialogs.dataValidation", "Kiểm tra dữ liệu"),
+      message: result.message
+    });
+    this.setCellValue(col, row, originalValue ?? "", false);
+    if (this.formulaInput && this.selectedCoord.c === col && this.selectedCoord.r === row) {
+      this.formulaInput.value = String(originalValue ?? "");
+    }
+    return false;
   }
 
   _cellEditorValue(item) {
@@ -1287,7 +1316,8 @@ export class SheetGridController {
       }
     }
     if (session.sheet === this.activeSheet && session.coord?.c === this.selectedCoord.c && session.coord?.r === this.selectedCoord.r) {
-      this.setCellValue(session.coord.c, session.coord.r, session.value, true, { coalesce: true });
+      const hasValidation = !!this.getValidationForCell(session.coord.c, session.coord.r);
+      this.setCellValue(session.coord.c, session.coord.r, session.value, !hasValidation, { coalesce: true });
     }
     this._refreshFormulaEntryVisuals();
     if (!options.composing && options.source !== "autocomplete") {
@@ -1459,7 +1489,8 @@ export class SheetGridController {
     const session = this.formulaEntry;
     if (!session) return false;
     if (this.formulaInput) session.update(this.formulaInput.value, this.formulaInput.selectionStart ?? this.formulaInput.value.length);
-    const finalValue = session.commit();
+    let finalValue = session.commit();
+    if (typeof finalValue === "string") finalValue = finalValue.normalize("NFC");
     const coord = { ...session.coord };
     const ownerSheet = session.sheet;
     if (this.activeSheet !== ownerSheet) {
@@ -1467,6 +1498,14 @@ export class SheetGridController {
       this.switchSheet(ownerSheet, { formulaReturn: true });
     }
     this.selectedCoord = { ...coord };
+    if (!this._validateDataValidationCommit(coord.c, coord.r, finalValue, session.original)) {
+      this.formulaEntry = null;
+      this._cellValueBeforeEdit = undefined;
+      this._formulaPointCoord = null;
+      this.autocomplete?.closeAll?.();
+      this._refreshFormulaEntryVisuals();
+      return false;
+    }
     this.setCellValue(coord.c, coord.r, finalValue, true, { coalesce: true });
     if (this.formulaInput) this.formulaInput.value = finalValue;
     this.formulaEntry = null;
@@ -1884,6 +1923,37 @@ export class SheetGridController {
     this._autofillTarget = null;
   }
 
+  _autofillDownToAdjacentData() {
+    const src = this._normalizeRange(this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const startCol = this._columnNumber(src.start.c);
+    const endCol = this._columnNumber(src.end.c);
+    const adjacentCols = [startCol - 1, endCol + 1]
+      .filter(col => col >= 1 && col <= this.cols.length);
+    let endRow = src.end.r;
+
+    for (const colNum of adjacentCols) {
+      let contiguousEnd = src.end.r;
+      const col = this._columnLabel(colNum);
+      for (let row = src.end.r + 1; row <= this.rowCount; row++) {
+        const item = this.cellsData.get(`${col}${row}`);
+        const hasValue = item && (item.formula || (item.val !== null && item.val !== undefined && String(item.val) !== ""));
+        if (!hasValue) break;
+        contiguousEnd = row;
+      }
+      endRow = Math.max(endRow, contiguousEnd);
+    }
+
+    if (endRow <= src.end.r) return false;
+    this._executeAutofill(src, {
+      direction: "down",
+      startCol: src.start.c,
+      endCol: src.end.c,
+      startRow: src.end.r + 1,
+      endRow
+    });
+    return true;
+  }
+
   _executeAutofill(src, target) {
     const before = {};
     const after = {};
@@ -1891,6 +1961,42 @@ export class SheetGridController {
     const monthsVi = ["Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6", "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"];
     const monthsEn = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const daysVi = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"];
+    const dayMs = 24 * 60 * 60 * 1000;
+    const parseDate = value => {
+      const raw = String(value ?? "").trim();
+      const ymd = raw.match(/^(\d{4})([/-])(\d{1,2})\2(\d{1,2})$/);
+      const dmy = raw.match(/^(\d{1,2})([/-])(\d{1,2})\2(\d{4})$/);
+      if (!ymd && !dmy) return null;
+      const year = Number(ymd ? ymd[1] : dmy[4]);
+      const month = Number(ymd ? ymd[3] : dmy[3]);
+      const day = Number(ymd ? ymd[4] : dmy[1]);
+      const utc = Date.UTC(year, month - 1, day);
+      const date = new Date(utc);
+      if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
+      return {
+        utc,
+        yearFirst: !!ymd,
+        separator: (ymd || dmy)[2],
+        dayWidth: ymd ? ymd[4].length : dmy[1].length,
+        monthWidth: ymd ? ymd[3].length : dmy[3].length
+      };
+    };
+    const dateSequenceValue = (sourceCells, offset) => {
+      const dates = sourceCells.map(cell => parseDate(cell.val));
+      if (!dates.length || dates.some(date => !date)) return null;
+      const first = dates[0];
+      const last = dates[dates.length - 1];
+      const stepDays = dates.length === 1
+        ? 1
+        : Math.round((last.utc - first.utc) / dayMs / (dates.length - 1));
+      const date = new Date(last.utc + stepDays * offset * dayMs);
+      const day = String(date.getUTCDate()).padStart(last.dayWidth, "0");
+      const month = String(date.getUTCMonth() + 1).padStart(last.monthWidth, "0");
+      const year = String(date.getUTCFullYear()).padStart(4, "0");
+      return last.yearFirst
+        ? `${year}${last.separator}${month}${last.separator}${day}`
+        : `${day}${last.separator}${month}${last.separator}${year}`;
+    };
 
     if (target.direction === "down") {
       const srcStartRow = src.start.r;
@@ -1918,11 +2024,14 @@ export class SheetGridController {
           let newVal = sourceCell.val;
           let newFormula = "";
           const newStyle = structuredClone(sourceCell.style || {});
+          const dateValue = dateSequenceValue(sourceCells, stepOffset);
 
           if (sourceCell.formula && String(sourceCell.formula).startsWith("=")) {
             const deltaR = r - (srcStartRow + cycleIdx);
             newFormula = this._offsetFormula(sourceCell.formula, 0, deltaR);
             newVal = this.formulaEngine.evaluate(newFormula);
+          } else if (dateValue !== null) {
+            newVal = dateValue;
           } else if (srcCount === 1) {
             const rawVal = String(sourceCell.val || "").trim();
             const numVal = Number(rawVal);
@@ -1988,11 +2097,14 @@ export class SheetGridController {
           let newVal = sourceCell.val;
           let newFormula = "";
           const newStyle = structuredClone(sourceCell.style || {});
+          const dateValue = dateSequenceValue(sourceCells, stepOffset);
 
           if (sourceCell.formula && String(sourceCell.formula).startsWith("=")) {
             const deltaC = cNum - (srcStartColNum + cycleIdx);
             newFormula = this._offsetFormula(sourceCell.formula, deltaC, 0);
             newVal = this.formulaEngine.evaluate(newFormula);
+          } else if (dateValue !== null) {
+            newVal = dateValue;
           } else if (srcCount === 1) {
             const rawVal = String(sourceCell.val || "").trim();
             const numVal = Number(rawVal);
@@ -2239,6 +2351,45 @@ export class SheetGridController {
     };
   }
 
+  _showTabColorMenu(event, sheetName) {
+    this._contextMenuPreviousFocus = document.activeElement;
+    const colors = ["", "#f44336", "#ff9800", "#ffeb3b", "#4caf50", "#2196f3", "#673ab7", "#e91e63"];
+    const menu = document.createElement("div");
+    menu.className = "vno-sheet-context-menu";
+    menu.setAttribute("role", "menu");
+    menu.setAttribute("aria-label", "Màu tab");
+    colors.forEach(color => {
+      const button = document.createElement("button");
+      button.type = "button"; button.className = "vno-sheet-context-item"; button.setAttribute("role", "menuitem");
+      button.textContent = color || "Không màu";
+      if (color) button.style.borderLeft = `12px solid ${color}`;
+      button.addEventListener("click", () => { this._closeContextMenu(); this.setTabColor(color, sheetName); });
+      menu.appendChild(button);
+    });
+    menu.style.cssText = `position:fixed;left:${Math.max(10, event.clientX)}px;top:${Math.max(10, event.clientY)}px;z-index:81;`;
+    document.body.appendChild(menu); this._activeContextMenu = menu;
+    const bounds = menu.getBoundingClientRect();
+    menu.style.left = `${Math.max(10, Math.min(event.clientX, window.innerWidth - bounds.width - 10))}px`;
+    menu.style.top = `${Math.max(10, Math.min(event.clientY, window.innerHeight - bounds.height - 10))}px`;
+    const onPointer = ev => { if (!menu.contains(ev.target)) this._closeContextMenu(); };
+    const onKey = ev => {
+      if (ev.key === "Escape") { ev.preventDefault(); this._closeContextMenu(); return; }
+      if (ev.key !== "ArrowDown" && ev.key !== "ArrowUp") return;
+      ev.preventDefault();
+      const buttons = Array.from(menu.querySelectorAll("button"));
+      const index = buttons.indexOf(document.activeElement);
+      const next = (index + (ev.key === "ArrowDown" ? 1 : -1) + buttons.length) % buttons.length;
+      buttons[next]?.focus();
+    };
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("keydown", onKey);
+    menu._vnoCleanup = () => {
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+    menu.querySelector("button")?.focus();
+  }
+
   _closeContextMenu() {
     if (this._activeContextMenu) {
       this._activeContextMenu._vnoCleanup?.();
@@ -2257,7 +2408,36 @@ export class SheetGridController {
     }
   }
 
+  _currentRegionFromSelection() {
+    const start = { ...(this.selectedCoord || { c: "A", r: 1 }) };
+    const hasValue = (c, r) => {
+      const item = this.cellsData.get(`${c}${r}`);
+      return !!item && (item.val !== undefined && item.val !== "" || item.formula);
+    };
+    if (!hasValue(start.c, start.r)) return null;
+    let left = this._columnNumber(start.c), right = left, top = start.r, bottom = start.r;
+    let changed = true;
+    while (changed) {
+      changed = false;
+      if (left > 1 && Array.from({ length: bottom - top + 1 }, (_, i) => hasValue(this._columnLabel(left - 1), top + i)).some(Boolean)) { left--; changed = true; }
+      if (right < this.cols.length && Array.from({ length: bottom - top + 1 }, (_, i) => hasValue(this._columnLabel(right + 1), top + i)).some(Boolean)) { right++; changed = true; }
+      if (top > 1 && Array.from({ length: right - left + 1 }, (_, i) => hasValue(this._columnLabel(left + i), top - 1)).some(Boolean)) { top--; changed = true; }
+      if (bottom < this.rowCount && Array.from({ length: right - left + 1 }, (_, i) => hasValue(this._columnLabel(left + i), bottom + 1)).some(Boolean)) { bottom++; changed = true; }
+    }
+    return { start: { c: this._columnLabel(left), r: top }, end: { c: this._columnLabel(right), r: bottom } };
+  }
+
   selectAll() {
+    const region = this._currentRegionFromSelection();
+    const current = this._normalizeRange(this.selectionRange);
+    if (region && (!current || this._rangeLabel(region) !== this._rangeLabel(current))) {
+      this.selectionRange = structuredClone(region);
+      this.selectionRanges = [this.selectionRange];
+      this.selectionKind = "cell";
+      this._renderSelection?.();
+      this._syncSelectionUi?.();
+      return true;
+    }
     this.selectCell("A", 1);
     this.selectCell(this.cols[this.cols.length - 1], this.rowCount, true);
     return true;
@@ -2709,6 +2889,11 @@ export class SheetGridController {
     const items = [
       { label: t("sheetDialogs.renameSheetMenu", "Đổi tên trang tính..."), action: () => this.showRenameSheetDialog(sheetName) },
       { label: t("sheetDialogs.moveCopyMenu", "Di chuyển hoặc Sao chép trang tính..."), action: () => this.showMoveCopySheetDialog(sheetName) },
+      { label: "Xóa trang tính", action: () => {
+        if (this.sheets.length <= 1) { this._showDataNotice("Không thể xóa trang tính cuối cùng."); return; }
+        if (globalThis.confirm?.(`Xóa trang tính «${sheetName}»?`) !== false) this.deleteSheet(sheetName);
+      } },
+      { label: "Màu tab", action: () => this._showTabColorMenu(event, sheetName) },
       { label: this.isSheetProtected(sheetName)
         ? t("sheetDialogs.unprotectSheet", "Bỏ bảo vệ trang tính...")
         : t("sheetDialogs.protectSheet", "Bảo vệ trang tính..."), action: () => this.showProtectSheetDialog(sheetName) }
@@ -3920,6 +4105,10 @@ _bindGridKeyboardNavigation() {
         e.preventDefault();
         this.selectCurrentRow();
         return;
+      } else if (e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey && (e.key === "a" || e.key === "A")) {
+        e.preventDefault();
+        this.selectAll();
+        return;
       } else if (e.key === "`" && e.ctrlKey) {
         e.preventDefault();
         this.toggleShowFormulas();
@@ -4167,6 +4356,7 @@ _bindGridKeyboardNavigation() {
   }
 
   setCellValue(col, row, val, recordUndo = true, historyOptions = {}) {
+    if (typeof val === "string") val = val.normalize("NFC");
     if (recordUndo && this._guardProtectedMutation()) return false;
     const key = `${col}${row}`;
     let item = this.cellsData.get(key) || { val: "", formula: "", style: {} };
@@ -4175,20 +4365,8 @@ _bindGridKeyboardNavigation() {
       return this._clearArrayFormula(item.arrayRange);
     }
 
-    if (recordUndo) {
-      this._recordHistory({
-        type: "cell",
-        sheet: this.activeSheet,
-        col,
-        row,
-        prevVal: item.formula || item.val || "",
-        nextVal: val,
-        prevValRichText: item.richText || null,
-        nextValRichText: null,
-        timestamp: Date.now()
-      }, historyOptions);
-    }
-
+    const prevVal = item.formula || (item.val ?? "");
+    const prevStyle = structuredClone(item.style || {});
     const escapedText = typeof val === "string" && val.startsWith("'");
     if (escapedText) val = val.slice(1);
     if (!escapedText && typeof val === "string" && val.startsWith("=")) {
@@ -4205,7 +4383,24 @@ _bindGridKeyboardNavigation() {
       item.val = this.formulaEngine.evaluate(val);
     } else {
       item.formula = "";
-      item.val = NumberFormatter.normalizeInputForFormat(val, item.style?.numberFormat);
+      const normalized = this._normalizeCellInput(val, item.style, escapedText);
+      item.val = normalized.value;
+      item.style = normalized.style;
+    }
+    if (recordUndo) {
+      this._recordHistory({
+        type: "cell",
+        sheet: this.activeSheet,
+        col,
+        row,
+        prevVal,
+        nextVal: item.formula || (item.val ?? ""),
+        prevStyle,
+        nextStyle: structuredClone(item.style || {}),
+        prevValRichText: item.richText || null,
+        nextValRichText: null,
+        timestamp: Date.now()
+      }, historyOptions);
     }
     // When user edits a cell, clear rich text formatting (Excel behavior)
     delete item.richText;
@@ -4234,6 +4429,39 @@ _bindGridKeyboardNavigation() {
     this.refreshCharts();
     this._updateWatchWindow?.();
     return true;
+  }
+
+  setTabColor(color = "", sheetName = this.activeSheet, recordUndo = true) {
+    if (!sheetName || !this.sheets.includes(sheetName) || this._guardWorkbookStructure()) return false;
+    const state = this.sheetStates[sheetName] ||= {};
+    const previous = state.tabColor || this.tabColors?.[sheetName] || "";
+    const next = String(color || "").toLowerCase();
+    if (previous === next) return true;
+    if (next) state.tabColor = next; else delete state.tabColor;
+    this.tabColors ||= {};
+    if (next) this.tabColors[sheetName] = next; else delete this.tabColors[sheetName];
+    this._renderSheetTabs();
+    if (recordUndo) this._recordHistory({ type: "sheet-tab-color", sheet: sheetName, previous, next });
+    this.options.onDocumentChange?.();
+    return true;
+  }
+
+  _normalizeCellInput(value, style = {}, escapedText = false) {
+    const nextStyle = { ...(style || {}) };
+    if (escapedText) return { value: String(value ?? ""), style: nextStyle };
+    const category = nextStyle.numberFormat?.category;
+    if (typeof value === "string" && (!category || category === "general")
+      && /^[+-]?(?:\d+(?:\.\d+)?|\.\d+)\s*%$/.test(value.trim())) {
+      nextStyle.numberFormat = { category: "percentage", decimals: value.match(/\.(\d+)/)?.[1].length || 0 };
+    }
+    if (typeof value === "string" && category !== "text"
+      && (!category || category === "general") && NumberFormatter.isDateInput(value)) {
+      nextStyle.numberFormat = { category: "date", dateFormat: "dd/mm/yyyy" };
+    }
+    return {
+      value: NumberFormatter.normalizeInputForFormat(value, nextStyle.numberFormat),
+      style: nextStyle
+    };
   }
 
   _recalculateAllFormulas(excludeKey, force = false) {
@@ -6665,6 +6893,11 @@ _bindGridKeyboardNavigation() {
           next.formula = formula;
           if (mode !== "formulas") next.style = structuredClone(source.style || {});
         }
+        if (options.coerceInput && !next.formula) {
+          const normalized = this._normalizeCellInput(next.val, next.style);
+          next.val = normalized.value;
+          next.style = normalized.style;
+        }
         after[coord] = structuredClone(next);
       }
     }
@@ -8304,6 +8537,9 @@ _bindGridKeyboardNavigation() {
       const index = direction === "undo" ? action.fromIndex : action.toIndex;
       return this._moveSheetToIndex(action.name, index);
     }
+    if (action.type === "sheet-tab-color") {
+      return this.setTabColor(direction === "undo" ? action.previous : action.next, action.sheet, false);
+    }
     if (action.sheet && action.sheet !== this.activeSheet) this.switchSheet(action.sheet);
     const value = direction === "undo" ? "prevVal" : "nextVal";
     if (action.type === "merge-cells") {
@@ -8318,11 +8554,18 @@ _bindGridKeyboardNavigation() {
       this._restoreRowColLayout(direction === "undo" ? action.before : action.after);
     } else if (action.type === "cell") {
       this.setCellValue(action.col, action.row, action[value], false);
+      const styleKey = direction === "undo" ? "prevStyle" : "nextStyle";
+      const key = `${action.col}${action.row}`;
+      const itm = this.cellsData.get(key);
+      if (itm && action[styleKey]) {
+        itm.style = structuredClone(action[styleKey]);
+        const dom = this.container.querySelector(`.vno-grid-cell[data-coord="${key}"]`);
+        if (dom) this._renderCellVisual(dom, itm, action.col, action.row);
+      }
       // Restore richText from snapshot if present (edited cells lose richText in setCellValue)
       if (action[value + "RichText"]) {
-        const key = `${action.col}${action.row}`;
-        const itm = this.cellsData.get(key);
-        if (itm) itm.richText = action[value + "RichText"];
+        const richItem = this.cellsData.get(key);
+        if (richItem) richItem.richText = action[value + "RichText"];
       }
       this.selectCell(action.col, action.row);
     } else if (action.type === "array-formula") {
@@ -8537,6 +8780,14 @@ _bindGridKeyboardNavigation() {
 
     if (rowsWithData.length < 2) return false;
 
+    // Excel treats a text first row as a header when sorting a contiguous table.
+    // Keep it in place for the simple A-Z/Z-A commands; the custom dialog already
+    // exposes an explicit "Dữ liệu có hàng tiêu đề" choice.
+    const firstRow = Math.min(...rowsWithData);
+    const firstRowValues = this.cols.map(c => this.cellsData.get(`${c}${firstRow}`)?.val).filter(v => v !== undefined && v !== "");
+    const hasHeader = firstRowValues.length > 0 && firstRowValues.every(v => typeof v === "string" && Number.isNaN(Number(String(v).replace(/[,\.]/g, ""))));
+    if (hasHeader) rowsWithData.splice(rowsWithData.indexOf(firstRow), 1);
+
     rowsWithData.sort((a, b) => a - b);
     const minRow = rowsWithData[0];
     const maxRow = rowsWithData[rowsWithData.length - 1];
@@ -8593,7 +8844,8 @@ _bindGridKeyboardNavigation() {
       state.filterSetByUser = true;
       if (this.isFilterActive) {
         const selected = this._normalizeRange(this.selectionRange);
-        if (selected.start.c !== selected.end.c || selected.start.r !== selected.end.r) state.filterRange = this._rangeLabel(selected);
+        const hasRangeSelection = selected.start.c !== selected.end.c || selected.start.r !== selected.end.r;
+        state.filterRange = this._rangeLabel(hasRangeSelection ? selected : this._usedRangeForCells(this.cellsData));
       }
     }
     if (this.container) {
@@ -8614,10 +8866,15 @@ _bindGridKeyboardNavigation() {
 
   _updateFilterButtons() {
     if (!this.container) return;
+    const configuredRange = this.sheetStates?.[this.activeSheet]?.filterRange;
+    const filterRange = configuredRange ? this._parseRange(configuredRange) : this._usedRangeForCells(this.cellsData);
+    const firstCol = this._columnNumber(filterRange?.start.c || "A");
+    const lastCol = this._columnNumber(filterRange?.end.c || "A");
     const btns = this.container.querySelectorAll(".vno-filter-btn");
     btns.forEach(btn => {
-      btn.style.display = this.isFilterActive ? "inline-flex" : "none";
       const col = btn.dataset.col;
+      const colNumber = this._columnNumber(col);
+      btn.style.display = this.isFilterActive && colNumber >= firstCol && colNumber <= lastCol ? "inline-flex" : "none";
       if (this.activeFilters.has(col)) {
         btn.classList.add("is-active");
       } else {

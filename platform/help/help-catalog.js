@@ -12,6 +12,7 @@ import { CONSISTENCY_HELP_ENTRIES } from "./entries-consistency.js";
 import { RETRO_RIBBON_HELP_ENTRIES } from "./entries-retro-ribbon.js";
 import { RETRO_DIALOGS_HELP_ENTRIES } from "./entries-retro-dialogs.js";
 import { RETRO_PLATFORM_HELP_ENTRIES } from "./entries-retro-platform.js";
+import { VIETNAMESE_TYPING_HELP_ENTRIES } from "./entries-vietnamese-typing.js";
 
 /** @type {Array<HelpEntry>} */
 export const HELP_ENTRIES = [
@@ -23,7 +24,8 @@ export const HELP_ENTRIES = [
   ...CONSISTENCY_HELP_ENTRIES,
   ...RETRO_RIBBON_HELP_ENTRIES,
   ...RETRO_DIALOGS_HELP_ENTRIES,
-  ...RETRO_PLATFORM_HELP_ENTRIES
+  ...RETRO_PLATFORM_HELP_ENTRIES,
+  ...VIETNAMESE_TYPING_HELP_ENTRIES
 ];
 
 /**

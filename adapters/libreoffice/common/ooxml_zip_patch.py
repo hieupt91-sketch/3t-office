@@ -1477,6 +1477,66 @@ def _overlay_scenarios_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
     return re.sub(r'<table:table\b([^>]*)>', _replace_table, fods_xml, flags=re.IGNORECASE)
 
 
+def parse_page_margins_from_fods(fods_xml: str | None) -> dict[str, dict[str, float]]:
+    """Read the Sheet UI's existing margin metadata (centimeters)."""
+    result = {}
+    for match in re.finditer(r'<table:table(?=\s|>)([^>]*)>', fods_xml or '', re.IGNORECASE):
+        attrs = _xml_attrs(match.group(1))
+        if not attrs.get('table:name') or not attrs.get('vno:page-margins'):
+            continue
+        try:
+            margins = json.loads(attrs['vno:page-margins'])
+            values = {side: float(margins[side]) for side in ('top', 'bottom', 'left', 'right')}
+        except (ValueError, TypeError, KeyError):
+            continue
+        if all(math.isfinite(value) and value >= 0 for value in values.values()):
+            result[attrs['table:name']] = values
+    return result
+
+
+def apply_page_margins_to_worksheet(sheet_xml: str, margins: dict[str, float]) -> str:
+    """Avoid LibreOffice adding header/footer heights to Excel's page margins."""
+    match = re.search(r'<pageMargins\b([^>]*)/\s*>', sheet_xml, re.IGNORECASE)
+    attrs = _xml_attrs(match.group(1)) if match else {'header': '0.3', 'footer': '0.3'}
+    attrs.update({side: format(value / 2.54, '.15g') for side, value in margins.items()})
+    element = '<pageMargins ' + ' '.join(f'{key}="{_escape_xml(value)}"' for key, value in attrs.items()) + '/>'
+    if match:
+        return sheet_xml[:match.start()] + element + sheet_xml[match.end():]
+    return _insert_worksheet_child_in_schema_order(sheet_xml, element, 'pageMargins')
+
+
+def overlay_page_margins_to_fods(xlsx_bytes: bytes, fods_xml: str) -> str:
+    """Native XLSX margins are authoritative; ODF uses different header spacing."""
+    margins_by_sheet = {}
+    for name, entry in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
+        content = read_zip_entry(xlsx_bytes, entry)
+        match = re.search(r'<pageMargins\b([^>]*)/\s*>', content.decode('utf-8', errors='replace') if content else '', re.IGNORECASE)
+        if not match:
+            continue
+        attrs = _xml_attrs(match.group(1))
+        try:
+            margins = {side: round(float(attrs[side]) * 2.54, 12) for side in ('top', 'bottom', 'left', 'right')}
+        except (ValueError, KeyError):
+            continue
+        if all(math.isfinite(value) and value >= 0 for value in margins.values()):
+            margins_by_sheet[name] = margins
+    if not margins_by_sheet:
+        return fods_xml
+
+    def replace_table(match):
+        attrs = match.group(1)
+        margins = margins_by_sheet.get(_xml_attrs(attrs).get('table:name'))
+        if margins is None:
+            return match.group(0)
+        attrs = re.sub(r'\s+vno:page-margins="[^"]*"', '', attrs, flags=re.IGNORECASE)
+        return f'<table:table{attrs} vno:page-margins="{_escape_xml(json.dumps(margins))}">'
+
+    xml = re.sub(r'<table:table(?=\s|>)([^>]*)>', replace_table, fods_xml, flags=re.IGNORECASE)
+    if not re.search(r'xmlns:vno\s*=', xml, re.IGNORECASE):
+        xml = re.sub(r'<office:document\b', f'<office:document xmlns:vno="{SHEET_VNO_NS}"', xml, count=1)
+    return xml
+
+
 def parse_print_titles_from_fods(fods_xml: str | None) -> list[tuple[str, str, str]]:
     """Return [(sheet name, row titles, column titles)] in workbook order."""
     result: list[tuple[str, str, str]] = []
@@ -1517,6 +1577,62 @@ def apply_print_titles_to_workbook(workbook_xml: str, titles: list[tuple[str, st
     if sheets_end:
         return xml[:sheets_end.end()] + f"<definedNames>{block}</definedNames>" + xml[sheets_end.end():]
     return xml
+
+
+def parse_print_titles_from_workbook(workbook_xml: str | None) -> dict[str, dict[str, str]]:
+    """Read local _xlnm.Print_Titles definitions from an OOXML workbook."""
+    sheet_names = [
+        _unescape_xml(match.group(1))
+        for match in re.finditer(r'<sheet\b[^>]*\bname="([^"]*)"[^>]*/?>', workbook_xml or "", re.IGNORECASE)
+    ]
+    result: dict[str, dict[str, str]] = {}
+    for match in re.finditer(r'<definedName\b([^>]*)>([\s\S]*?)</definedName\s*>', workbook_xml or "", re.IGNORECASE):
+        attrs, expression = match.group(1), _unescape_xml(match.group(2))
+        name = re.search(r'\bname="([^"]*)"', attrs, re.IGNORECASE)
+        local_id = re.search(r'\blocalSheetId="(\d+)"', attrs, re.IGNORECASE)
+        if not name or name.group(1).casefold() != "_xlnm.print_titles" or not local_id:
+            continue
+        index = int(local_id.group(1))
+        if index < 0 or index >= len(sheet_names):
+            continue
+        titles = {"rows": "", "cols": ""}
+        for area in re.finditer(r"(?:'((?:[^']|'')*)'|([^!,]+))!\$([A-Z]+|\d+):\$([A-Z]+|\d+)", expression, re.IGNORECASE):
+            start, end = area.group(3).upper(), area.group(4).upper()
+            if start.isdigit() and end.isdigit():
+                titles["rows"] = start if start == end else f"{start}:{end}"
+            elif start.isalpha() and end.isalpha():
+                titles["cols"] = start if start == end else f"{start}:{end}"
+        if titles["rows"] or titles["cols"]:
+            result[sheet_names[index]] = titles
+    return result
+
+
+def apply_print_titles_to_fods(fods_xml: str, titles_by_sheet: dict[str, dict[str, str]]) -> str:
+    """Stamp print-title metadata onto FODS tables before SheetAdapter parses them."""
+    if not titles_by_sheet:
+        return fods_xml
+
+    def replace_table(match: re.Match[str]) -> str:
+        attrs = match.group(1) or ""
+        name_match = re.search(r'table:name="([^"]*)"', attrs, re.IGNORECASE)
+        sheet_name = _unescape_xml(name_match.group(1)) if name_match else ""
+        titles = titles_by_sheet.get(sheet_name)
+        if not titles:
+            return match.group(0)
+        attrs = re.sub(r'\s+vno:print-title-rows="[^"]*"', "", attrs, flags=re.IGNORECASE)
+        attrs = re.sub(r'\s+vno:print-title-cols="[^"]*"', "", attrs, flags=re.IGNORECASE)
+        return (
+            f'<table:table{attrs} vno:print-title-rows="{titles.get("rows", "")}"'
+            f' vno:print-title-cols="{titles.get("cols", "")}">'
+        )
+
+    result = re.sub(r'<table:table\b([^>]*)>', replace_table, fods_xml, flags=re.IGNORECASE)
+    if re.search(r"xmlns:vno\s*=", result, re.IGNORECASE):
+        return result
+    match = _OFFICE_DOCUMENT_OPEN_RE.search(result)
+    if not match:
+        return result
+    return result[:match.start()] + f'<office:document{match.group(1)} xmlns:vno="{SHEET_VNO_NS}">' + result[match.end():]
 
 
 def _resolve_xlsx_sheet_entries(xlsx_bytes: bytes) -> dict[str, str]:
@@ -3102,6 +3218,20 @@ def postprocess_sheet_xlsx(
             next_sheet_xml = apply_scenarios_to_worksheet(sheet_xml, scens)
             if next_sheet_xml != sheet_xml:
                 replacements[entry_path] = next_sheet_xml
+
+    # Excel margins exclude the header/footer spacing LibreOffice adds on export.
+    sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+    for sheet_name, margins in parse_page_margins_from_fods(source_fods).items():
+        entry_path = _sheet_name_equivalent_value(sheet_entries, sheet_name)
+        if not entry_path:
+            continue
+        sheet_xml = replacements.get(entry_path)
+        if sheet_xml is None:
+            content = read_zip_entry(xlsx_bytes, entry_path)
+            if not content:
+                continue
+            sheet_xml = content.decode('utf-8', errors='replace')
+        replacements[entry_path] = apply_page_margins_to_worksheet(sheet_xml, margins)
 
     # Print Titles: LibreOffice drops the app's vno:print-title-* metadata
     # during FODS -> XLSX, so rebuild the standard workbook defined names.
@@ -6279,6 +6409,9 @@ def overlay_sheet_xlsx_fods(
         # Active sheet (activeTab -> ActiveTable): soffice headless drops
         # ActiveTable in office:settings, so we restore it from xl/workbook.xml.
         xml = overlay_active_sheet_to_fods(xml, workbook_xml)
+        # LibreOffice drops _xlnm.Print_Titles during XLSX -> FODS.
+        xml = apply_print_titles_to_fods(xml, parse_print_titles_from_workbook(workbook_xml))
+    xml = overlay_page_margins_to_fods(xlsx_bytes, xml)
     xml = overlay_sheet_xlsx_freeze_panes(xlsx_bytes, xml)
     # AutoFilter: read <autoFilter ref> from original worksheet XMLs and
     # inject <table:database-ranges> into FODS so parseFods can restore

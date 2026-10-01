@@ -1,3 +1,5 @@
+import { globalImeTracker } from "../keyboard/input-normalizer.js";
+
 const MARKER_SELECTOR = "[data-vno-spelling-uncertain]";
 const EDITABLE_BLOCK_SELECTOR = "p,li,td,th,h1,h2,h3,h4,h5,h6,blockquote,pre";
 
@@ -183,6 +185,9 @@ export class SpellcheckDomController {
       root.addEventListener("contextmenu", this._onContextMenu);
       root.addEventListener("keydown", this._onShiftF10);
     }
+    this._burstUnsubscribe = globalImeTracker.onBurstStateChange(active => {
+      if (!active) this.schedule(this.debounceMs);
+    });
     document.addEventListener("pointerdown", this._onDocumentPointer);
     this.schedule(0);
     return this;
@@ -190,6 +195,7 @@ export class SpellcheckDomController {
 
   destroy() {
     clearTimeout(this.timer);
+    this._burstUnsubscribe?.();
     for (const root of this.roots) {
       root.removeEventListener("input", this._onInput);
       root.removeEventListener("contextmenu", this._onContextMenu);
@@ -201,10 +207,17 @@ export class SpellcheckDomController {
 
   schedule(delay = this.debounceMs) {
     clearTimeout(this.timer);
+    if (globalImeTracker.isBurstActive()) {
+      // Defer until burst ends
+      return;
+    }
     this.timer = setTimeout(() => this.refresh(), delay);
   }
 
   refresh() {
+    if (globalImeTracker.isBurstActive()) {
+      return;
+    }
     for (const root of this.roots) this._refreshRoot(root);
   }
 

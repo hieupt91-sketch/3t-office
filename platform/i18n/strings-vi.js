@@ -201,6 +201,8 @@ export const viStrings = {
     protectSheetCheckbox: "Bảo vệ trang tính và nội dung các ô bị khóa",
     protectSheetHint: "Khi bật: không sửa nội dung ô, không đổi định dạng, không chèn/xóa hàng hoặc cột. Đây là khóa giao diện, mật khẩu lưu dạng chữ thường trong phiên làm việc — không phải bảo mật thật.",
     protectSheetTooltip: "Khóa sửa ô, định dạng và xóa hàng/cột trên trang tính hiện tại (khóa giao diện, không phải bảo mật thật)",
+    deleteSheetMenu: "Xóa trang tính", deleteSheetConfirm: "Xóa trang tính này?", cannotDeleteLastSheet: "Không thể xóa trang tính cuối cùng.",
+    tabColorMenu: "Màu tab", noTabColor: "Không màu",
     unprotectSheetTooltip: "Tắt khóa giao diện của trang tính hiện tại",
     protectPassword: "Mật khẩu (tùy chọn)",
     protectPasswordConfirm: "Nhập lại mật khẩu",

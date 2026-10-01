@@ -110,6 +110,7 @@ import { runSheetRenameMoveProtectTests } from "./unit/sheet-rename-move-protect
 import { runSheetProtectWorkbookTests } from "./unit/sheet-protect-workbook.test.js";
 import { runSlidesEditingGroupTests } from "./unit/slides-editing-group.test.js";
 import { runSlidesFormatPainterTests } from "./unit/slides-format-painter.test.js";
+import { runSlidesClipboardTests } from "./unit/slides-clipboard.test.js";
 import { runSlidesSpellcheckRibbonTests } from "./unit/slides-spellcheck-ribbon.test.js";
 import { runSlidesFormatBackgroundTests } from "./unit/slides-format-background.test.js";
 import { runWriterWordCountTests } from "./unit/writer-word-count.test.js";
@@ -151,6 +152,7 @@ import { runSheetFreezePanesRealTests } from "./unit/sheet-freeze-panes-real.tes
 import { runSheetImageImportExportTests } from "./unit/sheet-image-import-export.test.js";
 import { runSheetStatusBarSumTests } from "./unit/sheet-status-bar-sum.test.js";
 import { runSheetRangeSelectionTests } from "./unit/sheet-range-selection.test.js";
+import { runSheetAutoFillTests } from "./unit/sheet-autofill.test.js";
 import { runSlidesPptxSetupShowOpenOverlayTests } from "./unit/slides-pptx-setup-show-open-overlay.test.js";
 import { runWriterParagraphSpacingTests } from "./unit/writer-paragraph-spacing.test.js";
 import { runWriterFindReplaceDomTests } from "./unit/writer-find-replace-dom.test.js";
@@ -209,6 +211,10 @@ import { runUiConsistencyAndStringScannerTests } from "./unit/ui-user-visible-st
 import { runOsInputGuardTests } from "./unit/os-input-guard.test.js";
 import { runPrintEngineNameTests } from "./unit/print-engine-name.test.js";
 import { runWriterTableControlsTests } from "./unit/writer-table-controls.test.js";
+import { runVietnameseImeUnitTests } from "./unit/vietnamese-ime.test.js";
+import { runSheetNativeCellValuesTests } from "./unit/sheet-native-cell-values.test.js";
+import { runSheetPrintSetupRoundTripTests } from "./unit/sheet-print-setup-roundtrip.test.js";
+import { runSheetC3C7C8GapTests } from "./unit/sheet-c3-c7-c8-gaps.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -328,6 +334,7 @@ async function runAll() {
     { title: "99. Behavioral Tests — VN Sheet Protect Workbook", runner: runSheetProtectWorkbookTests },
     { title: "100. Behavioral Tests — VN Slides Home Editing group (Find/Replace/Select)", runner: runSlidesEditingGroupTests },
     { title: "89. Behavioral Tests — VN Slides Format Painter", runner: runSlidesFormatPainterTests },
+    { title: "89b. Behavioral Tests — VN Slides Clipboard (Cut/Copy/Paste in text boxes)", runner: runSlidesClipboardTests },
     { title: "90. Behavioral Tests — VN Slides Review Spellcheck Ribbon", runner: runSlidesSpellcheckRibbonTests },
     { title: "91. Behavioral Tests — VN Slides Format Background", runner: runSlidesFormatBackgroundTests },
     { title: "92. Behavioral Tests — VN Writer Word Count", runner: runWriterWordCountTests },
@@ -427,7 +434,12 @@ async function runAll() {
     { title: "170. Unit Tests — CH-8 UI Consistency, KeyTips, Contextual F1 & String Scanner", runner: runUiConsistencyAndStringScannerTests },
     { title: "171. Safety Regression — source and tests use CDP, not OS-level input", runner: runOsInputGuardTests },
     { title: "172. CH-3/CH-8 — Hộp thoại In không lộ tên thư viện bên trong", runner: runPrintEngineNameTests },
-    { title: "173. Unit Tests — VN Writer table controls, move handle, drag resize and contextual ribbon tabs", runner: runWriterTableControlsTests }
+    { title: "173. CH-4.7 — Vietnamese IME typing, burst normalizer, caret preservation, undo coalescing & NFC normalization", runner: runVietnameseImeUnitTests },
+    { title: "174. Unit Tests — VN Sheet AutoFill date sequences and double-click fill", runner: runSheetAutoFillTests },
+    { title: "175. Unit Tests — VN Sheet native numeric/date cell values, external paste, fill and FODS types", runner: runSheetNativeCellValuesTests },
+    { title: "176. Unit Tests — VN Sheet print setup XLSX reopen round-trip", runner: runSheetPrintSetupRoundTripTests },
+    { title: "177. Unit Tests — VN Sheet C3/C7/C8 selection, tabs and sort", runner: runSheetC3C7C8GapTests },
+    { title: "178. Unit Tests — VN Writer table controls, move handle, drag resize and contextual ribbon tabs", runner: runWriterTableControlsTests }
   ];
 
   for (const suite of suites) {

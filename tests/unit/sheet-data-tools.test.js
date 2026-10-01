@@ -125,5 +125,43 @@ export async function runSheetDataToolsTests() {
     const group = grid._outlineGroups()[0]; assert(grid.toggleOutlineGroup(group.id) && grid._isOutlineRowHidden(3), "Collapse thất bại");
     assert(grid.ungroupSelection() && !grid._outlineGroups().length, "Ungroup thất bại");
   });
+  await test("Data validation: reject invalid user commits and preserve the previous cell value", () => {
+    const grid = new SheetGridController(container());
+    const cell = { start: { c: "A", r: 1 }, end: { c: "A", r: 1 } };
+    grid.addDataValidation(cell, { type: "list", values: ["Red", "Green"] });
+    grid.setCellValue("A", 1, "Red", false);
+    const historyLength = grid.undoStack.length;
+    grid.setCellValue("A", 1, "Yellow", false); // in-cell edit preview before Enter
+    assert(!grid._validateDataValidationCommit("A", 1, "Yellow", "Red"), "Invalid list value must be rejected");
+    assert(grid.cellsData.get("A1").val === "Red", "Rejected edit must restore the prior valid value");
+    assert(grid.undoStack.length === historyLength, "Rejected edit must not create Undo history");
+    assert(grid._validateDataValidationCommit("A", 1, "Green", "Red"), "Valid list value must be accepted");
+  });
+
+  await test("AutoFilter: show arrows only for selected range and infer used range from one selected cell", () => {
+    const makeButtons = () => ["A", "B", "C", "D", "E"].map(col => ({
+      dataset: { col }, style: {}, classList: { add() {}, remove() {} }
+    }));
+    const selectedRangeButtons = makeButtons();
+    const selectedRangeHost = container();
+    selectedRangeHost.querySelectorAll = selector => selector === ".vno-filter-btn" ? selectedRangeButtons : [];
+    const selectedRangeGrid = new SheetGridController(selectedRangeHost);
+    [["A1", "Name"], ["B1", "Amount"], ["A2", "An"], ["B2", 10]].forEach(([coord, value]) => put(selectedRangeGrid, coord, value));
+    selectedRangeGrid.selectionRange = { start: { c: "A", r: 1 }, end: { c: "B", r: 2 } };
+    selectedRangeGrid.toggleFilter();
+    assert(selectedRangeGrid.sheetStates[selectedRangeGrid.activeSheet].filterRange === "A1:B2", "Explicit filter selection must be retained");
+    assert(selectedRangeButtons.map(button => button.style.display).join(",") === "inline-flex,inline-flex,none,none,none", "Only selected filter columns may show arrows");
+
+    const usedRangeButtons = makeButtons();
+    const usedRangeHost = container();
+    usedRangeHost.querySelectorAll = selector => selector === ".vno-filter-btn" ? usedRangeButtons : [];
+    const usedRangeGrid = new SheetGridController(usedRangeHost);
+    [["A1", "Name"], ["B1", "Amount"], ["D4", 12]].forEach(([coord, value]) => put(usedRangeGrid, coord, value));
+    usedRangeGrid.selectionRange = { start: { c: "A", r: 1 }, end: { c: "A", r: 1 } };
+    usedRangeGrid.toggleFilter();
+    assert(usedRangeGrid.sheetStates[usedRangeGrid.activeSheet].filterRange === "A1:D4", "Single-cell AutoFilter must infer the used range");
+    assert(usedRangeButtons.map(button => button.style.display).join(",") === "inline-flex,inline-flex,inline-flex,inline-flex,none", "Inferred range arrows must stop at the used last column");
+  });
+
   return results;
 }

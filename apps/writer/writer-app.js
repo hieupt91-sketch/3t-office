@@ -14,7 +14,7 @@ import { withLazyFeatureProgress } from "../../platform/startup/lazy-feature.js"
 import { WriterViewController } from "./writer-view-controller.js";
 import { WriterTableController } from "./writer-table.js";
 import { getHelpEntryById } from "../../platform/help/help-catalog.js";
-
+import { InputNormalizer } from "../../platform/keyboard/input-normalizer.js";
 
 export class WriterApp {
   constructor(mountElement) {
@@ -242,6 +242,10 @@ export class WriterApp {
     };
     this._setupContentObserver();
     this._editableRoots = [header, body, footer];
+    this._normalizers = this._editableRoots.map(root => new InputNormalizer({
+      target: root,
+      onWordCommit: () => this.adapter?.recordSnapshot?.("Gõ chữ")
+    }).attach(root));
     this._autoRecoverOptions = options;
     console.log("[WriterApp] Đã khởi tạo 3T Doc chuẩn hóa cao cấp.");
   }
@@ -357,6 +361,8 @@ export class WriterApp {
     this.tableController = null;
     this.spellcheckController?.destroy();
     this.spellcheckController = null;
+    this._normalizers?.forEach(n => n.destroy());
+    this._normalizers = [];
     this.helpPanel?.destroy();
     this.helpPanel = null;
   }

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 3T Sheet — Formula Autocomplete & Parameter IntelliSense Controller
  * Trải nghiệm gợi ý hàm & tooltip cú pháp tham số chuẩn Microsoft Excel
  */
@@ -6,6 +6,7 @@
 import { parseFormulaContext, formatSyntaxHtml } from "./formula-engine.js";
 import { insertFunctionSuggestion } from "./formula-entry.js";
 import { createAutocompletePopup, createSyntaxTooltip } from "../../platform/ui-kit/components.js";
+import { globalImeTracker } from "../../platform/keyboard/input-normalizer.js";
 
 export class FormulaAutocompleteController {
   /**
@@ -61,9 +62,19 @@ export class FormulaAutocompleteController {
       return;
     }
 
+    if (globalImeTracker.isBurstActive()) {
+      this.closeAll();
+      return;
+    }
+
     const pos = (cursorPos !== undefined && cursorPos !== null) ? cursorPos : formulaStr.length;
     const ctx = parseFormulaContext(formulaStr, pos);
     this.lastContext = ctx;
+
+    if (ctx.prefix && /[^\x00-\x7F]/.test(ctx.prefix)) {
+      this.closeAll();
+      return;
+    }
 
     const targetEl = this.getTargetCellElement();
 
