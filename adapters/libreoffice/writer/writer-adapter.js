@@ -214,6 +214,21 @@ export function replaceTextInTextNodes(nodes, findText, replacementText, replace
   return replacements;
 }
 
+export function resolveWriterTabBehavior({
+  inTable = false,
+  cellIndex = -1,
+  cellCount = 0,
+  inListAtStart = false,
+  shiftKey = false
+} = {}) {
+  if (inTable) {
+    if (shiftKey) return cellIndex > 0 ? "previousCell" : "ignore";
+    return cellIndex >= 0 && cellIndex === cellCount - 1 ? "appendTableRow" : "nextCell";
+  }
+  if (inListAtStart) return shiftKey ? "listOutdent" : "listIndent";
+  return shiftKey ? "ignore" : "insertTab";
+}
+
 export class WriterAdapter {
   constructor(editorDom) {
     this.editorDom = editorDom;
@@ -264,6 +279,7 @@ export class WriterAdapter {
     this._workflowBeforeInputHandler = null;
     this._workflowInputHandler = null;
     this._workflowKeydownHandler = null;
+    this._tabEditableRoots = [];
     this._resetInlineFormattingOnNextInput = null;
     this._normalizeParagraphAfterHeading = false;
     this._referenceClickHandler = null;
@@ -378,6 +394,7 @@ export class WriterAdapter {
 
     // Bind undo/redo listeners & command handlers
     this._bindUndoRedo();
+    this._bindClipboardEvents();
     globalCommandBus.bindHandler("common.edit.undo", () => this.undo());
     globalCommandBus.bindHandler("common.edit.redo", () => this.redo());
 
@@ -525,6 +542,7 @@ export class WriterAdapter {
     };
     this.bodyDom.addEventListener("input", this._workflowInputHandler);
 
+    this._tabEditableRoots = [this.headerDom, this.bodyDom, this.footerDom].filter(root => root?.addEventListener);
     this._workflowKeydownHandler = (event) => {
       if (event.key === "Backspace" || event.key === "Delete") {
         const selectedBreak = this.bodyDom.querySelector?.(".vno-section-break.is-selected");
@@ -546,33 +564,63 @@ export class WriterAdapter {
       }
       if (event.key !== "Tab") return;
       const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
-      const anchor = selection?.anchorNode?.nodeType === 1 ? selection.anchorNode : selection?.anchorNode?.parentElement;
-      const cell = anchor?.closest?.("td,th");
-      if (cell && this.bodyDom.contains(cell)) {
-        const table = cell.closest("table");
-        const cells = [...(table?.querySelectorAll?.("td,th") || [])];
-        const currentIndex = cells.indexOf(cell);
-        const nextIndex = currentIndex + (event.shiftKey ? -1 : 1);
-        if (nextIndex < 0 || nextIndex >= cells.length) return;
+      const anchorNode = selection?.anchorNode;
+      const anchor = anchorNode?.nodeType === 1 ? anchorNode : anchorNode?.parentElement;
+      const root = this._tabEditableRoots.find(candidate => candidate === event.currentTarget && candidate.contains(event.target));
+      if (!root) return;
 
+      const cell = anchor?.closest?.("td,th");
+      if (cell && root.contains(cell)) {
+        const table = cell.closest("table");
+        const cells = [...(table?.querySelectorAll?.("td,th") || [])]
+          .filter(candidate => candidate.closest("table") === table);
+        const currentIndex = cells.indexOf(cell);
+        const action = resolveWriterTabBehavior({
+          inTable: true,
+          cellIndex: currentIndex,
+          cellCount: cells.length,
+          shiftKey: event.shiftKey
+        });
         event.preventDefault();
         event.stopPropagation();
-        this.bodyDom.focus?.({ preventScroll: true });
-        const range = document.createRange();
-        range.selectNodeContents(cells[nextIndex]);
-        selection.removeAllRanges();
-        selection.addRange(range);
+        if (action === "appendTableRow" && table) {
+          const lastRow = table.rows?.[table.rows.length - 1];
+          const columnCount = Math.max(1, lastRow?.cells?.length || 1);
+          const newRow = table.insertRow(-1);
+          for (let index = 0; index < columnCount; index++) {
+            const newCell = newRow.insertCell(-1);
+            newCell.innerHTML = "<p><br></p>";
+          }
+          const firstNewCell = newRow.cells?.[0];
+          if (firstNewCell) this._placeCaretInEditable(firstNewCell, root, false);
+          return;
+        }
+        if (action === "ignore") return;
+        const nextIndex = currentIndex + (action === "previousCell" ? -1 : 1);
+        if (nextIndex < 0 || nextIndex >= cells.length) return;
+        this._placeCaretInEditable(cells[nextIndex], root, false);
         return;
       }
 
       const listItem = anchor?.closest?.("li");
-      if (!listItem || !this.bodyDom.contains(listItem)) return;
+      const inListAtStart = !!(listItem && root.contains(listItem) && this._selectionAtElementStart(listItem, selection));
+      const action = resolveWriterTabBehavior({ inListAtStart, shiftKey: event.shiftKey });
+      if (action === "listIndent" || action === "listOutdent") {
+        event.preventDefault();
+        event.stopPropagation();
+        if (action === "listOutdent") this.changeListLevel(-1, undefined, root);
+        else this.changeListLevel(1, undefined, root);
+        return;
+      }
+
       event.preventDefault();
       event.stopPropagation();
-      if (event.shiftKey) this.changeListLevel(-1);
-      else this.changeListLevel(1);
+      if (action === "ignore") return;
+      this._insertTabCharacter(root);
     };
-    this.bodyDom.addEventListener("keydown", this._workflowKeydownHandler);
+    for (const root of this._tabEditableRoots) root.addEventListener("keydown", this._workflowKeydownHandler);
+
+    // Section break handlers (from main)
     this.bodyDom.addEventListener("click", (e) => {
       const brk = e.target?.closest?.(".vno-section-break");
       this.bodyDom.querySelectorAll?.(".vno-section-break.is-selected")?.forEach((el) => el.classList.remove("is-selected"));
@@ -597,6 +645,51 @@ export class WriterAdapter {
     this.bodyDom.addEventListener("keyup", () => {
       this.syncActiveSection();
     });
+  }
+
+  _placeCaretInEditable(element, root, selectAll = false) {
+    if (!element || typeof window === "undefined" || !window.getSelection) return false;
+    const range = document.createRange();
+    if (selectAll) {
+      range.selectNodeContents(element);
+    } else {
+      const firstText = element.querySelector("*") || element.firstChild;
+      if (firstText?.nodeType === 3) {
+        range.setStart(firstText, 0);
+        range.collapse(true);
+      } else {
+        range.setStart(element, 0);
+        range.collapse(true);
+      }
+    }
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    return true;
+  }
+
+  _selectionAtElementStart(element, selection) {
+    if (!selection || selection.rangeCount === 0) return false;
+    const range = selection.getRangeAt(0);
+    return range.startContainer === element && range.startOffset === 0;
+  }
+
+  _insertTabCharacter(root) {
+    if (typeof window === "undefined" || !window.getSelection) return false;
+    const selection = window.getSelection();
+    if (!selection.rangeCount) return false;
+    const range = selection.getRangeAt(0);
+    if (!root.contains(range.commonAncestorContainer)) return false;
+    range.deleteContents();
+    const tabText = document.createTextNode("\t");
+    range.insertNode(tabText);
+    range.setStartAfter(tabText);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    this.isDirty = true;
+    this.recordSnapshot("writer.text.insertTab");
+    return true;
   }
 
   _bindMouseAndKeyboardParity() {
@@ -892,33 +985,50 @@ export class WriterAdapter {
     return true;
   }
 
-  changeListLevel(delta, itemText) {
+  changeListLevel(delta, itemText, root = this.bodyDom) {
     const step = Number(delta) > 0 ? 1 : Number(delta) < 0 ? -1 : 0;
-    if (!step || !this.bodyDom) return false;
+    if (!step || !root) return false;
     this.flushTyping();
-    if (typeof document !== "undefined" && typeof document.createElement === "function" && this.bodyDom.querySelectorAll) {
+    if (typeof document !== "undefined" && typeof document.createElement === "function" && root.querySelectorAll) {
       const listItem = itemText
-        ? [...this.bodyDom.querySelectorAll("li")].find((node) => (node.textContent || "").includes(itemText))
-        : this._caretListItem();
+        ? [...root.querySelectorAll("li")].find((node) => (node.textContent || "").includes(itemText))
+        : this._caretListItem(root);
       if (!listItem) {
         document.execCommand(step > 0 ? "indent" : "outdent", false, null);
-        this._propagateMultilevelClasses();
+        this._propagateMultilevelClasses(root);
         this.isDirty = true;
         this.recordSnapshot(step > 0 ? "writer.para.indentInc" : "writer.para.indentDec");
         return true;
       }
-      const changed = this._changeListItemLevelDom(listItem, step);
+      const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+      const bookmark = selection && root.contains(selection.anchorNode) && root.contains(selection.focusNode)
+        ? {
+          anchorNode: selection.anchorNode,
+          anchorOffset: selection.anchorOffset,
+          focusNode: selection.focusNode,
+          focusOffset: selection.focusOffset
+        }
+        : null;
+      const changed = this._changeListItemLevelDom(listItem, step, root);
+      if (changed && bookmark && typeof selection?.setBaseAndExtent === "function") {
+        selection.setBaseAndExtent(
+          bookmark.anchorNode,
+          bookmark.anchorOffset,
+          bookmark.focusNode,
+          bookmark.focusOffset
+        );
+      }
       if (changed) {
-        this._propagateMultilevelClasses();
+        this._propagateMultilevelClasses(root);
         this.isDirty = true;
         this.recordSnapshot(step > 0 ? "writer.para.indentInc" : "writer.para.indentDec");
       }
       return changed;
     }
-    if (typeof this.bodyDom.innerHTML === "string" && itemText) {
-      const next = this._changeListItemLevelHtml(this.bodyDom.innerHTML, itemText, step);
-      if (next === this.bodyDom.innerHTML) return false;
-      this.bodyDom.innerHTML = next;
+    if (typeof root.innerHTML === "string" && itemText) {
+      const next = this._changeListItemLevelHtml(root.innerHTML, itemText, step);
+      if (next === root.innerHTML) return false;
+      root.innerHTML = next;
       this.isDirty = true;
       this.recordSnapshot(step > 0 ? "writer.para.indentInc" : "writer.para.indentDec");
       return true;
@@ -926,17 +1036,17 @@ export class WriterAdapter {
     return false;
   }
 
-  _caretListItem() {
+  _caretListItem(root = this.bodyDom) {
     const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
     const anchor = selection?.anchorNode?.nodeType === 1 ? selection.anchorNode : selection?.anchorNode?.parentElement;
     const listItem = anchor?.closest?.("li");
-    return listItem && this.bodyDom?.contains?.(listItem) ? listItem : null;
+    return listItem && root?.contains?.(listItem) ? listItem : null;
   }
 
-  _listDepth(listItem) {
+  _listDepth(listItem, root = this.bodyDom) {
     let depth = 0;
     let node = listItem?.parentElement;
-    while (node && node !== this.bodyDom) {
+    while (node && node !== root) {
       if (/^(OL|UL)$/i.test(node.tagName)) depth += 1;
       node = node.parentElement;
     }
@@ -965,9 +1075,9 @@ export class WriterAdapter {
     });
   }
 
-  _propagateMultilevelClasses() {
-    if (!this.bodyDom?.querySelectorAll) return;
-    this.bodyDom.querySelectorAll("ol,ul").forEach((list) => {
+  _propagateMultilevelClasses(root = this.bodyDom) {
+    if (!root?.querySelectorAll) return;
+    root.querySelectorAll("ol,ul").forEach((list) => {
       const parentItem = list.parentElement?.closest?.("li");
       const parentList = parentItem?.parentElement;
       if (!parentList || !/^(OL|UL)$/i.test(parentList.tagName)) return;
@@ -1026,11 +1136,11 @@ export class WriterAdapter {
     return `<ol class="${className}">${items.map((inner) => `<li>${inner}</li>`).join("")}</ol>`;
   }
 
-  _changeListItemLevelDom(listItem, delta) {
+  _changeListItemLevelDom(listItem, delta, root = this.bodyDom) {
     const parentList = listItem.parentElement;
     if (!parentList || !/^(OL|UL)$/i.test(parentList.tagName)) return false;
     if (delta > 0) {
-      if (this._listDepth(listItem) >= WRITER_MULTILEVEL_MAX_DEPTH) return false;
+      if (this._listDepth(listItem, root) >= WRITER_MULTILEVEL_MAX_DEPTH) return false;
       const previous = listItem.previousElementSibling;
       let nested;
       if (previous && previous.tagName === "LI") {
@@ -6440,14 +6550,10 @@ export class WriterAdapter {
         return true;
 
       case "common.edit.paste":
-        document.execCommand("paste", false, null);
-        dispatchResult = true;
-        break;
+        return this._pasteFromSystemClipboard(false);
 
       case "common.edit.pastePlain":
-        await this._pastePlainText();
-        dispatchResult = true;
-        break;
+        return this._pastePlainText();
 
       case "common.edit.selectAll":
         document.execCommand("selectAll", false, null);
@@ -9326,12 +9432,7 @@ export class WriterAdapter {
   }
 
   async _pastePlainText() {
-    try {
-      const text = await navigator.clipboard.readText();
-      if (text) document.execCommand("insertText", false, text);
-    } catch {
-      document.execCommand("paste");
-    }
+    return this._pasteFromSystemClipboard(true);
   }
 
   _insertImageDialog() {
@@ -13897,6 +13998,138 @@ export class WriterAdapter {
       };
       target.addEventListener("keydown", this._undoKeyHandler, true);
     }
+  }
+
+  _bindClipboardEvents() {
+    if (this._clipboardEventRoots) return;
+    this._clipboardEventRoots = [this.headerDom, this.bodyDom, this.footerDom].filter(root => root?.addEventListener);
+    this._pasteEventHandler = event => {
+      const clipboard = event.clipboardData;
+      if (!clipboard) return;
+      const html = clipboard.getData("text/html") || "";
+      const text = clipboard.getData("text/plain") || "";
+      if (!html && !text) return;
+      event.preventDefault();
+      this._insertClipboardContent({ html, text });
+    };
+    for (const root of this._clipboardEventRoots) root.addEventListener("paste", this._pasteEventHandler);
+  }
+
+  _sanitizeClipboardHtml(html) {
+    const template = document.createElement("template");
+    template.innerHTML = String(html || "");
+    const allowed = new Set([
+      "P", "DIV", "BR", "SPAN", "STRONG", "B", "EM", "I", "U", "S", "DEL", "SUB", "SUP",
+      "UL", "OL", "LI", "BLOCKQUOTE", "PRE", "H1", "H2", "H3", "H4", "H5", "H6",
+      "TABLE", "THEAD", "TBODY", "TFOOT", "TR", "TD", "TH", "A"
+    ]);
+    const allowedStyles = new Set([
+      "font-weight", "font-style", "text-decoration", "color", "background-color", "font-family",
+      "font-size", "text-align", "vertical-align", "white-space"
+    ]);
+    const elements = [...template.content.querySelectorAll("*")].reverse();
+    for (const element of elements) {
+      if (!allowed.has(element.tagName)) {
+        if (["SCRIPT", "STYLE", "IFRAME", "OBJECT", "EMBED", "SVG", "MATH"].includes(element.tagName)) {
+          element.remove();
+        } else {
+          element.replaceWith(...element.childNodes);
+        }
+        continue;
+      }
+      for (const attribute of [...element.attributes]) {
+        const name = attribute.name.toLowerCase();
+        if (name === "style") {
+          const safe = [];
+          for (const declaration of [...element.style]) {
+            const value = element.style.getPropertyValue(declaration).trim();
+            if (allowedStyles.has(declaration) && !/(?:url\s*\(|expression\s*\(|javascript:|@import)/i.test(value)) {
+              safe.push(`${declaration}:${value}`);
+            }
+          }
+          if (safe.length) element.setAttribute("style", safe.join(";"));
+          else element.removeAttribute("style");
+        } else if (element.tagName === "A" && name === "href") {
+          if (!/^(?:https?:|mailto:)/i.test(attribute.value.trim())) element.removeAttribute(attribute.name);
+        } else if (!((element.tagName === "TD" || element.tagName === "TH") && ["colspan", "rowspan"].includes(name))) {
+          element.removeAttribute(attribute.name);
+        }
+      }
+    }
+    return template.innerHTML;
+  }
+
+  _insertClipboardContent({ html = "", text = "" } = {}) {
+    const cleanHtml = html ? this._sanitizeClipboardHtml(html) : "";
+    if (cleanHtml || text) this.flushTyping();
+    if (cleanHtml) {
+      if (document.execCommand?.("insertHTML", false, cleanHtml)) return true;
+      const selection = window.getSelection?.();
+      if (!selection?.rangeCount) return false;
+      const range = selection.getRangeAt(0);
+      const fragment = document.createRange().createContextualFragment(cleanHtml);
+      range.deleteContents();
+      const last = fragment.lastChild;
+      range.insertNode(fragment);
+      if (last) range.setStartAfter(last);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      this.bodyDom?.dispatchEvent?.(new InputEvent("input", { bubbles: true, inputType: "insertFromPaste", data: text || null }));
+      return true;
+    }
+    if (!text) return false;
+    if (document.execCommand?.("insertText", false, text)) return true;
+    const selection = window.getSelection?.();
+    if (!selection?.rangeCount) return false;
+    const range = selection.getRangeAt(0);
+    const node = document.createTextNode(text);
+    range.deleteContents();
+    range.insertNode(node);
+    range.setStartAfter(node);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    this.bodyDom?.dispatchEvent?.(new InputEvent("input", { bubbles: true, inputType: "insertFromPaste", data: text }));
+    return true;
+  }
+
+  async _readClipboardFromSystem() {
+    try {
+      const native = await globalUnoBridge.readClipboardData?.();
+      if (native?.status === "ok") return native;
+    } catch { /* Browser clipboard is the web-mode fallback. */ }
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.read) {
+        const items = await navigator.clipboard.read();
+        for (const item of items) {
+          const types = item.types || [];
+          const htmlType = types.find(type => type === "text/html");
+          const textType = types.find(type => type === "text/plain");
+          const html = htmlType ? await (await item.getType(htmlType)).text() : "";
+          const text = textType ? await (await item.getType(textType)).text() : "";
+          if (html || text) return { status: "ok", html, text };
+        }
+      }
+      if (navigator.clipboard?.readText) {
+        return { status: "ok", html: "", text: await navigator.clipboard.readText() };
+      }
+    } catch { /* Report the clipboard permission error through the app status. */ }
+    return null;
+  }
+
+  async _pasteFromSystemClipboard(plainTextOnly = false) {
+    const clipboard = await this._readClipboardFromSystem();
+    if (!clipboard) {
+      this.shell?.setStatus?.("Không đọc được bộ nhớ tạm. Hãy dùng Ctrl+V trong vùng soạn thảo hoặc kiểm tra quyền clipboard.");
+      return false;
+    }
+    const inserted = this._insertClipboardContent({
+      html: plainTextOnly ? "" : (clipboard.html || ""),
+      text: clipboard.text || ""
+    });
+    if (!inserted) this.shell?.setStatus?.("Bộ nhớ tạm không có nội dung để dán.");
+    return inserted;
   }
 
   /**

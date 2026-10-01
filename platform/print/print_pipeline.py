@@ -127,7 +127,7 @@ class PrintPipeline:
     def __init__(
         self,
         *,
-        write_source: Callable[[str, str, str, str | None], str],
+        write_source: Callable[..., str],
         convert_pdf: Callable[[str, str, str], str],
         office_candidates: Callable[[str], tuple[dict[str, str], ...]] | None = None,
         convert_office_pdf: Callable[[str, str, str, dict[str, str]], str] | None = None,
@@ -152,6 +152,7 @@ class PrintPipeline:
         suggested_name: str = "TaiLieu",
         source_path: str | None = None,
         use_office: bool = True,
+        print_options: dict | None = None,
     ) -> dict:
         if app_kind not in {"writer", "sheet", "slides"}:
             return {"status": "error", "message": "Không xác định được ứng dụng cần in."}
@@ -162,7 +163,12 @@ class PrintPipeline:
         temp_dir = tempfile.TemporaryDirectory(prefix="vnoffice_print_", ignore_cleanup_errors=True)
         root = temp_dir.name
         try:
-            native_source_path = self._write_source(content, app_kind, root, source_path)
+            if app_kind == "sheet" and isinstance(print_options, dict):
+                native_source_path = self._write_source(
+                    content, app_kind, root, source_path, print_options,
+                )
+            else:
+                native_source_path = self._write_source(content, app_kind, root, source_path)
             engine_name = "LibreOffice"
             if use_office and self._convert_office_pdf:
                 for candidate in self._office_candidates(app_kind):

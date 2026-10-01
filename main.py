@@ -12,6 +12,7 @@ import os
 import queue
 import socket
 import sys
+import ctypes
 import base64
 import csv
 import json
@@ -1804,15 +1805,72 @@ def _write_print_source(
     app_kind: str,
     temp_dir: str,
     source_document_path: str | None = None,
+    print_options: dict | None = None,
 ) -> str:
     """Build the print source through the same source-aware Save path as its native format."""
     target_format = _PRINT_NATIVE_FORMAT.get(app_kind)
     if not target_format:
         raise ValueError(f"Loại ứng dụng không hợp lệ: {app_kind}")
     interchange_path = _write_save_source(content, app_kind, temp_dir, target_format)
-    return _convert_save_source_to_native(
+    native_path = _convert_save_source_to_native(
         interchange_path, app_kind, target_format, source_document_path=source_document_path,
     )
+    if app_kind == "sheet" and target_format == "xlsx":
+        try:
+            options = print_options if isinstance(print_options, dict) else {}
+            print_scope = str(options.get("sheetScope") or "active").strip().casefold()
+            if print_scope not in {"active", "workbook", "selection"}:
+                raise DocumentEngineError("Phạm vi in sổ làm việc không hợp lệ.")
+            fods = Path(interchange_path).read_text(encoding="utf-8", errors="replace")
+            source_bytes = None
+            if source_document_path and str(source_document_path).lower().endswith(".xlsx"):
+                source_path = Path(source_document_path)
+                if source_path.is_file():
+                    source_bytes = source_path.read_bytes()
+            patcher = _ooxml_zip_patch()
+            active_sheet = patcher.parse_active_sheet_from_fods(fods)
+            selected_sheets = None
+            if "<!-- vno-pristine-xlsx-source -->" in fods and source_bytes:
+                source_workbook = patcher.read_zip_entry(source_bytes, "xl/workbook.xml") or b""
+                source_active = patcher.parse_active_sheet_from_workbook(
+                    source_workbook.decode("utf-8", errors="replace")
+                )
+                # An untouched import carries the original grouped-tab selection
+                # only while the active tab still matches. If the user changed
+                # tabs, print the newly active tab alone.
+                if active_sheet is None or active_sheet == source_active:
+                    active_sheet = active_sheet or source_active
+                    selected_sheets = patcher.parse_selected_sheet_names_from_xlsx(source_bytes)
+            native_bytes = Path(native_path).read_bytes()
+            if print_scope == "workbook":
+                scoped_bytes = patcher.make_print_scope_xlsx(
+                    native_bytes,
+                    active_sheet_name=active_sheet,
+                    include_all_sheets=True,
+                )
+            elif print_scope == "selection":
+                selected_ranges = options.get("selectionRanges")
+                if not isinstance(selected_ranges, (list, tuple)) or not selected_ranges:
+                    raise DocumentEngineError("Hãy chọn ít nhất một vùng ô trước khi in vùng chọn.")
+                scoped_bytes = patcher.make_print_scope_xlsx(
+                    native_bytes,
+                    active_sheet_name=active_sheet,
+                    selected_sheet_names=[active_sheet] if active_sheet else None,
+                    print_area_ranges=selected_ranges,
+                )
+            else:
+                scoped_bytes = patcher.make_print_scope_xlsx(
+                    native_bytes,
+                    active_sheet_name=active_sheet,
+                    selected_sheet_names=selected_sheets,
+                )
+            if scoped_bytes != native_bytes:
+                Path(native_path).write_bytes(scoped_bytes)
+        except DocumentEngineError:
+            raise
+        except Exception as exc:
+            raise DocumentEngineError(f"3T Sheet không chuẩn bị được phạm vi in: {exc}") from exc
+    return native_path
 
 
 def _convert_print_source_to_pdf(source_path: str, app_kind: str, output_dir: str) -> str:
@@ -2303,6 +2361,78 @@ def _notify_sheet_open_progress(message: str, start_timing: bool = False, api=No
         pass
 
 
+def _extract_clipboard_html_fragment(raw: bytes) -> str:
+    """Read the fragment offsets from Windows' registered ``HTML Format`` payload."""
+    if not raw:
+        return ""
+    data = raw.rstrip(b"\x00")
+    start_match = re.search(rb"(?im)^StartFragment:\s*(\d+)\s*$", data)
+    end_match = re.search(rb"(?im)^EndFragment:\s*(\d+)\s*$", data)
+    if start_match and end_match:
+        start, end = int(start_match.group(1)), int(end_match.group(1))
+        if 0 <= start <= end <= len(data):
+            return data[start:end].decode("utf-8", errors="replace")
+    start_marker = b"<!--StartFragment-->"
+    end_marker = b"<!--EndFragment-->"
+    start = data.find(start_marker)
+    end = data.find(end_marker, start + len(start_marker)) if start >= 0 else -1
+    if start >= 0 and end >= 0:
+        return data[start + len(start_marker):end].decode("utf-8", errors="replace")
+    return ""
+
+
+def _read_windows_clipboard_data() -> dict[str, object]:
+    """Read plain text and HTML locally from the Windows clipboard via Win32."""
+    if os.name != "nt":
+        return {"status": "error", "message": "Đọc bộ nhớ tạm hệ thống cần chạy 3T Office Desktop trên Windows."}
+
+    user32 = ctypes.WinDLL("user32", use_last_error=True)
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    user32.OpenClipboard.argtypes = [ctypes.c_void_p]
+    user32.OpenClipboard.restype = ctypes.c_int
+    user32.CloseClipboard.argtypes = []
+    user32.CloseClipboard.restype = ctypes.c_int
+    user32.GetClipboardData.argtypes = [ctypes.c_uint]
+    user32.GetClipboardData.restype = ctypes.c_void_p
+    user32.RegisterClipboardFormatW.argtypes = [ctypes.c_wchar_p]
+    user32.RegisterClipboardFormatW.restype = ctypes.c_uint
+    kernel32.GlobalLock.argtypes = [ctypes.c_void_p]
+    kernel32.GlobalLock.restype = ctypes.c_void_p
+    kernel32.GlobalUnlock.argtypes = [ctypes.c_void_p]
+    kernel32.GlobalUnlock.restype = ctypes.c_int
+    kernel32.GlobalSize.argtypes = [ctypes.c_void_p]
+    kernel32.GlobalSize.restype = ctypes.c_size_t
+
+    if not user32.OpenClipboard(None):
+        return {"status": "error", "message": "Không mở được bộ nhớ tạm Windows. Hãy thử lại."}
+
+    def read_format(format_id: int) -> bytes:
+        handle = user32.GetClipboardData(format_id)
+        if not handle:
+            return b""
+        pointer = kernel32.GlobalLock(handle)
+        if not pointer:
+            return b""
+        try:
+            size = int(kernel32.GlobalSize(handle) or 0)
+            return ctypes.string_at(pointer, size) if size else b""
+        finally:
+            kernel32.GlobalUnlock(handle)
+
+    try:
+        text_bytes = read_format(13)  # CF_UNICODETEXT
+        text = text_bytes.decode("utf-16-le", errors="replace").split("\x00", 1)[0] if text_bytes else ""
+        html_format = int(user32.RegisterClipboardFormatW("HTML Format"))
+        html_bytes = read_format(html_format) if html_format else b""
+        return {
+            "status": "ok",
+            "text": text,
+            "html": _extract_clipboard_html_fragment(html_bytes),
+        }
+    finally:
+        user32.CloseClipboard()
+
+
 class VnOfficeApi:
     """Python API phơi ra cho JavaScript giao tiếp (Bridge) — cầu nối thật tới LibreOffice."""
 
@@ -2359,6 +2489,13 @@ class VnOfficeApi:
     def get_app_version(self) -> str:
         """Trả về phiên bản ứng dụng hiện tại."""
         return APP_VERSION
+
+    def read_clipboard_data(self) -> dict[str, object]:
+        """Đọc CF_UNICODETEXT và HTML Format từ clipboard Windows cục bộ."""
+        try:
+            return _read_windows_clipboard_data()
+        except Exception as exc:
+            return {"status": "error", "message": f"Không đọc được bộ nhớ tạm: {exc}"}
 
     def get_about_info(self) -> dict[str, object]:
         """Trả về thông tin bản quyền và danh sách phần mềm nguồn mở bên thứ ba."""
@@ -2637,7 +2774,10 @@ class VnOfficeApi:
             content, app_kind, suggested_name, source_path,
         )
 
-    def prepare_print_document(self, app_kind, content, suggested_name="TaiLieu", source_path=None, use_office=True):
+    def prepare_print_document(
+        self, app_kind, content, suggested_name="TaiLieu", source_path=None,
+        use_office=True, print_options=None,
+    ):
         return self._invoke_reported_api(
             "prepare_print_document",
             self._get_print_pipeline().prepare,
@@ -2646,6 +2786,7 @@ class VnOfficeApi:
             suggested_name,
             source_path,
             use_office,
+            print_options,
         )
 
     def get_print_engine_status(self, app_kind):

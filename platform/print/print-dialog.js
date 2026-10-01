@@ -41,18 +41,24 @@ export async function openPrintDialog({
   sourcePath = null,
   pageSetupLabel = "",
   currentPage = 1,
+  selectionRanges = [],
   engine
 } = {}) {
   if (typeof document === "undefined") return false;
   await ensurePrintStyles();
 
   const safeCurrentPage = Math.max(1, Number.isInteger(Number(currentPage)) ? Number(currentPage) : 1);
+  const printableSelectionRanges = Array.isArray(selectionRanges)
+    ? selectionRanges.map((range) => String(range || "").trim()).filter(Boolean)
+    : [];
   const state = {
     rangeMode: "all",
     currentDocumentPage: safeCurrentPage,
     currentPreviewPage: safeCurrentPage,
     totalPages: 1,
     rangeInput: "",
+    sheetScope: "active",
+    preparedSheetScope: "active",
     sessionId: "",
     printers: [],
     printing: false,
@@ -86,6 +92,14 @@ export async function openPrintDialog({
             <label class="vno-print-office-option" hidden><input id="vno-print-use-office" type="checkbox" checked disabled> <span>Dùng Microsoft Office để in (chính xác nhất)</span></label>
             <p class="vno-print-engine-used" role="status" aria-live="polite">Bộ máy dựng PDF: đang kiểm tra…</p>
           </div>
+
+          <fieldset class="vno-print-sheet-scope"${appKind === "sheet" ? "" : " hidden"}>
+            <legend>Phạm vi sổ làm việc</legend>
+            <label><input type="radio" name="sheetScope" value="active" checked> <span>In các trang tính hiện hoạt</span></label>
+            <label><input type="radio" name="sheetScope" value="workbook"> <span>In toàn bộ sổ làm việc</span></label>
+            <label><input type="radio" name="sheetScope" value="selection"${printableSelectionRanges.length ? "" : " disabled"}> <span>In vùng chọn</span></label>
+            <span class="vno-print-muted vno-print-selection-help"${printableSelectionRanges.length ? " hidden" : ""}>Hãy bôi đen vùng ô cần in trước khi mở hộp thoại.</span>
+          </fieldset>
 
           <fieldset class="vno-print-range">
             <legend>Phạm vi trang</legend>
@@ -128,6 +142,7 @@ export async function openPrintDialog({
   const prevButton = overlay.querySelector(".vno-print-prev");
   const nextButton = overlay.querySelector(".vno-print-next");
   const officeOption = overlay.querySelector("#vno-print-use-office");
+  const sheetScopeInputs = [...overlay.querySelectorAll("input[name='sheetScope']")];
   const officeOptionLabel = officeOption.parentElement.querySelector("span");
   const engineUsedLabel = overlay.querySelector(".vno-print-engine-used");
 
@@ -201,6 +216,7 @@ export async function openPrintDialog({
       selectedPages(state);
       if (!printerSelect.value) throw new Error("Hãy chọn một máy in trong danh sách.");
       if (!Number.isInteger(copies) || copies < 1 || copies > 999) throw new Error("Số bản phải từ 1 đến 999.");
+      if (!state.sessionId) throw new Error("Chưa tạo được bản xem trước để in.");
       status.textContent = "Sẵn sàng in.";
       status.classList.remove("is-error");
       submit.disabled = false;
@@ -215,13 +231,22 @@ export async function openPrintDialog({
     const revision = ++state.prepareRevision;
     state.preparing = true;
     officeOption.disabled = true;
+    sheetScopeInputs.forEach((input) => { input.disabled = true; });
     submit.disabled = true;
     status.classList.remove("is-error", "is-success");
     status.textContent = "Đang tạo lại bản xem trước…";
     previewStage.innerHTML = '<div class="vno-print-preview-loading">Đang dựng trang thật từ bộ máy tài liệu…</div>';
     try {
       const prepared = await engine.preparePrintDocument(
-        appKind, content, documentName, sourcePath, Boolean(useOffice),
+        appKind,
+        content,
+        documentName,
+        sourcePath,
+        Boolean(useOffice),
+        appKind === "sheet" ? {
+          sheetScope: state.sheetScope,
+          selectionRanges: printableSelectionRanges,
+        } : null,
       );
       if (state.closed || revision !== state.prepareRevision) {
         if (prepared?.sessionId) await engine.cancelPrintDocument?.(prepared.sessionId);
@@ -232,6 +257,7 @@ export async function openPrintDialog({
       state.totalPages = Math.max(1, Number(prepared.pageCount) || 1);
       state.engineUsed = String(prepared.engine || "LibreOffice");
       state.useOfficeSelected = Boolean(useOffice);
+      state.preparedSheetScope = state.sheetScope;
       state.currentDocumentPage = Math.min(state.currentDocumentPage, state.totalPages);
       state.currentPreviewPage = Math.min(state.currentPreviewPage, state.totalPages);
       engineUsedLabel.textContent = `Bộ máy dựng PDF: ${state.engineUsed}`;
@@ -241,6 +267,9 @@ export async function openPrintDialog({
       }
       state.preparing = false;
       officeOption.disabled = !state.officeAvailable;
+      sheetScopeInputs.forEach((input) => {
+        input.disabled = input.value === "selection" && !printableSelectionRanges.length;
+      });
       validateOptions();
       await showPreviewPage(state.currentPreviewPage);
       return true;
@@ -248,6 +277,11 @@ export async function openPrintDialog({
       if (state.closed || revision !== state.prepareRevision) return false;
       state.preparing = false;
       officeOption.checked = Boolean(state.useOfficeSelected);
+      state.sheetScope = state.preparedSheetScope;
+      sheetScopeInputs.forEach((input) => {
+        input.checked = input.value === state.sheetScope;
+        input.disabled = input.value === "selection" && !printableSelectionRanges.length;
+      });
       officeOption.disabled = !state.officeAvailable;
       status.textContent = getPrintErrorMessage(error);
       status.classList.add("is-error");
@@ -265,6 +299,12 @@ export async function openPrintDialog({
     rangeInput.disabled = state.rangeMode !== "custom";
     if (state.rangeMode === "custom") rangeInput.focus();
     validateOptions();
+  }));
+  sheetScopeInputs.forEach((radio) => radio.addEventListener("change", async () => {
+    if (appKind !== "sheet" || state.preparing || !radio.checked) return;
+    const previousSession = state.sessionId;
+    state.sheetScope = radio.value;
+    await preparePreview(officeOption.checked, previousSession);
   }));
   rangeInput.addEventListener("input", () => { state.rangeInput = rangeInput.value; validateOptions(); });
   copiesInput.addEventListener("input", validateOptions);
