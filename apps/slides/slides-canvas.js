@@ -11,6 +11,7 @@ import { createLazyDialogs } from "../../platform/ui-kit/lazy-dialogs.js";
 import { resolveWordArtStyle, buildWordArtCss, applyWordArtCss } from "./slides-wordart.js";
 import { normalizeSlidesChart } from "./slides-chart-data.js";
 import { createMatcher } from "../../platform/find/find-engine.js";
+import { InputNormalizer } from "../../platform/keyboard/input-normalizer.js";
 
 const { showPromptDialog } = createLazyDialogs("slides");
 
@@ -469,6 +470,36 @@ export class SlidesCanvasController {
       this._renderThumbnails();
     });
 
+    this._titleNormalizer = new InputNormalizer({
+      target: this.titleEl,
+      onWordCommit: () => {
+        this._syncEditableFieldsFromDom();
+        this.options.onDocumentChange?.();
+        this._renderThumbnails();
+        this._syncUndoRedoState();
+      }
+    }).attach(this.titleEl);
+
+    this._bodyNormalizer = new InputNormalizer({
+      target: this.bodyEl,
+      onWordCommit: () => {
+        this._syncEditableFieldsFromDom();
+        this.options.onDocumentChange?.();
+        this._renderThumbnails();
+        this._syncUndoRedoState();
+      }
+    }).attach(this.bodyEl);
+
+    this._body2Normalizer = new InputNormalizer({
+      target: this.body2El,
+      onWordCommit: () => {
+        this._syncEditableFieldsFromDom();
+        this.options.onDocumentChange?.();
+        this._renderThumbnails();
+        this._syncUndoRedoState();
+      }
+    }).attach(this.body2El);
+
     this.titleEl.addEventListener("keydown", (e) => {
       if (e.key === "Tab") {
         e.preventDefault();
@@ -608,10 +639,23 @@ export class SlidesCanvasController {
       this.options.onDocumentChange?.();
       const s = this.slides[this.currentSlideIndex];
       if (s) {
-        s.notes = this.notesTextarea.value;
+        s.notes = this.notesTextarea.value.normalize("NFC");
         this._updateNotesCharCount();
       }
     });
+
+    if (this.notesTextarea) {
+      this._notesNormalizer = new InputNormalizer({
+        target: this.notesTextarea,
+        onWordCommit: () => {
+          const s = this.slides[this.currentSlideIndex];
+          if (s) {
+            s.notes = this.notesTextarea.value.normalize("NFC");
+            this._updateNotesCharCount();
+          }
+        }
+      }).attach(this.notesTextarea);
+    }
 
     this._autoRecoverInputHandler = (event) => {
       if (event.target?.closest?.("[contenteditable='true'], [contenteditable=true], .vno-slide-notes-input")) {
@@ -1370,19 +1414,19 @@ export class SlidesCanvasController {
     const slide = this.slides[this.currentSlideIndex];
     if (!slide) return;
     if (this.titleEl) {
-      slide.title = this.titleEl.innerText || "";
+      slide.title = (this.titleEl.innerText || "").normalize("NFC");
       const html = this._captureEditableHtml(this.titleEl);
       if (this._htmlLooksFormatted(html)) slide.titleHtml = html;
       else delete slide.titleHtml;
     }
     if (this.bodyEl) {
-      slide.body = this.bodyEl.innerText || "";
+      slide.body = (this.bodyEl.innerText || "").normalize("NFC");
       const html = this._captureEditableHtml(this.bodyEl);
       if (this._htmlLooksFormatted(html)) slide.bodyHtml = html;
       else delete slide.bodyHtml;
     }
     if (this.body2El) {
-      slide.body2 = this.body2El.innerText || "";
+      slide.body2 = (this.body2El.innerText || "").normalize("NFC");
       const html = this._captureEditableHtml(this.body2El);
       if (this._htmlLooksFormatted(html)) slide.body2Html = html;
       else delete slide.body2Html;
@@ -3505,9 +3549,10 @@ export class SlidesCanvasController {
     const shape = this.slides[this.currentSlideIndex]?.shapes?.find(item => String(item.id) === String(shapeId));
     if (!shape || shape.type === "connector") return false;
     // Hộp văn bản giữ nhiều đoạn (mỗi dòng = một đoạn khi lưu PPTX); các hình khác giữ 1 dòng.
+    const normalized = String(text || "").normalize("NFC");
     shape.text = shape.type === "textbox"
-      ? String(text || "").replace(/\r\n?/g, "\n").replace(/\n+$/, "")
-      : String(text || "").replace(/\r?\n/g, " ");
+      ? normalized.replace(/\r\n?/g, "\n").replace(/\n+$/, "")
+      : normalized.replace(/\r?\n/g, " ");
     if (html !== undefined) {
       if (this._htmlLooksFormatted(html)) shape.textHtml = html;
       else delete shape.textHtml;
@@ -3636,7 +3681,11 @@ export class SlidesCanvasController {
   _syncUndoRedoState() {
     this.options.onDocumentChange?.();
     if (typeof globalCommandBus === "undefined" || !globalCommandBus?.updateState) return;
-    globalCommandBus.updateState("common.edit.undo", { enabled: this.undoStack.length > 0 });
+    const hasTextUndo = (this._titleNormalizer?.customUndoStack?.length > 1)
+      || (this._bodyNormalizer?.customUndoStack?.length > 1)
+      || (this._body2Normalizer?.customUndoStack?.length > 1)
+      || (this._notesNormalizer?.customUndoStack?.length > 1);
+    globalCommandBus.updateState("common.edit.undo", { enabled: this.undoStack.length > 0 || hasTextUndo });
     globalCommandBus.updateState("common.edit.redo", { enabled: this.redoStack.length > 0 });
   }
 
@@ -4035,6 +4084,7 @@ export class SlidesCanvasController {
           }
         };
         textEl.addEventListener("input", () => this.updateShapeText(shape.id, textEl.textContent));
+        new InputNormalizer({ target: textEl, onWordCommit: (val) => this.updateShapeText(shape.id, val) }).attach(textEl);
         textEl.addEventListener("blur", () => {
           textEl.contentEditable = "false";
           const before = textEl.dataset.originalText ?? "";
@@ -4165,6 +4215,7 @@ export class SlidesCanvasController {
           }
         };
         textEl.addEventListener("input", () => this.updateShapeText(shape.id, textEl.innerText || textEl.textContent, this._captureEditableHtml(textEl)));
+        new InputNormalizer({ target: textEl, onWordCommit: (val) => this.updateShapeText(shape.id, val, this._captureEditableHtml(textEl)) }).attach(textEl);
         textEl.addEventListener("blur", () => {
           textEl.contentEditable = "false";
           const before = textEl.dataset.originalText ?? "";
@@ -4284,6 +4335,7 @@ export class SlidesCanvasController {
             }
           };
           textEl.addEventListener("input", () => this.updateShapeText(shape.id, textEl.innerText || textEl.textContent, this._captureEditableHtml(textEl)));
+          new InputNormalizer({ target: textEl, onWordCommit: (val) => this.updateShapeText(shape.id, val, this._captureEditableHtml(textEl)) }).attach(textEl);
           textEl.addEventListener("blur", () => {
             textEl.contentEditable = "false";
             const before = textEl.dataset.originalText ?? "";
@@ -6638,6 +6690,40 @@ export class SlidesCanvasController {
   }
 
   undo() {
+    const activeEl = typeof document !== "undefined" ? document.activeElement : null;
+    if (activeEl) {
+      if ((activeEl === this.titleEl || this.titleEl?.contains?.(activeEl)) && this._titleNormalizer?._handleCtrlZ?.()) {
+        this._syncEditableFieldsFromDom();
+        this.options.onDocumentChange?.();
+        this._renderThumbnails();
+        return true;
+      }
+      if ((activeEl === this.bodyEl || this.bodyEl?.contains?.(activeEl)) && this._bodyNormalizer?._handleCtrlZ?.()) {
+        this._syncEditableFieldsFromDom();
+        this.options.onDocumentChange?.();
+        this._renderThumbnails();
+        return true;
+      }
+      if ((activeEl === this.body2El || this.body2El?.contains?.(activeEl)) && this._body2Normalizer?._handleCtrlZ?.()) {
+        this._syncEditableFieldsFromDom();
+        this.options.onDocumentChange?.();
+        this._renderThumbnails();
+        return true;
+      }
+      if ((activeEl === this.notesTextarea) && this._notesNormalizer?._handleCtrlZ?.()) {
+        const s = this.slides[this.currentSlideIndex];
+        if (s) {
+          s.notes = this.notesTextarea.value.normalize("NFC");
+          this._updateNotesCharCount();
+        }
+        return true;
+      }
+      const shapeTextEl = activeEl.closest?.("[data-shape-text-id]") || (activeEl.isContentEditable ? activeEl : null);
+      if (shapeTextEl?._vnoNormalizer?._handleCtrlZ?.()) {
+        return true;
+      }
+    }
+
     const result = this._undoImpl();
     this._syncUndoRedoState();
     return result;
