@@ -78,6 +78,7 @@ export class HelpPanel {
       <section class="vno-help-reporting-actions" aria-label="Báo lỗi và quyền riêng tư">
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px;">
           <button type="button" class="vno-btn vno-btn-primary" data-vno-report-open>Báo lỗi / Góp ý</button>
+          <button type="button" class="vno-btn" data-vno-whats-new-open id="vno-help-whats-new-btn">Có gì mới</button>
           <button type="button" class="vno-btn" data-vno-about-open id="vno-help-about-btn">Giới thiệu 3T Office</button>
         </div>
         <label class="vno-report-consent-label"><input type="checkbox" data-vno-report-consent>
@@ -92,6 +93,7 @@ export class HelpPanel {
     host.appendChild(this.root);
     this.root.querySelector(".vno-help-close").addEventListener("click", () => this.close());
     this.root.querySelector("[data-vno-about-open]")?.addEventListener("click", () => showAboutDialog());
+    this.root.querySelector("[data-vno-whats-new-open]")?.addEventListener("click", () => this.open({ entryId: "common.help.whatsNew" }));
     this.root.querySelector(".vno-help-search").addEventListener("input", (event) => {
       this._query = event.target.value || "";
       const visible = this.getVisibleEntries();
@@ -203,6 +205,23 @@ export class HelpPanel {
     }
 
     const location = [active.ribbon?.tab, active.ribbon?.group].filter(Boolean).join(" → ");
+
+    if (active.id === "common.help.whatsNew") {
+      article.innerHTML = `
+        <h3>${escapeHtml(active.title)}</h3>
+        <p class="vno-help-summary">${escapeHtml(active.summary)}</p>
+        <div class="vno-whats-new-content" style="background:var(--vno-bg-subtle);padding:14px;border-radius:var(--vno-radius-md);margin-top:12px;font-size:12px;line-height:1.6;border:1px solid var(--vno-border-default);">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;border-bottom:1px solid var(--vno-border-default);padding-bottom:6px;">
+            <strong style="color:var(--vno-text-primary);font-size:13px;">Ghi chú phát hành phiên bản đang cài đặt</strong>
+            <span class="vno-release-version-badge" style="background:var(--vno-primary);color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:bold;">Đang nạp…</span>
+          </div>
+          <div id="vno-whats-new-body" style="white-space:pre-wrap;color:var(--vno-text-primary);font-family:monospace;max-height:420px;overflow-y:auto;">Đang tải ghi chú phát hành…</div>
+        </div>
+      `;
+      this._loadReleaseNotesInto(article.querySelector("#vno-whats-new-body"), article.querySelector(".vno-release-version-badge"));
+      return;
+    }
+
     article.innerHTML = `
       <h3>${escapeHtml(active.title)}</h3>
       ${location ? `<div class="vno-help-location">${escapeHtml(localize("help.location", "Vị trí"))}: ${escapeHtml(location)}</div>` : ""}
@@ -212,6 +231,42 @@ export class HelpPanel {
         ${(active.steps || []).map((step) => `<li>${escapeHtml(step)}</li>`).join("")}
       </ol>
     `;
+  }
+
+  async _loadReleaseNotesInto(bodyEl, badgeEl) {
+    if (!bodyEl) return;
+    try {
+      if (typeof window !== "undefined" && window.pywebview?.api?.get_release_notes) {
+        const res = await window.pywebview.api.get_release_notes();
+        if (res?.found && res?.content) {
+          bodyEl.textContent = res.content;
+          if (badgeEl && res.version) badgeEl.textContent = res.version;
+          return;
+        }
+      }
+    } catch (_) {}
+
+    try {
+      if (typeof fetch === "function") {
+        const candidates = ["release-notes.txt", "RELEASE-NOTES.md", "notes-0.9.0-pilot1.txt"];
+        for (const file of candidates) {
+          try {
+            const resp = await fetch(file);
+            if (resp.ok) {
+              const text = await resp.text();
+              if (text && text.trim().length > 0 && !text.includes("<!DOCTYPE html>")) {
+                bodyEl.textContent = text.trim();
+                if (badgeEl) badgeEl.textContent = "0.9.0-pilot1";
+                return;
+              }
+            }
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+
+    bodyEl.innerHTML = '<span style="color:#dc2626;font-family:sans-serif;">Chưa có thông tin ghi chú phát hành cho phiên bản này. Vui lòng kiểm tra lại sau hoặc xem trên trang cập nhật chính thức của 3T Office.</span>';
+    if (badgeEl) badgeEl.textContent = "Không xác định";
   }
 }
 

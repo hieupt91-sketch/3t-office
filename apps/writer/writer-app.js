@@ -219,6 +219,10 @@ export class WriterApp {
       shell: this.shell
     }).attach();
 
+    this.shell.onZoomChange = (percent) => {
+      this.viewController.setZoom(percent / 100);
+    };
+
     this._mountStyleGalleryRibbonStrip();
     this._watchRibbonForStyleGalleryStrip();
     this._setupContentObserver();

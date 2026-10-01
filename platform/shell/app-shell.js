@@ -531,6 +531,14 @@ export class AppShell {
       }
     });
 
+    ws.addEventListener("wheel", (e) => {
+      if (e.ctrlKey) {
+        e.preventDefault();
+        const delta = e.deltaY < 0 ? 10 : -10;
+        this.setZoom(this.zoomLevel + delta);
+      }
+    }, { capture: true, passive: false });
+
     ws.appendChild(this.editorContainer);
     ws.appendChild(this.aiSidebar);
     this.rootEl.appendChild(ws);
@@ -556,34 +564,59 @@ export class AppShell {
       <div class="vno-statusbar-right">
         <div class="vno-zoom-slider" role="group" aria-label="Điều chỉnh thu phóng">
           <button type="button" id="vno-zoom-out" aria-label="Thu nhỏ" title="Thu nhỏ">-</button>
-          <input type="range" id="vno-zoom-range" min="50" max="200" value="100"
-                 aria-label="Tỷ lệ thu phóng" aria-valuemin="50" aria-valuemax="200" aria-valuenow="100" />
+          <input type="range" id="vno-zoom-range" min="50" max="200" value="${this.zoomLevel}"
+                 aria-label="Tỷ lệ thu phóng" aria-valuemin="50" aria-valuemax="200" aria-valuenow="${this.zoomLevel}" />
           <button type="button" id="vno-zoom-in" aria-label="Phóng to" title="Phóng to">+</button>
-          <span id="vno-zoom-text" style="min-width:38px;text-align:right;" aria-live="polite">100%</span>
+          <span id="vno-zoom-text" style="min-width:38px;text-align:right;" aria-live="polite">${this.zoomLevel}%</span>
         </div>
       </div>
     `;
 
     const zoomRange = sb.querySelector("#vno-zoom-range");
-    const zoomText = sb.querySelector("#vno-zoom-text");
-
-    const updateZoom = (val) => {
-      this.zoomLevel = Math.max(50, Math.min(200, val));
-      zoomRange.value = this.zoomLevel;
-      zoomRange.setAttribute("aria-valuenow", String(this.zoomLevel));
-      zoomText.textContent = `${this.zoomLevel}%`;
-      const canvas = this.editorContainer.querySelector(".vno-writer-page, .vno-slide-canvas");
-      if (canvas) {
-        canvas.style.transform = `scale(${this.zoomLevel / 100})`;
-        canvas.style.transformOrigin = "top center";
-      }
-    };
-
-    zoomRange.addEventListener("input", (e) => updateZoom(Number(e.target.value)));
-    sb.querySelector("#vno-zoom-out").addEventListener("click", () => updateZoom(this.zoomLevel - 10));
-    sb.querySelector("#vno-zoom-in").addEventListener("click", () => updateZoom(this.zoomLevel + 10));
+    zoomRange.addEventListener("input", (e) => this.setZoom(Number(e.target.value)));
+    sb.querySelector("#vno-zoom-out").addEventListener("click", () => this.setZoom(this.zoomLevel - 10));
+    sb.querySelector("#vno-zoom-in").addEventListener("click", () => this.setZoom(this.zoomLevel + 10));
 
     this.rootEl.appendChild(sb);
+  }
+
+  setZoom(val) {
+    this.zoomLevel = Math.max(50, Math.min(200, Math.round(Number(val) || 100)));
+    const zoomRange = this.rootEl?.querySelector("#vno-zoom-range");
+    const zoomText = this.rootEl?.querySelector("#vno-zoom-text");
+    if (zoomRange) {
+      zoomRange.value = this.zoomLevel;
+      zoomRange.setAttribute("aria-valuenow", String(this.zoomLevel));
+    }
+    if (zoomText) {
+      zoomText.textContent = `${this.zoomLevel}%`;
+    }
+    if (typeof this.onZoomChange === "function") {
+      try {
+        this.onZoomChange(this.zoomLevel);
+      } catch (err) {
+        console.error("[AppShell] onZoomChange error:", err);
+      }
+    }
+    const canvas = this.editorContainer?.querySelector(".vno-writer-page, .vno-slide-canvas");
+    if (canvas) {
+      canvas.style.transform = `scale(${this.zoomLevel / 100})`;
+      canvas.style.transformOrigin = "top center";
+    }
+    return this.zoomLevel;
+  }
+
+  setZoomDisplay(val) {
+    this.zoomLevel = Math.max(50, Math.min(200, Math.round(Number(val) || 100)));
+    const zoomRange = this.rootEl?.querySelector("#vno-zoom-range");
+    const zoomText = this.rootEl?.querySelector("#vno-zoom-text");
+    if (zoomRange) {
+      zoomRange.value = this.zoomLevel;
+      zoomRange.setAttribute("aria-valuenow", String(this.zoomLevel));
+    }
+    if (zoomText) {
+      zoomText.textContent = `${this.zoomLevel}%`;
+    }
   }
 
   /**
@@ -712,8 +745,10 @@ export class AppShell {
         <button type="button" class="vno-backstage-nav-btn" data-backstage-cmd="common.file.saveAs">${t("backstage.saveAs")}</button>
         <button type="button" class="vno-backstage-nav-btn" data-backstage-tab="print" id="vno-backstage-nav-print">${t("backstage.print")}</button>
         <button type="button" class="vno-backstage-nav-btn" data-backstage-cmd="common.file.exportPdf">${t("backstage.exportPdf")}</button>
+        <button type="button" class="vno-backstage-nav-btn" data-backstage-action="closeDocument" id="vno-backstage-close">${t("backstage.close", "Đóng")}</button>
         <div style="flex:1;"></div>
         <button type="button" class="vno-backstage-nav-btn" id="vno-backstage-about">${t("backstage.about")}</button>
+        <button type="button" class="vno-backstage-nav-btn" id="vno-backstage-options">${t("backstage.options", "Tùy chọn")}</button>
       </div>
 
       <div class="vno-backstage-content" role="main" aria-label="Nội dung menu tệp">
@@ -951,9 +986,10 @@ export class AppShell {
           this.applyTemplate(tmplId);
         } else {
           if (!this.requestAppSwitch(tmplApp, { templateId: tmplId })) {
+            const appDisplayName = tmplApp === "writer" ? "3T Doc" : tmplApp === "sheet" ? "3T Sheet" : "3T Slide";
             showAlertDialog({
               title: "Mẫu tài liệu",
-              message: `Mẫu này dành cho ứng dụng VN ${tmplApp.toUpperCase()}. Vui lòng chuyển sang ứng dụng đó để sử dụng.`
+              message: `Mẫu này dành cho ứng dụng ${appDisplayName}. Vui lòng chuyển sang ứng dụng đó để sử dụng.`
             });
           }
         }
@@ -969,8 +1005,14 @@ export class AppShell {
 
     modal.querySelector("#vno-backstage-back").addEventListener("click", closeModal);
 
-    modal.querySelector("#vno-backstage-about").addEventListener("click", () => {
+    modal.querySelector("#vno-backstage-about")?.addEventListener("click", () => {
+      closeModal();
       showAboutDialog();
+    });
+
+    modal.querySelector("#vno-backstage-options")?.addEventListener("click", () => {
+      closeModal();
+      this.showOptionsDialog();
     });
 
     const homeNavBtn = modal.querySelector("#vno-backstage-nav-home");
@@ -1020,8 +1062,141 @@ export class AppShell {
       });
     });
 
+    modal.querySelectorAll("[data-backstage-action]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const act = btn.getAttribute("data-backstage-action");
+        if (act === "closeDocument") {
+          closeModal();
+          this.requestCloseDocument();
+        }
+      });
+    });
+
     // Tự động focus nút Quay lại khi mở
     modal.querySelector("#vno-backstage-back")?.focus();
+  }
+
+  /**
+   * Hộp thoại Tùy chọn 3T Office (Theme, Cỡ chữ giao diện)
+   * Tuân thủ CH-8.1 & CH-8.5: Enter default, Esc cancel, focus trap
+   */
+  showOptionsDialog() {
+    if (typeof document === "undefined" || !document.body) return;
+    const previousFocused = document.activeElement;
+    const overlay = document.createElement("div");
+    overlay.className = "vno-dialog-overlay";
+    const currentTheme = themeManager.getTheme();
+    const currentFontSize = themeManager.getFontSize();
+
+    overlay.innerHTML = `
+      <div class="vno-dialog-box" style="width: 480px; max-width: calc(100vw - 32px);" role="dialog" aria-modal="true" aria-labelledby="vno-options-dialog-title">
+        <div class="vno-dialog-header">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-weight:700;font-size:15px;" id="vno-options-dialog-title">Tùy chọn 3T Office</span>
+          </div>
+          <button class="vno-btn vno-btn-icon-only vno-options-close-btn" title="Đóng" aria-label="Đóng">&times;</button>
+        </div>
+        <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:16px;">
+          <!-- Section Giao diện -->
+          <fieldset style="border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md);padding:12px 16px;margin:0;">
+            <legend style="font-size:13px;font-weight:600;color:var(--vno-text-primary);padding:0 6px;">Giao diện (Theme)</legend>
+            <div style="display:flex;gap:24px;margin-top:6px;">
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+                <input type="radio" name="vno-opt-theme" value="light" ${currentTheme === "light" ? "checked" : ""} />
+                <span>Giao diện Sáng (Mặc định)</span>
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+                <input type="radio" name="vno-opt-theme" value="dark" ${currentTheme === "dark" ? "checked" : ""} />
+                <span>Giao diện Tối</span>
+              </label>
+            </div>
+          </fieldset>
+
+          <!-- Section Cỡ chữ -->
+          <fieldset style="border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md);padding:12px 16px;margin:0;">
+            <legend style="font-size:13px;font-weight:600;color:var(--vno-text-primary);padding:0 6px;">Cỡ chữ giao diện</legend>
+            <div style="display:flex;gap:20px;margin-top:6px;">
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+                <input type="radio" name="vno-opt-fontsize" value="normal" ${currentFontSize === "normal" ? "checked" : ""} />
+                <span>Tiêu chuẩn (100%)</span>
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+                <input type="radio" name="vno-opt-fontsize" value="large" ${currentFontSize === "large" ? "checked" : ""} />
+                <span>Lớn (115%)</span>
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+                <input type="radio" name="vno-opt-fontsize" value="xlarge" ${currentFontSize === "xlarge" ? "checked" : ""} />
+                <span>Rất lớn (130%)</span>
+              </label>
+            </div>
+          </fieldset>
+        </div>
+        <div class="vno-dialog-footer" style="display:flex;justify-content:flex-end;gap:8px;">
+          <button type="button" class="vno-btn vno-options-cancel-btn">Hủy bỏ</button>
+          <button type="button" class="vno-btn vno-btn-primary vno-options-ok-btn">Đồng ý</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+    const dialogBox = overlay.querySelector(".vno-dialog-box");
+    const okBtn = overlay.querySelector(".vno-options-ok-btn");
+    const cancelBtn = overlay.querySelector(".vno-options-cancel-btn");
+    const closeBtn = overlay.querySelector(".vno-options-close-btn");
+
+    const closeDialog = () => {
+      document.removeEventListener("keydown", onKeyDown);
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (previousFocused && typeof previousFocused.focus === "function") {
+        previousFocused.focus();
+      }
+    };
+
+    const applyOptions = () => {
+      const selectedTheme = overlay.querySelector('input[name="vno-opt-theme"]:checked')?.value || "light";
+      const selectedFontSize = overlay.querySelector('input[name="vno-opt-fontsize"]:checked')?.value || "normal";
+      themeManager.setTheme(selectedTheme);
+      themeManager.setFontSize(selectedFontSize);
+      closeDialog();
+    };
+
+    okBtn.addEventListener("click", applyOptions);
+    cancelBtn.addEventListener("click", closeDialog);
+    closeBtn.addEventListener("click", closeDialog);
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) closeDialog();
+    });
+
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeDialog();
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (document.activeElement === cancelBtn || document.activeElement === closeBtn) {
+          closeDialog();
+        } else {
+          applyOptions();
+        }
+      } else if (e.key === "Tab") {
+        const focusables = Array.from(dialogBox.querySelectorAll(
+          'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )).filter(el => el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0);
+        if (focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        if (e.shiftKey && (document.activeElement === first || !dialogBox.contains(document.activeElement))) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && (document.activeElement === last || !dialogBox.contains(document.activeElement))) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    okBtn.focus();
   }
 
   _getPrintPreviewProvider() {
@@ -1406,6 +1581,20 @@ export class AppShell {
     // Mở menu Tệp (Backstage) bằng phím tắt Alt+F
     globalCommandBus.bindHandler("common.file.backstage", () => {
       this.showBackstageMenu();
+      return true;
+    });
+
+    // Thu phóng (Ctrl+0 đặt lại 100%, Ctrl+= / Ctrl++ phóng to, Ctrl+- thu nhỏ)
+    globalCommandBus.bindHandler("common.view.zoomReset", () => {
+      this.setZoom(100);
+      return true;
+    });
+    globalCommandBus.bindHandler("common.view.zoomIn", () => {
+      this.setZoom(this.zoomLevel + 10);
+      return true;
+    });
+    globalCommandBus.bindHandler("common.view.zoomOut", () => {
+      this.setZoom(this.zoomLevel - 10);
       return true;
     });
 
