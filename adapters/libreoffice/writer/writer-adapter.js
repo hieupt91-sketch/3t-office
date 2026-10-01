@@ -11784,10 +11784,12 @@ export class WriterAdapter {
 
     const firstSectionId = Object.keys(this.sectionPageSetups || {})[0] || "section-1";
     const sectionTypesMap = { [firstSectionId]: "nextPage" };
+    const sectionBreakMarkerIds = new Set([firstSectionId]);
     const markerTypeRegex = /<div\b[^>]*data-vno-section-break=["'](nextPage|continuous|evenPage|oddPage)["'][^>]*data-vno-section-id=["']([^"']+)["']/gi;
     let bMatch;
     while ((bMatch = markerTypeRegex.exec(bodyHtml)) !== null) {
       sectionTypesMap[bMatch[2]] = bMatch[1];
+      sectionBreakMarkerIds.add(bMatch[2]);
     }
 
     bodyHtml = `<div class="vno-export-section vno-export-${firstSectionId}" data-vno-export-section="${firstSectionId}" data-vno-section-type="nextPage">` + bodyHtml.replace(
@@ -11815,6 +11817,7 @@ export class WriterAdapter {
     const sectionsMeta = allSectionIds.map((sId) => ({
       id: sId,
       type: sectionTypesMap[sId] || "nextPage",
+      breakMarkerPresent: sectionBreakMarkerIds.has(sId),
       pageSetup: this.sectionPageSetups?.[sId] || this.pageSetup,
       headerFooter: this.sectionHeadersFooters?.[sId] || {
         linkToPrevious: sId !== firstSectionId,

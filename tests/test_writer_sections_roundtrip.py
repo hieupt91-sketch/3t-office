@@ -69,6 +69,42 @@ def _minimal_two_section_docx(path: str) -> None:
             archive.writestr(name, xml)
 
 
+def _minimal_continuous_section_docx(path: str) -> None:
+    """Create a local DOCX with two same-geometry sections and a continuous break."""
+    _minimal_two_section_docx(path)
+    with zipfile.ZipFile(path, "r") as archive:
+        parts = {name: archive.read(name) for name in archive.namelist()}
+
+    document_xml = parts["word/document.xml"].decode("utf-8")
+    document_xml = document_xml.replace('<w:type w:val="nextPage"/>', '<w:type w:val="continuous"/>', 1)
+    document_xml = document_xml.replace(
+        '<w:pgSz w:w="16838" w:h="11906" w:orient="landscape"/>',
+        '<w:pgSz w:w="11906" w:h="16838"/>',
+        1,
+    )
+    document_xml = re.sub(r'<w:(?:header|footer)Reference\b[^>]*/>', "", document_xml)
+    document_xml = re.sub(
+        r"<w:sectPr>",
+        '<w:sectPr w:rsidR="00000001" w:rsidSect="00000002">',
+        document_xml,
+    )
+    sect_matches = list(re.finditer(r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr>", document_xml))
+    final_section = sect_matches[-1]
+    final_xml = final_section.group(0).replace(
+        "<w:sectPr w:rsidR=\"00000001\" w:rsidSect=\"00000002\">",
+        '<w:sectPr w:rsidR="00000001" w:rsidSect="00000002"><w:type w:val="continuous"/>',
+        1,
+    )
+    document_xml = document_xml[:final_section.start()] + final_xml + document_xml[final_section.end():]
+    parts["word/document.xml"] = document_xml.encode("utf-8")
+
+    patched_path = path + ".generated"
+    with zipfile.ZipFile(patched_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for name, data in parts.items():
+            archive.writestr(name, data)
+    os.replace(patched_path, path)
+
+
 def _section_properties(xml: str) -> list[str]:
     return re.findall(r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>", xml)
 
@@ -96,6 +132,113 @@ class TestWriterSectionsRoundtrip(unittest.TestCase):
         sections = _section_properties(unlinked)
         self.assertIn('w:headerReference w:type="default" r:id="rIdH"', sections[1])
         self.assertIn('w:footerReference w:type="default" r:id="rIdF"', sections[1])
+
+    def test_continuous_break_and_unedited_section_properties_round_trip_unchanged(self):
+        with tempfile.TemporaryDirectory(prefix="vno-writer-continuous-sections-") as tmp:
+            source_path = os.path.join(tmp, "continuous-sections.docx")
+            destination_path = os.path.join(tmp, "continuous-roundtrip.docx")
+            no_marker_destination_path = os.path.join(tmp, "continuous-no-marker-roundtrip.docx")
+            _minimal_continuous_section_docx(source_path)
+
+            with zipfile.ZipFile(source_path, "r") as archive:
+                source_xml = archive.read("word/document.xml").decode("utf-8")
+            source_sections = _section_properties(source_xml)
+            self.assertEqual(len(source_sections), 2)
+            self.assertIn('<w:type w:val="continuous"/>', source_sections[0])
+
+            section_meta = [
+                {
+                    "id": "section-1",
+                    "type": "nextPage",
+                    "breakMarkerPresent": True,
+                    "pageSetup": {
+                        "size": "a4", "orientation": "portrait",
+                        "margins": {"top": 20, "right": 20, "bottom": 20, "left": 20},
+                        "headerDistanceMm": 12.7, "footerDistanceMm": 12.7,
+                    },
+                    "headerFooter": {
+                        "linkToPrevious": False, "differentFirstPage": False,
+                        "differentOddEven": False, "pageNumberRestart": False,
+                        "pageNumberStart": 1,
+                    },
+                },
+                {
+                    "id": "section-2",
+                    "type": "continuous",
+                    "breakMarkerPresent": True,
+                    "pageSetup": {
+                        "size": "a4", "orientation": "portrait",
+                        "margins": {"top": 20, "right": 20, "bottom": 20, "left": 20},
+                        "headerDistanceMm": 12.7, "footerDistanceMm": 12.7,
+                    },
+                    "headerFooter": {
+                        "linkToPrevious": True, "differentFirstPage": False,
+                        "differentOddEven": False, "pageNumberRestart": False,
+                        "pageNumberStart": 1,
+                    },
+                },
+            ]
+            content = (
+                '<style>@page vno-section-1 { size:210mm 297mm; margin:20mm; } '
+                '@page vno-section-2 { size:210mm 297mm; margin:20mm; }</style>'
+                '<div class="vno-export-section" data-vno-export-section="section-1">'
+                '<p>First continuous section content</p></div>'
+                '<div class="vno-section-break" data-vno-section-break="continuous" '
+                'data-vno-section-id="section-2"></div>'
+                '<div class="vno-export-section" data-vno-export-section="section-2">'
+                '<p>Second continuous section content</p></div>'
+                f'<!--vno-sections-meta: {json.dumps(section_meta)} -->'
+            )
+            save_window = MagicMock()
+            save_window.create_file_dialog.return_value = destination_path
+            api = VnOfficeApi(app_kind="writer", initial_file=source_path)
+            with patch.object(main, "_active_window", return_value=save_window):
+                saved = api.save_document_dialog(
+                    content,
+                    app_kind="writer",
+                    target_format="docx",
+                    suggested_name="continuous-roundtrip.docx",
+                    source_path=source_path,
+                )
+            self.assertEqual(saved.get("status"), "ok", repr(saved))
+
+            with zipfile.ZipFile(destination_path, "r") as archive:
+                document_xml = archive.read("word/document.xml").decode("utf-8")
+                saved_sections = _section_properties(document_xml)
+            self.assertEqual(saved_sections, source_sections)
+            self.assertIn('<w:type w:val="continuous"/>', saved_sections[0])
+            for section in saved_sections:
+                self.assertIn('<w:pgSz w:w="11906" w:h="16838"/>', section)
+                self.assertIn(
+                    '<w:pgMar w:top="1134" w:right="1134" w:bottom="1134" '
+                    'w:left="1134" w:header="720" w:footer="720" w:gutter="0"/>',
+                    section,
+                )
+
+            # An empty Word paragraph can carry a section break without a visible
+            # marker in imported HTML. Saving must then preserve the source break.
+            section_meta[1]["breakMarkerPresent"] = False
+            no_marker_content = content.replace(
+                '<div class="vno-section-break" data-vno-section-break="continuous" '
+                'data-vno-section-id="section-2"></div>',
+                "",
+            )
+            no_marker_content = no_marker_content.rsplit("<!--vno-sections-meta:", 1)[0]
+            no_marker_content += f'<!--vno-sections-meta: {json.dumps(section_meta)} -->'
+            save_window.create_file_dialog.return_value = no_marker_destination_path
+            with patch.object(main, "_active_window", return_value=save_window):
+                saved = api.save_document_dialog(
+                    no_marker_content,
+                    app_kind="writer",
+                    target_format="docx",
+                    suggested_name="continuous-no-marker-roundtrip.docx",
+                    source_path=source_path,
+                )
+            self.assertEqual(saved.get("status"), "ok", repr(saved))
+            with zipfile.ZipFile(no_marker_destination_path, "r") as archive:
+                no_marker_xml = archive.read("word/document.xml").decode("utf-8")
+                no_marker_sections = _section_properties(no_marker_xml)
+            self.assertEqual(no_marker_sections, source_sections)
 
     def test_open_and_save_as_keeps_two_section_orientations_and_headers(self):
         with tempfile.TemporaryDirectory(prefix="vno-writer-sections-") as tmp:

@@ -9990,8 +9990,7 @@ def _restore_writer_sections_by_order(converted_xml: str, source_xml: str, r_id_
         )
         body = _SECT_REF_RE.sub("", s_m.group(0))
         open_tag = re.match(r"<w:sectPr\b[^>]*>", body).group(0)
-        open_clean = re.sub(r'\s+w:rsid\w*="[^"]*"', "", open_tag)
-        replaced = open_clean + refs + body[len(open_tag):]
+        replaced = open_tag + refs + body[len(open_tag):]
         out.append(converted_xml[pos:d_m.start()])
         out.append(replaced)
         pos = d_m.end()
@@ -12493,13 +12492,19 @@ def _restore_writer_html_page_breaks(document_xml: str, source_html: str) -> str
     return result
 
 
-def _restore_created_writer_section_metadata(document_xml: str, section_meta: list[dict]) -> str:
-    """Map section properties from Writer's HTML bridge onto LibreOffice's DOCX sections."""
+def _restore_created_writer_section_metadata(
+    document_xml: str,
+    section_meta: list[dict],
+    source_sections: list[str] | None = None,
+) -> str:
+    """Apply section metadata while leaving unedited source sections untouched."""
     if not section_meta:
         return document_xml
     sections = list(re.finditer(r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>", document_xml, re.IGNORECASE))
     if len(sections) != len(section_meta):
         return document_xml
+    if source_sections is not None and len(source_sections) != len(sections):
+        source_sections = None
 
     def replace_or_insert(sect_xml: str, name: str, replacement: str) -> str:
         pattern = re.compile(rf"<w:{name}\b[^>]*/>", re.IGNORECASE)
@@ -12529,6 +12534,82 @@ def _restore_created_writer_section_metadata(document_xml: str, section_meta: li
             return attr_re.sub(f'w:{name}="{value}"', tag, count=1)
         return tag[:-2] + f' w:{name}="{value}"/>'
 
+    def attr_value(xml: str, tag_name: str, attr_name: str) -> str | None:
+        tag = re.search(rf"<w:{tag_name}\b[^>]*/?>", xml, re.IGNORECASE)
+        if not tag:
+            return None
+        value = re.search(rf'\bw:{attr_name}\s*=\s*(["\'])([^"\']*)\1', tag.group(0), re.IGNORECASE)
+        return value.group(2) if value else None
+
+    def js_round(value: float) -> int:
+        return math.floor(value + 0.5)
+
+    def source_page_setup_changes(page_setup: dict, source_section_xml: str) -> tuple[bool, bool]:
+        """Compare against the same 0.1 mm precision used by the OOXML importer."""
+        size_match = re.search(r"<w:pgSz\b([^>]*)/?>", source_section_xml, re.IGNORECASE)
+        size_changed = False
+        if size_match:
+            width = re.search(r'\bw:w\s*=\s*(["\'])(\d+)\1', size_match.group(1), re.IGNORECASE)
+            height = re.search(r'\bw:h\s*=\s*(["\'])(\d+)\1', size_match.group(1), re.IGNORECASE)
+            if width and height:
+                width_twips, height_twips = int(width.group(2)), int(height.group(2))
+                width_mm = js_round(width_twips * 25.4 / 1440)
+                height_mm = js_round(height_twips * 25.4 / 1440)
+                orientation_attr = re.search(r'\bw:orient\s*=\s*(["\'])([^"\']+)\1', size_match.group(1), re.IGNORECASE)
+                source_orientation = (
+                    "landscape" if orientation_attr and orientation_attr.group(2).lower() == "landscape"
+                    else "landscape" if width_twips > height_twips
+                    else "portrait"
+                )
+                short_side, long_side = min(width_mm, height_mm), max(width_mm, height_mm)
+                if abs(short_side - 210) <= 5 and abs(long_side - 297) <= 5:
+                    source_size = "a4"
+                elif abs(short_side - 216) <= 5 and abs(long_side - 279) <= 5:
+                    source_size = "letter"
+                elif abs(short_side - 216) <= 5 and abs(long_side - 356) <= 5:
+                    source_size = "legal"
+                else:
+                    source_size = "custom"
+                size_changed = (
+                    str(page_setup.get("size", "a4")).lower() != source_size
+                    or str(page_setup.get("orientation", "portrait")).lower() != source_orientation
+                )
+                if source_size == "custom":
+                    size_changed = size_changed or (
+                        int(page_setup.get("widthMm") or 0) != width_mm
+                        or int(page_setup.get("heightMm") or 0) != height_mm
+                    )
+
+        margin_match = re.search(r"<w:pgMar\b([^>]*)/?>", source_section_xml, re.IGNORECASE)
+        margins_changed = False
+        if margin_match:
+            margin_setup = page_setup.get("margins") or {}
+            for name in ("top", "right", "bottom", "left"):
+                value = re.search(rf'\bw:{name}\s*=\s*(["\'])(\d+)\1', margin_match.group(1), re.IGNORECASE)
+                if value and name in margin_setup:
+                    source_mm = js_round(int(value.group(2)) * 25.4 / 1440 * 10) / 10
+                    if abs(float(margin_setup[name]) - source_mm) >= 0.05:
+                        margins_changed = True
+            for name, setup_name in (("header", "headerDistanceMm"), ("footer", "footerDistanceMm")):
+                value = re.search(rf'\bw:{name}\s*=\s*(["\'])(\d+)\1', margin_match.group(1), re.IGNORECASE)
+                if value and setup_name in page_setup:
+                    source_mm = js_round(int(value.group(2)) * 25.4 / 1440 * 10) / 10
+                    if abs(float(page_setup[setup_name]) - source_mm) >= 0.05:
+                        margins_changed = True
+        return size_changed, margins_changed
+
+    def source_section_flags_changed(section: dict, source_section_xml: str) -> tuple[bool, bool]:
+        header_footer = section.get("headerFooter") or {}
+        different_first_page = bool(re.search(r"<w:titlePg\b[^>]*/?>", source_section_xml, re.IGNORECASE))
+        first_changed = bool(header_footer.get("differentFirstPage")) != different_first_page
+
+        source_start = attr_value(source_section_xml, "pgNumType", "start")
+        source_restart = source_start is not None
+        page_changed = bool(header_footer.get("pageNumberRestart")) != source_restart
+        if source_restart and bool(header_footer.get("pageNumberRestart")):
+            page_changed = page_changed or int(header_footer.get("pageNumberStart", 1) or 1) != int(source_start)
+        return first_changed, page_changed
+
     paper_twips = {
         "a3": (16838, 23811), "a4": (11906, 16838), "a5": (8391, 11906),
         "letter": (12240, 15840), "legal": (12240, 20160),
@@ -12537,6 +12618,7 @@ def _restore_created_writer_section_metadata(document_xml: str, section_meta: li
         match = sections[index]
         section_xml = match.group(0)
         section = section_meta[index]
+        source_section_xml = source_sections[index] if source_sections is not None else None
         page_setup = section.get("pageSetup") or {}
         landscape = str(page_setup.get("orientation", "portrait")).lower() == "landscape"
         dims = paper_twips.get(str(page_setup.get("size", "a4")).lower())
@@ -12553,9 +12635,14 @@ def _restore_created_writer_section_metadata(document_xml: str, section_meta: li
         else:
             width_twips, height_twips = min(width_twips, height_twips), max(width_twips, height_twips)
             orient_attr = ""
-        section_xml = replace_or_insert(
-            section_xml, "pgSz", f'<w:pgSz w:w="{width_twips}" w:h="{height_twips}"{orient_attr}/>'
+        source_size_changed, source_margins_changed = (
+            source_page_setup_changes(page_setup, source_section_xml)
+            if source_section_xml is not None else (True, True)
         )
+        if source_size_changed:
+            section_xml = replace_or_insert(
+                section_xml, "pgSz", f'<w:pgSz w:w="{width_twips}" w:h="{height_twips}"{orient_attr}/>'
+            )
 
         margins = page_setup.get("margins") or {}
         margin_values = {
@@ -12566,34 +12653,48 @@ def _restore_created_writer_section_metadata(document_xml: str, section_meta: li
             "header": round(float(page_setup.get("headerDistanceMm", 12.7)) * 1440 / 25.4),
             "footer": round(float(page_setup.get("footerDistanceMm", 12.7)) * 1440 / 25.4),
         }
-        pgmar = re.search(r"<w:pgMar\b[^>]*/>", section_xml, re.IGNORECASE)
-        if pgmar:
-            pgmar_xml = pgmar.group(0)
-            for name, value in margin_values.items():
-                pgmar_xml = set_attr(pgmar_xml, name, value)
-        else:
-            pgmar_xml = "<w:pgMar " + " ".join(f'w:{name}="{value}"' for name, value in margin_values.items()) + ' w:gutter="0"/>'
-        section_xml = replace_or_insert(section_xml, "pgMar", pgmar_xml)
+        if source_margins_changed:
+            pgmar = re.search(r"<w:pgMar\b[^>]*/>", section_xml, re.IGNORECASE)
+            if pgmar:
+                pgmar_xml = pgmar.group(0)
+                for name, value in margin_values.items():
+                    pgmar_xml = set_attr(pgmar_xml, name, value)
+            else:
+                pgmar_xml = "<w:pgMar " + " ".join(f'w:{name}="{value}"' for name, value in margin_values.items()) + ' w:gutter="0"/>'
+            section_xml = replace_or_insert(section_xml, "pgMar", pgmar_xml)
 
         header_footer = section.get("headerFooter") or {}
-        if header_footer.get("differentFirstPage"):
-            section_xml = replace_or_insert(section_xml, "titlePg", "<w:titlePg/>")
+        if source_section_xml is None:
+            source_first_page_changed = True
+            source_page_number_changed = True
         else:
-            section_xml = re.sub(r"<w:titlePg\b[^>]*/>", "", section_xml, flags=re.IGNORECASE)
-        if header_footer.get("pageNumberRestart"):
-            start_at = max(1, int(header_footer.get("pageNumberStart", 1) or 1))
-            pgnum = re.search(r"<w:pgNumType\b[^>]*/>", section_xml, re.IGNORECASE)
-            pgnum_xml = set_attr(pgnum.group(0), "start", start_at) if pgnum else f'<w:pgNumType w:start="{start_at}"/>'
-            section_xml = replace_or_insert(section_xml, "pgNumType", pgnum_xml)
-        else:
-            section_xml = re.sub(r"<w:pgNumType\b[^>]*/>", "", section_xml, flags=re.IGNORECASE)
+            source_first_page_changed, source_page_number_changed = source_section_flags_changed(section, source_section_xml)
+        if source_first_page_changed:
+            if header_footer.get("differentFirstPage"):
+                section_xml = replace_or_insert(section_xml, "titlePg", "<w:titlePg/>")
+            else:
+                section_xml = re.sub(r"<w:titlePg\b[^>]*/>", "", section_xml, flags=re.IGNORECASE)
+        if source_page_number_changed:
+            if header_footer.get("pageNumberRestart"):
+                start_at = max(1, int(header_footer.get("pageNumberStart", 1) or 1))
+                pgnum = re.search(r"<w:pgNumType\b[^>]*/>", section_xml, re.IGNORECASE)
+                pgnum_xml = set_attr(pgnum.group(0), "start", start_at) if pgnum else f'<w:pgNumType w:start="{start_at}"/>'
+                section_xml = replace_or_insert(section_xml, "pgNumType", pgnum_xml)
+            else:
+                section_xml = re.sub(r"<w:pgNumType\b[^>]*/>", "", section_xml, flags=re.IGNORECASE)
 
         if index < len(section_meta) - 1:
-            break_type = str(section_meta[index + 1].get("type") or "nextPage")
-            if break_type not in {"nextPage", "continuous", "evenPage", "oddPage"}:
-                break_type = "nextPage"
-            section_xml = replace_or_insert(section_xml, "type", f'<w:type w:val="{break_type}"/>')
-        else:
+            next_section = section_meta[index + 1]
+            marker_present = bool(next_section.get("breakMarkerPresent", True))
+            if marker_present:
+                break_type = str(next_section.get("type") or "nextPage")
+                if break_type not in {"nextPage", "continuous", "evenPage", "oddPage"}:
+                    break_type = "nextPage"
+                source_type = attr_value(source_section_xml or "", "type", "val") if source_section_xml is not None else None
+                source_type = source_type or "nextPage"
+                if source_section_xml is None or break_type != source_type:
+                    section_xml = replace_or_insert(section_xml, "type", f'<w:type w:val="{break_type}"/>')
+        elif source_section_xml is None:
             section_xml = re.sub(r"<w:type\b[^>]*/>", "", section_xml, flags=re.IGNORECASE)
         document_xml = document_xml[:match.start()] + section_xml + document_xml[match.end():]
     return document_xml
@@ -12679,10 +12780,15 @@ def postprocess_writer_section_metadata(
     if not document_bytes:
         return docx_bytes
     document_xml = document_bytes.decode("utf-8", errors="replace")
+    source_section_xmls: list[str] | None = None
     if source_docx:
         source_document_bytes = read_zip_entry(source_docx, "word/document.xml")
         if source_document_bytes:
             source_xml = source_document_bytes.decode("utf-8", errors="replace")
+            source_section_xmls = [
+                match.group(0)
+                for match in re.finditer(r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>", source_xml, re.IGNORECASE)
+            ]
             source_rels = _resolve_docx_rels(source_docx)
             output_rels = _resolve_docx_rels(docx_bytes)
 
@@ -12700,7 +12806,7 @@ def postprocess_writer_section_metadata(
                 document_xml, source_xml, r_id_map=source_to_output_ids,
             )
     document_xml = _apply_writer_link_to_previous(document_xml, section_meta)
-    patched_xml = _restore_created_writer_section_metadata(document_xml, section_meta)
+    patched_xml = _restore_created_writer_section_metadata(document_xml, section_meta, source_section_xmls)
     replacements: dict[str, str | bytes | None] = {}
     if patched_xml != document_xml:
         replacements["word/document.xml"] = patched_xml
