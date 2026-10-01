@@ -42,9 +42,9 @@ function chartLayer() {
 
 export async function runSheetChartTests() {
   const results = [];
-  const test = (name, callback) => {
+  const test = async (name, callback) => {
     try {
-      callback();
+      await callback();
       results.push({ name, pass: true });
     } catch (error) {
       results.push({ name, pass: false, error: error.message });
@@ -54,8 +54,9 @@ export async function runSheetChartTests() {
   globalThis.document = { createElement: () => new FakePanel() };
 
   try {
-    test("Sheet Charts: openChartBuilder dùng dữ liệu thật của vùng chọn", () => {
+    await test("Sheet Charts: openChartBuilder dùng dữ liệu thật của vùng chọn", async () => {
       const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
+      await grid.initializeOptionalDocumentFeatures();
       grid.setCellValue("A", 1, "Tháng 1");
       grid.setCellValue("B", 1, 125);
       grid.setCellValue("A", 2, "Tháng 2");
@@ -71,7 +72,7 @@ export async function runSheetChartTests() {
           onInsert("line");
           return { opened: true };
         };
-        grid.openChartBuilder();
+        await grid.openChartBuilder();
       } finally {
         SheetChartBuilder.showChartModal = originalModal;
       }
@@ -85,8 +86,9 @@ export async function runSheetChartTests() {
       assert(chart.range.start.c === "A" && chart.range.end.c === "B", "Chart phải lưu vùng nguồn A1:B2");
     });
 
-    test("Sheet Charts: insert render SVG và tự cập nhật khi ô nguồn đổi", () => {
+    await test("Sheet Charts: insert render SVG và tự cập nhật khi ô nguồn đổi", async () => {
       const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
+      await grid.initializeOptionalDocumentFeatures();
       grid.chartLayer = chartLayer();
       grid.setCellValue("A", 4, "Doanh thu");
       grid.setCellValue("B", 4, 100);
@@ -101,8 +103,9 @@ export async function runSheetChartTests() {
       assert(!grid.chartLayer.children[0].innerHTML.includes('data-value="100"'), "SVG cũ không được giữ giá trị 100");
     });
 
-    test("Sheet Charts: state và DOM không rò rỉ chéo sheet", () => {
+    await test("Sheet Charts: state và DOM không rò rỉ chéo sheet", async () => {
       const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
+      await grid.initializeOptionalDocumentFeatures();
       grid.chartLayer = chartLayer();
       grid.setCellValue("A", 1, "Sheet một");
       grid.setCellValue("B", 1, 10);
@@ -122,8 +125,9 @@ export async function runSheetChartTests() {
       assert(grid.chartLayer.children[0].innerHTML.includes('data-value="10"'), "Chart sheet đầu phải giữ dữ liệu riêng 10");
     });
 
-    test("Sheet Charts: xóa chart loại bỏ state và SVG", () => {
+    await test("Sheet Charts: xóa chart loại bỏ state và SVG", async () => {
       const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
+      await grid.initializeOptionalDocumentFeatures();
       grid.chartLayer = chartLayer();
       grid.setCellValue("A", 3, 42);
       const chart = grid.insertChart("bar", { start: { c: "A", r: 3 }, end: { c: "A", r: 3 } });
