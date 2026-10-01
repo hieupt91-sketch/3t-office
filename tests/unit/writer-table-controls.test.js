@@ -254,6 +254,7 @@ function setupMockEnvironment() {
 }
 
 export async function runWriterTableControlsTests() {
+  const __savedGlobalDocument = global.document; const __savedGlobalWindow = global.window;
   const results = [];
   const test = async (name, fn) => {
     try {
@@ -470,5 +471,6 @@ export async function runWriterTableControlsTests() {
     assert.equal(tableController.selectedCells.size, 0);
   });
 
+  global.document = __savedGlobalDocument; global.window = __savedGlobalWindow; // tra lai moi truong cho cac bo test sau
   return results;
 }

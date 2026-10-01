@@ -158,6 +158,7 @@ function setupMockEnvironment() {
 }
 
 export async function runWriterNumberedListRestartTests() {
+  const __savedGlobalDocument = global.document; const __savedGlobalWindow = global.window;
   const results = [];
   const test = async (name, fn) => {
     try {
@@ -321,5 +322,6 @@ export async function runWriterNumberedListRestartTests() {
     assert.equal(liB.hasAttribute("value"), false);
   });
 
+  global.document = __savedGlobalDocument; global.window = __savedGlobalWindow; // tra lai moi truong cho cac bo test sau
   return results;
 }

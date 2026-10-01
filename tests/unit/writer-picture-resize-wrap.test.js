@@ -183,6 +183,7 @@ function setupEnvironment() {
 }
 
 export async function runWriterPictureResizeWrapTests() {
+  const __savedGlobalDocument = global.document; const __savedGlobalWindow = global.window;
   const results = [];
   const test = async (name, fn) => {
     try {
@@ -297,5 +298,6 @@ export async function runWriterPictureResizeWrapTests() {
     assert.equal(controller.wrapMenu, null);
   });
 
+  global.document = __savedGlobalDocument; global.window = __savedGlobalWindow; // tra lai moi truong cho cac bo test sau
   return results;
 }
