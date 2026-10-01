@@ -294,13 +294,7 @@ def _start_deferred_startup(api, app_kind: str, launch_args: list[str]) -> None:
     )
     services_thread.start()
 
-    if _PERSISTENT_SOFFICE_ENABLED and app_kind in {"writer", "sheet", "slides"}:
-        threading.Thread(
-            target=_PERSISTENT_SOFFICE.prepare,
-            args=(app_kind,),
-            daemon=True,
-            name="3T Office LibreOffice warm start",
-        ).start()
+    api._start_document_engine()
 
 # ---------------------------------------------------------------------------
 # Embedded static-file server (runs inside the Python process)
@@ -2932,6 +2926,26 @@ class VnOfficeApi:
             _start_deferred_startup(self, self._app_kind, getattr(self, "_startup_launch_args", []))
         return {"started": True}
 
+    def _start_document_engine(self):
+        """Start the document worker once, on demand or early for a launch with a file."""
+        if self._app_kind not in VALID_APP_KINDS or not _PERSISTENT_SOFFICE_ENABLED:
+            return False
+        if getattr(self, "_document_engine_start_requested", False):
+            return True
+        self._document_engine_start_requested = True
+        _startup_trace("lo_worker_start_requested", app=self._app_kind)
+        try:
+            threading.Thread(
+                target=_PERSISTENT_SOFFICE.prepare,
+                args=(self._app_kind,),
+                daemon=True,
+                name="3T Office LibreOffice warm start",
+            ).start()
+        except RuntimeError:
+            self._document_engine_start_requested = False
+            raise
+        return True
+
     def wait_for_background_services(self, timeout_seconds=30):
         try:
             timeout = max(0.0, min(60.0, float(timeout_seconds)))
@@ -3757,6 +3771,11 @@ def main(argv: list[str] | None = None):
     _startup_trace("pywebview_window_created", app=app_kind)
 
     _register_app_window(api, window)
+
+    # For a launch that already names a file, overlap the required document engine
+    # startup with WebView2 creation. Blank launches still defer it until first paint.
+    if initial_file:
+        api._start_document_engine()
 
     if instance_server is not None:
         threading.Thread(

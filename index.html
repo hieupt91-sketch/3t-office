@@ -123,10 +123,10 @@
         import("./platform/updater/update-ui.js")
       ]);
       if (!errorReportingUI) errorReportingUI = new ErrorReportingUI().mount();
-      await errorReportingUI.refresh();
       await connectUpdaterUi(appInstance);
       window.__vnoStartupMark?.("updater_ui_ready");
-      await errorReportingUI.initialize();
+      // Reporting consent controls live in Help. Never put a modal over the editor at launch.
+      await errorReportingUI.initialize({ deferConsentPrompt: true });
     }
 
     async function switchApp(appType, options = {}) {
