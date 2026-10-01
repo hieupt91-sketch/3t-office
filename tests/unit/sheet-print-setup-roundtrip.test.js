@@ -48,7 +48,7 @@ export async function runSheetPrintSetupRoundTripTests() {
     const entry = SHEET_HELP_ENTRIES.find(item => item.id === "sheet.page.saveRoundTrip");
     assert.ok(entry);
     const content = [entry.title, entry.summary, ...(entry.steps || [])].join(" ");
-    for (const text of ["Bố trí trang", "Hướng", "Khổ", "vùng in", "Tiêu đề in", "Ctrl+S", "XLSX", "Excel"]) assert.ok(content.includes(text), `Missing ${text}`);
+    for (const text of ["Bố trí trang", "Hướng", "Khổ", "vùng in", "Tiêu đề in", "Ctrl+S", "XLSX", "phần mềm bảng tính khác"]) assert.ok(content.includes(text), `Missing ${text}`);
   });
 
   return results;

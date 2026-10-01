@@ -10,17 +10,17 @@ export const SHEET_HELP_ENTRIES = [
     id: "sheet.input.nativeValues",
     app: "sheet",
     commandIds: [],
-    title: "Nhập số và ngày để tính toán đúng trong Excel",
+    title: "Nhập số và ngày để công thức tính đúng",
     summary: "Số gõ hoặc dán vào ô được lưu dưới dạng số; ngày dd/mm/yyyy được lưu dưới dạng số ngày kèm định dạng ngày. Vì vậy SUM, COUNT, sắp xếp và chuỗi Điền tự động tiếp tục tính đúng sau khi lưu XLSX.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Số" },
     keywords: ["nhập số", "ngày", "date serial", "SUM", "COUNT", "dán số", "điền chuỗi", "apostrophe", "xlsx"],
     steps: [
-      "Chọn một ô rồi gõ số, ví dụ 123 hoặc 12,5, và nhấn Enter. Có thể dán một cột số từ ứng dụng khác; 3T Sheet tự nhận kiểu số để công thức SUM/COUNT dùng được.",
+      "Chọn một ô rồi gõ số, ví dụ 123 hoặc 12,5, và nhấn Enter. Có thể dán một cột số từ ứng dụng khác; Sheet tự nhận kiểu số để công thức SUM/COUNT dùng được.",
       "Để nhập ngày, gõ theo dạng dd/mm/yyyy, ví dụ 30/01/2026. Ô tự nhận định dạng ngày; kéo chốt Điền ở góc dưới phải để tiếp tục 31/01/2026, 01/02/2026…",
       "Để nhập phần trăm vào ô thường, gõ 25% rồi nhấn Enter. Ô hiển thị 25% và lưu số 0,25 để SUM tính đúng; Ctrl+Z hoàn tác cả giá trị lẫn định dạng phần trăm.",
       "Muốn giữ nguyên chữ số dưới dạng văn bản (ví dụ mã 00123), gõ dấu nháy đơn trước nội dung: '00123. Dấu nháy không hiển thị trong ô nhưng ngăn chuyển thành số.",
       "Dùng tab Trang đầu, nhóm Số để đổi định dạng hiển thị như Số, Tiền tệ, Phần trăm hoặc Ngày. Định dạng chỉ đổi cách hiển thị, không biến số thành văn bản.",
-      "Khi lưu XLSX và mở bằng Excel, số vẫn là giá trị số và ngày vẫn là số ngày có định dạng; công thức SUM/COUNT không bỏ qua các ô vừa nhập hoặc dán."
+      "Khi lưu .xlsx rồi mở bằng phần mềm bảng tính khác, số vẫn là giá trị số và ngày vẫn là số ngày có định dạng; công thức SUM/COUNT không bỏ qua các ô vừa nhập hoặc dán."
     ]
   },
   {
@@ -383,14 +383,14 @@ export const SHEET_HELP_ENTRIES = [
     app: "sheet",
     commandIds: ["sheet.page.margins", "sheet.page.orientation", "sheet.page.size", "sheet.page.printTitles", "sheet.page.setPrintArea"],
     title: "Lưu và mở lại thiết lập trang in",
-    summary: "Hướng giấy, khổ giấy, lề, vùng in, tiêu đề lặp, tỷ lệ vừa trang và đầu/chân trang được lưu theo từng trang tính trong XLSX và được khôi phục khi mở lại bằng 3T Sheet hoặc Excel.",
+    summary: "Hướng giấy, khổ giấy, lề, vùng in, tiêu đề lặp, tỷ lệ vừa trang và đầu/chân trang được lưu theo từng trang tính trong XLSX và được khôi phục khi mở lại bằng Sheet hoặc phần mềm bảng tính khác.",
     ribbon: { tab: "Bố trí trang", tabId: "pageLayout", group: "Thiết lập trang" },
     keywords: ["lưu thiết lập in", "mở lại", "hướng giấy", "khổ giấy", "lề", "vùng in", "tiêu đề in", "page setup", "xlsx"],
     steps: [
       "Mở tab Bố trí trang, nhóm Thiết lập trang. Dùng Lề, Hướng và Khổ để chọn lề trang, giấy Dọc/Ngang và A4/Letter/Legal cho trang tính hiện tại.",
       "Muốn chỉ in một khối, bôi vùng ô rồi chọn Đặt vùng in. Muốn lặp hàng/cột tiêu đề trên mỗi trang, chọn Tiêu đề in và nhập 1:2 hoặc A:B.",
       "Trong Tỷ lệ vừa trang, chọn Vừa trong rồi đặt số trang ngang/dọc; trong Tiêu đề Đầu/Cuối trang, nhập nội dung hoặc các mã &P, &N, &A.",
-      "Nhấn Ctrl+S để lưu XLSX. Khi mở lại trong 3T Sheet, vào lại các hộp trên để kiểm tra; các giá trị được khôi phục riêng cho từng tab. Excel cũng đọc cùng Page Setup, Print Area và Print Titles.",
+      "Nhấn Ctrl+S để lưu XLSX. Khi mở lại trong Sheet, vào lại các hộp trên để kiểm tra; các giá trị được khôi phục riêng cho từng tab. Phần mềm bảng tính khác cũng đọc đúng thiết lập trang, vùng in và tiêu đề in.",
       "Nếu cần bỏ giới hạn vùng in, chọn Xóa vùng in. Thao tác này không xóa dữ liệu và được lưu ở lần Ctrl+S tiếp theo."
     ]
   },
