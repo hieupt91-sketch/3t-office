@@ -35,6 +35,27 @@ class DesktopLaunchTests(unittest.TestCase):
         self.assertIn("lo-profile-writer", uris["writer"])
         self.assertIn("lo-profile-shared", uris[None])
 
+    def test_each_window_api_owns_document_state_and_shares_process_services(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            reporter = object()
+            updater = object()
+            with patch.object(main, "_user_data_dir", return_value=Path(temp_dir)), \
+                 patch.object(main, "_ERROR_REPORTER", reporter), \
+                 patch.object(main, "_UPDATE_MANAGER", updater):
+                first = main.VnOfficeApi("writer", r"C:\Docs\first.docx", 8123)
+                second = main.VnOfficeApi("writer", r"C:\Docs\second.docx", 8123)
+
+        first._current_file_path = r"C:\Docs\first-saved.docx"
+        second._current_file_path = r"C:\Docs\second-saved.docx"
+        first._sheet_open_sessions["first"] = {"source": "first"}
+        self.assertNotEqual(first._autorecover_store.session_id, second._autorecover_store.session_id)
+        self.assertNotEqual(first._current_file_path, second._current_file_path)
+        self.assertEqual(second._sheet_open_sessions, {})
+        self.assertIs(first._reporter, reporter)
+        self.assertIs(second._reporter, reporter)
+        self.assertIs(first._updater, updater)
+        self.assertIs(second._updater, updater)
+
     def test_initial_file_is_consumed_once_through_existing_open_api(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             source_path = Path(temp_dir) / "Bao cao.xlsx"
