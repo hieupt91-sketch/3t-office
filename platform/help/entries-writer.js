@@ -1063,6 +1063,19 @@ export const WRITER_HELP_ENTRIES = [
       "Ngắt mục (tab Bố cục > nhóm Thiết lập trang > Ngắt trang > Ngắt mục): có 4 loại — Trang kế tiếp, Liên tục, Trang chẵn, Trang lẻ. Mỗi ngắt tạo một mục (section) mới với Page Setup riêng (lề, hướng, khổ giấy) được lưu trong data-vno-section-id. Trên canvas 3T Doc: mục mới áp dụng Page Setup riêng ngay. Khi xuất DOCX/PDF qua LibreOffice: Header/Footer và khổ giấy ngang/dọc vẫn dùng chung cho cả tài liệu (giới hạn bộ lọc HTML của LibreOffice), chỉ lề và khổ giấy cơ bản được giữ. Ngắt cột (menu Ngắt trang) chỉ có hiệu lực khi tài liệu đang chia từ 2 cột trở lên.",
       "Các nút này vẫn hiển thị trên ribbon đúng vị trí chuẩn Microsoft Word. Khi bấm vào, hộp thoại/hành động chạy ngay thay vì chỉ hiện thông báo đang hoàn thiện."
     ]
+  },
+  {
+    id: "writer.quickStart",
+    app: "writer",
+    title: "Bật Khởi động nhanh cùng Windows",
+    summary: "Khởi chạy một dịch vụ nền khi đăng nhập Windows để giữ LibreOffice sẵn sàng và giảm thời gian mở tài liệu đầu tiên.",
+    ribbon: { tab: "Trợ giúp", tabId: "help", group: "Khởi động nhanh" },
+    keywords: ["khởi động nhanh", "quick start", "mở tài liệu nhanh", "bộ nhớ", "Windows", "LibreOffice"],
+    steps: [
+      "Mở tab Trợ giúp trên ribbon rồi nhấn Trợ giúp để mở bảng tra cứu.",
+      "Trong phần Khởi động nhanh ở đầu bảng, bật “Tự chạy cùng Windows và giữ bộ máy LibreOffice sẵn sàng”. 3T Office sẽ đăng ký dịch vụ cho tài khoản Windows hiện tại và khởi chạy dịch vụ ngay.",
+      "Dòng trạng thái bên dưới cho biết dịch vụ đang khởi động hay đã sẵn sàng và mức RAM đang dùng. Tắt ô này để gỡ tự khởi chạy và đóng dịch vụ. Tính năng hiện hỗ trợ ứng dụng Desktop trên Windows."
+    ]
   }
 ];
 

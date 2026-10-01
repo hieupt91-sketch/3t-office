@@ -35,7 +35,7 @@
     import { SlidesApp } from "./apps/slides/slides-app.js";
     import { themeManager } from "./platform/theme/theme-manager.js";
     import { globalCommandBus } from "./platform/commands/command-bus.js";
-    import { bootstrapPlatform, configurePlatformLaunchContext, resolveLaunchContext } from "./platform/bootstrap.js";
+    import { bootstrapPlatform, configurePlatformLaunchContext, resolveLaunchContext, isDesktopEngineBridgeReady, startBackgroundEngineWarmup } from "./platform/bootstrap.js";
     import { ErrorReportingUI } from "./platform/error_reporting/error-reporting-ui.js";
     import { autoRecoverManager } from "./platform/autorecover/auto-recover.js";
     import { connectUpdaterUi } from "./platform/updater/update-ui.js";
@@ -100,6 +100,15 @@
       documentName: launchContext.documentName || undefined,
       openInitialFile: launchContext.openInitialFile
     });
+
+    // Let the first editor frame paint before starting LibreOffice. The Python
+    // bridge queues one lowest-priority background warm-up, so an immediate
+    // file open and the warm-up share the same worker manager/profile lock.
+    if (isDesktopEngineBridgeReady()) {
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      startBackgroundEngineWarmup().catch(error => console.warn("[3T Office] LibreOffice warm-up could not be queued:", error));
+    }
+
     await errorReportingUI.initialize();
     if (launchContext.openInitialFile) {
       await globalCommandBus.execute("common.file.open");

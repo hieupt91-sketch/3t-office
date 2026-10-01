@@ -1174,6 +1174,19 @@ export const SHEET_HELP_ENTRIES = [
       "Tiêu đề in (Print Titles): tab Bố trí trang > nhóm Thiết lập trang > Tiêu đề in — đã hoàn thành Patch 1.0.1 (nhập tham chiếu $1:$2/$A:$B, nút ⊞ chọn trực tiếp hàng/cột trên lưới, lưu qua _xlnm.Print_Titles).",
       "Liên kết ngoài: công thức như =[BaoCao.xlsx]Sheet1!A1 hiển thị giá trị lưu lần cuối, giữ liên kết khi lưu XLSX, không tự cập nhật (ứng dụng chạy offline). Thanh cảnh báo vàng dưới ribbon báo số ô có liên kết."
     ]
+  },
+  {
+    id: "sheet.quickStart",
+    app: "sheet",
+    title: "Bật Khởi động nhanh cùng Windows",
+    summary: "Khởi chạy một dịch vụ nền khi đăng nhập Windows để giữ LibreOffice sẵn sàng và giảm thời gian mở bảng tính đầu tiên.",
+    ribbon: { tab: "Trợ giúp", tabId: "help", group: "Khởi động nhanh" },
+    keywords: ["khởi động nhanh", "quick start", "mở bảng tính nhanh", "bộ nhớ", "Windows", "LibreOffice"],
+    steps: [
+      "Mở tab Trợ giúp trên ribbon rồi nhấn Trợ giúp để mở bảng tra cứu.",
+      "Trong phần Khởi động nhanh ở đầu bảng, bật “Tự chạy cùng Windows và giữ bộ máy LibreOffice sẵn sàng”. 3T Office sẽ đăng ký dịch vụ cho tài khoản Windows hiện tại và khởi chạy dịch vụ ngay.",
+      "Dòng trạng thái bên dưới cho biết dịch vụ đang khởi động hay đã sẵn sàng và mức RAM đang dùng. Tắt ô này để gỡ tự khởi chạy và đóng dịch vụ. Tính năng hiện hỗ trợ ứng dụng Desktop trên Windows."
+    ]
   }
 ];
 

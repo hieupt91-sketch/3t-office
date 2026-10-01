@@ -1,4 +1,5 @@
 import types
+import threading
 import unittest
 from unittest.mock import patch
 
@@ -11,6 +12,7 @@ class FakeWorker:
         self.error = error
         self.result = result or {"ok": True}
         self.stopped = False
+        self.convert_count = 0
         self.process = types.SimpleNamespace(poll=lambda: 1 if self.stopped else None, stdin=object())
 
     def start(self):
@@ -21,11 +23,50 @@ class FakeWorker:
             raise self.error
         return {**self.result, "operation": operation, "payload": payload, "timeout": timeout}
 
+    def convert(self, source_path, output_path, filter_name, input_filter, input_filter_options):
+        self.convert_count += 1
+        if self.error:
+            raise self.error
+        return output_path
+
     def stop(self, grace_seconds=2):
         self.stopped = True
 
 
 class PersistentSofficeOperationTests(unittest.TestCase):
+    def test_open_during_background_prepare_reuses_the_warming_worker(self):
+        worker = FakeWorker("writer")
+        start_entered = threading.Event()
+        allow_start_to_finish = threading.Event()
+
+        def slow_start():
+            start_entered.set()
+            allow_start_to_finish.wait(timeout=2)
+
+        worker.start = slow_start
+        manager = main._PersistentSofficeManager()
+        result = []
+        with (
+            patch.object(main, "_PERSISTENT_SOFFICE_ENABLED", True),
+            patch.object(main, "_SofficeUnoWorker", return_value=worker) as worker_factory,
+            patch.object(main, "_warmup_persistent_filter"),
+        ):
+            self.assertTrue(manager.start_background_prepare("writer"))
+            self.assertTrue(start_entered.wait(timeout=1))
+            manager.notify_user_open_started("writer")
+            opener = threading.Thread(
+                target=lambda: result.append(manager.convert("writer", "in.docx", "out.html", None, None, None))
+            )
+            opener.start()
+            allow_start_to_finish.set()
+            opener.join(timeout=2)
+
+        self.assertFalse(opener.is_alive())
+        self.assertEqual(result, ["out.html"])
+        self.assertEqual(worker_factory.call_count, 1)
+        self.assertEqual(worker.convert_count, 1)
+        manager.shutdown()
+
     def test_read_only_operation_restarts_once_after_disposed_bridge(self):
         first = FakeWorker("writer", error=main._PersistentSofficeConversionError("Binary URP bridge disposed during call"))
         second = FakeWorker("writer", result={"page_count": 3})

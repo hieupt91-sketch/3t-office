@@ -121,6 +121,25 @@ SingleInstanceServer = _SINGLE_INSTANCE_MODULE.SingleInstanceServer
 InstanceAlreadyRunning = _SINGLE_INSTANCE_MODULE.InstanceAlreadyRunning
 forward_launch_request = _SINGLE_INSTANCE_MODULE.forward_launch_request
 
+_QUICK_START_IPC_PATH = Path(__file__).resolve().parent / "platform" / "quickstart" / "ipc.py"
+_QUICK_START_IPC_SPEC = importlib.util.spec_from_file_location("_vno_quickstart_ipc", _QUICK_START_IPC_PATH)
+if _QUICK_START_IPC_SPEC is None or _QUICK_START_IPC_SPEC.loader is None:
+    raise ImportError(f"Cannot load Quick Start IPC: {_QUICK_START_IPC_PATH}")
+_QUICK_START_IPC_MODULE = importlib.util.module_from_spec(_QUICK_START_IPC_SPEC)
+sys.modules[_QUICK_START_IPC_SPEC.name] = _QUICK_START_IPC_MODULE
+_QUICK_START_IPC_SPEC.loader.exec_module(_QUICK_START_IPC_MODULE)
+QuickStartClient = _QUICK_START_IPC_MODULE.QuickStartClient
+QuickStartServer = _QUICK_START_IPC_MODULE.QuickStartServer
+QuickStartUnavailable = _QUICK_START_IPC_MODULE.QuickStartUnavailable
+
+_QUICK_START_SETTINGS_PATH = Path(__file__).resolve().parent / "platform" / "quickstart" / "settings.py"
+_QUICK_START_SETTINGS_SPEC = importlib.util.spec_from_file_location("_vno_quickstart_settings", _QUICK_START_SETTINGS_PATH)
+if _QUICK_START_SETTINGS_SPEC is None or _QUICK_START_SETTINGS_SPEC.loader is None:
+    raise ImportError(f"Cannot load Quick Start settings: {_QUICK_START_SETTINGS_PATH}")
+_QUICK_START_SETTINGS_MODULE = importlib.util.module_from_spec(_QUICK_START_SETTINGS_SPEC)
+sys.modules[_QUICK_START_SETTINGS_SPEC.name] = _QUICK_START_SETTINGS_MODULE
+_QUICK_START_SETTINGS_SPEC.loader.exec_module(_QUICK_START_SETTINGS_MODULE)
+
 _PRINT_PIPELINE_PATH = Path(__file__).resolve().parent / "platform" / "print" / "print_pipeline.py"
 _PRINT_PIPELINE_SPEC = importlib.util.spec_from_file_location("_vno_print_pipeline", _PRINT_PIPELINE_PATH)
 if _PRINT_PIPELINE_SPEC is None or _PRINT_PIPELINE_SPEC.loader is None:
@@ -600,6 +619,9 @@ class _PersistentSofficeManager:
         self._lock = threading.RLock()
         self._worker: _SofficeUnoWorker | None = None
         self._shutdown_requested = threading.Event()
+        self._prepare_lock = threading.Lock()
+        self._prepare_threads: set[str] = set()
+        self._user_open_started = threading.Event()
 
     def _stop_locked(self) -> None:
         worker = self._worker
@@ -641,10 +663,55 @@ class _PersistentSofficeManager:
         try:
             with self._lock:
                 self._ensure_locked(app_kind)
-            if app_kind in {"writer", "sheet"}:
+            if not self._user_open_started.wait(timeout=0.35):
                 _warmup_persistent_filter(app_kind)
+            else:
+                _open_perf_log("background_filter_warmup_skipped", app=app_kind, reason="user-open-started")
         except Exception as exc:
             _open_perf_log("worker_background_start_failed", app=app_kind, error=str(exc)[:180])
+
+    def notify_user_open_started(self, app_kind: str | None) -> None:
+        if app_kind in {"writer", "sheet"}:
+            self._user_open_started.set()
+
+    def start_background_prepare(self, app_kind: str) -> bool:
+        """Start one best-effort, lowest-priority warm-up after the WebView first paint."""
+        if app_kind not in {"writer", "sheet"} or not _PERSISTENT_SOFFICE_ENABLED:
+            return False
+        with self._prepare_lock:
+            if app_kind in self._prepare_threads:
+                return False
+            self._prepare_threads.add(app_kind)
+
+        def prepare_in_background() -> None:
+            try:
+                if os.name == "nt":
+                    try:
+                        import ctypes
+                        ctypes.windll.kernel32.SetThreadPriority(
+                            ctypes.windll.kernel32.GetCurrentThread(), -2
+                        )
+                    except (AttributeError, OSError):
+                        pass
+                self.prepare(app_kind)
+            finally:
+                with self._prepare_lock:
+                    self._prepare_threads.discard(app_kind)
+
+        thread = threading.Thread(
+            target=prepare_in_background,
+            daemon=True,
+            name=f"3T Office {app_kind} LibreOffice warm-up",
+        )
+        try:
+            thread.start()
+            _open_perf_log("worker_background_warmup_queued", app=app_kind)
+            return True
+        except RuntimeError as exc:
+            with self._prepare_lock:
+                self._prepare_threads.discard(app_kind)
+            _open_perf_log("worker_background_start_failed", app=app_kind, error=str(exc)[:180])
+            return False
 
     def release_for_cli_fallback(self, app_kind: str | None) -> None:
         """Release the profile lock before the original CLI conversion runs."""
@@ -652,6 +719,11 @@ class _PersistentSofficeManager:
         with self._lock:
             if self._worker and self._worker.app_kind == kind:
                 self._stop_locked()
+
+    def stop_worker_for_quick_start_handoff(self) -> None:
+        """Release the foreground profile before enabling the separate login service."""
+        with self._lock:
+            self._stop_locked()
 
     def convert(
         self,
@@ -746,6 +818,267 @@ class _PersistentSofficeManager:
 
 
 _PERSISTENT_SOFFICE = _PersistentSofficeManager()
+_QUICK_START_CLIENT: object | None = None
+_QUICK_START_SERVER = None
+
+
+class _QuickStartWorkerProxy:
+    """Route document work to the per-user warm worker when it is enabled."""
+
+    def __init__(self, client):
+        self.client = client
+
+    def _request(self, action, payload=None, timeout=180):
+        if not _ensure_quick_start_process(timeout=min(max(timeout, 2), 18)):
+            raise QuickStartUnavailable("Quick Start service did not start.")
+        return self.client.request(action, payload, timeout=timeout)
+
+    def start_background_prepare(self, app_kind):
+        try:
+            self._request("prepare", {"app_kind": app_kind}, timeout=3)
+            return True
+        except QuickStartUnavailable:
+            return False
+
+    def notify_user_open_started(self, app_kind):
+        if app_kind in VALID_APP_KINDS:
+            try:
+                self._request("notify_open", {"app_kind": app_kind}, timeout=2)
+            except QuickStartUnavailable:
+                pass
+
+    def release_for_cli_fallback(self, app_kind):
+        try:
+            self._request("release", {"app_kind": app_kind}, timeout=5)
+        except QuickStartUnavailable:
+            pass
+
+    def convert(self, app_kind, source_path, output_path, filter_name, input_filter, input_filter_options):
+        result = self._request("convert", {
+            "app_kind": app_kind,
+            "source_path": source_path,
+            "output_path": output_path,
+            "filter_name": filter_name,
+            "input_filter": input_filter,
+            "input_filter_options": input_filter_options,
+        }, timeout=180)
+        return str(result["output_path"])
+
+    def operation(self, app_kind, operation, **payload):
+        return self._request("operation", {
+            "app_kind": app_kind,
+            "operation": operation,
+            "payload": payload,
+        }, timeout=310)
+
+    def shutdown(self):
+        # Closing an editor must leave the optional login service running.
+        return None
+
+
+def _office_worker():
+    return _QUICK_START_CLIENT if isinstance(_QUICK_START_CLIENT, _QuickStartWorkerProxy) else _PERSISTENT_SOFFICE
+
+
+_QUICK_START_LAUNCH_LOCK = threading.Lock()
+_QUICK_START_LAST_LAUNCH = 0.0
+
+
+def _quick_start_memory_mb():
+    """Return the service and child processes' working set on Windows."""
+    if os.name != "nt":
+        return None
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        class PROCESSENTRY32W(ctypes.Structure):
+            _fields_ = [
+                ("dwSize", wintypes.DWORD), ("cntUsage", wintypes.DWORD),
+                ("th32ProcessID", wintypes.DWORD), ("th32DefaultHeapID", ctypes.c_size_t),
+                ("th32ModuleID", wintypes.DWORD), ("cntThreads", wintypes.DWORD),
+                ("th32ParentProcessID", wintypes.DWORD), ("pcPriClassBase", ctypes.c_long),
+                ("dwFlags", wintypes.DWORD), ("szExeFile", wintypes.WCHAR * 260),
+            ]
+
+        class PROCESS_MEMORY_COUNTERS(ctypes.Structure):
+            _fields_ = [
+                ("cb", wintypes.DWORD), ("PageFaultCount", wintypes.DWORD),
+                ("PeakWorkingSetSize", ctypes.c_size_t), ("WorkingSetSize", ctypes.c_size_t),
+                ("QuotaPeakPagedPoolUsage", ctypes.c_size_t), ("QuotaPagedPoolUsage", ctypes.c_size_t),
+                ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t), ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+                ("PagefileUsage", ctypes.c_size_t), ("PeakPagefileUsage", ctypes.c_size_t),
+            ]
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        psapi = ctypes.WinDLL("psapi", use_last_error=True)
+        kernel32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+        snapshot = kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
+        if snapshot == ctypes.c_void_p(-1).value:
+            return None
+        entry = PROCESSENTRY32W()
+        entry.dwSize = ctypes.sizeof(entry)
+        parent_by_pid = {}
+        try:
+            if kernel32.Process32FirstW(snapshot, ctypes.byref(entry)):
+                while True:
+                    parent_by_pid[int(entry.th32ProcessID)] = int(entry.th32ParentProcessID)
+                    if not kernel32.Process32NextW(snapshot, ctypes.byref(entry)):
+                        break
+        finally:
+            kernel32.CloseHandle(snapshot)
+        pids = {os.getpid()}
+        while True:
+            children = {pid for pid, parent in parent_by_pid.items() if parent in pids}
+            if children.issubset(pids):
+                break
+            pids.update(children)
+        kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+        kernel32.OpenProcess.restype = wintypes.HANDLE
+        psapi.GetProcessMemoryInfo.argtypes = [wintypes.HANDLE, ctypes.POINTER(PROCESS_MEMORY_COUNTERS), wintypes.DWORD]
+        psapi.GetProcessMemoryInfo.restype = wintypes.BOOL
+        total = 0
+        for pid in pids:
+            handle = kernel32.OpenProcess(0x1000, False, pid)
+            if not handle:
+                continue
+            counters = PROCESS_MEMORY_COUNTERS()
+            counters.cb = ctypes.sizeof(counters)
+            try:
+                if psapi.GetProcessMemoryInfo(handle, ctypes.byref(counters), counters.cb):
+                    total += int(counters.WorkingSetSize)
+            finally:
+                kernel32.CloseHandle(handle)
+        return round(total / (1024 * 1024), 1)
+    except (AttributeError, OSError, TypeError, ValueError):
+        return None
+
+
+def _quick_start_worker_ready():
+    with _PERSISTENT_SOFFICE._lock:
+        worker = _PERSISTENT_SOFFICE._worker
+        return bool(worker and worker.process and worker.process.poll() is None)
+
+
+def _quick_start_service_status():
+    return {
+        "supported": os.name == "nt",
+        "running": True,
+        "workerReady": _quick_start_worker_ready(),
+        "residentSetMB": _quick_start_memory_mb(),
+    }
+
+
+def _run_quick_start_service():
+    global _QUICK_START_SERVER, _PERSISTENT_SOFFICE_ENABLED
+    _PERSISTENT_SOFFICE_ENABLED = os.environ.get("VNOFFICE_DISABLE_UNO") != "1"
+    stopped = threading.Event()
+
+    def dispatch(request):
+        action = request.get("action")
+        payload = request.get("payload") or {}
+        if not isinstance(payload, dict):
+            return {"ok": False, "error": "invalid_payload"}
+        if action == "status":
+            return {"ok": True, **_quick_start_service_status()}
+        if action == "prepare":
+            kind = payload.get("app_kind")
+            if kind not in {"writer", "sheet"}:
+                return {"ok": False, "error": "invalid_app_kind"}
+            _PERSISTENT_SOFFICE.start_background_prepare(kind)
+            return {"ok": True}
+        if action == "notify_open":
+            _PERSISTENT_SOFFICE.notify_user_open_started(payload.get("app_kind"))
+            return {"ok": True}
+        if action == "release":
+            _PERSISTENT_SOFFICE.release_for_cli_fallback(payload.get("app_kind"))
+            return {"ok": True}
+        if action == "convert":
+            kind = payload.get("app_kind")
+            if kind not in VALID_APP_KINDS or not all(isinstance(payload.get(key), str) for key in ("source_path", "output_path")):
+                return {"ok": False, "error": "invalid_convert_request"}
+            output_path = _PERSISTENT_SOFFICE.convert(
+                kind, payload["source_path"], payload["output_path"],
+                payload.get("filter_name"), payload.get("input_filter"), payload.get("input_filter_options"),
+            )
+            return {"ok": True, "output_path": output_path}
+        if action == "operation":
+            kind, operation = payload.get("app_kind"), payload.get("operation")
+            arguments = payload.get("payload") or {}
+            if kind not in VALID_APP_KINDS or operation not in {"inspect_pdf", "render_pdf_page", "print_pdf"} or not isinstance(arguments, dict):
+                return {"ok": False, "error": "invalid_operation_request"}
+            return {"ok": True, **_PERSISTENT_SOFFICE.operation(kind, operation, **arguments)}
+        if action == "shutdown":
+            threading.Timer(0.25, stopped.set).start()
+            return {"ok": True}
+        return {"ok": False, "error": "unknown_action"}
+
+    server = QuickStartServer(_user_data_dir(), dispatch)
+    try:
+        server.start()
+    except QuickStartUnavailable:
+        return 0
+    _QUICK_START_SERVER = server
+    print("[3T Office] Quick Start is ready.", flush=True)
+    _PERSISTENT_SOFFICE.start_background_prepare("writer")
+    try:
+        stopped.wait()
+    finally:
+        _PERSISTENT_SOFFICE.shutdown()
+        server.stop()
+        _QUICK_START_SERVER = None
+    return 0
+
+
+def _ensure_quick_start_process(timeout=5.0):
+    global _QUICK_START_LAST_LAUNCH
+    client = QuickStartClient(_user_data_dir())
+    if client.is_available():
+        return True
+    with _QUICK_START_LAUNCH_LOCK:
+        now = time.monotonic()
+        if now - _QUICK_START_LAST_LAUNCH >= 5.0:
+            _QUICK_START_LAST_LAUNCH = now
+            try:
+                python = Path(sys.executable)
+                if os.name == "nt" and python.name.casefold() == "python.exe" and python.with_name("pythonw.exe").is_file():
+                    python = python.with_name("pythonw.exe")
+                subprocess.Popen(
+                    [str(python), "-s", "-E", str(Path(__file__).resolve()), "--quick-start"],
+                    cwd=ROOT_DIR,
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+                )
+            except OSError as exc:
+                _open_perf_log("quick_start_launch_failed", error=str(exc)[:160])
+                return False
+    deadline = time.monotonic() + max(0.1, timeout)
+    while time.monotonic() < deadline:
+        if client.is_available():
+            return True
+        time.sleep(0.05)
+    return False
+
+
+def _stop_quick_start_service(timeout=15.0):
+    client = QuickStartClient(_user_data_dir())
+    startup_deadline = time.monotonic() + min(5.0, timeout)
+    while not client.is_available() and time.monotonic() < startup_deadline:
+        time.sleep(0.1)
+    if not client.is_available():
+        return True
+    try:
+        client.request("shutdown", timeout=2)
+    except QuickStartUnavailable:
+        return not client.is_available()
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if not client.is_available():
+            return True
+        time.sleep(0.1)
+    return False
 
 
 class DocumentEngineError(Exception):
@@ -982,7 +1315,7 @@ def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind:
         and not out_path.exists()
     )
     if use_persistent_worker and not _persistent_writer_html_safe(src_path, app_kind, target_ext):
-        _PERSISTENT_SOFFICE.release_for_cli_fallback(app_kind)
+        _office_worker().release_for_cli_fallback(app_kind)
         _open_perf_log("uno_fallback_to_convert_to", app=app_kind or "shared", reason="writer-docx-textboxes")
         use_persistent_worker = False
 
@@ -991,10 +1324,10 @@ def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind:
             # A persistent instance holds the profile lock. Preserve the old
             # CLI path for unvalidated open/save/export filters without
             # contending with the helper using that same user profile.
-            _PERSISTENT_SOFFICE.release_for_cli_fallback(app_kind)
+            _office_worker().release_for_cli_fallback(app_kind)
         if use_persistent_worker:
             try:
-                persistent_path = _PERSISTENT_SOFFICE.convert(
+                persistent_path = _office_worker().convert(
                     app_kind,
                     src_path,
                     str(out_path),
@@ -1720,7 +2053,7 @@ def _print_pdf_to_target_file(pdf_path: str, printer: str, destination_path: str
         source_copy = source_dir / "VNOfficePrintJob.pdf"
         shutil.copyfile(pdf_path, source_copy)
 
-        _PERSISTENT_SOFFICE.release_for_cli_fallback(app_kind)
+        _office_worker().release_for_cli_fallback(app_kind)
         command = [
             SOFFICE_PATH,
             "--headless",
@@ -1768,7 +2101,7 @@ def _print_pdf_job(app_kind: str, pdf_path: str, printer: str, copies: int, page
         and not pages
     ):
         return _print_pdf_to_target_file(pdf_path, printer, output_path, app_kind)
-    return _PERSISTENT_SOFFICE.operation(
+    return _office_worker().operation(
         app_kind,
         "print_pdf",
         pdf_path=pdf_path,
@@ -2037,7 +2370,7 @@ def _on_single_instance_ownership_lost() -> None:
         except Exception:
             pass
     try:
-        _PERSISTENT_SOFFICE.shutdown()
+        _office_worker().shutdown()
     finally:
         os._exit(0)
 
@@ -2097,9 +2430,9 @@ class VnOfficeApi:
             office_candidates=_office_candidates_for_print,
             convert_office_pdf=_convert_print_source_with_office,
             inspect_pdf=lambda kind, pdf_path: int(
-                _PERSISTENT_SOFFICE.operation(kind, "inspect_pdf", pdf_path=pdf_path)["page_count"]
+                _office_worker().operation(kind, "inspect_pdf", pdf_path=pdf_path)["page_count"]
             ),
-            render_page=lambda kind, pdf_path, page_index, output_path: _PERSISTENT_SOFFICE.operation(
+            render_page=lambda kind, pdf_path, page_index, output_path: _office_worker().operation(
                 kind,
                 "render_pdf_page",
                 pdf_path=pdf_path,
@@ -2171,6 +2504,81 @@ class VnOfficeApi:
 
     def get_autorecover_settings(self):
         return self._autorecover_store.get_settings() if self._autorecover_store else {"enabled": True, "interval_minutes": 5}
+
+    def start_background_engine_warmup(self):
+        """Queue LibreOffice startup after the UI has painted its first frame."""
+        return _office_worker().start_background_prepare(self._app_kind)
+
+    def get_quick_start_status(self):
+        enabled = _QUICK_START_SETTINGS_MODULE.is_enabled(_user_data_dir())
+        running = worker_ready = False
+        resident_set_mb = None
+        if enabled and os.name == "nt":
+            _ensure_quick_start_process(timeout=1.2)
+            try:
+                status = QuickStartClient(_user_data_dir()).request("status", timeout=2)
+                running = bool(status.get("running"))
+                worker_ready = bool(status.get("workerReady"))
+                resident_set_mb = status.get("residentSetMB")
+            except QuickStartUnavailable:
+                pass
+        return {
+            "supported": os.name == "nt",
+            "enabled": enabled,
+            "running": running,
+            "workerReady": worker_ready,
+            "residentSetMB": resident_set_mb,
+            "idleMemoryLimitMB": 150,
+        }
+
+    def set_quick_start_enabled(self, enabled):
+        global _QUICK_START_CLIENT
+        if type(enabled) is not bool:
+            return {"status": "error", "message": "Giá trị cài đặt không hợp lệ."}
+        if os.name != "nt":
+            return {"status": "error", "message": "Khởi động nhanh cùng Windows hiện chỉ hỗ trợ Windows."}
+        install_root = _update_install_root()
+        executable = Path(sys.executable)
+        if executable.name.casefold() == "python.exe" and executable.with_name("pythonw.exe").is_file():
+            executable = executable.with_name("pythonw.exe")
+        script = Path(__file__).resolve()
+        if install_root:
+            packaged_pythonw = install_root / "python" / "pythonw.exe"
+            packaged_script = install_root / "app" / "main.py"
+            if packaged_pythonw.is_file() and packaged_script.is_file():
+                executable, script = packaged_pythonw, packaged_script
+        registration_root = install_root or ROOT_DIR
+        try:
+            _QUICK_START_SETTINGS_MODULE.set_enabled(
+                enabled,
+                _user_data_dir(),
+                install_root=registration_root,
+                pythonw=executable,
+                main_script=script,
+            )
+        except (OSError, ImportError) as exc:
+            return {"status": "error", "message": f"Không thể lưu cài đặt Khởi động nhanh: {exc}"}
+
+        if enabled:
+            if not isinstance(_QUICK_START_CLIENT, _QuickStartWorkerProxy):
+                _PERSISTENT_SOFFICE.stop_worker_for_quick_start_handoff()
+            _QUICK_START_CLIENT = _QuickStartWorkerProxy(QuickStartClient(_user_data_dir()))
+            if not _ensure_quick_start_process(timeout=12):
+                _QUICK_START_CLIENT = None
+                _QUICK_START_SETTINGS_MODULE.set_enabled(
+                    False,
+                    _user_data_dir(),
+                    install_root=registration_root,
+                    pythonw=executable,
+                    main_script=script,
+                )
+                return {"status": "error", "message": "Không thể khởi động dịch vụ Khởi động nhanh."}
+        else:
+            stopped = _stop_quick_start_service()
+            _QUICK_START_CLIENT = None
+            if not stopped:
+                return {"status": "error", "message": "Dịch vụ Khởi động nhanh chưa đóng xong. Hãy thử lại."}
+        return {"status": "ok", **self.get_quick_start_status()}
 
     def set_autorecover_settings(self, settings):
         try:
@@ -2557,6 +2965,7 @@ class VnOfficeApi:
         return {"queued": queued, "state": self._updater.get_state()}
 
     def request_update_restart(self):
+        global _QUICK_START_CLIENT
         if self._updater is None or not self._updater.get_state().get("ready"):
             return {"started": False, "error": "Chưa có bản cập nhật sẵn sàng."}
         if self._app_kind not in VALID_APP_KINDS:
@@ -2564,6 +2973,10 @@ class VnOfficeApi:
         install_root = _update_install_root()
         if install_root is None:
             return {"started": False, "error": "Không tìm thấy thư mục cài đặt 3T Office."}
+        if isinstance(_office_worker(), _QuickStartWorkerProxy):
+            if not _stop_quick_start_service():
+                return {"started": False, "error": "Quick Start chưa đóng xong để cập nhật."}
+            _QUICK_START_CLIENT = None
         try:
             task_path = self._updater.create_apply_task(app_kind=self._app_kind, install_root=install_root)
             if not self._updater.launch_apply_helper(task_path):
@@ -2574,7 +2987,7 @@ class VnOfficeApi:
             # The apply helper waits for every process of this install; stop the warm LibreOffice worker first.
             try:
                 self.close_print_sessions()
-                _PERSISTENT_SOFFICE.shutdown()
+                _office_worker().shutdown()
             finally:
                 os._exit(0)
 
@@ -2708,7 +3121,7 @@ class VnOfficeApi:
         allowed_metrics = {
             "parseFods", "loadFromFods", "buildSheetPayloadModel", "loadFromPayload",
             "first grid render", "first layout", "selection-to-first-grid",
-            "writer.parseHtml", "writer.render", "writer.firstPaint",
+            "writer.parseHtml", "writer.render", "writer.firstPaint", "sheet.scrollRender",
         }
         if name not in allowed_metrics and not name.startswith("parseFods:"):
             return False
@@ -2798,6 +3211,7 @@ class VnOfficeApi:
             src_path = result[0]
 
         _notify_document_open_progress(self)
+        _office_worker().notify_user_open_started(app_kind)
 
         self._reporting_file_path = src_path
         self._reporting_operation = f"open.{Path(src_path).suffix.lower().lstrip('.') or 'unknown'}"
@@ -3409,10 +3823,14 @@ def _warmup_libreoffice_profiles() -> int:
 
 
 def main(argv: list[str] | None = None):
-    global _ERROR_REPORTER, _UPDATE_MANAGER, _UPDATE_DATA_DIR, _PERSISTENT_SOFFICE_ENABLED
+    global _ERROR_REPORTER, _UPDATE_MANAGER, _UPDATE_DATA_DIR, _PERSISTENT_SOFFICE_ENABLED, _QUICK_START_CLIENT
     launch_argv = list(sys.argv[1:] if argv is None else argv)
     if launch_argv == ["--warmup-libreoffice-profiles"]:
         return _warmup_libreoffice_profiles()
+    if launch_argv == ["--quick-start"]:
+        return _run_quick_start_service()
+    if launch_argv == ["--quick-start-stop"]:
+        return 0 if _stop_quick_start_service() else 5
 
     try:
         app_kind, initial_file = parse_launch_args(launch_argv)
@@ -3466,6 +3884,21 @@ def main(argv: list[str] | None = None):
                 file=sys.stderr,
             )
             return 4
+
+    _PERSISTENT_SOFFICE_ENABLED = os.environ.get("VNOFFICE_DISABLE_UNO") != "1"
+    if (
+        app_kind in VALID_APP_KINDS
+        and os.name == "nt"
+        and _PERSISTENT_SOFFICE_ENABLED
+        and _QUICK_START_SETTINGS_MODULE.is_enabled(_user_data_dir())
+    ):
+        _QUICK_START_CLIENT = _QuickStartWorkerProxy(QuickStartClient(_user_data_dir()))
+        threading.Thread(
+            target=_ensure_quick_start_process,
+            kwargs={"timeout": 12},
+            daemon=True,
+            name="3T Office Quick Start launcher",
+        ).start()
 
     report_config = load_client_config(ROOT_DIR)
     _UPDATE_DATA_DIR = _user_data_dir() / "updates"
@@ -3533,8 +3966,6 @@ def main(argv: list[str] | None = None):
 
     print(f"[3T Office] Embedded server ready at http://localhost:{port}")
 
-    _PERSISTENT_SOFFICE_ENABLED = os.environ.get("VNOFFICE_DISABLE_UNO") != "1"
-
     api = VnOfficeApi(app_kind=app_kind, initial_file=initial_file, server_port=port)
     if app_kind in VALID_APP_KINDS:
         with _DOCUMENT_SEQUENCE_LOCK:
@@ -3560,15 +3991,6 @@ def main(argv: list[str] | None = None):
             target=_dispatch_single_instance_requests,
             daemon=True,
             name=f"3T Office {app_kind} window router",
-        ).start()
-
-    startup_worker_kind = app_kind if app_kind in {"writer", "sheet"} else None
-    if _PERSISTENT_SOFFICE_ENABLED and startup_worker_kind:
-        threading.Thread(
-            target=_PERSISTENT_SOFFICE.prepare,
-            args=(startup_worker_kind,),
-            daemon=True,
-            name="3T Office LibreOffice warm start",
         ).start()
 
     # Set Windows AppUserModelID so the taskbar groups and shows the app's specific icon
@@ -3634,7 +4056,7 @@ def main(argv: list[str] | None = None):
         for active_api in remaining_apis:
             active_api.close_autorecover_session()
         try:
-            _PERSISTENT_SOFFICE.shutdown()
+            _office_worker().shutdown()
         finally:
             if instance_server is not None:
                 instance_server.release_owner_lock()

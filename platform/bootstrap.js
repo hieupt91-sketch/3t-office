@@ -39,6 +39,16 @@ export function getPlatformLaunchContext() {
   return _launchContext;
 }
 
+export function isDesktopEngineBridgeReady() {
+  return Boolean(globalUnoBridge.desktopApi);
+}
+
+/** Queue desktop engine warm-up through the shared platform bridge. */
+export async function startBackgroundEngineWarmup() {
+  if (!_isBootstrapped) await bootstrapPlatform();
+  return globalUnoBridge.startBackgroundEngineWarmup();
+}
+
 /**
  * Bootstrap toàn bộ hệ thống 3T Office.
  * Đảm bảo chỉ khởi tạo một lần duy nhất khi suite khởi động.

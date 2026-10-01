@@ -246,6 +246,7 @@ export class WriterAdapter {
     this._paginationInputHandler = null;
     this._paginationDebounceTimer = null;
     this._paginationDebounceMs = 250;
+    this._paginationQueued = false;
     this._paginating = false;
     this._livePageCount = 1;
 
@@ -428,7 +429,9 @@ export class WriterAdapter {
       this._lastSnapshot = this._createSnapshot("Initial State");
     }
     this._updateUndoRedoUI();
-    this._recomputeLivePagination();
+    this._recomputeLivePagination().catch((error) => {
+      console.error("[WriterAdapter] Không thể dàn trang tài liệu ban đầu:", error);
+    });
   }
 
   _bindTrackChanges() {
@@ -11375,9 +11378,13 @@ export class WriterAdapter {
       this._updateTrackChangesCommandState();
       this.clearUndoRedo();
       this.shell?.resetDocumentChrome?.(result.fileName || "Tài liệu 1.docx", null, true, result.sourcePath || "");
-      this._recomputeLivePagination?.();
+      this._recomputeLivePagination().catch((error) => {
+        console.error("[WriterAdapter] Không thể dàn trang tài liệu vừa mở:", error);
+      });
       if (typeof requestAnimationFrame !== "undefined") {
-        requestAnimationFrame(() => this._recomputeLivePagination?.());
+        requestAnimationFrame(() => this._recomputeLivePagination().catch((error) => {
+          console.error("[WriterAdapter] Không thể cập nhật dàn trang sau khi mở:", error);
+        }));
       }
       return true;
     }
@@ -11441,7 +11448,9 @@ export class WriterAdapter {
     this._updateTrackChangesCommandState();
     this.clearUndoRedo();
     this.shell?.resetDocumentChrome?.(recoveredName, null, false);
-    this._recomputeLivePagination?.();
+    this._recomputeLivePagination().catch((error) => {
+      console.error("[WriterAdapter] Không thể dàn trang nội dung khôi phục:", error);
+    });
     return true;
   }
 
@@ -11487,7 +11496,9 @@ export class WriterAdapter {
     this._updateTrackChangesCommandState?.();
     this.clearUndoRedo?.();
     this.shell?.resetDocumentChrome?.("Tài liệu 1.docx", "home", false);
-    this._recomputeLivePagination?.();
+    this._recomputeLivePagination().catch((error) => {
+      console.error("[WriterAdapter] Không thể dàn trang sau khi cập nhật:", error);
+    });
     this.editorDom?.focus?.();
     return true;
   }
@@ -12543,7 +12554,13 @@ export class WriterAdapter {
     }
     this._paginationDebounceTimer = setTimeout(() => {
       this._paginationDebounceTimer = null;
-      this._recomputeLivePagination();
+      if (this._paginating) {
+        this._paginationQueued = true;
+        return;
+      }
+      this._recomputeLivePagination().catch((error) => {
+        console.error("[WriterAdapter] Không thể dàn trang lại tài liệu:", error);
+      });
     }, this._paginationDebounceMs);
   }
 
@@ -12570,7 +12587,7 @@ export class WriterAdapter {
    * trước) — việc lặp Header/Footer chính xác theo từng trang vẫn do Print Preview đảm
    * nhiệm khi cần xem trước chuẩn xác để in/xuất.
    */
-  _recomputeLivePagination() {
+  async _recomputeLivePagination() {
     if (typeof document === "undefined" || !this.bodyDom || this._paginating) return;
     // `bodyDom.children` chỉ tồn tại trên DOM trình duyệt thật — các mock DOM nhẹ dùng
     // trong unit test (vd tests/unit/writer-undo-redo.test.js) không khai báo `children`,
@@ -12617,6 +12634,12 @@ export class WriterAdapter {
       }
 
       const children = Array.from(this.bodyDom.children);
+      // Yield between batches on a real browser so page 1 can paint and input
+      // stays available while a long imported document is laid out.
+      const progressiveLayout = children.length > 80
+        && typeof window !== "undefined"
+        && typeof window.requestAnimationFrame === "function";
+      const yieldLayoutFrame = () => new Promise(resolve => window.requestAnimationFrame(() => resolve()));
       let pageCount = 1;
       const gapBeforeEls = [];
       // Đo bằng vị trí thật của khối (offsetTop) nên khoảng cách giữa hai đoạn đã là
@@ -12674,6 +12697,7 @@ export class WriterAdapter {
       let pendingSpillGap = false;
       const hasKeepNext = (el) => el?.getAttribute?.("data-vno-keep-next") === "true";
       for (let childIndex = 0; childIndex < children.length; childIndex++) {
+        if (progressiveLayout && childIndex > 0 && childIndex % 32 === 0) await yieldLayoutFrame();
         const el = children[childIndex];
         const styleStr = (typeof el.getAttribute === "function" ? el.getAttribute("style") : "") || "";
         const textContent = el.textContent || "";
@@ -12778,7 +12802,9 @@ export class WriterAdapter {
 
       const canInsertGaps = typeof this.bodyDom.insertBefore === "function" && typeof document.createElement === "function";
       const innerGapEls = [];
-      for (const { el, soft, kind, table } of canInsertGaps ? gapBeforeEls : []) {
+      const gapsToInsert = canInsertGaps ? gapBeforeEls : [];
+      for (let gapIndex = 0; gapIndex < gapsToInsert.length; gapIndex++) {
+        const { el, soft, kind, table } = gapsToInsert[gapIndex];
         let gap;
         if (kind === "tr") {
           gap = document.createElement("tr");
@@ -12799,6 +12825,7 @@ export class WriterAdapter {
         gap.setAttribute("data-vno-soft-break", soft ? "true" : "false");
         if (el.parentNode && typeof el.parentNode.insertBefore === "function") el.parentNode.insertBefore(gap, el);
         if (kind === "tr" || kind === "li") innerGapEls.push(kind === "tr" ? gap.firstElementChild : gap);
+        if (progressiveLayout && (gapIndex + 1) % 8 === 0) await yieldLayoutFrame();
       }
       this._bleedInnerPageGaps(innerGapEls);
 
@@ -12812,6 +12839,10 @@ export class WriterAdapter {
       }
     } finally {
       this._paginating = false;
+      if (this._paginationQueued) {
+        this._paginationQueued = false;
+        this._schedulePaginationRecompute();
+      }
     }
   }
 

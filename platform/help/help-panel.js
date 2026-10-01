@@ -7,6 +7,7 @@ import { ICONS } from "../ui-kit/icons.js";
 import { t } from "../i18n/i18n.js";
 import { getHelpEntryById, groupHelpEntriesByTab, searchHelpEntries } from "./help-service.js";
 import { showAboutDialog } from "../about/about-dialog.js";
+import { globalUnoBridge } from "../../adapters/libreoffice/common/uno-bridge.js";
 
 function localize(key, fallback) {
   const value = t(key);
@@ -84,6 +85,12 @@ export class HelpPanel {
           <span>Cho phép gửi báo cáo lỗi kỹ thuật tự động</span></label>
         <p class="vno-reporting-status" data-vno-reporting-status role="status" aria-live="polite">Đang đọc trạng thái…</p>
       </section>
+      <section class="vno-quickstart-settings" aria-labelledby="vno-quickstart-title">
+        <h3 id="vno-quickstart-title">Khởi động nhanh</h3>
+        <label><input type="checkbox" data-vno-quickstart-enabled>
+          <span>Tự chạy cùng Windows và giữ bộ máy LibreOffice sẵn sàng</span></label>
+        <p data-vno-quickstart-status role="status" aria-live="polite">Đang đọc trạng thái…</p>
+      </section>
       <div class="vno-help-body">
         <div class="vno-help-list" role="listbox" aria-label="${escapeHtml(localize("help.topicList", "Danh sách chủ đề"))}"></div>
         <article class="vno-help-article" aria-live="polite"></article>
@@ -92,6 +99,26 @@ export class HelpPanel {
     host.appendChild(this.root);
     this.root.querySelector(".vno-help-close").addEventListener("click", () => this.close());
     this.root.querySelector("[data-vno-about-open]")?.addEventListener("click", () => showAboutDialog());
+    const quickStartEnabled = this.root.querySelector("[data-vno-quickstart-enabled]");
+    quickStartEnabled?.addEventListener("change", async () => {
+      quickStartEnabled.disabled = true;
+      const status = this.root?.querySelector("[data-vno-quickstart-status]");
+      if (status) status.textContent = "Đang cập nhật cài đặt…";
+      try {
+        const result = await globalUnoBridge.setQuickStartEnabled(quickStartEnabled.checked);
+        if (result?.status !== "ok") {
+          quickStartEnabled.checked = !quickStartEnabled.checked;
+          if (status) status.textContent = result?.message || "Không thể cập nhật cài đặt Khởi động nhanh.";
+        } else {
+          this._renderQuickStartStatus(result);
+        }
+      } catch (error) {
+        quickStartEnabled.checked = !quickStartEnabled.checked;
+        if (status) status.textContent = `Không thể cập nhật cài đặt: ${error?.message || error}`;
+      } finally {
+        quickStartEnabled.disabled = false;
+      }
+    });
     this.root.querySelector(".vno-help-search").addEventListener("input", (event) => {
       this._query = event.target.value || "";
       const visible = this.getVisibleEntries();
@@ -107,7 +134,40 @@ export class HelpPanel {
       this._render();
     });
     this._render();
+    void this._loadQuickStartStatus();
     return this;
+  }
+
+  async _loadQuickStartStatus() {
+    const enabled = this.root?.querySelector("[data-vno-quickstart-enabled]");
+    if (!enabled) return;
+    try {
+      this._renderQuickStartStatus(await globalUnoBridge.getQuickStartStatus());
+    } catch (error) {
+      this._renderQuickStartStatus({ supported: false, error: error?.message || String(error) });
+    }
+  }
+
+  _renderQuickStartStatus(value = {}) {
+    const checkbox = this.root?.querySelector("[data-vno-quickstart-enabled]");
+    const status = this.root?.querySelector("[data-vno-quickstart-status]");
+    if (checkbox) {
+      checkbox.checked = Boolean(value.enabled);
+      checkbox.disabled = !value.supported;
+    }
+    if (!status) return;
+    if (!value.supported) {
+      status.textContent = value.error || "Cài đặt này chỉ dùng trong 3T Office Desktop trên Windows.";
+    } else if (!value.enabled) {
+      status.textContent = "Đang tắt. Bật tùy chọn để khởi chạy cùng Windows.";
+    } else {
+      const memory = value.residentSetMB != null && Number.isFinite(Number(value.residentSetMB))
+        ? ` Khoảng ${Number(value.residentSetMB).toFixed(0)} MB RAM.`
+        : " Chưa đo được mức dùng bộ nhớ.";
+      status.textContent = value.running
+        ? `${value.workerReady ? "Đang chạy và đã sẵn sàng." : "Đang khởi động."}${memory}`
+        : `Đã bật khởi chạy cùng Windows; dịch vụ chưa phản hồi.${memory}`;
+    }
   }
 
   getVisibleEntries() {

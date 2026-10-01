@@ -104,8 +104,10 @@ VIAddVersionKey /LANG=${LANG_VIETNAMESE} "LegalCopyright" "Copyright 3T Office"
 
 LangString TASK_DESKTOP ${LANG_VIETNAMESE} "Tạo lối tắt 3T Office trên Màn hình nền"
 LangString TASK_ASSOC ${LANG_VIETNAMESE} "Đăng ký mở định dạng tài liệu bằng 3T Office"
+LangString TASK_QUICKSTART ${LANG_VIETNAMESE} "Khởi động nhanh cùng Windows"
 LangString TASK_DESKTOP_DESC ${LANG_VIETNAMESE} "Tạo lối tắt 3T Doc, 3T Sheet và 3T Slide trên Màn hình nền."
 LangString TASK_ASSOC_DESC ${LANG_VIETNAMESE} "Tùy chọn này đăng ký định dạng tài liệu trong tài khoản Windows hiện tại."
+LangString TASK_QUICKSTART_DESC ${LANG_VIETNAMESE} "Giữ LibreOffice sẵn sàng ở chế độ nền để mở tài liệu nhanh hơn. Dịch vụ dùng thêm bộ nhớ; có thể bật hoặc tắt trong tab Trợ giúp."
 LangString MSG_OS ${LANG_VIETNAMESE} "3T Office cần Windows 10 hoặc mới hơn, phiên bản 64-bit."
 LangString MSG_WEBVIEW ${LANG_VIETNAMESE} "Chưa tìm thấy Microsoft Edge WebView2 Runtime. 3T Office cần thành phần này để hiển thị giao diện.$\r$\nTải miễn phí tại:$\r$\nhttps://developer.microsoft.com/microsoft-edge/webview2/$\r$\nBạn vẫn muốn tiếp tục cài đặt?"
 LangString MSG_DISK ${LANG_VIETNAMESE} "Ổ đĩa cài đặt không đủ dung lượng trống. Cần dung lượng bằng kích thước gói ứng dụng cộng thêm 256 MiB."
@@ -151,6 +153,18 @@ continueSetup:
     Abort
   ${EndIf}
 
+  ReadRegStr $R1 HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "3T Office Quick Start"
+  ${If} $R1 != ""
+    IfFileExists "$INSTDIR\python\pythonw.exe" 0 doneQuickStartStop
+    ExecWait '"$INSTDIR\python\pythonw.exe" -s -E "$INSTDIR\app\main.py" --quick-start-stop' $R0
+    ${If} $R0 != 0
+      MessageBox MB_OK|MB_ICONSTOP "Quick Start chưa đóng được. Hãy đóng 3T Office rồi thử lại."
+      SetErrorLevel 22
+      Abort
+    ${EndIf}
+  ${EndIf}
+doneQuickStartStop:
+
   IfFileExists "$INSTDIR\python\pythonw.exe" 0 doneCloseCheck
   ExecWait '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "$PLUGINSDIR\SetupPreflight.ps1" -Mode InspectRunning -InstallDir "$INSTDIR"' $R0
   ${If} $R0 == 20
@@ -176,6 +190,14 @@ FunctionEnd
 Section "-Core" SEC_CORE
   SetOverwrite on
   CreateDirectory "$INSTDIR"
+
+  ; Installer choice is authoritative on install and update; a fresh install defaults off.
+  DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "3T Office Quick Start"
+  WriteRegDWORD HKCU "Software\3T Office" "QuickStartEnabled" 0
+  CreateDirectory "$LOCALAPPDATA\VNOffice"
+  FileOpen $0 "$LOCALAPPDATA\VNOffice\quick-start-settings.json" w
+  FileWrite $0 "{$\"enabled$\":false}$\r$\n"
+  FileClose $0
 
   SetOutPath "$INSTDIR\python"
   File /r "${PackageDir}\python\*"
@@ -250,9 +272,20 @@ Section /o "$(TASK_ASSOC)" SEC_ASSOC
   !insertmacro RegisterFileType ".odp" "VNOffice.Slides.Presentation" "slides"
 SectionEnd
 
+Section /o "$(TASK_QUICKSTART)" SEC_QUICKSTART
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "3T Office Quick Start" '$"$INSTDIR\python\pythonw.exe$" -s -E $"$INSTDIR\app\main.py$" --quick-start'
+  WriteRegDWORD HKCU "Software\3T Office" "QuickStartEnabled" 1
+  CreateDirectory "$LOCALAPPDATA\VNOffice"
+  FileOpen $0 "$LOCALAPPDATA\VNOffice\quick-start-settings.json" w
+  FileWrite $0 "{$\"enabled$\":true}$\r$\n"
+  FileClose $0
+  Exec '"$INSTDIR\python\pythonw.exe" -s -E "$INSTDIR\app\main.py" --quick-start'
+SectionEnd
+
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
   !insertmacro MUI_DESCRIPTION_TEXT ${SEC_DESKTOP} $(TASK_DESKTOP_DESC)
   !insertmacro MUI_DESCRIPTION_TEXT ${SEC_ASSOC} $(TASK_ASSOC_DESC)
+  !insertmacro MUI_DESCRIPTION_TEXT ${SEC_QUICKSTART} $(TASK_QUICKSTART_DESC)
 !insertmacro MUI_FUNCTION_DESCRIPTION_END
 
 Function un.DataPage
@@ -286,6 +319,13 @@ Function un.onInit
 FunctionEnd
 
 Section "Uninstall"
+  ExecWait '"$INSTDIR\python\pythonw.exe" -s -E "$INSTDIR\app\main.py" --quick-start-stop' $R0
+  DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "3T Office Quick Start"
+  WriteRegDWORD HKCU "Software\3T Office" "QuickStartEnabled" 0
+  CreateDirectory "$LOCALAPPDATA\VNOffice"
+  FileOpen $0 "$LOCALAPPDATA\VNOffice\quick-start-settings.json" w
+  FileWrite $0 "{$\"enabled$\":false}$\r$\n"
+  FileClose $0
   Delete "$SMPROGRAMS\VN Office\VN Writer.lnk"
   Delete "$SMPROGRAMS\VN Office\VN Sheet.lnk"
   Delete "$SMPROGRAMS\VN Office\VN Slides.lnk"

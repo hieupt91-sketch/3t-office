@@ -264,6 +264,7 @@ export class SheetGridController {
     // Virtual scroll state
     this.currentStartRow = 1;
     this.currentEndRow = 35;
+    this._viewportScrollFrame = 0;
     this.topSpacer = null;
     this.bottomSpacer = null;
     this.viewport = null;
@@ -433,9 +434,16 @@ export class SheetGridController {
     vp.style.position = "relative";
     this.viewport = vp;
     vp.addEventListener("scroll", () => {
-      this.autocomplete.updatePosition();
-      this._onViewportScroll();
-      this.renderAuditArrows?.();
+      if (this._viewportScrollFrame) return;
+      const schedule = typeof window !== "undefined" && typeof window.requestAnimationFrame === "function"
+        ? window.requestAnimationFrame.bind(window)
+        : callback => setTimeout(callback, 16);
+      this._viewportScrollFrame = schedule(() => {
+        this._viewportScrollFrame = 0;
+        this.autocomplete.updatePosition();
+        this._onViewportScroll();
+        this.renderAuditArrows?.();
+      });
     });
 
     const table = document.createElement("table");
@@ -3149,24 +3157,90 @@ export class SheetGridController {
   }
 
   /**
+   * Scroll virtualization keeps overlapping rows attached and creates only rows
+   * that enter the buffered viewport. Full model changes still use
+   * _renderVirtualRows(); ordinary scrolling no longer rebuilds every visible cell.
+   */
+  _renderVirtualRowsOnScroll(startRow, endRow) {
+    const perfEnabled = typeof window !== "undefined" && window.__vnoPerfDebug === true;
+    const startedAt = perfEnabled ? performance.now() : 0;
+    if (!this.tbody || !this.topSpacer || !this.bottomSpacer) return;
+
+    startRow = Math.max(1, startRow);
+    endRow = Math.min(this.rowCount, endRow);
+    this.currentStartRow = startRow;
+    this.currentEndRow = endRow;
+
+    const frozenRows = Math.min(this.frozenRows || 0, this.rowCount);
+    const topHeight = frozenRows > 0 && startRow > frozenRows
+      ? this._rowTop(startRow) - this._rowBottom(frozenRows)
+      : this._rowTop(startRow);
+    const bottomHeight = Math.max(0, this._totalHeight() - this._rowTop(endRow + 1));
+    const topTd = this.topSpacer.querySelector("td");
+    if (topTd) topTd.style.height = `${topHeight}px`;
+    const bottomTd = this.bottomSpacer.querySelector("td");
+    if (bottomTd) bottomTd.style.height = `${bottomHeight}px`;
+
+    const desiredRows = [];
+    const desiredSet = new Set();
+    for (let row = startRow; row <= endRow; row++) {
+      if (row <= frozenRows || this._isRowSkipped(row)) continue;
+      desiredRows.push(row);
+      desiredSet.add(row);
+    }
+
+    const existingRows = new Map();
+    for (const tr of this.tbody.querySelectorAll("tr[data-row]")) {
+      if (tr.classList.contains("vno-frozen-row")) continue;
+      existingRows.set(Number(tr.dataset.row), tr);
+    }
+    for (const [row, tr] of existingRows) {
+      if (!desiredSet.has(row)) tr.remove();
+    }
+
+    const insertedRows = [];
+    let cursor = this.topSpacer.nextSibling;
+    for (const row of desiredRows) {
+      let tr = existingRows.get(row);
+      if (!tr) {
+        tr = this._buildRowTr(row);
+        insertedRows.push(tr);
+      }
+      if (tr !== cursor) this.tbody.insertBefore(tr, cursor || this.bottomSpacer);
+      cursor = tr.nextSibling;
+    }
+    while (cursor && cursor !== this.bottomSpacer) {
+      const next = cursor.nextSibling;
+      this.tbody.removeChild(cursor);
+      cursor = next;
+    }
+
+    if (insertedRows.length) this._applyFreezeVisuals(insertedRows);
+    this._updateFrozenImages();
+    this._updateImagePositions();
+    if (perfEnabled) window.__vnoPerfReport?.("sheet.scrollRender", performance.now() - startedAt);
+  }
+
+  /**
    * Áp dụng vị trí sticky (top/left theo pixel tích lũy thật) cho hàng/cột đang
    * cố định (Freeze Panes) - thay cho cách cũ hardcode luôn hàng 1/cột A qua
    * CSS tĩnh. Chạy lại sau mỗi lần render để phản ánh đúng frozenRows/frozenCols
    * hiện tại và chiều cao/rộng hàng/cột thật (có thể khác mặc định).
    */
-  _applyFreezeVisuals() {
+  _applyFreezeVisuals(targetRows = null) {
     if (!this.tbody) return;
     const frozenRows = Math.min(this.frozenRows || 0, this.rowCount);
     const frozenCols = Math.min(this.frozenCols || 0, this.cols.length);
+    const rows = targetRows || Array.from(this.tbody.querySelectorAll("tr[data-row]"));
 
-    this.tbody.querySelectorAll(".is-frozen-row-cell, .is-frozen-col-cell").forEach(el => {
-      el.classList.remove("is-frozen-row-cell", "is-frozen-col-cell", "is-frozen-corner-cell", "is-frozen-row-last", "is-frozen-col-last");
-      el.style.position = "";
-      el.style.top = "";
-      el.style.left = "";
-      el.style.zIndex = "";
-    });
-    if (this.theadRow) {
+    rows.forEach(tr => tr.querySelectorAll(".is-frozen-row-cell, .is-frozen-col-cell").forEach(el => {
+        el.classList.remove("is-frozen-row-cell", "is-frozen-col-cell", "is-frozen-corner-cell", "is-frozen-row-last", "is-frozen-col-last");
+        el.style.position = "";
+        el.style.top = "";
+        el.style.left = "";
+        el.style.zIndex = "";
+      }));
+    if (!targetRows && this.theadRow) {
       this.theadRow.querySelectorAll(".is-frozen-col-header").forEach(el => {
         el.classList.remove("is-frozen-col-header", "is-frozen-col-last");
         el.style.position = "";
@@ -3174,7 +3248,6 @@ export class SheetGridController {
         el.style.zIndex = "";
       });
     }
-
     if (frozenRows === 0 && frozenCols === 0) return;
 
     // Offset dọc tích lũy cho từng hàng cố định, cộng thêm 24px chiều cao
@@ -3198,7 +3271,7 @@ export class SheetGridController {
 
     const lastFrozenCol = frozenCols > 0 ? this.cols[frozenCols - 1] : null;
 
-    if (this.theadRow && colLefts.size) {
+    if (!targetRows && this.theadRow && colLefts.size) {
       this.theadRow.querySelectorAll("th[data-col]").forEach(th => {
         const left = colLefts.get(th.dataset.col);
         if (left === undefined) return;
@@ -3210,7 +3283,7 @@ export class SheetGridController {
       });
     }
 
-    this.tbody.querySelectorAll("tr[data-row]").forEach(tr => {
+    rows.forEach(tr => {
       const r = Number(tr.dataset.row);
       const rowTopPx = rowTops.get(r);
       const isFrozenRow = rowTopPx !== undefined;
@@ -3255,7 +3328,7 @@ export class SheetGridController {
     const endRow = Math.min(this.rowCount, this._lastVisibleRow(scrollTop, viewportHeight) + buffer);
 
     if (Math.abs(startRow - this.currentStartRow) >= 3 || Math.abs(endRow - this.currentEndRow) >= 3) {
-      this._renderVirtualRows(startRow, endRow);
+      this._renderVirtualRowsOnScroll(startRow, endRow);
     }
     this._updateFrozenImages();
   }

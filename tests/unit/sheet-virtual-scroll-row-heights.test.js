@@ -126,6 +126,71 @@ export async function runSheetVirtualScrollRowHeightTests() {
     }
   };
 
+  test("scroll virtualization retains overlapping rows and builds only newly visible rows", () => {
+    const grid = createGridForTest(100);
+    const topCell = { style: {} };
+    const bottomCell = { style: {} };
+    const tbody = {
+      children: [],
+      querySelectorAll(selector) {
+        return selector === "tr[data-row]" ? this.children.filter(node => node.dataset?.row) : [];
+      },
+      removeChild(node) {
+        const index = this.children.indexOf(node);
+        if (index >= 0) this.children.splice(index, 1);
+        node.parentNode = null;
+      },
+      insertBefore(node, reference) {
+        if (node.parentNode === this) this.removeChild(node);
+        const index = this.children.indexOf(reference);
+        this.children.splice(index < 0 ? this.children.length : index, 0, node);
+        node.parentNode = this;
+        return node;
+      }
+    };
+    const topSpacer = {
+      dataset: {},
+      querySelector: () => topCell,
+      get nextSibling() { return tbody.children[tbody.children.indexOf(this) + 1] || null; }
+    };
+    const bottomSpacer = { dataset: {}, querySelector: () => bottomCell };
+    tbody.children = [topSpacer];
+    const nodes = new Map();
+    const makeRow = row => {
+      const node = {
+        dataset: { row: String(row) },
+        parentNode: null,
+        get nextSibling() { return this.parentNode?.children[this.parentNode.children.indexOf(this) + 1] || null; },
+        classList: { contains: () => false, add() {}, remove() {} },
+        querySelectorAll: () => [],
+        querySelector: () => null,
+        remove() { this.parentNode?.removeChild(this); }
+      };
+      nodes.set(row, node);
+      return node;
+    };
+    for (let row = 1; row <= 35; row++) tbody.insertBefore(makeRow(row), bottomSpacer);
+    tbody.insertBefore(bottomSpacer, null);
+    grid.tbody = tbody;
+    grid.topSpacer = topSpacer;
+    grid.bottomSpacer = bottomSpacer;
+    grid.currentStartRow = 1;
+    grid.currentEndRow = 35;
+    grid._buildRowTr = row => makeRow(row);
+    grid._updateFrozenImages = () => {};
+    grid._updateImagePositions = () => {};
+
+    grid._renderVirtualRowsOnScroll(4, 38);
+
+    const rendered = tbody.querySelectorAll("tr[data-row]");
+    assertEq(rendered.length, 35, "visible row count remains bounded");
+    assertEq(rendered[0].dataset.row, "4", "new range starts with row 4");
+    assertEq(rendered[rendered.length - 1].dataset.row, "38", "new range ends with row 38");
+    assert(rendered[0] === nodes.get(4), "overlapping row 4 keeps its DOM node");
+    assert(nodes.has(1) && !nodes.get(1).parentNode, "row 1 was detached from the viewport");
+    assert(nodes.has(38) && nodes.get(38).parentNode === tbody, "row 38 was newly attached");
+  });
+
   // TEST 1: _rowTop(1) returns 0 (top of grid)
   test("_rowTop(1) = 0 for row 1", () => {
     const grid = createGridForTest(200);

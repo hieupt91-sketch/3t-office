@@ -723,6 +723,19 @@ export const SLIDES_HELP_ENTRIES = [
       "Ghi âm thuyết minh trực tiếp (tab Chèn > nhóm Đa phương tiện > Âm thanh): hiện chỉ chèn file âm thanh từ máy tính — chưa có thu âm microphone trực tiếp trên từng trang chiếu. Dự kiến Patch 1.1.",
       "Các nút này vẫn hiển thị trên ribbon đúng vị trí chuẩn Microsoft PowerPoint. Khi bấm vào, hệ thống sẽ hiển thị thông báo tiếng Việt rõ ràng thay vì thao tác câm. Ứng dụng này là 3T Slide, một phần của bộ 3T Office."
     ]
+  },
+  {
+    id: "slides.quickStart",
+    app: "slides",
+    title: "Bật Khởi động nhanh cùng Windows",
+    summary: "Khởi chạy một dịch vụ nền khi đăng nhập Windows để giữ LibreOffice sẵn sàng và giảm thời gian mở bản trình chiếu đầu tiên.",
+    ribbon: { tab: "Trợ giúp", tabId: "help", group: "Khởi động nhanh" },
+    keywords: ["khởi động nhanh", "quick start", "mở bản trình chiếu nhanh", "bộ nhớ", "Windows", "LibreOffice"],
+    steps: [
+      "Mở tab Trợ giúp trên ribbon rồi nhấn Trợ giúp để mở bảng tra cứu.",
+      "Trong phần Khởi động nhanh ở đầu bảng, bật “Tự chạy cùng Windows và giữ bộ máy LibreOffice sẵn sàng”. 3T Office sẽ đăng ký dịch vụ cho tài khoản Windows hiện tại và khởi chạy dịch vụ ngay.",
+      "Dòng trạng thái bên dưới cho biết dịch vụ đang khởi động hay đã sẵn sàng và mức RAM đang dùng. Tắt ô này để gỡ tự khởi chạy và đóng dịch vụ. Tính năng hiện hỗ trợ ứng dụng Desktop trên Windows."
+    ]
   }
 ];
 

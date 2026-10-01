@@ -140,6 +140,25 @@ export class UnoBridge {
     return await this.desktopApi.set_window_title(String(title || "3T Office"));
   }
 
+  async startBackgroundEngineWarmup() {
+    if (!this.desktopApi?.start_background_engine_warmup) return false;
+    return await this.desktopApi.start_background_engine_warmup();
+  }
+
+  async getQuickStartStatus() {
+    if (!this.desktopApi?.get_quick_start_status) {
+      return { supported: false, enabled: false, running: false, residentSetMB: null };
+    }
+    return await this.desktopApi.get_quick_start_status();
+  }
+
+  async setQuickStartEnabled(enabled) {
+    if (!this.desktopApi?.set_quick_start_enabled) {
+      return { status: "error", message: "Quick Start chỉ cài đặt được trong 3T Office Desktop." };
+    }
+    return await this.desktopApi.set_quick_start_enabled(Boolean(enabled));
+  }
+
   async closeCurrentWindow() {
     if (this.desktopApi?.close_current_window) {
       return await this.desktopApi.close_current_window();
