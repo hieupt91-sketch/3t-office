@@ -1,0 +1,625 @@
+import {
+  parseCssStyleBlocks,
+  parseCssDeclarations,
+  decodeHtmlEntities,
+  stripHtmlTags,
+  parseCssLengthToPx,
+  columnLabel,
+  columnNumber,
+  detectNumberFormat,
+  extractCellValueAndFormula,
+  normalizeCssColor,
+  extractCellStyle,
+  parseHtmlAttributes,
+  parseOfficeHtmlTable,
+  parseOfficeTsv,
+  cleanCssStyleString,
+  cleanWordHtml,
+  convertMsoListsToHtmlLists,
+  serializeWriterSelectionToClipboard
+} from "../../platform/clipboard/office-clipboard.js";
+
+function assert(condition, message) {
+  if (!condition) throw new Error(message);
+}
+
+function assertEqual(actual, expected, message) {
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error(`${message}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+  }
+}
+
+export async function runOfficeClipboardTests() {
+  const results = [];
+  const test = (name, fn) => {
+    try {
+      fn();
+      results.push({ name, pass: true });
+    } catch (error) {
+      results.push({ name, pass: false, error: error.message });
+    }
+  };
+
+  // =============================================================================
+  // PHẦN 1: TIỆN ÍCH CSS & HTML
+  // =============================================================================
+
+  test("parseCssStyleBlocks - trích xuất rules từ <style>", () => {
+    const html = `<style>.xl65 { font-weight: bold; color: #ff0000; } td.xl66 { background: #ffff00; }</style>`;
+    const rules = parseCssStyleBlocks(html);
+    assertEqual(rules["xl65"]["font-weight"], "bold");
+    assertEqual(rules["xl65"]["color"], "#ff0000");
+    assertEqual(rules["xl66"]["background"], "#ffff00");
+  });
+
+  test("parseCssStyleBlocks - xử lý nhiều class trong selector", () => {
+    const html = `<style>.a, .b { color: red; }</style>`;
+    const rules = parseCssStyleBlocks(html);
+    assertEqual(rules["a"]["color"], "red");
+    assertEqual(rules["b"]["color"], "red");
+  });
+
+  test("parseCssDeclarations - phân tích CSS declarations", () => {
+    const decls = parseCssDeclarations("font-weight: bold; color: #000000; background: yellow;");
+    assertEqual(decls["font-weight"], "bold");
+    assertEqual(decls["color"], "#000000");
+    assertEqual(decls["background"], "yellow");
+  });
+
+  test("decodeHtmlEntities - giải mã các entity cơ bản", () => {
+    const input = "&nbsp;" + "&" + "<>" + "'" + "&#x41;";
+    const expected = " " + "&" + "<>" + "'" + "A";
+    assertEqual(decodeHtmlEntities(input), expected);
+  });
+
+  test("stripHtmlTags - loại bỏ thẻ và lấy text", () => {
+    const text = stripHtmlTags("<p>Hello <b>World</b></p><br/>End");
+    assert(text.includes("Hello"));
+    assert(text.includes("World"));
+    assert(text.includes("End"));
+  });
+
+  test("parseCssLengthToPx - chuyển đổi đơn vị", () => {
+    assertEqual(parseCssLengthToPx("12pt"), 16);
+    assertEqual(parseCssLengthToPx("1in"), 96);
+    assertEqual(parseCssLengthToPx("1cm"), 38);
+    assertEqual(parseCssLengthToPx("10px"), 10);
+    assertEqual(parseCssLengthToPx(12), 12);
+  });
+
+  test("columnLabel - chuyển số cột thành chữ", () => {
+    assertEqual(columnLabel(1), "A");
+    assertEqual(columnLabel(26), "Z");
+    assertEqual(columnLabel(27), "AA");
+    assertEqual(columnLabel(52), "AZ");
+    assertEqual(columnLabel(702), "ZZ");
+    assertEqual(columnLabel(703), "AAA");
+  });
+
+  test("columnNumber - chuyển chữ cột thành số", () => {
+    assertEqual(columnNumber("A"), 1);
+    assertEqual(columnNumber("Z"), 26);
+    assertEqual(columnNumber("AA"), 27);
+    assertEqual(columnNumber("AZ"), 52);
+    assertEqual(columnNumber("ZZ"), 702);
+    assertEqual(columnNumber("AAA"), 703);
+  });
+
+  // =============================================================================
+  // PHẦN 2: SHEET - NUMBER FORMAT DETECTION
+  // =============================================================================
+
+  test("detectNumberFormat - Text format (@)", () => {
+    const fmt = detectNumberFormat("\\@", "abc");
+    assertEqual(fmt.category, "text");
+  });
+
+  test("detectNumberFormat - Percentage format", () => {
+    const fmt = detectNumberFormat("0.00%", "50%");
+    assertEqual(fmt.category, "percentage");
+    assertEqual(fmt.decimals, 2);
+  });
+
+  test("detectNumberFormat - Percentage từ text", () => {
+    const fmt = detectNumberFormat("", "75%");
+    assertEqual(fmt.category, "percentage");
+  });
+
+  test("detectNumberFormat - Date format", () => {
+    const fmt = detectNumberFormat("dd/mm/yyyy", "01/01/2024");
+    assertEqual(fmt.category, "date");
+    assertEqual(fmt.formatPattern, "dd/mm/yyyy");
+  });
+
+  test("detectNumberFormat - Currency USD", () => {
+    const fmt = detectNumberFormat("$#,##0.00", "$1,234.56");
+    assertEqual(fmt.category, "currency");
+    assertEqual(fmt.symbol, "$");
+  });
+
+  test("detectNumberFormat - Currency VND", () => {
+    const fmt = detectNumberFormat("#,##0 ₫", "1.000.000 ₫");
+    assertEqual(fmt.category, "currency");
+    assertEqual(fmt.symbol, "₫");
+  });
+
+  test("detectNumberFormat - Number format", () => {
+    const fmt = detectNumberFormat("#,##0.00", "1,234.56");
+    assertEqual(fmt.category, "number");
+    assertEqual(fmt.decimals, 2);
+    assertEqual(fmt.useSeparator, true);
+  });
+
+  // =============================================================================
+  // PHẦN 3: SHEET - CELL VALUE & FORMULA EXTRACTION
+  // =============================================================================
+
+  test("extractCellValueAndFormula - x:num attribute", () => {
+    const attrs = { "x:num": "42" };
+    const { val, formula } = extractCellValueAndFormula(attrs, "42", null);
+    assertEqual(val, 42);
+    assertEqual(formula, "");
+  });
+
+  test("extractCellValueAndFormula - sdval attribute (Calc)", () => {
+    const attrs = { "sdval": "3.14" };
+    const { val } = extractCellValueAndFormula(attrs, "3.14", null);
+    assertEqual(val, 3.14);
+  });
+
+  test("extractCellValueAndFormula - x:f formula attribute", () => {
+    const attrs = { "x:f": "A1+B1" };
+    const { val, formula } = extractCellValueAndFormula(attrs, "5", null);
+    assertEqual(formula, "=A1+B1");
+  });
+
+  test("extractCellValueAndFormula - data-formula attribute", () => {
+    const attrs = { "data-formula": "SUM(A1:A10)" };
+    const { formula } = extractCellValueAndFormula(attrs, "55", null);
+    assertEqual(formula, "=SUM(A1:A10)");
+  });
+
+  test("extractCellValueAndFormula - percentage parsing", () => {
+    const attrs = {};
+    const numberFormat = { category: "percentage" };
+    const { val } = extractCellValueAndFormula(attrs, "50%", numberFormat);
+    assertEqual(val, 0.5);
+  });
+
+  test("extractCellValueAndFormula - no formula when not present", () => {
+    const attrs = {};
+    const { formula } = extractCellValueAndFormula(attrs, "100", null);
+    assertEqual(formula, "");
+  });
+
+  // =============================================================================
+  // PHẦN 4: SHEET - CELL STYLE EXTRACTION
+  // =============================================================================
+
+  test("normalizeCssColor - chuẩn hóa màu", () => {
+    assertEqual(normalizeCssColor("windowtext"), "#000000");
+    assertEqual(normalizeCssColor("auto"), "#000000");
+    assertEqual(normalizeCssColor("window"), "");
+    assertEqual(normalizeCssColor("#ff0000"), "#ff0000");
+    assertEqual(normalizeCssColor("rgb(255,0,0)"), "rgb(255,0,0)");
+  });
+
+  test("extractCellStyle - bold/italic/underline", () => {
+    const combined = { "font-weight": "bold", "font-style": "italic", "text-decoration": "underline" };
+    const style = extractCellStyle(combined, {}, "<b><i><u>text</u></i></b>");
+    assertEqual(style.fontWeight, "bold");
+    assertEqual(style.fontStyle, "italic");
+    assertEqual(style.textDecoration, "underline");
+  });
+
+  test("extractCellStyle - color và background", () => {
+    const combined = { "color": "#ff0000", "background-color": "#ffff00" };
+    const style = extractCellStyle(combined, { bgcolor: "#00ff00" }, "");
+    assertEqual(style.color, "#ff0000");
+    assertEqual(style.backgroundColor, "#ffff00");
+  });
+
+  test("extractCellStyle - borders", () => {
+    const combined = { "border": "1px solid #000", "border-top": "2px dashed red" };
+    const style = extractCellStyle(combined, {}, "");
+    assertEqual(style.border, "1px solid #000");
+    assertEqual(style.borderTop, "2px dashed red");
+  });
+
+  test("extractCellStyle - text-align và vertical-align", () => {
+    const combined = { "text-align": "center", "vertical-align": "middle" };
+    const style = extractCellStyle(combined, { align: "right", valign: "top" }, "");
+    assertEqual(style.textAlign, "center");
+    assertEqual(style.verticalAlign, "middle");
+  });
+
+  // =============================================================================
+  // PHẦN 5: SHEET - PARSE OFFICE HTML TABLE
+  // =============================================================================
+
+  test("parseOfficeHtmlTable - bảng Excel đơn giản", () => {
+    const html = `
+      <table>
+        <tr><td>1</td><td>2</td></tr>
+        <tr><td>3</td><td>4</td></tr>
+      </table>
+    `;
+    const result = parseOfficeHtmlTable(html);
+    assert(result !== null);
+    assertEqual(result.cells.length, 2);
+    assertEqual(result.cells[0].length, 2);
+    // parseOfficeHtmlTable chuyển đổi thành số khi có thể
+    assertEqual(result.cells[0][0].val, 1);
+    assertEqual(result.cells[1][1].val, 4);
+  });
+
+  test("parseOfficeHtmlTable - colspan và rowspan", () => {
+    const html = `
+      <table>
+        <tr><td colspan="2">Header</td></tr>
+        <tr><td>A</td><td rowspan="2">B</td></tr>
+        <tr><td>C</td></tr>
+      </table>
+    `;
+    const result = parseOfficeHtmlTable(html);
+    assert(result !== null);
+    assertEqual(result.mergedRanges.length, 2);
+    // colspan=2 at A1
+    assertEqual(result.mergedRanges[0].start.c, "A");
+    assertEqual(result.mergedRanges[0].start.r, 1);
+    assertEqual(result.mergedRanges[0].end.c, "B");
+    assertEqual(result.mergedRanges[0].end.r, 1);
+  });
+
+  test("parseOfficeHtmlTable - mso-number-format và x:num", () => {
+    const html = `
+      <table>
+        <tr>
+          <td style="mso-number-format:'0.00%'" x:num="0.5">50%</td>
+          <td style="mso-number-format:'#,##0.00'" x:num="1234.56">1,234.56</td>
+        </tr>
+      </table>
+    `;
+    const result = parseOfficeHtmlTable(html);
+    assert(result !== null);
+    // percentage cell
+    assertEqual(result.cells[0][0].val, 0.5);
+    assertEqual(result.cells[0][0].style.numberFormat.category, "percentage");
+    // number cell
+    assertEqual(result.cells[0][1].val, 1234.56);
+    assertEqual(result.cells[0][1].style.numberFormat.category, "number");
+  });
+
+  test("parseOfficeHtmlTable - bold/italic/color từ inline style", () => {
+    const html = `
+      <table>
+        <tr>
+          <td style="font-weight:bold; color:#ff0000; background-color:#ffff00">Bold Red</td>
+        </tr>
+      </table>
+    `;
+    const result = parseOfficeHtmlTable(html);
+    assert(result !== null);
+    assertEqual(result.cells[0][0].style.fontWeight, "bold");
+    assertEqual(result.cells[0][0].style.color, "#ff0000");
+    assertEqual(result.cells[0][0].style.backgroundColor, "#ffff00");
+  });
+
+  test("parseOfficeHtmlTable - col width từ <col>", () => {
+    const html = `
+      <table>
+        <col width="100"><col width="200">
+        <tr><td>A</td><td>B</td></tr>
+      </table>
+    `;
+    const result = parseOfficeHtmlTable(html);
+    assert(result !== null);
+    assertEqual(result.colWidths.length, 2);
+    assertEqual(result.colWidths[0], 100);
+    assertEqual(result.colWidths[1], 200);
+  });
+
+  // =============================================================================
+  // PHẦN 6: SHEET - PARSE TSV
+  // =============================================================================
+
+  test("parseOfficeTsv - text/plain tab-separated", () => {
+    const text = "A\tB\tC\n1\t2\t3\n4\t5\t6";
+    const result = parseOfficeTsv(text);
+    assertEqual(result.cells.length, 3);
+    assertEqual(result.cells[0].length, 3);
+    assertEqual(result.cells[0][0].val, "A");
+    // parseOfficeTsv chuyển đổi thành số khi có thể
+    assertEqual(result.cells[1][1].val, 2);
+  });
+
+  test("parseOfficeTsv - số và phần trăm", () => {
+    const text = "10\t20%\t=SUM(A1:B1)";
+    const result = parseOfficeTsv(text);
+    assertEqual(result.cells[0][0].val, 10);
+    assertEqual(result.cells[0][1].val, 0.2);
+    assertEqual(result.cells[0][1].style.numberFormat.category, "percentage");
+    assertEqual(result.cells[0][2].formula, "=SUM(A1:B1)");
+  });
+
+  test("parseOfficeTsv - dòng rỗng cuối được bỏ", () => {
+    const text = "A\tB\n1\t2\n";
+    const result = parseOfficeTsv(text);
+    assertEqual(result.cells.length, 2);
+  });
+
+  // =============================================================================
+  // PHẦN 7: WRITER - CLEAN WORD HTML
+  // =============================================================================
+
+  test("cleanWordHtml - loại bỏ conditional comments", () => {
+    const html = `<!--[if gte mso 9]><xml><o:OfficeDocumentSettings></o:OfficeDocumentSettings></xml><![endif]--><p>Hello</p>`;
+    const cleaned = cleanWordHtml(html);
+    assert(!cleaned.includes("if gte mso"));
+    assert(!cleaned.includes("xml"));
+    assert(cleaned.includes("<p>Hello</p>"));
+  });
+
+  test("cleanWordHtml - loại bỏ w:* o:* v:* m:* tags", () => {
+    const html = `<w:p><w:r><w:t>Text</w:t></w:r></w:p><o:p></o:p>`;
+    const cleaned = cleanWordHtml(html);
+    assert(!cleaned.includes("w:p"));
+    assert(!cleaned.includes("w:r"));
+    assert(!cleaned.includes("w:t"));
+    assert(!cleaned.includes("o:p"));
+    assert(cleaned.includes("Text"));
+  });
+
+  test("cleanWordHtml - loại bỏ mso-* styles", () => {
+    const html = `<p style="mso-margin-top-alt:auto; margin-top:10pt;">Text</p>`;
+    const cleaned = cleanWordHtml(html);
+    assert(!cleaned.includes("mso-"));
+    assert(cleaned.includes('style="margin-top:10pt"') || cleaned.includes("margin-top:10pt"));
+  });
+
+  test("cleanWordHtml - heading conversion", () => {
+    const html = `<p class="MsoHeading1">Title 1</p><p class="MsoHeading2">Title 2</p><p class="MsoHeading3">Title 3</p>`;
+    const cleaned = cleanWordHtml(html);
+    assert(cleaned.includes("<h1>Title 1</h1>"));
+    assert(cleaned.includes("<h2>Title 2</h2>"));
+    assert(cleaned.includes("<h3>Title 3</h3>"));
+  });
+
+  test("cleanWordHtml - bullet list conversion", () => {
+    const html = `<p class="MsoListParagraph" style="mso-list:l0 level1 lfo1;"><span style="font-family:Symbol">·</span>Item 1</p>
+<p class="MsoListParagraph" style="mso-list:l0 level1 lfo1;"><span style="font-family:Symbol">·</span>Item 2</p>`;
+    const cleaned = cleanWordHtml(html);
+    assert(cleaned.includes("<ul"));
+    assert(cleaned.includes("<li>Item 1</li>"));
+    assert(cleaned.includes("<li>Item 2</li>"));
+  });
+
+  test("cleanWordHtml - numbered list conversion", () => {
+    const html = `<p class="MsoListParagraph" style="mso-list:l0 level1 lfo1;">1. Item 1</p>
+<p class="MsoListParagraph" style="mso-list:l0 level1 lfo1;">2. Item 2</p>`;
+    const cleaned = cleanWordHtml(html);
+    assert(cleaned.includes("<ol"));
+    assert(cleaned.includes("<li>Item 1</li>"));
+    assert(cleaned.includes("<li>Item 2</li>"));
+  });
+
+  test("cleanWordHtml - bold/italic/underline preserved", () => {
+    const html = `<p><b>Bold</b> <i>Italic</i> <u>Underline</u></p>`;
+    const cleaned = cleanWordHtml(html);
+    assert(cleaned.includes("<b>Bold</b>"));
+    assert(cleaned.includes("<i>Italic</i>"));
+    assert(cleaned.includes("<u>Underline</u>"));
+  });
+
+  test("cleanWordHtml - links preserved", () => {
+    const html = `<p><a href="https://example.com">Link</a></p>`;
+    const cleaned = cleanWordHtml(html);
+    assert(cleaned.includes('<a href="https://example.com">Link</a>'));
+  });
+
+  test("cleanWordHtml - tables preserved", () => {
+    const html = `<table class="MsoTableGrid"><tr><td>Cell 1</td><td>Cell 2</td></tr></table>`;
+    const cleaned = cleanWordHtml(html);
+    assert(cleaned.includes("<table"));
+    assert(cleaned.includes("<td>Cell 1</td>"));
+    assert(!cleaned.includes("MsoTableGrid"));
+  });
+
+  test("cleanWordHtml - font size and color preserved", () => {
+    const html = `<p style="font-size:14pt; color:#ff0000;">Red 14pt</p>`;
+    const cleaned = cleanWordHtml(html);
+    assert(cleaned.includes("font-size:14pt"));
+    assert(cleaned.includes("color:#ff0000"));
+  });
+
+  // =============================================================================
+  // PHẦN 8: WRITER - CLEAN CSS STYLE STRING
+  // =============================================================================
+
+  test("cleanCssStyleString - loại bỏ mso-* properties", () => {
+    const style = "mso-margin-top-alt:auto; margin-top:10pt; mso-list:l0; font-weight:bold;";
+    const cleaned = cleanCssStyleString(style);
+    assert(!cleaned.includes("mso-"));
+    assert(cleaned.includes("margin-top:10pt"));
+    assert(cleaned.includes("font-weight:bold"));
+  });
+
+  test("cleanCssStyleString - loại bỏ tab-stops, -ms-*, v:, o:*", () => {
+    const style = "tab-stops:100pt; -ms-text-justify:inter-word; v:shapes:pic1; o:allowoverlap:; font-size:12pt;";
+    const cleaned = cleanCssStyleString(style);
+    assert(!cleaned.includes("tab-"));
+    assert(!cleaned.includes("-ms-"));
+    assert(!cleaned.includes("v:"));
+    assert(!cleaned.includes("o:"));
+    assert(cleaned.includes("font-size:12pt"));
+  });
+
+  // =============================================================================
+  // PHẦN 9: WRITER - CONVERT MSO LISTS
+  // =============================================================================
+
+  test("convertMsoListsToHtmlLists - bullet list gom nhóm", () => {
+    const html = `<p class="MsoListParagraph">· Item 1</p><p class="MsoListParagraph">· Item 2</p>`;
+    const cleaned = convertMsoListsToHtmlLists(html);
+    assert(cleaned.includes("<ul"));
+    assert(cleaned.includes("<li>Item 1</li>"));
+    assert(cleaned.includes("<li>Item 2</li>"));
+  });
+
+  test("convertMsoListsToHtmlLists - numbered list gom nhóm", () => {
+    const html = `<p class="MsoListParagraph">1. Item 1</p><p class="MsoListParagraph">2. Item 2</p>`;
+    const cleaned = convertMsoListsToHtmlLists(html);
+    assert(cleaned.includes("<ol"));
+    assert(cleaned.includes("<li>Item 1</li>"));
+    assert(cleaned.includes("<li>Item 2</li>"));
+  });
+
+  // =============================================================================
+  // PHẦN 10: WRITER - SERIALIZE SELECTION TO CLIPBOARD
+  // =============================================================================
+
+  test("serializeWriterSelectionToClipboard - trả về html và text", () => {
+    if (typeof document === "undefined") {
+      // Skip in Node.js without DOM
+      return;
+    }
+    const mockRange = {
+      cloneContents: () => {
+        const frag = document.createDocumentFragment();
+        const div = document.createElement("div");
+        div.innerHTML = "<p>Hello <b>World</b></p>";
+        frag.appendChild(div);
+        return frag;
+      }
+    };
+    const mockBody = document.createElement("div");
+    mockBody.innerHTML = "<p>Hello <b>World</b></p>";
+    const result = serializeWriterSelectionToClipboard(mockRange, mockBody);
+    assert(result.html.includes("Hello"));
+    assert(result.html.includes("World"));
+    assert(result.text.includes("Hello"));
+    assert(result.text.includes("World"));
+    assert(result.html.includes("font-family"));
+  });
+
+  // =============================================================================
+  // PHẦN 11: HTML ATTRIBUTES PARSING
+  // =============================================================================
+
+  test("parseHtmlAttributes - phân tích thuộc tính thẻ", () => {
+    const attrs = parseHtmlAttributes('class="xl65" style="color:red" x:num="42" colspan="2"');
+    assertEqual(attrs["class"], "xl65");
+    assertEqual(attrs["style"], "color:red");
+    assertEqual(attrs["x:num"], "42");
+    assertEqual(attrs["colspan"], "2");
+  });
+
+  // =============================================================================
+  // PHẦN 12: EXCEL HTML FULL SAMPLE - end-to-end
+  // =============================================================================
+
+  test("parseOfficeHtmlTable - Excel HTML sample với styles", () => {
+    const html = `
+      <html>
+      <style>
+        .xl65 { mso-number-format: '0.00%'; font-weight: bold; color: #ff0000; }
+        .xl66 { mso-number-format: '#,##0.00'; background: #ffff00; }
+        .xl67 { mso-number-format: 'dd/mm/yyyy'; }
+      </style>
+      <table>
+        <col width="80"><col width="100"><col width="90">
+        <tr height="20">
+          <td class="xl65" style="border:1px solid #000" x:num="0.75">75%</td>
+          <td class="xl66" style="border:1px solid #000" x:num="1234.56">1,234.56</td>
+          <td class="xl67" style="border:1px solid #000" x:num="45230">01/01/2024</td>
+        </tr>
+        <tr height="20">
+          <td class="xl65" style="border:1px solid #000" x:num="0.25">25%</td>
+          <td class="xl66" style="border:1px solid #000" x:num="789.01">789.01</td>
+          <td class="xl67" style="border:1px solid #000" x:num="45231">02/01/2024</td>
+        </tr>
+      </table>
+      </html>
+    `;
+    const result = parseOfficeHtmlTable(html);
+    assert(result !== null);
+    assertEqual(result.cells.length, 2);
+    assertEqual(result.cells[0].length, 3);
+    assertEqual(result.colWidths.length, 3);
+    assertEqual(result.colWidths[0], 80);
+    
+    // Row 1
+    assertEqual(result.cells[0][0].val, 0.75);
+    assertEqual(result.cells[0][0].style.numberFormat.category, "percentage");
+    assertEqual(result.cells[0][0].style.fontWeight, "bold");
+    assertEqual(result.cells[0][0].style.color, "#ff0000");
+    assertEqual(result.cells[0][1].val, 1234.56);
+    assertEqual(result.cells[0][1].style.numberFormat.category, "number");
+    assertEqual(result.cells[0][1].style.backgroundColor, "#ffff00");
+    // Date cell: x:num takes precedence, value is Excel serial number
+    assertEqual(result.cells[0][2].val, 45230);
+    assertEqual(result.cells[0][2].style.numberFormat.category, "date");
+    
+    // Row 2
+    assertEqual(result.cells[1][0].val, 0.25);
+    assertEqual(result.cells[1][1].val, 789.01);
+    assertEqual(result.cells[1][2].val, 45231);
+    assertEqual(result.cells[1][2].style.numberFormat.category, "date");
+    
+    // Borders
+    assert(result.cells[0][0].style.border || result.cells[0][0].style.borderTop);
+  });
+
+  // =============================================================================
+  // PHẦN 13: LIBREOFFICE CALC HTML SAMPLE
+  // =============================================================================
+
+  test("parseOfficeHtmlTable - LibreOffice Calc HTML với sdval/sdnum", () => {
+    const html = `
+      <table>
+        <tr>
+          <td sdval="42" sdnum="NNN" style="font-weight:bold;">42</td>
+          <td sdval="3.14159" sdnum="NNN" style="color:#0000ff;">3.14159</td>
+        </tr>
+      </table>
+    `;
+    const result = parseOfficeHtmlTable(html);
+    assert(result !== null);
+    assertEqual(result.cells[0][0].val, 42);
+    assertEqual(result.cells[0][0].style.fontWeight, "bold");
+    assertEqual(result.cells[0][1].val, 3.14159);
+    assertEqual(result.cells[0][1].style.color, "#0000ff");
+  });
+
+  // =============================================================================
+  // PHẦN 14: MERGED CELLS VỚI HTML THỰC TẾ
+  // =============================================================================
+
+  test("parseOfficeHtmlTable - merged cells thực tế từ Excel", () => {
+    const html = `
+      <table>
+        <tr>
+          <td colspan="2" rowspan="2" style="border:1px solid #000;">Merged</td>
+          <td style="border:1px solid #000;">C1</td>
+        </tr>
+        <tr>
+          <td style="border:1px solid #000;">C2</td>
+        </tr>
+        <tr>
+          <td style="border:1px solid #000;">A3</td>
+          <td style="border:1px solid #000;">B3</td>
+          <td style="border:1px solid #000;">C3</td>
+        </tr>
+      </table>
+    `;
+    const result = parseOfficeHtmlTable(html);
+    assert(result !== null);
+    assertEqual(result.mergedRanges.length, 1);
+    assertEqual(result.mergedRanges[0].start.c, "A");
+    assertEqual(result.mergedRanges[0].start.r, 1);
+    assertEqual(result.mergedRanges[0].end.c, "B");
+    assertEqual(result.mergedRanges[0].end.r, 2);
+  });
+
+  return results;
+}

@@ -266,6 +266,7 @@ export const enStrings = {
   },
   commands: {
     "writer.edit.select": { label: "Select", tooltip: "Select text or objects in the document" },
+    "writer.edit.pasteSpecial": { label: "Paste Special", tooltip: "Paste with advanced options (keep source formatting, plain text) (Ctrl+Alt+V)" },
     "writer.para.lineSpacing": { label: "Line Spacing", tooltip: "Adjust spacing between lines of text" },
     "writer.layout.breaks": { label: "Breaks", tooltip: "Insert page or section breaks" },
     "writer.para.lineSpacingLayout": { label: "Line Spacing", tooltip: "Adjust line and paragraph spacing" },

@@ -6261,6 +6261,11 @@ export class WriterAdapter {
         dispatchResult = true;
         break;
 
+      case "writer.edit.pasteSpecial":
+        this._showPasteSpecialDialog();
+        dispatchResult = true;
+        break;
+
       case "common.edit.selectAll":
         document.execCommand("selectAll", false, null);
         return true;
@@ -8570,6 +8575,109 @@ export class WriterAdapter {
     } catch {
       document.execCommand("paste");
     }
+  }
+
+  _showPasteSpecialDialog() {
+    if (typeof document === "undefined") return;
+    const previousFocused = document.activeElement;
+    const title = this.t("sheetDialogs.pasteSpecialTitle", "Dán đặc biệt");
+    const overlay = document.createElement("div");
+    overlay.className = "vno-dialog-overlay";
+    const titleId = `vno-dialog-title-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    overlay.innerHTML = `
+      <div class="vno-dialog-box" style="width: 420px;" role="dialog" aria-modal="true" aria-labelledby="${titleId}">
+        <div class="vno-dialog-header">
+          <span id="${titleId}">${title}</span>
+          <button class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="Đóng" aria-label="Đóng">&times;</button>
+        </div>
+        <div class="vno-dialog-body">
+          <form class="vno-paste-special-dialog" aria-label="${title}">
+            <fieldset><legend>${this.t("sheetDialogs.pasteSpecialGroup", "Dán")}</legend>
+              <label><input type="radio" name="paste-special-mode" value="source" checked> ${this.t("sheetDialogs.pasteSpecialKeepSource", "Giữ định dạng nguồn")}</label>
+              <label><input type="radio" name="paste-special-mode" value="text"> ${this.t("sheetDialogs.pasteSpecialText", "Chỉ giữ văn bản")}</label>
+            </fieldset>
+          </form>
+        </div>
+        <div class="vno-dialog-footer">
+          <button class="vno-btn vno-dialog-cancel-btn">${this.t("sheetDialogs.cancel", "Hủy bỏ")}</button>
+          <button class="vno-btn vno-btn-primary vno-dialog-ok-btn">${this.t("sheetDialogs.apply", "Đồng ý")}</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    const dialogBox = overlay.querySelector(".vno-dialog-box");
+    const form = overlay.querySelector(".vno-paste-special-dialog");
+
+    const cleanup = () => {
+      document.removeEventListener("keydown", onKeyDown);
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (previousFocused && typeof previousFocused.focus === "function") {
+        previousFocused.focus();
+      }
+    };
+
+    const applyPaste = () => {
+      const mode = form.querySelector('input[name="paste-special-mode"]:checked')?.value || "source";
+      if (mode === "text") {
+        this._pastePlainText();
+      } else {
+        document.execCommand("paste", false, null);
+      }
+      cleanup();
+    };
+
+    const okBtn = overlay.querySelector(".vno-dialog-ok-btn");
+    const cancelBtn = overlay.querySelector(".vno-dialog-cancel-btn");
+    const closeBtn = overlay.querySelector(".vno-dialog-close-btn");
+
+    okBtn.addEventListener("click", applyPaste);
+    cancelBtn.addEventListener("click", cleanup);
+    closeBtn.addEventListener("click", cleanup);
+
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) cleanup();
+    });
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      applyPaste();
+    });
+
+    form.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        applyPaste();
+      }
+    });
+
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        cleanup();
+      } else if (e.key === "Tab") {
+        const focusables = Array.from(dialogBox.querySelectorAll(
+          'button:not([disabled]):not([style*="display: none"]):not([style*="display:none"]), ' +
+          'input:not([disabled]):not([type="hidden"]):not([style*="display: none"]):not([style*="display:none"]), ' +
+          'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )).filter(el => el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0);
+        if (focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        if (e.shiftKey) {
+          if (document.activeElement === first || !dialogBox.contains(document.activeElement)) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last || !dialogBox.contains(document.activeElement)) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    form.querySelector('input[name="paste-special-mode"]')?.focus();
   }
 
   _insertImageDialog() {

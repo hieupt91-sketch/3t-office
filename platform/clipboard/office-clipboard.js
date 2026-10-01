@@ -956,6 +956,8 @@ export function convertMsoListsToHtmlLists(html) {
     // Bỏ đoạn span chứa ký tự đánh số/bullet gốc của Word
     const cleanedContent = content
       .replace(/<span[^>]*style=['"][^'"]*mso-list:\s*Ignore[^'"]*['"][^>]*>[\s\S]*?<\/span>/gi, "")
+      // Bỏ span bullet của Word (font Symbol/Wingdings chứa · • o §)
+      .replace(/<span[^>]*font-family\s*:\s*['"]?(Symbol|Wingdings)['"]?[^>]*>[\s\S]*?<\/span>/gi, "")
       .replace(/^[\s·•§\-*]+\s*/, "")
       .replace(/^\s*(?:\d+|[a-zA-Z]|[ivxIVX]+)[\.\)]\s*/, "");
 
