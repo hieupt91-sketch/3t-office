@@ -9,6 +9,9 @@ import { AUTORECOVER_HELP_ENTRIES } from "./entries-autorecover.js";
 import { UPDATER_HELP_ENTRIES } from "./entries-updater.js";
 import { LAUNCHER_HELP_ENTRIES } from "./entries-launcher.js";
 import { CONSISTENCY_HELP_ENTRIES } from "./entries-consistency.js";
+import { RETRO_RIBBON_HELP_ENTRIES } from "./entries-retro-ribbon.js";
+import { RETRO_DIALOGS_HELP_ENTRIES } from "./entries-retro-dialogs.js";
+import { RETRO_PLATFORM_HELP_ENTRIES } from "./entries-retro-platform.js";
 
 /** @type {Array<HelpEntry>} */
 export const HELP_ENTRIES = [
@@ -17,7 +20,10 @@ export const HELP_ENTRIES = [
   ...AUTORECOVER_HELP_ENTRIES,
   ...UPDATER_HELP_ENTRIES,
   ...LAUNCHER_HELP_ENTRIES,
-  ...CONSISTENCY_HELP_ENTRIES
+  ...CONSISTENCY_HELP_ENTRIES,
+  ...RETRO_RIBBON_HELP_ENTRIES,
+  ...RETRO_DIALOGS_HELP_ENTRIES,
+  ...RETRO_PLATFORM_HELP_ENTRIES
 ];
 
 /**

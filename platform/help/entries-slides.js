@@ -238,7 +238,7 @@ export const SLIDES_HELP_ENTRIES = [
     app: "slides",
     commandIds: ["common.edit.find", "common.edit.replace"],
     title: "Tìm kiếm và Thay thế trong 3T Slide",
-    summary: "Hộp thoại Tìm kiếm và Thay thế dùng chung phong cách Microsoft PowerPoint cho 3T Slide. Tìm kiếm xuyên suốt tất cả các trang chiếu (tiêu đề, nội dung, hình vẽ, hộp văn bản), tự động chuyển slide và chọn hộp văn bản, cùng Hoàn tác một bước (Ctrl+Z).",
+    summary: "Hộp thoại Tìm kiếm và Thay thế dùng chung phong cách phần mềm trình chiếu khác cho 3T Slide. Tìm kiếm xuyên suốt tất cả các trang chiếu (tiêu đề, nội dung, hình vẽ, hộp văn bản), tự động chuyển slide và chọn hộp văn bản, cùng Hoàn tác một bước (Ctrl+Z).",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
     keywords: ["tìm kiếm", "thay thế", "find", "replace", "ctrl+f", "ctrl+h", "3T Slide", "chỉnh sửa", "tìm chữ", "trang chiếu", "hộp văn bản"],
     steps: [
@@ -283,8 +283,8 @@ export const SLIDES_HELP_ENTRIES = [
       "Dải thumbnail trái và Bộ sắp xếp trang (tab Chế độ xem) hiện thanh tiêu đề trước nhóm: tên phần + số trang trong ngoặc. Nút ▾/▸ thu gọn hoặc mở rộng cả nhóm — khi thu gọn chỉ còn thanh tiêu đề, các thumbnail bên trong bị ẩn. Nhấp thanh tiêu đề để nhảy tới trang đầu nhóm. Chuột phải thumbnail hoặc thanh tiêu đề cũng mở menu Thêm / Đổi tên / Xóa phần.",
       "Đổi tên phần / Xóa phần / Chuyển phần lên / Chuyển phần xuống nằm cùng dropdown Phần. Xóa phần chỉ bỏ nhóm (trang vẫn còn, đúng thứ tự). Chuyển lên/xuống đổi chỗ cả khối trang của phần với phần kề, giữ thứ tự trang bên trong nhóm.",
       "Hoàn tác / Làm lại (Ctrl+Z / Ctrl+Y) dùng chung ngăn lịch sử của 3T Slide: thêm, đổi tên, xóa phần và chuyển cả nhóm đều hoàn tác được. Thu gọn/mở rộng chỉ là trạng thái xem, không vào lịch sử.",
-      "File → Lưu dạng PowerPoint (*.pptx): sau khi LibreOffice chuyển FODP, 3T Office gắn các phần vào ppt/presentation.xml bằng p14:sectionLst (chuẩn PowerPoint 2010, URI {521415D9-36F7-43E2-AB2F-B90AF26B5E84} — không dùng namespace vno:). Mỗi phần giữ đúng tên đã đặt và đúng danh sách id trang thật trong file (256, 257, … theo thứ tự trang, không đoán). Mở PPTX bằng Microsoft PowerPoint sẽ thấy nhóm phần trên dải thumbnail. LibreOffice Impress có thể không hiện phần khi mở lại PPTX (filter convert không đọc extension này) — file không hỏng. Lưu FODP/ODP giữ vno:section-id / vno:section-name như trước; bài không có phần thì File → Lưu PPTX không vá thêm.",
-      "File → Mở một .pptx đã có phần (file vừa Lưu, hoặc file PowerPoint 2010+ có sẵn p14:sectionLst): LibreOffice chuyển PPTX→FODP không map ngược extension này, nên 3T Office đọc ppt/presentation.xml của file gốc rồi gắn vno:section-id / vno:section-name lên đúng draw:page — theo thứ tự p:sldIdLst khớp thứ tự trang, không đoán. Thanh phần hiện lại trên dải thumbnail trái và Bộ sắp xếp trang, đúng tên và đúng nhóm trang. Nếu số trang FODP lệch số id trong PPTX (file sửa tay, hỏng), hộp thoại Mở báo lỗi rõ, không gán bừa phần vào sai trang. File .odp/.fodp không đi overlay này — chúng giữ vno:section-* sẵn có."
+      "File → Lưu dạng định dạng (*.pptx): sau khi LibreOffice chuyển FODP, 3T Office gắn các phần vào ppt/presentation.xml bằng p14:sectionLst (chuẩn chuẩn định dạng .pptx, URI {521415D9-36F7-43E2-AB2F-B90AF26B5E84} — không dùng namespace vno:). Mỗi phần giữ đúng tên đã đặt và đúng danh sách id trang thật trong file (256, 257, … theo thứ tự trang, không đoán). Mở PPTX bằng phần mềm trình chiếu khác sẽ thấy nhóm phần trên dải thumbnail. LibreOffice Impress có thể không hiện phần khi mở lại PPTX (filter convert không đọc extension này) — file không hỏng. Lưu FODP/ODP giữ vno:section-id / vno:section-name như trước; bài không có phần thì File → Lưu PPTX không vá thêm.",
+      "File → Mở một .pptx đã có phần (file vừa Lưu, hoặc file chuẩn mở rộng có sẵn p14:sectionLst): LibreOffice chuyển PPTX→FODP không map ngược extension này, nên 3T Office đọc ppt/presentation.xml của file gốc rồi gắn vno:section-id / vno:section-name lên đúng draw:page — theo thứ tự p:sldIdLst khớp thứ tự trang, không đoán. Thanh phần hiện lại trên dải thumbnail trái và Bộ sắp xếp trang, đúng tên và đúng nhóm trang. Nếu số trang FODP lệch số id trong PPTX (file sửa tay, hỏng), hộp thoại Mở báo lỗi rõ, không gán bừa phần vào sai trang. File .odp/.fodp không đi overlay này — chúng giữ vno:section-* sẵn có."
     ]
   },
   {
@@ -303,7 +303,7 @@ export const SLIDES_HELP_ENTRIES = [
     keywords: ["trang mới", "nhân đôi", "xóa trang", "bố cục", "layout", "ctrl+m", "ctrl+d", "hai cột", "trang trống", "sắp xếp trang", "kéo thả trang"],
     steps: [
       "Tab Trang đầu, nhóm Trang chiếu: Trang mới (Ctrl+M, nút lớn), Bố cục (nút lớn), cột Nhân đôi (Ctrl+D) / Xóa trang. Nút + trên dải thumbnail trái cũng thêm trang. Bố cục còn có trên tab Thiết kế, nhóm Bố cục trang.",
-      "Trang mới (Ctrl+M) được chèn NGAY SAU trang đang chọn (giống PowerPoint), bố cục Tiêu đề + Nội dung, tiêu đề và nội dung để trống để bạn gõ. Khung để trống khi lưu vẫn là khung trống trong tệp PPTX — không tự sinh chữ. Nhân đôi copy y nguyên tiêu đề, nội dung, hình, ghi chú, hiệu ứng, nền — chèn ngay sau trang hiện tại và chuyển tới bản sao.",
+      "Trang mới (Ctrl+M) được chèn NGAY SAU trang đang chọn (giống các phần mềm trình chiếu khác), bố cục Tiêu đề + Nội dung, tiêu đề và nội dung để trống để bạn gõ. Khung để trống khi lưu vẫn là khung trống trong tệp PPTX — không tự sinh chữ. Nhân đôi copy y nguyên tiêu đề, nội dung, hình, ghi chú, hiệu ứng, nền — chèn ngay sau trang hiện tại và chuyển tới bản sao.",
       "Đổi thứ tự trang: trong dải thumbnail bên trái, nhấn giữ chuột trên một trang rồi kéo thả vào vị trí mới (hoặc dùng Bộ sắp xếp trang ở tab Chế độ xem). Ctrl+Z hoàn tác việc di chuyển.",
       "Xóa trang: không xóa được nếu chỉ còn 1 trang. Nếu đang chọn hình trên canvas, lệnh Xóa trang / phím Delete sẽ xóa hình chứ không xóa trang — bấm ra ngoài hình, hoặc xóa từ dải thumbnail / Bộ sắp xếp trang.",
       "Bố cục (và lệnh Chọn bố cục, cùng hộp thoại): lưới 4 thẻ — Tiêu đề (chữ lớn giữa trang), Tiêu đề + Nội dung (mặc định), Hai nội dung (cột trái/phải độc lập), Trống (canvas trắng). Nhấp đúp thẻ để áp dụng ngay, hoặc chọn rồi Áp dụng cho trang này / Áp dụng tất cả. Ctrl+Z hoàn tác."
@@ -349,7 +349,7 @@ export const SLIDES_HELP_ENTRIES = [
     app: "slides",
     commandIds: ["slides.insert.table"],
     title: "Chèn bảng trên trang chiếu",
-    summary: "Hộp thoại nhập số hàng và số cột (1–12, mặc định 3×3). Bảng là đối tượng kéo-thả trên canvas; mọi ô để trống như PowerPoint.",
+    summary: "Hộp thoại nhập số hàng và số cột (1–12, mặc định 3×3). Bảng là đối tượng kéo-thả trên canvas; mọi ô để trống như các phần mềm trình chiếu khác.",
     ribbon: { tab: "Chèn", tabId: "insert", group: "Bảng" },
     keywords: ["bảng", "table", "chèn bảng", "hàng", "cột", "cột 1"],
     steps: [
@@ -370,15 +370,15 @@ export const SLIDES_HELP_ENTRIES = [
       "slides.arrange.bringToFront", "slides.arrange.bringForward", "slides.arrange.sendBackward", "slides.arrange.sendToBack"
     ],
     title: "Sắp xếp: sắp lớp, căn chỉnh, phân phối đều, nhóm và bỏ nhóm đối tượng",
-    summary: "Tab Trang đầu, nhóm Đối tượng vẽ, nút thả xuống Sắp xếp gồm Đưa lên trên cùng / Đưa lên trên một lớp / Đưa xuống dưới một lớp / Đưa xuống dưới cùng, Căn trái/giữa/phải/trên/giữa dọc/dưới, Phân phối đều ngang/dọc, Căn theo trang chiếu, và Nhóm/Bỏ nhóm (Ctrl+G / Ctrl+Shift+G) — đúng Arrange của PowerPoint thật.",
+    summary: "Tab Trang đầu, nhóm Đối tượng vẽ, nút thả xuống Sắp xếp gồm Đưa lên trên cùng / Đưa lên trên một lớp / Đưa xuống dưới một lớp / Đưa xuống dưới cùng, Căn trái/giữa/phải/trên/giữa dọc/dưới, Phân phối đều ngang/dọc, Căn theo trang chiếu, và Nhóm/Bỏ nhóm (Ctrl+G / Ctrl+Shift+G) — đúng Arrange của phần mềm trình chiếu khác.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Đối tượng vẽ" },
     keywords: ["nhóm", "bỏ nhóm", "group", "ungroup", "ctrl+g", "ctrl+shift+g", "khối hình", "căn chỉnh", "align", "phân phối đều", "distribute", "căn theo trang chiếu", "align to slide", "sắp xếp", "arrange", "sắp lớp", "đưa lên trên", "đưa xuống dưới", "bring to front", "send to back", "bring forward", "send backward", "thứ tự lớp"],
     steps: [
       "Sắp lớp (hình nào nằm trên hình nào): chọn một hình, mở Trang đầu → Đối tượng vẽ → Sắp xếp rồi chọn Đưa lên trên cùng, Đưa lên trên một lớp, Đưa xuống dưới một lớp hoặc Đưa xuống dưới cùng. Cũng có trong menu chuột phải của hình. Thứ tự lớp được lưu vào tệp PPTX; Ctrl+Z hoàn tác.",
       "Chọn từ hai hình trở lên: giữ Shift rồi nhấp từng hình, hoặc tab Trang đầu → nhóm Chỉnh sửa → Chọn → Chọn tất cả / Chọn đối tượng.",
-      "Tab Trang đầu, nhóm Đối tượng vẽ, nút thả xuống Sắp xếp: Căn trái/Căn giữa (ngang)/Căn phải canh theo trục ngang; Căn trên/Căn giữa (dọc)/Căn dưới canh theo trục dọc. Mặc định canh theo đúng khung bao quanh các đối tượng đang chọn (giống PowerPoint khi tắt Align to Slide).",
+      "Tab Trang đầu, nhóm Đối tượng vẽ, nút thả xuống Sắp xếp: Căn trái/Căn giữa (ngang)/Căn phải canh theo trục ngang; Căn trên/Căn giữa (dọc)/Căn dưới canh theo trục dọc. Mặc định canh theo đúng khung bao quanh các đối tượng đang chọn (giống các phần mềm trình chiếu khác khi tắt Align to Slide).",
       "Phân phối đều ngang/dọc chia đều khoảng TRỐNG giữa các đối tượng (giữ nguyên hình đầu và cuối theo trục đang phân phối) — cần ít nhất 3 đối tượng để thấy hiệu quả rõ ràng.",
-      "Bật Căn theo trang chiếu để mọi lệnh Căn/Phân phối tiếp theo dùng toàn bộ khung trang chiếu làm mốc thay vì khung các đối tượng đang chọn — giống PowerPoint thật.",
+      "Bật Căn theo trang chiếu để mọi lệnh Căn/Phân phối tiếp theo dùng toàn bộ khung trang chiếu làm mốc thay vì khung các đối tượng đang chọn — giống các phần mềm trình chiếu khác thật.",
       "Ctrl+G nhóm (cần ít nhất hai hình, không tính đường nối); Ctrl+Shift+G bỏ nhóm. Mọi thao tác Căn/Phân phối/Nhóm/Bỏ nhóm đều hoàn tác được bằng Ctrl+Z."
     ]
   },
@@ -479,7 +479,7 @@ export const SLIDES_HELP_ENTRIES = [
       "Tab Đánh giá, nhóm Nhận xét, nút lớn Nhận xét mới — cùng nút trên tab Chèn, nhóm Nhận xét. Không có Ctrl+Alt+M như Writer.",
       "Panel «Nhận xét trang chiếu» mở bên cạnh. Ô «Nhận xét mới», gợi ý «Nhập nội dung nhận xét...», nút Thêm nhận xét. Trang chưa có nhận xét hiện «Trang chiếu này chưa có nhận xét.» Gửi bằng nút hoặc Ctrl+Enter (Cmd+Enter). Tác giả mặc định «Người dùng», kèm giờ vi-VN.",
       "Mỗi mục có nút Xóa. Đã xử lý nằm nút ribbon riêng (bài duyệt nhận xét). Esc đóng panel. Huy hiệu ◰ + số trên canvas; Bộ sắp xếp trang hiện 💬 N.",
-      "Ctrl+Z hoàn tác lần thêm/xóa. Nhận xét theo trang, không theo vùng chữ hay hình như PowerPoint."
+      "Ctrl+Z hoàn tác lần thêm/xóa. Nhận xét theo trang, không theo vùng chữ hay hình như các phần mềm trình chiếu khác."
     ]
   },
   {
@@ -551,16 +551,16 @@ export const SLIDES_HELP_ENTRIES = [
     app: "slides",
     commandIds: ["slides.design.themeGallery", "slides.design.slideSize", "slides.master.apply"],
     title: "Chủ đề, mẫu chủ đạo và cỡ trang chiếu",
-    summary: "Sáu chủ đề màu/phông/logo áp cả bộ. Mẫu Slide Master cùng 6 bộ, thêm ô logo chữ. Cỡ: Màn hình rộng 16:9 (33,867 × 19,05 cm, mặc định) hoặc Tiêu chuẩn 4:3 (25,4 × 19,05 cm) — đúng hai khổ chuẩn của PowerPoint; hình sẵn có bị co theo.",
+    summary: "Sáu chủ đề màu/phông/logo áp cả bộ. Mẫu Slide Master cùng 6 bộ, thêm ô logo chữ. Cỡ: Màn hình rộng 16:9 (33,867 × 19,05 cm, mặc định) hoặc Tiêu chuẩn 4:3 (25,4 × 19,05 cm) — đúng hai khổ chuẩn của phần mềm trình chiếu khác; hình sẵn có bị co theo.",
     ribbon: { tab: "Thiết kế", tabId: "design", group: "Chủ đề" },
     keywords: ["chủ đề", "theme", "slide master", "cỡ trang chiếu", "16:9", "4:3", "960x540", "logo"],
     steps: [
       "Tab Thiết kế, nhóm Chủ đề: nút lớn Chủ đề. Hộp «Thư viện Chủ đề» — nhấp thẻ là áp ngay cả bộ (không nút Áp dụng). Sáu mẫu: Xanh Doanh Nghiệp (Inter, mặc định modern-blue), Terracotta Ấm Áp (Times New Roman), Xanh Lá Thiên Nhiên, Than Chì Hiện Đại, Đơn Sắc Tối Giản (Arial), Cam Năng Động (Verdana). Mỗi mẫu có logo chữ kiểu «3T OFFICE • DOANH NGHIỆP». Ctrl+Z hoàn tác lần chọn chủ đề.",
       "Nhóm Mẫu chủ đạo: Mẫu Slide Master. Hộp «Mẫu Slide Master» cùng 6 bộ, thêm ô «Tên đơn vị / Logo chữ góc trang» (mặc định «3T OFFICE» hoặc logo đang dùng). Chọn thẻ điền sẵn logo của mẫu. Hủy bỏ / Áp dụng mẫu. Khác thư viện Chủ đề: lần Áp dụng mẫu không đẩy Undo.",
-      "File → Lưu dạng PowerPoint (*.pptx): sau khi LibreOffice chuyển FODP, 3T Office gắn logo chữ vào Slide Master bằng một hình DrawingML chuẩn (p:sp không phải ô kế thừa title/body/chân trang). Logo lấy đúng ô «Tên đơn vị / Logo chữ góc trang», đặt ở dải trên của master, không đè khung chữ sẵn. Mở PPTX bằng PowerPoint hoặc LibreOffice vẫn thấy chữ logo. Lưu FODP/ODP giữ master-page ODF như trước; không có logo thì File → Lưu PPTX không vá thêm hình.",
-      "File → Mở một .pptx đã có logo master (file vừa Lưu, hoặc file PowerPoint có hình tên VNOfficeMasterLogo trên Slide Master): LibreOffice chuyển PPTX→FODP giữ chữ trên master-page nhưng không phát vno:master-theme, nên ô logo trên canvas 3T Slide sẽ trống nếu không overlay. 3T Office đọc p:sp tên VNOfficeMasterLogo từ file PPTX gốc (không đoán hình khác trên master), lấy lại chữ / màu / phông, rồi gắn vno:master-theme lên FODP trước khi mở canvas. Ô «Tên đơn vị / Logo chữ góc trang» hiện lại đúng chữ, màu accent và phông. Nhiều hình trùng tên hoặc hình tên đó lại là ô kế thừa (p:ph) thì hộp thoại Mở báo lỗi rõ, không đoán. File .odp/.fodp không đi overlay này — chúng giữ vno:master-theme sẵn có.",
+      "File → Lưu dạng định dạng (*.pptx): sau khi LibreOffice chuyển FODP, 3T Office gắn logo chữ vào Slide Master bằng một hình DrawingML chuẩn (p:sp không phải ô kế thừa title/body/chân trang). Logo lấy đúng ô «Tên đơn vị / Logo chữ góc trang», đặt ở dải trên của master, không đè khung chữ sẵn. Mở PPTX bằng phần mềm trình chiếu khác hoặc LibreOffice vẫn thấy chữ logo. Lưu FODP/ODP giữ master-page ODF như trước; không có logo thì File → Lưu PPTX không vá thêm hình.",
+      "File → Mở một .pptx đã có logo master (file vừa Lưu, hoặc tệp trình chiếu .pptx có hình tên VNOfficeMasterLogo trên Slide Master): LibreOffice chuyển PPTX→FODP giữ chữ trên master-page nhưng không phát vno:master-theme, nên ô logo trên canvas 3T Slide sẽ trống nếu không overlay. 3T Office đọc p:sp tên VNOfficeMasterLogo từ file PPTX gốc (không đoán hình khác trên master), lấy lại chữ / màu / phông, rồi gắn vno:master-theme lên FODP trước khi mở canvas. Ô «Tên đơn vị / Logo chữ góc trang» hiện lại đúng chữ, màu accent và phông. Nhiều hình trùng tên hoặc hình tên đó lại là ô kế thừa (p:ph) thì hộp thoại Mở báo lỗi rõ, không đoán. File .odp/.fodp không đi overlay này — chúng giữ vno:master-theme sẵn có.",
       "Nhóm Tùy chỉnh: Cỡ trang chiếu. Hộp «Kích thước trang chiếu»: Màn hình rộng 16:9 · 33,867 × 19,05 cm, hoặc Tiêu chuẩn 4:3 · 25,4 × 19,05 cm. Nhấp thẻ áp ngay; mọi hình bị co x,y,w,h theo khung mới. Cùng preset thì không đổi. Ctrl+Z hoàn tác đổi cỡ.",
-      "Khi lưu PPTX, hai khổ này ghi đúng khổ chuẩn của PowerPoint nên PowerPoint mở ra thấy Thiết kế → Kích thước trang chiếu là «Màn hình rộng» / «Chuẩn (4:3)», không phải «Tùy chỉnh». Tệp mở từ PowerPoint giữ nguyên khổ gốc khi lưu lại, trừ khi bạn tự đổi cỡ.",
+      "Khi lưu PPTX, hai khổ này ghi đúng khổ chuẩn của phần mềm trình chiếu khác nên phần mềm trình chiếu khác mở ra thấy Thiết kế → Kích thước trang chiếu là «Màn hình rộng» / «Chuẩn (4:3)», không phải «Tùy chỉnh». Tệp mở từ phần mềm trình chiếu khác giữ nguyên khổ gốc khi lưu lại, trừ khi bạn tự đổi cỡ.",
       "Không có dạng xem Master (không sửa khung chữ sẵn của từng bố cục). Không có cỡ tùy chỉnh / 16:10."
     ]
   },
@@ -611,7 +611,7 @@ export const SLIDES_HELP_ENTRIES = [
     steps: [
       "Nhấp chọn một hình khối hoặc hình ảnh trên trang chiếu canvas. Xung quanh đối tượng sẽ xuất hiện 8 tay cầm co giãn, nút xóa màu đỏ ở góc trên-trái và một tay cầm xoay hình tròn nhỏ màu xanh dương ở phía trên đỉnh (nối bằng cần mảnh).",
       "Rê chuột vào tay cầm xoay tròn: con trỏ chuyển thành hình bàn tay nắm (grab). Nhấn giữ chuột và kéo xoay quanh tâm đối tượng theo chiều kim đồng hồ hoặc ngược chiều kim đồng hồ.",
-      "Xoay từng bước 15° chuẩn xác: nhấn giữ phím Shift trong lúc kéo chuột để góc xoay tự động bắt dính vào các bội số 15° (15°, 30°, 45°, 60°, 90°...), tương tự như trong Microsoft PowerPoint. Một huy hiệu tooltip nhỏ hiển thị số độ hiện tại ngay cạnh tay cầm khi đang kéo giúp theo dõi góc xoay trực quan.",
+      "Xoay từng bước 15° chuẩn xác: nhấn giữ phím Shift trong lúc kéo chuột để góc xoay tự động bắt dính vào các bội số 15° (15°, 30°, 45°, 60°, 90°...), tương tự như trong phần mềm trình chiếu khác. Một huy hiệu tooltip nhỏ hiển thị số độ hiện tại ngay cạnh tay cầm khi đang kéo giúp theo dõi góc xoay trực quan.",
       "Con trỏ co giãn thông minh và nút xóa trực quan: Khi hình xoay ở bất kỳ góc nào, con trỏ chuột của 8 tay cầm tự động định hướng theo góc nhìn thực tế trên màn hình (ví dụ: tay cầm ở cạnh bên luôn hiển thị con trỏ kéo ngang ew-resize), và nút xóa tròn đỏ luôn giữ tư thế thẳng đứng dễ nhận biết.",
       "Kéo tay cầm về vị trí thẳng đứng ban đầu (hoặc gần 0°), góc xoay sẽ tự động đưa về mặc định không xoay.",
       "Đặt lại góc xoay về 0° nhanh chóng: nhấp chuột phải vào hình vẽ đã xoay để mở trình đơn ngữ cảnh, chọn «Đặt lại góc xoay (0°)».",
@@ -695,7 +695,7 @@ export const SLIDES_HELP_ENTRIES = [
       "slides.shape.group", "slides.shape.ungroup"
     ],
     title: "Phím tắt thường dùng (15 phím tắt phổ biến nhất)",
-    summary: "15 phím tắt dùng nhiều nhất trong 3T Slide — tương thích Microsoft PowerPoint và LibreOffice Impress. Tất cả đã bind trong command-definitions.js; có hoàn tác (Ctrl+Z) khi áp dụng định dạng.",
+    summary: "15 phím tắt dùng nhiều nhất trong 3T Slide — tương thích phần mềm trình chiếu khác và LibreOffice Impress. Tất cả đã bind trong command-definitions.js; có hoàn tác (Ctrl+Z) khi áp dụng định dạng.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Bảng nhớ tạm" },
     keywords: ["phím tắt", "shortcut", "ctrl+n", "ctrl+o", "ctrl+s", "ctrl+p", "ctrl+z", "ctrl+y", "ctrl+x", "ctrl+c", "ctrl+v", "ctrl+a", "ctrl+f", "ctrl+h", "ctrl+m", "ctrl+d", "f5", "ctrl+b", "ctrl+i", "ctrl+u", "ctrl+e", "ctrl+l", "ctrl+r", "ctrl+j", "ctrl+g", "ctrl+shift+g", "3t slide"],
     steps: [
@@ -722,7 +722,7 @@ export const SLIDES_HELP_ENTRIES = [
       "Hiệu ứng chuyển tiếp Morph (tab Chuyển tiếp > nhóm Hiệu ứng chuyển trang > Chuyển tiếp): hiện hỗ trợ Fade, Slide, Zoom, Flip — chưa có Morph (tự động phân tích và nội suy chuyển động hình khối cùng tên giữa hai trang liên tiếp). Dự kiến Patch 1.2.",
       "Trình chiếu trực tuyến / Broadcast (tab Trình chiếu > nhóm Thiết lập > Chế độ Presenter): hiện có Presenter Mode 2 màn hình cục bộ (Alt+F5) — chưa hỗ trợ phát bài thuyết trình qua mạng nội bộ cho người xem qua trình duyệt. Dự kiến Patch 1.3.",
       "Ghi âm thuyết minh trực tiếp (tab Chèn > nhóm Đa phương tiện > Âm thanh): hiện chỉ chèn file âm thanh từ máy tính — chưa có thu âm microphone trực tiếp trên từng trang chiếu. Dự kiến Patch 1.1.",
-      "Các nút này vẫn hiển thị trên ribbon đúng vị trí chuẩn Microsoft PowerPoint. Khi bấm vào, hệ thống sẽ hiển thị thông báo tiếng Việt rõ ràng thay vì thao tác câm. Ứng dụng này là 3T Slide, một phần của bộ 3T Office."
+      "Các nút này vẫn hiển thị trên ribbon đúng vị trí chuẩn phần mềm trình chiếu khác. Khi bấm vào, hệ thống sẽ hiển thị thông báo tiếng Việt rõ ràng thay vì thao tác câm. Ứng dụng này là 3T Slide, một phần của bộ 3T Office."
     ]
   }
 ];
