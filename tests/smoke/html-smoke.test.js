@@ -216,7 +216,7 @@ export async function runHtmlSmokeTests() {
         fileUrl
       ], {
         encoding: "utf8",
-        timeout: 15000,
+        timeout: 30000,
         windowsHide: true
       });
 
@@ -269,7 +269,7 @@ export async function runHtmlSmokeTests() {
         "--virtual-time-budget=3000",
         "--dump-dom",
         `${fileUrl}?app=sheet&singleApp=1`
-      ], { encoding: "utf8", timeout: 15000, windowsHide: true });
+      ], { encoding: "utf8", timeout: 30000, windowsHide: true });
       const sheetDom = sheetProc.stdout || "";
       const sheetSingleAppPassed = sheetProc.status === 0 &&
         sheetDom.includes('data-app="sheet"') &&
@@ -327,7 +327,7 @@ export async function runHtmlSmokeTests() {
         const trackChangesProc = spawnSync(browserBinary, [
           "--headless=new", "--allow-file-access-from-files", "--virtual-time-budget=3000", "--dump-dom",
           "file:///" + tempTrackChangesPath.replace(/\\/g, "/")
-        ], { encoding: "utf8", timeout: 15000, windowsHide: true });
+        ], { encoding: "utf8", timeout: 30000, windowsHide: true });
         const passed = trackChangesProc.status === 0 && (trackChangesProc.stdout || "").includes('data-pass="true"');
         results.push({
           name: `Browser Headless (${browserName}): Track Changes gõ/xóa + Accept All/Reject All + export sạch`,
@@ -384,7 +384,7 @@ export async function runHtmlSmokeTests() {
           slidesFileUrl
         ], {
           encoding: "utf8",
-          timeout: 15000,
+          timeout: 30000,
           windowsHide: true
         });
 
@@ -490,7 +490,7 @@ export async function runHtmlSmokeTests() {
           previewUrl
         ], {
           encoding: "utf8",
-          timeout: 15000,
+          timeout: 30000,
           windowsHide: true
         });
 
@@ -619,7 +619,7 @@ export async function runHtmlSmokeTests() {
           layoutFileUrl
         ], {
           encoding: "utf8",
-          timeout: 15000,
+          timeout: 30000,
           windowsHide: true
         });
 

@@ -24,7 +24,7 @@ Status meanings: **ĐẠT** = the specific UI path named in the evidence worked;
 | C4 | Fill weekdays and months | ĐẠT | CDP fill continued weekdays [Thứ 2, Thứ 3, Thứ 4, Thứ 5, Thứ 6] and months [Tháng 1, Tháng 2, Tháng 3, Tháng 4]; Undo restored source range. |
 | C4 | Fill formulas | ĐẠT | CDP fill adjusted relative formulas: B1==A1*2, B2==A2*2 (40), B3==A3*2 (60); Undo restored pre-fill cells. |
 | C4 | Double-click fill handle | ĐẠT | CDP double-click filled to adjacent data boundary [10, 20, 30, 40]; 1 `Ctrl+Z` reverted to empty cells. |
-| C4 | AutoFill unit coverage | ĐẠT | `tests/unit/sheet-autofill.test.js`: date rollover, double-click fill/Undo, and no-adjacent-data cases pass in test runner. |
+| C4 | AutoFill unit coverage | ĐẠT | `tests/unit/sheet-autofill.test.js`: 3/3 unit tests passed (AutoFill continues dd/mm/yyyy dates across month and year boundaries: PASS; Double-click AutoFill fills to adjacent contiguous data and is one Undo step: PASS; Double-click AutoFill does nothing without adjacent contiguous data: PASS). |
 | C4 | Hidden Excel COM parity for fill patterns | ĐẠT | Hidden Excel COM (owned PID, `Visible=False`): numeric AutoFill [1..5], date AutoFill [30/01/2026..03/02/2026], FillDown [Sample..Sample], formula AutoFill [=A1*2..=A5*2] — 100% exact parity with Sheet. |
 | C5 | Insert row and adjust formulas | ĐẠT | CDP ribbon/keyboard insert added a row; formula in D5 (`=B3*2`) updated in D6 to `=B4*2`; `Ctrl+Z` restored 200 rows and original formula coordinates. |
 | C5 | Insert column and adjust formulas | ĐẠT | CDP context-menu insert at B moved B2→C2 and D5→E5, adjusting formula to `=C2*3`; `Ctrl+Z` restored original layout. |
@@ -46,14 +46,14 @@ Status meanings: **ĐẠT** = the specific UI path named in the evidence worked;
 | C8 | Data validation | ĐẠT | CDP list validation Red,Green,Blue rejects invalid entries with localized alert and accepts valid entries; unit tests cover rejected commits. |
 | C8 | Remove duplicates | ĐẠT | CDP Remove Duplicates removed repeated row ([Apple, Banana]); `Ctrl+Z` restored original rows. |
 | C9 | Conditional formatting basics | ĐẠT | CDP rule "greater than 1" applied format to matching cell E2; `Ctrl+Z` removed the rule. |
-| C10 | Insert column, line, and pie charts | ĐẠT | CDP inserted column, line, and pie charts from A1:B5; Chart count Undo/Redo verified (3→2→3). |
-| C10 | Save chart XLSX and reopen in 3T | ĐẠT | Saved chart workbook; reopening in 3T retained all three chart SVG types (`bar`, `line`, `pie`) and source data. |
-| C10 | Reopen saved charts in hidden Excel COM | ĐẠT | Read-only hidden COM inspection found 3 ChartObjects / 3 Shapes: chart types 51 (column), 4 (line), and 5 (pie); each has series referencing A2:A5 and B2:B5. |
+| C10 | Insert column, line, and pie charts | ĐẠT | CDP inserted column, line, and pie charts from A1:B5: model=3, DOM=3. Undo reverted to 2/2, Redo restored 3/3. Types: [bar, line, pie]. |
+| C10 | Save chart XLSX and reopen in 3T | ĐẠT | Saved chart workbook; reopening in 3T retained all 3 chart types [bar, line, pie] and rendered 3 SVG elements. |
+| C10 | Reopen saved charts in hidden Excel COM | ĐẠT | Read-only hidden COM inspection found 3 ChartObjects: types 51, 4, 5 (51=column, 4=line, 5=pie); each series formula references sheet range. |
 | C11 | Print area | ĐẠT | CDP set A1:B3; hidden Excel COM read PrintArea="$A$1:$B$3". Reopening in 3T retained print area A1:B3. |
 | C11 | Fit to one page | ĐẠT | Page setup set Fit width=1, height=1; hidden Excel COM read FitToPagesWide=1, FitToPagesTall=1, Zoom=False. 3T reopen retained fit settings. |
 | C11 | Print titles | ĐẠT | Page setup set repeating rows 1:2; hidden Excel COM read PrintTitleRows="$1:$2". 3T reopen retained rows 1:2. |
 | C11 | Header and footer | ĐẠT | Page setup set header/footer; hidden Excel COM read CenterFooter="Trang &P / &N". 3T reopen retained header and footer strings. |
-| C11 | Page breaks | ĐẠT | CDP inserted row and column breaks and checked Undo/Redo; reopening in 3T retained breaks; hidden Excel COM found horizontal and vertical breaks. |
+| C11 | Page breaks | ĐẠT | CDP inserted row break (4) and col break (B) with Undo/Redo verified; reopening saved XLSX in 3T preserved row 4 / col B breaks ({"rows":[4],"cols":["B"]}); hidden Excel COM read manual HPageBreaks=1 (A4) and manual VPageBreaks=1 (B1) [total H=1, V=2]. |
 | C12 | Automatic formula recalculation | ĐẠT | CDP changed B2 from 12 to 30; live D1=SUM(B2:B5) updated 92→110. Undo restored B2=12/D1=92, Redo and F9 restored B2=30/D1=110. |
 | C12 | Large workbook responsiveness | IN PROGRESS | Virtualization stream `fix/sheet-grid-extent-agy` owns large grid bounds and large workbook benchmarks. |
 | C12 | Save/reopen calculation and value parity | ĐẠT | Hidden Excel COM read inputs as native Double (5/5 Double: A1=1250, A2=46387 [date 31/12/2026], A3=0.25 [25%], A4=1234.56, B1=48871.81 [=SUM(A1:A4)]). Reopen in 3T retained native numbers and formula evaluation 48871.81. |

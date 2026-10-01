@@ -4,6 +4,8 @@ import fs from "node:fs";
 import os from "node:os";
 import { spawn, execFileSync } from "node:child_process";
 import { createServer } from "node:net";
+import { runSheetAutoFillTests } from "../tests/unit/sheet-autofill.test.js";
+import { convertWithSoffice } from "../tests/helpers/soffice-convert.mjs";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const playwrightRoot = process.env.VNO_PLAYWRIGHT_ROOT || "C:/Users/3T Computer/AppData/Local/Temp/vno-playwright-tools";
@@ -64,7 +66,12 @@ async function main() {
     }
     if (!page) throw new Error("Page not found");
 
-    await page.locator(".vno-sheet-workspace").waitFor({ timeout: 25000 });
+    await page.locator(".vno-sheet-container, .vno-sheet-workspace").first().waitFor({ timeout: 60000 });
+    const consentDeny = page.locator('.vno-error-reporting-overlay [data-dialog-action="deny"]');
+    if (await consentDeny.count().catch(() => 0) > 0) {
+      await consentDeny.click().catch(() => {});
+      await sleep(200);
+    }
     console.log(`[DESKTOP AUDIT] Connected to Sheet window: ${page.url()}`);
     await sleep(500);
 
@@ -87,6 +94,14 @@ async function main() {
 
     const resetGrid = () => page.evaluate(() => {
       const grid = window.__vnoAppInstance.grid;
+      if (!grid.sheets.includes("Sheet1")) grid.addSheet("Sheet1");
+      grid.switchSheet("Sheet1");
+      const extras = grid.sheets.filter(s => s !== "Sheet1");
+      for (const s of extras) {
+        try { grid.deleteSheet(s); } catch {}
+      }
+      grid.chartsBySheet = { Sheet1: [] };
+      grid.pageBreaksBySheet = { Sheet1: { rows: [], cols: [] } };
       grid.cellsData.clear();
       grid.history?.clear?.();
       grid._cellHistory = [];
@@ -332,9 +347,12 @@ async function main() {
     };
 
     // 13. AutoFill unit coverage
+    const autoFillUnitResults = await runSheetAutoFillTests();
+    const autoFillPassCount = autoFillUnitResults.filter(r => r.pass).length;
+    const autoFillTotal = autoFillUnitResults.length;
     results["C4_AutoFill_unit_coverage"] = {
-      status: "ĐẠT",
-      evidence: `tests/unit/sheet-autofill.test.js: date rollover, double-click fill/Undo, and no-adjacent-data cases pass in test runner.`
+      status: autoFillTotal > 0 && autoFillPassCount === autoFillTotal ? "ĐẠT" : "CHƯA ĐẠT",
+      evidence: `tests/unit/sheet-autofill.test.js: ${autoFillPassCount}/${autoFillTotal} unit tests passed (${autoFillUnitResults.map(r => `${r.name}: ${r.pass ? "PASS" : "FAIL"}`).join("; ")}).`
     };
 
     // 14. Hidden Excel COM parity for fill patterns
@@ -755,25 +773,145 @@ async function main() {
     // C10: Charts
     // ==========================================
     console.log("--> Testing C10: Charts...");
+    await resetGrid();
+    await page.evaluate(() => {
+      const grid = window.__vnoAppInstance.grid;
+      grid.setCellValue("A", 1, "Tháng");
+      grid.setCellValue("B", 1, "Doanh thu");
+      grid.setCellValue("A", 2, "T1");
+      grid.setCellValue("B", 2, 100);
+      grid.setCellValue("A", 3, "T2");
+      grid.setCellValue("B", 3, 150);
+      grid.setCellValue("A", 4, "T3");
+      grid.setCellValue("B", 4, 200);
+      grid.setCellValue("A", 5, "T4");
+      grid.setCellValue("B", 5, 250);
+    });
+
+    async function insertChartViaModal(type) {
+      await page.evaluate(async (chartType) => {
+        const grid = window.__vnoAppInstance.grid;
+        grid.selectCell("A", 1);
+        grid.selectCell("B", 5, true);
+        await grid.openChartBuilder();
+        const modal = document.querySelector(".vno-dialog-box");
+        if (!modal) throw new Error("Chart modal not found");
+        const typeBtn = modal.querySelector(`[data-chart-type="${chartType}"]`);
+        if (typeBtn) typeBtn.click();
+        const applyBtn = modal.querySelector("[data-chart-apply]");
+        if (!applyBtn) throw new Error("Apply button not found");
+        applyBtn.click();
+      }, type);
+      await sleep(100);
+    }
+
+    await insertChartViaModal("bar");
+    await insertChartViaModal("line");
+    await insertChartViaModal("pie");
+
+    const countsAfterInsert = await page.evaluate(() => {
+      const grid = window.__vnoAppInstance.grid;
+      return {
+        model: grid.getCharts().length,
+        dom: document.querySelectorAll(".vno-sheet-chart").length,
+        types: grid.getCharts().map(c => c.type)
+      };
+    });
+
+    await page.evaluate(() => window.__vnoAppInstance.grid.undo());
+    const countsAfterUndo = await page.evaluate(() => {
+      const grid = window.__vnoAppInstance.grid;
+      return {
+        model: grid.getCharts().length,
+        dom: document.querySelectorAll(".vno-sheet-chart").length
+      };
+    });
+
+    await page.evaluate(() => window.__vnoAppInstance.grid.redo());
+    const countsAfterRedo = await page.evaluate(() => {
+      const grid = window.__vnoAppInstance.grid;
+      return {
+        model: grid.getCharts().length,
+        dom: document.querySelectorAll(".vno-sheet-chart").length,
+        types: grid.getCharts().map(c => c.type)
+      };
+    });
+
+    const c10InsertPass =
+      countsAfterInsert.model === 3 &&
+      countsAfterInsert.dom === 3 &&
+      countsAfterUndo.model === 2 &&
+      countsAfterUndo.dom === 2 &&
+      countsAfterRedo.model === 3 &&
+      countsAfterRedo.dom === 3 &&
+      countsAfterRedo.types.join(",") === "bar,line,pie";
+
     results["C10_Insert_column_line_and_pie_charts"] = {
-      status: "ĐẠT",
-      evidence: `CDP inserted column, line, and pie charts from A1:B5; Chart count Undo/Redo verified.`
+      status: c10InsertPass ? "ĐẠT" : "CHƯA ĐẠT",
+      evidence: `CDP inserted column, line, and pie charts from A1:B5: model=${countsAfterInsert.model}, DOM=${countsAfterInsert.dom}. Undo reverted to ${countsAfterUndo.model}/${countsAfterUndo.dom}, Redo restored ${countsAfterRedo.model}/${countsAfterRedo.dom}. Types: [${countsAfterRedo.types.join(", ")}].`
     };
-    results["C10_Save_chart_XLSX_and_reopen_in_3T"] = {
-      status: "ĐẠT",
-      evidence: `Saved chart workbook; reopening in 3T retained all three chart SVG types (bar, line, pie) and source data.`
-    };
-    let chartComJson = null;
+
+    const chartFods = await page.evaluate(() => window.__vnoAppInstance.adapter.serializeToFods());
+    const chartTempDir = fs.mkdtempSync(path.join(os.tmpdir(), "vno-chart-audit-"));
+    const chartFodsPath = path.join(chartTempDir, "chart.fods");
+    fs.writeFileSync(chartFodsPath, chartFods, "utf8");
+
+    let chartXlsxPath = null;
+    let chartSaveError = null;
     try {
-      const rawChart = execFileSync("powershell", ["-NoProfile", "-File", "tests/live/sheet-charts-excel-com.ps1", "-FilePath", "C:\\Users\\3TCOMP~1\\AppData\\Local\\Temp\\VNOffice-Sheet-C3-C12-audit-ddccc66d38014b5eb1f3df07760a5de5.xlsx"], {
-        cwd: repoRoot,
-        encoding: "utf8"
-      });
-      chartComJson = JSON.parse(rawChart.trim());
-    } catch {}
+      chartXlsxPath = convertWithSoffice(chartFodsPath, "xlsx", path.join(chartTempDir, "xlsx"), { appKind: "sheet" });
+    } catch (e) {
+      chartSaveError = e.message;
+    }
+
+    let reopenedChartTypes = [];
+    let reopenedDomSvgCount = 0;
+    if (chartXlsxPath) {
+      const roundFodsPath = convertWithSoffice(chartXlsxPath, "fods", path.join(chartTempDir, "round"), { appKind: "sheet" });
+      const roundFods = fs.readFileSync(roundFodsPath, "utf8");
+      await page.evaluate((content) => {
+        window.__vnoAppInstance.adapter.loadFromFods(content);
+      }, roundFods);
+      reopenedChartTypes = await page.evaluate(() => window.__vnoAppInstance.grid.getCharts().map(c => c.type));
+      reopenedDomSvgCount = await page.evaluate(() => document.querySelectorAll(".vno-sheet-chart svg").length);
+    }
+
+    const c10SaveReopenPass =
+      Boolean(chartXlsxPath) &&
+      reopenedChartTypes.join(",") === "bar,line,pie" &&
+      reopenedDomSvgCount === 3;
+
+    results["C10_Save_chart_XLSX_and_reopen_in_3T"] = {
+      status: c10SaveReopenPass ? "ĐẠT" : "CHƯA ĐẠT",
+      evidence: chartSaveError
+        ? `Failed to convert/save chart XLSX: ${chartSaveError}`
+        : `Saved chart workbook; reopening in 3T retained all 3 chart types [${reopenedChartTypes.join(", ")}] and rendered ${reopenedDomSvgCount} SVG elements.`
+    };
+
+    let chartComJson = null;
+    if (chartXlsxPath) {
+      try {
+        const rawChart = execFileSync("powershell", [
+          "-NoProfile",
+          "-File",
+          path.resolve(repoRoot, "tests/live/sheet-charts-excel-com.ps1"),
+          "-FilePath",
+          chartXlsxPath
+        ], {
+          cwd: repoRoot,
+          encoding: "utf8"
+        });
+        chartComJson = JSON.parse(rawChart.trim());
+      } catch (err) {
+        console.error("COM chart error:", err.stdout || err.stderr || err.message);
+      }
+    }
+
     results["C10_Reopen_saved_charts_in_hidden_Excel_COM"] = {
       status: chartComJson?.chartCount === 3 ? "ĐẠT" : "CHƯA ĐẠT",
-      evidence: `Read-only hidden COM PID ${chartComJson?.ownedPid} inspection found 3 ChartObjects: types 51 (column), 4 (line), and 5 (pie); each has series referencing A2:A5 and B2:B5.`
+      evidence: chartComJson?.chartCount === 3
+        ? `Read-only hidden COM PID ${chartComJson.ownedPid} inspection found 3 ChartObjects: types ${chartComJson.charts.map(c => c.type).join(", ")} (51=column, 4=line, 5=pie); each series formula references sheet range.`
+        : `Hidden Excel COM inspection failed or found ${chartComJson?.chartCount ?? 0} charts (expected 3).`
     };
 
     // ==========================================
@@ -810,9 +948,93 @@ async function main() {
       evidence: `Page setup set header/footer; hidden Excel COM read CenterFooter="${pageComJson?.page?.footer}". 3T reopen retained header and footer strings.`
     };
 
+    // 42. Page breaks
+    await resetGrid();
+    await page.evaluate(() => {
+      const grid = window.__vnoAppInstance.grid;
+      for (let r = 1; r <= 10; r++) {
+        grid.setCellValue("A", r, `A${r}`);
+        grid.setCellValue("B", r, `B${r}`);
+        grid.setCellValue("C", r, `C${r}`);
+      }
+      grid.selectCell("B", 4);
+      grid.insertPageBreak();
+    });
+
+    const breaksBefore = await page.evaluate(() => {
+      const b = window.__vnoAppInstance.grid.pageBreaksBySheet[window.__vnoAppInstance.grid.activeSheet];
+      return { rows: [...(b?.rows || [])], cols: [...(b?.cols || [])] };
+    });
+
+    await page.evaluate(() => window.__vnoAppInstance.grid.undo());
+    const breaksUndo = await page.evaluate(() => {
+      const b = window.__vnoAppInstance.grid.pageBreaksBySheet[window.__vnoAppInstance.grid.activeSheet];
+      return { rows: [...(b?.rows || [])], cols: [...(b?.cols || [])] };
+    });
+
+    await page.evaluate(() => window.__vnoAppInstance.grid.redo());
+    const breaksRedo = await page.evaluate(() => {
+      const b = window.__vnoAppInstance.grid.pageBreaksBySheet[window.__vnoAppInstance.grid.activeSheet];
+      return { rows: [...(b?.rows || [])], cols: [...(b?.cols || [])] };
+    });
+
+    const pbFods = await page.evaluate(() => window.__vnoAppInstance.adapter.serializeToFods());
+    const pbTempDir = fs.mkdtempSync(path.join(os.tmpdir(), "vno-pagebreak-audit-"));
+    const pbFodsPath = path.join(pbTempDir, "pagebreak.fods");
+    fs.writeFileSync(pbFodsPath, pbFods, "utf8");
+
+    let pbXlsxPath = null;
+    let pbConvertError = null;
+    try {
+      pbXlsxPath = convertWithSoffice(pbFodsPath, "xlsx", path.join(pbTempDir, "xlsx"), { appKind: "sheet" });
+    } catch (e) {
+      pbConvertError = e.message;
+    }
+
+    let reopenedBreaks = null;
+    if (pbXlsxPath) {
+      const roundPbFods = convertWithSoffice(pbXlsxPath, "fods", path.join(pbTempDir, "round"), { appKind: "sheet" });
+      const fodsContent = fs.readFileSync(roundPbFods, "utf8");
+      await page.evaluate((content) => {
+        window.__vnoAppInstance.adapter.loadFromFods(content);
+      }, fodsContent);
+      reopenedBreaks = await page.evaluate(() => {
+        const b = window.__vnoAppInstance.grid.pageBreaksBySheet[window.__vnoAppInstance.grid.activeSheet];
+        return { rows: [...(b?.rows || [])], cols: [...(b?.cols || [])] };
+      });
+    }
+
+    let pbComJson = null;
+    if (pbXlsxPath) {
+      try {
+        const rawPb = execFileSync("powershell", [
+          "-NoProfile",
+          "-File",
+          path.resolve(repoRoot, "tests/live/sheet-pagebreaks-excel-com.ps1"),
+          "-FilePath",
+          pbXlsxPath
+        ], {
+          cwd: repoRoot,
+          encoding: "utf8"
+        });
+        pbComJson = JSON.parse(rawPb.trim());
+      } catch (err) {
+        console.error("COM pb error:", err.stdout || err.stderr || err.message);
+      }
+    }
+
+    const c11BreaksPass =
+      breaksBefore.rows.includes(4) && breaksBefore.cols.includes("B") &&
+      breaksUndo.rows.length === 0 && breaksUndo.cols.length === 0 &&
+      breaksRedo.rows.includes(4) && breaksRedo.cols.includes("B") &&
+      reopenedBreaks?.rows?.includes(4) && reopenedBreaks?.cols?.includes("B") &&
+      pbComJson?.hManual === 1 && pbComJson?.vManual === 1;
+
     results["C11_Page_breaks"] = {
-      status: "ĐẠT",
-      evidence: `CDP inserted row and column breaks and checked Undo/Redo; reopening in 3T retained breaks; hidden Excel COM found horizontal and vertical breaks.`
+      status: c11BreaksPass ? "ĐẠT" : "CHƯA ĐẠT",
+      evidence: pbConvertError
+        ? `Failed to convert pagebreak workbook: ${pbConvertError}`
+        : `CDP inserted row break (4) and col break (B) with Undo/Redo verified; reopening saved XLSX in 3T preserved row 4 / col B breaks (${JSON.stringify(reopenedBreaks)}); hidden Excel COM PID ${pbComJson?.ownedPid} read manual HPageBreaks=${pbComJson?.hManual} (${pbComJson?.hLoc}) and manual VPageBreaks=${pbComJson?.vManual} (${pbComJson?.vLoc}) [total H=${pbComJson?.hCount}, V=${pbComJson?.vCount}].`
     };
 
     // ==========================================

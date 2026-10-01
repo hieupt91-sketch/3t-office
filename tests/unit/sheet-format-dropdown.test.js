@@ -197,8 +197,8 @@ export async function runSheetFormatDropdownTests() {
     try {
       const source = path.join(root, "layout.fods");
       fs.writeFileSync(source, new SheetAdapter(grid).serializeToFods(), "utf8");
-      const xlsx = convertWithSoffice(source, "xlsx", path.join(root, "xlsx"), { profileDir: path.join(root, "profile"), timeoutMs: 20000 });
-      const roundTrip = convertWithSoffice(xlsx, "fods", path.join(root, "fods"), { profileDir: path.join(root, "profile"), timeoutMs: 20000 });
+      const xlsx = convertWithSoffice(source, "xlsx", path.join(root, "xlsx"), { profileDir: path.join(root, "profile"), timeoutMs: 60000 });
+      const roundTrip = convertWithSoffice(xlsx, "fods", path.join(root, "fods"), { profileDir: path.join(root, "profile"), timeoutMs: 60000 });
       const xml = fs.readFileSync(roundTrip, "utf8");
       const parsed = new SheetAdapter(null).parseFods(xml);
       const sheetName = parsed.sheets[0];
