@@ -4,16 +4,15 @@
 
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { globalShortcutManager } from "../../platform/commands/shortcut-manager.js";
+import { withLazyFeatureProgress } from "../../platform/startup/lazy-feature.js";
 import { t, getLocale } from "../../platform/i18n/i18n.js";
-import { formatDateTime, showDateTimeDialog } from "../../platform/ui-kit/datetime-picker.js";
-import { showSymbolPicker } from "../../platform/ui-kit/symbol-picker.js";
-import { VietnameseSpellChecker, tokenizeVietnamese, normalizeVietnameseWord } from "../../platform/text/vi-spellchecker.js";
-import { SpellcheckDomController } from "../../platform/text/spellcheck-dom-controller.js";
-import { VIETNAMESE_DICTIONARY_WORDS } from "../../platform/text/dictionaries/vi-dictionary.js";
-import { showSlideTableDialog, showHeaderFooterDialog, showWordArtDialog, resolveWordArtStyle, buildWordArtCss, applyWordArtCss } from "./insert-dialogs.js";
-import { generateSlidesChartSvg, normalizeSlidesChart, showSlidesChartDialog } from "./slides-chart.js";
-import { showPromptDialog } from "../../platform/ui-kit/dialogs.js";
+import { formatDateTime } from "../../platform/ui-kit/datetime-format.js";
+import { createLazyDialogs } from "../../platform/ui-kit/lazy-dialogs.js";
+import { resolveWordArtStyle, buildWordArtCss, applyWordArtCss } from "./slides-wordart.js";
+import { normalizeSlidesChart } from "./slides-chart-data.js";
 import { createMatcher } from "../../platform/find/find-engine.js";
+
+const { showPromptDialog } = createLazyDialogs("slides");
 
 export function trapFocus(dialogBox, event) {
   if (!dialogBox || event.key !== "Tab") return;
@@ -202,6 +201,9 @@ export class SlidesCanvasController {
   constructor(container, options = {}) {
     this.container = container;
     this.options = options;
+    this._slideInsertDialogsPromise = null;
+    this._slidesChartModulePromise = null;
+    this._slidesChartTools = null;
     this.slides = Array.isArray(options.initialSlides)
       ? options.initialSlides.map(slide => JSON.parse(JSON.stringify(slide)))
       : options.isBlankTemplate !== false ? [{
@@ -353,6 +355,8 @@ export class SlidesCanvasController {
     this.spellcheckController = null;
     this._onSpellcheckMenuClick = null;
     this._spellcheckOverlay = null;
+    this._spellcheckModulePromise = null;
+    this._spellcheckTools = null;
   }
 
   mount() {
@@ -626,7 +630,6 @@ export class SlidesCanvasController {
     this.applySlideMaster(this.masterTheme);
     this._syncUndoRedoState();
     this._setupCanvasEvents();
-    this._setupVietnameseSpellcheck();
     this._applyViewState();
     this._syncCommandStates();
   }
@@ -640,18 +643,121 @@ export class SlidesCanvasController {
   _refreshSpellcheckRoots() {
     if (!this.spellcheckChecker) return;
     this.spellcheckController?.destroy();
-    this.spellcheckController = new SpellcheckDomController({
+    this.spellcheckController = new this._spellcheckTools.SpellcheckDomController({
       roots: this._spellcheckRoots(),
       checker: this.spellcheckChecker,
       debounceMs: 400
     }).attach();
   }
 
+  initializeSpellcheck() {
+    if (this._spellcheckModulePromise) return this._spellcheckModulePromise;
+    this._spellcheckModulePromise = Promise.all([
+      import("../../platform/text/vi-spellchecker.js"),
+      import("../../platform/text/spellcheck-dom-controller.js"),
+      import("../../platform/text/dictionaries/vi-dictionary.js")
+    ]).then(([spellcheck, domController, dictionary]) => {
+      this._spellcheckTools = {
+        VietnameseSpellChecker: spellcheck.VietnameseSpellChecker,
+        tokenizeVietnamese: spellcheck.tokenizeVietnamese,
+        normalizeVietnameseWord: spellcheck.normalizeVietnameseWord,
+        SpellcheckDomController: domController.SpellcheckDomController,
+        words: dictionary.VIETNAMESE_DICTIONARY_WORDS
+      };
+      this._setupVietnameseSpellcheck();
+      return true;
+    }).catch((error) => {
+      this._spellcheckModulePromise = null;
+      if (this.canvasEl?.dataset) this.canvasEl.dataset.spellcheckStatus = "error";
+      throw error;
+    });
+    if (this.canvasEl?.dataset) this.canvasEl.dataset.spellcheckStatus = "loading";
+    return this._spellcheckModulePromise;
+  }
+
+  _loadSlideInsertDialogs(featureName) {
+    return withLazyFeatureProgress("slides", featureName, () => {
+      if (!this._slideInsertDialogsPromise) {
+        this._slideInsertDialogsPromise = import("./insert-dialogs.js").catch((error) => {
+          this._slideInsertDialogsPromise = null;
+          throw error;
+        });
+      }
+      return this._slideInsertDialogsPromise;
+    });
+  }
+
+  _loadDateTimeDialog() {
+    if (!this._dateTimeDialogPromise) {
+      this._dateTimeDialogPromise = withLazyFeatureProgress(
+        "slides",
+        "Ngày và giờ",
+        () => import("../../platform/ui-kit/datetime-picker.js")
+      ).catch((error) => {
+        this._dateTimeDialogPromise = null;
+        throw error;
+      });
+    }
+    return this._dateTimeDialogPromise;
+  }
+
+  _loadSymbolPicker() {
+    if (!this._symbolPickerPromise) {
+      this._symbolPickerPromise = withLazyFeatureProgress(
+        "slides",
+        "Ký hiệu",
+        () => import("../../platform/ui-kit/symbol-picker.js")
+      ).catch((error) => {
+        this._symbolPickerPromise = null;
+        throw error;
+      });
+    }
+    return this._symbolPickerPromise;
+  }
+
+  _loadSlidesChartTools(showProgress = true) {
+    const load = () => {
+      if (!this._slidesChartModulePromise) {
+        this._slidesChartModulePromise = import("./slides-chart.js").then((module) => {
+          this._slidesChartTools = module;
+          if (this.shapesLayer) this._renderShapesLayer();
+          this._renderThumbnails?.();
+          if (this.slideSorterOverlay) this._renderSlideSorterGrid();
+          if (this.isReadingView) this._renderReadingSlide();
+          return module;
+        }).catch((error) => {
+          this._slidesChartModulePromise = null;
+          this._slidesChartTools = null;
+          throw error;
+        });
+      }
+      return this._slidesChartModulePromise;
+    };
+    return showProgress
+      ? withLazyFeatureProgress("slides", "Biểu đồ", load)
+      : load();
+  }
+
+  initializeOptionalDocumentFeatures() {
+    return this._loadSlidesChartTools(false).then(() => true);
+  }
+
+  _renderChartSvg(shape) {
+    if (this._slidesChartTools?.generateSlidesChartSvg) return this._slidesChartTools.generateSlidesChartSvg(shape);
+    if (!this._slidesChartModulePromise) {
+      void this._loadSlidesChartTools(true).catch((error) => {
+        console.error("3T Slide could not load chart tools.", error);
+      });
+    }
+    const title = this._escapeShapeText(shape?.title || "Biểu đồ dữ liệu");
+    return `<div class="vno-slides-chart-loading" role="status" aria-label="${title}">Đang tải biểu đồ…</div>`;
+  }
+
   _setupVietnameseSpellcheck() {
     if (!this.canvasEl || typeof document === "undefined") return;
     this.canvasEl.dataset.spellcheckStatus = "loading";
     try {
-      this.spellcheckChecker = new VietnameseSpellChecker(VIETNAMESE_DICTIONARY_WORDS);
+      this.spellcheckChecker = new this._spellcheckTools.VietnameseSpellChecker(this._spellcheckTools.words);
       this._refreshSpellcheckRoots();
       this._onSpellcheckMenuClick = event => {
         if (!event.target.closest?.(".vno-spellcheck-menu")) return;
@@ -668,7 +774,8 @@ export class SlidesCanvasController {
 
   _ensureSpellChecker() {
     if (!this.spellcheckChecker) {
-      this.spellcheckChecker = new VietnameseSpellChecker(VIETNAMESE_DICTIONARY_WORDS);
+      if (!this._spellcheckTools) return null;
+      this.spellcheckChecker = new this._spellcheckTools.VietnameseSpellChecker(this._spellcheckTools.words);
     }
     return this.spellcheckChecker;
   }
@@ -698,6 +805,7 @@ export class SlidesCanvasController {
 
   collectSpellcheckIssues(slideIndex = this.currentSlideIndex) {
     const checker = this._ensureSpellChecker();
+    if (!checker) return [];
     const slide = this.slides[slideIndex];
     if (!slide) return [];
     const issues = [];
@@ -1048,7 +1156,7 @@ export class SlidesCanvasController {
   }
 
   replaceAllSpellcheckWord(word, replacement) {
-    const target = normalizeVietnameseWord(word);
+    const target = this._spellcheckTools?.normalizeVietnameseWord?.(word) || "";
     if (!target) return 0;
     const nextReplacement = String(replacement ?? "");
     let count = 0;
@@ -1058,7 +1166,7 @@ export class SlidesCanvasController {
       const key = `${issue.field}:${issue.shapeId || ""}`;
       if (issue.normalized !== target || seen.has(key)) continue;
       seen.add(key);
-      const tokens = tokenizeVietnamese(String(issue.text ?? ""));
+      const tokens = this._spellcheckTools?.tokenizeVietnamese?.(String(issue.text ?? "")) || [];
       let text = String(issue.text ?? "");
       for (let index = tokens.length - 1; index >= 0; index--) {
         const token = tokens[index];
@@ -1080,8 +1188,11 @@ export class SlidesCanvasController {
     this._spellcheckOverlay = null;
   }
 
-  showSpellcheckDialog(options = {}) {
+  async showSpellcheckDialog(options = {}) {
     options = options || {};
+    if (!this._spellcheckTools) {
+      await withLazyFeatureProgress("slides", "Chính tả", () => this.initializeSpellcheck());
+    }
     const issues = this.collectSpellcheckIssues();
     if (typeof document === "undefined" || !document.createElement || !document.body) return issues;
     this._closeSpellcheckDialog();
@@ -2480,6 +2591,7 @@ export class SlidesCanvasController {
     let rows = Number(options.rows);
     let cols = Number(options.cols);
     if (!rows || !cols) {
+      const { showSlideTableDialog } = await this._loadSlideInsertDialogs("Bảng");
       const picked = await showSlideTableDialog({ rows: 3, cols: 3 });
       if (!picked) return false;
       rows = picked.rows;
@@ -2522,7 +2634,7 @@ export class SlidesCanvasController {
   async insertWordArt(options = null) {
     options = options || {};
     const hasExplicit = options.text != null || options.presetId != null || options.styleId != null;
-    const picked = hasExplicit ? options : await showWordArtDialog(options);
+    const picked = hasExplicit ? options : await (await this._loadSlideInsertDialogs("Chữ nghệ thuật")).showWordArtDialog(options);
     if (!picked) return false;
     const slide = this.slides[this.currentSlideIndex];
     if (!slide) return false;
@@ -2558,9 +2670,10 @@ export class SlidesCanvasController {
   }
 
   async insertChart(options = null) {
+    const chartTools = await this._loadSlidesChartTools(true);
     const picked = options && (options.chartType || options.labels || options.data)
       ? normalizeSlidesChart(options)
-      : await showSlidesChartDialog();
+      : await chartTools.showSlidesChartDialog();
     if (!picked) return false;
     const slide = this.slides[this.currentSlideIndex];
     if (!slide) return false;
@@ -2605,7 +2718,7 @@ export class SlidesCanvasController {
   async editChart(shapeId = this.selectedTarget) {
     const shape = this.slides[this.currentSlideIndex]?.shapes?.find((item) => String(item.id) === String(shapeId));
     if (!shape || shape.type !== "chart") return false;
-    const picked = await showSlidesChartDialog({ ...shape });
+    const picked = await (await this._loadSlidesChartTools(true)).showSlidesChartDialog({ ...shape });
     return picked ? this.updateChart(shape.id, picked, true) : false;
   }
 
@@ -2659,7 +2772,7 @@ export class SlidesCanvasController {
     options = options || {};
     const current = this.slides[this.currentSlideIndex]?.headerFooter || this.headerFooter || {};
     const hasExplicit = options.showDate !== undefined || options.showSlideNumber !== undefined || options.showFooter !== undefined;
-    const picked = hasExplicit ? { ...current, ...options } : await showHeaderFooterDialog(current);
+    const picked = hasExplicit ? { ...current, ...options } : await (await this._loadSlideInsertDialogs("Tùy chọn đầu trang và chân trang")).showHeaderFooterDialog(current);
     if (!picked) return false;
     return this.applyHeaderFooter(picked, { applyToAll: picked.applyToAll });
   }
@@ -2668,6 +2781,7 @@ export class SlidesCanvasController {
     options = options || {};
     let format = options.format;
     if (!format) {
+      const { showDateTimeDialog } = await this._loadDateTimeDialog();
       const picked = await showDateTimeDialog({ defaultFormat: this.headerFooter?.dateFormat || "dd/MM/yyyy" });
       if (!picked) return false;
       format = picked.format;
@@ -2690,6 +2804,7 @@ export class SlidesCanvasController {
     options = options || {};
     let ch = options.char || options.symbol;
     if (!ch) {
+      const { showSymbolPicker } = await this._loadSymbolPicker();
       ch = await showSymbolPicker();
       if (!ch) return false;
     }
@@ -3102,7 +3217,7 @@ export class SlidesCanvasController {
     }
     if (shape.type === "video" && shape.src) return `<video src="${shape.src}"${morphAttrs}${animAttrs} controls style="${pos}${animStyle}box-shadow:0 2px 8px rgba(0,0,0,.15)"></video>`;
     if (shape.type === "audio" && shape.src) return `<audio src="${shape.src}"${morphAttrs}${animAttrs} controls style="${pos}${animStyle}"></audio>`;
-    if (shape.type === "chart") return `<div class="vno-show-shape vno-show-chart"${morphAttrs}${animAttrs} style="${pos}${animStyle}background:#fff;overflow:hidden">${generateSlidesChartSvg(shape)}</div>`;
+    if (shape.type === "chart") return `<div class="vno-show-shape vno-show-chart"${morphAttrs}${animAttrs} style="${pos}${animStyle}background:#fff;overflow:hidden">${this._renderChartSvg(shape)}</div>`;
     if (shape.type === "wordart") {
       const textCss = buildWordArtCss(shape);
       const text = `<span class="vno-wordart-text" data-vno-wordart="true" data-vno-wordart-preset="${this._escapeShapeText(shape.presetId || "")}" style="${textCss}">${this._escapeShapeText(shape.text)}</span>`;
@@ -3183,7 +3298,7 @@ export class SlidesCanvasController {
     }
     if (shape.type === "chart") {
       const box = `left:${shape.x / this.slideSize.width * 100}%;top:${shape.y / this.slideSize.height * 100}%;width:${shape.w / this.slideSize.width * 100}%;height:${shape.h / this.slideSize.height * 100}%;background:#fff;overflow:hidden`;
-      return `<div class="vno-sorter-shape-node vno-sorter-chart" data-chart-type="${this._escapeShapeText(shape.chartType)}" style="${box}">${generateSlidesChartSvg(shape)}</div>`;
+      return `<div class="vno-sorter-shape-node vno-sorter-chart" data-chart-type="${this._escapeShapeText(shape.chartType)}" style="${box}">${this._renderChartSvg(shape)}</div>`;
     }
     if (shape.type === "textbox" || shape.type === "text") {
       const bg = (shape.color && shape.color !== "transparent" && shape.color !== "none") ? shape.color : "transparent";
@@ -3313,6 +3428,12 @@ export class SlidesCanvasController {
   /** Mở overlay Xem trước khi in THẬT - dùng chung _renderSlidePrintPage() với print() nên Preview và bản in luôn khớp nhau. */
   openPrintPreview() {
     if (typeof document === "undefined") return null;
+    if (!this._slidesChartTools) {
+      return withLazyFeatureProgress("slides", "Xem trước khi in", async () => {
+        await this._loadSlidesChartTools(false);
+        return this.openPrintPreview();
+      });
+    }
     this.closePrintPreview();
     this._previewPageIndex = 0;
 
@@ -3876,7 +3997,7 @@ export class SlidesCanvasController {
         el.style.backgroundColor = "#ffffff";
         el.style.opacity = "1";
         el.style.overflow = "hidden";
-        el.innerHTML = generateSlidesChartSvg(shape);
+        el.innerHTML = this._renderChartSvg(shape);
         el.tabIndex = 0;
         el.setAttribute?.("aria-label", `Biểu đồ: ${shape.title || "Biểu đồ dữ liệu"}. Nhấn Enter để sửa dữ liệu.`);
         el.addEventListener("dblclick", (event) => { event.stopPropagation(); this.editChart(shape.id); });
@@ -9983,6 +10104,7 @@ export class SlidesCanvasController {
     this.zoomLevel = next;
     this._applyViewState();
     this._syncCommandStates();
+    this.options.onZoomChange?.(this.zoomLevel);
     return this.zoomLevel;
   }
 

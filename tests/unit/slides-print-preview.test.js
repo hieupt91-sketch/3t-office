@@ -215,10 +215,10 @@ export async function runSlidesPrintPreviewTests() {
     let printCalled = 0;
     globalThis.window = { print: () => { printCalled++; } };
 
-    await test("openPrintPreview: overlay thật hiển thị đúng tổng số trang (đã loại trang ẩn) và nội dung thật", () => {
+    await test("openPrintPreview: overlay thật hiển thị đúng tổng số trang (đã loại trang ẩn) và nội dung thật", async () => {
       const canvas = createController();
       fourSlideDeck(canvas);
-      const overlay = canvas.openPrintPreview();
+      const overlay = await canvas.openPrintPreview();
       assert(overlay, "openPrintPreview phải trả về overlay");
       assert(overlay.querySelector(".vno-slides-pp-total").textContent === "3", "Tổng số trang hiển thị sai");
       const pageText = overlay.querySelector(".vno-slides-print-preview-page").textContent;
@@ -227,10 +227,10 @@ export async function runSlidesPrintPreviewTests() {
       assert(fakeDoc.body.querySelector(".vno-slides-print-preview-overlay") === null, "Overlay phải bị gỡ khỏi DOM sau khi đóng");
     });
 
-    await test("openPrintPreview: điều hướng Trang sau bỏ qua đúng trang ẩn, hiển thị trang kế tiếp thật", () => {
+    await test("openPrintPreview: điều hướng Trang sau bỏ qua đúng trang ẩn, hiển thị trang kế tiếp thật", async () => {
       const canvas = createController();
       fourSlideDeck(canvas);
-      const overlay = canvas.openPrintPreview();
+      const overlay = await canvas.openPrintPreview();
       overlay.querySelector(".vno-slides-pp-next").click();
       assert(overlay.querySelector(".vno-slides-pp-current").textContent === "2", "Phải chuyển sang trang 2 (slide 'Nội dung chính', slide ẩn đã bị loại)");
       const pageText = overlay.querySelector(".vno-slides-print-preview-page").textContent;
@@ -239,10 +239,10 @@ export async function runSlidesPrintPreviewTests() {
       canvas.closePrintPreview();
     });
 
-    await test("openPrintPreview: nút In chuyển sang luồng in chung, không gọi trình duyệt", () => {
+    await test("openPrintPreview: nút In chuyển sang luồng in chung, không gọi trình duyệt", async () => {
       const canvas = createController();
       fourSlideDeck(canvas);
-      const overlay = canvas.openPrintPreview();
+      const overlay = await canvas.openPrintPreview();
       printCalled = 0;
       let printActionCalled = 0;
       canvas.print = () => { printActionCalled++; };

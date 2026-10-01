@@ -444,6 +444,14 @@ export function showFindReplaceDialog({
     if (e.key === "Escape") {
       e.preventDefault();
       close();
+    } else if (e.ctrlKey && !e.altKey && (e.key === "h" || e.key === "H")) {
+      e.preventDefault();
+      e.stopPropagation();
+      switchTab("replace");
+    } else if (e.ctrlKey && !e.altKey && (e.key === "f" || e.key === "F")) {
+      e.preventDefault();
+      e.stopPropagation();
+      switchTab("find");
     } else if (e.key === "Enter") {
       e.preventDefault();
       if (e.shiftKey) {

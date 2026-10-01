@@ -6,7 +6,7 @@
 import { globalUnoBridge } from "../common/uno-bridge.js";
 import { showAlertDialog, showFindReplaceDialog } from "../../../platform/ui-kit/dialogs.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
-import { openPrintDialog } from "../../../platform/print/print-dialog.js";
+import { withLazyFeatureProgress } from "../../../platform/startup/lazy-feature.js";
 import { globalShortcutManager } from "../../../platform/commands/shortcut-manager.js";
 import { overlayFodpMasterLogo } from "./pptx-master-logo.js";
 import { overlayFodpSections } from "./pptx-section-list.js";
@@ -3762,14 +3762,15 @@ export class SlidesAdapter {
     const slides = this.canvas?.slides || [];
     const currentSlide = this.canvas?.currentSlideIndex || 0;
     const currentPage = slides.slice(0, currentSlide + 1).filter((slide) => !slide.hidden).length || 1;
-    return openPrintDialog({
+    return withLazyFeatureProgress("slides", "In và xem trước", () => import("../../../platform/print/print-dialog.js"))
+      .then(({ openPrintDialog }) => openPrintDialog({
       appKind: "slides",
       content: this.serializeToFodp(),
       documentName: this.sourceFileName || "Bản trình chiếu",
       pageSetupLabel: `${size.width} × ${size.height} px · ${orientation}`,
       currentPage,
       engine: globalUnoBridge
-    });
+    }));
   }
 
   /**

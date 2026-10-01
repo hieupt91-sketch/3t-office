@@ -7,8 +7,8 @@ import { globalUnoBridge } from "../common/uno-bridge.js";
 import { showPromptDialog, showFindReplaceDialog, showAlertDialog } from "../../../platform/ui-kit/dialogs.js";
 import { createMatcher } from "../../../platform/find/find-engine.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
-import { openPrintDialog } from "../../../platform/print/print-dialog.js";
-import { parseCsv, parseDelimitedText, parseFodsData, replaceMergeFields, showMailMergeDataSourceDialog, showInsertMergeFieldDialog, showFinishMailMergeDialog } from "../../../apps/writer/mail-merge.js";
+import { withLazyFeatureProgress } from "../../../platform/startup/lazy-feature.js";
+import { parseCsv, parseDelimitedText, parseFodsData, replaceMergeFields } from "../../../apps/writer/mail-merge-data.js";
 import {
   ENVELOPE_SIZES,
   LABEL_LAYOUTS,
@@ -26,8 +26,8 @@ import { SHAPE_TYPES, showShapeDialog, renderShapeSvg, showDiagramDialog, genera
 import { DOCUMENT_THEMES, showThemeGalleryDialog } from "../../../apps/writer/theme-gallery.js";
 import { showSymbolPicker } from "../../../platform/ui-kit/symbol-picker.js";
 import { formatDateTime, showDateTimeDialog } from "../../../platform/ui-kit/datetime-picker.js";
-import { showEquationDialog, showBookmarkDialog, showCrossReferenceDialog, slugBookmarkName, showWordArtDialog, buildWriterWordArtHtml, applyWordArtCss, parseWordArtStyleAttr, resolveWordArtStyle, WORDART_PRESETS } from "../../../apps/writer/insert-dialogs.js";
-import { equationMarkerToken, linearToMathML, mathMLToLinear } from "../../../apps/writer/equation-editor.js";
+import { buildWriterWordArtHtml, applyWordArtCss, parseWordArtStyleAttr, resolveWordArtStyle, WORDART_PRESETS } from "../../../apps/writer/writer-wordart.js";
+import { slugBookmarkName } from "../../../apps/writer/bookmark-utils.js";
 import { t } from "../../../platform/i18n/i18n.js";
 import { CITATION_STYLES, authorSortKey, citationMetadataHtml, formatBibliographyEntry, formatInTextCitation, normalizeSource, parseCitationMetadata, showInsertCitationDialog, showSourceManagerDialog } from "../../../apps/writer/citations.js";
 import {
@@ -47,6 +47,51 @@ import {
   tofMarkerHtml
 } from "../../../apps/writer/captions.js";
 import { countBlockParagraphs, countDocumentStats, showWordCountDialog } from "../../../apps/writer/word-count.js";
+
+let writerInsertDialogsPromise;
+let writerMailMergeDialogsPromise;
+let writerEquationEditorPromise;
+
+function loadWriterInsertDialogs(featureName) {
+  return withLazyFeatureProgress("writer", featureName, () => {
+    if (!writerInsertDialogsPromise) {
+      writerInsertDialogsPromise = import("../../../apps/writer/insert-dialogs.js").catch((error) => {
+        writerInsertDialogsPromise = null;
+        throw error;
+      });
+    }
+    return writerInsertDialogsPromise;
+  });
+}
+
+function loadWriterMailMergeDialogs() {
+  return withLazyFeatureProgress("writer", "Trộn thư", () => {
+    if (!writerMailMergeDialogsPromise) {
+      writerMailMergeDialogsPromise = import("../../../apps/writer/mail-merge.js").catch((error) => {
+        writerMailMergeDialogsPromise = null;
+        throw error;
+      });
+    }
+    return writerMailMergeDialogsPromise;
+  });
+}
+
+function loadWriterEquationEditor() {
+  return withLazyFeatureProgress("writer", "Phương trình", () => {
+    if (!writerEquationEditorPromise) {
+      writerEquationEditorPromise = import("../../../apps/writer/equation-editor.js").catch((error) => {
+        writerEquationEditorPromise = null;
+        throw error;
+      });
+    }
+    return writerEquationEditorPromise;
+  });
+}
+
+function writerEquationMarkerToken(id) {
+  const safe = String(id || "").replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+  return "VNOEQ" + safe + "MARKER";
+}
 
 // Kích thước khổ giấy chuẩn (mm, khổ dọc — hoán đổi W/H khi ngang)
 const PAGE_SIZES_MM = {
@@ -375,7 +420,7 @@ export class WriterAdapter {
   _makeEquationHtml({ linear, mathml, id = "", originalOmml = "", display = "inline" }) {
     this._equationSequence += 1;
     const equationId = id || "new-" + this._equationSequence;
-    const normalizedMathml = String(mathml || linearToMathML(linear || ""));
+    const normalizedMathml = String(mathml || "");
     const safeId = this._escapeHtml(equationId);
     const encodedMathml = this._escapeHtml(encodeURIComponent(normalizedMathml));
     const originalAttribute = originalOmml
@@ -443,6 +488,10 @@ export class WriterAdapter {
 
   async _editEquation(equation) {
     if (!equation || equation.isConnected === false) return false;
+    const [{ mathMLToLinear }, { showEquationDialog }] = await Promise.all([
+      loadWriterEquationEditor(),
+      loadWriterInsertDialogs("Phương trình")
+    ]);
     const math = equation.querySelector?.("math");
     const initial = equation.getAttribute?.("data-vno-equation-linear")
       || (math ? mathMLToLinear(math.outerHTML) : "");
@@ -8919,10 +8968,12 @@ export class WriterAdapter {
 
   async insertEquation(options = null) {
     options = options || {};
+    const { linearToMathML, mathMLToLinear } = await loadWriterEquationEditor();
     const target = options.targetEquationEl || this.selectedEquationEl;
     let picked = options;
     if (!options.linear && !options.mathml && !options.expression && !options.text && !target) {
       this._captureEquationSelection();
+      const { showEquationDialog } = await loadWriterInsertDialogs("Phương trình");
       picked = await showEquationDialog({ linear: "x^2" });
       if (!picked) {
         this._equationSelectionRange = null;
@@ -8978,7 +9029,7 @@ export class WriterAdapter {
   async insertWordArt(options = null) {
     options = options || {};
     const hasExplicit = typeof options.text === "string" || options.presetId || options.styleId;
-    const picked = hasExplicit ? options : await showWordArtDialog(options);
+    const picked = hasExplicit ? options : await (await loadWriterInsertDialogs("Chữ nghệ thuật")).showWordArtDialog(options);
     if (!picked) return false;
     const text = String(picked.text || options.text || "3T Office").trim() || "3T Office";
     const presetId = picked.presetId || options.presetId || options.styleId || "navy-outline";
@@ -9140,6 +9191,7 @@ export class WriterAdapter {
     options = options || {};
     let name = options.name;
     if (!name) {
+      const { showBookmarkDialog } = await loadWriterInsertDialogs("Đánh dấu");
       name = await showBookmarkDialog({ name: "bookmark1" });
       if (!name) return false;
     }
@@ -9207,6 +9259,7 @@ export class WriterAdapter {
     let display = options.display || options.text;
     let type = options.type || "bookmark";
     if (!targetId) {
+      const { showCrossReferenceDialog } = await loadWriterInsertDialogs("Tham chiếu chéo");
       const picked = await showCrossReferenceDialog(this.listCrossReferenceTargets());
       if (!picked) return false;
       targetId = picked.targetId;
@@ -12084,7 +12137,7 @@ export class WriterAdapter {
     const equations = Array.from(root.querySelectorAll(".vno-equation[data-vno-equation='true']"));
     for (const equation of equations) {
       const id = equation.getAttribute("data-vno-equation-id") || ("new-" + (++this._equationSequence));
-      const token = equationMarkerToken(id);
+      const token = writerEquationMarkerToken(id);
       const math = equation.querySelector("math");
       let mathml = math?.outerHTML || decodeURIComponent(equation.getAttribute("data-vno-equation-mathml") || "");
       const edited = equation.getAttribute("data-vno-equation-edited") === "true";
@@ -12724,7 +12777,8 @@ export class WriterAdapter {
         }
       }
     } catch { currentPage = 1; }
-    return openPrintDialog({
+    return withLazyFeatureProgress("writer", "In và xem trước", () => import("../../../platform/print/print-dialog.js"))
+      .then(({ openPrintDialog }) => openPrintDialog({
       appKind: "writer",
       content: this._contentForExport(),
       documentName: this.sourceFileName || "Tài liệu",
@@ -12732,7 +12786,7 @@ export class WriterAdapter {
       pageSetupLabel,
       currentPage,
       engine: globalUnoBridge
-    });
+    }));
   }
 
   /**
@@ -16518,6 +16572,7 @@ export class WriterAdapter {
     if (inputData !== undefined) {
       return this.setMailMergeData(inputData, options);
     }
+    const { showMailMergeDataSourceDialog } = await loadWriterMailMergeDialogs();
     return new Promise((resolve) => {
       showMailMergeDataSourceDialog({
         currentCsv: this.mailMergeData?.rawCsv || "",
@@ -16557,13 +16612,16 @@ export class WriterAdapter {
     if (!fieldName) {
       if (this.mailMergeData?.fields?.length > 0) {
         if (typeof document !== "undefined" && typeof document.createElement === "function" && document.body) {
-          showInsertMergeFieldDialog({
-            fields: this.mailMergeData.fields,
-            onInsert: (selected) => {
-              if (selected) {
-                this.insertMergeField({ field: selected });
+          loadWriterMailMergeDialogs().then(({ showInsertMergeFieldDialog }) => {
+            showInsertMergeFieldDialog({
+              fields: this.mailMergeData.fields,
+              onInsert: (selected) => {
+                if (selected) this.insertMergeField({ field: selected });
               }
-            }
+            });
+          }).catch((error) => {
+            console.error("3T Doc could not load the mail-merge dialog.", error);
+            this.shell?.setStatus?.("Không tải được hộp thoại Trộn thư.");
           });
           return null;
         } else {
@@ -16786,12 +16844,15 @@ export class WriterAdapter {
       activeRecords.length > 0 &&
       (this.bodyDom.innerHTML || "").includes("vno-merge-field")
     ) {
-      showFinishMailMergeDialog({
-        totalRecords: activeRecords.length,
-        currentIndex: this.mailMergePreview.recordIndex,
-        onFinish: (dialogOpts) => {
-          this.finishMailMerge(dialogOpts);
-        }
+      loadWriterMailMergeDialogs().then(({ showFinishMailMergeDialog }) => {
+        showFinishMailMergeDialog({
+          totalRecords: activeRecords.length,
+          currentIndex: this.mailMergePreview.recordIndex,
+          onFinish: (dialogOpts) => this.finishMailMerge(dialogOpts)
+        });
+      }).catch((error) => {
+        console.error("3T Doc could not load the mail-merge dialog.", error);
+        this.shell?.setStatus?.("Không tải được hộp thoại Trộn thư.");
       });
       return true;
     }
