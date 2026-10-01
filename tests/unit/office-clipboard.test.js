@@ -592,7 +592,52 @@ export async function runOfficeClipboardTests() {
   });
 
   // =============================================================================
-  // PHẦN 14: MERGED CELLS VỚI HTML THỰC TẾ
+  // PHẦN 14: EXCEL REAL CLIPBOARD FIXTURE (CF_HTML with x:num, class styles)
+  // =============================================================================
+
+  test("parseOfficeHtmlTable - Excel real CF_HTML fixture với x:num, class styles, mso-number-format escaped", async () => {
+    const { readFileSync } = await import("fs");
+    const { parseOfficeHtmlTable } = await import("../../platform/clipboard/office-clipboard.js");
+    
+    const html = readFileSync("./tests/fixtures/clipboard/excel-real-cfhtml.html", "utf-8");
+    const result = parseOfficeHtmlTable(html);
+    
+    assert(result !== null, "Fixture should parse successfully");
+    assertEqual(result.cells.length, 3, "Should have 3 rows");
+    assertEqual(result.cells[0].length, 3, "Should have 3 columns");
+    
+    // Row 1 (header): bold + yellow background from .xl65 class
+    assertEqual(result.cells[0][0].val, "Tên", "A1 header text");
+    assertEqual(result.cells[0][0].style.fontWeight, "bold", "A1 should be bold from .xl65");
+    assertEqual(result.cells[0][0].style.backgroundColor, "yellow", "A1 should have yellow background from .xl65");
+    assertEqual(result.cells[0][1].style.fontWeight, "bold", "B1 should be bold");
+    assertEqual(result.cells[0][1].style.backgroundColor, "yellow", "B1 should have yellow background");
+    assertEqual(result.cells[0][2].style.fontWeight, "bold", "C1 should be bold");
+    assertEqual(result.cells[0][2].style.backgroundColor, "yellow", "C1 should have yellow background");
+    
+    // Row 2: Bút, 1250 (number with #,##0), 46387 (date serial)
+    assertEqual(result.cells[1][0].val, "Bút", "A2 text content");
+    assertEqual(result.cells[1][1].val, 1250, "B2 should be number 1250 from x:num");
+    assertEqual(result.cells[1][1].style.numberFormat.category, "number", "B2 format should be number");
+    assertEqual(result.cells[1][1].style.numberFormat.decimals, 0, "B2 format should have 0 decimals (#,##0)");
+    assertEqual(result.cells[1][1].style.numberFormat.useSeparator, true, "B2 should use thousand separator");
+    assertEqual(result.cells[1][2].val, 46387, "C2 should be date serial 46387 from x:num");
+    assertEqual(result.cells[1][2].style.numberFormat.category, "date", "C2 format should be date");
+    assertEqual(result.cells[1][2].style.numberFormat.formatPattern, "dd/mm/yyyy", "C2 date pattern");
+    
+    // Row 3: Giấy, 0.25 (percentage), 1234.56 (number with #,##0.00)
+    assertEqual(result.cells[2][0].val, "Giấy", "A3 text content");
+    assertEqual(result.cells[2][1].val, 0.25, "B3 should be 0.25 from x:num");
+    assertEqual(result.cells[2][1].style.numberFormat.category, "percentage", "B3 format should be percentage");
+    assertEqual(result.cells[2][1].style.numberFormat.decimals, 0, "B3 percentage 0 decimals");
+    assertEqual(result.cells[2][2].val, 1234.56, "C3 should be 1234.56 from x:num");
+    assertEqual(result.cells[2][2].style.numberFormat.category, "number", "C3 format should be number");
+    assertEqual(result.cells[2][2].style.numberFormat.decimals, 2, "C3 format should have 2 decimals (#,##0.00)");
+    assertEqual(result.cells[2][2].style.numberFormat.useSeparator, true, "C3 should use thousand separator");
+  });
+
+  // =============================================================================
+  // PHẦN 15: MERGED CELLS VỚI HTML THỰC TẾ
   // =============================================================================
 
   test("parseOfficeHtmlTable - merged cells thực tế từ Excel", () => {

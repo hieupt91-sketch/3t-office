@@ -67,9 +67,17 @@ export function parseCssStyleBlocks(html) {
 
   const styleBlocks = html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || [];
   for (const block of styleBlocks) {
-    const rawCss = block
+    let rawCss = block
       .replace(/<\/?style[^>]*>/gi, "")
-      .replace(/<!--[\s\S]*?-->/g, "");
+      .trim();
+
+    // Excel wraps entire CSS in <!-- --> comments for legacy browser compatibility
+    // Strip outer comment wrapper if present
+    if (rawCss.startsWith("<!--") && rawCss.endsWith("-->")) {
+      rawCss = rawCss.slice(4, -3).trim();
+    }
+    // Also remove any remaining inline comments
+    rawCss = rawCss.replace(/<!--[\s\S]*?-->/g, "");
 
     const ruleRegex = /([^{}]+)\{([^{}]+)\}/g;
     let match;
@@ -210,6 +218,17 @@ export function columnNumber(colStr) {
 }
 
 /**
+ * Bỏ escape backslash trong chuỗi format Excel (vd: \#\.\#\#0 -> #.##0).
+ * Excel dùng backslash để escape ký tự đặc biệt trong mso-number-format.
+ * @param {string} fmt
+ * @returns {string}
+ */
+function unescapeExcelFormat(fmt) {
+  if (!fmt) return "";
+  return fmt.replace(/\\(.)/g, "$1");
+}
+
+/**
  * Nhận diện loại định dạng số từ chuỗi mso-number-format hoặc sdnum.
  * @param {string} formatStr
  * @param {string} cellText
@@ -217,19 +236,22 @@ export function columnNumber(colStr) {
  * @returns {{ category: string, decimals?: number, formatPattern?: string, symbol?: string }|null}
  */
 export function detectNumberFormat(formatStr, cellText = "", rawValue = null) {
-  const fmt = (formatStr || "").toLowerCase();
+  let fmt = (formatStr || "").trim();
+  // Bỏ escape backslash (Excel format: \#\.\#\#0 -> #.##0)
+  fmt = unescapeExcelFormat(fmt);
+  const fmtLower = fmt.toLowerCase();
   const text = (cellText || "").trim();
 
   // 1. Dạng văn bản thuần (Text)
-  if (fmt === "\\@" || fmt === "@" || fmt === "text") {
+  if (fmtLower === "@" || fmtLower === "text" || fmt === "\\@") {
     return { category: "text" };
   }
 
   // 2. Dạng phần trăm (Percentage)
-  if (fmt.includes("%") || text.endsWith("%")) {
+  if (fmtLower.includes("%") || text.endsWith("%")) {
     let decimals = 0;
-    if (fmt.includes("0.00%") || fmt.includes("0\\.00%")) decimals = 2;
-    else if (fmt.includes("0.0%") || fmt.includes("0\\.0%")) decimals = 1;
+    if (fmtLower.includes("0.00%") || fmtLower.includes("0.00%")) decimals = 2;
+    else if (fmtLower.includes("0.0%") || fmtLower.includes("0.0%")) decimals = 1;
     else if (/\.\d+/.test(text.replace("%", ""))) {
       const match = text.replace("%", "").trim().match(/\.(\d+)/);
       if (match) decimals = match[1].length;
@@ -239,10 +261,10 @@ export function detectNumberFormat(formatStr, cellText = "", rawValue = null) {
 
   // 3. Dạng ngày tháng (Date)
   if (
-    fmt.includes("yy") ||
-    fmt.includes("dd") ||
-    fmt.includes("short date") ||
-    fmt.includes("long date") ||
+    fmtLower.includes("yy") ||
+    fmtLower.includes("dd") ||
+    fmtLower.includes("short date") ||
+    fmtLower.includes("long date") ||
     /^\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}$/.test(text)
   ) {
     return { category: "date", formatPattern: "dd/mm/yyyy" };
@@ -250,24 +272,60 @@ export function detectNumberFormat(formatStr, cellText = "", rawValue = null) {
 
   // 4. Dạng tiền tệ (Currency / Accounting)
   if (
-    fmt.includes("$") ||
-    fmt.includes("₫") ||
-    fmt.includes("currency") ||
+    fmtLower.includes("$") ||
+    fmtLower.includes("₫") ||
+    fmtLower.includes("currency") ||
     text.includes("₫") ||
     text.includes("$") ||
     text.includes("vnđ") ||
     text.includes("vnd")
   ) {
-    const symbol = text.includes("$") || fmt.includes("$") ? "$" : "₫";
+    const symbol = text.includes("$") || fmtLower.includes("$") ? "$" : "₫";
     return { category: "currency", symbol };
   }
 
   // 5. Dạng số có dấu phân cách hoặc phần thập phân (Number)
-  if (fmt.includes("#,##") || fmt.includes("0.0") || fmt.includes("0\\.0") || fmt.includes("standard")) {
+  // Xử lý các dạng: #,##0 / #.##0 (locale), #,##0.00 / #.##0,00, 0, 0.00, standard
+  const hasHash = fmt.includes("#");
+  const hasZero = fmt.includes("0");
+  const hasThousandSep = /[#,][#,]/.test(fmt) || /#[\.,]#/.test(fmt) || /0[\.,]0/.test(fmt);
+
+  if (hasHash || hasZero || fmtLower.includes("standard") || fmtLower.includes("general")) {
     let decimals = 0;
-    if (fmt.includes(".00") || fmt.includes("\\.00")) decimals = 2;
-    else if (fmt.includes(".0") || fmt.includes("\\.0")) decimals = 1;
-    return { category: "number", decimals, useSeparator: true };
+    // Phân tích vị trí dấu phân cách để phân biệt thousand separator vs decimal separator
+    // Thousand separator: thường là , hoặc . theo sau bởi 3 placeholder (##0, ###, 000...)
+    // Decimal separator: là dấu , hoặc . CUỐI CÙNG trong chuỗi format
+    const separators = [];
+    for (let i = 0; i < fmt.length; i++) {
+      if (fmt[i] === "," || fmt[i] === ".") {
+        separators.push({ pos: i, char: fmt[i] });
+      }
+    }
+    
+    if (separators.length >= 2) {
+      // Có 2+ dấu phân cách: dấu cuối là decimal separator
+      const lastSep = separators[separators.length - 1];
+      const afterSep = fmt.slice(lastSep.pos + 1);
+      const digitPlaceholders = afterSep.match(/[#0]/g);
+      if (digitPlaceholders) decimals = digitPlaceholders.length;
+    } else if (separators.length === 1) {
+      // Chỉ có 1 dấu phân cách: kiểm tra xem có phải thousand separator không
+      const sep = separators[0];
+      const afterSep = fmt.slice(sep.pos + 1);
+      const digitPlaceholders = afterSep.match(/[#0]/g);
+      const placeholderCount = digitPlaceholders ? digitPlaceholders.length : 0;
+      // Nếu sau dấu phân cách có đúng 3 placeholder (##0, ###, 000...) và không có exponent part
+      // thì đây là thousand separator (dạng số nguyên), không phải decimal
+      const isThousandSep = placeholderCount === 3 && /^[#0]{3}$/.test(afterSep);
+      if (!isThousandSep && placeholderCount > 0) {
+        decimals = placeholderCount;
+      }
+      // Nếu là thousand separator -> decimals = 0 (số nguyên)
+    }
+    // Nếu không có dấu phân cách -> decimals = 0
+    
+    const useSeparator = hasThousandSep;
+    return { category: "number", decimals, useSeparator };
   }
 
   return null;
