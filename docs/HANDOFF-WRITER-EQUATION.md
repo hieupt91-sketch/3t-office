@@ -1,71 +1,68 @@
 # Agent Handoff
 
-TASK: `writer.insert.equation` — equation editing and editable DOCX save
+TASK: `writer.insert.equation` — OMML equation editing and DOCX save, integrated with Writer section preservation
 AGENT/ROLE: Codex / Writer implementation
 BRANCH: `feat/writer-equation-codex`
 WORKTREE: `E:\VNOffice-codex-equation`
-OBJECTIVE: Add Word-style equation insertion to 3T Doc with native MathML preview, in-place selection/edit/delete/undo/redo, lossless preservation of untouched source OMML, and editable OMML for new equations, without adding a dependency.
+OBJECTIVE: Merge equation export/preservation with the section-break save logic from `main`, retain both implementations, pass the requested equation, section, Node, Python, and page-count gates, and commit only on this branch.
 
 FINDINGS:
-- Existing DOCX equations are converted by LibreOffice to named `ObjectN` GIFs in the intermediate Writer HTML. Source `word/document.xml` retains `m:oMath` / `m:oMathPara`; no native equation overlay was present in the app open path.
-- A baseline LibreOffice HTML-to-DOCX conversion flattened MathML structures, so the existing DOCX adapter pipeline needed an OMML insertion mapping for new or edited equations.
-- The app now overlays native MathML at the corresponding LibreOffice equation-image slot on open. Unedited equations carry their original OMML through save and are restored unchanged at their text marker's position. Other paragraph runs remain in order.
-- New or edited MathML is mapped to OMML by the existing OOXML adapter postprocess. A generated DOCX test confirms `m:f` and `m:rad` stay in the original paragraph between its surrounding text. A new-document integration test confirms Word COM reports one editable equation.
-- The implementation follows the existing HTML/LibreOffice save pipeline. LibreOffice's Math object is not exposed through the existing insertion abstraction, so the adapter mapping is used where the standard conversion would flatten equations.
+- Current `main` was merged into this branch at `8093bb71` and again at `3eb7a286` after `main` advanced to `69133660`. The equation OMML pipeline and pristine `w:sectPr` preservation/section metadata overlay coexist in `adapters/libreoffice/common/ooxml_zip_patch.py`.
+- Equation tests cover original OMML preservation and new editable OMML. Section tests cover continuous breaks, page orientation, headers, and metadata round trips.
+- The imported DOCX page audit matched the requested Word/canvas/saved Word counts for d03, d23, and d24 using WebView2 remote debugging + CDP and hidden Word COM. The repository `_batch_writer.py` was not used because it checks the WebView through `win.evaluate_js`, outside the required CDP path.
+- The final Node run had three LibreOffice FODS-to-XLSX conversion failures while separate worktrees still had LibreOffice-backed audit jobs active. The isolated retries are pending until those jobs release the shared installation.
 
 IMPLEMENTATION SUMMARY:
-- Added a no-dependency linear-format parser/serializer for fractions, scripts, roots, integrals, sums/products, brackets, 2×2 and 3×3 matrices, Greek letters and common symbols. The editor previews MathML using the WebView2 Chromium renderer.
-- Added an equation dialog in Vietnamese/English with linear entry, structure and symbol controls, preview, keyboard navigation, and `\alpha` + Space replacement.
-- Added `Alt+=`, insertion at the saved cursor selection, block presentation on an otherwise empty paragraph, equation selection/edit/delete, and undo/redo snapshots.
-- Integrated DOCX OMML-to-MathML overlay on open and marker-based preservation/mapping back to OMML on save. Save fails explicitly if LibreOffice drops or changes an equation marker.
-- Added a concrete Vietnamese 3T Doc Help article with ribbon location and usage steps; updated the ribbon backlog.
-- No LibreOffice Core changes or external dependencies.
+- Added the Writer equation editor, MathML rendering and parser, equation selection/edit/delete/undo/redo, and OMML conversion/preservation in the existing OOXML adapter.
+- Kept the section-break save logic from `main` alongside equation marker restoration; no LibreOffice Core patch or dependency was added.
+- Preserved the section pagination/page-count fixes and integrated the newer `main` caret helpers with the styled Writer tab insertion path and undo snapshot.
+- Added Vietnamese in-app usage help for equation insertion and updated the ribbon backlog.
 
 FILES CHANGED:
+- `adapters/libreoffice/common/ooxml_zip_patch.py`
+- `adapters/libreoffice/writer/writer-adapter.js`
 - `apps/writer/equation-editor.js`
 - `apps/writer/insert-dialogs.js`
 - `apps/writer/writer.css`
-- `adapters/libreoffice/writer/writer-adapter.js`
-- `adapters/libreoffice/common/ooxml_zip_patch.py`
+- `docs/HANDOFF-WRITER-EQUATION.md`
+- `docs/RIBBON-BACKLOG.md`
 - `main.py`
 - `platform/commands/command-definitions.js`
 - `platform/help/entries-writer.js`
 - `platform/i18n/strings-en.js`
 - `platform/i18n/strings-vi.js`
-- `docs/RIBBON-BACKLOG.md`
-- `tests/unit/writer-equation-editor.test.js`
-- `tests/unit/writer-help.test.js`
+- `tests/run-tests.js`
 - `tests/test_writer_equation_omml_roundtrip.py`
 - `tests/test_writer_legacy_doc_open.py`
-- `tests/run-tests.js`
-- `docs/HANDOFF-WRITER-EQUATION.md`
+- `tests/unit/basic-editing-keys.test.js`
+- `tests/unit/writer-equation-editor.test.js`
+- `tests/unit/writer-help.test.js`
 
 COMMANDS RUN:
+- `git merge main` (the current `main` tip was merged into this branch)
 - `node tests/run-tests.js`
-- `python -m unittest tests.test_writer_equation_omml_roundtrip -v`
 - `python -m unittest discover -s tests`
-- `python -m unittest tests.test_writer_legacy_doc_open tests.test_g7_save_as_dialog.SaveAsAlternateFormatTests.test_save_as_converts_each_supported_alternate_format -v`
-- `python -m unittest tests.test_writer_save_roundtrip -v`
+- `python -m unittest tests.test_writer_equation_omml_roundtrip -v`
+- `python -m unittest tests.test_writer_sections_roundtrip -v`
 - `git diff --check`
-- `scripts/layout-audit/_batch_writer.py` over `E:\VN OFice\file test\landocx`: BLOCKED. Another worktree's serialized run reported `Word pages: FAIL (timeout - Word blocked by modal error dialog)` on `d10.docx`; further Word/LibreOffice automation then started in other worktrees. Did not start a competing COM session. Re-run when the shared Office automation and Word modal state are clear.
+- CDP-equivalent batch page audit for d03.docx, d23.docx, and d24.docx; Word page counts were read through hidden COM.
 
-BUILD RESULT: NOT RUN — no build-system changes; runtime and test suites were exercised directly.
+BUILD RESULT: NOT RUN — no build-system changes were made.
 
 TEST RESULTS:
-- PASS — `node tests/run-tests.js`: 2,191/2,191 tests.
-- PASS — focused equation Python tests: 3/3, including in-place source OMML round trip and Word COM `OMaths.Count = 1`.
-- PASS — `python -m unittest tests.test_writer_save_roundtrip -v`: 3/3 when run in isolation; initial temp-file lock failures occurred during concurrent LibreOffice activity.
-- PASS — focused legacy DOCX open test after updating its mock for the equation overlay.
-- PASS — `git diff --check` (Git emitted only CRLF conversion warnings).
-- FAIL — `python -m unittest discover -s tests`: 518 tests, one failure, no errors. The remaining failure is `test_g7_save_as_dialog.SaveAsAlternateFormatTests.test_save_as_converts_each_supported_alternate_format`; its PDF mock returns only a path while production unpacks `(out_path, pdf_engine)`. The same mismatch reproduces when that test is run alone. No FODS-to-XLSX failure remained in the final full run.
-- BLOCKED — requested 24-file Writer page-count audit; Word COM was blocked by a modal error dialog in the shared automation environment, with other worktrees continuing to use Office/LibreOffice.
+- PASS — Python discovery: 534 tests in 710.823s, `OK`. This ran before the final JS-only `main` merge; that merge did not change Python sources.
+- PASS — equation Python tests: 3/3.
+- PASS — section round-trip Python tests: 3/3.
+- FAIL — Node suite: 2225/2228. The three failures were LibreOffice conversions for CF/validation FODS, Pivot DataPilot FODS, and FODS sheet row/column layout round trip. Other worktrees had concurrent LibreOffice audit jobs during this run; isolated retries are pending.
+- PASS — requested page counts: d03 `1/1/1`, d23 `1/1/1`, d24 `16/16/16` (Word source / canvas / saved Word).
+- PASS — `git diff --check` (only line-ending conversion warnings).
 
-KNOWN FAILURES: The unrelated PDF Save As test mock mismatch above makes the full Python suite FAIL. No equation-specific failures were reported by the focused or full runs.
+KNOWN FAILURES: The full Node suite is currently FAIL because of the three FODS-to-XLSX conversion failures listed above. Run those round trips sequentially after the concurrent LibreOffice jobs finish, and record the retry result without replacing the full-suite result.
 
-RISKS: Equation editing supports the structures represented by the editor's documented linear syntax and the corresponding MathML/OMML mapping. LibreOffice must preserve the export marker run; the adapter raises a save error if it does not, rather than silently moving or dropping equation content.
+RISKS: FODS-to-XLSX tests may be sensitive to concurrent LibreOffice jobs. The page-count audit covered the three requested documents and used CDP/hidden COM; the full 24-document audit was not run.
 
-DEPENDENCIES/BLOCKERS: No new software dependencies. The external layout audit remains outstanding until shared Word COM is usable and the concurrent Office/LibreOffice jobs finish.
+DEPENDENCIES/BLOCKERS: Isolated FODS retries await the other active LibreOffice-backed audits. No new software dependency.
 
-CORE PATCH ID (if any): None — no Core/upstream patch.
+CORE PATCH ID (if any): None.
 
-NEXT ACTION: When shared Office automation is available, rerun the sequential layout audit on `E:\VN OFice\file test\landocx` and update this handoff. Commit the implementation on `feat/writer-equation-codex`; do not merge.
+NEXT ACTION: Retry the three failing FODS conversions sequentially after the shared LibreOffice jobs finish; update this handoff with both the full Node result and isolated retry results. Keep all commits on `feat/writer-equation-codex`; do not merge into `main`.
