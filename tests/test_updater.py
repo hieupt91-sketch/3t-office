@@ -9,6 +9,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
@@ -23,7 +25,7 @@ from adapters.updater.crypto import (
 )
 from adapters.updater.manifest import ManifestError, compare_versions, validate_manifest
 from adapters.updater.source import UpdateSourceError, download_blob, is_unc_path
-from adapters.updater.updater import UpdateRefused, UpdaterManager, queue_rollback_report
+from adapters.updater.updater import UpdateRefused, UpdaterManager, queue_rollback_report, write_health_marker
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TOOL_PATH = REPO_ROOT / "scripts" / "release" / "make-update.py"
@@ -80,10 +82,11 @@ def create_fake_package(base: Path, version: str, payload: bytes, *, broken_star
         (helper.parent / "trust.py").write_bytes(release_tool._public_module(key))
     (app / "main.py").write_text(f'APP_VERSION = "{version}"\n', encoding="utf-8")
     (app / "fake_start.py").write_text(
-        "import os, pathlib, sys\n"
+        "import json, os, pathlib, sys\n"
         "app = pathlib.Path(__file__).parent\n"
         "version = (app.parent / 'VERSION.txt').read_text(encoding='ascii').strip()\n"
         "with pathlib.Path(sys.argv[1]).open('a', encoding='utf-8') as stream: stream.write(version + '\\n')\n"
+        "pathlib.Path(sys.argv[1] + '.args').write_text(json.dumps(sys.argv[2:], ensure_ascii=False), encoding='utf-8')\n"
         "if (app / 'fail-start.txt').exists(): raise SystemExit(7)\n"
         "health = os.environ.get('VNO_UPDATE_HEALTH_FILE')\n"
         "if health:\n"
@@ -259,6 +262,73 @@ class UpdaterTests(unittest.TestCase):
             manager._background_check()
             self.assertEqual(manager.get_state()["status"], "unavailable")
 
+    def test_update_check_starts_in_background_without_waiting_for_interval(self):
+        with tempfile.TemporaryDirectory() as temp:
+            manager = self._manager(Path(temp) / "install", Path(temp) / "updates", Path(temp) / "source")
+            entered = threading.Event()
+            try:
+                with mock.patch.object(manager, "check_and_stage", side_effect=lambda: entered.set()):
+                    self.assertTrue(manager.start(interval_seconds=60))
+                    self.assertTrue(entered.wait(2), "the first check should be scheduled as soon as the window is ready")
+            finally:
+                manager.stop()
+                if manager._periodic_thread:
+                    manager._periodic_thread.join(timeout=2)
+
+    def test_health_marker_is_written_only_for_a_valid_token(self):
+        with tempfile.TemporaryDirectory() as temp:
+            updates = Path(temp) / "updates"
+            self.assertFalse(write_health_marker(updates, "bad-token"))
+            token = "a" * 32
+            self.assertTrue(write_health_marker(updates, token))
+            self.assertEqual((updates / f"health-{token}.ok").read_bytes(), b"ok\n")
+
+    def test_helper_launch_attempt_is_recorded_before_detaching(self):
+        if os.name != "nt":
+            self.skipTest("PowerShell apply helper is Windows-only")
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            updates = root / "Local AppData" / "VNOffice" / "updates"
+            stage = updates / "0.9.6"
+            stage.mkdir(parents=True)
+            (stage / "apply-helper.ps1").write_text("# test helper\n", encoding="utf-8")
+            manager = self._manager(root / "install", updates, root / "source")
+            with mock.patch("adapters.updater.updater.subprocess.Popen") as popen:
+                popen.return_value.pid = 321
+                self.assertTrue(manager.launch_apply_helper(stage / "apply-task.json"))
+            log = (updates / "update-log.txt").read_text(encoding="utf-8")
+            self.assertIn("STEP helper-launch-request", log)
+            self.assertIn("STEP helper-launch-start", log)
+            self.assertIn("STEP helper-process-started pid=321", log)
+
+    def test_detached_helper_process_runs_from_a_path_with_spaces(self):
+        if os.name != "nt":
+            self.skipTest("Detached PowerShell launch is Windows-only")
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / "VN Office launcher probe"
+            local_app_data = root / "Local AppData"
+            updates = local_app_data / "VNOffice" / "updates"
+            stage = updates / "0.9.6"
+            stage.mkdir(parents=True)
+            marker = updates / "helper-started.txt"
+            task_path = stage / "apply-task.json"
+            task_path.write_text("{}", encoding="utf-8")
+            helper = stage / "apply-helper.ps1"
+            helper.write_text(
+                "param([string]$Task)\n"
+                "$marker = Join-Path (Join-Path $env:LOCALAPPDATA 'VNOffice\\updates') 'helper-started.txt'\n"
+                "[System.IO.File]::WriteAllText($marker, $Task, (New-Object System.Text.UTF8Encoding($false)))\n",
+                encoding="utf-8-sig",
+            )
+            manager = self._manager(root / "install", updates, root / "source")
+            with mock.patch.dict(os.environ, {"LOCALAPPDATA": str(local_app_data)}):
+                self.assertTrue(manager.launch_apply_helper(task_path))
+                deadline = time.monotonic() + 10
+                while time.monotonic() < deadline and not marker.exists():
+                    time.sleep(0.05)
+            self.assertTrue(marker.is_file(), "detached PowerShell did not execute the staged script")
+            self.assertEqual(marker.read_text(encoding="utf-8"), str(task_path.resolve()))
+
     def test_power_shell_helper_applies_relaunches_and_rolls_back_failed_health(self):
         if os.name != "nt":
             self.skipTest("PowerShell apply helper is Windows-only")
@@ -266,60 +336,129 @@ class UpdaterTests(unittest.TestCase):
         if not powershell:
             self.skipTest("Windows PowerShell 5.1 is unavailable")
         with tempfile.TemporaryDirectory() as temp:
-            root = Path(temp)
+            root = Path(temp) / "VN Office scratch root"
+            root.mkdir()
             source, package_dir = root / "source", root / "packages"
             source.mkdir(); package_dir.mkdir()
-            package_090 = create_fake_package(package_dir, "0.9.0", b"old payload", key=self.key)
-            install = root / "VNOffice" / "app-install"
+            package_090 = create_fake_package(package_dir, "0.9.5", b"old payload", key=self.key)
+            install = root / "Local AppData" / "VNOffice" / "app-install"
             install.parent.mkdir(parents=True)
             shutil.copytree(package_090, install)
             (install / "app" / "vnoffice-config.json").write_text('{"update":{"source":"\\\\server\\share"}}', encoding="utf-8")
-            updates = root / "user-data" / "updates"
+            updates = root / "Local AppData" / "VNOffice" / "updates"
             launch_log = root / "launches.txt"
+            document_path = root / "Tài liệu kiểm tra.docx"
+            document_path.write_bytes(b"scratch document fixture")
+            worker_script = install / "app" / "adapters" / "libreoffice" / "common" / "soffice_uno_worker.py"
+            worker_script.parent.mkdir(parents=True, exist_ok=True)
+            worker_script.write_text("import time\ntime.sleep(60)\n", encoding="utf-8")
+
+            def stop_worker(worker):
+                if worker is None:
+                    return
+                if worker.poll() is None:
+                    worker.terminate()
+                try:
+                    worker.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    worker.kill()
+                    worker.wait(timeout=5)
 
             def run_helper(manager: UpdaterManager, app_version: str, expected_code: int):
-                task_path = manager.create_apply_task(app_kind="writer", install_root=install)
+                task_path = manager.create_apply_task(
+                    app_kind="writer", install_root=install, restore_documents=[str(document_path)]
+                )
                 task = json.loads(task_path.read_text(encoding="utf-8"))
                 task["launch_executable"] = sys.executable
                 task["launch_prefix_args"] = ["-u", str(install / "app" / "fake_start.py")]
                 task["launch_args"] = [str(launch_log)]
                 task["health_timeout_seconds"] = 15
+                task["process_wait_seconds"] = 1
+                task["soffice_exit_wait_seconds"] = 2
                 task_path.write_text(json.dumps(task), encoding="utf-8")
-                result = subprocess.run(
-                    [powershell, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", str(task_path.parent / "apply-helper.ps1"), "-Task", str(task_path)],
-                    cwd=str(root), capture_output=True, text=True, timeout=45,
-                )
+                with mock.patch.dict(os.environ, {"LOCALAPPDATA": str(root / "Local AppData")}):
+                    self.assertTrue(manager.launch_apply_helper(task_path))
+                    deadline = time.monotonic() + 45
+                    while time.monotonic() < deadline:
+                        log = (updates / "update-log.txt").read_text(encoding="utf-8") if (updates / "update-log.txt").exists() else ""
+                        completed = "STEP helper-exit code=0" in log if expected_code == 0 else "STEP helper-exit code=2" in log
+                        failed = (updates / "apply-error.txt").exists()
+                        expected_launches = 1 if expected_code == 0 else 3
+                        launch_count = len(launch_log.read_text(encoding="utf-8").splitlines()) if launch_log.exists() else 0
+                        if completed and launch_count >= expected_launches or failed:
+                            break
+                        time.sleep(0.1)
                 error_log = updates / "apply-error.txt"
                 helper_error = error_log.read_text(encoding="utf-8") if error_log.exists() else ""
-                self.assertEqual(result.returncode, expected_code, result.stdout + result.stderr + helper_error)
+                update_log = (updates / "update-log.txt").read_text(encoding="utf-8") if (updates / "update-log.txt").exists() else ""
+                expected_marker = "STEP helper-exit code=0" if expected_code == 0 else "STEP helper-exit code=2"
+                self.assertIn(expected_marker, update_log, helper_error or update_log)
                 self.assertEqual((install / "VERSION.txt").read_text(encoding="ascii").strip(), app_version)
+                return task_path
 
-            package_091 = self._publish_package(source, package_dir, "0.9.1", b"new payload")
-            manager_091 = self._manager(install, updates, source)
+            package_091 = create_fake_package(package_dir, "0.9.6", b"new payload", key=self.key)
+            patch_helper = package_091 / "app" / "adapters" / "updater" / "apply-helper.ps1"
+            with patch_helper.open("a", encoding="utf-8") as stream:
+                stream.write("\n# helper delivered inside the signed patch\n")
+            write_source(source, package_091, "0.9.6", self.key)
+            manager_091 = self._manager(install, updates, source, version="0.9.5")
             state = manager_091.check_and_stage()
             self.assertTrue(state["ready"])
-            run_helper(manager_091, "0.9.1", 0)
+            profile = (root / "Local AppData" / "VNOffice" / "lo-profile-writer").resolve().as_uri()
+            unrelated_profile = (root / "Local AppData" / "VNOffice" / "lo-profile-unrelated").resolve().as_uri()
+            owned_worker = subprocess.Popen([sys.executable, str(worker_script), profile], cwd=root)
+            unrelated_worker = subprocess.Popen([sys.executable, str(worker_script), unrelated_profile], cwd=root)
+            try:
+                success_task = run_helper(manager_091, "0.9.6", 0)
+                self.assertIsNotNone(
+                    owned_worker.poll(),
+                    (updates / "update-log.txt").read_text(encoding="utf-8") if (updates / "update-log.txt").exists() else "",
+                )
+                self.assertIsNone(unrelated_worker.poll(), "the update helper must leave another profile's LibreOffice worker alone")
+            finally:
+                stop_worker(owned_worker)
+                stop_worker(unrelated_worker)
+            self.assertEqual(
+                (success_task.parent / "apply-helper.ps1").read_bytes(),
+                patch_helper.read_bytes(),
+                "the helper from the signed patch must be the one the old app stages",
+            )
             self.assertEqual((install / "app" / "vnoffice-config.json").read_text(encoding="utf-8"), '{"update":{"source":"\\\\server\\share"}}')
-            self.assertEqual(launch_log.read_text(encoding="utf-8").splitlines(), ["0.9.1"])
+            self.assertEqual(launch_log.read_text(encoding="utf-8").splitlines(), ["0.9.6"])
             self.assertEqual(Path(str(launch_log) + ".health").read_text(encoding="ascii"), "OK")
+            restored_args = json.loads(Path(str(launch_log) + ".args").read_text(encoding="utf-8"))
+            self.assertEqual(restored_args[0], f"--restore-document={document_path}")
+            self.assertTrue(restored_args[1].startswith("--update-health-token=") and len(restored_args[1].split("=", 1)[1]) == 32)
             self.assertTrue((install / "app" / "payload.bin").read_bytes() == b"new payload")
-            print("END-TO-END 0.9.1 apply=OK health_marker=OK relaunch=OK")
+            self.assertIn('APP_VERSION = "0.9.6"', (install / "app" / "main.py").read_text(encoding="utf-8"))
+            self.assertTrue((updates / "update-log.txt").is_file())
+            update_log = (updates / "update-log.txt").read_text(encoding="utf-8")
+            self.assertIn("STEP old-app-exited", update_log)
+            self.assertIn("STEP health-check-passed version=0.9.6", update_log)
+            self.assertIn("STEP task-created", update_log)
+            self.assertIn("STEP helper-started", update_log)
+            self.assertIn("STEP helper-exit code=0", update_log)
+            self.assertIn("helper-source=signed-patch", update_log)
+            self.assertIn("role=soffice-worker", update_log)
+            print("END-TO-END 0.9.5 -> 0.9.6 apply=OK health_marker=OK relaunch=OK path-with-spaces=OK")
 
-            self._publish_package(source, package_dir, "0.9.2", b"broken payload", broken_start=True)
-            manager_092 = self._manager(install, updates, source, version="0.9.1")
+            self._publish_package(source, package_dir, "0.9.7", b"broken payload", broken_start=True)
+            manager_092 = self._manager(install, updates, source, version="0.9.6")
             state = manager_092.check_and_stage()
             self.assertTrue(state["ready"])
-            run_helper(manager_092, "0.9.1", 2)
+            run_helper(manager_092, "0.9.6", 2)
             self.assertFalse((install / "app" / "fail-start.txt").exists())
             self.assertEqual((install / "app" / "payload.bin").read_bytes(), b"new payload")
-            self.assertEqual(launch_log.read_text(encoding="utf-8").splitlines(), ["0.9.1", "0.9.2", "0.9.1"])
+            self.assertEqual(launch_log.read_text(encoding="utf-8").splitlines(), ["0.9.6", "0.9.7", "0.9.6"])
             self.assertTrue((updates / "rollback-report.json").is_file())
-            print("END-TO-END 0.9.2 crash=detected rollback=OK relaunch_old=OK")
+            self.assertTrue((updates / "update-failure.json").is_file())
+            self.assertIn("STEP rollback-complete restored-version=0.9.6", (updates / "update-log.txt").read_text(encoding="utf-8"))
+            print("END-TO-END 0.9.7 health-failure=detected rollback=OK relaunch_old=OK")
 
             # Tampering a signed manifest is rejected before any content-addressed blob is read.
-            manifest_path = source / "0.9.2" / "manifest.json"
+            manifest_path = source / "0.9.7" / "manifest.json"
             manifest_path.write_bytes(manifest_path.read_bytes() + b" ")
-            tampered_manager = self._manager(install, updates, source, version="0.9.1")
+            tampered_manager = self._manager(install, updates, source, version="0.9.6")
             with mock.patch("adapters.updater.updater.download_blob") as download:
                 with self.assertRaises(UpdateRefused):
                     tampered_manager.check_and_stage()
