@@ -34,7 +34,10 @@ export class NumberFormatter {
     }
 
     if (!formatConfig || !formatConfig.category || formatConfig.category === "general") {
-      return { text: this.formatGeneralNumber(rawVal) };
+      return {
+        text: this.formatGeneralNumber(rawVal),
+        align: typeof rawVal === "number" ? "right" : undefined
+      };
     }
 
     const { category } = formatConfig;
@@ -370,7 +373,10 @@ export class NumberFormatter {
   static formatCustom(val, config = {}) {
     const pattern = config.customPattern || "General";
     if (pattern === "General") {
-      return { text: this.formatGeneralNumber(val) };
+      return {
+        text: this.formatGeneralNumber(val),
+        align: typeof val === "number" ? "right" : undefined
+      };
     }
 
     const num = this.parseNumber(val);

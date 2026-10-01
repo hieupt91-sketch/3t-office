@@ -197,6 +197,10 @@ export async function runSheetFormatCellsTests() {
         assert(currency.numberFormat.category === "currency" && currency.numberFormat.currencySymbol === "₫", `${currencyText} phải có định dạng tiền VND`);
       }
     }
+    assert(NumberFormatter.inferUserInput("-1234.56", null, us).value === -1234.56, "Số âm phải là number: -1234.56");
+    assert(NumberFormatter.inferUserInput("1234", null, us).value === 1234, "Số nguyên phải là number: 1234");
+    assert(NumberFormatter.inferUserInput("0.5", null, us).value === 0.5, "Số thập phân 0.5 phải là number: 0.5");
+    assert(NumberFormatter.formatValue(1234.56).align === "right", "formatValue General cho số phải trả align right");
     assert(NumberFormatter.inferUserInput("0123", null, us).value === 123, "Số 0 đầu vào General phải thành số 123");
     assert(NumberFormatter.inferUserInput("0123", { category: "text" }, us).value === "0123", "Định dạng Text phải giữ số 0 đầu");
     const forcedText = NumberFormatter.inferUserInput("'1234.56", null, us);

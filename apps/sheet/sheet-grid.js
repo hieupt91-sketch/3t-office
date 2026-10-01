@@ -11623,13 +11623,14 @@ export class SheetGridController {
       const formatted = NumberFormatter.formatValue(itm.val, itm.style.numberFormat);
       if (formatted.isAccounting) {
         td.innerHTML = `<span class="vno-cell-accounting-symbol" style="float:left;user-select:none;color:inherit;">${formatted.symbol || ""}</span><span class="vno-cell-accounting-num" style="float:right;color:inherit;">${formatted.numberText}</span>`;
-        td.style.textAlign = "right";
+        td.style.textAlign = itm.style?.textAlign || "right";
       } else {
         td.textContent = formatted.text;
         if (formatted.isRed) td.style.color = "#dc2626";
         else if (itm.style?.color) td.style.color = itm.style.color;
-        if (formatted.align) td.style.textAlign = formatted.align;
-        else if (itm.style?.textAlign) td.style.textAlign = itm.style.textAlign;
+        if (itm.style?.textAlign) td.style.textAlign = itm.style.textAlign;
+        else if (formatted.align) td.style.textAlign = formatted.align;
+        else if (typeof itm.val === "number") td.style.textAlign = "right";
       }
     } else {
       let text = typeof itm.val === "number" ? NumberFormatter.formatGeneralNumber(itm.val) : (itm.val ?? "");
@@ -11637,6 +11638,11 @@ export class SheetGridController {
       // (Excel không hiện Alt+Enter khi Wrap Text tắt).
       if (!isWrap && typeof text === "string" && text.includes("\n")) text = text.replace(/\r?\n/g, "");
       td.textContent = text;
+      if (itm.style?.textAlign) {
+        td.style.textAlign = itm.style.textAlign;
+      } else if (typeof itm.val === "number") {
+        td.style.textAlign = "right";
+      }
     }
 
     if (col && row && typeof this._applyRowColSizeToCell === "function") {
