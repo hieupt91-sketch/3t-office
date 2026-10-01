@@ -304,10 +304,10 @@ Heap giảm khoảng 23.5%; process-tree working set giảm khoảng 1.9%. Thờ
 
 **KNOWN FAILURES:** Mục tiêu tốc độ owner **FAIL**: VN vẫn vượt ngưỡng 1.5x Word/Excel ở các so sánh; lan14 mất 21.6–22.5 s warm tới viewport và 161–175 s tới khi `adapter.open()` xong. Hai lượt cold lan14 có nhiễu vì một worktree khác chạy desktop/Word cùng lúc. WPS **NOT RUN** (không tìm thấy WPS trong các đường dẫn cài đặt đã kiểm tra). d10 DOCX corrupt; d13–d23 không có trong thư mục fixture của worktree này nên Writer audit chạy trên 12 tài liệu hợp lệ còn lại. Lint cảnh báo row references/SST trên một số XLSX dù các lượt TONG và Excel worksheet check đều đạt.
 
-**RISKS:** Giảm peak heap chưa làm thời gian mở đạt mục tiêu. Preview giữ một số lệnh bị khóa cho đến khi model nạp xong. Hiện `SHEET_OPEN_PAYLOAD` vẫn mặc định OFF; điều kiện audit 26/26 đã đạt, có thể bật mặc định trong commit riêng, nhưng không được diễn giải thành PASS về tốc độ.
+**RISKS:** Giảm peak heap chưa làm thời gian mở đạt mục tiêu. Preview giữ một số lệnh bị khóa cho đến khi model nạp xong. `SHEET_OPEN_PAYLOAD` được bật mặc định trong commit riêng sau khi audit 26/26 đạt; có thể tắt bằng `SHEET_OPEN_PAYLOAD=0`. Việc bật mặc định không đồng nghĩa PASS về tốc độ.
 
 **DEPENDENCIES/BLOCKERS:** Không có blocker cho merge, round-trip hay các audit đã chạy. Cần tiếp tục tối ưu thời gian conversion/hydration để đạt owner target.
 
 **CORE PATCH ID (if any):** None.
 
-**NEXT ACTION:** Commit sửa memory, regression tests và handoff trên branch này; sau đó đề xuất/bật `SHEET_OPEN_PAYLOAD` mặc định ON bằng một commit riêng có bằng chứng 26/26, rồi chạy lại gate kiểm tra flag. Tiếp tục tối ưu latency lan14; không merge vào main.
+**NEXT ACTION:** Tiếp tục tối ưu latency conversion/hydration, nhất là lan14; không merge vào main.

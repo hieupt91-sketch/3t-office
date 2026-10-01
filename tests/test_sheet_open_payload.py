@@ -40,10 +40,12 @@ class SheetOpenPayloadTests(unittest.TestCase):
         self.assertNotIn("other-sheet", preview["rowsDeflateBase64"])
         self.assertNotIn("visible-cell", preview["supportXml"])
 
-    def test_payload_flag_is_off_unless_explicitly_enabled(self):
+    def test_payload_flag_is_on_by_default_and_can_be_disabled(self):
         with patch.dict(os.environ, {}, clear=True):
-            self.assertFalse(main._sheet_open_payload_enabled())
-        for value in ("", "0", "false", "off"):
+            self.assertTrue(main._sheet_open_payload_enabled())
+        with patch.dict(os.environ, {"SHEET_OPEN_PAYLOAD": ""}, clear=True):
+            self.assertTrue(main._sheet_open_payload_enabled())
+        for value in ("0", "false", "no", "off"):
             with patch.dict(os.environ, {"SHEET_OPEN_PAYLOAD": value}, clear=True):
                 self.assertFalse(main._sheet_open_payload_enabled(), value)
         for value in ("1", "true", "yes", "on"):
