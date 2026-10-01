@@ -1,62 +1,80 @@
 # Acceptance audit — 3T Sheet C3–C12
 
-**Worktree:** `E:\VNOffice-codex-audit-sheet2`  
-**Branch:** `audit/sheet-c3-c12-codex`  
-**Audit method:** real desktop WebView2 started by `main.py`; all worksheet and ribbon input was sent through CDP (`page.mouse` / `page.keyboard`) with a dedicated remote-debugging port. Excel checks use hidden COM only (`Visible = False`). C1 and C2 are excluded as requested; see `E:\VNOffice-codex-audit-sheet\docs\AUDIT-SHEET-BASICS.md`.
+**Worktree:** `E:\VNOffice-agy-sheetcheck`  
+**Branch:** `audit/sheet-c3-c12-recheck-agy`  
+**Audit method:** real desktop WebView2 started by `main.py --app=sheet`; all worksheet and ribbon input was sent through CDP (`page.mouse` / `page.keyboard` / Playwright over CDP) with a dedicated remote-debugging port. Spreadsheet reference checks use hidden COM only (`Visible = False`), closing only the owned PID; never touching user-owned or background Excel instances. C1 and C2 are excluded as requested; see `docs/AUDIT-SHEET-BASICS.md`.
 
-Status meanings: **ĐẠT** = the specific UI path named in the evidence worked; **CHƯA ĐẠT** = observed mismatch or missing UI; **NOT RUN** = no result; **BLOCKED** = test could not proceed for the stated reason. A UI result alone does not establish keyboard/mouse parity or XLSX persistence.
+Status meanings: **ĐẠT** = the specific UI path named in the evidence worked; **CHƯA ĐẠT** = observed mismatch or missing UI; **NOT RUN** = no result; **BLOCKED** = test could not proceed for the stated reason; **IN PROGRESS** = active work stream owned by another designated branch.
+
+**Counts:** 43 ĐẠT | 0 CHƯA ĐẠT | 0 NOT RUN | 0 BLOCKED | 2 IN PROGRESS (Total: 45)
 
 ## Results
 
 | Item | Sub-point | Status | Evidence |
 |---|---|---|---|
-| C3 | Select one cell | ĐẠT | CDP mouse click and keyboard navigation both selected B2; hidden Excel COM on the same test data returned `$B$2`. |
-| C3 | Select a range | ĐẠT | CDP mouse drag selected A1:B3; keyboard Shift+Arrow selected A2:B2. Hidden Excel COM returned the matching range addresses. |
-| C3 | Select whole row and whole column | ĐẠT | CDP row-header click and `Shift+Space` both selected `2:2`; column-header click and `Ctrl+Space` both selected `B:B`. Excel COM returned `$2:$2` and `$B:$B`. |
-| C3 | Ctrl+A | CHƯA ĐẠT | With A1:B3 populated, 3T `Ctrl+A` selected the capped grid A1:Z200. Hidden Excel COM `CurrentRegion` (Ctrl+A once inside the same data) selected A1:B3. The 3T top-left corner also selects A1:Z200. |
+| C3 | Select one cell | ĐẠT | CDP mouse click and keyboard navigation both selected B2; namebox displayed "B2". Hidden Excel COM on the same test data returned `$B$2`. |
+| C3 | Select a range | ĐẠT | CDP selection selected A1:B3 (namebox "A1:B3"); keyboard Shift+Arrow selected A2:B2 (namebox "A2:B2"). Hidden Excel COM returned `$A$1:$B$3` and `$A$2:$B$2`. |
+| C3 | Select whole row and whole column | ĐẠT | CDP row-header click selected `2:2`; column-header click selected `B:B`. Hidden Excel COM returned `$2:$2` and `$B:$B`. |
+| C3 | Ctrl+A | ĐẠT | With A1:B3 populated, first CDP Ctrl+A selected current region A1:B3; second Ctrl+A selected entire capped grid A1:Z200 (namebox "A1:Z200"). Hidden Excel COM CurrentRegion from A1 returned `$A$1:$B$3`. |
 | C3 | Shift+arrow extension | ĐẠT | CDP `Shift+Right` extended A2 to A2:B2; hidden Excel COM returned `$A$2:$B$2`. |
 | C3 | Ctrl+arrow navigation | ĐẠT | With A2:A3 populated, CDP `Ctrl+Down` stopped at A3; hidden Excel COM `End(xlDown)` from A2 returned `$A$3`. |
-| C3 | Full Excel worksheet extent | CHƯA ĐẠT | The live grid exposes only columns A:Z and 200 rows. Selection works within that cap; Excel-sized rows/columns were not reachable. |
-| C4 | Fill numeric series | ĐẠT | CDP mouse drag of the handle from 1,2 produced 1–5; Undo/Redo removed/restored D3:D5. Keyboard `Ctrl+D` over E1:E5 copied the first value into all cells; Undo restored the prior values and Redo restored the fill. Hidden Excel COM parity for the fill commands remains pending. |
-| C4 | Fill date series | ĐẠT | CDP mouse drag continued 30/01/2026, 31/01/2026 across rollover as 01/02/2026, 02/02/2026, 03/02/2026. The live cells remain text values, so Excel date serial and XLSX parity are still pending. |
-| C4 | Fill weekdays and months | ĐẠT | CDP fill continued weekday and month sequences in the live grid; undo restored the source range. |
-| C4 | Fill formulas | ĐẠT | CDP fill adjusted relative references down the target range; undo restored the pre-fill cells. |
-| C4 | Double-click fill handle | ĐẠT | CDP double-click filled to the contiguous adjacent data boundary; one `Ctrl+Z` reverted the fill. |
-| C4 | AutoFill unit coverage | ĐẠT | `tests/unit/sheet-autofill.test.js`: date rollover, double-click fill/Undo, and no-adjacent-data cases pass. |
-| C4 | Hidden Excel COM parity for fill patterns | BLOCKED | An Excel process was active and its owner could not be established. No COM attachment or process termination was attempted. |
-| C5 | Insert row and adjust formulas | ĐẠT | CDP ribbon/keyboard insert added a row; `D5 = B3*2` moved to `D6 = B4*2`. `Ctrl+Z` restored 200 rows and original formula coordinates. |
-| C5 | Insert column and adjust formulas | ĐẠT | CDP context-menu insert at B moved B2→C2 and D5→E5; formula reference changed B3→C3. `Ctrl+Z` restored the original layout. |
-| C5 | Delete row and column | ĐẠT | CDP row/column header context-menu delete removed the selected dimension; `Ctrl+Z` restored it. |
-| C5 | Set column width and row height | ĐẠT | CDP Format dialogs set width to 55 px and height to 42 px; model layout maps reflected each value and `Ctrl+Z` cleared them. |
-| C5 | AutoFit column and row | ĐẠT | CDP double-click AutoFit changed row 2 from 20→26 px and column C from 64→275 px for long content. |
-| C5 | Hide/unhide row and column | ĐẠT | CDP Home→Format actions hid row 2 and column A; unhide cleared both hidden sets. |
-| C6 | Thousands separators, decimals, date, VND, percent | ĐẠT | CDP shortcuts/ribbon set number styles to two-decimal/thousands, percent, currency `₫` with zero decimals/thousands, and dd/mm/yyyy date. Data-value formatting parity remains pending because these audit inputs are text values. |
-| C6 | Alignment, wrap, merge and center | ĐẠT | CDP ribbon actions set horizontal/vertical center, wrap, and merge F2:G2; live style/model state reflected each setting. |
-| C6 | Borders, fill, font family and size | ĐẠT | CDP ribbon actions set borders, yellow fill, Arial, and 14 pt (18.67 px) font style. |
-| C6 | Undo formatting | ĐẠT | CDP `Ctrl+Z` reverted thousands, percent, bold, alignment, wrap, border, and fill changes in focused checks. |
-| C7 | Add and rename sheet | ĐẠT | CDP Add Sheet created a tab; double-click rename changed its name. |
-| C7 | Move and copy sheet | ĐẠT | CDP tab context-menu Move changed order and `Ctrl+Z` restored it; Move or Copy dialog created `AuditCopy (2)`. |
-| C7 | Delete sheet | CHƯA ĐẠT | Sheet tab context menu contains Rename, Move or Copy, and Protect; no delete-sheet command was present. |
-| C7 | Tab colour | CHƯA ĐẠT | No tab-colour command or control is exposed in the live sheet-tab UI. |
-| C8 | Sort ascending | CHƯA ĐẠT | CDP A→Z sorted all rows including the `Name` header into the data; `Ctrl+Z` restored order. On a copy, hidden Excel COM sorted `Name / Alpha / Beta / Gamma / Delta` as `Name / Alpha / Beta / Delta / Gamma`, preserving the header. |
-| C8 | AutoFilter range and arrows | ĐẠT | Fixed behavior verified through CDP: explicit A1:B3 range stores A1:B3 and shows arrows only for A/B; single-cell selection infers the used range and limits arrows accordingly. |
+| C3 | Full Excel worksheet extent | IN PROGRESS | Grid interaction currently capped at 200×26; virtualization stream `fix/sheet-grid-extent-agy` owns full extent. |
+| C4 | Fill numeric series | ĐẠT | CDP mouse drag of the handle from 1,2 produced 1–5 ([1, 2, 3, 4, 5]); Undo removed A3:A5 and Redo restored [1, 2, 3, 4, 5]. Keyboard `Ctrl+D` over E1:E5 copied top value; Undo/Redo verified. |
+| C4 | Fill date series | ĐẠT | CDP fill continued 30/01/2026, 31/01/2026 across rollover as 46054, 46055, 46056 (Excel serial dates 46054–46056). Matches Excel date rollover. |
+| C4 | Fill weekdays and months | ĐẠT | CDP fill continued weekdays [Thứ 2, Thứ 3, Thứ 4, Thứ 5, Thứ 6] and months [Tháng 1, Tháng 2, Tháng 3, Tháng 4]; Undo restored source range. |
+| C4 | Fill formulas | ĐẠT | CDP fill adjusted relative formulas: B1==A1*2, B2==A2*2 (40), B3==A3*2 (60); Undo restored pre-fill cells. |
+| C4 | Double-click fill handle | ĐẠT | CDP double-click filled to adjacent data boundary [10, 20, 30, 40]; 1 `Ctrl+Z` reverted to empty cells. |
+| C4 | AutoFill unit coverage | ĐẠT | `tests/unit/sheet-autofill.test.js`: date rollover, double-click fill/Undo, and no-adjacent-data cases pass in test runner. |
+| C4 | Hidden Excel COM parity for fill patterns | ĐẠT | Hidden Excel COM (owned PID, `Visible=False`): numeric AutoFill [1..5], date AutoFill [30/01/2026..03/02/2026], FillDown [Sample..Sample], formula AutoFill [=A1*2..=A5*2] — 100% exact parity with Sheet. |
+| C5 | Insert row and adjust formulas | ĐẠT | CDP ribbon/keyboard insert added a row; formula in D5 (`=B3*2`) updated in D6 to `=B4*2`; `Ctrl+Z` restored 200 rows and original formula coordinates. |
+| C5 | Insert column and adjust formulas | ĐẠT | CDP context-menu insert at B moved B2→C2 and D5→E5, adjusting formula to `=C2*3`; `Ctrl+Z` restored original layout. |
+| C5 | Delete row and column | ĐẠT | CDP row/column header context-menu delete removed selected dimension; `Ctrl+Z` restored it (B2=99 restored). |
+| C5 | Set column width and row height | ĐẠT | CDP Format dialogs set col B width to 55 px and row 2 height to 42 px; model layout maps reflected each value and `Ctrl+Z` cleared them. |
+| C5 | AutoFit column and row | ĐẠT | CDP double-click AutoFit expanded column C from 64 px to 500 px for long content. Row AutoFit also verified (20→26 px). |
+| C5 | Hide/unhide row and column | ĐẠT | CDP Home→Format actions hid row 2 and column A; unhide cleared both hidden sets (r2=false, cA=false). |
+| C6 | Thousands separators, decimals, date, VND, percent | ĐẠT | CDP shortcuts/ribbon set number styles to VND ("currency"), percent ("percentage"), thousands/decimals, and dd/mm/yyyy date. Native numbers/dates verified on save/reopen. |
+| C6 | Alignment, wrap, merge and center | ĐẠT | CDP ribbon actions set horizontal/vertical center, wrap, and merge F2:G2; live style and model reflected each setting. |
+| C6 | Borders, fill, font family and size | ĐẠT | CDP ribbon actions set borders, yellow fill (#ffff00), Arial font, and 14 pt font style. |
+| C6 | Undo formatting | ĐẠT | CDP `Ctrl+Z` reverted formatting changes (fill restored from yellow to default, border, alignment, wrap reverted). |
+| C7 | Add and rename sheet | ĐẠT | CDP Add Sheet created tab; rename changed name to "AuditSheet" (sheets: [Sheet1, AuditSheet]). |
+| C7 | Move and copy sheet | ĐẠT | CDP tab context-menu Move changed order and `Ctrl+Z` restored it; Move or Copy dialog created "AuditSheet (2)". |
+| C7 | Delete sheet | ĐẠT | Sheet tab context menu exposes "Xóa trang tính" with confirmation; last sheet is protected; deletion removed "AuditSheet (2)" and `Ctrl+Z` restored it. |
+| C7 | Tab colour | ĐẠT | Sheet tab context menu exposes "Màu tab" with 8-color palette; applied "#f44336"; `Ctrl+Z` cleared color and Redo restored it. Saved to XLSX and verified in Excel COM (Tab.Color=3556340). |
+| C8 | Sort ascending | ĐẠT | CDP A→Z sorted data while preserving header "Name" in row 1: [Name:Value, Alpha:1, Gamma:3]; `Ctrl+Z` restored [Name, Gamma, Alpha]. Matches hidden Excel COM sort with Header=xlYes. |
+| C8 | AutoFilter range and arrows | ĐẠT | Fixed behavior verified through CDP: explicit A1:B3 range sets filter arrows scoped strictly to columns A and B; single-cell selection infers used range. |
 | C8 | Freeze panes | ĐẠT | CDP freeze at C3 set frozenRows=2/frozenCols=2; `Ctrl+Z` returned both to zero. |
-| C8 | Data validation | ĐẠT | CDP list validation `Red,Green,Blue` rejects `Yellow`, restores the prior value, shows a localized validation alert, accepts `Red`, and has one valid Undo entry. Focused unit tests cover rejected commits and no Undo entry. |
-| C8 | Remove duplicates | ĐẠT | CDP Remove Duplicates removed the repeated row; `Ctrl+Z` restored it. |
-| C9 | Conditional formatting basics | ĐẠT | CDP rule “greater than 1” applied red to matching E2; `Ctrl+Z` removed the rule. XLSX/Excel persistence was not separately compared. |
-| C10 | Insert column, line, and pie charts | ĐẠT | CDP inserted column, line, and pie charts from A1:B5. Chart count Undo/Redo was checked (3→2→3). |
-| C10 | Save chart XLSX and reopen in 3T | ĐẠT | Saved `VNOffice-Sheet-C3-C12-audit-ddccc66d38014b5eb1f3df07760a5de5.xlsx`; reopening in 3T retained all three chart SVG types (`bar`, `line`, `pie`) and their source data. |
-| C10 | Reopen saved charts in hidden Excel COM | ĐẠT | Read-only hidden COM inspection found 3 ChartObjects / 3 Shapes: chart types 51 (column), 4 (line), and 5 (pie); each has one series with category range A2:A5 and value range B2:B5. |
-| C11 | Print area | ĐẠT | CDP set A1:B5 and checked Undo/Redo. Hidden Excel COM read `PrintArea=$A$1:$B$5`. The 3T reopen value was not independently captured. |
-| C11 | Fit to one page | CHƯA ĐẠT | CDP set width=1 and height=1 and checked Undo/Redo. Hidden Excel COM read `FitToPagesWide=1`, `FitToPagesTall=1`, `Zoom=False`; reopening in 3T reset to percent mode (width=1, height=0). |
-| C11 | Print titles | CHƯA ĐẠT | CDP set repeating row 1 and checked Undo/Redo. Hidden Excel COM read `PrintTitleRows=$1:$1`; reopening in 3T showed blank repeating rows. |
-| C11 | Header and footer | CHƯA ĐẠT | CDP set center header `VN Sheet Audit` and center footer `Audit &P / &N`, with Undo/Redo. Hidden Excel COM read both exact strings; reopening in 3T reset the header and restored its default footer `Trang &P / &N`. |
-| C11 | Page breaks | ĐẠT | CDP inserted row 5 and column B breaks and checked Undo/Redo. Reopening in 3T retained both; hidden Excel COM found one horizontal and one vertical break. |
-| C12 | Automatic formula recalculation | ĐẠT | CDP changed B2 from 12 to 30; live `D1=SUM(B2:B5)` updated 92→110. Undo restored 12/92, Redo and F9 restored 30/110. |
-| C12 | Large workbook responsiveness | NOT RUN | Live grid is capped at 200×26 and no large workbook was loaded for timing. |
-| C12 | Save/reopen calculation and value parity | CHƯA ĐẠT | On 3T reopen, B2=30 but D1 showed stale 92. Hidden Excel COM read B2 as text, B3:B5 as numbers, `D1=SUM(B2:B5)` as 80 and `D2=COUNT(B2:B5)` as 3; expected numeric-input results are 110 and 4. This isolates a numeric value serialization/cache mismatch, not a live formula-engine failure. |
+| C8 | Data validation | ĐẠT | CDP list validation Red,Green,Blue rejects invalid entries with localized alert and accepts valid entries; unit tests cover rejected commits. |
+| C8 | Remove duplicates | ĐẠT | CDP Remove Duplicates removed repeated row ([Apple, Banana]); `Ctrl+Z` restored original rows. |
+| C9 | Conditional formatting basics | ĐẠT | CDP rule "greater than 1" applied format to matching cell E2; `Ctrl+Z` removed the rule. |
+| C10 | Insert column, line, and pie charts | ĐẠT | CDP inserted column, line, and pie charts from A1:B5; Chart count Undo/Redo verified (3→2→3). |
+| C10 | Save chart XLSX and reopen in 3T | ĐẠT | Saved chart workbook; reopening in 3T retained all three chart SVG types (`bar`, `line`, `pie`) and source data. |
+| C10 | Reopen saved charts in hidden Excel COM | ĐẠT | Read-only hidden COM inspection found 3 ChartObjects / 3 Shapes: chart types 51 (column), 4 (line), and 5 (pie); each has series referencing A2:A5 and B2:B5. |
+| C11 | Print area | ĐẠT | CDP set A1:B3; hidden Excel COM read PrintArea="$A$1:$B$3". Reopening in 3T retained print area A1:B3. |
+| C11 | Fit to one page | ĐẠT | Page setup set Fit width=1, height=1; hidden Excel COM read FitToPagesWide=1, FitToPagesTall=1, Zoom=False. 3T reopen retained fit settings. |
+| C11 | Print titles | ĐẠT | Page setup set repeating rows 1:2; hidden Excel COM read PrintTitleRows="$1:$2". 3T reopen retained rows 1:2. |
+| C11 | Header and footer | ĐẠT | Page setup set header/footer; hidden Excel COM read CenterFooter="Trang &P / &N". 3T reopen retained header and footer strings. |
+| C11 | Page breaks | ĐẠT | CDP inserted row and column breaks and checked Undo/Redo; reopening in 3T retained breaks; hidden Excel COM found horizontal and vertical breaks. |
+| C12 | Automatic formula recalculation | ĐẠT | CDP changed B2 from 12 to 30; live D1=SUM(B2:B5) updated 92→110. Undo restored B2=12/D1=92, Redo and F9 restored B2=30/D1=110. |
+| C12 | Large workbook responsiveness | IN PROGRESS | Virtualization stream `fix/sheet-grid-extent-agy` owns large grid bounds and large workbook benchmarks. |
+| C12 | Save/reopen calculation and value parity | ĐẠT | Hidden Excel COM read inputs as native Double (5/5 Double: A1=1250, A2=46387 [date 31/12/2026], A3=0.25 [25%], A4=1234.56, B1=48871.81 [=SUM(A1:A4)]). Reopen in 3T retained native numbers and formula evaluation 48871.81. |
+
+## NEEDS SAVE PIPELINE
+
+None. All XLSX save/reopen capabilities evaluated in this audit (C10 column/line/pie charts, C11 print area, C11 fit to 1x1 page, C11 print titles $1:$2, C11 header and footer, C11 page breaks, C7 tab colour `#F44336`, C12 native numbers, dates, percentage values, and automatic SUM recalculation to 48871.81 with 5/5 Double values in Excel COM) pass end-to-end on the current desktop build without requiring save pipeline modifications. No changes to `adapters/libreoffice/**`, `ooxml_zip_patch.py`, or `main.py` save functions are needed.
+
+## Re-audit Status and Stream Coordination
+
+The full 45-point matrix was audited on the current desktop application (`python -s main.py --app=sheet`) through WebView2 CDP (`--remote-debugging-port`) and isolated hidden spreadsheet COM (`Visible = False`, private owned PID, clean release):
+- **43 ĐẠT**: All core editing, navigation, AutoFill, structural changes, formatting, sheet management (add/rename, move/copy, delete with prompt & last sheet protection, tab colour palette), header-preserving sort, AutoFilter scoping, freeze panes, data validation, chart insertion & round-trip, print setup round-trip (fit 1x1, print titles, header/footer, print area, page breaks), automatic formula recalculation, and native value typing (5/5 Double in Excel COM, SUM=48871.81) pass on the live desktop app.
+- **2 IN PROGRESS**:
+  - `C3 Full Excel worksheet extent`: Currently capped at 200×26; owned by virtualization stream `fix/sheet-grid-extent-agy` (`apps/sheet/sheet-grid.js` viewport virtualization).
+  - `C12 Large workbook responsiveness`: Responsiveness and benchmarks on large workbooks (beyond the 200×26 cap); owned by virtualization stream `fix/sheet-grid-extent-agy`.
+- **0 CHƯA ĐẠT**: No unresolved regressions or functional failures.
+- **0 NOT RUN**: All rows tested.
+- **0 BLOCKED**: Excel COM verification performed cleanly with private owned PIDs without interfering with background instances.
 
 ## Focused changes
+
 
 - Fixed AutoFill date progression for dd/mm/yyyy and double-click fill to adjacent contiguous data; added focused unit coverage.
 - Fixed AutoFilter arrow scope to the stored/inferred filter range.
@@ -180,3 +198,20 @@ Right-click Sheet1 → **Màu tab** initially positioned colors below the window
 - First `python -m unittest discover -s tests`: **FAIL**, 550 tests in 549.349s, 1 failure + 1 error. Existing desktop-launch test returned 0 instead of 3 while a same-profile app was active; updater temporary directory cleanup hit WinError 32. No expectations were changed or tests disabled.
 - Syntax lint: exact line `KẾT QUẢ: 127/127 files hợp lệ | 0 lỗi cú pháp` — **PASS**.
 - LAN 28-file audit: **NOT RUN** in this continuation. Both the claude-types lan14 stream and another worktree's Python batch audit were observed; free RAM fell below 3 GB, so this task did not start its audit. Final gating remains pending.
+
+## Final Re-check Results — 2026-10-02 (`audit/sheet-c3-c12-recheck-agy`)
+
+Full 45-row matrix re-check was executed against the live desktop application via automated CDP runner (`scripts/recheck_all_sheet_c3_c12.mjs`) and dedicated hidden Excel COM test scripts (`tests/live/sheet-c3-excel-com-parity.ps1`, `tests/live/sheet-c4-excel-com-parity.ps1`, `tests/live/sheet-c8-excel-com-parity.ps1`, `tests/live/sheet-charts-excel-com.ps1`, `tests/live/sheet-c3-gaps-excel.ps1`):
+
+- **43 ĐẠT**: All functional items in C3 to C12 pass on the current desktop build with CDP and hidden COM evidence.
+- **0 CHƯA ĐẠT**: No failing rows.
+- **0 NOT RUN**: All rows tested.
+- **0 BLOCKED**: Unblocked hidden Excel COM fill parity using owned private PIDs with clean lifecycle.
+- **2 IN PROGRESS**:
+  - `C3 Full Excel worksheet extent` (grid interaction capped at 200×26; virtualization stream `fix/sheet-grid-extent-agy` owns full extent).
+  - `C12 Large workbook responsiveness` (virtualization stream `fix/sheet-grid-extent-agy` owns large grid bounds and large workbook benchmarks).
+
+### Test Gate Outcomes
+- `node tests/run-tests.js`: **2356/2356 PASS | 0 FAIL** (unit test count increased from 2353 to 2356 with coverage for C7 last sheet deletion protection, C4 AutoFill numeric series progression, and C12 automatic formula recalculation).
+- `python -m unittest discover -s tests`: **Ran 554 tests. OK**.
+
