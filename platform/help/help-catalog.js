@@ -7,6 +7,7 @@ import { WRITER_HELP_ENTRIES } from "./entries-writer.js";
 import { ERROR_REPORTING_HELP_ENTRIES } from "./entries-error-reporting.js";
 import { AUTORECOVER_HELP_ENTRIES } from "./entries-autorecover.js";
 import { UPDATER_HELP_ENTRIES } from "./entries-updater.js";
+import { LAUNCHER_HELP_ENTRIES } from "./entries-launcher.js";
 import { CONSISTENCY_HELP_ENTRIES } from "./entries-consistency.js";
 
 /** @type {Array<HelpEntry>} */
@@ -15,6 +16,7 @@ export const HELP_ENTRIES = [
   ...ERROR_REPORTING_HELP_ENTRIES,
   ...AUTORECOVER_HELP_ENTRIES,
   ...UPDATER_HELP_ENTRIES,
+  ...LAUNCHER_HELP_ENTRIES,
   ...CONSISTENCY_HELP_ENTRIES
 ];
 

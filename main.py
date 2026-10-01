@@ -447,12 +447,130 @@ APP_TITLES = {
     "sheet": "3T Sheet — Bảng tính",
     "slides": "3T Slide — Trình chiếu",
 }
+TASKBAR_APP_USER_MODEL_IDS = {
+    "writer": "VNOffice.Writer",
+    "sheet": "VNOffice.Sheet",
+    "slides": "VNOffice.Slides",
+}
+TASKBAR_RELAUNCH_DISPLAY_NAMES = {"writer": "Doc", "sheet": "Sheet", "slides": "Slide"}
 SUITE_TITLE = "3T Office — Bộ Ứng Dụng Văn Phòng Việt"
 FILE_APP_KINDS = {
     ".docx": "writer", ".doc": "writer", ".odt": "writer", ".rtf": "writer", ".txt": "writer",
     ".xlsx": "sheet", ".xls": "sheet", ".ods": "sheet", ".csv": "sheet",
     ".pptx": "slides", ".ppt": "slides", ".odp": "slides",
 }
+
+
+def _taskbar_relaunch_info(app_kind: str) -> dict[str, str] | None:
+    """Return the stable per-app identity and short Windows taskbar relaunch label."""
+    app_user_model_id = TASKBAR_APP_USER_MODEL_IDS.get(app_kind)
+    display_name = TASKBAR_RELAUNCH_DISPLAY_NAMES.get(app_kind)
+    if not app_user_model_id or not display_name:
+        return None
+    command = subprocess.list2cmdline([
+        sys.executable,
+        "-s",
+        "-E",
+        str(Path(__file__).resolve()),
+        f"--app={app_kind}",
+    ])
+    return {
+        "app_user_model_id": app_user_model_id,
+        "display_name": display_name,
+        "command": command,
+    }
+
+
+def _set_windows_taskbar_relaunch_info(window, app_kind: str) -> bool:
+    """Set the window's explicit AppUserModelID and short taskbar relaunch name."""
+    if platform.system() != "Windows":
+        return False
+    info = _taskbar_relaunch_info(app_kind)
+    if info is None:
+        return False
+
+    class GUID(ctypes.Structure):
+        _fields_ = [
+            ("data1", ctypes.c_uint32),
+            ("data2", ctypes.c_uint16),
+            ("data3", ctypes.c_uint16),
+            ("data4", ctypes.c_ubyte * 8),
+        ]
+
+    class PROPERTYKEY(ctypes.Structure):
+        _fields_ = [("fmtid", GUID), ("pid", ctypes.c_uint32)]
+
+    class PROPVARIANT_VALUE(ctypes.Union):
+        _fields_ = [("pwszVal", ctypes.c_wchar_p), ("pointer", ctypes.c_void_p), ("padding", ctypes.c_uint64)]
+
+    class PROPVARIANT(ctypes.Structure):
+        _anonymous_ = ("value",)
+        _fields_ = [
+            ("vt", ctypes.c_ushort),
+            ("reserved1", ctypes.c_ushort),
+            ("reserved2", ctypes.c_ushort),
+            ("reserved3", ctypes.c_ushort),
+            ("value", PROPVARIANT_VALUE),
+        ]
+
+    property_format_id = GUID.from_buffer_copy(uuid.UUID("9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3").bytes_le)
+    property_store_iid = GUID.from_buffer_copy(uuid.UUID("886D8EEB-8CF2-4446-8D02-CDBA1DBDCF99").bytes_le)
+    property_values = (
+        (2, info["command"]),
+        (4, info["display_name"]),
+        (5, info["app_user_model_id"]),
+    )
+
+    property_store = ctypes.c_void_p()
+    try:
+        hwnd = int(window.native.Handle.ToInt64())
+        shell32 = ctypes.WinDLL("shell32", use_last_error=True)
+        get_property_store = shell32.SHGetPropertyStoreForWindow
+        get_property_store.argtypes = (
+            ctypes.c_void_p,
+            ctypes.POINTER(GUID),
+            ctypes.POINTER(ctypes.c_void_p),
+        )
+        get_property_store.restype = ctypes.c_long
+        result = get_property_store(hwnd, ctypes.byref(property_store_iid), ctypes.byref(property_store))
+        if result < 0:
+            raise OSError(f"SHGetPropertyStoreForWindow failed: HRESULT 0x{result & 0xFFFFFFFF:08X}")
+
+        vtable = ctypes.cast(property_store, ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p))).contents
+        set_value = ctypes.WINFUNCTYPE(
+            ctypes.c_long,
+            ctypes.c_void_p,
+            ctypes.POINTER(PROPERTYKEY),
+            ctypes.POINTER(PROPVARIANT),
+        )(vtable[6])
+        commit = ctypes.WINFUNCTYPE(ctypes.c_long, ctypes.c_void_p)(vtable[7])
+        for property_id, text_value in property_values:
+            key = PROPERTYKEY(property_format_id, property_id)
+            value = PROPVARIANT()
+            value.vt = 31  # VT_LPWSTR
+            value.pwszVal = text_value
+            result = set_value(property_store, ctypes.byref(key), ctypes.byref(value))
+            if result < 0:
+                raise OSError(
+                    f"IPropertyStore.SetValue({property_id}) failed: HRESULT 0x{result & 0xFFFFFFFF:08X}"
+                )
+        result = commit(property_store)
+        if result < 0:
+            raise OSError(f"IPropertyStore.Commit failed: HRESULT 0x{result & 0xFFFFFFFF:08X}")
+        return True
+    except Exception as exc:
+        logging.getLogger("vnoffice.taskbar").warning(
+            "Could not set the %s taskbar relaunch identity: %s", app_kind, exc,
+        )
+        return False
+    finally:
+        if property_store:
+            try:
+                vtable = ctypes.cast(property_store, ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p))).contents
+                release = ctypes.WINFUNCTYPE(ctypes.c_ulong, ctypes.c_void_p)(vtable[2])
+                release(property_store)
+            except Exception as exc:
+                logging.getLogger("vnoffice.taskbar").debug("Could not release the taskbar property store: %s", exc)
 
 
 def _user_data_dir() -> Path:
@@ -4211,14 +4329,30 @@ def main(argv: list[str] | None = None):
             name=f"3T Office {app_kind} window router",
         ).start()
 
-    # Set Windows AppUserModelID so the taskbar groups and shows the app's specific icon
+    # Set Windows AppUserModelID so the taskbar groups and shows the app's specific icon;
+    # short pin labels (Doc/Sheet/Slide) are set on the native window below.
     if platform.system() == "Windows":
         try:
-            import ctypes
-            aumid = f"VNOffice.{app_kind.capitalize() if app_kind in VALID_APP_KINDS else 'Suite'}"
-            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(aumid)
-        except Exception:
-            pass
+            set_app_id = ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID
+            set_app_id.argtypes = (ctypes.c_wchar_p,)
+            set_app_id.restype = ctypes.c_long
+            aumid = TASKBAR_APP_USER_MODEL_IDS.get(app_kind, "VNOffice.Suite")
+            result = set_app_id(aumid)
+            if result < 0:
+                raise OSError(f"SetCurrentProcessExplicitAppUserModelID failed: HRESULT 0x{result & 0xFFFFFFFF:08X}")
+        except Exception as exc:
+            logging.getLogger("vnoffice.taskbar").warning("Could not set the taskbar process identity: %s", exc)
+
+    if app_kind in TASKBAR_RELAUNCH_DISPLAY_NAMES:
+        def set_taskbar_relaunch_info(*_args):
+            _set_windows_taskbar_relaunch_info(window, app_kind)
+
+        try:
+            window.events.shown += set_taskbar_relaunch_info
+        except Exception as exc:
+            logging.getLogger("vnoffice.taskbar").warning(
+                "Could not register the %s taskbar relaunch identity: %s", app_kind, exc,
+            )
 
     icon_name = f"{app_kind}.ico" if app_kind in VALID_APP_KINDS else "vnoffice.ico"
     icon_path = os.path.join(ROOT_DIR, "branding", "icons", icon_name)
