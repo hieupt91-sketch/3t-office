@@ -36,8 +36,8 @@ export async function runHelpCoverageTests() {
         .join("; ");
       throw new Error(`Còn ${uncovered.length} lệnh Writer chưa có bài Help: ${details}`);
     }
-    // Section options from main and paragraph-formatting commands from this branch are covered.
-    if (writer.coveredCount !== writer.liveCount || writer.liveCount !== 136) {
+    // Section options from main, paragraph-formatting, and table contextual ribbon commands are covered.
+    if (writer.coveredCount !== writer.liveCount || writer.liveCount !== 158) {
       throw new Error(`Số lượng lệnh Writer không khớp: covered=${writer.coveredCount}, live=${writer.liveCount}`);
     }
   });

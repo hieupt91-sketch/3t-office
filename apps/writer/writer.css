@@ -849,6 +849,45 @@ li.vno-page-auto-gap {
   color: #7c3aed;
   border-top: 2px solid #7c3aed;
 }
+
+#vno-ribbon-tab-tableDesign[hidden],
+#vno-ribbon-tab-tableLayout[hidden] { display: none; }
+.vno-writer-table-context #vno-ribbon-tab-tableDesign,
+.vno-writer-table-context #vno-ribbon-tab-tableLayout {
+  display: inline-flex !important;
+  color: #0f4c81;
+  border-top: 2px solid #0f4c81;
+}
+
+/* Table Move Handle */
+.vno-table-move-handle {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  background: #f8fafc;
+  border: 1px solid #94a3b8;
+  border-radius: 3px;
+  cursor: move;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  user-select: none;
+  transition: opacity 0.15s ease;
+}
+.vno-table-move-handle:hover {
+  background: #e2e8f0;
+  border-color: #0f4c81;
+}
+
+/* Table Cell Selection */
+.vno-writer-page td.is-vno-cell-selected,
+.vno-writer-page th.is-vno-cell-selected {
+  background-color: rgba(59, 130, 246, 0.25) !important;
+  outline: 1.5px solid #3b82f6;
+  outline-offset: -1px;
+}
 .vno-writer-body img.is-vno-image-selected {
   outline: 3px solid #2563eb;
   outline-offset: 3px;

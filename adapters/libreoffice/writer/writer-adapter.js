@@ -648,6 +648,7 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("common.edit.repeat", () => this.repeatLastAction());
     globalCommandBus.bindHandler("common.edit.find", () => this._showFindReplaceDialog(false));
     globalCommandBus.bindHandler("common.edit.replace", () => this._showFindReplaceDialog(true));
+    this._bindTableCommands();
 
     if (!this._lastSnapshot) {
       this._lastSnapshot = this._createSnapshot("Initial State");
@@ -7219,6 +7220,403 @@ export class WriterAdapter {
     }
     this.isDirty = true;
     this.recordSnapshot("writer.table.insert");
+    return true;
+  }
+
+  _bindTableCommands() {
+    globalCommandBus.bindHandler("writer.table.insertRowAbove", () => this.insertTableRowAbove());
+    globalCommandBus.bindHandler("writer.table.insertRowBelow", () => this.insertTableRowBelow());
+    globalCommandBus.bindHandler("writer.table.insertColLeft", () => this.insertTableColLeft());
+    globalCommandBus.bindHandler("writer.table.insertColRight", () => this.insertTableColRight());
+    globalCommandBus.bindHandler("writer.table.deleteRow", () => this.deleteTableRow());
+    globalCommandBus.bindHandler("writer.table.deleteCol", () => this.deleteTableCol());
+    globalCommandBus.bindHandler("writer.table.deleteTable", () => this.deleteTable());
+    globalCommandBus.bindHandler("writer.table.mergeCells", () => this.mergeTableCells());
+    globalCommandBus.bindHandler("writer.table.splitCells", () => this.splitTableCells());
+    globalCommandBus.bindHandler("writer.table.distributeRows", () => this.distributeTableRows());
+    globalCommandBus.bindHandler("writer.table.distributeCols", () => this.distributeTableCols());
+    globalCommandBus.bindHandler("writer.table.alignTop", () => this.setTableCellAlign("top"));
+    globalCommandBus.bindHandler("writer.table.alignMiddle", () => this.setTableCellAlign("middle"));
+    globalCommandBus.bindHandler("writer.table.alignBottom", () => this.setTableCellAlign("bottom"));
+    globalCommandBus.bindHandler("writer.table.selectCell", () => this.selectTableElements("cell"));
+    globalCommandBus.bindHandler("writer.table.selectRow", () => this.selectTableElements("row"));
+    globalCommandBus.bindHandler("writer.table.selectCol", () => this.selectTableElements("col"));
+    globalCommandBus.bindHandler("writer.table.selectTable", () => this.selectTableElements("table"));
+    globalCommandBus.bindHandler("writer.table.cellBg", (args) => this.setTableCellBackground(args));
+    globalCommandBus.bindHandler("writer.table.borders", (args) => this.setTableBorders(args));
+    globalCommandBus.bindHandler("writer.table.toggleHeaderRow", () => this.toggleTableHeaderRow());
+    globalCommandBus.bindHandler("writer.table.toggleBandedRows", () => this.toggleTableBandedRows());
+  }
+
+  _getActiveTable() {
+    if (this.tableController?.activeTable && this.tableController.activeTable.isConnected) {
+      return this.tableController.activeTable;
+    }
+    if (typeof window !== "undefined") {
+      const sel = window.getSelection?.();
+      if (sel && sel.rangeCount > 0) {
+        const node = sel.anchorNode;
+        const el = node?.nodeType === 1 ? node : node?.parentElement;
+        const table = el?.closest?.("table");
+        if (table && (this.bodyDom?.contains?.(table) || this.editorDom?.contains?.(table))) {
+          return table;
+        }
+      }
+    }
+    return (this.bodyDom || this.editorDom)?.querySelector?.("table") || null;
+  }
+
+  _getActiveTableCell() {
+    if (this.tableController?.activeCell && this.tableController.activeCell.isConnected) {
+      return this.tableController.activeCell;
+    }
+    if (typeof window !== "undefined") {
+      const sel = window.getSelection?.();
+      if (sel && sel.rangeCount > 0) {
+        const node = sel.anchorNode;
+        const el = node?.nodeType === 1 ? node : node?.parentElement;
+        const cell = el?.closest?.("td, th");
+        if (cell && (this.bodyDom?.contains?.(cell) || this.editorDom?.contains?.(cell))) {
+          return cell;
+        }
+      }
+    }
+    const table = this._getActiveTable();
+    return table?.querySelector?.("td, th") || null;
+  }
+
+  insertTableRowAbove() {
+    const cell = this._getActiveTableCell();
+    const row = cell?.closest?.("tr");
+    if (!row) return false;
+    const table = row.closest("table");
+    const numCols = row.cells.length || 1;
+    const newRow = document.createElement("tr");
+    for (let i = 0; i < numCols; i++) {
+      const td = document.createElement("td");
+      td.style.border = "1px solid #94a3b8";
+      td.style.padding = "6pt 10pt";
+      td.innerHTML = "<br>";
+      newRow.appendChild(td);
+    }
+    row.parentElement?.insertBefore(newRow, row);
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.insertRowAbove");
+    this.tableController?._positionMoveHandle(table);
+    return true;
+  }
+
+  insertTableRowBelow() {
+    const cell = this._getActiveTableCell();
+    const row = cell?.closest?.("tr");
+    if (!row) return false;
+    const table = row.closest("table");
+    const numCols = row.cells.length || 1;
+    const newRow = document.createElement("tr");
+    for (let i = 0; i < numCols; i++) {
+      const td = document.createElement("td");
+      td.style.border = "1px solid #94a3b8";
+      td.style.padding = "6pt 10pt";
+      td.innerHTML = "<br>";
+      newRow.appendChild(td);
+    }
+    if (row.nextSibling) {
+      row.parentElement?.insertBefore(newRow, row.nextSibling);
+    } else {
+      row.parentElement?.appendChild(newRow);
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.insertRowBelow");
+    this.tableController?._positionMoveHandle(table);
+    return true;
+  }
+
+  insertTableColLeft() {
+    const cell = this._getActiveTableCell();
+    const table = cell?.closest?.("table") || this._getActiveTable();
+    if (!table) return false;
+    const colIdx = cell ? cell.cellIndex : 0;
+    for (const r of table.rows) {
+      const td = document.createElement("td");
+      td.style.border = "1px solid #94a3b8";
+      td.style.padding = "6pt 10pt";
+      td.innerHTML = "<br>";
+      const ref = r.cells[colIdx];
+      if (ref) {
+        r.insertBefore(td, ref);
+      } else {
+        r.appendChild(td);
+      }
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.insertColLeft");
+    this.tableController?._positionMoveHandle(table);
+    return true;
+  }
+
+  insertTableColRight() {
+    const cell = this._getActiveTableCell();
+    const table = cell?.closest?.("table") || this._getActiveTable();
+    if (!table) return false;
+    const maxIdx = (table.rows[0]?.cells?.length || 1) - 1;
+    const colIdx = cell ? cell.cellIndex : maxIdx;
+    for (const r of table.rows) {
+      const td = document.createElement("td");
+      td.style.border = "1px solid #94a3b8";
+      td.style.padding = "6pt 10pt";
+      td.innerHTML = "<br>";
+      const ref = r.cells[colIdx];
+      if (ref && ref.nextSibling) {
+        r.insertBefore(td, ref.nextSibling);
+      } else {
+        r.appendChild(td);
+      }
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.insertColRight");
+    this.tableController?._positionMoveHandle(table);
+    return true;
+  }
+
+  deleteTableRow() {
+    const cell = this._getActiveTableCell();
+    const row = cell?.closest?.("tr");
+    if (!row) return false;
+    const table = row.closest("table");
+    if (!table || table.rows.length <= 1) {
+      return this.deleteTable(table);
+    }
+    row.remove();
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.deleteRow");
+    this.tableController?._positionMoveHandle(table);
+    return true;
+  }
+
+  deleteTableCol() {
+    const cell = this._getActiveTableCell();
+    const table = cell?.closest?.("table") || this._getActiveTable();
+    if (!table || table.rows.length === 0) return false;
+    const colIdx = cell ? cell.cellIndex : 0;
+    if (table.rows[0].cells.length <= 1) {
+      return this.deleteTable(table);
+    }
+    for (const r of table.rows) {
+      if (r.cells[colIdx]) {
+        r.cells[colIdx].remove();
+      }
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.deleteCol");
+    this.tableController?._positionMoveHandle(table);
+    return true;
+  }
+
+  deleteTable(targetTable = null) {
+    const table = targetTable || this._getActiveTable();
+    if (!table) return false;
+    table.remove();
+    if (this.tableController) {
+      this.tableController.activeTable = null;
+      this.tableController.activeCell = null;
+      this.tableController.clearCellSelection();
+      this.tableController._hideMoveHandle();
+      this.tableController._syncContextualTabs(false);
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.deleteTable");
+    return true;
+  }
+
+  mergeTableCells() {
+    const table = this._getActiveTable();
+    if (!table) return false;
+    const cells = Array.from(this.tableController?.selectedCells || []);
+    if (cells.length < 2) return false;
+
+    let minRow = Infinity, maxRow = -1;
+    let minCol = Infinity, maxCol = -1;
+    for (const c of cells) {
+      const r = c.parentElement?.rowIndex ?? 0;
+      const col = c.cellIndex ?? 0;
+      if (r < minRow) minRow = r;
+      if (r > maxRow) maxRow = r;
+      if (col < minCol) minCol = col;
+      if (col > maxCol) maxCol = col;
+    }
+
+    const primaryCell = cells.find((c) => (c.parentElement?.rowIndex ?? 0) === minRow && (c.cellIndex ?? 0) === minCol) || cells[0];
+    const rowSpan = maxRow - minRow + 1;
+    const colSpan = maxCol - minCol + 1;
+
+    const mergedText = [];
+    for (const c of cells) {
+      const t = (c.textContent || "").trim();
+      if (t) mergedText.push(t);
+      if (c !== primaryCell) {
+        c.remove();
+      }
+    }
+
+    primaryCell.rowSpan = rowSpan;
+    primaryCell.colSpan = colSpan;
+    primaryCell.innerHTML = mergedText.length ? mergedText.join(" ") : "<br>";
+
+    this.tableController?.clearCellSelection();
+    this.tableController?.selectCell(primaryCell);
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.mergeCells");
+    return true;
+  }
+
+  splitTableCells() {
+    const cell = this._getActiveTableCell();
+    if (!cell) return false;
+
+    if (cell.colSpan > 1 || cell.rowSpan > 1) {
+      cell.colSpan = 1;
+      cell.rowSpan = 1;
+    } else {
+      const newCell = document.createElement("td");
+      newCell.style.border = cell.style.border || "1px solid #94a3b8";
+      newCell.style.padding = cell.style.padding || "6pt 10pt";
+      newCell.innerHTML = "<br>";
+      if (cell.nextSibling) {
+        cell.parentElement?.insertBefore(newCell, cell.nextSibling);
+      } else {
+        cell.parentElement?.appendChild(newCell);
+      }
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.splitCells");
+    return true;
+  }
+
+  distributeTableRows() {
+    const table = this._getActiveTable();
+    if (!table || table.rows.length === 0) return false;
+    for (const r of table.rows) {
+      r.style.height = "";
+      for (const c of r.cells) {
+        c.style.height = "";
+      }
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.distributeRows");
+    return true;
+  }
+
+  distributeTableCols() {
+    const table = this._getActiveTable();
+    if (!table || table.rows.length === 0) return false;
+    const numCols = table.rows[0].cells.length;
+    if (numCols === 0) return false;
+    const pct = `${(100 / numCols).toFixed(2)}%`;
+    for (const r of table.rows) {
+      for (const c of r.cells) {
+        c.style.width = pct;
+      }
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.distributeCols");
+    return true;
+  }
+
+  setTableCellAlign(align = "middle") {
+    const cells = this.tableController?.selectedCells?.size
+      ? Array.from(this.tableController.selectedCells)
+      : [this._getActiveTableCell()].filter(Boolean);
+    if (cells.length === 0) return false;
+    for (const c of cells) {
+      c.style.verticalAlign = align;
+    }
+    this.isDirty = true;
+    this.recordSnapshot(`writer.table.align${align.charAt(0).toUpperCase() + align.slice(1)}`);
+    return true;
+  }
+
+  setTableCellBackground(color = "#e2e8f0") {
+    const cells = this.tableController?.selectedCells?.size
+      ? Array.from(this.tableController.selectedCells)
+      : [this._getActiveTableCell()].filter(Boolean);
+    if (cells.length === 0) return false;
+    const finalColor = typeof color === "string" && color ? color : "#e2e8f0";
+    for (const c of cells) {
+      c.style.backgroundColor = finalColor;
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.cellBg");
+    return true;
+  }
+
+  setTableBorders(borderType = "all") {
+    const table = this._getActiveTable();
+    if (!table) return false;
+    const cells = this.tableController?.selectedCells?.size
+      ? Array.from(this.tableController.selectedCells)
+      : Array.from(table.querySelectorAll("td, th"));
+
+    const borderVal = borderType === "none" ? "none" : "1px solid #94a3b8";
+    for (const c of cells) {
+      c.style.border = borderVal;
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.borders");
+    return true;
+  }
+
+  toggleTableHeaderRow() {
+    const table = this._getActiveTable();
+    if (!table || table.rows.length === 0) return false;
+    const firstRow = table.rows[0];
+    const isHeader = firstRow.classList.toggle("vno-table-header-row");
+    for (const cell of firstRow.cells) {
+      if (isHeader) {
+        cell.style.backgroundColor = "#f1f5f9";
+        cell.style.fontWeight = "bold";
+      } else {
+        cell.style.backgroundColor = "";
+        cell.style.fontWeight = "";
+      }
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.toggleHeaderRow");
+    return true;
+  }
+
+  toggleTableBandedRows() {
+    const table = this._getActiveTable();
+    if (!table || table.rows.length === 0) return false;
+    const isBanded = table.classList.toggle("vno-table-banded-rows");
+    for (let i = 1; i < table.rows.length; i++) {
+      const row = table.rows[i];
+      const bg = isBanded && (i % 2 === 1) ? "#f8fafc" : "";
+      for (const cell of row.cells) {
+        cell.style.backgroundColor = bg;
+      }
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.toggleBandedRows");
+    return true;
+  }
+
+  selectTableElements(type = "table") {
+    if (!this.tableController) return false;
+    switch (type) {
+      case "cell":
+        this.tableController.selectCell(this._getActiveTableCell());
+        break;
+      case "row":
+        this.tableController.selectRow(this._getActiveTableCell());
+        break;
+      case "col":
+        this.tableController.selectCol(this._getActiveTableCell());
+        break;
+      case "table":
+      default:
+        this.tableController.selectTable(this._getActiveTable());
+        break;
+    }
     return true;
   }
 

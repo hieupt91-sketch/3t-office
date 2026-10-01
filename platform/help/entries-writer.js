@@ -1125,6 +1125,92 @@ export const WRITER_HELP_ENTRIES = [
       "Ngắt mục: mở Bố cục > Thiết lập trang > Ngắt trang, chọn Trang kế tiếp, Liên tục, Trang chẵn hoặc Trang lẻ. Mục mới có thiết lập trang riêng trên vùng soạn thảo. Khi lưu .docx hoặc PDF, đầu/chân trang và hướng giấy vẫn dùng chung cho cả tài liệu. Ngắt cột chỉ có tác dụng khi tài liệu có từ hai cột trở lên.",
       "Các nút này vẫn hiển thị trên ribbon đúng vị trí chuẩn phần mềm soạn thảo văn bản khác. Khi bấm vào, hộp thoại/hành động chạy ngay thay vì chỉ hiện thông báo đang hoàn thiện."
     ]
+  },
+  {
+    id: "writer.table.designHelp",
+    app: "writer",
+    commandIds: [
+      "writer.table.toggleHeaderRow",
+      "writer.table.toggleBandedRows",
+      "writer.table.cellBg",
+      "writer.table.borders"
+    ],
+    title: "Thiết kế bảng: kiểu hàng, tô màu và viền ô",
+    summary: "Tùy biến hiển thị bảng biểu với hàng tiêu đề nổi bật, màu nền xen kẽ, màu tô ô và viền bảng trên tab ngữ cảnh Thiết kế Bảng.",
+    ribbon: { tab: "Thiết kế Bảng", tabId: "tableDesign", group: "Tùy chọn kiểu bảng" },
+    keywords: ["thiết kế bảng", "table design", "hàng tiêu đề", "hàng xen kẽ", "tô màu ô", "viền bảng", "borders", "shading"],
+    steps: [
+      "Đặt con trỏ soạn thảo vào bên trong bảng bất kỳ để thanh công cụ tự động hiển thị thêm tab ngữ cảnh Thiết kế Bảng.",
+      "Trong nhóm Tùy chọn kiểu bảng, nhấp «Hàng tiêu đề» để bật hoặc tắt chữ đậm và nền sáng cho hàng đầu; nhấp «Hàng xen kẽ» để bật dải màu nền so le giúp bảng nhiều dòng dễ đọc hơn.",
+      "Trong nhóm Màu & Viền, nhấp «Tô màu ô» để đổi màu nền cho ô hiện tại hoặc các ô đang chọn; nhấp «Đường viền bảng» để chuyển đổi nhanh giữa có viền đầy đủ hoặc xóa viền bảng.",
+      "Mọi thay đổi định dạng bảng đều có thể hoàn tác ngay bằng tổ hợp phím Ctrl+Z hoặc làm lại bằng Ctrl+Y."
+    ]
+  },
+  {
+    id: "writer.table.layoutSelectionHelp",
+    app: "writer",
+    commandIds: [
+      "writer.table.selectCell",
+      "writer.table.selectRow",
+      "writer.table.selectCol",
+      "writer.table.selectTable",
+      "writer.table.deleteTable"
+    ],
+    title: "Bố cục bảng: chọn vùng và xóa bảng",
+    summary: "Thao tác chọn nhanh ô, hàng, cột hoặc toàn bộ bảng, cũng như xóa toàn bộ bảng qua tab ngữ cảnh Bố cục Bảng.",
+    ribbon: { tab: "Bố cục Bảng", tabId: "tableLayout", group: "Bảng" },
+    keywords: ["bố cục bảng", "table layout", "chọn ô", "chọn hàng", "chọn cột", "chọn bảng", "xóa bảng", "tay cầm di chuyển bảng"],
+    steps: [
+      "Nhấp chuột vào một ô bất kỳ trong bảng để kích hoạt tab ngữ cảnh Bố cục Bảng trên thanh công cụ ribbon.",
+      "Trong nhóm Bảng, nhấp nút «Chọn ô» để bôi đen riêng ô đang chọn; nhấp «Chọn hàng» hoặc «Chọn cột» để chọn toàn bộ hàng hoặc cột chứa con trỏ.",
+      "Nhấp «Chọn bảng» hoặc bấm vào nút tay cầm 4 chiều xuất hiện ở góc trên bên trái bảng để chọn toàn bộ cấu trúc bảng và tất cả dữ liệu.",
+      "Nhấp «Xóa bảng» khi cần gỡ bỏ hoàn toàn bảng biểu khỏi tài liệu mà không để lại ô trống thừa. Nhấn Ctrl+Z nếu muốn khôi phục lại bảng."
+    ]
+  },
+  {
+    id: "writer.table.layoutRowsColsHelp",
+    app: "writer",
+    commandIds: [
+      "writer.table.insertRowAbove",
+      "writer.table.insertRowBelow",
+      "writer.table.deleteRow",
+      "writer.table.insertColLeft",
+      "writer.table.insertColRight",
+      "writer.table.deleteCol"
+    ],
+    title: "Chèn và xóa hàng, cột trong bảng",
+    summary: "Thêm hàng trên/dưới hoặc cột trái/phải, xóa hàng hoặc cột hiện tại một cách trực quan trên tab Bố cục Bảng.",
+    ribbon: { tab: "Bố cục Bảng", tabId: "tableLayout", group: "Hàng & Cột" },
+    keywords: ["chèn hàng", "chèn cột", "xóa hàng", "xóa cột", "insert row", "insert column", "delete row", "delete column", "hàng và cột"],
+    steps: [
+      "Đặt con trỏ vào ô tại vị trí cần thêm hoặc bớt dữ liệu, sau đó chuyển sang tab Bố cục Bảng.",
+      "Để thêm hàng: trong nhóm Hàng & Cột, nhấp «Chèn hàng phía trên» hoặc «Chèn hàng phía dưới». Một hàng mới nguyên vẹn sẽ được tạo ngay sát vị trí con trỏ.",
+      "Để thêm cột: trong cùng nhóm, nhấp «Chèn cột bên trái» hoặc «Chèn cột bên phải». Tất cả các hàng trong bảng sẽ tự động nhận thêm một ô cột mới tương ứng.",
+      "Để xóa: nhấp «Xóa hàng» để bỏ hàng đang chứa con trỏ, hoặc «Xóa cột» để bỏ cột hiện tại. Nếu xóa hàng hoặc cột duy nhất còn lại, bảng sẽ tự động được xóa an toàn."
+    ]
+  },
+  {
+    id: "writer.table.layoutMergeDistributeHelp",
+    app: "writer",
+    commandIds: [
+      "writer.table.mergeCells",
+      "writer.table.splitCells",
+      "writer.table.distributeRows",
+      "writer.table.distributeCols",
+      "writer.table.alignTop",
+      "writer.table.alignMiddle",
+      "writer.table.alignBottom"
+    ],
+    title: "Gộp, tách ô, phân bố kích thước và căn lề ô",
+    summary: "Gộp nhiều ô thành một, tách ô, phân bố kích thước hàng cột đồng đều và căn chỉnh vị trí dọc cho chữ trong ô bảng.",
+    ribbon: { tab: "Bố cục Bảng", tabId: "tableLayout", group: "Hợp nhất" },
+    keywords: ["gộp ô", "tách ô", "merge cells", "split cells", "phân bố đều", "distribute rows", "distribute columns", "căn lề ô", "căn đỉnh", "căn giữa dọc", "căn đáy"],
+    steps: [
+      "Kéo chuột quét chọn nhiều ô liền kề trong bảng, sau đó tại nhóm Hợp nhất trên tab Bố cục Bảng, nhấp «Gộp ô» để hợp nhất các ô thành một ô lớn. Nội dung chữ giữa các ô được nối lại tự động.",
+      "Để tách một ô đã gộp trở lại trạng thái ban đầu hoặc chia đôi một ô thường, đặt con trỏ vào ô đó rồi nhấp «Tách ô».",
+      "Trong nhóm Kích cỡ ô, nhấp «Phân bố đều hàng» để cân bằng chiều cao các dòng, hoặc «Phân bố đều cột» để chia lại chiều rộng các cột đều nhau 100%. Bạn cũng có thể rê chuột vào vạch ngăn giữa hai cột để kéo chuột chỉnh độ rộng từng cột tùy ý.",
+      "Trong nhóm Căn lề ô, nhấp «Căn đỉnh ô», «Căn giữa dọc ô» hoặc «Căn đáy ô» để bố trí vị trí chữ theo chiều dọc bên trong ô theo đúng ý muốn."
+    ]
   }
 ];
 

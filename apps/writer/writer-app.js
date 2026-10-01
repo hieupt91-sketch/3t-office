@@ -12,6 +12,7 @@ import { globalShortcutManager } from "../../platform/commands/shortcut-manager.
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { withLazyFeatureProgress } from "../../platform/startup/lazy-feature.js";
 import { WriterViewController } from "./writer-view-controller.js";
+import { WriterTableController } from "./writer-table.js";
 import { getHelpEntryById } from "../../platform/help/help-catalog.js";
 
 
@@ -217,6 +218,16 @@ export class WriterApp {
       mountElement: this.mountElement
     }).attach();
 
+    this.tableController = new WriterTableController({
+      body,
+      page: this.canvas,
+      adapter: this.adapter,
+      ribbonHost: this.shell.ribbonHost,
+      mountElement: this.mountElement,
+      shell: this.shell
+    }).attach();
+    this.adapter.tableController = this.tableController;
+
     this.viewController = new WriterViewController({
       container,
       viewport,
@@ -341,6 +352,8 @@ export class WriterApp {
     this.viewController = null;
     this.arrangeController?.destroy();
     this.arrangeController = null;
+    this.tableController?.destroy();
+    this.tableController = null;
     this.spellcheckController?.destroy();
     this.spellcheckController = null;
     this.helpPanel?.destroy();

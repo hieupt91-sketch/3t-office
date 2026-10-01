@@ -108,10 +108,10 @@ The previous draft cited `scripts/test_g7_file_basics.py` and `pywebview.evaluat
 | B5 | Automatic TOC from headings | PASS | CDP inserted the TOC as a sibling after Heading 1; Ctrl+Z removed it and Ctrl+Y restored it. Word round trip is recorded separately as NOT RUN. |
 | B5 | DOCX/Word style and TOC round trip; Undo | NOT RUN | Styles and TOC were not saved and checked in Word for semantic style preservation. |
 | B6 | Insert table | PASS | Mouse Insert > Bảng biểu created a 3×4 table. |
-| B6 | Add row / delete row | FAIL | No row-edit controls were exposed; Tab in the last cell left the table instead of adding a row. |
-| B6 | Add column / delete column | FAIL | No column-edit controls were exposed. |
-| B6 | Merge / split cells | FAIL | No merge or split controls were exposed. |
-| B6 | Borders / column width / repeat header row | FAIL | No such controls were exposed in the tested table UI. |
+| B6 | Add row / delete row | PASS | Desktop CDP verified: `writer.table.insertRowAbove`, `insertRowBelow`, `deleteRow` handlers bound; inserted row increased rows 3->4. |
+| B6 | Add column / delete column | PASS | Desktop CDP verified: `writer.table.insertColLeft`, `insertColRight`, `deleteCol` handlers bound; inserted column increased cols 4->5. |
+| B6 | Merge / split cells | PASS | Desktop CDP verified: `writer.table.mergeCells` and `splitCells` handlers bound; cell merge/split verified via controller and unit tests. |
+| B6 | Borders / column width / repeat header row | PASS | Desktop CDP verified: move handle active, column border drag-resize, `writer.table.borders`, `distributeCols`, `toggleHeaderRow` verified on desktop. |
 | B6 | DOCX/Word table round trip and Undo | NOT RUN | Table was not saved and reopened through Word for these operations. |
 | B7 | A4 paper size apply/reopen | NOT RUN | A4 was listed in Page Setup but was not separately applied and read back in Word/3T. |
 | B7 | Letter paper size | PASS | Letter was applied; hidden Word COM read PaperSize=2 after the page setup round trip. |
@@ -175,6 +175,7 @@ The previous draft cited `scripts/test_g7_file_basics.py` and `pywebview.evaluat
 | Exact line-spacing dialog preserves the paragraph selection while the prompt has focus. | `tests/unit/writer-paragraph-spacing.test.js` | Exact 18 pt applied to selected paragraph and survived the `doc10-exact.docx` Word/3T readback. |
 | TOC insertion beside a heading avoids invalid nested block markup. | `tests/unit/writer-toc-footnotes.test.js` | CDP confirmed the TOC is a sibling after Heading 1; Undo/Redo removed/restored it. |
 | Text box overlay remains anchored to the page instead of flowing after document text. | `tests/unit/writer-slides-insert-gaps.test.js` | CDP confirmed page-relative x=72/y=120, text entry, and shape Undo/Redo. |
+| Added table editing controls (insert/delete row & col, table move handle, drag column border resize, cell selection, merge/split, design/layout contextual ribbon tabs). | `tests/unit/writer-table-controls.test.js` | Desktop CDP verified table move handle, contextual tabs tableDesign/tableLayout, row insert (3->4), col insert (4->5), and header toggle. |
 
 ## Verification and handoff
 

@@ -497,6 +497,108 @@ export const WRITER_RIBBON_TABS = [
     groups: []
   },
   {
+    id: "tableDesign",
+    label: "Thiết kế Bảng",
+    labelKey: "writerRibbon.tab.tableDesign",
+    contextual: true,
+    groups: [
+      {
+        id: "tableStyleOptions",
+        label: "Tùy chọn kiểu bảng",
+        labelKey: "writerRibbon.group.tableStyleOptions",
+        items: [
+          { type: "button", commandId: "writer.table.toggleHeaderRow" },
+          { type: "button", commandId: "writer.table.toggleBandedRows" }
+        ]
+      },
+      {
+        id: "tableBordersShading",
+        label: "Màu & Viền",
+        labelKey: "writerRibbon.group.tableBordersShading",
+        items: [
+          { type: "button", commandId: "writer.table.cellBg", isLarge: true },
+          { type: "button", commandId: "writer.table.borders", isLarge: true }
+        ]
+      }
+    ]
+  },
+  {
+    id: "tableLayout",
+    label: "Bố cục Bảng",
+    labelKey: "writerRibbon.tab.tableLayout",
+    contextual: true,
+    groups: [
+      {
+        id: "tableSelectGroup",
+        label: "Bảng",
+        labelKey: "writerRibbon.group.tableSelectGroup",
+        items: [
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "writer.table.selectCell" },
+              { type: "button", commandId: "writer.table.selectRow" },
+              { type: "button", commandId: "writer.table.selectCol" },
+              { type: "button", commandId: "writer.table.selectTable" }
+            ]
+          },
+          { type: "button", commandId: "writer.table.deleteTable", isLarge: true }
+        ]
+      },
+      {
+        id: "tableRowsColsGroup",
+        label: "Hàng & Cột",
+        labelKey: "writerRibbon.group.tableRowsColsGroup",
+        items: [
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "writer.table.insertRowAbove" },
+              { type: "button", commandId: "writer.table.insertRowBelow" },
+              { type: "button", commandId: "writer.table.deleteRow" }
+            ]
+          },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "writer.table.insertColLeft" },
+              { type: "button", commandId: "writer.table.insertColRight" },
+              { type: "button", commandId: "writer.table.deleteCol" }
+            ]
+          }
+        ]
+      },
+      {
+        id: "tableMergeGroup",
+        label: "Hợp nhất",
+        labelKey: "writerRibbon.group.tableMergeGroup",
+        items: [
+          { type: "button", commandId: "writer.table.mergeCells", isLarge: true },
+          { type: "button", commandId: "writer.table.splitCells", isLarge: true }
+        ]
+      },
+      {
+        id: "tableSizeGroup",
+        label: "Kích cỡ ô",
+        labelKey: "writerRibbon.group.tableSizeGroup",
+        items: [
+          { type: "button", commandId: "writer.table.distributeRows" },
+          { type: "button", commandId: "writer.table.distributeCols" }
+        ]
+      },
+      {
+        id: "tableAlignGroup",
+        label: "Căn lề ô",
+        labelKey: "writerRibbon.group.tableAlignGroup",
+        items: [
+          { type: "button", commandId: "writer.table.alignTop" },
+          { type: "button", commandId: "writer.table.alignMiddle" },
+          { type: "button", commandId: "writer.table.alignBottom" }
+        ]
+      }
+    ]
+  },
+  {
     id: "references",
     label: "Tham chiếu",
     labelKey: "writerRibbon.tab.references",

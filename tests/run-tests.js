@@ -208,6 +208,7 @@ import { runBasicEditingKeysTests } from "./unit/basic-editing-keys.test.js";
 import { runUiConsistencyAndStringScannerTests } from "./unit/ui-user-visible-strings.test.js";
 import { runOsInputGuardTests } from "./unit/os-input-guard.test.js";
 import { runPrintEngineNameTests } from "./unit/print-engine-name.test.js";
+import { runWriterTableControlsTests } from "./unit/writer-table-controls.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -425,7 +426,8 @@ async function runAll() {
     { title: "169. Unit Tests — Shared Find and Replace (CH-7.1) for 3T Doc, 3T Sheet and 3T Slide", runner: runSharedFindReplaceTests },
     { title: "170. Unit Tests — CH-8 UI Consistency, KeyTips, Contextual F1 & String Scanner", runner: runUiConsistencyAndStringScannerTests },
     { title: "171. Safety Regression — source and tests use CDP, not OS-level input", runner: runOsInputGuardTests },
-    { title: "172. CH-3/CH-8 — Hộp thoại In không lộ tên thư viện bên trong", runner: runPrintEngineNameTests }
+    { title: "172. CH-3/CH-8 — Hộp thoại In không lộ tên thư viện bên trong", runner: runPrintEngineNameTests },
+    { title: "173. Unit Tests — VN Writer table controls, move handle, drag resize and contextual ribbon tabs", runner: runWriterTableControlsTests }
   ];
 
   for (const suite of suites) {
