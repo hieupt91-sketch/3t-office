@@ -60,8 +60,13 @@ export class SheetApp {
     this.grid = new SheetGridController(gridWrap, {
       onDocumentChange: () => { if (this.adapter) this.adapter.isDirty = true; },
       onSelect: (coord, data, stats) => {
+        if (this.grid?.formulaEntry) {
+          this.shell.setStatus(t(`sheetFormulaEntry.status.${this.grid.formulaEntry.mode === "point" ? "point" : this.grid.formulaEntry.mode === "enter" ? "enter" : "edit"}`));
+          return;
+        }
         this.shell.setStatus(`SẴN SÀNG  |  Ô: ${coord}  |  ĐẾM: ${stats.count}  |  TRUNG BÌNH: ${stats.avg}  |  TỔNG CỘNG: ${stats.sum}`);
       },
+      onFormulaEntryMode: (label) => this.shell?.setStatus?.(label),
       isBlank,
       templateId
     });
