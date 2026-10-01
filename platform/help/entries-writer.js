@@ -593,18 +593,32 @@ export const WRITER_HELP_ENTRIES = [
     ]
   },
   {
+    id: "writer.insert.equationHelp",
+    app: "writer",
+    commandIds: ["writer.insert.equation"],
+    title: "Chèn và sửa phương trình trong 3T Doc",
+    summary: "Tab Chèn > nhóm Ký hiệu > Phương trình mở bộ soạn dạng tuyến tính, cấu trúc toán học và xem trước MathML. Phương trình được lưu thành công thức Word có thể sửa.",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Ký hiệu" },
+    keywords: ["phương trình", "công thức", "equation", "Alt+=", "phân số", "căn", "ma trận", "MathML"],
+    steps: [
+      "Trong 3T Doc, đặt con trỏ tại vị trí cần chèn. Mở tab Chèn, nhóm Ký hiệu, chọn Phương trình; có thể nhấn Alt+= để mở cùng hộp thoại.",
+      "Nhập dạng tuyến tính ở ô Dạng tuyến tính, ví dụ a/b, x^2, x_1 hoặc \\sqrt(x). Gõ \\alpha rồi nhấn phím cách để đổi thành α. Các nút Phân số, chỉ số, căn, tích phân, tổng, tích, ngoặc và ma trận chèn mẫu tại vị trí con trỏ trong ô nhập; nhóm Ký hiệu thêm các chữ Hy Lạp và dấu toán học. Xem kết quả trong vùng Xem trước.",
+      "Chọn Chèn vào tài liệu. Dùng bàn phím thì nhấn Tab tới nút này rồi nhấn Enter. Phương trình nằm ngay tại con trỏ; nếu dòng đang trống thì phương trình hiển thị giữa dòng riêng. Nhấn Esc hoặc Hủy để đóng mà không chèn.",
+      "Bấm phương trình để chọn; nhấp đúp để mở lại và sửa tại chỗ. Khi đã chọn, nhấn Delete hoặc Backspace để xóa. Ctrl+Z hoàn tác và Ctrl+Y làm lại. Lưu tài liệu thành .docx để mở và tiếp tục sửa công thức trong Microsoft Word."
+    ]
+  },
+  {
     id: "writer.insert.equationBookmark",
     app: "writer",
-    commandIds: ["writer.insert.equation", "writer.insert.bookmark", "writer.insert.crossReference"],
-    title: "Công thức chữ, đánh dấu và tham chiếu chéo",
-    summary: "Công thức là hộp chữ toán (mặc định E = mc²), không phải trình soạn phương trình. Đánh dấu tạo mỏ neo nội bộ; Tham chiếu chéo chèn liên kết tới tiêu đề hoặc đánh dấu đã có.",
-    ribbon: { tab: "Chèn", tabId: "insert", group: "Ký hiệu" },
-    keywords: ["công thức", "equation", "đánh dấu", "bookmark", "tham chiếu chéo", "cross reference", "e = mc"],
+    commandIds: ["writer.insert.bookmark", "writer.insert.crossReference"],
+    title: "Đánh dấu và tham chiếu chéo",
+    summary: "Đánh dấu tạo mỏ neo nội bộ; Tham chiếu chéo chèn liên kết tới tiêu đề hoặc đánh dấu đã có.",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Liên kết" },
+    keywords: ["đánh dấu", "bookmark", "tham chiếu chéo", "cross reference"],
     steps: [
-      "Công thức: tab Chèn, nhóm Ký hiệu, nút lớn Công thức (cạnh Ký hiệu). Hộp «Công thức» ghi rõ bản rút gọn — dạng chữ, không soạn đồ họa. Ô Biểu thức mặc định E = mc²; mẫu sẵn a² + b² = c², nghiệm phương trình bậc hai, trung bình ∑. Chèn → span phông Cambria Math, khung nét đứt xanh.",
       "Đánh dấu: cùng tab, nhóm Liên kết, nút Đánh dấu. Hộp «Đánh dấu», Tên đánh dấu mặc định bookmark1. Tên được bỏ dấu, ký tự lạ thành -, trùng thì thêm -2, -3… Tạo thẻ neo ẩn tại con trỏ.",
       "Tham chiếu chéo: nút ngay dưới Đánh dấu. Hộp «Tham chiếu chéo» — nếu chưa có tiêu đề (Heading) hay đánh dấu thì báo «Chưa có tiêu đề hoặc đánh dấu nào.» và khóa Chèn. Có rồi: chọn H tiêu đề hoặc ⚑ đánh dấu, chèn liên kết nội bộ hiện tên đó.",
-      "Không có số trang / «phía trên» như Word. Ctrl+Z gỡ hộp hoặc liên kết vừa chèn. Ký hiệu đặc biệt là bài riêng cùng nhóm Ký hiệu."
+      "Ctrl+Z gỡ đánh dấu hoặc liên kết vừa chèn. Ký hiệu đặc biệt là bài riêng cùng nhóm Ký hiệu."
     ]
   },
   {

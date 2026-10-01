@@ -2765,13 +2765,111 @@ p.vno-style-emphasis {
 
 .vno-equation {
   display: inline-block;
-  font-family: "Cambria Math", "Times New Roman", serif;
-  font-style: italic;
-  padding: 2px 8px;
-  margin: 0 2px;
-  border: 1px dashed #93c5fd;
-  background: #eff6ff;
-  border-radius: 4px;
+  vertical-align: middle;
+  max-width: 100%;
+  padding: 2px 3px;
+  margin: 0 1px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.vno-equation:focus-visible,
+.vno-equation.is-selected {
+  outline: 2px solid var(--vno-writer-primary, #0f4c81);
+  outline-offset: 2px;
+}
+.vno-equation math {
+  font-size: 1.08em;
+  line-height: 1.2;
+}
+.vno-equation[data-vno-equation-display="block"] {
+  display: block;
+  text-align: center;
+  margin: 8px auto;
+}
+.vno-equation-editor {
+  max-height: min(88vh, 760px);
+  display: flex;
+  flex-direction: column;
+}
+.vno-equation-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: auto;
+}
+.vno-equation-guidance,
+.vno-equation-hint {
+  margin: 0;
+  color: var(--vno-text-muted, #64748b);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.vno-equation-structures,
+.vno-equation-symbols {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.vno-equation-structure,
+.vno-equation-symbol {
+  min-width: 38px;
+  min-height: 34px;
+  padding: 4px 8px;
+  font-family: "Cambria Math", "Segoe UI Symbol", serif;
+  font-size: 16px;
+}
+.vno-equation-editor-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.8fr);
+  gap: 12px;
+  min-height: 190px;
+}
+.vno-equation-input-pane,
+.vno-equation-preview-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+.vno-equation-input-pane label,
+.vno-equation-preview-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+.vno-equation-linear {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 132px;
+  resize: vertical;
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.vno-equation-preview {
+  display: flex;
+  flex: 1;
+  min-height: 132px;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid var(--vno-border-default, #cbd5e1);
+  border-radius: 6px;
+  background: var(--vno-surface, #fff);
+  font-size: 20px;
+}
+.vno-equation-preview math {
+  max-width: 100%;
+}
+@media (max-width: 640px) {
+  .vno-equation-editor-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .vno-equation-preview {
+    min-height: 90px;
+  }
 }
 
 .vno-writer-wordart {

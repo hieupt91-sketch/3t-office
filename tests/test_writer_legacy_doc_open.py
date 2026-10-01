@@ -31,6 +31,7 @@ class WriterLegacyDocOpenTests(unittest.TestCase):
             patcher.inject_docx_half_point_styles_css.side_effect = lambda _data, html: html + "|half-point"
             patcher.inject_docx_heading_styles_css.side_effect = lambda _data, html: html + "|heading"
             patcher.restore_docx_html_half_points_and_empty_paras.side_effect = lambda _data, html: html + "|half-point-empty"
+            patcher.writer_docx_equations_to_mathml_html.side_effect = lambda _data, html: html
 
             with (
                 patch.object(main, "_run_soffice_convert", side_effect=fake_convert),
