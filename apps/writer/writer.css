@@ -900,6 +900,98 @@ li.vno-page-auto-gap {
   box-shadow: 0 0 0 5px rgba(96, 165, 250, 0.25);
 }
 
+/* Image Resize Overlay & Handles */
+.vno-image-resize-overlay {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1.5px dashed #2563eb;
+  pointer-events: none;
+  z-index: 1001;
+}
+
+.vno-image-resize-handle {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  background: #ffffff;
+  border: 1.5px solid #2563eb;
+  border-radius: 2px;
+  box-sizing: border-box;
+  pointer-events: auto;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transition: transform 0.1s ease;
+}
+
+.vno-image-resize-handle:hover {
+  transform: scale(1.25);
+  background: #eff6ff;
+  border-color: #1d4ed8;
+}
+
+.vno-image-quick-wrap-btn {
+  position: absolute;
+  top: -24px;
+  right: 0;
+  width: 22px;
+  height: 22px;
+  background: #f8fafc;
+  border: 1px solid #94a3b8;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  z-index: 1002;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.vno-image-quick-wrap-btn:hover {
+  background: #e2e8f0;
+  border-color: #2563eb;
+}
+
+.vno-image-wrap-menu {
+  position: absolute;
+  top: 26px;
+  right: 0;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+  z-index: 1003;
+  min-width: 210px;
+  padding: 4px 0;
+  font-size: 12px;
+  pointer-events: auto;
+}
+
+.vno-image-wrap-option {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  color: #1e293b;
+  cursor: pointer;
+  text-align: left;
+  font-size: 12px;
+  gap: 8px;
+  transition: background 0.12s ease;
+}
+
+.vno-image-wrap-option:hover {
+  background: #f1f5f9;
+}
+
+.vno-image-wrap-option.is-selected {
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
 .vno-writer-arrange-group .vno-ribbon-group-items {
   align-items: center;
   gap: 8px;

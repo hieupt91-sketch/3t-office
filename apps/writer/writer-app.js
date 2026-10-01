@@ -213,6 +213,7 @@ export class WriterApp {
     }
     this.arrangeController = new WriterArrangeController({
       body,
+      page: this.canvas,
       adapter: this.adapter,
       ribbonHost: this.shell.ribbonHost,
       mountElement: this.mountElement
