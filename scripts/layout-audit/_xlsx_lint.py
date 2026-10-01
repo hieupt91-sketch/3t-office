@@ -33,25 +33,36 @@ for i, xf in enumerate(re.findall(r"<xf\b[^>]*/>|<xf\b[^>]*>.*?</xf>", xfs.group
     nf = int(a.get("numFmtId", 0))
     if nf >= 164 and nf not in numfmt_ids: print(f"xf {i}: numFmtId {nf} undeclared")
 sst = z.read("xl/sharedStrings.xml").decode() if "xl/sharedStrings.xml" in z.namelist() else ""
-nsi = len(re.findall(r"<si\b", sst))
+nsi = len(re.findall(r"<(?:[a-zA-Z0-9_]+:)?si\b", sst))
 uc = re.search(r'uniqueCount="(\d+)"', sst)
 if uc and int(uc.group(1)) != nsi: print(f"SST uniqueCount={uc.group(1)} actual si={nsi}")
+row_re = re.compile(r'<row\b((?:[^>/]|/(?!>))*)(?:/>|>([\s\S]*?)</row>)', re.IGNORECASE)
+cell_re = re.compile(r'<c\b[^>]*\br="([A-Z]+)(\d+)"', re.IGNORECASE)
 for name in z.namelist():
     if not name.startswith("xl/worksheets/sheet"): continue
     s = z.read(name).decode()
     if "<cols></cols>" in s or "<cols/>" in s: print(name, "EMPTY <cols>")
-    for m in re.finditer(r'<c r="([A-Z]+)(\d+)"[^>]*t="s"[^>]*>\s*<v>(\d+)</v>', s):
-        if int(m.group(3)) >= nsi: print(name, m.group(1) + m.group(2), "sst index", m.group(3), ">=", nsi); break
-    for m in re.finditer(r'<c r="([A-Z]+\d+)"[^>]*\bs="(\d+)"', s):
-        if int(m.group(2)) >= nxf: print(name, m.group(1), "xf", m.group(2), ">=", nxf); break
+    for m in re.finditer(r'<c\b((?:[^>/]|/(?!>))*)(?:/>|>([\s\S]*?)</c>)', s, re.IGNORECASE):
+        a = dict(re.findall(r'(\w+)="([^"]*)"', m.group(1)))
+        coord = a.get("r", "")
+        if a.get("t") == "s":
+            v = re.search(r"<v>\s*(\d+)\s*</v>", m.group(2) or "")
+            if v and int(v.group(1)) >= nsi:
+                print(name, coord, "sst index", v.group(1), ">=", nsi); break
+        s_idx = a.get("s")
+        if s_idx and s_idx.isdigit() and int(s_idx) >= nxf:
+            print(name, coord, "xf", s_idx, ">=", nxf); break
     # row order / cell order
     prev_r = 0
-    for rm in re.finditer(r'<row\b[^>]*\br="(\d+)"[^>]*>(.*?)</row>', s, re.S):
-        r = int(rm.group(1))
+    for rm in row_re.finditer(s):
+        r_attr = re.search(r'\br="(\d+)"', rm.group(1))
+        if not r_attr: continue
+        r = int(r_attr.group(1))
         if r <= prev_r: print(name, "row order broken at", r); break
         prev_r = r
+        body = rm.group(2) or ""
         prev_c = 0
-        for cm in re.finditer(r'<c r="([A-Z]+)(\d+)"', rm.group(2)):
+        for cm in cell_re.finditer(body):
             c = 0
             for ch in cm.group(1): c = c * 26 + ord(ch) - 64
             if int(cm.group(2)) != r: print(name, "cell row mismatch", cm.group(0), "in row", r); break
