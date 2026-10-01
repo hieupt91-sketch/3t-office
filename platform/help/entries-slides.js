@@ -716,12 +716,12 @@ export const SLIDES_HELP_ENTRIES = [
     title: "Khác biệt cần biết (so với bộ Office khác)",
     summary: "Một số tính năng nâng cao đang được hoàn thiện và sẽ cập nhật trong các bản vá tới. Các nút vẫn hiện trên ribbon đúng vị trí chuẩn; khi bấm sẽ hiện thông báo «Tính năng này đang được hoàn thiện và sẽ có trong bản cập nhật tới.»",
     ribbon: { tab: "Chuyển tiếp", tabId: "transitions", group: "Hiệu ứng chuyển trang" },
-    keywords: ["khác biệt", "không có", "chưa hỗ trợ", "pending", "morph", "broadcast", "ghi âm", "thuyết minh", "laser", "online"],
+    keywords: ["khác biệt", "không có", "chưa hỗ trợ", "pending", "morph", "broadcast", "ghi âm", "thuyết minh", "laser", "online", "3t slide"],
     steps: [
       "Hiệu ứng chuyển tiếp Morph (tab Chuyển tiếp > nhóm Hiệu ứng chuyển trang > Chuyển tiếp): hiện hỗ trợ Fade, Slide, Zoom, Flip — chưa có Morph (tự động phân tích và nội suy chuyển động hình khối cùng tên giữa hai trang liên tiếp). Dự kiến Patch 1.2.",
       "Trình chiếu trực tuyến / Broadcast (tab Trình chiếu > nhóm Thiết lập > Chế độ Presenter): hiện có Presenter Mode 2 màn hình cục bộ (Alt+F5) — chưa hỗ trợ phát bài thuyết trình qua mạng nội bộ cho người xem qua trình duyệt. Dự kiến Patch 1.3.",
       "Ghi âm thuyết minh trực tiếp (tab Chèn > nhóm Đa phương tiện > Âm thanh): hiện chỉ chèn file âm thanh từ máy tính — chưa có thu âm microphone trực tiếp trên từng trang chiếu. Dự kiến Patch 1.1.",
-      "Các nút này vẫn hiển thị trên ribbon đúng vị trí chuẩn Microsoft PowerPoint. Khi bấm vào, hệ thống sẽ hiển thị thông báo tiếng Việt rõ ràng thay vì thao tác câm."
+      "Các nút này vẫn hiển thị trên ribbon đúng vị trí chuẩn Microsoft PowerPoint. Khi bấm vào, hệ thống sẽ hiển thị thông báo tiếng Việt rõ ràng thay vì thao tác câm. Ứng dụng này là 3T Slide, một phần của bộ 3T Office."
     ]
   }
 ];

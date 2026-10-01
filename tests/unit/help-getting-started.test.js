@@ -126,7 +126,9 @@ function buildDefinedShortcutSet(app) {
 function extractShortcutTokens(text) {
   const tokens = [];
   // Pattern: Ctrl+..., Shift+..., Alt+..., F1-F12, Page Up/Down
-  const comboRe = /(?:Ctrl|Shift|Alt|Meta|Win)(?:\s*\+\s*(?:Ctrl|Shift|Alt|Meta|Win))*\s*\+\s*[^\s,;.)\]}»:/]+/gi;
+  // Allow special keys like = + as final key (e.g., Ctrl+Shift+=, Ctrl+Shift++)
+  // Handle Ctrl+Shift+; (insert time) specially in cleaning step
+  const comboRe = /(?:Ctrl|Shift|Alt|Meta|Win)(?:\s*\+\s*(?:Ctrl|Shift|Alt|Meta|Win))*\s*\+\s*(?:[^\s,.)\]}»:/]+|[=+])/gi;
   const fkeyRe = /F(?:[1-9]|1[0-2])\b/g;
   const pageRe = /Page\s*(?:Up|Down)/gi;
   const cleaned = text
@@ -134,9 +136,25 @@ function extractShortcutTokens(text) {
     .replace(/Alt\+Shift\+↑\/↓/g, "Alt+Shift+Up Alt+Shift+Down")
     .replace(/Ctrl\+Shift\+\>\/</g, "Ctrl+Shift+> Ctrl+Shift+<")
     .replace(/Ctrl\+\]\/\[/g, "Ctrl+] Ctrl+[")
-    .replace(/Ctrl\+\+\/-/g, "Ctrl++ Ctrl+-");
-  for (const m of cleaned.matchAll(comboRe)) tokens.push(m[0]);
-  for (const m of cleaned.matchAll(fkeyRe)) tokens.push(m[0]);
+    .replace(/Ctrl\+\+\/-/g, "Ctrl++ Ctrl+-")
+    // Handle Ctrl+Shift+; (sheet.insert.time) - protect the semicolon from being treated as punctuation
+    .replace(/Ctrl\+Shift\+;/g, "Ctrl+Shift+;")
+    // Remove trailing semicolon from shortcuts like "Ctrl+1;" (Vietnamese punctuation)
+    .replace(/\b(Ctrl|Shift|Alt|Meta|Win)(?:\s*\+\s*(?:Ctrl|Shift|Alt|Meta|Win))*\s*\+\s*\w+;/g, (m) => m.slice(0, -1));
+  // First, collect all combo matches and remember their positions
+  const comboMatches = [...cleaned.matchAll(comboRe)];
+  for (const m of comboMatches) tokens.push(m[0]);
+  // For function keys, only add those NOT already part of a combo match
+  for (const m of cleaned.matchAll(fkeyRe)) {
+    const fkeyPos = m.index;
+    const fkeyText = m[0];
+    const isPartOfCombo = comboMatches.some(cm => {
+      const comboStart = cm.index;
+      const comboEnd = comboStart + cm[0].length;
+      return fkeyPos >= comboStart && fkeyPos < comboEnd;
+    });
+    if (!isPartOfCombo) tokens.push(fkeyText);
+  }
   for (const m of cleaned.matchAll(pageRe)) tokens.push(m[0]);
   return tokens.map(t => normalizeShortcut(t));
 }
@@ -259,11 +277,14 @@ export async function runHelpGettingStartedTests() {
   });
 
   // --- Verify names: no old product names ---
-  await test("Help entries: không dùng tên cũ (VN Writer/VN Sheet/VN Slides/Microsoft/Word/Excel/PowerPoint)", async () => {
+  await test("Help entries: không dùng tên cũ (VN Writer/VN Sheet/VN Slides/VN Office) và không gọi sản phẩm của chúng ta là Word/Excel/PowerPoint", async () => {
     const { WRITER_HELP_ENTRIES } = await import("../../platform/help/entries-writer.js");
     const { SHEET_HELP_ENTRIES } = await import("../../platform/help/entries-sheet.js");
     const { SLIDES_HELP_ENTRIES } = await import("../../platform/help/entries-slides.js");
-    const banned = /\b(VN Writer|VN Sheet|VN Slides|VN Office|Microsoft|Word|Excel|PowerPoint)\b/i;
+    // Forbid old VN product names; forbid calling OUR product Word/Excel/PowerPoint
+    // Allow "Microsoft Office/WPS" as factual reference to print engine
+    const bannedOldVN = /\b(VN Writer|VN Sheet|VN Slides|VN Office)\b/i;
+    const bannedOurProductAsMS = /\b(3T (Doc|Sheet|Slide|Office)\s+(là|gọi là|được gọi là)\s+(Word|Excel|PowerPoint)|(Word|Excel|PowerPoint)\s+là\s+(3T (Doc|Sheet|Slide|Office)))\b/i;
     const newEntries = [
       ...WRITER_HELP_ENTRIES.filter(e => ["writer.gettingStarted", "writer.shortcuts", "writer.differences"].includes(e.id)),
       ...SHEET_HELP_ENTRIES.filter(e => ["sheet.gettingStarted", "sheet.shortcuts", "sheet.differences"].includes(e.id)),
@@ -271,8 +292,11 @@ export async function runHelpGettingStartedTests() {
     ];
     for (const entry of newEntries) {
       const blob = [entry.title, entry.summary, ...entry.steps].join(" ");
-      if (banned.test(blob)) {
-        throw new Error(`[${entry.id}] chứa tên cấm: ${blob.match(banned)[0]}`);
+      if (bannedOldVN.test(blob)) {
+        throw new Error(`[${entry.id}] chứa tên VN cũ cấm: ${blob.match(bannedOldVN)[0]}`);
+      }
+      if (bannedOurProductAsMS.test(blob)) {
+        throw new Error(`[${entry.id}] gọi sản phẩm 3T là Word/Excel/PowerPoint: ${blob.match(bannedOurProductAsMS)[0]}`);
       }
       // Must use 3T Doc/3T Sheet/3T Slide/3T Office
       const has3TName = /3T (Doc|Sheet|Slide|Office)/.test(blob);

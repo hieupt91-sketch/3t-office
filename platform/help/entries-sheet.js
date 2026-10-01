@@ -1119,7 +1119,7 @@ export const SHEET_HELP_ENTRIES = [
     ribbon: { tab: "Tệp", tabId: "file", group: "Sổ làm việc" },
     keywords: ["bắt đầu nhanh", "tạo mới", "mở tệp", "lưu", "lưu bản sao", "in", "xuất pdf", "ctrl+n", "ctrl+o", "ctrl+s", "f12", "ctrl+p", "sheet1", "3t sheet"],
     steps: [
-      "Tạo sổ trống: nhấn Ctrl+N hoặc menu Tệp > Mới. Một cửa sổ mới tên Bảng tính 2, Bảng tính 3… xuất hiện với duy nhất Sheet1, ô A1 đang chọn và chưa có dữ liệu.",
+      "Tạo sổ trống: nhấn Ctrl+N hoặc menu Tệp > Mới. Một cửa sổ mới tên Bảng tính 2, Bảng tính 3… xuất hiện với duy nhất Sheet1, ô A1 đang chọn và chưa có dữ liệu. Ứng dụng hiển thị tên 3T Sheet trên thanh tiêu đề cửa sổ.",
       "Mở sổ: nhấn Ctrl+O hoặc menu Tệp > Mở, chọn XLSX, XLS, ODS hoặc CSV. Nếu sổ hiện tại có thay đổi, chọn Lưu, Không lưu hoặc Hủy trước khi chọn tệp; Hủy thao tác mở sẽ giữ sổ hiện tại.",
       "Lưu (Ctrl+S): mở hộp thoại Lưu thành cho sổ mới. Với tệp đã mở/lưu, Ctrl+S giữ nguyên định dạng hiện tại. Nhấn F12 để Lưu bản sao — nhập tên, chọn XLSX, XLS, ODS, CSV hoặc PDF ở Loại tệp. Chọn PDF chỉ xuất một bản PDF; sổ đang mở vẫn giữ tên và định dạng cũ.",
       "In (Ctrl+P): mở Xem trước khi in. Chọn máy in, số bản và phạm vi trang. Các thiết lập Vùng in, ngắt trang và Vừa trang được áp dụng vào bản xem trước. Khi có Microsoft Office/WPS, dùng bộ dựng PDF đó; ngược lại LibreOffice.",

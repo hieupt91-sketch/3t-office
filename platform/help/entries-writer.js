@@ -1055,13 +1055,13 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["writer.insert.equation", "writer.section.continuous"],
     title: "Khác biệt cần biết (so với bộ Office khác)",
-    summary: "Một số tính năng nâng cao đang được hoàn thiện và sẽ cập nhật trong các bản vá tới. Các nút vẫn hiện trên ribbon đúng vị trí chuẩn; khi bấm sẽ hiện thông báo «Tính năng này đang được hoàn thiện và sẽ có trong bản cập nhật tới.»",
+    summary: "Công thức và Ngắt mục đã có mặt trong 3T Doc nhưng khác với Microsoft Word ở chỗ: Công thức là hộp chữ toán đơn giản (không có trình soạn LaTeX/MathJax WYSIWYG); Ngắt mục liên tục tạo mục mới với Page Setup riêng nhưng Header/Footer và khổ giấy ngang/dọc vẫn dùng chung trong xuất DOCX/PDF (giới hạn HTML filter của LibreOffice).",
     ribbon: { tab: "Chèn", tabId: "insert", group: "Ký hiệu" },
-    keywords: ["khác biệt", "không có", "chưa hỗ trợ", "pending", "phương trình", "ngắt mục", "toán học", "latex", "section"],
+    keywords: ["khác biệt", "công thức", "equation", "ngắt mục", "section break", "header", "footer", "khổ giấy", "hướng giấy"],
     steps: [
-      "Phương trình toán học nâng cao (tab Chèn > nhóm Ký hiệu > Công thức): hiện chỉ là hộp chữ toán rút gọn (mặc định E = mc²) — chưa tích hợp bộ gõ LaTeX/MathJax WYSIWYG hay xuất ODF/OOXML Math chuẩn. Dự kiến Patch 1.1.",
-      "Ngắt mục liên tục tách biệt hoàn toàn Header/Footer và khổ giấy ngang/dọc giữa các mục (tab Bố cục > nhóm Thiết lập trang > Ngắt trang > Ngắt mục — Liên tục): hiện chỉ là ngắt mục cơ bản, chưa tách biệt hoàn toàn các thiết lập trang giữa các mục liên tục. Dự kiến Patch 1.1.",
-      "Các nút này vẫn hiển thị trên ribbon đúng vị trí chuẩn Microsoft Word. Khi bấm vào, hệ thống sẽ hiển thị thông báo tiếng Việt rõ ràng thay vì thao tác câm."
+      "Công thức (tab Chèn > nhóm Ký hiệu > Công thức): là hộp chữ toán rút gọn (mặc định E = mc²), cho phép nhập biểu thức dạng văn bản. Chưa có trình soạn LaTeX/MathJax WYSIWYG; xuất FODT/DOCX ghi span với data-equation, LibreOffice mở như văn bản thường — không xuất ODF/OOXML Math chuẩn.",
+      "Ngắt mục (tab Bố cục > nhóm Thiết lập trang > Ngắt trang > Ngắt mục): có 4 loại — Trang kế tiếp, Liên tục, Trang chẵn, Trang lẻ. Mỗi ngắt tạo một mục (section) mới với Page Setup riêng (lề, hướng, khổ giấy) được lưu trong data-vno-section-id. Trên canvas 3T Doc: mục mới áp dụng Page Setup riêng ngay. Khi xuất DOCX/PDF qua LibreOffice: Header/Footer và khổ giấy ngang/dọc vẫn dùng chung cho cả tài liệu (giới hạn bộ lọc HTML của LibreOffice), chỉ lề và khổ giấy cơ bản được giữ. Ngắt cột (menu Ngắt trang) chỉ có hiệu lực khi tài liệu đang chia từ 2 cột trở lên.",
+      "Các nút này vẫn hiển thị trên ribbon đúng vị trí chuẩn Microsoft Word. Khi bấm vào, hộp thoại/hành động chạy ngay thay vì chỉ hiện thông báo đang hoàn thiện."
     ]
   }
 ];
