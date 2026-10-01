@@ -54,6 +54,7 @@ export const VN_TO_UNO_MAP = {
   "writer.text.bold": ".uno:Bold",
   "writer.nav.docStart": ".uno:StartOfDocument",
   "writer.nav.docEnd": ".uno:EndOfDocument",
+  "writer.edit.pasteSpecial": ".uno:PasteSpecial",
   "writer.text.italic": ".uno:Italic",
   "writer.text.underline": ".uno:Underline",
   "writer.text.strike": ".uno:Strikeout",
