@@ -6,6 +6,13 @@ import { FormulaEngine, FUNCTION_CATALOG } from "./formula-engine.js";
 import { createEvaluateFormulaSessionFromGrid, formatFormulaValue, renderFormulaHtml } from "./evaluate-formula.js";
 import { SheetChartBuilder } from "./sheet-chart.js";
 import { FormulaAutocompleteController } from "./formula-autocomplete.js";
+import {
+  FormulaEntrySession,
+  cycleAbsoluteReference,
+  findFormulaReferences,
+  isFormulaReferenceInsertionPoint,
+  makeCellReference
+} from "./formula-entry.js";
 import { PivotTableEngine } from "./pivot-table.js";
 import { WhatIfAnalysisEngine } from "./what-if-analysis.js";
 import { NumberFormatter } from "./number-formatter.js";
@@ -187,6 +194,12 @@ export class SheetGridController {
       () => this.sheets
     );
     this.autocomplete = new FormulaAutocompleteController(this);
+    this.formulaEntry = null;
+    this.formulaReferenceOverlay = null;
+    this.formulaReferenceOverlayContent = null;
+    this._isFormulaComposing = false;
+    this._isSelectingFormulaReference = false;
+    this._formulaPointCoord = null;
 
     this.undoStack = [];
     this.redoStack = [];
@@ -310,7 +323,7 @@ export class SheetGridController {
     this.workbookView = "normal";
     fBar.className = "vno-formula-bar";
     fBar.setAttribute("role", "region");
-    fBar.setAttribute("aria-label", "Thanh công thức");
+    fBar.setAttribute("aria-label", t("sheetFormulaEntry.formulaBarLabel"));
     fBar.innerHTML = `
       <div class="vno-name-box" id="vno-cell-name" role="status" aria-label="Hộp tên ô">A1</div>
       <div class="vno-formula-actions" role="toolbar" aria-label="Thao tác công thức">
@@ -322,8 +335,24 @@ export class SheetGridController {
     `;
     this.nameBox = fBar.querySelector("#vno-cell-name");
     this.formulaInput = fBar.querySelector("#vno-formula-val");
+    this.formulaInput.setAttribute("aria-label", t("sheetFormulaEntry.formulaBarLabel"));
+    this.formulaInput.title = t("sheetFormulaEntry.referenceHint");
+    const formulaInputWrap = document.createElement("div");
+    formulaInputWrap.className = "vno-formula-input-wrap";
+    this.formulaReferenceOverlay = document.createElement("div");
+    this.formulaReferenceOverlay.className = "vno-formula-reference-overlay";
+    this.formulaReferenceOverlay.setAttribute("aria-hidden", "true");
+    this.formulaReferenceOverlayContent = document.createElement("span");
+    this.formulaReferenceOverlayContent.className = "vno-formula-reference-overlay-content";
+    this.formulaReferenceOverlay.appendChild(this.formulaReferenceOverlayContent);
+    this.formulaInput.before(formulaInputWrap);
+    formulaInputWrap.append(this.formulaReferenceOverlay, this.formulaInput);
 
     this.autocomplete.mount();
+
+    this.formulaInput.addEventListener("focus", () => {
+      if (!this.formulaEntry) this._beginFormulaEntry("edit");
+    });
 
     this.formulaInput.addEventListener("input", (e) => {
       if (this.isSheetProtected()) {
@@ -333,16 +362,55 @@ export class SheetGridController {
         this._notifySheetProtected();
         return;
       }
-      this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, e.target.value, true, { coalesce: true });
+      if (!this.formulaEntry) this._beginFormulaEntry("edit");
+      this._setFormulaEntryValue(e.target.value, this.formulaInput.selectionStart, {
+        source: "input",
+        composing: this._isFormulaComposing || e.isComposing
+      });
       this.autocomplete.handleInput(e.target.value, this.formulaInput.selectionStart);
       this._syncFormulaBarHeight();
     });
+
+    this.formulaInput.addEventListener("compositionstart", () => { this._isFormulaComposing = true; });
+    this.formulaInput.addEventListener("compositionend", () => {
+      this._isFormulaComposing = false;
+      if (!this.formulaEntry) this._beginFormulaEntry("edit");
+      this._setFormulaEntryValue(this.formulaInput.value, this.formulaInput.selectionStart, { source: "input" });
+    });
+    this.formulaInput.addEventListener("scroll", () => this._renderFormulaReferenceOverlay());
 
     this.formulaInput.addEventListener("keydown", (e) => {
       // Ngăn sự kiện phím trong formulaInput nổi bọt lên container lưới (tránh xử lý trùng lặp Enter, Tab, mũi tên...)
       e.stopPropagation();
 
+      if (this._isFormulaComposing || e.isComposing || e.keyCode === 229) return;
+
+      if (e.key === "Enter" && e.ctrlKey && e.shiftKey) {
+        e.preventDefault();
+        this.autocomplete.closeAll();
+        this._commitFormulaEntry({ move: false });
+        globalCommandBus.execute("sheet.formula.arrayEnter");
+        return;
+      }
+
       if (this.autocomplete.handleKeyDown(e)) {
+        return;
+      }
+      if (e.key === "F2") {
+        e.preventDefault();
+        if (!this.formulaEntry) this._beginFormulaEntry("edit");
+        this.formulaEntry.mode = this.formulaEntry.mode === "point" ? "edit" : "point";
+        this._updateFormulaEntryStatus();
+        return;
+      }
+      if (e.key === "F4") {
+        e.preventDefault();
+        this._cycleFormulaReferenceAtCaret();
+        return;
+      }
+      if (this.formulaEntry?.mode === "point" && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+        e.preventDefault();
+        this._movePointReferenceWithArrow(e.key);
         return;
       }
       if (e.key === "Enter") {
@@ -353,67 +421,34 @@ export class SheetGridController {
           const val = this.formulaInput.value;
           this.formulaInput.value = val.substring(0, start) + "\n" + val.substring(end);
           this.formulaInput.selectionStart = this.formulaInput.selectionEnd = start + 1;
-          this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, this.formulaInput.value, true, { coalesce: true });
-          this._syncFormulaBarHeight();
-          return;
-        }
-        if (e.ctrlKey && e.shiftKey) {
-          e.preventDefault();
-          this.autocomplete.closeAll();
-          globalCommandBus.execute("sheet.formula.arrayEnter");
+          this._setFormulaEntryValue(this.formulaInput.value, start + 1, { source: "input" });
           return;
         }
         e.preventDefault();
         this.autocomplete.closeAll();
-        const next = this._enterDestination(e.shiftKey);
-        this.selectCell(next.c, next.r);
+        this._commitFormulaEntry({ move: true, shift: e.shiftKey });
         return;
       } else if (e.key === "Tab") {
         e.preventDefault();
         this.autocomplete.closeAll();
-        this._beginTabSequence();
-        const colIdx = this.cols.indexOf(this.selectedCoord.c);
-        const nextCol = e.shiftKey
-          ? this.cols[Math.max(0, colIdx - 1)]
-          : this.cols[Math.min(this.cols.length - 1, colIdx + 1)];
-        this.selectCell(nextCol, this.selectedCoord.r);
+        this._commitFormulaEntry({ move: true, shift: e.shiftKey, tab: true });
         return;
       } else if (e.key === "Escape") {
         e.preventDefault();
         this.autocomplete.closeAll();
-        if (this._cellValueBeforeEdit !== undefined) {
-          this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, this._cellValueBeforeEdit, false);
-          this.formulaInput.value = this._cellValueBeforeEdit;
-        } else {
-          const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
-          const cur = this.cellsData.get(key);
-          this.formulaInput.value = cur ? (cur.formula || cur.val || "") : "";
-        }
-        if (typeof this.container.focus === "function") {
-          this.container.focus({ preventScroll: true });
-        }
+        this._cancelFormulaEntry();
         return;
       }
     });
 
     fBar.querySelector("#vno-fx-cancel").addEventListener("click", () => {
       this.autocomplete.closeAll();
-      if (this._cellValueBeforeEdit !== undefined) {
-        this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, this._cellValueBeforeEdit, false);
-        this.formulaInput.value = this._cellValueBeforeEdit;
-      } else {
-        const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
-        const cur = this.cellsData.get(key);
-        this.formulaInput.value = cur ? (cur.formula || cur.val || "") : "";
-      }
-      if (typeof this.container.focus === "function") {
-        this.container.focus({ preventScroll: true });
-      }
+      this._cancelFormulaEntry();
     });
 
     fBar.querySelector("#vno-fx-ok").addEventListener("click", () => {
       this.autocomplete.closeAll();
-      this.selectCell(this.selectedCoord.c, Math.min(this.rowCount, this.selectedCoord.r + 1));
+      this._commitFormulaEntry({ move: true });
     });
 
     fBar.querySelector("#vno-fx-insert").addEventListener("click", () => {
@@ -1193,16 +1228,282 @@ export class SheetGridController {
   }
 
   _commitEditBeforeRangeSelection() {
+    if (this._isRestoringFormulaEntry) return;
+    if (this.formulaEntry) {
+      this._commitFormulaEntry({ move: false });
+      return;
+    }
     if (!this.formulaInput || typeof document === "undefined" || document.activeElement !== this.formulaInput) return;
     const coord = { ...this.selectedCoord };
     const current = this.cellsData.get(`${coord.c}${coord.r}`);
     const currentValue = current ? (current.formula || current.val || "") : "";
     const editedValue = this.formulaInput.value;
-    if (String(currentValue) !== String(editedValue)) {
-      this.setCellValue(coord.c, coord.r, editedValue, true, { coalesce: true });
-    }
+    if (String(currentValue) !== String(editedValue)) this.setCellValue(coord.c, coord.r, editedValue, true, { coalesce: true });
     this._cellValueBeforeEdit = undefined;
     this.autocomplete?.closeAll?.();
+  }
+
+  _cellEditorValue(item) {
+    if (!item) return "";
+    if (item.formula) return item.formula;
+    return item.val ?? "";
+  }
+
+  _beginFormulaEntry(mode = "edit", initialValue) {
+    if (this.formulaEntry) return this.formulaEntry;
+    const coord = { ...this.selectedCoord };
+    const item = this.sheetsData?.[this.activeSheet]?.get(`${coord.c}${coord.r}`);
+    const original = this._cellValueBeforeEdit !== undefined ? this._cellValueBeforeEdit : this._cellEditorValue(item);
+    this._cellValueBeforeEdit = original;
+    const value = initialValue !== undefined
+      ? String(initialValue)
+      : String(this.formulaInput?.value ?? this._cellEditorValue(item));
+    this.formulaEntry = new FormulaEntrySession({ original, value, caret: value.length, mode, sheet: this.activeSheet, coord });
+    this._updateFormulaEntryStatus();
+    this._renderFormulaReferenceOverlay();
+    return this.formulaEntry;
+  }
+
+  _setFormulaEntryValue(value, caret = String(value ?? "").length, options = {}) {
+    if (!this.formulaEntry) this._beginFormulaEntry("edit", value);
+    const session = this.formulaEntry;
+    if (options.result) {
+      session.value = String(value ?? "");
+      session.caret = caret;
+      session.lastReference = options.result.reference || null;
+    } else {
+      session.update(value, caret);
+    }
+    if (this.formulaInput) {
+      this.formulaInput.value = session.value;
+      if (typeof this.formulaInput.setSelectionRange === "function") {
+        this.formulaInput.setSelectionRange(session.caret, session.caret);
+      }
+    }
+    if (session.sheet === this.activeSheet && session.coord?.c === this.selectedCoord.c && session.coord?.r === this.selectedCoord.r) {
+      this.setCellValue(session.coord.c, session.coord.r, session.value, true, { coalesce: true });
+    }
+    this._refreshFormulaEntryVisuals();
+    if (!options.composing && options.source !== "autocomplete") {
+      this.autocomplete?.handleInput?.(session.value, session.caret);
+    }
+    return session.value;
+  }
+
+  _refreshFormulaEntryVisuals() {
+    this._renderFormulaReferenceOverlay();
+    this._updateFormulaReferenceVisuals();
+    this._updateFormulaEntryStatus();
+  }
+
+  _renderFormulaReferenceOverlay() {
+    if (!this.formulaInput || !this.formulaReferenceOverlay || !this.formulaReferenceOverlayContent) return;
+    const formula = this.formulaEntry?.value || "";
+    const references = this.formulaEntry && formula.startsWith("=")
+      ? findFormulaReferences(formula, this.formulaEntry.sheet)
+      : [];
+    const colors = ["#2563eb", "#dc2626", "#16a34a", "#9333ea", "#ea580c", "#0891b2"];
+    let html = "";
+    let cursor = 0;
+    for (const [index, ref] of references.entries()) {
+      const start = Math.max(cursor, ref.start);
+      html += this._escapeHtml(formula.slice(cursor, start));
+      html += `<span style="color:${colors[index % colors.length]}">${this._escapeHtml(formula.slice(start, ref.end))}</span>`;
+      cursor = ref.end;
+    }
+    html += this._escapeHtml(formula.slice(cursor));
+    this.formulaReferenceOverlayContent.innerHTML = html;
+    this.formulaReferenceOverlayContent.style.transform = `translateX(-${this.formulaInput.scrollLeft || 0}px)`;
+    this.formulaReferenceOverlay.classList.toggle("is-visible", references.length > 0);
+    this.formulaInput.classList.toggle("has-reference-colors", references.length > 0);
+  }
+
+  _updateFormulaReferenceVisuals() {
+    const cells = this.container?.querySelectorAll?.(".vno-grid-cell[data-coord]") || [];
+    const refClasses = ["is-formula-reference", "is-formula-reference-top", "is-formula-reference-bottom", "is-formula-reference-left", "is-formula-reference-right"];
+    cells.forEach(cell => {
+      cell.classList.remove(...refClasses);
+      cell.style.removeProperty("--vno-formula-reference-color");
+      cell.removeAttribute("data-formula-reference-index");
+    });
+    if (!this.formulaEntry?.value?.startsWith("=")) return;
+    const references = findFormulaReferences(this.formulaEntry.value, this.formulaEntry.sheet);
+    const colors = ["#2563eb", "#dc2626", "#16a34a", "#9333ea", "#ea580c", "#0891b2"];
+    for (const [index, ref] of references.entries()) {
+      if (ref.sheet !== this.activeSheet) continue;
+      const parse = address => {
+        const match = String(address || "").match(/\$?([A-Z]{1,3})\$?(\d+)/i);
+        if (!match) return null;
+        return { c: this._columnNumber(match[1].toUpperCase()), r: Number(match[2]) };
+      };
+      const start = parse(ref.startCell);
+      const end = parse(ref.endCell);
+      if (!start || !end) continue;
+      const c1 = Math.min(start.c, end.c), c2 = Math.max(start.c, end.c);
+      const r1 = Math.min(start.r, end.r), r2 = Math.max(start.r, end.r);
+      for (const cell of cells) {
+        const col = this._columnNumber(cell.dataset.col);
+        const row = Number(cell.dataset.row);
+        if (col < c1 || col > c2 || row < r1 || row > r2) continue;
+        cell.classList.add("is-formula-reference");
+        cell.style.setProperty("--vno-formula-reference-color", colors[index % colors.length]);
+        cell.dataset.formulaReferenceIndex = String(index);
+        if (row === r1) cell.classList.add("is-formula-reference-top");
+        if (row === r2) cell.classList.add("is-formula-reference-bottom");
+        if (col === c1) cell.classList.add("is-formula-reference-left");
+        if (col === c2) cell.classList.add("is-formula-reference-right");
+      }
+    }
+  }
+
+  _updateFormulaEntryStatus() {
+    if (!this.formulaEntry) return;
+    const key = this.formulaEntry.mode === "point" ? "point" : this.formulaEntry.mode === "enter" ? "enter" : "edit";
+    const label = t(`sheetFormulaEntry.status.${key}`);
+    this.options.onFormulaEntryMode?.(label, key);
+  }
+
+  _setFormulaEntryResult(result) {
+    if (!result || !this.formulaEntry) return;
+    this._setFormulaEntryValue(result.formula, result.caret, { result, source: "point" });
+  }
+
+  _canInsertPointReference() {
+    if (!this.formulaEntry) return false;
+    const start = this.formulaInput && typeof document !== "undefined" && document.activeElement === this.formulaInput
+      ? this.formulaInput.selectionStart
+      : this.formulaEntry.caret;
+    const end = this.formulaInput && typeof document !== "undefined" && document.activeElement === this.formulaInput
+      ? this.formulaInput.selectionEnd
+      : start;
+    return isFormulaReferenceInsertionPoint(this.formulaEntry.value, start, end);
+  }
+
+  _startFormulaPointSelect(event, col, row) {
+    if (!event || event.button !== 0 || !this._canInsertPointReference()) return false;
+    event.preventDefault();
+    event.stopPropagation();
+    const session = this.formulaEntry;
+    const start = this.formulaInput && typeof document !== "undefined" && document.activeElement === this.formulaInput
+      ? this.formulaInput.selectionStart
+      : session.caret;
+    const end = this.formulaInput && typeof document !== "undefined" && document.activeElement === this.formulaInput
+      ? this.formulaInput.selectionEnd
+      : start;
+    session.mode = "point";
+    this._formulaPointCoord = { c: col, r: row, sheet: this.activeSheet };
+    const address = makeCellReference(col, row, this.activeSheet, session.sheet);
+    session.beginDrag(address, { start, end, shift: event.shiftKey, ctrl: event.ctrlKey });
+    this._setFormulaEntryResult({ formula: session.value, caret: session.caret, reference: session.lastReference });
+    this._updateFormulaEntryStatus();
+    this._isSelectingFormulaReference = true;
+
+    const onMove = moveEvent => {
+      if (!this._isSelectingFormulaReference) return;
+      const target = this._rangeSelectionTargetAt(moveEvent.clientX, moveEvent.clientY, "cell");
+      if (!target) return;
+      this._formulaPointCoord = { ...target, sheet: this.activeSheet };
+      const targetAddress = makeCellReference(target.c, target.r, this.activeSheet, session.sheet);
+      const result = session.updateDrag(targetAddress);
+      this._setFormulaEntryResult(result);
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      this._isSelectingFormulaReference = false;
+      session.endDrag();
+      this.formulaInput?.focus({ preventScroll: true });
+      if (this.formulaInput && typeof this.formulaInput.setSelectionRange === "function") {
+        this.formulaInput.setSelectionRange(session.caret, session.caret);
+      }
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    }
+    return true;
+  }
+
+  _movePointReferenceWithArrow(key) {
+    const deltaCol = key === "ArrowRight" ? 1 : key === "ArrowLeft" ? -1 : 0;
+    const deltaRow = key === "ArrowDown" ? 1 : key === "ArrowUp" ? -1 : 0;
+    let result = this.formulaEntry.moveReference(deltaCol, deltaRow);
+    if (!result && this._canInsertPointReference()) {
+      const origin = this._formulaPointCoord || { ...this.selectedCoord, sheet: this.activeSheet };
+      const currentCol = this._columnNumber(origin.c);
+      const nextCol = this._columnLabel(Math.max(1, Math.min(this.cols.length, currentCol + deltaCol)));
+      const nextRow = Math.max(1, Math.min(this.rowCount, origin.r + deltaRow));
+      const address = makeCellReference(nextCol, nextRow, origin.sheet, this.formulaEntry.sheet);
+      result = this.formulaEntry.insertPoint(address);
+      this._formulaPointCoord = { c: nextCol, r: nextRow, sheet: origin.sheet };
+    } else if (result) {
+      const address = result.address?.match(/\$?([A-Z]{1,3})\$?(\d+)/i);
+      if (address) this._formulaPointCoord = { c: address[1].toUpperCase(), r: Number(address[2]), sheet: this._formulaPointCoord?.sheet || this.activeSheet };
+    }
+    if (result) this._setFormulaEntryResult(result);
+  }
+
+  _cycleFormulaReferenceAtCaret() {
+    if (!this.formulaEntry) return;
+    const result = cycleAbsoluteReference(this.formulaEntry.value, this.formulaInput?.selectionStart ?? this.formulaEntry.caret);
+    if (result.changed) this._setFormulaEntryResult(result);
+  }
+
+  _commitFormulaEntry({ move = false, shift = false, tab = false } = {}) {
+    const session = this.formulaEntry;
+    if (!session) return false;
+    if (this.formulaInput) session.update(this.formulaInput.value, this.formulaInput.selectionStart ?? this.formulaInput.value.length);
+    const finalValue = session.commit();
+    const coord = { ...session.coord };
+    const ownerSheet = session.sheet;
+    if (this.activeSheet !== ownerSheet) {
+      this.sheetStates[ownerSheet] = { ...(this.sheetStates[ownerSheet] || {}), selectedCoord: { ...coord } };
+      this.switchSheet(ownerSheet, { formulaReturn: true });
+    }
+    this.selectedCoord = { ...coord };
+    this.setCellValue(coord.c, coord.r, finalValue, true, { coalesce: true });
+    if (this.formulaInput) this.formulaInput.value = finalValue;
+    this.formulaEntry = null;
+    this._cellValueBeforeEdit = undefined;
+    this._formulaPointCoord = null;
+    this.autocomplete?.closeAll?.();
+    this._refreshFormulaEntryVisuals();
+    if (move) {
+      if (tab) {
+        const colIndex = this.cols.indexOf(coord.c);
+        const nextCol = shift ? this.cols[Math.max(0, colIndex - 1)] : this.cols[Math.min(this.cols.length - 1, colIndex + 1)];
+        this.selectCell(nextCol, coord.r);
+      } else {
+        const nextRow = shift ? Math.max(1, coord.r - 1) : Math.min(this.rowCount, coord.r + 1);
+        this.selectCell(coord.c, nextRow);
+      }
+    } else {
+      this.options.onSelect?.(`${coord.c}${coord.r}`, this.cellsData.get(`${coord.c}${coord.r}`), this._calculateStats());
+    }
+    return true;
+  }
+
+  _cancelFormulaEntry() {
+    const session = this.formulaEntry;
+    if (!session) return false;
+    const coord = { ...session.coord };
+    const ownerSheet = session.sheet;
+    const original = session.cancel();
+    if (this.activeSheet !== ownerSheet) {
+      this.sheetStates[ownerSheet] = { ...(this.sheetStates[ownerSheet] || {}), selectedCoord: { ...coord } };
+      this.switchSheet(ownerSheet, { formulaReturn: true });
+    }
+    this.selectedCoord = { ...coord };
+    this.setCellValue(coord.c, coord.r, original, false);
+    if (this.formulaInput) this.formulaInput.value = String(original ?? "");
+    this.formulaEntry = null;
+    this._cellValueBeforeEdit = undefined;
+    this._formulaPointCoord = null;
+    this.autocomplete?.closeAll?.();
+    this._refreshFormulaEntryVisuals();
+    this.container?.focus?.({ preventScroll: true });
+    this.options.onSelect?.(`${coord.c}${coord.r}`, this.cellsData.get(`${coord.c}${coord.r}`), this._calculateStats());
+    return true;
   }
 
   _selectionRangeForPointer(anchor, active, kind = "cell") {
@@ -2018,6 +2319,13 @@ export class SheetGridController {
   switchSheet(sheetName, options = {}) {
     const skipSave = options.skipSave === true;
     if (!sheetName) return false;
+    const preservedFormulaEntry = this.formulaEntry && (options.pointMode || options.formulaReturn)
+      ? this.formulaEntry
+      : null;
+    if (options.pointMode && this.formulaEntry) {
+      this.formulaEntry.mode = "point";
+      this._updateFormulaEntryStatus();
+    }
     if (!this.sheets.includes(sheetName)) {
       this.sheets.push(sheetName);
     }
@@ -2129,7 +2437,15 @@ export class SheetGridController {
     this.renderTextBoxes();
 
     // 7. Cập nhật ô chọn và thanh công thức
+    if (preservedFormulaEntry) this._isRestoringFormulaEntry = true;
     this.selectCell(this.selectedCoord.c, this.selectedCoord.r);
+    if (preservedFormulaEntry) {
+      this._isRestoringFormulaEntry = false;
+      this.formulaInput.value = preservedFormulaEntry.value;
+      this.formulaInput.focus({ preventScroll: true });
+      this.formulaInput.setSelectionRange?.(preservedFormulaEntry.caret, preservedFormulaEntry.caret);
+      this._refreshFormulaEntryVisuals();
+    }
     this._syncCommandStates();
     this._applyProtectionUi();
     this._updateWatchWindow?.();
@@ -2357,7 +2673,10 @@ export class SheetGridController {
       label.className = "vno-sheet-tab-label";
       label.textContent = sheetName;
       tab.appendChild(label);
-      tab.addEventListener("click", () => this.switchSheet(sheetName));
+      tab.addEventListener("click", () => {
+        const pointMode = this.formulaEntry && this._canInsertPointReference();
+        this.switchSheet(sheetName, pointMode ? { pointMode: true } : {});
+      });
       tab.addEventListener("dblclick", event => {
         event.preventDefault();
         event.stopPropagation();
@@ -3098,6 +3417,7 @@ export class SheetGridController {
       td.addEventListener("mousedown", (e) => {
         if (e.button !== 0) return;
         if (e.target.closest(".vno-cell-autofill-handle") || e.target.closest(".vno-cell-move-handle")) return;
+        if (this._startFormulaPointSelect(e, c, r)) return;
         this._startRangeSelect(e, c, r);
       });
       td.addEventListener("click", event => {
@@ -3318,6 +3638,7 @@ export class SheetGridController {
     if (Math.abs(startRow - this.currentStartRow) >= 3 || Math.abs(endRow - this.currentEndRow) >= 3) {
       this._renderVirtualRows(startRow, endRow);
     }
+    this._updateFormulaReferenceVisuals();
     this._updateFrozenImages();
   }
 
@@ -3367,24 +3688,54 @@ export class SheetGridController {
     }
   }
 
-  _bindGridKeyboardNavigation() {
-    this.container.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && this._clipboardRange) {
-        e.preventDefault();
-        this.clearClipboardRange();
-        return;
-      }
-      if (e.key === "Escape" && this.formatPainter) {
-        e.preventDefault();
-        this.cancelFormatPainter();
-        return;
-      }
-      if (typeof document !== "undefined" && document?.activeElement === this.formulaInput) return;
-      if (this._tabSequenceAnchor && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(e.key)) {
-        this._tabSequenceAnchor = null;
-      }
+_bindGridKeyboardNavigation() {
+      this.container.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && this._clipboardRange) {
+          e.preventDefault();
+          this.clearClipboardRange();
+          return;
+        }
+        if (e.isComposing || e.keyCode === 229) return;
+        if (e.key === "Escape" && this.formatPainter) {
+          e.preventDefault();
+          this.cancelFormatPainter();
+          return;
+        }
+        if (typeof document !== "undefined" && document?.activeElement === this.formulaInput) return;
+        if (this._tabSequenceAnchor && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(e.key)) {
+          this._tabSequenceAnchor = null;
+        }
 
-      if (this.selectedImageId) {
+        if (this.formulaEntry && e.key === "F2") {
+          e.preventDefault();
+          this.formulaEntry.mode = this.formulaEntry.mode === "point" ? "edit" : "point";
+          this._updateFormulaEntryStatus();
+          this.formulaInput?.focus({ preventScroll: true });
+          return;
+        }
+        if (this.formulaEntry && e.key === "F4") {
+          e.preventDefault();
+          this._cycleFormulaReferenceAtCaret();
+          this.formulaInput?.focus({ preventScroll: true });
+          return;
+        }
+        if (this.formulaEntry && e.key === "Escape") {
+          e.preventDefault();
+          this._cancelFormulaEntry();
+          return;
+        }
+        if (this.formulaEntry && e.key === "Enter") {
+          e.preventDefault();
+          this._commitFormulaEntry({ move: true, shift: e.shiftKey });
+          return;
+        }
+        if (this.formulaEntry?.mode === "point" && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+          e.preventDefault();
+          this._movePointReferenceWithArrow(e.key);
+          return;
+        }
+
+        if (this.selectedImageId) {
         if (e.key === "Delete" || e.key === "Backspace") {
           e.preventDefault();
           this.deleteImage(this.selectedImageId);
@@ -3607,7 +3958,8 @@ export class SheetGridController {
         if (this._guardProtectedMutation()) return;
         const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
         const cur = this.cellsData.get(key);
-        this._cellValueBeforeEdit = cur ? (cur.formula || cur.val || "") : "";
+        this._cellValueBeforeEdit = this._cellEditorValue(cur);
+        this._beginFormulaEntry("edit");
         this._focusFormulaInputAtEnd();
         return;
       } else if (e.key === "=" && !e.ctrlKey && !e.altKey && !e.metaKey) {
@@ -3615,13 +3967,11 @@ export class SheetGridController {
         if (this._guardProtectedMutation()) return;
         const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
         const cur = this.cellsData.get(key);
-        this._cellValueBeforeEdit = cur ? (cur.formula || cur.val || "") : "";
+        this._cellValueBeforeEdit = this._cellEditorValue(cur);
         this.formulaInput.value = "=";
-        this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, "=", true, { coalesce: true });
+        this._beginFormulaEntry("enter", "=");
+        this._setFormulaEntryValue("=", 1, { source: "input" });
         this._focusFormulaInputAtEnd();
-        if (this.autocomplete) {
-          this.autocomplete.handleInput("=", 1);
-        }
         return;
       } else if ((e.key === "Delete" || e.key === "Backspace") && !e.ctrlKey && !e.altKey && !e.metaKey) {
         // Xóa nội dung ô hoặc vùng đang chọn ngay, đúng hành vi Excel thật
@@ -3663,13 +4013,11 @@ export class SheetGridController {
         if (this._guardProtectedMutation()) return;
         const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
         const cur = this.cellsData.get(key);
-        this._cellValueBeforeEdit = cur ? (cur.formula || cur.val || "") : "";
+        this._cellValueBeforeEdit = this._cellEditorValue(cur);
         this.formulaInput.value = e.key;
-        this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, e.key, true, { coalesce: true });
+        this._beginFormulaEntry("enter", e.key);
+        this._setFormulaEntryValue(e.key, e.key.length, { source: "input" });
         this._focusFormulaInputAtEnd();
-        if (this.autocomplete) {
-          this.autocomplete.handleInput(e.key, 1);
-        }
         return;
       } else return;
 

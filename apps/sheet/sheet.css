@@ -94,9 +94,11 @@
 
 .vno-formula-input {
   flex: 1;
+  width: 100%;
   height: auto;
   min-height: 22px;
   max-height: 96px;
+  box-sizing: border-box;
   padding: 2px 8px;
   border: 1px solid var(--vno-border-strong);
   border-radius: var(--vno-radius-sm);
@@ -105,7 +107,6 @@
   outline: none;
   background-color: var(--vno-bg-window);
   color: var(--vno-text-primary);
-  box-sizing: border-box;
   resize: none;
   overflow-y: auto;
   line-height: 16px;
@@ -115,6 +116,41 @@
   border-color: var(--vno-sheet-primary-fg, var(--vno-sheet-primary));
   box-shadow: 0 0 0 2px var(--vno-sheet-light);
 }
+
+.vno-formula-input-wrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 22px;
+}
+
+.vno-formula-reference-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--vno-radius-sm);
+  color: var(--vno-text-primary);
+  font-family: var(--vno-font-mono);
+  font-size: var(--vno-text-xs);
+  line-height: normal;
+  white-space: pre;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.vno-formula-reference-overlay.is-visible { visibility: visible; }
+.vno-formula-reference-overlay-content { display: inline-block; white-space: pre; }
+.vno-formula-input.has-reference-colors {
+  z-index: 2;
+  background-color: transparent;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  caret-color: var(--vno-text-primary);
+}
+.vno-formula-input.has-reference-colors::selection { color: transparent; background: transparent; }
 
 /* Grid Viewport */
 .vno-grid-viewport {
@@ -333,6 +369,11 @@
 @keyframes vno-sheet-clipboard-outline {
   50% { outline-offset: -4px; }
 }
+
+.vno-grid-cell.is-formula-reference-top { border-top: 2px solid var(--vno-formula-reference-color) !important; }
+.vno-grid-cell.is-formula-reference-bottom { border-bottom: 2px solid var(--vno-formula-reference-color) !important; }
+.vno-grid-cell.is-formula-reference-left { border-left: 2px solid var(--vno-formula-reference-color) !important; }
+.vno-grid-cell.is-formula-reference-right { border-right: 2px solid var(--vno-formula-reference-color) !important; }
 
 [data-theme="dark"] .vno-grid-cell.is-selected {
   outline-color: var(--vno-sheet-primary-fg, #4ade80);

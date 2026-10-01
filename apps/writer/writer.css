@@ -1002,6 +1002,37 @@ li.vno-page-auto-gap {
   text-decoration: line-through;
 }
 
+/* Hiển thị dấu ngắt mục (Section Break) dạng nét chấm theo chuẩn Word */
+.vno-section-break {
+  display: none;
+  position: relative;
+  margin: 16px 0;
+  padding: 4px 8px;
+  text-align: center;
+  color: #7c3aed;
+  font-size: 11px;
+  font-family: inherit;
+  font-weight: 500;
+  user-select: none;
+  border-top: 1px dotted #7c3aed;
+  border-bottom: 1px dotted #7c3aed;
+  background-color: rgba(124, 58, 237, 0.04);
+  cursor: pointer;
+}
+
+.vno-writer-body.vno-show-formatting-marks .vno-section-break {
+  display: block;
+}
+
+.vno-section-break:hover {
+  background-color: rgba(124, 58, 237, 0.09);
+}
+
+.vno-section-break.is-selected {
+  outline: 2px solid #7c3aed;
+  background-color: rgba(124, 58, 237, 0.12);
+}
+
 .vno-writer-header,
 .vno-writer-footer {
   cursor: text;
