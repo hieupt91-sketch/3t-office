@@ -275,8 +275,8 @@ Thời gian nạp tiếp sau viewport (giây), tính từ `mở xong - viewport`
 
 ### Findings và implementation
 
-- Sau WIP `13913006`, đã tích hợp main theo hai bước: `dfa59eec` lấy main tại `1f5c85f7`, sau đó `bf16f691` lấy main hiện tại `73cacde6`. Merge mới nhất tự động áp dụng sạch; merge `dfa59eec` có một conflict văn bản ở `tests/test_g7_save_as_dialog.py`, giữ mock `return_engine` của main. Không merge branch này ngược vào main.
-- Main hiện tại gồm luồng lưu/in G7–G10, tên 3T, sections, formula entry, Help nhanh, file basics và basic editing keys. Các module Sheet/Writer, `main.py`, tests và Help đã được đưa vào cùng nhánh với đường mở nhanh S44.
+- Sau WIP `13913006`, đã tích hợp main qua các merge `dfa59eec` (main `1f5c85f7`), `bf16f691` (main `73cacde6`) và `f0422f68` (main `69133660`). Merge mới nhất tự động áp dụng sạch; merge `dfa59eec` có một conflict văn bản ở `tests/test_g7_save_as_dialog.py`, giữ mock `return_engine` của main. Không merge branch này ngược vào main.
+- Main hiện tại gồm luồng lưu/in G7–G10, tên 3T, sections, formula entry, Help nhanh, file basics, keyboard editing, Tab trong Writer và startup focus của Sheet. Các module Sheet/Writer, `main.py`, tests và Help đã được đưa vào cùng nhánh với đường mở nhanh S44.
 - Commit `0ec80c24` chuyển desktop audit sang WebView2 CDP, Excel/Word chỉ dùng hidden COM, đồng thời giữ payload opt-in tới khi đủ 26/26 audit. Các probe mới không gửi input OS.
 - Tối ưu payload Sheet: stream chunk theo yêu cầu thay vì giữ toàn bộ compressed chunk array cạnh workbook model; intern style trong lúc materialize và dùng copy-on-write khi sửa style cell.
 - Lưu `.xlsx` chưa sửa từ snapshot bytes của tệp đang mở. Save As `.xlsx` chép snapshot chính xác; các định dạng khác/PDF tiếp tục qua conversion/export pipeline hiện có.
@@ -301,17 +301,17 @@ Phép đo sau được thực hiện trước merge `73cacde6`; sẽ đo lại l
 
 ### Gates và tình trạng hiện tại
 
-**COMMANDS RUN:** `git merge main` (twice, latest `bf16f691`); `node tests/run-tests.js`; `python -m unittest discover -s tests` (interrupted before completion due concurrent LibreOffice runs); Python compile, Node syntax and `git diff --check`.
+**COMMANDS RUN:** `git merge main` (three merge commits, latest `f0422f68`); `node tests/run-tests.js` (latest run on current HEAD); `python -m unittest discover -s tests` (earlier attempt interrupted before summary due concurrent LibreOffice runs); Python compile, Node syntax and `git diff --check`.
 
 **BUILD RESULT:** NOT RUN (không sửa build system).
 
-**TEST RESULTS:** Python compile PASS; Node syntax checks PASS; `git diff --check` PASS. Latest `node tests/run-tests.js` sau merge `bf16f691`: **PASS 2,229/2,229**, gồm CF/validation FODS→XLSX, Writer Sections/Save và basic-editing tests của main. Lần chạy trước merge có 2,222/2,223 PASS với lỗi FODS→XLSX dưới tải; không tái hiện ở lần mới (lần mới vẫn có một audit khác đang chạy). Lượt `python -m unittest discover -s tests` của nhánh này BLOCKED/interrupted trước summary vì phát hiện unittest/soffice khác đang hoạt động; một suite Python của worktree khác đang chạy nên chưa rerun. Sheet 26-file audit, Writer page-count audit, chín loại timing sau merge và phép đo lan14 sau merge: NOT RUN.
+**TEST RESULTS:** Python compile PASS; Node syntax checks PASS; `git diff --check` PASS. Node suite sau merge `bf16f691`: **PASS 2,229/2,229**, nhưng đó là trước merge `f0422f68`. Node suite trên current HEAD `f0422f68`: **FAIL 2,225/2,229**; bốn lỗi là conversion FODS→XLSX của CF/validation, Pivot, row/column layout và text rotation, đều báo `soffice --convert ... failed` nhưng không có diagnostic. Nhiều suite Node/Python và hai LAN audit từ worktree khác đang gọi LibreOffice đồng thời; rerun full Node suite khi tài nguyên rảnh là PENDING để phân biệt flake tải với lỗi code. Python unittest của nhánh này chưa có kết quả sau merge: lần trước bị ngắt trước summary; Python suite khác đang chạy khi kiểm tra trạng thái. Sheet 26-file audit, Writer page-count audit, chín loại timing sau merge và phép đo lan14 sau merge: NOT RUN.
 
-**KNOWN FAILURES:** Lượt Node đầu (trước merge `bf16f691`) có một FAIL trong conversion test khi nhiều LibreOffice process chạy; latest full run PASS và không tái hiện lỗi đó. Python unittest của nhánh này chưa hoàn tất. Owner speed target hiện **FAIL / chưa đạt** theo phép đo lan14: viewport khoảng 33.6 giây, full hydration khoảng 219 giây; chưa có oracle mới sau merge. WPS, full LAN audit và Writer page audit: NOT RUN.
+**KNOWN FAILURES:** Node current HEAD có bốn conversion failures trong lúc có nhiều LibreOffice jobs đồng thời; kết quả rerun cô lập chưa có. Python unittest của nhánh này chưa hoàn tất. Owner speed target hiện **FAIL / chưa đạt** theo phép đo lan14 trước merge `f0422f68`: viewport khoảng 33.6 giây, full hydration khoảng 219 giây; cần đo lại trên current HEAD. Chưa có oracle mới sau merge. WPS, full LAN audit và Writer page audit: NOT RUN.
 
 **RISKS:** Preview giữ một số lệnh bị khóa cho đến khi model nạp xong. `SHEET_OPEN_PAYLOAD` đang mặc định OFF; chỉ chuyển sang ON trong commit riêng sau khi 26/26 đạt `TONG=0` và Excel COM xác nhận số worksheet. Dù payload đạt fidelity, speed target vẫn chưa đạt.
 
-**DEPENDENCIES/BLOCKERS:** Máy đang được worktree khác dùng cho unittest, soffice, Writer CDP và hidden Office COM. Chờ các job này kết thúc để chạy các gate tuần tự, tránh ghi kết quả dưới tải cạnh tranh.
+**DEPENDENCIES/BLOCKERS:** Máy tiếp tục được nhiều worktree dùng cho unittest, hai LAN audit, soffice conversion, Writer CDP và hidden Office COM. Cần cửa sổ tài nguyên yên để rerun suite/conversion cases và chạy audit trên đúng source current HEAD. Payload vẫn mặc định OFF.
 
 **CORE PATCH ID (if any):** None.
 
