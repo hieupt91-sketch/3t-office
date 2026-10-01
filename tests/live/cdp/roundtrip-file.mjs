@@ -61,9 +61,35 @@ async function serialize(session) {
     : session.app === "sheet"
       ? "window.__vnoAppInstance.adapter.serializeToFods()"
       : "window.__vnoAppInstance.adapter.serializeToFodp()";
-  const value = await session.cdp.evaluate(expression);
-  if (typeof value !== "string" || !value.trim()) throw new Error("Loaded document content was empty.");
-  return value;
+  const length = await session.cdp.evaluate(
+    "(() => { window.__vnoAuditContent = " + expression + ";"
+    + " if (typeof window.__vnoAuditContent !== 'string' || !window.__vnoAuditContent.trim()) throw new Error('Loaded document content was empty.');"
+    + " return window.__vnoAuditContent.length; })()",
+  );
+  return length;
+}
+
+async function writeSentContent(session, sentPath, length) {
+  const file = await fs.open(sentPath, "w");
+  let bytes = 0;
+  try {
+    // Keep CDP messages bounded and retain the original string in the page for
+    // the app's save bridge, rather than embedding it in another huge request.
+    let offset = 0;
+    while (offset < length) {
+      const chunk = await session.cdp.evaluate(
+        "(() => { const content = window.__vnoAuditContent; let end = Math.min(content.length, " + (offset + 262144) + ");"
+        + " const code = content.charCodeAt(end - 1); if (end < content.length && code >= 0xd800 && code <= 0xdbff) end--;"
+        + " return content.slice(" + offset + ", end); })()",
+      );
+      await file.write(chunk, null, "utf8");
+      bytes += Buffer.byteLength(chunk, "utf8");
+      offset += chunk.length;
+    }
+  } finally {
+    await file.close();
+  }
+  return bytes;
 }
 
 export async function roundtripFile({ app, input, output, edit = false }) {
@@ -74,15 +100,16 @@ export async function roundtripFile({ app, input, output, edit = false }) {
   try {
     await waitForSource(session, inputPath);
     const before = await serialize(session);
+    const sentPath = outputPath + (app === "sheet" ? ".sent.fods" : app === "writer" ? ".sent.html" : ".sent.fodp");
+    const beforeBytes = edit ? await writeSentContent(session, sentPath, before) : null;
     const editResult = app === "writer" && edit
       ? await editWriterThroughKeyboard(session.cdp)
       : { pass: true, detail: "No edit requested." };
-    const content = await serialize(session);
-    const sentPath = outputPath + (app === "sheet" ? ".sent.fods" : app === "writer" ? ".sent.html" : ".sent.fodp");
-    await fs.writeFile(sentPath, content, "utf8");
+    const length = edit ? await serialize(session) : before;
+    const contentBytes = await writeSentContent(session, sentPath, length);
     const saved = await session.cdp.evaluate(
       "window.pywebview.api.save_document_in_place("
-      + JSON.stringify(content) + ", " + JSON.stringify(app) + ", "
+      + "window.__vnoAuditContent, " + JSON.stringify(app) + ", "
       + JSON.stringify(outputPath) + ", " + JSON.stringify(inputPath) + ")",
       { timeoutMilliseconds: 1200000 },
     );
@@ -96,7 +123,7 @@ export async function roundtripFile({ app, input, output, edit = false }) {
       loaded: true,
       saved: true,
       edit: editResult,
-      inputContentBytes: Buffer.byteLength(before, "utf8"),
+      inputContentBytes: beforeBytes ?? contentBytes,
       outputBytes: stat.size,
       sourcePath: inputPath,
     };

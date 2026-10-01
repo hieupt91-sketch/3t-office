@@ -4266,11 +4266,10 @@ ${pristineXlsxMarker}
           const localRanges = [];
           const arrayFormulas = [];
           let localNameIndex = 0;
-          table.outerHTML.replace(/<table:named-range\b([^>]*)\/?\s*>/gi, (_, attrs) => {
-            const range = this._parseNamedRangeElement(attrs, "sheet", name, ++localNameIndex);
+          for (const namedRange of table.getElementsByTagNameNS("urn:oasis:names:tc:opendocument:xmlns:table:1.0", "named-range")) {
+            const range = this._parseNamedRangeElement(namedRange.outerHTML, "sheet", name, ++localNameIndex);
             if (range) localRanges.push(range);
-            return "";
-          });
+          }
           const rowHeights = new Map();
           const hiddenRows = new Set();
           let rowNumber = 1;
@@ -4354,6 +4353,8 @@ ${pristineXlsxMarker}
 
             if (rowNumber > lastDataRow && (rowRepeat > 32 || rowNumber > lastDataRow + 1000) && rowVisibility !== "collapse" && rowVisibility !== "filter") {
               rowNumber += rowRepeat;
+              rowCellsByElement.delete(row);
+              row.replaceChildren();
               return;
             }
 
@@ -4438,6 +4439,12 @@ ${pristineXlsxMarker}
               }
               rowNumber++;
             }
+            // The model now owns values/styles/images for every repetition.
+            // Release this temporary XML subtree before building the next row:
+            // large imports otherwise keep both millions of DOM nodes and the
+            // editable model alive when Save allocates its FODS strings.
+            rowCellsByElement.delete(row);
+            row.replaceChildren();
           });
           if (perfEnabled) worksheetPhaseMs.buildWorkbookModel += performance.now() - modelStarted;
           arrayFormulas.forEach(region => this._restoreArrayFormula(data, region.column, region.row, region.columns, region.rows, region.formula));

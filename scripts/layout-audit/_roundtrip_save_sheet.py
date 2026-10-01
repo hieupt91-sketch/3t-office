@@ -1,47 +1,83 @@
-"""Usage: python _roundtrip_save_sheet.py <worktree> <xlsx-in> <xlsx-out>
-Opens the real app window on <xlsx-in>, triggers common.file.save with the native dialog
-bypassed, writes <xlsx-out> and <xlsx-out>.sent.fods (the FODS payload the app sent)."""
-import sys, time, os
-ROOT, XLSX_PATH, OUT = sys.argv[1], sys.argv[2], sys.argv[3]
+"""Legacy batch Save As entry; desktop control uses WebView2 CDP only.
+
+Usage: python _roundtrip_save_sheet.py <worktree> <xlsx-in> <xlsx-out>
+The native save dialog is bypassed and the actual sent FODS is retained locally.
+"""
+import os
+import socket
+import subprocess
+import sys
+import time
+import functools
+from pathlib import Path
+
+ROOT, XLSX_PATH, OUT = sys.argv[1:4]
 sys.path.insert(0, ROOT)
+with socket.socket() as listener:
+    listener.bind(("127.0.0.1", 0))
+    debug_port = listener.getsockname()[1]
+os.environ["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = (
+    os.environ.get("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "")
+    + f" --remote-debugging-port={debug_port}"
+)
 import webview
 import main as vnmain
 
+if os.environ.get("VNO_PERF_DEBUG") == "1":
+    def measure(name):
+        original = getattr(vnmain, name)
+        @functools.wraps(original)
+        def wrapped(*args, **kwargs):
+            started = time.perf_counter()
+            vnmain._open_perf_log("audit_" + name + "_begin")
+            result = original(*args, **kwargs)
+            vnmain._open_perf_log("audit_" + name, (time.perf_counter() - started) * 1000,
+                                 chars=len(result) if isinstance(result, str) else 0)
+            return result
+        setattr(vnmain, name, wrapped)
+    for name in ("_run_soffice_convert", "_apply_native_import_overlay",
+                 "_optimize_fods_for_sheet", "_convert_save_source_to_native"):
+        measure(name)
+
+webview.settings["REMOTE_DEBUGGING_PORT"] = debug_port
 server, port = vnmain._start_static_server()
 app_kind, initial_file = vnmain.parse_launch_args([XLSX_PATH])
 api = vnmain.VnOfficeApi(app_kind=app_kind, initial_file=initial_file)
-_orig_save = api.save_document_dialog
-def _dump_save(content, *a, **k):
-    with open(OUT + ".sent.fods", "w", encoding="utf-8") as f:
-        f.write(content)
-    return _orig_save(content, *a, **k)
-api.save_document_dialog = _dump_save
-window = webview.create_window(title="VN Sheet - Roundtrip Save", url=vnmain.build_launch_url(app_kind, initial_file, port=port), width=1400, height=900, js_api=api)
-stem = os.path.splitext(os.path.basename(XLSX_PATH))[0][:6]
+original_save = api.save_document_dialog
 
-def after_load(win):
-    name = ''
-    # VAT.xlsx (lan06): soffice convert ~7.5 phút → chờ tối đa 15 phút
-    for _ in range(300):
-        time.sleep(3)
-        name = win.evaluate_js("(document.querySelector('.vno-doc-tab span')||{}).textContent||''") or ''
-        if stem and stem in name:
-            break
-    print("LOADED:", name, flush=True)
-    time.sleep(4)
-    win.create_file_dialog = lambda *a, **k: OUT
-    win.evaluate_js("window.__saveDone=0; window.__saveErr=''; import('/platform/commands/command-bus.js').then(m => m.globalCommandBus.execute('common.file.saveAs')).then(r => { window.__saveDone = 1; window.__saveRes = String(r); }, e => { window.__saveErr = String(e && e.stack || e); }); 'queued'")
-    done = 0; err = ''
-    for _ in range(400):
-        time.sleep(3)
-        done = win.evaluate_js("window.__saveDone")
-        err = win.evaluate_js("window.__saveErr")
-        if done == 1 or err or (os.path.exists(OUT) and os.path.getsize(OUT) > 0):
-            break
-    print("SAVE_DONE:", done, "ERR:", err, flush=True)
-    print("EXISTS:", os.path.exists(OUT), os.path.getsize(OUT) if os.path.exists(OUT) else 0, flush=True)
-    win.evaluate_js("document.querySelectorAll('button').forEach(b => { if (/Đồng ý|OK/i.test(b.textContent)) b.click(); }); 1")
-    time.sleep(1)
-    win.destroy()
 
-webview.start(after_load, window, debug=False)
+def dump_save(content, app_kind="writer", target_format=None,
+              suggested_name="TaiLieu", source_path=None):
+    Path(OUT + ".sent.fods").write_text(content, encoding="utf-8")
+    return original_save(content, app_kind, target_format, suggested_name, source_path)
+
+
+api.save_document_dialog = dump_save
+window = webview.create_window(
+    title="VN Sheet - Roundtrip Save",
+    url=vnmain.build_launch_url(app_kind, initial_file, port=port),
+    width=1400, height=900, js_api=api,
+)
+window.create_file_dialog = lambda *args, **kwargs: OUT
+
+
+def after_load():
+    global audit_exit
+    try:
+        result = subprocess.run([
+            "node", "--experimental-websocket",
+            str(Path(__file__).with_name("roundtrip-save-sheet.mjs")),
+            str(debug_port), XLSX_PATH, OUT,
+        ], check=False)
+        audit_exit = result.returncode
+    finally:
+        window.destroy()
+
+
+audit_exit = 1
+try:
+    webview.start(after_load, debug=False)
+finally:
+    server.shutdown()
+    server.server_close()
+raise SystemExit(audit_exit)
