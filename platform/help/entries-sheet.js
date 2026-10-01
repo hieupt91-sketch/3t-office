@@ -442,8 +442,10 @@ export const SHEET_HELP_ENTRIES = [
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Ô" },
     keywords: ["xóa trang tính", "màu tab", "delete sheet", "tab color"],
     steps: [
-      "Nhấp phải tab trang tính ở thanh dưới lưới rồi chọn Xóa trang tính. 3T Sheet hỏi xác nhận; không thể xóa trang tính cuối cùng. Dùng Ctrl+Z để hoàn tác.",
-      "Nhấp phải tab, chọn Màu tab rồi chọn màu hoặc Không màu. Màu được lưu cùng tệp XLSX và khôi phục khi mở lại."
+      "Xóa trang tính: nhấp phải tab trang tính ở thanh dưới lưới rồi chọn Xóa trang tính.",
+      "Sheet hỏi xác nhận trước khi xóa; không xóa được trang tính cuối cùng của sổ làm việc. Lỡ tay thì bấm Ctrl+Z để lấy lại.",
+      "Đổi màu tab: nhấp phải tab, chọn Màu tab rồi chọn một màu, hoặc chọn Không màu để bỏ màu.",
+      "Màu tab được lưu cùng tệp .xlsx và hiện lại đúng màu khi mở lại tệp."
     ]
   },
   {
