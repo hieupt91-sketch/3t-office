@@ -67,8 +67,8 @@ export async function runSheetCfValidationFodsRoundTripTests() {
       const source = path.join(root, "rules.fods");
       const profileDir = path.join(root, "profile");
       fs.writeFileSync(source, new SheetAdapter(makeGrid()).serializeToFods(), "utf8");
-      const xlsx = convertWithSoffice(source, "xlsx", path.join(root, "xlsx"), { profileDir, timeoutMs: 60000 });
-      const roundTrip = convertWithSoffice(xlsx, "fods", path.join(root, "fods"), { profileDir, timeoutMs: 60000 });
+      const xlsx = convertWithSoffice(source, "xlsx", path.join(root, "xlsx"), { profileDir, timeoutMs: 20000 });
+      const roundTrip = convertWithSoffice(xlsx, "fods", path.join(root, "fods"), { profileDir, timeoutMs: 20000 });
       verifyRules(new SheetAdapter(null).parseFods(fs.readFileSync(roundTrip, "utf8")), "LibreOffice FODS -> XLSX -> FODS");
     } finally {
       if (process.env.VNO_KEEP_FODS_TEST_OUTPUT) console.log(`Kept CF/validation test files at ${root}`);
