@@ -906,15 +906,17 @@ export const SHEET_HELP_ENTRIES = [
     id: "sheet.edit.findReplace",
     app: "sheet",
     commandIds: ["common.edit.find", "common.edit.replace"],
-    title: "Tìm và thay thế trong bảng tính",
-    summary: "Tìm chuỗi trong giá trị hoặc công thức của ô (Ctrl+F). Thay thế (Ctrl+H) mở cùng hộp thoại với ô «Thay thế bằng» và nút Thay thế / Thay thế tất cả — thay trên ô thật, không phải HTML.",
+    title: "Tìm kiếm và Thay thế trong 3T Sheet",
+    summary: "Hộp thoại Tìm kiếm và Thay thế dùng chung phong cách Microsoft Excel cho 3T Sheet. Hỗ trợ tìm trong Trang tính hoặc toàn bộ Sổ làm việc, tìm theo Hàng/Cột, tìm trong Công thức hoặc Giá trị, cùng Hoàn tác một bước (Ctrl+Z).",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
-    keywords: ["tìm", "thay thế", "find", "replace", "ctrl+f", "ctrl+h", "tìm kiếm"],
+    keywords: ["tìm", "thay thế", "find", "replace", "ctrl+f", "ctrl+h", "3T Sheet", "tìm kiếm", "công thức", "giá trị", "sổ làm việc"],
     steps: [
-      "Tab Trang đầu, nhóm Chỉnh sửa (cột cuối, cạnh Sắp xếp): nút Tìm kiếm (Ctrl+F) và Thay thế (Ctrl+H). Cùng hộp «Tìm kiếm và Thay thế» dùng chung Writer/Slides.",
-      "Tìm kiếm: nhập chuỗi vào «Tìm kiếm», nhấn Tìm tiếp hoặc Enter. Ô khớp (giá trị hiển thị hoặc công thức, không phân biệt hoa/thường) được chọn. Tìm tiếp vòng quanh các ô đã có dữ liệu trên sheet đang mở.",
-      "Thay thế: Ctrl+H hoặc nút Thay thế — ô «Thay thế bằng» và nút Thay thế / Thay thế tất cả hiện sẵn (checkbox «Hiển thị tùy chọn thay thế» cũng bật được từ chế độ Tìm). Thay thế đổi lần khớp tại ô đang chọn, hoặc nhảy tới ô khớp tiếp rồi đổi. Thay thế tất cả đổi mọi lần khớp trên sheet, một bước Undo (Ctrl+Z) hoàn tác cả khối.",
-      "Công thức bắt đầu bằng = được sửa trong công thức rồi tính lại; ô thường sửa giá trị. Ô công thức mảng và sparkline bị bỏ qua. Sheet đang bảo vệ thì Thay thế bị chặn."
+      "Truy cập: Mở tab Trang đầu trên thanh ribbon, vào nhóm Chỉnh sửa ở phía cuối bên phải và bấm Tìm kiếm (Ctrl+F) hoặc Thay thế (Ctrl+H) để mở hộp thoại Tìm kiếm và Thay thế gồm 2 tab.",
+      "Tìm kiếm dữ liệu: Trong tab «Tìm» (Ctrl+F), nhập chuỗi vào ô «Tìm gì:». Bấm nút «Tìm tiếp» để nhảy tới ô khớp tiếp theo; bấm «Tìm trước» để lùi về ô khớp trước. 3T Sheet tự động cuộn màn hình và kích hoạt ô được tìm thấy.",
+      "Thay thế dữ liệu: Trong tab «Thay thế» (Ctrl+H), nhập nội dung cần thay đổi vào ô «Thay bằng:». Bấm «Thay thế» để đổi từng ô, hoặc bấm «Thay thế tất cả» để thay thế toàn bộ dữ liệu khớp và xem thông báo tổng số lượng thay thế đã thực hiện.",
+      "Tùy chọn nâng cao trong 3T Sheet: Thiết lập phạm vi trong phần mở rộng: «Tìm trong: Trang tính / Sổ làm việc» (tìm trên trang hiện hành hay quét qua tất cả các trang tính), «Tìm theo: Hàng / Cột» (thứ tự duyệt dữ liệu theo dòng hay theo cột), và «Tìm trong: Giá trị / Công thức» (tìm trong kết quả hiển thị hoặc trong chuỗi công thức tính toán).",
+      "Tiếng Việt và bộ lọc từ: Hỗ trợ các tùy chọn «Khớp chữ hoa/thường», «Chỉ toàn bộ từ», và «Bỏ qua dấu» tiếng Việt. Cả chuỗi tìm và nội dung ô được chuẩn hóa Unicode NFC tự động, đảm bảo khớp chuẩn xác kể cả tổ hợp hay dựng sẵn.",
+      "Đóng và Hoàn tác: Bấm Esc để đóng hộp thoại. Sau khi đóng, hệ thống vẫn lưu lại từ khóa tìm kiếm của phiên làm việc. Mọi thao tác «Thay thế tất cả» đều được ghi nhận thành đúng 1 bước Hoàn tác (nhấn Ctrl+Z để hoàn tác toàn bộ các ô đã thay đổi cùng lúc)."
     ]
   },
   {

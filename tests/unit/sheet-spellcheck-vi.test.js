@@ -28,9 +28,9 @@ export async function runSheetSpellcheckViTests() {
     const ribbon = fs.readFileSync(new URL("../../apps/sheet/sheet-ribbon.js", import.meta.url), "utf8");
 
     await test("Sheet tái sử dụng VietnameseSpellChecker của Shared Platform, không viết lại từ điển", () => {
-      assert(source.includes('from "../../platform/text/vi-spellchecker.js"'), "thiếu import VietnameseSpellChecker");
-      assert(source.includes("new VietnameseSpellChecker"), "Sheet không khởi tạo checker dùng chung");
-      assert(source.includes("VIETNAMESE_DICTIONARY_WORDS"), "không dùng từ điển CC0 dùng chung");
+      assert(source.includes('import("../../platform/text/vi-spellchecker.js")'), "thiếu lazy import VietnameseSpellChecker");
+      assert(source.includes("new this._spellcheckTools.VietnameseSpellChecker"), "Sheet không khởi tạo checker dùng chung");
+      assert(source.includes("dictionary.VIETNAMESE_DICTIONARY_WORDS"), "không dùng từ điển CC0 dùng chung");
       assert(!source.includes("SpellcheckDomController"), "Sheet không được gắn DOM controller của Writer/Slides lên ô lưới");
       assert(!ribbon.includes("SpellcheckDomController"), "ribbon không được kéo DOM controller");
     });
@@ -53,8 +53,9 @@ export async function runSheetSpellcheckViTests() {
       assert(ICONS.sheetSpellCheck?.includes("<svg"), "Thiếu SVG sheetSpellCheck");
     });
 
-    await test("Ô văn bản sai chính tả được phát hiện; ô đúng không bị báo", () => {
+    await test("Ô văn bản sai chính tả được phát hiện; ô đúng không bị báo", async () => {
       const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
+      await grid.initializeSpellcheck();
       grid.setCellValue("A", 1, "chínnh tả");
       grid.setCellValue("B", 1, "học sinh đọc sách");
       const issues = grid.collectSpellcheckIssues();
@@ -62,8 +63,9 @@ export async function runSheetSpellcheckViTests() {
       assert(!issues.some(item => item.coord === "B1"), `báo nhầm ô đúng: ${JSON.stringify(issues.filter(item => item.coord === "B1"))}`);
     });
 
-    await test("Ô số và ô công thức bị bỏ qua, kể cả khi kết quả công thức là chữ sai", () => {
+    await test("Ô số và ô công thức bị bỏ qua, kể cả khi kết quả công thức là chữ sai", async () => {
       const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
+      await grid.initializeSpellcheck();
       grid.setCellValue("C", 1, 12345);
       grid.setCellValue("D", 1, "98765");
       grid.setCellValue("E", 1, "25.000.000 ₫");
@@ -73,8 +75,9 @@ export async function runSheetSpellcheckViTests() {
       assert(issues.length === 0, `quet nhầm số/công thức: ${JSON.stringify(issues)}`);
     });
 
-    await test("Thay thế một lần sửa đúng token trong ô, giữ phần còn lại", () => {
+    await test("Thay thế một lần sửa đúng token trong ô, giữ phần còn lại", async () => {
       const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
+      await grid.initializeSpellcheck();
       grid.setCellValue("A", 2, "chínnh tả");
       const [issue] = grid.collectSpellcheckIssues().filter(item => item.word === "chínnh");
       assert(issue, "không tìm thấy chínnh để thay");
@@ -109,8 +112,9 @@ export async function runSheetSpellcheckViTests() {
       assert(VI_PERSONAL_DICTIONARY_KEY === "vno-spellcheck-vi-personal", "storage key dùng chung đã đổi");
     });
 
-    await test("Quét chỉ trang tính đang mở, không lẫn sheet khác", () => {
+    await test("Quét chỉ trang tính đang mở, không lẫn sheet khác", async () => {
       const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
+      await grid.initializeSpellcheck();
       const first = grid.activeSheet;
       grid.setCellValue("A", 5, "chínnh");
       grid.switchSheet("Kế hoạch Q3");
@@ -121,8 +125,9 @@ export async function runSheetSpellcheckViTests() {
       assert(grid.collectSpellcheckIssues().some(item => item.word === "chínnh"), "mất lỗi của sheet hiện tại");
     });
 
-    await test("Gợi ý gần tái sử dụng checker, có chính cho chínnh", () => {
+    await test("Gợi ý gần tái sử dụng checker, có chính cho chínnh", async () => {
       const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
+      await grid.initializeSpellcheck();
       assert(grid.suggestSpellcheckWord("chínnh").includes("chính"), "không gợi ý chính");
     });
 
@@ -134,10 +139,11 @@ export async function runSheetSpellcheckViTests() {
       assert(calls.length === 1 && calls[0] && typeof calls[0] === "object", "Handler không chuẩn hóa args=null");
     });
 
-    await test("Không có document.body thì showSpellcheckDialog trả về danh sách lỗi, không ném", () => {
+    await test("Không có document.body thì showSpellcheckDialog trả về danh sách lỗi, không ném", async () => {
       const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
+      await grid.initializeSpellcheck();
       grid.setCellValue("A", 6, "chínnh");
-      const issues = grid.showSpellcheckDialog();
+      const issues = await grid.showSpellcheckDialog();
       assert(Array.isArray(issues) && issues.some(item => item.word === "chínnh"), "thiếu fallback không DOM");
     });
   } finally {

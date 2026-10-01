@@ -2,6 +2,7 @@
 import { SheetGridController } from "../../apps/sheet/sheet-grid.js";
 import { createSheetGridWithSheets } from "./sheet-test-fixtures.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
+import { SheetChartBuilder } from "../../apps/sheet/sheet-chart.js";
 
 function container() {
   const classes = new Set();
@@ -86,6 +87,7 @@ export async function runSheetUndoRedoTests() {
 
   test("Charts: insert/delete undo và redo cập nhật collection thật", () => {
     const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
+    grid.sheetChartBuilder = SheetChartBuilder;
     grid.setCellValue("A", 1, 12);
     const chart = grid.insertChart("bar", { start: { c: "A", r: 1 }, end: { c: "A", r: 1 } });
     grid.undo();

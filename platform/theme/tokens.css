@@ -76,12 +76,35 @@
   --vno-text-md: 14px;
   --vno-text-lg: 16px;
   --vno-text-xl: 18px;
+}
 
+[data-ui-font-size="large"],
+:root[data-ui-font-size="large"] {
+  --vno-text-xs: 12px;
+  --vno-text-sm: 13.5px;
+  --vno-text-base: 15px;
+  --vno-text-md: 16px;
+  --vno-text-lg: 18px;
+  --vno-text-xl: 20px;
+}
+
+[data-ui-font-size="xlarge"],
+:root[data-ui-font-size="xlarge"] {
+  --vno-text-xs: 13.5px;
+  --vno-text-sm: 15px;
+  --vno-text-base: 17px;
+  --vno-text-md: 18px;
+  --vno-text-lg: 21px;
+  --vno-text-xl: 24px;
+}
+
+:root {
   /* Kích thước khối hệ thống */
   --vno-topbar-height: 44px;
   --vno-ribbon-tabs-height: 34px;
   --vno-ribbon-body-height: 98px;
   --vno-statusbar-height: 28px;
+
   --vno-radius-sm: 3px;
   --vno-radius-md: 5px;
   --vno-radius-lg: 8px;

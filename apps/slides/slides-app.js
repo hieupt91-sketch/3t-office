@@ -10,9 +10,7 @@ import { bootstrapPlatform } from "../../platform/bootstrap.js";
 import { applyLocaleToTabs } from "../../platform/i18n/i18n.js";
 import { globalShortcutManager } from "../../platform/commands/shortcut-manager.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
-import { HelpPanel } from "../../platform/help/index.js";
-import { autoRecoverManager } from "../../platform/autorecover/auto-recover.js";
-import "../../platform/help/entries-slides.js";
+import { withLazyFeatureProgress } from "../../platform/startup/lazy-feature.js";
 
 export class SlidesApp {
   constructor(mountElement) {
@@ -21,6 +19,9 @@ export class SlidesApp {
     this.canvasController = null;
     this.adapter = null;
     this.helpPanel = null;
+    this.autoRecoverManager = null;
+    this.workspace = null;
+    this._helpPanelPromise = null;
     this._lifecycleObserver = null;
   }
 
@@ -55,17 +56,22 @@ export class SlidesApp {
       isDemoTemplate: templateId === "presentation_outline",
       isBlankTemplate: isBlank,
       onDocumentChange: () => { if (this.adapter) this.adapter.isDirty = true; },
+      onZoomChange: (level) => this.shell?.setZoomDisplay?.(Math.round(level * 100)),
       onChange: (current, total) => {
         this.shell.setStatus(`Trang chiếu ${current} / ${total}  |  Tỷ lệ 16:9 HD  |  Tiếng Việt`);
       }
     });
+    this.shell.onZoomChange = (percent) => {
+      this.canvasController.setZoom(percent / 100);
+    };
     this.canvasController.mount();
 
-    this.helpPanel = new HelpPanel({ app: "slides" });
-    this.helpPanel.mount(workspace);
+    this.workspace = workspace;
     globalCommandBus.bindHandler("slides.help.open", (args) => {
-      if (args?.entryId || args?.query != null) return this.helpPanel.open(args);
-      return this.helpPanel.toggle();
+      return withLazyFeatureProgress("slides", "Trợ giúp", () => this._ensureHelpPanel()).then((panel) => {
+        if (args?.entryId || args?.query != null) return panel.open(args);
+        return panel.toggle();
+      });
     });
 
     this.shell.setEditorCanvas(workspace);
@@ -74,18 +80,56 @@ export class SlidesApp {
     this.adapter.setShell(this.shell);
     this.adapter.attach();
 
+    this._autoRecoverOptions = options;
+
+    this.shell.setStatus(`Trang chiếu 1 / ${this.canvasController.slides.length}  |  Tỷ lệ 16:9 HD  |  Tiếng Việt  |  Sẵn sàng`);
+    console.log("[SlidesApp] Đã khởi tạo 3T Slide chuẩn hóa cao cấp.");
+  }
+
+  async initializeBackgroundServices() {
+    const [helpPanel] = await Promise.all([
+      this._ensureHelpPanel(),
+      this.canvasController.initializeSpellcheck()
+    ]);
+    const { autoRecoverManager } = await import("../../platform/autorecover/auto-recover.js");
+    this.autoRecoverManager = autoRecoverManager;
     await autoRecoverManager.register({
       appKind: "slides",
       adapter: this.adapter,
       shell: this.shell,
-      helpPanel: this.helpPanel,
+      helpPanel,
       serialize: () => this.adapter.serializeToFodp(),
       restore: (content, manifest) => this.adapter.restoreFromAutoRecover(content, manifest),
-      options
+      options: this._autoRecoverOptions
     });
+  }
 
-    this.shell.setStatus(`Trang chiếu 1 / ${this.canvasController.slides.length}  |  Tỷ lệ 16:9 HD  |  Tiếng Việt  |  Sẵn sàng`);
-    console.log("[SlidesApp] Đã khởi tạo 3T Slide chuẩn hóa cao cấp.");
+  async showStartupRecovery() {
+    const { autoRecoverManager } = await import("../../platform/autorecover/auto-recover.js");
+    await autoRecoverManager.showStartupRecovery();
+  }
+
+  async _ensureHelpPanel() {
+    if (this.helpPanel) return this.helpPanel;
+    if (!this._helpPanelPromise) {
+      this.shell?.setStatus?.("Đang tải Trợ giúp 3T Slide…");
+      this._helpPanelPromise = Promise.all([
+        import("../../platform/help/index.js"),
+        import("../../platform/help/entries-slides.js")
+      ]).then(([{ HelpPanel }]) => {
+        if (!this.helpPanel && this.workspace) {
+          this.helpPanel = new HelpPanel({ app: "slides" });
+          this.helpPanel.mount(this.workspace);
+          this.shell?.setStatus?.("Sẵn sàng");
+        }
+        return this.helpPanel;
+      }).catch((error) => {
+        this._helpPanelPromise = null;
+        this.shell?.setStatus?.("Không tải được Trợ giúp 3T Slide.");
+        throw error;
+      });
+    }
+    return this._helpPanelPromise;
   }
 
   _watchLifecycle() {
@@ -98,7 +142,7 @@ export class SlidesApp {
   }
 
   destroy() {
-    autoRecoverManager.detach(this.adapter);
+    this.autoRecoverManager?.detach(this.adapter);
     this._lifecycleObserver?.disconnect();
     this._lifecycleObserver = null;
     this.helpPanel?.destroy();

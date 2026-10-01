@@ -16,9 +16,9 @@ export async function runSlidesSpellcheckViTests() {
   const platformController = fs.readFileSync(new URL("../../platform/text/spellcheck-dom-controller.js", import.meta.url), "utf8");
   return [
     test("Slides tái sử dụng checker và DOM controller của Shared Platform", () => {
-      assert(source.includes('from "../../platform/text/vi-spellchecker.js"'), "thiếu import VietnameseSpellChecker");
-      assert(source.includes('from "../../platform/text/spellcheck-dom-controller.js"'), "thiếu import SpellcheckDomController");
-      assert(source.includes("new SpellcheckDomController"), "Slides không khởi tạo controller dùng chung");
+      assert(source.includes('import("../../platform/text/vi-spellchecker.js")'), "thiếu import VietnameseSpellChecker");
+      assert(source.includes('import("../../platform/text/spellcheck-dom-controller.js")'), "thiếu import SpellcheckDomController");
+      assert(source.includes("new this._spellcheckTools.SpellcheckDomController"), "Slides không khởi tạo controller dùng chung");
       assert(platformController.includes("destroy()"), "controller dùng chung thiếu lifecycle destroy");
     }),
     test("Slides bind title, body, body2 và text trong shape đang render", () => {

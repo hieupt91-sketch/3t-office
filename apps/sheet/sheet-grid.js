@@ -4,7 +4,6 @@
 
 import { FormulaEngine, FUNCTION_CATALOG } from "./formula-engine.js";
 import { createEvaluateFormulaSessionFromGrid, formatFormulaValue, renderFormulaHtml } from "./evaluate-formula.js";
-import { SheetChartBuilder } from "./sheet-chart.js";
 import { FormulaAutocompleteController } from "./formula-autocomplete.js";
 import {
   FormulaEntrySession,
@@ -13,18 +12,19 @@ import {
   isFormulaReferenceInsertionPoint,
   makeCellReference
 } from "./formula-entry.js";
-import { PivotTableEngine } from "./pivot-table.js";
 import { WhatIfAnalysisEngine } from "./what-if-analysis.js";
 import { NumberFormatter } from "./number-formatter.js";
-import { FormatCellsDialog } from "./format-cells-dialog.js";
-import { showCellStylesDialog, showFormatAsTableDialog, CELL_STYLE_PRESETS, TABLE_STYLE_PRESETS } from "./cell-styles.js";
+import { CELL_STYLE_PRESETS, TABLE_STYLE_PRESETS } from "./cell-style-presets.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { t } from "../../platform/i18n/i18n.js";
+import { withLazyFeatureProgress } from "../../platform/startup/lazy-feature.js";
+import { createLazyDialogs } from "../../platform/ui-kit/lazy-dialogs.js";
+import { extractSheetRangeData, SHEET_CHART_TYPES } from "./sheet-chart-data.js";
 import { SheetDataTools } from "./data-tools.js";
 import { computeConsolidate, formatSheetRange, parseConsolidateReference, CONSOLIDATE_FUNCTIONS } from "./consolidate.js";
-import { showAlertDialog, showConfirmDialog, showPromptDialog, showFindReplaceDialog } from "../../platform/ui-kit/dialogs.js";
-import { VietnameseSpellChecker, normalizeVietnameseWord, tokenizeVietnamese } from "../../platform/text/vi-spellchecker.js";
-import { VIETNAMESE_DICTIONARY_WORDS } from "../../platform/text/dictionaries/vi-dictionary.js";
+import { createMatcher } from "../../platform/find/find-engine.js";
+
+const { showAlertDialog, showConfirmDialog, showPromptDialog, showFindReplaceDialog } = createLazyDialogs("sheet");
 
 export const DEFAULT_SHEET_PAGE_SETUP = Object.freeze({
   margins: Object.freeze({ top: 1.91, bottom: 1.91, left: 1.78, right: 1.78 }),
@@ -255,6 +255,10 @@ export class SheetGridController {
     this.watchedCells = new Set();
     this.documentName = options.documentName || null;
     this.dataTools = new SheetDataTools(this);
+    this.sheetChartBuilder = null;
+    this.pivotTableEngine = null;
+    this._chartBuilderPromise = null;
+    this._pivotEnginePromise = null;
 
     // Freeze Panes & Sort/Filter state (phản ánh sheet đang active)
     this.isFrozenPanes = false;
@@ -272,6 +276,8 @@ export class SheetGridController {
     this.formulaBarVisible = true;
     this.formulaBarEl = null;
     this.spellChecker = null;
+    this._spellcheckTools = null;
+    this._spellcheckModulePromise = null;
     this._spellcheckOverlay = null;
 
     // Virtual scroll state
@@ -1200,7 +1206,7 @@ export class SheetGridController {
   }
 
   _attachAutofillHandle(td) {
-    if (!td || typeof document?.createElement !== "function" || td.querySelector?.(".vno-cell-autofill-handle")) return;
+    if (!td || typeof document === "undefined" || typeof document.createElement !== "function" || td.querySelector?.(".vno-cell-autofill-handle")) return;
     const handle = document.createElement("div");
     handle.className = "vno-cell-autofill-handle";
     handle.title = "Kéo để tự động điền (AutoFill)";
@@ -1213,7 +1219,7 @@ export class SheetGridController {
   }
 
   _attachMoveHandles(td) {
-    if (!td || typeof document?.createElement !== "function" || td.querySelector?.(".vno-cell-move-handle")) return;
+    if (!td || typeof document === "undefined" || typeof document.createElement !== "function" || td.querySelector?.(".vno-cell-move-handle")) return;
     for (const side of ["top", "bottom", "left", "right"]) {
       const mh = document.createElement("div");
       mh.className = `vno-cell-move-handle ${side}`;
@@ -5611,7 +5617,65 @@ _bindGridKeyboardNavigation() {
     return true;
   }
 
-  openChartBuilder() {
+  initializeOptionalDocumentFeatures() {
+    return Promise.all([this._loadChartBuilder(false), this._loadPivotEngine(false)]);
+  }
+
+  _loadFormatCellsDialog() {
+    if (!this._formatCellsDialogPromise) {
+      this._formatCellsDialogPromise = withLazyFeatureProgress("sheet", "Định dạng ô", () => import("./format-cells-dialog.js"))
+        .catch((error) => {
+          this._formatCellsDialogPromise = null;
+          throw error;
+        });
+    }
+    return this._formatCellsDialogPromise;
+  }
+
+  _loadCellStylesDialogs() {
+    if (!this._cellStylesDialogsPromise) {
+      this._cellStylesDialogsPromise = withLazyFeatureProgress("sheet", "Kiểu ô", () => import("./cell-styles.js"))
+        .catch((error) => {
+          this._cellStylesDialogsPromise = null;
+          throw error;
+        });
+    }
+    return this._cellStylesDialogsPromise;
+  }
+
+  _loadChartBuilder(showProgress = true) {
+    if (!this._chartBuilderPromise) {
+      this._chartBuilderPromise = import("./sheet-chart.js").then((module) => {
+        this.sheetChartBuilder = module.SheetChartBuilder;
+        this.refreshCharts();
+        return this.sheetChartBuilder;
+      }).catch((error) => {
+        this._chartBuilderPromise = null;
+        throw error;
+      });
+    }
+    return showProgress
+      ? withLazyFeatureProgress("sheet", "Biểu đồ", () => this._chartBuilderPromise)
+      : this._chartBuilderPromise;
+  }
+
+  _loadPivotEngine(showProgress = true) {
+    if (!this._pivotEnginePromise) {
+      this._pivotEnginePromise = import("./pivot-table.js").then((module) => {
+        this.pivotTableEngine = module.PivotTableEngine;
+        return this.pivotTableEngine;
+      }).catch((error) => {
+        this._pivotEnginePromise = null;
+        throw error;
+      });
+    }
+    return showProgress
+      ? withLazyFeatureProgress("sheet", "Pivot Table", () => this._pivotEnginePromise)
+      : this._pivotEnginePromise;
+  }
+
+  async openChartBuilder() {
+    const SheetChartBuilder = await this._loadChartBuilder();
     const range = this._normalizeRange(this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
     const extracted = SheetChartBuilder.extractRangeData(this.cellsData, range, this.cols);
     const dataItems = extracted.labels.map((label, index) => ({ label, value: extracted.data[index] }));
@@ -5622,7 +5686,8 @@ _bindGridKeyboardNavigation() {
     });
   }
 
-  openPivotChartBuilder() {
+  async openPivotChartBuilder() {
+    const SheetChartBuilder = await this._loadChartBuilder();
     let targetSheet = this.activeSheet;
     let pivot = this.pivotTablesBySheet[targetSheet]?.[0];
     if (!pivot) {
@@ -5653,7 +5718,7 @@ _bindGridKeyboardNavigation() {
   }
 
   insertChart(type, range = this.selectionRange, recordUndo = true) {
-    if (!SheetChartBuilder.supportedTypes.includes(type)) return false;
+    if (!SHEET_CHART_TYPES.includes(type)) return false;
     const normalizedRange = this._normalizeRange(range);
     const chart = {
       id: `chart-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -5667,6 +5732,12 @@ _bindGridKeyboardNavigation() {
     this.chartsBySheet[this.activeSheet].push(chart);
     this._updateChartData(chart);
     this.renderCharts();
+    if (!this.sheetChartBuilder) {
+      this._loadChartBuilder(true).catch((error) => {
+        console.error("3T Sheet could not load chart tools.", error);
+        this.showNotification?.("Không tải được công cụ Biểu đồ của 3T Sheet.");
+      });
+    }
     if (recordUndo) this._recordHistory({ type: "collection", sheet: this.activeSheet, collection: "chartsBySheet", operation: "insert", index: this.chartsBySheet[this.activeSheet].length - 1, item: structuredClone(chart) });
     return chart;
   }
@@ -5692,7 +5763,7 @@ _bindGridKeyboardNavigation() {
   }
 
   _updateChartData(chart, sheetName = this.activeSheet) {
-    const extracted = SheetChartBuilder.extractRangeData(this.sheetsData[sheetName] || this.cellsData, chart.range, this.cols);
+    const extracted = extractSheetRangeData(this.sheetsData[sheetName] || this.cellsData, chart.range, this.cols);
     chart.labels = extracted.labels;
     chart.data = extracted.data;
     return chart;
@@ -5705,8 +5776,17 @@ _bindGridKeyboardNavigation() {
 
   renderCharts() {
     if (!this.chartLayer || typeof document === "undefined") return;
+    const charts = this.chartsBySheet[this.activeSheet] || [];
+    if (!this.sheetChartBuilder) {
+      if (charts.length) {
+        void this._loadChartBuilder().catch((error) => {
+          console.error("3T Sheet could not load chart tools.", error);
+        });
+      }
+      return;
+    }
     this.chartLayer.innerHTML = "";
-    for (const chart of this.chartsBySheet[this.activeSheet] || []) {
+    for (const chart of charts) {
       const panel = document.createElement("section");
       const colOffset = Math.max(0, this.cols.indexOf(chart.range.end.c) + 1) * 100 + 46;
       const rowOffset = Math.max(0, chart.range.start.r - 1) * this.rowHeight + 28;
@@ -5714,7 +5794,7 @@ _bindGridKeyboardNavigation() {
       panel.dataset.chartId = chart.id;
       panel.dataset.sheet = this.activeSheet;
       panel.style.cssText = `position:absolute;left:${colOffset}px;top:${rowOffset}px;width:520px;height:300px;background:#fff;border:1px solid #cbd5e1;border-radius:8px;box-shadow:0 8px 24px rgba(15,23,42,.18);pointer-events:auto;overflow:hidden`;
-      panel.innerHTML = `<button type="button" data-chart-delete aria-label="Xóa biểu đồ" title="Xóa biểu đồ" style="position:absolute;right:6px;top:4px;z-index:1;border:0;background:#fff;border-radius:4px;font-size:18px;cursor:pointer">&times;</button>${SheetChartBuilder.generateSvg(chart)}`;
+      panel.innerHTML = `<button type="button" data-chart-delete aria-label="Xóa biểu đồ" title="Xóa biểu đồ" style="position:absolute;right:6px;top:4px;z-index:1;border:0;background:#fff;border-radius:4px;font-size:18px;cursor:pointer">&times;</button>${this.sheetChartBuilder.generateSvg(chart)}`;
       panel.querySelector("[data-chart-delete]")?.addEventListener("click", () => this.deleteChart(chart.id));
       this.chartLayer.appendChild(panel);
     }
@@ -6233,7 +6313,8 @@ _bindGridKeyboardNavigation() {
     return true;
   }
 
-  showFormatCellsDialog(initialTab = "number") {
+  async showFormatCellsDialog(initialTab = "number") {
+    const { FormatCellsDialog } = await this._loadFormatCellsDialog();
     const activeKey = `${this.selectedCoord.c}${this.selectedCoord.r}`;
     const item = this.cellsData.get(activeKey);
     const tabName = typeof initialTab === "string" ? initialTab : (initialTab?.tab || "number");
@@ -6437,7 +6518,8 @@ _bindGridKeyboardNavigation() {
     return true;
   }
 
-  showCellStylesDialog() {
+  async showCellStylesDialog() {
+    const { showCellStylesDialog } = await this._loadCellStylesDialogs();
     return showCellStylesDialog(this);
   }
 
@@ -6503,7 +6585,8 @@ _bindGridKeyboardNavigation() {
     return true;
   }
 
-  showFormatAsTableDialog() {
+  async showFormatAsTableDialog() {
+    const { showFormatAsTableDialog } = await this._loadCellStylesDialogs();
     return showFormatAsTableDialog(this);
   }
 
@@ -7047,113 +7130,233 @@ _bindGridKeyboardNavigation() {
     return true;
   }
 
-  _cellTextMatchesFind(item, needleLower) {
-    if (!item || !needleLower) return false;
+  _cellTextMatchesFind(item, matcher, lookIn = "all") {
+    if (!item || !matcher) return false;
     if (item.sparkline || item.isArrayFormula) return false;
-    const valStr = String(item.val ?? "").toLowerCase();
-    const formulaStr = String(item.formula ?? "").toLowerCase();
-    return valStr.includes(needleLower) || formulaStr.includes(needleLower);
+    const valStr = String(item.val ?? "");
+    const formulaStr = String(item.formula ?? "");
+    if (lookIn === "formulas") {
+      return formulaStr ? matcher.matches(formulaStr) : false;
+    }
+    if (lookIn === "values") {
+      return matcher.matches(valStr);
+    }
+    return matcher.matches(valStr) || (formulaStr ? matcher.matches(formulaStr) : false);
   }
 
   _replaceIgnoreCase(source, findText, replaceText, all) {
-    const src = String(source ?? "");
-    const find = String(findText ?? "");
-    if (!find) return { text: src, count: 0 };
-    const findLower = find.toLowerCase();
-    const replacement = String(replaceText ?? "");
-    const lower = src.toLowerCase();
-    if (!all) {
-      const idx = lower.indexOf(findLower);
-      if (idx < 0) return { text: src, count: 0 };
-      return { text: src.slice(0, idx) + replacement + src.slice(idx + find.length), count: 1 };
-    }
-    let out = "";
-    let i = 0;
-    let count = 0;
-    while (i < src.length) {
-      const idx = lower.indexOf(findLower, i);
-      if (idx < 0) {
-        out += src.slice(i);
-        break;
-      }
-      out += src.slice(i, idx) + replacement;
-      i = idx + find.length;
-      count++;
-    }
-    return { text: out, count };
+    const matcher = createMatcher(findText, { matchCase: false });
+    return matcher.replace(source, replaceText, all);
   }
 
-  _replaceCellMatch(item, findText, replaceText, all) {
+  _replaceCellMatch(item, matcher, replaceText, all, lookIn = "all") {
     if (!item || item.sparkline || item.isArrayFormula) return null;
     const formula = String(item.formula ?? "");
-    if (formula) {
-      const next = this._replaceIgnoreCase(formula, findText, replaceText, all);
+    if (formula && (lookIn === "formulas" || (lookIn !== "values" && matcher.matches(formula)))) {
+      const next = matcher.replace(formula, replaceText, all);
       if (!next.count) return null;
       return { formula: next.text, count: next.count };
     }
     const valStr = String(item.val ?? "");
-    const next = this._replaceIgnoreCase(valStr, findText, replaceText, all);
+    const next = matcher.replace(valStr, replaceText, all);
     if (!next.count) return null;
     return { val: next.text, count: next.count };
   }
 
-  findNext(query) {
+  findNext(query, options = {}) {
     const needle = String(query ?? "").trim();
     if (!needle) return false;
-    const needleLower = needle.toLowerCase();
-    const entries = Array.from(this.cellsData.entries());
-    if (!entries.length) return false;
-    if (this._findLastQuery !== needleLower) {
+
+    const opts = {
+      matchCase: false,
+      wholeWord: false,
+      ignoreDiacritics: false,
+      scope: "sheet",
+      searchBy: "rows",
+      lookIn: "all",
+      direction: "forward",
+      ...options
+    };
+
+    const matcher = createMatcher(needle, opts);
+    const isBackward = opts.direction === "backward";
+    const sheetsList = (opts.scope === "workbook" && Array.isArray(this.sheets) && this.sheets.length)
+      ? [...this.sheets]
+      : [this.activeSheet];
+    if (isBackward) sheetsList.reverse();
+
+    const getSortedEntries = (sheetName) => {
+      const map = sheetName === this.activeSheet ? this.cellsData : (this.sheetsData[sheetName] || new Map());
+      const entries = Array.from(map.entries());
+      entries.sort(([coordA], [coordB]) => {
+        const [colA, rowA] = this._splitCoord(coordA);
+        const [colB, rowB] = this._splitCoord(coordB);
+        const colIdxA = this._columnNumber(colA);
+        const colIdxB = this._columnNumber(colB);
+        if (opts.searchBy === "columns") {
+          return colIdxA !== colIdxB ? colIdxA - colIdxB : rowA - rowB;
+        } else {
+          return rowA !== rowB ? rowA - rowB : colIdxA - colIdxB;
+        }
+      });
+      if (isBackward) entries.reverse();
+      return entries;
+    };
+
+    const stateKey = `${needle}__${opts.matchCase}__${opts.wholeWord}__${opts.ignoreDiacritics}__${opts.searchBy}__${opts.lookIn}__${opts.scope}`;
+    if (this._findLastStateKey !== stateKey) {
+      this._findLastStateKey = stateKey;
       this._findLastCoord = null;
-      this._findLastQuery = needleLower;
+      this._findLastSheet = null;
     }
-    let startIndex = 0;
-    if (this._findLastCoord) {
-      const idx = entries.findIndex(([coord]) => coord === this._findLastCoord);
-      if (idx >= 0) startIndex = idx + 1;
+
+    let startSheetIdx = 0;
+    let startEntryIdx = 0;
+    if (this._findLastSheet && this._findLastCoord) {
+      const sIdx = sheetsList.indexOf(this._findLastSheet);
+      if (sIdx >= 0) {
+        startSheetIdx = sIdx;
+        const entries = getSortedEntries(this._findLastSheet);
+        const cIdx = entries.findIndex(([coord]) => coord === this._findLastCoord);
+        if (cIdx >= 0) startEntryIdx = cIdx + 1;
+      }
     }
-    for (let i = 0; i < entries.length; i++) {
-      const [coord, item] = entries[(startIndex + i) % entries.length];
-      if (!this._cellTextMatchesFind(item, needleLower)) continue;
-      this._findLastCoord = coord;
-      const [col, row] = this._splitCoord(coord);
-      this.selectCell(col, row);
-      return coord;
+
+    for (let sStep = 0; sStep < sheetsList.length; sStep++) {
+      const currentSheet = sheetsList[(startSheetIdx + sStep) % sheetsList.length];
+      const entries = getSortedEntries(currentSheet);
+      if (!entries.length) continue;
+
+      const entryStart = (sStep === 0) ? startEntryIdx : 0;
+      for (let i = 0; i < entries.length; i++) {
+        const [coord, item] = entries[(entryStart + i) % entries.length];
+        if (!this._cellTextMatchesFind(item, matcher, opts.lookIn)) continue;
+
+        this._findLastSheet = currentSheet;
+        this._findLastCoord = coord;
+        if (currentSheet !== this.activeSheet) {
+          this.switchSheet(currentSheet);
+        }
+        const [col, row] = this._splitCoord(coord);
+        this.selectCell(col, row);
+        const targetEl = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${coord}"]`);
+        targetEl?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+        return coord;
+      }
     }
     return false;
   }
 
-  replaceOne(findText, replaceText) {
+  findPrev(query, options = {}) {
+    return this.findNext(query, { ...options, direction: "backward" });
+  }
+
+  replaceOne(findText, replaceText, options = {}) {
     if (this._guardProtectedMutation()) return false;
     const needle = String(findText ?? "").trim();
     if (!needle) return false;
-    const entries = Array.from(this.cellsData.entries());
-    if (!entries.length) return false;
+
+    const opts = {
+      matchCase: false,
+      wholeWord: false,
+      ignoreDiacritics: false,
+      scope: "sheet",
+      searchBy: "rows",
+      lookIn: "all",
+      ...options
+    };
+    const matcher = createMatcher(needle, opts);
+    const replacement = String(replaceText ?? "");
+
     const selectedKey = `${this.selectedCoord.c}${this.selectedCoord.r}`;
-    const startIndex = Math.max(0, entries.findIndex(([coord]) => coord === selectedKey));
-    for (let i = 0; i < entries.length; i++) {
-      const [coord, item] = entries[(startIndex + i) % entries.length];
-      const patch = this._replaceCellMatch(item, needle, replaceText, false);
-      if (!patch) continue;
-      const [col, row] = this._splitCoord(coord);
-      this.setCellValue(col, row, patch.formula != null ? patch.formula : patch.val, true);
-      this._findLastCoord = coord;
-      this._findLastQuery = needle.toLowerCase();
-      this.selectCell(col, row);
-      return true;
+    const selectedItem = this.cellsData.get(selectedKey);
+    if (selectedItem && this._cellTextMatchesFind(selectedItem, matcher, opts.lookIn)) {
+      const patch = this._replaceCellMatch(selectedItem, matcher, replacement, false, opts.lookIn);
+      if (patch) {
+        this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, patch.formula != null ? patch.formula : patch.val, true);
+        return true;
+      }
     }
-    return false;
+
+    const nextCoord = this.findNext(needle, opts);
+    if (!nextCoord) return false;
+    const [col, row] = this._splitCoord(nextCoord);
+    const item = this.cellsData.get(nextCoord);
+    const patch = this._replaceCellMatch(item, matcher, replacement, false, opts.lookIn);
+    if (!patch) return false;
+    this.setCellValue(col, row, patch.formula != null ? patch.formula : patch.val, true);
+    this.selectCell(col, row);
+    return true;
   }
 
-  replaceAll(findText, replaceText) {
+  replaceAll(findText, replaceText, options = {}) {
     if (this._guardProtectedMutation()) return 0;
     const needle = String(findText ?? "").trim();
     if (!needle) return 0;
+
+    const opts = {
+      matchCase: false,
+      wholeWord: false,
+      ignoreDiacritics: false,
+      scope: "sheet",
+      searchBy: "rows",
+      lookIn: "all",
+      ...options
+    };
+    const matcher = createMatcher(needle, opts);
+    const replacement = String(replaceText ?? "");
+
+    if (opts.scope === "workbook" && Array.isArray(this.sheets) && this.sheets.length > 1) {
+      const beforeBySheet = {};
+      const afterBySheet = {};
+      let total = 0;
+
+      for (const sheetName of this.sheets) {
+        const map = sheetName === this.activeSheet ? this.cellsData : (this.sheetsData[sheetName] || new Map());
+        const sheetBefore = {};
+        const sheetAfter = {};
+        let sheetCount = 0;
+
+        for (const [coord, item] of [...map.entries()]) {
+          const patch = this._replaceCellMatch(item, matcher, replacement, true, opts.lookIn);
+          if (!patch) continue;
+          sheetBefore[coord] = structuredClone(item);
+          const [col, row] = this._splitCoord(coord);
+          if (sheetName === this.activeSheet) {
+            this.setCellValue(col, row, patch.formula != null ? patch.formula : patch.val, false);
+            sheetAfter[coord] = structuredClone(this.cellsData.get(coord));
+          } else {
+            const newItem = structuredClone(item);
+            if (patch.formula != null) {
+              newItem.formula = patch.formula;
+            } else {
+              newItem.val = patch.val;
+            }
+            map.set(coord, newItem);
+            sheetAfter[coord] = structuredClone(newItem);
+          }
+          sheetCount += patch.count;
+        }
+
+        if (sheetCount > 0) {
+          beforeBySheet[sheetName] = sheetBefore;
+          afterBySheet[sheetName] = sheetAfter;
+          total += sheetCount;
+        }
+      }
+
+      if (!total) return 0;
+      this._recordHistory({ type: "batch-workbook", beforeBySheet, afterBySheet });
+      this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+      return total;
+    }
+
+    // Active sheet scope
     const before = {};
     const after = {};
     let total = 0;
     for (const [coord, item] of [...this.cellsData.entries()]) {
-      const patch = this._replaceCellMatch(item, needle, replaceText, true);
+      const patch = this._replaceCellMatch(item, matcher, replacement, true, opts.lookIn);
       if (!patch) continue;
       before[coord] = structuredClone(item);
       const [col, row] = this._splitCoord(coord);
@@ -7172,14 +7375,16 @@ _bindGridKeyboardNavigation() {
     }
     showFindReplaceDialog({
       isReplace: !!isReplace,
-      onFind: (text) => this.findNext(text),
-      onReplace: (findText, replaceText) => {
+      app: "sheet",
+      onFind: (text, options) => this.findNext(text, options),
+      onFindPrev: (text, options) => this.findPrev(text, options),
+      onReplace: (findText, replaceText, options) => {
         if (!findText) return false;
-        return this.replaceOne(findText, replaceText);
+        return this.replaceOne(findText, replaceText, options);
       },
-      onReplaceAll: (findText, replaceText) => {
+      onReplaceAll: (findText, replaceText, options) => {
         if (!findText) return 0;
-        return this.replaceAll(findText, replaceText);
+        return this.replaceAll(findText, replaceText, options);
       }
     });
     return true;
@@ -7463,6 +7668,7 @@ _bindGridKeyboardNavigation() {
     if (!Number.isFinite(next)) return false;
     this.zoomLevel = next;
     this._applyViewState();
+    this.options.onZoomChange?.(this.zoomLevel);
     return this.zoomLevel;
   }
 
@@ -8171,6 +8377,25 @@ _bindGridKeyboardNavigation() {
         }
       }
       this._recalculateAllFormulas();
+    } else if (action.type === "batch-workbook") {
+      const bySheet = direction === "undo" ? action.beforeBySheet : action.afterBySheet;
+      for (const [sheetName, snapshots] of Object.entries(bySheet || {})) {
+        const map = sheetName === this.activeSheet ? this.cellsData : (this.sheetsData[sheetName] || null);
+        if (!map) continue;
+        for (const [coord, snap] of Object.entries(snapshots || {})) {
+          if (!snap) {
+            map.delete(coord);
+          } else {
+            map.set(coord, {
+              val: snap.val ?? "",
+              formula: snap.formula ?? "",
+              style: structuredClone(snap.style || {})
+            });
+          }
+        }
+      }
+      this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+      this._recalculateAllFormulas();
     } else if (action.type === "sort") {
       this._restoreCells(direction === "undo" ? action.before : action.after);
     } else if (action.type === "pivot-refresh") {
@@ -8637,6 +8862,10 @@ _bindGridKeyboardNavigation() {
 
   _columnNumber(label) {
     return String(label).toUpperCase().split("").reduce((value, char) => value * 26 + char.charCodeAt(0) - 64, 0);
+  }
+
+  _colLetterToIndex(label) {
+    return this._columnNumber(label);
   }
 
   _columnLabel(number) {
@@ -9916,9 +10145,31 @@ _bindGridKeyboardNavigation() {
 
   _ensureSpellChecker() {
     if (!this.spellChecker) {
-      this.spellChecker = new VietnameseSpellChecker(VIETNAMESE_DICTIONARY_WORDS);
+      if (!this._spellcheckTools) return null;
+      this.spellChecker = new this._spellcheckTools.VietnameseSpellChecker(this._spellcheckTools.words);
     }
     return this.spellChecker;
+  }
+
+  initializeSpellcheck() {
+    if (this._spellcheckModulePromise) return this._spellcheckModulePromise;
+    this._spellcheckModulePromise = Promise.all([
+      import("../../platform/text/vi-spellchecker.js"),
+      import("../../platform/text/dictionaries/vi-dictionary.js")
+    ]).then(([spellcheck, dictionary]) => {
+      this._spellcheckTools = {
+        VietnameseSpellChecker: spellcheck.VietnameseSpellChecker,
+        normalizeVietnameseWord: spellcheck.normalizeVietnameseWord,
+        tokenizeVietnamese: spellcheck.tokenizeVietnamese,
+        words: dictionary.VIETNAMESE_DICTIONARY_WORDS
+      };
+      this._ensureSpellChecker();
+      return true;
+    }).catch((error) => {
+      this._spellcheckModulePromise = null;
+      throw error;
+    });
+    return this._spellcheckModulePromise;
   }
 
   isSpellcheckableCell(item) {
@@ -9941,6 +10192,7 @@ _bindGridKeyboardNavigation() {
 
   collectSpellcheckIssues(sheetName = this.activeSheet) {
     const checker = this._ensureSpellChecker();
+    if (!checker) return [];
     const map = this.sheetsData?.[sheetName] || this.cellsData;
     const issues = [];
     for (const [coord, item] of map.entries()) {
@@ -9963,7 +10215,7 @@ _bindGridKeyboardNavigation() {
   }
 
   suggestSpellcheckWord(word) {
-    return this._ensureSpellChecker().suggest(word);
+    return this._ensureSpellChecker()?.suggest(word) || [];
   }
 
   replaceSpellcheckIssue(issue, replacement) {
@@ -9986,7 +10238,7 @@ _bindGridKeyboardNavigation() {
   }
 
   replaceAllSpellcheckWord(word, replacement) {
-    const target = normalizeVietnameseWord(word);
+    const target = this._spellcheckTools?.normalizeVietnameseWord?.(word) || "";
     if (!target) return 0;
     const nextReplacement = String(replacement ?? "");
     const coords = [];
@@ -9997,7 +10249,7 @@ _bindGridKeyboardNavigation() {
     for (const coord of coords) {
       const item = this.cellsData.get(coord);
       if (!item || !this.isSpellcheckableCell(item)) continue;
-      const tokens = tokenizeVietnamese(String(item.val ?? ""));
+      const tokens = this._spellcheckTools?.tokenizeVietnamese?.(String(item.val ?? "")) || [];
       let text = String(item.val ?? "");
       for (let index = tokens.length - 1; index >= 0; index--) {
         const token = tokens[index];
@@ -10016,8 +10268,11 @@ _bindGridKeyboardNavigation() {
     this._spellcheckOverlay = null;
   }
 
-  showSpellcheckDialog(options = {}) {
+  async showSpellcheckDialog(options = {}) {
     options = options || {};
+    if (!this._spellcheckTools) {
+      await withLazyFeatureProgress("sheet", "Chính tả", () => this.initializeSpellcheck());
+    }
     const issues = this.collectSpellcheckIssues();
     if (typeof document === "undefined" || !document.createElement || !document.body) return issues;
     this._closeSpellcheckDialog();
@@ -11710,19 +11965,20 @@ _bindGridKeyboardNavigation() {
   }
 
   createPivotTable(config, recordUndo = true) {
+    if (!this.pivotTableEngine) return false;
     if (this._guardWorkbookStructure()) return false;
     const sourceSheet = config.sourceSheet || this.activeSheet;
     const sourceCells = this.sheetsData[sourceSheet];
     if (!sourceCells) throw new Error(t("sheetDialogs.sourceSheetNotFound"));
-    const table = PivotTableEngine.aggregate(sourceCells, config);
+    const table = this.pivotTableEngine.aggregate(sourceCells, config);
     const baseName = `${sourceSheet} (2)`;
     let targetSheet = config.targetSheet || baseName;
     let suffix = 3;
     while (this.sheets.includes(targetSheet)) targetSheet = `${sourceSheet} (${suffix++})`;
     const previousSheet = this.activeSheet;
     if (this.addSheet(targetSheet, false) === false) return false;
-    this.sheetsData[targetSheet] = PivotTableEngine.toCells(table);
-    const pivot = { ...structuredClone(config), id: config.id || `pivot-${Date.now()}`, sourceSheet, targetSheet, resultRange: PivotTableEngine.resultRange(table) };
+    this.sheetsData[targetSheet] = this.pivotTableEngine.toCells(table);
+    const pivot = { ...structuredClone(config), id: config.id || `pivot-${Date.now()}`, sourceSheet, targetSheet, resultRange: this.pivotTableEngine.resultRange(table) };
     this.pivotTablesBySheet[targetSheet] = [pivot];
     this._renderVirtualRows(1, Math.min(40, this.rowCount));
     this.selectCell("A", 1);
@@ -11731,14 +11987,15 @@ _bindGridKeyboardNavigation() {
   }
 
   refreshPivotTable(sheetName = this.activeSheet, recordUndo = true) {
+    if (!this.pivotTableEngine) return false;
     const pivot = this.pivotTablesBySheet[sheetName]?.[0];
     if (!pivot) return false;
     const sourceCells = this.sheetsData[pivot.sourceSheet];
     if (!sourceCells) return false;
     const before = this._snapshotCells(sheetName);
-    const table = PivotTableEngine.aggregate(sourceCells, pivot);
-    this.sheetsData[sheetName] = PivotTableEngine.toCells(table);
-    pivot.resultRange = PivotTableEngine.resultRange(table);
+    const table = this.pivotTableEngine.aggregate(sourceCells, pivot);
+    this.sheetsData[sheetName] = this.pivotTableEngine.toCells(table);
+    pivot.resultRange = this.pivotTableEngine.resultRange(table);
     for (const chart of this.chartsBySheet[sheetName] || []) if (chart.kind === "pivot" && chart.pivotId === pivot.id) chart.range = structuredClone(pivot.resultRange);
     this.refreshCharts(sheetName);
     if (sheetName === this.activeSheet) {
@@ -11749,7 +12006,8 @@ _bindGridKeyboardNavigation() {
     return true;
   }
 
-  showPivotTableDialog() {
+  async showPivotTableDialog() {
+    await this._loadPivotEngine();
     const sourceSheet = this.activeSheet;
     const defaultRange = this.getSelectedRangeLabel();
     const overlay = this._createSheetDialog(t("sheetDialogs.pivotTitle"), `
@@ -11764,7 +12022,7 @@ _bindGridKeyboardNavigation() {
     const error = overlay.querySelector(".vno-rule-error");
     const loadFields = () => {
       try {
-        const { headers } = PivotTableEngine.readSource(this.sheetsData[sourceSheet], overlay.querySelector("#vno-pivot-range").value);
+        const { headers } = this.pivotTableEngine.readSource(this.sheetsData[sourceSheet], overlay.querySelector("#vno-pivot-range").value);
         fieldsHost.innerHTML = `<p>${t("sheetDialogs.chooseFields")}</p>${headers.map((header, index) => `
           <div class="vno-pivot-field" data-field="${this._escapeHtml(header)}">
             <strong>${this._escapeHtml(header)}</strong>
