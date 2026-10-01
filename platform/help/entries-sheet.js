@@ -17,6 +17,7 @@ export const SHEET_HELP_ENTRIES = [
     steps: [
       "Chọn một ô rồi gõ số, ví dụ 123 hoặc 12,5, và nhấn Enter. Có thể dán một cột số từ ứng dụng khác; 3T Sheet tự nhận kiểu số để công thức SUM/COUNT dùng được.",
       "Để nhập ngày, gõ theo dạng dd/mm/yyyy, ví dụ 30/01/2026. Ô tự nhận định dạng ngày; kéo chốt Điền ở góc dưới phải để tiếp tục 31/01/2026, 01/02/2026…",
+      "Để nhập phần trăm vào ô thường, gõ 25% rồi nhấn Enter. Ô hiển thị 25% và lưu số 0,25 để SUM tính đúng; Ctrl+Z hoàn tác cả giá trị lẫn định dạng phần trăm.",
       "Muốn giữ nguyên chữ số dưới dạng văn bản (ví dụ mã 00123), gõ dấu nháy đơn trước nội dung: '00123. Dấu nháy không hiển thị trong ô nhưng ngăn chuyển thành số.",
       "Dùng tab Trang đầu, nhóm Số để đổi định dạng hiển thị như Số, Tiền tệ, Phần trăm hoặc Ngày. Định dạng chỉ đổi cách hiển thị, không biến số thành văn bản.",
       "Khi lưu XLSX và mở bằng Excel, số vẫn là giá trị số và ngày vẫn là số ngày có định dạng; công thức SUM/COUNT không bỏ qua các ô vừa nhập hoặc dán."
@@ -445,6 +446,7 @@ export const SHEET_HELP_ENTRIES = [
       "Xóa trang tính: nhấp phải tab trang tính ở thanh dưới lưới rồi chọn Xóa trang tính.",
       "Sheet hỏi xác nhận trước khi xóa; không xóa được trang tính cuối cùng của sổ làm việc. Lỡ tay thì bấm Ctrl+Z để lấy lại.",
       "Đổi màu tab: nhấp phải tab, chọn Màu tab rồi chọn một màu, hoặc chọn Không màu để bỏ màu.",
+      "Trong menu Màu tab, dùng phím mũi tên lên/xuống để chọn màu, Enter để áp dụng hoặc Esc để đóng menu. Ctrl+Z hoàn tác màu vừa chọn.",
       "Màu tab được lưu cùng tệp .xlsx và hiện lại đúng màu khi mở lại tệp."
     ]
   },

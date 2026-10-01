@@ -102,3 +102,81 @@ The 26-column × 200-row interaction cap remains out of scope for this patch and
 - Saved chart and print-setting workbook: reopened in 3T and hidden Excel COM; outcomes are recorded above.
 - Large-workbook responsiveness: NOT RUN. C3–C9 per-sub-point save/reopen coverage is NOT RUN. C4 fill parity is BLOCKED; C5–C9 hidden-Excel parity and mouse/keyboard dual-path coverage beyond the recorded checks are NOT RUN. Undo results are likewise recorded only where explicitly stated.
 - Save pipeline was not modified, so `scripts/layout-audit/_batch_audit.py` was not run.
+
+## Desktop completion evidence — 2026-10-01, `fix/sheet-c3-gaps-codex`
+
+This section supersedes the historical NOT RUN entries for the five requested gaps only. Worktree: `E:\VNOffice-codex-sheetfix`. Actual desktop `main.py --app=sheet` instances used isolated profiles and WebView2 `--remote-debugging-port`; input used CDP `Input.dispatchKeyEvent`/`Input.dispatchMouseEvent` and Playwright connected with `chromium.connectOverCDP`. Page-setup controls used Playwright fill/select/check over that same desktop CDP connection. Only the save destination was supplied to the adapter to avoid the OS file chooser, then the real Save button was clicked. No OS-level input was used. Hidden Excel instances were owned by this test (PID checked against existing processes), `Visible=False`, read-only workbook inspection, and closed with COM Quit; no other Office process was terminated.
+
+Desktop-saved synthetic proof artifacts are retained at [native-values.xlsx](../tests/fixtures/sheet-c3-gaps/native-values.xlsx) and [page-tab.xlsx](../tests/fixtures/sheet-c3-gaps/page-tab.xlsx). Both XML/parts lint commands were run on each artifact: **2/2 XML lint clean, 2/2 parts lint clean**. Hidden COM readback can be repeated with `powershell -NoProfile -File tests/live/sheet-c3-gaps-excel.ps1 -Files <absolute-artifact-path>`.
+
+### 1. Native numbers, date, percentage and SUM — PASS
+
+CDP clicked each cell, typed the exact input and pressed Enter, then clicked Save. Initial probing found `25%` remained text; the follow-up recognizes numeric percent input in General and assigns percentage formatting. Forced text remains supported; the focused test checks calculation, FODS typing and Undo restoring both value and style.
+
+| Cell | Desktop input | Desktop value | Hidden Excel COM Value2 | Value2.GetType().Name | Excel number format |
+|---|---|---:|---:|---|---|
+| A1 | `1250` | 1250 | 1250 | Double | General |
+| A2 | `31/12/2026` | 46387 | 46387 | Double | dd/mm/yyyy |
+| A3 | `25%` | 0.25 | 0.25 | Double | percentage |
+| A4 | `1234.56` | 1234.56 | 1234.56 | Double | General |
+| B1 | `=SUM(A1:A4)` | 48871.81 | 48871.81 | Double | General |
+
+Hidden Excel proof: private PID `23260`, `Visible=False`, four inputs **4/4 Double**, formula preserved `=SUM(A1:A4)`, result **48871.81**. Fresh desktop reopen returned A1=1250, A2=46387, A3=0.25, A4=1234.56 (all JavaScript numbers) and B1=48871.81 with the same SUM formula. Artifact initially saved as `.sheet-native-proof.xlsx` in this worktree.
+
+### 2. Print settings — PASS
+
+Through Bố trí trang → Lề, the desktop dialog set landscape, A4, margins top/bottom/left/right `1.5/1.6/1.7/1.8 cm`, repeating rows `1:2`, fit width/height `1/1`; the ribbon set print area `A1:B3`. Initial hidden Excel COM found correct Orientation=2, PaperSize=9, PrintArea=`$A$1:$B$3`, PrintTitleRows=`$1:$2`, FitToPagesWide/Tall=1/1, Zoom=False, but added header/footer spacing to the top/bottom margins. This initial comparison is **FAIL**, not a pass based on the other fields.
+
+The follow-up adapter restores the UI's existing margin metadata into standard XLSX `pageMargins`, and overlays native XLSX margins into that metadata before app import. The corrected workbook `.sheet-page-tab-fixed.xlsx` was saved through the desktop Save button. Fresh desktop reopen and the real Page Setup dialog retained landscape/A4, top/bottom/left/right `1.5/1.6/1.7/1.8 cm`, rows `1:2`, fit `1/1`; print area remained `A1:B3`. Private hidden Excel COM PID `28492` (`Visible=False`) returned:
+
+```text
+Orientation=2 (landscape), PaperSize=9 (A4)
+TopMargin cm=1.4999999999999996
+BottomMargin cm=1.600000000000001
+LeftMargin cm=1.6999999999999995
+RightMargin cm=1.8000000000000012
+PrintArea=$A$1:$B$3, PrintTitleRows=$1:$2
+FitToPagesWide=1, FitToPagesTall=1, Zoom=False
+CenterFooter=Trang &P / &N
+```
+
+All four margins match the requested centimeters within floating-point representation error (<0.000000000001 cm); they are not the prior spacing-inflated values. Focused Python margin regression: **4/4 PASS** (includes the actual fresh-workbook postprocessor path, schema order, native units, sheet identity and invalid metadata).
+
+After normalizing conversion rounding noise, a further fresh CDP desktop reopen returned exactly `{top:1.5,bottom:1.6,left:1.7,right:1.8}`, print area `A1:B3`, tab color `#F44336`.
+
+### 3. Ctrl+A current region, then whole available sheet — PASS
+
+Desktop data: A1/B1=`Name`/`Value`, A2/B2=`Gamma`/3, A3/B3=`Alpha`/1. CDP clicked A1 then sent Ctrl+A twice. Readback from the live grid:
+
+```text
+first Ctrl+A:  A1:B3
+second Ctrl+A: A1:Z200
+```
+
+The second selection is the whole currently available grid. The 26×200 limit remains a separate known limitation; this is not an Excel-sized worksheet extent claim. Ctrl+Home returned the viewport to A1 afterward.
+
+### 4. Sort preserves the header — PASS
+
+CDP selected A1:B3 and clicked A→Z. Actual rows changed from `Name/Value; Gamma/3; Alpha/1` to `Name/Value; Alpha/1; Gamma/3`. The Undo button restored `Name; Gamma; Alpha`. CDP then opened Dữ liệu → Sắp xếp tùy chỉnh: `#vno-cs-header` was checked, with the actual Vietnamese label **“Dữ liệu có hàng tiêu đề”**. Applying that dialog again produced `Name/Value; Alpha/1; Gamma/3` with the header on row 1.
+
+### 5. Delete confirmation, Undo and tab color — PASS
+
+CDP clicked Add Sheet, then right-clicked Sheet2 and clicked **Xóa trang tính**. Two real CDP dialog events were captured:
+
+```text
+confirm: Xóa trang tính «Sheet2»? — dismiss
+remaining: [Sheet1, Sheet2]
+confirm: Xóa trang tính «Sheet2»? — accept
+remaining: [Sheet1]
+Undo button → [Sheet1, Sheet2]
+```
+
+Right-click Sheet1 → **Màu tab** initially positioned colors below the window. The follow-up clamps the menu to the viewport and supports arrows/Enter/Escape and outside-click cleanup. Final desktop bounds: all eight items inside y=474…690, viewport height=705. ArrowDown focused `#f44336`; Enter applied that color. A subsequent desktop Save wrote the color to XLSX. Final corrected workbook reopen returned `#F44336`, the `has-tab-color` class and visible `border-bottom: 3px solid rgb(244, 67, 54)`; hidden Excel COM returned Tab.Color=3556340 (RGB `#F44336`).
+
+### Gate history and audit coordination
+
+- First JavaScript gate: exact line `KẾT QUẢ KIỂM THỬ: 2307/2309 PASS | 2 FAIL` (LibreOffice CF conversion failure; locked temporary profile cleanup in row/column format roundtrip).
+- Second JavaScript gate with isolated LOCALAPPDATA: exact line `KẾT QUẢ KIỂM THỬ: 2306/2309 PASS | 3 FAIL` (CF conversion, Pivot profile cleanup EBUSY, row/column conversion). Other audits started during the run; a clean final rerun is still required.
+- First `python -m unittest discover -s tests`: **FAIL**, 550 tests in 549.349s, 1 failure + 1 error. Existing desktop-launch test returned 0 instead of 3 while a same-profile app was active; updater temporary directory cleanup hit WinError 32. No expectations were changed or tests disabled.
+- Syntax lint: exact line `KẾT QUẢ: 127/127 files hợp lệ | 0 lỗi cú pháp` — **PASS**.
+- LAN 28-file audit: **NOT RUN** in this continuation. Both the claude-types lan14 stream and another worktree's Python batch audit were observed; free RAM fell below 3 GB, so this task did not start its audit. Final gating remains pending.

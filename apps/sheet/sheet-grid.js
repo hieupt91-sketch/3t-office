@@ -2345,6 +2345,7 @@ export class SheetGridController {
   }
 
   _showTabColorMenu(event, sheetName) {
+    this._contextMenuPreviousFocus = document.activeElement;
     const colors = ["", "#f44336", "#ff9800", "#ffeb3b", "#4caf50", "#2196f3", "#673ab7", "#e91e63"];
     const menu = document.createElement("div");
     menu.className = "vno-sheet-context-menu";
@@ -2360,7 +2361,25 @@ export class SheetGridController {
     });
     menu.style.cssText = `position:fixed;left:${Math.max(10, event.clientX)}px;top:${Math.max(10, event.clientY)}px;z-index:81;`;
     document.body.appendChild(menu); this._activeContextMenu = menu;
-    menu._vnoCleanup = () => {};
+    const bounds = menu.getBoundingClientRect();
+    menu.style.left = `${Math.max(10, Math.min(event.clientX, window.innerWidth - bounds.width - 10))}px`;
+    menu.style.top = `${Math.max(10, Math.min(event.clientY, window.innerHeight - bounds.height - 10))}px`;
+    const onPointer = ev => { if (!menu.contains(ev.target)) this._closeContextMenu(); };
+    const onKey = ev => {
+      if (ev.key === "Escape") { ev.preventDefault(); this._closeContextMenu(); return; }
+      if (ev.key !== "ArrowDown" && ev.key !== "ArrowUp") return;
+      ev.preventDefault();
+      const buttons = Array.from(menu.querySelectorAll("button"));
+      const index = buttons.indexOf(document.activeElement);
+      const next = (index + (ev.key === "ArrowDown" ? 1 : -1) + buttons.length) % buttons.length;
+      buttons[next]?.focus();
+    };
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("keydown", onKey);
+    menu._vnoCleanup = () => {
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
     menu.querySelector("button")?.focus();
   }
 
@@ -4423,6 +4442,10 @@ _bindGridKeyboardNavigation() {
     const nextStyle = { ...(style || {}) };
     if (escapedText) return { value: String(value ?? ""), style: nextStyle };
     const category = nextStyle.numberFormat?.category;
+    if (typeof value === "string" && (!category || category === "general")
+      && /^[+-]?(?:\d+(?:\.\d+)?|\.\d+)\s*%$/.test(value.trim())) {
+      nextStyle.numberFormat = { category: "percentage", decimals: value.match(/\.(\d+)/)?.[1].length || 0 };
+    }
     if (typeof value === "string" && category !== "text"
       && (!category || category === "general") && NumberFormatter.isDateInput(value)) {
       nextStyle.numberFormat = { category: "date", dateFormat: "dd/mm/yyyy" };

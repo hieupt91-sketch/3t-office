@@ -64,6 +64,24 @@ export async function runSheetNativeCellValuesTests() {
     assert.match(fods, /<table:table-cell office:value-type="string"[^>]*>\s*<text:p>00123<\/text:p>/);
   });
 
+  test("General percentage entry calculates, exports as numeric, and Undo restores format", () => {
+    const grid = new SheetGridController(mockContainer());
+    grid.setCellValue("A", 1, "25%");
+    assert.equal(grid.cellsData.get("A1").val, 0.25);
+    assert.equal(grid.cellsData.get("A1").style.numberFormat.category, "percentage");
+    assert.match(new SheetAdapter(grid).serializeToFods(), /office:value="0.25"/);
+    assert.equal(grid.undo(), true);
+    assert.equal(grid.cellsData.get("A1").val, "");
+    assert.equal(grid.cellsData.get("A1").style.numberFormat, undefined);
+    grid.setCellValue("A", 1, "25%", false);
+    grid.setCellValue("B", 1, "=SUM(A1:A1)", false);
+    assert.equal(grid.cellsData.get("B1").val, 0.25);
+    grid.setCellValue("C", 1, "'25%", false);
+    assert.equal(grid.cellsData.get("C1").val, "25%");
+    grid.setCellValue("D", 1, "25%abc", false);
+    assert.equal(grid.cellsData.get("D1").val, "25%abc");
+  });
+
   test("Vietnamese Help explains numeric/date entry, external paste, fill and forced text", () => {
     const entry = SHEET_HELP_ENTRIES.find(item => item.id === "sheet.input.nativeValues");
     assert.ok(entry, "Missing native value Help entry");

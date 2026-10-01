@@ -1,26 +1,28 @@
 # Agent Handoff
 
-TASK: Acceptance audit of 3T Sheet C3–C12 against desktop Excel, with scoped fixes and audit report.
-AGENT/ROLE: Codex — Sheet acceptance audit
-BRANCH: `audit/sheet-c3-c12-codex`
-WORKTREE: `E:\VNOffice-codex-audit-sheet2`
-OBJECTIVE: Audit C3–C12 using 3T's WebView2 CDP and hidden Excel COM; fix small Sheet-layer defects, document failures and incomplete checks, and leave the work committed on this branch.
-FINDINGS: Small Sheet-layer fixes address AutoFill date progression and double-click fill, AutoFilter scope, and rejected data-validation commits. C3 mouse/keyboard selection agrees with hidden Excel COM for cells, ranges, rows, columns, Shift+Arrow, and Ctrl+Arrow; `Ctrl+A` selects A1:Z200 in 3T where Excel selects the populated region A1:B3. C3 is also limited to 26 columns × 200 rows. C4 CDP checks confirm mouse numeric/date AutoFill and keyboard `Ctrl+D` copy behavior; hidden Excel COM fill parity was blocked because an Excel process of unknown ownership was active. C10 charts and most recorded C11 settings persist to Excel; 3T reopen resets fit-to-page, print-title, and header/footer state. Excel reads a formula input as text (`B2="30"`), so `SUM`/`COUNT` omit it; 3T reopen also shows a stale formula result. C7 delete/tab-colour UI is missing and C8 sort includes the header. The large-workbook check and full per-sub-point save/reopen matrix for C3–C9 remain incomplete.
-IMPLEMENTATION SUMMARY: Merged `main` as requested with no conflicts. WIP code adds focused Sheet-layer fixes and unit tests. Updated `docs/AUDIT-SHEET-C3-C12.md` with CDP findings, hidden Excel COM chart/page/value readback, known failures, and precise follow-up tasks. No save pipeline or LibreOffice Core code was changed.
+TASK: Finish the five Sheet gaps and desktop acceptance proof requested on 2026-10-01.
+AGENT/ROLE: Codex — Sheet fixes and acceptance verification.
+BRANCH: `fix/sheet-c3-gaps-codex`
+WORKTREE: `E:\VNOffice-codex-sheetfix`
+OBJECTIVE: Desktop CDP + hidden Excel COM proof for native values, print setup, Ctrl+A, header-preserving sort, delete/Undo and tab color; final JavaScript/Python gates and the prescribed LAN audit; commit without merging main.
+FINDINGS: Desktop acceptance verified all five requested behaviors. General `25%` input initially remained text, tab-color menu overflowed the viewport, and LibreOffice added header/footer spacing to saved margins. Follow-up fixes address those defects. Ctrl+A second press selects A1:Z200, the current available grid; Excel-sized worksheet extent remains out of scope.
+IMPLEMENTATION SUMMARY: Reused Sheet formatter/history and the existing OOXML adapter postprocessor/import overlay. Native percentage entry remains numeric with its display format; tab-color menu stays inside the viewport with keyboard navigation and cleanup; native XLSX pageMargins retain exact user values on save/reopen. Vietnamese Help covers percentage entry and tab-color keyboard use. Full desktop/COM values are pasted in the audit report. No Core change, merge into main, OS-level input or document upload.
 FILES CHANGED:
 - `apps/sheet/sheet-grid.js`
-- `tests/run-tests.js`
-- `tests/unit/sheet-autofill.test.js`
-- `tests/unit/sheet-data-tools.test.js`
+- `platform/help/entries-sheet.js` (Sheet-owned existing entries)
+- `adapters/libreoffice/common/ooxml_zip_patch.py`
+- `tests/unit/sheet-native-cell-values.test.js`
+- `tests/test_sheet_page_margins_roundtrip.py`
+- `tests/live/sheet-c3-gaps-excel.ps1`
+- `tests/fixtures/sheet-c3-gaps/` (two synthetic desktop-saved XLSX proof artifacts)
+- `docs/PLAN-SHEET-C3-GAPS-DESKTOP.md`
 - `docs/AUDIT-SHEET-C3-C12.md`
-- `docs/AGENT-HANDOFF-SHEET-C3-C12.md`
-COMMANDS RUN: `node tests/run-tests.js`; CDP desktop checks through the WebView2 remote-debugging port; hidden Excel COM, read-only for the saved audit workbook and on a separate copy for sort comparison; `git diff --check` (no whitespace errors; Git reported the existing LF-to-CRLF working-copy warning for the edited audit file).
-BUILD RESULT: NOT RUN.
-TEST RESULTS: `node tests/run-tests.js` PASS — 2228/2228, 0 failures. No build run.
-KNOWN FAILURES: C3 `Ctrl+A` selects A1:Z200 instead of the Excel current region; worksheet extent is capped at 26×200. C4 hidden Excel COM fill parity BLOCKED by an active process with unknown ownership. C7 delete-sheet/tab-colour controls are absent; C8 ascending sort includes header; C11 fit-to-page, print titles, and header/footer reset after 3T reopen; C12 numeric text serialization and stale 3T formula result. Large-workbook responsiveness NOT RUN. C4–C9 parity and full C3–C9 save/reopen matrix remain incomplete.
-RISKS: Numeric/date values may be treated as text in XLSX and yield incorrect formula results in Excel. Print layout values are not stable through a 3T reopen. Do not treat the observed UI-path passes as full Excel parity for C3–C9.
-DEPENDENCIES/BLOCKERS: Finish the C3–C9 acceptance matrix and large-workbook check; implement or hand off the listed app gaps. Shared Excel processes may belong to other worktrees; only inspect hidden COM when no Excel process is active and do not attach to or kill another owner's process.
+- this handoff.
+COMMANDS RUN: Desktop main.py via WebView2 remote-debugging-port + CDP; hidden Excel COM ownership/readback script; node tests/run-tests.js; python -m unittest discover -s tests; focused native-value and margin tests; node scripts/check-syntax.js; both XLSX lints on the two synthetic artifacts; git diff --check. Required LAN command is pending audit coordination.
+BUILD RESULT: NOT RUN (no build-system changes).
+TEST RESULTS: Five desktop behavior proofs PASS; four input Value2 types are Double; SUM=48871.81; exact page setup matches app reopen and Excel. Focused native-value tests 5/5 PASS; focused Python margin tests 4/4 PASS. Syntax 127/127 PASS, 0 errors. Synthetic artifact XML/parts lints 2/2 clean each. Full gates currently FAIL: JavaScript first 2307/2309 then 2306/2309; Python 550 run, 1 failure + 1 error. Final sequential reruns pending.
+KNOWN FAILURES: Current full-gate failures involve LibreOffice conversions/profile locks, same-profile single-instance routing, and updater temp cleanup (details in audit). Do not infer a clean full suite from focused passes. LAN 28-file audit NOT RUN yet. The grid extent remains 26×200; broader historical C3–C12 acceptance gaps remain out of scope.
+RISKS: Save pipeline touched: require all 28 LAN files TONG 0 with clean lint before READY TO MERGE. Other agents run large workbook audits and share RAM.
+DEPENDENCIES/BLOCKERS: Wait for the claude-types lan14 investigation/audit to finish and all competing Python batch audits to stop; free RAM must exceed 3 GB before heavy work. Never stop another owner's Office/audit processes.
 CORE PATCH ID (if any): None.
-NEXT ACTION: Run the required desktop CDP + hidden Excel COM proof for the three continuation commits and the fixed save path, then run the final gates and complete the handoff. The 26×200 grid extent remains a separate NOT DONE limitation.
-
-CONTINUATION COMMITS: `2652f6f9` native numeric/date values; `2153a7c4` print setup round-trip; `0f2e9aae` C3 Ctrl+A, C7 delete/tab colour, and C8 header-aware sort. Focused unit tests for all three continuation areas pass; desktop CDP/COM proof is NOT RUN in this continuation.
+NEXT ACTION: Finish resource-safe sequential gates and the exact requested 28-file LAN audit, record exact outcomes, commit and report READY TO MERGE only if all required gates pass.
