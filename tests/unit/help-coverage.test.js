@@ -126,12 +126,9 @@ export async function runHelpCoverageTests() {
 
   await test("Help Coverage: Không dùng tên sản phẩm độc quyền bị cấm (Word, Excel, PowerPoint)", () => {
     const bannedRegex = /\b(Word|Excel|PowerPoint)\b/i;
-    // Ngoại lệ kỹ thuật duy nhất: writer.layout.lineNumbers giải thích tính tương thích xuất DOCX được kiểm tra bởi test 118
-    const DOCUMENTED_BANNED_EXCEPTIONS = new Set(["writer.layout.lineNumbers"]);
 
     const violations = [];
     for (const entry of HELP_ENTRIES) {
-      if (DOCUMENTED_BANNED_EXCEPTIONS.has(entry.id)) continue;
       const fullText = [entry.title || "", entry.summary || "", ...(entry.steps || []), entry.note || ""].join(" ");
       const match = fullText.match(bannedRegex);
       if (match) {

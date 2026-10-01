@@ -4086,10 +4086,10 @@ _bindGridKeyboardNavigation() {
     });
 
     const rows = [
-      ["1", "Thiết kế giao diện thuần Việt & UI Kit", "1", "Gói", "25.000.000 ₫", "25.000.000 ₫"],
-      ["2", "Tích hợp lõi xử lý văn bản LibreOffice Core", "1", "Hệ thống", "45.000.000 ₫", "45.000.000 ₫"],
-      ["3", "Xây dựng cầu nối UNO Bridge & Command Bus", "1", "Module", "30.000.000 ₫", "30.000.000 ₫"],
-      ["4", "Bộ kiểm thử tương thích chuẩn OOXML", "2", "Đợt", "10.000.000 ₫", "20.000.000 ₫"]
+      ["1", "Chuẩn bị tài liệu hướng dẫn sử dụng 3T Office", "1", "Gói", "25.000.000 ₫", "25.000.000 ₫"],
+      ["2", "Tập huấn soạn công văn bằng Doc", "1", "Khóa", "45.000.000 ₫", "45.000.000 ₫"],
+      ["3", "Lập bảng theo dõi công việc bằng Sheet", "1", "Buổi", "30.000.000 ₫", "30.000.000 ₫"],
+      ["4", "Chuẩn bị báo cáo cuộc họp bằng Slide", "2", "Đợt", "10.000.000 ₫", "20.000.000 ₫"]
     ];
 
     rows.forEach((rData, idx) => {
@@ -5743,7 +5743,7 @@ _bindGridKeyboardNavigation() {
     if (!this.sheetChartBuilder) {
       this._loadChartBuilder(true).catch((error) => {
         console.error("3T Sheet could not load chart tools.", error);
-        this.showNotification?.("Không tải được công cụ Biểu đồ của 3T Sheet.");
+        this.showNotification?.("Không tải được công cụ Biểu đồ của Sheet.");
       });
     }
     if (recordUndo) this._recordHistory({ type: "collection", sheet: this.activeSheet, collection: "chartsBySheet", operation: "insert", index: this.chartsBySheet[this.activeSheet].length - 1, item: structuredClone(chart) });

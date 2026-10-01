@@ -1,7 +1,7 @@
 import { globalUnoBridge } from "../../adapters/libreoffice/common/uno-bridge.js";
 import { RecoveryDialog } from "./recovery-dialog.js";
 
-const APP_NAMES = { writer: "3T Doc", sheet: "3T Sheet", slides: "3T Slide" };
+const APP_NAMES = { writer: "Doc", sheet: "Sheet", slides: "Slide" };
 const DEFAULT_SETTINGS = Object.freeze({ enabled: true, interval_minutes: 5 });
 const MIN_INTERVAL_MINUTES = 1;
 const MAX_INTERVAL_MINUTES = 60;

@@ -3725,7 +3725,7 @@ export class SlidesAdapter {
         this.isDirty = previous.isDirty;
         await showAlertDialog({
           title: "Không thể mở tệp",
-          message: error?.message || "3T Slide không thể đọc nội dung tệp. Bản trình chiếu đang mở được giữ nguyên.",
+          message: "Slide không thể đọc nội dung tệp. Hãy kiểm tra tệp gốc hoặc thử lưu bản sao ở định dạng .pptx. Bản trình chiếu đang mở được giữ nguyên.",
           type: "error"
         });
         return false;

@@ -3,7 +3,7 @@
 
 YÊU CẦU MÁY
 - Windows 10 hoặc Windows 11, 64-bit.
-- Microsoft Edge WebView2 Runtime. Nếu bộ cài thông báo chưa có, tải miễn phí từ trang Microsoft: https://developer.microsoft.com/microsoft-edge/webview2/
+- Thành phần WebView2 để hiển thị giao diện. Nếu bộ cài thông báo chưa có, liên hệ người cung cấp bộ cài để nhận thành phần còn thiếu.
 - Ổ đĩa cài đặt cần dung lượng trống xấp xỉ gói ứng dụng cộng thêm 256 MiB.
 - Không cần Internet để dùng 3T Office sau khi cài. Không cần quyền quản trị viên.
 
@@ -16,7 +16,7 @@ CÀI ĐẶT BẰNG VNOffice-Setup-<phiên-bản>.exe (KHUYÊN DÙNG)
 6. Nhấn Cài đặt. Mở Start Menu > 3T Office rồi chọn Doc, Sheet hoặc Slide; hoặc nhấp đúp lối tắt cùng tên trên Desktop.
 
 CẢNH BÁO SMARTSCREEN
-Bộ cài hiện chưa được ký số nên Windows có thể hiện “Windows protected your PC” hoặc cảnh báo Microsoft Defender SmartScreen. Chỉ tiếp tục khi bộ cài đúng phiên bản và được lấy từ kênh nội bộ đáng tin cậy: chọn More info (Thông tin khác), kiểm tra tên VNOffice-Setup-<phiên-bản>.exe, rồi chọn Run anyway (Vẫn chạy). Nếu tên hoặc nguồn tệp không khớp thông báo của người phụ trách, hãy hủy và hỏi lại; không tắt SmartScreen.
+Bộ cài hiện chưa được ký số nên Windows có thể hiện “Windows protected your PC” hoặc cảnh báo SmartScreen. Chỉ tiếp tục khi bộ cài đúng phiên bản và được lấy từ kênh nội bộ đáng tin cậy: chọn More info (Thông tin khác), kiểm tra tên VNOffice-Setup-<phiên-bản>.exe, rồi chọn Run anyway (Vẫn chạy). Nếu tên hoặc nguồn tệp không khớp thông báo của người phụ trách, hãy hủy và hỏi lại; không tắt SmartScreen.
 
 Trong bản phát hành có chữ ký số, chữ ký của nhà phát hành sẽ giúp Windows xác nhận nguồn bộ cài. Bản hiện tại chưa có chứng thư ký mã.
 
