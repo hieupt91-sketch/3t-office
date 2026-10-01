@@ -60,6 +60,14 @@ sys.modules[_PRINT_PIPELINE_SPEC.name] = _PRINT_PIPELINE_MODULE
 _PRINT_PIPELINE_SPEC.loader.exec_module(_PRINT_PIPELINE_MODULE)
 PrintPipeline = _PRINT_PIPELINE_MODULE.PrintPipeline
 
+_OFFICE_COM_PATH = Path(__file__).resolve().parent / "platform" / "print" / "office_com.py"
+_OFFICE_COM_SPEC = importlib.util.spec_from_file_location("_vno_office_com", _OFFICE_COM_PATH)
+if _OFFICE_COM_SPEC is None or _OFFICE_COM_SPEC.loader is None:
+    raise ImportError(f"Cannot load Office COM print integration: {_OFFICE_COM_PATH}")
+_OFFICE_COM_MODULE = importlib.util.module_from_spec(_OFFICE_COM_SPEC)
+sys.modules[_OFFICE_COM_SPEC.name] = _OFFICE_COM_MODULE
+_OFFICE_COM_SPEC.loader.exec_module(_OFFICE_COM_MODULE)
+
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 INDEX_HTML = os.path.join(ROOT_DIR, "index.html")
 APP_VERSION = "0.9.0-pilot1"
@@ -975,7 +983,15 @@ def _ooxml_zip_patch():
     return _OOXML_ZIP_PATCH
 
 
-def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str | None, target_format: str, source_path: str | None = None) -> None:
+def _apply_native_export_postprocess(
+    src_path: str,
+    out_path: str,
+    app_kind: str | None,
+    target_format: str,
+    source_path: str | None = None,
+    *,
+    pristine_docx_source: bool | None = None,
+) -> None:
     """Patch native OOXML that LibreOffice omitted, after soffice convert.
 
     Why here (main.py), not the JS adapters: File → Lưu serializes FODS/FODP in
@@ -998,6 +1014,10 @@ def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str
     ppt/presentation.xml, and CT_ShowProperties on presentationPr.
     """
     fmt = str(target_format).lower()
+    if pristine_docx_source is None:
+        pristine_docx_source = bool(
+            source_path and Path(source_path).suffix.lower() == ".docx"
+        )
     if app_kind == "sheet" and fmt == "xlsx":
         if not src_path or not str(src_path).lower().endswith(".fods"):
             return
@@ -1018,7 +1038,15 @@ def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str
                 with open(source_path, "rb") as handle:
                     source_xlsx_bytes = handle.read()
             # Read source FODS for activeTab preservation
-            patched = patcher.postprocess_sheet_xlsx(original, source_fods=fods, source_xlsx_bytes=source_xlsx_bytes)
+            if source_xlsx_bytes is not None and "<!-- vno-pristine-xlsx-source -->" in fods:
+                # An untouched imported XLSX is the exact Save-pipeline source
+                # after conversion. Restore its package so formatting-only
+                # blank ranges and other Excel-native print state survive.
+                patched = source_xlsx_bytes
+            else:
+                patched = patcher.postprocess_sheet_xlsx(
+                    original, source_fods=fods, source_xlsx_bytes=source_xlsx_bytes,
+                )
             if patched != original:
                 with open(out_path, "wb") as handle:
                     handle.write(patched)
@@ -1075,7 +1103,11 @@ def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str
                 else:
                     with open(source_path, "rb") as handle:
                         original_docx = handle.read()
-                patched = patcher.postprocess_writer_docx(patched, source_docx=original_docx)
+                patched = patcher.postprocess_writer_docx(
+                    patched,
+                    source_docx=original_docx,
+                    preserve_pristine_source=pristine_docx_source,
+                )
             if patched != converted_docx:
                 with open(out_path, "wb") as handle:
                     handle.write(patched)
@@ -1095,13 +1127,21 @@ WRITER_DOC_EXPORT_VIA_DOCX = True
 def _convert_writer_html_to_doc(src_html: str, out_dir: str, source_path: str | None = None) -> str:
     """Export Writer HTML through the source-aware DOCX overlay before legacy DOC."""
     intermediate_docx = _run_soffice_convert(src_html, "docx", out_dir, app_kind="writer")
+    pristine_docx_source = bool(
+        source_path and Path(source_path).suffix.lower() == ".docx"
+    )
     source_docx = source_path
     if source_path and os.path.isfile(source_path) and Path(source_path).suffix.lower() == ".doc":
         source_dir = os.path.join(out_dir, "legacy_source")
         os.makedirs(source_dir, exist_ok=True)
         source_docx = _run_soffice_convert(source_path, "docx", source_dir, app_kind="writer")
     _apply_native_export_postprocess(
-        src_html, intermediate_docx, "writer", "docx", source_path=source_docx,
+        src_html,
+        intermediate_docx,
+        "writer",
+        "docx",
+        source_path=source_docx,
+        pristine_docx_source=pristine_docx_source,
     )
     if os.path.isfile(intermediate_docx):
         patcher = _ooxml_zip_patch()
@@ -1532,15 +1572,60 @@ def _convert_print_source_to_pdf(source_path: str, app_kind: str, output_dir: st
     return _run_soffice_convert(source_path, "pdf", output_dir, app_kind=app_kind)
 
 
+def _convert_print_source_with_office(
+    source_path: str, app_kind: str, output_dir: str, candidate: dict[str, str],
+) -> str:
+    return _OFFICE_COM_MODULE.export_pdf_with_office(
+        source_path,
+        app_kind,
+        output_dir,
+        engine_info=candidate["engine_info"],
+    )
+
+
+def _office_candidates_for_print(app_kind: str) -> tuple[dict[str, str], ...]:
+    info = _OFFICE_COM_MODULE.get_office_engine_info(app_kind)
+    if not info.get("available"):
+        return ()
+    return ({
+        "engine": str(info["engine"]),
+        "progid": str(info["progId"]),
+        "engine_info": info,
+    },)
+
+
+def _render_print_source_to_pdf(
+    source_path: str, app_kind: str, output_dir: str, *, use_office: bool = True,
+) -> tuple[str, str]:
+    info = _OFFICE_COM_MODULE.get_office_engine_info(app_kind)
+    return _OFFICE_COM_MODULE.convert_pdf_with_office_fallback(
+        source_path,
+        app_kind,
+        output_dir,
+        _convert_print_source_to_pdf,
+        use_office=use_office,
+        office_info=info,
+        office_exporter=lambda source, kind, out, *, engine_info=None: _OFFICE_COM_MODULE.export_pdf_with_office(
+            source, kind, out, engine_info=engine_info,
+        ),
+    )
+
+
 def _export_content_to_pdf(
     content: str,
     app_kind: str,
     temp_dir: str,
     source_document_path: str | None = None,
-) -> str:
+    *,
+    use_office: bool = True,
+    return_engine: bool = False,
+) -> str | tuple[str, str]:
     """Export PDF only after running the source-aware native Save conversion."""
     native_path = _write_print_source(content, app_kind, temp_dir, source_document_path)
-    return _convert_print_source_to_pdf(native_path, app_kind, temp_dir)
+    pdf_path, engine_name = _render_print_source_to_pdf(
+        native_path, app_kind, temp_dir, use_office=use_office,
+    )
+    return (pdf_path, engine_name) if return_engine else pdf_path
 
 
 def _print_pdf_to_target_file(pdf_path: str, printer: str, destination_path: str, app_kind: str) -> dict:
@@ -1831,6 +1916,8 @@ class VnOfficeApi:
         self._print_pipeline = PrintPipeline(
             write_source=_write_print_source,
             convert_pdf=_convert_print_source_to_pdf,
+            office_candidates=_office_candidates_for_print,
+            convert_office_pdf=_convert_print_source_with_office,
             inspect_pdf=lambda kind, pdf_path: int(
                 _PERSISTENT_SOFFICE.operation(kind, "inspect_pdf", pdf_path=pdf_path)["page_count"]
             ),
@@ -2126,7 +2213,7 @@ class VnOfficeApi:
             content, app_kind, suggested_name, source_path,
         )
 
-    def prepare_print_document(self, app_kind, content, suggested_name="TaiLieu", source_path=None):
+    def prepare_print_document(self, app_kind, content, suggested_name="TaiLieu", source_path=None, use_office=True):
         return self._invoke_reported_api(
             "prepare_print_document",
             self._print_pipeline.prepare,
@@ -2134,7 +2221,11 @@ class VnOfficeApi:
             content,
             suggested_name,
             source_path,
+            use_office,
         )
+
+    def get_print_engine_status(self, app_kind):
+        return self._print_pipeline.engine_status(str(app_kind or ""))
 
     def get_print_preview_page(self, session_id, page_number):
         try:
@@ -2886,12 +2977,14 @@ class VnOfficeApi:
                 return {"status": "cancelled"}
         self._reporting_file_path = dest_path
         self._reporting_operation = f"{'export' if target_format == 'pdf' else 'save'}.{target_format}"
+        pdf_engine = None
 
         try:
             with tempfile.TemporaryDirectory(prefix="vnoffice_save_") as tmp:
                 if target_format == "pdf":
-                    out_path = _export_content_to_pdf(
+                    out_path, pdf_engine = _export_content_to_pdf(
                         content, app_kind, tmp, source_document_path=source_path,
+                        return_engine=True,
                     )
                 else:
                     src_path = _write_save_source(content, app_kind, tmp, target_format)
@@ -2906,7 +2999,10 @@ class VnOfficeApi:
             return {"status": "error", "message": f"Lỗi không xác định khi lưu tệp: {exc}"}
 
         self._current_file_path = dest_path
-        return {"status": "ok", "message": f"Đã lưu tại {dest_path}", "path": dest_path}
+        response = {"status": "ok", "message": f"Đã lưu tại {dest_path}", "path": dest_path}
+        if target_format == "pdf":
+            response["engine"] = pdf_engine or "LibreOffice"
+        return response
 
     def _export_pdf_dialog_impl(self, content, app_kind="writer", suggested_name="TaiLieu", source_path=None):
         return self.save_document_dialog(

@@ -125,5 +125,24 @@ export async function runSheetPagesetupRealFileImportTests() {
     assert(after.size === "legal", `Tự-round-trip phải giữ đúng khổ Legal, nhận ${after.size}`);
   });
 
+  test("serializeToFods: pristine-source marker is limited to untouched original XLSX", () => {
+    const sheet = "S1";
+    const grid = {
+      sheets: [sheet], activeSheet: sheet,
+      sheetsData: { [sheet]: new Map([["A1", { val: "x", formula: "", style: {} }]]) },
+      commentsBySheet: { [sheet]: {} }, namedRangesBySheet: { [sheet]: [] }, namedRangesWorkbook: [],
+      printAreaBySheet: { [sheet]: null },
+      pageSetupBySheet: { [sheet]: { orientation: "portrait", size: "a4" } }
+    };
+    const adapter = new SheetAdapter(grid);
+    adapter.sourceFilePath = "C:\\input.xlsx";
+    assert(adapter.serializeToFods().includes("<!-- vno-pristine-xlsx-source -->"), "Untouched XLSX must mark the Save payload");
+    adapter.isDirty = true;
+    assert(!adapter.serializeToFods().includes("vno-pristine-xlsx-source"), "Edited workbook must not carry the pristine marker");
+    adapter.isDirty = false;
+    adapter.sourceFilePath = "C:\\input.xls";
+    assert(!adapter.serializeToFods().includes("vno-pristine-xlsx-source"), "Legacy XLS must not carry the XLSX marker");
+  });
+
   return results;
 }

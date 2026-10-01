@@ -112,3 +112,111 @@ DEPENDENCIES/BLOCKERS: No new runtime dependency. Production printing stays offl
 CORE PATCH ID (if any): N/A; no LibreOffice Core changes.
 
 NEXT ACTION: Decide whether exact Word/Excel pagination is a release gate that warrants a separate Office-renderer design, or whether the measured LibreOffice differences are acceptable. Do not claim full page parity until a chosen approach is implemented and verified.
+
+## G10 — Office/WPS PDF renderer
+
+STATUS: IMPLEMENTED; LIVE PARITY VERIFICATION PENDING. The G9 page counts above remain the LibreOffice baseline. They are not evidence of G10 results.
+
+IMPLEMENTATION:
+- `platform/print/office_com.py` detects Word/Excel/PowerPoint and WPS COM classes through the ProgID → CLSID → COM-server registry chain. The registry result is cached for the app process; detection does not activate an Office application.
+- Each PDF job writes an ASCII PowerShell 5.1 worker to a private temporary directory and runs it in a dedicated `-STA` process. The worker creates Office through `New-Object -ComObject`, rejects a process that existed before the job, disables UI/alerts, opens the Save-pipeline `.docx`/`.xlsx`/`.pptx` read-only, retries busy COM calls up to five times (initial call plus five retries, 1/2/4/8/16-second backoff), and closes/quits in `finally`. The 300-second parent timeout kills the worker and only the recorded new Office PID.
+- Print preview/printing and Export PDF both build the native source through the existing source-aware Save path. The selected Office/WPS engine exports the PDF; exceptions and empty PDFs fall back silently to the existing LibreOffice converter. The dialog reports the renderer that actually produced its PDF and defaults the Office/WPS option on when registration is available.
+- Vietnamese Help entries now describe where Print and Export PDF are accessed and the actual Office/WPS/LibreOffice behavior for Writer, Sheet, and Slides.
+- The real-app page audit now accepts `.pptx`, preserves the Print PDF for page-1 comparison, and can simulate missing Office/WPS in an isolated worker with `VN_PRINT_USE_OFFICE=0`.
+
+DEVELOPMENT VALIDATION:
+- Full Node suite: PASS, 2163/2163 before the Writer pristine-source and Excel retry follow-ups; it must be rerun after those changes.
+- Full Python discovery: PASS, 494 tests before the Writer pristine-source and Excel retry follow-ups; it must be rerun after those changes.
+- Current focused print pipeline/save/Office Python suite: PASS, 27/27 before the explicit edited-marker regression and final Excel retry-window change. `tests.test_print_save_pipeline` now separately passes 12/12; `tests.test_print_office_com` passes 9/9 after the retry-window change.
+- `node --test tests/unit/print-dialog.test.js`: PASS, 4/4.
+- Python compilation, PowerShell parser syntax validation, and `git diff --check`: PASS.
+- Direct Microsoft Word original exports succeeded for d03, d12, d24, d01, d16, d20, and legacy01.doc. The earlier app PDFs are compared against those exports below; d12/d16 need a fresh app run after the pristine-source fix.
+- Windows registry detection on this machine finds Microsoft Word, Excel, and PowerPoint; WPS is not registered.
+
+LIVE VERIFICATION (IN PROGRESS): Direct Microsoft Word exports of the originals succeeded for d03 (1 page), d12 (3), d24 (16), d01 (19), d16 (8), d20 (3), and legacy01.doc (5). Previously generated app Print/Export PDFs match page counts for every file; page-1 text matches for d03, d24, d01, d20, and legacy01, but not d12/d16. Those app PDFs predate the pristine-source fix and need a fresh app run. Two serial direct lan05 Excel source exports (one with the longer 31-second busy retry schedule, one after an 11-minute quiet period) failed at `Excel.ExportAsFixedFormat` with `RPC_E_CALL_REJECTED`; no source PDF was produced. WMI showed 17 pre-existing `EXCEL.EXE /automation` processes with no responding state. The current job's own Excel process exited; all pre-existing processes were left untouched. The external Office-print launcher is still active, so further Excel/PowerPoint COM audits are paused. The simulated Office-absent app audit passes through LibreOffice for d03 (1 page) and lan05/lan11/lan28 (3/357/35 pages) in both Print and Export PDF before the pristine-XLSX restore change. After that change, fallback Print and Export both report LibreOffice: d03 1 page, lan05 3, lan11 345, lan28 35. The lan11 result improved by 12 pages; lan05 and lan28 counts did not change. The real PPTX, fresh d12/d16 app text comparisons, and lan11/lan28 active-sheet oracle remain pending.
+
+SHEET FALLBACK INVESTIGATION:
+- The G9 baseline remains lan05 14 Excel pages vs 3 LibreOffice pages, lan11 965 vs 357, and lan28 36 vs 35.
+- The original lan05 workbook has one visible sheet, print area `A1:I1072`, and source page setup scale 56%. The converted source retains that print area; restoring its original page-setup/margins alone previously left the LibreOffice PDF at 3 pages. The discrepancy is therefore not caused by choosing the wrong active tab on lan05. The direct Excel source export also returned `RPC_E_CALL_REJECTED` after the longer retry window amid a possible concurrent Office queue.
+- lan11 has three sheets with `Reyee` active (zero-based `activeTab=1`); lan28 has twelve sheets with `Bảng Lương` active (`activeTab=6`). The existing Save route preserves active-sheet metadata and per-sheet print areas. No active-sheet-only change has been made because the Excel active-sheet export count has not yet been measured against the workbook-level `ExportAsFixedFormat` baseline, and Print and Export PDF must keep their intended sheet scope.
+- Before pristine-XLSX restoration, the live Office-absent LibreOffice fallback was 3/357/35 pages for lan05/lan11/lan28. After restoration, Print and Export both produce 3/345/35 pages. The source workbooks' earlier workbook-level Excel exports were 14/965/36 pages respectively; fresh Excel source exports were blocked by the Office queue.
+- The audit recorded active sheets `ExportData`, `Reyee`, and `Bảng Lương`, with 1/3/12 visible sheets. lan05's source print area `A1:I1072` and 56% scale are preserved in the Save-pipeline XLSX, so its remaining 14-vs-3 difference is not caused by an omitted print area, wrong active tab, or lost scale value.
+- lan11 has no defined print areas. Its original workbook contains 25,974 cells (almost all style-only) on `Giới thiệu` and 10,049 on `Ruijie`; the current Save-pipeline XLSX contains 13 and 1,574 cells respectively after Sheet's existing FODS optimization. This shrinkage is a plausible contributor to the 965-vs-357 workbook-export difference, but needs an isolated Excel active-sheet/per-sheet oracle before changing preservation or print scope. The app retains all three sheets and their active-tab metadata.
+- lan28 has no defined print areas; all twelve visible sheets remain in the print source and the active tab remains `Bảng Lương`. Its fallback is one page below the workbook-level Excel baseline. No active-sheet-only behavior or page-scope change has been made because that would change the workbook export scope and still would not explain lan05's single-sheet mismatch.
+- Commit `d783433` adds a pristine-only Sheet restore after the existing FODS → XLSX Save conversion. The serialized FODS marker is emitted only for an unchanged `.xlsx`; an edited workbook or legacy `.xls` stays on the selective postprocess route. Focused tests prove Save and Print restore the same original package bytes. For lan05, the restored print source SHA-256 exactly matches the original; the live lan11 count moved 357→345, while lan05 stayed 3 and lan28 stayed 35. Their remaining LibreOffice-vs-Excel differences are unresolved. No source hashes for lan11/lan28 were available in the workspace to independently compare.
+
+REFERENCE ACCESS: `docs/REFERENCE-3T-READER.md` was read. The exact requested sibling-project `office_com.py` UNC path could not be opened from this machine (`\\192.168.1.8\d\PDF\3T_Reader_Phase1_Win\packages\document_core\office_com.py` did not resolve). The restricted `??ng k? bq` folder was not opened.
+
+CURRENT GATE: `node tests/run-tests.js` passes 2164/2164 on the current HEAD. `python -m unittest discover -s tests` passes 500 tests in 325.907 seconds when run without a competing soffice process. An earlier 500-test run under concurrent soffice had two failures: a stale mock assertion for the added `pristine_docx_source=False` argument (fixed and focused test passes), and a LibreOffice conversion failure for `sample-writer-footnotes.docx`; the latter passed in the isolated rerun. Focused print Python suite passes 30/30; focused Sheet page-setup/marker checks pass 8/8; print-dialog Node suite passes 4/4. The post-restore Office-absent fallback audit ran successfully. G10 Office parity remains IN PROGRESS: d12/d16 page-1 text needs a fresh app audit and required Excel/Slides original parity checks remain open. Excel COM is blocked by 17 non-responding pre-existing Office servers and an external Office-print launcher. Do not mark overall parity PASS.
+
+## G10 Follow-up Plan — untouched Writer OOXML fidelity
+
+OBJECTIVE: Make Office-rendered Print/Export PDF from an untouched `.docx` match the original file's page-1 text while retaining the shared Save conversion path.
+
+CURRENT CAPABILITY: Writer emits the `vno-pristine-document` marker when its opened document has no edits. `postprocess_writer_docx` already uses that marker for selected source restores, but the measured untouched d12 and d16 outputs still place different text on page 1. The intermediate is generated by the same HTML → DOCX → source-aware OOXML Save postprocess used by Save.
+
+FILES/MODULES: `main.py` will pass whether the restoration source is a real `.docx` (legacy `.doc` conversion must not be treated as an original OOXML package); `adapters/libreoffice/common/ooxml_zip_patch.py` will extend the existing pristine-only source restore; focused tests will cover pristine DOCX, edited DOCX, and legacy `.doc`; this handoff records results.
+
+DEPENDENCIES: None. Reuse the existing LibreOffice conversion and OOXML ZIP patcher.
+
+RISK: A pristine marker must remain limited to the unchanged editor state and source `.docx` path; edited documents and legacy binary `.doc` must continue through the current surgical conversion/postprocess. Read-only source access follows the existing Save restore behavior.
+
+TEST PLAN: Add a regression proving a pristine `.docx` still runs through HTML → DOCX conversion and then restores source OOXML; prove edited content is not replaced by the source package; prove legacy `.doc` stays on its intermediate DOCX path. Rerun serial Office d12/d16 Print and Export comparisons, then the requested full Node and Python gates when no competing soffice worker is active.
+
+ROLLBACK: Revert the follow-up implementation commit; no data migration or generated-file cleanup is required.
+
+## G10 Follow-up Plan — Excel busy-call cleanup
+
+OBJECTIVE: Keep an Excel COM job from falling back on a short startup/busy window, and ensure a failed `Quit` cannot leave that job's own Excel process behind.
+
+CURRENT CAPABILITY: The worker retries `RPC_E_CALL_REJECTED` five times, with a total backoff below four seconds. A live lan05 app attempt and a direct source export returned that busy HRESULT. The product fallback remained available; the source export did not produce a PDF.
+
+FILES/MODULES: `platform/print/office_com.py` will label the COM operation in errors, lengthen the existing five-attempt backoff, and force-stop only the PID the worker positively recorded as newly started if its final `Quit` retries fail. `tests/test_print_office_com.py` will verify the retry and ownership boundaries; this handoff records serial live results.
+
+DEPENDENCIES: None. Continue using the isolated PowerShell 5.1 STA worker.
+
+RISK: A hung owned Excel process may be force-stopped after `Close(False)`/`Quit` fail; pre-existing Office PIDs remain excluded and untouched.
+
+TEST PLAN: Unit-test the five attempts, error stage, graceful `Quit`, and owned-PID-only cleanup. Then, with no competing Office client, rerun direct exports and app Print/Export for lan05, lan11, and lan28, followed by the active-sheet oracle.
+
+ROLLBACK: Revert the Excel worker hardening commit; Office failures will continue to use the existing silent LibreOffice fallback.
+
+## G10 Follow-up Plan — Excel export retry window
+
+OBJECTIVE: Let Excel finish a busy workbook PDF export before the COM job falls back to LibreOffice.
+
+CURRENT CAPABILITY: The worker labels the COM operation and makes an initial call plus five retries with a 1/2/4/8/16-second schedule. Two lan05 source exports still returned `RPC_E_CALL_REJECTED` at `Excel.ExportAsFixedFormat`, including one begun after an 11-minute quiet period. Windows currently has 17 pre-existing non-responding `EXCEL.EXE /automation` processes; the worker's own Excel process exited, and none of the pre-existing processes were killed. A clean Office queue is required before another COM run.
+
+FILES/MODULES: `platform/print/office_com.py` and `tests/test_print_office_com.py` contain the retry schedule and regression coverage. Live serial source exports and app Print/Export audits will determine whether this clears the failure.
+
+DEPENDENCIES: None. Keep the PowerShell 5.1 STA worker and existing 300-second process timeout.
+
+RISK: Busy Excel calls can extend a job by up to 31 seconds before fallback. A call that does not return remains bounded by the 300-second helper timeout; cleanup still only force-stops a job-owned Office PID when Quit retries fail.
+
+TEST PLAN: Run focused COM-worker tests and PowerShell syntax parsing. With the Office queue clear, repeat direct Excel exports for lan05, lan11, and lan28 one at a time, then run the app route and record actual engine and PDF parity.
+
+ROLLBACK: Revert the retry-window implementation; Excel failures continue to use the existing LibreOffice fallback.
+
+## G10 Follow-up Plan — pristine Sheet workbook restoration
+
+OBJECTIVE: Keep the exact original `.xlsx` OOXML package as the final source of Print/Export PDF for an untouched workbook, after the normal FODS → XLSX Save conversion has run.
+
+CURRENT CAPABILITY: Sheet serializes editable values, print setup, active tab, and selected OOXML properties, but its existing FODS optimization trims style-only blank cells. In the live fallback audit, lan11's original `Giới thiệu` sheet has 25,974 cell records (25,961 style-only) while the Save-pipeline XLSX has 13; original `Ruijie` has 10,049 (9,475 style-only) while the Save-pipeline XLSX has 1,574. The workbook-level Excel baseline is 965 pages and the current LibreOffice result is 357. This is a plausible cause, not a proven page-count attribution, because the active Office queue prevented a clean Excel oracle.
+
+FILES/MODULES: `adapters/libreoffice/sheet/sheet-adapter.js` will mark the FODS serialization only when the source is an unchanged `.xlsx`; `main.py` will restore the original XLSX bytes as the final post-conversion artifact only when that marker and a real `.xlsx` source are both present; `tests/test_print_save_pipeline.py` and Sheet serialization tests will cover pristine, edited, and non-XLSX paths. The restore must run after the existing Save conversion, matching the Writer source-restore design.
+
+DEPENDENCIES: None. Reuse the current LibreOffice conversion, the original source bytes already read by `main.py`, and the existing dirty state.
+
+RISK: A stale pristine marker could discard edits. Gate it on `isDirty === false` at serialization time and a real source `.xlsx` path; prove edited and `.xls` sources stay on the normal postprocess path. No format semantics or LibreOffice Core code changes.
+
+TEST PLAN: Test the FODS marker only for an unchanged `.xlsx`; assert Save and Print still execute FODS → XLSX then restore the exact original package; assert edited `.xlsx`, `.xls`, and new workbooks are not source-restored. After the external Office queue clears, rerun direct Excel workbook/active-sheet exports and app Office/LibreOffice audits for lan05, lan11, and lan28. Run the final Node and Python gates without a concurrent soffice worker.
+
+ROLLBACK: Revert the Sheet marker and source-restoration follow-up; Print/Save returns to its current selective OOXML postprocess behavior.
+
+## G10 Follow-up Results
+
+- Writer pristine-source restoration is implemented in `a9123db`; the legacy `.doc` route regression expectation was updated to include `pristine_docx_source=False`. That focused regression passes. Fresh d12/d16 app page-1 text audits remain pending because the Office-print queue is still active.
+- Excel COM busy-call cleanup and the longer initial-plus-five retry schedule are implemented in `3dbaa58` and `f2f0ca8`. Unit tests pass; two direct lan05 exports still ended in `RPC_E_CALL_REJECTED`, including one after an 11-minute quiet period.
+- Pristine XLSX source restoration is implemented in `d783433`. The post-restore Office-absent audit confirms lan11 fell from 357 to 345 pages, while lan05 stayed at 3 and lan28 at 35. All three still differ from the earlier workbook-level Excel counts 14/965/36. The source-copy hash comparison is verified for lan05 only.
+- Full Node gate: PASS, 2164/2164. Full Python gate: PASS, 500 tests, 325.907 seconds on isolated rerun. The first concurrent-soffice Python run had two failures and is described in CURRENT GATE above. Build: NOT RUN.
+- Office/WPS original-to-app parity for d03, d12, d24, legacy `.doc`, lan05, and PPTX is still NOT RUN or incomplete. Office/WPS detection, fallback path, implementation unit tests, and live Office-absent fallback do not establish page parity.

@@ -418,16 +418,17 @@ export const SLIDES_HELP_ENTRIES = [
   {
     id: "slides.file.printPreview",
     app: "slides",
-    commandIds: ["slides.file.printPreview"],
+    commandIds: ["slides.file.printPreview", "common.file.print", "common.file.exportPdf"],
     title: "Xem trước khi in",
-    summary: "Ctrl+P hoặc Ctrl+F2 mở hộp thoại In với ảnh các trang PDF do LibreOffice dựng từ bản trình chiếu hiện tại. Chọn máy in, số bản và phạm vi trang.",
+    summary: "Ctrl+P hoặc Ctrl+F2 mở hộp thoại In. Khi có Microsoft Office/WPS, 3T Slide dùng bộ dựng PDF đó để khớp trang chiếu; nếu không có hoặc gặp lỗi, LibreOffice tự tiếp tục.",
     ribbon: { tab: "Chế độ xem", tabId: "view", group: "Dạng xem bản trình chiếu" },
     keywords: ["xem trước khi in", "print preview", "in tài liệu", "ctrl+f2", "full page slides", "in trang chiếu"],
     steps: [
       "Nhấn Ctrl+P, nhấp biểu tượng máy in trên thanh truy cập nhanh, hoặc mở tab Chế độ xem → Xem trước khi in (Ctrl+F2).",
-      "LibreOffice tạo PDF tạm từ các trang chiếu hiện tại; khung xem trước hiển thị ảnh từng trang. Dùng ◀/▶ hoặc ô số trang để di chuyển.",
-      "Chọn máy in, số bản và Tất cả, Trang hiện tại, hoặc Trang từ–đến. Mỗi trang PDF ứng với một trang chiếu được LibreOffice đưa vào bản in.",
-      "Nhấn In để gửi tài liệu. Khi chọn Microsoft Print to PDF, chọn thư mục và tên tệp PDF; Esc hoặc nút × đóng hộp thoại."
+      "Nếu máy có Microsoft Office/WPS, tùy chọn Dùng Microsoft Office/WPS để in được chọn sẵn. Khung Bộ máy dựng PDF cho biết ứng dụng nào đã tạo trang xem trước; bỏ chọn để dùng LibreOffice.",
+      "Chọn máy in, số bản và Tất cả, Trang hiện tại, hoặc Trang từ–đến. Mỗi trang PDF ứng với một trang chiếu được bộ máy dựng PDF đưa vào bản in.",
+      "Nhấn In để gửi tài liệu. Khi chọn Microsoft Print to PDF, chọn thư mục và tên tệp PDF; Esc hoặc nút × đóng hộp thoại.",
+      "Xuất PDF riêng: mở Tệp → Xuất PDF và chọn nơi lưu. 3T Slide dựng tệp qua cùng đường Lưu PPTX; nếu Microsoft Office/WPS dùng được thì ứng dụng đó tạo PDF, nếu không LibreOffice tiếp tục."
     ]
   },
   {

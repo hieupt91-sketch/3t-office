@@ -7,6 +7,8 @@ Each document is opened in its own real pywebview app process, then the current
 adapter serializer is sent through the same bridge routes used by Print and
 Export PDF. Documents are processed sequentially because both the app and
 LibreOffice use persistent local services.
+
+Set VN_PRINT_USE_OFFICE=0 to force a LibreOffice-only fallback audit.
 """
 
 from __future__ import annotations
@@ -22,6 +24,14 @@ def _worker(root: str, app_kind: str, document_path: str, output_dir: str) -> in
     sys.path.insert(0, root)
     import webview
     import main as vnmain
+
+    use_office = os.environ.get("VN_PRINT_USE_OFFICE", "1").strip() != "0"
+    if not use_office:
+        # Simulate Office/WPS not installed in this isolated audit process;
+        # product code and the user's registry are left untouched.
+        vnmain._OFFICE_COM_MODULE.get_office_engine_info = lambda _kind: {
+            "status": "ok", "available": False, "engine": "LibreOffice", "progId": "",
+        }
 
     document = Path(document_path).resolve()
     out = Path(output_dir).resolve()
@@ -57,7 +67,8 @@ def _worker(root: str, app_kind: str, document_path: str, output_dir: str) -> in
       if ({json.dumps(app_kind)} === 'writer') canvasPages = Number(a._livePageCount) || 1;
       const sheetMetadata = {json.dumps(app_kind)} === 'sheet' ? {{
         names: a.grid?.sheets || [], active: a.grid?.activeSheet || '',
-        pageSetupBySheet: a.grid?.pageSetupBySheet || {{}}
+        pageSetupBySheet: a.grid?.pageSetupBySheet || {{}},
+        printAreaBySheet: a.grid?.printAreaBySheet || {{}}
       }} : null;
       return JSON.stringify({{
         loaded, sourcePath, content,
@@ -69,6 +80,7 @@ def _worker(root: str, app_kind: str, document_path: str, output_dir: str) -> in
     }})()"""
 
     outcome: dict[str, object] = {"file": document.name, "app": app_kind}
+    outcome["office_requested"] = use_office
 
     def after_load(win):
         try:
@@ -113,18 +125,24 @@ def _worker(root: str, app_kind: str, document_path: str, output_dir: str) -> in
 
             printed = api.prepare_print_document(
                 app_kind, content, str(state.get("documentName") or document.stem), source_path,
+                use_office,
             )
             if printed.get("status") != "ok":
                 raise RuntimeError(f"VN Print preview failed: {printed}")
             outcome["print_pages"] = int(printed["pageCount"])
+            outcome["print_engine"] = printed.get("engine", "LibreOffice")
             session = api._print_pipeline._sessions.get(printed.get("sessionId"), {})
             session_root = Path(session.get("temp_dir").name) if session.get("temp_dir") else None
+            if session.get("pdf_path"):
+                print_pdf_copy = out / f"{document.stem}.print.pdf"
+                import shutil
+                shutil.copyfile(session["pdf_path"], print_pdf_copy)
+                outcome["print_pdf"] = str(print_pdf_copy)
             if session_root:
-                native_suffix = {"writer": ".docx", "sheet": ".xlsx"}.get(app_kind)
+                native_suffix = {"writer": ".docx", "sheet": ".xlsx", "slides": ".pptx"}.get(app_kind)
                 native = next(iter(session_root.glob(f"*{native_suffix}")), None) if native_suffix else None
                 if native:
                     native_copy = out / f"{document.stem}.print-source{native.suffix}"
-                    import shutil
                     shutil.copyfile(native, native_copy)
                     outcome["print_source"] = str(native_copy)
 
@@ -136,6 +154,7 @@ def _worker(root: str, app_kind: str, document_path: str, output_dir: str) -> in
             if exported.get("status") != "ok":
                 raise RuntimeError(f"VN Export PDF failed: {exported}")
             export_pdf = str(exported.get("path") or export_path)
+            outcome["export_engine"] = exported.get("engine", "LibreOffice")
             outcome["export_pages"] = int(
                 api._print_pipeline._inspect_pdf(app_kind, export_pdf)
             )
@@ -163,7 +182,12 @@ def _worker(root: str, app_kind: str, document_path: str, output_dir: str) -> in
 
 def _run_one(root: str, out_dir: str, path: Path) -> dict[str, object]:
     suffix = path.suffix.lower()
-    app_kind = "writer" if suffix in {".docx", ".doc", ".odt"} else "sheet" if suffix in {".xlsx", ".xls", ".ods"} else None
+    app_kind = (
+        "writer" if suffix in {".docx", ".doc", ".odt"}
+        else "sheet" if suffix in {".xlsx", ".xls", ".ods"}
+        else "slides" if suffix in {".pptx", ".ppt", ".odp"}
+        else None
+    )
     if not app_kind:
         return {"file": path.name, "status": "unsupported extension"}
     cmd = [sys.executable, str(Path(__file__).resolve()), "--worker", root, app_kind, str(path.resolve()), out_dir]

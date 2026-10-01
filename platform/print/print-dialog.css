@@ -36,6 +36,12 @@
 .vno-print-options select, .vno-print-options input[type="number"], .vno-print-range input[type="text"] { box-sizing: border-box; width: 100%; min-height: 38px; padding: 7px 9px; color: inherit; background: var(--vno-bg-window, #fff); border: 1px solid var(--vno-border-default, #cbd5e1); border-radius: 6px; font: inherit; }
 .vno-print-options select:focus-visible, .vno-print-options input:focus-visible, .vno-print-dialog button:focus-visible { outline: 3px solid #60a5fa; outline-offset: 1px; }
 .vno-print-muted { color: var(--vno-text-muted, #64748b); font-size: 11px; line-height: 1.45; }
+.vno-print-engine-options { margin: 6px 0 2px; padding: 10px; border: 1px solid var(--vno-border-default, #cbd5e1); border-radius: 7px; background: var(--vno-bg-subtle, #f8fafc); }
+.vno-print-office-option { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; line-height: 1.45; cursor: pointer; }
+.vno-print-office-option[hidden] { display: none; }
+.vno-print-office-option input { width: 16px; height: 16px; margin: 1px 0 0; accent-color: #0f4c81; }
+.vno-print-office-option input:disabled { cursor: not-allowed; }
+.vno-print-engine-used { margin: 7px 0 0 24px; color: var(--vno-text-muted, #64748b); font-size: 11px; }
 .vno-print-range { display: flex; flex-direction: column; gap: 10px; margin: 8px 0 0; padding: 12px; border: 1px solid var(--vno-border-default, #cbd5e1); border-radius: 8px; }
 .vno-print-range legend { padding: 0 4px; }
 .vno-print-range label { display: flex; align-items: center; gap: 8px; font-size: 13px; }
