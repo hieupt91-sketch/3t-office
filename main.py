@@ -95,6 +95,9 @@ if _early_forward_if_running(sys.argv[1:]):
     raise SystemExit(0)
 
 import webview
+if os.environ.get("VNO_CDP_DEBUG_PORT"):
+    # Test-only WebView2/CDP access; production shortcuts leave this unset.
+    webview.settings["REMOTE_DEBUGGING_PORT"] = int(os.environ["VNO_CDP_DEBUG_PORT"])
 from adapters.error_reporting import ErrorReporter, load_client_config
 from adapters.updater import UpdaterManager
 from adapters.updater.trust import get_public_key
@@ -146,6 +149,8 @@ _ERROR_REPORTER: ErrorReporter | None = None
 _ERROR_REPORT_CONTEXT = threading.local()
 _UPDATE_MANAGER: UpdaterManager | None = None
 _UPDATE_DATA_DIR: Path | None = None
+_UPDATE_HEALTH_TOKEN: str | None = None
+_UPDATE_HEALTH_FILE = ""
 _APP_WINDOW_APIS: dict[str, object] = {}
 _APP_WINDOW_LOCK = threading.RLock()
 _UPDATE_RESTART_CONDITION = threading.Condition()
@@ -2750,6 +2755,24 @@ class VnOfficeApi:
             }
         return self._updater.get_state()
 
+    def confirm_update_health(self):
+        """Confirm the replacement app only after its WebView bridge is live."""
+        token = _UPDATE_HEALTH_TOKEN
+        updates_dir = _UPDATE_DATA_DIR
+        if not token or not re.fullmatch(r"[0-9a-f]{32}", token) or updates_dir is None:
+            return {"healthy": False, "pending": False}
+        expected = updates_dir / f"health-{token}.ok"
+        if _UPDATE_HEALTH_FILE:
+            candidate = Path(_UPDATE_HEALTH_FILE)
+            if candidate.name != expected.name:
+                return {"healthy": False, "pending": True}
+            try:
+                if candidate.parent.resolve() != updates_dir.resolve():
+                    return {"healthy": False, "pending": True}
+            except OSError:
+                return {"healthy": False, "pending": True}
+        return {"healthy": write_health_marker(updates_dir, token), "pending": True}
+
     def start_update_checks(self):
         if self._updater is None:
             return {"started": False, "state": self.get_update_status()}
@@ -3736,8 +3759,10 @@ def _warmup_libreoffice_profiles() -> int:
 
 
 def main(argv: list[str] | None = None):
-    global _ERROR_REPORTER, _UPDATE_MANAGER, _UPDATE_DATA_DIR, _PERSISTENT_SOFFICE_ENABLED
+    global _ERROR_REPORTER, _UPDATE_MANAGER, _UPDATE_DATA_DIR, _UPDATE_HEALTH_TOKEN, _UPDATE_HEALTH_FILE, _PERSISTENT_SOFFICE_ENABLED
     launch_argv = list(sys.argv[1:] if argv is None else argv)
+    _UPDATE_HEALTH_TOKEN = _update_token_from_args(launch_argv) or os.environ.get("VNO_UPDATE_HEALTH_TOKEN", "").lower()
+    _UPDATE_HEALTH_FILE = os.environ.get("VNO_UPDATE_HEALTH_FILE", "")
     if launch_argv == ["--warmup-libreoffice-profiles"]:
         return _warmup_libreoffice_profiles()
 
@@ -3938,30 +3963,12 @@ def main(argv: list[str] | None = None):
         icon_path = os.path.join(ROOT_DIR, "branding", "icons", "vnoffice.ico")
     app_icon = icon_path if os.path.isfile(icon_path) else None
 
-    health_token = _update_token_from_args(launch_argv) or os.environ.get("VNO_UPDATE_HEALTH_TOKEN", "").lower()
-    expected_health_file = os.environ.get("VNO_UPDATE_HEALTH_FILE", "")
-
     def on_loaded(*_args):
         if _UPDATE_MANAGER is not None:
             # Checking starts after WebView is ready and runs off the UI thread.
             timer = threading.Timer(0.25, _UPDATE_MANAGER.start)
             timer.daemon = True
             timer.start()
-        if not health_token or not re.fullmatch(r"[0-9a-f]{32}", health_token):
-            return
-        health_root = _UPDATE_DATA_DIR
-        if expected_health_file:
-            candidate = Path(expected_health_file)
-            if candidate.name != f"health-{health_token}.ok":
-                return
-            try:
-                if _UPDATE_DATA_DIR and candidate.parent.resolve() != _UPDATE_DATA_DIR.resolve():
-                    return
-            except OSError:
-                return
-            health_root = candidate.parent
-        if health_root:
-            write_health_marker(health_root, health_token)
 
     try:
         window.events.loaded += on_loaded

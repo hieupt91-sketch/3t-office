@@ -221,6 +221,14 @@ export async function connectUpdaterUi(app) {
   }
   try {
     const state = await bridge.get_update_status();
+    if (bridge.confirm_update_health) {
+      try {
+        const health = await bridge.confirm_update_health();
+        if (health?.pending && health.healthy !== true) console.warn("3T Office could not confirm the update startup health marker.");
+      } catch (error) {
+        console.warn("3T Office could not confirm the update startup health marker.", error);
+      }
+    }
     setHelpState(state || {});
     renderUpdateNotification(activeApp, state, bridge);
     if (bridge.consume_update_failure) {

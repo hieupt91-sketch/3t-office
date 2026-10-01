@@ -1,4 +1,4 @@
-import { renderUpdateNotification, restartWithSaveCheck } from "../../platform/updater/update-ui.js";
+import { connectUpdaterUi, renderUpdateNotification, restartWithSaveCheck } from "../../platform/updater/update-ui.js";
 import { UPDATER_HELP_ENTRIES } from "../../platform/help/entries-updater.js";
 
 export async function runUpdaterUiTests() {
@@ -61,5 +61,36 @@ export async function runUpdaterUiTests() {
       return entry && entry.ribbon.tab === "Trợ giúp" && entry.steps.length >= 5 && /Khởi động lại ngay/.test(entry.steps.join(" "));
     })
   );
+
+  const originalWindow = globalThis.window;
+  try {
+    let healthCalls = 0;
+    let startupChecks = 0;
+    let healthResult = { healthy: true, pending: true };
+    globalThis.window = {
+      pywebview: { api: {
+        async get_update_status() { return { current_version: "0.9.6", status: "up-to-date" }; },
+        async confirm_update_health() { healthCalls++; return healthResult; },
+        async start_update_checks() { startupChecks++; }
+      } },
+      addEventListener() {}
+    };
+    const connected = await connectUpdaterUi({ appName: "writer", shell: { showNotification() {} } });
+    test("Updater health handshake: xác nhận sau khi cầu nối WebView sẵn sàng", connected && healthCalls === 1);
+    test("Updater startup: khởi động kiểm tra trong nền khi kết nối UI hoàn tất", startupChecks === 1);
+    const originalWarn = console.warn;
+    let warnings = 0;
+    console.warn = () => { warnings += 1; };
+    healthResult = { healthy: false, pending: false };
+    try {
+      await connectUpdaterUi({ appName: "writer", shell: { showNotification() {} } });
+    } finally {
+      console.warn = originalWarn;
+    }
+    test("Updater health handshake: không cảnh báo khi không có cập nhật chờ xác nhận", warnings === 0);
+  } finally {
+    if (originalWindow === undefined) delete globalThis.window;
+    else globalThis.window = originalWindow;
+  }
   return results;
 }

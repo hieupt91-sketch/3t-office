@@ -24,16 +24,12 @@ try {
     exit 1
 }
 Write-UpdateLog ('STEP task-loaded install="{0}" stage="{1}" old={2} new={3}' -f $install, $stage, $taskData.old_version, $taskData.new_version)
-Add-Type -TypeDefinition @"
-using System.Runtime.InteropServices;
-using System.Text;
-public static class VnoUpdatePathApi {
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-    public static extern uint GetLongPathName(string shortPath, StringBuilder longPath, uint bufferLength);
-}
-"@ -ErrorAction Stop
 $healthFile = [string]$taskData.health_file
 $backup = Join-Path $updates ("backup-" + [string]$taskData.old_version)
+$appKind = [string]$taskData.launch_app
+$sofficeProfile = [System.IO.Path]::GetFullPath((Join-Path (Split-Path -Parent $updates) ("lo-profile-" + $appKind))).TrimEnd('\')
+$sofficeWorkerScript = [System.IO.Path]::GetFullPath((Join-Path $install 'app\adapters\libreoffice\common\soffice_uno_worker.py'))
+Write-UpdateLog ('STEP soffice-ownership-profile path="{0}" app={1}' -f $sofficeProfile, $appKind)
 $changedPaths = @()
 $applyStarted = $false
 $createdBackup = $false
@@ -100,6 +96,12 @@ function Normalize-ProcessPath([string]$path) {
     return $full.TrimEnd('\')
 }
 
+function Uses-InstallSofficeProfile([string]$commandLine) {
+    if ([string]::IsNullOrWhiteSpace($commandLine)) { return $false }
+    $decoded = [Uri]::UnescapeDataString($commandLine).Replace('/', '\')
+    return $decoded.IndexOf($sofficeProfile, [StringComparison]::OrdinalIgnoreCase) -ge 0
+}
+
 function Get-InstallProcesses {
     $appExecutables = @(
         (Normalize-ProcessPath (Join-Path $install 'python\pythonw.exe')),
@@ -109,16 +111,17 @@ function Get-InstallProcesses {
         (Normalize-ProcessPath (Join-Path $install 'app\tools\libreoffice\program\soffice.exe')),
         (Normalize-ProcessPath (Join-Path $install 'app\tools\libreoffice\program\soffice.bin'))
     )
-    $workerPython = Normalize-ProcessPath (Join-Path $install 'app\tools\libreoffice\program\python.exe')
     $found = @()
     foreach ($process in @(Get-CimInstance Win32_Process -ErrorAction Stop)) {
         if (-not $process.ExecutablePath) { continue }
         $executable = Normalize-ProcessPath ([string]$process.ExecutablePath)
+        $commandLine = [string]$process.CommandLine
+        $usesOwnedProfile = Uses-InstallSofficeProfile $commandLine
         if ($appExecutables -contains $executable) {
             $found += [pscustomobject]@{ ProcessId = [int]$process.ProcessId; ExecutablePath = $executable; Role = 'app' }
-        } elseif ($sofficeExecutables -contains $executable) {
+        } elseif (($sofficeExecutables -contains $executable) -or ($usesOwnedProfile -and [System.IO.Path]::GetFileName($executable) -match '^soffice(\.bin)?(\.exe)?$')) {
             $found += [pscustomobject]@{ ProcessId = [int]$process.ProcessId; ExecutablePath = $executable; Role = 'soffice' }
-        } elseif ($executable -eq $workerPython -and ([string]$process.CommandLine).IndexOf('soffice_uno_worker.py', [StringComparison]::OrdinalIgnoreCase) -ge 0) {
+        } elseif ($usesOwnedProfile -and $commandLine.IndexOf('soffice_uno_worker.py', [StringComparison]::OrdinalIgnoreCase) -ge 0) {
             $found += [pscustomobject]@{ ProcessId = [int]$process.ProcessId; ExecutablePath = $executable; Role = 'soffice-worker' }
         }
     }
@@ -195,6 +198,15 @@ function Restore-Backup {
 }
 
 try {
+    Add-Type -TypeDefinition @"
+using System.Runtime.InteropServices;
+using System.Text;
+public static class VnoUpdatePathApi {
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    public static extern uint GetLongPathName(string shortPath, StringBuilder longPath, uint bufferLength);
+}
+"@ -ErrorAction Stop
+    Write-UpdateLog 'STEP process-path-normalizer-ready'
     Remove-Item -LiteralPath (Join-Path $updates 'update-failure.json') -Force -ErrorAction SilentlyContinue
     Write-UpdateLog 'STEP wait-for-old-app-start'
     $processWait = if ($taskData.process_wait_seconds) { [int]$taskData.process_wait_seconds } else { 45 }
@@ -260,6 +272,7 @@ try {
     if ($healthy) {
         Remove-Item -LiteralPath $healthFile -Force -ErrorAction SilentlyContinue
         Write-UpdateLog ('STEP health-check-passed version={0}' -f $taskData.new_version)
+        Write-UpdateLog 'STEP helper-exit code=0'
         exit 0
     }
 
@@ -279,6 +292,7 @@ try {
     [System.IO.File]::WriteAllText((Join-Path $updates 'update-failure.json'), $failure, (New-Object System.Text.UTF8Encoding($false)))
     Write-UpdateLog ('STEP rollback-complete restored-version={0}' -f $taskData.old_version)
     $null = Start-VNOffice $false
+    Write-UpdateLog 'STEP helper-exit code=2'
     exit 2
 } catch {
     $failureMessage = [string]$_.Exception.Message
@@ -297,7 +311,7 @@ try {
         if ($preservedBackup -and (Test-Path -LiteralPath $preservedBackup -PathType Container) -and -not (Test-Path -LiteralPath $backup)) {
             Move-Item -LiteralPath $preservedBackup -Destination $backup
         }
-    } catch { }
+    } catch { Write-UpdateLog ('STEP rollback-error message="{0}"' -f ([string]$_.Exception.Message).Replace('"', "'")) }
     if ($originalExited -and -not $oldRelaunched) {
         try { $null = Start-VNOffice $false; $oldRelaunched = $true } catch { Write-UpdateLog ('STEP old-version-relaunch-failed message="{0}"' -f $_.Exception.Message) }
     }
