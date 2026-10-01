@@ -11,9 +11,9 @@ export const WRITER_HELP_ENTRIES = [
     title: "Tạo, mở và lưu tài liệu",
     summary: "Tài liệu mới mở ra trang A4 trống. Dùng Tệp để mở hoặc lưu DOCX, DOC, ODT, RTF, TXT.",
     ribbon: { tab: "Tệp", tabId: "file", group: "Tài liệu" },
-    keywords: ["tạo mới", "mở tệp", "lưu", "lưu thành", "in", "Ctrl+N", "Ctrl+O", "Ctrl+S", "F12", "Ctrl+P", "tài liệu trống"],
+    keywords: ["tạo mới", "mở tệp", "lưu", "lưu thành", "in", "Ctrl+N", "Ctrl+O", "Ctrl+S", "F12", "Ctrl+P", "tài liệu trống", "cửa sổ riêng", "mở nhiều cửa sổ", "Explorer"],
     steps: [
-      "Tạo tài liệu trống: nhấn Ctrl+N hoặc mở Tệp > Mới. 3T Doc mở một cửa sổ riêng tên Tài liệu 2, Tài liệu 3…; trang A4 có con trỏ ở đoạn đầu và chưa được đánh dấu là đã sửa.",
+      "Tạo tài liệu trống: nhấn Ctrl+N hoặc mở Tệp > Mới. 3T Doc mở một cửa sổ riêng tên Tài liệu 2, Tài liệu 3…; trang A4 có con trỏ ở đoạn đầu và chưa được đánh dấu là đã sửa. Trong Desktop, khi Writer đang mở, nhấp đúp thêm một tệp DOCX/DOC/ODT/RTF/TXT trong Explorer hoặc bấm lại shortcut 3T Doc ở Start sẽ mở thêm cửa sổ trong cùng tiến trình đang chạy. Mỗi cửa sổ có tên tệp, trạng thái sửa, lệnh Lưu và lời nhắc Đóng riêng; cửa sổ cuối cùng mới kết thúc ứng dụng.",
       "Mở tài liệu: nhấn Ctrl+O hoặc chọn Tệp > Mở, chọn DOCX, DOC, ODT, RTF hoặc TXT. Nếu tài liệu hiện tại có thay đổi, chọn Lưu, Không lưu hoặc Hủy trước khi tiếp tục; Hủy hoặc đóng hộp chọn tệp sẽ giữ tài liệu hiện tại.",
       "Lưu: Ctrl+S mở hộp thoại Lưu thành cho tài liệu mới. Với tệp đã mở/lưu, Ctrl+S ghi đúng định dạng hiện tại. Nhấn F12 (hoặc Ctrl+Shift+S), nhập tên trong hộp thoại Lưu bản sao rồi chọn DOCX, DOC, ODT, RTF, TXT hoặc PDF ở danh sách Loại tệp. Cũng có thể chọn Tệp > Lưu bản sao. Chọn PDF chỉ xuất một bản PDF; tài liệu đang mở giữ tên, định dạng và đường dẫn cũ. Khi ghi đè tệp đã có, xác nhận trong hộp thoại của Windows; sau khi lưu định dạng văn bản khác, tên tab và tiêu đề cửa sổ chuyển sang tệp mới."
     ]

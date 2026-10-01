@@ -13,9 +13,9 @@ export const SLIDES_HELP_ENTRIES = [
     title: "Tạo, mở, lưu và in bản trình chiếu",
     summary: "Bản trình chiếu mới có một trang chiếu với chỗ gợi ý xám «Bấm để thêm tiêu đề» và «Bấm để thêm văn bản» nhưng chưa có chữ trong nội dung. Dùng Tệp để mở hoặc lưu PPTX, PPT, ODP; Ctrl+P xem trước bản in.",
     ribbon: { tab: "Tệp", tabId: "file", group: "Bản trình chiếu" },
-    keywords: ["tạo mới", "mở tệp", "lưu", "lưu thành", "in", "Ctrl+N", "Ctrl+O", "Ctrl+S", "F12", "Ctrl+P", "trang chiếu trống"],
+    keywords: ["tạo mới", "mở tệp", "lưu", "lưu thành", "in", "Ctrl+N", "Ctrl+O", "Ctrl+S", "F12", "Ctrl+P", "trang chiếu trống", "cửa sổ riêng", "mở nhiều cửa sổ", "Explorer"],
     steps: [
-      "Tạo bản mới: nhấn Ctrl+N hoặc mở Tệp > Mới. 3T Slide mở cửa sổ riêng tên Bản trình bày 2, Bản trình bày 3… với một trang chiếu trống. Chữ gợi ý xám trong khung tiêu đề và khung văn bản chỉ là hướng dẫn trên màn hình, không phải nội dung được lưu.",
+      "Tạo bản mới: nhấn Ctrl+N hoặc mở Tệp > Mới. 3T Slide mở cửa sổ riêng tên Bản trình bày 2, Bản trình bày 3… với một trang chiếu trống. Chữ gợi ý xám trong khung tiêu đề và khung văn bản chỉ là hướng dẫn trên màn hình, không phải nội dung được lưu. Trong Desktop, khi Slide đang mở, nhấp đúp thêm tệp PPTX/PPT/ODP trong Explorer hoặc bấm lại shortcut 3T Slide ở Start sẽ mở thêm cửa sổ trong cùng tiến trình. Mỗi cửa sổ có bản trình chiếu, trạng thái sửa, lệnh Lưu và lời nhắc Đóng riêng; cửa sổ cuối cùng mới kết thúc ứng dụng.",
       "Mở bản trình chiếu: nhấn Ctrl+O hoặc chọn Tệp > Mở, chọn PPTX, PPT hoặc ODP. Nếu bản đang mở có thay đổi, chọn Lưu, Không lưu hoặc Hủy trước khi tiếp tục.",
       "Lưu: Ctrl+S mở hộp thoại Lưu thành cho bản mới; với tệp đã mở/lưu, lệnh này giữ nguyên định dạng. Nhấn F12 (hoặc Ctrl+Shift+S), nhập tên trong hộp thoại Lưu bản sao rồi chọn PPTX, PPT, ODP hoặc PDF ở danh sách Loại tệp. Cũng có thể chọn Tệp > Lưu bản sao. Khi lưu sang PPTX/PPT/ODP, tên tab và tiêu đề cửa sổ chuyển theo tệp mới; chọn PDF chỉ xuất bản sao và giữ nguyên bản trình chiếu đang mở. Khi ghi đè tệp đã có, xác nhận trong hộp thoại của Windows.",
       "In: nhấn Ctrl+P để xem trước từng trang chiếu. Chọn máy in, số bản và phạm vi trang rồi nhấn In; mỗi trang chiếu chiếm một trang in."
