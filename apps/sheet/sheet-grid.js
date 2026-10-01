@@ -786,6 +786,7 @@ export class SheetGridController {
 
   // --- Prefix-sum row tops cache for virtual scroll with variable row heights ---
   _hasCustomRowHeightsOrHidden(sheetName = this.activeSheet) {
+    if (this.getRowHeight !== SheetGridController.prototype.getRowHeight) return true;
     const customHeights = this.rowHeightsBySheet?.[sheetName];
     if (customHeights && customHeights.size > 0) return true;
     const hiddenRows = this.sheetStates?.[sheetName]?.hiddenRows;
@@ -806,6 +807,9 @@ export class SheetGridController {
   _buildRowTopsCache(sheetName = this.activeSheet) {
     const count = this.rowCount || MAX_ROW_COUNT;
     let maxCustomRow = 1;
+    if (this.getRowHeight !== SheetGridController.prototype.getRowHeight) {
+      maxCustomRow = Math.max(maxCustomRow, Math.min(count, 500));
+    }
     const customHeights = this.rowHeightsBySheet?.[sheetName];
     if (customHeights) {
       for (const r of customHeights.keys()) if (r > maxCustomRow) maxCustomRow = r;
@@ -885,7 +889,7 @@ export class SheetGridController {
     }
     const cache = this._ensureRowTopsCache(sheetName);
     if (bottom >= cache.tops[cache.limit + 1]) {
-      return Math.max(1, Math.min(this.rowCount, cache.limit + 1 + Math.ceil((bottom - cache.tops[cache.limit + 1]) / this.rowHeight)));
+      return Math.max(1, Math.min(this.rowCount, cache.limit + 1 + Math.floor((bottom - 1 - cache.tops[cache.limit + 1]) / this.rowHeight)));
     }
     let lo = 1, hi = cache.limit;
     while (lo < hi) {
@@ -898,6 +902,7 @@ export class SheetGridController {
 
   // --- Prefix-sum col lefts cache for 2D virtual scroll ---
   _hasCustomColWidthsOrHidden(sheetName = this.activeSheet) {
+    if (this.getColumnWidth !== SheetGridController.prototype.getColumnWidth) return true;
     const customWidths = this.colWidthsBySheet?.[sheetName];
     if (customWidths && customWidths.size > 0) return true;
     const userHidden = this.userHiddenColsBySheet?.[sheetName];
@@ -916,6 +921,9 @@ export class SheetGridController {
   _buildColLeftsCache(sheetName = this.activeSheet) {
     const count = this.cols.length;
     let maxCustomCol = 1;
+    if (this.getColumnWidth !== SheetGridController.prototype.getColumnWidth) {
+      maxCustomCol = Math.max(maxCustomCol, Math.min(count, 500));
+    }
     const customWidths = this.colWidthsBySheet?.[sheetName];
     if (customWidths) {
       for (const col of customWidths.keys()) {
@@ -999,7 +1007,7 @@ export class SheetGridController {
     }
     const cache = this._ensureColLeftsCache(sheetName);
     if (right >= cache.lefts[cache.limit + 1]) {
-      return Math.max(1, Math.min(this.cols.length, cache.limit + 1 + Math.ceil((right - cache.lefts[cache.limit + 1]) / this.defaultColWidth)));
+      return Math.max(1, Math.min(this.cols.length, cache.limit + 1 + Math.floor((right - 1 - cache.lefts[cache.limit + 1]) / this.defaultColWidth)));
     }
     let lo = 1, hi = cache.limit;
     while (lo < hi) {
@@ -3745,7 +3753,70 @@ export class SheetGridController {
     return true;
   }
 
-  _buildRowTr(r) {
+  _appendCellToRow(tr, c, r, normRange, isMulti) {
+    const mergedRange = this.getMergedRangeForCell(c, r);
+    if (mergedRange && (mergedRange.start.c !== c || mergedRange.start.r !== r)) return;
+    const td = document.createElement("td");
+    td.hidden = this._isColumnHidden(c);
+    td.className = "vno-grid-cell";
+    const coordKey = `${c}${r}`;
+    td.dataset.coord = coordKey;
+    td.dataset.col = c;
+    td.dataset.row = r;
+    if (mergedRange) {
+      td.colSpan = this._columnNumber(mergedRange.end.c) - this._columnNumber(mergedRange.start.c) + 1;
+      td.rowSpan = mergedRange.end.r - mergedRange.start.r + 1;
+      td.dataset.mergedRange = this._rangeLabel(mergedRange);
+      td.classList.add("is-merged-cell");
+    }
+
+    const itm = this.cellsData.get(coordKey);
+    this._renderCellVisual(td, itm, c, r);
+    this._applyClipboardVisual(td, c, r);
+    this._applyRowColSizeToCell(td, c, r);
+    this._applyRuleVisuals(td, c, r);
+    this._applyAnnotationAndPageVisuals(td, c, r);
+
+    if (this.selectedCoord.c === c && this.selectedCoord.r === r) {
+      td.classList.add("is-selected");
+      this._attachMoveHandles(td);
+    }
+    if (this._isCoordInSelection(c, r) && isMulti) {
+      td.classList.add("is-range-selected");
+    }
+    if (normRange.end.c === c && normRange.end.r === r) {
+      this._attachAutofillHandle(td);
+    }
+
+    td.addEventListener("mousedown", (e) => {
+      if (e.button !== 0) return;
+      if (e.target.closest(".vno-cell-autofill-handle") || e.target.closest(".vno-cell-move-handle")) return;
+      if (this._startFormulaPointSelect(e, c, r)) return;
+      this._startRangeSelect(e, c, r);
+    });
+    td.addEventListener("click", event => {
+      if (event.detail !== 0 || event.defaultPrevented) return;
+      this.selectCell(c, r, event.shiftKey, event.ctrlKey);
+    });
+    td.addEventListener("dblclick", (e) => {
+      e.preventDefault();
+      if (this.formatPainter) return;
+      if (this._guardProtectedMutation()) return;
+      this._focusFormulaInputAtEnd();
+    });
+    td.addEventListener("contextmenu", event => {
+      event.preventDefault();
+      const inRange = this._isCoordInSelection(c, r);
+      if (!inRange) {
+        this.selectCell(c, r);
+      }
+      this.showContextMenu(event, "cell", coordKey);
+    });
+
+    tr.appendChild(td);
+  }
+
+  _buildRowTr(r, startColNum = this.currentStartColNum || 1, endColNum = this.currentEndColNum || Math.min(this.cols.length, 30)) {
     const tr = document.createElement("tr");
     tr.dataset.row = r;
     const rowHeight = this.getRowHeight(r);
@@ -3785,82 +3856,67 @@ export class SheetGridController {
 
     const normRange = this._normalizeRange(this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
     const isMulti = this._isMultiRangeSelection();
+    const frozenCols = Math.min(this.frozenCols || 0, this.cols.length);
 
-    this.cols.forEach(c => {
-      const mergedRange = this.getMergedRangeForCell(c, r);
-      if (mergedRange && (mergedRange.start.c !== c || mergedRange.start.r !== r)) return;
-      const td = document.createElement("td");
-      td.hidden = this._isColumnHidden(c);
-      td.className = "vno-grid-cell";
-      const coordKey = `${c}${r}`;
-      td.dataset.coord = coordKey;
-      td.dataset.col = c;
-      td.dataset.row = r;
-      if (mergedRange) {
-        td.colSpan = this._columnNumber(mergedRange.end.c) - this._columnNumber(mergedRange.start.c) + 1;
-        td.rowSpan = mergedRange.end.r - mergedRange.start.r + 1;
-        td.dataset.mergedRange = this._rangeLabel(mergedRange);
-        td.classList.add("is-merged-cell");
+    // 1. Frozen cols (1..frozenCols)
+    for (let c = 1; c <= frozenCols; c++) {
+      const col = this.cols[c - 1] || this._columnLabel(c);
+      this._appendCellToRow(tr, col, r, normRange, isMulti);
+    }
+
+    // 2. Left spacer
+    const effectiveStart = Math.max(frozenCols + 1, startColNum);
+    if (effectiveStart > frozenCols + 1) {
+      const leftWidth = this._colLeft(effectiveStart) - this._colLeft(frozenCols + 1);
+      if (leftWidth > 0) {
+        const tdSpacer = document.createElement("td");
+        tdSpacer.className = "vno-grid-cell-spacer-left";
+        tdSpacer.style.cssText = `width:${leftWidth}px;min-width:${leftWidth}px;max-width:${leftWidth}px;padding:0;border:none;background:transparent;`;
+        tr.appendChild(tdSpacer);
       }
+    }
 
-      const itm = this.cellsData.get(coordKey);
-      this._renderCellVisual(td, itm, c, r);
-      this._applyClipboardVisual(td, c, r);
-      this._applyRowColSizeToCell(td, c, r);
-      this._applyRuleVisuals(td, c, r);
-      this._applyAnnotationAndPageVisuals(td, c, r);
+    // 3. Visible cols (effectiveStart..endColNum)
+    for (let c = effectiveStart; c <= endColNum; c++) {
+      const col = this.cols[c - 1] || this._columnLabel(c);
+      this._appendCellToRow(tr, col, r, normRange, isMulti);
+    }
 
-      if (this.selectedCoord.c === c && this.selectedCoord.r === r) {
-        td.classList.add("is-selected");
-        this._attachMoveHandles(td);
+    // 4. Right spacer
+    if (endColNum < this.cols.length) {
+      const rightWidth = this._totalWidth() - this._colLeft(endColNum + 1);
+      if (rightWidth > 0) {
+        const tdSpacer = document.createElement("td");
+        tdSpacer.className = "vno-grid-cell-spacer-right";
+        tdSpacer.style.cssText = `width:${rightWidth}px;min-width:${rightWidth}px;max-width:${rightWidth}px;padding:0;border:none;background:transparent;`;
+        tr.appendChild(tdSpacer);
       }
-      if (this._isCoordInSelection(c, r) && isMulti) {
-        td.classList.add("is-range-selected");
-      }
-      if (normRange.end.c === c && normRange.end.r === r) {
-        this._attachAutofillHandle(td);
-      }
-
-      td.addEventListener("mousedown", (e) => {
-        if (e.button !== 0) return;
-        if (e.target.closest(".vno-cell-autofill-handle") || e.target.closest(".vno-cell-move-handle")) return;
-        if (this._startFormulaPointSelect(e, c, r)) return;
-        this._startRangeSelect(e, c, r);
-      });
-      td.addEventListener("click", event => {
-        if (event.detail !== 0 || event.defaultPrevented) return;
-        this.selectCell(c, r, event.shiftKey, event.ctrlKey);
-      });
-      td.addEventListener("dblclick", (e) => {
-        e.preventDefault();
-        if (this.formatPainter) return;
-        if (this._guardProtectedMutation()) return;
-        this._focusFormulaInputAtEnd();
-      });
-      td.addEventListener("contextmenu", event => {
-        event.preventDefault();
-        const inRange = this._isCoordInSelection(c, r);
-        if (!inRange) {
-          this.selectCell(c, r);
-        }
-        this.showContextMenu(event, "cell", coordKey);
-      });
-
-      tr.appendChild(td);
-    });
+    }
 
     return tr;
   }
 
-  _renderVirtualRows(startRow, endRow) {
+  _renderVirtualRows(startRow, endRow, startColNum = this.currentStartColNum || 1, endColNum = this.currentEndColNum || Math.min(this.cols.length, 30)) {
     const perfEnabled = typeof window !== "undefined" && window.__vnoPerfDebug === true;
     const perfStart = perfEnabled ? performance.now() : 0;
     if (!this.tbody || !this.topSpacer || !this.bottomSpacer) return;
 
     startRow = Math.max(1, startRow);
     endRow = Math.min(this.rowCount, endRow);
+    startColNum = Math.max(1, startColNum);
+    endColNum = Math.min(this.cols.length, endColNum);
     this.currentStartRow = startRow;
     this.currentEndRow = endRow;
+    this.currentStartColNum = startColNum;
+    this.currentEndColNum = endColNum;
+
+    if (this.table) {
+      const totalW = 44 + this._totalWidth();
+      this.table.style.width = `${totalW}px`;
+      this.table.style.minWidth = `${totalW}px`;
+    }
+
+    this._renderColumnHeaders(startColNum, endColNum);
 
     const frozenRows = Math.min(this.frozenRows || 0, this.rowCount);
 
@@ -3897,7 +3953,7 @@ export class SheetGridController {
     const frozenFrag = document.createDocumentFragment();
     for (let r = 1; r <= frozenRows; r++) {
       if (this._isRowSkipped(r)) continue;
-      const tr = this._buildRowTr(r);
+      const tr = this._buildRowTr(r, startColNum, endColNum);
       tr.classList.add("vno-frozen-row");
       frozenFrag.appendChild(tr);
     }
@@ -3907,7 +3963,7 @@ export class SheetGridController {
     for (let r = startRow; r <= endRow; r++) {
       if (r <= frozenRows) continue; // đã dựng riêng ở trên, tránh trùng lặp DOM
       if (this._isRowSkipped(r)) continue;
-      frag.appendChild(this._buildRowTr(r));
+      frag.appendChild(this._buildRowTr(r, startColNum, endColNum));
     }
 
     this.tbody.insertBefore(frag, this.bottomSpacer);
@@ -4042,8 +4098,17 @@ export class SheetGridController {
     const startRow = Math.max(1, this._firstVisibleRow(scrollTop) - buffer);
     const endRow = Math.min(this.rowCount, this._lastVisibleRow(scrollTop, viewportHeight) + buffer);
 
-    if (Math.abs(startRow - this.currentStartRow) >= 3 || Math.abs(endRow - this.currentEndRow) >= 3) {
-      this._renderVirtualRows(startRow, endRow);
+    const scrollLeft = this.viewport.scrollLeft;
+    const viewportWidth = this.viewport.clientWidth || 1000;
+    const colBuffer = 5;
+    const startColNum = Math.max(1, this._firstVisibleCol(scrollLeft) - colBuffer);
+    const endColNum = Math.min(this.cols.length, this._lastVisibleCol(scrollLeft, viewportWidth) + colBuffer);
+
+    const rowChanged = Math.abs(startRow - this.currentStartRow) >= 3 || Math.abs(endRow - this.currentEndRow) >= 3;
+    const colChanged = Math.abs(startColNum - this.currentStartColNum) >= 2 || Math.abs(endColNum - this.currentEndColNum) >= 2;
+
+    if (rowChanged || colChanged) {
+      this._renderVirtualRows(startRow, endRow, startColNum, endColNum);
     }
     this._updateFormulaReferenceVisuals();
     this._updateFrozenImages();
@@ -4164,88 +4229,28 @@ _bindGridKeyboardNavigation() {
 
       if (e.key === "ArrowUp") {
         if (e.ctrlKey) {
-          const curVal = this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.val;
-          let r = this.selectedCoord.r - 1;
-          if (curVal !== undefined && curVal !== "") {
-            while (r > 1) {
-              const nextVal = this.cellsData.get(`${this.selectedCoord.c}${r}`)?.val;
-              if (nextVal === undefined || nextVal === "") { r++; break; }
-              r--;
-            }
-          } else {
-            while (r > 1) {
-              const nextVal = this.cellsData.get(`${this.selectedCoord.c}${r}`)?.val;
-              if (nextVal !== undefined && nextVal !== "") break;
-              r--;
-            }
-          }
-          nextRow = Math.max(1, r);
+          nextRow = this._findNextCtrlArrowRow(this.selectedCoord.c, this.selectedCoord.r, -1);
         } else {
           nextRow = Math.max(1, nextRow - 1);
         }
         extendRange = e.shiftKey;
       } else if (e.key === "ArrowDown") {
         if (e.ctrlKey) {
-          const curVal = this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.val;
-          let r = this.selectedCoord.r + 1;
-          if (curVal !== undefined && curVal !== "") {
-            while (r < this.rowCount) {
-              const nextVal = this.cellsData.get(`${this.selectedCoord.c}${r}`)?.val;
-              if (nextVal === undefined || nextVal === "") { r--; break; }
-              r++;
-            }
-          } else {
-            while (r < this.rowCount) {
-              const nextVal = this.cellsData.get(`${this.selectedCoord.c}${r}`)?.val;
-              if (nextVal !== undefined && nextVal !== "") break;
-              r++;
-            }
-          }
-          nextRow = Math.min(this.rowCount, r);
+          nextRow = this._findNextCtrlArrowRow(this.selectedCoord.c, this.selectedCoord.r, 1);
         } else {
           nextRow = Math.min(this.rowCount, nextRow + 1);
         }
         extendRange = e.shiftKey;
       } else if (e.key === "ArrowLeft") {
         if (e.ctrlKey) {
-          const curVal = this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.val;
-          let idx = colIdx - 1;
-          if (curVal !== undefined && curVal !== "") {
-            while (idx > 0) {
-              const nextVal = this.cellsData.get(`${this.cols[idx]}${this.selectedCoord.r}`)?.val;
-              if (nextVal === undefined || nextVal === "") { idx++; break; }
-              idx--;
-            }
-          } else {
-            while (idx > 0) {
-              const nextVal = this.cellsData.get(`${this.cols[idx]}${this.selectedCoord.r}`)?.val;
-              if (nextVal !== undefined && nextVal !== "") break;
-              idx--;
-            }
-          }
-          nextCol = this.cols[Math.max(0, idx)];
+          nextCol = this._findNextCtrlArrowCol(this.selectedCoord.c, this.selectedCoord.r, -1);
         } else {
           nextCol = this.cols[Math.max(0, colIdx - 1)];
         }
         extendRange = e.shiftKey;
       } else if (e.key === "ArrowRight") {
         if (e.ctrlKey) {
-          const curVal = this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.val;
-          let idx = colIdx + 1;
-          if (curVal !== undefined && curVal !== "") {
-            while (idx < this.cols.length - 1) {
-              const nextVal = this.cellsData.get(`${this.cols[idx]}${this.selectedCoord.r}`)?.val;
-              if (nextVal === undefined || nextVal === "") { idx--; break; }
-              idx++;
-            }
-          } else {
-            while (idx < this.cols.length - 1) {
-              const nextVal = this.cellsData.get(`${this.cols[idx]}${this.selectedCoord.r}`)?.val;
-              if (nextVal !== undefined && nextVal !== "") break;
-              idx++;
-            }
-          }
-          nextCol = this.cols[Math.min(this.cols.length - 1, idx)];
+          nextCol = this._findNextCtrlArrowCol(this.selectedCoord.c, this.selectedCoord.r, 1);
         } else {
           nextCol = this.cols[Math.min(this.cols.length - 1, colIdx + 1)];
         }
@@ -4569,6 +4574,177 @@ _bindGridKeyboardNavigation() {
     const target = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${col}${maxRow}"]`);
     target?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
     return true;
+  }
+
+  _jumpToNameBoxAddress(rawText) {
+    const text = String(rawText || "").trim();
+    if (!text) {
+      if (this.nameBox) this.nameBox.value = this.getSelectionNameLabel();
+      this.focusGrid();
+      return false;
+    }
+
+    const namedRange = this.resolveNamedRange?.(text);
+    if (namedRange && namedRange.ref) {
+      return this._jumpToNameBoxAddress(namedRange.ref);
+    }
+
+    let clean = text.startsWith("=") ? text.slice(1).trim() : text;
+    if (clean.includes("!")) {
+      const parts = clean.split("!");
+      const sheetName = parts[0].replace(/^'|'$/g, "");
+      if (this.sheets.includes(sheetName) && sheetName !== this.activeSheet) {
+        this.switchSheet?.(sheetName);
+      }
+      clean = parts[1].trim();
+    }
+    const unquoted = clean.replace(/\$/g, "").toUpperCase();
+
+    // Column range: e.g. "B:D" or "B:B"
+    const colRangeMatch = /^([A-Z]+):([A-Z]+)$/.exec(unquoted);
+    if (colRangeMatch) {
+      const c1Num = this._columnNumber(colRangeMatch[1]);
+      const c2Num = this._columnNumber(colRangeMatch[2]);
+      if (c1Num >= 1 && c1Num <= this.cols.length && c2Num >= 1 && c2Num <= this.cols.length) {
+        const startC = this.cols[Math.min(c1Num, c2Num) - 1];
+        const endC = this.cols[Math.max(c1Num, c2Num) - 1];
+        const range = createSheetSelectionRange({ c: startC, r: 1 }, { c: endC, r: this.rowCount });
+        this._applySelectionRange(range, { c: startC, r: 1 }, { kind: "column", scrollActive: true });
+        if (this.nameBox) this.nameBox.value = this.getSelectionNameLabel();
+        return true;
+      }
+    }
+
+    // Row range: e.g. "2:5" or "10:10"
+    const rowRangeMatch = /^(\d+):(\d+)$/.exec(unquoted);
+    if (rowRangeMatch) {
+      const r1 = Number.parseInt(rowRangeMatch[1], 10);
+      const r2 = Number.parseInt(rowRangeMatch[2], 10);
+      if (r1 >= 1 && r1 <= this.rowCount && r2 >= 1 && r2 <= this.rowCount) {
+        const startR = Math.min(r1, r2);
+        const endR = Math.max(r1, r2);
+        const range = createSheetSelectionRange({ c: this.cols[0], r: startR }, { c: this.cols[this.cols.length - 1], r: endR });
+        this._applySelectionRange(range, { c: this.cols[0], r: startR }, { kind: "row", scrollActive: true });
+        if (this.nameBox) this.nameBox.value = this.getSelectionNameLabel();
+        return true;
+      }
+    }
+
+    // Cell range: e.g. "B2:D10"
+    const rangeMatch = /^([A-Z]+)(\d+):([A-Z]+)(\d+)$/.exec(unquoted);
+    if (rangeMatch) {
+      const c1Num = this._columnNumber(rangeMatch[1]);
+      const r1 = Number.parseInt(rangeMatch[2], 10);
+      const c2Num = this._columnNumber(rangeMatch[3]);
+      const r2 = Number.parseInt(rangeMatch[4], 10);
+      if (
+        c1Num >= 1 && c1Num <= this.cols.length &&
+        c2Num >= 1 && c2Num <= this.cols.length &&
+        r1 >= 1 && r1 <= this.rowCount &&
+        r2 >= 1 && r2 <= this.rowCount
+      ) {
+        const startCol = this.cols[c1Num - 1];
+        const endCol = this.cols[c2Num - 1];
+        const range = createSheetSelectionRange({ c: startCol, r: r1 }, { c: endCol, r: r2 });
+        this._applySelectionRange(range, { c: startCol, r: r1 }, { kind: "cell", scrollActive: true });
+        if (this.nameBox) this.nameBox.value = this.getSelectionNameLabel();
+        return true;
+      }
+    }
+
+    // Single cell: e.g. "A1", "XFD1048576"
+    const cellMatch = /^([A-Z]+)(\d+)$/.exec(unquoted);
+    if (cellMatch) {
+      const colNum = this._columnNumber(cellMatch[1]);
+      const r = Number.parseInt(cellMatch[2], 10);
+      if (colNum >= 1 && colNum <= this.cols.length && r >= 1 && r <= this.rowCount) {
+        const col = this.cols[colNum - 1];
+        this.selectCell(col, r);
+        if (this.nameBox) this.nameBox.value = this.getSelectionNameLabel();
+        return true;
+      }
+    }
+
+    if (this.nameBox) this.nameBox.value = this.getSelectionNameLabel();
+    this.focusGrid();
+    return false;
+  }
+
+  _findNextCtrlArrowRow(col, startR, dir) {
+    const isFilled = (r) => {
+      const val = this.cellsData.get(`${col}${r}`)?.val;
+      return val !== undefined && val !== "";
+    };
+    const curFilled = isFilled(startR);
+    const adjR = startR + dir;
+    if (adjR < 1 || adjR > this.rowCount) return startR;
+    const adjFilled = isFilled(adjR);
+
+    if (curFilled && adjFilled) {
+      let r = adjR;
+      while (r + dir >= 1 && r + dir <= this.rowCount && isFilled(r + dir)) {
+        r += dir;
+      }
+      return r;
+    }
+
+    let targetR = dir > 0 ? this.rowCount : 1;
+    let closestDist = Infinity;
+    for (const key of this.cellsData.keys()) {
+      if (!key.startsWith(col)) continue;
+      const rowStr = key.slice(col.length);
+      if (!/^\d+$/.test(rowStr)) continue;
+      const r = Number.parseInt(rowStr, 10);
+      const dist = (r - startR) * dir;
+      if (dist > 0 && dist < closestDist) {
+        if (isFilled(r)) {
+          closestDist = dist;
+          targetR = r;
+        }
+      }
+    }
+    return targetR;
+  }
+
+  _findNextCtrlArrowCol(startCol, row, dir) {
+    const startColIdx = this.cols.indexOf(startCol);
+    if (startColIdx === -1) return startCol;
+    const isFilled = (idx) => {
+      const col = this.cols[idx];
+      if (!col) return false;
+      const val = this.cellsData.get(`${col}${row}`)?.val;
+      return val !== undefined && val !== "";
+    };
+    const curFilled = isFilled(startColIdx);
+    const adjIdx = startColIdx + dir;
+    if (adjIdx < 0 || adjIdx >= this.cols.length) return startCol;
+    const adjFilled = isFilled(adjIdx);
+
+    if (curFilled && adjFilled) {
+      let idx = adjIdx;
+      while (idx + dir >= 0 && idx + dir < this.cols.length && isFilled(idx + dir)) {
+        idx += dir;
+      }
+      return this.cols[idx];
+    }
+
+    let targetIdx = dir > 0 ? this.cols.length - 1 : 0;
+    let closestDist = Infinity;
+    const rowSuffix = String(row);
+    for (const key of this.cellsData.keys()) {
+      if (!key.endsWith(rowSuffix)) continue;
+      const col = key.slice(0, key.length - rowSuffix.length);
+      const idx = this.cols.indexOf(col);
+      if (idx === -1) continue;
+      const dist = (idx - startColIdx) * dir;
+      if (dist > 0 && dist < closestDist) {
+        if (isFilled(idx)) {
+          closestDist = dist;
+          targetIdx = idx;
+        }
+      }
+    }
+    return this.cols[targetIdx];
   }
 
   setCellValue(col, row, val, recordUndo = true, historyOptions = {}) {
@@ -9376,20 +9552,63 @@ _bindGridKeyboardNavigation() {
     return { ...structuredClone(range), start: shift(range.start), end: shift(range.end) };
   }
 
-  _renderColumnHeaders() {
+  _renderColumnHeaders(startColNum = this.currentStartColNum || 1, endColNum = this.currentEndColNum || Math.min(this.cols.length, 30)) {
     if (typeof document === "undefined") return;
-    const row = this.table?.querySelector?.("thead tr");
-    if (row) {
-      row.innerHTML = `<th class="vno-grid-corner-header" title="Chọn tất cả (Ctrl+A)"></th>`;
-      row.querySelector(".vno-grid-corner-header")?.addEventListener("click", () => this.selectAll());
-      this.cols.forEach(col => {
-        const th = document.createElement("th");
-        this._bindColumnHeader(th, col);
-        row.appendChild(th);
-      });
+    const row = this.theadRow || this.table?.querySelector?.("thead tr");
+    if (!row) return;
+
+    startColNum = Math.max(1, startColNum);
+    endColNum = Math.min(this.cols.length, endColNum);
+    this.currentStartColNum = startColNum;
+    this.currentEndColNum = endColNum;
+
+    row.innerHTML = `<th class="vno-grid-corner-header" title="Chọn tất cả (Ctrl+A)"></th>`;
+    row.querySelector(".vno-grid-corner-header")?.addEventListener("click", () => this.selectAll());
+
+    const frozenCols = Math.min(this.frozenCols || 0, this.cols.length);
+
+    // 1. Frozen column headers (1..frozenCols)
+    for (let c = 1; c <= frozenCols; c++) {
+      const col = this.cols[c - 1] || this._columnLabel(c);
+      const th = document.createElement("th");
+      this._bindColumnHeader(th, col);
+      row.appendChild(th);
     }
-    this.topSpacer?.querySelector?.("td")?.setAttribute?.("colspan", String(this.cols.length + 1));
-    this.bottomSpacer?.querySelector?.("td")?.setAttribute?.("colspan", String(this.cols.length + 1));
+
+    // 2. Left spacer header
+    const effectiveStart = Math.max(frozenCols + 1, startColNum);
+    if (effectiveStart > frozenCols + 1) {
+      const leftWidth = this._colLeft(effectiveStart) - this._colLeft(frozenCols + 1);
+      if (leftWidth > 0) {
+        const thSpacer = document.createElement("th");
+        thSpacer.className = "vno-col-spacer-left";
+        thSpacer.style.cssText = `width:${leftWidth}px;min-width:${leftWidth}px;max-width:${leftWidth}px;padding:0;border:none;background:transparent;`;
+        row.appendChild(thSpacer);
+      }
+    }
+
+    // 3. Visible column headers (effectiveStart..endColNum)
+    for (let c = effectiveStart; c <= endColNum; c++) {
+      const col = this.cols[c - 1] || this._columnLabel(c);
+      const th = document.createElement("th");
+      this._bindColumnHeader(th, col);
+      row.appendChild(th);
+    }
+
+    // 4. Right spacer header
+    if (endColNum < this.cols.length) {
+      const rightWidth = this._totalWidth() - this._colLeft(endColNum + 1);
+      if (rightWidth > 0) {
+        const thSpacer = document.createElement("th");
+        thSpacer.className = "vno-col-spacer-right";
+        thSpacer.style.cssText = `width:${rightWidth}px;min-width:${rightWidth}px;max-width:${rightWidth}px;padding:0;border:none;background:transparent;`;
+        row.appendChild(thSpacer);
+      }
+    }
+
+    const colCount = row.children.length;
+    this.topSpacer?.querySelector?.("td")?.setAttribute?.("colspan", String(colCount));
+    this.bottomSpacer?.querySelector?.("td")?.setAttribute?.("colspan", String(colCount));
     this._updateFilterButtons();
   }
 
@@ -11228,8 +11447,8 @@ _bindGridKeyboardNavigation() {
 
   groupSelection() {
     const area = this._normalizeRange(this.selectionRange);
-    const wholeRows = area.start.c === this.cols[0] && area.end.c === this.cols[this.cols.length - 1];
-    const wholeCols = area.start.r === 1 && area.end.r === this.rowCount;
+    const wholeRows = area.start.c === this.cols[0] && (area.end.c === this.cols[this.cols.length - 1] || area.end.c === "Z");
+    const wholeCols = area.start.r === 1 && (area.end.r === this.rowCount || area.end.r === 200);
     const axis = wholeCols ? "col" : "row";
     const start = axis === "row" ? area.start.r : this._columnNumber(area.start.c);
     const end = axis === "row" ? area.end.r : this._columnNumber(area.end.c);

@@ -728,10 +728,14 @@
 
 /* Virtualization Spacers */
 .vno-grid-spacer-top td,
-.vno-grid-spacer-bottom td {
-  padding: 0;
-  border: none;
-  background: transparent;
+.vno-grid-spacer-bottom td,
+.vno-col-spacer-left,
+.vno-col-spacer-right,
+.vno-grid-cell-spacer-left,
+.vno-grid-cell-spacer-right {
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
   pointer-events: none;
 }
 
