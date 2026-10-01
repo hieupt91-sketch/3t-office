@@ -7,6 +7,22 @@ import { registerHelpEntries } from "./help-catalog.js";
 
 export const SHEET_HELP_ENTRIES = [
   {
+    id: "sheet.input.nativeValues",
+    app: "sheet",
+    commandIds: [],
+    title: "Nhập số và ngày để tính toán đúng trong Excel",
+    summary: "Số gõ hoặc dán vào ô được lưu dưới dạng số; ngày dd/mm/yyyy được lưu dưới dạng số ngày kèm định dạng ngày. Vì vậy SUM, COUNT, sắp xếp và chuỗi Điền tự động tiếp tục tính đúng sau khi lưu XLSX.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Số" },
+    keywords: ["nhập số", "ngày", "date serial", "SUM", "COUNT", "dán số", "điền chuỗi", "apostrophe", "xlsx"],
+    steps: [
+      "Chọn một ô rồi gõ số, ví dụ 123 hoặc 12,5, và nhấn Enter. Có thể dán một cột số từ ứng dụng khác; 3T Sheet tự nhận kiểu số để công thức SUM/COUNT dùng được.",
+      "Để nhập ngày, gõ theo dạng dd/mm/yyyy, ví dụ 30/01/2026. Ô tự nhận định dạng ngày; kéo chốt Điền ở góc dưới phải để tiếp tục 31/01/2026, 01/02/2026…",
+      "Muốn giữ nguyên chữ số dưới dạng văn bản (ví dụ mã 00123), gõ dấu nháy đơn trước nội dung: '00123. Dấu nháy không hiển thị trong ô nhưng ngăn chuyển thành số.",
+      "Dùng tab Trang đầu, nhóm Số để đổi định dạng hiển thị như Số, Tiền tệ, Phần trăm hoặc Ngày. Định dạng chỉ đổi cách hiển thị, không biến số thành văn bản.",
+      "Khi lưu XLSX và mở bằng Excel, số vẫn là giá trị số và ngày vẫn là số ngày có định dạng; công thức SUM/COUNT không bỏ qua các ô vừa nhập hoặc dán."
+    ]
+  },
+  {
     id: "sheet.file.basics",
     app: "sheet",
     commandIds: ["common.file.new", "common.file.open", "common.file.save", "common.file.saveAs", "common.file.close", "common.file.print"],

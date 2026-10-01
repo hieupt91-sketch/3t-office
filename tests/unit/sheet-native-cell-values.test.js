@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
 import { SheetGridController } from "../../apps/sheet/sheet-grid.js";
+import { SHEET_HELP_ENTRIES } from "../../platform/help/entries-sheet.js";
 
 function mockContainer() {
   return {
@@ -61,6 +62,15 @@ export async function runSheetNativeCellValuesTests() {
     assert.match(fods, /<table:table-cell office:value-type="float" office:value="123"/);
     assert.match(fods, /<table:table-cell office:value-type="date" office:date-value="2026-01-30"/);
     assert.match(fods, /<table:table-cell office:value-type="string"[^>]*>\s*<text:p>00123<\/text:p>/);
+  });
+
+  test("Vietnamese Help explains numeric/date entry, external paste, fill and forced text", () => {
+    const entry = SHEET_HELP_ENTRIES.find(item => item.id === "sheet.input.nativeValues");
+    assert.ok(entry, "Missing native value Help entry");
+    const content = [entry.title, entry.summary, ...(entry.steps || [])].join(" ");
+    for (const term of ["123", "dd/mm/yyyy", "dán", "Điền", "SUM", "COUNT", "'00123", "XLSX"]) {
+      assert.match(content, new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
+    }
   });
 
   return results;
