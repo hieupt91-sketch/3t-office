@@ -132,7 +132,7 @@ export const WRITER_COMMANDS = [
   { id: "writer.insert.wordart", category: "insert", label: "Chữ nghệ thuật", icon: "wordArt", tooltip: "Chèn chữ nghệ thuật với viền, đổ bóng hoặc gradient tại vị trí con trỏ" },
   { id: "writer.format.dropCap", category: "insert", label: "Chữ đầu đoạn", icon: "dropCap", tooltip: "Phóng to chữ cái đầu đoạn văn (Drop Cap)" },
   { id: "writer.insert.dateTime", category: "insert", label: "Ngày & Giờ", icon: "dateTime", tooltip: "Chèn ngày giờ hiện tại tại vị trí con trỏ" },
-  { id: "writer.insert.equation", category: "insert", label: "Công thức", icon: "equation", tooltip: "Chèn hộp công thức toán học dạng chữ (bản rút gọn)" },
+  { id: "writer.insert.equation", category: "insert", label: "Phương trình", shortcut: "Alt+=", icon: "equation", tooltip: "Chèn phương trình toán học tại con trỏ (Alt+=)" },
   { id: "writer.insert.symbol", category: "insert", label: "Ký hiệu", icon: "symbol", tooltip: "Chèn ký tự đặc biệt tại vị trí con trỏ" },
   { id: "writer.insert.bookmark", category: "insert", label: "Đánh dấu", icon: "bookmark", tooltip: "Đánh dấu vị trí trong tài liệu để nhảy tới sau" },
   { id: "writer.insert.crossReference", category: "insert", label: "Tham chiếu chéo", icon: "crossReference", tooltip: "Chèn liên kết nội bộ tới tiêu đề hoặc đánh dấu" },

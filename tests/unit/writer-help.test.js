@@ -168,6 +168,7 @@ export async function runWriterHelpTests() {
       "writer.para.advanced",
       "writer.insert.illustrationsExtra",
       "writer.format.dropCapHelp",
+      "writer.insert.equationHelp",
       "writer.insert.equationBookmark",
       "writer.comment.insertHelp",
       "writer.page.setup",
@@ -189,7 +190,8 @@ export async function runWriterHelpTests() {
       "writer.para.advanced": ["writer.para.sort", "writer.para.shading", "writer.para.moveUp"],
       "writer.insert.illustrationsExtra": ["writer.shape.insert", "writer.diagram.insert", "writer.chart.insert"],
       "writer.format.dropCapHelp": ["writer.format.dropCap"],
-      "writer.insert.equationBookmark": ["writer.insert.equation", "writer.insert.bookmark", "writer.insert.crossReference"],
+      "writer.insert.equationHelp": ["writer.insert.equation"],
+      "writer.insert.equationBookmark": ["writer.insert.bookmark", "writer.insert.crossReference"],
       "writer.comment.insertHelp": ["writer.comment.insert"],
       "writer.page.setup": ["writer.page.margins", "writer.page.orientation", "writer.page.size"],
       "writer.page.columnsHelp": ["writer.page.columns", "writer.page.columns2", "writer.page.columns3"],
@@ -204,6 +206,14 @@ export async function runWriterHelpTests() {
           throw new Error(`${id} thiếu commandId ${cmd}`);
         }
       }
+    }
+    const equationHelp = byId["writer.insert.equationHelp"];
+    const equationSteps = equationHelp.steps.join(" ");
+    for (const detail of ["Alt+=", "a/b", "x^2", "\\sqrt(x)", "Tab", "Enter", "Delete", ".docx"]) {
+      if (!equationSteps.includes(detail)) throw new Error(`HÆ°á»›ng dáº«n phÆ°Æ¡ng trÃ¬nh thiáº¿u bÆ°á»›c ${detail}`);
+    }
+    if (!equationHelp.title.includes("3T Doc") || !equationHelp.summary.includes("MathML")) {
+      throw new Error("HÆ°á»›ng dáº«n phÆ°Æ¡ng trÃ¬nh pháº£i khá»›p UI 3T Doc vÃ  cÃ³ mÃ´ táº£ xem trÆ°á»›c");
     }
     if (byId["writer.page.setup"].ribbon.tab !== "Bố cục") {
       throw new Error("Bài thiết lập trang phải ở tab Bố cục");
