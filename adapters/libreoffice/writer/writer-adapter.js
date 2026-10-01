@@ -28,6 +28,7 @@ import { formatDateTime, showDateTimeDialog } from "../../../platform/ui-kit/dat
 import { showEquationDialog, showBookmarkDialog, showCrossReferenceDialog, slugBookmarkName, showWordArtDialog, buildWriterWordArtHtml, applyWordArtCss, parseWordArtStyleAttr, resolveWordArtStyle, WORDART_PRESETS } from "../../../apps/writer/insert-dialogs.js";
 import { t } from "../../../platform/i18n/i18n.js";
 import { CITATION_STYLES, authorSortKey, citationMetadataHtml, formatBibliographyEntry, formatInTextCitation, normalizeSource, parseCitationMetadata, showInsertCitationDialog, showSourceManagerDialog } from "../../../apps/writer/citations.js";
+import { cleanWordHtml } from "../../../platform/clipboard/office-clipboard.js";
 import {
   buildCaptionHtml,
   captionKindLabel,
@@ -9453,7 +9454,7 @@ export class WriterAdapter {
       if (mode === "text") {
         this._pastePlainText();
       } else {
-        document.execCommand("paste", false, null);
+        this._pasteFromSystemClipboard(false);
       }
       cleanup();
     };
@@ -14091,52 +14092,8 @@ export class WriterAdapter {
     for (const root of this._clipboardEventRoots) root.addEventListener("paste", this._pasteEventHandler);
   }
 
-  _sanitizeClipboardHtml(html) {
-    const template = document.createElement("template");
-    template.innerHTML = String(html || "");
-    const allowed = new Set([
-      "P", "DIV", "BR", "SPAN", "STRONG", "B", "EM", "I", "U", "S", "DEL", "SUB", "SUP",
-      "UL", "OL", "LI", "BLOCKQUOTE", "PRE", "H1", "H2", "H3", "H4", "H5", "H6",
-      "TABLE", "THEAD", "TBODY", "TFOOT", "TR", "TD", "TH", "A"
-    ]);
-    const allowedStyles = new Set([
-      "font-weight", "font-style", "text-decoration", "color", "background-color", "font-family",
-      "font-size", "text-align", "vertical-align", "white-space"
-    ]);
-    const elements = [...template.content.querySelectorAll("*")].reverse();
-    for (const element of elements) {
-      if (!allowed.has(element.tagName)) {
-        if (["SCRIPT", "STYLE", "IFRAME", "OBJECT", "EMBED", "SVG", "MATH"].includes(element.tagName)) {
-          element.remove();
-        } else {
-          element.replaceWith(...element.childNodes);
-        }
-        continue;
-      }
-      for (const attribute of [...element.attributes]) {
-        const name = attribute.name.toLowerCase();
-        if (name === "style") {
-          const safe = [];
-          for (const declaration of [...element.style]) {
-            const value = element.style.getPropertyValue(declaration).trim();
-            if (allowedStyles.has(declaration) && !/(?:url\s*\(|expression\s*\(|javascript:|@import)/i.test(value)) {
-              safe.push(`${declaration}:${value}`);
-            }
-          }
-          if (safe.length) element.setAttribute("style", safe.join(";"));
-          else element.removeAttribute("style");
-        } else if (element.tagName === "A" && name === "href") {
-          if (!/^(?:https?:|mailto:)/i.test(attribute.value.trim())) element.removeAttribute(attribute.name);
-        } else if (!((element.tagName === "TD" || element.tagName === "TH") && ["colspan", "rowspan"].includes(name))) {
-          element.removeAttribute(attribute.name);
-        }
-      }
-    }
-    return template.innerHTML;
-  }
-
   _insertClipboardContent({ html = "", text = "" } = {}) {
-    const cleanHtml = html ? this._sanitizeClipboardHtml(html) : "";
+    const cleanHtml = html ? cleanWordHtml(html) : "";
     if (cleanHtml || text) this.flushTyping();
     if (cleanHtml) {
       if (document.execCommand?.("insertHTML", false, cleanHtml)) return true;

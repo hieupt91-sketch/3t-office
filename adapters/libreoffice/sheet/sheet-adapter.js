@@ -13,6 +13,11 @@ import { SheetChartBuilder } from "../../../apps/sheet/sheet-chart.js";
 import { overlayFodsStructureProtection } from "./xlsx-workbook-protection.js";
 import { overlayActiveSheetToFods } from "./xlsx-active-sheet.js";
 import { buildSheetPayloadModel } from "./sheet-payload-parser.js";
+import {
+  parseOfficeHtmlTable,
+  parseOfficeTsv,
+  serializeSheetRangeToClipboard
+} from "../../../platform/clipboard/office-clipboard.js";
 
 export function numberFormatFromExcelCode(code) {
   const source = String(code ?? "").trim();
@@ -6101,10 +6106,13 @@ ${pristineXlsxMarker}
       }
       cells.push(cellRow); textRows.push(textRow.join("\t"));
     }
+    const text = textRows.join("\n");
+    const clipboardHtml = serializeSheetRangeToClipboard(this.grid, range);
     return {
       range: structuredClone(range),
       cells,
-      text: textRows.join("\n"),
+      text,
+      html: clipboardHtml.html,
       sourceSheet: this.grid.activeSheet
     };
   }
@@ -6129,6 +6137,7 @@ ${pristineXlsxMarker}
       const payload = this._captureSelectedClipboard();
       if (!payload || !event.clipboardData) return;
       event.clipboardData.setData("text/plain", payload.text);
+      if (payload.html) event.clipboardData.setData("text/html", payload.html);
       event.preventDefault();
       this._rememberClipboard(payload, "copy");
     };
@@ -6137,15 +6146,24 @@ ${pristineXlsxMarker}
       const payload = this._captureSelectedClipboard();
       if (!payload || !event.clipboardData) return;
       event.clipboardData.setData("text/plain", payload.text);
+      if (payload.html) event.clipboardData.setData("text/html", payload.html);
       event.preventDefault();
       this._rememberClipboard(payload, "cut");
     };
     const paste = async event => {
       if (!isGridClipboardTarget(event)) return;
       const text = event.clipboardData?.getData("text/plain") || "";
-      if (!text) {
+      const html = event.clipboardData?.getData("text/html") || "";
+      if (!text && !html) {
         if (event.clipboardData) event.preventDefault();
         const native = await this._readClipboardData();
+        if (native?.html) {
+          const model = parseOfficeHtmlTable(native.html, native.text || "");
+          if (model) {
+            await this._pasteModelIntoGrid(model, native.text || "", false);
+            return;
+          }
+        }
         if (native?.text) await this._pasteTextIntoGrid(native.text);
         else if (this._clipboardModel?.cells?.length) {
           await this._pasteModelIntoGrid(this._clipboardModel, this._clipboardText, true);
@@ -6153,9 +6171,15 @@ ${pristineXlsxMarker}
         return;
       }
       event.preventDefault();
-      const isInternal = text === this._clipboardText && this._clipboardModel?.cells?.length;
-      const model = isInternal ? this._clipboardModel : this._clipboardModelFromText(text);
-      await this._pasteModelIntoGrid(model, text, isInternal);
+      let model = null;
+      if (html) {
+        model = parseOfficeHtmlTable(html, text);
+      }
+      if (!model) {
+        const isInternal = text === this._clipboardText && this._clipboardModel?.cells?.length;
+        model = isInternal ? this._clipboardModel : this._clipboardModelFromText(text);
+      }
+      await this._pasteModelIntoGrid(model, text, false);
     };
     container.addEventListener("copy", copy);
     container.addEventListener("cut", cut);
@@ -6163,23 +6187,12 @@ ${pristineXlsxMarker}
     this._nativeClipboardHandlers = { container, copy, cut, paste };
   }
 
-  _clipboardModelFromText(text) {
-    const rows = String(text ?? "").replace(/\r\n?/g, "\n").split("\n");
-    if (rows.at(-1) === "") rows.pop();
-    if (!rows.length) return null;
-    const values = rows.map(row => row.split("\t"));
-    const width = Math.max(1, ...values.map(row => row.length));
-    const cells = values.map(row => Array.from({ length: width }, (_, index) => {
-      const value = row[index] ?? "";
-      return { val: value, formula: value.startsWith("=") ? value : "", style: {} };
-    }));
-    return {
-      range: {
-        start: { c: "A", r: 1 },
-        end: { c: this.grid._columnLabel(width), r: values.length }
-      },
-      cells
-    };
+  _clipboardModelFromText(text, html = "") {
+    if (html) {
+      const model = parseOfficeHtmlTable(html, text);
+      if (model) return model;
+    }
+    return parseOfficeTsv(text);
   }
 
   async _readClipboardData() {
@@ -6188,17 +6201,28 @@ ${pristineXlsxMarker}
       if (native?.status === "ok") return native;
     } catch { /* Browser clipboard is the web-mode fallback. */ }
     try {
-      if (typeof navigator !== "undefined" && navigator.clipboard?.readText) {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.read) {
+        const items = await navigator.clipboard.read();
+        for (const item of items) {
+          const types = item.types || [];
+          const htmlType = types.find(type => type === "text/html");
+          const textType = types.find(type => type === "text/plain");
+          const html = htmlType ? await (await item.getType(htmlType)).text() : "";
+          const text = textType ? await (await item.getType(textType)).text() : "";
+          if (html || text) return { status: "ok", html, text };
+        }
+      }
+      if (navigator.clipboard?.readText) {
         return { status: "ok", text: await navigator.clipboard.readText(), html: "" };
       }
     } catch { /* The command reports no-op when the browser denies clipboard access. */ }
     return null;
   }
 
-  async _pasteTextIntoGrid(text) {
+  async _pasteTextIntoGrid(text, html = "") {
     const isInternal = String(text) === this._clipboardText && this._clipboardModel?.cells?.length;
     return this._pasteModelIntoGrid(
-      isInternal ? this._clipboardModel : this._clipboardModelFromText(text),
+      isInternal ? this._clipboardModel : this._clipboardModelFromText(text, html),
       String(text),
       !!isInternal
     );
@@ -6224,7 +6248,13 @@ ${pristineXlsxMarker}
     let model = null;
     if (native?.status === "ok") {
       const sameInternal = String(native.text || "") === this._clipboardText && this._clipboardModel?.cells?.length;
-      model = sameInternal ? this._clipboardModel : this._clipboardModelFromText(native.text || "");
+      if (sameInternal) {
+        model = this._clipboardModel;
+      } else if (native.html) {
+        model = parseOfficeHtmlTable(native.html, native.text || "");
+      } else {
+        model = this._clipboardModelFromText(native.text || "", native.html || "");
+      }
     } else {
       model = this._clipboardModel;
     }
@@ -6243,9 +6273,13 @@ ${pristineXlsxMarker}
     const coord = this.grid.selectedCoord;
     if (!coord || !this.grid.setCellValue) return false;
     const native = await this._readClipboardData();
-    if (native?.status === "ok" && native.text) return this._pasteTextIntoGrid(native.text);
+    if (native?.status === "ok" && native.html) {
+      const model = parseOfficeHtmlTable(native.html, native.text || "");
+      if (model) return this._pasteModelIntoGrid(model, native.text || "", false);
+    }
+    if (native?.status === "ok" && native.text) return this._pasteTextIntoGrid(native.text, native.html || "");
     if (this._clipboardModel?.cells?.length) return this._pasteModelIntoGrid(this._clipboardModel, this._clipboardText, true);
-    if (native?.status === "ok") return this._pasteTextIntoGrid(native.text || "");
+    if (native?.status === "ok") return this._pasteTextIntoGrid(native.text || "", native.html || "");
     return false;
   }
 }

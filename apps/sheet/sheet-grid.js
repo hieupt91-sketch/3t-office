@@ -1470,12 +1470,13 @@ export class SheetGridController {
     this._refreshFormulaEntryVisuals();
     if (move) {
       if (tab) {
+        this._beginTabSequence();
         const colIndex = this.cols.indexOf(coord.c);
         const nextCol = shift ? this.cols[Math.max(0, colIndex - 1)] : this.cols[Math.min(this.cols.length - 1, colIndex + 1)];
         this.selectCell(nextCol, coord.r);
       } else {
-        const nextRow = shift ? Math.max(1, coord.r - 1) : Math.min(this.rowCount, coord.r + 1);
-        this.selectCell(coord.c, nextRow);
+        const next = this._enterDestination(shift);
+        this.selectCell(next.c, next.r);
       }
     } else {
       this.options.onSelect?.(`${coord.c}${coord.r}`, this.cellsData.get(`${coord.c}${coord.r}`), this._calculateStats());
@@ -6531,7 +6532,7 @@ _bindGridKeyboardNavigation() {
     }).join("");
   }
 
-  applyPasteSpecial(clipboard, mode = "all", destination = this.selectedCoord, options = {}) {
+  applyPasteSpecial(clipboard, mode = "source", destination = this.selectedCoord, options = {}) {
     if (!clipboard?.cells?.length || !destination) return false;
     const sourceRows = clipboard.cells;
     const transpose = mode === "transpose";
@@ -6546,7 +6547,8 @@ _bindGridKeyboardNavigation() {
     const moveRange = options.moveRange && options.sourceSheet === this.activeSheet
       ? this._normalizeRange(options.moveRange)
       : null;
-    if (moveRange && mode === "all") {
+    const isSourceMode = mode === "source" || mode === "all";
+    if (moveRange && isSourceMode) {
       for (let row = moveRange.start.r; row <= moveRange.end.r; row++) {
         for (let col = this._columnNumber(moveRange.start.c); col <= this._columnNumber(moveRange.end.c); col++) {
           const coord = `${this._columnLabel(col)}${row}`;
@@ -6716,9 +6718,8 @@ _bindGridKeyboardNavigation() {
     const overlay = this._createSheetDialog(title, `
       <form class="vno-paste-special-dialog" aria-label="${title}">
         <fieldset><legend>${t("sheetDialogs.pasteSpecialGroup", "Dán")}</legend>
-          <label><input type="radio" name="paste-special-mode" value="all" checked> ${t("sheetDialogs.pasteSpecialAll", "Tất cả")}</label>
+          <label><input type="radio" name="paste-special-mode" value="source" checked> ${t("sheetDialogs.pasteSpecialSource", "Giữ định dạng nguồn")}</label>
           <label><input type="radio" name="paste-special-mode" value="values"> ${t("sheetDialogs.pasteSpecialValues", "Chỉ giá trị")}</label>
-          <label><input type="radio" name="paste-special-mode" value="formulas"> ${t("sheetDialogs.pasteSpecialFormulas", "Chỉ công thức")}</label>
           <label><input type="radio" name="paste-special-mode" value="formats"> ${t("sheetDialogs.pasteSpecialFormats", "Chỉ định dạng")}</label>
           <label><input type="radio" name="paste-special-mode" value="transpose"> ${t("sheetDialogs.pasteSpecialTranspose", "Chuyển vị (đổi hàng/cột)")}</label>
         </fieldset>
@@ -6726,7 +6727,7 @@ _bindGridKeyboardNavigation() {
     if (!overlay) return false;
     const form = overlay.querySelector(".vno-paste-special-dialog");
     const paste = () => {
-      const mode = form.querySelector('input[name="paste-special-mode"]:checked')?.value || "all";
+      const mode = form.querySelector('input[name="paste-special-mode"]:checked')?.value || "source";
       const cut = !!clipboard.sourceSheet && clipboard.sourceSheet === this.activeSheet &&
         this._clipboardRange?.mode === "cut" && this._clipboardRange.sheet === this.activeSheet;
       const applied = this.applyPasteSpecial(clipboard, mode, this.selectedCoord, {

@@ -218,7 +218,7 @@ export async function runBasicEditingKeysTests() {
     const adapter = new SheetAdapter(grid);
     const model = adapter._clipboardModelFromText("123\tabc\r\nx\ty\r\n");
     assert(model.cells.length === 2 && model.cells[0].length === 2, "clipboard TSV phải tạo đúng ma trận 2×2");
-    assert(model.cells[0][0].val === "123" && model.cells[0][1].val === "abc", "clipboard TSV phải giữ nội dung ô theo cột");
+    assert(model.cells[0][0].val === 123 && model.cells[0][1].val === "abc", "clipboard TSV phải giữ nội dung ô theo cột (số được parse thành number)");
 
     const payload = adapter._captureSelectedClipboard();
     adapter._rememberClipboard(payload, "cut");
