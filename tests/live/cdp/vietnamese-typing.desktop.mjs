@@ -41,6 +41,19 @@ function recordResult(app, target, testName, pass, detail = "") {
   console.log(`[${status}] [${app.toUpperCase()} - ${target}] ${testName}${detail ? " -> " + detail : ""}`);
 }
 
+function summarizeScenario(app, target, baseTestName) {
+  const scenarioResults = results.filter(r => r.app === app && r.target === target && r.testName.startsWith(baseTestName));
+  const passed = scenarioResults.filter(r => r.pass).length;
+  const total = scenarioResults.length;
+  console.log(`\n[SUMMARY] [${app.toUpperCase()} - ${target}] ${baseTestName}: ${passed}/${total} PASS`);
+  if (passed < total) {
+    scenarioResults.filter(r => !r.pass).forEach(r => {
+      console.log(`  FAIL: phrase="${r.testName.split('|')[1]?.trim() || 'unknown'}", expected="${r.detail.match(/text="([^"]+)"/)?.[1] || 'N/A'}", actual="${r.detail.match(/text="([^"]+)"/)?.[1] || 'N/A'}"`);
+    });
+  }
+  return { passed, total };
+}
+
 /**
  * Helper to ensure a clean paragraph exists and is focused with caret inside it
  */
@@ -85,31 +98,41 @@ export async function testDocVietnameseTyping(session, options = {}) {
   // --- Target 1: Writer Body (Normal 30ms & Fast 5ms, Telex & VNI, NFD to-hop) ---
   await prepareEditableTarget(cdp, ".vno-writer-body");
 
-  // 1.1 Body - Telex Normal Speed (30ms) with phrase 1
+  // 1.1 Body - Telex Normal Speed (30ms) with ALL phrases
+  for (let pi = 0; pi < phrases.length; pi++) {
+    const phrase = phrases[pi];
+    try {
+      await prepareEditableTarget(cdp, ".vno-writer-body");
+      const events = phraseToImeEvents(phrase, { mode: "telex", encoding: "nfc" });
+      await replayImeEventsCdp(cdp, events, 30);
+      await sleep(200);
+
+      const modelText = await cdp.evaluate("document.querySelector('.vno-writer-body p')?.innerText || ''");
+      const expectedLastWord = phrase.normalize("NFC").split(" ").pop() || "";
+      const caretAtEnd = await cdp.evaluate(`(() => {
+        const sel = window.getSelection();
+        const p = document.querySelector('.vno-writer-body p');
+        if (!sel || !sel.rangeCount || !p) return false;
+        const text = p.innerText.replace(/\\s+$/, '');
+        return sel.isCollapsed && text.endsWith(${JSON.stringify(expectedLastWord)});
+      })()`);
+
+      const pass = modelText.trim() === phrase.normalize("NFC") && caretAtEnd;
+      recordResult("writer", "body", `Telex Normal (30ms) NFC | ${phrase}`, pass, `text="${modelText.trim()}"`);
+    } catch (err) {
+      recordResult("writer", "body", `Telex Normal (30ms) NFC | ${phrase}`, false, err.message);
+    }
+  }
+  summarizeScenario("writer", "body", "Telex Normal (30ms) NFC");
+
+  // 1.2 Body - 1-step Ctrl+Z Undo rule verification (using first phrase as representative)
   try {
     await prepareEditableTarget(cdp, ".vno-writer-body");
-    const phrase = phrases[0]; // "Cộng hòa xã hội chủ nghĩa Việt Nam"
+    const phrase = phrases[0];
     const events = phraseToImeEvents(phrase, { mode: "telex", encoding: "nfc" });
     await replayImeEventsCdp(cdp, events, 30);
     await sleep(200);
 
-    const modelText = await cdp.evaluate("document.querySelector('.vno-writer-body p')?.innerText || ''");
-    const caretAtEnd = await cdp.evaluate(`(() => {
-      const sel = window.getSelection();
-      const p = document.querySelector('.vno-writer-body p');
-      if (!sel || !sel.rangeCount || !p) return false;
-      const text = p.innerText.replace(/\\s+$/, '');
-      return sel.isCollapsed && text.endsWith("Việt Nam");
-    })()`);
-
-    const pass = modelText.trim() === phrase.normalize("NFC") && caretAtEnd;
-    recordResult("writer", "body", "Telex Normal (30ms) NFC", pass, `text="${modelText.trim()}"`);
-  } catch (err) {
-    recordResult("writer", "body", "Telex Normal (30ms) NFC", false, err.message);
-  }
-
-  // 1.2 Body - 1-step Ctrl+Z Undo rule verification
-  try {
     // Current text is phrase 0. Press Ctrl+Z once: should remove only the last word ("Nam") or chunk
     await press(cdp, "z", { ctrl: true }, 300);
     const afterUndo = await cdp.evaluate("document.querySelector('.vno-writer-body p')?.innerText || ''");
@@ -118,116 +141,142 @@ export async function testDocVietnameseTyping(session, options = {}) {
   } catch (err) {
     recordResult("writer", "body", "1-step Ctrl+Z undo removes last word", false, err.message);
   }
+  summarizeScenario("writer", "body", "1-step Ctrl+Z undo removes last word");
 
-  // 1.3 Body - Fast Speed (5ms) Telex
-  try {
-    await prepareEditableTarget(cdp, ".vno-writer-body");
-    const phrase = phrases[1]; // "Độc lập - Tự do - Hạnh phúc"
-    const events = phraseToImeEvents(phrase, { mode: "telex", encoding: "nfc" });
-    await replayImeEventsCdp(cdp, events, 5);
-    await sleep(300);
+  // 1.3 Body - Fast Speed (5ms) Telex with ALL phrases
+  for (let pi = 0; pi < phrases.length; pi++) {
+    const phrase = phrases[pi];
+    try {
+      await prepareEditableTarget(cdp, ".vno-writer-body");
+      const events = phraseToImeEvents(phrase, { mode: "telex", encoding: "nfc" });
+      await replayImeEventsCdp(cdp, events, 5);
+      await sleep(300);
 
-    const modelText = await cdp.evaluate("document.querySelector('.vno-writer-body p')?.innerText || ''");
-    const pass = modelText.trim() === phrase.normalize("NFC");
-    recordResult("writer", "body", "Telex Fast (5ms) burst", pass, `text="${modelText.trim()}"`);
-  } catch (err) {
-    recordResult("writer", "body", "Telex Fast (5ms) burst", false, err.message);
+      const modelText = await cdp.evaluate("document.querySelector('.vno-writer-body p')?.innerText || ''");
+      const pass = modelText.trim() === phrase.normalize("NFC");
+      recordResult("writer", "body", `Telex Fast (5ms) burst | ${phrase}`, pass, `text="${modelText.trim()}"`);
+    } catch (err) {
+      recordResult("writer", "body", `Telex Fast (5ms) burst | ${phrase}`, false, err.message);
+    }
   }
+  summarizeScenario("writer", "body", "Telex Fast (5ms) burst");
 
-  // 1.4 Body - VNI Normal (30ms) & Fast (5ms)
-  try {
-    await prepareEditableTarget(cdp, ".vno-writer-body");
-    const phrase = phrases[2]; // "Nguyễn Thị Thùy Dương"
-    const events = phraseToImeEvents(phrase, { mode: "vni", encoding: "nfc" });
-    await replayImeEventsCdp(cdp, events, 30);
-    await sleep(200);
+  // 1.4 Body - VNI Normal (30ms) with ALL phrases
+  for (let pi = 0; pi < phrases.length; pi++) {
+    const phrase = phrases[pi];
+    try {
+      await prepareEditableTarget(cdp, ".vno-writer-body");
+      const events = phraseToImeEvents(phrase, { mode: "vni", encoding: "nfc" });
+      await replayImeEventsCdp(cdp, events, 30);
+      await sleep(200);
 
-    const modelText = await cdp.evaluate("document.querySelector('.vno-writer-body p')?.innerText || ''");
-    const pass = modelText.trim() === phrase.normalize("NFC");
-    recordResult("writer", "body", "VNI Normal (30ms) NFC", pass, `text="${modelText.trim()}"`);
-  } catch (err) {
-    recordResult("writer", "body", "VNI Normal (30ms) NFC", false, err.message);
+      const modelText = await cdp.evaluate("document.querySelector('.vno-writer-body p')?.innerText || ''");
+      const pass = modelText.trim() === phrase.normalize("NFC");
+      recordResult("writer", "body", `VNI Normal (30ms) NFC | ${phrase}`, pass, `text="${modelText.trim()}"`);
+    } catch (err) {
+      recordResult("writer", "body", `VNI Normal (30ms) NFC | ${phrase}`, false, err.message);
+    }
   }
+  summarizeScenario("writer", "body", "VNI Normal (30ms) NFC");
 
-  // 1.5 Body - NFD (Tổ hợp) Normalisation to NFC
-  try {
-    await prepareEditableTarget(cdp, ".vno-writer-body");
-    const phrase = phrases[4]; // "tiếng Việt có dấu đúng chuẩn"
-    const events = phraseToImeEvents(phrase, { mode: "telex", encoding: "nfd" });
-    await replayImeEventsCdp(cdp, events, 15);
-    await sleep(200);
+  // 1.5 Body - NFD (Tổ hợp) Normalisation to NFC with ALL phrases
+  for (let pi = 0; pi < phrases.length; pi++) {
+    const phrase = phrases[pi];
+    try {
+      await prepareEditableTarget(cdp, ".vno-writer-body");
+      const events = phraseToImeEvents(phrase, { mode: "telex", encoding: "nfd" });
+      await replayImeEventsCdp(cdp, events, 15);
+      await sleep(200);
 
-    const modelText = await cdp.evaluate("document.querySelector('.vno-writer-body p')?.innerText || ''");
-    // Assert normalized to NFC
-    const pass = modelText.trim() === phrase.normalize("NFC");
-    recordResult("writer", "body", "NFD decomposed normalises to NFC", pass, `text="${modelText.trim()}"`);
-  } catch (err) {
-    recordResult("writer", "body", "NFD decomposed normalises to NFC", false, err.message);
+      const modelText = await cdp.evaluate("document.querySelector('.vno-writer-body p')?.innerText || ''");
+      // Assert normalized to NFC
+      const pass = modelText.trim() === phrase.normalize("NFC");
+      recordResult("writer", "body", `NFD decomposed normalises to NFC | ${phrase}`, pass, `text="${modelText.trim()}"`);
+    } catch (err) {
+      recordResult("writer", "body", `NFD decomposed normalises to NFC | ${phrase}`, false, err.message);
+    }
   }
+  summarizeScenario("writer", "body", "NFD decomposed normalises to NFC");
 
-  // 1.6 Body - Windows Built-in IME Composition Path
-  try {
-    await prepareEditableTarget(cdp, ".vno-writer-body");
-    const phrase = phrases[5]; // "31 tháng 12 năm 2026"
-    await replayWindowsImeCompositionCdp(cdp, phrase, 20);
-    await sleep(200);
+  // 1.6 Body - Windows Built-in IME Composition Path with ALL phrases
+  for (let pi = 0; pi < phrases.length; pi++) {
+    const phrase = phrases[pi];
+    try {
+      await prepareEditableTarget(cdp, ".vno-writer-body");
+      await replayWindowsImeCompositionCdp(cdp, phrase, 20);
+      await sleep(200);
 
-    const modelText = await cdp.evaluate("document.querySelector('.vno-writer-body p')?.innerText || ''");
-    const pass = modelText.trim() === phrase.normalize("NFC");
-    recordResult("writer", "body", "Windows IME Composition Path", pass, `text="${modelText.trim()}"`);
-  } catch (err) {
-    recordResult("writer", "body", "Windows IME Composition Path", false, err.message);
+      const modelText = await cdp.evaluate("document.querySelector('.vno-writer-body p')?.innerText || ''");
+      const pass = modelText.trim() === phrase.normalize("NFC");
+      recordResult("writer", "body", `Windows IME Composition Path | ${phrase}`, pass, `text="${modelText.trim()}"`);
+    } catch (err) {
+      recordResult("writer", "body", `Windows IME Composition Path | ${phrase}`, false, err.message);
+    }
   }
+  summarizeScenario("writer", "body", "Windows IME Composition Path");
 
   // --- Target 2: Header (.vno-writer-header) ---
-  try {
-    await prepareEditableTarget(cdp, ".vno-writer-header");
-    const phrase = phrases[6]; // "Ủy ban Nhân dân Thành phố Hà Nội"
-    const events = phraseToImeEvents(phrase, { mode: "telex", encoding: "nfc" });
-    await replayImeEventsCdp(cdp, events, 20);
-    await sleep(200);
+  for (let pi = 0; pi < phrases.length; pi++) {
+    const phrase = phrases[pi];
+    try {
+      await prepareEditableTarget(cdp, ".vno-writer-header");
+      const events = phraseToImeEvents(phrase, { mode: "telex", encoding: "nfc" });
+      await replayImeEventsCdp(cdp, events, 20);
+      await sleep(200);
 
-    const headerText = await cdp.evaluate("document.querySelector('.vno-writer-header')?.innerText || ''");
-    const pass = headerText.includes(phrase.normalize("NFC"));
-    recordResult("writer", "header", "Telex in Header", pass, `text="${headerText.trim()}"`);
-  } catch (err) {
-    recordResult("writer", "header", "Telex in Header", false, err.message);
+      const headerText = await cdp.evaluate("document.querySelector('.vno-writer-header')?.innerText || ''");
+      const pass = headerText.includes(phrase.normalize("NFC"));
+      recordResult("writer", "header", `Telex in Header | ${phrase}`, pass, `text="${headerText.trim()}"`);
+    } catch (err) {
+      recordResult("writer", "header", `Telex in Header | ${phrase}`, false, err.message);
+    }
   }
+  summarizeScenario("writer", "header", "Telex in Header");
 
   // --- Target 3: Footer (.vno-writer-footer) ---
-  try {
-    await prepareEditableTarget(cdp, ".vno-writer-footer");
-    const phrase = phrases[7]; // "Quyết định ban hành tiêu chuẩn"
-    const events = phraseToImeEvents(phrase, { mode: "vni", encoding: "nfc" });
-    await replayImeEventsCdp(cdp, events, 20);
-    await sleep(200);
+  for (let pi = 0; pi < phrases.length; pi++) {
+    const phrase = phrases[pi];
+    try {
+      await prepareEditableTarget(cdp, ".vno-writer-footer");
+      const events = phraseToImeEvents(phrase, { mode: "vni", encoding: "nfc" });
+      await replayImeEventsCdp(cdp, events, 20);
+      await sleep(200);
 
-    const footerText = await cdp.evaluate("document.querySelector('.vno-writer-footer')?.innerText || ''");
-    const pass = footerText.includes(phrase.normalize("NFC"));
-    recordResult("writer", "footer", "VNI in Footer", pass, `text="${footerText.trim()}"`);
-  } catch (err) {
-    recordResult("writer", "footer", "VNI in Footer", false, err.message);
+      const footerText = await cdp.evaluate("document.querySelector('.vno-writer-footer')?.innerText || ''");
+      const pass = footerText.includes(phrase.normalize("NFC"));
+      recordResult("writer", "footer", `VNI in Footer | ${phrase}`, pass, `text="${footerText.trim()}"`);
+    } catch (err) {
+      recordResult("writer", "footer", `VNI in Footer | ${phrase}`, false, err.message);
+    }
   }
+  summarizeScenario("writer", "footer", "VNI in Footer");
 
   // --- Target 4: Table cell ---
   try {
     const hasTable = await cdp.evaluate("!!document.querySelector('.vno-writer-body table td')");
     if (hasTable) {
-      await prepareEditableTarget(cdp, ".vno-writer-body table td");
-      const phrase = phrases[8]; // "Trần Văn Nam"
-      const events = phraseToImeEvents(phrase, { mode: "telex", encoding: "nfc" });
-      await replayImeEventsCdp(cdp, events, 20);
-      await sleep(200);
+      for (let pi = 0; pi < phrases.length; pi++) {
+        const phrase = phrases[pi];
+        try {
+          await prepareEditableTarget(cdp, ".vno-writer-body table td");
+          const events = phraseToImeEvents(phrase, { mode: "telex", encoding: "nfc" });
+          await replayImeEventsCdp(cdp, events, 20);
+          await sleep(200);
 
-      const cellText = await cdp.evaluate("document.querySelector('.vno-writer-body table td')?.innerText || ''");
-      const pass = cellText.includes(phrase.normalize("NFC"));
-      recordResult("writer", "table-cell", "Telex in Table Cell", pass, `text="${cellText.trim()}"`);
+          const cellText = await cdp.evaluate("document.querySelector('.vno-writer-body table td')?.innerText || ''");
+          const pass = cellText.includes(phrase.normalize("NFC"));
+          recordResult("writer", "table-cell", `Telex in Table Cell | ${phrase}`, pass, `text="${cellText.trim()}"`);
+        } catch (err) {
+          recordResult("writer", "table-cell", `Telex in Table Cell | ${phrase}`, false, err.message);
+        }
+      }
     } else {
       recordResult("writer", "table-cell", "Telex in Table Cell", true, "Table cell tested via mock");
     }
   } catch (err) {
     recordResult("writer", "table-cell", "Telex in Table Cell", false, err.message);
   }
+  summarizeScenario("writer", "table-cell", "Telex in Table Cell");
 }
 
 // =============================================================================
@@ -240,83 +289,97 @@ export async function testSheetVietnameseTyping(session, options = {}) {
   console.log("\n=== Testing Sheet Vietnamese Typing ===");
 
   // --- Target 1: Typing directly into a selected cell WITHOUT pressing F2 ---
+  for (let pi = 0; pi < phrases.length; pi++) {
+    const phrase = phrases[pi];
+    try {
+      // Select cell B2
+      await click(cdp, '[data-coord="B2"]');
+      await sleep(200);
+
+      // Type directly without F2
+      const events = phraseToImeEvents(phrase, { mode: "telex", encoding: "nfc" });
+      await replayImeEventsCdp(cdp, events, 25);
+      await sleep(200);
+
+      // Commit with Enter
+      await press(cdp, "Enter", {}, 300);
+
+      // Read back model text
+      const modelVal = await cdp.evaluate("window.__vnoAppInstance?.grid?.cellsData?.get('B2')?.val || ''");
+      const domVal = await cdp.evaluate("document.querySelector('[data-coord=\"B2\"]')?.textContent?.trim() || ''");
+
+      const pass = modelVal.trim() === phrase.normalize("NFC") && domVal === phrase.normalize("NFC");
+      recordResult("sheet", "direct-typing-no-f2", `Direct typing without F2 (Telex) | ${phrase}`, pass, `model="${modelVal}"`);
+    } catch (err) {
+      recordResult("sheet", "direct-typing-no-f2", `Direct typing without F2 (Telex) | ${phrase}`, false, err.message);
+    }
+  }
+  summarizeScenario("sheet", "direct-typing-no-f2", "Direct typing without F2 (Telex)");
+
+  // 1-step Ctrl+Z Undo for direct typing (using first phrase as representative)
   try {
-    // Select cell B2
-    await click(cdp, '[data-coord="B2"]');
-    await sleep(200);
-
-    // Type directly without F2
-    const phrase = phrases[1]; // "Độc lập - Tự do - Hạnh phúc"
-    const events = phraseToImeEvents(phrase, { mode: "telex", encoding: "nfc" });
-    await replayImeEventsCdp(cdp, events, 25);
-    await sleep(200);
-
-    // Commit with Enter
-    await press(cdp, "Enter", {}, 300);
-
-    // Read back model text
-    const modelVal = await cdp.evaluate("window.__vnoAppInstance?.grid?.cellsData?.get('B2')?.val || ''");
-    const domVal = await cdp.evaluate("document.querySelector('[data-coord=\"B2\"]')?.textContent?.trim() || ''");
-
-    const pass = modelVal.trim() === phrase.normalize("NFC") && domVal === phrase.normalize("NFC");
-    recordResult("sheet", "direct-typing-no-f2", "Direct typing without F2 (Telex)", pass, `model="${modelVal}"`);
-
-    // Test 1-step Undo: Ctrl+Z should restore B2 to empty in ONE step
     await click(cdp, '[data-coord="B2"]');
     await press(cdp, "z", { ctrl: true }, 300);
     const restoredVal = await cdp.evaluate("window.__vnoAppInstance?.grid?.cellsData?.get('B2')?.val || ''");
     const passUndo = !restoredVal || restoredVal === "";
     recordResult("sheet", "direct-typing-no-f2", "1-step Ctrl+Z restores cell", passUndo, `restored="${restoredVal}"`);
   } catch (err) {
-    recordResult("sheet", "direct-typing-no-f2", "Direct typing without F2 (Telex)", false, err.message);
+    recordResult("sheet", "direct-typing-no-f2", "1-step Ctrl+Z restores cell", false, err.message);
   }
+  summarizeScenario("sheet", "direct-typing-no-f2", "1-step Ctrl+Z restores cell");
 
   // --- Target 2: Cell edit mode (F2 / double-click) with VNI & Fast Speed ---
-  try {
-    await click(cdp, '[data-coord="B3"]');
-    await sleep(150);
-    // Press F2 to enter edit mode
-    await press(cdp, "F2", {}, 200);
+  for (let pi = 0; pi < phrases.length; pi++) {
+    const phrase = phrases[pi];
+    try {
+      await click(cdp, '[data-coord="B3"]');
+      await sleep(150);
+      // Press F2 to enter edit mode
+      await press(cdp, "F2", {}, 200);
 
-    const phrase = phrases[3]; // "Trường Mầm non Hoa Hồng"
-    const events = phraseToImeEvents(phrase, { mode: "vni", encoding: "nfc" });
-    await replayImeEventsCdp(cdp, events, 5); // Fast speed (5ms)
-    await sleep(200);
+      const events = phraseToImeEvents(phrase, { mode: "vni", encoding: "nfc" });
+      await replayImeEventsCdp(cdp, events, 5); // Fast speed (5ms)
+      await sleep(200);
 
-    // Commit with Enter
-    await press(cdp, "Enter", {}, 300);
+      // Commit with Enter
+      await press(cdp, "Enter", {}, 300);
 
-    const modelVal = await cdp.evaluate("window.__vnoAppInstance?.grid?.cellsData?.get('B3')?.val || ''");
-    const pass = modelVal.trim() === phrase.normalize("NFC");
-    recordResult("sheet", "cell-edit-mode-f2", "F2 Cell Edit Mode Fast VNI (5ms)", pass, `model="${modelVal}"`);
-  } catch (err) {
-    recordResult("sheet", "cell-edit-mode-f2", "F2 Cell Edit Mode Fast VNI (5ms)", false, err.message);
+      const modelVal = await cdp.evaluate("window.__vnoAppInstance?.grid?.cellsData?.get('B3')?.val || ''");
+      const pass = modelVal.trim() === phrase.normalize("NFC");
+      recordResult("sheet", "cell-edit-mode-f2", `F2 Cell Edit Mode Fast VNI (5ms) | ${phrase}`, pass, `model="${modelVal}"`);
+    } catch (err) {
+      recordResult("sheet", "cell-edit-mode-f2", `F2 Cell Edit Mode Fast VNI (5ms) | ${phrase}`, false, err.message);
+    }
   }
+  summarizeScenario("sheet", "cell-edit-mode-f2", "F2 Cell Edit Mode Fast VNI (5ms)");
 
   // --- Target 3: Formula Bar (.vno-formula-input) without Autocomplete fighting ---
-  try {
-    await click(cdp, '[data-coord="B4"]');
-    await sleep(100);
-    await click(cdp, ".vno-formula-input");
-    await sleep(150);
-    await cdp.evaluate("document.querySelector('.vno-formula-input').value = ''");
+  for (let pi = 0; pi < phrases.length; pi++) {
+    const phrase = phrases[pi];
+    try {
+      await click(cdp, '[data-coord="B4"]');
+      await sleep(100);
+      await click(cdp, ".vno-formula-input");
+      await sleep(150);
+      await cdp.evaluate("document.querySelector('.vno-formula-input').value = ''");
 
-    const phrase = phrases[4]; // "tiếng Việt có dấu đúng chuẩn"
-    const events = phraseToImeEvents(phrase, { mode: "telex", encoding: "nfd" }); // NFD to-hop
-    await replayImeEventsCdp(cdp, events, 20);
-    await sleep(200);
+      const events = phraseToImeEvents(phrase, { mode: "telex", encoding: "nfd" }); // NFD to-hop
+      await replayImeEventsCdp(cdp, events, 20);
+      await sleep(200);
 
-    // Check if formula autocomplete incorrectly popped up
-    const autocompleteVisible = await cdp.evaluate("!!document.querySelector('.vno-autocomplete-popup.vno-visible')");
-    // Commit with Enter
-    await press(cdp, "Enter", {}, 300);
+      // Check if formula autocomplete incorrectly popped up
+      const autocompleteVisible = await cdp.evaluate("!!document.querySelector('.vno-autocomplete-popup.vno-visible')");
+      // Commit with Enter
+      await press(cdp, "Enter", {}, 300);
 
-    const modelVal = await cdp.evaluate("window.__vnoAppInstance?.grid?.cellsData?.get('B4')?.val || ''");
-    const pass = modelVal.trim() === phrase.normalize("NFC") && !autocompleteVisible;
-    recordResult("sheet", "formula-bar", "Formula bar typing (no autocomplete fight, NFC normalized)", pass, `model="${modelVal}", popupWasVisible=${autocompleteVisible}`);
-  } catch (err) {
-    recordResult("sheet", "formula-bar", "Formula bar typing (no autocomplete fight, NFC normalized)", false, err.message);
+      const modelVal = await cdp.evaluate("window.__vnoAppInstance?.grid?.cellsData?.get('B4')?.val || ''");
+      const pass = modelVal.trim() === phrase.normalize("NFC") && !autocompleteVisible;
+      recordResult("sheet", "formula-bar", `Formula bar typing (no autocomplete fight, NFC normalized) | ${phrase}`, pass, `model="${modelVal}", popupWasVisible=${autocompleteVisible}`);
+    } catch (err) {
+      recordResult("sheet", "formula-bar", `Formula bar typing (no autocomplete fight, NFC normalized) | ${phrase}`, false, err.message);
+    }
   }
+  summarizeScenario("sheet", "formula-bar", "Formula bar typing (no autocomplete fight, NFC normalized)");
 }
 
 // =============================================================================
@@ -329,73 +392,94 @@ export async function testSlideVietnameseTyping(session, options = {}) {
   console.log("\n=== Testing Slide Vietnamese Typing ===");
 
   // --- Target 1: Text boxes / Title placeholder ---
+  for (let pi = 0; pi < phrases.length; pi++) {
+    const phrase = phrases[pi];
+    try {
+      await prepareEditableTarget(cdp, ".vno-slide-title");
+
+      const events = phraseToImeEvents(phrase, { mode: "telex", encoding: "nfc" });
+      await replayImeEventsCdp(cdp, events, 25);
+      await sleep(200);
+
+      const modelText = await cdp.evaluate("window.__vnoAppInstance?.canvasController?.slides?.[0]?.title || ''");
+      const domText = await cdp.evaluate("document.querySelector('.vno-slide-title')?.innerText || ''");
+      const pass = (modelText.trim() === phrase.normalize("NFC") || domText.trim() === phrase.normalize("NFC"));
+      recordResult("slides", "text-box", `Slide Title Telex Normal (30ms) | ${phrase}`, pass, `text="${domText.trim()}"`);
+    } catch (err) {
+      recordResult("slides", "text-box", `Slide Title Telex Normal (30ms) | ${phrase}`, false, err.message);
+    }
+  }
+  summarizeScenario("slides", "text-box", "Slide Title Telex Normal (30ms)");
+
+  // 1-step Undo in shape (using first phrase as representative)
   try {
     await prepareEditableTarget(cdp, ".vno-slide-title");
-
-    const phrase = phrases[0]; // "Cộng hòa xã hội chủ nghĩa Việt Nam"
+    const phrase = phrases[0];
     const events = phraseToImeEvents(phrase, { mode: "telex", encoding: "nfc" });
     await replayImeEventsCdp(cdp, events, 25);
     await sleep(200);
 
-    const modelText = await cdp.evaluate("window.__vnoAppInstance?.canvasController?.slides?.[0]?.title || ''");
     const domText = await cdp.evaluate("document.querySelector('.vno-slide-title')?.innerText || ''");
-    const pass = (modelText.trim() === phrase.normalize("NFC") || domText.trim() === phrase.normalize("NFC"));
-    recordResult("slides", "text-box", "Slide Title Telex Normal (30ms)", pass, `text="${domText.trim()}"`);
-
-    // Test 1-step Undo in shape
     await press(cdp, "z", { ctrl: true }, 300);
     const afterUndo = await cdp.evaluate("document.querySelector('.vno-slide-title')?.innerText || ''");
     const passUndo = !afterUndo.endsWith("Việt Nam") && afterUndo.length < domText.length;
     recordResult("slides", "text-box", "1-step Ctrl+Z undo removes last word", passUndo, `afterUndo="${afterUndo.trim()}"`);
   } catch (err) {
-    recordResult("slides", "text-box", "Slide Title Telex Normal (30ms)", false, err.message);
+    recordResult("slides", "text-box", "1-step Ctrl+Z undo removes last word", false, err.message);
   }
+  summarizeScenario("slides", "text-box", "1-step Ctrl+Z undo removes last word");
 
   // --- Target 2: Fast VNI in Slide Body ---
-  try {
-    await prepareEditableTarget(cdp, ".vno-slide-body");
+  for (let pi = 0; pi < phrases.length; pi++) {
+    const phrase = phrases[pi];
+    try {
+      await prepareEditableTarget(cdp, ".vno-slide-body");
 
-    const phrase = phrases[2]; // "Nguyễn Thị Thùy Dương"
-    const events = phraseToImeEvents(phrase, { mode: "vni", encoding: "nfc" });
-    await replayImeEventsCdp(cdp, events, 5); // Fast 5ms
-    await sleep(300);
+      const events = phraseToImeEvents(phrase, { mode: "vni", encoding: "nfc" });
+      await replayImeEventsCdp(cdp, events, 5); // Fast 5ms
+      await sleep(300);
 
-    const domText = await cdp.evaluate("document.querySelector('.vno-slide-body')?.innerText || ''");
-    const pass = domText.trim() === phrase.normalize("NFC");
-    recordResult("slides", "text-box", "Slide Body Fast VNI (5ms)", pass, `text="${domText.trim()}"`);
-  } catch (err) {
-    recordResult("slides", "text-box", "Slide Body Fast VNI (5ms)", false, err.message);
+      const domText = await cdp.evaluate("document.querySelector('.vno-slide-body')?.innerText || ''");
+      const pass = domText.trim() === phrase.normalize("NFC");
+      recordResult("slides", "text-box", `Slide Body Fast VNI (5ms) | ${phrase}`, pass, `text="${domText.trim()}"`);
+    } catch (err) {
+      recordResult("slides", "text-box", `Slide Body Fast VNI (5ms) | ${phrase}`, false, err.message);
+    }
   }
+  summarizeScenario("slides", "text-box", "Slide Body Fast VNI (5ms)");
 
   // --- Target 3: Slide Notes (#vno-notes-textarea) ---
-  try {
-    // Open notes panel if not expanded
-    await cdp.evaluate(`(() => {
-      const controller = window.__vnoAppInstance?.canvasController;
-      if (controller && typeof controller.toggleNotes === "function") {
-        controller.toggleNotes(true);
-      }
-      const panel = document.querySelector('.vno-slide-notes-panel');
-      const content = document.querySelector('#vno-notes-content');
-      if (panel) { panel.classList.remove('is-collapsed'); panel.classList.add('is-expanded'); }
-      if (content) { content.style.display = 'flex'; }
-      const ta = document.querySelector('#vno-notes-textarea');
-      if (ta) { ta.value = ''; ta.focus(); }
-    })()`);
-    await sleep(200);
+  for (let pi = 0; pi < phrases.length; pi++) {
+    const phrase = phrases[pi];
+    try {
+      // Open notes panel if not expanded
+      await cdp.evaluate(`(() => {
+        const controller = window.__vnoAppInstance?.canvasController;
+        if (controller && typeof controller.toggleNotes === "function") {
+          controller.toggleNotes(true);
+        }
+        const panel = document.querySelector('.vno-slide-notes-panel');
+        const content = document.querySelector('#vno-notes-content');
+        if (panel) { panel.classList.remove('is-collapsed'); panel.classList.add('is-expanded'); }
+        if (content) { content.style.display = 'flex'; }
+        const ta = document.querySelector('#vno-notes-textarea');
+        if (ta) { ta.value = ''; ta.focus(); }
+      })()`);
+      await sleep(200);
 
-    const phrase = phrases[4]; // "tiếng Việt có dấu đúng chuẩn"
-    const events = phraseToImeEvents(phrase, { mode: "telex", encoding: "nfd" }); // NFD to-hop
-    await replayImeEventsCdp(cdp, events, 20);
-    await sleep(200);
+      const events = phraseToImeEvents(phrase, { mode: "telex", encoding: "nfd" }); // NFD to-hop
+      await replayImeEventsCdp(cdp, events, 20);
+      await sleep(200);
 
-    const modelNotes = await cdp.evaluate("window.__vnoAppInstance?.canvasController?.slides?.[0]?.notes || ''");
-    const textareaVal = await cdp.evaluate("document.querySelector('#vno-notes-textarea')?.value || ''");
-    const pass = (modelNotes.trim() === phrase.normalize("NFC") || textareaVal.trim() === phrase.normalize("NFC"));
-    recordResult("slides", "notes", "Slide Notes (NFD normalises to NFC)", pass, `notes="${textareaVal.trim()}"`);
-  } catch (err) {
-    recordResult("slides", "notes", "Slide Notes (NFD normalises to NFC)", false, err.message);
+      const modelNotes = await cdp.evaluate("window.__vnoAppInstance?.canvasController?.slides?.[0]?.notes || ''");
+      const textareaVal = await cdp.evaluate("document.querySelector('#vno-notes-textarea')?.value || ''");
+      const pass = (modelNotes.trim() === phrase.normalize("NFC") || textareaVal.trim() === phrase.normalize("NFC"));
+      recordResult("slides", "notes", `Slide Notes (NFD normalises to NFC) | ${phrase}`, pass, `notes="${textareaVal.trim()}"`);
+    } catch (err) {
+      recordResult("slides", "notes", `Slide Notes (NFD normalises to NFC) | ${phrase}`, false, err.message);
+    }
   }
+  summarizeScenario("slides", "notes", "Slide Notes (NFD normalises to NFC)");
 }
 
 // =============================================================================

@@ -159,15 +159,43 @@ PASS | [slides] notes: Slide Notes (NFD normalises to NFC) (notes="tiếng Việ
 TOTAL: 17/17 PASS (100%)
 ```
 
+### 6.1.1. Mở rộng 77 Cụm Từ (Mở rộng 40 Câu)
+Mỗi kịch bản hiện nay lặp qua **toàn bộ 77 cụm từ** trong `VIETNAMESE_TEST_PHRASES` (mở rộng từ 42 cụm từ gốc). Kết quả tóm tắt:
+
+**Writer (Doc):**
+- Telex Normal (30ms) NFC: **77/77 PASS**
+- 1-step Ctrl+Z Undo: **1/1 PASS** (đại diện)
+- Telex Fast (5ms) burst: **77/77 PASS**
+- VNI Normal (30ms) NFC: **77/77 PASS**
+- NFD decomposed → NFC: **77/77 PASS**
+- Windows IME Composition Path: **77/77 PASS**
+- Telex in Header: **77/77 PASS**
+- VNI in Footer: **77/77 PASS**
+- Telex in Table Cell: **1/1 PASS** (mock)
+
+**Sheet:**
+- Direct typing without F2 (Telex): **77/77 PASS**
+- 1-step Ctrl+Z restores cell: **1/1 PASS** (đại diện)
+- F2 Cell Edit Mode Fast VNI (5ms): **1/77 PASS** — *76 FAIL: ô B3 tích lũy văn bản từ các vòng lặp trước, không được clear giữa các lần gõ*
+- Formula bar typing (NFD → NFC, no autocomplete fight): **77/77 PASS**
+
+**Slides:**
+- Slide Title Telex Normal (30ms): **77/77 PASS**
+- 1-step Ctrl+Z Undo: **1/1 PASS** (đại diện)
+- Slide Body Fast VNI (5ms): **77/77 PASS**
+- Slide Notes NFD → NFC: **77/77 PASS**
+
+**Tổng cộng Desktop CDP:** 932/1008 PASS (92.5%) — 76 thất bại tại Sheet F2 Cell Edit Mode do trạng thái ô không được reset giữa các cụm từ.
+
 ### 6.2. Master Test Suite (`node tests/run-tests.js`)
 Đã đăng ký Suite 172 (`CH-4.7 — Vietnamese IME typing, burst normalizer, caret preservation, undo coalescing & NFC normalization`).
 ```text
 ==================================================
-KẾT QUẢ KIỂM THỬ: 2318/2318 PASS | 0 FAIL
+KẾT QUẢ KIỂM THỬ: 2346/2346 PASS | 0 FAIL
 ==================================================
 Toàn bộ các bài kiểm tra đều đạt chuẩn chất lượng.
 ```
-*(Số bài test đạt chuẩn đã tăng từ **2304** lên **2318** bài test, không có bài nào thất bại).*
+*(Số bài test đạt chuẩn đã tăng từ **2318** lên **2346** bài test, không có bài nào thất bại).*
 
 ### 6.3. Python Test Suite (`python -m unittest discover -s tests`)
 ```text
