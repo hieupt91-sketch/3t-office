@@ -5,13 +5,13 @@ TASK: Repair Writer print and Export PDF pagination by using the source-aware Sa
 
 OBJECTIVE: Complete original/3T Office/LibreOffice evidence for d03, d12, d16, d24, d01, d20, a legacy `.doc`, lan05.xlsx, lan11.xlsx, lan28.xlsx, and one `.pptx`; investigate and correct the Sheet fallback pagination discrepancies without changing page counts artificially; make each app's print-preview page total come from the same PDF that its Print action sends.
 
-CURRENT CAPABILITY: G10 selects Office/WPS COM when available and falls back to LibreOffice. The shared print dialog reads the page count from its generated PDF, and preview and Print use the same prepared PDF path. Sheet's print-only XLSX now keeps the active or saved grouped-tab selection visible and hides other visible tabs; the saved workbook stays unchanged. The pristine XLSX also retains its page setup, print areas, breaks, and hidden-row/column state. Fresh Sheet fallback counts are 3/232/2 pages for lan05/lan11/lan28, with exact Print/Export PDF counts matched; the Excel active-sheet oracle remains BLOCKED for all three.
+CURRENT CAPABILITY: G10 selects Office/WPS COM when available and falls back to LibreOffice. The shared print dialog reads the page count from its generated PDF, and preview and Print use the same prepared PDF path. Sheet's print-only XLSX now keeps the active or saved grouped-tab selection visible and hides other visible tabs; the saved workbook stays unchanged. The pristine XLSX also retains its page setup, print areas, breaks, and hidden-row/column state. Fresh hidden Excel COM and desktop CDP measurements are now recorded in “Owner Excel and desktop verification — 2026-10-01” below. In this environment, 3T's default Office route matches Excel for active-sheet and whole-workbook page counts. LibreOffice fallback counts remain renderer-specific: lan05 3, lan11 232 active / 345 whole, lan28 2 active / 35 whole.
 
 FILES/MODULES: `platform/print/print_pipeline.py` and `platform/print/print-dialog.js` own the shared PDF/count path; preview command bindings live in the Writer, Sheet, and Slides adapters; `main.py` applies print-only Sheet scope with helpers in `adapters/libreoffice/common/ooxml_zip_patch.py`; regression coverage is in `tests/test_print_pipeline.py`, `tests/test_print_save_pipeline.py`, and `tests/unit/sheet-print-preview.test.js`. Existing audit scripts under `scripts/layout-audit/**` and this handoff hold evidence.
 
 DEPENDENCIES: No new dependencies. Reuse the Office COM worker, LibreOffice fallback, current document serializers, and PDF preview APIs. Office COM must run strictly serially; retry `RPC_E_CALL_REJECTED`; terminate only Office processes created by the current job.
 
-RISK: Sheet scope now follows the active or selected tabs from the print source, but lan05's 56% print area still paginates differently in LibreOffice; do not synthesize page counts. The legacy Excel workbook-level counts for lan11/lan28 are not a per-active-sheet oracle. Preview can become stale if a document changes after PDF generation; bind the displayed total and subsequent Print action to the same prepared PDF/session.
+RISK: LibreOffice fallback pagination still differs from Excel on these files, even though inspected page setup and scope are preserved. Do not synthesize page counts or claim fallback parity. Preview can become stale if a document changes after PDF generation; bind the displayed total and subsequent Print action to the same prepared PDF/session.
 
 TEST PLAN: Collect original Office export page counts and page-1 text, then run 3T Office and Office-disabled LibreOffice app audits for the same sources. For Sheet, inspect workbook active/selected sheets, print area, scale/fit, manual breaks, print titles, hidden rows/columns, paper size, and orientation per sheet; record before/after counts and the reason for each change. Verify preview totals against the exact PDF generated for Writer, Sheet, and Slides. Run `node tests/run-tests.js`, then `python -m unittest discover -s tests`; if soffice contention causes the FODS→XLSX round-trip failures, rerun Python alone and record both runs. Run no tests beyond these requested gates unless needed to diagnose a specific change.
 
@@ -352,3 +352,47 @@ The print preview count and subsequent Print action use the same prepared PDF/se
 - Build: NOT RUN. No build-system change was made.
 
 KNOWN FAILURE / NEXT ACTION: lan05 fallback still differs from the historical Excel count; its active-sheet Office PDF is BLOCKED, so do not claim full parity. Commit this branch only after final diff and status review. Do not merge it into `main`.
+
+## Owner Excel and desktop verification — 2026-10-01
+
+This is the latest Sheet evidence and supersedes the earlier “Excel active-sheet oracle BLOCKED” entries and the table above for lan05/lan11/lan28. Those entries accurately record the earlier COM attempts, before a clean sequential retry succeeded. `git merge main` was completed first; current branch HEAD at this verification was merge commit `0c692761`. This branch has not been merged into `main`.
+
+### Excel COM oracle and 3T desktop page counts
+
+Each original was copied to a separate audit copy, SHA-256 checked, and opened `ReadOnly=True` in a newly created hidden Excel process. Calls ran sequentially. `ActiveSheet.ExportAsFixedFormat(0, pdf)` measured Excel's saved active-sheet default; `Workbook.ExportAsFixedFormat(0, pdf)` measured all sheets. `ActiveWindow.SelectedSheets.Count` returned zero in the hidden sessions, so the workbook's saved `activeTab` and each worksheet's `tabSelected` OOXML markers were independently read to confirm one saved selected tab in each source. Active sheets were non-null. The counts below are from the two PDF exports, not estimates based on used ranges.
+
+| File | Saved active/selected tab | Excel (a) active sheets | Excel (b) whole workbook | 3T default active (Office) | 3T whole workbook (Office) | LO before scope fix (all visible) | LO after: active | LO after: whole |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| lan05.xlsx | ExportData | 14 | 14 | 14 | 14 | 3 | 3 | 3 |
+| lan11.xlsx | Reyee | 306 | 965 | 306 | 965 | 345 | 232 | 345 |
+| lan28.xlsx | Bảng Lương | 2 | 36 | 2 | 36 | 35 | 2 | 35 |
+
+The 3T columns are live desktop results. The print dialog's default scope was “In các trang tính hiện hoạt”; switching to “In toàn bộ sổ làm việc” produced the whole-workbook totals above. The default PDF engine was Microsoft Office, matching Excel's native renderer. “In vùng chọn” was present in the dialog and enabled when a range was selected in lan05. PDF page totals were read through WebView2 CDP; no OS-level keyboard or mouse input was used. The app was started with `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=<port>` on isolated ports 9333–9336.
+
+Audit copies and own Excel process IDs:
+
+| File | Audit-copy SHA-256 | Excel PID |
+|---|---|---:|
+| lan05.xlsx | `03E47D2AFD3FBE415966F9EE912674C483B6CBA81721B3A0A8FD509472D15AE7` | 14916 |
+| lan11.xlsx | `86B77146368271C0A35E4908958301EA6921A6816E056F7E58743FF5F1FCD8BE` | 20736 |
+| lan28.xlsx | `4C45197145522DDB8C72B7D3BAD818661712EC5F430BE66D799168CD31463D3D` | 20912 |
+
+The new Office default and whole-workbook results match Excel for all three files. LibreOffice remains an offline fallback and still paginates differently: the active-scope deltas are 11 pages for lan05, 74 for lan11, and 0 for lan28; whole-workbook deltas are 11, 620, and 1. No page totals were forced.
+
+### Layout comparison
+
+No source layout value was found to be lost or mismatched in the inspected print source. Therefore the Office path needed no scale, paper, orientation, print-area, break, or hidden-row/column correction for these measured files. The remaining LibreOffice differences are renderer pagination differences, not a measured source setting discrepancy.
+
+- lan05 has one visible and selected sheet, `ExportData`; print area `$A$1:$I$1072`; Letter portrait; 56% scale; margins 0.75 in left/right and 1 in top/bottom; no manual page breaks, print titles, or hidden rows/columns. Data ends at row 84 although the print area spans 1,072 rows. LibreOffice emits 3 content pages, while Excel emits 14; that blank formatted tail is a plausible factor, not a proven full root-cause explanation.
+- lan11 has three visible sheets, with only `Reyee` selected and active (`activeTab=1`); the active sheet uses A4 portrait, 100% scale, 1 page wide and unlimited height, with no print area, manual breaks, print titles, or hidden rows/columns. The whole-workbook output includes all three sheets.
+- lan28 has twelve visible sheets, with only `Bảng Lương` selected and active (`activeTab=6`); it uses A4 portrait, 100% scale, no print area/manual breaks/print titles, and hidden column C. Other sheets retain their original hidden rows/columns: 135 rows on `Tổng Hợp Bán Hàng`, 6 on `KPI Toàn`, 32 on `KPI Tùng`, and column G on `KPI LY`. `Tổng Hợp Bán Hàng` uses Letter; the other sheets use A4 in the inspected live model.
+
+### Updated state
+
+- The three Excel active-sheet oracles and the 3T desktop default/whole-workbook comparisons are complete and match.
+- LibreOffice fallback parity is still FAIL for lan05 and lan11 (active and whole-workbook scopes) and for lan28 whole-workbook scope; lan28 active scope matches at 2 pages. These are recorded as known engine differences.
+- Earlier “BLOCKED”/“unknown” statements in this document describe the previous attempt only. They are superseded by this section for the three Excel files and 3T desktop print counts.
+- The in-app Vietnamese Sheet help now gives the exact Tệp > In / Ctrl+P entry point and the three scope choices and basic steps in `platform/help/entries-sheet.js`.
+- `node tests/run-tests.js`: PASS, 2223/2223 on this resumed worktree.
+- `python -m unittest discover -s tests`: PASS, 536 tests in 386.632 seconds on an isolated run; no concurrent test/soffice command was running.
+- `git diff --check`: PASS after the documentation/help changes. Build: NOT RUN.

@@ -108,3 +108,47 @@ RISKS: Do not compare all-sheet historical counts 965/36 with new active-sheet o
 DEPENDENCIES/BLOCKERS: No new dependencies. Office COM is shared: sequential calls only, retry `RPC_E_CALL_REJECTED`, and terminate no process unless positively known to have been started by this job. This task made no further Office calls after the failed Excel attempt.
 CORE PATCH ID (if any): N/A; no LibreOffice Core modification.
 NEXT ACTION: Run final diff/status review, then commit on `fix/print-real-document-codex`; do not merge into main.
+
+## Resume Handoff — Excel truth and desktop verification — 2026-10-01
+
+TASK: Finish the print-scope follow-up using fresh Excel active-sheet/whole-workbook oracles, verify the 3T desktop dialog and output, and leave truthful handoff evidence.
+AGENT/ROLE: Codex / implementation
+BRANCH: fix/print-real-document-codex
+WORKTREE: E:\VNOffice-codex-print
+OBJECTIVE: Match Excel's default active/selected sheet and whole-workbook counts in the 3T print flow; expose the three Excel scope choices; document fallback renderer differences and validate the branch.
+
+FINDINGS:
+- `git merge main` was run before resumed edits and created merge commit `0c692761`; there are no merge conflicts. This branch remains unmerged into `main`.
+- Sequential hidden Excel COM exports of ReadOnly audit copies produced active/whole counts: lan05 14/14, lan11 306/965, lan28 2/36. Saved selected tabs were ExportData, Reyee, and Bảng Lương.
+- WebView2 CDP desktop verification showed the exact three scope labels, active scope selected by default, and Office as the default PDF engine. 3T active/whole Office counts matched Excel for all three files.
+- LibreOffice fallback after active-sheet scope is lan05 3, lan11 232, lan28 2; fallback whole-workbook totals are 3, 345, 35. Previous all-visible counts were 3, 345, 35. Fallback pagination deltas remain known; no synthetic page counts or print-setting changes were applied.
+- Inspected source print areas, scale, paper, orientation, page breaks, hidden rows/columns, and print titles are recorded in `docs/HANDOFF-PRINT.md`. No setting mismatch was found to explain the remaining LibreOffice-only differences.
+- Sheet Help now documents Tệp > In / Ctrl+P and all three scope choices with concrete steps in Vietnamese.
+
+IMPLEMENTATION SUMMARY:
+- Resumed the already committed print-scope implementation; no runtime print code was changed in this continuation.
+- Updated the Sheet in-app help and this evidence handoff. The detailed COM hashes/PIDs, PDF counts, settings, and superseding status are in `docs/HANDOFF-PRINT.md`.
+
+FILES CHANGED:
+- `platform/help/entries-sheet.js`
+- `docs/HANDOFF-PRINT.md`
+- `docs/AGENT-HANDOFF-PRINT-G10.md`
+
+COMMANDS RUN:
+- `git merge main` (already completed at resume; merge commit `0c692761`)
+- Hidden Excel COM exports for each ReadOnly audit copy, one process at a time
+- 3T desktop launch and print-state/page-count verification via WebView2 remote debugging and CDP (ports 9333–9336); no OS-level input
+- `node tests/run-tests.js`: PASS, 2223/2223
+- `python -m unittest discover -s tests`: PASS, 536 tests in 386.632 seconds, isolated run
+- `git diff --check`: PASS
+
+BUILD RESULT: NOT RUN.
+TEST RESULTS: Node PASS 2223/2223. Python PASS 536 tests in 386.632 seconds (`OK`). `git diff --check` PASS. Build NOT RUN.
+KNOWN FAILURES:
+- LibreOffice fallback remains lower than Excel for lan05 active/whole (3 vs 14), lan11 active (232 vs 306), lan11 whole (345 vs 965), and lan28 whole (35 vs 36). 3T's default Office route matches Excel in this environment.
+- Other Writer/Slides parity items listed earlier in this file remain outside this Excel/desktop resume verification.
+
+RISKS: Do not describe LibreOffice fallback as page-parity complete. Do not merge this branch into `main`. Keep Office COM sequential; do not terminate Office processes not started by this task.
+DEPENDENCIES/BLOCKERS: No new dependency. No remaining blocker for the Excel and 3T desktop count comparison; other G10 Writer/Slides parity evidence remains incomplete.
+CORE PATCH ID (if any): N/A; no LibreOffice Core changes.
+NEXT ACTION: Review final diff/status, then commit the help and evidence updates on this branch only.
