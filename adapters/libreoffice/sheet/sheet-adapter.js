@@ -53,6 +53,10 @@ export function numberFormatFromExcelCode(code) {
   }
 
   const dateCode = visible.replace(/AM\/PM/ig, "").toLowerCase();
+  const timePattern = dateCode.replace(/\s+/g, "");
+  if (/^h{1,2}(?::m{1,2}(?::s{1,2})?)?$/i.test(timePattern)) {
+    return { category: "time", timeFormat: timePattern };
+  }
   if (/[dmy]/.test(dateCode) || /h+\s*:|\[h\]/i.test(source)) {
     return { category: "date", dateFormat: source.replace(/\[[^\]]*\]/g, "").replace(/"([^"]*)"/g, "$1") };
   }
@@ -92,6 +96,8 @@ export class SheetAdapter {
   _excelCodeFromNumberFormat(fmt) {
     if (!fmt || !fmt.category) return null;
     const cat = fmt.category;
+    if (cat === "date") return String(fmt.dateFormat || "dd/mm/yyyy");
+    if (cat === "time") return String(fmt.timeFormat || "hh:mm");
     const decimals = Number(fmt.decimals || 0);
     const useThousands = fmt.useThousands;
     const currencySymbol = fmt.currencySymbol || "";
@@ -235,6 +241,7 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.cell.alignMiddle", () => this.grid.setStyle("verticalAlign", "middle"));
     globalCommandBus.bindHandler("sheet.cell.alignBottom", () => this.grid.setStyle("verticalAlign", "bottom"));
     globalCommandBus.bindHandler("sheet.cell.wrapText", () => this.grid.toggleWrapText());
+    globalCommandBus.bindHandler("sheet.cell.insertLineBreak", () => this.grid.insertLineBreak?.());
     globalCommandBus.bindHandler("sheet.cell.orientation", (value) => this.grid.setCellOrientation(value));
     globalCommandBus.bindHandler("sheet.cell.indentIncrease", () => this.grid.adjustIndent(1));
     globalCommandBus.bindHandler("sheet.cell.indentDecrease", () => this.grid.adjustIndent(-1));
@@ -1562,14 +1569,15 @@ export class SheetAdapter {
     if (category === "scientific") return `<number:number-style style:name="${name}"><number:scientific-number number:min-integer-digits="1" number:decimal-places="${decimals}" number:min-decimal-places="${decimals}" number:min-exponent-digits="2"/></number:number-style>`;
     if (category === "text") return `<number:text-style style:name="${name}"><number:text-content/></number:text-style>`;
     if (category === "date" || category === "time") {
-      const tokens = String(config.dateFormat || config.timeFormat || "dd/mm/yyyy").match(/"[^"]*"|yyyy|yy|mmmm|mm|dd|hh|ss|m|d|./gi) || [];
+      const tokens = String(config.dateFormat || config.timeFormat || (category === "time" ? "hh:mm" : "dd/mm/yyyy")).match(/"[^"]*"|yyyy|yy|mmmm|mm|dd|hh|h|ss|s|m|d|./gi) || [];
       const parts = tokens.map(token => {
         const lower = token.toLowerCase();
         if (["d", "dd"].includes(lower)) return `<number:day number:style="${lower === "dd" ? "long" : "short"}"/>`;
+        if (category === "time" && ["m", "mm"].includes(lower)) return `<number:minutes number:style="${lower === "mm" ? "long" : "short"}"/>`;
         if (["m", "mm", "mmmm"].includes(lower)) return `<number:month number:style="${lower === "m" ? "short" : "long"}"${lower === "mmmm" ? ' number:textual="true"' : ""}/>`;
         if (["yy", "yyyy"].includes(lower)) return `<number:year number:style="${lower === "yyyy" ? "long" : "short"}"/>`;
-        if (lower === "hh") return '<number:hours number:style="long"/>';
-        if (lower === "ss") return '<number:seconds number:style="long"/>';
+        if (["h", "hh"].includes(lower)) return `<number:hours number:style="${lower === "hh" ? "long" : "short"}"/>`;
+        if (["s", "ss"].includes(lower)) return `<number:seconds number:style="${lower === "ss" ? "long" : "short"}"/>`;
         return `<number:text>${this._escapeXml(token.replace(/^"|"$/g, ""))}</number:text>`;
       }).join("");
       return `<number:${category === "time" ? "time" : "date"}-style style:name="${name}">${parts}</number:${category === "time" ? "time" : "date"}-style>`;
@@ -1795,7 +1803,7 @@ export class SheetAdapter {
       ["N36", { category: "date", dateFormat: "dd/mm/yyyy" }],
       ["N100", { category: "text" }]
     ]);
-    const styleRegex = /<number:(number-style|percentage-style|currency-style|date-style|text-style|boolean-style)\b([^>]*)>([\s\S]*?)<\/number:\1>/gi;
+    const styleRegex = /<number:(number-style|percentage-style|currency-style|date-style|time-style|text-style|boolean-style)\b([^>]*)>([\s\S]*?)<\/number:\1>/gi;
     // XML thô của từng data-style (để ghi lại nguyên vẹn khi lưu — quy ước S7) + các style phụ mà style:map trỏ tới.
     const rawByName = new Map();
     for (const raw of xmlText.matchAll(styleRegex)) {
@@ -1835,8 +1843,8 @@ export class SheetAdapter {
         config.currencySymbol = this._unescapeXml(body.match(/<number:currency-symbol\b[^>]*>([\s\S]*?)<\/number:currency-symbol>/i)?.[1]?.replace(/<[^>]+>/g, "") || "");
         if (body.search(/<number:currency-symbol\b/i) > body.search(/<number:number\b/i)) config.symbolPosition = "after";
         if (/<number:fill-character\b/i.test(body)) config.category = "accounting";
-      } else if (match[1] === "date-style") {
-        config.category = "date";
+      } else if (match[1] === "date-style" || match[1] === "time-style") {
+        config.category = match[1] === "time-style" ? "time" : "date";
         const parts = [];
         body.replace(/<number:(day|month|year|hours|minutes|seconds)\b([^>]*)\/>|<number:text\b[^>]*>([\s\S]*?)<\/number:text>/gi, (all, kind, attrs, text) => {
           if (!kind) parts.push(this._unescapeXml((text || "").replace(/<[^>]+>/g, "")));
@@ -1846,7 +1854,9 @@ export class SheetAdapter {
           else parts.push({ hours: "hh", minutes: "mm", seconds: "ss" }[kind]);
           return all;
         });
-        config.dateFormat = parts.join(""); delete config.decimals; delete config.useThousands;
+        if (config.category === "time") config.timeFormat = parts.join("");
+        else config.dateFormat = parts.join("");
+        delete config.decimals; delete config.useThousands;
       } else if (match[1] === "text-style") {
         config.category = "text"; delete config.decimals; delete config.useThousands;
       } else if (/<number:scientific-number\b/i.test(body)) config.category = "scientific";
@@ -5603,6 +5613,8 @@ ${pristineXlsxMarker}
 
       case "sheet.cell.wrapText":
         return this.grid.toggleWrapText();
+      case "sheet.cell.insertLineBreak":
+        return this.grid.insertLineBreak ? this.grid.insertLineBreak() : false;
 
       case "sheet.cell.orientation":
         return this.grid.setCellOrientation ? this.grid.setCellOrientation(args) : false;

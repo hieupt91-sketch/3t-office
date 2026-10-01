@@ -346,6 +346,7 @@ export const viStrings = {
     ,"sheet.cell.alignMiddle": { label: "Căn giữa dọc", tooltip: "Căn nội dung vào giữa ô theo chiều dọc" }
     ,"sheet.cell.alignBottom": { label: "Căn dưới", tooltip: "Căn nội dung xuống dưới ô" }
     ,"sheet.cell.wrapText": { label: "Ngắt dòng tự động", tooltip: "Tự động xuống dòng theo độ rộng cột" }
+    ,"sheet.cell.insertLineBreak": { label: "Xuống dòng trong ô", tooltip: "Ngắt dòng trong cùng một ô (Alt+Enter)" }
     ,"sheet.cell.orientation": { label: "Hướng chữ", tooltip: "Xoay chữ trong ô: 0°, 45°, -45°, 90°, -90° hoặc dọc từ dưới lên" }
     ,"sheet.cell.indentIncrease": { label: "Tăng thụt lề", tooltip: "Tăng thụt lề nội dung ô" }
     ,"sheet.cell.indentDecrease": { label: "Giảm thụt lề", tooltip: "Giảm thụt lề nội dung ô" }
