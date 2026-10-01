@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { press } from "./actions.mjs";
@@ -463,73 +464,113 @@ async function runGridExtentDesktopTests() {
     await session.close().catch(() => {});
   }
 
-  // 12 & 13. LAN file parity verification (first 50 rows text)
-  console.log("Checking LAN files parity (lan02.xlsx and lan11.xlsx)...");
+  // 12, 13 & 14. Real LAN file parity verification (first 50 rows x 30 cols + non-empty counts)
+  console.log("Checking LAN files parity (lan02.xlsx, lan11.xlsx, lan09.xlsx)...");
   try {
-    let d02 = null;
-    let d11 = null;
-    const dump02Path = path.join(repoRoot, "scratch", "dump_lan02.json");
-    const dump11Path = path.join(repoRoot, "scratch", "dump_lan11.json");
+    const summaryPath = path.join(os.tmpdir(), "vno-grid-parity-ref", "parity_summary.json");
+    let summaryData = null;
     try {
-      const raw02 = await fs.readFile(dump02Path, "utf8");
-      d02 = JSON.parse(raw02);
+      const raw = await fs.readFile(summaryPath, "utf8");
+      summaryData = JSON.parse(raw);
     } catch {
-      d02 = {
-        "UNC": { "1": { "A": "UNC" } },
-        "DANH SÁCH CHI LƯƠNG": { "1": { "A": "Cộng hoà xã hội chủ nghĩa Việt Nam" } }
-      };
-    }
-    try {
-      const raw11 = await fs.readFile(dump11Path, "utf8");
-      d11 = JSON.parse(raw11);
-    } catch {
-      d11 = {
-        "Giới thiệu": { "1": { "A": "Giới thiệu" } },
-        "Reyee": { "2": { "A": "BÁO GIÁ CÁC SẢN PHẨM REYEE" } },
-        "Ruijie": { "1": { "A": "Ruijie" } }
-      };
+      // If parity summary does not exist in temp dir, try running verify-lan-parity.mjs if LAN files exist
+      try {
+        const { runParityCheck } = await import("./verify-lan-parity.mjs");
+        summaryData = await runParityCheck();
+      } catch (err) {
+        summaryData = null;
+      }
     }
 
-    const sheet02Keys = Object.keys(d02);
-    const sheet11Keys = Object.keys(d11);
+    if (!summaryData || !summaryData.files) {
+      report(
+        "NOT RUN",
+        "LAN file lan02.xlsx render parity (first 50 rows)",
+        "Reference data not found in OS temp and LAN source files unavailable to produce live"
+      );
+      report(
+        "NOT RUN",
+        "LAN file lan11.xlsx render parity (first 50 rows)",
+        "Reference data not found in OS temp and LAN source files unavailable to produce live"
+      );
+      report(
+        "NOT RUN",
+        "LAN file lan09.xlsx render parity (first 50 rows)",
+        "Reference data not found in OS temp and LAN source files unavailable to produce live"
+      );
+      return;
+    }
 
     // Verify lan02
-    const uncRows = Object.keys(d02["UNC"] || {}).length;
-    const salaryRows = Object.keys(d02["DANH SÁCH CHI LƯƠNG"] || {}).length;
-    const sample02A1 = d02["DANH SÁCH CHI LƯƠNG"]?.["1"]?.["A"] || "";
-
-    if (sheet02Keys.length === 2 && uncRows > 0 && salaryRows > 0 && sample02A1.includes("Việt Nam")) {
-      report(
-        "PASS",
-        "LAN file lan02.xlsx render parity (first 50 rows)",
-        `Sheets: [${sheet02Keys.join(", ")}], UNC rows: ${uncRows}, Salary rows: ${salaryRows}, A1: "${sample02A1}"`
-      );
+    const lan02 = summaryData.files["lan02.xlsx"];
+    if (!lan02) {
+      report("NOT RUN", "LAN file lan02.xlsx render parity (first 50 rows)", "lan02.xlsx entry missing in parity summary");
     } else {
-      report(
-        "FAIL",
-        "LAN file lan02.xlsx render parity (first 50 rows)",
-        `Sheets: ${JSON.stringify(sheet02Keys)}, UNC: ${uncRows}, Salary: ${salaryRows}`
-      );
+      const sheetKeys = Object.keys(lan02.sheets || {});
+      const uncNonEmpty = lan02.sheets["UNC"]?.nonEmptyBranch ?? 0;
+      const salaryNonEmpty = lan02.sheets["DANH SÁCH CHI LƯƠNG"]?.nonEmptyBranch ?? 0;
+      if (lan02.totalDifferingCells === 0 && lan02.nonEmptyParity && sheetKeys.length === 2) {
+        report(
+          "PASS",
+          "LAN file lan02.xlsx render parity (first 50 rows)",
+          `Sheets: [${sheetKeys.join(", ")}], Cells compared: ${lan02.totalCellsCompared}, Differing: ${lan02.totalDifferingCells}, Total non-empty: ${uncNonEmpty + salaryNonEmpty} (UNC: ${uncNonEmpty}, Salary: ${salaryNonEmpty})`
+        );
+      } else {
+        report(
+          "FAIL",
+          "LAN file lan02.xlsx render parity (first 50 rows)",
+          `Differing cells: ${lan02.totalDifferingCells}, Non-empty parity: ${lan02.nonEmptyParity}, Sheets: ${JSON.stringify(sheetKeys)}`
+        );
+      }
     }
 
     // Verify lan11
-    const introRows = Object.keys(d11["Giới thiệu"] || {}).length;
-    const reyeeRows = Object.keys(d11["Reyee"] || {}).length;
-    const ruijieRows = Object.keys(d11["Ruijie"] || {}).length;
-    const sample11A2 = d11["Reyee"]?.["2"]?.["A"] || "";
-
-    if (sheet11Keys.length === 3 && introRows > 0 && reyeeRows > 0 && ruijieRows > 0 && sample11A2.includes("REYEE")) {
-      report(
-        "PASS",
-        "LAN file lan11.xlsx render parity (first 50 rows)",
-        `Sheets: [${sheet11Keys.join(", ")}], Giới thiệu: ${introRows} rows, Reyee: ${reyeeRows} rows, Ruijie: ${ruijieRows} rows, Reyee!A2: "${sample11A2}"`
-      );
+    const lan11 = summaryData.files["lan11.xlsx"];
+    if (!lan11) {
+      report("NOT RUN", "LAN file lan11.xlsx render parity (first 50 rows)", "lan11.xlsx entry missing in parity summary");
     } else {
-      report(
-        "FAIL",
-        "LAN file lan11.xlsx render parity (first 50 rows)",
-        `Sheets: ${JSON.stringify(sheet11Keys)}, Intro: ${introRows}, Reyee: ${reyeeRows}, Ruijie: ${ruijieRows}`
-      );
+      const sheetKeys = Object.keys(lan11.sheets || {});
+      const introNonEmpty = lan11.sheets["Giới thiệu"]?.nonEmptyBranch ?? 0;
+      const reyeeNonEmpty = lan11.sheets["Reyee"]?.nonEmptyBranch ?? 0;
+      const ruijieNonEmpty = lan11.sheets["Ruijie"]?.nonEmptyBranch ?? 0;
+      const totalNonEmpty = introNonEmpty + reyeeNonEmpty + ruijieNonEmpty;
+      if (lan11.totalDifferingCells === 0 && lan11.nonEmptyParity && sheetKeys.length === 3) {
+        report(
+          "PASS",
+          "LAN file lan11.xlsx render parity (first 50 rows)",
+          `Sheets: [${sheetKeys.join(", ")}], Cells compared: ${lan11.totalCellsCompared}, Differing: ${lan11.totalDifferingCells}, Total non-empty: ${totalNonEmpty} (Intro: ${introNonEmpty}, Reyee: ${reyeeNonEmpty}, Ruijie: ${ruijieNonEmpty})`
+        );
+      } else {
+        report(
+          "FAIL",
+          "LAN file lan11.xlsx render parity (first 50 rows)",
+          `Differing cells: ${lan11.totalDifferingCells}, Non-empty parity: ${lan11.nonEmptyParity}, Sheets: ${JSON.stringify(sheetKeys)}`
+        );
+      }
+    }
+
+    // Verify lan09
+    const lan09 = summaryData.files["lan09.xlsx"];
+    if (!lan09) {
+      report("NOT RUN", "LAN file lan09.xlsx render parity (first 50 rows)", "lan09.xlsx entry missing in parity summary");
+    } else {
+      let totalNonEmpty = 0;
+      for (const s of Object.values(lan09.sheets || {})) {
+        totalNonEmpty += (s.nonEmptyBranch || 0);
+      }
+      if (lan09.totalDifferingCells === 0 && lan09.nonEmptyParity && lan09.sheetsCompared >= 48) {
+        report(
+          "PASS",
+          "LAN file lan09.xlsx render parity (first 50 rows)",
+          `Sheets: ${lan09.sheetsCompared}, Cells compared: ${lan09.totalCellsCompared}, Differing: ${lan09.totalDifferingCells}, Total non-empty: ${totalNonEmpty}`
+        );
+      } else {
+        report(
+          "FAIL",
+          "LAN file lan09.xlsx render parity (first 50 rows)",
+          `Differing cells: ${lan09.totalDifferingCells}, Non-empty parity: ${lan09.nonEmptyParity}, Sheets: ${lan09.sheetsCompared}`
+        );
+      }
     }
   } catch (err) {
     report("FAIL", "LAN files verification", err.message);
@@ -555,7 +596,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
   }
   const passCount = rows.filter(row => row.status === "PASS").length;
   const failCount = rows.filter(row => row.status === "FAIL").length;
+  const notRunCount = rows.filter(row => row.status === "NOT RUN").length;
   console.log("");
-  console.log("TOTAL: " + passCount + " PASS, " + failCount + " FAIL");
+  console.log("TOTAL: " + passCount + " PASS, " + failCount + " FAIL" + (notRunCount > 0 ? ", " + notRunCount + " NOT RUN" : ""));
   if (failCount > 0) process.exitCode = 1;
 }
