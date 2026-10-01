@@ -23,6 +23,7 @@ import { extractSheetRangeData, SHEET_CHART_TYPES } from "./sheet-chart-data.js"
 import { SheetDataTools } from "./data-tools.js";
 import { computeConsolidate, formatSheetRange, parseConsolidateReference, CONSOLIDATE_FUNCTIONS } from "./consolidate.js";
 import { createMatcher } from "../../platform/find/find-engine.js";
+import { InputNormalizer } from "../../platform/keyboard/input-normalizer.js";
 
 const { showAlertDialog, showConfirmDialog, showPromptDialog, showFindReplaceDialog } = createLazyDialogs("sheet");
 
@@ -354,6 +355,10 @@ export class SheetGridController {
     this.formulaInput.before(formulaInputWrap);
     formulaInputWrap.append(this.formulaReferenceOverlay, this.formulaInput);
 
+    this._formulaInputNormalizer = new InputNormalizer({
+      target: this.formulaInput
+    }).attach(this.formulaInput);
+
     this.autocomplete.mount();
 
     this.formulaInput.addEventListener("focus", () => {
@@ -610,6 +615,7 @@ export class SheetGridController {
   destroy() {
     this._closeSpellcheckDialog();
     this._closeContextMenu();
+    this._formulaInputNormalizer?.destroy?.();
     this.autocomplete?.destroy?.();
   }
 
@@ -1483,7 +1489,8 @@ export class SheetGridController {
     const session = this.formulaEntry;
     if (!session) return false;
     if (this.formulaInput) session.update(this.formulaInput.value, this.formulaInput.selectionStart ?? this.formulaInput.value.length);
-    const finalValue = session.commit();
+    let finalValue = session.commit();
+    if (typeof finalValue === "string") finalValue = finalValue.normalize("NFC");
     const coord = { ...session.coord };
     const ownerSheet = session.sheet;
     if (this.activeSheet !== ownerSheet) {
@@ -4261,10 +4268,10 @@ _bindGridKeyboardNavigation() {
     });
 
     const rows = [
-      ["1", "Thiết kế giao diện thuần Việt & UI Kit", "1", "Gói", "25.000.000 ₫", "25.000.000 ₫"],
-      ["2", "Tích hợp lõi xử lý văn bản LibreOffice Core", "1", "Hệ thống", "45.000.000 ₫", "45.000.000 ₫"],
-      ["3", "Xây dựng cầu nối UNO Bridge & Command Bus", "1", "Module", "30.000.000 ₫", "30.000.000 ₫"],
-      ["4", "Bộ kiểm thử tương thích chuẩn OOXML", "2", "Đợt", "10.000.000 ₫", "20.000.000 ₫"]
+      ["1", "Chuẩn bị tài liệu hướng dẫn sử dụng 3T Office", "1", "Gói", "25.000.000 ₫", "25.000.000 ₫"],
+      ["2", "Tập huấn soạn công văn bằng Doc", "1", "Khóa", "45.000.000 ₫", "45.000.000 ₫"],
+      ["3", "Lập bảng theo dõi công việc bằng Sheet", "1", "Buổi", "30.000.000 ₫", "30.000.000 ₫"],
+      ["4", "Chuẩn bị báo cáo cuộc họp bằng Slide", "2", "Đợt", "10.000.000 ₫", "20.000.000 ₫"]
     ];
 
     rows.forEach((rData, idx) => {
@@ -4349,6 +4356,7 @@ _bindGridKeyboardNavigation() {
   }
 
   setCellValue(col, row, val, recordUndo = true, historyOptions = {}) {
+    if (typeof val === "string") val = val.normalize("NFC");
     if (recordUndo && this._guardProtectedMutation()) return false;
     const key = `${col}${row}`;
     let item = this.cellsData.get(key) || { val: "", formula: "", style: {} };
@@ -5955,7 +5963,7 @@ _bindGridKeyboardNavigation() {
     if (!this.sheetChartBuilder) {
       this._loadChartBuilder(true).catch((error) => {
         console.error("3T Sheet could not load chart tools.", error);
-        this.showNotification?.("Không tải được công cụ Biểu đồ của 3T Sheet.");
+        this.showNotification?.("Không tải được công cụ Biểu đồ của Sheet.");
       });
     }
     if (recordUndo) this._recordHistory({ type: "collection", sheet: this.activeSheet, collection: "chartsBySheet", operation: "insert", index: this.chartsBySheet[this.activeSheet].length - 1, item: structuredClone(chart) });

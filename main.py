@@ -443,9 +443,9 @@ def _start_static_server():
 APP_DATA_DIR_NAME = "VNOffice"
 VALID_APP_KINDS = ("writer", "sheet", "slides")
 APP_TITLES = {
-    "writer": "3T Doc — Soạn thảo văn bản",
-    "sheet": "3T Sheet — Bảng tính",
-    "slides": "3T Slide — Trình chiếu",
+    "writer": "Doc",
+    "sheet": "Sheet",
+    "slides": "Slide",
 }
 TASKBAR_APP_USER_MODEL_IDS = {
     "writer": "VNOffice.Writer",
@@ -697,11 +697,11 @@ class _SofficeUnoWorker:
         python_path = self._python_path()
         if not python_path or not SOFFICE_PATH:
             raise _PersistentSofficeTransportError(
-                "Không tìm thấy Python/UNO đi kèm LibreOffice."
+                "Không khởi động được bộ xử lý tài liệu. Vui lòng cài lại 3T Office."
             )
         worker_path = Path(ROOT_DIR) / "adapters" / "libreoffice" / "common" / "soffice_uno_worker.py"
         if not worker_path.is_file():
-            raise _PersistentSofficeTransportError("Không tìm thấy helper UNO của 3T Office.")
+            raise _PersistentSofficeTransportError("Không tìm thấy bộ xử lý tài liệu. Vui lòng cài lại 3T Office.")
 
         pipe_name = f"vnoffice_{os.getpid()}_{uuid.uuid4().hex}"
         profile_uri = _profile_uri(self.app_kind)
@@ -735,7 +735,7 @@ class _SofficeUnoWorker:
             self.stop(grace_seconds=0.5)
             raise
         if not handshake.get("ready"):
-            message = handshake.get("error") or "LibreOffice UNO helper did not start."
+            message = handshake.get("error") or "Không khởi động được bộ xử lý tài liệu."
             self.stop(grace_seconds=0.5)
             raise _PersistentSofficeTransportError(str(message))
         _open_perf_log(
@@ -756,7 +756,7 @@ class _SofficeUnoWorker:
                     if isinstance(payload, dict):
                         self.responses.put(payload)
                 except (json.JSONDecodeError, TypeError):
-                    self.responses.put({"_protocol_error": "LibreOffice helper sent invalid JSON."})
+                    self.responses.put({"_protocol_error": "Bộ xử lý tài liệu gửi phản hồi không hợp lệ."})
         finally:
             self.responses.put(None)
 
@@ -764,11 +764,11 @@ class _SofficeUnoWorker:
         try:
             response = self.responses.get(timeout=timeout)
         except queue.Empty as exc:
-            raise _PersistentSofficeTransportError("Hết thời gian chờ phản hồi từ LibreOffice.") from exc
+            raise _PersistentSofficeTransportError("Hết thời gian chờ xử lý tài liệu.") from exc
         if response is None:
             code = self.process.poll() if self.process else None
             raise _PersistentSofficeTransportError(
-                f"LibreOffice UNO helper đã dừng (exit={code})."
+                f"Bộ xử lý tài liệu đã dừng. Vui lòng thử lại."
             )
         if response.get("_protocol_error"):
             raise _PersistentSofficeTransportError(str(response["_protocol_error"]))
@@ -784,7 +784,7 @@ class _SofficeUnoWorker:
     ) -> str:
         process = self.process
         if process is None or process.poll() is not None or process.stdin is None:
-            raise _PersistentSofficeTransportError("LibreOffice UNO helper is not running.")
+            raise _PersistentSofficeTransportError("Bộ xử lý tài liệu chưa sẵn sàng. Vui lòng thử lại.")
         request_id = uuid.uuid4().hex
         request = {
             "id": request_id,
@@ -804,9 +804,9 @@ class _SofficeUnoWorker:
         except (OSError, BrokenPipeError) as exc:
             raise _PersistentSofficeTransportError(str(exc)) from exc
         if response.get("id") != request_id:
-            raise _PersistentSofficeTransportError("LibreOffice UNO helper returned an unexpected response.")
+            raise _PersistentSofficeTransportError("Không nhận được kết quả xử lý tài liệu hợp lệ.")
         if not response.get("ok"):
-            raise _PersistentSofficeConversionError(str(response.get("error") or "UNO conversion failed"))
+            raise _PersistentSofficeConversionError(str(response.get("error") or "Không chuyển đổi được tài liệu."))
         _open_perf_log(
             "uno_load_and_store",
             (time.perf_counter() - started) * 1000,
@@ -818,7 +818,7 @@ class _SofficeUnoWorker:
     def operation(self, operation: str, payload: dict, timeout: float = 180) -> dict:
         process = self.process
         if process is None or process.poll() is not None or process.stdin is None:
-            raise _PersistentSofficeTransportError("LibreOffice UNO helper is not running.")
+            raise _PersistentSofficeTransportError("Bộ xử lý tài liệu chưa sẵn sàng. Vui lòng thử lại.")
         request_id = uuid.uuid4().hex
         request = {"id": request_id, "op": operation, **payload}
         started = time.perf_counter()
@@ -830,9 +830,9 @@ class _SofficeUnoWorker:
         except (OSError, BrokenPipeError) as exc:
             raise _PersistentSofficeTransportError(str(exc)) from exc
         if response.get("id") != request_id:
-            raise _PersistentSofficeTransportError("LibreOffice UNO helper returned an unexpected response.")
+            raise _PersistentSofficeTransportError("Không nhận được kết quả xử lý tài liệu hợp lệ.")
         if not response.get("ok"):
-            raise _PersistentSofficeConversionError(str(response.get("error") or "LibreOffice operation failed"))
+            raise _PersistentSofficeConversionError(str(response.get("error") or "Không xử lý được tài liệu."))
         _open_perf_log(
             f"uno_{operation}",
             (time.perf_counter() - started) * 1000,
@@ -921,7 +921,7 @@ class _PersistentSofficeManager:
             except Exception as exc:
                 last_error = exc
                 self._stop_locked()
-        raise _PersistentSofficeTransportError(str(last_error or "LibreOffice helper is unavailable"))
+        raise _PersistentSofficeTransportError(str(last_error or "Bộ xử lý tài liệu chưa sẵn sàng."))
 
     def prepare(self, app_kind: str) -> None:
         if app_kind not in {"writer", "sheet", "slides"} or not _PERSISTENT_SOFFICE_ENABLED:
@@ -1014,8 +1014,8 @@ class _PersistentSofficeManager:
                 except Exception as retry_error:
                     self._stop_locked()
                     raise _PersistentSofficeTransportError(
-                        f"LibreOffice could not recover for {operation}: {retry_error} "
-                        f"(first error: {first_error})"
+                        f"Không thể tiếp tục xử lý tài liệu. "
+                        f"Hãy thử lại hoặc khởi động lại 3T Office."
                     ) from retry_error
             finally:
                 if operation == "print_pdf" and self._worker is worker:
@@ -1216,8 +1216,8 @@ def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind:
 
     if not SOFFICE_PATH:
         error = DocumentEngineError(
-            "Không tìm thấy LibreOffice engine (soffice). Vui lòng cài đặt LibreOffice "
-            "hoặc đặt biến môi trường VNOFFICE_SOFFICE_PATH trỏ tới soffice."
+            "Không tìm thấy bộ xử lý tài liệu. "
+            "Vui lòng cài lại 3T Office rồi thử lại."
         )
         report_conversion_failure(type(error).__name__, str(error))
         raise error
@@ -1301,7 +1301,7 @@ def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind:
                 )
                 if Path(persistent_path).is_file():
                     return persistent_path
-                raise _PersistentSofficeTransportError("UNO helper did not create its output file.")
+                raise _PersistentSofficeTransportError("Không tạo được tệp kết quả. Hãy thử lại.")
             except Exception as exc:
                 _open_perf_log("uno_fallback_to_convert_to", app=app_kind or "shared", error=str(exc)[:180])
                 # The output path was absent before UNO was called, so a partial
@@ -1324,13 +1324,13 @@ def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind:
 
     if result.returncode != 0:
         detail = (result.stderr or result.stdout or "").strip()[:500]
-        message = f"LibreOffice báo lỗi khi chuyển đổi: {detail or 'không rõ nguyên nhân'}"
+        message = f"Không chuyển đổi được tài liệu. Hãy kiểm tra tệp và thử lại."
         report_conversion_failure("SofficeExitError", message)
         raise DocumentEngineError(message)
 
     if not out_path.is_file():
         detail = (result.stdout or "").strip()[:500]
-        message = f"Không tạo được tệp đầu ra. Chi tiết: {detail or 'không rõ'}"
+        message = f"Không tạo được tệp đầu ra. Hãy kiểm tra tệp và thử lại."
         report_conversion_failure("SofficeOutputMissing", message)
         raise DocumentEngineError(message)
 
@@ -1997,7 +1997,7 @@ def _write_print_source(
         except DocumentEngineError:
             raise
         except Exception as exc:
-            raise DocumentEngineError(f"3T Sheet không chuẩn bị được phạm vi in: {exc}") from exc
+            raise DocumentEngineError(f"Sheet không chuẩn bị được phạm vi in: {exc}") from exc
     return native_path
 
 
@@ -2066,7 +2066,7 @@ def _export_content_to_pdf(
 def _print_pdf_to_target_file(pdf_path: str, printer: str, destination_path: str, app_kind: str) -> dict:
     """Use LibreOffice batch print-to-file for the Microsoft PDF printer without its prompt."""
     if not SOFFICE_PATH:
-        raise DocumentEngineError("Không tìm thấy LibreOffice engine để gửi lệnh in.")
+        raise DocumentEngineError("Bộ xử lý tài liệu chưa sẵn sàng để in. Vui lòng cài lại 3T Office.")
     destination = Path(destination_path).expanduser().resolve()
     if destination.suffix.lower() != ".pdf":
         destination = destination.with_suffix(".pdf")
@@ -2111,7 +2111,7 @@ def _print_pdf_to_target_file(pdf_path: str, printer: str, destination_path: str
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
-            raise RuntimeError(f"LibreOffice không hoàn tất lệnh in: {exc}") from exc
+            raise RuntimeError(f"Không hoàn tất lệnh in. Hãy kiểm tra máy in và thử lại.") from exc
         generated_pdf = output_dir / source_copy.name
         if completed.returncode != 0 or not generated_pdf.is_file() or generated_pdf.stat().st_size <= 0:
             detail = (completed.stderr or completed.stdout or "").strip()
@@ -2658,14 +2658,14 @@ class VnOfficeApi:
             "developer": "3T Technology",
             "copyright": "© 2024–2026 3T Technology. All rights reserved.",
             "suite_components": [
-                {"name": "3T Doc", "role": "Soạn thảo văn bản và tài liệu hành chính"},
-                {"name": "3T Sheet", "role": "Bảng tính điện tử và phân tích số liệu"},
-                {"name": "3T Slide", "role": "Trình chiếu và thuyết trình đa phương tiện"}
+                {"name": "Doc", "role": "Soạn thảo văn bản và tài liệu hành chính"},
+                {"name": "Sheet", "role": "Bảng tính điện tử và phân tích số liệu"},
+                {"name": "Slide", "role": "Trình chiếu và thuyết trình đa phương tiện"}
             ],
             "third_party_notices": notices_text,
             "components": [
                 {"name": "Python", "version": "3.12", "license": "PSF License", "purpose": "Ngôn ngữ nền tảng & logic ứng dụng"},
-                {"name": "LibreOffice", "version": "7.6+", "license": "MPL-2.0", "purpose": "Lõi xử lý định dạng tài liệu ODF và OOXML"},
+                {"name": "LibreOffice", "version": "7.6+", "license": "MPL-2.0", "purpose": "Xử lý tài liệu"},
                 {"name": "pywebview", "version": "5.x", "license": "BSD-3-Clause", "purpose": "Khung hiển thị cửa sổ desktop native độc lập"},
                 {"name": "pythonnet & clr_loader", "version": "3.x", "license": "MIT", "purpose": "Cầu nối Windows .NET / WebView2"},
                 {"name": "cffi & pycparser", "version": "1.x", "license": "MIT / BSD-3-Clause", "purpose": "Giao tiếp nhị phân C native"},
@@ -2942,7 +2942,7 @@ class VnOfficeApi:
         try:
             return self._get_print_pipeline().preview_page(session_id, page_number)
         except Exception as exc:
-            return {"status": "error", "message": f"Không tải được trang xem trước: {exc}"}
+            return {"status": "error", "message": f"Không tải được trang xem trước. Hãy đóng hộp thoại In và thử lại."}
 
     def get_installed_printers(self):
         return _get_print_pipeline_module().list_installed_printers()
@@ -3630,7 +3630,7 @@ class VnOfficeApi:
                     if src_path.lower().endswith(".xlsx") and original_xlsx is not None:
                         patcher = _ooxml_zip_patch()
                         if _sheet_open_payload_enabled():
-                            _notify_sheet_open_progress("Đang đóng gói dữ liệu để nạp nhanh vào 3T Sheet…", api=self)
+                            _notify_sheet_open_progress("Đang đóng gói dữ liệu để nạp nhanh vào Sheet…", api=self)
                             try:
                                 from adapters.libreoffice.sheet.sheet_open_payload import build_sheet_open_payload
                                 final_fods, sheet_open_payload = build_sheet_open_payload(
@@ -3813,7 +3813,7 @@ class VnOfficeApi:
                     "content": fods_content,
                 }
             except Exception as exc:
-                return {"status": "error", "message": f"Không chuyển đổi được tệp {file_name}: {exc}"}
+                return {"status": "error", "message": f"Không đọc được tệp bảng tính {file_name}. Hãy kiểm tra tệp và thử lại."}
 
         return {"status": "error", "message": f"Định dạng tệp không được hỗ trợ: {ext}"}
 
@@ -3839,7 +3839,7 @@ class VnOfficeApi:
         except DocumentEngineError as exc:
             return {"status": "error", "message": str(exc)}
         except Exception as exc:
-            return {"status": "error", "message": f"Lỗi không xác định khi lưu tệp: {exc}"}
+            return {"status": "error", "message": f"Không lưu được tệp. Hãy kiểm tra quyền ghi, dung lượng trống và thử lại."}
 
         self._current_file_path = target_path
         return {"status": "ok", "message": f"Đã lưu tại {target_path}", "path": target_path}
@@ -3920,7 +3920,7 @@ class VnOfficeApi:
         except DocumentEngineError as exc:
             return {"status": "error", "message": str(exc)}
         except Exception as exc:
-            return {"status": "error", "message": f"Lỗi không xác định khi lưu tệp: {exc}"}
+            return {"status": "error", "message": f"Không lưu được tệp. Hãy kiểm tra quyền ghi, dung lượng trống và thử lại."}
 
         self._current_file_path = dest_path
         response = {"status": "ok", "message": f"Đã lưu tại {dest_path}", "path": dest_path}

@@ -1,14 +1,16 @@
-/**
- * VN Office — Unit Tests: Kiểm tra độ phủ Hướng dẫn sử dụng (Help Coverage Guard)
- * Đảm bảo 100% lệnh trên Ribbon có handler đều được bài Help nhắc tới.
- */
-
 import { analyzeHelpCoverage } from "../../scripts/help-coverage.mjs";
 import { searchHelpEntries } from "../../platform/help/help-service.js";
 import { WRITER_HELP_ENTRIES } from "../../platform/help/entries-writer.js";
 import { SHEET_HELP_ENTRIES } from "../../platform/help/entries-sheet.js";
+import { SLIDES_HELP_ENTRIES } from "../../platform/help/entries-slides.js";
 import { AUTORECOVER_HELP_ENTRIES } from "../../platform/help/entries-autorecover.js";
 import { LAUNCHER_HELP_ENTRIES } from "../../platform/help/entries-launcher.js";
+import { HELP_ENTRIES, registerHelpEntries } from "../../platform/help/help-catalog.js";
+
+/** Danh mục các nút đang chờ hoàn thiện theo docs/RIBBON-BACKLOG.md */
+const PENDING_BACKLOG_EXCEPTIONS = new Set([
+  // Tất cả các lệnh hiện đã có bài Help tương ứng.
+]);
 
 export async function runHelpCoverageTests() {
   const results = [];
@@ -21,15 +23,18 @@ export async function runHelpCoverageTests() {
     }
   };
 
+  registerHelpEntries(SHEET_HELP_ENTRIES);
+  registerHelpEntries(SLIDES_HELP_ENTRIES);
   const analysis = analyzeHelpCoverage();
 
   await test("Help Coverage: 100% lệnh ribbon VN Writer có handler đều được phủ bài Help", () => {
     const writer = analysis.writer;
-    if (writer.uncoveredCount > 0) {
-      const details = writer.uncoveredCommands
+    const uncovered = writer.uncoveredCommands.filter((c) => !PENDING_BACKLOG_EXCEPTIONS.has(c.commandId));
+    if (uncovered.length > 0) {
+      const details = uncovered
         .map((c) => `[${c.tabLabel} > ${c.groupLabel}] ${c.commandId} (${c.label})`)
         .join("; ");
-      throw new Error(`Còn ${writer.uncoveredCount} lệnh Writer chưa có bài Help: ${details}`);
+      throw new Error(`Còn ${uncovered.length} lệnh Writer chưa có bài Help: ${details}`);
     }
     // Section options add three supported Writer ribbon commands.
     if (writer.coveredCount !== writer.liveCount || writer.liveCount !== 134) {
@@ -39,28 +44,44 @@ export async function runHelpCoverageTests() {
 
   await test("Help Coverage: 100% lệnh ribbon VN Sheet có handler đều được phủ bài Help", () => {
     const sheet = analysis.sheet;
-    if (sheet.uncoveredCount > 0) {
-      const details = sheet.uncoveredCommands
+    const uncovered = sheet.uncoveredCommands.filter((c) => !PENDING_BACKLOG_EXCEPTIONS.has(c.commandId));
+    if (uncovered.length > 0) {
+      const details = uncovered
         .map((c) => `[${c.tabLabel} > ${c.groupLabel}] ${c.commandId} (${c.label})`)
         .join("; ");
-      throw new Error(`Còn ${sheet.uncoveredCount} lệnh Sheet chưa có bài Help: ${details}`);
+      throw new Error(`Còn ${uncovered.length} lệnh Sheet chưa có bài Help: ${details}`);
     }
     if (sheet.coveredCount !== sheet.liveCount || sheet.liveCount !== 152) {
       throw new Error(`Số lượng lệnh Sheet không khớp: covered=${sheet.coveredCount}, live=${sheet.liveCount}`);
     }
   });
 
-  await test("Help Coverage: Không phát hiện nút chết không có handler trên ribbon", () => {
-    const writerDead = analysis.writer.deadCount;
-    const sheetDead = analysis.sheet.deadCount;
-    if (writerDead > 0 || sheetDead > 0) {
-      throw new Error(`Phát hiện nút chết: Writer=${writerDead}, Sheet=${sheetDead}`);
+  await test("Help Coverage: 100% lệnh ribbon VN Slides có handler đều được phủ bài Help", () => {
+    const slides = analysis.slides;
+    const uncovered = slides.uncoveredCommands.filter((c) => !PENDING_BACKLOG_EXCEPTIONS.has(c.commandId));
+    if (uncovered.length > 0) {
+      const details = uncovered
+        .map((c) => `[${c.tabLabel} > ${c.groupLabel}] ${c.commandId} (${c.label})`)
+        .join("; ");
+      throw new Error(`Còn ${uncovered.length} lệnh Slides chưa có bài Help: ${details}`);
+    }
+    if (slides.coveredCount !== slides.liveCount || slides.liveCount !== 109) {
+      throw new Error(`Số lượng lệnh Slides không khớp: covered=${slides.coveredCount}, live=${slides.liveCount}`);
     }
   });
 
-  await test("Help Coverage: Toàn bộ bài Help Writer và Sheet chuẩn cấu trúc, không placeholder", () => {
+  await test("Help Coverage: Không phát hiện nút chết không có handler trên ribbon", () => {
+    const writerDead = analysis.writer.deadCount;
+    const sheetDead = analysis.sheet.deadCount;
+    const slidesDead = analysis.slides.deadCount;
+    if (writerDead > 0 || sheetDead > 0 || slidesDead > 0) {
+      throw new Error(`Phát hiện nút chết: Writer=${writerDead}, Sheet=${sheetDead}, Slides=${slidesDead}`);
+    }
+  });
+
+  await test("Help Coverage: Toàn bộ bài Help Writer, Sheet và Slides chuẩn cấu trúc, không placeholder", () => {
     const banned = /lorem|todo|placeholder|xxx|nội dung mẫu|coming soon/i;
-    const allEntries = [...WRITER_HELP_ENTRIES, ...SHEET_HELP_ENTRIES];
+    const allEntries = [...WRITER_HELP_ENTRIES, ...SHEET_HELP_ENTRIES, ...SLIDES_HELP_ENTRIES];
 
     for (const entry of allEntries) {
       if (!entry.id || !entry.title || !entry.summary) {
@@ -78,6 +99,86 @@ export async function runHelpCoverageTests() {
       const textBlob = [entry.title, entry.summary, ...entry.steps].join(" ");
       if (banned.test(textBlob)) {
         throw new Error(`Bài ${entry.id} chứa nội dung placeholder/giả`);
+      }
+    }
+  });
+
+  await test("Help Coverage: Mọi bài Help trong Catalog có tiêu đề, app hợp lệ, độ dài thân bài > 200 ký tự và ít nhất 2 bước", () => {
+    for (const entry of HELP_ENTRIES) {
+      if (!entry.id) {
+        throw new Error("Phát hiện bài Help thiếu id");
+      }
+      if (!entry.title || typeof entry.title !== "string" || !entry.title.trim()) {
+        throw new Error(`Bài ${entry.id} thiếu tiêu đề (title)`);
+      }
+      if (!["writer", "sheet", "slides", "common"].includes(entry.app)) {
+        throw new Error(`Bài ${entry.id} có app '${entry.app}' không hợp lệ (phải là writer, sheet, slides hoặc common)`);
+      }
+      const body = [entry.summary || "", ...(entry.steps || []), entry.note || ""].join(" ").trim();
+      if (body.length <= 200) {
+        throw new Error(`Bài ${entry.id} có độ dài thân bài (${body.length} ký tự) chưa vượt quá 200 ký tự`);
+      }
+      if (!Array.isArray(entry.steps) || entry.steps.length < 2) {
+        throw new Error(`Bài ${entry.id} phải có ít nhất 2 bước thực hiện cụ thể (hiện có ${entry.steps?.length || 0})`);
+      }
+    }
+  });
+
+  await test("Help Coverage: Không dùng tên sản phẩm độc quyền bị cấm (Word, Excel, PowerPoint)", () => {
+    const bannedRegex = /\b(Word|Excel|PowerPoint)\b/i;
+
+    const violations = [];
+    for (const entry of HELP_ENTRIES) {
+      const fullText = [entry.title || "", entry.summary || "", ...(entry.steps || []), entry.note || ""].join(" ");
+      const match = fullText.match(bannedRegex);
+      if (match) {
+        violations.push(`${entry.id} (${match[0]})`);
+      }
+    }
+    if (violations.length > 0) {
+      throw new Error(`Phát hiện tên sản phẩm bị cấm trong ${violations.length} bài Help: ${violations.join(", ")}`);
+    }
+  });
+
+  await test("Help Coverage: Toàn bộ 9 tính năng Shared Platform cốt lõi đều có bài Help chuyên biệt", () => {
+    const platformIds = [
+      "common.platform.pasteSpecialHelp",
+      "common.platform.printAndExportPdfHelp",
+      "common.platform.findReplaceHelp",
+      "common.platform.themeDarkLightHelp",
+      "common.platform.quickStartHelp",
+      "common.platform.contextualF1Help",
+      "common.platform.keyTipsHelp",
+      "common.platform.oneClickUpdateHelp",
+      "common.platform.autoRecoverHelp"
+    ];
+    for (const pid of platformIds) {
+      const entry = HELP_ENTRIES.find((e) => e.id === pid);
+      if (!entry) {
+        throw new Error(`Thiếu bài Help cho tính năng Shared Platform: ${pid}`);
+      }
+    }
+  });
+
+  await test("Help Coverage: Hộp thoại cốt lõi của cả 3 ứng dụng đều có bài Help hướng dẫn chi tiết", () => {
+    const dialogHelpIds = [
+      "writer.dialog.pageSetupHelp",
+      "writer.dialog.paragraphHelp",
+      "writer.dialog.fontHelp",
+      "sheet.dialog.formatCellsHelp",
+      "sheet.dialog.cellStylesHelp",
+      "sheet.dialog.dataValidationHelp",
+      "slides.dialog.insertTableHelp",
+      "slides.dialog.headerFooterHelp",
+      "slides.dialog.setupShowHelp",
+      "common.dialog.findReplaceHelp",
+      "common.dialog.macroManagerHelp",
+      "common.dialog.printHelp"
+    ];
+    for (const did of dialogHelpIds) {
+      const entry = HELP_ENTRIES.find((e) => e.id === did);
+      if (!entry) {
+        throw new Error(`Thiếu bài Help cho hộp thoại: ${did}`);
       }
     }
   });

@@ -5,9 +5,9 @@
 export const viStrings = {
   app: {
     suiteName: "3T Office",
-    writer: "3T Doc (Soạn thảo)",
-    sheet: "3T Sheet (Bảng tính)",
-    slides: "3T Slide (Trình chiếu)"
+    writer: "Doc (Soạn thảo)",
+    sheet: "Sheet (Bảng tính)",
+    slides: "Slide (Trình chiếu)"
   },
   common: {
     save: "Lưu tài liệu",
@@ -62,8 +62,8 @@ export const viStrings = {
     formulaFromDescPlaceholder: "Mô tả công thức cần tạo...",
     formulaFromDescPreview: "Xem trước công thức",
     formulaFromDescApply: "Áp dụng vào ô đang chọn",
-    formulaFromDescInvalid: "Công thức tạo ra không tương thích với 3T Sheet. Vui lòng thử lại với mô tả khác.",
-    formulaFromDescUnsupported: "Công thức chứa hàm 3T Sheet chưa hỗ trợ:"
+    formulaFromDescInvalid: "Công thức tạo ra không tương thích với Sheet. Vui lòng thử lại với mô tả khác.",
+    formulaFromDescUnsupported: "Công thức chứa hàm Sheet chưa hỗ trợ:"
   },
   backstage: {
     home: "Trang chủ",
@@ -139,7 +139,7 @@ export const viStrings = {
   sheetFormulaEntry: {
     status: { enter: "Nhập", edit: "Sửa", point: "Trỏ" },
     referenceHint: "Chọn hoặc kéo qua ô để chèn tham chiếu; F2 chuyển giữa Sửa và Trỏ.",
-    formulaBarLabel: "Thanh công thức 3T Sheet"
+    formulaBarLabel: "Thanh công thức Sheet"
   },
   slidesRibbon: {
     tab: { home: "Trang đầu", insert: "Chèn", design: "Thiết kế", transitions: "Chuyển tiếp", animations: "Hoạt hình", slideshow: "Trình chiếu", review: "Đánh giá", view: "Chế độ xem", help: "Trợ giúp", ai: "Trợ lý 3T AI" },
@@ -298,8 +298,8 @@ export const viStrings = {
     formatBackgroundTitle: "Định dạng nền", formatBackgroundHint: "Đổi nền trang chiếu hiện tại. Không thay chủ đề toàn bài.", formatBackgroundSolid: "Màu đơn", formatBackgroundGradient: "Gradient 2 màu", formatBackgroundPicture: "Ảnh nền", formatBackgroundColor: "Màu nền", formatBackgroundFrom: "Màu 1", formatBackgroundTo: "Màu 2", formatBackgroundDirection: "Hướng", formatBackgroundHorizontal: "Ngang", formatBackgroundVertical: "Dọc", formatBackgroundChoosePicture: "Chọn ảnh…", formatBackgroundApplyCurrent: "Áp dụng trang này", formatBackgroundApplyAll: "Áp dụng tất cả trang", formatBackgroundClear: "Xóa nền tùy chỉnh",
     spellcheckTitle: "Chính tả", spellcheckNotInDictionary: "Không có trong từ điển:", spellcheckLocation: "Vị trí", spellcheckContext: "Nội dung", spellcheckSuggestions: "Gợi ý:", spellcheckNoSuggestions: "(Không có gợi ý gần)", spellcheckIgnore: "Bỏ qua", spellcheckIgnoreAll: "Bỏ qua tất cả", spellcheckAdd: "Thêm vào từ điển", spellcheckReplace: "Thay thế", spellcheckReplaceAll: "Thay thế tất cả", spellcheckClose: "Đóng", spellcheckStatus: "Lỗi {current} / {total}", spellcheckComplete: "Đã kiểm tra xong trang chiếu hiện tại. Không tìm thấy lỗi chính tả.", spellcheckCompleteRemaining: "Đã kiểm tra xong. Không còn lỗi chính tả.", spellcheckFieldTitle: "Tiêu đề", spellcheckFieldBody: "Nội dung", spellcheckFieldBody2: "Nội dung cột 2", spellcheckFieldShape: "Hình",
     animationPaneTitle: "Ngăn hoạt hình", animationPaneHint: "Danh sách hiệu ứng trên trang đang chọn. Đổi thứ tự bằng nút lên/xuống, chọn cách bắt đầu, hoặc xóa hiệu ứng (không xóa đối tượng).", animationPaneEmpty: "Trang này chưa có hiệu ứng. Dùng Hiệu ứng đối tượng trên tab Hoạt hình để gắn hiệu ứng, rồi mở lại ngăn này để sắp xếp.", animStartLabel: "Bắt đầu", animStartOnClick: "Khi click", animStartWithPrevious: "Cùng với trước đó", animStartAfterPrevious: "Sau trước đó", animMoveUp: "Đưa lên", animMoveDown: "Đưa xuống", animMoveUpShort: "↑", animMoveDownShort: "↓", animRemove: "Xóa hiệu ứng", animRemoveShort: "Xóa", shapeWordArt: "Chữ nghệ thuật", shapeChart: "Biểu đồ", shapeTable: "Bảng", shapeTextBox: "Hộp văn bản",
-    setupShowTitle: "Thiết lập trình chiếu", setupShowHint: "Tùy chọn trình chiếu cho bản này. Lặp liên tục áp dụng ngay khi F5. Màu bút vẽ và con trỏ laser mặc định khi trình chiếu (bật bằng Ctrl+P, Ctrl+L).", setupShowLoop: "Lặp lại liên tục cho đến khi nhấn Esc", setupShowNoNarration: "Trình chiếu không có thuyết minh", setupShowNoNarrationHint: "Chưa có thuyết minh/audio narration trong 3T Slide — tùy chọn này chỉ lưu cờ, chưa ẩn hay tắt âm thanh nào.", setupShowPointerColor: "Màu con trỏ bút / laser",
-    keepInkTitle: "3T Slide", keepInkPrompt: "Bạn có muốn giữ lại các chú thích bằng nét vẽ không?", keepInkKeep: "Giữ", keepInkDiscard: "Bỏ",
+    setupShowTitle: "Thiết lập trình chiếu", setupShowHint: "Tùy chọn trình chiếu cho bản này. Lặp liên tục áp dụng ngay khi F5. Màu bút vẽ và con trỏ laser mặc định khi trình chiếu (bật bằng Ctrl+P, Ctrl+L).", setupShowLoop: "Lặp lại liên tục cho đến khi nhấn Esc", setupShowNoNarration: "Trình chiếu không có thuyết minh", setupShowNoNarrationHint: "Chưa có thuyết minh/audio narration trong Slide — tùy chọn này chỉ lưu cờ, chưa ẩn hay tắt âm thanh nào.", setupShowPointerColor: "Màu con trỏ bút / laser",
+    keepInkTitle: "Slide", keepInkPrompt: "Bạn có muốn giữ lại các chú thích bằng nét vẽ không?", keepInkKeep: "Giữ", keepInkDiscard: "Bỏ",
     slideshowNext: "Tiếp theo", slideshowPrev: "Quay lại", slideshowPointerOptions: "Tùy chọn con trỏ", slideshowArrow: "Mũi tên", slideshowPen: "Bút vẽ", slideshowLaser: "Con trỏ laser", slideshowPenColor: "Màu bút", slideshowEraseInk: "Xóa nét vẽ trên trang", slideshowEndShow: "Thoát trình chiếu",
     colorRed: "Đỏ", colorBlue: "Xanh lam", colorYellow: "Vàng", colorGreen: "Xanh lá", colorBlack: "Đen"
   },
@@ -667,7 +667,7 @@ export const viStrings = {
     "writer.format.dropCap": { label: "Chữ đầu đoạn", tooltip: "Phóng to chữ cái đầu đoạn văn (Drop Cap)" },
     "writer.insert.dateTime": { label: "Ngày & Giờ", tooltip: "Chèn ngày giờ hiện tại tại vị trí con trỏ" },
     "writer.insert.equation": { label: "Phương trình", tooltip: "Chèn phương trình toán học tại con trỏ (Alt+=)" },
-    "writer.equation.dialog.title": "Phương trình — 3T Doc",
+    "writer.equation.dialog.title": "Phương trình — Doc",
     "writer.equation.dialog.instructions": "Nhập dạng tuyến tính và xem MathML ngay bên cạnh. Dùng a/b, x^2, x_1, \\sqrt(x), hoặc gõ \\alpha rồi nhấn Space.",
     "writer.equation.dialog.linearFormat": "Dạng tuyến tính",
     "writer.equation.dialog.linearHint": "Ví dụ: a/b + x^2 = \\sqrt(y). Ctrl+Enter để chèn.",
@@ -722,7 +722,7 @@ export const viStrings = {
     "writer.pageNumber.format": { label: "Định dạng số trang", tooltip: "Tiếp tục hoặc đặt lại số trang trong mục hiện tại" },
     "writer.section.delete": { label: "Xóa ngắt mục", tooltip: "Xóa ngắt mục đang chọn" },
     "writer.layout.sectionOptions": { label: "Tùy chọn mục", tooltip: "Thiết lập đầu trang, chân trang và số trang cho mục hiện tại" },
-    "writer.layout.lineNumbers": { label: "Danh số dòng", tooltip: "Bật danh số dòng xuất ra Word/LibreOffice: Không có, Liên tục, Mỗi trang, Mỗi mục" },
+    "writer.layout.lineNumbers": { label: "Danh số dòng", tooltip: "Danh số dòng khi lưu tài liệu: Không có, Liên tục, Mỗi trang, Mỗi mục" },
     "writer.page.watermark": { label: "Hình mờ", tooltip: "Thiết lập hoặc xóa hình mờ văn bản (Dự thảo, Mật, Khẩn...)" },
     "writer.page.color": { label: "Màu trang", tooltip: "Đặt màu nền đặc cho trang tài liệu" },
     "writer.page.border": { label: "Viền trang", tooltip: "Thiết lập viền bao quanh trang tài liệu" },
@@ -749,7 +749,7 @@ export const viStrings = {
     "writer.reference.captionInsert": { label: "Chèn chú thích ảnh", tooltip: "Chèn chú thích tự đánh số cho hình ảnh, bảng hoặc phương trình" },
     "writer.reference.tofInsert": { label: "Danh mục hình ảnh", tooltip: "Chèn danh mục hình ảnh/bảng tự động từ các chú thích đã chèn" },
     "writer.reference.tofUpdate": { label: "Cập nhật danh mục", tooltip: "Cập nhật lại danh mục hình ảnh/bảng từ các chú thích hiện có" },
-    "writer.mailMerge.open": { label: "Nguồn dữ liệu", tooltip: "Mở danh sách người nhận trộn thư từ tệp Excel (.xlsx, .xls) hoặc CSV/TSV" },
+    "writer.mailMerge.open": { label: "Nguồn dữ liệu", tooltip: "Mở danh sách người nhận trộn thư từ tệp bảng tính (.xlsx, .xls) hoặc CSV/TSV" },
     "writer.mailMerge.insertField": { label: "Chèn trường", tooltip: "Chèn trường trộn thư tại vị trí con trỏ" },
     "writer.mailMerge.preview": { label: "Xem trước kết quả", tooltip: "Bật/tắt xem trước bản ghi trộn thư" },
     "writer.mailMerge.prevRecord": { label: "Bản ghi trước", tooltip: "Chuyển tới bản ghi trước" },
@@ -986,8 +986,8 @@ export const viStrings = {
       contentRequired: "Hãy nhập nội dung nhãn, hoặc bật nguồn Trộn thư."
     },
     mailMerge: {
-      dataSourceTitle: "Trộn thư — Nguồn dữ liệu người nhận (Excel / CSV)",
-      pastePrompt: "Chọn tệp Excel (.xlsx, .xls) / CSV, hoặc dán dữ liệu vào khung bên dưới:",
+      dataSourceTitle: "Trộn thư — Nguồn dữ liệu người nhận (bảng tính / CSV)",
+      pastePrompt: "Chọn tệp bảng tính (.xlsx, .xls) / CSV, hoặc dán dữ liệu vào khung bên dưới:",
       pasteSampleBtn: "📋 Dán dữ liệu mẫu",
       noData: "Chưa có dữ liệu",
       invalidCsv: "Dữ liệu chưa hợp lệ (thiếu tiêu đề cột)",
@@ -997,9 +997,9 @@ export const viStrings = {
       selectFieldPrompt: "Chọn trường dữ liệu muốn chèn vào tài liệu:",
       insertBtn: "Chèn trường",
       noDataWarningTitle: "Xem trước trộn thư",
-      noDataWarningMsg: "Chưa có nguồn dữ liệu trộn thư. Vui lòng mở 'Nguồn dữ liệu' để chọn tệp Excel hoặc dán dữ liệu trước.",
+      noDataWarningMsg: "Chưa có nguồn dữ liệu trộn thư. Vui lòng mở 'Nguồn dữ liệu' để chọn tệp bảng tính hoặc dán dữ liệu trước.",
       finishTitle: "Hoàn tất và Trộn thư",
-      finishNoData: "Chưa có nguồn dữ liệu trộn thư để tạo tài liệu. Vui lòng mở 'Nguồn dữ liệu' để chọn tệp Excel hoặc dán bảng dữ liệu.",
+      finishNoData: "Chưa có nguồn dữ liệu trộn thư để tạo tài liệu. Vui lòng mở 'Nguồn dữ liệu' để chọn tệp bảng tính hoặc dán bảng dữ liệu.",
       finishNoFields: "Tài liệu hiện tại chưa chứa trường trộn thư nào. Hãy dùng lệnh 'Chèn trường' để chèn ít nhất một trường trộn.",
       finishSuccess: "Đã hoàn tất trộn thư thành công {count} bản ghi vào tài liệu. Bạn có thể xem trước khi in hoặc xuất tệp."
     },
@@ -1091,7 +1091,7 @@ export const viStrings = {
     dateType: "Kiểu hiển thị ngày tháng (Type):",
     dateLocale: "Vùng/Ngôn ngữ: Tiếng Việt (Việt Nam)",
     percentageDesc: "Định dạng Phần trăm nhân giá trị ô với 100 và hiển thị kết quả kèm ký hiệu %. Giá trị lưu trữ gốc không đổi (ví dụ: 0.5 hiển thị là 50%). Khi gõ số mới vào ô đã định dạng %, số đó tự động chia cho 100.",
-    textDesc: "Các ô định dạng Văn bản được xử lý như chuỗi ký tự thô, ngay cả khi ô chứa số. Ô sẽ được căn lề trái tự nhiên và các hàm tính toán tổng số học như SUM sẽ bỏ qua ô này giống chuẩn Excel.",
+    textDesc: "Các ô định dạng Văn bản được xử lý như chuỗi ký tự thô, ngay cả khi ô chứa số. Ô sẽ được căn lề trái tự nhiên và các hàm tính toán tổng số học như SUM sẽ bỏ qua ô này giống chuẩn bảng tính.",
     customType: "Mã định dạng (Type):",
     textAlignment: "Căn chỉnh văn bản",
     horizontal: "Chiều ngang:",

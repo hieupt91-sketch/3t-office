@@ -182,6 +182,10 @@ export class ShortcutManager {
     }
 
     if (cmdId) {
+      const state = globalCommandBus.getState?.(cmdId);
+      if (state && !state.enabled && isInput) {
+        return;
+      }
       e.preventDefault();
       e.stopPropagation();
       globalCommandBus.execute(cmdId);

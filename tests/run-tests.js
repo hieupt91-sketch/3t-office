@@ -208,6 +208,7 @@ import { runBasicEditingKeysTests } from "./unit/basic-editing-keys.test.js";
 import { runUiConsistencyAndStringScannerTests } from "./unit/ui-user-visible-strings.test.js";
 import { runOsInputGuardTests } from "./unit/os-input-guard.test.js";
 import { runPrintEngineNameTests } from "./unit/print-engine-name.test.js";
+import { runVietnameseImeUnitTests } from "./unit/vietnamese-ime.test.js";
 import { runSheetNativeCellValuesTests } from "./unit/sheet-native-cell-values.test.js";
 import { runSheetPrintSetupRoundTripTests } from "./unit/sheet-print-setup-roundtrip.test.js";
 import { runSheetC3C7C8GapTests } from "./unit/sheet-c3-c7-c8-gaps.test.js";
@@ -337,7 +338,7 @@ async function runAll() {
     { title: "93b. Behavioral Tests — VN Writer Section Breaks & Page Color", runner: runWriterSectionBreaksPageColorTests },
     { title: "94. Behavioral Tests — VN Sheet In-app Help", runner: runSheetHelpTests },
     { title: "95. Behavioral Tests — VN Slides In-app Help", runner: runSlidesHelpTests },
-    { title: "95b. Regression Guard — Help Coverage (100% Writer & Sheet Ribbon Commands)", runner: runHelpCoverageTests },
+    { title: "95b. Regression Guard — Help Coverage (100% Writer, Sheet & Slides Ribbon Commands, Catalog Quality & Shared Platform)", runner: runHelpCoverageTests },
     { title: "95c. Regression Guard — Help ⇄ Ribbon Location Consistency (commandIds thật, tab/nhóm khớp ribbon hiện tại)", runner: runHelpRibbonLocationTests },
     { title: "95d. Regression Guard — Help ⇄ Shortcut Consistency (shortcut trong Help khớp command-definitions + app binds)", runner: runHelpShortcutConsistencyTests },
     { title: "95e. Regression Guard — Help Bắt đầu nhanh / Phím tắt / Khác biệt (tab, nhóm, phím tắt có thật)", runner: runHelpGettingStartedTests },
@@ -428,10 +429,11 @@ async function runAll() {
     { title: "169. Unit Tests — CH-8 UI Consistency, KeyTips, Contextual F1 & String Scanner", runner: runUiConsistencyAndStringScannerTests },
     { title: "170. Safety Regression — source and tests use CDP, not OS-level input", runner: runOsInputGuardTests },
     { title: "171. CH-3/CH-8 — Hộp thoại In không lộ tên thư viện bên trong", runner: runPrintEngineNameTests },
-    { title: "172. Unit Tests — VN Sheet AutoFill date sequences and double-click fill", runner: runSheetAutoFillTests },
-    { title: "173. Unit Tests — VN Sheet native numeric/date cell values, external paste, fill and FODS types", runner: runSheetNativeCellValuesTests },
-    { title: "174. Unit Tests — VN Sheet print setup XLSX reopen round-trip", runner: runSheetPrintSetupRoundTripTests },
-    { title: "175. Unit Tests — VN Sheet C3/C7/C8 selection, tabs and sort", runner: runSheetC3C7C8GapTests }
+    { title: "172. CH-4.7 — Vietnamese IME typing, burst normalizer, caret preservation, undo coalescing & NFC normalization", runner: runVietnameseImeUnitTests },
+    { title: "173. Unit Tests — VN Sheet AutoFill date sequences and double-click fill", runner: runSheetAutoFillTests },
+    { title: "174. Unit Tests — VN Sheet native numeric/date cell values, external paste, fill and FODS types", runner: runSheetNativeCellValuesTests },
+    { title: "175. Unit Tests — VN Sheet print setup XLSX reopen round-trip", runner: runSheetPrintSetupRoundTripTests },
+    { title: "176. Unit Tests — VN Sheet C3/C7/C8 selection, tabs and sort", runner: runSheetC3C7C8GapTests }
   ];
 
   for (const suite of suites) {

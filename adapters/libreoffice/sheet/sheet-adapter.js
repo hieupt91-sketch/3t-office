@@ -5448,20 +5448,20 @@ ${pristineXlsxMarker}
         try {
           this.shell?.setStatus?.("Đang dựng mô hình bảng tính và chuẩn bị lưới…");
           const loaded = await this.loadFromPayload(result.sheetPayload, result.ooxmlWorkbookXml);
-          if (!loaded) throw new Error("Payload không tạo được workbook.");
+          if (!loaded) throw new Error("Không dựng được sổ làm việc từ dữ liệu đã đọc.");
         } catch {
           reportOpenIssue("SheetOpenPayloadError", "Sheet payload parsing or model construction failed; using the retained FODS fallback.");
-          this.shell?.setStatus?.("Đang tải dữ liệu FODS dự phòng…");
+          this.shell?.setStatus?.("Đang tải dữ liệu bảng tính dự phòng…");
           const fallback = openId
             ? await globalUnoBridge.getSheetOpenFallback(openId)
             : await globalUnoBridge.getLatestSheetOpenFallback();
-          if (fallback?.status !== "ok") throw new Error("Không lấy được FODS dự phòng cho bảng tính.");
+          if (fallback?.status !== "ok") throw new Error("Không lấy được bản dự phòng của bảng tính.");
           openId = fallback.openId || openId;
           const loaded = this.loadFromFods(
             fallback.content,
             fallback.ooxmlWorkbookXml || result.ooxmlWorkbookXml
           );
-          if (!loaded) throw new Error("FODS dự phòng không tạo được workbook.");
+          if (!loaded) throw new Error("Không dựng được sổ làm việc từ bản dự phòng.");
           result = { ...result, ...fallback };
         }
       } else {
@@ -5492,7 +5492,7 @@ ${pristineXlsxMarker}
       this.shell?.setStatus?.("Không thể mở tệp. Sổ làm việc đang mở được giữ nguyên.");
       await showAlertDialog({
         title: "Không thể mở tệp",
-        message: "3T Sheet không thể nạp bảng tính bằng dữ liệu chính hoặc bản FODS dự phòng. Sổ làm việc đang mở được giữ nguyên.",
+        message: "Sheet không thể nạp bảng tính từ dữ liệu đã đọc hoặc bản dự phòng. Sổ làm việc đang mở được giữ nguyên.",
         type: "error"
       });
       return false;

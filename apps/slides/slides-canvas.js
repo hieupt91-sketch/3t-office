@@ -11,6 +11,7 @@ import { createLazyDialogs } from "../../platform/ui-kit/lazy-dialogs.js";
 import { resolveWordArtStyle, buildWordArtCss, applyWordArtCss } from "./slides-wordart.js";
 import { normalizeSlidesChart } from "./slides-chart-data.js";
 import { createMatcher } from "../../platform/find/find-engine.js";
+import { InputNormalizer } from "../../platform/keyboard/input-normalizer.js";
 
 const { showPromptDialog } = createLazyDialogs("slides");
 
@@ -220,34 +221,34 @@ export class SlidesCanvasController {
       {
         id: 1,
         title: "3T OFFICE — BỘ ỨNG DỤNG VĂN PHÒNG VIỆT",
-        body: "• Giải pháp công nghệ độc lập, bảo mật và chuẩn mực quốc gia\n• Tận dụng sức mạnh xử lý tài liệu vượt trội từ LibreOffice Core Engine\n• Giao diện thuần Việt, hiện đại, quen thuộc và thân thiện với người dùng",
+        body: "• Doc: soạn công văn và biên bản\n• Sheet: theo dõi công việc và tổng hợp số liệu\n• Slide: chuẩn bị báo cáo cuộc họp",
         layoutType: "title-content",
         shapes: [],
         comments: [],
-        notes: "Giới thiệu tổng quan về bộ ứng dụng 3T Office, nhấn mạnh tính độc lập công nghệ và bảo mật dữ liệu theo tiêu chuẩn quốc gia.",
+        notes: "Giới thiệu ba ứng dụng trong 3T Office và công việc phù hợp với từng ứng dụng.",
         titleAnimation: { type: "fadeIn", duration: 600, delay: 100 },
         bodyAnimation: { type: "flyIn", duration: 700, delay: 300 },
         hidden: false
       },
       {
         id: 2,
-        title: "KIẾN TRÚC HỆ THỐNG PHÂN TẦNG",
-        body: "1. VN App UI (Writer, Sheet, Slides đồng bộ phát triển)\n2. VN Shared Platform & Global Command Bus\n3. VN LibreOffice Adapter Layer (UNO Bridge & PyUNO)\n4. LibreOffice Core Engine C++",
+        title: "QUY TRÌNH CHUẨN BỊ BÁO CÁO",
+        body: "1. Thu thập số liệu tuần trong Sheet\n2. Viết nội dung báo cáo trong Doc\n3. Tóm tắt các điểm chính trong Slide\n4. Kiểm tra và lưu tài liệu trước cuộc họp",
         layoutType: "title-content",
         shapes: [],
         comments: [],
-        notes: "Làm rõ vai trò của UNO Bridge kết nối giữa tầng giao diện web và tầng lõi LibreOffice C++ headless mà không phát sinh chi phí bản quyền.",
+        notes: "Hướng dẫn nhóm chuẩn bị báo cáo tuần: tổng hợp số liệu, viết nội dung và trình bày kết quả.",
         titleAnimation: { type: "fadeIn", duration: 500, delay: 0 },
         hidden: false
       },
       {
         id: 3,
-        title: "KẾ HOẠCH TRIỂN KHAI & TIÊU CHUẨN KỸ THUẬT",
-        body: "• Hỗ trợ toàn diện định dạng văn bản hành chính theo Nghị định 30/2020/NĐ-CP\n• Tương thích 100% hai chiều với hệ sinh thái OOXML (DOCX, XLSX, PPTX)\n• Tích hợp trợ lý AI bảo mật cục bộ, bảo vệ quyền riêng tư tuyệt đối",
+        title: "KIỂM TRA TRƯỚC KHI CHIA SẺ",
+        body: "• Đọc lại nội dung và đối chiếu số liệu\n• Xem trước bố cục và các trang in\n• Lưu bản làm việc và xuất PDF khi cần chia sẻ",
         layoutType: "title-content",
         shapes: [],
         comments: [],
-        notes: "Nhấn mạnh khả năng tương thích định dạng DOCX/XLSX/PPTX và tuân thủ Nghị định 30/2020/NĐ-CP về thể thức văn bản hành chính.",
+        notes: "Nhắc người thuyết trình kiểm tra số liệu, bố cục và lưu tài liệu trước khi chia sẻ.",
         titleAnimation: { type: "zoomIn", duration: 600, delay: 200 },
         hidden: false
       }
@@ -469,6 +470,36 @@ export class SlidesCanvasController {
       this._renderThumbnails();
     });
 
+    this._titleNormalizer = new InputNormalizer({
+      target: this.titleEl,
+      onWordCommit: () => {
+        this._syncEditableFieldsFromDom();
+        this.options.onDocumentChange?.();
+        this._renderThumbnails();
+        this._syncUndoRedoState();
+      }
+    }).attach(this.titleEl);
+
+    this._bodyNormalizer = new InputNormalizer({
+      target: this.bodyEl,
+      onWordCommit: () => {
+        this._syncEditableFieldsFromDom();
+        this.options.onDocumentChange?.();
+        this._renderThumbnails();
+        this._syncUndoRedoState();
+      }
+    }).attach(this.bodyEl);
+
+    this._body2Normalizer = new InputNormalizer({
+      target: this.body2El,
+      onWordCommit: () => {
+        this._syncEditableFieldsFromDom();
+        this.options.onDocumentChange?.();
+        this._renderThumbnails();
+        this._syncUndoRedoState();
+      }
+    }).attach(this.body2El);
+
     this.titleEl.addEventListener("keydown", (e) => {
       if (e.key === "Tab") {
         e.preventDefault();
@@ -608,10 +639,23 @@ export class SlidesCanvasController {
       this.options.onDocumentChange?.();
       const s = this.slides[this.currentSlideIndex];
       if (s) {
-        s.notes = this.notesTextarea.value;
+        s.notes = this.notesTextarea.value.normalize("NFC");
         this._updateNotesCharCount();
       }
     });
+
+    if (this.notesTextarea) {
+      this._notesNormalizer = new InputNormalizer({
+        target: this.notesTextarea,
+        onWordCommit: () => {
+          const s = this.slides[this.currentSlideIndex];
+          if (s) {
+            s.notes = this.notesTextarea.value.normalize("NFC");
+            this._updateNotesCharCount();
+          }
+        }
+      }).attach(this.notesTextarea);
+    }
 
     this._autoRecoverInputHandler = (event) => {
       if (event.target?.closest?.("[contenteditable='true'], [contenteditable=true], .vno-slide-notes-input")) {
@@ -1370,19 +1414,19 @@ export class SlidesCanvasController {
     const slide = this.slides[this.currentSlideIndex];
     if (!slide) return;
     if (this.titleEl) {
-      slide.title = this.titleEl.innerText || "";
+      slide.title = (this.titleEl.innerText || "").normalize("NFC");
       const html = this._captureEditableHtml(this.titleEl);
       if (this._htmlLooksFormatted(html)) slide.titleHtml = html;
       else delete slide.titleHtml;
     }
     if (this.bodyEl) {
-      slide.body = this.bodyEl.innerText || "";
+      slide.body = (this.bodyEl.innerText || "").normalize("NFC");
       const html = this._captureEditableHtml(this.bodyEl);
       if (this._htmlLooksFormatted(html)) slide.bodyHtml = html;
       else delete slide.bodyHtml;
     }
     if (this.body2El) {
-      slide.body2 = this.body2El.innerText || "";
+      slide.body2 = (this.body2El.innerText || "").normalize("NFC");
       const html = this._captureEditableHtml(this.body2El);
       if (this._htmlLooksFormatted(html)) slide.body2Html = html;
       else delete slide.body2Html;
@@ -3505,9 +3549,10 @@ export class SlidesCanvasController {
     const shape = this.slides[this.currentSlideIndex]?.shapes?.find(item => String(item.id) === String(shapeId));
     if (!shape || shape.type === "connector") return false;
     // Hộp văn bản giữ nhiều đoạn (mỗi dòng = một đoạn khi lưu PPTX); các hình khác giữ 1 dòng.
+    const normalized = String(text || "").normalize("NFC");
     shape.text = shape.type === "textbox"
-      ? String(text || "").replace(/\r\n?/g, "\n").replace(/\n+$/, "")
-      : String(text || "").replace(/\r?\n/g, " ");
+      ? normalized.replace(/\r\n?/g, "\n").replace(/\n+$/, "")
+      : normalized.replace(/\r?\n/g, " ");
     if (html !== undefined) {
       if (this._htmlLooksFormatted(html)) shape.textHtml = html;
       else delete shape.textHtml;
@@ -3559,7 +3604,7 @@ export class SlidesCanvasController {
 
     const MAX_MEDIA_SIZE_MB = 10;
     if (sizeBytes > MAX_MEDIA_SIZE_MB * 1024 * 1024) {
-      console.warn(`[3T Slide] Tệp media ${(sizeBytes / 1024 / 1024).toFixed(1)}MB vượt ngưỡng khuyến nghị ${MAX_MEDIA_SIZE_MB}MB — có thể làm chậm lưu/mở tệp vì được nhúng dạng Data URL.`);
+      console.warn(`[Slide] Tệp media ${(sizeBytes / 1024 / 1024).toFixed(1)}MB vượt ngưỡng khuyến nghị ${MAX_MEDIA_SIZE_MB}MB — có thể làm chậm lưu/mở tệp vì được nhúng dạng Data URL.`);
     }
 
     const offset = slide.shapes.length * 24;
@@ -3636,7 +3681,11 @@ export class SlidesCanvasController {
   _syncUndoRedoState() {
     this.options.onDocumentChange?.();
     if (typeof globalCommandBus === "undefined" || !globalCommandBus?.updateState) return;
-    globalCommandBus.updateState("common.edit.undo", { enabled: this.undoStack.length > 0 });
+    const hasTextUndo = (this._titleNormalizer?.customUndoStack?.length > 1)
+      || (this._bodyNormalizer?.customUndoStack?.length > 1)
+      || (this._body2Normalizer?.customUndoStack?.length > 1)
+      || (this._notesNormalizer?.customUndoStack?.length > 1);
+    globalCommandBus.updateState("common.edit.undo", { enabled: this.undoStack.length > 0 || hasTextUndo });
     globalCommandBus.updateState("common.edit.redo", { enabled: this.redoStack.length > 0 });
   }
 
@@ -4035,6 +4084,7 @@ export class SlidesCanvasController {
           }
         };
         textEl.addEventListener("input", () => this.updateShapeText(shape.id, textEl.textContent));
+        new InputNormalizer({ target: textEl, onWordCommit: (val) => this.updateShapeText(shape.id, val) }).attach(textEl);
         textEl.addEventListener("blur", () => {
           textEl.contentEditable = "false";
           const before = textEl.dataset.originalText ?? "";
@@ -4165,6 +4215,7 @@ export class SlidesCanvasController {
           }
         };
         textEl.addEventListener("input", () => this.updateShapeText(shape.id, textEl.innerText || textEl.textContent, this._captureEditableHtml(textEl)));
+        new InputNormalizer({ target: textEl, onWordCommit: (val) => this.updateShapeText(shape.id, val, this._captureEditableHtml(textEl)) }).attach(textEl);
         textEl.addEventListener("blur", () => {
           textEl.contentEditable = "false";
           const before = textEl.dataset.originalText ?? "";
@@ -4284,6 +4335,7 @@ export class SlidesCanvasController {
             }
           };
           textEl.addEventListener("input", () => this.updateShapeText(shape.id, textEl.innerText || textEl.textContent, this._captureEditableHtml(textEl)));
+          new InputNormalizer({ target: textEl, onWordCommit: (val) => this.updateShapeText(shape.id, val, this._captureEditableHtml(textEl)) }).attach(textEl);
           textEl.addEventListener("blur", () => {
             textEl.contentEditable = "false";
             const before = textEl.dataset.originalText ?? "";
@@ -6638,6 +6690,40 @@ export class SlidesCanvasController {
   }
 
   undo() {
+    const activeEl = typeof document !== "undefined" ? document.activeElement : null;
+    if (activeEl) {
+      if ((activeEl === this.titleEl || this.titleEl?.contains?.(activeEl)) && this._titleNormalizer?._handleCtrlZ?.()) {
+        this._syncEditableFieldsFromDom();
+        this.options.onDocumentChange?.();
+        this._renderThumbnails();
+        return true;
+      }
+      if ((activeEl === this.bodyEl || this.bodyEl?.contains?.(activeEl)) && this._bodyNormalizer?._handleCtrlZ?.()) {
+        this._syncEditableFieldsFromDom();
+        this.options.onDocumentChange?.();
+        this._renderThumbnails();
+        return true;
+      }
+      if ((activeEl === this.body2El || this.body2El?.contains?.(activeEl)) && this._body2Normalizer?._handleCtrlZ?.()) {
+        this._syncEditableFieldsFromDom();
+        this.options.onDocumentChange?.();
+        this._renderThumbnails();
+        return true;
+      }
+      if ((activeEl === this.notesTextarea) && this._notesNormalizer?._handleCtrlZ?.()) {
+        const s = this.slides[this.currentSlideIndex];
+        if (s) {
+          s.notes = this.notesTextarea.value.normalize("NFC");
+          this._updateNotesCharCount();
+        }
+        return true;
+      }
+      const shapeTextEl = activeEl.closest?.("[data-shape-text-id]") || (activeEl.isContentEditable ? activeEl : null);
+      if (shapeTextEl?._vnoNormalizer?._handleCtrlZ?.()) {
+        return true;
+      }
+    }
+
     const result = this._undoImpl();
     this._syncUndoRedoState();
     return result;
@@ -8553,7 +8639,7 @@ export class SlidesCanvasController {
               <input type="checkbox" id="vno-setup-narration" ${current.showWithoutNarration ? "checked" : ""}>
               <span>${t("slidesDialogs.setupShowNoNarration", "Trình chiếu không có thuyết minh")}</span>
             </label>
-            <p style="margin:0 0 0 24px;font-size:11px;color:var(--vno-text-muted);">${t("slidesDialogs.setupShowNoNarrationHint", "Chưa có thuyết minh/audio narration trong 3T Slide — tùy chọn này chỉ lưu cờ, chưa ẩn hay tắt âm thanh nào.")}</p>
+            <p style="margin:0 0 0 24px;font-size:11px;color:var(--vno-text-muted);">${t("slidesDialogs.setupShowNoNarrationHint", "Chưa có thuyết minh/audio narration trong Slide — tùy chọn này chỉ lưu cờ, chưa ẩn hay tắt âm thanh nào.")}</p>
             <div style="display:flex;flex-direction:column;gap:6px;">
               <label for="vno-setup-pointer-color" style="font-size:12px;font-weight:600;color:var(--vno-text-primary);">${t("slidesDialogs.setupShowPointerColor", "Màu con trỏ bút / laser")}</label>
               <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -9170,7 +9256,7 @@ export class SlidesCanvasController {
           inkOverlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10002;";
           inkOverlay.innerHTML = `
             <div class="vno-dialog-box" style="width:380px;background:var(--vno-bg-surface, #fff);border-radius:8px;padding:20px;box-shadow:0 12px 32px rgba(0,0,0,0.3);color:var(--vno-text-primary, #0f172a);" role="dialog" aria-modal="true">
-              <h3 style="margin:0 0 10px;font-size:16px;font-weight:700;">${t("slidesDialogs.keepInkTitle", "3T Slide")}</h3>
+              <h3 style="margin:0 0 10px;font-size:16px;font-weight:700;">${t("slidesDialogs.keepInkTitle", "Slide")}</h3>
               <p style="margin:0 0 20px;font-size:13px;line-height:1.5;">${t("slidesDialogs.keepInkPrompt", "Bạn có muốn giữ lại các chú thích bằng nét vẽ không?")}</p>
               <div style="display:flex;justify-content:flex-end;gap:10px;">
                 <button type="button" class="vno-btn vno-btn-primary" id="vno-ink-keep-btn" style="padding:6px 16px;">${t("slidesDialogs.keepInkKeep", "Giữ")}</button>
@@ -9367,7 +9453,7 @@ export class SlidesCanvasController {
       <div class="vno-presenter-header">
         <div class="vno-presenter-brand">
           <strong>${t("slidesDialogs.presenterHeader", "CHẾ ĐỘ NGƯỜI THUYẾT TRÌNH (PRESENTER VIEW)")}</strong>
-          <span style="font-size:11px;opacity:0.7;margin-left:8px;">• 3T Slide</span>
+          <span style="font-size:11px;opacity:0.7;margin-left:8px;">• Slide</span>
         </div>
         <div class="vno-presenter-clocks">
           <div class="vno-presenter-timer-box" title="${t("slidesDialogs.elapsedTime", "Thời gian thuyết trình")}" role="timer" aria-label="${t("slidesDialogs.elapsedTime", "Thời gian thuyết trình")}">
