@@ -6788,7 +6788,12 @@ export class WriterAdapter {
         break;
 
       case "writer.font.family":
-        if (args) document.execCommand("fontName", false, args);
+        if (args) {
+          document.execCommand("fontName", false, args);
+        } else {
+          const fontSelect = document.querySelector('select[data-command-id="writer.font.family"]');
+          if (fontSelect) fontSelect.focus();
+        }
         dispatchResult = true;
         break;
 

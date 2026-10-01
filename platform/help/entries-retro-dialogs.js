@@ -58,7 +58,7 @@ export const RETRO_DIALOGS_HELP_ENTRIES = [
       "Tại mục Kiểu phông: chọn Thường (Regular), In đậm (Bold), In nghiêng (Italic) hoặc Đậm nghiêng kết hợp.",
       "Tại mục Cỡ chữ: nhập số hoặc chọn kích cỡ điểm phông từ 8 pt đến 72 pt.",
       "Bật các hiệu ứng đặc biệt nếu cần như Gạch ngang chữ, Chỉ số trên (x²) hoặc Chỉ số dưới (H₂O) rồi bấm 'Đồng ý'.",
-      "Lưu ý: Nhấn Ctrl+D hoặc Ctrl+Shift+F để mở nhanh hộp thoại Phông chữ mà không cần nhấp chuột."
+      "Lưu ý: Để chọn nhanh phông chữ bằng bàn phím mà không cần chuột, nhấn phím tắt Ctrl+Shift+F để chuyển tiêu điểm trực tiếp vào ô chọn Phông chữ trên thanh Ribbon, sau đó dùng phím mũi tên Lên/Xuống và nhấn Enter để áp dụng."
     ]
   },
   {

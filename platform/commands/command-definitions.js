@@ -88,7 +88,7 @@ export const WRITER_COMMANDS = [
   { id: "writer.text.clearFormat", category: "format", label: "Xóa định dạng", shortcut: "Ctrl+Space", icon: "clearFormat", tooltip: "Xóa toàn bộ định dạng về mặc định (Ctrl+Space)" },
   { id: "writer.style.normal", category: "format", label: "Kiểu Thường", shortcut: "Ctrl+Shift+N", icon: "clearFormat", tooltip: "Áp dụng kiểu Normal chuẩn (Ctrl+Shift+N)" },
   { id: "writer.text.changeCase", category: "format", label: "Đổi chữ hoa/thường", shortcut: "Shift+F3", icon: "changeCase", tooltip: "Chuyển đổi chữ hoa / thường / Tiêu đề (Shift+F3)" },
-  { id: "writer.font.family", category: "format", label: "Phông chữ", tooltip: "Chọn phông chữ" },
+  { id: "writer.font.family", category: "format", label: "Phông chữ", shortcut: "Ctrl+Shift+F", tooltip: "Chọn phông chữ (Ctrl+Shift+F)" },
   { id: "writer.font.size", category: "format", label: "Cỡ chữ", tooltip: "Chọn cỡ chữ" },
   { id: "writer.style.apply", category: "format", label: "Kiểu dáng", tooltip: "Áp dụng kiểu đoạn văn (Normal, Heading 1, 2, 3, Quote, Emphasis)" },
   { id: "writer.style.gallery", category: "format", label: "Thư viện kiểu", icon: "styleGallery", tooltip: "Mở thư viện kiểu định dạng trực quan (Styles Gallery)" },
