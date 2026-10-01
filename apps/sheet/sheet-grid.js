@@ -23,6 +23,7 @@ import { extractSheetRangeData, SHEET_CHART_TYPES } from "./sheet-chart-data.js"
 import { SheetDataTools } from "./data-tools.js";
 import { computeConsolidate, formatSheetRange, parseConsolidateReference, CONSOLIDATE_FUNCTIONS } from "./consolidate.js";
 import { createMatcher } from "../../platform/find/find-engine.js";
+import { InputNormalizer } from "../../platform/keyboard/input-normalizer.js";
 
 const { showAlertDialog, showConfirmDialog, showPromptDialog, showFindReplaceDialog } = createLazyDialogs("sheet");
 
@@ -354,6 +355,10 @@ export class SheetGridController {
     this.formulaInput.before(formulaInputWrap);
     formulaInputWrap.append(this.formulaReferenceOverlay, this.formulaInput);
 
+    this._formulaInputNormalizer = new InputNormalizer({
+      target: this.formulaInput
+    }).attach(this.formulaInput);
+
     this.autocomplete.mount();
 
     this.formulaInput.addEventListener("focus", () => {
@@ -610,6 +615,7 @@ export class SheetGridController {
   destroy() {
     this._closeSpellcheckDialog();
     this._closeContextMenu();
+    this._formulaInputNormalizer?.destroy?.();
     this.autocomplete?.destroy?.();
   }
 
@@ -1459,7 +1465,8 @@ export class SheetGridController {
     const session = this.formulaEntry;
     if (!session) return false;
     if (this.formulaInput) session.update(this.formulaInput.value, this.formulaInput.selectionStart ?? this.formulaInput.value.length);
-    const finalValue = session.commit();
+    let finalValue = session.commit();
+    if (typeof finalValue === "string") finalValue = finalValue.normalize("NFC");
     const coord = { ...session.coord };
     const ownerSheet = session.sheet;
     if (this.activeSheet !== ownerSheet) {
@@ -4167,6 +4174,7 @@ _bindGridKeyboardNavigation() {
   }
 
   setCellValue(col, row, val, recordUndo = true, historyOptions = {}) {
+    if (typeof val === "string") val = val.normalize("NFC");
     if (recordUndo && this._guardProtectedMutation()) return false;
     const key = `${col}${row}`;
     let item = this.cellsData.get(key) || { val: "", formula: "", style: {} };
