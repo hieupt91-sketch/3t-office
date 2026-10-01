@@ -1209,6 +1209,11 @@ export class SheetGridController {
       e.stopPropagation();
       this._startAutofill(e);
     });
+    handle.addEventListener("dblclick", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this._autofillDownToAdjacentData();
+    });
     td.appendChild(handle);
   }
 
@@ -1238,9 +1243,27 @@ export class SheetGridController {
     const current = this.cellsData.get(`${coord.c}${coord.r}`);
     const currentValue = current ? (current.formula || current.val || "") : "";
     const editedValue = this.formulaInput.value;
-    if (String(currentValue) !== String(editedValue)) this.setCellValue(coord.c, coord.r, editedValue, true, { coalesce: true });
+    if (String(currentValue) !== String(editedValue)) {
+      const original = this._cellValueBeforeEdit !== undefined ? this._cellValueBeforeEdit : currentValue;
+      if (!this._validateDataValidationCommit(coord.c, coord.r, editedValue, original)) return;
+      this.setCellValue(coord.c, coord.r, editedValue, true, { coalesce: true });
+    }
     this._cellValueBeforeEdit = undefined;
     this.autocomplete?.closeAll?.();
+  }
+
+  _validateDataValidationCommit(col, row, value, originalValue) {
+    const result = this.validateCellValue(col, row, value);
+    if (result.valid) return true;
+    showAlertDialog({
+      title: t("sheetDialogs.dataValidation", "Kiểm tra dữ liệu"),
+      message: result.message
+    });
+    this.setCellValue(col, row, originalValue ?? "", false);
+    if (this.formulaInput && this.selectedCoord.c === col && this.selectedCoord.r === row) {
+      this.formulaInput.value = String(originalValue ?? "");
+    }
+    return false;
   }
 
   _cellEditorValue(item) {
@@ -1281,7 +1304,8 @@ export class SheetGridController {
       }
     }
     if (session.sheet === this.activeSheet && session.coord?.c === this.selectedCoord.c && session.coord?.r === this.selectedCoord.r) {
-      this.setCellValue(session.coord.c, session.coord.r, session.value, true, { coalesce: true });
+      const hasValidation = !!this.getValidationForCell(session.coord.c, session.coord.r);
+      this.setCellValue(session.coord.c, session.coord.r, session.value, !hasValidation, { coalesce: true });
     }
     this._refreshFormulaEntryVisuals();
     if (!options.composing && options.source !== "autocomplete") {
@@ -1461,6 +1485,14 @@ export class SheetGridController {
       this.switchSheet(ownerSheet, { formulaReturn: true });
     }
     this.selectedCoord = { ...coord };
+    if (!this._validateDataValidationCommit(coord.c, coord.r, finalValue, session.original)) {
+      this.formulaEntry = null;
+      this._cellValueBeforeEdit = undefined;
+      this._formulaPointCoord = null;
+      this.autocomplete?.closeAll?.();
+      this._refreshFormulaEntryVisuals();
+      return false;
+    }
     this.setCellValue(coord.c, coord.r, finalValue, true, { coalesce: true });
     if (this.formulaInput) this.formulaInput.value = finalValue;
     this.formulaEntry = null;
@@ -1878,6 +1910,37 @@ export class SheetGridController {
     this._autofillTarget = null;
   }
 
+  _autofillDownToAdjacentData() {
+    const src = this._normalizeRange(this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const startCol = this._columnNumber(src.start.c);
+    const endCol = this._columnNumber(src.end.c);
+    const adjacentCols = [startCol - 1, endCol + 1]
+      .filter(col => col >= 1 && col <= this.cols.length);
+    let endRow = src.end.r;
+
+    for (const colNum of adjacentCols) {
+      let contiguousEnd = src.end.r;
+      const col = this._columnLabel(colNum);
+      for (let row = src.end.r + 1; row <= this.rowCount; row++) {
+        const item = this.cellsData.get(`${col}${row}`);
+        const hasValue = item && (item.formula || (item.val !== null && item.val !== undefined && String(item.val) !== ""));
+        if (!hasValue) break;
+        contiguousEnd = row;
+      }
+      endRow = Math.max(endRow, contiguousEnd);
+    }
+
+    if (endRow <= src.end.r) return false;
+    this._executeAutofill(src, {
+      direction: "down",
+      startCol: src.start.c,
+      endCol: src.end.c,
+      startRow: src.end.r + 1,
+      endRow
+    });
+    return true;
+  }
+
   _executeAutofill(src, target) {
     const before = {};
     const after = {};
@@ -1885,6 +1948,42 @@ export class SheetGridController {
     const monthsVi = ["Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6", "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"];
     const monthsEn = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const daysVi = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"];
+    const dayMs = 24 * 60 * 60 * 1000;
+    const parseDate = value => {
+      const raw = String(value ?? "").trim();
+      const ymd = raw.match(/^(\d{4})([/-])(\d{1,2})\2(\d{1,2})$/);
+      const dmy = raw.match(/^(\d{1,2})([/-])(\d{1,2})\2(\d{4})$/);
+      if (!ymd && !dmy) return null;
+      const year = Number(ymd ? ymd[1] : dmy[4]);
+      const month = Number(ymd ? ymd[3] : dmy[3]);
+      const day = Number(ymd ? ymd[4] : dmy[1]);
+      const utc = Date.UTC(year, month - 1, day);
+      const date = new Date(utc);
+      if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
+      return {
+        utc,
+        yearFirst: !!ymd,
+        separator: (ymd || dmy)[2],
+        dayWidth: ymd ? ymd[4].length : dmy[1].length,
+        monthWidth: ymd ? ymd[3].length : dmy[3].length
+      };
+    };
+    const dateSequenceValue = (sourceCells, offset) => {
+      const dates = sourceCells.map(cell => parseDate(cell.val));
+      if (!dates.length || dates.some(date => !date)) return null;
+      const first = dates[0];
+      const last = dates[dates.length - 1];
+      const stepDays = dates.length === 1
+        ? 1
+        : Math.round((last.utc - first.utc) / dayMs / (dates.length - 1));
+      const date = new Date(last.utc + stepDays * offset * dayMs);
+      const day = String(date.getUTCDate()).padStart(last.dayWidth, "0");
+      const month = String(date.getUTCMonth() + 1).padStart(last.monthWidth, "0");
+      const year = String(date.getUTCFullYear()).padStart(4, "0");
+      return last.yearFirst
+        ? `${year}${last.separator}${month}${last.separator}${day}`
+        : `${day}${last.separator}${month}${last.separator}${year}`;
+    };
 
     if (target.direction === "down") {
       const srcStartRow = src.start.r;
@@ -1912,11 +2011,14 @@ export class SheetGridController {
           let newVal = sourceCell.val;
           let newFormula = "";
           const newStyle = structuredClone(sourceCell.style || {});
+          const dateValue = dateSequenceValue(sourceCells, stepOffset);
 
           if (sourceCell.formula && String(sourceCell.formula).startsWith("=")) {
             const deltaR = r - (srcStartRow + cycleIdx);
             newFormula = this._offsetFormula(sourceCell.formula, 0, deltaR);
             newVal = this.formulaEngine.evaluate(newFormula);
+          } else if (dateValue !== null) {
+            newVal = dateValue;
           } else if (srcCount === 1) {
             const rawVal = String(sourceCell.val || "").trim();
             const numVal = Number(rawVal);
@@ -1982,11 +2084,14 @@ export class SheetGridController {
           let newVal = sourceCell.val;
           let newFormula = "";
           const newStyle = structuredClone(sourceCell.style || {});
+          const dateValue = dateSequenceValue(sourceCells, stepOffset);
 
           if (sourceCell.formula && String(sourceCell.formula).startsWith("=")) {
             const deltaC = cNum - (srcStartColNum + cycleIdx);
             newFormula = this._offsetFormula(sourceCell.formula, deltaC, 0);
             newVal = this.formulaEngine.evaluate(newFormula);
+          } else if (dateValue !== null) {
+            newVal = dateValue;
           } else if (srcCount === 1) {
             const rawVal = String(sourceCell.val || "").trim();
             const numVal = Number(rawVal);
@@ -8368,7 +8473,8 @@ _bindGridKeyboardNavigation() {
       state.filterSetByUser = true;
       if (this.isFilterActive) {
         const selected = this._normalizeRange(this.selectionRange);
-        if (selected.start.c !== selected.end.c || selected.start.r !== selected.end.r) state.filterRange = this._rangeLabel(selected);
+        const hasRangeSelection = selected.start.c !== selected.end.c || selected.start.r !== selected.end.r;
+        state.filterRange = this._rangeLabel(hasRangeSelection ? selected : this._usedRangeForCells(this.cellsData));
       }
     }
     if (this.container) {
@@ -8389,10 +8495,15 @@ _bindGridKeyboardNavigation() {
 
   _updateFilterButtons() {
     if (!this.container) return;
+    const configuredRange = this.sheetStates?.[this.activeSheet]?.filterRange;
+    const filterRange = configuredRange ? this._parseRange(configuredRange) : this._usedRangeForCells(this.cellsData);
+    const firstCol = this._columnNumber(filterRange?.start.c || "A");
+    const lastCol = this._columnNumber(filterRange?.end.c || "A");
     const btns = this.container.querySelectorAll(".vno-filter-btn");
     btns.forEach(btn => {
-      btn.style.display = this.isFilterActive ? "inline-flex" : "none";
       const col = btn.dataset.col;
+      const colNumber = this._columnNumber(col);
+      btn.style.display = this.isFilterActive && colNumber >= firstCol && colNumber <= lastCol ? "inline-flex" : "none";
       if (this.activeFilters.has(col)) {
         btn.classList.add("is-active");
       } else {
