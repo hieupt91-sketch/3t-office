@@ -1,21 +1,31 @@
 param(
   [Parameter(Mandatory = $true)][string]$Worktree,
   [Parameter(Mandatory = $true)][string]$OutCsv,
-  [ValidateSet("All", "Office", "LibreOffice")][string]$Mode = "All",
+  [ValidateSet("All", "Office", "LibreOffice")][string]$Mode = "Office",
   [string]$OnlyFixture = "",
   [ValidateSet("All", "Word", "Excel")][string]$OnlyApp = "All"
 )
 
 $ErrorActionPreference = "Stop"
 $worktreeRoot = (Resolve-Path -LiteralPath $Worktree).Path
+if ($Mode -in @("All", "LibreOffice")) {
+  throw "LibreOffice desktop/UIA mode is disabled by the owner rule. Run Mode Office for hidden COM measurements; use WebView2 CDP for VN Office."
+}
 $officeDir = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Office\16.0\Word\InstallRoot").Path
 $wordExe = Join-Path $officeDir "WINWORD.EXE"
 $excelExe = Join-Path $officeDir "EXCEL.EXE"
 $sofficeExe = Join-Path $env:USERPROFILE "tools\libreoffice\program\soffice.exe"
 if (-not (Test-Path -LiteralPath $sofficeExe)) { throw "LibreOffice executable not found at $sofficeExe" }
 
-Add-Type -AssemblyName UIAutomationClient
-Add-Type -AssemblyName UIAutomationTypes
+if ($Mode -in @("All", "Office")) {
+  $activeOfficeProcesses = @(
+    Get-CimInstance Win32_Process -Filter "Name='WINWORD.EXE' OR Name='EXCEL.EXE'" |
+      Where-Object { $_.CommandLine -and $_.CommandLine -match "/automation|/Embedding" }
+  )
+  if ($activeOfficeProcesses.Count -gt 0) {
+    throw "Hidden Office COM processes are already active; wait for the shared Office automation window before running this oracle."
+  }
+}
 
 $fixtures = @(
   @{ App = "Word"; Path = Join-Path $worktreeRoot "file test\landocx\d03.docx" },
@@ -56,7 +66,6 @@ function Get-ExcelOpen($app, [string]$path) {
     } catch {
       $hresult = $_.Exception.HResult
       if (($hresult -eq -2147418111 -or $_.Exception.Message -match "RPC_E_CALL_REJECTED") -and $attempt -lt 20) {
-        Dismiss-OfficeActivationDialog
         Start-Sleep -Milliseconds 250
         continue
       }
@@ -78,7 +87,6 @@ function Get-WordOpen($app, [string]$path) {
     } catch {
       $hresult = $_.Exception.HResult
       if (($hresult -eq -2147418111 -or $_.Exception.Message -match "RPC_E_CALL_REJECTED") -and $attempt -lt 20) {
-        Dismiss-OfficeActivationDialog
         Start-Sleep -Milliseconds 250
         continue
       }
@@ -88,53 +96,18 @@ function Get-WordOpen($app, [string]$path) {
   }
 }
 
-function Dismiss-OfficeActivationDialog {
-  # Office may create its activation UI asynchronously after the first document
-  # is created; allow UI Automation to see it before taking the desktop snapshot.
-  Start-Sleep -Milliseconds 250
-  try {
-    $elements = [System.Windows.Automation.AutomationElement]::RootElement.FindAll(
-      [System.Windows.Automation.TreeScope]::Descendants,
-      [System.Windows.Automation.Condition]::TrueCondition)
-  } catch {
-    # UIA can invalidate its desktop snapshot while Office windows close.
-    return
-  }
-  $wizardProcessIds = [System.Collections.Generic.HashSet[int]]::new()
-  foreach ($element in $elements) {
-    try {
-      if ($element.Current.Name -eq "Microsoft Office Activation Wizard") {
-        [void]$wizardProcessIds.Add([int]$element.Current.ProcessId)
-      }
-    } catch {}
-  }
-  if ($wizardProcessIds.Count -eq 0) { return }
-  foreach ($element in $elements) {
-    try {
-      if ($element.Current.Name -eq "Close" -and $element.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button -and $wizardProcessIds.Contains([int]$element.Current.ProcessId)) {
-        $pattern = $null
-        if ($element.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern, [ref]$pattern)) {
-          ([System.Windows.Automation.InvokePattern]$pattern).Invoke()
-          Start-Sleep -Milliseconds 150
-          break
-        }
-      }
-    } catch {}
-  }
-}
-
 function New-OfficeApp([string]$kind) {
   if ($kind -eq "Word") {
     $app = New-Object -ComObject Word.Application
-    $app.Visible = $true
+    $app.Visible = $false
     $app.DisplayAlerts = 0
+    $app.ScreenUpdating = $false
   } else {
     $app = New-Object -ComObject Excel.Application
-    $app.Visible = $true
+    $app.Visible = $false
     $app.DisplayAlerts = $false
     $app.AskToUpdateLinks = $false
   }
-  Dismiss-OfficeActivationDialog
   return $app
 }
 
@@ -163,7 +136,6 @@ function Open-OfficeFixture($fixture) {
 function Close-OfficeDocument($app, $document, [string]$kind) {
   $idleDeadline = (Get-Date).AddSeconds(20)
   while ((Get-Date) -lt $idleDeadline) {
-    Dismiss-OfficeActivationDialog
     try {
       if ($app.Ready) { break }
     } catch {
@@ -192,7 +164,6 @@ function Close-OfficeDocument($app, $document, [string]$kind) {
 }
 
 function Stop-OfficeApp($app) {
-  Dismiss-OfficeActivationDialog
   $attempt = 0
   while ($attempt -lt 8) {
     $attempt++
@@ -212,19 +183,21 @@ function Stop-OfficeApp($app) {
 function Add-OfficeResult($fixture, [string]$condition, [int]$run, $opened) {
   $results.Add([pscustomobject]@{
     App = $fixture.App; Fixture = [System.IO.Path]::GetFileName($fixture.Path); Condition = $condition
-    Run = $run; OpenWallMs = $opened.WallMs; Retries = ($opened.Attempts - 1); WindowTitle = "visible COM document"
+    Run = $run; OpenWallMs = $opened.WallMs; Retries = ($opened.Attempts - 1); WindowTitle = "hidden COM document"
     Status = "PASS"; Error = ""
   })
   Write-Host "$($fixture.App) $([System.IO.Path]::GetFileName($fixture.Path)) $condition/$run $($opened.WallMs) ms (retries=$($opened.Attempts - 1))"
 }
 
 function Add-OfficeFailure($fixture, [string]$condition, [int]$run, [string]$message) {
+  $status = if ($message -match "RPC_E_CALL_REJECTED|Call was rejected by callee") { "BLOCKED" } else { "FAIL" }
+  $retrySummary = if ($status -eq "BLOCKED") { "20 attempts / 19 retries" } else { "up to 20 attempts" }
   $results.Add([pscustomobject]@{
     App = $fixture.App; Fixture = [System.IO.Path]::GetFileName($fixture.Path); Condition = $condition
-    Run = $run; OpenWallMs = ""; Retries = "up to 19"; WindowTitle = ""
-    Status = "FAIL"; Error = ($message -replace "\s+", " ").Trim()
+    Run = $run; OpenWallMs = ""; Retries = $retrySummary; WindowTitle = ""
+    Status = $status; Error = ($message -replace "\s+", " ").Trim()
   })
-  Write-Host "$($fixture.App) $([System.IO.Path]::GetFileName($fixture.Path)) $condition/$run FAIL: $message"
+  Write-Host "$($fixture.App) $([System.IO.Path]::GetFileName($fixture.Path)) $condition/$run $status`: $message"
   $results | Export-Csv -LiteralPath $OutCsv -NoTypeInformation -Encoding UTF8
 }
 
@@ -246,22 +219,20 @@ function Run-OfficeFixture($fixture) {
     }
     Start-Sleep -Milliseconds 350
   }
-  # Warm: retain one visible application instance between the two Open calls.
+  # Warm: retain one hidden application instance between the two Open calls.
   Wait-ForFreeRam
   $app = New-OfficeApp $fixture.App
   $keeper = $null
   try {
     if ($fixture.App -eq "Word") {
       # Word exits its COM server when the last document closes. Keep a blank
-      # document open so both warm calls reuse the same visible process.
+      # document open so both warm calls reuse the same hidden process.
       $keeper = $app.Documents.Add()
-      Dismiss-OfficeActivationDialog
     }
     for ($run = 1; $run -le 2; $run++) {
       Wait-ForFreeRam
       $opened = $null
       try {
-        Dismiss-OfficeActivationDialog
         $opened = if ($fixture.App -eq "Word") { Get-WordOpen $app $fixture.Path } else { Get-ExcelOpen $app $fixture.Path }
         Add-OfficeResult $fixture "warm" $run $opened
       } catch {

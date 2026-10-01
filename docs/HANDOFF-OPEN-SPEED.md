@@ -316,3 +316,71 @@ Phép đo sau được thực hiện trước merge `73cacde6`; sẽ đo lại l
 **CORE PATCH ID (if any):** None.
 
 **NEXT ACTION:** Khi tài nguyên dùng chung rảnh, chạy lại Node và Python suites; chạy oracle cho 9 tệp, 26 LAN workbook audit và Writer page-count audit. Cập nhật số đo source sau `bf16f691`; chỉ bật default payload trong commit riêng nếu đủ điều kiện. Giữ branch chưa merge vào main.
+
+## S45 continuation — main ca448272 and current verification
+
+**TASK:** Continue S45 from the committed WIP, merge the latest `main`, reduce LAN14 import allocations, and rerun the requested gates.
+**AGENT/ROLE:** Codex — integration and Writer/Sheet performance
+**BRANCH:** `perf/open-speed-codex`
+**WORKTREE:** `E:\VNOffice-codex-openspeed`
+**OBJECTIVE:** Keep the merged G10 print/save and shared/cloud documentation with S45 speed work; round-trip LAN14 without OOM; record current gate evidence.
+
+### Merge and source changes
+
+- `git merge main` merged `ca448272` into `7f56c794` cleanly with the `ort` strategy; this latest merge had no conflicts. G10 print/save integration and `docs/SPEC-HANG-MUC-CHUNG.md` / `docs/SPEC-3T-CLOUD.md` are in the merged tree. Earlier S45 merge commits and conflict resolutions are documented above.
+- Payload remains opt-in. No default change was made because the current 26-file audit has not completed.
+- The payload parser now stores its parsed cell object directly for the usual one-cell source record, cloning only repeated cells. It skips text and image extraction for cell XML that has no paragraph or frame. `tests/unit/sheet-open-payload.test.js` checks the direct-store and repeat-clone behavior.
+- `_batch_audit.py` now decodes captured process output as UTF-8 with replacement. Windows' default CP1252 decoder had raised `UnicodeDecodeError` on Vietnamese CDP output in the first audit attempt.
+
+### LAN14 measurement on merged source, before the follow-up parser allocation change
+
+Measured with `_roundtrip_save_sheet.py` through WebView2 CDP and `SHEET_OPEN_PAYLOAD=1`. The workbook has 1,519,661 worksheet cell XML records; 1,435,546 cells were present in the full grid at the final probe sample. The renderer did not OOM, and Save As produced a 9,742,160-byte workbook.
+
+| Measurement | S44 baseline | S45 WIP before main merge | `7f56c794` before follow-up parser change |
+|---|---:|---:|---:|
+| Peak JS heap | 1,890,409,684 B | 1,166,054,338 B | 1,433,524,235 B |
+| Peak renderer working set | 4,004,040,704 B | 1,567,551,488 B | 1,979,102,976 B |
+| Peak total WebView working set | 4,288,397,312 B | 1,871,249,408 B | 2,266,451,968 B |
+| Peak Python host working set | NOT RUN | NOT RUN | 3,153,108,992 B |
+| Process to viewport | 33.584 s | 33.609 s | 28.890 s |
+| Process to full hydration | 251.097 s | 219.234 s | 177.203 s |
+
+The merged-source sample is better than the original S44 failure in renderer peak and completed Save As without OOM, but its peak is higher than the earlier S45 WIP sample. The follow-up parser allocation change still needs the same CDP memory probe. These open times remain far above the Word/Excel and LibreOffice oracle values in the historical table.
+
+### Gates run on the current source
+
+**COMMANDS RUN:** `git merge main`; `node tests/run-tests.js` twice; isolated `runSheetCfValidationFodsRoundTripTests` and `runSheetFormatDropdownTests`; `python -m unittest discover -s tests`; LAN14 CDP round-trip/memory probe; partial `_batch_audit.py`; `python -m py_compile scripts/layout-audit/_batch_audit.py`; `git diff --check`.
+
+**BUILD RESULT:** NOT RUN (no build-system change).
+
+**TEST RESULTS:** Node full suite first run **FAIL 2,229/2,231**; the CF/validation and row/column-layout FODS conversions passed when rerun individually. The subsequent full Node suite **PASS 2,231/2,231**. Python unittest **PASS 542 tests in 436.363 s**. `_batch_audit.py` syntax compile and `git diff --check` **PASS**. LAN14 on merged source **PASS** open and Save As without OOM, as measured above.
+
+**PARTIAL LAN AUDIT:** `lan01`–`lan05` each saved, reported `TONG=0`, and Excel COM reported a positive worksheet count (3, 2, 12, 2, 1 respectively). Lint was clean for lan01, lan04, lan05; it reported four cell-row mismatches for lan02 and one for lan03. The full batch exited with status 1 after lan05, before lan06; this is **NOT PASS** for the 26-file gate. The first run was interrupted after CP1252 decoding failed; the harness encoding fix was applied before the second run. The ignored `_batch_audit_report.md` on disk is older and must not be treated as the current partial report.
+
+**KNOWN FAILURES:** Full 26-file LAN audit is incomplete. A hidden `EXCEL.EXE /automation` process was present and responding after the batch stopped, and multiple other worktrees had active `soffice` processes; no external process was terminated. The Writer page-count audit and the nine-fixture post-change oracle are **NOT RUN**. WPS is **NOT RUN**. Owner speed target remains **FAIL** based on current LAN14 and the historical nine-fixture comparison.
+
+**RISKS:** Preview and full hydration still consume substantial memory; the current measured renderer peak is about 1.98 GB. Payload remains OFF by default until all 26 workbook audits report `TONG=0` and Excel confirms worksheets. Do not use the stale ignored batch report as evidence.
+
+**DEPENDENCIES/BLOCKERS:** Shared LibreOffice and Office automation processes are active in other worktrees. Resume the remaining LAN audit, Writer page-count audit, current CDP oracle for all nine fixtures, and post-allocation-change LAN14 memory sample only after those processes clear. Keep Office COM sequential and do not terminate processes without positive job ownership.
+
+**CORE PATCH ID (if any):** None.
+
+**NEXT ACTION:** Wait for a quiet shared automation window, finish and record the 26-file audit, rerun the LAN14 CDP memory probe after the parser allocation change, run the Writer page-count audit and nine-fixture CDP/hidden-COM oracle, then update this handoff and commit on `perf/open-speed-codex` without merging into `main`.
+
+### S45 current oracle update — hidden Office COM
+
+The earlier S44 table is historical and used visible Office / LibreOffice UIA observations. This current Office sample uses the updated oracle with `Visible = false`, no UI Automation, and sequential COM calls. Cold-ish and warm columns contain two calls each (milliseconds). The LAN14 Excel warm call 2 exhausted 19 retries with `RPC_E_CALL_REJECTED`; an isolated retry was **BLOCKED** because free RAM was 3.56 GB, below the 5 GB guard. No COM process remained afterward.
+
+| File type | Hidden Office C (2 runs, ms) | Hidden Office W (2 runs, ms) | 3T CDP process→viewport | 3T CDP process→hydrated |
+|---|---:|---:|---:|---:|
+| Writer d03.docx | 1040.5 / 268.5 | 422.7 / 139.6 | NOT RUN | NOT RUN |
+| Writer d12.docx | 443.8 / 303.9 | 264.9 / 121.3 | NOT RUN | NOT RUN |
+| Writer d24.docx | 1493.9 / 626.0 | 847.9 / 1003.1 | NOT RUN | NOT RUN |
+| Writer legacy01.doc | 373.8 / 350.1 | 236.0 / 103.9 | NOT RUN | NOT RUN |
+| Sheet legacy01.xls | 794.0 / 467.8 | 499.1 / 86.3 | NOT RUN | NOT RUN |
+| Sheet lan05.xlsx | 584.9 / 557.2 | 534.6 / 66.7 | NOT RUN | NOT RUN |
+| Sheet lan11.xlsx | 2088.5 / 1339.8 | 1219.8 / 488.7 | NOT RUN | NOT RUN |
+| Sheet lan12.xlsx | 1898.9 / 1112.9 | 1139.8 / 550.6 | NOT RUN | NOT RUN |
+| Sheet lan14.xlsx | 21391.1 / 21426.5 | 19563.6 / BLOCKED (RPC_E_CALL_REJECTED after 19 retries) | NOT RUN | NOT RUN |
+
+LibreOffice desktop measurements are **NOT RUN** under the owner rule that prohibits desktop/UIA checks; WPS remains **NOT RUN** because it is unavailable on this machine. The hidden Office timings are not directly comparable to the historical visible-window values. The nine-file 3T CDP measurement still needs to run on a quiet machine with at least 5 GB free RAM.

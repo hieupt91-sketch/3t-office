@@ -571,7 +571,7 @@ export async function buildSheetPayloadModel(payload, adapter, supportXmlOverrid
         if (!attributes["table:style-name"] && state.columnStyles[columnNumber - 1]) attributes["table:style-name"] = state.columnStyles[columnNumber - 1];
         const annotationMatch = String(content || "").match(/<office:annotation\b([^>]*)>([\s\S]*?)<\/office:annotation>/i);
         const valueContent = annotationMatch ? content.replace(annotationMatch[0], "") : content;
-        const text = cellText(adapter, valueContent);
+        const text = /<text:p\b/i.test(valueContent) ? cellText(adapter, valueContent) : "";
         const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"]
           || text !== "" || annotationMatch || attributes["table:content-validation-name"]
           || (columnNumber <= state.lastDataCol && adapter._cellStyleHasBorder(attributes["table:style-name"], cellVisualStyles));
@@ -597,7 +597,12 @@ export async function buildSheetPayloadModel(payload, adapter, supportXmlOverrid
           const materializeRepeat = Math.max(0, Math.min(columnRepeat, state.lastDataCol - columnNumber + 1));
           for (let repeat = 0; repeat < materializeRepeat; repeat++) {
             const coord = `${adapter._columnName(columnNumber + repeat)}${state.rowNumber}`;
-            state.data.set(coord, { ...item });
+            // Keep the parsed object for the common single-cell case. Cloning
+            // it here used to allocate an object that was immediately
+            // discarded for every populated cell. Repeats still need
+            // independent mutable cell records, while their interned style
+            // object remains shared.
+            state.data.set(coord, repeat === 0 ? item : { ...item });
             if (attributes["table:content-validation-name"]) {
               workbook.validationHits.push({ sheet: buildingSheet, coord, name: attributes["table:content-validation-name"] });
             }
@@ -612,7 +617,9 @@ export async function buildSheetPayloadModel(payload, adapter, supportXmlOverrid
             }
           }
         }
-        const embeddedImages = cellImagesDomEquivalent(adapter, content, "Image" + (state.images.length + 1));
+        const embeddedImages = content.includes("<draw:frame")
+          ? cellImagesDomEquivalent(adapter, content, "Image" + (state.images.length + 1))
+          : [];
         for (const image of embeddedImages) {
           state.images.push({ ...image, anchor: { c: adapter._columnName(columnNumber), r: state.rowNumber } });
         }

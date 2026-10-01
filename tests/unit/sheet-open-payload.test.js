@@ -111,6 +111,27 @@ export async function runSheetOpenPayloadTests() {
     assert(first.style.color === "#123456" && second.style.color !== "#123456", "cell style edit leaked to neighboring cells");
   });
 
+  await test("payload parser stores single-cell records directly and clones repeated cells", async () => {
+    const adapter = new SheetAdapter(null);
+    const parsedItems = [];
+    const parseCell = adapter._cellFromFodsAttributes.bind(adapter);
+    adapter._cellFromFodsAttributes = (...args) => {
+      const item = parseCell(...args);
+      parsedItems.push(item);
+      return item;
+    };
+    const rowXml = `<table:table-row><table:table-cell office:value-type="string" table:number-columns-repeated="2"><text:p>repeat</text:p></table:table-cell></table:table-row>`;
+    const workbook = await buildSheetPayloadModel(makePayload([
+      ["sheet", "Data"], ["row-xml", rowXml], ["end-sheet"]
+    ]), adapter);
+    const first = workbook.sheetsData.Data.get("A1");
+    const second = workbook.sheetsData.Data.get("B1");
+    assert(parsedItems.length === 1, "one repeated source cell was parsed more than once");
+    assert(first === parsedItems[0], "single parsed cell was replaced by a redundant object copy");
+    assert(second !== first, "repeated cells share a mutable cell record");
+    assert(second.style === first.style, "repeated cells did not reuse their immutable style");
+  });
+
   await test("pristine XLSX native saves use a compact sheet-count-preserving payload", async () => {
     const grid = new SheetGridController(makeContainer());
     const adapter = new SheetAdapter(grid);

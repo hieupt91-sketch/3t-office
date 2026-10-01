@@ -2,6 +2,18 @@ param([string[]]$Files)
 # Opens each workbook sequentially in a hidden Excel COM instance. No UI
 # Automation is used; transient RPC_E_CALL_REJECTED calls are retried.
 
+$activeOffice = @(
+  Get-CimInstance Win32_Process -Filter "Name='WINWORD.EXE' OR Name='EXCEL.EXE'" |
+    Where-Object { $_.CommandLine -and $_.CommandLine -match "/automation|/Embedding" }
+)
+if ($activeOffice.Count -gt 0) {
+  $pids = ($activeOffice | ForEach-Object { $_.ProcessId }) -join ","
+  foreach ($f in $Files) {
+    "$(Split-Path $f -Leaf) BLOCKED hidden Office COM already active (PID $pids)"
+  }
+  exit 0
+}
+
 $xl = $null
 try {
   $xl = New-Object -ComObject Excel.Application

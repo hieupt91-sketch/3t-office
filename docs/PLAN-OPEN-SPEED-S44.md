@@ -44,3 +44,17 @@
 
 - Keep payload behavior behind `SHEET_OPEN_PAYLOAD`; restore its previous default if any of 26 fidelity audits differ.
 - Retain existing full-load model path and CLI conversion fallback. Revert only S44 scoped hunks/files if correctness or page parity changes; do not reset or clean the branch.
+
+## S45 amendment — owner desktop-check rule
+
+This amendment supersedes the earlier plan's LibreOffice UI Automation measurement step. Desktop checks use WebView2 remote debugging plus CDP; Office comparisons use hidden COM only. The legacy LibreOffice UIA mode in `_oracle_open_speed_s44.ps1` is disabled and must not be run. WPS remains NOT RUN when unavailable on this machine.
+
+**Objective:** merge the current `main` feature work with S44 speed work, preserve both behaviors, reduce Sheet payload allocations for `lan14.xlsx`, and keep payload opt-in until the complete 26-workbook fidelity gate passes.
+
+**Files/modules:** `adapters/libreoffice/sheet/sheet-payload-parser.js` and its unit regression; `scripts/layout-audit/_batch_audit.py` for robust UTF-8 subprocess capture; `_excel_open_test.ps1` and `_oracle_open_speed_s44.ps1` for sequential hidden COM with retries and BLOCKED reporting; `docs/HANDOFF-OPEN-SPEED.md` for measurements and truthfully reported gates. Shared Sheet model and file-format semantics remain unchanged.
+
+**Dependencies and risks:** no new dependencies, Core changes, UI framework changes, or network data flow. Shared Office COM and LibreOffice workloads can block or distort measurements; check for active Office automation and at least 5 GB free RAM before heavy probes. Never terminate another worktree's process. Keep `SHEET_OPEN_PAYLOAD` OFF until all 26 files have `TONG=0` and Excel confirms a positive worksheet count.
+
+**Test plan:** run `node tests/run-tests.js`; `python -m unittest discover -s tests` and rerun isolated FODS round-trip cases if they fail under concurrent soffice load; the 26-file LAN Sheet audit; the Writer page-count audit through CDP and hidden Word COM; post-change CDP viewport/hydration and memory measurements; and hidden Office COM oracle measurements. Record LO UI and WPS results as NOT RUN when the owner rule or machine availability prevents a valid comparison.
+
+**Rollback:** keep payload opt-in; revert only the local parser allocation optimization if its regression or fidelity gate fails. Do not reset, clean, or merge this branch into `main`.

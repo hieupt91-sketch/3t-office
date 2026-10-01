@@ -29,6 +29,8 @@ for name in names:
             cwd=ROOT,
             timeout=roundtrip_timeout,
             env=audit_env,
+            encoding="utf-8",
+            errors="replace",
         )
     except subprocess.TimeoutExpired as exc:
         r = subprocess.CompletedProcess(exc.cmd, 124, exc.stdout or "", exc.stderr or "")
@@ -46,7 +48,16 @@ for name in names:
     total = ""; per_kind = ""
     if saved:
         with open(audit, "w", encoding="utf-8") as f:
-            subprocess.run(["node", "scripts/audit-sheet-import.mjs", "--xlsx-vs-xlsx", src, out], stdout=f, stderr=subprocess.STDOUT, text=True, cwd=ROOT, timeout=600)
+            subprocess.run(
+                ["node", "scripts/audit-sheet-import.mjs", "--xlsx-vs-xlsx", src, out],
+                stdout=f,
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                cwd=ROOT,
+                timeout=600,
+            )
         txt = open(audit, encoding="utf-8", errors="replace").read()
         m = re.search(r"TONG sai lech: (\d+)", txt); total = m.group(1) if m else "?"
         kinds = {}
@@ -55,11 +66,38 @@ for name in names:
         per_kind = ", ".join(f"{k}={v}" for k, v in sorted(kinds.items(), key=lambda kv: -kv[1]))
     excel = "-"; lint = "-"
     if saved:
-        e = subprocess.run(["powershell", "-NoProfile", "-File", os.path.join(SP, "_excel_open_test.ps1"), "-Files", out], capture_output=True, text=True, timeout=240)
-        excel = (e.stdout.strip().splitlines() or ["?"])[-1]
+        try:
+            e = subprocess.run(
+                ["powershell", "-NoProfile", "-File", os.path.join(SP, "_excel_open_test.ps1"), "-Files", out],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=240,
+            )
+            excel = (e.stdout.strip().splitlines() or ["?"])[-1]
+        except subprocess.TimeoutExpired:
+            # A timed-out Office COM call is a blocked worksheet confirmation,
+            # not proof the saved workbook is invalid. Keep the batch moving;
+            # the positive Excel sheet-count gate still remains unmet.
+            excel = "BLOCKED hidden Excel COM check timed out after 240 s"
         # Lint XML (well-formed, count=, chỉ số, thứ tự ô) để phân biệt file hỏng thật với Excel COM bị tranh
-        lint_run = subprocess.run([sys.executable, os.path.join(SP, "_xlsx_lint.py"), out], capture_output=True, text=True, timeout=300)
-        parts_run = subprocess.run([sys.executable, os.path.join(SP, "_xlsx_parts_lint.py"), out], capture_output=True, text=True, timeout=300)
+        lint_run = subprocess.run(
+            [sys.executable, os.path.join(SP, "_xlsx_lint.py"), out],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=300,
+        )
+        parts_run = subprocess.run(
+            [sys.executable, os.path.join(SP, "_xlsx_parts_lint.py"), out],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=300,
+        )
         issues = [line for line in ((lint_run.stdout or "") + (parts_run.stdout or "")).splitlines()
                   if line.strip() and line.strip() not in ("lint done", "parts lint done")]
         lint = "clean" if not issues else f"{len(issues)} issue(s): " + "; ".join(issues[:3])
