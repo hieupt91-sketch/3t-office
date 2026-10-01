@@ -151,6 +151,46 @@ export async function runWriterParagraphSpacingTests() {
     }
   });
 
+  await test("Writer line spacing: chính xác áp dụng vào đoạn đã chọn dù hộp thoại lấy focus", async () => {
+    const { adapter, body } = adapterWithBody("<p>x</p>");
+    const paragraph = {
+      nodeType: 1,
+      tagName: "P",
+      style: {},
+      hasAttribute() { return false; }
+    };
+    body.children = [paragraph];
+    body.contains = (node) => node === paragraph;
+    adapter._initZones();
+    adapter.flushTyping = () => {};
+    let snapshot = "";
+    adapter.recordSnapshot = (name) => { snapshot = name; };
+
+    const range = {
+      startContainer: paragraph,
+      intersectsNode: (node) => node === paragraph
+    };
+    const previousWindow = globalThis.window;
+    let selectionAvailable = true;
+    try {
+      globalThis.window = {
+        getSelection: () => selectionAvailable
+          ? { rangeCount: 1, getRangeAt: () => range }
+          : { rangeCount: 0 }
+      };
+      const applied = await adapter._applyExactLineSpacing(async () => {
+        selectionAvailable = false;
+        return "18";
+      });
+      assert.equal(applied, true);
+      assert.equal(paragraph.style.lineHeight, "18pt");
+      assert.equal(snapshot, "writer.para.lineSpacingExact");
+    } finally {
+      if (previousWindow === undefined) delete globalThis.window;
+      else globalThis.window = previousWindow;
+    }
+  });
+
   await test("Writer FODT: spacing before/after serialize đúng fo:margin-top/bottom (pt)", () => {
     const { adapter } = adapterWithBody(
       '<p style="margin-top:12pt;margin-bottom:6pt">KHOANG_12_6</p>'

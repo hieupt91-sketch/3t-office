@@ -535,7 +535,7 @@ li.vno-page-auto-gap {
   isolation: isolate;
 }
 
-.vno-writer-page > :not([data-vno-float-anchor]),
+.vno-writer-page > :not([data-vno-float-anchor]):not(.vno-writer-shapes-layer),
 .vno-print-preview-body > :not([data-vno-float-anchor]) {
   position: relative;
   z-index: 1;

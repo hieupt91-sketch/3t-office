@@ -2,199 +2,208 @@
 
 **Date:** 2026-10-01  
 **Branch:** `audit/doc-basics-codex`  
-**Scope:** `docs/BASELINE-CHECKLIST.md`, section A and B1–B12. Slides are deferred by owner priority.
+**Scope:** `docs/BASELINE-CHECKLIST.md`, sections A and B1–B12. Slides are deferred by owner priority.
 
-## Method
+## Method and status meaning
 
-Acceptance actions ran in the desktop app started by `main.py` with pywebview, using the same UI/ribbon/keyboard event path as `scripts/test_g7_file_basics.py`. Temporary documents, profiles, and exports stayed under `E:\tmp\doc-basics-audit`; no company document was added to this repository. Word COM opened disposable audit DOCX files read-only. COM calls were sequential and retried when Word returned `RPC_E_CALL_REJECTED`; the audit did not close or terminate pre-existing Office processes.
+The desktop application was launched through `main.py` and checked through WebView2 remote debugging (main acceptance port 9271; isolated fix retests used ports 9451–9453). Mouse and keyboard actions were CDP `Input.dispatchMouseEvent`, `Input.dispatchKeyEvent`, and `Input.insertText`; DOM inspection used CDP Runtime only. No OS-level input was used. Word checks used hidden COM on disposable copies, one call at a time, with `RPC_E_CALL_REJECTED` retry; existing Office processes were not terminated. Temporary documents and test profiles are under `E:\tmp\doc-basics-audit`; no company documents were added to Git.
 
-The WebView probe used UI clicks and keyboard events, not physical input devices. The Vietnamese composition case simulates a Telex-style composition event and checks NFC/caret position; it does not run the Unikey IME itself. A `PASS` below means the desktop UI result was observed. `FAIL` means the action ran and exposed a product gap. `NOT RUN` means no trustworthy result was obtained. `BLOCKED` means an external condition prevented the check. Unit tests are supporting evidence and do not substitute for a desktop result.
+The previous draft cited `scripts/test_g7_file_basics.py` and `pywebview.evaluate_js`; that evidence is excluded because it does not comply with the current owner rule. `scripts/layout-audit/_batch_writer.py` also uses `evaluate_js`; its required page-count run used a temporary CDP-only probe against copies of the same DOCX corpus. The original source DOCX files were not modified.
 
-Evidence files are temporary unless a repository path is shown:
+`PASS`/`FAIL` below describe the named desktop action. `NOT RUN` means no reliable test of that sub-point was captured. Separate round-trip rows record Word/3T reopen and Undo coverage so a UI action pass is not mistaken for full document fidelity. `BLOCKED` is used only when an external condition prevented a test.
 
-- `E:\tmp\doc-basics-audit\g7\g7-file-basics-report-writer.json` — G7 desktop file/open/save/print/close audit, including its serial Word page oracle.
-- `E:\tmp\doc-basics-audit\desktop-acceptance.json` — pywebview UI acceptance probe and first DOCX round trip.
-- `E:\tmp\doc-basics-audit\targeted-ui.json` — clean follow-up for paragraph indents/spacing and inserted objects.
-- `E:\tmp\doc-basics-audit\desktop-fix-verification.json` — desktop verification of fixes made in this task.
-- `E:\tmp\doc-basics-audit\word-roundtrip.json` — Word COM inspection of a disposable DOCX. This reports 1 page, A4 portrait, PAGE/NUMPAGES fields, but 0 comments and 0 revisions.
+**Evidence index (temporary):**
 
-## Acceptance results
+- CDP driver and action probes: `E:\tmp\doc-basics-audit\cdp_driver.py`, `cdp_b*.py`, `cdp_a10_probe.py`, `cdp_undo_roundtrip.py`, `cdp_close_*.py`, `cdp_ctrl_*.py`.
+- Desktop captures / documents: `cdp-startup.png`, `cdp-bad-open.png`, `doc9-basics.docx`, `doc10-exact.docx`, `doc10-header-footer.docx`, `doc10-track-comments.docx`, `doc11-new-ctrls.docx`, `doc12-page-setup.docx`, `doc13-textbox.png`.
+- Word COM readbacks: `word-doc9-readback.json`, `word_page_setup_diag.ps1`, `word_hf_diag.ps1`, `word_track_comment_diag.ps1`; package inspections `inspect_hf_zip.py`, `inspect_sectpr.py`, `inspect_track_comments.py`.
+- Current active disposable desktop document `Tài liệu 13` contains deliberately inserted test text/objects and is not a user document.
+- Focused fix retest: `E:\tmp\doc-basics-audit\fix-desktop-probe-2.log` (TOC sibling placement, textbox geometry/input, Undo/Redo).
+- Layout comparison: `E:\tmp\doc-basics-audit\layout-batch-cdp\_batch_writer_report.md`; start-position retests for d11, d21, and d24 are in the same temporary directory.
+
+## A. Common
 
 | Item | Sub-point | Status | Evidence |
 |---|---|---|---|
-| A1 | Starts with an empty document | PASS | G7 `blank`: empty body, one page. |
-| A1 | 3T Doc startup name/title | PASS | G7 `blank`: tab/title `Tài liệu 1.docx — 3T Doc`. |
-| A2 | Ctrl+N opens a blank document | PASS | G7 `new`: body empty after Ctrl+N. |
-| A2 | New-document name increments | PASS | G7 names `Tài liệu 1.docx`, then `Tài liệu 2.docx`. |
-| A3 | Ctrl+O opens the file dialog | PASS | G7 `openDialogCancel`, `openFilter`. |
-| A3 | Open dialog format filters | PASS | G7 `openFilter` covered Writer-supported formats. |
-| A3 | Corrupt file shows a clear error | PASS | G7 `badOpen.message` showed an invalid/corrupt Office package error. |
-| A3 | Failed open keeps the active document | PASS | G7 `badOpenKeepsCurrent` true. |
-| A4 | Ctrl+S on a new document opens Save As | PASS | G7 `newCtrlSOpensSaveAs` true. |
-| A4 | Existing document saves in its source format | PASS | G7 `saveInPlace`, `saveAsCurrentFormatFirst`, and reopen checks true. |
-| A5 | F12 opens Save As | PASS | G7 triggered F12. |
-| A5 | Save As format list / alternate export | PASS | G7 exercised DOC/DOCX/ODT/RTF/TXT/PDF filters and alternate-format export. |
-| A5 | Overwrite confirmation | NOT RUN | Existing Writer file was not replaced in the G7 run. |
-| A6 | Dirty close → Save | PASS | G7 `dirtyCloseSave` and saved-content verification true. |
-| A6 | Dirty close → Discard | PASS | G7 `dirtyCloseDiscard` true. |
-| A6 | Dirty close → Cancel | PASS | G7 `dirtyCloseCancel` true. |
-| A7 | Ctrl+P opens print preview | PASS | G7 opened preview; page count matched. |
-| A7 | Printer selection | PASS | G7 used Microsoft Print to PDF. |
-| A7 | Number of copies | PASS | G7 print dialog exposed the copies control. |
-| A7 | Page range | PASS | G7 print dialog exposed range and All pages options. |
-| A7 | PDF print/export page count | PASS | Blank produced 1 page; the test document produced 3 pages. |
-| A8 | Ctrl+Z undo | PASS | Desktop removed the bold edit and restored the original markup. |
-| A8 | Ctrl+Y redo | PASS | Desktop restored the bold markup after undo. |
-| A9 | Ctrl+X / ribbon Cut | NOT RUN | No reliable desktop clipboard result was captured. |
-| A9 | Ctrl+C / ribbon Copy | NOT RUN | No reliable desktop clipboard result was captured. |
-| A9 | Ctrl+V / ribbon Paste | NOT RUN | No reliable desktop clipboard result was captured. |
-| A9 | Paste retaining formatting | NOT RUN | Not exercised in the desktop app. |
-| A9 | Paste plain text | NOT RUN | Not exercised in the desktop app. |
-| A9 | Paste from Word or Excel | NOT RUN | External Office clipboard source was not tested. |
-| A10 | Ctrl+F find | NOT RUN | No reliable find result was captured. |
-| A10 | Ctrl+H replace | NOT RUN | No reliable replace result was captured. |
-| A11 | Zoom slider | PASS | Desktop probe changed the slider from 100% to 125%. |
-| A11 | Ctrl+mouse-wheel zoom | PASS | After the fix, Ctrl+wheel changed controller/page/slider from 100% to 110% and prevented browser zoom. |
-| A12 | App-wide 100% Vietnamese strings | NOT RUN | The probe checked key tabs/status, not every ribbon label and dialog. |
-| A12 | Standard ribbon tabs | PASS | Desktop probe listed Trang đầu, Chèn, Bố cục, Đánh giá, Chế độ xem, Trợ giúp, and other Writer tabs. |
-| A12 | Status bar | PASS | Desktop showed word count and `Trang 1 / 1`. |
-| A12 | Alt ribbon key tips | PASS | Desktop rendered Alt key-tip badges. |
-| A13 | F1 opens Vietnamese Help | PASS | F1 opened the Help panel. |
-| A13 | Contextual F1 article | PASS | After the fix, focused Theo dõi thay đổi + F1 opened the matching Vietnamese article. |
-| A14 | AutoSave / recovery while running | NOT RUN | Unit coverage was not used as desktop acceptance evidence. |
-| A14 | Recover after restart | NOT RUN | Not exercised in a desktop restart/reopen scenario. |
-| B1 | Telex-style composition | PASS | Simulated composition produced `áb`; NFC and caret offset 2 were verified. |
-| B1 | VNI input | NOT RUN | VNI composition was not simulated. |
-| B1 | Precomposed Unicode / no lost diacritics / caret stability | PASS | Desktop composition simulation remained NFC-normalized and did not move the caret. The OS Unikey engine itself was not run. |
-| B2 | Font family | PASS | Desktop applied Arial to the selected text. |
-| B2 | Font size, including 13.5 pt | PASS | New 13.5 pt option applied; DOM recorded `font-size: 13.5pt`. |
-| B2 | Bold by mouse | PASS | Desktop recorded bold weight 700. |
-| B2 | Italic by mouse | PASS | Desktop recorded italic style. |
-| B2 | Underline by mouse | PASS | Desktop recorded underline decoration. |
-| B2 | Ctrl+B / Ctrl+I / Ctrl+U | PASS | Desktop recorded bold, italic, and underline after each shortcut. Initial result parser misread CSS bold weight; the DOM evidence is correct. |
-| B2 | Font colour | PASS | Desktop recorded red text colour. |
-| B2 | Highlight | PASS | Desktop recorded yellow highlight. |
-| B2 | Superscript | PASS | Desktop recorded a `<sup>` selection. |
-| B2 | Subscript | PASS | Desktop recorded a `<sub>` selection. |
-| B2 | Ctrl+Shift+> / Ctrl+Shift+< | PASS | Desktop size changed 18.67→20→18 CSS px. |
-| B3 | Left alignment: ribbon and Ctrl+L | PASS | Desktop recorded `left` through both paths. |
-| B3 | Center alignment: ribbon and Ctrl+E | PASS | Desktop recorded `center` through both paths. |
-| B3 | Right alignment: ribbon and Ctrl+R | PASS | Desktop recorded `right` through both paths. |
-| B3 | Justify: ribbon and Ctrl+J | PASS | Desktop recorded `justify` through both paths. |
-| B3 | Increase/decrease paragraph indent | PASS | Clean desktop probe increased then restored indent (`targeted-ui.json`). |
-| B3 | First-line indent | PASS | New Layout control applied 14.17 pt in pywebview. |
-| B3 | Line spacing 1.0 | NOT RUN | First probe read a stale paragraph node; corrected desktop result pending. |
-| B3 | Line spacing 1.15 | PASS | Desktop dropdown applied `--vno-lh: 1.15`. |
-| B3 | Line spacing 1.5 | NOT RUN | First probe read a stale paragraph node; corrected desktop result pending. |
-| B3 | Line spacing 2.0 | PASS | Clean desktop probe applied `--vno-lh: 2`. |
-| B3 | Exact line spacing | PASS | Desktop prompt applied exact 18 pt line height. |
-| B3 | Paragraph spacing before | PASS | Clean desktop probe applied 12 pt before. |
-| B3 | Paragraph spacing after | PASS | Clean desktop probe applied 6 pt after. |
-| B4 | Bulleted list | NOT RUN | Not exercised in the desktop acceptance probe. |
-| B4 | Number formats 1., a), i. | PASS | Desktop multilevel preset showed and applied the `1. / a. / i.` scheme. |
-| B4 | Multilevel list | PASS | Desktop produced nested and multilevel list markup. |
-| B4 | Tab changes list level | PASS | Desktop Tab nested the selected numbered item. |
-| B4 | Shift+Tab changes list level back | PASS | Desktop Shift+Tab restored the prior level. |
-| B4 | Continue/restart numbering | FAIL | No visible continue/restart command was found in the Writer List ribbon. |
-| B5 | Normal style | NOT RUN | Normal was visible in the gallery but was not explicitly applied to a selected paragraph. |
-| B5 | Heading 1 | PASS | Desktop applied Heading 1; the automatic TOC linked to it. |
-| B5 | Heading 2 | NOT RUN | Heading 2 was visible in the gallery but was not applied to a selected paragraph. |
-| B5 | Heading 3 | NOT RUN | Heading 3 was visible in the gallery but was not applied to a selected paragraph. |
-| B5 | Title | PASS | Added Title preset; desktop applied centered, bold 26 pt visual formatting. DOCX semantic style-name check is pending. |
-| B5 | Automatic TOC from Heading | PASS | Desktop inserted a linked TOC entry for Heading 1 text. |
-| B6 | Insert table | PASS | Desktop inserted a 3×4 table. |
-| B6 | Add row | FAIL | No row-edit command was exposed in the tested table UI. |
-| B6 | Delete row | FAIL | No row-edit command was exposed in the tested table UI. |
-| B6 | Add column | FAIL | No column-edit command was exposed in the tested table UI. |
-| B6 | Delete column | FAIL | No column-edit command was exposed in the tested table UI. |
-| B6 | Merge cells | FAIL | No merge control was exposed in the tested table UI. |
-| B6 | Split cells | FAIL | No split control was exposed in the tested table UI. |
-| B6 | Table borders | FAIL | No table border-edit control was exposed in the tested table UI. |
-| B6 | Column width | FAIL | No table column-width control was exposed in the tested table UI. |
-| B6 | Repeat header row | FAIL | No repeat-header control was exposed in the tested table UI. |
-| B6 | Tab in final cell appends row | FAIL | Desktop table remained 3 rows after Tab in the final cell. |
-| B7 | A4 page size | NOT RUN | Dialog option was observed; apply/save/reopen result pending. |
-| B7 | Letter page size | NOT RUN | Dialog option was observed; apply/save/reopen result pending. |
-| B7 | Margins | NOT RUN | Margin inputs were observed; apply/save/reopen result pending. |
-| B7 | Portrait orientation | NOT RUN | Dialog option was observed; apply/save/reopen result pending. |
-| B7 | Landscape orientation | NOT RUN | Dialog option was observed; apply/save/reopen result pending. |
-| B7 | Ctrl+Enter page break | PASS | Desktop inserted one page-break marker. |
-| B7 | Section break | NOT RUN | Excluded because another agent is changing section breaks. |
-| B8 | Header | PASS | Desktop inserted header content; Word COM round trip retained its text. |
-| B8 | Footer | PASS | Desktop inserted footer content; Word COM round trip retained its text. |
-| B8 | PAGE / NUMPAGES fields | PASS | Desktop inserted both; Word COM saw two footer fields. |
-| B8 | Different first page | FAIL | No different-first-page control was available in Header/Footer UI. |
-| B9 | Insert image | NOT RUN | Native file-picker insertion was not completed by the WebView harness. |
-| B9 | Drag/drop image | NOT RUN | Not exercised in the desktop app. |
-| B9 | Resize image | NOT RUN | Not exercised in the desktop app. |
-| B9 | Text wrapping around image | NOT RUN | Not exercised in the desktop app. |
-| B9 | Insert shape | PASS | Clean desktop probe inserted a rectangle shape in the Writer canvas. |
-| B9 | Insert text box | PASS | Clean desktop probe created a textbox shape with its own geometry and text. |
-| B9 | Insert symbol | PASS | Desktop picker inserted a selected symbol. |
-| B9 | Insert hyperlink | PASS | Desktop applied the entered URL to selected text. |
-| B10 | Horizontal ruler | PASS | Desktop Writer canvas rendered the horizontal ruler. |
-| B10 | Vertical ruler | FAIL | No vertical ruler rendered in the desktop canvas. |
-| B10 | Print Layout | PASS | Desktop command entered Print Layout. |
-| B10 | Word count in status bar | PASS | Desktop status showed word count. |
-| B10 | Page count in status bar | PASS | Desktop status showed `Trang 1 / 1`. |
-| B10 | Zoom slider | PASS | Desktop slider changed from 100% to 125%. |
-| B10 | Ctrl+wheel zoom | PASS | Fixed desktop result synchronized controller/page/slider at 110%. |
-| B11 | Vietnamese misspelling red underline | PASS | `chínnh` was underlined in the desktop app. |
-| B11 | Vietnamese correction suggestion | PASS | Context suggestion included `chính`. |
-| B12 | Track Changes UI | PASS | Desktop enabled tracking and rendered inserted text with review markup. |
-| B12 | Comment UI | PASS | Desktop showed comment card and anchor. |
-| B12 | Track Changes/comment survive DOCX reopen in Word and 3T Doc | FAIL | Word COM reported 0 revisions and 0 comments; 3T reopen rendered an insertion/deletion differently from Word. Page count was 1. This crosses the excluded DOCX save pipeline. |
+| A1 | Startup document body is empty | PASS | Initial `main.py` WebView2 capture showed blank body and `Trang 1 / 1`. |
+| A1 | Startup title uses `Tài liệu 1` | PASS | Initial CDP title was `Tài liệu 1.docx — 3T Doc`. |
+| A2 | Ctrl+N creates a blank document | PASS | CDP Ctrl+N created a blank body; status showed one page. |
+| A2 | New document names increment | PASS | Sequential new-document titles advanced (`Tài liệu 12`, `Tài liệu 13`). |
+| A3 | Ctrl+O opens the native file chooser | NOT RUN | Open was exercised through the in-app File UI; native chooser itself is outside the WebView CDP surface. |
+| A3 | Open format filters are correct | NOT RUN | Native chooser filters were not inspected. |
+| A3 | Corrupt DOCX gives a clear error | PASS | Opening `corrupt-audit.docx` showed “Gói Office bị hỏng hoặc không đúng định dạng”. |
+| A3 | Failed open keeps the current document | PASS | After that error, the existing active document and title remained. |
+| A4 | Ctrl+S on a new document opens Save As | PASS | New document opened the app’s Save As flow and saved `doc11-new-ctrls.docx`. |
+| A4 | Existing file Ctrl+S saves in its original format | NOT RUN | This exact shortcut path was not checked on an already-open source file. |
+| A5 | F12 opens Save As and saves a DOCX copy | PASS | F12 saved `doc12-page-setup.docx` through the app flow. |
+| A5 | Alternate format choices (DOC/ODT/RTF/TXT/PDF) | NOT RUN | Current CDP audit did not inspect and export each format. |
+| A5 | Overwrite confirmation | NOT RUN | No existing output file was overwritten. |
+| A6 | Dirty close → Save | PASS | Close prompt Save branch wrote `CloseSave` and closed the document. |
+| A6 | Dirty close → Discard | PASS | Discard branch closed the dirty document without saving. |
+| A6 | Dirty close → Cancel | PASS | Cancel left the document open. |
+| A6 | Keyboard navigation of close prompt | NOT RUN | Branches above were selected by CDP mouse events; keyboard navigation was not checked. |
+| A7 | Ctrl+P opens print preview | PASS | CDP Ctrl+P displayed the print dialog and preview. |
+| A7 | Preview page count matches Word | PASS | Two-page preview matched hidden Word COM’s two-page result for `doc12-page-setup.docx`. |
+| A7 | Printer selection, copies, and page range controls | PASS | Microsoft Print to PDF, 2 copies, and `1-2` range were selected in the dialog. |
+| A7 | Actual print-to-PDF output | NOT RUN | The Print action was not submitted; no OS print dialog was used. |
+| A8 | Ctrl+Z undoes a document edit | PASS | Typed `UndoProbe` disappeared after Ctrl+Z in the real app. |
+| A8 | Ctrl+Y redoes the edit | PASS | Ctrl+Y restored `UndoProbe`; page-break undo/redo was also observed. |
+| A9 | Ctrl+X cuts selected text | PASS | Selected `ClipProbe`; Ctrl+X removed it from the body. |
+| A9 | Ctrl+C copies selected text | NOT RUN | Selection was confirmed, but reliable clipboard contents were not observable through the allowed CDP-only boundary. |
+| A9 | Ctrl+V pastes copied text | FAIL | After Ctrl+X of `ClipProbe`, Ctrl+V inserted no text in the body. |
+| A9 | Ribbon Cut/Copy/Paste mouse paths | NOT RUN | Ribbon click targets were not reliably available after the selection/contextual-tab change. |
+| A9 | Paste retaining source formatting | NOT RUN | No external Office clipboard source was used. |
+| A9 | Paste plain text | NOT RUN | No reliable clipboard payload was available. |
+| A9 | Paste from Word/Excel | NOT RUN | External Office clipboard was not tested. |
+| A10 | Ctrl+F opens Find | PASS | CDP Ctrl+F opened “Tìm kiếm và Thay thế” with Find controls. |
+| A10 | Ctrl+H opens Replace | PASS | CDP Ctrl+H opened the same dialog with Replace controls. |
+| A10 | Mouse Replace All changes text and Undo restores it | PASS | `TrackAudit` → `TrackProof` via Replace All; Ctrl+Z restored the original. |
+| A11 | Zoom slider | PASS | Mouse slider moved from 100% to 125%. |
+| A11 | Ctrl+mouse-wheel zoom | PASS | CDP Ctrl+wheel changed zoom to 135% in the current session. |
+| A12 | Entire Writer UI is 100% Vietnamese | NOT RUN | Only the inspected ribbon, dialogs, and status strings were checked. |
+| A12 | Standard ribbon tabs are visible | PASS | Tabs including Trang đầu, Chèn, Bố cục, Đánh giá, Chế độ xem, Trợ giúp were present. |
+| A12 | Status bar shows page and word counts | PASS | Status showed `Trang 1 / 1` and word count. |
+| A12 | Alt shows ribbon key tips | PASS | CDP Alt events displayed ribbon key-tip badges. |
+| A13 | F1 opens Vietnamese Help | PASS | Focused document + F1 opened the Help panel. |
+| A13 | F1 resolves the focused command article | PASS | Focused Theo dõi thay đổi then F1 opened its matching Vietnamese Help entry. |
+| A14 | AutoSave / AutoRecover while app is running | NOT RUN | No controlled crash/recovery cycle was run. |
+| A14 | Recovery after restart | NOT RUN | No restart recovery scenario was run. |
 
-## Larger gaps and follow-up tasks
+## B. 3T Doc / Word
 
-| Priority | Symptom | Word behavior | Likely code location | Task / scope |
+| Item | Sub-point | Status | Evidence |
+|---|---|---|---|
+| B1 | Telex-style composition | PASS | CDP composition simulation produced the accented text and retained a stable caret. This was not physical Unikey input. |
+| B1 | VNI-style composition | NOT RUN | No VNI sequence was exercised. |
+| B1 | NFC precomposed Vietnamese and no lost diacritics | PASS | Composition probe reported NFC and expected caret offset. |
+| B1 | Real Unikey IME behavior | NOT RUN | The owner rule prohibits OS-level input; only CDP composition was used. |
+| B2 | Font family by mouse | PASS | Arial applied to selected text in the desktop app. |
+| B2 | Font family by keyboard | NOT RUN | Keyboard navigation of the font-family selector was not separately verified. |
+| B2 | Font size 13.5 pt | PASS | 13.5 pt was selected in the font-size selector; DOM style recorded `13.5pt`. |
+| B2 | Bold by mouse and Ctrl+B | PASS | Mouse control and Ctrl+B applied bold to the selected text. |
+| B2 | Italic by mouse and Ctrl+I | PASS | Mouse control and Ctrl+I applied italic. |
+| B2 | Underline by mouse and Ctrl+U | PASS | Mouse underline and Ctrl+U worked after selection restoration; Undo/Redo was observed. |
+| B2 | Font colour | PASS | Ribbon colour applied red (`#dc2626`) to the selection. |
+| B2 | Highlight | PASS | Ribbon highlight applied yellow. |
+| B2 | Superscript / subscript | PASS | Ribbon commands produced `<sup>` and `<sub>` around the selection. |
+| B2 | Ctrl+Shift+> and Ctrl+Shift+< | PASS | Selected text size changed 18.67→20→18 CSS px. |
+| B2 | DOCX/Word formatting round trip for the full character-format matrix | NOT RUN | Character commands were exercised in 3T, but one consolidated DOCX was not reopened in Word and 3T for every property. |
+| B3 | Left/center/right/justify by ribbon and Ctrl+L/E/R/J | PASS | All four alignment results were observed in the document DOM. |
+| B3 | Increase/decrease paragraph indent | PASS | Layout controls changed and restored paragraph indent. |
+| B3 | First-line indent | PASS | Layout control applied the requested first-line indent. |
+| B3 | Line spacing 1.0 / 1.15 / 1.5 / 2.0 | PASS | Each menu choice was applied in the desktop document. |
+| B3 | Exact line spacing | PASS | Exact 18 pt was applied; `doc10-exact.docx` reopened in hidden Word with `LineSpacingRule=4`, `LineSpacing=18`, then reopened in 3T at one page. |
+| B3 | Spacing before and after | PASS | Layout controls applied 12 pt before and 6 pt after. |
+| B3 | Undo coverage for each paragraph setting | NOT RUN | Undo was not individually checked for every alignment/spacing/indent option. |
+| B3 | Full DOCX round trip for all paragraph settings | NOT RUN | Exact line spacing is confirmed; all other paragraph values were not checked in Word and 3T together. |
+| B4 | Bulleted list | PASS | Mouse Bullets created a bullet list; Tab/Shift+Tab changed levels. |
+| B4 | Number format `1.` | PASS | Numbered list was saved as DOCX; hidden Word COM read `ListString='1.'`. |
+| B4 | Number formats `a)` and `i.` | NOT RUN | A reliable applied-and-saved result for those formats was not captured. |
+| B4 | Multiple list levels | PASS | Tab nested an item; Shift+Tab returned it to the prior level. |
+| B4 | Continue / restart numbering | FAIL | No continue/restart command was exposed in the tested list UI/context menu. |
+| B4 | List Undo and full DOCX round trip for all formats | NOT RUN | Word reopened the `1.` list; every format/Undo case was not covered. |
+| B5 | Normal style | PASS | Style Gallery applied Normal to a paragraph. |
+| B5 | Heading 1 / Heading 2 / Heading 3 | PASS | Style Gallery applied all three headings in the desktop document. |
+| B5 | Title style | PASS | Title preset displayed centered, bold 26 pt styling. |
+| B5 | Automatic TOC from headings | PASS | CDP inserted the TOC as a sibling after Heading 1; Ctrl+Z removed it and Ctrl+Y restored it. Word round trip is recorded separately as NOT RUN. |
+| B5 | DOCX/Word style and TOC round trip; Undo | NOT RUN | Styles and TOC were not saved and checked in Word for semantic style preservation. |
+| B6 | Insert table | PASS | Mouse Insert > Bảng biểu created a 3×4 table. |
+| B6 | Add row / delete row | FAIL | No row-edit controls were exposed; Tab in the last cell left the table instead of adding a row. |
+| B6 | Add column / delete column | FAIL | No column-edit controls were exposed. |
+| B6 | Merge / split cells | FAIL | No merge or split controls were exposed. |
+| B6 | Borders / column width / repeat header row | FAIL | No such controls were exposed in the tested table UI. |
+| B6 | DOCX/Word table round trip and Undo | NOT RUN | Table was not saved and reopened through Word for these operations. |
+| B7 | A4 paper size apply/reopen | NOT RUN | A4 was listed in Page Setup but was not separately applied and read back in Word/3T. |
+| B7 | Letter paper size | PASS | Letter was applied; hidden Word COM read PaperSize=2 after the page setup round trip. |
+| B7 | Margins | PASS | 25 mm margins applied; hidden Word COM read approximately 70.85 pt on each margin. |
+| B7 | Portrait orientation change | NOT RUN | Portrait was the default but was not deliberately changed and read back. |
+| B7 | Landscape orientation | PASS | Landscape was applied; Word COM read Orientation=1, 792 x 612 pt. |
+| B7 | Ctrl+Enter page break | PASS | Page-break marker increased status to two pages; Ctrl+Z removed and Ctrl+Y restored it. Word reopened the saved two-page copy. |
+| B7 | Section break | NOT RUN | Excluded from fixes because another agent is changing section-break code. |
+| B8 | Header and footer entry in 3T | PASS | Header text and footer PAGE/NUMPAGES fields rendered in 3T. |
+| B8 | Page number display | PASS | Footer displayed `Trang 1 / 1` in 3T. |
+| B8 | Different first page UI toggle | PASS | Page options dialog exposed and accepted “Trang đầu khác biệt”. |
+| B8 | Header/footer and different-first-page DOCX round trip in Word | FAIL | Word COM reopened with blank header/footer content. Package had `w:titlePg` but no `w:headerReference` or `w:footerReference` in `word/document.xml` section properties. |
+| B9 | Insert image | PASS | Image picker was exercised through CDP file-input selection; image appeared in the body. |
+| B9 | Drag/drop image | NOT RUN | A desktop drag-and-drop path was not exercised. |
+| B9 | Resize image | FAIL | Picture Format showed wrap/position options but no size control; CDP drag of the visible edge did not change image dimensions. |
+| B9 | Text wrapping | PASS | Square wrapping set `data-vno-wrap="square"` and float styling. |
+| B9 | Insert shape | PASS | Circle shape was inserted through the shape picker. |
+| B9 | Insert text box | PASS | CDP placed the box at page-relative x=72, y=120; the box accepted text, and Ctrl+Z/Ctrl+Y removed/restored the shape. |
+| B9 | Insert symbol | PASS | Symbol picker inserted `£` into the document. |
+| B9 | Hyperlink | NOT RUN | An initial test produced `https://https://example.com` because the dialog prefix was not cleared; a corrected field-entry test was not completed. |
+| B9 | DOCX/Word round trip and Undo for inserted objects | NOT RUN | Image/shape/textbox/link were not saved as one copy and verified in Word. |
+| B10 | Horizontal ruler | PASS | Horizontal ruler rendered in the Writer canvas. |
+| B10 | Vertical ruler | FAIL | No vertical ruler rendered in Print Layout. |
+| B10 | Print Layout | PASS | View command displayed the paginated page canvas. |
+| B10 | Word count and page count in status bar | PASS | Status showed word count and `Trang 1 / 1`. |
+| B10 | View/ruler settings save and reopen | NOT RUN | Persistence of ruler and view settings was not checked. |
+| B11 | Vietnamese spelling underline | PASS | Misspelled `đinh` had a red wavy underline. |
+| B11 | Vietnamese correction suggestion | FAIL | Right-click menu suggestions were `đanh`, `đành`, `đánh`, `đênh`, `đễnh`; expected `định` was absent for `quyết đinh`. |
+| B11 | Suggestion application and Undo | NOT RUN | No suggestion was applied. |
+| B12 | Track Changes UI | PASS | Review toggle enabled tracking; inserted text rendered inside `<ins data-vno-change="insert">`. |
+| B12 | Comment UI | PASS | Comment was anchored to the selected text and displayed in the comments panel. |
+| B12 | Track Changes survives DOCX reopen in Word | FAIL | Hidden Word COM reported `Revisions.Count=0`; tracked text reopened as plain text in 3T. |
+| B12 | Comment survives DOCX reopen in Word | FAIL | Hidden Word COM reported `Comments.Count=0`; the DOCX had no Word comment part/anchor. The comment card remained visible after 3T reopen. |
+| B12 | Undo for tracked changes/comments | NOT RUN | Undo was not checked for each review operation. |
+
+## Follow-up tasks for confirmed gaps
+
+| Priority | Symptom | Word behavior | Likely code location | Task |
 |---|---|---|---|---|
-| High | Continue/restart numbering is absent. | Continue the prior list or restart at 1 from the list context menu/ribbon. | `apps/writer/writer-ribbon.js`, Writer list commands/adapter. | Add visible, keyboard-usable continue/restart commands; preserve list identity and restart values on DOCX round trip; test undo. |
-| High | Table UI only inserts a table; edit operations are missing, and Tab in the last cell does not append a row. | Table Layout exposes row/column insert/delete, merge/split, borders/width and repeat-header; Tab in the last cell creates a row. | `apps/writer/writer-ribbon.js`, Writer table command handlers/adapter. | Implement the contextual table UI and verify each operation plus Undo and DOCX reopen. |
-| High | Review markup/comment UI is not retained by Word after DOCX save. | Word shows inserted/deleted revisions and comment anchors after save and reopen. | `adapters/libreoffice/common/ooxml_zip_patch.py` and Writer save/export path. | Trace loss across export/import, retain comments/revisions through a DOCX round trip, and verify with Word COM. Core save-pipeline changes were excluded from this task. |
-| Medium | No different-first-page header/footer option. | First page can have distinct header/footer content from later pages. | Writer header/footer UI, model, and DOCX serialization. | Add the option and round-trip verification; include page-number behavior on first/subsequent pages. |
-| Medium | Vertical ruler is absent. | View > Ruler shows a vertical ruler in Print Layout. | Writer view controller and Writer canvas/layout CSS. | Add a vertical ruler toggle/state and keyboard access; test resizing/page setup changes. |
-| Medium | Image picker, drag/drop, resize, and wrapping were not completed in this audit. | Insert an image, move/resize it, select wrapping, save, and reopen with the same layout. | Writer image insertion and image arrangement UI. | Complete a desktop test with a disposable image; file selection failure in the probe is not evidence that image insertion itself is broken. |
-| Medium | Clipboard and Find/Replace were not verified from the desktop app. | Word supports cut/copy/paste, paste options, Ctrl+F and Ctrl+H. | Shared clipboard/find commands plus Writer UI. | Exercise both keyboard and ribbon paths, including paste formatting/plain text and replacement results. |
-| Medium | AutoRecover was not exercised in a desktop crash/reopen scenario. | Word offers recovery of the latest unsaved snapshot after restart. | Shared AutoRecover UI and desktop startup/recovery path. | Verify local recovery end to end without relying on unit-only coverage. |
-| Low | Bulleted list path not exercised. | Apply/remove bullets and continue typing at the expected level. | Writer List ribbon. | Add to the next desktop audit run. |
+| High | Ctrl+V does not paste after a CDP-selected text cut; no paste result appears. | Cut/copy populate the clipboard and Paste inserts the clipboard payload at the caret. | `platform/commands` shared clipboard handlers; Writer `common.edit.*` dispatch in `adapters/libreoffice/writer/writer-adapter.js`. | Trace WebView clipboard read/write permission and command dispatch; verify keyboard and ribbon Cut/Copy/Paste, plain-text and formatted paste, Undo, then paste from hidden Word COM-produced content. |
+| High | List UI has no continue/restart numbering command. | Word can continue a previous list or restart numbering at 1 from list controls/context. | `apps/writer/writer-ribbon.js` and Writer list command handlers near `writer.list.numbered`. | Add keyboard-usable list actions, preserve list identity/level/restart value in DOCX, and test Undo/round trip. |
+| High | Table editing commands are missing; Tab in last cell leaves the table. | Table Layout provides row/column insert/delete, merge/split, borders, width and repeat-header; Tab in the final cell appends a row. | `apps/writer/writer-ribbon.js`; `WriterAdapter` table handlers around `writer.table.insert`. | Implement contextual Table Layout operations and test each with mouse, keyboard, Undo, Word COM, and reopen. |
+| High | Header/footer parts are written but ignored by Word. | Word section properties reference the header/footer parts and display them on reopen. | `adapters/libreoffice/common/ooxml_zip_patch.py` plus Writer export path. | Add `w:headerReference`/`w:footerReference` to the correct `w:sectPr`; this save-pipeline file was explicitly excluded from this task. Include `w:titlePg` and first-page content round trip. |
+| High | Track Changes and comments are lost on DOCX export. | Word shows revision markup and comment anchors after reopen. | `WriterAdapter` export bridge and `adapters/libreoffice/common/ooxml_zip_patch.py`. | Trace both import/export paths, preserve revisions/comments and author/anchor metadata, then verify in hidden Word COM. The OOXML patch file was excluded from this task. |
+| Medium | Spellcheck suggestions do not include the expected Vietnamese correction. | Word ranks `định` for “quyết đinh”. | `platform/text/vi-spellchecker.js` and `platform/text/spellcheck-dom-controller.js`. | Correct the candidate ranking/dictionary coverage and verify red underline, suggestion, replacement, and Undo with common Vietnamese typos. |
+| Medium | Image resize controls are unavailable. | Word exposes visible resize handles and size controls for a selected image. | Writer image arrange controls in `apps/writer/writer-ribbon.js` and `WriterAdapter`. | Add keyboard-accessible size controls; verify mouse, keyboard, Undo, and Word/3T reopen. |
+| Medium | Different-first-page header/footer is not linked to Word section references. | Word displays the first-page header/footer separately from later pages. | Writer section options plus excluded `ooxml_zip_patch.py` serialization. | Preserve the option and first/subsequent header/footer parts in Word; verify both pages with COM. |
+| Medium | Vertical ruler is absent. | Word Print Layout can show horizontal and vertical rulers. | `apps/writer/writer-view-controller.js` and `apps/writer/writer.css`; current `writer.view.ruler` label describes only the horizontal ruler. | Add a vertical ruler toggle/state and verify view and page-setup behavior. |
+| Low | Image drag/drop and corrected hyperlink insertion are unverified. | Word accepts a dropped image and creates a link from the selected text and target URL. | Writer image insertion and `writer.link.insert` dialog. | Rerun with a clean document and explicit input replacement; compare mouse and keyboard and round trip. |
 
-## Fixes made in this branch
+## Fixes in this branch
 
 | Fix | Unit coverage | Desktop evidence |
 |---|---|---|
-| Added 13.5 pt font size and exact-point application. | `tests/unit/writer-doc-font-spacing.test.js` | `B2_apply_13_5` applied 13.5 pt. |
-| Added first-line indent and 1.15/exact line-spacing choices; round-trip paragraph indent/spacing properties in FODT. | `tests/unit/writer-paragraph-spacing.test.js` | First-line 14.17 pt, 1.15, and exact 18 pt applied in pywebview. |
-| Added the Writer Title gallery preset and visual formatting. | `tests/unit/writer-style-gallery-watermark.test.js` | Title applied as centered, bold, 26 pt in pywebview. |
-| Synchronized Ctrl+wheel zoom with the shared 3T zoom slider and cleaned up the listener. | `tests/unit/writer-zoom-wheel.test.js` | Controller/page/slider all changed to 110%. |
-| F1 now resolves the focused Writer ribbon command to its Vietnamese Help article. | `tests/unit/writer-help.test.js` | Focused Track Changes + F1 opened the matching article. |
-| Updated the Help coverage guard’s expected Writer command count for the newly covered command. | `tests/unit/help-coverage.test.js` | Focused Help coverage test passed. |
+| Added exact 13.5 pt character size and focused font-size behavior. | `tests/unit/writer-doc-font-spacing.test.js` | B2 selector showed 13.5 pt in CDP. |
+| Added first-line indent and 1.15/exact line spacing; serialize/parse paragraph indent and spacing values. | `tests/unit/writer-paragraph-spacing.test.js` | First-line indent, 1.15, and exact 18 pt applied; exact line spacing was read by Word COM. |
+| Added Writer Title gallery preset. | `tests/unit/writer-style-gallery-watermark.test.js` | Title applied as centered, bold 26 pt. |
+| Synced Ctrl+wheel zoom with the 3T zoom slider. | `tests/unit/writer-zoom-wheel.test.js` | CDP wheel changed zoom. |
+| F1 opens the focused Writer command's Vietnamese Help article. | `tests/unit/writer-help.test.js`, `tests/unit/help-coverage.test.js` | Focused Track Changes + F1 opened the matching article. |
+| Ribbon inline-format actions restore the saved text selection after editor focus changes. | `tests/unit/writer-mouse-shortcuts.test.js` | Mouse underline on selected text works and Undo/Redo works. |
+| Exact line-spacing dialog preserves the paragraph selection while the prompt has focus. | `tests/unit/writer-paragraph-spacing.test.js` | Exact 18 pt applied to selected paragraph and survived the `doc10-exact.docx` Word/3T readback. |
+| TOC insertion beside a heading avoids invalid nested block markup. | `tests/unit/writer-toc-footnotes.test.js` | CDP confirmed the TOC is a sibling after Heading 1; Undo/Redo removed/restored it. |
+| Text box overlay remains anchored to the page instead of flowing after document text. | `tests/unit/writer-slides-insert-gaps.test.js` | CDP confirmed page-relative x=72/y=120, text entry, and shape Undo/Redo. |
 
 ## Verification and handoff
 
 | Gate | Result | Evidence / note |
 |---|---|---|
-| Focused Writer unit tests | PASS | Font/spacing, paragraph spacing, style gallery, Help, and Ctrl+wheel test files exited 0. |
-| Focused Help coverage test | PASS | `node tests/unit/help-coverage.test.js` exited 0 after updating the command count. |
-| `node tests/run-tests.js` | FAIL | First full run: 2189/2193 PASS, 4 FAIL. Three failures were Sheet LibreOffice FODS→XLSX conversions with empty process output; the fourth was the Help count, since fixed. Full rerun is pending. |
-| `python -m unittest discover -s tests` | NOT RUN | No repository Python source was changed. |
-| Writer layout batch on `E:\VN OFice\file test\landocx` | IN PROGRESS | Output is isolated at `E:\tmp\doc-basics-audit\layout-batch`; compare page counts with `E:\tmp\S44-Writer-Audit-final-20261001\_batch_writer_report.md`. |
-| `git diff --check` | NOT RUN | Run before commit. |
+| `node tests/run-tests.js` | FAIL | 2224/2226 PASS. The only failures are Sheet conditional-format/validation and Pivot FODS → XLSX → FODS LibreOffice conversion errors (`soffice --convert-to xlsx` failed); Writer fixes and new unit tests passed. |
+| Focused Writer regression tests | PASS | Full suite passed the new TOC sibling/caret and shapes-layer CSS tests, plus the exact-spacing and ribbon-selection regression tests. |
+| `python -m unittest discover -s tests` | NOT RUN | No repository Python source was changed; temporary CDP batch scripts are outside the repo. |
+| Writer layout/page-count batch | FAIL | Initial complete CDP batch vs S44: d01–d09, d12–d20, d22–d23 page counts matched; d11 retry was 5/5/5; d21 start-edit retry was 9/9/9. d10 was BLOCKED by a corrupt-package error/modal. d24 was Word 16, 3T canvas 18, saved Word 22 (S44 16/16/16); d04 media changed 2→6. After the final Writer fixes, a follow-up batch confirmed d01, d02, d04, d05 unchanged; d03 Word readback was BLOCKED because the oracle could not identify a new WINWORD among pre-existing automation instances, so the follow-up stopped without touching them. |
+| `git diff --check` | PASS | Final whitespace/error-marker check completed with no findings. |
+| Build | NOT RUN | No build command was requested. |
 
-| Handoff field | Value |
-|---|---|
-| Task / objective | Acceptance audit of 3T Doc against checklist A and B1–B12; fix small local gaps. |
-| Agent / role | Codex — Writer acceptance audit |
-| Branch / worktree | `audit/doc-basics-codex` / `E:\VNOffice-codex-audit-doc` |
-| Findings | See the itemized results and larger-gap table above. |
-| Implementation summary | Small Writer UI/adapter/help fixes with focused unit tests. |
-| Files changed | Pending final review. |
-| Commands run | Desktop G7, pywebview acceptance probes, focused Writer tests, full Node suite, Writer layout batch. |
-| Build result | NOT RUN — no build was requested by the checklist gates. |
-| Test results | See verification table; final rerun and layout comparison pending. |
-| Known failures / risks | Track Changes/comment DOCX persistence; table editing; list restart/continue; different first page; vertical ruler. |
-| Dependencies / blockers | Pre-existing Word process can prevent a new Word COM page oracle; it is left untouched. |
-| Core patch ID | None. |
-| Next action | Finish the in-progress layout batch; verify the saved fix DOCX in Word and 3T Doc; rerun required tests; commit on this branch only. |
+## Agent Handoff
 
-**Overall status:** In progress. No PASS claim is made for gates that are still pending.
+TASK: Systematic 3T Doc desktop acceptance audit against checklist A and B1–B12; fix small local failures.
+AGENT/ROLE: Codex / Writer acceptance audit
+BRANCH: `audit/doc-basics-codex`
+WORKTREE: `E:\VNOffice-codex-audit-doc`
+OBJECTIVE: Completed the item-by-item audit and recorded PASS, FAIL, NOT RUN, and BLOCKED evidence; no full product acceptance PASS is claimed.
+FINDINGS: See the matrix and follow-up tasks. Unresolved issues include clipboard paste, list restart/continue, table editing, image resize, vertical ruler, Vietnamese spelling suggestions, and DOCX persistence for headers/footers, revisions, and comments. Layout batch found a severe d24 page-count regression.
+IMPLEMENTATION SUMMARY: Continued the exact-spacing and ribbon-selection fixes; fixed TOC insertion inside headings and textbox overlay flow; added unit tests for each local fix.
+FILES CHANGED: `adapters/libreoffice/writer/writer-adapter.js`; `apps/writer/writer.css`; `tests/unit/writer-mouse-shortcuts.test.js`; `tests/unit/writer-paragraph-spacing.test.js`; `tests/unit/writer-slides-insert-gaps.test.js`; `tests/unit/writer-toc-footnotes.test.js`; `docs/AUDIT-DOC-BASICS.md`.
+COMMANDS RUN: CDP desktop and hidden Word COM probes; `node tests/run-tests.js`; `git diff --check`; temporary CDP layout batch and Word page oracle.
+BUILD RESULT: NOT RUN.
+TEST RESULTS: `node tests/run-tests.js` FAIL, 2224/2226 PASS (two Sheet LibreOffice conversion failures); new Writer tests passed. `git diff --check` PASS. Python unittest NOT RUN (no Python source in the repository was changed).
+KNOWN FAILURES: Sheet CF/validation and Pivot FODS conversions fail; d24 loads as 18 pages and saves as 22 vs S44 16/16/16; d10 could not be assessed due corrupt-package error/modal; Writer feature gaps are listed above.
+RISKS: d24 section-aware import/export/pagination regression is outside the allowed local fix scope and must be handled by its owner; d10 source validity remains unresolved.
+DEPENDENCIES/BLOCKERS: Clipboard paste checks requiring external Office clipboard payloads and native file dialogs are constrained by the CDP-only input rule; `ooxml_zip_patch.py`, section breaks, equations, Platform spellcheck, and other owners’ areas were not changed.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Assign follow-up rows to the owning teams; keep this branch unmerged until the owner reviews the audit and changes.
+
+**Overall status:** Audit complete; acceptance FAIL. The unresolved FAIL, BLOCKED, and NOT RUN rows remain assigned for follow-up; no full acceptance PASS is claimed.

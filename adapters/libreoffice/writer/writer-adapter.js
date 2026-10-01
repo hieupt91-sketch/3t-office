@@ -438,17 +438,7 @@ export class WriterAdapter {
       if (args === "1.15" || args === 1.15) return this._setLineHeight("1.15");
       if (args === "1.5" || args === 1.5) return this._setLineHeight("1.5");
       if (args === "2" || args === 2 || args === "2.0") return this._setLineHeight("2.0");
-      if (args === "exact") {
-        const raw = await showPromptDialog({
-          title: "Giãn dòng chính xác",
-          message: "Nhập chiều cao dòng tính bằng điểm (pt):",
-          defaultValue: "18",
-          placeholder: "18"
-        });
-        const pt = this._parseParagraphSpacingPt(raw);
-        if (pt == null || pt === 0) return false;
-        return this._applyParagraphVisualStyle({ lineHeight: `${pt}pt` }, "writer.para.lineSpacingExact");
-      }
+      if (args === "exact") return this._applyExactLineSpacing();
       return this._setLineHeight("1.5");
     });
     globalCommandBus.bindHandler("writer.para.lineSpacingLayout", (args) => globalCommandBus.execute("writer.para.lineSpacing", args));
@@ -809,8 +799,8 @@ export class WriterAdapter {
     });
   }
 
-  _applyParagraphVisualStyle(styles, description) {
-    const blocks = this._getSelectedParagraphBlocks();
+  _applyParagraphVisualStyle(styles, description, selectedBlocks = null) {
+    const blocks = Array.isArray(selectedBlocks) ? selectedBlocks : this._getSelectedParagraphBlocks();
     if (!blocks.length) return false;
     this.flushTyping();
     blocks.forEach(block => Object.assign(block.style, styles));
@@ -841,6 +831,19 @@ export class WriterAdapter {
     const pt = Number(match[1]);
     if (!Number.isFinite(pt) || pt < 0 || pt > 240) return null;
     return Number(pt.toFixed(3));
+  }
+
+  async _applyExactLineSpacing(prompt = showPromptDialog) {
+    const selectedBlocks = this._getSelectedParagraphBlocks();
+    const raw = await prompt({
+      title: "Giãn dòng chính xác",
+      message: "Nhập chiều cao dòng tính bằng điểm (pt):",
+      defaultValue: "18",
+      placeholder: "18"
+    });
+    const pt = this._parseParagraphSpacingPt(raw);
+    if (pt == null || pt === 0) return false;
+    return this._applyParagraphVisualStyle({ lineHeight: `${pt}pt` }, "writer.para.lineSpacingExact", selectedBlocks);
   }
 
   applyParagraphSpacingBefore(args) {
@@ -6192,6 +6195,20 @@ export class WriterAdapter {
     if (!this.editorDom) return false;
     const cmd = vnCmdId || unoUrl;
 
+    const inlineFormatCommands = new Set([
+      "writer.text.bold", "writer.text.italic", "writer.text.underline", "writer.text.strike",
+      "writer.text.subscript", "writer.text.superscript", "writer.font.grow", "writer.font.shrink",
+      "writer.font.grow1pt", "writer.font.shrink1pt", "writer.color.text", "writer.color.highlight"
+    ]);
+    let inlineSelectionRange = null;
+    if (inlineFormatCommands.has(cmd) && typeof window !== "undefined") {
+      const selection = window.getSelection?.();
+      if (selection?.rangeCount && !selection.isCollapsed) {
+        const range = selection.getRangeAt(0);
+        if (this.bodyDom?.contains?.(range.commonAncestorContainer)) inlineSelectionRange = range.cloneRange();
+      }
+    }
+
     // Clone vùng chọn trước khi nút ribbon/dialog lấy focus khỏi trình soạn thảo.
     if (cmd === "writer.comment.insert") {
       return await this.insertComment(args);
@@ -6211,6 +6228,13 @@ export class WriterAdapter {
     }
 
     this.editorDom.focus?.();
+    if (inlineSelectionRange && typeof window !== "undefined") {
+      const selection = window.getSelection?.();
+      if (selection) {
+        selection.removeAllRanges();
+        selection.addRange(inlineSelectionRange);
+      }
+    }
 
     let dispatchResult = false;
 
@@ -14475,16 +14499,28 @@ export class WriterAdapter {
         if (!this._isInsideProtectedZone(commonNode) && (commonNode === this.bodyDom || this.bodyDom.contains?.(commonNode))) {
           try {
             range.collapse(true);
-            if (typeof tocElement === "string") {
+            let node = tocElement;
+            if (typeof node === "string") {
               const temp = document.createElement("div");
-              temp.innerHTML = tocElement;
-              const node = temp.firstElementChild;
-              range.insertNode(node);
-              range.setStartAfter(node);
-            } else {
-              range.insertNode(tocElement);
-              range.setStartAfter(tocElement);
+              temp.innerHTML = node;
+              node = temp.firstElementChild;
             }
+
+            let paragraphBlock = commonNode?.nodeType === 1 ? commonNode : (commonNode?.parentElement || commonNode?.parentNode);
+            while (paragraphBlock && paragraphBlock !== this.bodyDom) {
+              if (/^(P|H[1-6])$/.test(String(paragraphBlock.tagName || "").toUpperCase())) break;
+              paragraphBlock = paragraphBlock.parentElement || paragraphBlock.parentNode;
+            }
+            if (paragraphBlock === this.bodyDom) paragraphBlock = null;
+
+            if (paragraphBlock?.parentNode?.insertBefore) {
+              const nextSibling = paragraphBlock.nextSibling;
+              if (nextSibling) paragraphBlock.parentNode.insertBefore(node, nextSibling);
+              else paragraphBlock.parentNode.appendChild(node);
+            } else {
+              range.insertNode(node);
+            }
+            range.setStartAfter(node);
             inserted = true;
           } catch {}
         }

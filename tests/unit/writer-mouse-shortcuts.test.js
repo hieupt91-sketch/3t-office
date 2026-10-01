@@ -136,6 +136,46 @@ export async function runWriterMouseShortcutsTests() {
     assert(combo2 === "ALT+SHIFT+UP", `ArrowUp phải chuẩn hóa thành UP, thực tế: ${combo2}`);
   });
 
+  await test("Writer Parity: nút ribbon Gạch chân giữ vùng chọn khi adapter lấy lại focus", async () => {
+    const { pageEl, bodyEl } = createMockWriterEnvironment("<p>Chữ được chọn</p>");
+    const range = { commonAncestorContainer: {}, cloneRange() { return this; } };
+    let ranges = [range];
+    const selection = {
+      get rangeCount() { return ranges.length; },
+      get isCollapsed() { return ranges.length === 0; },
+      get anchorNode() { return range.commonAncestorContainer; },
+      getRangeAt() { return ranges[0]; },
+      removeAllRanges() { ranges = []; },
+      addRange(nextRange) { ranges = [nextRange]; }
+    };
+    const previousWindow = globalThis.window;
+    const previousDocument = globalThis.document;
+    let rangeAtCommand = null;
+    const adapter = new WriterAdapter(pageEl);
+    adapter._initZones();
+    adapter.flushTyping = () => {};
+    adapter.recordSnapshot = () => true;
+    pageEl.focus = () => selection.removeAllRanges();
+    bodyEl.contains = () => true;
+    globalThis.window = { getSelection: () => selection };
+    globalThis.document = {
+      execCommand() {
+        rangeAtCommand = selection.rangeCount ? selection.getRangeAt(0) : null;
+        return true;
+      },
+      queryCommandState() { return true; }
+    };
+    try {
+      await adapter.handleDispatch("writer.text.underline");
+      assert(rangeAtCommand === range, "Lệnh underline phải nhận lại đúng vùng chọn trước khi focus đổi");
+    } finally {
+      if (previousWindow === undefined) delete globalThis.window;
+      else globalThis.window = previousWindow;
+      if (previousDocument === undefined) delete globalThis.document;
+      else globalThis.document = previousDocument;
+    }
+  });
+
   await test("Writer Parity: F4 lặp lại lệnh cuối (common.edit.repeat)", () => {
     const { pageEl } = createMockWriterEnvironment();
     const adapter = new WriterAdapter(pageEl);
