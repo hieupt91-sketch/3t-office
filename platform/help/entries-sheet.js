@@ -378,6 +378,22 @@ export const SHEET_HELP_ENTRIES = [
     ]
   },
   {
+    id: "sheet.page.saveRoundTrip",
+    app: "sheet",
+    commandIds: ["sheet.page.margins", "sheet.page.orientation", "sheet.page.size", "sheet.page.printTitles", "sheet.page.setPrintArea"],
+    title: "Lưu và mở lại thiết lập trang in",
+    summary: "Hướng giấy, khổ giấy, lề, vùng in, tiêu đề lặp, tỷ lệ vừa trang và đầu/chân trang được lưu theo từng trang tính trong XLSX và được khôi phục khi mở lại bằng 3T Sheet hoặc Excel.",
+    ribbon: { tab: "Bố trí trang", tabId: "pageLayout", group: "Thiết lập trang" },
+    keywords: ["lưu thiết lập in", "mở lại", "hướng giấy", "khổ giấy", "lề", "vùng in", "tiêu đề in", "page setup", "xlsx"],
+    steps: [
+      "Mở tab Bố trí trang, nhóm Thiết lập trang. Dùng Lề, Hướng và Khổ để chọn lề trang, giấy Dọc/Ngang và A4/Letter/Legal cho trang tính hiện tại.",
+      "Muốn chỉ in một khối, bôi vùng ô rồi chọn Đặt vùng in. Muốn lặp hàng/cột tiêu đề trên mỗi trang, chọn Tiêu đề in và nhập 1:2 hoặc A:B.",
+      "Trong Tỷ lệ vừa trang, chọn Vừa trong rồi đặt số trang ngang/dọc; trong Tiêu đề Đầu/Cuối trang, nhập nội dung hoặc các mã &P, &N, &A.",
+      "Nhấn Ctrl+S để lưu XLSX. Khi mở lại trong 3T Sheet, vào lại các hộp trên để kiểm tra; các giá trị được khôi phục riêng cho từng tab. Excel cũng đọc cùng Page Setup, Print Area và Print Titles.",
+      "Nếu cần bỏ giới hạn vùng in, chọn Xóa vùng in. Thao tác này không xóa dữ liệu và được lưu ở lần Ctrl+S tiếp theo."
+    ]
+  },
+  {
     id: "sheet.review.commentNavigation", app: "sheet",
     commandIds: ["sheet.review.commentPrevious", "sheet.review.commentNext", "sheet.review.commentDelete", "sheet.review.commentResolve"],
     title: "Duyệt và xử lý nhận xét ô",

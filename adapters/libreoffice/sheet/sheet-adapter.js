@@ -677,6 +677,56 @@ export class SheetAdapter {
     return null;
   }
 
+  _findTagBlockByAttr(xml, tagName, attrName, attrValue) {
+    if (!attrValue) return null;
+    const escapedTag = tagName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(`<${escapedTag}\\b([^>]*)>([\\s\\S]*?)<\\/${escapedTag}>`, "gi");
+    let match;
+    while ((match = re.exec(xml)) !== null) {
+      const attrs = this._parseTagAttrs(match[1]);
+      if (attrs[attrName] === attrValue) return { attrs, body: match[2] };
+    }
+    return null;
+  }
+
+  _parseOdfHeaderFooter(masterPageBody) {
+    const fieldTokens = [
+      ["page-number", "&P"], ["page-count", "&N"], ["date", "&D"],
+      ["time", "&T"], ["file-name", "&F"], ["sheet-name", "&A"]
+    ];
+    const plainText = value => {
+      let text = String(value || "");
+      for (const [tag, token] of fieldTokens) {
+        const escaped = tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        text = text
+          .replace(new RegExp(`<text:${escaped}\\b[^>]*\\/>`, "gi"), token)
+          .replace(new RegExp(`<text:${escaped}\\b[^>]*>[\\s\\S]*?<\\/text:${escaped}>`, "gi"), token);
+      }
+      text = text.replace(/<text:s\b([^>]*)\/>/gi, (_, attrs) => {
+        const count = Number(this._parseTagAttrs(attrs)["text:c"] || 1);
+        return " ".repeat(Math.max(1, Math.min(count, 100)));
+      });
+      text = text.replace(/<text:tab\b[^>]*\/>/gi, "\t").replace(/<text:line-break\b[^>]*\/>/gi, "\n");
+      return this._unescapeXml(text.replace(/<[^>]+>/g, "")).replace(/\r/g, "").trim();
+    };
+    const parseSection = kind => {
+      const block = String(masterPageBody || "").match(new RegExp(`<style:${kind}(?=[\\s>])[^>]*>([\\s\\S]*?)<\\/style:${kind}>`, "i"));
+      const result = { left: "", center: "", right: "" };
+      if (!block) return result;
+      let hasRegions = false;
+      for (const position of ["left", "center", "right"]) {
+        const region = block[1].match(new RegExp(`<style:region-${position}(?=[\\s>])[^>]*>([\\s\\S]*?)<\\/style:region-${position}>`, "i"));
+        if (region) {
+          hasRegions = true;
+          result[position] = plainText(region[1]);
+        }
+      }
+      if (!hasRegions) result.center = plainText(block[1]);
+      return result;
+    };
+    return { header: parseSection("header"), footer: parseSection("footer") };
+  }
+
   /** Quy đổi một độ dài ODF (vd "2.5cm", "0.75in", "10pt") về cm - LibreOffice luôn ghi cm trong FODS nhưng file từ nguồn khác có thể dùng đơn vị khác. */
   _odfLengthToCm(raw) {
     const match = String(raw || "").match(/^(-?[\d.]+)\s*(cm|mm|in|pt|px)?$/i);
@@ -701,7 +751,8 @@ export class SheetAdapter {
     const tableStyleAttrs = this._findTagAttrsByAttr(xml, "style:style", "style:name", tableStyleName);
     const masterPageName = tableStyleAttrs?.["style:master-page-name"];
     if (!masterPageName) return null;
-    const masterPageAttrs = this._findTagAttrsByAttr(xml, "style:master-page", "style:name", masterPageName);
+    const masterPageBlock = this._findTagBlockByAttr(xml, "style:master-page", "style:name", masterPageName);
+    const masterPageAttrs = masterPageBlock?.attrs || this._findTagAttrsByAttr(xml, "style:master-page", "style:name", masterPageName);
     const pageLayoutName = masterPageAttrs?.["style:page-layout-name"];
     if (!pageLayoutName) return null;
     const escapedLayoutName = pageLayoutName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -732,9 +783,15 @@ export class SheetAdapter {
       if (best && bestDelta < 1.5) size = best;
     }
 
-    const printTokens = (props["style:print"] || "").split(/\s+/).filter(Boolean);
+    const tableStyleBlock = this._findTagBlockByAttr(xml, "style:style", "style:name", tableStyleName);
+    const tablePropsMatch = tableStyleBlock?.body?.match(/<style:table-properties\b([^>]*)\/?>/i);
+    const tableProps = this._parseTagAttrs(tablePropsMatch?.[1] || "");
+    const printTokens = (props["style:print"] || tableProps["style:print"] || "").split(/\s+/).filter(Boolean);
     const centering = props["style:table-centering"] || "none";
     const scalePercent = parseInt(props["style:scale-to"], 10);
+    const hasPageAxes = props["style:scale-to-X"] !== undefined || props["style:scale-to-Y"] !== undefined;
+    const pagesWide = parseInt(props["style:scale-to-X"], 10);
+    const pagesTall = parseInt(props["style:scale-to-Y"], 10);
 
     return {
       size,
@@ -746,11 +803,12 @@ export class SheetAdapter {
         right: this._odfLengthToCm(props["fo:margin-right"]) ?? 1.78
       },
       scale: {
-        mode: "percent",
+        mode: hasPageAxes ? "pages" : "percent",
         percent: Number.isFinite(scalePercent) && scalePercent > 0 ? scalePercent : 100,
-        pagesWide: 1,
-        pagesTall: 0
+        pagesWide: Number.isFinite(pagesWide) && pagesWide >= 0 ? pagesWide : 1,
+        pagesTall: Number.isFinite(pagesTall) && pagesTall >= 0 ? pagesTall : 0
       },
+      headerFooter: this._parseOdfHeaderFooter(masterPageBlock?.body || ""),
       centerOnPage: {
         horizontal: centering === "horizontal" || centering === "both",
         vertical: centering === "vertical" || centering === "both"
@@ -4236,7 +4294,7 @@ ${pristineXlsxMarker}
             orientation: table.getAttribute("vno:page-orientation") || standardLayout?.orientation || "portrait",
             margins: { top: 1.91, bottom: 1.91, left: 1.78, right: 1.78, ...(standardLayout?.margins || {}), ...pageMargins },
             scale: { mode: "percent", percent: 100, pagesWide: 1, pagesTall: 0, ...(standardLayout?.scale || {}), ...pageScale },
-            headerFooter: { header: { left: "", center: "", right: "", ...(pageHeaderFooter.header || {}) }, footer: { left: "", center: "Trang &P / &N", right: "", ...(pageHeaderFooter.footer || {}) } },
+            headerFooter: { header: { left: "", center: "", right: "", ...(standardLayout?.headerFooter?.header || {}), ...(pageHeaderFooter.header || {}) }, footer: { left: "", center: "Trang &P / &N", right: "", ...(standardLayout?.headerFooter?.footer || {}), ...(pageHeaderFooter.footer || {}) } },
             centerOnPage: { horizontal: false, vertical: false, ...(standardLayout?.centerOnPage || {}), ...pageCentering },
             printOptions: { gridlines: false, headings: false, ...(standardLayout?.printOptions || {}), ...pagePrintOptions },
             printTitles: { rows: table.getAttribute("vno:print-title-rows") || "", cols: table.getAttribute("vno:print-title-cols") || "" }
@@ -4518,7 +4576,7 @@ ${pristineXlsxMarker}
           orientation: pageAttr("vno:page-orientation") || standardLayout?.orientation || "portrait",
           margins: { top: 1.91, bottom: 1.91, left: 1.78, right: 1.78, ...(standardLayout?.margins || {}), ...pageMargins },
           scale: { mode: "percent", percent: 100, pagesWide: 1, pagesTall: 0, ...(standardLayout?.scale || {}), ...pageScale },
-          headerFooter: { header: { left: "", center: "", right: "", ...(pageHeaderFooter.header || {}) }, footer: { left: "", center: "Trang &P / &N", right: "", ...(pageHeaderFooter.footer || {}) } },
+          headerFooter: { header: { left: "", center: "", right: "", ...(standardLayout?.headerFooter?.header || {}), ...(pageHeaderFooter.header || {}) }, footer: { left: "", center: "Trang &P / &N", right: "", ...(standardLayout?.headerFooter?.footer || {}), ...(pageHeaderFooter.footer || {}) } },
           centerOnPage: { horizontal: false, vertical: false, ...(standardLayout?.centerOnPage || {}), ...pageCentering },
           printOptions: { gridlines: false, headings: false, ...(standardLayout?.printOptions || {}), ...pagePrintOptions },
           printTitles: { rows: pageAttr("vno:print-title-rows"), cols: pageAttr("vno:print-title-cols") }

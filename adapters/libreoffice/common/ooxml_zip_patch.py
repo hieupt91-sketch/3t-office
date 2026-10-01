@@ -1517,6 +1517,62 @@ def apply_print_titles_to_workbook(workbook_xml: str, titles: list[tuple[str, st
     return xml
 
 
+def parse_print_titles_from_workbook(workbook_xml: str | None) -> dict[str, dict[str, str]]:
+    """Read local _xlnm.Print_Titles definitions from an OOXML workbook."""
+    sheet_names = [
+        _unescape_xml(match.group(1))
+        for match in re.finditer(r'<sheet\b[^>]*\bname="([^"]*)"[^>]*/?>', workbook_xml or "", re.IGNORECASE)
+    ]
+    result: dict[str, dict[str, str]] = {}
+    for match in re.finditer(r'<definedName\b([^>]*)>([\s\S]*?)</definedName\s*>', workbook_xml or "", re.IGNORECASE):
+        attrs, expression = match.group(1), _unescape_xml(match.group(2))
+        name = re.search(r'\bname="([^"]*)"', attrs, re.IGNORECASE)
+        local_id = re.search(r'\blocalSheetId="(\d+)"', attrs, re.IGNORECASE)
+        if not name or name.group(1).casefold() != "_xlnm.print_titles" or not local_id:
+            continue
+        index = int(local_id.group(1))
+        if index < 0 or index >= len(sheet_names):
+            continue
+        titles = {"rows": "", "cols": ""}
+        for area in re.finditer(r"(?:'((?:[^']|'')*)'|([^!,]+))!\$([A-Z]+|\d+):\$([A-Z]+|\d+)", expression, re.IGNORECASE):
+            start, end = area.group(3).upper(), area.group(4).upper()
+            if start.isdigit() and end.isdigit():
+                titles["rows"] = start if start == end else f"{start}:{end}"
+            elif start.isalpha() and end.isalpha():
+                titles["cols"] = start if start == end else f"{start}:{end}"
+        if titles["rows"] or titles["cols"]:
+            result[sheet_names[index]] = titles
+    return result
+
+
+def apply_print_titles_to_fods(fods_xml: str, titles_by_sheet: dict[str, dict[str, str]]) -> str:
+    """Stamp print-title metadata onto FODS tables before SheetAdapter parses them."""
+    if not titles_by_sheet:
+        return fods_xml
+
+    def replace_table(match: re.Match[str]) -> str:
+        attrs = match.group(1) or ""
+        name_match = re.search(r'table:name="([^"]*)"', attrs, re.IGNORECASE)
+        sheet_name = _unescape_xml(name_match.group(1)) if name_match else ""
+        titles = titles_by_sheet.get(sheet_name)
+        if not titles:
+            return match.group(0)
+        attrs = re.sub(r'\s+vno:print-title-rows="[^"]*"', "", attrs, flags=re.IGNORECASE)
+        attrs = re.sub(r'\s+vno:print-title-cols="[^"]*"', "", attrs, flags=re.IGNORECASE)
+        return (
+            f'<table:table{attrs} vno:print-title-rows="{titles.get("rows", "")}"'
+            f' vno:print-title-cols="{titles.get("cols", "")}">'
+        )
+
+    result = re.sub(r'<table:table\b([^>]*)>', replace_table, fods_xml, flags=re.IGNORECASE)
+    if re.search(r"xmlns:vno\s*=", result, re.IGNORECASE):
+        return result
+    match = _OFFICE_DOCUMENT_OPEN_RE.search(result)
+    if not match:
+        return result
+    return result[:match.start()] + f'<office:document{match.group(1)} xmlns:vno="{SHEET_VNO_NS}">' + result[match.end():]
+
+
 def _resolve_xlsx_sheet_entries(xlsx_bytes: bytes) -> dict[str, str]:
     """Tên sheet (thứ tự trong xl/workbook.xml) -> đường dẫn zip entry worksheetN.xml thật."""
     workbook_entry = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
@@ -6277,6 +6333,8 @@ def overlay_sheet_xlsx_fods(
         # Active sheet (activeTab -> ActiveTable): soffice headless drops
         # ActiveTable in office:settings, so we restore it from xl/workbook.xml.
         xml = overlay_active_sheet_to_fods(xml, workbook_xml)
+        # LibreOffice drops _xlnm.Print_Titles during XLSX -> FODS.
+        xml = apply_print_titles_to_fods(xml, parse_print_titles_from_workbook(workbook_xml))
     xml = overlay_sheet_xlsx_freeze_panes(xlsx_bytes, xml)
     # AutoFilter: read <autoFilter ref> from original worksheet XMLs and
     # inject <table:database-ranges> into FODS so parseFods can restore
