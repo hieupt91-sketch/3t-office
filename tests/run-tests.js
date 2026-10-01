@@ -192,6 +192,7 @@ import { runSlidesImportFidelityTests } from "./unit/slides-import-fidelity.test
 import { runSlidesSaveFidelityTests } from "./unit/slides-save-fidelity.test.js";
 import { runWriterDocxAuditTests } from "./unit/writer-docx-audit.test.js";
 import { runWriterDocFontSpacingTests } from "./unit/writer-doc-font-spacing.test.js";
+import { runWriterZoomWheelTests } from "./unit/writer-zoom-wheel.test.js";
 import { runWriterLegacyKeepNextTests } from "./unit/writer-legacy-keep-next.test.js";
 import { runSheetDateValuesTests } from "./unit/sheet-date-values.test.js";
 import { runNotificationBarTests } from "./unit/notification-bar.test.js";
@@ -212,10 +213,16 @@ import { runCh9PerformanceLogTests } from "./unit/ch9-performance-log.test.js";
 import { runUiConsistencyAndStringScannerTests } from "./unit/ui-user-visible-strings.test.js";
 import { runOsInputGuardTests } from "./unit/os-input-guard.test.js";
 import { runPrintEngineNameTests } from "./unit/print-engine-name.test.js";
+import { runWriterTableControlsTests } from "./unit/writer-table-controls.test.js";
 import { runVietnameseImeUnitTests } from "./unit/vietnamese-ime.test.js";
 import { runSheetNativeCellValuesTests } from "./unit/sheet-native-cell-values.test.js";
 import { runSheetPrintSetupRoundTripTests } from "./unit/sheet-print-setup-roundtrip.test.js";
 import { runSheetC3C7C8GapTests } from "./unit/sheet-c3-c7-c8-gaps.test.js";
+import { runWriterPictureResizeWrapTests } from "./unit/writer-picture-resize-wrap.test.js";
+import { runWriterNumberedListRestartTests } from "./unit/writer-numbered-list-restart.test.js";
+import { runWriterVerticalRulerTests } from "./unit/writer-vertical-ruler.test.js";
+import { runWriterSpellingSuggestionsTests } from "./unit/writer-spelling-suggestions.test.js";
+import { runWriterClipboardTests } from "./unit/writer-clipboard.test.js";
 import { runSlidesBasicsAuditTests } from "./unit/slides-basics-audit.test.js";
 
 async function runAll() {
@@ -443,7 +450,14 @@ async function runAll() {
     { title: "211. Unit Tests — Slide basics editing, placeholders undo, Tab indent, shape Enter, picture resize & sorter keys", runner: runSlidesBasicsAuditTests },
     { title: "212. CH-9.2 — AutoRecover 2 phút, dialog và Help cho 3 app", runner: runCh9AutoRecoverTests },
     { title: "213. CH-9.4 — PID ledger, orphan sweep an toàn và Help", runner: runCh9ProcessCleanupTests },
-    { title: "214. CH-9.5 — JSONL hiệu năng, Options bridge, rotation và Help", runner: runCh9PerformanceLogTests }
+    { title: "214. CH-9.5 — JSONL hiệu năng, Options bridge, rotation và Help", runner: runCh9PerformanceLogTests },
+    { title: "215. Unit Tests — VN Writer Ctrl+wheel zoom", runner: runWriterZoomWheelTests },
+    { title: "216. Unit Tests — VN Writer table controls, move handle, drag resize and contextual ribbon tabs", runner: runWriterTableControlsTests },
+    { title: "217. Unit Tests — VN Writer picture resize handles, aspect ratio & wrap text", runner: runWriterPictureResizeWrapTests },
+    { title: "218. Unit Tests — VN Writer numbered list restart at 1 and continue numbering", runner: runWriterNumberedListRestartTests },
+    { title: "219. Unit Tests — VN Writer vertical ruler and scroll/zoom synchronization", runner: runWriterVerticalRulerTests },
+    { title: "220. Unit Tests — VN Writer spelling suggestions and context ranking", runner: runWriterSpellingSuggestionsTests },
+    { title: "221. Unit Tests — VN Writer Clipboard Cut/Copy/Paste & Sanitization", runner: runWriterClipboardTests }
   ];
 
   for (const suite of suites) {

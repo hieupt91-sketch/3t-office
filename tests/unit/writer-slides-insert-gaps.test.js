@@ -16,6 +16,7 @@ import { enStrings } from "../../platform/i18n/strings-en.js";
 import { listAllSymbols } from "../../platform/ui-kit/symbol-picker.js";
 import { formatDateTime } from "../../platform/ui-kit/datetime-picker.js";
 import { slugBookmarkName } from "../../apps/writer/insert-dialogs.js";
+import { readFileSync } from "node:fs";
 
 function createMockWriterDoc(initialHtml = "<p>Alpha paragraph for insert tests</p>") {
   const datasetObj = {};
@@ -83,6 +84,16 @@ export async function runWriterSlidesInsertGapsTests() {
     "slides.insert.slideNumber",
     "slides.insert.symbol"
   ];
+
+  await test("Writer shape layer: absolute overlay stays out of page flow", () => {
+    const css = readFileSync(new URL("../../apps/writer/writer.css", import.meta.url), "utf8");
+    if (!/\.vno-writer-page\s*>\s*:not\(\[data-vno-float-anchor\]\):not\(\.vno-writer-shapes-layer\)/.test(css)) {
+      throw new Error("The page flow rule must exclude the Writer shapes layer");
+    }
+    if (!/\.vno-writer-shapes-layer\s*\{[^}]*\bposition:\s*absolute\b/s.test(css)) {
+      throw new Error("The Writer shapes layer must remain absolutely positioned");
+    }
+  });
 
   await test("Writer Insert ribbon: nhóm đúng thứ tự Word (Pages/Tables/Illustrations/Links/Comments/Header/Text/Symbols)", () => {
     const insertTab = WRITER_RIBBON_TABS.find(tab => tab.id === "insert");

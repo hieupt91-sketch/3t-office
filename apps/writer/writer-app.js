@@ -12,6 +12,8 @@ import { globalShortcutManager } from "../../platform/commands/shortcut-manager.
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { withLazyFeatureProgress } from "../../platform/startup/lazy-feature.js";
 import { WriterViewController } from "./writer-view-controller.js";
+import { WriterTableController } from "./writer-table.js";
+import { getHelpEntryById } from "../../platform/help/help-catalog.js";
 import { InputNormalizer } from "../../platform/keyboard/input-normalizer.js";
 
 export class WriterApp {
@@ -168,8 +170,22 @@ export class WriterApp {
 
     viewport.appendChild(this.canvas);
 
+    // Thước đo dọc (Vertical Ruler)
+    const verticalRuler = document.createElement("div");
+    verticalRuler.className = "vno-writer-ruler-vertical";
+    verticalRuler.setAttribute("role", "presentation");
+    verticalRuler.setAttribute("aria-hidden", "true");
+    verticalRuler.innerHTML = `
+      <div class="vno-ruler-vertical-track">
+        <div class="vno-ruler-marker-top" title="Lề trên: 20mm (NĐ 30/2020/NĐ-CP)"></div>
+        <div class="vno-ruler-vertical-scale"></div>
+        <div class="vno-ruler-marker-bottom" title="Lề dưới: 20mm (NĐ 30/2020/NĐ-CP)"></div>
+      </div>
+    `;
+
     const workspace = document.createElement("div");
     workspace.className = "vno-writer-workspace";
+    workspace.appendChild(verticalRuler);
     workspace.appendChild(viewport);
 
     const commentsPanel = document.createElement("aside");
@@ -182,6 +198,10 @@ export class WriterApp {
     globalCommandBus.bindHandler("writer.help.open", (args) => {
       return withLazyFeatureProgress("writer", "Trợ giúp", () => this._ensureHelpPanel()).then((panel) => {
         if (args?.entryId || args?.query != null) return panel.open(args);
+        if (!panel.isOpen()) {
+          const entryId = getWriterContextHelpEntryId(document.activeElement);
+          if (entryId) return panel.open({ entryId });
+        }
         return panel.toggle();
       });
     });
@@ -207,16 +227,28 @@ export class WriterApp {
     }
     this.arrangeController = new WriterArrangeController({
       body,
+      page: this.canvas,
       adapter: this.adapter,
       ribbonHost: this.shell.ribbonHost,
       mountElement: this.mountElement
     }).attach();
+
+    this.tableController = new WriterTableController({
+      body,
+      page: this.canvas,
+      adapter: this.adapter,
+      ribbonHost: this.shell.ribbonHost,
+      mountElement: this.mountElement,
+      shell: this.shell
+    }).attach();
+    this.adapter.tableController = this.tableController;
 
     this.viewController = new WriterViewController({
       container,
       viewport,
       page: this.canvas,
       ruler,
+      verticalRuler,
       shell: this.shell
     }).attach();
 
@@ -230,6 +262,7 @@ export class WriterApp {
       onWordCommit: () => this.adapter?.recordSnapshot?.("Gõ chữ")
     }).attach(root));
     this._autoRecoverOptions = options;
+    this._setupContextMenu(body);
     console.log("[WriterApp] Đã khởi tạo 3T Doc chuẩn hóa cao cấp.");
   }
 
@@ -336,12 +369,18 @@ export class WriterApp {
     this._lifecycleObserver = null;
     this._styleGalleryObserver?.disconnect();
     this._styleGalleryObserver = null;
+    this.viewController?.destroy();
+    this.viewController = null;
     this.arrangeController?.destroy();
     this.arrangeController = null;
+    this.tableController?.destroy();
+    this.tableController = null;
     this.spellcheckController?.destroy();
     this.spellcheckController = null;
     this._normalizers?.forEach(n => n.destroy());
     this._normalizers = [];
+    this._closeContextMenu();
+    this.canvas?.querySelector?.(".vno-writer-body")?.removeEventListener?.("contextmenu", this._contextMenuHandler);
     this.helpPanel?.destroy();
     this.helpPanel = null;
   }
@@ -448,4 +487,94 @@ export class WriterApp {
       : t("writerDialogs.wordCount.title");
     chip.setAttribute("aria-label", chip.textContent);
   }
+
+  _setupContextMenu(body) {
+    if (!body?.addEventListener) return;
+    this._contextMenuHandler = (event) => {
+      if (event.target?.closest?.(".vno-spellcheck-marker")) return;
+      const li = event.target?.closest?.("li");
+      const ol = event.target?.closest?.("ol");
+      if (li || ol) {
+        event.preventDefault();
+        this._openListContextMenu(event.clientX, event.clientY, li || ol);
+      }
+    };
+    body.addEventListener("contextmenu", this._contextMenuHandler);
+  }
+
+  _openListContextMenu(x, y, target) {
+    this._closeContextMenu();
+
+    const menu = document.createElement("div");
+    menu.className = "vno-list-context-menu vno-context-menu";
+    menu.setAttribute("role", "menu");
+    menu.setAttribute("aria-label", "Tùy chọn danh sách");
+    menu.style.cssText = `position:fixed; left:${x}px; top:${y}px; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 4px 14px rgba(0,0,0,0.15); z-index:10000; min-width:180px; padding:4px 0; font-size:12px;`;
+
+    const items = [
+      { label: "Đánh số lại từ 1", command: "writer.list.restartNumbering" },
+      { label: "Tiếp tục đánh số", command: "writer.list.continueNumbering" }
+    ];
+
+    for (const item of items) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "vno-context-menu-item";
+      btn.setAttribute("role", "menuitem");
+      btn.style.cssText = `display:block; width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:12px; color:#1e293b; cursor:pointer;`;
+      btn.textContent = item.label;
+      btn.addEventListener("mouseenter", () => btn.style.background = "#eff6ff");
+      btn.addEventListener("mouseleave", () => btn.style.background = "none");
+      btn.addEventListener("click", () => {
+        this._closeContextMenu();
+        globalCommandBus.execute(item.command, target);
+      });
+      menu.appendChild(btn);
+    }
+
+    const onKey = (e) => {
+      if (e.key === "Escape") {
+        this._closeContextMenu();
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        const btns = [...menu.querySelectorAll("button")];
+        const idx = btns.indexOf(document.activeElement);
+        btns[(idx + 1) % btns.length]?.focus();
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        const btns = [...menu.querySelectorAll("button")];
+        const idx = btns.indexOf(document.activeElement);
+        btns[(idx - 1 + btns.length) % btns.length]?.focus();
+      }
+    };
+    const onClickOutside = (e) => {
+      if (!menu.contains(e.target)) this._closeContextMenu();
+    };
+
+    document.addEventListener("keydown", onKey);
+    setTimeout(() => document.addEventListener("click", onClickOutside), 10);
+
+    menu._cleanup = () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("click", onClickOutside);
+    };
+
+    document.body.appendChild(menu);
+    this._activeContextMenu = menu;
+    menu.querySelector("button")?.focus();
+  }
+
+  _closeContextMenu() {
+    if (this._activeContextMenu) {
+      this._activeContextMenu._cleanup?.();
+      this._activeContextMenu.remove();
+      this._activeContextMenu = null;
+    }
+  }
+}
+
+export function getWriterContextHelpEntryId(activeElement) {
+  const commandId = activeElement?.closest?.("[data-command-id]")?.dataset?.commandId;
+  const entry = commandId ? getHelpEntryById(commandId) : null;
+  return entry?.app === "writer" ? entry.id : null;
 }

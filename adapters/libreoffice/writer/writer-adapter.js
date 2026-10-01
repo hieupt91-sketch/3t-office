@@ -629,12 +629,15 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.para.borders", (args) => this.applyParagraphBorders(args));
     globalCommandBus.bindHandler("writer.para.spacingBefore", (args) => this.applyParagraphSpacingBefore(args));
     globalCommandBus.bindHandler("writer.para.spacingAfter", (args) => this.applyParagraphSpacingAfter(args));
+    globalCommandBus.bindHandler("writer.para.firstLineIndent", (args) => this.applyParagraphFirstLineIndent(args));
     globalCommandBus.bindHandler("writer.para.moveUp", () => this.moveParagraph("up"));
     globalCommandBus.bindHandler("writer.para.moveDown", () => this.moveParagraph("down"));
-    globalCommandBus.bindHandler("writer.para.lineSpacing", (args) => {
+    globalCommandBus.bindHandler("writer.para.lineSpacing", async (args) => {
       if (args === "1" || args === 1 || args === "1.0") return this._setLineHeight("1.0");
+      if (args === "1.15" || args === 1.15) return this._setLineHeight("1.15");
       if (args === "1.5" || args === 1.5) return this._setLineHeight("1.5");
       if (args === "2" || args === 2 || args === "2.0") return this._setLineHeight("2.0");
+      if (args === "exact") return this._applyExactLineSpacing();
       return this._setLineHeight("1.5");
     });
     globalCommandBus.bindHandler("writer.para.lineSpacingLayout", (args) => globalCommandBus.execute("writer.para.lineSpacing", args));
@@ -645,6 +648,9 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("common.edit.repeat", () => this.repeatLastAction());
     globalCommandBus.bindHandler("common.edit.find", () => this._showFindReplaceDialog(false));
     globalCommandBus.bindHandler("common.edit.replace", () => this._showFindReplaceDialog(true));
+    globalCommandBus.bindHandler("writer.list.restartNumbering", (args) => this.restartNumbering(args));
+    globalCommandBus.bindHandler("writer.list.continueNumbering", (args) => this.continueNumbering(args));
+    this._bindTableCommands();
 
     if (!this._lastSnapshot) {
       this._lastSnapshot = this._createSnapshot("Initial State");
@@ -1093,8 +1099,8 @@ export class WriterAdapter {
     });
   }
 
-  _applyParagraphVisualStyle(styles, description) {
-    const blocks = this._getSelectedParagraphBlocks();
+  _applyParagraphVisualStyle(styles, description, selectedBlocks = null) {
+    const blocks = Array.isArray(selectedBlocks) ? selectedBlocks : this._getSelectedParagraphBlocks();
     if (!blocks.length) return false;
     this.flushTyping();
     blocks.forEach(block => Object.assign(block.style, styles));
@@ -1127,6 +1133,19 @@ export class WriterAdapter {
     return Number(pt.toFixed(3));
   }
 
+  async _applyExactLineSpacing(prompt = showPromptDialog) {
+    const selectedBlocks = this._getSelectedParagraphBlocks();
+    const raw = await prompt({
+      title: "Giãn dòng chính xác",
+      message: "Nhập chiều cao dòng tính bằng điểm (pt):",
+      defaultValue: "18",
+      placeholder: "18"
+    });
+    const pt = this._parseParagraphSpacingPt(raw);
+    if (pt == null || pt === 0) return false;
+    return this._applyParagraphVisualStyle({ lineHeight: `${pt}pt` }, "writer.para.lineSpacingExact", selectedBlocks);
+  }
+
   applyParagraphSpacingBefore(args) {
     const pt = this._parseParagraphSpacingPt(args);
     if (pt == null) return false;
@@ -1137,6 +1156,12 @@ export class WriterAdapter {
     const pt = this._parseParagraphSpacingPt(args);
     if (pt == null) return false;
     return this._applyParagraphVisualStyle({ marginBottom: `${pt}pt` }, "writer.para.spacingAfter");
+  }
+
+  applyParagraphFirstLineIndent(args) {
+    const pt = this._parseParagraphSpacingPt(args);
+    if (pt == null) return false;
+    return this._applyParagraphVisualStyle({ textIndent: `${pt}pt` }, "writer.para.firstLineIndent");
   }
 
   applyMultilevelList(preset) {
@@ -1217,6 +1242,84 @@ export class WriterAdapter {
     const anchor = selection?.anchorNode?.nodeType === 1 ? selection.anchorNode : selection?.anchorNode?.parentElement;
     const listItem = anchor?.closest?.("li");
     return listItem && root?.contains?.(listItem) ? listItem : null;
+  }
+
+  restartNumbering(target = null) {
+    this.flushTyping?.();
+    const root = this.bodyDom || this.body;
+    if (!root) return false;
+
+    let li = null;
+    if (target) {
+      li = target.closest ? target.closest("li") : target;
+    }
+    if (!li) {
+      li = this._caretListItem(root);
+    }
+    if (!li && root.querySelectorAll) {
+      li = root.querySelector("li");
+    }
+    if (!li) return false;
+
+    const ol = li.closest ? li.closest("ol") : li.parentElement;
+    if (!ol) return false;
+
+    if (ol.firstElementChild !== li) {
+      li.setAttribute("value", "1");
+      li.dataset.vnoRestart = "true";
+    } else {
+      ol.setAttribute("start", "1");
+      ol.removeAttribute("data-vno-continue");
+    }
+    this.isDirty = true;
+    this.recordSnapshot?.("Đánh số lại từ 1");
+    this._recomputeLivePagination?.();
+    return true;
+  }
+
+  continueNumbering(target = null) {
+    this.flushTyping?.();
+    const root = this.bodyDom || this.body;
+    if (!root) return false;
+
+    let li = null;
+    if (target) {
+      li = target.closest ? target.closest("li") : target;
+    }
+    if (!li) {
+      li = this._caretListItem(root);
+    }
+    if (!li && root.querySelectorAll) {
+      li = root.querySelector("li");
+    }
+    if (!li) return false;
+
+    const ol = li.closest ? li.closest("ol") : li.parentElement;
+    if (!ol) return false;
+
+    if (li.hasAttribute?.("value")) {
+      li.removeAttribute("value");
+      if (li.dataset) delete li.dataset.vnoRestart;
+    }
+
+    const allOls = Array.from(root.querySelectorAll ? root.querySelectorAll("ol") : []);
+    const currentIndex = allOls.indexOf(ol);
+    if (currentIndex > 0) {
+      const prevOl = allOls[currentIndex - 1];
+      const prevCount = prevOl.querySelectorAll ? prevOl.querySelectorAll("li").length : (prevOl.children?.length || 1);
+      const prevStart = parseInt(prevOl.getAttribute?.("start"), 10) || 1;
+      const nextStart = prevStart + prevCount;
+      ol.setAttribute("start", String(nextStart));
+      ol.dataset.vnoContinue = "true";
+    } else {
+      ol.removeAttribute("start");
+      if (ol.dataset) delete ol.dataset.vnoContinue;
+    }
+
+    this.isDirty = true;
+    this.recordSnapshot?.("Tiếp tục đánh số");
+    this._recomputeLivePagination?.();
+    return true;
   }
 
   _listDepth(listItem, root = this.bodyDom) {
@@ -6487,6 +6590,20 @@ export class WriterAdapter {
     if (!this.editorDom) return false;
     const cmd = vnCmdId || unoUrl;
 
+    const inlineFormatCommands = new Set([
+      "writer.text.bold", "writer.text.italic", "writer.text.underline", "writer.text.strike",
+      "writer.text.subscript", "writer.text.superscript", "writer.font.grow", "writer.font.shrink",
+      "writer.font.grow1pt", "writer.font.shrink1pt", "writer.color.text", "writer.color.highlight"
+    ]);
+    let inlineSelectionRange = null;
+    if (inlineFormatCommands.has(cmd) && typeof window !== "undefined") {
+      const selection = window.getSelection?.();
+      if (selection?.rangeCount && !selection.isCollapsed) {
+        const range = selection.getRangeAt(0);
+        if (this.bodyDom?.contains?.(range.commonAncestorContainer)) inlineSelectionRange = range.cloneRange();
+      }
+    }
+
     // Clone vùng chọn trước khi nút ribbon/dialog lấy focus khỏi trình soạn thảo.
     if (cmd === "writer.comment.insert") {
       return await this.insertComment(args);
@@ -6506,6 +6623,13 @@ export class WriterAdapter {
     }
 
     this.editorDom.focus?.();
+    if (inlineSelectionRange && typeof window !== "undefined") {
+      const selection = window.getSelection?.();
+      if (selection) {
+        selection.removeAllRanges();
+        selection.addRange(inlineSelectionRange);
+      }
+    }
 
     let dispatchResult = false;
 
@@ -6614,6 +6738,9 @@ export class WriterAdapter {
       case "writer.para.spacingAfter":
         return this.applyParagraphSpacingAfter(args);
 
+      case "writer.para.firstLineIndent":
+        return this.applyParagraphFirstLineIndent(args);
+
       case "writer.para.spacing1":
         this._setLineHeight("1.0");
         dispatchResult = true;
@@ -6639,6 +6766,12 @@ export class WriterAdapter {
         dispatchResult = true;
         break;
 
+      case "writer.list.restartNumbering":
+        return this.restartNumbering(args);
+
+      case "writer.list.continueNumbering":
+        return this.continueNumbering(args);
+
       case "writer.para.multilevelList":
         return this.applyMultilevelList(args);
 
@@ -6660,6 +6793,7 @@ export class WriterAdapter {
         break;
 
       case "writer.font.size":
+        if (Number(args) === 13.5) return this._applyFontSizePt(13.5);
         if (args) document.execCommand("fontSize", false, args);
         dispatchResult = true;
         break;
@@ -6716,14 +6850,49 @@ export class WriterAdapter {
       case "common.edit.redo":
         return this.redo();
 
-      case "common.edit.cut":
+      case "common.edit.cut": {
+        const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+        if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+          const text = selection.toString();
+          let html = "";
+          try {
+            if (typeof document !== "undefined") {
+              const container = document.createElement("div");
+              for (let i = 0; i < selection.rangeCount; i++) {
+                container.appendChild(selection.getRangeAt(i).cloneContents());
+              }
+              html = container.innerHTML;
+            }
+          } catch {}
+          this._clipboardMemory = { text, html };
+        }
         document.execCommand("cut", false, null);
+        this.isDirty = true;
+        this.recordSnapshot("Cut");
+        this._updateUndoRedoUI();
         dispatchResult = true;
         break;
+      }
 
-      case "common.edit.copy":
+      case "common.edit.copy": {
+        const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+        if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+          const text = selection.toString();
+          let html = "";
+          try {
+            if (typeof document !== "undefined") {
+              const container = document.createElement("div");
+              for (let i = 0; i < selection.rangeCount; i++) {
+                container.appendChild(selection.getRangeAt(i).cloneContents());
+              }
+              html = container.innerHTML;
+            }
+          } catch {}
+          this._clipboardMemory = { text, html };
+        }
         document.execCommand("copy", false, null);
         return true;
+      }
 
       case "common.edit.paste":
         return this._pasteFromSystemClipboard(false);
@@ -7175,6 +7344,403 @@ export class WriterAdapter {
     return true;
   }
 
+  _bindTableCommands() {
+    globalCommandBus.bindHandler("writer.table.insertRowAbove", () => this.insertTableRowAbove());
+    globalCommandBus.bindHandler("writer.table.insertRowBelow", () => this.insertTableRowBelow());
+    globalCommandBus.bindHandler("writer.table.insertColLeft", () => this.insertTableColLeft());
+    globalCommandBus.bindHandler("writer.table.insertColRight", () => this.insertTableColRight());
+    globalCommandBus.bindHandler("writer.table.deleteRow", () => this.deleteTableRow());
+    globalCommandBus.bindHandler("writer.table.deleteCol", () => this.deleteTableCol());
+    globalCommandBus.bindHandler("writer.table.deleteTable", () => this.deleteTable());
+    globalCommandBus.bindHandler("writer.table.mergeCells", () => this.mergeTableCells());
+    globalCommandBus.bindHandler("writer.table.splitCells", () => this.splitTableCells());
+    globalCommandBus.bindHandler("writer.table.distributeRows", () => this.distributeTableRows());
+    globalCommandBus.bindHandler("writer.table.distributeCols", () => this.distributeTableCols());
+    globalCommandBus.bindHandler("writer.table.alignTop", () => this.setTableCellAlign("top"));
+    globalCommandBus.bindHandler("writer.table.alignMiddle", () => this.setTableCellAlign("middle"));
+    globalCommandBus.bindHandler("writer.table.alignBottom", () => this.setTableCellAlign("bottom"));
+    globalCommandBus.bindHandler("writer.table.selectCell", () => this.selectTableElements("cell"));
+    globalCommandBus.bindHandler("writer.table.selectRow", () => this.selectTableElements("row"));
+    globalCommandBus.bindHandler("writer.table.selectCol", () => this.selectTableElements("col"));
+    globalCommandBus.bindHandler("writer.table.selectTable", () => this.selectTableElements("table"));
+    globalCommandBus.bindHandler("writer.table.cellBg", (args) => this.setTableCellBackground(args));
+    globalCommandBus.bindHandler("writer.table.borders", (args) => this.setTableBorders(args));
+    globalCommandBus.bindHandler("writer.table.toggleHeaderRow", () => this.toggleTableHeaderRow());
+    globalCommandBus.bindHandler("writer.table.toggleBandedRows", () => this.toggleTableBandedRows());
+  }
+
+  _getActiveTable() {
+    if (this.tableController?.activeTable && this.tableController.activeTable.isConnected) {
+      return this.tableController.activeTable;
+    }
+    if (typeof window !== "undefined") {
+      const sel = window.getSelection?.();
+      if (sel && sel.rangeCount > 0) {
+        const node = sel.anchorNode;
+        const el = node?.nodeType === 1 ? node : node?.parentElement;
+        const table = el?.closest?.("table");
+        if (table && (this.bodyDom?.contains?.(table) || this.editorDom?.contains?.(table))) {
+          return table;
+        }
+      }
+    }
+    return (this.bodyDom || this.editorDom)?.querySelector?.("table") || null;
+  }
+
+  _getActiveTableCell() {
+    if (this.tableController?.activeCell && this.tableController.activeCell.isConnected) {
+      return this.tableController.activeCell;
+    }
+    if (typeof window !== "undefined") {
+      const sel = window.getSelection?.();
+      if (sel && sel.rangeCount > 0) {
+        const node = sel.anchorNode;
+        const el = node?.nodeType === 1 ? node : node?.parentElement;
+        const cell = el?.closest?.("td, th");
+        if (cell && (this.bodyDom?.contains?.(cell) || this.editorDom?.contains?.(cell))) {
+          return cell;
+        }
+      }
+    }
+    const table = this._getActiveTable();
+    return table?.querySelector?.("td, th") || null;
+  }
+
+  insertTableRowAbove() {
+    const cell = this._getActiveTableCell();
+    const row = cell?.closest?.("tr");
+    if (!row) return false;
+    const table = row.closest("table");
+    const numCols = row.cells.length || 1;
+    const newRow = document.createElement("tr");
+    for (let i = 0; i < numCols; i++) {
+      const td = document.createElement("td");
+      td.style.border = "1px solid #94a3b8";
+      td.style.padding = "6pt 10pt";
+      td.innerHTML = "<br>";
+      newRow.appendChild(td);
+    }
+    row.parentElement?.insertBefore(newRow, row);
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.insertRowAbove");
+    this.tableController?._positionMoveHandle(table);
+    return true;
+  }
+
+  insertTableRowBelow() {
+    const cell = this._getActiveTableCell();
+    const row = cell?.closest?.("tr");
+    if (!row) return false;
+    const table = row.closest("table");
+    const numCols = row.cells.length || 1;
+    const newRow = document.createElement("tr");
+    for (let i = 0; i < numCols; i++) {
+      const td = document.createElement("td");
+      td.style.border = "1px solid #94a3b8";
+      td.style.padding = "6pt 10pt";
+      td.innerHTML = "<br>";
+      newRow.appendChild(td);
+    }
+    if (row.nextSibling) {
+      row.parentElement?.insertBefore(newRow, row.nextSibling);
+    } else {
+      row.parentElement?.appendChild(newRow);
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.insertRowBelow");
+    this.tableController?._positionMoveHandle(table);
+    return true;
+  }
+
+  insertTableColLeft() {
+    const cell = this._getActiveTableCell();
+    const table = cell?.closest?.("table") || this._getActiveTable();
+    if (!table) return false;
+    const colIdx = cell ? cell.cellIndex : 0;
+    for (const r of table.rows) {
+      const td = document.createElement("td");
+      td.style.border = "1px solid #94a3b8";
+      td.style.padding = "6pt 10pt";
+      td.innerHTML = "<br>";
+      const ref = r.cells[colIdx];
+      if (ref) {
+        r.insertBefore(td, ref);
+      } else {
+        r.appendChild(td);
+      }
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.insertColLeft");
+    this.tableController?._positionMoveHandle(table);
+    return true;
+  }
+
+  insertTableColRight() {
+    const cell = this._getActiveTableCell();
+    const table = cell?.closest?.("table") || this._getActiveTable();
+    if (!table) return false;
+    const maxIdx = (table.rows[0]?.cells?.length || 1) - 1;
+    const colIdx = cell ? cell.cellIndex : maxIdx;
+    for (const r of table.rows) {
+      const td = document.createElement("td");
+      td.style.border = "1px solid #94a3b8";
+      td.style.padding = "6pt 10pt";
+      td.innerHTML = "<br>";
+      const ref = r.cells[colIdx];
+      if (ref && ref.nextSibling) {
+        r.insertBefore(td, ref.nextSibling);
+      } else {
+        r.appendChild(td);
+      }
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.insertColRight");
+    this.tableController?._positionMoveHandle(table);
+    return true;
+  }
+
+  deleteTableRow() {
+    const cell = this._getActiveTableCell();
+    const row = cell?.closest?.("tr");
+    if (!row) return false;
+    const table = row.closest("table");
+    if (!table || table.rows.length <= 1) {
+      return this.deleteTable(table);
+    }
+    row.remove();
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.deleteRow");
+    this.tableController?._positionMoveHandle(table);
+    return true;
+  }
+
+  deleteTableCol() {
+    const cell = this._getActiveTableCell();
+    const table = cell?.closest?.("table") || this._getActiveTable();
+    if (!table || table.rows.length === 0) return false;
+    const colIdx = cell ? cell.cellIndex : 0;
+    if (table.rows[0].cells.length <= 1) {
+      return this.deleteTable(table);
+    }
+    for (const r of table.rows) {
+      if (r.cells[colIdx]) {
+        r.cells[colIdx].remove();
+      }
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.deleteCol");
+    this.tableController?._positionMoveHandle(table);
+    return true;
+  }
+
+  deleteTable(targetTable = null) {
+    const table = targetTable || this._getActiveTable();
+    if (!table) return false;
+    table.remove();
+    if (this.tableController) {
+      this.tableController.activeTable = null;
+      this.tableController.activeCell = null;
+      this.tableController.clearCellSelection();
+      this.tableController._hideMoveHandle();
+      this.tableController._syncContextualTabs(false);
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.deleteTable");
+    return true;
+  }
+
+  mergeTableCells() {
+    const table = this._getActiveTable();
+    if (!table) return false;
+    const cells = Array.from(this.tableController?.selectedCells || []);
+    if (cells.length < 2) return false;
+
+    let minRow = Infinity, maxRow = -1;
+    let minCol = Infinity, maxCol = -1;
+    for (const c of cells) {
+      const r = c.parentElement?.rowIndex ?? 0;
+      const col = c.cellIndex ?? 0;
+      if (r < minRow) minRow = r;
+      if (r > maxRow) maxRow = r;
+      if (col < minCol) minCol = col;
+      if (col > maxCol) maxCol = col;
+    }
+
+    const primaryCell = cells.find((c) => (c.parentElement?.rowIndex ?? 0) === minRow && (c.cellIndex ?? 0) === minCol) || cells[0];
+    const rowSpan = maxRow - minRow + 1;
+    const colSpan = maxCol - minCol + 1;
+
+    const mergedText = [];
+    for (const c of cells) {
+      const t = (c.textContent || "").trim();
+      if (t) mergedText.push(t);
+      if (c !== primaryCell) {
+        c.remove();
+      }
+    }
+
+    primaryCell.rowSpan = rowSpan;
+    primaryCell.colSpan = colSpan;
+    primaryCell.innerHTML = mergedText.length ? mergedText.join(" ") : "<br>";
+
+    this.tableController?.clearCellSelection();
+    this.tableController?.selectCell(primaryCell);
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.mergeCells");
+    return true;
+  }
+
+  splitTableCells() {
+    const cell = this._getActiveTableCell();
+    if (!cell) return false;
+
+    if (cell.colSpan > 1 || cell.rowSpan > 1) {
+      cell.colSpan = 1;
+      cell.rowSpan = 1;
+    } else {
+      const newCell = document.createElement("td");
+      newCell.style.border = cell.style.border || "1px solid #94a3b8";
+      newCell.style.padding = cell.style.padding || "6pt 10pt";
+      newCell.innerHTML = "<br>";
+      if (cell.nextSibling) {
+        cell.parentElement?.insertBefore(newCell, cell.nextSibling);
+      } else {
+        cell.parentElement?.appendChild(newCell);
+      }
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.splitCells");
+    return true;
+  }
+
+  distributeTableRows() {
+    const table = this._getActiveTable();
+    if (!table || table.rows.length === 0) return false;
+    for (const r of table.rows) {
+      r.style.height = "";
+      for (const c of r.cells) {
+        c.style.height = "";
+      }
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.distributeRows");
+    return true;
+  }
+
+  distributeTableCols() {
+    const table = this._getActiveTable();
+    if (!table || table.rows.length === 0) return false;
+    const numCols = table.rows[0].cells.length;
+    if (numCols === 0) return false;
+    const pct = `${(100 / numCols).toFixed(2)}%`;
+    for (const r of table.rows) {
+      for (const c of r.cells) {
+        c.style.width = pct;
+      }
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.distributeCols");
+    return true;
+  }
+
+  setTableCellAlign(align = "middle") {
+    const cells = this.tableController?.selectedCells?.size
+      ? Array.from(this.tableController.selectedCells)
+      : [this._getActiveTableCell()].filter(Boolean);
+    if (cells.length === 0) return false;
+    for (const c of cells) {
+      c.style.verticalAlign = align;
+    }
+    this.isDirty = true;
+    this.recordSnapshot(`writer.table.align${align.charAt(0).toUpperCase() + align.slice(1)}`);
+    return true;
+  }
+
+  setTableCellBackground(color = "#e2e8f0") {
+    const cells = this.tableController?.selectedCells?.size
+      ? Array.from(this.tableController.selectedCells)
+      : [this._getActiveTableCell()].filter(Boolean);
+    if (cells.length === 0) return false;
+    const finalColor = typeof color === "string" && color ? color : "#e2e8f0";
+    for (const c of cells) {
+      c.style.backgroundColor = finalColor;
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.cellBg");
+    return true;
+  }
+
+  setTableBorders(borderType = "all") {
+    const table = this._getActiveTable();
+    if (!table) return false;
+    const cells = this.tableController?.selectedCells?.size
+      ? Array.from(this.tableController.selectedCells)
+      : Array.from(table.querySelectorAll("td, th"));
+
+    const borderVal = borderType === "none" ? "none" : "1px solid #94a3b8";
+    for (const c of cells) {
+      c.style.border = borderVal;
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.borders");
+    return true;
+  }
+
+  toggleTableHeaderRow() {
+    const table = this._getActiveTable();
+    if (!table || table.rows.length === 0) return false;
+    const firstRow = table.rows[0];
+    const isHeader = firstRow.classList.toggle("vno-table-header-row");
+    for (const cell of firstRow.cells) {
+      if (isHeader) {
+        cell.style.backgroundColor = "#f1f5f9";
+        cell.style.fontWeight = "bold";
+      } else {
+        cell.style.backgroundColor = "";
+        cell.style.fontWeight = "";
+      }
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.toggleHeaderRow");
+    return true;
+  }
+
+  toggleTableBandedRows() {
+    const table = this._getActiveTable();
+    if (!table || table.rows.length === 0) return false;
+    const isBanded = table.classList.toggle("vno-table-banded-rows");
+    for (let i = 1; i < table.rows.length; i++) {
+      const row = table.rows[i];
+      const bg = isBanded && (i % 2 === 1) ? "#f8fafc" : "";
+      for (const cell of row.cells) {
+        cell.style.backgroundColor = bg;
+      }
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.toggleBandedRows");
+    return true;
+  }
+
+  selectTableElements(type = "table") {
+    if (!this.tableController) return false;
+    switch (type) {
+      case "cell":
+        this.tableController.selectCell(this._getActiveTableCell());
+        break;
+      case "row":
+        this.tableController.selectRow(this._getActiveTableCell());
+        break;
+      case "col":
+        this.tableController.selectCol(this._getActiveTableCell());
+        break;
+      case "table":
+      default:
+        this.tableController.selectTable(this._getActiveTable());
+        break;
+    }
+    return true;
+  }
+
   _insertPageBreak() {
     this.flushTyping();
     this._initZones();
@@ -7274,6 +7840,9 @@ export class WriterAdapter {
     } else if (styleKey === "emphasis" || styleKey === "nhanmanh") {
       targetTag = "p";
       addClass = "vno-style-emphasis";
+    } else if (styleKey === "title" || styleKey === "tieude") {
+      targetTag = "p";
+      addClass = "vno-style-title";
     } else {
       targetTag = "p";
     }
@@ -7289,6 +7858,15 @@ export class WriterAdapter {
     }
 
     this._updateCurrentBlockStyle(targetTag, addClass);
+    if (styleKey === "title" || styleKey === "tieude") {
+      this._getSelectedParagraphBlocks().forEach((block) => Object.assign(block.style, {
+        fontSize: "26pt",
+        fontWeight: "bold",
+        color: "#1f4e79",
+        textAlign: "center",
+        marginBottom: "8pt"
+      }));
+    }
 
     this.isDirty = true;
     this.recordSnapshot("writer.style.apply");
@@ -7356,6 +7934,11 @@ export class WriterAdapter {
     if (block) {
       block.classList?.remove?.("vno-style-quote");
       block.classList?.remove?.("vno-style-emphasis");
+      const wasTitle = block.classList?.contains?.("vno-style-title");
+      block.classList?.remove?.("vno-style-title");
+      if (wasTitle && block.style?.removeProperty) {
+        ["font-size", "font-weight", "color", "text-align", "margin-bottom"].forEach(property => block.style.removeProperty(property));
+      }
       if (addClass) {
         block.classList?.add?.(addClass);
       }
@@ -7379,9 +7962,11 @@ export class WriterAdapter {
       if (tag === "h3") return "h3";
       if (tag === "blockquote" || node.classList?.contains?.("vno-style-quote")) return "quote";
       if (node.classList?.contains?.("vno-style-emphasis")) return "emphasis";
+      if (node.classList?.contains?.("vno-style-title")) return "title";
       if (tag === "p") {
         if (node.classList?.contains?.("vno-style-quote")) return "quote";
         if (node.classList?.contains?.("vno-style-emphasis")) return "emphasis";
+        if (node.classList?.contains?.("vno-style-title")) return "title";
         return "normal";
       }
       node = node.parentNode;
@@ -8752,7 +9337,15 @@ export class WriterAdapter {
     let url = typeof options === "string" ? options : options.url;
     let text = typeof options === "string" ? "" : options.text;
 
-    if (!url) {
+    if (typeof url === "string") {
+      url = url.trim();
+      // Chuẩn hóa, tránh lặp tiền tố giao thức (vd: https://https://example.com)
+      url = url.replace(/^(?:https?:\/\/)+(https?:\/\/)/i, "$1");
+      if (!url) url = "https://";
+      else if (!/^(?:https?:\/\/|mailto:|ftp:\/\/)/i.test(url)) {
+        url = "https://" + url;
+      }
+    } else {
       url = "https://";
     }
 
@@ -9568,8 +10161,9 @@ export class WriterAdapter {
   }
 
   _setLineHeight(val) {
-    const sel = window.getSelection();
-    if (sel.rangeCount > 0) {
+    const sel = typeof window !== "undefined" ? window.getSelection?.() : null;
+    let applied = false;
+    if (sel?.rangeCount > 0) {
       let node = sel.anchorNode;
       if (node.nodeType === 3) node = node.parentNode;
       while (node && node !== this.editorDom && node.tagName !== "P" && node.tagName !== "DIV") {
@@ -9584,8 +10178,13 @@ export class WriterAdapter {
         } else {
           node.style.lineHeight = val;
         }
+        applied = true;
       }
     }
+    if (!applied) return false;
+    this.isDirty = true;
+    this.recordSnapshot("writer.para.lineSpacing");
+    return true;
   }
 
   _adjustFontSize(delta) {
@@ -9635,6 +10234,28 @@ export class WriterAdapter {
       this.isDirty = true;
       this.recordSnapshot?.(deltaPt > 0 ? "writer.font.grow1pt" : "writer.font.shrink1pt");
     }
+  }
+
+  _applyFontSizePt(sizePt) {
+    const pt = Number(sizePt);
+    if (!Number.isFinite(pt) || pt <= 0 || pt > 1638 || typeof document === "undefined") return false;
+    const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+    if (!selection?.rangeCount) return false;
+    this.flushTyping?.();
+    if (typeof document.execCommand === "function") document.execCommand("fontSize", false, "7");
+    let applied = false;
+    const fontElements = this.editorDom?.getElementsByTagName?.("font") || [];
+    for (const element of fontElements) {
+      if (element.size === "7") {
+        element.removeAttribute?.("size");
+        element.style.fontSize = `${pt}pt`;
+        applied = true;
+      }
+    }
+    if (!applied) return false;
+    this.isDirty = true;
+    this.recordSnapshot?.("writer.font.size");
+    return true;
   }
 
   async _pastePlainText() {
@@ -10722,7 +11343,11 @@ export class WriterAdapter {
       if (node.attrs.face) style.fontFamily = node.attrs.face.trim();
       if (node.attrs.size) throw this._fodtError("thuộc tính HTML font size legacy");
     }
-    const css = this._fodtCssMap(node.attrs.style);
+    const paragraphProps = ["margin-left", "text-indent", "line-height"];
+    const allowed = /^(?:p|h[1-6])$/.test(node.name)
+      ? ["font-weight", "font-style", "text-decoration", "text-decoration-line", "color", "background-color", "font-family", "font-size", "text-align", "margin-top", "margin-bottom", ...paragraphProps]
+      : undefined;
+    const css = allowed ? this._fodtCssMap(node.attrs.style, allowed) : this._fodtCssMap(node.attrs.style);
     if (/^(bold|[6-9]00)$/i.test(css["font-weight"] || "")) style.bold = true;
     if (/^(normal|[1-5]00)$/i.test(css["font-weight"] || "")) delete style.bold;
     if (/^italic$/i.test(css["font-style"] || "")) style.italic = true;
@@ -11133,7 +11758,10 @@ export class WriterAdapter {
       return inlineXml(node.children, this._fodtInlineStyle(node, inherited));
     }).join("");
     const paragraphXml = (node, extra = {}) => {
-      const css = this._fodtCssMap(node.attrs.style);
+      const css = this._fodtCssMap(node.attrs.style, [
+        "font-weight", "font-style", "text-decoration", "text-decoration-line", "color", "background-color",
+        "font-family", "font-size", "text-align", "margin-top", "margin-bottom", "margin-left", "text-indent", "line-height"
+      ]);
       const unexpected = Object.keys(node.attrs).filter(name => !["style", "class"].includes(name));
       if (unexpected.length) throw this._fodtError(`thuộc tính ${unexpected[0]} trên <${node.name}>`);
       const align = String(css["text-align"] || "left").toLowerCase();
@@ -11145,6 +11773,11 @@ export class WriterAdapter {
       if (extra.breakBefore) props.breakBefore = extra.breakBefore;
       if (css["margin-top"] !== undefined) props.marginTop = this._fodtNormalizeLengthToPt(css["margin-top"], "khoảng trước đoạn");
       if (css["margin-bottom"] !== undefined) props.marginBottom = this._fodtNormalizeLengthToPt(css["margin-bottom"], "khoảng sau đoạn");
+      if (css["margin-left"] !== undefined) props.marginLeft = this._fodtNormalizeLengthToPt(css["margin-left"], "lề trái đoạn");
+      if (css["text-indent"] !== undefined) props.textIndent = this._fodtNormalizeLengthToPt(css["text-indent"], "thụt đầu dòng");
+      if (css["line-height"] && /^(?:\d+(?:\.\d+)?)(?:pt|cm|mm|in|px)$/i.test(css["line-height"])) {
+        props.lineHeight = this._fodtNormalizeLengthToPt(css["line-height"], "giãn dòng chính xác");
+      }
       const pStyle = Object.keys(props).length ? ` text:style-name="${styleName(paragraphStyles, "P", props)}"` : "";
       const headingMatch = node.name.match(/^h([1-6])$/);
       const tag = headingMatch ? `text:h text:outline-level="${headingMatch[1]}"` : "text:p";
@@ -11523,6 +12156,9 @@ export class WriterAdapter {
       if (value.breakBefore) paraProps.push(`fo:break-before="${value.breakBefore}"`);
       if (value.marginTop) paraProps.push(`fo:margin-top="${value.marginTop}"`);
       if (value.marginBottom) paraProps.push(`fo:margin-bottom="${value.marginBottom}"`);
+      if (value.marginLeft) paraProps.push(`fo:margin-left="${value.marginLeft}"`);
+      if (value.textIndent) paraProps.push(`fo:text-indent="${value.textIndent}"`);
+      if (value.lineHeight) paraProps.push(`fo:line-height="${value.lineHeight}"`);
       const paraXml = paraProps.length ? `<style:paragraph-properties ${paraProps.join(" ")}/>` : "";
       return `<style:style ${styleAttrs.join(" ")}>${paraXml}</style:style>`;
     }).join("");
@@ -11610,7 +12246,10 @@ export class WriterAdapter {
           masterPageName: attrs["style:master-page-name"] || "",
           breakBefore,
           marginTop: props["fo:margin-top"] ? this._fodtNormalizeLengthToPt(props["fo:margin-top"], "khoảng trước đoạn") : "",
-          marginBottom: props["fo:margin-bottom"] ? this._fodtNormalizeLengthToPt(props["fo:margin-bottom"], "khoảng sau đoạn") : ""
+          marginBottom: props["fo:margin-bottom"] ? this._fodtNormalizeLengthToPt(props["fo:margin-bottom"], "khoảng sau đoạn") : "",
+          marginLeft: props["fo:margin-left"] ? this._fodtNormalizeLengthToPt(props["fo:margin-left"], "lề trái đoạn") : "",
+          textIndent: props["fo:text-indent"] ? this._fodtNormalizeLengthToPt(props["fo:text-indent"], "thụt đầu dòng") : "",
+          lineHeight: props["fo:line-height"] ? this._fodtNormalizeLengthToPt(props["fo:line-height"], "giãn dòng chính xác") : ""
         });
       } else if (family === "table-cell") {
         const propMatch = content.match(/<style:table-cell-properties\b([^>]*)\/?\s*>/i);
@@ -11907,6 +12546,9 @@ export class WriterAdapter {
       if (pStyle?.textAlign && pStyle.textAlign !== "left") cssRules.push(`text-align:${pStyle.textAlign}`);
       if (pStyle?.marginTop) cssRules.push(`margin-top:${pStyle.marginTop}`);
       if (pStyle?.marginBottom) cssRules.push(`margin-bottom:${pStyle.marginBottom}`);
+      if (pStyle?.marginLeft) cssRules.push(`margin-left:${pStyle.marginLeft}`);
+      if (pStyle?.textIndent) cssRules.push(`text-indent:${pStyle.textIndent}`);
+      if (pStyle?.lineHeight) cssRules.push(`line-height:${pStyle.lineHeight}`);
       const styleAttr = cssRules.length ? ` style="${this._escapeHtml(cssRules.join(";"))}"` : "";
       const paragraph = `<${tag}${styleAttr}>${inlineHtml(node.children)}</${tag}>`;
       if (!pStyle?.masterPageName) return paragraph;
@@ -14339,19 +14981,89 @@ export class WriterAdapter {
   _bindClipboardEvents() {
     if (this._clipboardEventRoots) return;
     this._clipboardEventRoots = [this.headerDom, this.bodyDom, this.footerDom].filter(root => root?.addEventListener);
-    this._pasteEventHandler = event => {
-      const clipboard = event.clipboardData;
-      if (!clipboard) return;
-      const html = clipboard.getData("text/html") || "";
-      const text = clipboard.getData("text/plain") || "";
+
+    this._copyEventHandler = event => {
+      const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+      if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return;
+      const text = selection.toString();
+      let html = "";
+      try {
+        if (typeof document !== "undefined") {
+          const container = document.createElement("div");
+          for (let i = 0; i < selection.rangeCount; i++) {
+            container.appendChild(selection.getRangeAt(i).cloneContents());
+          }
+          html = container.innerHTML;
+        }
+      } catch {}
+      this._clipboardMemory = { text, html };
+      if (event?.clipboardData) {
+        if (text) event.clipboardData.setData("text/plain", text);
+        if (html) event.clipboardData.setData("text/html", html);
+      }
+    };
+
+    this._cutEventHandler = event => {
+      const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+      if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return;
+      const text = selection.toString();
+      let html = "";
+      try {
+        if (typeof document !== "undefined") {
+          const container = document.createElement("div");
+          for (let i = 0; i < selection.rangeCount; i++) {
+            container.appendChild(selection.getRangeAt(i).cloneContents());
+          }
+          html = container.innerHTML;
+        }
+      } catch {}
+      this._clipboardMemory = { text, html };
+      if (event?.clipboardData) {
+        if (text) event.clipboardData.setData("text/plain", text);
+        if (html) event.clipboardData.setData("text/html", html);
+      }
+      setTimeout(() => {
+        this.isDirty = true;
+        this.recordSnapshot("Cut");
+        this._updateUndoRedoUI();
+      }, 0);
+    };
+
+    this._pasteEventHandler = async event => {
+      const clipboard = event?.clipboardData;
+      let html = clipboard?.getData?.("text/html") || "";
+      let text = clipboard?.getData?.("text/plain") || "";
+      if (!html && !text && this._clipboardMemory) {
+        html = this._clipboardMemory.html || "";
+        text = this._clipboardMemory.text || "";
+      }
+      if (!html && !text) {
+        const sys = await this._readClipboardFromSystem();
+        if (sys?.html || sys?.text) {
+          html = sys.html || "";
+          text = sys.text || "";
+        }
+      }
       if (!html && !text) return;
-      event.preventDefault();
+      if (event?.preventDefault) event.preventDefault();
+      this._clipboardMemory = { text, html };
       this._insertClipboardContent({ html, text });
     };
-    for (const root of this._clipboardEventRoots) root.addEventListener("paste", this._pasteEventHandler);
+
+    for (const root of this._clipboardEventRoots) {
+      root.addEventListener("copy", this._copyEventHandler);
+      root.addEventListener("cut", this._cutEventHandler);
+      root.addEventListener("paste", this._pasteEventHandler);
+    }
   }
 
   _sanitizeClipboardHtml(html) {
+    if (typeof document === "undefined") {
+      return String(html || "")
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+        .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, "")
+        .replace(/javascript:[^"']*/gi, "");
+    }
     const template = document.createElement("template");
     template.innerHTML = String(html || "");
     const allowed = new Set([
@@ -14398,36 +15110,71 @@ export class WriterAdapter {
   _insertClipboardContent({ html = "", text = "" } = {}) {
     const cleanHtml = html ? this._sanitizeClipboardHtml(html) : "";
     if (cleanHtml || text) this.flushTyping();
+    let inserted = false;
     if (cleanHtml) {
-      if (document.execCommand?.("insertHTML", false, cleanHtml)) return true;
-      const selection = window.getSelection?.();
-      if (!selection?.rangeCount) return false;
-      const range = selection.getRangeAt(0);
-      const fragment = document.createRange().createContextualFragment(cleanHtml);
-      range.deleteContents();
-      const last = fragment.lastChild;
-      range.insertNode(fragment);
-      if (last) range.setStartAfter(last);
-      range.collapse(true);
-      selection.removeAllRanges();
-      selection.addRange(range);
-      this.bodyDom?.dispatchEvent?.(new InputEvent("input", { bubbles: true, inputType: "insertFromPaste", data: text || null }));
+      if (document.execCommand?.("insertHTML", false, cleanHtml)) {
+        inserted = true;
+      } else {
+        const selection = window.getSelection?.();
+        if (selection) {
+          if (!selection.rangeCount && this.bodyDom) {
+            const r = document.createRange();
+            r.selectNodeContents(this.bodyDom);
+            r.collapse(false);
+            selection.removeAllRanges();
+            selection.addRange(r);
+          }
+          if (selection.rangeCount) {
+            const range = selection.getRangeAt(0);
+            const fragment = document.createRange().createContextualFragment(cleanHtml);
+            range.deleteContents();
+            const last = fragment.lastChild;
+            range.insertNode(fragment);
+            if (last) range.setStartAfter(last);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+            this.bodyDom?.dispatchEvent?.(new InputEvent("input", { bubbles: true, inputType: "insertFromPaste", data: text || null }));
+            inserted = true;
+          }
+        }
+      }
+    }
+    if (!inserted && text) {
+      if (document.execCommand?.("insertText", false, text)) {
+        inserted = true;
+      } else {
+        const selection = window.getSelection?.();
+        if (selection) {
+          if (!selection.rangeCount && this.bodyDom) {
+            const r = document.createRange();
+            r.selectNodeContents(this.bodyDom);
+            r.collapse(false);
+            selection.removeAllRanges();
+            selection.addRange(r);
+          }
+          if (selection.rangeCount) {
+            const range = selection.getRangeAt(0);
+            const node = document.createTextNode(text);
+            range.deleteContents();
+            range.insertNode(node);
+            range.setStartAfter(node);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+            this.bodyDom?.dispatchEvent?.(new InputEvent("input", { bubbles: true, inputType: "insertFromPaste", data: text }));
+            inserted = true;
+          }
+        }
+      }
+    }
+    if (inserted) {
+      this.isDirty = true;
+      this.recordSnapshot("Paste");
+      this._updateUndoRedoUI();
       return true;
     }
-    if (!text) return false;
-    if (document.execCommand?.("insertText", false, text)) return true;
-    const selection = window.getSelection?.();
-    if (!selection?.rangeCount) return false;
-    const range = selection.getRangeAt(0);
-    const node = document.createTextNode(text);
-    range.deleteContents();
-    range.insertNode(node);
-    range.setStartAfter(node);
-    range.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(range);
-    this.bodyDom?.dispatchEvent?.(new InputEvent("input", { bubbles: true, inputType: "insertFromPaste", data: text }));
-    return true;
+    return false;
   }
 
   async _readClipboardFromSystem() {
@@ -14455,7 +15202,10 @@ export class WriterAdapter {
   }
 
   async _pasteFromSystemClipboard(plainTextOnly = false) {
-    const clipboard = await this._readClipboardFromSystem();
+    let clipboard = await this._readClipboardFromSystem();
+    if (!clipboard && this._clipboardMemory) {
+      clipboard = { status: "ok", html: this._clipboardMemory.html, text: this._clipboardMemory.text };
+    }
     if (!clipboard) {
       this.shell?.setStatus?.("Không đọc được bộ nhớ tạm. Hãy dùng Ctrl+V trong vùng soạn thảo hoặc kiểm tra quyền clipboard.");
       return false;
@@ -14985,16 +15735,28 @@ export class WriterAdapter {
         if (!this._isInsideProtectedZone(commonNode) && (commonNode === this.bodyDom || this.bodyDom.contains?.(commonNode))) {
           try {
             range.collapse(true);
-            if (typeof tocElement === "string") {
+            let node = tocElement;
+            if (typeof node === "string") {
               const temp = document.createElement("div");
-              temp.innerHTML = tocElement;
-              const node = temp.firstElementChild;
-              range.insertNode(node);
-              range.setStartAfter(node);
-            } else {
-              range.insertNode(tocElement);
-              range.setStartAfter(tocElement);
+              temp.innerHTML = node;
+              node = temp.firstElementChild;
             }
+
+            let paragraphBlock = commonNode?.nodeType === 1 ? commonNode : (commonNode?.parentElement || commonNode?.parentNode);
+            while (paragraphBlock && paragraphBlock !== this.bodyDom) {
+              if (/^(P|H[1-6])$/.test(String(paragraphBlock.tagName || "").toUpperCase())) break;
+              paragraphBlock = paragraphBlock.parentElement || paragraphBlock.parentNode;
+            }
+            if (paragraphBlock === this.bodyDom) paragraphBlock = null;
+
+            if (paragraphBlock?.parentNode?.insertBefore) {
+              const nextSibling = paragraphBlock.nextSibling;
+              if (nextSibling) paragraphBlock.parentNode.insertBefore(node, nextSibling);
+              else paragraphBlock.parentNode.appendChild(node);
+            } else {
+              range.insertNode(node);
+            }
+            range.setStartAfter(node);
             inserted = true;
           } catch {}
         }
