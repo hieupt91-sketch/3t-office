@@ -1009,7 +1009,7 @@ export const SHEET_HELP_ENTRIES = [
       "Chọn mẫu bảng tính: Dùng phím mũi tên Phải để đi vào lưới mẫu, dùng mũi tên duyệt và nhấn Enter hoặc Space để khởi tạo bảng tính theo mẫu đang chọn.",
       "Mở và quản lý tệp gần đây: Dùng phím mũi tên Xuống để chuyển xuống bảng tệp gần đây. Nhấp chuột hoặc bấm Enter để mở lại bảng tính. Nhấp nút 'Gỡ khỏi danh sách' (biểu tượng ×) trên mỗi hàng để loại bỏ tệp đã bị xóa khỏi máy. Nhấp nút 'Xóa lịch sử' nếu muốn xóa toàn bộ danh sách tệp gần đây.",
       "In bảng tính: Chọn mục «In» trong Tệp hoặc nhấn Ctrl+P. Hộp thoại In xem PDF theo Vùng in, thiết lập trang, tỷ lệ, tiêu đề lặp và ngắt trang. Nếu có Microsoft Office/WPS, tùy chọn Dùng Microsoft Office/WPS để in được chọn sẵn; nhãn Bộ máy dựng PDF cho biết ứng dụng tạo trang xem trước. Bỏ chọn để dùng LibreOffice.",
-      "Xuất PDF riêng: mở Tệp → Xuất PDF và chọn nơi lưu. VN Sheet tạo bản XLSX qua cùng đường Lưu; nếu Microsoft Office/WPS dùng được thì ứng dụng đó tạo PDF, nếu không LibreOffice tiếp tục.",
+      "Xuất PDF riêng: mở Tệp → Xuất PDF và chọn nơi lưu. 3T Sheet tạo bản XLSX qua cùng đường Lưu; nếu Microsoft Office/WPS dùng được thì ứng dụng đó tạo PDF, nếu không LibreOffice tiếp tục.",
       "Các thao tác tệp khác: 'Tạo mới' (Ctrl+N), 'Mở' (Ctrl+O), 'Lưu' (Ctrl+S), 'Lưu bản sao' (F12) và 'Xuất PDF' đều được bố trí trực quan và hỗ trợ phím tắt chuẩn Office.",
       "Đóng menu Tệp: Nhấn phím Escape hoặc nhấp nút '← Quay lại' ở góc trên bên trái bất kỳ lúc nào để đóng Backstage và khôi phục tiêu điểm chính xác về ô bảng tính bạn đang chọn trước đó."
     ]

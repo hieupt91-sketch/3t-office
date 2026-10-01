@@ -692,14 +692,14 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["writer.file.printPreview", "common.file.print", "common.file.exportPdf"],
     title: "Xem trước khi in",
-    summary: "Ctrl+P hoặc Ctrl+F2 mở hộp thoại In. Khi có Microsoft Office/WPS, VN Writer dùng bộ dựng PDF đó để giữ phân trang sát bản gốc; nếu không có hoặc gặp lỗi, LibreOffice tự tiếp tục.",
+    summary: "Ctrl+P hoặc Ctrl+F2 mở hộp thoại In. Khi có Microsoft Office/WPS, 3T Doc dùng bộ dựng PDF đó để giữ phân trang sát bản gốc; nếu không có hoặc gặp lỗi, LibreOffice tự tiếp tục.",
     ribbon: { tab: "Bố cục", tabId: "layout", group: "In ấn" },
     keywords: ["xem trước khi in", "print preview", "ctrl+f2", "phân trang", "in tài liệu"],
     steps: [
       "Nhấn Ctrl+P, nhấp biểu tượng máy in trên thanh truy cập nhanh, hoặc vào Tệp → In. Ctrl+F2 cũng mở cùng hộp thoại.",
       "Nếu máy có Microsoft Office/WPS, tùy chọn Dùng Microsoft Office/WPS để in được chọn sẵn. Khung Bộ máy dựng PDF cho biết ứng dụng nào đã tạo trang xem trước; bỏ chọn để dùng LibreOffice.",
       "Chọn máy in, nhập số bản. Chọn Tất cả, Trang hiện tại theo vị trí con trỏ, hoặc Trang từ–đến; phạm vi nhiều đoạn dùng dấu phẩy, ví dụ 1-3,5.",
-      "Xuất PDF riêng: mở Tệp → Xuất PDF và chọn nơi lưu. VN Writer dựng tệp qua cùng đường Lưu DOCX; nếu Microsoft Office/WPS dùng được thì ứng dụng đó tạo PDF, nếu không LibreOffice tiếp tục.",
+      "Xuất PDF riêng: mở Tệp → Xuất PDF và chọn nơi lưu. 3T Doc dựng tệp qua cùng đường Lưu DOCX; nếu Microsoft Office/WPS dùng được thì ứng dụng đó tạo PDF, nếu không LibreOffice tiếp tục.",
       "Khổ giấy và hướng in được lấy từ Thiết lập trang hiện tại. Nhấn In để gửi tài liệu; nếu chọn Microsoft Print to PDF, chọn nơi lưu tệp PDF. Esc hoặc nút × đóng hộp thoại."
     ]
   },

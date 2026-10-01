@@ -420,7 +420,7 @@ export const SLIDES_HELP_ENTRIES = [
     app: "slides",
     commandIds: ["slides.file.printPreview", "common.file.print", "common.file.exportPdf"],
     title: "Xem trước khi in",
-    summary: "Ctrl+P hoặc Ctrl+F2 mở hộp thoại In. Khi có Microsoft Office/WPS, VN Slides dùng bộ dựng PDF đó để khớp trang chiếu; nếu không có hoặc gặp lỗi, LibreOffice tự tiếp tục.",
+    summary: "Ctrl+P hoặc Ctrl+F2 mở hộp thoại In. Khi có Microsoft Office/WPS, 3T Slide dùng bộ dựng PDF đó để khớp trang chiếu; nếu không có hoặc gặp lỗi, LibreOffice tự tiếp tục.",
     ribbon: { tab: "Chế độ xem", tabId: "view", group: "Dạng xem bản trình chiếu" },
     keywords: ["xem trước khi in", "print preview", "in tài liệu", "ctrl+f2", "full page slides", "in trang chiếu"],
     steps: [
@@ -428,7 +428,7 @@ export const SLIDES_HELP_ENTRIES = [
       "Nếu máy có Microsoft Office/WPS, tùy chọn Dùng Microsoft Office/WPS để in được chọn sẵn. Khung Bộ máy dựng PDF cho biết ứng dụng nào đã tạo trang xem trước; bỏ chọn để dùng LibreOffice.",
       "Chọn máy in, số bản và Tất cả, Trang hiện tại, hoặc Trang từ–đến. Mỗi trang PDF ứng với một trang chiếu được bộ máy dựng PDF đưa vào bản in.",
       "Nhấn In để gửi tài liệu. Khi chọn Microsoft Print to PDF, chọn thư mục và tên tệp PDF; Esc hoặc nút × đóng hộp thoại.",
-      "Xuất PDF riêng: mở Tệp → Xuất PDF và chọn nơi lưu. VN Slides dựng tệp qua cùng đường Lưu PPTX; nếu Microsoft Office/WPS dùng được thì ứng dụng đó tạo PDF, nếu không LibreOffice tiếp tục."
+      "Xuất PDF riêng: mở Tệp → Xuất PDF và chọn nơi lưu. 3T Slide dựng tệp qua cùng đường Lưu PPTX; nếu Microsoft Office/WPS dùng được thì ứng dụng đó tạo PDF, nếu không LibreOffice tiếp tục."
     ]
   },
   {
