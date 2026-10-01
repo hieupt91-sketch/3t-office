@@ -21,7 +21,7 @@ export async function launchApp(app, options = {}) {
   const localAppData = path.join(profileRoot, "localappdata");
   await mkdir(localAppData, { recursive: true });
   const python = options.python || process.env.VNO_PYTHON || "python";
-  const args = [path.join(root, "main.py"), "--app=" + app];
+  const args = ["-s", path.join(root, "main.py"), "--app=" + app];
   if (options.filePath) args.push(path.resolve(options.filePath));
   const env = {
     ...process.env,

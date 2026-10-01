@@ -22,6 +22,7 @@ import { createLazyDialogs } from "../../platform/ui-kit/lazy-dialogs.js";
 import { extractSheetRangeData, SHEET_CHART_TYPES } from "./sheet-chart-data.js";
 import { SheetDataTools } from "./data-tools.js";
 import { computeConsolidate, formatSheetRange, parseConsolidateReference, CONSOLIDATE_FUNCTIONS } from "./consolidate.js";
+import { createMatcher } from "../../platform/find/find-engine.js";
 
 const { showAlertDialog, showConfirmDialog, showPromptDialog, showFindReplaceDialog } = createLazyDialogs("sheet");
 
@@ -1205,7 +1206,7 @@ export class SheetGridController {
   }
 
   _attachAutofillHandle(td) {
-    if (!td || typeof document?.createElement !== "function" || td.querySelector?.(".vno-cell-autofill-handle")) return;
+    if (!td || typeof document === "undefined" || typeof document.createElement !== "function" || td.querySelector?.(".vno-cell-autofill-handle")) return;
     const handle = document.createElement("div");
     handle.className = "vno-cell-autofill-handle";
     handle.title = "Kéo để tự động điền (AutoFill)";
@@ -1218,7 +1219,7 @@ export class SheetGridController {
   }
 
   _attachMoveHandles(td) {
-    if (!td || typeof document?.createElement !== "function" || td.querySelector?.(".vno-cell-move-handle")) return;
+    if (!td || typeof document === "undefined" || typeof document.createElement !== "function" || td.querySelector?.(".vno-cell-move-handle")) return;
     for (const side of ["top", "bottom", "left", "right"]) {
       const mh = document.createElement("div");
       mh.className = `vno-cell-move-handle ${side}`;
@@ -7129,113 +7130,233 @@ _bindGridKeyboardNavigation() {
     return true;
   }
 
-  _cellTextMatchesFind(item, needleLower) {
-    if (!item || !needleLower) return false;
+  _cellTextMatchesFind(item, matcher, lookIn = "all") {
+    if (!item || !matcher) return false;
     if (item.sparkline || item.isArrayFormula) return false;
-    const valStr = String(item.val ?? "").toLowerCase();
-    const formulaStr = String(item.formula ?? "").toLowerCase();
-    return valStr.includes(needleLower) || formulaStr.includes(needleLower);
+    const valStr = String(item.val ?? "");
+    const formulaStr = String(item.formula ?? "");
+    if (lookIn === "formulas") {
+      return formulaStr ? matcher.matches(formulaStr) : false;
+    }
+    if (lookIn === "values") {
+      return matcher.matches(valStr);
+    }
+    return matcher.matches(valStr) || (formulaStr ? matcher.matches(formulaStr) : false);
   }
 
   _replaceIgnoreCase(source, findText, replaceText, all) {
-    const src = String(source ?? "");
-    const find = String(findText ?? "");
-    if (!find) return { text: src, count: 0 };
-    const findLower = find.toLowerCase();
-    const replacement = String(replaceText ?? "");
-    const lower = src.toLowerCase();
-    if (!all) {
-      const idx = lower.indexOf(findLower);
-      if (idx < 0) return { text: src, count: 0 };
-      return { text: src.slice(0, idx) + replacement + src.slice(idx + find.length), count: 1 };
-    }
-    let out = "";
-    let i = 0;
-    let count = 0;
-    while (i < src.length) {
-      const idx = lower.indexOf(findLower, i);
-      if (idx < 0) {
-        out += src.slice(i);
-        break;
-      }
-      out += src.slice(i, idx) + replacement;
-      i = idx + find.length;
-      count++;
-    }
-    return { text: out, count };
+    const matcher = createMatcher(findText, { matchCase: false });
+    return matcher.replace(source, replaceText, all);
   }
 
-  _replaceCellMatch(item, findText, replaceText, all) {
+  _replaceCellMatch(item, matcher, replaceText, all, lookIn = "all") {
     if (!item || item.sparkline || item.isArrayFormula) return null;
     const formula = String(item.formula ?? "");
-    if (formula) {
-      const next = this._replaceIgnoreCase(formula, findText, replaceText, all);
+    if (formula && (lookIn === "formulas" || (lookIn !== "values" && matcher.matches(formula)))) {
+      const next = matcher.replace(formula, replaceText, all);
       if (!next.count) return null;
       return { formula: next.text, count: next.count };
     }
     const valStr = String(item.val ?? "");
-    const next = this._replaceIgnoreCase(valStr, findText, replaceText, all);
+    const next = matcher.replace(valStr, replaceText, all);
     if (!next.count) return null;
     return { val: next.text, count: next.count };
   }
 
-  findNext(query) {
+  findNext(query, options = {}) {
     const needle = String(query ?? "").trim();
     if (!needle) return false;
-    const needleLower = needle.toLowerCase();
-    const entries = Array.from(this.cellsData.entries());
-    if (!entries.length) return false;
-    if (this._findLastQuery !== needleLower) {
+
+    const opts = {
+      matchCase: false,
+      wholeWord: false,
+      ignoreDiacritics: false,
+      scope: "sheet",
+      searchBy: "rows",
+      lookIn: "all",
+      direction: "forward",
+      ...options
+    };
+
+    const matcher = createMatcher(needle, opts);
+    const isBackward = opts.direction === "backward";
+    const sheetsList = (opts.scope === "workbook" && Array.isArray(this.sheets) && this.sheets.length)
+      ? [...this.sheets]
+      : [this.activeSheet];
+    if (isBackward) sheetsList.reverse();
+
+    const getSortedEntries = (sheetName) => {
+      const map = sheetName === this.activeSheet ? this.cellsData : (this.sheetsData[sheetName] || new Map());
+      const entries = Array.from(map.entries());
+      entries.sort(([coordA], [coordB]) => {
+        const [colA, rowA] = this._splitCoord(coordA);
+        const [colB, rowB] = this._splitCoord(coordB);
+        const colIdxA = this._columnNumber(colA);
+        const colIdxB = this._columnNumber(colB);
+        if (opts.searchBy === "columns") {
+          return colIdxA !== colIdxB ? colIdxA - colIdxB : rowA - rowB;
+        } else {
+          return rowA !== rowB ? rowA - rowB : colIdxA - colIdxB;
+        }
+      });
+      if (isBackward) entries.reverse();
+      return entries;
+    };
+
+    const stateKey = `${needle}__${opts.matchCase}__${opts.wholeWord}__${opts.ignoreDiacritics}__${opts.searchBy}__${opts.lookIn}__${opts.scope}`;
+    if (this._findLastStateKey !== stateKey) {
+      this._findLastStateKey = stateKey;
       this._findLastCoord = null;
-      this._findLastQuery = needleLower;
+      this._findLastSheet = null;
     }
-    let startIndex = 0;
-    if (this._findLastCoord) {
-      const idx = entries.findIndex(([coord]) => coord === this._findLastCoord);
-      if (idx >= 0) startIndex = idx + 1;
+
+    let startSheetIdx = 0;
+    let startEntryIdx = 0;
+    if (this._findLastSheet && this._findLastCoord) {
+      const sIdx = sheetsList.indexOf(this._findLastSheet);
+      if (sIdx >= 0) {
+        startSheetIdx = sIdx;
+        const entries = getSortedEntries(this._findLastSheet);
+        const cIdx = entries.findIndex(([coord]) => coord === this._findLastCoord);
+        if (cIdx >= 0) startEntryIdx = cIdx + 1;
+      }
     }
-    for (let i = 0; i < entries.length; i++) {
-      const [coord, item] = entries[(startIndex + i) % entries.length];
-      if (!this._cellTextMatchesFind(item, needleLower)) continue;
-      this._findLastCoord = coord;
-      const [col, row] = this._splitCoord(coord);
-      this.selectCell(col, row);
-      return coord;
+
+    for (let sStep = 0; sStep < sheetsList.length; sStep++) {
+      const currentSheet = sheetsList[(startSheetIdx + sStep) % sheetsList.length];
+      const entries = getSortedEntries(currentSheet);
+      if (!entries.length) continue;
+
+      const entryStart = (sStep === 0) ? startEntryIdx : 0;
+      for (let i = 0; i < entries.length; i++) {
+        const [coord, item] = entries[(entryStart + i) % entries.length];
+        if (!this._cellTextMatchesFind(item, matcher, opts.lookIn)) continue;
+
+        this._findLastSheet = currentSheet;
+        this._findLastCoord = coord;
+        if (currentSheet !== this.activeSheet) {
+          this.switchSheet(currentSheet);
+        }
+        const [col, row] = this._splitCoord(coord);
+        this.selectCell(col, row);
+        const targetEl = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${coord}"]`);
+        targetEl?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+        return coord;
+      }
     }
     return false;
   }
 
-  replaceOne(findText, replaceText) {
+  findPrev(query, options = {}) {
+    return this.findNext(query, { ...options, direction: "backward" });
+  }
+
+  replaceOne(findText, replaceText, options = {}) {
     if (this._guardProtectedMutation()) return false;
     const needle = String(findText ?? "").trim();
     if (!needle) return false;
-    const entries = Array.from(this.cellsData.entries());
-    if (!entries.length) return false;
+
+    const opts = {
+      matchCase: false,
+      wholeWord: false,
+      ignoreDiacritics: false,
+      scope: "sheet",
+      searchBy: "rows",
+      lookIn: "all",
+      ...options
+    };
+    const matcher = createMatcher(needle, opts);
+    const replacement = String(replaceText ?? "");
+
     const selectedKey = `${this.selectedCoord.c}${this.selectedCoord.r}`;
-    const startIndex = Math.max(0, entries.findIndex(([coord]) => coord === selectedKey));
-    for (let i = 0; i < entries.length; i++) {
-      const [coord, item] = entries[(startIndex + i) % entries.length];
-      const patch = this._replaceCellMatch(item, needle, replaceText, false);
-      if (!patch) continue;
-      const [col, row] = this._splitCoord(coord);
-      this.setCellValue(col, row, patch.formula != null ? patch.formula : patch.val, true);
-      this._findLastCoord = coord;
-      this._findLastQuery = needle.toLowerCase();
-      this.selectCell(col, row);
-      return true;
+    const selectedItem = this.cellsData.get(selectedKey);
+    if (selectedItem && this._cellTextMatchesFind(selectedItem, matcher, opts.lookIn)) {
+      const patch = this._replaceCellMatch(selectedItem, matcher, replacement, false, opts.lookIn);
+      if (patch) {
+        this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, patch.formula != null ? patch.formula : patch.val, true);
+        return true;
+      }
     }
-    return false;
+
+    const nextCoord = this.findNext(needle, opts);
+    if (!nextCoord) return false;
+    const [col, row] = this._splitCoord(nextCoord);
+    const item = this.cellsData.get(nextCoord);
+    const patch = this._replaceCellMatch(item, matcher, replacement, false, opts.lookIn);
+    if (!patch) return false;
+    this.setCellValue(col, row, patch.formula != null ? patch.formula : patch.val, true);
+    this.selectCell(col, row);
+    return true;
   }
 
-  replaceAll(findText, replaceText) {
+  replaceAll(findText, replaceText, options = {}) {
     if (this._guardProtectedMutation()) return 0;
     const needle = String(findText ?? "").trim();
     if (!needle) return 0;
+
+    const opts = {
+      matchCase: false,
+      wholeWord: false,
+      ignoreDiacritics: false,
+      scope: "sheet",
+      searchBy: "rows",
+      lookIn: "all",
+      ...options
+    };
+    const matcher = createMatcher(needle, opts);
+    const replacement = String(replaceText ?? "");
+
+    if (opts.scope === "workbook" && Array.isArray(this.sheets) && this.sheets.length > 1) {
+      const beforeBySheet = {};
+      const afterBySheet = {};
+      let total = 0;
+
+      for (const sheetName of this.sheets) {
+        const map = sheetName === this.activeSheet ? this.cellsData : (this.sheetsData[sheetName] || new Map());
+        const sheetBefore = {};
+        const sheetAfter = {};
+        let sheetCount = 0;
+
+        for (const [coord, item] of [...map.entries()]) {
+          const patch = this._replaceCellMatch(item, matcher, replacement, true, opts.lookIn);
+          if (!patch) continue;
+          sheetBefore[coord] = structuredClone(item);
+          const [col, row] = this._splitCoord(coord);
+          if (sheetName === this.activeSheet) {
+            this.setCellValue(col, row, patch.formula != null ? patch.formula : patch.val, false);
+            sheetAfter[coord] = structuredClone(this.cellsData.get(coord));
+          } else {
+            const newItem = structuredClone(item);
+            if (patch.formula != null) {
+              newItem.formula = patch.formula;
+            } else {
+              newItem.val = patch.val;
+            }
+            map.set(coord, newItem);
+            sheetAfter[coord] = structuredClone(newItem);
+          }
+          sheetCount += patch.count;
+        }
+
+        if (sheetCount > 0) {
+          beforeBySheet[sheetName] = sheetBefore;
+          afterBySheet[sheetName] = sheetAfter;
+          total += sheetCount;
+        }
+      }
+
+      if (!total) return 0;
+      this._recordHistory({ type: "batch-workbook", beforeBySheet, afterBySheet });
+      this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+      return total;
+    }
+
+    // Active sheet scope
     const before = {};
     const after = {};
     let total = 0;
     for (const [coord, item] of [...this.cellsData.entries()]) {
-      const patch = this._replaceCellMatch(item, needle, replaceText, true);
+      const patch = this._replaceCellMatch(item, matcher, replacement, true, opts.lookIn);
       if (!patch) continue;
       before[coord] = structuredClone(item);
       const [col, row] = this._splitCoord(coord);
@@ -7254,14 +7375,16 @@ _bindGridKeyboardNavigation() {
     }
     showFindReplaceDialog({
       isReplace: !!isReplace,
-      onFind: (text) => this.findNext(text),
-      onReplace: (findText, replaceText) => {
+      app: "sheet",
+      onFind: (text, options) => this.findNext(text, options),
+      onFindPrev: (text, options) => this.findPrev(text, options),
+      onReplace: (findText, replaceText, options) => {
         if (!findText) return false;
-        return this.replaceOne(findText, replaceText);
+        return this.replaceOne(findText, replaceText, options);
       },
-      onReplaceAll: (findText, replaceText) => {
+      onReplaceAll: (findText, replaceText, options) => {
         if (!findText) return 0;
-        return this.replaceAll(findText, replaceText);
+        return this.replaceAll(findText, replaceText, options);
       }
     });
     return true;
@@ -8254,6 +8377,25 @@ _bindGridKeyboardNavigation() {
         }
       }
       this._recalculateAllFormulas();
+    } else if (action.type === "batch-workbook") {
+      const bySheet = direction === "undo" ? action.beforeBySheet : action.afterBySheet;
+      for (const [sheetName, snapshots] of Object.entries(bySheet || {})) {
+        const map = sheetName === this.activeSheet ? this.cellsData : (this.sheetsData[sheetName] || null);
+        if (!map) continue;
+        for (const [coord, snap] of Object.entries(snapshots || {})) {
+          if (!snap) {
+            map.delete(coord);
+          } else {
+            map.set(coord, {
+              val: snap.val ?? "",
+              formula: snap.formula ?? "",
+              style: structuredClone(snap.style || {})
+            });
+          }
+        }
+      }
+      this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+      this._recalculateAllFormulas();
     } else if (action.type === "sort") {
       this._restoreCells(direction === "undo" ? action.before : action.after);
     } else if (action.type === "pivot-refresh") {
@@ -8720,6 +8862,10 @@ _bindGridKeyboardNavigation() {
 
   _columnNumber(label) {
     return String(label).toUpperCase().split("").reduce((value, char) => value * 26 + char.charCodeAt(0) - 64, 0);
+  }
+
+  _colLetterToIndex(label) {
+    return this._columnNumber(label);
   }
 
   _columnLabel(number) {

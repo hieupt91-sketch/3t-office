@@ -72,6 +72,11 @@ export async function typeText(cdp, value, delayMilliseconds = 50) {
   await sleep(300);
 }
 
+export async function insertText(cdp, text) {
+  await cdp.send("Input.insertText", { text: String(text) });
+  await sleep(200);
+}
+
 export async function click(cdp, selector, index = 0) {
   const point = await cdp.evaluate(
     "(() => { const nodes = [...document.querySelectorAll(" + JSON.stringify(selector) + ")];"

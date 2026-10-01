@@ -5,6 +5,7 @@
 
 import { globalUnoBridge } from "../common/uno-bridge.js";
 import { showPromptDialog, showFindReplaceDialog, showAlertDialog } from "../../../platform/ui-kit/dialogs.js";
+import { createMatcher } from "../../../platform/find/find-engine.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
 import { withLazyFeatureProgress } from "../../../platform/startup/lazy-feature.js";
 import { parseCsv, parseDelimitedText, parseFodsData, replaceMergeFields } from "../../../apps/writer/mail-merge-data.js";
@@ -209,24 +210,19 @@ function multilevelStyleFromClass(className) {
 }
 
 /** Replace literal text in existing text nodes while preserving their DOM wrappers. */
-export function replaceTextInTextNodes(nodes, findText, replacementText, replaceAll = false) {
+export function replaceTextInTextNodes(nodes, findText, replacementText, replaceAll = false, options = {}) {
   const needle = String(findText ?? "");
   if (!needle) return 0;
   const replacement = String(replacementText ?? "");
   let replacements = 0;
+  const matcher = createMatcher(needle, options);
   for (const node of nodes || []) {
     if (!node || typeof node.data !== "string") continue;
-    if (replaceAll) {
-      const count = node.data.split(needle).length - 1;
-      if (!count) continue;
-      node.data = node.data.split(needle).join(replacement);
-      replacements += count;
-    } else {
-      const index = node.data.indexOf(needle);
-      if (index < 0) continue;
-      node.data = node.data.slice(0, index) + replacement + node.data.slice(index + needle.length);
-      replacements++;
-      break;
+    const res = matcher.replace(node.data, replacement, replaceAll);
+    if (res.count > 0) {
+      node.data = res.text;
+      replacements += res.count;
+      if (!replaceAll) break;
     }
   }
   return replacements;
@@ -647,6 +643,8 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.font.grow1pt", () => this._adjustFontSizePt(1));
     globalCommandBus.bindHandler("writer.font.shrink1pt", () => this._adjustFontSizePt(-1));
     globalCommandBus.bindHandler("common.edit.repeat", () => this.repeatLastAction());
+    globalCommandBus.bindHandler("common.edit.find", () => this._showFindReplaceDialog(false));
+    globalCommandBus.bindHandler("common.edit.replace", () => this._showFindReplaceDialog(true));
 
     if (!this._lastSnapshot) {
       this._lastSnapshot = this._createSnapshot("Initial State");
@@ -9664,39 +9662,116 @@ export class WriterAdapter {
     input.click();
   }
 
+  findInDocument(query, options = {}) {
+    if (!query || !this.editorDom) return false;
+    const needle = String(query).trim();
+    if (!needle) return false;
+    return this._findInDomNodes(needle, options);
+  }
+
+  _findInDomNodes(needle, options = {}) {
+    if (!this.editorDom) return false;
+    const matcher = createMatcher(needle, options);
+    const nodes = [];
+    if (typeof document !== "undefined" && document.createTreeWalker) {
+      const walker = document.createTreeWalker(this.editorDom, NodeFilter.SHOW_TEXT);
+      let node;
+      while ((node = walker.nextNode())) {
+        if (node.parentElement?.closest?.('[contenteditable="false"]')) continue;
+        nodes.push(node);
+      }
+    }
+    if (!nodes.length) return false;
+
+    if (!this._findState || this._findState.query !== needle) {
+      this._findState = { query: needle, nodeIndex: 0, matchIndex: -1 };
+    }
+
+    const backward = options.direction === "backward";
+    const totalNodes = nodes.length;
+    let startNodeIdx = this._findState.nodeIndex || 0;
+
+    for (let step = 0; step < totalNodes; step++) {
+      const idx = backward
+        ? (startNodeIdx - step + totalNodes) % totalNodes
+        : (startNodeIdx + step) % totalNodes;
+      const textNode = nodes[idx];
+      const matches = matcher.findAll(textNode.data || "");
+      if (matches.length > 0) {
+        let m = matches[0];
+        if (idx === startNodeIdx && this._findState.matchIndex >= 0) {
+          if (backward) {
+            const prevMatches = matches.filter(match => match.index < this._findState.matchIndex);
+            if (prevMatches.length > 0) {
+              m = prevMatches[prevMatches.length - 1];
+            } else if (step === 0) {
+              continue;
+            }
+          } else {
+            const nextMatches = matches.filter(match => match.index > this._findState.matchIndex);
+            if (nextMatches.length > 0) {
+              m = nextMatches[0];
+            } else if (step === 0) {
+              continue;
+            }
+          }
+        }
+        this._findState.nodeIndex = idx;
+        this._findState.matchIndex = m.index;
+
+        if (typeof window !== "undefined" && window.getSelection && typeof document.createRange === "function") {
+          try {
+            const range = document.createRange();
+            range.setStart(textNode, m.index);
+            range.setEnd(textNode, m.index + m.length);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+            textNode.parentElement?.scrollIntoView?.({ behavior: "smooth", block: "center" });
+          } catch (_) {}
+        }
+        return true;
+      }
+    }
+    return false;
+  }
+
   _showFindReplaceDialog(isReplace = false) {
-    if (typeof window === "undefined" || typeof document === "undefined") return;
+    if (typeof window === "undefined" || typeof document === "undefined") return true;
     showFindReplaceDialog({
       isReplace,
-      onFind: (text) => {
-        if (typeof window !== "undefined" && window.find) {
-          window.find(text);
-        }
-      },
-      onReplace: (findText, repText) => {
+      app: "writer",
+      onFind: (text, options) => this.findInDocument(text, options),
+      onFindPrev: (text, options) => this.findInDocument(text, { ...options, direction: "backward" }),
+      onReplace: (findText, repText, options) => {
         if (findText && repText !== null) {
           this.flushTyping();
-          const changed = this._replaceDocumentTextNodes(findText, repText, false);
+          const changed = this._replaceDocumentTextNodes(findText, repText, false, options);
           if (changed) {
             this.isDirty = true;
             this.recordSnapshot("common.edit.replace");
+            return true;
           }
         }
+        return false;
       },
-      onReplaceAll: (findText, repText) => {
+      onReplaceAll: (findText, repText, options) => {
         if (findText && repText !== null) {
           this.flushTyping();
-          const changed = this._replaceDocumentTextNodes(findText, repText, true);
+          const changed = this._replaceDocumentTextNodes(findText, repText, true, options);
           if (changed) {
             this.isDirty = true;
             this.recordSnapshot("common.edit.replaceAll");
           }
+          return changed;
         }
+        return 0;
       }
     });
+    return true;
   }
 
-  _replaceDocumentTextNodes(findText, replacementText, replaceAll) {
+  _replaceDocumentTextNodes(findText, replacementText, replaceAll, options = {}) {
     if (!this.editorDom || typeof document === "undefined" || !document.createTreeWalker) return 0;
     const walker = document.createTreeWalker(this.editorDom, NodeFilter.SHOW_TEXT);
     const nodes = [];
@@ -9705,7 +9780,7 @@ export class WriterAdapter {
       if (node.parentElement?.closest?.('[contenteditable="false"]')) continue;
       nodes.push(node);
     }
-    return replaceTextInTextNodes(nodes, findText, replacementText, replaceAll);
+    return replaceTextInTextNodes(nodes, findText, replacementText, replaceAll, options);
   }
 
   _fodtError(detail) {

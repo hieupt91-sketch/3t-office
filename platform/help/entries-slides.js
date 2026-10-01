@@ -237,15 +237,16 @@ export const SLIDES_HELP_ENTRIES = [
     id: "slides.edit.findReplace",
     app: "slides",
     commandIds: ["common.edit.find", "common.edit.replace"],
-    title: "Tìm kiếm và Thay thế trên trang chiếu",
-    summary: "Tìm chữ trong tiêu đề, nội dung và hình trên TẤT CẢ các trang chiếu (không chỉ trang đang mở), rồi thay thế từng chỗ hoặc tất cả. Giống PowerPoint: tìm xuyên suốt bài. Hoàn tác bằng Ctrl+Z.",
+    title: "Tìm kiếm và Thay thế trong 3T Slide",
+    summary: "Hộp thoại Tìm kiếm và Thay thế dùng chung phong cách Microsoft PowerPoint cho 3T Slide. Tìm kiếm xuyên suốt tất cả các trang chiếu (tiêu đề, nội dung, hình vẽ, hộp văn bản), tự động chuyển slide và chọn hộp văn bản, cùng Hoàn tác một bước (Ctrl+Z).",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
-    keywords: ["tìm kiếm", "thay thế", "find", "replace", "ctrl+f", "ctrl+h", "chỉnh sửa", "tìm chữ"],
+    keywords: ["tìm kiếm", "thay thế", "find", "replace", "ctrl+f", "ctrl+h", "3T Slide", "chỉnh sửa", "tìm chữ", "trang chiếu", "hộp văn bản"],
     steps: [
-      "Tab Trang đầu, nhóm Chỉnh sửa (cuối ribbon Home), nhấn Tìm kiếm (Ctrl+F) hoặc Thay thế (Ctrl+H). Cùng hộp thoại; Thay thế hiện thêm ô «Thay thế bằng» và nút Thay thế / Thay thế tất cả.",
-      "Gõ cụm cần tìm. Tìm tiếp nhảy lần lượt mọi chỗ khớp trong tiêu đề, nội dung (cả cột 2 nếu bố cục hai cột) và chữ trên hình của mọi trang — tự chuyển trang khi khớp ở trang khác.",
-      "Thay thế: đổi chỗ đang khớp rồi tìm chỗ tiếp. Thay thế tất cả: đổi mọi chỗ khớp trên toàn bài. Nội dung trang đổi thật; Ctrl+Z hoàn tác cả lượt thay (kể cả Thay thế tất cả).",
-      "Không tìm trong ghi chú người thuyết trình. Phân biệt hoa/thường đúng như chuỗi đã gõ."
+      "Truy cập: Mở tab Trang đầu trên thanh ribbon, nhìn sang nhóm Chỉnh sửa ở phía cuối bên phải, bấm nút Tìm kiếm (Ctrl+F) hoặc Thay thế (Ctrl+H) để mở hộp thoại Tìm kiếm và Thay thế gồm 2 tab.",
+      "Tìm kiếm xuyên suốt bài trình chiếu: Trong tab «Tìm» (Ctrl+F), nhập từ hoặc cụm từ vào ô «Tìm gì:». Bấm nút «Tìm tiếp» hoặc «Tìm trước». 3T Slide tự động quét qua toàn bộ các trang chiếu, tự động chuyển đến slide chứa kết quả và chọn đúng hộp văn bản hoặc hình vẽ khớp nội dung.",
+      "Thay thế nội dung: Trong tab «Thay thế» (Ctrl+H), nhập nội dung cần thay đổi vào ô «Thay bằng:». Bấm nút «Thay thế» để đổi từng vị trí khớp, hoặc bấm «Thay thế tất cả» để thay thế toàn bộ từ khóa trên tất cả các trang chiếu của bài trình chiếu và xem thông báo số lượng vị trí đã thay thế thành công.",
+      "Tùy chọn tìm kiếm: Hỗ trợ «Khớp chữ hoa/thường», «Chỉ toàn bộ từ», và «Bỏ qua dấu» tiếng Việt. Cả từ khóa tìm kiếm và văn bản trên trang chiếu đều được chuẩn hóa Unicode NFC tự động.",
+      "Đóng và Hoàn tác: Bấm Esc để đóng hộp thoại. Sau khi đóng hộp thoại, hệ thống vẫn duy trì phiên tìm kiếm cho bài trình chiếu. Mọi thao tác «Thay thế tất cả» trên toàn bài thuyết trình đều được ghi nhận thành đúng 1 bước Hoàn tác (nhấn Ctrl+Z để hoàn tác toàn bộ các thay đổi cùng lúc)."
     ]
   },
   {

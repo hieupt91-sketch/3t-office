@@ -10,6 +10,7 @@ import { formatDateTime } from "../../platform/ui-kit/datetime-format.js";
 import { createLazyDialogs } from "../../platform/ui-kit/lazy-dialogs.js";
 import { resolveWordArtStyle, buildWordArtCss, applyWordArtCss } from "./slides-wordart.js";
 import { normalizeSlidesChart } from "./slides-chart-data.js";
+import { createMatcher } from "../../platform/find/find-engine.js";
 
 const { showPromptDialog } = createLazyDialogs("slides");
 
@@ -971,49 +972,92 @@ export class SlidesCanvasController {
     this._syncUndoRedoState();
   }
 
-  findNext(query) {
-    const needle = String(query || "");
+  findNext(query, options = {}) {
+    const needle = String(query || "").trim();
     if (!needle) return false;
     const targets = this._collectFindTargets();
     if (!targets.length) return false;
+
+    const opts = {
+      matchCase: false,
+      wholeWord: false,
+      ignoreDiacritics: false,
+      direction: "forward",
+      ...options
+    };
+    const matcher = createMatcher(needle, opts);
+    const isBackward = opts.direction === "backward";
+
     if (!this._findState || this._findState.query !== needle) {
-      this._findState = { query: needle, locIndex: 0, charIndex: 0 };
+      this._findState = { query: needle, locIndex: isBackward ? targets.length - 1 : 0, charIndex: 0 };
     }
+
     const startLoc = this._findState.locIndex || 0;
     const startChar = this._findState.charIndex || 0;
+
     for (let step = 0; step <= targets.length; step++) {
-      const loc = (startLoc + step) % targets.length;
-      const from = step === 0 ? startChar : 0;
-      const idx = String(targets[loc].text || "").indexOf(needle, from);
-      if (idx >= 0) {
-        this._findState.locIndex = loc;
-        this._findState.charIndex = idx + needle.length;
-        this._findState.matchIndex = idx;
-        this._findState.matchLength = needle.length;
-        this._revealFindTarget(targets[loc]);
-        return { ...targets[loc], index: idx, query: needle };
+      const loc = isBackward
+        ? (startLoc - step + targets.length) % targets.length
+        : (startLoc + step) % targets.length;
+      const targetText = String(targets[loc].text || "");
+      const matches = matcher.findAll(targetText);
+      if (matches.length > 0) {
+        let match = null;
+        if (step === 0 && startChar > 0) {
+          if (isBackward) {
+            const beforeMatches = matches.filter(m => m.index < startChar - needle.length);
+            if (beforeMatches.length > 0) match = beforeMatches[beforeMatches.length - 1];
+          } else {
+            const afterMatches = matches.filter(m => m.index >= startChar);
+            if (afterMatches.length > 0) match = afterMatches[0];
+          }
+        } else {
+          match = isBackward ? matches[matches.length - 1] : matches[0];
+        }
+
+        if (match) {
+          this._findState.locIndex = loc;
+          this._findState.charIndex = isBackward ? match.index : match.index + match.length;
+          this._findState.matchIndex = match.index;
+          this._findState.matchLength = match.length;
+          this._revealFindTarget(targets[loc]);
+          return { ...targets[loc], index: match.index, query: needle };
+        }
       }
     }
     return false;
   }
 
-  replaceOne(findText, replaceText) {
-    const needle = String(findText || "");
+  findPrev(query, options = {}) {
+    return this.findNext(query, { ...options, direction: "backward" });
+  }
+
+  replaceOne(findText, replaceText, options = {}) {
+    const needle = String(findText || "").trim();
     if (!needle) return false;
     const replacement = replaceText == null ? "" : String(replaceText);
+    const opts = {
+      matchCase: false,
+      wholeWord: false,
+      ignoreDiacritics: false,
+      ...options
+    };
+    const matcher = createMatcher(needle, opts);
+
     let match = null;
     if (this._findState?.query === needle && Number.isInteger(this._findState.matchIndex)) {
       const targets = this._collectFindTargets();
       const current = targets[this._findState.locIndex];
-      if (current && String(current.text).substr(this._findState.matchIndex, needle.length) === needle) {
+      if (current && matcher.matches(String(current.text).substr(this._findState.matchIndex, needle.length))) {
         match = { ...current, index: this._findState.matchIndex };
       }
     }
-    if (!match) match = this.findNext(needle);
+    if (!match) match = this.findNext(needle, opts);
     if (!match) return false;
+
     const before = this._snapshotAllSlideTexts();
-    const nextText = match.text.slice(0, match.index) + replacement + match.text.slice(match.index + needle.length);
-    this._setSlideFieldText(match.slideIndex, match.field, match.shapeId, nextText, needle, replacement, false);
+    const rep = matcher.replace(match.text, replacement, false);
+    this._setSlideFieldText(match.slideIndex, match.field, match.shapeId, rep.text, needle, replacement, false);
     this._pushFindReplaceUndo(before);
     this._findState = {
       query: needle,
@@ -1026,18 +1070,27 @@ export class SlidesCanvasController {
     return true;
   }
 
-  replaceAll(findText, replaceText) {
-    const needle = String(findText || "");
+  replaceAll(findText, replaceText, options = {}) {
+    const needle = String(findText || "").trim();
     if (!needle) return 0;
     const replacement = replaceText == null ? "" : String(replaceText);
+    const opts = {
+      matchCase: false,
+      wholeWord: false,
+      ignoreDiacritics: false,
+      ...options
+    };
+    const matcher = createMatcher(needle, opts);
+
     const before = this._snapshotAllSlideTexts();
     const targets = this._collectFindTargets();
     let count = 0;
     for (const target of targets) {
-      if (!String(target.text).includes(needle)) continue;
-      const parts = String(target.text).split(needle);
-      count += parts.length - 1;
-      this._setSlideFieldText(target.slideIndex, target.field, target.shapeId, parts.join(replacement), needle, replacement, true);
+      const rep = matcher.replace(target.text, replacement, true);
+      if (rep.count > 0) {
+        count += rep.count;
+        this._setSlideFieldText(target.slideIndex, target.field, target.shapeId, rep.text, needle, replacement, true);
+      }
     }
     if (count > 0) {
       this._pushFindReplaceUndo(before);
