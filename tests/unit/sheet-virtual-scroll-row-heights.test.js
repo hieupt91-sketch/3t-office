@@ -189,6 +189,33 @@ export async function runSheetVirtualScrollRowHeightTests() {
     assert(rendered[0] === nodes.get(4), "overlapping row 4 keeps its DOM node");
     assert(nodes.has(1) && !nodes.get(1).parentNode, "row 1 was detached from the viewport");
     assert(nodes.has(38) && nodes.get(38).parentNode === tbody, "row 38 was newly attached");
+
+    const originalRowOne = nodes.get(1);
+    grid._renderVirtualRowsOnScroll(1, 35);
+    assert(tbody.querySelectorAll("tr[data-row]").find(row => row.dataset.row === "1") === originalRowOne,
+      "a recently visited row reuses its detached DOM node");
+  });
+
+  test("wide sheets keep a buffered visible column window", () => {
+    const grid = createGridForTest(20);
+    grid.cols = Array.from({ length: 100 }, (_, index) => grid._columnLabel(index + 1));
+    grid.viewport.scrollLeft = 2200;
+    grid.viewport.clientWidth = 500;
+    const window = grid._virtualColumnWindow();
+    assert(window.start > 0 && window.end < 99, "horizontal scrolling should omit offscreen columns");
+    assert(window.visibleStart >= window.start && window.visibleEnd <= window.end,
+      "the render window should retain the visible columns");
+    assert(window.end - window.start < 40, "a buffered horizontal window should stay bounded");
+  });
+
+  test("row-top cache rebuilds when an imported sheet increases rowCount", () => {
+    const grid = createGridForTest(200);
+    grid._ensureRowTopsCache();
+    grid.rowCount = 1048;
+
+    const lastVisible = grid._lastVisibleRow(0, 500);
+    assertEq(grid._ensureRowTopsCache().tops.length, 1050, "row-top cache covers the imported row count");
+    assert(lastVisible < 40, "scrolling at the top must not render every row after import grows rowCount");
   });
 
   // TEST 1: _rowTop(1) returns 0 (top of grid)

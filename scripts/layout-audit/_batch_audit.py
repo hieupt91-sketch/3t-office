@@ -3,10 +3,13 @@ For each xlsx in "file test/lan" (or the given names): real-app round-trip save,
 Excel COM open check, and a summary table written to _batch_audit_report.md."""
 import os, sys, subprocess, re, glob, time
 ROOT = os.path.abspath(sys.argv[1])
+FIXTURE_ROOT = os.path.abspath(os.environ.get("VNO_AUDIT_FIXTURE_ROOT", ROOT))
+OUTDIR = os.path.abspath(os.environ.get("VNO_AUDIT_OUTPUT_DIR", ROOT))
 SP = os.path.dirname(os.path.abspath(__file__))
-names = sys.argv[2:] or sorted(os.path.basename(p) for p in glob.glob(os.path.join(ROOT, "file test", "lan", "lan*.xlsx")))
+os.makedirs(OUTDIR, exist_ok=True)
+names = sys.argv[2:] or sorted(os.path.basename(p) for p in glob.glob(os.path.join(FIXTURE_ROOT, "file test", "lan", "lan*.xlsx")))
 mapping = {}
-mp = os.path.join(ROOT, "file test", "lan", "_map.txt")
+mp = os.path.join(FIXTURE_ROOT, "file test", "lan", "_map.txt")
 if os.path.exists(mp):
     for line in open(mp, encoding="utf-8"):
         if "\t" in line:
@@ -14,9 +17,9 @@ if os.path.exists(mp):
 rows = []
 for name in names:
     started = time.monotonic()
-    src = os.path.join(ROOT, "file test", "lan", name)
-    out = os.path.join(ROOT, "_rt_" + name)
-    audit = os.path.join(ROOT, "_audit_" + name.replace(".xlsx", ".txt"))
+    src = os.path.join(FIXTURE_ROOT, "file test", "lan", name)
+    out = os.path.join(OUTDIR, "_rt_" + name)
+    audit = os.path.join(OUTDIR, "_audit_" + name.replace(".xlsx", ".txt"))
     if os.path.exists(out): os.remove(out)
     try:
         r = subprocess.run([sys.executable, os.path.join(SP, "_roundtrip_save_sheet.py"), ROOT, src, out], capture_output=True, text=True, cwd=ROOT, timeout=1200)
@@ -47,8 +50,8 @@ for name in names:
     seconds = round(time.monotonic() - started, 1)
     rows.append((name, mapping.get(name, ""), ("yes" if saved else "NO") + ("" if loaded else " (not loaded)"), total, excel, lint, per_kind, seconds))
     print(name, "saved" if saved else "NOT SAVED", "total", total, "excel", excel, "lint", lint, "seconds", seconds, flush=True)
-with open(os.path.join(ROOT, "_batch_audit_report.md"), "w", encoding="utf-8") as f:
+with open(os.path.join(OUTDIR, "_batch_audit_report.md"), "w", encoding="utf-8") as f:
     f.write("| file | original name | saved | total diffs | Excel opens | lint | diffs by kind | seconds |\n|---|---|---|---:|---|---|---|---:|\n")
     for r in rows:
         f.write("| " + " | ".join(str(x) for x in r) + " |\n")
-print("report: _batch_audit_report.md")
+print("report:", os.path.join(OUTDIR, "_batch_audit_report.md"))

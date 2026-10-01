@@ -320,6 +320,13 @@
   z-index: 1;
 }
 
+.vno-grid-column-spacer {
+  padding: 0 !important;
+  border: 0 !important;
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .vno-grid-cell.can-overflow {
   overflow: visible;
   z-index: 2;

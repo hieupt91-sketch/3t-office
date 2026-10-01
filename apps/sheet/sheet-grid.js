@@ -277,6 +277,9 @@ export class SheetGridController {
     // Virtual scroll state
     this.currentStartRow = 1;
     this.currentEndRow = 35;
+    this.currentStartCol = 0;
+    this.currentEndCol = this.cols.length - 1;
+    this._virtualRowCache = new Map();
     this._viewportScrollFrame = 0;
     this.topSpacer = null;
     this.bottomSpacer = null;
@@ -748,7 +751,9 @@ export class SheetGridController {
   // --- Prefix-sum row tops cache for virtual scroll with variable row heights ---
   _ensureRowTopsCache(sheetName = this.activeSheet) {
     if (!this._rowTopsCache) this._rowTopsCache = {};
-    if (!this._rowTopsCache[sheetName] || !this._rowTopsCache[sheetName].valid) {
+    const expectedLength = (this.rowCount || 200) + 2;
+    const cache = this._rowTopsCache[sheetName];
+    if (!cache || !cache.valid || cache.tops?.length !== expectedLength) {
       this._buildRowTopsCache(sheetName);
     }
     return this._rowTopsCache[sheetName];
@@ -1532,7 +1537,44 @@ export class SheetGridController {
     return createSheetSelectionRange(anchor, active);
   }
 
+  _virtualColumnWindow() {
+    const count = this.cols.length;
+    if (count <= 12 || !this.viewport) {
+      return { start: 0, end: Math.max(0, count - 1), visibleStart: 0, visibleEnd: Math.max(0, count - 1) };
+    }
+
+    const viewportWidth = this.viewport.clientWidth || 1000;
+    const left = Math.max(0, this.viewport.scrollLeft || 0);
+    const right = left + Math.max(64, viewportWidth - 44);
+    let width = 0;
+    let first = 0;
+    let last = count - 1;
+    let foundFirst = false;
+    for (let index = 0; index < count; index++) {
+      const col = this.cols[index];
+      const colWidth = this._isColumnHidden(col) ? 0 : this.getColumnWidth(col) * (Number(this.zoomLevel) || 1);
+      if (!foundFirst && width + colWidth > left) {
+        first = index;
+        foundFirst = true;
+      }
+      if (width < right) last = index;
+      width += colWidth;
+    }
+    const buffer = 8;
+    return {
+      start: Math.max(0, first - buffer),
+      end: Math.min(count - 1, last + buffer),
+      visibleStart: first,
+      visibleEnd: last
+    };
+  }
+
+  _invalidateVirtualRowCache() {
+    this._virtualRowCache?.clear?.();
+  }
+
   _applySelectionRange(range, activeCoord, options = {}) {
+    this._invalidateVirtualRowCache();
     this.selectionRange = range;
     this.selectedCoord = { c: activeCoord.c, r: activeCoord.r };
     this._rangeAnchor = { ...(options.anchor || range.start) };
@@ -1545,10 +1587,32 @@ export class SheetGridController {
     } else {
       this.selectionRanges = [range];
     }
-    if (options.scrollActive && this.viewport &&
-        (activeCoord.r < this.currentStartRow || activeCoord.r > this.currentEndRow)) {
-      this.viewport.scrollTop = Math.max(0, this._rowTop(activeCoord.r) - 5 * this.rowHeight);
-      this._onViewportScroll();
+    if (options.scrollActive && this.viewport) {
+      let scrollChanged = false;
+      if (activeCoord.r < this.currentStartRow || activeCoord.r > this.currentEndRow) {
+        this.viewport.scrollTop = Math.max(0, this._rowTop(activeCoord.r) - 5 * this.rowHeight);
+        scrollChanged = true;
+      }
+      if (this.cols.length > 12) {
+        const colIndex = this.cols.indexOf(activeCoord.c);
+        if (colIndex >= 0) {
+          let colLeft = 0;
+          for (let index = 0; index < colIndex; index++) {
+            const col = this.cols[index];
+            if (!this._isColumnHidden(col)) colLeft += this.getColumnWidth(col) * (Number(this.zoomLevel) || 1);
+          }
+          const colWidth = this._isColumnHidden(activeCoord.c) ? 0 : this.getColumnWidth(activeCoord.c) * (Number(this.zoomLevel) || 1);
+          const visibleRight = (this.viewport.scrollLeft || 0) + Math.max(64, (this.viewport.clientWidth || 1000) - 44);
+          if (colLeft < (this.viewport.scrollLeft || 0)) {
+            this.viewport.scrollLeft = colLeft;
+            scrollChanged = true;
+          } else if (colLeft + colWidth > visibleRight) {
+            this.viewport.scrollLeft = Math.max(0, colLeft + colWidth - Math.max(64, (this.viewport.clientWidth || 1000) - 44));
+            scrollChanged = true;
+          }
+        }
+      }
+      if (scrollChanged) this._onViewportScroll();
     }
     this._updateRangeSelectionVisuals();
   }
@@ -3285,8 +3349,12 @@ export class SheetGridController {
     return true;
   }
 
-  _buildRowTr(r) {
-    const tr = document.createElement("tr");
+  _buildRowTr(r, reuseRow = null) {
+    const tr = reuseRow || document.createElement("tr");
+    const existingCells = reuseRow
+      ? new Map(Array.from(reuseRow.querySelectorAll("td[data-col]"), cell => [cell.dataset.col, cell]))
+      : new Map();
+    if (reuseRow) tr.replaceChildren();
     tr.dataset.row = r;
     const rowHeight = this.getRowHeight(r);
     tr.style.height = `${rowHeight}px`;
@@ -3326,67 +3394,119 @@ export class SheetGridController {
     const normRange = this._normalizeRange(this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
     const isMulti = this._isMultiRangeSelection();
 
-    this.cols.forEach(c => {
-      const mergedRange = this.getMergedRangeForCell(c, r);
-      if (mergedRange && (mergedRange.start.c !== c || mergedRange.start.r !== r)) return;
-      const td = document.createElement("td");
-      td.hidden = this._isColumnHidden(c);
-      td.className = "vno-grid-cell";
-      const coordKey = `${c}${r}`;
-      td.dataset.coord = coordKey;
-      td.dataset.col = c;
-      td.dataset.row = r;
-      if (mergedRange) {
-        td.colSpan = this._columnNumber(mergedRange.end.c) - this._columnNumber(mergedRange.start.c) + 1;
-        td.rowSpan = mergedRange.end.r - mergedRange.start.r + 1;
-        td.dataset.mergedRange = this._rangeLabel(mergedRange);
-        td.classList.add("is-merged-cell");
-      }
+    const virtualColumns = this.cols.length > 12;
+    const startCol = virtualColumns ? Math.max(0, Math.min(this.cols.length - 1, this.currentStartCol || 0)) : 0;
+    const endCol = virtualColumns ? Math.max(startCol, Math.min(this.cols.length - 1, this.currentEndCol ?? this.cols.length - 1)) : this.cols.length - 1;
+    const frozenCols = Math.min(this.frozenCols || 0, this.cols.length);
+    const mergedByIndex = this.cols.map(c => this.getMergedRangeForCell(c, r));
+    const renderIndexes = new Set();
+    for (let index = 0; index < this.cols.length; index++) {
+      if (!virtualColumns || index < frozenCols || (index >= startCol && index <= endCol)) renderIndexes.add(index);
+      const merge = mergedByIndex[index];
+      if (!merge || merge.start.r !== r || merge.start.c !== this.cols[index]) continue;
+      const mergeStart = this._columnNumber(merge.start.c) - 1;
+      const mergeEnd = this._columnNumber(merge.end.c) - 1;
+      const intersectsWindow = mergeStart <= endCol && mergeEnd >= startCol;
+      const intersectsFrozen = mergeStart < frozenCols;
+      if (!virtualColumns || intersectsWindow || intersectsFrozen) renderIndexes.add(index);
+    }
+    for (const endpoint of [this.selectedCoord?.c, normRange.start?.c, normRange.end?.c]) {
+      const index = this.cols.indexOf(endpoint);
+      if (index >= 0) renderIndexes.add(index);
+    }
 
-      const itm = this.cellsData.get(coordKey);
-      this._renderCellVisual(td, itm, c, r);
-      this._applyRowColSizeToCell(td, c, r);
-      this._applyRuleVisuals(td, c, r);
-      this._applyAnnotationAndPageVisuals(td, c, r);
-
-      if (this.selectedCoord.c === c && this.selectedCoord.r === r) {
-        td.classList.add("is-selected");
-        this._attachMoveHandles(td);
+    let colIndex = 0;
+    while (colIndex < this.cols.length) {
+      const mergeAtIndex = mergedByIndex[colIndex];
+      if (mergeAtIndex && mergeAtIndex.start.r !== r) {
+        // A prior row's rowSpan already occupies this logical table column.
+        colIndex++;
+        continue;
       }
-      if (this._isCoordInSelection(c, r) && isMulti) {
-        td.classList.add("is-range-selected");
-      }
-      if (normRange.end.c === c && normRange.end.r === r) {
-        this._attachAutofillHandle(td);
-      }
-
-      td.addEventListener("mousedown", (e) => {
-        if (e.button !== 0) return;
-        if (e.target.closest(".vno-cell-autofill-handle") || e.target.closest(".vno-cell-move-handle")) return;
-        if (this._startFormulaPointSelect(e, c, r)) return;
-        this._startRangeSelect(e, c, r);
-      });
-      td.addEventListener("click", event => {
-        if (event.detail !== 0 || event.defaultPrevented) return;
-        this.selectCell(c, r, event.shiftKey, event.ctrlKey);
-      });
-      td.addEventListener("dblclick", (e) => {
-        e.preventDefault();
-        if (this.formatPainter) return;
-        if (this._guardProtectedMutation()) return;
-        this._focusFormulaInputAtEnd();
-      });
-      td.addEventListener("contextmenu", event => {
-        event.preventDefault();
-        const inRange = this._isCoordInSelection(c, r);
-        if (!inRange) {
-          this.selectCell(c, r);
+      if (!renderIndexes.has(colIndex)) {
+        const gapStart = colIndex;
+        while (colIndex < this.cols.length
+          && !renderIndexes.has(colIndex)
+          && !(mergedByIndex[colIndex] && mergedByIndex[colIndex].start.r !== r)) colIndex++;
+        const span = colIndex - gapStart;
+        if (span > 0) {
+          const spacer = document.createElement("td");
+          spacer.className = "vno-grid-column-spacer";
+          spacer.colSpan = span;
+          spacer.setAttribute("aria-hidden", "true");
+          tr.appendChild(spacer);
         }
-        this.showContextMenu(event, "cell", coordKey);
-      });
+        continue;
+      }
+
+      const c = this.cols[colIndex];
+      const mergedRange = mergeAtIndex;
+      if (mergedRange && (mergedRange.start.c !== c || mergedRange.start.r !== r)) {
+        colIndex++;
+        continue;
+      }
+      let td = existingCells.get(c);
+      if (!td) {
+        td = document.createElement("td");
+        td.hidden = this._isColumnHidden(c);
+        td.className = "vno-grid-cell";
+        const coordKey = `${c}${r}`;
+        td.dataset.coord = coordKey;
+        td.dataset.col = c;
+        td.dataset.row = r;
+        if (mergedRange) {
+          td.colSpan = this._columnNumber(mergedRange.end.c) - this._columnNumber(mergedRange.start.c) + 1;
+          td.rowSpan = mergedRange.end.r - mergedRange.start.r + 1;
+          td.dataset.mergedRange = this._rangeLabel(mergedRange);
+          td.classList.add("is-merged-cell");
+        }
+
+        const itm = this.cellsData.get(coordKey);
+        this._renderCellVisual(td, itm, c, r);
+        this._applyRowColSizeToCell(td, c, r);
+        this._applyRuleVisuals(td, c, r);
+        this._applyAnnotationAndPageVisuals(td, c, r);
+
+        if (this.selectedCoord.c === c && this.selectedCoord.r === r) {
+          td.classList.add("is-selected");
+          this._attachMoveHandles(td);
+        }
+        if (this._isCoordInSelection(c, r) && isMulti) {
+          td.classList.add("is-range-selected");
+        }
+        if (normRange.end.c === c && normRange.end.r === r) {
+          this._attachAutofillHandle(td);
+        }
+
+        td.addEventListener("mousedown", (e) => {
+          if (e.button !== 0) return;
+          if (e.target.closest(".vno-cell-autofill-handle") || e.target.closest(".vno-cell-move-handle")) return;
+          if (this._startFormulaPointSelect(e, c, r)) return;
+          this._startRangeSelect(e, c, r);
+        });
+        td.addEventListener("click", event => {
+          if (event.detail !== 0 || event.defaultPrevented) return;
+          this.selectCell(c, r, event.shiftKey, event.ctrlKey);
+        });
+        td.addEventListener("dblclick", (e) => {
+          e.preventDefault();
+          if (this.formatPainter) return;
+          if (this._guardProtectedMutation()) return;
+          this._focusFormulaInputAtEnd();
+        });
+        td.addEventListener("contextmenu", event => {
+          event.preventDefault();
+          const inRange = this._isCoordInSelection(c, r);
+          if (!inRange) {
+            this.selectCell(c, r);
+          }
+          this.showContextMenu(event, "cell", coordKey);
+        });
+      }
 
       tr.appendChild(td);
-    });
+      colIndex += mergedRange ? Math.max(1, td.colSpan || 1) : 1;
+    }
 
     return tr;
   }
@@ -3396,10 +3516,15 @@ export class SheetGridController {
     const perfStart = perfEnabled ? performance.now() : 0;
     if (!this.tbody || !this.topSpacer || !this.bottomSpacer) return;
 
+    this._invalidateVirtualRowCache();
+
     startRow = Math.max(1, startRow);
     endRow = Math.min(this.rowCount, endRow);
     this.currentStartRow = startRow;
     this.currentEndRow = endRow;
+    const columnWindow = this._virtualColumnWindow();
+    this.currentStartCol = columnWindow.start;
+    this.currentEndCol = columnWindow.end;
 
     const frozenRows = Math.min(this.frozenRows || 0, this.rowCount);
 
@@ -3484,11 +3609,21 @@ export class SheetGridController {
     const perfEnabled = typeof window !== "undefined" && window.__vnoPerfDebug === true;
     const startedAt = perfEnabled ? performance.now() : 0;
     if (!this.tbody || !this.topSpacer || !this.bottomSpacer) return;
+    const rowCache = this._virtualRowCache ||= new Map();
 
     startRow = Math.max(1, startRow);
     endRow = Math.min(this.rowCount, endRow);
     this.currentStartRow = startRow;
     this.currentEndRow = endRow;
+
+    const columnWindow = this._virtualColumnWindow();
+    const refreshColumns = this.cols.length > 12 && (
+      Math.abs(columnWindow.start - this.currentStartCol) >= 4
+      || Math.abs(columnWindow.end - this.currentEndCol) >= 4
+    );
+    if (refreshColumns) {
+      this._renderVirtualRowColumns(columnWindow);
+    }
 
     const frozenRows = Math.min(this.frozenRows || 0, this.rowCount);
     const topHeight = frozenRows > 0 && startRow > frozenRows
@@ -3514,7 +3649,11 @@ export class SheetGridController {
       existingRows.set(Number(tr.dataset.row), tr);
     }
     for (const [row, tr] of existingRows) {
-      if (!desiredSet.has(row)) tr.remove();
+      if (!desiredSet.has(row)) {
+        tr.remove();
+        rowCache.delete(row);
+        rowCache.set(row, tr);
+      }
     }
 
     const insertedRows = [];
@@ -3522,11 +3661,19 @@ export class SheetGridController {
     for (const row of desiredRows) {
       let tr = existingRows.get(row);
       if (!tr) {
-        tr = this._buildRowTr(row);
-        insertedRows.push(tr);
+        tr = rowCache.get(row);
+        if (tr) rowCache.delete(row);
+        else {
+          tr = this._buildRowTr(row);
+          insertedRows.push(tr);
+        }
       }
       if (tr !== cursor) this.tbody.insertBefore(tr, cursor || this.bottomSpacer);
       cursor = tr.nextSibling;
+    }
+    const cacheLimit = Math.max(48, desiredRows.length * 2);
+    while (rowCache.size > cacheLimit) {
+      rowCache.delete(rowCache.keys().next().value);
     }
     while (cursor && cursor !== this.bottomSpacer) {
       const next = cursor.nextSibling;
@@ -3538,6 +3685,27 @@ export class SheetGridController {
     this._updateFrozenImages();
     this._updateImagePositions();
     if (perfEnabled) window.__vnoPerfReport?.("sheet.scrollRender", performance.now() - startedAt);
+  }
+
+  /**
+   * Update only the horizontal cell window for attached rows. Retained cells
+   * keep their DOM and event handlers; newly visible columns are the only cells
+   * constructed during a horizontal scroll.
+   */
+  _renderVirtualRowColumns(columnWindow = this._virtualColumnWindow()) {
+    if (!this.tbody || this.cols.length <= 12) return;
+    const perfEnabled = typeof window !== "undefined" && window.__vnoPerfDebug === true;
+    const startedAt = perfEnabled ? performance.now() : 0;
+    this._invalidateVirtualRowCache();
+    this.currentStartCol = columnWindow.start;
+    this.currentEndCol = columnWindow.end;
+    const rows = Array.from(this.tbody.querySelectorAll("tr[data-row]"));
+    for (const tr of rows) this._buildRowTr(Number(tr.dataset.row), tr);
+    this._applyFreezeVisuals(rows);
+    this._updateFrozenImages();
+    this._updateImagePositions();
+    this.renderAuditArrows?.();
+    if (perfEnabled) window.__vnoPerfReport?.("sheet.scrollColumnRender", performance.now() - startedAt);
   }
 
   /**
@@ -3646,6 +3814,12 @@ export class SheetGridController {
     const startRow = Math.max(1, this._firstVisibleRow(scrollTop) - buffer);
     const endRow = Math.min(this.rowCount, this._lastVisibleRow(scrollTop, viewportHeight) + buffer);
 
+    const columnWindow = this._virtualColumnWindow();
+    const refreshColumns = this.cols.length > 12 && (
+      Math.abs(columnWindow.start - this.currentStartCol) >= 4
+      || Math.abs(columnWindow.end - this.currentEndCol) >= 4
+    );
+    if (refreshColumns) this._renderVirtualRowColumns(columnWindow);
     if (Math.abs(startRow - this.currentStartRow) >= 3 || Math.abs(endRow - this.currentEndRow) >= 3) {
       this._renderVirtualRowsOnScroll(startRow, endRow);
     }
@@ -4174,6 +4348,7 @@ export class SheetGridController {
 
   setCellValue(col, row, val, recordUndo = true, historyOptions = {}) {
     if (recordUndo && this._guardProtectedMutation()) return false;
+    this._invalidateVirtualRowCache();
     const key = `${col}${row}`;
     let item = this.cellsData.get(key) || { val: "", formula: "", style: {} };
 
@@ -7369,6 +7544,7 @@ export class SheetGridController {
   }
 
   _recordHistory(action, { coalesce = false } = {}) {
+    this._invalidateVirtualRowCache();
     const previous = this.undoStack[this.undoStack.length - 1];
     const mergeCellEdit = coalesce && previous?.type === "cell" && action.type === "cell" &&
       previous.sheet === action.sheet && previous.col === action.col && previous.row === action.row &&
@@ -7455,6 +7631,7 @@ export class SheetGridController {
     if (!Number.isFinite(next)) return false;
     this.zoomLevel = next;
     this._applyViewState();
+    this._onViewportScroll();
     return this.zoomLevel;
   }
 

@@ -2246,6 +2246,13 @@ export class WriterAdapter {
   }
 
   _normalizeImportedHtml(raw, ooxmlDocumentXml, ooxmlCommentsXml, ooxmlStylesXml = "", ooxmlNumberingXml = "", ooxmlHeaderXml = "", ooxmlFooterXml = "", ooxmlHeaders = {}, ooxmlFooters = {}, ooxmlRels = {}, ooxmlSettingsXml = "") {
+    const perfEnabled = typeof window !== "undefined" && window.__vnoPerfDebug === true;
+    const reportNormalizeStage = (name, startedAt) => {
+      if (perfEnabled && Number.isFinite(startedAt)) {
+        window.__vnoPerfReport?.(`writer.normalize:${name}`, performance.now() - startedAt);
+      }
+    };
+    let normalizeStageAt = perfEnabled ? performance.now() : 0;
     let html = String(raw || "");
     let comments = [];
     html = this._unwrapOutlineHeadingLists(html, ooxmlDocumentXml, ooxmlStylesXml, ooxmlNumberingXml);
@@ -2273,6 +2280,8 @@ export class WriterAdapter {
         html = this._applyOoxmlListBullets(html, ooxmlDocumentXml, ooxmlStylesXml, ooxmlNumberingXml);
       }
     }
+    reportNormalizeStage("base-ooxml-overlays", normalizeStageAt);
+    normalizeStageAt = perfEnabled ? performance.now() : 0;
     if (ooxmlDocumentXml && ooxmlCommentsXml) {
       const overlaid = this._applyOoxmlCommentsToHtml(html, ooxmlDocumentXml, ooxmlCommentsXml);
       html = overlaid.html;
@@ -2286,7 +2295,11 @@ export class WriterAdapter {
     }
     // W44: viền ô chỉ tô (box-shadow), không chiếm chỗ như Word
     html = this._applyPaintOnlyTableBorders(html);
+    reportNormalizeStage("comments-and-tables", normalizeStageAt);
+    normalizeStageAt = perfEnabled ? performance.now() : 0;
     const page = this._pageSetupFromImportedCss(html);
+    reportNormalizeStage("page-setup-css", normalizeStageAt);
+    normalizeStageAt = perfEnabled ? performance.now() : 0;
     const docStyles = this._parseDocStylesFromImportedHtml(raw, ooxmlDocumentXml);
     // W23c: cỡ chữ mặc định của vùng header/footer = style Header/Footer (styles.xml), không phải Normal của thân.
     if (docStyles && ooxmlStylesXml) {
@@ -2297,11 +2310,15 @@ export class WriterAdapter {
       docStyles.kerning = this._documentKerningFromStyles(ooxmlStylesXml) ? "normal" : "none";
     }
     const hf = this._pageHeaderFooterFromOoxml(ooxmlDocumentXml);
+    reportNormalizeStage("document-style-and-header-footer", normalizeStageAt);
+    normalizeStageAt = perfEnabled ? performance.now() : 0;
     if (hf) {
       page.headerDistanceMm = hf.headerDistanceMm;
       page.footerDistanceMm = hf.footerDistanceMm;
     }
     const ooxmlMargins = this._pageMarginsFromOoxml(ooxmlDocumentXml);
+    reportNormalizeStage("page-margins", normalizeStageAt);
+    normalizeStageAt = perfEnabled ? performance.now() : 0;
     if (ooxmlMargins) {
       page.margins = { ...page.margins, ...ooxmlMargins };
     }
@@ -2325,13 +2342,29 @@ export class WriterAdapter {
       footer = this._normalizeImportedHeaderFooterHtml(footerMatch[1], "footer", ooxmlDocumentXml, ooxmlFooterXml, ooxmlStylesXml);
       html = html.replace(footerMatch[0], "");
     }
+    reportNormalizeStage("header-footer-html", normalizeStageAt);
+    normalizeStageAt = perfEnabled ? performance.now() : 0;
     html = this._normalizeImportedStarWriterNotes(html);
+    reportNormalizeStage("starwriter-notes", normalizeStageAt);
+    normalizeStageAt = perfEnabled ? performance.now() : 0;
     html = this._makeFloatingAnchorContainers(this._preserveImportedFloatingFrames(html, ooxmlDocumentXml, page), page);
+    reportNormalizeStage("floating-frames", normalizeStageAt);
+    normalizeStageAt = perfEnabled ? performance.now() : 0;
     html = this._collapseFloatOnlyParagraphBreaks(html, ooxmlDocumentXml);
+    reportNormalizeStage("float-paragraphs", normalizeStageAt);
+    normalizeStageAt = perfEnabled ? performance.now() : 0;
     const shapes = this._ooxmlImportedBasicShapes(ooxmlDocumentXml, page);
+    reportNormalizeStage("imported-shapes", normalizeStageAt);
+    normalizeStageAt = perfEnabled ? performance.now() : 0;
     // W56: 13pt → 17px after W25b/W26a so empty-para 13pt is snapped too
     html = this._applyGdiDeviceFontPixels(html);
+    reportNormalizeStage("gdi-font-pixels", normalizeStageAt);
+    normalizeStageAt = perfEnabled ? performance.now() : 0;
     html = this._encodeProportionalLineHeights(html);
+    reportNormalizeStage("proportional-line-heights", normalizeStageAt);
+    normalizeStageAt = perfEnabled ? performance.now() : 0;
+    reportNormalizeStage("page-style-and-floats", normalizeStageAt);
+    normalizeStageAt = perfEnabled ? performance.now() : 0;
 
     let sectionPageSetups = null;
     let sectionHeadersFooters = null;
@@ -2350,13 +2383,18 @@ export class WriterAdapter {
         }
       } catch {}
     } else if (ooxmlDocumentXml) {
+      let sectionStageAt = perfEnabled ? performance.now() : 0;
       const extracted = this._extractSectionsFromOoxml(ooxmlDocumentXml, ooxmlHeaders, ooxmlFooters, ooxmlRels, page, ooxmlSettingsXml);
+      reportNormalizeStage("sections-extract-metadata", sectionStageAt);
+      sectionStageAt = perfEnabled ? performance.now() : 0;
       if (extracted && extracted.sections && extracted.sections.length > 0) {
         sectionPageSetups = extracted.sectionPageSetups;
         sectionHeadersFooters = extracted.sectionHeadersFooters;
 
         if (!/<div\b[^>]*class=["'][^"']*\bvno-section-break\b/i.test(html)) {
           const pWithSect = [...ooxmlDocumentXml.matchAll(/<w:p\b[^>]*>([\s\S]*?)<w:sectPr\b[\s\S]*?<\/w:p>/gi)];
+          reportNormalizeStage("sections-find-boundary-paragraphs", sectionStageAt);
+          sectionStageAt = perfEnabled ? performance.now() : 0;
           for (let i = 0; i < pWithSect.length && i < extracted.sections.length - 1; i++) {
             const nextSec = extracted.sections[i + 1];
             const boundarySection = extracted.sections[i];
@@ -2380,10 +2418,12 @@ export class WriterAdapter {
               }
             }
           }
+          reportNormalizeStage("sections-insert-markers", sectionStageAt);
         }
       }
     }
 
+    reportNormalizeStage("sections", normalizeStageAt);
     return { body: html.trim(), header, footer, page, comments, docStyles, shapes, sectionPageSetups, sectionHeadersFooters };
   }
 
@@ -4814,11 +4854,20 @@ export class WriterAdapter {
   }
 
   _preserveImportedFloatingFrames(html, ooxmlDocumentXml, page = null) {
+    const perfEnabled = typeof window !== "undefined" && window.__vnoPerfDebug === true;
+    const reportFloatStage = (name, startedAt) => {
+      if (perfEnabled && Number.isFinite(startedAt)) {
+        window.__vnoPerfReport?.(`writer.float:${name}`, performance.now() - startedAt);
+      }
+    };
+    let floatStageAt = perfEnabled ? performance.now() : 0;
     const src = String(html || "");
     const anchors = this._ooxmlFloatingAnchorMetadata(ooxmlDocumentXml);
     const groupWsps = typeof this._ooxmlGroupChildTextboxes === "function"
       ? this._ooxmlGroupChildTextboxes(ooxmlDocumentXml)
       : [];
+    reportFloatStage("ooxml-metadata", floatStageAt);
+    floatStageAt = perfEnabled ? performance.now() : 0;
     const hasNativeGroup = anchors.some((a) => a.sourceGroup) || groupWsps.length > 0;
     const hasParagraphs = /<p\b/i.test(src);
 
@@ -4879,6 +4928,8 @@ export class WriterAdapter {
 
       spans.push({ isImage, isTextbox, style, inner, startPos, endPos });
     }
+    reportFloatStage("span-scan", floatStageAt);
+    floatStageAt = perfEnabled ? performance.now() : 0;
 
     const marginLeftCm = Number(page?.margins?.left || 0) / 10;
     const marginTopCm = Number(page?.margins?.top || 0) / 10;
@@ -4920,6 +4971,8 @@ export class WriterAdapter {
         }
       }
     }
+    reportFloatStage("match-textboxes-to-groups", floatStageAt);
+    floatStageAt = perfEnabled ? performance.now() : 0;
 
     let anchorIndex = 0;
     const inlineGroups = typeof this._ooxmlInlineGroupMetadata === "function"
@@ -4943,6 +4996,8 @@ export class WriterAdapter {
         }
       }
     }
+    reportFloatStage("inline-image-scan", floatStageAt);
+    floatStageAt = perfEnabled ? performance.now() : 0;
 
     const imageSpans = [];
     const imageIndexByAnchor = new Map();
@@ -5003,6 +5058,8 @@ export class WriterAdapter {
 
       imageSpans.push({ imgK, spanHtml, startPos, endPos });
     }
+    reportFloatStage("floating-images", floatStageAt);
+    floatStageAt = perfEnabled ? performance.now() : 0;
 
     // Identify floating group rasters among inlineImages (images without matching wp:inline)
     const groupAnchors = anchors.filter((a) => a.sourceGroup);
@@ -5062,6 +5119,8 @@ export class WriterAdapter {
         imageSpans.push({ imgK: ancK, spanHtml, startPos: imgInfo.start, endPos: imgInfo.end, inlineGroupJ: j });
       }
     }
+    reportFloatStage("group-images", floatStageAt);
+    floatStageAt = perfEnabled ? performance.now() : 0;
 
     // Process textboxes
     for (let sIdx = 0; sIdx < spans.length; sIdx++) {
@@ -5136,6 +5195,8 @@ export class WriterAdapter {
         spanReplacements.push({ start: startPos, end: endPos, value: spanHtml });
       }
     }
+    reportFloatStage("textboxes", floatStageAt);
+    floatStageAt = perfEnabled ? performance.now() : 0;
 
 
     // Attach textboxes immediately after their respective anchor image
@@ -5149,6 +5210,8 @@ export class WriterAdapter {
         value: img.spanHtml + attached.join("")
       });
     }
+    reportFloatStage("attach-and-wrap-images", floatStageAt);
+    floatStageAt = perfEnabled ? performance.now() : 0;
 
     // Wrap inline images with inline groups
     for (const item of inlineGroupImages) {
@@ -5173,11 +5236,51 @@ export class WriterAdapter {
       });
     }
 
-    spanReplacements.sort((a, b) => b.start - a.start);
-    let finalHtml = src;
-    for (const rep of spanReplacements) {
-      finalHtml = finalHtml.slice(0, rep.start) + rep.value + finalHtml.slice(rep.end);
+    const replacementsByStart = spanReplacements
+      .map((rep, index) => ({ ...rep, _order: index }))
+      .sort((a, b) => a.start - b.start || b.end - a.end || a._order - b._order);
+    const topLevelReplacements = [];
+    let hasPartialOverlap = false;
+    for (let index = 0; index < replacementsByStart.length;) {
+      const first = replacementsByStart[index];
+      let next = index + 1;
+      while (next < replacementsByStart.length
+        && replacementsByStart[next].start === first.start
+        && replacementsByStart[next].end === first.end) next++;
+      // The old right-to-left replacements let a later replacement of the same
+      // source range win. Keep that ordering while using one forward copy pass.
+      const rep = replacementsByStart[next - 1];
+      const parent = topLevelReplacements[topLevelReplacements.length - 1];
+      if (!parent || rep.start >= parent.end) {
+        topLevelReplacements.push(rep);
+      } else if (rep.end > parent.end) {
+        // Partial overlaps are not expected for parsed span/image ranges. Keep
+        // the old replacement sequence for such input rather than changing it.
+        hasPartialOverlap = true;
+        break;
+      }
+      // A nested range is intentionally omitted: the outer span replacement
+      // is applied last by the old algorithm and therefore replaces its child.
+      index = next;
     }
+    let finalHtml;
+    if (hasPartialOverlap) {
+      finalHtml = src;
+      for (const rep of spanReplacements.slice().sort((a, b) => b.start - a.start)) {
+        finalHtml = finalHtml.slice(0, rep.start) + rep.value + finalHtml.slice(rep.end);
+      }
+    } else {
+      const parts = [];
+      let sourceCursor = 0;
+      for (const rep of topLevelReplacements) {
+        parts.push(src.slice(sourceCursor, rep.start), rep.value);
+        sourceCursor = rep.end;
+      }
+      parts.push(src.slice(sourceCursor));
+      finalHtml = parts.join("");
+    }
+    reportFloatStage("apply-replacements", floatStageAt);
+    floatStageAt = perfEnabled ? performance.now() : 0;
 
     // Stable per-document ids let live pagination position page-relative
     // floats through a stylesheet instead of mutating element styles (which
@@ -5185,6 +5288,7 @@ export class WriterAdapter {
     // edited).
     let floatId = 0;
     finalHtml = finalHtml.replace(/<span data-vno-float="(image|textbox)"/g, (_m, kind) => `<span data-vno-float="${kind}" data-vno-float-id="${++floatId}"`);
+    reportFloatStage("assign-float-ids", floatStageAt);
 
     return finalHtml;
   }
@@ -7648,7 +7752,16 @@ export class WriterAdapter {
 
   _extractSectionsFromOoxml(ooxmlDocumentXml, ooxmlHeaders = {}, ooxmlFooters = {}, ooxmlRels = {}, defaultPage = null, ooxmlSettingsXml = "") {
     if (!ooxmlDocumentXml) return null;
+    const perfEnabled = typeof window !== "undefined" && window.__vnoPerfDebug === true;
+    const reportSectionStage = (name, startedAt) => {
+      if (perfEnabled && Number.isFinite(startedAt)) {
+        window.__vnoPerfReport?.(`writer.normalize:section-${name}`, performance.now() - startedAt);
+      }
+    };
+    let sectionStageAt = perfEnabled ? performance.now() : 0;
     const sectMatches = [...ooxmlDocumentXml.matchAll(/<w:sectPr\b[^>]*>([\s\S]*?)<\/w:sectPr>/gi)];
+    reportSectionStage("find-properties", sectionStageAt);
+    sectionStageAt = perfEnabled ? performance.now() : 0;
     if (sectMatches.length === 0) return null;
 
     const relsNormalized = {};
@@ -7789,6 +7902,7 @@ export class WriterAdapter {
       sections.push({ id: sectionId, type, pageSetup, headerFooter: sectionHeadersFooters[sectionId] });
     }
 
+    reportSectionStage("decode-properties", sectionStageAt);
     return { sectionPageSetups, sectionHeadersFooters, sections };
   }
 
@@ -12046,9 +12160,18 @@ export class WriterAdapter {
   }
 
   async _openDocumentFromDisk() {
+    const perfEnabled = typeof window !== "undefined" && window.__vnoPerfDebug === true;
+    const reportOpenStage = (name, startedAt) => {
+      if (perfEnabled && Number.isFinite(startedAt)) {
+        window.__vnoPerfReport?.(`writer.open:${name}`, performance.now() - startedAt);
+      }
+    };
+    let stageStartedAt = perfEnabled ? performance.now() : 0;
     const result = await globalUnoBridge.openRealFile("writer");
+    reportOpenStage("api-bridge", stageStartedAt);
     if (result.status === "ok") {
       let imported;
+      stageStartedAt = perfEnabled ? performance.now() : 0;
       try {
         imported = this._normalizeImportedHtml(
           result.content || "",
@@ -12071,6 +12194,7 @@ export class WriterAdapter {
         });
         return false;
       }
+      reportOpenStage("normalize-imported-html", stageStartedAt);
       this._initZones();
       this._sourcePath = result.sourcePath || null;
       // Comments chỉ thuộc tài liệu đang mở trong phiên; file khác không dùng lại anchor cũ.
@@ -12135,23 +12259,37 @@ export class WriterAdapter {
       if (this.headerDom && this.bodyDom && this.footerDom) {
         const curSecHf = this.sectionHeadersFooters?.[this.activeSectionId];
         this.headerDom.innerHTML = (curSecHf && curSecHf.header !== undefined) ? curSecHf.header : imported.header;
+        stageStartedAt = perfEnabled ? performance.now() : 0;
         this.bodyDom.innerHTML = imported.body;
+        reportOpenStage("insert-body-html", stageStartedAt);
         this.footerDom.innerHTML = (curSecHf && curSecHf.footer !== undefined) ? curSecHf.footer : imported.footer;
       } else if (this.bodyDom) {
+        stageStartedAt = perfEnabled ? performance.now() : 0;
         this.bodyDom.innerHTML = imported.body;
+        reportOpenStage("insert-body-html", stageStartedAt);
       } else if (this.editorDom) {
+        stageStartedAt = perfEnabled ? performance.now() : 0;
         this.editorDom.innerHTML = imported.body;
+        reportOpenStage("insert-body-html", stageStartedAt);
       }
       // Quy ước W1/W8/W23a: tỉ số font theo font THẬT đang vẽ của từng phần tử và strut của <p> = font của run (cả thân lẫn header/footer).
       // Chạy trước khi băm "chưa sửa" nên không làm tài liệu thành "đã sửa".
+      stageStartedAt = perfEnabled ? performance.now() : 0;
       try {
         this._normalizeImportedFontMetrics(this.bodyDom || this.editorDom);
         if (this.headerDom) this._normalizeImportedFontMetrics(this.headerDom);
         if (this.footerDom) this._normalizeImportedFontMetrics(this.footerDom);
+      } catch {}
+      reportOpenStage("normalize-font-metrics", stageStartedAt);
+      stageStartedAt = perfEnabled ? performance.now() : 0;
+      try {
         // W46: tỉ lệ chữ w:w → letter-spacing đo trên DOM thật
         this._applyCharacterScale(this.bodyDom || this.editorDom);
       } catch {}
+      reportOpenStage("apply-character-scale", stageStartedAt);
+      stageStartedAt = perfEnabled ? performance.now() : 0;
       this._markImportedParagraphsUntouched(this.bodyDom || this.editorDom);
+      reportOpenStage("mark-imported-paragraphs", stageStartedAt);
       this._renderShapes();
 
       if (imported.comments?.length) {
@@ -12160,10 +12298,13 @@ export class WriterAdapter {
         this._renderCommentsPanel();
       }
 
+      stageStartedAt = perfEnabled ? performance.now() : 0;
       this._hydrateCitationsFromDom(result.content || imported.body);
       this._hydrateCaptionsFromDom(result.content || imported.body);
       this._hydrateWordArtFromDom();
+      reportOpenStage("hydrate-document-features", stageStartedAt);
 
+      stageStartedAt = perfEnabled ? performance.now() : 0;
       this.documentContent = this.editorDom ? this.editorDom.innerHTML : raw;
       this.sourceFileName = (result.fileName || "TaiLieu").replace(/\.[^/.]+$/, "");
       this.isDirty = false;
@@ -12171,14 +12312,15 @@ export class WriterAdapter {
       this._updateTrackChangesCommandState();
       this.clearUndoRedo();
       this.shell?.resetDocumentChrome?.(result.fileName || "Tài liệu 1.docx", null, true, result.sourcePath || "");
-      this._recomputeLivePagination().catch((error) => {
+      reportOpenStage("commit-document-state", stageStartedAt);
+      const runInitialPagination = () => this._recomputeLivePagination().catch((error) => {
         console.error("[WriterAdapter] Không thể dàn trang tài liệu vừa mở:", error);
       });
       if (typeof requestAnimationFrame !== "undefined") {
-        requestAnimationFrame(() => this._recomputeLivePagination().catch((error) => {
-          console.error("[WriterAdapter] Không thể cập nhật dàn trang sau khi mở:", error);
-        }));
-      }
+        // Let Chromium paint page 1 before measuring and inserting page gaps.
+        // The progress overlay is hidden on the same two-frame boundary.
+        requestAnimationFrame(() => requestAnimationFrame(runInitialPagination));
+      } else runInitialPagination();
       return true;
     }
     if (result.status === "cancelled") return false;
@@ -13448,7 +13590,7 @@ export class WriterAdapter {
       const children = Array.from(this.bodyDom.children);
       // Yield between batches on a real browser so page 1 can paint and input
       // stays available while a long imported document is laid out.
-      const progressiveLayout = children.length > 80
+      const progressiveLayout = children.length > 1
         && typeof window !== "undefined"
         && typeof window.requestAnimationFrame === "function";
       const yieldLayoutFrame = () => new Promise(resolve => window.requestAnimationFrame(() => resolve()));
@@ -13484,22 +13626,26 @@ export class WriterAdapter {
         return el.offsetHeight || 0;
       };
       const isList = (el) => el.tagName === "UL" || el.tagName === "OL";
-      const listUnits = (list, out) => {
+      const listUnits = async (list, out, progress = { count: 0 }) => {
         for (const item of Array.from(list.children || [])) {
+          progress.count++;
+          if (progressiveLayout && progress.count % 8 === 0) await yieldLayoutFrame();
           if (item.getAttribute?.("data-vno-auto-page-gap") === "true") continue;
-          if (isList(item)) { listUnits(item, out); continue; }
+          if (isList(item)) { await listUnits(item, out, progress); continue; }
           if (item.tagName !== "LI") continue;
           let ownHeight = heightOf(item);
           const subLists = Array.from(item.children || []).filter(isList);
           for (const sub of subLists) ownHeight -= heightOf(sub);
           out.push({ el: item, kind: "li", top: topOf(item), h: Math.max(0, ownHeight) });
-          for (const sub of subLists) listUnits(sub, out);
+          for (const sub of subLists) await listUnits(sub, out, progress);
         }
       };
-      const tableUnits = (table, out) => {
+      const tableUnits = async (table, out) => {
         const rows = Array.from(table.querySelectorAll?.(":scope > thead > tr, :scope > tbody > tr, :scope > tfoot > tr, :scope > tr") || []);
         if (!rows.length) return false;
-        for (const row of rows) {
+        for (let index = 0; index < rows.length; index++) {
+          if (progressiveLayout && index > 0 && index % 8 === 0) await yieldLayoutFrame();
+          const row = rows[index];
           if (row.getAttribute?.("data-vno-auto-page-gap") === "true") continue;
           out.push({ el: row, kind: "tr", top: topOf(row), h: heightOf(row), table });
         }
@@ -13509,7 +13655,7 @@ export class WriterAdapter {
       let pendingSpillGap = false;
       const hasKeepNext = (el) => el?.getAttribute?.("data-vno-keep-next") === "true";
       for (let childIndex = 0; childIndex < children.length; childIndex++) {
-        if (progressiveLayout && childIndex > 0 && childIndex % 32 === 0) await yieldLayoutFrame();
+        if (progressiveLayout && childIndex > 0) await yieldLayoutFrame();
         const el = children[childIndex];
         const styleStr = (typeof el.getAttribute === "function" ? el.getAttribute("style") : "") || "";
         const textContent = el.textContent || "";
@@ -13566,8 +13712,8 @@ export class WriterAdapter {
         // Khối không vừa phần còn lại của trang: bảng/danh sách cắt theo đơn vị bên trong.
         const units = [];
         let splittable = false;
-        if (el.tagName === "TABLE") splittable = tableUnits(el, units);
-        else if (isList(el)) { listUnits(el, units); splittable = units.length > 0; }
+        if (el.tagName === "TABLE") splittable = await tableUnits(el, units);
+        else if (isList(el)) { await listUnits(el, units); splittable = units.length > 0; }
         if (splittable && units.length > 1) {
           let first = true;
           // W24c (đo d01 Word COM: hàng 29 cao 97px bắt đầu ở y=741pt cuối trang 3 rồi tràn sang trang 4 — Word cho
@@ -13575,7 +13721,9 @@ export class WriterAdapter {
           // cắt được một <tr>, nên: hàng nhiều dòng không vừa → coi phần đầu (bội số chiều cao dòng) nằm ở trang này,
           // dải gap đặt SAU hàng (trước đơn vị kế) và trang mới bắt đầu tại điểm tràn để các hàng sau tính đúng.
           let spillGap = false;
-          for (const unit of units) {
+          for (let unitIndex = 0; unitIndex < units.length; unitIndex++) {
+            if (progressiveLayout && unitIndex > 0 && unitIndex % 8 === 0) await yieldLayoutFrame();
+            const unit = units[unitIndex];
             if (spillGap) {
               gapBeforeEls.push({ el: unit.el, soft: true, kind: unit.kind, table: unit.table });
               spillGap = false;

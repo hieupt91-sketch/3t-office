@@ -13,9 +13,12 @@ class FakeWorker:
         self.result = result or {"ok": True}
         self.stopped = False
         self.convert_count = 0
+        self.start_background = None
+        self.convert_backgrounds = []
         self.process = types.SimpleNamespace(poll=lambda: 1 if self.stopped else None, stdin=object())
 
-    def start(self):
+    def start(self, *, background=False, foreground_requested=None):
+        self.start_background = background
         return None
 
     def operation(self, operation, payload, timeout=180):
@@ -23,8 +26,9 @@ class FakeWorker:
             raise self.error
         return {**self.result, "operation": operation, "payload": payload, "timeout": timeout}
 
-    def convert(self, source_path, output_path, filter_name, input_filter, input_filter_options):
+    def convert(self, source_path, output_path, filter_name, input_filter, input_filter_options, *, background=False):
         self.convert_count += 1
+        self.convert_backgrounds.append(background)
         if self.error:
             raise self.error
         return output_path
@@ -34,12 +38,23 @@ class FakeWorker:
 
 
 class PersistentSofficeOperationTests(unittest.TestCase):
+    def test_background_conversion_yields_to_a_user_open_in_progress(self):
+        foreground_requested = threading.Event()
+        worker = main._SofficeUnoWorker("writer")
+        worker._foreground_requested = foreground_requested.is_set
+
+        self.assertTrue(worker._should_run_background(True))
+        foreground_requested.set()
+        self.assertFalse(worker._should_run_background(True))
+        self.assertFalse(worker._should_run_background(False))
+
     def test_open_during_background_prepare_reuses_the_warming_worker(self):
         worker = FakeWorker("writer")
         start_entered = threading.Event()
         allow_start_to_finish = threading.Event()
 
-        def slow_start():
+        def slow_start(*, background=False, foreground_requested=None):
+            worker.start_background = background
             start_entered.set()
             allow_start_to_finish.wait(timeout=2)
 
@@ -64,7 +79,9 @@ class PersistentSofficeOperationTests(unittest.TestCase):
         self.assertFalse(opener.is_alive())
         self.assertEqual(result, ["out.html"])
         self.assertEqual(worker_factory.call_count, 1)
+        self.assertTrue(worker.start_background)
         self.assertEqual(worker.convert_count, 1)
+        self.assertEqual(worker.convert_backgrounds, [False])
         manager.shutdown()
 
     def test_read_only_operation_restarts_once_after_disposed_bridge(self):

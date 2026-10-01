@@ -31,33 +31,38 @@ def docx_stats(path):
 PROBE = r'''
 import sys, time, os, json
 ROOT, DOCX, OUT = sys.argv[1], sys.argv[2], sys.argv[3]
+sys.path.insert(0, os.path.join(ROOT, "scripts", "layout-audit"))
+from _cdp_client import WebView2Cdp, enable_webview2_debugging
+debug_port = enable_webview2_debugging()
 sys.path.insert(0, ROOT)
 import webview, main as vnmain
-server, port = vnmain._start_static_server()
+server, static_port = vnmain._start_static_server()
 app_kind, initial_file = vnmain.parse_launch_args([DOCX])
 api = vnmain.VnOfficeApi(app_kind=app_kind, initial_file=initial_file)
-window = webview.create_window(title="VN Writer - Batch", url=vnmain.build_launch_url(app_kind, initial_file, port=port), width=1400, height=900, js_api=api)
+window = webview.create_window(title="VN Writer - Batch", url=vnmain.build_launch_url(app_kind, initial_file, port=static_port), width=1400, height=900, js_api=api)
 stem = os.path.splitext(os.path.basename(DOCX))[0][:6]
 def after_load(win):
+    cdp = WebView2Cdp.connect(debug_port)
     name = ''
     for _ in range(100):
         time.sleep(3)
-        name = win.evaluate_js("(document.querySelector('.vno-doc-tab span')||{}).textContent||''") or ''
+        name = cdp.evaluate("(document.querySelector('.vno-doc-tab span')||{}).textContent||''") or ''
         if stem and stem in name: break
     loaded = stem in name
     time.sleep(8)
-    status = win.evaluate_js("((document.querySelector('.vno-statusbar-left')||{}).textContent||'').replace(/\\s+/g,' ')") or ''
-    edit = win.evaluate_js("(function(){ try { const body = document.querySelector('.vno-writer-body'); const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT); let n, count = 0; while ((n = walker.nextNode())) { if (n.textContent.trim().length > 12) { count++; if (count === 3) { const r = document.createRange(); r.selectNodeContents(n); const s = window.getSelection(); s.removeAllRanges(); s.addRange(r); const ce = n.parentElement.closest('[contenteditable]'); if (ce) ce.focus(); document.execCommand('bold'); const r2 = document.createRange(); r2.setStart(n, 0); r2.collapse(true); s.removeAllRanges(); s.addRange(r2); return 'insert=' + document.execCommand('insertText', false, 'ZZ'); } } } return 'no-text'; } catch (e) { return 'err:' + e.message; } })()")
+    status = cdp.evaluate("((document.querySelector('.vno-statusbar-left')||{}).textContent||'').replace(/\\s+/g,' ')") or ''
+    edit = cdp.evaluate("(function(){ try { const body = document.querySelector('.vno-writer-body'); const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT); let n, count = 0; while ((n = walker.nextNode())) { if (n.textContent.trim().length > 12) { count++; if (count === 3) { const r = document.createRange(); r.selectNodeContents(n); const s = window.getSelection(); s.removeAllRanges(); s.addRange(r); const ce = n.parentElement.closest('[contenteditable]'); if (ce) ce.focus(); document.execCommand('bold'); const r2 = document.createRange(); r2.setStart(n, 0); r2.collapse(true); s.removeAllRanges(); s.addRange(r2); return 'insert=' + document.execCommand('insertText', false, 'ZZ'); } } } return 'no-text'; } catch (e) { return 'err:' + e.message; } })()")
     time.sleep(2)
     win.create_file_dialog = lambda *a, **k: OUT
-    win.evaluate_js("window.__saveErr=''; import('/platform/commands/command-bus.js').then(m => m.globalCommandBus.execute('common.file.saveAs')).catch(e => { window.__saveErr = String(e && e.stack || e); }); 'queued'")
+    cdp.evaluate("window.__saveErr=''; import('/platform/commands/command-bus.js').then(m => m.globalCommandBus.execute('common.file.saveAs')).catch(e => { window.__saveErr = String(e && e.stack || e); }); 'queued'")
     for _ in range(200):
         time.sleep(3)
-        if (os.path.exists(OUT) and os.path.getsize(OUT) > 0) or win.evaluate_js("window.__saveErr"): break
+        if (os.path.exists(OUT) and os.path.getsize(OUT) > 0) or cdp.evaluate("window.__saveErr"): break
     time.sleep(4)
-    print("RESULT " + json.dumps({"loaded": loaded, "status": status, "edit": edit, "err": win.evaluate_js("window.__saveErr")}, ensure_ascii=False), flush=True)
-    win.evaluate_js("document.querySelectorAll('button').forEach(b => { if (/Đồng ý|OK/i.test(b.textContent)) b.click(); }); 1")
+    print("RESULT " + json.dumps({"loaded": loaded, "status": status, "edit": edit, "err": cdp.evaluate("window.__saveErr")}, ensure_ascii=False), flush=True)
+    cdp.evaluate("document.querySelectorAll('button').forEach(b => { if (/Đồng ý|OK/i.test(b.textContent)) b.click(); }); 1")
     time.sleep(1)
+    cdp.close()
     win.destroy()
 webview.start(after_load, window, debug=False)
 '''

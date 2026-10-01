@@ -388,6 +388,7 @@ FORMAT_FILTERS = {
 
 _convert_lock = threading.Lock()
 _PERSISTENT_SOFFICE_ENABLED = False
+_PERSISTENT_WORKER_CONTEXT = threading.local()
 
 
 def _open_perf_log(stage: str, elapsed_ms: float | None = None, **fields) -> None:
@@ -396,6 +397,77 @@ def _open_perf_log(stage: str, elapsed_ms: float | None = None, **fields) -> Non
     suffix = "" if elapsed_ms is None else f" {elapsed_ms:.1f} ms"
     details = "".join(f" {key}={value}" for key, value in fields.items())
     print(f"[VNO Open Perf] {stage}:{suffix}{details}", flush=True)
+
+
+def _process_tree_pids(root_pid: int) -> set[int]:
+    """Return a PID and its descendants on Windows; other platforms only return the root."""
+    pids = {int(root_pid)}
+    if os.name != "nt":
+        return pids
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        class PROCESSENTRY32W(ctypes.Structure):
+            _fields_ = [
+                ("dwSize", wintypes.DWORD), ("cntUsage", wintypes.DWORD),
+                ("th32ProcessID", wintypes.DWORD), ("th32DefaultHeapID", ctypes.c_size_t),
+                ("th32ModuleID", wintypes.DWORD), ("cntThreads", wintypes.DWORD),
+                ("th32ParentProcessID", wintypes.DWORD), ("pcPriClassBase", ctypes.c_long),
+                ("dwFlags", wintypes.DWORD), ("szExeFile", wintypes.WCHAR * 260),
+            ]
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+        snapshot = kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
+        if snapshot == ctypes.c_void_p(-1).value:
+            return pids
+        entry = PROCESSENTRY32W()
+        entry.dwSize = ctypes.sizeof(entry)
+        parent_by_pid = {}
+        try:
+            if kernel32.Process32FirstW(snapshot, ctypes.byref(entry)):
+                while True:
+                    parent_by_pid[int(entry.th32ProcessID)] = int(entry.th32ParentProcessID)
+                    if not kernel32.Process32NextW(snapshot, ctypes.byref(entry)):
+                        break
+        finally:
+            kernel32.CloseHandle(snapshot)
+        while True:
+            children = {pid for pid, parent in parent_by_pid.items() if parent in pids}
+            if children.issubset(pids):
+                break
+            pids.update(children)
+    except (AttributeError, OSError, TypeError, ValueError):
+        pass
+    return pids
+
+
+def _set_process_tree_priority(root_pid: int, priority_class: int) -> bool:
+    """Set process priority for a helper and its LibreOffice descendants."""
+    if os.name != "nt":
+        return False
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+        kernel32.OpenProcess.restype = wintypes.HANDLE
+        kernel32.SetPriorityClass.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+        kernel32.SetPriorityClass.restype = wintypes.BOOL
+        all_set = True
+        for pid in _process_tree_pids(root_pid):
+            handle = kernel32.OpenProcess(0x0200, False, pid)  # PROCESS_SET_INFORMATION
+            if not handle:
+                continue
+            try:
+                all_set = bool(kernel32.SetPriorityClass(handle, priority_class)) and all_set
+            finally:
+                kernel32.CloseHandle(handle)
+        return all_set
+    except (AttributeError, OSError, TypeError, ValueError):
+        return False
 
 
 class _PersistentSofficeError(Exception):
@@ -416,6 +488,8 @@ class _SofficeUnoWorker:
         self.process: subprocess.Popen[str] | None = None
         self.responses: queue.Queue[dict | None] = queue.Queue()
         self._write_lock = threading.Lock()
+        self._background_idle = False
+        self._foreground_requested = None
 
     @staticmethod
     def _python_path() -> str | None:
@@ -424,7 +498,8 @@ class _SofficeUnoWorker:
         candidate = Path(SOFFICE_PATH).resolve().parent / "python.exe"
         return str(candidate) if candidate.is_file() else None
 
-    def start(self) -> None:
+    def start(self, *, background: bool = False, foreground_requested=None) -> None:
+        self._foreground_requested = foreground_requested
         python_path = self._python_path()
         if not python_path or not SOFFICE_PATH:
             raise _PersistentSofficeTransportError(
@@ -440,6 +515,10 @@ class _SofficeUnoWorker:
         env["PYTHONUNBUFFERED"] = "1"
         command = [python_path, "-u", str(worker_path), SOFFICE_PATH, profile_uri, pipe_name, self.app_kind]
         flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        if background and os.name == "nt" and not (foreground_requested and foreground_requested()):
+            # Keep the startup worker out of the way until an open command needs it.
+            flags |= 0x00000040  # IDLE_PRIORITY_CLASS
+        self._background_idle = bool(background and os.name == "nt")
         started = time.perf_counter()
         try:
             self.process = subprocess.Popen(
@@ -469,11 +548,24 @@ class _SofficeUnoWorker:
             message = handshake.get("error") or "LibreOffice UNO helper did not start."
             self.stop(grace_seconds=0.5)
             raise _PersistentSofficeTransportError(str(message))
+        if self._background_idle and self.process and self.process.poll() is None:
+            priority_class = 0x00000020 if foreground_requested and foreground_requested() else 0x00000040
+            _set_process_tree_priority(self.process.pid, priority_class)
         _open_perf_log(
             "worker_start_and_profile_ready",
             (time.perf_counter() - started) * 1000,
             app=self.app_kind,
         )
+
+    def set_process_priority(self, *, background: bool) -> None:
+        if not self._background_idle or not self.process or self.process.poll() is not None:
+            return
+        priority_class = 0x00000040 if background else 0x00000020  # IDLE / NORMAL
+        _set_process_tree_priority(self.process.pid, priority_class)
+
+    def _should_run_background(self, background: bool) -> bool:
+        requested = self._foreground_requested
+        return bool(background and not (callable(requested) and requested()))
 
     def _read_responses(self) -> None:
         process = self.process
@@ -506,6 +598,24 @@ class _SofficeUnoWorker:
         return response
 
     def convert(
+        self,
+        source_path: str,
+        output_path: str,
+        filter_name: str | None,
+        input_filter: str | None,
+        input_filter_options: str | None,
+        *,
+        background: bool = False,
+    ) -> str:
+        self.set_process_priority(background=self._should_run_background(background))
+        try:
+            return self._convert_request(
+                source_path, output_path, filter_name, input_filter, input_filter_options
+            )
+        finally:
+            self.set_process_priority(background=self._should_run_background(background))
+
+    def _convert_request(
         self,
         source_path: str,
         output_path: str,
@@ -547,6 +657,13 @@ class _SofficeUnoWorker:
         return str(response["output_path"])
 
     def operation(self, operation: str, payload: dict, timeout: float = 180) -> dict:
+        self.set_process_priority(background=False)
+        try:
+            return self._operation_request(operation, payload, timeout)
+        finally:
+            self.set_process_priority(background=True)
+
+    def _operation_request(self, operation: str, payload: dict, timeout: float) -> dict:
         process = self.process
         if process is None or process.poll() is not None or process.stdin is None:
             raise _PersistentSofficeTransportError("LibreOffice UNO helper is not running.")
@@ -629,11 +746,22 @@ class _PersistentSofficeManager:
         if worker:
             worker.stop()
 
-    def _ensure_locked(self, app_kind: str) -> _SofficeUnoWorker:
+    @staticmethod
+    def _set_worker_priority(worker, *, background: bool) -> None:
+        set_priority = getattr(worker, "set_process_priority", None)
+        if callable(set_priority):
+            set_priority(background=background)
+
+    def _ensure_locked(self, app_kind: str, *, background: bool = False) -> _SofficeUnoWorker:
         if self._shutdown_requested.is_set():
             raise _PersistentSofficeTransportError("3T Office đang đóng.")
         if self._worker and self._worker.app_kind == app_kind:
             if self._worker.process and self._worker.process.poll() is None:
+                if background:
+                    self._set_worker_priority(
+                        self._worker,
+                        background=not self._user_open_started.is_set(),
+                    )
                 return self._worker
             self._stop_locked()
         else:
@@ -646,11 +774,16 @@ class _PersistentSofficeManager:
             worker = _SofficeUnoWorker(app_kind)
             self._worker = worker
             try:
-                worker.start()
+                worker.start(
+                    background=background,
+                    foreground_requested=self._user_open_started.is_set,
+                )
                 if self._shutdown_requested.is_set():
                     worker.stop(grace_seconds=0.1)
                     self._worker = None
                     raise _PersistentSofficeTransportError("3T Office đang đóng.")
+                if self._user_open_started.is_set():
+                    self._set_worker_priority(worker, background=False)
                 return worker
             except Exception as exc:
                 last_error = exc
@@ -662,7 +795,7 @@ class _PersistentSofficeManager:
             return
         try:
             with self._lock:
-                self._ensure_locked(app_kind)
+                self._ensure_locked(app_kind, background=True)
             if not self._user_open_started.wait(timeout=0.35):
                 _warmup_persistent_filter(app_kind)
             else:
@@ -673,6 +806,9 @@ class _PersistentSofficeManager:
     def notify_user_open_started(self, app_kind: str | None) -> None:
         if app_kind in {"writer", "sheet"}:
             self._user_open_started.set()
+            worker = self._worker
+            if worker:
+                self._set_worker_priority(worker, background=False)
 
     def start_background_prepare(self, app_kind: str) -> bool:
         """Start one best-effort, lowest-priority warm-up after the WebView first paint."""
@@ -693,7 +829,12 @@ class _PersistentSofficeManager:
                         )
                     except (AttributeError, OSError):
                         pass
-                self.prepare(app_kind)
+                previous_context = getattr(_PERSISTENT_WORKER_CONTEXT, "background", False)
+                _PERSISTENT_WORKER_CONTEXT.background = True
+                try:
+                    self.prepare(app_kind)
+                finally:
+                    _PERSISTENT_WORKER_CONTEXT.background = previous_context
             finally:
                 with self._prepare_lock:
                     self._prepare_threads.discard(app_kind)
@@ -735,8 +876,9 @@ class _PersistentSofficeManager:
         input_filter_options: str | None,
     ) -> str:
         kind = app_kind if app_kind in VALID_APP_KINDS else "shared"
+        background = bool(getattr(_PERSISTENT_WORKER_CONTEXT, "background", False))
         with self._lock:
-            worker = self._ensure_locked(kind)
+            worker = self._ensure_locked(kind, background=background)
             try:
                 return worker.convert(
                     source_path,
@@ -744,6 +886,7 @@ class _PersistentSofficeManager:
                     filter_name,
                     input_filter,
                     input_filter_options,
+                    background=background,
                 )
             except _PersistentSofficeConversionError:
                 # The local engine stayed alive but rejected this document/filter;
@@ -755,13 +898,14 @@ class _PersistentSofficeManager:
                 if self._shutdown_requested.is_set():
                     raise
                 try:
-                    worker = self._ensure_locked(kind)
+                    worker = self._ensure_locked(kind, background=background)
                     return worker.convert(
                         source_path,
                         output_path,
                         filter_name,
                         input_filter,
                         input_filter_options,
+                        background=background,
                     )
                 except Exception as retry_error:
                     self._stop_locked()
@@ -773,6 +917,7 @@ class _PersistentSofficeManager:
         kind = app_kind if app_kind in VALID_APP_KINDS else "shared"
         with self._lock:
             worker = self._ensure_locked(kind)
+            self._set_worker_priority(worker, background=False)
             try:
                 timeout = 300 if operation == "print_pdf" else 180
                 return worker.operation(operation, payload, timeout=timeout)
@@ -785,6 +930,7 @@ class _PersistentSofficeManager:
                     raise
                 try:
                     worker = self._ensure_locked(kind)
+                    self._set_worker_priority(worker, background=False)
                     return worker.operation(operation, payload, timeout=timeout)
                 except Exception as retry_error:
                     self._stop_locked()
@@ -797,6 +943,8 @@ class _PersistentSofficeManager:
                     # Some print drivers tear down LibreOffice's UNO bridge after the job.
                     # A fresh helper is cheap compared with risking a second/spurious print.
                     self._stop_locked()
+                elif self._worker is worker:
+                    self._set_worker_priority(worker, background=True)
 
     def shutdown(self) -> None:
         self._shutdown_requested.set()
@@ -3185,7 +3333,7 @@ class VnOfficeApi:
             "first grid render", "first layout", "selection-to-first-grid",
             "writer.parseHtml", "writer.render", "writer.firstPaint", "sheet.scrollRender",
         }
-        if name not in allowed_metrics and not name.startswith("parseFods:"):
+        if name not in allowed_metrics and not name.startswith(("parseFods:", "writer.open:", "writer.normalize:", "writer.float:")):
             return False
         try:
             value = float(elapsed_ms)
