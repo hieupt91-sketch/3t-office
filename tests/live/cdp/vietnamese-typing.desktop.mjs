@@ -79,6 +79,70 @@ async function prepareEditableTarget(cdp, selector) {
   await sleep(150);
 }
 
+/**
+ * Helper to insert a 2x2 table in Writer via the adapter and focus the first cell
+ */
+async function prepareWriterTableCell(cdp) {
+  await cdp.evaluate(`(() => {
+    const app = window.__vnoAppInstance;
+    if (!app || !app.adapter) return false;
+    app.adapter.insertTable(2, 2);
+    return true;
+  })()`);
+  await sleep(300);
+  
+  // Click into the first table cell to focus it
+  await cdp.evaluate(`(() => {
+    const cell = document.querySelector('.vno-writer-body table td');
+    if (!cell) return false;
+    cell.focus();
+    const p = cell.querySelector('p');
+    const target = p || cell;
+    target.innerHTML = '<br>';
+    const sel = window.getSelection();
+    const range = document.createRange();
+    range.setStart(target, 0);
+    range.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(range);
+    return true;
+  })()`);
+  await sleep(150);
+  
+  // Verify table exists
+  const hasTable = await cdp.evaluate("!!document.querySelector('.vno-writer-body table td')");
+  if (!hasTable) {
+    throw new Error("Failed to insert table in Writer");
+  }
+}
+
+/**
+ * Helper to select a fresh empty cell in Sheet and verify it's empty
+ */
+async function prepareFreshSheetCell(cdp, rowIndex) {
+  const coord = `B${rowIndex}`;
+  await click(cdp, `[data-coord="${coord}"]`);
+  await sleep(150);
+  
+  // Press Delete to clear any existing content
+  await press(cdp, "Delete", {}, 200);
+  await sleep(100);
+  
+  // Verify cell is empty
+  const isEmpty = await cdp.evaluate(`window.__vnoAppInstance?.grid?.cellsData?.get('${coord}')?.val === '' || window.__vnoAppInstance?.grid?.cellsData?.get('${coord}')?.val === undefined`);
+  if (!isEmpty) {
+    // Force clear via model
+    await cdp.evaluate(`window.__vnoAppInstance?.grid?.cellsData?.set('${coord}', { val: '' })`);
+    await sleep(100);
+  }
+  
+  // Press F2 to enter edit mode
+  await press(cdp, "F2", {}, 200);
+  await sleep(100);
+  
+  return coord;
+}
+
 // =============================================================================
 // 1. DOC (WRITER) TESTS
 // =============================================================================
@@ -251,30 +315,35 @@ export async function testDocVietnameseTyping(session, options = {}) {
   }
   summarizeScenario("writer", "footer", "VNI in Footer");
 
-  // --- Target 4: Table cell ---
+  // --- Target 4: Table cell (REAL - not mock) ---
   try {
-    const hasTable = await cdp.evaluate("!!document.querySelector('.vno-writer-body table td')");
-    if (hasTable) {
-      for (let pi = 0; pi < phrases.length; pi++) {
-        const phrase = phrases[pi];
-        try {
-          await prepareEditableTarget(cdp, ".vno-writer-body table td");
-          const events = phraseToImeEvents(phrase, { mode: "telex", encoding: "nfc" });
-          await replayImeEventsCdp(cdp, events, 20);
-          await sleep(200);
+    // Insert a real 2x2 table and focus first cell
+    await prepareWriterTableCell(cdp);
+    
+    for (let pi = 0; pi < phrases.length; pi++) {
+      const phrase = phrases[pi];
+      try {
+        // Re-focus first cell for each phrase
+        await prepareWriterTableCell(cdp);
+        const events = phraseToImeEvents(phrase, { mode: "telex", encoding: "nfc" });
+        await replayImeEventsCdp(cdp, events, 20);
+        await sleep(200);
 
-          const cellText = await cdp.evaluate("document.querySelector('.vno-writer-body table td')?.innerText || ''");
-          const pass = cellText.includes(phrase.normalize("NFC"));
-          recordResult("writer", "table-cell", `Telex in Table Cell | ${phrase}`, pass, `text="${cellText.trim()}"`);
-        } catch (err) {
-          recordResult("writer", "table-cell", `Telex in Table Cell | ${phrase}`, false, err.message);
-        }
+        // Read text from the first table cell
+        const cellText = await cdp.evaluate("document.querySelector('.vno-writer-body table td')?.innerText || ''");
+        // Strict NFC equality for the entire phrase
+        const pass = cellText.trim() === phrase.normalize("NFC");
+        recordResult("writer", "table-cell", `Telex in Table Cell | ${phrase}`, pass, `text="${cellText.trim()}"`);
+      } catch (err) {
+        recordResult("writer", "table-cell", `Telex in Table Cell | ${phrase}`, false, err.message);
       }
-    } else {
-      recordResult("writer", "table-cell", "Telex in Table Cell", true, "Table cell tested via mock");
     }
   } catch (err) {
-    recordResult("writer", "table-cell", "Telex in Table Cell", false, err.message);
+    // If table insertion fails entirely, record all as fail with reason
+    for (let pi = 0; pi < phrases.length; pi++) {
+      const phrase = phrases[pi];
+      recordResult("writer", "table-cell", `Telex in Table Cell | ${phrase}`, false, `Table setup failed: ${err.message}`);
+    }
   }
   summarizeScenario("writer", "table-cell", "Telex in Table Cell");
 }
@@ -329,13 +398,12 @@ export async function testSheetVietnameseTyping(session, options = {}) {
   summarizeScenario("sheet", "direct-typing-no-f2", "1-step Ctrl+Z restores cell");
 
   // --- Target 2: Cell edit mode (F2 / double-click) with VNI & Fast Speed ---
+  // Use a fresh cell for each phrase (B3, B4, B5, ...) to avoid text accumulation
   for (let pi = 0; pi < phrases.length; pi++) {
     const phrase = phrases[pi];
+    const rowIndex = 3 + pi; // B3, B4, B5, ...
     try {
-      await click(cdp, '[data-coord="B3"]');
-      await sleep(150);
-      // Press F2 to enter edit mode
-      await press(cdp, "F2", {}, 200);
+      const coord = await prepareFreshSheetCell(cdp, rowIndex);
 
       const events = phraseToImeEvents(phrase, { mode: "vni", encoding: "nfc" });
       await replayImeEventsCdp(cdp, events, 5); // Fast speed (5ms)
@@ -344,7 +412,7 @@ export async function testSheetVietnameseTyping(session, options = {}) {
       // Commit with Enter
       await press(cdp, "Enter", {}, 300);
 
-      const modelVal = await cdp.evaluate("window.__vnoAppInstance?.grid?.cellsData?.get('B3')?.val || ''");
+      const modelVal = await cdp.evaluate(`window.__vnoAppInstance?.grid?.cellsData?.get('${coord}')?.val || ''`);
       const pass = modelVal.trim() === phrase.normalize("NFC");
       recordResult("sheet", "cell-edit-mode-f2", `F2 Cell Edit Mode Fast VNI (5ms) | ${phrase}`, pass, `model="${modelVal}"`);
     } catch (err) {
