@@ -664,6 +664,65 @@ export const SLIDES_HELP_ENTRIES = [
       "Tra cứu danh sách phần mềm nguồn mở bên thứ ba (Python, LibreOffice Core, pywebview) và nhấn nút Xem toàn văn giấy phép nếu muốn đọc toàn văn THIRD-PARTY-NOTICES.",
       "Nhấn nút Đóng hoặc bấm phím Esc trên bàn phím để trở lại bài thuyết trình."
     ]
+  },
+{
+    id: "slides.gettingStarted",
+    app: "slides",
+    commandIds: ["common.file.new", "common.file.open", "common.file.save", "common.file.saveAs", "common.file.print", "common.file.exportPdf"],
+    title: "Bắt đầu nhanh: tạo, mở, lưu, in, xuất PDF",
+    summary: "Bản trình chiếu mới có một trang chiếu với chỗ gợi ý xám «Bấm để thêm tiêu đề» và «Bấm để thêm văn bản». Dùng menu Tệp hoặc phím tắt để tạo mới, mở, lưu, lưu bản sao, in và xuất PDF.",
+    ribbon: { tab: "Tệp", tabId: "file", group: "Bản trình chiếu" },
+    keywords: ["bắt đầu nhanh", "tạo mới", "mở tệp", "lưu", "lưu bản sao", "in", "xuất pdf", "ctrl+n", "ctrl+o", "ctrl+s", "f12", "ctrl+p", "trang chiếu trống", "3t slide"],
+    steps: [
+      "Tạo bản mới: nhấn Ctrl+N hoặc menu Tệp > Mới. 3T Slide mở cửa sổ riêng tên Bản trình bày 2, Bản trình bày 3… với một trang chiếu trống. Chữ gợi ý xám trong khung tiêu đề và khung văn bản chỉ là hướng dẫn trên màn hình, không phải nội dung được lưu.",
+      "Mở bản trình chiếu: nhấn Ctrl+O hoặc menu Tệp > Mở, chọn PPTX, PPT hoặc ODP. Nếu bản đang mở có thay đổi, chọn Lưu, Không lưu hoặc Hủy trước khi tiếp tục.",
+      "Lưu (Ctrl+S): mở hộp thoại Lưu thành cho bản mới; với tệp đã mở/lưu, lệnh này giữ nguyên định dạng. Nhấn F12 để Lưu bản sao — nhập tên, chọn PPTX, PPT, ODP hoặc PDF ở Loại tệp. Khi lưu sang PPTX/PPT/ODP, tên tab và tiêu đề cửa sổ chuyển theo tệp mới; chọn PDF chỉ xuất bản sao và giữ nguyên bản trình chiếu đang mở.",
+      "In (Ctrl+P): xem trước từng trang chiếu. Chọn máy in, số bản và phạm vi trang rồi nhấn In; mỗi trang chiếu chiếm một trang in. Khi có Microsoft Office/WPS, dùng bộ dựng PDF đó; ngược lại LibreOffice.",
+      "Xuất PDF: menu Tệp > Xuất PDF > chọn nơi lưu. Cùng đường dựng với In."
+    ]
+  },
+  {
+    id: "slides.shortcuts",
+    app: "slides",
+    commandIds: [
+      "common.file.new", "common.file.open", "common.file.save", "common.file.print",
+      "common.edit.undo", "common.edit.redo", "common.edit.cut", "common.edit.copy",
+      "common.edit.paste", "common.edit.selectAll", "common.edit.find", "common.edit.replace",
+      "slides.slide.new", "slides.slide.duplicate", "slides.show.startFromBegin",
+      "slides.text.bold", "slides.text.italic", "slides.text.underline",
+      "slides.para.alignCenter", "slides.para.alignLeft", "slides.para.alignRight", "slides.para.justify",
+      "slides.shape.group", "slides.shape.ungroup"
+    ],
+    title: "Phím tắt thường dùng (15 phím tắt phổ biến nhất)",
+    summary: "15 phím tắt dùng nhiều nhất trong 3T Slide — tương thích Microsoft PowerPoint và LibreOffice Impress. Tất cả đã bind trong command-definitions.js; có hoàn tác (Ctrl+Z) khi áp dụng định dạng.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Bảng nhớ tạm" },
+    keywords: ["phím tắt", "shortcut", "ctrl+n", "ctrl+o", "ctrl+s", "ctrl+p", "ctrl+z", "ctrl+y", "ctrl+x", "ctrl+c", "ctrl+v", "ctrl+a", "ctrl+f", "ctrl+h", "ctrl+m", "ctrl+d", "f5", "ctrl+b", "ctrl+i", "ctrl+u", "ctrl+e", "ctrl+l", "ctrl+r", "ctrl+j", "ctrl+g", "ctrl+shift+g", "3t slide"],
+    steps: [
+      "Tạo mới: Ctrl+N  |  Mở: Ctrl+O  |  Lưu: Ctrl+S  |  In: Ctrl+P",
+      "Hoàn tác: Ctrl+Z  |  Làm lại: Ctrl+Y",
+      "Cắt: Ctrl+X  |  Sao chép: Ctrl+C  |  Dán: Ctrl+V  |  Chọn tất cả: Ctrl+A",
+      "Tìm kiếm: Ctrl+F  |  Thay thế: Ctrl+H",
+      "Trang chiếu mới: Ctrl+M  |  Nhân đôi trang: Ctrl+D  |  Trình chiếu từ đầu: F5",
+      "Chữ đậm: Ctrl+B  |  Chữ nghiêng: Ctrl+I  |  Gạch chân: Ctrl+U",
+      "Căn giữa: Ctrl+E  |  Căn trái: Ctrl+L  |  Căn phải: Ctrl+R  |  Căn đều: Ctrl+J",
+      "Nhóm: Ctrl+G  |  Bỏ nhóm: Ctrl+Shift+G",
+      "Các phím tắt khác hữu ích: Shift+F5 (Trình chiếu từ trang này), Alt+F5 (Chế độ Presenter), Ctrl+Home/End (Trang đầu/cuối), Page Up/Down (Trang trước/sau)."
+    ]
+  },
+  {
+    id: "slides.differences",
+    app: "slides",
+    commandIds: ["slides.transition.apply", "slides.show.presenterMode", "slides.media.insertAudio"],
+    title: "Khác biệt cần biết (so với bộ Office khác)",
+    summary: "Một số tính năng nâng cao đang được hoàn thiện và sẽ cập nhật trong các bản vá tới. Các nút vẫn hiện trên ribbon đúng vị trí chuẩn; khi bấm sẽ hiện thông báo «Tính năng này đang được tối ưu hóa và sẽ được cập nhật trong phiên bản tiếp theo.»",
+    ribbon: { tab: "Chuyển tiếp", tabId: "transitions", group: "Hiệu ứng chuyển trang" },
+    keywords: ["khác biệt", "không có", "chưa hỗ trợ", "pending", "morph", "broadcast", "ghi âm", "thuyết minh", "laser", "online"],
+    steps: [
+      "Hiệu ứng chuyển tiếp Morph (tab Chuyển tiếp > nhóm Hiệu ứng chuyển trang > Chuyển tiếp): hiện hỗ trợ Fade, Slide, Zoom, Flip — chưa có Morph (tự động phân tích và nội suy chuyển động hình khối cùng tên giữa hai trang liên tiếp). Dự kiến Patch 1.2.",
+      "Trình chiếu trực tuyến / Broadcast (tab Trình chiếu > nhóm Thiết lập > Chế độ Presenter): hiện có Presenter Mode 2 màn hình cục bộ (Alt+F5) — chưa hỗ trợ phát bài thuyết trình qua mạng nội bộ cho người xem qua trình duyệt. Dự kiến Patch 1.3.",
+      "Ghi âm thuyết minh trực tiếp (tab Chèn > nhóm Đa phương tiện > Âm thanh): hiện chỉ chèn file âm thanh từ máy tính — chưa có thu âm microphone trực tiếp trên từng trang chiếu. Dự kiến Patch 1.1.",
+      "Các nút này vẫn hiển thị trên ribbon đúng vị trí chuẩn Microsoft PowerPoint. Khi bấm vào, hệ thống sẽ hiển thị thông báo tiếng Việt rõ ràng thay vì thao tác câm."
+    ]
   }
 ];
 
