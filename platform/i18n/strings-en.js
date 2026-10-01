@@ -104,6 +104,11 @@ export const enStrings = {
     cells: { format: "Format" },
     window: { freezePanes: "Freeze Panes" }
   },
+  sheetFormulaEntry: {
+    status: { enter: "Enter", edit: "Edit", point: "Point" },
+    referenceHint: "Click or drag across cells to insert references; press F2 to switch between Edit and Point.",
+    formulaBarLabel: "3T Sheet Formula Bar"
+  },
   slidesRibbon: {
     tab: { home: "Home", insert: "Insert", design: "Design", transitions: "Transitions", animations: "Animations", slideshow: "Slide Show", review: "Review", view: "View", help: "Help", ai: "3T AI Assistant" },
     group: { slides: "Slides", clipboard: "Clipboard", font: "Font", paragraph: "Paragraph", drawing: "Drawing", editing: "Editing", imagesObjects: "Images & Objects", images: "Images", illustrations: "Illustrations", tables: "Tables", text: "Text", symbols: "Symbols", media: "Media", themes: "Themes", master: "Slide Master", customize: "Customize", transitions: "Transition to This Slide", animations: "Animation", startSlideshow: "Start Slide Show", presenter: "Presenter Tools", setup: "Set Up", comments: "Comments", proofing: "Proofing", presentationViews: "Presentation Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiContent: "AI Presentation Content" },
