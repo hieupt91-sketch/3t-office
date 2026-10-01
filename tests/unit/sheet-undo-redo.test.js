@@ -72,6 +72,27 @@ export async function runSheetUndoRedoTests() {
     assert(grid.cellsData.get("A2")?.val === "Dòng một\nDòng hai" && grid.getRowHeight(2) > grid.rowHeight, "Redo phải phục hồi newline và chiều cao hàng");
   });
 
+  test("C1: insertLineBreak() (Alt+Enter trong ô và thanh công thức) chèn newline và bật wrap text", () => {
+    const grid = createSheetGridWithSheets(container(), ["Sheet1"]);
+    grid.formulaInput = { value: "", selectionStart: 0, selectionEnd: 0, focus() {}, style: {} };
+    grid.selectCell("A", 3);
+    grid.setCellValue("A", 3, "Dòng một", true, { coalesce: true, userInput: true });
+    grid.formulaInput.value = "Dòng một";
+    grid.formulaInput.selectionStart = grid.formulaInput.selectionEnd = 8;
+    grid.insertLineBreak();
+    assert(grid.formulaInput.value === "Dòng một\n", "insertLineBreak phải thêm ký tự newline");
+    assert(grid.cellsData.get("A3")?.val === "Dòng một\n", "Ô phải nhận newline");
+    assert(grid.cellsData.get("A3")?.style?.whiteSpace === "pre-wrap", "Newline phải kích hoạt wrap text");
+    assert(grid.getRowHeight(3) > grid.rowHeight, "Chiều cao hàng phải tự động mở rộng");
+
+    delete grid.formulaInput;
+    grid.selectCell("A", 4);
+    grid.setCellValue("A", 4, "Dòng A", true, { coalesce: true, userInput: true });
+    grid.insertLineBreak();
+    assert(grid.cellsData.get("A4")?.val === "Dòng A\n", "Ô phải nhận newline dù không có DOM formulaInput");
+    assert(grid.cellsData.get("A4")?.style?.whiteSpace === "pre-wrap", "Bật wrap text khi ngắt dòng trên lưới");
+  });
+
   test("Undo/Redo history: giới hạn đúng 100 bước gần nhất", () => {
     const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     for (let index = 0; index < 105; index++) grid.setCellValue("A", 1, index);

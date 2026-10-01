@@ -207,6 +207,7 @@ export const SHEET_COMMANDS = [
   { id: "sheet.nav.end", category: "nav", label: "Ô cuối có dữ liệu", shortcut: "Ctrl+End", icon: "table", tooltip: "Đến ô cuối cùng có dữ liệu (Ctrl+End)" },
   // Ô và phạm vi (Cell & Range)
   { id: "sheet.cell.edit", category: "cell", label: "Chỉnh sửa ô", shortcut: "F2", icon: "textBox", tooltip: "Chỉnh sửa ô đang chọn (F2)" },
+  { id: "sheet.cell.insertLineBreak", category: "cell", label: "Xuống dòng trong ô", shortcut: "Alt+Enter", icon: "wrapText", tooltip: "Ngắt dòng trong cùng một ô (Alt+Enter)" },
   { id: "sheet.select.column", category: "cell", label: "Chọn cột", shortcut: "Ctrl+Space", icon: "table", tooltip: "Chọn toàn bộ cột hiện tại (Ctrl+Space)" },
   { id: "sheet.select.row", category: "cell", label: "Chọn hàng", shortcut: "Shift+Space", icon: "table", tooltip: "Chọn toàn bộ hàng hiện tại (Shift+Space)" },
   { id: "sheet.cell.bold", category: "format", label: "Đậm", shortcut: "Ctrl+B", icon: "bold", tooltip: "Chữ đậm (Ctrl+B)", isToggle: true },

@@ -2119,6 +2119,11 @@ class VnOfficeApi:
         """Trả về phiên bản ứng dụng hiện tại."""
         return APP_VERSION
 
+    def get_system_number_separators(self) -> dict[str, str]:
+        """Trả về dấu phân cách thập phân và dấu phân nhóm hàng nghìn theo Windows regional settings."""
+        decimal_separator, thousands_separator = _system_number_separators()
+        return {"decimalSeparator": decimal_separator, "thousandsSeparator": thousands_separator}
+
     def get_about_info(self) -> dict[str, object]:
         """Trả về thông tin bản quyền và danh sách phần mềm nguồn mở bên thứ ba."""
         notices_text = ""

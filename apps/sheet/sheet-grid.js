@@ -349,13 +349,7 @@ export class SheetGridController {
 
       if (e.key === "Enter" && e.altKey) {
         e.preventDefault();
-        const start = this.formulaInput.selectionStart || 0;
-        const end = this.formulaInput.selectionEnd || 0;
-        const val = this.formulaInput.value;
-        this.formulaInput.value = val.substring(0, start) + "\n" + val.substring(end);
-        this.formulaInput.selectionStart = this.formulaInput.selectionEnd = start + 1;
-        this._resizeFormulaInput();
-        this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, this.formulaInput.value, true, { coalesce: true, userInput: true });
+        this.insertLineBreak();
         return;
       }
 
@@ -945,7 +939,7 @@ export class SheetGridController {
       const itm = this.cellsData.get(`${c}${row}`);
       if (itm) {
         const text = String(itm.formula || itm.val || "");
-        const lines = text.split("\n").length;
+        const lines = text.split(/\r\n|\r|\n/).length;
         if (lines > maxLines) maxLines = lines;
       }
     }
@@ -1205,7 +1199,7 @@ export class SheetGridController {
     const currentValue = current ? (current.formula || current.val || "") : "";
     const editedValue = this.formulaInput.value;
     if (String(currentValue) !== String(editedValue)) {
-      this.setCellValue(coord.c, coord.r, editedValue, true, { coalesce: true });
+      this.setCellValue(coord.c, coord.r, editedValue, true, { coalesce: true, userInput: true });
     }
     this._cellValueBeforeEdit = undefined;
     this.autocomplete?.closeAll?.();
@@ -3532,6 +3526,10 @@ export class SheetGridController {
         e.preventDefault();
         this.redo();
         return;
+      } else if (e.key === "Enter" && e.altKey) {
+        e.preventDefault();
+        this.insertLineBreak();
+        return;
       } else if (e.key === "Enter") {
         nextRow = e.shiftKey ? Math.max(1, nextRow - 1) : Math.min(this.rowCount, nextRow + 1);
       } else if (e.key === "Tab") {
@@ -3629,6 +3627,37 @@ export class SheetGridController {
       this.formulaInput.focus();
       this.formulaInput.select();
     }
+  }
+
+  insertLineBreak() {
+    if (this._guardProtectedMutation()) return false;
+    const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const cur = this.cellsData.get(key);
+    this._cellValueBeforeEdit = cur ? (cur.formula || cur.val || "") : "";
+    let nextVal = "";
+    const active = typeof document !== "undefined" && document.activeElement === this.formulaInput;
+    if (active && this.formulaInput) {
+      const start = this.formulaInput.selectionStart || 0;
+      const end = this.formulaInput.selectionEnd || 0;
+      const val = this.formulaInput.value || "";
+      nextVal = val.substring(0, start) + "\n" + val.substring(end);
+      this.formulaInput.value = nextVal;
+      this.formulaInput.selectionStart = this.formulaInput.selectionEnd = start + 1;
+    } else if (this.formulaInput) {
+      const baseVal = cur ? String(cur.formula || cur.val || "") : "";
+      nextVal = baseVal + "\n";
+      this.formulaInput.value = nextVal;
+      this.formulaInput.selectionStart = this.formulaInput.selectionEnd = this.formulaInput.value.length;
+    } else {
+      const baseVal = cur ? String(cur.formula || cur.val || "") : "";
+      nextVal = baseVal + "\n";
+    }
+    this._resizeFormulaInput();
+    this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, nextVal, true, { coalesce: true, userInput: true });
+    if (typeof this.formulaInput?.focus === "function") {
+      this.formulaInput.focus();
+    }
+    return true;
   }
 
   _resizeFormulaInput() {

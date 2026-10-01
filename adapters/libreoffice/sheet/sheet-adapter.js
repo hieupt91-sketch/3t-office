@@ -236,6 +236,7 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.cell.alignMiddle", () => this.grid.setStyle("verticalAlign", "middle"));
     globalCommandBus.bindHandler("sheet.cell.alignBottom", () => this.grid.setStyle("verticalAlign", "bottom"));
     globalCommandBus.bindHandler("sheet.cell.wrapText", () => this.grid.toggleWrapText());
+    globalCommandBus.bindHandler("sheet.cell.insertLineBreak", () => this.grid.insertLineBreak?.());
     globalCommandBus.bindHandler("sheet.cell.orientation", (value) => this.grid.setCellOrientation(value));
     globalCommandBus.bindHandler("sheet.cell.indentIncrease", () => this.grid.adjustIndent(1));
     globalCommandBus.bindHandler("sheet.cell.indentDecrease", () => this.grid.adjustIndent(-1));
@@ -1563,14 +1564,15 @@ export class SheetAdapter {
     if (category === "scientific") return `<number:number-style style:name="${name}"><number:scientific-number number:min-integer-digits="1" number:decimal-places="${decimals}" number:min-decimal-places="${decimals}" number:min-exponent-digits="2"/></number:number-style>`;
     if (category === "text") return `<number:text-style style:name="${name}"><number:text-content/></number:text-style>`;
     if (category === "date" || category === "time") {
-      const tokens = String(config.dateFormat || config.timeFormat || "dd/mm/yyyy").match(/"[^"]*"|yyyy|yy|mmmm|mm|dd|hh|ss|m|d|./gi) || [];
+      const tokens = String(config.dateFormat || config.timeFormat || (category === "time" ? "hh:mm" : "dd/mm/yyyy")).match(/"[^"]*"|yyyy|yy|mmmm|mm|dd|hh|h|ss|s|m|d|./gi) || [];
       const parts = tokens.map(token => {
         const lower = token.toLowerCase();
         if (["d", "dd"].includes(lower)) return `<number:day number:style="${lower === "dd" ? "long" : "short"}"/>`;
+        if (category === "time" && ["m", "mm"].includes(lower)) return `<number:minutes number:style="${lower === "mm" ? "long" : "short"}"/>`;
         if (["m", "mm", "mmmm"].includes(lower)) return `<number:month number:style="${lower === "m" ? "short" : "long"}"${lower === "mmmm" ? ' number:textual="true"' : ""}/>`;
         if (["yy", "yyyy"].includes(lower)) return `<number:year number:style="${lower === "yyyy" ? "long" : "short"}"/>`;
-        if (lower === "hh") return '<number:hours number:style="long"/>';
-        if (lower === "ss") return '<number:seconds number:style="long"/>';
+        if (["h", "hh"].includes(lower)) return `<number:hours number:style="${lower === "hh" ? "long" : "short"}"/>`;
+        if (["s", "ss"].includes(lower)) return `<number:seconds number:style="${lower === "ss" ? "long" : "short"}"/>`;
         return `<number:text>${this._escapeXml(token.replace(/^"|"$/g, ""))}</number:text>`;
       }).join("");
       return `<number:${category === "time" ? "time" : "date"}-style style:name="${name}">${parts}</number:${category === "time" ? "time" : "date"}-style>`;
@@ -5596,6 +5598,8 @@ ${pristineXlsxMarker}
 
       case "sheet.cell.wrapText":
         return this.grid.toggleWrapText();
+      case "sheet.cell.insertLineBreak":
+        return this.grid.insertLineBreak ? this.grid.insertLineBreak() : false;
 
       case "sheet.cell.orientation":
         return this.grid.setCellOrientation ? this.grid.setCellOrientation(args) : false;

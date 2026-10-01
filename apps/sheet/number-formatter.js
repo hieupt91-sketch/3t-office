@@ -516,14 +516,15 @@ export class NumberFormatter {
       }
     }
 
-    const timeMatch = input.match(/^(\d{1,2}):(\d{2})$/);
+    const timeMatch = input.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
     if (timeMatch) {
       const hours = Number(timeMatch[1]);
       const minutes = Number(timeMatch[2]);
-      if (hours < 24 && minutes < 60) {
+      const seconds = timeMatch[3] !== undefined ? Number(timeMatch[3]) : null;
+      if (hours < 24 && minutes < 60 && (seconds === null || seconds < 60)) {
         return {
-          value: (hours * 60 + minutes) / 1440,
-          numberFormat: { category: "time", timeFormat: "hh:mm" }
+          value: (hours * 3600 + minutes * 60 + (seconds || 0)) / 86400,
+          numberFormat: { category: "time", timeFormat: seconds !== null ? "hh:mm:ss" : "hh:mm" }
         };
       }
     }
@@ -556,8 +557,16 @@ export class NumberFormatter {
     const currency = /^(?:₫|đ|đồng|vnd|vnđ)\s*(.+)$/iu.exec(input)
       || /^(.+?)\s*(?:₫|đ|đồng|vnd|vnđ)$/iu.exec(input);
     if (currency) {
-      const number = parseNumber(currency[1].trim());
-      if (number !== null) {
+      const rawNum = currency[1].trim();
+      let number = null;
+      if (/^\d{1,3}(?:\.\d{3})+$/.test(rawNum)) {
+        number = Number(rawNum.replace(/\./g, ""));
+      } else if (/^\d{1,3}(?:,\d{3})+$/.test(rawNum)) {
+        number = Number(rawNum.replace(/,/g, ""));
+      } else {
+        number = parseNumber(rawNum);
+      }
+      if (number !== null && Number.isFinite(number)) {
         return {
           value: number,
           numberFormat: { category: "currency", currencySymbol: "₫", decimals: 0, useThousands: true, symbolPosition: "after" }

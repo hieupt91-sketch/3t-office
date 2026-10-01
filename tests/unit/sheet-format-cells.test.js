@@ -190,10 +190,12 @@ export async function runSheetFormatCellsTests() {
     assert(time.numberFormat.category === "time" && NumberFormatter.formatValue(time.value, time.numberFormat).text === "13:45", "Giờ phải có định dạng hh:mm");
     const percent = NumberFormatter.inferUserInput("25%", null, vi);
     assert(percent.value === 0.25 && percent.numberFormat.category === "percentage" && percent.numberFormat.decimals === 0, "25% phải lưu 0.25 và định dạng 0%");
-    for (const currencyText of ["₫250000", "250000 ₫", "250.000 ₫"]) {
-      const currency = NumberFormatter.inferUserInput(currencyText, null, vi);
-      assert(currency.value === 250000, `${currencyText} phải thành 250000`);
-      assert(currency.numberFormat.category === "currency" && currency.numberFormat.currencySymbol === "₫", `${currencyText} phải có định dạng tiền VND`);
+    for (const currencyText of ["₫250000", "250000 ₫", "250.000 đ", "250.000 ₫", "250000 đ", "đ250000"]) {
+      for (const loc of [vi, us, {}]) {
+        const currency = NumberFormatter.inferUserInput(currencyText, null, loc);
+        assert(currency.value === 250000, `${currencyText} (${JSON.stringify(loc)}) phải thành 250000`);
+        assert(currency.numberFormat.category === "currency" && currency.numberFormat.currencySymbol === "₫", `${currencyText} phải có định dạng tiền VND`);
+      }
     }
     assert(NumberFormatter.inferUserInput("0123", null, us).value === 123, "Số 0 đầu vào General phải thành số 123");
     assert(NumberFormatter.inferUserInput("0123", { category: "text" }, us).value === "0123", "Định dạng Text phải giữ số 0 đầu");
