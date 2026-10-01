@@ -8,6 +8,13 @@
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="alternate icon" href="favicon.ico">
   <link rel="stylesheet" href="css/style.css">
+  <script>
+    try {
+      var t = localStorage.getItem("3t_theme");
+      if (!t && window.matchMedia("(prefers-color-scheme: dark)").matches) t = "dark";
+      if (t) document.documentElement.setAttribute("data-theme", t);
+    } catch(e) {}
+  </script>
 </head>
 <body>
   <a href="#main-content" class="skip-link">Chuyển đến nội dung chính</a>
@@ -22,10 +29,6 @@
         </div>
       </a>
 
-      <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="primary-nav" aria-label="Mở trình đơn chuyển hướng">
-        ☰ Trình đơn
-      </button>
-
       <nav id="primary-nav" class="main-nav" aria-label="Điều hướng chính">
         <ul class="nav-list">
           <li><a href="index.html" class="nav-link">Trang chủ</a></li>
@@ -36,9 +39,23 @@
           <li><a href="ban-quyen.html" class="nav-link">Bản quyền</a></li>
           <li><a href="trang-thai.html" class="nav-link">Trạng thái</a></li>
           <li><a href="lien-he.html" class="nav-link">Liên hệ</a></li>
-          <li><a href="tai-ve.html" class="nav-link nav-cta">Tải 0.9.6 Pilot</a></li>
         </ul>
       </nav>
+
+      <div class="nav-actions">
+        <button type="button" class="theme-toggle-btn" aria-label="Chuyển đổi giao diện Sáng / Tối" title="Chuyển đổi giao diện Sáng / Tối">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"></circle></svg>
+        </button>
+        <a href="tai-ve.html" class="nav-cta-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+          </svg>
+          Tải 0.9.6 Pilot
+        </a>
+        <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="primary-nav" aria-label="Mở trình đơn chuyển hướng">
+          ☰
+        </button>
+      </div>
     </div>
   </header>
 
@@ -46,7 +63,7 @@
     <section class="section">
       <div class="container">
         <div class="section-header">
-          <span class="section-badge">Bản phát hành chính thức nội bộ</span>
+          <span class="badge badge-glow">Bản phát hành chính thức nội bộ</span>
           <h1 class="section-title">Tải bộ cài 3T Office cho Windows</h1>
           <p class="section-lead">
             Phiên bản thử nghiệm Pilot dành cho máy tính cá nhân và mạng nội bộ cơ quan. Cài đặt độc lập, không yêu cầu quyền quản trị viên.
@@ -54,155 +71,139 @@
         </div>
 
         <!-- Khối thông tin bộ cài thực tế -->
-        <div class="download-box">
-          <div class="download-header">
-            <div class="version-badge">
-              <span>3T Office</span>
-              <span class="tag tag-ready" data-release-field="current_version">0.9.6</span>
-              <span style="font-size: 0.875rem; color: var(--text-dim); font-weight: 600;">(Kênh Pilot)</span>
+        <div class="download-card" style="max-width: 860px; margin: 0 auto var(--space-12) auto;">
+          <div class="download-card-header">
+            <div>
+              <span class="badge badge-blue">Kênh Pilot</span>
+              <h2 style="font-size: 1.6rem; font-weight: 800; margin-top: 6px;">
+                3T Office <span data-release-field="current_version">0.9.6</span>
+              </h2>
             </div>
             <div>
               <span class="tag tag-pending">Bản dùng thử nội bộ</span>
             </div>
           </div>
 
-          <div class="file-info-grid">
-            <div class="file-info-item">
-              <span class="info-label">Tên tệp cài đặt</span>
-              <span class="info-value" data-release-field="file_name">VNOffice-Setup-0.9.6.exe</span>
+          <div class="download-specs-grid">
+            <div class="spec-item">
+              <span class="spec-label">Tên tệp cài đặt</span>
+              <span class="spec-val" data-release-field="file_name">VNOffice-Setup-0.9.6.exe</span>
               <span style="font-size: 0.8rem; color: var(--text-dim);">(hoặc Setup-0.9.6.exe)</span>
             </div>
-            <div class="file-info-item">
-              <span class="info-label">Dung lượng thực tế</span>
-              <span class="info-value" data-release-field="file_size_formatted">502 MB</span>
+            <div class="spec-item">
+              <span class="spec-label">Dung lượng thực tế</span>
+              <span class="spec-val" data-release-field="file_size_formatted">502 MB</span>
               <span style="font-size: 0.8rem; color: var(--text-dim);">(526.479.307 byte)</span>
             </div>
-            <div class="file-info-item">
-              <span class="info-label">Hệ điều hành</span>
-              <span class="info-value">Windows 10 / 11 (64-bit)</span>
+            <div class="spec-item">
+              <span class="spec-label">Hệ điều hành</span>
+              <span class="spec-val">Windows 10 / 11 (64-bit)</span>
               <span style="font-size: 0.8rem; color: var(--text-dim);">Không cần Administrator</span>
             </div>
-            <div class="file-info-item">
-              <span class="info-label">Ngày phát hành</span>
-              <span class="info-value">01/10/2026</span>
+            <div class="spec-item">
+              <span class="spec-label">Ngày phát hành</span>
+              <span class="spec-val">01/10/2026</span>
               <span style="font-size: 0.8rem; color: var(--text-dim);">Kèm ghi chú tiếng Việt</span>
             </div>
           </div>
 
-          <!-- Mã băm SHA256 đo đạc thực tế -->
-          <div style="margin-bottom: 24px;">
-            <div class="info-label" style="margin-bottom: 6px;">Mã kiểm tra toàn vẹn tệp (SHA-256)</div>
-            <div class="hash-code" data-release-field="sha256">
-              6387f9358327e442a6ba9c0367a2277a57b06d8b4b3cd9f37ffef9b228c46f11
+          <!-- Khối SHA256 kèm nút sao chép -->
+          <div class="hash-card">
+            <div class="hash-card-header">
+              <span style="font-size: 0.813rem; font-weight: 700; color: var(--text-main);">Mã kiểm tra toàn vẹn tệp (SHA-256)</span>
+              <button type="button" class="copy-btn" data-copy-target="#sha256-code" aria-label="Sao chép mã băm SHA256">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                Sao chép mã
+              </button>
             </div>
+            <code id="sha256-code" class="hash-code" data-release-field="sha256">6387f9358327e442a6ba9c0367a2277a57b06d8b4b3cd9f37ffef9b228c46f11</code>
           </div>
 
           <!-- Nút tải về bị vô hiệu hóa kèm thông báo TODO-CONFIRM theo yêu cầu -->
-          <div style="border-top: 1px solid var(--border-color); padding-top: 24px;">
-            <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 12px;">
-              <button type="button" class="btn btn-disabled" disabled aria-disabled="true">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
-                </svg>
-                Tải bản 0.9.6 Pilot (502 MB)
-              </button>
-              <span style="font-size: 0.875rem; color: var(--text-dim); font-weight: 600;">
-                (Nút tải công khai tạm khóa)
-              </span>
-            </div>
-
-            <!-- Khối đánh dấu TODO-CONFIRM -->
-            <div class="todo-confirm-box">
+          <div style="display: flex; flex-direction: column; gap: 12px; align-items: center;">
+            <button type="button" class="btn btn-primary btn-lg" disabled style="opacity: 0.65; cursor: not-allowed; width: 100%; max-width: 440px;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+              </svg>
+              Tải bản cài đặt 0.9.6 (502 MB)
+            </button>
+            <div class="todo-confirm-box" style="width: 100%; max-width: 600px; text-align: center;">
               <span class="todo-confirm-badge">TODO-CONFIRM</span>
-              <strong>Lưu ý chủ quản dự án:</strong> Cổng tải công khai sẽ chính thức mở khi máy chủ cập nhật và dịch vụ phân phối tệp tĩnh trên 3T Cloud hoàn tất triển khai. Hiện tại bộ cài 0.9.6 được cung cấp trực tiếp qua kho chia sẻ mạng nội bộ văn phòng tại địa chỉ <code>\\192.168.1.252\company1\Software\VNOffice</code>.
+              Đường dẫn tải trực tiếp nội bộ đang được cấu hình trên hạ tầng phân phối máy chủ.
             </div>
           </div>
         </div>
 
-        <!-- Khối Yêu cầu hệ thống -->
-        <div style="margin-bottom: 48px;">
-          <h2 style="font-size: 1.5rem; font-weight: 800; margin-bottom: 18px; color: var(--text-main);">Yêu cầu hệ thống đo đạc thực tế</h2>
-          <div class="requirements-grid">
-            <div class="req-card">
-              <h3>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--brand-orange)" aria-hidden="true"><path d="M4 6h16v12H4z"/></svg>
-                Phần cứng máy tính
-              </h3>
-              <ul class="req-list">
-                <li><strong>Bộ xử lý (CPU):</strong> 64-bit kiến trúc x86-64 tốc độ 1.6 GHz trở lên.</li>
-                <li><strong>Bộ nhớ RAM:</strong> Tối thiểu 4 GB RAM (khuyến nghị 8 GB trở lên để mở các bảng tính lớn nhiều sheet).</li>
-                <li><strong>Ổ đĩa trống:</strong> Khoảng 1.5 GB dung lượng trống (bộ cài nén 502 MB + 256 MiB bộ đệm giải nén).</li>
-                <li><strong>Màn hình:</strong> Độ phân giải tối thiểu 1024 x 768 px (tối ưu từ 1366 x 768 px trở lên).</li>
-              </ul>
+        <!-- Hướng dẫn cài đặt 3 bước -->
+        <div class="stepper-wrap" style="max-width: 860px; margin: 0 auto var(--space-12) auto;">
+          <h2 style="font-size: 1.35rem; font-weight: 800; text-align: center; margin-bottom: var(--space-8);">
+            Quy trình cài đặt 3 bước đơn giản
+          </h2>
+          <div class="stepper-grid">
+            <div class="stepper-step">
+              <div class="stepper-node">1</div>
+              <h3 class="stepper-step-title">Tải về máy tính</h3>
+              <p class="stepper-step-desc">
+                Lưu tệp <code>VNOffice-Setup-0.9.6.exe</code> vào thư mục Downloads hoặc ổ đĩa cục bộ bất kỳ.
+              </p>
             </div>
-
-            <div class="req-card">
-              <h3>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--brand-orange)" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9v-2h2v2zm0-4H9V7h2v5z"/></svg>
-                Hệ điều hành & Môi trường
-              </h3>
-              <ul class="req-list">
-                <li><strong>Hệ điều hành:</strong> Windows 10 hoặc Windows 11 (phiên bản 64-bit).</li>
-                <li><strong>Thành phần giao diện:</strong> Edge WebView2 Runtime (đã có sẵn mặc định trên các bản Windows 10/11 hiện đại).</li>
-                <li><strong>Kết nối Internet:</strong> Hoàn toàn không cần Internet để sử dụng ứng dụng sau khi cài đặt.</li>
-                <li><strong>Quyền hạn:</strong> Cài đặt theo tài khoản người dùng cá nhân trong thư mục <code>%LOCALAPPDATA%\VNOffice</code>, không cần tài khoản Administrator.</li>
-              </ul>
+            <div class="stepper-step">
+              <div class="stepper-node">2</div>
+              <h3 class="stepper-step-title">Khởi chạy bộ cài</h3>
+              <p class="stepper-step-desc">
+                Nhấp đúp chuột để mở tệp. Trình cài đặt tự động giải nén và thiết lập biểu tượng 3T Doc, Sheet, Slide ngoài màn hình.
+              </p>
+            </div>
+            <div class="stepper-step">
+              <div class="stepper-node">3</div>
+              <h3 class="stepper-step-title">Bắt đầu sử dụng</h3>
+              <p class="stepper-step-desc">
+                Mở ứng dụng và bắt đầu soạn thảo ngay. Hoàn toàn ngoại tuyến, không đòi hỏi đăng ký hay kết nối mạng.
+              </p>
             </div>
           </div>
         </div>
 
-        <!-- Khối Các bước cài đặt chi tiết -->
-        <div>
-          <h2 style="font-size: 1.5rem; font-weight: 800; margin-bottom: 18px; color: var(--text-main);">Các bước cài đặt bằng bộ cài (Khuyên dùng)</h2>
-          <div class="steps-container">
-            <div class="step-card">
-              <div class="step-number">1</div>
-              <div class="step-content">
-                <h4>Nhận tệp cài đặt chính thức</h4>
-                <p>
-                  Nhận tệp <code>VNOffice-Setup-0.9.6.exe</code> từ người phụ trách hoặc từ kho chia sẻ nội bộ <code>\\192.168.1.252\company1\Software\VNOffice</code>. Đóng mọi cửa sổ 3T Doc / 3T Sheet / 3T Slide nếu đang mở phiên bản cũ.
-                </p>
-              </div>
-            </div>
+        <!-- Yêu cầu hệ thống -->
+        <div style="max-width: 860px; margin: 0 auto; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: var(--space-8);">
+          <h2 style="font-size: 1.35rem; font-weight: 800; margin-bottom: var(--space-4);">
+            Yêu cầu cấu hình hệ thống
+          </h2>
+          <div class="matrix-table-wrap">
+            <table class="matrix-table">
+              <tbody>
+                <tr>
+                  <th scope="row" style="width: 200px;">Hệ điều hành</th>
+                  <td>Windows 10 (Phiên bản 1809 trở lên) hoặc Windows 11 (Kiến trúc 64-bit)</td>
+                </tr>
+                <tr>
+                  <th scope="row">Bộ vi xử lý (CPU)</th>
+                  <td>Tốc độ 1.6 GHz hoặc nhanh hơn, hỗ trợ tối thiểu 2 nhân xử lý</td>
+                </tr>
+                <tr>
+                  <th scope="row">Bộ nhớ trong (RAM)</th>
+                  <td>Khuyến nghị 4 GB trở lên (Tối thiểu 2 GB đáp ứng các tác vụ cơ bản)</td>
+                </tr>
+                <tr>
+                  <th scope="row">Dung lượng ổ đĩa</th>
+                  <td>Tối thiểu 1.5 GB dung lượng trống để cài đặt trọn vẹn bộ ba ứng dụng</td>
+                </tr>
+                <tr>
+                  <th scope="row">Độ phân giải màn hình</th>
+                  <td>Độ phân giải tối thiểu 1280 &times; 720 (Khuyến nghị 1920 &times; 1080 Full HD)</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
-            <div class="step-card">
-              <div class="step-number">2</div>
-              <div class="step-content">
-                <h4>Khởi chạy tệp Setup</h4>
-                <p>
-                  Nhấp đúp vào tệp <code>VNOffice-Setup-0.9.6.exe</code>. Toàn bộ giao diện hướng dẫn sử dụng tiếng Việt rõ ràng. Không cần bấm chuột phải chọn "Run as administrator".
-                </p>
-              </div>
-            </div>
-
-            <div class="step-card">
-              <div class="step-number">3</div>
-              <div class="step-content">
-                <h4>Xác nhận cảnh báo bảo vệ máy (SmartScreen) nếu có</h4>
-                <p>
-                  Do bản dùng thử nội bộ đang trong giai đoạn hoàn thiện và chưa cấp chứng thư ký mã thương mại, Windows có thể hiển thị hộp thoại thông báo bảo vệ. Khi kiểm tra đúng tên tệp và mã băm SHA256 chính thống, bấm chọn <strong>More info</strong> (Thông tin khác) rồi chọn <strong>Run anyway</strong> (Vẫn chạy).
-                </p>
-              </div>
-            </div>
-
-            <div class="step-card">
-              <div class="step-number">4</div>
-              <div class="step-content">
-                <h4>Tùy chọn lối tắt và Định dạng tệp</h4>
-                <p>
-                  Chấp nhận đường dẫn cài đặt mặc định trong hồ sơ người dùng hiện tại. Tùy chọn tạo lối tắt trên Màn hình nền được chọn sẵn. Đánh dấu tùy chọn đăng ký phần mở rộng tệp nếu muốn 3T Office làm ứng dụng mặc định cho .docx, .xlsx, .pptx.
-                </p>
-              </div>
-            </div>
-
-            <div class="step-card">
-              <div class="step-number">5</div>
-              <div class="step-content">
-                <h4>Hoàn tất và Sử dụng</h4>
-                <p>
-                  Nhấn <strong>Cài đặt</strong>. Sau khi quá trình hoàn tất, bạn có thể mở ngay 3T Doc, 3T Sheet hoặc 3T Slide từ biểu tượng trên Màn hình nền hoặc từ menu Start &gt; 3T Office.
-                </p>
-              </div>
+          <!-- Lệnh kiểm tra SHA256 qua PowerShell -->
+          <div style="margin-top: var(--space-6);">
+            <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 8px;">Xác minh mã băm qua Windows PowerShell</h3>
+            <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 8px;">
+              Mở PowerShell tại thư mục chứa tệp và gõ lệnh sau để đối chiếu mã SHA-256:
+            </p>
+            <div style="overflow-x: auto; max-width: 100%;">
+              <pre style="background: var(--bg-subtle); padding: 12px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); font-size: 0.85rem;"><code>Get-FileHash -Algorithm SHA256 .\VNOffice-Setup-0.9.6.exe</code></pre>
             </div>
           </div>
         </div>
@@ -214,16 +215,16 @@
     <div class="container">
       <div class="footer-grid">
         <div class="footer-col">
-          <div class="brand-link" style="margin-bottom: 14px;">
-            <img src="assets/icons/3t-mark.svg" alt="3T Logo" class="brand-icon">
+          <a href="index.html" class="brand-link" style="margin-bottom: 14px;">
+            <img src="assets/icons/3t-mark.svg" alt="Biểu trưng 3T Office" class="brand-icon">
             <div class="brand-text">
               <span class="brand-name">3T <span>Office</span></span>
               <span class="brand-tagline">Văn phòng ngoại tuyến</span>
             </div>
-          </div>
+          </a>
           <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;">
-            Bộ ứng dụng văn phòng chạy ngoại tuyến cho Windows phát triển bởi 3T Computer / 3T Technology.
-            Tôn trọng quyền riêng tư dữ liệu, xử lý trực tiếp trên thiết bị của bạn.
+            Bộ ứng dụng văn phòng chạy ngoại tuyến cho Windows được nghiên cứu và phát triển bởi 3T Computer. 
+            Tôn trọng tối đa quyền riêng tư và quyền sở hữu dữ liệu của người dùng.
           </p>
         </div>
 
@@ -233,54 +234,42 @@
             <li><a href="tinh-nang.html#doc">3T Doc (.docx)</a></li>
             <li><a href="tinh-nang.html#sheet">3T Sheet (.xlsx)</a></li>
             <li><a href="tinh-nang.html#slide">3T Slide (.pptx)</a></li>
-            <li><a href="tinh-nang.html">Toàn bộ tính năng</a></li>
+            <li><a href="tinh-nang.html">Danh mục tính năng</a></li>
           </ul>
         </div>
 
         <div class="footer-col">
           <h4>Thông tin</h4>
           <ul class="footer-links">
-            <li><a href="tai-ve.html">Tải bộ cài 0.9.6</a></li>
-            <li><a href="co-gi-moi.html">Ghi chú phát hành</a></li>
+            <li><a href="tai-ve.html">Tải về bộ cài</a></li>
+            <li><a href="co-gi-moi.html">Có gì mới (0.9.6)</a></li>
+            <li><a href="huong-dan.html">Hướng dẫn sử dụng</a></li>
             <li><a href="ban-quyen.html">Chính sách bản quyền</a></li>
-            <li><a href="trang-thai.html">Kiểm tra trạng thái</a></li>
           </ul>
         </div>
 
         <div class="footer-col">
-          <h4>Hỗ trợ</h4>
+          <h4>Kết nối &amp; Hỗ trợ</h4>
           <ul class="footer-links">
-            <li><a href="huong-dan.html">Hướng dẫn sử dụng</a></li>
-            <li><a href="huong-dan.html#shortcuts">Phím tắt thường dùng</a></li>
-            <li><a href="huong-dan.html#faq">Khác biệt cần biết</a></li>
-            <li><a href="lien-he.html">Liên hệ 3T Computer</a></li>
+            <li><a href="lien-he.html">Thông tin liên hệ</a></li>
+            <li><a href="trang-thai.html">Kiểm tra trạng thái máy chủ</a></li>
+            <li><a href="https://office.3tcomputer.com">Cổng thông tin 3T Office</a></li>
+            <li><a href="https://3tcomputer.com">Trang chủ 3T Computer</a></li>
           </ul>
         </div>
       </div>
 
       <div class="footer-bottom">
         <div>
-          © 2024–2026 3T Computer / 3T Technology. Bảo lưu mọi quyền.
+          Bản quyền © 2026 3T Office — Sản phẩm công nghệ văn phòng 3T Computer. Hoạt động ngoại tuyến 100%.
         </div>
         <div>
-          Trang web chính thức: <a href="https://office.3tcomputer.com" style="color: var(--brand-orange); text-decoration: none;">office.3tcomputer.com</a>
+          Tiêu chuẩn hành chính Việt Nam &bull; Hỗ trợ bảng mã Unicode dựng sẵn (NFC)
         </div>
       </div>
     </div>
   </footer>
 
-  <!-- Dữ liệu dự phòng nhúng trực tiếp để hoạt động khi mở từ file:// -->
-  <script>
-    window.__FALLBACK_RELEASES__ = {
-      product: "3T Office",
-      current_version: "0.9.6",
-      download: {
-        file_name: "VNOffice-Setup-0.9.6.exe",
-        file_size_formatted: "502 MB",
-        sha256: "6387f9358327e442a6ba9c0367a2277a57b06d8b4b3cd9f37ffef9b228c46f11"
-      }
-    };
-  </script>
   <script src="js/main.js"></script>
 </body>
 </html>

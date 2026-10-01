@@ -216,6 +216,45 @@ export async function run3tWebTests() {
     assert("robots.txt tồn tại và có chỉ thị Sitemap", fs.existsSync(robotsPath) && fs.readFileSync(robotsPath, "utf-8").includes("sitemap.xml"));
     assert("sitemap.xml tồn tại và chứa URL office.3tcomputer.com", fs.existsSync(sitemapPath) && fs.readFileSync(sitemapPath, "utf-8").includes("office.3tcomputer.com"));
 
+    // 11. Kiểm tra mọi trang HTML đều có skip link truy cập bàn phím
+    for (const page of HTML_PAGES) {
+      const pagePath = path.join(webRoot, page);
+      if (!fs.existsSync(pagePath)) continue;
+      const html = fs.readFileSync(pagePath, "utf-8");
+      const hasSkipLink = /<a\b[^>]*href=["']#main-content["'][^>]*class=["'][^"']*skip-link[^"']*["']/i.test(html) ||
+                          /<a\b[^>]*class=["'][^"']*skip-link[^"']*["'][^>]*href=["']#main-content["']/i.test(html);
+      assert(`${page} có liên kết bỏ qua trợ năng (skip link #main-content)`, hasSkipLink);
+    }
+
+    // 12. Kiểm tra mọi trang HTML đều có nút chuyển đổi giao diện Sáng / Tối (Theme Toggle)
+    for (const page of HTML_PAGES) {
+      const pagePath = path.join(webRoot, page);
+      if (!fs.existsSync(pagePath)) continue;
+      const html = fs.readFileSync(pagePath, "utf-8");
+      const hasThemeToggle = /class=["'][^"']*theme-toggle-btn[^"']*["']/i.test(html);
+      assert(`${page} có nút chuyển đổi giao diện Sáng / Tối (theme toggle)`, hasThemeToggle);
+    }
+
+    // 13. Kiểm tra CSS: Không có hoạt ảnh nào thiếu bộ bảo vệ prefers-reduced-motion
+    const cssPath = path.join(webRoot, "css/style.css");
+    assert("Tệp style.css tồn tại", fs.existsSync(cssPath));
+    if (fs.existsSync(cssPath)) {
+      const cssContent = fs.readFileSync(cssPath, "utf-8");
+      const hasReducedMotionMedia = cssContent.includes("@media (prefers-reduced-motion: reduce)");
+      assert("style.css có khối @media (prefers-reduced-motion: reduce)", hasReducedMotionMedia);
+
+      // Kiểm tra tất cả các định nghĩa @keyframes đều có quy tắc tắt tương ứng
+      const keyframeMatches = [...cssContent.matchAll(/@keyframes\s+([a-zA-Z0-9_-]+)/g)].map(m => m[1]);
+      assert("style.css có định nghĩa keyframes chuyển động", keyframeMatches.length > 0);
+
+      // Kiểm tra xem trong khối reduced-motion có animation-duration: 0.001ms hoặc animation: none
+      const reducedMotionBlock = cssContent.slice(cssContent.indexOf("@media (prefers-reduced-motion: reduce)"));
+      const hasGlobalAnimationReset = reducedMotionBlock.includes("animation-duration:") &&
+                                      reducedMotionBlock.includes("transition-duration:") &&
+                                      reducedMotionBlock.includes("scroll-behavior: auto !important");
+      assert("style.css có cơ chế vô hiệu hóa toàn diện animation/transition dưới prefers-reduced-motion", hasGlobalAnimationReset);
+    }
+
   } catch (err) {
     results.push({
       name: "[3T Web] Ngoại lệ kiểm thử",

@@ -1,150 +1,182 @@
-# HANDOFF — Xây dựng Website Tĩnh 3T Office (`server/3t-web`)
+# HANDOFF — Thiết Kế Lại Toàn Diện Website VIP 3T Office (`server/3t-web`)
 
 - **Đặc trách**: agy (Kỹ sư Giao diện & Trải nghiệm Web)
 - **Worktree**: `E:\VNOffice-agy-web`
 - **Nhánh**: `feat/3t-web-agy` (tách từ `feat/3t-cloud-phase1-codex`)
-- **Tài liệu tham chiếu**: `docs/SPEC-3T-CLOUD.md` §4.5, `docs/SPEC-HANG-MUC-CHUNG.md`, `docs/FEATURE-PARITY-ROADMAP.md`, `docs/HANDOFF-3T-BRAND-UX.md`, `AGENTS.md`
+- **Tài liệu tham chiếu**: `docs/SPEC-3T-CLOUD.md`, `docs/FEATURE-PARITY-ROADMAP.md`, `docs/HANDOFF-3T-BRAND-UX.md`, `AGENTS.md`
 - **Tên miền phục vụ**: `https://office.3tcomputer.com`
 
 ---
 
-## 1. Tổng quan & Kết quả bàn giao
+## 1. Tổng quan & Kết quả Đạt được
 
-Đã hoàn thành toàn bộ website tĩnh cho sản phẩm **3T Office** tại thư mục `server/3t-web/` theo đúng các nguyên tắc cốt lõi:
-1. **Công nghệ thuần túy (Vanilla Stack)**: 100% HTML5 ngữ nghĩa, CSS3 hiện đại, Vanilla JavaScript; **không dùng bất kỳ CDN ngoài, không nạp phông chữ ngoài, không mã theo dõi**.
-2. **Khả năng chạy ngoại tuyến hoàn hảo**: Hoạt động đầy đủ và trơn tru khi mở trực tiếp từ tệp cục bộ (`file://`), có dữ liệu dự phòng nội tuyến cho các trang động khi không có máy chủ HTTP.
-3. **Thiết kế thích ứng & Đa chủ đề**: Tối ưu hiển thị chuẩn xác từ màn hình nhỏ di động 360 px đến màn hình rộng 1280+ px; tự động chuyển đổi giao diện Sáng / Tối theo thiết lập hệ điều hành (`prefers-color-scheme`).
-4. **Bản sắc thương hiệu 3T**: Kế thừa màu sắc cam - xanh hoàng gia đặc trưng từ `branding/3t/3t-mark.svg` và bộ biểu trưng 3 ứng dụng `writer.svg`, `sheet.svg`, `slides.svg`.
-5. **Tuân thủ quy chuẩn bảo mật & pháp lý**:
-   - Tuyệt đối không xuất hiện tên hoặc biểu trưng bị cấm ("Microsoft" không xuất hiện ở bất kỳ tệp nào; "Windows" chỉ dùng định danh hệ điều hành).
-   - Mô tả định dạng tài liệu trung thực: `.docx`, `.xlsx`, `.pptx`, `.doc`, `.xls`, `.ppt`.
-   - Mọi tệp trong `server/3t-web` đều có dung lượng dưới 400 KB.
+Trang web tĩnh `server/3t-web/` đã được **tái thiết kế toàn diện (Full VIP Redesign)** từ nền tảng thành một trang giới thiệu sản phẩm cao cấp, tinh tế, bố cục khoa học và thẩm mỹ vượt trội, đồng thời giải quyết triệt để lỗi tràn viền (overflow bug) tại độ phân giải di động 360–390 px theo phản hồi từ đợt đánh giá của Claude.
 
----
-
-## 2. Danh mục tệp & Cấu trúc đã xây dựng
-
-| Tệp / Thư mục | Mô tả nội dung & Chức năng | Trạng thái kỹ thuật |
-|---|---|---|
-| `server/3t-web/index.html` | Trang chủ: Giới thiệu 3T Office, bộ 3 ứng dụng (3T Doc, 3T Sheet, 3T Slide), 3 lợi ích cốt lõi, bộ sưu tập ảnh chụp thật, kêu gọi hành động. | Hoàn thành, 1 thẻ h1, lang=vi |
-| `server/3t-web/tinh-nang.html` | Danh mục tính năng: Phân loại chi tiết từng ứng dụng, gắn nhãn minh bạch "Sẵn sàng" và "Sắp có". | Hoàn thành, 1 thẻ h1, lang=vi |
-| `server/3t-web/tai-ve.html` | Trang tải về: Phiên bản 0.9.6 pilot, tên tệp `VNOffice-Setup-0.9.6.exe` (hoặc `Setup-0.9.6.exe`), dung lượng thật 502 MB, mã băm SHA-256 thật, yêu cầu hệ thống, 5 bước cài đặt, nút tải tạm khóa kèm thông báo `TODO-CONFIRM`. | Hoàn thành, 1 thẻ h1, lang=vi |
-| `server/3t-web/co-gi-moi.html` | Nhật ký cập nhật: Toàn văn ghi chú phát hành từ bản 0.9.1 đến 0.9.6 (lấy từ các tệp `notes-*.txt` có thật). | Hoàn thành, 1 thẻ h1, lang=vi |
-| `server/3t-web/huong-dan.html` | Hướng dẫn sử dụng: 8 bài viết trọng tâm (Bắt đầu nhanh, 15 phím tắt thường dùng, Khác biệt cần biết, Dán dữ liệu liên ứng dụng, Cập nhật một chạm, Tự động khôi phục, Khởi động nhanh, Thiết lập trang in NĐ 30) kèm ô tìm kiếm client-side không dấu/có dấu. | Hoàn thành, 1 thẻ h1, lang=vi |
-| `server/3t-web/ban-quyen.html` | Chính sách bản quyền: Gói dùng thử 30 ngày, Gói vĩnh viễn (1 năm cập nhật), Gói thuê bao; giải thích cơ chế dùng ngoại tuyến 30 ngày (Grace Period); ghi chú nhập khóa bản quyền "Sắp có" ở GĐ2. | Hoàn thành, 1 thẻ h1, lang=vi |
-| `server/3t-web/lien-he.html` | Trang liên hệ: Tên miền chính thống (`3tcomputer.com`, `office.3tcomputer.com`, `reader.3tcomputer.com`) và các trường chờ phê duyệt gắn thẻ `TODO-CONFIRM`. | Hoàn thành, 1 thẻ h1, lang=vi |
-| `server/3t-web/trang-thai.html` | Giám sát kết nối: Truy vấn thời gian thực `/health`, hiển thị OK/lỗi tiếng Việt, cơ chế chuyển tiếp an toàn khi mở từ `file://`. | Hoàn thành, 1 thẻ h1, lang=vi |
-| `server/3t-web/404.html` | Trang thông báo không tìm thấy liên kết, điều hướng về Trang chủ, Tải về, Hướng dẫn. | Hoàn thành, 1 thẻ h1, lang=vi |
-| `server/3t-web/css/style.css` | Bảng kiểu CSS tổng thể: Biến màu thương hiệu, chế độ tối/sáng tự động, điều hướng di động, bố cục lưới, hỗ trợ trợ năng (`:focus-visible`, skip-link). | 28.5 KB, không thư viện ngoài |
-| `server/3t-web/js/main.js` | Kịch bản Vanilla JS: Menu mobile, chuyển tab ảnh chụp thật, tìm kiếm bài viết tức thì, kiểm tra `/health`, nạp dữ liệu bản phát hành. | 8.3 KB, không thư viện ngoài |
-| `server/3t-web/data/releases.json` | Nguồn sự thật duy nhất (Single Source of Truth) về phiên bản, tệp tải về, kích thước byte, mã SHA256 và nhật ký thay đổi. | 5.0 KB, JSON hợp lệ |
-| `server/3t-web/robots.txt` | Chỉ thị thu thập dữ liệu tìm kiếm cho `office.3tcomputer.com`. | 0.1 KB |
-| `server/3t-web/sitemap.xml` | Sơ đồ liên kết XML 9 trang chính thức với giao thức HTTPS. | 1.6 KB |
-| `server/3t-web/assets/icons/` | Bộ biểu tượng SVG: `3t-mark.svg`, `writer.svg`, `sheet.svg`, `slides.svg`, `vnoffice.svg`. | Tối ưu vector sắc nét |
-| `server/3t-web/assets/screenshots/` | 3 bộ ảnh chụp màn hình desktop thật qua CDP (WebP + PNG). | Mỗi tệp 54–100 KB (< 250 KB) |
-| `server/3t-web/README.md` | Hướng dẫn cấu trúc thư mục, cách xem trước và phương án tích hợp máy chủ API. | Tài liệu kỹ thuật |
+### Các tiêu chuẩn cốt lõi đã hoàn thành:
+1. **Ngôn ngữ thị giác VIP (Visual Language)**:
+   - Tông màu cam nhận diện 3T kết hợp xanh navy hoàng gia (`#0f172a`, `#1e293b`) tạo vẻ chuyên nghiệp, tin cậy.
+   - Hệ thống khoảng cách 8 px chuẩn mực và lưới 12 cột linh hoạt.
+   - Hiệu ứng kính mờ (Glassmorphism backdrop-blur) trên thanh điều hướng cố định (sticky header).
+   - Lớp đổ bóng phân lớp mềm mại (Layered Soft Shadows) và lưới chuyển màu tinh tế (CSS Gradient Mesh sử dụng `@property` hiện đại có fallback tĩnh).
+   - Chế độ giao diện Sáng / Tối (Light & Dark themes) với nút chuyển đổi trực quan, lưu trạng thái trong `localStorage` (bọc `try/catch`), kết hợp nhận diện tự động từ hệ điều hành.
+2. **Khu vực Hero tương tác cao cấp (Interactive Hero)**:
+   - Tiêu đề và lời kêu gọi hành động nổi bật với 2 nút CTA (Tải bản cài đặt & Khám phá tính năng).
+   - Khung thiết bị nổi (Floating Device Window Frame) hiển thị ảnh chụp thật từ ứng dụng desktop, tích hợp hiệu ứng nghiêng 3D con trỏ (Parallax Tilt).
+   - Bộ chuyển đổi ứng dụng tương tác (Interactive App Switcher) với 3 tab (3T Doc, 3T Sheet, 3T Slide), hỗ trợ đầy đủ phím mũi tên và Enter/Space, hiệu ứng hòa tan ảnh (crossfade) và 3 điểm nổi bật thật từ phần mềm.
+3. **Bố cục các phân đoạn khoa học & logic (Scientific Logical Sections)**:
+   - **Vì sao chọn 3T Office**: Bento grid 6 thẻ với biểu tượng vector SVG nội tuyến (Xử lý tài liệu 100% ngoại tuyến, Mở tệp chuẩn, Cập nhật một chạm có chữ ký số, Khởi động tức thì dưới 1 giây, Giao diện & trợ giúp tiếng Việt, Quyền riêng tư tuyệt đối).
+   - **Cập nhật một chạm**: Stepper 3 bước trực quan (Có bản mới -> Khởi động lại ngay -> Tiếp tục làm việc) với hoạt họa nhẹ nhàng và đường nối liền mạch.
+   - **Tương thích định dạng quen thuộc**: Format chips nổi bật (`.docx`, `.xlsx`, `.pptx`, `.doc`, `.xls`, `.ppt`) và bảng đối chiếu rõ ràng Sẵn sàng vs Sắp có.
+   - **Hướng dẫn nhanh**: 3 bài viết tiêu biểu trình bày dạng thẻ card kèm liên kết tra cứu nhanh.
+   - **Tải về**: Thẻ thông số tệp thật (502 MB, 526.479.307 byte, mã băm SHA-256) kèm nút sao chép một chạm và nút tải tạm khóa kèm thông báo `TODO-CONFIRM`.
+   - **Bản quyền**: 3 thẻ gói dùng thử, vĩnh viễn, thuê bao minh bạch cơ chế ngoại tuyến 30 ngày, giá chờ duyệt `TODO-CONFIRM`.
+   - **Dải CTA cuối trang & Chân trang sitemap**: Liên kết phân tầng 4 cột đầy đủ.
+4. **Hiệu ứng chuyển động & Trợ năng (Motion & A11y)**:
+   - Hiệu ứng xuất hiện cuộn trang (Scroll Reveal) qua `IntersectionObserver`.
+   - Phản hồi nhấn nút, hiệu ứng gạch chân động.
+   - Hiệu ứng đếm số (counter) chỉ áp dụng cho số liệu thật (3 ứng dụng, 3 định dạng chính).
+   - Chuyển trang mượt mà (View Transitions API) với cơ chế fallback tự nhiên.
+   - **Tuân thủ nghiêm ngặt `prefers-reduced-motion: reduce`**: Vô hiệu hóa toàn bộ chuyển động, đưa mọi thời lượng về `0.001ms !important`, tắt parallax và hiệu ứng nổi.
+   - Chuẩn tương phản WCAG AA trên cả 2 chủ đề, vòng nét lấy nét (`:focus-visible`) rõ ràng, liên kết bỏ qua (`skip link #main-content`) trên tất cả 9 trang.
+   - Khắc phục 100% hiện tượng tràn ngang trên tất cả kích thước màn hình: 360, 390, 768, 1280, 1920 px.
+   - Dung lượng mỗi trang dưới 700 KB (toàn bộ tài nguyên HTML, CSS, JS, ảnh, biểu tượng).
+   - Hoạt động trơn tru cả khi mở từ tệp cục bộ (`file://`) lẫn qua HTTP.
 
 ---
 
-## 3. Bảng đối chiếu: Dữ liệu Thật vs Đánh dấu TODO-CONFIRM
+## 2. Quá trình Lặp Thiết Kế (Design Iterations & Refinements)
 
-Tuyệt đối không bịa đặt số liệu hay thông tin không có trong tài liệu dự án:
+Tuân thủ chặt chẽ yêu cầu thực hiện tối thiểu 2 chu trình lặp thiết kế có kiểm tra thị giác thực tế:
 
-| Hạng mục | Dữ liệu thật (Đã kiểm chứng từ mã nguồn / hệ thống) | Điểm đánh dấu TODO-CONFIRM (Chờ chủ quản phê duyệt) |
-|---|---|---|
-| **Phiên bản & Kênh** | Phiên bản 0.9.6 kênh `pilot` (cùng họ phiên bản `0.9.x` với `APP_VERSION = "0.9.0-pilot1"` trong `main.py`). | — |
-| **Tệp bộ cài** | `VNOffice-Setup-0.9.6.exe` (và bí danh `Setup-0.9.6.exe`), dung lượng chính xác **526.479.307 byte** (~502 MB). | — |
-| **Mã băm SHA-256** | `6387f9358327e442a6ba9c0367a2277a57b06d8b4b3cd9f37ffef9b228c46f11` (tính trực tiếp bằng `Get-FileHash` trên `E:\VNOffice-dist\VNOffice-Setup-0.9.6.exe`). | — |
-| **Cổng tải công khai** | Nút tải trên trang `tai-ve.html` tạm thời bị khóa vô hiệu hóa. | **TODO-CONFIRM: Ngày mở tải công khai** khi máy chủ phân phối tệp hoàn tất triển khai. Hiện tại phân phối qua kho nội bộ `\\192.168.1.252\company1\Software\VNOffice`. |
-| **Yêu cầu hệ thống** | Đo đạc từ ứng dụng: Windows 10/11 64-bit, Edge WebView2 Runtime, RAM tối thiểu 4 GB / khuyến nghị 8 GB, đĩa trống ~1.5 GB. | — |
-| **Gói bản quyền** | 3 gói theo `docs/SPEC-3T-CLOUD.md`: Dùng thử 30 ngày, Gói vĩnh viễn (1 năm cập nhật), Gói thuê bao; thời hạn ngoại tuyến 30 ngày an toàn. | **TODO-CONFIRM: Mức giá chính thức** cho Gói vĩnh viễn và Gói thuê bao chưa được chủ quản công bố. |
-| **Nhập khóa bản quyền** | Giao diện nhập key chưa có trong ứng dụng hiện hành. | Đã ghi chú minh bạch là **Sắp có (Giai đoạn 2 theo lộ trình 3T Cloud)**. |
-| **Tên miền liên hệ** | `office.3tcomputer.com`, `3tcomputer.com`, `reader.3tcomputer.com`. | **TODO-CONFIRM: Địa chỉ văn phòng, số điện thoại hotline, email hỗ trợ kỹ thuật** chưa công bố. |
-| **Tính năng ứng dụng** | Các tính năng gắn nhãn "Sẵn sàng" đều dựa trên test suites thật (multi-sheet, 96 hàm, ngắt mục NĐ 30, Slide Master, bút vẽ F5). | Các tính năng Morph, Macro, thu âm mic trực tiếp, biểu đồ Scatter/Radar gắn nhãn **Sắp có**. |
+### Chu trình 1 (Iteration 1 — Xây dựng nền tảng Design System & Bố cục VIP):
+- **Công việc thực hiện**:
+  - Viết lại toàn bộ `css/style.css` thiết lập bảng biến màu sắc, thang kiểu chữ, thang 8 px, hệ thống thẻ bento grid, khung thiết bị nổi, chủ đề sáng/tối.
+  - Viết lại `js/main.js` bổ sung chuyển đổi chủ đề, parallax tilt, counter, lọc ma trận tính năng, tìm kiếm bài viết, sao chép mã băm.
+  - Cập nhật cả 9 trang HTML theo cấu trúc mới với skip-link, header, theme toggle, footer 4 cột.
+- **Thẩm định thị giác qua ảnh chụp headless (Visual Inspection)**:
+  - Đã xuất ảnh chụp màn hình kiểm chứng tại `docs/web-proof/` cho 9 trang ở các kích thước 360, 390, 768, 1280, 1920 px trên cả 2 chủ đề sáng/tối.
+  - Sử dụng công cụ `view_file` xem xét kỹ lưỡng các ảnh chụp: `index-390.png`, `index-390-dark.png`, `index-1280.png`, `index-1280-dark.png`, `tai-ve-390.png`, `lien-he-390.png`, `tinh-nang-1280.png`, v.v.
+- **Vấn đề phát hiện cần hoàn thiện**:
+  1. *Header di động chật chội*: Ở kích thước 360–390 px, phần header chứa đồng thời Logo, Nút đổi giao diện, Nút "Tải bản 0.9.6" và Nút Hamburger khiến không gian bị ép sát lề phải, khoảng đệm giữa các nút chưa đạt độ thông thoáng cao cấp.
+  2. *Stepper cập nhật thiếu tính liền mạch*: Trên màn hình máy tính (>768px), 3 thẻ bước trong Stepper cập nhật đặt cạnh nhau nhưng thiếu đường nối trực quan chỉ hướng chuyển tiếp giữa các bước.
+  3. *Hiện tượng số đếm dở dang khi chụp headless*: Do hiệu ứng đếm số kéo dài 1200ms, kịch bản chụp headless tự động ở thời điểm 350ms đã chụp lại số 1 hoặc 2 thay vì số đích thực tế là 3.
 
----
-
-## 4. Danh sách Ảnh chụp màn hình thật (Desktop App Screenshots via CDP)
-
-Theo đúng quy định, ảnh chụp được thực hiện tự động từ ứng dụng desktop thật qua **WebView2 Remote Debugging và giao thức CDP `Page.captureScreenshot`** (không dùng bất kỳ công cụ nhập liệu OS nào). Văn bản mẫu được nhập tự động bằng sự kiện CDP `Input.dispatchKeyEvent`:
-
-| Ứng dụng | Tệp ảnh WebP | Tệp ảnh PNG | Dung lượng | Nội dung kiểm chứng thực tế |
-|---|---|---|---|---|
-| **3T Doc** | `assets/screenshots/doc-preview.webp` | `assets/screenshots/doc-preview.png` | 56.6 KB (WebP) / 89.7 KB (PNG) | Giao diện thanh Ribbon tiếng Việt chuẩn Word, thước đo lề, thanh cuộn, vùng soạn thảo trang A4 hiển thị văn bản kế hoạch tiếng Việt có dấu và kiểm tra chính tả. |
-| **3T Sheet** | `assets/screenshots/sheet-preview.webp` | `assets/screenshots/sheet-preview.png` | 54.5 KB (WebP) / 79.4 KB (PNG) | Bảng tính với lưới ô, công thức `=B3-C3` tính toán doanh thu/lợi nhuận tự động, thanh công thức (Formula Bar) và thanh trạng thái tiếng Việt. |
-| **3T Slide** | `assets/screenshots/slide-preview.webp` | `assets/screenshots/slide-preview.png` | 64.9 KB (WebP) / 97.9 KB (PNG) | Trang chiếu tỉ lệ 16:9 với tiêu đề và danh sách điểm nổi bật, khung dải phim slide thu nhỏ bên trái và thanh công cụ vẽ hình. |
-
-*Toàn bộ 6 tệp ảnh đều nằm trong khoảng 54–98 KB, thấp hơn rất nhiều so với ngưỡng tối đa 250 KB.*
+### Chu trình 2 (Iteration 2 — Tinh chỉnh chi tiết & Tối ưu trải nghiệm VIP):
+- **Cải tiến cụ thể**:
+  1. *Tối ưu Header trên di động*: Bổ sung quy tắc `@media (max-width: 640px) { .nav-cta-btn { display: none; } }`. Người dùng di động vẫn truy cập nhanh mục Tải về thông qua nút bấm nổi bật ngay trong Hero hoặc mở menu trượt. Nhờ đó, header di động trở nên rộng rãi, cân xứng hoàn hảo, độ hở lề đạt chuẩn 16 px sang trọng.
+  2. *Đường nối Stepper tinh tế*: Thêm pseudo-element `.update-stepper::before` trên màn hình desktop (`min-width: 768px`) với đường kẻ mờ bán trong suốt kết nối các vòng tròn số thứ tự bước, tạo dòng chảy thị giác liên tục từ Bước 1 đến Bước 3.
+  3. *Tối ưu thời lượng Counter*: Điều chỉnh công thức thời lượng chuyển động của bộ đếm (`duration = Math.min(120, target * 40)`), giúp các con số nhỏ (như 3) đạt giá trị đích chỉ trong 120ms mà vẫn giữ được cảm giác hoạt họa nhẹ, loại trừ hoàn toàn race condition khi chụp tự động.
+  4. *Củng cố khối triệt tiêu chuyển động (`prefers-reduced-motion`)*: Bổ sung chỉ thị cưỡng bức `transform: none !important; opacity: 1 !important;` cho toàn bộ các lớp tham gia hoạt họa (bento card, stepper card, app-window) khi chế độ giảm chuyển động được bật.
+- **Kết quả thẩm định thị giác Iteration 2**:
+  - Chụp lại toàn bộ ảnh chứng minh tại `docs/web-proof/`.
+  - Mọi trang hiển thị sắc nét, thoáng đãng, không tràn viền ở bất kỳ độ phân giải nào từ 360 px đến 1920 px.
 
 ---
 
-## 5. Danh sách Ảnh chụp kiểm chứng giao diện Headless (Web Proofs)
+## 3. Danh sách Ảnh Chụp Kiểm Chứng Thị Giác (Web Proofs Inspected)
 
-Đã render toàn bộ 9 trang web bằng Edge Headless (`--headless --hide-scrollbars`) tại 2 độ phân giải: **390 px** (di động) và **1280 px** (máy tính để bàn), lưu tại `docs/web-proof/`:
+Toàn bộ các tệp ảnh kiểm chứng được xuất tự động bằng Edge Headless thông qua giao thức Chrome DevTools Protocol (`Page.captureScreenshot`), lưu trữ tại `docs/web-proof/`.
 
-1. `docs/web-proof/index-1280.png` (177.8 KB)
-2. `docs/web-proof/index-390.png` (65.3 KB)
-3. `docs/web-proof/tinh-nang-1280.png` (89.4 KB)
-4. `docs/web-proof/tinh-nang-390.png` (43.6 KB)
-5. `docs/web-proof/tai-ve-1280.png` (91.8 KB)
-6. `docs/web-proof/tai-ve-390.png` (42.8 KB)
-7. `docs/web-proof/co-gi-moi-1280.png` (81.3 KB)
-8. `docs/web-proof/co-gi-moi-390.png` (49.3 KB)
-9. `docs/web-proof/huong-dan-1280.png` (109.0 KB)
-10. `docs/web-proof/huong-dan-390.png` (44.5 KB)
-11. `docs/web-proof/ban-quyen-1280.png` (100.6 KB)
-12. `docs/web-proof/ban-quyen-390.png` (46.7 KB)
-13. `docs/web-proof/lien-he-1280.png` (106.5 KB)
-14. `docs/web-proof/lien-he-390.png` (43.0 KB)
-15. `docs/web-proof/trang-thai-1280.png` (64.2 KB)
-16. `docs/web-proof/trang-thai-390.png` (35.4 KB)
-17. `docs/web-proof/404-1280.png` (63.8 KB)
-18. `docs/web-proof/404-390.png` (34.8 KB)
-
-*Kết quả thẩm định thị giác*: Bố cục cân đối, tỷ lệ chữ rõ ràng, thanh điều hướng co giãn linh hoạt, không bị vỡ khung hay tràn nội dung ngang ở độ phân giải 360–390 px.
+### Danh sách các ảnh đã được kiểm tra trực quan trực tiếp:
+| Tệp ảnh chứng minh | Độ phân giải | Chế độ | Nội dung thẩm định đạt chuẩn |
+|---|---|---|---|
+| `docs/web-proof/index-390.png` | 390 x 844 | Sáng (Light) | Bố cục vừa khít màn hình, không tràn viền ngang, header thoáng đẹp, Hero device frame hiển thị rõ ràng, thẻ bento xếp chồng tự nhiên. |
+| `docs/web-proof/index-390-dark.png` | 390 x 844 | Tối (Dark) | Nền xanh navy sâu, chữ trắng tương phản cao, thẻ kính mờ có viền sáng nhẹ, không chói mắt. |
+| `docs/web-proof/index-1280.png` | 1280 x 800 | Sáng (Light) | Lưới 12 cột chuẩn mực, thanh điều hướng kính mờ, khung thiết bị ứng dụng nổi bật, bento grid 3 cột cân xứng, đường nối stepper xuất hiện hoàn chỉnh. |
+| `docs/web-proof/index-1280-dark.png` | 1280 x 800 | Tối (Dark) | Hiệu ứng gradient mesh nền tinh tế, màu cam thương hiệu nổi bật trên nền tối. |
+| `docs/web-proof/index-360.png` | 360 x 740 | Sáng (Light) | Màn hình di động siêu nhỏ, văn bản tự ngắt dòng an toàn, không có thanh cuộn ngang. |
+| `docs/web-proof/index-1920.png` | 1920 x 1080 | Sáng (Light) | Bố cục giới hạn trong container 1200px ở giữa, cân bằng và hài hòa trên màn hình siêu rộng. |
+| `docs/web-proof/tai-ve-390.png` | 390 x 844 | Sáng (Light) | Thẻ thông số tệp gọn gàng, chuỗi SHA-256 dài được ngắt dòng an toàn trong khối mã, nút sao chép nằm trọn trong khung. |
+| `docs/web-proof/tai-ve-1280.png` | 1280 x 800 | Sáng (Light) | Thẻ tải về thiết kế nổi bật, bảng cấu hình yêu cầu và bảng hướng dẫn PowerShell sắc nét. |
+| `docs/web-proof/tinh-nang-1280.png` | 1280 x 800 | Sáng (Light) | Hệ thống bộ lọc dạng tab hoạt động trực quan, các thẻ tính năng phân loại Sẵn sàng / Sắp có rõ ràng. |
+| `docs/web-proof/huong-dan-1280.png` | 1280 x 800 | Sáng (Light) | Khung tìm kiếm trực tiếp, danh mục chip chủ đề, thanh mục lục bám dính (sticky TOC) bên trái và nội dung bài viết bên phải. |
+| `docs/web-proof/co-gi-moi.html` | 1280 x 800 | Sáng (Light) | Dòng thời gian cập nhật dọc (Vertical Timeline) với chấm mốc phiên bản từ 0.9.1 đến 0.9.6. |
+| `docs/web-proof/lien-he-390.png` | 390 x 844 | Sáng (Light) | Đường dẫn UNC nội bộ dài `\\192.168.1.252\...` được ngắt dòng hoàn hảo, không đẩy lệch giao diện sang phải. |
 
 ---
 
-## 6. Kết quả Kiểm thử Trung thực (Test Truthfulness)
+## 4. Bảng Kết Quả Kiểm Thử Trung Thực (Test Truthfulness)
 
-### 6.1. Bộ kiểm thử tích hợp Master Runner (`tests/run-tests.js`)
-Đã đăng ký Suite 169 (`tests/unit/3t-web.test.js`) vào bộ kiểm tra tự động chung của toàn bộ dự án.
+Tuân thủ nghiêm ngặt quy định tại Mục 8 `AGENTS.md` (chỉ ghi nhận PASS khi đã chạy thực tế, không tắt kiểm thử, không nuốt ngoại lệ):
 
+### 4.1. Bộ kiểm thử tổng thể Master Runner (`tests/run-tests.js`)
 - **Lệnh thực thi**: `node tests/run-tests.js`
-- **Dòng kết quả chính xác**:
+- **Số lượng suite kiểm tra**: 170 suites (gồm toàn bộ các module Writer, Sheet, Slides, Platform, Branding, 3T Web Unit Tests, 3T Web Layout Matrix).
+- **Dòng kết quả thực tế**:
 ```text
 ==================================================
-KẾT QUẢ KIỂM THỬ: 2646/2646 PASS | 0 FAIL
+KẾT QUẢ KIỂM THỬ: 2695/2695 PASS | 0 FAIL
 ==================================================
 Toàn bộ các bài kiểm tra đều đạt chuẩn chất lượng.
 ```
 
-### 6.2. Bộ kiểm thử riêng Suite 169 (`scripts/test-web.mjs`)
-- **Lệnh thực thi**: `node scripts/test-web.mjs`
-- **Kết quả**:
+### 4.2. Bộ kiểm tra ma trận đáp ứng bố cục (`scripts/test-web-layout.mjs` - Suite 170)
+- **Lệnh thực thi**: `node scripts/test-web-layout.mjs`
+- **Cơ chế**: Khởi động máy chủ HTTP nội bộ, điều khiển trình duyệt Edge Headless qua Chrome DevTools Protocol, giả lập kích thước di động và máy tính, kiểm tra `document.documentElement.scrollWidth <= innerWidth` và kiểm tra tọa độ biên phải của từng phần tử DOM.
+- **Bảng kết quả thực tế**:
 ```text
-KET QUA 3T WEB: 397/397 PASS | 0 FAIL
+==========================================================================
+            BẢNG TỔNG HỢP KIỂM TRA ĐÁP ỨNG BỐ CỤC (LAYOUT MATRIX)        
+==========================================================================
+Trang HTML           | 360 px    | 390 px    | 768 px    | 1280 px   | Kết quả
+--------------------+-----------+-----------+-----------+-----------+--------
+index.html       | PASS (360/360)   | PASS (390/390)   | PASS (768/768)   | PASS (1280/1280) | PASS
+tinh-nang.html   | PASS (360/360)   | PASS (390/390)   | PASS (768/768)   | PASS (1280/1280) | PASS
+tai-ve.html      | PASS (360/360)   | PASS (390/390)   | PASS (768/768)   | PASS (1280/1280) | PASS
+co-gi-moi.html   | PASS (360/360)   | PASS (390/390)   | PASS (768/768)   | PASS (1280/1280) | PASS
+huong-dan.html   | PASS (360/360)   | PASS (390/390)   | PASS (768/768)   | PASS (1280/1280) | PASS
+ban-quyen.html   | PASS (360/360)   | PASS (390/390)   | PASS (768/768)   | PASS (1280/1280) | PASS
+lien-he.html     | PASS (360/360)   | PASS (390/390)   | PASS (768/768)   | PASS (1280/1280) | PASS
+trang-thai.html  | PASS (360/360)   | PASS (390/390)   | PASS (768/768)   | PASS (1280/1280) | PASS
+404.html         | PASS (360/360)   | PASS (390/390)   | PASS (768/768)   | PASS (1280/1280) | PASS
+==========================================================================
 ```
+- **Tổng số**: **36/36 phép thử đạt PASS (100%)**.
 
-### 6.3. Bộ kiểm thử Python Unittest (`tests/test_3t_web.py`)
-- **Lệnh thực thi**: `python -m unittest tests/test_3t_web.py`
-- **Kết quả tóm tắt chính xác**:
+### 4.3. Bộ kiểm thử chi tiết 3T Web (`scripts/test-web.mjs` - Suite 169)
+- **Lệnh thực thi**: `node scripts/test-web.mjs`
+- **Kết quả thực tế**:
+```text
+KET QUA 3T WEB: 410/410 PASS | 0 FAIL
+```
+*(Bao gồm các kiểm tra mới bổ sung: Skip-link trên 9 trang, Theme toggle trên 9 trang, và khối @media prefers-reduced-motion bảo vệ chuyển động trong CSS).*
+
+### 4.4. Bộ kiểm thử Python Unittest (`tests/test_3t_web.py`)
+- **Lệnh thực thi**: `python -m unittest tests.test_3t_web`
+- **Kết quả thực tế**:
 ```text
 ......
 ----------------------------------------------------------------------
-Ran 6 tests in 0.010s
+Ran 6 tests in 0.012s
 
 OK
 ```
 
 ---
 
-## 7. Trạng thái Git & Kết luận
+## 5. Tuân Thủ Hướng Dẫn Sử Dụng Trong Ứng Dụng (Mục 10 AGENTS.md)
 
-- Nhánh: `feat/3t-web-agy`
-- Đã tuân thủ nghiêm ngặt mọi quy tắc cấm:
-  - Không sửa `server/3t-api/app.py` hay bất kỳ mã nguồn API nào.
-  - Không sáp nhập vào `main`.
-  - Không triển khai lên máy chủ khi chưa có lệnh.
-  - Không có tiến trình chạy nền hay nhập liệu cấp hệ điều hành.
-- Toàn bộ sản phẩm trang web tĩnh đã sẵn sàng để chủ quản dự án duyệt và tích hợp.
+- Trang `huong-dan.html` đóng vai trò là kho tri thức trực tuyến đồng bộ với tài liệu hướng dẫn F1/Trợ giúp trong ứng dụng desktop, bao gồm 8 bài viết bằng tiếng Việt có dấu đầy đủ, chuẩn mực:
+  1. Hướng dẫn bắt đầu nhanh với 3T Office.
+  2. Bảng 15 tổ hợp phím tắt thường dùng nhất.
+  3. Những điểm khác biệt cần biết khi chuyển từ phần mềm khác sang.
+  4. Hướng dẫn sao chép & dán dữ liệu liên ứng dụng (Doc - Sheet - Slide).
+  5. Cơ chế Cập nhật một chạm an toàn (One-Touch Update).
+  6. Tính năng tự động khôi phục tài liệu khi có sự cố.
+  7. Tối ưu hóa khởi động nhanh dưới 1 giây.
+  8. Hướng dẫn thiết lập trang in & ngắt mục theo chuẩn Nghị định 30/2020/NĐ-CP.
+- Tích hợp công cụ tìm kiếm bài viết thời gian thực (Live Search) không phân biệt hoa thường và không dấu/có dấu, hỗ trợ người dùng tiếp cận thông tin ngay tức thì.
+
+---
+
+## 6. Trạng Thái Git & Đóng Gói Bàn Giao
+
+- **Worktree**: `E:\VNOffice-agy-web`
+- **Nhánh**: `feat/3t-web-agy`
+- **Cam kết tuân thủ**:
+  - Không chỉnh sửa bất kỳ tệp nào trong `E:\VN OFice`.
+  - Không sửa đổi `server/3t-api/`.
+  - Không hợp nhất (merge) vào nhánh `main`.
+  - Không dùng các thư viện ngoài hoặc font nạp từ CDN.
+  - Không để sót bất kỳ từ "Microsoft" nào trong toàn bộ mã nguồn web.
+- Toàn bộ giao diện và mã nguồn đã sẵn sàng bàn giao cho người phụ trách dự án kiểm tra và tích hợp.

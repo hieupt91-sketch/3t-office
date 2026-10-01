@@ -8,6 +8,13 @@
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="alternate icon" href="favicon.ico">
   <link rel="stylesheet" href="css/style.css">
+  <script>
+    try {
+      var t = localStorage.getItem("3t_theme");
+      if (!t && window.matchMedia("(prefers-color-scheme: dark)").matches) t = "dark";
+      if (t) document.documentElement.setAttribute("data-theme", t);
+    } catch(e) {}
+  </script>
 </head>
 <body>
   <a href="#main-content" class="skip-link">Chuyển đến nội dung chính</a>
@@ -22,10 +29,6 @@
         </div>
       </a>
 
-      <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="primary-nav" aria-label="Mở trình đơn chuyển hướng">
-        ☰ Trình đơn
-      </button>
-
       <nav id="primary-nav" class="main-nav" aria-label="Điều hướng chính">
         <ul class="nav-list">
           <li><a href="index.html" class="nav-link">Trang chủ</a></li>
@@ -36,16 +39,30 @@
           <li><a href="ban-quyen.html" class="nav-link">Bản quyền</a></li>
           <li><a href="trang-thai.html" class="nav-link">Trạng thái</a></li>
           <li><a href="lien-he.html" class="nav-link">Liên hệ</a></li>
-          <li><a href="tai-ve.html" class="nav-link nav-cta">Tải 0.9.6 Pilot</a></li>
         </ul>
       </nav>
+
+      <div class="nav-actions">
+        <button type="button" class="theme-toggle-btn" aria-label="Chuyển đổi giao diện Sáng / Tối" title="Chuyển đổi giao diện Sáng / Tối">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"></circle></svg>
+        </button>
+        <a href="tai-ve.html" class="nav-cta-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+          </svg>
+          Tải 0.9.6 Pilot
+        </a>
+        <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="primary-nav" aria-label="Mở trình đơn chuyển hướng">
+          ☰
+        </button>
+      </div>
     </div>
   </header>
 
   <main id="main-content">
     <section class="section">
       <div class="container" style="text-align: center; max-width: 640px; padding: 60px 20px;">
-        <div style="font-size: 5rem; font-weight: 900; color: var(--brand-orange); line-height: 1; margin-bottom: 20px; font-family: var(--font-mono);">
+        <div style="font-size: 5.5rem; font-weight: 900; color: var(--brand-orange); line-height: 1; margin-bottom: 20px; font-family: var(--font-mono); letter-spacing: -0.05em;">
           404
         </div>
         <h1 class="section-title">Không tìm thấy trang yêu cầu</h1>
@@ -72,16 +89,16 @@
     <div class="container">
       <div class="footer-grid">
         <div class="footer-col">
-          <div class="brand-link" style="margin-bottom: 14px;">
-            <img src="assets/icons/3t-mark.svg" alt="3T Logo" class="brand-icon">
+          <a href="index.html" class="brand-link" style="margin-bottom: 14px;">
+            <img src="assets/icons/3t-mark.svg" alt="Biểu trưng 3T Office" class="brand-icon">
             <div class="brand-text">
               <span class="brand-name">3T <span>Office</span></span>
               <span class="brand-tagline">Văn phòng ngoại tuyến</span>
             </div>
-          </div>
+          </a>
           <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;">
-            Bộ ứng dụng văn phòng chạy ngoại tuyến cho Windows phát triển bởi 3T Computer / 3T Technology.
-            Tôn trọng quyền riêng tư dữ liệu, xử lý trực tiếp trên thiết bị của bạn.
+            Bộ ứng dụng văn phòng chạy ngoại tuyến cho Windows được nghiên cứu và phát triển bởi 3T Computer. 
+            Tôn trọng tối đa quyền riêng tư và quyền sở hữu dữ liệu của người dùng.
           </p>
         </div>
 
@@ -91,37 +108,37 @@
             <li><a href="tinh-nang.html#doc">3T Doc (.docx)</a></li>
             <li><a href="tinh-nang.html#sheet">3T Sheet (.xlsx)</a></li>
             <li><a href="tinh-nang.html#slide">3T Slide (.pptx)</a></li>
-            <li><a href="tinh-nang.html">Toàn bộ tính năng</a></li>
+            <li><a href="tinh-nang.html">Danh mục tính năng</a></li>
           </ul>
         </div>
 
         <div class="footer-col">
           <h4>Thông tin</h4>
           <ul class="footer-links">
-            <li><a href="tai-ve.html">Tải bộ cài 0.9.6</a></li>
-            <li><a href="co-gi-moi.html">Ghi chú phát hành</a></li>
+            <li><a href="tai-ve.html">Tải về bộ cài</a></li>
+            <li><a href="co-gi-moi.html">Có gì mới (0.9.6)</a></li>
+            <li><a href="huong-dan.html">Hướng dẫn sử dụng</a></li>
             <li><a href="ban-quyen.html">Chính sách bản quyền</a></li>
-            <li><a href="trang-thai.html">Kiểm tra trạng thái</a></li>
           </ul>
         </div>
 
         <div class="footer-col">
-          <h4>Hỗ trợ</h4>
+          <h4>Kết nối &amp; Hỗ trợ</h4>
           <ul class="footer-links">
-            <li><a href="huong-dan.html">Hướng dẫn sử dụng</a></li>
-            <li><a href="huong-dan.html#shortcuts">Phím tắt thường dùng</a></li>
-            <li><a href="huong-dan.html#faq">Khác biệt cần biết</a></li>
-            <li><a href="lien-he.html">Liên hệ 3T Computer</a></li>
+            <li><a href="lien-he.html">Thông tin liên hệ</a></li>
+            <li><a href="trang-thai.html">Kiểm tra trạng thái máy chủ</a></li>
+            <li><a href="https://office.3tcomputer.com">Cổng thông tin 3T Office</a></li>
+            <li><a href="https://3tcomputer.com">Trang chủ 3T Computer</a></li>
           </ul>
         </div>
       </div>
 
       <div class="footer-bottom">
         <div>
-          © 2024–2026 3T Computer / 3T Technology. Bảo lưu mọi quyền.
+          Bản quyền © 2026 3T Office — Sản phẩm công nghệ văn phòng 3T Computer. Hoạt động ngoại tuyến 100%.
         </div>
         <div>
-          Trang web chính thức: <a href="https://office.3tcomputer.com" style="color: var(--brand-orange); text-decoration: none;">office.3tcomputer.com</a>
+          Tiêu chuẩn hành chính Việt Nam &bull; Hỗ trợ bảng mã Unicode dựng sẵn (NFC)
         </div>
       </div>
     </div>

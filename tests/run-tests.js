@@ -205,6 +205,7 @@ import { runSlidesPenLaserTests } from "./unit/slides-pen-laser.test.js";
 import { runBasicEditingKeysTests } from "./unit/basic-editing-keys.test.js";
 import { runOsInputGuardTests } from "./unit/os-input-guard.test.js";
 import { run3tWebTests } from "./unit/3t-web.test.js";
+import { runWebLayoutTests } from "../scripts/test-web-layout.mjs";
 
 async function runAll() {
   console.log("==================================================");
@@ -419,7 +420,8 @@ async function runAll() {
     { title: "166. Unit Tests — VN Sheet range selection anchors, multi-area status and drag auto-scroll math", runner: runSheetRangeSelectionTests },
     { title: "167. Unit Tests — 3T Doc and 3T Sheet basic editing keys and clipboard", runner: runBasicEditingKeysTests },
     { title: "168. Safety Regression — source and tests use CDP, not OS-level input", runner: runOsInputGuardTests },
-    { title: "169. Unit Tests — 3T Office Static Website Verification (links, images, prohibited words, releases)", runner: run3tWebTests }
+    { title: "169. Unit Tests — 3T Office Static Website Verification (links, images, prohibited words, releases)", runner: run3tWebTests },
+    { title: "170. Layout Tests — 3T Office Responsive Layout Matrix (CDP 360/390/768/1280px on 9 pages)", runner: runWebLayoutTests }
   ];
 
   for (const suite of suites) {

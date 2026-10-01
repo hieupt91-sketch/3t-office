@@ -8,6 +8,13 @@
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="alternate icon" href="favicon.ico">
   <link rel="stylesheet" href="css/style.css">
+  <script>
+    try {
+      var t = localStorage.getItem("3t_theme");
+      if (!t && window.matchMedia("(prefers-color-scheme: dark)").matches) t = "dark";
+      if (t) document.documentElement.setAttribute("data-theme", t);
+    } catch(e) {}
+  </script>
 </head>
 <body>
   <a href="#main-content" class="skip-link">Chuyển đến nội dung chính</a>
@@ -22,10 +29,6 @@
         </div>
       </a>
 
-      <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="primary-nav" aria-label="Mở trình đơn chuyển hướng">
-        ☰ Trình đơn
-      </button>
-
       <nav id="primary-nav" class="main-nav" aria-label="Điều hướng chính">
         <ul class="nav-list">
           <li><a href="index.html" class="nav-link">Trang chủ</a></li>
@@ -36,9 +39,23 @@
           <li><a href="ban-quyen.html" class="nav-link active" aria-current="page">Bản quyền</a></li>
           <li><a href="trang-thai.html" class="nav-link">Trạng thái</a></li>
           <li><a href="lien-he.html" class="nav-link">Liên hệ</a></li>
-          <li><a href="tai-ve.html" class="nav-link nav-cta">Tải 0.9.6 Pilot</a></li>
         </ul>
       </nav>
+
+      <div class="nav-actions">
+        <button type="button" class="theme-toggle-btn" aria-label="Chuyển đổi giao diện Sáng / Tối" title="Chuyển đổi giao diện Sáng / Tối">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"></circle></svg>
+        </button>
+        <a href="tai-ve.html" class="nav-cta-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+          </svg>
+          Tải 0.9.6 Pilot
+        </a>
+        <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="primary-nav" aria-label="Mở trình đơn chuyển hướng">
+          ☰
+        </button>
+      </div>
     </div>
   </header>
 
@@ -46,20 +63,20 @@
     <section class="section">
       <div class="container">
         <div class="section-header">
-          <span class="section-badge">Chính sách cấp phép minh bạch</span>
+          <span class="badge badge-glow">Chính sách cấp phép minh bạch</span>
           <h1 class="section-title">Chính sách bản quyền 3T Office</h1>
           <p class="section-lead">
-            Thiết kế theo đúng định hướng kiến trúc đám mây 3T Cloud: Ưu tiên làm việc ngoại tuyến, tôn trọng dữ liệu và quyền sở hữu của người dùng.
+            Ưu tiên làm việc ngoại tuyến, tôn trọng dữ liệu và quyền sở hữu tuyệt đối của người dùng. Không khóa tệp tài liệu.
           </p>
         </div>
 
-        <!-- Lưới 3 Gói bản quyền theo quyết định kỹ thuật -->
-        <div class="pricing-grid">
+        <!-- Lưới 3 Gói bản quyền -->
+        <div class="pricing-grid" style="margin-bottom: var(--space-12);">
           <!-- Gói 1: Dùng thử -->
           <div class="pricing-card">
             <h2 class="pricing-title">Dùng thử 30 ngày</h2>
             <p class="pricing-desc">
-              Trải nghiệm đầy đủ mọi tính năng của bộ ba 3T Doc, 3T Sheet và 3T Slide trước khi đưa ra quyết định.
+              Trải nghiệm đầy đủ mọi tính năng của bộ ba 3T Doc, 3T Sheet và 3T Slide trước khi đưa ra quyết định mua sắm.
             </p>
             <div class="pricing-price">
               Miễn phí <span style="font-size: 0.9rem; font-weight: normal; color: var(--text-dim);">/ 30 ngày</span>
@@ -101,60 +118,119 @@
             </div>
           </div>
 
-          <!-- Gói 3: Thuê bao (Subscription) -->
+          <!-- Gói 3: Doanh nghiệp & Tổ chức -->
           <div class="pricing-card">
-            <h2 class="pricing-title">Gói thuê bao</h2>
+            <h2 class="pricing-title">Cơ quan &amp; Doanh nghiệp</h2>
             <p class="pricing-desc">
-              Đăng ký định kỳ, nhận liên tục các bản phát hành mới và cải tiến tính năng trong suốt thời gian thuê bao.
+              Giải pháp triển khai tập trung cho toàn bộ mạng nội bộ, hỗ trợ chính sách bảo mật riêng và chuẩn hóa văn bản.
             </p>
             <div class="pricing-price">
               TODO-CONFIRM
               <div style="font-size: 0.85rem; color: var(--text-dim); font-weight: 600; margin-top: 4px;">
-                (Giá theo tháng / năm chưa quyết định)
+                (Liên hệ tư vấn số lượng lớn)
               </div>
             </div>
             <ul class="pricing-features">
-              <li><span class="check-icon">✓</span> Luôn được sử dụng phiên bản mới nhất</li>
-              <li><span class="check-icon">✓</span> Cập nhật liên tục các tính năng chuyên sâu tiếp theo</li>
-              <li><span class="check-icon">✓</span> Hỗ trợ kỹ thuật ưu tiên từ đơn vị phát triển</li>
-              <li><span class="check-icon">✓</span> Linh hoạt gia hạn theo nhu cầu thực tế</li>
+              <li><span class="check-icon">✓</span> Bộ cài phân phối tự động qua mạng chia sẻ LAN/SMB</li>
+              <li><span class="check-icon">✓</span> Khóa chính sách bảo mật không gửi dữ liệu ra ngoài</li>
+              <li><span class="check-icon">✓</span> Hỗ trợ chuẩn hóa mẫu văn bản hành chính theo quy chuẩn đơn vị</li>
+              <li><span class="check-icon">✓</span> Kênh tiếp nhận và khắc phục sự cố ưu tiên</li>
             </ul>
             <div class="todo-confirm-box" style="margin-top: auto;">
               <span class="todo-confirm-badge">TODO-CONFIRM</span>
-              Mức phí thuê bao theo tháng hoặc theo năm đang chờ chủ quản dự án công bố.
+              Chính sách chiết khấu khối cơ quan và thời hạn hợp đồng đang chờ thỏa thuận chi tiết.
             </div>
           </div>
         </div>
 
-        <!-- Khối Giải thích cơ chế Ngoại tuyến (Grace Period) -->
-        <div class="grace-period-box" style="margin-bottom: 40px;">
-          <h3>Cơ chế sử dụng ngoại tuyến 30 ngày (Grace Period) hoạt động thế nào?</h3>
-          <p>
-            Khác với các dịch vụ đám mây buộc máy tính phải có mạng liên tục, <strong>3T Office là bộ ứng dụng văn phòng chạy ngoại tuyến ưu tiên số 1</strong>. 
-            Mọi thao tác soạn thảo, tính toán và bảo quản tài liệu diễn ra trực tiếp trên ổ đĩa của bạn.
-          </p>
-          <p>
-            Sau khi kích hoạt khóa bản quyền hợp lệ, máy chủ 3T Cloud cấp cho máy tính một token ký số xác thực an toàn. 
-            Token này cho phép ứng dụng <strong>hoạt động hoàn toàn không cần kết nối mạng trong suốt 30 ngày</strong>. 
-            Khi máy tính có mạng trở lại, ứng dụng tự động làm mới token ngầm mà không gây gián đoạn công việc của bạn.
-          </p>
-          <p>
-            <strong>Cam kết bảo vệ tài liệu:</strong> Kể cả khi thời hạn dùng thử hoặc token ngoại tuyến kết thúc, 
-            3T Office <em>tuyệt đối không bao giờ khóa tài liệu hay làm mất dữ liệu của bạn</em>. Người dùng luôn có thể mở, sao lưu và bảo vệ toàn bộ tệp tin của mình.
-          </p>
+        <!-- Bảng so sánh chi tiết các gói -->
+        <div style="max-width: 960px; margin: 0 auto var(--space-12) auto; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: var(--space-8);">
+          <h2 style="font-size: 1.35rem; font-weight: 800; margin-bottom: var(--space-4);">
+            So sánh quyền lợi giữa các gói dịch vụ
+          </h2>
+          <div class="matrix-table-wrap">
+            <table class="matrix-table">
+              <thead>
+                <tr>
+                  <th scope="col">Tính năng &amp; Quyền lợi</th>
+                  <th scope="col">Dùng thử 30 ngày</th>
+                  <th scope="col">Bản quyền vĩnh viễn</th>
+                  <th scope="col">Cơ quan / Doanh nghiệp</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">Bộ ba ứng dụng (Doc, Sheet, Slide)</th>
+                  <td><span class="tag tag-ready">Đầy đủ</span></td>
+                  <td><span class="tag tag-ready">Đầy đủ</span></td>
+                  <td><span class="tag tag-ready">Đầy đủ</span></td>
+                </tr>
+                <tr>
+                  <th scope="row">Mở &amp; Lưu tệp .docx, .xlsx, .pptx</th>
+                  <td><span class="tag tag-ready">Đầy đủ</span></td>
+                  <td><span class="tag tag-ready">Đầy đủ</span></td>
+                  <td><span class="tag tag-ready">Đầy đủ</span></td>
+                </tr>
+                <tr>
+                  <th scope="row">Hoạt động ngoại tuyến 100%</th>
+                  <td><span class="tag tag-ready">Có</span></td>
+                  <td><span class="tag tag-ready">Có</span></td>
+                  <td><span class="tag tag-ready">Có</span></td>
+                </tr>
+                <tr>
+                  <th scope="row">Thời hạn nhận bản vá tính năng mới</th>
+                  <td>Trong 30 ngày</td>
+                  <td>1 năm (kéo dài tùy chọn)</td>
+                  <td>Theo hợp đồng dịch vụ</td>
+                </tr>
+                <tr>
+                  <th scope="row">Khóa dữ liệu khi hết hạn thuê bao?</th>
+                  <td><strong>Không khóa tệp</strong></td>
+                  <td><strong>Không khóa tệp</strong></td>
+                  <td><strong>Không khóa tệp</strong></td>
+                </tr>
+                <tr>
+                  <th scope="row">Triển khai tập trung mạng LAN</th>
+                  <td>Từng máy</td>
+                  <td>Từng máy</td>
+                  <td><span class="tag tag-ready">Hỗ trợ tự động</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        <!-- Khối Màn hình nhập khóa bản quyền trong ứng dụng -->
-        <div class="grace-period-box">
-          <h3>Cách nhập khóa bản quyền (Key) trong ứng dụng</h3>
-          <p>
-            Theo lộ trình kỹ thuật 3T Cloud (Giai đoạn 1 hiện tại tập trung vào kiểm tra sức khỏe <code>/health</code>, ghi nhận báo cáo lỗi kỹ thuật và phân phối bản vá cập nhật).
-          </p>
-          <p>
-            <span class="tag tag-pending" style="font-size: 0.9rem; padding: 4px 12px; margin-right: 8px;">Sắp có</span>
-            Giao diện hộp thoại nhập khóa bản quyền và kích hoạt thiết bị trực tiếp trong ứng dụng sẽ chính thức ra mắt ở <strong>Giai đoạn 2 của 3T Cloud</strong>.
-            Hiện tại các bản cài đặt thử nghiệm được cấp phép tự động theo cấu hình kênh nội bộ.
-          </p>
+        <!-- Giải đáp thắc mắc thường gặp (FAQ) -->
+        <div style="max-width: 960px; margin: 0 auto; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: var(--space-8);">
+          <h2 style="font-size: 1.35rem; font-weight: 800; margin-bottom: var(--space-6);">
+            Câu hỏi thường gặp về bản quyền
+          </h2>
+          <div style="display: flex; flex-direction: column; gap: var(--space-6);">
+            <div>
+              <h3 style="font-size: 1.05rem; font-weight: 700; margin-bottom: 6px; color: var(--text-main);">
+                Khi hết 1 năm cập nhật của gói vĩnh viễn, tôi có thể tiếp tục sử dụng ứng dụng không?
+              </h3>
+              <p style="font-size: 0.938rem; color: var(--text-muted); line-height: 1.6;">
+                Có. Bạn tiếp tục sở hữu và sử dụng bình thường phiên bản ứng dụng đã mua trên máy tính đó mà không gặp bất kỳ giới hạn nào. Tài liệu của bạn không bao giờ bị khóa hay hạn chế mở/lưu.
+              </p>
+            </div>
+            <div>
+              <h3 style="font-size: 1.05rem; font-weight: 700; margin-bottom: 6px; color: var(--text-main);">
+                Tôi có bắt buộc phải kết nối Internet để kiểm tra bản quyền không?
+              </h3>
+              <p style="font-size: 0.938rem; color: var(--text-muted); line-height: 1.6;">
+                Không. 3T Office thiết kế cơ chế kích hoạt ngoại tuyến và cho phép duy trì làm việc bình thường kể cả khi thiết bị hoàn toàn ngắt mạng trong 30 ngày liên tục.
+              </p>
+            </div>
+            <div>
+              <h3 style="font-size: 1.05rem; font-weight: 700; margin-bottom: 6px; color: var(--text-main);">
+                Cơ quan tôi muốn cài đặt cho 50 máy tính qua mạng nội bộ thì làm thế nào?
+              </h3>
+              <p style="font-size: 0.938rem; color: var(--text-muted); line-height: 1.6;">
+                Gói Cơ quan &amp; Doanh nghiệp cung cấp đường dẫn cài đặt qua mạng chia sẻ SMB/LAN và script đóng gói tự động, giúp quản trị viên triển khai đồng loạt chỉ trong vài phút.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -164,16 +240,16 @@
     <div class="container">
       <div class="footer-grid">
         <div class="footer-col">
-          <div class="brand-link" style="margin-bottom: 14px;">
-            <img src="assets/icons/3t-mark.svg" alt="3T Logo" class="brand-icon">
+          <a href="index.html" class="brand-link" style="margin-bottom: 14px;">
+            <img src="assets/icons/3t-mark.svg" alt="Biểu trưng 3T Office" class="brand-icon">
             <div class="brand-text">
               <span class="brand-name">3T <span>Office</span></span>
               <span class="brand-tagline">Văn phòng ngoại tuyến</span>
             </div>
-          </div>
+          </a>
           <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;">
-            Bộ ứng dụng văn phòng chạy ngoại tuyến cho Windows phát triển bởi 3T Computer / 3T Technology.
-            Tôn trọng quyền riêng tư dữ liệu, xử lý trực tiếp trên thiết bị của bạn.
+            Bộ ứng dụng văn phòng chạy ngoại tuyến cho Windows được nghiên cứu và phát triển bởi 3T Computer. 
+            Tôn trọng tối đa quyền riêng tư và quyền sở hữu dữ liệu của người dùng.
           </p>
         </div>
 
@@ -183,37 +259,37 @@
             <li><a href="tinh-nang.html#doc">3T Doc (.docx)</a></li>
             <li><a href="tinh-nang.html#sheet">3T Sheet (.xlsx)</a></li>
             <li><a href="tinh-nang.html#slide">3T Slide (.pptx)</a></li>
-            <li><a href="tinh-nang.html">Toàn bộ tính năng</a></li>
+            <li><a href="tinh-nang.html">Danh mục tính năng</a></li>
           </ul>
         </div>
 
         <div class="footer-col">
           <h4>Thông tin</h4>
           <ul class="footer-links">
-            <li><a href="tai-ve.html">Tải bộ cài 0.9.6</a></li>
-            <li><a href="co-gi-moi.html">Ghi chú phát hành</a></li>
+            <li><a href="tai-ve.html">Tải về bộ cài</a></li>
+            <li><a href="co-gi-moi.html">Có gì mới (0.9.6)</a></li>
+            <li><a href="huong-dan.html">Hướng dẫn sử dụng</a></li>
             <li><a href="ban-quyen.html">Chính sách bản quyền</a></li>
-            <li><a href="trang-thai.html">Kiểm tra trạng thái</a></li>
           </ul>
         </div>
 
         <div class="footer-col">
-          <h4>Hỗ trợ</h4>
+          <h4>Kết nối &amp; Hỗ trợ</h4>
           <ul class="footer-links">
-            <li><a href="huong-dan.html">Hướng dẫn sử dụng</a></li>
-            <li><a href="huong-dan.html#shortcuts">Phím tắt thường dùng</a></li>
-            <li><a href="huong-dan.html#faq">Khác biệt cần biết</a></li>
-            <li><a href="lien-he.html">Liên hệ 3T Computer</a></li>
+            <li><a href="lien-he.html">Thông tin liên hệ</a></li>
+            <li><a href="trang-thai.html">Kiểm tra trạng thái máy chủ</a></li>
+            <li><a href="https://office.3tcomputer.com">Cổng thông tin 3T Office</a></li>
+            <li><a href="https://3tcomputer.com">Trang chủ 3T Computer</a></li>
           </ul>
         </div>
       </div>
 
       <div class="footer-bottom">
         <div>
-          © 2024–2026 3T Computer / 3T Technology. Bảo lưu mọi quyền.
+          Bản quyền © 2026 3T Office — Sản phẩm công nghệ văn phòng 3T Computer. Hoạt động ngoại tuyến 100%.
         </div>
         <div>
-          Trang web chính thức: <a href="https://office.3tcomputer.com" style="color: var(--brand-orange); text-decoration: none;">office.3tcomputer.com</a>
+          Tiêu chuẩn hành chính Việt Nam &bull; Hỗ trợ bảng mã Unicode dựng sẵn (NFC)
         </div>
       </div>
     </div>

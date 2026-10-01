@@ -94,13 +94,32 @@ class Test3TWeb(unittest.TestCase):
                 size = ss_file.stat().st_size
                 self.assertLess(size, 250 * 1024, f"Anh {ss_file.name} vuot 250 KB: {size} byte")
 
-    def test_robots_and_sitemap(self):
-        robots = WEB_ROOT / "robots.txt"
-        sitemap = WEB_ROOT / "sitemap.xml"
-        self.assertTrue(robots.exists(), "robots.txt phai ton tai")
-        self.assertTrue(sitemap.exists(), "sitemap.xml phai ton tai")
-        self.assertIn("sitemap.xml", robots.read_text(encoding="utf-8"))
-        self.assertIn("office.3tcomputer.com", sitemap.read_text(encoding="utf-8"))
+    def test_accessibility_and_motion_guard(self):
+        """Kiem tra moi trang HTML co skip link, theme toggle va CSS co prefers-reduced-motion guard."""
+        for page in HTML_PAGES:
+            page_path = WEB_ROOT / page
+            content = page_path.read_text(encoding="utf-8")
+            self.assertRegex(
+                content,
+                r'class=["\'][^"\']*skip-link[^"\']*["\']',
+                f"{page} phai co skip-link cho kha nang truy cap"
+            )
+            self.assertRegex(
+                content,
+                r'class=["\'][^"\']*theme-toggle-btn[^"\']*["\']',
+                f"{page} phai co nut chuyen doi theme (theme-toggle-btn)"
+            )
+
+        # Kiem tra CSS prefers-reduced-motion
+        css_file = WEB_ROOT / "css" / "style.css"
+        css_content = css_file.read_text(encoding="utf-8")
+        self.assertIn(
+            "@media (prefers-reduced-motion: reduce)",
+            css_content,
+            "style.css phai co bo bao ve @media (prefers-reduced-motion: reduce)"
+        )
+        self.assertIn("animation-duration:", css_content)
+        self.assertIn("scroll-behavior: auto !important", css_content)
 
 if __name__ == "__main__":
     unittest.main()

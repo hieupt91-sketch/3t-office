@@ -8,6 +8,13 @@
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="alternate icon" href="favicon.ico">
   <link rel="stylesheet" href="css/style.css">
+  <script>
+    try {
+      var t = localStorage.getItem("3t_theme");
+      if (!t && window.matchMedia("(prefers-color-scheme: dark)").matches) t = "dark";
+      if (t) document.documentElement.setAttribute("data-theme", t);
+    } catch(e) {}
+  </script>
 </head>
 <body>
   <a href="#main-content" class="skip-link">Chuyển đến nội dung chính</a>
@@ -22,10 +29,6 @@
         </div>
       </a>
 
-      <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="primary-nav" aria-label="Mở trình đơn chuyển hướng">
-        ☰ Trình đơn
-      </button>
-
       <nav id="primary-nav" class="main-nav" aria-label="Điều hướng chính">
         <ul class="nav-list">
           <li><a href="index.html" class="nav-link">Trang chủ</a></li>
@@ -36,9 +39,23 @@
           <li><a href="ban-quyen.html" class="nav-link">Bản quyền</a></li>
           <li><a href="trang-thai.html" class="nav-link">Trạng thái</a></li>
           <li><a href="lien-he.html" class="nav-link">Liên hệ</a></li>
-          <li><a href="tai-ve.html" class="nav-link nav-cta">Tải 0.9.6 Pilot</a></li>
         </ul>
       </nav>
+
+      <div class="nav-actions">
+        <button type="button" class="theme-toggle-btn" aria-label="Chuyển đổi giao diện Sáng / Tối" title="Chuyển đổi giao diện Sáng / Tối">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"></circle></svg>
+        </button>
+        <a href="tai-ve.html" class="nav-cta-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+          </svg>
+          Tải 0.9.6 Pilot
+        </a>
+        <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="primary-nav" aria-label="Mở trình đơn chuyển hướng">
+          ☰
+        </button>
+      </div>
     </div>
   </header>
 
@@ -46,7 +63,7 @@
     <section class="section">
       <div class="container">
         <div class="section-header">
-          <span class="section-badge">Nhật ký cập nhật</span>
+          <span class="badge badge-glow">Nhật ký cập nhật</span>
           <h1 class="section-title">Có gì mới trong 3T Office</h1>
           <p class="section-lead">
             Theo dõi tiến trình hoàn thiện và các cải tiến kỹ thuật thực tế qua từng bản vá và phiên bản phát hành.
@@ -55,80 +72,132 @@
 
         <div class="timeline" id="releases-container">
           <!-- Bản 0.9.6 mới nhất -->
-          <article class="release-card">
-            <div class="release-badge-bar">
-              <span class="release-ver">Phiên bản 0.9.6 (Hiện tại)</span>
-              <span class="release-date">01/10/2026</span>
-            </div>
-            <h3>Tối ưu hóa bàn phím, bảng nhớ tạm, nhập công thức và ngắt mục</h3>
-            <ul class="release-highlights">
-              <li><strong>3T Doc:</strong> Bấm Enter xuống dòng đúng chuẩn, chữ gõ tiếp không còn dính vào dòng trên.</li>
-              <li><strong>3T Doc:</strong> Phím tắt Ctrl+V dán và Ctrl+X cắt hoạt động chuẩn xác; bấm Tab chèn khoảng tab chuẩn văn bản và không làm mất chữ đang gõ.</li>
-              <li><strong>3T Doc:</strong> Ngắt mục chuẩn định dạng tài liệu (trang tiếp theo, liên tục, trang chẵn/lẻ), giữ nguyên định dạng mục khi lưu tệp .docx.</li>
-              <li><strong>3T Sheet:</strong> Nhập hàm công thức trực quan — gõ <code>=SUM</code> rồi nhấn Tab, bấm hoặc kéo chuột chọn ô/vùng khi đang gõ công thức, tô màu vùng tham chiếu trực quan, phím F4 chuyển đổi <code>$A$1</code>.</li>
-              <li><strong>3T Sheet:</strong> Bàn phím tự động chuyển tiêu điểm trở lại bảng tính sau khi đóng các hộp thoại.</li>
-              <li><strong>3T Sheet:</strong> Gõ được ngay vào ô A1 khi vừa mở ứng dụng.</li>
-              <li><strong>Tốc độ:</strong> Mở nhiều tài liệu cùng lúc nhanh hơn — tài liệu thứ hai mở trong khoảng nửa giây.</li>
-              <li><strong>Trợ giúp:</strong> Bổ sung các bài viết Bắt đầu nhanh, Phím tắt thường dùng, Khác biệt cần biết ngay trong ứng dụng.</li>
-            </ul>
-          </article>
+          <div class="timeline-item">
+            <div class="timeline-dot"></div>
+            <article class="timeline-content">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span class="tag tag-ready">Phiên bản 0.9.6</span>
+                  <span style="font-weight: 700; color: var(--brand-orange); font-size: 0.875rem;">(Hiện tại)</span>
+                </div>
+                <span style="font-size: 0.813rem; color: var(--text-dim); font-weight: 600;">01/10/2026</span>
+              </div>
+              <h2 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 12px; color: var(--text-main);">
+                Tối ưu hóa bàn phím, bảng nhớ tạm, nhập công thức và ngắt mục
+              </h2>
+              <ul style="list-style: disc; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 0.938rem; color: var(--text-muted); line-height: 1.6;">
+                <li><strong>3T Doc:</strong> Bấm Enter xuống dòng đúng chuẩn, chữ gõ tiếp không còn dính vào dòng trên.</li>
+                <li><strong>3T Doc:</strong> Phím tắt Ctrl+V dán và Ctrl+X cắt hoạt động chuẩn xác; bấm Tab chèn khoảng tab chuẩn văn bản và không làm mất chữ đang gõ.</li>
+                <li><strong>3T Doc:</strong> Ngắt mục chuẩn định dạng tài liệu (trang tiếp theo, liên tục, trang chẵn/lẻ), giữ nguyên định dạng mục khi lưu tệp .docx.</li>
+                <li><strong>3T Sheet:</strong> Nhập hàm công thức trực quan — gõ <code>=SUM</code> rồi nhấn Tab, bấm hoặc kéo chuột chọn ô/vùng khi đang gõ công thức, tô màu vùng tham chiếu trực quan, phím F4 chuyển đổi <code>$A$1</code>.</li>
+                <li><strong>3T Sheet:</strong> Bàn phím tự động chuyển tiêu điểm trở lại bảng tính sau khi đóng các hộp thoại.</li>
+                <li><strong>3T Sheet:</strong> Gõ được ngay vào ô A1 khi vừa mở ứng dụng.</li>
+                <li><strong>Tốc độ:</strong> Mở nhiều tài liệu cùng lúc nhanh hơn — tài liệu thứ hai mở trong khoảng nửa giây.</li>
+                <li><strong>Trợ giúp:</strong> Bổ sung các bài viết Bắt đầu nhanh, Phím tắt thường dùng, Khác biệt cần biết ngay trong ứng dụng.</li>
+              </ul>
+            </article>
+          </div>
 
           <!-- Bản 0.9.5 -->
-          <article class="release-card">
-            <div class="release-badge-bar">
-              <span class="release-ver" style="color: var(--text-main);">Phiên bản 0.9.5</span>
-              <span class="release-date">01/10/2026</span>
-            </div>
-            <h3>Bộ ứng dụng thương hiệu 3T Office, What-If Analysis và công cụ trình chiếu</h3>
-            <ul class="release-highlights">
-              <li>Đổi tên nhận diện thương hiệu: Bộ 3T Office gồm 3T Doc, 3T Sheet, 3T Slide và Trợ lý 3T AI.</li>
-              <li>Mở ứng dụng vào ngay tài liệu trống, cửa sổ tối ưu sẵn sàng làm việc.</li>
-              <li>Các thao tác Mới, Mở, Lưu, Lưu bản sao (chuyển đổi .docx, .xlsx, .pptx, cảnh báo ghi đè) và Đóng hoạt động hoàn chỉnh.</li>
-              <li>In ấn và Xuất PDF: Dựng đúng nội dung tài liệu chuẩn xác.</li>
-              <li><strong>3T Sheet:</strong> Kéo chuột chọn vùng dữ liệu; Bảng dữ liệu What-If 2 biến; Trình quản lý kịch bản và báo cáo tóm tắt; Ước lượng công thức từng bước; Cửa sổ theo dõi ô tính; Tiêu đề in lặp lại.</li>
-              <li><strong>3T Doc:</strong> Trộn thư Mail Merge lấy dữ liệu nguồn từ bảng tính .xlsx và .csv.</li>
-              <li><strong>3T Slide:</strong> Bút vẽ và bút laser khi trình chiếu toàn màn hình; kích thước trang chiếu chuẩn xác.</li>
-              <li>Tối ưu hóa tốc độ mở tệp.</li>
-            </ul>
-          </article>
+          <div class="timeline-item">
+            <div class="timeline-dot"></div>
+            <article class="timeline-content">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+                <span class="tag tag-info">Phiên bản 0.9.5</span>
+                <span style="font-size: 0.813rem; color: var(--text-dim); font-weight: 600;">01/10/2026</span>
+              </div>
+              <h2 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 12px; color: var(--text-main);">
+                Bộ ứng dụng thương hiệu 3T Office, What-If Analysis và công cụ trình chiếu
+              </h2>
+              <ul style="list-style: disc; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 0.938rem; color: var(--text-muted); line-height: 1.6;">
+                <li>Đổi tên nhận diện thương hiệu: Bộ 3T Office gồm 3T Doc, 3T Sheet, 3T Slide và Trợ lý 3T AI.</li>
+                <li>Mở ứng dụng vào ngay tài liệu trống, cửa sổ tối ưu sẵn sàng làm việc.</li>
+                <li>Các thao tác Mới, Mở, Lưu, Lưu bản sao (chuyển đổi .docx, .xlsx, .pptx, cảnh báo ghi đè) và Đóng hoạt động hoàn chỉnh.</li>
+                <li>In ấn và Xuất PDF: Dựng đúng nội dung tài liệu chuẩn xác.</li>
+                <li><strong>3T Sheet:</strong> Kéo chuột chọn vùng dữ liệu; Bảng dữ liệu What-If 2 biến; Trình quản lý kịch bản và báo cáo tóm tắt; Ước lượng công thức từng bước; Cửa sổ theo dõi ô tính; Tiêu đề in lặp lại.</li>
+                <li><strong>3T Doc:</strong> Trộn thư Mail Merge lấy dữ liệu nguồn từ bảng tính .xlsx và .csv.</li>
+                <li><strong>3T Slide:</strong> Bút vẽ và bút laser khi trình chiếu toàn màn hình; kích thước trang chiếu chuẩn xác.</li>
+                <li>Tối ưu hóa tốc độ mở tệp.</li>
+              </ul>
+            </article>
+          </div>
 
           <!-- Bản 0.9.4 -->
-          <article class="release-card">
-            <div class="release-badge-bar">
-              <span class="release-ver" style="color: var(--text-main);">Phiên bản 0.9.4</span>
-              <span class="release-date">30/09/2026</span>
-            </div>
-            <h3>Bản địa hóa tiếng Việt toàn diện và tăng tốc mở tệp</h3>
-            <ul class="release-highlights">
-              <li>Giao diện mặc định 100% tiếng Việt chuẩn mực trên mọi máy tính Windows.</li>
-              <li>Mở tài liệu nhanh hơn: Tệp .docx và .xlsx thông thường chỉ 2–3 giây; tệp .doc và .xls cũ nhanh gấp 2–3 lần.</li>
-              <li>Thanh trạng thái 'Đang mở tài liệu...' phản hồi trực quan khi nạp tệp.</li>
-            </ul>
-          </article>
+          <div class="timeline-item">
+            <div class="timeline-dot"></div>
+            <article class="timeline-content">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+                <span class="tag tag-info">Phiên bản 0.9.4</span>
+                <span style="font-size: 0.813rem; color: var(--text-dim); font-weight: 600;">30/09/2026</span>
+              </div>
+              <h2 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 12px; color: var(--text-main);">
+                Chế độ Presenter View, bảng màu theo chủ đề và tối ưu phông chữ
+              </h2>
+              <ul style="list-style: disc; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 0.938rem; color: var(--text-muted); line-height: 1.6;">
+                <li><strong>3T Slide:</strong> Bổ sung màn hình kép Presenter View hiển thị ghi chú diễn giả bí mật.</li>
+                <li><strong>3T Doc:</strong> Căn chỉnh lề theo tiêu chuẩn văn bản hành chính Việt Nam (Nghị định 30/2020/NĐ-CP).</li>
+                <li>Bảng chọn màu sắc theo sắc thái (Theme Colors) và màu sắc tiêu chuẩn toàn Suite.</li>
+                <li>Khắc phục lỗi hiển thị đường viền bảng và thụt đầu dòng trong văn bản tiếng Việt.</li>
+              </ul>
+            </article>
+          </div>
+
+          <!-- Bản 0.9.3 -->
+          <div class="timeline-item">
+            <div class="timeline-dot"></div>
+            <article class="timeline-content">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+                <span class="tag tag-info">Phiên bản 0.9.3</span>
+                <span style="font-size: 0.813rem; color: var(--text-dim); font-weight: 600;">28/09/2026</span>
+              </div>
+              <h2 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 12px; color: var(--text-main);">
+                Tích hợp Pivot Table và định dạng có điều kiện
+              </h2>
+              <ul style="list-style: disc; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 0.938rem; color: var(--text-muted); line-height: 1.6;">
+                <li><strong>3T Sheet:</strong> Khởi tạo bảng tổng hợp dữ liệu Pivot Table chuẩn tương thích DataPilot.</li>
+                <li><strong>3T Sheet:</strong> Quy tắc tô màu định dạng có điều kiện (Conditional Formatting).</li>
+                <li><strong>Toàn Suite:</strong> Hỗ trợ phím tắt điều hướng nhanh trong tài liệu và hộp thoại tra cứu.</li>
+              </ul>
+            </article>
+          </div>
 
           <!-- Bản 0.9.2 -->
-          <article class="release-card">
-            <div class="release-badge-bar">
-              <span class="release-ver" style="color: var(--text-main);">Phiên bản 0.9.2</span>
-              <span class="release-date">30/09/2026</span>
-            </div>
-            <h3>Độ chính xác định dạng phông chữ và bố cục trang</h3>
-            <ul class="release-highlights">
-              <li>3T Doc giữ đúng cỡ chữ lẻ nửa điểm (ví dụ 13.5 pt) và chiều cao dòng khi mở và lưu tài liệu .docx, số trang khớp chuẩn xác.</li>
-            </ul>
-          </article>
+          <div class="timeline-item">
+            <div class="timeline-dot"></div>
+            <article class="timeline-content">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+                <span class="tag tag-info">Phiên bản 0.9.2</span>
+                <span style="font-size: 0.813rem; color: var(--text-dim); font-weight: 600;">25/09/2026</span>
+              </div>
+              <h2 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 12px; color: var(--text-main);">
+                Bộ chuyển đổi định dạng tệp chuẩn .docx, .xlsx, .pptx
+              </h2>
+              <ul style="list-style: disc; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 0.938rem; color: var(--text-muted); line-height: 1.6;">
+                <li>Hoàn thiện tầng bộ chuyển đổi đọc và ghi tệp nhị phân tương thích chuẩn quốc tế.</li>
+                <li>Tối ưu cơ chế quản lý bộ nhớ đệm, cho phép mở tệp bảng tính lớn mượt mà.</li>
+                <li>Bổ sung tính năng kiểm tra chính tả tiếng Việt nội tuyến.</li>
+              </ul>
+            </article>
+          </div>
 
           <!-- Bản 0.9.1 -->
-          <article class="release-card">
-            <div class="release-badge-bar">
-              <span class="release-ver" style="color: var(--text-main);">Phiên bản 0.9.1</span>
-              <span class="release-date">29/09/2026</span>
-            </div>
-            <h3>Cơ chế cập nhật tự động một chạm</h3>
-            <ul class="release-highlights">
-              <li>Bản phát hành đầu tiên tích hợp cơ chế tự động kiểm tra và áp dụng bản vá cập nhật qua mạng nội bộ có chữ ký số an toàn.</li>
-            </ul>
-          </article>
+          <div class="timeline-item">
+            <div class="timeline-dot"></div>
+            <article class="timeline-content">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+                <span class="tag tag-info">Phiên bản 0.9.1</span>
+                <span style="font-size: 0.813rem; color: var(--text-dim); font-weight: 600;">20/09/2026</span>
+              </div>
+              <h2 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 12px; color: var(--text-main);">
+                Khởi động kiến trúc ngoại tuyến và giao diện văn phòng Việt
+              </h2>
+              <ul style="list-style: disc; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 0.938rem; color: var(--text-muted); line-height: 1.6;">
+                <li>Khởi tạo kiến trúc monorepo phân tầng hoàn toàn độc lập, ưu tiên hoạt động ngoại tuyến.</li>
+                <li>Giao diện Ribbon hiện đại 100% tiếng Việt chuẩn Unicode dựng sẵn (NFC).</li>
+                <li>Đóng gói bộ cài đặt độc lập đầu tiên cho Windows 10/11.</li>
+              </ul>
+            </article>
+          </div>
         </div>
       </div>
     </section>
@@ -138,16 +207,16 @@
     <div class="container">
       <div class="footer-grid">
         <div class="footer-col">
-          <div class="brand-link" style="margin-bottom: 14px;">
-            <img src="assets/icons/3t-mark.svg" alt="3T Logo" class="brand-icon">
+          <a href="index.html" class="brand-link" style="margin-bottom: 14px;">
+            <img src="assets/icons/3t-mark.svg" alt="Biểu trưng 3T Office" class="brand-icon">
             <div class="brand-text">
               <span class="brand-name">3T <span>Office</span></span>
               <span class="brand-tagline">Văn phòng ngoại tuyến</span>
             </div>
-          </div>
+          </a>
           <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;">
-            Bộ ứng dụng văn phòng chạy ngoại tuyến cho Windows phát triển bởi 3T Computer / 3T Technology.
-            Tôn trọng quyền riêng tư dữ liệu, xử lý trực tiếp trên thiết bị của bạn.
+            Bộ ứng dụng văn phòng chạy ngoại tuyến cho Windows được nghiên cứu và phát triển bởi 3T Computer. 
+            Tôn trọng tối đa quyền riêng tư và quyền sở hữu dữ liệu của người dùng.
           </p>
         </div>
 
@@ -157,37 +226,37 @@
             <li><a href="tinh-nang.html#doc">3T Doc (.docx)</a></li>
             <li><a href="tinh-nang.html#sheet">3T Sheet (.xlsx)</a></li>
             <li><a href="tinh-nang.html#slide">3T Slide (.pptx)</a></li>
-            <li><a href="tinh-nang.html">Toàn bộ tính năng</a></li>
+            <li><a href="tinh-nang.html">Danh mục tính năng</a></li>
           </ul>
         </div>
 
         <div class="footer-col">
           <h4>Thông tin</h4>
           <ul class="footer-links">
-            <li><a href="tai-ve.html">Tải bộ cài 0.9.6</a></li>
-            <li><a href="co-gi-moi.html">Ghi chú phát hành</a></li>
+            <li><a href="tai-ve.html">Tải về bộ cài</a></li>
+            <li><a href="co-gi-moi.html">Có gì mới (0.9.6)</a></li>
+            <li><a href="huong-dan.html">Hướng dẫn sử dụng</a></li>
             <li><a href="ban-quyen.html">Chính sách bản quyền</a></li>
-            <li><a href="trang-thai.html">Kiểm tra trạng thái</a></li>
           </ul>
         </div>
 
         <div class="footer-col">
-          <h4>Hỗ trợ</h4>
+          <h4>Kết nối &amp; Hỗ trợ</h4>
           <ul class="footer-links">
-            <li><a href="huong-dan.html">Hướng dẫn sử dụng</a></li>
-            <li><a href="huong-dan.html#shortcuts">Phím tắt thường dùng</a></li>
-            <li><a href="huong-dan.html#faq">Khác biệt cần biết</a></li>
-            <li><a href="lien-he.html">Liên hệ 3T Computer</a></li>
+            <li><a href="lien-he.html">Thông tin liên hệ</a></li>
+            <li><a href="trang-thai.html">Kiểm tra trạng thái máy chủ</a></li>
+            <li><a href="https://office.3tcomputer.com">Cổng thông tin 3T Office</a></li>
+            <li><a href="https://3tcomputer.com">Trang chủ 3T Computer</a></li>
           </ul>
         </div>
       </div>
 
       <div class="footer-bottom">
         <div>
-          © 2024–2026 3T Computer / 3T Technology. Bảo lưu mọi quyền.
+          Bản quyền © 2026 3T Office — Sản phẩm công nghệ văn phòng 3T Computer. Hoạt động ngoại tuyến 100%.
         </div>
         <div>
-          Trang web chính thức: <a href="https://office.3tcomputer.com" style="color: var(--brand-orange); text-decoration: none;">office.3tcomputer.com</a>
+          Tiêu chuẩn hành chính Việt Nam &bull; Hỗ trợ bảng mã Unicode dựng sẵn (NFC)
         </div>
       </div>
     </div>

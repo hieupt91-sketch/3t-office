@@ -8,6 +8,13 @@
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="alternate icon" href="favicon.ico">
   <link rel="stylesheet" href="css/style.css">
+  <script>
+    try {
+      var t = localStorage.getItem("3t_theme");
+      if (!t && window.matchMedia("(prefers-color-scheme: dark)").matches) t = "dark";
+      if (t) document.documentElement.setAttribute("data-theme", t);
+    } catch(e) {}
+  </script>
 </head>
 <body>
   <a href="#main-content" class="skip-link">Chuyển đến nội dung chính</a>
@@ -22,10 +29,6 @@
         </div>
       </a>
 
-      <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="primary-nav" aria-label="Mở trình đơn chuyển hướng">
-        ☰ Trình đơn
-      </button>
-
       <nav id="primary-nav" class="main-nav" aria-label="Điều hướng chính">
         <ul class="nav-list">
           <li><a href="index.html" class="nav-link">Trang chủ</a></li>
@@ -36,9 +39,23 @@
           <li><a href="ban-quyen.html" class="nav-link">Bản quyền</a></li>
           <li><a href="trang-thai.html" class="nav-link">Trạng thái</a></li>
           <li><a href="lien-he.html" class="nav-link">Liên hệ</a></li>
-          <li><a href="tai-ve.html" class="nav-link nav-cta">Tải 0.9.6 Pilot</a></li>
         </ul>
       </nav>
+
+      <div class="nav-actions">
+        <button type="button" class="theme-toggle-btn" aria-label="Chuyển đổi giao diện Sáng / Tối" title="Chuyển đổi giao diện Sáng / Tối">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"></circle></svg>
+        </button>
+        <a href="tai-ve.html" class="nav-cta-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+          </svg>
+          Tải 0.9.6 Pilot
+        </a>
+        <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="primary-nav" aria-label="Mở trình đơn chuyển hướng">
+          ☰
+        </button>
+      </div>
     </div>
   </header>
 
@@ -46,7 +63,7 @@
     <section class="section">
       <div class="container">
         <div class="section-header">
-          <span class="section-badge">Trung tâm trợ giúp</span>
+          <span class="badge badge-glow">Trung tâm trợ giúp</span>
           <h1 class="section-title">Hướng dẫn sử dụng 3T Office</h1>
           <p class="section-lead">
             Tổng hợp các bài hướng dẫn cốt lõi được rút gọn trực tiếp từ hệ thống trợ giúp trong ứng dụng, giúp bạn làm chủ 3T Office nhanh chóng.
@@ -54,142 +71,169 @@
         </div>
 
         <!-- Ô tìm kiếm bài viết phía client -->
-        <div class="search-box-wrap">
-          <svg class="search-icon-svg" viewBox="0 0 24 24" aria-hidden="true">
+        <div class="search-bar-wrap">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
           </svg>
-          <input type="search" id="guide-search" class="search-input" placeholder="Nhập từ khóa tìm kiếm (ví dụ: phím tắt, in ấn, khôi phục, công thức)..." aria-label="Tìm kiếm bài viết hướng dẫn">
+          <input type="search" id="guide-search" class="search-input" placeholder="Nhập từ khóa tìm kiếm (phím tắt, công thức, lề trang, in ấn, khôi phục...)" aria-label="Tìm kiếm bài viết hướng dẫn">
+        </div>
+
+        <!-- Bộ lọc nhóm danh mục -->
+        <div class="filter-bar" role="toolbar" aria-label="Lọc theo danh mục bài hướng dẫn">
+          <button type="button" class="filter-btn active" data-guide-category="all">Tất cả bài viết</button>
+          <button type="button" class="filter-btn" data-guide-category="basic">Cơ bản &amp; Tệp</button>
+          <button type="button" class="filter-btn" data-guide-category="productivity">Năng suất &amp; Phím tắt</button>
+          <button type="button" class="filter-btn" data-guide-category="doc">3T Doc (Văn bản)</button>
+          <button type="button" class="filter-btn" data-guide-category="sheet">3T Sheet (Bảng tính)</button>
+          <button type="button" class="filter-btn" data-guide-category="slide">3T Slide (Trình chiếu)</button>
+          <button type="button" class="filter-btn" data-guide-category="system">Cập nhật &amp; Khôi phục</button>
         </div>
 
         <div id="no-search-results" style="display: none; text-align: center; padding: 40px; color: var(--text-muted);">
           Không tìm thấy bài viết nào phù hợp với từ khóa tìm kiếm của bạn. Hãy thử từ khóa khác.
         </div>
 
-        <!-- Lưới 8 bài hướng dẫn thực tế -->
-        <div class="articles-grid" id="articles-container">
-          <!-- Bài 1: Bắt đầu nhanh -->
-          <article class="article-card" data-keywords="bắt đầu nhanh tạo mới mở tệp lưu lưu bản sao in xuất pdf ctrl+n ctrl+o ctrl+s f12 ctrl+p 3t doc 3t sheet 3t slide">
-            <span class="article-category">Cơ bản</span>
-            <h2 class="article-title">Bắt đầu nhanh: Tạo mới, Mở, Lưu, In và Xuất PDF</h2>
-            <p class="article-summary">
-              Khởi tạo tài liệu mới mở ngay trang làm việc trống không cần chờ đợi. Thao tác tệp nhất quán trên cả ba ứng dụng 3T Doc, 3T Sheet và 3T Slide.
-            </p>
-            <ul class="article-steps">
-              <li><strong>Tạo mới (Ctrl+N):</strong> Mở ngay một cửa sổ làm việc mới với mẫu trang trống sẵn sàng gõ phím.</li>
-              <li><strong>Mở tệp (Ctrl+O):</strong> Chọn tệp .docx, .doc, .xlsx, .xls, .pptx, .ppt từ máy tính.</li>
-              <li><strong>Lưu nhanh (Ctrl+S):</strong> Lưu trực tiếp đè vào tệp đang mở mà không hiện hộp thoại phiền phức.</li>
-              <li><strong>Lưu bản sao (F12):</strong> Đổi tên, thay đổi thư mục hoặc chuyển đổi định dạng tệp sang bản khác.</li>
-              <li><strong>In (Ctrl+P) & Xuất PDF:</strong> Mở bảng Xem trước khi in chuẩn xác từng trang và xuất tệp PDF.</li>
+        <!-- Bố cục 2 cột: Mục lục bên lề (TOC) và Danh sách bài viết -->
+        <div class="guide-layout">
+          <nav class="guide-toc" aria-label="Mục lục bài hướng dẫn nhanh">
+            <h3>Mục lục bài viết</h3>
+            <ul>
+              <li><a href="#article-start">1. Bắt đầu nhanh</a></li>
+              <li><a href="#shortcuts">2. 15 Phím tắt thông dụng</a></li>
+              <li><a href="#article-diff">3. Khác biệt cần biết</a></li>
+              <li><a href="#article-doc">4. Soạn thảo chuẩn NĐ 30</a></li>
+              <li><a href="#article-sheet">5. Quản lý bảng tính &amp; Hàm</a></li>
+              <li><a href="#article-slide">6. Thiết kế &amp; Trình chiếu</a></li>
+              <li><a href="#article-update">7. Cập nhật một chạm</a></li>
+              <li><a href="#article-recover">8. Tự động khôi phục</a></li>
             </ul>
-          </article>
+          </nav>
 
-          <!-- Bài 2: Phím tắt thường dùng -->
-          <article class="article-card" id="shortcuts" data-keywords="phím tắt shortcut ctrl+b ctrl+i ctrl+u ctrl+z ctrl+y ctrl+c ctrl+v ctrl+x ctrl+f ctrl+h f1 f2 alt+= ctrl+1">
-            <span class="article-category">Năng suất</span>
-            <h2 class="article-title">15 Phím tắt thường dùng nhất trong 3T Office</h2>
-            <p class="article-summary">
-              Bộ phím tắt chuẩn quốc tế quen thuộc giúp bạn thao tác nhanh trên bàn phím mà không cần nhấc tay chạm chuột.
-            </p>
-            <ul class="article-steps">
-              <li><strong>Ctrl+Z / Ctrl+Y:</strong> Hoàn tác (Undo) và Làm lại (Redo) lịch sử lên tới 100 bước.</li>
-              <li><strong>Ctrl+C / Ctrl+X / Ctrl+V:</strong> Sao chép, cắt và dán qua bảng nhớ tạm hệ thống.</li>
-              <li><strong>Ctrl+F / Ctrl+H:</strong> Mở hộp thoại Tìm kiếm và Thay thế văn bản/số liệu.</li>
-              <li><strong>Ctrl+B / Ctrl+I / Ctrl+U:</strong> Bật/tắt chữ Đậm, Nghiêng và Gạch chân.</li>
-              <li><strong>F2 (3T Sheet):</strong> Chỉnh sửa nhanh nội dung ô đang chọn; <strong>Ctrl+1:</strong> Mở hộp thoại Định dạng ô.</li>
-              <li><strong>Alt+= (3T Sheet):</strong> Tự động chèn công thức AutoSum tính tổng vùng số liệu.</li>
-            </ul>
-          </article>
+          <!-- Lưới 8 bài hướng dẫn thực tế -->
+          <div class="articles-grid" id="articles-container">
+            <!-- Bài 1: Bắt đầu nhanh -->
+            <article class="article-card" id="article-start" data-category="basic" data-keywords="bắt đầu nhanh tạo mới mở tệp lưu lưu bản sao in xuất pdf ctrl+n ctrl+o ctrl+s f12 ctrl+p 3t doc 3t sheet 3t slide">
+              <span class="article-category">Cơ bản</span>
+              <h2 class="article-title">Bắt đầu nhanh: Tạo mới, Mở, Lưu, In và Xuất PDF</h2>
+              <p class="article-summary">
+                Khởi tạo tài liệu mới mở ngay trang làm việc trống không cần chờ đợi. Thao tác tệp nhất quán trên cả ba ứng dụng 3T Doc, 3T Sheet và 3T Slide.
+              </p>
+              <ul class="article-steps">
+                <li><strong>Tạo mới (Ctrl+N):</strong> Mở ngay một cửa sổ làm việc mới với mẫu trang trống sẵn sàng gõ phím.</li>
+                <li><strong>Mở tệp (Ctrl+O):</strong> Chọn tệp .docx, .doc, .xlsx, .xls, .pptx, .ppt từ máy tính.</li>
+                <li><strong>Lưu nhanh (Ctrl+S):</strong> Lưu trực tiếp đè vào tệp đang mở mà không hiện hộp thoại phiền phức.</li>
+                <li><strong>Lưu bản sao (F12):</strong> Đổi tên, thay đổi thư mục hoặc chuyển đổi định dạng tệp sang bản khác.</li>
+                <li><strong>In (Ctrl+P) &amp; Xuất PDF:</strong> Mở bảng Xem trước khi in chuẩn xác từng trang và xuất tệp PDF.</li>
+              </ul>
+            </article>
 
-          <!-- Bài 3: Khác biệt cần biết -->
-          <article class="article-card" id="faq" data-keywords="khác biệt lưu ý chuyển đổi ngắt mục công thức toán lưu đa trang tính offline bảo mật">
-            <span class="article-category">Lưu ý quan trọng</span>
-            <h2 class="article-title">Khác biệt cần biết khi chuyển sang 3T Office</h2>
-            <p class="article-summary">
-              Những điểm đặc thù cần ghi nhớ khi sử dụng bộ ứng dụng văn phòng ngoại tuyến 3T Office.
-            </p>
-            <ul class="article-steps">
-              <li><strong>Hoạt động ngoại tuyến 100%:</strong> Không yêu cầu đăng nhập tài khoản đám mây để dùng tính năng.</li>
-              <li><strong>Ngắt mục trong 3T Doc:</strong> Mỗi mục (section) sở hữu Page Setup riêng (khổ giấy, lề, hướng xoay) được lưu trọn vẹn trong tệp .docx.</li>
-              <li><strong>Đa trang tính trong 3T Sheet:</strong> Lưu tệp .xlsx bảo toàn toàn bộ danh sách sheet kèm màu sắc và trạng thái ẩn/hiện.</li>
-              <li><strong>Công thức toán học:</strong> Hiện hiển thị dưới dạng khối văn bản toán học tiêu chuẩn; trình soạn WYSIWYG đang hoàn thiện.</li>
-              <li><strong>Liên kết ngoài bảng tính:</strong> Hiển thị giá trị lưu lần cuối và không tự âm thầm gửi kết nối ra mạng ngoài.</li>
-            </ul>
-          </article>
+            <!-- Bài 2: Phím tắt thường dùng -->
+            <article class="article-card" id="shortcuts" data-category="productivity" data-keywords="phím tắt shortcut ctrl+b ctrl+i ctrl+u ctrl+z ctrl+y ctrl+c ctrl+v ctrl+x ctrl+f ctrl+h f1 f2 alt+= ctrl+1">
+              <span class="article-category">Năng suất</span>
+              <h2 class="article-title">15 Phím tắt thường dùng nhất trong 3T Office</h2>
+              <p class="article-summary">
+                Bộ phím tắt chuẩn quốc tế quen thuộc giúp bạn thao tác nhanh trên bàn phím mà không cần nhấc tay chạm chuột.
+              </p>
+              <ul class="article-steps">
+                <li><strong>Ctrl+Z / Ctrl+Y:</strong> Hoàn tác (Undo) và Làm lại (Redo) lịch sử lên tới 100 bước.</li>
+                <li><strong>Ctrl+C / Ctrl+X / Ctrl+V:</strong> Sao chép, cắt và dán qua bảng nhớ tạm hệ thống.</li>
+                <li><strong>Ctrl+F / Ctrl+H:</strong> Mở hộp thoại Tìm kiếm và Thay thế văn bản/số liệu.</li>
+                <li><strong>Ctrl+B / Ctrl+I / Ctrl+U:</strong> Bật/tắt chữ Đậm, Nghiêng và Gạch chân.</li>
+                <li><strong>F2 (3T Sheet):</strong> Chỉnh sửa nhanh nội dung ô đang chọn; <strong>Ctrl+1:</strong> Mở hộp thoại Định dạng ô.</li>
+                <li><strong>Alt+= (3T Sheet):</strong> Tự động chèn công thức AutoSum tính tổng vùng số liệu.</li>
+              </ul>
+            </article>
 
-          <!-- Bài 4: Dán dữ liệu liên ứng dụng -->
-          <article class="article-card" data-keywords="dán dữ liệu copy paste clipboard liên ứng dụng từ excel sang word định dạng nguồn dán giá trị">
-            <span class="article-category">Thao tác</span>
-            <h2 class="article-title">Dán dữ liệu liên ứng dụng và từ tệp .docx/.xlsx</h2>
-            <p class="article-summary">
-              Trao đổi dữ liệu trơn tru giữa bảng tính và văn bản, giữ nguyên vẹn cấu trúc bảng và kiểu dáng định dạng.
-            </p>
-            <ul class="article-steps">
-              <li><strong>Dán bảng tính sang văn bản:</strong> Chọn vùng ô trong 3T Sheet, Ctrl+C rồi sang 3T Doc bấm Ctrl+V để tạo bảng có khung và màu sắc tương ứng.</li>
-              <li><strong>Dán từ tệp .docx có sẵn:</strong> Giữ nguyên tiêu đề Heading, danh sách có thứ tự và liên kết siêu văn bản.</li>
-              <li><strong>Dán chữ thuần (Ctrl+Shift+V):</strong> Chỉ dán nội dung chữ thuần túy, tự động hòa hợp với định dạng đoạn văn đích.</li>
-              <li><strong>Dán đặc biệt (Ctrl+Alt+V trong Sheet):</strong> Lựa chọn chỉ dán giá trị kết quả, chỉ dán định dạng hoặc chuyển vị hàng thành cột.</li>
-            </ul>
-          </article>
+            <!-- Bài 3: Khác biệt cần biết -->
+            <article class="article-card" id="article-diff" data-category="basic" data-keywords="khác biệt cần biết offline ngoại tuyến quyền riêng tư cập nhật không đám mây lưu trực tiếp chuyển đổi">
+              <span class="article-category">Cơ bản</span>
+              <h2 class="article-title">5 Khác biệt cốt lõi khi sử dụng 3T Office</h2>
+              <p class="article-summary">
+                Hiểu rõ kiến trúc vận hành để làm việc hiệu quả và yên tâm tối đa về tính an toàn dữ liệu cơ quan.
+              </p>
+              <ul class="article-steps">
+                <li><strong>Hoàn toàn ngoại tuyến:</strong> Ứng dụng không yêu cầu đăng nhập tài khoản đám mây để lưu tệp.</li>
+                <li><strong>Tài liệu riêng tư:</strong> Nội dung văn bản không bao giờ rời khỏi thiết bị cá nhân của bạn.</li>
+                <li><strong>Cập nhật một chạm:</strong> Gói vá nhị phân tự động xác thực chữ ký số và áp dụng khi khởi động lại.</li>
+                <li><strong>Tiết kiệm tài nguyên:</strong> Khởi động nhanh, chiếm dụng ít bộ nhớ RAM trên máy tính văn phòng.</li>
+                <li><strong>Giao diện tiếng Việt:</strong> Thuật ngữ chuyên ngành thân thiện, dễ tra cứu theo quy định văn bản.</li>
+              </ul>
+            </article>
 
-          <!-- Bài 5: Cập nhật một chạm -->
-          <article class="article-card" data-keywords="cập nhật một chạm update bản vá chữ ký số khởi động lại nâng cấp không cài lại">
-            <span class="article-category">Hệ thống</span>
-            <h2 class="article-title">Cập nhật một chạm: Không bao giờ phải cài lại</h2>
-            <p class="article-summary">
-              Cơ chế cập nhật độc quyền cho phép bạn nâng cấp lên bản mới chỉ với một thao tác bấm nút nhẹ nhàng.
-            </p>
-            <ul class="article-steps">
-              <li><strong>Kiểm tra tự động:</strong> 3T Office tự động kiểm tra bản cập nhật mới từ nguồn cấu hình trước và kho nội bộ LAN.</li>
-              <li><strong>Xác minh chữ ký số:</strong> Mọi gói cập nhật đều được kiểm tra chữ ký số phát hành trước khi cho phép cài đặt.</li>
-              <li><strong>Khởi động lại ngay:</strong> Khi nhận được thông báo bản mới, nhấn <em>Khởi động lại ngay</em>. Ứng dụng sẽ tự động sao lưu tài liệu đang mở, áp bản vá và mở lại đúng vị trí.</li>
-              <li><strong>Cơ chế tự phục hồi:</strong> Nếu bản vá gặp trục trặc, hệ thống tự động quay về bản ổn định trước đó mà không mất dữ liệu.</li>
-            </ul>
-          </article>
+            <!-- Bài 4: Soạn thảo chuẩn NĐ 30 trong 3T Doc -->
+            <article class="article-card" id="article-doc" data-category="doc" data-keywords="soạn thảo căn lề nghị định 30 văn bản hành chính times new roman 14pt lề trái 30mm mục lục tự động ngắt mục chia cột">
+              <span class="article-category">3T Doc</span>
+              <h2 class="article-title">Soạn thảo văn bản hành chính theo Nghị định 30/2020/NĐ-CP</h2>
+              <p class="article-summary">
+                Thiết lập định dạng trang A4, căn chỉnh lề chuẩn và tổ chức tiêu đề văn bản hành chính Việt Nam.
+              </p>
+              <ul class="article-steps">
+                <li>Vào tab <strong>Bố cục &gt; Lề trang</strong>, chọn mẫu lề hành chính: Trên 20mm, Dưới 20mm, Trái 30mm, Phải 15mm.</li>
+                <li>Chọn phông chữ <strong>Times New Roman</strong> hoặc <strong>Be Vietnam Pro</strong> với cỡ chữ 13–14pt.</li>
+                <li>Áp dụng các kiểu dáng Heading 1, 2, 3 từ tab Trang đầu để phục vụ việc lập Mục lục tự động.</li>
+                <li>Sử dụng tính năng <strong>Chia cột</strong> và <strong>Ngắt mục (Section Break)</strong> khi trình bày văn bản phức tạp.</li>
+              </ul>
+            </article>
 
-          <!-- Bài 6: Tự động khôi phục tài liệu -->
-          <article class="article-card" data-keywords="tự động khôi phục autorecover chống mất điện sự cố tắt đột ngột phục hồi dữ liệu">
-            <span class="article-category">An toàn dữ liệu</span>
-            <h2 class="article-title">Tự động khôi phục (AutoRecover) chống mất dữ liệu</h2>
-            <p class="article-summary">
-              Hệ thống phòng vệ an toàn tự động ghi nhớ nội dung làm việc, bảo vệ bạn khỏi sự cố mất điện hoặc tắt máy đột ngột.
-            </p>
-            <ul class="article-steps">
-              <li><strong>Chu kỳ lưu tự động:</strong> Mặc định mỗi 5 phút, ứng dụng tự lưu một bản sao lưu cục bộ ngầm trên máy tính.</li>
-              <li><strong>Thông báo phục hồi:</strong> Khi mở lại ứng dụng sau sự cố, hộp thoại <em>Khôi phục tài liệu</em> sẽ liệt kê các bản làm việc chưa kịp lưu.</li>
-              <li><strong>Mở bản khôi phục:</strong> Chọn mở để kiểm tra; tệp mở ra ở trạng thái chưa lưu và không ghi đè trực tiếp lên tệp gốc.</li>
-              <li><strong>Tùy chỉnh thời gian:</strong> Vào tab Trợ giúp &gt; Tự động khôi phục để điều chỉnh chu kỳ từ 1 đến 60 phút theo ý muốn.</li>
-            </ul>
-          </article>
+            <!-- Bài 5: Quản lý bảng tính trong 3T Sheet -->
+            <article class="article-card" id="article-sheet" data-category="sheet" data-keywords="bảng tính công thức pivot table vlookup xlookup sumifs datapilot what if định dạng có điều kiện 3t sheet">
+              <span class="article-category">3T Sheet</span>
+              <h2 class="article-title">Quản lý bảng tính, nhập công thức và phân tích số liệu</h2>
+              <p class="article-summary">
+                Sử dụng các công thức tính toán tài chính, thống kê và trích xuất bảng tổng hợp Pivot Table.
+              </p>
+              <ul class="article-steps">
+                <li>Nhập dấu <code>=</code> tại ô tính, gõ tên hàm (ví dụ: <code>=SUM(</code>) rồi kéo chuột chọn vùng số liệu.</li>
+                <li>Nhấn phím <strong>F4</strong> khi đang chọn ô để chuyển đổi địa chỉ tuyệt đối <code>$A$1</code>.</li>
+                <li>Vào tab <strong>Dữ liệu &gt; Pivot Table</strong> để tạo bảng tổng hợp đa chiều từ tệp .xlsx.</li>
+                <li>Thiết lập quy tắc tô màu tự động qua <strong>Định dạng có điều kiện</strong> trên tab Trang đầu.</li>
+              </ul>
+            </article>
 
-          <!-- Bài 7: Khởi động nhanh & Tối ưu tốc độ -->
-          <article class="article-card" data-keywords="khởi động nhanh tốc độ tối ưu ram giữ ấm tiến trình mở file nhanh">
-            <span class="article-category">Hiệu năng</span>
-            <h2 class="article-title">Khởi động nhanh và Tối ưu hóa tốc độ mở tệp</h2>
-            <p class="article-summary">
-              Các nguyên tắc kiến trúc giúp 3T Office sẵn sàng gõ phím tức thì và tải tài liệu lớn trơn tru.
-            </p>
-            <ul class="article-steps">
-              <li><strong>Mở vào tài liệu trống tức thì:</strong> Khung soạn thảo hiển thị ngay từ khung hình đầu tiên, không bị nghẽn bởi các tác vụ nền.</li>
-              <li><strong>Cơ chế giữ ấm tiến trình:</strong> Tiến trình xử lý tài liệu chạy nền giữ ấm sẵn sàng, giúp mở tệp thứ hai chỉ mất dưới nửa giây.</li>
-              <li><strong>Khuyến nghị bộ nhớ RAM:</strong> Trên máy có RAM từ 8 GB trở lên, tính năng Khởi động nhanh được bật mặc định để đạt tốc độ tối đa.</li>
-              <li><strong>Mở bảng tính lớn:</strong> Sử dụng công nghệ cuộn ảo chỉ vẽ các hàng đang hiển thị, ngăn ngừa tràn bộ nhớ với tệp hàng chục nghìn dòng.</li>
-            </ul>
-          </article>
+            <!-- Bài 6: Thiết kế và trình chiếu trong 3T Slide -->
+            <article class="article-card" id="article-slide" data-category="slide" data-keywords="trình chiếu thuyết trình presenter view slide master laser chuyển trang pptx 3t slide">
+              <span class="article-category">3T Slide</span>
+              <h2 class="article-title">Thiết kế bài thuyết trình và sử dụng chế độ Presenter</h2>
+              <p class="article-summary">
+                Làm chủ kỹ thuật trình diễn bài giảng, báo cáo với chế độ 2 màn hình chuyên nghiệp.
+              </p>
+              <ul class="article-steps">
+                <li>Nhấn phím <strong>F5</strong> để bắt đầu trình chiếu toàn màn hình từ trang đầu tiên (hoặc <strong>Shift+F5</strong> từ trang hiện tại).</li>
+                <li>Khi kết nối máy chiếu, bật chế độ <strong>Presenter View</strong> để xem trước slide kế tiếp và ghi chú bí mật.</li>
+                <li>Nhấn tổ hợp <strong>Ctrl+P</strong> để mở bút vẽ trực tiếp, <strong>Ctrl+L</strong> mở chấm laser ảo và phím <strong>E</strong> để xóa nét mực.</li>
+                <li>Tùy biến Slide Master trong tab Chế độ xem để đồng bộ thương hiệu toàn bộ slide.</li>
+              </ul>
+            </article>
 
-          <!-- Bài 8: Thiết lập trang in chuẩn Nghị định 30 -->
-          <article class="article-card" data-keywords="thiết lập trang in in ấn page setup nghị định 30 khổ giấy a4 căn lề xem trước trang in">
-            <span class="article-category">In ấn & Xuất bản</span>
-            <h2 class="article-title">Thiết lập trang in chuẩn văn bản hành chính Việt Nam</h2>
-            <p class="article-summary">
-              Hướng dẫn căn chỉnh khổ giấy A4, khoảng cách lề milimet và kiểm tra trang in trước khi gửi tới máy in.
-            </p>
-            <ul class="article-steps">
-              <li><strong>Khổ giấy A4 chuẩn:</strong> Tab Bố cục &gt; Kích thước &gt; Chọn A4 (210 x 297 mm).</li>
-              <li><strong>Căn lề Nghị định 30:</strong> Lề trên 20–25mm, lề dưới 20–25mm, lề trái 30–35mm (đóng gáy), lề phải 15–20mm.</li>
-              <li><strong>Xem trước khi in (Ctrl+F2 hoặc Ctrl+P):</strong> Xem chính xác số trang phân chia, đầu trang/chân trang lặp lại.</li>
-              <li><strong>In trực tiếp:</strong> Chọn máy in vật lý, phạm vi in (tất cả trang, trang hiện tại, hoặc các trang cách nhau như 1-3, 5).</li>
-            </ul>
-          </article>
+            <!-- Bài 7: Cập nhật một chạm -->
+            <article class="article-card" id="article-update" data-category="system" data-keywords="cập nhật một chạm bản vá chữ ký số khởi động lại phiên bản mới an toàn bảo mật">
+              <span class="article-category">Hệ thống</span>
+              <h2 class="article-title">Quy trình cập nhật một chạm có chữ ký số xác thực</h2>
+              <p class="article-summary">
+                Cơ chế áp dụng bản vá gọn nhẹ không làm gián đoạn tài liệu đang soạn thảo.
+              </p>
+              <ul class="article-steps">
+                <li>Khi xuất hiện thông báo có bản vá, kiểm tra tóm tắt các tính năng và bản sửa lỗi được niêm yết.</li>
+                <li>Bấm nút <strong>Khởi động lại ngay</strong> khi bạn đã sẵn sàng áp dụng.</li>
+                <li>Ứng dụng tự động kiểm tra chữ ký số mật mã để đảm bảo tệp vá nguyên gốc từ 3T Computer.</li>
+                <li>Tiến trình vá hoàn tất chỉ sau vài giây và khôi phục các cửa sổ làm việc đang mở.</li>
+              </ul>
+            </article>
+
+            <!-- Bài 8: Tự động khôi phục tài liệu -->
+            <article class="article-card" id="article-recover" data-category="system" data-keywords="tự động khôi phục autorecover mất điện sự cố sao lưu ngầm phục hồi tài liệu">
+              <span class="article-category">Hệ thống</span>
+              <h2 class="article-title">Tự động khôi phục tài liệu (AutoRecover) khi có sự cố</h2>
+              <p class="article-summary">
+                Bảo vệ an toàn cho thành quả làm việc của bạn trước các sự cố mất điện hay đóng đột ngột.
+              </p>
+              <ul class="article-steps">
+                <li>Hệ thống ngầm tạo ảnh chụp trạng thái chỉnh sửa định kỳ vào ổ cứng cục bộ.</li>
+                <li>Nếu máy tính bị sập nguồn đột ngột, ở lần khởi động kế tiếp hộp thoại <strong>Khôi phục tài liệu</strong> sẽ xuất hiện.</li>
+                <li>Xem trước danh sách tài liệu và nhấn <strong>Khôi phục tất cả</strong> để đưa nội dung về thời điểm gần nhất.</li>
+              </ul>
+            </article>
+          </div>
         </div>
       </div>
     </section>
@@ -199,16 +243,16 @@
     <div class="container">
       <div class="footer-grid">
         <div class="footer-col">
-          <div class="brand-link" style="margin-bottom: 14px;">
-            <img src="assets/icons/3t-mark.svg" alt="3T Logo" class="brand-icon">
+          <a href="index.html" class="brand-link" style="margin-bottom: 14px;">
+            <img src="assets/icons/3t-mark.svg" alt="Biểu trưng 3T Office" class="brand-icon">
             <div class="brand-text">
               <span class="brand-name">3T <span>Office</span></span>
               <span class="brand-tagline">Văn phòng ngoại tuyến</span>
             </div>
-          </div>
+          </a>
           <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;">
-            Bộ ứng dụng văn phòng chạy ngoại tuyến cho Windows phát triển bởi 3T Computer / 3T Technology.
-            Tôn trọng quyền riêng tư dữ liệu, xử lý trực tiếp trên thiết bị của bạn.
+            Bộ ứng dụng văn phòng chạy ngoại tuyến cho Windows được nghiên cứu và phát triển bởi 3T Computer. 
+            Tôn trọng tối đa quyền riêng tư và quyền sở hữu dữ liệu của người dùng.
           </p>
         </div>
 
@@ -218,37 +262,37 @@
             <li><a href="tinh-nang.html#doc">3T Doc (.docx)</a></li>
             <li><a href="tinh-nang.html#sheet">3T Sheet (.xlsx)</a></li>
             <li><a href="tinh-nang.html#slide">3T Slide (.pptx)</a></li>
-            <li><a href="tinh-nang.html">Toàn bộ tính năng</a></li>
+            <li><a href="tinh-nang.html">Danh mục tính năng</a></li>
           </ul>
         </div>
 
         <div class="footer-col">
           <h4>Thông tin</h4>
           <ul class="footer-links">
-            <li><a href="tai-ve.html">Tải bộ cài 0.9.6</a></li>
-            <li><a href="co-gi-moi.html">Ghi chú phát hành</a></li>
+            <li><a href="tai-ve.html">Tải về bộ cài</a></li>
+            <li><a href="co-gi-moi.html">Có gì mới (0.9.6)</a></li>
+            <li><a href="huong-dan.html">Hướng dẫn sử dụng</a></li>
             <li><a href="ban-quyen.html">Chính sách bản quyền</a></li>
-            <li><a href="trang-thai.html">Kiểm tra trạng thái</a></li>
           </ul>
         </div>
 
         <div class="footer-col">
-          <h4>Hỗ trợ</h4>
+          <h4>Kết nối &amp; Hỗ trợ</h4>
           <ul class="footer-links">
-            <li><a href="huong-dan.html">Hướng dẫn sử dụng</a></li>
-            <li><a href="huong-dan.html#shortcuts">Phím tắt thường dùng</a></li>
-            <li><a href="huong-dan.html#faq">Khác biệt cần biết</a></li>
-            <li><a href="lien-he.html">Liên hệ 3T Computer</a></li>
+            <li><a href="lien-he.html">Thông tin liên hệ</a></li>
+            <li><a href="trang-thai.html">Kiểm tra trạng thái máy chủ</a></li>
+            <li><a href="https://office.3tcomputer.com">Cổng thông tin 3T Office</a></li>
+            <li><a href="https://3tcomputer.com">Trang chủ 3T Computer</a></li>
           </ul>
         </div>
       </div>
 
       <div class="footer-bottom">
         <div>
-          © 2024–2026 3T Computer / 3T Technology. Bảo lưu mọi quyền.
+          Bản quyền © 2026 3T Office — Sản phẩm công nghệ văn phòng 3T Computer. Hoạt động ngoại tuyến 100%.
         </div>
         <div>
-          Trang web chính thức: <a href="https://office.3tcomputer.com" style="color: var(--brand-orange); text-decoration: none;">office.3tcomputer.com</a>
+          Tiêu chuẩn hành chính Việt Nam &bull; Hỗ trợ bảng mã Unicode dựng sẵn (NFC)
         </div>
       </div>
     </div>
