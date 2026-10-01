@@ -1,6 +1,6 @@
 # Install (or uninstall) a 3T Office pilot package for the current Windows user. No admin rights needed.
 # Run from the unpacked package folder:  powershell -ExecutionPolicy Bypass -File install-pilot.ps1 [-Uninstall] [-NoDesktopShortcuts] [-NoLibreOfficeWarmup]
-# Installs to %LOCALAPPDATA%\VNOffice\app-install, creates Start Menu (+ Desktop) shortcuts for 3T Doc / 3T Sheet / 3T Slide.
+# Installs to %LOCALAPPDATA%\VNOffice\app-install, creates Doc / Sheet / Slide shortcuts in Start Menu (+ Desktop).
 # Does NOT change file associations, so existing default apps continue opening documents during the pilot.
 # ASCII only: Windows PowerShell 5.1 reads BOM-less scripts in the ANSI code page.
 param(
@@ -16,13 +16,13 @@ $startMenu = Join-Path ([Environment]::GetFolderPath("Programs")) "3T Office"
 $legacyStartMenu = Join-Path ([Environment]::GetFolderPath("Programs")) "VN Office"
 $desktop = [Environment]::GetFolderPath("Desktop")
 $apps = @(
-    @{ Id = "writer"; Name = "3T Doc" },
-    @{ Id = "sheet"; Name = "3T Sheet" },
-    @{ Id = "slides"; Name = "3T Slide" }
+    @{ Id = "writer"; Name = "Doc" },
+    @{ Id = "sheet"; Name = "Sheet" },
+    @{ Id = "slides"; Name = "Slide" }
 )
 
 function Remove-Shortcuts {
-    $legacyShortcutNames = @("VN Writer", "VN Sheet", "VN Slides", "Go cai dat VN Office")
+    $legacyShortcutNames = @("3T Doc", "3T Sheet", "3T Slide", "VN Writer", "VN Sheet", "VN Slides", "Go cai dat VN Office")
     foreach ($menuFolder in @($legacyStartMenu, $startMenu)) {
         foreach ($shortcutName in $legacyShortcutNames) {
             $legacyLink = Join-Path $menuFolder "$shortcutName.lnk"
@@ -37,7 +37,7 @@ function Remove-Shortcuts {
         $link = Join-Path $desktop "$($app.Name).lnk"
         if (Test-Path -LiteralPath $link) { Remove-Item -LiteralPath $link -Force }
     }
-    foreach ($legacyName in @("VN Writer", "VN Sheet", "VN Slides")) {
+    foreach ($legacyName in @("3T Doc", "3T Sheet", "3T Slide", "VN Writer", "VN Sheet", "VN Slides")) {
         $legacyLink = Join-Path $desktop "$legacyName.lnk"
         if (Test-Path -LiteralPath $legacyLink) { Remove-Item -LiteralPath $legacyLink -Force }
     }
@@ -117,4 +117,4 @@ $uninstallLink.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$(Join-Pa
 $uninstallLink.Save()
 
 $version = Get-Content -LiteralPath (Join-Path $InstallDir "VERSION.txt") -ErrorAction SilentlyContinue
-Write-Host "Da cai 3T Office $version. Mo 3T Doc / 3T Sheet / 3T Slide tu Start Menu hoac Desktop."
+Write-Host "Da cai 3T Office $version. Mo Doc / Sheet / Slide tu Start Menu > 3T Office hoac Desktop."

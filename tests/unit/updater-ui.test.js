@@ -1,4 +1,4 @@
-import { renderUpdateNotification, restartWithSaveCheck } from "../../platform/updater/update-ui.js";
+import { connectUpdaterUi, renderUpdateNotification, restartWithSaveCheck } from "../../platform/updater/update-ui.js";
 import { UPDATER_HELP_ENTRIES } from "../../platform/help/entries-updater.js";
 
 export async function runUpdaterUiTests() {
@@ -42,17 +42,14 @@ export async function runUpdaterUiTests() {
   try {
     // The shared confirmation dialog returns its documented affirmative fallback without a DOM.
     globalThis.document = undefined;
-    let saveCalls = 0;
     let restartCalls = 0;
-    const dirtyApp = { adapter: { isDirty: true, async save() { saveCalls++; this.isDirty = false; return true; } } };
+    const dirtyApp = { adapter: { isDirty: true, async save() { throw new Error("save is coordinated per window"); } } };
     const dirtyApi = { async request_update_restart() { restartCalls++; return { started: true }; } };
     const restarted = await restartWithSaveCheck(dirtyApp, dirtyApi);
-    test("Updater restart: lưu tài liệu bẩn trước khi khởi động lại", restarted && saveCalls === 1 && restartCalls === 1);
+    test("Updater restart: giao việc lưu từng cửa sổ cho bộ điều phối", restarted && restartCalls === 1);
 
-    let refusedRestartCalls = 0;
-    const saveFailedApp = { adapter: { isDirty: true, async save() { return false; } } };
-    const saveFailed = await restartWithSaveCheck(saveFailedApp, { async request_update_restart() { refusedRestartCalls++; return { started: true }; } });
-    test("Updater restart: không khởi động lại nếu thao tác lưu thất bại", !saveFailed && refusedRestartCalls === 0);
+    const cancelled = await restartWithSaveCheck(dirtyApp, { async request_update_restart() { return { started: false, cancelled: true }; } });
+    test("Updater restart: một cửa sổ hủy lưu thì không khởi động lại", !cancelled);
   } finally {
     globalThis.document = originalDocument;
   }
@@ -64,5 +61,36 @@ export async function runUpdaterUiTests() {
       return entry && entry.ribbon.tab === "Trợ giúp" && entry.steps.length >= 5 && /Khởi động lại ngay/.test(entry.steps.join(" "));
     })
   );
+
+  const originalWindow = globalThis.window;
+  try {
+    let healthCalls = 0;
+    let startupChecks = 0;
+    let healthResult = { healthy: true, pending: true };
+    globalThis.window = {
+      pywebview: { api: {
+        async get_update_status() { return { current_version: "0.9.6", status: "up-to-date" }; },
+        async confirm_update_health() { healthCalls++; return healthResult; },
+        async start_update_checks() { startupChecks++; }
+      } },
+      addEventListener() {}
+    };
+    const connected = await connectUpdaterUi({ appName: "writer", shell: { showNotification() {} } });
+    test("Updater health handshake: xác nhận sau khi cầu nối WebView sẵn sàng", connected && healthCalls === 1);
+    test("Updater startup: khởi động kiểm tra trong nền khi kết nối UI hoàn tất", startupChecks === 1);
+    const originalWarn = console.warn;
+    let warnings = 0;
+    console.warn = () => { warnings += 1; };
+    healthResult = { healthy: false, pending: false };
+    try {
+      await connectUpdaterUi({ appName: "writer", shell: { showNotification() {} } });
+    } finally {
+      console.warn = originalWarn;
+    }
+    test("Updater health handshake: không cảnh báo khi không có cập nhật chờ xác nhận", warnings === 0);
+  } finally {
+    if (originalWindow === undefined) delete globalThis.window;
+    else globalThis.window = originalWindow;
+  }
   return results;
 }

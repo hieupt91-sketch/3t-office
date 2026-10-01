@@ -135,6 +135,63 @@ export async function runBasicEditingKeysTests() {
     assert(resolveWriterTabBehavior({ inTable: true, cellIndex: 0, cellCount: 3, shiftKey: true }) === "ignore", "Shift+Tab ở ô đầu phải không thoát bảng");
   }));
 
+  results.push(await test("Writer Tab inserts a real tab wrapper and notifies the undo/pagination listeners", () => {
+    const oldDocument = globalThis.document;
+    const oldWindow = globalThis.window;
+    const root = fakeElement("div");
+    const text = fakeText("abc");
+    root.append(text);
+    let inserted = null;
+    let inputEvent = null;
+    let removedRanges = 0;
+    let addedRange = null;
+    let deleted = false;
+    const snapshots = [];
+    const range = {
+      commonAncestorContainer: text,
+      deleteContents() { deleted = true; },
+      insertNode(node) { inserted = node; node.parentNode = root; node.parentElement = root; },
+      setStartAfter(node) { assert(node === inserted, "caret advances past the inserted tab"); },
+      collapse(value) { assert(value === true, "caret collapses after the tab"); }
+    };
+    const selection = {
+      rangeCount: 1,
+      getRangeAt() { return range; },
+      removeAllRanges() { removedRanges++; },
+      addRange(value) { addedRange = value; }
+    };
+    root.dispatchEvent = event => { inputEvent = event; return true; };
+    globalThis.document = {
+      createElement(tag) {
+        const element = fakeElement(tag);
+        element.attributes = {};
+        element.style = {};
+        element.setAttribute = (name, value) => { element.attributes[name] = String(value); };
+        element.textContent = "";
+        return element;
+      }
+    };
+    globalThis.window = { getSelection: () => selection };
+    try {
+      const adapter = Object.create(WriterAdapter.prototype);
+      adapter.bodyDom = root;
+      adapter.trackChangesEnabled = false;
+      adapter.flushTyping = () => {};
+      adapter.recordSnapshot = label => snapshots.push(label);
+      assert(adapter._insertTabCharacter(root), "Writer Tab should insert at the current selection");
+      assert(deleted && inserted?.className === "vno-tab-character", "the selected content is replaced with a styled tab wrapper");
+      assert(inserted.textContent === "\t" && inserted.attributes["data-vno-tab-character"] === "true", "the wrapper contains an actual tab character");
+      assert(removedRanges === 1 && addedRange === range, "the selection is restored after the inserted tab");
+      assert(inputEvent?.type === "input" && inputEvent.bubbles, "an input event reaches undo and pagination listeners");
+      assert(adapter.isDirty === true && snapshots[0] === "writer.text.insertTab", "the tab insertion is dirty and undoable");
+    } finally {
+      if (oldDocument === undefined) delete globalThis.document;
+      else globalThis.document = oldDocument;
+      if (oldWindow === undefined) delete globalThis.window;
+      else globalThis.window = oldWindow;
+    }
+  }));
+
   results.push(await test("Writer paste event uses clipboard HTML/text and the plain-text command selects text only", async () => {
     const adapter = Object.create(WriterAdapter.prototype);
     const captured = [];

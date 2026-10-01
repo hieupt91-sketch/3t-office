@@ -6,10 +6,9 @@
 import { globalUnoBridge } from "../common/uno-bridge.js";
 import { showAlertDialog, showPromptDialog, showFindReplaceDialog } from "../../../platform/ui-kit/dialogs.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
-import { openPrintDialog } from "../../../platform/print/print-dialog.js";
+import { withLazyFeatureProgress } from "../../../platform/startup/lazy-feature.js";
 import { globalShortcutManager } from "../../../platform/commands/shortcut-manager.js";
 import { getVnCommand } from "../common/command-dispatch-mapper.js";
-import { SheetChartBuilder } from "../../../apps/sheet/sheet-chart.js";
 import { overlayFodsStructureProtection } from "./xlsx-workbook-protection.js";
 import { overlayActiveSheetToFods } from "./xlsx-active-sheet.js";
 import { buildSheetPayloadModel } from "./sheet-payload-parser.js";
@@ -18,6 +17,7 @@ import {
   parseOfficeTsv,
   serializeSheetRangeToClipboard
 } from "../../../platform/clipboard/office-clipboard.js";
+import { extractSheetRangeData } from "../../../apps/sheet/sheet-chart-data.js";
 
 export function numberFormatFromExcelCode(code) {
   const source = String(code ?? "").trim();
@@ -526,14 +526,16 @@ export class SheetAdapter {
     try {
       showFindReplaceDialog({
         isReplace: !!isReplace,
-        onFind: (text) => this.grid.findNext ? this.grid.findNext(text) : false,
-        onReplace: (findText, replaceText) => {
+        app: "sheet",
+        onFind: (text, options) => this.grid.findNext ? this.grid.findNext(text, options) : false,
+        onFindPrev: (text, options) => this.grid.findPrev ? this.grid.findPrev(text, options) : false,
+        onReplace: (findText, replaceText, options) => {
           if (!findText) return false;
-          return this.grid.replaceOne ? this.grid.replaceOne(findText, replaceText) : false;
+          return this.grid.replaceOne ? this.grid.replaceOne(findText, replaceText, options) : false;
         },
-        onReplaceAll: (findText, replaceText) => {
+        onReplaceAll: (findText, replaceText, options) => {
           if (!findText) return 0;
-          return this.grid.replaceAll ? this.grid.replaceAll(findText, replaceText) : 0;
+          return this.grid.replaceAll ? this.grid.replaceAll(findText, replaceText, options) : 0;
         }
       });
     } catch (_) {
@@ -682,6 +684,56 @@ export class SheetAdapter {
     return null;
   }
 
+  _findTagBlockByAttr(xml, tagName, attrName, attrValue) {
+    if (!attrValue) return null;
+    const escapedTag = tagName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(`<${escapedTag}\\b([^>]*)>([\\s\\S]*?)<\\/${escapedTag}>`, "gi");
+    let match;
+    while ((match = re.exec(xml)) !== null) {
+      const attrs = this._parseTagAttrs(match[1]);
+      if (attrs[attrName] === attrValue) return { attrs, body: match[2] };
+    }
+    return null;
+  }
+
+  _parseOdfHeaderFooter(masterPageBody) {
+    const fieldTokens = [
+      ["page-number", "&P"], ["page-count", "&N"], ["date", "&D"],
+      ["time", "&T"], ["file-name", "&F"], ["sheet-name", "&A"]
+    ];
+    const plainText = value => {
+      let text = String(value || "");
+      for (const [tag, token] of fieldTokens) {
+        const escaped = tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        text = text
+          .replace(new RegExp(`<text:${escaped}\\b[^>]*\\/>`, "gi"), token)
+          .replace(new RegExp(`<text:${escaped}\\b[^>]*>[\\s\\S]*?<\\/text:${escaped}>`, "gi"), token);
+      }
+      text = text.replace(/<text:s\b([^>]*)\/>/gi, (_, attrs) => {
+        const count = Number(this._parseTagAttrs(attrs)["text:c"] || 1);
+        return " ".repeat(Math.max(1, Math.min(count, 100)));
+      });
+      text = text.replace(/<text:tab\b[^>]*\/>/gi, "\t").replace(/<text:line-break\b[^>]*\/>/gi, "\n");
+      return this._unescapeXml(text.replace(/<[^>]+>/g, "")).replace(/\r/g, "").trim();
+    };
+    const parseSection = kind => {
+      const block = String(masterPageBody || "").match(new RegExp(`<style:${kind}(?=[\\s>])[^>]*>([\\s\\S]*?)<\\/style:${kind}>`, "i"));
+      const result = { left: "", center: "", right: "" };
+      if (!block) return result;
+      let hasRegions = false;
+      for (const position of ["left", "center", "right"]) {
+        const region = block[1].match(new RegExp(`<style:region-${position}(?=[\\s>])[^>]*>([\\s\\S]*?)<\\/style:region-${position}>`, "i"));
+        if (region) {
+          hasRegions = true;
+          result[position] = plainText(region[1]);
+        }
+      }
+      if (!hasRegions) result.center = plainText(block[1]);
+      return result;
+    };
+    return { header: parseSection("header"), footer: parseSection("footer") };
+  }
+
   /** Quy đổi một độ dài ODF (vd "2.5cm", "0.75in", "10pt") về cm - LibreOffice luôn ghi cm trong FODS nhưng file từ nguồn khác có thể dùng đơn vị khác. */
   _odfLengthToCm(raw) {
     const match = String(raw || "").match(/^(-?[\d.]+)\s*(cm|mm|in|pt|px)?$/i);
@@ -706,7 +758,8 @@ export class SheetAdapter {
     const tableStyleAttrs = this._findTagAttrsByAttr(xml, "style:style", "style:name", tableStyleName);
     const masterPageName = tableStyleAttrs?.["style:master-page-name"];
     if (!masterPageName) return null;
-    const masterPageAttrs = this._findTagAttrsByAttr(xml, "style:master-page", "style:name", masterPageName);
+    const masterPageBlock = this._findTagBlockByAttr(xml, "style:master-page", "style:name", masterPageName);
+    const masterPageAttrs = masterPageBlock?.attrs || this._findTagAttrsByAttr(xml, "style:master-page", "style:name", masterPageName);
     const pageLayoutName = masterPageAttrs?.["style:page-layout-name"];
     if (!pageLayoutName) return null;
     const escapedLayoutName = pageLayoutName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -737,9 +790,15 @@ export class SheetAdapter {
       if (best && bestDelta < 1.5) size = best;
     }
 
-    const printTokens = (props["style:print"] || "").split(/\s+/).filter(Boolean);
+    const tableStyleBlock = this._findTagBlockByAttr(xml, "style:style", "style:name", tableStyleName);
+    const tablePropsMatch = tableStyleBlock?.body?.match(/<style:table-properties\b([^>]*)\/?>/i);
+    const tableProps = this._parseTagAttrs(tablePropsMatch?.[1] || "");
+    const printTokens = (props["style:print"] || tableProps["style:print"] || "").split(/\s+/).filter(Boolean);
     const centering = props["style:table-centering"] || "none";
     const scalePercent = parseInt(props["style:scale-to"], 10);
+    const hasPageAxes = props["style:scale-to-X"] !== undefined || props["style:scale-to-Y"] !== undefined;
+    const pagesWide = parseInt(props["style:scale-to-X"], 10);
+    const pagesTall = parseInt(props["style:scale-to-Y"], 10);
 
     return {
       size,
@@ -751,11 +810,12 @@ export class SheetAdapter {
         right: this._odfLengthToCm(props["fo:margin-right"]) ?? 1.78
       },
       scale: {
-        mode: "percent",
+        mode: hasPageAxes ? "pages" : "percent",
         percent: Number.isFinite(scalePercent) && scalePercent > 0 ? scalePercent : 100,
-        pagesWide: 1,
-        pagesTall: 0
+        pagesWide: Number.isFinite(pagesWide) && pagesWide >= 0 ? pagesWide : 1,
+        pagesTall: Number.isFinite(pagesTall) && pagesTall >= 0 ? pagesTall : 0
       },
+      headerFooter: this._parseOdfHeaderFooter(masterPageBlock?.body || ""),
       centerOnPage: {
         horizontal: centering === "horizontal" || centering === "both",
         vertical: centering === "vertical" || centering === "both"
@@ -4093,7 +4153,7 @@ ${pristineXlsxMarker}
       }
       const cells = workbook.sheetsData[union.sheet];
       if (cells instanceof Map) {
-        const extracted = SheetChartBuilder.extractRangeData(cells, chart.range, this._columnsForChartExtract());
+        const extracted = extractSheetRangeData(cells, chart.range, this._columnsForChartExtract());
         chart.labels = extracted.labels;
         chart.data = extracted.data;
       }
@@ -4241,7 +4301,7 @@ ${pristineXlsxMarker}
             orientation: table.getAttribute("vno:page-orientation") || standardLayout?.orientation || "portrait",
             margins: { top: 1.91, bottom: 1.91, left: 1.78, right: 1.78, ...(standardLayout?.margins || {}), ...pageMargins },
             scale: { mode: "percent", percent: 100, pagesWide: 1, pagesTall: 0, ...(standardLayout?.scale || {}), ...pageScale },
-            headerFooter: { header: { left: "", center: "", right: "", ...(pageHeaderFooter.header || {}) }, footer: { left: "", center: "Trang &P / &N", right: "", ...(pageHeaderFooter.footer || {}) } },
+            headerFooter: { header: { left: "", center: "", right: "", ...(standardLayout?.headerFooter?.header || {}), ...(pageHeaderFooter.header || {}) }, footer: { left: "", center: "Trang &P / &N", right: "", ...(standardLayout?.headerFooter?.footer || {}), ...(pageHeaderFooter.footer || {}) } },
             centerOnPage: { horizontal: false, vertical: false, ...(standardLayout?.centerOnPage || {}), ...pageCentering },
             printOptions: { gridlines: false, headings: false, ...(standardLayout?.printOptions || {}), ...pagePrintOptions },
             printTitles: { rows: table.getAttribute("vno:print-title-rows") || "", cols: table.getAttribute("vno:print-title-cols") || "" }
@@ -4523,7 +4583,7 @@ ${pristineXlsxMarker}
           orientation: pageAttr("vno:page-orientation") || standardLayout?.orientation || "portrait",
           margins: { top: 1.91, bottom: 1.91, left: 1.78, right: 1.78, ...(standardLayout?.margins || {}), ...pageMargins },
           scale: { mode: "percent", percent: 100, pagesWide: 1, pagesTall: 0, ...(standardLayout?.scale || {}), ...pageScale },
-          headerFooter: { header: { left: "", center: "", right: "", ...(pageHeaderFooter.header || {}) }, footer: { left: "", center: "Trang &P / &N", right: "", ...(pageHeaderFooter.footer || {}) } },
+          headerFooter: { header: { left: "", center: "", right: "", ...(standardLayout?.headerFooter?.header || {}), ...(pageHeaderFooter.header || {}) }, footer: { left: "", center: "Trang &P / &N", right: "", ...(standardLayout?.headerFooter?.footer || {}), ...(pageHeaderFooter.footer || {}) } },
           centerOnPage: { horizontal: false, vertical: false, ...(standardLayout?.centerOnPage || {}), ...pageCentering },
           printOptions: { gridlines: false, headings: false, ...(standardLayout?.printOptions || {}), ...pagePrintOptions },
           printTitles: { rows: pageAttr("vno:print-title-rows"), cols: pageAttr("vno:print-title-cols") }
@@ -5393,20 +5453,20 @@ ${pristineXlsxMarker}
         try {
           this.shell?.setStatus?.("Đang dựng mô hình bảng tính và chuẩn bị lưới…");
           const loaded = await this.loadFromPayload(result.sheetPayload, result.ooxmlWorkbookXml);
-          if (!loaded) throw new Error("Payload không tạo được workbook.");
+          if (!loaded) throw new Error("Không dựng được sổ làm việc từ dữ liệu đã đọc.");
         } catch {
           reportOpenIssue("SheetOpenPayloadError", "Sheet payload parsing or model construction failed; using the retained FODS fallback.");
-          this.shell?.setStatus?.("Đang tải dữ liệu FODS dự phòng…");
+          this.shell?.setStatus?.("Đang tải dữ liệu bảng tính dự phòng…");
           const fallback = openId
             ? await globalUnoBridge.getSheetOpenFallback(openId)
             : await globalUnoBridge.getLatestSheetOpenFallback();
-          if (fallback?.status !== "ok") throw new Error("Không lấy được FODS dự phòng cho bảng tính.");
+          if (fallback?.status !== "ok") throw new Error("Không lấy được bản dự phòng của bảng tính.");
           openId = fallback.openId || openId;
           const loaded = this.loadFromFods(
             fallback.content,
             fallback.ooxmlWorkbookXml || result.ooxmlWorkbookXml
           );
-          if (!loaded) throw new Error("FODS dự phòng không tạo được workbook.");
+          if (!loaded) throw new Error("Không dựng được sổ làm việc từ bản dự phòng.");
           result = { ...result, ...fallback };
         }
       } else {
@@ -5437,7 +5497,7 @@ ${pristineXlsxMarker}
       this.shell?.setStatus?.("Không thể mở tệp. Sổ làm việc đang mở được giữ nguyên.");
       await showAlertDialog({
         title: "Không thể mở tệp",
-        message: "3T Sheet không thể nạp bảng tính bằng dữ liệu chính hoặc bản FODS dự phòng. Sổ làm việc đang mở được giữ nguyên.",
+        message: "Sheet không thể nạp bảng tính từ dữ liệu đã đọc hoặc bản dự phòng. Sổ làm việc đang mở được giữ nguyên.",
         type: "error"
       });
       return false;
@@ -5470,17 +5530,27 @@ ${pristineXlsxMarker}
     const selectedRow = Number(selected.r) || 1;
     const selectedCol = grid?._columnNumber?.(selected.c) || 1;
     const activePage = pages.findIndex((page) => page.rowNums?.includes(selectedRow) && page.colNums?.includes(selectedCol));
+    const selectionRanges = (grid?._getSelectionRanges?.() || [grid?.selectionRange].filter(Boolean))
+      .map((range) => grid?._normalizeRange?.(range) || range)
+      .filter((range) => range?.start?.c && range?.start?.r && range?.end?.c && range?.end?.r)
+      .map((range) => {
+        const start = `${range.start.c}${range.start.r}`;
+        const end = `${range.end.c}${range.end.r}`;
+        return start === end ? start : `${start}:${end}`;
+      });
     const pageSize = String(setup.size || "a4").toUpperCase();
     const orientation = setup.orientation === "landscape" ? "Ngang" : "Dọc";
-    return openPrintDialog({
+    return withLazyFeatureProgress("sheet", "In và xem trước", () => import("../../../platform/print/print-dialog.js"))
+      .then(({ openPrintDialog }) => openPrintDialog({
       appKind: "sheet",
       content: this.serializeToFods(),
       documentName: this.sourceFileName || "Bảng tính",
       sourcePath: this.sourceFilePath || null,
       pageSetupLabel: `${pageSize} · ${orientation}`,
       currentPage: activePage >= 0 ? activePage + 1 : 1,
+      selectionRanges,
       engine: globalUnoBridge
-    });
+    }));
   }
 
   async handleDispatch(unoUrl, args, vnCmdId) {
@@ -6231,7 +6301,8 @@ ${pristineXlsxMarker}
       : null;
     const applied = this.grid.applyPasteSpecial(model, "all", this.grid.selectedCoord, {
       moveRange,
-      sourceSheet: this._clipboardSourceSheet
+      sourceSheet: this._clipboardSourceSheet,
+      coerceInput: !isInternal
     });
     if (globalThis.window?.__vnoClipboardDiagnostics) console.info("__VNO_CLIPBOARD_DIAG__" + JSON.stringify({ phase: "sheet-paste-applied", applied, cellsAfter: [...this.grid.cellsData.entries()].filter(([coord]) => /^(A1|B2|C2|B3|C3)$/.test(coord)).map(([coord, cell]) => ({ coord, val: cell.val, style: cell.style })) }));
     if (applied && moveRange) this.grid.clearClipboardRange?.();

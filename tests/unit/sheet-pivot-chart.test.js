@@ -11,8 +11,9 @@ export async function runSheetPivotChartTests() {
   const results = [];
   const test = async (name, fn) => { try { await fn(); results.push({ name, pass: true }); } catch (error) { results.push({ name, pass: false, error: error.message }); } };
 
-  await test("PivotChart lấy dữ liệu Pivot đã tổng hợp và tự cập nhật khi Refresh", () => {
+  await test("PivotChart lấy dữ liệu Pivot đã tổng hợp và tự cập nhật khi Refresh", async () => {
     const grid = new SheetGridController(container()); const source = grid.activeSheet;
+    await grid.initializeOptionalDocumentFeatures();
     put(grid, "A1", "Vùng"); put(grid, "B1", "Doanh số"); put(grid, "A2", "Bắc"); put(grid, "B2", 10); put(grid, "A3", "Bắc"); put(grid, "B3", 20); put(grid, "A4", "Nam"); put(grid, "B4", 5);
     const pivot = grid.createPivotTable({ sourceSheet: source, sourceRange: "A1:B4", rows: ["Vùng"], columns: [], values: [{ field: "Doanh số", aggregate: "SUM" }] });
     const target = grid.activeSheet; const chart = grid.insertPivotChart("bar", pivot, pivot.resultRange);
@@ -23,8 +24,9 @@ export async function runSheetPivotChartTests() {
     assert(grid.sheetsData[target].get("B2").val === 60, "Bảng Pivot refresh sai");
   });
 
-  await test("PivotChart chỉ hỗ trợ Cột/Tròn, SVG và Undo dùng chart history chung", () => {
+  await test("PivotChart chỉ hỗ trợ Cột/Tròn, SVG và Undo dùng chart history chung", async () => {
     const grid = new SheetGridController(container()); const source = grid.activeSheet;
+    await grid.initializeOptionalDocumentFeatures();
     put(grid, "A1", "Loại"); put(grid, "B1", "SL"); put(grid, "A2", "A"); put(grid, "B2", 4);
     const pivot = grid.createPivotTable({ sourceSheet: source, sourceRange: "A1:B2", rows: ["Loại"], values: [{ field: "SL", aggregate: "SUM" }] });
     assert(grid.insertPivotChart("line", pivot, pivot.resultRange) === false, "Không được nhận kiểu Đường");
