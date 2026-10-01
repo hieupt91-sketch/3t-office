@@ -119,6 +119,22 @@ export const FUNCTION_CATALOG = [
   ,{ name: "DB", category: "Tài chính", syntax: "DB(cost, salvage, life, period, [month])", desc: "Tính khấu hao theo số dư giảm dần cố định; month là số tháng trong năm đầu tiên (mặc định 12)." }
 ];
 
+// Keep autocomplete restricted to functions with a branch in FormulaEngine._executeFunction.
+// The catalog is intentionally broader only when an evaluator implementation lands with it.
+export const SUPPORTED_FUNCTION_NAMES = new Set([
+  "ABS", "AND", "AVERAGE", "AVERAGEIF", "AVERAGEIFS", "CEILING", "CHOOSE", "CONCAT", "CONCATENATE",
+  "COUNT", "COUNTA", "COUNTBLANK", "COUNTIF", "COUNTIFS", "DATE", "DATEDIF", "DAY", "DAYS", "DB",
+  "EDATE", "EOMONTH", "EXACT", "FIND", "FLOOR", "FV", "HLOOKUP", "IF", "IFERROR", "IFNA", "INDEX",
+  "INDIRECT", "INT", "IPMT", "IRR", "ISBLANK", "ISERROR", "ISNA", "ISNUMBER", "ISTEXT", "LARGE",
+  "LEFT", "LEN", "LOOKUP", "LOWER", "MATCH", "MAX", "MEDIAN", "MID", "MIN", "MOD", "MONTH", "NA",
+  "NETWORKDAYS", "NOT", "NOW", "NPER", "NPV", "OFFSET", "OR", "PMT", "POWER", "PPMT", "PRODUCT",
+  "PROPER", "PV", "RANK", "RANK.EQ", "RATE", "REPT", "RIGHT", "ROUND", "ROUNDDOWN", "ROUNDUP",
+  "SEARCH", "SIGN", "SLN", "SMALL", "SQRT", "STDEV", "SUBSTITUTE", "SUM", "SUMIF", "SUMIFS",
+  "SUMPRODUCT", "TEXT", "TEXTJOIN", "TODAY", "TRIM", "TRUNC", "UPPER", "VALUE", "VAR", "VLOOKUP",
+  "WEEKDAY", "WORKDAY", "XLOOKUP", "YEAR", "VND"
+]);
+export const SUPPORTED_FUNCTION_CATALOG = FUNCTION_CATALOG.filter(item => SUPPORTED_FUNCTION_NAMES.has(item.name));
+
 export class FormulaEngine {
   /**
    * @param {Map<string, {val: string, formula: string, style: Object}> | (() => Map<string, any>)} cellsData
@@ -1725,7 +1741,7 @@ export class FormulaEngine {
  * @param {Array<Object>} [catalog=FUNCTION_CATALOG] Danh mục hàm
  * @returns {Array<Object>} Danh sách các hàm khớp tiền tố, sắp xếp theo độ liên quan
  */
-export function getFunctionSuggestions(query, catalog = FUNCTION_CATALOG) {
+export function getFunctionSuggestions(query, catalog = SUPPORTED_FUNCTION_CATALOG) {
   if (!query || typeof query !== "string") return [];
   const q = query.trim().toUpperCase();
   if (!q) return [];
@@ -1796,7 +1812,7 @@ export function formatSyntaxHtml(syntax, activeParamIndex = 0) {
  * @param {Array<Object>} [catalog=FUNCTION_CATALOG]
  * @returns {Object|null} { funcName, funcDef, activeParamIndex, openParenIndex }
  */
-export function findEnclosingFunction(formulaStr, cursorPos, catalog = FUNCTION_CATALOG) {
+export function findEnclosingFunction(formulaStr, cursorPos, catalog = SUPPORTED_FUNCTION_CATALOG) {
   if (!formulaStr || !formulaStr.startsWith("=")) return null;
   const pos = (cursorPos !== undefined && cursorPos !== null) ? cursorPos : formulaStr.length;
   const text = formulaStr.slice(0, pos);
@@ -1867,7 +1883,7 @@ export function findEnclosingFunction(formulaStr, cursorPos, catalog = FUNCTION_
  * @param {Array<Object>} [catalog=FUNCTION_CATALOG]
  * @returns {Object} { mode: "autocomplete"|"syntax_tooltip"|null, ... }
  */
-export function parseFormulaContext(formulaStr, cursorPos, catalog = FUNCTION_CATALOG) {
+export function parseFormulaContext(formulaStr, cursorPos, catalog = SUPPORTED_FUNCTION_CATALOG) {
   if (!formulaStr || !formulaStr.startsWith("=")) {
     return { mode: null };
   }

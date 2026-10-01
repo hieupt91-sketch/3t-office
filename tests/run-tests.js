@@ -11,6 +11,7 @@ import { runSheetExternalLinksTests } from "./unit/sheet-external-links.test.js"
 import { runSheetVndWordsTests } from "./unit/sheet-vnd-words.test.js";
 import { runSheetFormulaOdfTests } from "./unit/sheet-formula-odf.test.js";
 import { runFormulaAutocompleteTests } from "./unit/formula-autocomplete.test.js";
+import { runSheetFormulaEntryTests } from "./unit/sheet-formula-entry.test.js";
 import { runI18nTests } from "./unit/i18n.test.js";
 import { run3TDisplayNameTests } from "./unit/3t-display-name.test.js";
 import { runI18nHardcodedEnglishTests } from "./unit/i18n-hardcoded-english.test.js";
@@ -116,6 +117,7 @@ import { runWriterSectionBreaksPageColorTests } from "./unit/writer-sectionbreak
 import { runSheetHelpTests } from "./unit/sheet-help.test.js";
 import { runSlidesHelpTests } from "./unit/slides-help.test.js";
 import { runHelpCoverageTests } from "./unit/help-coverage.test.js";
+import { runHelpGettingStartedTests } from "./unit/help-getting-started.test.js";
 import { runHelpRibbonLocationTests } from "./unit/help-ribbon-location.test.js";
 import { runHelpShortcutConsistencyTests } from "./unit/help-shortcut-consistency.test.js";
 import { runWriterWordArtTests } from "./unit/writer-wordart.test.js";
@@ -219,6 +221,7 @@ async function runAll() {
     { title: "3c. Unit Tests — VND() số tiền bằng chữ", runner: runSheetVndWordsTests },
     { title: "3d. Unit Tests — Sheet công thức #REF! ⇄ ODF", runner: runSheetFormulaOdfTests },
     { title: "4. Unit Tests — Formula Autocomplete & Parameter IntelliSense", runner: runFormulaAutocompleteTests },
+    { title: "4a. Unit Tests — Sheet Excel-Style Formula Entry", runner: runSheetFormulaEntryTests },
     { title: "5. Unit Tests — Vietnamese i18n Localization Layer", runner: runI18nTests },
     { title: "5a. Regression Guard — 3T display names in i18n and Help", runner: run3TDisplayNameTests },
     { title: "5b. Regression Guard — Hard-coded English UI Text Scan", runner: runI18nHardcodedEnglishTests },
@@ -326,6 +329,7 @@ async function runAll() {
     { title: "95b. Regression Guard — Help Coverage (100% Writer & Sheet Ribbon Commands)", runner: runHelpCoverageTests },
     { title: "95c. Regression Guard — Help ⇄ Ribbon Location Consistency (commandIds thật, tab/nhóm khớp ribbon hiện tại)", runner: runHelpRibbonLocationTests },
     { title: "95d. Regression Guard — Help ⇄ Shortcut Consistency (shortcut trong Help khớp command-definitions + app binds)", runner: runHelpShortcutConsistencyTests },
+    { title: "95e. Regression Guard — Help Bắt đầu nhanh / Phím tắt / Khác biệt (tab, nhóm, phím tắt có thật)", runner: runHelpGettingStartedTests },
     { title: "96. Behavioral Tests — VN Writer WordArt (chữ nghệ thuật)", runner: runWriterWordArtTests },
     { title: "98. Behavioral Tests — VN Slides Animation Pane & Set Up Slide Show", runner: runSlidesAnimationPaneSetupShowTests },
     { title: "101. Behavioral Tests — VN Writer Illustration Dialogs (Shape/Diagram/Chart pickers)", runner: runWriterIllustrationDialogTests },

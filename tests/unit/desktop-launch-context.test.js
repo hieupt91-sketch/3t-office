@@ -50,6 +50,20 @@ export async function runDesktopLaunchContextTests() {
     if (result !== true || switchedTo !== "sheet") throw new Error(`switchedTo=${switchedTo}`);
   });
 
+  test("separate desktop windows keep document chrome and dirty state isolated", () => {
+    const first = new AppShell({ appName: "writer", appTitle: "VN Writer", documentName: "first.docx" });
+    const second = new AppShell({ appName: "writer", appTitle: "VN Writer", documentName: "second.docx" });
+    first.adapter = { isDirty: true };
+    second.adapter = { isDirty: false };
+    first.documentName = "first-edited.docx";
+    if (first.documentName !== "first-edited.docx" || second.documentName !== "second.docx") {
+      throw new Error(`document names leaked: ${first.documentName} / ${second.documentName}`);
+    }
+    if (!first.adapter.isDirty || second.adapter.isDirty) {
+      throw new Error("dirty state leaked between app-shell instances");
+    }
+  });
+
   test("index.html launches resolved app with explicit singleApp + blank template options", () => {
     const html = fs.readFileSync(path.join(ROOT_DIR, "index.html"), "utf8");
     if (!html.includes("templateId: \"blank\"")) {
