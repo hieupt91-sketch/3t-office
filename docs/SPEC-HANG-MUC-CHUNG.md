@@ -102,6 +102,7 @@ Thứ tự làm: **CH-1 → CH-9**, xong phần chung mới sang 3T Doc → 3T S
 | CH-5.3 | Định dạng cũ .doc / .xls / .ppt | Mở được, hiển thị đúng; Lưu thành định dạng mới không mất nội dung; đo trên mẫu LAN |
 | CH-5.4 | Không ghi đè giá trị file gốc đã lưu sẵn (ví dụ #REF!, #NAME? trong xlsx) | Kiểm qua bộ 26 file |
 | CH-5.5 | Thông báo lỗi khi mở tệp hỏng/khóa/mật khẩu | Tiếng Việt, rõ nguyên nhân, giữ tài liệu đang mở |
+| **CH-5.6** | **Mất dữ liệu khi lưu docx (Người phụ trách duyệt 01/10, ưu tiên cao nhất trong CH-5):** đầu/chân trang trống khi mở bằng Word; mất theo dõi thay đổi; mất chú thích | Word mở bản lưu thấy đúng đầu/chân trang + trang đầu khác, `Revisions.Count` và `Comments.Count` đúng; tài liệu tạo bằng Word mở → lưu không mất gì |
 
 ---
 
