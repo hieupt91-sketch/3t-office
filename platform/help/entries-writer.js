@@ -938,10 +938,26 @@ export const WRITER_HELP_ENTRIES = [
     keywords: ["cắt", "sao chép", "dán", "sao chép định dạng", "clipboard", "cut", "copy", "paste", "format painter", "Ctrl+X", "Ctrl+C", "Ctrl+V", "Ctrl+Shift+C"],
     steps: [
       "Bôi đen đoạn văn bản hoặc chọn đối tượng (bảng, hình ảnh) cần thao tác.",
-      "Mở tab Trang đầu, nhóm Bảng nhớ tạm: nhấn Cắt (Ctrl+X) để di chuyển hoặc Sao chép (Ctrl+C) để nhân bản vào bộ nhớ tạm.",
-      "Đặt con trỏ tại vị trí đích trong tài liệu rồi nhấn Dán (Ctrl+V) để đưa nội dung vào.",
+      "Mở tab Trang đầu, nhóm Bảng nhớ tạm: nhấn Cắt (Ctrl+X) để di chuyển hoặc Sao chép (Ctrl+C) để nhân bản. Các phím Ctrl+X, Ctrl+C và Ctrl+V cũng dùng trực tiếp trong vùng soạn thảo.",
+      "Đặt con trỏ tại vị trí đích trong tài liệu rồi nhấn Dán (Ctrl+V). 3T Doc giữ định dạng HTML an toàn từ clipboard; nếu clipboard chỉ có văn bản, nội dung được dán dưới dạng chữ thuần.",
       "Để sao chép kiểu dáng chữ: bôi đen đoạn mẫu có định dạng ưng ý, nhấn Sao chép định dạng (Ctrl+Shift+C), sau đó quét chuột qua vùng văn bản cần áp dụng kiểu dáng.",
       "Có thể dùng Ctrl+Z để hoàn tác hoặc Ctrl+Y để làm lại mọi thao tác trên."
+    ]
+  },
+{
+    id: "writer.keyboard.basicEditing",
+    app: "writer",
+    commandIds: [],
+    title: "Enter, Tab và xuống dòng trong 3T Doc — bàn phím điều hướng",
+    summary: "Enter tạo đoạn mới; Shift+Enter xuống dòng trong cùng đoạn. Tab nhập ký tự tab ở văn bản thường, đổi cấp ở đầu mục danh sách và chuyển ô trong bảng.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Bảng nhớ tạm" },
+    keywords: ["Enter", "Shift+Enter", "Tab", "Shift+Tab", "đoạn mới", "xuống dòng", "danh sách", "ô bảng", "phím bàn phím", "F1"],
+    steps: [
+      "Nhấp vào vùng soạn thảo rồi gõ văn bản. Nhấn Enter để tạo đoạn mới và tiếp tục gõ; con trỏ ở đoạn mới sẽ được giữ nguyên khi kiểm tra chính tả tiếng Việt cập nhật dấu gạch dưới.",
+      "Nhấn Shift+Enter để xuống dòng nhưng vẫn ở cùng đoạn. Khi bộ gõ tiếng Việt thay ký tự vừa nhập bằng insertText, tiếp tục gõ tại vị trí con trỏ hiện tại.",
+      "Trong đoạn văn thường, nhấn Tab để chèn ký tự tab; ký tự được giữ trong nội dung tài liệu và hiển thị theo điểm dừng 1,27 cm. Shift+Tab ở ngoài danh sách hoặc bảng không chuyển focus khỏi trang.",
+      "Ở đầu một mục danh sách, nhấn Tab để tăng cấp thụt lề hoặc Shift+Tab để giảm cấp. Trong bảng, Tab chuyển sang ô kế tiếp, Shift+Tab quay về ô trước; Tab ở ô cuối tạo thêm một hàng.",
+      "Nhấn F1 để mở Trợ giúp 3T Office và tìm 'Tab', 'Enter' hoặc 'bảng nhớ tạm' khi cần tra lại."
     ]
   },
   {
