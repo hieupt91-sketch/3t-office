@@ -141,6 +141,7 @@ export async function runBasicEditingKeysTests() {
     let removedRanges = 0;
     let addedRange = null;
     let deleted = false;
+    const snapshots = [];
     const range = {
       commonAncestorContainer: text,
       deleteContents() { deleted = true; },
@@ -171,11 +172,13 @@ export async function runBasicEditingKeysTests() {
       adapter.bodyDom = root;
       adapter.trackChangesEnabled = false;
       adapter.flushTyping = () => {};
+      adapter.recordSnapshot = label => snapshots.push(label);
       assert(adapter._insertTabCharacter(root), "Writer Tab should insert at the current selection");
       assert(deleted && inserted?.className === "vno-tab-character", "the selected content is replaced with a styled tab wrapper");
       assert(inserted.textContent === "\t" && inserted.attributes["data-vno-tab-character"] === "true", "the wrapper contains an actual tab character");
       assert(removedRanges === 1 && addedRange === range, "the selection is restored after the inserted tab");
       assert(inputEvent?.type === "input" && inputEvent.bubbles, "an input event reaches undo and pagination listeners");
+      assert(adapter.isDirty === true && snapshots[0] === "writer.text.insertTab", "the tab insertion is dirty and undoable");
     } finally {
       if (oldDocument === undefined) delete globalThis.document;
       else globalThis.document = oldDocument;

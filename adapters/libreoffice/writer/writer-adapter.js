@@ -646,6 +646,8 @@ export class WriterAdapter {
     if (typeof Event === "function") {
       root.dispatchEvent?.(new Event("input", { bubbles: true }));
     }
+    this.isDirty = true;
+    this.recordSnapshot("writer.text.insertTab");
     return true;
   }
 
@@ -817,24 +819,6 @@ export class WriterAdapter {
     if (!selection || selection.rangeCount === 0) return false;
     const range = selection.getRangeAt(0);
     return range.startContainer === element && range.startOffset === 0;
-  }
-
-  _insertTabCharacter(root) {
-    if (typeof window === "undefined" || !window.getSelection) return false;
-    const selection = window.getSelection();
-    if (!selection.rangeCount) return false;
-    const range = selection.getRangeAt(0);
-    if (!root.contains(range.commonAncestorContainer)) return false;
-    range.deleteContents();
-    const tabText = document.createTextNode("\t");
-    range.insertNode(tabText);
-    range.setStartAfter(tabText);
-    range.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(range);
-    this.isDirty = true;
-    this.recordSnapshot("writer.text.insertTab");
-    return true;
   }
 
   _bindMouseAndKeyboardParity() {
