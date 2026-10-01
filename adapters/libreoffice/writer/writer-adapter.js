@@ -613,6 +613,42 @@ export class WriterAdapter {
     this.bodyDom.addEventListener("input", () => this._updateTrackChangesCommandState());
   }
 
+  _insertTabCharacter(root) {
+    if (!root || typeof document === "undefined" || typeof window === "undefined") return false;
+    const selection = window.getSelection?.();
+    if (!selection?.rangeCount) return false;
+    const range = selection.getRangeAt(0);
+    const commonNode = range?.commonAncestorContainer;
+    if (!range || !(commonNode === root || root.contains?.(commonNode))) return false;
+
+    this.flushTyping?.();
+    range.deleteContents?.();
+    const tab = document.createElement("span");
+    tab.className = "vno-tab-character";
+    tab.setAttribute("data-vno-tab-character", "true");
+    tab.textContent = "\t";
+    let inserted = tab;
+    if (this.trackChangesEnabled && root === this.bodyDom) {
+      const mark = document.createElement("ins");
+      mark.setAttribute("data-vno-change", "insert");
+      mark.appendChild(tab);
+      inserted = mark;
+    }
+
+    range.insertNode(inserted);
+    range.setStartAfter(inserted);
+    range.collapse(true);
+    selection.removeAllRanges?.();
+    selection.addRange?.(range);
+    const paragraph = tab.closest?.("p,li,h1,h2,h3,h4,h5,h6");
+    if (paragraph?.style) paragraph.style.tabSize = "1.27cm";
+
+    if (typeof Event === "function") {
+      root.dispatchEvent?.(new Event("input", { bubbles: true }));
+    }
+    return true;
+  }
+
   /**
    * Giữ hành vi nhập liên tục giống Writer/Word ở ranh giới một vùng vừa được định
    * dạng. Chromium đặt caret ở trong thẻ <b> khi người dùng chọn một đoạn, Ctrl+B,
@@ -13757,7 +13793,12 @@ export class WriterAdapter {
             gapBeforeEls.push({ el, soft: false, kind: "block" });
             pageCount++;
           }
-          pageStartTop = top - marginTopOf(el);
+          // Hidden section markers have a zero top in the canvas. Let the next
+          // real block establish the new page origin instead of counting its
+          // document offset as overflow from the marker.
+          pageStartTop = el.classList?.contains("vno-section-break")
+            ? null
+            : top - marginTopOf(el);
           continue;
         }
 

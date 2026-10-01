@@ -716,6 +716,19 @@ li.vno-page-auto-gap {
   white-space: pre-wrap;
 }
 
+/* Imported DOCX tabs are already represented by the LibreOffice HTML layout.
+   Expanding every imported whitespace character again can add several pages. */
+.vno-writer-page.vno-doc-imported .vno-writer-body,
+.vno-writer-page.vno-doc-imported .vno-writer-header,
+.vno-writer-page.vno-doc-imported .vno-writer-footer {
+  white-space: normal;
+}
+
+.vno-tab-character {
+  tab-size: 1.27cm;
+  white-space: pre-wrap;
+}
+
 .vno-writer-header:empty,
 .vno-writer-footer:empty {
   /* W29a: vùng rỗng chỉ giữ một dải bấm mỏng (Word: nháy đúp vào lề để mở header); 26px cũ đè dòng đầu
