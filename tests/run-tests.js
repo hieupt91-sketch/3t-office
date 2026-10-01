@@ -219,6 +219,7 @@ import { runWriterPictureResizeWrapTests } from "./unit/writer-picture-resize-wr
 import { runWriterNumberedListRestartTests } from "./unit/writer-numbered-list-restart.test.js";
 import { runWriterVerticalRulerTests } from "./unit/writer-vertical-ruler.test.js";
 import { runWriterSpellingSuggestionsTests } from "./unit/writer-spelling-suggestions.test.js";
+import { runWriterClipboardTests } from "./unit/writer-clipboard.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -447,7 +448,8 @@ async function runAll() {
     { title: "179. Unit Tests — VN Writer picture resize handles, aspect ratio & wrap text", runner: runWriterPictureResizeWrapTests },
     { title: "180. Unit Tests — VN Writer numbered list restart at 1 and continue numbering", runner: runWriterNumberedListRestartTests },
     { title: "181. Unit Tests — VN Writer vertical ruler and scroll/zoom synchronization", runner: runWriterVerticalRulerTests },
-    { title: "182. Unit Tests — VN Writer spelling suggestions and context ranking", runner: runWriterSpellingSuggestionsTests }
+    { title: "182. Unit Tests — VN Writer spelling suggestions and context ranking", runner: runWriterSpellingSuggestionsTests },
+    { title: "183. Unit Tests — VN Writer Clipboard Cut/Copy/Paste & Sanitization", runner: runWriterClipboardTests }
   ];
 
   for (const suite of suites) {

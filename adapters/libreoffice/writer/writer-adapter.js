@@ -6850,14 +6850,49 @@ export class WriterAdapter {
       case "common.edit.redo":
         return this.redo();
 
-      case "common.edit.cut":
+      case "common.edit.cut": {
+        const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+        if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+          const text = selection.toString();
+          let html = "";
+          try {
+            if (typeof document !== "undefined") {
+              const container = document.createElement("div");
+              for (let i = 0; i < selection.rangeCount; i++) {
+                container.appendChild(selection.getRangeAt(i).cloneContents());
+              }
+              html = container.innerHTML;
+            }
+          } catch {}
+          this._clipboardMemory = { text, html };
+        }
         document.execCommand("cut", false, null);
+        this.isDirty = true;
+        this.recordSnapshot("Cut");
+        this._updateUndoRedoUI();
         dispatchResult = true;
         break;
+      }
 
-      case "common.edit.copy":
+      case "common.edit.copy": {
+        const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+        if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+          const text = selection.toString();
+          let html = "";
+          try {
+            if (typeof document !== "undefined") {
+              const container = document.createElement("div");
+              for (let i = 0; i < selection.rangeCount; i++) {
+                container.appendChild(selection.getRangeAt(i).cloneContents());
+              }
+              html = container.innerHTML;
+            }
+          } catch {}
+          this._clipboardMemory = { text, html };
+        }
         document.execCommand("copy", false, null);
         return true;
+      }
 
       case "common.edit.paste":
         return this._pasteFromSystemClipboard(false);
@@ -9302,7 +9337,15 @@ export class WriterAdapter {
     let url = typeof options === "string" ? options : options.url;
     let text = typeof options === "string" ? "" : options.text;
 
-    if (!url) {
+    if (typeof url === "string") {
+      url = url.trim();
+      // Chuẩn hóa, tránh lặp tiền tố giao thức (vd: https://https://example.com)
+      url = url.replace(/^(?:https?:\/\/)+(https?:\/\/)/i, "$1");
+      if (!url) url = "https://";
+      else if (!/^(?:https?:\/\/|mailto:|ftp:\/\/)/i.test(url)) {
+        url = "https://" + url;
+      }
+    } else {
       url = "https://";
     }
 
@@ -14938,19 +14981,89 @@ export class WriterAdapter {
   _bindClipboardEvents() {
     if (this._clipboardEventRoots) return;
     this._clipboardEventRoots = [this.headerDom, this.bodyDom, this.footerDom].filter(root => root?.addEventListener);
-    this._pasteEventHandler = event => {
-      const clipboard = event.clipboardData;
-      if (!clipboard) return;
-      const html = clipboard.getData("text/html") || "";
-      const text = clipboard.getData("text/plain") || "";
+
+    this._copyEventHandler = event => {
+      const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+      if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return;
+      const text = selection.toString();
+      let html = "";
+      try {
+        if (typeof document !== "undefined") {
+          const container = document.createElement("div");
+          for (let i = 0; i < selection.rangeCount; i++) {
+            container.appendChild(selection.getRangeAt(i).cloneContents());
+          }
+          html = container.innerHTML;
+        }
+      } catch {}
+      this._clipboardMemory = { text, html };
+      if (event?.clipboardData) {
+        if (text) event.clipboardData.setData("text/plain", text);
+        if (html) event.clipboardData.setData("text/html", html);
+      }
+    };
+
+    this._cutEventHandler = event => {
+      const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+      if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return;
+      const text = selection.toString();
+      let html = "";
+      try {
+        if (typeof document !== "undefined") {
+          const container = document.createElement("div");
+          for (let i = 0; i < selection.rangeCount; i++) {
+            container.appendChild(selection.getRangeAt(i).cloneContents());
+          }
+          html = container.innerHTML;
+        }
+      } catch {}
+      this._clipboardMemory = { text, html };
+      if (event?.clipboardData) {
+        if (text) event.clipboardData.setData("text/plain", text);
+        if (html) event.clipboardData.setData("text/html", html);
+      }
+      setTimeout(() => {
+        this.isDirty = true;
+        this.recordSnapshot("Cut");
+        this._updateUndoRedoUI();
+      }, 0);
+    };
+
+    this._pasteEventHandler = async event => {
+      const clipboard = event?.clipboardData;
+      let html = clipboard?.getData?.("text/html") || "";
+      let text = clipboard?.getData?.("text/plain") || "";
+      if (!html && !text && this._clipboardMemory) {
+        html = this._clipboardMemory.html || "";
+        text = this._clipboardMemory.text || "";
+      }
+      if (!html && !text) {
+        const sys = await this._readClipboardFromSystem();
+        if (sys?.html || sys?.text) {
+          html = sys.html || "";
+          text = sys.text || "";
+        }
+      }
       if (!html && !text) return;
-      event.preventDefault();
+      if (event?.preventDefault) event.preventDefault();
+      this._clipboardMemory = { text, html };
       this._insertClipboardContent({ html, text });
     };
-    for (const root of this._clipboardEventRoots) root.addEventListener("paste", this._pasteEventHandler);
+
+    for (const root of this._clipboardEventRoots) {
+      root.addEventListener("copy", this._copyEventHandler);
+      root.addEventListener("cut", this._cutEventHandler);
+      root.addEventListener("paste", this._pasteEventHandler);
+    }
   }
 
   _sanitizeClipboardHtml(html) {
+    if (typeof document === "undefined") {
+      return String(html || "")
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+        .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, "")
+        .replace(/javascript:[^"']*/gi, "");
+    }
     const template = document.createElement("template");
     template.innerHTML = String(html || "");
     const allowed = new Set([
@@ -14997,36 +15110,71 @@ export class WriterAdapter {
   _insertClipboardContent({ html = "", text = "" } = {}) {
     const cleanHtml = html ? this._sanitizeClipboardHtml(html) : "";
     if (cleanHtml || text) this.flushTyping();
+    let inserted = false;
     if (cleanHtml) {
-      if (document.execCommand?.("insertHTML", false, cleanHtml)) return true;
-      const selection = window.getSelection?.();
-      if (!selection?.rangeCount) return false;
-      const range = selection.getRangeAt(0);
-      const fragment = document.createRange().createContextualFragment(cleanHtml);
-      range.deleteContents();
-      const last = fragment.lastChild;
-      range.insertNode(fragment);
-      if (last) range.setStartAfter(last);
-      range.collapse(true);
-      selection.removeAllRanges();
-      selection.addRange(range);
-      this.bodyDom?.dispatchEvent?.(new InputEvent("input", { bubbles: true, inputType: "insertFromPaste", data: text || null }));
+      if (document.execCommand?.("insertHTML", false, cleanHtml)) {
+        inserted = true;
+      } else {
+        const selection = window.getSelection?.();
+        if (selection) {
+          if (!selection.rangeCount && this.bodyDom) {
+            const r = document.createRange();
+            r.selectNodeContents(this.bodyDom);
+            r.collapse(false);
+            selection.removeAllRanges();
+            selection.addRange(r);
+          }
+          if (selection.rangeCount) {
+            const range = selection.getRangeAt(0);
+            const fragment = document.createRange().createContextualFragment(cleanHtml);
+            range.deleteContents();
+            const last = fragment.lastChild;
+            range.insertNode(fragment);
+            if (last) range.setStartAfter(last);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+            this.bodyDom?.dispatchEvent?.(new InputEvent("input", { bubbles: true, inputType: "insertFromPaste", data: text || null }));
+            inserted = true;
+          }
+        }
+      }
+    }
+    if (!inserted && text) {
+      if (document.execCommand?.("insertText", false, text)) {
+        inserted = true;
+      } else {
+        const selection = window.getSelection?.();
+        if (selection) {
+          if (!selection.rangeCount && this.bodyDom) {
+            const r = document.createRange();
+            r.selectNodeContents(this.bodyDom);
+            r.collapse(false);
+            selection.removeAllRanges();
+            selection.addRange(r);
+          }
+          if (selection.rangeCount) {
+            const range = selection.getRangeAt(0);
+            const node = document.createTextNode(text);
+            range.deleteContents();
+            range.insertNode(node);
+            range.setStartAfter(node);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+            this.bodyDom?.dispatchEvent?.(new InputEvent("input", { bubbles: true, inputType: "insertFromPaste", data: text }));
+            inserted = true;
+          }
+        }
+      }
+    }
+    if (inserted) {
+      this.isDirty = true;
+      this.recordSnapshot("Paste");
+      this._updateUndoRedoUI();
       return true;
     }
-    if (!text) return false;
-    if (document.execCommand?.("insertText", false, text)) return true;
-    const selection = window.getSelection?.();
-    if (!selection?.rangeCount) return false;
-    const range = selection.getRangeAt(0);
-    const node = document.createTextNode(text);
-    range.deleteContents();
-    range.insertNode(node);
-    range.setStartAfter(node);
-    range.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(range);
-    this.bodyDom?.dispatchEvent?.(new InputEvent("input", { bubbles: true, inputType: "insertFromPaste", data: text }));
-    return true;
+    return false;
   }
 
   async _readClipboardFromSystem() {
@@ -15054,7 +15202,10 @@ export class WriterAdapter {
   }
 
   async _pasteFromSystemClipboard(plainTextOnly = false) {
-    const clipboard = await this._readClipboardFromSystem();
+    let clipboard = await this._readClipboardFromSystem();
+    if (!clipboard && this._clipboardMemory) {
+      clipboard = { status: "ok", html: this._clipboardMemory.html, text: this._clipboardMemory.text };
+    }
     if (!clipboard) {
       this.shell?.setStatus?.("Không đọc được bộ nhớ tạm. Hãy dùng Ctrl+V trong vùng soạn thảo hoặc kiểm tra quyền clipboard.");
       return false;
