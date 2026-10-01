@@ -214,6 +214,7 @@ import { runSheetNativeCellValuesTests } from "./unit/sheet-native-cell-values.t
 import { runSheetPrintSetupRoundTripTests } from "./unit/sheet-print-setup-roundtrip.test.js";
 import { runSheetC3C7C8GapTests } from "./unit/sheet-c3-c7-c8-gaps.test.js";
 import { runSlidesBasicsAuditTests } from "./unit/slides-basics-audit.test.js";
+import { runSheetGridExtentTests } from "./unit/sheet-grid-extent.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -437,7 +438,8 @@ async function runAll() {
     { title: "174. Unit Tests — VN Sheet native numeric/date cell values, external paste, fill and FODS types", runner: runSheetNativeCellValuesTests },
     { title: "175. Unit Tests — VN Sheet print setup XLSX reopen round-trip", runner: runSheetPrintSetupRoundTripTests },
     { title: "176. Unit Tests — VN Sheet C3/C7/C8 selection, tabs and sort", runner: runSheetC3C7C8GapTests },
-    { title: "177. Unit Tests — Slide basics editing, placeholders undo, Tab indent, shape Enter, picture resize & sorter keys", runner: runSlidesBasicsAuditTests }
+    { title: "177. Unit Tests — Slide basics editing, placeholders undo, Tab indent, shape Enter, picture resize & sorter keys", runner: runSlidesBasicsAuditTests },
+    { title: "178. Unit Tests — Sheet Grid Extent (1,048,576 rows x 16,384 columns virtualization & navigation)", runner: runSheetGridExtentTests }
   ];
 
   for (const suite of suites) {

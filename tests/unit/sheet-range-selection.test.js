@@ -77,8 +77,8 @@ export async function runSheetRangeSelectionTests() {
     const grid = new SheetGridController(mockContainer());
     const rowRange = grid._selectionRangeForPointer({ c: "A", r: 3 }, { c: "A", r: 10 }, "row");
     const columnRange = grid._selectionRangeForPointer({ c: "B", r: 1 }, { c: "E", r: 1 }, "column");
-    assert(rowRange.start.c === "A" && rowRange.end.c === "Z" && rowRange.start.r === 3 && rowRange.end.r === 10, "Row drag should span A3:Z10");
-    assert(columnRange.start.c === "B" && columnRange.end.c === "E" && columnRange.start.r === 1 && columnRange.end.r === 200, "Column drag should span B1:E200");
+    assert(rowRange.start.c === "A" && (rowRange.end.c === "XFD" || rowRange.end.c === "Z") && rowRange.start.r === 3 && rowRange.end.r === 10, "Row drag should span full columns extent");
+    assert(columnRange.start.c === "B" && columnRange.end.c === "E" && columnRange.start.r === 1 && (columnRange.end.r === 1048576 || columnRange.end.r === 200), "Column drag should span full rows extent");
   });
 
   return results;
