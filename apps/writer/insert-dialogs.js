@@ -1,10 +1,16 @@
 /**
  * 3T Doc — Insert dialogs (Equation, Bookmark, Cross-reference, WordArt)
- * Rút gọn so với Word: phương trình là hộp text/MathML cơ bản, không có trình soạn đồ họa.
+ * Equations are composed as linear input with native MathML preview and no external renderer.
  * WordArt: copy logic CSS/preset từ 3T Slide (không import chéo apps/slides — AGENTS.md §4).
  */
 
 import { t, getLocale } from "../../platform/i18n/i18n.js";
+import {
+  EQUATION_STRUCTURES,
+  EQUATION_SYMBOLS,
+  linearToMathML,
+  replaceGreekCommandAtCursor
+} from "./equation-editor.js";
 
 function trapFocus(dialogBox, event) {
   if (event.key !== "Tab") return;
@@ -35,97 +41,154 @@ export function slugBookmarkName(name) {
   return slug || "bookmark";
 }
 
-const EQUATION_PRESETS = [
-  "E = mc²",
-  "a² + b² = c²",
-  "x = (−b ± √(b² − 4ac)) / 2a",
-  "∑ᵢ xᵢ / n"
-];
-
 /**
  * @param {Object} [options]
+ * @param {string} [options.linear]
  * @param {string} [options.expression]
- * @returns {Promise<string|null>}
+ * @returns {Promise<{linear:string, mathml:string}|null>}
  */
 export function showEquationDialog(options = {}) {
-  const defaultExpr = options.expression || "E = mc²";
-  if (typeof document === "undefined" || !document.body || typeof document.createElement !== "function") {
-    return Promise.resolve(defaultExpr);
+  const initial = options.linear || options.expression || "x^2";
+  if (typeof document === "undefined" || !document.body) {
+    return Promise.resolve({ linear: initial, mathml: linearToMathML(initial) });
   }
-
   return new Promise((resolve) => {
     const previousFocused = document.activeElement;
-    const isEn = getLocale() === "en";
-    const overlay = document.createElement("div");
-    overlay.className = "vno-dialog-overlay";
+    const make = (tag, className, label) => {
+      const element = document.createElement(tag);
+      if (className) element.className = className;
+      if (label != null) element.textContent = label;
+      return element;
+    };
+    const overlay = make("div", "vno-dialog-overlay");
     overlay.dataset.vnoDialog = "equation";
-    overlay.innerHTML = `
-      <div class="vno-dialog-box" style="width: 460px;" role="dialog" aria-modal="true" aria-labelledby="vno-equation-title">
-        <div class="vno-dialog-header">
-          <span id="vno-equation-title">${isEn ? "Equation" : "Công thức"}</span>
-          <button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${t("common.close")}" aria-label="${t("common.close")}">&times;</button>
-        </div>
-        <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:10px;">
-          <p style="margin:0;font-size:12px;color:#64748b;">
-            ${isEn
-              ? "Reduced editor: insert a styled math text box. No graphical equation designer."
-              : "Bản rút gọn: chèn hộp công thức dạng chữ. Không có trình soạn đồ họa như Word."}
-          </p>
-          <label for="vno-equation-input" style="font-size:13px;font-weight:500;">${isEn ? "Expression" : "Biểu thức"}</label>
-          <input id="vno-equation-input" class="vno-dialog-input" type="text" value="${defaultExpr.replace(/"/g, "&quot;")}"
-            style="width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid var(--vno-border-default);border-radius:6px;font-family:Cambria,'Times New Roman',serif;font-style:italic;font-size:16px;" />
-          <div class="vno-equation-presets" style="display:flex;flex-wrap:wrap;gap:6px;">
-            ${EQUATION_PRESETS.map(preset => `<button type="button" class="vno-btn vno-equation-preset" data-equation="${preset.replace(/"/g, "&quot;")}">${preset}</button>`).join("")}
-          </div>
-        </div>
-        <div class="vno-dialog-footer">
-          <button type="button" class="vno-btn vno-dialog-cancel-btn">${t("common.cancel")}</button>
-          <button type="button" class="vno-btn vno-btn-primary vno-dialog-ok-btn">${isEn ? "Insert" : "Chèn"}</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(overlay);
-    const dialogBox = overlay.querySelector(".vno-dialog-box");
-    const input = overlay.querySelector("#vno-equation-input");
-    input.focus();
-    input.select();
+    const box = make("div", "vno-dialog-box vno-equation-editor");
+    box.style.width = "min(820px, calc(100vw - 32px))";
+    box.setAttribute("role", "dialog");
+    box.setAttribute("aria-modal", "true");
+    box.setAttribute("aria-labelledby", "vno-equation-title");
 
-    overlay.querySelectorAll(".vno-equation-preset").forEach(btn => {
-      btn.addEventListener("click", () => {
-        input.value = btn.getAttribute("data-equation") || "";
-        input.focus();
-      });
-    });
+    const header = make("div", "vno-dialog-header");
+    const title = make("span", "", t("writer.equation.dialog.title"));
+    title.id = "vno-equation-title";
+    const close = make("button", "vno-btn vno-btn-icon-only vno-dialog-close-btn", "×");
+    close.type = "button";
+    close.title = t("common.close");
+    close.setAttribute("aria-label", t("common.close"));
+    header.append(title, close);
+
+    const body = make("div", "vno-dialog-body vno-equation-dialog-body");
+    const guidance = make("p", "vno-equation-guidance", t("writer.equation.dialog.instructions"));
+    const structures = make("div", "vno-equation-structures");
+    structures.setAttribute("role", "group");
+    structures.setAttribute("aria-label", t("writer.equation.dialog.structures"));
+    const glyphs = {
+      fraction: "a⁄b", superscript: "x²", subscript: "x₁", squareRoot: "√x",
+      nthRoot: "ⁿ√x", integral: "∫", sum: "∑", product: "∏", brackets: "( )",
+      matrix2: "▦ 2×2", matrix3: "▦ 3×3"
+    };
+
+    const editorGrid = make("div", "vno-equation-editor-grid");
+    const inputPane = make("div", "vno-equation-input-pane");
+    const inputLabel = make("label", "", t("writer.equation.dialog.linearFormat"));
+    inputLabel.htmlFor = "vno-equation-input";
+    const input = make("textarea", "vno-dialog-input vno-equation-linear");
+    input.id = "vno-equation-input";
+    input.rows = 5;
+    input.value = initial;
+    input.setAttribute("spellcheck", "false");
+    input.setAttribute("aria-describedby", "vno-equation-hint");
+    const hint = make("div", "vno-equation-hint", t("writer.equation.dialog.linearHint"));
+    hint.id = "vno-equation-hint";
+    inputPane.append(inputLabel, input, hint);
+
+    const previewPane = make("div", "vno-equation-preview-pane");
+    const previewLabel = make("div", "vno-equation-preview-label", t("writer.equation.dialog.preview"));
+    const preview = make("div", "vno-equation-preview");
+    preview.setAttribute("role", "math");
+    preview.setAttribute("aria-live", "polite");
+    previewPane.append(previewLabel, preview);
+    editorGrid.append(inputPane, previewPane);
+
+    const symbols = make("div", "vno-equation-symbols");
+    symbols.setAttribute("role", "group");
+    symbols.setAttribute("aria-label", t("writer.equation.dialog.symbols"));
+    const footer = make("div", "vno-dialog-footer");
+    const cancel = make("button", "vno-btn vno-dialog-cancel-btn", t("common.cancel"));
+    cancel.type = "button";
+    const insert = make("button", "vno-btn vno-btn-primary vno-dialog-ok-btn", t("writer.equation.dialog.insert"));
+    insert.type = "button";
+    footer.append(cancel, insert);
+
+    const updatePreview = () => { preview.innerHTML = linearToMathML(input.value || ""); };
+    const insertTextAtSelection = (value) => {
+      const startAt = input.selectionStart ?? input.value.length;
+      const endAt = input.selectionEnd ?? startAt;
+      input.setRangeText(value, startAt, endAt, "end");
+      input.focus();
+      updatePreview();
+    };
+    for (const item of EQUATION_STRUCTURES) {
+      const button = make("button", "vno-btn vno-equation-structure", glyphs[item.id] || item.id);
+      button.type = "button";
+      button.title = t(item.labelKey);
+      button.setAttribute("aria-label", t(item.labelKey));
+      button.addEventListener("click", () => insertTextAtSelection(item.insert));
+      structures.appendChild(button);
+    }
+    for (const item of EQUATION_SYMBOLS) {
+      const button = make("button", "vno-btn vno-equation-symbol", item.symbol);
+      button.type = "button";
+      button.title = item.value;
+      button.setAttribute("aria-label", item.value);
+      button.addEventListener("click", () => insertTextAtSelection(item.value));
+      symbols.appendChild(button);
+    }
+    body.append(guidance, structures, symbols, editorGrid);
+    box.append(header, body, footer);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
 
     const cleanup = (value) => {
       document.removeEventListener("keydown", onKeyDown);
-      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-      if (previousFocused && typeof previousFocused.focus === "function") previousFocused.focus();
+      overlay.remove();
+      previousFocused?.focus?.();
       resolve(value);
     };
-
-    overlay.querySelector(".vno-dialog-ok-btn")?.addEventListener("click", () => cleanup((input.value || "").trim() || null));
-    overlay.querySelector(".vno-dialog-cancel-btn")?.addEventListener("click", () => cleanup(null));
-    overlay.querySelector(".vno-dialog-close-btn")?.addEventListener("click", () => cleanup(null));
-    overlay.addEventListener("click", (event) => {
-      if (event.target === overlay) cleanup(null);
-    });
-
+    const commit = () => {
+      const linear = input.value.trim();
+      cleanup(linear ? { linear, mathml: linearToMathML(linear) } : null);
+    };
+    input.addEventListener("input", updatePreview);
+    insert.addEventListener("click", commit);
+    cancel.addEventListener("click", () => cleanup(null));
+    close.addEventListener("click", () => cleanup(null));
+    overlay.addEventListener("click", event => { if (event.target === overlay) cleanup(null); });
     const onKeyDown = (event) => {
       if (event.key === "Escape") {
         event.preventDefault();
         cleanup(null);
-      } else if (event.key === "Enter") {
+      } else if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
         event.preventDefault();
-        cleanup((input.value || "").trim() || null);
+        commit();
+      } else if (event.key === " " && document.activeElement === input && !event.ctrlKey && !event.altKey && !event.metaKey) {
+        const converted = replaceGreekCommandAtCursor(input.value, input.selectionStart);
+        if (converted) {
+          event.preventDefault();
+          input.value = converted.value;
+          input.setSelectionRange(converted.cursor, converted.cursor);
+          updatePreview();
+        }
       } else if (event.key === "Tab") {
-        trapFocus(dialogBox, event);
+        trapFocus(box, event);
       }
     };
     document.addEventListener("keydown", onKeyDown);
+    input.focus();
+    input.select();
+    updatePreview();
   });
 }
-
 /**
  * @param {Object} [options]
  * @param {string} [options.name]

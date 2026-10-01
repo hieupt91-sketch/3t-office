@@ -1196,7 +1196,7 @@ def _apply_native_export_postprocess(
             raise
         except Exception as exc:
             raise DocumentEngineError(
-                f"Không khôi phục được section/header/footer cho DOCX: {exc}"
+                f"Không thể hoàn tất cấu trúc DOCX (mục, đầu/chân trang hoặc phương trình): {exc}"
             ) from exc
 
 
@@ -3053,13 +3053,14 @@ class VnOfficeApi:
                 with open(out_path, "r", encoding="utf-8", errors="replace") as f:
                     content = f.read()
                 if app_kind == "writer":
-                    content = _inline_html_images(content, out_path)
                     # Quy ước W9: font/cỡ mặc định từ docDefaults + theme khi LibreOffice không ghi p.western.
                     if convert_src_path.lower().endswith(".docx"):
                         try:
                             with open(convert_src_path, "rb") as f:
                                 docx_bytes = f.read()
                             patcher = _ooxml_zip_patch()
+                            # Restore native equations at LibreOffice's HTML image slots.
+                            content = patcher.writer_docx_equations_to_mathml_html(docx_bytes, content)
                             # W12b: font theme của tài liệu tiếng Việt = typeface script="Viet" (Word), không phải latin
                             content = patcher.apply_docx_theme_script_fonts(docx_bytes, content)
                             content = patcher.inject_docx_default_font_css(docx_bytes, content)
@@ -3070,6 +3071,7 @@ class VnOfficeApi:
                             content = patcher.restore_docx_html_half_points_and_empty_paras(docx_bytes, content)
                         except OSError:
                             pass
+                    content = _inline_html_images(content, out_path)
                     if convert_src_path.lower().endswith(".docx"):
                         # The intermediate DOCX is temporary; collect its
                         # OOXML sidecars before TemporaryDirectory removes it.
