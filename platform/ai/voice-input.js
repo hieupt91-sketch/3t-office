@@ -35,7 +35,7 @@ export function isVoiceInputSupported() {
  */
 export function startVoiceInput(options = {}) {
   if (!SpeechRecognition) {
-    const msg = "Trình duyệt hiện tại không hỗ trợ nhận dạng giọng nói. Vui lòng dùng Microsoft Edge hoặc Google Chrome.";
+    const msg = "Trình duyệt hiện tại không hỗ trợ nhận dạng giọng nói. Vui lòng dùng trình duyệt có hỗ trợ nhận dạng giọng nói.";
     if (options.onError) options.onError(msg);
     return;
   }

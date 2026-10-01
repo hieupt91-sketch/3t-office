@@ -107,7 +107,9 @@ export class WriterViewController {
     this.zoomLevel = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(numeric * 100) / 100));
     this.container?.classList.toggle("vno-writer-page-width", pageWidth);
     this._applyViewState();
-    this.shell?.setZoomLevel?.(Math.round(this.zoomLevel * 100));
+    const rounded = Math.round(this.zoomLevel * 100);
+    this.shell?.setZoomLevel?.(rounded);
+    this.shell?.setZoomDisplay?.(rounded);
     return this.zoomLevel;
   }
 

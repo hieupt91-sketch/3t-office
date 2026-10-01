@@ -6,11 +6,11 @@
 
 import { globalCommandBus } from "./commands/command-bus.js";
 import { registerAllStandardCommands } from "./commands/command-definitions.js";
-import { globalUnoBridge } from "../adapters/libreoffice/common/uno-bridge.js";
 import { themeManager } from "./theme/theme-manager.js";
 
 let _isBootstrapped = false;
 let _bootstrapPromise = null;
+let _documentServicesPromise = null;
 let _launchContext = Object.freeze({ appKind: null, singleAppMode: false, openInitialFile: false });
 
 export function resolveLaunchContext(search = "") {
@@ -51,12 +51,26 @@ export async function bootstrapPlatform() {
     registerAllStandardCommands(globalCommandBus);
     globalCommandBus.bindHandler("common.view.toggleTheme", () => themeManager.toggleTheme());
     themeManager.init();
-    await globalUnoBridge.init();
     _isBootstrapped = true;
     console.log("[3T Office Platform] Hoàn tất bootstrap suite thành công.");
   })();
 
   return _bootstrapPromise;
+}
+
+/** Connect to the local Python/LibreOffice bridge on demand, outside first paint. */
+export function connectDocumentServices() {
+  if (_documentServicesPromise) return _documentServicesPromise;
+  _documentServicesPromise = import("../adapters/libreoffice/common/uno-bridge.js")
+    .then(async ({ globalUnoBridge }) => {
+      await globalUnoBridge.init();
+      globalThis.window?.pywebview?.api?.report_startup_metric?.("uno_bridge_ready", performance.now());
+    })
+    .catch((error) => {
+      _documentServicesPromise = null;
+      throw error;
+    });
+  return _documentServicesPromise;
 }
 
 /**

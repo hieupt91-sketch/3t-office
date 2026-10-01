@@ -10,13 +10,8 @@ import { bootstrapPlatform } from "../../platform/bootstrap.js";
 import { applyLocaleToTabs } from "../../platform/i18n/i18n.js";
 import { globalShortcutManager } from "../../platform/commands/shortcut-manager.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
-import { HelpPanel } from "../../platform/help/index.js";
-import { LocalAiService } from "../../platform/ai/ai-service.js";
-import { showAlertDialog, showPromptDialog } from "../../platform/ui-kit/dialogs.js";
 import { t } from "../../platform/i18n/i18n.js";
-import { FUNCTION_CATALOG } from "./formula-engine.js";
-import { autoRecoverManager } from "../../platform/autorecover/auto-recover.js";
-import "../../platform/help/entries-sheet.js";
+import { withLazyFeatureProgress } from "../../platform/startup/lazy-feature.js";
 
 export class SheetApp {
   constructor(mountElement) {
@@ -25,9 +20,14 @@ export class SheetApp {
     this.grid = null;
     this.adapter = null;
     this.helpPanel = null;
+    this.autoRecoverManager = null;
+    this.workspace = null;
+    this._helpPanelPromise = null;
     this._lifecycleObserver = null;
     this._previousSheetOpenProgress = null;
     this._sheetOpenProgressHandler = null;
+    this._focusRestoreClickHandler = null;
+    this._focusRestoreObserver = null;
   }
 
   async init(options = {}) {
@@ -38,7 +38,7 @@ export class SheetApp {
     const isBlank = templateId !== "budget_estimate";
     this.shell = new AppShell({
       appName: "sheet",
-      appTitle: "3T Sheet",
+      appTitle: "Sheet",
       documentName: options.documentName || (isBlank ? "Bảng tính 1.xlsx" : "Dự toán kinh phí 3T Office 2026.xlsx")
     });
     this.shell.mount(this.mountElement);
@@ -67,16 +67,22 @@ export class SheetApp {
         this.shell.setStatus(`SẴN SÀNG  |  Ô: ${coord}  |  ĐẾM: ${stats.count}  |  TRUNG BÌNH: ${stats.avg}  |  TỔNG CỘNG: ${stats.sum}`);
       },
       onFormulaEntryMode: (label) => this.shell?.setStatus?.(label),
+      onZoomChange: (level) => this.shell?.setZoomDisplay?.(Math.round(level * 100)),
       isBlank,
       templateId
     });
+    this.shell.onZoomChange = (percent) => {
+      this.grid.setZoom(percent / 100);
+    };
     this.grid.mount();
+    this._bindGridFocusRestoration();
 
-    this.helpPanel = new HelpPanel({ app: "sheet" });
-    this.helpPanel.mount(workspace);
+    this.workspace = workspace;
     globalCommandBus.bindHandler("sheet.help.open", (args) => {
-      if (args?.entryId || args?.query != null) return this.helpPanel.open(args);
-      return this.helpPanel.toggle();
+      return withLazyFeatureProgress("sheet", "Trợ giúp", () => this._ensureHelpPanel()).then((panel) => {
+        if (args?.entryId || args?.query != null) return panel.open(args);
+        return panel.toggle();
+      });
     });
 
     // Sheet AI: Giải thích công thức
@@ -109,22 +115,65 @@ export class SheetApp {
       window.__vnoSheetOpenProgress = this._sheetOpenProgressHandler;
     }
 
+    this.grid.updateStatus();
+    this._autoRecoverOptions = options;
+    // The grid mounts before AppShell attaches the workspace to the DOM, so
+    // restore focus after the editor canvas is connected and startup UI settles.
+    this._restoreGridFocusIfIdle();
+    if (typeof queueMicrotask === "function") {
+      queueMicrotask(() => this._restoreGridFocusIfIdle());
+    }
+    console.log("[SheetApp] Đã khởi tạo 3T Sheet chuẩn hóa cao cấp.");
+  }
+
+  async initializeBackgroundServices() {
+    const [helpPanel] = await Promise.all([
+      this._ensureHelpPanel(),
+      this.grid.initializeSpellcheck()
+    ]);
+    const { autoRecoverManager } = await import("../../platform/autorecover/auto-recover.js");
+    this.autoRecoverManager = autoRecoverManager;
     await autoRecoverManager.register({
       appKind: "sheet",
       adapter: this.adapter,
       shell: this.shell,
-      helpPanel: this.helpPanel,
+      helpPanel,
       serialize: () => this.adapter.serializeToFods(),
       restore: (content, manifest) => {
         const restored = this.adapter.restoreFromAutoRecover(content, manifest);
         if (restored) this.grid.updateStatus();
         return restored;
       },
-      options
+      options: this._autoRecoverOptions
     });
+  }
 
-    this.grid.updateStatus();
-    console.log("[SheetApp] Đã khởi tạo 3T Sheet chuẩn hóa cao cấp.");
+  async showStartupRecovery() {
+    const { autoRecoverManager } = await import("../../platform/autorecover/auto-recover.js");
+    await autoRecoverManager.showStartupRecovery();
+  }
+
+  async _ensureHelpPanel() {
+    if (this.helpPanel) return this.helpPanel;
+    if (!this._helpPanelPromise) {
+      this.shell?.setStatus?.("Đang tải Trợ giúp Sheet…");
+      this._helpPanelPromise = Promise.all([
+        import("../../platform/help/index.js"),
+        import("../../platform/help/entries-sheet.js")
+      ]).then(([{ HelpPanel }]) => {
+        if (!this.helpPanel && this.workspace) {
+          this.helpPanel = new HelpPanel({ app: "sheet" });
+          this.helpPanel.mount(this.workspace);
+          this.shell?.setStatus?.("Sẵn sàng");
+        }
+        return this.helpPanel;
+      }).catch((error) => {
+        this._helpPanelPromise = null;
+        this.shell?.setStatus?.("Không tải được Trợ giúp Sheet.");
+        throw error;
+      });
+    }
+    return this._helpPanelPromise;
   }
 
   _watchLifecycle() {
@@ -136,8 +185,36 @@ export class SheetApp {
     this._lifecycleObserver.observe(this.mountElement, { attributes: true, attributeFilter: ["data-app"] });
   }
 
+  _bindGridFocusRestoration() {
+    this._focusRestoreClickHandler = event => {
+      if (!event.target?.closest?.(".vno-ribbon-tab,.vno-ribbon-tab-file,[data-command-id]")) return;
+      setTimeout(() => this._restoreGridFocusIfIdle(), 0);
+    };
+    document.addEventListener("click", this._focusRestoreClickHandler, true);
+
+    if (typeof MutationObserver !== "undefined" && document.body) {
+      this._focusRestoreObserver = new MutationObserver(records => {
+        const removedDialog = records.some(record => [...record.removedNodes].some(node =>
+          node.nodeType === 1 && (node.matches?.(".vno-dialog-overlay") || node.querySelector?.(".vno-dialog-overlay"))
+        ));
+        if (removedDialog) setTimeout(() => this._restoreGridFocusIfIdle(), 0);
+      });
+      this._focusRestoreObserver.observe(document.body, { childList: true, subtree: true });
+    }
+  }
+
+  _restoreGridFocusIfIdle() {
+    if (!this.grid || this.mountElement?.getAttribute("data-app") !== "sheet") return false;
+    if (document.querySelector(".vno-dialog-overlay")) return false;
+    const active = document.activeElement;
+    if (active?.isContentEditable || active?.matches?.("input,textarea,select")) return false;
+    const container = this.grid.container;
+    if (!container || !document.body.contains(container)) return false;
+    return this.grid.focusGrid();
+  }
+
   destroy() {
-    autoRecoverManager.detach(this.adapter);
+    this.autoRecoverManager?.detach(this.adapter);
     if (typeof window !== "undefined" && window.__vnoSheetOpenProgress === this._sheetOpenProgressHandler) {
       if (this._previousSheetOpenProgress) window.__vnoSheetOpenProgress = this._previousSheetOpenProgress;
       else delete window.__vnoSheetOpenProgress;
@@ -145,6 +222,12 @@ export class SheetApp {
     }
     this._lifecycleObserver?.disconnect();
     this._lifecycleObserver = null;
+    if (this._focusRestoreClickHandler) {
+      document.removeEventListener("click", this._focusRestoreClickHandler, true);
+      this._focusRestoreClickHandler = null;
+    }
+    this._focusRestoreObserver?.disconnect();
+    this._focusRestoreObserver = null;
     this.helpPanel?.destroy();
     this.helpPanel = null;
     this.grid?.destroy?.();
@@ -153,6 +236,10 @@ export class SheetApp {
 
   /** Giải thích công thức — lấy công thức từ ô đang chọn, gọi AI giải thích */
   async _handleExplainFormula() {
+    const [{ LocalAiService }, { showAlertDialog }] = await withLazyFeatureProgress("sheet", "Trợ lý AI", () => Promise.all([
+      import("../../platform/ai/ai-service.js"),
+      import("../../platform/ui-kit/dialogs.js")
+    ]));
     const grid = this.grid;
     if (!grid) return;
 
@@ -206,6 +293,11 @@ export class SheetApp {
 
   /** Tạo công thức từ mô tả — mở hộp thoại, gọi AI, validate, cho áp dụng */
   async _handleFormulaFromDescription() {
+    const [{ LocalAiService }, { showPromptDialog }, { FUNCTION_CATALOG }] = await withLazyFeatureProgress("sheet", "Trợ lý AI", () => Promise.all([
+      import("../../platform/ai/ai-service.js"),
+      import("../../platform/ui-kit/dialogs.js"),
+      import("./formula-engine.js")
+    ]));
     const grid = this.grid;
     if (!grid) return;
 
@@ -257,7 +349,7 @@ export class SheetApp {
       const unsupported = funcMatches.filter(fn => !supportedNames.has(fn.toUpperCase()));
 
       if (unsupported.length > 0) {
-        botMsg.innerHTML = `<div style="font-weight:bold;color:#dc2626;margin-bottom:6px;">⚠️ ${t("aiAssistant.formulaFromDescUnsupported", "Công thức chứa hàm 3T Sheet chưa hỗ trợ:")}</div>`;
+        botMsg.innerHTML = `<div style="font-weight:bold;color:#dc2626;margin-bottom:6px;">⚠️ ${t("aiAssistant.formulaFromDescUnsupported", "Công thức chứa hàm Sheet chưa hỗ trợ:")}</div>`;
         const replyEl = document.createElement("div");
         replyEl.style.cssText = "color:var(--vno-text-primary);font-size:12px;";
         replyEl.textContent = unsupported.join(", ");

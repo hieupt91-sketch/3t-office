@@ -5,6 +5,8 @@
  */
 
 import { globalCommandBus } from "./command-bus.js";
+import { globalKeyTipsManager } from "../ribbon/keytips.js";
+import { findHelpEntryForContext } from "../help/help-service.js";
 
 export class ShortcutManager {
   constructor() {
@@ -13,9 +15,14 @@ export class ShortcutManager {
     /** @type {Map<string, Map<string, string>>} Scope -> (phím -> Command ID) */
     this._scopedShortcuts = new Map([["common", new Map()]]);
     this._activeScope = null;
-    this._keytipsActive = false;
-    this._keytipsContainer = null;
     this._attachedWindow = null;
+    this._altPressedAlone = false;
+
+    // Phím tắt thu phóng chuẩn Office
+    this.bind("Ctrl+0", "common.view.zoomReset", "common");
+    this.bind("Ctrl+=", "common.view.zoomIn", "common");
+    this.bind("Ctrl++", "common.view.zoomIn", "common");
+    this.bind("Ctrl+-", "common.view.zoomOut", "common");
   }
 
   /**
@@ -102,23 +109,29 @@ export class ShortcutManager {
   }
 
   _handleKeyDown(e) {
-    // 1. Xử lý phím Alt độc lập để bật/tắt KeyTips (Chuẩn Office)
-    if (e.key === "Alt" && !e.ctrlKey && !e.shiftKey && !e.metaKey) {
-      // Để keyup xử lý toggle keytips
-      return;
-    }
-
-    // Nếu KeyTips đang bật và người dùng bấm phím chữ
-    if (this._keytipsActive && !e.ctrlKey && !e.metaKey) {
-      const letter = e.key.toUpperCase();
-      if (this._handleKeyTipLetter(letter)) {
-        e.preventDefault();
-        e.stopPropagation();
+    // 0. Nếu KeyTips đang hoạt động, chuyển sự kiện cho KeyTipsManager
+    if (globalKeyTipsManager.isActive) {
+      if (globalKeyTipsManager.handleKeyDown(e)) {
         return;
       }
     }
 
-    // 2. Kiểm tra phím tắt thông thường
+    // 1. Xử lý phím Alt độc lập để bật/tắt KeyTips (Chuẩn Office)
+    if (e.key === "Alt" && !e.ctrlKey && !e.shiftKey && !e.metaKey) {
+      this._altPressedAlone = true;
+      return;
+    }
+    this._altPressedAlone = false;
+
+    // 2. Xử lý phím F1 mở Trợ giúp theo ngữ cảnh (CH-8.3)
+    if (e.key === "F1" && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      this.openContextualHelp();
+      return;
+    }
+
+    // 3. Kiểm tra phím tắt thông thường
     let keyName = e.key.toUpperCase();
     if (e.key === " ") keyName = "SPACE";
     if (e.key === "=") keyName = "=";
@@ -140,6 +153,15 @@ export class ShortcutManager {
 
     // Guard: single keys without modifier in text inputs or contenteditable must type/delete naturally
     const target = e.target;
+    // Writer contenteditable hosts receive native ClipboardEvents. Keep their
+    // Ctrl+C/X/V in the trusted browser path; Sheet routes those shortcuts to
+    // its grid adapter because a focused, noneditable grid has no text selection.
+    const clipboardRoot = target?.closest?.("[data-vno-native-clipboard]");
+    const nativeClipboardTarget = !!clipboardRoot?.isContentEditable;
+    const textControlTarget = !!target?.matches?.("input:not([type='button']):not([type='checkbox']):not([type='radio']),textarea");
+    if ((nativeClipboardTarget || textControlTarget) && /^CTRL\+(X|C|V)$/.test(combo)) {
+      return;
+    }
     const isInput = target && (target.isContentEditable || target.tagName === "INPUT" || target.tagName === "TEXTAREA");
     if (isInput && !e.ctrlKey && !e.altKey && !e.metaKey) {
       return;
@@ -178,71 +200,34 @@ export class ShortcutManager {
   }
 
   _handleKeyUp(e) {
-    if (e.key === "Alt" && !e.ctrlKey && !e.shiftKey && !e.metaKey) {
-      this.toggleKeyTips();
-    } else if (e.key === "Escape" && this._keytipsActive) {
-      this.toggleKeyTips(false);
+    if (e.key === "Alt" && this._altPressedAlone && !e.ctrlKey && !e.shiftKey && !e.metaKey) {
+      globalKeyTipsManager.toggle();
     }
+    this._altPressedAlone = false;
   }
 
   toggleKeyTips(forceState) {
-    this._keytipsActive = forceState !== undefined ? forceState : !this._keytipsActive;
-    
-    if (this._keytipsActive) {
-      this._showKeyTips();
+    if (forceState === false) {
+      globalKeyTipsManager.hide();
+    } else if (forceState === true) {
+      globalKeyTipsManager.showLevel1();
     } else {
-      this._hideKeyTips();
+      globalKeyTipsManager.toggle();
     }
   }
 
-  _showKeyTips() {
-    this._hideKeyTips();
-    this._keytipsContainer = document.createElement("div");
-    this._keytipsContainer.id = "vno-keytips-overlay";
-    this._keytipsContainer.style.cssText = "position:fixed;inset:0;pointer-events:none;z-index:99999;";
-
-    // Thêm keytips cho các Tab Ribbon
-    const tabs = document.querySelectorAll(".vno-ribbon-tab, .vno-ribbon-tab-file");
-    const tabKeys = ["F", "H", "N", "P", "M", "A", "T", "S", "R", "W", "J"];
-
-    tabs.forEach((tab, idx) => {
-      const rect = tab.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0) {
-        const badge = document.createElement("div");
-        const keyChar = tabKeys[idx] || `${idx + 1}`;
-        badge.className = "vno-keytip-badge";
-        badge.textContent = keyChar;
-        badge.style.cssText = `position:absolute;left:${rect.left + rect.width / 2 - 8}px;top:${rect.bottom - 8}px;background:#1e293b;color:#ffffff;font-size:11px;font-weight:700;padding:1px 5px;border-radius:3px;box-shadow:0 2px 5px rgba(0,0,0,0.3);border:1px solid #ffffff;font-family:sans-serif;pointer-events:auto;cursor:pointer;`;
-        badge.dataset.targetTab = tab.textContent.trim();
-        badge.addEventListener("click", () => tab.click());
-        this._keytipsContainer.appendChild(badge);
-      }
-    });
-
-    document.body.appendChild(this._keytipsContainer);
-  }
-
-  _hideKeyTips() {
-    if (this._keytipsContainer && this._keytipsContainer.parentNode) {
-      this._keytipsContainer.parentNode.removeChild(this._keytipsContainer);
+  openContextualHelp() {
+    const activeEl = typeof document !== "undefined" ? document.activeElement : null;
+    const entry = findHelpEntryForContext(activeEl, this._activeScope);
+    const app = this._activeScope || "writer";
+    const helpCmd = `${app}.help.open`;
+    if (globalCommandBus.hasHandler(helpCmd)) {
+      globalCommandBus.execute(helpCmd, { entryId: entry?.id });
+    } else {
+      globalCommandBus.execute("common.help.open", { entryId: entry?.id });
     }
-    this._keytipsContainer = null;
-    this._keytipsActive = false;
-  }
-
-  _handleKeyTipLetter(letter) {
-    const badge = this._keytipsContainer?.querySelector(`.vno-keytip-badge`);
-    const tabs = Array.from(document.querySelectorAll(".vno-ribbon-tab, .vno-ribbon-tab-file"));
-    const tabKeys = ["F", "H", "N", "P", "M", "A", "T", "S", "R", "W", "J"];
-    const idx = tabKeys.indexOf(letter);
-
-    if (idx !== -1 && tabs[idx]) {
-      tabs[idx].click();
-      this.toggleKeyTips(false);
-      return true;
-    }
-    return false;
   }
 }
 
 export const globalShortcutManager = new ShortcutManager();
+

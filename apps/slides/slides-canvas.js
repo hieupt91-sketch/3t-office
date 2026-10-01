@@ -4,15 +4,15 @@
 
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { globalShortcutManager } from "../../platform/commands/shortcut-manager.js";
+import { withLazyFeatureProgress } from "../../platform/startup/lazy-feature.js";
 import { t, getLocale } from "../../platform/i18n/i18n.js";
-import { formatDateTime, showDateTimeDialog } from "../../platform/ui-kit/datetime-picker.js";
-import { showSymbolPicker } from "../../platform/ui-kit/symbol-picker.js";
-import { VietnameseSpellChecker, tokenizeVietnamese, normalizeVietnameseWord } from "../../platform/text/vi-spellchecker.js";
-import { SpellcheckDomController } from "../../platform/text/spellcheck-dom-controller.js";
-import { VIETNAMESE_DICTIONARY_WORDS } from "../../platform/text/dictionaries/vi-dictionary.js";
-import { showSlideTableDialog, showHeaderFooterDialog, showWordArtDialog, resolveWordArtStyle, buildWordArtCss, applyWordArtCss } from "./insert-dialogs.js";
-import { generateSlidesChartSvg, normalizeSlidesChart, showSlidesChartDialog } from "./slides-chart.js";
-import { showPromptDialog } from "../../platform/ui-kit/dialogs.js";
+import { formatDateTime } from "../../platform/ui-kit/datetime-format.js";
+import { createLazyDialogs } from "../../platform/ui-kit/lazy-dialogs.js";
+import { resolveWordArtStyle, buildWordArtCss, applyWordArtCss } from "./slides-wordart.js";
+import { normalizeSlidesChart } from "./slides-chart-data.js";
+import { createMatcher } from "../../platform/find/find-engine.js";
+
+const { showPromptDialog } = createLazyDialogs("slides");
 
 export function trapFocus(dialogBox, event) {
   if (!dialogBox || event.key !== "Tab") return;
@@ -201,6 +201,9 @@ export class SlidesCanvasController {
   constructor(container, options = {}) {
     this.container = container;
     this.options = options;
+    this._slideInsertDialogsPromise = null;
+    this._slidesChartModulePromise = null;
+    this._slidesChartTools = null;
     this.slides = Array.isArray(options.initialSlides)
       ? options.initialSlides.map(slide => JSON.parse(JSON.stringify(slide)))
       : options.isBlankTemplate !== false ? [{
@@ -217,34 +220,34 @@ export class SlidesCanvasController {
       {
         id: 1,
         title: "3T OFFICE — BỘ ỨNG DỤNG VĂN PHÒNG VIỆT",
-        body: "• Giải pháp công nghệ độc lập, bảo mật và chuẩn mực quốc gia\n• Tận dụng sức mạnh xử lý tài liệu vượt trội từ LibreOffice Core Engine\n• Giao diện thuần Việt, hiện đại, quen thuộc và thân thiện với người dùng",
+        body: "• Doc: soạn công văn và biên bản\n• Sheet: theo dõi công việc và tổng hợp số liệu\n• Slide: chuẩn bị báo cáo cuộc họp",
         layoutType: "title-content",
         shapes: [],
         comments: [],
-        notes: "Giới thiệu tổng quan về bộ ứng dụng 3T Office, nhấn mạnh tính độc lập công nghệ và bảo mật dữ liệu theo tiêu chuẩn quốc gia.",
+        notes: "Giới thiệu ba ứng dụng trong 3T Office và công việc phù hợp với từng ứng dụng.",
         titleAnimation: { type: "fadeIn", duration: 600, delay: 100 },
         bodyAnimation: { type: "flyIn", duration: 700, delay: 300 },
         hidden: false
       },
       {
         id: 2,
-        title: "KIẾN TRÚC HỆ THỐNG PHÂN TẦNG",
-        body: "1. VN App UI (Writer, Sheet, Slides đồng bộ phát triển)\n2. VN Shared Platform & Global Command Bus\n3. VN LibreOffice Adapter Layer (UNO Bridge & PyUNO)\n4. LibreOffice Core Engine C++",
+        title: "QUY TRÌNH CHUẨN BỊ BÁO CÁO",
+        body: "1. Thu thập số liệu tuần trong Sheet\n2. Viết nội dung báo cáo trong Doc\n3. Tóm tắt các điểm chính trong Slide\n4. Kiểm tra và lưu tài liệu trước cuộc họp",
         layoutType: "title-content",
         shapes: [],
         comments: [],
-        notes: "Làm rõ vai trò của UNO Bridge kết nối giữa tầng giao diện web và tầng lõi LibreOffice C++ headless mà không phát sinh chi phí bản quyền.",
+        notes: "Hướng dẫn nhóm chuẩn bị báo cáo tuần: tổng hợp số liệu, viết nội dung và trình bày kết quả.",
         titleAnimation: { type: "fadeIn", duration: 500, delay: 0 },
         hidden: false
       },
       {
         id: 3,
-        title: "KẾ HOẠCH TRIỂN KHAI & TIÊU CHUẨN KỸ THUẬT",
-        body: "• Hỗ trợ toàn diện định dạng văn bản hành chính theo Nghị định 30/2020/NĐ-CP\n• Tương thích 100% hai chiều với hệ sinh thái OOXML (DOCX, XLSX, PPTX)\n• Tích hợp trợ lý AI bảo mật cục bộ, bảo vệ quyền riêng tư tuyệt đối",
+        title: "KIỂM TRA TRƯỚC KHI CHIA SẺ",
+        body: "• Đọc lại nội dung và đối chiếu số liệu\n• Xem trước bố cục và các trang in\n• Lưu bản làm việc và xuất PDF khi cần chia sẻ",
         layoutType: "title-content",
         shapes: [],
         comments: [],
-        notes: "Nhấn mạnh khả năng tương thích định dạng DOCX/XLSX/PPTX và tuân thủ Nghị định 30/2020/NĐ-CP về thể thức văn bản hành chính.",
+        notes: "Nhắc người thuyết trình kiểm tra số liệu, bố cục và lưu tài liệu trước khi chia sẻ.",
         titleAnimation: { type: "zoomIn", duration: 600, delay: 200 },
         hidden: false
       }
@@ -352,6 +355,8 @@ export class SlidesCanvasController {
     this.spellcheckController = null;
     this._onSpellcheckMenuClick = null;
     this._spellcheckOverlay = null;
+    this._spellcheckModulePromise = null;
+    this._spellcheckTools = null;
   }
 
   mount() {
@@ -625,7 +630,6 @@ export class SlidesCanvasController {
     this.applySlideMaster(this.masterTheme);
     this._syncUndoRedoState();
     this._setupCanvasEvents();
-    this._setupVietnameseSpellcheck();
     this._applyViewState();
     this._syncCommandStates();
   }
@@ -639,18 +643,121 @@ export class SlidesCanvasController {
   _refreshSpellcheckRoots() {
     if (!this.spellcheckChecker) return;
     this.spellcheckController?.destroy();
-    this.spellcheckController = new SpellcheckDomController({
+    this.spellcheckController = new this._spellcheckTools.SpellcheckDomController({
       roots: this._spellcheckRoots(),
       checker: this.spellcheckChecker,
       debounceMs: 400
     }).attach();
   }
 
+  initializeSpellcheck() {
+    if (this._spellcheckModulePromise) return this._spellcheckModulePromise;
+    this._spellcheckModulePromise = Promise.all([
+      import("../../platform/text/vi-spellchecker.js"),
+      import("../../platform/text/spellcheck-dom-controller.js"),
+      import("../../platform/text/dictionaries/vi-dictionary.js")
+    ]).then(([spellcheck, domController, dictionary]) => {
+      this._spellcheckTools = {
+        VietnameseSpellChecker: spellcheck.VietnameseSpellChecker,
+        tokenizeVietnamese: spellcheck.tokenizeVietnamese,
+        normalizeVietnameseWord: spellcheck.normalizeVietnameseWord,
+        SpellcheckDomController: domController.SpellcheckDomController,
+        words: dictionary.VIETNAMESE_DICTIONARY_WORDS
+      };
+      this._setupVietnameseSpellcheck();
+      return true;
+    }).catch((error) => {
+      this._spellcheckModulePromise = null;
+      if (this.canvasEl?.dataset) this.canvasEl.dataset.spellcheckStatus = "error";
+      throw error;
+    });
+    if (this.canvasEl?.dataset) this.canvasEl.dataset.spellcheckStatus = "loading";
+    return this._spellcheckModulePromise;
+  }
+
+  _loadSlideInsertDialogs(featureName) {
+    return withLazyFeatureProgress("slides", featureName, () => {
+      if (!this._slideInsertDialogsPromise) {
+        this._slideInsertDialogsPromise = import("./insert-dialogs.js").catch((error) => {
+          this._slideInsertDialogsPromise = null;
+          throw error;
+        });
+      }
+      return this._slideInsertDialogsPromise;
+    });
+  }
+
+  _loadDateTimeDialog() {
+    if (!this._dateTimeDialogPromise) {
+      this._dateTimeDialogPromise = withLazyFeatureProgress(
+        "slides",
+        "Ngày và giờ",
+        () => import("../../platform/ui-kit/datetime-picker.js")
+      ).catch((error) => {
+        this._dateTimeDialogPromise = null;
+        throw error;
+      });
+    }
+    return this._dateTimeDialogPromise;
+  }
+
+  _loadSymbolPicker() {
+    if (!this._symbolPickerPromise) {
+      this._symbolPickerPromise = withLazyFeatureProgress(
+        "slides",
+        "Ký hiệu",
+        () => import("../../platform/ui-kit/symbol-picker.js")
+      ).catch((error) => {
+        this._symbolPickerPromise = null;
+        throw error;
+      });
+    }
+    return this._symbolPickerPromise;
+  }
+
+  _loadSlidesChartTools(showProgress = true) {
+    const load = () => {
+      if (!this._slidesChartModulePromise) {
+        this._slidesChartModulePromise = import("./slides-chart.js").then((module) => {
+          this._slidesChartTools = module;
+          if (this.shapesLayer) this._renderShapesLayer();
+          this._renderThumbnails?.();
+          if (this.slideSorterOverlay) this._renderSlideSorterGrid();
+          if (this.isReadingView) this._renderReadingSlide();
+          return module;
+        }).catch((error) => {
+          this._slidesChartModulePromise = null;
+          this._slidesChartTools = null;
+          throw error;
+        });
+      }
+      return this._slidesChartModulePromise;
+    };
+    return showProgress
+      ? withLazyFeatureProgress("slides", "Biểu đồ", load)
+      : load();
+  }
+
+  initializeOptionalDocumentFeatures() {
+    return this._loadSlidesChartTools(false).then(() => true);
+  }
+
+  _renderChartSvg(shape) {
+    if (this._slidesChartTools?.generateSlidesChartSvg) return this._slidesChartTools.generateSlidesChartSvg(shape);
+    if (!this._slidesChartModulePromise) {
+      void this._loadSlidesChartTools(true).catch((error) => {
+        console.error("3T Slide could not load chart tools.", error);
+      });
+    }
+    const title = this._escapeShapeText(shape?.title || "Biểu đồ dữ liệu");
+    return `<div class="vno-slides-chart-loading" role="status" aria-label="${title}">Đang tải biểu đồ…</div>`;
+  }
+
   _setupVietnameseSpellcheck() {
     if (!this.canvasEl || typeof document === "undefined") return;
     this.canvasEl.dataset.spellcheckStatus = "loading";
     try {
-      this.spellcheckChecker = new VietnameseSpellChecker(VIETNAMESE_DICTIONARY_WORDS);
+      this.spellcheckChecker = new this._spellcheckTools.VietnameseSpellChecker(this._spellcheckTools.words);
       this._refreshSpellcheckRoots();
       this._onSpellcheckMenuClick = event => {
         if (!event.target.closest?.(".vno-spellcheck-menu")) return;
@@ -667,7 +774,8 @@ export class SlidesCanvasController {
 
   _ensureSpellChecker() {
     if (!this.spellcheckChecker) {
-      this.spellcheckChecker = new VietnameseSpellChecker(VIETNAMESE_DICTIONARY_WORDS);
+      if (!this._spellcheckTools) return null;
+      this.spellcheckChecker = new this._spellcheckTools.VietnameseSpellChecker(this._spellcheckTools.words);
     }
     return this.spellcheckChecker;
   }
@@ -697,6 +805,7 @@ export class SlidesCanvasController {
 
   collectSpellcheckIssues(slideIndex = this.currentSlideIndex) {
     const checker = this._ensureSpellChecker();
+    if (!checker) return [];
     const slide = this.slides[slideIndex];
     if (!slide) return [];
     const issues = [];
@@ -863,49 +972,92 @@ export class SlidesCanvasController {
     this._syncUndoRedoState();
   }
 
-  findNext(query) {
-    const needle = String(query || "");
+  findNext(query, options = {}) {
+    const needle = String(query || "").trim();
     if (!needle) return false;
     const targets = this._collectFindTargets();
     if (!targets.length) return false;
+
+    const opts = {
+      matchCase: false,
+      wholeWord: false,
+      ignoreDiacritics: false,
+      direction: "forward",
+      ...options
+    };
+    const matcher = createMatcher(needle, opts);
+    const isBackward = opts.direction === "backward";
+
     if (!this._findState || this._findState.query !== needle) {
-      this._findState = { query: needle, locIndex: 0, charIndex: 0 };
+      this._findState = { query: needle, locIndex: isBackward ? targets.length - 1 : 0, charIndex: 0 };
     }
+
     const startLoc = this._findState.locIndex || 0;
     const startChar = this._findState.charIndex || 0;
+
     for (let step = 0; step <= targets.length; step++) {
-      const loc = (startLoc + step) % targets.length;
-      const from = step === 0 ? startChar : 0;
-      const idx = String(targets[loc].text || "").indexOf(needle, from);
-      if (idx >= 0) {
-        this._findState.locIndex = loc;
-        this._findState.charIndex = idx + needle.length;
-        this._findState.matchIndex = idx;
-        this._findState.matchLength = needle.length;
-        this._revealFindTarget(targets[loc]);
-        return { ...targets[loc], index: idx, query: needle };
+      const loc = isBackward
+        ? (startLoc - step + targets.length) % targets.length
+        : (startLoc + step) % targets.length;
+      const targetText = String(targets[loc].text || "");
+      const matches = matcher.findAll(targetText);
+      if (matches.length > 0) {
+        let match = null;
+        if (step === 0 && startChar > 0) {
+          if (isBackward) {
+            const beforeMatches = matches.filter(m => m.index < startChar - needle.length);
+            if (beforeMatches.length > 0) match = beforeMatches[beforeMatches.length - 1];
+          } else {
+            const afterMatches = matches.filter(m => m.index >= startChar);
+            if (afterMatches.length > 0) match = afterMatches[0];
+          }
+        } else {
+          match = isBackward ? matches[matches.length - 1] : matches[0];
+        }
+
+        if (match) {
+          this._findState.locIndex = loc;
+          this._findState.charIndex = isBackward ? match.index : match.index + match.length;
+          this._findState.matchIndex = match.index;
+          this._findState.matchLength = match.length;
+          this._revealFindTarget(targets[loc]);
+          return { ...targets[loc], index: match.index, query: needle };
+        }
       }
     }
     return false;
   }
 
-  replaceOne(findText, replaceText) {
-    const needle = String(findText || "");
+  findPrev(query, options = {}) {
+    return this.findNext(query, { ...options, direction: "backward" });
+  }
+
+  replaceOne(findText, replaceText, options = {}) {
+    const needle = String(findText || "").trim();
     if (!needle) return false;
     const replacement = replaceText == null ? "" : String(replaceText);
+    const opts = {
+      matchCase: false,
+      wholeWord: false,
+      ignoreDiacritics: false,
+      ...options
+    };
+    const matcher = createMatcher(needle, opts);
+
     let match = null;
     if (this._findState?.query === needle && Number.isInteger(this._findState.matchIndex)) {
       const targets = this._collectFindTargets();
       const current = targets[this._findState.locIndex];
-      if (current && String(current.text).substr(this._findState.matchIndex, needle.length) === needle) {
+      if (current && matcher.matches(String(current.text).substr(this._findState.matchIndex, needle.length))) {
         match = { ...current, index: this._findState.matchIndex };
       }
     }
-    if (!match) match = this.findNext(needle);
+    if (!match) match = this.findNext(needle, opts);
     if (!match) return false;
+
     const before = this._snapshotAllSlideTexts();
-    const nextText = match.text.slice(0, match.index) + replacement + match.text.slice(match.index + needle.length);
-    this._setSlideFieldText(match.slideIndex, match.field, match.shapeId, nextText, needle, replacement, false);
+    const rep = matcher.replace(match.text, replacement, false);
+    this._setSlideFieldText(match.slideIndex, match.field, match.shapeId, rep.text, needle, replacement, false);
     this._pushFindReplaceUndo(before);
     this._findState = {
       query: needle,
@@ -918,18 +1070,27 @@ export class SlidesCanvasController {
     return true;
   }
 
-  replaceAll(findText, replaceText) {
-    const needle = String(findText || "");
+  replaceAll(findText, replaceText, options = {}) {
+    const needle = String(findText || "").trim();
     if (!needle) return 0;
     const replacement = replaceText == null ? "" : String(replaceText);
+    const opts = {
+      matchCase: false,
+      wholeWord: false,
+      ignoreDiacritics: false,
+      ...options
+    };
+    const matcher = createMatcher(needle, opts);
+
     const before = this._snapshotAllSlideTexts();
     const targets = this._collectFindTargets();
     let count = 0;
     for (const target of targets) {
-      if (!String(target.text).includes(needle)) continue;
-      const parts = String(target.text).split(needle);
-      count += parts.length - 1;
-      this._setSlideFieldText(target.slideIndex, target.field, target.shapeId, parts.join(replacement), needle, replacement, true);
+      const rep = matcher.replace(target.text, replacement, true);
+      if (rep.count > 0) {
+        count += rep.count;
+        this._setSlideFieldText(target.slideIndex, target.field, target.shapeId, rep.text, needle, replacement, true);
+      }
     }
     if (count > 0) {
       this._pushFindReplaceUndo(before);
@@ -995,7 +1156,7 @@ export class SlidesCanvasController {
   }
 
   replaceAllSpellcheckWord(word, replacement) {
-    const target = normalizeVietnameseWord(word);
+    const target = this._spellcheckTools?.normalizeVietnameseWord?.(word) || "";
     if (!target) return 0;
     const nextReplacement = String(replacement ?? "");
     let count = 0;
@@ -1005,7 +1166,7 @@ export class SlidesCanvasController {
       const key = `${issue.field}:${issue.shapeId || ""}`;
       if (issue.normalized !== target || seen.has(key)) continue;
       seen.add(key);
-      const tokens = tokenizeVietnamese(String(issue.text ?? ""));
+      const tokens = this._spellcheckTools?.tokenizeVietnamese?.(String(issue.text ?? "")) || [];
       let text = String(issue.text ?? "");
       for (let index = tokens.length - 1; index >= 0; index--) {
         const token = tokens[index];
@@ -1027,8 +1188,11 @@ export class SlidesCanvasController {
     this._spellcheckOverlay = null;
   }
 
-  showSpellcheckDialog(options = {}) {
+  async showSpellcheckDialog(options = {}) {
     options = options || {};
+    if (!this._spellcheckTools) {
+      await withLazyFeatureProgress("slides", "Chính tả", () => this.initializeSpellcheck());
+    }
     const issues = this.collectSpellcheckIssues();
     if (typeof document === "undefined" || !document.createElement || !document.body) return issues;
     this._closeSpellcheckDialog();
@@ -2427,6 +2591,7 @@ export class SlidesCanvasController {
     let rows = Number(options.rows);
     let cols = Number(options.cols);
     if (!rows || !cols) {
+      const { showSlideTableDialog } = await this._loadSlideInsertDialogs("Bảng");
       const picked = await showSlideTableDialog({ rows: 3, cols: 3 });
       if (!picked) return false;
       rows = picked.rows;
@@ -2469,7 +2634,7 @@ export class SlidesCanvasController {
   async insertWordArt(options = null) {
     options = options || {};
     const hasExplicit = options.text != null || options.presetId != null || options.styleId != null;
-    const picked = hasExplicit ? options : await showWordArtDialog(options);
+    const picked = hasExplicit ? options : await (await this._loadSlideInsertDialogs("Chữ nghệ thuật")).showWordArtDialog(options);
     if (!picked) return false;
     const slide = this.slides[this.currentSlideIndex];
     if (!slide) return false;
@@ -2505,9 +2670,10 @@ export class SlidesCanvasController {
   }
 
   async insertChart(options = null) {
+    const chartTools = await this._loadSlidesChartTools(true);
     const picked = options && (options.chartType || options.labels || options.data)
       ? normalizeSlidesChart(options)
-      : await showSlidesChartDialog();
+      : await chartTools.showSlidesChartDialog();
     if (!picked) return false;
     const slide = this.slides[this.currentSlideIndex];
     if (!slide) return false;
@@ -2552,7 +2718,7 @@ export class SlidesCanvasController {
   async editChart(shapeId = this.selectedTarget) {
     const shape = this.slides[this.currentSlideIndex]?.shapes?.find((item) => String(item.id) === String(shapeId));
     if (!shape || shape.type !== "chart") return false;
-    const picked = await showSlidesChartDialog({ ...shape });
+    const picked = await (await this._loadSlidesChartTools(true)).showSlidesChartDialog({ ...shape });
     return picked ? this.updateChart(shape.id, picked, true) : false;
   }
 
@@ -2606,7 +2772,7 @@ export class SlidesCanvasController {
     options = options || {};
     const current = this.slides[this.currentSlideIndex]?.headerFooter || this.headerFooter || {};
     const hasExplicit = options.showDate !== undefined || options.showSlideNumber !== undefined || options.showFooter !== undefined;
-    const picked = hasExplicit ? { ...current, ...options } : await showHeaderFooterDialog(current);
+    const picked = hasExplicit ? { ...current, ...options } : await (await this._loadSlideInsertDialogs("Tùy chọn đầu trang và chân trang")).showHeaderFooterDialog(current);
     if (!picked) return false;
     return this.applyHeaderFooter(picked, { applyToAll: picked.applyToAll });
   }
@@ -2615,6 +2781,7 @@ export class SlidesCanvasController {
     options = options || {};
     let format = options.format;
     if (!format) {
+      const { showDateTimeDialog } = await this._loadDateTimeDialog();
       const picked = await showDateTimeDialog({ defaultFormat: this.headerFooter?.dateFormat || "dd/MM/yyyy" });
       if (!picked) return false;
       format = picked.format;
@@ -2637,6 +2804,7 @@ export class SlidesCanvasController {
     options = options || {};
     let ch = options.char || options.symbol;
     if (!ch) {
+      const { showSymbolPicker } = await this._loadSymbolPicker();
       ch = await showSymbolPicker();
       if (!ch) return false;
     }
@@ -3049,7 +3217,7 @@ export class SlidesCanvasController {
     }
     if (shape.type === "video" && shape.src) return `<video src="${shape.src}"${morphAttrs}${animAttrs} controls style="${pos}${animStyle}box-shadow:0 2px 8px rgba(0,0,0,.15)"></video>`;
     if (shape.type === "audio" && shape.src) return `<audio src="${shape.src}"${morphAttrs}${animAttrs} controls style="${pos}${animStyle}"></audio>`;
-    if (shape.type === "chart") return `<div class="vno-show-shape vno-show-chart"${morphAttrs}${animAttrs} style="${pos}${animStyle}background:#fff;overflow:hidden">${generateSlidesChartSvg(shape)}</div>`;
+    if (shape.type === "chart") return `<div class="vno-show-shape vno-show-chart"${morphAttrs}${animAttrs} style="${pos}${animStyle}background:#fff;overflow:hidden">${this._renderChartSvg(shape)}</div>`;
     if (shape.type === "wordart") {
       const textCss = buildWordArtCss(shape);
       const text = `<span class="vno-wordart-text" data-vno-wordart="true" data-vno-wordart-preset="${this._escapeShapeText(shape.presetId || "")}" style="${textCss}">${this._escapeShapeText(shape.text)}</span>`;
@@ -3130,7 +3298,7 @@ export class SlidesCanvasController {
     }
     if (shape.type === "chart") {
       const box = `left:${shape.x / this.slideSize.width * 100}%;top:${shape.y / this.slideSize.height * 100}%;width:${shape.w / this.slideSize.width * 100}%;height:${shape.h / this.slideSize.height * 100}%;background:#fff;overflow:hidden`;
-      return `<div class="vno-sorter-shape-node vno-sorter-chart" data-chart-type="${this._escapeShapeText(shape.chartType)}" style="${box}">${generateSlidesChartSvg(shape)}</div>`;
+      return `<div class="vno-sorter-shape-node vno-sorter-chart" data-chart-type="${this._escapeShapeText(shape.chartType)}" style="${box}">${this._renderChartSvg(shape)}</div>`;
     }
     if (shape.type === "textbox" || shape.type === "text") {
       const bg = (shape.color && shape.color !== "transparent" && shape.color !== "none") ? shape.color : "transparent";
@@ -3260,6 +3428,12 @@ export class SlidesCanvasController {
   /** Mở overlay Xem trước khi in THẬT - dùng chung _renderSlidePrintPage() với print() nên Preview và bản in luôn khớp nhau. */
   openPrintPreview() {
     if (typeof document === "undefined") return null;
+    if (!this._slidesChartTools) {
+      return withLazyFeatureProgress("slides", "Xem trước khi in", async () => {
+        await this._loadSlidesChartTools(false);
+        return this.openPrintPreview();
+      });
+    }
     this.closePrintPreview();
     this._previewPageIndex = 0;
 
@@ -3385,7 +3559,7 @@ export class SlidesCanvasController {
 
     const MAX_MEDIA_SIZE_MB = 10;
     if (sizeBytes > MAX_MEDIA_SIZE_MB * 1024 * 1024) {
-      console.warn(`[3T Slide] Tệp media ${(sizeBytes / 1024 / 1024).toFixed(1)}MB vượt ngưỡng khuyến nghị ${MAX_MEDIA_SIZE_MB}MB — có thể làm chậm lưu/mở tệp vì được nhúng dạng Data URL.`);
+      console.warn(`[Slide] Tệp media ${(sizeBytes / 1024 / 1024).toFixed(1)}MB vượt ngưỡng khuyến nghị ${MAX_MEDIA_SIZE_MB}MB — có thể làm chậm lưu/mở tệp vì được nhúng dạng Data URL.`);
     }
 
     const offset = slide.shapes.length * 24;
@@ -3823,7 +3997,7 @@ export class SlidesCanvasController {
         el.style.backgroundColor = "#ffffff";
         el.style.opacity = "1";
         el.style.overflow = "hidden";
-        el.innerHTML = generateSlidesChartSvg(shape);
+        el.innerHTML = this._renderChartSvg(shape);
         el.tabIndex = 0;
         el.setAttribute?.("aria-label", `Biểu đồ: ${shape.title || "Biểu đồ dữ liệu"}. Nhấn Enter để sửa dữ liệu.`);
         el.addEventListener("dblclick", (event) => { event.stopPropagation(); this.editChart(shape.id); });
@@ -8379,7 +8553,7 @@ export class SlidesCanvasController {
               <input type="checkbox" id="vno-setup-narration" ${current.showWithoutNarration ? "checked" : ""}>
               <span>${t("slidesDialogs.setupShowNoNarration", "Trình chiếu không có thuyết minh")}</span>
             </label>
-            <p style="margin:0 0 0 24px;font-size:11px;color:var(--vno-text-muted);">${t("slidesDialogs.setupShowNoNarrationHint", "Chưa có thuyết minh/audio narration trong 3T Slide — tùy chọn này chỉ lưu cờ, chưa ẩn hay tắt âm thanh nào.")}</p>
+            <p style="margin:0 0 0 24px;font-size:11px;color:var(--vno-text-muted);">${t("slidesDialogs.setupShowNoNarrationHint", "Chưa có thuyết minh/audio narration trong Slide — tùy chọn này chỉ lưu cờ, chưa ẩn hay tắt âm thanh nào.")}</p>
             <div style="display:flex;flex-direction:column;gap:6px;">
               <label for="vno-setup-pointer-color" style="font-size:12px;font-weight:600;color:var(--vno-text-primary);">${t("slidesDialogs.setupShowPointerColor", "Màu con trỏ bút / laser")}</label>
               <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -8996,7 +9170,7 @@ export class SlidesCanvasController {
           inkOverlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10002;";
           inkOverlay.innerHTML = `
             <div class="vno-dialog-box" style="width:380px;background:var(--vno-bg-surface, #fff);border-radius:8px;padding:20px;box-shadow:0 12px 32px rgba(0,0,0,0.3);color:var(--vno-text-primary, #0f172a);" role="dialog" aria-modal="true">
-              <h3 style="margin:0 0 10px;font-size:16px;font-weight:700;">${t("slidesDialogs.keepInkTitle", "3T Slide")}</h3>
+              <h3 style="margin:0 0 10px;font-size:16px;font-weight:700;">${t("slidesDialogs.keepInkTitle", "Slide")}</h3>
               <p style="margin:0 0 20px;font-size:13px;line-height:1.5;">${t("slidesDialogs.keepInkPrompt", "Bạn có muốn giữ lại các chú thích bằng nét vẽ không?")}</p>
               <div style="display:flex;justify-content:flex-end;gap:10px;">
                 <button type="button" class="vno-btn vno-btn-primary" id="vno-ink-keep-btn" style="padding:6px 16px;">${t("slidesDialogs.keepInkKeep", "Giữ")}</button>
@@ -9193,7 +9367,7 @@ export class SlidesCanvasController {
       <div class="vno-presenter-header">
         <div class="vno-presenter-brand">
           <strong>${t("slidesDialogs.presenterHeader", "CHẾ ĐỘ NGƯỜI THUYẾT TRÌNH (PRESENTER VIEW)")}</strong>
-          <span style="font-size:11px;opacity:0.7;margin-left:8px;">• 3T Slide</span>
+          <span style="font-size:11px;opacity:0.7;margin-left:8px;">• Slide</span>
         </div>
         <div class="vno-presenter-clocks">
           <div class="vno-presenter-timer-box" title="${t("slidesDialogs.elapsedTime", "Thời gian thuyết trình")}" role="timer" aria-label="${t("slidesDialogs.elapsedTime", "Thời gian thuyết trình")}">
@@ -9930,6 +10104,7 @@ export class SlidesCanvasController {
     this.zoomLevel = next;
     this._applyViewState();
     this._syncCommandStates();
+    this.options.onZoomChange?.(this.zoomLevel);
     return this.zoomLevel;
   }
 

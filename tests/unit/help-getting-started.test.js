@@ -298,10 +298,10 @@ export async function runHelpGettingStartedTests() {
       if (bannedOurProductAsMS.test(blob)) {
         throw new Error(`[${entry.id}] gọi sản phẩm 3T là Word/Excel/PowerPoint: ${blob.match(bannedOurProductAsMS)[0]}`);
       }
-      // Must use 3T Doc/3T Sheet/3T Slide/3T Office
-      const has3TName = /3T (Doc|Sheet|Slide|Office)/.test(blob);
+      // Public app names are short; the suite remains 3T Office.
+      const has3TName = /\b(?:Doc|Sheet|Slide)\b|3T Office/.test(blob);
       if (!has3TName) {
-        throw new Error(`[${entry.id}] thiếu tên sản phẩm 3T Doc/3T Sheet/3T Slide/3T Office`);
+        throw new Error(`[${entry.id}] thiếu tên ứng dụng Doc/Sheet/Slide hoặc bộ 3T Office`);
       }
     }
   });

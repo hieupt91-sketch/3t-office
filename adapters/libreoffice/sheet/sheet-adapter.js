@@ -6,13 +6,13 @@
 import { globalUnoBridge } from "../common/uno-bridge.js";
 import { showAlertDialog, showPromptDialog, showFindReplaceDialog } from "../../../platform/ui-kit/dialogs.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
-import { openPrintDialog } from "../../../platform/print/print-dialog.js";
+import { withLazyFeatureProgress } from "../../../platform/startup/lazy-feature.js";
 import { globalShortcutManager } from "../../../platform/commands/shortcut-manager.js";
 import { getVnCommand } from "../common/command-dispatch-mapper.js";
-import { SheetChartBuilder } from "../../../apps/sheet/sheet-chart.js";
 import { overlayFodsStructureProtection } from "./xlsx-workbook-protection.js";
 import { overlayActiveSheetToFods } from "./xlsx-active-sheet.js";
 import { buildSheetPayloadModel } from "./sheet-payload-parser.js";
+import { extractSheetRangeData } from "../../../apps/sheet/sheet-chart-data.js";
 
 export function numberFormatFromExcelCode(code) {
   const source = String(code ?? "").trim();
@@ -79,6 +79,10 @@ export class SheetAdapter {
     this.sourceFileName = "BangTinh";
     this.sourceFilePath = "";
     this.shell = null;
+    this._clipboardText = "";
+    this._clipboardModel = null;
+    this._clipboardSourceSheet = null;
+    this._nativeClipboardHandlers = null;
   }
 
   /**
@@ -208,7 +212,8 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("common.edit.cut", () => this._copySelectedCell(true));
     globalCommandBus.bindHandler("common.edit.paste", () => this._pasteIntoSelectedCell());
     globalCommandBus.bindHandler("common.edit.pastePlain", () => this._pasteIntoSelectedCell());
-    globalCommandBus.bindHandler("sheet.edit.pasteSpecial", () => this.grid.showPasteSpecialDialog?.(this._clipboardModel));
+    globalCommandBus.bindHandler("sheet.edit.pasteSpecial", () => this._openPasteSpecialFromClipboard());
+    this._bindNativeClipboardEvents();
     globalCommandBus.bindHandler("sheet.edit.formatPainter", (args) => this.grid.toggleFormatPainter?.(args || {}));
     this._bindFormatPainterRibbon();
     globalCommandBus.bindHandler("common.edit.selectAll", () => this.grid.selectAll ? this.grid.selectAll() : false);
@@ -516,14 +521,16 @@ export class SheetAdapter {
     try {
       showFindReplaceDialog({
         isReplace: !!isReplace,
-        onFind: (text) => this.grid.findNext ? this.grid.findNext(text) : false,
-        onReplace: (findText, replaceText) => {
+        app: "sheet",
+        onFind: (text, options) => this.grid.findNext ? this.grid.findNext(text, options) : false,
+        onFindPrev: (text, options) => this.grid.findPrev ? this.grid.findPrev(text, options) : false,
+        onReplace: (findText, replaceText, options) => {
           if (!findText) return false;
-          return this.grid.replaceOne ? this.grid.replaceOne(findText, replaceText) : false;
+          return this.grid.replaceOne ? this.grid.replaceOne(findText, replaceText, options) : false;
         },
-        onReplaceAll: (findText, replaceText) => {
+        onReplaceAll: (findText, replaceText, options) => {
           if (!findText) return 0;
-          return this.grid.replaceAll ? this.grid.replaceAll(findText, replaceText) : 0;
+          return this.grid.replaceAll ? this.grid.replaceAll(findText, replaceText, options) : 0;
         }
       });
     } catch (_) {
@@ -4083,7 +4090,7 @@ ${pristineXlsxMarker}
       }
       const cells = workbook.sheetsData[union.sheet];
       if (cells instanceof Map) {
-        const extracted = SheetChartBuilder.extractRangeData(cells, chart.range, this._columnsForChartExtract());
+        const extracted = extractSheetRangeData(cells, chart.range, this._columnsForChartExtract());
         chart.labels = extracted.labels;
         chart.data = extracted.data;
       }
@@ -5383,20 +5390,20 @@ ${pristineXlsxMarker}
         try {
           this.shell?.setStatus?.("Đang dựng mô hình bảng tính và chuẩn bị lưới…");
           const loaded = await this.loadFromPayload(result.sheetPayload, result.ooxmlWorkbookXml);
-          if (!loaded) throw new Error("Payload không tạo được workbook.");
+          if (!loaded) throw new Error("Không dựng được sổ làm việc từ dữ liệu đã đọc.");
         } catch {
           reportOpenIssue("SheetOpenPayloadError", "Sheet payload parsing or model construction failed; using the retained FODS fallback.");
-          this.shell?.setStatus?.("Đang tải dữ liệu FODS dự phòng…");
+          this.shell?.setStatus?.("Đang tải dữ liệu bảng tính dự phòng…");
           const fallback = openId
             ? await globalUnoBridge.getSheetOpenFallback(openId)
             : await globalUnoBridge.getLatestSheetOpenFallback();
-          if (fallback?.status !== "ok") throw new Error("Không lấy được FODS dự phòng cho bảng tính.");
+          if (fallback?.status !== "ok") throw new Error("Không lấy được bản dự phòng của bảng tính.");
           openId = fallback.openId || openId;
           const loaded = this.loadFromFods(
             fallback.content,
             fallback.ooxmlWorkbookXml || result.ooxmlWorkbookXml
           );
-          if (!loaded) throw new Error("FODS dự phòng không tạo được workbook.");
+          if (!loaded) throw new Error("Không dựng được sổ làm việc từ bản dự phòng.");
           result = { ...result, ...fallback };
         }
       } else {
@@ -5427,7 +5434,7 @@ ${pristineXlsxMarker}
       this.shell?.setStatus?.("Không thể mở tệp. Sổ làm việc đang mở được giữ nguyên.");
       await showAlertDialog({
         title: "Không thể mở tệp",
-        message: "3T Sheet không thể nạp bảng tính bằng dữ liệu chính hoặc bản FODS dự phòng. Sổ làm việc đang mở được giữ nguyên.",
+        message: "Sheet không thể nạp bảng tính từ dữ liệu đã đọc hoặc bản dự phòng. Sổ làm việc đang mở được giữ nguyên.",
         type: "error"
       });
       return false;
@@ -5460,17 +5467,27 @@ ${pristineXlsxMarker}
     const selectedRow = Number(selected.r) || 1;
     const selectedCol = grid?._columnNumber?.(selected.c) || 1;
     const activePage = pages.findIndex((page) => page.rowNums?.includes(selectedRow) && page.colNums?.includes(selectedCol));
+    const selectionRanges = (grid?._getSelectionRanges?.() || [grid?.selectionRange].filter(Boolean))
+      .map((range) => grid?._normalizeRange?.(range) || range)
+      .filter((range) => range?.start?.c && range?.start?.r && range?.end?.c && range?.end?.r)
+      .map((range) => {
+        const start = `${range.start.c}${range.start.r}`;
+        const end = `${range.end.c}${range.end.r}`;
+        return start === end ? start : `${start}:${end}`;
+      });
     const pageSize = String(setup.size || "a4").toUpperCase();
     const orientation = setup.orientation === "landscape" ? "Ngang" : "Dọc";
-    return openPrintDialog({
+    return withLazyFeatureProgress("sheet", "In và xem trước", () => import("../../../platform/print/print-dialog.js"))
+      .then(({ openPrintDialog }) => openPrintDialog({
       appKind: "sheet",
       content: this.serializeToFods(),
       documentName: this.sourceFileName || "Bảng tính",
       sourcePath: this.sourceFilePath || null,
       pageSetupLabel: `${pageSize} · ${orientation}`,
       currentPage: activePage >= 0 ? activePage + 1 : 1,
+      selectionRanges,
       engine: globalUnoBridge
-    });
+    }));
   }
 
   async handleDispatch(unoUrl, args, vnCmdId) {
@@ -6067,8 +6084,22 @@ ${pristineXlsxMarker}
    * @param {boolean} isCut nếu true, xóa nội dung ô sau khi sao chép
    */
   async _copySelectedCell(isCut) {
+    const payload = this._captureSelectedClipboard();
+    if (!payload) return false;
+    this._rememberClipboard(payload, isCut ? "cut" : "copy");
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(payload.text);
+      }
+    } catch {
+      // Keyboard copy/cut uses ClipboardEvents; the app-local model still supports ribbon paste.
+    }
+    return true;
+  }
+
+  _captureSelectedClipboard() {
     const coord = this.grid.selectedCoord;
-    if (!coord) return false;
+    if (!coord) return null;
     let range = this.grid._normalizeRange?.(this.grid.selectionRange) || { start: coord, end: coord };
     if (!this.grid._rangeContains?.(range, coord.c, coord.r)) range = { start: { ...coord }, end: { ...coord } };
     const cells = [];
@@ -6082,22 +6113,139 @@ ${pristineXlsxMarker}
       }
       cells.push(cellRow); textRows.push(textRow.join("\t"));
     }
-    this._clipboardModel = { range: structuredClone(range), cells };
-    const text = textRows.join("\n");
+    return {
+      range: structuredClone(range),
+      cells,
+      text: textRows.join("\n"),
+      sourceSheet: this.grid.activeSheet
+    };
+  }
 
-    this._clipboardText = String(text);
-    try {
-      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(String(text));
+  _rememberClipboard(payload, mode = "copy") {
+    this._clipboardModel = {
+      range: structuredClone(payload.range),
+      cells: structuredClone(payload.cells),
+      sourceSheet: payload.sourceSheet || this.grid.activeSheet
+    };
+    this._clipboardText = String(payload.text ?? "");
+    this._clipboardSourceSheet = payload.sourceSheet || this.grid.activeSheet;
+    this.grid.setClipboardRange?.(payload.range, mode, this._clipboardSourceSheet);
+  }
+
+  _bindNativeClipboardEvents() {
+    const container = this.grid?.container;
+    if (!container?.addEventListener || this._nativeClipboardHandlers) return;
+    const isGridClipboardTarget = event => !event.target?.closest?.("input,textarea,select,[contenteditable='true']");
+    const copy = event => {
+      if (!isGridClipboardTarget(event)) return;
+      const payload = this._captureSelectedClipboard();
+      if (!payload || !event.clipboardData) return;
+      event.clipboardData.setData("text/plain", payload.text);
+      event.preventDefault();
+      this._rememberClipboard(payload, "copy");
+    };
+    const cut = event => {
+      if (!isGridClipboardTarget(event)) return;
+      const payload = this._captureSelectedClipboard();
+      if (!payload || !event.clipboardData) return;
+      event.clipboardData.setData("text/plain", payload.text);
+      event.preventDefault();
+      this._rememberClipboard(payload, "cut");
+    };
+    const paste = async event => {
+      if (!isGridClipboardTarget(event)) return;
+      const text = event.clipboardData?.getData("text/plain") || "";
+      if (!text) {
+        if (event.clipboardData) event.preventDefault();
+        const native = await this._readClipboardData();
+        if (native?.text) await this._pasteTextIntoGrid(native.text);
+        else if (this._clipboardModel?.cells?.length) {
+          await this._pasteModelIntoGrid(this._clipboardModel, this._clipboardText, true);
+        }
+        return;
       }
-    } catch {
-      // Một số môi trường (vd. test headless) chặn Clipboard API — không coi là lỗi nghiêm trọng
-    }
+      event.preventDefault();
+      const isInternal = text === this._clipboardText && this._clipboardModel?.cells?.length;
+      const model = isInternal ? this._clipboardModel : this._clipboardModelFromText(text);
+      await this._pasteModelIntoGrid(model, text, isInternal);
+    };
+    container.addEventListener("copy", copy);
+    container.addEventListener("cut", cut);
+    container.addEventListener("paste", paste);
+    this._nativeClipboardHandlers = { container, copy, cut, paste };
+  }
 
-    if (isCut && this.grid.setCellValue) {
-      for (let row = range.start.r; row <= range.end.r; row++) for (let col = this.grid._columnNumber(range.start.c); col <= this.grid._columnNumber(range.end.c); col++) this.grid.setCellValue(this.grid._columnLabel(col), row, "");
+  _clipboardModelFromText(text) {
+    const rows = String(text ?? "").replace(/\r\n?/g, "\n").split("\n");
+    if (rows.at(-1) === "") rows.pop();
+    if (!rows.length) return null;
+    const values = rows.map(row => row.split("\t"));
+    const width = Math.max(1, ...values.map(row => row.length));
+    const cells = values.map(row => Array.from({ length: width }, (_, index) => {
+      const value = row[index] ?? "";
+      return { val: value, formula: value.startsWith("=") ? value : "", style: {} };
+    }));
+    return {
+      range: {
+        start: { c: "A", r: 1 },
+        end: { c: this.grid._columnLabel(width), r: values.length }
+      },
+      cells
+    };
+  }
+
+  async _readClipboardData() {
+    try {
+      const native = await globalUnoBridge.readClipboardData?.();
+      if (native?.status === "ok") return native;
+    } catch { /* Browser clipboard is the web-mode fallback. */ }
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.readText) {
+        return { status: "ok", text: await navigator.clipboard.readText(), html: "" };
+      }
+    } catch { /* The command reports no-op when the browser denies clipboard access. */ }
+    return null;
+  }
+
+  async _pasteTextIntoGrid(text) {
+    const isInternal = String(text) === this._clipboardText && this._clipboardModel?.cells?.length;
+    return this._pasteModelIntoGrid(
+      isInternal ? this._clipboardModel : this._clipboardModelFromText(text),
+      String(text),
+      !!isInternal
+    );
+  }
+
+  async _pasteModelIntoGrid(model, text, isInternal = false) {
+    if (!model?.cells?.length || !this.grid.selectedCoord || !this.grid.applyPasteSpecial) return false;
+    const clipboardState = this.grid._clipboardRange;
+    const moveRange = isInternal && clipboardState?.mode === "cut" &&
+      clipboardState.sheet === this.grid.activeSheet && this._clipboardSourceSheet === this.grid.activeSheet
+      ? clipboardState.range
+      : null;
+    const applied = this.grid.applyPasteSpecial(model, "all", this.grid.selectedCoord, {
+      moveRange,
+      sourceSheet: this._clipboardSourceSheet
+    });
+    if (applied && moveRange) this.grid.clearClipboardRange?.();
+    return applied;
+  }
+
+  async _openPasteSpecialFromClipboard() {
+    const native = await this._readClipboardData();
+    let model = null;
+    if (native?.status === "ok") {
+      const sameInternal = String(native.text || "") === this._clipboardText && this._clipboardModel?.cells?.length;
+      model = sameInternal ? this._clipboardModel : this._clipboardModelFromText(native.text || "");
+    } else {
+      model = this._clipboardModel;
     }
-    return true;
+    if (!model?.cells?.length) {
+      this.shell?.setStatus?.("Bộ nhớ tạm chưa có dữ liệu bảng để dán đặc biệt.");
+      return false;
+    }
+    this._clipboardSourceSheet = model.sourceSheet || this._clipboardSourceSheet;
+    return this.grid.showPasteSpecialDialog?.(model) ?? false;
   }
 
   /**
@@ -6106,20 +6254,10 @@ ${pristineXlsxMarker}
   async _pasteIntoSelectedCell() {
     const coord = this.grid.selectedCoord;
     if (!coord || !this.grid.setCellValue) return false;
-    if (this._clipboardModel && this.grid.applyPasteSpecial) return this.grid.applyPasteSpecial(this._clipboardModel, "all");
-    let text = this._clipboardText || "";
-    try {
-      if (typeof navigator !== "undefined" && navigator.clipboard?.readText) {
-        const clip = await navigator.clipboard.readText();
-        if (clip) text = clip;
-      }
-    } catch {
-      // Trình duyệt có thể chặn đọc Clipboard nếu chưa có quyền/tương tác người dùng
-    }
-    if (text !== undefined && text !== null) {
-      this.grid.setCellValue(coord.c, coord.r, text);
-      return true;
-    }
+    const native = await this._readClipboardData();
+    if (native?.status === "ok" && native.text) return this._pasteTextIntoGrid(native.text);
+    if (this._clipboardModel?.cells?.length) return this._pasteModelIntoGrid(this._clipboardModel, this._clipboardText, true);
+    if (native?.status === "ok") return this._pasteTextIntoGrid(native.text || "");
     return false;
   }
 }

@@ -1,37 +1,140 @@
 const MARKER_SELECTOR = "[data-vno-spelling-uncertain]";
+const EDITABLE_BLOCK_SELECTOR = "p,li,td,th,h1,h2,h3,h4,h5,h6,blockquote,pre";
 
-function selectionOffset(root) {
+function pointBlock(root, node) {
+  const element = node?.nodeType === 1 ? node : node?.parentElement;
+  const block = element?.closest?.(EDITABLE_BLOCK_SELECTOR);
+  return block && root.contains(block) ? block : root;
+}
+
+function childPath(root, element) {
+  const path = [];
+  let current = element;
+  while (current && current !== root) {
+    const parent = current.parentNode;
+    if (!parent) return null;
+    const index = Array.prototype.indexOf.call(parent.childNodes, current);
+    if (index < 0) return null;
+    path.unshift(index);
+    current = parent;
+  }
+  return current === root ? path : null;
+}
+
+function resolvePath(root, path) {
+  let current = root;
+  for (const index of path || []) {
+    current = current?.childNodes?.[index] || null;
+    if (!current) return null;
+  }
+  return current;
+}
+
+function textLength(node) {
+  if (node.nodeType === 3) return node.data.length;
+  if (node.nodeType === 1 && node.tagName === "BR") return 1;
+  let length = 0;
+  for (const child of node.childNodes || []) length += textLength(child);
+  return length;
+}
+
+function offsetBeforePoint(block, target, targetOffset) {
+  let found = false;
+  const measure = node => {
+    if (node === target) {
+      found = true;
+      if (node.nodeType === 3) return Math.max(0, Math.min(node.data.length, targetOffset));
+      let length = 0;
+      const children = node.childNodes || [];
+      for (let index = 0; index < Math.min(targetOffset, children.length); index++) {
+        length += textLength(children[index]);
+      }
+      return length;
+    }
+    if (node.nodeType === 3) return node.data.length;
+    if (node.nodeType === 1 && node.tagName === "BR") return 1;
+    let length = 0;
+    for (const child of node.childNodes || []) {
+      const part = measure(child);
+      length += part;
+      if (found) break;
+    }
+    return length;
+  };
+  const offset = measure(block);
+  return found ? offset : null;
+}
+
+function capturePoint(root, node, offset) {
+  if (!node || !root.contains(node)) return null;
+  const block = pointBlock(root, node);
+  const path = childPath(root, block);
+  const textOffset = offsetBeforePoint(block, node, offset);
+  return path && textOffset !== null ? { path, offset: textOffset } : null;
+}
+
+function restorePoint(root, point) {
+  if (!point) return null;
+  const block = resolvePath(root, point.path);
+  if (!block) return null;
+  let remaining = Math.max(0, point.offset);
+  let result = null;
+  const visit = node => {
+    if (result) return;
+    if (node.nodeType === 3) {
+      if (remaining <= node.data.length) result = { node, offset: remaining };
+      else remaining -= node.data.length;
+      return;
+    }
+    if (node.nodeType === 1 && node.tagName === "BR") {
+      const parent = node.parentNode;
+      const index = Array.prototype.indexOf.call(parent.childNodes, node);
+      if (remaining === 0) result = { node: parent, offset: index };
+      else {
+        remaining -= 1;
+        if (remaining === 0) result = { node: parent, offset: index + 1 };
+      }
+      return;
+    }
+    for (const child of node.childNodes || []) {
+      visit(child);
+      if (result) return;
+    }
+  };
+  visit(block);
+  return result || { node: block, offset: (block.childNodes || []).length };
+}
+
+export function captureSelectionBookmark(root) {
   if (typeof document !== "undefined" && document.activeElement !== root && !root.contains(document.activeElement)) {
     return null;
   }
   const selection = globalThis.getSelection?.();
-  if (!selection?.rangeCount || !root.contains(selection.anchorNode)) return null;
-  const range = document.createRange();
-  range.selectNodeContents(root);
-  range.setEnd(selection.anchorNode, selection.anchorOffset);
-  return range.toString().length;
+  if (!selection?.rangeCount || !root.contains(selection.anchorNode) || !root.contains(selection.focusNode)) return null;
+  const anchor = capturePoint(root, selection.anchorNode, selection.anchorOffset);
+  const focus = capturePoint(root, selection.focusNode, selection.focusOffset);
+  return anchor && focus ? { anchor, focus, collapsed: selection.isCollapsed } : null;
 }
 
-function restoreSelection(root, offset) {
-  if (offset === null) return;
+export function restoreSelectionBookmark(root, bookmark) {
+  if (!bookmark) return;
   if (typeof document !== "undefined" && document.activeElement !== root && !root.contains(document.activeElement)) {
     return;
   }
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  let remaining = offset;
-  let node;
-  while ((node = walker.nextNode())) {
-    if (remaining <= node.data.length) {
-      const range = document.createRange();
-      range.setStart(node, remaining);
-      range.collapse(true);
-      const selection = getSelection();
-      selection.removeAllRanges();
-      selection.addRange(range);
-      return;
-    }
-    remaining -= node.data.length;
+  const anchor = restorePoint(root, bookmark.anchor);
+  const focus = restorePoint(root, bookmark.focus);
+  if (!anchor || !focus) return;
+  const selection = globalThis.getSelection?.();
+  if (!selection) return;
+  if (typeof selection.setBaseAndExtent === "function") {
+    selection.setBaseAndExtent(anchor.node, anchor.offset, focus.node, focus.offset);
+    return;
   }
+  const range = document.createRange();
+  range.setStart(anchor.node, anchor.offset);
+  range.setEnd(focus.node, focus.offset);
+  selection.removeAllRanges();
+  selection.addRange(range);
 }
 
 function unwrapMarkers(root) {
@@ -106,7 +209,7 @@ export class SpellcheckDomController {
   }
 
   _refreshRoot(root) {
-    const caret = selectionOffset(root);
+    const selection = captureSelectionBookmark(root);
     unwrapMarkers(root);
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     const nodes = [];
@@ -130,7 +233,7 @@ export class SpellcheckDomController {
       fragment.append(textNode.data.slice(cursor));
       textNode.replaceWith(fragment);
     }
-    restoreSelection(root, caret);
+    restoreSelectionBookmark(root, selection);
   }
 
   _handleContextMenu(event) {

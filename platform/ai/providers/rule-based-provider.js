@@ -108,7 +108,7 @@ export class RuleBasedProvider {
 
     if (p.includes("tạo công thức") || p.includes("formula from") || p.includes("công thức từ mô tả") || p.includes("sinh công thức")) {
       return {
-        reply: `**Tạo công thức từ mô tả (Chế độ cục bộ — giới hạn):**\n\n⚠️ Chế độ quy tắc cục bộ không thể tạo công thức phức tạp từ mô tả ngôn ngữ tự nhiên.\n\n**Khuyến nghị:** Kết nối AI cloud (OpenAI, Gemini hoặc Claude) hoặc cài Ollama để AI tạo công thức Excel tương thích với 3T Sheet từ mô tả của bạn.`
+        reply: `**Tạo công thức từ mô tả (Chế độ cục bộ — giới hạn):**\n\n⚠️ Chế độ quy tắc cục bộ không thể tạo công thức phức tạp từ mô tả ngôn ngữ tự nhiên.\n\n**Khuyến nghị:** Kết nối AI cloud (OpenAI, Gemini hoặc Claude) hoặc cài Ollama để AI tạo công thức tương thích với Sheet từ mô tả của bạn.`
       };
     }
 
