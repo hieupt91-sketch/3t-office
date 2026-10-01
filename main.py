@@ -12,6 +12,7 @@ import os
 import queue
 import socket
 import sys
+import ctypes
 import base64
 import csv
 import json
@@ -2125,6 +2126,78 @@ def _notify_sheet_open_progress(message: str, start_timing: bool = False, api=No
         pass
 
 
+def _extract_clipboard_html_fragment(raw: bytes) -> str:
+    """Read the fragment offsets from Windows' registered ``HTML Format`` payload."""
+    if not raw:
+        return ""
+    data = raw.rstrip(b"\x00")
+    start_match = re.search(rb"(?im)^StartFragment:\s*(\d+)\s*$", data)
+    end_match = re.search(rb"(?im)^EndFragment:\s*(\d+)\s*$", data)
+    if start_match and end_match:
+        start, end = int(start_match.group(1)), int(end_match.group(1))
+        if 0 <= start <= end <= len(data):
+            return data[start:end].decode("utf-8", errors="replace")
+    start_marker = b"<!--StartFragment-->"
+    end_marker = b"<!--EndFragment-->"
+    start = data.find(start_marker)
+    end = data.find(end_marker, start + len(start_marker)) if start >= 0 else -1
+    if start >= 0 and end >= 0:
+        return data[start + len(start_marker):end].decode("utf-8", errors="replace")
+    return ""
+
+
+def _read_windows_clipboard_data() -> dict[str, object]:
+    """Read plain text and HTML locally from the Windows clipboard via Win32."""
+    if os.name != "nt":
+        return {"status": "error", "message": "Đọc bộ nhớ tạm hệ thống cần chạy 3T Office Desktop trên Windows."}
+
+    user32 = ctypes.WinDLL("user32", use_last_error=True)
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    user32.OpenClipboard.argtypes = [ctypes.c_void_p]
+    user32.OpenClipboard.restype = ctypes.c_int
+    user32.CloseClipboard.argtypes = []
+    user32.CloseClipboard.restype = ctypes.c_int
+    user32.GetClipboardData.argtypes = [ctypes.c_uint]
+    user32.GetClipboardData.restype = ctypes.c_void_p
+    user32.RegisterClipboardFormatW.argtypes = [ctypes.c_wchar_p]
+    user32.RegisterClipboardFormatW.restype = ctypes.c_uint
+    kernel32.GlobalLock.argtypes = [ctypes.c_void_p]
+    kernel32.GlobalLock.restype = ctypes.c_void_p
+    kernel32.GlobalUnlock.argtypes = [ctypes.c_void_p]
+    kernel32.GlobalUnlock.restype = ctypes.c_int
+    kernel32.GlobalSize.argtypes = [ctypes.c_void_p]
+    kernel32.GlobalSize.restype = ctypes.c_size_t
+
+    if not user32.OpenClipboard(None):
+        return {"status": "error", "message": "Không mở được bộ nhớ tạm Windows. Hãy thử lại."}
+
+    def read_format(format_id: int) -> bytes:
+        handle = user32.GetClipboardData(format_id)
+        if not handle:
+            return b""
+        pointer = kernel32.GlobalLock(handle)
+        if not pointer:
+            return b""
+        try:
+            size = int(kernel32.GlobalSize(handle) or 0)
+            return ctypes.string_at(pointer, size) if size else b""
+        finally:
+            kernel32.GlobalUnlock(handle)
+
+    try:
+        text_bytes = read_format(13)  # CF_UNICODETEXT
+        text = text_bytes.decode("utf-16-le", errors="replace").split("\x00", 1)[0] if text_bytes else ""
+        html_format = int(user32.RegisterClipboardFormatW("HTML Format"))
+        html_bytes = read_format(html_format) if html_format else b""
+        return {
+            "status": "ok",
+            "text": text,
+            "html": _extract_clipboard_html_fragment(html_bytes),
+        }
+    finally:
+        user32.CloseClipboard()
+
+
 class VnOfficeApi:
     """Python API phơi ra cho JavaScript giao tiếp (Bridge) — cầu nối thật tới LibreOffice."""
 
@@ -2172,6 +2245,13 @@ class VnOfficeApi:
     def get_app_version(self) -> str:
         """Trả về phiên bản ứng dụng hiện tại."""
         return APP_VERSION
+
+    def read_clipboard_data(self) -> dict[str, object]:
+        """Đọc CF_UNICODETEXT và HTML Format từ clipboard Windows cục bộ."""
+        try:
+            return _read_windows_clipboard_data()
+        except Exception as exc:
+            return {"status": "error", "message": f"Không đọc được bộ nhớ tạm: {exc}"}
 
     def get_about_info(self) -> dict[str, object]:
         """Trả về thông tin bản quyền và danh sách phần mềm nguồn mở bên thứ ba."""

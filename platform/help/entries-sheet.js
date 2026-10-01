@@ -1048,7 +1048,7 @@ export const SHEET_HELP_ENTRIES = [
       "Bảo vệ dữ liệu nguyên tử: Hệ thống luôn ghi ra tệp tạm và thay thế nguyên tử (atomic replace); nếu có sự cố hoặc lỗi chuyển đổi, tệp gốc trên đĩa hoàn toàn không bị hư hại. Nếu tệp đang ở chế độ chỉ đọc hoặc bị Excel khóa, hệ thống sẽ thông báo rõ ràng để bạn chọn Lưu bản sao."
     ]
   },
-  {
+{
     id: "sheet.clipboard.cutCopyPaste",
     app: "sheet",
     commandIds: ["common.edit.cut", "common.edit.copy", "common.edit.paste"],
@@ -1058,10 +1058,27 @@ export const SHEET_HELP_ENTRIES = [
     keywords: ["cắt", "sao chép", "dán", "cut", "copy", "paste", "clipboard", "Ctrl+X", "Ctrl+C", "Ctrl+V", "ô dữ liệu"],
     steps: [
       "Chọn một ô hoặc kéo chuột bôi đen vùng ô cần thao tác trên bảng tính 3T Sheet.",
-      "Mở tab Trang đầu, nhóm Bảng nhớ tạm: nhấn Cắt (Ctrl+X) nếu muốn chuyển hẳn dữ liệu sang nơi khác, hoặc nhấn Sao chép (Ctrl+C) để nhân bản dữ liệu.",
-      "Vùng ô đang chọn sẽ được sao chép vào bộ nhớ tạm. Nhấp chọn ô góc trên bên trái của vùng đích.",
-      "Nhấn nút Dán (Ctrl+V) trên thanh ribbon hoặc bấm phím Ctrl+V để dán dữ liệu vào bảng tính.",
-      "Có thể dùng Ctrl+Z để hoàn tác hoặc Ctrl+Y để làm lại thao tác dán nếu cần."
+      "Ngay sau khi mở sổ, lưới ô đang nhận bàn phím. Gõ giá trị rồi nhấn Enter để xác nhận và chọn ô phía dưới; nhấn F2 để sửa nội dung hiện có.",
+      "Dùng Tab để xác nhận ô và chuyển sang ô bên phải. Sau một chuỗi Tab, Enter chuyển xuống hàng kế tiếp tại cột nơi chuỗi Tab bắt đầu (ví dụ bắt đầu ở A2 thì Enter chọn A3).",
+      "Mở tab Trang đầu, nhóm Bảng nhớ tạm hoặc dùng Ctrl+X/Ctrl+C để cắt/sao chép vùng chọn. Khi cắt, viền nét đứt báo vùng nguồn; chọn ô đích rồi Ctrl+V để di chuyển. Nhấn Esc trước khi dán để hủy Cắt.",
+      "Chọn một ô đích rồi nhấn Ctrl+V để dán. Bảng có thể nhận văn bản nhiều ô từ ứng dụng khác; tab phân cột và xuống dòng phân hàng. Lệnh Xóa (Delete) xóa nội dung ô/vùng đang chọn mà giữ định dạng.",
+      "Để dán giá trị hoặc định dạng theo lựa chọn, mở tab Trang đầu, nhóm Bảng nhớ tạm, chọn Dán đặc biệt rồi chọn Tất cả, Chỉ giá trị, Chỉ công thức, Chỉ định dạng hoặc Chuyển vị.",
+      "Ctrl+Z hoàn tác mỗi lần nhập/dán; Ctrl+V làm lại dán. Nhấn F1 để mở Trợ giúp 3T Office và tìm 'Tab', 'Dán' hoặc 'bộ nhớ tạm'."
+    ]
+  },
+{
+    id: "sheet.keyboard.basicEditing",
+    app: "sheet",
+    commandIds: [],
+    title: "Nhập dữ liệu và di chuyển ô bằng bàn phím",
+    summary: "Dùng các phím Enter, Tab, F2, Delete và Ctrl+Z để nhập hoặc sửa dữ liệu trong lưới 3T Sheet.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Bảng nhớ tạm" },
+    keywords: ["Enter", "Tab", "Shift+Tab", "F2", "Delete", "Ctrl+Z", "nhập ô", "di chuyển ô", "F1"],
+    steps: [
+      "Mở 3T Sheet hoặc đóng hộp thoại để lưới ô nhận lại focus; có thể nhấp ô bất kỳ rồi gõ ngay. Gõ chữ/số để thay nội dung ô đang chọn, nhấn Enter để xác nhận và đi xuống.",
+      "Nhấn F2 để sửa nội dung hiện có mà không xóa giá trị cũ.",
+      "Nhấn Tab để xác nhận và đi sang phải, Shift+Tab để quay sang trái. Enter sau chuỗi Tab đi xuống hàng tiếp theo ở cột đầu chuỗi.",
+      "Delete xóa nội dung ô hoặc vùng đang chọn. Nhấn Ctrl+Z để hoàn tác và Ctrl+Y để làm lại; nhấn F1 rồi tìm 'nhập ô' để xem lại hướng dẫn này."
     ]
   },
   {

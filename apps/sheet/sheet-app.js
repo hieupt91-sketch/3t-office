@@ -28,6 +28,8 @@ export class SheetApp {
     this._lifecycleObserver = null;
     this._previousSheetOpenProgress = null;
     this._sheetOpenProgressHandler = null;
+    this._focusRestoreClickHandler = null;
+    this._focusRestoreObserver = null;
   }
 
   async init(options = {}) {
@@ -71,6 +73,7 @@ export class SheetApp {
       templateId
     });
     this.grid.mount();
+    this._bindGridFocusRestoration();
 
     this.helpPanel = new HelpPanel({ app: "sheet" });
     this.helpPanel.mount(workspace);
@@ -129,6 +132,10 @@ export class SheetApp {
     });
 
     this.grid.updateStatus();
+    // The grid is mounted before AppShell attaches the workspace to the DOM,
+    // so mount()'s initial focus call cannot take effect. Restore it once the
+    // canvas and any startup recovery UI are in place.
+    this._restoreGridFocusIfIdle();
     console.log("[SheetApp] Đã khởi tạo 3T Sheet chuẩn hóa cao cấp.");
   }
 
@@ -141,6 +148,32 @@ export class SheetApp {
     this._lifecycleObserver.observe(this.mountElement, { attributes: true, attributeFilter: ["data-app"] });
   }
 
+  _bindGridFocusRestoration() {
+    this._focusRestoreClickHandler = event => {
+      if (!event.target?.closest?.(".vno-ribbon-tab,.vno-ribbon-tab-file,[data-command-id]")) return;
+      setTimeout(() => this._restoreGridFocusIfIdle(), 0);
+    };
+    document.addEventListener("click", this._focusRestoreClickHandler, true);
+
+    if (typeof MutationObserver !== "undefined" && document.body) {
+      this._focusRestoreObserver = new MutationObserver(records => {
+        const removedDialog = records.some(record => [...record.removedNodes].some(node =>
+          node.nodeType === 1 && (node.matches?.(".vno-dialog-overlay") || node.querySelector?.(".vno-dialog-overlay"))
+        ));
+        if (removedDialog) setTimeout(() => this._restoreGridFocusIfIdle(), 0);
+      });
+      this._focusRestoreObserver.observe(document.body, { childList: true, subtree: true });
+    }
+  }
+
+  _restoreGridFocusIfIdle() {
+    if (!this.grid || this.mountElement?.getAttribute("data-app") !== "sheet") return false;
+    if (document.querySelector(".vno-dialog-overlay")) return false;
+    const active = document.activeElement;
+    if (active?.isContentEditable || active?.matches?.("input,textarea,select")) return false;
+    return this.grid.focusGrid();
+  }
+
   destroy() {
     autoRecoverManager.detach(this.adapter);
     if (typeof window !== "undefined" && window.__vnoSheetOpenProgress === this._sheetOpenProgressHandler) {
@@ -150,6 +183,12 @@ export class SheetApp {
     }
     this._lifecycleObserver?.disconnect();
     this._lifecycleObserver = null;
+    if (this._focusRestoreClickHandler) {
+      document.removeEventListener("click", this._focusRestoreClickHandler, true);
+      this._focusRestoreClickHandler = null;
+    }
+    this._focusRestoreObserver?.disconnect();
+    this._focusRestoreObserver = null;
     this.helpPanel?.destroy();
     this.helpPanel = null;
     this.grid?.destroy?.();

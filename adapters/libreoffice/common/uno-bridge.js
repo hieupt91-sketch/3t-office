@@ -284,6 +284,13 @@ export class UnoBridge {
     return await this.desktopApi.cancel_print_document(sessionId);
   }
 
+  async readClipboardData() {
+    if (!this.desktopApi?.read_clipboard_data) {
+      return { status: "unavailable", text: "", html: "" };
+    }
+    return await this.desktopApi.read_clipboard_data();
+  }
+
   // AutoRecover is a local app-data service and does not require the LibreOffice engine.
   async getAutoRecoverSettings() {
     if (!this.desktopApi) return { enabled: true, interval_minutes: 5 };
