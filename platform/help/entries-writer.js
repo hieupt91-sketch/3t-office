@@ -1226,6 +1226,21 @@ export const WRITER_HELP_ENTRIES = [
       "Nhập trực tiếp số đo chiều Cao (px) và chiều Rộng (px) tại nhóm Sắp xếp & Kích thước trên tab Định dạng Hình ảnh để đặt kích thước chính xác.",
       "Nhấp vào nút biểu tượng ngắt dòng nhanh ở góc trên bên phải khung ảnh hoặc chọn danh sách Ngắt dòng văn bản trên thanh ribbon để chọn kiểu ngắt dòng mong muốn (Vuông, Khít, Phía sau văn bản, Phía trước văn bản, Trên và dưới, Cùng dòng với văn bản)."
     ]
+  },
+  {
+    id: "writer.list.restartContinue",
+    app: "writer",
+    commandIds: ["writer.list.restartNumbering", "writer.list.continueNumbering"],
+    title: "Đánh số lại từ 1 và tiếp tục đánh số danh sách",
+    summary: "Bắt đầu lại việc đánh số thứ tự từ 1 cho danh sách hoặc tiếp tục đánh số liền mạch từ danh sách trước đó.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Đoạn văn" },
+    keywords: ["đánh số lại từ 1", "restart numbering", "tiếp tục đánh số", "continue numbering", "danh sách số", "đánh số", "thứ tự", "chuột phải danh sách"],
+    steps: [
+      "Đặt con trỏ vào mục danh sách số cần thay đổi đánh số trong tài liệu.",
+      "Mở menu tùy chọn bằng một trong hai cách: (1) Nhấp chuột phải trực tiếp vào mục danh sách số để mở menu ngữ cảnh; hoặc (2) Trên tab Trang đầu, nhóm Đoạn văn, nhấp vào mũi tên Tùy chọn đánh số cạnh nút Đánh số.",
+      "Chọn «Đánh số lại từ 1» để bắt đầu đánh số lại thứ tự từ 1 cho danh sách hiện tại. Các mục kế tiếp sẽ tự động tăng số theo thứ tự 2, 3…",
+      "Chọn «Tiếp tục đánh số» để liên kết số thứ tự nối tiếp với danh sách số phía trước trong tài liệu. Bạn có thể nhấn Ctrl+Z để hoàn tác bất kỳ lúc nào."
+    ]
   }
 ];
 

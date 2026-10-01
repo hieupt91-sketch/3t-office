@@ -100,7 +100,7 @@ The previous draft cited `scripts/test_g7_file_basics.py` and `pywebview.evaluat
 | B4 | Number format `1.` | PASS | Numbered list was saved as DOCX; hidden Word COM read `ListString='1.'`. |
 | B4 | Number formats `a)` and `i.` | NOT RUN | A reliable applied-and-saved result for those formats was not captured. |
 | B4 | Multiple list levels | PASS | Tab nested an item; Shift+Tab returned it to the prior level. |
-| B4 | Continue / restart numbering | FAIL | No continue/restart command was exposed in the tested list UI/context menu. |
+| B4 | Continue / restart numbering | PASS | Desktop CDP verified: context menu on numbered list items exposes "Đánh số lại từ 1" and "Tiếp tục đánh số", along with Home ribbon dropdown; continueNumbering sets start="3" linking prior list, restartNumbering resets start="1". |
 | B4 | List Undo and full DOCX round trip for all formats | NOT RUN | Word reopened the `1.` list; every format/Undo case was not covered. |
 | B5 | Normal style | PASS | Style Gallery applied Normal to a paragraph. |
 | B5 | Heading 1 / Heading 2 / Heading 3 | PASS | Style Gallery applied all three headings in the desktop document. |

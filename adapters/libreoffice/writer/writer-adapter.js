@@ -648,6 +648,8 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("common.edit.repeat", () => this.repeatLastAction());
     globalCommandBus.bindHandler("common.edit.find", () => this._showFindReplaceDialog(false));
     globalCommandBus.bindHandler("common.edit.replace", () => this._showFindReplaceDialog(true));
+    globalCommandBus.bindHandler("writer.list.restartNumbering", (args) => this.restartNumbering(args));
+    globalCommandBus.bindHandler("writer.list.continueNumbering", (args) => this.continueNumbering(args));
     this._bindTableCommands();
 
     if (!this._lastSnapshot) {
@@ -1240,6 +1242,84 @@ export class WriterAdapter {
     const anchor = selection?.anchorNode?.nodeType === 1 ? selection.anchorNode : selection?.anchorNode?.parentElement;
     const listItem = anchor?.closest?.("li");
     return listItem && root?.contains?.(listItem) ? listItem : null;
+  }
+
+  restartNumbering(target = null) {
+    this.flushTyping?.();
+    const root = this.bodyDom || this.body;
+    if (!root) return false;
+
+    let li = null;
+    if (target) {
+      li = target.closest ? target.closest("li") : target;
+    }
+    if (!li) {
+      li = this._caretListItem(root);
+    }
+    if (!li && root.querySelectorAll) {
+      li = root.querySelector("li");
+    }
+    if (!li) return false;
+
+    const ol = li.closest ? li.closest("ol") : li.parentElement;
+    if (!ol) return false;
+
+    if (ol.firstElementChild !== li) {
+      li.setAttribute("value", "1");
+      li.dataset.vnoRestart = "true";
+    } else {
+      ol.setAttribute("start", "1");
+      ol.removeAttribute("data-vno-continue");
+    }
+    this.isDirty = true;
+    this.recordSnapshot?.("Đánh số lại từ 1");
+    this._recomputeLivePagination?.();
+    return true;
+  }
+
+  continueNumbering(target = null) {
+    this.flushTyping?.();
+    const root = this.bodyDom || this.body;
+    if (!root) return false;
+
+    let li = null;
+    if (target) {
+      li = target.closest ? target.closest("li") : target;
+    }
+    if (!li) {
+      li = this._caretListItem(root);
+    }
+    if (!li && root.querySelectorAll) {
+      li = root.querySelector("li");
+    }
+    if (!li) return false;
+
+    const ol = li.closest ? li.closest("ol") : li.parentElement;
+    if (!ol) return false;
+
+    if (li.hasAttribute?.("value")) {
+      li.removeAttribute("value");
+      if (li.dataset) delete li.dataset.vnoRestart;
+    }
+
+    const allOls = Array.from(root.querySelectorAll ? root.querySelectorAll("ol") : []);
+    const currentIndex = allOls.indexOf(ol);
+    if (currentIndex > 0) {
+      const prevOl = allOls[currentIndex - 1];
+      const prevCount = prevOl.querySelectorAll ? prevOl.querySelectorAll("li").length : (prevOl.children?.length || 1);
+      const prevStart = parseInt(prevOl.getAttribute?.("start"), 10) || 1;
+      const nextStart = prevStart + prevCount;
+      ol.setAttribute("start", String(nextStart));
+      ol.dataset.vnoContinue = "true";
+    } else {
+      ol.removeAttribute("start");
+      if (ol.dataset) delete ol.dataset.vnoContinue;
+    }
+
+    this.isDirty = true;
+    this.recordSnapshot?.("Tiếp tục đánh số");
+    this._recomputeLivePagination?.();
+    return true;
   }
 
   _listDepth(listItem, root = this.bodyDom) {
@@ -6685,6 +6765,12 @@ export class WriterAdapter {
         document.execCommand("insertOrderedList", false, null);
         dispatchResult = true;
         break;
+
+      case "writer.list.restartNumbering":
+        return this.restartNumbering(args);
+
+      case "writer.list.continueNumbering":
+        return this.continueNumbering(args);
 
       case "writer.para.multilevelList":
         return this.applyMultilevelList(args);

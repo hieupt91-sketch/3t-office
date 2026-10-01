@@ -110,6 +110,8 @@ export const WRITER_COMMANDS = [
   { id: "writer.para.firstLineIndent", category: "paragraph", label: "Thụt đầu dòng", icon: "indentInc", tooltip: "Đặt khoảng thụt của dòng đầu đoạn văn" },
   { id: "writer.list.bullet", category: "paragraph", label: "Dấu đầu dòng", icon: "listBullet", tooltip: "Tạo danh sách dấu chấm tròn", isToggle: true },
   { id: "writer.list.numbered", category: "paragraph", label: "Đánh số", icon: "listNumber", tooltip: "Tạo danh sách đánh số thứ tự", isToggle: true },
+  { id: "writer.list.restartNumbering", category: "paragraph", label: "Đánh số lại từ 1", icon: "listNumber", tooltip: "Bắt đầu lại việc đánh số thứ tự từ 1" },
+  { id: "writer.list.continueNumbering", category: "paragraph", label: "Tiếp tục đánh số", icon: "listNumber", tooltip: "Tiếp tục đánh số từ danh sách trước đó" },
   { id: "writer.para.multilevelList", category: "paragraph", label: "Danh sách đa cấp", icon: "listMultilevel", tooltip: "Danh sách nhiều cấp (1. / 1.1. / 1.1.1., 1. / a. / i., Điều / Khoản / Điểm)" },
   { id: "writer.para.indentInc", category: "paragraph", label: "Thụt lề", shortcut: "Ctrl+M", icon: "indentInc", tooltip: "Tăng khoảng cách thụt lề đoạn văn (Ctrl+M)" },
   { id: "writer.para.indentDec", category: "paragraph", label: "Giảm thụt lề", shortcut: "Ctrl+Shift+M", icon: "indentDec", tooltip: "Giảm khoảng cách thụt lề đoạn văn (Ctrl+Shift+M)" },

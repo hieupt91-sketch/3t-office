@@ -644,6 +644,8 @@ export const viStrings = {
     "writer.para.firstLineIndent": { label: "Thụt đầu dòng", tooltip: "Đặt khoảng thụt của dòng đầu đoạn văn" },
     "writer.list.bullet": { label: "Dấu đầu dòng", tooltip: "Tạo danh sách dấu chấm tròn" },
     "writer.list.numbered": { label: "Đánh số", tooltip: "Tạo danh sách đánh số thứ tự" },
+    "writer.list.restartNumbering": { label: "Đánh số lại từ 1", tooltip: "Bắt đầu lại việc đánh số thứ tự từ 1" },
+    "writer.list.continueNumbering": { label: "Tiếp tục đánh số", tooltip: "Tiếp tục đánh số từ danh sách trước đó" },
     "writer.para.multilevelList": { label: "Danh sách đa cấp", tooltip: "Danh sách nhiều cấp: 1. / 1.1. / 1.1.1., 1. / a. / i., hoặc Điều / Khoản / Điểm (NĐ 30)" },
     "writer.para.indentInc": { label: "Thụt lề", tooltip: "Tăng khoảng cách thụt lề đoạn văn (Ctrl+M)" },
     "writer.para.indentDec": { label: "Giảm thụt lề", tooltip: "Giảm khoảng cách thụt lề đoạn văn (Ctrl+Shift+M)" },

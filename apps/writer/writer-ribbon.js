@@ -135,7 +135,20 @@ export const WRITER_RIBBON_TABS = [
                   { type: "button", commandId: "writer.para.indentDec", iconOnly: true },
                   { type: "button", commandId: "writer.para.indentInc", iconOnly: true },
                   { type: "button", commandId: "writer.para.sort", iconOnly: true },
-                  { type: "button", commandId: "writer.para.showFormattingMarks", iconOnly: true }
+                  { type: "button", commandId: "writer.para.showFormattingMarks", iconOnly: true },
+                  {
+                    type: "dropdown",
+                    id: "writer.list.restartNumbering",
+                    commandId: "writer.list.restartNumbering",
+                    label: "Đánh số lại từ 1",
+                    icon: "listNumber",
+                    iconOnly: true,
+                    ariaLabel: "Tùy chọn danh sách đánh số",
+                    items: [
+                      { commandId: "writer.list.restartNumbering", label: "Đánh số lại từ 1" },
+                      { commandId: "writer.list.continueNumbering", label: "Tiếp tục đánh số" }
+                    ]
+                  }
                 ]
               },
               {

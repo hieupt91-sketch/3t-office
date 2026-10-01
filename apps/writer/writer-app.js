@@ -247,6 +247,7 @@ export class WriterApp {
       onWordCommit: () => this.adapter?.recordSnapshot?.("Gõ chữ")
     }).attach(root));
     this._autoRecoverOptions = options;
+    this._setupContextMenu(body);
     console.log("[WriterApp] Đã khởi tạo 3T Doc chuẩn hóa cao cấp.");
   }
 
@@ -363,6 +364,8 @@ export class WriterApp {
     this.spellcheckController = null;
     this._normalizers?.forEach(n => n.destroy());
     this._normalizers = [];
+    this._closeContextMenu();
+    this.canvas?.querySelector?.(".vno-writer-body")?.removeEventListener?.("contextmenu", this._contextMenuHandler);
     this.helpPanel?.destroy();
     this.helpPanel = null;
   }
@@ -468,6 +471,90 @@ export class WriterApp {
       ? "Nhấp để xem thống kê đếm từ"
       : t("writerDialogs.wordCount.title");
     chip.setAttribute("aria-label", chip.textContent);
+  }
+
+  _setupContextMenu(body) {
+    if (!body?.addEventListener) return;
+    this._contextMenuHandler = (event) => {
+      if (event.target?.closest?.(".vno-spellcheck-marker")) return;
+      const li = event.target?.closest?.("li");
+      const ol = event.target?.closest?.("ol");
+      if (li || ol) {
+        event.preventDefault();
+        this._openListContextMenu(event.clientX, event.clientY, li || ol);
+      }
+    };
+    body.addEventListener("contextmenu", this._contextMenuHandler);
+  }
+
+  _openListContextMenu(x, y, target) {
+    this._closeContextMenu();
+
+    const menu = document.createElement("div");
+    menu.className = "vno-list-context-menu vno-context-menu";
+    menu.setAttribute("role", "menu");
+    menu.setAttribute("aria-label", "Tùy chọn danh sách");
+    menu.style.cssText = `position:fixed; left:${x}px; top:${y}px; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 4px 14px rgba(0,0,0,0.15); z-index:10000; min-width:180px; padding:4px 0; font-size:12px;`;
+
+    const items = [
+      { label: "Đánh số lại từ 1", command: "writer.list.restartNumbering" },
+      { label: "Tiếp tục đánh số", command: "writer.list.continueNumbering" }
+    ];
+
+    for (const item of items) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "vno-context-menu-item";
+      btn.setAttribute("role", "menuitem");
+      btn.style.cssText = `display:block; width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:12px; color:#1e293b; cursor:pointer;`;
+      btn.textContent = item.label;
+      btn.addEventListener("mouseenter", () => btn.style.background = "#eff6ff");
+      btn.addEventListener("mouseleave", () => btn.style.background = "none");
+      btn.addEventListener("click", () => {
+        this._closeContextMenu();
+        globalCommandBus.execute(item.command, target);
+      });
+      menu.appendChild(btn);
+    }
+
+    const onKey = (e) => {
+      if (e.key === "Escape") {
+        this._closeContextMenu();
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        const btns = [...menu.querySelectorAll("button")];
+        const idx = btns.indexOf(document.activeElement);
+        btns[(idx + 1) % btns.length]?.focus();
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        const btns = [...menu.querySelectorAll("button")];
+        const idx = btns.indexOf(document.activeElement);
+        btns[(idx - 1 + btns.length) % btns.length]?.focus();
+      }
+    };
+    const onClickOutside = (e) => {
+      if (!menu.contains(e.target)) this._closeContextMenu();
+    };
+
+    document.addEventListener("keydown", onKey);
+    setTimeout(() => document.addEventListener("click", onClickOutside), 10);
+
+    menu._cleanup = () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("click", onClickOutside);
+    };
+
+    document.body.appendChild(menu);
+    this._activeContextMenu = menu;
+    menu.querySelector("button")?.focus();
+  }
+
+  _closeContextMenu() {
+    if (this._activeContextMenu) {
+      this._activeContextMenu._cleanup?.();
+      this._activeContextMenu.remove();
+      this._activeContextMenu = null;
+    }
   }
 }
 

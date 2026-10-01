@@ -216,6 +216,7 @@ import { runSheetNativeCellValuesTests } from "./unit/sheet-native-cell-values.t
 import { runSheetPrintSetupRoundTripTests } from "./unit/sheet-print-setup-roundtrip.test.js";
 import { runSheetC3C7C8GapTests } from "./unit/sheet-c3-c7-c8-gaps.test.js";
 import { runWriterPictureResizeWrapTests } from "./unit/writer-picture-resize-wrap.test.js";
+import { runWriterNumberedListRestartTests } from "./unit/writer-numbered-list-restart.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -441,7 +442,8 @@ async function runAll() {
     { title: "176. Unit Tests — VN Sheet print setup XLSX reopen round-trip", runner: runSheetPrintSetupRoundTripTests },
     { title: "177. Unit Tests — VN Sheet C3/C7/C8 selection, tabs and sort", runner: runSheetC3C7C8GapTests },
     { title: "178. Unit Tests — VN Writer table controls, move handle, drag resize and contextual ribbon tabs", runner: runWriterTableControlsTests },
-    { title: "179. Unit Tests — VN Writer picture resize handles, aspect ratio & wrap text", runner: runWriterPictureResizeWrapTests }
+    { title: "179. Unit Tests — VN Writer picture resize handles, aspect ratio & wrap text", runner: runWriterPictureResizeWrapTests },
+    { title: "180. Unit Tests — VN Writer numbered list restart at 1 and continue numbering", runner: runWriterNumberedListRestartTests }
   ];
 
   for (const suite of suites) {

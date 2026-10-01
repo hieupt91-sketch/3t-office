@@ -643,6 +643,8 @@ export const enStrings = {
     "writer.para.firstLineIndent": { label: "First-line Indent", tooltip: "Set the first line indent for the paragraph" },
     "writer.list.bullet": { label: "Bullets", tooltip: "Create a bulleted list" },
     "writer.list.numbered": { label: "Numbering", tooltip: "Create a numbered list" },
+    "writer.list.restartNumbering": { label: "Restart at 1", tooltip: "Restart numbering from 1" },
+    "writer.list.continueNumbering": { label: "Continue Numbering", tooltip: "Continue numbering from previous list" },
     "writer.para.multilevelList": { label: "Multilevel List", tooltip: "Multilevel list: 1. / 1.1. / 1.1.1., 1. / a. / i., or Vietnamese Điều / Khoản / Điểm" },
     "writer.para.indentInc": { label: "Increase Indent", tooltip: "Increase indent (Ctrl+M)" },
     "writer.para.indentDec": { label: "Decrease Indent", tooltip: "Decrease indent (Ctrl+Shift+M)" },
