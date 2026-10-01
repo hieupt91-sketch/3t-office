@@ -1062,7 +1062,8 @@ export const SHEET_HELP_ENTRIES = [
       "Mở tab Trang đầu, nhóm Bảng nhớ tạm hoặc dùng Ctrl+X/Ctrl+C để cắt/sao chép vùng chọn. Khi cắt, viền nét đứt báo vùng nguồn; chọn ô đích rồi Ctrl+V để di chuyển. Nhấn Esc trước khi dán để hủy Cắt.",
       "Chọn một ô đích rồi nhấn Ctrl+V để dán. Khi sao chép một vùng trong Excel, 3T Sheet giữ giá trị số, ngày tháng, phần trăm và định dạng ô như chữ đậm, màu nền, đường viền; văn bản nhiều ô cũng được tách theo tab và xuống dòng. Lệnh Xóa (Delete) xóa nội dung ô/vùng đang chọn mà giữ định dạng.",
       "Để dán theo lựa chọn, mở tab Trang đầu, nhóm Bảng nhớ tạm, chọn Dán đặc biệt hoặc nhấn Ctrl+Alt+V; chọn Giữ định dạng nguồn, Chỉ giá trị, Chỉ định dạng hoặc Chuyển vị (đổi hàng/cột), rồi nhấn Áp dụng.",
-      "Ctrl+Z hoàn tác mỗi lần nhập/dán bằng một bước; Ctrl+Y làm lại. Nhấn F1 để mở Trợ giúp 3T Office và tìm 'Tab', 'Dán' hoặc 'bộ nhớ tạm'."
+      "Ctrl+Z hoàn tác mỗi thao tác bằng một bước; Ctrl+Y làm lại.",
+      "Nhấn F1 để mở Trợ giúp 3T Office và tìm 'Tab', 'Dán' hoặc 'bộ nhớ tạm'."
     ]
   },
 {

@@ -41,7 +41,7 @@ TEST RESULTS:
 - Desktop: all six Ctrl+V/ribbon/Paste Special cases PASS with one-step Undo; Excel Chromium native probe PASS.
 - JS full gate: 2283/2288 PASS, 5 FAIL. Three known soffice failures listed below; two clipboard failures were then fixed without altering expected outputs. Targeted Sheet keyboard suite: 5/5 PASS; basic editing suite including new event/bridge regression: 10/10 PASS; clipboard parser suite: 61/61 PASS. Full gate not repeated, as requested.
 - Python full gate: 531/532 PASS, 1 FAIL (`test_main_returns_exit_code_when_no_port_available`, got 0 instead of 3). Its launch request was accepted by another still-open Writer window belonging to this session. Closed all remaining pages on this session's CDP port 9397, without OS input; reran unchanged `test_desktop_launch.py`: 6/6 PASS. No Python full rerun.
-- 26 LAN gate: pending completion.
+- 26 LAN gate: PASS. LAN01–LAN07 retained from the previous run; LAN08–LAN26 completed on 02/10 through WebView2 CDP. All 26: TONG 0, Excel hidden COM open OK, fixed external linters clean. Resume batch exit code 0.
 
 KNOWN FAILURES:
 1. `Sheet FODS save: LibreOffice giữ CF và validation qua FODS -> XLSX -> FODS` — EBUSY unlink.
@@ -53,7 +53,7 @@ KNOWN FAILURES:
 RISKS: Web-only clipboard paths depend on browser permissions; local desktop bridge is Windows-specific. No Office sample/document content is sent to cloud.
 DEPENDENCIES/BLOCKERS: Installed WebView2 and hidden Excel/Word COM; LAN files are local ignored test data, not committed.
 CORE PATCH ID (if any): None.
-NEXT ACTION: Finish required gates, commit on this branch; do not merge.
+NEXT ACTION: Completed and committed on this branch; ready for reviewer. Do not merge into main without the owner’s instruction.
 
 Desktop evidence (stdout from the real CDP test, including destination model and Undo):
 
@@ -332,4 +332,47 @@ ACCEPTANCE_PASS app=writer action=ribbon-com undo=one-step
 OFFICE_COM_CLOSED app=writer officePid=34248
 ACCEPTANCE_PASS app=writer action=special-com undo=one-step
 OFFICE_COM_CLOSED app=writer officePid=21072
+```
+
+
+## Resume completion — 02/10/2026
+
+- Started with `git log -3` and `git diff main --stat`; read this handoff and the resume plan. No NEW EVIDENCE section was present. Preserved WIP commits `54e2993f` and `bd89271c` and the completed desktop evidence above.
+- `git rm --ignore-unmatch -- 'test_output*.txt'`: no tracked stray files remained.
+- Completed the existing `_batch_audit.py` gate only for the unfinished LAN08–LAN26 using `VNO_AUDIT_LINTER_DIR=E:\VNOffice-codex-audit-sheet\scripts\layout-audit`. No edits to save paths or `ooxml_zip_patch.py`.
+- Final full JavaScript gate, run once: **2289/2290 PASS, 1 FAIL**. The sole failure was `Help Shortcut Consistency: mọi shortcut nhắc trong Help sheet khớp shortcut thật (command-definitions + app binds)`: the clipboard help step put Ctrl+Y next to the later search label “Dán”. Separated Undo/Redo instructions from the F1 search step without changing a test or expected output. Unchanged focused Help shortcut suite then **3/3 PASS** (Writer, Sheet, Slides). Full suite was not repeated. All three known soffice tests listed above passed in this final full run.
+- Final full Python gate, run once: **532/532 PASS**, `Ran 532 tests in 460.506s`, `OK`, no FAIL/ERROR. Used process-local `LOCALAPPDATA=E:\VNOffice-agy-clipboard\_clipboard_test_profile` to avoid forwarding a launch-test request to another active desktop instance. PowerShell’s combined stderr redirection produced `NativeCommandError` and wrapper status 1 for unittest progress on stderr; the unittest report itself is OK. No full rerun.
+- `git diff --check`: PASS. Packaging build: NOT RUN, not requested.
+- Final change after the WIP: the concrete help wording correction and this completed handoff. Desktop acceptance code and its six existing PASS proofs were not redone.
+- Logs (ignored local artifacts): `clipboard-js-final-gate.log`, `clipboard-help-final-gate.log`, `clipboard-python-final-gate.log`, `clipboard-lan-gate.log`, `clipboard-lan-resume-gate.log`. All real LAN source/roundtrip documents remain ignored.
+
+26-file LAN gate output (first seven retained from the completed run; remaining nineteen from the resume):
+
+```text
+lan01.xlsx saved total 0 excel _rt_lan01.xlsx OK sheets=3 lint clean seconds 282.4
+lan02.xlsx saved total 0 excel _rt_lan02.xlsx OK sheets=2 lint clean seconds 50.1
+lan03.xlsx saved total 0 excel _rt_lan03.xlsx OK sheets=12 lint clean seconds 73.6
+lan04.xlsx saved total 0 excel _rt_lan04.xlsx OK sheets=2 lint clean seconds 45.2
+lan05.xlsx saved total 0 excel _rt_lan05.xlsx OK sheets=1 lint clean seconds 44.4
+lan06.xlsx saved total 0 excel _rt_lan06.xlsx OK sheets=4 lint clean seconds 311.1
+lan07.xlsx saved total 0 excel _rt_lan07.xlsx OK sheets=10 lint clean seconds 44.8
+lan08.xlsx saved total 0 excel _rt_lan08.xlsx OK sheets=7 lint clean seconds 57.6
+lan09.xlsx saved total 0 excel _rt_lan09.xlsx OK sheets=15 lint clean seconds 149.7
+lan10.xlsx saved total 0 excel _rt_lan10.xlsx OK sheets=9 lint clean seconds 88.3
+lan11.xlsx saved total 0 excel _rt_lan11.xlsx OK sheets=3 lint clean seconds 58.4
+lan12.xlsx saved total 0 excel _rt_lan12.xlsx OK sheets=11 lint clean seconds 74.7
+lan13.xlsx saved total 0 excel _rt_lan13.xlsx OK sheets=12 lint clean seconds 44.8
+lan14.xlsx saved total 0 excel _rt_lan14.xlsx OK sheets=4 lint clean seconds 547.9
+lan15.xlsx saved total 0 excel _rt_lan15.xlsx OK sheets=5 lint clean seconds 48.5
+lan16.xlsx saved total 0 excel _rt_lan16.xlsx OK sheets=14 lint clean seconds 85.6
+lan17.xlsx saved total 0 excel _rt_lan17.xlsx OK sheets=23 lint clean seconds 45.3
+lan18.xlsx saved total 0 excel _rt_lan18.xlsx OK sheets=1 lint clean seconds 44.8
+lan19.xlsx saved total 0 excel _rt_lan19.xlsx OK sheets=1 lint clean seconds 44.8
+lan20.xlsx saved total 0 excel _rt_lan20.xlsx OK sheets=1 lint clean seconds 45.2
+lan21.xlsx saved total 0 excel _rt_lan21.xlsx OK sheets=18 lint clean seconds 45.0
+lan22.xlsx saved total 0 excel _rt_lan22.xlsx OK sheets=2 lint clean seconds 61.5
+lan23.xlsx saved total 0 excel _rt_lan23.xlsx OK sheets=1 lint clean seconds 44.8
+lan24.xlsx saved total 0 excel _rt_lan24.xlsx OK sheets=4 lint clean seconds 44.7
+lan25.xlsx saved total 0 excel _rt_lan25.xlsx OK sheets=1 lint clean seconds 41.8
+lan26.xlsx saved total 0 excel _rt_lan26.xlsx OK sheets=6 lint clean seconds 62.9
 ```
