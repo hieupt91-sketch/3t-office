@@ -66,7 +66,7 @@ const COMMON_LEVEL_BINDINGS = {
 /** Hợp phím điều hướng (bẫy focus / di chuyển ô) — chỉ chấp nhận trong bài về điều hướng bàn phím */
 const NAVIGATION_CHORDS = new Set(["Tab", "Shift+Tab", "Enter", "Shift+Enter"]);
 
-const COMBO_TOKEN_RE = /(?:Ctrl|Shift|Alt|Meta|Win)(?:\s*\+\s*(?:Ctrl|Shift|Alt|Meta|Win))*\s*\+\s*(?:[^\s,;.)\]}»:/]+|[;])/gi;
+const COMBO_TOKEN_RE = /(?:Ctrl|Shift|Alt|Meta|Win)(?:\s*\+\s*(?:Ctrl|Shift|Alt|Meta|Win))*\s*\+\s*(?:[^\s,.)\]}»:/]+|[=+])/gi;
 const FKEY_TOKEN_RE = /F(?:[1-9]|1[0-2])\b/g;
 const PAGE_TOKEN_RE = /Page\s*(?:Up|Down)/gi;
 
@@ -91,10 +91,15 @@ function expandArrowSlash(text) {
 
 /** Bỏ qua ngữ cảnh phủ định: "không có Ctrl+Alt+M", "không F2", "giảm cấp không phải phím Shift+Tab như Word", ... */
 function stripNegations(text) {
-  return text.replace(
-    /không(?:\s+(?:có|phải|dùng|bằng|bấm|nhấn|phím|tổ hợp))*\s*((?:Ctrl|Shift|Alt|Meta|Win)\s*\+\s*[^\s,;.)\]}»]+|F(?:[1-9]|1[0-2])|Page\s*(?:Up|Down))/gi,
-    ""
-  );
+  return text
+    .replace(
+      /không(?:\s+(?:có|phải|dùng|bằng|bấm|nhấn|phím|tổ hợp))*\s*((?:Ctrl|Shift|Alt|Meta|Win)\s*\+\s*[^\s,;.)\]}»]+|F(?:[1-9]|1[0-2])|Page\s*(?:Up|Down))/gi,
+      ""
+    )
+    // Protect Ctrl+Shift+; (sheet.insert.time) from negation removal
+    .replace(/Ctrl\+Shift\+;/g, "Ctrl+Shift+;")
+    // Remove trailing semicolon from shortcuts like "Ctrl+1;" (Vietnamese punctuation)
+    .replace(/\b(Ctrl|Shift|Alt|Meta|Win)(?:\s*\+\s*(?:Ctrl|Shift|Alt|Meta|Win))*\s*\+\s*\w+;/g, (m) => m.slice(0, -1));
 }
 
 /** Tách toàn bộ shortcut token trong đoạn text, kèm vị trí & dạng chuẩn hóa */

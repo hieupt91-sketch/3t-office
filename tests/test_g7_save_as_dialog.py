@@ -119,7 +119,7 @@ class SaveAsAlternateFormatTests(unittest.TestCase):
                 with patch.object(main, "_active_window", return_value=window), \
                      patch.object(main, "_write_save_source", return_value=str(source)) as write_source, \
                      patch.object(main, "_convert_save_source_to_native", return_value=str(converted)) as convert_source, \
-                     patch.object(main, "_export_content_to_pdf", return_value=str(converted)) as export_pdf:
+                     patch.object(main, "_export_content_to_pdf", side_effect=lambda *args, return_engine=False, **kwargs: (str(converted), "libreoffice") if return_engine else str(converted)) as export_pdf:
                     result = api._save_document_dialog_impl(
                         content,
                         app_kind=app_kind,
