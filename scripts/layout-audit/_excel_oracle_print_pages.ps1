@@ -14,13 +14,31 @@ function Invoke-ComWithRetry([scriptblock]$Action, [string]$Operation) {
 }
 
 $excel = $null
+$ownsOfficeProcess = $false
+$ownedExcelPid = 0
 $workbook = $null
 $worksheets = $null
 $worksheet = $null
 $failed = $false
+$existingExcelPids = @(Get-Process -Name EXCEL -ErrorAction SilentlyContinue | ForEach-Object { $_.Id })
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public static class VnoExcelPrintAuditWindow {
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+}
+"@ -ErrorAction SilentlyContinue
 $pdf = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), "vno_excel_oracle_" + [guid]::NewGuid().ToString("N") + ".pdf")
 try {
   $excel = Invoke-ComWithRetry { New-Object -ComObject Excel.Application } 'Create Excel'
+  $excelHandle = [IntPtr](Invoke-ComWithRetry { [int]$excel.Hwnd } 'Read Excel window')
+  $excelOwner = [uint32]0
+  [void][VnoExcelPrintAuditWindow]::GetWindowThreadProcessId($excelHandle, [ref]$excelOwner)
+  $ownedExcelPid = [int]$excelOwner
+  $ownsOfficeProcess = $ownedExcelPid -gt 0 -and $existingExcelPids -notcontains $ownedExcelPid
+  if (-not $ownsOfficeProcess) {
+    throw 'Excel did not start a private process; existing Excel instances were left untouched.'
+  }
   Invoke-ComWithRetry { $excel.Visible = $false; $excel.DisplayAlerts = $false } 'Configure Excel' | Out-Null
   $fullPath = (Resolve-Path -LiteralPath $File).Path
   $workbook = Invoke-ComWithRetry { $excel.Workbooks.Open($fullPath, 0, $true) } 'Open workbook'
@@ -66,7 +84,10 @@ try {
   if ($worksheets) { [void][Runtime.InteropServices.Marshal]::ReleaseComObject($worksheets) }
   if ($workbook) { [void][Runtime.InteropServices.Marshal]::ReleaseComObject($workbook) }
   if ($excel) {
-    try { Invoke-ComWithRetry { $excel.Quit() } 'Quit Excel' | Out-Null } catch {}
+    if ($ownsOfficeProcess) {
+      try { Invoke-ComWithRetry { $excel.Quit() } 'Quit Excel' | Out-Null }
+      catch { "WARN Excel quit failed for owned PID $ownedExcelPid; no other process was stopped." }
+    }
     [void][Runtime.InteropServices.Marshal]::ReleaseComObject($excel)
   }
   [GC]::Collect()

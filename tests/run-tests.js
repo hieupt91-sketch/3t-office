@@ -66,6 +66,7 @@ import { runWriterMouseShortcutsTests } from "./unit/writer-mouse-shortcuts.test
 import { runRibbonGapsRealOfficeTests } from "./unit/ribbon-gaps-real-office.test.js";
 import { runSlidesMouseShortcutsTests } from "./unit/slides-mouse-shortcuts.test.js";
 import { runWriterSlidesInsertGapsTests } from "./unit/writer-slides-insert-gaps.test.js";
+import { runWriterEquationEditorTests } from "./unit/writer-equation-editor.test.js";
 import { runSheetDataToolsTests } from "./unit/sheet-data-tools.test.js";
 import { runSlidesDialogsA11yTests } from "./unit/slides-dialogs-a11y.test.js";
 import { runColorContrastAuditTests } from "./unit/color-contrast-audit.test.js";
@@ -202,6 +203,7 @@ import { runOfficeShortcutCoverageTests } from "./unit/office-shortcut-coverage.
 import { runMissingOfficeShortcutsTests } from "./unit/missing-office-shortcuts.test.js";
 import { runSlidesPenLaserTests } from "./unit/slides-pen-laser.test.js";
 import { runBasicEditingKeysTests } from "./unit/basic-editing-keys.test.js";
+import { runOsInputGuardTests } from "./unit/os-input-guard.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -279,6 +281,7 @@ async function runAll() {
     { title: "52. Behavioral & Unit Tests — Real Office Home Ribbon Gaps", runner: runRibbonGapsRealOfficeTests },
     { title: "53. Behavioral & Unit Tests — VN Slides Mouse Interactions & Office Parity Shortcuts", runner: runSlidesMouseShortcutsTests },
     { title: "54. Behavioral & Unit Tests — Writer/Slides Insert Tab Gaps (Word/PowerPoint)", runner: runWriterSlidesInsertGapsTests },
+    { title: "54b. Unit Tests — 3T Doc linear equation format and native MathML structures", runner: runWriterEquationEditorTests },
     { title: "55. Behavioral & Unit Tests — VN Sheet Data Tools & Outline", runner: runSheetDataToolsTests },
     { title: "56. Behavioral & Unit Tests — VN Slides Dialogs & Overlays Accessibility (WCAG 2.1 / ARIA)", runner: runSlidesDialogsA11yTests },
     { title: "57. Automated Audit — Suite-Wide WCAG 2.1 Color Contrast (AA / AAA)", runner: runColorContrastAuditTests },
@@ -413,7 +416,8 @@ async function runAll() {
     { title: "164. Unit Tests — Office Missing Shortcuts (Ctrl+], Ctrl+[, Ctrl+Shift++, Shift+F11, Ctrl+-, F11) & Undo", runner: runMissingOfficeShortcutsTests },
     { title: "165. Unit Tests — Slides F5 Pen and Laser Pointer (Ctrl+P, Ctrl+L, Ctrl+A, E, Color, Keep/Discard ink)", runner: runSlidesPenLaserTests },
     { title: "166. Unit Tests — VN Sheet range selection anchors, multi-area status and drag auto-scroll math", runner: runSheetRangeSelectionTests },
-    { title: "167. Unit Tests — 3T Doc and 3T Sheet basic editing keys and clipboard", runner: runBasicEditingKeysTests }
+    { title: "167. Unit Tests — 3T Doc and 3T Sheet basic editing keys and clipboard", runner: runBasicEditingKeysTests },
+    { title: "168. Safety Regression — source and tests use CDP, not OS-level input", runner: runOsInputGuardTests }
   ];
 
   for (const suite of suites) {

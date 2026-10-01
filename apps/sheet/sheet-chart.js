@@ -1,17 +1,7 @@
 /** 3T Sheet — dependency-free SVG charts for spreadsheet ranges. */
-const TYPES = ["bar", "line", "pie", "area"];
+import { extractSheetRangeData, numberValue, SHEET_CHART_TYPES } from "./sheet-chart-data.js";
 const COLORS = ["#0f6d38", "#2563eb", "#d97706", "#dc2626", "#7c3aed", "#0891b2"];
 const esc = value => String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&apos;");
-
-function numberValue(value) {
-  if (typeof value === "number") return Number.isFinite(value) ? value : null;
-  const raw = String(value ?? "").trim();
-  if (!raw) return null;
-  const normalized = raw.replace(/\s/g, "").replace(/[₫%]/g, "").replace(/\.(?=\d{3}(?:\D|$))/g, "").replace(",", ".").replace(/[^\d.+-]/g, "");
-  if (!normalized || !/\d/.test(normalized)) return null;
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : null;
-}
 
 function trapFocus(element, event) {
   if (event.key !== "Tab" || !element) return;
@@ -35,28 +25,14 @@ function trapFocus(element, event) {
 }
 
 export class SheetChartBuilder {
-  static supportedTypes = [...TYPES];
+  static supportedTypes = [...SHEET_CHART_TYPES];
 
   static extractRangeData(cellsData, range, columns) {
-    const left = Math.min(columns.indexOf(range.start.c), columns.indexOf(range.end.c));
-    const right = Math.max(columns.indexOf(range.start.c), columns.indexOf(range.end.c));
-    const top = Math.min(range.start.r, range.end.r);
-    const bottom = Math.max(range.start.r, range.end.r);
-    const labels = [], data = [];
-    for (let row = top; row <= bottom; row++) {
-      const values = [];
-      for (let col = left; col <= right; col++) values.push(cellsData.get(`${columns[col]}${row}`)?.val ?? "");
-      let valueIndex = values.findIndex((value, index) => index > 0 && numberValue(value) !== null);
-      if (valueIndex < 0) valueIndex = values.findIndex(value => numberValue(value) !== null);
-      if (valueIndex < 0) continue;
-      labels.push(valueIndex > 0 && String(values[0]).trim() ? String(values[0]) : `${columns[left + valueIndex]}${row}`);
-      data.push(numberValue(values[valueIndex]));
-    }
-    return { labels, data };
+    return extractSheetRangeData(cellsData, range, columns);
   }
 
   static generateSvg({ type = "bar", title = t("sheetDialogs.chartDefaultTitle"), labels = [], data = [] }) {
-    if (!TYPES.includes(type)) throw new Error(t("sheetDialogs.chartUnsupported", { type }));
+    if (!SHEET_CHART_TYPES.includes(type)) throw new Error(t("sheetDialogs.chartUnsupported", { type }));
     const values = data.map(numberValue).map(value => value ?? 0);
     const names = values.map((_, index) => esc(labels[index] || t("sheetDialogs.chartItem", { number: index + 1 })));
     const width = 680, height = 360;

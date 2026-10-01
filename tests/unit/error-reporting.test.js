@@ -89,6 +89,22 @@ export async function runErrorReportingTests() {
     }
   });
 
+  await test("Desktop startup keeps the editor usable before consent is selected in Help", async () => {
+    let dialogCount = 0;
+    let savedConsent = null;
+    const ui = new ErrorReportingUI({
+      api: () => ({
+        get_error_reporting_state: async () => ({ enabled: true, consent: "unknown", endpoint_configured: false }),
+        set_error_reporting_consent: async (value) => { savedConsent = value; return { enabled: true, consent: value ? "granted" : "denied" }; }
+      }),
+      hooks: { install() {}, uninstall() {} },
+      dialogFactory: () => { dialogCount += 1; return {}; }
+    });
+    await ui.initialize({ deferConsentPrompt: true });
+    if (dialogCount !== 0) throw new Error("startup consent modal blocked the editor");
+    if (ui.state?.consent !== "unknown" || savedConsent !== null) throw new Error("startup changed the user's consent choice");
+  });
+
   await test("Feedback dialog stores the description locally and never offers document attachments", async () => {
     let options;
     const calls = [];
