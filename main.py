@@ -1896,6 +1896,7 @@ class VnOfficeApi:
         self._allow_window_close = False
         self._reporter = _ERROR_REPORTER
         self._current_file_path: str | None = None
+        self._current_xlsx_snapshot: bytes | None = None
         self._reporting_file_path: str | None = initial_file
         self._reporting_operation: str | None = None
         self._reporting_app_kind = app_kind if app_kind in VALID_APP_KINDS else None
@@ -2928,6 +2929,7 @@ class VnOfficeApi:
         else:
             payload["content"] = content
         self._current_file_path = src_path
+        self._current_xlsx_snapshot = original_xlsx if app_kind == "sheet" and src_path.lower().endswith(".xlsx") else None
         if app_kind == "writer":
             ooxml = (
                 writer_ooxml_metadata["ooxmlDocumentXml"]
@@ -3052,6 +3054,33 @@ class VnOfficeApi:
 
         return {"status": "error", "message": f"Định dạng tệp không được hỗ trợ: {ext}"}
 
+    def _is_pristine_sheet_xlsx_save(self, content, app_kind, source_path):
+        if (
+            app_kind != "sheet"
+            or "<!-- vno-pristine-xlsx-source -->" not in str(content or "")
+            or not source_path
+            or not str(source_path).lower().endswith(".xlsx")
+            or not self._current_xlsx_snapshot
+            or not self._current_file_path
+        ):
+            return False
+        try:
+            return os.path.normcase(os.path.realpath(source_path)) == os.path.normcase(
+                os.path.realpath(self._current_file_path)
+            )
+        except OSError:
+            return False
+
+    def _refresh_current_xlsx_snapshot(self, file_path, app_kind):
+        self._current_xlsx_snapshot = None
+        if app_kind != "sheet" or not str(file_path or "").lower().endswith(".xlsx"):
+            return
+        try:
+            with open(file_path, "rb") as source_file:
+                self._current_xlsx_snapshot = source_file.read()
+        except OSError:
+            self._current_xlsx_snapshot = None
+
     def _save_document_in_place_impl(self, content, app_kind="writer", target_path=None, source_path=None):
         """Lưu nội dung trực tiếp vào tệp đích (Ctrl+S / Save-in-place),
         giữ nguyên định dạng gốc và thay thế nguyên tử an toàn."""
@@ -3062,13 +3091,23 @@ class VnOfficeApi:
         source_path = source_path or target_path
         self._reporting_file_path = target_path
         self._reporting_operation = f"save.{target_format}"
+        pristine_xlsx_save = (
+            target_format == "xlsx"
+            and self._is_pristine_sheet_xlsx_save(content, app_kind, source_path)
+            and os.path.normcase(os.path.realpath(target_path)) == os.path.normcase(os.path.realpath(source_path))
+        )
 
         try:
             with tempfile.TemporaryDirectory(prefix="vnoffice_save_inplace_") as tmp:
-                src_path = _write_save_source(content, app_kind, tmp, target_format)
-                out_path = _convert_save_source_to_native(
-                    src_path, app_kind, target_format, source_document_path=source_path,
-                )
+                if pristine_xlsx_save:
+                    out_path = os.path.join(tmp, "source.xlsx")
+                    with open(out_path, "wb") as source_file:
+                        source_file.write(self._current_xlsx_snapshot)
+                else:
+                    src_path = _write_save_source(content, app_kind, tmp, target_format)
+                    out_path = _convert_save_source_to_native(
+                        src_path, app_kind, target_format, source_document_path=source_path,
+                    )
                 _atomic_replace_file(out_path, target_path)
                 _verify_saved_file(target_path)
         except DocumentEngineError as exc:
@@ -3077,6 +3116,7 @@ class VnOfficeApi:
             return {"status": "error", "message": f"Lỗi không xác định khi lưu tệp: {exc}"}
 
         self._current_file_path = target_path
+        self._refresh_current_xlsx_snapshot(target_path, app_kind)
         return {"status": "ok", "message": f"Đã lưu tại {target_path}", "path": target_path}
 
     def _save_document_dialog_impl(self, content, app_kind="writer", target_format=None, suggested_name="TaiLieu", source_path=None):
@@ -3137,10 +3177,23 @@ class VnOfficeApi:
         self._reporting_file_path = dest_path
         self._reporting_operation = f"{'export' if target_format == 'pdf' else 'save'}.{target_format}"
         pdf_engine = None
+        pristine_xlsx_save = self._is_pristine_sheet_xlsx_save(content, app_kind, source_path)
 
         try:
             with tempfile.TemporaryDirectory(prefix="vnoffice_save_") as tmp:
-                if target_format == "pdf":
+                if pristine_xlsx_save:
+                    native_source = os.path.join(tmp, "source.xlsx")
+                    with open(native_source, "wb") as source_file:
+                        source_file.write(self._current_xlsx_snapshot)
+                    if target_format == "xlsx":
+                        out_path = native_source
+                    elif target_format == "pdf":
+                        out_path, pdf_engine = _render_print_source_to_pdf(
+                            native_source, app_kind, tmp, use_office=True,
+                        )
+                    else:
+                        out_path = _run_soffice_convert(native_source, target_format, tmp, app_kind=app_kind)
+                elif target_format == "pdf":
                     out_path, pdf_engine = _export_content_to_pdf(
                         content, app_kind, tmp, source_document_path=source_path,
                         return_engine=True,
@@ -3157,7 +3210,9 @@ class VnOfficeApi:
         except Exception as exc:
             return {"status": "error", "message": f"Lỗi không xác định khi lưu tệp: {exc}"}
 
-        self._current_file_path = dest_path
+        if target_format != "pdf":
+            self._current_file_path = dest_path
+            self._refresh_current_xlsx_snapshot(dest_path, app_kind)
         response = {"status": "ok", "message": f"Đã lưu tại {dest_path}", "path": dest_path}
         if target_format == "pdf":
             response["engine"] = pdf_engine or "LibreOffice"

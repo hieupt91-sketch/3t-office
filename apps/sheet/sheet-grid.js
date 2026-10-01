@@ -6793,6 +6793,9 @@ export class SheetGridController {
       });
     }
 
+    // Imported payload models intern immutable style objects to keep large
+    // workbooks within the renderer budget. Clone before the first edit.
+    item.style = { ...(item.style || {}) };
     item.style[prop] = val;
     this.cellsData.set(key, item);
 

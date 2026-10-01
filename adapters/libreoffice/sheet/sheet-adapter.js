@@ -14,6 +14,8 @@ import { overlayFodsStructureProtection } from "./xlsx-workbook-protection.js";
 import { overlayActiveSheetToFods } from "./xlsx-active-sheet.js";
 import { buildSheetPayloadModel } from "./sheet-payload-parser.js";
 
+const NUMERIC_CELL_TYPES = new Set(["float", "percentage", "currency", "date", "time"]);
+
 export function numberFormatFromExcelCode(code) {
   const source = String(code ?? "").trim();
   if (!source || /^general$/i.test(source)) return { category: "general" };
@@ -2862,6 +2864,21 @@ export class SheetAdapter {
     });
   }
 
+  _isPristineXlsxSource() {
+    return Boolean(this.grid && !this.isDirty && /\.xlsx$/i.test(String(this.sourceFilePath || "")));
+  }
+
+  _pristineXlsxSaveStub() {
+    const sheetNames = (this.grid?.sheets?.length ? this.grid.sheets : Object.keys(this.grid?.sheetsData || {}));
+    const names = sheetNames.length ? sheetNames : [this.grid?.activeSheet || "Sheet1"];
+    const tables = names.map(name => `<table:table table:name="${this._escapeXml(name)}"/>`).join("");
+    return `<!-- vno-pristine-xlsx-source -->\n<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"><office:body><office:spreadsheet>${tables}</office:spreadsheet></office:body></office:document>`;
+  }
+
+  _nativeSaveContent() {
+    return this._isPristineXlsxSource() ? this._pristineXlsxSaveStub() : this.serializeToFods();
+  }
+
   /** Serialize the complete workbook as Flat OpenDocument Spreadsheet XML. */
   serializeToFods() {
     if (this.grid?.__vnoSheetHydrationPending) {
@@ -3684,7 +3701,7 @@ ${pristineXlsxMarker}
     return false;
   }
 
-  _cellFromFodsAttributes(attributes, text, numberStyles = new Map(), rotationStyles = new Map(), cellVisualStyles = new Map()) {
+  _cellFromFodsAttributes(attributes, text, numberStyles = new Map(), rotationStyles = new Map(), cellVisualStyles = new Map(), styleCache = null) {
     const get = name => attributes[name] ?? "";
     const valueType = get("office:value-type");
     let value = text;
@@ -3727,10 +3744,18 @@ ${pristineXlsxMarker}
     // recalculates it; remember the exact LibreOffice formula so an unedited
     // link is written back byte-for-byte on save.
     const externalOdf = !get("vno:formula") && this._isExternalOdfFormula(odfFormula) ? odfFormula : "";
+    const styleKey = styleCache
+      ? `${get("table:style-name")}\0${valueType}\0${get("vno:number-format")}\0${get("vno:xf")}`
+      : null;
+    const cachedStyle = styleKey === null ? null : styleCache.get(styleKey);
+    if (cachedStyle) {
+      return externalOdf
+        ? { val: value, formula, style: cachedStyle, externalLink: { odf: externalOdf, formula } }
+        : { val: value, formula, style: cachedStyle };
+    }
     const style = {};
     const numFmtAttr = get("vno:number-format");
     const standardFormat = numberStyles.get(get("table:style-name"));
-    const numericTypes = new Set(["float", "percentage", "currency", "date", "time"]);
     // Apply number format from vno:number-format for ALL cell types (including string/empty)
     // Per task requirement: keep original Excel format code for every cell/column/row with format
     if (numFmtAttr) {
@@ -3753,7 +3778,7 @@ ${pristineXlsxMarker}
         // S7: data-style ODF của LibreOffice cho ô này (nếu có) là biểu diễn chính xác nhất khi ghi lại.
         if (standardFormat?.odf) style.numberFormat.odf = standardFormat.odf;
       }
-    } else if (standardFormat && (numericTypes.has(valueType) || !valueType || standardFormat.odf)) {
+    } else if (standardFormat && (NUMERIC_CELL_TYPES.has(valueType) || !valueType || standardFormat.odf)) {
       const fmt = { ...standardFormat };
       // Try to reconstruct excelCode from standard format
       const inferred = this._excelCodeFromNumberFormat(fmt);
@@ -3779,6 +3804,7 @@ ${pristineXlsxMarker}
     }
     // S8: Compute stable hash of style at import time.
     style.styleHashAtImport = this._computeStyleHash(style);
+    if (styleKey !== null) styleCache.set(styleKey, style);
     return externalOdf
       ? { val: value, formula, style, externalLink: { odf: externalOdf, formula } }
       : { val: value, formula, style };
@@ -4906,34 +4932,43 @@ ${pristineXlsxMarker}
           || typeof metadata.supportXml !== "string") {
           throw new TypeError("Sheet payload completion metadata is invalid");
         }
-        const rowChunksBase64 = [];
+        let nextChunkIndex = 0;
         let receivedRows = 0;
-        for (let index = 0; index < chunkCount; index++) {
+        const getRowChunk = async index => {
+          if (index === 0) {
+            nextChunkIndex = 0;
+            receivedRows = 0;
+          }
+          if (index !== nextChunkIndex) throw new Error("3T Sheet: Thứ tự dữ liệu nhận được không đúng.");
           const chunk = await globalUnoBridge.getSheetOpenPayloadChunk(openId, index);
           if (chunk?.status !== "ok" || chunk.openId !== openId || chunk.index !== index
-            || typeof chunk.data !== "string" || !chunk.data) {
-            throw new Error(chunk?.message || "Không thể nhận đủ dữ liệu bảng tính.");
+            || typeof chunk.data !== "string" || !chunk.data || chunk.data.length % 4 !== 0
+            || !/^[A-Za-z0-9+/]+={0,2}$/.test(chunk.data)
+            || !Number.isSafeInteger(Number(chunk.rows)) || Number(chunk.rows) < 0) {
+            throw new Error(chunk?.message || "3T Sheet: Không thể nhận dữ liệu bảng tính.");
           }
-          rowChunksBase64.push(chunk.data);
-          receivedRows += Number(chunk.rows) || 0;
+          nextChunkIndex++;
+          receivedRows += Number(chunk.rows);
+          if (index + 1 === chunkCount && receivedRows !== totalRows) {
+            throw new Error("3T Sheet: Số hàng dữ liệu không khớp.");
+          }
           if (index % 4 === 0 || index + 1 === chunkCount) {
-            this.shell?.setStatus?.(`Đang nhận dữ liệu bảng tính… ${Math.min(receivedRows, totalRows).toLocaleString("vi-VN")} / ${totalRows.toLocaleString("vi-VN")} hàng`);
-            await new Promise(resolve => setTimeout(resolve, 0));
+            this.shell?.setStatus?.(`3T Sheet: Đang nhận dữ liệu bảng tính... ${Math.min(receivedRows, totalRows).toLocaleString("vi-VN")} / ${totalRows.toLocaleString("vi-VN")} hàng`);
           }
-        }
-        if (receivedRows !== totalRows) throw new Error("Số hàng nhận được không khớp với payload bảng tính.");
+          return chunk.data;
+        };
         const completePayload = {
           ...payload,
           ...metadata,
           rows: totalRows,
-          rowChunksBase64,
           partialPreview: false,
         };
         delete completePayload.rowsDeflateBase64;
-        delete completePayload.chunkCount;
+        delete completePayload.rowChunksBase64;
         workbook = await buildSheetPayloadModel(completePayload, this, metadata.supportXml, {
           progressChunkRows: 300,
           onProgress,
+          getRowChunk,
         });
       } else {
         workbook = await buildSheetPayloadModel(payload, this, supportXml, {
@@ -5399,7 +5434,7 @@ ${pristineXlsxMarker}
       return await this.saveAs();
     }
 
-    const fodsContent = this.serializeToFods();
+    const fodsContent = this._nativeSaveContent();
     const result = await globalUnoBridge.saveRealFileInPlace(
       "sheet",
       fodsContent,
@@ -5437,7 +5472,7 @@ ${pristineXlsxMarker}
    */
   async saveAs() {
     await this._waitForHydration();
-    const fodsContent = this.serializeToFods();
+    const fodsContent = this._nativeSaveContent();
     const currentName = this.sourceFileName || "BangTinh";
     const suggestedName = this.sourceFilePath
       ? this.sourceFilePath.split(/[/\\]/).pop()
@@ -5601,7 +5636,7 @@ ${pristineXlsxMarker}
 
   async exportPdf() {
     await this._waitForHydration();
-    const fodsContent = this.serializeToFods();
+    const fodsContent = this._nativeSaveContent();
     const result = await globalUnoBridge.exportRealPdf(
       "sheet", fodsContent, this.sourceFileName, this.sourceFilePath || null,
     );

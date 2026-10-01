@@ -208,35 +208,39 @@ C = cold-ish: lần mở đầu sau khi đóng ứng dụng; W = warm: lần ti�
 
 | Tệp | Office trước C (2 lần) | Office trước W (2 lần) | LO trước C (2 lần) | LO trước W (2 lần) | Office sau C (2 lần) | Office sau W (2 lần) | LO sau C (2 lần) | LO sau W (2 lần) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| Writer d03.docx | 0.356 / 0.320 | 0.349 / 0.241 | 14.946 / 14.940 | 2.339 / 2.440 | 0.289 / 0.287 | 0.338 / 0.157 | 19.040 / 15.205 | 2.378 / 2.401 |
-| Writer d12.docx | 0.392 / 0.332 | 0.353 / 0.249 | 14.606 / 14.944 | 2.415 / 2.385 | 0.320 / 0.308 | 0.402 / 0.195 | 15.314 / 15.465 | 2.600 / 2.488 |
-| Writer d24.docx | 1.257 / 1.241 | 1.245 / 1.213 | 16.147 / 16.050 | 5.192 / 3.802 | 1.210 / 1.157 | 1.772 / 1.104 | 15.811 / 15.898 | 4.027 / 4.762 |
-| Writer legacy01.doc | 0.381 / 0.297 | 0.312 / 0.233 | 14.636 / 14.598 | 2.480 / 2.307 | 0.300 / 0.236 | 0.312 / 0.145 | 14.752 / 14.832 | 2.227 / 2.337 |
-| Sheet legacy01.xls | 0.447 / 1.677 | 0.428 / 0.072 | 15.416 / 15.363 | 2.704 / 2.721 | 0.618 / 1.424 | 0.425 / 0.067 | 19.117 / 16.029 | 2.562 / 2.442 |
-| Sheet lan05.xlsx | 1.667 / 1.580 | 0.408 / 0.074 | 16.662 / 15.783 | 2.426 / 2.700 | 1.456 / 1.438 | 0.425 / 0.067 | 15.009 / 15.191 | 2.664 / 2.386 |
-| Sheet lan11.xlsx | 2.454 / 2.027 | 0.893 / 0.397 | 16.754 / 16.637 | 3.431 / 5.363 | 2.141 / 1.931 | 0.898 / 0.411 | 18.932 / 15.406 | 2.860 / 3.492 |
-| Sheet lan12.xlsx | 2.400 / 2.120 | 0.958 / 0.434 | 19.345 / 19.459 | 4.024 / 3.993 | 2.077 / 1.987 | 0.981 / 0.462 | 16.525 / 18.593 | 3.326 / 3.808 |
-| Sheet lan14.xlsx | 17.243 / 16.988 | 16.009 / 15.384 | 20.523 / 19.784 | 6.964 / 6.615 | 14.348 / 14.666 | 13.468 / 12.920 | 18.460 / 18.192 | 6.038 / 6.613 |
+| Writer d03.docx | 0.356 / 0.320 | 0.349 / 0.241 | 14.946 / 14.940 | 2.339 / 2.440 | 0.313 / 0.264 | 0.454 / 0.176 | 20.730 / 17.473 | 3.150 / 2.831 |
+| Writer d12.docx | 0.392 / 0.332 | 0.353 / 0.249 | 14.606 / 14.944 | 2.415 / 2.385 | 0.349 / 0.324 | 0.393 / 0.306 | 20.443 / 21.069 | 3.488 / 3.120 |
+| Writer d24.docx | 1.257 / 1.241 | 1.245 / 1.213 | 16.147 / 16.050 | 5.192 / 3.802 | 1.342 / 1.315 | 2.159 / 1.763 | 22.045 / 20.763 | 5.720 / 4.027 |
+| Writer legacy01.doc | 0.381 / 0.297 | 0.312 / 0.233 | 14.636 / 14.598 | 2.480 / 2.307 | 0.412 / 0.262 | 0.417 / 0.222 | 17.843 / 17.678 | 2.244 / 2.924 |
+| Sheet legacy01.xls | 0.447 / 1.677 | 0.428 / 0.072 | 15.416 / 15.363 | 2.704 / 2.721 | 0.967 / 2.128¹ | 0.695 / 0.084 | 16.474 / 15.395 | 2.579 / 2.472 |
+| Sheet lan05.xlsx | 1.667 / 1.580 | 0.408 / 0.074 | 16.662 / 15.783 | 2.426 / 2.700 | 1.940 / 1.509¹ | 0.445 / 0.075 | 14.927 / 20.206 | 2.622 / 2.366 |
+| Sheet lan11.xlsx | 2.454 / 2.027 | 0.893 / 0.397 | 16.754 / 16.637 | 3.431 / 5.363 | 2.168 / 1.962¹ | 1.006 / 0.448 | 16.650 / 15.859 | 2.533 / 2.497 |
+| Sheet lan12.xlsx | 2.400 / 2.120 | 0.958 / 0.434 | 19.345 / 19.459 | 4.024 / 3.993 | 2.028 / 1.914¹ | 0.999 / 0.454 | 15.945 / 17.721 | 3.252 / 3.265 |
+| Sheet lan14.xlsx | 17.243 / 16.988 | 16.009 / 15.384 | 20.523 / 19.784 | 6.964 / 6.615 | 14.461 / 14.768¹ | 14.357 / 13.530 | 18.351 / 17.994 | 5.991 / 5.651 |
+
+¹ Excel Open gặp `RPC_E_CALL_REJECTED` một lần rồi mở thành công sau retry; không có lượt nào bị BLOCKED.
 
 ### VN Office trước/sau
 
 VN cold-ish tính từ chọn tệp tới first paint; warm là first paint ở phiên đã làm nóng bằng mở lại tệp. Các giá trị sau dùng chế độ preview payload để tách viewport khỏi nạp đầy đủ; lần lưu/round-trip vẫn dùng mô hình đầy đủ. Những ô không có phép đo tương ứng ghi NOT RUN. Số đôi là hai lần chạy.
 
-| Tệp | VN trước C | VN trước W | VN sau C | VN sau W (viewport) |
+| Tệp | VN trước C | VN trước W | VN sau C (viewport / mở xong) | VN sau W (viewport / mở xong) |
 |---|---:|---:|---:|---:|
-| Writer d03.docx | 15.781 / 15.291 | 2.541 / 2.883 | 15.694 / 16.607 | 2.469 / 2.492 |
-| Writer d12.docx | 16.785 / 16.214 | 2.561 / 2.531 | 17.048 / 15.775 | 2.599 / 2.535 |
-| Writer d24.docx | 25.989 / 22.267 | 12.801 / 12.730 | 22.112 / 23.009 | 11.048 / 10.244 |
-| Writer legacy01.doc | NOT RUN | 3.379 / 2.648 | 15.643 / 19.527 | 2.795 / 2.655 |
-| Sheet legacy01.xls | NOT RUN | 2.256 / 2.350 | 15.949 / 15.816 | 2.458 / 2.500 |
-| Sheet lan05.xlsx | 16.116 / 15.958 | 3.148 / 3.102 | 17.207 / 16.484 | 2.259 / 2.371 |
-| Sheet lan11.xlsx | 25.056 / 23.847 | 11.254 / 11.388 | 18.972 / 18.607 | 5.478 / 5.344 |
-| Sheet lan12.xlsx | 26.643 / 29.678 | NOT RUN | 27.161 / 23.645 | 8.144 / 8.171 |
-| Sheet lan14.xlsx | 267.698 / BLOCKED (free RAM <1 GB) | NOT RUN | 34.962 / 31.148 | 19.365 / 19.480 |
+| Writer d03.docx | 15.781 / 15.291 | 2.541 / 2.883 | n/a / 17.668; n/a / 26.827 | n/a / 3.636; n/a / 2.647 |
+| Writer d12.docx | 16.785 / 16.214 | 2.561 / 2.531 | n/a / 20.071; n/a / 20.114 | n/a / 3.081; n/a / 2.645 |
+| Writer d24.docx | 25.990 / 22.267 | 12.801 / 12.730 | n/a / 28.957; n/a / 28.455 | n/a / 10.220; n/a / 9.295 |
+| Writer legacy01.doc | NOT RUN | 3.379 / 2.648 | n/a / 19.237; n/a / 21.537 | n/a / 3.206; n/a / 2.831 |
+| Sheet legacy01.xls | NOT RUN | 2.256 / 2.350 | n/a / 18.936; n/a / 17.367 | n/a / 2.935; n/a / 2.741 |
+| Sheet lan05.xlsx | 16.116 / 15.958 | 3.148 / 3.102 | 18.231 / 19.384; 18.489 / 19.684 | 3.047 / 4.189; 2.831 / 4.132 |
+| Sheet lan11.xlsx | 25.056 / 23.847 | 11.254 / 11.388 | 25.296 / 36.293; 20.359 / 30.407 | 5.235 / 13.516; 5.888 / 14.779 |
+| Sheet lan12.xlsx | 26.643 / 29.678 | NOT RUN | 25.518 / 34.725; 23.270 / 31.898 | 8.034 / 17.298; 9.937 / 18.593 |
+| Sheet lan14.xlsx | 267.698 / BLOCKED (free RAM <1 GB) | NOT RUN | 38.749 / 204.540; 46.407 / 203.390 | 21.554 / 161.065; 22.530 / 174.558 |
 
-Nạp toàn bộ sau first paint của VN (giây): lan05 18.518/17.828 cold, 3.535/3.637 warm; lan11 26.704/26.451 cold, 13.087/13.094 warm; lan12 36.586/32.373 cold, 16.163/16.097 warm; lan14 181.748/178.131 cold, 166.296/165.009 warm.
+Với Sheet, “mở xong” là lúc `adapter.open()` hoàn tất nạp mô hình; chênh lệch so với viewport là thời gian nạp phần còn lại. Hai lượt cold lan14 chạy đồng thời với hoạt động desktop/Word của worktree khác nên có nhiễu; các lượt warm lan14 không có Office COM khác đang chạy. Bốn lượt đều hoàn tất, không OOM.
 
-### Kết quả triển khai và gates
+Thời gian nạp tiếp sau viewport (giây), tính từ `mở xong - viewport`: lan05 1.153/1.195 cold, 1.142/1.302 warm; lan11 10.997/10.047 cold, 8.280/8.891 warm; lan12 9.207/8.629 cold, 9.264/8.656 warm; lan14 165.792/156.982 cold, 139.511/152.028 warm.
+
+### Kết quả S44 tại commit d60ac6f (lịch sử trước xử lý lan14)
 
 - Sheet có preview đầu màn hình, tên sheet, độ rộng cột/kiểu ô; phần còn lại được nạp theo chunk nền, có trạng thái tiếng Việt. Formula, tìm kiếm, lưu, in, AutoRecover và sửa ô chờ nạp đầy đủ. Payload vẫn mặc định OFF: 25/26 workbook đạt TONG=0, còn lan14 gặp WebView renderer "Error code: Out of Memory" và không hoàn tất round-trip.
 - Writer trì hoãn pagination trực tiếp với DOCX nhập có nội dung từ 50 KB cho tới sau first paint.
@@ -260,3 +264,50 @@ Nạp toàn bộ sau first paint của VN (giây): lan05 18.518/17.828 cold, 3.5
 **CORE PATCH ID (if any):** None.
 
 **NEXT ACTION:** Giảm peak memory khi nạp/lưu lan14; sau đó chạy lại audit 26 tệp và chỉ bật payload mặc định khi mọi TONG=0. Commit S44 trên branch hiện tại; không merge vào main.
+
+## S45 — Gộp main và xử lý lan14 OOM
+
+**TASK:** Tiếp tục `perf/open-speed-codex` sau S44; gộp main, giữ nguyên hành vi tính năng của main và S44; giảm cấp phát khi nạp/lưu lan14; chạy lại audit, cập nhật oracle và bàn giao trên branch này.
+**AGENT/ROLE:** Codex — tích hợp và hiệu năng Writer/Sheet
+**BRANCH:** `perf/open-speed-codex`
+**WORKTREE:** `E:\VNOffice-codex-openspeed`
+**OBJECTIVE:** Bảo toàn thay đổi print/save/rename/sections/scenarios/data table của main cùng đường mở nhanh S44; đưa lan14 qua round-trip mà không OOM.
+
+### Findings và implementation
+
+- Merge main thành công ở `23b0ef2`; giải quyết bốn conflict trong Sheet adapter/parser, Writer adapter và `main.py`. Không merge branch này ngược vào main.
+- Tối ưu payload Sheet: stream chunk theo yêu cầu thay vì giữ toàn bộ compressed chunk array cạnh workbook model; intern style trong lúc materialize và dùng copy-on-write khi sửa style cell.
+- Lưu `.xlsx` chưa sửa từ snapshot bytes của tệp đang mở. Save As `.xlsx` chép snapshot chính xác; các định dạng khác/PDF tiếp tục qua conversion/export pipeline hiện có.
+- Sửa tên hiển thị cũ “VN Sheet” thành “3T Sheet” trong bài Hướng dẫn; regression guard tên thương hiệu đạt.
+- Hướng dẫn mở workbook lớn đã có trong Help, tab Trợ giúp, gắn với trạng thái preview/nạp nền và chặn thao tác phụ thuộc model đầy đủ cho đến khi nạp xong.
+
+### Lan14 — memory và round-trip
+
+Đo trên cùng probe WebView với `SHEET_OPEN_PAYLOAD=1`:
+
+| Chỉ số | Trước tối ưu | Sau tối ưu |
+|---|---:|---:|
+| Peak JavaScript heap (`performance.memory`) | 1,975,092,189 bytes | 1,510,295,374 bytes |
+| Peak process-tree working set | 3,453,009,920 bytes | 3,388,145,664 bytes |
+| Thời gian viewport | 21.65 s | 26.96 s |
+| Nạp tiếp sau viewport | 140.31 s | 153.98 s |
+
+Heap giảm khoảng 23.5%; process-tree working set giảm khoảng 1.9%. Thời gian trong probe này tăng, nên không claim cải thiện tốc độ. Trước sửa, Save As làm renderer mất và không có output. Sau sửa, Save As hoàn tất, output 9,742,160 bytes có SHA-256 khớp snapshot nguồn (`5B27A3382B938DBAF8E242548A26B5D4B4AEA9A20742F7E88D2A0D0B72AB6560`); fidelity audit trên 4 worksheet báo `TONG sai lech: 0`.
+
+### Gates và tình trạng hiện tại
+
+**COMMANDS RUN:** `node tests/run-tests.js`; `python -m unittest discover -s tests`; `python scripts/layout-audit/_batch_writer.py ...`; `SHEET_OPEN_PAYLOAD=1 python scripts/layout-audit/_batch_audit.py ...`; `scripts/layout-audit/_oracle_open_speed_s44.ps1 -Mode All`; VN S44 timing runner; `node scripts/audit-sheet-import.mjs --xlsx-vs-xlsx ...`; `git diff --check`.
+
+**BUILD RESULT:** NOT RUN (không sửa build system).
+
+**TEST RESULTS:** Node từng PASS (2193/2193); lần chạy lại sau khi Việt hóa thông báo có 2192/2193 PASS, với lỗi duy nhất ở FODS→XLSX Pivot round-trip trong lúc có LibreOffice khác đang chạy; lượt chạy lại khi LibreOffice rảnh đang chờ. Python unittest PASS (521 tests); Writer page parity PASS trên 12/12 tài liệu hợp lệ hiện có; Sheet audit PASS trên 26/26 tệp bắt buộc, tất cả `TONG=0` và Excel COM xác nhận worksheet count; hai tệp thêm lan27/lan28 cũng `TONG=0` và Excel mở được. Oracle desktop PASS cho cả 9 fixture; một số Excel Open cần retry `RPC_E_CALL_REJECTED` nhưng cuối cùng đều thành công. VN timing runner hoàn tất 36/36 lượt.
+
+**KNOWN FAILURES:** Mục tiêu tốc độ owner **FAIL**: VN vẫn vượt ngưỡng 1.5x Word/Excel ở các so sánh; lan14 mất 21.6–22.5 s warm tới viewport và 161–175 s tới khi `adapter.open()` xong. Hai lượt cold lan14 có nhiễu vì một worktree khác chạy desktop/Word cùng lúc. WPS **NOT RUN** (không tìm thấy WPS trong các đường dẫn cài đặt đã kiểm tra). d10 DOCX corrupt; d13–d23 không có trong thư mục fixture của worktree này nên Writer audit chạy trên 12 tài liệu hợp lệ còn lại. Lint cảnh báo row references/SST trên một số XLSX dù các lượt TONG và Excel worksheet check đều đạt.
+
+**RISKS:** Giảm peak heap chưa làm thời gian mở đạt mục tiêu. Preview giữ một số lệnh bị khóa cho đến khi model nạp xong. Hiện `SHEET_OPEN_PAYLOAD` vẫn mặc định OFF; điều kiện audit 26/26 đã đạt, có thể bật mặc định trong commit riêng, nhưng không được diễn giải thành PASS về tốc độ.
+
+**DEPENDENCIES/BLOCKERS:** Không có blocker cho merge, round-trip hay các audit đã chạy. Cần tiếp tục tối ưu thời gian conversion/hydration để đạt owner target.
+
+**CORE PATCH ID (if any):** None.
+
+**NEXT ACTION:** Commit sửa memory, regression tests và handoff trên branch này; sau đó đề xuất/bật `SHEET_OPEN_PAYLOAD` mặc định ON bằng một commit riêng có bằng chứng 26/26, rồi chạy lại gate kiểm tra flag. Tiếp tục tối ưu latency lan14; không merge vào main.

@@ -119,7 +119,7 @@ class SaveAsAlternateFormatTests(unittest.TestCase):
                 with patch.object(main, "_active_window", return_value=window), \
                      patch.object(main, "_write_save_source", return_value=str(source)) as write_source, \
                      patch.object(main, "_convert_save_source_to_native", return_value=str(converted)) as convert_source, \
-                     patch.object(main, "_export_content_to_pdf", return_value=str(converted)) as export_pdf:
+                     patch.object(main, "_export_content_to_pdf", return_value=(str(converted), "LibreOffice")) as export_pdf:
                     result = api._save_document_dialog_impl(
                         content,
                         app_kind=app_kind,
@@ -144,6 +144,68 @@ class SaveAsAlternateFormatTests(unittest.TestCase):
                         window.create_confirmation_dialog.assert_called_once()
                     else:
                         window.create_confirmation_dialog.assert_not_called()
+
+    def test_pristine_sheet_save_as_uses_the_opened_xlsx_snapshot(self):
+        content = (
+            '<!-- vno-pristine-xlsx-source -->'
+            '<office:body><table:table table:name="Sheet1"/></office:body>'
+        )
+        snapshot = b"opened xlsx snapshot"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source = Path(temp_dir) / "source.xlsx"
+            source.write_bytes(b"externally changed after open")
+            destination = Path(temp_dir) / "copy.xlsx"
+            window = MagicMock()
+            window.create_file_dialog.return_value = (str(destination),)
+            api = main.VnOfficeApi(app_kind="sheet")
+            api._current_file_path = str(source)
+            api._current_xlsx_snapshot = snapshot
+
+            with patch.object(main, "_active_window", return_value=window), \
+                    patch.object(main, "_run_soffice_convert") as convert:
+                result = api._save_document_dialog_impl(
+                    content, app_kind="sheet", target_format="xlsx",
+                    suggested_name=source.name, source_path=str(source),
+                )
+
+            self.assertEqual(result["status"], "ok", result)
+            self.assertEqual(destination.read_bytes(), snapshot)
+            self.assertEqual(api._current_xlsx_snapshot, snapshot)
+            convert.assert_not_called()
+
+    def test_pristine_sheet_save_as_converts_the_opened_snapshot_to_other_formats(self):
+        content = (
+            '<!-- vno-pristine-xlsx-source -->'
+            '<office:body><table:table table:name="Sheet1"/></office:body>'
+        )
+        snapshot = b"opened xlsx snapshot"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source = Path(temp_dir) / "source.xlsx"
+            source.write_bytes(snapshot)
+            destination = Path(temp_dir) / "copy.xls"
+            window = MagicMock()
+            window.create_file_dialog.return_value = (str(destination),)
+            api = main.VnOfficeApi(app_kind="sheet")
+            api._current_file_path = str(source)
+            api._current_xlsx_snapshot = snapshot
+
+            def convert(source_path, target_format, output_dir, *, app_kind=None):
+                self.assertEqual(Path(source_path).read_bytes(), snapshot)
+                self.assertEqual((target_format, app_kind), ("xls", "sheet"))
+                output = Path(output_dir) / "converted.xls"
+                output.write_bytes(b"converted xls")
+                return str(output)
+
+            with patch.object(main, "_active_window", return_value=window), \
+                    patch.object(main, "_run_soffice_convert", side_effect=convert) as conversion:
+                result = api._save_document_dialog_impl(
+                    content, app_kind="sheet", target_format="xlsx",
+                    suggested_name=source.name, source_path=str(source),
+                )
+
+            self.assertEqual(result["status"], "ok", result)
+            self.assertEqual(destination.read_bytes(), b"converted xls")
+            conversion.assert_called_once()
 
     def test_multi_sheet_csv_warning_cancel_keeps_target_untouched(self):
         content = "<office:body><table:table table:name='Sheet1'/><table:table table:name='Sheet2'/></office:body>"

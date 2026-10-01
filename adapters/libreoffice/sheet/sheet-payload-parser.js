@@ -14,14 +14,17 @@ function parseAttrs(adapter, raw) {
   return attrs;
 }
 
-async function eachCompressedRecord(payload, onRecord) {
+async function eachCompressedRecord(payload, onRecord, getRowChunk = null) {
   const compressedChunks = Array.isArray(payload.rowChunksBase64)
     ? payload.rowChunksBase64
     : [payload.rowsDeflateBase64];
-  if (!compressedChunks.length) throw new TypeError("Sheet payload row chunks are missing");
+  const chunkCount = typeof getRowChunk === "function" ? Number(payload.chunkCount) : compressedChunks.length;
+  if (!Number.isSafeInteger(chunkCount) || chunkCount < 1) throw new TypeError("3T Sheet: Thiếu dữ liệu hàng của payload.");
   if (typeof process !== "undefined" && process.versions?.node) {
     const { createInflate } = await import("node:zlib");
-    for (const compressed of compressedChunks) {
+    for (let index = 0; index < chunkCount; index++) {
+      const compressed = typeof getRowChunk === "function" ? await getRowChunk(index) : compressedChunks[index];
+      if (typeof compressed !== "string" || !compressed) throw new TypeError("3T Sheet: Dữ liệu hàng của payload không hợp lệ.");
       const inflate = createInflate();
       const decoder = new TextDecoder();
       let carry = "";
@@ -40,7 +43,9 @@ async function eachCompressedRecord(payload, onRecord) {
   if (typeof DecompressionStream === "undefined") {
     throw new Error("WebView2 does not expose DecompressionStream('deflate')");
   }
-  for (const compressed of compressedChunks) {
+  for (let index = 0; index < chunkCount; index++) {
+    const compressed = typeof getRowChunk === "function" ? await getRowChunk(index) : compressedChunks[index];
+    if (typeof compressed !== "string" || !compressed) throw new TypeError("3T Sheet: Dữ liệu hàng của payload không hợp lệ.");
     const binary = atob(compressed);
     const bytes = new Uint8Array(binary.length);
     for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
@@ -280,7 +285,7 @@ function setupForSheet(adapter, table, tableXml, rowColStyles) {
   return { attrs, name, printArea, pageSetup, localRanges, columnStyles, colWidths, hiddenCols, lastDataCol: table.lastDataCol };
 }
 
-function validatePayload(payload, adapter, supportXmlOverride) {
+function validatePayload(payload, adapter, supportXmlOverride, streamedChunks = false) {
   if (!payload || payload.format !== "vno.sheet.payload.v2") {
     throw new TypeError("Unsupported Sheet payload format");
   }
@@ -295,8 +300,11 @@ function validatePayload(payload, adapter, supportXmlOverride) {
   const compressedChunks = Array.isArray(payload.rowChunksBase64)
     ? payload.rowChunksBase64
     : [payload.rowsDeflateBase64];
-  if (!compressedChunks.length || compressedChunks.some(chunk => typeof chunk !== "string"
-    || !chunk.length || chunk.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(chunk))) {
+  const validChunks = streamedChunks
+    ? Number.isSafeInteger(payload.chunkCount) && payload.chunkCount > 0
+    : compressedChunks.length > 0 && compressedChunks.every(chunk => typeof chunk === "string"
+      && chunk.length > 0 && chunk.length % 4 === 0 && /^[A-Za-z0-9+/]+={0,2}$/.test(chunk));
+  if (!validChunks) {
     throw new TypeError("Invalid Sheet payload row data");
   }
   const rawSupportXml = supportXmlOverride ?? payload.supportXml;
@@ -323,7 +331,8 @@ function validatePayload(payload, adapter, supportXmlOverride) {
 
 export async function buildSheetPayloadModel(payload, adapter, supportXmlOverride, options = {}) {
   if (!adapter) throw new TypeError("SheetAdapter is required to build a payload model");
-  const supportXml = validatePayload(payload, adapter, supportXmlOverride);
+  const getRowChunk = typeof options.getRowChunk === "function" ? options.getRowChunk : null;
+  const supportXml = validatePayload(payload, adapter, supportXmlOverride, Boolean(getRowChunk));
   const progressChunkRows = Math.max(100, Number(options.progressChunkRows) || 500);
   const xml = adapter._xmlWithoutEmbeddedObjects(supportXml);
   const numberStyles = adapter._parseNumberStyles(xml);
@@ -415,7 +424,7 @@ export async function buildSheetPayloadModel(payload, adapter, supportXmlOverrid
       }
       await yieldToPaint();
     }
-  });
+  }, getRowChunk);
   if (openSheet || sheetRecords !== payload.sheets || rowRecords !== payload.rows) {
     throw new TypeError("Sheet payload record counts do not match its header");
   }
@@ -473,6 +482,7 @@ export async function buildSheetPayloadModel(payload, adapter, supportXmlOverrid
     cellVisualStyles,
     namespaceAttrs: rootOpen?.[1] || "",
   };
+  const styleCache = new Map();
   const viewportSheet = workbook.sheets.includes(workbook.activeSheet)
     ? workbook.activeSheet
     : workbook.sheets[0];
@@ -566,13 +576,14 @@ export async function buildSheetPayloadModel(payload, adapter, supportXmlOverrid
           || text !== "" || annotationMatch || attributes["table:content-validation-name"]
           || (columnNumber <= state.lastDataCol && adapter._cellStyleHasBorder(attributes["table:style-name"], cellVisualStyles));
         if (hasValue && (!isCovered || isCoveredErrorFormula)) {
-          const item = adapter._cellFromFodsAttributes(attributes, text, numberStyles, rotationStyles, cellVisualStyles);
+          const item = adapter._cellFromFodsAttributes(attributes, text, numberStyles, rotationStyles, cellVisualStyles, styleCache);
           if (textStyles.size > 0) {
             const cellVisual = cellVisualStyles.get(attributes["table:style-name"]) || {};
             const rich = domRich?.domRich
               ? domRich.value
               : adapter._extractRichTextFromXml(valueContent, textStyles, cellVisual);
             if (rich?.runs) {
+              item.style = { ...item.style };
               item.richText = adapter._normalizeRichTextCellFont(rich.runs, item.style);
               item.val = attributes["vno:original-string"] ?? rich.text;
               item.style.styleHashAtImport = adapter._computeStyleHash(item.style);
@@ -620,7 +631,7 @@ export async function buildSheetPayloadModel(payload, adapter, supportXmlOverrid
       await options.onProgress({ rows: parsedRows, totalRows: payload.totalRows || payload.rows, phase: "hydrate" });
       await yieldToPaint();
     }
-  });
+  }, getRowChunk);
 
   if (!viewportReady && typeof options.onViewportReady === "function") {
     const state = sheetState.get(viewportSheet);

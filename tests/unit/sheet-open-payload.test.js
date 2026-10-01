@@ -95,6 +95,35 @@ export async function runSheetOpenPayloadTests() {
     assert(workbook.dataDimensionsBySheet.Data.lastRow === 60, "full sheet bounds were not available before viewport hydration");
   });
 
+  await test("payload parser interns repeated styles and cell edits copy them before mutation", async () => {
+    const rowXml = `<table:table-row><table:table-cell office:value-type="string" table:style-name="ce1"><text:p>same</text:p></table:table-cell></table:table-row>`;
+    const grid = new SheetGridController(makeContainer());
+    const adapter = new SheetAdapter(grid);
+    assert(await adapter.loadFromPayload(makePayload([
+      ["sheet", "Data"], ["row-xml", rowXml], ["row-xml", rowXml], ["end-sheet"]
+    ])), "repeated-style payload failed to load");
+    const first = grid.sheetsData.Data.get("A1");
+    const second = grid.sheetsData.Data.get("A2");
+    assert(first?.style === second?.style, "identical imported cell styles were not interned");
+    grid.selectedCoord = { c: "A", r: 1 };
+    assert(grid.setStyle("color", "#123456", false), "cell style edit failed");
+    assert(first.style !== second.style, "cell edit mutated a shared style object");
+    assert(first.style.color === "#123456" && second.style.color !== "#123456", "cell style edit leaked to neighboring cells");
+  });
+
+  await test("pristine XLSX native saves use a compact sheet-count-preserving payload", async () => {
+    const grid = new SheetGridController(makeContainer());
+    const adapter = new SheetAdapter(grid);
+    assert(await adapter.loadFromPayload(makePayload()), "pristine-save payload failed to load");
+    adapter.sourceFilePath = "C:\\workbooks\\source.xlsx";
+    adapter.isDirty = false;
+    const content = adapter._nativeSaveContent();
+    assert(content.includes("<!-- vno-pristine-xlsx-source -->"), "pristine source marker is missing");
+    assert((content.match(/<table:table\b/g) || []).length === grid.sheets.length, "compact save did not retain the workbook sheet count");
+    adapter.isDirty = true;
+    assert(adapter._nativeSaveContent().includes("Hello"), "edited workbook did not use full FODS serialization");
+  });
+
   await test("payload parser reads independent compressed row chunks in sequence", async () => {
     const adapter = new SheetAdapter(null);
     const payload = makeRowsPayload(12);
@@ -180,6 +209,8 @@ export async function runSheetOpenPayloadTests() {
     let beginFirstRequest;
     const firstRequestStarted = new Promise(resolve => { beginFirstRequest = resolve; });
     let releaseFirstChunk;
+    let firstChunkPaused = false;
+    const fetchedIndices = [];
     const originalGetChunk = globalUnoBridge.getSheetOpenPayloadChunk;
     const originalGetStatus = globalUnoBridge.getSheetOpenPayloadStatus;
     let statusCalls = 0;
@@ -197,12 +228,20 @@ export async function runSheetOpenPayloadTests() {
         };
     };
     globalUnoBridge.getSheetOpenPayloadChunk = async (_openId, index) => {
-      if (index === 0) {
+      fetchedIndices.push(index);
+      if (index === 0 && !firstChunkPaused) {
+        firstChunkPaused = true;
         beginFirstRequest();
         return await new Promise(resolve => { releaseFirstChunk = () => resolve({
           status: "ok", openId: "session-id", index: 0, rows: 30,
           data: encode([["sheet", "Data"], ...rowRecords.slice(0, 30)])
         }); });
+      }
+      if (index === 0) {
+        return {
+          status: "ok", openId: "session-id", index: 0, rows: 30,
+          data: encode([["sheet", "Data"], ...rowRecords.slice(0, 30)])
+        };
       }
       return {
         status: "ok", openId: "session-id", index: 1, rows: 30,
@@ -220,6 +259,7 @@ export async function runSheetOpenPayloadTests() {
       releaseFirstChunk();
       assert(await task, "chunked workbook hydration failed");
       assert(grid.sheetsData.Data.size === 60, "chunk hydration did not restore the complete workbook");
+      assert(fetchedIndices.join(",") === "0,1,0,1", `streamed chunks were not fetched per pass: ${fetchedIndices.join(",")}`);
     } finally {
       globalUnoBridge.getSheetOpenPayloadChunk = originalGetChunk;
       globalUnoBridge.getSheetOpenPayloadStatus = originalGetStatus;
@@ -259,6 +299,7 @@ export async function runSheetOpenPayloadTests() {
         serialize: () => adapter.serializeToFods(), restore: () => true
       }), "AutoRecover did not register");
       adapter.sourceFilePath = "C:\\input.xlsx";
+      adapter.isDirty = true;
       await adapter.save();
       await adapter.saveAs();
       await adapter.exportPdf();
