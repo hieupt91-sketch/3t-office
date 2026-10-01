@@ -83,6 +83,15 @@ export class CommandBus {
   }
 
   /**
+   * Kiểm tra lệnh đã có handler gắn vào hay chưa
+   * @param {string} commandId
+   * @returns {boolean}
+   */
+  hasHandler(commandId) {
+    return this._handlers.has(commandId);
+  }
+
+  /**
    * Cập nhật trạng thái lệnh (enabled, checked, visible...)
    * @param {string} commandId 
    * @param {Partial<import('./command-types.js').CommandState>} newState 

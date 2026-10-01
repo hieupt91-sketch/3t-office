@@ -5,9 +5,10 @@
 
 import { globalUnoBridge } from "../common/uno-bridge.js";
 import { showPromptDialog, showFindReplaceDialog, showAlertDialog } from "../../../platform/ui-kit/dialogs.js";
+import { createMatcher } from "../../../platform/find/find-engine.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
-import { openPrintDialog } from "../../../platform/print/print-dialog.js";
-import { parseCsv, parseDelimitedText, parseFodsData, replaceMergeFields, showMailMergeDataSourceDialog, showInsertMergeFieldDialog, showFinishMailMergeDialog } from "../../../apps/writer/mail-merge.js";
+import { withLazyFeatureProgress } from "../../../platform/startup/lazy-feature.js";
+import { parseCsv, parseDelimitedText, parseFodsData, replaceMergeFields } from "../../../apps/writer/mail-merge-data.js";
 import {
   ENVELOPE_SIZES,
   LABEL_LAYOUTS,
@@ -25,7 +26,8 @@ import { SHAPE_TYPES, showShapeDialog, renderShapeSvg, showDiagramDialog, genera
 import { DOCUMENT_THEMES, showThemeGalleryDialog } from "../../../apps/writer/theme-gallery.js";
 import { showSymbolPicker } from "../../../platform/ui-kit/symbol-picker.js";
 import { formatDateTime, showDateTimeDialog } from "../../../platform/ui-kit/datetime-picker.js";
-import { showEquationDialog, showBookmarkDialog, showCrossReferenceDialog, slugBookmarkName, showWordArtDialog, buildWriterWordArtHtml, applyWordArtCss, parseWordArtStyleAttr, resolveWordArtStyle, WORDART_PRESETS } from "../../../apps/writer/insert-dialogs.js";
+import { buildWriterWordArtHtml, applyWordArtCss, parseWordArtStyleAttr, resolveWordArtStyle, WORDART_PRESETS } from "../../../apps/writer/writer-wordart.js";
+import { slugBookmarkName } from "../../../apps/writer/bookmark-utils.js";
 import { t } from "../../../platform/i18n/i18n.js";
 import { CITATION_STYLES, authorSortKey, citationMetadataHtml, formatBibliographyEntry, formatInTextCitation, normalizeSource, parseCitationMetadata, showInsertCitationDialog, showSourceManagerDialog } from "../../../apps/writer/citations.js";
 import {
@@ -45,6 +47,51 @@ import {
   tofMarkerHtml
 } from "../../../apps/writer/captions.js";
 import { countBlockParagraphs, countDocumentStats, showWordCountDialog } from "../../../apps/writer/word-count.js";
+
+let writerInsertDialogsPromise;
+let writerMailMergeDialogsPromise;
+let writerEquationEditorPromise;
+
+function loadWriterInsertDialogs(featureName) {
+  return withLazyFeatureProgress("writer", featureName, () => {
+    if (!writerInsertDialogsPromise) {
+      writerInsertDialogsPromise = import("../../../apps/writer/insert-dialogs.js").catch((error) => {
+        writerInsertDialogsPromise = null;
+        throw error;
+      });
+    }
+    return writerInsertDialogsPromise;
+  });
+}
+
+function loadWriterMailMergeDialogs() {
+  return withLazyFeatureProgress("writer", "Trộn thư", () => {
+    if (!writerMailMergeDialogsPromise) {
+      writerMailMergeDialogsPromise = import("../../../apps/writer/mail-merge.js").catch((error) => {
+        writerMailMergeDialogsPromise = null;
+        throw error;
+      });
+    }
+    return writerMailMergeDialogsPromise;
+  });
+}
+
+function loadWriterEquationEditor() {
+  return withLazyFeatureProgress("writer", "Phương trình", () => {
+    if (!writerEquationEditorPromise) {
+      writerEquationEditorPromise = import("../../../apps/writer/equation-editor.js").catch((error) => {
+        writerEquationEditorPromise = null;
+        throw error;
+      });
+    }
+    return writerEquationEditorPromise;
+  });
+}
+
+function writerEquationMarkerToken(id) {
+  const safe = String(id || "").replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+  return "VNOEQ" + safe + "MARKER";
+}
 
 // Kích thước khổ giấy chuẩn (mm, khổ dọc — hoán đổi W/H khi ngang)
 const PAGE_SIZES_MM = {
@@ -163,24 +210,19 @@ function multilevelStyleFromClass(className) {
 }
 
 /** Replace literal text in existing text nodes while preserving their DOM wrappers. */
-export function replaceTextInTextNodes(nodes, findText, replacementText, replaceAll = false) {
+export function replaceTextInTextNodes(nodes, findText, replacementText, replaceAll = false, options = {}) {
   const needle = String(findText ?? "");
   if (!needle) return 0;
   const replacement = String(replacementText ?? "");
   let replacements = 0;
+  const matcher = createMatcher(needle, options);
   for (const node of nodes || []) {
     if (!node || typeof node.data !== "string") continue;
-    if (replaceAll) {
-      const count = node.data.split(needle).length - 1;
-      if (!count) continue;
-      node.data = node.data.split(needle).join(replacement);
-      replacements += count;
-    } else {
-      const index = node.data.indexOf(needle);
-      if (index < 0) continue;
-      node.data = node.data.slice(0, index) + replacement + node.data.slice(index + needle.length);
-      replacements++;
-      break;
+    const res = matcher.replace(node.data, replacement, replaceAll);
+    if (res.count > 0) {
+      node.data = res.text;
+      replacements += res.count;
+      if (!replaceAll) break;
     }
   }
   return replacements;
@@ -314,6 +356,9 @@ export class WriterAdapter {
     this.selectedShapeId = null;
     this.selectedWordArtEl = null;
     this._wordArtEditing = false;
+    this.selectedEquationEl = null;
+    this._equationSequence = 0;
+    this._equationSelectionRange = null;
     this.documentTheme = "office";
     this.showFormattingMarks = false;
     this._styleSelectionHandler = null;
@@ -337,12 +382,149 @@ export class WriterAdapter {
     this.footerDom = this.editorDom.querySelector(".vno-writer-footer");
   }
 
+  _bindEquationInteractions() {
+    if (!this.bodyDom?.addEventListener || this._equationClickHandler) return;
+    this._selectEquation = (equation) => {
+      if (this.selectedEquationEl && this.selectedEquationEl !== equation) {
+        this.selectedEquationEl.classList?.remove("is-selected");
+      }
+      this.selectedEquationEl = equation;
+      equation.classList?.add("is-selected");
+    };
+    this._equationClickHandler = (event) => {
+      const equation = event.target?.closest?.(".vno-equation[data-vno-equation='true']");
+      if (!equation || !this.bodyDom.contains(equation)) {
+        this.selectedEquationEl?.classList?.remove("is-selected");
+        this.selectedEquationEl = null;
+        return;
+      }
+      this._selectEquation(equation);
+      equation.focus?.();
+    };
+    this._equationFocusHandler = (event) => {
+      const equation = event.target?.closest?.(".vno-equation[data-vno-equation='true']");
+      if (equation && this.bodyDom.contains(equation)) this._selectEquation(equation);
+    };
+    this._equationDoubleClickHandler = (event) => {
+      const equation = event.target?.closest?.(".vno-equation[data-vno-equation='true']");
+      if (!equation || !this.bodyDom.contains(equation)) return;
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      this._editEquation(equation);
+    };
+    this.bodyDom.addEventListener("click", this._equationClickHandler);
+    this.bodyDom.addEventListener("focusin", this._equationFocusHandler);
+    this.bodyDom.addEventListener("dblclick", this._equationDoubleClickHandler);
+  }
+
+  _makeEquationHtml({ linear, mathml, id = "", originalOmml = "", display = "inline" }) {
+    this._equationSequence += 1;
+    const equationId = id || "new-" + this._equationSequence;
+    const normalizedMathml = String(mathml || "");
+    const safeId = this._escapeHtml(equationId);
+    const encodedMathml = this._escapeHtml(encodeURIComponent(normalizedMathml));
+    const originalAttribute = originalOmml
+      ? " data-vno-equation-original-omml=\"" + this._escapeHtml(originalOmml) + "\""
+      : "";
+    const displayAttribute = display === "block" ? " data-vno-equation-display=\"block\"" : "";
+    const label = this._escapeHtml(t("writer.insert.equation") + ": " + String(linear || "").trim());
+    return "<span class=\"vno-equation\" role=\"math\" tabindex=\"0\" contenteditable=\"false\""
+      + " data-vno-equation=\"true\" data-vno-equation-id=\"" + safeId + "\""
+      + " data-vno-equation-linear=\"" + this._escapeHtml(linear || "") + "\""
+      + " data-vno-equation-mathml=\"" + encodedMathml + "\"" + originalAttribute + displayAttribute
+      + " aria-label=\"" + label + "\">" + normalizedMathml + "</span>";
+  }
+
+  _captureEquationSelection() {
+    this._initZones();
+    this._equationSelectionRange = null;
+    try {
+      const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+      if (selection?.rangeCount && this.bodyDom?.contains?.(selection.anchorNode)) {
+        this._equationSelectionRange = selection.getRangeAt(0).cloneRange();
+      }
+    } catch {}
+  }
+
+  _restoreEquationSelection() {
+    const range = this._equationSelectionRange;
+    this._equationSelectionRange = null;
+    if (!range || !range.startContainer?.isConnected || !this.bodyDom?.contains?.(range.startContainer)) return false;
+    try {
+      const selection = window.getSelection?.();
+      if (!selection) return false;
+      selection.removeAllRanges();
+      selection.addRange(range);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  _equationDisplayAtSelection() {
+    try {
+      const selection = window.getSelection?.();
+      const node = selection?.anchorNode?.nodeType === 1
+        ? selection.anchorNode
+        : selection?.anchorNode?.parentElement;
+      const paragraph = node?.closest?.("p,li,h1,h2,h3,h4,h5,h6");
+      if (!paragraph || !this.bodyDom?.contains?.(paragraph)) return "inline";
+      const range = selection.getRangeAt(0);
+      const before = document.createRange();
+      before.selectNodeContents(paragraph);
+      before.setEnd(range.startContainer, range.startOffset);
+      const after = document.createRange();
+      after.selectNodeContents(paragraph);
+      after.setStart(range.endContainer, range.endOffset);
+      const left = before.toString().trim();
+      const right = after.toString().trim();
+      const otherObjects = Array.from(paragraph.querySelectorAll?.(".vno-equation") || [])
+        .filter(item => item !== this.selectedEquationEl).length;
+      return !left && !right && otherObjects === 0 ? "block" : "inline";
+    } catch {
+      return "inline";
+    }
+  }
+
+  async _editEquation(equation) {
+    if (!equation || equation.isConnected === false) return false;
+    const [{ mathMLToLinear }, { showEquationDialog }] = await Promise.all([
+      loadWriterEquationEditor(),
+      loadWriterInsertDialogs("Phương trình")
+    ]);
+    const math = equation.querySelector?.("math");
+    const initial = equation.getAttribute?.("data-vno-equation-linear")
+      || (math ? mathMLToLinear(math.outerHTML) : "");
+    const picked = await showEquationDialog({ linear: initial });
+    if (!picked) return false;
+    return this.insertEquation({
+      linear: picked.linear,
+      mathml: picked.mathml,
+      targetEquationEl: equation,
+      originalOmml: equation.getAttribute?.("data-vno-equation-original-omml") || ""
+    });
+  }
+
+  _deleteSelectedEquation() {
+    const equation = this.selectedEquationEl;
+    if (!equation || equation.isConnected === false) {
+      this.selectedEquationEl = null;
+      return false;
+    }
+    equation.remove?.();
+    this.selectedEquationEl = null;
+    this.isDirty = true;
+    this.recordSnapshot("writer.insert.equation.delete");
+    return true;
+  }
+
   attach() {
     this._initZones();
     globalUnoBridge.attachDocument(this);
     this._applyPageSetup();
     this._bindCommentInteractions();
     this._bindContinuousEditingWorkflow();
+    this._bindEquationInteractions();
     this._bindTrackChanges();
     this._renderCommentsPanel();
     this._updateTrackChangesCommandState();
@@ -461,6 +643,8 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.font.grow1pt", () => this._adjustFontSizePt(1));
     globalCommandBus.bindHandler("writer.font.shrink1pt", () => this._adjustFontSizePt(-1));
     globalCommandBus.bindHandler("common.edit.repeat", () => this.repeatLastAction());
+    globalCommandBus.bindHandler("common.edit.find", () => this._showFindReplaceDialog(false));
+    globalCommandBus.bindHandler("common.edit.replace", () => this._showFindReplaceDialog(true));
 
     if (!this._lastSnapshot) {
       this._lastSnapshot = this._createSnapshot("Initial State");
@@ -474,6 +658,44 @@ export class WriterAdapter {
     this._trackChangesBeforeInputHandler = (event) => this._handleTrackChangesBeforeInput(event);
     this.bodyDom.addEventListener("beforeinput", this._trackChangesBeforeInputHandler);
     this.bodyDom.addEventListener("input", () => this._updateTrackChangesCommandState());
+  }
+
+  _insertTabCharacter(root) {
+    if (!root || typeof document === "undefined" || typeof window === "undefined") return false;
+    const selection = window.getSelection?.();
+    if (!selection?.rangeCount) return false;
+    const range = selection.getRangeAt(0);
+    const commonNode = range?.commonAncestorContainer;
+    if (!range || !(commonNode === root || root.contains?.(commonNode))) return false;
+
+    this.flushTyping?.();
+    range.deleteContents?.();
+    const tab = document.createElement("span");
+    tab.className = "vno-tab-character";
+    tab.setAttribute("data-vno-tab-character", "true");
+    tab.textContent = "\t";
+    let inserted = tab;
+    if (this.trackChangesEnabled && root === this.bodyDom) {
+      const mark = document.createElement("ins");
+      mark.setAttribute("data-vno-change", "insert");
+      mark.appendChild(tab);
+      inserted = mark;
+    }
+
+    range.insertNode(inserted);
+    range.setStartAfter(inserted);
+    range.collapse(true);
+    selection.removeAllRanges?.();
+    selection.addRange?.(range);
+    const paragraph = tab.closest?.("p,li,h1,h2,h3,h4,h5,h6");
+    if (paragraph?.style) paragraph.style.tabSize = "1.27cm";
+
+    if (typeof Event === "function") {
+      root.dispatchEvent?.(new Event("input", { bubbles: true }));
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.text.insertTab");
+    return true;
   }
 
   /**
@@ -644,24 +866,6 @@ export class WriterAdapter {
     if (!selection || selection.rangeCount === 0) return false;
     const range = selection.getRangeAt(0);
     return range.startContainer === element && range.startOffset === 0;
-  }
-
-  _insertTabCharacter(root) {
-    if (typeof window === "undefined" || !window.getSelection) return false;
-    const selection = window.getSelection();
-    if (!selection.rangeCount) return false;
-    const range = selection.getRangeAt(0);
-    if (!root.contains(range.commonAncestorContainer)) return false;
-    range.deleteContents();
-    const tabText = document.createTextNode("\t");
-    range.insertNode(tabText);
-    range.setStartAfter(tabText);
-    range.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(range);
-    this.isDirty = true;
-    this.recordSnapshot("writer.text.insertTab");
-    return true;
   }
 
   _bindMouseAndKeyboardParity() {
@@ -8764,13 +8968,44 @@ export class WriterAdapter {
 
   async insertEquation(options = null) {
     options = options || {};
-    let expression = options.expression || options.text;
-    if (!expression) {
-      expression = await showEquationDialog({ expression: "E = mc²" });
-      if (!expression) return false;
+    const { linearToMathML, mathMLToLinear } = await loadWriterEquationEditor();
+    const target = options.targetEquationEl || this.selectedEquationEl;
+    let picked = options;
+    if (!options.linear && !options.mathml && !options.expression && !options.text && !target) {
+      this._captureEquationSelection();
+      const { showEquationDialog } = await loadWriterInsertDialogs("Phương trình");
+      picked = await showEquationDialog({ linear: "x^2" });
+      if (!picked) {
+        this._equationSelectionRange = null;
+        return false;
+      }
     }
-    const html = `<span class="vno-equation" role="math" data-equation="true">${this._escapeHtml(expression)}</span>`;
-    this._insertHtmlAtCursor(html);
+
+    const linear = String(picked.linear || picked.expression || picked.text || (picked.mathml ? mathMLToLinear(picked.mathml) : "")).trim();
+    if (!linear && !picked.mathml) return false;
+    const display = picked.display || (target?.getAttribute?.("data-vno-equation-display") === "block" ? "block" : "inline");
+    const mathml = String(picked.mathml || linearToMathML(linear, display)).replace(/<math\b([^>]*)>/i, (_match, attrs) => {
+      const withoutDisplay = attrs.replace(/\sdisplay\s*=\s*(["'])[^"']*\1/i, "");
+      return `<math${withoutDisplay} display="${display}">`;
+    });
+
+    if (target && target.isConnected !== false) {
+      target.innerHTML = mathml;
+      target.setAttribute("data-vno-equation-linear", linear);
+      target.setAttribute("data-vno-equation-mathml", encodeURIComponent(mathml));
+      target.setAttribute("data-vno-equation-edited", "true");
+      target.setAttribute("aria-label", t("writer.insert.equation") + ": " + linear);
+      if (display === "block") target.setAttribute("data-vno-equation-display", "block");
+      else target.removeAttribute("data-vno-equation-display");
+      target.classList?.remove("is-selected");
+      this.selectedEquationEl = null;
+      this.isDirty = true;
+    } else {
+      this._restoreEquationSelection();
+      const insertDisplay = picked.display || this._equationDisplayAtSelection();
+      const resolvedMathml = insertDisplay === display ? mathml : linearToMathML(linear, insertDisplay);
+      this._insertHtmlAtCursor(this._makeEquationHtml({ linear, mathml: resolvedMathml, display: insertDisplay }));
+    }
     this.recordSnapshot("writer.insert.equation");
     return true;
   }
@@ -8794,7 +9029,7 @@ export class WriterAdapter {
   async insertWordArt(options = null) {
     options = options || {};
     const hasExplicit = typeof options.text === "string" || options.presetId || options.styleId;
-    const picked = hasExplicit ? options : await showWordArtDialog(options);
+    const picked = hasExplicit ? options : await (await loadWriterInsertDialogs("Chữ nghệ thuật")).showWordArtDialog(options);
     if (!picked) return false;
     const text = String(picked.text || options.text || "3T Office").trim() || "3T Office";
     const presetId = picked.presetId || options.presetId || options.styleId || "navy-outline";
@@ -8956,6 +9191,7 @@ export class WriterAdapter {
     options = options || {};
     let name = options.name;
     if (!name) {
+      const { showBookmarkDialog } = await loadWriterInsertDialogs("Đánh dấu");
       name = await showBookmarkDialog({ name: "bookmark1" });
       if (!name) return false;
     }
@@ -9023,6 +9259,7 @@ export class WriterAdapter {
     let display = options.display || options.text;
     let type = options.type || "bookmark";
     if (!targetId) {
+      const { showCrossReferenceDialog } = await loadWriterInsertDialogs("Tham chiếu chéo");
       const picked = await showCrossReferenceDialog(this.listCrossReferenceTargets());
       if (!picked) return false;
       targetId = picked.targetId;
@@ -9425,39 +9662,116 @@ export class WriterAdapter {
     input.click();
   }
 
+  findInDocument(query, options = {}) {
+    if (!query || !this.editorDom) return false;
+    const needle = String(query).trim();
+    if (!needle) return false;
+    return this._findInDomNodes(needle, options);
+  }
+
+  _findInDomNodes(needle, options = {}) {
+    if (!this.editorDom) return false;
+    const matcher = createMatcher(needle, options);
+    const nodes = [];
+    if (typeof document !== "undefined" && document.createTreeWalker) {
+      const walker = document.createTreeWalker(this.editorDom, NodeFilter.SHOW_TEXT);
+      let node;
+      while ((node = walker.nextNode())) {
+        if (node.parentElement?.closest?.('[contenteditable="false"]')) continue;
+        nodes.push(node);
+      }
+    }
+    if (!nodes.length) return false;
+
+    if (!this._findState || this._findState.query !== needle) {
+      this._findState = { query: needle, nodeIndex: 0, matchIndex: -1 };
+    }
+
+    const backward = options.direction === "backward";
+    const totalNodes = nodes.length;
+    let startNodeIdx = this._findState.nodeIndex || 0;
+
+    for (let step = 0; step < totalNodes; step++) {
+      const idx = backward
+        ? (startNodeIdx - step + totalNodes) % totalNodes
+        : (startNodeIdx + step) % totalNodes;
+      const textNode = nodes[idx];
+      const matches = matcher.findAll(textNode.data || "");
+      if (matches.length > 0) {
+        let m = matches[0];
+        if (idx === startNodeIdx && this._findState.matchIndex >= 0) {
+          if (backward) {
+            const prevMatches = matches.filter(match => match.index < this._findState.matchIndex);
+            if (prevMatches.length > 0) {
+              m = prevMatches[prevMatches.length - 1];
+            } else if (step === 0) {
+              continue;
+            }
+          } else {
+            const nextMatches = matches.filter(match => match.index > this._findState.matchIndex);
+            if (nextMatches.length > 0) {
+              m = nextMatches[0];
+            } else if (step === 0) {
+              continue;
+            }
+          }
+        }
+        this._findState.nodeIndex = idx;
+        this._findState.matchIndex = m.index;
+
+        if (typeof window !== "undefined" && window.getSelection && typeof document.createRange === "function") {
+          try {
+            const range = document.createRange();
+            range.setStart(textNode, m.index);
+            range.setEnd(textNode, m.index + m.length);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+            textNode.parentElement?.scrollIntoView?.({ behavior: "smooth", block: "center" });
+          } catch (_) {}
+        }
+        return true;
+      }
+    }
+    return false;
+  }
+
   _showFindReplaceDialog(isReplace = false) {
-    if (typeof window === "undefined" || typeof document === "undefined") return;
+    if (typeof window === "undefined" || typeof document === "undefined") return true;
     showFindReplaceDialog({
       isReplace,
-      onFind: (text) => {
-        if (typeof window !== "undefined" && window.find) {
-          window.find(text);
-        }
-      },
-      onReplace: (findText, repText) => {
+      app: "writer",
+      onFind: (text, options) => this.findInDocument(text, options),
+      onFindPrev: (text, options) => this.findInDocument(text, { ...options, direction: "backward" }),
+      onReplace: (findText, repText, options) => {
         if (findText && repText !== null) {
           this.flushTyping();
-          const changed = this._replaceDocumentTextNodes(findText, repText, false);
+          const changed = this._replaceDocumentTextNodes(findText, repText, false, options);
           if (changed) {
             this.isDirty = true;
             this.recordSnapshot("common.edit.replace");
+            return true;
           }
         }
+        return false;
       },
-      onReplaceAll: (findText, repText) => {
+      onReplaceAll: (findText, repText, options) => {
         if (findText && repText !== null) {
           this.flushTyping();
-          const changed = this._replaceDocumentTextNodes(findText, repText, true);
+          const changed = this._replaceDocumentTextNodes(findText, repText, true, options);
           if (changed) {
             this.isDirty = true;
             this.recordSnapshot("common.edit.replaceAll");
           }
+          return changed;
         }
+        return 0;
       }
     });
+    return true;
   }
 
-  _replaceDocumentTextNodes(findText, replacementText, replaceAll) {
+  _replaceDocumentTextNodes(findText, replacementText, replaceAll, options = {}) {
     if (!this.editorDom || typeof document === "undefined" || !document.createTreeWalker) return 0;
     const walker = document.createTreeWalker(this.editorDom, NodeFilter.SHOW_TEXT);
     const nodes = [];
@@ -9466,7 +9780,7 @@ export class WriterAdapter {
       if (node.parentElement?.closest?.('[contenteditable="false"]')) continue;
       nodes.push(node);
     }
-    return replaceTextInTextNodes(nodes, findText, replacementText, replaceAll);
+    return replaceTextInTextNodes(nodes, findText, replacementText, replaceAll, options);
   }
 
   _fodtError(detail) {
@@ -11818,6 +12132,34 @@ export class WriterAdapter {
     return result;
   }
 
+  _serializeEquationsForExport(root) {
+    if (!root?.querySelectorAll || typeof document === "undefined") return;
+    const equations = Array.from(root.querySelectorAll(".vno-equation[data-vno-equation='true']"));
+    for (const equation of equations) {
+      const id = equation.getAttribute("data-vno-equation-id") || ("new-" + (++this._equationSequence));
+      const token = writerEquationMarkerToken(id);
+      const math = equation.querySelector("math");
+      let mathml = math?.outerHTML || decodeURIComponent(equation.getAttribute("data-vno-equation-mathml") || "");
+      const edited = equation.getAttribute("data-vno-equation-edited") === "true";
+      const originalOmml = edited ? "" : (equation.getAttribute("data-vno-equation-original-omml") || "");
+      if (equation.getAttribute("data-vno-equation-display") === "block") {
+        mathml = mathml.replace(/<math\b([^>]*)>/i, (_match, attrs) => {
+          const withoutDisplay = attrs.replace(/\sdisplay\s*=\s*(["'])[^"']*\1/i, "");
+          return `<math${withoutDisplay} display="block">`;
+        });
+      }
+      const marker = document.createElement("span");
+      marker.className = "vno-equation-export";
+      marker.setAttribute("style", "font-family: Cambria Math;");
+      marker.setAttribute("data-vno-equation-export", "true");
+      marker.setAttribute("data-vno-equation-id", id);
+      marker.setAttribute("data-vno-equation-mathml", encodeURIComponent(mathml));
+      if (originalOmml) marker.setAttribute("data-vno-equation-original-omml", originalOmml);
+      marker.textContent = token;
+      equation.replaceWith(marker);
+    }
+  }
+
   _preserveEmptyParagraphFontSizesForExport(html) {
     return String(html || "").replace(
       /<(p|h[1-6])\b([^>]*\bfont-size:\s*([\d.]+)pt[^>]*)>([\s\S]*?)<\/\1>/gi,
@@ -11863,6 +12205,7 @@ export class WriterAdapter {
     if (this.bodyDom) {
       const exportRoot = this.bodyDom.cloneNode?.(true) || this.bodyDom;
       this._markCurrentUntouchedParagraphs(exportRoot);
+      this._serializeEquationsForExport(exportRoot);
       bodyHtml = this._stripSessionMarkup(exportRoot.innerHTML);
     } else if (this.editorDom) {
       bodyHtml = this._stripSessionMarkup(this.editorDom.innerHTML);
@@ -12434,7 +12777,8 @@ export class WriterAdapter {
         }
       }
     } catch { currentPage = 1; }
-    return openPrintDialog({
+    return withLazyFeatureProgress("writer", "In và xem trước", () => import("../../../platform/print/print-dialog.js"))
+      .then(({ openPrintDialog }) => openPrintDialog({
       appKind: "writer",
       content: this._contentForExport(),
       documentName: this.sourceFileName || "Tài liệu",
@@ -12442,7 +12786,7 @@ export class WriterAdapter {
       pageSetupLabel,
       currentPage,
       engine: globalUnoBridge
-    });
+    }));
   }
 
   /**
@@ -13607,7 +13951,12 @@ export class WriterAdapter {
             gapBeforeEls.push({ el, soft: false, kind: "block" });
             pageCount++;
           }
-          pageStartTop = top - marginTopOf(el);
+          // Hidden section markers have a zero top in the canvas. Let the next
+          // real block establish the new page origin instead of counting its
+          // document offset as overflow from the marker.
+          pageStartTop = el.classList?.contains("vno-section-break")
+            ? null
+            : top - marginTopOf(el);
           continue;
         }
 
@@ -13932,6 +14281,25 @@ export class WriterAdapter {
 
     if (!this._undoKeyHandler && typeof target.addEventListener === "function") {
       this._undoKeyHandler = (event) => {
+        const active = typeof document !== "undefined" ? document.activeElement : null;
+        const inEquationDialog = !!active?.closest?.(".vno-equation-editor");
+        const equationHasFocus = !!this.selectedEquationEl && (
+          active === this.selectedEquationEl || this.selectedEquationEl.contains?.(event.target)
+        );
+        if (!inEquationDialog && (event.key === "Delete" || event.key === "Backspace")
+          && equationHasFocus && this.selectedEquationEl.isConnected !== false) {
+          event.preventDefault();
+          event.stopPropagation();
+          this._deleteSelectedEquation();
+          return;
+        }
+        if (!inEquationDialog && (event.key === "Enter" || event.key === "F2")
+          && equationHasFocus && this.selectedEquationEl.isConnected !== false) {
+          event.preventDefault();
+          event.stopPropagation();
+          this._editEquation(this.selectedEquationEl);
+          return;
+        }
         if ((event.key === "Delete" || event.key === "Backspace") && this.selectedWordArtEl && !this._wordArtEditing) {
           event.preventDefault();
           event.stopPropagation();
@@ -16204,6 +16572,7 @@ export class WriterAdapter {
     if (inputData !== undefined) {
       return this.setMailMergeData(inputData, options);
     }
+    const { showMailMergeDataSourceDialog } = await loadWriterMailMergeDialogs();
     return new Promise((resolve) => {
       showMailMergeDataSourceDialog({
         currentCsv: this.mailMergeData?.rawCsv || "",
@@ -16243,13 +16612,16 @@ export class WriterAdapter {
     if (!fieldName) {
       if (this.mailMergeData?.fields?.length > 0) {
         if (typeof document !== "undefined" && typeof document.createElement === "function" && document.body) {
-          showInsertMergeFieldDialog({
-            fields: this.mailMergeData.fields,
-            onInsert: (selected) => {
-              if (selected) {
-                this.insertMergeField({ field: selected });
+          loadWriterMailMergeDialogs().then(({ showInsertMergeFieldDialog }) => {
+            showInsertMergeFieldDialog({
+              fields: this.mailMergeData.fields,
+              onInsert: (selected) => {
+                if (selected) this.insertMergeField({ field: selected });
               }
-            }
+            });
+          }).catch((error) => {
+            console.error("3T Doc could not load the mail-merge dialog.", error);
+            this.shell?.setStatus?.("Không tải được hộp thoại Trộn thư.");
           });
           return null;
         } else {
@@ -16472,12 +16844,15 @@ export class WriterAdapter {
       activeRecords.length > 0 &&
       (this.bodyDom.innerHTML || "").includes("vno-merge-field")
     ) {
-      showFinishMailMergeDialog({
-        totalRecords: activeRecords.length,
-        currentIndex: this.mailMergePreview.recordIndex,
-        onFinish: (dialogOpts) => {
-          this.finishMailMerge(dialogOpts);
-        }
+      loadWriterMailMergeDialogs().then(({ showFinishMailMergeDialog }) => {
+        showFinishMailMergeDialog({
+          totalRecords: activeRecords.length,
+          currentIndex: this.mailMergePreview.recordIndex,
+          onFinish: (dialogOpts) => this.finishMailMerge(dialogOpts)
+        });
+      }).catch((error) => {
+        console.error("3T Doc could not load the mail-merge dialog.", error);
+        this.shell?.setStatus?.("Không tải được hộp thoại Trộn thư.");
       });
       return true;
     }

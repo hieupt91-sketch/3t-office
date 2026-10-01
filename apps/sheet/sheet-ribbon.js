@@ -310,6 +310,116 @@ export const SHEET_RIBBON_TABS = [
     ]
   },
   {
+    id: "insert",
+    label: "Chèn",
+    labelKey: "sheetRibbon.tab.insert",
+    groups: [
+      {
+        id: "tables",
+        label: "Bảng",
+        labelKey: "sheetRibbon.group.tables",
+        items: [
+          { type: "button", commandId: "sheet.data.pivotTable", isLarge: true }
+        ]
+      },
+      {
+        id: "illustrations",
+        label: "Minh họa",
+        labelKey: "sheetRibbon.group.illustrations",
+        items: [{ type: "button", commandId: "sheet.insert.image", isLarge: true }]
+      },
+      {
+        id: "charts",
+        label: "Biểu đồ",
+        labelKey: "sheetRibbon.group.charts",
+        launcherCommandId: "sheet.chart.insert",
+        launcherTooltip: "Chèn biểu đồ",
+        items: [
+          { type: "button", commandId: "sheet.chart.insert", isLarge: true },
+          { type: "button", commandId: "sheet.chart.pivotChart", isLarge: true }
+        ]
+      },
+      {
+        id: "sparklines",
+        label: "Biểu đồ thu nhỏ",
+        labelKey: "sheetRibbon.group.sparklines",
+        items: [
+          { type: "button", commandId: "sheet.insert.sparklineLine", isLarge: true },
+          { type: "button", commandId: "sheet.insert.sparklineColumn", isLarge: true }
+        ]
+      },
+      {
+        id: "links",
+        label: "Liên kết",
+        labelKey: "sheetRibbon.group.links",
+        items: [{ type: "button", commandId: "sheet.insert.hyperlink", isLarge: true }]
+      },
+      {
+        id: "text",
+        label: "Văn bản",
+        labelKey: "sheetRibbon.group.text",
+        items: [
+          { type: "button", commandId: "sheet.insert.textbox", isLarge: true },
+          { type: "button", commandId: "sheet.page.headerFooter", isLarge: true }
+        ]
+      }
+    ]
+  },
+  {
+    id: "pageLayout",
+    label: "Bố trí trang",
+    labelKey: "sheetRibbon.tab.pageLayout",
+    groups: [
+      {
+        id: "pageSetup",
+        label: "Thiết lập trang",
+        labelKey: "sheetRibbon.group.pageSetup",
+        items: [
+          { type: "button", commandId: "sheet.page.margins", isLarge: true },
+          { type: "button", commandId: "sheet.page.orientation", isLarge: true },
+          { type: "button", commandId: "sheet.page.size", isLarge: true },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "sheet.page.setPrintArea" },
+              { type: "button", commandId: "sheet.page.clearPrintArea" }
+            ]
+          },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "sheet.page.insertPageBreak" },
+              { type: "button", commandId: "sheet.page.removePageBreak" }
+            ]
+          },
+          { type: "button", commandId: "sheet.page.printTitles", isLarge: true }
+        ]
+      },
+      {
+        id: "scaleToFit",
+        label: "Vừa trang",
+        labelKey: "sheetRibbon.group.scaleToFit",
+        items: [
+          { type: "button", commandId: "sheet.page.scale", isLarge: true }
+        ]
+      },
+      {
+        id: "sheetOptions",
+        label: "Tùy chọn trang tính",
+        labelKey: "sheetRibbon.group.sheetOptions",
+        items: [
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "sheet.view.gridlines" },
+              { type: "button", commandId: "sheet.view.headings" }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
     id: "formulas",
     label: "Công thức",
     labelKey: "sheetRibbon.tab.formulas",
@@ -479,116 +589,6 @@ export const SHEET_RIBBON_TABS = [
         items: [
           { type: "button", commandId: "sheet.data.pivotTable", isLarge: true },
           { type: "button", commandId: "sheet.data.pivotRefresh", isLarge: true }
-        ]
-      }
-    ]
-  },
-  {
-    id: "insert",
-    label: "Chèn",
-    labelKey: "sheetRibbon.tab.insert",
-    groups: [
-      {
-        id: "tables",
-        label: "Bảng",
-        labelKey: "sheetRibbon.group.tables",
-        items: [
-          { type: "button", commandId: "sheet.data.pivotTable", isLarge: true }
-        ]
-      },
-      {
-        id: "illustrations",
-        label: "Minh họa",
-        labelKey: "sheetRibbon.group.illustrations",
-        items: [{ type: "button", commandId: "sheet.insert.image", isLarge: true }]
-      },
-      {
-        id: "charts",
-        label: "Biểu đồ",
-        labelKey: "sheetRibbon.group.charts",
-        launcherCommandId: "sheet.chart.insert",
-        launcherTooltip: "Chèn biểu đồ",
-        items: [
-          { type: "button", commandId: "sheet.chart.insert", isLarge: true },
-          { type: "button", commandId: "sheet.chart.pivotChart", isLarge: true }
-        ]
-      },
-      {
-        id: "sparklines",
-        label: "Biểu đồ thu nhỏ",
-        labelKey: "sheetRibbon.group.sparklines",
-        items: [
-          { type: "button", commandId: "sheet.insert.sparklineLine", isLarge: true },
-          { type: "button", commandId: "sheet.insert.sparklineColumn", isLarge: true }
-        ]
-      },
-      {
-        id: "links",
-        label: "Liên kết",
-        labelKey: "sheetRibbon.group.links",
-        items: [{ type: "button", commandId: "sheet.insert.hyperlink", isLarge: true }]
-      },
-      {
-        id: "text",
-        label: "Văn bản",
-        labelKey: "sheetRibbon.group.text",
-        items: [
-          { type: "button", commandId: "sheet.insert.textbox", isLarge: true },
-          { type: "button", commandId: "sheet.page.headerFooter", isLarge: true }
-        ]
-      }
-    ]
-  },
-  {
-    id: "pageLayout",
-    label: "Bố trí trang",
-    labelKey: "sheetRibbon.tab.pageLayout",
-    groups: [
-      {
-        id: "pageSetup",
-        label: "Thiết lập trang",
-        labelKey: "sheetRibbon.group.pageSetup",
-        items: [
-          { type: "button", commandId: "sheet.page.margins", isLarge: true },
-          { type: "button", commandId: "sheet.page.orientation", isLarge: true },
-          { type: "button", commandId: "sheet.page.size", isLarge: true },
-          {
-            type: "column",
-            items: [
-              { type: "button", commandId: "sheet.page.setPrintArea" },
-              { type: "button", commandId: "sheet.page.clearPrintArea" }
-            ]
-          },
-          {
-            type: "column",
-            items: [
-              { type: "button", commandId: "sheet.page.insertPageBreak" },
-              { type: "button", commandId: "sheet.page.removePageBreak" }
-            ]
-          },
-          { type: "button", commandId: "sheet.page.printTitles", isLarge: true }
-        ]
-      },
-      {
-        id: "scaleToFit",
-        label: "Vừa trang",
-        labelKey: "sheetRibbon.group.scaleToFit",
-        items: [
-          { type: "button", commandId: "sheet.page.scale", isLarge: true }
-        ]
-      },
-      {
-        id: "sheetOptions",
-        label: "Tùy chọn trang tính",
-        labelKey: "sheetRibbon.group.sheetOptions",
-        items: [
-          {
-            type: "column",
-            items: [
-              { type: "button", commandId: "sheet.view.gridlines" },
-              { type: "button", commandId: "sheet.view.headings" }
-            ]
-          }
         ]
       }
     ]

@@ -1,71 +1,192 @@
-"""Usage: _xlsx_lint.py <xlsx>  -- well-formedness + common schema traps (cols, sheetFormatPr, sst counts, cell order)."""
-import sys, zipfile, re
-from xml.dom import minidom
-z = zipfile.ZipFile(sys.argv[1])
-for name in z.namelist():
-    if not name.endswith(".xml") and not name.endswith(".rels"):
-        continue
-    data = z.read(name)
+"""Lint OOXML package well-formedness and common XLSX schema traps.
+
+Usage: python _xlsx_lint.py <xlsx>
+
+Uses namespace-aware XML parsing so valid namespace prefixes and empty/self-closing
+worksheet rows are handled the same way as expanded elements.
+"""
+
+from __future__ import annotations
+
+import re
+import sys
+import zipfile
+from pathlib import Path
+from xml.etree import ElementTree as ET
+
+
+def _local_name(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1].split(":")[-1]
+
+
+def _children(element: ET.Element | None, name: str) -> list[ET.Element]:
+    if element is None:
+        return []
+    return [child for child in list(element) if _local_name(child.tag) == name]
+
+
+def _find(root: ET.Element | None, name: str) -> ET.Element | None:
+    if root is None:
+        return None
+    if _local_name(root.tag) == name:
+        return root
+    return next((element for element in root.iter() if _local_name(element.tag) == name), None)
+
+
+def _column_number(label: str) -> int:
+    value = 0
+    for character in label:
+        value = value * 26 + ord(character.upper()) - 64
+    return value
+
+
+def lint_xlsx(path: str | Path) -> list[str]:
+    issues: list[str] = []
+    with zipfile.ZipFile(path) as archive:
+        names = set(archive.namelist())
+        parsed: dict[str, ET.Element] = {}
+        for name in sorted(names):
+            if not (name.endswith(".xml") or name.endswith(".rels")):
+                continue
+            try:
+                parsed[name] = ET.fromstring(archive.read(name))
+            except Exception as exc:
+                issues.append(f"NOT WELL-FORMED: {name} {exc}")
+
+        styles = parsed.get("xl/styles.xml")
+        expected_counts = {
+            "fonts": "font",
+            "fills": "fill",
+            "borders": "border",
+            "cellXfs": "xf",
+            "numFmts": "numFmt",
+            "cellStyleXfs": "xf",
+            "cellStyles": "cellStyle",
+            "dxfs": "dxf",
+        }
+        counts: dict[str, int] = {}
+        for parent_name, child_name in expected_counts.items():
+            parent = _find(styles, parent_name)
+            actual = len(_children(parent, child_name))
+            counts[parent_name] = actual
+            declared = parent.get("count") if parent is not None else None
+            if declared is not None and declared.isdigit() and actual != int(declared):
+                issues.append(f"COUNT MISMATCH {parent_name}: count={declared} actual={actual}")
+
+        fonts = counts.get("fonts", 0)
+        fills = counts.get("fills", 0)
+        borders = counts.get("borders", 0)
+        cell_style_xfs = counts.get("cellStyleXfs", 0)
+        declared_num_formats = {
+            int(element.get("numFmtId", "0"))
+            for element in _children(_find(styles, "numFmts"), "numFmt")
+            if element.get("numFmtId", "").isdigit()
+        }
+        style_xfs = _children(_find(styles, "cellXfs"), "xf")
+        for index, style in enumerate(style_xfs):
+            for attribute, label, limit in (
+                ("fontId", "fontId", fonts),
+                ("fillId", "fillId", fills),
+                ("borderId", "borderId", borders),
+            ):
+                raw = style.get(attribute, "0")
+                if raw.isdigit() and int(raw) >= limit:
+                    issues.append(f"xf {index}: {label} {raw} >= {limit}")
+            raw_style = style.get("xfId", "0")
+            if raw_style.isdigit() and int(raw_style) >= max(cell_style_xfs, 1):
+                issues.append(f"xf {index}: xfId {raw_style} >= {cell_style_xfs}")
+            raw_format = style.get("numFmtId", "0")
+            if raw_format.isdigit():
+                number_format = int(raw_format)
+                if number_format >= 164 and number_format not in declared_num_formats:
+                    issues.append(f"xf {index}: numFmtId {number_format} undeclared")
+
+        shared_strings = _find(parsed.get("xl/sharedStrings.xml"), "sst")
+        string_items = _children(shared_strings, "si")
+        declared_unique = shared_strings.get("uniqueCount") if shared_strings is not None else None
+        if declared_unique and declared_unique.isdigit() and int(declared_unique) != len(string_items):
+            issues.append(f"SST uniqueCount={declared_unique} actual si={len(string_items)}")
+
+        for name in sorted(names):
+            if not name.startswith("xl/worksheets/sheet") or not name.endswith(".xml"):
+                continue
+            sheet = parsed.get(name)
+            if sheet is None:
+                continue
+            columns = _find(sheet, "cols")
+            if columns is not None and not _children(columns, "col"):
+                issues.append(f"{name} EMPTY <cols>")
+            previous_row = 0
+            sheet_data = _find(sheet, "sheetData")
+            for row in _children(sheet_data, "row"):
+                raw_row = row.get("r", "")
+                if not raw_row.isdigit():
+                    issues.append(f"{name} row missing numeric r")
+                    continue
+                row_number = int(raw_row)
+                if row_number <= previous_row:
+                    issues.append(f"{name} row order broken at {row_number}")
+                    break
+                previous_row = row_number
+                previous_column = 0
+                for cell in _children(row, "c"):
+                    reference = cell.get("r", "")
+                    match = re.fullmatch(r"([A-Z]+)(\d+)", reference)
+                    if not match:
+                        issues.append(f"{name} invalid cell reference {reference!r}")
+                        continue
+                    column = _column_number(match.group(1))
+                    cell_row = int(match.group(2))
+                    if cell_row != row_number:
+                        issues.append(f"{name} cell row mismatch {reference} in row {row_number}")
+                    if column <= previous_column:
+                        issues.append(f"{name} cell order broken at {reference}")
+                        break
+                    previous_column = column
+                    if cell.get("t") == "s":
+                        value = _find(cell, "v")
+                        raw_index = value.text.strip() if value is not None and value.text else ""
+                        if not raw_index.isdigit() or int(raw_index) >= len(string_items):
+                            issues.append(f"{name} {reference} shared-string index {raw_index!r} >= {len(string_items)}")
+                    raw_style = cell.get("s", "0")
+                    if raw_style.isdigit() and int(raw_style) >= len(style_xfs):
+                        issues.append(f"{name} {reference} xf {raw_style} >= {len(style_xfs)}")
+
+            format_properties = _find(sheet, "sheetFormatPr")
+            if format_properties is not None and "defaultRowHeight" not in format_properties.attrib:
+                issues.append(f"{name} sheetFormatPr without defaultRowHeight")
+
+            if columns is not None:
+                previous_max = 0
+                for column in _children(columns, "col"):
+                    raw_min, raw_max = column.get("min", ""), column.get("max", "")
+                    if not raw_min.isdigit() or not raw_max.isdigit():
+                        issues.append(f"{name} invalid column range")
+                        continue
+                    minimum, maximum = int(raw_min), int(raw_max)
+                    if minimum <= previous_max or maximum < minimum:
+                        issues.append(f"{name} col range broken min={minimum} max={maximum}")
+                        break
+                    previous_max = maximum
+
+    return issues
+
+
+def main(argv: list[str] | None = None) -> int:
+    arguments = sys.argv[1:] if argv is None else argv
+    if len(arguments) != 1:
+        print("Usage: python _xlsx_lint.py <xlsx>", file=sys.stderr)
+        return 2
     try:
-        minidom.parseString(data)
+        issues = lint_xlsx(arguments[0])
     except Exception as exc:
-        print("NOT WELL-FORMED:", name, exc)
-x = z.read("xl/styles.xml").decode()
-for tag, child in [("fonts", "font"), ("fills", "fill"), ("borders", "border"), ("cellXfs", "xf"), ("numFmts", "numFmt"), ("cellStyleXfs", "xf"), ("cellStyles", "cellStyle"), ("dxfs", "dxf")]:
-    m = re.search(rf'<{tag}\b[^>]*count="(\d+)"[^>]*>(.*?)</{tag}>', x, re.S)
-    if m:
-        n = len(re.findall(rf"<{child}\b[^>]*/>|<{child}\b[^>]*>.*?</{child}>", m.group(2), re.S))
-        if n != int(m.group(1)):
-            print(f"COUNT MISMATCH {tag}: count={m.group(1)} actual={n}")
-xfs = re.search(r"<cellXfs[^>]*>(.*?)</cellXfs>", x, re.S)
-nxf = len(re.findall(r"<xf\b[^>]*/>|<xf\b[^>]*>.*?</xf>", xfs.group(1), re.S)) if xfs else 0
-nfonts = len(re.findall(r"<font\b[^>]*/>|<font\b[^>]*>.*?</font>", re.search(r"<fonts[^>]*>(.*?)</fonts>", x, re.S).group(1), re.S))
-nfills = len(re.findall(r"<fill\b[^>]*/>|<fill\b[^>]*>.*?</fill>", re.search(r"<fills[^>]*>(.*?)</fills>", x, re.S).group(1), re.S))
-nborders = len(re.findall(r"<border\b[^>]*/>|<border\b[^>]*>.*?</border>", re.search(r"<borders[^>]*>(.*?)</borders>", x, re.S).group(1), re.S))
-ncsx = len(re.findall(r"<xf\b", re.search(r"<cellStyleXfs[^>]*>(.*?)</cellStyleXfs>", x, re.S).group(1))) if "<cellStyleXfs" in x else 0
-numfmt_ids = set(int(v) for v in re.findall(r'<numFmt numFmtId="(\d+)"', x))
-for i, xf in enumerate(re.findall(r"<xf\b[^>]*/>|<xf\b[^>]*>.*?</xf>", xfs.group(1), re.S) if xfs else []):
-    a = dict(re.findall(r'(\w+)="([^"]*)"', xf.split(">")[0]))
-    if int(a.get("fontId", 0)) >= nfonts: print(f"xf {i}: fontId {a.get('fontId')} >= {nfonts}")
-    if int(a.get("fillId", 0)) >= nfills: print(f"xf {i}: fillId {a.get('fillId')} >= {nfills}")
-    if int(a.get("borderId", 0)) >= nborders: print(f"xf {i}: borderId {a.get('borderId')} >= {nborders}")
-    if int(a.get("xfId", 0)) >= max(ncsx, 1): print(f"xf {i}: xfId {a.get('xfId')} >= {ncsx}")
-    nf = int(a.get("numFmtId", 0))
-    if nf >= 164 and nf not in numfmt_ids: print(f"xf {i}: numFmtId {nf} undeclared")
-sst = z.read("xl/sharedStrings.xml").decode() if "xl/sharedStrings.xml" in z.namelist() else ""
-nsi = len(re.findall(r"<si\b", sst))
-uc = re.search(r'uniqueCount="(\d+)"', sst)
-if uc and int(uc.group(1)) != nsi: print(f"SST uniqueCount={uc.group(1)} actual si={nsi}")
-for name in z.namelist():
-    if not name.startswith("xl/worksheets/sheet"): continue
-    s = z.read(name).decode()
-    if "<cols></cols>" in s or "<cols/>" in s: print(name, "EMPTY <cols>")
-    for m in re.finditer(r'<c r="([A-Z]+)(\d+)"[^>]*t="s"[^>]*>\s*<v>(\d+)</v>', s):
-        if int(m.group(3)) >= nsi: print(name, m.group(1) + m.group(2), "sst index", m.group(3), ">=", nsi); break
-    for m in re.finditer(r'<c r="([A-Z]+\d+)"[^>]*\bs="(\d+)"', s):
-        if int(m.group(2)) >= nxf: print(name, m.group(1), "xf", m.group(2), ">=", nxf); break
-    # row order / cell order
-    prev_r = 0
-    for rm in re.finditer(r'<row\b[^>]*\br="(\d+)"[^>]*>(.*?)</row>', s, re.S):
-        r = int(rm.group(1))
-        if r <= prev_r: print(name, "row order broken at", r); break
-        prev_r = r
-        prev_c = 0
-        for cm in re.finditer(r'<c r="([A-Z]+)(\d+)"', rm.group(2)):
-            c = 0
-            for ch in cm.group(1): c = c * 26 + ord(ch) - 64
-            if int(cm.group(2)) != r: print(name, "cell row mismatch", cm.group(0), "in row", r); break
-            if c <= prev_c: print(name, "cell order broken at", cm.group(0)); break
-            prev_c = c
-    cols = re.search(r"<cols>(.*?)</cols>", s, re.S)
-    if cols:
-        prev = 0
-        for m in re.finditer(r"<col\b([^>]*)/>", cols.group(1)):
-            a = dict(re.findall(r'(\w+)="([^"]*)"', m.group(1)))
-            mn, mx = int(a["min"]), int(a["max"])
-            if mn <= prev or mx < mn: print(name, "col range broken", m.group(0)); break
-            prev = mx
-        if re.search(r"<col\b[^>]*>(?<!/>)", cols.group(1)) and "</col>" in cols.group(1): print(name, "col not self-closing")
-    m = re.search(r"<sheetFormatPr\b[^>]*>", s)
-    if m and "defaultRowHeight" not in m.group(0): print(name, "sheetFormatPr without defaultRowHeight:", m.group(0))
-print("lint done")
+        print(f"LINT ERROR: {exc}")
+        return 1
+    for issue in issues:
+        print(issue)
+    print("lint done")
+    return 1 if issues else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -30,6 +30,8 @@ import os
 import posixpath
 import re
 import sys
+import xml.etree.ElementTree as ET
+from urllib.parse import quote as url_quote, unquote as url_unquote
 import uuid
 import zipfile
 
@@ -12773,6 +12775,390 @@ def _restore_writer_html_page_breaks(document_xml: str, source_html: str) -> str
     return result
 
 
+_WRITER_MATH_NS = "http://schemas.openxmlformats.org/officeDocument/2006/math"
+_WRITER_MATHML_NS = "http://www.w3.org/1998/Math/MathML"
+_WRITER_MATH_NS_PREFIX = "{%s}" % _WRITER_MATH_NS
+_WRITER_MATHML_NS_PREFIX = "{%s}" % _WRITER_MATHML_NS
+
+
+def _writer_math_local_name(element: ET.Element) -> str:
+    return element.tag.rsplit("}", 1)[-1].lower()
+
+
+def _writer_math_child(element: ET.Element, name: str) -> ET.Element | None:
+    return next((child for child in list(element) if _writer_math_local_name(child) == name.lower()), None)
+
+
+def _writer_math_attribute(element: ET.Element | None, name: str, default: str = "") -> str:
+    if element is None:
+        return default
+    for key, value in element.attrib.items():
+        if key.rsplit("}", 1)[-1].lower() == name.lower():
+            return value
+    return default
+
+
+def _writer_math_text_element(tag: str, value: str, attrs: str = "") -> str:
+    return "<" + tag + attrs + ">" + html.escape(value, quote=False) + "</" + tag + ">"
+
+
+def _writer_omml_children_to_mathml(element: ET.Element) -> str:
+    children = list(element)
+    return "".join(_writer_omml_to_mathml_node(child) for child in children)
+
+
+def _writer_omml_to_mathml_node(element: ET.Element) -> str:
+    kind = _writer_math_local_name(element)
+    children = list(element)
+    if kind.endswith("pr") or kind in {"argpr", "ctrlpr", "phantpr"}:
+        return ""
+    if kind == "r":
+        text = "".join(
+            child.text or ""
+            for child in element.iter()
+            if _writer_math_local_name(child) in {"t", "deltext"}
+        )
+        if not text:
+            return ""
+        if re.fullmatch(r"[0-9]+(?:[.,][0-9]+)?", text):
+            tag = "mn"
+        elif text in {"≤", "≥", "≠", "±", "×", "÷", "∞", "→", "∈", "∑", "∏", "∫", "+", "-", "=", "(", ")", "[", "]", ","}:
+            tag = "mo"
+        else:
+            tag = "mi"
+        return _writer_math_text_element(tag, text)
+    if kind == "f":
+        numerator = _writer_math_child(element, "num")
+        denominator = _writer_math_child(element, "den")
+        return "<mfrac><mrow>" + (_writer_omml_children_to_mathml(numerator) if numerator is not None else "") \
+            + "</mrow><mrow>" + (_writer_omml_children_to_mathml(denominator) if denominator is not None else "") \
+            + "</mrow></mfrac>"
+    if kind == "rad":
+        degree = _writer_math_child(element, "deg")
+        radicand = _writer_math_child(element, "e")
+        rad_pr = _writer_math_child(element, "radpr")
+        hidden = _writer_math_child(rad_pr, "deghide") if rad_pr is not None else None
+        body = _writer_omml_children_to_mathml(radicand) if radicand is not None else ""
+        if degree is None or _writer_math_attribute(hidden, "val", "0") in {"1", "true"}:
+            return "<msqrt><mrow>" + body + "</mrow></msqrt>"
+        return "<mroot><mrow>" + body + "</mrow><mrow>" + _writer_omml_children_to_mathml(degree) + "</mrow></mroot>"
+    if kind in {"ssup", "ssub", "ssubsup"}:
+        base = _writer_math_child(element, "e")
+        sub = _writer_math_child(element, "sub")
+        sup = _writer_math_child(element, "sup")
+        tag = {"ssup": "msup", "ssub": "msub", "ssubsup": "msubsup"}[kind]
+        pieces = [_writer_omml_children_to_mathml(base) if base is not None else ""]
+        if kind in {"ssub", "ssubsup"}:
+            pieces.append(_writer_omml_children_to_mathml(sub) if sub is not None else "")
+        if kind in {"ssup", "ssubsup"}:
+            pieces.append(_writer_omml_children_to_mathml(sup) if sup is not None else "")
+        return "<" + tag + ">" + "".join(pieces) + "</" + tag + ">"
+    if kind == "nary":
+        properties = _writer_math_child(element, "narypr")
+        char = _writer_math_child(properties, "chr") if properties is not None else None
+        symbol = _writer_math_attribute(char, "val", "∫")
+        body = _writer_math_child(element, "e")
+        sub = _writer_math_child(element, "sub")
+        sup = _writer_math_child(element, "sup")
+        base = _writer_math_text_element("mo", symbol, ' largeop="true"')
+        if sub is not None and sup is not None:
+            return "<munderover>" + base + "<mrow>" + _writer_omml_children_to_mathml(sub) \
+                + "</mrow><mrow>" + _writer_omml_children_to_mathml(sup) + "</mrow></munderover>" \
+                + (_writer_omml_children_to_mathml(body) if body is not None else "")
+        if sub is not None:
+            return "<munder>" + base + "<mrow>" + _writer_omml_children_to_mathml(sub) + "</mrow></munder>" \
+                + (_writer_omml_children_to_mathml(body) if body is not None else "")
+        if sup is not None:
+            return "<mover>" + base + "<mrow>" + _writer_omml_children_to_mathml(sup) + "</mrow></mover>" \
+                + (_writer_omml_children_to_mathml(body) if body is not None else "")
+        return base + (_writer_omml_children_to_mathml(body) if body is not None else "")
+    if kind == "m":
+        rows = []
+        for row_element in children:
+            if _writer_math_local_name(row_element) != "mr":
+                continue
+            cells = []
+            for cell in list(row_element):
+                if _writer_math_local_name(cell) != "e":
+                    continue
+                cells.append("<mtd><mrow>" + _writer_omml_children_to_mathml(cell) + "</mrow></mtd>")
+            rows.append("<mtr>" + "".join(cells) + "</mtr>")
+        return "<mtable>" + "".join(rows) + "</mtable>"
+    if kind == "d":
+        props = _writer_math_child(element, "dpr")
+        begin = _writer_math_attribute(_writer_math_child(props, "begchr") if props is not None else None, "val", "(")
+        end = _writer_math_attribute(_writer_math_child(props, "endchr") if props is not None else None, "val", ")")
+        body = _writer_math_child(element, "e")
+        return _writer_math_text_element("mo", begin) + "<mrow>" \
+            + (_writer_omml_children_to_mathml(body) if body is not None else "") \
+            + "</mrow>" + _writer_math_text_element("mo", end)
+    if kind == "func":
+        name = _writer_math_child(element, "funcname")
+        argument = _writer_math_child(element, "e")
+        return (_writer_omml_children_to_mathml(name) if name is not None else "") \
+            + (_writer_omml_children_to_mathml(argument) if argument is not None else "")
+    if kind in {"acc", "bar", "groupchr"}:
+        body = _writer_math_child(element, "e")
+        props = _writer_math_child(element, kind + "pr")
+        chr_node = _writer_math_child(props, "chr") if props is not None else None
+        symbol = _writer_math_attribute(chr_node, "val", "¯" if kind == "bar" else "ˆ")
+        return "<mover accent=\"true\"><mrow>" \
+            + (_writer_omml_children_to_mathml(body) if body is not None else "") \
+            + "</mrow>" + _writer_math_text_element("mo", symbol) + "</mover>"
+    if kind in {"omath", "omathpara", "e", "num", "den", "sub", "sup", "funcname", "mr"}:
+        return _writer_omml_children_to_mathml(element)
+    return _writer_omml_children_to_mathml(element)
+
+
+def _writer_omml_fragment_to_mathml(omml: str, display: str = "inline") -> str:
+    wrapped = (
+        '<root xmlns:m="' + _WRITER_MATH_NS + '" '
+        'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+        + omml + "</root>"
+    )
+    root = ET.fromstring(wrapped)
+    content = _writer_omml_children_to_mathml(root)
+    return '<math xmlns="' + _WRITER_MATHML_NS + '" display="' + ("block" if display == "block" else "inline") + '">' \
+        + content + "</math>"
+
+
+def writer_docx_equations_to_mathml_html(docx_bytes: bytes, html_content: str) -> str:
+    """Replace LibreOffice's equation GIFs with MathML at their existing HTML slots."""
+    try:
+        document = read_zip_entry(docx_bytes, "word/document.xml")
+        if not document:
+            return html_content
+        xml = document.decode("utf-8", errors="replace")
+        para_ranges = _xml_element_ranges(xml, "m:oMathPara")
+        formulas = [
+            {"start": start, "end": end, "xml": xml[start:end], "display": "block"}
+            for start, end in para_ranges
+        ]
+        for start, end in _xml_element_ranges(xml, "m:oMath"):
+            if any(outer_start <= start < outer_end for outer_start, outer_end in para_ranges):
+                continue
+            formulas.append({"start": start, "end": end, "xml": xml[start:end], "display": "inline"})
+        formulas.sort(key=lambda item: item["start"])
+        if not formulas:
+            return html_content
+
+        events = [(item["start"], "equation", item) for item in formulas]
+        events.extend((start, "object", None) for start, _end in _xml_element_ranges(xml, "w:object"))
+        events.sort(key=lambda item: item[0])
+        object_images = list(re.finditer(
+            r'<img\b(?=[^>]*\bname=["\']Object(\d+)["\'])[^>]*>',
+            html_content,
+            re.IGNORECASE,
+        ))
+        replacements = []
+        for image in object_images:
+            object_number = int(image.group(1))
+            event_index = object_number - 1
+            if event_index < 0 or event_index >= len(events):
+                continue
+            _position, event_kind, formula = events[event_index]
+            if event_kind != "equation" or formula is None:
+                continue
+            ordinal = next(index for index, item in enumerate(formulas, start=1) if item is formula)
+            source_id = "source-" + str(ordinal).zfill(6)
+            mathml = _writer_omml_fragment_to_mathml(formula["xml"], formula["display"])
+            original = url_quote(formula["xml"], safe="")
+            encoded_mathml = url_quote(mathml, safe="")
+            block_attr = ' data-vno-equation-display="block"' if formula["display"] == "block" else ""
+            replacement = (
+                '<span class="vno-equation" role="math" tabindex="0" contenteditable="false"'
+                ' data-vno-equation="true" data-vno-equation-id="' + source_id + '"'
+                ' data-vno-equation-original-omml="' + original + '"'
+                ' data-vno-equation-mathml="' + encoded_mathml + '"' + block_attr + '>'
+                + mathml + "</span>"
+            )
+            replacements.append((image.start(), image.end(), replacement))
+
+        # Small Math-only documents have one Object image per equation and no
+        # other OLE objects. Keep this tested fallback for packages without a
+        # resolvable OOXML object sequence.
+        if not replacements and len(object_images) == len(formulas):
+            for ordinal, (image, formula) in enumerate(zip(object_images, formulas), start=1):
+                mathml = _writer_omml_fragment_to_mathml(formula["xml"], formula["display"])
+                replacement = (
+                    '<span class="vno-equation" role="math" tabindex="0" contenteditable="false"'
+                    ' data-vno-equation="true" data-vno-equation-id="source-' + str(ordinal).zfill(6) + '"'
+                    ' data-vno-equation-original-omml="' + url_quote(formula["xml"], safe="") + '"'
+                    ' data-vno-equation-mathml="' + url_quote(mathml, safe="") + '">'
+                    + mathml + "</span>"
+                )
+                replacements.append((image.start(), image.end(), replacement))
+        for start, end, replacement in reversed(replacements):
+            html_content = html_content[:start] + replacement + html_content[end:]
+        return html_content
+    except (ET.ParseError, ValueError, KeyError, TypeError):
+        return html_content
+
+
+def _writer_mathml_to_omml_node(element: ET.Element) -> str:
+    kind = _writer_math_local_name(element)
+    children = list(element)
+    if kind in {"math", "mrow", "mstyle", "mphantom"}:
+        return "".join(_writer_mathml_to_omml_node(child) for child in children)
+    if kind in {"mi", "mn", "mo", "mtext", "ms"}:
+        text = "".join(element.itertext())
+        if not text:
+            return ""
+        return "<m:r><m:t xml:space=\"preserve\">" + html.escape(text, quote=False) + "</m:t></m:r>"
+    if kind == "mfrac":
+        numerator = children[0] if children else None
+        denominator = children[1] if len(children) > 1 else None
+        return "<m:f><m:fPr/><m:num>" + (_writer_mathml_to_omml_node(numerator) if numerator is not None else "") \
+            + "</m:num><m:den>" + (_writer_mathml_to_omml_node(denominator) if denominator is not None else "") \
+            + "</m:den></m:f>"
+    if kind == "msqrt":
+        value = _writer_mathml_to_omml_node(children[0]) if children else ""
+        return "<m:rad><m:radPr><m:degHide m:val=\"1\"/></m:radPr><m:deg/><m:e>" + value + "</m:e></m:rad>"
+    if kind == "mroot":
+        value = _writer_mathml_to_omml_node(children[0]) if children else ""
+        degree = _writer_mathml_to_omml_node(children[1]) if len(children) > 1 else ""
+        return "<m:rad><m:radPr/><m:deg>" + degree + "</m:deg><m:e>" + value + "</m:e></m:rad>"
+    if kind in {"msup", "msub", "msubsup"}:
+        base = _writer_mathml_to_omml_node(children[0]) if children else ""
+        if kind == "msup":
+            exponent = _writer_mathml_to_omml_node(children[1]) if len(children) > 1 else ""
+            return "<m:sSup><m:supPr/><m:e>" + base + "</m:e><m:sup>" + exponent + "</m:sup></m:sSup>"
+        if kind == "msub":
+            subscript = _writer_mathml_to_omml_node(children[1]) if len(children) > 1 else ""
+            return "<m:sSub><m:subPr/><m:e>" + base + "</m:e><m:sub>" + subscript + "</m:sub></m:sSub>"
+        subscript = _writer_mathml_to_omml_node(children[1]) if len(children) > 1 else ""
+        exponent = _writer_mathml_to_omml_node(children[2]) if len(children) > 2 else ""
+        return "<m:sSubSup><m:sSubSupPr/><m:e>" + base + "</m:e><m:sub>" + subscript \
+            + "</m:sub><m:sup>" + exponent + "</m:sup></m:sSubSup>"
+    if kind == "mtable":
+        rows = []
+        for row in children:
+            if _writer_math_local_name(row) != "mtr":
+                continue
+            cells = []
+            for cell in list(row):
+                if _writer_math_local_name(cell) == "mtd":
+                    cells.append("<m:e>" + _writer_mathml_to_omml_node(cell) + "</m:e>")
+            rows.append("<m:mr>" + "".join(cells) + "</m:mr>")
+        return "<m:m><m:mPr/>" + "".join(rows) + "</m:m>"
+    if kind in {"munder", "mover", "munderover"}:
+        base = children[0] if children else None
+        symbol = "".join(base.itertext()) if base is not None else "∑"
+        body = _writer_mathml_to_omml_node(base) if base is not None else ""
+        sub = _writer_mathml_to_omml_node(children[1]) if kind in {"munder", "munderover"} and len(children) > 1 else ""
+        sup_index = 2 if kind == "munderover" else 1
+        sup = _writer_mathml_to_omml_node(children[sup_index]) if kind in {"mover", "munderover"} and len(children) > sup_index else ""
+        nary = '<m:nary><m:naryPr><m:chr m:val="' + html.escape(symbol, quote=True) + '"/><m:limLoc m:val="undOvr"/></m:naryPr>'
+        return nary + "<m:sub>" + sub + "</m:sub><m:sup>" + sup + "</m:sup><m:e>" + body + "</m:e></m:nary>"
+    if kind == "mfenced":
+        begin = html.escape(element.attrib.get("open", "("), quote=True)
+        end = html.escape(element.attrib.get("close", ")"), quote=True)
+        body = "".join(_writer_mathml_to_omml_node(child) for child in children)
+        return "<m:d><m:dPr><m:begChr m:val=\"" + begin + "\"/><m:endChr m:val=\"" + end \
+            + "\"/></m:dPr><m:e>" + body + "</m:e></m:d>"
+    return "".join(_writer_mathml_to_omml_node(child) for child in children)
+
+
+def _writer_mathml_to_omml(mathml: str) -> str:
+    root = ET.fromstring(mathml)
+    body = _writer_mathml_to_omml_node(root)
+    display = root.attrib.get("display", "inline").lower() == "block"
+    equation = "<m:oMath>" + body + "</m:oMath>"
+    return "<m:oMathPara>" + equation + "</m:oMathPara>" if display else equation
+
+
+def _writer_equation_marker_entries(source_html: str) -> list[dict[str, str]]:
+    entries: list[dict[str, str]] = []
+    span_re = re.compile(r"<span\b([^>]*)>([\s\S]*?)</span\s*>", re.IGNORECASE)
+    attr_re = re.compile(r"\b([a-z][\w:-]*)\s*=\s*([\"'])(.*?)\2", re.IGNORECASE | re.DOTALL)
+    for match in span_re.finditer(source_html or ""):
+        attrs = {name.lower(): html.unescape(value) for name, _quote, value in attr_re.findall(match.group(1))}
+        if attrs.get("data-vno-equation-export", "").lower() != "true":
+            continue
+        equation_id = attrs.get("data-vno-equation-id", "")
+        safe_id = re.sub(r"[^A-Za-z0-9]", "", equation_id).upper()
+        token = "VNOEQ" + safe_id + "MARKER"
+        if not safe_id:
+            raise ValueError("Phương trình xuất thiếu mã nhận diện.")
+        original = url_unquote(attrs["data-vno-equation-original-omml"]) if attrs.get("data-vno-equation-original-omml") else ""
+        mathml = url_unquote(attrs["data-vno-equation-mathml"]) if attrs.get("data-vno-equation-mathml") else ""
+        entries.append({"token": token, "original": original, "mathml": mathml})
+    return entries
+
+
+def _writer_equation_text_run(run_xml: str, token: str, equation_xml: str) -> str | None:
+    run_open = re.match(r"<w:r\b[^>]*>", run_xml, re.IGNORECASE)
+    if not run_open:
+        return None
+    text_nodes = list(re.finditer(r"(<w:t\b[^>]*>)([\s\S]*?)(</w:t\s*>)", run_xml, re.IGNORECASE))
+    hits = []
+    for text_node in text_nodes:
+        text = html.unescape(text_node.group(2))
+        if token in text:
+            hits.append((text_node, text))
+    if len(hits) != 1:
+        return None
+    text_node, text = hits[0]
+    if text.count(token) != 1:
+        return None
+    prefix, suffix = text.split(token, 1)
+    run_pr = re.search(r"<w:rPr\b[^>]*(?:/>|>[\s\S]*?</w:rPr\s*>)", run_xml, re.IGNORECASE)
+    stripped = run_xml[run_open.end():]
+    stripped = re.sub(r"</w:r\s*>$", "", stripped, flags=re.IGNORECASE)
+    stripped = re.sub(r"<w:rPr\b[^>]*(?:/>|>[\s\S]*?</w:rPr\s*>)", "", stripped, count=1, flags=re.IGNORECASE)
+    stripped = re.sub(r"<w:t\b[^>]*>[\s\S]*?</w:t\s*>", "", stripped, count=1, flags=re.IGNORECASE)
+    if stripped.strip():
+        return None
+    properties = run_pr.group(0) if run_pr else ""
+    text_open = text_node.group(1)
+
+    def text_run(value: str) -> str:
+        if not value:
+            return ""
+        encoded = html.escape(value, quote=False)
+        tag_open = text_open
+        if re.search(r"\s", value) and "xml:space=" not in tag_open:
+            tag_open = tag_open[:-1] + ' xml:space="preserve">'
+        return run_open.group(0) + properties + tag_open + encoded + text_node.group(3) + "</w:r>"
+
+    return text_run(prefix) + equation_xml + text_run(suffix)
+
+
+def _writer_restore_equation_markers(document_xml: str, source_html: str) -> str:
+    entries = _writer_equation_marker_entries(source_html)
+    if not entries:
+        return document_xml
+    result = document_xml
+    for entry in entries:
+        token = entry["token"]
+        if result.count(token) != 1:
+            raise ValueError("Không tìm thấy đúng một vị trí cho phương trình " + token + ".")
+        equation_xml = entry["original"] or _writer_mathml_to_omml(entry["mathml"])
+        if not equation_xml.startswith("<m:oMath"):
+            raise ValueError("Cấu trúc OMML không hợp lệ cho phương trình " + token + ".")
+        matched = False
+
+        def replace_run(match: re.Match) -> str:
+            nonlocal matched
+            run_xml = match.group(0)
+            if token not in run_xml:
+                return run_xml
+            replacement = _writer_equation_text_run(run_xml, token, equation_xml)
+            if replacement is None:
+                raise ValueError("LibreOffice đã thay đổi dấu vị trí của phương trình " + token + ".")
+            matched = True
+            return replacement
+
+        result = re.sub(r"<w:r\b[^>]*>[\s\S]*?</w:r\s*>", replace_run, result, flags=re.IGNORECASE)
+        if not matched:
+            raise ValueError("LibreOffice không giữ lại dấu vị trí của phương trình " + token + ".")
+    root_open = re.search(r"<w:document\b[^>]*>", result, re.IGNORECASE)
+    if root_open and not re.search(r"\bxmlns:m\s*=", root_open.group(0), re.IGNORECASE):
+        result = result[:root_open.end() - 1] + ' xmlns:m="' + _WRITER_MATH_NS + '"' + result[root_open.end() - 1:]
+    return result
+
+
+
 def _restore_created_writer_section_metadata(
     document_xml: str,
     section_meta: list[dict],
@@ -13409,6 +13795,7 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
 
         document_xml = re.sub(r'<w:p\b[^>]*>[\s\S]*?</w:p\s*>', patch_tab_stop, document_xml, flags=re.IGNORECASE)
 
+    document_xml = _writer_restore_equation_markers(document_xml, source_html)
     replacements = {"word/document.xml": document_xml.encode("utf-8")}
     numbering_bytes = read_zip_entry(docx_bytes, "word/numbering.xml")
     numbering = numbering_bytes.decode("utf-8", errors="replace") if numbering_bytes else ""

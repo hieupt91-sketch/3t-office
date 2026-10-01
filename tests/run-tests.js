@@ -66,6 +66,7 @@ import { runWriterMouseShortcutsTests } from "./unit/writer-mouse-shortcuts.test
 import { runRibbonGapsRealOfficeTests } from "./unit/ribbon-gaps-real-office.test.js";
 import { runSlidesMouseShortcutsTests } from "./unit/slides-mouse-shortcuts.test.js";
 import { runWriterSlidesInsertGapsTests } from "./unit/writer-slides-insert-gaps.test.js";
+import { runWriterEquationEditorTests } from "./unit/writer-equation-editor.test.js";
 import { runSheetDataToolsTests } from "./unit/sheet-data-tools.test.js";
 import { runSlidesDialogsA11yTests } from "./unit/slides-dialogs-a11y.test.js";
 import { runColorContrastAuditTests } from "./unit/color-contrast-audit.test.js";
@@ -154,6 +155,7 @@ import { runSheetAutoFillTests } from "./unit/sheet-autofill.test.js";
 import { runSlidesPptxSetupShowOpenOverlayTests } from "./unit/slides-pptx-setup-show-open-overlay.test.js";
 import { runWriterParagraphSpacingTests } from "./unit/writer-paragraph-spacing.test.js";
 import { runWriterFindReplaceDomTests } from "./unit/writer-find-replace-dom.test.js";
+import { runSharedFindReplaceTests } from "./unit/find-replace-shared.test.js";
 import { runWriterLineNumbersTests } from "./unit/writer-line-numbers.test.js";
 import { runSheetCellOrientationTests } from "./unit/sheet-cell-orientation.test.js";
 import { runWriterMultilevelListTests } from "./unit/writer-multilevel-list.test.js";
@@ -203,6 +205,9 @@ import { runOfficeShortcutCoverageTests } from "./unit/office-shortcut-coverage.
 import { runMissingOfficeShortcutsTests } from "./unit/missing-office-shortcuts.test.js";
 import { runSlidesPenLaserTests } from "./unit/slides-pen-laser.test.js";
 import { runBasicEditingKeysTests } from "./unit/basic-editing-keys.test.js";
+import { runUiConsistencyAndStringScannerTests } from "./unit/ui-user-visible-strings.test.js";
+import { runOsInputGuardTests } from "./unit/os-input-guard.test.js";
+import { runPrintEngineNameTests } from "./unit/print-engine-name.test.js";
 import { runSheetNativeCellValuesTests } from "./unit/sheet-native-cell-values.test.js";
 import { runSheetPrintSetupRoundTripTests } from "./unit/sheet-print-setup-roundtrip.test.js";
 import { runSheetC3C7C8GapTests } from "./unit/sheet-c3-c7-c8-gaps.test.js";
@@ -283,6 +288,7 @@ async function runAll() {
     { title: "52. Behavioral & Unit Tests — Real Office Home Ribbon Gaps", runner: runRibbonGapsRealOfficeTests },
     { title: "53. Behavioral & Unit Tests — VN Slides Mouse Interactions & Office Parity Shortcuts", runner: runSlidesMouseShortcutsTests },
     { title: "54. Behavioral & Unit Tests — Writer/Slides Insert Tab Gaps (Word/PowerPoint)", runner: runWriterSlidesInsertGapsTests },
+    { title: "54b. Unit Tests — 3T Doc linear equation format and native MathML structures", runner: runWriterEquationEditorTests },
     { title: "55. Behavioral & Unit Tests — VN Sheet Data Tools & Outline", runner: runSheetDataToolsTests },
     { title: "56. Behavioral & Unit Tests — VN Slides Dialogs & Overlays Accessibility (WCAG 2.1 / ARIA)", runner: runSlidesDialogsA11yTests },
     { title: "57. Automated Audit — Suite-Wide WCAG 2.1 Color Contrast (AA / AAA)", runner: runColorContrastAuditTests },
@@ -417,11 +423,15 @@ async function runAll() {
     { title: "164. Unit Tests — Office Missing Shortcuts (Ctrl+], Ctrl+[, Ctrl+Shift++, Shift+F11, Ctrl+-, F11) & Undo", runner: runMissingOfficeShortcutsTests },
     { title: "165. Unit Tests — Slides F5 Pen and Laser Pointer (Ctrl+P, Ctrl+L, Ctrl+A, E, Color, Keep/Discard ink)", runner: runSlidesPenLaserTests },
     { title: "166. Unit Tests — VN Sheet range selection anchors, multi-area status and drag auto-scroll math", runner: runSheetRangeSelectionTests },
-    { title: "168. Unit Tests — VN Sheet AutoFill date sequences and double-click fill", runner: runSheetAutoFillTests },
     { title: "167. Unit Tests — 3T Doc and 3T Sheet basic editing keys and clipboard", runner: runBasicEditingKeysTests },
-    { title: "169. Unit Tests — VN Sheet native numeric/date cell values, external paste, fill and FODS types", runner: runSheetNativeCellValuesTests },
-    { title: "170. Unit Tests — VN Sheet print setup XLSX reopen round-trip", runner: runSheetPrintSetupRoundTripTests },
-    { title: "171. Unit Tests — VN Sheet C3/C7/C8 selection, tabs and sort", runner: runSheetC3C7C8GapTests }
+    { title: "168. Unit Tests — Shared Find and Replace (CH-7.1) for 3T Doc, 3T Sheet and 3T Slide", runner: runSharedFindReplaceTests },
+    { title: "169. Unit Tests — CH-8 UI Consistency, KeyTips, Contextual F1 & String Scanner", runner: runUiConsistencyAndStringScannerTests },
+    { title: "170. Safety Regression — source and tests use CDP, not OS-level input", runner: runOsInputGuardTests },
+    { title: "171. CH-3/CH-8 — Hộp thoại In không lộ tên thư viện bên trong", runner: runPrintEngineNameTests },
+    { title: "172. Unit Tests — VN Sheet AutoFill date sequences and double-click fill", runner: runSheetAutoFillTests },
+    { title: "173. Unit Tests — VN Sheet native numeric/date cell values, external paste, fill and FODS types", runner: runSheetNativeCellValuesTests },
+    { title: "174. Unit Tests — VN Sheet print setup XLSX reopen round-trip", runner: runSheetPrintSetupRoundTripTests },
+    { title: "175. Unit Tests — VN Sheet C3/C7/C8 selection, tabs and sort", runner: runSheetC3C7C8GapTests }
   ];
 
   for (const suite of suites) {

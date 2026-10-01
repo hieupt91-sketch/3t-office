@@ -608,18 +608,32 @@ export const WRITER_HELP_ENTRIES = [
     ]
   },
   {
+    id: "writer.insert.equationHelp",
+    app: "writer",
+    commandIds: ["writer.insert.equation"],
+    title: "Chèn và sửa phương trình trong 3T Doc",
+    summary: "Tab Chèn > nhóm Ký hiệu > Phương trình mở bộ soạn dạng tuyến tính, cấu trúc toán học và xem trước MathML. Phương trình được lưu thành công thức Word có thể sửa.",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Ký hiệu" },
+    keywords: ["phương trình", "công thức", "equation", "Alt+=", "phân số", "căn", "ma trận", "MathML"],
+    steps: [
+      "Trong 3T Doc, đặt con trỏ tại vị trí cần chèn. Mở tab Chèn, nhóm Ký hiệu, chọn Phương trình; có thể nhấn Alt+= để mở cùng hộp thoại.",
+      "Nhập dạng tuyến tính ở ô Dạng tuyến tính, ví dụ a/b, x^2, x_1 hoặc \\sqrt(x). Gõ \\alpha rồi nhấn phím cách để đổi thành α. Các nút Phân số, chỉ số, căn, tích phân, tổng, tích, ngoặc và ma trận chèn mẫu tại vị trí con trỏ trong ô nhập; nhóm Ký hiệu thêm các chữ Hy Lạp và dấu toán học. Xem kết quả trong vùng Xem trước.",
+      "Chọn Chèn vào tài liệu. Dùng bàn phím thì nhấn Tab tới nút này rồi nhấn Enter. Phương trình nằm ngay tại con trỏ; nếu dòng đang trống thì phương trình hiển thị giữa dòng riêng. Nhấn Esc hoặc Hủy để đóng mà không chèn.",
+      "Bấm phương trình để chọn; nhấp đúp để mở lại và sửa tại chỗ. Khi đã chọn, nhấn Delete hoặc Backspace để xóa. Ctrl+Z hoàn tác và Ctrl+Y làm lại. Lưu tài liệu thành .docx để mở và tiếp tục sửa công thức trong Microsoft Word."
+    ]
+  },
+  {
     id: "writer.insert.equationBookmark",
     app: "writer",
-    commandIds: ["writer.insert.equation", "writer.insert.bookmark", "writer.insert.crossReference"],
-    title: "Công thức chữ, đánh dấu và tham chiếu chéo",
-    summary: "Công thức là hộp chữ toán (mặc định E = mc²), không phải trình soạn phương trình. Đánh dấu tạo mỏ neo nội bộ; Tham chiếu chéo chèn liên kết tới tiêu đề hoặc đánh dấu đã có.",
-    ribbon: { tab: "Chèn", tabId: "insert", group: "Ký hiệu" },
-    keywords: ["công thức", "equation", "đánh dấu", "bookmark", "tham chiếu chéo", "cross reference", "e = mc"],
+    commandIds: ["writer.insert.bookmark", "writer.insert.crossReference"],
+    title: "Đánh dấu và tham chiếu chéo",
+    summary: "Đánh dấu tạo mỏ neo nội bộ; Tham chiếu chéo chèn liên kết tới tiêu đề hoặc đánh dấu đã có.",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Liên kết" },
+    keywords: ["đánh dấu", "bookmark", "tham chiếu chéo", "cross reference"],
     steps: [
-      "Công thức: tab Chèn, nhóm Ký hiệu, nút lớn Công thức (cạnh Ký hiệu). Hộp «Công thức» ghi rõ bản rút gọn — dạng chữ, không soạn đồ họa. Ô Biểu thức mặc định E = mc²; mẫu sẵn a² + b² = c², nghiệm phương trình bậc hai, trung bình ∑. Chèn → span phông Cambria Math, khung nét đứt xanh.",
       "Đánh dấu: cùng tab, nhóm Liên kết, nút Đánh dấu. Hộp «Đánh dấu», Tên đánh dấu mặc định bookmark1. Tên được bỏ dấu, ký tự lạ thành -, trùng thì thêm -2, -3… Tạo thẻ neo ẩn tại con trỏ.",
       "Tham chiếu chéo: nút ngay dưới Đánh dấu. Hộp «Tham chiếu chéo» — nếu chưa có tiêu đề (Heading) hay đánh dấu thì báo «Chưa có tiêu đề hoặc đánh dấu nào.» và khóa Chèn. Có rồi: chọn H tiêu đề hoặc ⚑ đánh dấu, chèn liên kết nội bộ hiện tên đó.",
-      "Không có số trang / «phía trên» như Word. Ctrl+Z gỡ hộp hoặc liên kết vừa chèn. Ký hiệu đặc biệt là bài riêng cùng nhóm Ký hiệu."
+      "Ctrl+Z gỡ đánh dấu hoặc liên kết vừa chèn. Ký hiệu đặc biệt là bài riêng cùng nhóm Ký hiệu."
     ]
   },
   {
@@ -950,16 +964,17 @@ export const WRITER_HELP_ENTRIES = [
     id: "writer.edit.findReplaceSelect",
     app: "writer",
     commandIds: ["common.edit.find", "common.edit.replace", "common.edit.selectAll"],
-    title: "Tìm kiếm, Thay thế và Chọn tất cả",
-    summary: "Tìm nhanh từ ngữ trong văn bản với Ctrl+F, thay thế hàng loạt hoặc từng vị trí với Ctrl+H, và bôi đen nhanh toàn bộ nội dung tài liệu với Ctrl+A.",
+    title: "Tìm kiếm và Thay thế trong 3T Doc",
+    summary: "Hộp thoại Tìm kiếm và Thay thế dùng chung phong cách Office cho 3T Doc với hai tab: Tìm (Ctrl+F) và Thay thế (Ctrl+H). Hỗ trợ tiếng Việt có dấu chuẩn Unicode NFC, bỏ qua dấu, tự động cuộn trang bôi đen kết quả và Hoàn tác một bước (Ctrl+Z).",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
-    keywords: ["tìm kiếm", "thay thế", "chọn tất cả", "find", "replace", "select all", "Ctrl+F", "Ctrl+H", "Ctrl+A", "chỉnh sửa"],
+    keywords: ["tìm kiếm", "thay thế", "chọn tất cả", "find", "replace", "select all", "Ctrl+F", "Ctrl+H", "Ctrl+A", "3T Doc", "chỉnh sửa"],
     steps: [
-      "Mở tab Trang đầu, nhìn sang nhóm Chỉnh sửa ở phía bên phải thanh ribbon.",
-      "Để tìm từ khóa: nhấn Tìm kiếm (hoặc bấm tổ hợp phím Ctrl+F), nhập từ hoặc cụm từ cần tìm vào ô tra cứu để duyệt các vị trí xuất hiện trong tài liệu.",
-      "Để thay thế từ ngữ: nhấn Thay thế (hoặc bấm tổ hợp phím Ctrl+H), nhập nội dung cần tìm vào ô Tìm kiếm và nội dung mới vào ô Thay thế, sau đó chọn Thay thế hoặc Thay thế tất cả.",
-      "Để bôi đen toàn bộ văn bản và đối tượng trong tài liệu: nhấn nút Chọn tất cả (hoặc bấm tổ hợp phím Ctrl+A).",
-      "Dùng phím Esc để đóng hộp thoại tìm kiếm thay thế khi hoàn thành."
+      "Truy cập: Mở tab Trang đầu trên thanh ribbon, nhìn sang nhóm Chỉnh sửa ở phía ngoài cùng bên phải, nhấn nút Tìm kiếm (Ctrl+F) hoặc Thay thế (Ctrl+H) để mở hộp thoại Tìm kiếm và Thay thế gồm hai tab.",
+      "Tìm kiếm văn bản: Chọn tab «Tìm» (Ctrl+F), nhập từ hoặc cụm từ cần tìm vào ô «Tìm gì:». Nhấn nút «Tìm tiếp» để nhảy tới kết quả kế tiếp; nhấn «Tìm trước» để lùi lại kết quả trước. 3T Doc tự động cuộn trang và bôi đen vị trí khớp trong tài liệu.",
+      "Thay thế nội dung: Chọn tab «Thay thế» (Ctrl+H), nhập chuỗi cần tìm vào «Tìm gì:» và nội dung mới vào «Thay bằng:». Nhấn nút «Thay thế» để đổi từng vị trí, hoặc nhấn «Thay thế tất cả» để thay thế toàn bộ văn bản khớp trong tài liệu và nhận thông báo tổng số lượng thay thế thành công.",
+      "Tùy chọn tìm kiếm: Đánh dấu các ô chọn theo nhu cầu: «Khớp chữ hoa/thường» (phân biệt HOA/thường chính xác), «Chỉ toàn bộ từ» (không khớp các từ con), hoặc «Bỏ qua dấu» (tìm kiếm tiếng Việt không dấu khớp cả từ có dấu). Cả hai bên đều được chuẩn hóa Unicode NFC tự động.",
+      "Đóng và Hoàn tác: Phím Esc đóng hộp thoại. Sau khi đóng hộp thoại, hệ thống vẫn duy trì phiên tìm kiếm cho tài liệu. Mọi thao tác «Thay thế tất cả» đều được ghi nhận là đúng 1 bước Hoàn tác (nhấn Ctrl+Z để phục hồi lại nguyên trạng ban đầu).",
+      "Để chọn nhanh toàn bộ tài liệu: Nhấn nút «Chọn tất cả» trong nhóm Chỉnh sửa hoặc bấm tổ hợp phím Ctrl+A."
     ]
   },
   {

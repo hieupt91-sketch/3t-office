@@ -6,13 +6,13 @@
 import { globalUnoBridge } from "../common/uno-bridge.js";
 import { showAlertDialog, showPromptDialog, showFindReplaceDialog } from "../../../platform/ui-kit/dialogs.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
-import { openPrintDialog } from "../../../platform/print/print-dialog.js";
+import { withLazyFeatureProgress } from "../../../platform/startup/lazy-feature.js";
 import { globalShortcutManager } from "../../../platform/commands/shortcut-manager.js";
 import { getVnCommand } from "../common/command-dispatch-mapper.js";
-import { SheetChartBuilder } from "../../../apps/sheet/sheet-chart.js";
 import { overlayFodsStructureProtection } from "./xlsx-workbook-protection.js";
 import { overlayActiveSheetToFods } from "./xlsx-active-sheet.js";
 import { buildSheetPayloadModel } from "./sheet-payload-parser.js";
+import { extractSheetRangeData } from "../../../apps/sheet/sheet-chart-data.js";
 
 export function numberFormatFromExcelCode(code) {
   const source = String(code ?? "").trim();
@@ -521,14 +521,16 @@ export class SheetAdapter {
     try {
       showFindReplaceDialog({
         isReplace: !!isReplace,
-        onFind: (text) => this.grid.findNext ? this.grid.findNext(text) : false,
-        onReplace: (findText, replaceText) => {
+        app: "sheet",
+        onFind: (text, options) => this.grid.findNext ? this.grid.findNext(text, options) : false,
+        onFindPrev: (text, options) => this.grid.findPrev ? this.grid.findPrev(text, options) : false,
+        onReplace: (findText, replaceText, options) => {
           if (!findText) return false;
-          return this.grid.replaceOne ? this.grid.replaceOne(findText, replaceText) : false;
+          return this.grid.replaceOne ? this.grid.replaceOne(findText, replaceText, options) : false;
         },
-        onReplaceAll: (findText, replaceText) => {
+        onReplaceAll: (findText, replaceText, options) => {
           if (!findText) return 0;
-          return this.grid.replaceAll ? this.grid.replaceAll(findText, replaceText) : 0;
+          return this.grid.replaceAll ? this.grid.replaceAll(findText, replaceText, options) : 0;
         }
       });
     } catch (_) {
@@ -4146,7 +4148,7 @@ ${pristineXlsxMarker}
       }
       const cells = workbook.sheetsData[union.sheet];
       if (cells instanceof Map) {
-        const extracted = SheetChartBuilder.extractRangeData(cells, chart.range, this._columnsForChartExtract());
+        const extracted = extractSheetRangeData(cells, chart.range, this._columnsForChartExtract());
         chart.labels = extracted.labels;
         chart.data = extracted.data;
       }
@@ -5533,7 +5535,8 @@ ${pristineXlsxMarker}
       });
     const pageSize = String(setup.size || "a4").toUpperCase();
     const orientation = setup.orientation === "landscape" ? "Ngang" : "Dọc";
-    return openPrintDialog({
+    return withLazyFeatureProgress("sheet", "In và xem trước", () => import("../../../platform/print/print-dialog.js"))
+      .then(({ openPrintDialog }) => openPrintDialog({
       appKind: "sheet",
       content: this.serializeToFods(),
       documentName: this.sourceFileName || "Bảng tính",
@@ -5542,7 +5545,7 @@ ${pristineXlsxMarker}
       currentPage: activePage >= 0 ? activePage + 1 : 1,
       selectionRanges,
       engine: globalUnoBridge
-    });
+    }));
   }
 
   async handleDispatch(unoUrl, args, vnCmdId) {
