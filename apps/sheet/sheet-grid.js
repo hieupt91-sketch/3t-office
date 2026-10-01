@@ -6,6 +6,13 @@ import { FormulaEngine, FUNCTION_CATALOG } from "./formula-engine.js";
 import { createEvaluateFormulaSessionFromGrid, formatFormulaValue, renderFormulaHtml } from "./evaluate-formula.js";
 import { SheetChartBuilder } from "./sheet-chart.js";
 import { FormulaAutocompleteController } from "./formula-autocomplete.js";
+import {
+  FormulaEntrySession,
+  cycleAbsoluteReference,
+  findFormulaReferences,
+  isFormulaReferenceInsertionPoint,
+  makeCellReference
+} from "./formula-entry.js";
 import { PivotTableEngine } from "./pivot-table.js";
 import { WhatIfAnalysisEngine } from "./what-if-analysis.js";
 import { NumberFormatter } from "./number-formatter.js";
@@ -187,6 +194,12 @@ export class SheetGridController {
       () => this.sheets
     );
     this.autocomplete = new FormulaAutocompleteController(this);
+    this.formulaEntry = null;
+    this.formulaReferenceOverlay = null;
+    this.formulaReferenceOverlayContent = null;
+    this._isFormulaComposing = false;
+    this._isSelectingFormulaReference = false;
+    this._formulaPointCoord = null;
 
     this.undoStack = [];
     this.redoStack = [];
@@ -273,6 +286,8 @@ export class SheetGridController {
     // Prefix-sum row tops cache (per sheet) for virtual scroll with variable row heights.
     // _rowTopsCache[sheetName] = { tops: number[], totalHeight: number, valid: boolean }
     this._rowTopsCache = {};
+    this._tabSequenceAnchor = null;
+    this._clipboardRange = null;
   }
 
   get cellsData() {
@@ -295,17 +310,10 @@ export class SheetGridController {
   mount() {
     this.container.innerHTML = "";
     this.container.className = "vno-sheet-container";
-    // `tabindex="-1"` làm container CÓ THỂ nhận focus qua .focus() (không lọt vào thứ tự
-    // Tab của trang) — bắt buộc phải có thì `selectCell()` mới gọi `.focus()` được. Nếu
-    // không, click chọn ô để lại `document.activeElement === document.body`, khiến TOÀN
-    // BỘ tương tác bàn phím của lưới (mũi tên, Enter, Tab, F2, gõ "=" để bắt đầu công
-    // thức, và mọi cách gõ trực tiếp giá trị vào ô) không bao giờ tới được listener
-    // `keydown` gắn trên `this.container` — vì sự kiện bàn phím chỉ nổi bọt (bubble) từ
-    // phần tử đang có focus, và `document.body` không phải hậu duệ của container. Lỗi
-    // thật nghiêm trọng nhất tìm được trong toàn phiên (04/09/2026) — xác nhận qua
-    // Playwright: gõ trực tiếp vào ô đã chọn hoàn toàn không có tác dụng gì, kể cả với
-    // `=PMT(...)` vừa được Codex thêm.
-    this.container.setAttribute("tabindex", "-1");
+    // The grid is an explicit keyboard focus target at app startup and after
+    // toolbars/dialogs. Clipboard keys are handled by native ClipboardEvents.
+    this.container.setAttribute("tabindex", "0");
+    this.container.dataset.vnoNativeClipboard = "true";
     this.container.style.outline = "none";
 
     // 1. Formula Bar
@@ -315,7 +323,7 @@ export class SheetGridController {
     this.workbookView = "normal";
     fBar.className = "vno-formula-bar";
     fBar.setAttribute("role", "region");
-    fBar.setAttribute("aria-label", "Thanh công thức");
+    fBar.setAttribute("aria-label", t("sheetFormulaEntry.formulaBarLabel"));
     fBar.innerHTML = `
       <div class="vno-name-box" id="vno-cell-name" role="status" aria-label="Hộp tên ô">A1</div>
       <div class="vno-formula-actions" role="toolbar" aria-label="Thao tác công thức">
@@ -323,12 +331,28 @@ export class SheetGridController {
         <button type="button" class="vno-formula-btn" title="Nhập (Enter)" aria-label="Nhập (Enter)" id="vno-fx-ok">✓</button>
         <button type="button" class="vno-formula-btn vno-formula-btn-fx" title="Chèn hàm tính toán (fx)" aria-label="Chèn hàm tính toán (fx)" id="vno-fx-insert">fx</button>
       </div>
-      <textarea rows="1" class="vno-formula-input" id="vno-formula-val" aria-label="Thanh công thức" placeholder="Nhập giá trị hoặc công thức (ví dụ: =SUM(F4:F7), =AVERAGE(E4:E7)...)"></textarea>
+      <textarea class="vno-formula-input" id="vno-formula-val" rows="1" aria-label="Thanh công thức" placeholder="Nhập giá trị hoặc công thức (ví dụ: =SUM(F4:F7), =AVERAGE(E4:E7)...)"></textarea>
     `;
     this.nameBox = fBar.querySelector("#vno-cell-name");
     this.formulaInput = fBar.querySelector("#vno-formula-val");
+    this.formulaInput.setAttribute("aria-label", t("sheetFormulaEntry.formulaBarLabel"));
+    this.formulaInput.title = t("sheetFormulaEntry.referenceHint");
+    const formulaInputWrap = document.createElement("div");
+    formulaInputWrap.className = "vno-formula-input-wrap";
+    this.formulaReferenceOverlay = document.createElement("div");
+    this.formulaReferenceOverlay.className = "vno-formula-reference-overlay";
+    this.formulaReferenceOverlay.setAttribute("aria-hidden", "true");
+    this.formulaReferenceOverlayContent = document.createElement("span");
+    this.formulaReferenceOverlayContent.className = "vno-formula-reference-overlay-content";
+    this.formulaReferenceOverlay.appendChild(this.formulaReferenceOverlayContent);
+    this.formulaInput.before(formulaInputWrap);
+    formulaInputWrap.append(this.formulaReferenceOverlay, this.formulaInput);
 
     this.autocomplete.mount();
+
+    this.formulaInput.addEventListener("focus", () => {
+      if (!this.formulaEntry) this._beginFormulaEntry("edit");
+    });
 
     this.formulaInput.addEventListener("input", (e) => {
       if (this.isSheetProtected()) {
@@ -338,14 +362,29 @@ export class SheetGridController {
         this._notifySheetProtected();
         return;
       }
-      this._resizeFormulaInput();
-      this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, e.target.value, true, { coalesce: true, userInput: true });
+      if (!this.formulaEntry) this._beginFormulaEntry("edit");
+      this._setFormulaEntryValue(e.target.value, this.formulaInput.selectionStart, {
+        source: "input",
+        composing: this._isFormulaComposing || e.isComposing
+      });
       this.autocomplete.handleInput(e.target.value, this.formulaInput.selectionStart);
+      this._syncFormulaBarHeight();
+      this._resizeFormulaInput();
     });
+
+    this.formulaInput.addEventListener("compositionstart", () => { this._isFormulaComposing = true; });
+    this.formulaInput.addEventListener("compositionend", () => {
+      this._isFormulaComposing = false;
+      if (!this.formulaEntry) this._beginFormulaEntry("edit");
+      this._setFormulaEntryValue(this.formulaInput.value, this.formulaInput.selectionStart, { source: "input" });
+    });
+    this.formulaInput.addEventListener("scroll", () => this._renderFormulaReferenceOverlay());
 
     this.formulaInput.addEventListener("keydown", (e) => {
       // Ngăn sự kiện phím trong formulaInput nổi bọt lên container lưới (tránh xử lý trùng lặp Enter, Tab, mũi tên...)
       e.stopPropagation();
+
+      if (this._isFormulaComposing || e.isComposing || e.keyCode === 229) return;
 
       if (e.key === "Enter" && e.altKey) {
         e.preventDefault();
@@ -353,68 +392,60 @@ export class SheetGridController {
         return;
       }
 
+      if (e.key === "Enter" && e.ctrlKey && e.shiftKey) {
+        e.preventDefault();
+        this.autocomplete.closeAll();
+        this._commitFormulaEntry({ move: false });
+        globalCommandBus.execute("sheet.formula.arrayEnter");
+        return;
+      }
+
       if (this.autocomplete.handleKeyDown(e)) {
         return;
       }
+      if (e.key === "F2") {
+        e.preventDefault();
+        if (!this.formulaEntry) this._beginFormulaEntry("edit");
+        this.formulaEntry.mode = this.formulaEntry.mode === "point" ? "edit" : "point";
+        this._updateFormulaEntryStatus();
+        return;
+      }
+      if (e.key === "F4") {
+        e.preventDefault();
+        this._cycleFormulaReferenceAtCaret();
+        return;
+      }
+      if (this.formulaEntry?.mode === "point" && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+        e.preventDefault();
+        this._movePointReferenceWithArrow(e.key);
+        return;
+      }
       if (e.key === "Enter") {
-        if (e.ctrlKey && e.shiftKey) {
-          e.preventDefault();
-          this.autocomplete.closeAll();
-          globalCommandBus.execute("sheet.formula.arrayEnter");
-          return;
-        }
         e.preventDefault();
         this.autocomplete.closeAll();
-        const nextRow = e.shiftKey
-          ? Math.max(1, this.selectedCoord.r - 1)
-          : Math.min(this.rowCount, this.selectedCoord.r + 1);
-        this.selectCell(this.selectedCoord.c, nextRow);
+        this._commitFormulaEntry({ move: true, shift: e.shiftKey });
         return;
       } else if (e.key === "Tab") {
         e.preventDefault();
         this.autocomplete.closeAll();
-        const colIdx = this.cols.indexOf(this.selectedCoord.c);
-        const nextCol = e.shiftKey
-          ? this.cols[Math.max(0, colIdx - 1)]
-          : this.cols[Math.min(this.cols.length - 1, colIdx + 1)];
-        this.selectCell(nextCol, this.selectedCoord.r);
+        this._commitFormulaEntry({ move: true, shift: e.shiftKey, tab: true });
         return;
       } else if (e.key === "Escape") {
         e.preventDefault();
         this.autocomplete.closeAll();
-        if (this._cellValueBeforeEdit !== undefined) {
-          this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, this._cellValueBeforeEdit, false);
-          this.formulaInput.value = this._cellValueBeforeEdit;
-        } else {
-          const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
-          const cur = this.cellsData.get(key);
-          this.formulaInput.value = cur ? (cur.formula || cur.val || "") : "";
-        }
-        if (typeof this.container.focus === "function") {
-          this.container.focus({ preventScroll: true });
-        }
+        this._cancelFormulaEntry();
         return;
       }
     });
 
     fBar.querySelector("#vno-fx-cancel").addEventListener("click", () => {
       this.autocomplete.closeAll();
-      if (this._cellValueBeforeEdit !== undefined) {
-        this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, this._cellValueBeforeEdit, false);
-        this.formulaInput.value = this._cellValueBeforeEdit;
-      } else {
-        const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
-        const cur = this.cellsData.get(key);
-        this.formulaInput.value = cur ? (cur.formula || cur.val || "") : "";
-      }
-      if (typeof this.container.focus === "function") {
-        this.container.focus({ preventScroll: true });
-      }
+      this._cancelFormulaEntry();
     });
 
     fBar.querySelector("#vno-fx-ok").addEventListener("click", () => {
       this.autocomplete.closeAll();
-      this.selectCell(this.selectedCoord.c, Math.min(this.rowCount, this.selectedCoord.r + 1));
+      this._commitFormulaEntry({ move: true });
     });
 
     fBar.querySelector("#vno-fx-insert").addEventListener("click", () => {
@@ -563,6 +594,7 @@ export class SheetGridController {
     this.renderImages();
     this.renderTextBoxes();
     this.selectCell("A", 1);
+    this.focusGrid();
     this._bindGridKeyboardNavigation();
   }
 
@@ -1193,6 +1225,11 @@ export class SheetGridController {
   }
 
   _commitEditBeforeRangeSelection() {
+    if (this._isRestoringFormulaEntry) return;
+    if (this.formulaEntry) {
+      this._commitFormulaEntry({ move: false });
+      return;
+    }
     if (!this.formulaInput || typeof document === "undefined" || document.activeElement !== this.formulaInput) return;
     const coord = { ...this.selectedCoord };
     const current = this.cellsData.get(`${coord.c}${coord.r}`);
@@ -1203,6 +1240,269 @@ export class SheetGridController {
     }
     this._cellValueBeforeEdit = undefined;
     this.autocomplete?.closeAll?.();
+  }
+
+  _cellEditorValue(item) {
+    if (!item) return "";
+    if (item.formula) return item.formula;
+    return item.val ?? "";
+  }
+
+  _beginFormulaEntry(mode = "edit", initialValue) {
+    if (this.formulaEntry) return this.formulaEntry;
+    const coord = { ...this.selectedCoord };
+    const item = this.sheetsData?.[this.activeSheet]?.get(`${coord.c}${coord.r}`);
+    const original = this._cellValueBeforeEdit !== undefined ? this._cellValueBeforeEdit : this._cellEditorValue(item);
+    this._cellValueBeforeEdit = original;
+    const value = initialValue !== undefined
+      ? String(initialValue)
+      : String(this.formulaInput?.value ?? this._cellEditorValue(item));
+    this.formulaEntry = new FormulaEntrySession({ original, value, caret: value.length, mode, sheet: this.activeSheet, coord });
+    this._updateFormulaEntryStatus();
+    this._renderFormulaReferenceOverlay();
+    return this.formulaEntry;
+  }
+
+  _setFormulaEntryValue(value, caret = String(value ?? "").length, options = {}) {
+    if (!this.formulaEntry) this._beginFormulaEntry("edit", value);
+    const session = this.formulaEntry;
+    if (options.result) {
+      session.value = String(value ?? "");
+      session.caret = caret;
+      session.lastReference = options.result.reference || null;
+    } else {
+      session.update(value, caret);
+    }
+    if (this.formulaInput) {
+      this.formulaInput.value = session.value;
+      if (typeof this.formulaInput.setSelectionRange === "function") {
+        this.formulaInput.setSelectionRange(session.caret, session.caret);
+      }
+    }
+    if (session.sheet === this.activeSheet && session.coord?.c === this.selectedCoord.c && session.coord?.r === this.selectedCoord.r) {
+      this.setCellValue(session.coord.c, session.coord.r, session.value, true, { coalesce: true, userInput: true });
+    }
+    this._refreshFormulaEntryVisuals();
+    if (!options.composing && options.source !== "autocomplete") {
+      this.autocomplete?.handleInput?.(session.value, session.caret);
+    }
+    return session.value;
+  }
+
+  _refreshFormulaEntryVisuals() {
+    this._renderFormulaReferenceOverlay();
+    this._updateFormulaReferenceVisuals();
+    this._updateFormulaEntryStatus();
+  }
+
+  _renderFormulaReferenceOverlay() {
+    if (!this.formulaInput || !this.formulaReferenceOverlay || !this.formulaReferenceOverlayContent) return;
+    const formula = this.formulaEntry?.value || "";
+    const references = this.formulaEntry && formula.startsWith("=")
+      ? findFormulaReferences(formula, this.formulaEntry.sheet)
+      : [];
+    const colors = ["#2563eb", "#dc2626", "#16a34a", "#9333ea", "#ea580c", "#0891b2"];
+    let html = "";
+    let cursor = 0;
+    for (const [index, ref] of references.entries()) {
+      const start = Math.max(cursor, ref.start);
+      html += this._escapeHtml(formula.slice(cursor, start));
+      html += `<span style="color:${colors[index % colors.length]}">${this._escapeHtml(formula.slice(start, ref.end))}</span>`;
+      cursor = ref.end;
+    }
+    html += this._escapeHtml(formula.slice(cursor));
+    this.formulaReferenceOverlayContent.innerHTML = html;
+    this.formulaReferenceOverlayContent.style.transform = `translateX(-${this.formulaInput.scrollLeft || 0}px)`;
+    this.formulaReferenceOverlay.classList.toggle("is-visible", references.length > 0);
+    this.formulaInput.classList.toggle("has-reference-colors", references.length > 0);
+  }
+
+  _updateFormulaReferenceVisuals() {
+    const cells = this.container?.querySelectorAll?.(".vno-grid-cell[data-coord]") || [];
+    const refClasses = ["is-formula-reference", "is-formula-reference-top", "is-formula-reference-bottom", "is-formula-reference-left", "is-formula-reference-right"];
+    cells.forEach(cell => {
+      cell.classList.remove(...refClasses);
+      cell.style.removeProperty("--vno-formula-reference-color");
+      cell.removeAttribute("data-formula-reference-index");
+    });
+    if (!this.formulaEntry?.value?.startsWith("=")) return;
+    const references = findFormulaReferences(this.formulaEntry.value, this.formulaEntry.sheet);
+    const colors = ["#2563eb", "#dc2626", "#16a34a", "#9333ea", "#ea580c", "#0891b2"];
+    for (const [index, ref] of references.entries()) {
+      if (ref.sheet !== this.activeSheet) continue;
+      const parse = address => {
+        const match = String(address || "").match(/\$?([A-Z]{1,3})\$?(\d+)/i);
+        if (!match) return null;
+        return { c: this._columnNumber(match[1].toUpperCase()), r: Number(match[2]) };
+      };
+      const start = parse(ref.startCell);
+      const end = parse(ref.endCell);
+      if (!start || !end) continue;
+      const c1 = Math.min(start.c, end.c), c2 = Math.max(start.c, end.c);
+      const r1 = Math.min(start.r, end.r), r2 = Math.max(start.r, end.r);
+      for (const cell of cells) {
+        const col = this._columnNumber(cell.dataset.col);
+        const row = Number(cell.dataset.row);
+        if (col < c1 || col > c2 || row < r1 || row > r2) continue;
+        cell.classList.add("is-formula-reference");
+        cell.style.setProperty("--vno-formula-reference-color", colors[index % colors.length]);
+        cell.dataset.formulaReferenceIndex = String(index);
+        if (row === r1) cell.classList.add("is-formula-reference-top");
+        if (row === r2) cell.classList.add("is-formula-reference-bottom");
+        if (col === c1) cell.classList.add("is-formula-reference-left");
+        if (col === c2) cell.classList.add("is-formula-reference-right");
+      }
+    }
+  }
+
+  _updateFormulaEntryStatus() {
+    if (!this.formulaEntry) return;
+    const key = this.formulaEntry.mode === "point" ? "point" : this.formulaEntry.mode === "enter" ? "enter" : "edit";
+    const label = t(`sheetFormulaEntry.status.${key}`);
+    this.options.onFormulaEntryMode?.(label, key);
+  }
+
+  _setFormulaEntryResult(result) {
+    if (!result || !this.formulaEntry) return;
+    this._setFormulaEntryValue(result.formula, result.caret, { result, source: "point" });
+  }
+
+  _canInsertPointReference() {
+    if (!this.formulaEntry) return false;
+    const start = this.formulaInput && typeof document !== "undefined" && document.activeElement === this.formulaInput
+      ? this.formulaInput.selectionStart
+      : this.formulaEntry.caret;
+    const end = this.formulaInput && typeof document !== "undefined" && document.activeElement === this.formulaInput
+      ? this.formulaInput.selectionEnd
+      : start;
+    return isFormulaReferenceInsertionPoint(this.formulaEntry.value, start, end);
+  }
+
+  _startFormulaPointSelect(event, col, row) {
+    if (!event || event.button !== 0 || !this._canInsertPointReference()) return false;
+    event.preventDefault();
+    event.stopPropagation();
+    const session = this.formulaEntry;
+    const start = this.formulaInput && typeof document !== "undefined" && document.activeElement === this.formulaInput
+      ? this.formulaInput.selectionStart
+      : session.caret;
+    const end = this.formulaInput && typeof document !== "undefined" && document.activeElement === this.formulaInput
+      ? this.formulaInput.selectionEnd
+      : start;
+    session.mode = "point";
+    this._formulaPointCoord = { c: col, r: row, sheet: this.activeSheet };
+    const address = makeCellReference(col, row, this.activeSheet, session.sheet);
+    session.beginDrag(address, { start, end, shift: event.shiftKey, ctrl: event.ctrlKey });
+    this._setFormulaEntryResult({ formula: session.value, caret: session.caret, reference: session.lastReference });
+    this._updateFormulaEntryStatus();
+    this._isSelectingFormulaReference = true;
+
+    const onMove = moveEvent => {
+      if (!this._isSelectingFormulaReference) return;
+      const target = this._rangeSelectionTargetAt(moveEvent.clientX, moveEvent.clientY, "cell");
+      if (!target) return;
+      this._formulaPointCoord = { ...target, sheet: this.activeSheet };
+      const targetAddress = makeCellReference(target.c, target.r, this.activeSheet, session.sheet);
+      const result = session.updateDrag(targetAddress);
+      this._setFormulaEntryResult(result);
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      this._isSelectingFormulaReference = false;
+      session.endDrag();
+      this.formulaInput?.focus({ preventScroll: true });
+      if (this.formulaInput && typeof this.formulaInput.setSelectionRange === "function") {
+        this.formulaInput.setSelectionRange(session.caret, session.caret);
+      }
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    }
+    return true;
+  }
+
+  _movePointReferenceWithArrow(key) {
+    const deltaCol = key === "ArrowRight" ? 1 : key === "ArrowLeft" ? -1 : 0;
+    const deltaRow = key === "ArrowDown" ? 1 : key === "ArrowUp" ? -1 : 0;
+    let result = this.formulaEntry.moveReference(deltaCol, deltaRow);
+    if (!result && this._canInsertPointReference()) {
+      const origin = this._formulaPointCoord || { ...this.selectedCoord, sheet: this.activeSheet };
+      const currentCol = this._columnNumber(origin.c);
+      const nextCol = this._columnLabel(Math.max(1, Math.min(this.cols.length, currentCol + deltaCol)));
+      const nextRow = Math.max(1, Math.min(this.rowCount, origin.r + deltaRow));
+      const address = makeCellReference(nextCol, nextRow, origin.sheet, this.formulaEntry.sheet);
+      result = this.formulaEntry.insertPoint(address);
+      this._formulaPointCoord = { c: nextCol, r: nextRow, sheet: origin.sheet };
+    } else if (result) {
+      const address = result.address?.match(/\$?([A-Z]{1,3})\$?(\d+)/i);
+      if (address) this._formulaPointCoord = { c: address[1].toUpperCase(), r: Number(address[2]), sheet: this._formulaPointCoord?.sheet || this.activeSheet };
+    }
+    if (result) this._setFormulaEntryResult(result);
+  }
+
+  _cycleFormulaReferenceAtCaret() {
+    if (!this.formulaEntry) return;
+    const result = cycleAbsoluteReference(this.formulaEntry.value, this.formulaInput?.selectionStart ?? this.formulaEntry.caret);
+    if (result.changed) this._setFormulaEntryResult(result);
+  }
+
+  _commitFormulaEntry({ move = false, shift = false, tab = false } = {}) {
+    const session = this.formulaEntry;
+    if (!session) return false;
+    if (this.formulaInput) session.update(this.formulaInput.value, this.formulaInput.selectionStart ?? this.formulaInput.value.length);
+    const finalValue = session.commit();
+    const coord = { ...session.coord };
+    const ownerSheet = session.sheet;
+    if (this.activeSheet !== ownerSheet) {
+      this.sheetStates[ownerSheet] = { ...(this.sheetStates[ownerSheet] || {}), selectedCoord: { ...coord } };
+      this.switchSheet(ownerSheet, { formulaReturn: true });
+    }
+    this.selectedCoord = { ...coord };
+    this.setCellValue(coord.c, coord.r, finalValue, true, { coalesce: true, userInput: true });
+    if (this.formulaInput) this.formulaInput.value = finalValue;
+    this.formulaEntry = null;
+    this._cellValueBeforeEdit = undefined;
+    this._formulaPointCoord = null;
+    this.autocomplete?.closeAll?.();
+    this._refreshFormulaEntryVisuals();
+    if (move) {
+      if (tab) {
+        const colIndex = this.cols.indexOf(coord.c);
+        const nextCol = shift ? this.cols[Math.max(0, colIndex - 1)] : this.cols[Math.min(this.cols.length - 1, colIndex + 1)];
+        this.selectCell(nextCol, coord.r);
+      } else {
+        const nextRow = shift ? Math.max(1, coord.r - 1) : Math.min(this.rowCount, coord.r + 1);
+        this.selectCell(coord.c, nextRow);
+      }
+    } else {
+      this.options.onSelect?.(`${coord.c}${coord.r}`, this.cellsData.get(`${coord.c}${coord.r}`), this._calculateStats());
+    }
+    return true;
+  }
+
+  _cancelFormulaEntry() {
+    const session = this.formulaEntry;
+    if (!session) return false;
+    const coord = { ...session.coord };
+    const ownerSheet = session.sheet;
+    const original = session.cancel();
+    if (this.activeSheet !== ownerSheet) {
+      this.sheetStates[ownerSheet] = { ...(this.sheetStates[ownerSheet] || {}), selectedCoord: { ...coord } };
+      this.switchSheet(ownerSheet, { formulaReturn: true });
+    }
+    this.selectedCoord = { ...coord };
+    this.setCellValue(coord.c, coord.r, original, false);
+    if (this.formulaInput) this.formulaInput.value = String(original ?? "");
+    this.formulaEntry = null;
+    this._cellValueBeforeEdit = undefined;
+    this._formulaPointCoord = null;
+    this.autocomplete?.closeAll?.();
+    this._refreshFormulaEntryVisuals();
+    this.container?.focus?.({ preventScroll: true });
+    this.options.onSelect?.(`${coord.c}${coord.r}`, this.cellsData.get(`${coord.c}${coord.r}`), this._calculateStats());
+    return true;
   }
 
   _selectionRangeForPointer(anchor, active, kind = "cell") {
@@ -1240,6 +1540,32 @@ export class SheetGridController {
       this._onViewportScroll();
     }
     this._updateRangeSelectionVisuals();
+    this.focusGrid();
+  }
+
+  focusGrid() {
+    if (!this.container || typeof this.container.focus !== "function") return false;
+    this.container.focus({ preventScroll: true });
+    return true;
+  }
+
+  _beginTabSequence() {
+    if (!this._tabSequenceAnchor) this._tabSequenceAnchor = { ...this.selectedCoord };
+  }
+
+  _enterDestination(shiftKey = false) {
+    const anchor = this._tabSequenceAnchor;
+    this._tabSequenceAnchor = null;
+    if (anchor) {
+      return {
+        c: anchor.c,
+        r: shiftKey ? Math.max(1, anchor.r - 1) : Math.min(this.rowCount, anchor.r + 1)
+      };
+    }
+    return {
+      c: this.selectedCoord.c,
+      r: shiftKey ? Math.max(1, this.selectedCoord.r - 1) : Math.min(this.rowCount, this.selectedCoord.r + 1)
+    };
   }
 
   _rangeSelectionTargetAt(x, y, kind = "cell") {
@@ -1404,6 +1730,7 @@ export class SheetGridController {
       const isActive = cell.dataset.coord === activeCoordKey;
       cell.classList.toggle("is-selected", isActive);
       cell.classList.toggle("is-range-selected", selected && isMulti);
+      this._applyClipboardVisual(cell, cell.dataset.col, row);
       if (!isActive) {
         cell.querySelectorAll?.(".vno-cell-move-handle, .vno-cell-validation-select").forEach(el => el.remove());
       }
@@ -1420,11 +1747,47 @@ export class SheetGridController {
     const data = this.cellsData.get(activeCoordKey);
     if (this.formulaInput) {
       this.formulaInput.value = data ? (data.formula || data.val) : "";
+      this._syncFormulaBarHeight();
       this._resizeFormulaInput();
     }
     this._showValidationDropdown(activeCell, this.selectedCoord.c, this.selectedCoord.r);
     this.options.onSelect?.(activeCoordKey, data, this._calculateStats());
     this.container?.focus?.({ preventScroll: true });
+  }
+
+  _syncFormulaBarHeight() {
+    if (!this.formulaInput || !this.formulaBarEl) return;
+    const lines = String(this.formulaInput.value || "").split("\n").length;
+    const rows = Math.max(1, Math.min(4, lines));
+    this.formulaInput.rows = rows;
+    this.formulaBarEl.style.height = String(Math.max(30, rows * 24 + 8)) + "px";
+    this.formulaBarEl.style.alignItems = "center";
+  }
+
+  setClipboardRange(range, mode = "copy", sheet = this.activeSheet) {
+    const normalized = this._normalizeRange(range);
+    this._clipboardRange = normalized ? { range: structuredClone(normalized), mode, sheet } : null;
+    this.container?.querySelectorAll?.(".vno-grid-cell[data-coord]").forEach(cell =>
+      this._applyClipboardVisual(cell, cell.dataset.col, Number(cell.dataset.row))
+    );
+  }
+
+  clearClipboardRange() {
+    if (!this._clipboardRange) return false;
+    this._clipboardRange = null;
+    this.container?.querySelectorAll?.(".vno-grid-cell[data-coord]").forEach(cell =>
+      this._applyClipboardVisual(cell, cell.dataset.col, Number(cell.dataset.row))
+    );
+    return true;
+  }
+
+  _applyClipboardVisual(cell, col, row) {
+    if (!cell?.classList) return;
+    const clipboard = this._clipboardRange;
+    const active = clipboard?.sheet === this.activeSheet &&
+      this._rangeContains(clipboard.range, col, row);
+    cell.classList.toggle("is-clipboard-source", !!active);
+    cell.classList.toggle("is-cut-source", !!active && clipboard.mode === "cut");
   }
 
   _startAutofill(e) {
@@ -1958,6 +2321,13 @@ export class SheetGridController {
   switchSheet(sheetName, options = {}) {
     const skipSave = options.skipSave === true;
     if (!sheetName) return false;
+    const preservedFormulaEntry = this.formulaEntry && (options.pointMode || options.formulaReturn)
+      ? this.formulaEntry
+      : null;
+    if (options.pointMode && this.formulaEntry) {
+      this.formulaEntry.mode = "point";
+      this._updateFormulaEntryStatus();
+    }
     if (!this.sheets.includes(sheetName)) {
       this.sheets.push(sheetName);
     }
@@ -2069,7 +2439,15 @@ export class SheetGridController {
     this.renderTextBoxes();
 
     // 7. Cập nhật ô chọn và thanh công thức
+    if (preservedFormulaEntry) this._isRestoringFormulaEntry = true;
     this.selectCell(this.selectedCoord.c, this.selectedCoord.r);
+    if (preservedFormulaEntry) {
+      this._isRestoringFormulaEntry = false;
+      this.formulaInput.value = preservedFormulaEntry.value;
+      this.formulaInput.focus({ preventScroll: true });
+      this.formulaInput.setSelectionRange?.(preservedFormulaEntry.caret, preservedFormulaEntry.caret);
+      this._refreshFormulaEntryVisuals();
+    }
     this._syncCommandStates();
     this._applyProtectionUi();
     this._updateWatchWindow?.();
@@ -2297,7 +2675,10 @@ export class SheetGridController {
       label.className = "vno-sheet-tab-label";
       label.textContent = sheetName;
       tab.appendChild(label);
-      tab.addEventListener("click", () => this.switchSheet(sheetName));
+      tab.addEventListener("click", () => {
+        const pointMode = this.formulaEntry && this._canInsertPointReference();
+        this.switchSheet(sheetName, pointMode ? { pointMode: true } : {});
+      });
       tab.addEventListener("dblclick", event => {
         event.preventDefault();
         event.stopPropagation();
@@ -3019,6 +3400,7 @@ export class SheetGridController {
 
       const itm = this.cellsData.get(coordKey);
       this._renderCellVisual(td, itm, c, r);
+      this._applyClipboardVisual(td, c, r);
       this._applyRowColSizeToCell(td, c, r);
       this._applyRuleVisuals(td, c, r);
       this._applyAnnotationAndPageVisuals(td, c, r);
@@ -3037,6 +3419,7 @@ export class SheetGridController {
       td.addEventListener("mousedown", (e) => {
         if (e.button !== 0) return;
         if (e.target.closest(".vno-cell-autofill-handle") || e.target.closest(".vno-cell-move-handle")) return;
+        if (this._startFormulaPointSelect(e, c, r)) return;
         this._startRangeSelect(e, c, r);
       });
       td.addEventListener("click", event => {
@@ -3257,6 +3640,7 @@ export class SheetGridController {
     if (Math.abs(startRow - this.currentStartRow) >= 3 || Math.abs(endRow - this.currentEndRow) >= 3) {
       this._renderVirtualRows(startRow, endRow);
     }
+    this._updateFormulaReferenceVisuals();
     this._updateFrozenImages();
   }
 
@@ -3306,16 +3690,54 @@ export class SheetGridController {
     }
   }
 
-  _bindGridKeyboardNavigation() {
-    this.container.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && this.formatPainter) {
-        e.preventDefault();
-        this.cancelFormatPainter();
-        return;
-      }
-      if (typeof document !== "undefined" && document?.activeElement === this.formulaInput) return;
+_bindGridKeyboardNavigation() {
+      this.container.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && this._clipboardRange) {
+          e.preventDefault();
+          this.clearClipboardRange();
+          return;
+        }
+        if (e.isComposing || e.keyCode === 229) return;
+        if (e.key === "Escape" && this.formatPainter) {
+          e.preventDefault();
+          this.cancelFormatPainter();
+          return;
+        }
+        if (typeof document !== "undefined" && document?.activeElement === this.formulaInput) return;
+        if (this._tabSequenceAnchor && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(e.key)) {
+          this._tabSequenceAnchor = null;
+        }
 
-      if (this.selectedImageId) {
+        if (this.formulaEntry && e.key === "F2") {
+          e.preventDefault();
+          this.formulaEntry.mode = this.formulaEntry.mode === "point" ? "edit" : "point";
+          this._updateFormulaEntryStatus();
+          this.formulaInput?.focus({ preventScroll: true });
+          return;
+        }
+        if (this.formulaEntry && e.key === "F4") {
+          e.preventDefault();
+          this._cycleFormulaReferenceAtCaret();
+          this.formulaInput?.focus({ preventScroll: true });
+          return;
+        }
+        if (this.formulaEntry && e.key === "Escape") {
+          e.preventDefault();
+          this._cancelFormulaEntry();
+          return;
+        }
+        if (this.formulaEntry && e.key === "Enter") {
+          e.preventDefault();
+          this._commitFormulaEntry({ move: true, shift: e.shiftKey });
+          return;
+        }
+        if (this.formulaEntry?.mode === "point" && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+          e.preventDefault();
+          this._movePointReferenceWithArrow(e.key);
+          return;
+        }
+
+        if (this.selectedImageId) {
         if (e.key === "Delete" || e.key === "Backspace") {
           e.preventDefault();
           this.deleteImage(this.selectedImageId);
@@ -3531,15 +3953,19 @@ export class SheetGridController {
         this.insertLineBreak();
         return;
       } else if (e.key === "Enter") {
-        nextRow = e.shiftKey ? Math.max(1, nextRow - 1) : Math.min(this.rowCount, nextRow + 1);
+        const next = this._enterDestination(e.shiftKey);
+        nextCol = next.c;
+        nextRow = next.r;
       } else if (e.key === "Tab") {
+        this._beginTabSequence();
         nextCol = e.shiftKey ? this.cols[Math.max(0, colIdx - 1)] : this.cols[Math.min(this.cols.length - 1, colIdx + 1)];
       } else if (e.key === "F2") {
         e.preventDefault();
         if (this._guardProtectedMutation()) return;
         const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
         const cur = this.cellsData.get(key);
-        this._cellValueBeforeEdit = cur ? (cur.formula || cur.val || "") : "";
+        this._cellValueBeforeEdit = this._cellEditorValue(cur);
+        this._beginFormulaEntry("edit");
         this._focusFormulaInputAtEnd();
         return;
       } else if (e.key === "=" && !e.ctrlKey && !e.altKey && !e.metaKey) {
@@ -3547,13 +3973,11 @@ export class SheetGridController {
         if (this._guardProtectedMutation()) return;
         const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
         const cur = this.cellsData.get(key);
-        this._cellValueBeforeEdit = cur ? (cur.formula || cur.val || "") : "";
+        this._cellValueBeforeEdit = this._cellEditorValue(cur);
         this.formulaInput.value = "=";
-        this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, "=", true, { coalesce: true });
+        this._beginFormulaEntry("enter", "=");
+        this._setFormulaEntryValue("=", 1, { source: "input" });
         this._focusFormulaInputAtEnd();
-        if (this.autocomplete) {
-          this.autocomplete.handleInput("=", 1);
-        }
         return;
       } else if ((e.key === "Delete" || e.key === "Backspace") && !e.ctrlKey && !e.altKey && !e.metaKey) {
         // Xóa nội dung ô hoặc vùng đang chọn ngay, đúng hành vi Excel thật
@@ -3572,21 +3996,9 @@ export class SheetGridController {
         }
         if (this.formulaInput) this.formulaInput.value = "";
         return;
-      } else if (e.ctrlKey && !e.altKey && !e.metaKey && (e.key === "c" || e.key === "C")) {
-        e.preventDefault();
-        globalCommandBus?.execute?.("common.edit.copy");
-        return;
-      } else if (e.ctrlKey && !e.altKey && !e.metaKey && (e.key === "v" || e.key === "V")) {
-        e.preventDefault();
-        globalCommandBus?.execute?.("common.edit.paste");
-        return;
       } else if (e.ctrlKey && e.altKey && !e.metaKey && (e.key === "v" || e.key === "V")) {
         e.preventDefault();
         globalCommandBus?.execute?.("sheet.edit.pasteSpecial");
-        return;
-      } else if (e.ctrlKey && !e.altKey && !e.metaKey && (e.key === "x" || e.key === "X")) {
-        e.preventDefault();
-        globalCommandBus?.execute?.("common.edit.cut");
         return;
       } else if (e.ctrlKey && !e.altKey && !e.metaKey && e.key === "1") {
         e.preventDefault();
@@ -3607,13 +4019,11 @@ export class SheetGridController {
         if (this._guardProtectedMutation()) return;
         const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
         const cur = this.cellsData.get(key);
-        this._cellValueBeforeEdit = cur ? (cur.formula || cur.val || "") : "";
+        this._cellValueBeforeEdit = this._cellEditorValue(cur);
         this.formulaInput.value = e.key;
-        this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, e.key, true, { coalesce: true, userInput: true });
+        this._beginFormulaEntry("enter", e.key);
+        this._setFormulaEntryValue(e.key, e.key.length, { source: "input" });
         this._focusFormulaInputAtEnd();
-        if (this.autocomplete) {
-          this.autocomplete.handleInput(e.key, 1);
-        }
         return;
       } else return;
 
@@ -3635,24 +4045,31 @@ export class SheetGridController {
     const cur = this.cellsData.get(key);
     this._cellValueBeforeEdit = cur ? (cur.formula || cur.val || "") : "";
     let nextVal = "";
+    let caret = 0;
     const active = typeof document !== "undefined" && document.activeElement === this.formulaInput;
     if (active && this.formulaInput) {
       const start = this.formulaInput.selectionStart || 0;
       const end = this.formulaInput.selectionEnd || 0;
       const val = this.formulaInput.value || "";
       nextVal = val.substring(0, start) + "\n" + val.substring(end);
+      caret = start + 1;
       this.formulaInput.value = nextVal;
-      this.formulaInput.selectionStart = this.formulaInput.selectionEnd = start + 1;
+      this.formulaInput.selectionStart = this.formulaInput.selectionEnd = caret;
     } else if (this.formulaInput) {
       const baseVal = cur ? String(cur.formula || cur.val || "") : "";
       nextVal = baseVal + "\n";
+      caret = nextVal.length;
       this.formulaInput.value = nextVal;
-      this.formulaInput.selectionStart = this.formulaInput.selectionEnd = this.formulaInput.value.length;
+      this.formulaInput.selectionStart = this.formulaInput.selectionEnd = caret;
     } else {
       const baseVal = cur ? String(cur.formula || cur.val || "") : "";
       nextVal = baseVal + "\n";
+      caret = nextVal.length;
     }
+    this._syncFormulaBarHeight();
     this._resizeFormulaInput();
+    if (!this.formulaEntry) this._beginFormulaEntry("edit", nextVal);
+    this._setFormulaEntryValue(nextVal, caret, { source: "input" });
     this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, nextVal, true, { coalesce: true, userInput: true });
     if (typeof this.formulaInput?.focus === "function") {
       this.formulaInput.focus();
@@ -6207,7 +6624,7 @@ export class SheetGridController {
     }).join("");
   }
 
-  applyPasteSpecial(clipboard, mode = "all", destination = this.selectedCoord) {
+  applyPasteSpecial(clipboard, mode = "all", destination = this.selectedCoord, options = {}) {
     if (!clipboard?.cells?.length || !destination) return false;
     const sourceRows = clipboard.cells;
     const transpose = mode === "transpose";
@@ -6219,6 +6636,20 @@ export class SheetGridController {
     const sourceStartRow = Number(clipboard.range?.start?.r || 1);
     const destStartCol = this._columnNumber(destination.c);
 
+    const moveRange = options.moveRange && options.sourceSheet === this.activeSheet
+      ? this._normalizeRange(options.moveRange)
+      : null;
+    if (moveRange && mode === "all") {
+      for (let row = moveRange.start.r; row <= moveRange.end.r; row++) {
+        for (let col = this._columnNumber(moveRange.start.c); col <= this._columnNumber(moveRange.end.c); col++) {
+          const coord = `${this._columnLabel(col)}${row}`;
+          const existing = structuredClone(this.cellsData.get(coord) || { val: "", formula: "", style: {} });
+          before[coord] = existing;
+          after[coord] = { val: "", formula: "", style: structuredClone(existing.style || {}) };
+        }
+      }
+    }
+
     for (let rowOffset = 0; rowOffset < height; rowOffset++) {
       for (let colOffset = 0; colOffset < width; colOffset++) {
         const source = structuredClone(transpose ? sourceRows[colOffset][rowOffset] : sourceRows[rowOffset][colOffset]);
@@ -6227,7 +6658,7 @@ export class SheetGridController {
         if (destColNumber < 1 || destColNumber > this.cols.length || destRow < 1 || destRow > this.rowCount) continue;
         const coord = `${this._columnLabel(destColNumber)}${destRow}`;
         const existing = structuredClone(this.cellsData.get(coord) || { val: "", formula: "", style: {} });
-        before[coord] = existing;
+        if (!Object.prototype.hasOwnProperty.call(before, coord)) before[coord] = existing;
         let next = structuredClone(existing);
         if (mode === "formats") {
           next.style = structuredClone(source.style || {});
@@ -6244,11 +6675,11 @@ export class SheetGridController {
           next.formula = formula;
           if (mode !== "formulas") next.style = structuredClone(source.style || {});
         }
-        this.cellsData.set(coord, next);
         after[coord] = structuredClone(next);
       }
     }
     if (!Object.keys(after).length) return false;
+    for (const [coord, item] of Object.entries(after)) this.cellsData.set(coord, item);
     this._recordHistory({ type: "batch-cells", sheet: this.activeSheet, before, after });
     this._recalculateAllFormulas();
     this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
@@ -6389,7 +6820,13 @@ export class SheetGridController {
     const form = overlay.querySelector(".vno-paste-special-dialog");
     const paste = () => {
       const mode = form.querySelector('input[name="paste-special-mode"]:checked')?.value || "all";
-      this.applyPasteSpecial(clipboard, mode);
+      const cut = !!clipboard.sourceSheet && clipboard.sourceSheet === this.activeSheet &&
+        this._clipboardRange?.mode === "cut" && this._clipboardRange.sheet === this.activeSheet;
+      const applied = this.applyPasteSpecial(clipboard, mode, this.selectedCoord, {
+        moveRange: cut ? this._clipboardRange.range : null,
+        sourceSheet: clipboard.sourceSheet
+      });
+      if (applied && cut) this.clearClipboardRange();
       overlay.closeDialog();
     };
     form.addEventListener("submit", event => { event.preventDefault(); paste(); });
@@ -7834,10 +8271,11 @@ export class SheetGridController {
         if (!snap) {
           this.cellsData.delete(coord);
         } else {
-          const itm = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
-          itm.val = snap.val ?? "";
-          itm.formula = snap.formula ?? "";
-          itm.style = structuredClone(snap.style || {});
+          const itm = {
+            val: snap.val ?? "",
+            formula: snap.formula ?? "",
+            style: structuredClone(snap.style || {})
+          };
           this.cellsData.set(coord, itm);
         }
         const [c, r] = this._splitCoord(coord);

@@ -535,7 +535,7 @@ export class NumberFormatter {
       }
     }
 
-    const parseNumber = raw => {
+    const parseNumber = (raw, { details = false } = {}) => {
       const decimal = String(locale.decimalSeparator ?? ".");
       const grouping = String(locale.thousandsSeparator ?? ",");
       if (!raw || !decimal || decimal === grouping || decimal.length !== 1 || grouping.length > 2) return null;
@@ -548,16 +548,26 @@ export class NumberFormatter {
       const fractionPart = decimalParts.length === 2 ? decimalParts[1] : null;
       if (fractionPart !== null && !/^\d*$/.test(fractionPart)) return null;
       let integerDigits = integerPart;
+      let hasThousandsGroup = false;
       if (grouping && integerPart.includes(grouping)) {
         const groups = integerPart.split(grouping);
         if (!/^\d{1,3}$/.test(groups[0]) || groups.slice(1).some(group => !/^\d{3}$/.test(group))) return null;
         integerDigits = groups.join("");
+        hasThousandsGroup = true;
       }
       if (integerDigits && !/^\d+$/.test(integerDigits)) return null;
       if (!integerDigits && (fractionPart === null || fractionPart === "")) return null;
       const normalized = `${sign}${integerDigits || "0"}${fractionPart === null ? "" : `.${fractionPart}`}`;
       const number = Number(normalized);
-      return Number.isFinite(number) ? number : null;
+      if (!Number.isFinite(number)) return null;
+      if (details) {
+        return {
+          number,
+          hasThousandsGroup,
+          decimals: fractionPart !== null ? fractionPart.length : 0
+        };
+      }
+      return number;
     };
 
     const currency = /^(?:₫|đ|đồng|vnd|vnđ)\s*(.+)$/iu.exec(input)
@@ -587,8 +597,20 @@ export class NumberFormatter {
       }
     }
 
-    const number = parseNumber(input);
-    if (number !== null) return { value: number };
+    const parsed = parseNumber(input, { details: true });
+    if (parsed !== null) {
+      if (parsed.hasThousandsGroup) {
+        return {
+          value: parsed.number,
+          numberFormat: {
+            category: "number",
+            useThousands: true,
+            decimals: parsed.decimals > 0 ? Math.max(2, parsed.decimals) : 0
+          }
+        };
+      }
+      return { value: parsed.number };
+    }
     return { value: inputVal };
   }
 

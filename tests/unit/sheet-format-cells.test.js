@@ -181,8 +181,10 @@ export async function runSheetFormatCellsTests() {
     const us = { decimalSeparator: ".", thousandsSeparator: "," };
     const vi = { decimalSeparator: ",", thousandsSeparator: "." };
     const number = NumberFormatter.inferUserInput("1234.56", null, us);
-    assert(number.value === 1234.56, `Số thập phân US phải là number: ${number.value}`);
-    assert(NumberFormatter.inferUserInput("1,234.56", null, us).value === 1234.56, "US grouping phải theo dấu phẩy nghìn và chấm thập phân");
+    const usThousands = NumberFormatter.inferUserInput("1,234.56", null, us);
+    assert(usThousands.value === 1234.56, "US grouping phải theo dấu phẩy nghìn và chấm thập phân");
+    assert(usThousands.numberFormat?.category === "number" && usThousands.numberFormat?.useThousands && usThousands.numberFormat?.decimals === 2, "Gõ 1,234.56 phải tự động áp dụng định dạng #,##0.00 như Excel");
+    assert(NumberFormatter.formatValue(usThousands.value, usThousands.numberFormat).text === "1,234.56", "Hiển thị phải là 1,234.56");
     assert(NumberFormatter.inferUserInput("1.234,56", null, vi).value === 1234.56, "VN grouping phải theo dấu chấm nghìn và phẩy thập phân");
     assert(NumberFormatter.inferUserInput("31/12/2026", null, vi).value === 46387, "Ngày phải thành serial Excel 46387");
     const time = NumberFormatter.inferUserInput("13:45", null, vi);

@@ -435,7 +435,10 @@ export function createAutocompletePopup({ onSelect } = {}) {
           <span class="vno-ac-fx" aria-hidden="true">fx</span>
           <span class="vno-ac-name">${item.name}</span>
         </div>
-        <span class="vno-ac-cat">${item.category || ""}</span>
+        <div class="vno-ac-details">
+          <span class="vno-ac-cat">${item.category || ""}</span>
+          <span class="vno-ac-desc">${item.desc || ""}</span>
+        </div>
       `;
       row.addEventListener("mousedown", (e) => {
         e.preventDefault();
