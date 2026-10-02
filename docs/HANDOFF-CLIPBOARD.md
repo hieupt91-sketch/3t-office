@@ -376,3 +376,47 @@ lan24.xlsx saved total 0 excel _rt_lan24.xlsx OK sheets=4 lint clean seconds 44.
 lan25.xlsx saved total 0 excel _rt_lan25.xlsx OK sheets=1 lint clean seconds 41.8
 lan26.xlsx saved total 0 excel _rt_lan26.xlsx OK sheets=6 lint clean seconds 62.9
 ```
+
+---
+
+# Agent Handoff — sửa hồi quy cấu trúc đoạn văn Cut/Paste
+
+TASK: Sửa hồi quy Clipboard làm 3T Doc mất cấu trúc đoạn văn sau Ctrl+X/Ctrl+V.
+AGENT/ROLE: Codex / Writer Adapter và QA desktop.
+BRANCH: `merge/clipboard-into-main-claude`.
+WORKTREE: `E:\VNOffice-claude-clipmerge`.
+OBJECTIVE: Giữ thẻ đoạn văn khi cắt/dán, gộp phần còn lại khi cắt xuyên nhiều đoạn, dán đúng caret và hoàn tác Paste bằng một bước mà không làm mất khả năng dán Word/Excel thật.
+FINDINGS:
+- CDP trước sửa: cắt giữa đoạn còn `<p>`, nhưng dán nội dung nội tuyến tạo một `<div>` cấp block giữa hai `<p>`; cắt xuyên hai đoạn bằng `Range.deleteContents()` để lại hai đoạn rời.
+- Thuật toán `document.execCommand("delete")` của contenteditable giữ `<p><br></p>` khi cắt hết đoạn và gộp hai phần còn lại thành một `<p>` khi cắt xuyên đoạn.
+- HTML clipboard nội bộ được serializer bọc bằng `<div>` để mang style. Khi fragment chỉ có nội dung inline và caret ở trong đoạn, wrapper block này phải đổi thành `<span>`; fragment Word có `p`/heading/list/table vẫn giữ đường chèn block.
+IMPLEMENTATION SUMMARY:
+- Cut ưu tiên lệnh delete native của contenteditable; fallback về `Range.deleteContents()` khi môi trường không hỗ trợ.
+- Paste chỉ đổi một wrapper `div` thuần inline thành `span` khi selection nằm trong `p`/heading/list item/blockquote/pre; không thay đổi parser, bridge hay HTML block của Word.
+- Thêm hai unit regression cho Cut xuyên đoạn và Paste inline giữ thẻ `p`.
+FILES CHANGED:
+- `adapters/libreoffice/writer/writer-adapter.js`
+- `tests/unit/basic-editing-keys.test.js`
+- `docs/HANDOFF-CLIPBOARD.md`
+COMMANDS RUN:
+- CDP Writer cô lập qua `python -s main.py --app=writer`, `LOCALAPPDATA=E:\VNOffice-profiles\codex-clipfix-{1,2,3}`, cổng 9461–9463; thao tác bàn phím chỉ qua `Input.dispatchKeyEvent`.
+- `node --input-type=module -e "...runBasicEditingKeysTests..."`
+- `node tests/run-tests.js` (hai lần; lần hai lọc stdout chỉ để định danh FAIL).
+- `node --experimental-websocket tests/live/cdp/run-desktop-regression.mjs`
+- `node --experimental-websocket tests/live/cdp_paste.mjs 9464 writer paste-com`
+- Chạy riêng `runSheetFormatDropdownTests()` để xác nhận FAIL soffice còn lại.
+BUILD RESULT: NOT RUN — không có build đóng gói riêng trong yêu cầu; đã chạy gate JavaScript và desktop.
+TEST RESULTS:
+- Targeted basic editing: 14/14 PASS, gồm hai regression mới.
+- CDP cấu trúc thật: cắt/dán giữa đoạn giữ đúng 1 `<p>`; Ctrl+Z trở về trạng thái sau Cut và Ctrl+Y phục hồi Paste; cắt hết đoạn còn `<p><br></p>`; cắt xuyên hai đoạn gộp thành 1 `<p>`.
+- Node full lần 1: `KẾT QUẢ KIỂM THỬ: 2505/2510 PASS | 5 FAIL`; các lỗi là chuyển đổi soffice không ổn định.
+- Node full lần 2: `KẾT QUẢ KIỂM THỬ: 2509/2510 PASS | 1 FAIL`; hai test mới PASS. FAIL còn lại được chạy riêng và tái hiện đúng ở `FODS thật qua soffice: FODS → XLSX → FODS giữ height/width/visibility` do `soffice --convert-to xlsx:Calc MS Excel 2007 XML failed`.
+- Desktop regression: `TOTAL: 26 PASS, 1 FAIL, 0 BLOCKED, 6 N/A`. FAIL duy nhất: `3T Sheet type detection` không nhận `13:45`; 3T Doc Ctrl+C/X/V, Tab và Save đều PASS.
+- Word thật COM ẩn: `ACCEPTANCE_PASS app=writer action=paste-com undo=one-step`; heading, bold, bullet, bảng 2×2 còn nguyên. Helper đóng đúng Word PID 22684; app test đóng đúng PID 27228.
+KNOWN FAILURES:
+- `FODS thật qua soffice: FODS → XLSX → FODS giữ height/width/visibility` — lỗi convert ngoài phạm vi Clipboard.
+- Desktop `3T Sheet type detection` với `13:45` — FAIL duy nhất được phép theo gate.
+RISKS: `execCommand` là API cũ nhưng đây là chính thuật toán biên tập contenteditable đang được app và WebView2 sử dụng; fallback Range vẫn còn cho môi trường không hỗ trợ. Việc đổi `div` sang `span` được giới hạn ở fragment thuần inline bên trong block văn bản.
+DEPENDENCIES/BLOCKERS: Không có blocker Clipboard. Gate Node toàn bộ còn một FAIL soffice ngoài scope.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Reviewer kiểm tra commit trên branch này và tự gộp; không merge main, không push.

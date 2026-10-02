@@ -217,6 +217,116 @@ export async function runBasicEditingKeysTests() {
     assert(prevented && captured.at(-1).html === "<strong>giữ kiểu</strong>", "paste event phải dùng HTML đã có trong clipboard");
   }));
 
+  results.push(await test("Writer Cut dùng thuật toán contenteditable để giữ và gộp thẻ đoạn văn", () => {
+    const oldDocument = globalThis.document;
+    const oldWindow = globalThis.window;
+    const body = {
+      innerHTML: "<p>First paragraph</p><p>Second paragraph</p>",
+      contains() { return true; },
+      listeners: {},
+      addEventListener(type, handler) { this.listeners[type] = handler; }
+    };
+    let rangeFallback = false;
+    const range = {
+      cloneContents() { return {}; },
+      deleteContents() { rangeFallback = true; }
+    };
+    const selection = {
+      rangeCount: 1,
+      isCollapsed: false,
+      toString() { return "paragraph\nSecond"; },
+      getRangeAt() { return range; }
+    };
+    globalThis.window = { getSelection: () => selection };
+    globalThis.document = {
+      createElement() {
+        return {
+          innerHTML: "",
+          textContent: "paragraph\nSecond",
+          appendChild() { this.innerHTML = "<p>paragraph</p><p>Second</p>"; }
+        };
+      },
+      execCommand(command) {
+        assert(command === "delete", "Cut phải dùng lệnh delete native của contenteditable");
+        body.innerHTML = "<p>First  paragraph</p>";
+        return true;
+      }
+    };
+    const adapter = Object.create(WriterAdapter.prototype);
+    adapter.bodyDom = body;
+    adapter.flushTyping = () => {};
+    adapter.recordSnapshot = () => {};
+    adapter._updateUndoRedoUI = () => {};
+    try {
+      adapter._bindClipboardEvents();
+      body.listeners.cut({
+        target: { isContentEditable: true },
+        clipboardData: { setData() {} },
+        preventDefault() {}
+      });
+      assert(body.innerHTML === "<p>First  paragraph</p>", "Cắt xuyên đoạn phải gộp nội dung còn lại vào một thẻ p");
+      assert(!rangeFallback, "Không dùng Range.deleteContents khi contenteditable đã xử lý Cut");
+    } finally {
+      globalThis.document = oldDocument;
+      globalThis.window = oldWindow;
+    }
+  }));
+
+  results.push(await test("Writer Paste nội tuyến giữ nội dung bên trong thẻ p", () => {
+    const oldDocument = globalThis.document;
+    const oldWindow = globalThis.window;
+    const paragraph = { tagName: "P" };
+    const body = {
+      innerHTML: "<p>Alpha  Charlie</p>",
+      contains(node) { return node === paragraph; },
+      dispatchEvent() {}
+    };
+    const startContainer = { nodeType: 3, parentElement: { closest: () => paragraph } };
+    const wrapper = {
+      nodeType: 1,
+      tagName: "DIV",
+      attributes: [{ name: "style", value: "font-weight:bold" }],
+      innerHTML: "Bravo",
+      querySelector() { return null; }
+    };
+    const template = { content: { childNodes: [wrapper] }, innerHTML: "" };
+    globalThis.window = { getSelection: () => ({ rangeCount: 1, getRangeAt: () => ({ startContainer }) }) };
+    globalThis.document = {
+      createElement(tag) {
+        if (tag === "template") return template;
+        const attrs = [];
+        return {
+          innerHTML: "",
+          setAttribute(name, value) { attrs.push([name, value]); },
+          get outerHTML() {
+            const rendered = attrs.map(([name, value]) => ` ${name}="${value}"`).join("");
+            return `<span${rendered}>${this.innerHTML}</span>`;
+          }
+        };
+      },
+      execCommand(command, _showUi, value) {
+        assert(command === "insertHTML", "Paste HTML phải dùng đường chèn HTML hiện có");
+        assert(value === '<span style="font-weight:bold">Bravo</span>', "Wrapper block nội tuyến phải đổi thành span");
+        body.innerHTML = '<p>Alpha <span style="font-weight:bold">Bravo</span> Charlie</p>';
+        return true;
+      }
+    };
+    const adapter = Object.create(WriterAdapter.prototype);
+    adapter.bodyDom = body;
+    adapter.flushTyping = () => {};
+    adapter.recordSnapshot = () => {};
+    adapter._updateUndoRedoUI = () => {};
+    adapter._sanitizeClipboardHtml = () => '<div style="font-weight:bold">Bravo</div>';
+    try {
+      const inserted = adapter._insertClipboardContent({ html: "<div>Bravo</div>", text: "Bravo" });
+      assert(inserted, "Paste nội tuyến phải thành công");
+      assert(body.innerHTML.startsWith("<p>") && body.innerHTML.endsWith("</p>"), "Paste nội tuyến phải giữ thẻ p bao ngoài");
+    } finally {
+      globalThis.document = oldDocument;
+      globalThis.window = oldWindow;
+    }
+  }));
+
   results.push(await test("Writer native paste preserves event HTML and recovers missing Office CSS through the bridge", async () => {
     const adapter = Object.create(WriterAdapter.prototype);
     const root = { listeners: {}, addEventListener(type, handler) { this.listeners[type] = handler; } };

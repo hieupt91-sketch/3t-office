@@ -15124,7 +15124,13 @@ export class WriterAdapter {
       }
       event?.preventDefault?.();
       this.flushTyping();
-      range.deleteContents();
+      let deleted = false;
+      if (typeof document !== "undefined" && typeof document.execCommand === "function") {
+        try {
+          deleted = document.execCommand("delete", false, null) === true;
+        } catch { /* Range fallback below keeps Cut usable outside Chromium. */ }
+      }
+      if (!deleted) range.deleteContents();
       this.isDirty = true;
       this.recordSnapshot("writer.edit.cut");
       this._updateUndoRedoUI?.();
@@ -15223,8 +15229,38 @@ export class WriterAdapter {
     return template.innerHTML;
   }
 
+  _prepareClipboardHtmlForInsertion(html) {
+    if (!html || typeof document === "undefined" || typeof window === "undefined") return html;
+    const selection = window.getSelection?.();
+    if (!selection?.rangeCount) return html;
+    const range = selection.getRangeAt(0);
+    const startElement = range.startContainer?.nodeType === 1
+      ? range.startContainer
+      : range.startContainer?.parentElement;
+    const paragraph = startElement?.closest?.("p,h1,h2,h3,h4,h5,h6,li,blockquote,pre");
+    if (!paragraph || !this.bodyDom?.contains?.(paragraph)) return html;
+
+    const template = document.createElement("template");
+    template.innerHTML = html;
+    const meaningfulNodes = [...template.content.childNodes].filter(node => (
+      node.nodeType === 1 || (node.nodeType === 3 && node.textContent?.trim())
+    ));
+    if (meaningfulNodes.length !== 1) return html;
+    const wrapper = meaningfulNodes[0];
+    if (wrapper.nodeType !== 1 || wrapper.tagName !== "DIV") return html;
+    if (wrapper.querySelector("p,div,h1,h2,h3,h4,h5,h6,ul,ol,li,blockquote,pre,table")) return html;
+
+    const span = document.createElement("span");
+    for (const attribute of [...wrapper.attributes]) {
+      span.setAttribute(attribute.name, attribute.value);
+    }
+    span.innerHTML = wrapper.innerHTML;
+    return span.outerHTML;
+  }
+
   _insertClipboardContent({ html = "", text = "" } = {}) {
-    const cleanHtml = html ? this._sanitizeClipboardHtml(cleanWordHtml(html)) : "";
+    const sanitizedHtml = html ? this._sanitizeClipboardHtml(cleanWordHtml(html)) : "";
+    const cleanHtml = this._prepareClipboardHtmlForInsertion(sanitizedHtml);
     if (cleanHtml || text) this.flushTyping();
     let inserted = false;
     if (cleanHtml) {
