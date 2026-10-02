@@ -87,7 +87,13 @@ async function startSession(appKind) {
       } catch {}
       try {
         if (child && child.pid && child.exitCode === null) {
-          child.kill();
+          const pid = child.pid;
+          await new Promise(resolve => {
+            const tk = spawn("taskkill", ["/PID", String(pid), "/T", "/F"]);
+            tk.on("close", () => resolve());
+            tk.on("error", () => resolve());
+            setTimeout(resolve, 2000);
+          });
         }
       } catch {}
     }

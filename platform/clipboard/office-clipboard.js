@@ -873,7 +873,7 @@ export function serializeSheetRangeToClipboard(grid, range) {
       const styles = [];
       const st = item.style || {};
 
-      if (st.fontWeight === "bold") styles.push("font-weight:bold");
+      if (isCellBold(item)) styles.push("font-weight:bold");
       if (st.fontStyle === "italic") styles.push("font-style:italic");
       if (st.textDecoration?.includes("underline")) styles.push("text-decoration:underline");
       if (st.color) styles.push(`color:${st.color}`);
