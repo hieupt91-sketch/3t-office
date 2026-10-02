@@ -4,6 +4,8 @@
  * Keyboard accessible (Esc, Tab/Shift-Tab focus trap, Enter).
  */
 
+import { captureEditorFocus, restoreEditorFocus, isEditorElement } from "../shell/focus-manager.js";
+
 const FALLBACK_ABOUT_INFO = {
   app_version: "0.9.0-pilot1",
   product_name: "3T Office",
@@ -31,6 +33,7 @@ let _activeAboutDialog = null;
 export async function showAboutDialog() {
   if (_activeAboutDialog) return;
 
+  captureEditorFocus();
   const previousActiveElement = document.activeElement;
 
   // Lấy dữ liệu phiên bản từ Python bridge nếu có
@@ -165,8 +168,10 @@ export async function showAboutDialog() {
     document.removeEventListener("keydown", handleKeyDown);
     backdrop.remove();
     _activeAboutDialog = null;
-    if (previousActiveElement && typeof previousActiveElement.focus === "function") {
-      previousActiveElement.focus();
+    if (previousActiveElement && isEditorElement(previousActiveElement)) {
+      try { previousActiveElement.focus(); } catch (_) {}
+    } else {
+      restoreEditorFocus();
     }
   };
 

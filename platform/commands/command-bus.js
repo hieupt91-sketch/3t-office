@@ -3,6 +3,8 @@
  * Tuân thủ chuẩn 01-architecture/COMMAND-ARCHITECTURE.md
  */
 
+import { restoreEditorFocus, hasOpenDialog } from "../shell/focus-manager.js";
+
 export class CommandBus {
   constructor() {
     /** @type {Map<string, import('./command-types.js').CommandDefinition>} */
@@ -160,6 +162,17 @@ export class CommandBus {
       if (def && def.isToggle && result !== undefined && typeof result === "boolean") {
         this.updateState(commandId, { checked: result });
       }
+
+      if (typeof window !== "undefined" && typeof document !== "undefined" && typeof document.querySelector === "function") {
+        setTimeout(() => {
+          try {
+            if (!hasOpenDialog()) {
+              restoreEditorFocus();
+            }
+          } catch (_) {}
+        }, 0);
+      }
+
       return result !== undefined ? result : true;
     } catch (err) {
       console.error(`[CommandBus] Lỗi thực thi lệnh [${commandId}]:`, err);

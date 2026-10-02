@@ -8,7 +8,7 @@
  * 3. Sau khi đổi tab Ribbon.
  * 4. Sau khi đóng menu Tệp (Backstage).
  * 5. Sau khi thu phóng (Zoom).
- * 6. Sau khi chuyển sang cửa sổ khác rồi quay lại (Window focus / activateTarget).
+ * 6. Sau khi chuyển sang cửa sổ khác rồi quay lại (Window focus / activateTarget / bringToFront).
  * 
  * Tiêu chí: Gõ ngay được vào vùng soạn thảo, Enter KHÔNG kích hoạt nút nào.
  * Tuân thủ AGENTS.md §2 (REUSE BEFORE REWRITE, Monorepo, Shared Platform, Không copy-paste giữa 3 app).
@@ -19,18 +19,47 @@ let _capturedRange = null;
 let _globalFocusGuardInstalled = false;
 
 /**
+ * Danh sách selector nhận diện tất cả hộp thoại, modal, backstage và overlays trong 3T Office
+ */
+const DIALOG_SELECTORS = [
+  ".vno-dialog-overlay",
+  ".vno-backstage-overlay",
+  ".vno-print-overlay",
+  ".vno-print-dialog-overlay",
+  ".vno-about-backdrop",
+  ".vno-about-dialog",
+  ".vno-fr-dialog-overlay",
+  ".vno-error-reporting-overlay",
+  ".vno-cell-styles-dialog",
+  ".vno-format-table-dialog",
+  ".vno-format-cells-overlay",
+  ".vno-citation-dialog-overlay",
+  ".vno-caption-dialog-overlay",
+  ".vno-options-overlay",
+  ".vno-recovery-dialog",
+  "[role='dialog']",
+  "[role='alertdialog']"
+].join(", ");
+
+/**
  * Xác định loại ứng dụng hiện tại: "writer" | "sheet" | "slides" | null
  * @returns {"writer"|"sheet"|"slides"|null}
  */
 export function getCurrentAppKind() {
-  if (typeof document === "undefined") return null;
+  if (typeof document === "undefined" || typeof document.querySelector !== "function") return null;
   const shell = document.querySelector(".vno-shell");
   if (shell?.getAttribute("data-app")) return shell.getAttribute("data-app");
-  if (typeof window !== "undefined" && window.__vnoAppInstance?.shell?.appName) {
-    return window.__vnoAppInstance.shell.appName;
+  if (typeof window !== "undefined") {
+    if (window.__vnoAppInstance?.shell?.appName) {
+      return window.__vnoAppInstance.shell.appName;
+    }
+    if (window.location && window.location.search) {
+      const q = new URLSearchParams(window.location.search).get("app");
+      if (q === "writer" || q === "sheet" || q === "slides") return q;
+    }
   }
   if (document.querySelector(".vno-writer-body")) return "writer";
-  if (document.querySelector(".vno-sheet-container")) return "sheet";
+  if (document.querySelector(".vno-sheet-container, #vno-sheet-grid, .vno-grid-table")) return "sheet";
   if (document.querySelector(".vno-slide-canvas, .vno-slides-workspace")) return "slides";
   return null;
 }
@@ -41,16 +70,13 @@ export function getCurrentAppKind() {
  * @returns {boolean}
  */
 export function hasOpenDialog(root = (typeof document !== "undefined" ? document : null)) {
-  if (!root || typeof root.querySelector !== "function") return false;
-  const overlays = root.querySelectorAll(
-    '.vno-dialog-overlay, .vno-backstage-overlay, .vno-print-overlay, .vno-error-reporting-overlay, ' +
-    '.vno-cell-styles-dialog, .vno-format-table-dialog, .vno-format-cells-overlay, ' +
-    '[role="dialog"], [role="alertdialog"]'
-  );
+  if (!root || typeof root.querySelectorAll !== "function") return false;
+  const overlays = root.querySelectorAll(DIALOG_SELECTORS);
   for (const el of overlays) {
     if (el.closest?.(".vno-ribbon, .vno-topbar, .vno-statusbar")) continue;
-    // Bỏ qua nếu bị ẩn
+    // Bỏ qua nếu bị ẩn trong DOM
     if (el.style?.display === "none" || el.hidden) continue;
+    if (el.offsetWidth === 0 && el.offsetHeight === 0 && el.getClientRects?.().length === 0) continue;
     return true;
   }
   return false;
@@ -63,8 +89,8 @@ export function hasOpenDialog(root = (typeof document !== "undefined" ? document
  */
 export function isEditorElement(el) {
   if (!el || typeof el.closest !== "function") return false;
-  // Loại trừ các thành phần giao diện khung ngoài
-  if (el.closest?.(".vno-ribbon, .vno-topbar, .vno-dialog-overlay, .vno-backstage-overlay, .vno-notification-host, .vno-statusbar, .vno-dialog-box")) {
+  // Loại trừ các thành phần giao diện khung ngoài, ribbon, dialog, backstage
+  if (el.closest?.(".vno-ribbon, .vno-topbar, .vno-statusbar, .vno-dialog-overlay, .vno-dialog-box, .vno-backstage-overlay, .vno-notification-host, .vno-about-dialog")) {
     return false;
   }
 
@@ -75,13 +101,13 @@ export function isEditorElement(el) {
   }
 
   // 2. Sheet
-  if (el.matches?.(".vno-sheet-container, .vno-grid-table, .vno-formula-input, .vno-cell-editor, [data-coord]") ||
-      el.closest?.(".vno-sheet-container")) {
+  if (el.matches?.(".vno-sheet-container, .vno-grid-table, .vno-grid-viewport, .vno-formula-input, .vno-cell-editor, [data-coord]") ||
+      el.closest?.(".vno-sheet-container, .vno-grid-container")) {
     return true;
   }
 
   // 3. Slide
-  if (el.matches?.(".vno-slide-canvas, .vno-slide-title, .vno-slide-body, .vno-shape-text") ||
+  if (el.matches?.(".vno-slide-canvas, .vno-slide-title, .vno-slide-body, .vno-shape-text, .vno-shape-item") ||
       el.closest?.(".vno-slide-canvas, .vno-slides-workspace")) {
     return true;
   }
@@ -136,18 +162,18 @@ export function clearCapturedEditorFocus() {
  * @returns {boolean} true nếu đã khôi phục tiêu điểm thành công
  */
 export function restoreEditorFocus(options = {}) {
-  if (typeof document === "undefined" || !document.body) return false;
+  if (typeof document === "undefined" || !document.body || typeof document.querySelector !== "function") return false;
   if (!options.force && hasOpenDialog()) return false;
 
   // Làm mờ bất kỳ nút bấm hoặc control nào ngoài editor đang giữ focus
   const currentActive = document.activeElement;
-  if (currentActive && (currentActive.tagName === "BUTTON" || currentActive.matches?.(".vno-ribbon-tab, .vno-btn, select, [role='tab'], [role='menuitem']"))) {
+  if (currentActive && (currentActive.tagName === "BUTTON" || currentActive.matches?.(".vno-ribbon-tab, .vno-btn, select, [role='tab'], [role='menuitem'], [data-command-id]"))) {
     try { currentActive.blur(); } catch (_) {}
   }
 
   const app = getCurrentAppKind();
 
-  // --- DOC (WRITER) ---
+  // --- 1. DOC (WRITER) ---
   if (app === "writer") {
     const body = document.querySelector(".vno-writer-body[contenteditable='true']")
       || document.querySelector(".vno-writer-body");
@@ -197,7 +223,7 @@ export function restoreEditorFocus(options = {}) {
     return true;
   }
 
-  // --- SHEET ---
+  // --- 2. SHEET ---
   if (app === "sheet") {
     const active = document.activeElement;
     if (active && (active.classList.contains("vno-formula-input") || active.classList.contains("vno-cell-editor"))) {
@@ -211,7 +237,9 @@ export function restoreEditorFocus(options = {}) {
 
     const container = document.querySelector(".vno-sheet-container");
     if (container) {
-      if (!container.hasAttribute("tabindex")) container.setAttribute("tabindex", "0");
+      if (!container.hasAttribute("tabindex") || container.tabIndex < 0) {
+        container.setAttribute("tabindex", "0");
+      }
       try {
         container.focus({ preventScroll: true });
       } catch (_) {
@@ -222,19 +250,11 @@ export function restoreEditorFocus(options = {}) {
     return false;
   }
 
-  // --- SLIDE ---
+  // --- 3. SLIDE ---
   if (app === "slides") {
     const canvasController = typeof window !== "undefined" ? window.__vnoAppInstance?.canvasController : null;
-
-    // 1. Nếu có text box đã được capture trước đó hoặc đang được sửa
-    if (_capturedFocusTarget && document.body.contains(_capturedFocusTarget) && isEditorElement(_capturedFocusTarget) && _capturedFocusTarget.isContentEditable) {
-      try {
-        _capturedFocusTarget.focus({ preventScroll: true });
-        return true;
-      } catch (_) {}
-    }
-
     const selectedTarget = canvasController?.selectedTarget;
+
     if (selectedTarget === "title" && canvasController.titleEl?.isContentEditable) {
       try { canvasController.titleEl.focus({ preventScroll: true }); return true; } catch (_) {}
     }
@@ -245,6 +265,14 @@ export function restoreEditorFocus(options = {}) {
       try { canvasController.body2El.focus({ preventScroll: true }); return true; } catch (_) {}
     }
 
+    // A. Nếu có text box đã được capture trước đó hoặc đang được sửa
+    if (_capturedFocusTarget && document.body.contains(_capturedFocusTarget) && isEditorElement(_capturedFocusTarget) && _capturedFocusTarget.isContentEditable) {
+      try {
+        _capturedFocusTarget.focus({ preventScroll: true });
+        return true;
+      } catch (_) {}
+    }
+
     const editingEl = document.querySelector(".vno-slide-title.is-editing, .vno-slide-body.is-selected, [contenteditable='true'].is-selected");
     if (editingEl) {
       try {
@@ -253,12 +281,14 @@ export function restoreEditorFocus(options = {}) {
       } catch (_) {}
     }
 
-    // 2. Nếu không sửa hộp chữ: focus vào slide canvas để không mất phím và Enter an toàn
+    // B. Nếu không sửa hộp chữ: focus vào slide canvas để không mất phím và Enter an toàn
     const canvas = canvasController?.canvasEl
       || document.querySelector(".vno-slide-canvas")
       || document.querySelector(".vno-slides-workspace");
     if (canvas) {
-      if (!canvas.hasAttribute("tabindex")) canvas.setAttribute("tabindex", "0");
+      if (!canvas.hasAttribute("tabindex") || canvas.tabIndex < 0) {
+        canvas.setAttribute("tabindex", "0");
+      }
       try {
         canvas.focus({ preventScroll: true });
       } catch (_) {
@@ -277,8 +307,9 @@ export function restoreEditorFocus(options = {}) {
  * Giám sát tự động:
  * 1. Lưu tiêu điểm trước khi người dùng click vào Ribbon/Toolbar.
  * 2. Trả tiêu điểm về editor sau khi lệnh Ribbon hoặc tab click kết thúc.
- * 3. Tự động trả tiêu điểm khi bất kỳ Dialog Overlay nào bị gỡ bỏ khỏi DOM.
- * 4. Tự động trả tiêu điểm khi cửa sổ ứng dụng nhận lại tiêu điểm (Window Focus).
+ * 3. Tự động trả tiêu điểm khi bất kỳ Dialog Overlay nào bị gỡ bỏ khỏi DOM hoặc bị ẩn.
+ * 4. Tự động trả tiêu điểm khi cửa sổ ứng dụng nhận lại tiêu điểm (Window Focus / visibilitychange).
+ * 5. Bảo vệ phím Enter: ngăn Enter kích hoạt nhầm các nút ngoài editor khi không có dialog nào mở.
  */
 export function installGlobalFocusGuard() {
   if (typeof window === "undefined" || typeof document === "undefined" || _globalFocusGuardInstalled) return;
@@ -298,7 +329,8 @@ export function installGlobalFocusGuard() {
   document.addEventListener("click", (event) => {
     const ribbonAction = event.target?.closest?.(
       ".vno-ribbon-tab, .vno-ribbon-group-items button, .vno-quick-btn, " +
-      ".vno-ribbon-group-row button, .vno-ribbon-group-column button, [data-command-id]"
+      ".vno-ribbon-group-row button, .vno-ribbon-group-column button, [data-command-id], " +
+      ".vno-ribbon button, .vno-topbar button, .vno-statusbar button"
     );
     if (ribbonAction) {
       setTimeout(() => {
@@ -311,21 +343,29 @@ export function installGlobalFocusGuard() {
 
   // 3. Giám sát sự kiện đóng hộp thoại qua MutationObserver trên body
   if (typeof MutationObserver !== "undefined" && document.body) {
+    const isDialogNode = (n) => n && n.nodeType === 1 && (
+      n.matches?.(DIALOG_SELECTORS) || n.querySelector?.(DIALOG_SELECTORS)
+    );
+
     const observer = new MutationObserver((mutations) => {
-      let dialogRemoved = false;
+      let dialogChanged = false;
       for (const m of mutations) {
-        for (const node of m.removedNodes) {
-          if (node.nodeType === 1 && (
-            node.matches?.(".vno-dialog-overlay, .vno-backstage-overlay, .vno-print-overlay, .vno-cell-styles-dialog, .vno-format-table-dialog, .vno-format-cells-overlay") ||
-            node.querySelector?.(".vno-dialog-overlay, .vno-backstage-overlay, .vno-print-overlay, .vno-cell-styles-dialog, .vno-format-table-dialog, .vno-format-cells-overlay")
-          )) {
-            dialogRemoved = true;
+        if (m.type === "childList") {
+          for (const node of m.removedNodes) {
+            if (isDialogNode(node)) {
+              dialogChanged = true;
+              break;
+            }
+          }
+        } else if (m.type === "attributes") {
+          if (isDialogNode(m.target)) {
+            dialogChanged = true;
             break;
           }
         }
-        if (dialogRemoved) break;
+        if (dialogChanged) break;
       }
-      if (dialogRemoved) {
+      if (dialogChanged) {
         setTimeout(() => {
           if (!hasOpenDialog()) {
             restoreEditorFocus();
@@ -333,7 +373,13 @@ export function installGlobalFocusGuard() {
         }, 0);
       }
     });
-    observer.observe(document.body, { childList: true, subtree: true });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["style", "hidden", "class"]
+    });
   }
 
   // 4. Lắng nghe khi cửa sổ nhận lại tiêu điểm (Alt+Tab hoặc activateTarget / bringToFront)
@@ -344,4 +390,35 @@ export function installGlobalFocusGuard() {
       }
     }, 0);
   });
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      setTimeout(() => {
+        if (!hasOpenDialog()) {
+          restoreEditorFocus();
+        }
+      }, 0);
+    }
+  });
+
+  // 5. Bảo vệ phím Enter: Ngăn Enter kích hoạt nhầm nút ngoài editor khi không có dialog
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      const active = document.activeElement;
+      if (active && (active.tagName === "BUTTON" || active.matches?.(".vno-ribbon-tab, [role='tab'], [role='menuitem']"))) {
+        if (!hasOpenDialog()) {
+          event.preventDefault();
+          event.stopPropagation();
+          restoreEditorFocus();
+          const app = getCurrentAppKind();
+          if (app === "sheet") {
+            const grid = window.__vnoAppInstance?.grid;
+            if (grid && typeof grid.moveSelection === "function") {
+              grid.moveSelection(0, 1);
+            }
+          }
+        }
+      }
+    }
+  }, true);
 }

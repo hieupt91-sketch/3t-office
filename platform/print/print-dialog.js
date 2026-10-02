@@ -1,4 +1,5 @@
 import { chooseDefaultPrinter, getPrintErrorMessage, parsePageRange } from "./print-model.js";
+import { captureEditorFocus, restoreEditorFocus } from "../shell/focus-manager.js";
 
 let _printStylesPromise = null;
 
@@ -59,6 +60,7 @@ export async function openPrintDialog({
   engine
 } = {}) {
   if (typeof document === "undefined") return false;
+  captureEditorFocus();
   await ensurePrintStyles();
 
   const safeCurrentPage = Math.max(1, Number.isInteger(Number(currentPage)) ? Number(currentPage) : 1);
@@ -164,6 +166,7 @@ export async function openPrintDialog({
     if (state.closed) return;
     state.closed = true;
     overlay.remove();
+    restoreEditorFocus();
     if (state.sessionId && engine?.cancelPrintDocument) {
       try { await engine.cancelPrintDocument(state.sessionId); } catch { /* temporary files expire with the app */ }
     }

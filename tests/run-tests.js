@@ -229,6 +229,7 @@ import { runSpellcheckUiUndoTests } from "./unit/spellcheck-ui-undo.test.js";
 import { runSheetGridExtentTests } from "./unit/sheet-grid-extent.test.js";
 import { runSpellcheckInlineToggleTests } from "./unit/spellcheck-inline-toggle.test.js";
 import { runCh81ConsistencyTests } from "./unit/ch8-1-consistency.test.js";
+import { runKeepFocusUnitTests } from "./unit/ch4-6-keep-focus.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -467,7 +468,8 @@ async function runAll() {
     { title: "223. Unit Tests — CH-7.2 Vietnamese spellcheck UI suggestions, 1-step undo, onReplace callback & normalizer bridge", runner: runSpellcheckUiUndoTests },
     { title: "224. Unit Tests — Sheet Grid Extent (1,048,576 rows x 16,384 columns virtualization & navigation)", runner: runSheetGridExtentTests },
     { title: "225. Unit Tests — CH-7.2 Sheet inline spellcheck, contextmenu suggestions, 1-step undo & 3-app spellcheck toggle persistence", runner: runSpellcheckInlineToggleTests },
-    { title: "226. Unit Tests — CH-8.1 UI Consistency: Backstage, Recent Files, Status Bar, View Modes, Zoom & Shortcuts", runner: runCh81ConsistencyTests }
+    { title: "226. Unit Tests — CH-8.1 UI Consistency: Backstage, Recent Files, Status Bar, View Modes, Zoom & Shortcuts", runner: runCh81ConsistencyTests },
+    { title: "227. Unit Tests — CH-4.6 Editor Focus Keeper & Enter Button Guard (Doc, Sheet, Slide)", runner: runKeepFocusUnitTests }
   ];
 
   for (const suite of suites) {

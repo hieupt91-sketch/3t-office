@@ -6,6 +6,7 @@
  */
 
 import { t } from "../i18n/i18n.js";
+import { captureEditorFocus, restoreEditorFocus, isEditorElement } from "../shell/focus-manager.js";
 
 let dialogCounter = 0;
 
@@ -155,6 +156,7 @@ export function showFindReplaceDialog({
     }
   }
 
+  captureEditorFocus();
   const isSheet = app === "sheet";
   const previousFocused = document.activeElement;
   const overlay = document.createElement("div");
@@ -333,8 +335,10 @@ export function showFindReplaceDialog({
     if (overlay.parentNode) {
       overlay.parentNode.removeChild(overlay);
     }
-    if (previousFocused && typeof previousFocused.focus === "function") {
-      previousFocused.focus();
+    if (previousFocused && isEditorElement(previousFocused)) {
+      try { previousFocused.focus(); } catch (_) {}
+    } else {
+      restoreEditorFocus();
     }
     if (typeof onClose === "function") {
       onClose();
