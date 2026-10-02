@@ -10043,6 +10043,17 @@ def _restore_untouched_writer_equations(converted_xml: str, original_xml: str) -
     result = converted_xml
     for start, end, restored in sorted(replacements, reverse=True):
         result = result[:start] + restored + result[end:]
+    # LibreOffice's regenerated root may not declare the Office Math
+    # namespace. Restoring source OMML without it leaves an unbound ``m:``
+    # prefix, and Word rejects the package as malformed XML.
+    if replacements and re.search(r"<m:(?:oMath|oMathPara)\b", result, re.IGNORECASE):
+        root_open = re.search(r"<w:document\b[^>]*>", result, re.IGNORECASE)
+        if root_open and not re.search(r"\bxmlns:m\s*=", root_open.group(0), re.IGNORECASE):
+            result = (
+                result[:root_open.end() - 1]
+                + ' xmlns:m="' + _WRITER_MATH_NS + '"'
+                + result[root_open.end() - 1:]
+            )
     return result
 
 

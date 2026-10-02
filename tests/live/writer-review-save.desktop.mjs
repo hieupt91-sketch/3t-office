@@ -59,12 +59,14 @@ execFileSync("python", ["-s", "-c", seedCode, seedPath, repoRoot, process.argv.i
 
 async function startWriter(filePath) {
   const debugPort = await freePort();
+  let staticPort = await freePort();
+  while (staticPort === debugPort) staticPort = await freePort();
   if (await fetch(`http://127.0.0.1:${debugPort}/json/version`).then(response => response.ok).catch(() => false)) {
     throw new Error(`Selected CDP port ${debugPort} was claimed by another process before launch.`);
   }
-  log("INFO", "Starting VN Writer WebView2 CDP", debugPort);
-  const bootstrap = "import sys,main; main._DEFAULT_STATIC_PORT=19180; main.APP_DATA_DIR_NAME=sys.argv[1]; main.main(['--app=writer',sys.argv[2]])";
-  const child = spawn("python", ["-c", bootstrap, appDataName, filePath], {
+  log("INFO", "Starting VN Writer WebView2 CDP", `${debugPort} (static ${staticPort})`);
+  const bootstrap = "import sys,main; main._DEFAULT_STATIC_PORT=int(sys.argv[3]); main.APP_DATA_DIR_NAME=sys.argv[1]; main.main(['--app=writer',sys.argv[2]])";
+  const child = spawn("python", ["-c", bootstrap, appDataName, filePath, String(staticPort)], {
     cwd: repoRoot,
     env: {
       ...process.env,
@@ -186,7 +188,11 @@ try {
   $word.Visible=$false; $word.DisplayAlerts=0
   $after=@(Get-Process WINWORD -ErrorAction SilentlyContinue | ForEach-Object Id)
   $owned=@($after | Where-Object { $before -notcontains $_ }).Count -eq 1
-  $doc=Invoke-Com { $word.Documents.Open((Resolve-Path -LiteralPath $Path).Path,$false,($Normalize -ne "normalize"),$false) }
+  # Word returns $null for Document.TrackRevisions when a DOCX is opened
+  # read-only even though w:trackRevisions and revisions are present. Open the
+  # synthetic artifact writable and always close with wdDoNotSaveChanges so the
+  # COM assertion observes the real document setting without mutating the file.
+  $doc=Invoke-Com { $word.Documents.Open((Resolve-Path -LiteralPath $Path).Path,$false,$false,$false) }
   if ($Normalize -eq "normalize") { Invoke-Com { $doc.Save() } | Out-Null }
   Invoke-Com { $doc.Repaginate() } | Out-Null
   $section=Invoke-Com { $doc.Sections.Item(1) }

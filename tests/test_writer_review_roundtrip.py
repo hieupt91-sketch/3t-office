@@ -12,6 +12,7 @@ import re
 import tempfile
 import unittest
 import zipfile
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from unittest.mock import patch
 
@@ -239,6 +240,7 @@ class WriterReviewRoundtripTests(unittest.TestCase):
         self.assertEqual(result.get("status"), "ok", result)
         parts = _parts(target)
         document = _text(parts["word/document.xml"])
+        ET.fromstring(document)
         rels = _text(parts["word/_rels/document.xml.rels"])
         self.assertIn("w:headerReference", document)
         self.assertIn("w:footerReference", document)
