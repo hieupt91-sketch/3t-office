@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Có gì mới — Nhật ký phát hành và cập nhật 3T Office</title>
-  <meta name="description" content="Lịch sử các bản cập nhật và ghi chú phát hành thực tế của bộ ứng dụng 3T Office từ bản 0.9.1 đến 0.9.6 mới nhất.">
+  <meta name="description" content="Lịch sử các bản cập nhật và ghi chú phát hành thực tế của bộ ứng dụng 3T Office từ bản 0.9.1 đến 0.9.7 mới nhất.">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="alternate icon" href="favicon.ico">
   <link rel="stylesheet" href="css/style.css">
@@ -50,7 +50,7 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
           </svg>
-          Tải 0.9.6 Pilot
+          Tải 0.9.7 Pilot
         </a>
         <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="primary-nav" aria-label="Mở trình đơn chuyển hướng">
           ☰
@@ -71,15 +71,73 @@
         </div>
 
         <div class="timeline" id="releases-container">
-          <!-- Bản 0.9.6 mới nhất -->
+          <!-- Bản 0.9.7 mới nhất -->
           <div class="timeline-item">
             <div class="timeline-dot"></div>
             <article class="timeline-content">
               <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
                 <div style="display: flex; align-items: center; gap: 8px;">
-                  <span class="tag tag-ready">Phiên bản 0.9.6</span>
+                  <span class="tag tag-ready">Phiên bản 0.9.7</span>
                   <span style="font-weight: 700; color: var(--brand-orange); font-size: 0.875rem;">(Hiện tại)</span>
                 </div>
+                <span style="font-size: 0.813rem; color: var(--text-dim); font-weight: 600;">02/10/2026</span>
+              </div>
+              <h2 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 12px; color: var(--text-main);">
+                Giao diện &amp; Trợ giúp thống nhất, Bảng tính 1 triệu hàng, Thước &amp; Phương trình Toán, Ổn định tiến trình
+              </h2>
+              <div style="display: flex; flex-direction: column; gap: 16px; font-size: 0.938rem; color: var(--text-muted); line-height: 1.6;">
+                <div>
+                  <h3 style="font-size: 1rem; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">1. Chung (dùng cho Doc, Sheet và Slide):</h3>
+                  <ul style="list-style: disc; padding-left: 20px; display: flex; flex-direction: column; gap: 6px;">
+                    <li>Giao diện và Trợ giúp thống nhất ở cả 3 ứng dụng: bấm <code>Alt</code> để hiện phím tắt, <code>F1</code> mở ngay bài hướng dẫn đúng ngữ cảnh, và có trang &quot;Có gì mới&quot; trong Trợ giúp.</li>
+                    <li>Cập nhật một chạm: khi có bản vá mới, ứng dụng báo trước, lưu tài liệu rồi tự áp bản vá và mở lại; mỗi bước được ghi nhật ký để khôi phục khi có lỗi.</li>
+                    <li>Tìm/Thay thế dùng chung cho cả 3 ứng dụng: <code>Ctrl+F</code> để tìm, <code>Ctrl+H</code> để thay thế, <code>F3</code> cho lần tìm kế tiếp.</li>
+                    <li>Gõ tiếng Việt bằng bộ gõ ngoài (Unikey, EVKey): <code>Ctrl+Z</code> hoàn tác theo từng từ, chữ được chuẩn hóa, gợi ý công thức không bị chèn nhầm vào nội dung.</li>
+                    <li>Chính tả tiếng Việt: từ sai được gạch đỏ ngay khi gõ, chuột phải để chọn cách sửa, và bật/tắt chính tả trong Tùy chọn cho cả 3 ứng dụng.</li>
+                    <li>Tên ngắn Doc, Sheet, Slide dùng thống nhất ở tiêu đề cửa sổ, giao diện và nội dung mẫu.</li>
+                    <li>Phím tắt trên desktop và khi ghim thanh tác vụ dùng tên ngắn Doc, Sheet, Slide; sau khi nâng cấp không còn giữ tên cũ.</li>
+                    <li>Hộp thoại In không còn hiển thị tên thư viện kỹ thuật bên trong.</li>
+                    <li>Trợ giúp tiếng Việt được rà soát cho 47 mục tính năng, mỗi mục có hướng dẫn cụ thể.</li>
+                    <li>Mở ứng dụng và mở tệp nhanh hơn, gõ phím ngay được sau khi mở.</li>
+                    <li>Lệnh Tạo mới ở Sheet và Slide mở cửa sổ mới thay vì dùng lại cửa sổ cũ.</li>
+                    <li>Ổn định tiến trình: không còn tiến trình thừa do ứng dụng tạo ra khi đóng hoặc mở lại; bản lưu tạm cứ 2 phút một lần giúp khôi phục tài liệu khi ứng dụng bị treo; nhật ký hiệu năng chỉ ghi khi bạn bật trong Trợ giúp.</li>
+                    <li>Giao diện dùng chung được đồng bộ giữa Doc, Sheet và Slide: màn hình Tệp và danh sách Tệp gần đây giống nhau, thanh trạng thái ở đáy cửa sổ có các chế độ xem riêng từng ứng dụng cùng thanh thu phóng 50% – 200%, và phím tắt <code>Alt+F</code>, <code>Ctrl+F1</code> dùng chung.</li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 style="font-size: 1rem; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">2. Doc:</h3>
+                  <ul style="list-style: disc; padding-left: 20px; display: flex; flex-direction: column; gap: 6px;">
+                    <li>Thêm Thước ngang và dọc, Thụt đầu dòng, Đánh số lại từ 1; nhóm lệnh Bảng (chèn/xóa hàng cột, gộp/tách ô, căn ô, tô màu ô, đường viền, hàng tiêu đề); ảnh có 8 tay cầm, giữ tỉ lệ và ngắt dòng chữ quanh ảnh; lệnh cắt/dán và gợi ý chính tả khi chuột phải.</li>
+                    <li>Sửa lỗi số trang trên màn hình lệch so với bản in (phông chữ và giãn dòng của trang bị áp sai).</li>
+                    <li>Chèn phương trình bằng <code>Alt+=</code>, soạn được dạng tuyến tính, lưu và mở lại vẫn giữ nguyên vị trí.</li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 style="font-size: 1rem; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">3. Sheet:</h3>
+                  <ul style="list-style: disc; padding-left: 20px; display: flex; flex-direction: column; gap: 6px;">
+                    <li>Dán từ bảng tính và văn bản của phần mềm văn phòng khác giữ đúng định dạng: chữ đậm, màu nền, số, ngày, phần trăm và số thập phân vào đúng ô; dán vào Doc giữ tiêu đề, danh sách và bảng.</li>
+                    <li>Sửa 5 lỗi: số và ngày lưu thành giá trị số thật; giữ thiết lập trang in khi mở lại; <code>Ctrl+A</code> chọn đúng vùng dữ liệu; sắp xếp giữ nguyên dòng tiêu đề; xóa trang tính và đổi màu tab.</li>
+                    <li>Bảng tính đủ 1.048.576 hàng x 16.384 cột (trước đây dừng ở 200 hàng x 26 cột); chỉ vẽ phần đang nhìn thấy nên cuộn vẫn nhẹ; <code>Ctrl+mũi tên</code> và ô nhập tên vùng đi tới mọi ô.</li>
+                    <li>Hộp thoại In có thêm Phạm vi sổ làm việc: trang tính hiện hoạt, toàn bộ sổ làm việc hoặc vùng bôi đen.</li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 style="font-size: 1rem; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">4. Slide:</h3>
+                  <ul style="list-style: disc; padding-left: 20px; display: flex; flex-direction: column; gap: 6px;">
+                    <li><code>Tab</code>/<code>Shift+Tab</code> thụt lề trong hộp chữ; Enter không còn thoát khỏi hộp chữ; kéo góc ảnh giữ nguyên tỉ lệ; xóa hoặc nhân bản trang an toàn; phím tắt dùng được ở chế độ sắp xếp.</li>
+                    <li><code>Ctrl+C</code>, <code>Ctrl+X</code>, <code>Ctrl+V</code> hoạt động trong hộp chữ.</li>
+                  </ul>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <!-- Bản 0.9.6 -->
+          <div class="timeline-item">
+            <div class="timeline-dot"></div>
+            <article class="timeline-content">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+                <span class="tag tag-info">Phiên bản 0.9.6</span>
                 <span style="font-size: 0.813rem; color: var(--text-dim); font-weight: 600;">01/10/2026</span>
               </div>
               <h2 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 12px; color: var(--text-main);">
@@ -234,7 +292,7 @@
           <h4>Thông tin</h4>
           <ul class="footer-links">
             <li><a href="tai-ve.html">Tải về bộ cài</a></li>
-            <li><a href="co-gi-moi.html">Có gì mới (0.9.6)</a></li>
+            <li><a href="co-gi-moi.html">Có gì mới (0.9.7)</a></li>
             <li><a href="huong-dan.html">Hướng dẫn sử dụng</a></li>
             <li><a href="ban-quyen.html">Chính sách bản quyền</a></li>
           </ul>

@@ -62,9 +62,9 @@ export async function run3tWebTests() {
     );
 
     assert(
-      "Dung lượng bộ cài 0.9.6 đúng 526479307 byte và mã băm SHA256 chính xác",
-      releasesData.download?.file_size_bytes === 526479307 &&
-      releasesData.download?.sha256?.toLowerCase() === "6387f9358327e442a6ba9c0367a2277a57b06d8b4b3cd9f37ffef9b228c46f11"
+      "Dung lượng bộ cài 0.9.7 đúng 526608468 byte và mã băm SHA256 chính xác",
+      releasesData.download?.file_size_bytes === 526608468 &&
+      releasesData.download?.sha256?.toLowerCase() === "8f3b6a8e0c0ed0324b62c53d0efe56994653a33e660c44446c6065a353c07b15"
     );
 
     // 2. Kiểm tra sự tồn tại của 9 trang HTML
@@ -268,4 +268,20 @@ export async function run3tWebTests() {
   }
 
   return results;
+}
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+  run3tWebTests().then((results) => {
+    let failed = 0;
+    for (const r of results) {
+      if (!r.pass) {
+        failed++;
+        console.error(`FAIL: ${r.name} - ${r.error || "failed assertion"}`);
+      }
+    }
+    console.log(`\n==================================================`);
+    console.log(`Total tests: ${results.length} | Passed: ${results.length - failed} | Failed: ${failed}`);
+    console.log(`==================================================\n`);
+    if (failed > 0) process.exit(1);
+  });
 }

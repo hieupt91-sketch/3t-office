@@ -592,7 +592,7 @@ async function initReleaseData() {
   const dl = releaseData.download || {};
 
   document.querySelectorAll("[data-release-field='current_version']").forEach((el) => el.textContent = ver);
-  document.querySelectorAll("[data-release-field='file_name']").forEach((el) => el.textContent = dl.file_name || "VNOffice-Setup-0.9.6.exe");
+  document.querySelectorAll("[data-release-field='file_name']").forEach((el) => el.textContent = dl.file_name || "VNOffice-Setup-0.9.7.exe");
   document.querySelectorAll("[data-release-field='file_size_formatted']").forEach((el) => el.textContent = dl.file_size_formatted || "502 MB");
   document.querySelectorAll("[data-release-field='sha256']").forEach((el) => el.textContent = dl.sha256 || "");
 }

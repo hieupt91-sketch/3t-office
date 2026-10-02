@@ -10,8 +10,8 @@ Trang web tĩnh chính thức giới thiệu bộ ứng dụng văn phòng **3T 
 server/3t-web/
 ├── index.html                 # Trang chủ: Hero tương tác, Bento grid 6 thẻ, Stepper cập nhật 3 bước, Định dạng, CTA
 ├── tinh-nang.html             # Danh mục tính năng: Ma trận lọc động Sẵn sàng vs Sắp có theo từng ứng dụng
-├── tai-ve.html                # Tải bộ cài: Phiên bản 0.9.6, dung lượng 502 MB, mã băm SHA-256 kèm nút copy, stepper cài đặt
-├── co-gi-moi.html             # Nhật ký cập nhật: Dòng thời gian trực quan (Timeline) từ bản 0.9.1 đến 0.9.6
+├── tai-ve.html                # Tải bộ cài: Phiên bản 0.9.7, dung lượng 502 MB, mã băm SHA-256 kèm nút copy, stepper cài đặt
+├── co-gi-moi.html             # Nhật ký cập nhật: Dòng thời gian trực quan (Timeline) từ bản 0.9.1 đến 0.9.7
 ├── huong-dan.html             # Hướng dẫn sử dụng: 8 bài viết, tìm kiếm thời gian thực (live search), mục lục bám dính
 ├── ban-quyen.html             # Bản quyền & Gói dùng: Dùng thử 30 ngày, Gói vĩnh viễn, Thuê bao, cơ chế 30 ngày ngoại tuyến
 ├── lien-he.html               # Liên hệ: Kênh liên lạc chính thống và các trường chờ phê duyệt (TODO-CONFIRM)
@@ -154,7 +154,7 @@ Khi cần bổ sung một trang mới vào `server/3t-web/`, lập trình viên 
           <span class="theme-icon light-icon" aria-hidden="true">☀️</span>
           <span class="theme-icon dark-icon" aria-hidden="true">🌙</span>
         </button>
-        <a href="tai-ve.html" class="btn btn-primary btn-sm nav-cta-btn">Tải bản 0.9.6</a>
+        <a href="tai-ve.html" class="btn btn-primary btn-sm nav-cta-btn">Tải bản 0.9.7</a>
         <button class="mobile-menu-btn" aria-label="Mở trình đơn di động" aria-expanded="false" aria-controls="mobile-nav">
           <span class="bar"></span>
           <span class="bar"></span>
@@ -253,7 +253,7 @@ Khi triển khai lên máy chủ dịch vụ đám mây 3T Cloud (`office.3tcomp
 
 Tuân thủ nghiêm ngặt nguyên tắc trung thực và không bịa đặt số liệu:
 
-1. **TODO-CONFIRM: Ngày mở tải công khai bản Setup 0.9.6:**
+1. **TODO-CONFIRM: Ngày mở tải công khai bản Setup 0.9.7:**
    Hiện tại nút tải công khai trên trang `tai-ve.html` và `index.html` được tạm khóa và hiển thị thông báo. Cần quyết định thời điểm mở tải công khai sau khi máy chủ hoàn tất cấu hình.
 2. **TODO-CONFIRM: Giá chính thức cho các gói bản quyền:**
    - Đơn giá cho Gói vĩnh viễn (sở hữu trọn đời + 1 năm cập nhật).

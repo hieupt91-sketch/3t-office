@@ -1,15 +1,15 @@
 {
   "product": "3T Office",
-  "current_version": "0.9.6",
+  "current_version": "0.9.7",
   "version_family": "0.9.x",
   "channel": "pilot",
-  "release_date": "2026-10-01",
+  "release_date": "2026-10-02",
   "download": {
-    "file_name": "VNOffice-Setup-0.9.6.exe",
-    "alias_file_name": "Setup-0.9.6.exe",
-    "file_size_bytes": 526479307,
+    "file_name": "VNOffice-Setup-0.9.7.exe",
+    "alias_file_name": "Setup-0.9.7.exe",
+    "file_size_bytes": 526608468,
     "file_size_formatted": "502 MB",
-    "sha256": "6387f9358327e442a6ba9c0367a2277a57b06d8b4b3cd9f37ffef9b228c46f11",
+    "sha256": "8F3B6A8E0C0ED0324B62C53D0EFE56994653A33E660C44446C6065A353C07B15",
     "status": "ready_for_staging",
     "public_download_status": "Chờ kích hoạt máy chủ cập nhật chính thức (TODO-CONFIRM: Ngày mở tải công khai)",
     "requirements": {
@@ -20,6 +20,34 @@
     }
   },
   "releases": [
+    {
+      "version": "0.9.7",
+      "channel": "pilot",
+      "date": "2026-10-02",
+      "summary": "Giao diện và Trợ giúp thống nhất, Bảng tính mở rộng 1 triệu hàng, Thước & Phương trình Toán, Ổn định tiến trình",
+      "highlights": [
+        "Chung: Giao diện và Trợ giúp thống nhất ở cả 3 ứng dụng: bấm Alt hiện phím tắt, F1 mở hướng dẫn đúng ngữ cảnh, trang Có gì mới trong Trợ giúp.",
+        "Chung: Cập nhật một chạm: ứng dụng báo trước, tự lưu tài liệu rồi áp bản vá và mở lại; ghi nhật ký từng bước để khôi phục khi có sự cố.",
+        "Chung: Tìm/Thay thế dùng chung cho cả 3 ứng dụng: Ctrl+F tìm kiếm, Ctrl+H thay thế, F3 tìm kế tiếp.",
+        "Chung: Tối ưu bộ gõ tiếng Việt ngoài (Unikey, EVKey): Ctrl+Z hoàn tác từng từ, chữ chuẩn hóa, gợi ý công thức không chèn nhầm vào nội dung.",
+        "Chung: Kiểm tra chính tả tiếng Việt: từ sai gạch đỏ khi gõ, chuột phải chọn cách sửa, bật/tắt chính tả trong Tùy chọn.",
+        "Chung: Tên ngắn Doc, Sheet, Slide thống nhất ở tiêu đề cửa sổ, giao diện, nội dung mẫu, phím tắt desktop và thanh tác vụ.",
+        "Chung: Hộp thoại In không còn hiển thị tên thư viện kỹ thuật bên trong.",
+        "Chung: Trợ giúp tiếng Việt được rà soát và bổ sung chi tiết cho 47 mục tính năng.",
+        "Chung: Mở ứng dụng và tệp nhanh hơn, gõ phím ngay được sau khi mở; lệnh Tạo mới ở Sheet và Slide mở cửa sổ mới.",
+        "Chung: Ổn định tiến trình: không còn tiến trình thừa khi đóng/mở; tự động lưu tạm 2 phút một lần; nhật ký hiệu năng chỉ ghi khi bật trong Trợ giúp.",
+        "Chung: Đồng bộ màn hình Tệp, danh sách Tệp gần đây, thanh trạng thái đáy cửa sổ kèm thanh thu phóng 50% – 200%, phím tắt Alt+F, Ctrl+F1.",
+        "Doc: Thêm Thước ngang/dọc, Thụt đầu dòng, Đánh số lại từ 1; nhóm lệnh Bảng hoàn chỉnh; ảnh có 8 tay cầm giữ tỉ lệ và ngắt dòng chữ; chuột phải cắt/dán và gợi ý chính tả.",
+        "Doc: Sửa lỗi số trang trên màn hình lệch so với bản in do phông chữ và giãn dòng.",
+        "Doc: Chèn phương trình toán học bằng Alt+=, soạn dạng tuyến tính, lưu và mở lại giữ nguyên vị trí.",
+        "Sheet: Bảng tính đủ 1.048.576 hàng x 16.384 cột, dựng ảo hóa siêu nhẹ, phím tắt Ctrl+mũi tên và ô tên vùng di chuyển mượt mà.",
+        "Sheet: Dán từ bảng tính và văn bản của phần mềm văn phòng khác giữ đúng định dạng; dán vào Doc giữ tiêu đề, danh sách và bảng.",
+        "Sheet: Sửa 5 lỗi: số và ngày lưu thành giá trị số thật; giữ thiết lập trang in; Ctrl+A chọn đúng vùng dữ liệu; sắp xếp giữ nguyên dòng tiêu đề; xóa trang tính và đổi màu tab.",
+        "Sheet: Hộp thoại In có thêm Phạm vi sổ làm việc: trang tính hiện hoạt, toàn bộ sổ làm việc hoặc vùng bôi đen.",
+        "Slide: Tab/Shift+Tab thụt lề trong hộp chữ; Enter không thoát hộp chữ; đầy đủ Ctrl+C, Ctrl+X, Ctrl+V trong hộp chữ.",
+        "Slide: Kéo góc ảnh giữ nguyên tỉ lệ; xóa hoặc nhân bản trang an toàn; phím tắt dùng được trong chế độ sắp xếp."
+      ]
+    },
     {
       "version": "0.9.6",
       "channel": "pilot",
