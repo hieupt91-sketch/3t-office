@@ -56,7 +56,7 @@ const pagesToCapture = [
   { name: "404", url: `http://127.0.0.1:${port}/404.html` }
 ];
 
-// 1. Desktop 1366px
+// 1. Desktop 1366px - Light mode
 const desktopContext = await browser.newContext({
   viewport: { width: 1366, height: 768 },
   deviceScaleFactor: 1
@@ -65,14 +65,16 @@ const desktopPage = await desktopContext.newPage();
 
 for (const p of pagesToCapture) {
   await desktopPage.goto(p.url, { waitUntil: "networkidle" });
-  
-  // Header close-up
+  await desktopPage.evaluate(() => document.documentElement.setAttribute("data-theme", "light"));
+  await desktopPage.waitForTimeout(200);
+
+  // Header close-up (Light)
   const headerElem = await desktopPage.$(".site-header");
   if (headerElem) {
     await headerElem.screenshot({ path: path.join(outDir, `${p.name}-header-desktop-1366.png`) });
   }
 
-  // Full page / Above the fold
+  // Full page view
   await desktopPage.screenshot({ path: path.join(outDir, `${p.name}-desktop-1366.png`), fullPage: false });
 
   // Footer close-up
@@ -80,10 +82,23 @@ for (const p of pagesToCapture) {
   if (footerElem) {
     await footerElem.screenshot({ path: path.join(outDir, `${p.name}-footer-desktop-1366.png`) });
   }
+
+  // Header close-up (Dark)
+  await desktopPage.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
+  await desktopPage.waitForTimeout(200);
+  if (headerElem) {
+    await headerElem.screenshot({ path: path.join(outDir, `${p.name}-header-desktop-1366-dark.png`) });
+  }
+  if (p.name === "index") {
+    await desktopPage.screenshot({ path: path.join(outDir, `index-desktop-1366-dark.png`), fullPage: false });
+    if (footerElem) {
+      await footerElem.screenshot({ path: path.join(outDir, `index-footer-desktop-1366-dark.png`) });
+    }
+  }
 }
 await desktopContext.close();
 
-// 2. Mobile 390px
+// 2. Mobile 390px - Light & Dark
 const mobileContext = await browser.newContext({
   viewport: { width: 390, height: 844 },
   deviceScaleFactor: 2,
@@ -93,8 +108,10 @@ const mobilePage = await mobileContext.newPage();
 
 for (const p of pagesToCapture) {
   await mobilePage.goto(p.url, { waitUntil: "networkidle" });
+  await mobilePage.evaluate(() => document.documentElement.setAttribute("data-theme", "light"));
+  await mobilePage.waitForTimeout(200);
 
-  // Header close-up
+  // Header close-up (Light)
   const headerElem = await mobilePage.$(".site-header");
   if (headerElem) {
     await headerElem.screenshot({ path: path.join(outDir, `${p.name}-header-mobile-390.png`) });
@@ -107,6 +124,19 @@ for (const p of pagesToCapture) {
   const footerElem = await mobilePage.$(".site-footer");
   if (footerElem) {
     await footerElem.screenshot({ path: path.join(outDir, `${p.name}-footer-mobile-390.png`) });
+  }
+
+  // Header close-up (Dark)
+  await mobilePage.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
+  await mobilePage.waitForTimeout(200);
+  if (headerElem) {
+    await headerElem.screenshot({ path: path.join(outDir, `${p.name}-header-mobile-390-dark.png`) });
+  }
+  if (p.name === "index") {
+    await mobilePage.screenshot({ path: path.join(outDir, `index-mobile-390-dark.png`), fullPage: false });
+    if (footerElem) {
+      await footerElem.screenshot({ path: path.join(outDir, `index-footer-mobile-390-dark.png`) });
+    }
   }
 }
 await mobileContext.close();

@@ -62,32 +62,23 @@ async function generateAssets() {
   const generated = await page.evaluate(async () => {
     const rawImg = document.getElementById("raw-logo");
     
-    // Find accurate bounds
+    // Draw raw image to source canvas
     const rawCanvas = document.createElement("canvas");
     rawCanvas.width = rawImg.naturalWidth;
     rawCanvas.height = rawImg.naturalHeight;
     const rawCtx = rawCanvas.getContext("2d");
     rawCtx.drawImage(rawImg, 0, 0);
-    const rawData = rawCtx.getImageData(0, 0, rawCanvas.width, rawCanvas.height).data;
 
-    let minX = rawCanvas.width, minY = rawCanvas.height, maxX = 0, maxY = 0;
-    for (let y = 0; y < rawCanvas.height; y++) {
-      for (let x = 0; x < rawCanvas.width; x++) {
-        const idx = (y * rawCanvas.width + x) * 4;
-        if (rawData[idx + 3] > 10) {
-          if (x < minX) minX = x;
-          if (x > maxX) maxX = x;
-          if (y < minY) minY = y;
-          if (y > maxY) maxY = y;
-        }
-      }
-    }
-
-    const pad = 8;
-    const cropX = Math.max(0, minX - pad);
-    const cropY = Math.max(0, minY - pad);
-    const cropW = Math.min(rawCanvas.width - cropX, (maxX - minX + 1) + pad * 2);
-    const cropH = Math.min(rawCanvas.height - cropY, (maxY - minY + 1) + pad * 2);
+    // Cắt sát viền chữ 3T chuẩn xác (loại bỏ đuôi thừa bên dưới và hào quang ngoài viền)
+    // Tọa độ đã đo đạc chính xác:
+    // Trái: x = 143 (mép trái các ô vuông cam)
+    // Phải: x = 902 (mép phải các ô vuông xanh)
+    // Đỉnh: y = 290 (đỉnh phẳng của chữ 3 và T)
+    // Đáy:  y = 702 (đáy phẳng của chữ T và đáy cong của chữ 3, mũi nhọn chéo chạm đáy tự nhiên)
+    const cropX = 143;
+    const cropY = 290;
+    const cropW = 902 - 143 + 1; // 760
+    const cropH = 702 - 290 + 1; // 413
 
     // Master cropped canvas
     const masterCanvas = document.createElement("canvas");
@@ -95,6 +86,18 @@ async function generateAssets() {
     masterCanvas.height = cropH;
     const masterCtx = masterCanvas.getContext("2d");
     masterCtx.drawImage(rawCanvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
+    // Làm sạch hoàn toàn hào quang nền mờ (các pixel phát sáng / bụi rác có alpha < 18)
+    const imgData = masterCtx.getImageData(0, 0, cropW, cropH);
+    const d = imgData.data;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i + 3] < 18) {
+        d[i + 3] = 0; // hoàn toàn trong suốt
+      }
+    }
+    masterCtx.putImageData(imgData, 0, 0);
+
+    const aspect = cropH / cropW; // ~0.5434
 
     function toResized(targetW, targetH) {
       const c = document.createElement("canvas");
@@ -107,20 +110,33 @@ async function generateAssets() {
       return c;
     }
 
-    function toSquareIcon(size) {
+    function toSquareFavicon(size) {
       const c = document.createElement("canvas");
       c.width = size;
       c.height = size;
       const ctx = c.getContext("2d");
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = "high";
-      // Scale maintaining aspect ratio, centered
-      const scale = (size * 0.94) / cropW;
-      const drawW = Math.round(cropW * scale);
-      const drawH = Math.round(cropH * scale);
-      const drawX = Math.round((size - drawW) / 2);
+
+      // Scale vừa vặn theo chiều ngang (full width), căn giữa theo chiều dọc
+      const drawW = size;
+      const drawH = Math.round(drawW * aspect);
+      const drawX = 0;
       const drawY = Math.round((size - drawH) / 2);
       ctx.drawImage(masterCanvas, 0, 0, cropW, cropH, drawX, drawY, drawW, drawH);
+
+      // Tăng cường độ rõ nét cho kích thước cực nhỏ 16x16
+      if (size === 16) {
+        const pData = ctx.getImageData(0, 0, size, size);
+        const px = pData.data;
+        for (let i = 0; i < px.length; i += 4) {
+          if (px[i + 3] > 30) {
+            px[i + 3] = Math.min(255, Math.round(px[i + 3] * 1.3));
+          }
+        }
+        ctx.putImageData(pData, 0, 0);
+      }
+
       return c;
     }
 
@@ -130,8 +146,7 @@ async function generateAssets() {
       webp: c.toDataURL("image/webp", 0.95).split(",")[1]
     });
 
-    // 1. Master logo (512px wide for crisp Retina display, well under 400 KB limit)
-    const aspect = cropH / cropW;
+    // 1. Master logo (512px wide cho Retina display cực kỳ sắc nét)
     const master512 = toResized(512, Math.round(512 * aspect));
     const masterExport = exportImage(master512);
 
@@ -147,13 +162,13 @@ async function generateAssets() {
     const c64 = toResized(64, Math.round(64 * aspect));
     const exp64 = exportImage(c64);
 
-    // 5. Favicons (Square 16, 32, 48)
-    const fav16 = toSquareIcon(16);
-    const fav32 = toSquareIcon(32);
-    const fav48 = toSquareIcon(48);
+    // 5. Favicons (Vuông 16, 32, 48)
+    const fav16 = toSquareFavicon(16);
+    const fav32 = toSquareFavicon(32);
+    const fav48 = toSquareFavicon(48);
 
     return {
-      cropInfo: { cropX, cropY, cropW, cropH },
+      cropInfo: { cropX, cropY, cropW, cropH, aspect },
       master: masterExport,
       size256: exp256,
       size128: exp128,
@@ -166,7 +181,7 @@ async function generateAssets() {
 
   console.log("Crop bounds:", generated.cropInfo);
 
-  // Write brand files
+  // Ghi các tệp thương hiệu
   const filesToWrite = [
     { name: "logo-3t.png", dir: brandDir, b64: generated.master.png },
     { name: "logo-3t.webp", dir: brandDir, b64: generated.master.webp },
@@ -189,7 +204,7 @@ async function generateAssets() {
     console.log(`Saved: ${full} (${fs.statSync(full).size} bytes)`);
   }
 
-  // Create favicon.ico with 16, 32, 48
+  // Tạo favicon.ico gồm 16, 32, 48
   const icoBuf = buildIco([
     { width: 16, height: 16, buffer: Buffer.from(generated.fav16, "base64") },
     { width: 32, height: 32, buffer: Buffer.from(generated.fav32, "base64") },

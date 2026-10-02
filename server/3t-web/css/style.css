@@ -317,18 +317,17 @@ code, pre, kbd, samp {
 .brand-link {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   text-decoration: none;
   flex-shrink: 0;
 }
 
 .brand-icon {
   width: auto;
-  height: 38px;
-  max-height: 38px;
+  height: 39px;
+  max-height: 39px;
   display: block;
   object-fit: contain;
-  filter: drop-shadow(0 2px 8px rgba(255, 98, 0, 0.28));
 }
 
 .brand-text {
@@ -359,6 +358,16 @@ code, pre, kbd, samp {
 }
 
 @media (max-width: 480px) {
+  .brand-icon {
+    height: 34px;
+    max-height: 34px;
+  }
+
+  .brand-name {
+    font-size: 1.35rem;
+    line-height: 34px;
+  }
+
   .brand-tagline {
     display: none;
   }
