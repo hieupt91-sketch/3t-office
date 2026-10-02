@@ -75,12 +75,57 @@ export const CONSISTENCY_HELP_ENTRIES = [
     commandIds: ["common.view.zoomIn", "common.view.zoomOut", "common.view.zoomReset"],
     title: "Thu phóng tài liệu (Zoom)",
     summary: "Điều chỉnh tỷ lệ hiển thị tài liệu mượt mà từ 50% đến 200% bằng thanh trượt trạng thái, con lăn chuột hoặc phím tắt.",
-    ribbon: { tab: "Xem", tabId: "view", group: "Thu phóng" },
+    ribbon: { tab: "Chế độ xem", tabId: "view", group: "Thu phóng" },
     keywords: ["thu phóng", "zoom", "ctrl+0", "phóng to", "thu nhỏ", "con lăn chuột", "thanh trạng thái"],
     steps: [
-      "Kéo thanh trượt thu phóng ở góc phải thanh trạng thái (hoặc bấm nút - và +) để phóng to / thu nhỏ.",
-      "Giữ phím Ctrl và lăn con lăn chuột (Mouse Wheel) để phóng to / thu nhỏ nhanh và mượt mà trong vùng tài liệu.",
-      "Nhấn tổ hợp phím Ctrl+0 bất cứ lúc nào để đặt lại tỷ lệ thu phóng về 100% chuẩn."
+      "Kéo thanh trượt thu phóng ở góc phải thanh trạng thái (hoặc bấm nút - và +) để phóng to / thu nhỏ với bước nhảy 10%.",
+      "Giữ phím Ctrl và lăn con lăn chuột (Mouse Wheel) để phóng to / thu nhỏ nhanh và mượt mà trong vùng tài liệu ở cả Doc, Sheet và Slide.",
+      "Nhấn tổ hợp phím Ctrl+0 hoặc nhấp chuột vào nút phần trăm trên thanh trạng thái để đặt lại tỷ lệ thu phóng về 100% chuẩn."
+    ]
+  },
+  {
+    id: "common.help.backstageRecent",
+    app: "common",
+    commandIds: ["common.file.backstage", "common.file.new", "common.file.open", "common.file.save", "common.file.saveAs", "common.file.print", "common.file.exportPdf", "common.file.close"],
+    title: "Menu Tệp và Quản lý tệp gần đây",
+    summary: "Quản lý toàn bộ vòng đời tài liệu trong menu Tệp (Backstage) và truy cập nhanh danh sách tài liệu mở gần đây trên Doc, Sheet và Slide.",
+    ribbon: { tab: "Tệp", tabId: "file", group: "Tệp" },
+    keywords: ["menu tệp", "backstage", "tệp gần đây", "mở tệp", "lưu tệp", "alt+f", "in", "xuất pdf", "recent"],
+    steps: [
+      "Bấm vào nút 'Tệp' ở góc trên bên trái thanh Ribbon hoặc nhấn tổ hợp phím Alt+F để mở menu Tệp toàn màn hình.",
+      "Xem danh mục các lệnh quản lý tài liệu ở thanh bên trái với thứ tự chuẩn: Quay lại, Trang chủ, Mới (Ctrl+N), Mở (Ctrl+O), Lưu (Ctrl+S), Lưu thành (F12), In (Ctrl+P), Xuất PDF, Tệp gần đây, Đóng (Ctrl+W), Giới thiệu và Tùy chọn.",
+      "Chọn mục 'Tệp gần đây' để xem danh sách các tài liệu đã làm việc gần đây trên thiết bị với tên tệp, đường dẫn rút gọn, thời gian sửa đổi và định dạng tệp.",
+      "Bấm trực tiếp vào hàng tệp để mở lại nhanh, hoặc bấm biểu tượng dấu nhân ở cuối dòng để gỡ tệp khỏi danh sách gần đây. Có thể bấm 'Xóa lịch sử' để làm sạch toàn bộ danh sách."
+    ]
+  },
+  {
+    id: "common.help.statusbarViewModes",
+    app: "common",
+    commandIds: ["writer.view.printLayout", "writer.view.readMode", "writer.view.webLayout", "sheet.view.normal", "sheet.view.pageLayout", "sheet.view.pageBreakPreview", "slides.view.normal", "slides.view.slideSorter", "slides.view.reading", "slides.slideshow.fromBeginning"],
+    title: "Thanh trạng thái và Chế độ xem tài liệu",
+    summary: "Thanh trạng thái cố định ở đáy màn hình hiển thị thông tin tài liệu, bộ gõ tiếng Việt và các chế độ xem chuyên biệt cho Doc, Sheet và Slide.",
+    ribbon: { tab: "Chế độ xem", tabId: "view", group: "Chế độ xem tài liệu" },
+    keywords: ["thanh trạng thái", "chế độ xem", "statusbar", "bố cục in", "chế độ đọc", "bình thường", "trình chiếu", "thu phóng"],
+    steps: [
+      "Thanh trạng thái nằm cố định ở đáy cửa sổ làm việc của cả 3 ứng dụng Doc, Sheet và Slide.",
+      "Phía bên trái hiển thị trạng thái sẵn sàng, thông tin trang/ô tính/trang chiếu, ngôn ngữ Tiếng Việt và bảng mã Unicode NFC chuẩn.",
+      "Phía bên phải gồm cụm nút chế độ xem nhanh: Trong Doc gồm Bố cục in, Chế độ đọc, Bố cục web; Trong Sheet gồm Bình thường, Bố cục trang, Xem trước ngắt trang; Trong Slide gồm Thông thường, Bộ sắp xếp trang chiếu, Chế độ xem đọc và Trình chiếu.",
+      "Kế bên các nút chế độ xem là cụm thanh trượt thu phóng với nút - (thu nhỏ 10%), thanh kéo tỉ lệ 50%-200%, nút + (phóng to 10%) và nút phần trăm hiển thị (bấm vào để đặt lại nhanh về 100%)."
+    ]
+  },
+  {
+    id: "common.help.ribbonCollapseAndQat",
+    app: "common",
+    commandIds: ["common.view.ribbonToggle", "common.file.save", "common.edit.undo", "common.edit.redo", "common.file.print"],
+    title: "Thu gọn thanh Ribbon và Thanh truy cập nhanh",
+    summary: "Tối ưu không gian làm việc với thao tác thu gọn/mở rộng Ribbon và truy cập nhanh các thao tác thường dùng nhất trên cả 3 ứng dụng.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Giao diện" },
+    keywords: ["thu gọn ribbon", "mở rộng ribbon", "ctrl+f1", "quick access", "thanh truy cập nhanh", "hoàn tác", "làm lại"],
+    steps: [
+      "Nhấn tổ hợp phím Ctrl+F1 hoặc nhấp đúp chuột vào bất kỳ nhãn tab nào (như Trang đầu, Chèn, Chế độ xem...) để thu gọn thanh Ribbon, giúp mở rộng tối đa không gian soạn thảo.",
+      "Khi Ribbon đang thu gọn, nhấp một lần vào một tab để mở tạm thời nội dung thanh công cụ; thanh công cụ sẽ tự động ẩn lại sau khi chọn xong lệnh.",
+      "Nhấn Ctrl+F1 hoặc nhấp đúp vào tab một lần nữa để ghim cố định lại thanh Ribbon.",
+      "Thanh công cụ truy cập nhanh nằm ở góc trên bên trái thanh tiêu đề luôn sẵn sàng các nút: Lưu tài liệu (Ctrl+S), Hoàn tác (Ctrl+Z), Làm lại (Ctrl+Y) và In tài liệu (Ctrl+P)."
     ]
   }
 ];

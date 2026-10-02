@@ -10420,7 +10420,7 @@ const startEditing = (initialText) => {
   }
 
   setZoom(level) {
-    const next = Math.min(2.5, Math.max(0.2, Math.round(Number(level) * 10) / 10));
+    const next = Math.min(2.0, Math.max(0.5, Math.round(Number(level) * 10) / 10));
     if (!Number.isFinite(next)) return false;
     this.zoomLevel = next;
     this._applyViewState();
