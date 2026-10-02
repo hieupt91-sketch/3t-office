@@ -30,7 +30,7 @@ try {
       try { return original.apply(this, args); }
       finally { window.__vnoAuditInference.calls++; window.__vnoAuditInference.ms += performance.now() - t; }
     };
-  })`);
+  }).catch(() => { window.__vnoAuditInference = { calls: 0, ms: 0, unavailable: true }; })`);
   // The launch title already contains the file name while its blank grid is
   // still visible. The adapter publishes the source path after hydration.
   await cdp.waitFor(

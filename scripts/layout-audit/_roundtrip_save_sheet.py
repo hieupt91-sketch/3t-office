@@ -103,8 +103,12 @@ finally:
             audit_profile.cleanup()
             break
         except OSError as error:
-            if getattr(error, "winerror", None) not in (32, 145) or attempt == 19:
+            if getattr(error, "winerror", None) not in (32, 145):
                 raise
+            if attempt == 19:
+                print(f"WARN private profile cleanup deferred: {audit_profile.name}", flush=True)
+                audit_profile._finalizer.detach()
+                break
             time.sleep(0.5)
     print(f"PHASE total_ms={round((time.perf_counter() - audit_started) * 1000)}", flush=True)
 raise SystemExit(audit_exit)

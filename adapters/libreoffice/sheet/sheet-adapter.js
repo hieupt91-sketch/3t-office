@@ -4266,10 +4266,11 @@ ${pristineXlsxMarker}
           const localRanges = [];
           const arrayFormulas = [];
           let localNameIndex = 0;
-          for (const namedRange of table.getElementsByTagNameNS("urn:oasis:names:tc:opendocument:xmlns:table:1.0", "named-range")) {
-            const range = this._parseNamedRangeElement(namedRange.outerHTML, "sheet", name, ++localNameIndex);
+          table.outerHTML.replace(/<table:named-range\b([^>]*)\/?\s*>/gi, (_, attrs) => {
+            const range = this._parseNamedRangeElement(attrs, "sheet", name, ++localNameIndex);
             if (range) localRanges.push(range);
-          }
+            return "";
+          });
           const rowHeights = new Map();
           const hiddenRows = new Set();
           let rowNumber = 1;
