@@ -231,33 +231,65 @@ async function runDesktopRegression() {
     const t1Measurement = await docCdp.evaluate(`(() => {
       const table = document.querySelector(".vno-writer-body table");
       if (!table) return { found: false, detail: "Không tìm thấy thẻ table" };
-      const rows = [...table.querySelectorAll("tr")];
-      const rowCount = rows.length;
-      const colCount = rows[0] ? rows[0].querySelectorAll("th, td").length : 0;
-      const firstRowCells = rows[0] ? [...rows[0].querySelectorAll("th, td")] : [];
-      const hasBold = firstRowCells.some(c => c.tagName === "TH" || c.querySelector("b, strong") || c.style.fontWeight === "bold");
-      const text = table.textContent;
-      const has1250 = text.includes("1,250") || text.includes("1250");
-      const hasDate = text.includes("31/12/2026");
+      const trs = [...table.querySelectorAll("tr")];
+      const rowCount = trs.length;
+      const colCount = trs[0] ? trs[0].querySelectorAll("th, td").length : 0;
+
+      const matrix = trs.map(tr => [...tr.querySelectorAll("th, td")].map(cell => {
+        const text = cell.textContent.trim();
+        const style = window.getComputedStyle(cell);
+        const fw = parseInt(style.fontWeight, 10) || (style.fontWeight === "bold" ? 700 : 400);
+        const hasBoldTag = !!cell.querySelector("b, strong");
+        const isBold = hasBoldTag || fw >= 600 || cell.style.fontWeight === "bold";
+        return { text, isBold, fw, tagName: cell.tagName };
+      }));
+
+      // A1..C1 (matrix[0]): từng ô phải đậm (b, strong hoặc font-weight >= 600)
+      const row0Cells = matrix[0] || [];
+      const row0Bold = row0Cells.length === 3 && row0Cells.every(c => c.isBold);
+
+      // A2..C3 (matrix[1], matrix[2]): từng ô KHÔNG được đậm
+      const row1Cells = matrix[1] || [];
+      const row2Cells = matrix[2] || [];
+      const row1NotBold = row1Cells.length === 3 && row1Cells.every(c => !c.isBold);
+      const row2NotBold = row2Cells.length === 3 && row2Cells.every(c => !c.isBold);
+
+      // Text chính xác từng ô:
+      const b2Text = row1Cells[1]?.text || "";
+      const c2Text = row1Cells[2]?.text || "";
+      const b2Exact = b2Text === "1,250";
+      const c2Exact = c2Text === "31/12/2026";
 
       return {
         found: true,
         rowCount,
         colCount,
-        hasBold,
-        has1250,
-        hasDate,
-        htmlSnippet: table.outerHTML.slice(0, 150)
+        row0Bold,
+        row1NotBold,
+        row2NotBold,
+        b2Text,
+        c2Text,
+        b2Exact,
+        c2Exact,
+        matrix
       };
     })()`);
 
-    const t1Pass = t1Measurement.found && t1Measurement.rowCount === 3 && t1Measurement.colCount === 3 && t1Measurement.hasBold && t1Measurement.has1250 && t1Measurement.hasDate;
+    const t1Pass = t1Measurement.found &&
+      t1Measurement.rowCount === 3 &&
+      t1Measurement.colCount === 3 &&
+      t1Measurement.row0Bold &&
+      t1Measurement.row1NotBold &&
+      t1Measurement.row2NotBold &&
+      t1Measurement.b2Exact &&
+      t1Measurement.c2Exact;
+
     testResults.push({
       id: 1,
-      title: "Sheet sang Doc: Bảng 3x3, đậm tiêu đề, số, ngày",
+      title: "Sheet sang Doc: Bảng 3x3, đậm tiêu đề A1..C1, dữ liệu A2..C3 không đậm, số '1,250', ngày '31/12/2026'",
       pass: t1Pass,
       measured: t1Pass
-        ? `Bảng ${t1Measurement.rowCount}x${t1Measurement.colCount} (thẻ <table>), tiêu đề đậm: ${t1Measurement.hasBold}, có '1,250' & '31/12/2026'`
+        ? `Bảng 3x3: A1..C1 đậm=${t1Measurement.row0Bold}, A2..C3 không đậm=${t1Measurement.row1NotBold && t1Measurement.row2NotBold}, B2='${t1Measurement.b2Text}', C2='${t1Measurement.c2Text}'`
         : `Lỗi: ${JSON.stringify(t1Measurement)}`
     });
 
@@ -328,7 +360,27 @@ async function runDesktopRegression() {
       const b3 = grid.cellsData.get("B3")?.val;
       const c3 = grid.cellsData.get("C3")?.val;
       const d3 = grid.cellsData.get("D3")?.val;
-      const b2Style = grid.cellsData.get("B2")?.style || {};
+      const b2Cell = grid.cellsData.get("B2") || {};
+      const c2Cell = grid.cellsData.get("C2") || {};
+      const d2Cell = grid.cellsData.get("D2") || {};
+      const b3Cell = grid.cellsData.get("B3") || {};
+      const c3Cell = grid.cellsData.get("C3") || {};
+      const d3Cell = grid.cellsData.get("D3") || {};
+
+      const isCellBold = c => c.style?.fontWeight === "bold" || c.style?.bold === true || parseInt(c.style?.fontWeight, 10) >= 600;
+
+      const b2Bold = isCellBold(b2Cell);
+      const c2Bold = isCellBold(c2Cell);
+      const d2Bold = isCellBold(d2Cell);
+      const b3Bold = isCellBold(b3Cell);
+      const c3Bold = isCellBold(c3Cell);
+      const d3Bold = isCellBold(d3Cell);
+
+      const headersMatch = b2 === "Q1" && c2 === "Q2" && d2 === "Q3";
+      const headersBold = b2Bold && c2Bold && d2Bold;
+      const valuesMatch = b3 === 100 && c3 === 200 && d3 === 300 &&
+                          typeof b3 === "number" && typeof c3 === "number" && typeof d3 === "number";
+      const valuesNotBold = !b3Bold && !c3Bold && !d3Bold;
 
       // Đánh giá công thức SUM trên vùng số vừa dán
       const sumResult = (typeof b3 === "number" && typeof c3 === "number" && typeof d3 === "number")
@@ -339,18 +391,27 @@ async function runDesktopRegression() {
         headers: [b2, c2, d2],
         values: [b3, c3, d3],
         types: [typeof b3, typeof c3, typeof d3],
-        isBold: b2Style.fontWeight === "bold" || b2Style.bold === true,
+        headersMatch,
+        headersBold,
+        valuesMatch,
+        valuesNotBold,
+        boldMap: { B2: b2Bold, C2: c2Bold, D2: d2Bold, B3: b3Bold, C3: c3Bold, D3: d3Bold },
         sumResult
       };
     })()`);
 
-    const t2Pass = t2Measurement.headers[0] === "Q1" && t2Measurement.values[0] === 100 && t2Measurement.types[0] === "number" && t2Measurement.sumResult === 600;
+    const t2Pass = t2Measurement.headersMatch &&
+      t2Measurement.headersBold &&
+      t2Measurement.valuesMatch &&
+      t2Measurement.valuesNotBold &&
+      t2Measurement.sumResult === 600;
+
     testResults.push({
       id: 2,
-      title: "Doc sang Sheet: Bảng 2x3 vào B2:D3, số thành số, SUM",
+      title: "Doc sang Sheet: Bảng 2x3 vào B2:D3, tiêu đề đậm, số thành số không đậm, SUM=600",
       pass: t2Pass,
       measured: t2Pass
-        ? `B2:D2=[${t2Measurement.headers.join(",")}], B3:D3=[${t2Measurement.values.join(",")}], type=${t2Measurement.types[0]}, SUM(B3:D3)=${t2Measurement.sumResult}`
+        ? `B2:D2=[${t2Measurement.headers.join(",")}] (đậm: ${t2Measurement.headersBold}), B3:D3=[${t2Measurement.values.join(",")}] (không đậm: ${t2Measurement.valuesNotBold}), SUM=${t2Measurement.sumResult}`
         : `Lỗi: ${JSON.stringify(t2Measurement)}`
     });
 
@@ -454,10 +515,11 @@ async function runDesktopRegression() {
     // Sang Doc: dán vào đoạn văn
     await docCdp.evaluate(`(() => {
       const body = document.querySelector(".vno-writer-body");
-      body.innerHTML = '<p id="p-slide-dest"></p>';
-      const p = document.getElementById("p-slide-dest");
+      body.innerHTML = "<p><br></p>";
+      const p = body.querySelector("p");
       const range = document.createRange();
       range.selectNodeContents(p);
+      range.collapse(false);
       const sel = window.getSelection();
       sel.removeAllRanges();
       sel.addRange(range);
@@ -465,33 +527,38 @@ async function runDesktopRegression() {
     })()`);
     await sleep(200);
     await press(docCdp, "v", { ctrl: true });
-    await docCdp.evaluate(`(async () => {
-      await window.globalCommandBus?.execute("common.edit.paste");
-    })()`);
     await sleep(600);
 
     const t4Measurement = await docCdp.evaluate(`(() => {
       const body = document.querySelector(".vno-writer-body");
-      const text = body.textContent;
-      const html = body.innerHTML;
-      const hasText = text.includes("Kế hoạch Chiến lược 2027");
-      const hasBold = html.includes("<b") || html.includes("<strong") || /font-weight:\s*bold/i.test(html) || !!body?.querySelector("b, strong");
+      const text = (body?.textContent || "").trim();
+      const boldEl = body?.querySelector("b, strong") || (
+        parseInt(window.getComputedStyle(body?.firstElementChild || body).fontWeight, 10) >= 600 ? (body?.firstElementChild || body) : null
+      );
+      const boldText = (boldEl?.textContent || "").trim();
+      const fw = parseInt(window.getComputedStyle(boldEl || body).fontWeight, 10) || 400;
+      const isBold = (boldEl?.tagName === "B" || boldEl?.tagName === "STRONG" || fw >= 600);
+
+      const exactText = text === "Kế hoạch Chiến lược 2027";
+      const exactBold = isBold && (boldText === "Kế hoạch Chiến lược 2027" || text === "Kế hoạch Chiến lược 2027");
 
       return {
-        hasText,
-        hasBold,
-        text: text.trim(),
-        htmlSnippet: html.slice(0, 100)
+        text,
+        fw,
+        isBold,
+        exactText,
+        exactBold,
+        htmlSnippet: body?.innerHTML || ""
       };
     })()`);
 
-    const t4Pass = t4Measurement.hasText && t4Measurement.hasBold;
+    const t4Pass = t4Measurement.exactText && t4Measurement.exactBold;
     testResults.push({
       id: 4,
-      title: "Slide sang Doc: Nhận đúng đoạn văn, giữ in đậm",
+      title: "Slide sang Doc: Nhận đúng đoạn văn 'Kế hoạch Chiến lược 2027', giữ in đậm toàn bộ",
       pass: t4Pass,
       measured: t4Pass
-        ? `Nội dung: '${t4Measurement.text}', in đậm: ${t4Measurement.hasBold}`
+        ? `Nội dung chính xác: '${t4Measurement.text}', in đậm: ${t4Measurement.exactBold} (fw=${t4Measurement.fw})`
         : `Lỗi: ${JSON.stringify(t4Measurement)}`
     });
 
@@ -508,8 +575,14 @@ async function runDesktopRegression() {
       const grid = app?.grid;
       grid.setCellValue("A", 1, "Hạng mục", false);
       grid.setCellValue("B", 1, "Tỷ trọng", false);
+      grid.cellsData.get("A1").style = { fontWeight: "bold" };
+      grid.cellsData.get("B1").style = { fontWeight: "bold" };
+
       grid.setCellValue("A", 2, "Phần cứng", false);
       grid.setCellValue("B", 2, "60%", false);
+      grid.cellsData.get("A2").style = {};
+      grid.cellsData.get("B2").style = { numberFormat: { category: "percentage", decimals: 0 } };
+
       grid.selectCell("A", 1, false);
       grid.selectCell("B", 2, true);
       document.querySelector(".vno-sheet-container")?.focus();
@@ -560,22 +633,71 @@ async function runDesktopRegression() {
       const tableShapes = (slide?.shapes || []).filter(s => s.type === "table");
       const latestTable = tableShapes[tableShapes.length - 1];
 
+      // Đọc DOM thực tế từ thẻ table được render
+      const tableEl = document.querySelector(".vno-slide-table-shape:last-of-type table") || document.querySelector(".vno-slide-table");
+      const trs = tableEl ? [...tableEl.querySelectorAll("tr")] : [];
+
+      const domMatrix = trs.map(tr => [...tr.querySelectorAll("th, td")].map(cell => {
+        const text = cell.textContent.trim();
+        const style = window.getComputedStyle(cell);
+        const fw = parseInt(style.fontWeight, 10) || (style.fontWeight === "bold" ? 700 : 400);
+        const hasBoldTag = !!cell.querySelector("b, strong") || cell.tagName === "TH";
+        const isBold = hasBoldTag || fw >= 600 || cell.style.fontWeight === "bold";
+        return { text, isBold, fw };
+      }));
+
+      // Đọc trực tiếp từ mô hình dữ liệu latestTable.cells
+      const rawCells = latestTable?.cells || [];
+      const stripTags = s => String(s || "").replace(/<[^>]+>/g, "").trim();
+      const cellTexts = [
+        stripTags(rawCells[0]?.[0]),
+        stripTags(rawCells[0]?.[1]),
+        stripTags(rawCells[1]?.[0]),
+        stripTags(rawCells[1]?.[1])
+      ];
+
+      const expectedTexts = ["Hạng mục", "Tỷ trọng", "Phần cứng", "60%"];
+      const textMatch = cellTexts.every((t, idx) => t === expectedTexts[idx]);
+
+      // Hàng 1 (A1, B1) phải đậm; Hàng 2 (A2, B2) KHÔNG được đậm
+      const row0RawBold = (String(rawCells[0]?.[0]).includes("<b") || String(rawCells[0]?.[0]).includes("<strong")) &&
+                          (String(rawCells[0]?.[1]).includes("<b") || String(rawCells[0]?.[1]).includes("<strong"));
+      const row1RawNotBold = !String(rawCells[1]?.[0]).includes("<b") && !String(rawCells[1]?.[0]).includes("<strong") &&
+                             !String(rawCells[1]?.[1]).includes("<b") && !String(rawCells[1]?.[1]).includes("<strong");
+
+      const domRow0Bold = domMatrix[0] && domMatrix[0].length === 2 && domMatrix[0].every(c => c.isBold);
+      const domRow1NotBold = domMatrix[1] && domMatrix[1].length === 2 && domMatrix[1].every(c => !c.isBold);
+
+      const onlyRow1Bold = (row0RawBold || domRow0Bold) && (row1RawNotBold && domRow1NotBold);
+
       return {
         tableCount: tableShapes.length,
         hasTable: !!latestTable,
         rows: latestTable?.rows || 0,
         cols: latestTable?.cols || 0,
-        cells: latestTable?.cells || []
+        cells: latestTable?.cells || [],
+        cellTexts,
+        textMatch,
+        row0RawBold,
+        row1RawNotBold,
+        domRow0Bold,
+        domRow1NotBold,
+        onlyRow1Bold
       };
     })()`);
 
-    const t5Pass = t5Measurement.hasTable && t5Measurement.rows === 2 && t5Measurement.cols === 2;
+    const t5Pass = t5Measurement.hasTable &&
+      t5Measurement.rows === 2 &&
+      t5Measurement.cols === 2 &&
+      t5Measurement.textMatch &&
+      t5Measurement.onlyRow1Bold;
+
     testResults.push({
       id: 5,
-      title: "Sheet sang Slide: Tạo Table Shape 2x2 trên canvas",
+      title: "Sheet sang Slide: Tạo Table Shape 2x2, đúng text từng ô ['Hạng mục', 'Tỷ trọng', 'Phần cứng', '60%'], chỉ hàng 1 đậm",
       pass: t5Pass,
       measured: t5Pass
-        ? `Tạo Table Shape ${t5Measurement.rows}x${t5Measurement.cols}, ô=[${t5Measurement.cells[0]?.join(",")}; ${t5Measurement.cells[1]?.join(",")}] (Lý do chọn: Bảng biểu trực quan chuẩn phong cách thuyết trình)`
+        ? `Table Shape 2x2: text=[${t5Measurement.cellTexts.join(", ")}], chỉ hàng 1 đậm=${t5Measurement.onlyRow1Bold}`
         : `Lỗi: ${JSON.stringify(t5Measurement)}`
     });
 

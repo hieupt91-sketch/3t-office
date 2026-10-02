@@ -417,13 +417,17 @@ export function normalizeCssColor(color) {
  * @param {string} innerHtml
  * @returns {Record<string, any>}
  */
-export function extractCellStyle(combinedStyles, attrs, innerHtml) {
+export function extractCellStyle(combinedStyles, attrs, innerHtml, tagName = "td") {
   const style = {};
 
   // In đậm (Bold)
+  const isTh = String(tagName || "").toLowerCase() === "th" &&
+    combinedStyles["font-weight"] !== "normal" &&
+    combinedStyles["font-weight"] !== "400";
   const isBold =
+    isTh ||
     combinedStyles["font-weight"] === "bold" ||
-    parseInt(combinedStyles["font-weight"], 10) >= 700 ||
+    parseInt(combinedStyles["font-weight"], 10) >= 600 ||
     /<(b|strong)\b/i.test(innerHtml);
   if (isBold) style.fontWeight = "bold";
 
@@ -605,12 +609,12 @@ export function parseOfficeHtmlTable(html, fallbackPlainText = "") {
       const { val, formula } = extractCellValueAndFormula(cellAttrs, innerHtml, numberFormat);
 
       // Trích xuất style
-      const style = extractCellStyle(combinedStyles, cellAttrs, innerHtml);
+      const style = extractCellStyle(combinedStyles, cellAttrs, innerHtml, cellMatch[1]);
       if (numberFormat) {
         style.numberFormat = numberFormat;
       }
 
-      const cellData = { val, formula, style };
+      const cellData = { val, formula, style, text: stripHtmlTags(innerHtml) };
       currentRowCells.push(cellData);
 
       // Đánh dấu ô gộp vào ma trận occupancy và danh sách mergedRanges
@@ -727,7 +731,7 @@ export function parseOfficeTsv(text) {
         }
       }
 
-      row.push({ val, formula, style });
+      row.push({ val, formula, style, text: trimmed });
     }
     cells.push(row);
   }
@@ -743,6 +747,49 @@ export function parseOfficeTsv(text) {
       end: { c: columnLabel(maxCols), r: cells.length }
     }
   };
+}
+
+/**
+ * Trả về chuỗi văn bản hiển thị chính xác của một ô tính 3T Sheet
+ * (ví dụ: 60%, 1,250, 31/12/2026), dựa trên giá trị thô và cấu hình numberFormat.
+ * @param {{ val?: any, formula?: string, style?: Record<string, any> }} cell
+ * @returns {string}
+ */
+export function getSheetCellDisplayText(cell) {
+  if (!cell) return "";
+  const val = cell.val;
+  if (val === undefined || val === null || val === "") return "";
+  const style = cell.style || {};
+  if (style.numberFormat) {
+    const formatted = NumberFormatter.formatValue(val, style.numberFormat);
+    if (formatted && formatted.text !== undefined) {
+      return formatted.text;
+    }
+  }
+  if (typeof val === "number") {
+    return NumberFormatter.formatGeneralNumber(val);
+  }
+  return String(val);
+}
+
+/**
+ * Kiểm tra xem một ô tính hoặc đoạn văn bản có mang định dạng in đậm hay không.
+ * @param {{ val?: any, text?: string, style?: Record<string, any> }|string} cellOrText
+ * @returns {boolean}
+ */
+export function isCellBold(cellOrText) {
+  if (!cellOrText) return false;
+  if (typeof cellOrText === "string") {
+    return /<(b|strong)\b/i.test(cellOrText) || /font-weight:\s*(?:bold|[6-9]\d{2})/i.test(cellOrText);
+  }
+  const style = cellOrText.style || {};
+  const fw = style.fontWeight;
+  if (fw === "bold" || style.bold === true || (typeof fw === "number" && fw >= 600) || parseInt(fw, 10) >= 600) {
+    return true;
+  }
+  const val = String(cellOrText.val ?? "");
+  const text = String(cellOrText.text ?? "");
+  return /<(b|strong)\b/i.test(val) || /<(b|strong)\b/i.test(text);
 }
 
 /**
@@ -791,14 +838,8 @@ export function serializeSheetRangeToClipboard(grid, range) {
       const item = grid.cellsData?.get(coordKey) || { val: "", formula: "", style: {} };
       modelRow.push(structuredClone(item));
 
-      // Tính toán text hiển thị cho TSV
-      let displayStr = "";
-      if (item.style?.numberFormat && typeof item.val === "number") {
-        const formatted = NumberFormatter.formatValue(item.val, item.style.numberFormat);
-        displayStr = formatted.text || String(item.val);
-      } else {
-        displayStr = String(item.val ?? "");
-      }
+      // Tính toán text hiển thị cho TSV và nội dung bảng
+      const displayStr = getSheetCellDisplayText(item);
       textRow.push(displayStr);
 
       if (coveredSet.has(coordKey)) {
@@ -852,10 +893,14 @@ export function serializeSheetRangeToClipboard(grid, range) {
       let msoFormat = "";
       if (st.numberFormat) {
         const cat = st.numberFormat.category;
-        if (cat === "percentage") msoFormat = "0.00%";
-        else if (cat === "date") msoFormat = "dd/mm/yyyy";
-        else if (cat === "currency") msoFormat = '"$"#,##0.00;("$"#,##0.00);"-"';
-        else if (cat === "number") msoFormat = "#,##0.00";
+        const decimals = st.numberFormat.decimals !== undefined ? Number(st.numberFormat.decimals) : 2;
+        const decStr = decimals > 0 ? "." + "0".repeat(decimals) : "";
+        if (cat === "percentage") msoFormat = `0${decStr}%`;
+        else if (cat === "date") msoFormat = st.numberFormat.dateFormat || "dd/mm/yyyy";
+        else if (cat === "currency") msoFormat = `"$"#,##0${decStr};("$"#,##0${decStr});"-"`;
+        else if (cat === "number") {
+          msoFormat = st.numberFormat.useThousands ? `#,##0${decStr}` : `0${decStr}`;
+        }
         else if (cat === "text") msoFormat = "\\@";
       }
       if (msoFormat) styles.push(`mso-number-format:'${msoFormat}'`);

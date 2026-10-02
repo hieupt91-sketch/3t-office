@@ -16,7 +16,10 @@ import {
   cleanCssStyleString,
   cleanWordHtml,
   convertMsoListsToHtmlLists,
-  serializeWriterSelectionToClipboard
+  serializeWriterSelectionToClipboard,
+  getSheetCellDisplayText,
+  isCellBold,
+  serializeSheetRangeToClipboard
 } from "../../platform/clipboard/office-clipboard.js";
 
 function assert(condition, message) {
@@ -909,6 +912,70 @@ test("E2E Sheet: Excel HTML paste -> grid cells with number, date, percentage, b
     assert(plainText.includes("Italic"), "Plain text contains italic text content");
     assert(!plainText.includes("<b>"), "Plain text has no HTML tags");
     assert(!plainText.includes("<i>"), "Plain text has no HTML tags");
+  });
+
+  // =============================================================================
+  // PHẦN 8: CHUYỂN GIÁ TRỊ HIỂN THỊ VÀ IN ĐẬM KHI SAO CHÉP Ô TÍNH
+  // =============================================================================
+
+  test("getSheetCellDisplayText: định dạng phần trăm (60%)", () => {
+    const cell = { val: 0.6, style: { numberFormat: { category: "percentage", decimals: 0 } } };
+    assertEqual(getSheetCellDisplayText(cell), "60%", "0.6 với category percentage 0 decimals phải hiển thị 60%");
+  });
+
+  test("getSheetCellDisplayText: định dạng số hàng nghìn (1,250)", () => {
+    const cell = { val: 1250, style: { numberFormat: { category: "number", useThousands: true, decimals: 0 } } };
+    assertEqual(getSheetCellDisplayText(cell), "1,250", "1250 có useThousands phải hiển thị 1,250");
+  });
+
+  test("getSheetCellDisplayText: định dạng ngày tháng (31/12/2026)", () => {
+    const cellSerial = { val: 46387, style: { numberFormat: { category: "date", dateFormat: "dd/mm/yyyy" } } };
+    assertEqual(getSheetCellDisplayText(cellSerial), "31/12/2026", "Serial 46387 phải format thành 31/12/2026");
+    const cellStr = { val: "31/12/2026", style: { numberFormat: { category: "date", dateFormat: "dd/mm/yyyy" } } };
+    assertEqual(getSheetCellDisplayText(cellStr), "31/12/2026", "Chuỗi ngày tháng được giữ nguyên 31/12/2026");
+  });
+
+  test("getSheetCellDisplayText: số thông thường và chuỗi chữ", () => {
+    assertEqual(getSheetCellDisplayText({ val: 100 }), "100", "Số không có format config hiển thị số chuẩn");
+    assertEqual(getSheetCellDisplayText({ val: "Hạng mục" }), "Hạng mục", "Chuỗi văn bản giữ nguyên");
+    assertEqual(getSheetCellDisplayText({ val: "" }), "", "Ô rỗng trả về rỗng");
+    assertEqual(getSheetCellDisplayText(null), "", "Ô null trả về rỗng");
+  });
+
+  test("isCellBold: nhận diện in đậm từ style và HTML tags", () => {
+    assert(isCellBold({ style: { fontWeight: "bold" } }), "fontWeight bold là đậm");
+    assert(isCellBold({ style: { bold: true } }), "bold true là đậm");
+    assert(isCellBold({ style: { fontWeight: "700" } }), "fontWeight 700 là đậm");
+    assert(isCellBold({ style: { fontWeight: 600 } }), "fontWeight 600 là đậm");
+    assert(isCellBold({ val: "<b>Tiêu đề</b>" }), "thẻ <b> trong val là đậm");
+    assert(isCellBold({ text: "<strong>Tiêu đề</strong>" }), "thẻ <strong> trong text là đậm");
+    assert(isCellBold("<b>Văn bản</b>"), "chuỗi có thẻ <b> là đậm");
+    assert(!isCellBold({ val: "Văn bản thường", style: {} }), "ô bình thường không đậm");
+    assert(!isCellBold({ val: "60%", style: { fontWeight: "normal" } }), "fontWeight normal không đậm");
+  });
+
+  test("serializeSheetRangeToClipboard: đưa giá trị hiển thị và in đậm chuẩn vào TSV và HTML", () => {
+    const mockGrid = {
+      selectedCoord: { c: "A", r: 1 },
+      selectionRange: { start: { c: "A", r: 1 }, end: { c: "B", r: 2 } },
+      _columnNumber: c => c.charCodeAt(0) - 64,
+      _columnLabel: n => String.fromCharCode(64 + n),
+      getColumnWidth: () => 64,
+      getRowHeight: () => 20,
+      cellsData: new Map([
+        ["A1", { val: "Hạng mục", formula: "", style: { fontWeight: "bold" } }],
+        ["B1", { val: "Tỷ trọng", formula: "", style: { fontWeight: "bold" } }],
+        ["A2", { val: "Phần cứng", formula: "", style: {} }],
+        ["B2", { val: 0.6, formula: "", style: { numberFormat: { category: "percentage", decimals: 0 } } }]
+      ])
+    };
+    const res = serializeSheetRangeToClipboard(mockGrid, mockGrid.selectionRange);
+    assertEqual(res.text, "Hạng mục\tTỷ trọng\nPhần cứng\t60%", "TSV chứa giá trị hiển thị 60%");
+    assert(res.html.includes('<td style="font-weight:bold">Hạng mục</td>'), "A1 có font-weight:bold");
+    assert(res.html.includes('<td style="font-weight:bold">Tỷ trọng</td>'), "B1 có font-weight:bold");
+    assert(res.html.includes("<td>Phần cứng</td>"), "A2 không có font-weight:bold");
+    assert(res.html.includes(">60%</td>"), "B2 có nội dung 60%");
+    assert(!res.html.includes('font-weight:bold">60%'), "B2 không mang font-weight:bold");
   });
 
   return results;

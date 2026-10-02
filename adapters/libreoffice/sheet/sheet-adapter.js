@@ -6187,12 +6187,11 @@ ${pristineXlsxMarker}
       }
       cells.push(cellRow); textRows.push(textRow.join("\t"));
     }
-    const text = textRows.join("\n");
     const clipboardHtml = serializeSheetRangeToClipboard(this.grid, range);
     return {
       range: structuredClone(range),
       cells,
-      text,
+      text: clipboardHtml.text,
       html: clipboardHtml.html,
       sourceSheet: this.grid.activeSheet
     };
@@ -6243,7 +6242,10 @@ ${pristineXlsxMarker}
       let model = null;
       const nativeText = native?.status === "ok" ? (native.text || text) : text;
       const nativeHtml = native?.status === "ok" ? (native.html || html) : html;
-      const isInternal = nativeText === this._clipboardText && this._clipboardModel?.cells?.length;
+      const isInternal = Boolean(
+        this._clipboardModel?.cells?.length &&
+        String(nativeText || "").replace(/\r\n/g, "\n").trim() === String(this._clipboardText || "").replace(/\r\n/g, "\n").trim()
+      );
       if (isInternal) model = this._clipboardModel;
       if (nativeHtml) {
         model ||= parseOfficeHtmlTable(nativeHtml, nativeText);
@@ -6362,7 +6364,7 @@ ${pristineXlsxMarker}
     }
     const isInternal = Boolean(
       this._clipboardModel?.cells?.length && (
-        !native || native.status !== "ok" || String(native.text || "").trim() === String(this._clipboardText || "").trim()
+        !native || native.status !== "ok" || String(native.text || "").replace(/\r\n/g, "\n").trim() === String(this._clipboardText || "").replace(/\r\n/g, "\n").trim()
       )
     );
     if (native?.status === "ok" && native.html) {

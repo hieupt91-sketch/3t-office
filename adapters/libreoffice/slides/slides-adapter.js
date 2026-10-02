@@ -11,7 +11,7 @@ import { globalShortcutManager } from "../../../platform/commands/shortcut-manag
 import { overlayFodpMasterLogo } from "./pptx-master-logo.js";
 import { overlayFodpSections } from "./pptx-section-list.js";
 import { overlayFodpShowProperties } from "./pptx-show-properties.js";
-import { parseOfficeHtmlTable, parseOfficeTsv } from "../../../platform/clipboard/office-clipboard.js";
+import { parseOfficeHtmlTable, parseOfficeTsv, isCellBold } from "../../../platform/clipboard/office-clipboard.js";
 
 const KNOWN_INSTALLED_FONTS = new Set([
   "arial",
@@ -4321,11 +4321,13 @@ export class SlidesAdapter {
     const rows = tableModel.cells.length;
     const cols = tableModel.cells[0]?.length || 1;
     const cells = tableModel.cells.map(row => row.map(cell => {
-      let val = String(cell.val ?? "");
-      if (cell.style?.fontWeight === "bold") {
-        return `<b>${val}</b>`;
+      let val = String((cell.text || cell.val) ?? "");
+      const isBold = isCellBold(cell);
+      const cleanVal = val.replace(/<\/?(b|strong)\b[^>]*>/gi, "");
+      if (isBold) {
+        return `<b>${cleanVal}</b>`;
       }
-      return val;
+      return cleanVal;
     }));
 
     const slide = this.canvas.slides[this.canvas.currentSlideIndex];

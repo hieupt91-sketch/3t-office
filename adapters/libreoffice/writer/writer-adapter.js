@@ -15141,6 +15141,12 @@ export class WriterAdapter {
       event?.preventDefault?.();
       this.flushTyping();
       range.deleteContents();
+      const pNode = range.startContainer?.nodeType === 1 && range.startContainer?.tagName === "P"
+        ? range.startContainer
+        : range.startContainer?.parentElement?.closest?.("p");
+      if (pNode && (!pNode.childNodes || pNode.childNodes.length === 0 || (!pNode.textContent && !pNode.querySelector("br")))) {
+        pNode.innerHTML = "<br>";
+      }
       this.isDirty = true;
       this.recordSnapshot("writer.edit.cut");
       this._updateUndoRedoUI?.();

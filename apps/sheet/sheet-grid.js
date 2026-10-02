@@ -4459,6 +4459,15 @@ _bindGridKeyboardNavigation() {
       && (!category || category === "general") && NumberFormatter.isDateInput(value)) {
       nextStyle.numberFormat = { category: "date", dateFormat: "dd/mm/yyyy" };
     }
+    if (typeof value === "string" && (!category || category === "general")
+      && /^[+-]?(?:\d{1,3}(?:,\d{3})+)(?:\.\d+)?$/.test(value.trim())) {
+      const decMatch = value.trim().match(/\.(\d+)/);
+      nextStyle.numberFormat = {
+        category: "number",
+        useThousands: true,
+        decimals: decMatch ? decMatch[1].length : 0
+      };
+    }
     return {
       value: NumberFormatter.normalizeInputForFormat(value, nextStyle.numberFormat),
       style: nextStyle
