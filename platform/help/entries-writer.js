@@ -1004,9 +1004,9 @@ export const WRITER_HELP_ENTRIES = [
     steps: [
       "Bôi đen từ hoặc đoạn văn bản muốn gắn liên kết trong tài liệu.",
       "Mở tab Chèn trên thanh ribbon, trong nhóm Liên kết nhấn nút Liên kết (hoặc bấm tổ hợp phím Ctrl+K).",
-      "Hộp thoại chèn liên kết xuất hiện. Nhập địa chỉ web đích (URL đầy đủ, ví dụ: https://example.com) vào ô địa chỉ.",
-      "Nhấn Áp dụng hoặc bấm Enter để hoàn tất. Đoạn văn bản sẽ chuyển sang màu xanh dương có gạch chân biểu thị liên kết.",
-      "Muốn chỉnh sửa hoặc hủy liên kết: đặt con trỏ tại vị trí liên kết, nhấn lại nút Liên kết (Ctrl+K) hoặc dùng Ctrl+Z để hoàn tác."
+      "Hộp thoại «Chèn liên kết» dùng chung xuất hiện. Kiểm tra hoặc nhập văn bản hiển thị và địa chỉ web đích (URL đầy đủ, ví dụ: https://example.com) vào ô địa chỉ.",
+      "Nhấn Chèn hoặc bấm Enter để hoàn tất. Đoạn văn bản sẽ chuyển sang màu xanh dương có gạch chân biểu thị liên kết.",
+      "Muốn chỉnh sửa hoặc hủy liên kết: đặt con trỏ tại vị trí liên kết, nhấn lại nút Liên kết (Ctrl+K) hoặc dùng Ctrl+Z để hoàn tác trong đúng một bước."
     ]
   },
   {

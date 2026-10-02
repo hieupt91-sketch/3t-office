@@ -4,7 +4,7 @@
  */
 
 import { globalUnoBridge } from "../common/uno-bridge.js";
-import { showAlertDialog, showPromptDialog, showFindReplaceDialog } from "../../../platform/ui-kit/dialogs.js";
+import { showAlertDialog, showPromptDialog, showFindReplaceDialog, showHyperlinkDialog, showSymbolPicker } from "../../../platform/ui-kit/dialogs.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
 import { withLazyFeatureProgress } from "../../../platform/startup/lazy-feature.js";
 import { globalShortcutManager } from "../../../platform/commands/shortcut-manager.js";
@@ -505,8 +505,27 @@ export class SheetAdapter {
       return Boolean(this.grid.insertSparkline("column", range));
     });
     globalCommandBus.bindHandler("sheet.insert.hyperlink", async (args) => {
-      const url = args?.url || await showPromptDialog({ title: "Chèn liên kết", message: "Nhập địa chỉ liên kết (URL):", defaultValue: "https://", placeholder: "https://example.com" });
-      return url ? this.grid.insertHyperlink(url, args?.text) : false;
+      let url = args?.url;
+      let text = args?.text;
+      if (!url) {
+        const currentVal = this.grid?.selectedCoord ? (this.grid.getCellValue?.(this.grid.selectedCoord) || "") : "";
+        const existingLink = this.grid?.selectedCoord ? (this.grid.getCellData?.(this.grid.selectedCoord)?.hyperlink || "https://") : "https://";
+        const result = await showHyperlinkDialog({
+          url: existingLink !== "https://" ? existingLink : "https://",
+          text: text || currentVal
+        });
+        if (!result || !result.url) return false;
+        url = result.url;
+        text = result.text;
+      }
+      return url ? this.grid.insertHyperlink(url, text) : false;
+    });
+    globalCommandBus.bindHandler("sheet.insert.symbol", async (args) => {
+      let ch = args?.char || args?.symbol;
+      if (!ch) {
+        ch = await showSymbolPicker();
+      }
+      return ch ? this.grid.insertSymbol(ch) : false;
     });
     globalCommandBus.bindHandler("sheet.insert.textbox", async (args) => {
       const text = args?.text || await showPromptDialog({ title: "Chèn hộp văn bản", message: "Nhập nội dung hộp văn bản:", defaultValue: "", placeholder: "Nội dung" });
@@ -5985,8 +6004,28 @@ ${pristineXlsxMarker}
 
       case "common.edit.hyperlink":
       case "sheet.insert.hyperlink": {
-        const url = args?.url || await showPromptDialog({ title: "Chèn liên kết", message: "Nhập địa chỉ liên kết (URL):", defaultValue: "https://", placeholder: "https://example.com" });
-        return url ? this.grid.insertHyperlink(url, args?.text) : false;
+        let url = args?.url;
+        let text = args?.text;
+        if (!url) {
+          const currentVal = this.grid?.selectedCoord ? (this.grid.getCellValue?.(this.grid.selectedCoord) || "") : "";
+          const existingLink = this.grid?.selectedCoord ? (this.grid.getCellData?.(this.grid.selectedCoord)?.hyperlink || "https://") : "https://";
+          const result = await showHyperlinkDialog({
+            url: existingLink !== "https://" ? existingLink : "https://",
+            text: text || currentVal
+          });
+          if (!result || !result.url) return false;
+          url = result.url;
+          text = result.text;
+        }
+        return url ? this.grid.insertHyperlink(url, text) : false;
+      }
+
+      case "sheet.insert.symbol": {
+        let ch = args?.char || args?.symbol;
+        if (!ch) {
+          ch = await showSymbolPicker();
+        }
+        return ch ? this.grid.insertSymbol(ch) : false;
       }
 
       case "sheet.insert.textbox": {

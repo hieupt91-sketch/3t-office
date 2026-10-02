@@ -362,6 +362,14 @@ export const SHEET_RIBBON_TABS = [
           { type: "button", commandId: "sheet.insert.textbox", isLarge: true },
           { type: "button", commandId: "sheet.page.headerFooter", isLarge: true }
         ]
+      },
+      {
+        id: "symbols",
+        label: "Ký hiệu",
+        labelKey: "sheetRibbon.group.symbols",
+        items: [
+          { type: "button", commandId: "sheet.insert.symbol", isLarge: true }
+        ]
       }
     ]
   },

@@ -511,3 +511,6 @@ export function showMacroManagerDialog({ macros, onRun, onRename, onDelete }) {
     closeBtn2.focus();
   });
 }
+
+export { showHyperlinkDialog, normalizeHyperlinkUrl } from "./hyperlink-dialog.js";
+export { showSymbolPicker, listAllSymbols, SYMBOL_CATEGORIES } from "./symbol-picker.js";

@@ -293,6 +293,14 @@ export const SLIDES_RIBBON_TABS = [
         ]
       },
       {
+        id: "links",
+        label: "Liên kết",
+        labelKey: "slidesRibbon.group.links",
+        items: [
+          { type: "button", commandId: "slides.insert.hyperlink", isLarge: true }
+        ]
+      },
+      {
         id: "comments",
         label: "Nhận xét",
         labelKey: "slidesRibbon.group.comments",

@@ -550,6 +550,22 @@ export const SLIDES_HELP_ENTRIES = [
     ]
   },
   {
+    id: "slides.insert.hyperlink",
+    app: "slides",
+    commandIds: ["slides.insert.hyperlink", "common.edit.hyperlink"],
+    title: "Chèn siêu liên kết trên trang chiếu",
+    summary: "Gắn liên kết URL web vào hình vẽ, khung chữ hoặc tiêu đề đang chọn trên trang chiếu Slide bằng hộp thoại dùng chung hoặc phím tắt Ctrl+K.",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Liên kết" },
+    keywords: ["liên kết", "hyperlink", "url", "ctrl+k", "chèn link", "web", "liên kết trang chiếu"],
+    steps: [
+      "Chọn hình vẽ, hộp văn bản hoặc tiêu đề muốn gắn liên kết trên trang chiếu (nếu chưa chọn đối tượng nào, Slide tự động tạo một hộp văn bản mới chứa liên kết).",
+      "Vào tab Chèn, nhóm Liên kết, nhấn nút Liên kết — hoặc nhấn tổ hợp phím tắt Ctrl+K.",
+      "Trong hộp thoại «Chèn liên kết» dùng chung: nhập văn bản hiển thị và địa chỉ URL hợp lệ (bắt đầu bằng https://, http:// hoặc mailto:). Nhấn nút Chèn (hoặc ấn Enter).",
+      "Nhấn phím Esc hoặc nút Hủy bỏ để đóng hộp thoại mà không chèn.",
+      "Nhấn Ctrl+Z để hoàn tác việc chèn liên kết trong 1 bước."
+    ]
+  },
+  {
     id: "slides.design.themeAndSize",
     app: "slides",
     commandIds: ["slides.design.themeGallery", "slides.design.slideSize", "slides.master.apply"],

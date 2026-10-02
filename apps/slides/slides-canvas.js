@@ -2986,6 +2986,114 @@ export class SlidesCanvasController {
     return false;
   }
 
+  async insertHyperlink(options = null) {
+    options = options || {};
+    let url = typeof options === "string" ? options : options.url;
+    let text = typeof options === "string" ? "" : options.text;
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide) return false;
+
+    const shape = (slide.shapes || []).find(item => String(item.id) === String(this.selectedTarget));
+    let initialText = text;
+    let initialUrl = url;
+
+    if (!initialText) {
+      if (typeof window !== "undefined") {
+        const sel = window.getSelection?.();
+        const selText = sel && sel.rangeCount > 0 ? sel.toString().trim() : "";
+        if (selText) initialText = selText;
+      }
+      if (!initialText && shape && shape.text) {
+        initialText = shape.text;
+      }
+    }
+    if (!initialUrl && shape && shape.hyperlink) {
+      initialUrl = shape.hyperlink;
+    }
+
+    if (!url) {
+      const { showHyperlinkDialog } = await import("../../platform/ui-kit/hyperlink-dialog.js");
+      const result = await showHyperlinkDialog({
+        url: initialUrl || "https://",
+        text: initialText || ""
+      });
+      if (!result || !result.url) return false;
+      url = result.url;
+      text = result.text;
+    }
+
+    if (!url) return false;
+
+    if (shape) {
+      const prevHyperlink = shape.hyperlink;
+      const prevText = shape.text;
+      shape.hyperlink = url;
+      if (text) shape.text = text;
+      this.undoStack.push({
+        type: "shape-hyperlink",
+        slideIndex: this.currentSlideIndex,
+        shapeId: shape.id,
+        before: { hyperlink: prevHyperlink, text: prevText },
+        after: { hyperlink: shape.hyperlink, text: shape.text }
+      });
+      this.redoStack = [];
+      this._syncUndoRedoState?.();
+      this._renderShapesLayer();
+      return true;
+    }
+
+    if (this.selectedTarget === "title" && this.titleEl) {
+      const prevTitle = slide.title;
+      slide.titleHyperlink = url;
+      if (text) {
+        this.titleEl.innerText = text;
+        slide.title = text;
+      }
+      this.undoStack.push({
+        type: "shape-hyperlink",
+        slideIndex: this.currentSlideIndex,
+        target: "title",
+        before: { hyperlink: null, text: prevTitle },
+        after: { hyperlink: url, text: slide.title }
+      });
+      this.redoStack = [];
+      this._syncUndoRedoState?.();
+      this._renderThumbnails?.();
+      return true;
+    }
+
+    const linkText = text || url;
+    const newShape = {
+      id: `shape-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      type: "textbox",
+      text: linkText,
+      hyperlink: url,
+      x: 180,
+      y: 180,
+      w: Math.max(200, Math.min(600, linkText.length * 10 + 30)),
+      h: 50,
+      fill: "transparent",
+      stroke: "transparent",
+      strokeWidth: 0,
+      textColor: "#2563eb",
+      fontSize: 18,
+      textAlign: "left"
+    };
+    slide.shapes ||= [];
+    slide.shapes.push(newShape);
+    this.selectedTarget = newShape.id;
+    this.selectedShapeIds = new Set([String(newShape.id)]);
+    this.undoStack.push({
+      type: "shape-add",
+      slideIndex: this.currentSlideIndex,
+      shape: structuredClone(newShape)
+    });
+    this.redoStack = [];
+    this._syncUndoRedoState?.();
+    this._renderShapesLayer();
+    return true;
+  }
+
   /** Chèn một sơ đồ gồm nhiều shape nhưng chỉ tạo một bước Undo/Redo. */
   insertDiagram(diagramType = "process", nodeCount = 4) {
     const slide = this.slides[this.currentSlideIndex];
@@ -5244,6 +5352,13 @@ const startEditing = (initialText) => {
           return;
         }
       }
+
+      if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K")) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.insertHyperlink();
+        return;
+      }
     };
 
     if (typeof window !== "undefined") {
@@ -6990,6 +7105,27 @@ const startEditing = (initialText) => {
       if (!shape) return false;
       shape.text = action.before;
       this.redoStack.push(action); this.selectSlide(action.slideIndex); this._renderShapesLayer(); return true;
+    } else if (action.type === "shape-hyperlink") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      if (action.target === "title") {
+        slide.titleHyperlink = action.before?.hyperlink;
+        if (action.before?.text !== undefined) {
+          slide.title = action.before.text;
+          if (this.titleEl) this.titleEl.innerText = action.before.text;
+        }
+      } else {
+        const shape = slide.shapes?.find(item => String(item.id) === String(action.shapeId));
+        if (shape) {
+          shape.hyperlink = action.before?.hyperlink;
+          if (action.before?.text !== undefined) shape.text = action.before.text;
+        }
+      }
+      this.redoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
+      this._renderThumbnails?.();
+      return true;
     } else if (action.type === "shape-format") {
       const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
       if (!shape) return false;
@@ -7295,6 +7431,27 @@ const startEditing = (initialText) => {
       if (!shape) return false;
       shape.text = action.after;
       this.undoStack.push(action); this.selectSlide(action.slideIndex); this._renderShapesLayer(); return true;
+    } else if (action.type === "shape-hyperlink") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      if (action.target === "title") {
+        slide.titleHyperlink = action.after?.hyperlink;
+        if (action.after?.text !== undefined) {
+          slide.title = action.after.text;
+          if (this.titleEl) this.titleEl.innerText = action.after.text;
+        }
+      } else {
+        const shape = slide.shapes?.find(item => String(item.id) === String(action.shapeId));
+        if (shape) {
+          shape.hyperlink = action.after?.hyperlink;
+          if (action.after?.text !== undefined) shape.text = action.after.text;
+        }
+      }
+      this.undoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
+      this._renderThumbnails?.();
+      return true;
     } else if (action.type === "shape-format") {
       const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
       if (!shape) return false;

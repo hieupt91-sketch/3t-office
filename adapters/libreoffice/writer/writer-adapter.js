@@ -4,7 +4,7 @@
  */
 
 import { globalUnoBridge } from "../common/uno-bridge.js";
-import { showPromptDialog, showFindReplaceDialog, showAlertDialog } from "../../../platform/ui-kit/dialogs.js";
+import { showPromptDialog, showFindReplaceDialog, showAlertDialog, showHyperlinkDialog } from "../../../platform/ui-kit/dialogs.js";
 import { createMatcher } from "../../../platform/find/find-engine.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
 import { withLazyFeatureProgress } from "../../../platform/startup/lazy-feature.js";
@@ -9400,18 +9400,15 @@ export class WriterAdapter {
     let text = typeof options === "string" ? "" : options.text;
     if (!url) {
       if (typeof window !== "undefined" && typeof document !== "undefined" && document.body) {
-        const linkTitle = (typeof t === "function" && t("writerDialogs.hyperlink.title") !== "writerDialogs.hyperlink.title")
-          ? t("writerDialogs.hyperlink.title")
-          : "Chèn Liên Kết (Hyperlink)";
-        const linkMsg = (typeof t === "function" && t("writerDialogs.hyperlink.message") !== "writerDialogs.hyperlink.message")
-          ? t("writerDialogs.hyperlink.message")
-          : "Nhập địa chỉ liên kết (URL):";
-        url = await showPromptDialog({
-          title: linkTitle,
-          message: linkMsg,
-          defaultValue: "https://",
-          placeholder: "https://example.com"
+        const sel = window.getSelection ? window.getSelection() : null;
+        const selectedText = sel && sel.rangeCount > 0 ? sel.toString().trim() : "";
+        const result = await showHyperlinkDialog({
+          url: "https://",
+          text: text || selectedText
         });
+        if (!result || !result.url) return false;
+        url = result.url;
+        text = result.text || text || selectedText;
       }
       if (!url) return false;
     }
