@@ -40,12 +40,26 @@ try {
                 [void]$sb.Append($ch)
             }
         }
-        return ($sb.ToString()).Replace("đ", "d").Replace("Đ", "D").ToLowerInvariant()
+        # Windows PowerShell 5 đọc UTF-8 không BOM theo code page hệ thống.
+        # Dùng code point để chuẩn hóa đ/Đ độc lập với encoding của script.
+        return ($sb.ToString()).Replace([char]0x0111, "d").Replace([char]0x0110, "D").ToLowerInvariant()
     }
 
     function FindParagraphBySubstring($d, $sub) {
         $cleanSub = RemoveDiacritics $sub
         for ($i = 1; $i -le $d.Paragraphs.Count; $i++) {
+            $p = $d.Paragraphs.Item($i)
+            $t = RemoveDiacritics (NormalizeText $p.Range.Text)
+            if ($t -like "*$cleanSub*") {
+                return $p
+            }
+        }
+        return $null
+    }
+
+    function FindLastParagraphBySubstring($d, $sub) {
+        $cleanSub = RemoveDiacritics $sub
+        for ($i = $d.Paragraphs.Count; $i -ge 1; $i--) {
             $p = $d.Paragraphs.Item($i)
             $t = RemoveDiacritics (NormalizeText $p.Range.Text)
             if ($t -like "*$cleanSub*") {
@@ -141,10 +155,12 @@ try {
     $listStringI = if ($pListI) { "$($pListI.Range.ListFormat.ListString)" } else { "" }
 
     # B5: Heading styles & TOC
-    $pH1 = FindParagraphBySubstring $doc "tieu de cap 1"
+    # TOC thật có thể sinh thêm đoạn cùng chữ ở đầu tài liệu khi Word cập nhật
+    # field lúc mở. Tiêu đề nội dung nằm sau kết quả TOC nên tìm từ cuối lên.
+    $pH1 = FindLastParagraphBySubstring $doc "tieu de cap 1"
     $h1Style = if ($pH1) { "$($pH1.Range.Style.NameLocal)" } else { "" }
 
-    $pH2 = FindParagraphBySubstring $doc "tieu de cap 2"
+    $pH2 = FindLastParagraphBySubstring $doc "tieu de cap 2"
     $h2Style = if ($pH2) { "$($pH2.Range.Style.NameLocal)" } else { "" }
 
     $tocCount = [int]$doc.TablesOfContents.Count

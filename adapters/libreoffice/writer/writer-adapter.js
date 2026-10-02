@@ -4664,9 +4664,20 @@ export class WriterAdapter {
       let listStyleType = null;
       if (item.numFmt === "none") {
         listStyleType = "none";
-      } else if (numberedFormats.has(item.numFmt) && Number.isFinite(item.value) && /^%\d\.?$/.test(String(item.lvlText || ""))) {
+      } else if (numberedFormats.has(item.numFmt) && Number.isFinite(item.value) && /^%\d[.)]?$/.test(String(item.lvlText || ""))) {
         const cssType = { decimal: "decimal", decimalZero: "decimal-leading-zero", lowerLetter: "lower-alpha", upperLetter: "upper-alpha", lowerRoman: "lower-roman", upperRoman: "upper-roman" }[item.numFmt];
-        const withValue = /\bvalue=/i.test(attrs) ? attrs.replace(/\bvalue=(["']?)\d+\1/i, `value="${item.value}"`) : `${attrs} value="${item.value}"`;
+        let withValue = /\bvalue=/i.test(attrs) ? attrs.replace(/\bvalue=(["']?)\d+\1/i, `value="${item.value}"`) : `${attrs} value="${item.value}"`;
+        // CSS list-style lower-alpha luôn dùng dấu chấm. Giữ hậu tố ')' thật từ
+        // w:lvlText bằng ::marker; class này cũng sống qua lần lưu HTML kế tiếp.
+        if (String(item.lvlText || "").endsWith(")")) {
+          const classMatch = withValue.match(/\bclass=(["'])([^"']*)\1/i);
+          if (classMatch) {
+            const classes = `${classMatch[2]} vno-list-suffix-paren`.trim().replace(/\s+/g, " ");
+            withValue = withValue.replace(classMatch[0], `class=${classMatch[1]}${classes}${classMatch[1]}`);
+          } else {
+            withValue += ' class="vno-list-suffix-paren"';
+          }
+        }
         const styleMatch = withValue.match(/\bstyle=(["'])([^"']*)\1/i);
         if (styleMatch && !/\blist-style(-type)?\b/i.test(styleMatch[2])) {
           return `<li${withValue.replace(styleMatch[0], `style=${styleMatch[1]}${styleMatch[2].trim().replace(/;?$/, `; list-style-type: ${cssType};`)}${styleMatch[1]}`)}>`;
