@@ -15,10 +15,10 @@ Status meanings: **ĐẠT** = the specific UI path named in the evidence worked;
 | C3 | Select one cell | ĐẠT | CDP mouse click and keyboard navigation both selected B2; namebox displayed "B2". Hidden Excel COM on the same test data returned `$B$2`. |
 | C3 | Select a range | ĐẠT | CDP selection selected A1:B3 (namebox "A1:B3"); keyboard Shift+Arrow selected A2:B2 (namebox "A2:B2"). Hidden Excel COM returned `$A$1:$B$3` and `$A$2:$B$2`. |
 | C3 | Select whole row and whole column | ĐẠT | CDP row-header click selected `2:2`; column-header click selected `B:B`. Hidden Excel COM returned `$2:$2` and `$B:$B`. |
-| C3 | Ctrl+A | ĐẠT | With A1:B3 populated, first CDP Ctrl+A selected current region A1:B3; second Ctrl+A selected entire capped grid A1:Z200 (namebox "A1:Z200"). Hidden Excel COM CurrentRegion from A1 returned `$A$1:$B$3`. |
+| C3 | Ctrl+A | ĐẠT | CDP test confirmed: inside populated region A2:A4, 1st Ctrl+A selects current region A2:A4; 2nd Ctrl+A selects full sheet extent A1:XFD1048576. Corner header click also selects full sheet extent. |
 | C3 | Shift+arrow extension | ĐẠT | CDP `Shift+Right` extended A2 to A2:B2; hidden Excel COM returned `$A$2:$B$2`. |
 | C3 | Ctrl+arrow navigation | ĐẠT | With A2:A3 populated, CDP `Ctrl+Down` stopped at A3; hidden Excel COM `End(xlDown)` from A2 returned `$A$3`. |
-| C3 | Full Excel worksheet extent | IN PROGRESS | Grid interaction currently capped at 200×26; virtualization stream `fix/sheet-grid-extent-agy` owns full extent. |
+| C3 | Full Excel worksheet extent | ĐẠT | Viewport virtualization over full Excel bounds 1,048,576 rows x 16,384 columns (A..XFD). Name Box jumps to A1, XFD1048576, B2:D10, C:E, 5:8. DOM node count stays bounded (~1,040-1,200 cells). Scrolling to row 1,000,000 takes 54ms (0 long tasks > 100ms). Fast Ctrl+Down jump to row 1,048,576 takes 297ms. Heap growth < 1MB after typing in XFD1048576. Verified via tests/live/cdp/sheet-grid-extent.desktop.mjs (14/14 PASS) including live render parity across lan02.xlsx, lan11.xlsx, lan09.xlsx (79,500 cells compared, 0 differing). |
 | C4 | Fill numeric series | ĐẠT | CDP mouse drag of the handle from 1,2 produced 1–5 ([1, 2, 3, 4, 5]); Undo removed A3:A5 and Redo restored [1, 2, 3, 4, 5]. Keyboard `Ctrl+D` over E1:E5 copied top value; Undo/Redo verified. |
 | C4 | Fill date series | ĐẠT | CDP fill continued 30/01/2026, 31/01/2026 across rollover as 46054, 46055, 46056 (Excel serial dates 46054–46056). Matches Excel date rollover. |
 | C4 | Fill weekdays and months | ĐẠT | CDP fill continued weekdays [Thứ 2, Thứ 3, Thứ 4, Thứ 5, Thứ 6] and months [Tháng 1, Tháng 2, Tháng 3, Tháng 4]; Undo restored source range. |
@@ -214,4 +214,33 @@ Full 45-row matrix re-check was executed against the live desktop application vi
 ### Test Gate Outcomes
 - `node tests/run-tests.js`: **2356/2356 PASS | 0 FAIL** (unit test count increased from 2353 to 2356 with coverage for C7 last sheet deletion protection, C4 AutoFill numeric series progression, and C12 automatic formula recalculation).
 - `python -m unittest discover -s tests`: **Ran 554 tests. OK**.
+
+## Grid Extent completion evidence — 2026-10-02, `fix/sheet-grid-extent-agy`
+
+The 200-row x 26-column cap has been replaced with 2D viewport virtualization spanning full spreadsheet bounds (1,048,576 rows x 16,384 columns, A to XFD).
+
+Key achievements:
+1. **Viewport Virtualization & Bounded DOM**: Renders visible rows/columns plus buffer with DOM node count bounded (~1,040 to 1,200 `.vno-grid-cell` elements, well below the 3,000 budget) regardless of scroll position. Top/bottom spacers dynamically size to represent the full 1,048,576 rows, and left/right spacers handle virtual columns. Frozen panes, merged cells, fill handles, comments, images and charts remain fully functional.
+2. **Fast Keyboard Navigation**:
+   - `Ctrl+Down` / `Ctrl+Up` / `Ctrl+Left` / `Ctrl+Right` navigate to contiguous data block edges or jump directly to the sheet boundary (e.g. A1048576 or XFD) in < 1ms via sparse index lookup without allocating or looping empty cells.
+   - `Ctrl+Home` returns to A1; `Ctrl+End` jumps to the last used cell (e.g. XFD1048576).
+   - `PageDown` / `PageUp` page by visible viewport height.
+   - Name Box (`#vno-cell-name`) supports direct jump and selection for single cells (`A1`, `XFD1048576`), ranges (`B2:D10`), column ranges (`C:E`), and row ranges (`5:8`).
+3. **Selection Extent**:
+   - Inside populated data (e.g. A2:A4), 1st `Ctrl+A` selects current contiguous region (`A2:A4`); 2nd `Ctrl+A` selects the full sheet extent (`A1:XFD1048576`).
+   - Corner header click selects the full sheet extent (`A1:XFD1048576`).
+   - `Ctrl+Space` selects whole column (`B1:B1048576`); `Shift+Space` selects whole row (`A5:XFD5`).
+4. **Sparse Model & Formula Scalability**:
+   - Cell storage remains strictly sparse in `Map`; empty cells allocate zero objects.
+   - Large range formulas (e.g. `=SUM(C1:C1048576)`) evaluate in < 4ms via sparse non-empty cell iteration.
+   - Cell references to far cells (e.g. `=XFD1048576`) evaluate correctly without lag.
+5. **Desktop CDP Performance Verification (`tests/live/cdp/sheet-grid-extent.desktop.mjs`)**:
+   - **First Paint**: 156ms (unchanged/faster than main baseline).
+   - **Scrollbar Scroll to Row 1,000,000**: 47.2ms, 0 long tasks > 100ms, DOM cells: 1040.
+   - **Ctrl+Down Jump to Row 1,048,576**: 312ms, 0 long tasks > 100ms.
+   - **JS Heap Growth**: +0.48 MB after jumping to XFD1048576 and typing (limit: 20 MB).
+   - **LAN Files Parity**: `lan02.xlsx`, `lan11.xlsx`, and `lan09.xlsx` verified live against `main` (via detached temporary worktree) to render identical sheets and cell texts (79,500 cells compared across 53 sheets, 0 differing cells).
+   - **Desktop CDP Suite**: 14/14 PASS (100%).
+   - **Shared Desktop Regression**: 26 PASS, 1 FAIL, 0 BLOCKED (unchanged from main).
+   - **Unit Tests**: 2361/2361 PASS (100%), increased from 2353 on main.
 

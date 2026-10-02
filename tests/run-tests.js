@@ -226,6 +226,7 @@ import { runWriterClipboardTests } from "./unit/writer-clipboard.test.js";
 import { runSlidesBasicsAuditTests } from "./unit/slides-basics-audit.test.js";
 import { runWriterDocNotRunBasicsTests } from "./unit/writer-doc-notrun-basics.test.js";
 import { runSpellcheckUiUndoTests } from "./unit/spellcheck-ui-undo.test.js";
+import { runSheetGridExtentTests } from "./unit/sheet-grid-extent.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -461,7 +462,8 @@ async function runAll() {
     { title: "220. Unit Tests — VN Writer spelling suggestions and context ranking", runner: runWriterSpellingSuggestionsTests },
     { title: "221. Unit Tests — VN Writer Clipboard Cut/Copy/Paste & Sanitization", runner: runWriterClipboardTests },
     { title: "222. Unit Tests — VN Writer font shortcut Ctrl+Shift+F & unsaved dialog keyboard navigation", runner: runWriterDocNotRunBasicsTests },
-    { title: "223. Unit Tests — CH-7.2 Vietnamese spellcheck UI suggestions, 1-step undo, onReplace callback & normalizer bridge", runner: runSpellcheckUiUndoTests }
+    { title: "223. Unit Tests — CH-7.2 Vietnamese spellcheck UI suggestions, 1-step undo, onReplace callback & normalizer bridge", runner: runSpellcheckUiUndoTests },
+    { title: "224. Unit Tests — Sheet Grid Extent (1,048,576 rows x 16,384 columns virtualization & navigation)", runner: runSheetGridExtentTests }
   ];
 
   for (const suite of suites) {

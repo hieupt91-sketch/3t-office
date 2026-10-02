@@ -1259,6 +1259,22 @@ export const SHEET_HELP_ENTRIES = [
       "Tiêu đề in (Print Titles): tab Bố trí trang > nhóm Thiết lập trang > Tiêu đề in (nhập tham chiếu $1:$2/$A:$B, nút ⊞ chọn trực tiếp hàng/cột trên lưới, giữ khi lưu .xlsx).",
       "Liên kết ngoài: công thức như =[BaoCao.xlsx]Sheet1!A1 hiển thị giá trị lưu lần cuối, giữ liên kết khi lưu XLSX, không tự cập nhật (ứng dụng chạy offline). Thanh cảnh báo vàng dưới ribbon báo số ô có liên kết."
     ]
+  },
+  {
+    id: "sheet.navigation.gridExtent",
+    app: "sheet",
+    commandIds: ["common.edit.find"],
+    title: "Điều hướng trên bảng tính lớn",
+    summary: "Sheet hỗ trợ bảng tính lên tới 1.048.576 hàng và 16.384 cột (từ cột A đến XFD). Dùng phím Ctrl cùng các phím mũi tên, Ctrl+Home, Ctrl+End và Hộp tên ô để di chuyển nhanh chóng mà không làm chậm ứng dụng.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
+    keywords: ["điều hướng", "bảng tính lớn", "mũi tên", "Ctrl+Home", "Ctrl+End", "Hộp tên ô", "Name Box", "1048576 hàng", "16384 cột", "XFD"],
+    steps: [
+      "Dùng phím Ctrl kết hợp phím mũi tên (Lên, Xuống, Trái, Phải) để nhảy nhanh đến ranh giới của khối dữ liệu hoặc mép bảng tính. Nếu cột đang trống, giữ Ctrl và nhấn phím mũi tên Xuống sẽ nhảy ngay đến hàng 1.048.576; giữ Ctrl và nhấn phím mũi tên Phải sẽ nhảy đến cột XFD.",
+      "Nhấn Ctrl+Home để quay trở về ô A1 bất cứ lúc nào. Nhấn Ctrl+End để nhảy đến ô chứa dữ liệu cuối cùng của trang tính.",
+      "Nhập địa chỉ vào Hộp tên ô (ở bên trái Thanh công thức) rồi nhấn Enter để nhảy trực tiếp tới ô hoặc dải ô, ví dụ A1, XFD1048576, hoặc B2:D10.",
+      "Để chọn nhanh toàn bộ hàng hoặc cột trên bảng tính lớn, nhấn Shift+Space để chọn cả hàng, hoặc Ctrl+Space để chọn cả cột.",
+      "Nhấn Ctrl+A lần thứ nhất để chọn vùng dữ liệu liền kề hiện tại, nhấn Ctrl+A lần thứ hai để chọn toàn bộ bảng tính (A1:XFD1048576). Bộ hiển thị ảo chỉ kết xuất các ô đang nhìn thấy trên màn hình nên thao tác luôn mượt mà."
+    ]
   }
 ];
 
