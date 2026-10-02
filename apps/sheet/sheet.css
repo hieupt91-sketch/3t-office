@@ -173,7 +173,8 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
-.vno-formula-spell-overlay-content .vno-spelling-uncertain {
+.vno-formula-spell-overlay-content .vno-spelling-uncertain,
+.vno-grid-cell .vno-spelling-uncertain {
   text-decoration: underline wavy #e02424;
   text-decoration-skip-ink: none;
   pointer-events: auto;

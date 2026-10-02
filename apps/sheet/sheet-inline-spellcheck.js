@@ -194,7 +194,15 @@ export class SheetInlineSpellcheck {
 
   setEnabled(enabled) {
     this.domController?.setEnabled(enabled);
+    if (!enabled && this.overlayContent) {
+      this.overlayContent.textContent = "";
+    }
     this._syncFromInput();
+    if (this.grid?.formulaEntry?.coord) {
+      const coord = this.grid.formulaEntry.coord;
+      const td = this.grid.container?.querySelector?.(`.vno-grid-cell[data-coord="${coord.c}${coord.r}"]`);
+      if (td) this.grid._renderCellVisual(td, this.grid.cellsData.get(`${coord.c}${coord.r}`), coord.c, coord.r);
+    }
   }
 
   toggle() {

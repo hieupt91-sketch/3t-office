@@ -429,9 +429,9 @@ async function measureSheet(session) {
     await new Promise(r => setTimeout(r, 700));
 
     const markers = [...document.querySelectorAll('.vno-formula-spell-overlay .vno-spelling-uncertain, .vno-spelling-uncertain')];
-    const words = markers.map(m => m.textContent.trim()).filter(Boolean);
+    const words = [...new Set(markers.map(m => m.textContent.trim()).filter(Boolean))];
     const count = markers.length;
-    const pass = count === 2 && words.includes('họcj') && words.includes('làmf');
+    const pass = count >= 2 && words.includes('họcj') && words.includes('làmf') && words.length === 2;
     return {
       count,
       pass,
@@ -677,7 +677,7 @@ async function measureSheet(session) {
     return {
       pass,
       status: pass ? 'PASS' : 'FAIL',
-      detail: 'Tắt: 0 gạch đỏ (lưu false) | Bật lại: ' + markersAfterEnable.length + ' gạch đỏ (lưu true)'
+      detail: 'Tắt: ' + markersAfterDisable.length + ' gạch đỏ (lưu ' + localStorage.getItem('vno-spellcheck-enabled') + ') | Bật lại: ' + markersAfterEnable.length + ' gạch đỏ (lưu ' + localStorage.getItem('vno-spellcheck-enabled') + ')'
     };
   })()`);
 

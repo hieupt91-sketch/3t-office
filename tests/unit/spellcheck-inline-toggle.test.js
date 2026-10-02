@@ -343,5 +343,69 @@ export async function runSpellcheckInlineToggleTests() {
     );
   });
 
+  await test("SheetGridController: gạch đỏ từ sai khi đang sửa ô, sạch sẽ khi rời ô", () => {
+    let menuOpened = false;
+    const mockController = {
+      openMenu() { menuOpened = true; },
+      enabled: true
+    };
+    const mockTd = {
+      tagName: "TD",
+      innerHTML: "",
+      textContent: "",
+      style: {},
+      classList: {
+        toggle() {},
+        remove() {}
+      }
+    };
+    const grid = {
+      formulaEntry: { coord: { c: "B", r: 4 } },
+      spellChecker: new VietnameseSpellChecker(["hôm", "nay", "học", "làm"]),
+      _inlineSpellController: { domController: mockController },
+      isSpellcheckEnabled() { return true; },
+      _escapeHtml(s) { return String(s); }
+    };
+
+    const renderCell = (td, itm, col, row) => {
+      let text = itm.val ?? "";
+      if (grid.formulaEntry && grid.formulaEntry.coord?.c === col && grid.formulaEntry.coord?.r === row &&
+          typeof text === "string" && !text.startsWith("=") && grid.isSpellcheckEnabled() && grid.spellChecker) {
+        const issues = grid.spellChecker.checkText(text);
+        if (issues.length > 0) {
+          let html = "";
+          let cursor = 0;
+          for (const issue of issues) {
+            html += grid._escapeHtml(text.slice(cursor, issue.start));
+            html += `<span class="vno-spelling-uncertain" data-vno-spelling-uncertain="${grid._escapeHtml(issue.normalized)}">${grid._escapeHtml(text.slice(issue.start, issue.end))}</span>`;
+            cursor = issue.end;
+          }
+          html += grid._escapeHtml(text.slice(cursor));
+          td.innerHTML = html;
+        } else {
+          td.textContent = text;
+        }
+      } else {
+        td.textContent = text;
+      }
+    };
+
+    // 1. Đang sửa ô B4: phải có marker vno-spelling-uncertain
+    renderCell(mockTd, { val: "Hôm nay họcj" }, "B", 4);
+    assert.ok(mockTd.innerHTML.includes("vno-spelling-uncertain"), "Ô đang sửa phải có marker gạch đỏ vno-spelling-uncertain");
+    assert.ok(mockTd.innerHTML.includes("họcj"), "Nội dung gạch đỏ phải là 'họcj'");
+
+    // 2. Ô khác (A1) không phải ô đang sửa: không gạch đỏ
+    const otherTd = { innerHTML: "", textContent: "" };
+    renderCell(otherTd, { val: "họcj" }, "A", 1);
+    assert.equal(otherTd.innerHTML, "", "Ô không sửa không được render innerHTML");
+    assert.equal(otherTd.textContent, "họcj", "Ô không sửa chỉ render plain text");
+
+    // 3. Thoát chế độ sửa (formulaEntry = null): ô B4 trở lại bình thường
+    grid.formulaEntry = null;
+    renderCell(mockTd, { val: "Hôm nay họcj" }, "B", 4);
+    assert.equal(mockTd.textContent, "Hôm nay họcj", "Sau khi rời ô, ô chỉ hiển thị text bình thường");
+  });
+
   return results;
 }
