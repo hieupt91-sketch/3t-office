@@ -389,7 +389,14 @@ export class WriterApp {
     this.canvas.dataset.spellcheckStatus = "loading";
     try {
       const checker = new VietnameseSpellChecker(VIETNAMESE_DICTIONARY_WORDS);
-      this.spellcheckController = new SpellcheckDomController({ roots: editableRoots, checker, debounceMs: 400 }).attach();
+      this.spellcheckController = new SpellcheckDomController({
+        roots: editableRoots,
+        checker,
+        debounceMs: 400,
+        onReplace: () => {
+          this.adapter?.recordSnapshot?.("Sửa chính tả");
+        }
+      }).attach();
       this.canvas.dataset.spellcheckStatus = "ready";
     } catch (error) {
       this.canvas.dataset.spellcheckStatus = "error";

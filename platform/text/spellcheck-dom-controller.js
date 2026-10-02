@@ -140,8 +140,13 @@ export function restoreSelectionBookmark(root, bookmark) {
 }
 
 function unwrapMarkers(root) {
-  for (const marker of root.querySelectorAll(MARKER_SELECTOR)) marker.replaceWith(document.createTextNode(marker.textContent));
-  root.normalize();
+  if (!root || typeof root.querySelectorAll !== "function") return;
+  const doc = root.ownerDocument || (typeof document !== "undefined" ? document : null);
+  for (const marker of root.querySelectorAll(MARKER_SELECTOR)) {
+    const textNode = doc?.createTextNode ? doc.createTextNode(marker.textContent) : marker.textContent;
+    marker.replaceWith(textNode);
+  }
+  if (typeof root.normalize === "function") root.normalize();
 }
 
 function isEligibleTextNode(node, root) {
@@ -151,10 +156,11 @@ function isEligibleTextNode(node, root) {
 }
 
 export class SpellcheckDomController {
-  constructor({ roots, checker, debounceMs = 400 }) {
+  constructor({ roots, checker, debounceMs = 400, onReplace = null }) {
     this.roots = [...roots];
     this.checker = checker;
     this.debounceMs = debounceMs;
+    this.onReplace = onReplace;
     this.timer = null;
     this.menu = null;
     this._focusBeforeMenu = null;
@@ -188,7 +194,7 @@ export class SpellcheckDomController {
     this._burstUnsubscribe = globalImeTracker.onBurstStateChange(active => {
       if (!active) this.schedule(this.debounceMs);
     });
-    document.addEventListener("pointerdown", this._onDocumentPointer);
+    if (typeof document !== "undefined") document.addEventListener("pointerdown", this._onDocumentPointer);
     this.schedule(0);
     return this;
   }
@@ -201,7 +207,7 @@ export class SpellcheckDomController {
       root.removeEventListener("contextmenu", this._onContextMenu);
       root.removeEventListener("keydown", this._onShiftF10);
     }
-    document.removeEventListener("pointerdown", this._onDocumentPointer);
+    if (typeof document !== "undefined") document.removeEventListener("pointerdown", this._onDocumentPointer);
     this.closeMenu();
   }
 
@@ -280,14 +286,7 @@ export class SpellcheckDomController {
     const suggestions = this.checker.suggest(word, { contextPrev });
     for (const suggestion of suggestions) {
       this._appendAction(menu, suggestion, () => {
-        const textNode = document.createTextNode(suggestion);
-        const parent = marker.parentElement;
-        marker.replaceWith(textNode);
-        if (parent) {
-          parent.dispatchEvent(new Event("input", { bubbles: true }));
-        }
-        this.closeMenu();
-        this.schedule(0);
+        this.applySuggestion(marker, suggestion);
       }, "vno-spellcheck-suggestion");
     }
     if (suggestions.length) menu.append(document.createElement("hr"));
@@ -341,6 +340,74 @@ export class SpellcheckDomController {
     button.textContent = label;
     button.addEventListener("click", action);
     menu.append(button);
+  }
+
+  applySuggestion(marker, suggestion) {
+    if (!marker || !marker.isConnected) return;
+    const word = marker.textContent;
+    const parent = marker.parentElement;
+    const root = this.roots.find(r => r.contains(marker)) || parent?.closest?.("[contenteditable]") || parent;
+
+    const textBefore = root?.innerText || root?.textContent || "";
+    const htmlBefore = root?.innerHTML || "";
+
+    // 1. Snapshot trước khi sửa cho normalizer nếu có
+    const normalizer = root?._vnoNormalizer;
+    if (normalizer && typeof normalizer._recordWordSnapshot === "function") {
+      if (normalizer._burstSettleTimer) {
+        clearTimeout(normalizer._burstSettleTimer);
+        normalizer._burstSettleTimer = null;
+      }
+      normalizer._recordWordSnapshot();
+    }
+
+    // 2. Thực hiện thay thế: ưu tiên execCommand('insertText') để có native undo nếu được
+    let replacedWithExec = false;
+    const selection = globalThis.getSelection?.();
+    if (selection && typeof document !== "undefined") {
+      try {
+        const range = document.createRange();
+        range.selectNode(marker);
+        selection.removeAllRanges();
+        selection.addRange(range);
+        replacedWithExec = document.execCommand?.("insertText", false, suggestion);
+      } catch (_) {
+        replacedWithExec = false;
+      }
+    }
+
+    if (!replacedWithExec) {
+      const doc = marker.ownerDocument || (typeof document !== "undefined" ? document : null);
+      const textNode = doc?.createTextNode ? doc.createTextNode(suggestion) : suggestion;
+      marker.replaceWith(textNode);
+      if (parent && typeof Event !== "undefined") {
+        parent.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    }
+
+    const textAfter = root?.innerText || root?.textContent || "";
+    const htmlAfter = root?.innerHTML || "";
+
+    // 3. Snapshot sau khi sửa cho normalizer ngay lập tức (không chờ timer 60ms)
+    if (normalizer && typeof normalizer._recordWordSnapshot === "function") {
+      normalizer.normalizeNow?.();
+      normalizer._recordWordSnapshot();
+    }
+
+    // 4. Gọi hook onReplace cho app
+    if (typeof this.onReplace === "function") {
+      try {
+        this.onReplace({
+          marker, suggestion, word, root,
+          textBefore, textAfter, htmlBefore, htmlAfter
+        });
+      } catch (err) {
+        console.warn("[SpellcheckDomController] onReplace callback error:", err);
+      }
+    }
+
+    this.closeMenu();
+    this.schedule(0);
   }
 
   closeMenu() {
