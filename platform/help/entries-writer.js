@@ -284,7 +284,7 @@ export const WRITER_HELP_ENTRIES = [
     keywords: ["đậm", "nghiêng", "gạch chân", "gạch ngang", "phông chữ", "cỡ chữ", "màu chữ", "tô vàng", "chỉ số", "xóa định dạng", "bold", "italic", "font", "highlight", "ctrl+b", "ctrl+]", "ctrl+["],
     steps: [
       "Bôi chữ cần đổi (hoặc đặt con trỏ trong từ). Mở tab Trang đầu, nhóm Phông chữ — hàng trên là hộp Phông chữ và Cỡ chữ, hàng dưới là các nút kiểu chữ.",
-      "Phông chữ: Times New Roman (mặc định), Be Vietnam Pro, Arial, Calibri, Roboto. Cỡ chữ: 10 pt, 12 pt, 14 pt (NĐ 30 — mặc định văn bản hành chính), 16 pt, 18 pt, 24 pt. Nút Tăng cỡ chữ (Ctrl+Shift+>) / Giảm cỡ chữ (Ctrl+Shift+<) nhảy nhanh theo các nấc đó. Dùng phím tắt Ctrl+] để tăng cỡ chữ 1 điểm (1 pt) và Ctrl+[ để giảm cỡ chữ 1 điểm (1 pt) từng bước chuẩn phần mềm soạn thảo văn bản khác.",
+      "Phông chữ: Times New Roman (mặc định), Be Vietnam Pro, Arial, Calibri, Roboto. Dùng phím tắt Ctrl+Shift+F để chuyển tiêu điểm vào hộp chọn Phông chữ bằng bàn phím, dùng phím Mũi tên Lên/Xuống để duyệt danh sách phông và nhấn Enter để áp dụng. Cỡ chữ: 10 pt, 12 pt, 14 pt (NĐ 30 — mặc định văn bản hành chính), 16 pt, 18 pt, 24 pt. Nút Tăng cỡ chữ (Ctrl+Shift+>) / Giảm cỡ chữ (Ctrl+Shift+<) nhảy nhanh theo các nấc đó. Dùng phím tắt Ctrl+] để tăng cỡ chữ 1 điểm (1 pt) và Ctrl+[ để giảm cỡ chữ 1 điểm (1 pt) từng bước chuẩn phần mềm soạn thảo văn bản khác.",
       "Đậm Ctrl+B, Nghiêng Ctrl+I, Gạch chân Ctrl+U, Gạch ngang (không có phím tắt). Chỉ số dưới Ctrl+= (ví dụ H₂O), Chỉ số trên Ctrl+Shift++ (ví dụ m²). Nhấn lại cùng nút để tắt.",
       "Màu chữ đổi vùng chọn sang đỏ (#dc2626). Màu nền chữ tô vàng (#ffcd00) giống bút highlight. Xóa định dạng (Ctrl+Space) bỏ hết kiểu, giữ nguyên chữ. Ctrl+Z hoàn tác."
     ]
@@ -1029,15 +1029,17 @@ export const WRITER_HELP_ENTRIES = [
   {
     id: "writer.review.spellCheck",
     app: "writer",
-    commandIds: ["ai.assistant.grammarCheck"],
+    commandIds: ["ai.assistant.grammarCheck", "writer.review.toggleSpellCheck"],
     title: "Soát lỗi chính tả và gợi ý sửa từ tiếng Việt",
-    summary: "Kiểm tra toàn diện lỗi chính tả dấu thanh, phụ âm đầu và ngữ pháp văn bản tiếng Việt; gợi ý sửa lỗi trực tiếp qua menu chuột phải hoặc phím tắt F7.",
+    summary: "Kiểm tra toàn diện lỗi chính tả dấu thanh, phụ âm đầu và ngữ pháp văn bản tiếng Việt; gợi ý sửa lỗi trực tiếp qua menu chuột phải hoặc phím tắt F7; hỗ trợ bật/tắt kiểm tra chính tả trên ribbon.",
     ribbon: { tab: "Đánh giá", tabId: "review", group: "Chính tả & Ngữ pháp" },
-    keywords: ["soát lỗi chính tả", "chính tả", "ngữ pháp", "kiểm tra chính tả", "spell check", "grammar", "F7", "tiếng việt", "nghị định 30", "gợi ý chính tả", "chuột phải"],
+    keywords: ["soát lỗi chính tả", "chính tả", "ngữ pháp", "kiểm tra chính tả", "spell check", "grammar", "F7", "tiếng việt", "nghị định 30", "gợi ý chính tả", "chuột phải", "hoàn tác", "Ctrl+Z", "bật tắt chính tả"],
     steps: [
-      "Khi soạn thảo văn bản, các từ nghi ngờ sai chính tả tiếng Việt sẽ tự động được đánh dấu bằng đường gạch dưới lượn sóng màu đỏ.",
+      "Khi soạn thảo văn bản trong Doc, các từ nghi ngờ sai chính tả tiếng Việt sẽ tự động được đánh dấu bằng đường gạch dưới lượn sóng màu đỏ khi bạn tạm dừng gõ (độ trễ ~400 ms) mà không làm nhảy con trỏ.",
+      "Tùy chọn Bật/Tắt kiểm tra chính tả: Mở tab Đánh giá, nhóm Chính tả & Ngữ pháp, nhấn nút «Kiểm tra chính tả» để bật hoặc tắt gạch sóng đỏ. Khi tắt, các đường gạch chân đỏ biến mất ngay lập tức; khi bật lại, hệ thống quét và gạch đỏ trở lại. Thiết lập được tự động ghi nhớ cho các phiên làm việc tiếp theo.",
       "Nhấp chuột phải trực tiếp vào từ bị gạch chân để mở menu ngữ cảnh gợi ý: hệ thống tự động ưu tiên các từ đúng dấu thanh và ngữ cảnh liên kết (ví dụ: gợi ý chuẩn «định» khi gõ «quyết đinh»).",
-      "Nhấp vào từ gợi ý mong muốn để thay thế ngay lập tức trong văn bản, hoặc nhấp «Bỏ qua» để bỏ qua từ đó, hoặc «Thêm vào từ điển» để lưu vào từ điển cá nhân.",
+      "Nhấp vào từ gợi ý mong muốn để thay thế ngay lập tức trong văn bản, hoặc nhấp «Bỏ qua» để bỏ qua từ đó trong phiên hiện tại, hoặc «Thêm vào từ điển» để lưu vào từ điển cá nhân dùng chung cả bộ Doc, Sheet, Slide.",
+      "Sau khi chọn từ gợi ý để thay thế, bạn có thể nhấn Ctrl+Z để hoàn tác thay thế ngay trong đúng một bước duy nhất và khôi phục lại từ ban đầu.",
       "Để soát lỗi toàn diện, mở tab Đánh giá trên thanh ribbon, tại nhóm Chính tả & Ngữ pháp nhấn nút «Soát lỗi chính tả» (hoặc nhấn phím F7) để quét toàn bộ tài liệu."
     ]
   },

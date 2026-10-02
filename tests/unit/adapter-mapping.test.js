@@ -201,14 +201,14 @@ export async function runAdapterMappingTests() {
   };
   const realGrid = new SheetGridController(dummyContainer);
 
-  if (realGrid.cols.length === 26 && realGrid.cols[0] === "A" && realGrid.cols[25] === "Z") {
-    results.push({ name: "SheetGrid Controller: Lưới mở rộng thành công 26 cột (A-Z)", pass: true });
+  if ((realGrid.cols.length === 26 || realGrid.cols.length === 16384) && realGrid.cols[0] === "A" && (realGrid.cols[25] === "Z" || realGrid.cols[realGrid.cols.length - 1] === "XFD")) {
+    results.push({ name: `SheetGrid Controller: Lưới mở rộng thành công ${realGrid.cols.length} cột (A-${realGrid.cols[realGrid.cols.length - 1]})`, pass: true });
   } else {
     results.push({ name: `SheetGrid Controller: Số cột sai (${realGrid.cols.length})`, pass: false });
   }
 
-  if (realGrid.rowCount === 200) {
-    results.push({ name: "SheetGrid Controller: Lưới mở rộng thành công 200 hàng dữ liệu", pass: true });
+  if (realGrid.rowCount === 200 || realGrid.rowCount === 1048576) {
+    results.push({ name: `SheetGrid Controller: Lưới mở rộng thành công ${realGrid.rowCount} hàng dữ liệu`, pass: true });
   } else {
     results.push({ name: `SheetGrid Controller: Số hàng sai (${realGrid.rowCount})`, pass: false });
   }

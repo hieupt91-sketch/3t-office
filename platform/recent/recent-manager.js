@@ -5,15 +5,38 @@
 
 const STORAGE_KEY = "vno_recent_documents";
 
+/**
+ * Rút gọn đường dẫn tệp để hiển thị trực quan trên giao diện
+ * @param {string} filePath
+ * @returns {string}
+ */
+export function formatShortPath(filePath) {
+  if (!filePath || typeof filePath !== "string") return "";
+  const normalized = filePath.replace(/\\/g, "/");
+  const parts = normalized.split("/").filter(Boolean);
+  if (parts.length <= 2) return filePath;
+  const isWindowsDrive = /^[a-zA-Z]:/.test(parts[0]);
+  const prefix = isWindowsDrive ? `${parts[0]}/` : "/";
+  if (parts.length === 3) return `${prefix}.../${parts[2]}`;
+  return `${prefix}.../${parts.slice(-2).join("/")}`;
+}
+
 export class RecentFilesManager {
+  static _getStorage() {
+    if (typeof window !== "undefined" && window.localStorage) return window.localStorage;
+    if (typeof globalThis !== "undefined" && globalThis.localStorage) return globalThis.localStorage;
+    return null;
+  }
+
   /**
    * Lấy danh sách tài liệu gần đây
    * @returns {Array<{id: string, name: string, app: "writer"|"sheet"|"slides", lastModified: number, format: string}>}
    */
   static getRecentFiles() {
     try {
-      if (typeof window === "undefined" || !window.localStorage) return [];
-      const data = localStorage.getItem(STORAGE_KEY);
+      const storage = this._getStorage();
+      if (!storage) return [];
+      const data = storage.getItem(STORAGE_KEY);
       const parsed = data ? JSON.parse(data) : [];
       return Array.isArray(parsed) ? parsed.filter(item => typeof item?.path === "string" && item.path.length > 0) : [];
     } catch {
@@ -26,7 +49,8 @@ export class RecentFilesManager {
    */
   static recordFile({ name, app, format, path }) {
     try {
-      if (typeof window === "undefined" || !window.localStorage || typeof path !== "string" || !path.trim()) return false;
+      const storage = this._getStorage();
+      if (!storage || typeof path !== "string" || !path.trim()) return false;
       const list = this.getRecentFiles();
       const existingIdx = list.findIndex(item => item.path === path && item.app === app);
       
@@ -46,7 +70,7 @@ export class RecentFilesManager {
 
       // Giới hạn tối đa 10 tài liệu gần đây nhất
       const trimmed = list.slice(0, 10);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+      storage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
       return true;
     } catch (e) {
       console.warn("[RecentFilesManager] Không thể lưu tài liệu gần đây:", e);
@@ -60,10 +84,11 @@ export class RecentFilesManager {
    */
   static removeFile({ name, app }) {
     try {
-      if (typeof window === "undefined" || !window.localStorage) return;
+      const storage = this._getStorage();
+      if (!storage) return;
       const list = this.getRecentFiles();
       const filtered = list.filter(item => !(item.name === name && (!app || item.app === app)));
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+      storage.setItem(STORAGE_KEY, JSON.stringify(filtered));
     } catch (e) {
       console.warn("[RecentFilesManager] Không thể xóa tệp gần đây:", e);
     }
@@ -74,8 +99,9 @@ export class RecentFilesManager {
    */
   static clearAll() {
     try {
-      if (typeof window !== "undefined" && window.localStorage) {
-        localStorage.removeItem(STORAGE_KEY);
+      const storage = this._getStorage();
+      if (storage) {
+        storage.removeItem(STORAGE_KEY);
       }
     } catch {}
   }

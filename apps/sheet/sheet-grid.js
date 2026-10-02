@@ -24,6 +24,7 @@ import { SheetDataTools } from "./data-tools.js";
 import { computeConsolidate, formatSheetRange, parseConsolidateReference, CONSOLIDATE_FUNCTIONS } from "./consolidate.js";
 import { createMatcher } from "../../platform/find/find-engine.js";
 import { InputNormalizer } from "../../platform/keyboard/input-normalizer.js";
+import { isSpellcheckEnabled } from "../../platform/text/spellcheck-dom-controller.js";
 
 const { showAlertDialog, showConfirmDialog, showPromptDialog, showFindReplaceDialog } = createLazyDialogs("sheet");
 
@@ -37,6 +38,25 @@ export const DEFAULT_SHEET_PAGE_SETUP = Object.freeze({
   printOptions: Object.freeze({ gridlines: false, headings: false }),
   printTitles: Object.freeze({ rows: "", cols: "" })
 });
+
+export const MAX_ROW_COUNT = 1048576;
+export const MAX_COL_COUNT = 16384;
+
+function generateAllCols() {
+  const cols = new Array(MAX_COL_COUNT);
+  for (let i = 1; i <= MAX_COL_COUNT; i++) {
+    let value = i;
+    let label = "";
+    while (value > 0) {
+      value--;
+      label = String.fromCharCode(65 + (value % 26)) + label;
+      value = Math.floor(value / 26);
+    }
+    cols[i - 1] = label;
+  }
+  return cols;
+}
+export const ALL_COLS = Object.freeze(generateAllCols());
 
 export const DEFAULT_ROW_HEIGHT_PX = 20;
 export const DEFAULT_COL_WIDTH_PX = 64;
@@ -71,11 +91,17 @@ export function createSheetSelectionRange(anchor, active) {
 export function normalizeSheetSelectionRange(range, cols) {
   const start = range?.start || { c: cols[0], r: 1 };
   const end = range?.end || start;
-  const startCol = Math.max(0, cols.indexOf(start.c));
-  const endCol = Math.max(0, cols.indexOf(end.c));
+  const colNumber = (col) => {
+    if (typeof col === "number") return col;
+    return String(col).toUpperCase().split("").reduce((v, ch) => v * 26 + ch.charCodeAt(0) - 64, 0);
+  };
+  const startNum = colNumber(start.c);
+  const endNum = colNumber(end.c);
+  const minNum = Math.max(1, Math.min(cols.length, Math.min(startNum, endNum)));
+  const maxNum = Math.max(1, Math.min(cols.length, Math.max(startNum, endNum)));
   return {
-    start: { c: cols[Math.min(startCol, endCol)], r: Math.min(start.r, end.r) },
-    end: { c: cols[Math.max(startCol, endCol)], r: Math.max(start.r, end.r) }
+    start: { c: cols[minNum - 1] || start.c, r: Math.min(start.r, end.r) },
+    end: { c: cols[maxNum - 1] || end.c, r: Math.max(start.r, end.r) }
   };
 }
 
@@ -160,10 +186,14 @@ export class SheetGridController {
     this.container = container;
     this.options = options;
     this.isBlank = options.isBlank ?? (options.templateId !== "budget_estimate");
-    this.cols = Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i));
-    this.rowCount = 200;
+    this.rowCount = options.rowCount ?? MAX_ROW_COUNT;
+    this.cols = typeof options.cols === "number"
+      ? Array.from({ length: options.cols }, (_, i) => this._columnLabel(i + 1))
+      : (Array.isArray(options.cols) ? options.cols : ALL_COLS);
     this.rowHeight = DEFAULT_ROW_HEIGHT_PX;
     this.defaultColWidth = DEFAULT_COL_WIDTH_PX;
+    this.currentStartColNum = 1;
+    this.currentEndColNum = Math.min(this.cols.length, 30);
 
     this.sheets = options.templateId === "budget_estimate"
       ? ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]
@@ -293,6 +323,7 @@ export class SheetGridController {
     // Prefix-sum row tops cache (per sheet) for virtual scroll with variable row heights.
     // _rowTopsCache[sheetName] = { tops: number[], totalHeight: number, valid: boolean }
     this._rowTopsCache = {};
+    this._colLeftsCache = {};
     this._tabSequenceAnchor = null;
     this._clipboardRange = null;
   }
@@ -332,7 +363,7 @@ export class SheetGridController {
     fBar.setAttribute("role", "region");
     fBar.setAttribute("aria-label", t("sheetFormulaEntry.formulaBarLabel"));
     fBar.innerHTML = `
-      <div class="vno-name-box" id="vno-cell-name" role="status" aria-label="Hộp tên ô">A1</div>
+      <input type="text" class="vno-name-box" id="vno-cell-name" value="A1" role="status" aria-label="Hộp tên ô" spellcheck="false" autocomplete="off" />
       <div class="vno-formula-actions" role="toolbar" aria-label="Thao tác công thức">
         <button type="button" class="vno-formula-btn" title="Hủy bỏ (Esc)" aria-label="Hủy bỏ (Esc)" id="vno-fx-cancel">✕</button>
         <button type="button" class="vno-formula-btn" title="Nhập (Enter)" aria-label="Nhập (Enter)" id="vno-fx-ok">✓</button>
@@ -341,6 +372,19 @@ export class SheetGridController {
       <textarea class="vno-formula-input" id="vno-formula-val" rows="1" aria-label="Thanh công thức" placeholder="Nhập giá trị hoặc công thức (ví dụ: =SUM(F4:F7), =AVERAGE(E4:E7)...)"></textarea>
     `;
     this.nameBox = fBar.querySelector("#vno-cell-name");
+    this.nameBox?.addEventListener("focus", () => {
+      this.nameBox.select?.();
+    });
+    this.nameBox?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        this._jumpToNameBoxAddress(this.nameBox.value);
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        this.nameBox.value = this.getSelectionNameLabel();
+        this.focusGrid();
+      }
+    });
     this.formulaInput = fBar.querySelector("#vno-formula-val");
     this.formulaInput.setAttribute("aria-label", t("sheetFormulaEntry.formulaBarLabel"));
     this.formulaInput.title = t("sheetFormulaEntry.referenceHint");
@@ -356,8 +400,31 @@ export class SheetGridController {
     formulaInputWrap.append(this.formulaReferenceOverlay, this.formulaInput);
 
     this._formulaInputNormalizer = new InputNormalizer({
-      target: this.formulaInput
+      target: this.formulaInput,
+      onWordCommit: () => {
+        if (!this.formulaEntry) this._beginFormulaEntry("edit");
+        this._setFormulaEntryValue(this.formulaInput.value, this.formulaInput.selectionStart, {
+          source: "undo"
+        });
+        if (this._inlineSpellController) {
+          this._inlineSpellController._syncFromInput();
+        }
+      }
     }).attach(this.formulaInput);
+
+    this._inlineSpellController = null;
+    import("./sheet-inline-spellcheck.js").then(({ SheetInlineSpellcheck }) => {
+      if (!this._inlineSpellController && this.formulaInput) {
+        this._inlineSpellController = new SheetInlineSpellcheck(this);
+        if (this.formulaInput) {
+          this.formulaInput.dataset.spellcheckStatus = "ready";
+        }
+      }
+    }).catch(() => {});
+
+    globalCommandBus.bindHandler("sheet.review.toggleSpellCheck", () => {
+      return this.toggleSpellcheck();
+    });
 
     this.autocomplete.mount();
 
@@ -490,13 +557,6 @@ export class SheetGridController {
     const thead = document.createElement("thead");
     const trHead = document.createElement("tr");
     this.theadRow = trHead;
-    trHead.innerHTML = `<th class="vno-grid-corner-header" title="Chọn tất cả (Ctrl+A)"></th>`;
-    trHead.querySelector(".vno-grid-corner-header")?.addEventListener("click", () => this.selectAll());
-    this.cols.forEach(col => {
-      const th = document.createElement("th");
-      this._bindColumnHeader(th, col);
-      trHead.appendChild(th);
-    });
     thead.appendChild(trHead);
     table.appendChild(thead);
 
@@ -515,15 +575,16 @@ export class SheetGridController {
 
     this.topSpacer = document.createElement("tr");
     this.topSpacer.className = "vno-grid-spacer-top";
-    this.topSpacer.innerHTML = `<td colspan="${this.cols.length + 1}" style="height:0px;padding:0;border:none;"></td>`;
+    this.topSpacer.innerHTML = `<td style="height:0px;padding:0;border:none;"></td>`;
     tbody.appendChild(this.topSpacer);
 
     this.bottomSpacer = document.createElement("tr");
     this.bottomSpacer.className = "vno-grid-spacer-bottom";
-    this.bottomSpacer.innerHTML = `<td colspan="${this.cols.length + 1}" style="height:0px;padding:0;border:none;"></td>`;
+    this.bottomSpacer.innerHTML = `<td style="height:0px;padding:0;border:none;"></td>`;
     tbody.appendChild(this.bottomSpacer);
 
     table.appendChild(tbody);
+    this._renderColumnHeaders();
     vp.appendChild(table);
     const chartLayer = document.createElement("div");
     chartLayer.className = "vno-sheet-chart-layer";
@@ -748,6 +809,17 @@ export class SheetGridController {
   }
 
   // --- Prefix-sum row tops cache for virtual scroll with variable row heights ---
+  _hasCustomRowHeightsOrHidden(sheetName = this.activeSheet) {
+    if (this.getRowHeight !== SheetGridController.prototype.getRowHeight) return true;
+    const customHeights = this.rowHeightsBySheet?.[sheetName];
+    if (customHeights && customHeights.size > 0) return true;
+    const hiddenRows = this.sheetStates?.[sheetName]?.hiddenRows;
+    if (hiddenRows && hiddenRows.size > 0) return true;
+    const userHidden = this.userHiddenRowsBySheet?.[sheetName];
+    if (userHidden && userHidden.size > 0) return true;
+    return false;
+  }
+
   _ensureRowTopsCache(sheetName = this.activeSheet) {
     if (!this._rowTopsCache) this._rowTopsCache = {};
     if (!this._rowTopsCache[sheetName] || !this._rowTopsCache[sheetName].valid) {
@@ -757,14 +829,32 @@ export class SheetGridController {
   }
 
   _buildRowTopsCache(sheetName = this.activeSheet) {
-    const count = this.rowCount || 200;
-    const tops = new Float64Array(count + 2);
+    const count = this.rowCount || MAX_ROW_COUNT;
+    let maxCustomRow = 1;
+    if (this.getRowHeight !== SheetGridController.prototype.getRowHeight) {
+      maxCustomRow = Math.max(maxCustomRow, Math.min(count, 500));
+    }
+    const customHeights = this.rowHeightsBySheet?.[sheetName];
+    if (customHeights) {
+      for (const r of customHeights.keys()) if (r > maxCustomRow) maxCustomRow = r;
+    }
+    const hiddenRows = this.sheetStates?.[sheetName]?.hiddenRows;
+    if (hiddenRows) {
+      for (const r of hiddenRows) if (r > maxCustomRow) maxCustomRow = r;
+    }
+    const userHidden = this.userHiddenRowsBySheet?.[sheetName];
+    if (userHidden) {
+      for (const r of userHidden) if (r > maxCustomRow) maxCustomRow = r;
+    }
+    const limit = Math.min(count, maxCustomRow);
+    const tops = new Float64Array(limit + 2);
     tops[1] = 0;
-    for (let r = 1; r <= count; r++) {
+    for (let r = 1; r <= limit; r++) {
       tops[r + 1] = tops[r] + (this._isRowSkipped(r) ? 0 : this.getRowHeight(r, sheetName));
     }
+    const totalHeight = tops[limit + 1] + (count - limit) * this.rowHeight;
     if (!this._rowTopsCache) this._rowTopsCache = {};
-    this._rowTopsCache[sheetName] = { tops, totalHeight: tops[count + 1], valid: true };
+    this._rowTopsCache[sheetName] = { tops, limit, totalHeight, valid: true };
     return this._rowTopsCache[sheetName];
   }
 
@@ -778,10 +868,14 @@ export class SheetGridController {
   }
 
   _rowTop(r, sheetName = this.activeSheet) {
+    if (r <= 1) return 0;
+    if (r > this.rowCount) return this._totalHeight(sheetName);
+    if (!this._hasCustomRowHeightsOrHidden(sheetName)) {
+      return (r - 1) * this.rowHeight;
+    }
     const cache = this._ensureRowTopsCache(sheetName);
-    if (r < 1) return 0;
-    if (r > this.rowCount) return cache.totalHeight;
-    return cache.tops[r];
+    if (r <= cache.limit + 1) return cache.tops[r];
+    return cache.tops[cache.limit + 1] + (r - (cache.limit + 1)) * this.rowHeight;
   }
 
   _rowBottom(r, sheetName = this.activeSheet) {
@@ -789,32 +883,163 @@ export class SheetGridController {
   }
 
   _totalHeight(sheetName = this.activeSheet) {
+    if (!this._hasCustomRowHeightsOrHidden(sheetName)) {
+      return this.rowCount * this.rowHeight;
+    }
     return this._ensureRowTopsCache(sheetName).totalHeight;
   }
 
   _firstVisibleRow(scrollTop, sheetName = this.activeSheet) {
+    if (!this._hasCustomRowHeightsOrHidden(sheetName)) {
+      return Math.max(1, Math.min(this.rowCount, Math.floor(scrollTop / this.rowHeight) + 1));
+    }
     const cache = this._ensureRowTopsCache(sheetName);
-    const count = this.rowCount || 200;
-    let lo = 1, hi = count;
+    if (scrollTop >= cache.tops[cache.limit + 1]) {
+      return Math.max(1, Math.min(this.rowCount, cache.limit + 1 + Math.floor((scrollTop - cache.tops[cache.limit + 1]) / this.rowHeight)));
+    }
+    let lo = 1, hi = cache.limit;
     while (lo < hi) {
       const mid = (lo + hi) >> 1;
       if (cache.tops[mid + 1] <= scrollTop) lo = mid + 1;
       else hi = mid;
     }
-    return Math.max(1, Math.min(count, lo));
+    return Math.max(1, Math.min(this.rowCount, lo));
   }
 
   _lastVisibleRow(scrollTop, viewportHeight, sheetName = this.activeSheet) {
     const bottom = scrollTop + viewportHeight;
+    if (!this._hasCustomRowHeightsOrHidden(sheetName)) {
+      return Math.max(1, Math.min(this.rowCount, Math.ceil(bottom / this.rowHeight)));
+    }
     const cache = this._ensureRowTopsCache(sheetName);
-    const count = this.rowCount || 200;
-    let lo = 1, hi = count;
+    if (bottom >= cache.tops[cache.limit + 1]) {
+      return Math.max(1, Math.min(this.rowCount, cache.limit + 1 + Math.floor((bottom - 1 - cache.tops[cache.limit + 1]) / this.rowHeight)));
+    }
+    let lo = 1, hi = cache.limit;
     while (lo < hi) {
       const mid = (lo + hi + 1) >> 1;
       if (cache.tops[mid] >= bottom) hi = mid - 1;
       else lo = mid;
     }
-    return Math.max(1, Math.min(count, lo));
+    return Math.max(1, Math.min(this.rowCount, lo));
+  }
+
+  // --- Prefix-sum col lefts cache for 2D virtual scroll ---
+  _hasCustomColWidthsOrHidden(sheetName = this.activeSheet) {
+    if (this.getColumnWidth !== SheetGridController.prototype.getColumnWidth) return true;
+    const customWidths = this.colWidthsBySheet?.[sheetName];
+    if (customWidths && customWidths.size > 0) return true;
+    const userHidden = this.userHiddenColsBySheet?.[sheetName];
+    if (userHidden && userHidden.size > 0) return true;
+    return false;
+  }
+
+  _ensureColLeftsCache(sheetName = this.activeSheet) {
+    if (!this._colLeftsCache) this._colLeftsCache = {};
+    if (!this._colLeftsCache[sheetName] || !this._colLeftsCache[sheetName].valid) {
+      this._buildColLeftsCache(sheetName);
+    }
+    return this._colLeftsCache[sheetName];
+  }
+
+  _buildColLeftsCache(sheetName = this.activeSheet) {
+    const count = this.cols.length;
+    let maxCustomCol = 1;
+    if (this.getColumnWidth !== SheetGridController.prototype.getColumnWidth) {
+      maxCustomCol = Math.max(maxCustomCol, Math.min(count, 500));
+    }
+    const customWidths = this.colWidthsBySheet?.[sheetName];
+    if (customWidths) {
+      for (const col of customWidths.keys()) {
+        const cNum = this._columnNumber(col);
+        if (cNum > maxCustomCol) maxCustomCol = cNum;
+      }
+    }
+    const userHidden = this.userHiddenColsBySheet?.[sheetName];
+    if (userHidden) {
+      for (const col of userHidden) {
+        const cNum = this._columnNumber(col);
+        if (cNum > maxCustomCol) maxCustomCol = cNum;
+      }
+    }
+    const limit = Math.min(count, maxCustomCol);
+    const lefts = new Float64Array(limit + 2);
+    lefts[1] = 0;
+    for (let c = 1; c <= limit; c++) {
+      lefts[c + 1] = lefts[c] + this._colWidth(c, sheetName);
+    }
+    const totalWidth = lefts[limit + 1] + (count - limit) * this.defaultColWidth;
+    if (!this._colLeftsCache) this._colLeftsCache = {};
+    this._colLeftsCache[sheetName] = { lefts, limit, totalWidth, valid: true };
+    return this._colLeftsCache[sheetName];
+  }
+
+  _invalidateColLeftsCache(sheetName = this.activeSheet) {
+    if (!this._colLeftsCache) return;
+    if (sheetName) {
+      if (this._colLeftsCache[sheetName]) this._colLeftsCache[sheetName].valid = false;
+    } else {
+      for (const k of Object.keys(this._colLeftsCache)) this._colLeftsCache[k].valid = false;
+    }
+  }
+
+  _colWidth(cNum, sheetName = this.activeSheet) {
+    const col = this.cols[cNum - 1] || this._columnLabel(cNum);
+    if (this._isColumnHidden(col)) return 0;
+    return this.getColumnWidth(col, sheetName);
+  }
+
+  _colLeft(cNum, sheetName = this.activeSheet) {
+    if (cNum <= 1) return 0;
+    if (cNum > this.cols.length) return this._totalWidth(sheetName);
+    if (!this._hasCustomColWidthsOrHidden(sheetName)) {
+      return (cNum - 1) * this.defaultColWidth;
+    }
+    const cache = this._ensureColLeftsCache(sheetName);
+    if (cNum <= cache.limit + 1) return cache.lefts[cNum];
+    return cache.lefts[cache.limit + 1] + (cNum - (cache.limit + 1)) * this.defaultColWidth;
+  }
+
+  _totalWidth(sheetName = this.activeSheet) {
+    if (!this._hasCustomColWidthsOrHidden(sheetName)) {
+      return this.cols.length * this.defaultColWidth;
+    }
+    return this._ensureColLeftsCache(sheetName).totalWidth;
+  }
+
+  _firstVisibleCol(scrollLeft, sheetName = this.activeSheet) {
+    if (!this._hasCustomColWidthsOrHidden(sheetName)) {
+      return Math.max(1, Math.min(this.cols.length, Math.floor(scrollLeft / this.defaultColWidth) + 1));
+    }
+    const cache = this._ensureColLeftsCache(sheetName);
+    if (scrollLeft >= cache.lefts[cache.limit + 1]) {
+      return Math.max(1, Math.min(this.cols.length, cache.limit + 1 + Math.floor((scrollLeft - cache.lefts[cache.limit + 1]) / this.defaultColWidth)));
+    }
+    let lo = 1, hi = cache.limit;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (cache.lefts[mid + 1] <= scrollLeft) lo = mid + 1;
+      else hi = mid;
+    }
+    return Math.max(1, Math.min(this.cols.length, lo));
+  }
+
+  _lastVisibleCol(scrollLeft, viewportWidth, sheetName = this.activeSheet) {
+    const right = scrollLeft + viewportWidth;
+    if (!this._hasCustomColWidthsOrHidden(sheetName)) {
+      return Math.max(1, Math.min(this.cols.length, Math.ceil(right / this.defaultColWidth)));
+    }
+    const cache = this._ensureColLeftsCache(sheetName);
+    if (right >= cache.lefts[cache.limit + 1]) {
+      return Math.max(1, Math.min(this.cols.length, cache.limit + 1 + Math.floor((right - 1 - cache.lefts[cache.limit + 1]) / this.defaultColWidth)));
+    }
+    let lo = 1, hi = cache.limit;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (cache.lefts[mid] >= right) hi = mid - 1;
+      else lo = mid;
+    }
+    return Math.max(1, Math.min(this.cols.length, lo));
   }
 
   _snapshotRowColLayout(sheetName = this.activeSheet) {
@@ -1509,6 +1734,8 @@ export class SheetGridController {
     this.setCellValue(coord.c, coord.r, finalValue, true, { coalesce: true });
     if (this.formulaInput) this.formulaInput.value = finalValue;
     this.formulaEntry = null;
+    const committedTd = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${coord.c}${coord.r}"]`);
+    if (committedTd) this._renderCellVisual(committedTd, this.cellsData.get(`${coord.c}${coord.r}`), coord.c, coord.r);
     this._cellValueBeforeEdit = undefined;
     this._formulaPointCoord = null;
     this.autocomplete?.closeAll?.();
@@ -1543,6 +1770,8 @@ export class SheetGridController {
     this.setCellValue(coord.c, coord.r, original, false);
     if (this.formulaInput) this.formulaInput.value = String(original ?? "");
     this.formulaEntry = null;
+    const cancelledTd = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${coord.c}${coord.r}"]`);
+    if (cancelledTd) this._renderCellVisual(cancelledTd, this.cellsData.get(`${coord.c}${coord.r}`), coord.c, coord.r);
     this._cellValueBeforeEdit = undefined;
     this._formulaPointCoord = null;
     this.autocomplete?.closeAll?.();
@@ -1581,10 +1810,20 @@ export class SheetGridController {
     } else {
       this.selectionRanges = [range];
     }
-    if (options.scrollActive && this.viewport &&
-        (activeCoord.r < this.currentStartRow || activeCoord.r > this.currentEndRow)) {
-      this.viewport.scrollTop = Math.max(0, this._rowTop(activeCoord.r) - 5 * this.rowHeight);
-      this._onViewportScroll();
+    if (options.scrollActive && this.viewport) {
+      let scrolled = false;
+      const cNum = this._columnNumber(activeCoord.c);
+      if (activeCoord.r < (this.currentStartRow || 1) || activeCoord.r > (this.currentEndRow || 40)) {
+        this.viewport.scrollTop = Math.max(0, this._rowTop(activeCoord.r) - 5 * this.rowHeight);
+        scrolled = true;
+      }
+      if (cNum < (this.currentStartColNum || 1) || cNum > (this.currentEndColNum || Math.min(this.cols.length, 30))) {
+        this.viewport.scrollLeft = Math.max(0, this._colLeft(cNum) - 3 * this.defaultColWidth);
+        scrolled = true;
+      }
+      if (scrolled) {
+        this._onViewportScroll();
+      }
     }
     this._updateRangeSelectionVisuals();
     this.focusGrid();
@@ -1790,7 +2029,13 @@ export class SheetGridController {
     const endCell = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${norm.end.c}${norm.end.r}"]`);
     if (endCell) this._attachAutofillHandle(endCell);
 
-    if (this.nameBox) this.nameBox.textContent = this.getSelectionNameLabel();
+    if (this.nameBox) {
+      const label = this.getSelectionNameLabel();
+      if (typeof document === "undefined" || document.activeElement !== this.nameBox) {
+        this.nameBox.value = label;
+      }
+      this.nameBox.textContent = label;
+    }
     const data = this.cellsData.get(activeCoordKey);
     if (this.formulaInput) this.formulaInput.value = data ? (data.formula || data.val) : "";
     this._syncFormulaBarHeight();
@@ -2476,8 +2721,14 @@ export class SheetGridController {
     this.isFilterActive = false;
     this.hiddenRows = new Set();
     this.activeFilters = new Map();
-    this.undoStack = [];
-    this.redoStack = [];
+    this.rowCount = MAX_ROW_COUNT;
+    this.cols = ALL_COLS;
+    this.currentStartRow = 1;
+    this.currentEndRow = 40;
+    this.currentStartColNum = 1;
+    this.currentEndColNum = Math.min(this.cols.length, 30);
+    this._invalidateRowTopsCache();
+    this._invalidateColLeftsCache();
 
     if (this.chartLayer) this.chartLayer.innerHTML = "";
     if (this.imageLayer) this.imageLayer.innerHTML = "";
@@ -2492,6 +2743,7 @@ export class SheetGridController {
       });
     }
 
+    this._renderColumnHeaders();
     this._renderVirtualRows(1, 40);
     this.renderCharts();
     this.renderImages();
@@ -3530,7 +3782,75 @@ export class SheetGridController {
     return true;
   }
 
-  _buildRowTr(r) {
+  _appendCellToRow(tr, c, r, normRange, isMulti) {
+    const mergedRange = this.getMergedRangeForCell(c, r);
+    if (mergedRange && (mergedRange.start.c !== c || mergedRange.start.r !== r)) return;
+    const td = document.createElement("td");
+    td.hidden = this._isColumnHidden(c);
+    td.className = "vno-grid-cell";
+    const coordKey = `${c}${r}`;
+    td.dataset.coord = coordKey;
+    td.dataset.col = c;
+    td.dataset.row = r;
+    if (mergedRange) {
+      td.colSpan = this._columnNumber(mergedRange.end.c) - this._columnNumber(mergedRange.start.c) + 1;
+      td.rowSpan = mergedRange.end.r - mergedRange.start.r + 1;
+      td.dataset.mergedRange = this._rangeLabel(mergedRange);
+      td.classList.add("is-merged-cell");
+    }
+
+    const itm = this.cellsData.get(coordKey);
+    this._renderCellVisual(td, itm, c, r);
+    this._applyClipboardVisual(td, c, r);
+    this._applyRowColSizeToCell(td, c, r);
+    this._applyRuleVisuals(td, c, r);
+    this._applyAnnotationAndPageVisuals(td, c, r);
+
+    if (this.selectedCoord.c === c && this.selectedCoord.r === r) {
+      td.classList.add("is-selected");
+      this._attachMoveHandles(td);
+    }
+    if (this._isCoordInSelection(c, r) && isMulti) {
+      td.classList.add("is-range-selected");
+    }
+    if (normRange.end.c === c && normRange.end.r === r) {
+      this._attachAutofillHandle(td);
+    }
+
+    td.addEventListener("mousedown", (e) => {
+      if (e.button !== 0) return;
+      if (e.target.closest(".vno-cell-autofill-handle") || e.target.closest(".vno-cell-move-handle")) return;
+      if (this._startFormulaPointSelect(e, c, r)) return;
+      this._startRangeSelect(e, c, r);
+    });
+    td.addEventListener("click", event => {
+      if (event.detail !== 0 || event.defaultPrevented) return;
+      this.selectCell(c, r, event.shiftKey, event.ctrlKey);
+    });
+    td.addEventListener("dblclick", (e) => {
+      e.preventDefault();
+      if (this.formatPainter) return;
+      if (this._guardProtectedMutation()) return;
+      this._focusFormulaInputAtEnd();
+    });
+    td.addEventListener("contextmenu", event => {
+      event.preventDefault();
+      const marker = event.target.closest?.(".vno-spelling-uncertain");
+      if (marker && this._inlineSpellController?.domController?.enabled) {
+        this._inlineSpellController.domController.openMenu(marker, event.clientX, event.clientY);
+        return;
+      }
+      const inRange = this._isCoordInSelection(c, r);
+      if (!inRange) {
+        this.selectCell(c, r);
+      }
+      this.showContextMenu(event, "cell", coordKey);
+    });
+
+    tr.appendChild(td);
+  }
+
+  _buildRowTr(r, startColNum = this.currentStartColNum || 1, endColNum = this.currentEndColNum || Math.min(this.cols.length, 30)) {
     const tr = document.createElement("tr");
     tr.dataset.row = r;
     const rowHeight = this.getRowHeight(r);
@@ -3570,82 +3890,67 @@ export class SheetGridController {
 
     const normRange = this._normalizeRange(this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
     const isMulti = this._isMultiRangeSelection();
+    const frozenCols = Math.min(this.frozenCols || 0, this.cols.length);
 
-    this.cols.forEach(c => {
-      const mergedRange = this.getMergedRangeForCell(c, r);
-      if (mergedRange && (mergedRange.start.c !== c || mergedRange.start.r !== r)) return;
-      const td = document.createElement("td");
-      td.hidden = this._isColumnHidden(c);
-      td.className = "vno-grid-cell";
-      const coordKey = `${c}${r}`;
-      td.dataset.coord = coordKey;
-      td.dataset.col = c;
-      td.dataset.row = r;
-      if (mergedRange) {
-        td.colSpan = this._columnNumber(mergedRange.end.c) - this._columnNumber(mergedRange.start.c) + 1;
-        td.rowSpan = mergedRange.end.r - mergedRange.start.r + 1;
-        td.dataset.mergedRange = this._rangeLabel(mergedRange);
-        td.classList.add("is-merged-cell");
+    // 1. Frozen cols (1..frozenCols)
+    for (let c = 1; c <= frozenCols; c++) {
+      const col = this.cols[c - 1] || this._columnLabel(c);
+      this._appendCellToRow(tr, col, r, normRange, isMulti);
+    }
+
+    // 2. Left spacer
+    const effectiveStart = Math.max(frozenCols + 1, startColNum);
+    if (effectiveStart > frozenCols + 1) {
+      const leftWidth = this._colLeft(effectiveStart) - this._colLeft(frozenCols + 1);
+      if (leftWidth > 0) {
+        const tdSpacer = document.createElement("td");
+        tdSpacer.className = "vno-grid-cell-spacer-left";
+        tdSpacer.style.cssText = `width:${leftWidth}px;min-width:${leftWidth}px;max-width:${leftWidth}px;padding:0;border:none;background:transparent;`;
+        tr.appendChild(tdSpacer);
       }
+    }
 
-      const itm = this.cellsData.get(coordKey);
-      this._renderCellVisual(td, itm, c, r);
-      this._applyClipboardVisual(td, c, r);
-      this._applyRowColSizeToCell(td, c, r);
-      this._applyRuleVisuals(td, c, r);
-      this._applyAnnotationAndPageVisuals(td, c, r);
+    // 3. Visible cols (effectiveStart..endColNum)
+    for (let c = effectiveStart; c <= endColNum; c++) {
+      const col = this.cols[c - 1] || this._columnLabel(c);
+      this._appendCellToRow(tr, col, r, normRange, isMulti);
+    }
 
-      if (this.selectedCoord.c === c && this.selectedCoord.r === r) {
-        td.classList.add("is-selected");
-        this._attachMoveHandles(td);
+    // 4. Right spacer
+    if (endColNum < this.cols.length) {
+      const rightWidth = this._totalWidth() - this._colLeft(endColNum + 1);
+      if (rightWidth > 0) {
+        const tdSpacer = document.createElement("td");
+        tdSpacer.className = "vno-grid-cell-spacer-right";
+        tdSpacer.style.cssText = `width:${rightWidth}px;min-width:${rightWidth}px;max-width:${rightWidth}px;padding:0;border:none;background:transparent;`;
+        tr.appendChild(tdSpacer);
       }
-      if (this._isCoordInSelection(c, r) && isMulti) {
-        td.classList.add("is-range-selected");
-      }
-      if (normRange.end.c === c && normRange.end.r === r) {
-        this._attachAutofillHandle(td);
-      }
-
-      td.addEventListener("mousedown", (e) => {
-        if (e.button !== 0) return;
-        if (e.target.closest(".vno-cell-autofill-handle") || e.target.closest(".vno-cell-move-handle")) return;
-        if (this._startFormulaPointSelect(e, c, r)) return;
-        this._startRangeSelect(e, c, r);
-      });
-      td.addEventListener("click", event => {
-        if (event.detail !== 0 || event.defaultPrevented) return;
-        this.selectCell(c, r, event.shiftKey, event.ctrlKey);
-      });
-      td.addEventListener("dblclick", (e) => {
-        e.preventDefault();
-        if (this.formatPainter) return;
-        if (this._guardProtectedMutation()) return;
-        this._focusFormulaInputAtEnd();
-      });
-      td.addEventListener("contextmenu", event => {
-        event.preventDefault();
-        const inRange = this._isCoordInSelection(c, r);
-        if (!inRange) {
-          this.selectCell(c, r);
-        }
-        this.showContextMenu(event, "cell", coordKey);
-      });
-
-      tr.appendChild(td);
-    });
+    }
 
     return tr;
   }
 
-  _renderVirtualRows(startRow, endRow) {
+  _renderVirtualRows(startRow, endRow, startColNum = this.currentStartColNum || 1, endColNum = this.currentEndColNum || Math.min(this.cols.length, 30)) {
     const perfEnabled = typeof window !== "undefined" && window.__vnoPerfDebug === true;
     const perfStart = perfEnabled ? performance.now() : 0;
     if (!this.tbody || !this.topSpacer || !this.bottomSpacer) return;
 
     startRow = Math.max(1, startRow);
     endRow = Math.min(this.rowCount, endRow);
+    startColNum = Math.max(1, startColNum);
+    endColNum = Math.min(this.cols.length, endColNum);
     this.currentStartRow = startRow;
     this.currentEndRow = endRow;
+    this.currentStartColNum = startColNum;
+    this.currentEndColNum = endColNum;
+
+    if (this.table) {
+      const totalW = 44 + this._totalWidth();
+      this.table.style.width = `${totalW}px`;
+      this.table.style.minWidth = `${totalW}px`;
+    }
+
+    this._renderColumnHeaders(startColNum, endColNum);
 
     const frozenRows = Math.min(this.frozenRows || 0, this.rowCount);
 
@@ -3682,7 +3987,7 @@ export class SheetGridController {
     const frozenFrag = document.createDocumentFragment();
     for (let r = 1; r <= frozenRows; r++) {
       if (this._isRowSkipped(r)) continue;
-      const tr = this._buildRowTr(r);
+      const tr = this._buildRowTr(r, startColNum, endColNum);
       tr.classList.add("vno-frozen-row");
       frozenFrag.appendChild(tr);
     }
@@ -3692,7 +3997,7 @@ export class SheetGridController {
     for (let r = startRow; r <= endRow; r++) {
       if (r <= frozenRows) continue; // đã dựng riêng ở trên, tránh trùng lặp DOM
       if (this._isRowSkipped(r)) continue;
-      frag.appendChild(this._buildRowTr(r));
+      frag.appendChild(this._buildRowTr(r, startColNum, endColNum));
     }
 
     this.tbody.insertBefore(frag, this.bottomSpacer);
@@ -3827,8 +4132,17 @@ export class SheetGridController {
     const startRow = Math.max(1, this._firstVisibleRow(scrollTop) - buffer);
     const endRow = Math.min(this.rowCount, this._lastVisibleRow(scrollTop, viewportHeight) + buffer);
 
-    if (Math.abs(startRow - this.currentStartRow) >= 3 || Math.abs(endRow - this.currentEndRow) >= 3) {
-      this._renderVirtualRows(startRow, endRow);
+    const scrollLeft = this.viewport.scrollLeft;
+    const viewportWidth = this.viewport.clientWidth || 1000;
+    const colBuffer = 5;
+    const startColNum = Math.max(1, this._firstVisibleCol(scrollLeft) - colBuffer);
+    const endColNum = Math.min(this.cols.length, this._lastVisibleCol(scrollLeft, viewportWidth) + colBuffer);
+
+    const rowChanged = Math.abs(startRow - this.currentStartRow) >= 3 || Math.abs(endRow - this.currentEndRow) >= 3;
+    const colChanged = Math.abs(startColNum - this.currentStartColNum) >= 2 || Math.abs(endColNum - this.currentEndColNum) >= 2;
+
+    if (rowChanged || colChanged) {
+      this._renderVirtualRows(startRow, endRow, startColNum, endColNum);
     }
     this._updateFormulaReferenceVisuals();
     this._updateFrozenImages();
@@ -3949,88 +4263,28 @@ _bindGridKeyboardNavigation() {
 
       if (e.key === "ArrowUp") {
         if (e.ctrlKey) {
-          const curVal = this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.val;
-          let r = this.selectedCoord.r - 1;
-          if (curVal !== undefined && curVal !== "") {
-            while (r > 1) {
-              const nextVal = this.cellsData.get(`${this.selectedCoord.c}${r}`)?.val;
-              if (nextVal === undefined || nextVal === "") { r++; break; }
-              r--;
-            }
-          } else {
-            while (r > 1) {
-              const nextVal = this.cellsData.get(`${this.selectedCoord.c}${r}`)?.val;
-              if (nextVal !== undefined && nextVal !== "") break;
-              r--;
-            }
-          }
-          nextRow = Math.max(1, r);
+          nextRow = this._findNextCtrlArrowRow(this.selectedCoord.c, this.selectedCoord.r, -1);
         } else {
           nextRow = Math.max(1, nextRow - 1);
         }
         extendRange = e.shiftKey;
       } else if (e.key === "ArrowDown") {
         if (e.ctrlKey) {
-          const curVal = this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.val;
-          let r = this.selectedCoord.r + 1;
-          if (curVal !== undefined && curVal !== "") {
-            while (r < this.rowCount) {
-              const nextVal = this.cellsData.get(`${this.selectedCoord.c}${r}`)?.val;
-              if (nextVal === undefined || nextVal === "") { r--; break; }
-              r++;
-            }
-          } else {
-            while (r < this.rowCount) {
-              const nextVal = this.cellsData.get(`${this.selectedCoord.c}${r}`)?.val;
-              if (nextVal !== undefined && nextVal !== "") break;
-              r++;
-            }
-          }
-          nextRow = Math.min(this.rowCount, r);
+          nextRow = this._findNextCtrlArrowRow(this.selectedCoord.c, this.selectedCoord.r, 1);
         } else {
           nextRow = Math.min(this.rowCount, nextRow + 1);
         }
         extendRange = e.shiftKey;
       } else if (e.key === "ArrowLeft") {
         if (e.ctrlKey) {
-          const curVal = this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.val;
-          let idx = colIdx - 1;
-          if (curVal !== undefined && curVal !== "") {
-            while (idx > 0) {
-              const nextVal = this.cellsData.get(`${this.cols[idx]}${this.selectedCoord.r}`)?.val;
-              if (nextVal === undefined || nextVal === "") { idx++; break; }
-              idx--;
-            }
-          } else {
-            while (idx > 0) {
-              const nextVal = this.cellsData.get(`${this.cols[idx]}${this.selectedCoord.r}`)?.val;
-              if (nextVal !== undefined && nextVal !== "") break;
-              idx--;
-            }
-          }
-          nextCol = this.cols[Math.max(0, idx)];
+          nextCol = this._findNextCtrlArrowCol(this.selectedCoord.c, this.selectedCoord.r, -1);
         } else {
           nextCol = this.cols[Math.max(0, colIdx - 1)];
         }
         extendRange = e.shiftKey;
       } else if (e.key === "ArrowRight") {
         if (e.ctrlKey) {
-          const curVal = this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.val;
-          let idx = colIdx + 1;
-          if (curVal !== undefined && curVal !== "") {
-            while (idx < this.cols.length - 1) {
-              const nextVal = this.cellsData.get(`${this.cols[idx]}${this.selectedCoord.r}`)?.val;
-              if (nextVal === undefined || nextVal === "") { idx--; break; }
-              idx++;
-            }
-          } else {
-            while (idx < this.cols.length - 1) {
-              const nextVal = this.cellsData.get(`${this.cols[idx]}${this.selectedCoord.r}`)?.val;
-              if (nextVal !== undefined && nextVal !== "") break;
-              idx++;
-            }
-          }
-          nextCol = this.cols[Math.min(this.cols.length - 1, idx)];
+          nextCol = this._findNextCtrlArrowCol(this.selectedCoord.c, this.selectedCoord.r, 1);
         } else {
           nextCol = this.cols[Math.min(this.cols.length - 1, colIdx + 1)];
         }
@@ -4354,6 +4608,177 @@ _bindGridKeyboardNavigation() {
     const target = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${col}${maxRow}"]`);
     target?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
     return true;
+  }
+
+  _jumpToNameBoxAddress(rawText) {
+    const text = String(rawText || "").trim();
+    if (!text) {
+      if (this.nameBox) this.nameBox.value = this.getSelectionNameLabel();
+      this.focusGrid();
+      return false;
+    }
+
+    const namedRange = this.resolveNamedRange?.(text);
+    if (namedRange && namedRange.ref) {
+      return this._jumpToNameBoxAddress(namedRange.ref);
+    }
+
+    let clean = text.startsWith("=") ? text.slice(1).trim() : text;
+    if (clean.includes("!")) {
+      const parts = clean.split("!");
+      const sheetName = parts[0].replace(/^'|'$/g, "");
+      if (this.sheets.includes(sheetName) && sheetName !== this.activeSheet) {
+        this.switchSheet?.(sheetName);
+      }
+      clean = parts[1].trim();
+    }
+    const unquoted = clean.replace(/\$/g, "").toUpperCase();
+
+    // Column range: e.g. "B:D" or "B:B"
+    const colRangeMatch = /^([A-Z]+):([A-Z]+)$/.exec(unquoted);
+    if (colRangeMatch) {
+      const c1Num = this._columnNumber(colRangeMatch[1]);
+      const c2Num = this._columnNumber(colRangeMatch[2]);
+      if (c1Num >= 1 && c1Num <= this.cols.length && c2Num >= 1 && c2Num <= this.cols.length) {
+        const startC = this.cols[Math.min(c1Num, c2Num) - 1];
+        const endC = this.cols[Math.max(c1Num, c2Num) - 1];
+        const range = createSheetSelectionRange({ c: startC, r: 1 }, { c: endC, r: this.rowCount });
+        this._applySelectionRange(range, { c: startC, r: 1 }, { kind: "column", scrollActive: true });
+        if (this.nameBox) this.nameBox.value = this.getSelectionNameLabel();
+        return true;
+      }
+    }
+
+    // Row range: e.g. "2:5" or "10:10"
+    const rowRangeMatch = /^(\d+):(\d+)$/.exec(unquoted);
+    if (rowRangeMatch) {
+      const r1 = Number.parseInt(rowRangeMatch[1], 10);
+      const r2 = Number.parseInt(rowRangeMatch[2], 10);
+      if (r1 >= 1 && r1 <= this.rowCount && r2 >= 1 && r2 <= this.rowCount) {
+        const startR = Math.min(r1, r2);
+        const endR = Math.max(r1, r2);
+        const range = createSheetSelectionRange({ c: this.cols[0], r: startR }, { c: this.cols[this.cols.length - 1], r: endR });
+        this._applySelectionRange(range, { c: this.cols[0], r: startR }, { kind: "row", scrollActive: true });
+        if (this.nameBox) this.nameBox.value = this.getSelectionNameLabel();
+        return true;
+      }
+    }
+
+    // Cell range: e.g. "B2:D10"
+    const rangeMatch = /^([A-Z]+)(\d+):([A-Z]+)(\d+)$/.exec(unquoted);
+    if (rangeMatch) {
+      const c1Num = this._columnNumber(rangeMatch[1]);
+      const r1 = Number.parseInt(rangeMatch[2], 10);
+      const c2Num = this._columnNumber(rangeMatch[3]);
+      const r2 = Number.parseInt(rangeMatch[4], 10);
+      if (
+        c1Num >= 1 && c1Num <= this.cols.length &&
+        c2Num >= 1 && c2Num <= this.cols.length &&
+        r1 >= 1 && r1 <= this.rowCount &&
+        r2 >= 1 && r2 <= this.rowCount
+      ) {
+        const startCol = this.cols[c1Num - 1];
+        const endCol = this.cols[c2Num - 1];
+        const range = createSheetSelectionRange({ c: startCol, r: r1 }, { c: endCol, r: r2 });
+        this._applySelectionRange(range, { c: startCol, r: r1 }, { kind: "cell", scrollActive: true });
+        if (this.nameBox) this.nameBox.value = this.getSelectionNameLabel();
+        return true;
+      }
+    }
+
+    // Single cell: e.g. "A1", "XFD1048576"
+    const cellMatch = /^([A-Z]+)(\d+)$/.exec(unquoted);
+    if (cellMatch) {
+      const colNum = this._columnNumber(cellMatch[1]);
+      const r = Number.parseInt(cellMatch[2], 10);
+      if (colNum >= 1 && colNum <= this.cols.length && r >= 1 && r <= this.rowCount) {
+        const col = this.cols[colNum - 1];
+        this.selectCell(col, r);
+        if (this.nameBox) this.nameBox.value = this.getSelectionNameLabel();
+        return true;
+      }
+    }
+
+    if (this.nameBox) this.nameBox.value = this.getSelectionNameLabel();
+    this.focusGrid();
+    return false;
+  }
+
+  _findNextCtrlArrowRow(col, startR, dir) {
+    const isFilled = (r) => {
+      const val = this.cellsData.get(`${col}${r}`)?.val;
+      return val !== undefined && val !== "";
+    };
+    const curFilled = isFilled(startR);
+    const adjR = startR + dir;
+    if (adjR < 1 || adjR > this.rowCount) return startR;
+    const adjFilled = isFilled(adjR);
+
+    if (curFilled && adjFilled) {
+      let r = adjR;
+      while (r + dir >= 1 && r + dir <= this.rowCount && isFilled(r + dir)) {
+        r += dir;
+      }
+      return r;
+    }
+
+    let targetR = dir > 0 ? this.rowCount : 1;
+    let closestDist = Infinity;
+    for (const key of this.cellsData.keys()) {
+      if (!key.startsWith(col)) continue;
+      const rowStr = key.slice(col.length);
+      if (!/^\d+$/.test(rowStr)) continue;
+      const r = Number.parseInt(rowStr, 10);
+      const dist = (r - startR) * dir;
+      if (dist > 0 && dist < closestDist) {
+        if (isFilled(r)) {
+          closestDist = dist;
+          targetR = r;
+        }
+      }
+    }
+    return targetR;
+  }
+
+  _findNextCtrlArrowCol(startCol, row, dir) {
+    const startColIdx = this.cols.indexOf(startCol);
+    if (startColIdx === -1) return startCol;
+    const isFilled = (idx) => {
+      const col = this.cols[idx];
+      if (!col) return false;
+      const val = this.cellsData.get(`${col}${row}`)?.val;
+      return val !== undefined && val !== "";
+    };
+    const curFilled = isFilled(startColIdx);
+    const adjIdx = startColIdx + dir;
+    if (adjIdx < 0 || adjIdx >= this.cols.length) return startCol;
+    const adjFilled = isFilled(adjIdx);
+
+    if (curFilled && adjFilled) {
+      let idx = adjIdx;
+      while (idx + dir >= 0 && idx + dir < this.cols.length && isFilled(idx + dir)) {
+        idx += dir;
+      }
+      return this.cols[idx];
+    }
+
+    let targetIdx = dir > 0 ? this.cols.length - 1 : 0;
+    let closestDist = Infinity;
+    const rowSuffix = String(row);
+    for (const key of this.cellsData.keys()) {
+      if (!key.endsWith(rowSuffix)) continue;
+      const col = key.slice(0, key.length - rowSuffix.length);
+      const idx = this.cols.indexOf(col);
+      if (idx === -1) continue;
+      const dist = (idx - startColIdx) * dir;
+      if (dist > 0 && dist < closestDist) {
+        if (isFilled(idx)) {
+          closestDist = dist;
+          targetIdx = idx;
+        }
+      }
+    }
+    return this.cols[targetIdx];
   }
 
   setCellValue(col, row, val, recordUndo = true, historyOptions = {}) {
@@ -6904,7 +7329,9 @@ _bindGridKeyboardNavigation() {
           next.formula = formula;
           if (mode !== "formulas") next.style = structuredClone(source.style || {});
         }
-        if (options.coerceInput && !next.formula) {
+        // Only text is normalized like typed input; numbers already parsed from the
+        // clipboard (e.g. 0.25 for "25%") must not be divided by 100 a second time.
+        if (options.coerceInput && !next.formula && typeof next.val === "string") {
           const normalized = this._normalizeCellInput(next.val, next.style);
           next.val = normalized.value;
           next.style = normalized.style;
@@ -9170,20 +9597,63 @@ _bindGridKeyboardNavigation() {
     return { ...structuredClone(range), start: shift(range.start), end: shift(range.end) };
   }
 
-  _renderColumnHeaders() {
+  _renderColumnHeaders(startColNum = this.currentStartColNum || 1, endColNum = this.currentEndColNum || Math.min(this.cols.length, 30)) {
     if (typeof document === "undefined") return;
-    const row = this.table?.querySelector?.("thead tr");
-    if (row) {
-      row.innerHTML = `<th class="vno-grid-corner-header" title="Chọn tất cả (Ctrl+A)"></th>`;
-      row.querySelector(".vno-grid-corner-header")?.addEventListener("click", () => this.selectAll());
-      this.cols.forEach(col => {
-        const th = document.createElement("th");
-        this._bindColumnHeader(th, col);
-        row.appendChild(th);
-      });
+    const row = this.theadRow || this.table?.querySelector?.("thead tr");
+    if (!row) return;
+
+    startColNum = Math.max(1, startColNum);
+    endColNum = Math.min(this.cols.length, endColNum);
+    this.currentStartColNum = startColNum;
+    this.currentEndColNum = endColNum;
+
+    row.innerHTML = `<th class="vno-grid-corner-header" title="Chọn tất cả (Ctrl+A)"></th>`;
+    row.querySelector(".vno-grid-corner-header")?.addEventListener("click", () => this.selectAll());
+
+    const frozenCols = Math.min(this.frozenCols || 0, this.cols.length);
+
+    // 1. Frozen column headers (1..frozenCols)
+    for (let c = 1; c <= frozenCols; c++) {
+      const col = this.cols[c - 1] || this._columnLabel(c);
+      const th = document.createElement("th");
+      this._bindColumnHeader(th, col);
+      row.appendChild(th);
     }
-    this.topSpacer?.querySelector?.("td")?.setAttribute?.("colspan", String(this.cols.length + 1));
-    this.bottomSpacer?.querySelector?.("td")?.setAttribute?.("colspan", String(this.cols.length + 1));
+
+    // 2. Left spacer header
+    const effectiveStart = Math.max(frozenCols + 1, startColNum);
+    if (effectiveStart > frozenCols + 1) {
+      const leftWidth = this._colLeft(effectiveStart) - this._colLeft(frozenCols + 1);
+      if (leftWidth > 0) {
+        const thSpacer = document.createElement("th");
+        thSpacer.className = "vno-col-spacer-left";
+        thSpacer.style.cssText = `width:${leftWidth}px;min-width:${leftWidth}px;max-width:${leftWidth}px;padding:0;border:none;background:transparent;`;
+        row.appendChild(thSpacer);
+      }
+    }
+
+    // 3. Visible column headers (effectiveStart..endColNum)
+    for (let c = effectiveStart; c <= endColNum; c++) {
+      const col = this.cols[c - 1] || this._columnLabel(c);
+      const th = document.createElement("th");
+      this._bindColumnHeader(th, col);
+      row.appendChild(th);
+    }
+
+    // 4. Right spacer header
+    if (endColNum < this.cols.length) {
+      const rightWidth = this._totalWidth() - this._colLeft(endColNum + 1);
+      if (rightWidth > 0) {
+        const thSpacer = document.createElement("th");
+        thSpacer.className = "vno-col-spacer-right";
+        thSpacer.style.cssText = `width:${rightWidth}px;min-width:${rightWidth}px;max-width:${rightWidth}px;padding:0;border:none;background:transparent;`;
+        row.appendChild(thSpacer);
+      }
+    }
+
+    const colCount = row.children.length;
+    this.topSpacer?.querySelector?.("td")?.setAttribute?.("colspan", String(colCount));
+    this.bottomSpacer?.querySelector?.("td")?.setAttribute?.("colspan", String(colCount));
     this._updateFilterButtons();
   }
 
@@ -10431,12 +10901,36 @@ _bindGridKeyboardNavigation() {
         words: dictionary.VIETNAMESE_DICTIONARY_WORDS
       };
       this._ensureSpellChecker();
+      import("./sheet-inline-spellcheck.js").then(({ SheetInlineSpellcheck }) => {
+        if (!this._inlineSpellController && this.formulaInput) {
+          this._inlineSpellController = new SheetInlineSpellcheck(this);
+        }
+      }).catch(() => {});
       return true;
     }).catch((error) => {
       this._spellcheckModulePromise = null;
       throw error;
     });
     return this._spellcheckModulePromise;
+  }
+
+  toggleSpellcheck() {
+    if (this._inlineSpellController) {
+      const res = this._inlineSpellController.toggle();
+      if (this.formulaEntry?.coord) {
+        const td = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${this.formulaEntry.coord.c}${this.formulaEntry.coord.r}"]`);
+        if (td) this._renderCellVisual(td, this.cellsData.get(`${this.formulaEntry.coord.c}${this.formulaEntry.coord.r}`), this.formulaEntry.coord.c, this.formulaEntry.coord.r);
+      }
+      return res;
+    }
+    return false;
+  }
+
+  isSpellcheckEnabled() {
+    if (this._inlineSpellController?.domController) {
+      return this._inlineSpellController.domController.enabled;
+    }
+    return isSpellcheckEnabled();
   }
 
   isSpellcheckableCell(item) {
@@ -11022,8 +11516,8 @@ _bindGridKeyboardNavigation() {
 
   groupSelection() {
     const area = this._normalizeRange(this.selectionRange);
-    const wholeRows = area.start.c === this.cols[0] && area.end.c === this.cols[this.cols.length - 1];
-    const wholeCols = area.start.r === 1 && area.end.r === this.rowCount;
+    const wholeRows = area.start.c === this.cols[0] && (area.end.c === this.cols[this.cols.length - 1] || area.end.c === "Z");
+    const wholeCols = area.start.r === 1 && (area.end.r === this.rowCount || area.end.r === 200);
     const axis = wholeCols ? "col" : "row";
     const start = axis === "row" ? area.start.r : this._columnNumber(area.start.c);
     const end = axis === "row" ? area.end.r : this._columnNumber(area.end.c);
@@ -12478,7 +12972,25 @@ _bindGridKeyboardNavigation() {
       // S29a: ô không bọc chữ dùng white-space: pre (giữ dấu cách liên tiếp) nên phải tự bỏ xuống dòng như Excel
       // (Excel không hiện Alt+Enter khi Wrap Text tắt).
       if (!isWrap && typeof text === "string" && text.includes("\n")) text = text.replace(/\r?\n/g, "");
-      td.textContent = text;
+      if (this.formulaEntry && this.formulaEntry.coord?.c === col && this.formulaEntry.coord?.r === row &&
+          typeof text === "string" && !text.startsWith("=") && this.isSpellcheckEnabled() && this.spellChecker) {
+        const issues = this.spellChecker.checkText(text);
+        if (issues.length > 0) {
+          let html = "";
+          let cursor = 0;
+          for (const issue of issues) {
+            html += this._escapeHtml(text.slice(cursor, issue.start));
+            html += `<span class="vno-spelling-uncertain" data-vno-spelling-uncertain="${this._escapeHtml(issue.normalized)}">${this._escapeHtml(text.slice(issue.start, issue.end))}</span>`;
+            cursor = issue.end;
+          }
+          html += this._escapeHtml(text.slice(cursor));
+          td.innerHTML = html;
+        } else {
+          td.textContent = text;
+        }
+      } else {
+        td.textContent = text;
+      }
     }
 
     if (col && row && typeof this._applyRowColSizeToCell === "function") {

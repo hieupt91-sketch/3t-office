@@ -769,7 +769,46 @@ export class SlidesCanvasController {
     this.spellcheckController = new this._spellcheckTools.SpellcheckDomController({
       roots: this._spellcheckRoots(),
       checker: this.spellcheckChecker,
-      debounceMs: 400
+      debounceMs: 400,
+      onReplace: ({ root, textBefore, textAfter, htmlBefore, htmlAfter }) => {
+        const slide = this.slides[this.currentSlideIndex];
+        if (!slide) return;
+        let field = null;
+        if (root === this.titleEl) field = "title";
+        else if (root === this.bodyEl) field = "body";
+        else if (root === this.body2El) field = "body2";
+
+        if (field) {
+          this.undoStack.push({
+            type: "placeholder-text-edit",
+            slideIndex: this.currentSlideIndex,
+            field,
+            before: textBefore.normalize("NFC"),
+            beforeHtml: htmlBefore,
+            after: textAfter.normalize("NFC"),
+            afterHtml: htmlAfter
+          });
+          this.redoStack = [];
+          this._syncUndoRedoState();
+          this._syncEditableFieldsFromDom();
+          this.options.onDocumentChange?.();
+          this._renderThumbnails();
+        } else if (root?.dataset?.shapeTextId) {
+          const shapeId = root.dataset.shapeTextId;
+          this.undoStack.push({
+            type: "shape-text-edit",
+            slideIndex: this.currentSlideIndex,
+            shapeId,
+            before: textBefore,
+            after: textAfter
+          });
+          this.redoStack = [];
+          this._syncUndoRedoState();
+          this._syncVisibleSpellcheckText();
+          this.options.onDocumentChange?.();
+          this._renderThumbnails();
+        }
+      }
     }).attach();
   }
 
@@ -888,11 +927,26 @@ export class SlidesCanvasController {
       };
       document.addEventListener("click", this._onSpellcheckMenuClick);
       this.canvasEl.dataset.spellcheckStatus = "ready";
+      globalCommandBus.updateState("slides.review.toggleSpellCheck", { checked: this.spellcheckController?.enabled });
     } catch (error) {
       this.canvasEl.dataset.spellcheckStatus = "error";
       this.canvasEl.title = "Không thể khởi tạo bộ kiểm tra chính tả tiếng Việt.";
       console.warn("[SlidesCanvasController] Không thể khởi tạo kiểm tra chính tả tiếng Việt:", error);
     }
+  }
+
+  toggleSpellcheck() {
+    if (!this.spellcheckController) {
+      this.initializeSpellcheck?.();
+      return false;
+    }
+    const next = !this.spellcheckController.enabled;
+    this.spellcheckController.setEnabled(next);
+    import("../../platform/text/spellcheck-dom-controller.js").then(({ setSpellcheckEnabled }) => {
+      setSpellcheckEnabled(next);
+    }).catch(() => {});
+    globalCommandBus.updateState("slides.review.toggleSpellCheck", { checked: next });
+    return next;
   }
 
   _ensureSpellChecker() {
@@ -10389,7 +10443,7 @@ const startEditing = (initialText) => {
   }
 
   setZoom(level) {
-    const next = Math.min(2.5, Math.max(0.2, Math.round(Number(level) * 10) / 10));
+    const next = Math.min(2.0, Math.max(0.5, Math.round(Number(level) * 10) / 10));
     if (!Number.isFinite(next)) return false;
     this.zoomLevel = next;
     this._applyViewState();

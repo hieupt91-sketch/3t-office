@@ -264,6 +264,7 @@ export class InputNormalizer {
 
   destroy() {
     if (this._burstSettleTimer) clearTimeout(this._burstSettleTimer);
+    if (this.target && this.target._vnoNormalizer === this) delete this.target._vnoNormalizer;
     for (const remove of this._listeners) remove();
     this._listeners = [];
   }
@@ -296,11 +297,13 @@ export class InputNormalizer {
     if (!this.target) return;
     if (this.target.tagName === "INPUT" || this.target.tagName === "TEXTAREA") {
       this.target.value = value;
-      this.target.setSelectionRange(value.length, value.length);
+      if (typeof this.target.setSelectionRange === "function") {
+        this.target.setSelectionRange(value.length, value.length);
+      }
     } else {
       let p = this.target.querySelector?.("p") || this.target;
       p.textContent = value;
-      if (typeof window !== "undefined") {
+      if (typeof window !== "undefined" && typeof document !== "undefined") {
         const sel = window.getSelection?.();
         const range = document.createRange?.();
         if (sel && range) {

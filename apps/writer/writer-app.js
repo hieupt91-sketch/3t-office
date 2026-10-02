@@ -206,6 +206,10 @@ export class WriterApp {
       });
     });
 
+    globalCommandBus.bindHandler("writer.review.toggleSpellCheck", () => {
+      return this.toggleSpellcheck();
+    });
+
     container.appendChild(workspace);
     this.shell.setEditorCanvas(container);
 
@@ -385,12 +389,31 @@ export class WriterApp {
     this.helpPanel = null;
   }
 
+  toggleSpellcheck() {
+    if (!this.spellcheckController) return false;
+    const next = !this.spellcheckController.enabled;
+    this.spellcheckController.setEnabled(next);
+    import("../../platform/text/spellcheck-dom-controller.js").then(({ setSpellcheckEnabled }) => {
+      setSpellcheckEnabled(next);
+    }).catch(() => {});
+    globalCommandBus.updateState("writer.review.toggleSpellCheck", { checked: next });
+    return next;
+  }
+
   _setupVietnameseSpellcheck(editableRoots, { VietnameseSpellChecker, SpellcheckDomController, VIETNAMESE_DICTIONARY_WORDS }) {
     this.canvas.dataset.spellcheckStatus = "loading";
     try {
       const checker = new VietnameseSpellChecker(VIETNAMESE_DICTIONARY_WORDS);
-      this.spellcheckController = new SpellcheckDomController({ roots: editableRoots, checker, debounceMs: 400 }).attach();
+      this.spellcheckController = new SpellcheckDomController({
+        roots: editableRoots,
+        checker,
+        debounceMs: 400,
+        onReplace: () => {
+          this.adapter?.recordSnapshot?.("Sửa chính tả");
+        }
+      }).attach();
       this.canvas.dataset.spellcheckStatus = "ready";
+      globalCommandBus.updateState("writer.review.toggleSpellCheck", { checked: this.spellcheckController.enabled });
     } catch (error) {
       this.canvas.dataset.spellcheckStatus = "error";
       this.canvas.title = "Không thể tải bộ kiểm tra chính tả tiếng Việt.";

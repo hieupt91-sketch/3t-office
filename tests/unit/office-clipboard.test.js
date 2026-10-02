@@ -790,7 +790,42 @@ test("E2E Sheet: Excel HTML paste -> grid cells with number, date, percentage, b
     assert(cA1.style.border || cA1.style.borderTop, "A1 should have border from inline style");
   });
 
-  test("E2E Sheet: TSV paste -> grid cells with tab-separated values", async () => {
+  test("E2E Sheet: external Excel paste without x:num keeps 25% as 0.25 (no second /100 on coerceInput)", async () => {
+    const { SheetGridController } = await import("../../apps/sheet/sheet-grid.js");
+    const { parseOfficeHtmlTable } = await import("../../platform/clipboard/office-clipboard.js");
+    const container = {
+      querySelector() { return null; },
+      querySelectorAll() { return []; },
+      addEventListener() {},
+      classList: { add() {}, remove() {}, toggle() {} },
+      dataset: {},
+      setAttribute() {},
+      style: {},
+      innerHTML: "",
+      appendChild() {},
+      insertBefore() {},
+      focus() {}
+    };
+    const grid = new SheetGridController(container);
+    grid.selectedCoord = { c: "A", r: 1 };
+    // Shape of real Excel CF_HTML on a Vietnamese-locale machine: display text only, no x:num.
+    const excelHtml = `<html><head><style>
+      .xl66 {mso-number-format:0%;}
+      .xl68 {mso-number-format:"0\\.0%";}
+      </style></head><body><table>
+      <tr><td class=xl66 align=right>25%</td><td class=xl68 align=right>12.5%</td><td class=xl66 align=right>-7%</td><td>50%</td></tr>
+      </table></body></html>`;
+    const model = parseOfficeHtmlTable(excelHtml, "");
+    const applied = grid.applyPasteSpecial(model, "all", grid.selectedCoord, { coerceInput: true });
+    assert(applied === true, "applyPasteSpecial must return true");
+    assertEqual(grid.cellsData.get("A1").val, 0.25, "25% must stay 0.25 after external paste");
+    assertEqual(grid.cellsData.get("A1").style.numberFormat.category, "percentage", "A1 keeps percentage format");
+    assertEqual(grid.cellsData.get("B1").val, 0.125, "12.5% must stay 0.125");
+    assertEqual(grid.cellsData.get("C1").val, -0.07, "-7% must stay -0.07");
+    assertEqual(grid.cellsData.get("D1").val, 0.5, "plain 50% text in a general cell becomes 0.5");
+  });
+
+test("E2E Sheet: TSV paste -> grid cells with tab-separated values", async () => {
     const { SheetGridController } = await import("../../apps/sheet/sheet-grid.js");
     const { parseOfficeTsv } = await import("../../platform/clipboard/office-clipboard.js");
 

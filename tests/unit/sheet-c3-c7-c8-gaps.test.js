@@ -13,7 +13,7 @@ export async function runSheetC3C7C8GapTests() {
     grid.selectCell("B", 2); grid.selectAll();
     assert(grid._rangeLabel(grid.selectionRange) === "A1:B3", "Ctrl+A lần đầu phải chọn vùng dữ liệu hiện tại");
     grid.selectAll();
-    assert(grid._rangeLabel(grid.selectionRange) === "A1:Z200", "Ctrl+A lần hai phải chọn toàn trang tính hiện có");
+    assert(grid._rangeLabel(grid.selectionRange) === "A1:XFD1048576", "Ctrl+A lần hai phải chọn toàn trang tính hiện có");
   });
   test("Sort preserves a detected text header", () => {
     const grid = new SheetGridController(container());

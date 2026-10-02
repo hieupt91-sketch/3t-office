@@ -50,7 +50,52 @@ export const VIETNAMESE_TEST_PHRASES = [
   "Hồ sơ công chứng chứng thực hợp lệ",
   "Ngân hàng Thương mại Cổ phần Ngoại thương",
   "Đoàn kết tương thân tương ái giúp đỡ",
-  "Kính chúc quý khách an khang thịnh vượng"
+  "Kính chúc quý khách an khang thịnh vượng",
+
+  // Uppercase phrases for stress testing
+  "ĐỘC LẬP - TỰ DO - HẠNH PHÚC",
+  "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM",
+  "HÀ NỘI THÀNH PHỐ TRỰC THUỘC TRUNG ƯƠNG",
+  "HỒ CHÍ MINH THÀNH PHỐ LỚN NHẤT VIỆT NAM",
+  "BỘ GIAO THÔNG VẬN TẢI",
+
+  // Additional phrases for complete vowel+tone coverage
+  "Máy tính xách tay Dell 15.6 inch",
+  "Số điện thoại 0987.654.321",
+  "Địa chỉ: 123 đường Láng, phường Tràng An, quận Hoàng Mai, Hà Nội",
+  "Ngày 01/01/2026 - Ngày đầu năm mới",
+  "Tiền tệ: 1.000.000 đồng (một triệu đồng)",
+  "Trọng lượng: 500 gram, 2.5 kg",
+  "Kích thước: 20cm x 30cm x 5cm",
+  "Mã số thuế: 0101234567",
+  "Số tài khoản: 1234567890 tại Ngân hàng Vietcombank",
+  "Email: nguyen.van.a@company.com.vn",
+
+  // Vowel + all 5 tones coverage (a, ă, â, e, ê, i, o, ô, ơ, u, ư, y)
+  "Bà mẹ già đi chợ mua rau củ quả",
+  "Ông bố già ngồi sân phơi nắng",
+  "Cháu bé út ếch nhảy suối",
+  "Cô gái xinh đẹp mặc áo dài",
+  "Anh chàng mạnh khỏe đánh bóng đá",
+  "Mưa rơi tầm tã trên mái ngói",
+  "Nắng vàng ươm chiếu khắp phố",
+  "Gió lạnh về từ phương Bắc",
+  "Sương mù bao trùm thành phố",
+  "Sao Hỏa lấp lánh giữa trời đêm",
+
+  // Administrative/legal phrases
+  "Thông tư 01/2026/TT-BTC hướng dẫn mới",
+  "Quyết định 123/QĐ-UBND ngày 15/06/2026",
+  "Chỉ thị 05/CT-TTg về chuyển đổi số",
+  "Nghị quyết 01/NQ-HĐND khóa họp thường niên",
+  "Bản vẽ kỹ thuật đồ án xây dựng cầu",
+
+  // Financial/accounting phrases
+  "Chi phí sản xuất đạt 2.5 tỷ đồng",
+  "Doanh thu thuần quý IV năm 2026",
+  "Lãi suất cho vay ưu đãi 6.5%/năm",
+  "Tỷ giá USD/VND: 24.500 đồng",
+  "Chứng khoán VN-Index đạt 1.250 điểm"
 ];
 
 // Map of Vietnamese characters to { base, mod, tone }
