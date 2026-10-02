@@ -308,22 +308,26 @@ _INSTANCE_DISPATCH_READY = threading.Event()
 _INSTANCE_DISPATCH_STOP = threading.Event()
 
 
-def _load_update_config() -> dict[str, str]:
+def _load_update_config() -> dict[str, object]:
     config_path = Path(ROOT_DIR) / "vnoffice-config.json"
     try:
         config = json.loads(config_path.read_text(encoding="utf-8"))
     except (OSError, ValueError, TypeError):
-        return {"source": "", "channel": "pilot"}
+        return {"sources": [], "channel": "pilot"}
     update = config.get("update", {}) if isinstance(config, dict) else {}
     if not isinstance(update, dict):
         update = {}
     source = update.get("source", "")
+    configured_sources = update.get("sources", [])
     channel = update.get("channel", "pilot")
     if not isinstance(source, str):
         source = ""
+    sources = [item.strip() for item in configured_sources if isinstance(item, str) and item.strip()] if isinstance(configured_sources, list) else []
+    if source.strip() and source.strip() not in sources:
+        sources.insert(0, source.strip())
     if not isinstance(channel, str) or not re.fullmatch(r"[a-z][a-z0-9-]{0,31}", channel):
         channel = "pilot"
-    return {"source": source.strip(), "channel": channel}
+    return {"sources": sources, "channel": channel}
 
 
 def _update_install_root() -> Path | None:
@@ -340,6 +344,7 @@ def _notify_update_ui(state: dict[str, object]) -> None:
     allowed = {key: state.get(key) for key in (
         "current_version", "available_version", "channel", "release_notes", "ready",
         "bytes_downloaded", "changed_files", "removed_files", "checked_at", "status",
+        "selected_source", "error_message",
     )}
     try:
         payload = json.dumps(allowed, ensure_ascii=False, separators=(",", ":"))
@@ -363,7 +368,6 @@ def _initialize_deferred_services(api, app_kind: str, launch_args: list[str]) ->
             app_kind,
             _user_data_dir(),
             endpoint=str(report_config["endpoint"]),
-            token=str(report_config["token"]),
             enabled=bool(report_config["enabled"]),
         )
         _ERROR_REPORTER.install_exception_hooks()
@@ -381,7 +385,7 @@ def _initialize_deferred_services(api, app_kind: str, launch_args: list[str]) ->
                 install_dir=install_root,
                 updates_dir=_UPDATE_DATA_DIR,
                 current_version=installed_version,
-                source=update_config["source"],
+                sources=update_config["sources"],
                 channel=update_config["channel"],
                 public_key=get_public_key(),
                 on_state=_notify_update_ui,

@@ -21,17 +21,37 @@ from adapters.error_reporting.reporter import (
 
 class _CaptureHandler(BaseHTTPRequestHandler):
     received = []
+    token_requests = []
+    active_token = ""
+    reject_first_report = False
+    rejected_once = False
 
     def log_message(self, *_args):
         pass
 
     def do_POST(self):
-        if self.headers.get("Authorization") != "Bearer test-token":
+        size = int(self.headers.get("Content-Length", "0"))
+        body = self.rfile.read(size)
+        if self.path == "/api/v1/reports/token":
+            request = json.loads(body.decode("utf-8"))
+            type(self).token_requests.append(request)
+            type(self).active_token = f"install-token-{len(type(self).token_requests)}"
+            response = json.dumps({"token": type(self).active_token, "expires_at": "2099-01-01T00:00:00Z"}).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(response)))
+            self.end_headers()
+            self.wfile.write(response)
+            return
+        if self.path != "/api/v1/reports" or self.headers.get("X-Install-Token") != type(self).active_token:
             self.send_response(401)
             self.end_headers()
             return
-        size = int(self.headers.get("Content-Length", "0"))
-        body = self.rfile.read(size)
+        if type(self).reject_first_report and not type(self).rejected_once:
+            type(self).rejected_once = True
+            self.send_response(401)
+            self.end_headers()
+            return
         type(self).received.append((self.path, self.headers.get("Content-Type", ""), body))
         self.send_response(200)
         self.end_headers()
@@ -42,6 +62,19 @@ class ErrorReportingTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.data_dir = Path(self.temp.name) / "app-data"
+
+    def _start_server(self):
+        _CaptureHandler.received = []
+        _CaptureHandler.token_requests = []
+        _CaptureHandler.active_token = ""
+        _CaptureHandler.reject_first_report = False
+        _CaptureHandler.rejected_once = False
+        server = ThreadingHTTPServer(("127.0.0.1", 0), _CaptureHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        return server
 
     def test_sanitizer_removes_vietnamese_windows_unc_file_uri_and_stack_paths(self):
         value = (
@@ -80,8 +113,8 @@ class ErrorReportingTests(unittest.TestCase):
         self.assertNotIn("Hợp đồng", smart_quotes)
 
     def test_long_message_token_is_redacted_and_output_is_bounded(self):
-        cleaned = sanitize_text("lỗi " + ("bí mật" * 100))
-        self.assertLessEqual(len(cleaned), 240)
+        cleaned = sanitize_text("lỗi " + ("bí mật" * 300))
+        self.assertLessEqual(len(cleaned), 1000)
         self.assertNotIn("bí mật" * 30, cleaned)
 
     def test_frontend_payload_is_allowlisted_and_sanitized_again_in_python(self):
@@ -115,12 +148,20 @@ class ErrorReportingTests(unittest.TestCase):
         self.assertNotIn("Nội dung ô", json.dumps(event, ensure_ascii=False))
 
     def test_config_missing_defaults_offline_and_env_overrides_config(self):
-        self.assertEqual(load_client_config(self.data_dir, {}), {"enabled": True, "endpoint": "", "token": ""})
+        self.assertEqual(load_client_config(self.data_dir, {}), {"enabled": True, "endpoint": ""})
         config_path = self.data_dir / "vnoffice-config.json"
         config_path.parent.mkdir(parents=True)
         config_path.write_text(json.dumps({"errorReporting": {"enabled": False, "endpoint": "https://config", "token": "config-token"}}), encoding="utf-8")
-        value = load_client_config(self.data_dir, {"VNOFFICE_REPORT_ENDPOINT": "http://127.0.0.1:9/api/v1/reports", "VNOFFICE_REPORT_TOKEN": "env-token"})
-        self.assertEqual(value, {"enabled": False, "endpoint": "http://127.0.0.1:9/api/v1/reports", "token": "env-token"})
+        value = load_client_config(self.data_dir, {"VNOFFICE_REPORT_ENDPOINT": "http://127.0.0.1:9", "VNOFFICE_REPORT_TOKEN": "ignored-static-token"})
+        self.assertEqual(value, {"enabled": False, "endpoint": "http://127.0.0.1:9"})
+
+    def test_installation_id_is_anonymous_uuid4_created_once_before_consent(self):
+        reporter = ErrorReporter("0.9.0-pilot1", "writer", self.data_dir, sender_thread=False)
+        first = reporter._installation_id
+        self.assertEqual(__import__("uuid").UUID(first).version, 4)
+        self.assertTrue(reporter.installation_path.is_file())
+        another = ErrorReporter("0.9.0-pilot1", "sheet", self.data_dir, sender_thread=False)
+        self.assertEqual(another._installation_id, first)
 
     def test_consent_unknown_granted_denied_and_persists(self):
         reporter = ErrorReporter("0.9.0-pilot1", "writer", self.data_dir, sender_thread=False)
@@ -156,15 +197,10 @@ class ErrorReportingTests(unittest.TestCase):
             self.assertLess(len(list(reporter.queue_dir.glob("*.json"))), 8)
 
     def test_consent_gates_sender_and_local_server_receives_sanitized_report(self):
-        _CaptureHandler.received = []
-        server = ThreadingHTTPServer(("127.0.0.1", 0), _CaptureHandler)
-        thread = threading.Thread(target=server.serve_forever, daemon=True)
-        thread.start()
-        self.addCleanup(server.server_close)
-        self.addCleanup(lambda: server.shutdown())
+        server = self._start_server()
         reporter = ErrorReporter(
-            "0.9.0-pilot1", "slides", self.data_dir, endpoint=f"http://127.0.0.1:{server.server_port}/api/v1/reports",
-            token="test-token", sender_thread=False, timeout=1,
+            "0.9.0-pilot1", "slides", self.data_dir, endpoint=f"http://127.0.0.1:{server.server_port}",
+            sender_thread=False, timeout=1,
         )
         reporter.record_error(
             error_type="RuntimeError", message="Không mở được C:\\Users\\Lan\\Tài liệu\\Tuyệt mật.pptx",
@@ -172,8 +208,10 @@ class ErrorReportingTests(unittest.TestCase):
         )
         self.assertFalse(reporter.send_once())
         self.assertEqual(len(_CaptureHandler.received), 0)
+        self.assertEqual(len(_CaptureHandler.token_requests), 0)
         reporter.set_consent(True)
         self.assertTrue(reporter.send_once())
+        self.assertEqual(len(_CaptureHandler.token_requests), 1)
         self.assertEqual(len(_CaptureHandler.received), 1)
         path, content_type, body = _CaptureHandler.received[0]
         self.assertEqual(path, "/api/v1/reports")
@@ -182,11 +220,30 @@ class ErrorReportingTests(unittest.TestCase):
         self.assertNotIn("Lan", sent)
         self.assertNotIn("Tuyệt mật.pptx", sent)
         self.assertNotIn("C:\\Users", sent)
+        payload = json.loads(sent)
+        self.assertEqual(set(payload), {"event_id", "app", "version", "os", "error_type", "message", "stack", "installation_id"})
+        self.assertEqual(payload["installation_id"], _CaptureHandler.token_requests[0]["installation_id"])
+        self.assertLessEqual(len(payload["message"]), 1000)
+        self.assertLessEqual(len(payload["stack"]), 8000)
+
+    def test_401_discards_token_gets_a_new_one_and_retries_once(self):
+        server = self._start_server()
+        _CaptureHandler.reject_first_report = True
+        reporter = ErrorReporter(
+            "0.9.0-pilot1", "writer", self.data_dir, endpoint=f"http://127.0.0.1:{server.server_port}",
+            sender_thread=False, timeout=1,
+        )
+        reporter.set_consent(True)
+        reporter.record_error(error_type="TestReport", message="kiem tra ket noi")
+        self.assertTrue(reporter.send_once())
+        self.assertEqual(len(_CaptureHandler.token_requests), 2)
+        self.assertEqual(len(_CaptureHandler.received), 1)
+        self.assertEqual(reporter.last_status_code, 200)
 
     def test_unreachable_endpoint_keeps_report_queued(self):
         reporter = ErrorReporter(
-            "0.9.0-pilot1", "writer", self.data_dir, endpoint="http://127.0.0.1:9/api/v1/reports",
-            token="test-token", sender_thread=False, timeout=0.1,
+            "0.9.0-pilot1", "writer", self.data_dir, endpoint="http://127.0.0.1:9",
+            sender_thread=False, timeout=0.1,
         )
         reporter.set_consent(True)
         reporter.record_error(error_type="OSError", message="offline", operation="save.docx")
@@ -205,7 +262,7 @@ class ErrorReportingTests(unittest.TestCase):
 
         unreachable = ErrorReporter(
             "0.9.0-pilot1", "sheet", self.data_dir / "unreachable",
-            endpoint="http://127.0.0.1:9/api/v1/reports", token="test-token", sender_thread=True, timeout=0.1,
+            endpoint="http://127.0.0.1:9", sender_thread=True, timeout=0.1,
         )
         self.addCleanup(unreachable.stop)
         unreachable.set_consent(True)
@@ -218,7 +275,7 @@ class ErrorReportingTests(unittest.TestCase):
     def test_background_sender_does_not_bypass_backoff_when_new_reports_arrive(self):
         reporter = ErrorReporter(
             "0.9.0-pilot1", "writer", self.data_dir / "backoff",
-            endpoint="https://reports.example.invalid/api/v1/reports", token="test-token", sender_thread=True,
+            endpoint="https://reports.example.invalid", sender_thread=True,
         )
         self.addCleanup(reporter.stop)
         attempts = []
@@ -250,6 +307,23 @@ class ErrorReportingTests(unittest.TestCase):
         self.assertEqual(len(list(reporter.attachments_dir.glob("*"))), 1)
         json_events = [json.loads(path.read_text(encoding="utf-8")) for path in reporter.queue_dir.glob("*.json")]
         self.assertTrue(all("Tài liệu riêng.docx" not in json.dumps(event, ensure_ascii=False) for event in json_events))
+
+    def test_vps_sender_never_posts_or_retains_document_attachment(self):
+        server = self._start_server()
+        source = Path(self.temp.name) / "Tai-lieu-mat.docx"
+        source.write_bytes(b"NOI DUNG TAI LIEU KHONG DUOC GUI")
+        reporter = ErrorReporter(
+            "0.9.0-pilot1", "writer", self.data_dir, endpoint=f"http://127.0.0.1:{server.server_port}",
+            sender_thread=False, timeout=1,
+        )
+        reporter.set_consent(True)
+        result = reporter.submit_user_feedback("Nut luu bi loi", attach_current_file=True, current_file=source)
+        self.assertTrue(result["queued"])
+        self.assertTrue(reporter.send_once())
+        self.assertEqual([item[0] for item in _CaptureHandler.received], ["/api/v1/reports"])
+        self.assertNotIn(b"NOI DUNG TAI LIEU", _CaptureHandler.received[0][2])
+        self.assertEqual(json.loads(_CaptureHandler.received[0][2])["message"], "Nut luu bi loi")
+        self.assertEqual(list(reporter.attachments_dir.glob("*")), [])
 
     def test_pywebview_save_api_failure_reports_safe_operation_and_never_content(self):
         import main
