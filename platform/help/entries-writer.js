@@ -944,7 +944,7 @@ export const WRITER_HELP_ENTRIES = [
       "Đóng menu Tệp: Nhấn phím Escape hoặc nhấp nút '← Quay lại' ở góc trên bên trái bất kỳ lúc nào để đóng Backstage và khôi phục tiêu điểm chính xác về vị trí soạn thảo trước đó."
     ]
   },
-  {
+{
     id: "writer.clipboard.cutCopyPaste",
     app: "writer",
     commandIds: ["common.edit.cut", "common.edit.copy", "common.edit.paste", "common.edit.formatPainter"],
@@ -955,9 +955,26 @@ export const WRITER_HELP_ENTRIES = [
     steps: [
       "Bôi đen đoạn văn bản hoặc chọn đối tượng (bảng, hình ảnh) cần thao tác.",
       "Mở tab Trang đầu, nhóm Bảng nhớ tạm: nhấn Cắt (Ctrl+X) để di chuyển hoặc Sao chép (Ctrl+C) để nhân bản. Các phím Ctrl+X, Ctrl+C và Ctrl+V cũng dùng trực tiếp trong vùng soạn thảo.",
-      "Đặt con trỏ tại vị trí đích trong tài liệu rồi nhấn Dán (Ctrl+V). Doc giữ định dạng văn bản được hỗ trợ khi dán; nếu clipboard chỉ có văn bản, nội dung được dán dưới dạng chữ thuần.",
+      "Đặt con trỏ tại vị trí đích trong tài liệu rồi nhấn Dán (Ctrl+V). Khi sao chép nội dung từ phần mềm soạn thảo khác (định dạng .docx), tiêu đề, chữ đậm, danh sách và bảng được giữ theo định dạng nguồn; nếu clipboard chỉ có văn bản, nội dung được dán dưới dạng chữ thuần.",
       "Để sao chép kiểu dáng chữ: bôi đen đoạn mẫu có định dạng ưng ý, nhấn Sao chép định dạng (Ctrl+Shift+C), sau đó quét chuột qua vùng văn bản cần áp dụng kiểu dáng.",
       "Có thể dùng Ctrl+Z để hoàn tác hoặc Ctrl+Y để làm lại mọi thao tác trên."
+    ]
+  },
+  {
+    id: "writer.clipboard.pasteSpecial",
+    app: "writer",
+    commandIds: ["writer.edit.pasteSpecial"],
+    title: "Dán đặc biệt (Paste Special)",
+    summary: "Dán nội dung từ bộ nhớ tạm với các tùy chọn nâng cao: Giữ định dạng nguồn (Ctrl+V) hoặc Chỉ giữ văn bản (Ctrl+Shift+V) để dán nội dung thuần túy bỏ qua mọi định dạng HTML.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Bảng nhớ tạm" },
+    keywords: ["dán đặc biệt", "paste special", "giữ định dạng", "chỉ giữ văn bản", "plain text", "Ctrl+Alt+V", "Ctrl+Shift+V", "bảng nhớ tạm"],
+    steps: [
+      "Trong phần mềm soạn thảo khác, bôi đen tiêu đề, đoạn chữ, danh sách hoặc bảng cần chuyển rồi nhấn Ctrl+C.",
+      "Đặt con trỏ trong tài liệu Doc tại vị trí muốn dán.",
+      "Mở tab Trang đầu, nhóm Bảng nhớ tạm: nhấn mũi tên nhỏ bên dưới nút Dán (hoặc Ctrl+Alt+V) để mở hộp thoại Dán đặc biệt.",
+      "Chọn Giữ định dạng nguồn để dán theo định dạng nguồn, gồm tiêu đề, chữ đậm/nghiêng, danh sách và bảng.",
+      "Chọn Chỉ giữ văn bản để dán nội dung thuần túy, loại bỏ mọi định dạng, kiểu chữ và cấu trúc.",
+      "Nhấn Đồng ý hoặc Enter để dán. Mỗi lần dán là một bước Undo (Ctrl+Z) duy nhất."
     ]
   },
 {

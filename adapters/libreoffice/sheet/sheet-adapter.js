@@ -12,6 +12,11 @@ import { getVnCommand } from "../common/command-dispatch-mapper.js";
 import { overlayFodsStructureProtection } from "./xlsx-workbook-protection.js";
 import { overlayActiveSheetToFods } from "./xlsx-active-sheet.js";
 import { buildSheetPayloadModel } from "./sheet-payload-parser.js";
+import {
+  parseOfficeHtmlTable,
+  parseOfficeTsv,
+  serializeSheetRangeToClipboard
+} from "../../../platform/clipboard/office-clipboard.js";
 import { extractSheetRangeData } from "../../../apps/sheet/sheet-chart-data.js";
 
 export function numberFormatFromExcelCode(code) {
@@ -6171,10 +6176,13 @@ ${pristineXlsxMarker}
       }
       cells.push(cellRow); textRows.push(textRow.join("\t"));
     }
+    const text = textRows.join("\n");
+    const clipboardHtml = serializeSheetRangeToClipboard(this.grid, range);
     return {
       range: structuredClone(range),
       cells,
-      text: textRows.join("\n"),
+      text,
+      html: clipboardHtml.html,
       sourceSheet: this.grid.activeSheet
     };
   }
@@ -6199,6 +6207,7 @@ ${pristineXlsxMarker}
       const payload = this._captureSelectedClipboard();
       if (!payload || !event.clipboardData) return;
       event.clipboardData.setData("text/plain", payload.text);
+      if (payload.html) event.clipboardData.setData("text/html", payload.html);
       event.preventDefault();
       this._rememberClipboard(payload, "copy");
     };
@@ -6207,25 +6216,32 @@ ${pristineXlsxMarker}
       const payload = this._captureSelectedClipboard();
       if (!payload || !event.clipboardData) return;
       event.clipboardData.setData("text/plain", payload.text);
+      if (payload.html) event.clipboardData.setData("text/html", payload.html);
       event.preventDefault();
       this._rememberClipboard(payload, "cut");
     };
     const paste = async event => {
       if (!isGridClipboardTarget(event)) return;
       const text = event.clipboardData?.getData("text/plain") || "";
-      if (!text) {
-        if (event.clipboardData) event.preventDefault();
-        const native = await this._readClipboardData();
-        if (native?.text) await this._pasteTextIntoGrid(native.text);
-        else if (this._clipboardModel?.cells?.length) {
-          await this._pasteModelIntoGrid(this._clipboardModel, this._clipboardText, true);
-        }
-        return;
+      const html = event.clipboardData?.getData("text/html") || "";
+      if (globalThis.window?.__vnoClipboardDiagnostics) console.info("__VNO_CLIPBOARD_DIAG__" + JSON.stringify({ phase: "sheet-paste-event", types: Array.from(event.clipboardData?.types || []), textLength: text.length, htmlLength: html.length, htmlHasStyle: /<style\b/i.test(html), htmlHasXNum: /x:num/i.test(html) }));
+      if (!text && !html) return;
+      if (event.clipboardData) event.preventDefault();
+      const needsNativeHtml = !html || (/\b(?:xl\d+|Mso[a-z0-9_-]+)\b/i.test(html) && !/<style\b/i.test(html));
+      const native = needsNativeHtml ? await this._readClipboardData() : null;
+      let model = null;
+      const nativeText = native?.status === "ok" ? (native.text || text) : text;
+      const nativeHtml = native?.status === "ok" ? (native.html || html) : html;
+      const isInternal = nativeText === this._clipboardText && this._clipboardModel?.cells?.length;
+      if (isInternal) model = this._clipboardModel;
+      if (nativeHtml) {
+        model ||= parseOfficeHtmlTable(nativeHtml, nativeText);
       }
-      event.preventDefault();
-      const isInternal = text === this._clipboardText && this._clipboardModel?.cells?.length;
-      const model = isInternal ? this._clipboardModel : this._clipboardModelFromText(text);
-      await this._pasteModelIntoGrid(model, text, isInternal);
+      if (!model) {
+        model = this._clipboardModelFromText(nativeText, nativeHtml);
+      }
+      if (globalThis.window?.__vnoClipboardDiagnostics) console.info("__VNO_CLIPBOARD_DIAG__" + JSON.stringify({ phase: "sheet-paste-model", cells: (model?.cells || []).map(row => row.map(cell => ({ val: cell.val, style: cell.style }))) }));
+      await this._pasteModelIntoGrid(model, nativeText, false);
     };
     container.addEventListener("copy", copy);
     container.addEventListener("cut", cut);
@@ -6233,42 +6249,43 @@ ${pristineXlsxMarker}
     this._nativeClipboardHandlers = { container, copy, cut, paste };
   }
 
-  _clipboardModelFromText(text) {
-    const rows = String(text ?? "").replace(/\r\n?/g, "\n").split("\n");
-    if (rows.at(-1) === "") rows.pop();
-    if (!rows.length) return null;
-    const values = rows.map(row => row.split("\t"));
-    const width = Math.max(1, ...values.map(row => row.length));
-    const cells = values.map(row => Array.from({ length: width }, (_, index) => {
-      const value = row[index] ?? "";
-      return { val: value, formula: value.startsWith("=") ? value : "", style: {} };
-    }));
-    return {
-      range: {
-        start: { c: "A", r: 1 },
-        end: { c: this.grid._columnLabel(width), r: values.length }
-      },
-      cells
-    };
+  _clipboardModelFromText(text, html = "") {
+    if (html) {
+      const model = parseOfficeHtmlTable(html, text);
+      if (model) return model;
+    }
+    return parseOfficeTsv(text);
   }
 
   async _readClipboardData() {
     try {
       const native = await globalUnoBridge.readClipboardData?.();
+      if (globalThis.window?.__vnoClipboardDiagnostics) console.info("__VNO_CLIPBOARD_DIAG__" + JSON.stringify({ phase: "clipboard-bridge-result", status: native?.status, textLength: native?.text?.length || 0, htmlLength: native?.html?.length || 0, htmlHasStyle: /<style\b/i.test(native?.html || ""), htmlHasXNum: /x:num/i.test(native?.html || ""), message: native?.message || "" }));
       if (native?.status === "ok") return native;
     } catch { /* Browser clipboard is the web-mode fallback. */ }
     try {
-      if (typeof navigator !== "undefined" && navigator.clipboard?.readText) {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.read) {
+        const items = await navigator.clipboard.read();
+        for (const item of items) {
+          const types = item.types || [];
+          const htmlType = types.find(type => type === "text/html");
+          const textType = types.find(type => type === "text/plain");
+          const html = htmlType ? await (await item.getType(htmlType)).text() : "";
+          const text = textType ? await (await item.getType(textType)).text() : "";
+          if (html || text) return { status: "ok", html, text };
+        }
+      }
+      if (navigator.clipboard?.readText) {
         return { status: "ok", text: await navigator.clipboard.readText(), html: "" };
       }
     } catch { /* The command reports no-op when the browser denies clipboard access. */ }
     return null;
   }
 
-  async _pasteTextIntoGrid(text) {
+  async _pasteTextIntoGrid(text, html = "") {
     const isInternal = String(text) === this._clipboardText && this._clipboardModel?.cells?.length;
     return this._pasteModelIntoGrid(
-      isInternal ? this._clipboardModel : this._clipboardModelFromText(text),
+      isInternal ? this._clipboardModel : this._clipboardModelFromText(text, html),
       String(text),
       !!isInternal
     );
@@ -6276,6 +6293,7 @@ ${pristineXlsxMarker}
 
   async _pasteModelIntoGrid(model, text, isInternal = false) {
     if (!model?.cells?.length || !this.grid.selectedCoord || !this.grid.applyPasteSpecial) return false;
+    if (globalThis.window?.__vnoClipboardDiagnostics) console.info("__VNO_CLIPBOARD_DIAG__" + JSON.stringify({ phase: "sheet-paste-destination", selectedCoord: this.grid.selectedCoord, isInternal, cellsBefore: [...this.grid.cellsData.entries()].filter(([coord]) => /^(A1|B2|C2|B3|C3)$/.test(coord)).map(([coord, cell]) => ({ coord, val: cell.val, style: cell.style })) }));
     const clipboardState = this.grid._clipboardRange;
     const moveRange = isInternal && clipboardState?.mode === "cut" &&
       clipboardState.sheet === this.grid.activeSheet && this._clipboardSourceSheet === this.grid.activeSheet
@@ -6286,6 +6304,7 @@ ${pristineXlsxMarker}
       sourceSheet: this._clipboardSourceSheet,
       coerceInput: !isInternal
     });
+    if (globalThis.window?.__vnoClipboardDiagnostics) console.info("__VNO_CLIPBOARD_DIAG__" + JSON.stringify({ phase: "sheet-paste-applied", applied, cellsAfter: [...this.grid.cellsData.entries()].filter(([coord]) => /^(A1|B2|C2|B3|C3)$/.test(coord)).map(([coord, cell]) => ({ coord, val: cell.val, style: cell.style })) }));
     if (applied && moveRange) this.grid.clearClipboardRange?.();
     return applied;
   }
@@ -6295,7 +6314,13 @@ ${pristineXlsxMarker}
     let model = null;
     if (native?.status === "ok") {
       const sameInternal = String(native.text || "") === this._clipboardText && this._clipboardModel?.cells?.length;
-      model = sameInternal ? this._clipboardModel : this._clipboardModelFromText(native.text || "");
+      if (sameInternal) {
+        model = this._clipboardModel;
+      } else if (native.html) {
+        model = parseOfficeHtmlTable(native.html, native.text || "");
+      } else {
+        model = this._clipboardModelFromText(native.text || "", native.html || "");
+      }
     } else {
       model = this._clipboardModel;
     }
@@ -6314,9 +6339,13 @@ ${pristineXlsxMarker}
     const coord = this.grid.selectedCoord;
     if (!coord || !this.grid.setCellValue) return false;
     const native = await this._readClipboardData();
-    if (native?.status === "ok" && native.text) return this._pasteTextIntoGrid(native.text);
+    if (native?.status === "ok" && native.html) {
+      const model = parseOfficeHtmlTable(native.html, native.text || "");
+      if (model) return this._pasteModelIntoGrid(model, native.text || "", false);
+    }
+    if (native?.status === "ok" && native.text) return this._pasteTextIntoGrid(native.text, native.html || "");
     if (this._clipboardModel?.cells?.length) return this._pasteModelIntoGrid(this._clipboardModel, this._clipboardText, true);
-    if (native?.status === "ok") return this._pasteTextIntoGrid(native.text || "");
+    if (native?.status === "ok") return this._pasteTextIntoGrid(native.text || "", native.html || "");
     return false;
   }
 }

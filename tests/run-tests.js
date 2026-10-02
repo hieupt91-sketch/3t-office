@@ -84,6 +84,7 @@ import { runSheetPivotImportTests } from "./unit/sheet-pivot-import.test.js";
 import { runSheetPivotSaveFodsTests } from "./unit/sheet-pivot-save-fods.test.js";
 import { runSheetMergeCellsTests } from "./unit/sheet-merge-cells.test.js";
 import { runSheetPasteSpecialTests } from "./unit/sheet-paste-special.test.js";
+import { runOfficeClipboardTests } from "./unit/office-clipboard.test.js";
 import { runSlidesSmartartImportTests } from "./unit/slides-smartart-import.test.js";
 import { runSlidesRotatedShapePositionTests } from "./unit/slides-rotated-shape-position.test.js";
 import { runSlidesBasicsG8Tests } from "./unit/slides-basics-g8.test.js";
@@ -463,7 +464,8 @@ async function runAll() {
     { title: "221. Unit Tests — VN Writer Clipboard Cut/Copy/Paste & Sanitization", runner: runWriterClipboardTests },
     { title: "222. Unit Tests — VN Writer font shortcut Ctrl+Shift+F & unsaved dialog keyboard navigation", runner: runWriterDocNotRunBasicsTests },
     { title: "223. Unit Tests — CH-7.2 Vietnamese spellcheck UI suggestions, 1-step undo, onReplace callback & normalizer bridge", runner: runSpellcheckUiUndoTests },
-    { title: "224. Unit Tests — Sheet Grid Extent (1,048,576 rows x 16,384 columns virtualization & navigation)", runner: runSheetGridExtentTests }
+    { title: "224. Unit Tests — Sheet Grid Extent (1,048,576 rows x 16,384 columns virtualization & navigation)", runner: runSheetGridExtentTests },
+    { title: "225. Unit Tests — Office Clipboard Interop (Sheet Excel/Calc HTML, TSV, Writer Word HTML cleaning)", runner: runOfficeClipboardTests }
   ];
 
   for (const suite of suites) {

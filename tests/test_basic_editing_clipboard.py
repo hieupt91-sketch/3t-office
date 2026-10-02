@@ -1,6 +1,6 @@
 import unittest
 
-from main import _extract_clipboard_html_fragment
+from main import _extract_clipboard_html_fragment, _extract_clipboard_html_with_styles
 
 
 class ClipboardHtmlFormatTests(unittest.TestCase):
@@ -29,6 +29,37 @@ class ClipboardHtmlFormatTests(unittest.TestCase):
     def test_invalid_or_missing_html_fragment_returns_empty_string(self):
         self.assertEqual(_extract_clipboard_html_fragment(b""), "")
         self.assertEqual(_extract_clipboard_html_fragment(b"Version:1.0\r\n"), "")
+
+    def test_rich_html_keeps_office_styles_and_table_around_fragment_offsets(self):
+        document = (
+            '<html><head><style>.xl65{font-weight:700;background:yellow;}</style></head>'
+            '<body><table><!--StartFragment--><tr><td class=xl65>Header</td></tr>'
+            '<!--EndFragment--></table></body></html>'
+        ).encode("utf-8")
+        prefix = (
+            "Version:1.0\r\n"
+            "StartHTML:0000000000\r\n"
+            "EndHTML:0000000000\r\n"
+            "StartFragment:0000000000\r\n"
+            "EndFragment:0000000000\r\n"
+        ).encode("ascii")
+        start_html = len(prefix)
+        start_fragment = start_html + document.index(b"<tr>")
+        end_fragment = start_html + document.index(b"<!--EndFragment-->")
+        end_html = start_html + len(document)
+        header = (
+            "Version:1.0\r\n"
+            f"StartHTML:{start_html:010d}\r\n"
+            f"EndHTML:{end_html:010d}\r\n"
+            f"StartFragment:{start_fragment:010d}\r\n"
+            f"EndFragment:{end_fragment:010d}\r\n"
+        ).encode("ascii")
+        self.assertEqual(len(header), len(prefix))
+
+        html = _extract_clipboard_html_with_styles(header + document)
+        self.assertIn("<style>.xl65{font-weight:700;background:yellow;}</style>", html)
+        self.assertIn("<table>", html)
+        self.assertIn("class=xl65", html)
 
 
 if __name__ == "__main__":

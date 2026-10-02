@@ -24,6 +24,12 @@ export const WRITER_RIBBON_TABS = [
               { type: "button", commandId: "common.edit.copy" },
               { type: "button", commandId: "common.edit.formatPainter" }
             ]
+          },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "writer.edit.pasteSpecial" }
+            ]
           }
         ]
       },

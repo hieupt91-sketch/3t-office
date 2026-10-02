@@ -7,6 +7,11 @@ import { SheetGridController } from "../../apps/sheet/sheet-grid.js";
 import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
 import { ShortcutManager } from "../../platform/commands/shortcut-manager.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
+import {
+  parseOfficeHtmlTable,
+  parseOfficeTsv,
+  cleanWordHtml
+} from "../../platform/clipboard/office-clipboard.js";
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -212,6 +217,42 @@ export async function runBasicEditingKeysTests() {
     assert(prevented && captured.at(-1).html === "<strong>giữ kiểu</strong>", "paste event phải dùng HTML đã có trong clipboard");
   }));
 
+  results.push(await test("Writer native paste preserves event HTML and recovers missing Office CSS through the bridge", async () => {
+    const adapter = Object.create(WriterAdapter.prototype);
+    const root = { listeners: {}, addEventListener(type, handler) { this.listeners[type] = handler; } };
+    adapter.bodyDom = root;
+    const captured = [];
+    let bridgeCalls = 0;
+    adapter._insertClipboardContent = data => captured.push(data);
+    const rich = '<style>.MsoNormal{font-weight:bold}</style><p class="MsoNormal">copied</p>';
+    adapter._readClipboardFromSystem = async () => { bridgeCalls++; return { status: "ok", html: rich, text: "copied" }; };
+    adapter._bindClipboardEvents();
+    const paste = html => root.listeners.paste({ clipboardData: { getData: type => type === "text/html" ? html : "copied" }, preventDefault() {} });
+    await paste('<strong>event HTML</strong>');
+    assert(bridgeCalls === 0 && captured.at(-1).html === '<strong>event HTML</strong>', "Complete event HTML must survive a different system clipboard");
+    await paste('<p class="MsoNormal">copied</p>');
+    assert(bridgeCalls === 1 && captured.at(-1).html === rich, "Missing Office head CSS must be restored from desktop bridge");
+    await paste(rich);
+    assert(bridgeCalls === 1 && captured.at(-1).html === rich, "Complete Office HTML needs no second clipboard read");
+  }));
+
+  results.push(await test("Sheet native paste keeps complete HTML and restores missing Excel class CSS", async () => {
+    const adapter = Object.create(SheetAdapter.prototype);
+    const root = { listeners: {}, addEventListener(type, handler) { this.listeners[type] = handler; } };
+    adapter.grid = { container: root };
+    let bridgeCalls = 0;
+    const captured = [];
+    const rich = '<style>.xl65{font-weight:bold;background:yellow}</style><table><tr><td class="xl65">Header</td></tr></table>';
+    adapter._readClipboardData = async () => { bridgeCalls++; return { status: "ok", html: rich, text: "Header" }; };
+    adapter._pasteModelIntoGrid = async model => captured.push(model);
+    adapter._bindNativeClipboardEvents();
+    const paste = html => root.listeners.paste({ clipboardData: { getData: type => type === "text/html" ? html : "Header" }, preventDefault() {} });
+    await paste(rich);
+    assert(bridgeCalls === 0 && captured.at(-1).cells[0][0].style.fontWeight === "bold", "Complete native Excel CSS must be parsed directly");
+    await paste('<table><tr><td class="xl65">Header</td></tr></table>');
+    assert(bridgeCalls === 1 && captured.at(-1).cells[0][0].style.backgroundColor === "yellow", "Missing native Excel class CSS must be recovered");
+  }));
+
   results.push(await test("Sheet Enter after a Tab sequence returns to its starting column and focus target is callable", () => {
     const container = mockGridContainer();
     const grid = new SheetGridController(container);
@@ -275,7 +316,7 @@ export async function runBasicEditingKeysTests() {
     const adapter = new SheetAdapter(grid);
     const model = adapter._clipboardModelFromText("123\tabc\r\nx\ty\r\n");
     assert(model.cells.length === 2 && model.cells[0].length === 2, "clipboard TSV phải tạo đúng ma trận 2×2");
-    assert(model.cells[0][0].val === "123" && model.cells[0][1].val === "abc", "clipboard TSV phải giữ nội dung ô theo cột");
+    assert(model.cells[0][0].val === 123 && model.cells[0][1].val === "abc", "clipboard TSV phải giữ nội dung ô theo cột (số được parse thành number)");
 
     const payload = adapter._captureSelectedClipboard();
     adapter._rememberClipboard(payload, "cut");
@@ -287,11 +328,216 @@ export async function runBasicEditingKeysTests() {
     await adapter._pasteModelIntoGrid(adapter._clipboardModel, "move me", true);
     assert(pasteArgs.options.moveRange.start.c === "A", "dán nội bộ sau Cắt phải gửi vùng nguồn để di chuyển trong một thao tác");
     assert(cleared, "viền Cắt phải biến mất sau khi dán");
-    grid.selectedCoord = { c: "B", r: 2 };
+grid.selectedCoord = { c: "B", r: 2 };
     adapter._readClipboardData = async () => ({ status: "ok", text: "", html: "" });
     await adapter._pasteIntoSelectedCell();
     assert(pasteArgs.destination.c === "B" && pasteArgs.destination.r === 2,
       "an empty system clipboard read falls back to the cached Sheet cut/copy range");
+  }));
+
+  // End-to-end test: Excel-style HTML paste into 3T Sheet
+  results.push(await test("Sheet end-to-end: Excel HTML paste parses numbers, dates, percentages, formats, borders, merged cells", () => {
+    const excelHtml = `
+      <html>
+      <style>
+        .xl65 { mso-number-format: '0.00%'; font-weight: bold; color: #ff0000; border: 1px solid #000; }
+        .xl66 { mso-number-format: '#,##0.00'; background: #ffff00; border: 1px solid #000; }
+        .xl67 { mso-number-format: 'dd/mm/yyyy'; border: 1px solid #000; }
+      </style>
+      <table>
+        <col width="80"><col width="100"><col width="90">
+        <tr height="20">
+          <td class="xl65" style="border:1px solid #000" x:num="0.75">75%</td>
+          <td class="xl66" style="border:1px solid #000" x:num="1234.56">1,234.56</td>
+          <td class="xl67" style="border:1px solid #000" x:num="45230">01/01/2024</td>
+        </tr>
+        <tr height="20">
+          <td class="xl65" style="border:1px solid #000" x:num="0.25">25%</td>
+          <td class="xl66" style="border:1px solid #000" x:num="789.01">789.01</td>
+          <td class="xl67" style="border:1px solid #000" x:num="45231">02/01/2024</td>
+        </tr>
+      </table>
+      </html>
+    `;
+    const result = parseOfficeHtmlTable(excelHtml);
+    assert(result !== null, "Phân tích HTML Excel phải thành công");
+    assert(result.cells.length === 2, "Phải có 2 hàng");
+    assert(result.cells[0].length === 3, "Phải có 3 cột");
+    
+    // Row 1 - Percentage cell
+    assert(result.cells[0][0].val === 0.75, "Ô phần trăm phải là số 0.75");
+    assert(result.cells[0][0].style.numberFormat.category === "percentage", "Phải nhận diện định dạng phần trăm");
+    assert(result.cells[0][0].style.fontWeight === "bold", "Phải giữ in đậm");
+    assert(result.cells[0][0].style.color === "#ff0000", "Phải giữ màu chữ");
+    assert(result.cells[0][0].style.border || result.cells[0][0].style.borderTop, "Phải giữ đường viền");
+    
+    // Row 1 - Number cell
+    assert(result.cells[0][1].val === 1234.56, "Ô số phải là 1234.56");
+    assert(result.cells[0][1].style.numberFormat.category === "number", "Phải nhận diện định dạng số");
+    assert(result.cells[0][1].style.backgroundColor === "#ffff00", "Phải giữ màu nền");
+    
+    // Row 1 - Date cell (x:num takes precedence, value is Excel serial number)
+    assert(result.cells[0][2].val === 45230, "Ô ngày phải là số serial Excel");
+    assert(result.cells[0][2].style.numberFormat.category === "date", "Phải nhận diện định dạng ngày");
+    
+    // Row 2
+    assert(result.cells[1][0].val === 0.25, "Hàng 2 ô 1 phải là 0.25");
+    assert(result.cells[1][1].val === 789.01, "Hàng 2 ô 2 phải là 789.01");
+    assert(result.cells[1][2].val === 45231, "Hàng 2 ô 3 phải là 45231");
+    
+    // Merged cells test
+    const mergedHtml = `
+      <table>
+        <tr>
+          <td colspan="2" rowspan="2" style="border:1px solid #000;">Merged</td>
+          <td style="border:1px solid #000;">C1</td>
+        </tr>
+        <tr>
+          <td style="border:1px solid #000;">C2</td>
+        </tr>
+        <tr>
+          <td style="border:1px solid #000;">A3</td>
+          <td style="border:1px solid #000;">B3</td>
+          <td style="border:1px solid #000;">C3</td>
+        </tr>
+      </table>
+    `;
+    const mergedResult = parseOfficeHtmlTable(mergedHtml);
+    assert(mergedResult !== null, "Phân tích ô gộp phải thành công");
+    assert(mergedResult.mergedRanges.length === 1, "Phải có 1 ô gộp");
+    assert(mergedResult.mergedRanges[0].start.c === "A" && mergedResult.mergedRanges[0].start.r === 1, "Ô gộp bắt đầu tại A1");
+    assert(mergedResult.mergedRanges[0].end.c === "B" && mergedResult.mergedRanges[0].end.r === 2, "Ô gộp kết thúc tại B2");
+  }));
+
+  // End-to-end test: Word HTML paste into 3T Doc
+  results.push(await test("Doc end-to-end: Word HTML paste cleans junk and preserves headings, lists, tables, links, formatting", () => {
+    const wordHtml = `
+      <!--[if gte mso 9]><xml><o:OfficeDocumentSettings></o:OfficeDocumentSettings></xml><![endif]-->
+      <w:p><w:r><w:t>Text</w:t></w:r></w:p>
+      <o:p></o:p>
+      <p class="MsoHeading1" style="mso-margin-top-alt:auto; margin-top:10pt;">Title 1</p>
+      <p class="MsoHeading2" style="font-size:14pt; color:#ff0000;">Title 2</p>
+      <p class="MsoListParagraph" style="mso-list:l0 level1 lfo1;"><span style="font-family:Symbol">·</span>Item 1</p>
+      <p class="MsoListParagraph" style="mso-list:l0 level1 lfo1;"><span style="font-family:Symbol">·</span>Item 2</p>
+      <p class="MsoListParagraph" style="mso-list:l0 level1 lfo1;">1. Numbered 1</p>
+      <p class="MsoListParagraph" style="mso-list:l0 level1 lfo1;">2. Numbered 2</p>
+      <p><b>Bold</b> <i>Italic</i> <u>Underline</u></p>
+      <p><a href="https://example.com">Link</a></p>
+      <table class="MsoTableGrid"><tr><td>Cell 1</td><td>Cell 2</td></tr></table>
+      <p style="font-size:14pt; color:#ff0000;">Red 14pt</p>
+    `;
+    const cleaned = cleanWordHtml(wordHtml);
+    
+    // Word junk removed
+    assert(!cleaned.includes("if gte mso"), "Phải loại bỏ conditional comments");
+    assert(!cleaned.includes("<xml"), "Phải loại bỏ XML tags");
+    assert(!cleaned.includes("w:p"), "Phải loại bỏ w:* tags");
+    assert(!cleaned.includes("w:r"), "Phải loại bỏ w:r tags");
+    assert(!cleaned.includes("w:t"), "Phải loại bỏ w:t tags");
+    assert(!cleaned.includes("o:p"), "Phải loại bỏ o:p tags");
+    // mso- styles in style attributes are removed by cleanCssStyleString; class Mso* removed by cleanWordHtml
+    assert(!cleaned.includes("mso-margin-top-alt"), "Phải loại bỏ mso-* styles trong style attribute");
+    // mso-list in style attributes removed; data-vno-mso-list attribute is internal marker, not a style
+    assert(!cleaned.includes('style="mso-list') && !cleaned.includes("style='mso-list"), "Phải loại bỏ mso-list styles trong style attribute");
+    
+    // Headings preserved
+    assert(cleaned.includes("<h1>Title 1</h1>"), "Phải chuyển đổi MsoHeading1 thành h1");
+    assert(cleaned.includes("<h2>Title 2</h2>"), "Phải chuyển đổi MsoHeading2 thành h2");
+    
+    // Lists preserved
+    assert(cleaned.includes("<ul"), "Phải chuyển đổi bullet list thành ul");
+    assert(cleaned.includes("<li>Item 1</li>"), "Phải giữ mục bullet 1");
+    assert(cleaned.includes("<li>Item 2</li>"), "Phải giữ mục bullet 2");
+    assert(cleaned.includes("<ol"), "Phải chuyển đổi numbered list thành ol");
+    assert(cleaned.includes("<li>Numbered 1</li>"), "Phải giữ mục numbered 1");
+    assert(cleaned.includes("<li>Numbered 2</li>"), "Phải giữ mục numbered 2");
+    
+    // Formatting preserved
+    assert(cleaned.includes("<b>Bold</b>"), "Phải giữ in đậm");
+    assert(cleaned.includes("<i>Italic</i>"), "Phải giữ in nghiêng");
+    assert(cleaned.includes("<u>Underline</u>"), "Phải giữ gạch chân");
+    
+    // Links preserved
+    assert(cleaned.includes('<a href="https://example.com">Link</a>'), "Phải giữ liên kết");
+    
+    // Tables preserved
+    assert(cleaned.includes("<table"), "Phải giữ bảng");
+    assert(cleaned.includes("<td>Cell 1</td>"), "Phải giữ ô bảng");
+    assert(!cleaned.includes("MsoTableGrid"), "Phải loại bỏ class MsoTableGrid");
+    
+    // Font size and color preserved
+    assert(cleaned.includes("font-size:14pt"), "Phải giữ cỡ chữ");
+    assert(cleaned.includes("color:#ff0000") || cleaned.includes("color: #ff0000"), "Phải giữ màu chữ");
+  }));
+
+  // End-to-end test: Sheet Paste Special modes produce one Undo step
+  results.push(await test("Sheet Paste Special: each mode creates exactly one Undo step", () => {
+    const container = {
+      querySelector() { return null; },
+      querySelectorAll() { return []; },
+      addEventListener() {},
+      classList: { add() {}, remove() {}, toggle() {} },
+      style: {},
+      innerHTML: "",
+      dataset: {},
+      setAttribute() {},
+      appendChild() {},
+      focus() {},
+    };
+    const grid = new SheetGridController(container);
+    
+    // Set up source data - these calls record history
+    grid.setCellValue("A", 1, 10);
+    grid.cellsData.get("A1").style = { backgroundColor: "#ff0000", fontWeight: "bold", numberFormat: { category: "currency" } };
+    grid.setCellValue("B", 1, 20);
+    grid.cellsData.get("B1").style = { color: "#00ff00", fontStyle: "italic" };
+    
+    const baseUndoLength = grid.undoStack.length; // Should be 2 from the two setCellValue calls
+    
+    const clipboard = {
+      range: { start: { c: "A", r: 1 }, end: { c: "B", r: 1 } },
+      cells: [
+        [
+          { val: 10, formula: "", style: { backgroundColor: "#ff0000", fontWeight: "bold", numberFormat: { category: "currency" } } },
+          { val: 20, formula: "", style: { color: "#00ff00", fontStyle: "italic" } }
+        ]
+      ]
+    };
+    
+    // Test Values Only
+    grid.applyPasteSpecial(clipboard, "values", { c: "D", r: 1 });
+    assert(grid.undoStack.length === baseUndoLength + 1, "Paste Values phải tạo 1 bước Undo");
+    assert(grid.cellsData.get("D1").val === 10, "Phải dán giá trị");
+    assert(grid.cellsData.get("D1").formula === "", "Không được dán công thức");
+    assert(!grid.cellsData.get("D1").style.backgroundColor, "Không được dán định dạng");
+    grid.undo();
+    assert(grid.undoStack.length === baseUndoLength, "Undo phải khôi phục");
+    grid.redo();
+    assert(grid.undoStack.length === baseUndoLength + 1, "Redo phải khôi phục");
+    
+    // Test Formats Only
+    grid.applyPasteSpecial(clipboard, "formats", { c: "E", r: 1 });
+    assert(grid.undoStack.length === baseUndoLength + 2, "Paste Formats phải tạo 1 bước Undo");
+    assert(grid.cellsData.get("E1").style.backgroundColor === "#ff0000", "Phải dán màu nền");
+    assert(grid.cellsData.get("E1").style.fontWeight === "bold", "Phải dán in đậm");
+    assert(grid.cellsData.get("E1").style.numberFormat?.category === "currency", "Phải dán number format");
+    grid.undo();
+    assert(grid.undoStack.length === baseUndoLength + 1, "Undo phải khôi phục");
+    
+    // Test Transpose
+    grid.applyPasteSpecial(clipboard, "transpose", { c: "G", r: 1 });
+    assert(grid.undoStack.length === baseUndoLength + 2, "Paste Transpose phải tạo 1 bước Undo");
+    assert(grid.cellsData.get("G1").val === 10 && grid.cellsData.get("G2").val === 20, "Hàng phải thành cột");
+    grid.undo();
+    assert(grid.undoStack.length === baseUndoLength + 1, "Undo phải khôi phục");
+    
+    // Test Keep Source (source mode)
+    grid.applyPasteSpecial(clipboard, "source", { c: "I", r: 1 });
+    assert(grid.undoStack.length === baseUndoLength + 2, "Paste Source phải tạo 1 bước Undo");
+    assert(grid.cellsData.get("I1").val === 10 && grid.cellsData.get("J1").val === 20, "Phải dán giá trị");
+    assert(grid.cellsData.get("I1").style.backgroundColor === "#ff0000", "Phải dán định dạng");
+    grid.undo();
+    assert(grid.undoStack.length === baseUndoLength + 1, "Undo phải khôi phục");
   }));
 
   return results;
