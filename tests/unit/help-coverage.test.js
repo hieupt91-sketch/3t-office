@@ -36,8 +36,8 @@ export async function runHelpCoverageTests() {
         .join("; ");
       throw new Error(`Còn ${uncovered.length} lệnh Writer chưa có bài Help: ${details}`);
     }
-    // Section options from main, paragraph-formatting, table controls and numbered list restart/continue commands plus pasteSpecial are covered.
-    if (writer.coveredCount !== writer.liveCount || writer.liveCount !== 161) {
+    // Section options from main, paragraph-formatting, table controls and numbered list restart/continue commands, pasteSpecial and spellcheck toggle are covered.
+    if (writer.coveredCount !== writer.liveCount || writer.liveCount !== 162) {
       throw new Error(`Số lượng lệnh Writer không khớp: covered=${writer.coveredCount}, live=${writer.liveCount}`);
     }
   });
@@ -51,7 +51,7 @@ export async function runHelpCoverageTests() {
         .join("; ");
       throw new Error(`Còn ${uncovered.length} lệnh Sheet chưa có bài Help: ${details}`);
     }
-    if (sheet.coveredCount !== sheet.liveCount || sheet.liveCount !== 152) {
+    if (sheet.coveredCount !== sheet.liveCount || sheet.liveCount !== 153) {
       throw new Error(`Số lượng lệnh Sheet không khớp: covered=${sheet.coveredCount}, live=${sheet.liveCount}`);
     }
   });
@@ -65,7 +65,7 @@ export async function runHelpCoverageTests() {
         .join("; ");
       throw new Error(`Còn ${uncovered.length} lệnh Slides chưa có bài Help: ${details}`);
     }
-    if (slides.coveredCount !== slides.liveCount || slides.liveCount !== 109) {
+    if (slides.coveredCount !== slides.liveCount || slides.liveCount !== 110) {
       throw new Error(`Số lượng lệnh Slides không khớp: covered=${slides.coveredCount}, live=${slides.liveCount}`);
     }
   });

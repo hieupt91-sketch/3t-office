@@ -74,6 +74,10 @@ export class SlidesApp {
       });
     });
 
+    globalCommandBus.bindHandler("slides.review.toggleSpellCheck", () => {
+      return this.canvasController?.toggleSpellcheck?.();
+    });
+
     this.shell.setEditorCanvas(workspace);
 
     this.adapter = new SlidesAdapter(this.canvasController);

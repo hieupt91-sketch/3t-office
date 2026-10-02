@@ -294,7 +294,9 @@ export class InputNormalizer {
     if (!this.target) return;
     if (this.target.tagName === "INPUT" || this.target.tagName === "TEXTAREA") {
       this.target.value = value;
-      this.target.setSelectionRange(value.length, value.length);
+      if (typeof this.target.setSelectionRange === "function") {
+        this.target.setSelectionRange(value.length, value.length);
+      }
     } else {
       let p = this.target.querySelector?.("p") || this.target;
       p.textContent = value;

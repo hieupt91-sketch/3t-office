@@ -24,6 +24,7 @@ import { SheetDataTools } from "./data-tools.js";
 import { computeConsolidate, formatSheetRange, parseConsolidateReference, CONSOLIDATE_FUNCTIONS } from "./consolidate.js";
 import { createMatcher } from "../../platform/find/find-engine.js";
 import { InputNormalizer } from "../../platform/keyboard/input-normalizer.js";
+import { isSpellcheckEnabled } from "../../platform/text/spellcheck-dom-controller.js";
 
 const { showAlertDialog, showConfirmDialog, showPromptDialog, showFindReplaceDialog } = createLazyDialogs("sheet");
 
@@ -399,8 +400,31 @@ export class SheetGridController {
     formulaInputWrap.append(this.formulaReferenceOverlay, this.formulaInput);
 
     this._formulaInputNormalizer = new InputNormalizer({
-      target: this.formulaInput
+      target: this.formulaInput,
+      onWordCommit: () => {
+        if (!this.formulaEntry) this._beginFormulaEntry("edit");
+        this._setFormulaEntryValue(this.formulaInput.value, this.formulaInput.selectionStart, {
+          source: "undo"
+        });
+        if (this._inlineSpellController) {
+          this._inlineSpellController._syncFromInput();
+        }
+      }
     }).attach(this.formulaInput);
+
+    this._inlineSpellController = null;
+    import("./sheet-inline-spellcheck.js").then(({ SheetInlineSpellcheck }) => {
+      if (!this._inlineSpellController && this.formulaInput) {
+        this._inlineSpellController = new SheetInlineSpellcheck(this);
+        if (this.formulaInput) {
+          this.formulaInput.dataset.spellcheckStatus = "ready";
+        }
+      }
+    }).catch(() => {});
+
+    globalCommandBus.bindHandler("sheet.review.toggleSpellCheck", () => {
+      return this.toggleSpellcheck();
+    });
 
     this.autocomplete.mount();
 
@@ -1710,6 +1734,8 @@ export class SheetGridController {
     this.setCellValue(coord.c, coord.r, finalValue, true, { coalesce: true });
     if (this.formulaInput) this.formulaInput.value = finalValue;
     this.formulaEntry = null;
+    const committedTd = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${coord.c}${coord.r}"]`);
+    if (committedTd) this._renderCellVisual(committedTd, this.cellsData.get(`${coord.c}${coord.r}`), coord.c, coord.r);
     this._cellValueBeforeEdit = undefined;
     this._formulaPointCoord = null;
     this.autocomplete?.closeAll?.();
@@ -1744,6 +1770,8 @@ export class SheetGridController {
     this.setCellValue(coord.c, coord.r, original, false);
     if (this.formulaInput) this.formulaInput.value = String(original ?? "");
     this.formulaEntry = null;
+    const cancelledTd = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${coord.c}${coord.r}"]`);
+    if (cancelledTd) this._renderCellVisual(cancelledTd, this.cellsData.get(`${coord.c}${coord.r}`), coord.c, coord.r);
     this._cellValueBeforeEdit = undefined;
     this._formulaPointCoord = null;
     this.autocomplete?.closeAll?.();
@@ -3807,6 +3835,11 @@ export class SheetGridController {
     });
     td.addEventListener("contextmenu", event => {
       event.preventDefault();
+      const marker = event.target.closest?.(".vno-spelling-uncertain");
+      if (marker && this._inlineSpellController?.domController?.enabled) {
+        this._inlineSpellController.domController.openMenu(marker, event.clientX, event.clientY);
+        return;
+      }
       const inRange = this._isCoordInSelection(c, r);
       if (!inRange) {
         this.selectCell(c, r);
@@ -10857,12 +10890,36 @@ _bindGridKeyboardNavigation() {
         words: dictionary.VIETNAMESE_DICTIONARY_WORDS
       };
       this._ensureSpellChecker();
+      import("./sheet-inline-spellcheck.js").then(({ SheetInlineSpellcheck }) => {
+        if (!this._inlineSpellController && this.formulaInput) {
+          this._inlineSpellController = new SheetInlineSpellcheck(this);
+        }
+      }).catch(() => {});
       return true;
     }).catch((error) => {
       this._spellcheckModulePromise = null;
       throw error;
     });
     return this._spellcheckModulePromise;
+  }
+
+  toggleSpellcheck() {
+    if (this._inlineSpellController) {
+      const res = this._inlineSpellController.toggle();
+      if (this.formulaEntry?.coord) {
+        const td = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${this.formulaEntry.coord.c}${this.formulaEntry.coord.r}"]`);
+        if (td) this._renderCellVisual(td, this.cellsData.get(`${this.formulaEntry.coord.c}${this.formulaEntry.coord.r}`), this.formulaEntry.coord.c, this.formulaEntry.coord.r);
+      }
+      return res;
+    }
+    return false;
+  }
+
+  isSpellcheckEnabled() {
+    if (this._inlineSpellController?.domController) {
+      return this._inlineSpellController.domController.enabled;
+    }
+    return isSpellcheckEnabled();
   }
 
   isSpellcheckableCell(item) {
@@ -12904,7 +12961,25 @@ _bindGridKeyboardNavigation() {
       // S29a: ô không bọc chữ dùng white-space: pre (giữ dấu cách liên tiếp) nên phải tự bỏ xuống dòng như Excel
       // (Excel không hiện Alt+Enter khi Wrap Text tắt).
       if (!isWrap && typeof text === "string" && text.includes("\n")) text = text.replace(/\r?\n/g, "");
-      td.textContent = text;
+      if (this.formulaEntry && this.formulaEntry.coord?.c === col && this.formulaEntry.coord?.r === row &&
+          typeof text === "string" && !text.startsWith("=") && this.isSpellcheckEnabled() && this.spellChecker) {
+        const issues = this.spellChecker.checkText(text);
+        if (issues.length > 0) {
+          let html = "";
+          let cursor = 0;
+          for (const issue of issues) {
+            html += this._escapeHtml(text.slice(cursor, issue.start));
+            html += `<span class="vno-spelling-uncertain" data-vno-spelling-uncertain="${this._escapeHtml(issue.normalized)}">${this._escapeHtml(text.slice(issue.start, issue.end))}</span>`;
+            cursor = issue.end;
+          }
+          html += this._escapeHtml(text.slice(cursor));
+          td.innerHTML = html;
+        } else {
+          td.textContent = text;
+        }
+      } else {
+        td.textContent = text;
+      }
     }
 
     if (col && row && typeof this._applyRowColSizeToCell === "function") {

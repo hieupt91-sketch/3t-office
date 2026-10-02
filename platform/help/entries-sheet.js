@@ -852,17 +852,18 @@ export const SHEET_HELP_ENTRIES = [
   {
     id: "sheet.review.spellCheck",
     app: "sheet",
-    commandIds: ["sheet.review.spellCheck"],
+    commandIds: ["sheet.review.spellCheck", "sheet.review.toggleSpellCheck"],
     title: "Kiểm tra chính tả tiếng Việt trên trang tính",
-    summary: "F7 (khi đang ở Sheet) hoặc nút Chính tả quét các ô chữ của sheet hiện tại — bỏ qua số, công thức, ô trống. Hộp thoại Bỏ qua / Thay thế / Thêm vào từ điển, dùng chung từ điển cá nhân với Doc và Slide.",
+    summary: "Gạch đỏ sống khi đang sửa ô (F2 hoặc gõ trực tiếp) và thanh công thức (không gạch công thức =). Chuột phải mở menu gợi ý tiếng Việt, Ctrl+Z hoàn tác 1 bước. Nút Bật/Tắt trên tab Xem xét lưu trạng thái qua lần sau. Phím F7 quét toàn bộ trang tính.",
     ribbon: { tab: "Xem xét", tabId: "review", group: "Chứng minh" },
-    keywords: ["chính tả", "spell check", "f7", "từ điển", "tiếng việt", "bỏ qua", "thay thế", "ctrl+z"],
+    keywords: ["chính tả", "spell check", "f7", "từ điển", "tiếng việt", "bỏ qua", "thay thế", "ctrl+z", "gạch đỏ", "bật tắt chính tả", "gợi ý", "chuột phải"],
     steps: [
-      "Tab Xem xét, nhóm Chứng minh, nhấn nút lớn Chính tả — hoặc nhấn phím F7 khi cửa sổ Sheet đang hoạt động.",
-      "Hộp «Chính tả» (460 px) quét ô có chữ cái, bỏ qua công thức (=...), số và ô trống theo thứ tự bảng tính. Hiển thị từ chưa có trong từ điển, tọa độ ô, nội dung ô và danh sách các từ gợi ý tiếng Việt chuẩn.",
-      "Hỗ trợ đầy đủ các thao tác: Bỏ qua, Bỏ qua tất cả (trong phiên làm việc), Thêm vào từ điển (lưu vào bộ nhớ dùng chung bộ ba Doc, Sheet, Slide: vno-spellcheck-vi-personal), Thay thế, Thay thế tất cả và Đóng (hoặc nhấn Esc).",
-      "Thao tác thay thế từ trong ô đi qua hệ thống dữ liệu bảng tính nên bạn có thể nhấn Ctrl+Z để hoàn tác ngay lập tức.",
-      "Sheet không gạch chân trực tiếp trên lưới để bảo vệ tốc độ cuộn và hiển thị hàng ngàn ô dữ liệu tương tự các ứng dụng bảng tính lớn."
+      "Khi đang chỉnh sửa ô (nhấn F2 hoặc gõ trực tiếp) hoặc soạn thảo tại thanh công thức, các từ sai chính tả tiếng Việt tự động được gạch sóng đỏ trực tiếp trong nội dung đang sửa (không áp dụng với công thức bắt đầu bằng dấu '=').",
+      "Nhấp chuột phải vào từ bị gạch sóng đỏ để mở danh sách từ gợi ý tiếng Việt chuẩn xác. Chọn một từ gợi ý để thay thế ngay vào nội dung ô.",
+      "Nhấn Ctrl+Z để hoàn tác việc thay thế trong đúng 1 bước duy nhất, khôi phục lại từ sai ban đầu.",
+      "Tùy chọn Bật/Tắt kiểm tra chính tả: Mở tab Xem xét, nhóm Chứng minh, nhấn nút «Kiểm tra chính tả» để bật hoặc tắt. Khi tắt, toàn bộ gạch đỏ biến mất ngay lập tức; khi bật lại, gạch đỏ xuất hiện trở lại. Lựa chọn được lưu tự động cho các lần mở ứng dụng tiếp theo.",
+      "Quét toàn diện: Nhấn F7 hoặc nút lớn «Chính tả» trên nhóm Chứng minh để mở hộp thoại quét lần lượt các ô có chữ trên toàn bộ sheet hiện tại, hỗ trợ Bỏ qua, Bỏ qua tất cả, Thêm vào từ điển và Thay thế.",
+      "Sau khi rời ô (Enter), để bảo vệ tốc độ cuộn mượt mà của hàng ngàn ô bảng tính và giữ độ trễ gõ phím cực thấp (< 10 ms), đường gạch đỏ tập trung hiển thị trực quan trong chế độ chỉnh sửa."
     ]
   },
   {

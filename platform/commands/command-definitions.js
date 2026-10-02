@@ -178,6 +178,7 @@ export const WRITER_COMMANDS = [
   { id: "writer.trackChanges.acceptAll", category: "review", label: "Chấp nhận thay đổi", icon: "trackChangeAcceptAll", tooltip: "Chấp nhận toàn bộ thay đổi trong tài liệu" },
   { id: "writer.trackChanges.rejectAll", category: "review", label: "Từ chối thay đổi", icon: "trackChangeRejectAll", tooltip: "Từ chối toàn bộ thay đổi trong tài liệu" },
   { id: "writer.review.wordCount", category: "review", label: "Đếm từ", icon: "wordCount", tooltip: "Xem số từ, ký tự, đoạn văn và dòng của tài liệu" },
+  { id: "writer.review.toggleSpellCheck", category: "review", label: "Kiểm tra chính tả", icon: "sheetSpellCheck", tooltip: "Bật hoặc tắt gạch đỏ kiểm tra chính tả tiếng Việt", isToggle: true },
   { id: "writer.help.open", category: "help", label: "Trợ giúp", shortcut: "F1", icon: "help", tooltip: "Mở hướng dẫn sử dụng (F1)", isToggle: true },
 
   // Bố trí trang (Layout)
@@ -349,6 +350,7 @@ export const SHEET_COMMANDS = [
   { id: "sheet.view.gridlines", category: "view", label: "Đường lưới", icon: "gridlines", tooltip: "Ẩn hoặc hiện đường viền ô", isToggle: true },
   { id: "sheet.view.headings", category: "view", label: "Tiêu đề", icon: "headings", tooltip: "Ẩn hoặc hiện tiêu đề hàng và cột", isToggle: true },
   { id: "sheet.review.spellCheck", category: "review", label: "Chính tả", icon: "sheetSpellCheck", tooltip: "Kiểm tra chính tả tiếng Việt trên các ô văn bản của trang tính hiện tại (F7)" },
+  { id: "sheet.review.toggleSpellCheck", category: "review", label: "Kiểm tra chính tả", icon: "sheetSpellCheck", tooltip: "Bật hoặc tắt gạch đỏ kiểm tra chính tả tiếng Việt", isToggle: true },
   { id: "sheet.review.commentInsert", category: "review", label: "Ghi chú mới", icon: "cellComment", tooltip: "Thêm, sửa hoặc xóa ghi chú của ô đang chọn" },
   { id: "sheet.review.commentPrevious", category: "review", label: "Nhận xét trước", icon: "commentPrevious", tooltip: "Nhảy tới nhận xét trước đó" },
   { id: "sheet.review.commentNext", category: "review", label: "Nhận xét sau", icon: "commentNext", tooltip: "Nhảy tới nhận xét tiếp theo" },
@@ -416,6 +418,7 @@ export const SLIDES_COMMANDS = [
   { id: "slides.review.commentDelete", category: "review", label: "Xóa nhận xét", icon: "commentDelete", tooltip: "Xóa nhận xét đang chọn" },
   { id: "slides.review.commentResolve", category: "review", label: "Đã xử lý", icon: "commentResolve", tooltip: "Đánh dấu hoặc mở lại nhận xét đang chọn" },
   { id: "slides.review.spellCheck", category: "review", label: "Chính tả", icon: "slidesSpellCheck", tooltip: "Kiểm tra chính tả tiếng Việt trên trang chiếu hiện tại (F7)" },
+  { id: "slides.review.toggleSpellCheck", category: "review", label: "Kiểm tra chính tả", icon: "slidesSpellCheck", tooltip: "Bật hoặc tắt gạch đỏ kiểm tra chính tả tiếng Việt", isToggle: true },
   { id: "slides.edit.formatPainter", category: "edit", label: "Sao chép định dạng", icon: "formatPainter", tooltip: "Sao chép định dạng chữ hoặc hình đang chọn sang đối tượng khác. Nhấp đúp để khóa và áp dụng nhiều lần. Esc để hủy.", isToggle: true },
   { id: "slides.edit.selectAll", category: "edit", label: "Chọn tất cả", icon: "selectAll", tooltip: "Chọn tất cả hình trên trang chiếu hiện tại" },
   { id: "slides.edit.selectObjects", category: "edit", label: "Chọn đối tượng", icon: "selectObjects", tooltip: "Chọn các đối tượng vẽ trên trang chiếu hiện tại (không gồm đường nối)" },

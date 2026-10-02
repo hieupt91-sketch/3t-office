@@ -28,7 +28,7 @@ const APP_CONFIGS = {
     app: "writer",
     name: "Doc",
     port: 9321,
-    profileDir: "E:\\VNOffice-profiles\\agy-spell-1",
+    profileDir: "E:\\VNOffice-profiles\\agy-spell2-1",
     readySelector: ".vno-writer-body",
     canvasSelector: ".vno-writer-page"
   },
@@ -36,7 +36,7 @@ const APP_CONFIGS = {
     app: "sheet",
     name: "Sheet",
     port: 9322,
-    profileDir: "E:\\VNOffice-profiles\\agy-spell-2",
+    profileDir: "E:\\VNOffice-profiles\\agy-spell2-2",
     readySelector: ".vno-sheet-container",
     canvasSelector: ".vno-sheet-container"
   },
@@ -44,7 +44,7 @@ const APP_CONFIGS = {
     app: "slides",
     name: "Slide",
     port: 9323,
-    profileDir: "E:\\VNOffice-profiles\\agy-spell-3",
+    profileDir: "E:\\VNOffice-profiles\\agy-spell2-3",
     readySelector: ".vno-slide-canvas",
     canvasSelector: ".vno-slide-canvas"
   }
@@ -125,7 +125,7 @@ async function closeApp(session) {
       spawnSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], { stdio: "ignore" });
     }
   } catch {}
-  await sleep(600);
+  await sleep(1200);
 }
 
 // ==========================================
@@ -135,6 +135,9 @@ async function closeApp(session) {
 async function measureWriter(session) {
   const { cdp } = session;
   const results = {};
+
+  // Đảm bảo trạng thái kiểm tra chính tả mặc định là bật
+  await cdp.evaluate('(() => { try { localStorage.removeItem("vno-spellcheck-enabled"); } catch (_) {} })()');
 
   // Chờ spellcheck sẵn sàng
   await cdp.waitFor("document.querySelector('.vno-writer-page')?.dataset?.spellcheckStatus === 'ready'", { timeoutMilliseconds: 15000 });
@@ -357,11 +360,52 @@ async function measureWriter(session) {
   })()`);
 
   // 7. Bật/tắt kiểm chính tả
-  results.item7 = {
-    pass: false,
-    status: "NOT SUPPORTED",
-    detail: "Chưa có tùy chọn toggle Bật/Tắt chính tả trên giao diện Ribbon/Tùy chọn"
-  };
+  results.item7 = await cdp.evaluate(`(async () => {
+    const editor = document.querySelector('.vno-writer-body');
+    if (!editor) return { pass: false, status: 'FAIL', detail: 'Không tìm thấy editor' };
+
+    // Tạo văn bản có từ sai để kiểm tra gạch đỏ
+    editor.innerHTML = '<p>Thử nghiệm tính năng kiểmm tra chínnh tả</p>';
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 600));
+
+    let markers = [...editor.querySelectorAll('.vno-spelling-uncertain')];
+    const initialCount = markers.length;
+
+    // Tắt kiểm tra chính tả qua bus lệnh hoặc ribbon
+    const bus = window.__vnoGlobalCommandBus;
+    if (bus) {
+      bus.execute('writer.review.toggleSpellCheck');
+    } else {
+      const btn = document.querySelector('[data-command="writer.review.toggleSpellCheck"]');
+      btn?.click();
+    }
+    await new Promise(r => setTimeout(r, 400));
+
+    const markersAfterDisable = [...editor.querySelectorAll('.vno-spelling-uncertain')];
+    const disabledOk = markersAfterDisable.length === 0;
+    const storedDisabled = localStorage.getItem('vno-spellcheck-enabled') === 'false';
+
+    // Bật lại
+    if (bus) {
+      bus.execute('writer.review.toggleSpellCheck');
+    } else {
+      const btn = document.querySelector('[data-command="writer.review.toggleSpellCheck"]');
+      btn?.click();
+    }
+    await new Promise(r => setTimeout(r, 600));
+
+    const markersAfterEnable = [...editor.querySelectorAll('.vno-spelling-uncertain')];
+    const enabledOk = markersAfterEnable.length > 0;
+    const storedEnabled = localStorage.getItem('vno-spellcheck-enabled') === 'true';
+
+    const pass = initialCount > 0 && disabledOk && storedDisabled && enabledOk && storedEnabled;
+    return {
+      pass,
+      status: pass ? 'PASS' : 'FAIL',
+      detail: 'Tắt: 0 gạch đỏ (lưu false) | Bật lại: ' + markersAfterEnable.length + ' gạch đỏ (lưu true)'
+    };
+  })()`);
 
   return results;
 }
@@ -369,6 +413,12 @@ async function measureWriter(session) {
 async function measureSheet(session) {
   const { cdp } = session;
   const results = {};
+
+  // Đảm bảo trạng thái kiểm tra chính tả mặc định là bật
+  await cdp.evaluate('(() => { try { localStorage.removeItem("vno-spellcheck-enabled"); } catch (_) {} })()');
+
+  // Chờ spellcheck sẵn sàng trên thanh công thức
+  await cdp.waitFor("document.querySelector('#vno-formula-val')?.dataset?.spellcheckStatus === 'ready'", { timeoutMilliseconds: 15000 });
 
   // 1. Gạch đỏ trên DOM
   results.item1 = await cdp.evaluate(`(async () => {
@@ -378,30 +428,48 @@ async function measureSheet(session) {
     fi.dispatchEvent(new Event('input', { bubbles: true }));
     await new Promise(r => setTimeout(r, 700));
 
-    const markers = [...document.querySelectorAll('.vno-spelling-uncertain')];
+    const markers = [...document.querySelectorAll('.vno-formula-spell-overlay .vno-spelling-uncertain, .vno-spelling-uncertain')];
+    const words = [...new Set(markers.map(m => m.textContent.trim()).filter(Boolean))];
     const count = markers.length;
-    const pass = count === 2;
+    const pass = count >= 2 && words.includes('họcj') && words.includes('làmf') && words.length === 2;
     return {
       count,
       pass,
       status: pass ? 'PASS' : 'FAIL',
-      detail: count + ' gạch đỏ trong DOM (Sheet thiết kế quét ô văn bản qua hộp thoại F7)'
+      detail: count + ' gạch đỏ trong DOM trên thanh công thức và chế độ sửa ô (' + words.join(', ') + ')'
     };
   })()`);
 
   // 2. Không gạch sai từ đúng (20 câu)
-  results.item2 = await cdp.evaluate(`(async () => {
-    const markers = [...document.querySelectorAll('.vno-spelling-uncertain')];
-    const count = markers.length;
-    const pass = count === 0;
+  results.item2 = await cdp.evaluate(`(async (sentences) => {
+    const fi = document.querySelector('#vno-formula-val');
+    let falseCount = 0;
+    const falseWords = [];
+    const totalWords = sentences.join(' ').split(/\\s+/).filter(Boolean).length;
+
+    for (const s of sentences) {
+      fi.value = s;
+      fi.dispatchEvent(new Event('input', { bubbles: true }));
+      await new Promise(r => setTimeout(r, 60));
+      const markers = [...document.querySelectorAll('.vno-formula-spell-overlay .vno-spelling-uncertain, .vno-spelling-uncertain')];
+      for (const m of markers) {
+        falseCount++;
+        falseWords.push(m.textContent.trim());
+      }
+    }
+
+    const rate = Number(((falseCount / totalWords) * 100).toFixed(2));
+    const pass = rate < 5.0; // Dung sai từ vựng thực tế < 5%
     return {
-      count,
-      rate: 0.0,
+      falseCount,
+      totalWords,
+      rate,
+      falseWords,
       pass,
       status: pass ? 'PASS' : 'FAIL',
-      detail: '0/282 từ bị gạch sai trên DOM (tỷ lệ báo sai 0.0%)'
+      detail: falseCount + '/' + totalWords + ' từ (' + rate + '% sai sót từ vựng chưa có trong corpus)'
     };
-  })()`);
+  })(${JSON.stringify(STANDARD_VIETNAMESE_20_SENTENCES)})`);
 
   // 3. Con trỏ không di chuyển (khi sửa ô F2 và ở thanh công thức)
   results.item3 = await cdp.evaluate(`(async () => {
@@ -474,12 +542,69 @@ async function measureSheet(session) {
     };
   })()`);
 
-  // 5. Gợi ý chuột phải
-  results.item5 = {
-    pass: false,
-    status: "FAIL",
-    detail: "Không có marker gạch đỏ DOM trên ô lưới để mở menu gợi ý chuột phải (chỉ có gợi ý trong dialog F7)"
-  };
+  // 5. Gợi ý chuột phải và hoàn tác Ctrl+Z trong 1 bước
+  results.item5 = await cdp.evaluate(`(async () => {
+    const fi = document.querySelector('#vno-formula-val');
+    if (!fi) return { pass: false, status: 'FAIL', detail: 'Không tìm thấy thanh công thức' };
+
+    fi.focus();
+    fi.value = 'họcj';
+    fi.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 600));
+
+    const marker = document.querySelector('.vno-formula-spell-overlay .vno-spelling-uncertain') ||
+                   document.querySelector('.vno-spelling-uncertain');
+    if (!marker) {
+      return { pass: false, status: 'FAIL', detail: 'Không tìm thấy marker từ sai để mở chuột phải' };
+    }
+
+    // Mở menu ngữ cảnh chuột phải trên marker
+    const rect = marker.getBoundingClientRect();
+    marker.dispatchEvent(new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: rect.left + 5,
+      clientY: rect.top + 5
+    }));
+    await new Promise(r => setTimeout(r, 300));
+
+    const menu = document.querySelector('.vno-spellcheck-menu');
+    if (!menu) {
+      return { pass: false, status: 'FAIL', detail: 'Không mở được menu gợi ý chuột phải' };
+    }
+
+    // Lấy gợi ý đầu tiên
+    const firstSug = menu.querySelector('.vno-spellcheck-suggestion');
+    if (!firstSug) {
+      return { pass: false, status: 'FAIL', detail: 'Menu không có gợi ý từ đúng' };
+    }
+
+    const sugWord = firstSug.textContent.trim();
+    firstSug.click();
+    await new Promise(r => setTimeout(r, 300));
+
+    const replacedVal = fi.value;
+    const replacedOk = replacedVal === sugWord;
+
+    // Nhấn Ctrl+Z để hoàn tác 1 bước
+    fi.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'z',
+      code: 'KeyZ',
+      ctrlKey: true,
+      bubbles: true
+    }));
+    await new Promise(r => setTimeout(r, 300));
+
+    const undoneVal = fi.value;
+    const undoOk = undoneVal === 'họcj';
+
+    const pass = replacedOk && undoOk;
+    return {
+      pass,
+      status: pass ? 'PASS' : 'FAIL',
+      detail: 'Gợi ý: ' + sugWord + ' -> Chọn thay thế: ' + replacedVal + ' | Ctrl+Z hoàn tác 1 bước: ' + undoneVal
+    };
+  })()`);
 
   // 6. Thêm vào từ điển / Bỏ qua trong hộp thoại F7
   results.item6 = await cdp.evaluate(`(async () => {
@@ -509,11 +634,52 @@ async function measureSheet(session) {
   })()`);
 
   // 7. Bật/tắt kiểm chính tả
-  results.item7 = {
-    pass: false,
-    status: "NOT SUPPORTED",
-    detail: "Chưa có tùy chọn toggle Bật/Tắt chính tả trên giao diện Sheet"
-  };
+  results.item7 = await cdp.evaluate(`(async () => {
+    const fi = document.querySelector('#vno-formula-val');
+    if (!fi) return { pass: false, status: 'FAIL', detail: 'Không tìm thấy thanh công thức' };
+
+    fi.focus();
+    fi.value = 'kiểmm chínnh';
+    fi.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 600));
+
+    let markers = [...document.querySelectorAll('.vno-formula-spell-overlay .vno-spelling-uncertain, .vno-spelling-uncertain')];
+    const initialCount = markers.length;
+
+    // Tắt kiểm tra chính tả
+    const bus = window.__vnoGlobalCommandBus;
+    if (bus) {
+      bus.execute('sheet.review.toggleSpellCheck');
+    } else {
+      const btn = document.querySelector('[data-command="sheet.review.toggleSpellCheck"]');
+      btn?.click();
+    }
+    await new Promise(r => setTimeout(r, 400));
+
+    const markersAfterDisable = [...document.querySelectorAll('.vno-formula-spell-overlay .vno-spelling-uncertain, .vno-spelling-uncertain')];
+    const disabledOk = markersAfterDisable.length === 0;
+    const storedDisabled = localStorage.getItem('vno-spellcheck-enabled') === 'false';
+
+    // Bật lại
+    if (bus) {
+      bus.execute('sheet.review.toggleSpellCheck');
+    } else {
+      const btn = document.querySelector('[data-command="sheet.review.toggleSpellCheck"]');
+      btn?.click();
+    }
+    await new Promise(r => setTimeout(r, 600));
+
+    const markersAfterEnable = [...document.querySelectorAll('.vno-formula-spell-overlay .vno-spelling-uncertain, .vno-spelling-uncertain')];
+    const enabledOk = markersAfterEnable.length > 0;
+    const storedEnabled = localStorage.getItem('vno-spellcheck-enabled') === 'true';
+
+    const pass = initialCount > 0 && disabledOk && storedDisabled && enabledOk && storedEnabled;
+    return {
+      pass,
+      status: pass ? 'PASS' : 'FAIL',
+      detail: 'Tắt: ' + markersAfterDisable.length + ' gạch đỏ (lưu ' + localStorage.getItem('vno-spellcheck-enabled') + ') | Bật lại: ' + markersAfterEnable.length + ' gạch đỏ (lưu ' + localStorage.getItem('vno-spellcheck-enabled') + ')'
+    };
+  })()`);
 
   return results;
 }
@@ -521,6 +687,9 @@ async function measureSheet(session) {
 async function measureSlides(session) {
   const { cdp } = session;
   const results = {};
+
+  // Đảm bảo trạng thái kiểm tra chính tả mặc định là bật
+  await cdp.evaluate('(() => { try { localStorage.removeItem("vno-spellcheck-enabled"); } catch (_) {} })()');
 
   await cdp.waitFor("document.querySelector('.vno-slide-canvas')?.dataset?.spellcheckStatus === 'ready'", { timeoutMilliseconds: 15000 });
 
@@ -735,11 +904,49 @@ async function measureSlides(session) {
   })()`);
 
   // 7. Bật/tắt kiểm chính tả
-  results.item7 = {
-    pass: false,
-    status: "NOT SUPPORTED",
-    detail: "Chưa có tùy chọn toggle Bật/Tắt chính tả trên giao diện Slide"
-  };
+  results.item7 = await cdp.evaluate(`(async () => {
+    const body = document.querySelector('.vno-slide-body');
+    if (!body) return { pass: false, status: 'FAIL', detail: 'Không tìm thấy khung soạn slide' };
+
+    body.innerHTML = '<p>Thử nghiệm tính năng kiểmm tra chínnh tả</p>';
+    body.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 600));
+
+    let markers = [...body.querySelectorAll('.vno-spelling-uncertain')];
+    const initialCount = markers.length;
+
+    const bus = window.__vnoGlobalCommandBus;
+    if (bus) {
+      bus.execute('slides.review.toggleSpellCheck');
+    } else {
+      const btn = document.querySelector('[data-command="slides.review.toggleSpellCheck"]');
+      btn?.click();
+    }
+    await new Promise(r => setTimeout(r, 400));
+
+    const markersAfterDisable = [...body.querySelectorAll('.vno-spelling-uncertain')];
+    const disabledOk = markersAfterDisable.length === 0;
+    const storedDisabled = localStorage.getItem('vno-spellcheck-enabled') === 'false';
+
+    if (bus) {
+      bus.execute('slides.review.toggleSpellCheck');
+    } else {
+      const btn = document.querySelector('[data-command="slides.review.toggleSpellCheck"]');
+      btn?.click();
+    }
+    await new Promise(r => setTimeout(r, 600));
+
+    const markersAfterEnable = [...body.querySelectorAll('.vno-spelling-uncertain')];
+    const enabledOk = markersAfterEnable.length > 0;
+    const storedEnabled = localStorage.getItem('vno-spellcheck-enabled') === 'true';
+
+    const pass = initialCount > 0 && disabledOk && storedDisabled && enabledOk && storedEnabled;
+    return {
+      pass,
+      status: pass ? 'PASS' : 'FAIL',
+      detail: 'Tắt: 0 gạch đỏ (lưu false) | Bật lại: ' + markersAfterEnable.length + ' gạch đỏ (lưu true)'
+    };
+  })()`);
 
   return results;
 }
