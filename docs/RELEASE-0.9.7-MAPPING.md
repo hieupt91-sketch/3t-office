@@ -53,7 +53,7 @@ Có 32 merge vào `main` sau `69133660` (`git log --first-parent --merges 691336
 | 11 | Chung | Tạo mới ở Sheet/Slide mở cửa sổ mới | `1529cd25` |
 | 12 | Chung | Ổn định tiến trình: dọn tiến trình thừa, lưu tạm 2 phút, nhật ký hiệu năng tuỳ chọn | `fa29db17` |
 | 13 | Doc | Thước, thụt đầu dòng, đánh số lại từ 1, lệnh Bảng, ảnh 8 tay cầm/giữ tỉ lệ/ngắt dòng, bảng tạm, gợi ý chinh tả | `8348eb92` |
-| 14 | Doc | Sửa lỗi đánh trang làm mất ký tự cuối đoạn khi lưu | `8348eb92` |
+| 14 | Doc | Sửa lỗi số trang trên màn hình lệch bản in (CSS trang) | `8348eb92` |
 | 15 | Doc | Chèn phương trình Alt+=, dạng tuyến tính, lưu/mở lại giữ nguyên | `9a1e7ff9` |
 | 16 | Sheet | 5 lỗi: số/ngày lưu thành số thật, giữ thiết lập in, Ctrl+A chọn vùng, sắp xếp giữ tiêu đề, xóa trang tính và màu tab | `214d3e7a` |
 | 17 | Sheet | Đủ 1.048.576 hàng × 16.384 cột (trước 200 × 26), ảo hoá vùng nhìn thấy, Ctrl+mũi tên, ô tên vùng | `e8178cc9` |

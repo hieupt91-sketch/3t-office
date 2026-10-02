@@ -6,7 +6,7 @@ Ngày phát hành: 02/10/2026
 - Cập nhật một chạm: khi có bản vá mới, ứng dụng báo trước, lưu tài liệu rồi tự áp bản vá và mở lại; mỗi bước được ghi nhật ký để khôi phục khi có lỗi.
 - Tìm/Thay thế dùng chung cho cả 3 ứng dụng: Ctrl+F để tìm, Ctrl+H để thay thế, F3 cho lần tìm kế tiếp.
 - Gõ tiếng Việt bằng bộ gõ ngoài (Unikey, EVKey): Ctrl+Z hoàn tác theo từng từ, chữ được chuẩn hóa, gợi ý công thức không bị chèn nhầm vào nội dung.
-- Chinh tả tiếng Việt: từ sai được gạch đỏ ngay khi gõ, chuột phải để chọn cách sửa, và bật/tắt chinh tả trong Tùy chọn cho cả 3 ứng dụng.
+- Chính tả tiếng Việt: từ sai được gạch đỏ ngay khi gõ, chuột phải để chọn cách sửa, và bật/tắt chính tả trong Tùy chọn cho cả 3 ứng dụng.
 - Tên ngắn Doc, Sheet, Slide dùng thống nhất ở tiêu đề cửa sổ, giao diện và nội dung mẫu.
 - Phím tắt trên desktop và khi ghim thanh tác vụ dùng tên ngắn Doc, Sheet, Slide; sau khi nâng cấp không còn giữ tên cũ.
 - Hộp thoại In không còn hiển thị tên thư viện kỹ thuật bên trong.
@@ -16,8 +16,8 @@ Ngày phát hành: 02/10/2026
 - Ổn định tiến trình: không còn tiến trình thừa do ứng dụng tạo ra khi đóng hoặc mở lại; bản lưu tạm cứ 2 phút một lần giúp khôi phục tài liệu khi ứng dụng bị treo; nhật ký hiệu năng chỉ ghi khi bạn bật trong Trợ giúp.
 
 2. Doc:
-- Thêm Thước ngang và dọc, Thụt đầu dòng, Đánh số lại từ 1; nhóm lệnh Bảng (chèn/xóa hàng cột, gộp/tách ô, căn ô, tô màu ô, đường viền, hàng tiêu đề); ảnh có 8 tay cầm, giữ tỉ lệ và ngắt dòng chữ quanh ảnh; lệnh cắt/dán và gợi ý chinh tả khi chuột phải.
-- Sửa lỗi đánh trang làm mất ký tự cuối đoạn khi lưu tài liệu.
+- Thêm Thước ngang và dọc, Thụt đầu dòng, Đánh số lại từ 1; nhóm lệnh Bảng (chèn/xóa hàng cột, gộp/tách ô, căn ô, tô màu ô, đường viền, hàng tiêu đề); ảnh có 8 tay cầm, giữ tỉ lệ và ngắt dòng chữ quanh ảnh; lệnh cắt/dán và gợi ý chính tả khi chuột phải.
+- Sửa lỗi số trang trên màn hình lệch so với bản in (phông chữ và giãn dòng của trang bị áp sai).
 - Chèn phương trình bằng Alt+=, soạn được dạng tuyến tính, lưu và mở lại vẫn giữ nguyên vị trí.
 
 3. Sheet:
