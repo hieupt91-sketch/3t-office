@@ -8,7 +8,7 @@ import { globalShortcutManager } from "../commands/shortcut-manager.js";
 import { globalMacroManager } from "../commands/macro-manager.js";
 import { RibbonHost } from "../ribbon/ribbon-host.js";
 import { OFFICE_TEMPLATES } from "../templates/template-registry.js";
-import { RecentFilesManager } from "../recent/recent-manager.js";
+import { RecentFilesManager, formatShortPath } from "../recent/recent-manager.js";
 import { createEmptyState } from "../ui-kit/components.js";
 import { withLazyFeatureProgress } from "../startup/lazy-feature.js";
 import { isVoiceInputSupported, startVoiceInput, stopVoiceInput, isVoiceInputActive } from "../ai/voice-input.js";
@@ -552,13 +552,13 @@ export class AppShell {
       }
     });
 
-    ws.addEventListener("wheel", (e) => {
+    this.rootEl.addEventListener("wheel", (e) => {
       if (e.ctrlKey) {
         e.preventDefault();
         const delta = e.deltaY < 0 ? 10 : -10;
         this.setZoom(this.zoomLevel + delta);
       }
-    }, { capture: true, passive: false });
+    }, { passive: false });
 
     ws.appendChild(this.editorContainer);
     ws.appendChild(this.aiSidebar);
@@ -583,12 +583,13 @@ export class AppShell {
       </div>
 
       <div class="vno-statusbar-right">
+        ${this._renderViewModesHtml()}
         <div class="vno-zoom-slider" role="group" aria-label="Điều chỉnh thu phóng">
           <button type="button" id="vno-zoom-out" aria-label="Thu nhỏ" title="Thu nhỏ">-</button>
           <input type="range" id="vno-zoom-range" min="50" max="200" value="${this.zoomLevel}"
                  aria-label="Tỷ lệ thu phóng" aria-valuemin="50" aria-valuemax="200" aria-valuenow="${this.zoomLevel}" />
           <button type="button" id="vno-zoom-in" aria-label="Phóng to" title="Phóng to">+</button>
-          <span id="vno-zoom-text" style="min-width:38px;text-align:right;" aria-live="polite">${this.zoomLevel}%</span>
+          <button type="button" id="vno-zoom-text" class="vno-zoom-percent-btn" aria-label="Tỷ lệ thu phóng ${this.zoomLevel}% (Bấm để đặt lại 100%)" title="Tỷ lệ thu phóng (Bấm để đặt lại 100%)" aria-live="polite">${this.zoomLevel}%</button>
         </div>
       </div>
     `;
@@ -598,8 +599,47 @@ export class AppShell {
     zoomRange.addEventListener("input", (e) => this.setZoom(Number(e.target.value)));
     sb.querySelector("#vno-zoom-out").addEventListener("click", () => this.setZoom(this.zoomLevel - 10));
     sb.querySelector("#vno-zoom-in").addEventListener("click", () => this.setZoom(this.zoomLevel + 10));
+    sb.querySelector("#vno-zoom-text")?.addEventListener("click", () => this.setZoom(100));
+
+    sb.querySelectorAll(".vno-statusbar-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const cmd = btn.getAttribute("data-cmd");
+        if (cmd) globalCommandBus.execute(cmd);
+        sb.querySelectorAll(".vno-statusbar-btn").forEach(b => b.classList.remove("is-active"));
+        btn.classList.add("is-active");
+      });
+    });
 
     this.rootEl.appendChild(sb);
+  }
+
+  _renderViewModesHtml() {
+    if (this.appName === "writer") {
+      return `
+        <div class="vno-statusbar-view-modes" role="toolbar" aria-label="Chế độ xem">
+          <button type="button" class="vno-statusbar-btn is-active" data-view-mode="printLayout" data-cmd="writer.view.printLayout" title="Bố cục in" aria-label="Bố cục in">${ICONS.writerPrintLayout}</button>
+          <button type="button" class="vno-statusbar-btn" data-view-mode="readMode" data-cmd="writer.view.readMode" title="Chế độ đọc" aria-label="Chế độ đọc">${ICONS.writerReadMode}</button>
+          <button type="button" class="vno-statusbar-btn" data-view-mode="webLayout" data-cmd="writer.view.webLayout" title="Bố cục web" aria-label="Bố cục web">${ICONS.writerWebLayout}</button>
+        </div>`;
+    }
+    if (this.appName === "sheet") {
+      return `
+        <div class="vno-statusbar-view-modes" role="toolbar" aria-label="Chế độ xem">
+          <button type="button" class="vno-statusbar-btn is-active" data-view-mode="normal" data-cmd="sheet.view.normal" title="Bình thường" aria-label="Bình thường">${ICONS.sheetNormalView}</button>
+          <button type="button" class="vno-statusbar-btn" data-view-mode="pageLayout" data-cmd="sheet.view.pageLayout" title="Bố cục trang" aria-label="Bố cục trang">${ICONS.sheetPageLayout}</button>
+          <button type="button" class="vno-statusbar-btn" data-view-mode="pageBreakPreview" data-cmd="sheet.view.pageBreakPreview" title="Xem trước ngắt trang" aria-label="Xem trước ngắt trang">${ICONS.sheetPageBreakPreview}</button>
+        </div>`;
+    }
+    if (this.appName === "slides") {
+      return `
+        <div class="vno-statusbar-view-modes" role="toolbar" aria-label="Chế độ xem">
+          <button type="button" class="vno-statusbar-btn is-active" data-view-mode="normal" data-cmd="slides.view.normal" title="Thông thường" aria-label="Thông thường">${ICONS.slidesNormalView}</button>
+          <button type="button" class="vno-statusbar-btn" data-view-mode="slideSorter" data-cmd="slides.view.slideSorter" title="Bộ sắp xếp trang chiếu" aria-label="Bộ sắp xếp trang chiếu">${ICONS.slideSorter}</button>
+          <button type="button" class="vno-statusbar-btn" data-view-mode="reading" data-cmd="slides.view.reading" title="Chế độ xem đọc" aria-label="Chế độ xem đọc">${ICONS.slidesReadingView}</button>
+          <button type="button" class="vno-statusbar-btn" data-view-mode="slideshow" data-cmd="slides.slideshow.fromBeginning" title="Trình chiếu" aria-label="Trình chiếu">${ICONS.slidePlay}</button>
+        </div>`;
+    }
+    return "";
   }
 
   setZoom(val) {
@@ -612,6 +652,7 @@ export class AppShell {
     }
     if (zoomText) {
       zoomText.textContent = `${this.zoomLevel}%`;
+      zoomText.setAttribute("aria-label", `Tỷ lệ thu phóng ${this.zoomLevel}% (Bấm để đặt lại 100%)`);
     }
     if (typeof this.onZoomChange === "function") {
       try {
@@ -639,6 +680,7 @@ export class AppShell {
     }
     if (zoomText) {
       zoomText.textContent = `${this.zoomLevel}%`;
+      zoomText.setAttribute("aria-label", `Tỷ lệ thu phóng ${this.zoomLevel}% (Bấm để đặt lại 100%)`);
     }
     for (const listener of [...this._zoomListeners]) listener(this.zoomLevel);
   }
@@ -756,15 +798,20 @@ export class AppShell {
         const timeStr = new Date(file.lastModified).toLocaleDateString("vi-VN", {
           day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit"
         });
+        const shortPath = formatShortPath(file.path);
         return `
           <div class="vno-recent-row" role="button" tabindex="0" aria-label="${file.name}, sửa đổi: ${timeStr}, định dạng: ${file.format}"
                data-recent-app="${file.app}" data-recent-name="${file.name}" data-recent-path="${encodeURIComponent(file.path)}">
             <div style="min-width:0;flex:1;">
-              <strong style="font-size:13px;color:var(--vno-text-primary);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${file.name}</strong>
-              <div style="font-size:11px;color:var(--vno-text-muted);margin-top:2px;">Sửa đổi: ${timeStr}</div>
+              <strong class="vno-recent-name" style="font-size:13px;color:var(--vno-text-primary);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${file.name}</strong>
+              <div class="vno-recent-path" title="${file.path}" style="font-size:11px;color:var(--vno-text-muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                <span class="vno-recent-short-path">${shortPath}</span>
+                <span aria-hidden="true"> • </span>
+                <span class="vno-recent-mod-time">Sửa đổi: ${timeStr}</span>
+              </div>
             </div>
             <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;">
-              <span style="font-size:12px;color:var(--vno-text-secondary);">${file.format}</span>
+              <span class="vno-recent-format" style="font-size:12px;color:var(--vno-text-secondary);">${file.format}</span>
               <button type="button" class="vno-recent-remove-btn"
                       data-remove-name="${file.name}" data-remove-app="${file.app}"
                       title="${t("backstage.removeRecentTooltip", "Gỡ tệp này khỏi danh sách gần đây")}"
@@ -799,16 +846,17 @@ export class AppShell {
           <span>Quay lại</span>
         </button>
         <button type="button" class="vno-backstage-nav-btn is-active" data-backstage-tab="home" id="vno-backstage-nav-home">${t("backstage.home")}</button>
-        <button type="button" class="vno-backstage-nav-btn" data-backstage-cmd="common.file.new">${t("backstage.new")}</button>
-        <button type="button" class="vno-backstage-nav-btn" data-backstage-cmd="common.file.open">${t("backstage.open")}</button>
-        <button type="button" class="vno-backstage-nav-btn" data-backstage-cmd="common.file.save">${t("backstage.save")}</button>
-        <button type="button" class="vno-backstage-nav-btn" data-backstage-cmd="common.file.saveAs">${t("backstage.saveAs")}</button>
+        <button type="button" class="vno-backstage-nav-btn" data-backstage-cmd="common.file.new" id="vno-backstage-nav-new">${t("backstage.new")}</button>
+        <button type="button" class="vno-backstage-nav-btn" data-backstage-cmd="common.file.open" id="vno-backstage-nav-open">${t("backstage.open")}</button>
+        <button type="button" class="vno-backstage-nav-btn" data-backstage-cmd="common.file.save" id="vno-backstage-nav-save">${t("backstage.save")}</button>
+        <button type="button" class="vno-backstage-nav-btn" data-backstage-cmd="common.file.saveAs" id="vno-backstage-nav-saveas">${t("backstage.saveAs")}</button>
         <button type="button" class="vno-backstage-nav-btn" data-backstage-tab="print" id="vno-backstage-nav-print">${t("backstage.print")}</button>
-        <button type="button" class="vno-backstage-nav-btn" data-backstage-cmd="common.file.exportPdf">${t("backstage.exportPdf")}</button>
-        <button type="button" class="vno-backstage-nav-btn" data-backstage-action="closeDocument" id="vno-backstage-close">${t("backstage.close", "Đóng")}</button>
+        <button type="button" class="vno-backstage-nav-btn" data-backstage-cmd="common.file.exportPdf" id="vno-backstage-nav-exportpdf">${t("backstage.exportPdf")}</button>
+        <button type="button" class="vno-backstage-nav-btn" data-backstage-tab="recent" id="vno-backstage-nav-recent">${t("backstage.recent")}</button>
+        <button type="button" class="vno-backstage-nav-btn" data-backstage-action="closeDocument" id="vno-backstage-close">${t("backstage.close")}</button>
         <div style="flex:1;"></div>
         <button type="button" class="vno-backstage-nav-btn" id="vno-backstage-about">${t("backstage.about")}</button>
-        <button type="button" class="vno-backstage-nav-btn" id="vno-backstage-options">${t("backstage.options", "Tùy chọn")}</button>
+        <button type="button" class="vno-backstage-nav-btn" id="vno-backstage-options">${t("backstage.options")}</button>
       </div>
 
       <div class="vno-backstage-content" role="main" aria-label="Nội dung menu tệp">
@@ -822,6 +870,12 @@ export class AppShell {
 
           <h2 style="font-size:18px;font-weight:700;margin-top:36px;margin-bottom:16px;color:var(--vno-text-primary);">${t("backstage.recentTitle")}</h2>
           <div id="vno-recent-section-wrapper">${recentSectionHtml}</div>
+        </div>
+
+        <div class="vno-backstage-tab-content" id="vno-backstage-recent-view" style="display:none;">
+          <h1 style="font-size:24px;font-weight:700;margin-bottom:8px;color:var(--vno-text-primary);">${t("backstage.recentTitle")}</h1>
+          <p style="color:var(--vno-text-muted);font-size:13px;margin-bottom:24px;">Danh sách các tài liệu bạn đã mở và làm việc gần đây trên thiết bị này.</p>
+          <div id="vno-recent-tab-section-wrapper">${recentSectionHtml}</div>
         </div>
 
         <div class="vno-backstage-tab-content" id="vno-backstage-print-view" style="display:none;"></div>
@@ -971,22 +1025,17 @@ export class AppShell {
     document.addEventListener("keydown", onBackstageKeyDown);
 
     // Nếu không có tài liệu gần đây, mount EmptyState component
-    const emptyContainer = modal.querySelector("#vno-recent-empty-container");
-    if (emptyContainer) {
-      renderEmptyRecent(emptyContainer);
-    }
+    modal.querySelectorAll("#vno-recent-empty-container").forEach(c => renderEmptyRecent(c));
 
     // Xử lý nút Xóa lịch sử gần đây
-    const clearBtn = modal.querySelector("#vno-clear-recent");
-    if (clearBtn) {
-      clearBtn.addEventListener("click", () => {
+    modal.querySelectorAll("#vno-clear-recent").forEach(btn => {
+      btn.addEventListener("click", () => {
         RecentFilesManager.clearAll();
-        const wrapper = modal.querySelector("#vno-recent-section-wrapper");
-        if (wrapper) {
+        modal.querySelectorAll("#vno-recent-section-wrapper, #vno-recent-tab-section-wrapper").forEach(wrapper => {
           renderEmptyRecent(wrapper);
-        }
+        });
       });
-    }
+    });
 
     // Gắn handler cho nút gỡ từng tài liệu gần đây
     const attachRemoveHandlers = () => {
@@ -996,14 +1045,11 @@ export class AppShell {
           const name = btn.getAttribute("data-remove-name");
           const app = btn.getAttribute("data-remove-app");
           RecentFilesManager.removeFile({ name, app });
-          const row = btn.closest(".vno-recent-row");
-          row?.remove();
-          const remaining = modal.querySelectorAll(".vno-recent-row");
-          if (remaining.length === 0) {
-            const wrapper = modal.querySelector("#vno-recent-section-wrapper");
-            if (wrapper) {
+          modal.querySelectorAll(`.vno-recent-row[data-recent-name="${name}"][data-recent-app="${app}"]`).forEach(r => r.remove());
+          if (modal.querySelectorAll(".vno-recent-row").length === 0) {
+            modal.querySelectorAll("#vno-recent-section-wrapper, #vno-recent-tab-section-wrapper").forEach(wrapper => {
               renderEmptyRecent(wrapper);
-            }
+            });
           }
         });
       });
@@ -1076,15 +1122,19 @@ export class AppShell {
     });
 
     const homeNavBtn = modal.querySelector("#vno-backstage-nav-home");
+    const recentNavBtn = modal.querySelector("#vno-backstage-nav-recent");
     const printNavBtn = modal.querySelector("#vno-backstage-nav-print");
     const homeView = modal.querySelector("#vno-backstage-home-view");
+    const recentView = modal.querySelector("#vno-backstage-recent-view");
     const printView = modal.querySelector("#vno-backstage-print-view");
 
     const showTab = (tabName) => {
       if (tabName === "print") {
         homeNavBtn?.classList.remove("is-active");
+        recentNavBtn?.classList.remove("is-active");
         printNavBtn?.classList.add("is-active");
         if (homeView) homeView.style.display = "none";
+        if (recentView) recentView.style.display = "none";
         if (printView) {
           printView.style.display = "block";
           if (typeof printPanelCleanup === "function") {
@@ -1093,9 +1143,25 @@ export class AppShell {
           }
           printPanelCleanup = this._renderBackstagePrintPanel(printView, closeModal);
         }
+      } else if (tabName === "recent") {
+        homeNavBtn?.classList.remove("is-active");
+        printNavBtn?.classList.remove("is-active");
+        recentNavBtn?.classList.add("is-active");
+        if (homeView) homeView.style.display = "none";
+        if (printView) {
+          printView.style.display = "none";
+          if (typeof printPanelCleanup === "function") {
+            printPanelCleanup();
+            printPanelCleanup = null;
+          }
+          printView.innerHTML = "";
+        }
+        if (recentView) recentView.style.display = "block";
       } else {
         printNavBtn?.classList.remove("is-active");
+        recentNavBtn?.classList.remove("is-active");
         homeNavBtn?.classList.add("is-active");
+        if (recentView) recentView.style.display = "none";
         if (printView) {
           printView.style.display = "none";
           if (typeof printPanelCleanup === "function") {
@@ -1109,6 +1175,7 @@ export class AppShell {
     };
 
     homeNavBtn?.addEventListener("click", () => showTab("home"));
+    recentNavBtn?.addEventListener("click", () => showTab("recent"));
     printNavBtn?.addEventListener("click", () => {
       closeModal();
       globalCommandBus.execute("common.file.print");

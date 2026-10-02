@@ -1573,9 +1573,74 @@ body {
   cursor: pointer;
   outline: none;
 }
-.vno-zoom-slider input[type="range"]:focus-visible {
+.vno-statusbar-view-modes {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-right: 6px;
+}
+
+.vno-statusbar-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #ffffff;
+  padding: 2px 4px;
+  border-radius: var(--vno-radius-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.82;
+  transition: all 0.15s ease;
+  line-height: 1;
+}
+
+.vno-statusbar-btn:hover {
+  background-color: rgba(255, 255, 255, 0.18);
+  opacity: 1;
+}
+
+.vno-statusbar-btn:active {
+  background-color: rgba(255, 255, 255, 0.28);
+}
+
+.vno-statusbar-btn.is-active {
+  background-color: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.4);
+  opacity: 1;
+}
+
+.vno-statusbar-btn:focus-visible {
   outline: 2px solid #ffffff;
-  outline-offset: 2px;
+  outline-offset: 1px;
+}
+
+.vno-zoom-slider .vno-zoom-percent-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #ffffff;
+  font-size: var(--vno-text-xs);
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--vno-radius-sm);
+  min-width: 44px;
+  text-align: center;
+  transition: background-color 0.15s ease;
+}
+
+.vno-zoom-slider .vno-zoom-percent-btn:hover {
+  background-color: rgba(255, 255, 255, 0.18);
+}
+
+.vno-zoom-slider .vno-zoom-percent-btn:active {
+  background-color: rgba(255, 255, 255, 0.28);
+}
+
+.vno-zoom-slider .vno-zoom-percent-btn:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 1px;
 }
 
 /* ==========================================================================
