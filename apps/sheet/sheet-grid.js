@@ -707,7 +707,9 @@ export class SheetGridController {
     const mm = String(now.getMinutes()).padStart(2, "0");
     const ss = String(now.getSeconds()).padStart(2, "0");
     const timeStr = `${hh}:${mm}:${ss}`;
-    this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, timeStr, true);
+    // Dấu nháy đơn giữ nguyên chuỗi HH:mm:ss như trước đây (không auto-detect
+    // thành serial giờ), vì lệnh này chèn chuỗi giờ chứ không nhập tay vào ô.
+    this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, `'${timeStr}`, true);
     if (this.formulaInput) this.formulaInput.value = timeStr;
     return timeStr;
   }
@@ -4820,7 +4822,9 @@ _bindGridKeyboardNavigation() {
         col,
         row,
         prevVal,
-        nextVal: item.formula || (item.val ?? ""),
+        // Dấu nháy đơn được lưu lại để Redo gõ lại đúng chuỗi đã ép text
+        // (không bị auto-detect thành số/giờ ở lần chạy lại).
+        nextVal: escapedText ? `'${item.val ?? ""}` : (item.formula || (item.val ?? "")),
         prevStyle,
         nextStyle: structuredClone(item.style || {}),
         prevValRichText: item.richText || null,
@@ -4883,6 +4887,15 @@ _bindGridKeyboardNavigation() {
     if (typeof value === "string" && category !== "text"
       && (!category || category === "general") && NumberFormatter.isDateInput(value)) {
       nextStyle.numberFormat = { category: "date", dateFormat: "dd/mm/yyyy" };
+    }
+    // Giờ gõ tay (13:45, 9:05, 13:45:30) là số ngày dạng phân số, hiển thị lại
+    // đúng mẫu giờ; giờ sai (25:00, 13:60) vẫn là văn bản.
+    if (typeof value === "string" && category !== "text"
+      && (!category || category === "general") && NumberFormatter.isTimeInput(value)) {
+      nextStyle.numberFormat = {
+        category: "time",
+        timeFormat: /:\d{2}:\d{2}$/.test(value.trim()) ? "HH:mm:ss" : "HH:mm"
+      };
     }
     if (typeof value === "string" && (!category || category === "general")
       && /^[+-]?(?:\d{1,3}(?:,\d{3})+)(?:\.\d+)?$/.test(value.trim())) {
@@ -6990,6 +7003,13 @@ _bindGridKeyboardNavigation() {
       sampleValue: item?.val,
       onApply: (config) => {
         if (config && config.category) {
+          // Hộp thoại định dạng ô chưa có nhóm "Giờ": nếu ô đang định dạng giờ,
+          // giữ nguyên mẫu giờ và bỏ dateFormat mặc định của hộp thoại (nếu không,
+          // định dạng giờ sẽ bị ghi đè thành ngày tháng).
+          if (config.category === "time") {
+            config = { ...config, timeFormat: config.timeFormat || "HH:mm" };
+            delete config.dateFormat;
+          }
           this.applyNumberFormat(config);
         }
         if (typeof this.container?.focus === "function") {
@@ -7108,7 +7128,7 @@ _bindGridKeyboardNavigation() {
       useThousands: false,
       negativeStyle: 0
     });
-    if (["general", "text", "date"].includes(config.category)) return false;
+    if (["general", "text", "date", "time"].includes(config.category)) return false;
     config.decimals = Math.max(0, Math.min(30, (Number(config.decimals) || 0) + (direction > 0 ? 1 : -1)));
     return this.applyNumberFormat(config);
   }

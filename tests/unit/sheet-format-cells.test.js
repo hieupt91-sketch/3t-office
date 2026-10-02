@@ -345,5 +345,141 @@ export async function runSheetFormatCellsTests() {
     assert(viStrings.sheetFormatCells?.orientation, "Bản dịch VI orientation phải tồn tại");
   });
 
+  // 12. Giờ gõ tay: nhận diện, lưu serial và hiển thị lại (time input detection)
+  test("Sheet Time Input: isTimeInput nhận diện H:MM, HH:MM, HH:MM:SS hợp lệ", () => {
+    const valid = ["13:45", "9:05", "0:00", "23:59", "13:45:30", "00:00:00", "8:00", " 13:45 "];
+    valid.forEach(v => {
+      assert(NumberFormatter.isTimeInput(v) === true, `${JSON.stringify(v)} phải là giờ hợp lệ`);
+    });
+  });
+
+  test("Sheet Time Input: isTimeInput từ chối giờ sai và chuỗi không phải giờ", () => {
+    const invalid = ["25:00", "13:60", "13:45:60", "24:00", "1:2", "13:45:5", "1234", "13.45", "abc", "", "13:45:30:00"];
+    invalid.forEach(v => {
+      assert(NumberFormatter.isTimeInput(v) === false, `${JSON.stringify(v)} không phải giờ hợp lệ`);
+    });
+    assert(NumberFormatter.isTimeInput(5) === false, "Số thuần không phải chuỗi giờ");
+    assert(NumberFormatter.isTimeInput(null) === false, "null không phải giờ");
+    assert(NumberFormatter.isTimeInput(undefined) === false, "undefined không phải giờ");
+  });
+
+  test("Sheet Time Input: setCellValue lưu serial ngày + numberFormat time và hiển thị lại đúng", () => {
+    const grid = new SheetGridController(mockContainer());
+
+    grid.setCellValue("A", 1, "13:45");
+    const cell = grid.cellsData.get("A1");
+    assert(typeof cell.val === "number", `13:45 phải lưu thành số, nhận ${typeof cell.val}`);
+    assert(Math.abs(cell.val - 49500 / 86400) < 1e-12, `13:45 phải là 49500/86400, nhận ${cell.val}`);
+    assert(cell.style.numberFormat?.category === "time", `category phải là time, nhận ${cell.style.numberFormat?.category}`);
+    assert(cell.style.numberFormat?.timeFormat === "HH:mm", `timeFormat phải là HH:mm, nhận ${cell.style.numberFormat?.timeFormat}`);
+    const shown = NumberFormatter.formatValue(cell.val, cell.style.numberFormat);
+    assert(shown.text === "13:45", `Hiển thị lại phải là 13:45, nhận ${shown.text}`);
+    assert(shown.align === "right", "Giờ phải căn phải");
+
+    grid.setCellValue("A", 2, "13:45:30");
+    const cell2 = grid.cellsData.get("A2");
+    assert(Math.abs(cell2.val - 49530 / 86400) < 1e-12, `13:45:30 phải là 49530/86400, nhận ${cell2.val}`);
+    assert(cell2.style.numberFormat?.timeFormat === "HH:mm:ss", `Có giây thì timeFormat là HH:mm:ss, nhận ${cell2.style.numberFormat?.timeFormat}`);
+    assert(NumberFormatter.formatValue(cell2.val, cell2.style.numberFormat).text === "13:45:30", "Hiển thị lại phải là 13:45:30");
+
+    grid.setCellValue("A", 3, "9:05");
+    const cell3 = grid.cellsData.get("A3");
+    assert(cell3.style.numberFormat?.timeFormat === "HH:mm", "9:05 cũng nhận định dạng HH:mm");
+    assert(NumberFormatter.formatValue(cell3.val, cell3.style.numberFormat).text === "09:05", "9:05 hiển thị lại 09:05");
+
+    // Giờ vẫn là số: SUM tính được và ô tham chiếu trả về số.
+    const engine = new FormulaEngine(new Map([["A1", cell]]));
+    assert(engine.evaluate("=SUM(A1)") === cell.val, "SUM của ô giờ phải là chính số ngày đó");
+  });
+
+  test("Sheet Time Input: giờ sai, số, ngày, phần trăm và văn bản không bị đổi hành vi", () => {
+    const grid = new SheetGridController(mockContainer());
+
+    grid.setCellValue("A", 1, "25:00");
+    const bad1 = grid.cellsData.get("A1");
+    assert(bad1.val === "25:00", `25:00 phải giữ nguyên dạng văn bản, nhận ${JSON.stringify(bad1.val)}`);
+    assert(!bad1.style.numberFormat, "25:00 không được gắn numberFormat");
+
+    grid.setCellValue("A", 2, "13:60");
+    const bad2 = grid.cellsData.get("A2");
+    assert(bad2.val === "13:60" && !bad2.style.numberFormat, "13:60 phải giữ nguyên dạng văn bản");
+
+    grid.setCellValue("A", 3, "1:2");
+    const bad3 = grid.cellsData.get("A3");
+    assert(bad3.val === "1:2" && !bad3.style.numberFormat, "1:2 (sai định dạng) phải giữ nguyên dạng văn bản");
+
+    grid.setCellValue("A", 4, "'13:45");
+    const forced = grid.cellsData.get("A4");
+    assert(forced.val === "13:45", `Dấu nháy đơn phải giữ nguyên chuỗi, nhận ${JSON.stringify(forced.val)}`);
+    assert(typeof forced.val === "string", "Dấu nháy đơn phải giữ kiểu chuỗi");
+    assert(!forced.style.numberFormat, "Dấu nháy đơn không được gắn định dạng giờ");
+
+    grid.setCellValue("A", 5, 1234.5);
+    const num = grid.cellsData.get("A5");
+    assert(num.val === 1234.5 && !num.style.numberFormat, "Số thường giữ nguyên, không gắn định dạng giờ");
+
+    grid.setCellValue("A", 6, "31/10/2026");
+    const date = grid.cellsData.get("A6");
+    assert(date.style.numberFormat?.category === "date", "Ngày vẫn nhận định dạng ngày như trước");
+    assert(typeof date.val === "number", "Ngày vẫn lưu thành serial số");
+
+    grid.setCellValue("A", 7, "25%");
+    const pct = grid.cellsData.get("A7");
+    assert(pct.style.numberFormat?.category === "percentage" && pct.val === 0.25, "Phần trăm vẫn nhận định dạng phần trăm");
+
+    grid.setCellValue("A", 8, "abc");
+    assert(grid.cellsData.get("A8").val === "abc", "Văn bản thường giữ nguyên");
+  });
+
+  test("Sheet Time Input: tăng/giảm số thập phân không phá định dạng giờ", () => {
+    const grid = new SheetGridController(mockContainer());
+    grid.setCellValue("A", 1, "13:45");
+    grid.selectedCoord = { c: "A", r: 1 };
+    assert(grid.adjustDecimalPlaces(1) === false, "adjustDecimalPlaces phải bỏ qua ô định dạng giờ");
+    assert(grid.adjustDecimalPlaces(-1) === false, "adjustDecimalPlaces phải bỏ qua ô định dạng giờ");
+    const nf = grid.cellsData.get("A1").style.numberFormat;
+    assert(nf.category === "time" && nf.timeFormat === "HH:mm", "Định dạng giờ phải giữ nguyên sau khi bấm tăng/giảm số thập phân");
+    assert(NumberFormatter.formatValue(grid.cellsData.get("A1").val, nf).text === "13:45", "Ô vẫn hiển thị 13:45");
+  });
+
+  test("Sheet Time Input: Ctrl+Shift+; vẫn chèn chuỗi HH:mm:ss, Undo/Redo giữ nguyên", () => {
+    const grid = new SheetGridController(mockContainer());
+    grid.selectedCoord = { c: "B", r: 3 };
+    const inserted = grid.insertCurrentTime();
+    const data = grid.cellsData.get("B3");
+    assert(/^\d{2}:\d{2}:\d{2}$/.test(data.val), `Ô phải nhận chuỗi HH:mm:ss, nhận ${JSON.stringify(data.val)}`);
+    assert(data.val === inserted, "Giá trị trong ô phải khớp giá trị trả về của lệnh");
+    assert(!data.style.numberFormat, "Lệnh chèn giờ hiện tại không tự gắn định dạng giờ");
+
+    grid.undo();
+    const afterUndo = grid.cellsData.get("B3");
+    assert(!afterUndo || afterUndo.val === "", "Undo phải xóa giá trị vừa chèn");
+
+    grid.redo();
+    const afterRedo = grid.cellsData.get("B3");
+    assert(afterRedo && afterRedo.val === inserted, `Redo phải khôi phục đúng chuỗi ${inserted}, nhận ${JSON.stringify(afterRedo?.val)}`);
+  });
+
+  test("Sheet Time Input: lưu FODS giữ định dạng giờ và mở lại đúng serial", () => {
+    const grid = new SheetGridController(mockContainer());
+    const adapter = new SheetAdapter(grid);
+    grid.setCellValue("A", 1, "13:45");
+
+    const fodsXml = adapter.serializeToFods();
+    assert(fodsXml.includes("<number:time-style"), "FODS phải có number:time-style cho ô giờ");
+    assert(fodsXml.includes('office:value-type="time"'), "Ô giờ phải lưu office:value-type=\"time\"");
+    assert(fodsXml.includes('office:time-value="PT13H45M00S"'), "Ô giờ 13:45 phải lưu office:time-value PT13H45M00S");
+    assert(fodsXml.includes("timeFormat"), "FODS phải lưu numberFormat category/timeFormat qua vno:number-format");
+
+    const parsedWorkbook = adapter.parseFods(fodsXml);
+    const sheetData = parsedWorkbook.sheetsData[parsedWorkbook.activeSheet];
+    const restoredA1 = sheetData?.get("A1");
+    assert(restoredA1, "Phải khôi phục được ô A1 từ FODS");
+    assert(Math.abs(restoredA1.val - 49500 / 86400) < 1e-12, `Giá trị giờ phải giữ nguyên sau khi mở lại, nhận ${restoredA1.val}`);
+    assert(restoredA1.style?.numberFormat?.category === "time", "Mở lại phải có category time");
+    assert(restoredA1.style?.numberFormat?.timeFormat === "HH:mm", "Mở lại phải có timeFormat HH:mm");
+    assert(NumberFormatter.formatValue(restoredA1.val, restoredA1.style.numberFormat).text === "13:45", "Ô đã mở lại vẫn hiển thị 13:45");
+  });
+
   return results;
 }
