@@ -48,7 +48,8 @@ function summarizeScenario(app, target, baseTestName) {
   console.log(`\n[SUMMARY] [${app.toUpperCase()} - ${target}] ${baseTestName}: ${passed}/${total} PASS`);
   if (passed < total) {
     scenarioResults.filter(r => !r.pass).forEach(r => {
-      console.log(`  FAIL: phrase="${r.testName.split('|')[1]?.trim() || 'unknown'}", expected="${r.detail.match(/text="([^"]+)"/)?.[1] || 'N/A'}", actual="${r.detail.match(/text="([^"]+)"/)?.[1] || 'N/A'}"`);
+      const phrase = r.testName.split("|")[1]?.trim() || r.testName;
+      console.log(`  FAIL: phrase="${phrase}" -> ${r.detail}`);
     });
   }
   return { passed, total };
@@ -80,66 +81,92 @@ async function prepareEditableTarget(cdp, selector) {
 }
 
 /**
- * Helper to insert a 2x2 table in Writer via the adapter and focus the first cell
+ * Insert a real table in Writer by dispatching the app command `writer.table.insert`
+ * through the shared command bus (the same path the ribbon button uses).
+ * Returns the number of tables in the body after the dispatch.
  */
-async function prepareWriterTableCell(cdp) {
-  await cdp.evaluate(`(() => {
-    const app = window.__vnoAppInstance;
-    if (!app || !app.adapter) return false;
-    app.adapter.insertTable(2, 2);
-    return true;
+async function insertWriterTableViaCommand(cdp) {
+  const outcome = await cdp.evaluate(`(async () => {
+    try {
+      const mod = await import('/platform/commands/command-bus.js');
+      const bus = mod.globalCommandBus;
+      if (!bus || typeof bus.execute !== "function") {
+        return { ok: false, reason: "globalCommandBus is not available" };
+      }
+      const before = document.querySelectorAll('.vno-writer-body table').length;
+      const handled = await bus.execute('writer.table.insert');
+      const after = document.querySelectorAll('.vno-writer-body table').length;
+      return { ok: after > before, handled, before, after };
+    } catch (err) {
+      return { ok: false, reason: String((err && err.message) || err) };
+    }
   })()`);
-  await sleep(300);
-  
-  // Click into the first table cell to focus it
-  await cdp.evaluate(`(() => {
+  if (!outcome || !outcome.ok) {
+    const reason = outcome?.reason || `tables ${outcome?.before} -> ${outcome?.after}, handled=${outcome?.handled}`;
+    throw new Error("writer.table.insert did not create a table: " + reason);
+  }
+  return outcome.after;
+}
+
+/**
+ * Click the first table cell with real CDP mouse events, wipe the template text the
+ * command put there and prove the cell is empty before any typing starts.
+ */
+async function clearWriterTableCell(cdp) {
+  await click(cdp, ".vno-writer-body table td", 0);
+  await sleep(150);
+
+  const selected = await cdp.evaluate(`(() => {
     const cell = document.querySelector('.vno-writer-body table td');
     if (!cell) return false;
-    cell.focus();
-    const p = cell.querySelector('p');
-    const target = p || cell;
-    target.innerHTML = '<br>';
     const sel = window.getSelection();
+    if (!sel) return false;
     const range = document.createRange();
-    range.setStart(target, 0);
-    range.collapse(true);
+    range.selectNodeContents(cell);
     sel.removeAllRanges();
     sel.addRange(range);
     return true;
   })()`);
+  if (!selected) throw new Error("Could not select the first Writer table cell");
+
+  await press(cdp, "Delete", {}, 200);
   await sleep(150);
-  
-  // Verify table exists
-  const hasTable = await cdp.evaluate("!!document.querySelector('.vno-writer-body table td')");
-  if (!hasTable) {
-    throw new Error("Failed to insert table in Writer");
+
+  const leftover = await cdp.evaluate("document.querySelector('.vno-writer-body table td')?.innerText || ''");
+  if (leftover.trim() !== "") {
+    throw new Error(`Table cell was not cleared before typing (value="${leftover.trim()}")`);
   }
 }
 
 /**
- * Helper to select a fresh empty cell in Sheet and verify it's empty
+ * Press Delete on a Sheet cell so BOTH the cell model and the formula editor are reset,
+ * prove the cell is empty, then enter F2 edit mode.
+ * (F2 seeds the editor from formulaInput.value, so a stale editor would accumulate text.)
  */
-async function prepareFreshSheetCell(cdp, rowIndex) {
-  const coord = `B${rowIndex}`;
+async function prepareEmptySheetCellForF2(cdp, coord) {
   await click(cdp, `[data-coord="${coord}"]`);
   await sleep(150);
-  
-  // Press Delete to clear any existing content
+
   await press(cdp, "Delete", {}, 200);
-  await sleep(100);
-  
-  // Verify cell is empty
-  const isEmpty = await cdp.evaluate(`window.__vnoAppInstance?.grid?.cellsData?.get('${coord}')?.val === '' || window.__vnoAppInstance?.grid?.cellsData?.get('${coord}')?.val === undefined`);
-  if (!isEmpty) {
-    // Force clear via model
-    await cdp.evaluate(`window.__vnoAppInstance?.grid?.cellsData?.set('${coord}', { val: '' })`);
-    await sleep(100);
+  await sleep(150);
+
+  const valueBeforeF2 = await cdp.evaluate(
+    `window.__vnoAppInstance?.grid?.cellsData?.get('${coord}')?.val ?? ""`
+  );
+  if (String(valueBeforeF2).trim() !== "") {
+    throw new Error(`Cell ${coord} is not empty before F2 (value="${valueBeforeF2}")`);
   }
-  
-  // Press F2 to enter edit mode
+
   await press(cdp, "F2", {}, 200);
-  await sleep(100);
-  
+  await sleep(150);
+
+  const editorBeforeTyping = await cdp.evaluate(
+    "document.querySelector('.vno-formula-input')?.value ?? ''"
+  );
+  if (String(editorBeforeTyping).trim() !== "") {
+    throw new Error(`F2 editor is not empty before typing (editor="${editorBeforeTyping}")`);
+  }
+
   return coord;
 }
 
@@ -315,34 +342,34 @@ export async function testDocVietnameseTyping(session, options = {}) {
   }
   summarizeScenario("writer", "footer", "VNI in Footer");
 
-  // --- Target 4: Table cell (REAL - not mock) ---
+  // --- Target 4: Table cell — REAL check, table created by the app command ---
+  let tableSetupError = null;
   try {
-    // Insert a real 2x2 table and focus first cell
-    await prepareWriterTableCell(cdp);
-    
+    await insertWriterTableViaCommand(cdp);
+  } catch (err) {
+    tableSetupError = err.message;
+  }
+
+  if (tableSetupError) {
+    for (let pi = 0; pi < phrases.length; pi++) {
+      const phrase = phrases[pi];
+      recordResult("writer", "table-cell", `Telex in Table Cell | ${phrase}`, false, `Table setup failed: ${tableSetupError}`);
+    }
+  } else {
     for (let pi = 0; pi < phrases.length; pi++) {
       const phrase = phrases[pi];
       try {
-        // Re-focus first cell for each phrase
-        await prepareWriterTableCell(cdp);
+        await clearWriterTableCell(cdp);
         const events = phraseToImeEvents(phrase, { mode: "telex", encoding: "nfc" });
         await replayImeEventsCdp(cdp, events, 20);
         await sleep(200);
 
-        // Read text from the first table cell
         const cellText = await cdp.evaluate("document.querySelector('.vno-writer-body table td')?.innerText || ''");
-        // Strict NFC equality for the entire phrase
         const pass = cellText.trim() === phrase.normalize("NFC");
         recordResult("writer", "table-cell", `Telex in Table Cell | ${phrase}`, pass, `text="${cellText.trim()}"`);
       } catch (err) {
         recordResult("writer", "table-cell", `Telex in Table Cell | ${phrase}`, false, err.message);
       }
-    }
-  } catch (err) {
-    // If table insertion fails entirely, record all as fail with reason
-    for (let pi = 0; pi < phrases.length; pi++) {
-      const phrase = phrases[pi];
-      recordResult("writer", "table-cell", `Telex in Table Cell | ${phrase}`, false, `Table setup failed: ${err.message}`);
     }
   }
   summarizeScenario("writer", "table-cell", "Telex in Table Cell");
@@ -398,12 +425,12 @@ export async function testSheetVietnameseTyping(session, options = {}) {
   summarizeScenario("sheet", "direct-typing-no-f2", "1-step Ctrl+Z restores cell");
 
   // --- Target 2: Cell edit mode (F2 / double-click) with VNI & Fast Speed ---
-  // Use a fresh cell for each phrase (B3, B4, B5, ...) to avoid text accumulation
+  // Same cell every phrase: press Delete first (clears cell model + formula editor),
+  // verify both are empty, then F2. Strict exact-NFC assertion on the model.
   for (let pi = 0; pi < phrases.length; pi++) {
     const phrase = phrases[pi];
-    const rowIndex = 3 + pi; // B3, B4, B5, ...
     try {
-      const coord = await prepareFreshSheetCell(cdp, rowIndex);
+      const coord = await prepareEmptySheetCellForF2(cdp, "B3");
 
       const events = phraseToImeEvents(phrase, { mode: "vni", encoding: "nfc" });
       await replayImeEventsCdp(cdp, events, 5); // Fast speed (5ms)
