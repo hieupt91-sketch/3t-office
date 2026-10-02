@@ -163,14 +163,41 @@ export class CommandBus {
         this.updateState(commandId, { checked: result });
       }
 
-      if (typeof window !== "undefined" && typeof document !== "undefined" && typeof document.querySelector === "function") {
-        setTimeout(() => {
-          try {
-            if (!hasOpenDialog()) {
-              restoreEditorFocus();
-            }
-          } catch (_) {}
-        }, 0);
+      const SKIP_FOCUS_RESTORE_COMMANDS = new Set([
+        "common.edit.undo",
+        "common.edit.redo",
+        "common.edit.cut",
+        "common.edit.copy",
+        "common.edit.paste",
+        "common.edit.pastePlain",
+        "common.edit.pasteSpecial",
+        "writer.clipboard.paste",
+        "writer.clipboard.pastePlain",
+        "writer.clipboard.pasteSpecial",
+        "writer.clipboard.copy",
+        "writer.clipboard.cut",
+        "sheet.edit.paste",
+        "sheet.edit.pastePlain",
+        "sheet.edit.pasteSpecial",
+        "sheet.edit.undo",
+        "sheet.edit.redo",
+        "slides.edit.paste",
+        "slides.edit.pastePlain",
+        "slides.edit.pasteSpecial",
+        "slides.edit.undo",
+        "slides.edit.redo"
+      ]);
+
+      if (!SKIP_FOCUS_RESTORE_COMMANDS.has(commandId)) {
+        if (typeof window !== "undefined" && typeof document !== "undefined" && typeof document.querySelector === "function") {
+          setTimeout(() => {
+            try {
+              if (!hasOpenDialog()) {
+                restoreEditorFocus();
+              }
+            } catch (_) {}
+          }, 0);
+        }
       }
 
       return result !== undefined ? result : true;

@@ -165,9 +165,23 @@ export function restoreEditorFocus(options = {}) {
   if (typeof document === "undefined" || !document.body || typeof document.querySelector !== "function") return false;
   if (!options.force && hasOpenDialog()) return false;
 
-  // Làm mờ bất kỳ nút bấm hoặc control nào ngoài editor đang giữ focus
   const currentActive = document.activeElement;
-  if (currentActive && (currentActive.tagName === "BUTTON" || currentActive.matches?.(".vno-ribbon-tab, .vno-btn, select, [role='tab'], [role='menuitem'], [data-command-id]"))) {
+  const isOutsideControl = currentActive && (
+    currentActive.tagName === "BUTTON" ||
+    currentActive.matches?.(".vno-ribbon-tab, .vno-btn, select, [role='tab'], [role='menuitem'], [data-command-id]")
+  );
+
+  // 1. Nếu tiêu điểm hiện tại ĐÃ LÀ một phần tử soạn thảo hợp lệ và không kẹt trên control ngoài
+  if (!isOutsideControl && currentActive && isEditorElement(currentActive)) {
+    // Tiêu điểm đã ở đúng phần tử đang soạn thảo (hộp chữ, ô tính, canvas, doc body)
+    // Không làm gì cả để tránh tạo bước lịch sử thừa hoặc làm hỏng undo
+    _capturedFocusTarget = null;
+    _capturedRange = null;
+    return true;
+  }
+
+  // Làm mờ bất kỳ nút bấm hoặc control nào ngoài editor đang giữ focus
+  if (isOutsideControl) {
     try { currentActive.blur(); } catch (_) {}
   }
 
@@ -183,6 +197,9 @@ export function restoreEditorFocus(options = {}) {
     if (_capturedFocusTarget && document.body.contains(_capturedFocusTarget) && isEditorElement(_capturedFocusTarget)) {
       target = _capturedFocusTarget;
     }
+    const capturedRange = _capturedRange;
+    _capturedFocusTarget = null;
+    _capturedRange = null;
 
     try {
       target.focus({ preventScroll: true });
@@ -201,10 +218,10 @@ export function restoreEditorFocus(options = {}) {
         }
       }
       if (!rangeValid) {
-        if (_capturedRange && target.contains(_capturedRange.startContainer)) {
+        if (capturedRange && target.contains(capturedRange.startContainer)) {
           try {
             sel.removeAllRanges();
-            sel.addRange(_capturedRange);
+            sel.addRange(capturedRange);
             rangeValid = true;
           } catch (_) {}
         }
@@ -225,6 +242,9 @@ export function restoreEditorFocus(options = {}) {
 
   // --- 2. SHEET ---
   if (app === "sheet") {
+    _capturedFocusTarget = null;
+    _capturedRange = null;
+
     const active = document.activeElement;
     if (active && (active.classList.contains("vno-formula-input") || active.classList.contains("vno-cell-editor"))) {
       return true;
@@ -253,8 +273,31 @@ export function restoreEditorFocus(options = {}) {
   // --- 3. SLIDE ---
   if (app === "slides") {
     const canvasController = typeof window !== "undefined" ? window.__vnoAppInstance?.canvasController : null;
-    const selectedTarget = canvasController?.selectedTarget;
 
+    // A. Nếu có text box đã được capture trước đó khi bấm nút ngoài (Ribbon/Dialog)
+    if (_capturedFocusTarget && document.body.contains(_capturedFocusTarget) && isEditorElement(_capturedFocusTarget) && _capturedFocusTarget.isContentEditable) {
+      const target = _capturedFocusTarget;
+      _capturedFocusTarget = null;
+      _capturedRange = null;
+      try {
+        target.focus({ preventScroll: true });
+        return true;
+      } catch (_) {}
+    }
+    _capturedFocusTarget = null;
+    _capturedRange = null;
+
+    // B. Nếu có phần tử đang sửa dở (is-editing hoặc is-selected)
+    const editingEl = document.querySelector(".vno-slide-title.is-editing, .vno-slide-body.is-selected, [contenteditable='true'].is-selected");
+    if (editingEl) {
+      try {
+        editingEl.focus({ preventScroll: true });
+        return true;
+      } catch (_) {}
+    }
+
+    // C. Nếu selectedTarget chỉ rõ hộp chữ đang được chọn
+    const selectedTarget = canvasController?.selectedTarget;
     if (selectedTarget === "title" && canvasController.titleEl?.isContentEditable) {
       try { canvasController.titleEl.focus({ preventScroll: true }); return true; } catch (_) {}
     }
@@ -265,23 +308,7 @@ export function restoreEditorFocus(options = {}) {
       try { canvasController.body2El.focus({ preventScroll: true }); return true; } catch (_) {}
     }
 
-    // A. Nếu có text box đã được capture trước đó hoặc đang được sửa
-    if (_capturedFocusTarget && document.body.contains(_capturedFocusTarget) && isEditorElement(_capturedFocusTarget) && _capturedFocusTarget.isContentEditable) {
-      try {
-        _capturedFocusTarget.focus({ preventScroll: true });
-        return true;
-      } catch (_) {}
-    }
-
-    const editingEl = document.querySelector(".vno-slide-title.is-editing, .vno-slide-body.is-selected, [contenteditable='true'].is-selected");
-    if (editingEl) {
-      try {
-        editingEl.focus({ preventScroll: true });
-        return true;
-      } catch (_) {}
-    }
-
-    // B. Nếu không sửa hộp chữ: focus vào slide canvas để không mất phím và Enter an toàn
+    // D. Mặc định: focus vào slide canvas để không mất phím và Enter an toàn
     const canvas = canvasController?.canvasEl
       || document.querySelector(".vno-slide-canvas")
       || document.querySelector(".vno-slides-workspace");
@@ -299,6 +326,8 @@ export function restoreEditorFocus(options = {}) {
     return false;
   }
 
+  _capturedFocusTarget = null;
+  _capturedRange = null;
   return false;
 }
 
