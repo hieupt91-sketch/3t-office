@@ -60,8 +60,9 @@ Có 32 merge vào `main` sau `69133660` (`git log --first-parent --merges 691336
 | 18 | Sheet | Hộp thoại In thêm Phạm vi sổ làm việc (trang hiện hoạt / toàn bộ / vùng bôi đen) | `255b2973` |
 | 19 | Slide | Tab/Shift+Tab thụt lề, Enter không thoát hộp chữ, giữ tỉ lệ ảnh, xóa/nhân bản trang an toàn, phím ở chế độ sắp xếp | `da59b302` |
 | 20 | Slide | Ctrl+C/X/V trong hộp chữ | `bd747e65` |
+| 21 | Chung | Giao diện dùng chung đồng bộ: màn hình Tệp, Tệp gần đây, thanh trạng thái, chế độ xem, thu phóng và phím tắt giữa Doc/Sheet/Slide | `3cb84014` |
 
-19 commit merge khác nhau cho 20 dòng (dòng 13 và 14 cùng `8348eb92`).
+20 commit merge khác nhau cho 21 dòng (dòng 13 và 14 cùng `8348eb92`).
 
 ## 4. Merge sau ranh giới nhưng KHÔNG đưa vào ghi chú
 
