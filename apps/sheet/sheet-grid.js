@@ -7320,7 +7320,9 @@ _bindGridKeyboardNavigation() {
           next.formula = formula;
           if (mode !== "formulas") next.style = structuredClone(source.style || {});
         }
-        if (options.coerceInput && !next.formula) {
+        // Only text is normalized like typed input; numbers already parsed from the
+        // clipboard (e.g. 0.25 for "25%") must not be divided by 100 a second time.
+        if (options.coerceInput && !next.formula && typeof next.val === "string") {
           const normalized = this._normalizeCellInput(next.val, next.style);
           next.val = normalized.value;
           next.style = normalized.style;

@@ -376,7 +376,8 @@ export function extractCellValueAndFormula(attrs, innerHtml, numberFormat = null
       const cleaned = plainText.replace(/[% \t]/g, "").replace(",", ".");
       const parsed = parseFloat(cleaned);
       if (Number.isFinite(parsed)) {
-        val = parsed > 1 ? parsed / 100 : parsed;
+        // Displayed "25%", "-7%", "0.5%" are percents; a bare number is already the fraction.
+        val = plainText.includes("%") ? parsed / 100 : parsed;
       }
     } else if (numberFormat?.category === "date") {
       val = NumberFormatter.normalizeInputForFormat(plainText, numberFormat);
