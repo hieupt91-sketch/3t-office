@@ -852,16 +852,18 @@ export const SHEET_HELP_ENTRIES = [
   {
     id: "sheet.review.spellCheck",
     app: "sheet",
-    commandIds: ["sheet.review.spellCheck"],
+    commandIds: ["sheet.review.spellCheck", "sheet.review.toggleSpellCheck"],
     title: "Kiểm tra chính tả tiếng Việt trên trang tính",
-    summary: "F7 (khi đang ở Sheet) hoặc nút Chính tả quét các ô chữ của sheet hiện tại — bỏ qua số, công thức, ô trống. Hộp thoại Bỏ qua / Thay thế / Thêm vào từ điển, dùng chung từ điển cá nhân với Writer và Slides.",
+    summary: "Gạch đỏ sống khi đang sửa ô (F2 hoặc gõ trực tiếp) và thanh công thức (không gạch công thức =). Chuột phải mở menu gợi ý tiếng Việt, Ctrl+Z hoàn tác 1 bước. Nút Bật/Tắt trên tab Xem xét lưu trạng thái qua lần sau. Phím F7 quét toàn bộ trang tính.",
     ribbon: { tab: "Xem xét", tabId: "review", group: "Chứng minh" },
-    keywords: ["chính tả", "spell check", "f7", "từ điển", "tiếng việt", "bỏ qua", "thay thế"],
+    keywords: ["chính tả", "spell check", "f7", "từ điển", "tiếng việt", "bỏ qua", "thay thế", "ctrl+z", "gạch đỏ", "bật tắt chính tả", "gợi ý", "chuột phải"],
     steps: [
-      "Tab Xem xét, nhóm Chứng minh, nhấn nút lớn Chính tả — hoặc F7 khi cửa sổ Sheet đang active (F7 không ghi trong command-definitions vì Writer dùng F7 cho Soát lỗi AI).",
-      "Hộp «Chính tả» (460 px) quét ô có chữ cái, không phải công thức (=...), không phải số/boolean, không bắt đầu bằng #. Thứ tự A1. Hiện từ không có trong từ điển, tọa độ ô, nội dung ô, danh sách gợi ý.",
-      "Bỏ qua, Bỏ qua tất cả (phiên hiện tại), Thêm vào từ điển (localStorage chung Writer/Slides: vno-spellcheck-vi-personal), Thay thế, Thay thế tất cả, Đóng. Esc đóng. Thay thế đi qua setCellValue nên Ctrl+Z hoàn tác.",
-      "Không gạch chân realtime từng ô (khác Writer). Hết lỗi: «Đã kiểm tra xong toàn bộ trang tính. Không tìm thấy lỗi chính tả.» Chỉ quét sheet đang mở."
+      "Khi đang chỉnh sửa ô (nhấn F2 hoặc gõ trực tiếp) hoặc soạn thảo tại thanh công thức, các từ sai chính tả tiếng Việt tự động được gạch sóng đỏ trực tiếp trong nội dung đang sửa (không áp dụng với công thức bắt đầu bằng dấu '=').",
+      "Nhấp chuột phải vào từ bị gạch sóng đỏ để mở danh sách từ gợi ý tiếng Việt chuẩn xác. Chọn một từ gợi ý để thay thế ngay vào nội dung ô.",
+      "Nhấn Ctrl+Z để hoàn tác việc thay thế trong đúng 1 bước duy nhất, khôi phục lại từ sai ban đầu.",
+      "Tùy chọn Bật/Tắt kiểm tra chính tả: Mở tab Xem xét, nhóm Chứng minh, nhấn nút «Kiểm tra chính tả» để bật hoặc tắt. Khi tắt, toàn bộ gạch đỏ biến mất ngay lập tức; khi bật lại, gạch đỏ xuất hiện trở lại. Lựa chọn được lưu tự động cho các lần mở ứng dụng tiếp theo.",
+      "Quét toàn diện: Nhấn F7 hoặc nút lớn «Chính tả» trên nhóm Chứng minh để mở hộp thoại quét lần lượt các ô có chữ trên toàn bộ sheet hiện tại, hỗ trợ Bỏ qua, Bỏ qua tất cả, Thêm vào từ điển và Thay thế.",
+      "Sau khi rời ô (Enter), để bảo vệ tốc độ cuộn mượt mà của hàng ngàn ô bảng tính và giữ độ trễ gõ phím cực thấp (< 10 ms), đường gạch đỏ tập trung hiển thị trực quan trong chế độ chỉnh sửa."
     ]
   },
   {
@@ -1257,6 +1259,22 @@ export const SHEET_HELP_ENTRIES = [
       "Ước lượng công thức: tab Công thức > nhóm Kiểm tra công thức > Ước lượng công thức (hộp thoại gạch chân phần sắp tính, nút Ước lượng/Bước vào/Bước ra/Khởi động lại/Đóng, hiển thị lỗi #DIV/0!/#N/A/#REF!).",
       "Tiêu đề in (Print Titles): tab Bố trí trang > nhóm Thiết lập trang > Tiêu đề in (nhập tham chiếu $1:$2/$A:$B, nút ⊞ chọn trực tiếp hàng/cột trên lưới, giữ khi lưu .xlsx).",
       "Liên kết ngoài: công thức như =[BaoCao.xlsx]Sheet1!A1 hiển thị giá trị lưu lần cuối, giữ liên kết khi lưu XLSX, không tự cập nhật (ứng dụng chạy offline). Thanh cảnh báo vàng dưới ribbon báo số ô có liên kết."
+    ]
+  },
+  {
+    id: "sheet.navigation.gridExtent",
+    app: "sheet",
+    commandIds: ["common.edit.find"],
+    title: "Điều hướng trên bảng tính lớn",
+    summary: "Sheet hỗ trợ bảng tính lên tới 1.048.576 hàng và 16.384 cột (từ cột A đến XFD). Dùng phím Ctrl cùng các phím mũi tên, Ctrl+Home, Ctrl+End và Hộp tên ô để di chuyển nhanh chóng mà không làm chậm ứng dụng.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
+    keywords: ["điều hướng", "bảng tính lớn", "mũi tên", "Ctrl+Home", "Ctrl+End", "Hộp tên ô", "Name Box", "1048576 hàng", "16384 cột", "XFD"],
+    steps: [
+      "Dùng phím Ctrl kết hợp phím mũi tên (Lên, Xuống, Trái, Phải) để nhảy nhanh đến ranh giới của khối dữ liệu hoặc mép bảng tính. Nếu cột đang trống, giữ Ctrl và nhấn phím mũi tên Xuống sẽ nhảy ngay đến hàng 1.048.576; giữ Ctrl và nhấn phím mũi tên Phải sẽ nhảy đến cột XFD.",
+      "Nhấn Ctrl+Home để quay trở về ô A1 bất cứ lúc nào. Nhấn Ctrl+End để nhảy đến ô chứa dữ liệu cuối cùng của trang tính.",
+      "Nhập địa chỉ vào Hộp tên ô (ở bên trái Thanh công thức) rồi nhấn Enter để nhảy trực tiếp tới ô hoặc dải ô, ví dụ A1, XFD1048576, hoặc B2:D10.",
+      "Để chọn nhanh toàn bộ hàng hoặc cột trên bảng tính lớn, nhấn Shift+Space để chọn cả hàng, hoặc Ctrl+Space để chọn cả cột.",
+      "Nhấn Ctrl+A lần thứ nhất để chọn vùng dữ liệu liền kề hiện tại, nhấn Ctrl+A lần thứ hai để chọn toàn bộ bảng tính (A1:XFD1048576). Bộ hiển thị ảo chỉ kết xuất các ô đang nhìn thấy trên màn hình nên thao tác luôn mượt mà."
     ]
   }
 ];

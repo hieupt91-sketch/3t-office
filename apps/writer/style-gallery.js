@@ -7,6 +7,16 @@ import { t } from "../../platform/i18n/i18n.js";
 
 export const STYLE_PRESETS = [
   {
+    id: "title",
+    tag: "p",
+    className: "vno-style-title",
+    label: "Tiêu đề",
+    sublabel: "Title",
+    previewSample: "Tiêu đề tài liệu",
+    previewCss: "font-family:'Times New Roman', serif; font-size:18px; font-weight:700; color:#1f4e79; text-align:center;",
+    description: "Tiêu đề tài liệu nổi bật, chữ đậm màu xanh và căn giữa"
+  },
+  {
     id: "normal",
     tag: "p",
     label: "Normal",

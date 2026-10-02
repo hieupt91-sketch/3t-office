@@ -170,6 +170,21 @@
   background: var(--vno-bg-subtle, var(--vno-bg-canvas));
 }
 
+.vno-performance-settings {
+  margin: 0 0 12px;
+  padding: 12px;
+  border: 1px solid var(--vno-border-default, #cbd5e1);
+  border-radius: 8px;
+  background: var(--vno-bg-subtle, #f8fafc);
+}
+.vno-performance-settings h3 { margin: 0 0 8px; font-size: 13px; }
+.vno-performance-toggle { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; font-weight: 600; }
+.vno-performance-toggle input { flex: 0 0 auto; margin: 2px 0 0; }
+.vno-performance-local-only { margin: 6px 0 0 22px; color: var(--vno-text-muted); font-size: 11px; }
+.vno-performance-actions { display: flex; margin-top: 8px; }
+.vno-performance-status { min-height: 1.4em; margin: 7px 0 0; color: var(--vno-text-muted); font-size: 11px; }
+.vno-performance-settings :focus-visible { outline: 3px solid var(--vno-color-focus, #2563eb); outline-offset: 2px; }
+
 .vno-autorecover-settings h3 {
   margin: 0 0 8px;
   color: var(--vno-text-primary);

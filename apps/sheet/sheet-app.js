@@ -97,6 +97,10 @@ export class SheetApp {
       return true;
     });
 
+    globalCommandBus.bindHandler("sheet.review.toggleSpellCheck", () => {
+      return this.grid?.toggleSpellcheck?.();
+    });
+
     this.shell.setEditorCanvas(workspace);
 
     this.adapter = new SheetAdapter(this.grid);

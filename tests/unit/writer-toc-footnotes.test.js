@@ -158,6 +158,10 @@ class FakeElement {
 
   get firstChild() { return this.children[0] || null; }
   get firstElementChild() { return this.children[0] || null; }
+  get nextSibling() {
+    if (!this.parentNode) return null;
+    return this.parentNode.children[this.parentNode.children.indexOf(this) + 1] || null;
+  }
 
   appendChild(child) {
     if (child.parentNode) child.parentNode.removeChild(child);
@@ -488,6 +492,39 @@ export async function runWriterTocFootnotesTests() {
       const heading1 = body.querySelector(`#${targetId}`);
       if (!heading1) throw new Error(`Heading tương ứng với anchor '${targetId}' không tồn tại trong body`);
     } finally {
+      globalThis.document = originalDoc;
+    }
+  });
+
+  await test("Writer TOC: insert after a heading without nesting and move the caret after it", async () => {
+    const originalWindow = globalThis.window;
+    const originalDoc = globalThis.document;
+    globalThis.document = { createElement: (tag) => new FakeElement(tag) };
+
+    try {
+      const { page, body } = createMockWriterDoc("<h1>Heading</h1><p>Body text</p>");
+      const heading = body.querySelector("h1");
+      const range = {
+        commonAncestorContainer: heading,
+        collapse() {},
+        insertNode() { throw new Error("The TOC must not be nested inside the heading"); },
+        setStartAfter(node) { this.caretAfter = node; }
+      };
+      globalThis.window = { getSelection: () => ({ rangeCount: 1, getRangeAt: () => range }) };
+
+      const adapter = new WriterAdapter(page);
+      adapter.attach();
+      if (!adapter.insertTableOfContents()) throw new Error("TOC insertion failed");
+
+      const toc = body.querySelector('[data-vno-toc="true"]');
+      if (!toc) throw new Error("TOC element was not inserted");
+      if (heading.contains(toc)) throw new Error("TOC element is nested in the heading");
+      if (body.children.indexOf(toc) !== body.children.indexOf(heading) + 1) {
+        throw new Error("TOC must be the next block after the heading");
+      }
+      if (range.caretAfter !== toc) throw new Error("Caret must move after the inserted TOC");
+    } finally {
+      globalThis.window = originalWindow;
       globalThis.document = originalDoc;
     }
   });

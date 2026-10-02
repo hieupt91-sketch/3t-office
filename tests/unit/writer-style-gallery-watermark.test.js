@@ -334,7 +334,7 @@ export async function runWriterStyleGalleryWatermarkTests() {
   // TEST 5: Style Gallery Presets structure
   (() => {
     const ids = STYLE_PRESETS.map(p => p.id);
-    const hasRequired6 = ["normal", "h1", "h2", "h3", "quote", "emphasis"].every(id => ids.includes(id));
+    const hasRequired6 = ["normal", "h1", "h2", "h3", "quote", "emphasis", "title"].every(id => ids.includes(id));
     const allHavePreviews = STYLE_PRESETS.every(p => Boolean(p.previewCss && p.previewSample && p.label));
 
     assert(
@@ -355,7 +355,12 @@ export async function runWriterStyleGalleryWatermarkTests() {
       // Giả lập con trỏ ở đoạn văn đầu tiên
       global.window.getSelection = () => ({
         rangeCount: 1,
-        anchorNode: body.children[0]
+        anchorNode: body.children[0],
+        getRangeAt: () => ({
+          startContainer: body.children[0],
+          collapsed: true,
+          intersectsNode: node => node === body.children[0]
+        })
       });
 
       // 1. Áp dụng Tiêu đề 2 (Heading 2)
@@ -378,10 +383,18 @@ export async function runWriterStyleGalleryWatermarkTests() {
       const currentAfterNormal = body.children[0];
       const isNormal = currentAfterNormal.tagName === "P" && !currentAfterNormal.classList.contains("vno-style-quote");
 
+      // 5. 3T Doc Title remains a paragraph style, with visible Word-like title formatting.
+      adapter._applyParagraphStyle("title");
+      const currentAfterTitle = body.children[0];
+      const isTitle = currentAfterTitle.tagName === "P"
+        && currentAfterTitle.classList.contains("vno-style-title")
+        && currentAfterTitle.style.fontSize === "26pt"
+        && currentAfterTitle.style.textAlign === "center";
+
       assert(
         "Writer Style Gallery: Áp dụng trực tiếp đổi cấu trúc khối sang H2, Blockquote (Trích dẫn), Nhấn mạnh và Normal",
-        isH2 && isQuote && isEmphasis && isNormal,
-        `Kết quả áp dụng style không khớp: h2=${isH2}, quote=${isQuote}, emphasis=${isEmphasis}, normal=${isNormal}`
+        isH2 && isQuote && isEmphasis && isNormal && isTitle,
+        `Kết quả áp dụng style không khớp: h2=${isH2}, quote=${isQuote}, emphasis=${isEmphasis}, normal=${isNormal}, title=${isTitle}`
       );
     } finally {
       cleanup();

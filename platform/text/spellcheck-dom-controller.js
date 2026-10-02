@@ -140,8 +140,13 @@ export function restoreSelectionBookmark(root, bookmark) {
 }
 
 function unwrapMarkers(root) {
-  for (const marker of root.querySelectorAll(MARKER_SELECTOR)) marker.replaceWith(document.createTextNode(marker.textContent));
-  root.normalize();
+  if (!root || typeof root.querySelectorAll !== "function") return;
+  const doc = root.ownerDocument || (typeof document !== "undefined" ? document : null);
+  for (const marker of root.querySelectorAll(MARKER_SELECTOR)) {
+    const textNode = doc?.createTextNode ? doc.createTextNode(marker.textContent) : marker.textContent;
+    marker.replaceWith(textNode);
+  }
+  if (typeof root.normalize === "function") root.normalize();
 }
 
 function isEligibleTextNode(node, root) {
@@ -150,11 +155,35 @@ function isEligibleTextNode(node, root) {
     !parent.closest("script, style, [contenteditable='false'], [data-vno-spelling-uncertain]");
 }
 
+export const SPELLCHECK_ENABLED_KEY = "vno-spellcheck-enabled";
+
+export function isSpellcheckEnabled() {
+  if (typeof localStorage === "undefined") return true;
+  const val = localStorage.getItem(SPELLCHECK_ENABLED_KEY);
+  return val === null ? true : val !== "false";
+}
+
+export function setSpellcheckEnabled(enabled) {
+  const bool = Boolean(enabled);
+  if (typeof localStorage !== "undefined") {
+    try {
+      localStorage.setItem(SPELLCHECK_ENABLED_KEY, String(bool));
+    } catch (_) {}
+  }
+  if (typeof window !== "undefined") {
+    try {
+      window.dispatchEvent(new CustomEvent("vno:spellcheck-toggle", { detail: { enabled: bool } }));
+    } catch (_) {}
+  }
+}
+
 export class SpellcheckDomController {
-  constructor({ roots, checker, debounceMs = 400 }) {
+  constructor({ roots, checker, debounceMs = 400, onReplace = null, enabled = undefined }) {
     this.roots = [...roots];
     this.checker = checker;
     this.debounceMs = debounceMs;
+    this.onReplace = onReplace;
+    this.enabled = enabled !== undefined ? Boolean(enabled) : isSpellcheckEnabled();
     this.timer = null;
     this.menu = null;
     this._focusBeforeMenu = null;
@@ -163,6 +192,45 @@ export class SpellcheckDomController {
     this._onDocumentPointer = event => {
       if (this.menu && !this.menu.contains(event.target)) this.closeMenu();
     };
+    this._onToggleEvent = (e) => {
+      if (typeof e.detail?.enabled === "boolean") {
+        this.setEnabled(e.detail.enabled);
+      }
+    };
+  }
+
+  setEnabled(enabled) {
+    const next = Boolean(enabled);
+    if (this.enabled === next) return;
+    this.enabled = next;
+    if (!this.enabled) {
+      clearTimeout(this.timer);
+      this.closeMenu();
+      for (const root of this.roots) {
+        unwrapMarkers(root);
+      }
+    } else {
+      this.refresh();
+    }
+  }
+
+  addRoot(root) {
+    if (!root || this.roots.includes(root)) return;
+    this.roots.push(root);
+    root.addEventListener?.("input", this._onInput);
+    root.addEventListener?.("contextmenu", this._onContextMenu);
+    if (this._onShiftF10) root.addEventListener?.("keydown", this._onShiftF10);
+    if (this.enabled) this._refreshRoot(root);
+  }
+
+  removeRoot(root) {
+    const idx = this.roots.indexOf(root);
+    if (idx < 0) return;
+    this.roots.splice(idx, 1);
+    root.removeEventListener?.("input", this._onInput);
+    root.removeEventListener?.("contextmenu", this._onContextMenu);
+    if (this._onShiftF10) root.removeEventListener?.("keydown", this._onShiftF10);
+    unwrapMarkers(root);
   }
 
   attach() {
@@ -181,15 +249,20 @@ export class SpellcheckDomController {
       }
     };
     for (const root of this.roots) {
-      root.addEventListener("input", this._onInput);
-      root.addEventListener("contextmenu", this._onContextMenu);
-      root.addEventListener("keydown", this._onShiftF10);
+      root.addEventListener?.("input", this._onInput);
+      root.addEventListener?.("contextmenu", this._onContextMenu);
+      root.addEventListener?.("keydown", this._onShiftF10);
     }
     this._burstUnsubscribe = globalImeTracker.onBurstStateChange(active => {
       if (!active) this.schedule(this.debounceMs);
     });
-    document.addEventListener("pointerdown", this._onDocumentPointer);
-    this.schedule(0);
+    if (typeof document !== "undefined") document.addEventListener?.("pointerdown", this._onDocumentPointer);
+    if (typeof window !== "undefined") window.addEventListener?.("vno:spellcheck-toggle", this._onToggleEvent);
+    if (this.enabled) {
+      this.schedule(0);
+    } else {
+      for (const root of this.roots) unwrapMarkers(root);
+    }
     return this;
   }
 
@@ -197,16 +270,18 @@ export class SpellcheckDomController {
     clearTimeout(this.timer);
     this._burstUnsubscribe?.();
     for (const root of this.roots) {
-      root.removeEventListener("input", this._onInput);
-      root.removeEventListener("contextmenu", this._onContextMenu);
-      root.removeEventListener("keydown", this._onShiftF10);
+      root.removeEventListener?.("input", this._onInput);
+      root.removeEventListener?.("contextmenu", this._onContextMenu);
+      root.removeEventListener?.("keydown", this._onShiftF10);
     }
-    document.removeEventListener("pointerdown", this._onDocumentPointer);
+    if (typeof document !== "undefined") document.removeEventListener?.("pointerdown", this._onDocumentPointer);
+    if (typeof window !== "undefined") window.removeEventListener?.("vno:spellcheck-toggle", this._onToggleEvent);
     this.closeMenu();
   }
 
   schedule(delay = this.debounceMs) {
     clearTimeout(this.timer);
+    if (!this.enabled) return;
     if (globalImeTracker.isBurstActive()) {
       // Defer until burst ends
       return;
@@ -215,6 +290,7 @@ export class SpellcheckDomController {
   }
 
   refresh() {
+    if (!this.enabled) return;
     if (globalImeTracker.isBurstActive()) {
       return;
     }
@@ -222,29 +298,35 @@ export class SpellcheckDomController {
   }
 
   _refreshRoot(root) {
+    const doc = root?.ownerDocument || (typeof document !== "undefined" ? document : null);
+    if (!doc || typeof doc.createTreeWalker !== "function") return;
+    const NodeFilterObj = globalThis.NodeFilter || { SHOW_TEXT: 4 };
     const selection = captureSelectionBookmark(root);
     unwrapMarkers(root);
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const walker = doc.createTreeWalker(root, NodeFilterObj.SHOW_TEXT);
     const nodes = [];
     let node;
     while ((node = walker.nextNode())) if (isEligibleTextNode(node, root)) nodes.push(node);
     for (const textNode of nodes) {
       const issues = this.checker.checkText(textNode.data);
       if (!issues.length) continue;
-      const fragment = document.createDocumentFragment();
+      const fragment = doc.createDocumentFragment ? doc.createDocumentFragment() : [];
       let cursor = 0;
       for (const issue of issues) {
-        fragment.append(textNode.data.slice(cursor, issue.start));
-        const marker = document.createElement("span");
+        fragment.append?.(textNode.data.slice(cursor, issue.start));
+        const marker = doc.createElement ? doc.createElement("span") : {};
         marker.className = "vno-spelling-uncertain";
-        marker.dataset.vnoSpellingUncertain = issue.normalized;
-        marker.setAttribute("aria-label", `${issue.word}: từ chưa chắc chắn`);
+        if (marker.dataset) {
+          marker.dataset.vnoSpellingUncertain = issue.normalized;
+        }
+        marker.setAttribute?.("data-vno-spelling-uncertain", issue.normalized);
+        marker.setAttribute?.("aria-label", `${issue.word}: từ chưa chắc chắn`);
         marker.textContent = textNode.data.slice(issue.start, issue.end);
-        fragment.append(marker);
+        fragment.append?.(marker);
         cursor = issue.end;
       }
-      fragment.append(textNode.data.slice(cursor));
-      textNode.replaceWith(fragment);
+      fragment.append?.(textNode.data.slice(cursor));
+      textNode.replaceWith?.(fragment);
     }
     restoreSelectionBookmark(root, selection);
   }
@@ -260,16 +342,27 @@ export class SpellcheckDomController {
   openMenu(marker, x, y) {
     this.closeMenu();
     const word = marker.textContent;
+
+    let contextPrev = "";
+    const parentBlock = marker.closest?.("p,li,td,th,h1,h2,h3,h4,h5,h6,blockquote,div");
+    if (parentBlock) {
+      const fullText = parentBlock.textContent || "";
+      const markerIndex = fullText.indexOf(word);
+      if (markerIndex > 0) {
+        const textBefore = fullText.slice(0, markerIndex).trim();
+        const match = textBefore.match(/[\p{L}\p{M}]+$/u);
+        if (match) contextPrev = match[0];
+      }
+    }
+
     const menu = document.createElement("div");
     menu.className = "vno-spellcheck-menu";
     menu.setAttribute("role", "menu");
     menu.setAttribute("aria-label", `Gợi ý chính tả cho ${word}`);
-    const suggestions = this.checker.suggest(word);
+    const suggestions = this.checker.suggest(word, { contextPrev });
     for (const suggestion of suggestions) {
       this._appendAction(menu, suggestion, () => {
-        marker.replaceWith(document.createTextNode(suggestion));
-        this.closeMenu();
-        this.schedule(0);
+        this.applySuggestion(marker, suggestion);
       }, "vno-spellcheck-suggestion");
     }
     if (suggestions.length) menu.append(document.createElement("hr"));
@@ -323,6 +416,74 @@ export class SpellcheckDomController {
     button.textContent = label;
     button.addEventListener("click", action);
     menu.append(button);
+  }
+
+  applySuggestion(marker, suggestion) {
+    if (!marker || !marker.isConnected) return;
+    const word = marker.textContent;
+    const parent = marker.parentElement;
+    const root = this.roots.find(r => r.contains(marker)) || parent?.closest?.("[contenteditable]") || parent;
+
+    const textBefore = root?.innerText || root?.textContent || "";
+    const htmlBefore = root?.innerHTML || "";
+
+    // 1. Snapshot trước khi sửa cho normalizer nếu có
+    const normalizer = root?._vnoNormalizer;
+    if (normalizer && typeof normalizer._recordWordSnapshot === "function") {
+      if (normalizer._burstSettleTimer) {
+        clearTimeout(normalizer._burstSettleTimer);
+        normalizer._burstSettleTimer = null;
+      }
+      normalizer._recordWordSnapshot();
+    }
+
+    // 2. Thực hiện thay thế: ưu tiên execCommand('insertText') để có native undo nếu được
+    let replacedWithExec = false;
+    const selection = globalThis.getSelection?.();
+    if (selection && typeof document !== "undefined") {
+      try {
+        const range = document.createRange();
+        range.selectNode(marker);
+        selection.removeAllRanges();
+        selection.addRange(range);
+        replacedWithExec = document.execCommand?.("insertText", false, suggestion);
+      } catch (_) {
+        replacedWithExec = false;
+      }
+    }
+
+    if (!replacedWithExec) {
+      const doc = marker.ownerDocument || (typeof document !== "undefined" ? document : null);
+      const textNode = doc?.createTextNode ? doc.createTextNode(suggestion) : suggestion;
+      marker.replaceWith(textNode);
+      if (parent && typeof Event !== "undefined") {
+        parent.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    }
+
+    const textAfter = root?.innerText || root?.textContent || "";
+    const htmlAfter = root?.innerHTML || "";
+
+    // 3. Snapshot sau khi sửa cho normalizer ngay lập tức (không chờ timer 60ms)
+    if (normalizer && typeof normalizer._recordWordSnapshot === "function") {
+      normalizer.normalizeNow?.();
+      normalizer._recordWordSnapshot();
+    }
+
+    // 4. Gọi hook onReplace cho app
+    if (typeof this.onReplace === "function") {
+      try {
+        this.onReplace({
+          marker, suggestion, word, root,
+          textBefore, textAfter, htmlBefore, htmlAfter
+        });
+      } catch (err) {
+        console.warn("[SpellcheckDomController] onReplace callback error:", err);
+      }
+    }
+
+    this.closeMenu();
+    this.schedule(0);
   }
 
   closeMenu() {

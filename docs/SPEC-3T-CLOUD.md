@@ -99,4 +99,5 @@ Mỗi GĐ: agent làm trong nhánh riêng; Claude kiểm (test API tự động 
 3. **Quyền SSH** vào máy chủ cho agent triển khai (tài khoản riêng, không dùng root) — hoặc Người phụ trách tự chạy script triển khai.
 4. **Dùng chung API bản quyền với 3T Reader** (một tài khoản/key cho nhiều sản phẩm) hay tách riêng?
 5. **Chính sách bản quyền**: số máy mỗi key, số ngày dùng ngoại tuyến (đề xuất 30), số ngày dùng thử, giá/gói (vĩnh viễn + 1 năm cập nhật, thuê bao).
+   - **Giá (02/10): CHƯA CHỐT — để 0 cho cả 2 gói**, điền sau. Giá phải là CẤU HÌNH phía máy chủ (`.env`/CSDL), không viết cứng trong mã; GĐ2 làm đủ luồng kích hoạt với giá 0, khi chốt giá chỉ đổi cấu hình.
 6. Cổng thanh toán (nếu bán trực tuyến) — để GĐ sau.

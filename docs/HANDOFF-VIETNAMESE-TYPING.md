@@ -29,7 +29,7 @@ Bảng dữ liệu thực nghiệm được đo lường trực tiếp trên Web
 | **Doc** | Thân văn bản (Body) | Windows Vietnamese IME (TSF) | **PASS** (`31 tháng 12 nam 2026`) | **PASS** (`31 tháng 12 năm 2026`) | ✅ 100% |
 | **Doc** | Tiêu đề trang (Header) | Telex gõ tiêu đề | **PASS** (`text="Ủy ban Nhân dân..."`) | **PASS** (`text="Ủy ban Nhân dân..."`) | ✅ 100% |
 | **Doc** | Chân trang (Footer) | VNI gõ chân trang | **PASS** (`text="Quyết định ban hành..."`) | **PASS** (`text="Quyết định ban hành..."`) | ✅ 100% |
-| **Doc** | Ô bảng biểu (Table Cell)| Telex trong bảng biểu | **PASS** (chuẩn hóa trong ô) | **PASS** (chuẩn hóa trong ô) | ✅ 100% |
+| **Doc** | Ô bảng biểu (Table Cell)| Telex trong bảng biểu | **PASS — không kiểm chứng được** (test là mock: `recordResult(..., true, "Table cell tested via mock")`) | **PASS 77/77** (bảng chèn thật qua lệnh `writer.table.insert`, gõ thật vào ô đầu tiên, assert NFC chính xác từng ký tự) | ✅ 100% |
 | **Sheet** | Gõ trực tiếp không cần F2 | Telex trên ô được chọn | **PASS** (`model="Độc lập - Tự do..."`) | **PASS** (`model="Độc lập - Tự do..."`) | ✅ 100% |
 | **Sheet** | Gõ trực tiếp không cần F2 | 1-step Ctrl+Z hoàn tác ô | **PASS** (`restored=""`) | **PASS** (`restored=""`) | ✅ 100% |
 | **Sheet** | Chế độ sửa ô (F2 Edit Mode) | VNI gõ nhanh (5ms/phím) | **PASS** (`model="Trường Mầm non..."`) | **PASS** (`model="Trường Mầm non..."`) | ✅ 100% |
@@ -38,6 +38,8 @@ Bảng dữ liệu thực nghiệm được đo lường trực tiếp trên Web
 | **Slide** | Khung tiêu đề (Title) | 1-step Ctrl+Z Undo | **FAIL** (`afterUndo` giữ nguyên cả câu) | **PASS** (`afterUndo="Cộng hòa xã hội chủ nghĩa Việt"`) | ✅ 100% |
 | **Slide** | Khung nội dung (Body) | VNI gõ nhanh (5ms/phím) | **PASS** (`text="Nguyễn Thị Thùy Dương"`) | **PASS** (`text="Nguyễn Thị Thùy Dương"`) | ✅ 100% |
 | **Slide** | Ghi chú người thuyết trình | NFD tổ hợp chuyển sang NFC | **FAIL** (ghi chú lưu mã NFD phân rã) | **PASS** (lưu NFC dựng sẵn `notes="tiếng Việt..."`) | ✅ 100% |
+
+> **Lưu ý:** ma trận trên phản ánh kết quả ở **một câu đại diện** cho mỗi ô (thời điểm khắc phục lỗi CH-4.7). Kết quả theo **toàn bộ 77 cụm từ** của bộ desktop hiện nay nằm ở mục **6.1.1**.
 
 ---
 
@@ -133,41 +135,108 @@ Tuân thủ quy định **không sửa file help cũ** và **tuân thủ quy t�
 ## 6. Kết Quả Kiểm Thử Tại Các Cổng Kiểm Tra (Gates)
 
 ### 6.1. Desktop Live CDP Harness (`tests/live/cdp/vietnamese-typing.desktop.mjs`)
-Chạy trực tiếp trên desktop qua WebView2 remote debugging port:
+Chạy trực tiếp trên desktop qua WebView2 remote debugging port (Node cần cờ `--experimental-websocket`):
 ```text
-========================================
-VIETNAMESE TYPING DESKTOP TEST SUMMARY
-========================================
-PASS | [writer] body: Telex Normal (30ms) NFC (text="Cộng hòa xã hội chủ nghĩa Việt Nam")
-PASS | [writer] body: 1-step Ctrl+Z undo removes last word (afterUndo="Cộng hòa xã hội chủ nghĩa Việt")
-PASS | [writer] body: Telex Fast (5ms) burst (text="Độc lập - Tự do - Hạnh phúc")
-PASS | [writer] body: VNI Normal (30ms) NFC (text="Nguyễn Thị Thùy Dương")
-PASS | [writer] body: NFD decomposed normalises to NFC (text="tiếng Việt có dấu đúng chuẩn")
-PASS | [writer] body: Windows IME Composition Path (text="31 tháng 12 năm 2026")
-PASS | [writer] header: Telex in Header (text="Ủy ban Nhân dân Thành phố Hà Nội")
-PASS | [writer] footer: VNI in Footer (text="Quyết định ban hành tiêu chuẩn")
-PASS | [writer] table-cell: Telex in Table Cell (Table cell tested via mock)
-PASS | [sheet] direct-typing-no-f2: Direct typing without F2 (Telex) (model="Độc lập - Tự do - Hạnh phúc")
-PASS | [sheet] direct-typing-no-f2: 1-step Ctrl+Z restores cell (restored="")
-PASS | [sheet] cell-edit-mode-f2: F2 Cell Edit Mode Fast VNI (5ms) (model="Trường Mầm non Hoa Hồng")
-PASS | [sheet] formula-bar: Formula bar typing (no autocomplete fight, NFC normalized) (model="tiếng Việt có dấu đúng chuẩn", popupWasVisible=false)
-PASS | [slides] text-box: Slide Title Telex Normal (30ms) (text="Cộng hòa xã hội chủ nghĩa Việt Nam")
-PASS | [slides] text-box: 1-step Ctrl+Z undo removes last word (afterUndo="Cộng hòa xã hội chủ nghĩa Việt")
-PASS | [slides] text-box: Slide Body Fast VNI (5ms) (text="Nguyễn Thị Thùy Dương")
-PASS | [slides] notes: Slide Notes (NFD normalises to NFC) (notes="tiếng Việt có dấu đúng chuẩn")
-
-TOTAL: 17/17 PASS (100%)
+node --experimental-websocket tests/live/cdp/vietnamese-typing.desktop.mjs
 ```
+Bảng tóm tắt theo từng kịch bản (dòng `[SUMMARY]` + `TOTAL`) của **lần chạy #1 — chạy trọn vẹn cả 3 app**:
+```text
+[SUMMARY] [WRITER - body] Telex Normal (30ms) NFC: 77/77 PASS
+[SUMMARY] [WRITER - body] 1-step Ctrl+Z undo removes last word: 1/1 PASS
+[SUMMARY] [WRITER - body] Telex Fast (5ms) burst: 77/77 PASS
+[SUMMARY] [WRITER - body] VNI Normal (30ms) NFC: 77/77 PASS
+[SUMMARY] [WRITER - body] NFD decomposed normalises to NFC: 77/77 PASS
+[SUMMARY] [WRITER - body] Windows IME Composition Path: 77/77 PASS
+[SUMMARY] [WRITER - header] Telex in Header: 77/77 PASS
+[SUMMARY] [WRITER - footer] VNI in Footer: 77/77 PASS
+[SUMMARY] [WRITER - table-cell] Telex in Table Cell: 77/77 PASS
+[SUMMARY] [SHEET - direct-typing-no-f2] Direct typing without F2 (Telex): 77/77 PASS
+[SUMMARY] [SHEET - direct-typing-no-f2] 1-step Ctrl+Z restores cell: 0/1 PASS
+[SUMMARY] [SHEET - cell-edit-mode-f2] F2 Cell Edit Mode Fast VNI (5ms): 77/77 PASS
+[SUMMARY] [SHEET - formula-bar] Formula bar typing (no autocomplete fight, NFC normalized): 77/77 PASS
+[SUMMARY] [SLIDES - text-box] Slide Title Telex Normal (30ms): 77/77 PASS
+[SUMMARY] [SLIDES - text-box] 1-step Ctrl+Z undo removes last word: 1/1 PASS
+[SUMMARY] [SLIDES - text-box] Slide Body Fast VNI (5ms): 77/77 PASS
+[SUMMARY] [SLIDES - notes] Slide Notes (NFD normalises to NFC): 77/77 PASS
+
+TOTAL: 1080/1081 PASS
+```
+
+### 6.1.1. Mở rộng 77 Cụm Từ (Mở rộng 40 Câu)
+Mỗi kịch bản hiện nay lặp qua **toàn bộ 77 cụm từ** trong `VIETNAMESE_TEST_PHRASES` (mở rộng từ 42 cụm từ gốc). Kết quả tóm tắt:
+
+| Ứng dụng | Kịch bản (target) | Kết quả |
+|---|---|:---:|
+| **Doc/Writer** | Telex Normal (30ms) NFC — body | **77/77 PASS** |
+| **Doc/Writer** | 1-step Ctrl+Z undo removes last word | **1/1 PASS** |
+| **Doc/Writer** | Telex Fast (5ms) burst — body | **77/77 PASS** |
+| **Doc/Writer** | VNI Normal (30ms) NFC — body | **77/77 PASS** |
+| **Doc/Writer** | NFD decomposed → NFC — body | **77/77 PASS** |
+| **Doc/Writer** | Windows IME Composition Path — body | **77/77 PASS** |
+| **Doc/Writer** | Telex in Header | **77/77 PASS** |
+| **Doc/Writer** | VNI in Footer | **77/77 PASS** |
+| **Doc/Writer** | Telex in Table Cell *(bảng chèn thật qua lệnh `writer.table.insert`)* | **77/77 PASS** |
+| **Sheet** | Direct typing without F2 (Telex) | **77/77 PASS** |
+| **Sheet** | 1-step Ctrl+Z restores cell | **0/1 FAIL** — xem 6.1.2 |
+| **Sheet** | F2 Cell Edit Mode Fast VNI (5ms) | **77/77 PASS** |
+| **Sheet** | Formula bar typing (NFD → NFC, no autocomplete fight) | **77/77 PASS** |
+| **Slide** | Slide Title Telex Normal (30ms) | **77/77 PASS** |
+| **Slide** | 1-step Ctrl+Z undo removes last word | **1/1 PASS** |
+| **Slide** | Slide Body Fast VNI (5ms) | **77/77 PASS** |
+| **Slide** | Slide Notes NFD → NFC | **77/77 PASS** |
+
+**Tổng cộng Desktop CDP (lần chạy #1):** **1080/1081 PASS** (99,9%) — chỉ còn **1 FAIL** (Sheet `1-step Ctrl+Z restores cell`), không còn lỗi tích lũy văn bản ở Sheet F2 và không còn ô bảng Doc là mock.
+
+#### Chạy xác nhận lần #2 (`ime-desktop-run2.log`)
+Chạy lại đúng cùng một file test để kiểm chứng kết quả. **Mọi assertion đã chạy được đều cho kết quả GIỐNG hệt lần #1:**
+
+| | Lần #1 | Lần #2 |
+|---|:---:|:---:|
+| Writer (toàn bộ, gồm table-cell 77/77) | 617/617 | **617/617** |
+| Sheet direct + F2 + formula bar | 231/231 | **231/231** |
+| Sheet `1-step Ctrl+Z restores cell` | 0/1 | 0/1 |
+| Slides (title/undo/body/notes) | 232/232 | **32/232 — mất kết nối CDP** |
+| **TOTAL** | **1080/1081** | 880/1081 |
+
+Lần #2 bị **mất kết nối WebView2/CDP** ngay khi đang gõ cụm từ thứ 33 ở kịch bản Slide Title:
+```text
+[FAIL] ... | Khúc khuỷu quanh co đường đèo -> CDP connection closed before the response arrived.
+[FAIL] ... | Chim én liệng bay giữa trời xanh  -> CDP connection is not open.
+... (200 dòng FAIL còn lại đều là "CDP connection is not open")
+```
+**Đây là lỗi hạ tầng (WebView2 crash/đóng), KHÔNG phải lỗi assertion** — các assertion đã chạy trước đó đều PASS. Sự cố này tái diễn ở **3 lần** trong ngày (probe Undo lúc 06:24, lần chạy sheet riêng lúc 06:37, lần chạy desktop #2) và **không phụ thuộc vào thay đổi của task này** (phần Slides/Sheet direct typing không bị sửa). **Không có assertion nào bị vô hiệu hóa hay nới lỏng.** Lần chạy #1 trọn vẹn (**1080/1081**) là kết quả chuẩn được ghi ở mục 6.1.1.
+
+#### Những thay đổi so với lần chạy trước (932/1008):
+1. **Sheet F2: 1/77 → 77/77.** Nguyên nhân gốc không phải ô DOM tích lũy text, mà là **thanh công thức còn giữ text của lần gõ trước**: `_beginFormulaEntry()` (apps/sheet/sheet-grid.js:1293) seed giá trị editor từ `formulaInput.value`, không phải từ ô. Kịch bản giờ bấm **Delete trên ô B3 trước mỗi cụm từ** — handler Delete (`apps/sheet/sheet-grid.js:4171-4186`) xóa **cả ô trong model lẫn `formulaInput`** — rồi **kiểm tra nghiêm ngặt** ô `=== ""` **và** editor `=== ""` trước khi bấm F2. Assert cuối vẫn là so sánh NFC **chính xác từng ký tự** với model.
+2. **Doc Table Cell: mock → thật.** Bảng được chèn bằng cách dispatch **lệnh ứng dụng `writer.table.insert` qua command bus** (`globalCommandBus.execute`, `platform/commands/command-bus.js`) ngay trong trang qua `Runtime.evaluate` — đúng đường chạy của nút ribbon Chèn → Bảng biểu. Lệnh này chèn bảng **3 hàng × 4 cột** (`adapters/libreoffice/writer/writer-adapter.js:6678` → `insertTable(3, 4)`), không phải 2×2; test dùng **ô đầu tiên** của bảng đó. Mỗi cụm từ: nhấp chuột CDP thật vào ô, bôi chọn nội dung mẫu `"Tiêu đề"`, phím **Delete**, **xác nhận ô rỗng**, rồi gõ và assert NFC chính xác.
+3. **Log FAIL chi tiết**: `summarizeScenario()` giờ in đúng cụm từ + nội dung thực tế (trước đây in `N/A` do regex chỉ khớp `text="..."`).
+
+### 6.1.2. Lỗi còn lại: `1-step Ctrl+Z restores cell` (Sheet)
+```text
+expected: restored=""            (một phím Ctrl+Z đưa ô B2 về trạng thái TRƯỚC khi gõ)
+actual  : restored="Tỷ giá USD/VND: 24.500 đồng"   (= cụm từ thứ 76, tức là ô lùi đúng 1 bước)
+```
+**Không phải lỗi regression của thay đổi lần này** — kịch bản và code Direct typing/Undo không bị sửa; chạy lại file test ở **HEAD (không chỉnh sửa)** cũng cho đúng kết quả FAIL này.
+
+**Nguyên nhân (đã đo):** sau khi mở rộng mỗi kịch bản ra 77 cụm từ, vòng lặp Direct typing gõ vào **cùng ô B2** 77 lần. Giữa 2 vòng lặp có **≥800ms sleeps cố định** (`press Enter` 300ms + `click` 300ms + `sleep(200)`), lớn hơn `historyMergeWindowMs = 750` (`apps/sheet/sheet-grid.js:208`), nên mỗi cụm từ tạo **một entry undo riêng** (`_recordHistory`, `apps/sheet/sheet-grid.js:7817-7828`). Ctrl+Z lùi 1 entry → về cụm từ thứ 76, **không** về rỗng.
+
+**Chứng minh bằng đo trực tiếp:**
+- Gõ **1** cụm từ vào B2 → `undoStack.length = 1`, `prevVal = ""` → Ctrl+Z → `restored = ""` → PASS (đây là điều kiện mà assertion này được viết ra, từ thời mỗi kịch bản chỉ gõ 1 câu đại diện).
+- Gõ **8** cụm từ → `undoStack.length = 8`, `top.prevVal = cụm từ thứ 7` → Ctrl+Z → về cụm từ thứ 7 → FAIL.
+
+**Kết luận:** assertion `restored === ""` **chỉ đúng khi trước đó ô đang rỗng** (mỗi kịch bản 1 câu). Với vòng lặp 77 câu, hành vi sản phẩm vẫn đúng theo Excel (mỗi lần commit Enter = 1 bước undo, gõ 1 câu = 1 bước undo, Ctrl+Z gỡ trọn câu vừa gõ). **Test không bị nới lỏng** — cần chủ sở hữu quyết định: hoặc đổi assertion thành “Ctrl+Z khôi phục đúng giá trị trước lần gõ cuối cùng”, hoặc tách câu đại diện ra ô riêng đang rỗng. Agent này **không tự sửa** assertion đó.
 
 ### 6.2. Master Test Suite (`node tests/run-tests.js`)
 Đã đăng ký Suite 172 (`CH-4.7 — Vietnamese IME typing, burst normalizer, caret preservation, undo coalescing & NFC normalization`).
 ```text
 ==================================================
-KẾT QUẢ KIỂM THỬ: 2318/2318 PASS | 0 FAIL
+KẾT QUẢ KIỂM THỬ: 2346/2346 PASS | 0 FAIL
 ==================================================
 Toàn bộ các bài kiểm tra đều đạt chuẩn chất lượng.
 ```
-*(Số bài test đạt chuẩn đã tăng từ **2304** lên **2318** bài test, không có bài nào thất bại).*
+*(Số bài test đạt chuẩn đã tăng từ **2318** lên **2346** bài test, không có bài nào thất bại).*
+
+> **Ghi nhận độ ổn định (không phải lỗi của thay đổi lần này):** khi chạy `run-tests.js` **song song với agent/máy khác đang mở `soffice.exe` hoặc `msedge/msedgewebview2`**, thỉnh thoảng xuất hiện **2 FAIL rời rạc ở suite khác nhau** (lần lượt: `Sheet Pivot save: LibreOffice giữ DataPilot...`, `LibreOffice FODS -> XLSX: textRotation...`; và `Browser Headless (msedge.exe): Lỗi mount DOM...`, `Web suite mode vẫn render app switcher...`). Chạy lại ở trạng thái ít cạnh tranh là **2346/2346 PASS | 0 FAIL**. Lần chạy cuối cùng của task này: **2346/2346 PASS | 0 FAIL**.
 
 ### 6.3. Python Test Suite (`python -m unittest discover -s tests`)
 ```text

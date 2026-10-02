@@ -290,12 +290,12 @@ export class UnoBridge {
 
   // AutoRecover is a local app-data service and does not require the LibreOffice engine.
   async getAutoRecoverSettings() {
-    if (!this.desktopApi) return { enabled: true, interval_minutes: 5 };
+    if (!this.desktopApi) return { enabled: true, interval_minutes: 2 };
     return await this.desktopApi.get_autorecover_settings();
   }
 
   async setAutoRecoverSettings(settings) {
-    if (!this.desktopApi) return { enabled: true, interval_minutes: 5 };
+    if (!this.desktopApi) return { enabled: true, interval_minutes: 2 };
     return await this.desktopApi.set_autorecover_settings(settings);
   }
 
@@ -322,6 +322,21 @@ export class UnoBridge {
   async deleteAutoRecoverDocument(docId) {
     if (!this.desktopApi) return false;
     return await this.desktopApi.delete_autorecover_document(docId);
+  }
+
+  async getPerformanceLogSettings() {
+    if (!this.desktopApi?.get_performance_log_settings) return { enabled: false };
+    return await this.desktopApi.get_performance_log_settings();
+  }
+
+  async setPerformanceLogSettings(settings) {
+    if (!this.desktopApi?.set_performance_log_settings) return { status: "error", message: "Tùy chọn chỉ khả dụng trong 3T Office Desktop." };
+    return await this.desktopApi.set_performance_log_settings(settings);
+  }
+
+  async openPerformanceLogFolder() {
+    if (!this.desktopApi?.open_performance_log_folder) return { status: "error", message: "Tùy chọn chỉ khả dụng trong 3T Office Desktop." };
+    return await this.desktopApi.open_performance_log_folder();
   }
 
   /**

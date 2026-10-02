@@ -37,6 +37,29 @@ export const viStrings = {
     location: "Vị trí",
     stepsHeading: "Cách dùng"
   },
+  autoRecover: {
+    settingsTitle: "Tùy chọn · Tự động khôi phục",
+    enabled: "Bật lưu khôi phục tự động",
+    saveEvery: "Lưu mỗi",
+    minuteRange: "phút (1–60)",
+    showSaved: "Xem bản khôi phục",
+    dialogTitle: "Khôi phục tài liệu chưa lưu",
+    dialogDescription: "3T Office tìm thấy bản lưu tự động từ phiên làm việc trước chưa đóng bình thường.",
+    recover: "Khôi phục",
+    discard: "Bỏ",
+    later: "Để sau",
+    empty: "Không còn bản khôi phục nào."
+  },
+  performance: {
+    optionsTitle: "Tùy chọn",
+    logToggle: "Ghi nhật ký hiệu năng (không gửi đi)",
+    localOnly: "Nhật ký chỉ lưu trên thiết bị này; mặc định đang tắt.",
+    openFolder: "Mở thư mục nhật ký",
+    enabledStatus: "Đang ghi nhật ký hiệu năng trên thiết bị này.",
+    disabledStatus: "Đã tắt ghi nhật ký hiệu năng.",
+    folderOpened: "Đã mở thư mục nhật ký.",
+    desktopOnly: "Tùy chọn này khả dụng trong ứng dụng 3T Office Desktop."
+  },
   aiAssistant: {
     title: "Trợ lý 3T AI", provider: "Nhà cung cấp AI", local: "Cục bộ (mặc định)",
     activeProvider: "Đang dùng thực tế", configureKey: "Cấu hình API key", apiKey: "API key",
@@ -469,6 +492,7 @@ export const viStrings = {
     ,"sheet.view.gridlines": { label: "Đường lưới", tooltip: "Ẩn hoặc hiện đường viền ô" }
     ,"sheet.view.headings": { label: "Tiêu đề", tooltip: "Ẩn hoặc hiện tiêu đề hàng và cột" }
     ,"sheet.review.spellCheck": { label: "Chính tả", tooltip: "Kiểm tra chính tả tiếng Việt trên các ô văn bản của trang tính hiện tại (F7)" }
+    ,"sheet.review.toggleSpellCheck": { label: "Kiểm tra chính tả", tooltip: "Bật hoặc tắt gạch đỏ kiểm tra chính tả tiếng Việt" }
     ,"sheet.review.commentInsert": { label: "Ghi chú mới", tooltip: "Thêm, sửa hoặc xóa ghi chú của ô đang chọn" }
     ,"sheet.review.commentPrevious": { label: "Nhận xét trước", tooltip: "Nhảy tới nhận xét trước đó" }
     ,"sheet.review.commentNext": { label: "Nhận xét sau", tooltip: "Nhảy tới nhận xét tiếp theo" }
@@ -513,6 +537,7 @@ export const viStrings = {
     ,"slides.review.commentDelete": { label: "Xóa nhận xét", tooltip: "Xóa nhận xét đang chọn" }
     ,"slides.review.commentResolve": { label: "Đã xử lý", tooltip: "Đánh dấu hoặc mở lại nhận xét đang chọn" }
     ,"slides.review.spellCheck": { label: "Chính tả", tooltip: "Kiểm tra chính tả tiếng Việt trên trang chiếu hiện tại (F7)" }
+    ,"slides.review.toggleSpellCheck": { label: "Kiểm tra chính tả", tooltip: "Bật hoặc tắt gạch đỏ kiểm tra chính tả tiếng Việt" }
     ,"slides.edit.formatPainter": { label: "Sao chép định dạng", tooltip: "Sao chép định dạng chữ hoặc hình đang chọn sang đối tượng khác. Nhấp đúp để khóa và áp dụng nhiều lần. Esc để hủy." }
     ,"slides.edit.selectAll": { label: "Chọn tất cả", tooltip: "Chọn tất cả hình trên trang chiếu hiện tại" }
     ,"slides.edit.selectObjects": { label: "Chọn đối tượng", tooltip: "Chọn các đối tượng vẽ trên trang chiếu hiện tại (không gồm đường nối)" }
@@ -641,8 +666,11 @@ export const viStrings = {
     "writer.para.spacing2": { label: "Giãn dòng 2.0", tooltip: "Khoảng cách dòng 2.0 (Ctrl+2)" },
     "writer.para.spacingBefore": { label: "Khoảng trước đoạn", tooltip: "Khoảng cách trước đoạn văn (đơn vị pt)" },
     "writer.para.spacingAfter": { label: "Khoảng sau đoạn", tooltip: "Khoảng cách sau đoạn văn (đơn vị pt)" },
+    "writer.para.firstLineIndent": { label: "Thụt đầu dòng", tooltip: "Đặt khoảng thụt của dòng đầu đoạn văn" },
     "writer.list.bullet": { label: "Dấu đầu dòng", tooltip: "Tạo danh sách dấu chấm tròn" },
     "writer.list.numbered": { label: "Đánh số", tooltip: "Tạo danh sách đánh số thứ tự" },
+    "writer.list.restartNumbering": { label: "Đánh số lại từ 1", tooltip: "Bắt đầu lại việc đánh số thứ tự từ 1" },
+    "writer.list.continueNumbering": { label: "Tiếp tục đánh số", tooltip: "Tiếp tục đánh số từ danh sách trước đó" },
     "writer.para.multilevelList": { label: "Danh sách đa cấp", tooltip: "Danh sách nhiều cấp: 1. / 1.1. / 1.1.1., 1. / a. / i., hoặc Điều / Khoản / Điểm (NĐ 30)" },
     "writer.para.indentInc": { label: "Thụt lề", tooltip: "Tăng khoảng cách thụt lề đoạn văn (Ctrl+M)" },
     "writer.para.indentDec": { label: "Giảm thụt lề", tooltip: "Giảm khoảng cách thụt lề đoạn văn (Ctrl+Shift+M)" },
@@ -655,7 +683,31 @@ export const viStrings = {
     "writer.para.shading": { label: "Tô nền đoạn", tooltip: "Tô màu nền đoạn văn hoặc ô bảng" },
     "writer.para.borders": { label: "Viền đoạn", tooltip: "Chọn viền đoạn văn hoặc ô bảng" },
     "writer.table.insert": { label: "Bảng biểu", tooltip: "Chèn bảng mới vào văn bản" },
+    "writer.table.insertRowAbove": { label: "Chèn hàng phía trên", tooltip: "Chèn một hàng mới ngay phía trên hàng hiện tại" },
+    "writer.table.insertRowBelow": { label: "Chèn hàng phía dưới", tooltip: "Chèn một hàng mới ngay phía dưới hàng hiện tại" },
+    "writer.table.insertColLeft": { label: "Chèn cột bên trái", tooltip: "Chèn một cột mới bên trái cột hiện tại" },
+    "writer.table.insertColRight": { label: "Chèn cột bên phải", tooltip: "Chèn một cột mới bên phải cột hiện tại" },
+    "writer.table.deleteRow": { label: "Xóa hàng", tooltip: "Xóa hàng đang chọn trong bảng" },
+    "writer.table.deleteCol": { label: "Xóa cột", tooltip: "Xóa cột đang chọn trong bảng" },
+    "writer.table.deleteTable": { label: "Xóa bảng", tooltip: "Xóa toàn bộ bảng hiện tại" },
+    "writer.table.mergeCells": { label: "Gộp ô", tooltip: "Gộp các ô đang chọn thành một ô duy nhất" },
+    "writer.table.splitCells": { label: "Tách ô", tooltip: "Tách ô đang chọn thành nhiều ô" },
+    "writer.table.distributeRows": { label: "Phân bố đều hàng", tooltip: "Đặt chiều cao các hàng bằng nhau" },
+    "writer.table.distributeCols": { label: "Phân bố đều cột", tooltip: "Đặt chiều rộng các cột bằng nhau" },
+    "writer.table.alignTop": { label: "Căn đỉnh ô", tooltip: "Căn văn bản lên mép trên của ô" },
+    "writer.table.alignMiddle": { label: "Căn giữa dọc ô", tooltip: "Căn văn bản vào giữa theo chiều dọc của ô" },
+    "writer.table.alignBottom": { label: "Căn đáy ô", tooltip: "Căn văn bản xuống mép dưới của ô" },
+    "writer.table.selectCell": { label: "Chọn ô", tooltip: "Chọn toàn bộ ô hiện tại" },
+    "writer.table.selectRow": { label: "Chọn hàng", tooltip: "Chọn toàn bộ hàng hiện tại" },
+    "writer.table.selectCol": { label: "Chọn cột", tooltip: "Chọn toàn bộ cột hiện tại" },
+    "writer.table.selectTable": { label: "Chọn bảng", tooltip: "Chọn toàn bộ bảng" },
+    "writer.table.cellBg": { label: "Tô màu ô", tooltip: "Đổi màu nền cho các ô đang chọn trong bảng" },
+    "writer.table.borders": { label: "Đường viền bảng", tooltip: "Tùy chỉnh kiểu và độ dày đường viền bảng" },
+    "writer.table.toggleHeaderRow": { label: "Hàng tiêu đề", tooltip: "Bật hoặc tắt định dạng hàng tiêu đề bảng" },
+    "writer.table.toggleBandedRows": { label: "Hàng xen kẽ", tooltip: "Bật hoặc tắt màu xen kẽ giữa các hàng trong bảng" },
     "writer.image.insert": { label: "Hình ảnh", tooltip: "Chèn hình ảnh từ máy tính" },
+    "writer.image.resize": { label: "Đổi kích thước ảnh", tooltip: "Thay đổi kích thước và tỷ lệ ảnh" },
+    "writer.image.wrap": { label: "Ngắt dòng văn bản", tooltip: "Tùy chọn ngắt dòng chữ quanh ảnh" },
     "writer.shape.insert": { label: "Hình khối", tooltip: "Chèn hình khối cơ bản (chữ nhật, hình tròn, mũi tên, đường thẳng)" },
     "writer.diagram.insert": { label: "Sơ đồ", tooltip: "Chèn sơ đồ quy trình, chu trình hoặc phân cấp" },
     "writer.chart.insert": { label: "Biểu đồ", tooltip: "Chèn biểu đồ minh họa dữ liệu" },
@@ -702,6 +754,7 @@ export const viStrings = {
     "writer.trackChanges.acceptAll": { label: "Chấp nhận thay đổi", tooltip: "Chấp nhận toàn bộ thay đổi trong tài liệu" },
     "writer.trackChanges.rejectAll": { label: "Từ chối thay đổi", tooltip: "Từ chối toàn bộ thay đổi trong tài liệu" },
     "writer.review.wordCount": { label: "Đếm từ", tooltip: "Xem số từ, ký tự, đoạn văn và dòng của tài liệu" },
+    "writer.review.toggleSpellCheck": { label: "Kiểm tra chính tả", tooltip: "Bật hoặc tắt gạch đỏ kiểm tra chính tả tiếng Việt" },
     "writer.help.open": { label: "Trợ giúp", tooltip: "Mở hướng dẫn sử dụng (F1)" },
     "writer.page.margins": { label: "Căn lề", tooltip: "Thiết lập lề tiêu chuẩn văn bản Việt Nam" },
     "writer.page.orientation": { label: "Hướng giấy", tooltip: "Khổ giấy dọc hoặc ngang" },
@@ -730,7 +783,7 @@ export const viStrings = {
     "writer.view.printLayout": { label: "Bố trí in", tooltip: "Hiển thị ranh giới trang, đầu trang và chân trang" },
     "writer.view.webLayout": { label: "Bố trí Web", tooltip: "Hiển thị nội dung liên tục theo chiều rộng cửa sổ" },
     "writer.view.readMode": { label: "Chế độ đọc", tooltip: "Ẩn ribbon và mở rộng vùng đọc; nhấn Esc để thoát" },
-    "writer.view.ruler": { label: "Thước", tooltip: "Ẩn hoặc hiện thước ngang theo thiết lập trang" },
+    "writer.view.ruler": { label: "Thước", tooltip: "Ẩn hoặc hiện thước đo ngang và thước đo dọc theo thiết lập trang" },
     "writer.view.gridlines": { label: "Đường lưới", tooltip: "Ẩn hoặc hiện lưới căn chỉnh không in" },
     "writer.view.zoomIn": { label: "Phóng to", tooltip: "Tăng tỉ lệ hiển thị tài liệu" },
     "writer.view.zoomOut": { label: "Thu nhỏ", tooltip: "Giảm tỉ lệ hiển thị tài liệu" },
@@ -769,6 +822,8 @@ export const viStrings = {
       review: "Đánh giá",
       view: "Chế độ xem",
       help: "Trợ giúp",
+      tableDesign: "Thiết kế Bảng",
+      tableLayout: "Bố cục Bảng",
       ai: "Trợ lý 3T AI"
     },
     group: {
@@ -779,6 +834,13 @@ export const viStrings = {
       quickInsert: "Chèn nhanh",
       pages: "Trang văn bản",
       tables: "Bảng biểu",
+      tableStyleOptions: "Tùy chọn kiểu bảng",
+      tableBordersShading: "Màu & Viền",
+      tableSelectGroup: "Bảng",
+      tableRowsColsGroup: "Hàng & Cột",
+      tableMergeGroup: "Hợp nhất",
+      tableSizeGroup: "Kích cỡ ô",
+      tableAlignGroup: "Căn lề ô",
       tablesIllustrations: "Bảng biểu & Hình",
       illustrations: "Minh họa",
       links: "Liên kết",

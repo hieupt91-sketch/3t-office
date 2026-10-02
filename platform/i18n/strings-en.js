@@ -38,6 +38,29 @@ export const enStrings = {
     location: "Location",
     stepsHeading: "How to use"
   },
+  autoRecover: {
+    settingsTitle: "AutoRecover",
+    enabled: "Save recovery copies automatically",
+    saveEvery: "Save every",
+    minuteRange: "minutes (1–60)",
+    showSaved: "View recovery copies",
+    dialogTitle: "Recover unsaved documents",
+    dialogDescription: "3T Office found automatic recovery copies from a session that did not close normally.",
+    recover: "Recover",
+    discard: "Discard",
+    later: "Later",
+    empty: "No recovery copies remain."
+  },
+  performance: {
+    optionsTitle: "Options",
+    logToggle: "Record performance log (not sent)",
+    localOnly: "The log is stored on this device only; it is off by default.",
+    openFolder: "Open log folder",
+    enabledStatus: "Performance logging is on for this device.",
+    disabledStatus: "Performance logging is off.",
+    folderOpened: "Log folder opened.",
+    desktopOnly: "This option is available in 3T Office Desktop."
+  },
   aiAssistant: {
     title: "3T AI Assistant", provider: "AI provider", local: "Local (default)",
     activeProvider: "Actually in use", configureKey: "Configure API key", apiKey: "API key",
@@ -468,6 +491,7 @@ export const enStrings = {
     ,"sheet.view.gridlines": { label: "Gridlines", tooltip: "Show or hide worksheet gridlines" }
     ,"sheet.view.headings": { label: "Headings", tooltip: "Show or hide row and column headings" }
     ,"sheet.review.spellCheck": { label: "Spelling", tooltip: "Check Vietnamese spelling in text cells of the current worksheet (F7)" }
+    ,"sheet.review.toggleSpellCheck": { label: "Spell Check", tooltip: "Toggle Vietnamese inline spelling check on/off" }
     ,"sheet.review.commentInsert": { label: "New Comment", tooltip: "Add, edit, or delete a comment on the active cell" }
     ,"sheet.review.commentPrevious": { label: "Previous Comment", tooltip: "Go to the previous comment" }
     ,"sheet.review.commentNext": { label: "Next Comment", tooltip: "Go to the next comment" }
@@ -512,6 +536,7 @@ export const enStrings = {
     ,"slides.review.commentDelete": { label: "Delete Comment", tooltip: "Delete the selected comment" }
     ,"slides.review.commentResolve": { label: "Resolve Comment", tooltip: "Resolve or reopen the selected comment" }
     ,"slides.review.spellCheck": { label: "Spelling", tooltip: "Check Vietnamese spelling on the current slide (F7)" }
+    ,"slides.review.toggleSpellCheck": { label: "Spell Check", tooltip: "Toggle Vietnamese inline spelling check on/off" }
     ,"slides.edit.formatPainter": { label: "Format Painter", tooltip: "Copy text or shape formatting to another object. Double-click to lock and apply multiple times. Esc to cancel." }
     ,"slides.edit.selectAll": { label: "Select All", tooltip: "Select every shape on the current slide" }
     ,"slides.edit.selectObjects": { label: "Select Objects", tooltip: "Select drawing objects on the current slide (excluding connectors)" }
@@ -640,8 +665,11 @@ export const enStrings = {
     "writer.para.spacing2": { label: "Line Spacing 2.0", tooltip: "Double line spacing (Ctrl+2)" },
     "writer.para.spacingBefore": { label: "Spacing Before", tooltip: "Space before paragraph (pt)" },
     "writer.para.spacingAfter": { label: "Spacing After", tooltip: "Space after paragraph (pt)" },
+    "writer.para.firstLineIndent": { label: "First-line Indent", tooltip: "Set the first line indent for the paragraph" },
     "writer.list.bullet": { label: "Bullets", tooltip: "Create a bulleted list" },
     "writer.list.numbered": { label: "Numbering", tooltip: "Create a numbered list" },
+    "writer.list.restartNumbering": { label: "Restart at 1", tooltip: "Restart numbering from 1" },
+    "writer.list.continueNumbering": { label: "Continue Numbering", tooltip: "Continue numbering from previous list" },
     "writer.para.multilevelList": { label: "Multilevel List", tooltip: "Multilevel list: 1. / 1.1. / 1.1.1., 1. / a. / i., or Vietnamese Điều / Khoản / Điểm" },
     "writer.para.indentInc": { label: "Increase Indent", tooltip: "Increase indent (Ctrl+M)" },
     "writer.para.indentDec": { label: "Decrease Indent", tooltip: "Decrease indent (Ctrl+Shift+M)" },
@@ -654,7 +682,31 @@ export const enStrings = {
     "writer.para.shading": { label: "Shading", tooltip: "Apply paragraph or table-cell shading" },
     "writer.para.borders": { label: "Borders", tooltip: "Choose paragraph or table-cell borders" },
     "writer.table.insert": { label: "Table", tooltip: "Insert a table into document" },
+    "writer.table.insertRowAbove": { label: "Insert Above", tooltip: "Insert a new row above current row" },
+    "writer.table.insertRowBelow": { label: "Insert Below", tooltip: "Insert a new row below current row" },
+    "writer.table.insertColLeft": { label: "Insert Left", tooltip: "Insert a new column to the left" },
+    "writer.table.insertColRight": { label: "Insert Right", tooltip: "Insert a new column to the right" },
+    "writer.table.deleteRow": { label: "Delete Rows", tooltip: "Delete selected row(s)" },
+    "writer.table.deleteCol": { label: "Delete Columns", tooltip: "Delete selected column(s)" },
+    "writer.table.deleteTable": { label: "Delete Table", tooltip: "Delete entire table" },
+    "writer.table.mergeCells": { label: "Merge Cells", tooltip: "Merge selected cells into one" },
+    "writer.table.splitCells": { label: "Split Cells", tooltip: "Split selected cell into multiple cells" },
+    "writer.table.distributeRows": { label: "Distribute Rows", tooltip: "Distribute row heights evenly" },
+    "writer.table.distributeCols": { label: "Distribute Columns", tooltip: "Distribute column widths evenly" },
+    "writer.table.alignTop": { label: "Align Top", tooltip: "Align text to the top of cell" },
+    "writer.table.alignMiddle": { label: "Align Center", tooltip: "Center text vertically in cell" },
+    "writer.table.alignBottom": { label: "Align Bottom", tooltip: "Align text to the bottom of cell" },
+    "writer.table.selectCell": { label: "Select Cell", tooltip: "Select active cell" },
+    "writer.table.selectRow": { label: "Select Row", tooltip: "Select active row" },
+    "writer.table.selectCol": { label: "Select Column", tooltip: "Select active column" },
+    "writer.table.selectTable": { label: "Select Table", tooltip: "Select entire table" },
+    "writer.table.cellBg": { label: "Shading", tooltip: "Change table cell background color" },
+    "writer.table.borders": { label: "Borders", tooltip: "Customize table borders" },
+    "writer.table.toggleHeaderRow": { label: "Header Row", tooltip: "Toggle table header row formatting" },
+    "writer.table.toggleBandedRows": { label: "Banded Rows", tooltip: "Toggle banded rows formatting" },
     "writer.image.insert": { label: "Pictures", tooltip: "Insert pictures from your computer" },
+    "writer.image.resize": { label: "Resize Picture", tooltip: "Resize picture and adjust aspect ratio" },
+    "writer.image.wrap": { label: "Wrap Text", tooltip: "Configure text wrapping around picture" },
     "writer.shape.insert": { label: "Shapes", tooltip: "Insert basic shapes (rectangle, circle, arrow, line)" },
     "writer.diagram.insert": { label: "SmartArt", tooltip: "Insert a SmartArt diagram (process, cycle, hierarchy, list)" },
     "writer.chart.insert": { label: "Chart", tooltip: "Insert an illustration chart" },
@@ -701,6 +753,7 @@ export const enStrings = {
     "writer.trackChanges.acceptAll": { label: "Accept All Changes", tooltip: "Accept all changes in document" },
     "writer.trackChanges.rejectAll": { label: "Reject All Changes", tooltip: "Reject all changes in document" },
     "writer.review.wordCount": { label: "Document Statistics", tooltip: "Show words, characters, paragraphs and lines in the document" },
+    "writer.review.toggleSpellCheck": { label: "Spell Check", tooltip: "Toggle Vietnamese inline spelling check on/off" },
     "writer.help.open": { label: "Help", tooltip: "Open the in-app user guide (F1)" },
     "writer.page.margins": { label: "Margins", tooltip: "Adjust document margins" },
     "writer.page.orientation": { label: "Orientation", tooltip: "Switch page orientation between portrait and landscape" },
@@ -729,7 +782,7 @@ export const enStrings = {
     "writer.view.printLayout": { label: "Print Layout", tooltip: "Show page boundaries, headers, and footers" },
     "writer.view.webLayout": { label: "Web Layout", tooltip: "Flow document content continuously across the window" },
     "writer.view.readMode": { label: "Read Mode", tooltip: "Hide the ribbon and expand the reading area; press Esc to exit" },
-    "writer.view.ruler": { label: "Ruler", tooltip: "Show or hide the ruler based on page setup" },
+    "writer.view.ruler": { label: "Ruler", tooltip: "Show or hide horizontal and vertical rulers based on page setup" },
     "writer.view.gridlines": { label: "Gridlines", tooltip: "Show or hide non-printing alignment gridlines" },
     "writer.view.zoomIn": { label: "Zoom In", tooltip: "Increase document zoom" },
     "writer.view.zoomOut": { label: "Zoom Out", tooltip: "Decrease document zoom" },
@@ -768,6 +821,8 @@ export const enStrings = {
       review: "Review",
       view: "View",
       help: "Help",
+      tableDesign: "Table Design",
+      tableLayout: "Table Layout",
       ai: "3T AI Assistant"
     },
     group: {
@@ -778,6 +833,13 @@ export const enStrings = {
       quickInsert: "Quick Insert",
       pages: "Pages",
       tables: "Tables",
+      tableStyleOptions: "Table Style Options",
+      tableBordersShading: "Borders & Shading",
+      tableSelectGroup: "Table",
+      tableRowsColsGroup: "Rows & Columns",
+      tableMergeGroup: "Merge",
+      tableSizeGroup: "Cell Size",
+      tableAlignGroup: "Alignment",
       tablesIllustrations: "Tables & Illustrations",
       illustrations: "Illustrations",
       links: "Links",
