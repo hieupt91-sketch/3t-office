@@ -734,6 +734,7 @@ export const WRITER_RIBBON_TABS = [
         labelKey: "writerRibbon.group.proofread",
         items: [
           { type: "button", commandId: "ai.assistant.grammarCheck", isLarge: true },
+          { type: "button", commandId: "writer.review.toggleSpellCheck", isLarge: true },
           { type: "button", commandId: "writer.review.wordCount", isLarge: true }
         ]
       },

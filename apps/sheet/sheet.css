@@ -152,6 +152,45 @@
 }
 .vno-formula-input.has-reference-colors::selection { color: transparent; background: transparent; }
 
+.vno-formula-spell-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--vno-radius-sm);
+  color: var(--vno-text-primary);
+  font-family: var(--vno-font-mono);
+  font-size: var(--vno-text-xs);
+  line-height: 16px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  pointer-events: none;
+}
+.vno-formula-spell-overlay-content {
+  display: inline-block;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.vno-formula-spell-overlay-content .vno-spelling-uncertain {
+  text-decoration: underline wavy #e02424;
+  text-decoration-skip-ink: none;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.vno-formula-input.has-spellcheck-overlay {
+  z-index: 2;
+  background-color: transparent !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  caret-color: var(--vno-text-primary) !important;
+}
+.vno-formula-input.has-spellcheck-overlay::selection {
+  color: transparent;
+  background: rgba(37, 99, 235, 0.2);
+}
+
 /* Grid Viewport */
 .vno-grid-viewport {
   flex: 1;

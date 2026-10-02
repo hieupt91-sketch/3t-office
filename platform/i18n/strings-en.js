@@ -491,6 +491,7 @@ export const enStrings = {
     ,"sheet.view.gridlines": { label: "Gridlines", tooltip: "Show or hide worksheet gridlines" }
     ,"sheet.view.headings": { label: "Headings", tooltip: "Show or hide row and column headings" }
     ,"sheet.review.spellCheck": { label: "Spelling", tooltip: "Check Vietnamese spelling in text cells of the current worksheet (F7)" }
+    ,"sheet.review.toggleSpellCheck": { label: "Spell Check", tooltip: "Toggle Vietnamese inline spelling check on/off" }
     ,"sheet.review.commentInsert": { label: "New Comment", tooltip: "Add, edit, or delete a comment on the active cell" }
     ,"sheet.review.commentPrevious": { label: "Previous Comment", tooltip: "Go to the previous comment" }
     ,"sheet.review.commentNext": { label: "Next Comment", tooltip: "Go to the next comment" }
@@ -535,6 +536,7 @@ export const enStrings = {
     ,"slides.review.commentDelete": { label: "Delete Comment", tooltip: "Delete the selected comment" }
     ,"slides.review.commentResolve": { label: "Resolve Comment", tooltip: "Resolve or reopen the selected comment" }
     ,"slides.review.spellCheck": { label: "Spelling", tooltip: "Check Vietnamese spelling on the current slide (F7)" }
+    ,"slides.review.toggleSpellCheck": { label: "Spell Check", tooltip: "Toggle Vietnamese inline spelling check on/off" }
     ,"slides.edit.formatPainter": { label: "Format Painter", tooltip: "Copy text or shape formatting to another object. Double-click to lock and apply multiple times. Esc to cancel." }
     ,"slides.edit.selectAll": { label: "Select All", tooltip: "Select every shape on the current slide" }
     ,"slides.edit.selectObjects": { label: "Select Objects", tooltip: "Select drawing objects on the current slide (excluding connectors)" }
@@ -751,6 +753,7 @@ export const enStrings = {
     "writer.trackChanges.acceptAll": { label: "Accept All Changes", tooltip: "Accept all changes in document" },
     "writer.trackChanges.rejectAll": { label: "Reject All Changes", tooltip: "Reject all changes in document" },
     "writer.review.wordCount": { label: "Document Statistics", tooltip: "Show words, characters, paragraphs and lines in the document" },
+    "writer.review.toggleSpellCheck": { label: "Spell Check", tooltip: "Toggle Vietnamese inline spelling check on/off" },
     "writer.help.open": { label: "Help", tooltip: "Open the in-app user guide (F1)" },
     "writer.page.margins": { label: "Margins", tooltip: "Adjust document margins" },
     "writer.page.orientation": { label: "Orientation", tooltip: "Switch page orientation between portrait and landscape" },

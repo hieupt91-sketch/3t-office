@@ -602,7 +602,10 @@ export const SHEET_RIBBON_TABS = [
         id: "proofing",
         label: "Chứng minh",
         labelKey: "sheetRibbon.group.proofing",
-        items: [{ type: "button", commandId: "sheet.review.spellCheck", isLarge: true }]
+        items: [
+          { type: "button", commandId: "sheet.review.spellCheck", isLarge: true },
+          { type: "button", commandId: "sheet.review.toggleSpellCheck", isLarge: true }
+        ]
       },
       {
         id: "comments",

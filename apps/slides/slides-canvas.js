@@ -905,11 +905,26 @@ export class SlidesCanvasController {
       };
       document.addEventListener("click", this._onSpellcheckMenuClick);
       this.canvasEl.dataset.spellcheckStatus = "ready";
+      globalCommandBus.updateState("slides.review.toggleSpellCheck", { checked: this.spellcheckController?.enabled });
     } catch (error) {
       this.canvasEl.dataset.spellcheckStatus = "error";
       this.canvasEl.title = "Không thể khởi tạo bộ kiểm tra chính tả tiếng Việt.";
       console.warn("[SlidesCanvasController] Không thể khởi tạo kiểm tra chính tả tiếng Việt:", error);
     }
+  }
+
+  toggleSpellcheck() {
+    if (!this.spellcheckController) {
+      this.initializeSpellcheck?.();
+      return false;
+    }
+    const next = !this.spellcheckController.enabled;
+    this.spellcheckController.setEnabled(next);
+    import("../../platform/text/spellcheck-dom-controller.js").then(({ setSpellcheckEnabled }) => {
+      setSpellcheckEnabled(next);
+    }).catch(() => {});
+    globalCommandBus.updateState("slides.review.toggleSpellCheck", { checked: next });
+    return next;
   }
 
   _ensureSpellChecker() {

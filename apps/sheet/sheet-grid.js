@@ -356,8 +356,27 @@ export class SheetGridController {
     formulaInputWrap.append(this.formulaReferenceOverlay, this.formulaInput);
 
     this._formulaInputNormalizer = new InputNormalizer({
-      target: this.formulaInput
+      target: this.formulaInput,
+      onWordCommit: () => {
+        if (!this.formulaEntry) this._beginFormulaEntry("edit");
+        this._setFormulaEntryValue(this.formulaInput.value, this.formulaInput.selectionStart, {
+          source: "undo"
+        });
+        if (this._inlineSpellController) {
+          this._inlineSpellController._syncFromInput();
+        }
+      }
     }).attach(this.formulaInput);
+
+    this._inlineSpellController = null;
+    import("./sheet-inline-spellcheck.js").then(({ SheetInlineSpellcheck }) => {
+      if (!this._inlineSpellController && this.formulaInput) {
+        this._inlineSpellController = new SheetInlineSpellcheck(this);
+        if (this.formulaInput) {
+          this.formulaInput.dataset.spellcheckStatus = "ready";
+        }
+      }
+    }).catch(() => {});
 
     this.autocomplete.mount();
 
@@ -10421,12 +10440,24 @@ _bindGridKeyboardNavigation() {
         words: dictionary.VIETNAMESE_DICTIONARY_WORDS
       };
       this._ensureSpellChecker();
+      import("./sheet-inline-spellcheck.js").then(({ SheetInlineSpellcheck }) => {
+        if (!this._inlineSpellController && this.formulaInput) {
+          this._inlineSpellController = new SheetInlineSpellcheck(this);
+        }
+      }).catch(() => {});
       return true;
     }).catch((error) => {
       this._spellcheckModulePromise = null;
       throw error;
     });
     return this._spellcheckModulePromise;
+  }
+
+  toggleSpellcheck() {
+    if (this._inlineSpellController) {
+      return this._inlineSpellController.toggle();
+    }
+    return false;
   }
 
   isSpellcheckableCell(item) {

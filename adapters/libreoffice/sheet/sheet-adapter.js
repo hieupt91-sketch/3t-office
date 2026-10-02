@@ -300,6 +300,9 @@ export class SheetAdapter {
       args = args || {};
       return this.grid.showSpellcheckDialog(args);
     });
+    globalCommandBus.bindHandler("sheet.review.toggleSpellCheck", () => {
+      return this.grid.toggleSpellcheck ? this.grid.toggleSpellcheck() : false;
+    });
     globalShortcutManager.bind("F7", "sheet.review.spellCheck", "sheet");
     globalShortcutManager.bind("F1", "sheet.help.open", "sheet");
     globalCommandBus.bindHandler("sheet.review.commentInsert", (args) => {

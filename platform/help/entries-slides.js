@@ -485,15 +485,16 @@ export const SLIDES_HELP_ENTRIES = [
   {
     id: "slides.review.spellCheckHelp",
     app: "slides",
-    commandIds: ["slides.review.spellCheck"],
+    commandIds: ["slides.review.spellCheck", "slides.review.toggleSpellCheck"],
     title: "Kiểm tra chính tả tiếng Việt trên trang chiếu",
-    summary: "F7 (khi đang ở Slide) hoặc nút Chính tả quét tiêu đề, nội dung, cột 2 và chữ trên hình của trang hiện tại — không quét ghi chú thuyết trình. Có gạch sóng đỏ và menu gợi ý khi gõ.",
+    summary: "F7 (khi đang ở Slide) hoặc nút Chính tả quét tiêu đề, nội dung, cột 2 và chữ trên hình của trang hiện tại; gạch đỏ sống và menu gợi ý chuột phải; hỗ trợ nút Bật/Tắt chính tả trên ribbon.",
     ribbon: { tab: "Đánh giá", tabId: "review", group: "Chứng minh" },
-    keywords: ["chính tả", "spell check", "f7", "từ điển", "tiếng việt", "gạch sóng", "chuột phải", "gợi ý", "Ctrl+Z"],
+    keywords: ["chính tả", "spell check", "f7", "từ điển", "tiếng việt", "gạch sóng", "chuột phải", "gợi ý", "Ctrl+Z", "bật tắt chính tả"],
     steps: [
       "Tab Đánh giá, nhóm Chứng minh, nút lớn Chính tả — hoặc nhấn F7 khi cửa sổ Slide đang hoạt động (F7 Doc là Soát lỗi AI; F7 Sheet/Slide là chính tả).",
       "Hộp «Chính tả» quét trang đang mở: Tiêu đề, Nội dung, Nội dung cột 2, Hình. Hiện «Không có trong từ điển», vị trí, nội dung, gợi ý. Đầy đủ các nút Bỏ qua / Bỏ qua tất cả / Thêm vào từ điển / Thay thế / Thay thế tất cả / Đóng. Nhấn Esc để đóng.",
       "Khi soạn thảo, các từ nghi ngờ sai chính tả trên tiêu đề, nội dung hoặc chữ trong hình tự động được gạch sóng đỏ (độ trễ ~400 ms) mà không làm di chuyển con trỏ đang gõ.",
+      "Tùy chọn Bật/Tắt kiểm tra chính tả: Mở tab Đánh giá, nhóm Chứng minh, nhấn nút «Kiểm tra chính tả» để bật hoặc tắt. Khi tắt, các đường gạch chân đỏ biến mất ngay lập tức; khi bật lại, hệ thống quét và gạch đỏ trở lại. Trạng thái được ghi nhớ qua các lần mở sau.",
       "Nhấp chuột phải vào từ bị gạch sóng để mở menu gợi ý từ đúng tiếng Việt; nhấp vào từ gợi ý để thay thế trực tiếp.",
       "Nhấn phím Ctrl+Z ngay sau khi chọn gợi ý để hoàn tác thay thế trong đúng một bước duy nhất.",
       "Từ điển cá nhân được lưu vào bộ nhớ dùng chung cho cả ba ứng dụng Doc, Sheet và Slide (vno-spellcheck-vi-personal)."
