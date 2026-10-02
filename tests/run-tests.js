@@ -446,7 +446,7 @@ async function runAll() {
     { title: "201. Unit Tests — 3T Doc and 3T Sheet basic editing keys and clipboard", runner: runBasicEditingKeysTests },
     { title: "202. Unit Tests — Shared Find and Replace (CH-7.1) for 3T Doc, 3T Sheet and 3T Slide", runner: runSharedFindReplaceTests },
     { title: "203. Unit Tests — CH-8 UI Consistency, KeyTips, Contextual F1 & String Scanner", runner: runUiConsistencyAndStringScannerTests },
-    { title: "204. Safety Regression — source and tests use CDP, not OS-level input", runner: runOsInputGuardTests },
+    { title: "204. Safety Regression — source and tests use CDP, never OS-level input or by-name process kill", runner: runOsInputGuardTests },
     { title: "205. CH-3/CH-8 — Hộp thoại In không lộ tên thư viện bên trong", runner: runPrintEngineNameTests },
     { title: "206. CH-4.7 — Vietnamese IME typing, burst normalizer, caret preservation, undo coalescing & NFC normalization", runner: runVietnameseImeUnitTests },
     { title: "207. Unit Tests — VN Sheet AutoFill date sequences and double-click fill", runner: runSheetAutoFillTests },
