@@ -443,7 +443,10 @@ export const SLIDES_RIBBON_TABS = [
         id: "proofing",
         label: "Chứng minh",
         labelKey: "slidesRibbon.group.proofing",
-        items: [{ type: "button", commandId: "slides.review.spellCheck", isLarge: true }]
+        items: [
+          { type: "button", commandId: "slides.review.spellCheck", isLarge: true },
+          { type: "button", commandId: "slides.review.toggleSpellCheck", isLarge: true }
+        ]
       },
       {
         id: "comments",
