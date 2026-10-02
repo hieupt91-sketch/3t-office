@@ -90,3 +90,4 @@ PASS | Names: installer wizard, pilot guide, release notes and desktop app title
 ```
 
 Trạng thái test: **PASS = đã chạy và pass**. Test desktop `tests/live/ch8-ui-help-consistency.desktop.mjs` NOT RUN (task này chỉ chạy unit test + `run-tests.js`).
+| + | Sheet/Doc | Dan tu bang tinh/van ban phan mem khac giu dinh dang (Claude bo sung) | `e24222b5` |

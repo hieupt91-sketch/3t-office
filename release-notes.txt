@@ -22,6 +22,7 @@ Ngày phát hành: 02/10/2026
 - Chèn phương trình bằng Alt+=, soạn được dạng tuyến tính, lưu và mở lại vẫn giữ nguyên vị trí.
 
 3. Sheet:
+- Dán từ bảng tính và văn bản của phần mềm văn phòng khác giữ đúng định dạng: chữ đậm, màu nền, số, ngày, phần trăm và số thập phân vào đúng ô; dán vào Doc giữ tiêu đề, danh sách và bảng.
 - Sửa 5 lỗi: số và ngày lưu thành giá trị số thật; giữ thiết lập trang in khi mở lại; Ctrl+A chọn đúng vùng dữ liệu; sắp xếp giữ nguyên dòng tiêu đề; xóa trang tính và đổi màu tab.
 - Bảng tính đủ 1.048.576 hàng x 16.384 cột (trước đây dừng ở 200 hàng x 26 cột); chỉ vẽ phần đang nhìn thấy nên cuộn vẫn nhẹ; Ctrl+mũi tên và ô nhập tên vùng đi tới mọi ô.
 - Hộp thoại In có thêm Phạm vi sổ làm việc: trang tính hiện hoạt, toàn bộ sổ làm việc hoặc vùng bôi đen.
