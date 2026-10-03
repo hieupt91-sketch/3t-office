@@ -328,6 +328,23 @@ function validatePayload(payload, adapter, supportXmlOverride) {
   if (!rawStyleXml || typeof rawStyleXml !== "object" || Array.isArray(rawStyleXml)) {
     throw new TypeError("Sheet payload styles are missing");
   }
+  if (payload.deferredSheets !== undefined) {
+    if (!Array.isArray(payload.deferredSheets) || !Array.isArray(payload.sheetStubs)) {
+      throw new TypeError("Invalid deferred Sheet payload metadata");
+    }
+    const stubNames = new Set();
+    for (const stub of payload.sheetStubs) {
+      if (!stub || typeof stub.name !== "string" || !stub.name || stubNames.has(stub.name)
+        || !Number.isSafeInteger(stub.cellCount) || stub.cellCount < 0
+        || typeof stub.usedRange !== "string") {
+        throw new TypeError("Invalid Sheet payload stub");
+      }
+      stubNames.add(stub.name);
+    }
+    if (payload.deferredSheets.some(name => typeof name !== "string" || !stubNames.has(name))) {
+      throw new TypeError("Deferred Sheet payload references an unknown stub");
+    }
+  }
   let supportXml = rawSupportXml;
   for (const [tag, raw] of Object.entries(rawStyleXml)) {
     if (!["office:styles", "office:automatic-styles", "office:font-face-decls"].includes(tag)
@@ -358,6 +375,8 @@ export async function buildSheetPayloadModel(payload, adapter, supportXmlOverrid
     validationHits: [], rowHeightsBySheet: {}, colWidthsBySheet: {}, userHiddenRowsBySheet: {},
     userHiddenColsBySheet: {}, imagesAtOpenBySheet: {},
   };
+  workbook.deferredSheets = [...(payload.deferredSheets || [])];
+  workbook.sheetStubs = Object.fromEntries((payload.sheetStubs || []).map(stub => [stub.name, { ...stub }]));
 
   const activeMatch = xml.match(/<config:config-item\b([^>]*)config:name=["']ActiveTable["'][^>]*>([\s\S]*?)<\/config:config-item>/i);
   workbook.activeSheet = activeMatch ? adapter._unescapeXml(activeMatch[2].replace(/<[^>]+>/g, "")) : "";
@@ -440,8 +459,11 @@ export async function buildSheetPayloadModel(payload, adapter, supportXmlOverrid
     const name = attrs["table:name"] || `Trang tính ${tableIndex + 1}`;
     sheetBlocks.push({ ...block, index: tableIndex++, name, lastDataCol: cellScan.get(name)?.lastDataCol || 0 });
   }
-  if (sheetBlocks.length !== sheetRecordNames.length
-    || sheetBlocks.some((block, index) => block.name !== sheetRecordNames[index])) {
+  const deferredNames = new Set(workbook.deferredSheets);
+  const expectedRecordNames = sheetBlocks.map(block => block.name).filter(name => !deferredNames.has(name));
+  if (expectedRecordNames.length !== sheetRecordNames.length
+    || expectedRecordNames.some((name, index) => name !== sheetRecordNames[index])
+    || workbook.deferredSheets.some(name => !sheetBlocks.some(block => block.name === name))) {
     throw new TypeError("Sheet payload support XML does not match its sheet records");
   }
   const sheetState = new Map();

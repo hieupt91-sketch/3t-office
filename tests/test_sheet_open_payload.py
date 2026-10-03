@@ -63,6 +63,30 @@ class SheetOpenPayloadTests(unittest.TestCase):
         self.assertEqual(payload["sheets"], sum(record[0] == "sheet" for record in records))
         self.assertEqual(payload["rows"], sum(record[0] == "row-xml" for record in records))
 
+    def test_phase2_payload_emits_active_sheet_and_metadata_stubs_only(self):
+        fods_path = SAMPLES / "src" / "sample-sheet.fods"
+        xlsx_path = SAMPLES / "sample-sheet.xlsx"
+        fods = fods_path.read_text(encoding="utf-8")
+        xlsx = xlsx_path.read_bytes()
+        patcher = main._ooxml_zip_patch()
+        sheet_names = list(patcher._resolve_xlsx_sheet_entries(xlsx))
+        self.assertGreater(len(sheet_names), 1)
+
+        actual, payload = build_sheet_open_payload(
+            xlsx, fods, patcher, included_sheets={sheet_names[0]}
+        )
+
+        records = [
+            json.loads(line)
+            for line in zlib.decompress(base64.b64decode(payload["rowsDeflateBase64"])).decode("utf-8").splitlines()
+        ]
+        self.assertEqual(actual, patcher.reoverlay_sheet_xf_indices(xlsx, fods))
+        self.assertEqual([record[1] for record in records if record[0] == "sheet"], [sheet_names[0]])
+        self.assertEqual(payload["deferredSheets"], sheet_names[1:])
+        self.assertEqual([stub["name"] for stub in payload["sheetStubs"]], sheet_names)
+        self.assertTrue(all(stub["usedRange"] for stub in payload["sheetStubs"]))
+        self.assertTrue(all(stub["cellCount"] >= 0 for stub in payload["sheetStubs"]))
+
     def test_fallback_session_is_opaque_private_retrievable_and_released(self):
         with tempfile.TemporaryDirectory() as temp_dir, patch("main._user_data_dir", return_value=Path(temp_dir)):
             api = main.VnOfficeApi(app_kind="sheet")

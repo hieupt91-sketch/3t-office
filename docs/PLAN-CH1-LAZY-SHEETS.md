@@ -26,3 +26,14 @@ Không sửa LibreOffice Core, không thêm dependency, không đổi build syst
 ## Test plan
 
 Test hẹp Python/JS cho threshold, payload, fallback và save; cuối mỗi pha chạy đúng một lần Node full, desktop 27 ca, audit legacy lan01–03; chỉ chạy probe lan14 khi RAM trống trên 6 GB. Báo PASS/FAIL/NOT RUN theo kết quả thật.
+
+## Pha 2 — plan gate chi tiết
+
+- **Objective:** payload mở ban đầu chỉ dựng phần dùng chung và sheet đang hoạt động; các sheet còn lại là stub có tên, trạng thái ẩn, màu tab và kích thước dùng. FODS đầy đủ được giữ trong session Python để nạp sheet theo yêu cầu và bảo toàn khi lưu.
+- **Current capability:** Pha 1 đã có compact payload, parser nhường event loop và session FODS riêng tư, nhưng payload/parser/commit vẫn xử lý đủ mọi sheet rồi giải phóng session ngay sau mở.
+- **Files/modules:** `adapters/libreoffice/sheet/sheet_open_payload.py` tách payload ban đầu/theo-sheet; `main.py` quản lý session và API đọc sheet; `adapters/libreoffice/common/uno-bridge.js` bọc API; `sheet-payload-parser.js`, `sheet-adapter.js`, `apps/sheet/sheet-grid.js` quản lý stub, nạp trước khi chuyển/tab hoặc consumer toàn-workbook; test Python/JS tương ứng; `platform/help/entries-sheet.js` hướng dẫn trạng thái nạp nền.
+- **Dependencies:** không thêm dependency, không sửa LibreOffice Core/build system; UI tiếp tục đi qua Adapter và bridge.
+- **Safety gate:** không bật lazy mặc định cho file lớn cho tới khi test chứng minh (1) công thức xuyên sheet không trả sai im lặng, (2) save ghép nguyên sheet chưa nạp từ FODS session, (3) tìm/thay toàn workbook, Ctrl+End, thống kê, named range, conditional formatting và sheet ẩn đều ép nạp hoặc dùng metadata nguồn đúng.
+- **Risks:** API `switchSheet` hiện đồng bộ và được nhiều tính năng gọi; serialize hiện dựng lại toàn workbook từ model WebView2. Vì vậy một lát cắt chỉ có stub mà chưa có ensure-load/save-merge phải được coi là WIP và giữ sau cờ tắt.
+- **Test plan:** test hẹp builder/session/parser/switch/formula/save; sau khi safety gate xanh mới chạy đúng một lần Node full, desktop regression và audit legacy; probe lan14 ba lần + save/sheet-switch khi RAM trống >6 GB.
+- **Rollback:** tắt nhánh lazy-sheet hoặc bỏ cờ opt-in mới; đường compact Pha 1 và FODS legacy vẫn giữ nguyên.

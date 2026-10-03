@@ -99,8 +99,41 @@ def _row_with_xf_and_record(row_xml, targets, patcher, sink):
     return transformed
 
 
-def build_sheet_open_payload(xlsx_bytes: bytes, fods_xml: str, patcher) -> tuple[str, dict]:
-    """Return the final XF-adjusted FODS and its validated v2 open payload."""
+def _sheet_stubs(xlsx_bytes: bytes, patcher) -> list[dict]:
+    """Return cheap workbook-tab metadata without materialising cell models."""
+    normalized = patcher.normalize_source_xlsx(xlsx_bytes)
+    workbook_raw = patcher.read_zip_entry(normalized, "xl/workbook.xml") or b""
+    workbook_xml = workbook_raw.decode("utf-8", errors="replace")
+    visibility = patcher.parse_sheet_visibility_from_workbook(workbook_xml)
+    tab_colors = patcher.parse_tab_colors_from_xlsx(normalized)
+    result = []
+    for name, entry_path in patcher._resolve_xlsx_sheet_entries(normalized).items():
+        raw = patcher.read_zip_entry(normalized, entry_path) or b""
+        xml = raw.decode("utf-8", errors="replace")
+        dimension = re.search(r'<dimension\b[^>]*\bref\s*=\s*(["\'])(.*?)\1', xml, re.IGNORECASE)
+        result.append({
+            "name": name,
+            "state": visibility.get(name, "visible"),
+            "tabColor": tab_colors.get(name, ""),
+            "usedRange": dimension.group(2) if dimension else "A1",
+            "cellCount": len(re.findall(r"<c\b", xml, re.IGNORECASE)),
+        })
+    return result
+
+
+def build_sheet_open_payload(
+    xlsx_bytes: bytes,
+    fods_xml: str,
+    patcher,
+    included_sheets: set[str] | None = None,
+) -> tuple[str, dict]:
+    """Return the final XF-adjusted FODS and its validated v2 open payload.
+
+    ``included_sheets`` is the phase-2 wire-format gate.  When supplied, row
+    records are emitted only for those sheets; every other worksheet remains
+    represented by a metadata stub and by its non-row support XML.  Production
+    does not enable this mode until load-on-demand and save-merge are complete.
+    """
     sink = _PayloadRows()
     clean = re.sub(
         r'\s+vno:xf\s*=\s*(["\'])\d+\1', "", fods_xml, flags=re.IGNORECASE
@@ -113,8 +146,9 @@ def build_sheet_open_payload(xlsx_bytes: bytes, fods_xml: str, patcher) -> tuple
         opening_match = re.match(r"<[^>]+", table_xml)
         attrs = patcher._xml_attrs(opening_match.group(0)) if opening_match else {}
         name = attrs.get("table:name", "")
-        active = bool(name and name != "local-table")
-        if active:
+        worksheet = bool(name and name != "local-table")
+        included = worksheet and (included_sheets is None or name in included_sheets)
+        if included:
             sink.begin_sheet(name)
         targets = by_sheet.get(name, {})
         row_map = {}
@@ -127,9 +161,9 @@ def build_sheet_open_payload(xlsx_bytes: bytes, fods_xml: str, patcher) -> tuple
 
         def append_row_fragment(fragment):
             out.append(fragment)
-            if active:
+            if included:
                 sink.add_row(fragment)
-            support.append(_empty_row(fragment))
+                support.append(_empty_row(fragment))
 
         for start, end in patcher._flat_xml_blocks(table_xml, ("table:table-row",)):
             untouched = table_xml[table_cursor:start]
@@ -154,9 +188,12 @@ def build_sheet_open_payload(xlsx_bytes: bytes, fods_xml: str, patcher) -> tuple
                             patcher._set_repeat(row_xml, "table:number-rows-repeated", logical_row - at)
                         )
                     single_row = patcher._set_repeat(row_xml, "table:number-rows-repeated", 1)
-                    transformed = _row_with_xf_and_record(single_row, row_map[logical_row], patcher, sink)
+                    transformed = _cell_parts_with_xf(single_row, row_map[logical_row], patcher)
+                    if included:
+                        sink.add_row(transformed)
                     out.append(transformed)
-                    support.append(_empty_row(transformed))
+                    if included:
+                        support.append(_empty_row(transformed))
                     at = logical_row + 1
                 if at < row_number + repeat:
                     append_row_fragment(
@@ -166,7 +203,7 @@ def build_sheet_open_payload(xlsx_bytes: bytes, fods_xml: str, patcher) -> tuple
         trailing = table_xml[table_cursor:]
         out.append(trailing)
         support.append(trailing)
-        if active:
+        if included:
             sink.end_sheet()
         return "".join(out), "".join(support)
 
@@ -208,6 +245,12 @@ def build_sheet_open_payload(xlsx_bytes: bytes, fods_xml: str, patcher) -> tuple
         "rawStyleXml": raw_styles,
         "rowsDeflateBase64": base64.b64encode(compressed_rows).decode("ascii"),
     }
+    if included_sheets is not None:
+        stubs = _sheet_stubs(xlsx_bytes, patcher)
+        payload["sheetStubs"] = stubs
+        payload["deferredSheets"] = [
+            stub["name"] for stub in stubs if stub["name"] not in included_sheets
+        ]
     if not payload["sheets"] or not payload["rows"] or not payload["supportXml"]:
         raise ValueError("Sheet open payload is incomplete")
     if len(final_fods.encode("utf-8")) != payload["sourceBytes"]:

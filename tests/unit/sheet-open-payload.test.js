@@ -70,6 +70,26 @@ export async function runSheetOpenPayloadTests() {
     assert(workbook.sheetsData.Data.get("A1")?.val === "Hello", "row cell not reconstructed");
   });
 
+  await test("phase2 payload keeps deferred sheets as validated metadata stubs", async () => {
+    const adapter = new SheetAdapter(null);
+    const payload = makePayload();
+    payload.supportXml = payload.supportXml.replace(
+      "</office:spreadsheet>",
+      '<table:table table:name="Deferred"></table:table></office:spreadsheet>'
+    );
+    payload.sheetStubs = [
+      { name: "Data", state: "visible", tabColor: "", usedRange: "A1", cellCount: 1 },
+      { name: "Deferred", state: "hidden", tabColor: "#ff0000", usedRange: "A1:C9", cellCount: 4 }
+    ];
+    payload.deferredSheets = ["Deferred"];
+
+    const workbook = await buildSheetPayloadModel(payload, adapter);
+    assert(workbook.sheets.join("|") === "Data|Deferred", "stub sheet order was not retained");
+    assert(workbook.sheetsData.Deferred.size === 0, "deferred sheet was materialised unexpectedly");
+    assert(workbook.deferredSheets[0] === "Deferred", "deferred marker was not retained");
+    assert(workbook.sheetStubs.Deferred.usedRange === "A1:C9", "stub used range was lost");
+  });
+
   await test("payload parser rejects unsupported versions, broken counts, and truncated records", async () => {
     const adapter = new SheetAdapter(null);
     const wrongVersion = makePayload();
