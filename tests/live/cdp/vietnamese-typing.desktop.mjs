@@ -170,6 +170,17 @@ async function prepareEmptySheetCellForF2(cdp, coord) {
   return coord;
 }
 
+/**
+ * Read a Sheet cell value from the APP MODEL (not the DOM).
+ * Returns "" when the cell has never been written.
+ */
+async function readSheetCellValue(cdp, coord) {
+  const raw = await cdp.evaluate(
+    `window.__vnoAppInstance?.grid?.cellsData?.get(${JSON.stringify(coord)})?.val ?? ""`
+  );
+  return raw === undefined || raw === null ? "" : String(raw);
+}
+
 // =============================================================================
 // 1. DOC (WRITER) TESTS
 // =============================================================================
@@ -385,12 +396,23 @@ export async function testSheetVietnameseTyping(session, options = {}) {
   console.log("\n=== Testing Sheet Vietnamese Typing ===");
 
   // --- Target 1: Typing directly into a selected cell WITHOUT pressing F2 ---
+  // The whole loop writes into the SAME cell B2, so before the LAST phrase the cell
+  // already holds phrase #76. That model value is recorded here because ONE Ctrl+Z
+  // must restore exactly it (see the corrected assertion below).
+  let valueBeforeLastPhrase = null;
+  const lastPhraseNfc = phrases.length ? String(phrases[phrases.length - 1]).normalize("NFC") : null;
+
   for (let pi = 0; pi < phrases.length; pi++) {
     const phrase = phrases[pi];
     try {
       // Select cell B2
       await click(cdp, '[data-coord="B2"]');
       await sleep(200);
+
+      // Read the cell value through the app model BEFORE typing the last phrase
+      if (pi === phrases.length - 1) {
+        valueBeforeLastPhrase = await readSheetCellValue(cdp, "B2");
+      }
 
       // Type directly without F2
       const events = phraseToImeEvents(phrase, { mode: "telex", encoding: "nfc" });
@@ -412,17 +434,70 @@ export async function testSheetVietnameseTyping(session, options = {}) {
   }
   summarizeScenario("sheet", "direct-typing-no-f2", "Direct typing without F2 (Telex)");
 
-  // 1-step Ctrl+Z Undo for direct typing (using first phrase as representative)
+  // 1-step Ctrl+Z Undo for direct typing.
+  // CORRECTED ASSERTION: the loop above typed 77 phrases into the SAME cell B2, so B2 is
+  // NOT empty before the last commit. ONE Ctrl+Z must restore the value the cell held
+  // BEFORE the last phrase was typed (exact string equality) - expecting "" here was the
+  // bug. PASS requires BOTH conditions: the cell holds the last phrase right before Ctrl+Z
+  // AND one Ctrl+Z restores the recorded previous value.
   try {
-    await click(cdp, '[data-coord="B2"]');
+    if (valueBeforeLastPhrase === null || lastPhraseNfc === null) {
+      throw new Error("No previous B2 value / last phrase recorded during the direct typing loop");
+    }
+    const beforeUndo = await readSheetCellValue(cdp, "B2");
+
     await press(cdp, "z", { ctrl: true }, 300);
-    const restoredVal = await cdp.evaluate("window.__vnoAppInstance?.grid?.cellsData?.get('B2')?.val || ''");
-    const passUndo = !restoredVal || restoredVal === "";
-    recordResult("sheet", "direct-typing-no-f2", "1-step Ctrl+Z restores cell", passUndo, `restored="${restoredVal}"`);
+
+    const restoredVal = await readSheetCellValue(cdp, "B2");
+    const holdsLastPhrase = beforeUndo === lastPhraseNfc;
+    const restoredPrevious = restoredVal === valueBeforeLastPhrase;
+    const passUndo = holdsLastPhrase && restoredPrevious;
+    recordResult(
+      "sheet",
+      "direct-typing-no-f2",
+      "1-step Ctrl+Z restores cell",
+      passUndo,
+      `before="${beforeUndo}" lastPhrase="${lastPhraseNfc}" restored="${restoredVal}" expected="${valueBeforeLastPhrase}"`
+    );
   } catch (err) {
     recordResult("sheet", "direct-typing-no-f2", "1-step Ctrl+Z restores cell", false, err.message);
   }
   summarizeScenario("sheet", "direct-typing-no-f2", "1-step Ctrl+Z restores cell");
+
+  // Separate check: in a FRESH cell that no other scenario touches, one phrase + Enter
+  // must be undone by ONE Ctrl+Z back to "" exactly.
+  try {
+    const freshCoord = "B6";
+    await click(cdp, `[data-coord="${freshCoord}"]`);
+    await sleep(200);
+
+    const initialVal = await readSheetCellValue(cdp, freshCoord);
+    if (initialVal !== "") {
+      throw new Error(`Fresh cell ${freshCoord} is not empty before typing (value="${initialVal}")`);
+    }
+
+    const phrase = phrases[0];
+    const events = phraseToImeEvents(phrase, { mode: "telex", encoding: "nfc" });
+    await replayImeEventsCdp(cdp, events, 25);
+    await sleep(200);
+    await press(cdp, "Enter", {}, 300);
+
+    const committedVal = await readSheetCellValue(cdp, freshCoord);
+    await press(cdp, "z", { ctrl: true }, 300);
+    const restoredVal = await readSheetCellValue(cdp, freshCoord);
+
+    const passFresh = committedVal === phrase.normalize("NFC") && restoredVal === "";
+    recordResult(
+      "sheet",
+      "direct-typing-no-f2",
+      "1-step Ctrl+Z restores fresh empty cell",
+      passFresh,
+      `committed="${committedVal}" restored="${restoredVal}" expectedRestored=""`
+    );
+  } catch (err) {
+    recordResult("sheet", "direct-typing-no-f2", "1-step Ctrl+Z restores fresh empty cell", false, err.message);
+  }
+  summarizeScenario("sheet", "direct-typing-no-f2", "1-step Ctrl+Z restores fresh empty cell");
 
   // --- Target 2: Cell edit mode (F2 / double-click) with VNI & Fast Speed ---
   // Same cell every phrase: press Delete first (clears cell model + formula editor),

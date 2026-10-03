@@ -53,6 +53,9 @@ export class NumberFormatter {
       case "date":
         return this.formatDate(rawVal, formatConfig);
 
+      case "time":
+        return this.formatTime(rawVal, formatConfig);
+
       case "currency":
         return this.formatCurrency(rawVal, formatConfig);
 
@@ -333,6 +336,32 @@ export class NumberFormatter {
   }
 
   /**
+   * Định dạng Giờ (Time) — ô lưu số ngày dạng phân số, ví dụ 13:45 -> 0.5729166...
+   * Hiển thị lại theo mẫu timeFormat: "HH:mm" (mặc định) hoặc "HH:mm:ss".
+   * @param {any} val
+   * @param {Object} [config] { timeFormat?: string }
+   * @returns {{ text: string, align: string }}
+   */
+  static formatTime(val, config = {}) {
+    const num = this.parseNumber(val);
+    if (num === null) return { text: String(val) };
+
+    const pattern = String(config.timeFormat || "HH:mm");
+    const withSeconds = /ss/i.test(pattern);
+    const padHours = /hh/i.test(pattern);
+    // Số ngày vượt quá 1 vẫn hiển thị phần giờ trong ngày (như phần mềm bảng tính khác).
+    const totalSeconds = Math.round(Math.abs(num) * 86400) % 86400;
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    const hh = padHours ? String(hours).padStart(2, "0") : String(hours);
+    const mm = String(minutes).padStart(2, "0");
+    const ss = String(seconds).padStart(2, "0");
+    return { text: withSeconds ? `${hh}:${mm}:${ss}` : `${hh}:${mm}`, align: "right" };
+  }
+
+  /**
    * Định dạng Khoa học (Scientific)
    */
   static formatScientific(val, config = {}) {
@@ -485,6 +514,19 @@ export class NumberFormatter {
     if (month < 1 || month > 12 || day < 1 || hour > 23 || minute > 59 || second > 59) return false;
     const date = new Date(Date.UTC(year, month - 1, day));
     return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+  }
+
+  /**
+   * True only for the H:MM, HH:MM, HH:MM:SS spellings Sheet accepts as a time
+   * (giờ 0-23, phút/giây 0-59). Mẫu khác như 1:2, 1234, 25:00, 13:60 là văn bản.
+   * @param {any} val
+   * @returns {boolean}
+   */
+  static isTimeInput(val) {
+    if (typeof val !== "string") return false;
+    const match = val.trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+    if (!match) return false;
+    return Number(match[1]) <= 23 && Number(match[2]) <= 59 && Number(match[3] || 0) <= 59;
   }
 
   static _dateInputToSerial(inputVal) {

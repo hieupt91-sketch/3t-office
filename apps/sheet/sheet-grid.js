@@ -707,7 +707,9 @@ export class SheetGridController {
     const mm = String(now.getMinutes()).padStart(2, "0");
     const ss = String(now.getSeconds()).padStart(2, "0");
     const timeStr = `${hh}:${mm}:${ss}`;
-    this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, timeStr, true);
+    // Dấu nháy đơn giữ nguyên chuỗi HH:mm:ss như trước đây (không auto-detect
+    // thành serial giờ), vì lệnh này chèn chuỗi giờ chứ không nhập tay vào ô.
+    this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, `'${timeStr}`, true);
     if (this.formulaInput) this.formulaInput.value = timeStr;
     return timeStr;
   }
@@ -1742,12 +1744,13 @@ export class SheetGridController {
     this._refreshFormulaEntryVisuals();
     if (move) {
       if (tab) {
+        this._beginTabSequence();
         const colIndex = this.cols.indexOf(coord.c);
         const nextCol = shift ? this.cols[Math.max(0, colIndex - 1)] : this.cols[Math.min(this.cols.length - 1, colIndex + 1)];
         this.selectCell(nextCol, coord.r);
       } else {
-        const nextRow = shift ? Math.max(1, coord.r - 1) : Math.min(this.rowCount, coord.r + 1);
-        this.selectCell(coord.c, nextRow);
+        const next = this._enterDestination(shift);
+        this.selectCell(next.c, next.r);
       }
     } else {
       this.options.onSelect?.(`${coord.c}${coord.r}`, this.cellsData.get(`${coord.c}${coord.r}`), this._calculateStats());
@@ -4819,7 +4822,9 @@ _bindGridKeyboardNavigation() {
         col,
         row,
         prevVal,
-        nextVal: item.formula || (item.val ?? ""),
+        // Dấu nháy đơn được lưu lại để Redo gõ lại đúng chuỗi đã ép text
+        // (không bị auto-detect thành số/giờ ở lần chạy lại).
+        nextVal: escapedText ? `'${item.val ?? ""}` : (item.formula || (item.val ?? "")),
         prevStyle,
         nextStyle: structuredClone(item.style || {}),
         prevValRichText: item.richText || null,
@@ -4882,6 +4887,24 @@ _bindGridKeyboardNavigation() {
     if (typeof value === "string" && category !== "text"
       && (!category || category === "general") && NumberFormatter.isDateInput(value)) {
       nextStyle.numberFormat = { category: "date", dateFormat: "dd/mm/yyyy" };
+    }
+    // Giờ gõ tay (13:45, 9:05, 13:45:30) là số ngày dạng phân số, hiển thị lại
+    // đúng mẫu giờ; giờ sai (25:00, 13:60) vẫn là văn bản.
+    if (typeof value === "string" && category !== "text"
+      && (!category || category === "general") && NumberFormatter.isTimeInput(value)) {
+      nextStyle.numberFormat = {
+        category: "time",
+        timeFormat: /:\d{2}:\d{2}$/.test(value.trim()) ? "HH:mm:ss" : "HH:mm"
+      };
+    }
+    if (typeof value === "string" && (!category || category === "general")
+      && /^[+-]?(?:\d{1,3}(?:,\d{3})+)(?:\.\d+)?$/.test(value.trim())) {
+      const decMatch = value.trim().match(/\.(\d+)/);
+      nextStyle.numberFormat = {
+        category: "number",
+        useThousands: true,
+        decimals: decMatch ? decMatch[1].length : 0
+      };
     }
     return {
       value: NumberFormatter.normalizeInputForFormat(value, nextStyle.numberFormat),
@@ -7118,6 +7141,13 @@ _bindGridKeyboardNavigation() {
       sampleValue: item?.val,
       onApply: (config) => {
         if (config && config.category) {
+          // Hộp thoại định dạng ô chưa có nhóm "Giờ": nếu ô đang định dạng giờ,
+          // giữ nguyên mẫu giờ và bỏ dateFormat mặc định của hộp thoại (nếu không,
+          // định dạng giờ sẽ bị ghi đè thành ngày tháng).
+          if (config.category === "time") {
+            config = { ...config, timeFormat: config.timeFormat || "HH:mm" };
+            delete config.dateFormat;
+          }
           this.applyNumberFormat(config);
         }
         if (typeof this.container?.focus === "function") {
@@ -7236,7 +7266,7 @@ _bindGridKeyboardNavigation() {
       useThousands: false,
       negativeStyle: 0
     });
-    if (["general", "text", "date"].includes(config.category)) return false;
+    if (["general", "text", "date", "time"].includes(config.category)) return false;
     config.decimals = Math.max(0, Math.min(30, (Number(config.decimals) || 0) + (direction > 0 ? 1 : -1)));
     return this.applyNumberFormat(config);
   }
@@ -7405,7 +7435,7 @@ _bindGridKeyboardNavigation() {
     }).join("");
   }
 
-  applyPasteSpecial(clipboard, mode = "all", destination = this.selectedCoord, options = {}) {
+  applyPasteSpecial(clipboard, mode = "source", destination = this.selectedCoord, options = {}) {
     if (!clipboard?.cells?.length || !destination) return false;
     const sourceRows = clipboard.cells;
     const transpose = mode === "transpose";
@@ -7420,7 +7450,8 @@ _bindGridKeyboardNavigation() {
     const moveRange = options.moveRange && options.sourceSheet === this.activeSheet
       ? this._normalizeRange(options.moveRange)
       : null;
-    if (moveRange && mode === "all") {
+    const isSourceMode = mode === "source" || mode === "all";
+    if (moveRange && isSourceMode) {
       for (let row = moveRange.start.r; row <= moveRange.end.r; row++) {
         for (let col = this._columnNumber(moveRange.start.c); col <= this._columnNumber(moveRange.end.c); col++) {
           const coord = `${this._columnLabel(col)}${row}`;
@@ -7456,7 +7487,9 @@ _bindGridKeyboardNavigation() {
           next.formula = formula;
           if (mode !== "formulas") next.style = structuredClone(source.style || {});
         }
-        if (options.coerceInput && !next.formula) {
+        // Only text is normalized like typed input; numbers already parsed from the
+        // clipboard (e.g. 0.25 for "25%") must not be divided by 100 a second time.
+        if (options.coerceInput && !next.formula && typeof next.val === "string") {
           const normalized = this._normalizeCellInput(next.val, next.style);
           next.val = normalized.value;
           next.style = normalized.style;
@@ -7595,9 +7628,8 @@ _bindGridKeyboardNavigation() {
     const overlay = this._createSheetDialog(title, `
       <form class="vno-paste-special-dialog" aria-label="${title}">
         <fieldset><legend>${t("sheetDialogs.pasteSpecialGroup", "Dán")}</legend>
-          <label><input type="radio" name="paste-special-mode" value="all" checked> ${t("sheetDialogs.pasteSpecialAll", "Tất cả")}</label>
+          <label><input type="radio" name="paste-special-mode" value="source" checked> ${t("sheetDialogs.pasteSpecialSource", "Giữ định dạng nguồn")}</label>
           <label><input type="radio" name="paste-special-mode" value="values"> ${t("sheetDialogs.pasteSpecialValues", "Chỉ giá trị")}</label>
-          <label><input type="radio" name="paste-special-mode" value="formulas"> ${t("sheetDialogs.pasteSpecialFormulas", "Chỉ công thức")}</label>
           <label><input type="radio" name="paste-special-mode" value="formats"> ${t("sheetDialogs.pasteSpecialFormats", "Chỉ định dạng")}</label>
           <label><input type="radio" name="paste-special-mode" value="transpose"> ${t("sheetDialogs.pasteSpecialTranspose", "Chuyển vị (đổi hàng/cột)")}</label>
         </fieldset>
@@ -7605,7 +7637,7 @@ _bindGridKeyboardNavigation() {
     if (!overlay) return false;
     const form = overlay.querySelector(".vno-paste-special-dialog");
     const paste = () => {
-      const mode = form.querySelector('input[name="paste-special-mode"]:checked')?.value || "all";
+      const mode = form.querySelector('input[name="paste-special-mode"]:checked')?.value || "source";
       const cut = !!clipboard.sourceSheet && clipboard.sourceSheet === this.activeSheet &&
         this._clipboardRange?.mode === "cut" && this._clipboardRange.sheet === this.activeSheet;
       const applied = this.applyPasteSpecial(clipboard, mode, this.selectedCoord, {

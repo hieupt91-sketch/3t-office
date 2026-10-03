@@ -162,7 +162,7 @@ export function runContrastAudit() {
         }
 
         // Nhận diện ngữ cảnh nền của các overlay (Presenter mode, Print preview toolbar/sheet, Backstage, Topbar, Statusbar, Read Mode toolbar)
-        if (selector.includes("presenter-") || selector.includes("backstage-") || selector.includes("print-preview-") || selector.includes("zoom-slider") || selector.includes("writer-read-toolbar")) {
+        if (selector.includes("presenter-") || selector.includes("backstage-") || selector.includes("print-preview-") || selector.includes("zoom-slider") || selector.includes("statusbar") || selector.includes("writer-read-toolbar")) {
           // Các thành phần nằm trên tờ giấy in A4 có nền trắng #ffffff
           if (selector.includes("print-preview-header") || selector.includes("print-preview-footer") || selector.includes("print-preview-body") || selector.includes("print-preview-footnotes") || selector.includes("print-preview-endnote") || selector.includes("print-preview-sheet")) {
             resolvedBg = "#ffffff";
@@ -180,7 +180,7 @@ export function runContrastAudit() {
               resolvedBg = `rgb(${blended.r}, ${blended.g}, ${blended.b})`;
             } else if (selector.includes("backstage-")) {
               resolvedBg = "#0f4c81";
-            } else if (selector.includes("zoom-slider")) {
+            } else if (selector.includes("zoom-slider") || selector.includes("statusbar")) {
               resolvedBg = "#0f4c81";
             } else if (selector.includes("writer-read-toolbar")) {
               resolvedBg = "#0f4c81";
