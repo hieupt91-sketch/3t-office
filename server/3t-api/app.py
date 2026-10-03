@@ -127,6 +127,26 @@ class LicenseOfflineActivateRequest(BaseModel):
     device_name: str | None = Field(default=None, max_length=128)
 
 
+class AdminLoginRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    username: str = Field(min_length=1, max_length=64)
+    password: str = Field(min_length=1, max_length=128)
+
+
+class AdminCreateKeysRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    count: int = Field(default=1, ge=1, le=500)
+    note: str = Field(default="", max_length=255)
+    email: str = Field(default="", max_length=255)
+    seats_max: int = Field(default=2, ge=1, le=100)
+
+
+class AdminUpdateSeatsRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    seats_max: int = Field(ge=1, le=100)
+
+
+
 class TokenRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
     installation_id: str = Field(min_length=36, max_length=36)
@@ -999,6 +1019,384 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                    ORDER BY last_seen DESC LIMIT ?""", (limit,),
             ).fetchall()
         return {"groups": [dict(row) for row in rows]}
+
+    @app.post("/api/v1/admin/login")
+    async def admin_login(request: Request, payload: AdminLoginRequest) -> Response:
+        if not cfg.admin_password or not cfg.admin_username:
+            return JSONResponse(status_code=503, content={"error": "admin_disabled", "message": "Tính năng quản trị chưa được cấu hình"})
+
+        peer = _client_address(request)
+        now_ts = time.time()
+        record = login_lockout.get(peer, {"attempts": 0, "locked_until": 0.0})
+        if record["locked_until"] > now_ts:
+            rem = int(record["locked_until"] - now_ts) + 1
+            return JSONResponse(
+                status_code=429,
+                content={"error": "temporarily_locked", "message": f"Tài khoản hoặc IP bị khóa tạm thời. Vui lòng thử lại sau {rem} giây"},
+            )
+
+        user_ok = hmac.compare_digest(payload.username.encode("utf-8"), cfg.admin_username.encode("utf-8"))
+        pass_ok = hmac.compare_digest(payload.password.encode("utf-8"), cfg.admin_password.encode("utf-8"))
+        if not (user_ok and pass_ok):
+            record["attempts"] = record.get("attempts", 0) + 1
+            if record["attempts"] >= 5:
+                record["locked_until"] = now_ts + 15 * 60
+            login_lockout[peer] = record
+            left = max(0, 5 - record["attempts"])
+            return JSONResponse(
+                status_code=401,
+                content={"error": "invalid_credentials", "message": "Tên đăng nhập hoặc mật khẩu không chính xác", "attempts_left": left},
+            )
+
+        login_lockout.pop(peer, None)
+        session_id = secrets.token_urlsafe(32)
+        csrf_token = secrets.token_urlsafe(32)
+        admin_sessions[session_id] = {
+            "admin": payload.username,
+            "csrf_token": csrf_token,
+            "expires_at": now_ts + 86400,
+        }
+
+        with _open_db(db_path) as conn:
+            conn.execute(
+                """INSERT INTO admin_audit (id, at, admin, action, target) VALUES (?, ?, ?, ?, ?)""",
+                (str(uuid.uuid4()), _utc_iso(), payload.username, "login", payload.username),
+            )
+
+        resp = JSONResponse(status_code=200, content={"ok": True, "admin": payload.username, "csrf_token": csrf_token})
+        resp.set_cookie(
+            key="session_id",
+            value=session_id,
+            httponly=True,
+            secure=True,
+            samesite="strict",
+            max_age=86400,
+            path="/",
+        )
+        return resp
+
+    @app.post("/api/v1/admin/logout")
+    async def admin_logout(request: Request) -> Response:
+        admin_user = _authenticate_admin(request, cfg, admin_sessions)
+        session_id = request.cookies.get("session_id")
+        if session_id and session_id in admin_sessions:
+            admin_sessions.pop(session_id, None)
+
+        with _open_db(db_path) as conn:
+            conn.execute(
+                """INSERT INTO admin_audit (id, at, admin, action, target) VALUES (?, ?, ?, ?, ?)""",
+                (str(uuid.uuid4()), _utc_iso(), admin_user, "logout", admin_user),
+            )
+
+        resp = JSONResponse(status_code=200, content={"ok": True, "message": "Đã đăng xuất"})
+        resp.delete_cookie(key="session_id", path="/")
+        return resp
+
+    @app.get("/api/v1/admin/me")
+    async def admin_me(request: Request) -> dict[str, object]:
+        admin_user = _authenticate_admin(request, cfg, admin_sessions)
+        session_id = request.cookies.get("session_id")
+        csrf = admin_sessions.get(session_id, {}).get("csrf_token", "") if session_id else ""
+        return {"authenticated": True, "admin": admin_user, "csrf_token": csrf}
+
+    @app.get("/api/v1/admin/overview")
+    async def admin_overview(request: Request) -> dict[str, object]:
+        _authenticate_admin(request, cfg, admin_sessions)
+        with _open_db(db_path) as conn:
+            total_keys = conn.execute("SELECT COUNT(*) FROM license_keys").fetchone()[0]
+            active_keys = conn.execute("SELECT COUNT(*) FROM license_keys WHERE status = 'active'").fetchone()[0]
+            revoked_keys = conn.execute("SELECT COUNT(*) FROM license_keys WHERE status = 'revoked'").fetchone()[0]
+            total_active_devices = conn.execute("SELECT COUNT(*) FROM activations WHERE removed_at IS NULL").fetchone()[0]
+            # 7 ngày qua
+            activations_7d = conn.execute(
+                "SELECT COUNT(*) FROM activations WHERE first_at >= datetime('now', '-7 days')"
+            ).fetchone()[0]
+            # 24 giờ qua
+            error_groups_24h = conn.execute(
+                "SELECT COUNT(DISTINCT signature) FROM reports WHERE received_at >= datetime('now', '-1 day')"
+            ).fetchone()[0]
+
+        channels = []
+        if cfg.updates_dir.is_dir():
+            ch_dir = cfg.updates_dir / "channels"
+            if ch_dir.is_dir():
+                for p in ch_dir.glob("*.json"):
+                    try:
+                        content = json.loads(p.read_text(encoding="utf-8"))
+                        channels.append({
+                            "channel": p.stem,
+                            "version": content.get("version", "unknown"),
+                            "updated_at": content.get("updated_at", ""),
+                        })
+                    except Exception:
+                        pass
+
+        return {
+            "total_keys": total_keys,
+            "active_keys": active_keys,
+            "revoked_keys": revoked_keys,
+            "total_active_devices": total_active_devices,
+            "activations_7d": activations_7d,
+            "error_groups_24h": error_groups_24h,
+            "channels": channels,
+        }
+
+    @app.get("/api/v1/admin/keys")
+    async def admin_list_keys(
+        request: Request,
+        q: str = "",
+        status: str = "all",
+        page: int = 1,
+        page_size: int = 50,
+    ) -> dict[str, object]:
+        _authenticate_admin(request, cfg, admin_sessions)
+        page = max(1, page)
+        page_size = min(max(1, page_size), 200)
+        offset = (page - 1) * page_size
+
+        where_clauses = []
+        params: list[object] = []
+
+        if status in ("active", "revoked"):
+            where_clauses.append("k.status = ?")
+            params.append(status)
+
+        if q.strip():
+            where_clauses.append("(k.key_hint LIKE ? OR k.note LIKE ? OR k.email LIKE ?)")
+            term = f"%{q.strip()}%"
+            params.extend([term, term, term])
+
+        where_sql = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
+
+        with _open_db(db_path) as conn:
+            count_sql = f"SELECT COUNT(*) FROM license_keys k {where_sql}"
+            total = conn.execute(count_sql, params).fetchone()[0]
+
+            query_sql = f"""
+                SELECT k.id, k.key_hint, k.note, k.email, k.seats_max, k.status, k.created_at, k.revoked_at,
+                       (SELECT COUNT(*) FROM activations a WHERE a.license_id = k.id AND a.removed_at IS NULL) AS seats_used
+                FROM license_keys k
+                {where_sql}
+                ORDER BY k.created_at DESC
+                LIMIT ? OFFSET ?
+            """
+            rows = conn.execute(query_sql, params + [page_size, offset]).fetchall()
+
+        return {
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "keys": [dict(r) for r in rows],
+        }
+
+    @app.post("/api/v1/admin/keys")
+    async def admin_create_keys(request: Request, payload: AdminCreateKeysRequest) -> Response:
+        admin_user = _authenticate_admin(request, cfg, admin_sessions)
+        now_iso = _utc_iso()
+
+        keys_out: list[str] = []
+        rows_to_insert = []
+        for _ in range(payload.count):
+            raw_key = lic_mod.generate_license_key()
+            norm = lic_mod.normalize_and_validate_key(raw_key)
+            if not norm:
+                continue
+            khash = lic_mod.hash_key(norm)
+            khint = lic_mod.extract_hint(norm)
+            lid = str(uuid.uuid4())
+            rows_to_insert.append((lid, khash, khint, payload.note, payload.email, payload.seats_max, "active", now_iso))
+            keys_out.append(norm)
+
+        with _open_db(db_path) as conn:
+            conn.executemany(
+                """INSERT INTO license_keys (id, key_hash, key_hint, note, email, seats_max, status, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                rows_to_insert,
+            )
+            # Ghi nhật ký quản trị (chỉ ghi số lượng, KHÔNG ghi key thô)
+            conn.execute(
+                """INSERT INTO admin_audit (id, at, admin, action, target) VALUES (?, ?, ?, ?, ?)""",
+                (str(uuid.uuid4()), now_iso, admin_user, "create_keys", f"count={len(keys_out)},seats={payload.seats_max}"),
+            )
+
+        return JSONResponse(
+            status_code=200,
+            content={
+                "ok": True,
+                "count": len(keys_out),
+                "keys": keys_out,
+                "note": payload.note,
+                "email": payload.email,
+                "seats_max": payload.seats_max,
+            },
+        )
+
+    @app.get("/api/v1/admin/keys/{key_id}")
+    async def admin_get_key(key_id: str, request: Request) -> dict[str, object]:
+        _authenticate_admin(request, cfg, admin_sessions)
+        with _open_db(db_path) as conn:
+            row = conn.execute(
+                """SELECT id, key_hint, note, email, seats_max, status, created_at, revoked_at,
+                          (SELECT COUNT(*) FROM activations a WHERE a.license_id = k.id AND a.removed_at IS NULL) AS seats_used
+                   FROM license_keys k WHERE k.id = ?""",
+                (key_id,),
+            ).fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Không tìm thấy mã bản quyền")
+
+            activations = conn.execute(
+                """SELECT id, device_hash, device_name, first_at, last_check_at, app_version, removed_at
+                   FROM activations WHERE license_id = ? ORDER BY first_at DESC""",
+                (key_id,),
+            ).fetchall()
+
+        return {"key": dict(row), "activations": [dict(a) for a in activations]}
+
+    @app.post("/api/v1/admin/keys/{key_id}/revoke")
+    async def admin_revoke_key(key_id: str, request: Request) -> dict[str, object]:
+        admin_user = _authenticate_admin(request, cfg, admin_sessions)
+        now_iso = _utc_iso()
+        with _open_db(db_path) as conn:
+            cursor = conn.execute(
+                "UPDATE license_keys SET status = 'revoked', revoked_at = ? WHERE id = ? AND status != 'revoked'",
+                (now_iso, key_id),
+            )
+            if cursor.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Không tìm thấy mã bản quyền hoặc đã bị thu hồi")
+            conn.execute(
+                """INSERT INTO admin_audit (id, at, admin, action, target) VALUES (?, ?, ?, ?, ?)""",
+                (str(uuid.uuid4()), now_iso, admin_user, "revoke_key", f"id={key_id}"),
+            )
+        return {"ok": True, "message": "Đã thu hồi mã bản quyền thành công"}
+
+    @app.post("/api/v1/admin/keys/{key_id}/reissue")
+    async def admin_reissue_key(key_id: str, request: Request) -> dict[str, object]:
+        admin_user = _authenticate_admin(request, cfg, admin_sessions)
+        now_iso = _utc_iso()
+        with _open_db(db_path) as conn:
+            old_row = conn.execute(
+                "SELECT note, email, seats_max FROM license_keys WHERE id = ?",
+                (key_id,),
+            ).fetchone()
+            if not old_row:
+                raise HTTPException(status_code=404, detail="Không tìm thấy mã bản quyền")
+
+            # Thu hồi key cũ
+            conn.execute(
+                "UPDATE license_keys SET status = 'revoked', revoked_at = ? WHERE id = ?",
+                (now_iso, key_id),
+            )
+
+            # Sinh key mới cùng cấu hình
+            new_raw = lic_mod.generate_license_key()
+            norm = lic_mod.normalize_and_validate_key(new_raw)
+            if not norm:
+                raise HTTPException(status_code=500, detail="Lỗi sinh key mới")
+            khash = lic_mod.hash_key(norm)
+            khint = lic_mod.extract_hint(norm)
+            new_lid = str(uuid.uuid4())
+
+            conn.execute(
+                """INSERT INTO license_keys (id, key_hash, key_hint, note, email, seats_max, status, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, 'active', ?)""",
+                (new_lid, khash, khint, old_row["note"], old_row["email"], old_row["seats_max"], now_iso),
+            )
+
+            conn.execute(
+                """INSERT INTO admin_audit (id, at, admin, action, target) VALUES (?, ?, ?, ?, ?)""",
+                (str(uuid.uuid4()), now_iso, admin_user, "reissue_key", f"old={key_id},new={new_lid}"),
+            )
+
+        return {
+            "ok": True,
+            "old_id": key_id,
+            "new_id": new_lid,
+            "key": norm,
+            "note": old_row["note"],
+            "email": old_row["email"],
+            "seats_max": old_row["seats_max"],
+        }
+
+    @app.post("/api/v1/admin/keys/{key_id}/seats")
+    async def admin_update_seats(key_id: str, request: Request, payload: AdminUpdateSeatsRequest) -> dict[str, object]:
+        admin_user = _authenticate_admin(request, cfg, admin_sessions)
+        now_iso = _utc_iso()
+        with _open_db(db_path) as conn:
+            cursor = conn.execute(
+                "UPDATE license_keys SET seats_max = ? WHERE id = ?",
+                (payload.seats_max, key_id),
+            )
+            if cursor.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Không tìm thấy mã bản quyền")
+            conn.execute(
+                """INSERT INTO admin_audit (id, at, admin, action, target) VALUES (?, ?, ?, ?, ?)""",
+                (str(uuid.uuid4()), now_iso, admin_user, "update_seats", f"id={key_id},seats={payload.seats_max}"),
+            )
+        return {"ok": True, "seats_max": payload.seats_max}
+
+    @app.post("/api/v1/admin/keys/{key_id}/devices/{device_id}/remove")
+    async def admin_remove_device(key_id: str, device_id: str, request: Request) -> dict[str, object]:
+        admin_user = _authenticate_admin(request, cfg, admin_sessions)
+        now_iso = _utc_iso()
+        with _open_db(db_path) as conn:
+            cursor = conn.execute(
+                "UPDATE activations SET removed_at = ? WHERE license_id = ? AND id = ? AND removed_at IS NULL",
+                (now_iso, key_id, device_id),
+            )
+            if cursor.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Không tìm thấy thiết bị hoặc thiết bị đã bị gỡ")
+            conn.execute(
+                """INSERT INTO admin_audit (id, at, admin, action, target) VALUES (?, ?, ?, ?, ?)""",
+                (str(uuid.uuid4()), now_iso, admin_user, "remove_device", f"key={key_id},dev={device_id}"),
+            )
+        return {"ok": True, "message": "Đã gỡ thiết bị khỏi mã bản quyền"}
+
+    @app.get("/api/v1/admin/releases")
+    async def admin_releases(request: Request) -> dict[str, object]:
+        _authenticate_admin(request, cfg, admin_sessions)
+        channels = []
+        if cfg.updates_dir.is_dir():
+            ch_dir = cfg.updates_dir / "channels"
+            if ch_dir.is_dir():
+                for p in ch_dir.glob("*.json"):
+                    try:
+                        content = json.loads(p.read_text(encoding="utf-8"))
+                        channels.append({
+                            "channel": p.stem,
+                            "version": content.get("version", ""),
+                            "manifest_sha256": content.get("manifest_sha256", ""),
+                            "date": content.get("date", ""),
+                        })
+                    except Exception:
+                        pass
+
+        downloads = []
+        if cfg.downloads_dir and cfg.downloads_dir.is_dir():
+            for f in cfg.downloads_dir.glob("*"):
+                if f.is_file() and _SAFE_DOWNLOAD_NAME.fullmatch(f.name):
+                    h = hashlib.sha256()
+                    with f.open("rb") as stream:
+                        while chunk := stream.read(64 * 1024):
+                            h.update(chunk)
+                    downloads.append({
+                        "file_name": f.name,
+                        "file_size": f.stat().st_size,
+                        "sha256": h.hexdigest(),
+                    })
+
+        return {"channels": channels, "downloads": downloads}
+
+    @app.get("/api/v1/admin/audit")
+    async def admin_audit_log(request: Request, limit: int = 100) -> dict[str, object]:
+        _authenticate_admin(request, cfg, admin_sessions)
+        limit = min(max(1, limit), 500)
+        with _open_db(db_path) as conn:
+            rows = conn.execute(
+                "SELECT id, at, admin, action, target FROM admin_audit ORDER BY at DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        return {"audit_logs": [dict(r) for r in rows]}
+
 
     @app.api_route("/downloads/{file_name}", methods=["GET", "HEAD"])
     async def download_file(file_name: str, request: Request) -> Response:

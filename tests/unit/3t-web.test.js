@@ -259,6 +259,30 @@ export async function run3tWebTests() {
       assert("style.css có cơ chế vô hiệu hóa toàn diện animation/transition dưới prefers-reduced-motion", hasGlobalAnimationReset);
     }
 
+    // 14. Kiểm tra trang quản trị (server/3t-web/admin)
+    const adminPath = path.join(webRoot, "admin/index.html");
+    assert("Trang admin/index.html tồn tại", fs.existsSync(adminPath));
+    if (fs.existsSync(adminPath)) {
+      const adminHtml = fs.readFileSync(adminPath, "utf-8");
+      assert("admin/index.html có lang=\"vi\"", /<html[^>]*lang=["']vi["']/i.test(adminHtml));
+      assert("admin/index.html có thẻ <title>", /<title>[^<]+<\/title>/i.test(adminHtml));
+      assert("admin/index.html có thẻ <meta name=\"description\">", /<meta[^>]*name=["']description["'][^>]*content=["'][^"']+["']/i.test(adminHtml));
+      const adminH1Matches = adminHtml.match(/<h1\b[^>]*>[\s\S]*?<\/h1>/gi) || [];
+      assert(`admin/index.html có chính xác một thẻ <h1> (tìm thấy: ${adminH1Matches.length})`, adminH1Matches.length === 1);
+
+      const adminDir = path.join(webRoot, "admin");
+      const adminEntries = fs.readdirSync(adminDir, { withFileTypes: true });
+      for (const ent of adminEntries) {
+        if (ent.isFile() && /\.(html|css|js)$/i.test(ent.name)) {
+          const filePath = path.join(adminDir, ent.name);
+          const c = fs.readFileSync(filePath, "utf-8");
+          const m = c.match(BANNED_NAME_PATTERN);
+          assert(`admin/${ent.name} không chứa tên sản phẩm hãng khác (Microsoft/Word/Excel)`, !m, `Phát hiện: ${m && m[0]}`);
+        }
+      }
+    }
+
+
   } catch (err) {
     results.push({
       name: "[3T Web] Ngoại lệ kiểm thử",

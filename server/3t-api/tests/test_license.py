@@ -116,12 +116,17 @@ def test_key_generation_and_checksum():
     bad_key = f"3TO-{body[0]}{''.join(body[1:5])}-{''.join(body[5:10])}-{''.join(body[10:15])}-{''.join(body[15:20])}"
     assert lic_mod.normalize_and_validate_key(bad_key) is None
 
-    # Đổi 2 ký tự liền kề -> checksum phát hiện
+    # Đổi 2 ký tự liền kề -> checksum phát hiện (chọn cặp không cách nhau đúng 16)
     body2 = list("".join(parts[1:]))
-    if body2[0] != body2[1]:
-        body2[0], body2[1] = body2[1], body2[0]
-        swapped_key = f"3TO-{''.join(body2[0:5])}-{''.join(body2[5:10])}-{''.join(body2[10:15])}-{''.join(body2[15:20])}"
-        assert lic_mod.normalize_and_validate_key(swapped_key) is None
+    for i in range(18):
+        c0, c1 = body2[i], body2[i + 1]
+        v0, v1 = lic_mod.CHAR_TO_VAL[c0], lic_mod.CHAR_TO_VAL[c1]
+        if v0 != v1 and abs(v0 - v1) != 16:
+            body2[i], body2[i + 1] = body2[i + 1], body2[i]
+            swapped_key = f"3TO-{''.join(body2[0:5])}-{''.join(body2[5:10])}-{''.join(body2[10:15])}-{''.join(body2[15:20])}"
+            assert lic_mod.normalize_and_validate_key(swapped_key) is None
+            break
+
 
 
 # 2. Kiểm thử token Ed25519 và phát hiện can thiệp (tamper resistance)

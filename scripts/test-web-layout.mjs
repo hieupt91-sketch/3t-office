@@ -31,8 +31,10 @@ const HTML_PAGES = [
   "ban-quyen.html",
   "lien-he.html",
   "trang-thai.html",
-  "404.html"
+  "404.html",
+  "admin/index.html"
 ];
+
 
 const VIEWPORTS = [
   { width: 360, height: 844, mobile: true },
