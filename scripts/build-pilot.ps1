@@ -99,6 +99,12 @@ Get-ChildItem -LiteralPath $siteIn -Directory | Where-Object { $_.Name -match '^
 Write-Host "[3/5] LibreOffice (large, a few minutes)"
 Invoke-Robocopy $LibreOfficeDir (Join-Path $appDir "tools\libreoffice") @()
 
+# 3b. Pre-warmed LibreOffice profiles (~1 MB each): the first launch copies them instead of building a profile
+# from nothing, which costs ~12 s of the first document open (main._seed_profile_dir).
+Write-Host "      Seed profiles"
+& (Join-Path $PythonDir "python.exe") -s (Join-Path $PSScriptRoot "release\build-seed-profiles.py") (Join-Path $appDir "seed")
+if ($LASTEXITCODE -ne 0) { throw "build-seed-profiles.py failed ($LASTEXITCODE)" }
+
 # 4. Icons (copy real multi-size icons from branding/icons/, or fallback to generated placeholders), version, notices.
 Write-Host "[4/5] Icons, version, notices"
 # Needed before $iconSpecs below: [System.Drawing.Color] is not loaded in a fresh PowerShell 5.1.

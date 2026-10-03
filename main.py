@@ -1247,8 +1247,39 @@ def _profile_uri(app_kind: str | None = None) -> str:
     """Return the LibreOffice profile dedicated to this desktop app kind."""
     profile_kind = app_kind if app_kind in VALID_APP_KINDS else "shared"
     profile_dir = _user_data_dir() / f"lo-profile-{profile_kind}"
+    if not profile_dir.exists():
+        _seed_profile_dir(profile_kind, profile_dir)
     profile_dir.mkdir(parents=True, exist_ok=True)
     return profile_dir.as_uri()
+
+
+def _seed_profile_dir(profile_kind: str, profile_dir: Path) -> None:
+    """First launch: copy the profile pre-built at packaging time (about 1 MB).
+
+    Creating a LibreOffice profile from nothing costs ~12 s of the first document open
+    (measured 15 s vs 3.3 s); a pre-built profile removes that penalty for new installs.
+    Any failure falls back to a fresh profile, exactly like before.
+    """
+    seed = Path(ROOT_DIR) / "seed" / f"lo-profile-{profile_kind}"
+    if not seed.is_dir():
+        _open_perf_log("profile_seed_missing", app=profile_kind)
+        return
+    staging = profile_dir.with_name(profile_dir.name + ".seeding")
+
+    def long_path(path: Path) -> str:
+        # LibreOffice nests extension caches deeply; with a long user name the copy passes MAX_PATH (260).
+        text = str(path.resolve())
+        return "\\\\?\\" + text if os.name == "nt" and not text.startswith("\\\\?\\") else text
+
+    try:
+        shutil.rmtree(long_path(staging), ignore_errors=True)
+        shutil.copytree(long_path(seed), long_path(staging))
+        os.replace(long_path(staging), long_path(profile_dir))
+        _open_perf_log("profile_seeded", app=profile_kind)
+    except (OSError, shutil.Error) as exc:
+        _open_perf_log("profile_seed_failed", app=profile_kind, error=str(exc)[:200])
+        shutil.rmtree(long_path(staging), ignore_errors=True)
+        shutil.rmtree(long_path(profile_dir), ignore_errors=True)
 
 
 def _persistent_writer_html_safe(source_path: str, app_kind: str | None, target_ext: str) -> bool:
