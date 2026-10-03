@@ -2860,6 +2860,7 @@ class VnOfficeApi:
         self._sheet_open_sessions: dict[str, dict[str, object]] = {}
         self._sheet_open_session_lock = threading.RLock()
         self._last_sheet_open_id: str | None = None
+        self._sheet_view_doc_ids: set[str] = set()
         self._print_pipeline = None
         self._print_pipeline_lock = threading.Lock()
         self._performance_log = _PERFORMANCE_LOGGER
@@ -3268,6 +3269,7 @@ class VnOfficeApi:
                 return {"ok": False, "error": "Không tìm thấy tệp."}
             started = time.perf_counter()
             result = _PERSISTENT_SOFFICE.view_operation("sheet", "view_open", timeout=180, source_path=path)
+            self._sheet_view_doc_ids.add(str(result["doc_id"]))
             _open_perf_log("sheet_view_open", (time.perf_counter() - started) * 1000, sheets=len(result.get("sheets", [])))
             return {"ok": True, "doc_id": result["doc_id"], "sheets": result["sheets"]}
         except Exception as exc:
@@ -3288,11 +3290,64 @@ class VnOfficeApi:
             return {"ok": False, "error": str(exc)[:300]}
 
     def sheet_view_close(self, doc_id):
+        doc_id = str(doc_id)
         try:
-            _PERSISTENT_SOFFICE.view_operation("sheet", "view_close", timeout=30, doc_id=str(doc_id))
+            _PERSISTENT_SOFFICE.view_operation("sheet", "view_close", timeout=30, doc_id=doc_id)
             return {"ok": True}
         except Exception as exc:
             return {"ok": False, "error": str(exc)[:300]}
+        finally:
+            self._sheet_view_doc_ids.discard(doc_id)
+
+    def close_sheet_views(self):
+        """Close every live P8 view owned by this document window (idempotent)."""
+        for doc_id in tuple(self._sheet_view_doc_ids):
+            self.sheet_view_close(doc_id)
+
+    def _open_sheet_quick_view_if_enabled(self, source_path):
+        """Paint the first XLSX window before the normal FODS conversion takes the worker lock."""
+        if os.environ.get("VNO_OPEN_VIEWFIRST") != "1":
+            return False
+        try:
+            path = os.path.abspath(str(source_path))
+            if not path.lower().endswith(".xlsx") or os.path.getsize(path) < 5 * 1024 * 1024:
+                return False
+        except OSError:
+            return False
+        opened = self.sheet_view_open(path)
+        if not opened.get("ok") or not opened.get("sheets"):
+            return False
+        doc_id = opened["doc_id"]
+        first_sheet = opened["sheets"][0]
+        r1 = min(max(0, int(first_sheet.get("rows", 1)) - 1), 79)
+        c1 = min(max(0, int(first_sheet.get("cols", 1)) - 1), 29)
+        first_window = self.sheet_view_window(doc_id, 0, 0, 0, r1, c1, True, True)
+        if not first_window.get("ok"):
+            self.sheet_view_close(doc_id)
+            return False
+        window = _active_window(self)
+        if not window:
+            self.sheet_view_close(doc_id)
+            return False
+        payload = {
+            "doc_id": doc_id,
+            "sheets": opened["sheets"],
+            "sheet": 0,
+            "r0": 0,
+            "c0": 0,
+            "window": first_window,
+        }
+        try:
+            window.evaluate_js(
+                "window.__vnoSheetQuickViewOpen?.("
+                + json.dumps(payload, ensure_ascii=True, separators=(",", ":"))
+                + ")"
+            )
+            _open_perf_log("sheet_quick_view_first_window", sheets=len(opened["sheets"]))
+            return True
+        except Exception:
+            self.sheet_view_close(doc_id)
+            return False
 
     def open_mail_merge_data_dialog(self):
         return self._invoke_reported_api("open_mail_merge_data_dialog", self._open_mail_merge_data_dialog_impl)
@@ -3941,6 +3996,11 @@ class VnOfficeApi:
         except DocumentEngineError as exc:
             return {"status": "error", "message": str(exc)}
 
+        if app_kind == "sheet":
+            # P8: the preview is supplementary. Any preview failure falls through to
+            # the exact pre-existing full-load route and must never hide its errors.
+            self._open_sheet_quick_view_if_enabled(src_path)
+
         if app_kind == "writer":
             target_ext = "html"
         elif app_kind == "sheet":
@@ -4388,6 +4448,11 @@ def _register_app_window(api: VnOfficeApi, window) -> None:
         except Exception as exc:
             logging.getLogger("vnoffice.print").debug("Print session close unavailable: %s", type(exc).__name__)
         _startup_trace("print_sessions_closed", app=api._app_kind)
+        try:
+            api.close_sheet_views()
+        except Exception as exc:
+            logging.getLogger("vnoffice.sheet").debug("Quick-view cleanup unavailable: %s", type(exc).__name__)
+        _startup_trace("sheet_quick_views_closed", app=api._app_kind)
         with _APP_WINDOW_LOCK:
             _APP_WINDOW_APIS.pop(api._window_uid or "", None)
             remaining_windows = len(_APP_WINDOW_APIS)
@@ -4471,6 +4536,8 @@ def build_launch_url(
         query["documentName"] = document_name
     if os.environ.get("VNO_PERF_DEBUG") == "1":
         query["perfDebug"] = "1"
+    if app_kind == "sheet" and os.environ.get("VNO_OPEN_VIEWFIRST") == "1":
+        query["viewFirst"] = "1"
     return f"http://localhost:{port}/?{urlencode(query)}"
 
 

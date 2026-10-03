@@ -196,6 +196,13 @@ export class SheetAdapter {
     }
   }
 
+  _guardQuickViewReadOnly() {
+    const quickView = typeof window !== "undefined" ? window.__vnoSheetQuickViewController : null;
+    if (!quickView?.active) return false;
+    quickView.notifyReadOnly?.();
+    return true;
+  }
+
   _bindFormatPainterRibbon() {
     if (this._formatPainterRibbonBound) return;
     if (typeof document === "undefined" || typeof document.addEventListener !== "function") return;
@@ -5416,6 +5423,7 @@ ${pristineXlsxMarker}
    * - Nếu bảng tính mới (chưa có đường dẫn): chuyển tiếp sang saveAs() để mở hộp thoại lưu tệp.
    */
   async save() {
+    if (this._guardQuickViewReadOnly()) return false;
     if (!this.sourceFilePath) {
       return await this.saveAs();
     }
@@ -5457,6 +5465,7 @@ ${pristineXlsxMarker}
    * hoặc chọn định dạng xuất (.xlsx, .xls, .ods, .csv).
    */
   async saveAs() {
+    if (this._guardQuickViewReadOnly()) return false;
     const fodsContent = this.serializeToFods();
     const currentName = this.sourceFileName || "BangTinh";
     const suggestedName = this.sourceFilePath
@@ -5547,6 +5556,7 @@ ${pristineXlsxMarker}
       }
       if (result?.status === "cancelled") return false;
       if (result?.status === "error") {
+        if (typeof window !== "undefined") window.dispatchEvent(new Event("vno:sheet-full-model-failed"));
         await showAlertDialog({ title: "Không thể mở tệp", message: result.message, type: "error" });
         return false;
       }
@@ -5590,6 +5600,7 @@ ${pristineXlsxMarker}
       this.sourceFilePath = result.sourcePath || "";
       this.isDirty = false;
       this.shell?.resetDocumentChrome?.(result.fileName || "Bảng tính 1.xlsx", null, true, result.sourcePath || "");
+      if (typeof window !== "undefined") window.dispatchEvent(new Event("vno:sheet-full-model-ready"));
       return true;
     } catch {
       try {
@@ -5605,6 +5616,7 @@ ${pristineXlsxMarker}
       reportOpenIssue("SheetOpenError", "Workbook opening failed; the previously open workbook was preserved.");
       if (typeof window !== "undefined") window.__vnoSheetOpenStartedAt = null;
       this.shell?.setStatus?.("Không thể mở tệp. Sổ làm việc đang mở được giữ nguyên.");
+      if (typeof window !== "undefined") window.dispatchEvent(new Event("vno:sheet-full-model-failed"));
       await showAlertDialog({
         title: "Không thể mở tệp",
         message: "Sheet không thể nạp bảng tính từ dữ liệu đã đọc hoặc bản dự phòng. Sổ làm việc đang mở được giữ nguyên.",
@@ -6279,6 +6291,7 @@ ${pristineXlsxMarker}
    * @param {boolean} isCut nếu true, xóa nội dung ô sau khi sao chép
    */
   async _copySelectedCell(isCut) {
+    if (isCut && this._guardQuickViewReadOnly()) return false;
     const payload = this._captureSelectedClipboard();
     if (!payload) return false;
     this._rememberClipboard(payload, isCut ? "cut" : "copy");
@@ -6437,6 +6450,7 @@ ${pristineXlsxMarker}
   }
 
   async _pasteModelIntoGrid(model, text, isInternal = false) {
+    if (this._guardQuickViewReadOnly()) return false;
     if (!model?.cells?.length || !this.grid.selectedCoord || !this.grid.applyPasteSpecial) return false;
     if (globalThis.window?.__vnoClipboardDiagnostics) console.info("__VNO_CLIPBOARD_DIAG__" + JSON.stringify({ phase: "sheet-paste-destination", selectedCoord: this.grid.selectedCoord, isInternal, cellsBefore: [...this.grid.cellsData.entries()].filter(([coord]) => /^(A1|B2|C2|B3|C3)$/.test(coord)).map(([coord, cell]) => ({ coord, val: cell.val, style: cell.style })) }));
     const clipboardState = this.grid._clipboardRange;
@@ -6455,6 +6469,7 @@ ${pristineXlsxMarker}
   }
 
   async _openPasteSpecialFromClipboard() {
+    if (this._guardQuickViewReadOnly()) return false;
     const native = await this._readClipboardData();
     let model = null;
     if (native?.status === "ok") {
@@ -6478,6 +6493,7 @@ ${pristineXlsxMarker}
   }
 
   async _applyPasteSpecialMode(mode) {
+    if (this._guardQuickViewReadOnly()) return false;
     const native = await this._readClipboardData();
     let model = null;
     if (native?.status === "ok") {
@@ -6514,6 +6530,7 @@ ${pristineXlsxMarker}
    * @param {boolean} plainTextOnly Nếu true thì chỉ dán giá trị thuần, không nhận diện định dạng hay HTML
    */
   async _pasteIntoSelectedCell(plainTextOnly = false) {
+    if (this._guardQuickViewReadOnly()) return false;
     const coord = this.grid.selectedCoord;
     if (!coord || !this.grid.setCellValue) return false;
     const native = await this._readClipboardData();

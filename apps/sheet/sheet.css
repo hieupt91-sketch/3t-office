@@ -3,6 +3,8 @@
  * Tiêu chuẩn bảng tính bảng biểu doanh nghiệp chuẩn mực
  */
 
+@import url("./sheet-quick-view.css");
+
 .vno-sheet-workspace {
   display: flex;
   width: 100%;

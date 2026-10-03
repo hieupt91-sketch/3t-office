@@ -113,6 +113,22 @@ export class UnoBridge {
     return await this.desktopApi.open_document_dialog(appKind);
   }
 
+  /** P8 Sheet viewport-first APIs. UI talks to this adapter, never to UNO directly. */
+  async sheetViewWindow(docId, sheet, r0, c0, r1, c1, includeStrings = true, includeFormats = true) {
+    if (!this.desktopApi?.sheet_view_window) {
+      return { ok: false, error: "Màn hình xem nhanh chỉ khả dụng trong ứng dụng Desktop." };
+    }
+    return await this.desktopApi.sheet_view_window(
+      String(docId), Number(sheet), Number(r0), Number(c0), Number(r1), Number(c1),
+      !!includeStrings, !!includeFormats
+    );
+  }
+
+  async sheetViewClose(docId) {
+    if (!this.desktopApi?.sheet_view_close) return { ok: true };
+    return await this.desktopApi.sheet_view_close(String(docId));
+  }
+
   async createNewDocumentWindow(appKind) {
     if (this.desktopApi?.create_new_document_window) {
       return await this.desktopApi.create_new_document_window(appKind);

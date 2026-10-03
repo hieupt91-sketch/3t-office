@@ -57,6 +57,21 @@ export const SHEET_HELP_ENTRIES = [
     ]
   },
   {
+    id: "sheet.file.largeExcelQuickView",
+    app: "sheet",
+    commandIds: ["common.file.open"],
+    title: "Mở tệp Excel lớn: màn hình xem nhanh và nạp đầy đủ",
+    summary: "Khi mở tệp XLSX lớn, Sheet có thể hiện sớm một màn hình xem nhanh chỉ đọc lấy trực tiếp từ tài liệu trên máy. Bạn xem, cuộn và đổi trang tính trong khi mô hình đầy đủ tiếp tục nạp ngoại tuyến ở nền.",
+    ribbon: { tab: "Tệp", tabId: "file", group: "Mở" },
+    keywords: ["xlsx lớn", "xem nhanh", "nạp đầy đủ", "chỉ đọc", "đang tải", "cuộn", "đổi sheet", "mở excel lớn"],
+    steps: [
+      "Nhấn Ctrl+O hoặc mở Tệp > Mở rồi chọn tệp XLSX lớn. Khi chế độ tăng tốc được bật, lưới xem nhanh xuất hiện cùng dòng «Đang nạp đầy đủ… N%». Dữ liệu vẫn chỉ được xử lý trên máy và không gửi ra dịch vụ mạng.",
+      "Trong màn hình xem nhanh, bạn có thể cuộn đến vùng khác, bấm một ô để chọn và dùng các tab ở cuối lưới để đổi trang tính. Giá trị đã định dạng, phông chữ, chữ đậm/nghiêng, màu, nền và căn lề của vùng đang xem được hiển thị từ tài liệu Excel.",
+      "Màn hình xem nhanh là chỉ đọc. Nếu gõ, dán, cắt hoặc lưu trước khi nạp xong, Sheet sẽ chặn thao tác và báo rõ trên thanh trạng thái; thao tác không được ghi đệm nên không có nguy cơ sửa nhầm hoặc mất nội dung.",
+      "Chờ đến khi dòng trạng thái báo đã nạp đầy đủ. Sheet tự chuyển sang lưới chỉnh sửa thật và giữ trang tính, ô đã chọn cùng vùng đang cuộn; lúc đó bạn có thể soạn, dán và lưu bình thường bằng các lệnh quen thuộc."
+    ]
+  },
+  {
     id: "sheet.formula.externalLinks",
     app: "sheet",
     commandIds: [],
