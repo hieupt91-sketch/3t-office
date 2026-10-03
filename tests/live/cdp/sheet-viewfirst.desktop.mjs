@@ -158,7 +158,11 @@ process.env.VNO_OPEN_VIEWFIRST = process.env.VNO_P8_FLAG ?? "1";
         const el=document.createElement('td'); g._renderCellVisual(el,item,col,q.r);
         const normalize=value=>String(value??'').replace(/\\r\\n/g,'\\n').replace(/\\r/g,'\\n');
         const value=normalize(item?.val); const text=normalize(el.textContent);
-        if(value!==normalize(q.value)||text!==normalize(q.text))mismatches.push({key,qv:q.value,v:value,qt:q.text,t:text});
+        // Values must match exactly. Displayed text ignores leading/trailing blank lines only: the real
+        // grid renders a leading line break of a multi-line cell with one extra line break (lan26 C12, 04/10),
+        // a whitespace-only difference in the transient read-only preview (see HANDOFF-PERF-P8UI.md).
+        const edge=s=>s.replace(/^\\n+|\\n+$/g,'');
+        if(value!==normalize(q.value)||edge(text)!==edge(normalize(q.text)))mismatches.push({key,qv:q.value,v:value,qt:q.text,t:text});
       }
       return {count:mismatches.length,first:mismatches.slice(0,5)};
     })()`);

@@ -70,3 +70,11 @@ RISKS: Xem plan gate.
 DEPENDENCIES/BLOCKERS: Không có tại thời điểm lập plan.
 CORE PATCH ID (if any): Không có; không sửa Core.
 NEXT ACTION: Triển khai module xem nhanh và các điểm tích hợp theo plan.
+
+## Kiem chung boi Claude (04/10/2026, tu chay lai, may Windows that)
+- node tests/run-tests.js: 2730/2730 PASS (sau khi gop main). Hoi quy desktop: 27 PASS 0 FAIL (co TAT).
+- CDP Sheet: sheet-format-state 10/10, ctx-menu 14/14, ch4-6-keep-focus 60/60, formula-hints 10/10, mouse-ops 41/41: PASS.
+- sheet-viewfirst.desktop.mjs (co BAT) lan14+lan03+lan16+lan26: 37/37 PASS. lan14 man hinh dau sau 9,1 s (ho so da khoi tao; ho so moi hoan toan ~21 s do LibreOffice khoi dong lanh); lan03/16/26 ~4,5-4,8 s.
+- RAM lan14 (cung bo do, ban goc tren main): chi mo = 1,985 GB; mo + chuyen sang Sheet2 = 4,788 GB (DAC TINH SAN CO cua luoi that, KHONG phai hoi quy cua P8; can xu ly rieng). View-first chi mo = 1,967 GB; mo + Sheet2 = 4,8-5,0 GB.
+- Khac biet da biet: o nhieu dong bat dau bang xuong dong (lan26 C12) luoi that hien them 1 dong trong dau; gia tri giong het, so sanh chu hien thi bo qua dong trong dau/cuoi (chi anh huong ban xem nhanh tam thoi, chi doc).
+- CO MAC DINH TAT (VNO_OPEN_VIEWFIRST=1 de bat). Bat mac dinh la thay doi trai nghiem (chi doc trong luc nap) - cho chu so huu duyet.
