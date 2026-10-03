@@ -11,10 +11,10 @@ from urllib.parse import quote
 
 from .base import PaymentAdapter, PaymentInstruction, WebhookVerificationResult
 
-# Quy uoc tai khoan thu huong mac dinh (cau hinh cong ty 3T)
-DEFAULT_BANK_CODE = "MB"  # Ngan hang Quan doi
-DEFAULT_BANK_ACCOUNT = "3101126773"  # MST hoac so tai khoan
-DEFAULT_ACCOUNT_HOLDER = "CONG TY TNHH DT CN VA XL 3T"
+# Tai khoan nhan tien va bi mat webhook KHONG co gia tri mac dinh: chu so huu chua chot nha cung cap/tai khoan.
+# Chung duoc nap tu cau hinh may chu (PAYMENT_BANK_CODE, PAYMENT_BANK_ACCOUNT, PAYMENT_ACCOUNT_HOLDER,
+# PAYMENT_WEBHOOK_SECRET). Thieu cau hinh thi KHONG tao thanh toan va TU CHOI moi webhook (dong an toan).
+MIN_WEBHOOK_SECRET_LENGTH = 16
 
 
 def sign_bank_webhook(body_bytes: bytes, secret: str) -> str:
@@ -25,15 +25,29 @@ def sign_bank_webhook(body_bytes: bytes, secret: str) -> str:
 class BankTransferAdapter(PaymentAdapter):
     def __init__(
         self,
-        bank_code: str = DEFAULT_BANK_CODE,
-        bank_account: str = DEFAULT_BANK_ACCOUNT,
-        account_holder: str = DEFAULT_ACCOUNT_HOLDER,
-        webhook_secret: str = "3t-webhook-secret-key-for-bank-reconcile",
+        bank_code: str = "",
+        bank_account: str = "",
+        account_holder: str = "",
+        webhook_secret: str = "",
     ) -> None:
         self.bank_code = bank_code
         self.bank_account = bank_account
         self.account_holder = account_holder
         self.webhook_secret = webhook_secret
+
+    def configure(self, *, bank_code: str, bank_account: str, account_holder: str, webhook_secret: str) -> None:
+        self.bank_code = bank_code.strip()
+        self.bank_account = bank_account.strip()
+        self.account_holder = account_holder.strip()
+        self.webhook_secret = webhook_secret.strip()
+
+    @property
+    def is_configured(self) -> bool:
+        """Co the nhan thanh toan that: da co tai khoan nhan tien VA bi mat webhook du dai."""
+        return bool(
+            self.bank_code and self.bank_account and self.account_holder
+            and len(self.webhook_secret) >= MIN_WEBHOOK_SECRET_LENGTH
+        )
 
     @property
     def provider_name(self) -> str:
@@ -71,6 +85,17 @@ class BankTransferAdapter(PaymentAdapter):
         webhook_secret: str = "",
     ) -> WebhookVerificationResult:
         secret = webhook_secret or self.webhook_secret
+        if len(secret) < MIN_WEBHOOK_SECRET_LENGTH:
+            # Dong an toan: khong co bi mat du dai thi khong the xac thuc -> tu choi, khong tinh chu ky voi khoa rong.
+            return WebhookVerificationResult(
+                is_valid=False,
+                event_id=None,
+                provider="bank_transfer",
+                order_code=None,
+                amount_vnd=0,
+                raw_payload={},
+                error_message="Webhook secret is not configured",
+            )
 
         # 1. Lay chu ky tu header
         signature = (

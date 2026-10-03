@@ -30,6 +30,8 @@ import license as lic_mod
 from payments.bank_transfer import sign_bank_webhook
 from auth import hash_password, get_totp_code
 
+TEST_WEBHOOK_SECRET = "3t-webhook-secret-key-for-bank-reconcile"  # test-only value, never a server default
+
 
 @pytest.fixture
 def commerce_env(tmp_path: Path):
@@ -69,6 +71,11 @@ def commerce_env(tmp_path: Path):
         admin_password="secretpassword123",
         product="3t-office",
         license_signing_key=priv_b64,
+        # Test-only receiving account and webhook secret; the server has NO built-in defaults for these.
+        payment_webhook_secret=TEST_WEBHOOK_SECRET,
+        payment_bank_code="TEST",
+        payment_bank_account="0000000000",
+        payment_account_holder="TEST HOLDER",
     )
     app = create_app(settings)
     client = TestClient(app, base_url="https://testserver")
@@ -888,3 +895,67 @@ def test_email_outbox_encryption_and_dispatch(commerce_env):
         assert fail_row["attempts"] == 1
         assert "SMTPException" in fail_row["last_error"]
 
+
+
+def _post_webhook(client, payload: dict, secret: str = TEST_WEBHOOK_SECRET, signature: str | None = None):
+    body = json.dumps(payload).encode("utf-8")
+    sig = signature if signature is not None else sign_bank_webhook(body, secret)
+    return client.post(
+        "/api/v1/payments/webhook/bank_transfer",
+        content=body,
+        headers={"x-signature": sig, "content-type": "application/json"},
+    )
+
+
+def _make_paid_order(client, db_path, email: str, price: int = 300000) -> str:
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("UPDATE plans SET price_vnd = ? WHERE code = 'perpetual'", (price,))
+        conn.commit()
+    res = client.post("/api/v1/shop/orders", json={"plan": "perpetual", "quantity": 1, "customer": {"email": email, "name": "Khach"}, "source": "web"})
+    assert res.status_code == 200, res.text
+    return res.json()["order_code"]
+
+
+def test_forged_webhook_cannot_reserve_a_real_event_id(commerce_env):
+    """An unsigned sender must not be able to make a genuine payment look like a duplicate."""
+    client, db_path = commerce_env["client"], commerce_env["db_path"]
+    order_code = _make_paid_order(client, db_path, "poison@example.com")
+    forged = _post_webhook(client, {"id": "evt_reserved", "content": order_code, "amount": 300000}, signature="deadbeef")
+    assert forged.status_code == 400
+    genuine = _post_webhook(client, {"id": "evt_reserved", "content": order_code, "amount": 300000})
+    assert genuine.status_code == 200
+    assert genuine.json().get("result") == "fulfilled", genuine.text
+    assert genuine.json().get("duplicate") is not True
+
+
+def test_oversized_webhook_body_is_rejected(commerce_env):
+    client = commerce_env["client"]
+    big = {"id": "evt_big", "content": "x" * 70000, "amount": 1}
+    assert _post_webhook(client, big).status_code == 413
+
+
+def test_server_without_payment_configuration_fails_closed(commerce_env):
+    """No built-in secret or bank account: unconfigured means no paid orders and no accepted webhooks."""
+    from payments import PAYMENT_ADAPTERS
+
+    client, db_path = commerce_env["client"], commerce_env["db_path"]
+    order_code = _make_paid_order(client, db_path, "closed@example.com", 250000)
+    adapter = PAYMENT_ADAPTERS["bank_transfer"]
+    saved = (adapter.bank_code, adapter.bank_account, adapter.account_holder, adapter.webhook_secret)
+    adapter.configure(bank_code="", bank_account="", account_holder="", webhook_secret="")
+    try:
+        # A webhook signed with the old hard-coded string must be refused, not accepted.
+        refused = _post_webhook(client, {"id": "evt_old_default", "content": order_code, "amount": 250000},
+                                secret="3t-webhook-secret-key-for-bank-reconcile")
+        assert refused.status_code == 400
+        with sqlite3.connect(db_path) as conn:
+            issued = conn.execute("SELECT COUNT(*) FROM license_keys lk JOIN orders o ON lk.order_id = o.id WHERE o.code = ?",
+                                  (order_code,)).fetchone()[0]
+        assert issued == 0
+        # A new paid order cannot be created without a configured receiving account.
+        order = client.post("/api/v1/shop/orders", json={"plan": "perpetual", "quantity": 1,
+                                                          "customer": {"email": "noacct@example.com", "name": "Khach"}, "source": "web"})
+        assert order.status_code == 503
+        assert order.json()["error"] == "payment_not_configured"
+    finally:
+        adapter.configure(bank_code=saved[0], bank_account=saved[1], account_holder=saved[2], webhook_secret=saved[3])

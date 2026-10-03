@@ -259,6 +259,13 @@ def register_commerce_routes(
             if not plan:
                 return JSONResponse(status_code=400, content={"error": "invalid_plan", "message": "Gói bản quyền không tồn tại hoặc đã ngừng cung cấp"})
 
+            # Đơn có tiền cần tài khoản nhận tiền thật do chủ sở hữu cấu hình; không bao giờ tự đoán hay dùng giá trị mặc định.
+            if plan["price_vnd"] * payload.quantity > 0 and not PAYMENT_ADAPTERS["bank_transfer"].is_configured:
+                return JSONResponse(status_code=503, content={
+                    "error": "payment_not_configured",
+                    "message": "Chưa mở bán trực tuyến. Vui lòng liên hệ 3T để mua bản quyền.",
+                })
+
             # 2. Xu ly khach hang (Customer)
             cust_row = conn.execute(
                 "SELECT id FROM customers WHERE email = ?", (payload.customer.email,)
@@ -455,6 +462,8 @@ def register_commerce_routes(
             return JSONResponse(status_code=429, content={"error": "rate_limited", "message": "Tần suất gửi webhook quá cao"})
 
         raw_body = await request.body()
+        if len(raw_body) > 65536:
+            return JSONResponse(status_code=413, content={"error": "payload_too_large", "message": "Nội dung webhook quá lớn"})
         headers_dict = {k.lower(): v for k, v in request.headers.items()}
         res = adapter.verify_webhook(raw_body, headers_dict)
 
@@ -465,10 +474,12 @@ def register_commerce_routes(
             if not res.is_valid:
                 logger.warning("webhook invalid signature from %s provider=%s err=%s", peer, provider, res.error_message)
                 if res.event_id:
+                    # Never store the caller's event_id as the unique key: an unauthenticated sender could otherwise
+                    # "reserve" the id of a real future payment and make the genuine webhook look like a duplicate.
                     conn.execute(
-                        """INSERT OR IGNORE INTO payment_events (id, provider, event_id, received_at, signature_ok, payload_json, result)
+                        """INSERT INTO payment_events (id, provider, event_id, received_at, signature_ok, payload_json, result)
                            VALUES (?, ?, ?, ?, 0, ?, ?)""",
-                        (str(uuid.uuid4()), provider, res.event_id, now_iso, json.dumps(res.raw_payload, ensure_ascii=False), "invalid_signature"),
+                        (str(uuid.uuid4()), provider, f"invalid:{uuid.uuid4()}", now_iso, json.dumps(res.raw_payload, ensure_ascii=False), "invalid_signature"),
                     )
                     conn.commit()
                 return JSONResponse(status_code=400, content={"error": "invalid_signature", "message": res.error_message or "Chữ ký webhook không hợp lệ"})
@@ -476,7 +487,7 @@ def register_commerce_routes(
             event_id = res.event_id
             # 2. Chống Replay: Kiểm tra xem event_id đã từng được xử lý chưa
             existing_event = conn.execute(
-                "SELECT id, result FROM payment_events WHERE provider = ? AND event_id = ?",
+                "SELECT id, result FROM payment_events WHERE provider = ? AND event_id = ? AND signature_ok = 1",
                 (provider, event_id),
             ).fetchone()
 

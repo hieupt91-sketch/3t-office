@@ -77,6 +77,12 @@ class Settings:
     backup_retention_days: int = 14
     license_signing_key: str = ""
     license_signing_key_file: Path | None = None
+    # Shared secret used to verify bank-transfer webhooks (HMAC). Empty = webhooks are REFUSED (fail closed).
+    payment_webhook_secret: str = ""
+    # Receiving account for bank-transfer orders. Empty = paid orders cannot be created (nothing is guessed or defaulted).
+    payment_bank_code: str = ""
+    payment_bank_account: str = ""
+    payment_account_holder: str = ""
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -94,6 +100,10 @@ class Settings:
             product=os.environ.get("PRODUCT", "3t-office"),
             license_signing_key=os.environ.get("LICENSE_SIGNING_KEY", ""),
             license_signing_key_file=Path(os.environ["LICENSE_SIGNING_KEY_FILE"]) if os.environ.get("LICENSE_SIGNING_KEY_FILE") else None,
+            payment_webhook_secret=os.environ.get("PAYMENT_WEBHOOK_SECRET", ""),
+            payment_bank_code=os.environ.get("PAYMENT_BANK_CODE", ""),
+            payment_bank_account=os.environ.get("PAYMENT_BANK_ACCOUNT", ""),
+            payment_account_holder=os.environ.get("PAYMENT_ACCOUNT_HOLDER", ""),
         )
 
 
@@ -543,6 +553,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     session_manager = auth_mod.AdminSessionManager()
     email_service = EmailService()
+
+    try:
+        from payments import PAYMENT_ADAPTERS
+    except ImportError:
+        from .payments import PAYMENT_ADAPTERS
+    PAYMENT_ADAPTERS["bank_transfer"].configure(
+        bank_code=cfg.payment_bank_code,
+        bank_account=cfg.payment_bank_account,
+        account_holder=cfg.payment_account_holder,
+        webhook_secret=cfg.payment_webhook_secret,
+    )
 
     logger = logging.getLogger("3t-office-cloud")
     logger.setLevel(logging.INFO)
