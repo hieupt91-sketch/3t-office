@@ -1767,12 +1767,19 @@ def _read_pptx_pres_props_xml(src_path: str) -> str | None:
         return None
 
 
-def _apply_native_import_overlay(
+def _vno_open_legacy_enabled() -> bool:
+    """Return whether the owner-requested P1 rollback path is enabled."""
+    value = os.environ.get("VNO_OPEN_LEGACY", "").strip().lower()
+    return value in {"1", "true", "yes", "on"}
+
+
+def _apply_native_import_overlay_legacy(
     src_path: str,
     fods: str,
     app_kind: str | None,
     source_bytes: bytes | None = None,
 ) -> str:
+    # superseded by P1 - xoa chi khi chu so huu duyet
     """After soffice convert, restore native flags LibreOffice dropped.
 
     Sheet XLSX: lockStructure → table:structure-protected. Failures return
@@ -1817,6 +1824,33 @@ def _apply_native_import_overlay(
     return fods
 
 
+def _apply_native_import_overlay(
+    src_path: str,
+    fods: str,
+    app_kind: str | None,
+    source_bytes: bytes | None = None,
+) -> str:
+    """Apply the byte-compatible P1 Sheet overlay, with an owner rollback."""
+    if _vno_open_legacy_enabled() or app_kind != "sheet":
+        return _apply_native_import_overlay_legacy(
+            src_path, fods, app_kind, source_bytes=source_bytes
+        )
+    if not src_path or not str(src_path).lower().endswith(".xlsx"):
+        return fods
+    try:
+        original = source_bytes
+        if original is None:
+            with open(src_path, "rb") as handle:
+                original = handle.read()
+        return _ooxml_zip_patch().overlay_sheet_xlsx_fods_p1(
+            original,
+            fods,
+            skip_initial_xf=_sheet_open_skip_initial_xf_enabled(),
+        )
+    except Exception:
+        return fods
+
+
 def _sheet_open_skip_initial_xf_enabled() -> bool:
     """Return the explicit opt-in for skipping the redundant first XF overlay.
 
@@ -1844,11 +1878,19 @@ def _should_use_sheet_open_payload(fods_xml: str) -> bool:
     return _sheet_open_payload_enabled() or len(fods_xml or "") > _SHEET_LARGE_FODS_CHARS
 
 
-def _optimize_fods_for_sheet(fods_xml: str) -> str:
+def _optimize_fods_for_sheet_legacy(fods_xml: str) -> str:
     """Optimize FODS for Sheet: merge repeated empty cells, trim style-only tail.
     
     Delegates to the shared implementation in ooxml_zip_patch.
     """
+    # superseded by P1 - xoa chi khi chu so huu duyet
+    return _ooxml_zip_patch().optimize_fods_streaming_legacy(fods_xml)
+
+
+def _optimize_fods_for_sheet(fods_xml: str) -> str:
+    """Use the P1 optimizer by default; retain the exact legacy rollback."""
+    if _vno_open_legacy_enabled():
+        return _optimize_fods_for_sheet_legacy(fods_xml)
     return _ooxml_zip_patch().optimize_fods_streaming(fods_xml)
 
 

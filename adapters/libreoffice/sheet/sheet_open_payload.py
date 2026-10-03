@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 import re
 import zlib
 from io import BytesIO
@@ -99,8 +100,9 @@ def _row_with_xf_and_record(row_xml, targets, patcher, sink):
     return transformed
 
 
-def build_sheet_open_payload(xlsx_bytes: bytes, fods_xml: str, patcher) -> tuple[str, dict]:
+def build_sheet_open_payload_legacy(xlsx_bytes: bytes, fods_xml: str, patcher) -> tuple[str, dict]:
     """Return the final XF-adjusted FODS and its validated v2 open payload."""
+    # superseded by P1 - xoa chi khi chu so huu duyet
     sink = _PayloadRows()
     clean = re.sub(
         r'\s+vno:xf\s*=\s*(["\'])\d+\1', "", fods_xml, flags=re.IGNORECASE
@@ -213,3 +215,24 @@ def build_sheet_open_payload(xlsx_bytes: bytes, fods_xml: str, patcher) -> tuple
     if len(final_fods.encode("utf-8")) != payload["sourceBytes"]:
         raise ValueError("Sheet open payload source size is inconsistent")
     return final_fods, payload
+
+
+def build_sheet_open_payload(xlsx_bytes: bytes, fods_xml: str, patcher) -> tuple[str, dict]:
+    """Build the P1 payload by default, retaining the owner-requested rollback."""
+    value = os.environ.get("VNO_OPEN_LEGACY", "").strip().lower()
+    if value in {"1", "true", "yes", "on"}:
+        return build_sheet_open_payload_legacy(xlsx_bytes, fods_xml, patcher)
+
+    class _P1PatcherProxy:
+        def __init__(self, target) -> None:
+            self._target = target
+
+        def __getattr__(self, name):
+            return getattr(self._target, name)
+
+        def _xlsx_cells_with_xf_indices(self, source: bytes):
+            return self._target._xlsx_cells_with_xf_indices_p1(source)
+
+    return build_sheet_open_payload_legacy(
+        xlsx_bytes, fods_xml, _P1PatcherProxy(patcher)
+    )
