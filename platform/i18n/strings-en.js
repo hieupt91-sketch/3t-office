@@ -358,6 +358,7 @@ export const enStrings = {
     "sheet.insert.sparklineColumn": { label: "Column", tooltip: "Insert a column sparkline from the selected range" },
     "sheet.insert.hyperlink": { label: "Link", tooltip: "Insert a hyperlink in the active cell (Ctrl+K)" },
     "sheet.insert.textbox": { label: "Text Box", tooltip: "Insert a floating text box" },
+    "sheet.insert.symbol": { label: "Symbol", tooltip: "Insert a special character (Symbol)" },
     "common.file.new": { label: "New", tooltip: "Create a new document (Ctrl+N)" },
     "common.file.open": { label: "Open", tooltip: "Open an existing document (Ctrl+O)" },
     "common.file.save": { label: "Save", tooltip: "Save the current document (Ctrl+S)" },
@@ -565,6 +566,7 @@ export const enStrings = {
     ,"slides.insert.dateTime": { label: "Date & Time", tooltip: "Insert an auto-updating date and time placeholder" }
     ,"slides.insert.slideNumber": { label: "Slide Number", tooltip: "Insert an auto-updating slide number placeholder" }
     ,"slides.insert.symbol": { label: "Symbol", tooltip: "Insert a special character into the selected text box" }
+    ,"slides.insert.hyperlink": { label: "Link", tooltip: "Insert a hyperlink (Ctrl+K)" }
     ,"slides.insert.wordart": { label: "WordArt", tooltip: "Insert stylized title text with outline, shadow, or gradient fill" }
     ,"slides.master.apply": { label: "Slide Master", tooltip: "Apply a Slide Master theme across the presentation" }
     ,"slides.design.themeGallery": { label: "Themes", tooltip: "Choose a design theme for the whole presentation" }

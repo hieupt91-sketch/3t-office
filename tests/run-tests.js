@@ -232,6 +232,8 @@ import { runSpellcheckUiUndoTests } from "./unit/spellcheck-ui-undo.test.js";
 import { runSheetGridExtentTests } from "./unit/sheet-grid-extent.test.js";
 import { runSpellcheckInlineToggleTests } from "./unit/spellcheck-inline-toggle.test.js";
 import { runCh81ConsistencyTests } from "./unit/ch8-1-consistency.test.js";
+import { runSharedInsertCapabilitiesTests } from "./unit/shared-insert-capabilities.test.js";
+
 
 async function runAll() {
   console.log("==================================================");
@@ -473,7 +475,8 @@ async function runAll() {
     { title: "226. Unit Tests — CH-8.1 UI Consistency: Backstage, Recent Files, Status Bar, View Modes, Zoom & Shortcuts", runner: runCh81ConsistencyTests },
     { title: "227. Unit Tests — Office Clipboard Interop (Sheet Excel/Calc HTML, TSV, Writer Word HTML cleaning)", runner: runOfficeClipboardTests },
     { title: "228. Unit Tests — Cross-App Paste (Doc, Sheet, Slide Interoperability)", runner: runCrossAppPasteTests },
-    { title: "229. Unit Tests — Writer DOCX review range export metadata", runner: runWriterReviewExportTests }
+    { title: "229. Unit Tests — Writer DOCX review range export metadata", runner: runWriterReviewExportTests },
+    { title: "230. Unit Tests — CH-7.3 Shared Insert Dialogs & Capabilities (Symbol, Hyperlink, Shapes, Textbox, Picture)", runner: runSharedInsertCapabilitiesTests }
   ];
 
   for (const suite of suites) {

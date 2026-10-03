@@ -6754,6 +6754,111 @@ _bindGridKeyboardNavigation() {
     });
   }
 
+  _attachImageResize(handleEl, panel, image, dir) {
+    handleEl.addEventListener("pointerdown", (event) => {
+      event.stopPropagation();
+      event.preventDefault();
+
+      const startClientX = event.clientX;
+      const startClientY = event.clientY;
+      const initialW = panel.offsetWidth || (image.widthCm ? Math.round(Number(image.widthCm) * 37.79527559055118) : 200);
+      const initialH = panel.offsetHeight || (image.heightCm ? Math.round(Number(image.heightCm) * 37.79527559055118) : 150);
+      const initialLeft = parseFloat(panel.style.left) || 0;
+      const initialTop = parseFloat(panel.style.top) || 0;
+      const aspect = (initialW && initialH) ? initialW / initialH : 1;
+      let resized = false;
+      let finalW = initialW;
+      let finalH = initialH;
+      let finalLeft = initialLeft;
+      let finalTop = initialTop;
+
+      const targetWindow = typeof window !== "undefined" ? window : (typeof document !== "undefined" ? document : null);
+
+      const move = (moveEvent) => {
+        const dx = moveEvent.clientX - startClientX;
+        const dy = moveEvent.clientY - startClientY;
+        if (!resized && Math.abs(dx) + Math.abs(dy) < 2) return;
+        resized = true;
+
+        let w = initialW;
+        let h = initialH;
+        let left = initialLeft;
+        let top = initialTop;
+
+        const isCorner = ["nw", "ne", "se", "sw"].includes(dir);
+        const keepAspect = isCorner || moveEvent.shiftKey;
+
+        if (dir.includes("e")) {
+          w = Math.max(30, initialW + dx);
+        }
+        if (dir.includes("s")) {
+          h = Math.max(30, initialH + dy);
+        }
+        if (dir.includes("w")) {
+          const maxDx = initialW - 30;
+          const appliedDx = Math.min(dx, maxDx);
+          w = initialW - appliedDx;
+          left = initialLeft + appliedDx;
+        }
+        if (dir.includes("n")) {
+          const maxDy = initialH - 30;
+          const appliedDy = Math.min(dy, maxDy);
+          h = initialH - appliedDy;
+          top = initialTop + appliedDy;
+        }
+
+        if (keepAspect) {
+          if (dir === "se" || dir === "nw" || dir === "ne" || dir === "sw") {
+            h = Math.max(30, Math.round(w / aspect));
+            if (dir.includes("n")) {
+              top = initialTop + (initialH - h);
+            }
+          }
+        }
+
+        finalW = w;
+        finalH = h;
+        finalLeft = left;
+        finalTop = top;
+
+        panel.style.width = `${w}px`;
+        panel.style.height = `${h}px`;
+        panel.style.left = `${left}px`;
+        panel.style.top = `${top}px`;
+      };
+
+      const up = () => {
+        if (targetWindow?.removeEventListener) {
+          targetWindow.removeEventListener("pointermove", move);
+          targetWindow.removeEventListener("pointerup", up);
+          targetWindow.removeEventListener("pointercancel", up);
+        }
+        if (!resized) return;
+
+        const oldW = image.widthCm;
+        const oldH = image.heightCm;
+        image.widthCm = parseFloat((finalW / 37.79527559055118).toFixed(3));
+        image.heightCm = parseFloat((finalH / 37.79527559055118).toFixed(3));
+        this._recordHistory?.({
+          type: "collection",
+          sheet: this.activeSheet,
+          collection: "imagesBySheet",
+          operation: "update",
+          id: image.id,
+          before: { widthCm: oldW, heightCm: oldH },
+          after: { widthCm: image.widthCm, heightCm: image.heightCm },
+          item: structuredClone(image)
+        });
+      };
+
+      if (targetWindow?.addEventListener) {
+        targetWindow.addEventListener("pointermove", move);
+        targetWindow.addEventListener("pointerup", up);
+        targetWindow.addEventListener("pointercancel", up);
+      }
+    });
+  }
+
   _parseEndCellAddress(endCellAddress) {
     if (!endCellAddress) return null;
     const match = String(endCellAddress).match(/\$?([A-Z]{1,3})\$?(\d+)/i);
@@ -6904,6 +7009,7 @@ _bindGridKeyboardNavigation() {
         const h = document.createElement("div");
         h.className = `vno-shape-resize-handle vno-image-resize-handle vno-handle-${dir}`;
         h.dataset.handleDir = dir;
+        this._attachImageResize(h, panel, image, dir);
         panel.appendChild(h);
       }
 
@@ -6949,12 +7055,44 @@ _bindGridKeyboardNavigation() {
     const safeUrl = String(url || "").trim();
     if (!/^(https?:|mailto:)/i.test(safeUrl)) return false;
     const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const oldItem = this.cellsData.get(key) ? structuredClone(this.cellsData.get(key)) : null;
     const item = this.cellsData.get(key) || { val: "", formula: "", style: {} };
+    const prevHyperlink = item.hyperlink;
+    const prevVal = item.val;
     item.hyperlink = safeUrl;
     if (text) item.val = text;
     else if (!item.val) item.val = safeUrl;
     this.cellsData.set(key, item);
     this._renderCellVisual(this.container?.querySelector?.(`.vno-grid-cell[data-coord="${key}"]`), item, this.selectedCoord.c, this.selectedCoord.r);
+    this._recordHistory?.({
+      type: "cell",
+      coord: key,
+      before: oldItem ? { val: prevVal, formula: oldItem.formula, style: oldItem.style, hyperlink: prevHyperlink } : null,
+      after: { val: item.val, formula: item.formula, style: item.style, hyperlink: item.hyperlink }
+    });
+    return true;
+  }
+
+  insertSymbol(symbol) {
+    if (!symbol) return false;
+    const ch = String(symbol);
+    const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const oldItem = this.cellsData.get(key) ? structuredClone(this.cellsData.get(key)) : null;
+    const item = this.cellsData.get(key) || { val: "", formula: "", style: {} };
+    const prevVal = String(item.val ?? "");
+    const newVal = prevVal + ch;
+    item.val = newVal;
+    this.cellsData.set(key, item);
+    this._renderCellVisual(this.container?.querySelector?.(`.vno-grid-cell[data-coord="${key}"]`), item, this.selectedCoord.c, this.selectedCoord.r);
+    if (this.formulaInput && typeof this.formulaInput.value !== "undefined") {
+      this.formulaInput.value = newVal;
+    }
+    this._recordHistory?.({
+      type: "cell",
+      coord: key,
+      before: oldItem ? { val: prevVal, formula: oldItem.formula, style: oldItem.style } : null,
+      after: { val: newVal, formula: item.formula, style: item.style }
+    });
     return true;
   }
 
