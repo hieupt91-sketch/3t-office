@@ -63,11 +63,23 @@ internal static class Launcher
     [STAThread]
     private static int Main(string[] args)
     {
-        string dir = AppDomain.CurrentDomain.BaseDirectory;
-        string pythonw = Path.Combine(dir, "python", "pythonw.exe");
-        string appDir = Path.Combine(dir, "app");
-        string main = Path.Combine(appDir, "main.py");
-        if (!File.Exists(pythonw) || !File.Exists(main))
+        // The launcher lives in <install>\app\launchers; walk up to the folder that holds python\ and app\main.py.
+        string dir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\');
+        string pythonw = null, appDir = null, main = null;
+        for (int level = 0; level < 4 && !string.IsNullOrEmpty(dir); level++)
+        {
+            string candidatePython = Path.Combine(dir, "python", "pythonw.exe");
+            string candidateMain = Path.Combine(dir, "app", "main.py");
+            if (File.Exists(candidatePython) && File.Exists(candidateMain))
+            {
+                pythonw = candidatePython;
+                appDir = Path.Combine(dir, "app");
+                main = candidateMain;
+                break;
+            }
+            dir = Path.GetDirectoryName(dir);
+        }
+        if (pythonw == null)
         {
             MessageBoxW(IntPtr.Zero,
                 "Không tìm thấy tệp của 3T Office. Vui lòng cài lại.",
