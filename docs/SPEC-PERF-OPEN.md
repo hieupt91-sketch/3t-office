@@ -85,4 +85,20 @@ Hạn chế phải xử lý trước khi áp dụng (xem phase P8 dưới):
 2. Sửa/lưu hiện đi qua đường FODS + lớp vá OOXML; trong lúc chưa có mô hình đầy đủ, chỉ cho xem + cuộn, hoặc nạp đầy đủ nền rồi **chuyển êm** sang mô hình đầy đủ.
 3. Công thức/tham chiếu xuyên sheet, tìm kiếm, lọc, sắp xếp toàn bảng cần dữ liệu đầy đủ.
 
+### 6.1 Kết quả thực tế P1/P2/P3 (04/10, đã tự chạy lại)
+| Phase | Kết quả đo | Đối soát | Trạng thái |
+|---|---|---|---|
+| P2 JS dựng mô hình | lan14 52 s → ~21 s (1 lần đo desktop) | Mô hình **deep-equal** bản cũ trên lan03/16/26/14 (kiểm trong app thật); node 2699 PASS; hồi quy 27/27; 4 bài CDP Sheet PASS | **Đã vào `main`** |
+| P3 Doc regex bậc hai (`writer-adapter.js` ~2860) | MYTIME 173 s → 33,6 s (1 lần đo) | Fuzz 4000 tài liệu = regex cũ; node 2702 PASS; hồi quy Doc 9 PASS | **Đã vào `main`** |
+| P1 Python Sheet | lan14 96,6 → 82 s; lan06 108 → 81 s (chỉ −15…−25%) | Byte-identical 4 file; đang so 28 file | Chưa vào `main` (chưa đạt mục tiêu 35 s) |
+Kết luận: vi tối ưu P1 chạm giới hạn (≈1,5 triệu ô xử lý bằng regex Python). Phần còn lại phải đổi cấu trúc → P8.
+
+### 6.2 Kế hoạch chi tiết P8 (giai đoạn A — chế độ xem nhanh, chỉ đọc)
+- **Mục tiêu:** lan14 hiện lưới đầu ≤ 10 s; giao diện/chức năng sau khi đầy đủ **không đổi** so với bản hiện dùng.
+- **Worker (`adapters/libreoffice/common/soffice_uno_worker.py`):** thêm thao tác `view_open` (nạp tài liệu ẩn, **giữ mở**, trả danh sách sheet + vùng dùng + cỡ mặc định), `view_window` (sheet, r0,c0,r1,c1 → giá trị/công thức từ `getDataArray`/`getFormulaArray`, độ rộng cột/chiều cao dòng, định dạng ô theo **khối** — không gọi từng ô; đã đo 0,9 s/1.800 ô nếu gọi từng ô), `view_close`. Giao thức JSON-lines hiện có; thao tác `convert` giữ nguyên.
+- **Main (`main.py`):** cờ `VNO_OPEN_VIEWFIRST=1` (mặc định tắt cho tới khi đạt cổng): khi mở xlsx lớn, chạy song song (a) đường FODS đầy đủ như hiện nay, (b) `view_open` + cửa sổ đầu tiên.
+- **Giao diện Sheet:** lưới ở "chế độ xem nhanh" nhận cửa sổ dữ liệu, cuộn gọi thêm cửa sổ, ô chỉ đọc + thanh trạng thái "Đang nạp đầy đủ…"; khi đường đầy đủ sẵn sàng thì **chuyển êm** (giữ ô chọn, vị trí cuộn, không nháy). Soạn/lưu bị khoá tới lúc đó (thông báo rõ).
+- **Cổng:** ô hiển thị ở chế độ nhanh == bản đầy đủ (giá trị + định dạng cửa sổ, 28 file); chuyển chế độ không mất vị trí; đường FODS giữ nguyên làm dự phòng; hồi quy 27/27, node, CDP Sheet.
+- **Rủi ro:** định dạng đầy đủ qua UNO (gộp ô, điều kiện, ẩn dòng, hình); tranh chấp hai tiến trình LibreOffice (dùng chung worker → tuần tự hoá bằng hàng đợi); RAM. Rollback: tắt cờ.
+
 **P8 — Mở theo khung nhìn (viewport-first) qua UNO** (ưu tiên cao hơn P6): giai đoạn A = chế độ xem nhanh (chỉ đọc) trong ~8 s trong khi đường FODS đầy đủ chạy nền; giai đoạn B = chuyển sang mô hình đầy đủ khi sẵn sàng (giữ vị trí cuộn/ô chọn); giai đoạn C = mở rộng truy vấn theo vùng để dần thay đường FODS. Luôn sau cờ; **giữ nguyên đường FODS**; cổng: ô hiển thị ở chế độ nhanh **giống** bản đầy đủ (so giá trị+định dạng cửa sổ trên 28 file), chuyển chế độ không mất vị trí/không nháy.
