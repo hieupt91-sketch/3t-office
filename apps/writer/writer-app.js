@@ -15,6 +15,7 @@ import { WriterViewController } from "./writer-view-controller.js";
 import { WriterTableController } from "./writer-table.js";
 import { getHelpEntryById } from "../../platform/help/help-catalog.js";
 import { InputNormalizer } from "../../platform/keyboard/input-normalizer.js";
+import { showContextMenu, closeActiveContextMenu } from "../../platform/ui-kit/components.js";
 
 export class WriterApp {
   constructor(mountElement) {
@@ -514,86 +515,158 @@ export class WriterApp {
   _setupContextMenu(body) {
     if (!body?.addEventListener) return;
     this._contextMenuHandler = (event) => {
-      if (event.target?.closest?.(".vno-spellcheck-marker")) return;
-      const li = event.target?.closest?.("li");
-      const ol = event.target?.closest?.("ol");
-      if (li || ol) {
-        event.preventDefault();
-        this._openListContextMenu(event.clientX, event.clientY, li || ol);
-      }
+      event.preventDefault();
+      this._openEditorContextMenu(event);
     };
     body.addEventListener("contextmenu", this._contextMenuHandler);
+    if (this.canvas) {
+      const header = this.canvas.querySelector(".vno-writer-header");
+      const footer = this.canvas.querySelector(".vno-writer-footer");
+      header?.addEventListener?.("contextmenu", this._contextMenuHandler);
+      footer?.addEventListener?.("contextmenu", this._contextMenuHandler);
+    }
   }
 
-  _openListContextMenu(x, y, target) {
+  _openEditorContextMenu(event) {
     this._closeContextMenu();
 
-    const menu = document.createElement("div");
-    menu.className = "vno-list-context-menu vno-context-menu";
-    menu.setAttribute("role", "menu");
-    menu.setAttribute("aria-label", "Tùy chọn danh sách");
-    menu.style.cssText = `position:fixed; left:${x}px; top:${y}px; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 4px 14px rgba(0,0,0,0.15); z-index:10000; min-width:180px; padding:4px 0; font-size:12px;`;
+    const target = event.target;
+    const x = event.clientX;
+    const y = event.clientY;
 
-    const items = [
-      { label: "Đánh số lại từ 1", command: "writer.list.restartNumbering" },
-      { label: "Tiếp tục đánh số", command: "writer.list.continueNumbering" }
-    ];
-
-    for (const item of items) {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "vno-context-menu-item";
-      btn.setAttribute("role", "menuitem");
-      btn.style.cssText = `display:block; width:100%; text-align:left; padding:6px 12px; border:none; background:none; font-size:12px; color:#1e293b; cursor:pointer;`;
-      btn.textContent = item.label;
-      btn.addEventListener("mouseenter", () => btn.style.background = "#eff6ff");
-      btn.addEventListener("mouseleave", () => btn.style.background = "none");
-      btn.addEventListener("click", () => {
-        this._closeContextMenu();
-        globalCommandBus.execute(item.command, target);
+    const spellMarker = target?.closest?.("[data-vno-spelling-uncertain], .vno-spelling-uncertain, .vno-spellcheck-marker");
+    const spellItems = [];
+    if (spellMarker && this.spellcheckController?.checker) {
+      const word = spellMarker.textContent;
+      let contextPrev = "";
+      const parentBlock = spellMarker.closest?.("p,li,td,th,h1,h2,h3,h4,h5,h6,blockquote,div");
+      if (parentBlock) {
+        const fullText = parentBlock.textContent || "";
+        const markerIndex = fullText.indexOf(word);
+        if (markerIndex > 0) {
+          const textBefore = fullText.slice(0, markerIndex).trim();
+          const match = textBefore.match(/[\p{L}\p{M}]+$/u);
+          if (match) contextPrev = match[0];
+        }
+      }
+      const suggestions = this.spellcheckController.checker.suggest(word, { contextPrev }) || [];
+      for (const suggestion of suggestions) {
+        spellItems.push({
+          label: suggestion,
+          className: "vno-spellcheck-suggestion",
+          action: () => {
+            this.spellcheckController.applySuggestion(spellMarker, suggestion);
+          }
+        });
+      }
+      if (spellItems.length) {
+        spellItems.push({ sep: true });
+      }
+      spellItems.push({
+        label: "Bỏ qua",
+        action: () => {
+          this.spellcheckController.checker.ignore(word);
+          this.spellcheckController.refresh?.();
+        }
       });
-      menu.appendChild(btn);
+      spellItems.push({
+        label: "Thêm vào từ điển",
+        className: "vno-spellcheck-add",
+        action: () => {
+          this.spellcheckController.checker.addToPersonalDictionary(word);
+          this.spellcheckController.refresh?.();
+        }
+      });
+      spellItems.push({ sep: true });
     }
 
-    const onKey = (e) => {
-      if (e.key === "Escape") {
-        this._closeContextMenu();
-      } else if (e.key === "ArrowDown") {
-        e.preventDefault();
-        const btns = [...menu.querySelectorAll("button")];
-        const idx = btns.indexOf(document.activeElement);
-        btns[(idx + 1) % btns.length]?.focus();
-      } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        const btns = [...menu.querySelectorAll("button")];
-        const idx = btns.indexOf(document.activeElement);
-        btns[(idx - 1 + btns.length) % btns.length]?.focus();
+    const li = target?.closest?.("li");
+    const ol = target?.closest?.("ol");
+    const listTarget = li || ol;
+    const listContextItems = [];
+    if (listTarget) {
+      listContextItems.push({
+        label: "Đánh số lại từ 1",
+        command: "writer.list.restartNumbering",
+        args: listTarget,
+        action: () => globalCommandBus.execute("writer.list.restartNumbering", listTarget)
+      });
+      listContextItems.push({
+        label: "Tiếp tục đánh số",
+        command: "writer.list.continueNumbering",
+        args: listTarget,
+        action: () => globalCommandBus.execute("writer.list.continueNumbering", listTarget)
+      });
+      listContextItems.push({ sep: true });
+    }
+
+    const baseItems = [
+      { label: "Cắt", shortcut: "Ctrl+X", command: "common.edit.cut" },
+      { label: "Sao chép", shortcut: "Ctrl+C", command: "common.edit.copy" },
+      { label: "Dán", shortcut: "Ctrl+V", command: "common.edit.paste" },
+      { label: "Dán chỉ giữ chữ", shortcut: "Ctrl+Shift+V", command: "common.edit.pastePlain" },
+      { label: "Dán đặc biệt...", command: "writer.edit.pasteSpecial" },
+      { sep: true },
+      { label: "Phông chữ", shortcut: "Ctrl+Shift+F", command: "writer.font.family" },
+      { label: "Đoạn văn...", disabled: true, title: "Tính năng đang được hoàn thiện và sẽ có trong bản cập nhật tới." },
+      {
+        label: "Danh sách",
+        items: [
+          { label: "Gạch đầu dòng", command: "writer.list.bullet" },
+          { label: "Đánh số", command: "writer.list.numbered" },
+          { sep: true },
+          { label: "1. / 1.1. / 1.1.1.", command: "writer.para.multilevelList", args: "decimal" },
+          { label: "1. / a. / i.", command: "writer.para.multilevelList", args: "letter" },
+          { label: "Điều 1. / 1. / a)", command: "writer.para.multilevelList", args: "nd30" },
+          { sep: true },
+          { label: "Đánh số lại từ 1", command: "writer.list.restartNumbering", args: listTarget },
+          { label: "Tiếp tục đánh số", command: "writer.list.continueNumbering", args: listTarget }
+        ]
+      },
+      {
+        label: "Chèn",
+        items: [
+          { label: "Bảng...", command: "writer.table.insert" },
+          { label: "Hình ảnh...", command: "writer.image.insert" },
+          { label: "Liên kết...", command: "common.edit.hyperlink" },
+          { label: "Ký hiệu...", command: "writer.insert.symbol" }
+        ]
+      },
+      { sep: true },
+      {
+        label: "Tìm kiếm / Thay thế",
+        items: [
+          { label: "Tìm kiếm...", shortcut: "Ctrl+F", command: "common.edit.find" },
+          { label: "Thay thế...", shortcut: "Ctrl+H", command: "common.edit.replace" }
+        ]
       }
-    };
-    const onClickOutside = (e) => {
-      if (!menu.contains(e.target)) this._closeContextMenu();
-    };
+    ];
 
-    document.addEventListener("keydown", onKey);
-    setTimeout(() => document.addEventListener("click", onClickOutside), 10);
+    const allItems = [...spellItems, ...listContextItems, ...baseItems];
+    const className = [
+      "vno-writer-context-menu",
+      listTarget ? "vno-list-context-menu" : ""
+    ].filter(Boolean).join(" ");
 
-    menu._cleanup = () => {
-      document.removeEventListener("keydown", onKey);
-      document.removeEventListener("click", onClickOutside);
-    };
-
-    document.body.appendChild(menu);
-    this._activeContextMenu = menu;
-    menu.querySelector("button")?.focus();
+    this._activeContextMenu = showContextMenu({
+      x,
+      y,
+      items: allItems,
+      className,
+      ariaLabel: "Menu ngữ cảnh văn bản",
+      previousFocus: target
+    });
   }
 
   _closeContextMenu() {
     if (this._activeContextMenu) {
-      this._activeContextMenu._cleanup?.();
-      this._activeContextMenu.remove();
+      this._activeContextMenu.closeAll?.();
       this._activeContextMenu = null;
+    } else {
+      closeActiveContextMenu();
     }
   }
+
 }
 
 export function getWriterContextHelpEntryId(activeElement) {

@@ -30,6 +30,7 @@ Theo chỉ thị bắt buộc của Người phụ trách dự án (30/09):
 | **VN Slides** | Trình chiếu | Thiết lập | Bút vẽ & Con trỏ Laser trên F5 | `slides.show.setupShow` | Đã hoàn thành (Bút vẽ Ctrl+P, Laser Ctrl+L, Xóa nét vẽ E, Mũi tên Ctrl+A, đổi màu bút, hộp thoại Giữ/Bỏ nét vẽ lưu ra PPTX) | Đã hoàn thành trong Patch 1.0.1 (Worktree feat/slides-pen-laser-agy) | Medium | Đã xong (Patch 1.0.1) |
 | **VN Slides** | Trình chiếu | Thiết lập | Trình chiếu trực tuyến / Broadcast | \`slides.show.presenterMode\` | Đã có Presenter Mode 2 màn hình | Phát bài thuyết trình qua mạng nội bộ cho người xem qua trình duyệt | Large | Patch 1.3 |
 | **VN Slides** | Chèn | Phương tiện | Ghi âm thuyết minh trực tiếp | \`slides.media.insertAudio\` | Chèn file âm thanh từ máy tính | Thu âm microphone trực tiếp trên từng trang chiếu | Medium | Patch 1.1 |
+| **VN Writer (3T Doc)** | Chuột phải | Menu ngữ cảnh | Đoạn văn... | `writer.format.paragraphDialog` | Tạm mờ (disabled) trên menu chuột phải | Hộp thoại chi tiết căn lề, thụt đầu dòng (Indents and Spacing) và ngắt dòng đoạn văn | Small | Patch 1.2 |
 
 ---
 

@@ -227,5 +227,29 @@ export const RETRO_PLATFORM_HELP_ENTRIES = [
       "Dán chỉ giữ văn bản thuần: Nhấn Ctrl+Shift+V (hoặc chọn lệnh Dán văn bản thuần trong nhóm Bảng nhớ tạm) trên bất kỳ ứng dụng nào để dán chữ sạch không mang theo màu nền, kẻ viền hay kiểu chữ cũ.",
       "Hoàn tác một bước: Trong mọi thao tác dán chéo, bạn chỉ cần nhấn Ctrl+Z đúng 1 lần để hoàn tác toàn bộ dữ liệu vừa dán mà không để lại nội dung thừa."
     ]
+  },
+  {
+    id: "common.platform.contextMenuHelp",
+    app: "common",
+    commandIds: [
+      "common.edit.cut",
+      "common.edit.copy",
+      "common.edit.paste",
+      "common.edit.pastePlain",
+      "common.edit.find"
+    ],
+    title: "Menu ngữ cảnh chuột phải và Trình đơn con (Submenu)",
+    summary: "Thao tác nhanh bằng chuột phải trong văn bản Doc và bảng tính Sheet với hệ thống menu phân cấp trực quan, điều hướng bàn phím đầy đủ và chống tràn màn hình.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Bảng nhớ tạm" },
+    keywords: ["chuột phải", "menu ngữ cảnh", "context menu", "submenu", "menu con", "dán đặc biệt", "chèn", "xóa", "sắp xếp", "bàn phím", "doc", "sheet"],
+    steps: [
+      "Mở menu ngữ cảnh: Nhấp chuột phải (hoặc nhấn phím Menu / Shift+F10) tại bất kỳ vị trí văn bản trong Doc hoặc trên ô, hàng, cột trong Sheet.",
+      "Truy cập trình đơn con (Submenu): Các mục có biểu tượng mũi tên (›) như Danh sách, Chèn, Tìm kiếm/Thay thế (trong Doc) hoặc Dán đặc biệt, Chèn, Xóa, Sắp xếp (trong Sheet) sẽ tự động mở rộng danh mục con khi rê chuột qua hoặc nhấn phím Mũi tên phải (ArrowRight).",
+      "Đóng menu con: Rê chuột ra ngoài hoặc nhấn phím Mũi tên trái (ArrowLeft) để thu gọn submenu quay về menu chính.",
+      "Điều hướng bàn phím chuẩn: Sử dụng phím Mũi tên lên/xuống (ArrowUp / ArrowDown) để di chuyển giữa các mục; Home / End để về mục đầu / cuối; Enter hoặc Phím cách (Space) để kích hoạt lệnh; phím Esc để đóng menu ngữ cảnh và tự động trả lại tiêu điểm bàn phím cho vùng soạn thảo.",
+      "Tính năng thông minh chống tràn mép: Menu ngữ cảnh và các menu con tự động đảo hướng (lật sang trái hoặc lật lên trên) khi vị trí con trỏ chuột nằm sát góc phải hoặc mép dưới màn hình, đảm bảo mọi tùy chọn luôn hiển thị trọn vẹn trong tầm nhìn.",
+      "Menu chuyên biệt trong Doc: Nhấp chuột phải vào từ bị đánh dấu gợn sóng đỏ sẽ ưu tiên hiển thị gợi ý sửa chính tả tiếng Việt ở đầu menu; nhấp vào mục danh sách sẽ có các tùy chọn đổi dạng gạch đầu dòng, đánh số lại từ 1 hoặc tiếp tục đánh số.",
+      "Menu chuyên biệt trong Sheet: Khi nhấp chuột phải vào ô dữ liệu, các tùy chọn Dán đặc biệt (giá trị, công thức, định dạng, chuyển vị), Chèn/Xóa (hàng, cột, ô), Sắp xếp và Lọc được gom nhóm gọn gàng, giúp thao tác bảng tính thuận tiện và chuyên nghiệp."
+    ]
   }
 ];

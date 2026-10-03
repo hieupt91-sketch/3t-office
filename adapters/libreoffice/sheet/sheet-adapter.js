@@ -203,6 +203,7 @@ export class SheetAdapter {
   }
 
   attach() {
+    if (this.grid) this.grid.adapter = this;
     globalUnoBridge.attachDocument(this);
     // common.edit.undo/redo dùng chung 1 handler toàn Suite qua Command Bus — mỗi app
     // (Writer/Sheet/Slides) PHẢI tự bindHandler() lại khi active, nếu không app kích hoạt
@@ -6387,8 +6388,40 @@ ${pristineXlsxMarker}
     return this.grid.showPasteSpecialDialog?.(model) ?? false;
   }
 
+  async _applyPasteSpecialMode(mode) {
+    const native = await this._readClipboardData();
+    let model = null;
+    if (native?.status === "ok") {
+      const sameInternal = String(native.text || "") === this._clipboardText && this._clipboardModel?.cells?.length;
+      if (sameInternal) {
+        model = this._clipboardModel;
+      } else if (native.html) {
+        model = parseOfficeHtmlTable(native.html, native.text || "");
+      } else {
+        model = this._clipboardModelFromText(native.text || "", native.html || "");
+      }
+    } else {
+      model = this._clipboardModel;
+    }
+    if (!model?.cells?.length) {
+      this.shell?.setStatus?.("Bộ nhớ tạm chưa có dữ liệu bảng để dán đặc biệt.");
+      return false;
+    }
+    const coord = this.grid?.selectedCoord;
+    if (!coord) return false;
+    const cut = !!model.sourceSheet && model.sourceSheet === this.grid.activeSheet &&
+      this.grid._clipboardRange?.mode === "cut" && this.grid._clipboardRange.sheet === this.grid.activeSheet;
+    const applied = this.grid.applyPasteSpecial(model, mode, coord, {
+      moveRange: cut ? this.grid._clipboardRange.range : null,
+      sourceSheet: model.sourceSheet
+    });
+    if (applied && cut) this.grid.clearClipboardRange();
+    return applied;
+  }
+
   /**
    * Dán nội dung Clipboard thật vào ô đang chọn.
+
    * @param {boolean} plainTextOnly Nếu true thì chỉ dán giá trị thuần, không nhận diện định dạng hay HTML
    */
   async _pasteIntoSelectedCell(plainTextOnly = false) {

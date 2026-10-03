@@ -25,6 +25,8 @@ import { computeConsolidate, formatSheetRange, parseConsolidateReference, CONSOL
 import { createMatcher } from "../../platform/find/find-engine.js";
 import { InputNormalizer } from "../../platform/keyboard/input-normalizer.js";
 import { isSpellcheckEnabled } from "../../platform/text/spellcheck-dom-controller.js";
+import { showContextMenu, closeActiveContextMenu } from "../../platform/ui-kit/components.js";
+
 
 const { showAlertDialog, showConfirmDialog, showPromptDialog, showFindReplaceDialog } = createLazyDialogs("sheet");
 
@@ -2473,25 +2475,72 @@ export class SheetGridController {
       ? active
       : this.container;
 
-    const menu = document.createElement("div");
-    menu.className = "vno-sheet-context-menu";
-    menu.setAttribute("role", "menu");
-    menu.setAttribute("aria-label", "Menu ngữ cảnh bảng tính");
-
     let items = [];
     if (type === "cell") {
       items = [
         { label: "Cắt", shortcut: "Ctrl+X", action: () => globalCommandBus.execute("common.edit.cut") },
         { label: "Sao chép", shortcut: "Ctrl+C", action: () => globalCommandBus.execute("common.edit.copy") },
         { label: "Dán", shortcut: "Ctrl+V", action: () => globalCommandBus.execute("common.edit.paste") },
-        { label: "Dán văn bản thuần", shortcut: "Ctrl+Shift+V", action: () => globalCommandBus.execute("common.edit.pastePlain") },
+        {
+          label: "Dán đặc biệt",
+          items: [
+            {
+              label: "Chỉ dán giá trị",
+              action: () => (this.adapter?._applyPasteSpecialMode ? this.adapter._applyPasteSpecialMode("values") : globalCommandBus.execute("sheet.edit.pastePlain"))
+            },
+            {
+              label: "Chỉ dán công thức",
+              action: () => (this.adapter?._applyPasteSpecialMode ? this.adapter._applyPasteSpecialMode("formulas") : globalCommandBus.execute("sheet.edit.paste"))
+            },
+            {
+              label: "Chỉ dán định dạng",
+              action: () => (this.adapter?._applyPasteSpecialMode ? this.adapter._applyPasteSpecialMode("formats") : globalCommandBus.execute("sheet.edit.paste"))
+            },
+            {
+              label: "Chuyển vị (Transpose)",
+              action: () => (this.adapter?._applyPasteSpecialMode ? this.adapter._applyPasteSpecialMode("transpose") : globalCommandBus.execute("sheet.edit.paste"))
+            },
+            { sep: true },
+            {
+              label: "Dán đặc biệt...",
+              shortcut: "Ctrl+Alt+V",
+              action: () => globalCommandBus.execute("sheet.edit.pasteSpecial")
+            }
+          ]
+        },
         { sep: true },
-        { label: "Chèn hàng", shortcut: "Ctrl+Shift+=", action: () => globalCommandBus.execute("sheet.row.insert") },
-        { label: "Chèn cột", action: () => globalCommandBus.execute("sheet.col.insert") },
-        { label: "Xóa hàng", action: () => globalCommandBus.execute("sheet.row.delete") },
-        { label: "Xóa cột", action: () => globalCommandBus.execute("sheet.col.delete") },
+        {
+          label: "Chèn",
+          items: [
+            { label: "Chèn hàng", shortcut: "Ctrl+Shift+=", action: () => globalCommandBus.execute("sheet.row.insert") },
+            { label: "Chèn cột", action: () => globalCommandBus.execute("sheet.col.insert") },
+            { label: "Chèn ô...", action: () => this.showInsertCellsDialog?.() }
+          ]
+        },
+        {
+          label: "Xóa",
+          items: [
+            { label: "Xóa hàng", action: () => globalCommandBus.execute("sheet.row.delete") },
+            { label: "Xóa cột", action: () => globalCommandBus.execute("sheet.col.delete") },
+            { label: "Xóa nội dung", shortcut: "Delete", action: () => globalCommandBus.execute("sheet.edit.clearContents") },
+            { label: "Xóa ô...", action: () => this.showDeleteCellsDialog?.() }
+          ]
+        },
+        {
+          label: "Sắp xếp",
+          items: [
+            { label: "Sắp xếp tăng dần (A-Z)", action: () => globalCommandBus.execute("sheet.data.sortAsc") },
+            { label: "Sắp xếp giảm dần (Z-A)", action: () => globalCommandBus.execute("sheet.data.sortDesc") },
+            { label: "Sắp xếp tùy chỉnh...", action: () => globalCommandBus.execute("sheet.data.customSort") }
+          ]
+        },
+        {
+          label: "Lọc",
+          items: [
+            { label: "Bộ lọc tự động", shortcut: "Ctrl+Shift+L", action: () => globalCommandBus.execute("sheet.data.filter") }
+          ]
+        },
         { sep: true },
-        { label: "Xóa nội dung", shortcut: "Delete", action: () => globalCommandBus.execute("sheet.edit.clearContents") },
         { label: "Định dạng ô...", shortcut: "Ctrl+1", action: () => globalCommandBus.execute("sheet.format.cellsDialog") },
         { label: "Thêm ghi chú", shortcut: "Shift+F2", action: () => this.showCommentDialog({ source: "contextmenu" }) }
       ];
@@ -2527,76 +2576,28 @@ export class SheetGridController {
       ];
     }
 
-    items.forEach(item => {
-      if (item.sep) {
-        const sep = document.createElement("div");
-        sep.className = "vno-sheet-context-sep";
-        sep.setAttribute("role", "separator");
-        menu.appendChild(sep);
-        return;
+    const instance = showContextMenu({
+      items,
+      x: e.clientX,
+      y: e.clientY,
+      className: "vno-sheet-context-menu",
+      ariaLabel: "Menu ngữ cảnh bảng tính",
+      previousFocus: this._contextMenuPreviousFocus,
+      onClose: () => {
+        if (this._activeContextMenu === instance) {
+          this._activeContextMenu = null;
+        }
+        const prev = this._contextMenuPreviousFocus;
+        this._contextMenuPreviousFocus = null;
+        if (prev && document.contains(prev) && typeof prev.focus === "function") {
+          try { prev.focus(); } catch (_) {}
+        } else if (this.container && typeof this.container.focus === "function") {
+          try { this.container.focus({ preventScroll: true }); } catch (_) {}
+        }
       }
-      const el = document.createElement("button");
-      el.type = "button";
-      el.className = "vno-sheet-context-item";
-      el.setAttribute("role", "menuitem");
-      el.setAttribute("tabindex", "-1");
-      el.innerHTML = `<span>${item.label}</span>${item.shortcut ? `<span class="shortcut">${item.shortcut}</span>` : ""}`;
-      el.addEventListener("click", () => {
-        this._closeContextMenu();
-        item.action();
-      });
-      menu.appendChild(el);
     });
 
-    document.body.appendChild(menu);
-    this._activeContextMenu = menu;
-
-    const x = Math.min(e.clientX, (window.innerWidth || 1200) - 240);
-    const y = Math.min(e.clientY, (window.innerHeight || 800) - 380);
-    menu.style.left = `${Math.max(10, x)}px`;
-    menu.style.top = `${Math.max(10, y)}px`;
-
-    const closeHandler = (evt) => {
-      if (!menu.contains(evt.target)) {
-        this._closeContextMenu();
-      }
-    };
-    const keyHandler = (evt) => {
-      if (evt.key === "Escape") {
-        evt.preventDefault();
-        evt.stopPropagation();
-        this._closeContextMenu();
-      } else if (evt.key === "ArrowDown" || evt.key === "ArrowUp") {
-        evt.preventDefault();
-        const actionItems = Array.from(menu.querySelectorAll(".vno-sheet-context-item"));
-        if (!actionItems.length) return;
-        const currentIdx = actionItems.indexOf(document.activeElement);
-        let nextIdx;
-        if (evt.key === "ArrowDown") {
-          nextIdx = currentIdx < actionItems.length - 1 ? currentIdx + 1 : 0;
-        } else {
-          nextIdx = currentIdx > 0 ? currentIdx - 1 : actionItems.length - 1;
-        }
-        actionItems[nextIdx]?.focus();
-      }
-    };
-
-    document.addEventListener("keydown", keyHandler);
-    menu.querySelector(".vno-sheet-context-item")?.focus();
-
-    let mousedownTimer = setTimeout(() => {
-      mousedownTimer = null;
-      document.addEventListener("mousedown", closeHandler);
-    }, 10);
-
-    menu._vnoCleanup = () => {
-      if (mousedownTimer) {
-        clearTimeout(mousedownTimer);
-        mousedownTimer = null;
-      }
-      document.removeEventListener("mousedown", closeHandler);
-      document.removeEventListener("keydown", keyHandler);
-    };
+    this._activeContextMenu = instance;
   }
 
   _showTabColorMenu(event, sheetName) {
@@ -2640,12 +2641,16 @@ export class SheetGridController {
 
   _closeContextMenu() {
     if (this._activeContextMenu) {
-      this._activeContextMenu._vnoCleanup?.();
-      this._activeContextMenu.remove();
+      const menu = this._activeContextMenu;
       this._activeContextMenu = null;
-      // Trả focus về nơi đã mở menu (thường là lưới) — nếu không, focus rơi vào
-      // <body> sau khi menu bị xóa khỏi DOM và điều hướng bàn phím trên lưới sẽ ngừng
-      // hoạt động cho đến khi người dùng click chuột lại (đo được qua Shift+F10 → Escape).
+      if (typeof menu.closeAll === "function") {
+        menu.closeAll();
+      } else if (typeof menu.close === "function") {
+        menu.close();
+      } else {
+        menu._vnoCleanup?.();
+        menu.remove?.();
+      }
       const previousFocus = this._contextMenuPreviousFocus;
       this._contextMenuPreviousFocus = null;
       if (previousFocus && document.contains(previousFocus) && previousFocus !== document.body && previousFocus !== document.documentElement && typeof previousFocus.focus === "function") {
