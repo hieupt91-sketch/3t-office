@@ -77,6 +77,12 @@ class Settings:
     backup_retention_days: int = 14
     license_signing_key: str = ""
     license_signing_key_file: Path | None = None
+    # Shared secret used to verify bank-transfer webhooks (HMAC). Empty = webhooks are REFUSED (fail closed).
+    payment_webhook_secret: str = ""
+    # Receiving account for bank-transfer orders. Empty = paid orders cannot be created (nothing is guessed or defaulted).
+    payment_bank_code: str = ""
+    payment_bank_account: str = ""
+    payment_account_holder: str = ""
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -94,6 +100,10 @@ class Settings:
             product=os.environ.get("PRODUCT", "3t-office"),
             license_signing_key=os.environ.get("LICENSE_SIGNING_KEY", ""),
             license_signing_key_file=Path(os.environ["LICENSE_SIGNING_KEY_FILE"]) if os.environ.get("LICENSE_SIGNING_KEY_FILE") else None,
+            payment_webhook_secret=os.environ.get("PAYMENT_WEBHOOK_SECRET", ""),
+            payment_bank_code=os.environ.get("PAYMENT_BANK_CODE", ""),
+            payment_bank_account=os.environ.get("PAYMENT_BANK_ACCOUNT", ""),
+            payment_account_holder=os.environ.get("PAYMENT_ACCOUNT_HOLDER", ""),
         )
 
 
@@ -134,6 +144,8 @@ class AdminLoginRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
     username: str = Field(min_length=1, max_length=64)
     password: str = Field(min_length=1, max_length=128)
+    totp_code: str | None = Field(default=None, max_length=8)
+
 
 
 class AdminCreateKeysRequest(BaseModel):
@@ -309,6 +321,7 @@ def _authenticate_admin(
     request: Request,
     settings: Settings,
     sessions: dict[str, dict[str, Any]] | None = None,
+    conn: sqlite3.Connection | None = None,
 ) -> str:
     # Bảo mật: không mở admin API khi ADMIN_PASSWORD rỗng
     if not settings.admin_password or not settings.admin_username:
@@ -322,17 +335,33 @@ def _authenticate_admin(
         session_id = request.cookies.get("session_id")
         if session_id and session_id in sessions:
             session = sessions[session_id]
-            if time.time() < session.get("expires_at", 0):
-                # Kiểm tra CSRF token cho các phương thức ghi
-                if request.method in ("POST", "PUT", "DELETE", "PATCH"):
-                    csrf_header = request.headers.get("x-csrf-token", "")
-                    expected_csrf = session.get("csrf_token", "")
-                    if not csrf_header or not hmac.compare_digest(csrf_header.encode("utf-8"), expected_csrf.encode("utf-8")):
-                        raise HTTPException(
-                            status_code=403,
-                            detail={"error": "invalid_csrf", "message": "CSRF token bị thiếu hoặc không hợp lệ"}
-                        )
-                return str(session.get("admin", settings.admin_username))
+            now_ts = time.time()
+            last_act = session.get("last_active_at", session.get("created_at", now_ts))
+            # Hết phiên sau 30 phút không hoạt động (1800s)
+            if now_ts - last_act > 1800 or now_ts >= session.get("expires_at", 0):
+                sessions.pop(session_id, None)
+                raise HTTPException(
+                    status_code=401,
+                    detail={"error": "session_expired", "message": "Phiên đăng nhập đã hết hạn do không hoạt động"},
+                )
+            session["last_active_at"] = now_ts
+
+            # Kiểm tra CSRF token cho các phương thức ghi
+            if request.method in ("POST", "PUT", "DELETE", "PATCH"):
+                csrf_header = request.headers.get("x-csrf-token", "")
+                expected_csrf = session.get("csrf_token", "")
+                if not csrf_header or not hmac.compare_digest(csrf_header.encode("utf-8"), expected_csrf.encode("utf-8")):
+                    raise HTTPException(
+                        status_code=403,
+                        detail={"error": "invalid_csrf", "message": "CSRF token bị thiếu hoặc không hợp lệ"}
+                    )
+                role = session.get("role", "owner")
+                if role == "viewer":
+                    raise HTTPException(
+                        status_code=403,
+                        detail={"error": "permission_denied", "message": "Tài khoản chỉ có quyền xem (viewer), không thể ghi"}
+                    )
+            return str(session.get("admin", settings.admin_username))
 
     # 2. Thử xác thực qua HTTP Basic Auth (cho script hoặc API)
     auth = request.headers.get("authorization", "")
@@ -342,6 +371,22 @@ def _authenticate_admin(
             username, password = base64.b64decode(value, validate=True).decode("utf-8").split(":", 1)
         except (ValueError, UnicodeError):
             username, password = "", ""
+
+        # Kiem tra trong admin_users neu co connection
+        if conn is not None:
+            try:
+                import auth as auth_mod
+                u_row = conn.execute("SELECT username, password_hash, role, active FROM admin_users WHERE username = ?", (username,)).fetchone()
+                if u_row and u_row["active"] and auth_mod.verify_password(password, u_row["password_hash"]):
+                    if u_row["role"] == "viewer" and request.method in ("POST", "PUT", "DELETE", "PATCH"):
+                        raise HTTPException(
+                            status_code=403,
+                            detail={"error": "permission_denied", "message": "Tài khoản chỉ có quyền xem (viewer), không thể ghi"}
+                        )
+                    return u_row["username"]
+            except Exception:
+                pass
+
         user_ok = hmac.compare_digest(username.encode("utf-8"), settings.admin_username.encode("utf-8"))
         pass_ok = hmac.compare_digest(password.encode("utf-8"), settings.admin_password.encode("utf-8"))
         if user_ok and pass_ok:
@@ -352,6 +397,7 @@ def _authenticate_admin(
         detail={"error": "unauthorized", "message": "Yêu cầu đăng nhập quản trị viên"},
         headers={"WWW-Authenticate": "Basic"}
     )
+
 
 
 def _basic_auth(request: Request, settings: Settings, sessions: dict[str, dict[str, Any]] | None = None) -> None:
@@ -396,6 +442,11 @@ def _ensure_schema(db_path: Path) -> None:
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS reports_group_idx ON reports(signature, version, received_at)")
         lic_mod.init_license_schema(conn)
+        try:
+            import commerce_db
+        except ImportError:
+            from . import commerce_db
+        commerce_db.migrate_commerce_schema(conn)
 
 
 def _write_report_log(directory: Path, received_at: str, payload: ReportPayload, signature: str) -> None:
@@ -491,6 +542,29 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     admin_sessions: dict[str, dict[str, Any]] = {}
     login_lockout: dict[str, dict[str, Any]] = {}
 
+    try:
+        import auth as auth_mod
+        from commerce_routes import register_commerce_routes
+        from emails.service import EmailService
+    except ImportError:
+        from . import auth as auth_mod
+        from .commerce_routes import register_commerce_routes
+        from .emails.service import EmailService
+
+    session_manager = auth_mod.AdminSessionManager()
+    email_service = EmailService()
+
+    try:
+        from payments import PAYMENT_ADAPTERS
+    except ImportError:
+        from .payments import PAYMENT_ADAPTERS
+    PAYMENT_ADAPTERS["bank_transfer"].configure(
+        bank_code=cfg.payment_bank_code,
+        bank_account=cfg.payment_bank_account,
+        account_holder=cfg.payment_account_holder,
+        webhook_secret=cfg.payment_webhook_secret,
+    )
+
     logger = logging.getLogger("3t-office-cloud")
     logger.setLevel(logging.INFO)
     logger.propagate = False
@@ -512,17 +586,34 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     logger.error("database backup failed: %s", type(exc).__name__)
                 await asyncio.sleep(24 * 60 * 60)
 
+        async def email_worker() -> None:
+            while True:
+                try:
+                    if email_service.is_configured:
+                        with _open_db(db_path) as conn:
+                            await asyncio.to_thread(email_service.dispatch_queued_emails, conn, cfg.install_token_secret)
+                except Exception as exc:
+                    logger.error("email dispatcher error: %s", type(exc).__name__)
+                await asyncio.sleep(30)
+
         backup_task = asyncio.create_task(backups(), name="daily-sqlite-backup")
+        email_task = asyncio.create_task(email_worker(), name="email-queue-worker")
         try:
             yield
         finally:
             backup_task.cancel()
+            email_task.cancel()
             try:
                 await backup_task
             except asyncio.CancelledError:
                 pass
+            try:
+                await email_task
+            except asyncio.CancelledError:
+                pass
 
     app = FastAPI(title="3T Office Cloud API", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
+
 
     @app.get("/health")
     async def health() -> dict[str, str]:
@@ -1046,9 +1137,35 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 content={"error": "temporarily_locked", "message": f"Tài khoản hoặc IP bị khóa tạm thời. Vui lòng thử lại sau {rem} giây"},
             )
 
-        user_ok = hmac.compare_digest(payload.username.encode("utf-8"), cfg.admin_username.encode("utf-8"))
-        pass_ok = hmac.compare_digest(payload.password.encode("utf-8"), cfg.admin_password.encode("utf-8"))
-        if not (user_ok and pass_ok):
+        user_ok = False
+        user_role = "support"
+        must_change = False
+        totp_secret = None
+
+        with _open_db(db_path) as conn:
+            u_row = conn.execute(
+                "SELECT id, username, password_hash, role, totp_secret_enc, active, must_change_password FROM admin_users WHERE username = ?",
+                (payload.username,),
+            ).fetchone()
+            if u_row and u_row["active"]:
+                user_ok = auth_mod.verify_password(payload.password, u_row["password_hash"])
+                user_role = u_row["role"]
+                must_change = bool(u_row["must_change_password"])
+                totp_secret = u_row["totp_secret_enc"]
+
+        if not user_ok:
+            u_match = hmac.compare_digest(payload.username.encode("utf-8"), cfg.admin_username.encode("utf-8"))
+            p_match = hmac.compare_digest(payload.password.encode("utf-8"), cfg.admin_password.encode("utf-8"))
+            if u_match and p_match:
+                user_ok = True
+                user_role = "owner"
+                must_change = False
+                with _open_db(db_path) as conn:
+                    u_row = conn.execute("SELECT totp_secret_enc FROM admin_users WHERE username = ?", (payload.username,)).fetchone()
+                    if u_row and u_row["totp_secret_enc"]:
+                        totp_secret = u_row["totp_secret_enc"]
+
+        if not user_ok:
             record["attempts"] = record.get("attempts", 0) + 1
             if record["attempts"] >= 5:
                 record["locked_until"] = now_ts + 15 * 60
@@ -1059,29 +1176,68 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 content={"error": "invalid_credentials", "message": "Tên đăng nhập hoặc mật khẩu không chính xác", "attempts_left": left},
             )
 
+        # 2FA TOTP cho vai tro owner
+        requires_totp_setup = False
+        if user_role == "owner":
+            if totp_secret:
+                if not payload.totp_code:
+                    return JSONResponse(
+                        status_code=403,
+                        content={"error": "totp_required", "message": "Yêu cầu nhập mã xác thực 2FA TOTP"},
+                    )
+                if not auth_mod.verify_totp(totp_secret, payload.totp_code):
+                    record["attempts"] = record.get("attempts", 0) + 1
+                    if record["attempts"] >= 5:
+                        record["locked_until"] = now_ts + 15 * 60
+                    login_lockout[peer] = record
+                    left = max(0, 5 - record["attempts"])
+                    return JSONResponse(
+                        status_code=401,
+                        content={"error": "invalid_totp", "message": "Mã xác thực 2FA TOTP không chính xác", "attempts_left": left},
+                    )
+            else:
+                requires_totp_setup = True
+
         login_lockout.pop(peer, None)
         session_id = secrets.token_urlsafe(32)
         csrf_token = secrets.token_urlsafe(32)
         admin_sessions[session_id] = {
             "admin": payload.username,
+            "username": payload.username,
+            "role": user_role,
             "csrf_token": csrf_token,
-            "expires_at": now_ts + 86400,
+            "expires_at": now_ts + 1800,
+            "last_active_at": now_ts,
+            "must_change_password": must_change,
+            "requires_totp_setup": requires_totp_setup,
         }
+        session_manager._sessions[session_id] = admin_sessions[session_id]
+
 
         with _open_db(db_path) as conn:
             conn.execute(
-                """INSERT INTO admin_audit (id, at, admin, action, target) VALUES (?, ?, ?, ?, ?)""",
-                (str(uuid.uuid4()), _utc_iso(), payload.username, "login", payload.username),
+                """INSERT INTO admin_audit (id, at, admin, action, target, ip, user_agent, result) VALUES (?, ?, ?, ?, ?, ?, ?, 'success')""",
+                (str(uuid.uuid4()), _utc_iso(), payload.username, "login", payload.username, peer, request.headers.get("user-agent", "")[:128]),
             )
 
-        resp = JSONResponse(status_code=200, content={"ok": True, "admin": payload.username, "csrf_token": csrf_token})
+        resp = JSONResponse(
+            status_code=200,
+            content={
+                "ok": True,
+                "admin": payload.username,
+                "role": user_role,
+                "csrf_token": csrf_token,
+                "must_change_password": must_change,
+                "requires_totp_setup": requires_totp_setup,
+            },
+        )
         resp.set_cookie(
             key="session_id",
             value=session_id,
             httponly=True,
             secure=True,
             samesite="strict",
-            max_age=86400,
+            max_age=1800,
             path="/",
         )
         return resp
@@ -1107,8 +1263,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def admin_me(request: Request) -> dict[str, object]:
         admin_user = _authenticate_admin(request, cfg, admin_sessions)
         session_id = request.cookies.get("session_id")
-        csrf = admin_sessions.get(session_id, {}).get("csrf_token", "") if session_id else ""
-        return {"authenticated": True, "admin": admin_user, "csrf_token": csrf}
+        session = admin_sessions.get(session_id, {}) if session_id else {}
+        csrf = session.get("csrf_token", "")
+        role = session.get("role", "owner")
+        must_change = session.get("must_change_password", False)
+        requires_totp_setup = session.get("requires_totp_setup", False)
+        return {
+            "authenticated": True,
+            "admin": admin_user,
+            "role": role,
+            "csrf_token": csrf,
+            "must_change_password": must_change,
+            "requires_totp_setup": requires_totp_setup,
+        }
 
     @app.get("/api/v1/admin/overview")
     async def admin_overview(request: Request) -> dict[str, object]:
@@ -1118,13 +1285,26 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             active_keys = conn.execute("SELECT COUNT(*) FROM license_keys WHERE status = 'active'").fetchone()[0]
             revoked_keys = conn.execute("SELECT COUNT(*) FROM license_keys WHERE status = 'revoked'").fetchone()[0]
             total_active_devices = conn.execute("SELECT COUNT(*) FROM activations WHERE removed_at IS NULL").fetchone()[0]
-            # 7 ngày qua
             activations_7d = conn.execute(
                 "SELECT COUNT(*) FROM activations WHERE first_at >= datetime('now', '-7 days')"
             ).fetchone()[0]
-            # 24 giờ qua
             error_groups_24h = conn.execute(
                 "SELECT COUNT(DISTINCT signature) FROM reports WHERE received_at >= datetime('now', '-1 day')"
+            ).fetchone()[0]
+            revenue_today = conn.execute(
+                "SELECT COALESCE(SUM(amount_vnd), 0) FROM payments WHERE status = 'succeeded' AND paid_at >= date('now', 'start of day')"
+            ).fetchone()[0]
+            revenue_7d = conn.execute(
+                "SELECT COALESCE(SUM(amount_vnd), 0) FROM payments WHERE status = 'succeeded' AND paid_at >= datetime('now', '-7 days')"
+            ).fetchone()[0]
+            revenue_month = conn.execute(
+                "SELECT COALESCE(SUM(amount_vnd), 0) FROM payments WHERE status = 'succeeded' AND paid_at >= date('now', 'start of month')"
+            ).fetchone()[0]
+            pending_orders = conn.execute(
+                "SELECT COUNT(*) FROM orders WHERE status = 'pending_payment'"
+            ).fetchone()[0]
+            unmatched_payments = conn.execute(
+                "SELECT COUNT(*) FROM payments WHERE status = 'unmatched'"
             ).fetchone()[0]
 
         channels = []
@@ -1149,8 +1329,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "total_active_devices": total_active_devices,
             "activations_7d": activations_7d,
             "error_groups_24h": error_groups_24h,
+            "revenue_today": revenue_today,
+            "revenue_7d": revenue_7d,
+            "revenue_month": revenue_month,
+            "pending_orders": pending_orders,
+            "unmatched_payments": unmatched_payments,
             "channels": channels,
         }
+
 
     @app.get("/api/v1/admin/keys")
     async def admin_list_keys(
@@ -1473,11 +1659,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             headers=headers,
         )
 
+    # Gan cac route thuong mai, cong khach hang va quan tri
+    register_commerce_routes(
+        app=app,
+        db_path=db_path,
+        cfg=cfg,
+        session_manager=session_manager,
+        limiter=limiter,
+        email_service=email_service,
+        signing_key=signing_key,
+        public_key=public_key,
+    )
+
     # Trang web sản phẩm (tĩnh). Gắn CUỐI CÙNG để không che /health, /api/v1/* và /updates/*.
     if cfg.web_dir is not None and cfg.web_dir.is_dir():
         app.mount("/", _ProductWebsite(directory=cfg.web_dir, html=True), name="web")
 
     return app
+
 
 
 class _ProductWebsite(StaticFiles):

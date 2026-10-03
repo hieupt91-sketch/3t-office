@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cổng khách hàng — 3T Office</title>
+  <meta name="description" content="Cổng quản lý bản quyền cá nhân 3T Office: Tra cứu mã bản quyền, quản lý thiết bị sử dụng, gỡ máy, cấp lại khóa và kích hoạt ngoại tuyến an toàn.">
+  <link rel="icon" type="image/png" sizes="32x32" href="../favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="../favicon-16x16.png">
+  <link rel="alternate icon" href="../favicon.ico">
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="portal.css">
+  <script>
+    try {
+      var t = localStorage.getItem("3t_theme");
+      if (!t && window.matchMedia("(prefers-color-scheme: dark)").matches) t = "dark";
+      if (t) document.documentElement.setAttribute("data-theme", t);
+    } catch(e) {}
+  </script>
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Chuyển đến nội dung chính</a>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="../index.html" class="brand-link" aria-label="Trang chủ 3T Office">
+        <img src="../assets/brand/logo-3t.png" alt="Logo 3T Office" class="brand-icon">
+        <div class="brand-text">
+          <span class="brand-name">Office</span>
+          <span class="brand-tagline">Bộ ứng dụng văn phòng</span>
+        </div>
+      </a>
+
+      <nav id="primary-nav" class="main-nav" aria-label="Điều hướng chính">
+        <ul class="nav-list">
+          <li><a href="../index.html" class="nav-link">Trang chủ</a></li>
+          <li><a href="../tinh-nang.html" class="nav-link">Tính năng</a></li>
+          <li><a href="../tai-ve.html" class="nav-link">Tải về</a></li>
+          <li><a href="../co-gi-moi.html" class="nav-link">Có gì mới</a></li>
+          <li><a href="../huong-dan.html" class="nav-link">Hướng dẫn</a></li>
+          <li><a href="../ban-quyen.html" class="nav-link">Bản quyền</a></li>
+          <li><a href="../trang-thai.html" class="nav-link">Trạng thái</a></li>
+          <li><a href="../lien-he.html" class="nav-link">Liên hệ</a></li>
+        </ul>
+      </nav>
+
+      <div class="nav-actions">
+        <button type="button" class="theme-toggle-btn" aria-label="Chuyển đổi giao diện Sáng / Tối" title="Chuyển đổi giao diện Sáng / Tối">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"></circle></svg>
+        </button>
+        <a href="index.html" class="nav-cta-btn" style="background: var(--brand-blue);" aria-current="page">
+          Cổng khách hàng
+        </a>
+        <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="primary-nav" aria-label="Mở trình đơn chuyển hướng">
+          ☰
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main-content">
+    <section class="section" style="padding-top: var(--space-8); min-height: 70vh;">
+      <div class="container" style="max-width: 1040px;">
+        <!-- Header tiêu đề trang duy nhất với 1 thẻ h1 -->
+        <div class="section-header" style="margin-bottom: var(--space-8);">
+          <span class="badge badge-glow">Quản lý bản quyền cá nhân</span>
+          <h1 class="section-title">Cổng khách hàng 3T Office</h1>
+          <p class="section-lead">
+            Tra cứu đơn hàng, quản lý thiết bị đã kích hoạt, cấp lại mã bản quyền và tạo khóa kích hoạt ngoại tuyến cho máy tính không có Internet.
+          </p>
+        </div>
+
+        <!-- Khung thông báo chung -->
+        <div id="portal-alert" class="portal-alert" style="display: none;" role="alert"></div>
+
+        <!-- ================= MÀN HÌNH 1: ĐĂNG NHẬP BẰNG MÃ 6 SỐ ================= -->
+        <div id="view-portal-login" class="portal-card" style="max-width: 520px; margin: 0 auto;">
+          <!-- Bước 1.1: Nhập email -->
+          <div id="login-step-email">
+            <h2 class="portal-card-title">Đăng nhập tài khoản</h2>
+            <p class="portal-desc">
+              Nhập địa chỉ email bạn đã sử dụng khi mua bản quyền để nhận mã xác thực 6 chữ số. Không cần mật khẩu.
+            </p>
+            <form id="form-request-code">
+              <div class="form-group" style="margin-bottom: var(--space-4);">
+                <label for="input-email" class="form-label">Địa chỉ email</label>
+                <input type="email" id="input-email" class="portal-input" required placeholder="nhap-email-cua-ban@domain.vn" autocomplete="email">
+              </div>
+              <button type="submit" id="btn-send-code" class="portal-btn portal-btn-primary" style="width: 100%;">
+                Gửi mã xác thực đăng nhập
+              </button>
+            </form>
+          </div>
+
+          <!-- Bước 1.2: Nhập mã xác thực 6 số -->
+          <div id="login-step-code" style="display: none;">
+            <h2 class="portal-card-title">Nhập mã xác thực</h2>
+            <p class="portal-desc">
+              Hệ thống đã gửi mã xác thực 6 chữ số tới hộp thư <strong id="display-target-email"></strong>. Mã có hiệu lực trong 10 phút.
+            </p>
+            <form id="form-verify-code">
+              <div class="form-group" style="margin-bottom: var(--space-4);">
+                <label for="input-code" class="form-label">Mã xác thực (6 chữ số)</label>
+                <input type="text" id="input-code" class="portal-input code-input" required maxlength="6" pattern="[0-9]{6}" placeholder="123456" autocomplete="one-time-code" inputmode="numeric">
+              </div>
+              <button type="submit" id="btn-verify-code" class="portal-btn portal-btn-primary" style="width: 100%; margin-bottom: var(--space-3);">
+                Xác nhận &amp; Đăng nhập
+              </button>
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.875rem;">
+                <button type="button" id="btn-back-email" class="portal-link-btn">← Đổi email khác</button>
+                <button type="button" id="btn-resend-code" class="portal-link-btn" disabled>Gửi lại mã (<span id="resend-countdown">60</span>s)</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- ================= MÀN HÌNH 2: BẢNG ĐIỀU KHIỂN KHÁCH HÀNG ================= -->
+        <div id="view-portal-dashboard" style="display: none;">
+          <!-- Thanh thông tin khách hàng -->
+          <div class="portal-user-bar">
+            <div>
+              <div style="font-size: 0.813rem; color: var(--text-dim); text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">Tài khoản khách hàng</div>
+              <div style="font-size: 1.15rem; font-weight: 700; color: var(--text-main);" id="dashboard-user-name">—</div>
+              <div style="font-size: 0.875rem; color: var(--text-muted);" id="dashboard-user-email">—</div>
+            </div>
+            <button type="button" id="btn-portal-logout" class="portal-btn portal-btn-secondary portal-btn-sm">
+              Đăng xuất
+            </button>
+          </div>
+
+          <!-- Các Tab điều hướng cổng khách hàng -->
+          <nav class="portal-nav-tabs" aria-label="Trình đơn cổng khách hàng">
+            <button type="button" class="portal-tab-btn active" data-tab="licenses">
+              Mã bản quyền của tôi
+            </button>
+            <button type="button" class="portal-tab-btn" data-tab="devices">
+              Thiết bị đã liên kết
+            </button>
+            <button type="button" class="portal-tab-btn" data-tab="offline">
+              Kích hoạt ngoại tuyến
+            </button>
+            <button type="button" class="portal-tab-btn" data-tab="orders">
+              Lịch sử đơn hàng
+            </button>
+          </nav>
+
+          <!-- TAB 1: DANH SÁCH MÃ BẢN QUYỀN -->
+          <div id="panel-tab-licenses" class="portal-tab-panel">
+            <div class="portal-card">
+              <div class="portal-card-header">
+                <div>
+                  <h2 class="portal-card-title">Mã bản quyền 3T Office</h2>
+                  <p class="portal-desc">
+                    Danh sách các mã kích hoạt đã cấp. Mỗi mã cho phép sử dụng độc lập trên số lượng máy tính quy định.
+                  </p>
+                </div>
+              </div>
+
+              <div id="licenses-container" class="portal-list-group">
+                <div style="text-align: center; padding: var(--space-6); color: var(--text-muted);">
+                  Đang tải danh sách bản quyền...
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 2: QUẢN LÝ THIẾT BỊ -->
+          <div id="panel-tab-devices" class="portal-tab-panel" style="display: none;">
+            <div class="portal-card">
+              <div class="portal-card-header">
+                <div>
+                  <h2 class="portal-card-title">Thiết bị đang sử dụng</h2>
+                  <p class="portal-desc">
+                    Gỡ bớt máy tính cũ hoặc máy hỏng để giải phóng chỗ kích hoạt cho thiết bị mới.
+                  </p>
+                </div>
+              </div>
+
+              <div class="portal-table-wrap">
+                <table class="portal-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Tên máy tính</th>
+                      <th scope="col">Hệ điều hành</th>
+                      <th scope="col">Phiên bản</th>
+                      <th scope="col">Mã bản quyền</th>
+                      <th scope="col">Kích hoạt lần đầu</th>
+                      <th scope="col">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody id="devices-tbody">
+                    <tr><td colspan="6" style="text-align: center;">Đang tải danh sách thiết bị...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 3: KÍCH HOẠT NGOẠI TUYẾN -->
+          <div id="panel-tab-offline" class="portal-tab-panel" style="display: none;">
+            <div class="portal-card" style="max-width: 720px; margin: 0 auto;">
+              <h2 class="portal-card-title">Tạo mã kích hoạt ngoại tuyến</h2>
+              <p class="portal-desc">
+                Dành cho các máy tính văn phòng cách ly hoàn toàn với Internet. Lấy mã nhận dạng máy tính hiển thị trên ứng dụng 3T Office của máy đó và nhập vào biểu mẫu dưới đây.
+              </p>
+
+              <form id="form-portal-offline">
+                <div class="form-group" style="margin-bottom: var(--space-4);">
+                  <label for="portal-offline-key" class="form-label">Chọn hoặc nhập mã bản quyền</label>
+                  <input type="text" id="portal-offline-key" class="portal-input" required placeholder="3TO-XXXXX-XXXXX-XXXXX-XXXXX">
+                </div>
+                <div class="form-group" style="margin-bottom: var(--space-4);">
+                  <label for="portal-offline-device" class="form-label">Mã nhận diện thiết bị (Từ ứng dụng)</label>
+                  <input type="text" id="portal-offline-device" class="portal-input" required placeholder="Dán chuỗi mã thiết bị từ cửa sổ kích hoạt">
+                </div>
+                <div class="form-group" style="margin-bottom: var(--space-6);">
+                  <label for="portal-offline-name" class="form-label">Tên thiết bị ghi nhớ (Tùy chọn)</label>
+                  <input type="text" id="portal-offline-name" class="portal-input" placeholder="Ví dụ: Máy soạn thảo phòng Văn thư">
+                </div>
+                <button type="submit" class="portal-btn portal-btn-primary">
+                  Tạo khóa kích hoạt ngoại tuyến
+                </button>
+              </form>
+
+              <div id="portal-offline-result" style="display: none; margin-top: var(--space-6); padding-top: var(--space-6); border-top: 1px solid var(--border-color);">
+                <div style="font-weight: 700; color: var(--status-ready-text); margin-bottom: var(--space-2);">
+                  Chuỗi kích hoạt ngoại tuyến (Token):
+                </div>
+                <textarea id="portal-offline-token" class="portal-textarea" readonly rows="4"></textarea>
+                <div style="display: flex; gap: var(--space-3); margin-top: var(--space-3);">
+                  <button type="button" id="btn-copy-portal-token" class="portal-btn portal-btn-secondary portal-btn-sm">
+                    Sao chép chuỗi mã
+                  </button>
+                </div>
+                <p style="font-size: 0.813rem; color: var(--text-muted); margin-top: var(--space-2); line-height: 1.5;">
+                  Sao chép chuỗi ký tự trên vào tệp văn bản hoặc USB mang tới máy tính cách ly mạng, sau đó dán vào ô "Kích hoạt ngoại tuyến" trên ứng dụng 3T Office để hoàn tất.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 4: LỊCH SỬ ĐƠN HÀNG -->
+          <div id="panel-tab-orders" class="portal-tab-panel" style="display: none;">
+            <div class="portal-card">
+              <div class="portal-card-header">
+                <div>
+                  <h2 class="portal-card-title">Lịch sử giao dịch &amp; Đơn hàng</h2>
+                  <p class="portal-desc">
+                    Danh sách các đơn hàng đã đặt mua bản quyền qua trang chủ và đại lý.
+                  </p>
+                </div>
+              </div>
+
+              <div class="portal-table-wrap">
+                <table class="portal-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Mã đơn hàng</th>
+                      <th scope="col">Ngày đặt</th>
+                      <th scope="col">Gói dịch vụ</th>
+                      <th scope="col">Số lượng</th>
+                      <th scope="col">Số tiền (VNĐ)</th>
+                      <th scope="col">Trạng thái</th>
+                    </tr>
+                  </thead>
+                  <tbody id="orders-tbody">
+                    <tr><td colspan="6" style="text-align: center;">Đang tải danh sách đơn hàng...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Xác nhận cấp lại mã bản quyền -->
+        <div id="modal-confirm-reissue" class="portal-modal-overlay" style="display: none;">
+          <div class="portal-modal-box">
+            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: var(--space-3); color: var(--text-main);">
+              Xác nhận cấp lại mã bản quyền
+            </h3>
+            <p style="font-size: 0.875rem; color: var(--text-muted); line-height: 1.6; margin-bottom: var(--space-4);">
+              Hành động này sẽ <strong>thu hồi ngay lập tức mã bản quyền hiện tại</strong> và tạo một mã mới thay thế. Các thiết bị đang dùng mã cũ sẽ phải cập nhật sang mã mới. Bạn có chắc chắn muốn thực hiện?
+            </p>
+            <div style="display: flex; justify-content: flex-end; gap: var(--space-3);">
+              <button type="button" id="btn-cancel-reissue" class="portal-btn portal-btn-secondary portal-btn-sm">
+                Hủy bỏ
+              </button>
+              <button type="button" id="btn-proceed-reissue" class="portal-btn portal-btn-primary portal-btn-sm" style="background: var(--brand-orange);">
+                Xác nhận cấp lại mã
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="../index.html" class="brand-link" style="margin-bottom: 14px;">
+            <img src="../assets/brand/logo-3t.png" alt="Logo 3T Office" class="brand-icon">
+            <div class="brand-text">
+              <span class="brand-name">Office</span>
+              <span class="brand-tagline">Bộ ứng dụng văn phòng</span>
+            </div>
+          </a>
+          <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;">
+            Bộ ứng dụng văn phòng chạy ngoại tuyến cho Windows được nghiên cứu và phát triển bởi 3T Computer. 
+            Tôn trọng tối đa quyền riêng tư và quyền sở hữu dữ liệu của người dùng.
+          </p>
+        </div>
+
+        <div class="footer-col">
+          <h4>Ứng dụng</h4>
+          <ul class="footer-links">
+            <li><a href="../tinh-nang.html#doc">Doc (.docx)</a></li>
+            <li><a href="../tinh-nang.html#sheet">Sheet (.xlsx)</a></li>
+            <li><a href="../tinh-nang.html#slide">Slide (.pptx)</a></li>
+            <li><a href="../tinh-nang.html">Danh mục tính năng</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h4>Thông tin</h4>
+          <ul class="footer-links">
+            <li><a href="../tai-ve.html">Tải về bộ cài</a></li>
+            <li><a href="../co-gi-moi.html">Có gì mới (0.9.8)</a></li>
+            <li><a href="../huong-dan.html">Hướng dẫn sử dụng</a></li>
+            <li><a href="../ban-quyen.html">Chính sách bản quyền</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h4>Kết nối &amp; Hỗ trợ</h4>
+          <ul class="footer-links">
+            <li><a href="../lien-he.html">Thông tin liên hệ</a></li>
+            <li><a href="../trang-thai.html">Kiểm tra trạng thái máy chủ</a></li>
+            <li><a href="https://office.3tcomputer.com">Cổng thông tin 3T Office</a></li>
+            <li><a href="https://3tcomputer.com">Trang chủ 3T Computer</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <div>
+          Bản quyền thuộc về CÔNG TY TNHH ĐẦU TƯ CÔNG NGHỆ VÀ XÂY LẮP 3T.
+        </div>
+        <div style="font-size: 0.813rem; color: var(--text-dim);">
+          Địa chỉ: Số 470 Quang Trung, Phường Ba Đồn, Tỉnh Quảng Trị. &bull; MST: 3101126773.
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="../js/main.js"></script>
+  <script src="portal.js"></script>
+</body>
+</html>
