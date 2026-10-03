@@ -13051,53 +13051,138 @@ def _writer_restore_created_run_highlight(run_xml: str, highlighted_texts: dict[
     return run_xml
 
 
-def _writer_clone_lower_alpha_suffix(document_xml: str, numbering_xml: str, source_html: str) -> tuple[str, str]:
-    """Use Word's requested a) suffix for HTML lower-alpha ordered lists."""
-    item_texts = {
-        re.sub(r"\s+", " ", _writer_html_plain(item.group(1))).strip()
-        for listing in re.finditer(r"<ol\b(?=[^>]*\btype\s*=\s*([\"'])a\1)[^>]*>([\s\S]*?)</ol\s*>", source_html, re.IGNORECASE)
-        for item in re.finditer(r"<li\b[^>]*>([\s\S]*?)</li\s*>", listing.group(2), re.IGNORECASE)
-    }
-    if not item_texts:
-        return document_xml, numbering_xml
-    item_num_id = None
-    for paragraph in re.findall(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", document_xml, re.IGNORECASE):
-        if re.sub(r"\s+", " ", _paragraph_plain_text(paragraph)).strip() not in item_texts:
+def _writer_restore_list_number_formats(
+    document_xml: str, numbering_xml: str, source_html: str,
+) -> tuple[str, str]:
+    """Restore simple DOCX list numFmt/lvlText carried by Writer's HTML bridge.
+
+    LibreOffice's HTML importer can flatten lowerLetter/lowerRoman to decimal.
+    The Writer adapter records the OOXML values on each ``li``; this pass clones
+    only the affected numbering definition and redirects matching paragraphs.
+    Existing decimal and bullet definitions are left untouched.
+    """
+    supported = {"decimal", "decimalZero", "lowerLetter", "upperLetter", "lowerRoman", "upperRoman"}
+    attr_re = re.compile(r'\b(data-vno-list-(?:num-fmt|lvl-text))\s*=\s*(["\'])(.*?)\2', re.IGNORECASE)
+    requests: list[dict[str, str]] = []
+    for item in re.finditer(r"<li\b([^>]*)>([\s\S]*?)</li\s*>", source_html or "", re.IGNORECASE):
+        attrs = {name.lower(): html.unescape(value) for name, _quote, value in attr_re.findall(item.group(1))}
+        num_fmt = attrs.get("data-vno-list-num-fmt", "")
+        lvl_text = attrs.get("data-vno-list-lvl-text", "")
+        if num_fmt not in supported or not re.fullmatch(r"%\d[.)]?", lvl_text):
             continue
-        num_id = re.search(r"<w:numId\b[^>]*w:val=([\"'])(\d+)\1", paragraph, re.IGNORECASE)
-        if num_id:
-            item_num_id = num_id.group(2)
+        # Nested list text belongs to its own li request, not the parent marker.
+        inner = re.sub(r"<(?:ol|ul)\b[\s\S]*?</(?:ol|ul)\s*>", "", item.group(2), flags=re.IGNORECASE)
+        text = re.sub(r"\s+", " ", _writer_html_plain(inner)).strip()
+        if text:
+            requests.append({"text": text, "num_fmt": num_fmt, "lvl_text": lvl_text})
+
+    # Compatibility with Writer-created lower-alpha lists predating the data-* bridge.
+    if not requests:
+        for listing in re.finditer(r"<ol\b(?=[^>]*\btype\s*=\s*([\"'])a\1)[^>]*>([\s\S]*?)</ol\s*>", source_html or "", re.IGNORECASE):
+            for item in re.finditer(r"<li\b[^>]*>([\s\S]*?)</li\s*>", listing.group(2), re.IGNORECASE):
+                text = re.sub(r"\s+", " ", _writer_html_plain(item.group(1))).strip()
+                if text:
+                    requests.append({"text": text, "num_fmt": "lowerLetter", "lvl_text": "%1)"})
+    if not requests:
+        return document_xml, numbering_xml
+
+    paragraph_matches = list(re.finditer(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", document_xml, re.IGNORECASE))
+    assignments: list[tuple[int, dict[str, str], str, str]] = []
+    cursor = 0
+    for request in requests:
+        wanted = request["text"]
+        for index in range(cursor, len(paragraph_matches)):
+            paragraph = paragraph_matches[index].group(0)
+            if re.sub(r"\s+", " ", _paragraph_plain_text(paragraph)).strip() != wanted:
+                continue
+            num_id = re.search(r"<w:numId\b[^>]*w:val=([\"'])(\d+)\1", paragraph, re.IGNORECASE)
+            if not num_id:
+                continue
+            ilvl = re.search(r"<w:ilvl\b[^>]*w:val=([\"'])(\d+)\1", paragraph, re.IGNORECASE)
+            assignments.append((index, request, num_id.group(2), ilvl.group(2) if ilvl else "0"))
+            cursor = index + 1
             break
-    if not item_num_id:
+    if not assignments:
         return document_xml, numbering_xml
-    num = re.search(rf"<w:num\b[^>]*w:numId=([\"']){item_num_id}\1[^>]*>[\s\S]*?</w:num\s*>", numbering_xml, re.IGNORECASE)
-    abstract_id = re.search(r"<w:abstractNumId\b[^>]*w:val=([\"'])(\d+)\1", num.group(0), re.IGNORECASE) if num else None
-    abstract = re.search(rf"<w:abstractNum\b[^>]*w:abstractNumId=([\"']){abstract_id.group(2)}\1[^>]*>[\s\S]*?</w:abstractNum\s*>", numbering_xml, re.IGNORECASE) if abstract_id else None
-    if not abstract or not num:
-        return document_xml, numbering_xml
-    abstract_ids = [int(value) for value in re.findall(r"<w:abstractNum\b[^>]*w:abstractNumId=([\"'])(\d+)\1", numbering_xml, re.IGNORECASE) for value in [value[1]]]
-    num_ids = [int(value) for value in re.findall(r"<w:num\b[^>]*w:numId=([\"'])(\d+)\1", numbering_xml, re.IGNORECASE) for value in [value[1]]]
-    new_abstract_id, new_num_id = max(abstract_ids, default=0) + 1, max(num_ids, default=0) + 1
-    cloned_abstract = re.sub(r"(w:abstractNumId=)([\"'])\d+\2", rf'\g<1>"{new_abstract_id}"', abstract.group(0), count=1, flags=re.IGNORECASE)
-    cloned_abstract = re.sub(r"<w:lvlText\b[^>]*/>", '<w:lvlText w:val="%1)"/>', cloned_abstract, count=1, flags=re.IGNORECASE)
-    cloned_num = re.sub(r"(w:numId=)([\"'])\d+\2", rf'\g<1>"{new_num_id}"', num.group(0), count=1, flags=re.IGNORECASE)
-    cloned_num = re.sub(r"(<w:abstractNumId\b[^>]*w:val=)([\"'])\d+\2", rf'\g<1>"{new_abstract_id}"', cloned_num, count=1, flags=re.IGNORECASE)
-    insert_abstract = re.search(r"<w:abstractNum\b", numbering_xml, re.IGNORECASE)
-    insert_num = numbering_xml.rfind("</w:numbering>")
-    if not insert_abstract or insert_num < 0:
-        return document_xml, numbering_xml
-    numbering_xml = numbering_xml[:insert_abstract.start()] + cloned_abstract + numbering_xml[insert_abstract.start():]
-    insert_num = numbering_xml.rfind("</w:numbering>")
-    numbering_xml = numbering_xml[:insert_num] + f'<w:num w:numId="{new_num_id}"><w:abstractNumId w:val="{new_abstract_id}"/></w:num>' + numbering_xml[insert_num:]
 
-    def assign_new_list(match: re.Match) -> str:
-        paragraph = match.group(0)
-        if re.sub(r"\s+", " ", _paragraph_plain_text(paragraph)).strip() not in item_texts:
-            return paragraph
-        return re.sub(r"(<w:numId\b[^>]*w:val=)([\"'])\d+\2", rf'\g<1>"{new_num_id}"', paragraph, count=1, flags=re.IGNORECASE)
+    abstract_ids = [int(pair[1]) for pair in re.findall(r"<w:abstractNum\b[^>]*w:abstractNumId=([\"'])(\d+)\1", numbering_xml, re.IGNORECASE)]
+    num_ids = [int(pair[1]) for pair in re.findall(r"<w:num\b[^>]*w:numId=([\"'])(\d+)\1", numbering_xml, re.IGNORECASE)]
+    next_abstract_id = max(abstract_ids, default=0) + 1
+    next_num_id = max(num_ids, default=0) + 1
+    clones: dict[tuple[str, str, str, str], str] = {}
+    abstract_blocks: list[str] = []
+    num_blocks: list[str] = []
 
-    document_xml = re.sub(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", assign_new_list, document_xml, flags=re.IGNORECASE)
+    def patch_level(container: str, ilvl: str, num_fmt: str, lvl_text: str) -> tuple[str, bool]:
+        level_re = re.compile(
+            rf"<w:lvl\b(?=[^>]*w:ilvl=([\"']){re.escape(ilvl)}\1)[^>]*>[\s\S]*?</w:lvl\s*>",
+            re.IGNORECASE,
+        )
+        changed = False
+        def replace_level(match: re.Match) -> str:
+            nonlocal changed
+            level = match.group(0)
+            safe_fmt = html.escape(num_fmt, quote=True)
+            safe_text = html.escape(lvl_text, quote=True)
+            level = re.sub(r"<w:numFmt\b[^>]*/>", f'<w:numFmt w:val="{safe_fmt}"/>', level, count=1, flags=re.IGNORECASE)
+            level = re.sub(r"<w:lvlText\b[^>]*/>", f'<w:lvlText w:val="{safe_text}"/>', level, count=1, flags=re.IGNORECASE)
+            changed = True
+            return level
+        return level_re.sub(replace_level, container), changed
+
+    paragraph_replacements: dict[int, str] = {}
+    for paragraph_index, request, source_num_id, ilvl in assignments:
+        key = (source_num_id, ilvl, request["num_fmt"], request["lvl_text"])
+        target_num_id = clones.get(key)
+        if target_num_id is None:
+            num = re.search(rf"<w:num\b[^>]*w:numId=([\"']){re.escape(source_num_id)}\1[^>]*>[\s\S]*?</w:num\s*>", numbering_xml, re.IGNORECASE)
+            abstract_id = re.search(r"<w:abstractNumId\b[^>]*w:val=([\"'])(\d+)\1", num.group(0), re.IGNORECASE) if num else None
+            abstract = re.search(rf"<w:abstractNum\b[^>]*w:abstractNumId=([\"']){re.escape(abstract_id.group(2))}\1[^>]*>[\s\S]*?</w:abstractNum\s*>", numbering_xml, re.IGNORECASE) if abstract_id else None
+            if not num or not abstract:
+                continue
+            current_level = re.search(rf"<w:lvl\b(?=[^>]*w:ilvl=([\"']){re.escape(ilvl)}\1)[^>]*>[\s\S]*?</w:lvl\s*>", abstract.group(0), re.IGNORECASE)
+            current_fmt = re.search(r"<w:numFmt\b[^>]*w:val=([\"'])([^\"']+)\1", current_level.group(0), re.IGNORECASE) if current_level else None
+            current_text = re.search(r"<w:lvlText\b[^>]*w:val=([\"'])([^\"']*)\1", current_level.group(0), re.IGNORECASE) if current_level else None
+            if current_fmt and current_text and current_fmt.group(2) == request["num_fmt"] and html.unescape(current_text.group(2)) == request["lvl_text"]:
+                target_num_id = source_num_id
+            else:
+                new_abstract_id, new_num_id = next_abstract_id, next_num_id
+                next_abstract_id += 1
+                next_num_id += 1
+                cloned_abstract = re.sub(r"(w:abstractNumId=)([\"'])\d+\2", rf'\g<1>"{new_abstract_id}"', abstract.group(0), count=1, flags=re.IGNORECASE)
+                cloned_abstract, changed = patch_level(cloned_abstract, ilvl, request["num_fmt"], request["lvl_text"])
+                if not changed:
+                    continue
+                cloned_num = re.sub(r"(w:numId=)([\"'])\d+\2", rf'\g<1>"{new_num_id}"', num.group(0), count=1, flags=re.IGNORECASE)
+                cloned_num = re.sub(r"(<w:abstractNumId\b[^>]*w:val=)([\"'])\d+\2", rf'\g<1>"{new_abstract_id}"', cloned_num, count=1, flags=re.IGNORECASE)
+                cloned_num, _ = patch_level(cloned_num, ilvl, request["num_fmt"], request["lvl_text"])
+                abstract_blocks.append(cloned_abstract)
+                num_blocks.append(cloned_num)
+                target_num_id = str(new_num_id)
+            clones[key] = target_num_id
+        paragraph = paragraph_matches[paragraph_index].group(0)
+        paragraph_replacements[paragraph_index] = re.sub(
+            r"(<w:numId\b[^>]*w:val=)([\"'])\d+\2",
+            rf'\g<1>"{target_num_id}"', paragraph, count=1, flags=re.IGNORECASE,
+        )
+
+    if abstract_blocks:
+        first_num = re.search(r"<w:num\b(?![A-Za-z])", numbering_xml, re.IGNORECASE)
+        insert_at = first_num.start() if first_num else numbering_xml.rfind("</w:numbering>")
+        if insert_at >= 0:
+            numbering_xml = numbering_xml[:insert_at] + "".join(abstract_blocks) + numbering_xml[insert_at:]
+        close = numbering_xml.rfind("</w:numbering>")
+        if close >= 0:
+            numbering_xml = numbering_xml[:close] + "".join(num_blocks) + numbering_xml[close:]
+    for index in sorted(paragraph_replacements, reverse=True):
+        match = paragraph_matches[index]
+        document_xml = document_xml[:match.start()] + paragraph_replacements[index] + document_xml[match.end():]
     return document_xml, numbering_xml
+
+
+def _writer_clone_lower_alpha_suffix(document_xml: str, numbering_xml: str, source_html: str) -> tuple[str, str]:
+    """Backward-compatible entry point for list numbering restoration."""
+    return _writer_restore_list_number_formats(document_xml, numbering_xml, source_html)
 
 
 def _writer_insert_page_field(footer_xml: str, field_name: str, fallback: str = "1") -> str:

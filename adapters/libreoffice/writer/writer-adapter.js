@@ -4659,6 +4659,32 @@ export class WriterAdapter {
     let liIndex = 0;
     const liIndexRef = { value: 0 };
     const numberedFormats = new Set(["decimal", "decimalZero", "lowerLetter", "upperLetter", "lowerRoman", "upperRoman"]);
+    const numberedCssTypes = {
+      decimal: "decimal",
+      decimalZero: "decimal-leading-zero",
+      lowerLetter: "lower-alpha",
+      upperLetter: "upper-alpha",
+      lowerRoman: "lower-roman",
+      upperRoman: "upper-roman"
+    };
+    const setAttr = (sourceAttrs, name, value) => {
+      const encoded = this._escapeHtml(value);
+      const attrRe = new RegExp(`\\b${name}=(['\"])[\\s\\S]*?\\1`, "i");
+      return attrRe.test(sourceAttrs)
+        ? sourceAttrs.replace(attrRe, `${name}="${encoded}"`)
+        : `${sourceAttrs} ${name}="${encoded}"`;
+    };
+    const setListStyleType = (sourceAttrs, cssType) => {
+      const styleMatch = sourceAttrs.match(/\bstyle=(["'])([^"']*)\1/i);
+      if (!styleMatch) return `${sourceAttrs} style="list-style-type: ${cssType};"`;
+      let css = styleMatch[2];
+      if (/\blist-style-type\s*:/i.test(css)) {
+        css = css.replace(/\blist-style-type\s*:\s*[^;]+;?/i, `list-style-type: ${cssType};`);
+      } else {
+        css = css.trim().replace(/;?$/, `; list-style-type: ${cssType};`);
+      }
+      return sourceAttrs.replace(styleMatch[0], `style=${styleMatch[1]}${css}${styleMatch[1]}`);
+    };
     return html.replace(/<li\b([^>]*)>/gi, (fullTag, attrs, offset) => {
       if (inRange(offset, headerMatch) || inRange(offset, footerMatch)) {
         return fullTag;
@@ -4675,14 +4701,15 @@ export class WriterAdapter {
       let listStyleType = null;
       if (item.numFmt === "none") {
         listStyleType = "none";
-      } else if (numberedFormats.has(item.numFmt) && Number.isFinite(item.value) && /^%\d\.?$/.test(String(item.lvlText || ""))) {
-        const cssType = { decimal: "decimal", decimalZero: "decimal-leading-zero", lowerLetter: "lower-alpha", upperLetter: "upper-alpha", lowerRoman: "lower-roman", upperRoman: "upper-roman" }[item.numFmt];
-        const withValue = /\bvalue=/i.test(attrs) ? attrs.replace(/\bvalue=(["']?)\d+\1/i, `value="${item.value}"`) : `${attrs} value="${item.value}"`;
-        const styleMatch = withValue.match(/\bstyle=(["'])([^"']*)\1/i);
-        if (styleMatch && !/\blist-style(-type)?\b/i.test(styleMatch[2])) {
-          return `<li${withValue.replace(styleMatch[0], `style=${styleMatch[1]}${styleMatch[2].trim().replace(/;?$/, `; list-style-type: ${cssType};`)}${styleMatch[1]}`)}>`;
-        }
-        return styleMatch ? `<li${withValue}>` : `<li${withValue} style="list-style-type: ${cssType};">`;
+      } else if (numberedFormats.has(item.numFmt) && Number.isFinite(item.value) && /^%\d[.)]?$/.test(String(item.lvlText || ""))) {
+        // LibreOffice thường xuất mọi danh sách số thành `decimal`. Luôn ghi đè bằng
+        // numFmt OOXML thay vì chỉ thêm khi style đang trống. Hai data-* là metadata
+        // round-trip cho lớp hậu xử lý DOCX; `%1)` cần CSS ::marker riêng trên canvas.
+        let withValue = /\bvalue=/i.test(attrs) ? attrs.replace(/\bvalue=(["']?)\d+\1/i, `value="${item.value}"`) : `${attrs} value="${item.value}"`;
+        withValue = setAttr(withValue, "data-vno-list-num-fmt", item.numFmt);
+        withValue = setAttr(withValue, "data-vno-list-lvl-text", String(item.lvlText || ""));
+        withValue = setListStyleType(withValue, numberedCssTypes[item.numFmt]);
+        return `<li${withValue}>`;
       } else if (item.numFmt !== "bullet" || item.lvlText == null) {
         return fullTag;
       }

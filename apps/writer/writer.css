@@ -689,6 +689,12 @@ li.vno-page-auto-gap {
 .vno-writer-page ol.vno-ml-letter ol { list-style-type: lower-alpha; }
 .vno-writer-page ol.vno-ml-letter ol ol { list-style-type: lower-roman; }
 
+/* DOCX lowerLetter + "%1)": CSS lower-alpha mặc định kết thúc bằng dấu chấm. */
+.vno-writer-page li[data-vno-list-num-fmt="lowerLetter"][data-vno-list-lvl-text="%1)"]::marker,
+.vno-print-preview-body li[data-vno-list-num-fmt="lowerLetter"][data-vno-list-lvl-text="%1)"]::marker {
+  content: counter(list-item, lower-alpha) ") ";
+}
+
 .vno-writer-page ol.vno-ml-nd30 { list-style: none; counter-reset: vno-nd1; }
 .vno-writer-page ol.vno-ml-nd30 > li { counter-increment: vno-nd1; }
 .vno-writer-page ol.vno-ml-nd30 > li::before { content: "Điều " counter(vno-nd1) ". "; font-weight: 600; margin-right: 0.25em; }

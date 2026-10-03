@@ -232,6 +232,7 @@ import { runSpellcheckUiUndoTests } from "./unit/spellcheck-ui-undo.test.js";
 import { runSheetGridExtentTests } from "./unit/sheet-grid-extent.test.js";
 import { runSpellcheckInlineToggleTests } from "./unit/spellcheck-inline-toggle.test.js";
 import { runCh81ConsistencyTests } from "./unit/ch8-1-consistency.test.js";
+import { runWriterListNumberingRoundTripTests } from "./unit/writer-list-numbering-roundtrip.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -473,7 +474,8 @@ async function runAll() {
     { title: "226. Unit Tests — CH-8.1 UI Consistency: Backstage, Recent Files, Status Bar, View Modes, Zoom & Shortcuts", runner: runCh81ConsistencyTests },
     { title: "227. Unit Tests — Office Clipboard Interop (Sheet Excel/Calc HTML, TSV, Writer Word HTML cleaning)", runner: runOfficeClipboardTests },
     { title: "228. Unit Tests — Cross-App Paste (Doc, Sheet, Slide Interoperability)", runner: runCrossAppPasteTests },
-    { title: "229. Unit Tests — Writer DOCX review range export metadata", runner: runWriterReviewExportTests }
+    { title: "229. Unit Tests — Writer DOCX review range export metadata", runner: runWriterReviewExportTests },
+    { title: "230. Unit Tests — Writer DOCX list numbering a) / i. / 1. open-save round-trip", runner: runWriterListNumberingRoundTripTests }
   ];
 
   for (const suite of suites) {
