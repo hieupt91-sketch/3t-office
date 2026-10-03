@@ -360,6 +360,24 @@ export class SlidesCanvasController {
     this._spellcheckTools = null;
   }
 
+  _bindEditablePaste(el) {
+    if (!el || el._vnoPasteBound) return;
+    el._vnoPasteBound = true;
+    el.addEventListener("paste", (e) => {
+      const clipboard = e.clipboardData;
+      if (!clipboard) return;
+      const html = clipboard.getData("text/html") || "";
+      const text = clipboard.getData("text/plain") || "";
+      // Nếu clipboard chứa bảng từ Sheet hoặc Doc dán vào hộp chữ:
+      // Chèn văn bản phân tách bằng tab (TSV) để văn bản hiển thị rõ ràng, ngăn nắp trong hộp chữ
+      if (html && /<table\b/i.test(html) && text) {
+        e.preventDefault();
+        document.execCommand("insertText", false, text);
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    });
+  }
+
   mount() {
     this.container.innerHTML = "";
     this.container.className = "vno-slides-studio";
@@ -472,6 +490,10 @@ export class SlidesCanvasController {
       this.options.onDocumentChange?.();
       this._renderThumbnails();
     });
+
+    this._bindEditablePaste(this.titleEl);
+    this._bindEditablePaste(this.bodyEl);
+    this._bindEditablePaste(this.body2El);
 
     this._titleNormalizer = new InputNormalizer({
       target: this.titleEl,
@@ -4321,6 +4343,7 @@ const startEditing = (initialText) => {
           if (textEl.contentEditable !== "true") textEl.dataset.originalText = shape.text || "";
           textEl.contentEditable = "true";
           textEl.dataset.vnoNativeClipboard = "true";
+          this._bindEditablePaste(textEl);
           if (initialText !== undefined) textEl.textContent = initialText;
           textEl.focus();
           if (initialText !== undefined) {
@@ -10420,7 +10443,7 @@ const startEditing = (initialText) => {
   }
 
   setZoom(level) {
-    const next = Math.min(2.5, Math.max(0.2, Math.round(Number(level) * 10) / 10));
+    const next = Math.min(2.0, Math.max(0.5, Math.round(Number(level) * 10) / 10));
     if (!Number.isFinite(next)) return false;
     this.zoomLevel = next;
     this._applyViewState();

@@ -36,8 +36,8 @@ export async function runHelpCoverageTests() {
         .join("; ");
       throw new Error(`Còn ${uncovered.length} lệnh Writer chưa có bài Help: ${details}`);
     }
-    // Section options from main, paragraph-formatting, table controls, numbered list restart/continue commands and spellcheck toggle are covered.
-    if (writer.coveredCount !== writer.liveCount || writer.liveCount !== 161) {
+    // Section options from main, paragraph-formatting, table controls and numbered list restart/continue commands, pasteSpecial and spellcheck toggle are covered.
+    if (writer.coveredCount !== writer.liveCount || writer.liveCount !== 162) {
       throw new Error(`Số lượng lệnh Writer không khớp: covered=${writer.coveredCount}, live=${writer.liveCount}`);
     }
   });

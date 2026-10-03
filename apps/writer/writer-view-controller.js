@@ -28,8 +28,14 @@ export class WriterViewController {
     this._wheelHandler = event => {
       if (!event.ctrlKey || !event.deltaY) return;
       event.preventDefault?.();
-      if (event.deltaY < 0) this.zoomIn();
-      else this.zoomOut();
+      event.stopPropagation?.();
+      if (this.shell?.setZoom) {
+        const delta = event.deltaY < 0 ? 10 : -10;
+        this.shell.setZoom(this.shell.zoomLevel + delta);
+      } else {
+        if (event.deltaY < 0) this.zoomIn();
+        else this.zoomOut();
+      }
     };
     this._zoomUnsubscribe = null;
   }

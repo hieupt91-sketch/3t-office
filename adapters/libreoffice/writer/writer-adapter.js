@@ -30,6 +30,7 @@ import { buildWriterWordArtHtml, applyWordArtCss, parseWordArtStyleAttr, resolve
 import { slugBookmarkName } from "../../../apps/writer/bookmark-utils.js";
 import { t } from "../../../platform/i18n/i18n.js";
 import { CITATION_STYLES, authorSortKey, citationMetadataHtml, formatBibliographyEntry, formatInTextCitation, normalizeSource, parseCitationMetadata, showInsertCitationDialog, showSourceManagerDialog } from "../../../apps/writer/citations.js";
+import { cleanWordHtml, serializeWriterSelectionToClipboard } from "../../../platform/clipboard/office-clipboard.js";
 import {
   buildCaptionHtml,
   captionKindLabel,
@@ -6892,18 +6893,25 @@ export class WriterAdapter {
       case "common.edit.copy": {
         const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
         if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
-          const text = selection.toString();
-          let html = "";
+          const range = selection.getRangeAt(0);
+          const serialized = serializeWriterSelectionToClipboard(range, this.bodyDom);
+          const text = serialized.text || selection.toString();
+          const html = serialized.html;
+          this._clipboardMemory = { text, html };
           try {
-            if (typeof document !== "undefined") {
-              const container = document.createElement("div");
-              for (let i = 0; i < selection.rangeCount; i++) {
-                container.appendChild(selection.getRangeAt(i).cloneContents());
-              }
-              html = container.innerHTML;
+            if (globalUnoBridge.writeClipboardData) {
+              globalUnoBridge.writeClipboardData({ text, html }).catch(() => {});
             }
           } catch {}
-          this._clipboardMemory = { text, html };
+          try {
+            if (typeof navigator !== "undefined" && typeof ClipboardItem !== "undefined" && navigator.clipboard?.write && html) {
+              const item = new ClipboardItem({
+                "text/plain": new Blob([text], { type: "text/plain" }),
+                "text/html": new Blob([html], { type: "text/html" })
+              });
+              navigator.clipboard.write([item]).catch(() => {});
+            }
+          } catch {}
         }
         document.execCommand("copy", false, null);
         return true;
@@ -6914,6 +6922,11 @@ export class WriterAdapter {
 
       case "common.edit.pastePlain":
         return this._pastePlainText();
+
+      case "writer.edit.pasteSpecial":
+        this._showPasteSpecialDialog();
+        dispatchResult = true;
+        break;
 
       case "common.edit.selectAll":
         document.execCommand("selectAll", false, null);
@@ -10276,6 +10289,109 @@ export class WriterAdapter {
 
   async _pastePlainText() {
     return this._pasteFromSystemClipboard(true);
+  }
+
+  _showPasteSpecialDialog() {
+    if (typeof document === "undefined") return;
+    const previousFocused = document.activeElement;
+    const title = t("sheetDialogs.pasteSpecialTitle", "Dán đặc biệt");
+    const overlay = document.createElement("div");
+    overlay.className = "vno-dialog-overlay";
+    const titleId = `vno-dialog-title-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    overlay.innerHTML = `
+      <div class="vno-dialog-box" style="width: 420px;" role="dialog" aria-modal="true" aria-labelledby="${titleId}">
+        <div class="vno-dialog-header">
+          <span id="${titleId}">${title}</span>
+          <button class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="Đóng" aria-label="Đóng">&times;</button>
+        </div>
+        <div class="vno-dialog-body">
+          <form class="vno-paste-special-dialog" aria-label="${title}">
+            <fieldset><legend>${t("sheetDialogs.pasteSpecialGroup", "Dán")}</legend>
+              <label><input type="radio" name="paste-special-mode" value="source" checked> ${t("sheetDialogs.pasteSpecialKeepSource", "Giữ định dạng nguồn")}</label>
+              <label><input type="radio" name="paste-special-mode" value="text"> ${t("sheetDialogs.pasteSpecialText", "Chỉ giữ văn bản")}</label>
+            </fieldset>
+          </form>
+        </div>
+        <div class="vno-dialog-footer">
+          <button class="vno-btn vno-dialog-cancel-btn">${t("sheetDialogs.cancel", "Hủy bỏ")}</button>
+          <button class="vno-btn vno-btn-primary vno-dialog-ok-btn">${t("sheetDialogs.apply", "Đồng ý")}</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    const dialogBox = overlay.querySelector(".vno-dialog-box");
+    const form = overlay.querySelector(".vno-paste-special-dialog");
+
+    const cleanup = () => {
+      document.removeEventListener("keydown", onKeyDown);
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (previousFocused && typeof previousFocused.focus === "function") {
+        previousFocused.focus();
+      }
+    };
+
+    const applyPaste = () => {
+      const mode = form.querySelector('input[name="paste-special-mode"]:checked')?.value || "source";
+      if (mode === "text") {
+        this._pastePlainText();
+      } else {
+        this._pasteFromSystemClipboard(false);
+      }
+      cleanup();
+    };
+
+    const okBtn = overlay.querySelector(".vno-dialog-ok-btn");
+    const cancelBtn = overlay.querySelector(".vno-dialog-cancel-btn");
+    const closeBtn = overlay.querySelector(".vno-dialog-close-btn");
+
+    okBtn.addEventListener("click", applyPaste);
+    cancelBtn.addEventListener("click", cleanup);
+    closeBtn.addEventListener("click", cleanup);
+
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) cleanup();
+    });
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      applyPaste();
+    });
+
+    form.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        applyPaste();
+      }
+    });
+
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        cleanup();
+      } else if (e.key === "Tab") {
+        const focusables = Array.from(dialogBox.querySelectorAll(
+          'button:not([disabled]):not([style*="display: none"]):not([style*="display:none"]), ' +
+          'input:not([disabled]):not([type="hidden"]):not([style*="display: none"]):not([style*="display:none"]), ' +
+          'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )).filter(el => el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0);
+        if (focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        if (e.shiftKey) {
+          if (document.activeElement === first || !dialogBox.contains(document.activeElement)) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last || !dialogBox.contains(document.activeElement)) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    form.querySelector('input[name="paste-special-mode"]')?.focus();
   }
 
   _insertImageDialog() {
@@ -15128,58 +15244,74 @@ export class WriterAdapter {
   _bindClipboardEvents() {
     if (this._clipboardEventRoots) return;
     this._clipboardEventRoots = [this.headerDom, this.bodyDom, this.footerDom].filter(root => root?.addEventListener);
-
     this._copyEventHandler = event => {
+      if (!this._isContentEditableTarget(event)) return;
       const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
       if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return;
-      const text = selection.toString();
-      let html = "";
-      try {
-        if (typeof document !== "undefined") {
-          const container = document.createElement("div");
-          for (let i = 0; i < selection.rangeCount; i++) {
-            container.appendChild(selection.getRangeAt(i).cloneContents());
-          }
-          html = container.innerHTML;
-        }
-      } catch {}
+      const range = selection.getRangeAt(0);
+      let { html, text } = serializeWriterSelectionToClipboard(range, this.bodyDom);
+      if (!text && selection.toString) text = selection.toString();
       this._clipboardMemory = { text, html };
       if (event?.clipboardData) {
         if (text) event.clipboardData.setData("text/plain", text);
         if (html) event.clipboardData.setData("text/html", html);
       }
+      try {
+        if (globalUnoBridge.writeClipboardData) {
+          globalUnoBridge.writeClipboardData({ text, html }).catch(() => {});
+        }
+      } catch {}
+      try {
+        if (typeof navigator !== "undefined" && typeof ClipboardItem !== "undefined" && navigator.clipboard?.write && html) {
+          const item = new ClipboardItem({
+            "text/plain": new Blob([text], { type: "text/plain" }),
+            "text/html": new Blob([html], { type: "text/html" })
+          });
+          navigator.clipboard.write([item]).catch(() => {});
+        }
+      } catch {}
+      event?.preventDefault?.();
     };
 
     this._cutEventHandler = event => {
+      if (!this._isContentEditableTarget(event)) return;
       const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
       if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return;
-      const text = selection.toString();
-      let html = "";
-      try {
-        if (typeof document !== "undefined") {
-          const container = document.createElement("div");
-          for (let i = 0; i < selection.rangeCount; i++) {
-            container.appendChild(selection.getRangeAt(i).cloneContents());
-          }
-          html = container.innerHTML;
-        }
-      } catch {}
+      const range = selection.getRangeAt(0);
+      let { html, text } = serializeWriterSelectionToClipboard(range, this.bodyDom);
+      if (!text && selection.toString) text = selection.toString();
       this._clipboardMemory = { text, html };
       if (event?.clipboardData) {
         if (text) event.clipboardData.setData("text/plain", text);
         if (html) event.clipboardData.setData("text/html", html);
       }
-      setTimeout(() => {
-        this.isDirty = true;
-        this.recordSnapshot("Cut");
-        this._updateUndoRedoUI();
-      }, 0);
+      event?.preventDefault?.();
+      this.flushTyping();
+      let deleted = false;
+      if (typeof document !== "undefined" && typeof document.execCommand === "function") {
+        try {
+          deleted = document.execCommand("delete", false, null) === true;
+        } catch { /* Range fallback below keeps Cut usable outside Chromium. */ }
+      }
+      if (!deleted) range.deleteContents();
+      this.isDirty = true;
+      this.recordSnapshot("writer.edit.cut");
+      this._updateUndoRedoUI?.();
     };
 
     this._pasteEventHandler = async event => {
       const clipboard = event?.clipboardData;
-      let html = clipboard?.getData?.("text/html") || "";
-      let text = clipboard?.getData?.("text/plain") || "";
+      let eventHtml = clipboard?.getData?.("text/html") || "";
+      let eventText = clipboard?.getData?.("text/plain") || "";
+      if (!eventHtml && !eventText && this._clipboardMemory) {
+        eventHtml = this._clipboardMemory.html || "";
+        eventText = this._clipboardMemory.text || "";
+      }
+      if (globalThis.window?.__vnoClipboardDiagnostics) console.info("__VNO_CLIPBOARD_DIAG__" + JSON.stringify({ phase: "writer-paste-event", types: Array.from(clipboard?.types || []), textLength: eventText.length, htmlLength: eventHtml.length, htmlHasStyle: /<style\b/i.test(eventHtml) }));
+      const needsNativeHtml = !eventHtml || (/\bMso[a-z0-9_-]+\b/i.test(eventHtml) && !/<style\b/i.test(eventHtml));
+      const native = needsNativeHtml ? await this._readClipboardFromSystem() : null;
+      let html = native?.html || eventHtml;
+      let text = native?.text || eventText;
       if (!html && !text && this._clipboardMemory) {
         html = this._clipboardMemory.html || "";
         text = this._clipboardMemory.text || "";
@@ -15194,14 +15326,20 @@ export class WriterAdapter {
       if (!html && !text) return;
       if (event?.preventDefault) event.preventDefault();
       this._clipboardMemory = { text, html };
+      if (globalThis.window?.__vnoClipboardDiagnostics) console.info("__VNO_CLIPBOARD_DIAG__" + JSON.stringify({ phase: "writer-paste-source", status: native?.status || "event", textLength: text.length, htmlLength: html.length, htmlHasStyle: /<style\b/i.test(html) }));
       this._insertClipboardContent({ html, text });
     };
 
     for (const root of this._clipboardEventRoots) {
+      root.addEventListener("paste", this._pasteEventHandler);
       root.addEventListener("copy", this._copyEventHandler);
       root.addEventListener("cut", this._cutEventHandler);
-      root.addEventListener("paste", this._pasteEventHandler);
     }
+  }
+
+  _isContentEditableTarget(event) {
+    const target = event?.target;
+    return target?.isContentEditable || target?.closest?.("[contenteditable='true']") || this.bodyDom?.contains?.(target);
   }
 
   _sanitizeClipboardHtml(html) {
@@ -15220,7 +15358,9 @@ export class WriterAdapter {
     ]);
     const allowedStyles = new Set([
       "font-weight", "font-style", "text-decoration", "color", "background-color", "font-family",
-      "font-size", "text-align", "vertical-align", "white-space"
+      "font-size", "text-align", "vertical-align", "white-space",
+      "border", "border-top", "border-right", "border-bottom", "border-left",
+      "border-collapse", "border-spacing", "width", "height", "padding"
     ]);
     const elements = [...template.content.querySelectorAll("*")].reverse();
     for (const element of elements) {
@@ -15246,7 +15386,9 @@ export class WriterAdapter {
           else element.removeAttribute("style");
         } else if (element.tagName === "A" && name === "href") {
           if (!/^(?:https?:|mailto:)/i.test(attribute.value.trim())) element.removeAttribute(attribute.name);
-        } else if (!((element.tagName === "TD" || element.tagName === "TH") && ["colspan", "rowspan"].includes(name))) {
+        } else if (element.tagName === "TABLE" && ["border", "cellpadding", "cellspacing", "width"].includes(name)) {
+          // Cho phép thuộc tính bố cục cơ bản của bảng
+        } else if (!((element.tagName === "TD" || element.tagName === "TH") && ["colspan", "rowspan", "width", "height"].includes(name))) {
           element.removeAttribute(attribute.name);
         }
       }
@@ -15254,8 +15396,43 @@ export class WriterAdapter {
     return template.innerHTML;
   }
 
+  static sanitizeClipboardHtml(html) {
+    const adapter = new WriterAdapter();
+    return adapter._sanitizeClipboardHtml(html);
+  }
+
+  _prepareClipboardHtmlForInsertion(html) {
+    if (!html || typeof document === "undefined" || typeof window === "undefined") return html;
+    const selection = window.getSelection?.();
+    if (!selection?.rangeCount) return html;
+    const range = selection.getRangeAt(0);
+    const startElement = range.startContainer?.nodeType === 1
+      ? range.startContainer
+      : range.startContainer?.parentElement;
+    const paragraph = startElement?.closest?.("p,h1,h2,h3,h4,h5,h6,li,blockquote,pre");
+    if (!paragraph || !this.bodyDom?.contains?.(paragraph)) return html;
+
+    const template = document.createElement("template");
+    template.innerHTML = html;
+    const meaningfulNodes = [...template.content.childNodes].filter(node => (
+      node.nodeType === 1 || (node.nodeType === 3 && node.textContent?.trim())
+    ));
+    if (meaningfulNodes.length !== 1) return html;
+    const wrapper = meaningfulNodes[0];
+    if (wrapper.nodeType !== 1 || wrapper.tagName !== "DIV") return html;
+    if (wrapper.querySelector("p,div,h1,h2,h3,h4,h5,h6,ul,ol,li,blockquote,pre,table")) return html;
+
+    const span = document.createElement("span");
+    for (const attribute of [...wrapper.attributes]) {
+      span.setAttribute(attribute.name, attribute.value);
+    }
+    span.innerHTML = wrapper.innerHTML;
+    return span.outerHTML;
+  }
+
   _insertClipboardContent({ html = "", text = "" } = {}) {
-    const cleanHtml = html ? this._sanitizeClipboardHtml(html) : "";
+    const sanitizedHtml = html ? this._sanitizeClipboardHtml(cleanWordHtml(html)) : "";
+    const cleanHtml = this._prepareClipboardHtmlForInsertion(sanitizedHtml);
     if (cleanHtml || text) this.flushTyping();
     let inserted = false;
     if (cleanHtml) {
@@ -15327,6 +15504,7 @@ export class WriterAdapter {
   async _readClipboardFromSystem() {
     try {
       const native = await globalUnoBridge.readClipboardData?.();
+      if (globalThis.window?.__vnoClipboardDiagnostics) console.info("__VNO_CLIPBOARD_DIAG__" + JSON.stringify({ phase: "writer-clipboard-bridge-result", status: native?.status, textLength: native?.text?.length || 0, htmlLength: native?.html?.length || 0, htmlHasStyle: /<style\b/i.test(native?.html || ""), message: native?.message || "" }));
       if (native?.status === "ok") return native;
     } catch { /* Browser clipboard is the web-mode fallback. */ }
     try {

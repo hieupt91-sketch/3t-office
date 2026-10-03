@@ -65,6 +65,7 @@ export class SlidesApp {
       this.canvasController.setZoom(percent / 100);
     };
     this.canvasController.mount();
+    this.canvas = this.canvasController;
 
     this.workspace = workspace;
     globalCommandBus.bindHandler("slides.help.open", (args) => {

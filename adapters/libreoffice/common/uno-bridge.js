@@ -288,6 +288,13 @@ export class UnoBridge {
     return await this.desktopApi.read_clipboard_data();
   }
 
+  async writeClipboardData({ text = "", html = "" } = {}) {
+    if (!this.desktopApi?.write_clipboard_data) {
+      return { status: "unavailable" };
+    }
+    return await this.desktopApi.write_clipboard_data(text, html);
+  }
+
   // AutoRecover is a local app-data service and does not require the LibreOffice engine.
   async getAutoRecoverSettings() {
     if (!this.desktopApi) return { enabled: true, interval_minutes: 2 };
@@ -386,3 +393,9 @@ export class UnoBridge {
 }
 
 export const globalUnoBridge = new UnoBridge();
+if (typeof globalThis !== "undefined") {
+  globalThis.globalUnoBridge = globalUnoBridge;
+}
+if (typeof window !== "undefined") {
+  window.globalUnoBridge = globalUnoBridge;
+}

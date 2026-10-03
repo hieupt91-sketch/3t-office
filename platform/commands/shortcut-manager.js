@@ -23,6 +23,8 @@ export class ShortcutManager {
     this.bind("Ctrl+=", "common.view.zoomIn", "common");
     this.bind("Ctrl++", "common.view.zoomIn", "common");
     this.bind("Ctrl+-", "common.view.zoomOut", "common");
+    this.bind("Ctrl+F1", "common.view.ribbonToggle", "common");
+    this.bind("Alt+F", "common.file.backstage", "common");
   }
 
   /**

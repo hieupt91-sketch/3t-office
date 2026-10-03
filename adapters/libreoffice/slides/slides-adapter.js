@@ -11,6 +11,7 @@ import { globalShortcutManager } from "../../../platform/commands/shortcut-manag
 import { overlayFodpMasterLogo } from "./pptx-master-logo.js";
 import { overlayFodpSections } from "./pptx-section-list.js";
 import { overlayFodpShowProperties } from "./pptx-show-properties.js";
+import { parseOfficeHtmlTable, parseOfficeTsv, isCellBold } from "../../../platform/clipboard/office-clipboard.js";
 
 const KNOWN_INSTALLED_FONTS = new Set([
   "arial",
@@ -154,13 +155,8 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("common.edit.replace", () => this._showFindReplaceDialog(true));
     globalCommandBus.bindHandler("slides.edit.selectAll", () => this.canvas.selectAllShapes ? this.canvas.selectAllShapes() : false);
     globalCommandBus.bindHandler("slides.edit.selectObjects", () => this.canvas.selectDrawingObjects ? this.canvas.selectDrawingObjects() : false);
-    globalCommandBus.bindHandler("common.edit.pastePlain", () => {
-      if (typeof document !== "undefined") {
-        document.execCommand("paste", false, null);
-        return true;
-      }
-      return false;
-    });
+    globalCommandBus.bindHandler("common.edit.paste", () => this._paste());
+    globalCommandBus.bindHandler("common.edit.pastePlain", () => this._pastePlainText());
     globalCommandBus.bindHandler("slides.review.commentInsert", (options) => {
       options = options || {};
       return this.canvas.openCommentsPanel ? this.canvas.openCommentsPanel(true) : false;
@@ -4122,17 +4118,31 @@ export class SlidesAdapter {
         if (typeof document !== "undefined") document.execCommand("cut", false, null);
         return true;
 
-      case "common.edit.copy":
+      case "common.edit.copy": {
+        const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+        if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+          const text = selection.toString();
+          let html = "";
+          try {
+            const container = document.createElement("div");
+            for (let i = 0; i < selection.rangeCount; i++) {
+              container.appendChild(selection.getRangeAt(i).cloneContents());
+            }
+            html = container.innerHTML;
+            if (globalUnoBridge.writeClipboardData) {
+              globalUnoBridge.writeClipboardData({ text, html }).catch(() => {});
+            }
+          } catch {}
+        }
         if (typeof document !== "undefined") document.execCommand("copy", false, null);
         return true;
+      }
 
       case "common.edit.paste":
-        if (typeof document !== "undefined") document.execCommand("paste", false, null);
-        return true;
+        return await this._paste();
 
       case "common.edit.pastePlain":
-        if (typeof document !== "undefined") document.execCommand("paste", false, null);
-        return true;
+        return await this._pastePlainText();
 
       case "common.edit.selectAll":
         return this.canvas.selectAllForContext ? this.canvas.selectAllForContext() : false;
@@ -4179,6 +4189,179 @@ export class SlidesAdapter {
       default:
         return false;
     }
+  }
+
+  async _readClipboardData() {
+    try {
+      const native = await globalUnoBridge.readClipboardData?.();
+      if (native?.status === "ok") return native;
+    } catch {}
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.read) {
+        const items = await navigator.clipboard.read();
+        for (const item of items) {
+          const types = item.types || [];
+          const htmlType = types.find(type => type === "text/html");
+          const textType = types.find(type => type === "text/plain");
+          const html = htmlType ? await (await item.getType(htmlType)).text() : "";
+          const text = textType ? await (await item.getType(textType)).text() : "";
+          if (html || text) return { status: "ok", html, text };
+        }
+      }
+      if (navigator.clipboard?.readText) {
+        return { status: "ok", text: await navigator.clipboard.readText(), html: "" };
+      }
+    } catch {}
+    return null;
+  }
+
+  async _paste() {
+    const activeEl = typeof document !== "undefined" ? document.activeElement : null;
+    const isEditable = activeEl && (activeEl.isContentEditable || activeEl.tagName === "TEXTAREA" || activeEl.tagName === "INPUT");
+
+    if (isEditable) {
+      const clip = await this._readClipboardData();
+      if (!clip) {
+        if (typeof document !== "undefined") document.execCommand("paste", false, null);
+        return true;
+      }
+      if (clip.html && !/<table\b/i.test(clip.html)) {
+        if (document.execCommand?.("insertHTML", false, clip.html)) {
+          activeEl.dispatchEvent(new Event("input", { bubbles: true }));
+          return true;
+        }
+      }
+      if (clip.text) {
+        if (document.execCommand?.("insertText", false, clip.text)) {
+          activeEl.dispatchEvent(new Event("input", { bubbles: true }));
+          return true;
+        }
+      }
+      if (typeof document !== "undefined") document.execCommand("paste", false, null);
+      return true;
+    }
+
+    // Đang ở slide canvas (không trong hộp chữ):
+    const clip = await this._readClipboardData();
+    if (!clip) {
+      if (typeof document !== "undefined") document.execCommand("paste", false, null);
+      return true;
+    }
+
+    // Kiểm tra dữ liệu bảng từ Sheet/Doc (HTML table)
+    if (clip.html && /<table\b/i.test(clip.html)) {
+      const tableModel = parseOfficeHtmlTable(clip.html, clip.text || "");
+      if (tableModel && tableModel.cells?.length > 0) {
+        return this._pasteTableOntoSlide(tableModel);
+      }
+    }
+
+    // Kiểm tra dữ liệu TSV (2+ cột hoặc 2+ hàng phân tách bởi tab)
+    if (clip.text && clip.text.includes("\t")) {
+      const tsvModel = parseOfficeTsv(clip.text);
+      if (tsvModel && tsvModel.cells?.length > 0 && (tsvModel.cells.length > 1 || tsvModel.cells[0]?.length > 1)) {
+        return this._pasteTableOntoSlide(tsvModel);
+      }
+    }
+
+    // Văn bản thông thường: chèn textbox mới
+    if (clip.text && this.canvas?.insertShape) {
+      const shape = this.canvas.insertShape("textbox");
+      if (shape) {
+        this.canvas.updateShapeText?.(shape.id, clip.text);
+        return true;
+      }
+    }
+
+    if (typeof document !== "undefined") document.execCommand("paste", false, null);
+    return true;
+  }
+
+  async _pastePlainText() {
+    const clip = await this._readClipboardData();
+    const text = clip?.text || "";
+    if (!text) {
+      if (typeof document !== "undefined") document.execCommand("paste", false, null);
+      return true;
+    }
+
+    const activeEl = typeof document !== "undefined" ? document.activeElement : null;
+    const isEditable = activeEl && (activeEl.isContentEditable || activeEl.tagName === "TEXTAREA" || activeEl.tagName === "INPUT");
+
+    if (isEditable) {
+      if (document.execCommand?.("insertText", false, text)) {
+        activeEl.dispatchEvent(new Event("input", { bubbles: true }));
+        return true;
+      }
+      const sel = window.getSelection?.();
+      if (sel && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        range.deleteContents();
+        const textNode = document.createTextNode(text);
+        range.insertNode(textNode);
+        range.setStartAfter(textNode);
+        range.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(range);
+        activeEl.dispatchEvent(new Event("input", { bubbles: true }));
+        return true;
+      }
+    } else {
+      if (this.canvas?.insertShape) {
+        const shape = this.canvas.insertShape("textbox");
+        if (shape) {
+          this.canvas.updateShapeText?.(shape.id, text);
+          return true;
+        }
+      }
+    }
+    if (typeof document !== "undefined") document.execCommand("paste", false, null);
+    return true;
+  }
+
+  _pasteTableOntoSlide(tableModel) {
+    if (!this.canvas) return false;
+    const rows = tableModel.cells.length;
+    const cols = tableModel.cells[0]?.length || 1;
+    const cells = tableModel.cells.map(row => row.map(cell => {
+      let val = String((cell.text || cell.val) ?? "");
+      const isBold = isCellBold(cell);
+      const cleanVal = val.replace(/<\/?(b|strong)\b[^>]*>/gi, "");
+      if (isBold) {
+        return `<b>${cleanVal}</b>`;
+      }
+      return cleanVal;
+    }));
+
+    const slide = this.canvas.slides[this.canvas.currentSlideIndex];
+    if (!slide) return false;
+    if (!Array.isArray(slide.shapes)) slide.shapes = [];
+    const offset = slide.shapes.length * 16;
+    const newShape = {
+      id: Date.now() + Math.floor(Math.random() * 1000),
+      type: "table",
+      x: 80 + offset,
+      y: 140 + offset,
+      w: Math.min(760, Math.max(300, cols * 140)),
+      h: Math.min(360, Math.max(120, rows * 38 + 12)),
+      rows,
+      cols,
+      cells,
+      color: "transparent",
+      animation: { type: "none", duration: 500, delay: 0 }
+    };
+    slide.shapes.push(newShape);
+    this.canvas.undoStack.push({
+      type: "shape-add",
+      slideIndex: this.canvas.currentSlideIndex,
+      shape: { ...newShape, cells: JSON.parse(JSON.stringify(cells)) }
+    });
+    this.canvas.redoStack = [];
+    this.canvas._syncUndoRedoState?.();
+    this.canvas.setSelectedTarget?.(newShape.id);
+    this.canvas._renderShapesLayer?.();
+    this.canvas.options?.onDocumentChange?.();
+    return true;
   }
 }
 

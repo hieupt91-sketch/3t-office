@@ -11,12 +11,13 @@ export const SHEET_HELP_ENTRIES = [
     app: "sheet",
     commandIds: [],
     title: "Nhập số và ngày để công thức tính đúng",
-    summary: "Số gõ hoặc dán vào ô được lưu dưới dạng số; ngày dd/mm/yyyy được lưu dưới dạng số ngày kèm định dạng ngày. Vì vậy SUM, COUNT, sắp xếp và chuỗi Điền tự động tiếp tục tính đúng sau khi lưu XLSX.",
+    summary: "Số gõ hoặc dán vào ô được lưu dưới dạng số; ngày dd/mm/yyyy và giờ 13:45 được lưu dưới dạng số ngày kèm định dạng ngày hoặc giờ. Vì vậy SUM, COUNT, sắp xếp và chuỗi Điền tự động tiếp tục tính đúng sau khi lưu XLSX.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Số" },
-    keywords: ["nhập số", "ngày", "date serial", "SUM", "COUNT", "dán số", "điền chuỗi", "apostrophe", "xlsx"],
+    keywords: ["nhập số", "ngày", "giờ", "date serial", "time", "SUM", "COUNT", "dán số", "điền chuỗi", "apostrophe", "xlsx"],
     steps: [
       "Chọn một ô rồi gõ số, ví dụ 123 hoặc 12,5, và nhấn Enter. Có thể dán một cột số từ ứng dụng khác; Sheet tự nhận kiểu số để công thức SUM/COUNT dùng được.",
       "Để nhập ngày, gõ theo dạng dd/mm/yyyy, ví dụ 30/01/2026. Ô tự nhận định dạng ngày; kéo chốt Điền ở góc dưới phải để tiếp tục 31/01/2026, 01/02/2026…",
+      "Để nhập giờ, gõ 13:45 hoặc 9:05 rồi nhấn Enter (có thể kèm giây, ví dụ 13:45:30). Ô nhận định dạng giờ và giữ ô là số, nên SUM và sắp xếp vẫn tính đúng; giờ không hợp lệ như 25:00 hoặc 13:60 được giữ nguyên dạng văn bản. Nhấn Ctrl+Shift+; để chèn giờ hiện tại vào ô đang chọn.",
       "Để nhập phần trăm vào ô thường, gõ 25% rồi nhấn Enter. Ô hiển thị 25% và lưu số 0,25 để SUM tính đúng; Ctrl+Z hoàn tác cả giá trị lẫn định dạng phần trăm.",
       "Muốn giữ nguyên chữ số dưới dạng văn bản (ví dụ mã 00123), gõ dấu nháy đơn trước nội dung: '00123. Dấu nháy không hiển thị trong ô nhưng ngăn chuyển thành số.",
       "Dùng tab Trang đầu, nhóm Số để đổi định dạng hiển thị như Số, Tiền tệ, Phần trăm hoặc Ngày. Định dạng chỉ đổi cách hiển thị, không biến số thành văn bản.",
@@ -1112,9 +1113,10 @@ export const SHEET_HELP_ENTRIES = [
       "Ngay sau khi mở sổ, lưới ô đang nhận bàn phím. Gõ giá trị rồi nhấn Enter để xác nhận và chọn ô phía dưới; nhấn F2 để sửa nội dung hiện có.",
       "Dùng Tab để xác nhận ô và chuyển sang ô bên phải. Sau một chuỗi Tab, Enter chuyển xuống hàng kế tiếp tại cột nơi chuỗi Tab bắt đầu (ví dụ bắt đầu ở A2 thì Enter chọn A3).",
       "Mở tab Trang đầu, nhóm Bảng nhớ tạm hoặc dùng Ctrl+X/Ctrl+C để cắt/sao chép vùng chọn. Khi cắt, viền nét đứt báo vùng nguồn; chọn ô đích rồi Ctrl+V để di chuyển. Nhấn Esc trước khi dán để hủy Cắt.",
-      "Chọn một ô đích rồi nhấn Ctrl+V để dán. Bảng có thể nhận văn bản nhiều ô từ ứng dụng khác; tab phân cột và xuống dòng phân hàng. Lệnh Xóa (Delete) xóa nội dung ô/vùng đang chọn mà giữ định dạng.",
-      "Để dán giá trị hoặc định dạng theo lựa chọn, mở tab Trang đầu, nhóm Bảng nhớ tạm, chọn Dán đặc biệt rồi chọn Tất cả, Chỉ giá trị, Chỉ công thức, Chỉ định dạng hoặc Chuyển vị.",
-      "Ctrl+Z hoàn tác mỗi lần nhập/dán; Ctrl+V làm lại dán. Nhấn F1 để mở Trợ giúp 3T Office và tìm 'Tab', 'Dán' hoặc 'bộ nhớ tạm'."
+      "Chọn một ô đích rồi nhấn Ctrl+V để dán. Khi sao chép một vùng từ phần mềm bảng tính khác, Sheet giữ giá trị số, ngày tháng, phần trăm và định dạng ô như chữ đậm, màu nền, đường viền; văn bản nhiều ô cũng được tách theo tab và xuống dòng. Lệnh Xóa (Delete) xóa nội dung ô/vùng đang chọn mà giữ định dạng.",
+      "Để dán theo lựa chọn, mở tab Trang đầu, nhóm Bảng nhớ tạm, chọn Dán đặc biệt hoặc nhấn Ctrl+Alt+V; chọn Giữ định dạng nguồn, Chỉ giá trị, Chỉ định dạng hoặc Chuyển vị (đổi hàng/cột), rồi nhấn Áp dụng.",
+      "Ctrl+Z hoàn tác mỗi thao tác bằng một bước; Ctrl+Y làm lại.",
+      "Nhấn F1 để mở Trợ giúp 3T Office và tìm 'Tab', 'Dán' hoặc 'bộ nhớ tạm'."
     ]
   },
 {

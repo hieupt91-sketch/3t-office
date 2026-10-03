@@ -188,6 +188,9 @@ export class InputNormalizer {
     if (!element) return this;
     this.target = element;
     element._vnoNormalizer = this;
+    if (element.dataset) {
+      element.dataset.vnoNativeClipboard = "true";
+    }
 
     // 1. Keydown listener: detect Backspace bursts and handle word-level Ctrl+Z
     const onKeyDown = (e) => {

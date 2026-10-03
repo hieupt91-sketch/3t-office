@@ -85,6 +85,8 @@ import { runSheetPivotImportTests } from "./unit/sheet-pivot-import.test.js";
 import { runSheetPivotSaveFodsTests } from "./unit/sheet-pivot-save-fods.test.js";
 import { runSheetMergeCellsTests } from "./unit/sheet-merge-cells.test.js";
 import { runSheetPasteSpecialTests } from "./unit/sheet-paste-special.test.js";
+import { runOfficeClipboardTests } from "./unit/office-clipboard.test.js";
+import { runCrossAppPasteTests } from "./unit/cross-app-paste.test.js";
 import { runSlidesSmartartImportTests } from "./unit/slides-smartart-import.test.js";
 import { runSlidesRotatedShapePositionTests } from "./unit/slides-rotated-shape-position.test.js";
 import { runSlidesBasicsG8Tests } from "./unit/slides-basics-g8.test.js";
@@ -229,6 +231,7 @@ import { runWriterDocNotRunBasicsTests } from "./unit/writer-doc-notrun-basics.t
 import { runSpellcheckUiUndoTests } from "./unit/spellcheck-ui-undo.test.js";
 import { runSheetGridExtentTests } from "./unit/sheet-grid-extent.test.js";
 import { runSpellcheckInlineToggleTests } from "./unit/spellcheck-inline-toggle.test.js";
+import { runCh81ConsistencyTests } from "./unit/ch8-1-consistency.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -446,7 +449,7 @@ async function runAll() {
     { title: "201. Unit Tests — 3T Doc and 3T Sheet basic editing keys and clipboard", runner: runBasicEditingKeysTests },
     { title: "202. Unit Tests — Shared Find and Replace (CH-7.1) for 3T Doc, 3T Sheet and 3T Slide", runner: runSharedFindReplaceTests },
     { title: "203. Unit Tests — CH-8 UI Consistency, KeyTips, Contextual F1 & String Scanner", runner: runUiConsistencyAndStringScannerTests },
-    { title: "204. Safety Regression — source and tests use CDP, not OS-level input", runner: runOsInputGuardTests },
+    { title: "204. Safety Regression — source and tests use CDP, never OS-level input or by-name process kill", runner: runOsInputGuardTests },
     { title: "205. CH-3/CH-8 — Hộp thoại In không lộ tên thư viện bên trong", runner: runPrintEngineNameTests },
     { title: "206. CH-4.7 — Vietnamese IME typing, burst normalizer, caret preservation, undo coalescing & NFC normalization", runner: runVietnameseImeUnitTests },
     { title: "207. Unit Tests — VN Sheet AutoFill date sequences and double-click fill", runner: runSheetAutoFillTests },
@@ -467,7 +470,10 @@ async function runAll() {
     { title: "222. Unit Tests — VN Writer font shortcut Ctrl+Shift+F & unsaved dialog keyboard navigation", runner: runWriterDocNotRunBasicsTests },
     { title: "223. Unit Tests — CH-7.2 Vietnamese spellcheck UI suggestions, 1-step undo, onReplace callback & normalizer bridge", runner: runSpellcheckUiUndoTests },
     { title: "224. Unit Tests — Sheet Grid Extent (1,048,576 rows x 16,384 columns virtualization & navigation)", runner: runSheetGridExtentTests },
-    { title: "225. Unit Tests — CH-7.2 Sheet inline spellcheck, contextmenu suggestions, 1-step undo & 3-app spellcheck toggle persistence", runner: runSpellcheckInlineToggleTests }
+    { title: "225. Unit Tests — CH-7.2 Sheet inline spellcheck, contextmenu suggestions, 1-step undo & 3-app spellcheck toggle persistence", runner: runSpellcheckInlineToggleTests },
+    { title: "226. Unit Tests — CH-8.1 UI Consistency: Backstage, Recent Files, Status Bar, View Modes, Zoom & Shortcuts", runner: runCh81ConsistencyTests },
+    { title: "227. Unit Tests — Office Clipboard Interop (Sheet Excel/Calc HTML, TSV, Writer Word HTML cleaning)", runner: runOfficeClipboardTests },
+    { title: "228. Unit Tests — Cross-App Paste (Doc, Sheet, Slide Interoperability)", runner: runCrossAppPasteTests }
   ];
 
   for (const suite of suites) {
