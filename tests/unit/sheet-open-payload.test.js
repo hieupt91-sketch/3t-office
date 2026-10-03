@@ -134,6 +134,7 @@ export async function runSheetOpenPayloadTests() {
         serialize: () => adapter.serializeToFods(), restore: () => true
       }), "AutoRecover did not register");
       adapter.sourceFilePath = "C:\\input.xlsx";
+      adapter.isDirty = true;
       await adapter.save();
       await adapter.saveAs();
       await adapter.exportPdf();
@@ -197,6 +198,35 @@ export async function runSheetOpenPayloadTests() {
     } finally {
       Object.assign(globalUnoBridge, saved);
     }
+  });
+
+  await test("payload parser interns repeated styles and cell edits copy them before mutation", async () => {
+    const rowXml = `<table:table-row><table:table-cell office:value-type="string" table:style-name="ce1"><text:p>same</text:p></table:table-cell></table:table-row>`;
+    const grid = new SheetGridController(makeContainer());
+    const adapter = new SheetAdapter(grid);
+    assert(await adapter.loadFromPayload(makePayload([
+      ["sheet", "Data"], ["row-xml", rowXml], ["row-xml", rowXml], ["end-sheet"]
+    ])), "repeated-style payload failed to load");
+    const first = grid.sheetsData.Data.get("A1");
+    const second = grid.sheetsData.Data.get("A2");
+    assert(first?.style === second?.style, "identical imported cell styles were not interned");
+    grid.selectedCoord = { c: "A", r: 1 };
+    assert(grid.setStyle("color", "#123456", false), "cell style edit failed");
+    assert(first.style !== second.style, "cell edit mutated a shared style object");
+    assert(first.style.color === "#123456" && second.style.color !== "#123456", "cell style edit leaked to neighboring cells");
+  });
+
+  await test("pristine XLSX save uses a compact sheet-count-preserving marker", async () => {
+    const grid = new SheetGridController(makeContainer());
+    const adapter = new SheetAdapter(grid);
+    assert(await adapter.loadFromPayload(makePayload()), "pristine-save payload failed to load");
+    adapter.sourceFilePath = "C:\\workbooks\\source.xlsx";
+    adapter.isDirty = false;
+    const content = adapter._nativeSaveContent();
+    assert(content.includes("<!-- vno-pristine-xlsx-source -->"), "compact source marker is missing");
+    assert((content.match(/<table:table\b/g) || []).length === grid.sheets.length, "compact save did not retain the sheet count");
+    adapter.isDirty = true;
+    assert(adapter._nativeSaveContent().includes("Hello"), "edited workbook did not use full FODS serialization");
   });
 
   return results;

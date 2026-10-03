@@ -8375,6 +8375,9 @@ _bindGridKeyboardNavigation() {
       });
     }
 
+    // Imported large workbooks share identical immutable style objects. Clone
+    // on first mutation so formatting one cell never leaks to its neighbours.
+    item.style = { ...(item.style || {}) };
     item.style[prop] = val;
     this.cellsData.set(key, item);
 

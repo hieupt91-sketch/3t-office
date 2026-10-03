@@ -460,6 +460,7 @@ export async function buildSheetPayloadModel(payload, adapter, supportXmlOverrid
     cellVisualStyles,
     namespaceAttrs: rootOpen?.[1] || "",
   };
+  const styleCache = new Map();
   await eachCompressedRecord(payload, record => {
     record = normalizedRecord(adapter, record, richContext);
     if (record[0] === "sheet") {
@@ -535,13 +536,14 @@ export async function buildSheetPayloadModel(payload, adapter, supportXmlOverrid
           || text !== "" || annotationMatch || attributes["table:content-validation-name"]
           || (columnNumber <= state.lastDataCol && adapter._cellStyleHasBorder(attributes["table:style-name"], cellVisualStyles));
         if (hasValue && (!isCovered || isCoveredErrorFormula)) {
-          const item = adapter._cellFromFodsAttributes(attributes, text, numberStyles, rotationStyles, cellVisualStyles);
+          const item = adapter._cellFromFodsAttributes(attributes, text, numberStyles, rotationStyles, cellVisualStyles, styleCache);
           if (textStyles.size > 0) {
             const cellVisual = cellVisualStyles.get(attributes["table:style-name"]) || {};
             const rich = domRich?.domRich
               ? domRich.value
               : adapter._extractRichTextFromXml(valueContent, textStyles, cellVisual);
             if (rich?.runs) {
+              item.style = { ...item.style };
               item.richText = adapter._normalizeRichTextCellFont(rich.runs, item.style);
               item.val = attributes["vno:original-string"] ?? rich.text;
               item.style.styleHashAtImport = adapter._computeStyleHash(item.style);
@@ -555,7 +557,7 @@ export async function buildSheetPayloadModel(payload, adapter, supportXmlOverrid
           const materializeRepeat = Math.max(0, Math.min(columnRepeat, state.lastDataCol - columnNumber + 1));
           for (let repeat = 0; repeat < materializeRepeat; repeat++) {
             const coord = `${adapter._columnName(columnNumber + repeat)}${state.rowNumber}`;
-            state.data.set(coord, { ...item });
+            state.data.set(coord, repeat === 0 ? item : { ...item });
             if (attributes["table:content-validation-name"]) {
               workbook.validationHits.push({ sheet: buildingSheet, coord, name: attributes["table:content-validation-name"] });
             }

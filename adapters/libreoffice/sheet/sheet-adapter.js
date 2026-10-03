@@ -12,6 +12,8 @@ import { getVnCommand } from "../common/command-dispatch-mapper.js";
 import { overlayFodsStructureProtection } from "./xlsx-workbook-protection.js";
 import { overlayActiveSheetToFods } from "./xlsx-active-sheet.js";
 import { buildSheetPayloadModel } from "./sheet-payload-parser.js";
+
+const NUMERIC_CELL_TYPES = new Set(["float", "percentage", "currency", "date", "time"]);
 import {
   parseOfficeHtmlTable,
   parseOfficeTsv,
@@ -2946,6 +2948,22 @@ export class SheetAdapter {
     });
   }
 
+  _nativeSaveContent() {
+    if (!this.grid || this.isDirty || !/\.xlsx$/i.test(String(this.sourceFilePath || ""))) {
+      return this.serializeToFods();
+    }
+    const sheetNames = this.grid.sheets?.length
+      ? this.grid.sheets
+      : Object.keys(this.grid.sheetsData || {});
+    const tables = (sheetNames.length ? sheetNames : [this.grid.activeSheet || "Sheet1"])
+      .map(name => `<table:table table:name="${this._escapeXml(name)}"/>`)
+      .join("");
+    // main.py recognizes this marker and restores the exact source XLSX
+    // package. Avoid allocating a hundreds-of-MB FODS string for an untouched
+    // workbook while retaining every native value, cached error and style.
+    return `<!-- vno-pristine-xlsx-source -->\n<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"><office:body><office:spreadsheet>${tables}</office:spreadsheet></office:body></office:document>`;
+  }
+
   /** Serialize the complete workbook as Flat OpenDocument Spreadsheet XML. */
   serializeToFods() {
     if (!this.grid) return "";
@@ -3765,7 +3783,7 @@ ${pristineXlsxMarker}
     return false;
   }
 
-  _cellFromFodsAttributes(attributes, text, numberStyles = new Map(), rotationStyles = new Map(), cellVisualStyles = new Map()) {
+  _cellFromFodsAttributes(attributes, text, numberStyles = new Map(), rotationStyles = new Map(), cellVisualStyles = new Map(), styleCache = null) {
     const get = name => attributes[name] ?? "";
     const valueType = get("office:value-type");
     let value = text;
@@ -3808,10 +3826,18 @@ ${pristineXlsxMarker}
     // recalculates it; remember the exact LibreOffice formula so an unedited
     // link is written back byte-for-byte on save.
     const externalOdf = !get("vno:formula") && this._isExternalOdfFormula(odfFormula) ? odfFormula : "";
+    const styleKey = styleCache
+      ? `${get("table:style-name")}\0${valueType}\0${get("vno:number-format")}\0${get("vno:xf")}`
+      : null;
+    const cachedStyle = styleKey === null ? null : styleCache.get(styleKey);
+    if (cachedStyle) {
+      return externalOdf
+        ? { val: value, formula, style: cachedStyle, externalLink: { odf: externalOdf, formula } }
+        : { val: value, formula, style: cachedStyle };
+    }
     const style = {};
     const numFmtAttr = get("vno:number-format");
     const standardFormat = numberStyles.get(get("table:style-name"));
-    const numericTypes = new Set(["float", "percentage", "currency", "date", "time"]);
     // Apply number format from vno:number-format for ALL cell types (including string/empty)
     // Per task requirement: keep original Excel format code for every cell/column/row with format
     if (numFmtAttr) {
@@ -3834,7 +3860,7 @@ ${pristineXlsxMarker}
         // S7: data-style ODF của LibreOffice cho ô này (nếu có) là biểu diễn chính xác nhất khi ghi lại.
         if (standardFormat?.odf) style.numberFormat.odf = standardFormat.odf;
       }
-    } else if (standardFormat && (numericTypes.has(valueType) || !valueType || standardFormat.odf)) {
+    } else if (standardFormat && (NUMERIC_CELL_TYPES.has(valueType) || !valueType || standardFormat.odf)) {
       const fmt = { ...standardFormat };
       // Try to reconstruct excelCode from standard format
       const inferred = this._excelCodeFromNumberFormat(fmt);
@@ -3860,6 +3886,7 @@ ${pristineXlsxMarker}
     }
     // S8: Compute stable hash of style at import time.
     style.styleHashAtImport = this._computeStyleHash(style);
+    if (styleKey !== null) styleCache.set(styleKey, style);
     return externalOdf
       ? { val: value, formula, style, externalLink: { odf: externalOdf, formula } }
       : { val: value, formula, style };
@@ -4433,6 +4460,7 @@ ${pristineXlsxMarker}
           }
 
           const modelStarted = perfNow();
+          const styleCache = new Map();
           rowElements.forEach(row => {
             const rowRepeat = Math.max(1, Number(row.getAttribute("table:number-rows-repeated")) || 1);
             const rowStyleName = this._tableAttr(row, "style-name");
@@ -4482,12 +4510,13 @@ ${pristineXlsxMarker}
                 const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"] || text !== "" || annotation || attributes["table:content-validation-name"]
                   || (columnNumber <= lastDataCol && this._cellStyleHasBorder(attributes["table:style-name"], cellVisualStyles));
                 if (hasValue && (!isCovered || isCoveredErrorFormula)) {
-                  const item = this._cellFromFodsAttributes(attributes, text, numberStyles, rotationStyles, cellVisualStyles);
+                  const item = this._cellFromFodsAttributes(attributes, text, numberStyles, rotationStyles, cellVisualStyles, styleCache);
                   // Extract rich text runs from <text:span> elements
                   if (textStyles.size > 0) {
                     const cellVisual = cellVisualStyles.get(attributes["table:style-name"]) || {};
                     const rt = this._extractRichTextFromDom(cell, textStyles, cellVisual);
                     if (rt.runs) {
+                      item.style = { ...item.style };
                       item.richText = this._normalizeRichTextCellFont(rt.runs, item.style);
                       item.val = attributes["vno:original-string"] ?? rt.text;
                       item.style.styleHashAtImport = this._computeStyleHash(item.style);
@@ -4507,7 +4536,7 @@ ${pristineXlsxMarker}
                   const materializeRepeat = Math.max(0, Math.min(columnRepeat, lastDataCol - columnNumber + 1));
                   for (let repeat = 0; repeat < materializeRepeat; repeat++) {
                     const coord = `${columnName(columnNumber + repeat)}${rowNumber}`;
-                    data.set(coord, { ...item });
+                    data.set(coord, repeat === 0 ? item : { ...item });
                     if (attributes["table:content-validation-name"]) {
                       workbook.validationHits.push({ sheet: name, coord, name: attributes["table:content-validation-name"] });
                     }
@@ -5350,7 +5379,7 @@ ${pristineXlsxMarker}
       return await this.saveAs();
     }
 
-    const fodsContent = this.serializeToFods();
+    const fodsContent = this._nativeSaveContent();
     const result = await globalUnoBridge.saveRealFileInPlace(
       "sheet",
       fodsContent,
@@ -5387,7 +5416,7 @@ ${pristineXlsxMarker}
    * hoặc chọn định dạng xuất (.xlsx, .xls, .ods, .csv).
    */
   async saveAs() {
-    const fodsContent = this.serializeToFods();
+    const fodsContent = this._nativeSaveContent();
     const currentName = this.sourceFileName || "BangTinh";
     const suggestedName = this.sourceFilePath
       ? this.sourceFilePath.split(/[/\\]/).pop()
