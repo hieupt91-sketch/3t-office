@@ -1,22 +1,38 @@
 3T Office — Thông tin phát hành phiên bản 0.9.8
-Ngày phát hành: (chưa phát hành)
+Ngày phát hành: 03/10/2026
 
 1. Chung (dùng cho Doc, Sheet và Slide):
 - Dán chéo giữa Doc, Sheet và Slide: Ctrl+C sao chép ở ứng dụng này, Ctrl+V dán sang ứng dụng kia; dán xong bấm Ctrl+Z một lần là hoàn tác.
 - Dán chỉ giữ chữ bằng Ctrl+Shift+V ở Doc, Sheet và Slide, không kèm màu nền, kẻ viền hay kiểu chữ cũ.
+- Bấm chuột phải ra menu có nhánh (Cắt/Sao chép/Dán, Dán đặc biệt, Chèn, Xóa, Sắp xếp…) ở Doc và Sheet.
+- Chèn dùng chung cho cả 3 ứng dụng: Ký hiệu, Liên kết, Hình, Hộp văn bản, Ảnh.
+- Giữ con trỏ ổn định khi thao tác nhanh; hoàn tác sau khi dán không bị phá.
+- Giao diện không còn chồng chéo trên laptop dùng tỷ lệ hiển thị 125%, 150%; các tab ribbon luôn nằm trên một dòng khi cửa sổ hẹp.
+- Trong menu "Mở bằng" của Windows, Doc, Sheet và Slide hiện đúng tên và biểu tượng riêng; ghim lên thanh tác vụ cũng đúng biểu tượng.
+- Cập nhật tự động lấy bản vá từ máy chủ Internet khi không ở mạng nội bộ; kiểm tra bản mới nhẹ hơn nhiều.
+- Mở tài liệu lần đầu trên máy mới nhanh hơn rõ rệt (từ khoảng 14 giây xuống khoảng 3 giây).
 
 2. Doc:
 - Dán bảng từ Sheet vào Doc thành bảng đúng số hàng, số cột; hàng tiêu đề vẫn in đậm, số và ngày giữ nguyên dạng hiển thị.
 - Sao chép bảng hoặc đoạn văn từ Doc sang Sheet và Slide: bảng tính thành từng ô, chữ giữ nguyên in đậm và in nghiêng.
+- Thước ngang hoạt động thật: hiển thị theo cm, kéo mép lề trang, thụt dòng đầu, thụt lề treo, thụt trái và thụt phải; giữ Alt để chỉnh mịn; Ctrl+Z hoàn tác một lần kéo.
+- Các nút Đậm, Nghiêng, Gạch chân, Căn lề, Danh sách sáng hoặc tắt đúng theo chữ đang đặt con trỏ; từ bị gạch đỏ chính tả mà in đậm không còn mất định dạng.
+- Lưu DOCX giữ nguyên đầu trang, chân trang, theo dõi thay đổi và ghi chú; xuất DOCX giữ đúng kiểu đánh số a), i., Heading và mục lục.
 
 3. Sheet:
 - Dán từ Doc hoặc Slide vào Sheet: bảng tính thành từng ô, số được nhận là số nên dùng ngay được trong công thức.
 - Cắt ô bằng Ctrl+X rồi dán bằng Ctrl+V, ô nguồn được xóa sạch.
 - Gõ giờ 13:45 vào ô được nhận là giờ và hiển thị đúng mẫu giờ; giờ sai như 25:00 vẫn giữ nguyên dạng chữ.
+- Thanh công thức hiện ngày, giờ, phần trăm đúng như người dùng gõ (31/12/2026, 13:45, 25%) thay vì số nội bộ.
+- Chuyển ô bằng phím mũi tên, Tab: nhảy qua ô gộp và bỏ qua hàng, cột đang ẩn; ô đang chọn luôn nằm trong màn hình, khung không còn nhảy xa.
+- Lưới hiển thị kín cả cửa sổ khi file có hàng, cột ẩn; hàng 20 px hiển thị đúng chiều cao.
+- Các nút Đậm, Nghiêng, Gạch chân, Căn lề theo đúng ô đang chọn; tắt Đậm bằng Ctrl+B thì nút tắt ngay.
+- Gõ hàm trong ô: ô hiện đúng chữ đang gõ, gợi ý hàm có cú pháp, chú giải đối số bằng tiếng Việt (đối số đang nhập được in đậm, có giải thích và ví dụ).
+- Cột ngày, giờ tự giãn đủ rộng khi nhập; ký hiệu tiền chỉ hiện ở ô có định dạng tiền tệ.
+- Mở bảng tính rất lớn (hơn một triệu ô) không còn treo cửa sổ, có thanh tiến trình, nhanh hơn và dùng ít bộ nhớ hơn.
 
 4. Slide:
 - Dán bảng từ Sheet hoặc Doc lên vùng trang chiếu sẽ tạo bảng đúng số hàng, số cột; dán vào hộp chữ giữ nguyên chữ in đậm, in nghiêng.
-
 ============================================================
 
 3T Office — Thông tin phát hành phiên bản 0.9.7
