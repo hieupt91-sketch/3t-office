@@ -236,6 +236,7 @@ import { runSharedInsertCapabilitiesTests } from "./unit/shared-insert-capabilit
 
 import { runKeepFocusUnitTests } from "./unit/ch4-6-keep-focus.test.js";
 import { runSheetFormulaBarDisplayTests } from "./unit/sheet-formula-bar-display.test.js";
+import { runContextMenuUnitTests } from "./unit/context-menu.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -480,7 +481,8 @@ async function runAll() {
     { title: "229. Unit Tests — Writer DOCX review range export metadata", runner: runWriterReviewExportTests },
     { title: "230. Unit Tests — CH-7.3 Shared Insert Dialogs & Capabilities (Symbol, Hyperlink, Shapes, Textbox, Picture)", runner: runSharedInsertCapabilitiesTests },
     { title: "231. Unit Tests — CH-4.6 Editor Focus Keeper & Enter Button Guard (Doc, Sheet, Slide)", runner: runKeepFocusUnitTests },
-    { title: "232. Unit Tests — Sheet: thanh công thức hiện ngày/giờ/phần trăm như Excel", runner: runSheetFormulaBarDisplayTests }
+    { title: "232. Unit Tests — Sheet: thanh công thức hiện ngày/giờ/phần trăm như Excel", runner: runSheetFormulaBarDisplayTests },
+    { title: "233. Unit Tests — Shared Context Menu & Submenus (Doc & Sheet)", runner: runContextMenuUnitTests }
   ];
 
   for (const suite of suites) {

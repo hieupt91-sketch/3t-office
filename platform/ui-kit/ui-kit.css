@@ -1043,4 +1043,129 @@ body.vno-macro-is-recording #vno-ribbon-tab-view::after {
   }
 }
 
+/* ==========================================================================
+   Shared Context Menu & Submenus Component
+   ========================================================================== */
+.vno-context-menu {
+  position: fixed;
+  z-index: 10000;
+  min-width: 190px;
+  max-width: 320px;
+  padding: 4px 0;
+  background: var(--vno-bg-surface, #ffffff);
+  color: var(--vno-text-primary, #1e293b);
+  border: 1px solid var(--vno-border-default, #cbd5e1);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  font-family: var(--vno-font-ui, system-ui, sans-serif);
+  font-size: 12px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+.vno-context-menu:focus {
+  outline: none;
+}
+
+.vno-context-menu-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  color: var(--vno-text-primary, #1e293b);
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+  box-sizing: border-box;
+  user-select: none;
+  transition: background-color 80ms ease;
+}
+
+.vno-context-menu-item:hover,
+.vno-context-menu-item:focus,
+.vno-context-menu-item:focus-visible,
+.vno-context-menu-item.vno-submenu-open {
+  background-color: var(--vno-bg-active, #eff6ff);
+  color: var(--vno-primary, #1d4ed8);
+  outline: none;
+}
+
+.vno-context-menu-item.vno-disabled,
+.vno-context-menu-item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: transparent !important;
+  color: var(--vno-text-muted, #94a3b8) !important;
+}
+
+.vno-context-menu-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.vno-context-menu-label {
+  flex: 1 1 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vno-context-menu-shortcut {
+  flex: 0 0 auto;
+  margin-left: 16px;
+  font-size: 11px;
+  color: var(--vno-text-muted, #64748b);
+  font-family: inherit;
+}
+
+.vno-context-menu-arrow {
+  flex: 0 0 auto;
+  margin-left: 10px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--vno-text-muted, #94a3b8);
+}
+
+.vno-context-menu-sep {
+  height: 1px;
+  background-color: var(--vno-border-default, #e2e8f0);
+  margin: 4px 0;
+  flex-shrink: 0;
+}
+
+/* Dark Theme support */
+[data-theme="dark"] .vno-context-menu {
+  background: var(--vno-bg-surface, #1e293b);
+  color: var(--vno-text-primary, #f1f5f9);
+  border-color: var(--vno-border-default, #334155);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+}
+
+[data-theme="dark"] .vno-context-menu-item {
+  color: var(--vno-text-primary, #f1f5f9);
+}
+
+[data-theme="dark"] .vno-context-menu-item:hover,
+[data-theme="dark"] .vno-context-menu-item:focus,
+[data-theme="dark"] .vno-context-menu-item:focus-visible,
+[data-theme="dark"] .vno-context-menu-item.vno-submenu-open {
+  background-color: #1d4ed8;
+  color: #ffffff;
+}
+
+[data-theme="dark"] .vno-context-menu-sep {
+  background-color: var(--vno-border-default, #334155);
+}
+
+
 

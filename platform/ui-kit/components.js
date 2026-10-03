@@ -906,3 +906,6 @@ export function hideDocumentOpenProgress() {
   documentOpenProgressRoot = null;
   if (documentOpenProgressElement) documentOpenProgressElement.hidden = true;
 }
+
+export { ContextMenu, showContextMenu, closeActiveContextMenu } from "./context-menu.js";
+
