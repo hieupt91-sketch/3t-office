@@ -408,3 +408,40 @@ def test_license_rate_limiting(test_env):
             break
     assert hit_rate_limit is True
 
+
+
+# 12. Nền tảng (Windows hiện tại; macOS / iOS / Android sau này dùng chung máy chủ)
+def test_activation_records_platform_and_defaults_to_windows_for_old_clients(test_env, keypair):
+    client = test_env["client"]
+    db_path = test_env["db_path"]
+    raw_key = lic_mod.generate_license_key()
+    _seed_key(db_path, raw_key, seats_max=3)
+    base = {"product": "3t-office", "key": raw_key, "device_name": "May thu", "app_version": "0.9.8"}
+
+    old_client = client.post("/api/v1/license/activate", json={**base, "device_fingerprint": "fp-windows-0001"})
+    assert old_client.status_code == 200
+    mac = client.post("/api/v1/license/activate", json={**base, "device_fingerprint": "fp-macos-000001", "platform": "macos"})
+    assert mac.status_code == 200
+    bad = client.post("/api/v1/license/activate", json={**base, "device_fingerprint": "fp-bad-00000001", "platform": "plan9"})
+    assert bad.status_code == 422
+
+    with sqlite3.connect(db_path) as conn:
+        rows = dict(conn.execute("SELECT device_name || device_hash, platform FROM activations").fetchall())
+    assert sorted(rows.values()) == ["macos", "windows"]
+
+    pub = lic_mod.load_public_key(keypair[3])
+    assert lic_mod.verify_license_token(old_client.json()["token"], pub)["plat"] == "windows"
+    assert lic_mod.verify_license_token(mac.json()["token"], pub)["plat"] == "macos"
+
+
+def test_old_database_without_platform_column_is_migrated(tmp_path):
+    db_path = tmp_path / "old.sqlite3"
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            """CREATE TABLE activations (id TEXT PRIMARY KEY, license_id TEXT NOT NULL, device_hash TEXT NOT NULL,
+               device_name TEXT NOT NULL, first_at TEXT NOT NULL, last_check_at TEXT NOT NULL,
+               app_version TEXT NOT NULL, removed_at TEXT)"""
+        )
+        conn.execute("INSERT INTO activations VALUES ('a','l','h','n','t','t','0.9.7',NULL)")
+        lic_mod.init_license_schema(conn)
+        assert conn.execute("SELECT platform FROM activations").fetchone()[0] == "windows"

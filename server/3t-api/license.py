@@ -183,6 +183,7 @@ def issue_license_token(
     grace_days: int = 30,
     check_days: int = 30,
     updates_until: str | None = None,
+    platform: str = "windows",
 ) -> tuple[str, str]:
     """Tạo token bản quyền ký bằng Ed25519.
     
@@ -202,6 +203,7 @@ def issue_license_token(
         "check_by": check_by_ts,
         "grace_days": grace_days,
         "updates_until": updates_until,
+        "plat": platform,
         "key_hint": f"…{key_hint}" if not key_hint.startswith("…") else key_hint,
     }
 
@@ -267,9 +269,14 @@ def init_license_schema(conn: sqlite3.Connection) -> None:
             first_at TEXT NOT NULL,
             last_check_at TEXT NOT NULL,
             app_version TEXT NOT NULL,
-            removed_at TEXT
+            removed_at TEXT,
+            platform TEXT NOT NULL DEFAULT 'windows'
         )
     """)
+    # Databases created before the platform column existed (Windows-only era).
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(activations)").fetchall()}
+    if "platform" not in columns:
+        conn.execute("ALTER TABLE activations ADD COLUMN platform TEXT NOT NULL DEFAULT 'windows'")
     conn.execute("CREATE INDEX IF NOT EXISTS activations_license_idx ON activations(license_id, removed_at)")
     conn.execute("CREATE INDEX IF NOT EXISTS activations_device_idx ON activations(license_id, device_hash)")
 
