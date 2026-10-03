@@ -36,6 +36,12 @@ export class SheetApp {
 
     const templateId = options.templateId || "blank";
     const isBlank = templateId !== "budget_estimate";
+    const launchParams = new URLSearchParams(globalThis.location?.search || "");
+    const browserNumberParts = new Intl.NumberFormat().formatToParts(1234.5);
+    const numberLocale = {
+      decimalSeparator: launchParams.has("numberDecimal") ? launchParams.get("numberDecimal") : browserNumberParts.find(part => part.type === "decimal")?.value || ".",
+      thousandsSeparator: launchParams.has("numberThousands") ? launchParams.get("numberThousands") : browserNumberParts.find(part => part.type === "group")?.value || ","
+    };
     this.shell = new AppShell({
       appName: "sheet",
       appTitle: "Sheet",
@@ -69,7 +75,8 @@ export class SheetApp {
       onFormulaEntryMode: (label) => this.shell?.setStatus?.(label),
       onZoomChange: (level) => this.shell?.setZoomDisplay?.(Math.round(level * 100)),
       isBlank,
-      templateId
+      templateId,
+      numberLocale
     });
     this.shell.onZoomChange = (percent) => {
       this.grid.setZoom(percent / 100);

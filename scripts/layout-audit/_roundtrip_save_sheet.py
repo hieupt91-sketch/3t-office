@@ -1,80 +1,113 @@
-"""Usage: python _roundtrip_save_sheet.py <worktree> <xlsx-in> <xlsx-out>
-Opens the real app window on <xlsx-in>, triggers common.file.save with the native dialog
-bypassed, writes <xlsx-out> and <xlsx-out>.sent.fods (the FODS payload the app sent)."""
-import sys, time, os, socket, subprocess, json
-ROOT, XLSX_PATH, OUT = sys.argv[1], sys.argv[2], sys.argv[3]
+"""Legacy batch Save As entry; desktop control uses WebView2 CDP only.
+
+Usage: python _roundtrip_save_sheet.py <worktree> <xlsx-in> <xlsx-out>
+The native save dialog is bypassed and the actual sent FODS is retained locally.
+"""
+import os
+import socket
+import subprocess
+import sys
+import time
+import functools
+import tempfile
+from pathlib import Path
+
+ROOT, XLSX_PATH, OUT = sys.argv[1:4]
+audit_started = time.perf_counter()
 sys.path.insert(0, ROOT)
+# Match the shared CDP session's private profile. An inherited LOCALAPPDATA
+# otherwise shares LibreOffice's profile with another worktree's conversions.
+audit_profile = tempfile.TemporaryDirectory(prefix="vno-sheet-roundtrip-")
+os.environ["LOCALAPPDATA"] = str(Path(audit_profile.name) / "localappdata")
+with socket.socket() as listener:
+    listener.bind(("127.0.0.1", 0))
+    debug_port = listener.getsockname()[1]
+os.environ["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = (
+    os.environ.get("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "")
+    + f" --remote-debugging-port={debug_port}"
+)
 import webview
 import main as vnmain
 
-with socket.socket() as debug_socket:
-    debug_socket.bind(("127.0.0.1", 0))
-    debug_port = debug_socket.getsockname()[1]
-os.environ["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = f"--remote-debugging-port={debug_port}"
+if os.environ.get("VNO_PERF_DEBUG") == "1":
+    vnmain._open_perf_log("audit_engine_mode", persistent=vnmain._PERSISTENT_SOFFICE_ENABLED,
+                         payload=vnmain._sheet_open_payload_enabled())
+    def measure(name):
+        original = getattr(vnmain, name)
+        @functools.wraps(original)
+        def wrapped(*args, **kwargs):
+            started = time.perf_counter()
+            vnmain._open_perf_log("audit_" + name + "_begin")
+            try:
+                result = original(*args, **kwargs)
+            except Exception as error:
+                vnmain._open_perf_log("audit_" + name + "_failed", (time.perf_counter() - started) * 1000,
+                                     error=type(error).__name__)
+                raise
+            vnmain._open_perf_log("audit_" + name, (time.perf_counter() - started) * 1000,
+                                 chars=len(result) if isinstance(result, str) else 0)
+            return result
+        setattr(vnmain, name, wrapped)
+    for name in ("_run_soffice_convert", "_apply_native_import_overlay",
+                 "_optimize_fods_for_sheet", "_write_save_source",
+                 "_apply_native_export_postprocess", "_convert_save_source_to_native"):
+        measure(name)
 
-def cdp_evaluate(remote, expression):
-    remote.stdin.write(json.dumps(expression) + "\n")
-    remote.stdin.flush()
-    response = json.loads(remote.stdout.readline())
-    if "error" in response:
-        raise RuntimeError(response["error"])
-    return response.get("value")
-
+webview.settings["REMOTE_DEBUGGING_PORT"] = debug_port
 server, port = vnmain._start_static_server()
 app_kind, initial_file = vnmain.parse_launch_args([XLSX_PATH])
 api = vnmain.VnOfficeApi(app_kind=app_kind, initial_file=initial_file)
-_orig_save = api.save_document_dialog
-def _dump_save(content, *a, **k):
-    with open(OUT + ".sent.fods", "w", encoding="utf-8") as f:
-        f.write(content)
-    return _orig_save(content, *a, **k)
-api.save_document_dialog = _dump_save
-window = webview.create_window(title="VN Sheet - Roundtrip Save", url=vnmain.build_launch_url(app_kind, initial_file, port=port), width=1400, height=900, js_api=api)
-stem = os.path.splitext(os.path.basename(XLSX_PATH))[0][:6]
+original_save = api.save_document_dialog
 
-def run_audit(win, remote):
-    name = ''
-    # VAT.xlsx (lan06): soffice convert ~7.5 phút → chờ tối đa 15 phút
-    for _ in range(300):
-        time.sleep(3)
-        name = cdp_evaluate(remote, "(document.querySelector('.vno-doc-tab span')||{}).textContent||''") or ''
-        if stem and stem in name:
-            break
-    print("LOADED:", name, flush=True)
-    time.sleep(4)
-    win.create_file_dialog = lambda *a, **k: OUT
-    cdp_evaluate(remote, "window.__saveDone=0; window.__saveErr=''; import('/platform/commands/command-bus.js').then(m => m.globalCommandBus.execute('common.file.saveAs')).then(r => { window.__saveDone = 1; window.__saveRes = String(r); }, e => { window.__saveErr = String(e && e.stack || e); }); 'queued'")
-    done = 0; err = ''
-    for _ in range(400):
-        time.sleep(3)
-        done = cdp_evaluate(remote, "window.__saveDone")
-        err = cdp_evaluate(remote, "window.__saveErr")
-        if done == 1 or err or (os.path.exists(OUT) and os.path.getsize(OUT) > 0):
-            break
-    print("SAVE_DONE:", done, "ERR:", err, flush=True)
-    print("EXISTS:", os.path.exists(OUT), os.path.getsize(OUT) if os.path.exists(OUT) else 0, flush=True)
-    cdp_evaluate(remote, "document.querySelectorAll('button').forEach(b => { if (/Đồng ý|OK/i.test(b.textContent)) b.click(); }); 1")
-    time.sleep(1)
+def dump_save(content, app_kind="writer", target_format=None,
+              suggested_name="TaiLieu", source_path=None):
+    Path(OUT + ".sent.fods").write_text(content, encoding="utf-8")
+    return original_save(content, app_kind, target_format, suggested_name, source_path)
 
 
-audit_errors = []
+api.save_document_dialog = dump_save
+window = webview.create_window(
+    title="VN Sheet - Roundtrip Save",
+    url=vnmain.build_launch_url(app_kind, initial_file, port=port),
+    width=1400, height=900, js_api=api,
+)
+window.create_file_dialog = lambda *args, **kwargs: OUT
 
-def after_load(win):
-    remote = subprocess.Popen(["node", "--experimental-websocket", os.path.join(os.path.dirname(__file__), "_cdp_eval.mjs"), str(debug_port)], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, encoding="utf-8")
+
+def after_load():
+    global audit_exit
     try:
-        run_audit(win, remote)
-    except Exception as exc:
-        audit_errors.append(exc)
-        print("AUDIT_ERROR:", repr(exc), flush=True)
+        result = subprocess.run([
+            "node", "--experimental-websocket",
+            str(Path(__file__).with_name("roundtrip-save-sheet.mjs")),
+            str(debug_port), XLSX_PATH, OUT,
+        ], check=False)
+        audit_exit = result.returncode
     finally:
-        remote.stdin.close()
-        try:
-            remote.wait(timeout=10)
-        except subprocess.TimeoutExpired:
-            remote.terminate()  # Only the CDP helper launched above.
-            remote.wait(timeout=10)
-        win.destroy()
+        window.destroy()
 
-webview.start(after_load, window, debug=False)
-if audit_errors:
-    raise SystemExit(1)
+
+audit_exit = 1
+try:
+    webview.start(after_load, debug=False)
+finally:
+    server.shutdown()
+    server.server_close()
+    vnmain._PERSISTENT_SOFFICE.shutdown()
+    # The CLI launcher can return while soffice.bin finishes its profile cache.
+    # Retry only Windows busy/nonempty-directory errors; propagate a real
+    # cleanup failure rather than silently treating it as success.
+    for attempt in range(20):
+        try:
+            audit_profile.cleanup()
+            break
+        except OSError as error:
+            if getattr(error, "winerror", None) not in (32, 145):
+                raise
+            if attempt == 19:
+                print(f"WARN private profile cleanup deferred: {audit_profile.name}", flush=True)
+                audit_profile._finalizer.detach()
+                break
+            time.sleep(0.5)
+    print(f"PHASE total_ms={round((time.perf_counter() - audit_started) * 1000)}", flush=True)
+raise SystemExit(audit_exit)

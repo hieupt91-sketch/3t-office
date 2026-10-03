@@ -4,6 +4,7 @@ import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 from unittest.mock import patch
 
 import main
@@ -13,10 +14,14 @@ class DesktopLaunchTests(unittest.TestCase):
     def test_app_shortcut_builds_single_app_url(self):
         app_kind, initial_file = main.parse_launch_args(["--app=sheet"])
         self.assertEqual((app_kind, initial_file), ("sheet", None))
-        self.assertEqual(
-            main.build_launch_url(app_kind, initial_file),
-            "http://localhost:8080/?app=sheet&singleApp=1",
-        )
+        with patch.object(main, "_system_number_separators", return_value=(",", ".")):
+            launch_url = main.build_launch_url(app_kind, initial_file)
+        query = parse_qs(urlsplit(launch_url).query)
+        self.assertEqual(urlsplit(launch_url).netloc, "localhost:8080")
+        self.assertEqual(query["app"], ["sheet"])
+        self.assertEqual(query["singleApp"], ["1"])
+        self.assertEqual(query["numberDecimal"], [","])
+        self.assertEqual(query["numberThousands"], ["."])
 
     def test_file_path_infers_app_and_requests_initial_open(self):
         app_kind, initial_file = main.parse_launch_args([r"C:\Tai lieu\Bao cao.pptx"])

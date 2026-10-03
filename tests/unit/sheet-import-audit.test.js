@@ -43,7 +43,7 @@ export async function runSheetImportAuditTests() {
       ["0%", "percentage", 0], ["0.00%", "percentage", 2],
       ['_("$"* #,##0_);_("$"* (#,##0);_("$"* "-"_);_(@_)', "accounting", 0],
       ["[$₫-42A] #,##0", "currency", 0], ['#,##0 "₫"', "currency", 0],
-      ["dd/mm/yyyy", "date"], ["m/d/yyyy", "date"], ["h:mm:ss", "date"],
+      ["dd/mm/yyyy", "date"], ["m/d/yyyy", "date"], ["h:mm:ss", "time"],
       ["@", "text"], ["General", "general"]
     ];
     for (const [code, category, decimals, thousands] of cases) {
@@ -53,6 +53,13 @@ export async function runSheetImportAuditTests() {
       if (thousands !== undefined) assert.equal(actual.useThousands, thousands, code);
     }
     assert.deepEqual(numberFormatFromExcelCode("[Blue]literal!"), { category: "custom", code: "[Blue]literal!", customPattern: "[Blue]literal!" });
+  });
+  await test("FODS number-style nhận dạng lại time-style hh:mm", () => {
+    const adapter = Object.create(SheetAdapter.prototype);
+    const parsed = adapter._parseNumberStyles('<number:time-style style:name="clock"><number:hours number:style="long"/><number:text>:</number:text><number:minutes number:style="long"/></number:time-style><style:style style:name="cell-clock" style:family="table-cell" style:data-style-name="clock"/>');
+    assert.equal(parsed.get("cell-clock")?.category, "time");
+    assert.equal(parsed.get("cell-clock")?.timeFormat, "hh:mm");
+    assert.equal(adapter._excelCodeFromNumberFormat({ category: "time", timeFormat: "hh:mm" }), "hh:mm");
   });
   await test("Unit test: numFmt _-* #,##0\\ _₫_- với 8890000 -> 8,890,000 (khong ₫)", async () => {
     const { NumberFormatter } = await import("../../apps/sheet/number-formatter.js");

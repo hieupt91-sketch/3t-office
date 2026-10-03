@@ -28,7 +28,20 @@ $owned = $false
 $ownedPid = 0
 $failed = $false
 try {
-  $excel = Invoke-ComWithRetry { New-Object -ComObject Excel.Application } "Create Excel"
+  # Keep the Application COM object in this scope too. Returning Office COM
+  # automation objects through a PowerShell function can enumerate/coerce them.
+  for ($attempt = 0; $attempt -le 20; $attempt++) {
+    try {
+      $excel = New-Object -ComObject Excel.Application
+      break
+    } catch {
+      if ($_.Exception.HResult -ne -2147418111 -or $attempt -ge 20) {
+        throw ("Create Excel: {0}" -f $_.Exception.Message)
+      }
+      Start-Sleep -Milliseconds 500
+    }
+  }
+  if (-not $excel) { throw "Create Excel returned no application object." }
   $handle = [IntPtr](Invoke-ComWithRetry { [int]$excel.Hwnd } "Read Excel window")
   $owner = [uint32]0
   [void][VnoExcelAuditWindow]::GetWindowThreadProcessId($handle, [ref]$owner)
@@ -44,15 +57,46 @@ try {
     $workbook = $null
     $name = Split-Path $file -Leaf
     try {
-      $workbook = Invoke-ComWithRetry { $excel.Workbooks.Open($file, 0, $true) } "Open $name"
-      $count = [int](Invoke-ComWithRetry { $workbook.Worksheets.Count } "Read $name sheet count")
+      # Do not return a Workbook COM object through Invoke-ComWithRetry:
+      # PowerShell enumerates that automation object at the function boundary
+      # and can turn it into $null. Open in this scope and retry only transient
+      # RPC_E_CALL_REJECTED responses.
+      for ($attempt = 0; $attempt -le 20; $attempt++) {
+        try {
+          $workbook = $excel.Workbooks.Open($file, 0, $true)
+          break
+        } catch {
+          if ($_.Exception.HResult -ne -2147418111 -or $attempt -ge 20) {
+            throw ("Open {0}: {1}" -f $name, $_.Exception.Message)
+          }
+          Start-Sleep -Milliseconds 500
+        }
+      }
+      if (-not $workbook) { throw "Open $name returned no workbook object." }
+      $count = 0
+      for ($attempt = 0; $attempt -le 20; $attempt++) {
+        try {
+          $count = [int]$workbook.Worksheets.Count
+        } catch {
+          if ($_.Exception.HResult -ne -2147418111 -or $attempt -ge 20) {
+            throw ("Read {0} sheet count: {1}" -f $name, $_.Exception.Message)
+          }
+        }
+        if ($count -gt 0) { break }
+        if ($attempt -ge 20) { throw "Read $name sheet count returned $count." }
+        Start-Sleep -Milliseconds 500
+      }
       "$name OK sheets=$count"
     } catch {
       $failed = $true
       "$name FAIL " + ($_.Exception.Message -replace '[\r\n]', ' ')
     } finally {
       if ($workbook) {
-        try { Invoke-ComWithRetry { $workbook.Close($false) } "Close $name" | Out-Null } catch { $failed = $true }
+        try { Invoke-ComWithRetry { $workbook.Close($false) } "Close $name" | Out-Null }
+        catch {
+          $failed = $true
+          "$name FAIL " + ($_.Exception.Message -replace '[\r\n]', ' ')
+        }
         [void][Runtime.InteropServices.Marshal]::ReleaseComObject($workbook)
       }
     }
@@ -70,5 +114,12 @@ try {
   }
   [GC]::Collect()
   [GC]::WaitForPendingFinalizers()
+  if ($owned -and $ownedPid -gt 0) {
+    $leftover = Get-Process -Id $ownedPid -ErrorAction SilentlyContinue
+    if ($leftover) {
+      Stop-Process -Id $ownedPid -Force
+      "CLEANUP stopped owned Excel PID $ownedPid after COM quit did not exit."
+    }
+  }
 }
 if ($failed) { exit 1 }

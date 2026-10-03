@@ -403,6 +403,7 @@ export const enStrings = {
     ,"sheet.cell.alignMiddle": { label: "Middle Align", tooltip: "Center content vertically in the cell" }
     ,"sheet.cell.alignBottom": { label: "Bottom Align", tooltip: "Align content to the bottom of the cell" }
     ,"sheet.cell.wrapText": { label: "Wrap Text", tooltip: "Wrap content to fit the column width" }
+    ,"sheet.cell.insertLineBreak": { label: "Wrap Line in Cell", tooltip: "Insert line break within cell (Alt+Enter)" }
     ,"sheet.cell.orientation": { label: "Orientation", tooltip: "Rotate cell text: 0°, 45°, -45°, 90°, -90°, or stacked vertical" }
     ,"sheet.cell.indentIncrease": { label: "Increase Indent", tooltip: "Increase cell content indentation" }
     ,"sheet.cell.indentDecrease": { label: "Decrease Indent", tooltip: "Decrease cell content indentation" }

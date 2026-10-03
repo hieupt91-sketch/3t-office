@@ -193,8 +193,10 @@ def _run_xlsx(root: Path, input_dir: Path, out_dir: Path, names: list[str]) -> l
             row["office"] = excel_status
             if excel_status not in {"PASS", "BLOCKED"}:
                 row["status"] = "FAIL"
+                row["details"] = "; ".join(part for part in (row["details"], excel_output) if part)
             elif excel_status == "BLOCKED" and row["status"] == "PASS":
                 row["status"] = "BLOCKED"
+                row["details"] = "; ".join(part for part in (row["details"], excel_output) if part)
             row["seconds"] = round(time.monotonic() - started, 1)
             row["source"] = str(source)
             row["saved_path"] = str(saved)
