@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Có gì mới — Nhật ký phát hành và cập nhật 3T Office</title>
-  <meta name="description" content="Lịch sử các bản cập nhật và ghi chú phát hành thực tế của bộ ứng dụng 3T Office từ bản 0.9.1 đến 0.9.7 mới nhất.">
+  <meta name="description" content="Lịch sử các bản cập nhật và ghi chú phát hành thực tế của bộ ứng dụng 3T Office từ bản 0.9.1 đến 0.9.8 mới nhất.">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
   <link rel="alternate icon" href="favicon.ico">
@@ -51,7 +51,7 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
           </svg>
-          Tải 0.9.7 Pilot
+          Tải 0.9.8 Pilot
         </a>
         <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="primary-nav" aria-label="Mở trình đơn chuyển hướng">
           ☰
@@ -72,14 +72,77 @@
         </div>
 
         <div class="timeline" id="releases-container">
-          <!-- Bản 0.9.7 mới nhất -->
+          <!-- Bản 0.9.8 mới nhất -->
+          <div class="timeline-item">
+            <div class="timeline-dot"></div>
+            <article class="timeline-content">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span class="tag tag-ready">Phiên bản 0.9.8</span>
+                  <span style="font-weight: 700; color: var(--brand-orange); font-size: 0.875rem;">(Hiện tại)</span>
+                </div>
+                <span style="font-size: 0.813rem; color: var(--text-dim); font-weight: 600;">03/10/2026</span>
+              </div>
+              <h2 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 12px; color: var(--text-main);">
+                Dán chéo ứng dụng, menu chuột phải có nhánh, thước Doc hoạt động, gõ hàm dễ hiểu, cập nhật qua máy chủ
+              </h2>
+              <div style="display: flex; flex-direction: column; gap: 16px; font-size: 0.938rem; color: var(--text-muted); line-height: 1.6;">
+                <div>
+                  <h3 style="font-size: 1rem; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">1. Chung (dùng cho Doc, Sheet và Slide):</h3>
+                  <ul style="list-style: disc; padding-left: 20px; display: flex; flex-direction: column; gap: 6px;">
+                    <li>Dán chéo giữa Doc, Sheet và Slide: Ctrl+C sao chép ở ứng dụng này, Ctrl+V dán sang ứng dụng kia; dán xong bấm Ctrl+Z một lần là hoàn tác.</li>
+                    <li>Dán chỉ giữ chữ bằng Ctrl+Shift+V ở Doc, Sheet và Slide, không kèm màu nền, kẻ viền hay kiểu chữ cũ.</li>
+                    <li>Bấm chuột phải ra menu có nhánh (Cắt/Sao chép/Dán, Dán đặc biệt, Chèn, Xóa, Sắp xếp…) ở Doc và Sheet.</li>
+                    <li>Chèn dùng chung cho cả 3 ứng dụng: Ký hiệu, Liên kết, Hình, Hộp văn bản, Ảnh.</li>
+                    <li>Giữ con trỏ ổn định khi thao tác nhanh; hoàn tác sau khi dán không bị phá.</li>
+                    <li>Giao diện không còn chồng chéo trên laptop dùng tỷ lệ hiển thị 125%, 150%; các tab ribbon luôn nằm trên một dòng khi cửa sổ hẹp.</li>
+                    <li>Trong menu "Mở bằng" của Windows, Doc, Sheet và Slide hiện đúng tên và biểu tượng riêng; ghim lên thanh tác vụ cũng đúng biểu tượng.</li>
+                    <li>Cập nhật tự động lấy bản vá từ máy chủ Internet khi không ở mạng nội bộ; kiểm tra bản mới nhẹ hơn nhiều.</li>
+                    <li>Mở tài liệu lần đầu trên máy mới nhanh hơn rõ rệt (từ khoảng 14 giây xuống khoảng 3 giây).</li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 style="font-size: 1rem; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">2. Doc:</h3>
+                  <ul style="list-style: disc; padding-left: 20px; display: flex; flex-direction: column; gap: 6px;">
+                    <li>Dán bảng từ Sheet vào Doc thành bảng đúng số hàng, số cột; hàng tiêu đề vẫn in đậm, số và ngày giữ nguyên dạng hiển thị.</li>
+                    <li>Sao chép bảng hoặc đoạn văn từ Doc sang Sheet và Slide: bảng tính thành từng ô, chữ giữ nguyên in đậm và in nghiêng.</li>
+                    <li>Thước ngang hoạt động thật: hiển thị theo cm, kéo mép lề trang, thụt dòng đầu, thụt lề treo, thụt trái và thụt phải; giữ Alt để chỉnh mịn; Ctrl+Z hoàn tác một lần kéo.</li>
+                    <li>Các nút Đậm, Nghiêng, Gạch chân, Căn lề, Danh sách sáng hoặc tắt đúng theo chữ đang đặt con trỏ; từ bị gạch đỏ chính tả mà in đậm không còn mất định dạng.</li>
+                    <li>Lưu DOCX giữ nguyên đầu trang, chân trang, theo dõi thay đổi và ghi chú; xuất DOCX giữ đúng kiểu đánh số a), i., Heading và mục lục.</li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 style="font-size: 1rem; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">3. Sheet:</h3>
+                  <ul style="list-style: disc; padding-left: 20px; display: flex; flex-direction: column; gap: 6px;">
+                    <li>Dán từ Doc hoặc Slide vào Sheet: bảng tính thành từng ô, số được nhận là số nên dùng ngay được trong công thức.</li>
+                    <li>Cắt ô bằng Ctrl+X rồi dán bằng Ctrl+V, ô nguồn được xóa sạch.</li>
+                    <li>Gõ giờ 13:45 vào ô được nhận là giờ và hiển thị đúng mẫu giờ; giờ sai như 25:00 vẫn giữ nguyên dạng chữ.</li>
+                    <li>Thanh công thức hiện ngày, giờ, phần trăm đúng như người dùng gõ (31/12/2026, 13:45, 25%) thay vì số nội bộ.</li>
+                    <li>Chuyển ô bằng phím mũi tên, Tab: nhảy qua ô gộp và bỏ qua hàng, cột đang ẩn; ô đang chọn luôn nằm trong màn hình, khung không còn nhảy xa.</li>
+                    <li>Lưới hiển thị kín cả cửa sổ khi file có hàng, cột ẩn; hàng 20 px hiển thị đúng chiều cao.</li>
+                    <li>Các nút Đậm, Nghiêng, Gạch chân, Căn lề theo đúng ô đang chọn; tắt Đậm bằng Ctrl+B thì nút tắt ngay.</li>
+                    <li>Gõ hàm trong ô: ô hiện đúng chữ đang gõ, gợi ý hàm có cú pháp, chú giải đối số bằng tiếng Việt (đối số đang nhập được in đậm, có giải thích và ví dụ).</li>
+                    <li>Cột ngày, giờ tự giãn đủ rộng khi nhập; ký hiệu tiền chỉ hiện ở ô có định dạng tiền tệ.</li>
+                    <li>Mở bảng tính rất lớn (hơn một triệu ô) không còn treo cửa sổ, có thanh tiến trình, nhanh hơn và dùng ít bộ nhớ hơn.</li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 style="font-size: 1rem; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">4. Slide:</h3>
+                  <ul style="list-style: disc; padding-left: 20px; display: flex; flex-direction: column; gap: 6px;">
+                    <li>Dán bảng từ Sheet hoặc Doc lên vùng trang chiếu sẽ tạo bảng đúng số hàng, số cột; dán vào hộp chữ giữ nguyên chữ in đậm, in nghiêng.</li>
+                  </ul>
+                </div>
+              </div>
+            </article>
+          </div>
+          <!-- Bản 0.9.7 -->
           <div class="timeline-item">
             <div class="timeline-dot"></div>
             <article class="timeline-content">
               <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <span class="tag tag-ready">Phiên bản 0.9.7</span>
-                  <span style="font-weight: 700; color: var(--brand-orange); font-size: 0.875rem;">(Hiện tại)</span>
+                  
                 </div>
                 <span style="font-size: 0.813rem; color: var(--text-dim); font-weight: 600;">02/10/2026</span>
               </div>
@@ -293,7 +356,7 @@
           <h4>Thông tin</h4>
           <ul class="footer-links">
             <li><a href="tai-ve.html">Tải về bộ cài</a></li>
-            <li><a href="co-gi-moi.html">Có gì mới (0.9.7)</a></li>
+            <li><a href="co-gi-moi.html">Có gì mới (0.9.8)</a></li>
             <li><a href="huong-dan.html">Hướng dẫn sử dụng</a></li>
             <li><a href="ban-quyen.html">Chính sách bản quyền</a></li>
           </ul>
