@@ -13,6 +13,8 @@ param(
     # (written to app\vnoffice-config.json, which updates never overwrite). Empty = updates off.
     [string]$UpdateSource = "",
     [string]$UpdateChannel = "pilot",
+    [string]$InternetUpdateSource = "https://office.3tcomputer.com/updates",
+    [string]$ErrorReportEndpoint = "https://office.3tcomputer.com",
     [switch]$Zip
 )
 
@@ -63,9 +65,11 @@ foreach ($dir in @("apps", "platform", "adapters", "branding")) {
 $example = Join-Path $repo "vnoffice-config.example.json"
 if (Test-Path -LiteralPath $example) { Copy-Item -LiteralPath $example -Destination $appDir }
 if ($UpdateSource) {
+    $updateSources = @($UpdateSource)
+    if ($InternetUpdateSource -and $InternetUpdateSource -ne $UpdateSource) { $updateSources += $InternetUpdateSource }
     $config = [ordered]@{
-        errorReporting = [ordered]@{ enabled = $true; endpoint = ""; token = "" }
-        update = [ordered]@{ source = $UpdateSource; channel = $UpdateChannel }
+        errorReporting = [ordered]@{ enabled = $true; endpoint = $ErrorReportEndpoint }
+        update = [ordered]@{ source = $UpdateSource; sources = $updateSources; channel = $UpdateChannel }
     }
     $configJson = $config | ConvertTo-Json -Depth 4
     [System.IO.File]::WriteAllText((Join-Path $appDir "vnoffice-config.json"), $configJson, (New-Object System.Text.UTF8Encoding $false))
