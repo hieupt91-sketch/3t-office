@@ -1238,6 +1238,78 @@ export class SheetGridController {
     return height;
   }
 
+  _startColResize(e, col) {
+    if (this._isResizingColRow) return;
+    if (e.detail >= 2) {
+      this.autoFitColumn(col);
+      return;
+    }
+    this._isResizingColRow = true;
+    const startX = e.clientX;
+    const startWidth = this.getColumnWidth(col);
+    let lastWidth = startWidth;
+    let hasDragged = false;
+
+    const onMove = moveEvt => {
+      const dx = moveEvt.clientX - startX;
+      if (Math.abs(dx) > 2) hasDragged = true;
+      lastWidth = Math.max(20, Math.round(startWidth + dx));
+      this.setColumnWidths(lastWidth, [col], false);
+    };
+
+    const onUp = () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      }
+      this._isResizingColRow = false;
+      if (hasDragged) {
+        this.setColumnWidths(lastWidth, [col], true);
+      }
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    }
+  }
+
+  _startRowResize(e, row) {
+    if (this._isResizingColRow) return;
+    if (e.detail >= 2) {
+      this.autoFitRow(row);
+      return;
+    }
+    this._isResizingColRow = true;
+    const startY = e.clientY;
+    const startHeight = this.getRowHeight(row);
+    let lastHeight = startHeight;
+    let hasDragged = false;
+
+    const onMove = moveEvt => {
+      const dy = moveEvt.clientY - startY;
+      if (Math.abs(dy) > 2) hasDragged = true;
+      lastHeight = Math.max(15, Math.round(startHeight + dy));
+      this.setRowHeights(lastHeight, [row], false);
+    };
+
+    const onUp = () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      }
+      this._isResizingColRow = false;
+      if (hasDragged) {
+        this.setRowHeights(lastHeight, [row], true);
+      }
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    }
+  }
+
   autoFitSelectedRows(recordUndo = true) {
     if (recordUndo && this._guardProtectedMutation()) return false;
     const rows = this._selectedRows();
@@ -1431,18 +1503,36 @@ export class SheetGridController {
     });
     th.addEventListener("click", (e) => {
       if (e.target.closest(".vno-filter-btn") || e.target.closest(".vno-col-resizer")) return;
-      if (e.detail === 0) this._selectHeaderRange("column", col);
+      this._selectHeaderRange("column", col);
     });
     th.addEventListener("contextmenu", (e) => {
       e.preventDefault();
       this._selectHeaderRange("column", col);
       this.showContextMenu(e, "col", col);
     });
-    th.querySelector(".vno-col-resizer")?.addEventListener("dblclick", (e) => {
+    const colResizer = th.querySelector(".vno-col-resizer");
+    colResizer?.addEventListener("mousedown", (e) => {
+      if (e.button !== 0) return;
+      e.stopPropagation();
+      if (e.detail >= 2) {
+        this.autoFitColumn(col);
+        return;
+      }
+      this._startColResize(e, col);
+    });
+    colResizer?.addEventListener("dblclick", (e) => {
       e.stopPropagation();
       this.autoFitColumn(col);
     });
+    th.addEventListener("dblclick", (e) => {
+      const rect = th.getBoundingClientRect();
+      if (Math.abs(e.clientX - rect.right) <= 8 || e.target.closest(".vno-col-resizer")) {
+        e.stopPropagation();
+        this.autoFitColumn(col);
+      }
+    });
   }
+
 
   _attachAutofillHandle(td) {
     if (!td || typeof document === "undefined" || typeof document.createElement !== "function" || td.querySelector?.(".vno-cell-autofill-handle")) return;
@@ -1976,6 +2066,35 @@ export class SheetGridController {
   _rangeSelectionTargetAt(x, y, kind = "cell") {
     if (typeof document === "undefined") return null;
     let element = document.elementFromPoint(x, y);
+
+    if (kind === "column") {
+      const colHeader = element?.closest?.(".vno-col-header");
+      const col = colHeader?.dataset?.col || element?.closest?.(".vno-grid-cell")?.dataset?.col;
+      if (col && this.cols.includes(col)) return { c: col, r: 1 };
+      const headers = this.container?.querySelectorAll?.(".vno-col-header[data-col]");
+      if (headers) {
+        for (const th of headers) {
+          const r = th.getBoundingClientRect();
+          if (x >= r.left && x <= r.right) return { c: th.dataset.col, r: 1 };
+        }
+      }
+      return null;
+    }
+
+    if (kind === "row") {
+      const rowHeader = element?.closest?.(".vno-row-header");
+      const row = Number(rowHeader?.dataset?.row || element?.closest?.(".vno-grid-cell")?.dataset?.row);
+      if (Number.isInteger(row) && row >= 1 && row <= this.rowCount) return { c: this.cols[0], r: row };
+      const rowHeaders = this.container?.querySelectorAll?.(".vno-row-header[data-row]");
+      if (rowHeaders) {
+        for (const th of rowHeaders) {
+          const r = th.getBoundingClientRect();
+          if (y >= r.top && y <= r.bottom) return { c: this.cols[0], r: Number(th.dataset.row) };
+        }
+      }
+      return null;
+    }
+
     let cell = element?.closest?.(".vno-grid-cell");
     if (!cell && this.viewport?.getBoundingClientRect) {
       const rect = this.viewport.getBoundingClientRect();
@@ -1987,22 +2106,11 @@ export class SheetGridController {
       cell = element?.closest?.(".vno-grid-cell");
     }
 
-    if (kind === "row") {
-      const rowHeader = element?.closest?.(".vno-row-header");
-      const row = Number(rowHeader?.dataset.row || cell?.dataset.row);
-      return Number.isInteger(row) && row >= 1 && row <= this.rowCount
-        ? { c: this.cols[0], r: row }
-        : null;
-    }
-    if (kind === "column") {
-      const colHeader = element?.closest?.(".vno-col-header");
-      const col = colHeader?.dataset.col || cell?.dataset.col;
-      return this.cols.includes(col) ? { c: col, r: 1 } : null;
-    }
     return cell?.dataset.col && cell?.dataset.row
       ? { c: cell.dataset.col, r: Number(cell.dataset.row) }
       : null;
   }
+
 
   _updateRangeFromPointer() {
     if (!this._isSelectingRange || !this._rangePointer || !this._rangeAnchor) return;
@@ -2523,8 +2631,10 @@ export class SheetGridController {
     this._isMovingCell = true;
     this._moveSource = { ...this.selectedCoord };
     this._moveTarget = null;
+    this._isCopyMove = Boolean(e && (e.ctrlKey || e.metaKey));
 
     const onMove = (moveEvt) => {
+      this._isCopyMove = Boolean(moveEvt.ctrlKey || moveEvt.metaKey);
       const el = typeof document !== "undefined" ? document.elementFromPoint(moveEvt.clientX, moveEvt.clientY) : null;
       const cell = el?.closest?.(".vno-grid-cell");
       this.container?.querySelectorAll?.(".is-move-target-preview").forEach(c => c.classList.remove("is-move-target-preview"));
@@ -2536,15 +2646,16 @@ export class SheetGridController {
       }
     };
 
-    const onUp = () => {
+    const onUp = (upEvt) => {
       if (typeof window !== "undefined") {
         window.removeEventListener("mousemove", onMove);
         window.removeEventListener("mouseup", onUp);
       }
       this.container?.querySelectorAll?.(".is-move-target-preview").forEach(c => c.classList.remove("is-move-target-preview"));
       this._isMovingCell = false;
+      const isCopy = this._isCopyMove || Boolean(upEvt && (upEvt.ctrlKey || upEvt.metaKey));
       if (this._moveTarget && (this._moveTarget.c !== this._moveSource.c || this._moveTarget.r !== this._moveSource.r)) {
-        this._executeCellMove(this._moveSource, this._moveTarget);
+        this._executeCellMove(this._moveSource, this._moveTarget, isCopy);
       }
     };
 
@@ -2554,24 +2665,27 @@ export class SheetGridController {
     }
   }
 
-  _executeCellMove(src, dest) {
+  _executeCellMove(src, dest, isCopy = false) {
     const srcKey = `${src.c}${src.r}`;
     const destKey = `${dest.c}${dest.r}`;
     const srcData = this.cellsData.get(srcKey) || { val: "", formula: "", style: {} };
     const destData = this.cellsData.get(destKey) || { val: "", formula: "", style: {} };
 
     const before = {
-      [srcKey]: structuredClone(srcData),
       [destKey]: structuredClone(destData)
     };
 
     const after = {
-      [srcKey]: { val: "", formula: "", style: {} },
       [destKey]: structuredClone(srcData)
     };
 
+    if (!isCopy) {
+      before[srcKey] = structuredClone(srcData);
+      after[srcKey] = { val: "", formula: "", style: {} };
+      this.cellsData.delete(srcKey);
+    }
+
     this.cellsData.set(destKey, structuredClone(srcData));
-    this.cellsData.delete(srcKey);
 
     this._recordHistory({
       type: "fill",
@@ -2584,6 +2698,7 @@ export class SheetGridController {
     this._recalculateAllFormulas();
     this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
   }
+
 
   showContextMenu(e, type, target) {
     this._closeContextMenu();
@@ -4000,18 +4115,36 @@ export class SheetGridController {
     });
     thRow.addEventListener("click", (e) => {
       if (e.target.closest(".vno-row-resizer")) return;
-      if (e.detail === 0) this._selectHeaderRange("row", r);
+      this._selectHeaderRange("row", r);
     });
     thRow.addEventListener("contextmenu", (e) => {
       e.preventDefault();
       this._selectHeaderRange("row", r);
       this.showContextMenu(e, "row", r);
     });
-    thRow.querySelector(".vno-row-resizer")?.addEventListener("dblclick", (e) => {
+    const rowResizer = thRow.querySelector(".vno-row-resizer");
+    rowResizer?.addEventListener("mousedown", (e) => {
+      if (e.button !== 0) return;
+      e.stopPropagation();
+      if (e.detail >= 2) {
+        this.autoFitRow(r);
+        return;
+      }
+      this._startRowResize(e, r);
+    });
+    rowResizer?.addEventListener("dblclick", (e) => {
       e.stopPropagation();
       this.autoFitRow(r);
     });
+    thRow.addEventListener("dblclick", (e) => {
+      const rect = thRow.getBoundingClientRect();
+      if (Math.abs(e.clientY - rect.bottom) <= 8 || e.target.closest(".vno-row-resizer")) {
+        e.stopPropagation();
+        this.autoFitRow(r);
+      }
+    });
     tr.appendChild(thRow);
+
 
     const normRange = this._normalizeRange(this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
     const isMulti = this._isMultiRangeSelection();
@@ -13435,10 +13568,15 @@ _bindGridKeyboardNavigation() {
       if (typeof this.formulaEntry.value === "string" && this.formulaEntry.value.startsWith("=")) {
         td.textContent = this.formulaEntry.value;
         td.style.textAlign = "left";
+        td.classList.add("can-overflow", "is-composing");
+        td.classList.remove("has-content");
+        td.style.overflow = "visible";
+        td.style.zIndex = "20";
         if (col && row && typeof this._applyRowColSizeToCell === "function") this._applyRowColSizeToCell(td, col, row);
         return;
       }
     }
+
 
     // Rich text: render multiple styled <span> elements
     if (Array.isArray(itm.richText) && itm.richText.length > 0) {
@@ -13513,6 +13651,9 @@ _bindGridKeyboardNavigation() {
       const align = itm.style?.textAlign || td.style?.textAlign;
       const isLeftAlign = !align || align === "left" || align === "start";
 
+      const isComposingThisCell = (this.formulaEntry && this.formulaEntry.coord?.c === col && this.formulaEntry.coord?.r === row) ||
+        (this.selectedCoord.c === col && this.selectedCoord.r === row && (this._isFormulaComposing || (typeof document !== "undefined" && document.activeElement === this.formulaInput)));
+
       if (isText && !isWrap && isLeftAlign && col && row) {
         const colSpan = td.colSpan || 1;
         const startColNum = typeof this._columnNumber === "function" ? this._columnNumber(col) : 1;
@@ -13530,24 +13671,40 @@ _bindGridKeyboardNavigation() {
             }
           }
         }
-        if (nextIsEmpty) {
+        if (nextIsEmpty || isComposingThisCell) {
           td.classList.add("can-overflow");
+          if (isComposingThisCell) td.classList.add("is-composing");
           td.classList.remove("has-content");
           td.style.overflow = "visible";
+          if (isComposingThisCell) td.style.zIndex = "20";
         } else {
-          td.classList.remove("can-overflow");
+          td.classList.remove("can-overflow", "is-composing");
           td.classList.add("has-content");
           td.style.overflow = "hidden";
           td.style.textOverflow = "clip";
         }
+      } else if (isComposingThisCell) {
+        td.classList.add("can-overflow", "is-composing");
+        td.classList.remove("has-content");
+        td.style.overflow = "visible";
+        td.style.zIndex = "20";
       } else {
-        td.classList.remove("can-overflow");
+        td.classList.remove("can-overflow", "is-composing");
         td.classList.add("has-content");
         td.style.overflow = "hidden";
         td.style.textOverflow = "clip";
       }
     } else {
-      td.classList.remove("can-overflow", "has-content");
+      const isComposingThisCell = (this.formulaEntry && this.formulaEntry.coord?.c === col && this.formulaEntry.coord?.r === row) ||
+        (this.selectedCoord.c === col && this.selectedCoord.r === row && (this._isFormulaComposing || (typeof document !== "undefined" && document.activeElement === this.formulaInput)));
+      if (isComposingThisCell) {
+        td.classList.add("can-overflow", "is-composing");
+        td.classList.remove("has-content");
+        td.style.overflow = "visible";
+        td.style.zIndex = "20";
+      } else {
+        td.classList.remove("can-overflow", "is-composing", "has-content");
+      }
     }
   }
 }

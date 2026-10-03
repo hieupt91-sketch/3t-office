@@ -5237,20 +5237,22 @@ const startEditing = (initialText) => {
     if (!this.canvasEl) return;
 
     // Marquee / Rubber-band Selection
-    this.canvasEl.addEventListener("pointerdown", (event) => {
-      if (event.target !== this.canvasEl && event.target !== this.shapesLayer) {
-        return;
-      }
+    const viewportOrCanvas = this.canvasViewport || this.canvasEl;
+    viewportOrCanvas.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0) return;
       if (event.target.closest?.(".vno-slide-shape-item") ||
           event.target.closest?.(".vno-slide-comment-indicator") ||
           event.target.closest?.(".vno-slide-title") ||
-          event.target.closest?.(".vno-slide-body")) {
+          event.target.closest?.(".vno-slide-body") ||
+          event.target.closest?.(".vno-shape-resize-handle") ||
+          event.target.closest?.(".vno-slide-thumb-item") ||
+          event.target.closest?.(".vno-ruler-track")) {
         return;
       }
 
-      const rect = this.canvasEl.getBoundingClientRect();
-      const startX = event.clientX - rect.left;
-      const startY = event.clientY - rect.top;
+      const canvasRect = this.canvasEl.getBoundingClientRect();
+      const startClientX = event.clientX;
+      const startClientY = event.clientY;
 
       if (!event.shiftKey && !event.ctrlKey) {
         this.setSelectedTarget(null);
@@ -5258,44 +5260,54 @@ const startEditing = (initialText) => {
 
       const marqueeEl = document.createElement("div");
       marqueeEl.className = "vno-marquee-selection";
-      marqueeEl.style.cssText = `position:absolute;left:${startX}px;top:${startY}px;width:0px;height:0px;border:1.5px dashed #2563eb;background:rgba(37,99,235,0.12);pointer-events:none;z-index:9998;box-sizing:border-box;`;
+      marqueeEl.style.cssText = `position:absolute;left:${startClientX - canvasRect.left}px;top:${startClientY - canvasRect.top}px;width:0px;height:0px;border:1.5px dashed #2563eb;background:rgba(37,99,235,0.12);pointer-events:none;z-index:9998;box-sizing:border-box;`;
       this.canvasEl.appendChild(marqueeEl);
 
       let moved = false;
       const initialSelected = new Set(this.selectedShapeIds || []);
 
       const move = (moveEvent) => {
-        const curX = moveEvent.clientX - rect.left;
-        const curY = moveEvent.clientY - rect.top;
-        const minX = Math.max(0, Math.min(startX, curX));
-        const minY = Math.max(0, Math.min(startY, curY));
-        const width = Math.abs(curX - startX);
-        const height = Math.abs(curY - startY);
+        const minClientX = Math.min(startClientX, moveEvent.clientX);
+        const maxClientX = Math.max(startClientX, moveEvent.clientX);
+        const minClientY = Math.min(startClientY, moveEvent.clientY);
+        const maxClientY = Math.max(startClientY, moveEvent.clientY);
+        const width = maxClientX - minClientX;
+        const height = maxClientY - minClientY;
 
-        if (!moved && width + height < 3) return;
+        if (!moved && width + height < 4) return;
         moved = true;
 
-        marqueeEl.style.left = `${minX}px`;
-        marqueeEl.style.top = `${minY}px`;
+        const cRect = this.canvasEl.getBoundingClientRect();
+        marqueeEl.style.left = `${minClientX - cRect.left}px`;
+        marqueeEl.style.top = `${minClientY - cRect.top}px`;
         marqueeEl.style.width = `${width}px`;
         marqueeEl.style.height = `${height}px`;
 
-        const slide = this.slides[this.currentSlideIndex];
-        const shapes = (slide && slide.shapes) || [];
         const currentSelected = new Set(initialSelected);
 
-        shapes.forEach(sh => {
-          if (sh.type === "connector") return;
-          const shLeft = sh.x;
-          const shTop = sh.y;
-          const shRight = sh.x + sh.w;
-          const shBottom = sh.y + sh.h;
-          const mRight = minX + width;
-          const mBottom = minY + height;
+        const shapeEls = this.canvasEl.querySelectorAll(".vno-slide-shape-item");
+        shapeEls.forEach((el) => {
+          const sRect = el.getBoundingClientRect();
+          const intersects = !(sRect.right < minClientX || sRect.left > maxClientX || sRect.bottom < minClientY || sRect.top > maxClientY);
+          const shapeId = el.dataset.shapeId;
+          if (intersects && shapeId) {
+            currentSelected.add(String(shapeId));
+          }
+        });
 
-          const intersects = !(shRight < minX || shLeft > mRight || shBottom < minY || shTop > mBottom);
-          if (intersects) {
-            currentSelected.add(String(sh.id));
+        const slide = this.slides[this.currentSlideIndex];
+        const shapes = (slide && slide.shapes) || [];
+        shapes.forEach((sh) => {
+          if (sh.type === "connector") return;
+          const shEl = this.canvasEl.querySelector(`[data-shape-id="${sh.id}"]`);
+          if (!shEl) {
+            const shLeft = cRect.left + sh.x;
+            const shTop = cRect.top + sh.y;
+            const shRight = shLeft + sh.w;
+            const shBottom = shTop + sh.h;
+            if (!(shRight < minClientX || shLeft > maxClientX || shBottom < minClientY || shTop > maxClientY)) {
+              currentSelected.add(String(sh.id));
+            }
           }
         });
 
@@ -5887,6 +5899,65 @@ const startEditing = (initialText) => {
         if (!Number.isNaN(fromIndex) && fromIndex !== idx) {
           this.moveSlide(fromIndex, idx);
         }
+      });
+
+      // Mouse drag reorder (tương thích cả CDP và thao tác chuột)
+      item.addEventListener("mousedown", (event) => {
+        if (event.button !== 0) return;
+        const fromIdx = idx;
+        const startY = event.clientY;
+        const startX = event.clientX;
+        let isDragging = false;
+
+        const onMouseMove = (moveEvt) => {
+          const dy = Math.abs(moveEvt.clientY - startY);
+          const dx = Math.abs(moveEvt.clientX - startX);
+          if (!isDragging && (dy > 4 || dx > 4)) {
+            isDragging = true;
+            item.classList.add("is-dragging");
+          }
+          if (isDragging) {
+            moveEvt.preventDefault();
+            const elUnder = document.elementFromPoint(moveEvt.clientX, moveEvt.clientY);
+            const targetItem = elUnder?.closest?.(".vno-slide-thumb-item");
+            this.slideListContainer?.querySelectorAll(".is-drag-over").forEach(el => el.classList.remove("is-drag-over"));
+            if (targetItem && targetItem !== item) {
+              targetItem.classList.add("is-drag-over");
+            }
+          }
+        };
+
+        const onMouseUp = (upEvt) => {
+          document.removeEventListener("mousemove", onMouseMove);
+          document.removeEventListener("mouseup", onMouseUp);
+
+          if (isDragging) {
+            item.classList.remove("is-dragging");
+            this.slideListContainer?.querySelectorAll(".is-drag-over").forEach(el => el.classList.remove("is-drag-over"));
+
+            const elUnder = document.elementFromPoint(upEvt.clientX, upEvt.clientY);
+            let targetItem = elUnder?.closest?.(".vno-slide-thumb-item");
+            if (!targetItem) {
+              const allThumbs = Array.from(this.slideListContainer?.querySelectorAll(".vno-slide-thumb-item") || []);
+              for (const th of allThumbs) {
+                const r = th.getBoundingClientRect();
+                if (upEvt.clientY >= r.top - 15 && upEvt.clientY <= r.bottom + 20) {
+                  targetItem = th;
+                  break;
+                }
+              }
+            }
+            if (targetItem) {
+              const toIdx = Number(targetItem.dataset.slideIndex);
+              if (!Number.isNaN(toIdx) && toIdx !== fromIdx) {
+                this.moveSlide(fromIdx, toIdx);
+              }
+            }
+          }
+        };
+
+        document.addEventListener("mousemove", onMouseMove);
+        document.addEventListener("mouseup", onMouseUp);
       });
 
       item.addEventListener("click", () => this.selectSlide(idx));
