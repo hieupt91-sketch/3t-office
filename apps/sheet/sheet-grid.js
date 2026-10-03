@@ -1844,22 +1844,107 @@ export class SheetGridController {
       this.selectionRanges = [range];
     }
     if (options.scrollActive && this.viewport) {
-      let scrolled = false;
-      const cNum = this._columnNumber(activeCoord.c);
-      if (activeCoord.r < (this.currentStartRow || 1) || activeCoord.r > (this.currentEndRow || 40)) {
-        this.viewport.scrollTop = Math.max(0, this._rowTop(activeCoord.r) - 5 * this.rowHeight);
-        scrolled = true;
-      }
-      if (cNum < (this.currentStartColNum || 1) || cNum > (this.currentEndColNum || Math.min(this.cols.length, 30))) {
-        this.viewport.scrollLeft = Math.max(0, this._colLeft(cNum) - 3 * this.defaultColWidth);
-        scrolled = true;
-      }
-      if (scrolled) {
-        this._onViewportScroll();
-      }
+      let moved = this._scrollCellIntoView(activeCoord.c, activeCoord.r);
+      if (moved) this._onViewportScroll();
+      // Rows can render taller than the model (content larger than a fixed row height): trust the real element.
+      moved = this._nudgeScrollToRenderedCell(activeCoord.c, activeCoord.r);
+      if (moved) this._onViewportScroll();
     }
     this._updateRangeSelectionVisuals();
     this.focusGrid();
+  }
+
+  /**
+   * Scroll the minimum distance so the active cell is fully inside the visible grid, like Excel.
+   * Uses the real row heights / column widths and the real viewport size. (The old check compared the cell with the
+   * rendered window, which includes a buffer of rows below the screen: the selection walked off-screen, then the grid
+   * jumped to a distant position.) Returns true when the scroll position changed.
+   */
+  _scrollCellIntoView(col, row) {
+    const viewport = this.viewport;
+    if (!viewport) return false;
+    const headerHeight = viewport.querySelector?.("thead")?.offsetHeight || 0;
+    const rowHeaderWidth = this.tbody?.querySelector?.(".vno-row-header")?.offsetWidth || 0;
+    const viewHeight = (viewport.clientHeight || 0) - headerHeight;
+    const viewWidth = (viewport.clientWidth || 0) - rowHeaderWidth;
+    if (viewHeight <= 0 || viewWidth <= 0) {
+      // Not laid out yet (hidden tab / tests without layout): keep the previous coarse behaviour.
+      return this._scrollCellIntoViewByRenderedWindow(col, row);
+    }
+    const colNumber = this._columnNumber(col);
+    let changed = false;
+
+    const frozenRows = Math.min(this.frozenRows || 0, this.rowCount);
+    const frozenHeight = frozenRows > 0 && row > frozenRows ? this._rowTop(frozenRows + 1) : 0;
+    const rowTop = this._rowTop(row);
+    const rowBottom = this._rowBottom(row);
+    let scrollTop = viewport.scrollTop;
+    if (rowTop < scrollTop + frozenHeight) scrollTop = rowTop - frozenHeight;
+    else if (rowBottom > scrollTop + viewHeight) scrollTop = rowBottom - viewHeight;
+    scrollTop = Math.max(0, Math.round(scrollTop));
+    if (scrollTop !== Math.round(viewport.scrollTop)) {
+      viewport.scrollTop = scrollTop;
+      changed = true;
+    }
+
+    const frozenCols = Math.min(this.frozenCols || 0, this.cols.length);
+    const frozenWidth = frozenCols > 0 && colNumber > frozenCols ? this._colLeft(frozenCols + 1) : 0;
+    const colLeft = this._colLeft(colNumber);
+    const colRight = colLeft + this.getColumnWidth(col);
+    let scrollLeft = viewport.scrollLeft;
+    if (colLeft < scrollLeft + frozenWidth) scrollLeft = colLeft - frozenWidth;
+    else if (colRight > scrollLeft + viewWidth) scrollLeft = colRight - viewWidth;
+    scrollLeft = Math.max(0, Math.round(scrollLeft));
+    if (scrollLeft !== Math.round(viewport.scrollLeft)) {
+      viewport.scrollLeft = scrollLeft;
+      changed = true;
+    }
+    return changed;
+  }
+
+  _nudgeScrollToRenderedCell(col, row) {
+    const viewport = this.viewport;
+    if (!viewport || typeof viewport.getBoundingClientRect !== "function") return false;
+    const cell = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${col}${row}"]`);
+    if (!cell || typeof cell.getBoundingClientRect !== "function") return false;
+    const box = viewport.getBoundingClientRect();
+    const rect = cell.getBoundingClientRect();
+    if (!(box.height > 0) || !(rect.height > 0)) return false;
+    // Frozen cells are sticky and always visible.
+    if (cell.classList?.contains?.("is-frozen-row-cell") || cell.classList?.contains?.("is-frozen-col-cell")
+      || cell.classList?.contains?.("is-frozen-corner-cell")) return false;
+    const headerHeight = viewport.querySelector?.("thead")?.offsetHeight || 0;
+    const rowHeaderWidth = this.tbody?.querySelector?.(".vno-row-header")?.offsetWidth || 0;
+    const visibleTop = box.top + headerHeight;
+    const visibleBottom = box.top + (viewport.clientHeight || box.height);
+    const visibleLeft = box.left + rowHeaderWidth;
+    const visibleRight = box.left + (viewport.clientWidth || box.width);
+    let deltaY = 0;
+    let deltaX = 0;
+    if (rect.top < visibleTop) deltaY = rect.top - visibleTop;
+    else if (rect.bottom > visibleBottom) deltaY = rect.bottom - visibleBottom;
+    if (rect.left < visibleLeft) deltaX = rect.left - visibleLeft;
+    else if (rect.right > visibleRight) deltaX = rect.right - visibleRight;
+    deltaY = Math.round(deltaY);
+    deltaX = Math.round(deltaX);
+    if (!deltaY && !deltaX) return false;
+    if (deltaY) viewport.scrollTop = Math.max(0, viewport.scrollTop + deltaY);
+    if (deltaX) viewport.scrollLeft = Math.max(0, viewport.scrollLeft + deltaX);
+    return true;
+  }
+
+  _scrollCellIntoViewByRenderedWindow(col, row) {
+    let scrolled = false;
+    const cNum = this._columnNumber(col);
+    if (row < (this.currentStartRow || 1) || row > (this.currentEndRow || 40)) {
+      this.viewport.scrollTop = Math.max(0, this._rowTop(row) - 5 * this.rowHeight);
+      scrolled = true;
+    }
+    if (cNum < (this.currentStartColNum || 1) || cNum > (this.currentEndColNum || Math.min(this.cols.length, 30))) {
+      this.viewport.scrollLeft = Math.max(0, this._colLeft(cNum) - 3 * this.defaultColWidth);
+      scrolled = true;
+    }
+    return scrolled;
   }
 
   focusGrid() {
@@ -3978,6 +4063,15 @@ export class SheetGridController {
     endRow = Math.min(this.rowCount, endRow);
     startColNum = Math.max(1, startColNum);
     endColNum = Math.min(this.cols.length, endColNum);
+    // Always cover what the viewport really shows. Many callers pass the stale default window (rows 1-40 / 30 columns);
+    // with hidden rows or narrow columns the screen holds more than that and the bottom of the grid stayed blank until
+    // the first scroll event (seen on a filtered inventory file: rows after 38 missing at open).
+    if (this.viewport && this.viewport.clientHeight > 0 && this.viewport.clientWidth > 0) {
+      const scrollTop = this.viewport.scrollTop;
+      const scrollLeft = this.viewport.scrollLeft;
+      endRow = Math.max(endRow, Math.min(this.rowCount, this._lastVisibleRow(scrollTop, this.viewport.clientHeight) + 8));
+      endColNum = Math.max(endColNum, Math.min(this.cols.length, this._lastVisibleCol(scrollLeft, this.viewport.clientWidth) + 5));
+    }
     this.currentStartRow = startRow;
     this.currentEndRow = endRow;
     this.currentStartColNum = startColNum;
@@ -4359,7 +4453,7 @@ _bindGridKeyboardNavigation() {
         const pageRows = Math.max(1, Math.floor((this.viewport?.clientHeight || 390) / this.rowHeight) - 1);
         nextRow = Math.max(1, nextRow - pageRows);
         extendRange = e.shiftKey;
-        if (this.viewport) this.viewport.scrollTop = Math.max(0, (nextRow - 1) * this.rowHeight);
+        if (this.viewport) this.viewport.scrollTop = Math.max(0, this._rowTop(nextRow));
         this.selectCell(nextCol, nextRow, extendRange);
         return;
       } else if (e.key === "PageDown" && !e.ctrlKey && !e.altKey && !e.metaKey) {
@@ -4369,7 +4463,7 @@ _bindGridKeyboardNavigation() {
         const pageRows = Math.max(1, Math.floor((this.viewport?.clientHeight || 390) / this.rowHeight) - 1);
         nextRow = Math.min(this.rowCount, nextRow + pageRows);
         extendRange = e.shiftKey;
-        if (this.viewport) this.viewport.scrollTop = Math.max(0, (nextRow - 1) * this.rowHeight);
+        if (this.viewport) this.viewport.scrollTop = Math.max(0, this._rowTop(nextRow));
         this.selectCell(nextCol, nextRow, extendRange);
         return;
       } else if ((e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey)) && !e.ctrlKey && !e.altKey && !e.metaKey) {

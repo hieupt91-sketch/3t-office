@@ -73,6 +73,50 @@ export async function runSheetFormulaBarDisplayTests() {
     grid.selectedCoord = { c: "A", r: 18 };
     eq(target(grid, "A", 17), "A6");
   });
+  // Cuộn theo ô đang chọn: tối thiểu cần thiết, không để ô trôi ra ngoài màn hình (lỗi thật thấy trên lan03).
+  const withViewport = (grid, { height = 424, width = 844, scrollTop = 0, scrollLeft = 0 } = {}) => {
+    grid.viewport = {
+      clientHeight: height, clientWidth: width, scrollTop, scrollLeft,
+      querySelector: () => ({ offsetHeight: 24 })
+    };
+    grid.tbody = { querySelector: () => ({ offsetWidth: 44 }) };
+    return grid;
+  };
+
+  test("Cuộn theo ô: ô đang nhìn thấy thì không cuộn", () => {
+    const grid = withViewport(createSheetGridWithSheets(container(), ["Sheet1"]));
+    eq(grid._scrollCellIntoView("B", 5), false);
+    eq(grid.viewport.scrollTop, 0);
+  });
+  test("Cuộn theo ô: xuống dưới mép đáy thì cuộn đúng đủ để ô nằm sát đáy, không nhảy xa", () => {
+    const grid = withViewport(createSheetGridWithSheets(container(), ["Sheet1"]));
+    const viewH = 424 - 24;
+    const row = 40;
+    eq(grid._scrollCellIntoView("A", row), true);
+    eq(grid.viewport.scrollTop, Math.round(grid._rowBottom(row) - viewH));
+    // Ô kế tiếp chỉ cuộn thêm đúng một dòng.
+    const before = grid.viewport.scrollTop;
+    grid._scrollCellIntoView("A", row + 1);
+    eq(grid.viewport.scrollTop, before + grid.getRowHeight(row + 1));
+  });
+  test("Cuộn theo ô: lên trên mép đỉnh thì ô nằm sát đỉnh", () => {
+    const grid = withViewport(createSheetGridWithSheets(container(), ["Sheet1"]), { scrollTop: 800 });
+    eq(grid._scrollCellIntoView("A", 10), true);
+    eq(grid.viewport.scrollTop, Math.round(grid._rowTop(10)));
+  });
+  test("Cuộn theo ô: hàng cao tuỳ chỉnh vẫn tính theo chiều cao thật", () => {
+    const grid = withViewport(createSheetGridWithSheets(container(), ["Sheet1"]));
+    for (let r = 1; r <= 30; r += 1) grid._rowHeights().set(r, 150);
+    grid._invalidateRowTopsCache();
+    eq(grid.getRowHeight(8), 150);
+    eq(grid._scrollCellIntoView("A", 8), true);
+    eq(grid.viewport.scrollTop, Math.round(grid._rowBottom(8) - (424 - 24)));
+  });
+  test("Cuộn theo ô: sang phải ngoài mép thì cuộn ngang đúng đủ", () => {
+    const grid = withViewport(createSheetGridWithSheets(container(), ["Sheet1"]));
+    eq(grid._scrollCellIntoView("Z", 1), true);
+    eq(grid.viewport.scrollLeft, Math.round(grid._colLeft(26) + grid.getColumnWidth("Z") - (844 - 44)));
+  });
   test("Chuyển ô: hết hàng thì đứng yên, không nhảy ra ngoài bảng", () => {
     const grid = gridAt("A", 1);
     eq(target(grid, "A", 0), "A1");

@@ -265,8 +265,10 @@ export async function runSheetVirtualScrollRowHeightTests() {
       "row 5 top after row 3 height change");
   });
 
-  // TEST 11: selectCell auto-scroll uses _rowTop for large row heights
-  test("selectCell auto-scroll uses _rowTop, not (row-5)*rowHeight", () => {
+  // TEST 11: selectCell auto-scroll uses the real row heights for large rows.
+  // Behaviour change 03/10: scroll the MINIMUM needed so the cell is fully visible (like Excel) instead of putting the
+  // row five default-rows below the top; the old rule let the selection walk off-screen inside the render buffer.
+  test("selectCell auto-scroll uses real row heights (_rowBottom), not (row-5)*rowHeight", () => {
     const customHeights = {};
     for (let r = 1; r <= 43; r++) customHeights[r] = 130;
     const grid = createGridForTest(200, customHeights);
@@ -282,9 +284,21 @@ export async function runSheetVirtualScrollRowHeightTests() {
 
     grid.selectCell("A", 44);
 
-    const expectedScrollTop = Math.max(0, grid._rowTop(44) - 5 * DEFAULT_ROW_HEIGHT_PX);
+    // Mock viewport: clientHeight 500, no header. Minimal scroll puts the bottom of row 44 on the bottom edge.
+    const expectedScrollTop = Math.round(grid._rowBottom(44) - 500);
     assertEq(grid.viewport.scrollTop, expectedScrollTop,
-      "scrollTop should be based on _rowTop(44), not (44-5)*26");
+      "scrollTop should be based on the real bottom of row 44, not (44-5)*26");
+  });
+
+  // TEST 11b: the rendered window must cover the viewport even when many rows are hidden (filtered inventory file:
+  // rows after 38 stayed blank because callers passed the stale default window 1..40).
+  test("render window covers the viewport when many rows are hidden", () => {
+    const grid = createGridForTest(300);
+    for (let r = 7; r <= 120; r++) grid._userHiddenRows().add(r);
+    grid._invalidateRowTopsCache();
+    grid._renderVirtualRows(1, 40);
+    assert(grid.currentEndRow >= 130, `currentEndRow=${grid.currentEndRow} should reach past the hidden block`);
+    assertEq(grid.currentStartRow, 1, "start row stays at the top");
   });
 
   // TEST 12: _totalHeight() returns sum of all row heights
