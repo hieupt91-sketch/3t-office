@@ -143,6 +143,14 @@ function unwrapMarkers(root) {
   if (!root || typeof root.querySelectorAll !== "function") return;
   const doc = root.ownerDocument || (typeof document !== "undefined" ? document : null);
   for (const marker of root.querySelectorAll(MARKER_SELECTOR)) {
+    // A marker can hold formatting the user applied to the word (<b>, <i>, styled <span>): move the children out
+    // instead of flattening to text, otherwise bolding an "uncertain" word lost its bold on the next refresh.
+    const hasFormatting = Boolean(marker.firstElementChild);
+    if (hasFormatting && marker.parentNode && typeof marker.parentNode.insertBefore === "function") {
+      while (marker.firstChild) marker.parentNode.insertBefore(marker.firstChild, marker);
+      marker.parentNode.removeChild(marker);
+      continue;
+    }
     const textNode = doc?.createTextNode ? doc.createTextNode(marker.textContent) : marker.textContent;
     marker.replaceWith(textNode);
   }
