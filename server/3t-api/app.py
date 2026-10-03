@@ -53,6 +53,7 @@ _DOCUMENT_MARKERS = tuple(re.compile(pattern, re.IGNORECASE) for pattern in (
     r"<\??(?:xml|w:|a:|p:|office:|table:|text:|draw:)", r"\{\\rtf", r"%PDF-", r"PK\x03\x04",
     r"data:(?:application|image)/", r"(?:^|\n)\s*(?:Content_Types\.xml|word/document\.xml|xl/worksheets/|ppt/slides/)",
 ))
+_UPDATE_PLATFORMS = frozenset({"windows", "macos", "ios", "android", "linux"})
 _SAFE_DOWNLOAD_NAME = re.compile(r"^[A-Za-z0-9_.-]+\.(?:exe|msi|zip|tar\.gz)$")
 
 
@@ -104,6 +105,8 @@ class LicenseActivateRequest(BaseModel):
     device_name: str = Field(min_length=1, max_length=128)
     app_version: str = Field(min_length=1, max_length=40)
     email: str | None = Field(default=None, max_length=255)
+    # Server is shared by every platform (Windows now; macOS / iOS / Android later). Older clients omit it = windows.
+    platform: str = Field(default="windows", pattern=r"^(windows|macos|ios|android|linux)$")
 
 
 class LicenseValidateRequest(BaseModel):
@@ -293,6 +296,8 @@ def _safe_file(root: Path, relative: str) -> Path:
 
 
 def _public_update_path(relative: str) -> bool:
+    # Optional leading platform folder (macos/ios/android/linux). Windows keeps the original, unprefixed layout.
+    relative = re.sub(r"^(?:macos|ios|android|linux)/", "", relative, count=1)
     if re.fullmatch(r"channels/[a-z][a-z0-9-]{0,31}\.json", relative):
         return True
     if re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?/manifest\.(?:json|sig)", relative):
@@ -598,7 +603,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/api/v1/updates/{product}/{channel}/latest")
     async def latest_update(
-        product: str, channel: str, current: str | None = None, compact: bool = False
+        product: str, channel: str, current: str | None = None, compact: bool = False, platform: str = "windows"
     ) -> dict[str, object]:
         # `current`: the caller's version. Same version -> a tiny "up_to_date" answer, so a periodic check does not
         # download the multi-megabyte signed manifest. `compact`: omit the parsed manifest copy (the signed
@@ -608,13 +613,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if not _CHANNEL_RE.fullmatch(channel):
             raise HTTPException(status_code=404, detail="Channel not found")
         try:
-            pointer_path = _safe_file(cfg.updates_dir, f"channels/{channel}.json")
+            # Windows keeps the original layout (existing installs read /updates/channels/... directly);
+            # other platforms get their own tree <updates>/<platform>/channels/... with the same structure.
+            if platform not in _UPDATE_PLATFORMS:
+                raise HTTPException(status_code=404, detail="Platform not found")
+            base = "" if platform == "windows" else f"{platform}/"
+            pointer_path = _safe_file(cfg.updates_dir, f"{base}channels/{channel}.json")
             pointer = json.loads(pointer_path.read_text(encoding="utf-8"))
             version = pointer.get("version")
             if pointer.get("channel") != channel or not isinstance(version, str) or not _VERSION_RE.fullmatch(version):
                 raise ValueError("bad pointer")
-            manifest_path = _safe_file(cfg.updates_dir, f"{version}/manifest.json")
-            signature_path = _safe_file(cfg.updates_dir, f"{version}/manifest.sig")
+            manifest_path = _safe_file(cfg.updates_dir, f"{base}{version}/manifest.json")
+            signature_path = _safe_file(cfg.updates_dir, f"{base}{version}/manifest.sig")
             manifest_raw = manifest_path.read_bytes()
             signature = signature_path.read_bytes()
             manifest = json.loads(manifest_raw.decode("utf-8"))
@@ -729,8 +739,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             if act_row and act_row["removed_at"] is None:
                 # Kích hoạt lại cùng máy: cập nhật thông tin, không tốn thêm slot
                 conn.execute(
-                    """UPDATE activations SET last_check_at = ?, device_name = ?, app_version = ? WHERE id = ?""",
-                    (now_iso, payload.device_name, payload.app_version, act_row["id"]),
+                    """UPDATE activations SET last_check_at = ?, device_name = ?, app_version = ?, platform = ? WHERE id = ?""",
+                    (now_iso, payload.device_name, payload.app_version, payload.platform, act_row["id"]),
                 )
             else:
                 # Kiểm tra số lượng máy đang kích hoạt còn chỗ không
@@ -752,15 +762,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 if act_row and act_row["removed_at"] is not None:
                     # Máy đã từng bị gỡ, nay kích hoạt lại vào slot trống
                     conn.execute(
-                        """UPDATE activations SET removed_at = NULL, last_check_at = ?, device_name = ?, app_version = ? WHERE id = ?""",
-                        (now_iso, payload.device_name, payload.app_version, act_row["id"]),
+                        """UPDATE activations SET removed_at = NULL, last_check_at = ?, device_name = ?, app_version = ?, platform = ? WHERE id = ?""",
+                        (now_iso, payload.device_name, payload.app_version, payload.platform, act_row["id"]),
                     )
                 else:
                     # Máy mới tinh
                     conn.execute(
-                        """INSERT INTO activations (id, license_id, device_hash, device_name, first_at, last_check_at, app_version, removed_at)
-                           VALUES (?, ?, ?, ?, ?, ?, ?, NULL)""",
-                        (str(uuid.uuid4()), license_id, device_hash, payload.device_name, now_iso, now_iso, payload.app_version),
+                        """INSERT INTO activations (id, license_id, device_hash, device_name, first_at, last_check_at, app_version, removed_at, platform)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?)""",
+                        (str(uuid.uuid4()), license_id, device_hash, payload.device_name, now_iso, now_iso, payload.app_version, payload.platform),
                     )
 
             seats_used = conn.execute(
@@ -773,6 +783,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             license_id=license_id,
             device_fingerprint=payload.device_fingerprint,
             key_hint=key_hint,
+            platform=payload.platform,
         )
 
         return JSONResponse(
@@ -1245,7 +1256,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 raise HTTPException(status_code=404, detail="Không tìm thấy mã bản quyền")
 
             activations = conn.execute(
-                """SELECT id, device_hash, device_name, first_at, last_check_at, app_version, removed_at
+                """SELECT id, device_hash, device_name, first_at, last_check_at, app_version, removed_at, platform
                    FROM activations WHERE license_id = ? ORDER BY first_at DESC""",
                 (key_id,),
             ).fetchall()

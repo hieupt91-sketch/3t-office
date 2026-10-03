@@ -263,3 +263,29 @@ def test_download_installer_file_with_range_and_security(tmp_path: Path):
 
     asyncio.run(scenario())
 
+
+
+def test_update_api_is_platform_aware_and_windows_layout_is_unchanged(tmp_path):
+    async def run():
+        client, paths = make_client(tmp_path)
+        updates = paths["updates_dir"]
+        for base, version in (("", "0.9.8"), ("macos/", "1.0.0")):
+            (updates / (base + "channels")).mkdir(parents=True)
+            (updates / (base + version)).mkdir(parents=True)
+            (updates / (base + "channels/pilot.json")).write_text(
+                '{"channel":"pilot","version":"%s"}' % version, encoding="utf-8")
+            (updates / (base + version + "/manifest.json")).write_bytes(
+                b'{"channel":"pilot","version":"%s","schema_version":1}\n' % version.encode())
+            (updates / (base + version + "/manifest.sig")).write_bytes(b"s" * 384)
+        async with client:
+            default = await client.get("/api/v1/updates/3t-office/pilot/latest")
+            assert default.status_code == 200 and default.json()["version"] == "0.9.8"
+            windows = await client.get("/api/v1/updates/3t-office/pilot/latest", params={"platform": "windows"})
+            assert windows.json()["version"] == "0.9.8"
+            mac = await client.get("/api/v1/updates/3t-office/pilot/latest", params={"platform": "macos"})
+            assert mac.status_code == 200 and mac.json()["version"] == "1.0.0"
+            assert (await client.get("/updates/macos/1.0.0/manifest.json")).status_code == 200
+            assert (await client.get("/updates/macos/channels/pilot.json")).status_code == 200
+            assert (await client.get("/api/v1/updates/3t-office/pilot/latest", params={"platform": "ios"})).status_code == 404
+            assert (await client.get("/api/v1/updates/3t-office/pilot/latest", params={"platform": "../x"})).status_code == 404
+    asyncio.run(run())
