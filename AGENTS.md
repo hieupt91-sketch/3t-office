@@ -123,3 +123,7 @@ Dừng và xin quyết định khi:
 - license/trademark uncertainty
 - destructive Git
 - architecture docs và source thực tế mâu thuẫn nghiêm trọng
+
+## 12. Nền tảng và nhánh Git (Windows / macOS / mobile)
+- Một monorepo, nhiều nền tảng. Đọc trước khi làm việc ngoài Windows: `docs/SPEC-PLATFORMS-AND-BRANCHES.md` (nhánh `main` = lõi dùng chung + Windows; `platform/macos`; `platform/mobile`; quy tắc đồng bộ), `docs/SPEC-MACOS-PORT.md` (cách đưa lên macOS cho chạy đúng như Windows), `docs/SPEC-MOBILE.md`.
+- Mã dùng chung sửa ở `main` trước; mã riêng hệ điều hành chỉ ở `platform/os_services/<nền-tảng>.py` và `ports/<nền-tảng>/`; không thêm điều kiện theo hệ điều hành rải rác vào `apps/` hay `platform/*.js`.
