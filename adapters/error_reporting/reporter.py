@@ -131,6 +131,11 @@ def _current_username() -> str:
         return ""
 
 
+def _safe_version(value: object) -> str:
+    text = str(value or "").strip()
+    return text[:80] if re.fullmatch(r"[0-9A-Za-z][0-9A-Za-z.+_-]*", text) else "unknown"
+
+
 def sanitize_text(value: object, *, secrets: tuple[str, ...] = (), limit: int = MAX_MESSAGE_CHARS) -> str:
     """Remove absolute paths, file names, local identity, secrets and long tokens."""
     text = str(value if value is not None else "")
@@ -223,7 +228,7 @@ class ErrorReporter:
         sender_thread: bool = True,
         timeout: float = SEND_TIMEOUT_SECONDS,
     ) -> None:
-        self.app_version = sanitize_text(app_version, limit=40)
+        self.app_version = _safe_version(app_version)[:40]
         self.app_kind = app_kind if app_kind in _APP_KINDS else "writer"
         self.data_dir = Path(data_dir)
         self.recovery_dir = self.data_dir / "recovery"
@@ -555,7 +560,8 @@ class ErrorReporter:
         payload = {
             "event_id": str(event.get("event_id", "")),
             "app": str(event.get("app")) if event.get("app") in _APP_KINDS else self.app_kind,
-            "version": sanitize_text(event.get("app_version", ""), secrets=secrets, limit=80),
+            # So phien ban (0.9.7) khong qua lop xoa ten tep: se bi doi thanh "<file>".
+            "version": _safe_version(event.get("app_version", "")),
             "os": sanitize_text(event.get("os_version", ""), secrets=secrets, limit=80),
             "error_type": sanitize_text(event.get("error_type", "FrontendError"), secrets=secrets, limit=80),
             "message": sanitize_text(message, secrets=secrets, limit=MAX_MESSAGE_CHARS),
@@ -614,11 +620,15 @@ class ErrorReporter:
         try:
             result = json.loads(raw.decode("utf-8"))
             token = str(result["token"])
-            expires_at = str(result["expires_at"])
-            expires = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
-            if expires.tzinfo is None:
-                expires = expires.replace(tzinfo=timezone.utc)
-            expiry_timestamp = expires.timestamp()
+            raw_expires = result["expires_at"]
+            if isinstance(raw_expires, (int, float)) and not isinstance(raw_expires, bool):
+                # May chu 3T Cloud tra expires_at la epoch giay (so nguyen).
+                expiry_timestamp = float(raw_expires)
+            else:
+                expires = datetime.fromisoformat(str(raw_expires).replace("Z", "+00:00"))
+                if expires.tzinfo is None:
+                    expires = expires.replace(tzinfo=timezone.utc)
+                expiry_timestamp = expires.timestamp()
         except (KeyError, TypeError, ValueError, UnicodeDecodeError, json.JSONDecodeError) as exc:
             raise OSError("Token response is invalid") from exc
         if not token or expiry_timestamp <= time.time():

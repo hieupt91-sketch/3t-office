@@ -36,7 +36,7 @@ class _CaptureHandler(BaseHTTPRequestHandler):
             request = json.loads(body.decode("utf-8"))
             type(self).token_requests.append(request)
             type(self).active_token = f"install-token-{len(type(self).token_requests)}"
-            response = json.dumps({"token": type(self).active_token, "expires_at": "2099-01-01T00:00:00Z"}).encode("utf-8")
+            response = json.dumps({"token": type(self).active_token, "expires_at": 4070908800}).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(response)))
@@ -223,6 +223,8 @@ class ErrorReportingTests(unittest.TestCase):
         payload = json.loads(sent)
         self.assertEqual(set(payload), {"event_id", "app", "version", "os", "error_type", "message", "stack", "installation_id"})
         self.assertEqual(payload["installation_id"], _CaptureHandler.token_requests[0]["installation_id"])
+        # Phien ban giu nguyen, khong bi lop xoa ten tep doi thanh "<file>" (loi thu that 03/10).
+        self.assertEqual(payload["version"], "0.9.0-pilot1")
         self.assertLessEqual(len(payload["message"]), 1000)
         self.assertLessEqual(len(payload["stack"]), 8000)
 
