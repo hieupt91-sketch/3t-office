@@ -144,6 +144,16 @@ def test_latest_manifest_api_and_static_range_support(tmp_path):
             assert latest.status_code == 200
             assert base64.b64decode(latest.json()["manifest_base64"]) == manifest_raw
             assert base64.b64decode(latest.json()["signature_base64"]) == signature
+            assert latest.json()["up_to_date"] is False and "manifest" in latest.json()
+            # Periodic check: same version -> tiny answer without the signed manifest.
+            same = await client.get("/api/v1/updates/3t-office/pilot/latest", params={"current": "0.9.6"})
+            assert same.status_code == 200
+            assert same.json() == {"product": "3t-office", "channel": "pilot", "version": "0.9.6", "up_to_date": True}
+            older = await client.get("/api/v1/updates/3t-office/pilot/latest", params={"current": "0.9.5", "compact": "1"})
+            assert older.json()["up_to_date"] is False
+            assert "manifest" not in older.json() and older.json()["manifest_base64"]
+            bogus = await client.get("/api/v1/updates/3t-office/pilot/latest", params={"current": "<script>"})
+            assert bogus.status_code == 200 and bogus.json()["up_to_date"] is False
             static = await client.get("/updates/0.9.6/manifest.json")
             assert static.status_code == 200
             assert static.content == manifest_raw

@@ -493,7 +493,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return {"accepted": True, "duplicate": not inserted}
 
     @app.get("/api/v1/updates/{product}/{channel}/latest")
-    async def latest_update(product: str, channel: str) -> dict[str, object]:
+    async def latest_update(
+        product: str, channel: str, current: str | None = None, compact: bool = False
+    ) -> dict[str, object]:
+        # `current`: the caller's version. Same version -> a tiny "up_to_date" answer, so a periodic check does not
+        # download the multi-megabyte signed manifest. `compact`: omit the parsed manifest copy (the signed
+        # base64 bytes are what the client verifies and uses).
         if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,63}", product) or product != cfg.product:
             raise HTTPException(status_code=404, detail="Product not found")
         if not _CHANNEL_RE.fullmatch(channel):
@@ -513,14 +518,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 raise ValueError("manifest mismatch")
         except (HTTPException, OSError, ValueError, TypeError, json.JSONDecodeError):
             raise HTTPException(status_code=404, detail="Signed update manifest not found") from None
-        return {
+        if current is not None and current == version and _VERSION_RE.fullmatch(current):
+            return {"product": product, "channel": channel, "version": version, "up_to_date": True}
+        answer: dict[str, object] = {
             "product": product,
             "channel": channel,
             "version": version,
-            "manifest": manifest,
+            "up_to_date": False,
             "manifest_base64": base64.b64encode(manifest_raw).decode("ascii"),
             "signature_base64": base64.b64encode(signature).decode("ascii"),
         }
+        if not compact:
+            answer["manifest"] = manifest
+        return answer
 
     @app.get("/updates/{relative_path:path}")
     async def update_file(relative_path: str, request: Request) -> Response:
