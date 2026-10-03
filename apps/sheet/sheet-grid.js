@@ -1575,7 +1575,7 @@ export class SheetGridController {
     }
     if (session.sheet === this.activeSheet && session.coord?.c === this.selectedCoord.c && session.coord?.r === this.selectedCoord.r) {
       const hasValidation = !!this.getValidationForCell(session.coord.c, session.coord.r);
-      this.setCellValue(session.coord.c, session.coord.r, session.value, !hasValidation, { coalesce: true, userInput: true });
+      this.setCellValue(session.coord.c, session.coord.r, session.value, !hasValidation, { coalesce: true, userInput: true, isComposing: true });
     }
     this._refreshFormulaEntryVisuals();
     if (!options.composing && options.source !== "autocomplete") {
@@ -1746,8 +1746,8 @@ export class SheetGridController {
   _commitFormulaEntry({ move = false, shift = false, tab = false } = {}) {
     const session = this.formulaEntry;
     if (!session) return false;
-    if (this.formulaInput) session.update(this.formulaInput.value, this.formulaInput.selectionStart ?? this.formulaInput.value.length);
-    let finalValue = session.commit();
+    if (this.formulaInput && typeof session.update === "function") session.update(this.formulaInput.value, this.formulaInput.selectionStart ?? this.formulaInput.value.length);
+    let finalValue = typeof session.commit === "function" ? session.commit() : session.value;
     if (typeof finalValue === "string") finalValue = finalValue.normalize("NFC");
     const coord = { ...session.coord };
     const ownerSheet = session.sheet;
@@ -1764,9 +1764,9 @@ export class SheetGridController {
       this._refreshFormulaEntryVisuals();
       return false;
     }
-    this.setCellValue(coord.c, coord.r, finalValue, true, { coalesce: true, userInput: true });
-    if (this.formulaInput) this.formulaInput.value = finalValue;
     this.formulaEntry = null;
+    this.setCellValue(coord.c, coord.r, finalValue, true, { coalesce: true, userInput: true, commit: true });
+    if (this.formulaInput) this.formulaInput.value = finalValue;
     const committedTd = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${coord.c}${coord.r}"]`);
     if (committedTd) this._renderCellVisual(committedTd, this.cellsData.get(`${coord.c}${coord.r}`), coord.c, coord.r);
     this._cellValueBeforeEdit = undefined;
@@ -1794,15 +1794,15 @@ export class SheetGridController {
     if (!session) return false;
     const coord = { ...session.coord };
     const ownerSheet = session.sheet;
-    const original = session.cancel();
+    const original = typeof session.cancel === "function" ? session.cancel() : (session.original ?? this._cellValueBeforeEdit);
     if (this.activeSheet !== ownerSheet) {
       this.sheetStates[ownerSheet] = { ...(this.sheetStates[ownerSheet] || {}), selectedCoord: { ...coord } };
       this.switchSheet(ownerSheet, { formulaReturn: true });
     }
     this.selectedCoord = { ...coord };
-    this.setCellValue(coord.c, coord.r, original, false);
-    if (this.formulaInput) this.formulaInput.value = String(original ?? "");
     this.formulaEntry = null;
+    this.setCellValue(coord.c, coord.r, original, false, { commit: true });
+    if (this.formulaInput) this.formulaInput.value = String(original ?? "");
     const cancelledTd = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${coord.c}${coord.r}"]`);
     if (cancelledTd) this._renderCellVisual(cancelledTd, this.cellsData.get(`${coord.c}${coord.r}`), coord.c, coord.r);
     this._cellValueBeforeEdit = undefined;
@@ -5041,7 +5041,18 @@ _bindGridKeyboardNavigation() {
       // into the wrong number. Display formatting belongs solely to
       // NumberFormatter at render time, driven by the cell's actual
       // numberFormat (General by default, Currency only if the user set it).
-      item.val = this.formulaEngine.evaluate(val);
+      const isComposingFormula = Boolean(
+        historyOptions.isComposing ||
+        (!historyOptions.commit && this.formulaEntry &&
+         (!this.formulaEntry.sheet || this.formulaEntry.sheet === this.activeSheet) &&
+         this.formulaEntry.coord?.c === col &&
+         this.formulaEntry.coord?.r === row)
+      );
+      if (isComposingFormula) {
+        item.val = val;
+      } else {
+        item.val = this.formulaEngine.evaluate(val);
+      }
     } else {
       item.formula = "";
       const normalized = this._normalizeCellInput(val, item.style, escapedText);
@@ -13418,6 +13429,15 @@ _bindGridKeyboardNavigation() {
       td.style.textAlign = "left";
       if (col && row && typeof this._applyRowColSizeToCell === "function") this._applyRowColSizeToCell(td, col, row);
       return;
+    }
+
+    if (this.formulaEntry && this.formulaEntry.coord?.c === col && this.formulaEntry.coord?.r === row && (!this.formulaEntry.sheet || this.formulaEntry.sheet === this.activeSheet)) {
+      if (typeof this.formulaEntry.value === "string" && this.formulaEntry.value.startsWith("=")) {
+        td.textContent = this.formulaEntry.value;
+        td.style.textAlign = "left";
+        if (col && row && typeof this._applyRowColSizeToCell === "function") this._applyRowColSizeToCell(td, col, row);
+        return;
+      }
     }
 
     // Rich text: render multiple styled <span> elements

@@ -1296,6 +1296,23 @@ export const SHEET_HELP_ENTRIES = [
       "Để chọn nhanh toàn bộ hàng hoặc cột trên bảng tính lớn, nhấn Shift+Space để chọn cả hàng, hoặc Ctrl+Space để chọn cả cột.",
       "Nhấn Ctrl+A lần thứ nhất để chọn vùng dữ liệu liền kề hiện tại, nhấn Ctrl+A lần thứ hai để chọn toàn bộ bảng tính (A1:XFD1048576). Bộ hiển thị ảo chỉ kết xuất các ô đang nhìn thấy trên màn hình nên thao tác luôn mượt mà."
     ]
+  },
+  {
+    id: "sheet.formula.autocompleteAndHints",
+    app: "sheet",
+    commandIds: ["sheet.formula.insertFunction"],
+    title: "Nhập hàm và gợi ý công thức",
+    summary: "Khi gõ dấu bằng (=) cùng các chữ cái đầu của hàm, danh mục gợi ý tự động xuất hiện với cú pháp và giải nghĩa tiếng Việt. Chú giải cú pháp hiển thị đối số đang nhập được tô đậm, kèm dòng mô tả chi tiết và ví dụ thực tế. Ô đang soạn giữ nguyên chuỗi đang gõ, không hiện lỗi #VALUE! trước khi xác nhận.",
+    ribbon: { tab: "Công thức", tabId: "formulas", group: "Hàm tính toán" },
+    keywords: ["nhập hàm", "gợi ý công thức", "autocomplete", "cú pháp", "tooltip", "IntelliSense", "VLOOKUP", "SUM", "tiếng Việt", "đối số", "tham số", "Enter", "Tab", "Esc", "dấu phân cách"],
+    steps: [
+      "Bắt đầu nhập công thức: Chọn ô bất kỳ trên bảng tính và gõ dấu bằng (=) kèm chữ cái đầu của hàm muốn dùng, ví dụ =SU hoặc =V. Hộp gợi ý tự động hiện ra với biểu tượng fx, phân loại hàm, cú pháp rút gọn và mô tả tiếng Việt.",
+      "Vị trí thông minh: Hộp gợi ý luôn hiển thị ngay sát dưới ô đang soạn thảo; nếu ô nằm sát mép dưới màn hình, hộp sẽ tự động lật lên phía trên ô; nếu ô ở cột cuối sát mép phải, hộp tự động căn lùi sang trái để không bị tràn viền hoặc che khuất dữ liệu.",
+      "Phím tắt điều hướng gợi ý: Dùng phím Mũi tên Lên / Xuống để chuyển giữa các hàm gợi ý. Nhấn phím Tab hoặc Enter để chèn nhanh tên hàm đã chọn kèm dấu mở ngoặc (, hoặc nhấn phím Esc để đóng hộp gợi ý.",
+      "Chú giải cú pháp (Syntax Tooltip) bằng tiếng Việt: Ngay khi dấu mở ngoặc ( xuất hiện, chú giải cú pháp hiển thị rõ ràng. Đối số đang nhập được tô đậm nổi bật; dòng bên dưới giải thích rõ đối số đó là gì; dòng dưới cùng gợi ý ví dụ thực tế (ví dụ: =VLOOKUP(A2; Bảng!A:C; 3; 0)).",
+      "Chuyển đối số linh hoạt: Khi bạn gõ dấu phân cách (dấu phẩy , hoặc chấm phẩy ; tùy theo vùng máy), chú giải cú pháp tự động chuyển điểm tô đậm và dòng giải thích sang đối số tiếp theo. Tính năng nhận diện chuẩn xác ngay cả khi lồng nhiều hàm hoặc có dấu phẩy trong chuỗi nháy kép.",
+      "Hiển thị ô trực quan: Trong suốt quá trình đang gõ dở công thức, ô trên bảng tính hiển thị chính xác chuỗi ký tự bạn đang soạn (hoặc thanh công thức), tuyệt đối không tính trước gây hiện lỗi #VALUE! hay #NAME?. Chỉ khi bạn nhấn Enter hoặc Tab để xác nhận, công thức mới được tính toán hoàn chỉnh."
+    ]
   }
 ];
 

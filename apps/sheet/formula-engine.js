@@ -1,5 +1,6 @@
 import { NumberFormatter } from "./number-formatter.js";
 import { vndInWords } from "./vnd-words.js";
+import { VI_FORMULA_CATALOG, VI_FORMULA_MAP } from "./formula-definitions-vi.js";
 
 /**
  * 3T Sheet — Enterprise Spreadsheet Formula Calculation Engine
@@ -119,21 +120,41 @@ export const FUNCTION_CATALOG = [
   ,{ name: "DB", category: "Tài chính", syntax: "DB(cost, salvage, life, period, [month])", desc: "Tính khấu hao theo số dư giảm dần cố định; month là số tháng trong năm đầu tiên (mặc định 12)." }
 ];
 
-// Keep autocomplete restricted to functions with a branch in FormulaEngine._executeFunction.
-// The catalog is intentionally broader only when an evaluator implementation lands with it.
+// Hợp nhất dữ liệu tiếng Việt (syntaxVi, params, example, desc) vào FUNCTION_CATALOG (giữ 97 hàm gốc)
+for (const item of FUNCTION_CATALOG) {
+  const vi = VI_FORMULA_MAP.get(item.name);
+  if (vi) {
+    item.syntaxVi = vi.syntaxVi || item.syntax;
+    item.params = vi.params || [];
+    item.example = vi.example || "";
+    if (vi.desc) item.desc = vi.desc;
+  }
+}
+
+// Danh mục mở rộng đầy đủ các hàm hỗ trợ gợi ý và cú pháp tiếng Việt
+export const EXTENDED_FUNCTION_CATALOG = [...FUNCTION_CATALOG];
+const existingNames = new Set(FUNCTION_CATALOG.map(item => item.name));
+for (const vi of VI_FORMULA_CATALOG) {
+  if (!existingNames.has(vi.name)) {
+    EXTENDED_FUNCTION_CATALOG.push({
+      name: vi.name,
+      category: vi.category || "Khác",
+      syntax: vi.syntax || `${vi.name}()`,
+      syntaxVi: vi.syntaxVi || vi.syntax || `${vi.name}()`,
+      desc: vi.desc || "",
+      params: vi.params || [],
+      example: vi.example || ""
+    });
+    existingNames.add(vi.name);
+  }
+}
+
+// Danh mục các hàm được FormulaEngine hỗ trợ tính toán và hiển thị gợi ý
 export const SUPPORTED_FUNCTION_NAMES = new Set([
-  "ABS", "AND", "AVERAGE", "AVERAGEIF", "AVERAGEIFS", "CEILING", "CHOOSE", "CONCAT", "CONCATENATE",
-  "COUNT", "COUNTA", "COUNTBLANK", "COUNTIF", "COUNTIFS", "DATE", "DATEDIF", "DAY", "DAYS", "DB",
-  "EDATE", "EOMONTH", "EXACT", "FIND", "FLOOR", "FV", "HLOOKUP", "IF", "IFERROR", "IFNA", "INDEX",
-  "INDIRECT", "INT", "IPMT", "IRR", "ISBLANK", "ISERROR", "ISNA", "ISNUMBER", "ISTEXT", "LARGE",
-  "LEFT", "LEN", "LOOKUP", "LOWER", "MATCH", "MAX", "MEDIAN", "MID", "MIN", "MOD", "MONTH", "NA",
-  "NETWORKDAYS", "NOT", "NOW", "NPER", "NPV", "OFFSET", "OR", "PMT", "POWER", "PPMT", "PRODUCT",
-  "PROPER", "PV", "RANK", "RANK.EQ", "RATE", "REPT", "RIGHT", "ROUND", "ROUNDDOWN", "ROUNDUP",
-  "SEARCH", "SIGN", "SLN", "SMALL", "SQRT", "STDEV", "SUBSTITUTE", "SUM", "SUMIF", "SUMIFS",
-  "SUMPRODUCT", "TEXT", "TEXTJOIN", "TODAY", "TRIM", "TRUNC", "UPPER", "VALUE", "VAR", "VLOOKUP",
-  "WEEKDAY", "WORKDAY", "XLOOKUP", "YEAR", "VND"
+  ...EXTENDED_FUNCTION_CATALOG.map(item => item.name),
+  "VND"
 ]);
-export const SUPPORTED_FUNCTION_CATALOG = FUNCTION_CATALOG.filter(item => SUPPORTED_FUNCTION_NAMES.has(item.name));
+export const SUPPORTED_FUNCTION_CATALOG = EXTENDED_FUNCTION_CATALOG.filter(item => SUPPORTED_FUNCTION_NAMES.has(item.name));
 
 export class FormulaEngine {
   /**
@@ -1588,6 +1609,257 @@ export class FormulaEngine {
         return date ? date.getDate() : "#VALUE!";
       }
 
+      case "PI": {
+        return Math.PI;
+      }
+
+      case "RAND": {
+        return Math.random();
+      }
+
+      case "RANDBETWEEN": {
+        if (args.length < 2) return "#VALUE!";
+        const min = Math.ceil(Number(this._resolveSingleValue(args[0])));
+        const max = Math.floor(Number(this._resolveSingleValue(args[1])));
+        if (isNaN(min) || isNaN(max) || min > max) return "#NUM!";
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+      }
+
+      case "MROUND": {
+        if (args.length < 2) return "#VALUE!";
+        const num = Number(this._resolveSingleValue(args[0]));
+        const mult = Number(this._resolveSingleValue(args[1]));
+        if (isNaN(num) || isNaN(mult) || mult === 0) return "#NUM!";
+        if ((num > 0 && mult < 0) || (num < 0 && mult > 0)) return "#NUM!";
+        return Math.round(num / mult) * mult;
+      }
+
+      case "EVEN": {
+        if (!args.length) return "#VALUE!";
+        const n = Number(this._resolveSingleValue(args[0]));
+        if (isNaN(n)) return "#VALUE!";
+        const sign = n < 0 ? -1 : 1;
+        const absCeil = Math.ceil(Math.abs(n));
+        return sign * (absCeil % 2 === 0 ? absCeil : absCeil + 1);
+      }
+
+      case "ODD": {
+        if (!args.length) return "#VALUE!";
+        const n = Number(this._resolveSingleValue(args[0]));
+        if (isNaN(n)) return "#VALUE!";
+        if (n === 0) return 1;
+        const sign = n < 0 ? -1 : 1;
+        const absCeil = Math.ceil(Math.abs(n));
+        return sign * (absCeil % 2 !== 0 ? absCeil : absCeil + 1);
+      }
+
+      case "FACT": {
+        if (!args.length) return "#VALUE!";
+        const n = Math.trunc(Number(this._resolveSingleValue(args[0])));
+        if (isNaN(n) || n < 0) return "#NUM!";
+        let res = 1;
+        for (let i = 2; i <= n; i++) res *= i;
+        return res;
+      }
+
+      case "COMBIN": {
+        if (args.length < 2) return "#VALUE!";
+        const n = Math.trunc(Number(this._resolveSingleValue(args[0])));
+        const k = Math.trunc(Number(this._resolveSingleValue(args[1])));
+        if (isNaN(n) || isNaN(k) || n < 0 || k < 0 || n < k) return "#NUM!";
+        if (k === 0 || n === k) return 1;
+        let res = 1;
+        const effectiveK = Math.min(k, n - k);
+        for (let i = 1; i <= effectiveK; i++) {
+          res = (res * (n - i + 1)) / i;
+        }
+        return res;
+      }
+
+      case "LN": {
+        if (!args.length) return "#VALUE!";
+        const n = Number(this._resolveSingleValue(args[0]));
+        return n > 0 ? Math.log(n) : "#NUM!";
+      }
+
+      case "LOG": {
+        if (!args.length) return "#VALUE!";
+        const n = Number(this._resolveSingleValue(args[0]));
+        const base = args[1] !== undefined ? Number(this._resolveSingleValue(args[1])) : 10;
+        if (n <= 0 || base <= 0 || base === 1) return "#NUM!";
+        return Math.log(n) / Math.log(base);
+      }
+
+      case "LOG10": {
+        if (!args.length) return "#VALUE!";
+        const n = Number(this._resolveSingleValue(args[0]));
+        return n > 0 ? Math.log10(n) : "#NUM!";
+      }
+
+      case "EXP": {
+        if (!args.length) return "#VALUE!";
+        const n = Number(this._resolveSingleValue(args[0]));
+        return isNaN(n) ? "#VALUE!" : Math.exp(n);
+      }
+
+      case "DEGREES": {
+        if (!args.length) return "#VALUE!";
+        const n = Number(this._resolveSingleValue(args[0]));
+        return isNaN(n) ? "#VALUE!" : (n * 180) / Math.PI;
+      }
+
+      case "RADIANS": {
+        if (!args.length) return "#VALUE!";
+        const n = Number(this._resolveSingleValue(args[0]));
+        return isNaN(n) ? "#VALUE!" : (n * Math.PI) / 180;
+      }
+
+      case "SIN": {
+        if (!args.length) return "#VALUE!";
+        const n = Number(this._resolveSingleValue(args[0]));
+        return isNaN(n) ? "#VALUE!" : Math.sin(n);
+      }
+
+      case "COS": {
+        if (!args.length) return "#VALUE!";
+        const n = Number(this._resolveSingleValue(args[0]));
+        return isNaN(n) ? "#VALUE!" : Math.cos(n);
+      }
+
+      case "TAN": {
+        if (!args.length) return "#VALUE!";
+        const n = Number(this._resolveSingleValue(args[0]));
+        return isNaN(n) ? "#VALUE!" : Math.tan(n);
+      }
+
+      case "COLUMNS": {
+        if (!args.length) return "#VALUE!";
+        const arg = String(args[0] || "");
+        const match = arg.match(/([A-Z]+)\d+:([A-Z]+)\d+/i);
+        if (match) {
+          const colNum = c => c.toUpperCase().split("").reduce((acc, ch) => acc * 26 + ch.charCodeAt(0) - 64, 0);
+          return Math.abs(colNum(match[2]) - colNum(match[1])) + 1;
+        }
+        return 1;
+      }
+
+      case "ROWS": {
+        if (!args.length) return "#VALUE!";
+        const arg = String(args[0] || "");
+        const match = arg.match(/[A-Z]+(\d+):[A-Z]+(\d+)/i);
+        if (match) {
+          return Math.abs(Number(match[2]) - Number(match[1])) + 1;
+        }
+        return 1;
+      }
+
+      case "ROW": {
+        if (!args.length) return 1;
+        const match = String(args[0] || "").match(/\d+/);
+        return match ? Number(match[0]) : 1;
+      }
+
+      case "COLUMN": {
+        if (!args.length) return 1;
+        const match = String(args[0] || "").match(/[A-Z]+/i);
+        if (match) {
+          return match[0].toUpperCase().split("").reduce((acc, ch) => acc * 26 + ch.charCodeAt(0) - 64, 0);
+        }
+        return 1;
+      }
+
+      case "IFS": {
+        if (args.length < 2 || args.length % 2 !== 0) return "#VALUE!";
+        for (let i = 0; i < args.length; i += 2) {
+          const cond = this._evaluateCondition(String(args[i]));
+          if (cond) return this._resolveSingleValue(args[i + 1]);
+        }
+        return "#N/A";
+      }
+
+      case "SWITCH": {
+        if (args.length < 3) return "#VALUE!";
+        const target = this._resolveSingleValue(args[0]);
+        let i = 1;
+        while (i < args.length - 1) {
+          const matchVal = this._resolveSingleValue(args[i]);
+          if (String(target) === String(matchVal)) {
+            return this._resolveSingleValue(args[i + 1]);
+          }
+          i += 2;
+        }
+        if (i === args.length - 1) {
+          return this._resolveSingleValue(args[i]);
+        }
+        return "#N/A";
+      }
+
+      case "TIME": {
+        const h = Number(this._resolveSingleValue(args[0])) || 0;
+        const m = Number(this._resolveSingleValue(args[1])) || 0;
+        const s = Number(this._resolveSingleValue(args[2])) || 0;
+        return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+      }
+
+      case "HOUR": {
+        const val = String(this._resolveSingleValue(args[0]) || "");
+        const match = val.match(/(\d{1,2}):\d{2}/);
+        return match ? Number(match[1]) : 0;
+      }
+
+      case "MINUTE": {
+        const val = String(this._resolveSingleValue(args[0]) || "");
+        const match = val.match(/\d{1,2}:(\d{2})/);
+        return match ? Number(match[1]) : 0;
+      }
+
+      case "SECOND": {
+        const val = String(this._resolveSingleValue(args[0]) || "");
+        const match = val.match(/\d{1,2}:\d{2}:(\d{2})/);
+        return match ? Number(match[1]) : 0;
+      }
+
+      case "ISLOGICAL": {
+        const val = this._resolveSingleValue(args[0]);
+        return typeof val === "boolean" || val === "TRUE" || val === "FALSE";
+      }
+
+      case "ISNONTEXT": {
+        const val = this._resolveSingleValue(args[0]);
+        return typeof val !== "string";
+      }
+
+      case "ISFORMULA": {
+        const ref = String(args[0] || "");
+        const cell = typeof this.cellsData === "function" ? this.cellsData().get(ref) : this.cellsData?.get?.(ref);
+        return Boolean(cell && cell.formula && cell.formula.startsWith("="));
+      }
+
+      case "CHAR": {
+        const code = Number(this._resolveSingleValue(args[0]));
+        return isNaN(code) ? "#VALUE!" : String.fromCharCode(code);
+      }
+
+      case "CODE": {
+        const text = String(this._resolveSingleValue(args[0]) || "");
+        return text ? text.charCodeAt(0) : "#VALUE!";
+      }
+
+      case "CLEAN": {
+        const text = String(this._resolveSingleValue(args[0]) || "");
+        return text.replace(/[\x00-\x1F\x7F]/g, "");
+      }
+
+      case "T": {
+        const val = this._resolveSingleValue(args[0]);
+        return typeof val === "string" ? val : "";
+      }
+
+      case "N": {
+        const val = this._resolveSingleValue(args[0]);
+        return typeof val === "number" ? val : (Number(val) || 0);
+      }
+
       default:
         return `#NAME? (${funcName})`;
     }
@@ -1816,7 +2088,39 @@ export function getFunctionSuggestions(query, catalog = SUPPORTED_FUNCTION_CATAL
  * @param {number} [activeParamIndex=0] Vị trí tham số hiện tại (0-indexed)
  * @returns {string} Chuỗi HTML với <strong class="vno-syntax-param-active">...</strong>
  */
-export function formatSyntaxHtml(syntax, activeParamIndex = 0) {
+/**
+ * Tự động phát hiện dấu phân cách đối số (; hoặc ,) từ công thức đang soạn hoặc cài đặt hệ thống
+ * @param {string} formulaStr
+ * @returns {","|";"}
+ */
+export function detectFormulaDelimiter(formulaStr) {
+  if (!formulaStr) return ",";
+  let inQuotes = false;
+  for (let i = 0; i < formulaStr.length; i++) {
+    const ch = formulaStr[i];
+    if (ch === '"' && formulaStr[i - 1] !== "\\") {
+      inQuotes = !inQuotes;
+      continue;
+    }
+    if (!inQuotes) {
+      if (ch === ";") return ";";
+      if (ch === ",") return ",";
+    }
+  }
+  if (typeof window !== "undefined" && window.vnSheetSettings?.decimalSeparator === ",") {
+    return ";";
+  }
+  return ",";
+}
+
+/**
+ * Định dạng chuỗi cú pháp hàm thành HTML với tham số hiện tại được làm đậm (strong)
+ * @param {string} syntax Cú pháp chuẩn (ví dụ "SUM(number1, [number2], ...)")
+ * @param {number} [activeParamIndex=0] Vị trí tham số hiện tại (0-indexed)
+ * @param {string} [delimiter=","] Dấu phân cách đối số (, hoặc ;)
+ * @returns {string} Chuỗi HTML với <strong class="vno-syntax-param-active">...</strong>
+ */
+export function formatSyntaxHtml(syntax, activeParamIndex = 0, delimiter = ",") {
   if (!syntax) return "";
   const openParen = syntax.indexOf("(");
   const closeParen = syntax.lastIndexOf(")");
@@ -1830,7 +2134,7 @@ export function formatSyntaxHtml(syntax, activeParamIndex = 0) {
     return `${funcName}()`;
   }
 
-  const rawParams = innerParams.split(",").map(p => p.trim());
+  const rawParams = innerParams.split(/[,;]/).map(p => p.trim());
   const hasVariadic = rawParams.some(p => p === "..." || p.includes("..."));
 
   const formattedParams = rawParams.map((param, idx) => {
@@ -1847,7 +2151,8 @@ export function formatSyntaxHtml(syntax, activeParamIndex = 0) {
     return param;
   });
 
-  return `${funcName}(${formattedParams.join(", ")})`;
+  const sep = delimiter === ";" ? "; " : ", ";
+  return `${funcName}(${formattedParams.join(sep)})`;
 }
 
 /**
@@ -1855,12 +2160,13 @@ export function formatSyntaxHtml(syntax, activeParamIndex = 0) {
  * @param {string} formulaStr Chuỗi công thức (ví dụ "=IF(A1 > 0, SUM(B1, B2), ")
  * @param {number} [cursorPos] Vị trí con trỏ
  * @param {Array<Object>} [catalog=FUNCTION_CATALOG]
- * @returns {Object|null} { funcName, funcDef, activeParamIndex, openParenIndex }
+ * @returns {Object|null} { funcName, funcDef, activeParamIndex, activeParamDef, openParenIndex, delimiter, example }
  */
 export function findEnclosingFunction(formulaStr, cursorPos, catalog = SUPPORTED_FUNCTION_CATALOG) {
   if (!formulaStr || !formulaStr.startsWith("=")) return null;
   const pos = (cursorPos !== undefined && cursorPos !== null) ? cursorPos : formulaStr.length;
   const text = formulaStr.slice(0, pos);
+  const delimiter = detectFormulaDelimiter(formulaStr);
 
   const parenStack = [];
   let inQuotes = false;
@@ -1878,7 +2184,7 @@ export function findEnclosingFunction(formulaStr, cursorPos, catalog = SUPPORTED
 
     if (inQuotes) continue;
 
-    if (/[A-Za-z0-9_]/.test(char)) {
+    if (/[A-Za-z0-9_.]/.test(char)) {
       currentWord += char;
     } else {
       if (char === "(") {
@@ -1908,11 +2214,33 @@ export function findEnclosingFunction(formulaStr, cursorPos, catalog = SUPPORTED
     const active = parenStack[parenStack.length - 1];
     const funcDef = catalog.find(f => f.name.toUpperCase() === active.funcName);
     if (funcDef) {
+      let activeParamDef = null;
+      if (funcDef.params && funcDef.params.length > 0) {
+        if (active.commaCount < funcDef.params.length) {
+          activeParamDef = funcDef.params[active.commaCount];
+        } else {
+          const last = funcDef.params[funcDef.params.length - 1];
+          if (last && (last.name?.includes("...") || last.optional)) {
+            activeParamDef = last;
+          }
+        }
+      }
+
+      let example = funcDef.example || "";
+      if (example && delimiter === ",") {
+        example = example.replace(/;\s*/g, ", ");
+      } else if (example && delimiter === ";") {
+        example = example.replace(/,\s*/g, "; ");
+      }
+
       return {
         funcName: active.funcName,
         funcDef: funcDef,
         activeParamIndex: active.commaCount,
-        openParenIndex: active.openParenIndex
+        activeParamDef,
+        openParenIndex: active.openParenIndex,
+        delimiter,
+        example
       };
     }
   }
@@ -1935,6 +2263,7 @@ export function parseFormulaContext(formulaStr, cursorPos, catalog = SUPPORTED_F
 
   const pos = (cursorPos !== undefined && cursorPos !== null) ? cursorPos : formulaStr.length;
   const text = formulaStr.slice(0, pos);
+  const delimiter = detectFormulaDelimiter(formulaStr);
 
   const parenStack = [];
   let inQuotes = false;
@@ -1953,7 +2282,7 @@ export function parseFormulaContext(formulaStr, cursorPos, catalog = SUPPORTED_F
 
     if (inQuotes) continue;
 
-    if (/[A-Za-z0-9_]/.test(char)) {
+    if (/[A-Za-z0-9_.]/.test(char)) {
       if (currentWord === "") {
         currentWordStart = i;
       }
@@ -2001,12 +2330,34 @@ export function parseFormulaContext(formulaStr, cursorPos, catalog = SUPPORTED_F
     const active = parenStack[parenStack.length - 1];
     const funcDef = catalog.find(f => f.name.toUpperCase() === active.funcName);
     if (funcDef) {
+      let activeParamDef = null;
+      if (funcDef.params && funcDef.params.length > 0) {
+        if (active.commaCount < funcDef.params.length) {
+          activeParamDef = funcDef.params[active.commaCount];
+        } else {
+          const last = funcDef.params[funcDef.params.length - 1];
+          if (last && (last.name?.includes("...") || last.optional)) {
+            activeParamDef = last;
+          }
+        }
+      }
+
+      let example = funcDef.example || "";
+      if (example && delimiter === ",") {
+        example = example.replace(/;\s*/g, ", ");
+      } else if (example && delimiter === ";") {
+        example = example.replace(/,\s*/g, "; ");
+      }
+
       return {
         mode: "syntax_tooltip",
         funcName: active.funcName,
         funcDef: funcDef,
         activeParamIndex: active.commaCount,
-        openParenIndex: active.openParenIndex
+        activeParamDef,
+        openParenIndex: active.openParenIndex,
+        delimiter,
+        example
       };
     }
   }
