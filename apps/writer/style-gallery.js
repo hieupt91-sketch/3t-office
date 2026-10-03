@@ -278,7 +278,7 @@ export function createStyleGalleryStrip(options = {}) {
 
   const items = [];
 
-  STYLE_PRESETS.forEach((preset, idx) => {
+  STYLE_PRESETS.slice(0, 3).forEach((preset, idx) => {
     const { label, desc } = getPresetStrings(preset);
     const isActive = (preset.id === activeStyle) || (preset.id === "normal" && activeStyle === "p");
     const item = document.createElement("button");

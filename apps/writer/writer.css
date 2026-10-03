@@ -2549,12 +2549,15 @@ sup.vno-endnote-ref:hover {
 /* Dải chọn kiểu ngang (Quick Styles Ribbon Strip) */
 .vno-style-gallery-strip {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   align-items: center;
   overflow-x: auto;
   padding: 2px;
-  max-width: 240px;
-  scrollbar-width: thin;
+  max-width: 290px;
+  scrollbar-width: none;
+}
+.vno-style-gallery-strip::-webkit-scrollbar {
+  display: none;
 }
 
 .vno-style-strip-item {
