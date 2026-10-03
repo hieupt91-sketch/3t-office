@@ -149,7 +149,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--xlsx", required=True)
     parser.add_argument("--fods", required=True, help="Raw FODS produced by LibreOffice XLSX -> FODS")
-    parser.add_argument("--mode", choices=("baseline", "optimized"), default="baseline")
+    parser.add_argument("--mode", choices=("baseline", "optimized", "p1"), default="baseline")
     parser.add_argument("--out", help="Write the overlay output to this path")
     parser.add_argument("--profile", help="Write a cProfile .prof file and print cumulative leaders")
     parser.add_argument("--profile-lines", type=int, default=35)
@@ -187,18 +187,23 @@ def main():
         originals["_xlsx_cells_with_metadata"] = PATCHER_MODULE._xlsx_cells_with_metadata
         PATCHER_MODULE._xlsx_cells_with_metadata = _metadata_without_xf
 
+    overlay = (
+        PATCHER_MODULE.overlay_sheet_xlsx_fods_p1
+        if args.mode == "p1"
+        else PATCHER_MODULE.overlay_sheet_xlsx_fods
+    )
     profiler = cProfile.Profile() if args.profile else None
     started = time.perf_counter()
     try:
         if profiler:
             output = profiler.runcall(
-                PATCHER_MODULE.overlay_sheet_xlsx_fods,
+                overlay,
                 xlsx_bytes,
                 fods_xml,
                 skip_initial_xf=True,
             )
         else:
-            output = PATCHER_MODULE.overlay_sheet_xlsx_fods(
+            output = overlay(
                 xlsx_bytes,
                 fods_xml,
                 skip_initial_xf=True,

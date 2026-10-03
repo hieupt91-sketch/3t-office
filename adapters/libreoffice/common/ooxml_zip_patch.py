@@ -6437,6 +6437,42 @@ def overlay_sheet_xlsx_fods(
     return xml
 
 
+def overlay_sheet_xlsx_fods_p1(
+    xlsx_bytes: bytes,
+    fods_xml: str | None,
+    *,
+    skip_initial_xf: bool = False,
+) -> str:
+    """P1 equivalent of :func:`overlay_sheet_xlsx_fods` with a faster metadata pass."""
+    xlsx_bytes = normalize_source_xlsx(xlsx_bytes)
+    xml = fods_xml or ""
+    current = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
+    if current:
+        workbook_xml = current.decode("utf-8", errors="replace")
+        xml = overlay_fods_structure_protection(xml, workbook_xml)
+        visibility = parse_sheet_visibility_from_workbook(workbook_xml)
+        if visibility:
+            xml = apply_sheet_visibility_to_fods(xml, visibility)
+        xml = overlay_active_sheet_to_fods(xml, workbook_xml)
+        xml = apply_print_titles_to_fods(xml, parse_print_titles_from_workbook(workbook_xml))
+    xml = overlay_page_margins_to_fods(xlsx_bytes, xml)
+    xml = overlay_sheet_xlsx_freeze_panes(xlsx_bytes, xml)
+    xml = _overlay_autofilter_from_xlsx(xlsx_bytes, xml)
+    xml = _overlay_sheet_layout_from_xlsx(xlsx_bytes, xml)
+    xml = _overlay_sheet_cell_metadata_from_xlsx_p1(
+        xlsx_bytes,
+        xml,
+        include_xf=not skip_initial_xf,
+    )
+    xml = _promote_covered_formula_errors(xml)
+    tab_colors = parse_tab_colors_from_xlsx(xlsx_bytes)
+    if tab_colors:
+        xml = apply_tab_colors_to_fods(xml, tab_colors)
+    xml = _overlay_sheet_drawing_image_ids(xlsx_bytes, xml)
+    xml = _overlay_scenarios_from_xlsx(xlsx_bytes, xml)
+    return xml
+
+
 def _xml_attrs(raw: str) -> dict[str, str]:
     """Thuộc tính XML. Cùng kết quả finditer `([\\w:.-]+)\\s*=\\s*(quote)…\\2`, không biên dịch regex mỗi ô."""
     if not raw:
@@ -6878,6 +6914,291 @@ def _xlsx_cells_with_metadata(xlsx_bytes: bytes):
             xfs[sheet_name] = sheet_xfs
     result = (formats, strings, xfs)
     _index_memo_put("sheet_metadata", xlsx_bytes, result)
+    return result
+
+
+_P1_CELL_TARGET_ATTR_RE = re.compile(
+    r"(?:^|\s)(r|s|t)\s*=\s*([\"'])(.*?)\2",
+    re.IGNORECASE | re.DOTALL,
+)
+_P1_COORD_RE = re.compile(r"([A-Z]+)(\d+)", re.IGNORECASE)
+_P1_VALUE_RE = re.compile(r"<v\b[^>]*>([\s\S]*?)</v>", re.IGNORECASE)
+_P1_TEXT_RE = re.compile(r"<t\b[^>]*>([\s\S]*?)</t>", re.IGNORECASE)
+_P1_FODS_TABLE_BLOCK_RE = re.compile(
+    r"<table:table(?=[\s>/])[^>]*>[\s\S]*?</table:table\s*>", re.IGNORECASE
+)
+_P1_FODS_ROW_BLOCK_RE = re.compile(
+    r"<table:table-row(?=[\s>/])[^>]*?(?:/\s*>|>[\s\S]*?</table:table-row\s*>)",
+    re.IGNORECASE,
+)
+_P1_FODS_CELL_BLOCK_RE = re.compile(
+    r"<table:(?:table-cell|covered-table-cell)(?=[\s>/])[^>]*?(?:/\s*>|>[\s\S]*?</table:(?:table-cell|covered-table-cell)\s*>)",
+    re.IGNORECASE,
+)
+_P1_COL_REPEAT_WITH_WS_RE = re.compile(
+    r'\s+table:number-columns-repeated\s*=\s*(["\'])(\d+)\1'
+)
+
+
+def _xlsx_cells_with_metadata_p1(xlsx_bytes: bytes, *, include_xf: bool):
+    """Build the legacy metadata maps while parsing only the three needed attributes."""
+    cache_name = "sheet_metadata" if include_xf else "sheet_metadata_p1_no_xf"
+    cached = _index_memo_get(cache_name, xlsx_bytes)
+    if cached is not _INDEX_MISS:
+        return cached
+    format_by_xf = _xlsx_number_formats(xlsx_bytes)
+    shared_xml = (read_zip_entry(xlsx_bytes, "xl/sharedStrings.xml") or b"").decode(
+        "utf-8", errors="replace"
+    )
+    shared = []
+    for item in re.finditer(r"<si\b[^>]*>([\s\S]*?)</si>", shared_xml, re.IGNORECASE):
+        shared.append(
+            "".join(
+                _unescape_xml(match.group(1))
+                for match in _P1_TEXT_RE.finditer(item.group(1))
+            )
+        )
+
+    formats, strings, xfs = {}, {}, {}
+    for sheet_name, entry_path in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
+        entry = read_zip_entry(xlsx_bytes, entry_path)
+        if not entry:
+            continue
+        sheet_formats, sheet_strings, sheet_xfs = {}, {}, {}
+        sheet_xml = entry.decode("utf-8", errors="replace")
+        for attrs_text, body in _iter_xlsx_cell_parts(sheet_xml):
+            coordinate_text = style_text = kind_text = ""
+            for attr_match in _P1_CELL_TARGET_ATTR_RE.finditer(attrs_text):
+                attr_name = attr_match.group(1).lower()
+                if attr_name == "r":
+                    coordinate_text = attr_match.group(3)
+                elif attr_name == "s":
+                    style_text = attr_match.group(3)
+                else:
+                    kind_text = attr_match.group(3)
+            coord = _P1_COORD_RE.fullmatch(coordinate_text)
+            if not coord:
+                continue
+            column = 0
+            for char in coord.group(1).upper():
+                column = column * 26 + ord(char) - 64
+            key = (int(coord.group(2)), column)
+            style_index = int(style_text or 0)
+            if include_xf:
+                sheet_xfs[key] = style_index
+            if 0 <= style_index < len(format_by_xf):
+                code = format_by_xf[style_index]
+                if code.lower() != "general":
+                    sheet_formats[key] = code
+
+            kind = kind_text.lower()
+            if kind not in {"s", "str", "inlinestr"}:
+                continue
+            if kind == "s":
+                raw = _P1_VALUE_RE.search(body)
+                value = shared[int(raw.group(1))] if raw and int(raw.group(1)) < len(shared) else ""
+            else:
+                text_values = _P1_TEXT_RE.findall(body)
+                raw_value = _P1_VALUE_RE.search(body)
+                value = "".join(_unescape_xml(item) for item in text_values) or (
+                    _unescape_xml(raw_value.group(1)) if raw_value else ""
+                )
+            sheet_strings[key] = value
+        if sheet_formats:
+            formats[sheet_name] = sheet_formats
+        if sheet_strings:
+            strings[sheet_name] = sheet_strings
+        if sheet_xfs:
+            xfs[sheet_name] = sheet_xfs
+    result = (formats, strings, xfs)
+    _index_memo_put(cache_name, xlsx_bytes, result)
+    return result
+
+
+def _xlsx_cells_with_xf_indices_p1(
+    xlsx_bytes: bytes,
+) -> dict[str, dict[tuple[int, int], int]]:
+    """Reuse the P1 metadata scan, or parse only coordinate/style attributes."""
+    cached = _index_memo_get("xf", xlsx_bytes)
+    if cached is not _INDEX_MISS:
+        return cached
+    metadata = _index_memo_get("sheet_metadata", xlsx_bytes)
+    if metadata is not _INDEX_MISS:
+        result = metadata[2]
+        _index_memo_put("xf", xlsx_bytes, result)
+        return result
+    result = {}
+    for sheet_name, entry_path in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
+        entry = read_zip_entry(xlsx_bytes, entry_path)
+        if not entry:
+            continue
+        cells = {}
+        sheet_xml = entry.decode("utf-8", errors="replace")
+        for attrs_text, _body in _iter_xlsx_cell_parts(sheet_xml):
+            coordinate_text = style_text = ""
+            for attr_match in _P1_CELL_TARGET_ATTR_RE.finditer(attrs_text):
+                attr_name = attr_match.group(1).lower()
+                if attr_name == "r":
+                    coordinate_text = attr_match.group(3)
+                elif attr_name == "s":
+                    style_text = attr_match.group(3)
+            coord = _P1_COORD_RE.fullmatch(coordinate_text)
+            if not coord:
+                continue
+            column = 0
+            for char in coord.group(1).upper():
+                column = column * 26 + ord(char) - 64
+            cells[(int(coord.group(2)), column)] = int(style_text or 0)
+        if cells:
+            result[sheet_name] = cells
+    _index_memo_put("xf", xlsx_bytes, result)
+    return result
+
+
+def _overlay_sheet_cell_metadata_from_xlsx_p1(
+    xlsx_bytes: bytes,
+    fods_xml: str,
+    *,
+    include_xf: bool = True,
+) -> str:
+    """Byte-compatible P1 metadata overlay using C-regex block scans."""
+    formats, strings, xfs = _xlsx_cells_with_metadata_p1(
+        xlsx_bytes, include_xf=include_xf
+    )
+    if not formats and not strings and not xfs:
+        return fods_xml
+
+    def metadata_rows(mapping, sheet_name):
+        rows = {}
+        for (row, col), value in mapping.get(sheet_name, {}).items():
+            rows.setdefault(row, {})[col] = value
+        return rows
+
+    def apply_row(row_xml, format_targets, string_targets, xf_targets):
+        columns = {}
+        for source, kind in (
+            (format_targets, "format"),
+            (string_targets, "string"),
+            (xf_targets, "xf"),
+        ):
+            for col, value in source.items():
+                columns.setdefault(col, {})[kind] = value
+        pieces, cursor, column = [], 0, 1
+        sorted_columns = sorted(columns)
+        target_index = 0
+        for start, end in _flat_xml_blocks(
+            row_xml, ("table:table-cell", "table:covered-table-cell")
+        ):
+            pieces.append(row_xml[cursor:start])
+            cell = row_xml[start:end]
+            repeat = _repeat_count(cell, "table:number-columns-repeated")
+            while target_index < len(sorted_columns) and sorted_columns[target_index] < column:
+                target_index += 1
+            hit_end = target_index
+            while hit_end < len(sorted_columns) and sorted_columns[hit_end] < column + repeat:
+                hit_end += 1
+            hits = sorted_columns[target_index:hit_end]
+            target_index = hit_end
+            if not hits:
+                pieces.append(cell)
+            else:
+                at = column
+                for col in hits:
+                    meta = columns[col]
+                    if col > at:
+                        pieces.append(
+                            _set_repeat(cell, "table:number-columns-repeated", col - at)
+                        )
+                    stamped = _set_repeat(cell, "table:number-columns-repeated", 1)
+                    if "format" in meta:
+                        stamped = _set_number_format_attr(stamped, meta["format"])
+                    if stamped.startswith("<table:covered-table-cell") and "table:formula=" in stamped:
+                        stamped = _promote_covered_formula_errors(stamped)
+                    if "string" in meta:
+                        stamped = _set_original_string_attr(stamped, meta["string"])
+                    if "xf" in meta:
+                        stamped = _set_orig_xf_attr(stamped, meta["xf"])
+                    pieces.append(stamped)
+                    at = col + 1
+                if at < column + repeat:
+                    pieces.append(
+                        _set_repeat(
+                            cell,
+                            "table:number-columns-repeated",
+                            column + repeat - at,
+                        )
+                    )
+            cursor, column = end, column + repeat
+        pieces.append(row_xml[cursor:])
+        return "".join(pieces)
+
+    pieces, cursor = [], 0
+    needs_vno = bool(formats or xfs)
+    for start, end in _flat_xml_blocks(fods_xml, ("table:table",)):
+        pieces.append(fods_xml[cursor:start])
+        table_xml = fods_xml[start:end]
+        opening_end = table_xml.find(">")
+        attrs = _xml_attrs(table_xml[: opening_end + 1]) if opening_end >= 0 else {}
+        sheet_name = attrs.get("table:name", "")
+        row_maps = [metadata_rows(mapping, sheet_name) for mapping in (formats, strings, xfs)]
+        if any(row_maps):
+            table_parts, table_cursor, row_number = [], 0, 1
+            sorted_rows = sorted(set().union(*(mapping.keys() for mapping in row_maps)))
+            target_index = 0
+            for row_start, row_end in _flat_xml_blocks(
+                table_xml, ("table:table-row",)
+            ):
+                table_parts.append(table_xml[table_cursor:row_start])
+                row_xml = table_xml[row_start:row_end]
+                repeat = _repeat_count(row_xml, "table:number-rows-repeated")
+                while target_index < len(sorted_rows) and sorted_rows[target_index] < row_number:
+                    target_index += 1
+                hit_end = target_index
+                while hit_end < len(sorted_rows) and sorted_rows[hit_end] < row_number + repeat:
+                    hit_end += 1
+                hits = sorted_rows[target_index:hit_end]
+                target_index = hit_end
+                if not hits:
+                    table_parts.append(row_xml)
+                else:
+                    at = row_number
+                    for row in hits:
+                        if row > at:
+                            table_parts.append(
+                                _set_repeat(row_xml, "table:number-rows-repeated", row - at)
+                            )
+                        table_parts.append(
+                            apply_row(
+                                _set_repeat(row_xml, "table:number-rows-repeated", 1),
+                                row_maps[0].get(row, {}),
+                                row_maps[1].get(row, {}),
+                                row_maps[2].get(row, {}),
+                            )
+                        )
+                        at = row + 1
+                    if at < row_number + repeat:
+                        table_parts.append(
+                            _set_repeat(
+                                row_xml,
+                                "table:number-rows-repeated",
+                                row_number + repeat - at,
+                            )
+                        )
+                table_cursor, row_number = row_end, row_number + repeat
+            table_parts.append(table_xml[table_cursor:])
+            table_xml = "".join(table_parts)
+        pieces.append(table_xml)
+        cursor = end
+    pieces.append(fods_xml[cursor:])
+    result = "".join(pieces)
+    if needs_vno and not re.search(r"xmlns:vno\s*=", result, re.IGNORECASE):
+        match = _OFFICE_DOCUMENT_OPEN_RE.search(result)
+        if match:
+            result = (
+                result[: match.start()]
+                + f'<office:document{match.group(1)} xmlns:vno="{SHEET_VNO_NS}">'
+                + result[match.end() :]
+            )
     return result
 
 
@@ -15285,7 +15606,7 @@ def _parse_fods_cell_visual_styles(fods_xml: str) -> dict:
     return styles
 
 
-def optimize_fods_streaming(fods_xml: str, max_style_only_col_repeat: int = 64) -> str:
+def optimize_fods_streaming_legacy(fods_xml: str, max_style_only_col_repeat: int = 64) -> str:
     """Optimize FODS by merging consecutive empty cells with same style and trimming style-only tail.
 
     This runs BEFORE the FODS is passed to JS, using streaming regex (no DOM).
@@ -15298,6 +15619,7 @@ def optimize_fods_streaming(fods_xml: str, max_style_only_col_repeat: int = 64) 
     Returns:
         Optimized FODS XML string
     """
+    # superseded by P1 - xoa chi khi chu so huu duyet
     if not fods_xml:
         return fods_xml
 
@@ -15485,6 +15807,177 @@ def optimize_fods_streaming(fods_xml: str, max_style_only_col_repeat: int = 64) 
             flush_pending()
 
             # Rebuild row (thẻ mở giữ nguyên thuộc tính, kể cả number-rows-repeated)
+            if row_self_close:
+                return f"{row_open_tag}/>"
+            return f"{row_open_tag}>" + "".join(new_row_content) + "</table:table-row>"
+
+        pieces: list[str] = []
+        cursor = 0
+        for row_start, row_end in _flat_xml_blocks(table_body, ("table:table-row",)):
+            pieces.append(table_body[cursor:row_start])
+            pieces.append(process_row(table_body[row_start:row_end]))
+            cursor = row_end
+        pieces.append(table_body[cursor:])
+        return table_open + "".join(pieces) + table_close
+
+    return _FODS_TABLE_RE.sub(process_table, fods_xml)
+
+
+def optimize_fods_streaming(fods_xml: str, max_style_only_col_repeat: int = 64) -> str:
+    """P1 equivalent that avoids materializing every cell twice per row."""
+    if not fods_xml:
+        return fods_xml
+
+    cell_visual_styles = _parse_fods_cell_visual_styles(fods_xml)
+
+    def cell_style(cell_xml: str) -> str:
+        match = _STYLE_NAME_ATTR_RE.search(cell_xml)
+        return match.group(2) if match else ""
+
+    def cell_repeat(cell_xml: str) -> int:
+        match = _COL_REPEAT_ATTR_RE.search(cell_xml)
+        return int(match.group(2)) if match else 1
+
+    def cell_has_content(cell_xml: str) -> bool:
+        if "office:value-type" in cell_xml:
+            value_type = _VALUE_TYPE_ATTR_RE.search(cell_xml)
+            if value_type and value_type.group(2) != "void":
+                return True
+        if "table:formula" in cell_xml and _FORMULA_ATTR_RE.search(cell_xml):
+            return True
+        if "<office:annotation" in cell_xml:
+            return True
+        if "<text:p" in cell_xml and _has_simple_text_p(cell_xml):
+            return True
+        if "<text:span" in cell_xml:
+            return True
+        if "table:number-columns-spanned" in cell_xml or "table:number-rows-spanned" in cell_xml:
+            return True
+        if "covered-table-cell" in cell_xml:
+            return True
+        open_end = cell_xml.find(">")
+        if open_end < 0:
+            return False
+        inner = cell_xml[open_end + 1 :]
+        if "<" not in inner:
+            return False
+        inner = _OPT_CLOSE_CELL_RE.sub("", inner)
+        inner = _OPT_EMPTY_P_RE.sub("", inner)
+        return "<" in inner
+
+    def style_only(
+        cell_xml: str, style: str | None = None, *, known_empty: bool = False
+    ) -> bool:
+        if not known_empty and cell_has_content(cell_xml):
+            return False
+        style = cell_style(cell_xml) if style is None else style
+        if not style:
+            return False
+        if cell_visual_styles and style in cell_visual_styles:
+            visual = cell_visual_styles[style]
+            if visual.get("hasBorder") or visual.get("hasBackground"):
+                return True
+        return bool(style)
+
+    def set_cell_repeat(cell_xml: str, count: int) -> str:
+        if count <= 1 and "table:number-columns-repeated" not in cell_xml:
+            return cell_xml
+        cell_xml = _P1_COL_REPEAT_WITH_WS_RE.sub("", cell_xml)
+        if count <= 1:
+            return cell_xml
+        return _insert_repeat_before_end(
+            cell_xml,
+            ("<table:table-cell", "<table:covered-table-cell"),
+            "table:number-columns-repeated",
+            count,
+        )
+
+    def split_row(row_xml: str) -> tuple[str, bool, str]:
+        open_match = _FODS_ROW_RE.match(row_xml)
+        row_open_tag = open_match.group(1)
+        row_self_close = open_match.group(2) == "/"
+        row_content = ""
+        if not row_self_close:
+            row_content = row_xml[open_match.end() :]
+            close_idx = row_content.rfind("</table:table-row")
+            if close_idx >= 0:
+                row_content = row_content[:close_idx]
+        return row_open_tag, row_self_close, row_content
+
+    def process_table(match: re.Match) -> str:
+        table_open, table_body, table_close = match.group(1), match.group(2), match.group(3)
+        if "<table:table-row" not in table_body:
+            return match.group(0)
+
+        last_data_col = 0
+        for row_start, row_end in _flat_xml_blocks(table_body, ("table:table-row",)):
+            _row_open_tag, _row_self_close, row_content = split_row(
+                table_body[row_start:row_end]
+            )
+            scan_col = 1
+            row_last_data_col = 0
+            for cell_start, cell_end in _flat_xml_blocks(
+                row_content, ("table:table-cell", "table:covered-table-cell")
+            ):
+                cell_xml = row_content[cell_start:cell_end]
+                repeat = cell_repeat(cell_xml)
+                if cell_has_content(cell_xml):
+                    row_last_data_col = max(row_last_data_col, scan_col + repeat - 1)
+                scan_col += repeat
+            if row_last_data_col > last_data_col:
+                last_data_col = row_last_data_col
+
+        def process_row(row_xml: str) -> str:
+            row_open_tag, row_self_close, row_content = split_row(row_xml)
+            new_row_content: list[str] = []
+            col_number = 1
+            pending_cell = None
+            pending_count = 0
+            pending_style = None
+
+            def flush_pending() -> None:
+                nonlocal pending_cell, pending_count, pending_style
+                if pending_cell is not None and pending_count > 0:
+                    new_row_content.append(set_cell_repeat(pending_cell, pending_count))
+                    pending_cell = None
+                    pending_count = 0
+                    pending_style = None
+
+            for cell_start, cell_end in _flat_xml_blocks(
+                row_content, ("table:table-cell", "table:covered-table-cell")
+            ):
+                cell_xml = row_content[cell_start:cell_end]
+                repeat = cell_repeat(cell_xml)
+                style = cell_style(cell_xml)
+                has_content = cell_has_content(cell_xml)
+                is_style_only = False if has_content else style_only(
+                    cell_xml, style, known_empty=True
+                )
+                if is_style_only and not has_content:
+                    keep_limit = max(max_style_only_col_repeat, last_data_col)
+                    keep_count = max(
+                        0,
+                        min(col_number + repeat - 1, keep_limit) - col_number + 1,
+                    )
+                    if repeat > max_style_only_col_repeat and 0 < keep_count <= max_style_only_col_repeat:
+                        keep_count = min(repeat, max_style_only_col_repeat + 1)
+                    if keep_count > 0:
+                        kept_cell = set_cell_repeat(cell_xml, keep_count)
+                        if style == pending_style:
+                            pending_count += keep_count
+                        else:
+                            flush_pending()
+                            pending_cell = kept_cell
+                            pending_count = keep_count
+                            pending_style = style
+                    col_number += repeat
+                else:
+                    flush_pending()
+                    pending_cell = cell_xml
+                    pending_count = repeat
+                    pending_style = style if (is_style_only and not has_content) else None
+                    col_number += repeat
+            flush_pending()
             if row_self_close:
                 return f"{row_open_tag}/>"
             return f"{row_open_tag}>" + "".join(new_row_content) + "</table:table-row>"

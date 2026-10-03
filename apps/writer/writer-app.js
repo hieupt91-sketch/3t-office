@@ -284,6 +284,7 @@ export class WriterApp {
     }).attach(root));
     this._autoRecoverOptions = options;
     this._setupContextMenu(body);
+    this._setupTextDragDrop(body);
     console.log("[WriterApp] Đã khởi tạo 3T Doc chuẩn hóa cao cấp.");
   }
 
@@ -543,6 +544,108 @@ export class WriterApp {
       header?.addEventListener?.("contextmenu", this._contextMenuHandler);
       footer?.addEventListener?.("contextmenu", this._contextMenuHandler);
     }
+  }
+
+  _setupTextDragDrop(body) {
+    if (!body) return;
+
+    let dragPending = null;
+
+    body.addEventListener("mousedown", (e) => {
+      if (e.button !== 0) return;
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed || sel.rangeCount === 0) return;
+
+      const range = sel.getRangeAt(0);
+      const rects = range.getClientRects();
+      let inside = false;
+      for (const r of rects) {
+        if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) {
+          inside = true;
+          break;
+        }
+      }
+
+      if (inside) {
+        dragPending = {
+          startX: e.clientX,
+          startY: e.clientY,
+          isCtrl: e.ctrlKey,
+          range: range.cloneRange(),
+          started: false
+        };
+      }
+    });
+
+    const onDocMouseMove = (e) => {
+      if (!dragPending) return;
+      if (!dragPending.started) {
+        if (Math.hypot(e.clientX - dragPending.startX, e.clientY - dragPending.startY) > 4) {
+          dragPending.started = true;
+          document.body.style.cursor = (e.ctrlKey || dragPending.isCtrl) ? "copy" : "move";
+        }
+      }
+      if (dragPending.started) {
+        e.preventDefault();
+      }
+    };
+
+    const onDocMouseUp = (e) => {
+      if (!dragPending) return;
+      if (dragPending.started) {
+        const isCopy = e.ctrlKey || dragPending.isCtrl;
+        let dropRange = null;
+
+        if (document.caretRangeFromPoint) {
+          dropRange = document.caretRangeFromPoint(e.clientX, e.clientY);
+        }
+        if (!dropRange && document.caretPositionFromPoint) {
+          const pos = document.caretPositionFromPoint(e.clientX, e.clientY);
+          if (pos) {
+            dropRange = document.createRange();
+            dropRange.setStart(pos.offsetNode, pos.offset);
+            dropRange.collapse(true);
+          }
+        }
+        if (!dropRange) {
+          const el = document.elementFromPoint(e.clientX, e.clientY);
+          if (el && body.contains(el)) {
+            dropRange = document.createRange();
+            dropRange.selectNodeContents(el);
+            dropRange.collapse(false);
+          }
+        }
+
+        if (dropRange) {
+          if (this.adapter) {
+            this.adapter._lastSnapshot = this.adapter._createSnapshot("before.dragDrop");
+          }
+
+          const srcRange = dragPending.range;
+          const contents = isCopy ? srcRange.cloneContents() : srcRange.extractContents();
+          dropRange.insertNode(contents);
+
+          const sel = window.getSelection();
+          if (sel) {
+            sel.removeAllRanges();
+            const newSel = document.createRange();
+            newSel.selectNode(contents);
+            sel.addRange(newSel);
+          }
+
+          if (this.adapter) {
+            this.adapter.isDirty = true;
+            this.adapter.recordSnapshot(isCopy ? "writer.text.copyDrag" : "writer.text.moveDrag");
+          }
+          body.focus();
+        }
+        document.body.style.cursor = "";
+      }
+      dragPending = null;
+    };
+
+    document.addEventListener("mousemove", onDocMouseMove);
+    document.addEventListener("mouseup", onDocMouseUp);
   }
 
   _openEditorContextMenu(event) {

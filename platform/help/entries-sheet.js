@@ -1328,6 +1328,24 @@ export const SHEET_HELP_ENTRIES = [
       "Chuyển đối số linh hoạt: Khi bạn gõ dấu phân cách (dấu phẩy , hoặc chấm phẩy ; tùy theo vùng máy), chú giải cú pháp tự động chuyển điểm tô đậm và dòng giải thích sang đối số tiếp theo. Tính năng nhận diện chuẩn xác ngay cả khi lồng nhiều hàm hoặc có dấu phẩy trong chuỗi nháy kép.",
       "Hiển thị ô trực quan: Trong suốt quá trình đang gõ dở công thức, ô trên bảng tính hiển thị chính xác chuỗi ký tự bạn đang soạn (hoặc thanh công thức), tuyệt đối không tính trước gây hiện lỗi #VALUE! hay #NAME?. Chỉ khi bạn nhấn Enter hoặc Tab để xác nhận, công thức mới được tính toán hoàn chỉnh."
     ]
+  },
+  {
+    id: "sheet.mouse.operations",
+    app: "sheet",
+    commandIds: ["sheet.edit.fillDown"],
+    title: "Thao tác chuột và tràn chữ khi soạn ô",
+    summary: "Thao tác chuột trực quan và tiện lợi: nhấp đúp ô để sửa, kéo chọn vùng, Shift/Ctrl chọn vùng, kéo tay cầm điền AutoFill, kéo-thả di chuyển/sao chép ô, nhấp đúp và kéo viền cột/hàng để đổi kích thước, nội dung soạn ô tự động tràn sang phải.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
+    keywords: ["chuột", "nhấp đúp ô", "kéo chọn vùng", "Shift+click", "Ctrl+click", "tay cầm điền", "AutoFill", "di chuyển ô", "sao chép ô", "viền cột", "viền hàng", "tự vừa cột", "tràn chữ", "overflow"],
+    steps: [
+      "Nhấp đúp chuột trái vào một ô để vào chế độ chỉnh sửa trực tiếp nội dung trong ô (tương đương phím F2).",
+      "Kéo chuột qua các ô để chọn một dải ô. Nhấp vào ô đầu, giữ phím Shift và nhấp vào ô cuối để mở rộng vùng chọn (ví dụ B2:E6). Giữ phím Ctrl và nhấp chuột vào các ô khác nhau để chọn đồng thời nhiều vùng rời rạc.",
+      "Kéo tay cầm điền (hình vuông nhỏ màu xanh ở góc dưới bên phải ô đang chọn) để tự động điền dãy số, ngày tháng hoặc sao chép công thức (AutoFill).",
+      "Di chuột tới viền bao quanh ô/vùng chọn đến khi con trỏ đổi sang hình bàn tay / mũi tên bốn hướng; kéo chuột để di chuyển dữ liệu sang vị trí mới. Giữ phím Ctrl trong lúc kéo để sao chép ô mà không làm mất dữ liệu gốc. Nhấn Ctrl+Z để hoàn tác.",
+      "Nhấp vào tiêu đề cột (A, B, C...) hoặc hàng (1, 2, 3...) để chọn trọn vẹn cả cột hoặc hàng; kéo chuột qua các tiêu đề để chọn nhiều cột/hàng liên tiếp.",
+      "Di chuột tới vạch phân cách giữa hai tiêu đề cột/hàng để kéo thay đổi độ rộng/chiều cao. Nhấp đúp vào vạch phân cách cột để tự động vừa khít độ rộng theo nội dung dài nhất (Auto-fit).",
+      "Khi đang soạn thảo văn bản hoặc gõ công thức dài trong ô, nếu các ô bên phải còn trống, nội dung đang gõ sẽ tự động hiển thị tràn sang các ô bên phải một cách tự nhiên, không bị cắt ngắn."
+    ]
   }
 ];
 
