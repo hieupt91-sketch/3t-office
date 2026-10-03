@@ -72,6 +72,30 @@ class ViewWorkerTests(unittest.TestCase):
         self.assertTrue(any(cell not in ("", None) for row in window["values"] for cell in row))
         self.assertTrue(all(width > 0 for width in window["col_widths"]))
 
+        rich = self.call(op="view_window", doc_id=doc_id, sheet=0, r0=0, c0=0, r1=29, c1=9,
+                         include_strings=True, include_formats=True)
+        self.assertTrue(rich["ok"], rich)
+        self.assertEqual(len(rich["strings"]), 30)
+        self.assertTrue(all(len(row) == 10 for row in rich["strings"]))
+        # Display text exists exactly where a value exists.
+        for r in range(30):
+            for c in range(10):
+                if rich["values"][r][c] in ("", None):
+                    self.assertEqual(rich["strings"][r][c], "")
+        self.assertTrue(any(text for row in rich["strings"] for text in row))
+        blocks = rich["formats"]
+        self.assertGreater(len(blocks), 0)
+        covered = 0
+        for block in blocks:
+            self.assertLessEqual(block["r1"], 29)
+            self.assertLessEqual(block["c1"], 9)
+            self.assertGreaterEqual(block["r0"], 0)
+            self.assertGreaterEqual(block["c0"], 0)
+            self.assertIn("numfmt", block)
+            self.assertGreater(block["size"], 0)
+            covered += (block["r1"] - block["r0"] + 1) * (block["c1"] - block["c0"] + 1)
+        self.assertEqual(covered, 300, "format blocks must tile the whole window exactly")
+
         bad = self.call(op="view_window", doc_id=doc_id, sheet=0, r0=5, c0=0, r1=2, c1=3)
         self.assertFalse(bad["ok"])
         too_big = self.call(op="view_window", doc_id=doc_id, sheet=0, r0=0, c0=0, r1=100000, c1=100)

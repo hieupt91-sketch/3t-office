@@ -262,9 +262,24 @@ def _view_window(request: dict[str, Any]) -> dict[str, Any]:
     cell_range = sheet.getCellRangeByPosition(first_col, first_row, last_col, last_row)
     columns = sheet.getColumns()
     rows = sheet.getRows()
+    values = [list(row) for row in cell_range.getDataArray()]
+    extra: dict[str, Any] = {}
+    if request.get("include_strings"):
+        # Display text (number formats applied) only for non-empty cells: ~0.5 ms per cell.
+        extra["strings"] = [
+            [
+                sheet.getCellByPosition(first_col + c, first_row + r).getString()
+                if values[r][c] not in ("", None) else ""
+                for c in range(last_col - first_col + 1)
+            ]
+            for r in range(last_row - first_row + 1)
+        ]
+    if request.get("include_formats"):
+        extra["formats"] = _view_format_blocks(document, cell_range)
     return {
         "ok": True,
-        "values": [list(row) for row in cell_range.getDataArray()],
+        **extra,
+        "values": values,
         "formulas": [list(row) for row in cell_range.getFormulaArray()],
         # 1/100 mm, as LibreOffice stores them; the UI converts.
         "col_widths": [int(columns.getByIndex(c).Width) for c in range(first_col, last_col + 1)],
@@ -273,6 +288,57 @@ def _view_window(request: dict[str, Any]) -> dict[str, Any]:
         "row_hidden": [not bool(rows.getByIndex(r).IsVisible) for r in range(first_row, last_row + 1)],
         "elapsed_ms": round((time.monotonic() - started) * 1000, 1),
     }
+
+
+_VIEW_FORMAT_PROPERTIES = (
+    "CharFontName", "CharHeight", "CharWeight", "CharPosture", "CharUnderline", "CharStrikeout",
+    "CharColor", "CellBackColor", "HoriJustify", "VertJustify", "IsTextWrapped", "NumberFormat",
+)
+
+
+def _enum_name(value: Any) -> Any:
+    return getattr(value, "value", value)
+
+
+def _view_format_blocks(document: Any, cell_range: Any) -> list[dict[str, Any]]:
+    """Uniform-format blocks covering the window (cheap: one property read per block, not per cell).
+
+    Coordinates are relative to the queried range.  Colors are 0xRRGGBB ints (-1 = none).
+    """
+    origin = cell_range.getRangeAddress()
+    number_formats = document.getNumberFormats()
+    format_strings: dict[int, str] = {}
+    blocks = []
+    parts = cell_range.getCellFormatRanges()
+    for index in range(int(parts.getCount())):
+        part = parts.getByIndex(index)
+        address = part.getRangeAddress()
+        props = part.getPropertyValues(_VIEW_FORMAT_PROPERTIES)
+        key = int(props[11])
+        if key not in format_strings:
+            try:
+                format_strings[key] = str(number_formats.getByKey(key).FormatString)
+            except Exception:
+                format_strings[key] = "General"
+        blocks.append({
+            "r0": int(address.StartRow) - int(origin.StartRow),
+            "c0": int(address.StartColumn) - int(origin.StartColumn),
+            "r1": int(address.EndRow) - int(origin.StartRow),
+            "c1": int(address.EndColumn) - int(origin.StartColumn),
+            "font": str(props[0]),
+            "size": float(props[1]),
+            "weight": float(props[2]),
+            "posture": str(_enum_name(props[3])),
+            "underline": int(props[4]),
+            "strike": int(props[5]),
+            "color": int(props[6]),
+            "bg": int(props[7]),
+            "halign": str(_enum_name(props[8])),
+            "valign": str(_enum_name(props[9])),
+            "wrap": bool(props[10]),
+            "numfmt": format_strings[key],
+        })
+    return blocks
 
 
 def _view_close(request: dict[str, Any]) -> dict[str, Any]:

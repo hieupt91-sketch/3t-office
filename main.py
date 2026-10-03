@@ -3273,12 +3273,13 @@ class VnOfficeApi:
         except Exception as exc:
             return {"ok": False, "error": str(exc)[:300]}
 
-    def sheet_view_window(self, doc_id, sheet, r0, c0, r1, c1):
+    def sheet_view_window(self, doc_id, sheet, r0, c0, r1, c1, include_strings=False, include_formats=False):
         try:
             started = time.perf_counter()
             result = _PERSISTENT_SOFFICE.view_operation(
                 "sheet", "view_window", timeout=60, doc_id=str(doc_id),
                 sheet=int(sheet), r0=int(r0), c0=int(c0), r1=int(r1), c1=int(c1),
+                include_strings=bool(include_strings), include_formats=bool(include_formats),
             )
             result["ok"] = True
             _open_perf_log("sheet_view_window", (time.perf_counter() - started) * 1000)
