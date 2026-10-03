@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import re
 import shutil
@@ -87,6 +88,54 @@ def read_source_bytes(source: str, relative_path: str, *, max_bytes: int, timeou
         return path.read_bytes()
     except OSError as exc:
         raise UpdateSourceError(f"Không thể đọc nguồn cập nhật: {exc}") from exc
+
+
+API_PRODUCT = "3t-office"
+MAX_API_BYTES = 24 * 1024 * 1024  # base64 of the signed manifest (a few MB) plus overhead
+
+
+def read_update_api(
+    source: str,
+    channel: str,
+    current_version: str,
+    *,
+    product: str = API_PRODUCT,
+    timeout: int = DEFAULT_TIMEOUT_SECONDS,
+) -> dict[str, object]:
+    """Ask the 3T Cloud API for the newest signed release of a channel (HTTPS sources only).
+
+    GET <origin>/api/v1/updates/<product>/<channel>/latest?current=<version>&compact=1
+    The answer is either {"up_to_date": true, "version": ...} or the signed manifest as base64 plus its
+    signature; the caller must still verify the signature with the embedded public key before using it.
+    A source without the API (404, network error, odd answer) raises UpdateSourceError so the caller can fall back
+    to the static channel files.
+    """
+    parsed = urllib.parse.urlsplit(source)
+    if parsed.scheme.lower() != "https" or not parsed.netloc or parsed.username or parsed.password:
+        raise UpdateSourceError("API cập nhật cần nguồn HTTPS hợp lệ")
+    if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,63}", product) or not re.fullmatch(r"[a-z][a-z0-9-]{0,31}", channel):
+        raise UpdateSourceError("Sản phẩm hoặc kênh cập nhật không hợp lệ")
+    query = {"compact": "1"}
+    if re.fullmatch(r"[0-9]+(\.[0-9]+){1,3}([A-Za-z0-9.+-]*)?", str(current_version)):
+        query["current"] = str(current_version)
+    url = urllib.parse.urlunsplit((
+        "https", parsed.netloc, f"/api/v1/updates/{product}/{channel}/latest", urllib.parse.urlencode(query), "",
+    ))
+    request = urllib.request.Request(url, headers={"User-Agent": "VNOffice-Updater/1", "Accept": "application/json"})
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            if not response.geturl().lower().startswith("https://"):
+                raise UpdateSourceError("Nguồn chuyển hướng khỏi HTTPS")
+            raw = _read_stream(response, MAX_API_BYTES)
+    except (OSError, urllib.error.URLError) as exc:
+        raise UpdateSourceError(f"API cập nhật không phản hồi: {exc}") from exc
+    try:
+        answer = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError) as exc:
+        raise UpdateSourceError("API cập nhật trả về dữ liệu không hợp lệ") from exc
+    if not isinstance(answer, dict) or answer.get("channel") != channel or not isinstance(answer.get("version"), str):
+        raise UpdateSourceError("API cập nhật trả về dữ liệu không khớp kênh")
+    return answer
 
 
 def download_blob(

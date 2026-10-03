@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import logging
@@ -26,7 +27,7 @@ from .manifest import (
     validate_package_path,
     version_key,
 )
-from .source import UpdateSourceError, download_blob, read_source_bytes
+from .source import UpdateSourceError, download_blob, read_source_bytes, read_update_api
 
 LOG = logging.getLogger("vnoffice.updater")
 _UPDATE_LOG_LOCK = threading.Lock()
@@ -264,7 +265,7 @@ class UpdaterManager:
             self.source = selected_source
             _append_update_log(self.updates_dir, f'update-source-selected source="{selected_source}"')
             version_order = compare_versions(version, self.current_version)
-            if version_order == 0:
+            if version_order == 0 or manifest is None:
                 self._manifest = None
                 self._manifest_bytes = None
                 self._signature = None
@@ -335,7 +336,45 @@ class UpdaterManager:
             )
             return state
 
-    def _read_signed_release(self, source: str) -> tuple[str, bytes, bytes, dict[str, object]]:
+    def _read_release_from_api(self, source: str):
+        """Ask the 3T Cloud API for the release; None when the source has no usable API (caller uses static files).
+
+        The signed manifest still has to pass the embedded public key, so the API is only a faster, smaller
+        transport: a periodic check on the current version costs a few hundred bytes instead of the full manifest.
+        """
+        try:
+            answer = read_update_api(source, self.channel, self.current_version, timeout=self.timeout)
+        except UpdateSourceError as exc:
+            _append_update_log(self.updates_dir, f'update-api-unavailable source="{source}" reason="{str(exc)[:120]}"')
+            return None
+        version = answer.get("version")
+        try:
+            version_key(version)
+            if answer.get("up_to_date") is True:
+                if version != self.current_version:
+                    return None
+                return version, b"", b"", None
+            manifest_raw = base64.b64decode(str(answer["manifest_base64"]), validate=True)
+            signature = base64.b64decode(str(answer["signature_base64"]), validate=True)
+            if len(manifest_raw) > MAX_MANIFEST_BYTES or len(signature) > MAX_SIGNATURE_BYTES:
+                raise UpdateRefused("Dữ liệu API vượt quá giới hạn")
+            modulus, exponent = self.public_key
+            if not verify_sha256_pkcs1v15(manifest_raw, signature, modulus, exponent):
+                raise UpdateRefused("Chữ ký manifest từ API không hợp lệ")
+            manifest = parse_manifest(manifest_raw, expected_channel=self.channel)
+            if manifest["version"] != version:
+                raise UpdateRefused("Version trong manifest API không khớp")
+        except (KeyError, ValueError, TypeError, UpdateRefused, ManifestError) as exc:
+            _append_update_log(self.updates_dir, f'update-api-rejected source="{source}" reason="{str(exc)[:120]}"')
+            return None
+        _append_update_log(self.updates_dir, f'update-api-used source="{source}" version="{version}"')
+        return version, manifest_raw, signature, manifest
+
+    def _read_signed_release(self, source: str):
+        if source.lower().startswith("https://"):
+            api_release = self._read_release_from_api(source)
+            if api_release is not None:
+                return api_release
         pointer_raw = read_source_bytes(
             source,
             f"channels/{self.channel}.json",
