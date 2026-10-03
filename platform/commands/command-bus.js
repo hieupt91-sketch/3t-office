@@ -105,6 +105,10 @@ export class CommandBus {
     this._notify(commandId, updated);
   }
 
+  setState(commandId, newState) {
+    return this.updateState(commandId, newState);
+  }
+
   /**
    * Lấy trạng thái hiện tại của một lệnh
    * @param {string} commandId 
@@ -211,3 +215,11 @@ export class CommandBus {
 
 // Global default singleton instance
 export const globalCommandBus = new CommandBus();
+if (typeof globalThis !== "undefined") {
+  globalThis.globalCommandBus = globalCommandBus;
+  globalThis.__vnoGlobalCommandBus = globalCommandBus;
+}
+if (typeof window !== "undefined") {
+  window.globalCommandBus = globalCommandBus;
+  window.__vnoGlobalCommandBus = globalCommandBus;
+}

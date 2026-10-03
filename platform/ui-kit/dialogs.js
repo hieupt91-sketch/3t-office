@@ -285,7 +285,14 @@ export function showUnsavedChangesDialog({
         finish("cancel");
       } else if (event.key === "Enter") {
         event.preventDefault();
-        finish("save");
+        const activeChoice = document.activeElement?.getAttribute?.("data-unsaved-choice");
+        if (activeChoice) {
+          finish(activeChoice);
+        } else if (document.activeElement === closeBtn) {
+          finish("cancel");
+        } else {
+          finish("save");
+        }
       } else if (event.key === "Tab") {
         trapFocus(dialogBox, event);
       }
@@ -390,131 +397,7 @@ export function showPromptDialog({
   });
 }
 
-/**
- * Hộp thoại Tìm kiếm và Thay thế chuẩn phong cách Microsoft Office
- * @param {Object} options
- * @param {boolean} [options.isReplace=false]
- * @param {Function} options.onFind (findText) => boolean
- * @param {Function} options.onReplace (findText, replaceText) => void
- * @param {Function} options.onReplaceAll (findText, replaceText) => void
- */
-export function showFindReplaceDialog({
-  isReplace = false,
-  onFind,
-  onReplace,
-  onReplaceAll
-}) {
-  if (typeof document === "undefined" || typeof document.createElement !== "function" || !document.body) {
-    return;
-  }
-  const previousFocused = document.activeElement;
-  const overlay = document.createElement("div");
-  overlay.className = "vno-dialog-overlay";
-  const titleId = `vno-dialog-title-${++dialogIdCounter}`;
-
-  overlay.innerHTML = `
-    <div class="vno-dialog-box" style="width: 500px; max-width: calc(100vw - 32px);" role="dialog" aria-modal="true" aria-labelledby="${titleId}">
-      <div class="vno-dialog-header">
-        <div style="display:flex;gap:12px;align-items:center;">
-          <span id="${titleId}" style="font-weight:700;">Tìm kiếm và Thay thế</span>
-        </div>
-        <button class="vno-btn vno-btn-icon-only vno-fr-close vno-dialog-close-btn" title="Đóng" aria-label="Đóng">&times;</button>
-      </div>
-      <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:14px;">
-        <div style="display:flex;flex-direction:column;gap:4px;">
-          <label for="vno-fr-find-input" style="font-size:12px;font-weight:600;color:var(--vno-text-secondary);">Tìm kiếm:</label>
-          <input type="text" id="vno-fr-find-input" class="vno-dialog-input" placeholder="Nhập từ hoặc cụm từ cần tìm..."
-                 style="padding:8px 12px;border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md);font-size:13px;width:100%;box-sizing:border-box;background:var(--vno-bg-surface);color:var(--vno-text-primary);" />
-        </div>
-
-        <div id="vno-fr-replace-group" style="display:${isReplace ? "flex" : "none"};flex-direction:column;gap:4px;">
-          <label for="vno-fr-replace-input" style="font-size:12px;font-weight:600;color:var(--vno-text-secondary);">Thay thế bằng:</label>
-          <input type="text" id="vno-fr-replace-input" class="vno-dialog-input" placeholder="Nhập nội dung thay thế..."
-                 style="padding:8px 12px;border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md);font-size:13px;width:100%;box-sizing:border-box;background:var(--vno-bg-surface);color:var(--vno-text-primary);" />
-        </div>
-
-        <div style="display:flex;align-items:center;gap:8px;">
-          <input type="checkbox" id="vno-fr-toggle-replace" ${isReplace ? "checked" : ""} />
-          <label for="vno-fr-toggle-replace" style="font-size:12px;color:var(--vno-text-secondary);cursor:pointer;user-select:none;">Hiển thị tùy chọn thay thế</label>
-        </div>
-      </div>
-      <div class="vno-dialog-footer">
-        <button class="vno-btn vno-fr-close-btn">Đóng</button>
-        <button class="vno-btn" id="vno-fr-replace-btn" style="display:${isReplace ? "inline-flex" : "none"};">Thay thế</button>
-        <button class="vno-btn" id="vno-fr-replace-all-btn" style="display:${isReplace ? "inline-flex" : "none"};">Thay thế tất cả</button>
-        <button class="vno-btn vno-btn-primary" id="vno-fr-find-next-btn">Tìm tiếp</button>
-      </div>
-    </div>
-  `;
-
-  document.body.appendChild(overlay);
-  const dialogBox = overlay.querySelector(".vno-dialog-box");
-
-  const findInput = overlay.querySelector("#vno-fr-find-input");
-  const replaceInput = overlay.querySelector("#vno-fr-replace-input");
-  const replaceGroup = overlay.querySelector("#vno-fr-replace-group");
-  const toggleCheckbox = overlay.querySelector("#vno-fr-toggle-replace");
-  const replaceBtn = overlay.querySelector("#vno-fr-replace-btn");
-  const replaceAllBtn = overlay.querySelector("#vno-fr-replace-all-btn");
-  const findNextBtn = overlay.querySelector("#vno-fr-find-next-btn");
-
-  findInput.focus();
-
-  toggleCheckbox.addEventListener("change", (e) => {
-    const show = e.target.checked;
-    replaceGroup.style.display = show ? "flex" : "none";
-    replaceBtn.style.display = show ? "inline-flex" : "none";
-    replaceAllBtn.style.display = show ? "inline-flex" : "none";
-  });
-
-  const close = () => {
-    document.removeEventListener("keydown", onKeyDown);
-    if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-    if (previousFocused && typeof previousFocused.focus === "function") {
-      previousFocused.focus();
-    }
-  };
-
-  overlay.querySelectorAll(".vno-fr-close, .vno-fr-close-btn").forEach(btn => {
-    btn.addEventListener("click", close);
-  });
-
-  overlay.addEventListener("click", (e) => {
-    if (e.target === overlay) close();
-  });
-
-  const doFind = () => {
-    const text = findInput.value;
-    if (text && onFind) onFind(text);
-  };
-
-  findNextBtn.addEventListener("click", doFind);
-
-  replaceBtn.addEventListener("click", () => {
-    const fText = findInput.value;
-    const rText = replaceInput.value;
-    if (fText && onReplace) onReplace(fText, rText);
-  });
-
-  replaceAllBtn.addEventListener("click", () => {
-    const fText = findInput.value;
-    const rText = replaceInput.value;
-    if (fText && onReplaceAll) onReplaceAll(fText, rText);
-  });
-
-  const onKeyDown = (e) => {
-    if (e.key === "Escape") {
-      e.preventDefault();
-      close();
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      doFind();
-    } else if (e.key === "Tab") {
-      trapFocus(dialogBox, e);
-    }
-  };
-  document.addEventListener("keydown", onKeyDown);
-}
+export { showFindReplaceDialog } from "../find/find-dialog.js";
 
 /**
  * Hộp thoại Quản lý Macro — liệt kê macro đã ghi, chạy/đổi tên/xóa.

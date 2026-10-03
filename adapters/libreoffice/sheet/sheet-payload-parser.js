@@ -233,8 +233,8 @@ function setupForSheet(adapter, table, tableXml, rowColStyles) {
     margins: { top: 1.91, bottom: 1.91, left: 1.78, right: 1.78, ...(standardLayout?.margins || {}), ...pageMargins },
     scale: { mode: "percent", percent: 100, pagesWide: 1, pagesTall: 0, ...(standardLayout?.scale || {}), ...pageScale },
     headerFooter: {
-      header: { left: "", center: "", right: "", ...(pageHeaderFooter.header || {}) },
-      footer: { left: "", center: "Trang &P / &N", right: "", ...(pageHeaderFooter.footer || {}) },
+      header: { left: "", center: "", right: "", ...(standardLayout?.headerFooter?.header || {}), ...(pageHeaderFooter.header || {}) },
+      footer: { left: "", center: "Trang &P / &N", right: "", ...(standardLayout?.headerFooter?.footer || {}), ...(pageHeaderFooter.footer || {}) },
     },
     centerOnPage: { horizontal: false, vertical: false, ...(standardLayout?.centerOnPage || {}), ...pageCentering },
     printOptions: { gridlines: false, headings: false, ...(standardLayout?.printOptions || {}), ...pagePrintOptions },

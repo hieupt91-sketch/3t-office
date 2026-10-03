@@ -338,20 +338,30 @@ export class NumberFormatter {
     return { text: result, align: "right" };
   }
 
-  /** Format an Excel time serial using its actual time-of-day fraction. */
+  /**
+   * Định dạng Giờ (Time) — ô lưu số ngày dạng phân số, ví dụ 13:45 -> 0.5729166...
+   * Hiển thị lại theo mẫu timeFormat: "HH:mm" (mặc định) hoặc "HH:mm:ss".
+   * @param {any} val
+   * @param {Object} [config] { timeFormat?: string }
+   * @returns {{ text: string, align: string }}
+   */
   static formatTime(val, config = {}) {
-    const number = typeof val === "number" ? val : this.parseNumber(val);
-    if (number === null || !Number.isFinite(number)) return { text: String(val) };
-    const totalSeconds = Math.round(((number % 1) + 1) % 1 * 86400) % 86400;
+    const num = typeof val === "number" ? val : this.parseNumber(val);
+    if (num === null || !Number.isFinite(num)) return { text: String(val) };
+
+    const pattern = String(config.timeFormat || "HH:mm");
+    const withSeconds = /ss/i.test(pattern);
+    const padHours = /hh/i.test(pattern);
+    // Số ngày vượt quá 1 vẫn hiển thị phần giờ trong ngày (như phần mềm bảng tính khác).
+    const totalSeconds = Math.round(((num % 1) + 1) % 1 * 86400) % 86400;
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     const seconds = totalSeconds % 60;
-    const pattern = String(config.timeFormat || "hh:mm");
-    const pad = value => String(value).padStart(2, "0");
-    const text = pattern.includes("ss")
-      ? `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`
-      : `${pad(hours)}:${pad(minutes)}`;
-    return { text, align: "right" };
+
+    const hh = padHours ? String(hours).padStart(2, "0") : String(hours);
+    const mm = String(minutes).padStart(2, "0");
+    const ss = String(seconds).padStart(2, "0");
+    return { text: withSeconds ? `${hh}:${mm}:${ss}` : `${hh}:${mm}`, align: "right" };
   }
 
   /**
@@ -614,11 +624,65 @@ export class NumberFormatter {
     return { value: inputVal };
   }
 
+  /** True only for the unambiguous date spellings accepted by Sheet input. */
+  static isDateInput(val) {
+    if (typeof val !== "string") return false;
+    const str = val.trim();
+    const match = str.match(/^(?:(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})|(\d{4})[\/-](\d{1,2})[\/-](\d{1,2}))(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+    if (!match) return false;
+    const day = Number(match[1] || match[6]);
+    const month = Number(match[2] || match[5]);
+    const year = Number(match[3] || match[4]);
+    const hour = Number(match[7] || 0);
+    const minute = Number(match[8] || 0);
+    const second = Number(match[9] || 0);
+    if (month < 1 || month > 12 || day < 1 || hour > 23 || minute > 59 || second > 59) return false;
+    const date = new Date(Date.UTC(year, month - 1, day));
+    return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+  }
+
+  /**
+   * True only for the H:MM, HH:MM, HH:MM:SS spellings Sheet accepts as a time
+   * (giờ 0-23, phút/giây 0-59). Mẫu khác như 1:2, 1234, 25:00, 13:60 là văn bản.
+   * @param {any} val
+   * @returns {boolean}
+   */
+  static isTimeInput(val) {
+    if (typeof val !== "string") return false;
+    const match = val.trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+    if (!match) return false;
+    return Number(match[1]) <= 23 && Number(match[2]) <= 59 && Number(match[3] || 0) <= 59;
+  }
+
+  static _dateInputToSerial(inputVal) {
+    const date = this._parseDate(inputVal);
+    if (!date || isNaN(date.getTime())) return inputVal;
+    const epoch = Date.UTC(1899, 11, 30);
+    const utcValue = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes(), date.getSeconds());
+    return Math.round((utcValue - epoch) / 86400000 * 1000000) / 1000000;
+  }
+
   static normalizeInputForFormat(inputVal, formatConfig) {
     if (inputVal === null || inputVal === undefined || inputVal === "") return "";
     if (typeof inputVal === "string" && inputVal.startsWith("=")) return inputVal;
 
-    if (!formatConfig || !formatConfig.category) return inputVal;
+    if (!formatConfig || !formatConfig.category || formatConfig.category === "general") {
+      if (typeof inputVal !== "string") return inputVal;
+      const str = inputVal.trim();
+      if (this.isDateInput(str)) return this._dateInputToSerial(str);
+      const strictNumber = /^[+-]?(?:(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i;
+      if (strictNumber.test(str)) {
+        const parsed = this.parseNumber(str);
+        return parsed !== null && Number.isFinite(parsed) ? parsed : inputVal;
+      }
+      // A single comma with one or two trailing digits is a decimal in the
+      // Vietnamese locale; comma groups of three remain thousands separators.
+      if (/^[+-]?\d+,\d{1,2}$/.test(str) && !/^[+-]?\d{1,3},\d{3}$/.test(str)) {
+        const parsed = this.parseNumber(str);
+        return parsed !== null && Number.isFinite(parsed) ? parsed : inputVal;
+      }
+      return inputVal;
+    }
 
     const { category } = formatConfig;
 
@@ -656,13 +720,7 @@ export class NumberFormatter {
     }
 
     if (category === "date") {
-      const date = this._parseDate(inputVal);
-      if (date && !isNaN(date.getTime())) {
-        const epoch = Date.UTC(1899, 11, 30);
-        const utcValue = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes(), date.getSeconds());
-        return Math.round((utcValue - epoch) / 86400000 * 1000000) / 1000000;
-      }
-      return inputVal;
+      return this._dateInputToSerial(inputVal);
     }
 
     return inputVal;

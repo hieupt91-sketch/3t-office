@@ -26,9 +26,7 @@ class AboutApiTests(unittest.TestCase):
         # Check suite components
         components = info.get("suite_components", [])
         component_names = [c["name"] for c in components]
-        self.assertIn("3T Doc", component_names)
-        self.assertIn("3T Sheet", component_names)
-        self.assertIn("3T Slide", component_names)
+        self.assertEqual(component_names, ["Doc", "Sheet", "Slide"])
 
         # Check third party notices
         notices = info.get("third_party_notices", "")

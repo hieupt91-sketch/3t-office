@@ -1,8 +1,43 @@
+3T Office — Thông tin phát hành phiên bản 0.9.7
+Ngày phát hành: 02/10/2026
+
+1. Chung (dùng cho Doc, Sheet và Slide):
+- Giao diện và Trợ giúp thống nhất ở cả 3 ứng dụng: bấm Alt để hiện phím tắt, F1 mở ngay bài hướng dẫn đúng ngữ cảnh, và có trang "Có gì mới" trong Trợ giúp.
+- Cập nhật một chạm: khi có bản vá mới, ứng dụng báo trước, lưu tài liệu rồi tự áp bản vá và mở lại; mỗi bước được ghi nhật ký để khôi phục khi có lỗi.
+- Tìm/Thay thế dùng chung cho cả 3 ứng dụng: Ctrl+F để tìm, Ctrl+H để thay thế, F3 cho lần tìm kế tiếp.
+- Gõ tiếng Việt bằng bộ gõ ngoài (Unikey, EVKey): Ctrl+Z hoàn tác theo từng từ, chữ được chuẩn hóa, gợi ý công thức không bị chèn nhầm vào nội dung.
+- Chính tả tiếng Việt: từ sai được gạch đỏ ngay khi gõ, chuột phải để chọn cách sửa, và bật/tắt chính tả trong Tùy chọn cho cả 3 ứng dụng.
+- Tên ngắn Doc, Sheet, Slide dùng thống nhất ở tiêu đề cửa sổ, giao diện và nội dung mẫu.
+- Phím tắt trên desktop và khi ghim thanh tác vụ dùng tên ngắn Doc, Sheet, Slide; sau khi nâng cấp không còn giữ tên cũ.
+- Hộp thoại In không còn hiển thị tên thư viện kỹ thuật bên trong.
+- Trợ giúp tiếng Việt được rà soát cho 47 mục tính năng, mỗi mục có hướng dẫn cụ thể.
+- Mở ứng dụng và mở tệp nhanh hơn, gõ phím ngay được sau khi mở.
+- Lệnh Tạo mới ở Sheet và Slide mở cửa sổ mới thay vì dùng lại cửa sổ cũ.
+- Ổn định tiến trình: không còn tiến trình thừa do ứng dụng tạo ra khi đóng hoặc mở lại; bản lưu tạm cứ 2 phút một lần giúp khôi phục tài liệu khi ứng dụng bị treo; nhật ký hiệu năng chỉ ghi khi bạn bật trong Trợ giúp.
+- Giao diện dùng chung được đồng bộ giữa Doc, Sheet và Slide: màn hình Tệp và danh sách Tệp gần đây giống nhau, thanh trạng thái ở đáy cửa sổ có các chế độ xem riêng từng ứng dụng cùng thanh thu phóng 50% – 200%, và phím tắt Alt+F, Ctrl+F1 dùng chung.
+
+2. Doc:
+- Thêm Thước ngang và dọc, Thụt đầu dòng, Đánh số lại từ 1; nhóm lệnh Bảng (chèn/xóa hàng cột, gộp/tách ô, căn ô, tô màu ô, đường viền, hàng tiêu đề); ảnh có 8 tay cầm, giữ tỉ lệ và ngắt dòng chữ quanh ảnh; lệnh cắt/dán và gợi ý chính tả khi chuột phải.
+- Sửa lỗi số trang trên màn hình lệch so với bản in (phông chữ và giãn dòng của trang bị áp sai).
+- Chèn phương trình bằng Alt+=, soạn được dạng tuyến tính, lưu và mở lại vẫn giữ nguyên vị trí.
+
+3. Sheet:
+- Dán từ bảng tính và văn bản của phần mềm văn phòng khác giữ đúng định dạng: chữ đậm, màu nền, số, ngày, phần trăm và số thập phân vào đúng ô; dán vào Doc giữ tiêu đề, danh sách và bảng.
+- Sửa 5 lỗi: số và ngày lưu thành giá trị số thật; giữ thiết lập trang in khi mở lại; Ctrl+A chọn đúng vùng dữ liệu; sắp xếp giữ nguyên dòng tiêu đề; xóa trang tính và đổi màu tab.
+- Bảng tính đủ 1.048.576 hàng x 16.384 cột (trước đây dừng ở 200 hàng x 26 cột); chỉ vẽ phần đang nhìn thấy nên cuộn vẫn nhẹ; Ctrl+mũi tên và ô nhập tên vùng đi tới mọi ô.
+- Hộp thoại In có thêm Phạm vi sổ làm việc: trang tính hiện hoạt, toàn bộ sổ làm việc hoặc vùng bôi đen.
+
+4. Slide:
+- Tab/Shift+Tab thụt lề trong hộp chữ; Enter không còn thoát khỏi hộp chữ; kéo góc ảnh giữ nguyên tỉ lệ; xóa hoặc nhân bản trang an toàn; phím tắt dùng được ở chế độ sắp xếp.
+- Ctrl+C, Ctrl+X, Ctrl+V hoạt động trong hộp chữ.
+
+============================================================
+
 3T Office — Thông tin phát hành phiên bản 0.9.0-pilot1
 Ngày phát hành: 01/10/2026
 
 1. Giao diện và Trợ giúp thống nhất (Hạng mục CH-8):
-- Đồng bộ hóa dải ruy-băng (Ribbon) giữa 3T Doc, 3T Sheet và 3T Slide: thứ tự tab chuẩn mực (Trang đầu, Chèn, Bố cục, ...), khoảng cách nút và bố cục trực quan.
+- Đồng bộ hóa dải ruy-băng (Ribbon) giữa Doc, Sheet và Slide: thứ tự tab chuẩn mực (Trang đầu, Chèn, Bố cục, ...), khoảng cách nút và bố cục trực quan.
 - Hệ thống phím tắt KeyTips chuẩn Office: bấm và thả phím Alt để hiển thị ký tự phím tắt bằng tiếng Việt trực quan (T cho Tệp, D cho Trang đầu, C cho Chèn, B cho Bố cục, M cho Công thức, L cho Dữ liệu, S cho Tham chiếu/Trình chiếu, U cho Gửi thư, P cho Chuyển tiếp, H cho Hoạt hình, X cho Xem lại, V cho Xem, G cho Trợ giúp, A cho 3T AI); Esc quay lại từng cấp.
 - Trợ giúp F1 theo ngữ cảnh: nhấn F1 trên bất kỳ nút Ribbon hay hộp thoại nào để mở ngay bài hướng dẫn tương ứng; bổ sung trang "Có gì mới" tra cứu thông tin bản vá của phiên bản hiện tại.
 - Thanh trạng thái chuẩn hóa: tích hợp thông tin bên trái và thanh trượt thu phóng mượt mà bên phải (50% – 200%), nút trừ (-) và cộng (+), hiển thị phần trăm rõ ràng; hỗ trợ Ctrl + lăn con lăn chuột và Ctrl+0 đặt lại 100%.
@@ -11,10 +46,10 @@ Ngày phát hành: 01/10/2026
 - Chuẩn hóa bàn phím hộp thoại: Enter kích hoạt nút mặc định, Esc hủy bỏ/đóng, bẫy tiêu điểm phím Tab/Shift+Tab an toàn.
 
 2. Tính năng ứng dụng chuyên sâu:
-- 3T Doc: Tối ưu hóa dàn trang văn bản hành chính theo Nghị định 30/2020/NĐ-CP, hỗ trợ mục lục tự động, đầu/chân trang và chú thích cuối trang.
-- 3T Sheet: Tích hợp hàm =VND() đọc số tiền thành chữ tiếng Việt chuẩn xác, hỗ trợ lọc, sắp xếp, vẽ biểu đồ và phím tắt quen thuộc.
-- 3T Slide: Trình chiếu đa phương tiện 16:9 HD, hiệu ứng hoạt hình và chuyển tiếp trang chiếu mượt mà, hỗ trợ công cụ bút vẽ và con trỏ laser.
+- Doc: Tối ưu hóa dàn trang văn bản hành chính theo Nghị định 30/2020/NĐ-CP, hỗ trợ mục lục tự động, đầu/chân trang và chú thích cuối trang.
+- Sheet: Tích hợp hàm =VND() đọc số tiền thành chữ tiếng Việt chuẩn xác, hỗ trợ lọc, sắp xếp, vẽ biểu đồ và phím tắt quen thuộc.
+- Slide: Trình chiếu đa phương tiện 16:9 HD, hiệu ứng hoạt hình và chuyển tiếp trang chiếu mượt mà, hỗ trợ công cụ bút vẽ và con trỏ laser.
 
 3. Khả năng tương thích và Hoạt động Ngoại tuyến:
 - Hoạt động 100% độc lập trên máy tính (offline desktop), không phụ thuộc mạng Internet hay dịch vụ đám mây bên ngoài.
-- Kế thừa và tương thích cao độ với định dạng Microsoft Office (.docx, .xlsx, .pptx) và LibreOffice (.odt, .ods, .odp).
+- Kế thừa và tương thích cao độ với định dạng .docx, .xlsx, .pptx, .odt, .ods và .odp.

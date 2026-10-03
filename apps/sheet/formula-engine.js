@@ -245,20 +245,33 @@ export class FormulaEngine {
     const start = parts[0].trim();
     const end = parts[1].trim();
 
-    const startCol = start.match(/[A-Z]+/)[0];
-    const startRow = parseInt(start.match(/\d+/)[0], 10);
-    const endCol = end.match(/[A-Z]+/)[0];
-    const endRow = parseInt(end.match(/\d+/)[0], 10);
-
-    const cols = [];
-    const minColChar = Math.min(startCol.charCodeAt(0), endCol.charCodeAt(0));
-    const maxColChar = Math.max(startCol.charCodeAt(0), endCol.charCodeAt(0));
-    for (let c = minColChar; c <= maxColChar; c++) {
-      cols.push(String.fromCharCode(c));
+    const startColMatch = start.match(/[A-Z]+/);
+    const startRowMatch = start.match(/\d+/);
+    const endColMatch = end.match(/[A-Z]+/);
+    const endRowMatch = end.match(/\d+/);
+    if (!startColMatch || !startRowMatch || !endColMatch || !endRowMatch) {
+      return [start, end];
     }
 
+    const startCol = startColMatch[0];
+    const startRow = parseInt(startRowMatch[0], 10);
+    const endCol = endColMatch[0];
+    const endRow = parseInt(endRowMatch[0], 10);
+
+    const minColIdx = Math.min(this._columnIndex(startCol), this._columnIndex(endCol));
+    const maxColIdx = Math.max(this._columnIndex(startCol), this._columnIndex(endCol));
     const minRow = Math.min(startRow, endRow);
     const maxRow = Math.max(startRow, endRow);
+
+    const cols = [];
+    for (let c = minColIdx; c <= maxColIdx; c++) {
+      cols.push(this._columnName(c));
+    }
+
+    const cellCount = cols.length * (maxRow - minRow + 1);
+    if (cellCount > 50000) {
+      return [`${cols[0]}${minRow}`, `${cols[cols.length - 1]}${maxRow}`];
+    }
 
     const result = [];
     for (let r = minRow; r <= maxRow; r++) {
@@ -312,6 +325,38 @@ export class FormulaEngine {
     const cacheKey = `${s}:${ref}:${v}`;
     if (this._rangeValuesCache.has(cacheKey)) {
       return this._rangeValuesCache.get(cacheKey);
+    }
+
+    const rangeMatch = ref.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
+    if (rangeMatch) {
+      const c1 = this._columnIndex(rangeMatch[1]);
+      const r1 = parseInt(rangeMatch[2], 10);
+      const c2 = this._columnIndex(rangeMatch[3]);
+      const r2 = parseInt(rangeMatch[4], 10);
+      const minCol = Math.min(c1, c2);
+      const maxCol = Math.max(c1, c2);
+      const minRow = Math.min(r1, r2);
+      const maxRow = Math.max(r1, r2);
+      const cellCount = (maxCol - minCol + 1) * (maxRow - minRow + 1);
+
+      if (cellCount > 10000) {
+        const map = reference.sheet && typeof this.sheetResolver === "function" ? this.sheetResolver(reference.sheet) : this.cellsMap;
+        const values = [];
+        if (map) {
+          for (const [coordKey, item] of map.entries()) {
+            if (!item || (item.val === "" && !item.formula)) continue;
+            const coordMatch = coordKey.match(/^([A-Z]+)(\d+)$/);
+            if (!coordMatch) continue;
+            const cIdx = this._columnIndex(coordMatch[1]);
+            const r = parseInt(coordMatch[2], 10);
+            if (cIdx >= minCol && cIdx <= maxCol && r >= minRow && r <= maxRow) {
+              values.push(this.getCellValue(coordKey, reference.sheet));
+            }
+          }
+        }
+        this._rangeValuesCache.set(cacheKey, values);
+        return values;
+      }
     }
 
     const values = this.expandRange(ref).map(coord => this.getCellValue(coord, reference.sheet));

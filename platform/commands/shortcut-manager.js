@@ -23,6 +23,8 @@ export class ShortcutManager {
     this.bind("Ctrl+=", "common.view.zoomIn", "common");
     this.bind("Ctrl++", "common.view.zoomIn", "common");
     this.bind("Ctrl+-", "common.view.zoomOut", "common");
+    this.bind("Ctrl+F1", "common.view.ribbonToggle", "common");
+    this.bind("Alt+F", "common.file.backstage", "common");
   }
 
   /**
@@ -182,6 +184,10 @@ export class ShortcutManager {
     }
 
     if (cmdId) {
+      const state = globalCommandBus.getState?.(cmdId);
+      if (state && !state.enabled && isInput) {
+        return;
+      }
       e.preventDefault();
       e.stopPropagation();
       globalCommandBus.execute(cmdId);

@@ -6,9 +6,9 @@
 export const enStrings = {
   app: {
     suiteName: "3T Office",
-    writer: "3T Doc (Word Processor)",
-    sheet: "3T Sheet (Spreadsheet)",
-    slides: "3T Slide (Presentation)"
+    writer: "Doc (Text Documents)",
+    sheet: "Sheet (Spreadsheet)",
+    slides: "Slide (Presentation)"
   },
   common: {
     save: "Save document",
@@ -31,12 +31,35 @@ export const enStrings = {
   },
   help: {
     panelTitle: "Help",
-    searchPlaceholder: "Search a feature, e.g. Word Count",
+    searchPlaceholder: "Search a feature, e.g. Document Statistics",
     topicList: "Topic list",
     noResults: "No matching help topic.",
     pickTopic: "Select a feature in the list to read its guide.",
     location: "Location",
     stepsHeading: "How to use"
+  },
+  autoRecover: {
+    settingsTitle: "AutoRecover",
+    enabled: "Save recovery copies automatically",
+    saveEvery: "Save every",
+    minuteRange: "minutes (1–60)",
+    showSaved: "View recovery copies",
+    dialogTitle: "Recover unsaved documents",
+    dialogDescription: "3T Office found automatic recovery copies from a session that did not close normally.",
+    recover: "Recover",
+    discard: "Discard",
+    later: "Later",
+    empty: "No recovery copies remain."
+  },
+  performance: {
+    optionsTitle: "Options",
+    logToggle: "Record performance log (not sent)",
+    localOnly: "The log is stored on this device only; it is off by default.",
+    openFolder: "Open log folder",
+    enabledStatus: "Performance logging is on for this device.",
+    disabledStatus: "Performance logging is off.",
+    folderOpened: "Log folder opened.",
+    desktopOnly: "This option is available in 3T Office Desktop."
   },
   aiAssistant: {
     title: "3T AI Assistant", provider: "AI provider", local: "Local (default)",
@@ -63,7 +86,7 @@ export const enStrings = {
     formulaFromDescPlaceholder: "Describe the formula to create...",
     formulaFromDescPreview: "Formula Preview",
     formulaFromDescApply: "Apply to selected cell",
-    formulaFromDescInvalid: "The generated formula is not compatible with 3T Sheet. Please try a different description.",
+    formulaFromDescInvalid: "The generated formula is not compatible with Sheet. Please try a different description.",
     formulaFromDescUnsupported: "Formula contains unsupported functions:"
   },
   backstage: {
@@ -75,7 +98,8 @@ export const enStrings = {
     print: "Print (Ctrl+P)",
     printNow: "Print Now",
     exportPdf: "Export PDF",
-    close: "Close",
+    recent: "Recent Files",
+    close: "Close (Ctrl+W)",
     options: "Options",
     account: "Account",
     about: "About 3T Office",
@@ -98,6 +122,36 @@ export const enStrings = {
     input: "Enter Data",
     findReplace: "Find and Replace"
   },
+  findReplace: {
+    dialogTitle: "Find and Replace",
+    tabFind: "Find",
+    tabReplace: "Replace",
+    findWhat: "Find what:",
+    findPlaceholder: "Enter text to find...",
+    replaceWith: "Replace with:",
+    replacePlaceholder: "Enter replacement text...",
+    matchCase: "Match case",
+    wholeWord: "Match whole word",
+    ignoreDiacritics: "Ignore diacritics",
+    within: "Within:",
+    scopeSheet: "Sheet",
+    scopeWorkbook: "Workbook",
+    searchBy: "Search:",
+    byRows: "By Rows",
+    byColumns: "By Columns",
+    lookIn: "Look in:",
+    lookInValues: "Values",
+    lookInFormulas: "Formulas",
+    btnFindPrev: "Find Previous",
+    btnFindNext: "Find Next",
+    btnReplace: "Replace",
+    btnReplaceAll: "Replace All",
+    btnClose: "Close",
+    notFound: "Cannot find what you are looking for.",
+    notFoundReplace: "Cannot find what to replace.",
+    emptyInput: "Please enter text to find.",
+    replacedCount: "All done. We made {count} replacements."
+  },
   sheetRibbon: {
     whatIfAnalysis: "What-If Analysis",
     tab: { home: "Home", formulas: "Formulas", data: "Data", insert: "Insert", pageLayout: "Page Layout", review: "Review", view: "View", help: "Help", ai: "3T AI Assistant" },
@@ -110,7 +164,7 @@ export const enStrings = {
   sheetFormulaEntry: {
     status: { enter: "Enter", edit: "Edit", point: "Point" },
     referenceHint: "Click or drag across cells to insert references; press F2 to switch between Edit and Point.",
-    formulaBarLabel: "3T Sheet Formula Bar"
+    formulaBarLabel: "Sheet Formula Bar"
   },
   slidesRibbon: {
     tab: { home: "Home", insert: "Insert", design: "Design", transitions: "Transitions", animations: "Animations", slideshow: "Slide Show", review: "Review", view: "View", help: "Help", ai: "3T AI Assistant" },
@@ -121,7 +175,7 @@ export const enStrings = {
   },
   sheetDialogs: {
     close: "Close", cancel: "Cancel", cancelLong: "Cancel", apply: "Apply", range: "Range", rangeLabel: "Range:", value: "Value", save: "Save",
-    pasteSpecialTitle: "Paste Special", pasteSpecialGroup: "Paste", pasteSpecialAll: "All", pasteSpecialValues: "Values", pasteSpecialFormulas: "Formulas", pasteSpecialFormats: "Formats", pasteSpecialTranspose: "Transpose",
+    pasteSpecialTitle: "Paste Special", pasteSpecialGroup: "Paste", pasteSpecialSource: "Keep Source Formatting", pasteSpecialAll: "All", pasteSpecialValues: "Values", pasteSpecialFormulas: "Formulas", pasteSpecialFormats: "Formats", pasteSpecialTranspose: "Transpose",
     mergeConfirmTitle: "Merge cells", mergeConfirmMessage: "Merging cells only keeps the upper-left value and discards other values.", mergeConfirmOk: "OK",
     functionTitle: "Insert Function", functionCategory: "Function category:", allCategory: "All", allFunctions: "All functions", mathFunctions: "Math & Trig", statsFunctions: "Statistical (AVERAGE, COUNT...)", logicFunctions: "Logical (IF, AND, OR...)", textFunctions: "Text (CONCAT, LEN...)", dateFunctions: "Date & Time (TODAY, NOW...)", financialFunctions: "Financial (PMT, FV, PV...)", lookupFunctions: "Lookup & Reference (VLOOKUP, INDEX...)", searchFunction: "Search for a function:", searchPlaceholder: "Type a brief description or function name...", insertFunction: "Insert Function",
     errorCheckingTitle: "Error Checking", noErrorsFound: "The error check is complete for the entire sheet. No errors were found.", errorsFoundPrompt: "Found <strong>{count}</strong> formula errors in the current sheet:", errorColCell: "Cell", errorColCode: "Error", errorColFormula: "Formula", errorColReason: "Reason", calcError: "Calculation error", divZero: "Division by zero or empty cell", invalidRef: "Invalid cell reference", wrongType: "Incorrect data type", naError: "Value not available", nameError: "Unrecognized formula or name", numError: "Numeric value out of range",
@@ -267,13 +321,14 @@ export const enStrings = {
     formatBackgroundTitle: "Format Background", formatBackgroundHint: "Change this slide's background. This does not replace the presentation theme.", formatBackgroundSolid: "Solid fill", formatBackgroundGradient: "Two-color gradient", formatBackgroundPicture: "Picture", formatBackgroundColor: "Fill color", formatBackgroundFrom: "Color 1", formatBackgroundTo: "Color 2", formatBackgroundDirection: "Direction", formatBackgroundHorizontal: "Horizontal", formatBackgroundVertical: "Vertical", formatBackgroundChoosePicture: "Choose picture…", formatBackgroundApplyCurrent: "Apply to this slide", formatBackgroundApplyAll: "Apply to all slides", formatBackgroundClear: "Remove custom background",
     spellcheckTitle: "Spelling", spellcheckNotInDictionary: "Not in Dictionary:", spellcheckLocation: "Location", spellcheckContext: "Text", spellcheckSuggestions: "Suggestions:", spellcheckNoSuggestions: "(No close suggestions)", spellcheckIgnore: "Ignore Once", spellcheckIgnoreAll: "Ignore All", spellcheckAdd: "Add to Dictionary", spellcheckReplace: "Change", spellcheckReplaceAll: "Change All", spellcheckClose: "Close", spellcheckStatus: "Issue {current} of {total}", spellcheckComplete: "The spelling check is complete for this slide. No misspellings were found.", spellcheckCompleteRemaining: "The spelling check is complete. No misspellings remain.", spellcheckFieldTitle: "Title", spellcheckFieldBody: "Body", spellcheckFieldBody2: "Second column", spellcheckFieldShape: "Shape",
     animationPaneTitle: "Animation Pane", animationPaneHint: "Every animation on the current slide. Reorder with Up/Down, choose how it starts, or remove the animation without deleting the object.", animationPaneEmpty: "This slide has no animations. Apply an object animation on the Animations tab, then open this pane to sequence them.", animStartLabel: "Start", animStartOnClick: "On Click", animStartWithPrevious: "With Previous", animStartAfterPrevious: "After Previous", animMoveUp: "Move up", animMoveDown: "Move down", animMoveUpShort: "↑", animMoveDownShort: "↓", animRemove: "Remove animation", animRemoveShort: "Remove", shapeWordArt: "WordArt", shapeChart: "Chart", shapeTable: "Table", shapeTextBox: "Text box",
-    setupShowTitle: "Set Up Slide Show", setupShowHint: "Slide show options for this presentation. Loop until Esc applies immediately in F5. Default pen and laser pointer color during slide show (toggle with Ctrl+P, Ctrl+L).", setupShowLoop: "Loop continuously until Esc", setupShowNoNarration: "Show without narration", setupShowNoNarrationHint: "3T Slide does not have audio narration yet — this option only stores a flag and does not mute or hide audio.", setupShowPointerColor: "Pen / laser pointer color",
-    keepInkTitle: "3T Slide", keepInkPrompt: "Do you want to keep your ink annotations?", keepInkKeep: "Keep", keepInkDiscard: "Discard",
+    setupShowTitle: "Set Up Slide Show", setupShowHint: "Slide show options for this presentation. Loop until Esc applies immediately in F5. Default pen and laser pointer color during slide show (toggle with Ctrl+P, Ctrl+L).", setupShowLoop: "Loop continuously until Esc", setupShowNoNarration: "Show without narration", setupShowNoNarrationHint: "Slide does not have audio narration yet — this option only stores a flag and does not mute or hide audio.", setupShowPointerColor: "Pen / laser pointer color",
+    keepInkTitle: "Slide", keepInkPrompt: "Do you want to keep your ink annotations?", keepInkKeep: "Keep", keepInkDiscard: "Discard",
     slideshowNext: "Next", slideshowPrev: "Previous", slideshowPointerOptions: "Pointer Options", slideshowArrow: "Arrow", slideshowPen: "Pen", slideshowLaser: "Laser Pointer", slideshowPenColor: "Pen Color", slideshowEraseInk: "Erase Ink on Slide", slideshowEndShow: "End Show",
     colorRed: "Red", colorBlue: "Blue", colorYellow: "Yellow", colorGreen: "Green", colorBlack: "Black"
   },
   commands: {
     "writer.edit.select": { label: "Select", tooltip: "Select text or objects in the document" },
+    "writer.edit.pasteSpecial": { label: "Paste Special", tooltip: "Paste with advanced options (keep source formatting, plain text) (Ctrl+Alt+V)" },
     "writer.para.lineSpacing": { label: "Line Spacing", tooltip: "Adjust spacing between lines of text" },
     "writer.layout.breaks": { label: "Breaks", tooltip: "Insert page or section breaks" },
     "writer.layout.sectionOptions": { label: "Section Options", tooltip: "Edit headers, footers, and numbering for this section" },
@@ -439,6 +494,7 @@ export const enStrings = {
     ,"sheet.view.gridlines": { label: "Gridlines", tooltip: "Show or hide worksheet gridlines" }
     ,"sheet.view.headings": { label: "Headings", tooltip: "Show or hide row and column headings" }
     ,"sheet.review.spellCheck": { label: "Spelling", tooltip: "Check Vietnamese spelling in text cells of the current worksheet (F7)" }
+    ,"sheet.review.toggleSpellCheck": { label: "Spell Check", tooltip: "Toggle Vietnamese inline spelling check on/off" }
     ,"sheet.review.commentInsert": { label: "New Comment", tooltip: "Add, edit, or delete a comment on the active cell" }
     ,"sheet.review.commentPrevious": { label: "Previous Comment", tooltip: "Go to the previous comment" }
     ,"sheet.review.commentNext": { label: "Next Comment", tooltip: "Go to the next comment" }
@@ -483,6 +539,7 @@ export const enStrings = {
     ,"slides.review.commentDelete": { label: "Delete Comment", tooltip: "Delete the selected comment" }
     ,"slides.review.commentResolve": { label: "Resolve Comment", tooltip: "Resolve or reopen the selected comment" }
     ,"slides.review.spellCheck": { label: "Spelling", tooltip: "Check Vietnamese spelling on the current slide (F7)" }
+    ,"slides.review.toggleSpellCheck": { label: "Spell Check", tooltip: "Toggle Vietnamese inline spelling check on/off" }
     ,"slides.edit.formatPainter": { label: "Format Painter", tooltip: "Copy text or shape formatting to another object. Double-click to lock and apply multiple times. Esc to cancel." }
     ,"slides.edit.selectAll": { label: "Select All", tooltip: "Select every shape on the current slide" }
     ,"slides.edit.selectObjects": { label: "Select Objects", tooltip: "Select drawing objects on the current slide (excluding connectors)" }
@@ -611,8 +668,11 @@ export const enStrings = {
     "writer.para.spacing2": { label: "Line Spacing 2.0", tooltip: "Double line spacing (Ctrl+2)" },
     "writer.para.spacingBefore": { label: "Spacing Before", tooltip: "Space before paragraph (pt)" },
     "writer.para.spacingAfter": { label: "Spacing After", tooltip: "Space after paragraph (pt)" },
+    "writer.para.firstLineIndent": { label: "First-line Indent", tooltip: "Set the first line indent for the paragraph" },
     "writer.list.bullet": { label: "Bullets", tooltip: "Create a bulleted list" },
     "writer.list.numbered": { label: "Numbering", tooltip: "Create a numbered list" },
+    "writer.list.restartNumbering": { label: "Restart at 1", tooltip: "Restart numbering from 1" },
+    "writer.list.continueNumbering": { label: "Continue Numbering", tooltip: "Continue numbering from previous list" },
     "writer.para.multilevelList": { label: "Multilevel List", tooltip: "Multilevel list: 1. / 1.1. / 1.1.1., 1. / a. / i., or Vietnamese Điều / Khoản / Điểm" },
     "writer.para.indentInc": { label: "Increase Indent", tooltip: "Increase indent (Ctrl+M)" },
     "writer.para.indentDec": { label: "Decrease Indent", tooltip: "Decrease indent (Ctrl+Shift+M)" },
@@ -625,7 +685,31 @@ export const enStrings = {
     "writer.para.shading": { label: "Shading", tooltip: "Apply paragraph or table-cell shading" },
     "writer.para.borders": { label: "Borders", tooltip: "Choose paragraph or table-cell borders" },
     "writer.table.insert": { label: "Table", tooltip: "Insert a table into document" },
+    "writer.table.insertRowAbove": { label: "Insert Above", tooltip: "Insert a new row above current row" },
+    "writer.table.insertRowBelow": { label: "Insert Below", tooltip: "Insert a new row below current row" },
+    "writer.table.insertColLeft": { label: "Insert Left", tooltip: "Insert a new column to the left" },
+    "writer.table.insertColRight": { label: "Insert Right", tooltip: "Insert a new column to the right" },
+    "writer.table.deleteRow": { label: "Delete Rows", tooltip: "Delete selected row(s)" },
+    "writer.table.deleteCol": { label: "Delete Columns", tooltip: "Delete selected column(s)" },
+    "writer.table.deleteTable": { label: "Delete Table", tooltip: "Delete entire table" },
+    "writer.table.mergeCells": { label: "Merge Cells", tooltip: "Merge selected cells into one" },
+    "writer.table.splitCells": { label: "Split Cells", tooltip: "Split selected cell into multiple cells" },
+    "writer.table.distributeRows": { label: "Distribute Rows", tooltip: "Distribute row heights evenly" },
+    "writer.table.distributeCols": { label: "Distribute Columns", tooltip: "Distribute column widths evenly" },
+    "writer.table.alignTop": { label: "Align Top", tooltip: "Align text to the top of cell" },
+    "writer.table.alignMiddle": { label: "Align Center", tooltip: "Center text vertically in cell" },
+    "writer.table.alignBottom": { label: "Align Bottom", tooltip: "Align text to the bottom of cell" },
+    "writer.table.selectCell": { label: "Select Cell", tooltip: "Select active cell" },
+    "writer.table.selectRow": { label: "Select Row", tooltip: "Select active row" },
+    "writer.table.selectCol": { label: "Select Column", tooltip: "Select active column" },
+    "writer.table.selectTable": { label: "Select Table", tooltip: "Select entire table" },
+    "writer.table.cellBg": { label: "Shading", tooltip: "Change table cell background color" },
+    "writer.table.borders": { label: "Borders", tooltip: "Customize table borders" },
+    "writer.table.toggleHeaderRow": { label: "Header Row", tooltip: "Toggle table header row formatting" },
+    "writer.table.toggleBandedRows": { label: "Banded Rows", tooltip: "Toggle banded rows formatting" },
     "writer.image.insert": { label: "Pictures", tooltip: "Insert pictures from your computer" },
+    "writer.image.resize": { label: "Resize Picture", tooltip: "Resize picture and adjust aspect ratio" },
+    "writer.image.wrap": { label: "Wrap Text", tooltip: "Configure text wrapping around picture" },
     "writer.shape.insert": { label: "Shapes", tooltip: "Insert basic shapes (rectangle, circle, arrow, line)" },
     "writer.diagram.insert": { label: "SmartArt", tooltip: "Insert a SmartArt diagram (process, cycle, hierarchy, list)" },
     "writer.chart.insert": { label: "Chart", tooltip: "Insert an illustration chart" },
@@ -637,7 +721,7 @@ export const enStrings = {
     "writer.format.dropCap": { label: "Drop Cap", tooltip: "Enlarge the first letter of the paragraph" },
     "writer.insert.dateTime": { label: "Date & Time", tooltip: "Insert the current date and time at the cursor" },
     "writer.insert.equation": { label: "Equation", tooltip: "Insert a math equation at the cursor (Alt+=)" },
-    "writer.equation.dialog.title": "Equation — 3T Doc",
+    "writer.equation.dialog.title": "Equation — Doc",
     "writer.equation.dialog.instructions": "Enter linear format and preview native MathML. Use a/b, x^2, x_1, \\sqrt(x), or type \\alpha then press Space.",
     "writer.equation.dialog.linearFormat": "Linear format",
     "writer.equation.dialog.linearHint": "Example: a/b + x^2 = \\sqrt(y). Press Ctrl+Enter to insert.",
@@ -671,7 +755,8 @@ export const enStrings = {
     "writer.trackChanges.rejectOne": { label: "Reject This", tooltip: "Reject the selected change" },
     "writer.trackChanges.acceptAll": { label: "Accept All Changes", tooltip: "Accept all changes in document" },
     "writer.trackChanges.rejectAll": { label: "Reject All Changes", tooltip: "Reject all changes in document" },
-    "writer.review.wordCount": { label: "Word Count", tooltip: "Show words, characters, paragraphs and lines in the document" },
+    "writer.review.wordCount": { label: "Document Statistics", tooltip: "Show words, characters, paragraphs and lines in the document" },
+    "writer.review.toggleSpellCheck": { label: "Spell Check", tooltip: "Toggle Vietnamese inline spelling check on/off" },
     "writer.help.open": { label: "Help", tooltip: "Open the in-app user guide (F1)" },
     "writer.page.margins": { label: "Margins", tooltip: "Adjust document margins" },
     "writer.page.orientation": { label: "Orientation", tooltip: "Switch page orientation between portrait and landscape" },
@@ -692,7 +777,7 @@ export const enStrings = {
     "writer.pageNumber.format": { label: "Page Number Format", tooltip: "Continue or restart page numbering in this section" },
     "writer.section.delete": { label: "Delete Section Break", tooltip: "Delete the selected section break" },
     "writer.layout.sectionOptions": { label: "Section Options", tooltip: "Set headers, footers, and page numbering for this section" },
-    "writer.layout.lineNumbers": { label: "Line Numbers", tooltip: "Line numbers for Word/LibreOffice: None, Continuous, Restart each page, Restart each section" },
+    "writer.layout.lineNumbers": { label: "Line Numbers", tooltip: "Line numbers in saved documents: None, Continuous, Restart each page, Restart each section" },
     "writer.page.watermark": { label: "Watermark", tooltip: "Add or remove a background watermark" },
     "writer.page.color": { label: "Page Color", tooltip: "Set a solid page background color" },
     "writer.page.border": { label: "Page Borders", tooltip: "Add or change border around the page" },
@@ -700,7 +785,7 @@ export const enStrings = {
     "writer.view.printLayout": { label: "Print Layout", tooltip: "Show page boundaries, headers, and footers" },
     "writer.view.webLayout": { label: "Web Layout", tooltip: "Flow document content continuously across the window" },
     "writer.view.readMode": { label: "Read Mode", tooltip: "Hide the ribbon and expand the reading area; press Esc to exit" },
-    "writer.view.ruler": { label: "Ruler", tooltip: "Show or hide the ruler based on page setup" },
+    "writer.view.ruler": { label: "Ruler", tooltip: "Show or hide horizontal and vertical rulers based on page setup" },
     "writer.view.gridlines": { label: "Gridlines", tooltip: "Show or hide non-printing alignment gridlines" },
     "writer.view.zoomIn": { label: "Zoom In", tooltip: "Increase document zoom" },
     "writer.view.zoomOut": { label: "Zoom Out", tooltip: "Decrease document zoom" },
@@ -719,7 +804,7 @@ export const enStrings = {
     "writer.reference.captionInsert": { label: "Insert Caption", tooltip: "Insert an auto-numbered caption for a picture, table, or equation" },
     "writer.reference.tofInsert": { label: "Insert Table of Figures", tooltip: "Insert a table of figures or tables from existing captions" },
     "writer.reference.tofUpdate": { label: "Update Table of Figures", tooltip: "Refresh the table of figures from captions in the document" },
-    "writer.mailMerge.open": { label: "Select Recipients", tooltip: "Open mail merge recipient list from Excel (.xlsx, .xls) or CSV/TSV file" },
+    "writer.mailMerge.open": { label: "Select Recipients", tooltip: "Open mail merge recipient list from spreadsheet (.xlsx, .xls) or CSV/TSV file" },
     "writer.mailMerge.insertField": { label: "Insert Merge Field", tooltip: "Insert a mail merge field" },
     "writer.mailMerge.preview": { label: "Preview Results", tooltip: "Preview merged records" },
     "writer.mailMerge.prevRecord": { label: "Previous Record", tooltip: "Go to previous record" },
@@ -739,6 +824,8 @@ export const enStrings = {
       review: "Review",
       view: "View",
       help: "Help",
+      tableDesign: "Table Design",
+      tableLayout: "Table Layout",
       ai: "3T AI Assistant"
     },
     group: {
@@ -749,6 +836,13 @@ export const enStrings = {
       quickInsert: "Quick Insert",
       pages: "Pages",
       tables: "Tables",
+      tableStyleOptions: "Table Style Options",
+      tableBordersShading: "Borders & Shading",
+      tableSelectGroup: "Table",
+      tableRowsColsGroup: "Rows & Columns",
+      tableMergeGroup: "Merge",
+      tableSizeGroup: "Cell Size",
+      tableAlignGroup: "Alignment",
       tablesIllustrations: "Tables & Illustrations",
       illustrations: "Illustrations",
       links: "Links",
@@ -823,7 +917,7 @@ export const enStrings = {
       firstSection: "The first section cannot link to a previous section."
     },
     wordCount: {
-      title: "Word Count",
+      title: "Document Statistics",
       scopeDocument: "Statistics for the whole document",
       scopeSelection: "Statistics for the current selection",
       words: "Words",
@@ -956,8 +1050,8 @@ export const enStrings = {
       contentRequired: "Enter label text, or turn on the Mail Merge source."
     },
     mailMerge: {
-      dataSourceTitle: "Mail Merge — Recipient Data Source (Excel / CSV)",
-      pastePrompt: "Select an Excel (.xlsx, .xls) / CSV file, or paste table data below:",
+      dataSourceTitle: "Mail Merge — Recipient Data Source (spreadsheet / CSV)",
+      pastePrompt: "Select an spreadsheet (.xlsx, .xls) / CSV file, or paste table data below:",
       pasteSampleBtn: "📋 Paste Sample Data",
       noData: "No data",
       invalidCsv: "Invalid data (missing column headers)",
@@ -967,9 +1061,9 @@ export const enStrings = {
       selectFieldPrompt: "Select field to insert into document:",
       insertBtn: "Insert Field",
       noDataWarningTitle: "Mail Merge Preview",
-      noDataWarningMsg: "No mail merge data source found. Please open 'Select Recipients' to choose an Excel/CSV file first.",
+      noDataWarningMsg: "No mail merge data source found. Please open 'Select Recipients' to choose an spreadsheet/CSV file first.",
       finishTitle: "Finish & Merge",
-      finishNoData: "No mail merge data source to create documents. Please open 'Select Recipients' to select an Excel/CSV file.",
+      finishNoData: "No mail merge data source to create documents. Please open 'Select Recipients' to select an spreadsheet/CSV file.",
       finishNoFields: "Current document contains no merge fields. Use 'Insert Merge Field' to insert at least one field.",
       finishSuccess: "Successfully merged {count} records into document. You can preview or export the document."
     },

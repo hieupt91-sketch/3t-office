@@ -24,7 +24,7 @@ function createBridge() {
   const deletedDocs = [];
   const deletedSnapshots = [];
   const attempts = [];
-  let settings = { enabled: true, interval_minutes: 5 };
+  let settings = { enabled: true, interval_minutes: 2 };
   let readResult = null;
   return {
     persisted, deletedDocs, deletedSnapshots, attempts,
@@ -74,7 +74,7 @@ export async function runAutoRecoverTests() {
     assert(slidesDirty, "Slides document changes must reach the shared dirty flag.");
   });
 
-  await test("AutoRecover: dirty flag gates serialization and default timer is five minutes", async () => {
+  await test("AutoRecover: dirty flag gates serialization and default timer is two minutes", async () => {
     const timers = new FakeTimers();
     const idleQueue = [];
     const bridge = createBridge();
@@ -85,7 +85,7 @@ export async function runAutoRecoverTests() {
     await manager.register({ appKind: "writer", adapter, shell: { documentName: "Draft.docx" }, serialize: () => { serializeCount++; return content; }, restore: () => true });
 
     const timer = [...timers.intervals.values()][0];
-    assert(timer?.delay === 300000, "Mặc định phải chạy mỗi 5 phút.");
+    assert(timer?.delay === 120000, "Mặc định phải chạy mỗi 2 phút.");
     assert(manager.tick() === false && serializeCount === 0, "Tài liệu sạch không được tuần tự hóa.");
     adapter.isDirty = true;
     assert(manager.tick() === true && serializeCount === 0, "Tài liệu bẩn phải chờ lượt xử lý rảnh.");

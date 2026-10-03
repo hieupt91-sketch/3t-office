@@ -26,12 +26,16 @@ export const FORMAT_FILTERS = {
 export function findSoffice() {
   const candidates = [
     process.env.VNOFFICE_SOFFICE_PATH,
+    path.join(os.homedir(), "tools", "libreoffice", "program", "soffice.com"),
     path.join(os.homedir(), "tools", "libreoffice", "program", "soffice.exe"),
+    "C:\\Program Files\\LibreOffice\\program\\soffice.com",
     "C:\\Program Files\\LibreOffice\\program\\soffice.exe",
+    "C:\\Program Files (x86)\\LibreOffice\\program\\soffice.com",
     "C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe",
+    "soffice.com",
     "soffice"
   ].filter(Boolean);
-  return candidates.find((candidate) => candidate === "soffice" || fs.existsSync(candidate)) || null;
+  return candidates.find((candidate) => candidate === "soffice" || candidate === "soffice.com" || fs.existsSync(candidate)) || null;
 }
 
 export function convertWithSoffice(sourcePath, targetExt, outDir, { profileDir, appKind, timeoutMs = 120000 } = {}) {

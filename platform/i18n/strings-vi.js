@@ -5,9 +5,9 @@
 export const viStrings = {
   app: {
     suiteName: "3T Office",
-    writer: "3T Doc (Soạn thảo)",
-    sheet: "3T Sheet (Bảng tính)",
-    slides: "3T Slide (Trình chiếu)"
+    writer: "Doc (Soạn thảo)",
+    sheet: "Sheet (Bảng tính)",
+    slides: "Slide (Trình chiếu)"
   },
   common: {
     save: "Lưu tài liệu",
@@ -37,6 +37,29 @@ export const viStrings = {
     location: "Vị trí",
     stepsHeading: "Cách dùng"
   },
+  autoRecover: {
+    settingsTitle: "Tùy chọn · Tự động khôi phục",
+    enabled: "Bật lưu khôi phục tự động",
+    saveEvery: "Lưu mỗi",
+    minuteRange: "phút (1–60)",
+    showSaved: "Xem bản khôi phục",
+    dialogTitle: "Khôi phục tài liệu chưa lưu",
+    dialogDescription: "3T Office tìm thấy bản lưu tự động từ phiên làm việc trước chưa đóng bình thường.",
+    recover: "Khôi phục",
+    discard: "Bỏ",
+    later: "Để sau",
+    empty: "Không còn bản khôi phục nào."
+  },
+  performance: {
+    optionsTitle: "Tùy chọn",
+    logToggle: "Ghi nhật ký hiệu năng (không gửi đi)",
+    localOnly: "Nhật ký chỉ lưu trên thiết bị này; mặc định đang tắt.",
+    openFolder: "Mở thư mục nhật ký",
+    enabledStatus: "Đang ghi nhật ký hiệu năng trên thiết bị này.",
+    disabledStatus: "Đã tắt ghi nhật ký hiệu năng.",
+    folderOpened: "Đã mở thư mục nhật ký.",
+    desktopOnly: "Tùy chọn này khả dụng trong ứng dụng 3T Office Desktop."
+  },
   aiAssistant: {
     title: "Trợ lý 3T AI", provider: "Nhà cung cấp AI", local: "Cục bộ (mặc định)",
     activeProvider: "Đang dùng thực tế", configureKey: "Cấu hình API key", apiKey: "API key",
@@ -62,19 +85,20 @@ export const viStrings = {
     formulaFromDescPlaceholder: "Mô tả công thức cần tạo...",
     formulaFromDescPreview: "Xem trước công thức",
     formulaFromDescApply: "Áp dụng vào ô đang chọn",
-    formulaFromDescInvalid: "Công thức tạo ra không tương thích với 3T Sheet. Vui lòng thử lại với mô tả khác.",
-    formulaFromDescUnsupported: "Công thức chứa hàm 3T Sheet chưa hỗ trợ:"
+    formulaFromDescInvalid: "Công thức tạo ra không tương thích với Sheet. Vui lòng thử lại với mô tả khác.",
+    formulaFromDescUnsupported: "Công thức chứa hàm Sheet chưa hỗ trợ:"
   },
   backstage: {
     home: "Trang chủ",
-    new: "Tạo mới (Ctrl+N)",
-    open: "Mở tệp (Ctrl+O)",
-    save: "Lưu tài liệu (Ctrl+S)",
-    saveAs: "Lưu bản sao (F12)",
-    print: "In ấn (Ctrl+P)",
+    new: "Mới (Ctrl+N)",
+    open: "Mở (Ctrl+O)",
+    save: "Lưu (Ctrl+S)",
+    saveAs: "Lưu thành (F12)",
+    print: "In (Ctrl+P)",
     printNow: "In ngay",
-    exportPdf: "Xuất tệp PDF",
-    close: "Đóng",
+    exportPdf: "Xuất PDF",
+    recent: "Tệp gần đây",
+    close: "Đóng (Ctrl+W)",
     options: "Tùy chọn",
     account: "Tài khoản",
     about: "Giới thiệu 3T Office",
@@ -97,6 +121,36 @@ export const viStrings = {
     input: "Nhập dữ liệu",
     findReplace: "Tìm kiếm và Thay thế"
   },
+  findReplace: {
+    dialogTitle: "Tìm kiếm và Thay thế",
+    tabFind: "Tìm",
+    tabReplace: "Thay thế",
+    findWhat: "Tìm gì:",
+    findPlaceholder: "Nhập từ hoặc cụm từ cần tìm...",
+    replaceWith: "Thay bằng:",
+    replacePlaceholder: "Nhập nội dung thay thế...",
+    matchCase: "Khớp chữ hoa/thường",
+    wholeWord: "Chỉ toàn bộ từ",
+    ignoreDiacritics: "Bỏ qua dấu",
+    within: "Tìm trong:",
+    scopeSheet: "Trang tính",
+    scopeWorkbook: "Sổ làm việc",
+    searchBy: "Tìm theo:",
+    byRows: "Hàng",
+    byColumns: "Cột",
+    lookIn: "Tìm trong:",
+    lookInValues: "Giá trị",
+    lookInFormulas: "Công thức",
+    btnFindPrev: "Tìm trước",
+    btnFindNext: "Tìm tiếp",
+    btnReplace: "Thay thế",
+    btnReplaceAll: "Thay thế tất cả",
+    btnClose: "Đóng",
+    notFound: "Không tìm thấy nội dung cần tìm.",
+    notFoundReplace: "Không tìm thấy nội dung để thay thế.",
+    emptyInput: "Vui lòng nhập từ hoặc cụm từ cần tìm.",
+    replacedCount: "Đã hoàn tất tìm kiếm và thực hiện {count} thay thế."
+  },
   sheetRibbon: {
     whatIfAnalysis: "Phân tích What-If",
     tab: { home: "Trang đầu", formulas: "Công thức", data: "Dữ liệu", insert: "Chèn", pageLayout: "Bố trí trang", review: "Xem xét", view: "Chế độ xem", help: "Trợ giúp", ai: "Trợ lý 3T AI" },
@@ -109,7 +163,7 @@ export const viStrings = {
   sheetFormulaEntry: {
     status: { enter: "Nhập", edit: "Sửa", point: "Trỏ" },
     referenceHint: "Chọn hoặc kéo qua ô để chèn tham chiếu; F2 chuyển giữa Sửa và Trỏ.",
-    formulaBarLabel: "Thanh công thức 3T Sheet"
+    formulaBarLabel: "Thanh công thức Sheet"
   },
   slidesRibbon: {
     tab: { home: "Trang đầu", insert: "Chèn", design: "Thiết kế", transitions: "Chuyển tiếp", animations: "Hoạt hình", slideshow: "Trình chiếu", review: "Đánh giá", view: "Chế độ xem", help: "Trợ giúp", ai: "Trợ lý 3T AI" },
@@ -120,7 +174,7 @@ export const viStrings = {
   },
   sheetDialogs: {
     close: "Đóng", cancel: "Hủy", cancelLong: "Hủy bỏ", apply: "Áp dụng", range: "Phạm vi", rangeLabel: "Vùng:", value: "Giá trị", save: "Lưu",
-    pasteSpecialTitle: "Dán đặc biệt", pasteSpecialGroup: "Dán", pasteSpecialAll: "Tất cả", pasteSpecialValues: "Chỉ giá trị", pasteSpecialFormulas: "Chỉ công thức", pasteSpecialFormats: "Chỉ định dạng", pasteSpecialTranspose: "Chuyển vị (đổi hàng/cột)",
+    pasteSpecialTitle: "Dán đặc biệt", pasteSpecialGroup: "Dán", pasteSpecialSource: "Giữ định dạng nguồn", pasteSpecialKeepSource: "Giữ định dạng nguồn", pasteSpecialText: "Chỉ giữ văn bản", pasteSpecialAll: "Giữ định dạng nguồn", pasteSpecialValues: "Chỉ giá trị", pasteSpecialFormulas: "Chỉ công thức", pasteSpecialFormats: "Chỉ định dạng", pasteSpecialTranspose: "Chuyển vị (đổi hàng/cột)",
     mergeConfirmTitle: "Trộn ô", mergeConfirmMessage: "Vùng chọn có nhiều ô chứa dữ liệu. Chỉ dữ liệu ở ô trên cùng bên trái của mỗi vùng gộp được giữ lại.", mergeConfirmOk: "Tiếp tục gộp",
     functionTitle: "Chèn Hàm (Insert Function fx)", functionCategory: "Danh mục hàm:", allCategory: "Tất cả", allFunctions: "Tất cả các hàm", mathFunctions: "Toán học & Lượng giác", statsFunctions: "Thống kê (AVERAGE, COUNT...)", logicFunctions: "Logic (IF, AND, OR...)", textFunctions: "Văn bản (CONCAT, LEN...)", dateFunctions: "Ngày & Giờ (TODAY, NOW...)", financialFunctions: "Tài chính (PMT, FV, PV...)", lookupFunctions: "Tra cứu & Tham chiếu (VLOOKUP, INDEX...)", searchFunction: "Tìm kiếm hàm:", searchPlaceholder: "Gõ tên hàm hoặc mô tả để tìm kiếm...", insertFunction: "Chèn hàm vào ô",
     errorCheckingTitle: "Kiểm tra lỗi công thức (Error Checking)", noErrorsFound: "Kiểm tra hoàn tất. Không tìm thấy ô nào có giá trị lỗi trong trang tính.", errorsFoundPrompt: "Phát hiện <strong>{count}</strong> ô có lỗi công thức trong trang tính hiện tại:", errorColCell: "Ô", errorColCode: "Mã lỗi", errorColFormula: "Công thức", errorColReason: "Nguyên nhân", calcError: "Lỗi tính toán", divZero: "Chia cho số 0 hoặc ô trống", invalidRef: "Tham chiếu ô không hợp lệ", wrongType: "Sai kiểu dữ liệu (số vs chữ)", naError: "Giá trị không tồn tại", nameError: "Tên hàm/vùng không xác định", numError: "Giá trị số ngoài phạm vi",
@@ -171,6 +225,8 @@ export const viStrings = {
     protectSheetCheckbox: "Bảo vệ trang tính và nội dung các ô bị khóa",
     protectSheetHint: "Khi bật: không sửa nội dung ô, không đổi định dạng, không chèn/xóa hàng hoặc cột. Đây là khóa giao diện, mật khẩu lưu dạng chữ thường trong phiên làm việc — không phải bảo mật thật.",
     protectSheetTooltip: "Khóa sửa ô, định dạng và xóa hàng/cột trên trang tính hiện tại (khóa giao diện, không phải bảo mật thật)",
+    deleteSheetMenu: "Xóa trang tính", deleteSheetConfirm: "Xóa trang tính này?", cannotDeleteLastSheet: "Không thể xóa trang tính cuối cùng.",
+    tabColorMenu: "Màu tab", noTabColor: "Không màu",
     unprotectSheetTooltip: "Tắt khóa giao diện của trang tính hiện tại",
     protectPassword: "Mật khẩu (tùy chọn)",
     protectPasswordConfirm: "Nhập lại mật khẩu",
@@ -266,13 +322,14 @@ export const viStrings = {
     formatBackgroundTitle: "Định dạng nền", formatBackgroundHint: "Đổi nền trang chiếu hiện tại. Không thay chủ đề toàn bài.", formatBackgroundSolid: "Màu đơn", formatBackgroundGradient: "Gradient 2 màu", formatBackgroundPicture: "Ảnh nền", formatBackgroundColor: "Màu nền", formatBackgroundFrom: "Màu 1", formatBackgroundTo: "Màu 2", formatBackgroundDirection: "Hướng", formatBackgroundHorizontal: "Ngang", formatBackgroundVertical: "Dọc", formatBackgroundChoosePicture: "Chọn ảnh…", formatBackgroundApplyCurrent: "Áp dụng trang này", formatBackgroundApplyAll: "Áp dụng tất cả trang", formatBackgroundClear: "Xóa nền tùy chỉnh",
     spellcheckTitle: "Chính tả", spellcheckNotInDictionary: "Không có trong từ điển:", spellcheckLocation: "Vị trí", spellcheckContext: "Nội dung", spellcheckSuggestions: "Gợi ý:", spellcheckNoSuggestions: "(Không có gợi ý gần)", spellcheckIgnore: "Bỏ qua", spellcheckIgnoreAll: "Bỏ qua tất cả", spellcheckAdd: "Thêm vào từ điển", spellcheckReplace: "Thay thế", spellcheckReplaceAll: "Thay thế tất cả", spellcheckClose: "Đóng", spellcheckStatus: "Lỗi {current} / {total}", spellcheckComplete: "Đã kiểm tra xong trang chiếu hiện tại. Không tìm thấy lỗi chính tả.", spellcheckCompleteRemaining: "Đã kiểm tra xong. Không còn lỗi chính tả.", spellcheckFieldTitle: "Tiêu đề", spellcheckFieldBody: "Nội dung", spellcheckFieldBody2: "Nội dung cột 2", spellcheckFieldShape: "Hình",
     animationPaneTitle: "Ngăn hoạt hình", animationPaneHint: "Danh sách hiệu ứng trên trang đang chọn. Đổi thứ tự bằng nút lên/xuống, chọn cách bắt đầu, hoặc xóa hiệu ứng (không xóa đối tượng).", animationPaneEmpty: "Trang này chưa có hiệu ứng. Dùng Hiệu ứng đối tượng trên tab Hoạt hình để gắn hiệu ứng, rồi mở lại ngăn này để sắp xếp.", animStartLabel: "Bắt đầu", animStartOnClick: "Khi click", animStartWithPrevious: "Cùng với trước đó", animStartAfterPrevious: "Sau trước đó", animMoveUp: "Đưa lên", animMoveDown: "Đưa xuống", animMoveUpShort: "↑", animMoveDownShort: "↓", animRemove: "Xóa hiệu ứng", animRemoveShort: "Xóa", shapeWordArt: "Chữ nghệ thuật", shapeChart: "Biểu đồ", shapeTable: "Bảng", shapeTextBox: "Hộp văn bản",
-    setupShowTitle: "Thiết lập trình chiếu", setupShowHint: "Tùy chọn trình chiếu cho bản này. Lặp liên tục áp dụng ngay khi F5. Màu bút vẽ và con trỏ laser mặc định khi trình chiếu (bật bằng Ctrl+P, Ctrl+L).", setupShowLoop: "Lặp lại liên tục cho đến khi nhấn Esc", setupShowNoNarration: "Trình chiếu không có thuyết minh", setupShowNoNarrationHint: "Chưa có thuyết minh/audio narration trong 3T Slide — tùy chọn này chỉ lưu cờ, chưa ẩn hay tắt âm thanh nào.", setupShowPointerColor: "Màu con trỏ bút / laser",
-    keepInkTitle: "3T Slide", keepInkPrompt: "Bạn có muốn giữ lại các chú thích bằng nét vẽ không?", keepInkKeep: "Giữ", keepInkDiscard: "Bỏ",
+    setupShowTitle: "Thiết lập trình chiếu", setupShowHint: "Tùy chọn trình chiếu cho bản này. Lặp liên tục áp dụng ngay khi F5. Màu bút vẽ và con trỏ laser mặc định khi trình chiếu (bật bằng Ctrl+P, Ctrl+L).", setupShowLoop: "Lặp lại liên tục cho đến khi nhấn Esc", setupShowNoNarration: "Trình chiếu không có thuyết minh", setupShowNoNarrationHint: "Chưa có thuyết minh/audio narration trong Slide — tùy chọn này chỉ lưu cờ, chưa ẩn hay tắt âm thanh nào.", setupShowPointerColor: "Màu con trỏ bút / laser",
+    keepInkTitle: "Slide", keepInkPrompt: "Bạn có muốn giữ lại các chú thích bằng nét vẽ không?", keepInkKeep: "Giữ", keepInkDiscard: "Bỏ",
     slideshowNext: "Tiếp theo", slideshowPrev: "Quay lại", slideshowPointerOptions: "Tùy chọn con trỏ", slideshowArrow: "Mũi tên", slideshowPen: "Bút vẽ", slideshowLaser: "Con trỏ laser", slideshowPenColor: "Màu bút", slideshowEraseInk: "Xóa nét vẽ trên trang", slideshowEndShow: "Thoát trình chiếu",
     colorRed: "Đỏ", colorBlue: "Xanh lam", colorYellow: "Vàng", colorGreen: "Xanh lá", colorBlack: "Đen"
   },
   commands: {
     "writer.edit.select": { label: "Chọn", tooltip: "Chọn văn bản hoặc đối tượng" },
+    "writer.edit.pasteSpecial": { label: "Dán đặc biệt", tooltip: "Dán kèm tùy chọn nâng cao (giữ định dạng nguồn, chỉ giữ văn bản) (Ctrl+Alt+V)" },
     "writer.para.lineSpacing": { label: "Giãn dòng", tooltip: "Khoảng cách giữa các dòng trong đoạn văn" },
     "writer.layout.breaks": { label: "Ngắt", tooltip: "Chèn ngắt trang hoặc ngắt mục" },
     "writer.layout.sectionOptions": { label: "Tùy chọn mục", tooltip: "Sửa đầu trang, chân trang và số trang cho mục này" },
@@ -438,6 +495,7 @@ export const viStrings = {
     ,"sheet.view.gridlines": { label: "Đường lưới", tooltip: "Ẩn hoặc hiện đường viền ô" }
     ,"sheet.view.headings": { label: "Tiêu đề", tooltip: "Ẩn hoặc hiện tiêu đề hàng và cột" }
     ,"sheet.review.spellCheck": { label: "Chính tả", tooltip: "Kiểm tra chính tả tiếng Việt trên các ô văn bản của trang tính hiện tại (F7)" }
+    ,"sheet.review.toggleSpellCheck": { label: "Kiểm tra chính tả", tooltip: "Bật hoặc tắt gạch đỏ kiểm tra chính tả tiếng Việt" }
     ,"sheet.review.commentInsert": { label: "Ghi chú mới", tooltip: "Thêm, sửa hoặc xóa ghi chú của ô đang chọn" }
     ,"sheet.review.commentPrevious": { label: "Nhận xét trước", tooltip: "Nhảy tới nhận xét trước đó" }
     ,"sheet.review.commentNext": { label: "Nhận xét sau", tooltip: "Nhảy tới nhận xét tiếp theo" }
@@ -482,6 +540,7 @@ export const viStrings = {
     ,"slides.review.commentDelete": { label: "Xóa nhận xét", tooltip: "Xóa nhận xét đang chọn" }
     ,"slides.review.commentResolve": { label: "Đã xử lý", tooltip: "Đánh dấu hoặc mở lại nhận xét đang chọn" }
     ,"slides.review.spellCheck": { label: "Chính tả", tooltip: "Kiểm tra chính tả tiếng Việt trên trang chiếu hiện tại (F7)" }
+    ,"slides.review.toggleSpellCheck": { label: "Kiểm tra chính tả", tooltip: "Bật hoặc tắt gạch đỏ kiểm tra chính tả tiếng Việt" }
     ,"slides.edit.formatPainter": { label: "Sao chép định dạng", tooltip: "Sao chép định dạng chữ hoặc hình đang chọn sang đối tượng khác. Nhấp đúp để khóa và áp dụng nhiều lần. Esc để hủy." }
     ,"slides.edit.selectAll": { label: "Chọn tất cả", tooltip: "Chọn tất cả hình trên trang chiếu hiện tại" }
     ,"slides.edit.selectObjects": { label: "Chọn đối tượng", tooltip: "Chọn các đối tượng vẽ trên trang chiếu hiện tại (không gồm đường nối)" }
@@ -610,8 +669,11 @@ export const viStrings = {
     "writer.para.spacing2": { label: "Giãn dòng 2.0", tooltip: "Khoảng cách dòng 2.0 (Ctrl+2)" },
     "writer.para.spacingBefore": { label: "Khoảng trước đoạn", tooltip: "Khoảng cách trước đoạn văn (đơn vị pt)" },
     "writer.para.spacingAfter": { label: "Khoảng sau đoạn", tooltip: "Khoảng cách sau đoạn văn (đơn vị pt)" },
+    "writer.para.firstLineIndent": { label: "Thụt đầu dòng", tooltip: "Đặt khoảng thụt của dòng đầu đoạn văn" },
     "writer.list.bullet": { label: "Dấu đầu dòng", tooltip: "Tạo danh sách dấu chấm tròn" },
     "writer.list.numbered": { label: "Đánh số", tooltip: "Tạo danh sách đánh số thứ tự" },
+    "writer.list.restartNumbering": { label: "Đánh số lại từ 1", tooltip: "Bắt đầu lại việc đánh số thứ tự từ 1" },
+    "writer.list.continueNumbering": { label: "Tiếp tục đánh số", tooltip: "Tiếp tục đánh số từ danh sách trước đó" },
     "writer.para.multilevelList": { label: "Danh sách đa cấp", tooltip: "Danh sách nhiều cấp: 1. / 1.1. / 1.1.1., 1. / a. / i., hoặc Điều / Khoản / Điểm (NĐ 30)" },
     "writer.para.indentInc": { label: "Thụt lề", tooltip: "Tăng khoảng cách thụt lề đoạn văn (Ctrl+M)" },
     "writer.para.indentDec": { label: "Giảm thụt lề", tooltip: "Giảm khoảng cách thụt lề đoạn văn (Ctrl+Shift+M)" },
@@ -624,7 +686,31 @@ export const viStrings = {
     "writer.para.shading": { label: "Tô nền đoạn", tooltip: "Tô màu nền đoạn văn hoặc ô bảng" },
     "writer.para.borders": { label: "Viền đoạn", tooltip: "Chọn viền đoạn văn hoặc ô bảng" },
     "writer.table.insert": { label: "Bảng biểu", tooltip: "Chèn bảng mới vào văn bản" },
+    "writer.table.insertRowAbove": { label: "Chèn hàng phía trên", tooltip: "Chèn một hàng mới ngay phía trên hàng hiện tại" },
+    "writer.table.insertRowBelow": { label: "Chèn hàng phía dưới", tooltip: "Chèn một hàng mới ngay phía dưới hàng hiện tại" },
+    "writer.table.insertColLeft": { label: "Chèn cột bên trái", tooltip: "Chèn một cột mới bên trái cột hiện tại" },
+    "writer.table.insertColRight": { label: "Chèn cột bên phải", tooltip: "Chèn một cột mới bên phải cột hiện tại" },
+    "writer.table.deleteRow": { label: "Xóa hàng", tooltip: "Xóa hàng đang chọn trong bảng" },
+    "writer.table.deleteCol": { label: "Xóa cột", tooltip: "Xóa cột đang chọn trong bảng" },
+    "writer.table.deleteTable": { label: "Xóa bảng", tooltip: "Xóa toàn bộ bảng hiện tại" },
+    "writer.table.mergeCells": { label: "Gộp ô", tooltip: "Gộp các ô đang chọn thành một ô duy nhất" },
+    "writer.table.splitCells": { label: "Tách ô", tooltip: "Tách ô đang chọn thành nhiều ô" },
+    "writer.table.distributeRows": { label: "Phân bố đều hàng", tooltip: "Đặt chiều cao các hàng bằng nhau" },
+    "writer.table.distributeCols": { label: "Phân bố đều cột", tooltip: "Đặt chiều rộng các cột bằng nhau" },
+    "writer.table.alignTop": { label: "Căn đỉnh ô", tooltip: "Căn văn bản lên mép trên của ô" },
+    "writer.table.alignMiddle": { label: "Căn giữa dọc ô", tooltip: "Căn văn bản vào giữa theo chiều dọc của ô" },
+    "writer.table.alignBottom": { label: "Căn đáy ô", tooltip: "Căn văn bản xuống mép dưới của ô" },
+    "writer.table.selectCell": { label: "Chọn ô", tooltip: "Chọn toàn bộ ô hiện tại" },
+    "writer.table.selectRow": { label: "Chọn hàng", tooltip: "Chọn toàn bộ hàng hiện tại" },
+    "writer.table.selectCol": { label: "Chọn cột", tooltip: "Chọn toàn bộ cột hiện tại" },
+    "writer.table.selectTable": { label: "Chọn bảng", tooltip: "Chọn toàn bộ bảng" },
+    "writer.table.cellBg": { label: "Tô màu ô", tooltip: "Đổi màu nền cho các ô đang chọn trong bảng" },
+    "writer.table.borders": { label: "Đường viền bảng", tooltip: "Tùy chỉnh kiểu và độ dày đường viền bảng" },
+    "writer.table.toggleHeaderRow": { label: "Hàng tiêu đề", tooltip: "Bật hoặc tắt định dạng hàng tiêu đề bảng" },
+    "writer.table.toggleBandedRows": { label: "Hàng xen kẽ", tooltip: "Bật hoặc tắt màu xen kẽ giữa các hàng trong bảng" },
     "writer.image.insert": { label: "Hình ảnh", tooltip: "Chèn hình ảnh từ máy tính" },
+    "writer.image.resize": { label: "Đổi kích thước ảnh", tooltip: "Thay đổi kích thước và tỷ lệ ảnh" },
+    "writer.image.wrap": { label: "Ngắt dòng văn bản", tooltip: "Tùy chọn ngắt dòng chữ quanh ảnh" },
     "writer.shape.insert": { label: "Hình khối", tooltip: "Chèn hình khối cơ bản (chữ nhật, hình tròn, mũi tên, đường thẳng)" },
     "writer.diagram.insert": { label: "Sơ đồ", tooltip: "Chèn sơ đồ quy trình, chu trình hoặc phân cấp" },
     "writer.chart.insert": { label: "Biểu đồ", tooltip: "Chèn biểu đồ minh họa dữ liệu" },
@@ -636,7 +722,7 @@ export const viStrings = {
     "writer.format.dropCap": { label: "Chữ đầu đoạn", tooltip: "Phóng to chữ cái đầu đoạn văn (Drop Cap)" },
     "writer.insert.dateTime": { label: "Ngày & Giờ", tooltip: "Chèn ngày giờ hiện tại tại vị trí con trỏ" },
     "writer.insert.equation": { label: "Phương trình", tooltip: "Chèn phương trình toán học tại con trỏ (Alt+=)" },
-    "writer.equation.dialog.title": "Phương trình — 3T Doc",
+    "writer.equation.dialog.title": "Phương trình — Doc",
     "writer.equation.dialog.instructions": "Nhập dạng tuyến tính và xem MathML ngay bên cạnh. Dùng a/b, x^2, x_1, \\sqrt(x), hoặc gõ \\alpha rồi nhấn Space.",
     "writer.equation.dialog.linearFormat": "Dạng tuyến tính",
     "writer.equation.dialog.linearHint": "Ví dụ: a/b + x^2 = \\sqrt(y). Ctrl+Enter để chèn.",
@@ -671,6 +757,7 @@ export const viStrings = {
     "writer.trackChanges.acceptAll": { label: "Chấp nhận thay đổi", tooltip: "Chấp nhận toàn bộ thay đổi trong tài liệu" },
     "writer.trackChanges.rejectAll": { label: "Từ chối thay đổi", tooltip: "Từ chối toàn bộ thay đổi trong tài liệu" },
     "writer.review.wordCount": { label: "Đếm từ", tooltip: "Xem số từ, ký tự, đoạn văn và dòng của tài liệu" },
+    "writer.review.toggleSpellCheck": { label: "Kiểm tra chính tả", tooltip: "Bật hoặc tắt gạch đỏ kiểm tra chính tả tiếng Việt" },
     "writer.help.open": { label: "Trợ giúp", tooltip: "Mở hướng dẫn sử dụng (F1)" },
     "writer.page.margins": { label: "Căn lề", tooltip: "Thiết lập lề tiêu chuẩn văn bản Việt Nam" },
     "writer.page.orientation": { label: "Hướng giấy", tooltip: "Khổ giấy dọc hoặc ngang" },
@@ -691,7 +778,7 @@ export const viStrings = {
     "writer.pageNumber.format": { label: "Định dạng số trang", tooltip: "Tiếp tục hoặc đặt lại số trang trong mục hiện tại" },
     "writer.section.delete": { label: "Xóa ngắt mục", tooltip: "Xóa ngắt mục đang chọn" },
     "writer.layout.sectionOptions": { label: "Tùy chọn mục", tooltip: "Thiết lập đầu trang, chân trang và số trang cho mục hiện tại" },
-    "writer.layout.lineNumbers": { label: "Danh số dòng", tooltip: "Bật danh số dòng xuất ra Word/LibreOffice: Không có, Liên tục, Mỗi trang, Mỗi mục" },
+    "writer.layout.lineNumbers": { label: "Danh số dòng", tooltip: "Danh số dòng khi lưu tài liệu: Không có, Liên tục, Mỗi trang, Mỗi mục" },
     "writer.page.watermark": { label: "Hình mờ", tooltip: "Thiết lập hoặc xóa hình mờ văn bản (Dự thảo, Mật, Khẩn...)" },
     "writer.page.color": { label: "Màu trang", tooltip: "Đặt màu nền đặc cho trang tài liệu" },
     "writer.page.border": { label: "Viền trang", tooltip: "Thiết lập viền bao quanh trang tài liệu" },
@@ -699,7 +786,7 @@ export const viStrings = {
     "writer.view.printLayout": { label: "Bố trí in", tooltip: "Hiển thị ranh giới trang, đầu trang và chân trang" },
     "writer.view.webLayout": { label: "Bố trí Web", tooltip: "Hiển thị nội dung liên tục theo chiều rộng cửa sổ" },
     "writer.view.readMode": { label: "Chế độ đọc", tooltip: "Ẩn ribbon và mở rộng vùng đọc; nhấn Esc để thoát" },
-    "writer.view.ruler": { label: "Thước", tooltip: "Ẩn hoặc hiện thước ngang theo thiết lập trang" },
+    "writer.view.ruler": { label: "Thước", tooltip: "Ẩn hoặc hiện thước đo ngang và thước đo dọc theo thiết lập trang" },
     "writer.view.gridlines": { label: "Đường lưới", tooltip: "Ẩn hoặc hiện lưới căn chỉnh không in" },
     "writer.view.zoomIn": { label: "Phóng to", tooltip: "Tăng tỉ lệ hiển thị tài liệu" },
     "writer.view.zoomOut": { label: "Thu nhỏ", tooltip: "Giảm tỉ lệ hiển thị tài liệu" },
@@ -718,7 +805,7 @@ export const viStrings = {
     "writer.reference.captionInsert": { label: "Chèn chú thích ảnh", tooltip: "Chèn chú thích tự đánh số cho hình ảnh, bảng hoặc phương trình" },
     "writer.reference.tofInsert": { label: "Danh mục hình ảnh", tooltip: "Chèn danh mục hình ảnh/bảng tự động từ các chú thích đã chèn" },
     "writer.reference.tofUpdate": { label: "Cập nhật danh mục", tooltip: "Cập nhật lại danh mục hình ảnh/bảng từ các chú thích hiện có" },
-    "writer.mailMerge.open": { label: "Nguồn dữ liệu", tooltip: "Mở danh sách người nhận trộn thư từ tệp Excel (.xlsx, .xls) hoặc CSV/TSV" },
+    "writer.mailMerge.open": { label: "Nguồn dữ liệu", tooltip: "Mở danh sách người nhận trộn thư từ tệp bảng tính (.xlsx, .xls) hoặc CSV/TSV" },
     "writer.mailMerge.insertField": { label: "Chèn trường", tooltip: "Chèn trường trộn thư tại vị trí con trỏ" },
     "writer.mailMerge.preview": { label: "Xem trước kết quả", tooltip: "Bật/tắt xem trước bản ghi trộn thư" },
     "writer.mailMerge.prevRecord": { label: "Bản ghi trước", tooltip: "Chuyển tới bản ghi trước" },
@@ -738,6 +825,8 @@ export const viStrings = {
       review: "Đánh giá",
       view: "Chế độ xem",
       help: "Trợ giúp",
+      tableDesign: "Thiết kế Bảng",
+      tableLayout: "Bố cục Bảng",
       ai: "Trợ lý 3T AI"
     },
     group: {
@@ -748,6 +837,13 @@ export const viStrings = {
       quickInsert: "Chèn nhanh",
       pages: "Trang văn bản",
       tables: "Bảng biểu",
+      tableStyleOptions: "Tùy chọn kiểu bảng",
+      tableBordersShading: "Màu & Viền",
+      tableSelectGroup: "Bảng",
+      tableRowsColsGroup: "Hàng & Cột",
+      tableMergeGroup: "Hợp nhất",
+      tableSizeGroup: "Kích cỡ ô",
+      tableAlignGroup: "Căn lề ô",
       tablesIllustrations: "Bảng biểu & Hình",
       illustrations: "Minh họa",
       links: "Liên kết",
@@ -955,8 +1051,8 @@ export const viStrings = {
       contentRequired: "Hãy nhập nội dung nhãn, hoặc bật nguồn Trộn thư."
     },
     mailMerge: {
-      dataSourceTitle: "Trộn thư — Nguồn dữ liệu người nhận (Excel / CSV)",
-      pastePrompt: "Chọn tệp Excel (.xlsx, .xls) / CSV, hoặc dán dữ liệu vào khung bên dưới:",
+      dataSourceTitle: "Trộn thư — Nguồn dữ liệu người nhận (bảng tính / CSV)",
+      pastePrompt: "Chọn tệp bảng tính (.xlsx, .xls) / CSV, hoặc dán dữ liệu vào khung bên dưới:",
       pasteSampleBtn: "📋 Dán dữ liệu mẫu",
       noData: "Chưa có dữ liệu",
       invalidCsv: "Dữ liệu chưa hợp lệ (thiếu tiêu đề cột)",
@@ -966,9 +1062,9 @@ export const viStrings = {
       selectFieldPrompt: "Chọn trường dữ liệu muốn chèn vào tài liệu:",
       insertBtn: "Chèn trường",
       noDataWarningTitle: "Xem trước trộn thư",
-      noDataWarningMsg: "Chưa có nguồn dữ liệu trộn thư. Vui lòng mở 'Nguồn dữ liệu' để chọn tệp Excel hoặc dán dữ liệu trước.",
+      noDataWarningMsg: "Chưa có nguồn dữ liệu trộn thư. Vui lòng mở 'Nguồn dữ liệu' để chọn tệp bảng tính hoặc dán dữ liệu trước.",
       finishTitle: "Hoàn tất và Trộn thư",
-      finishNoData: "Chưa có nguồn dữ liệu trộn thư để tạo tài liệu. Vui lòng mở 'Nguồn dữ liệu' để chọn tệp Excel hoặc dán bảng dữ liệu.",
+      finishNoData: "Chưa có nguồn dữ liệu trộn thư để tạo tài liệu. Vui lòng mở 'Nguồn dữ liệu' để chọn tệp bảng tính hoặc dán bảng dữ liệu.",
       finishNoFields: "Tài liệu hiện tại chưa chứa trường trộn thư nào. Hãy dùng lệnh 'Chèn trường' để chèn ít nhất một trường trộn.",
       finishSuccess: "Đã hoàn tất trộn thư thành công {count} bản ghi vào tài liệu. Bạn có thể xem trước khi in hoặc xuất tệp."
     },
@@ -1060,7 +1156,7 @@ export const viStrings = {
     dateType: "Kiểu hiển thị ngày tháng (Type):",
     dateLocale: "Vùng/Ngôn ngữ: Tiếng Việt (Việt Nam)",
     percentageDesc: "Định dạng Phần trăm nhân giá trị ô với 100 và hiển thị kết quả kèm ký hiệu %. Giá trị lưu trữ gốc không đổi (ví dụ: 0.5 hiển thị là 50%). Khi gõ số mới vào ô đã định dạng %, số đó tự động chia cho 100.",
-    textDesc: "Các ô định dạng Văn bản được xử lý như chuỗi ký tự thô, ngay cả khi ô chứa số. Ô sẽ được căn lề trái tự nhiên và các hàm tính toán tổng số học như SUM sẽ bỏ qua ô này giống chuẩn Excel.",
+    textDesc: "Các ô định dạng Văn bản được xử lý như chuỗi ký tự thô, ngay cả khi ô chứa số. Ô sẽ được căn lề trái tự nhiên và các hàm tính toán tổng số học như SUM sẽ bỏ qua ô này giống chuẩn bảng tính.",
     customType: "Mã định dạng (Type):",
     textAlignment: "Căn chỉnh văn bản",
     horizontal: "Chiều ngang:",

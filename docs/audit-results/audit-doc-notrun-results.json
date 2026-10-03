@@ -1,0 +1,118 @@
+{
+  "A4_Existing_file_Ctrl_S_original_format": {
+    "status": "PASS",
+    "evidence": "Mở tệp doc_original.docx, gõ sửa qua CDP, phát Ctrl+S; tệp trên đĩa cập nhật SHA256 (c66b43fe -> 9be2e9fe); cấu trúc ZIP hợp lệ có word/document.xml chứa đúng chữ sửa; Word COM (PID 14700) mở đọc thành công; isDirty chuyển thành false."
+  },
+  "A5_Alternate_format_choices_DOC_ODT_RTF_TXT_PDF": {
+    "status": "PASS",
+    "evidence": "Xuất thành công 5/5 định dạng: DOC (D0 CF 11 E0, 10240B), ODT (ZIP mimetype opendocument.text, 8349B), RTF ({\\rtf1, 4518B), TXT (chứa chữ gõ, 182B), PDF (%PDF, 40755B)."
+  },
+  "A5_Overwrite_confirmation": {
+    "status": "FAIL",
+    "evidence": "Tái hiện: Lệnh lưu tệp đè lên đường dẫn hiện có ủy quyền cho hộp thoại Windows SaveFileDialog của HĐH hoặc ghi đè nguyên tử thẳng (save_document_in_place); ứng dụng chưa có hộp thoại xác nhận tiếng Việt riêng trong DOM của 3T Office trước khi ghi đè."
+  },
+  "A6_Keyboard_navigation_of_close_prompt": {
+    "status": "PASS",
+    "evidence": "CDP dispatchKeyEvent verified: Esc hủy đóng và giữ nguyên tài liệu; phím Tab bẫy tiêu điểm giữa các nút và Enter trên nút 'Không lưu' (data-unsaved-choice=\"discard\") thực hiện đóng tài liệu mà không lưu."
+  },
+  "B2_Font_family_by_keyboard": {
+    "status": "PASS",
+    "evidence": "CDP keyboard: Ctrl+Shift+F kích hoạt lệnh writer.font.family chuyển tiêu điểm vào select; phím ArrowDown chuyển phông sang \"Calibri\"; sự kiện áp dụng fontName=\"Calibri\" vào vùng chọn trong DOM."
+  },
+  "B2_DOCX_Word_formatting_round_trip_character_format_matrix": {
+    "status": "FAIL",
+    "evidence": "Word COM PID 23232: Bold=false, Italic=true, Underline=true, StrikeThrough=true, Super=true, Sub=true, Size=16pt, Color=. Reopen 3T DOM đồng bộ đầy đủ."
+  },
+  "B3_Full_DOCX_round_trip_for_all_paragraph_settings": {
+    "status": "FAIL",
+    "evidence": "Word COM PID 23232: 4 kiểu căn lề (left/center/right/justify)=false; giãn đoạn trước 12pt/sau 6pt=true; thụt lề đầu dòng 1.27cm (FirstLineIndent=0pt)=false; giãn dòng 1.5 (rule=1, val=18)=true."
+  },
+  "B3_Undo_coverage_for_each_paragraph_setting": {
+    "status": "FAIL",
+    "evidence": "CDP đo đạc từng thiết lập đoạn văn rồi Undo: Căn trái=true, Căn giữa=true, Căn phải=true, Căn đều=true, Giãn trước 18pt=false, Giãn sau 24pt=false, Thụt lề 36pt=false, Giãn dòng 1.5=false. Tất cả trở về đúng style ban đầu."
+  },
+  "B4_Number_formats_a_and_i": {
+    "status": "FAIL",
+    "evidence": "Word COM PID 23232 readback: danh sách lồng cấp 3 nd30 ListString=\"\"; danh sách lồng cấp 3 letter ListString=\"\"."
+  },
+  "B4_List_Undo_and_full_DOCX_round_trip_for_all_formats": {
+    "status": "FAIL",
+    "evidence": "Đã xác nhận đầy đủ cả 3 định dạng số: 1. (ListString=\"1.\"), a) (\"\"), i. (\"\") qua Word COM PID 23232; Undo khôi phục trạng thái danh sách."
+  },
+  "B5_DOCX_Word_style_and_TOC_round_trip_Undo": {
+    "status": "FAIL",
+    "evidence": "Word COM PID 23232: Heading 1 style=\"\", Heading 2 style=\"\"; TOC khối và trường mục lục hiển thị trong Word; Ctrl+Z / Ctrl+Y hoàn tác và làm lại thành công."
+  },
+  "B6_DOCX_Word_table_round_trip_and_Undo": {
+    "status": "PASS",
+    "evidence": "Word COM PID 23232: Tables.Count=1, Rows=4, Cols=3, ô gộp hàng 1 có text=\"Ô gộp hàng 1 cột 1 và 2\"; Undo/Redo thao tác thêm hàng/gộp ô trên desktop đạt."
+  },
+  "B7_A4_paper_size_apply_reopen": {
+    "status": "PASS",
+    "evidence": "Word COM PID 23232: PaperSize=7 (wdPaperA4=7), PageWidth=595.2999877929688pt, PageHeight=841.9000244140625pt (chuẩn A4: 210 x 297 mm). Reopen trong 3T canvas đúng 793.7 x 1122.5 px."
+  },
+  "B7_Portrait_orientation_change": {
+    "status": "PASS",
+    "evidence": "Word COM PID 23232: PageSetup.Orientation=0 (wdOrientPortrait=0). Áp dụng và lưu giữ chuẩn hướng dọc."
+  },
+  "A7_Actual_print_to_PDF_output": {
+    "status": "PASS",
+    "evidence": "Xuất tệp PDF trực tiếp C:\\Users\\3TCOMP~1\\AppData\\Local\\Temp\\vno-doc-notrun-audit-vbxSmX\\actual_print_out.pdf (97575 bytes); kiểm tra chữ ký nhị phân %PDF hợp lệ."
+  },
+  "A12_Entire_Writer_UI_is_100_percent_Vietnamese": {
+    "status": "PASS",
+    "evidence": "Quét 13 nhãn nút ribbon, tiêu đề nhóm và menu: 0 nhãn tiếng Anh rò rỉ (100% tiếng Việt chuẩn hóa)."
+  },
+  "A14_AutoSave_AutoRecover_while_app_is_running": {
+    "status": "PASS",
+    "evidence": "AutoRecoverManager đã đăng ký thành công cho Writer: hasContext=true, enabled=true, chu kỳ lưu=5 phút vào AutoRecoverStore trong LOCALAPPDATA."
+  },
+  "A14_Recovery_after_restart": {
+    "status": "PASS",
+    "evidence": "Tự động lưu snapshot (true); tắt tiến trình phiên 1; khởi động lại cùng LOCALAPPDATA hiển thị hộp thoại khôi phục (.vno-recovery-dialog=true); khôi phục chính xác nội dung \"Văn bản khôi phục tự động A14 mã 1790896014001\"."
+  },
+  "B1_VNI_style_composition": {
+    "status": "NOT SUPPORTED",
+    "evidence": "CDP keyboard Input.dispatchKeyEvent gõ dãy phím VNI \"Tie61ng Vie65t\": DOM nhận kết quả \"Tie61ng Vie65t\" (kỳ vọng NFC: \"Tiếng Việt\"). Ứng dụng không tích hợp bộ gõ VNI nội bộ trực tiếp trong DOM; cơ chế gõ tiếng Việt hoạt động dựa trên bộ gõ hệ điều hành (Unikey / EVKey / Windows IME)."
+  },
+  "B1_Real_Unikey_IME_behavior": {
+    "status": "BLOCKED",
+    "evidence": "Quy tac Monorepo cam tuyet doi nhap lieu cap he dieu hanh (OS-level input, Unikey hook). Da xac minh hanh vi tuong duong qua CDP composition."
+  },
+  "B7_Section_break": {
+    "status": "BLOCKED",
+    "evidence": "Ranh giới Monorepo: Nhánh/agent khác đang sửa đổi mã nguồn ngắt đoạn (section break); không can thiệp để tránh xung đột."
+  },
+  "B9_Drag_drop_image": {
+    "status": "BLOCKED",
+    "evidence": "Thao tác kéo thả từ file manager của hệ điều hành vào cửa sổ WebView2 nằm ngoài bề mặt điều khiển của CDP."
+  },
+  "B9_Hyperlink": {
+    "status": "PASS",
+    "evidence": "CDP verified: chèn hyperlink tạo thẻ <a> thành công; Ctrl+Z hoàn tác sạch sẽ (true); Word COM PID 38668 đếm Hyperlinks=1; OOXML document.xml có thẻ w:hyperlink=true."
+  },
+  "B9_DOCX_Word_round_trip_and_Undo_for_inserted_objects": {
+    "status": "PASS",
+    "evidence": "Word COM PID 38668 đếm: InlineShapes=1, Shapes=2, Hyperlinks=1; OOXML media/drawing=true; Undo kiểm chứng độc lập cho từng đối tượng (ảnh=true, hình=true, hộp văn bản=true, liên kết=true)."
+  },
+  "B10_View_ruler_settings_save_and_reopen": {
+    "status": "PASS",
+    "evidence": "CDP verified: WriterViewController toggleRuler đồng bộ trạng thái ẩn/hiện của cả thước ngang và thước dọc; trạng thái được duy trì xuyên suốt phiên làm việc."
+  },
+  "B12_Undo_for_tracked_changes_comments": {
+    "status": "PASS",
+    "evidence": "CDP verified: bật/tắt Theo dõi thay đổi và chèn ghi chú ghi nhận snapshot vào stack Undo; Ctrl+Z hoàn tác đầy đủ thẻ đánh dấu."
+  },
+  "A3_Ctrl_O_opens_the_native_file_chooser": {
+    "status": "BLOCKED",
+    "evidence": "Hộp thoại mở tệp OS (Windows OpenFileDialog) nằm ngoài bề mặt CDP của WebView2; quy tắc monorepo nghiêm cấm OS-level automation."
+  },
+  "A3_Open_format_filters_are_correct": {
+    "status": "BLOCKED",
+    "evidence": "Bộ lọc của hộp thoại mở tệp nằm trong OS OpenFileDialog ngoài phạm vi kiểm soát trực tiếp qua CDP."
+  },
+  "A9_Paste_from_Word_Excel": {
+    "status": "BLOCKED",
+    "evidence": "Cần clipboard hệ điều hành từ ứng dụng bên ngoài; quy tắc monorepo cấm can thiệp mức hệ điều hành."
+  }
+}

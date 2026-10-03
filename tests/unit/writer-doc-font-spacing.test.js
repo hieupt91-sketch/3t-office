@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { WriterAdapter } from "../../adapters/libreoffice/writer/writer-adapter.js";
+import { WRITER_RIBBON_TABS } from "../../apps/writer/writer-ribbon.js";
 
 // Äo tháº­t 2026-09-15 (HDLD.docx, Word 2016 COM): Arial 12pt w:line=312 â†’ Word 19.1pt/dÃ²ng
 // (= 1.3 Ã— chiá»u cao dÃ²ng tá»± nhiÃªn cá»§a Calibri Light 1.2207), CSS 130% chá»‰ cho 20.8px;
@@ -13,6 +14,31 @@ function check(value, message) { if (!value) throw new Error(message); }
 export async function runWriterDocFontSpacingTests() {
   const results = [];
   const test = (name, fn) => { try { fn(); results.push({ name, pass: true }); } catch (error) { results.push({ name, pass: false, error: error.message }); } };
+
+  test("13.5 pt is available in the 3T Doc font-size list and applies as an exact point value", () => {
+    const home = WRITER_RIBBON_TABS.find(tab => tab.id === "home");
+    const flatten = items => items.flatMap(item => item.items ? flatten(item.items) : [item]);
+    const size = flatten(home.groups).find(item => item.commandId === "writer.font.size");
+    check(size?.options.some(option => option.value === "13.5"), "13.5 pt option missing");
+    const adapter = new WriterAdapter({ getElementsByTagName: () => [font] });
+    const font = { size: "7", style: {}, removeAttribute(name) { if (name === "size") this.size = ""; } };
+    const oldWindow = globalThis.window;
+    const oldDocument = globalThis.document;
+    let command;
+    try {
+      globalThis.window = { getSelection: () => ({ rangeCount: 1 }) };
+      globalThis.document = { execCommand: (...args) => { command = args; } };
+      adapter.flushTyping = () => {};
+      adapter.recordSnapshot = name => { adapter.lastSnapshotName = name; };
+      check(adapter._applyFontSizePt(13.5), "13.5 pt command did not apply");
+      check(command[0] === "fontSize" && command[2] === "7", "selection was not isolated for precise sizing");
+      check(font.style.fontSize === "13.5pt", `wrong point size: ${font.style.fontSize}`);
+      check(adapter.lastSnapshotName === "writer.font.size", "Undo snapshot was not recorded");
+    } finally {
+      globalThis.window = oldWindow;
+      globalThis.document = oldDocument;
+    }
+  });
 
   test("Import: line-height % and unitless become --vno-lh (Word multiple), exact cm stays", () => {
     const adapter = new WriterAdapter(null);

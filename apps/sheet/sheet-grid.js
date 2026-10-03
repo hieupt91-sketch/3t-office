@@ -22,6 +22,9 @@ import { createLazyDialogs } from "../../platform/ui-kit/lazy-dialogs.js";
 import { extractSheetRangeData, SHEET_CHART_TYPES } from "./sheet-chart-data.js";
 import { SheetDataTools } from "./data-tools.js";
 import { computeConsolidate, formatSheetRange, parseConsolidateReference, CONSOLIDATE_FUNCTIONS } from "./consolidate.js";
+import { createMatcher } from "../../platform/find/find-engine.js";
+import { InputNormalizer } from "../../platform/keyboard/input-normalizer.js";
+import { isSpellcheckEnabled } from "../../platform/text/spellcheck-dom-controller.js";
 
 const { showAlertDialog, showConfirmDialog, showPromptDialog, showFindReplaceDialog } = createLazyDialogs("sheet");
 
@@ -35,6 +38,25 @@ export const DEFAULT_SHEET_PAGE_SETUP = Object.freeze({
   printOptions: Object.freeze({ gridlines: false, headings: false }),
   printTitles: Object.freeze({ rows: "", cols: "" })
 });
+
+export const MAX_ROW_COUNT = 1048576;
+export const MAX_COL_COUNT = 16384;
+
+function generateAllCols() {
+  const cols = new Array(MAX_COL_COUNT);
+  for (let i = 1; i <= MAX_COL_COUNT; i++) {
+    let value = i;
+    let label = "";
+    while (value > 0) {
+      value--;
+      label = String.fromCharCode(65 + (value % 26)) + label;
+      value = Math.floor(value / 26);
+    }
+    cols[i - 1] = label;
+  }
+  return cols;
+}
+export const ALL_COLS = Object.freeze(generateAllCols());
 
 export const DEFAULT_ROW_HEIGHT_PX = 20;
 export const DEFAULT_COL_WIDTH_PX = 64;
@@ -69,11 +91,17 @@ export function createSheetSelectionRange(anchor, active) {
 export function normalizeSheetSelectionRange(range, cols) {
   const start = range?.start || { c: cols[0], r: 1 };
   const end = range?.end || start;
-  const startCol = Math.max(0, cols.indexOf(start.c));
-  const endCol = Math.max(0, cols.indexOf(end.c));
+  const colNumber = (col) => {
+    if (typeof col === "number") return col;
+    return String(col).toUpperCase().split("").reduce((v, ch) => v * 26 + ch.charCodeAt(0) - 64, 0);
+  };
+  const startNum = colNumber(start.c);
+  const endNum = colNumber(end.c);
+  const minNum = Math.max(1, Math.min(cols.length, Math.min(startNum, endNum)));
+  const maxNum = Math.max(1, Math.min(cols.length, Math.max(startNum, endNum)));
   return {
-    start: { c: cols[Math.min(startCol, endCol)], r: Math.min(start.r, end.r) },
-    end: { c: cols[Math.max(startCol, endCol)], r: Math.max(start.r, end.r) }
+    start: { c: cols[minNum - 1] || start.c, r: Math.min(start.r, end.r) },
+    end: { c: cols[maxNum - 1] || end.c, r: Math.max(start.r, end.r) }
   };
 }
 
@@ -158,10 +186,14 @@ export class SheetGridController {
     this.container = container;
     this.options = options;
     this.isBlank = options.isBlank ?? (options.templateId !== "budget_estimate");
-    this.cols = Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i));
-    this.rowCount = 200;
+    this.rowCount = options.rowCount ?? MAX_ROW_COUNT;
+    this.cols = typeof options.cols === "number"
+      ? Array.from({ length: options.cols }, (_, i) => this._columnLabel(i + 1))
+      : (Array.isArray(options.cols) ? options.cols : ALL_COLS);
     this.rowHeight = DEFAULT_ROW_HEIGHT_PX;
     this.defaultColWidth = DEFAULT_COL_WIDTH_PX;
+    this.currentStartColNum = 1;
+    this.currentEndColNum = Math.min(this.cols.length, 30);
 
     this.sheets = options.templateId === "budget_estimate"
       ? ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]
@@ -291,6 +323,7 @@ export class SheetGridController {
     // Prefix-sum row tops cache (per sheet) for virtual scroll with variable row heights.
     // _rowTopsCache[sheetName] = { tops: number[], totalHeight: number, valid: boolean }
     this._rowTopsCache = {};
+    this._colLeftsCache = {};
     this._tabSequenceAnchor = null;
     this._clipboardRange = null;
   }
@@ -330,7 +363,7 @@ export class SheetGridController {
     fBar.setAttribute("role", "region");
     fBar.setAttribute("aria-label", t("sheetFormulaEntry.formulaBarLabel"));
     fBar.innerHTML = `
-      <div class="vno-name-box" id="vno-cell-name" role="status" aria-label="Hộp tên ô">A1</div>
+      <input type="text" class="vno-name-box" id="vno-cell-name" value="A1" role="status" aria-label="Hộp tên ô" spellcheck="false" autocomplete="off" />
       <div class="vno-formula-actions" role="toolbar" aria-label="Thao tác công thức">
         <button type="button" class="vno-formula-btn" title="Hủy bỏ (Esc)" aria-label="Hủy bỏ (Esc)" id="vno-fx-cancel">✕</button>
         <button type="button" class="vno-formula-btn" title="Nhập (Enter)" aria-label="Nhập (Enter)" id="vno-fx-ok">✓</button>
@@ -339,6 +372,19 @@ export class SheetGridController {
       <textarea class="vno-formula-input" id="vno-formula-val" rows="1" aria-label="Thanh công thức" placeholder="Nhập giá trị hoặc công thức (ví dụ: =SUM(F4:F7), =AVERAGE(E4:E7)...)"></textarea>
     `;
     this.nameBox = fBar.querySelector("#vno-cell-name");
+    this.nameBox?.addEventListener("focus", () => {
+      this.nameBox.select?.();
+    });
+    this.nameBox?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        this._jumpToNameBoxAddress(this.nameBox.value);
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        this.nameBox.value = this.getSelectionNameLabel();
+        this.focusGrid();
+      }
+    });
     this.formulaInput = fBar.querySelector("#vno-formula-val");
     this.formulaInput.setAttribute("aria-label", t("sheetFormulaEntry.formulaBarLabel"));
     this.formulaInput.title = t("sheetFormulaEntry.referenceHint");
@@ -352,6 +398,33 @@ export class SheetGridController {
     this.formulaReferenceOverlay.appendChild(this.formulaReferenceOverlayContent);
     this.formulaInput.before(formulaInputWrap);
     formulaInputWrap.append(this.formulaReferenceOverlay, this.formulaInput);
+
+    this._formulaInputNormalizer = new InputNormalizer({
+      target: this.formulaInput,
+      onWordCommit: () => {
+        if (!this.formulaEntry) this._beginFormulaEntry("edit");
+        this._setFormulaEntryValue(this.formulaInput.value, this.formulaInput.selectionStart, {
+          source: "undo"
+        });
+        if (this._inlineSpellController) {
+          this._inlineSpellController._syncFromInput();
+        }
+      }
+    }).attach(this.formulaInput);
+
+    this._inlineSpellController = null;
+    import("./sheet-inline-spellcheck.js").then(({ SheetInlineSpellcheck }) => {
+      if (!this._inlineSpellController && this.formulaInput) {
+        this._inlineSpellController = new SheetInlineSpellcheck(this);
+        if (this.formulaInput) {
+          this.formulaInput.dataset.spellcheckStatus = "ready";
+        }
+      }
+    }).catch(() => {});
+
+    globalCommandBus.bindHandler("sheet.review.toggleSpellCheck", () => {
+      return this.toggleSpellcheck();
+    });
 
     this.autocomplete.mount();
 
@@ -481,13 +554,6 @@ export class SheetGridController {
     const thead = document.createElement("thead");
     const trHead = document.createElement("tr");
     this.theadRow = trHead;
-    trHead.innerHTML = `<th class="vno-grid-corner-header" title="Chọn tất cả (Ctrl+A)"></th>`;
-    trHead.querySelector(".vno-grid-corner-header")?.addEventListener("click", () => this.selectAll());
-    this.cols.forEach(col => {
-      const th = document.createElement("th");
-      this._bindColumnHeader(th, col);
-      trHead.appendChild(th);
-    });
     thead.appendChild(trHead);
     table.appendChild(thead);
 
@@ -506,15 +572,16 @@ export class SheetGridController {
 
     this.topSpacer = document.createElement("tr");
     this.topSpacer.className = "vno-grid-spacer-top";
-    this.topSpacer.innerHTML = `<td colspan="${this.cols.length + 1}" style="height:0px;padding:0;border:none;"></td>`;
+    this.topSpacer.innerHTML = `<td style="height:0px;padding:0;border:none;"></td>`;
     tbody.appendChild(this.topSpacer);
 
     this.bottomSpacer = document.createElement("tr");
     this.bottomSpacer.className = "vno-grid-spacer-bottom";
-    this.bottomSpacer.innerHTML = `<td colspan="${this.cols.length + 1}" style="height:0px;padding:0;border:none;"></td>`;
+    this.bottomSpacer.innerHTML = `<td style="height:0px;padding:0;border:none;"></td>`;
     tbody.appendChild(this.bottomSpacer);
 
     table.appendChild(tbody);
+    this._renderColumnHeaders();
     vp.appendChild(table);
     const chartLayer = document.createElement("div");
     chartLayer.className = "vno-sheet-chart-layer";
@@ -606,6 +673,7 @@ export class SheetGridController {
   destroy() {
     this._closeSpellcheckDialog();
     this._closeContextMenu();
+    this._formulaInputNormalizer?.destroy?.();
     this.autocomplete?.destroy?.();
   }
 
@@ -636,7 +704,9 @@ export class SheetGridController {
     const mm = String(now.getMinutes()).padStart(2, "0");
     const ss = String(now.getSeconds()).padStart(2, "0");
     const timeStr = `${hh}:${mm}:${ss}`;
-    this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, timeStr, true);
+    // Dấu nháy đơn giữ nguyên chuỗi HH:mm:ss như trước đây (không auto-detect
+    // thành serial giờ), vì lệnh này chèn chuỗi giờ chứ không nhập tay vào ô.
+    this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, `'${timeStr}`, true);
     if (this.formulaInput) this.formulaInput.value = timeStr;
     return timeStr;
   }
@@ -738,6 +808,17 @@ export class SheetGridController {
   }
 
   // --- Prefix-sum row tops cache for virtual scroll with variable row heights ---
+  _hasCustomRowHeightsOrHidden(sheetName = this.activeSheet) {
+    if (this.getRowHeight !== SheetGridController.prototype.getRowHeight) return true;
+    const customHeights = this.rowHeightsBySheet?.[sheetName];
+    if (customHeights && customHeights.size > 0) return true;
+    const hiddenRows = this.sheetStates?.[sheetName]?.hiddenRows;
+    if (hiddenRows && hiddenRows.size > 0) return true;
+    const userHidden = this.userHiddenRowsBySheet?.[sheetName];
+    if (userHidden && userHidden.size > 0) return true;
+    return false;
+  }
+
   _ensureRowTopsCache(sheetName = this.activeSheet) {
     if (!this._rowTopsCache) this._rowTopsCache = {};
     if (!this._rowTopsCache[sheetName] || !this._rowTopsCache[sheetName].valid) {
@@ -747,14 +828,32 @@ export class SheetGridController {
   }
 
   _buildRowTopsCache(sheetName = this.activeSheet) {
-    const count = this.rowCount || 200;
-    const tops = new Float64Array(count + 2);
+    const count = this.rowCount || MAX_ROW_COUNT;
+    let maxCustomRow = 1;
+    if (this.getRowHeight !== SheetGridController.prototype.getRowHeight) {
+      maxCustomRow = Math.max(maxCustomRow, Math.min(count, 500));
+    }
+    const customHeights = this.rowHeightsBySheet?.[sheetName];
+    if (customHeights) {
+      for (const r of customHeights.keys()) if (r > maxCustomRow) maxCustomRow = r;
+    }
+    const hiddenRows = this.sheetStates?.[sheetName]?.hiddenRows;
+    if (hiddenRows) {
+      for (const r of hiddenRows) if (r > maxCustomRow) maxCustomRow = r;
+    }
+    const userHidden = this.userHiddenRowsBySheet?.[sheetName];
+    if (userHidden) {
+      for (const r of userHidden) if (r > maxCustomRow) maxCustomRow = r;
+    }
+    const limit = Math.min(count, maxCustomRow);
+    const tops = new Float64Array(limit + 2);
     tops[1] = 0;
-    for (let r = 1; r <= count; r++) {
+    for (let r = 1; r <= limit; r++) {
       tops[r + 1] = tops[r] + (this._isRowSkipped(r) ? 0 : this.getRowHeight(r, sheetName));
     }
+    const totalHeight = tops[limit + 1] + (count - limit) * this.rowHeight;
     if (!this._rowTopsCache) this._rowTopsCache = {};
-    this._rowTopsCache[sheetName] = { tops, totalHeight: tops[count + 1], valid: true };
+    this._rowTopsCache[sheetName] = { tops, limit, totalHeight, valid: true };
     return this._rowTopsCache[sheetName];
   }
 
@@ -768,10 +867,14 @@ export class SheetGridController {
   }
 
   _rowTop(r, sheetName = this.activeSheet) {
+    if (r <= 1) return 0;
+    if (r > this.rowCount) return this._totalHeight(sheetName);
+    if (!this._hasCustomRowHeightsOrHidden(sheetName)) {
+      return (r - 1) * this.rowHeight;
+    }
     const cache = this._ensureRowTopsCache(sheetName);
-    if (r < 1) return 0;
-    if (r > this.rowCount) return cache.totalHeight;
-    return cache.tops[r];
+    if (r <= cache.limit + 1) return cache.tops[r];
+    return cache.tops[cache.limit + 1] + (r - (cache.limit + 1)) * this.rowHeight;
   }
 
   _rowBottom(r, sheetName = this.activeSheet) {
@@ -779,32 +882,163 @@ export class SheetGridController {
   }
 
   _totalHeight(sheetName = this.activeSheet) {
+    if (!this._hasCustomRowHeightsOrHidden(sheetName)) {
+      return this.rowCount * this.rowHeight;
+    }
     return this._ensureRowTopsCache(sheetName).totalHeight;
   }
 
   _firstVisibleRow(scrollTop, sheetName = this.activeSheet) {
+    if (!this._hasCustomRowHeightsOrHidden(sheetName)) {
+      return Math.max(1, Math.min(this.rowCount, Math.floor(scrollTop / this.rowHeight) + 1));
+    }
     const cache = this._ensureRowTopsCache(sheetName);
-    const count = this.rowCount || 200;
-    let lo = 1, hi = count;
+    if (scrollTop >= cache.tops[cache.limit + 1]) {
+      return Math.max(1, Math.min(this.rowCount, cache.limit + 1 + Math.floor((scrollTop - cache.tops[cache.limit + 1]) / this.rowHeight)));
+    }
+    let lo = 1, hi = cache.limit;
     while (lo < hi) {
       const mid = (lo + hi) >> 1;
       if (cache.tops[mid + 1] <= scrollTop) lo = mid + 1;
       else hi = mid;
     }
-    return Math.max(1, Math.min(count, lo));
+    return Math.max(1, Math.min(this.rowCount, lo));
   }
 
   _lastVisibleRow(scrollTop, viewportHeight, sheetName = this.activeSheet) {
     const bottom = scrollTop + viewportHeight;
+    if (!this._hasCustomRowHeightsOrHidden(sheetName)) {
+      return Math.max(1, Math.min(this.rowCount, Math.ceil(bottom / this.rowHeight)));
+    }
     const cache = this._ensureRowTopsCache(sheetName);
-    const count = this.rowCount || 200;
-    let lo = 1, hi = count;
+    if (bottom >= cache.tops[cache.limit + 1]) {
+      return Math.max(1, Math.min(this.rowCount, cache.limit + 1 + Math.floor((bottom - 1 - cache.tops[cache.limit + 1]) / this.rowHeight)));
+    }
+    let lo = 1, hi = cache.limit;
     while (lo < hi) {
       const mid = (lo + hi + 1) >> 1;
       if (cache.tops[mid] >= bottom) hi = mid - 1;
       else lo = mid;
     }
-    return Math.max(1, Math.min(count, lo));
+    return Math.max(1, Math.min(this.rowCount, lo));
+  }
+
+  // --- Prefix-sum col lefts cache for 2D virtual scroll ---
+  _hasCustomColWidthsOrHidden(sheetName = this.activeSheet) {
+    if (this.getColumnWidth !== SheetGridController.prototype.getColumnWidth) return true;
+    const customWidths = this.colWidthsBySheet?.[sheetName];
+    if (customWidths && customWidths.size > 0) return true;
+    const userHidden = this.userHiddenColsBySheet?.[sheetName];
+    if (userHidden && userHidden.size > 0) return true;
+    return false;
+  }
+
+  _ensureColLeftsCache(sheetName = this.activeSheet) {
+    if (!this._colLeftsCache) this._colLeftsCache = {};
+    if (!this._colLeftsCache[sheetName] || !this._colLeftsCache[sheetName].valid) {
+      this._buildColLeftsCache(sheetName);
+    }
+    return this._colLeftsCache[sheetName];
+  }
+
+  _buildColLeftsCache(sheetName = this.activeSheet) {
+    const count = this.cols.length;
+    let maxCustomCol = 1;
+    if (this.getColumnWidth !== SheetGridController.prototype.getColumnWidth) {
+      maxCustomCol = Math.max(maxCustomCol, Math.min(count, 500));
+    }
+    const customWidths = this.colWidthsBySheet?.[sheetName];
+    if (customWidths) {
+      for (const col of customWidths.keys()) {
+        const cNum = this._columnNumber(col);
+        if (cNum > maxCustomCol) maxCustomCol = cNum;
+      }
+    }
+    const userHidden = this.userHiddenColsBySheet?.[sheetName];
+    if (userHidden) {
+      for (const col of userHidden) {
+        const cNum = this._columnNumber(col);
+        if (cNum > maxCustomCol) maxCustomCol = cNum;
+      }
+    }
+    const limit = Math.min(count, maxCustomCol);
+    const lefts = new Float64Array(limit + 2);
+    lefts[1] = 0;
+    for (let c = 1; c <= limit; c++) {
+      lefts[c + 1] = lefts[c] + this._colWidth(c, sheetName);
+    }
+    const totalWidth = lefts[limit + 1] + (count - limit) * this.defaultColWidth;
+    if (!this._colLeftsCache) this._colLeftsCache = {};
+    this._colLeftsCache[sheetName] = { lefts, limit, totalWidth, valid: true };
+    return this._colLeftsCache[sheetName];
+  }
+
+  _invalidateColLeftsCache(sheetName = this.activeSheet) {
+    if (!this._colLeftsCache) return;
+    if (sheetName) {
+      if (this._colLeftsCache[sheetName]) this._colLeftsCache[sheetName].valid = false;
+    } else {
+      for (const k of Object.keys(this._colLeftsCache)) this._colLeftsCache[k].valid = false;
+    }
+  }
+
+  _colWidth(cNum, sheetName = this.activeSheet) {
+    const col = this.cols[cNum - 1] || this._columnLabel(cNum);
+    if (this._isColumnHidden(col)) return 0;
+    return this.getColumnWidth(col, sheetName);
+  }
+
+  _colLeft(cNum, sheetName = this.activeSheet) {
+    if (cNum <= 1) return 0;
+    if (cNum > this.cols.length) return this._totalWidth(sheetName);
+    if (!this._hasCustomColWidthsOrHidden(sheetName)) {
+      return (cNum - 1) * this.defaultColWidth;
+    }
+    const cache = this._ensureColLeftsCache(sheetName);
+    if (cNum <= cache.limit + 1) return cache.lefts[cNum];
+    return cache.lefts[cache.limit + 1] + (cNum - (cache.limit + 1)) * this.defaultColWidth;
+  }
+
+  _totalWidth(sheetName = this.activeSheet) {
+    if (!this._hasCustomColWidthsOrHidden(sheetName)) {
+      return this.cols.length * this.defaultColWidth;
+    }
+    return this._ensureColLeftsCache(sheetName).totalWidth;
+  }
+
+  _firstVisibleCol(scrollLeft, sheetName = this.activeSheet) {
+    if (!this._hasCustomColWidthsOrHidden(sheetName)) {
+      return Math.max(1, Math.min(this.cols.length, Math.floor(scrollLeft / this.defaultColWidth) + 1));
+    }
+    const cache = this._ensureColLeftsCache(sheetName);
+    if (scrollLeft >= cache.lefts[cache.limit + 1]) {
+      return Math.max(1, Math.min(this.cols.length, cache.limit + 1 + Math.floor((scrollLeft - cache.lefts[cache.limit + 1]) / this.defaultColWidth)));
+    }
+    let lo = 1, hi = cache.limit;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (cache.lefts[mid + 1] <= scrollLeft) lo = mid + 1;
+      else hi = mid;
+    }
+    return Math.max(1, Math.min(this.cols.length, lo));
+  }
+
+  _lastVisibleCol(scrollLeft, viewportWidth, sheetName = this.activeSheet) {
+    const right = scrollLeft + viewportWidth;
+    if (!this._hasCustomColWidthsOrHidden(sheetName)) {
+      return Math.max(1, Math.min(this.cols.length, Math.ceil(right / this.defaultColWidth)));
+    }
+    const cache = this._ensureColLeftsCache(sheetName);
+    if (right >= cache.lefts[cache.limit + 1]) {
+      return Math.max(1, Math.min(this.cols.length, cache.limit + 1 + Math.floor((right - 1 - cache.lefts[cache.limit + 1]) / this.defaultColWidth)));
+    }
+    let lo = 1, hi = cache.limit;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (cache.lefts[mid] >= right) hi = mid - 1;
+      else lo = mid;
+    }
+    return Math.max(1, Math.min(this.cols.length, lo));
   }
 
   _snapshotRowColLayout(sheetName = this.activeSheet) {
@@ -1202,7 +1436,7 @@ export class SheetGridController {
   }
 
   _attachAutofillHandle(td) {
-    if (!td || typeof document?.createElement !== "function" || td.querySelector?.(".vno-cell-autofill-handle")) return;
+    if (!td || typeof document === "undefined" || typeof document.createElement !== "function" || td.querySelector?.(".vno-cell-autofill-handle")) return;
     const handle = document.createElement("div");
     handle.className = "vno-cell-autofill-handle";
     handle.title = "Kéo để tự động điền (AutoFill)";
@@ -1211,11 +1445,16 @@ export class SheetGridController {
       e.stopPropagation();
       this._startAutofill(e);
     });
+    handle.addEventListener("dblclick", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this._autofillDownToAdjacentData();
+    });
     td.appendChild(handle);
   }
 
   _attachMoveHandles(td) {
-    if (!td || typeof document?.createElement !== "function" || td.querySelector?.(".vno-cell-move-handle")) return;
+    if (!td || typeof document === "undefined" || typeof document.createElement !== "function" || td.querySelector?.(".vno-cell-move-handle")) return;
     for (const side of ["top", "bottom", "left", "right"]) {
       const mh = document.createElement("div");
       mh.className = `vno-cell-move-handle ${side}`;
@@ -1241,10 +1480,26 @@ export class SheetGridController {
     const currentValue = current ? (current.formula || current.val || "") : "";
     const editedValue = this.formulaInput.value;
     if (String(currentValue) !== String(editedValue)) {
+      const original = this._cellValueBeforeEdit !== undefined ? this._cellValueBeforeEdit : currentValue;
+      if (!this._validateDataValidationCommit(coord.c, coord.r, editedValue, original)) return;
       this.setCellValue(coord.c, coord.r, editedValue, true, { coalesce: true, userInput: true });
     }
     this._cellValueBeforeEdit = undefined;
     this.autocomplete?.closeAll?.();
+  }
+
+  _validateDataValidationCommit(col, row, value, originalValue) {
+    const result = this.validateCellValue(col, row, value);
+    if (result.valid) return true;
+    showAlertDialog({
+      title: t("sheetDialogs.dataValidation", "Kiểm tra dữ liệu"),
+      message: result.message
+    });
+    this.setCellValue(col, row, originalValue ?? "", false);
+    if (this.formulaInput && this.selectedCoord.c === col && this.selectedCoord.r === row) {
+      this.formulaInput.value = String(originalValue ?? "");
+    }
+    return false;
   }
 
   _cellEditorValue(item) {
@@ -1285,7 +1540,8 @@ export class SheetGridController {
       }
     }
     if (session.sheet === this.activeSheet && session.coord?.c === this.selectedCoord.c && session.coord?.r === this.selectedCoord.r) {
-      this.setCellValue(session.coord.c, session.coord.r, session.value, true, { coalesce: true, userInput: true });
+      const hasValidation = !!this.getValidationForCell(session.coord.c, session.coord.r);
+      this.setCellValue(session.coord.c, session.coord.r, session.value, !hasValidation, { coalesce: true, userInput: true });
     }
     this._refreshFormulaEntryVisuals();
     if (!options.composing && options.source !== "autocomplete") {
@@ -1457,7 +1713,8 @@ export class SheetGridController {
     const session = this.formulaEntry;
     if (!session) return false;
     if (this.formulaInput) session.update(this.formulaInput.value, this.formulaInput.selectionStart ?? this.formulaInput.value.length);
-    const finalValue = session.commit();
+    let finalValue = session.commit();
+    if (typeof finalValue === "string") finalValue = finalValue.normalize("NFC");
     const coord = { ...session.coord };
     const ownerSheet = session.sheet;
     if (this.activeSheet !== ownerSheet) {
@@ -1465,21 +1722,32 @@ export class SheetGridController {
       this.switchSheet(ownerSheet, { formulaReturn: true });
     }
     this.selectedCoord = { ...coord };
+    if (!this._validateDataValidationCommit(coord.c, coord.r, finalValue, session.original)) {
+      this.formulaEntry = null;
+      this._cellValueBeforeEdit = undefined;
+      this._formulaPointCoord = null;
+      this.autocomplete?.closeAll?.();
+      this._refreshFormulaEntryVisuals();
+      return false;
+    }
     this.setCellValue(coord.c, coord.r, finalValue, true, { coalesce: true, userInput: true });
     if (this.formulaInput) this.formulaInput.value = finalValue;
     this.formulaEntry = null;
+    const committedTd = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${coord.c}${coord.r}"]`);
+    if (committedTd) this._renderCellVisual(committedTd, this.cellsData.get(`${coord.c}${coord.r}`), coord.c, coord.r);
     this._cellValueBeforeEdit = undefined;
     this._formulaPointCoord = null;
     this.autocomplete?.closeAll?.();
     this._refreshFormulaEntryVisuals();
     if (move) {
       if (tab) {
+        this._beginTabSequence();
         const colIndex = this.cols.indexOf(coord.c);
         const nextCol = shift ? this.cols[Math.max(0, colIndex - 1)] : this.cols[Math.min(this.cols.length - 1, colIndex + 1)];
         this.selectCell(nextCol, coord.r);
       } else {
-        const nextRow = shift ? Math.max(1, coord.r - 1) : Math.min(this.rowCount, coord.r + 1);
-        this.selectCell(coord.c, nextRow);
+        const next = this._enterDestination(shift);
+        this.selectCell(next.c, next.r);
       }
     } else {
       this.options.onSelect?.(`${coord.c}${coord.r}`, this.cellsData.get(`${coord.c}${coord.r}`), this._calculateStats());
@@ -1501,6 +1769,8 @@ export class SheetGridController {
     this.setCellValue(coord.c, coord.r, original, false);
     if (this.formulaInput) this.formulaInput.value = String(original ?? "");
     this.formulaEntry = null;
+    const cancelledTd = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${coord.c}${coord.r}"]`);
+    if (cancelledTd) this._renderCellVisual(cancelledTd, this.cellsData.get(`${coord.c}${coord.r}`), coord.c, coord.r);
     this._cellValueBeforeEdit = undefined;
     this._formulaPointCoord = null;
     this.autocomplete?.closeAll?.();
@@ -1539,10 +1809,20 @@ export class SheetGridController {
     } else {
       this.selectionRanges = [range];
     }
-    if (options.scrollActive && this.viewport &&
-        (activeCoord.r < this.currentStartRow || activeCoord.r > this.currentEndRow)) {
-      this.viewport.scrollTop = Math.max(0, this._rowTop(activeCoord.r) - 5 * this.rowHeight);
-      this._onViewportScroll();
+    if (options.scrollActive && this.viewport) {
+      let scrolled = false;
+      const cNum = this._columnNumber(activeCoord.c);
+      if (activeCoord.r < (this.currentStartRow || 1) || activeCoord.r > (this.currentEndRow || 40)) {
+        this.viewport.scrollTop = Math.max(0, this._rowTop(activeCoord.r) - 5 * this.rowHeight);
+        scrolled = true;
+      }
+      if (cNum < (this.currentStartColNum || 1) || cNum > (this.currentEndColNum || Math.min(this.cols.length, 30))) {
+        this.viewport.scrollLeft = Math.max(0, this._colLeft(cNum) - 3 * this.defaultColWidth);
+        scrolled = true;
+      }
+      if (scrolled) {
+        this._onViewportScroll();
+      }
     }
     this._updateRangeSelectionVisuals();
     this.focusGrid();
@@ -1748,7 +2028,13 @@ export class SheetGridController {
     const endCell = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${norm.end.c}${norm.end.r}"]`);
     if (endCell) this._attachAutofillHandle(endCell);
 
-    if (this.nameBox) this.nameBox.textContent = this.getSelectionNameLabel();
+    if (this.nameBox) {
+      const label = this.getSelectionNameLabel();
+      if (typeof document === "undefined" || document.activeElement !== this.nameBox) {
+        this.nameBox.value = label;
+      }
+      this.nameBox.textContent = label;
+    }
     const data = this.cellsData.get(activeCoordKey);
     if (this.formulaInput) {
       this.formulaInput.value = data ? (data.formula || data.val) : "";
@@ -1885,6 +2171,37 @@ export class SheetGridController {
     this._autofillTarget = null;
   }
 
+  _autofillDownToAdjacentData() {
+    const src = this._normalizeRange(this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const startCol = this._columnNumber(src.start.c);
+    const endCol = this._columnNumber(src.end.c);
+    const adjacentCols = [startCol - 1, endCol + 1]
+      .filter(col => col >= 1 && col <= this.cols.length);
+    let endRow = src.end.r;
+
+    for (const colNum of adjacentCols) {
+      let contiguousEnd = src.end.r;
+      const col = this._columnLabel(colNum);
+      for (let row = src.end.r + 1; row <= this.rowCount; row++) {
+        const item = this.cellsData.get(`${col}${row}`);
+        const hasValue = item && (item.formula || (item.val !== null && item.val !== undefined && String(item.val) !== ""));
+        if (!hasValue) break;
+        contiguousEnd = row;
+      }
+      endRow = Math.max(endRow, contiguousEnd);
+    }
+
+    if (endRow <= src.end.r) return false;
+    this._executeAutofill(src, {
+      direction: "down",
+      startCol: src.start.c,
+      endCol: src.end.c,
+      startRow: src.end.r + 1,
+      endRow
+    });
+    return true;
+  }
+
   _executeAutofill(src, target) {
     const before = {};
     const after = {};
@@ -1892,6 +2209,42 @@ export class SheetGridController {
     const monthsVi = ["Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6", "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"];
     const monthsEn = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const daysVi = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"];
+    const dayMs = 24 * 60 * 60 * 1000;
+    const parseDate = value => {
+      const raw = String(value ?? "").trim();
+      const ymd = raw.match(/^(\d{4})([/-])(\d{1,2})\2(\d{1,2})$/);
+      const dmy = raw.match(/^(\d{1,2})([/-])(\d{1,2})\2(\d{4})$/);
+      if (!ymd && !dmy) return null;
+      const year = Number(ymd ? ymd[1] : dmy[4]);
+      const month = Number(ymd ? ymd[3] : dmy[3]);
+      const day = Number(ymd ? ymd[4] : dmy[1]);
+      const utc = Date.UTC(year, month - 1, day);
+      const date = new Date(utc);
+      if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
+      return {
+        utc,
+        yearFirst: !!ymd,
+        separator: (ymd || dmy)[2],
+        dayWidth: ymd ? ymd[4].length : dmy[1].length,
+        monthWidth: ymd ? ymd[3].length : dmy[3].length
+      };
+    };
+    const dateSequenceValue = (sourceCells, offset) => {
+      const dates = sourceCells.map(cell => parseDate(cell.val));
+      if (!dates.length || dates.some(date => !date)) return null;
+      const first = dates[0];
+      const last = dates[dates.length - 1];
+      const stepDays = dates.length === 1
+        ? 1
+        : Math.round((last.utc - first.utc) / dayMs / (dates.length - 1));
+      const date = new Date(last.utc + stepDays * offset * dayMs);
+      const day = String(date.getUTCDate()).padStart(last.dayWidth, "0");
+      const month = String(date.getUTCMonth() + 1).padStart(last.monthWidth, "0");
+      const year = String(date.getUTCFullYear()).padStart(4, "0");
+      return last.yearFirst
+        ? `${year}${last.separator}${month}${last.separator}${day}`
+        : `${day}${last.separator}${month}${last.separator}${year}`;
+    };
 
     if (target.direction === "down") {
       const srcStartRow = src.start.r;
@@ -1919,11 +2272,14 @@ export class SheetGridController {
           let newVal = sourceCell.val;
           let newFormula = "";
           const newStyle = structuredClone(sourceCell.style || {});
+          const dateValue = dateSequenceValue(sourceCells, stepOffset);
 
           if (sourceCell.formula && String(sourceCell.formula).startsWith("=")) {
             const deltaR = r - (srcStartRow + cycleIdx);
             newFormula = this._offsetFormula(sourceCell.formula, 0, deltaR);
             newVal = this.formulaEngine.evaluate(newFormula);
+          } else if (dateValue !== null) {
+            newVal = dateValue;
           } else if (srcCount === 1) {
             const rawVal = String(sourceCell.val || "").trim();
             const numVal = Number(rawVal);
@@ -1989,11 +2345,14 @@ export class SheetGridController {
           let newVal = sourceCell.val;
           let newFormula = "";
           const newStyle = structuredClone(sourceCell.style || {});
+          const dateValue = dateSequenceValue(sourceCells, stepOffset);
 
           if (sourceCell.formula && String(sourceCell.formula).startsWith("=")) {
             const deltaC = cNum - (srcStartColNum + cycleIdx);
             newFormula = this._offsetFormula(sourceCell.formula, deltaC, 0);
             newVal = this.formulaEngine.evaluate(newFormula);
+          } else if (dateValue !== null) {
+            newVal = dateValue;
           } else if (srcCount === 1) {
             const rawVal = String(sourceCell.val || "").trim();
             const numVal = Number(rawVal);
@@ -2240,6 +2599,45 @@ export class SheetGridController {
     };
   }
 
+  _showTabColorMenu(event, sheetName) {
+    this._contextMenuPreviousFocus = document.activeElement;
+    const colors = ["", "#f44336", "#ff9800", "#ffeb3b", "#4caf50", "#2196f3", "#673ab7", "#e91e63"];
+    const menu = document.createElement("div");
+    menu.className = "vno-sheet-context-menu";
+    menu.setAttribute("role", "menu");
+    menu.setAttribute("aria-label", "Màu tab");
+    colors.forEach(color => {
+      const button = document.createElement("button");
+      button.type = "button"; button.className = "vno-sheet-context-item"; button.setAttribute("role", "menuitem");
+      button.textContent = color || "Không màu";
+      if (color) button.style.borderLeft = `12px solid ${color}`;
+      button.addEventListener("click", () => { this._closeContextMenu(); this.setTabColor(color, sheetName); });
+      menu.appendChild(button);
+    });
+    menu.style.cssText = `position:fixed;left:${Math.max(10, event.clientX)}px;top:${Math.max(10, event.clientY)}px;z-index:81;`;
+    document.body.appendChild(menu); this._activeContextMenu = menu;
+    const bounds = menu.getBoundingClientRect();
+    menu.style.left = `${Math.max(10, Math.min(event.clientX, window.innerWidth - bounds.width - 10))}px`;
+    menu.style.top = `${Math.max(10, Math.min(event.clientY, window.innerHeight - bounds.height - 10))}px`;
+    const onPointer = ev => { if (!menu.contains(ev.target)) this._closeContextMenu(); };
+    const onKey = ev => {
+      if (ev.key === "Escape") { ev.preventDefault(); this._closeContextMenu(); return; }
+      if (ev.key !== "ArrowDown" && ev.key !== "ArrowUp") return;
+      ev.preventDefault();
+      const buttons = Array.from(menu.querySelectorAll("button"));
+      const index = buttons.indexOf(document.activeElement);
+      const next = (index + (ev.key === "ArrowDown" ? 1 : -1) + buttons.length) % buttons.length;
+      buttons[next]?.focus();
+    };
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("keydown", onKey);
+    menu._vnoCleanup = () => {
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+    menu.querySelector("button")?.focus();
+  }
+
   _closeContextMenu() {
     if (this._activeContextMenu) {
       this._activeContextMenu._vnoCleanup?.();
@@ -2258,7 +2656,36 @@ export class SheetGridController {
     }
   }
 
+  _currentRegionFromSelection() {
+    const start = { ...(this.selectedCoord || { c: "A", r: 1 }) };
+    const hasValue = (c, r) => {
+      const item = this.cellsData.get(`${c}${r}`);
+      return !!item && (item.val !== undefined && item.val !== "" || item.formula);
+    };
+    if (!hasValue(start.c, start.r)) return null;
+    let left = this._columnNumber(start.c), right = left, top = start.r, bottom = start.r;
+    let changed = true;
+    while (changed) {
+      changed = false;
+      if (left > 1 && Array.from({ length: bottom - top + 1 }, (_, i) => hasValue(this._columnLabel(left - 1), top + i)).some(Boolean)) { left--; changed = true; }
+      if (right < this.cols.length && Array.from({ length: bottom - top + 1 }, (_, i) => hasValue(this._columnLabel(right + 1), top + i)).some(Boolean)) { right++; changed = true; }
+      if (top > 1 && Array.from({ length: right - left + 1 }, (_, i) => hasValue(this._columnLabel(left + i), top - 1)).some(Boolean)) { top--; changed = true; }
+      if (bottom < this.rowCount && Array.from({ length: right - left + 1 }, (_, i) => hasValue(this._columnLabel(left + i), bottom + 1)).some(Boolean)) { bottom++; changed = true; }
+    }
+    return { start: { c: this._columnLabel(left), r: top }, end: { c: this._columnLabel(right), r: bottom } };
+  }
+
   selectAll() {
+    const region = this._currentRegionFromSelection();
+    const current = this._normalizeRange(this.selectionRange);
+    if (region && (!current || this._rangeLabel(region) !== this._rangeLabel(current))) {
+      this.selectionRange = structuredClone(region);
+      this.selectionRanges = [this.selectionRange];
+      this.selectionKind = "cell";
+      this._renderSelection?.();
+      this._syncSelectionUi?.();
+      return true;
+    }
     this.selectCell("A", 1);
     this.selectCell(this.cols[this.cols.length - 1], this.rowCount, true);
     return true;
@@ -2296,8 +2723,14 @@ export class SheetGridController {
     this.isFilterActive = false;
     this.hiddenRows = new Set();
     this.activeFilters = new Map();
-    this.undoStack = [];
-    this.redoStack = [];
+    this.rowCount = MAX_ROW_COUNT;
+    this.cols = ALL_COLS;
+    this.currentStartRow = 1;
+    this.currentEndRow = 40;
+    this.currentStartColNum = 1;
+    this.currentEndColNum = Math.min(this.cols.length, 30);
+    this._invalidateRowTopsCache();
+    this._invalidateColLeftsCache();
 
     if (this.chartLayer) this.chartLayer.innerHTML = "";
     if (this.imageLayer) this.imageLayer.innerHTML = "";
@@ -2312,6 +2745,7 @@ export class SheetGridController {
       });
     }
 
+    this._renderColumnHeaders();
     this._renderVirtualRows(1, 40);
     this.renderCharts();
     this.renderImages();
@@ -2710,6 +3144,11 @@ export class SheetGridController {
     const items = [
       { label: t("sheetDialogs.renameSheetMenu", "Đổi tên trang tính..."), action: () => this.showRenameSheetDialog(sheetName) },
       { label: t("sheetDialogs.moveCopyMenu", "Di chuyển hoặc Sao chép trang tính..."), action: () => this.showMoveCopySheetDialog(sheetName) },
+      { label: "Xóa trang tính", action: () => {
+        if (this.sheets.length <= 1) { this._showDataNotice("Không thể xóa trang tính cuối cùng."); return; }
+        if (globalThis.confirm?.(`Xóa trang tính «${sheetName}»?`) !== false) this.deleteSheet(sheetName);
+      } },
+      { label: "Màu tab", action: () => this._showTabColorMenu(event, sheetName) },
       { label: this.isSheetProtected(sheetName)
         ? t("sheetDialogs.unprotectSheet", "Bỏ bảo vệ trang tính...")
         : t("sheetDialogs.protectSheet", "Bảo vệ trang tính..."), action: () => this.showProtectSheetDialog(sheetName) }
@@ -3345,7 +3784,75 @@ export class SheetGridController {
     return true;
   }
 
-  _buildRowTr(r) {
+  _appendCellToRow(tr, c, r, normRange, isMulti) {
+    const mergedRange = this.getMergedRangeForCell(c, r);
+    if (mergedRange && (mergedRange.start.c !== c || mergedRange.start.r !== r)) return;
+    const td = document.createElement("td");
+    td.hidden = this._isColumnHidden(c);
+    td.className = "vno-grid-cell";
+    const coordKey = `${c}${r}`;
+    td.dataset.coord = coordKey;
+    td.dataset.col = c;
+    td.dataset.row = r;
+    if (mergedRange) {
+      td.colSpan = this._columnNumber(mergedRange.end.c) - this._columnNumber(mergedRange.start.c) + 1;
+      td.rowSpan = mergedRange.end.r - mergedRange.start.r + 1;
+      td.dataset.mergedRange = this._rangeLabel(mergedRange);
+      td.classList.add("is-merged-cell");
+    }
+
+    const itm = this.cellsData.get(coordKey);
+    this._renderCellVisual(td, itm, c, r);
+    this._applyClipboardVisual(td, c, r);
+    this._applyRowColSizeToCell(td, c, r);
+    this._applyRuleVisuals(td, c, r);
+    this._applyAnnotationAndPageVisuals(td, c, r);
+
+    if (this.selectedCoord.c === c && this.selectedCoord.r === r) {
+      td.classList.add("is-selected");
+      this._attachMoveHandles(td);
+    }
+    if (this._isCoordInSelection(c, r) && isMulti) {
+      td.classList.add("is-range-selected");
+    }
+    if (normRange.end.c === c && normRange.end.r === r) {
+      this._attachAutofillHandle(td);
+    }
+
+    td.addEventListener("mousedown", (e) => {
+      if (e.button !== 0) return;
+      if (e.target.closest(".vno-cell-autofill-handle") || e.target.closest(".vno-cell-move-handle")) return;
+      if (this._startFormulaPointSelect(e, c, r)) return;
+      this._startRangeSelect(e, c, r);
+    });
+    td.addEventListener("click", event => {
+      if (event.detail !== 0 || event.defaultPrevented) return;
+      this.selectCell(c, r, event.shiftKey, event.ctrlKey);
+    });
+    td.addEventListener("dblclick", (e) => {
+      e.preventDefault();
+      if (this.formatPainter) return;
+      if (this._guardProtectedMutation()) return;
+      this._focusFormulaInputAtEnd();
+    });
+    td.addEventListener("contextmenu", event => {
+      event.preventDefault();
+      const marker = event.target.closest?.(".vno-spelling-uncertain");
+      if (marker && this._inlineSpellController?.domController?.enabled) {
+        this._inlineSpellController.domController.openMenu(marker, event.clientX, event.clientY);
+        return;
+      }
+      const inRange = this._isCoordInSelection(c, r);
+      if (!inRange) {
+        this.selectCell(c, r);
+      }
+      this.showContextMenu(event, "cell", coordKey);
+    });
+
+    tr.appendChild(td);
+  }
+
+  _buildRowTr(r, startColNum = this.currentStartColNum || 1, endColNum = this.currentEndColNum || Math.min(this.cols.length, 30)) {
     const tr = document.createElement("tr");
     tr.dataset.row = r;
     const rowHeight = this.getRowHeight(r);
@@ -3385,82 +3892,67 @@ export class SheetGridController {
 
     const normRange = this._normalizeRange(this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
     const isMulti = this._isMultiRangeSelection();
+    const frozenCols = Math.min(this.frozenCols || 0, this.cols.length);
 
-    this.cols.forEach(c => {
-      const mergedRange = this.getMergedRangeForCell(c, r);
-      if (mergedRange && (mergedRange.start.c !== c || mergedRange.start.r !== r)) return;
-      const td = document.createElement("td");
-      td.hidden = this._isColumnHidden(c);
-      td.className = "vno-grid-cell";
-      const coordKey = `${c}${r}`;
-      td.dataset.coord = coordKey;
-      td.dataset.col = c;
-      td.dataset.row = r;
-      if (mergedRange) {
-        td.colSpan = this._columnNumber(mergedRange.end.c) - this._columnNumber(mergedRange.start.c) + 1;
-        td.rowSpan = mergedRange.end.r - mergedRange.start.r + 1;
-        td.dataset.mergedRange = this._rangeLabel(mergedRange);
-        td.classList.add("is-merged-cell");
+    // 1. Frozen cols (1..frozenCols)
+    for (let c = 1; c <= frozenCols; c++) {
+      const col = this.cols[c - 1] || this._columnLabel(c);
+      this._appendCellToRow(tr, col, r, normRange, isMulti);
+    }
+
+    // 2. Left spacer
+    const effectiveStart = Math.max(frozenCols + 1, startColNum);
+    if (effectiveStart > frozenCols + 1) {
+      const leftWidth = this._colLeft(effectiveStart) - this._colLeft(frozenCols + 1);
+      if (leftWidth > 0) {
+        const tdSpacer = document.createElement("td");
+        tdSpacer.className = "vno-grid-cell-spacer-left";
+        tdSpacer.style.cssText = `width:${leftWidth}px;min-width:${leftWidth}px;max-width:${leftWidth}px;padding:0;border:none;background:transparent;`;
+        tr.appendChild(tdSpacer);
       }
+    }
 
-      const itm = this.cellsData.get(coordKey);
-      this._renderCellVisual(td, itm, c, r);
-      this._applyClipboardVisual(td, c, r);
-      this._applyRowColSizeToCell(td, c, r);
-      this._applyRuleVisuals(td, c, r);
-      this._applyAnnotationAndPageVisuals(td, c, r);
+    // 3. Visible cols (effectiveStart..endColNum)
+    for (let c = effectiveStart; c <= endColNum; c++) {
+      const col = this.cols[c - 1] || this._columnLabel(c);
+      this._appendCellToRow(tr, col, r, normRange, isMulti);
+    }
 
-      if (this.selectedCoord.c === c && this.selectedCoord.r === r) {
-        td.classList.add("is-selected");
-        this._attachMoveHandles(td);
+    // 4. Right spacer
+    if (endColNum < this.cols.length) {
+      const rightWidth = this._totalWidth() - this._colLeft(endColNum + 1);
+      if (rightWidth > 0) {
+        const tdSpacer = document.createElement("td");
+        tdSpacer.className = "vno-grid-cell-spacer-right";
+        tdSpacer.style.cssText = `width:${rightWidth}px;min-width:${rightWidth}px;max-width:${rightWidth}px;padding:0;border:none;background:transparent;`;
+        tr.appendChild(tdSpacer);
       }
-      if (this._isCoordInSelection(c, r) && isMulti) {
-        td.classList.add("is-range-selected");
-      }
-      if (normRange.end.c === c && normRange.end.r === r) {
-        this._attachAutofillHandle(td);
-      }
-
-      td.addEventListener("mousedown", (e) => {
-        if (e.button !== 0) return;
-        if (e.target.closest(".vno-cell-autofill-handle") || e.target.closest(".vno-cell-move-handle")) return;
-        if (this._startFormulaPointSelect(e, c, r)) return;
-        this._startRangeSelect(e, c, r);
-      });
-      td.addEventListener("click", event => {
-        if (event.detail !== 0 || event.defaultPrevented) return;
-        this.selectCell(c, r, event.shiftKey, event.ctrlKey);
-      });
-      td.addEventListener("dblclick", (e) => {
-        e.preventDefault();
-        if (this.formatPainter) return;
-        if (this._guardProtectedMutation()) return;
-        this._focusFormulaInputAtEnd();
-      });
-      td.addEventListener("contextmenu", event => {
-        event.preventDefault();
-        const inRange = this._isCoordInSelection(c, r);
-        if (!inRange) {
-          this.selectCell(c, r);
-        }
-        this.showContextMenu(event, "cell", coordKey);
-      });
-
-      tr.appendChild(td);
-    });
+    }
 
     return tr;
   }
 
-  _renderVirtualRows(startRow, endRow) {
+  _renderVirtualRows(startRow, endRow, startColNum = this.currentStartColNum || 1, endColNum = this.currentEndColNum || Math.min(this.cols.length, 30)) {
     const perfEnabled = typeof window !== "undefined" && window.__vnoPerfDebug === true;
     const perfStart = perfEnabled ? performance.now() : 0;
     if (!this.tbody || !this.topSpacer || !this.bottomSpacer) return;
 
     startRow = Math.max(1, startRow);
     endRow = Math.min(this.rowCount, endRow);
+    startColNum = Math.max(1, startColNum);
+    endColNum = Math.min(this.cols.length, endColNum);
     this.currentStartRow = startRow;
     this.currentEndRow = endRow;
+    this.currentStartColNum = startColNum;
+    this.currentEndColNum = endColNum;
+
+    if (this.table) {
+      const totalW = 44 + this._totalWidth();
+      this.table.style.width = `${totalW}px`;
+      this.table.style.minWidth = `${totalW}px`;
+    }
+
+    this._renderColumnHeaders(startColNum, endColNum);
 
     const frozenRows = Math.min(this.frozenRows || 0, this.rowCount);
 
@@ -3497,7 +3989,7 @@ export class SheetGridController {
     const frozenFrag = document.createDocumentFragment();
     for (let r = 1; r <= frozenRows; r++) {
       if (this._isRowSkipped(r)) continue;
-      const tr = this._buildRowTr(r);
+      const tr = this._buildRowTr(r, startColNum, endColNum);
       tr.classList.add("vno-frozen-row");
       frozenFrag.appendChild(tr);
     }
@@ -3507,7 +3999,7 @@ export class SheetGridController {
     for (let r = startRow; r <= endRow; r++) {
       if (r <= frozenRows) continue; // đã dựng riêng ở trên, tránh trùng lặp DOM
       if (this._isRowSkipped(r)) continue;
-      frag.appendChild(this._buildRowTr(r));
+      frag.appendChild(this._buildRowTr(r, startColNum, endColNum));
     }
 
     this.tbody.insertBefore(frag, this.bottomSpacer);
@@ -3642,8 +4134,17 @@ export class SheetGridController {
     const startRow = Math.max(1, this._firstVisibleRow(scrollTop) - buffer);
     const endRow = Math.min(this.rowCount, this._lastVisibleRow(scrollTop, viewportHeight) + buffer);
 
-    if (Math.abs(startRow - this.currentStartRow) >= 3 || Math.abs(endRow - this.currentEndRow) >= 3) {
-      this._renderVirtualRows(startRow, endRow);
+    const scrollLeft = this.viewport.scrollLeft;
+    const viewportWidth = this.viewport.clientWidth || 1000;
+    const colBuffer = 5;
+    const startColNum = Math.max(1, this._firstVisibleCol(scrollLeft) - colBuffer);
+    const endColNum = Math.min(this.cols.length, this._lastVisibleCol(scrollLeft, viewportWidth) + colBuffer);
+
+    const rowChanged = Math.abs(startRow - this.currentStartRow) >= 3 || Math.abs(endRow - this.currentEndRow) >= 3;
+    const colChanged = Math.abs(startColNum - this.currentStartColNum) >= 2 || Math.abs(endColNum - this.currentEndColNum) >= 2;
+
+    if (rowChanged || colChanged) {
+      this._renderVirtualRows(startRow, endRow, startColNum, endColNum);
     }
     this._updateFormulaReferenceVisuals();
     this._updateFrozenImages();
@@ -3764,88 +4265,28 @@ _bindGridKeyboardNavigation() {
 
       if (e.key === "ArrowUp") {
         if (e.ctrlKey) {
-          const curVal = this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.val;
-          let r = this.selectedCoord.r - 1;
-          if (curVal !== undefined && curVal !== "") {
-            while (r > 1) {
-              const nextVal = this.cellsData.get(`${this.selectedCoord.c}${r}`)?.val;
-              if (nextVal === undefined || nextVal === "") { r++; break; }
-              r--;
-            }
-          } else {
-            while (r > 1) {
-              const nextVal = this.cellsData.get(`${this.selectedCoord.c}${r}`)?.val;
-              if (nextVal !== undefined && nextVal !== "") break;
-              r--;
-            }
-          }
-          nextRow = Math.max(1, r);
+          nextRow = this._findNextCtrlArrowRow(this.selectedCoord.c, this.selectedCoord.r, -1);
         } else {
           nextRow = Math.max(1, nextRow - 1);
         }
         extendRange = e.shiftKey;
       } else if (e.key === "ArrowDown") {
         if (e.ctrlKey) {
-          const curVal = this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.val;
-          let r = this.selectedCoord.r + 1;
-          if (curVal !== undefined && curVal !== "") {
-            while (r < this.rowCount) {
-              const nextVal = this.cellsData.get(`${this.selectedCoord.c}${r}`)?.val;
-              if (nextVal === undefined || nextVal === "") { r--; break; }
-              r++;
-            }
-          } else {
-            while (r < this.rowCount) {
-              const nextVal = this.cellsData.get(`${this.selectedCoord.c}${r}`)?.val;
-              if (nextVal !== undefined && nextVal !== "") break;
-              r++;
-            }
-          }
-          nextRow = Math.min(this.rowCount, r);
+          nextRow = this._findNextCtrlArrowRow(this.selectedCoord.c, this.selectedCoord.r, 1);
         } else {
           nextRow = Math.min(this.rowCount, nextRow + 1);
         }
         extendRange = e.shiftKey;
       } else if (e.key === "ArrowLeft") {
         if (e.ctrlKey) {
-          const curVal = this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.val;
-          let idx = colIdx - 1;
-          if (curVal !== undefined && curVal !== "") {
-            while (idx > 0) {
-              const nextVal = this.cellsData.get(`${this.cols[idx]}${this.selectedCoord.r}`)?.val;
-              if (nextVal === undefined || nextVal === "") { idx++; break; }
-              idx--;
-            }
-          } else {
-            while (idx > 0) {
-              const nextVal = this.cellsData.get(`${this.cols[idx]}${this.selectedCoord.r}`)?.val;
-              if (nextVal !== undefined && nextVal !== "") break;
-              idx--;
-            }
-          }
-          nextCol = this.cols[Math.max(0, idx)];
+          nextCol = this._findNextCtrlArrowCol(this.selectedCoord.c, this.selectedCoord.r, -1);
         } else {
           nextCol = this.cols[Math.max(0, colIdx - 1)];
         }
         extendRange = e.shiftKey;
       } else if (e.key === "ArrowRight") {
         if (e.ctrlKey) {
-          const curVal = this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.val;
-          let idx = colIdx + 1;
-          if (curVal !== undefined && curVal !== "") {
-            while (idx < this.cols.length - 1) {
-              const nextVal = this.cellsData.get(`${this.cols[idx]}${this.selectedCoord.r}`)?.val;
-              if (nextVal === undefined || nextVal === "") { idx--; break; }
-              idx++;
-            }
-          } else {
-            while (idx < this.cols.length - 1) {
-              const nextVal = this.cellsData.get(`${this.cols[idx]}${this.selectedCoord.r}`)?.val;
-              if (nextVal !== undefined && nextVal !== "") break;
-              idx++;
-            }
-          }
-          nextCol = this.cols[Math.min(this.cols.length - 1, idx)];
+          nextCol = this._findNextCtrlArrowCol(this.selectedCoord.c, this.selectedCoord.r, 1);
         } else {
           nextCol = this.cols[Math.min(this.cols.length - 1, colIdx + 1)];
         }
@@ -3920,6 +4361,10 @@ _bindGridKeyboardNavigation() {
       } else if (e.key === " " && e.shiftKey) {
         e.preventDefault();
         this.selectCurrentRow();
+        return;
+      } else if (e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey && (e.key === "a" || e.key === "A")) {
+        e.preventDefault();
+        this.selectAll();
         return;
       } else if (e.key === "`" && e.ctrlKey) {
         e.preventDefault();
@@ -4130,10 +4575,10 @@ _bindGridKeyboardNavigation() {
     });
 
     const rows = [
-      ["1", "Thiết kế giao diện thuần Việt & UI Kit", "1", "Gói", "25.000.000 ₫", "25.000.000 ₫"],
-      ["2", "Tích hợp lõi xử lý văn bản LibreOffice Core", "1", "Hệ thống", "45.000.000 ₫", "45.000.000 ₫"],
-      ["3", "Xây dựng cầu nối UNO Bridge & Command Bus", "1", "Module", "30.000.000 ₫", "30.000.000 ₫"],
-      ["4", "Bộ kiểm thử tương thích chuẩn OOXML", "2", "Đợt", "10.000.000 ₫", "20.000.000 ₫"]
+      ["1", "Chuẩn bị tài liệu hướng dẫn sử dụng 3T Office", "1", "Gói", "25.000.000 ₫", "25.000.000 ₫"],
+      ["2", "Tập huấn soạn công văn bằng Doc", "1", "Khóa", "45.000.000 ₫", "45.000.000 ₫"],
+      ["3", "Lập bảng theo dõi công việc bằng Sheet", "1", "Buổi", "30.000.000 ₫", "30.000.000 ₫"],
+      ["4", "Chuẩn bị báo cáo cuộc họp bằng Slide", "2", "Đợt", "10.000.000 ₫", "20.000.000 ₫"]
     ];
 
     rows.forEach((rData, idx) => {
@@ -4217,7 +4662,179 @@ _bindGridKeyboardNavigation() {
     return true;
   }
 
+  _jumpToNameBoxAddress(rawText) {
+    const text = String(rawText || "").trim();
+    if (!text) {
+      if (this.nameBox) this.nameBox.value = this.getSelectionNameLabel();
+      this.focusGrid();
+      return false;
+    }
+
+    const namedRange = this.resolveNamedRange?.(text);
+    if (namedRange && namedRange.ref) {
+      return this._jumpToNameBoxAddress(namedRange.ref);
+    }
+
+    let clean = text.startsWith("=") ? text.slice(1).trim() : text;
+    if (clean.includes("!")) {
+      const parts = clean.split("!");
+      const sheetName = parts[0].replace(/^'|'$/g, "");
+      if (this.sheets.includes(sheetName) && sheetName !== this.activeSheet) {
+        this.switchSheet?.(sheetName);
+      }
+      clean = parts[1].trim();
+    }
+    const unquoted = clean.replace(/\$/g, "").toUpperCase();
+
+    // Column range: e.g. "B:D" or "B:B"
+    const colRangeMatch = /^([A-Z]+):([A-Z]+)$/.exec(unquoted);
+    if (colRangeMatch) {
+      const c1Num = this._columnNumber(colRangeMatch[1]);
+      const c2Num = this._columnNumber(colRangeMatch[2]);
+      if (c1Num >= 1 && c1Num <= this.cols.length && c2Num >= 1 && c2Num <= this.cols.length) {
+        const startC = this.cols[Math.min(c1Num, c2Num) - 1];
+        const endC = this.cols[Math.max(c1Num, c2Num) - 1];
+        const range = createSheetSelectionRange({ c: startC, r: 1 }, { c: endC, r: this.rowCount });
+        this._applySelectionRange(range, { c: startC, r: 1 }, { kind: "column", scrollActive: true });
+        if (this.nameBox) this.nameBox.value = this.getSelectionNameLabel();
+        return true;
+      }
+    }
+
+    // Row range: e.g. "2:5" or "10:10"
+    const rowRangeMatch = /^(\d+):(\d+)$/.exec(unquoted);
+    if (rowRangeMatch) {
+      const r1 = Number.parseInt(rowRangeMatch[1], 10);
+      const r2 = Number.parseInt(rowRangeMatch[2], 10);
+      if (r1 >= 1 && r1 <= this.rowCount && r2 >= 1 && r2 <= this.rowCount) {
+        const startR = Math.min(r1, r2);
+        const endR = Math.max(r1, r2);
+        const range = createSheetSelectionRange({ c: this.cols[0], r: startR }, { c: this.cols[this.cols.length - 1], r: endR });
+        this._applySelectionRange(range, { c: this.cols[0], r: startR }, { kind: "row", scrollActive: true });
+        if (this.nameBox) this.nameBox.value = this.getSelectionNameLabel();
+        return true;
+      }
+    }
+
+    // Cell range: e.g. "B2:D10"
+    const rangeMatch = /^([A-Z]+)(\d+):([A-Z]+)(\d+)$/.exec(unquoted);
+    if (rangeMatch) {
+      const c1Num = this._columnNumber(rangeMatch[1]);
+      const r1 = Number.parseInt(rangeMatch[2], 10);
+      const c2Num = this._columnNumber(rangeMatch[3]);
+      const r2 = Number.parseInt(rangeMatch[4], 10);
+      if (
+        c1Num >= 1 && c1Num <= this.cols.length &&
+        c2Num >= 1 && c2Num <= this.cols.length &&
+        r1 >= 1 && r1 <= this.rowCount &&
+        r2 >= 1 && r2 <= this.rowCount
+      ) {
+        const startCol = this.cols[c1Num - 1];
+        const endCol = this.cols[c2Num - 1];
+        const range = createSheetSelectionRange({ c: startCol, r: r1 }, { c: endCol, r: r2 });
+        this._applySelectionRange(range, { c: startCol, r: r1 }, { kind: "cell", scrollActive: true });
+        if (this.nameBox) this.nameBox.value = this.getSelectionNameLabel();
+        return true;
+      }
+    }
+
+    // Single cell: e.g. "A1", "XFD1048576"
+    const cellMatch = /^([A-Z]+)(\d+)$/.exec(unquoted);
+    if (cellMatch) {
+      const colNum = this._columnNumber(cellMatch[1]);
+      const r = Number.parseInt(cellMatch[2], 10);
+      if (colNum >= 1 && colNum <= this.cols.length && r >= 1 && r <= this.rowCount) {
+        const col = this.cols[colNum - 1];
+        this.selectCell(col, r);
+        if (this.nameBox) this.nameBox.value = this.getSelectionNameLabel();
+        return true;
+      }
+    }
+
+    if (this.nameBox) this.nameBox.value = this.getSelectionNameLabel();
+    this.focusGrid();
+    return false;
+  }
+
+  _findNextCtrlArrowRow(col, startR, dir) {
+    const isFilled = (r) => {
+      const val = this.cellsData.get(`${col}${r}`)?.val;
+      return val !== undefined && val !== "";
+    };
+    const curFilled = isFilled(startR);
+    const adjR = startR + dir;
+    if (adjR < 1 || adjR > this.rowCount) return startR;
+    const adjFilled = isFilled(adjR);
+
+    if (curFilled && adjFilled) {
+      let r = adjR;
+      while (r + dir >= 1 && r + dir <= this.rowCount && isFilled(r + dir)) {
+        r += dir;
+      }
+      return r;
+    }
+
+    let targetR = dir > 0 ? this.rowCount : 1;
+    let closestDist = Infinity;
+    for (const key of this.cellsData.keys()) {
+      if (!key.startsWith(col)) continue;
+      const rowStr = key.slice(col.length);
+      if (!/^\d+$/.test(rowStr)) continue;
+      const r = Number.parseInt(rowStr, 10);
+      const dist = (r - startR) * dir;
+      if (dist > 0 && dist < closestDist) {
+        if (isFilled(r)) {
+          closestDist = dist;
+          targetR = r;
+        }
+      }
+    }
+    return targetR;
+  }
+
+  _findNextCtrlArrowCol(startCol, row, dir) {
+    const startColIdx = this.cols.indexOf(startCol);
+    if (startColIdx === -1) return startCol;
+    const isFilled = (idx) => {
+      const col = this.cols[idx];
+      if (!col) return false;
+      const val = this.cellsData.get(`${col}${row}`)?.val;
+      return val !== undefined && val !== "";
+    };
+    const curFilled = isFilled(startColIdx);
+    const adjIdx = startColIdx + dir;
+    if (adjIdx < 0 || adjIdx >= this.cols.length) return startCol;
+    const adjFilled = isFilled(adjIdx);
+
+    if (curFilled && adjFilled) {
+      let idx = adjIdx;
+      while (idx + dir >= 0 && idx + dir < this.cols.length && isFilled(idx + dir)) {
+        idx += dir;
+      }
+      return this.cols[idx];
+    }
+
+    let targetIdx = dir > 0 ? this.cols.length - 1 : 0;
+    let closestDist = Infinity;
+    const rowSuffix = String(row);
+    for (const key of this.cellsData.keys()) {
+      if (!key.endsWith(rowSuffix)) continue;
+      const col = key.slice(0, key.length - rowSuffix.length);
+      const idx = this.cols.indexOf(col);
+      if (idx === -1) continue;
+      const dist = (idx - startColIdx) * dir;
+      if (dist > 0 && dist < closestDist) {
+        if (isFilled(idx)) {
+          closestDist = dist;
+          targetIdx = idx;
+        }
+      }
+    }
+    return this.cols[targetIdx];
+  }
+
   setCellValue(col, row, val, recordUndo = true, historyOptions = {}) {
+    if (typeof val === "string") val = val.normalize("NFC");
     if (recordUndo && this._guardProtectedMutation()) return false;
     const key = `${col}${row}`;
     let item = this.cellsData.get(key) || { val: "", formula: "", style: {} };
@@ -4226,52 +4843,17 @@ _bindGridKeyboardNavigation() {
     const previousRichText = item.richText || null;
     const previousStyle = structuredClone(item.style || {});
     const previousRowHeight = this.getRowHeight(row);
-    let forceText = false;
-    let bypassFormatNormalization = false;
     let nextStyle = structuredClone(item.style || {});
 
     if (recordUndo && val === "" && item.isArrayFormula && item.arrayRange) {
       return this._clearArrayFormula(item.arrayRange);
     }
 
-    if (historyOptions.userInput && typeof val === "string") {
-      const inferred = NumberFormatter.inferUserInput(val, item.style?.numberFormat, this.options.numberLocale);
-      if (inferred) {
-        val = inferred.value;
-        forceText = !!inferred.forceText;
-        bypassFormatNormalization = forceText || !!inferred.numberFormat;
-        if (inferred.numberFormat) {
-          nextStyle.numberFormat = structuredClone(inferred.numberFormat);
-        }
-      }
-    }
-
-    const isFormulaInput = !forceText && typeof val === "string" && val.startsWith("=");
+    const escapedText = typeof val === "string" && val.startsWith("'");
+    const isFormulaInput = !escapedText && typeof val === "string" && val.startsWith("=");
     const hasUserEnteredLineBreak = historyOptions.userInput && !isFormulaInput && typeof val === "string" && /\r\n|\r|\n/.test(val);
     if (hasUserEnteredLineBreak) nextStyle.whiteSpace = "pre-wrap";
-    let historyAction = null;
-    if (recordUndo) {
-      historyAction = this._recordHistory({
-        type: "cell",
-        sheet: this.activeSheet,
-        col,
-        row,
-        prevVal: previousValue,
-        nextVal: val,
-        prevWasText: previousWasText,
-        nextWasText: !isFormulaInput && (forceText || typeof val === "string"),
-        prevValRichText: previousRichText,
-        nextValRichText: null,
-        prevStyle: previousStyle,
-        nextStyle: structuredClone(nextStyle),
-        prevRowHeight: previousRowHeight,
-        nextRowHeight: previousRowHeight,
-        timestamp: Date.now()
-      }, historyOptions);
-    }
     if (JSON.stringify(item.style || {}) !== JSON.stringify(nextStyle)) item.style = nextStyle;
-
-    const escapedText = !forceText && typeof val === "string" && val.startsWith("'");
     if (escapedText) val = val.slice(1);
     if (!escapedText && typeof val === "string" && val.startsWith("=")) {
       item.formula = val;
@@ -4287,7 +4869,29 @@ _bindGridKeyboardNavigation() {
       item.val = this.formulaEngine.evaluate(val);
     } else {
       item.formula = "";
-      item.val = bypassFormatNormalization ? val : NumberFormatter.normalizeInputForFormat(val, item.style?.numberFormat);
+      const normalized = this._normalizeCellInput(val, item.style, escapedText);
+      item.val = normalized.value;
+      item.style = normalized.style;
+    }
+    let historyAction = null;
+    if (recordUndo) {
+      historyAction = this._recordHistory({
+        type: "cell",
+        sheet: this.activeSheet,
+        col,
+        row,
+        prevVal: previousValue,
+        nextVal: item.formula || (item.val ?? ""),
+        prevWasText: previousWasText,
+        nextWasText: !item.formula && typeof item.val === "string",
+        prevStyle: previousStyle,
+        nextStyle: structuredClone(item.style || {}),
+        prevValRichText: previousRichText,
+        nextValRichText: null,
+        prevRowHeight: previousRowHeight,
+        nextRowHeight: previousRowHeight,
+        timestamp: Date.now()
+      }, historyOptions);
     }
     // When user edits a cell, clear rich text formatting (Excel behavior)
     delete item.richText;
@@ -4326,6 +4930,57 @@ _bindGridKeyboardNavigation() {
       historyAction.nextRowHeight = this.getRowHeight(row);
     }
     return true;
+  }
+
+  setTabColor(color = "", sheetName = this.activeSheet, recordUndo = true) {
+    if (!sheetName || !this.sheets.includes(sheetName) || this._guardWorkbookStructure()) return false;
+    const state = this.sheetStates[sheetName] ||= {};
+    const previous = state.tabColor || this.tabColors?.[sheetName] || "";
+    const next = String(color || "").toLowerCase();
+    if (previous === next) return true;
+    if (next) state.tabColor = next; else delete state.tabColor;
+    this.tabColors ||= {};
+    if (next) this.tabColors[sheetName] = next; else delete this.tabColors[sheetName];
+    this._renderSheetTabs();
+    if (recordUndo) this._recordHistory({ type: "sheet-tab-color", sheet: sheetName, previous, next });
+    this.options.onDocumentChange?.();
+    return true;
+  }
+
+  _normalizeCellInput(value, style = {}, escapedText = false) {
+    const nextStyle = { ...(style || {}) };
+    if (escapedText) return { value: String(value ?? ""), style: nextStyle };
+    const category = nextStyle.numberFormat?.category;
+    if (typeof value === "string" && (!category || category === "general")
+      && /^[+-]?(?:\d+(?:\.\d+)?|\.\d+)\s*%$/.test(value.trim())) {
+      nextStyle.numberFormat = { category: "percentage", decimals: value.match(/\.(\d+)/)?.[1].length || 0 };
+    }
+    if (typeof value === "string" && category !== "text"
+      && (!category || category === "general") && NumberFormatter.isDateInput(value)) {
+      nextStyle.numberFormat = { category: "date", dateFormat: "dd/mm/yyyy" };
+    }
+    // Giờ gõ tay (13:45, 9:05, 13:45:30) là số ngày dạng phân số, hiển thị lại
+    // đúng mẫu giờ; giờ sai (25:00, 13:60) vẫn là văn bản.
+    if (typeof value === "string" && category !== "text"
+      && (!category || category === "general") && NumberFormatter.isTimeInput(value)) {
+      nextStyle.numberFormat = {
+        category: "time",
+        timeFormat: /:\d{2}:\d{2}$/.test(value.trim()) ? "HH:mm:ss" : "HH:mm"
+      };
+    }
+    if (typeof value === "string" && (!category || category === "general")
+      && /^[+-]?(?:\d{1,3}(?:,\d{3})+)(?:\.\d+)?$/.test(value.trim())) {
+      const decMatch = value.trim().match(/\.(\d+)/);
+      nextStyle.numberFormat = {
+        category: "number",
+        useThousands: true,
+        decimals: decMatch ? decMatch[1].length : 0
+      };
+    }
+    return {
+      value: NumberFormatter.normalizeInputForFormat(value, nextStyle.numberFormat),
+      style: nextStyle
+    };
   }
 
   _recalculateAllFormulas(excludeKey, force = false) {
@@ -5827,7 +6482,7 @@ _bindGridKeyboardNavigation() {
     if (!this.sheetChartBuilder) {
       this._loadChartBuilder(true).catch((error) => {
         console.error("3T Sheet could not load chart tools.", error);
-        this.showNotification?.("Không tải được công cụ Biểu đồ của 3T Sheet.");
+        this.showNotification?.("Không tải được công cụ Biểu đồ của Sheet.");
       });
     }
     if (recordUndo) this._recordHistory({ type: "collection", sheet: this.activeSheet, collection: "chartsBySheet", operation: "insert", index: this.chartsBySheet[this.activeSheet].length - 1, item: structuredClone(chart) });
@@ -6419,6 +7074,13 @@ _bindGridKeyboardNavigation() {
       sampleValue: item?.val,
       onApply: (config) => {
         if (config && config.category) {
+          // Hộp thoại định dạng ô chưa có nhóm "Giờ": nếu ô đang định dạng giờ,
+          // giữ nguyên mẫu giờ và bỏ dateFormat mặc định của hộp thoại (nếu không,
+          // định dạng giờ sẽ bị ghi đè thành ngày tháng).
+          if (config.category === "time") {
+            config = { ...config, timeFormat: config.timeFormat || "HH:mm" };
+            delete config.dateFormat;
+          }
           this.applyNumberFormat(config);
         }
         if (typeof this.container?.focus === "function") {
@@ -6537,7 +7199,7 @@ _bindGridKeyboardNavigation() {
       useThousands: false,
       negativeStyle: 0
     });
-    if (["general", "text", "date"].includes(config.category)) return false;
+    if (["general", "text", "date", "time"].includes(config.category)) return false;
     config.decimals = Math.max(0, Math.min(30, (Number(config.decimals) || 0) + (direction > 0 ? 1 : -1)));
     return this.applyNumberFormat(config);
   }
@@ -6706,7 +7368,7 @@ _bindGridKeyboardNavigation() {
     }).join("");
   }
 
-  applyPasteSpecial(clipboard, mode = "all", destination = this.selectedCoord, options = {}) {
+  applyPasteSpecial(clipboard, mode = "source", destination = this.selectedCoord, options = {}) {
     if (!clipboard?.cells?.length || !destination) return false;
     const sourceRows = clipboard.cells;
     const transpose = mode === "transpose";
@@ -6721,7 +7383,8 @@ _bindGridKeyboardNavigation() {
     const moveRange = options.moveRange && options.sourceSheet === this.activeSheet
       ? this._normalizeRange(options.moveRange)
       : null;
-    if (moveRange && mode === "all") {
+    const isSourceMode = mode === "source" || mode === "all";
+    if (moveRange && isSourceMode) {
       for (let row = moveRange.start.r; row <= moveRange.end.r; row++) {
         for (let col = this._columnNumber(moveRange.start.c); col <= this._columnNumber(moveRange.end.c); col++) {
           const coord = `${this._columnLabel(col)}${row}`;
@@ -6756,6 +7419,13 @@ _bindGridKeyboardNavigation() {
           next.val = mode === "formulas" && !formula ? "" : (source.val ?? "");
           next.formula = formula;
           if (mode !== "formulas") next.style = structuredClone(source.style || {});
+        }
+        // Only text is normalized like typed input; numbers already parsed from the
+        // clipboard (e.g. 0.25 for "25%") must not be divided by 100 a second time.
+        if (options.coerceInput && !next.formula && typeof next.val === "string") {
+          const normalized = this._normalizeCellInput(next.val, next.style);
+          next.val = normalized.value;
+          next.style = normalized.style;
         }
         after[coord] = structuredClone(next);
       }
@@ -6891,9 +7561,8 @@ _bindGridKeyboardNavigation() {
     const overlay = this._createSheetDialog(title, `
       <form class="vno-paste-special-dialog" aria-label="${title}">
         <fieldset><legend>${t("sheetDialogs.pasteSpecialGroup", "Dán")}</legend>
-          <label><input type="radio" name="paste-special-mode" value="all" checked> ${t("sheetDialogs.pasteSpecialAll", "Tất cả")}</label>
+          <label><input type="radio" name="paste-special-mode" value="source" checked> ${t("sheetDialogs.pasteSpecialSource", "Giữ định dạng nguồn")}</label>
           <label><input type="radio" name="paste-special-mode" value="values"> ${t("sheetDialogs.pasteSpecialValues", "Chỉ giá trị")}</label>
-          <label><input type="radio" name="paste-special-mode" value="formulas"> ${t("sheetDialogs.pasteSpecialFormulas", "Chỉ công thức")}</label>
           <label><input type="radio" name="paste-special-mode" value="formats"> ${t("sheetDialogs.pasteSpecialFormats", "Chỉ định dạng")}</label>
           <label><input type="radio" name="paste-special-mode" value="transpose"> ${t("sheetDialogs.pasteSpecialTranspose", "Chuyển vị (đổi hàng/cột)")}</label>
         </fieldset>
@@ -6901,7 +7570,7 @@ _bindGridKeyboardNavigation() {
     if (!overlay) return false;
     const form = overlay.querySelector(".vno-paste-special-dialog");
     const paste = () => {
-      const mode = form.querySelector('input[name="paste-special-mode"]:checked')?.value || "all";
+      const mode = form.querySelector('input[name="paste-special-mode"]:checked')?.value || "source";
       const cut = !!clipboard.sourceSheet && clipboard.sourceSheet === this.activeSheet &&
         this._clipboardRange?.mode === "cut" && this._clipboardRange.sheet === this.activeSheet;
       const applied = this.applyPasteSpecial(clipboard, mode, this.selectedCoord, {
@@ -7222,113 +7891,233 @@ _bindGridKeyboardNavigation() {
     return true;
   }
 
-  _cellTextMatchesFind(item, needleLower) {
-    if (!item || !needleLower) return false;
+  _cellTextMatchesFind(item, matcher, lookIn = "all") {
+    if (!item || !matcher) return false;
     if (item.sparkline || item.isArrayFormula) return false;
-    const valStr = String(item.val ?? "").toLowerCase();
-    const formulaStr = String(item.formula ?? "").toLowerCase();
-    return valStr.includes(needleLower) || formulaStr.includes(needleLower);
+    const valStr = String(item.val ?? "");
+    const formulaStr = String(item.formula ?? "");
+    if (lookIn === "formulas") {
+      return formulaStr ? matcher.matches(formulaStr) : false;
+    }
+    if (lookIn === "values") {
+      return matcher.matches(valStr);
+    }
+    return matcher.matches(valStr) || (formulaStr ? matcher.matches(formulaStr) : false);
   }
 
   _replaceIgnoreCase(source, findText, replaceText, all) {
-    const src = String(source ?? "");
-    const find = String(findText ?? "");
-    if (!find) return { text: src, count: 0 };
-    const findLower = find.toLowerCase();
-    const replacement = String(replaceText ?? "");
-    const lower = src.toLowerCase();
-    if (!all) {
-      const idx = lower.indexOf(findLower);
-      if (idx < 0) return { text: src, count: 0 };
-      return { text: src.slice(0, idx) + replacement + src.slice(idx + find.length), count: 1 };
-    }
-    let out = "";
-    let i = 0;
-    let count = 0;
-    while (i < src.length) {
-      const idx = lower.indexOf(findLower, i);
-      if (idx < 0) {
-        out += src.slice(i);
-        break;
-      }
-      out += src.slice(i, idx) + replacement;
-      i = idx + find.length;
-      count++;
-    }
-    return { text: out, count };
+    const matcher = createMatcher(findText, { matchCase: false });
+    return matcher.replace(source, replaceText, all);
   }
 
-  _replaceCellMatch(item, findText, replaceText, all) {
+  _replaceCellMatch(item, matcher, replaceText, all, lookIn = "all") {
     if (!item || item.sparkline || item.isArrayFormula) return null;
     const formula = String(item.formula ?? "");
-    if (formula) {
-      const next = this._replaceIgnoreCase(formula, findText, replaceText, all);
+    if (formula && (lookIn === "formulas" || (lookIn !== "values" && matcher.matches(formula)))) {
+      const next = matcher.replace(formula, replaceText, all);
       if (!next.count) return null;
       return { formula: next.text, count: next.count };
     }
     const valStr = String(item.val ?? "");
-    const next = this._replaceIgnoreCase(valStr, findText, replaceText, all);
+    const next = matcher.replace(valStr, replaceText, all);
     if (!next.count) return null;
     return { val: next.text, count: next.count };
   }
 
-  findNext(query) {
+  findNext(query, options = {}) {
     const needle = String(query ?? "").trim();
     if (!needle) return false;
-    const needleLower = needle.toLowerCase();
-    const entries = Array.from(this.cellsData.entries());
-    if (!entries.length) return false;
-    if (this._findLastQuery !== needleLower) {
+
+    const opts = {
+      matchCase: false,
+      wholeWord: false,
+      ignoreDiacritics: false,
+      scope: "sheet",
+      searchBy: "rows",
+      lookIn: "all",
+      direction: "forward",
+      ...options
+    };
+
+    const matcher = createMatcher(needle, opts);
+    const isBackward = opts.direction === "backward";
+    const sheetsList = (opts.scope === "workbook" && Array.isArray(this.sheets) && this.sheets.length)
+      ? [...this.sheets]
+      : [this.activeSheet];
+    if (isBackward) sheetsList.reverse();
+
+    const getSortedEntries = (sheetName) => {
+      const map = sheetName === this.activeSheet ? this.cellsData : (this.sheetsData[sheetName] || new Map());
+      const entries = Array.from(map.entries());
+      entries.sort(([coordA], [coordB]) => {
+        const [colA, rowA] = this._splitCoord(coordA);
+        const [colB, rowB] = this._splitCoord(coordB);
+        const colIdxA = this._columnNumber(colA);
+        const colIdxB = this._columnNumber(colB);
+        if (opts.searchBy === "columns") {
+          return colIdxA !== colIdxB ? colIdxA - colIdxB : rowA - rowB;
+        } else {
+          return rowA !== rowB ? rowA - rowB : colIdxA - colIdxB;
+        }
+      });
+      if (isBackward) entries.reverse();
+      return entries;
+    };
+
+    const stateKey = `${needle}__${opts.matchCase}__${opts.wholeWord}__${opts.ignoreDiacritics}__${opts.searchBy}__${opts.lookIn}__${opts.scope}`;
+    if (this._findLastStateKey !== stateKey) {
+      this._findLastStateKey = stateKey;
       this._findLastCoord = null;
-      this._findLastQuery = needleLower;
+      this._findLastSheet = null;
     }
-    let startIndex = 0;
-    if (this._findLastCoord) {
-      const idx = entries.findIndex(([coord]) => coord === this._findLastCoord);
-      if (idx >= 0) startIndex = idx + 1;
+
+    let startSheetIdx = 0;
+    let startEntryIdx = 0;
+    if (this._findLastSheet && this._findLastCoord) {
+      const sIdx = sheetsList.indexOf(this._findLastSheet);
+      if (sIdx >= 0) {
+        startSheetIdx = sIdx;
+        const entries = getSortedEntries(this._findLastSheet);
+        const cIdx = entries.findIndex(([coord]) => coord === this._findLastCoord);
+        if (cIdx >= 0) startEntryIdx = cIdx + 1;
+      }
     }
-    for (let i = 0; i < entries.length; i++) {
-      const [coord, item] = entries[(startIndex + i) % entries.length];
-      if (!this._cellTextMatchesFind(item, needleLower)) continue;
-      this._findLastCoord = coord;
-      const [col, row] = this._splitCoord(coord);
-      this.selectCell(col, row);
-      return coord;
+
+    for (let sStep = 0; sStep < sheetsList.length; sStep++) {
+      const currentSheet = sheetsList[(startSheetIdx + sStep) % sheetsList.length];
+      const entries = getSortedEntries(currentSheet);
+      if (!entries.length) continue;
+
+      const entryStart = (sStep === 0) ? startEntryIdx : 0;
+      for (let i = 0; i < entries.length; i++) {
+        const [coord, item] = entries[(entryStart + i) % entries.length];
+        if (!this._cellTextMatchesFind(item, matcher, opts.lookIn)) continue;
+
+        this._findLastSheet = currentSheet;
+        this._findLastCoord = coord;
+        if (currentSheet !== this.activeSheet) {
+          this.switchSheet(currentSheet);
+        }
+        const [col, row] = this._splitCoord(coord);
+        this.selectCell(col, row);
+        const targetEl = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${coord}"]`);
+        targetEl?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+        return coord;
+      }
     }
     return false;
   }
 
-  replaceOne(findText, replaceText) {
+  findPrev(query, options = {}) {
+    return this.findNext(query, { ...options, direction: "backward" });
+  }
+
+  replaceOne(findText, replaceText, options = {}) {
     if (this._guardProtectedMutation()) return false;
     const needle = String(findText ?? "").trim();
     if (!needle) return false;
-    const entries = Array.from(this.cellsData.entries());
-    if (!entries.length) return false;
+
+    const opts = {
+      matchCase: false,
+      wholeWord: false,
+      ignoreDiacritics: false,
+      scope: "sheet",
+      searchBy: "rows",
+      lookIn: "all",
+      ...options
+    };
+    const matcher = createMatcher(needle, opts);
+    const replacement = String(replaceText ?? "");
+
     const selectedKey = `${this.selectedCoord.c}${this.selectedCoord.r}`;
-    const startIndex = Math.max(0, entries.findIndex(([coord]) => coord === selectedKey));
-    for (let i = 0; i < entries.length; i++) {
-      const [coord, item] = entries[(startIndex + i) % entries.length];
-      const patch = this._replaceCellMatch(item, needle, replaceText, false);
-      if (!patch) continue;
-      const [col, row] = this._splitCoord(coord);
-      this.setCellValue(col, row, patch.formula != null ? patch.formula : patch.val, true);
-      this._findLastCoord = coord;
-      this._findLastQuery = needle.toLowerCase();
-      this.selectCell(col, row);
-      return true;
+    const selectedItem = this.cellsData.get(selectedKey);
+    if (selectedItem && this._cellTextMatchesFind(selectedItem, matcher, opts.lookIn)) {
+      const patch = this._replaceCellMatch(selectedItem, matcher, replacement, false, opts.lookIn);
+      if (patch) {
+        this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, patch.formula != null ? patch.formula : patch.val, true);
+        return true;
+      }
     }
-    return false;
+
+    const nextCoord = this.findNext(needle, opts);
+    if (!nextCoord) return false;
+    const [col, row] = this._splitCoord(nextCoord);
+    const item = this.cellsData.get(nextCoord);
+    const patch = this._replaceCellMatch(item, matcher, replacement, false, opts.lookIn);
+    if (!patch) return false;
+    this.setCellValue(col, row, patch.formula != null ? patch.formula : patch.val, true);
+    this.selectCell(col, row);
+    return true;
   }
 
-  replaceAll(findText, replaceText) {
+  replaceAll(findText, replaceText, options = {}) {
     if (this._guardProtectedMutation()) return 0;
     const needle = String(findText ?? "").trim();
     if (!needle) return 0;
+
+    const opts = {
+      matchCase: false,
+      wholeWord: false,
+      ignoreDiacritics: false,
+      scope: "sheet",
+      searchBy: "rows",
+      lookIn: "all",
+      ...options
+    };
+    const matcher = createMatcher(needle, opts);
+    const replacement = String(replaceText ?? "");
+
+    if (opts.scope === "workbook" && Array.isArray(this.sheets) && this.sheets.length > 1) {
+      const beforeBySheet = {};
+      const afterBySheet = {};
+      let total = 0;
+
+      for (const sheetName of this.sheets) {
+        const map = sheetName === this.activeSheet ? this.cellsData : (this.sheetsData[sheetName] || new Map());
+        const sheetBefore = {};
+        const sheetAfter = {};
+        let sheetCount = 0;
+
+        for (const [coord, item] of [...map.entries()]) {
+          const patch = this._replaceCellMatch(item, matcher, replacement, true, opts.lookIn);
+          if (!patch) continue;
+          sheetBefore[coord] = structuredClone(item);
+          const [col, row] = this._splitCoord(coord);
+          if (sheetName === this.activeSheet) {
+            this.setCellValue(col, row, patch.formula != null ? patch.formula : patch.val, false);
+            sheetAfter[coord] = structuredClone(this.cellsData.get(coord));
+          } else {
+            const newItem = structuredClone(item);
+            if (patch.formula != null) {
+              newItem.formula = patch.formula;
+            } else {
+              newItem.val = patch.val;
+            }
+            map.set(coord, newItem);
+            sheetAfter[coord] = structuredClone(newItem);
+          }
+          sheetCount += patch.count;
+        }
+
+        if (sheetCount > 0) {
+          beforeBySheet[sheetName] = sheetBefore;
+          afterBySheet[sheetName] = sheetAfter;
+          total += sheetCount;
+        }
+      }
+
+      if (!total) return 0;
+      this._recordHistory({ type: "batch-workbook", beforeBySheet, afterBySheet });
+      this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+      return total;
+    }
+
+    // Active sheet scope
     const before = {};
     const after = {};
     let total = 0;
     for (const [coord, item] of [...this.cellsData.entries()]) {
-      const patch = this._replaceCellMatch(item, needle, replaceText, true);
+      const patch = this._replaceCellMatch(item, matcher, replacement, true, opts.lookIn);
       if (!patch) continue;
       before[coord] = structuredClone(item);
       const [col, row] = this._splitCoord(coord);
@@ -7347,14 +8136,16 @@ _bindGridKeyboardNavigation() {
     }
     showFindReplaceDialog({
       isReplace: !!isReplace,
-      onFind: (text) => this.findNext(text),
-      onReplace: (findText, replaceText) => {
+      app: "sheet",
+      onFind: (text, options) => this.findNext(text, options),
+      onFindPrev: (text, options) => this.findPrev(text, options),
+      onReplace: (findText, replaceText, options) => {
         if (!findText) return false;
-        return this.replaceOne(findText, replaceText);
+        return this.replaceOne(findText, replaceText, options);
       },
-      onReplaceAll: (findText, replaceText) => {
+      onReplaceAll: (findText, replaceText, options) => {
         if (!findText) return 0;
-        return this.replaceAll(findText, replaceText);
+        return this.replaceAll(findText, replaceText, options);
       }
     });
     return true;
@@ -8278,6 +9069,9 @@ _bindGridKeyboardNavigation() {
       const index = direction === "undo" ? action.fromIndex : action.toIndex;
       return this._moveSheetToIndex(action.name, index);
     }
+    if (action.type === "sheet-tab-color") {
+      return this.setTabColor(direction === "undo" ? action.previous : action.next, action.sheet, false);
+    }
     if (action.sheet && action.sheet !== this.activeSheet) this.switchSheet(action.sheet);
     const value = direction === "undo" ? "prevVal" : "nextVal";
     if (action.type === "merge-cells") {
@@ -8292,9 +9086,9 @@ _bindGridKeyboardNavigation() {
       this._restoreRowColLayout(direction === "undo" ? action.before : action.after);
     } else if (action.type === "cell") {
       this.setCellValue(action.col, action.row, action[value], false);
+      const key = `${action.col}${action.row}`;
       const styleSnapshot = action[direction === "undo" ? "prevStyle" : "nextStyle"];
       if (styleSnapshot) {
-        const key = `${action.col}${action.row}`;
         const itm = this.cellsData.get(key);
         if (itm) {
           let restoreCellVisual = false;
@@ -8318,9 +9112,8 @@ _bindGridKeyboardNavigation() {
       if (Number.isFinite(rowHeight) && rowHeight !== oppositeRowHeight) this.setRowHeights(rowHeight, [action.row], false);
       // Restore richText from snapshot if present (edited cells lose richText in setCellValue)
       if (action[value + "RichText"]) {
-        const key = `${action.col}${action.row}`;
-        const itm = this.cellsData.get(key);
-        if (itm) itm.richText = action[value + "RichText"];
+        const richItem = this.cellsData.get(key);
+        if (richItem) richItem.richText = action[value + "RichText"];
       }
       this.selectCell(action.col, action.row);
     } else if (action.type === "array-formula") {
@@ -8374,6 +9167,25 @@ _bindGridKeyboardNavigation() {
           }
         }
       }
+      this._recalculateAllFormulas();
+    } else if (action.type === "batch-workbook") {
+      const bySheet = direction === "undo" ? action.beforeBySheet : action.afterBySheet;
+      for (const [sheetName, snapshots] of Object.entries(bySheet || {})) {
+        const map = sheetName === this.activeSheet ? this.cellsData : (this.sheetsData[sheetName] || null);
+        if (!map) continue;
+        for (const [coord, snap] of Object.entries(snapshots || {})) {
+          if (!snap) {
+            map.delete(coord);
+          } else {
+            map.set(coord, {
+              val: snap.val ?? "",
+              formula: snap.formula ?? "",
+              style: structuredClone(snap.style || {})
+            });
+          }
+        }
+      }
+      this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
       this._recalculateAllFormulas();
     } else if (action.type === "sort") {
       this._restoreCells(direction === "undo" ? action.before : action.after);
@@ -8516,6 +9328,14 @@ _bindGridKeyboardNavigation() {
 
     if (rowsWithData.length < 2) return false;
 
+    // Excel treats a text first row as a header when sorting a contiguous table.
+    // Keep it in place for the simple A-Z/Z-A commands; the custom dialog already
+    // exposes an explicit "Dữ liệu có hàng tiêu đề" choice.
+    const firstRow = Math.min(...rowsWithData);
+    const firstRowValues = this.cols.map(c => this.cellsData.get(`${c}${firstRow}`)?.val).filter(v => v !== undefined && v !== "");
+    const hasHeader = firstRowValues.length > 0 && firstRowValues.every(v => typeof v === "string" && Number.isNaN(Number(String(v).replace(/[,\.]/g, ""))));
+    if (hasHeader) rowsWithData.splice(rowsWithData.indexOf(firstRow), 1);
+
     rowsWithData.sort((a, b) => a - b);
     const minRow = rowsWithData[0];
     const maxRow = rowsWithData[rowsWithData.length - 1];
@@ -8572,7 +9392,8 @@ _bindGridKeyboardNavigation() {
       state.filterSetByUser = true;
       if (this.isFilterActive) {
         const selected = this._normalizeRange(this.selectionRange);
-        if (selected.start.c !== selected.end.c || selected.start.r !== selected.end.r) state.filterRange = this._rangeLabel(selected);
+        const hasRangeSelection = selected.start.c !== selected.end.c || selected.start.r !== selected.end.r;
+        state.filterRange = this._rangeLabel(hasRangeSelection ? selected : this._usedRangeForCells(this.cellsData));
       }
     }
     if (this.container) {
@@ -8593,10 +9414,15 @@ _bindGridKeyboardNavigation() {
 
   _updateFilterButtons() {
     if (!this.container) return;
+    const configuredRange = this.sheetStates?.[this.activeSheet]?.filterRange;
+    const filterRange = configuredRange ? this._parseRange(configuredRange) : this._usedRangeForCells(this.cellsData);
+    const firstCol = this._columnNumber(filterRange?.start.c || "A");
+    const lastCol = this._columnNumber(filterRange?.end.c || "A");
     const btns = this.container.querySelectorAll(".vno-filter-btn");
     btns.forEach(btn => {
-      btn.style.display = this.isFilterActive ? "inline-flex" : "none";
       const col = btn.dataset.col;
+      const colNumber = this._columnNumber(col);
+      btn.style.display = this.isFilterActive && colNumber >= firstCol && colNumber <= lastCol ? "inline-flex" : "none";
       if (this.activeFilters.has(col)) {
         btn.classList.add("is-active");
       } else {
@@ -8843,6 +9669,10 @@ _bindGridKeyboardNavigation() {
     return String(label).toUpperCase().split("").reduce((value, char) => value * 26 + char.charCodeAt(0) - 64, 0);
   }
 
+  _colLetterToIndex(label) {
+    return this._columnNumber(label);
+  }
+
   _columnLabel(number) {
     let value = number;
     let label = "";
@@ -8878,20 +9708,63 @@ _bindGridKeyboardNavigation() {
     return { ...structuredClone(range), start: shift(range.start), end: shift(range.end) };
   }
 
-  _renderColumnHeaders() {
+  _renderColumnHeaders(startColNum = this.currentStartColNum || 1, endColNum = this.currentEndColNum || Math.min(this.cols.length, 30)) {
     if (typeof document === "undefined") return;
-    const row = this.table?.querySelector?.("thead tr");
-    if (row) {
-      row.innerHTML = `<th class="vno-grid-corner-header" title="Chọn tất cả (Ctrl+A)"></th>`;
-      row.querySelector(".vno-grid-corner-header")?.addEventListener("click", () => this.selectAll());
-      this.cols.forEach(col => {
-        const th = document.createElement("th");
-        this._bindColumnHeader(th, col);
-        row.appendChild(th);
-      });
+    const row = this.theadRow || this.table?.querySelector?.("thead tr");
+    if (!row) return;
+
+    startColNum = Math.max(1, startColNum);
+    endColNum = Math.min(this.cols.length, endColNum);
+    this.currentStartColNum = startColNum;
+    this.currentEndColNum = endColNum;
+
+    row.innerHTML = `<th class="vno-grid-corner-header" title="Chọn tất cả (Ctrl+A)"></th>`;
+    row.querySelector(".vno-grid-corner-header")?.addEventListener("click", () => this.selectAll());
+
+    const frozenCols = Math.min(this.frozenCols || 0, this.cols.length);
+
+    // 1. Frozen column headers (1..frozenCols)
+    for (let c = 1; c <= frozenCols; c++) {
+      const col = this.cols[c - 1] || this._columnLabel(c);
+      const th = document.createElement("th");
+      this._bindColumnHeader(th, col);
+      row.appendChild(th);
     }
-    this.topSpacer?.querySelector?.("td")?.setAttribute?.("colspan", String(this.cols.length + 1));
-    this.bottomSpacer?.querySelector?.("td")?.setAttribute?.("colspan", String(this.cols.length + 1));
+
+    // 2. Left spacer header
+    const effectiveStart = Math.max(frozenCols + 1, startColNum);
+    if (effectiveStart > frozenCols + 1) {
+      const leftWidth = this._colLeft(effectiveStart) - this._colLeft(frozenCols + 1);
+      if (leftWidth > 0) {
+        const thSpacer = document.createElement("th");
+        thSpacer.className = "vno-col-spacer-left";
+        thSpacer.style.cssText = `width:${leftWidth}px;min-width:${leftWidth}px;max-width:${leftWidth}px;padding:0;border:none;background:transparent;`;
+        row.appendChild(thSpacer);
+      }
+    }
+
+    // 3. Visible column headers (effectiveStart..endColNum)
+    for (let c = effectiveStart; c <= endColNum; c++) {
+      const col = this.cols[c - 1] || this._columnLabel(c);
+      const th = document.createElement("th");
+      this._bindColumnHeader(th, col);
+      row.appendChild(th);
+    }
+
+    // 4. Right spacer header
+    if (endColNum < this.cols.length) {
+      const rightWidth = this._totalWidth() - this._colLeft(endColNum + 1);
+      if (rightWidth > 0) {
+        const thSpacer = document.createElement("th");
+        thSpacer.className = "vno-col-spacer-right";
+        thSpacer.style.cssText = `width:${rightWidth}px;min-width:${rightWidth}px;max-width:${rightWidth}px;padding:0;border:none;background:transparent;`;
+        row.appendChild(thSpacer);
+      }
+    }
+
+    const colCount = row.children.length;
+    this.topSpacer?.querySelector?.("td")?.setAttribute?.("colspan", String(colCount));
+    this.bottomSpacer?.querySelector?.("td")?.setAttribute?.("colspan", String(colCount));
     this._updateFilterButtons();
   }
 
@@ -10139,12 +11012,36 @@ _bindGridKeyboardNavigation() {
         words: dictionary.VIETNAMESE_DICTIONARY_WORDS
       };
       this._ensureSpellChecker();
+      import("./sheet-inline-spellcheck.js").then(({ SheetInlineSpellcheck }) => {
+        if (!this._inlineSpellController && this.formulaInput) {
+          this._inlineSpellController = new SheetInlineSpellcheck(this);
+        }
+      }).catch(() => {});
       return true;
     }).catch((error) => {
       this._spellcheckModulePromise = null;
       throw error;
     });
     return this._spellcheckModulePromise;
+  }
+
+  toggleSpellcheck() {
+    if (this._inlineSpellController) {
+      const res = this._inlineSpellController.toggle();
+      if (this.formulaEntry?.coord) {
+        const td = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${this.formulaEntry.coord.c}${this.formulaEntry.coord.r}"]`);
+        if (td) this._renderCellVisual(td, this.cellsData.get(`${this.formulaEntry.coord.c}${this.formulaEntry.coord.r}`), this.formulaEntry.coord.c, this.formulaEntry.coord.r);
+      }
+      return res;
+    }
+    return false;
+  }
+
+  isSpellcheckEnabled() {
+    if (this._inlineSpellController?.domController) {
+      return this._inlineSpellController.domController.enabled;
+    }
+    return isSpellcheckEnabled();
   }
 
   isSpellcheckableCell(item) {
@@ -10730,8 +11627,8 @@ _bindGridKeyboardNavigation() {
 
   groupSelection() {
     const area = this._normalizeRange(this.selectionRange);
-    const wholeRows = area.start.c === this.cols[0] && area.end.c === this.cols[this.cols.length - 1];
-    const wholeCols = area.start.r === 1 && area.end.r === this.rowCount;
+    const wholeRows = area.start.c === this.cols[0] && (area.end.c === this.cols[this.cols.length - 1] || area.end.c === "Z");
+    const wholeCols = area.start.r === 1 && (area.end.r === this.rowCount || area.end.r === 200);
     const axis = wholeCols ? "col" : "row";
     const start = axis === "row" ? area.start.r : this._columnNumber(area.start.c);
     const end = axis === "row" ? area.end.r : this._columnNumber(area.end.c);
@@ -12187,7 +13084,25 @@ _bindGridKeyboardNavigation() {
       // S29a: ô không bọc chữ dùng white-space: pre (giữ dấu cách liên tiếp) nên phải tự bỏ xuống dòng như Excel
       // (Excel không hiện Alt+Enter khi Wrap Text tắt).
       if (!isWrap && typeof text === "string" && text.includes("\n")) text = text.replace(/\r?\n/g, "");
-      td.textContent = text;
+      if (this.formulaEntry && this.formulaEntry.coord?.c === col && this.formulaEntry.coord?.r === row &&
+          typeof text === "string" && !text.startsWith("=") && this.isSpellcheckEnabled() && this.spellChecker) {
+        const issues = this.spellChecker.checkText(text);
+        if (issues.length > 0) {
+          let html = "";
+          let cursor = 0;
+          for (const issue of issues) {
+            html += this._escapeHtml(text.slice(cursor, issue.start));
+            html += `<span class="vno-spelling-uncertain" data-vno-spelling-uncertain="${this._escapeHtml(issue.normalized)}">${this._escapeHtml(text.slice(issue.start, issue.end))}</span>`;
+            cursor = issue.end;
+          }
+          html += this._escapeHtml(text.slice(cursor));
+          td.innerHTML = html;
+        } else {
+          td.textContent = text;
+        }
+      } else {
+        td.textContent = text;
+      }
       if (itm.style?.textAlign) {
         td.style.textAlign = itm.style.textAlign;
       } else if (typeof itm.val === "number") {

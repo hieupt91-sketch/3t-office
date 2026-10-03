@@ -24,6 +24,12 @@ export const WRITER_RIBBON_TABS = [
               { type: "button", commandId: "common.edit.copy" },
               { type: "button", commandId: "common.edit.formatPainter" }
             ]
+          },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "writer.edit.pasteSpecial" }
+            ]
           }
         ]
       },
@@ -77,6 +83,7 @@ export const WRITER_RIBBON_TABS = [
                       { value: "1", label: "10 pt" },
                       { value: "2", label: "12 pt" },
                       { value: "3", label: "14 pt (NĐ 30)" },
+                      { value: "13.5", label: "13,5 pt" },
                       { value: "4", label: "16 pt" },
                       { value: "5", label: "18 pt" },
                       { value: "6", label: "24 pt" }
@@ -134,7 +141,20 @@ export const WRITER_RIBBON_TABS = [
                   { type: "button", commandId: "writer.para.indentDec", iconOnly: true },
                   { type: "button", commandId: "writer.para.indentInc", iconOnly: true },
                   { type: "button", commandId: "writer.para.sort", iconOnly: true },
-                  { type: "button", commandId: "writer.para.showFormattingMarks", iconOnly: true }
+                  { type: "button", commandId: "writer.para.showFormattingMarks", iconOnly: true },
+                  {
+                    type: "dropdown",
+                    id: "writer.list.restartNumbering",
+                    commandId: "writer.list.restartNumbering",
+                    label: "Đánh số lại từ 1",
+                    icon: "listNumber",
+                    iconOnly: true,
+                    ariaLabel: "Tùy chọn danh sách đánh số",
+                    items: [
+                      { commandId: "writer.list.restartNumbering", label: "Đánh số lại từ 1" },
+                      { commandId: "writer.list.continueNumbering", label: "Tiếp tục đánh số" }
+                    ]
+                  }
                 ]
               },
               {
@@ -154,7 +174,9 @@ export const WRITER_RIBBON_TABS = [
                     items: [
                       { commandId: "writer.para.spacing1" },
                       { commandId: "writer.para.spacing15" },
-                      { commandId: "writer.para.spacing2" }
+                      { commandId: "writer.para.spacing2" },
+                      { commandId: "writer.para.lineSpacing", args: "1.15", label: "1,15" },
+                      { commandId: "writer.para.lineSpacing", args: "exact", label: "Chính xác…" }
                     ]
                   },
                   { type: "button", commandId: "writer.para.shading", iconOnly: true },
@@ -419,7 +441,20 @@ export const WRITER_RIBBON_TABS = [
             items: [
               { commandId: "writer.para.spacing1" },
               { commandId: "writer.para.spacing15" },
-              { commandId: "writer.para.spacing2" }
+              { commandId: "writer.para.spacing2" },
+              { commandId: "writer.para.lineSpacing", args: "1.15", label: "1,15" },
+              { commandId: "writer.para.lineSpacing", args: "exact", label: "Chính xác…" }
+            ]
+          },
+          {
+            type: "select",
+            commandId: "writer.para.firstLineIndent",
+            defaultValue: "0",
+            ariaLabel: "Thụt đầu dòng",
+            options: [
+              { value: "0", label: "Đầu dòng: Không" },
+              { value: "14.17", label: "Đầu dòng: 0,5 cm" },
+              { value: "36", label: "Đầu dòng: 1,27 cm" }
             ]
           },
           {
@@ -479,6 +514,108 @@ export const WRITER_RIBBON_TABS = [
     id: "pictureFormat",
     label: "Định dạng Hình ảnh",
     groups: []
+  },
+  {
+    id: "tableDesign",
+    label: "Thiết kế Bảng",
+    labelKey: "writerRibbon.tab.tableDesign",
+    contextual: true,
+    groups: [
+      {
+        id: "tableStyleOptions",
+        label: "Tùy chọn kiểu bảng",
+        labelKey: "writerRibbon.group.tableStyleOptions",
+        items: [
+          { type: "button", commandId: "writer.table.toggleHeaderRow" },
+          { type: "button", commandId: "writer.table.toggleBandedRows" }
+        ]
+      },
+      {
+        id: "tableBordersShading",
+        label: "Màu & Viền",
+        labelKey: "writerRibbon.group.tableBordersShading",
+        items: [
+          { type: "button", commandId: "writer.table.cellBg", isLarge: true },
+          { type: "button", commandId: "writer.table.borders", isLarge: true }
+        ]
+      }
+    ]
+  },
+  {
+    id: "tableLayout",
+    label: "Bố cục Bảng",
+    labelKey: "writerRibbon.tab.tableLayout",
+    contextual: true,
+    groups: [
+      {
+        id: "tableSelectGroup",
+        label: "Bảng",
+        labelKey: "writerRibbon.group.tableSelectGroup",
+        items: [
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "writer.table.selectCell" },
+              { type: "button", commandId: "writer.table.selectRow" },
+              { type: "button", commandId: "writer.table.selectCol" },
+              { type: "button", commandId: "writer.table.selectTable" }
+            ]
+          },
+          { type: "button", commandId: "writer.table.deleteTable", isLarge: true }
+        ]
+      },
+      {
+        id: "tableRowsColsGroup",
+        label: "Hàng & Cột",
+        labelKey: "writerRibbon.group.tableRowsColsGroup",
+        items: [
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "writer.table.insertRowAbove" },
+              { type: "button", commandId: "writer.table.insertRowBelow" },
+              { type: "button", commandId: "writer.table.deleteRow" }
+            ]
+          },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "writer.table.insertColLeft" },
+              { type: "button", commandId: "writer.table.insertColRight" },
+              { type: "button", commandId: "writer.table.deleteCol" }
+            ]
+          }
+        ]
+      },
+      {
+        id: "tableMergeGroup",
+        label: "Hợp nhất",
+        labelKey: "writerRibbon.group.tableMergeGroup",
+        items: [
+          { type: "button", commandId: "writer.table.mergeCells", isLarge: true },
+          { type: "button", commandId: "writer.table.splitCells", isLarge: true }
+        ]
+      },
+      {
+        id: "tableSizeGroup",
+        label: "Kích cỡ ô",
+        labelKey: "writerRibbon.group.tableSizeGroup",
+        items: [
+          { type: "button", commandId: "writer.table.distributeRows" },
+          { type: "button", commandId: "writer.table.distributeCols" }
+        ]
+      },
+      {
+        id: "tableAlignGroup",
+        label: "Căn lề ô",
+        labelKey: "writerRibbon.group.tableAlignGroup",
+        items: [
+          { type: "button", commandId: "writer.table.alignTop" },
+          { type: "button", commandId: "writer.table.alignMiddle" },
+          { type: "button", commandId: "writer.table.alignBottom" }
+        ]
+      }
+    ]
   },
   {
     id: "references",
@@ -603,6 +740,7 @@ export const WRITER_RIBBON_TABS = [
         labelKey: "writerRibbon.group.proofread",
         items: [
           { type: "button", commandId: "ai.assistant.grammarCheck", isLarge: true },
+          { type: "button", commandId: "writer.review.toggleSpellCheck", isLarge: true },
           { type: "button", commandId: "writer.review.wordCount", isLarge: true }
         ]
       },

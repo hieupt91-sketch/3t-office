@@ -97,18 +97,62 @@ export class VietnameseSpellChecker {
     }
   }
 
-  suggest(word, { maxDistance = 2, limit = 5 } = {}) {
+  suggest(word, { maxDistance = 2, limit = 5, contextPrev = "" } = {}) {
     const normalized = normalizeVietnameseWord(word);
+    const normToneFree = stripVietnameseTone(normalized);
+    const normBase = stripVietnameseDiacritics(normalized);
+
     const candidates = [];
     for (const candidate of this.words) {
       if (Math.abs(candidate.length - normalized.length) > maxDistance) continue;
       if (candidate[0] !== normalized[0]) continue;
       const distance = levenshteinDistance(normalized, candidate, maxDistance);
-      if (distance <= maxDistance) candidates.push({ word: candidate, distance });
+      if (distance <= maxDistance) {
+        const candToneFree = stripVietnameseTone(candidate);
+        const candBase = stripVietnameseDiacritics(candidate);
+
+        let tier = 3;
+        if (candToneFree === normToneFree) {
+          tier = 0; // Cùng chữ cái gốc, chỉ khác thanh điệu (ví dụ đinh -> định, đình)
+        } else if (candBase === normBase) {
+          tier = 1; // Cùng phụ âm & nguyên âm gốc, khác dấu mũ/móc (ví dụ a -> ă, â)
+        } else if (distance === 1) {
+          tier = 2; // Sai khác 1 ký tự
+        }
+
+        let contextBonus = 0;
+        if (contextPrev) {
+          const bigram = `${contextPrev.toLowerCase()} ${candidate}`;
+          if (["quyết định", "xác định", "nhất định", "khẳng định", "quy định", "dự định", "gia đình", "hội đồng", "văn bản", "cộng hòa", "xã hội", "chính phủ", "tiêu chuẩn"].includes(bigram)) {
+            contextBonus = -1;
+          }
+        }
+
+        candidates.push({
+          word: candidate,
+          distance,
+          tier,
+          score: tier * 10 + distance + contextBonus
+        });
+      }
     }
     return candidates
-      .sort((a, b) => a.distance - b.distance || a.word.localeCompare(b.word, "vi"))
+      .sort((a, b) => a.score - b.score || a.word.localeCompare(b.word, "vi"))
       .slice(0, limit)
       .map(item => item.word);
   }
+}
+
+export function stripVietnameseTone(word) {
+  return String(word || "")
+    .normalize("NFD")
+    .replace(/[\u0300\u0301\u0303\u0309\u0323]/g, "")
+    .normalize("NFC");
+}
+
+export function stripVietnameseDiacritics(word) {
+  return String(word || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .normalize("NFC");
 }

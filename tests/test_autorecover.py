@@ -139,7 +139,7 @@ class AutoRecoverStoreTests(unittest.TestCase):
         self.assertTrue(snapshot.exists())
 
     def test_settings_default_and_clamp_to_supported_interval(self):
-        self.assertEqual(self.store.get_settings(), {"enabled": True, "interval_minutes": 5})
+        self.assertEqual(self.store.get_settings(), {"enabled": True, "interval_minutes": 2})
         saved = self.store.set_settings({"enabled": False, "interval_minutes": 999})
         self.assertEqual(saved, {"enabled": False, "interval_minutes": 60})
         self.assertEqual(self.store.get_settings(), saved)

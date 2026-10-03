@@ -15,7 +15,7 @@ export const SLIDES_HELP_ENTRIES = [
     ribbon: { tab: "Tệp", tabId: "file", group: "Bản trình chiếu" },
     keywords: ["tạo mới", "mở tệp", "lưu", "lưu thành", "in", "Ctrl+N", "Ctrl+O", "Ctrl+S", "F12", "Ctrl+P", "trang chiếu trống", "cửa sổ riêng", "mở nhiều cửa sổ", "Explorer"],
     steps: [
-      "Tạo bản mới: nhấn Ctrl+N hoặc mở Tệp > Mới. 3T Slide mở cửa sổ riêng tên Bản trình bày 2, Bản trình bày 3… với một trang chiếu trống. Chữ gợi ý xám trong khung tiêu đề và khung văn bản chỉ là hướng dẫn trên màn hình, không phải nội dung được lưu. Trong Desktop, khi Slide đang mở, nhấp đúp thêm tệp PPTX/PPT/ODP trong Explorer hoặc bấm lại shortcut 3T Slide ở Start sẽ mở thêm cửa sổ trong cùng tiến trình. Mỗi cửa sổ có bản trình chiếu, trạng thái sửa, lệnh Lưu và lời nhắc Đóng riêng; cửa sổ cuối cùng mới kết thúc ứng dụng.",
+      "Tạo bản mới: nhấn Ctrl+N hoặc mở Tệp > Mới. Slide mở cửa sổ riêng tên Bản trình bày 2, Bản trình bày 3… với một trang chiếu trống. Chữ gợi ý xám trong khung tiêu đề và khung văn bản chỉ là hướng dẫn trên màn hình, không phải nội dung được lưu. Trong Desktop, khi Slide đang mở, nhấp đúp thêm tệp PPTX/PPT/ODP trong Explorer hoặc bấm lại shortcut Slide ở Start sẽ mở thêm cửa sổ trong cùng tiến trình. Mỗi cửa sổ có bản trình chiếu, trạng thái sửa, lệnh Lưu và lời nhắc Đóng riêng; cửa sổ cuối cùng mới kết thúc ứng dụng.",
       "Mở bản trình chiếu: nhấn Ctrl+O hoặc chọn Tệp > Mở, chọn PPTX, PPT hoặc ODP. Nếu bản đang mở có thay đổi, chọn Lưu, Không lưu hoặc Hủy trước khi tiếp tục.",
       "Lưu: Ctrl+S mở hộp thoại Lưu thành cho bản mới; với tệp đã mở/lưu, lệnh này giữ nguyên định dạng. Nhấn F12 (hoặc Ctrl+Shift+S), nhập tên trong hộp thoại Lưu bản sao rồi chọn PPTX, PPT, ODP hoặc PDF ở danh sách Loại tệp. Cũng có thể chọn Tệp > Lưu bản sao. Khi lưu sang PPTX/PPT/ODP, tên tab và tiêu đề cửa sổ chuyển theo tệp mới; chọn PDF chỉ xuất bản sao và giữ nguyên bản trình chiếu đang mở. Khi ghi đè tệp đã có, xác nhận trong hộp thoại của Windows.",
       "In: nhấn Ctrl+P để xem trước từng trang chiếu. Chọn máy in, số bản và phạm vi trang rồi nhấn In; mỗi trang chiếu chiếm một trang in."
@@ -32,7 +32,7 @@ export const SLIDES_HELP_ENTRIES = [
     steps: [
       "Mở trang chiếu đích. Tab Chèn, nhóm Minh họa, nhấn Sơ đồ (nút lớn, cạnh Hình khối và Biểu đồ).",
       "Hộp thoại Chèn sơ đồ: chọn một trong bốn kiểu — Danh sách theo bước (1 → 2 → 3), Quy trình theo chu kỳ (↻), Phân cấp tổ chức, Danh sách phân cấp. Số lượng hộp: 3–6 (mặc định 4).",
-      "Nhấn Chèn sơ đồ. Các hộp hiện trên canvas; nhấp vào chữ để sửa (Bước 1, Lãnh đạo, Bộ phận…). Kéo góc để đổi kích thước.",
+      "Nhấn Chèn sơ đồ. Các hộp hiện trên vùng soạn thảo; nhấp vào chữ để sửa (Bước 1, Lãnh đạo, Bộ phận…). Kéo góc để đổi kích thước.",
       "Hoàn tác bằng Ctrl+Z (gỡ cả cụm sơ đồ vừa chèn). Có thể nhóm/bỏ nhóm đối tượng bằng Ctrl+G / Ctrl+Shift+G sau khi chọn nhiều hình."
     ]
   },
@@ -60,7 +60,7 @@ export const SLIDES_HELP_ENTRIES = [
     ribbon: { tab: "Trình chiếu", tabId: "slideshow", group: "Thiết lập" },
     keywords: ["ẩn trang", "hide slide", "bỏ qua", "f5", "trình chiếu", "ẩn"],
     steps: [
-      "Chọn trang trên dải thumbnail trái hoặc trên canvas. Tab Trình chiếu, nhóm Thiết lập, nhấn Ẩn trang chiếu.",
+      "Chọn trang trên dải thumbnail trái hoặc trên vùng soạn thảo. Tab Trình chiếu, nhóm Thiết lập, nhấn Ẩn trang chiếu.",
       "Thumbnail trang đó có dấu ⊘ và nhãn «Trang chiếu ẩn». Nút ribbon ở trạng thái đang bật.",
       "Khi chiếu Từ đầu (F5) hoặc Từ trang này (Shift+F5), trang ẩn bị nhảy qua. Nếu mọi trang đều ẩn, hộp thoại báo «Tất cả trang chiếu đang bị ẩn».",
       "Nhấn lại Ẩn trang chiếu để hiện. Có thể ẩn/hiện trong Bộ sắp xếp trang (tab Chế độ xem). Trang ẩn vẫn được lưu trong tệp."
@@ -98,16 +98,16 @@ export const SLIDES_HELP_ENTRIES = [
     steps: [
       "Nhấp vào tiêu đề, nội dung slide hoặc hộp văn bản, rồi bôi chữ cần đổi (hoặc đặt con trỏ trong đoạn).",
       "Nhóm Phông chữ: chọn Calibri / Arial / Times New Roman / Be Vietnam Pro / Roboto; chọn cỡ (10–48); nút Tăng/Giảm cỡ chữ; Đậm (Ctrl+B), Nghiêng (Ctrl+I), Gạch chân (Ctrl+U), Gạch ngang; Xóa định dạng; Màu chữ và Màu nền chữ.",
-      "Nhóm Đoạn văn (ngay bên phải): Dấu đầu dòng, Đánh số, Giảm/Tăng thụt lề, hộp Giãn dòng 1.0 / 1.5 / 2.0; hàng dưới là Căn trái (Ctrl+L), Căn giữa (Ctrl+E), Căn phải (Ctrl+R), Căn đều (Ctrl+J).",
-      "Định dạng áp dụng cho vùng chữ đang chọn trên slide, không phải cho cả bài trừ khi bôi hết. Xóa định dạng giữ nguyên nội dung, bỏ kiểu chữ."
+      "Nhóm Đoạn văn (ngay bên phải): Dấu đầu dòng, Đánh số, Giảm/Tăng thụt lề, hộp Giãn dòng 1.0 / 1.5 / 2.0; hàng dưới là Căn trái (Ctrl+L), Căn giữa (Ctrl+E), Căn phải (Ctrl+R), Căn đều (Ctrl+J). Trong khung nội dung slide, có thể dùng phím Tab để tăng thụt lề và nhấn giữ Shift cùng Tab để giảm thụt lề.",
+      "Định dạng áp dụng cho vùng chữ đang chọn trên slide, không phải cho cả bài trừ khi bôi hết. Thay đổi nội dung tiêu đề và văn bản tự động ghi nhận vào lịch sử Hoàn tác (Ctrl+Z) và Làm lại (Ctrl+Y)."
     ]
   },
   {
     id: "slides.insert.wordart",
     app: "slides",
     commandIds: ["slides.insert.wordart"],
-    title: "Chữ nghệ thuật (WordArt)",
-    summary: "Chèn dòng tiêu đề có viền, đổ bóng hoặc gradient. Gõ nội dung, chọn một mẫu trong thư viện, rồi kéo thả / sửa chữ trên canvas.",
+    title: "Chữ nghệ thuật (phần mềm văn phòng khácArt)",
+    summary: "Chèn dòng tiêu đề có viền, đổ bóng hoặc gradient. Gõ nội dung, chọn một mẫu trong thư viện, rồi kéo thả / sửa chữ trên vùng soạn thảo.",
     ribbon: { tab: "Chèn", tabId: "insert", group: "Văn bản" },
     keywords: ["chữ nghệ thuật", "wordart", "word art", "tiêu đề", "gradient", "viền"],
     steps: [
@@ -122,7 +122,7 @@ export const SLIDES_HELP_ENTRIES = [
     app: "slides",
     commandIds: ["slides.edit.formatPainter"],
     title: "Sao chép định dạng",
-    summary: "Copy kiểu chữ hoặc hình đang chọn sang đối tượng khác. Nhấp đúp để khóa và áp dụng nhiều lần; Esc hủy. Con trỏ canvas đổi thành cọ khi đang bật.",
+    summary: "Copy kiểu chữ hoặc hình đang chọn sang đối tượng khác. Nhấp đúp để khóa và áp dụng nhiều lần; Esc hủy. Con trỏ vùng soạn thảo đổi thành cọ khi đang bật.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Bảng nhớ tạm" },
     keywords: ["sao chép định dạng", "format painter", "cọ vẽ", "copy format"],
     steps: [
@@ -157,7 +157,7 @@ export const SLIDES_HELP_ENTRIES = [
     keywords: ["bộ sắp xếp", "slide sorter", "kéo thả", "thứ tự", "lưới trang"],
     steps: [
       "Tab Chế độ xem, nhóm Dạng xem bản trình chiếu, nhấn Bộ sắp xếp trang (cạnh Bình thường, Ghi chú thuyết trình, Chế độ đọc).",
-      "Lưới hiện mọi trang. Kéo một trang thả vào vị trí mới để đổi thứ tự. Trang ẩn vẫn hiện kèm dấu ⊘.",
+      "Lưới hiện mọi trang. Kéo một trang thả vào vị trí mới để đổi thứ tự. Có thể dùng các phím mũi tên ← → ↑ ↓ để duyệt qua các trang, phím Delete hoặc Backspace để xóa trang đang chọn, phím Ctrl+D để nhân đôi trang, hoặc giữ phím Ctrl cùng mũi tên để di chuyển thứ tự trang. Trang ẩn vẫn hiện kèm dấu ⊘.",
       "Nhấn × trên thanh tiêu đề hoặc Esc để đóng và trở về dạng xem Bình thường. Có thể mở lại bất cứ lúc nào; thứ tự mới được giữ.",
       "Muốn ẩn/hiện trang: chọn trang rồi dùng Ẩn trang chiếu trên tab Trình chiếu, kể cả khi đang mở sorter."
     ]
@@ -186,7 +186,7 @@ export const SLIDES_HELP_ENTRIES = [
     ribbon: { tab: "Hoạt hình", tabId: "animations", group: "Hiệu ứng đối tượng" },
     keywords: ["ngăn hoạt hình", "animation pane", "thứ tự hiệu ứng", "bắt đầu", "khi click", "cùng với trước đó", "sau trước đó", "xóa hiệu ứng"],
     steps: [
-      "Gắn hiệu ứng cho từng đối tượng bằng nút Hiệu ứng đối tượng (cùng nhóm). Tab Hoạt hình, nhóm Hiệu ứng đối tượng, nhấn Ngăn hoạt hình — bảng hiện bên phải canvas.",
+      "Gắn hiệu ứng cho từng đối tượng bằng nút Hiệu ứng đối tượng (cùng nhóm). Tab Hoạt hình, nhóm Hiệu ứng đối tượng, nhấn Ngăn hoạt hình — bảng hiện bên phải vùng soạn thảo.",
       "Mỗi dòng: số thứ tự, tên đối tượng (hoặc đoạn chữ nếu là hộp văn bản), kiểu hiệu ứng (Fade In, Fly In…). Chọn dòng rồi nhấn ↑ hoặc ↓ để đổi thứ tự chạy thật khi F5, không chỉ thứ tự trên danh sách.",
       "Cột Bắt đầu: Khi click (chạy sau hiệu ứng trước), Cùng với trước đó (cùng lúc), Sau trước đó (chờ hiệu ứng trước kết thúc rồi mới chạy). Xóa: nút Xóa trên dòng — đối tượng vẫn còn, chỉ bỏ hiệu ứng.",
       "Ctrl+Z / Ctrl+Y hoàn tác hoặc làm lại đổi thứ tự, đổi Bắt đầu và xóa hiệu ứng. Esc hoặc nút × đóng ngăn. Trang khác có danh sách riêng; chuyển trang thì ngăn cập nhật theo trang đang chọn."
@@ -214,7 +214,7 @@ export const SLIDES_HELP_ENTRIES = [
     summary: "Duyệt nhận xét xuyên suốt các trang chiếu, đánh dấu đã xử lý, mở lại hoặc xóa.",
     ribbon: { tab: "Đánh giá", tabId: "review", group: "Nhận xét" },
     keywords: ["nhận xét", "trang chiếu", "trước", "sau", "xử lý", "resolve", "xóa"],
-    steps: ["Mở tab Đánh giá, nhóm Nhận xét.", "Nhấn Nhận xét trước hoặc Nhận xét sau; 3T Slide chuyển tới đúng trang, mở bảng nhận xét, tô sáng mục và quay vòng ở cuối.", "Nhấn Đã xử lý để làm mờ và gạch nội dung nhưng vẫn giữ nhận xét; nhấn lại để mở lại.", "Nhấn Xóa nhận xét để xóa mục đang chọn. Dùng Ctrl+Z/Ctrl+Y để hoàn tác/làm lại."]
+    steps: ["Mở tab Đánh giá, nhóm Nhận xét.", "Nhấn Nhận xét trước hoặc Nhận xét sau; Slide chuyển tới đúng trang, mở bảng nhận xét, tô sáng mục và quay vòng ở cuối.", "Nhấn Đã xử lý để làm mờ và gạch nội dung nhưng vẫn giữ nhận xét; nhấn lại để mở lại.", "Nhấn Xóa nhận xét để xóa mục đang chọn. Dùng Ctrl+Z/Ctrl+Y để hoàn tác/làm lại."]
   },
   {
     id: "slides.show.setupShow",
@@ -226,26 +226,27 @@ export const SLIDES_HELP_ENTRIES = [
     keywords: ["thiết lập trình chiếu", "set up slide show", "lặp liên tục", "loop", "thuyết minh", "narration", "bút", "laser", "màu con trỏ", "pptx", "showPr", "ctrl+p", "ctrl+l", "nét vẽ"],
     steps: [
       "Tab Trình chiếu, nhóm Thiết lập, nhấn Thiết lập trình chiếu (cạnh Ẩn trang chiếu).",
-      "Đánh dấu Lặp lại liên tục cho đến khi nhấn Esc nếu muốn hết trang cuối thì quay lại trang đầu (trang không ẩn đầu tiên). Không đánh dấu thì hết trang cuối F5 thoát như trước. Esc luôn thoát. Lưu PPTX: LibreOffice đã ghi p:showPr loop trên ppt/presProps.xml — 3T Office không vá thêm cờ này.",
-      "Trình chiếu không có thuyết minh: lưu cờ cho bản trình chiếu (FODP: vno:without-narration). 3T Slide chưa có audio thuyết minh trên màn hình chiếu. Khi Lưu PPTX, 3T Slide ghi showNarration=\"0\" vào p:showPr (LibreOffice luôn để \"1\" nếu không vá).",
+      "Đánh dấu Lặp lại liên tục cho đến khi nhấn Esc để sau trang cuối quay lại trang đầu không bị ẩn. Nếu bỏ chọn, trình chiếu kết thúc sau trang cuối. Nhấn Esc để thoát bất cứ lúc nào; tùy chọn lặp được giữ khi lưu .pptx.",
+      "Trình chiếu không có thuyết minh: tùy chọn được lưu cùng bản trình chiếu. Slide hiện chưa phát thuyết minh trong chế độ trình chiếu nên chọn mục này chưa làm thay đổi âm thanh trên màn hình.",
       "Màu con trỏ bút / laser: chọn màu bằng ô màu hoặc các nút màu nhanh (Đỏ, Xanh lam, Vàng, Xanh lá, Đen). Màu này được làm mặc định khi bắt đầu trình chiếu F5. Trong lúc chiếu, dùng Ctrl+P để bật Bút vẽ trực tiếp bằng chuột, Ctrl+L để bật Con trỏ laser chấm sáng theo chuột, E để xóa toàn bộ nét vẽ trên trang, và Ctrl+A để trở lại con trỏ mũi tên. Nhấn chuột phải trong màn chiếu để mở menu đổi màu bút tức thì.",
-      "Khi kết thúc trình chiếu (Esc hoặc hết slide cuối), nếu có nét vẽ, 3T Slide hiển thị hộp thoại 'Giữ nét vẽ? (Giữ / Bỏ)'. Chọn Giữ sẽ chuyển các nét vẽ thành hình vẽ vĩnh viễn trên trang chiếu và lưu chuẩn ra tệp PPTX/FODP. Chọn Bỏ để xóa các nét vẽ tạm thời.",
-      "File → Mở một .pptx đã có Thiết lập trình chiếu: 3T Office đọc ppt/presProps.xml của file gốc rồi gắn lại vno:without-narration / vno:pointer-color lên presentation:settings trước khi mở canvas — hộp thoại Thiết lập trình chiếu hiện lại đúng các giá trị đó."
+      "Khi kết thúc trình chiếu (Esc hoặc hết slide cuối), nếu có nét vẽ, Slide hiển thị hộp thoại 'Giữ nét vẽ? (Giữ / Bỏ)'. Chọn Giữ sẽ chuyển các nét vẽ thành hình vẽ vĩnh viễn trên trang chiếu và lưu chuẩn ra tệp PPTX. Chọn Bỏ để xóa các nét vẽ tạm thời.",
+      "Trình chiếu không có thuyết minh: tùy chọn được lưu cùng bản trình chiếu. Slide hiện chưa phát thuyết minh trong chế độ trình chiếu nên chọn mục này chưa làm thay đổi âm thanh trên màn hình."
     ]
   },
   {
     id: "slides.edit.findReplace",
     app: "slides",
     commandIds: ["common.edit.find", "common.edit.replace"],
-    title: "Tìm kiếm và Thay thế trên trang chiếu",
-    summary: "Tìm chữ trong tiêu đề, nội dung và hình trên TẤT CẢ các trang chiếu (không chỉ trang đang mở), rồi thay thế từng chỗ hoặc tất cả. Giống PowerPoint: tìm xuyên suốt bài. Hoàn tác bằng Ctrl+Z.",
+    title: "Tìm kiếm và Thay thế trong Slide",
+    summary: "Hộp thoại Tìm kiếm và Thay thế dùng chung phong cách phần mềm trình chiếu khác cho Slide. Tìm kiếm xuyên suốt tất cả các trang chiếu (tiêu đề, nội dung, hình vẽ, hộp văn bản), tự động chuyển slide và chọn hộp văn bản, cùng Hoàn tác một bước (Ctrl+Z).",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
-    keywords: ["tìm kiếm", "thay thế", "find", "replace", "ctrl+f", "ctrl+h", "chỉnh sửa", "tìm chữ"],
+    keywords: ["tìm kiếm", "thay thế", "find", "replace", "ctrl+f", "ctrl+h", "Slide", "chỉnh sửa", "tìm chữ", "trang chiếu", "hộp văn bản"],
     steps: [
-      "Tab Trang đầu, nhóm Chỉnh sửa (cuối ribbon Home), nhấn Tìm kiếm (Ctrl+F) hoặc Thay thế (Ctrl+H). Cùng hộp thoại; Thay thế hiện thêm ô «Thay thế bằng» và nút Thay thế / Thay thế tất cả.",
-      "Gõ cụm cần tìm. Tìm tiếp nhảy lần lượt mọi chỗ khớp trong tiêu đề, nội dung (cả cột 2 nếu bố cục hai cột) và chữ trên hình của mọi trang — tự chuyển trang khi khớp ở trang khác.",
-      "Thay thế: đổi chỗ đang khớp rồi tìm chỗ tiếp. Thay thế tất cả: đổi mọi chỗ khớp trên toàn bài. Nội dung trang đổi thật; Ctrl+Z hoàn tác cả lượt thay (kể cả Thay thế tất cả).",
-      "Không tìm trong ghi chú người thuyết trình. Phân biệt hoa/thường đúng như chuỗi đã gõ."
+      "Truy cập: Mở tab Trang đầu trên thanh ribbon, nhìn sang nhóm Chỉnh sửa ở phía cuối bên phải, bấm nút Tìm kiếm (Ctrl+F) hoặc Thay thế (Ctrl+H) để mở hộp thoại Tìm kiếm và Thay thế gồm 2 tab.",
+      "Tìm kiếm xuyên suốt bài trình chiếu: Trong tab «Tìm» (Ctrl+F), nhập từ hoặc cụm từ vào ô «Tìm gì:». Bấm nút «Tìm tiếp» hoặc «Tìm trước». Slide tự động quét qua toàn bộ các trang chiếu, tự động chuyển đến slide chứa kết quả và chọn đúng hộp văn bản hoặc hình vẽ khớp nội dung.",
+      "Thay thế nội dung: Trong tab «Thay thế» (Ctrl+H), nhập nội dung cần thay đổi vào ô «Thay bằng:». Bấm nút «Thay thế» để đổi từng vị trí khớp, hoặc bấm «Thay thế tất cả» để thay thế toàn bộ từ khóa trên tất cả các trang chiếu của bài trình chiếu và xem thông báo số lượng vị trí đã thay thế thành công.",
+      "Tùy chọn tìm kiếm: Hỗ trợ «Khớp chữ hoa/thường», «Chỉ toàn bộ từ», và «Bỏ qua dấu» tiếng Việt. Cả từ khóa tìm kiếm và văn bản trên trang chiếu đều được chuẩn hóa Unicode NFC tự động.",
+      "Đóng và Hoàn tác: Bấm Esc để đóng hộp thoại. Sau khi đóng hộp thoại, hệ thống vẫn duy trì phiên tìm kiếm cho bài trình chiếu. Mọi thao tác «Thay thế tất cả» trên toàn bài thuyết trình đều được ghi nhận thành đúng 1 bước Hoàn tác (nhấn Ctrl+Z để hoàn tác toàn bộ các thay đổi cùng lúc)."
     ]
   },
   {
@@ -258,7 +259,7 @@ export const SLIDES_HELP_ENTRIES = [
     keywords: ["chọn", "select", "chọn tất cả", "chọn đối tượng", "hình", "shape"],
     steps: [
       "Mở trang cần chọn đối tượng. Tab Trang đầu, nhóm Chỉnh sửa (cuối Home), nhấn dropdown Chọn.",
-      "Chọn tất cả: đánh dấu mọi hình trên trang hiện tại (hộp văn bản, hình khối, ảnh, WordArt, sơ đồ, đường nối). Không chọn khung tiêu đề/nội dung của bố cục.",
+      "Chọn tất cả: đánh dấu mọi hình trên trang hiện tại (hộp văn bản, hình khối, ảnh, phần mềm văn phòng khácArt, sơ đồ, đường nối). Không chọn khung tiêu đề/nội dung của bố cục.",
       "Chọn đối tượng: chỉ các hình vẽ, bỏ đường nối (connector). Dùng khi cần kéo/xóa nhóm hình mà không kéo đường nối kèm theo.",
       "Khi đang gõ trong tiêu đề hoặc nội dung, Ctrl+A vẫn chọn hết chữ trong khung đó; ngoài khung chữ, Ctrl+A chọn tất cả hình trên trang."
     ]
@@ -281,9 +282,9 @@ export const SLIDES_HELP_ENTRIES = [
       "Chọn trang sẽ là trang đầu của nhóm. Tab Trang đầu, nhóm Trang chiếu, mở dropdown Phần (cạnh Trang mới / Bố cục / Nhân đôi / Xóa trang), chọn Thêm phần. Hộp thoại điền tên — mặc định Phần 1, Phần 2, … — rồi Thêm. Phần bắt đầu từ trang đang chọn và chạy tới phần kế tiếp (hoặc hết bài).",
       "Dải thumbnail trái và Bộ sắp xếp trang (tab Chế độ xem) hiện thanh tiêu đề trước nhóm: tên phần + số trang trong ngoặc. Nút ▾/▸ thu gọn hoặc mở rộng cả nhóm — khi thu gọn chỉ còn thanh tiêu đề, các thumbnail bên trong bị ẩn. Nhấp thanh tiêu đề để nhảy tới trang đầu nhóm. Chuột phải thumbnail hoặc thanh tiêu đề cũng mở menu Thêm / Đổi tên / Xóa phần.",
       "Đổi tên phần / Xóa phần / Chuyển phần lên / Chuyển phần xuống nằm cùng dropdown Phần. Xóa phần chỉ bỏ nhóm (trang vẫn còn, đúng thứ tự). Chuyển lên/xuống đổi chỗ cả khối trang của phần với phần kề, giữ thứ tự trang bên trong nhóm.",
-      "Hoàn tác / Làm lại (Ctrl+Z / Ctrl+Y) dùng chung ngăn lịch sử của 3T Slide: thêm, đổi tên, xóa phần và chuyển cả nhóm đều hoàn tác được. Thu gọn/mở rộng chỉ là trạng thái xem, không vào lịch sử.",
-      "File → Lưu dạng PowerPoint (*.pptx): sau khi LibreOffice chuyển FODP, 3T Office gắn các phần vào ppt/presentation.xml bằng p14:sectionLst (chuẩn PowerPoint 2010, URI {521415D9-36F7-43E2-AB2F-B90AF26B5E84} — không dùng namespace vno:). Mỗi phần giữ đúng tên đã đặt và đúng danh sách id trang thật trong file (256, 257, … theo thứ tự trang, không đoán). Mở PPTX bằng Microsoft PowerPoint sẽ thấy nhóm phần trên dải thumbnail. LibreOffice Impress có thể không hiện phần khi mở lại PPTX (filter convert không đọc extension này) — file không hỏng. Lưu FODP/ODP giữ vno:section-id / vno:section-name như trước; bài không có phần thì File → Lưu PPTX không vá thêm.",
-      "File → Mở một .pptx đã có phần (file vừa Lưu, hoặc file PowerPoint 2010+ có sẵn p14:sectionLst): LibreOffice chuyển PPTX→FODP không map ngược extension này, nên 3T Office đọc ppt/presentation.xml của file gốc rồi gắn vno:section-id / vno:section-name lên đúng draw:page — theo thứ tự p:sldIdLst khớp thứ tự trang, không đoán. Thanh phần hiện lại trên dải thumbnail trái và Bộ sắp xếp trang, đúng tên và đúng nhóm trang. Nếu số trang FODP lệch số id trong PPTX (file sửa tay, hỏng), hộp thoại Mở báo lỗi rõ, không gán bừa phần vào sai trang. File .odp/.fodp không đi overlay này — chúng giữ vno:section-* sẵn có."
+      "Hoàn tác / Làm lại (Ctrl+Z / Ctrl+Y) dùng chung ngăn lịch sử của Slide: thêm, đổi tên, xóa phần và chuyển cả nhóm đều hoàn tác được. Thu gọn/mở rộng chỉ là trạng thái xem, không vào lịch sử.",
+      "Lưu các phần: nhấn Ctrl+S hoặc chọn Tệp > Lưu bản sao để lưu .pptx. Tên phần và các trang thuộc mỗi phần được giữ trong tệp. Khi mở bằng phần mềm văn phòng khác, cách hiển thị các phần có thể khác. Mở lại trong Slide để kiểm tra tên và thứ tự các nhóm trang.",
+      "Lưu các phần: nhấn Ctrl+S hoặc chọn Tệp > Lưu bản sao để lưu .pptx. Tên phần và các trang thuộc mỗi phần được giữ trong tệp. Khi mở bằng phần mềm văn phòng khác, cách hiển thị các phần có thể khác. Mở lại trong Slide để kiểm tra tên và thứ tự các nhóm trang."
     ]
   },
   {
@@ -302,10 +303,10 @@ export const SLIDES_HELP_ENTRIES = [
     keywords: ["trang mới", "nhân đôi", "xóa trang", "bố cục", "layout", "ctrl+m", "ctrl+d", "hai cột", "trang trống", "sắp xếp trang", "kéo thả trang"],
     steps: [
       "Tab Trang đầu, nhóm Trang chiếu: Trang mới (Ctrl+M, nút lớn), Bố cục (nút lớn), cột Nhân đôi (Ctrl+D) / Xóa trang. Nút + trên dải thumbnail trái cũng thêm trang. Bố cục còn có trên tab Thiết kế, nhóm Bố cục trang.",
-      "Trang mới (Ctrl+M) được chèn NGAY SAU trang đang chọn (giống PowerPoint), bố cục Tiêu đề + Nội dung, tiêu đề và nội dung để trống để bạn gõ. Khung để trống khi lưu vẫn là khung trống trong tệp PPTX — không tự sinh chữ. Nhân đôi copy y nguyên tiêu đề, nội dung, hình, ghi chú, hiệu ứng, nền — chèn ngay sau trang hiện tại và chuyển tới bản sao.",
-      "Đổi thứ tự trang: trong dải thumbnail bên trái, nhấn giữ chuột trên một trang rồi kéo thả vào vị trí mới (hoặc dùng Bộ sắp xếp trang ở tab Chế độ xem). Ctrl+Z hoàn tác việc di chuyển.",
-      "Xóa trang: không xóa được nếu chỉ còn 1 trang. Nếu đang chọn hình trên canvas, lệnh Xóa trang / phím Delete sẽ xóa hình chứ không xóa trang — bấm ra ngoài hình, hoặc xóa từ dải thumbnail / Bộ sắp xếp trang.",
-      "Bố cục (và lệnh Chọn bố cục, cùng hộp thoại): lưới 4 thẻ — Tiêu đề (chữ lớn giữa trang), Tiêu đề + Nội dung (mặc định), Hai nội dung (cột trái/phải độc lập), Trống (canvas trắng). Nhấp đúp thẻ để áp dụng ngay, hoặc chọn rồi Áp dụng cho trang này / Áp dụng tất cả. Ctrl+Z hoàn tác."
+      "Trang mới (Ctrl+M) được chèn NGAY SAU trang đang chọn (giống các phần mềm trình chiếu khác), bố cục Tiêu đề + Nội dung, tiêu đề và nội dung để trống để bạn gõ. Khung để trống khi lưu vẫn là khung trống trong tệp PPTX — không tự sinh chữ. Nhân đôi copy y nguyên tiêu đề, nội dung, hình, ghi chú, hiệu ứng, nền — chèn ngay sau trang hiện tại và chuyển tới bản sao.",
+      "Đổi thứ tự trang: trong dải thumbnail bên trái, nhấn giữ chuột trên một trang rồi kéo thả vào vị trí mới (hoặc dùng Bộ sắp xếp trang ở tab Chế độ xem). Có thể giữ phím Ctrl cùng mũi tên lên hoặc mũi tên xuống trên dải thumbnail để di chuyển đổi chỗ trang. Ctrl+Z hoàn tác việc di chuyển.",
+      "Xóa trang: không xóa được nếu chỉ còn 1 trang. Nhấn nút Xóa trang trên ribbon, phím Delete trong dải thumbnail hoặc trong Bộ sắp xếp trang để xóa trang. Nếu đang chọn hình khối hoặc chữ trên slide, phím Delete sẽ xóa hình đó — nhấp chuột ra ngoài trang hoặc xóa từ thumbnail để xóa trang chiếu.",
+      "Bố cục (và lệnh Chọn bố cục, cùng hộp thoại): lưới 4 thẻ — Tiêu đề (chữ lớn giữa trang), Tiêu đề + Nội dung (mặc định), Hai nội dung (cột trái/phải độc lập), Trống (vùng soạn thảo trắng). Nhấp đúp thẻ để áp dụng ngay, hoặc chọn rồi Áp dụng cho trang này / Áp dụng tất cả. Ctrl+Z hoàn tác."
     ]
   },
   {
@@ -338,9 +339,9 @@ export const SLIDES_HELP_ENTRIES = [
     keywords: ["hộp văn bản", "hình khối", "hình ảnh", "shape", "chèn ảnh", "chữ nhật", "đối tượng vẽ"],
     steps: [
       "Tab Trang đầu, nhóm Đối tượng vẽ: Hộp văn bản, Hình khối, Hình ảnh (ba nút lớn). Cùng lệnh còn trên tab Chèn: Hộp văn bản ở nhóm Văn bản, Hình khối ở Minh họa, Hình ảnh ở nhóm Hình ảnh.",
-      "Hình khối: chèn chữ nhật xanh (~200×120 px) lên canvas, lệch dần nếu chèn nhiều cái. Kéo để đặt, kéo góc để đổi cỡ, Delete khi đang chọn để xóa. Ctrl+Z gỡ hình vừa chèn.",
-      "Hình ảnh: hộp chọn tệp trên máy, ảnh thành đối tượng trên slide (kéo/đổi cỡ như hình khối).",
-      "Hộp văn bản: chèn một khung chữ riêng (không viền, nền trong suốt) lên trang và đặt con trỏ vào trong để gõ ngay. Enter xuống dòng mới; Esc kết thúc gõ. Kéo khung để di chuyển, kéo tay cầm góc để đổi cỡ, nhấp đúp để sửa lại chữ. Chọn chữ trong khung rồi dùng nhóm Phông chữ / Đoạn văn (đậm, cỡ, màu, gạch đầu dòng, đánh số, căn lề) như chữ trong tiêu đề."
+      "Hình khối: chèn chữ nhật xanh (~200×120 px) lên vùng soạn thảo, lệch dần nếu chèn nhiều cái. Kéo để đặt, kéo góc để đổi cỡ, Delete khi đang chọn để xóa. Ctrl+Z gỡ hình vừa chèn.",
+      "Hình ảnh: hộp chọn tệp trên máy, ảnh thành đối tượng trên slide. Khi kéo tay cầm ở 4 góc của ảnh, Slide tự động giữ nguyên tỷ lệ khung hình (rộng/cao) để hình không bị méo (kéo các cạnh bên nếu muốn đổi tỷ lệ tự do).",
+      "Hộp văn bản: chèn một khung chữ riêng (không viền, nền trong suốt) lên trang và đặt con trỏ vào trong để gõ ngay. Nhấn Enter để xuống dòng mới trong khung chữ, nhấn phím Tab để tăng thụt lề hoặc giữ Shift cùng Tab để giảm thụt lề; nhấn Esc để hoàn tất và thoát chế độ sửa chữ. Kéo khung để di chuyển, kéo tay cầm góc để đổi cỡ, nhấp đúp để sửa lại chữ. Chọn chữ trong khung rồi dùng nhóm Phông chữ / Đoạn văn (đậm, cỡ, màu, gạch đầu dòng, đánh số, căn lề) như chữ trong tiêu đề."
     ]
   },
   {
@@ -348,13 +349,13 @@ export const SLIDES_HELP_ENTRIES = [
     app: "slides",
     commandIds: ["slides.insert.table"],
     title: "Chèn bảng trên trang chiếu",
-    summary: "Hộp thoại nhập số hàng và số cột (1–12, mặc định 3×3). Bảng là đối tượng kéo-thả trên canvas; mọi ô để trống như PowerPoint.",
+    summary: "Hộp thoại nhập số hàng và số cột (1–12, mặc định 3×3). Bảng là đối tượng kéo-thả trên vùng soạn thảo; mọi ô để trống như các phần mềm trình chiếu khác.",
     ribbon: { tab: "Chèn", tabId: "insert", group: "Bảng" },
     keywords: ["bảng", "table", "chèn bảng", "hàng", "cột", "cột 1"],
     steps: [
       "Mở trang đích. Tab Chèn, nhóm Bảng, nhấn nút lớn Bảng.",
       "Hộp «Chèn bảng»: Số hàng và Số cột, mỗi ô 1–12, mặc định 3 và 3. Nhấn Chèn (hoặc Enter). Esc / Hủy bỏ.",
-      "Bảng hiện trên canvas, kéo để đặt, kéo góc để đổi cỡ. Mọi ô ban đầu trống — nhấp vào ô để gõ.",
+      "Bảng hiện trên vùng soạn thảo, kéo để đặt, kéo góc để đổi cỡ. Mọi ô ban đầu trống — nhấp vào ô để gõ.",
       "Ctrl+Z gỡ cả bảng vừa chèn. Delete khi đang chọn bảng cũng xóa."
     ]
   },
@@ -369,15 +370,15 @@ export const SLIDES_HELP_ENTRIES = [
       "slides.arrange.bringToFront", "slides.arrange.bringForward", "slides.arrange.sendBackward", "slides.arrange.sendToBack"
     ],
     title: "Sắp xếp: sắp lớp, căn chỉnh, phân phối đều, nhóm và bỏ nhóm đối tượng",
-    summary: "Tab Trang đầu, nhóm Đối tượng vẽ, nút thả xuống Sắp xếp gồm Đưa lên trên cùng / Đưa lên trên một lớp / Đưa xuống dưới một lớp / Đưa xuống dưới cùng, Căn trái/giữa/phải/trên/giữa dọc/dưới, Phân phối đều ngang/dọc, Căn theo trang chiếu, và Nhóm/Bỏ nhóm (Ctrl+G / Ctrl+Shift+G) — đúng Arrange của PowerPoint thật.",
+    summary: "Tab Trang đầu, nhóm Đối tượng vẽ, nút thả xuống Sắp xếp gồm Đưa lên trên cùng / Đưa lên trên một lớp / Đưa xuống dưới một lớp / Đưa xuống dưới cùng, Căn trái/giữa/phải/trên/giữa dọc/dưới, Phân phối đều ngang/dọc, Căn theo trang chiếu, và Nhóm/Bỏ nhóm (Ctrl+G / Ctrl+Shift+G) — đúng Arrange của phần mềm trình chiếu khác.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Đối tượng vẽ" },
     keywords: ["nhóm", "bỏ nhóm", "group", "ungroup", "ctrl+g", "ctrl+shift+g", "khối hình", "căn chỉnh", "align", "phân phối đều", "distribute", "căn theo trang chiếu", "align to slide", "sắp xếp", "arrange", "sắp lớp", "đưa lên trên", "đưa xuống dưới", "bring to front", "send to back", "bring forward", "send backward", "thứ tự lớp"],
     steps: [
       "Sắp lớp (hình nào nằm trên hình nào): chọn một hình, mở Trang đầu → Đối tượng vẽ → Sắp xếp rồi chọn Đưa lên trên cùng, Đưa lên trên một lớp, Đưa xuống dưới một lớp hoặc Đưa xuống dưới cùng. Cũng có trong menu chuột phải của hình. Thứ tự lớp được lưu vào tệp PPTX; Ctrl+Z hoàn tác.",
       "Chọn từ hai hình trở lên: giữ Shift rồi nhấp từng hình, hoặc tab Trang đầu → nhóm Chỉnh sửa → Chọn → Chọn tất cả / Chọn đối tượng.",
-      "Tab Trang đầu, nhóm Đối tượng vẽ, nút thả xuống Sắp xếp: Căn trái/Căn giữa (ngang)/Căn phải canh theo trục ngang; Căn trên/Căn giữa (dọc)/Căn dưới canh theo trục dọc. Mặc định canh theo đúng khung bao quanh các đối tượng đang chọn (giống PowerPoint khi tắt Align to Slide).",
+      "Tab Trang đầu, nhóm Đối tượng vẽ, nút thả xuống Sắp xếp: Căn trái/Căn giữa (ngang)/Căn phải canh theo trục ngang; Căn trên/Căn giữa (dọc)/Căn dưới canh theo trục dọc. Mặc định canh theo đúng khung bao quanh các đối tượng đang chọn (giống các phần mềm trình chiếu khác khi tắt Align to Slide).",
       "Phân phối đều ngang/dọc chia đều khoảng TRỐNG giữa các đối tượng (giữ nguyên hình đầu và cuối theo trục đang phân phối) — cần ít nhất 3 đối tượng để thấy hiệu quả rõ ràng.",
-      "Bật Căn theo trang chiếu để mọi lệnh Căn/Phân phối tiếp theo dùng toàn bộ khung trang chiếu làm mốc thay vì khung các đối tượng đang chọn — giống PowerPoint thật.",
+      "Bật Căn theo trang chiếu để mọi lệnh Căn/Phân phối tiếp theo dùng toàn bộ khung trang chiếu làm mốc thay vì khung các đối tượng đang chọn — giống các phần mềm trình chiếu khác thật.",
       "Ctrl+G nhóm (cần ít nhất hai hình, không tính đường nối); Ctrl+Shift+G bỏ nhóm. Mọi thao tác Căn/Phân phối/Nhóm/Bỏ nhóm đều hoàn tác được bằng Ctrl+Z."
     ]
   },
@@ -405,12 +406,12 @@ export const SLIDES_HELP_ENTRIES = [
     app: "slides",
     commandIds: ["slides.view.normal"],
     title: "Dạng xem bình thường",
-    summary: "Quay về soạn từng trang: dải thumbnail trái và sân khấu canvas giữa. Dùng sau khi đóng Bộ sắp xếp trang hoặc Chế độ đọc.",
+    summary: "Quay về soạn từng trang: dải thumbnail trái và sân khấu vùng soạn thảo giữa. Dùng sau khi đóng Bộ sắp xếp trang hoặc Chế độ đọc.",
     ribbon: { tab: "Chế độ xem", tabId: "view", group: "Dạng xem bản trình chiếu" },
-    keywords: ["bình thường", "normal view", "soạn trang", "thumbnail", "canvas"],
+    keywords: ["bình thường", "normal view", "soạn trang", "thumbnail", "vùng soạn thảo"],
     steps: [
       "Tab Chế độ xem, nhóm Dạng xem bản trình chiếu, nhấn Bình thường (nút lớn đầu nhóm).",
-      "Giao diện soạn thảo: thumbnail trái để chọn trang, canvas giữa để sửa tiêu đề, nội dung và hình. Thanh ghi chú dưới canvas nếu đang bật.",
+      "Giao diện soạn thảo: thumbnail trái để chọn trang, vùng soạn thảo giữa để sửa tiêu đề, nội dung và hình. Thanh ghi chú dưới vùng soạn thảo nếu đang bật.",
       "Bộ sắp xếp trang và Chế độ đọc cũng nằm cùng nhóm — Bình thường là cách về màn hình soạn. Esc trong Bộ sắp xếp / Chế độ đọc cũng về Bình thường.",
       "Chế độ này không đổi nội dung trang, chỉ đổi cách nhìn."
     ]
@@ -420,15 +421,15 @@ export const SLIDES_HELP_ENTRIES = [
     app: "slides",
     commandIds: ["slides.file.printPreview", "common.file.print", "common.file.exportPdf"],
     title: "Xem trước khi in",
-    summary: "Ctrl+P hoặc Ctrl+F2 mở hộp thoại In. Khi có Microsoft Office/WPS, 3T Slide dùng bộ dựng PDF đó để khớp trang chiếu; nếu không có hoặc gặp lỗi, LibreOffice tự tiếp tục.",
+    summary: "Ctrl+P hoặc Ctrl+F2 mở hộp thoại In. Khi có phần mềm văn phòng khác, Slide dùng bộ dựng PDF đó để khớp trang chiếu; nếu không có hoặc gặp lỗi, bộ dựng tích hợp của 3T Office tự tiếp tục.",
     ribbon: { tab: "Chế độ xem", tabId: "view", group: "Dạng xem bản trình chiếu" },
     keywords: ["xem trước khi in", "print preview", "in tài liệu", "ctrl+f2", "full page slides", "in trang chiếu"],
     steps: [
       "Nhấn Ctrl+P, nhấp biểu tượng máy in trên thanh truy cập nhanh, hoặc mở tab Chế độ xem → Xem trước khi in (Ctrl+F2).",
-      "Nếu máy có Microsoft Office/WPS, tùy chọn Dùng Microsoft Office/WPS để in được chọn sẵn. Khung Bộ máy dựng PDF cho biết ứng dụng nào đã tạo trang xem trước; bỏ chọn để dùng LibreOffice.",
+      "Nếu máy có phần mềm văn phòng khác, tùy chọn Dùng phần mềm văn phòng có sẵn trên máy để in được chọn sẵn. Khung Bộ dựng trang in cho biết ứng dụng nào đã tạo trang xem trước; bỏ chọn để dùng bộ dựng tích hợp của 3T Office.",
       "Chọn máy in, số bản và Tất cả, Trang hiện tại, hoặc Trang từ–đến. Mỗi trang PDF ứng với một trang chiếu được bộ máy dựng PDF đưa vào bản in.",
-      "Nhấn In để gửi tài liệu. Khi chọn Microsoft Print to PDF, chọn thư mục và tên tệp PDF; Esc hoặc nút × đóng hộp thoại.",
-      "Xuất PDF riêng: mở Tệp → Xuất PDF và chọn nơi lưu. 3T Slide dựng tệp qua cùng đường Lưu PPTX; nếu Microsoft Office/WPS dùng được thì ứng dụng đó tạo PDF, nếu không LibreOffice tiếp tục."
+      "Nhấn In để gửi tài liệu. Khi chọn máy in PDF, chọn thư mục và tên tệp PDF; Esc hoặc nút × đóng hộp thoại.",
+      "Xuất PDF riêng: mở Tệp → Xuất PDF và chọn nơi lưu. Slide dựng tệp qua cùng đường Lưu PPTX; nếu phần mềm văn phòng khác dùng được thì ứng dụng đó tạo PDF, nếu không bộ dựng tích hợp của 3T Office tiếp tục."
     ]
   },
   {
@@ -456,14 +457,14 @@ export const SLIDES_HELP_ENTRIES = [
     app: "slides",
     commandIds: ["slides.notes.toggle"],
     title: "Ghi chú người thuyết trình",
-    summary: "Bật/tắt khung ghi chú dưới canvas. Mỗi trang có ghi chú riêng, không lẫn sang trang khác. F5 không hiện ghi chú cho khán giả — chỉ thấy trong khung này và trong Chế độ Presenter (Alt+F5).",
+    summary: "Bật/tắt khung ghi chú dưới vùng soạn thảo. Mỗi trang có ghi chú riêng, không lẫn sang trang khác. F5 không hiện ghi chú cho khán giả — chỉ thấy trong khung này và trong Chế độ Presenter (Alt+F5).",
     ribbon: { tab: "Chế độ xem", tabId: "view", group: "Dạng xem bản trình chiếu" },
     keywords: ["ghi chú", "speaker notes", "thuyết trình", "ghi chú trang", "notes"],
     steps: [
-      "Tab Chế độ xem, nhóm Dạng xem bản trình chiếu, nhấn Ghi chú thuyết trình — hoặc tab Trình chiếu, nhóm Người thuyết trình, cùng nút. Khung dưới canvas mở rộng; nút trên khung đổi thành «▼ Thu gọn ghi chú».",
+      "Tab Chế độ xem, nhóm Dạng xem bản trình chiếu, nhấn Ghi chú thuyết trình — hoặc tab Trình chiếu, nhóm Người thuyết trình, cùng nút. Khung dưới vùng soạn thảo mở rộng; nút trên khung đổi thành «▼ Thu gọn ghi chú».",
       "Gõ ghi chú cho trang đang mở. Chuyển thumbnail thì khung nạp ghi chú của trang mới, không mang chữ trang cũ. Có bộ đếm ký tự trên khung.",
-      "Nhấn lại nút (hoặc «▼ Thu gọn ghi chú») để đóng, lấy chỗ canvas. Ghi chú vẫn được lưu theo trang, kể cả khi thu gọn.",
-      "Khi chiếu F5/Shift+F5 khán giả không thấy ghi chú. Muốn đọc ghi chú lúc nói chuyện: Alt+F5 (Chế độ Presenter). Ghi chú được lưu trong file FODP."
+      "Nhấn lại nút (hoặc «▼ Thu gọn ghi chú») để đóng, lấy chỗ vùng soạn thảo. Ghi chú vẫn được lưu theo trang, kể cả khi thu gọn.",
+      "Khi chiếu F5/Shift+F5 khán giả không thấy ghi chú. Muốn đọc ghi chú lúc nói chuyện: Alt+F5 (Chế độ Presenter). Ghi chú được lưu trong tệp trình chiếu."
     ]
   },
   {
@@ -477,23 +478,26 @@ export const SLIDES_HELP_ENTRIES = [
     steps: [
       "Tab Đánh giá, nhóm Nhận xét, nút lớn Nhận xét mới — cùng nút trên tab Chèn, nhóm Nhận xét. Không có Ctrl+Alt+M như Writer.",
       "Panel «Nhận xét trang chiếu» mở bên cạnh. Ô «Nhận xét mới», gợi ý «Nhập nội dung nhận xét...», nút Thêm nhận xét. Trang chưa có nhận xét hiện «Trang chiếu này chưa có nhận xét.» Gửi bằng nút hoặc Ctrl+Enter (Cmd+Enter). Tác giả mặc định «Người dùng», kèm giờ vi-VN.",
-      "Mỗi mục có nút Xóa. Đã xử lý nằm nút ribbon riêng (bài duyệt nhận xét). Esc đóng panel. Huy hiệu ◰ + số trên canvas; Bộ sắp xếp trang hiện 💬 N.",
-      "Ctrl+Z hoàn tác lần thêm/xóa. Nhận xét theo trang, không theo vùng chữ hay hình như PowerPoint."
+      "Mỗi mục có nút Xóa. Đã xử lý nằm nút ribbon riêng (bài duyệt nhận xét). Esc đóng panel. Huy hiệu ◰ + số trên vùng soạn thảo; Bộ sắp xếp trang hiện 💬 N.",
+      "Ctrl+Z hoàn tác lần thêm/xóa. Nhận xét theo trang, không theo vùng chữ hay hình như các phần mềm trình chiếu khác."
     ]
   },
   {
     id: "slides.review.spellCheckHelp",
     app: "slides",
-    commandIds: ["slides.review.spellCheck"],
+    commandIds: ["slides.review.spellCheck", "slides.review.toggleSpellCheck"],
     title: "Kiểm tra chính tả tiếng Việt trên trang chiếu",
-    summary: "F7 (khi đang Slides) hoặc nút Chính tả quét tiêu đề, nội dung, cột 2 và chữ trên hình của trang hiện tại — không quét ghi chú thuyết trình. Có gạch sóng khi gõ.",
+    summary: "F7 (khi đang ở Slide) hoặc nút Chính tả quét tiêu đề, nội dung, cột 2 và chữ trên hình của trang hiện tại; gạch đỏ sống và menu gợi ý chuột phải; hỗ trợ nút Bật/Tắt chính tả trên ribbon.",
     ribbon: { tab: "Đánh giá", tabId: "review", group: "Chứng minh" },
-    keywords: ["chính tả", "spell check", "f7", "từ điển", "tiếng việt", "gạch sóng"],
+    keywords: ["chính tả", "spell check", "f7", "từ điển", "tiếng việt", "gạch sóng", "chuột phải", "gợi ý", "Ctrl+Z", "bật tắt chính tả"],
     steps: [
-      "Tab Đánh giá, nhóm Chứng minh, nút lớn Chính tả — hoặc F7 khi Slides đang active (F7 Writer vẫn là Soát lỗi AI; F7 Sheet/Slides là chính tả).",
-      "Hộp «Chính tả» quét trang đang mở: Tiêu đề, Nội dung, Nội dung cột 2, Hình. Hiện «Không có trong từ điển», vị trí, nội dung, gợi ý. Nút Bỏ qua / Bỏ qua tất cả / Thêm vào từ điển / Thay thế / Thay thế tất cả / Đóng. Esc đóng.",
-      "Hết lỗi: «Đã kiểm tra xong trang chiếu hiện tại. Không tìm thấy lỗi chính tả.» Từ điển cá nhân dùng chung Writer/Sheet (vno-spellcheck-vi-personal). Không quét khung ghi chú thuyết trình.",
-      "Khi soạn, chữ sai trên tiêu đề/nội dung/hình được gạch sóng (trễ ~400 ms). Chỉ từ điển tiếng Việt."
+      "Tab Đánh giá, nhóm Chứng minh, nút lớn Chính tả — hoặc nhấn F7 khi cửa sổ Slide đang hoạt động (F7 Doc là Soát lỗi AI; F7 Sheet/Slide là chính tả).",
+      "Hộp «Chính tả» quét trang đang mở: Tiêu đề, Nội dung, Nội dung cột 2, Hình. Hiện «Không có trong từ điển», vị trí, nội dung, gợi ý. Đầy đủ các nút Bỏ qua / Bỏ qua tất cả / Thêm vào từ điển / Thay thế / Thay thế tất cả / Đóng. Nhấn Esc để đóng.",
+      "Khi soạn thảo, các từ nghi ngờ sai chính tả trên tiêu đề, nội dung hoặc chữ trong hình tự động được gạch sóng đỏ (độ trễ ~400 ms) mà không làm di chuyển con trỏ đang gõ.",
+      "Tùy chọn Bật/Tắt kiểm tra chính tả: Mở tab Đánh giá, nhóm Chứng minh, nhấn nút «Kiểm tra chính tả» để bật hoặc tắt. Khi tắt, các đường gạch chân đỏ biến mất ngay lập tức; khi bật lại, hệ thống quét và gạch đỏ trở lại. Trạng thái được ghi nhớ qua các lần mở sau.",
+      "Nhấp chuột phải vào từ bị gạch sóng để mở menu gợi ý từ đúng tiếng Việt; nhấp vào từ gợi ý để thay thế trực tiếp.",
+      "Nhấn phím Ctrl+Z ngay sau khi chọn gợi ý để hoàn tác thay thế trong đúng một bước duy nhất.",
+      "Từ điển cá nhân được lưu vào bộ nhớ dùng chung cho cả ba ứng dụng Doc, Sheet và Slide (vno-spellcheck-vi-personal)."
     ]
   },
   {
@@ -506,7 +510,7 @@ export const SLIDES_HELP_ENTRIES = [
     keywords: ["video", "âm thanh", "audio", "chèn video", "media", "mp4", "mp3"],
     steps: [
       "Mở trang đích. Tab Chèn, nhóm Đa phương tiện: Video và Âm thanh (hai nút lớn). Hộp chọn tệp hệ thống, lọc video/* hoặc audio/*.",
-      "Video chèn hình 320×200 px tại ~100+(số hình×24); âm thanh thanh 260×40 px. Cả hai có controls HTML. Nhiều lần chèn lệch vị trí 24 px. × khi đang chọn để xóa («Xóa đối tượng này»).",
+      "Video chèn hình 320×200 px tại ~100+(số hình×24); âm thanh thanh 260×40 px. Cả hai có nút điều khiển phát. Nhiều lần chèn lệch vị trí 24 px. × khi đang chọn để xóa («Xóa đối tượng này»).",
       "Tệp lớn hơn 10 MB vẫn chèn, console cảnh báo có thể làm chậm lưu/mở vì nhúng Data URL. Không có video YouTube, cắt đoạn, hay phát xuyên trang.",
       "Khi chiếu F5, bấm vào video/audio không sang trang (để xem/nghe). Ctrl+Z gỡ đối tượng vừa chèn."
     ]
@@ -550,16 +554,16 @@ export const SLIDES_HELP_ENTRIES = [
     app: "slides",
     commandIds: ["slides.design.themeGallery", "slides.design.slideSize", "slides.master.apply"],
     title: "Chủ đề, mẫu chủ đạo và cỡ trang chiếu",
-    summary: "Sáu chủ đề màu/phông/logo áp cả bộ. Mẫu Slide Master cùng 6 bộ, thêm ô logo chữ. Cỡ: Màn hình rộng 16:9 (33,867 × 19,05 cm, mặc định) hoặc Tiêu chuẩn 4:3 (25,4 × 19,05 cm) — đúng hai khổ chuẩn của PowerPoint; hình sẵn có bị co theo.",
+    summary: "Sáu chủ đề màu/phông/logo áp cả bộ. Mẫu Slide Master cùng 6 bộ, thêm ô logo chữ. Cỡ: Màn hình rộng 16:9 (33,867 × 19,05 cm, mặc định) hoặc Tiêu chuẩn 4:3 (25,4 × 19,05 cm) — đúng hai khổ chuẩn của phần mềm trình chiếu khác; hình sẵn có bị co theo.",
     ribbon: { tab: "Thiết kế", tabId: "design", group: "Chủ đề" },
     keywords: ["chủ đề", "theme", "slide master", "cỡ trang chiếu", "16:9", "4:3", "960x540", "logo"],
     steps: [
       "Tab Thiết kế, nhóm Chủ đề: nút lớn Chủ đề. Hộp «Thư viện Chủ đề» — nhấp thẻ là áp ngay cả bộ (không nút Áp dụng). Sáu mẫu: Xanh Doanh Nghiệp (Inter, mặc định modern-blue), Terracotta Ấm Áp (Times New Roman), Xanh Lá Thiên Nhiên, Than Chì Hiện Đại, Đơn Sắc Tối Giản (Arial), Cam Năng Động (Verdana). Mỗi mẫu có logo chữ kiểu «3T OFFICE • DOANH NGHIỆP». Ctrl+Z hoàn tác lần chọn chủ đề.",
       "Nhóm Mẫu chủ đạo: Mẫu Slide Master. Hộp «Mẫu Slide Master» cùng 6 bộ, thêm ô «Tên đơn vị / Logo chữ góc trang» (mặc định «3T OFFICE» hoặc logo đang dùng). Chọn thẻ điền sẵn logo của mẫu. Hủy bỏ / Áp dụng mẫu. Khác thư viện Chủ đề: lần Áp dụng mẫu không đẩy Undo.",
-      "File → Lưu dạng PowerPoint (*.pptx): sau khi LibreOffice chuyển FODP, 3T Office gắn logo chữ vào Slide Master bằng một hình DrawingML chuẩn (p:sp không phải ô kế thừa title/body/chân trang). Logo lấy đúng ô «Tên đơn vị / Logo chữ góc trang», đặt ở dải trên của master, không đè khung chữ sẵn. Mở PPTX bằng PowerPoint hoặc LibreOffice vẫn thấy chữ logo. Lưu FODP/ODP giữ master-page ODF như trước; không có logo thì File → Lưu PPTX không vá thêm hình.",
-      "File → Mở một .pptx đã có logo master (file vừa Lưu, hoặc file PowerPoint có hình tên VNOfficeMasterLogo trên Slide Master): LibreOffice chuyển PPTX→FODP giữ chữ trên master-page nhưng không phát vno:master-theme, nên ô logo trên canvas 3T Slide sẽ trống nếu không overlay. 3T Office đọc p:sp tên VNOfficeMasterLogo từ file PPTX gốc (không đoán hình khác trên master), lấy lại chữ / màu / phông, rồi gắn vno:master-theme lên FODP trước khi mở canvas. Ô «Tên đơn vị / Logo chữ góc trang» hiện lại đúng chữ, màu accent và phông. Nhiều hình trùng tên hoặc hình tên đó lại là ô kế thừa (p:ph) thì hộp thoại Mở báo lỗi rõ, không đoán. File .odp/.fodp không đi overlay này — chúng giữ vno:master-theme sẵn có.",
+      "Lưu bằng Ctrl+S hoặc chọn Tệp > Lưu bản sao và chọn .pptx. Chữ trong ô «Tên đơn vị / Logo chữ góc trang» được đặt trên trang mẫu và giữ khi lưu. Mở lại tệp để kiểm tra chữ, màu và phông; logo không che các khung tiêu đề và nội dung có sẵn.",
+      "Mở lại: chọn Tệp > Mở và chọn tệp .pptx đã lưu logo chữ bằng Slide. Ô «Tên đơn vị / Logo chữ góc trang» hiện lại chữ, màu và phông đã đặt. Ứng dụng chỉ nhận logo chữ do Slide lưu; nếu dữ liệu logo không hợp lệ, hộp thoại Mở báo lỗi để bạn kiểm tra tệp gốc.",
       "Nhóm Tùy chỉnh: Cỡ trang chiếu. Hộp «Kích thước trang chiếu»: Màn hình rộng 16:9 · 33,867 × 19,05 cm, hoặc Tiêu chuẩn 4:3 · 25,4 × 19,05 cm. Nhấp thẻ áp ngay; mọi hình bị co x,y,w,h theo khung mới. Cùng preset thì không đổi. Ctrl+Z hoàn tác đổi cỡ.",
-      "Khi lưu PPTX, hai khổ này ghi đúng khổ chuẩn của PowerPoint nên PowerPoint mở ra thấy Thiết kế → Kích thước trang chiếu là «Màn hình rộng» / «Chuẩn (4:3)», không phải «Tùy chỉnh». Tệp mở từ PowerPoint giữ nguyên khổ gốc khi lưu lại, trừ khi bạn tự đổi cỡ.",
+      "Khi lưu PPTX, hai khổ này ghi đúng khổ chuẩn của phần mềm trình chiếu khác nên phần mềm trình chiếu khác mở ra thấy Thiết kế → Kích thước trang chiếu là «Màn hình rộng» / «Chuẩn (4:3)», không phải «Tùy chỉnh». Tệp mở từ phần mềm trình chiếu khác giữ nguyên khổ gốc khi lưu lại, trừ khi bạn tự đổi cỡ.",
       "Không có dạng xem Master (không sửa khung chữ sẵn của từng bố cục). Không có cỡ tùy chỉnh / 16:10."
     ]
   },
@@ -578,7 +582,7 @@ export const SLIDES_HELP_ENTRIES = [
     ribbon: { tab: "Chế độ xem", tabId: "view", group: "Dạng xem bản trình chiếu" },
     keywords: ["chế độ đọc", "reading view", "thước", "đường lưới", "đường hướng dẫn", "guides", "cửa sổ mới"],
     steps: [
-      "Tab Chế độ xem, nhóm Dạng xem bản trình chiếu: Chế độ đọc (nút lớn, cạnh Bình thường / Bộ sắp xếp / Ghi chú). Overlay «Dạng xem Đọc (Reading View)»: ‹ › đổi trang, «Trang n / N», ✕ Đóng. Esc thoát; ← / PageUp trước; → / PageDown / Space sau. Chỉ hiện tiêu đề và nội dung chữ đã thoát HTML — không hình, media, biểu đồ, cột 2, chân trang, hiệu ứng.",
+      "Tab Chế độ xem, nhóm Dạng xem bản trình chiếu: Chế độ đọc (nút lớn, cạnh Bình thường / Bộ sắp xếp / Ghi chú). Overlay «Dạng xem Đọc (Reading View)»: ‹ › đổi trang, «Trang n / N», ✕ Đóng. Esc thoát; ← / PageUp trước; → / PageDown / Space sau. Chỉ hiện tiêu đề và nội dung chữ — không hình, media, biểu đồ, cột 2, chân trang, hiệu ứng.",
       "Nhóm Hiển thị: Thước, Đường lưới, Đường hướng dẫn (ba nút bật/tắt, mặc định tắt). Thước SVG ngang+dọc, vạch 10 px, số 0 / 100 / 200… theo pixel (không phải cm). Lưới ô 20×20 px, không bắt dính hình.",
       "Đường hướng dẫn: đúng hai đường (dọc + ngang), mặc định tâm 480×270 trên khung 960×540. Kéo tay cầm «Kéo để chỉnh đường gióng dọc/ngang»; tooltip X/Y px, kẹp trong khổ trang. Không thêm/bớt đường, không tự căn lại khi đổi 4:3.",
       "Nhóm Cửa sổ: Cửa sổ mới mở tab cùng URL. Bị chặn pop-up: «Trình duyệt đã chặn cửa sổ mới. Hãy cho phép pop-up cho 3T Office.»"
@@ -608,9 +612,9 @@ export const SLIDES_HELP_ENTRIES = [
     ribbon: { tab: "Chèn", tabId: "insert", group: "Minh họa" },
     keywords: ["xoay", "xoay hình", "rotate", "tay cầm xoay", "rotation handle", "góc xoay", "đặt lại góc xoay"],
     steps: [
-      "Nhấp chọn một hình khối hoặc hình ảnh trên trang chiếu canvas. Xung quanh đối tượng sẽ xuất hiện 8 tay cầm co giãn, nút xóa màu đỏ ở góc trên-trái và một tay cầm xoay hình tròn nhỏ màu xanh dương ở phía trên đỉnh (nối bằng cần mảnh).",
+      "Nhấp chọn một hình khối hoặc hình ảnh trên trang chiếu vùng soạn thảo. Xung quanh đối tượng sẽ xuất hiện 8 tay cầm co giãn, nút xóa màu đỏ ở góc trên-trái và một tay cầm xoay hình tròn nhỏ màu xanh dương ở phía trên đỉnh (nối bằng cần mảnh).",
       "Rê chuột vào tay cầm xoay tròn: con trỏ chuyển thành hình bàn tay nắm (grab). Nhấn giữ chuột và kéo xoay quanh tâm đối tượng theo chiều kim đồng hồ hoặc ngược chiều kim đồng hồ.",
-      "Xoay từng bước 15° chuẩn xác: nhấn giữ phím Shift trong lúc kéo chuột để góc xoay tự động bắt dính vào các bội số 15° (15°, 30°, 45°, 60°, 90°...), tương tự như trong Microsoft PowerPoint. Một huy hiệu tooltip nhỏ hiển thị số độ hiện tại ngay cạnh tay cầm khi đang kéo giúp theo dõi góc xoay trực quan.",
+      "Xoay từng bước 15° chuẩn xác: nhấn giữ phím Shift trong lúc kéo chuột để góc xoay tự động bắt dính vào các bội số 15° (15°, 30°, 45°, 60°, 90°...), tương tự như trong phần mềm trình chiếu khác. Một huy hiệu tooltip nhỏ hiển thị số độ hiện tại ngay cạnh tay cầm khi đang kéo giúp theo dõi góc xoay trực quan.",
       "Con trỏ co giãn thông minh và nút xóa trực quan: Khi hình xoay ở bất kỳ góc nào, con trỏ chuột của 8 tay cầm tự động định hướng theo góc nhìn thực tế trên màn hình (ví dụ: tay cầm ở cạnh bên luôn hiển thị con trỏ kéo ngang ew-resize), và nút xóa tròn đỏ luôn giữ tư thế thẳng đứng dễ nhận biết.",
       "Kéo tay cầm về vị trí thẳng đứng ban đầu (hoặc gần 0°), góc xoay sẽ tự động đưa về mặc định không xoay.",
       "Đặt lại góc xoay về 0° nhanh chóng: nhấp chuột phải vào hình vẽ đã xoay để mở trình đơn ngữ cảnh, chọn «Đặt lại góc xoay (0°)».",
@@ -621,13 +625,13 @@ export const SLIDES_HELP_ENTRIES = [
     id: "slides.accessibility.keyboardNav",
     app: "slides",
     commandIds: ["common.file.backstage"],
-    title: "Điều hướng bằng bàn phím và trợ năng (3T Slide)",
+    title: "Điều hướng bằng bàn phím và trợ năng (Slide)",
     summary: "Thao tác hoàn toàn bằng bàn phím không cần dùng chuột trên trang chiếu: duyệt qua các đối tượng (tiêu đề, khối văn bản, hình vẽ) bằng phím Tab và Shift+Tab, dịch chuyển vị trí đối tượng bằng các phím mũi tên, mở menu Tệp bằng Alt+F và đóng bằng phím Escape.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Trợ năng" },
-    keywords: ["bàn phím", "phím tắt", "trợ năng", "accessibility", "keyboard", "focus", "tab", "shift+tab", "đối tượng", "slide", "mũi tên"],
+    keywords: ["bàn phím", "phím tắt", "trợ năng", "accessibility", "keyboard", "tiêu điểm", "tab", "shift+tab", "đối tượng", "slide", "mũi tên"],
     steps: [
       "Duyệt và chọn đối tượng trên slide: Nhấn phím Tab để lần lượt chọn các đối tượng trên trang trình chiếu hiện tại (hộp tiêu đề, nội dung văn bản, hình vẽ minh họa, biểu đồ...). Nhấn Shift+Tab để chọn lùi lại đối tượng trước. Đối tượng được chọn sẽ hiển thị viền chọn rõ ràng (is-selected).",
-      "Dịch chuyển đối tượng: Khi một hình khối hoặc hộp chữ đang được chọn, nhấn các phím mũi tên Lên/Xuống/Trái/Phải để dịch chuyển đối tượng từng bước chính xác trên trang canvas.",
+      "Dịch chuyển đối tượng: Khi một hình khối hoặc hộp chữ đang được chọn, nhấn các phím mũi tên Lên/Xuống/Trái/Phải để dịch chuyển đối tượng từng bước chính xác trên trang vùng soạn thảo.",
       "Chuyển đổi slide: Dùng Page Up để chuyển về trang slide trước và Page Down để chuyển sang trang slide kế tiếp. Nhấn Ctrl+Home để về trang slide đầu tiên và Ctrl+End để nhảy tới trang slide cuối cùng.",
       "Mở menu Tệp (Backstage) bằng Alt+F: Mở menu Tệp toàn màn hình với tiêu điểm đặt tại nút 'Quay lại'. Dùng mũi tên Lên/Xuống duyệt các lệnh Mới, Mở, Lưu, Xuất bản, mũi tên Phải để đi vào các mẫu trình chiếu và phím Escape để đóng menu.",
       "Duyệt Ribbon và hộp thoại: Dùng Tab và các phím mũi tên để chuyển tab và truy cập các nút lệnh; trong các hộp thoại chèn đối tượng, tiêu điểm luôn được bẫy an toàn và khôi phục khi nhấn Escape."
@@ -638,7 +642,7 @@ export const SLIDES_HELP_ENTRIES = [
     app: "slides",
     commandIds: ["common.macro.recordToggle", "common.macro.manager"],
     title: "Ghi và quản lý Macro trong bản trình chiếu",
-    summary: "Ghi lại chuỗi thao tác định dạng và xử lý slide trong 3T Slide để phát lại nhanh chóng. Sử dụng Ctrl+Shift+R để bật/dừng ghi và Alt+F8 để mở hộp thoại Quản lý Macro.",
+    summary: "Ghi lại chuỗi thao tác định dạng và xử lý slide trong Slide để phát lại nhanh chóng. Sử dụng Ctrl+Shift+R để bật/dừng ghi và Alt+F8 để mở hộp thoại Quản lý Macro.",
     ribbon: { tab: "Chế độ xem", tabId: "view", group: "Macro" },
     keywords: ["macro", "ghi macro", "dừng ghi", "quản lý macro", "xem macro", "tự động hóa", "record macro", "alt+f8", "ctrl+shift+r"],
     steps: [
@@ -646,7 +650,7 @@ export const SLIDES_HELP_ENTRIES = [
       "Thao tác trên slide: Thực hiện các lệnh trình chiếu muốn ghi lại (ví dụ: tạo slide mới, đổi bố cục slide, căn chỉnh hình vẽ, định dạng khối chữ...).",
       "Dừng ghi: Bấm nút «Dừng ghi» (hoặc Ctrl+Shift+R), nhập tên gợi nhớ cho Macro trong hộp thoại Lưu Macro và nhấn OK.",
       "Phát lại và chỉnh sửa: Bấm «Xem Macro» (hoặc Alt+F8) để mở hộp thoại Quản lý Macro. Nhấn «▶ Chạy» để thực thi lại chuỗi thao tác đã ghi trên trang chiếu hiện tại, hoặc chọn «Đổi tên», «Xóa» tùy ý.",
-      "Giới hạn trung thực: Macro chỉ ghi lại các thao tác lệnh có trong Command Bus của 3T Slide (bố cục, hình khối, định dạng). Macro không ghi lại văn bản gõ tay trực tiếp vào hộp chữ tự do. Macro được lưu riêng cho 3T Slide và phân tách độc lập với Writer và Sheet."
+      "Giới hạn trung thực: Macro chỉ ghi lại các thao tác lệnh có trong lệnh định dạng và chỉnh sửa của Slide (bố cục, hình khối, định dạng). Macro không ghi lại văn bản gõ tay trực tiếp vào hộp chữ tự do. Macro được lưu riêng cho Slide và phân tách độc lập với Writer và Sheet."
     ]
   },
   {
@@ -656,12 +660,12 @@ export const SLIDES_HELP_ENTRIES = [
     title: "Giới thiệu 3T Office và Giấy phép bản quyền",
     summary: "Xem thông tin phiên bản, bản quyền thương hiệu 3T Technology và danh sách các phần mềm nguồn mở bên thứ ba kèm giấy phép hợp pháp.",
     ribbon: { tab: "Trợ giúp", tabId: "help", group: "Trợ giúp" },
-    keywords: ["giới thiệu", "about", "phiên bản", "bản quyền", "3t office", "giấy phép", "nguồn mở", "third-party", "license", "3t slide"],
+    keywords: ["giới thiệu", "about", "phiên bản", "bản quyền", "3t office", "giấy phép", "nguồn mở", "third-party", "license", "slide"],
     steps: [
       "Mở tab Trợ giúp trên thanh ribbon, nhóm Trợ giúp rồi nhấn nút Giới thiệu (hoặc vào menu Tệp rồi chọn Giới thiệu).",
-      "Hộp thoại Giới thiệu 3T Office xuất hiện với logo nhận diện 3T và thông tin bộ ứng dụng 3T Office (3T Doc, 3T Sheet, 3T Slide).",
+      "Hộp thoại Giới thiệu 3T Office xuất hiện với logo nhận diện 3T và thông tin bộ ứng dụng 3T Office (Doc, Sheet, Slide).",
       "Quan sát số hiệu phiên bản hiện hành, nhà phát triển 3T Technology và các điều khoản bản quyền sở hữu.",
-      "Tra cứu danh sách phần mềm nguồn mở bên thứ ba (Python, LibreOffice Core, pywebview) và nhấn nút Xem toàn văn giấy phép nếu muốn đọc toàn văn THIRD-PARTY-NOTICES.",
+      "Tra cứu danh sách phần mềm nguồn mở bên thứ ba và nhấn nút Xem toàn văn giấy phép nếu muốn đọc thông báo giấy phép đầy đủ.",
       "Nhấn nút Đóng hoặc bấm phím Esc trên bàn phím để trở lại bài thuyết trình."
     ]
   },
@@ -672,12 +676,12 @@ export const SLIDES_HELP_ENTRIES = [
     title: "Bắt đầu nhanh: tạo, mở, lưu, in, xuất PDF",
     summary: "Bản trình chiếu mới có một trang chiếu với chỗ gợi ý xám «Bấm để thêm tiêu đề» và «Bấm để thêm văn bản». Dùng menu Tệp hoặc phím tắt để tạo mới, mở, lưu, lưu bản sao, in và xuất PDF.",
     ribbon: { tab: "Tệp", tabId: "file", group: "Bản trình chiếu" },
-    keywords: ["bắt đầu nhanh", "tạo mới", "mở tệp", "lưu", "lưu bản sao", "in", "xuất pdf", "ctrl+n", "ctrl+o", "ctrl+s", "f12", "ctrl+p", "trang chiếu trống", "3t slide"],
+    keywords: ["bắt đầu nhanh", "tạo mới", "mở tệp", "lưu", "lưu bản sao", "in", "xuất pdf", "ctrl+n", "ctrl+o", "ctrl+s", "f12", "ctrl+p", "trang chiếu trống", "slide"],
     steps: [
-      "Tạo bản mới: nhấn Ctrl+N hoặc menu Tệp > Mới. 3T Slide mở cửa sổ riêng tên Bản trình bày 2, Bản trình bày 3… với một trang chiếu trống. Chữ gợi ý xám trong khung tiêu đề và khung văn bản chỉ là hướng dẫn trên màn hình, không phải nội dung được lưu.",
+      "Tạo bản mới: nhấn Ctrl+N hoặc menu Tệp > Mới. Slide mở cửa sổ riêng tên Bản trình bày 2, Bản trình bày 3… với một trang chiếu trống. Chữ gợi ý xám trong khung tiêu đề và khung văn bản chỉ là hướng dẫn trên màn hình, không phải nội dung được lưu.",
       "Mở bản trình chiếu: nhấn Ctrl+O hoặc menu Tệp > Mở, chọn PPTX, PPT hoặc ODP. Nếu bản đang mở có thay đổi, chọn Lưu, Không lưu hoặc Hủy trước khi tiếp tục.",
       "Lưu (Ctrl+S): mở hộp thoại Lưu thành cho bản mới; với tệp đã mở/lưu, lệnh này giữ nguyên định dạng. Nhấn F12 để Lưu bản sao — nhập tên, chọn PPTX, PPT, ODP hoặc PDF ở Loại tệp. Khi lưu sang PPTX/PPT/ODP, tên tab và tiêu đề cửa sổ chuyển theo tệp mới; chọn PDF chỉ xuất bản sao và giữ nguyên bản trình chiếu đang mở.",
-      "In (Ctrl+P): xem trước từng trang chiếu. Chọn máy in, số bản và phạm vi trang rồi nhấn In; mỗi trang chiếu chiếm một trang in. Khi có Microsoft Office/WPS, dùng bộ dựng PDF đó; ngược lại LibreOffice.",
+      "In (Ctrl+P): xem trước từng trang chiếu. Chọn máy in, số bản và phạm vi trang rồi nhấn In; mỗi trang chiếu chiếm một trang in. Khi có phần mềm văn phòng khác, dùng bộ dựng PDF đó; ngược lại bộ dựng tích hợp của 3T Office.",
       "Xuất PDF: menu Tệp > Xuất PDF > chọn nơi lưu. Cùng đường dựng với In."
     ]
   },
@@ -694,9 +698,9 @@ export const SLIDES_HELP_ENTRIES = [
       "slides.shape.group", "slides.shape.ungroup"
     ],
     title: "Phím tắt thường dùng (15 phím tắt phổ biến nhất)",
-    summary: "15 phím tắt dùng nhiều nhất trong 3T Slide — tương thích Microsoft PowerPoint và LibreOffice Impress. Tất cả đã bind trong command-definitions.js; có hoàn tác (Ctrl+Z) khi áp dụng định dạng.",
+    summary: "Các phím tắt thường dùng giúp thao tác nhanh trong 3T Office: tạo tài liệu, định dạng, tìm kiếm và in. Xem từng bước bên dưới để chọn tổ hợp phím phù hợp. Có thể hoàn tác các thao tác chỉnh sửa được hỗ trợ, rồi làm lại khi cần.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Bảng nhớ tạm" },
-    keywords: ["phím tắt", "shortcut", "ctrl+n", "ctrl+o", "ctrl+s", "ctrl+p", "ctrl+z", "ctrl+y", "ctrl+x", "ctrl+c", "ctrl+v", "ctrl+a", "ctrl+f", "ctrl+h", "ctrl+m", "ctrl+d", "f5", "ctrl+b", "ctrl+i", "ctrl+u", "ctrl+e", "ctrl+l", "ctrl+r", "ctrl+j", "ctrl+g", "ctrl+shift+g", "3t slide"],
+    keywords: ["phím tắt", "shortcut", "ctrl+n", "ctrl+o", "ctrl+s", "ctrl+p", "ctrl+z", "ctrl+y", "ctrl+x", "ctrl+c", "ctrl+v", "ctrl+a", "ctrl+f", "ctrl+h", "ctrl+m", "ctrl+d", "f5", "ctrl+b", "ctrl+i", "ctrl+u", "ctrl+e", "ctrl+l", "ctrl+r", "ctrl+j", "ctrl+g", "ctrl+shift+g", "slide"],
     steps: [
       "Tạo mới: Ctrl+N  |  Mở: Ctrl+O  |  Lưu: Ctrl+S  |  In: Ctrl+P",
       "Hoàn tác: Ctrl+Z  |  Làm lại: Ctrl+Y",
@@ -713,15 +717,15 @@ export const SLIDES_HELP_ENTRIES = [
     id: "slides.differences",
     app: "slides",
     commandIds: ["slides.transition.apply", "slides.show.presenterMode", "slides.media.insertAudio"],
-    title: "Khác biệt cần biết (so với bộ Office khác)",
-    summary: "Một số tính năng nâng cao đang được hoàn thiện và sẽ cập nhật trong các bản vá tới. Các nút vẫn hiện trên ribbon đúng vị trí chuẩn; khi bấm sẽ hiện thông báo «Tính năng này đang được hoàn thiện và sẽ có trong bản cập nhật tới.»",
+    title: "Giới hạn cần biết khi trình chiếu",
+    summary: "Slide hỗ trợ chuyển tiếp, chế độ thuyết trình và chèn âm thanh có sẵn. Chuyển tiếp Morph áp dụng cho các hình phù hợp giữa hai trang. Chế độ thuyết trình hoạt động cục bộ; ứng dụng chưa phát bài qua mạng và chưa thu âm thuyết minh trực tiếp.",
     ribbon: { tab: "Chuyển tiếp", tabId: "transitions", group: "Hiệu ứng chuyển trang" },
-    keywords: ["khác biệt", "không có", "chưa hỗ trợ", "pending", "morph", "broadcast", "ghi âm", "thuyết minh", "laser", "online", "3t slide"],
+    keywords: ["khác biệt", "không có", "chưa hỗ trợ", "morph", "broadcast", "ghi âm", "thuyết minh", "laser", "online", "slide"],
     steps: [
-      "Hiệu ứng chuyển tiếp Morph (tab Chuyển tiếp > nhóm Hiệu ứng chuyển trang > Chuyển tiếp): hiện hỗ trợ Fade, Slide, Zoom, Flip — chưa có Morph (tự động phân tích và nội suy chuyển động hình khối cùng tên giữa hai trang liên tiếp). Dự kiến Patch 1.2.",
-      "Trình chiếu trực tuyến / Broadcast (tab Trình chiếu > nhóm Thiết lập > Chế độ Presenter): hiện có Presenter Mode 2 màn hình cục bộ (Alt+F5) — chưa hỗ trợ phát bài thuyết trình qua mạng nội bộ cho người xem qua trình duyệt. Dự kiến Patch 1.3.",
-      "Ghi âm thuyết minh trực tiếp (tab Chèn > nhóm Đa phương tiện > Âm thanh): hiện chỉ chèn file âm thanh từ máy tính — chưa có thu âm microphone trực tiếp trên từng trang chiếu. Dự kiến Patch 1.1.",
-      "Các nút này vẫn hiển thị trên ribbon đúng vị trí chuẩn Microsoft PowerPoint. Khi bấm vào, hệ thống sẽ hiển thị thông báo tiếng Việt rõ ràng thay vì thao tác câm. Ứng dụng này là 3T Slide, một phần của bộ 3T Office."
+      "Mở tab Chuyển tiếp > nhóm Hiệu ứng chuyển trang > Chuyển tiếp, chọn Morph. Hiệu ứng nối chuyển động của các hình phù hợp giữa hai trang liên tiếp; các đối tượng khác dùng hiệu ứng mờ. Nhấn F5 để kiểm tra kết quả.",
+      "Trình chiếu trực tuyến / Broadcast (tab Trình chiếu > nhóm Thiết lập > Chế độ Presenter): hiện có Presenter Mode 2 màn hình cục bộ (Alt+F5) — chưa hỗ trợ phát bài thuyết trình qua mạng nội bộ cho người xem qua trình duyệt.",
+      "Ghi âm thuyết minh trực tiếp (tab Chèn > nhóm Đa phương tiện > Âm thanh): hiện chỉ chèn file âm thanh từ máy tính — chưa có thu âm microphone trực tiếp trên từng trang chiếu.",
+      "Các nút này vẫn hiển thị trên ribbon đúng vị trí chuẩn phần mềm trình chiếu khác. Khi bấm vào, hệ thống sẽ hiển thị thông báo tiếng Việt rõ ràng thay vì thao tác câm. Ứng dụng này là Slide, một phần của bộ 3T Office."
     ]
   }
 ];

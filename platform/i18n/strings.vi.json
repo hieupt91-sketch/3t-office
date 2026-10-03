@@ -1,9 +1,9 @@
 {
   "app": {
     "suiteName": "3T Office",
-    "writer": "3T Doc (Soạn thảo)",
-    "sheet": "3T Sheet (Bảng tính)",
-    "slides": "3T Slide (Trình chiếu)"
+    "writer": "Doc (Soạn thảo)",
+    "sheet": "Sheet (Bảng tính)",
+    "slides": "Slide (Trình chiếu)"
   },
   "common": {
     "save": "Lưu tài liệu",
@@ -18,13 +18,14 @@
   },
   "backstage": {
     "home": "Trang chủ",
-    "new": "Tạo mới (Ctrl+N)",
-    "open": "Mở tệp (Ctrl+O)",
-    "save": "Lưu tài liệu (Ctrl+S)",
-    "saveAs": "Lưu bản sao (F12)",
-    "print": "In ấn (Ctrl+P)",
-    "exportPdf": "Xuất tệp PDF",
-    "close": "Đóng",
+    "new": "Mới (Ctrl+N)",
+    "open": "Mở (Ctrl+O)",
+    "save": "Lưu (Ctrl+S)",
+    "saveAs": "Lưu thành (F12)",
+    "print": "In (Ctrl+P)",
+    "exportPdf": "Xuất PDF",
+    "recent": "Tệp gần đây",
+    "close": "Đóng (Ctrl+W)",
     "options": "Tùy chọn",
     "account": "Tài khoản",
     "about": "Giới thiệu 3T Office",

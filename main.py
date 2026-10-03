@@ -6,6 +6,7 @@ cho các thao tác Mở/Lưu/Xuất PDF — cross-platform: Windows, Linux, macO
 """
 
 import http.server
+import atexit
 import inspect
 import json
 import os
@@ -137,6 +138,62 @@ _AUTORECOVER_STORE_MODULE = importlib.util.module_from_spec(_AUTORECOVER_STORE_S
 sys.modules[_AUTORECOVER_STORE_SPEC.name] = _AUTORECOVER_STORE_MODULE
 _AUTORECOVER_STORE_SPEC.loader.exec_module(_AUTORECOVER_STORE_MODULE)
 AutoRecoverStore = _AUTORECOVER_STORE_MODULE.AutoRecoverStore
+
+_PROCESS_TRACKER_PATH = Path(__file__).resolve().parent / "platform" / "process_lifecycle" / "process_tracker.py"
+_PROCESS_TRACKER_SPEC = importlib.util.spec_from_file_location("_vno_process_tracker", _PROCESS_TRACKER_PATH)
+if _PROCESS_TRACKER_SPEC is None or _PROCESS_TRACKER_SPEC.loader is None:
+    raise ImportError(f"Cannot load process tracker: {_PROCESS_TRACKER_PATH}")
+_PROCESS_TRACKER_MODULE = importlib.util.module_from_spec(_PROCESS_TRACKER_SPEC)
+sys.modules[_PROCESS_TRACKER_SPEC.name] = _PROCESS_TRACKER_MODULE
+_PROCESS_TRACKER_SPEC.loader.exec_module(_PROCESS_TRACKER_MODULE)
+ProcessTracker = _PROCESS_TRACKER_MODULE.ProcessTracker
+_PROCESS_TRACKER = None
+
+_PERFORMANCE_LOG_PATH = Path(__file__).resolve().parent / "platform" / "performance" / "performance_log.py"
+_PERFORMANCE_LOG_SPEC = importlib.util.spec_from_file_location("_vno_performance_log", _PERFORMANCE_LOG_PATH)
+if _PERFORMANCE_LOG_SPEC is None or _PERFORMANCE_LOG_SPEC.loader is None:
+    raise ImportError(f"Cannot load performance logger: {_PERFORMANCE_LOG_PATH}")
+_PERFORMANCE_LOG_MODULE = importlib.util.module_from_spec(_PERFORMANCE_LOG_SPEC)
+sys.modules[_PERFORMANCE_LOG_SPEC.name] = _PERFORMANCE_LOG_MODULE
+_PERFORMANCE_LOG_SPEC.loader.exec_module(_PERFORMANCE_LOG_MODULE)
+PerformanceLog = _PERFORMANCE_LOG_MODULE.PerformanceLog
+_PERFORMANCE_LOGGER = None
+
+
+def _initialize_process_tracker() -> ProcessTracker:
+    """Sweep only known app-owned PIDs, then publish this process as their owner."""
+    global _PROCESS_TRACKER
+    if _PROCESS_TRACKER is not None:
+        return _PROCESS_TRACKER
+    tracker = ProcessTracker(_user_data_dir())
+    swept = tracker.startup_sweep()
+    if swept.get("stopped"):
+        _startup_trace("orphan_processes_swept", **swept)
+    _PROCESS_TRACKER = tracker
+    global _PERFORMANCE_LOGGER
+    try:
+        _PERFORMANCE_LOGGER = PerformanceLog(_user_data_dir())
+    except OSError:
+        _PERFORMANCE_LOGGER = None
+    os.environ["VNO_PROCESS_TRACKER_STATE"] = str(tracker.state_path)
+    os.environ["VNO_PROCESS_TRACKER_ROOT_PID"] = str(tracker.root_pid)
+    os.environ["VNO_PROCESS_TRACKER_ROOT_CREATED_AT"] = str(tracker.root_created_at)
+    atexit.register(_cleanup_tracked_processes)
+    return tracker
+
+
+def _cleanup_tracked_processes() -> None:
+    tracker = _PROCESS_TRACKER
+    if tracker is None:
+        return
+    try:
+        result = tracker.cleanup()
+        if result.get("stopped"):
+            _startup_trace("tracked_processes_closed", **result)
+    except Exception as exc:
+        logging.getLogger("vnoffice.process_lifecycle").warning(
+            "Could not clean tracked child processes (%s).", type(exc).__name__
+        )
 
 _SINGLE_INSTANCE_PATH = Path(__file__).resolve().parent / "platform" / "single_instance.py"
 _SINGLE_INSTANCE_SPEC = importlib.util.spec_from_file_location("_vno_single_instance", _SINGLE_INSTANCE_PATH)
@@ -443,16 +500,134 @@ def _start_static_server():
 APP_DATA_DIR_NAME = "VNOffice"
 VALID_APP_KINDS = ("writer", "sheet", "slides")
 APP_TITLES = {
-    "writer": "3T Doc — Soạn thảo văn bản",
-    "sheet": "3T Sheet — Bảng tính",
-    "slides": "3T Slide — Trình chiếu",
+    "writer": "Doc",
+    "sheet": "Sheet",
+    "slides": "Slide",
 }
+TASKBAR_APP_USER_MODEL_IDS = {
+    "writer": "VNOffice.Writer",
+    "sheet": "VNOffice.Sheet",
+    "slides": "VNOffice.Slides",
+}
+TASKBAR_RELAUNCH_DISPLAY_NAMES = {"writer": "Doc", "sheet": "Sheet", "slides": "Slide"}
 SUITE_TITLE = "3T Office — Bộ Ứng Dụng Văn Phòng Việt"
 FILE_APP_KINDS = {
     ".docx": "writer", ".doc": "writer", ".odt": "writer", ".rtf": "writer", ".txt": "writer",
     ".xlsx": "sheet", ".xls": "sheet", ".ods": "sheet", ".csv": "sheet",
     ".pptx": "slides", ".ppt": "slides", ".odp": "slides",
 }
+
+
+def _taskbar_relaunch_info(app_kind: str) -> dict[str, str] | None:
+    """Return the stable per-app identity and short Windows taskbar relaunch label."""
+    app_user_model_id = TASKBAR_APP_USER_MODEL_IDS.get(app_kind)
+    display_name = TASKBAR_RELAUNCH_DISPLAY_NAMES.get(app_kind)
+    if not app_user_model_id or not display_name:
+        return None
+    command = subprocess.list2cmdline([
+        sys.executable,
+        "-s",
+        "-E",
+        str(Path(__file__).resolve()),
+        f"--app={app_kind}",
+    ])
+    return {
+        "app_user_model_id": app_user_model_id,
+        "display_name": display_name,
+        "command": command,
+    }
+
+
+def _set_windows_taskbar_relaunch_info(window, app_kind: str) -> bool:
+    """Set the window's explicit AppUserModelID and short taskbar relaunch name."""
+    if platform.system() != "Windows":
+        return False
+    info = _taskbar_relaunch_info(app_kind)
+    if info is None:
+        return False
+
+    class GUID(ctypes.Structure):
+        _fields_ = [
+            ("data1", ctypes.c_uint32),
+            ("data2", ctypes.c_uint16),
+            ("data3", ctypes.c_uint16),
+            ("data4", ctypes.c_ubyte * 8),
+        ]
+
+    class PROPERTYKEY(ctypes.Structure):
+        _fields_ = [("fmtid", GUID), ("pid", ctypes.c_uint32)]
+
+    class PROPVARIANT_VALUE(ctypes.Union):
+        _fields_ = [("pwszVal", ctypes.c_wchar_p), ("pointer", ctypes.c_void_p), ("padding", ctypes.c_uint64)]
+
+    class PROPVARIANT(ctypes.Structure):
+        _anonymous_ = ("value",)
+        _fields_ = [
+            ("vt", ctypes.c_ushort),
+            ("reserved1", ctypes.c_ushort),
+            ("reserved2", ctypes.c_ushort),
+            ("reserved3", ctypes.c_ushort),
+            ("value", PROPVARIANT_VALUE),
+        ]
+
+    property_format_id = GUID.from_buffer_copy(uuid.UUID("9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3").bytes_le)
+    property_store_iid = GUID.from_buffer_copy(uuid.UUID("886D8EEB-8CF2-4446-8D02-CDBA1DBDCF99").bytes_le)
+    property_values = (
+        (2, info["command"]),
+        (4, info["display_name"]),
+        (5, info["app_user_model_id"]),
+    )
+
+    property_store = ctypes.c_void_p()
+    try:
+        hwnd = int(window.native.Handle.ToInt64())
+        shell32 = ctypes.WinDLL("shell32", use_last_error=True)
+        get_property_store = shell32.SHGetPropertyStoreForWindow
+        get_property_store.argtypes = (
+            ctypes.c_void_p,
+            ctypes.POINTER(GUID),
+            ctypes.POINTER(ctypes.c_void_p),
+        )
+        get_property_store.restype = ctypes.c_long
+        result = get_property_store(hwnd, ctypes.byref(property_store_iid), ctypes.byref(property_store))
+        if result < 0:
+            raise OSError(f"SHGetPropertyStoreForWindow failed: HRESULT 0x{result & 0xFFFFFFFF:08X}")
+
+        vtable = ctypes.cast(property_store, ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p))).contents
+        set_value = ctypes.WINFUNCTYPE(
+            ctypes.c_long,
+            ctypes.c_void_p,
+            ctypes.POINTER(PROPERTYKEY),
+            ctypes.POINTER(PROPVARIANT),
+        )(vtable[6])
+        commit = ctypes.WINFUNCTYPE(ctypes.c_long, ctypes.c_void_p)(vtable[7])
+        for property_id, text_value in property_values:
+            key = PROPERTYKEY(property_format_id, property_id)
+            value = PROPVARIANT()
+            value.vt = 31  # VT_LPWSTR
+            value.pwszVal = text_value
+            result = set_value(property_store, ctypes.byref(key), ctypes.byref(value))
+            if result < 0:
+                raise OSError(
+                    f"IPropertyStore.SetValue({property_id}) failed: HRESULT 0x{result & 0xFFFFFFFF:08X}"
+                )
+        result = commit(property_store)
+        if result < 0:
+            raise OSError(f"IPropertyStore.Commit failed: HRESULT 0x{result & 0xFFFFFFFF:08X}")
+        return True
+    except Exception as exc:
+        logging.getLogger("vnoffice.taskbar").warning(
+            "Could not set the %s taskbar relaunch identity: %s", app_kind, exc,
+        )
+        return False
+    finally:
+        if property_store:
+            try:
+                vtable = ctypes.cast(property_store, ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p))).contents
+                release = ctypes.WINFUNCTYPE(ctypes.c_ulong, ctypes.c_void_p)(vtable[2])
+                release(property_store)
+            except Exception as exc:
+                logging.getLogger("vnoffice.taskbar").debug("Could not release the taskbar property store: %s", exc)
 
 
 def _user_data_dir() -> Path:
@@ -579,11 +754,11 @@ class _SofficeUnoWorker:
         python_path = self._python_path()
         if not python_path or not SOFFICE_PATH:
             raise _PersistentSofficeTransportError(
-                "Không tìm thấy Python/UNO đi kèm LibreOffice."
+                "Không khởi động được bộ xử lý tài liệu. Vui lòng cài lại 3T Office."
             )
         worker_path = Path(ROOT_DIR) / "adapters" / "libreoffice" / "common" / "soffice_uno_worker.py"
         if not worker_path.is_file():
-            raise _PersistentSofficeTransportError("Không tìm thấy helper UNO của 3T Office.")
+            raise _PersistentSofficeTransportError("Không tìm thấy bộ xử lý tài liệu. Vui lòng cài lại 3T Office.")
 
         pipe_name = f"vnoffice_{os.getpid()}_{uuid.uuid4().hex}"
         profile_uri = _profile_uri(self.app_kind)
@@ -609,6 +784,9 @@ class _SofficeUnoWorker:
         except OSError as exc:
             raise _PersistentSofficeTransportError(str(exc)) from exc
 
+        if _PROCESS_TRACKER is not None:
+            _PROCESS_TRACKER.register(self.process.pid, "uno-worker")
+
         reader = threading.Thread(target=self._read_responses, daemon=True, name="VNO UNO helper reader")
         reader.start()
         try:
@@ -617,9 +795,21 @@ class _SofficeUnoWorker:
             self.stop(grace_seconds=0.5)
             raise
         if not handshake.get("ready"):
-            message = handshake.get("error") or "LibreOffice UNO helper did not start."
+            message = handshake.get("error") or "Không khởi động được bộ xử lý tài liệu."
             self.stop(grace_seconds=0.5)
             raise _PersistentSofficeTransportError(str(message))
+        try:
+            soffice_pid = int(handshake.get("soffice_pid", 0))
+        except (TypeError, ValueError):
+            soffice_pid = 0
+        if _PROCESS_TRACKER is not None and soffice_pid > 0:
+            _PROCESS_TRACKER.register_tree(soffice_pid, "soffice")
+        if _PERFORMANCE_LOGGER is not None:
+            _PERFORMANCE_LOGGER.record(
+                "soffice_start", app=self.app_kind,
+                duration_ms=(time.perf_counter() - started) * 1000,
+                event="soffice_start",
+            )
         _open_perf_log(
             "worker_start_and_profile_ready",
             (time.perf_counter() - started) * 1000,
@@ -638,7 +828,7 @@ class _SofficeUnoWorker:
                     if isinstance(payload, dict):
                         self.responses.put(payload)
                 except (json.JSONDecodeError, TypeError):
-                    self.responses.put({"_protocol_error": "LibreOffice helper sent invalid JSON."})
+                    self.responses.put({"_protocol_error": "Bộ xử lý tài liệu gửi phản hồi không hợp lệ."})
         finally:
             self.responses.put(None)
 
@@ -646,11 +836,11 @@ class _SofficeUnoWorker:
         try:
             response = self.responses.get(timeout=timeout)
         except queue.Empty as exc:
-            raise _PersistentSofficeTransportError("Hết thời gian chờ phản hồi từ LibreOffice.") from exc
+            raise _PersistentSofficeTransportError("Hết thời gian chờ xử lý tài liệu.") from exc
         if response is None:
             code = self.process.poll() if self.process else None
             raise _PersistentSofficeTransportError(
-                f"LibreOffice UNO helper đã dừng (exit={code})."
+                f"Bộ xử lý tài liệu đã dừng. Vui lòng thử lại."
             )
         if response.get("_protocol_error"):
             raise _PersistentSofficeTransportError(str(response["_protocol_error"]))
@@ -666,7 +856,7 @@ class _SofficeUnoWorker:
     ) -> str:
         process = self.process
         if process is None or process.poll() is not None or process.stdin is None:
-            raise _PersistentSofficeTransportError("LibreOffice UNO helper is not running.")
+            raise _PersistentSofficeTransportError("Bộ xử lý tài liệu chưa sẵn sàng. Vui lòng thử lại.")
         request_id = uuid.uuid4().hex
         request = {
             "id": request_id,
@@ -686,9 +876,9 @@ class _SofficeUnoWorker:
         except (OSError, BrokenPipeError) as exc:
             raise _PersistentSofficeTransportError(str(exc)) from exc
         if response.get("id") != request_id:
-            raise _PersistentSofficeTransportError("LibreOffice UNO helper returned an unexpected response.")
+            raise _PersistentSofficeTransportError("Không nhận được kết quả xử lý tài liệu hợp lệ.")
         if not response.get("ok"):
-            raise _PersistentSofficeConversionError(str(response.get("error") or "UNO conversion failed"))
+            raise _PersistentSofficeConversionError(str(response.get("error") or "Không chuyển đổi được tài liệu."))
         _open_perf_log(
             "uno_load_and_store",
             (time.perf_counter() - started) * 1000,
@@ -700,7 +890,7 @@ class _SofficeUnoWorker:
     def operation(self, operation: str, payload: dict, timeout: float = 180) -> dict:
         process = self.process
         if process is None or process.poll() is not None or process.stdin is None:
-            raise _PersistentSofficeTransportError("LibreOffice UNO helper is not running.")
+            raise _PersistentSofficeTransportError("Bộ xử lý tài liệu chưa sẵn sàng. Vui lòng thử lại.")
         request_id = uuid.uuid4().hex
         request = {"id": request_id, "op": operation, **payload}
         started = time.perf_counter()
@@ -712,9 +902,9 @@ class _SofficeUnoWorker:
         except (OSError, BrokenPipeError) as exc:
             raise _PersistentSofficeTransportError(str(exc)) from exc
         if response.get("id") != request_id:
-            raise _PersistentSofficeTransportError("LibreOffice UNO helper returned an unexpected response.")
+            raise _PersistentSofficeTransportError("Không nhận được kết quả xử lý tài liệu hợp lệ.")
         if not response.get("ok"):
-            raise _PersistentSofficeConversionError(str(response.get("error") or "LibreOffice operation failed"))
+            raise _PersistentSofficeConversionError(str(response.get("error") or "Không xử lý được tài liệu."))
         _open_perf_log(
             f"uno_{operation}",
             (time.perf_counter() - started) * 1000,
@@ -803,7 +993,7 @@ class _PersistentSofficeManager:
             except Exception as exc:
                 last_error = exc
                 self._stop_locked()
-        raise _PersistentSofficeTransportError(str(last_error or "LibreOffice helper is unavailable"))
+        raise _PersistentSofficeTransportError(str(last_error or "Bộ xử lý tài liệu chưa sẵn sàng."))
 
     def prepare(self, app_kind: str) -> None:
         if app_kind not in {"writer", "sheet", "slides"} or not _PERSISTENT_SOFFICE_ENABLED:
@@ -896,8 +1086,8 @@ class _PersistentSofficeManager:
                 except Exception as retry_error:
                     self._stop_locked()
                     raise _PersistentSofficeTransportError(
-                        f"LibreOffice could not recover for {operation}: {retry_error} "
-                        f"(first error: {first_error})"
+                        f"Không thể tiếp tục xử lý tài liệu. "
+                        f"Hãy thử lại hoặc khởi động lại 3T Office."
                     ) from retry_error
             finally:
                 if operation == "print_pdf" and self._worker is worker:
@@ -1098,8 +1288,8 @@ def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind:
 
     if not SOFFICE_PATH:
         error = DocumentEngineError(
-            "Không tìm thấy LibreOffice engine (soffice). Vui lòng cài đặt LibreOffice "
-            "hoặc đặt biến môi trường VNOFFICE_SOFFICE_PATH trỏ tới soffice."
+            "Không tìm thấy bộ xử lý tài liệu. "
+            "Vui lòng cài lại 3T Office rồi thử lại."
         )
         report_conversion_failure(type(error).__name__, str(error))
         raise error
@@ -1183,7 +1373,7 @@ def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind:
                 )
                 if Path(persistent_path).is_file():
                     return persistent_path
-                raise _PersistentSofficeTransportError("UNO helper did not create its output file.")
+                raise _PersistentSofficeTransportError("Không tạo được tệp kết quả. Hãy thử lại.")
             except Exception as exc:
                 _open_perf_log("uno_fallback_to_convert_to", app=app_kind or "shared", error=str(exc)[:180])
                 # The output path was absent before UNO was called, so a partial
@@ -1206,13 +1396,13 @@ def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind:
 
     if result.returncode != 0:
         detail = (result.stderr or result.stdout or "").strip()[:500]
-        message = f"LibreOffice báo lỗi khi chuyển đổi: {detail or 'không rõ nguyên nhân'}"
+        message = f"Không chuyển đổi được tài liệu. Hãy kiểm tra tệp và thử lại."
         report_conversion_failure("SofficeExitError", message)
         raise DocumentEngineError(message)
 
     if not out_path.is_file():
         detail = (result.stdout or "").strip()[:500]
-        message = f"Không tạo được tệp đầu ra. Chi tiết: {detail or 'không rõ'}"
+        message = f"Không tạo được tệp đầu ra. Hãy kiểm tra tệp và thử lại."
         report_conversion_failure("SofficeOutputMissing", message)
         raise DocumentEngineError(message)
 
@@ -1879,7 +2069,7 @@ def _write_print_source(
         except DocumentEngineError:
             raise
         except Exception as exc:
-            raise DocumentEngineError(f"3T Sheet không chuẩn bị được phạm vi in: {exc}") from exc
+            raise DocumentEngineError(f"Sheet không chuẩn bị được phạm vi in: {exc}") from exc
     return native_path
 
 
@@ -1948,7 +2138,7 @@ def _export_content_to_pdf(
 def _print_pdf_to_target_file(pdf_path: str, printer: str, destination_path: str, app_kind: str) -> dict:
     """Use LibreOffice batch print-to-file for the Microsoft PDF printer without its prompt."""
     if not SOFFICE_PATH:
-        raise DocumentEngineError("Không tìm thấy LibreOffice engine để gửi lệnh in.")
+        raise DocumentEngineError("Bộ xử lý tài liệu chưa sẵn sàng để in. Vui lòng cài lại 3T Office.")
     destination = Path(destination_path).expanduser().resolve()
     if destination.suffix.lower() != ".pdf":
         destination = destination.with_suffix(".pdf")
@@ -1993,7 +2183,7 @@ def _print_pdf_to_target_file(pdf_path: str, printer: str, destination_path: str
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
-            raise RuntimeError(f"LibreOffice không hoàn tất lệnh in: {exc}") from exc
+            raise RuntimeError(f"Không hoàn tất lệnh in. Hãy kiểm tra máy in và thử lại.") from exc
         generated_pdf = output_dir / source_copy.name
         if completed.returncode != 0 or not generated_pdf.is_file() or generated_pdf.stat().st_size <= 0:
             detail = (completed.stderr or completed.stdout or "").strip()
@@ -2338,6 +2528,7 @@ def _on_single_instance_ownership_lost() -> None:
     try:
         _PERSISTENT_SOFFICE.shutdown()
     finally:
+        _cleanup_tracked_processes()
         os._exit(0)
 
 
@@ -2391,6 +2582,29 @@ def _extract_clipboard_html_fragment(raw: bytes) -> str:
     return ""
 
 
+def _extract_clipboard_html_with_styles(raw: bytes) -> str:
+    """Return the copied HTML body plus its Office stylesheet as a self-contained fragment."""
+    if not raw:
+        return ""
+    data = raw.rstrip(b"\x00")
+    start_html_match = re.search(rb"(?im)^StartHTML:\s*(\d+)\s*$", data)
+    end_html_match = re.search(rb"(?im)^EndHTML:\s*(\d+)\s*$", data)
+    html_document = data
+    if start_html_match and end_html_match:
+        start_html, end_html = int(start_html_match.group(1)), int(end_html_match.group(1))
+        if 0 <= start_html <= end_html <= len(data):
+            html_document = data[start_html:end_html]
+
+    decoded = html_document.decode("utf-8", errors="replace")
+    style_blocks = re.findall(r"<style\b[^>]*>[\s\S]*?</style\s*>", decoded, re.IGNORECASE)
+    body_match = re.search(r"<body\b[^>]*>([\s\S]*?)</body\s*>", decoded, re.IGNORECASE)
+    if body_match:
+        body = body_match.group(1)
+    else:
+        body = _extract_clipboard_html_fragment(raw) or decoded
+    return "\n".join(part for part in ("\n".join(style_blocks), body) if part).strip()
+
+
 def _read_windows_clipboard_data() -> dict[str, object]:
     """Read plain text and HTML locally from the Windows clipboard via Win32."""
     if os.name != "nt":
@@ -2437,8 +2651,74 @@ def _read_windows_clipboard_data() -> dict[str, object]:
         return {
             "status": "ok",
             "text": text,
-            "html": _extract_clipboard_html_fragment(html_bytes),
+            "html": _extract_clipboard_html_with_styles(html_bytes),
         }
+    finally:
+        user32.CloseClipboard()
+
+
+def _write_windows_clipboard_data(text: str = "", html: str = "") -> dict[str, object]:
+    """Write plain text and HTML locally to the Windows clipboard via Win32."""
+    if os.name != "nt":
+        return {"status": "error", "message": "Ghi bộ nhớ tạm hệ thống cần chạy 3T Office Desktop trên Windows."}
+
+    user32 = ctypes.WinDLL("user32", use_last_error=True)
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.GlobalAlloc.argtypes = [ctypes.c_uint, ctypes.c_size_t]
+    kernel32.GlobalAlloc.restype = ctypes.c_void_p
+    kernel32.GlobalLock.argtypes = [ctypes.c_void_p]
+    kernel32.GlobalLock.restype = ctypes.c_void_p
+    kernel32.GlobalUnlock.argtypes = [ctypes.c_void_p]
+    kernel32.GlobalUnlock.restype = ctypes.c_int
+    user32.OpenClipboard.argtypes = [ctypes.c_void_p]
+    user32.OpenClipboard.restype = ctypes.c_int
+    user32.CloseClipboard.argtypes = []
+    user32.CloseClipboard.restype = ctypes.c_int
+    user32.EmptyClipboard.argtypes = []
+    user32.EmptyClipboard.restype = ctypes.c_int
+    user32.SetClipboardData.argtypes = [ctypes.c_uint, ctypes.c_void_p]
+    user32.SetClipboardData.restype = ctypes.c_void_p
+    user32.RegisterClipboardFormatW.argtypes = [ctypes.c_wchar_p]
+    user32.RegisterClipboardFormatW.restype = ctypes.c_uint
+
+    GMEM_MOVEABLE = 0x0002
+    if not user32.OpenClipboard(None):
+        return {"status": "error", "message": "Không mở được bộ nhớ tạm Windows để ghi."}
+
+    try:
+        user32.EmptyClipboard()
+        if text:
+            encoded_text = (text + "\x00").encode("utf-16-le")
+            h_text = kernel32.GlobalAlloc(GMEM_MOVEABLE, len(encoded_text))
+            if h_text:
+                ptr = kernel32.GlobalLock(h_text)
+                if ptr:
+                    ctypes.memmove(ptr, encoded_text, len(encoded_text))
+                    kernel32.GlobalUnlock(h_text)
+                    user32.SetClipboardData(13, h_text)
+        if html:
+            tmpl = "Version:0.9\r\nStartHTML:{:08d}\r\nEndHTML:{:08d}\r\nStartFragment:{:08d}\r\nEndFragment:{:08d}\r\n"
+            prefix = "<html><body>\r\n<!--StartFragment-->"
+            suffix = "<!--EndFragment-->\r\n</body></html>"
+            dummy = tmpl.format(0, 0, 0, 0)
+            start_html = len(dummy.encode("utf-8"))
+            start_frag = start_html + len(prefix.encode("utf-8"))
+            end_frag = start_frag + len(html.encode("utf-8"))
+            end_html = end_frag + len(suffix.encode("utf-8"))
+            hdr = tmpl.format(start_html, end_html, start_frag, end_frag)
+            full = (hdr + prefix + html + suffix + "\x00").encode("utf-8")
+            fmt = int(user32.RegisterClipboardFormatW("HTML Format"))
+            if fmt:
+                h_html = kernel32.GlobalAlloc(GMEM_MOVEABLE, len(full))
+                if h_html:
+                    ptr = kernel32.GlobalLock(h_html)
+                    if ptr:
+                        ctypes.memmove(ptr, full, len(full))
+                        kernel32.GlobalUnlock(h_html)
+                        user32.SetClipboardData(fmt, h_html)
+        return {"status": "ok"}
+    except Exception as exc:
+        return {"status": "error", "message": str(exc)}
     finally:
         user32.CloseClipboard()
 
@@ -2464,6 +2744,12 @@ class VnOfficeApi:
         self._last_sheet_open_id: str | None = None
         self._print_pipeline = None
         self._print_pipeline_lock = threading.Lock()
+        self._performance_log = _PERFORMANCE_LOGGER
+        if self._performance_log is None:
+            try:
+                self._performance_log = PerformanceLog(_user_data_dir())
+            except OSError:
+                self._performance_log = None
         try:
             self._autorecover_store = AutoRecoverStore(_user_data_dir())
         except OSError:
@@ -2508,10 +2794,24 @@ class VnOfficeApi:
     def read_clipboard_data(self) -> dict[str, object]:
         """Đọc CF_UNICODETEXT và HTML Format từ clipboard Windows cục bộ."""
         try:
-            return _read_windows_clipboard_data()
+            result = _read_windows_clipboard_data()
+            print("__VNO_CLIPBOARD_PYTHON__ " + json.dumps({
+                "status": result.get("status"),
+                "textLength": len(result.get("text", "")),
+                "htmlLength": len(result.get("html", "")),
+                "htmlHasStyle": "<style" in result.get("html", "").lower(),
+                "htmlHasXNum": "x:num" in result.get("html", "").lower(),
+            }), flush=True)
+            return result
         except Exception as exc:
             return {"status": "error", "message": f"Không đọc được bộ nhớ tạm: {exc}"}
 
+    def write_clipboard_data(self, text: str = "", html: str = "") -> dict[str, object]:
+        """Ghi CF_UNICODETEXT và HTML Format vào clipboard Windows cục bộ."""
+        try:
+            return _write_windows_clipboard_data(text, html)
+        except Exception as exc:
+            return {"status": "error", "message": f"Không ghi được bộ nhớ tạm: {exc}"}
 
     def get_about_info(self) -> dict[str, object]:
         """Trả về thông tin bản quyền và danh sách phần mềm nguồn mở bên thứ ba."""
@@ -2546,14 +2846,14 @@ class VnOfficeApi:
             "developer": "3T Technology",
             "copyright": "© 2024–2026 3T Technology. All rights reserved.",
             "suite_components": [
-                {"name": "3T Doc", "role": "Soạn thảo văn bản và tài liệu hành chính"},
-                {"name": "3T Sheet", "role": "Bảng tính điện tử và phân tích số liệu"},
-                {"name": "3T Slide", "role": "Trình chiếu và thuyết trình đa phương tiện"}
+                {"name": "Doc", "role": "Soạn thảo văn bản và tài liệu hành chính"},
+                {"name": "Sheet", "role": "Bảng tính điện tử và phân tích số liệu"},
+                {"name": "Slide", "role": "Trình chiếu và thuyết trình đa phương tiện"}
             ],
             "third_party_notices": notices_text,
             "components": [
                 {"name": "Python", "version": "3.12", "license": "PSF License", "purpose": "Ngôn ngữ nền tảng & logic ứng dụng"},
-                {"name": "LibreOffice", "version": "7.6+", "license": "MPL-2.0", "purpose": "Lõi xử lý định dạng tài liệu ODF và OOXML"},
+                {"name": "LibreOffice", "version": "7.6+", "license": "MPL-2.0", "purpose": "Xử lý tài liệu"},
                 {"name": "pywebview", "version": "5.x", "license": "BSD-3-Clause", "purpose": "Khung hiển thị cửa sổ desktop native độc lập"},
                 {"name": "pythonnet & clr_loader", "version": "3.x", "license": "MIT", "purpose": "Cầu nối Windows .NET / WebView2"},
                 {"name": "cffi & pycparser", "version": "1.x", "license": "MIT / BSD-3-Clause", "purpose": "Giao tiếp nhị phân C native"},
@@ -2582,7 +2882,7 @@ class VnOfficeApi:
         return {"found": False, "version": APP_VERSION, "content": ""}
 
     def get_autorecover_settings(self):
-        return self._autorecover_store.get_settings() if self._autorecover_store else {"enabled": True, "interval_minutes": 5}
+        return self._autorecover_store.get_settings() if self._autorecover_store else {"enabled": True, "interval_minutes": 2}
 
     def set_autorecover_settings(self, settings):
         try:
@@ -2627,6 +2927,38 @@ class VnOfficeApi:
                 return False
         self._autorecover_session_closed = True
         return True
+
+    def get_performance_log_settings(self):
+        if not self._performance_log:
+            return {"enabled": False}
+        return self._performance_log.get_settings()
+
+    def set_performance_log_settings(self, settings):
+        if not self._performance_log:
+            return {"status": "error", "message": "Không thể mở thư mục nhật ký hiệu năng cục bộ."}
+        try:
+            return self._performance_log.set_settings(settings)
+        except OSError as exc:
+            return {"status": "error", "message": f"Không thể lưu tùy chọn nhật ký hiệu năng: {exc}"}
+
+    def open_performance_log_folder(self):
+        if not self._performance_log:
+            return {"status": "error", "message": "Không thể mở thư mục nhật ký hiệu năng cục bộ."}
+        try:
+            folder = self._performance_log.folder_path()
+            if os.name == "nt":
+                os.startfile(folder)
+            elif platform.system() == "Darwin":
+                process = subprocess.Popen(["open", folder], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                if _PROCESS_TRACKER is not None:
+                    _PROCESS_TRACKER.register(process.pid, "open-performance-folder")
+            else:
+                process = subprocess.Popen(["xdg-open", folder], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                if _PROCESS_TRACKER is not None:
+                    _PROCESS_TRACKER.register(process.pid, "open-performance-folder")
+            return {"status": "ok", "path": folder}
+        except (OSError, AttributeError) as exc:
+            return {"status": "error", "message": f"Không mở được thư mục nhật ký: {exc}"}
 
     def _prune_sheet_open_sessions(self):
         now = time.monotonic()
@@ -2752,13 +3084,16 @@ class VnOfficeApi:
         started_at = time.monotonic()
         self._reporting_file_path = self._current_file_path or self._initial_file
         self._reporting_operation = self._default_operation(method_name, method, args, kwargs)
+        operation_result = "error"
         if outermost:
             _ERROR_REPORT_CONTEXT.active = True
             _ERROR_REPORT_CONTEXT.failure_reported = False
         try:
             try:
                 result = method(*args, **kwargs)
+                operation_result = str(result.get("status") or "ok") if isinstance(result, dict) else "ok"
             except Exception as exc:
+                operation_result = "error"
                 if outermost and not getattr(_ERROR_REPORT_CONTEXT, "failure_reported", False):
                     self._record_api_failure(exc, started_at)
                 raise
@@ -2774,6 +3109,25 @@ class VnOfficeApi:
                 )
             return result
         finally:
+            if outermost and self._performance_log is not None:
+                performance_operation = {
+                    "open_document_dialog": "open",
+                    "save_document_in_place": "save",
+                    "save_document_dialog": "export_pdf" if kwargs.get("target_format") == "pdf" or (len(args) > 2 and args[2] == "pdf") else "save",
+                    "export_pdf_dialog": "export_pdf",
+                    "prepare_print_document": "print_prepare",
+                    "print_document": "print",
+                }.get(method_name)
+                if performance_operation:
+                    try:
+                        self._performance_log.record(
+                            performance_operation,
+                            app=self._reporting_app_kind or self._app_kind or "suite",
+                            duration_ms=(time.monotonic() - started_at) * 1000,
+                            outcome=operation_result,
+                        )
+                    except Exception:
+                        pass
             self._api_report_depth -= 1
             if outermost:
                 _ERROR_REPORT_CONTEXT.active = False
@@ -2830,7 +3184,7 @@ class VnOfficeApi:
         try:
             return self._get_print_pipeline().preview_page(session_id, page_number)
         except Exception as exc:
-            return {"status": "error", "message": f"Không tải được trang xem trước: {exc}"}
+            return {"status": "error", "message": f"Không tải được trang xem trước. Hãy đóng hộp thoại In và thử lại."}
 
     def get_installed_printers(self):
         return _get_print_pipeline_module().list_installed_printers()
@@ -3105,6 +3459,17 @@ class VnOfficeApi:
                 _UPDATE_RESTART_CONDITION.notify_all()
 
         def close_all_windows():
+            # The apply helper waits for every process of this install; stop the warm LibreOffice
+            # worker and the hidden Office print sessions first so no orphan survives (CH-9.4).
+            try:
+                self.close_print_sessions()
+                _PERSISTENT_SOFFICE.shutdown()
+            except Exception:
+                logging.getLogger("vnoffice.updater").warning(
+                    "Could not stop the document engine before the update restart.", exc_info=True
+                )
+            finally:
+                _cleanup_tracked_processes()
             for api, window in app_windows:
                 api._allow_window_close = True
                 try:
@@ -3518,7 +3883,7 @@ class VnOfficeApi:
                     if src_path.lower().endswith(".xlsx") and original_xlsx is not None:
                         patcher = _ooxml_zip_patch()
                         if _sheet_open_payload_enabled():
-                            _notify_sheet_open_progress("Đang đóng gói dữ liệu để nạp nhanh vào 3T Sheet…", api=self)
+                            _notify_sheet_open_progress("Đang đóng gói dữ liệu để nạp nhanh vào Sheet…", api=self)
                             try:
                                 from adapters.libreoffice.sheet.sheet_open_payload import build_sheet_open_payload
                                 final_fods, sheet_open_payload = build_sheet_open_payload(
@@ -3701,7 +4066,7 @@ class VnOfficeApi:
                     "content": fods_content,
                 }
             except Exception as exc:
-                return {"status": "error", "message": f"Không chuyển đổi được tệp {file_name}: {exc}"}
+                return {"status": "error", "message": f"Không đọc được tệp bảng tính {file_name}. Hãy kiểm tra tệp và thử lại."}
 
         return {"status": "error", "message": f"Định dạng tệp không được hỗ trợ: {ext}"}
 
@@ -3727,7 +4092,7 @@ class VnOfficeApi:
         except DocumentEngineError as exc:
             return {"status": "error", "message": str(exc)}
         except Exception as exc:
-            return {"status": "error", "message": f"Lỗi không xác định khi lưu tệp: {exc}"}
+            return {"status": "error", "message": f"Không lưu được tệp. Hãy kiểm tra quyền ghi, dung lượng trống và thử lại."}
 
         self._current_file_path = target_path
         return {"status": "ok", "message": f"Đã lưu tại {target_path}", "path": target_path}
@@ -3808,7 +4173,7 @@ class VnOfficeApi:
         except DocumentEngineError as exc:
             return {"status": "error", "message": str(exc)}
         except Exception as exc:
-            return {"status": "error", "message": f"Lỗi không xác định khi lưu tệp: {exc}"}
+            return {"status": "error", "message": f"Không lưu được tệp. Hãy kiểm tra quyền ghi, dung lượng trống và thử lại."}
 
         self._current_file_path = dest_path
         response = {"status": "ok", "message": f"Đã lưu tại {dest_path}", "path": dest_path}
@@ -4113,6 +4478,8 @@ def main(argv: list[str] | None = None):
         print(f"[3T Office] {exc}", file=sys.stderr)
         return 2
 
+    _initialize_process_tracker()
+
     restore_documents = []
     for argument in launch_argv:
         if not argument.startswith("--restore-document="):
@@ -4251,14 +4618,30 @@ def main(argv: list[str] | None = None):
             name=f"3T Office {app_kind} window router",
         ).start()
 
-    # Set Windows AppUserModelID so the taskbar groups and shows the app's specific icon
+    # Set Windows AppUserModelID so the taskbar groups and shows the app's specific icon;
+    # short pin labels (Doc/Sheet/Slide) are set on the native window below.
     if platform.system() == "Windows":
         try:
-            import ctypes
-            aumid = f"VNOffice.{app_kind.capitalize() if app_kind in VALID_APP_KINDS else 'Suite'}"
-            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(aumid)
-        except Exception:
-            pass
+            set_app_id = ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID
+            set_app_id.argtypes = (ctypes.c_wchar_p,)
+            set_app_id.restype = ctypes.c_long
+            aumid = TASKBAR_APP_USER_MODEL_IDS.get(app_kind, "VNOffice.Suite")
+            result = set_app_id(aumid)
+            if result < 0:
+                raise OSError(f"SetCurrentProcessExplicitAppUserModelID failed: HRESULT 0x{result & 0xFFFFFFFF:08X}")
+        except Exception as exc:
+            logging.getLogger("vnoffice.taskbar").warning("Could not set the taskbar process identity: %s", exc)
+
+    if app_kind in TASKBAR_RELAUNCH_DISPLAY_NAMES:
+        def set_taskbar_relaunch_info(*_args):
+            _set_windows_taskbar_relaunch_info(window, app_kind)
+
+        try:
+            window.events.shown += set_taskbar_relaunch_info
+        except Exception as exc:
+            logging.getLogger("vnoffice.taskbar").warning(
+                "Could not register the %s taskbar relaunch identity: %s", app_kind, exc,
+            )
 
     icon_name = f"{app_kind}.ico" if app_kind in VALID_APP_KINDS else "vnoffice.ico"
     icon_path = os.path.join(ROOT_DIR, "branding", "icons", icon_name)
@@ -4301,6 +4684,7 @@ def main(argv: list[str] | None = None):
             _PERSISTENT_SOFFICE.shutdown()
             _startup_trace("lo_worker_shutdown_complete", app=app_kind)
         finally:
+            _cleanup_tracked_processes()
             if instance_server is not None:
                 instance_server.release_owner_lock()
             try:

@@ -63,9 +63,18 @@ def check_excel_cell_com(file_path, expected_value=None):
         else 'Write-Output "FOUND"'
     )
     ps_cmd = f"""
-    Get-Process EXCEL -ErrorAction SilentlyContinue | Stop-Process -Force
-    Start-Sleep -Milliseconds 500
+    $before = @(Get-Process -Name EXCEL -ErrorAction SilentlyContinue | ForEach-Object {{ $_.Id }})
     $xl = New-Object -ComObject Excel.Application
+    $ownedPid = 0
+    for ($i = 0; $i -lt 30 -and $ownedPid -eq 0; $i++) {{
+        $created = @(Get-Process -Name EXCEL -ErrorAction SilentlyContinue | Where-Object {{ $before -notcontains $_.Id }})
+        if ($created.Count -gt 0) {{ $ownedPid = [int]$created[0].Id }} else {{ Start-Sleep -Milliseconds 100 }}
+    }}
+    if ($ownedPid -eq 0) {{
+        [System.Runtime.InteropServices.Marshal]::ReleaseComObject($xl) | Out-Null
+        Write-Output "ERROR: Excel không tạo được process riêng, các instance Excel đang mở không bị đóng"
+        return
+    }}
     $xl.DisplayAlerts = $false
     $xl.Visible = $false
     try {{
@@ -93,8 +102,11 @@ def check_excel_cell_com(file_path, expected_value=None):
     }} catch {{
         Write-Output "ERROR: $($_.Exception.Message)"
     }} finally {{
-        $xl.Quit()
+        try {{ $xl.Quit() }} catch {{ }}
         [System.Runtime.InteropServices.Marshal]::ReleaseComObject($xl) | Out-Null
+        for ($i = 0; $i -lt 20 -and (Get-Process -Id $ownedPid -ErrorAction SilentlyContinue); $i++) {{ Start-Sleep -Milliseconds 100 }}
+        $owned = Get-Process -Id $ownedPid -ErrorAction SilentlyContinue
+        if ($owned) {{ Stop-Process -Id $ownedPid -Force -ErrorAction SilentlyContinue }}
     }}
     """
     res = subprocess.run(

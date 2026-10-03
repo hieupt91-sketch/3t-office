@@ -1,5 +1,5 @@
 # Build a portable 3T Office pilot package (Windows x64).
-# Output: <OutDir>\VNOffice-<Version>\ (app + bundled Python + bundled LibreOffice) and, with -Zip, a .zip next to it.
+# Output: <OutDir>\VNOffice-<Version>\ (app + bundled Python + bundled LibreOffice, Doc/Sheet/Slide launchers) and, with -Zip, a .zip next to it.
 # No new build dependency: copies the local CPython install (PSF), the runtime packages pywebview needs
 # (pywebview BSD, pythonnet MIT, clr_loader MIT, cffi MIT, pycparser BSD, bottle MIT, proxy_tools MIT,
 # typing_extensions PSF) and a LibreOffice install (MPL-2.0). Never packages tests, docs, sample or real documents.
@@ -155,6 +155,26 @@ $fontLicense = Join-Path $appDir "platform\theme\fonts\OFL.txt"
 if (Test-Path -LiteralPath $fontLicense) { Copy-Item -LiteralPath $fontLicense -Destination (Join-Path $notices "BeVietnamPro-OFL.txt") }
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot "install-pilot.ps1") -Destination $dist
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot "pilot\CAI-DAT.txt") -Destination $dist
+
+# Keep the portable package's launcher names and its install guide in sync with the bundled installer script.
+$packagedPilotInstaller = [System.IO.File]::ReadAllText((Join-Path $dist "install-pilot.ps1"), [System.Text.Encoding]::ASCII)
+$packagedPilotGuide = [System.IO.File]::ReadAllText((Join-Path $dist "CAI-DAT.txt"), [System.Text.Encoding]::UTF8)
+foreach ($launcher in @("Doc", "Sheet", "Slide")) {
+    if ($packagedPilotInstaller -notmatch ('Name = "' + [regex]::Escape($launcher) + '"')) {
+        throw "Portable installer is missing the expected $launcher shortcut name."
+    }
+    if ($packagedPilotGuide -notmatch ('\b' + [regex]::Escape($launcher) + '\b')) {
+        throw "Portable install guide is missing the $launcher shortcut instructions."
+    }
+}
+if ($packagedPilotGuide -notmatch 'Start Menu > 3T Office') {
+    throw "Portable install guide is missing the Start Menu > 3T Office path."
+}
+foreach ($previousName in @("3T Doc", "3T Sheet", "3T Slide")) {
+    if ($packagedPilotInstaller -notmatch [regex]::Escape($previousName)) {
+        throw "Portable installer is missing cleanup for the previous $previousName shortcut."
+    }
+}
 
 # 5. Optional zip.
 if ($Zip) {

@@ -12,6 +12,11 @@ import { getVnCommand } from "../common/command-dispatch-mapper.js";
 import { overlayFodsStructureProtection } from "./xlsx-workbook-protection.js";
 import { overlayActiveSheetToFods } from "./xlsx-active-sheet.js";
 import { buildSheetPayloadModel } from "./sheet-payload-parser.js";
+import {
+  parseOfficeHtmlTable,
+  parseOfficeTsv,
+  serializeSheetRangeToClipboard
+} from "../../../platform/clipboard/office-clipboard.js";
 import { extractSheetRangeData } from "../../../apps/sheet/sheet-chart-data.js";
 
 export function numberFormatFromExcelCode(code) {
@@ -216,8 +221,8 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("common.edit.repeat", () => this.grid.redo ? this.grid.redo() : false);
     globalCommandBus.bindHandler("common.edit.copy", () => this._copySelectedCell(false));
     globalCommandBus.bindHandler("common.edit.cut", () => this._copySelectedCell(true));
-    globalCommandBus.bindHandler("common.edit.paste", () => this._pasteIntoSelectedCell());
-    globalCommandBus.bindHandler("common.edit.pastePlain", () => this._pasteIntoSelectedCell());
+    globalCommandBus.bindHandler("common.edit.paste", () => this._pasteIntoSelectedCell(false));
+    globalCommandBus.bindHandler("common.edit.pastePlain", () => this._pasteIntoSelectedCell(true));
     globalCommandBus.bindHandler("sheet.edit.pasteSpecial", () => this._openPasteSpecialFromClipboard());
     this._bindNativeClipboardEvents();
     globalCommandBus.bindHandler("sheet.edit.formatPainter", (args) => this.grid.toggleFormatPainter?.(args || {}));
@@ -306,6 +311,9 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.review.spellCheck", (args) => {
       args = args || {};
       return this.grid.showSpellcheckDialog(args);
+    });
+    globalCommandBus.bindHandler("sheet.review.toggleSpellCheck", () => {
+      return this.grid.toggleSpellcheck ? this.grid.toggleSpellcheck() : false;
     });
     globalShortcutManager.bind("F7", "sheet.review.spellCheck", "sheet");
     globalShortcutManager.bind("F1", "sheet.help.open", "sheet");
@@ -528,14 +536,16 @@ export class SheetAdapter {
     try {
       showFindReplaceDialog({
         isReplace: !!isReplace,
-        onFind: (text) => this.grid.findNext ? this.grid.findNext(text) : false,
-        onReplace: (findText, replaceText) => {
+        app: "sheet",
+        onFind: (text, options) => this.grid.findNext ? this.grid.findNext(text, options) : false,
+        onFindPrev: (text, options) => this.grid.findPrev ? this.grid.findPrev(text, options) : false,
+        onReplace: (findText, replaceText, options) => {
           if (!findText) return false;
-          return this.grid.replaceOne ? this.grid.replaceOne(findText, replaceText) : false;
+          return this.grid.replaceOne ? this.grid.replaceOne(findText, replaceText, options) : false;
         },
-        onReplaceAll: (findText, replaceText) => {
+        onReplaceAll: (findText, replaceText, options) => {
           if (!findText) return 0;
-          return this.grid.replaceAll ? this.grid.replaceAll(findText, replaceText) : 0;
+          return this.grid.replaceAll ? this.grid.replaceAll(findText, replaceText, options) : 0;
         }
       });
     } catch (_) {
@@ -684,6 +694,56 @@ export class SheetAdapter {
     return null;
   }
 
+  _findTagBlockByAttr(xml, tagName, attrName, attrValue) {
+    if (!attrValue) return null;
+    const escapedTag = tagName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(`<${escapedTag}\\b([^>]*)>([\\s\\S]*?)<\\/${escapedTag}>`, "gi");
+    let match;
+    while ((match = re.exec(xml)) !== null) {
+      const attrs = this._parseTagAttrs(match[1]);
+      if (attrs[attrName] === attrValue) return { attrs, body: match[2] };
+    }
+    return null;
+  }
+
+  _parseOdfHeaderFooter(masterPageBody) {
+    const fieldTokens = [
+      ["page-number", "&P"], ["page-count", "&N"], ["date", "&D"],
+      ["time", "&T"], ["file-name", "&F"], ["sheet-name", "&A"]
+    ];
+    const plainText = value => {
+      let text = String(value || "");
+      for (const [tag, token] of fieldTokens) {
+        const escaped = tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        text = text
+          .replace(new RegExp(`<text:${escaped}\\b[^>]*\\/>`, "gi"), token)
+          .replace(new RegExp(`<text:${escaped}\\b[^>]*>[\\s\\S]*?<\\/text:${escaped}>`, "gi"), token);
+      }
+      text = text.replace(/<text:s\b([^>]*)\/>/gi, (_, attrs) => {
+        const count = Number(this._parseTagAttrs(attrs)["text:c"] || 1);
+        return " ".repeat(Math.max(1, Math.min(count, 100)));
+      });
+      text = text.replace(/<text:tab\b[^>]*\/>/gi, "\t").replace(/<text:line-break\b[^>]*\/>/gi, "\n");
+      return this._unescapeXml(text.replace(/<[^>]+>/g, "")).replace(/\r/g, "").trim();
+    };
+    const parseSection = kind => {
+      const block = String(masterPageBody || "").match(new RegExp(`<style:${kind}(?=[\\s>])[^>]*>([\\s\\S]*?)<\\/style:${kind}>`, "i"));
+      const result = { left: "", center: "", right: "" };
+      if (!block) return result;
+      let hasRegions = false;
+      for (const position of ["left", "center", "right"]) {
+        const region = block[1].match(new RegExp(`<style:region-${position}(?=[\\s>])[^>]*>([\\s\\S]*?)<\\/style:region-${position}>`, "i"));
+        if (region) {
+          hasRegions = true;
+          result[position] = plainText(region[1]);
+        }
+      }
+      if (!hasRegions) result.center = plainText(block[1]);
+      return result;
+    };
+    return { header: parseSection("header"), footer: parseSection("footer") };
+  }
+
   /** Quy đổi một độ dài ODF (vd "2.5cm", "0.75in", "10pt") về cm - LibreOffice luôn ghi cm trong FODS nhưng file từ nguồn khác có thể dùng đơn vị khác. */
   _odfLengthToCm(raw) {
     const match = String(raw || "").match(/^(-?[\d.]+)\s*(cm|mm|in|pt|px)?$/i);
@@ -708,7 +768,8 @@ export class SheetAdapter {
     const tableStyleAttrs = this._findTagAttrsByAttr(xml, "style:style", "style:name", tableStyleName);
     const masterPageName = tableStyleAttrs?.["style:master-page-name"];
     if (!masterPageName) return null;
-    const masterPageAttrs = this._findTagAttrsByAttr(xml, "style:master-page", "style:name", masterPageName);
+    const masterPageBlock = this._findTagBlockByAttr(xml, "style:master-page", "style:name", masterPageName);
+    const masterPageAttrs = masterPageBlock?.attrs || this._findTagAttrsByAttr(xml, "style:master-page", "style:name", masterPageName);
     const pageLayoutName = masterPageAttrs?.["style:page-layout-name"];
     if (!pageLayoutName) return null;
     const escapedLayoutName = pageLayoutName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -739,9 +800,15 @@ export class SheetAdapter {
       if (best && bestDelta < 1.5) size = best;
     }
 
-    const printTokens = (props["style:print"] || "").split(/\s+/).filter(Boolean);
+    const tableStyleBlock = this._findTagBlockByAttr(xml, "style:style", "style:name", tableStyleName);
+    const tablePropsMatch = tableStyleBlock?.body?.match(/<style:table-properties\b([^>]*)\/?>/i);
+    const tableProps = this._parseTagAttrs(tablePropsMatch?.[1] || "");
+    const printTokens = (props["style:print"] || tableProps["style:print"] || "").split(/\s+/).filter(Boolean);
     const centering = props["style:table-centering"] || "none";
     const scalePercent = parseInt(props["style:scale-to"], 10);
+    const hasPageAxes = props["style:scale-to-X"] !== undefined || props["style:scale-to-Y"] !== undefined;
+    const pagesWide = parseInt(props["style:scale-to-X"], 10);
+    const pagesTall = parseInt(props["style:scale-to-Y"], 10);
 
     return {
       size,
@@ -753,11 +820,12 @@ export class SheetAdapter {
         right: this._odfLengthToCm(props["fo:margin-right"]) ?? 1.78
       },
       scale: {
-        mode: "percent",
+        mode: hasPageAxes ? "pages" : "percent",
         percent: Number.isFinite(scalePercent) && scalePercent > 0 ? scalePercent : 100,
-        pagesWide: 1,
-        pagesTall: 0
+        pagesWide: Number.isFinite(pagesWide) && pagesWide >= 0 ? pagesWide : 1,
+        pagesTall: Number.isFinite(pagesTall) && pagesTall >= 0 ? pagesTall : 0
       },
+      headerFooter: this._parseOdfHeaderFooter(masterPageBlock?.body || ""),
       centerOnPage: {
         horizontal: centering === "horizontal" || centering === "both",
         vertical: centering === "vertical" || centering === "both"
@@ -4246,7 +4314,7 @@ ${pristineXlsxMarker}
             orientation: table.getAttribute("vno:page-orientation") || standardLayout?.orientation || "portrait",
             margins: { top: 1.91, bottom: 1.91, left: 1.78, right: 1.78, ...(standardLayout?.margins || {}), ...pageMargins },
             scale: { mode: "percent", percent: 100, pagesWide: 1, pagesTall: 0, ...(standardLayout?.scale || {}), ...pageScale },
-            headerFooter: { header: { left: "", center: "", right: "", ...(pageHeaderFooter.header || {}) }, footer: { left: "", center: "Trang &P / &N", right: "", ...(pageHeaderFooter.footer || {}) } },
+            headerFooter: { header: { left: "", center: "", right: "", ...(standardLayout?.headerFooter?.header || {}), ...(pageHeaderFooter.header || {}) }, footer: { left: "", center: "Trang &P / &N", right: "", ...(standardLayout?.headerFooter?.footer || {}), ...(pageHeaderFooter.footer || {}) } },
             centerOnPage: { horizontal: false, vertical: false, ...(standardLayout?.centerOnPage || {}), ...pageCentering },
             printOptions: { gridlines: false, headings: false, ...(standardLayout?.printOptions || {}), ...pagePrintOptions },
             printTitles: { rows: table.getAttribute("vno:print-title-rows") || "", cols: table.getAttribute("vno:print-title-cols") || "" }
@@ -4536,7 +4604,7 @@ ${pristineXlsxMarker}
           orientation: pageAttr("vno:page-orientation") || standardLayout?.orientation || "portrait",
           margins: { top: 1.91, bottom: 1.91, left: 1.78, right: 1.78, ...(standardLayout?.margins || {}), ...pageMargins },
           scale: { mode: "percent", percent: 100, pagesWide: 1, pagesTall: 0, ...(standardLayout?.scale || {}), ...pageScale },
-          headerFooter: { header: { left: "", center: "", right: "", ...(pageHeaderFooter.header || {}) }, footer: { left: "", center: "Trang &P / &N", right: "", ...(pageHeaderFooter.footer || {}) } },
+          headerFooter: { header: { left: "", center: "", right: "", ...(standardLayout?.headerFooter?.header || {}), ...(pageHeaderFooter.header || {}) }, footer: { left: "", center: "Trang &P / &N", right: "", ...(standardLayout?.headerFooter?.footer || {}), ...(pageHeaderFooter.footer || {}) } },
           centerOnPage: { horizontal: false, vertical: false, ...(standardLayout?.centerOnPage || {}), ...pageCentering },
           printOptions: { gridlines: false, headings: false, ...(standardLayout?.printOptions || {}), ...pagePrintOptions },
           printTitles: { rows: pageAttr("vno:print-title-rows"), cols: pageAttr("vno:print-title-cols") }
@@ -5406,20 +5474,20 @@ ${pristineXlsxMarker}
         try {
           this.shell?.setStatus?.("Đang dựng mô hình bảng tính và chuẩn bị lưới…");
           const loaded = await this.loadFromPayload(result.sheetPayload, result.ooxmlWorkbookXml);
-          if (!loaded) throw new Error("Payload không tạo được workbook.");
+          if (!loaded) throw new Error("Không dựng được sổ làm việc từ dữ liệu đã đọc.");
         } catch {
           reportOpenIssue("SheetOpenPayloadError", "Sheet payload parsing or model construction failed; using the retained FODS fallback.");
-          this.shell?.setStatus?.("Đang tải dữ liệu FODS dự phòng…");
+          this.shell?.setStatus?.("Đang tải dữ liệu bảng tính dự phòng…");
           const fallback = openId
             ? await globalUnoBridge.getSheetOpenFallback(openId)
             : await globalUnoBridge.getLatestSheetOpenFallback();
-          if (fallback?.status !== "ok") throw new Error("Không lấy được FODS dự phòng cho bảng tính.");
+          if (fallback?.status !== "ok") throw new Error("Không lấy được bản dự phòng của bảng tính.");
           openId = fallback.openId || openId;
           const loaded = this.loadFromFods(
             fallback.content,
             fallback.ooxmlWorkbookXml || result.ooxmlWorkbookXml
           );
-          if (!loaded) throw new Error("FODS dự phòng không tạo được workbook.");
+          if (!loaded) throw new Error("Không dựng được sổ làm việc từ bản dự phòng.");
           result = { ...result, ...fallback };
         }
       } else {
@@ -5450,7 +5518,7 @@ ${pristineXlsxMarker}
       this.shell?.setStatus?.("Không thể mở tệp. Sổ làm việc đang mở được giữ nguyên.");
       await showAlertDialog({
         title: "Không thể mở tệp",
-        message: "3T Sheet không thể nạp bảng tính bằng dữ liệu chính hoặc bản FODS dự phòng. Sổ làm việc đang mở được giữ nguyên.",
+        message: "Sheet không thể nạp bảng tính từ dữ liệu đã đọc hoặc bản dự phòng. Sổ làm việc đang mở được giữ nguyên.",
         type: "error"
       });
       return false;
@@ -6019,10 +6087,10 @@ ${pristineXlsxMarker}
         return await this._copySelectedCell(false);
 
       case "common.edit.paste":
-        return await this._pasteIntoSelectedCell();
+        return await this._pasteIntoSelectedCell(false);
 
       case "common.edit.pastePlain":
-        return await this._pasteIntoSelectedCell();
+        return await this._pasteIntoSelectedCell(true);
 
       case "sheet.edit.pasteSpecial":
         return this.grid.showPasteSpecialDialog ? this.grid.showPasteSpecialDialog(this._clipboardModel) : false;
@@ -6106,7 +6174,18 @@ ${pristineXlsxMarker}
     if (!payload) return false;
     this._rememberClipboard(payload, isCut ? "cut" : "copy");
     try {
-      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      if (globalUnoBridge.writeClipboardData) {
+        await globalUnoBridge.writeClipboardData({ text: payload.text, html: payload.html });
+      }
+    } catch {}
+    try {
+      if (typeof navigator !== "undefined" && typeof ClipboardItem !== "undefined" && navigator.clipboard?.write && payload.html) {
+        const item = new ClipboardItem({
+          "text/plain": new Blob([payload.text], { type: "text/plain" }),
+          "text/html": new Blob([payload.html], { type: "text/html" })
+        });
+        await navigator.clipboard.write([item]);
+      } else if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(payload.text);
       }
     } catch {
@@ -6131,10 +6210,12 @@ ${pristineXlsxMarker}
       }
       cells.push(cellRow); textRows.push(textRow.join("\t"));
     }
+    const clipboardHtml = serializeSheetRangeToClipboard(this.grid, range);
     return {
       range: structuredClone(range),
       cells,
-      text: textRows.join("\n"),
+      text: clipboardHtml.text,
+      html: clipboardHtml.html,
       sourceSheet: this.grid.activeSheet
     };
   }
@@ -6159,6 +6240,7 @@ ${pristineXlsxMarker}
       const payload = this._captureSelectedClipboard();
       if (!payload || !event.clipboardData) return;
       event.clipboardData.setData("text/plain", payload.text);
+      if (payload.html) event.clipboardData.setData("text/html", payload.html);
       event.preventDefault();
       this._rememberClipboard(payload, "copy");
     };
@@ -6167,25 +6249,35 @@ ${pristineXlsxMarker}
       const payload = this._captureSelectedClipboard();
       if (!payload || !event.clipboardData) return;
       event.clipboardData.setData("text/plain", payload.text);
+      if (payload.html) event.clipboardData.setData("text/html", payload.html);
       event.preventDefault();
       this._rememberClipboard(payload, "cut");
     };
     const paste = async event => {
       if (!isGridClipboardTarget(event)) return;
       const text = event.clipboardData?.getData("text/plain") || "";
-      if (!text) {
-        if (event.clipboardData) event.preventDefault();
-        const native = await this._readClipboardData();
-        if (native?.text) await this._pasteTextIntoGrid(native.text);
-        else if (this._clipboardModel?.cells?.length) {
-          await this._pasteModelIntoGrid(this._clipboardModel, this._clipboardText, true);
-        }
-        return;
+      const html = event.clipboardData?.getData("text/html") || "";
+      if (globalThis.window?.__vnoClipboardDiagnostics) console.info("__VNO_CLIPBOARD_DIAG__" + JSON.stringify({ phase: "sheet-paste-event", types: Array.from(event.clipboardData?.types || []), textLength: text.length, htmlLength: html.length, htmlHasStyle: /<style\b/i.test(html), htmlHasXNum: /x:num/i.test(html) }));
+      if (!text && !html) return;
+      if (event.clipboardData) event.preventDefault();
+      const needsNativeHtml = !html || (/\b(?:xl\d+|Mso[a-z0-9_-]+)\b/i.test(html) && !/<style\b/i.test(html));
+      const native = needsNativeHtml ? await this._readClipboardData() : null;
+      let model = null;
+      const nativeText = native?.status === "ok" ? (native.text || text) : text;
+      const nativeHtml = native?.status === "ok" ? (native.html || html) : html;
+      const isInternal = Boolean(
+        this._clipboardModel?.cells?.length &&
+        String(nativeText || "").replace(/\r\n/g, "\n").trim() === String(this._clipboardText || "").replace(/\r\n/g, "\n").trim()
+      );
+      if (isInternal) model = this._clipboardModel;
+      if (nativeHtml) {
+        model ||= parseOfficeHtmlTable(nativeHtml, nativeText);
       }
-      event.preventDefault();
-      const isInternal = text === this._clipboardText && this._clipboardModel?.cells?.length;
-      const model = isInternal ? this._clipboardModel : this._clipboardModelFromText(text);
-      await this._pasteModelIntoGrid(model, text, isInternal);
+      if (!model) {
+        model = this._clipboardModelFromText(nativeText, nativeHtml);
+      }
+      if (globalThis.window?.__vnoClipboardDiagnostics) console.info("__VNO_CLIPBOARD_DIAG__" + JSON.stringify({ phase: "sheet-paste-model", cells: (model?.cells || []).map(row => row.map(cell => ({ val: cell.val, style: cell.style }))) }));
+      await this._pasteModelIntoGrid(model, nativeText, !!isInternal);
     };
     container.addEventListener("copy", copy);
     container.addEventListener("cut", cut);
@@ -6193,42 +6285,43 @@ ${pristineXlsxMarker}
     this._nativeClipboardHandlers = { container, copy, cut, paste };
   }
 
-  _clipboardModelFromText(text) {
-    const rows = String(text ?? "").replace(/\r\n?/g, "\n").split("\n");
-    if (rows.at(-1) === "") rows.pop();
-    if (!rows.length) return null;
-    const values = rows.map(row => row.split("\t"));
-    const width = Math.max(1, ...values.map(row => row.length));
-    const cells = values.map(row => Array.from({ length: width }, (_, index) => {
-      const value = row[index] ?? "";
-      return { val: value, formula: value.startsWith("=") ? value : "", style: {} };
-    }));
-    return {
-      range: {
-        start: { c: "A", r: 1 },
-        end: { c: this.grid._columnLabel(width), r: values.length }
-      },
-      cells
-    };
+  _clipboardModelFromText(text, html = "") {
+    if (html) {
+      const model = parseOfficeHtmlTable(html, text);
+      if (model) return model;
+    }
+    return parseOfficeTsv(text);
   }
 
   async _readClipboardData() {
     try {
       const native = await globalUnoBridge.readClipboardData?.();
+      if (globalThis.window?.__vnoClipboardDiagnostics) console.info("__VNO_CLIPBOARD_DIAG__" + JSON.stringify({ phase: "clipboard-bridge-result", status: native?.status, textLength: native?.text?.length || 0, htmlLength: native?.html?.length || 0, htmlHasStyle: /<style\b/i.test(native?.html || ""), htmlHasXNum: /x:num/i.test(native?.html || ""), message: native?.message || "" }));
       if (native?.status === "ok") return native;
     } catch { /* Browser clipboard is the web-mode fallback. */ }
     try {
-      if (typeof navigator !== "undefined" && navigator.clipboard?.readText) {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.read) {
+        const items = await navigator.clipboard.read();
+        for (const item of items) {
+          const types = item.types || [];
+          const htmlType = types.find(type => type === "text/html");
+          const textType = types.find(type => type === "text/plain");
+          const html = htmlType ? await (await item.getType(htmlType)).text() : "";
+          const text = textType ? await (await item.getType(textType)).text() : "";
+          if (html || text) return { status: "ok", html, text };
+        }
+      }
+      if (navigator.clipboard?.readText) {
         return { status: "ok", text: await navigator.clipboard.readText(), html: "" };
       }
     } catch { /* The command reports no-op when the browser denies clipboard access. */ }
     return null;
   }
 
-  async _pasteTextIntoGrid(text) {
+  async _pasteTextIntoGrid(text, html = "") {
     const isInternal = String(text) === this._clipboardText && this._clipboardModel?.cells?.length;
     return this._pasteModelIntoGrid(
-      isInternal ? this._clipboardModel : this._clipboardModelFromText(text),
+      isInternal ? this._clipboardModel : this._clipboardModelFromText(text, html),
       String(text),
       !!isInternal
     );
@@ -6236,6 +6329,7 @@ ${pristineXlsxMarker}
 
   async _pasteModelIntoGrid(model, text, isInternal = false) {
     if (!model?.cells?.length || !this.grid.selectedCoord || !this.grid.applyPasteSpecial) return false;
+    if (globalThis.window?.__vnoClipboardDiagnostics) console.info("__VNO_CLIPBOARD_DIAG__" + JSON.stringify({ phase: "sheet-paste-destination", selectedCoord: this.grid.selectedCoord, isInternal, cellsBefore: [...this.grid.cellsData.entries()].filter(([coord]) => /^(A1|B2|C2|B3|C3)$/.test(coord)).map(([coord, cell]) => ({ coord, val: cell.val, style: cell.style })) }));
     const clipboardState = this.grid._clipboardRange;
     const moveRange = isInternal && clipboardState?.mode === "cut" &&
       clipboardState.sheet === this.grid.activeSheet && this._clipboardSourceSheet === this.grid.activeSheet
@@ -6243,8 +6337,10 @@ ${pristineXlsxMarker}
       : null;
     const applied = this.grid.applyPasteSpecial(model, "all", this.grid.selectedCoord, {
       moveRange,
-      sourceSheet: this._clipboardSourceSheet
+      sourceSheet: this._clipboardSourceSheet,
+      coerceInput: !isInternal
     });
+    if (globalThis.window?.__vnoClipboardDiagnostics) console.info("__VNO_CLIPBOARD_DIAG__" + JSON.stringify({ phase: "sheet-paste-applied", applied, cellsAfter: [...this.grid.cellsData.entries()].filter(([coord]) => /^(A1|B2|C2|B3|C3)$/.test(coord)).map(([coord, cell]) => ({ coord, val: cell.val, style: cell.style })) }));
     if (applied && moveRange) this.grid.clearClipboardRange?.();
     return applied;
   }
@@ -6254,7 +6350,13 @@ ${pristineXlsxMarker}
     let model = null;
     if (native?.status === "ok") {
       const sameInternal = String(native.text || "") === this._clipboardText && this._clipboardModel?.cells?.length;
-      model = sameInternal ? this._clipboardModel : this._clipboardModelFromText(native.text || "");
+      if (sameInternal) {
+        model = this._clipboardModel;
+      } else if (native.html) {
+        model = parseOfficeHtmlTable(native.html, native.text || "");
+      } else {
+        model = this._clipboardModelFromText(native.text || "", native.html || "");
+      }
     } else {
       model = this._clipboardModel;
     }
@@ -6268,14 +6370,33 @@ ${pristineXlsxMarker}
 
   /**
    * Dán nội dung Clipboard thật vào ô đang chọn.
+   * @param {boolean} plainTextOnly Nếu true thì chỉ dán giá trị thuần, không nhận diện định dạng hay HTML
    */
-  async _pasteIntoSelectedCell() {
+  async _pasteIntoSelectedCell(plainTextOnly = false) {
     const coord = this.grid.selectedCoord;
     if (!coord || !this.grid.setCellValue) return false;
     const native = await this._readClipboardData();
-    if (native?.status === "ok" && native.text) return this._pasteTextIntoGrid(native.text);
+    if (plainTextOnly) {
+      const text = native?.status === "ok" ? (native.text || "") : (this._clipboardText || "");
+      if (!text) return false;
+      const model = parseOfficeTsv(text);
+      if (model?.cells) {
+        model.cells.forEach(row => row.forEach(cell => { cell.style = {}; }));
+      }
+      return this.grid.applyPasteSpecial(model, "values", coord, { coerceInput: true });
+    }
+    const isInternal = Boolean(
+      this._clipboardModel?.cells?.length && (
+        !native || native.status !== "ok" || String(native.text || "").replace(/\r\n/g, "\n").trim() === String(this._clipboardText || "").replace(/\r\n/g, "\n").trim()
+      )
+    );
+    if (native?.status === "ok" && native.html) {
+      const model = parseOfficeHtmlTable(native.html, native.text || "");
+      if (model) return this._pasteModelIntoGrid(model, native.text || "", isInternal);
+    }
+    if (native?.status === "ok" && native.text) return this._pasteTextIntoGrid(native.text, native.html || "");
     if (this._clipboardModel?.cells?.length) return this._pasteModelIntoGrid(this._clipboardModel, this._clipboardText, true);
-    if (native?.status === "ok") return this._pasteTextIntoGrid(native.text || "");
+    if (native?.status === "ok") return this._pasteTextIntoGrid(native.text || "", native.html || "");
     return false;
   }
 }

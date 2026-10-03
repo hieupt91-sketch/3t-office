@@ -1,6 +1,6 @@
 /** Vietnamese guidance for shared consent and error-reporting controls. */
 
-const appNames = { writer: "3T Doc", sheet: "3T Sheet", slides: "3T Slide" };
+const appNames = { writer: "Doc", sheet: "Sheet", slides: "Slide" };
 const HELP_ENTRIES = Object.entries(appNames).map(([app, name]) => ({
   id: `${app}.help.errorReporting`,
   app,

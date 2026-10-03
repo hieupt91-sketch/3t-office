@@ -19,18 +19,18 @@ export async function run3TDisplayNameTests() {
   const results = [];
   const expectedLabels =
     viStrings.app.suiteName === "3T Office" &&
-    viStrings.app.writer.startsWith("3T Doc") &&
-    viStrings.app.sheet.startsWith("3T Sheet") &&
-    viStrings.app.slides.startsWith("3T Slide") &&
+    viStrings.app.writer.startsWith("Doc") &&
+    viStrings.app.sheet.startsWith("Sheet") &&
+    viStrings.app.slides.startsWith("Slide") &&
     viJsonStrings.app.suiteName === "3T Office" &&
     enStrings.app.suiteName === "3T Office" &&
-    enStrings.app.writer.startsWith("3T Doc") &&
-    enStrings.app.sheet.startsWith("3T Sheet") &&
-    enStrings.app.slides.startsWith("3T Slide");
+    enStrings.app.writer.startsWith("Doc") &&
+    enStrings.app.sheet.startsWith("Sheet") &&
+    enStrings.app.slides.startsWith("Slide");
   results.push({
     name: "3T display names: suite, app, and Vietnamese/English i18n labels",
     pass: expectedLabels,
-    error: expectedLabels ? undefined : "Expected 3T Office, 3T Doc, 3T Sheet, and 3T Slide labels in both locales."
+    error: expectedLabels ? undefined : "Expected 3T Office, Doc, Sheet, and Slide labels in both locales."
   });
 
   const sources = [

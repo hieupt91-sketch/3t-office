@@ -12,7 +12,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
-DEFAULT_SETTINGS = {"enabled": True, "interval_minutes": 5}
+DEFAULT_SETTINGS = {"enabled": True, "interval_minutes": 2}
 MIN_INTERVAL_MINUTES = 1
 MAX_INTERVAL_MINUTES = 60
 MAX_SNAPSHOT_BYTES = 64 * 1024 * 1024

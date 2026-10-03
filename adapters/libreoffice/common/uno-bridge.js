@@ -14,6 +14,10 @@ export class UnoBridge {
     this.hasRealEngine = false;
     this._listeners = new Map();
     this._browserDocumentSequences = { writer: 1, sheet: 1, slides: 1 };
+    // Bind standard command handlers immediately upon module import.
+    // This runs AFTER bootstrapPlatform() registers commands (see index.html order),
+    // but BEFORE app attach() binds its own handlers, so apps can overwrite as needed.
+    this._bindAllStandardCommands();
   }
 
   /**
@@ -70,7 +74,8 @@ export class UnoBridge {
       );
     }
 
-    this._bindAllStandardCommands();
+    // _bindAllStandardCommands() already called in constructor during module import.
+    // Do not call again here to avoid overwriting app-specific handlers bound in attach().
   }
 
   /**
@@ -102,7 +107,7 @@ export class UnoBridge {
     if (!this.desktopApi || !this.hasRealEngine) {
       return {
         status: "error",
-        message: "Chức năng Mở tệp thật chỉ khả dụng trong 3T Office Desktop App (đã cài LibreOffice).",
+        message: "Chức năng Mở tệp thật chỉ khả dụng trong 3T Office bản cài trên máy.",
       };
     }
     return await this.desktopApi.open_document_dialog(appKind);
@@ -154,7 +159,7 @@ export class UnoBridge {
     if (!this.desktopApi || !this.hasRealEngine) {
       return {
         status: "error",
-        message: "Chức năng đọc tệp Excel chỉ khả dụng trong 3T Office Desktop App (đã cài LibreOffice).",
+        message: "Chức năng đọc tệp bảng tính chỉ khả dụng trong 3T Office bản cài trên máy.",
       };
     }
     if (typeof this.desktopApi.open_mail_merge_data_dialog === "function") {
@@ -198,7 +203,7 @@ export class UnoBridge {
     if (!this.desktopApi || !this.hasRealEngine) {
       return {
         status: "error",
-        message: "Chức năng Lưu tệp thật chỉ khả dụng trong 3T Office Desktop App (đã cài LibreOffice).",
+        message: "Chức năng Lưu tệp thật chỉ khả dụng trong 3T Office bản cài trên máy.",
       };
     }
     return await this.desktopApi.save_document_dialog(content, appKind, targetFormat, suggestedName, sourcePath);
@@ -215,7 +220,7 @@ export class UnoBridge {
     if (!this.desktopApi || !this.hasRealEngine) {
       return {
         status: "error",
-        message: "Chức năng Lưu tệp thật chỉ khả dụng trong 3T Office Desktop App (đã cài LibreOffice).",
+        message: "Chức năng Lưu tệp thật chỉ khả dụng trong 3T Office bản cài trên máy.",
       };
     }
     return await this.desktopApi.save_document_in_place(content, appKind, targetPath, sourcePath || targetPath);
@@ -231,7 +236,7 @@ export class UnoBridge {
     if (!this.desktopApi || !this.hasRealEngine) {
       return {
         status: "error",
-        message: "Chức năng Xuất PDF thật chỉ khả dụng trong 3T Office Desktop App (đã cài LibreOffice).",
+        message: "Chức năng Xuất PDF thật chỉ khả dụng trong 3T Office bản cài trên máy.",
       };
     }
     return await this.desktopApi.export_pdf_dialog(content, appKind, suggestedName, sourcePath);
@@ -241,7 +246,7 @@ export class UnoBridge {
     if (!this.desktopApi || !this.hasRealEngine) {
       return {
         status: "error",
-        message: "Chức năng In chỉ khả dụng trong 3T Office Desktop có LibreOffice.",
+        message: "Chức năng In chỉ khả dụng trong 3T Office bản cài trên máy.",
       };
     }
     return await this.desktopApi.prepare_print_document(
@@ -266,7 +271,7 @@ export class UnoBridge {
 
   async printDocument(sessionId, settings) {
     if (!this.desktopApi || !this.hasRealEngine) {
-      return { status: "error", message: "Không tìm thấy dịch vụ in LibreOffice trên máy này." };
+      return { status: "error", message: "Không tìm thấy dịch vụ in trên máy này." };
     }
     return await this.desktopApi.print_document(sessionId, settings);
   }
@@ -283,14 +288,21 @@ export class UnoBridge {
     return await this.desktopApi.read_clipboard_data();
   }
 
+  async writeClipboardData({ text = "", html = "" } = {}) {
+    if (!this.desktopApi?.write_clipboard_data) {
+      return { status: "unavailable" };
+    }
+    return await this.desktopApi.write_clipboard_data(text, html);
+  }
+
   // AutoRecover is a local app-data service and does not require the LibreOffice engine.
   async getAutoRecoverSettings() {
-    if (!this.desktopApi) return { enabled: true, interval_minutes: 5 };
+    if (!this.desktopApi) return { enabled: true, interval_minutes: 2 };
     return await this.desktopApi.get_autorecover_settings();
   }
 
   async setAutoRecoverSettings(settings) {
-    if (!this.desktopApi) return { enabled: true, interval_minutes: 5 };
+    if (!this.desktopApi) return { enabled: true, interval_minutes: 2 };
     return await this.desktopApi.set_autorecover_settings(settings);
   }
 
@@ -317,6 +329,21 @@ export class UnoBridge {
   async deleteAutoRecoverDocument(docId) {
     if (!this.desktopApi) return false;
     return await this.desktopApi.delete_autorecover_document(docId);
+  }
+
+  async getPerformanceLogSettings() {
+    if (!this.desktopApi?.get_performance_log_settings) return { enabled: false };
+    return await this.desktopApi.get_performance_log_settings();
+  }
+
+  async setPerformanceLogSettings(settings) {
+    if (!this.desktopApi?.set_performance_log_settings) return { status: "error", message: "Tùy chọn chỉ khả dụng trong 3T Office Desktop." };
+    return await this.desktopApi.set_performance_log_settings(settings);
+  }
+
+  async openPerformanceLogFolder() {
+    if (!this.desktopApi?.open_performance_log_folder) return { status: "error", message: "Tùy chọn chỉ khả dụng trong 3T Office Desktop." };
+    return await this.desktopApi.open_performance_log_folder();
   }
 
   /**
@@ -366,3 +393,9 @@ export class UnoBridge {
 }
 
 export const globalUnoBridge = new UnoBridge();
+if (typeof globalThis !== "undefined") {
+  globalThis.globalUnoBridge = globalUnoBridge;
+}
+if (typeof window !== "undefined") {
+  window.globalUnoBridge = globalUnoBridge;
+}

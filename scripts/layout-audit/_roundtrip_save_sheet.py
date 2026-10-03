@@ -59,7 +59,6 @@ app_kind, initial_file = vnmain.parse_launch_args([XLSX_PATH])
 api = vnmain.VnOfficeApi(app_kind=app_kind, initial_file=initial_file)
 original_save = api.save_document_dialog
 
-
 def dump_save(content, app_kind="writer", target_format=None,
               suggested_name="TaiLieu", source_path=None):
     Path(OUT + ".sent.fods").write_text(content, encoding="utf-8")

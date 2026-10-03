@@ -5,6 +5,7 @@
 
 import { globalUnoBridge } from "../common/uno-bridge.js";
 import { showPromptDialog, showFindReplaceDialog, showAlertDialog } from "../../../platform/ui-kit/dialogs.js";
+import { createMatcher } from "../../../platform/find/find-engine.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
 import { withLazyFeatureProgress } from "../../../platform/startup/lazy-feature.js";
 import { parseCsv, parseDelimitedText, parseFodsData, replaceMergeFields } from "../../../apps/writer/mail-merge-data.js";
@@ -29,6 +30,7 @@ import { buildWriterWordArtHtml, applyWordArtCss, parseWordArtStyleAttr, resolve
 import { slugBookmarkName } from "../../../apps/writer/bookmark-utils.js";
 import { t } from "../../../platform/i18n/i18n.js";
 import { CITATION_STYLES, authorSortKey, citationMetadataHtml, formatBibliographyEntry, formatInTextCitation, normalizeSource, parseCitationMetadata, showInsertCitationDialog, showSourceManagerDialog } from "../../../apps/writer/citations.js";
+import { cleanWordHtml, serializeWriterSelectionToClipboard } from "../../../platform/clipboard/office-clipboard.js";
 import {
   buildCaptionHtml,
   captionKindLabel,
@@ -209,24 +211,19 @@ function multilevelStyleFromClass(className) {
 }
 
 /** Replace literal text in existing text nodes while preserving their DOM wrappers. */
-export function replaceTextInTextNodes(nodes, findText, replacementText, replaceAll = false) {
+export function replaceTextInTextNodes(nodes, findText, replacementText, replaceAll = false, options = {}) {
   const needle = String(findText ?? "");
   if (!needle) return 0;
   const replacement = String(replacementText ?? "");
   let replacements = 0;
+  const matcher = createMatcher(needle, options);
   for (const node of nodes || []) {
     if (!node || typeof node.data !== "string") continue;
-    if (replaceAll) {
-      const count = node.data.split(needle).length - 1;
-      if (!count) continue;
-      node.data = node.data.split(needle).join(replacement);
-      replacements += count;
-    } else {
-      const index = node.data.indexOf(needle);
-      if (index < 0) continue;
-      node.data = node.data.slice(0, index) + replacement + node.data.slice(index + needle.length);
-      replacements++;
-      break;
+    const res = matcher.replace(node.data, replacement, replaceAll);
+    if (res.count > 0) {
+      node.data = res.text;
+      replacements += res.count;
+      if (!replaceAll) break;
     }
   }
   return replacements;
@@ -633,12 +630,15 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.para.borders", (args) => this.applyParagraphBorders(args));
     globalCommandBus.bindHandler("writer.para.spacingBefore", (args) => this.applyParagraphSpacingBefore(args));
     globalCommandBus.bindHandler("writer.para.spacingAfter", (args) => this.applyParagraphSpacingAfter(args));
+    globalCommandBus.bindHandler("writer.para.firstLineIndent", (args) => this.applyParagraphFirstLineIndent(args));
     globalCommandBus.bindHandler("writer.para.moveUp", () => this.moveParagraph("up"));
     globalCommandBus.bindHandler("writer.para.moveDown", () => this.moveParagraph("down"));
-    globalCommandBus.bindHandler("writer.para.lineSpacing", (args) => {
+    globalCommandBus.bindHandler("writer.para.lineSpacing", async (args) => {
       if (args === "1" || args === 1 || args === "1.0") return this._setLineHeight("1.0");
+      if (args === "1.15" || args === 1.15) return this._setLineHeight("1.15");
       if (args === "1.5" || args === 1.5) return this._setLineHeight("1.5");
       if (args === "2" || args === 2 || args === "2.0") return this._setLineHeight("2.0");
+      if (args === "exact") return this._applyExactLineSpacing();
       return this._setLineHeight("1.5");
     });
     globalCommandBus.bindHandler("writer.para.lineSpacingLayout", (args) => globalCommandBus.execute("writer.para.lineSpacing", args));
@@ -647,6 +647,11 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.font.grow1pt", () => this._adjustFontSizePt(1));
     globalCommandBus.bindHandler("writer.font.shrink1pt", () => this._adjustFontSizePt(-1));
     globalCommandBus.bindHandler("common.edit.repeat", () => this.repeatLastAction());
+    globalCommandBus.bindHandler("common.edit.find", () => this._showFindReplaceDialog(false));
+    globalCommandBus.bindHandler("common.edit.replace", () => this._showFindReplaceDialog(true));
+    globalCommandBus.bindHandler("writer.list.restartNumbering", (args) => this.restartNumbering(args));
+    globalCommandBus.bindHandler("writer.list.continueNumbering", (args) => this.continueNumbering(args));
+    this._bindTableCommands();
 
     if (!this._lastSnapshot) {
       this._lastSnapshot = this._createSnapshot("Initial State");
@@ -1095,8 +1100,8 @@ export class WriterAdapter {
     });
   }
 
-  _applyParagraphVisualStyle(styles, description) {
-    const blocks = this._getSelectedParagraphBlocks();
+  _applyParagraphVisualStyle(styles, description, selectedBlocks = null) {
+    const blocks = Array.isArray(selectedBlocks) ? selectedBlocks : this._getSelectedParagraphBlocks();
     if (!blocks.length) return false;
     this.flushTyping();
     blocks.forEach(block => Object.assign(block.style, styles));
@@ -1129,6 +1134,19 @@ export class WriterAdapter {
     return Number(pt.toFixed(3));
   }
 
+  async _applyExactLineSpacing(prompt = showPromptDialog) {
+    const selectedBlocks = this._getSelectedParagraphBlocks();
+    const raw = await prompt({
+      title: "Giãn dòng chính xác",
+      message: "Nhập chiều cao dòng tính bằng điểm (pt):",
+      defaultValue: "18",
+      placeholder: "18"
+    });
+    const pt = this._parseParagraphSpacingPt(raw);
+    if (pt == null || pt === 0) return false;
+    return this._applyParagraphVisualStyle({ lineHeight: `${pt}pt` }, "writer.para.lineSpacingExact", selectedBlocks);
+  }
+
   applyParagraphSpacingBefore(args) {
     const pt = this._parseParagraphSpacingPt(args);
     if (pt == null) return false;
@@ -1139,6 +1157,12 @@ export class WriterAdapter {
     const pt = this._parseParagraphSpacingPt(args);
     if (pt == null) return false;
     return this._applyParagraphVisualStyle({ marginBottom: `${pt}pt` }, "writer.para.spacingAfter");
+  }
+
+  applyParagraphFirstLineIndent(args) {
+    const pt = this._parseParagraphSpacingPt(args);
+    if (pt == null) return false;
+    return this._applyParagraphVisualStyle({ textIndent: `${pt}pt` }, "writer.para.firstLineIndent");
   }
 
   applyMultilevelList(preset) {
@@ -1219,6 +1243,84 @@ export class WriterAdapter {
     const anchor = selection?.anchorNode?.nodeType === 1 ? selection.anchorNode : selection?.anchorNode?.parentElement;
     const listItem = anchor?.closest?.("li");
     return listItem && root?.contains?.(listItem) ? listItem : null;
+  }
+
+  restartNumbering(target = null) {
+    this.flushTyping?.();
+    const root = this.bodyDom || this.body;
+    if (!root) return false;
+
+    let li = null;
+    if (target) {
+      li = target.closest ? target.closest("li") : target;
+    }
+    if (!li) {
+      li = this._caretListItem(root);
+    }
+    if (!li && root.querySelectorAll) {
+      li = root.querySelector("li");
+    }
+    if (!li) return false;
+
+    const ol = li.closest ? li.closest("ol") : li.parentElement;
+    if (!ol) return false;
+
+    if (ol.firstElementChild !== li) {
+      li.setAttribute("value", "1");
+      li.dataset.vnoRestart = "true";
+    } else {
+      ol.setAttribute("start", "1");
+      ol.removeAttribute("data-vno-continue");
+    }
+    this.isDirty = true;
+    this.recordSnapshot?.("Đánh số lại từ 1");
+    this._recomputeLivePagination?.();
+    return true;
+  }
+
+  continueNumbering(target = null) {
+    this.flushTyping?.();
+    const root = this.bodyDom || this.body;
+    if (!root) return false;
+
+    let li = null;
+    if (target) {
+      li = target.closest ? target.closest("li") : target;
+    }
+    if (!li) {
+      li = this._caretListItem(root);
+    }
+    if (!li && root.querySelectorAll) {
+      li = root.querySelector("li");
+    }
+    if (!li) return false;
+
+    const ol = li.closest ? li.closest("ol") : li.parentElement;
+    if (!ol) return false;
+
+    if (li.hasAttribute?.("value")) {
+      li.removeAttribute("value");
+      if (li.dataset) delete li.dataset.vnoRestart;
+    }
+
+    const allOls = Array.from(root.querySelectorAll ? root.querySelectorAll("ol") : []);
+    const currentIndex = allOls.indexOf(ol);
+    if (currentIndex > 0) {
+      const prevOl = allOls[currentIndex - 1];
+      const prevCount = prevOl.querySelectorAll ? prevOl.querySelectorAll("li").length : (prevOl.children?.length || 1);
+      const prevStart = parseInt(prevOl.getAttribute?.("start"), 10) || 1;
+      const nextStart = prevStart + prevCount;
+      ol.setAttribute("start", String(nextStart));
+      ol.dataset.vnoContinue = "true";
+    } else {
+      ol.removeAttribute("start");
+      if (ol.dataset) delete ol.dataset.vnoContinue;
+    }
+
+    this.isDirty = true;
+    this.recordSnapshot?.("Tiếp tục đánh số");
+    this._recomputeLivePagination?.();
+    return true;
   }
 
   _listDepth(listItem, root = this.bodyDom) {
@@ -6489,6 +6591,20 @@ export class WriterAdapter {
     if (!this.editorDom) return false;
     const cmd = vnCmdId || unoUrl;
 
+    const inlineFormatCommands = new Set([
+      "writer.text.bold", "writer.text.italic", "writer.text.underline", "writer.text.strike",
+      "writer.text.subscript", "writer.text.superscript", "writer.font.grow", "writer.font.shrink",
+      "writer.font.grow1pt", "writer.font.shrink1pt", "writer.color.text", "writer.color.highlight"
+    ]);
+    let inlineSelectionRange = null;
+    if (inlineFormatCommands.has(cmd) && typeof window !== "undefined") {
+      const selection = window.getSelection?.();
+      if (selection?.rangeCount && !selection.isCollapsed) {
+        const range = selection.getRangeAt(0);
+        if (this.bodyDom?.contains?.(range.commonAncestorContainer)) inlineSelectionRange = range.cloneRange();
+      }
+    }
+
     // Clone vùng chọn trước khi nút ribbon/dialog lấy focus khỏi trình soạn thảo.
     if (cmd === "writer.comment.insert") {
       return await this.insertComment(args);
@@ -6508,6 +6624,13 @@ export class WriterAdapter {
     }
 
     this.editorDom.focus?.();
+    if (inlineSelectionRange && typeof window !== "undefined") {
+      const selection = window.getSelection?.();
+      if (selection) {
+        selection.removeAllRanges();
+        selection.addRange(inlineSelectionRange);
+      }
+    }
 
     let dispatchResult = false;
 
@@ -6616,6 +6739,9 @@ export class WriterAdapter {
       case "writer.para.spacingAfter":
         return this.applyParagraphSpacingAfter(args);
 
+      case "writer.para.firstLineIndent":
+        return this.applyParagraphFirstLineIndent(args);
+
       case "writer.para.spacing1":
         this._setLineHeight("1.0");
         dispatchResult = true;
@@ -6641,6 +6767,12 @@ export class WriterAdapter {
         dispatchResult = true;
         break;
 
+      case "writer.list.restartNumbering":
+        return this.restartNumbering(args);
+
+      case "writer.list.continueNumbering":
+        return this.continueNumbering(args);
+
       case "writer.para.multilevelList":
         return this.applyMultilevelList(args);
 
@@ -6657,11 +6789,17 @@ export class WriterAdapter {
         break;
 
       case "writer.font.family":
-        if (args) document.execCommand("fontName", false, args);
+        if (args) {
+          document.execCommand("fontName", false, args);
+        } else {
+          const fontSelect = document.querySelector('select[data-command-id="writer.font.family"]');
+          if (fontSelect) fontSelect.focus();
+        }
         dispatchResult = true;
         break;
 
       case "writer.font.size":
+        if (Number(args) === 13.5) return this._applyFontSizePt(13.5);
         if (args) document.execCommand("fontSize", false, args);
         dispatchResult = true;
         break;
@@ -6718,20 +6856,67 @@ export class WriterAdapter {
       case "common.edit.redo":
         return this.redo();
 
-      case "common.edit.cut":
+      case "common.edit.cut": {
+        const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+        if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+          const text = selection.toString();
+          let html = "";
+          try {
+            if (typeof document !== "undefined") {
+              const container = document.createElement("div");
+              for (let i = 0; i < selection.rangeCount; i++) {
+                container.appendChild(selection.getRangeAt(i).cloneContents());
+              }
+              html = container.innerHTML;
+            }
+          } catch {}
+          this._clipboardMemory = { text, html };
+        }
         document.execCommand("cut", false, null);
+        this.isDirty = true;
+        this.recordSnapshot("Cut");
+        this._updateUndoRedoUI();
         dispatchResult = true;
         break;
+      }
 
-      case "common.edit.copy":
+      case "common.edit.copy": {
+        const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+        if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+          const range = selection.getRangeAt(0);
+          const serialized = serializeWriterSelectionToClipboard(range, this.bodyDom);
+          const text = serialized.text || selection.toString();
+          const html = serialized.html;
+          this._clipboardMemory = { text, html };
+          try {
+            if (globalUnoBridge.writeClipboardData) {
+              globalUnoBridge.writeClipboardData({ text, html }).catch(() => {});
+            }
+          } catch {}
+          try {
+            if (typeof navigator !== "undefined" && typeof ClipboardItem !== "undefined" && navigator.clipboard?.write && html) {
+              const item = new ClipboardItem({
+                "text/plain": new Blob([text], { type: "text/plain" }),
+                "text/html": new Blob([html], { type: "text/html" })
+              });
+              navigator.clipboard.write([item]).catch(() => {});
+            }
+          } catch {}
+        }
         document.execCommand("copy", false, null);
         return true;
+      }
 
       case "common.edit.paste":
         return this._pasteFromSystemClipboard(false);
 
       case "common.edit.pastePlain":
         return this._pastePlainText();
+
+      case "writer.edit.pasteSpecial":
+        this._showPasteSpecialDialog();
+        dispatchResult = true;
+        break;
 
       case "common.edit.selectAll":
         document.execCommand("selectAll", false, null);
@@ -7177,6 +7362,403 @@ export class WriterAdapter {
     return true;
   }
 
+  _bindTableCommands() {
+    globalCommandBus.bindHandler("writer.table.insertRowAbove", () => this.insertTableRowAbove());
+    globalCommandBus.bindHandler("writer.table.insertRowBelow", () => this.insertTableRowBelow());
+    globalCommandBus.bindHandler("writer.table.insertColLeft", () => this.insertTableColLeft());
+    globalCommandBus.bindHandler("writer.table.insertColRight", () => this.insertTableColRight());
+    globalCommandBus.bindHandler("writer.table.deleteRow", () => this.deleteTableRow());
+    globalCommandBus.bindHandler("writer.table.deleteCol", () => this.deleteTableCol());
+    globalCommandBus.bindHandler("writer.table.deleteTable", () => this.deleteTable());
+    globalCommandBus.bindHandler("writer.table.mergeCells", () => this.mergeTableCells());
+    globalCommandBus.bindHandler("writer.table.splitCells", () => this.splitTableCells());
+    globalCommandBus.bindHandler("writer.table.distributeRows", () => this.distributeTableRows());
+    globalCommandBus.bindHandler("writer.table.distributeCols", () => this.distributeTableCols());
+    globalCommandBus.bindHandler("writer.table.alignTop", () => this.setTableCellAlign("top"));
+    globalCommandBus.bindHandler("writer.table.alignMiddle", () => this.setTableCellAlign("middle"));
+    globalCommandBus.bindHandler("writer.table.alignBottom", () => this.setTableCellAlign("bottom"));
+    globalCommandBus.bindHandler("writer.table.selectCell", () => this.selectTableElements("cell"));
+    globalCommandBus.bindHandler("writer.table.selectRow", () => this.selectTableElements("row"));
+    globalCommandBus.bindHandler("writer.table.selectCol", () => this.selectTableElements("col"));
+    globalCommandBus.bindHandler("writer.table.selectTable", () => this.selectTableElements("table"));
+    globalCommandBus.bindHandler("writer.table.cellBg", (args) => this.setTableCellBackground(args));
+    globalCommandBus.bindHandler("writer.table.borders", (args) => this.setTableBorders(args));
+    globalCommandBus.bindHandler("writer.table.toggleHeaderRow", () => this.toggleTableHeaderRow());
+    globalCommandBus.bindHandler("writer.table.toggleBandedRows", () => this.toggleTableBandedRows());
+  }
+
+  _getActiveTable() {
+    if (this.tableController?.activeTable && this.tableController.activeTable.isConnected) {
+      return this.tableController.activeTable;
+    }
+    if (typeof window !== "undefined") {
+      const sel = window.getSelection?.();
+      if (sel && sel.rangeCount > 0) {
+        const node = sel.anchorNode;
+        const el = node?.nodeType === 1 ? node : node?.parentElement;
+        const table = el?.closest?.("table");
+        if (table && (this.bodyDom?.contains?.(table) || this.editorDom?.contains?.(table))) {
+          return table;
+        }
+      }
+    }
+    return (this.bodyDom || this.editorDom)?.querySelector?.("table") || null;
+  }
+
+  _getActiveTableCell() {
+    if (this.tableController?.activeCell && this.tableController.activeCell.isConnected) {
+      return this.tableController.activeCell;
+    }
+    if (typeof window !== "undefined") {
+      const sel = window.getSelection?.();
+      if (sel && sel.rangeCount > 0) {
+        const node = sel.anchorNode;
+        const el = node?.nodeType === 1 ? node : node?.parentElement;
+        const cell = el?.closest?.("td, th");
+        if (cell && (this.bodyDom?.contains?.(cell) || this.editorDom?.contains?.(cell))) {
+          return cell;
+        }
+      }
+    }
+    const table = this._getActiveTable();
+    return table?.querySelector?.("td, th") || null;
+  }
+
+  insertTableRowAbove() {
+    const cell = this._getActiveTableCell();
+    const row = cell?.closest?.("tr");
+    if (!row) return false;
+    const table = row.closest("table");
+    const numCols = row.cells.length || 1;
+    const newRow = document.createElement("tr");
+    for (let i = 0; i < numCols; i++) {
+      const td = document.createElement("td");
+      td.style.border = "1px solid #94a3b8";
+      td.style.padding = "6pt 10pt";
+      td.innerHTML = "<br>";
+      newRow.appendChild(td);
+    }
+    row.parentElement?.insertBefore(newRow, row);
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.insertRowAbove");
+    this.tableController?._positionMoveHandle(table);
+    return true;
+  }
+
+  insertTableRowBelow() {
+    const cell = this._getActiveTableCell();
+    const row = cell?.closest?.("tr");
+    if (!row) return false;
+    const table = row.closest("table");
+    const numCols = row.cells.length || 1;
+    const newRow = document.createElement("tr");
+    for (let i = 0; i < numCols; i++) {
+      const td = document.createElement("td");
+      td.style.border = "1px solid #94a3b8";
+      td.style.padding = "6pt 10pt";
+      td.innerHTML = "<br>";
+      newRow.appendChild(td);
+    }
+    if (row.nextSibling) {
+      row.parentElement?.insertBefore(newRow, row.nextSibling);
+    } else {
+      row.parentElement?.appendChild(newRow);
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.insertRowBelow");
+    this.tableController?._positionMoveHandle(table);
+    return true;
+  }
+
+  insertTableColLeft() {
+    const cell = this._getActiveTableCell();
+    const table = cell?.closest?.("table") || this._getActiveTable();
+    if (!table) return false;
+    const colIdx = cell ? cell.cellIndex : 0;
+    for (const r of table.rows) {
+      const td = document.createElement("td");
+      td.style.border = "1px solid #94a3b8";
+      td.style.padding = "6pt 10pt";
+      td.innerHTML = "<br>";
+      const ref = r.cells[colIdx];
+      if (ref) {
+        r.insertBefore(td, ref);
+      } else {
+        r.appendChild(td);
+      }
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.insertColLeft");
+    this.tableController?._positionMoveHandle(table);
+    return true;
+  }
+
+  insertTableColRight() {
+    const cell = this._getActiveTableCell();
+    const table = cell?.closest?.("table") || this._getActiveTable();
+    if (!table) return false;
+    const maxIdx = (table.rows[0]?.cells?.length || 1) - 1;
+    const colIdx = cell ? cell.cellIndex : maxIdx;
+    for (const r of table.rows) {
+      const td = document.createElement("td");
+      td.style.border = "1px solid #94a3b8";
+      td.style.padding = "6pt 10pt";
+      td.innerHTML = "<br>";
+      const ref = r.cells[colIdx];
+      if (ref && ref.nextSibling) {
+        r.insertBefore(td, ref.nextSibling);
+      } else {
+        r.appendChild(td);
+      }
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.insertColRight");
+    this.tableController?._positionMoveHandle(table);
+    return true;
+  }
+
+  deleteTableRow() {
+    const cell = this._getActiveTableCell();
+    const row = cell?.closest?.("tr");
+    if (!row) return false;
+    const table = row.closest("table");
+    if (!table || table.rows.length <= 1) {
+      return this.deleteTable(table);
+    }
+    row.remove();
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.deleteRow");
+    this.tableController?._positionMoveHandle(table);
+    return true;
+  }
+
+  deleteTableCol() {
+    const cell = this._getActiveTableCell();
+    const table = cell?.closest?.("table") || this._getActiveTable();
+    if (!table || table.rows.length === 0) return false;
+    const colIdx = cell ? cell.cellIndex : 0;
+    if (table.rows[0].cells.length <= 1) {
+      return this.deleteTable(table);
+    }
+    for (const r of table.rows) {
+      if (r.cells[colIdx]) {
+        r.cells[colIdx].remove();
+      }
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.deleteCol");
+    this.tableController?._positionMoveHandle(table);
+    return true;
+  }
+
+  deleteTable(targetTable = null) {
+    const table = targetTable || this._getActiveTable();
+    if (!table) return false;
+    table.remove();
+    if (this.tableController) {
+      this.tableController.activeTable = null;
+      this.tableController.activeCell = null;
+      this.tableController.clearCellSelection();
+      this.tableController._hideMoveHandle();
+      this.tableController._syncContextualTabs(false);
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.deleteTable");
+    return true;
+  }
+
+  mergeTableCells() {
+    const table = this._getActiveTable();
+    if (!table) return false;
+    const cells = Array.from(this.tableController?.selectedCells || []);
+    if (cells.length < 2) return false;
+
+    let minRow = Infinity, maxRow = -1;
+    let minCol = Infinity, maxCol = -1;
+    for (const c of cells) {
+      const r = c.parentElement?.rowIndex ?? 0;
+      const col = c.cellIndex ?? 0;
+      if (r < minRow) minRow = r;
+      if (r > maxRow) maxRow = r;
+      if (col < minCol) minCol = col;
+      if (col > maxCol) maxCol = col;
+    }
+
+    const primaryCell = cells.find((c) => (c.parentElement?.rowIndex ?? 0) === minRow && (c.cellIndex ?? 0) === minCol) || cells[0];
+    const rowSpan = maxRow - minRow + 1;
+    const colSpan = maxCol - minCol + 1;
+
+    const mergedText = [];
+    for (const c of cells) {
+      const t = (c.textContent || "").trim();
+      if (t) mergedText.push(t);
+      if (c !== primaryCell) {
+        c.remove();
+      }
+    }
+
+    primaryCell.rowSpan = rowSpan;
+    primaryCell.colSpan = colSpan;
+    primaryCell.innerHTML = mergedText.length ? mergedText.join(" ") : "<br>";
+
+    this.tableController?.clearCellSelection();
+    this.tableController?.selectCell(primaryCell);
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.mergeCells");
+    return true;
+  }
+
+  splitTableCells() {
+    const cell = this._getActiveTableCell();
+    if (!cell) return false;
+
+    if (cell.colSpan > 1 || cell.rowSpan > 1) {
+      cell.colSpan = 1;
+      cell.rowSpan = 1;
+    } else {
+      const newCell = document.createElement("td");
+      newCell.style.border = cell.style.border || "1px solid #94a3b8";
+      newCell.style.padding = cell.style.padding || "6pt 10pt";
+      newCell.innerHTML = "<br>";
+      if (cell.nextSibling) {
+        cell.parentElement?.insertBefore(newCell, cell.nextSibling);
+      } else {
+        cell.parentElement?.appendChild(newCell);
+      }
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.splitCells");
+    return true;
+  }
+
+  distributeTableRows() {
+    const table = this._getActiveTable();
+    if (!table || table.rows.length === 0) return false;
+    for (const r of table.rows) {
+      r.style.height = "";
+      for (const c of r.cells) {
+        c.style.height = "";
+      }
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.distributeRows");
+    return true;
+  }
+
+  distributeTableCols() {
+    const table = this._getActiveTable();
+    if (!table || table.rows.length === 0) return false;
+    const numCols = table.rows[0].cells.length;
+    if (numCols === 0) return false;
+    const pct = `${(100 / numCols).toFixed(2)}%`;
+    for (const r of table.rows) {
+      for (const c of r.cells) {
+        c.style.width = pct;
+      }
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.distributeCols");
+    return true;
+  }
+
+  setTableCellAlign(align = "middle") {
+    const cells = this.tableController?.selectedCells?.size
+      ? Array.from(this.tableController.selectedCells)
+      : [this._getActiveTableCell()].filter(Boolean);
+    if (cells.length === 0) return false;
+    for (const c of cells) {
+      c.style.verticalAlign = align;
+    }
+    this.isDirty = true;
+    this.recordSnapshot(`writer.table.align${align.charAt(0).toUpperCase() + align.slice(1)}`);
+    return true;
+  }
+
+  setTableCellBackground(color = "#e2e8f0") {
+    const cells = this.tableController?.selectedCells?.size
+      ? Array.from(this.tableController.selectedCells)
+      : [this._getActiveTableCell()].filter(Boolean);
+    if (cells.length === 0) return false;
+    const finalColor = typeof color === "string" && color ? color : "#e2e8f0";
+    for (const c of cells) {
+      c.style.backgroundColor = finalColor;
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.cellBg");
+    return true;
+  }
+
+  setTableBorders(borderType = "all") {
+    const table = this._getActiveTable();
+    if (!table) return false;
+    const cells = this.tableController?.selectedCells?.size
+      ? Array.from(this.tableController.selectedCells)
+      : Array.from(table.querySelectorAll("td, th"));
+
+    const borderVal = borderType === "none" ? "none" : "1px solid #94a3b8";
+    for (const c of cells) {
+      c.style.border = borderVal;
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.borders");
+    return true;
+  }
+
+  toggleTableHeaderRow() {
+    const table = this._getActiveTable();
+    if (!table || table.rows.length === 0) return false;
+    const firstRow = table.rows[0];
+    const isHeader = firstRow.classList.toggle("vno-table-header-row");
+    for (const cell of firstRow.cells) {
+      if (isHeader) {
+        cell.style.backgroundColor = "#f1f5f9";
+        cell.style.fontWeight = "bold";
+      } else {
+        cell.style.backgroundColor = "";
+        cell.style.fontWeight = "";
+      }
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.toggleHeaderRow");
+    return true;
+  }
+
+  toggleTableBandedRows() {
+    const table = this._getActiveTable();
+    if (!table || table.rows.length === 0) return false;
+    const isBanded = table.classList.toggle("vno-table-banded-rows");
+    for (let i = 1; i < table.rows.length; i++) {
+      const row = table.rows[i];
+      const bg = isBanded && (i % 2 === 1) ? "#f8fafc" : "";
+      for (const cell of row.cells) {
+        cell.style.backgroundColor = bg;
+      }
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.toggleBandedRows");
+    return true;
+  }
+
+  selectTableElements(type = "table") {
+    if (!this.tableController) return false;
+    switch (type) {
+      case "cell":
+        this.tableController.selectCell(this._getActiveTableCell());
+        break;
+      case "row":
+        this.tableController.selectRow(this._getActiveTableCell());
+        break;
+      case "col":
+        this.tableController.selectCol(this._getActiveTableCell());
+        break;
+      case "table":
+      default:
+        this.tableController.selectTable(this._getActiveTable());
+        break;
+    }
+    return true;
+  }
+
   _insertPageBreak() {
     this.flushTyping();
     this._initZones();
@@ -7276,6 +7858,9 @@ export class WriterAdapter {
     } else if (styleKey === "emphasis" || styleKey === "nhanmanh") {
       targetTag = "p";
       addClass = "vno-style-emphasis";
+    } else if (styleKey === "title" || styleKey === "tieude") {
+      targetTag = "p";
+      addClass = "vno-style-title";
     } else {
       targetTag = "p";
     }
@@ -7291,6 +7876,15 @@ export class WriterAdapter {
     }
 
     this._updateCurrentBlockStyle(targetTag, addClass);
+    if (styleKey === "title" || styleKey === "tieude") {
+      this._getSelectedParagraphBlocks().forEach((block) => Object.assign(block.style, {
+        fontSize: "26pt",
+        fontWeight: "bold",
+        color: "#1f4e79",
+        textAlign: "center",
+        marginBottom: "8pt"
+      }));
+    }
 
     this.isDirty = true;
     this.recordSnapshot("writer.style.apply");
@@ -7358,6 +7952,11 @@ export class WriterAdapter {
     if (block) {
       block.classList?.remove?.("vno-style-quote");
       block.classList?.remove?.("vno-style-emphasis");
+      const wasTitle = block.classList?.contains?.("vno-style-title");
+      block.classList?.remove?.("vno-style-title");
+      if (wasTitle && block.style?.removeProperty) {
+        ["font-size", "font-weight", "color", "text-align", "margin-bottom"].forEach(property => block.style.removeProperty(property));
+      }
       if (addClass) {
         block.classList?.add?.(addClass);
       }
@@ -7381,9 +7980,11 @@ export class WriterAdapter {
       if (tag === "h3") return "h3";
       if (tag === "blockquote" || node.classList?.contains?.("vno-style-quote")) return "quote";
       if (node.classList?.contains?.("vno-style-emphasis")) return "emphasis";
+      if (node.classList?.contains?.("vno-style-title")) return "title";
       if (tag === "p") {
         if (node.classList?.contains?.("vno-style-quote")) return "quote";
         if (node.classList?.contains?.("vno-style-emphasis")) return "emphasis";
+        if (node.classList?.contains?.("vno-style-title")) return "title";
         return "normal";
       }
       node = node.parentNode;
@@ -8754,7 +9355,15 @@ export class WriterAdapter {
     let url = typeof options === "string" ? options : options.url;
     let text = typeof options === "string" ? "" : options.text;
 
-    if (!url) {
+    if (typeof url === "string") {
+      url = url.trim();
+      // Chuẩn hóa, tránh lặp tiền tố giao thức (vd: https://https://example.com)
+      url = url.replace(/^(?:https?:\/\/)+(https?:\/\/)/i, "$1");
+      if (!url) url = "https://";
+      else if (!/^(?:https?:\/\/|mailto:|ftp:\/\/)/i.test(url)) {
+        url = "https://" + url;
+      }
+    } else {
       url = "https://";
     }
 
@@ -9422,9 +10031,9 @@ export class WriterAdapter {
     const restart = this.lineNumbers.restart;
     const modeLabel = restart === "page" ? "Mỗi trang" : restart === "section" ? "Mỗi mục" : "Liên tục";
     const sectionNote = restart === "section"
-      ? " File Word/LibreOffice ghi Liên tục vì ODF không có restart-each-section."
+      ? " Khi lưu .docx, lựa chọn Mỗi mục chuyển thành Liên tục."
       : "";
-    badge.textContent = `Danh số dòng: ${modeLabel}. Số hiện ở lề trái khi mở bằng Word hoặc LibreOffice — canvas 3T Doc không vẽ số.${sectionNote}`;
+    badge.textContent = `Danh số dòng: ${modeLabel}. Số hiện ở lề trái khi mở bằng phần mềm văn phòng khác có hỗ trợ — Doc chưa vẽ số cạnh từng dòng.${sectionNote}`;
     badge.setAttribute("title", badge.textContent);
   }
 
@@ -9570,8 +10179,9 @@ export class WriterAdapter {
   }
 
   _setLineHeight(val) {
-    const sel = window.getSelection();
-    if (sel.rangeCount > 0) {
+    const sel = typeof window !== "undefined" ? window.getSelection?.() : null;
+    let applied = false;
+    if (sel?.rangeCount > 0) {
       let node = sel.anchorNode;
       if (node.nodeType === 3) node = node.parentNode;
       while (node && node !== this.editorDom && node.tagName !== "P" && node.tagName !== "DIV") {
@@ -9586,8 +10196,13 @@ export class WriterAdapter {
         } else {
           node.style.lineHeight = val;
         }
+        applied = true;
       }
     }
+    if (!applied) return false;
+    this.isDirty = true;
+    this.recordSnapshot("writer.para.lineSpacing");
+    return true;
   }
 
   _adjustFontSize(delta) {
@@ -9639,8 +10254,133 @@ export class WriterAdapter {
     }
   }
 
+  _applyFontSizePt(sizePt) {
+    const pt = Number(sizePt);
+    if (!Number.isFinite(pt) || pt <= 0 || pt > 1638 || typeof document === "undefined") return false;
+    const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+    if (!selection?.rangeCount) return false;
+    this.flushTyping?.();
+    if (typeof document.execCommand === "function") document.execCommand("fontSize", false, "7");
+    let applied = false;
+    const fontElements = this.editorDom?.getElementsByTagName?.("font") || [];
+    for (const element of fontElements) {
+      if (element.size === "7") {
+        element.removeAttribute?.("size");
+        element.style.fontSize = `${pt}pt`;
+        applied = true;
+      }
+    }
+    if (!applied) return false;
+    this.isDirty = true;
+    this.recordSnapshot?.("writer.font.size");
+    return true;
+  }
+
   async _pastePlainText() {
     return this._pasteFromSystemClipboard(true);
+  }
+
+  _showPasteSpecialDialog() {
+    if (typeof document === "undefined") return;
+    const previousFocused = document.activeElement;
+    const title = t("sheetDialogs.pasteSpecialTitle", "Dán đặc biệt");
+    const overlay = document.createElement("div");
+    overlay.className = "vno-dialog-overlay";
+    const titleId = `vno-dialog-title-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    overlay.innerHTML = `
+      <div class="vno-dialog-box" style="width: 420px;" role="dialog" aria-modal="true" aria-labelledby="${titleId}">
+        <div class="vno-dialog-header">
+          <span id="${titleId}">${title}</span>
+          <button class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="Đóng" aria-label="Đóng">&times;</button>
+        </div>
+        <div class="vno-dialog-body">
+          <form class="vno-paste-special-dialog" aria-label="${title}">
+            <fieldset><legend>${t("sheetDialogs.pasteSpecialGroup", "Dán")}</legend>
+              <label><input type="radio" name="paste-special-mode" value="source" checked> ${t("sheetDialogs.pasteSpecialKeepSource", "Giữ định dạng nguồn")}</label>
+              <label><input type="radio" name="paste-special-mode" value="text"> ${t("sheetDialogs.pasteSpecialText", "Chỉ giữ văn bản")}</label>
+            </fieldset>
+          </form>
+        </div>
+        <div class="vno-dialog-footer">
+          <button class="vno-btn vno-dialog-cancel-btn">${t("sheetDialogs.cancel", "Hủy bỏ")}</button>
+          <button class="vno-btn vno-btn-primary vno-dialog-ok-btn">${t("sheetDialogs.apply", "Đồng ý")}</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    const dialogBox = overlay.querySelector(".vno-dialog-box");
+    const form = overlay.querySelector(".vno-paste-special-dialog");
+
+    const cleanup = () => {
+      document.removeEventListener("keydown", onKeyDown);
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (previousFocused && typeof previousFocused.focus === "function") {
+        previousFocused.focus();
+      }
+    };
+
+    const applyPaste = () => {
+      const mode = form.querySelector('input[name="paste-special-mode"]:checked')?.value || "source";
+      if (mode === "text") {
+        this._pastePlainText();
+      } else {
+        this._pasteFromSystemClipboard(false);
+      }
+      cleanup();
+    };
+
+    const okBtn = overlay.querySelector(".vno-dialog-ok-btn");
+    const cancelBtn = overlay.querySelector(".vno-dialog-cancel-btn");
+    const closeBtn = overlay.querySelector(".vno-dialog-close-btn");
+
+    okBtn.addEventListener("click", applyPaste);
+    cancelBtn.addEventListener("click", cleanup);
+    closeBtn.addEventListener("click", cleanup);
+
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) cleanup();
+    });
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      applyPaste();
+    });
+
+    form.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        applyPaste();
+      }
+    });
+
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        cleanup();
+      } else if (e.key === "Tab") {
+        const focusables = Array.from(dialogBox.querySelectorAll(
+          'button:not([disabled]):not([style*="display: none"]):not([style*="display:none"]), ' +
+          'input:not([disabled]):not([type="hidden"]):not([style*="display: none"]):not([style*="display:none"]), ' +
+          'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )).filter(el => el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0);
+        if (focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        if (e.shiftKey) {
+          if (document.activeElement === first || !dialogBox.contains(document.activeElement)) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last || !dialogBox.contains(document.activeElement)) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    form.querySelector('input[name="paste-special-mode"]')?.focus();
   }
 
   _insertImageDialog() {
@@ -9664,39 +10404,116 @@ export class WriterAdapter {
     input.click();
   }
 
+  findInDocument(query, options = {}) {
+    if (!query || !this.editorDom) return false;
+    const needle = String(query).trim();
+    if (!needle) return false;
+    return this._findInDomNodes(needle, options);
+  }
+
+  _findInDomNodes(needle, options = {}) {
+    if (!this.editorDom) return false;
+    const matcher = createMatcher(needle, options);
+    const nodes = [];
+    if (typeof document !== "undefined" && document.createTreeWalker) {
+      const walker = document.createTreeWalker(this.editorDom, NodeFilter.SHOW_TEXT);
+      let node;
+      while ((node = walker.nextNode())) {
+        if (node.parentElement?.closest?.('[contenteditable="false"]')) continue;
+        nodes.push(node);
+      }
+    }
+    if (!nodes.length) return false;
+
+    if (!this._findState || this._findState.query !== needle) {
+      this._findState = { query: needle, nodeIndex: 0, matchIndex: -1 };
+    }
+
+    const backward = options.direction === "backward";
+    const totalNodes = nodes.length;
+    let startNodeIdx = this._findState.nodeIndex || 0;
+
+    for (let step = 0; step < totalNodes; step++) {
+      const idx = backward
+        ? (startNodeIdx - step + totalNodes) % totalNodes
+        : (startNodeIdx + step) % totalNodes;
+      const textNode = nodes[idx];
+      const matches = matcher.findAll(textNode.data || "");
+      if (matches.length > 0) {
+        let m = matches[0];
+        if (idx === startNodeIdx && this._findState.matchIndex >= 0) {
+          if (backward) {
+            const prevMatches = matches.filter(match => match.index < this._findState.matchIndex);
+            if (prevMatches.length > 0) {
+              m = prevMatches[prevMatches.length - 1];
+            } else if (step === 0) {
+              continue;
+            }
+          } else {
+            const nextMatches = matches.filter(match => match.index > this._findState.matchIndex);
+            if (nextMatches.length > 0) {
+              m = nextMatches[0];
+            } else if (step === 0) {
+              continue;
+            }
+          }
+        }
+        this._findState.nodeIndex = idx;
+        this._findState.matchIndex = m.index;
+
+        if (typeof window !== "undefined" && window.getSelection && typeof document.createRange === "function") {
+          try {
+            const range = document.createRange();
+            range.setStart(textNode, m.index);
+            range.setEnd(textNode, m.index + m.length);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+            textNode.parentElement?.scrollIntoView?.({ behavior: "smooth", block: "center" });
+          } catch (_) {}
+        }
+        return true;
+      }
+    }
+    return false;
+  }
+
   _showFindReplaceDialog(isReplace = false) {
-    if (typeof window === "undefined" || typeof document === "undefined") return;
+    if (typeof window === "undefined" || typeof document === "undefined") return true;
     showFindReplaceDialog({
       isReplace,
-      onFind: (text) => {
-        if (typeof window !== "undefined" && window.find) {
-          window.find(text);
-        }
-      },
-      onReplace: (findText, repText) => {
+      app: "writer",
+      onFind: (text, options) => this.findInDocument(text, options),
+      onFindPrev: (text, options) => this.findInDocument(text, { ...options, direction: "backward" }),
+      onReplace: (findText, repText, options) => {
         if (findText && repText !== null) {
           this.flushTyping();
-          const changed = this._replaceDocumentTextNodes(findText, repText, false);
+          const changed = this._replaceDocumentTextNodes(findText, repText, false, options);
           if (changed) {
             this.isDirty = true;
             this.recordSnapshot("common.edit.replace");
+            return true;
           }
         }
+        return false;
       },
-      onReplaceAll: (findText, repText) => {
+      onReplaceAll: (findText, repText, options) => {
         if (findText && repText !== null) {
           this.flushTyping();
-          const changed = this._replaceDocumentTextNodes(findText, repText, true);
+          const changed = this._replaceDocumentTextNodes(findText, repText, true, options);
           if (changed) {
             this.isDirty = true;
             this.recordSnapshot("common.edit.replaceAll");
           }
+          return changed;
         }
+        return 0;
       }
     });
+    return true;
   }
 
-  _replaceDocumentTextNodes(findText, replacementText, replaceAll) {
+  _replaceDocumentTextNodes(findText, replacementText, replaceAll, options = {}) {
     if (!this.editorDom || typeof document === "undefined" || !document.createTreeWalker) return 0;
     const walker = document.createTreeWalker(this.editorDom, NodeFilter.SHOW_TEXT);
     const nodes = [];
@@ -9705,7 +10522,7 @@ export class WriterAdapter {
       if (node.parentElement?.closest?.('[contenteditable="false"]')) continue;
       nodes.push(node);
     }
-    return replaceTextInTextNodes(nodes, findText, replacementText, replaceAll);
+    return replaceTextInTextNodes(nodes, findText, replacementText, replaceAll, options);
   }
 
   _fodtError(detail) {
@@ -10647,7 +11464,11 @@ export class WriterAdapter {
       if (node.attrs.face) style.fontFamily = node.attrs.face.trim();
       if (node.attrs.size) throw this._fodtError("thuộc tính HTML font size legacy");
     }
-    const css = this._fodtCssMap(node.attrs.style);
+    const paragraphProps = ["margin-left", "text-indent", "line-height"];
+    const allowed = /^(?:p|h[1-6])$/.test(node.name)
+      ? ["font-weight", "font-style", "text-decoration", "text-decoration-line", "color", "background-color", "font-family", "font-size", "text-align", "margin-top", "margin-bottom", ...paragraphProps]
+      : undefined;
+    const css = allowed ? this._fodtCssMap(node.attrs.style, allowed) : this._fodtCssMap(node.attrs.style);
     if (/^(bold|[6-9]00)$/i.test(css["font-weight"] || "")) style.bold = true;
     if (/^(normal|[1-5]00)$/i.test(css["font-weight"] || "")) delete style.bold;
     if (/^italic$/i.test(css["font-style"] || "")) style.italic = true;
@@ -11058,7 +11879,10 @@ export class WriterAdapter {
       return inlineXml(node.children, this._fodtInlineStyle(node, inherited));
     }).join("");
     const paragraphXml = (node, extra = {}) => {
-      const css = this._fodtCssMap(node.attrs.style);
+      const css = this._fodtCssMap(node.attrs.style, [
+        "font-weight", "font-style", "text-decoration", "text-decoration-line", "color", "background-color",
+        "font-family", "font-size", "text-align", "margin-top", "margin-bottom", "margin-left", "text-indent", "line-height"
+      ]);
       const unexpected = Object.keys(node.attrs).filter(name => !["style", "class"].includes(name));
       if (unexpected.length) throw this._fodtError(`thuộc tính ${unexpected[0]} trên <${node.name}>`);
       const align = String(css["text-align"] || "left").toLowerCase();
@@ -11070,6 +11894,11 @@ export class WriterAdapter {
       if (extra.breakBefore) props.breakBefore = extra.breakBefore;
       if (css["margin-top"] !== undefined) props.marginTop = this._fodtNormalizeLengthToPt(css["margin-top"], "khoảng trước đoạn");
       if (css["margin-bottom"] !== undefined) props.marginBottom = this._fodtNormalizeLengthToPt(css["margin-bottom"], "khoảng sau đoạn");
+      if (css["margin-left"] !== undefined) props.marginLeft = this._fodtNormalizeLengthToPt(css["margin-left"], "lề trái đoạn");
+      if (css["text-indent"] !== undefined) props.textIndent = this._fodtNormalizeLengthToPt(css["text-indent"], "thụt đầu dòng");
+      if (css["line-height"] && /^(?:\d+(?:\.\d+)?)(?:pt|cm|mm|in|px)$/i.test(css["line-height"])) {
+        props.lineHeight = this._fodtNormalizeLengthToPt(css["line-height"], "giãn dòng chính xác");
+      }
       const pStyle = Object.keys(props).length ? ` text:style-name="${styleName(paragraphStyles, "P", props)}"` : "";
       const headingMatch = node.name.match(/^h([1-6])$/);
       const tag = headingMatch ? `text:h text:outline-level="${headingMatch[1]}"` : "text:p";
@@ -11448,6 +12277,9 @@ export class WriterAdapter {
       if (value.breakBefore) paraProps.push(`fo:break-before="${value.breakBefore}"`);
       if (value.marginTop) paraProps.push(`fo:margin-top="${value.marginTop}"`);
       if (value.marginBottom) paraProps.push(`fo:margin-bottom="${value.marginBottom}"`);
+      if (value.marginLeft) paraProps.push(`fo:margin-left="${value.marginLeft}"`);
+      if (value.textIndent) paraProps.push(`fo:text-indent="${value.textIndent}"`);
+      if (value.lineHeight) paraProps.push(`fo:line-height="${value.lineHeight}"`);
       const paraXml = paraProps.length ? `<style:paragraph-properties ${paraProps.join(" ")}/>` : "";
       return `<style:style ${styleAttrs.join(" ")}>${paraXml}</style:style>`;
     }).join("");
@@ -11535,7 +12367,10 @@ export class WriterAdapter {
           masterPageName: attrs["style:master-page-name"] || "",
           breakBefore,
           marginTop: props["fo:margin-top"] ? this._fodtNormalizeLengthToPt(props["fo:margin-top"], "khoảng trước đoạn") : "",
-          marginBottom: props["fo:margin-bottom"] ? this._fodtNormalizeLengthToPt(props["fo:margin-bottom"], "khoảng sau đoạn") : ""
+          marginBottom: props["fo:margin-bottom"] ? this._fodtNormalizeLengthToPt(props["fo:margin-bottom"], "khoảng sau đoạn") : "",
+          marginLeft: props["fo:margin-left"] ? this._fodtNormalizeLengthToPt(props["fo:margin-left"], "lề trái đoạn") : "",
+          textIndent: props["fo:text-indent"] ? this._fodtNormalizeLengthToPt(props["fo:text-indent"], "thụt đầu dòng") : "",
+          lineHeight: props["fo:line-height"] ? this._fodtNormalizeLengthToPt(props["fo:line-height"], "giãn dòng chính xác") : ""
         });
       } else if (family === "table-cell") {
         const propMatch = content.match(/<style:table-cell-properties\b([^>]*)\/?\s*>/i);
@@ -11832,6 +12667,9 @@ export class WriterAdapter {
       if (pStyle?.textAlign && pStyle.textAlign !== "left") cssRules.push(`text-align:${pStyle.textAlign}`);
       if (pStyle?.marginTop) cssRules.push(`margin-top:${pStyle.marginTop}`);
       if (pStyle?.marginBottom) cssRules.push(`margin-bottom:${pStyle.marginBottom}`);
+      if (pStyle?.marginLeft) cssRules.push(`margin-left:${pStyle.marginLeft}`);
+      if (pStyle?.textIndent) cssRules.push(`text-indent:${pStyle.textIndent}`);
+      if (pStyle?.lineHeight) cssRules.push(`line-height:${pStyle.lineHeight}`);
       const styleAttr = cssRules.length ? ` style="${this._escapeHtml(cssRules.join(";"))}"` : "";
       const paragraph = `<${tag}${styleAttr}>${inlineHtml(node.children)}</${tag}>`;
       if (!pStyle?.masterPageName) return paragraph;
@@ -12432,7 +13270,7 @@ export class WriterAdapter {
       } catch (error) {
         await showAlertDialog({
           title: "Không thể mở tệp",
-          message: `${error?.message || "Tệp không đúng định dạng hoặc bị hỏng."} Tài liệu đang mở được giữ nguyên.`,
+          message: "Doc không thể đọc nội dung tệp. Hãy kiểm tra tệp gốc hoặc thử lưu một bản sao ở định dạng .docx. Tài liệu đang mở được giữ nguyên.",
           type: "error"
         });
         return false;
@@ -14264,19 +15102,111 @@ export class WriterAdapter {
   _bindClipboardEvents() {
     if (this._clipboardEventRoots) return;
     this._clipboardEventRoots = [this.headerDom, this.bodyDom, this.footerDom].filter(root => root?.addEventListener);
-    this._pasteEventHandler = event => {
-      const clipboard = event.clipboardData;
-      if (!clipboard) return;
-      const html = clipboard.getData("text/html") || "";
-      const text = clipboard.getData("text/plain") || "";
+    this._copyEventHandler = event => {
+      if (!this._isContentEditableTarget(event)) return;
+      const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+      if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return;
+      const range = selection.getRangeAt(0);
+      let { html, text } = serializeWriterSelectionToClipboard(range, this.bodyDom);
+      if (!text && selection.toString) text = selection.toString();
+      this._clipboardMemory = { text, html };
+      if (event?.clipboardData) {
+        if (text) event.clipboardData.setData("text/plain", text);
+        if (html) event.clipboardData.setData("text/html", html);
+      }
+      try {
+        if (globalUnoBridge.writeClipboardData) {
+          globalUnoBridge.writeClipboardData({ text, html }).catch(() => {});
+        }
+      } catch {}
+      try {
+        if (typeof navigator !== "undefined" && typeof ClipboardItem !== "undefined" && navigator.clipboard?.write && html) {
+          const item = new ClipboardItem({
+            "text/plain": new Blob([text], { type: "text/plain" }),
+            "text/html": new Blob([html], { type: "text/html" })
+          });
+          navigator.clipboard.write([item]).catch(() => {});
+        }
+      } catch {}
+      event?.preventDefault?.();
+    };
+
+    this._cutEventHandler = event => {
+      if (!this._isContentEditableTarget(event)) return;
+      const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+      if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return;
+      const range = selection.getRangeAt(0);
+      let { html, text } = serializeWriterSelectionToClipboard(range, this.bodyDom);
+      if (!text && selection.toString) text = selection.toString();
+      this._clipboardMemory = { text, html };
+      if (event?.clipboardData) {
+        if (text) event.clipboardData.setData("text/plain", text);
+        if (html) event.clipboardData.setData("text/html", html);
+      }
+      event?.preventDefault?.();
+      this.flushTyping();
+      let deleted = false;
+      if (typeof document !== "undefined" && typeof document.execCommand === "function") {
+        try {
+          deleted = document.execCommand("delete", false, null) === true;
+        } catch { /* Range fallback below keeps Cut usable outside Chromium. */ }
+      }
+      if (!deleted) range.deleteContents();
+      this.isDirty = true;
+      this.recordSnapshot("writer.edit.cut");
+      this._updateUndoRedoUI?.();
+    };
+
+    this._pasteEventHandler = async event => {
+      const clipboard = event?.clipboardData;
+      let eventHtml = clipboard?.getData?.("text/html") || "";
+      let eventText = clipboard?.getData?.("text/plain") || "";
+      if (!eventHtml && !eventText && this._clipboardMemory) {
+        eventHtml = this._clipboardMemory.html || "";
+        eventText = this._clipboardMemory.text || "";
+      }
+      if (globalThis.window?.__vnoClipboardDiagnostics) console.info("__VNO_CLIPBOARD_DIAG__" + JSON.stringify({ phase: "writer-paste-event", types: Array.from(clipboard?.types || []), textLength: eventText.length, htmlLength: eventHtml.length, htmlHasStyle: /<style\b/i.test(eventHtml) }));
+      const needsNativeHtml = !eventHtml || (/\bMso[a-z0-9_-]+\b/i.test(eventHtml) && !/<style\b/i.test(eventHtml));
+      const native = needsNativeHtml ? await this._readClipboardFromSystem() : null;
+      let html = native?.html || eventHtml;
+      let text = native?.text || eventText;
+      if (!html && !text && this._clipboardMemory) {
+        html = this._clipboardMemory.html || "";
+        text = this._clipboardMemory.text || "";
+      }
+      if (!html && !text) {
+        const sys = await this._readClipboardFromSystem();
+        if (sys?.html || sys?.text) {
+          html = sys.html || "";
+          text = sys.text || "";
+        }
+      }
       if (!html && !text) return;
-      event.preventDefault();
+      if (event?.preventDefault) event.preventDefault();
+      this._clipboardMemory = { text, html };
+      if (globalThis.window?.__vnoClipboardDiagnostics) console.info("__VNO_CLIPBOARD_DIAG__" + JSON.stringify({ phase: "writer-paste-source", status: native?.status || "event", textLength: text.length, htmlLength: html.length, htmlHasStyle: /<style\b/i.test(html) }));
       this._insertClipboardContent({ html, text });
     };
-    for (const root of this._clipboardEventRoots) root.addEventListener("paste", this._pasteEventHandler);
+
+    for (const root of this._clipboardEventRoots) {
+      root.addEventListener("paste", this._pasteEventHandler);
+      root.addEventListener("copy", this._copyEventHandler);
+      root.addEventListener("cut", this._cutEventHandler);
+    }
+  }
+
+  _isContentEditableTarget(event) {
+    const target = event?.target;
+    return target?.isContentEditable || target?.closest?.("[contenteditable='true']") || this.bodyDom?.contains?.(target);
   }
 
   _sanitizeClipboardHtml(html) {
+    if (typeof document === "undefined") {
+      return String(html || "")
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+        .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, "")
+        .replace(/javascript:[^"']*/gi, "");
+    }
     const template = document.createElement("template");
     template.innerHTML = String(html || "");
     const allowed = new Set([
@@ -14286,7 +15216,9 @@ export class WriterAdapter {
     ]);
     const allowedStyles = new Set([
       "font-weight", "font-style", "text-decoration", "color", "background-color", "font-family",
-      "font-size", "text-align", "vertical-align", "white-space"
+      "font-size", "text-align", "vertical-align", "white-space",
+      "border", "border-top", "border-right", "border-bottom", "border-left",
+      "border-collapse", "border-spacing", "width", "height", "padding"
     ]);
     const elements = [...template.content.querySelectorAll("*")].reverse();
     for (const element of elements) {
@@ -14312,7 +15244,9 @@ export class WriterAdapter {
           else element.removeAttribute("style");
         } else if (element.tagName === "A" && name === "href") {
           if (!/^(?:https?:|mailto:)/i.test(attribute.value.trim())) element.removeAttribute(attribute.name);
-        } else if (!((element.tagName === "TD" || element.tagName === "TH") && ["colspan", "rowspan"].includes(name))) {
+        } else if (element.tagName === "TABLE" && ["border", "cellpadding", "cellspacing", "width"].includes(name)) {
+          // Cho phép thuộc tính bố cục cơ bản của bảng
+        } else if (!((element.tagName === "TD" || element.tagName === "TH") && ["colspan", "rowspan", "width", "height"].includes(name))) {
           element.removeAttribute(attribute.name);
         }
       }
@@ -14320,44 +15254,115 @@ export class WriterAdapter {
     return template.innerHTML;
   }
 
+  static sanitizeClipboardHtml(html) {
+    const adapter = new WriterAdapter();
+    return adapter._sanitizeClipboardHtml(html);
+  }
+
+  _prepareClipboardHtmlForInsertion(html) {
+    if (!html || typeof document === "undefined" || typeof window === "undefined") return html;
+    const selection = window.getSelection?.();
+    if (!selection?.rangeCount) return html;
+    const range = selection.getRangeAt(0);
+    const startElement = range.startContainer?.nodeType === 1
+      ? range.startContainer
+      : range.startContainer?.parentElement;
+    const paragraph = startElement?.closest?.("p,h1,h2,h3,h4,h5,h6,li,blockquote,pre");
+    if (!paragraph || !this.bodyDom?.contains?.(paragraph)) return html;
+
+    const template = document.createElement("template");
+    template.innerHTML = html;
+    const meaningfulNodes = [...template.content.childNodes].filter(node => (
+      node.nodeType === 1 || (node.nodeType === 3 && node.textContent?.trim())
+    ));
+    if (meaningfulNodes.length !== 1) return html;
+    const wrapper = meaningfulNodes[0];
+    if (wrapper.nodeType !== 1 || wrapper.tagName !== "DIV") return html;
+    if (wrapper.querySelector("p,div,h1,h2,h3,h4,h5,h6,ul,ol,li,blockquote,pre,table")) return html;
+
+    const span = document.createElement("span");
+    for (const attribute of [...wrapper.attributes]) {
+      span.setAttribute(attribute.name, attribute.value);
+    }
+    span.innerHTML = wrapper.innerHTML;
+    return span.outerHTML;
+  }
+
   _insertClipboardContent({ html = "", text = "" } = {}) {
-    const cleanHtml = html ? this._sanitizeClipboardHtml(html) : "";
+    const sanitizedHtml = html ? this._sanitizeClipboardHtml(cleanWordHtml(html)) : "";
+    const cleanHtml = this._prepareClipboardHtmlForInsertion(sanitizedHtml);
     if (cleanHtml || text) this.flushTyping();
+    let inserted = false;
     if (cleanHtml) {
-      if (document.execCommand?.("insertHTML", false, cleanHtml)) return true;
-      const selection = window.getSelection?.();
-      if (!selection?.rangeCount) return false;
-      const range = selection.getRangeAt(0);
-      const fragment = document.createRange().createContextualFragment(cleanHtml);
-      range.deleteContents();
-      const last = fragment.lastChild;
-      range.insertNode(fragment);
-      if (last) range.setStartAfter(last);
-      range.collapse(true);
-      selection.removeAllRanges();
-      selection.addRange(range);
-      this.bodyDom?.dispatchEvent?.(new InputEvent("input", { bubbles: true, inputType: "insertFromPaste", data: text || null }));
+      if (document.execCommand?.("insertHTML", false, cleanHtml)) {
+        inserted = true;
+      } else {
+        const selection = window.getSelection?.();
+        if (selection) {
+          if (!selection.rangeCount && this.bodyDom) {
+            const r = document.createRange();
+            r.selectNodeContents(this.bodyDom);
+            r.collapse(false);
+            selection.removeAllRanges();
+            selection.addRange(r);
+          }
+          if (selection.rangeCount) {
+            const range = selection.getRangeAt(0);
+            const fragment = document.createRange().createContextualFragment(cleanHtml);
+            range.deleteContents();
+            const last = fragment.lastChild;
+            range.insertNode(fragment);
+            if (last) range.setStartAfter(last);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+            this.bodyDom?.dispatchEvent?.(new InputEvent("input", { bubbles: true, inputType: "insertFromPaste", data: text || null }));
+            inserted = true;
+          }
+        }
+      }
+    }
+    if (!inserted && text) {
+      if (document.execCommand?.("insertText", false, text)) {
+        inserted = true;
+      } else {
+        const selection = window.getSelection?.();
+        if (selection) {
+          if (!selection.rangeCount && this.bodyDom) {
+            const r = document.createRange();
+            r.selectNodeContents(this.bodyDom);
+            r.collapse(false);
+            selection.removeAllRanges();
+            selection.addRange(r);
+          }
+          if (selection.rangeCount) {
+            const range = selection.getRangeAt(0);
+            const node = document.createTextNode(text);
+            range.deleteContents();
+            range.insertNode(node);
+            range.setStartAfter(node);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+            this.bodyDom?.dispatchEvent?.(new InputEvent("input", { bubbles: true, inputType: "insertFromPaste", data: text }));
+            inserted = true;
+          }
+        }
+      }
+    }
+    if (inserted) {
+      this.isDirty = true;
+      this.recordSnapshot("Paste");
+      this._updateUndoRedoUI();
       return true;
     }
-    if (!text) return false;
-    if (document.execCommand?.("insertText", false, text)) return true;
-    const selection = window.getSelection?.();
-    if (!selection?.rangeCount) return false;
-    const range = selection.getRangeAt(0);
-    const node = document.createTextNode(text);
-    range.deleteContents();
-    range.insertNode(node);
-    range.setStartAfter(node);
-    range.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(range);
-    this.bodyDom?.dispatchEvent?.(new InputEvent("input", { bubbles: true, inputType: "insertFromPaste", data: text }));
-    return true;
+    return false;
   }
 
   async _readClipboardFromSystem() {
     try {
       const native = await globalUnoBridge.readClipboardData?.();
+      if (globalThis.window?.__vnoClipboardDiagnostics) console.info("__VNO_CLIPBOARD_DIAG__" + JSON.stringify({ phase: "writer-clipboard-bridge-result", status: native?.status, textLength: native?.text?.length || 0, htmlLength: native?.html?.length || 0, htmlHasStyle: /<style\b/i.test(native?.html || ""), message: native?.message || "" }));
       if (native?.status === "ok") return native;
     } catch { /* Browser clipboard is the web-mode fallback. */ }
     try {
@@ -14380,7 +15385,10 @@ export class WriterAdapter {
   }
 
   async _pasteFromSystemClipboard(plainTextOnly = false) {
-    const clipboard = await this._readClipboardFromSystem();
+    let clipboard = await this._readClipboardFromSystem();
+    if (!clipboard && this._clipboardMemory) {
+      clipboard = { status: "ok", html: this._clipboardMemory.html, text: this._clipboardMemory.text };
+    }
     if (!clipboard) {
       this.shell?.setStatus?.("Không đọc được bộ nhớ tạm. Hãy dùng Ctrl+V trong vùng soạn thảo hoặc kiểm tra quyền clipboard.");
       return false;
@@ -14910,16 +15918,28 @@ export class WriterAdapter {
         if (!this._isInsideProtectedZone(commonNode) && (commonNode === this.bodyDom || this.bodyDom.contains?.(commonNode))) {
           try {
             range.collapse(true);
-            if (typeof tocElement === "string") {
+            let node = tocElement;
+            if (typeof node === "string") {
               const temp = document.createElement("div");
-              temp.innerHTML = tocElement;
-              const node = temp.firstElementChild;
-              range.insertNode(node);
-              range.setStartAfter(node);
-            } else {
-              range.insertNode(tocElement);
-              range.setStartAfter(tocElement);
+              temp.innerHTML = node;
+              node = temp.firstElementChild;
             }
+
+            let paragraphBlock = commonNode?.nodeType === 1 ? commonNode : (commonNode?.parentElement || commonNode?.parentNode);
+            while (paragraphBlock && paragraphBlock !== this.bodyDom) {
+              if (/^(P|H[1-6])$/.test(String(paragraphBlock.tagName || "").toUpperCase())) break;
+              paragraphBlock = paragraphBlock.parentElement || paragraphBlock.parentNode;
+            }
+            if (paragraphBlock === this.bodyDom) paragraphBlock = null;
+
+            if (paragraphBlock?.parentNode?.insertBefore) {
+              const nextSibling = paragraphBlock.nextSibling;
+              if (nextSibling) paragraphBlock.parentNode.insertBefore(node, nextSibling);
+              else paragraphBlock.parentNode.appendChild(node);
+            } else {
+              range.insertNode(node);
+            }
+            range.setStartAfter(node);
             inserted = true;
           } catch {}
         }

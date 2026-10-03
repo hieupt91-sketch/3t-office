@@ -53,7 +53,7 @@
 
     let lazyFeatureToast = null;
     let lazyFeatureToastTimer = null;
-    const appDisplayNames = { writer: "3T Doc", sheet: "3T Sheet", slides: "3T Slide" };
+    const appDisplayNames = { writer: "Doc", sheet: "Sheet", slides: "Slide" };
     window.addEventListener("vno:lazy-feature-start", (event) => {
       clearTimeout(lazyFeatureToastTimer);
       if (!lazyFeatureToast) {

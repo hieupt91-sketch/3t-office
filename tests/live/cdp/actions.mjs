@@ -13,6 +13,8 @@ const specialKeys = {
   ArrowDown: { code: "ArrowDown", keyCode: 40, text: "" },
   Home: { code: "Home", keyCode: 36, text: "" },
   End: { code: "End", keyCode: 35, text: "" },
+  PageUp: { code: "PageUp", keyCode: 33, text: "" },
+  PageDown: { code: "PageDown", keyCode: 34, text: "" },
   F12: { code: "F12", keyCode: 123, text: "" },
 };
 
@@ -39,7 +41,7 @@ function modifierMask(modifiers = {}) {
   ), 0);
 }
 
-export async function press(cdp, key, modifiers = {}, settleMilliseconds = 250) {
+export async function press(cdp, key, modifiers = {}, settleMilliseconds = 250, timeoutMilliseconds = 60000) {
   const info = keyInfo(key);
   const mask = modifierMask(modifiers);
   const text = mask ? "" : info.text;
@@ -47,11 +49,11 @@ export async function press(cdp, key, modifiers = {}, settleMilliseconds = 250) 
     type: "keyDown", key: info.key, code: info.code,
     windowsVirtualKeyCode: info.keyCode, modifiers: mask,
     text, unmodifiedText: text,
-  });
+  }, timeoutMilliseconds);
   await cdp.send("Input.dispatchKeyEvent", {
     type: "keyUp", key: info.key, code: info.code,
     windowsVirtualKeyCode: info.keyCode, modifiers: mask,
-  });
+  }, timeoutMilliseconds);
   if (settleMilliseconds > 0) await sleep(settleMilliseconds);
 }
 
@@ -70,6 +72,11 @@ export async function typeText(cdp, value, delayMilliseconds = 50) {
     if (delayMilliseconds > 0) await new Promise(resolve => setTimeout(resolve, delayMilliseconds));
   }
   await sleep(300);
+}
+
+export async function insertText(cdp, text) {
+  await cdp.send("Input.insertText", { text: String(text) });
+  await sleep(200);
 }
 
 export async function click(cdp, selector, index = 0) {
