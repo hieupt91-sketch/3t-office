@@ -8103,11 +8103,59 @@ export class WriterAdapter {
 
   _bindStyleTracking() {
     if (typeof document === "undefined" || typeof document.addEventListener !== "function" || this._styleSelectionHandler) return;
-    this._styleSelectionHandler = () => this._syncActiveStyleUI();
+    this._styleSelectionHandler = () => {
+      this._syncActiveStyleUI();
+      this._scheduleFormatToggleSync();
+    };
     document.addEventListener("selectionchange", this._styleSelectionHandler);
     if (this.bodyDom?.addEventListener) {
       this.bodyDom.addEventListener("keyup", this._styleSelectionHandler);
       this.bodyDom.addEventListener("mouseup", this._styleSelectionHandler);
+    }
+  }
+
+  // Ribbon toggle buttons (Bold, Italic, alignment, lists...) must follow the text under the caret, not only the last
+  // command that was run: moving the caret from a bold word to a normal one used to leave "Bold" lit.
+  static FORMAT_TOGGLE_STATES = {
+    "writer.text.bold": "bold",
+    "writer.text.italic": "italic",
+    "writer.text.underline": "underline",
+    "writer.text.strike": "strikeThrough",
+    "writer.text.subscript": "subscript",
+    "writer.text.superscript": "superscript",
+    "writer.para.alignLeft": "justifyLeft",
+    "writer.para.alignCenter": "justifyCenter",
+    "writer.para.alignRight": "justifyRight",
+    "writer.para.justify": "justifyFull",
+    "writer.list.bullet": "insertUnorderedList",
+    "writer.list.numbered": "insertOrderedList"
+  };
+
+  _scheduleFormatToggleSync() {
+    if (this._formatToggleSyncPending) return;
+    this._formatToggleSyncPending = true;
+    const run = () => {
+      this._formatToggleSyncPending = false;
+      this._syncFormatToggleUI();
+    };
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(run);
+    else run();
+  }
+
+  _syncFormatToggleUI() {
+    if (typeof document === "undefined" || !this.bodyDom || typeof document.queryCommandState !== "function") return;
+    const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+    if (!selection || !selection.anchorNode || !this.bodyDom.contains(selection.anchorNode)) return;
+    for (const [commandId, domCommand] of Object.entries(WriterAdapter.FORMAT_TOGGLE_STATES)) {
+      const current = globalCommandBus.getState(commandId);
+      if (!current) continue;
+      let active = false;
+      try {
+        active = Boolean(document.queryCommandState(domCommand));
+      } catch {
+        continue;
+      }
+      if (current.checked !== active) globalCommandBus.updateState(commandId, { checked: active });
     }
   }
 

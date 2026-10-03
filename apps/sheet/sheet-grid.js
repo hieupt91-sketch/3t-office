@@ -1851,6 +1851,7 @@ export class SheetGridController {
       if (moved) this._onViewportScroll();
     }
     this._updateRangeSelectionVisuals();
+    this._syncFormatToggleUI();
     this.focusGrid();
   }
 
@@ -8493,7 +8494,41 @@ _bindGridKeyboardNavigation() {
 
     const cell = this.container.querySelector(`.vno-grid-cell[data-coord="${key}"]`);
     if (cell) cell.style[prop] = val;
+    this._scheduleFormatToggleSync();
     return true;
+  }
+
+  // Ribbon toggle buttons follow the ACTIVE CELL's real style. The command bus lights a toggle with the handler's
+  // return value (always `true` = success), so turning bold OFF kept the button lit, and moving to a plain cell never
+  // cleared it. Runs on selection change and (deferred, after the bus has written its value) after a style change.
+  _scheduleFormatToggleSync() {
+    if (this._formatToggleSyncPending) return;
+    this._formatToggleSyncPending = true;
+    const run = () => {
+      this._formatToggleSyncPending = false;
+      this._syncFormatToggleUI();
+    };
+    if (typeof setTimeout === "function") setTimeout(run, 0);
+    else run();
+  }
+
+  _syncFormatToggleUI() {
+    if (typeof globalCommandBus?.getState !== "function") return;
+    const style = this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.style || {};
+    const weight = String(style.fontWeight ?? "").toLowerCase();
+    const wanted = {
+      "sheet.cell.bold": weight === "bold" || weight === "bolder" || Number(weight) >= 600,
+      "sheet.cell.italic": String(style.fontStyle ?? "").toLowerCase() === "italic",
+      "sheet.cell.underline": /underline/i.test(String(style.textDecoration ?? "")),
+      "sheet.cell.wrapText": String(style.whiteSpace ?? "").toLowerCase() === "normal",
+      "sheet.cell.alignLeft": style.textAlign === "left",
+      "sheet.cell.alignCenter": style.textAlign === "center",
+      "sheet.cell.alignRight": style.textAlign === "right"
+    };
+    for (const [commandId, active] of Object.entries(wanted)) {
+      const current = globalCommandBus.getState(commandId);
+      if (current && Boolean(current.checked) !== active) globalCommandBus.updateState(commandId, { checked: active });
+    }
   }
 
   toggleStyle(prop, valOn, valOff) {
