@@ -12,6 +12,8 @@ import { globalShortcutManager } from "../../platform/commands/shortcut-manager.
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { t } from "../../platform/i18n/i18n.js";
 import { withLazyFeatureProgress } from "../../platform/startup/lazy-feature.js";
+import { globalUnoBridge } from "../../adapters/libreoffice/common/uno-bridge.js";
+import { SheetQuickView } from "./sheet-quick-view.js";
 
 export class SheetApp {
   constructor(mountElement) {
@@ -28,6 +30,7 @@ export class SheetApp {
     this._sheetOpenProgressHandler = null;
     this._focusRestoreClickHandler = null;
     this._focusRestoreObserver = null;
+    this.quickView = null;
   }
 
   async init(options = {}) {
@@ -113,6 +116,10 @@ export class SheetApp {
     this.adapter = new SheetAdapter(this.grid);
     this.adapter.setShell(this.shell);
     this.adapter.attach();
+    if (launchParams.get("viewFirst") === "1") {
+      this.quickView = new SheetQuickView({ grid: this.grid, shell: this.shell, bridge: globalUnoBridge });
+      this.quickView.install();
+    }
     if (typeof window !== "undefined") {
       this._previousSheetOpenProgress = window.__vnoSheetOpenProgress;
       this._sheetOpenProgressHandler = (message, startTiming = false) => {
@@ -121,7 +128,15 @@ export class SheetApp {
           window.__vnoSheetOpenElapsedMs = null;
           window.__vnoSheetOpenFirstGridPending = false;
         }
-        this.shell?.setStatus?.(String(message || "Đang mở bảng tính…"));
+        const text = String(message || "Đang mở bảng tính…");
+        const progress = /chuẩn bị/i.test(text) ? 12
+          : /chuyển workbook/i.test(text) ? 28
+            : /tối ưu/i.test(text) ? 52
+              : /đóng gói/i.test(text) ? 70
+                : /dựng mô hình|hiển thị lưới|dữ liệu bảng tính/i.test(text) ? 86 : null;
+        if (!this.quickView?.updateProgress(text.replace(/^Đang .+?…?$/i, "Đang nạp đầy đủ…"), progress)) {
+          this.shell?.setStatus?.(text);
+        }
       };
       window.__vnoSheetOpenProgress = this._sheetOpenProgressHandler;
     }
@@ -241,6 +256,8 @@ export class SheetApp {
     this._focusRestoreObserver = null;
     this.helpPanel?.destroy();
     this.helpPanel = null;
+    this.quickView?.destroy?.();
+    this.quickView = null;
     this.grid?.destroy?.();
     this.grid = null;
   }

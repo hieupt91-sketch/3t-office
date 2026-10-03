@@ -1,0 +1,122 @@
+.vno-sheet-container { position: relative; }
+
+.vno-sheet-container.vno-quick-view-active > .vno-formula-bar {
+  pointer-events: none;
+  opacity: .72;
+}
+
+.vno-sheet-quick-view {
+  position: absolute;
+  inset: 30px 0 0;
+  z-index: 80;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) 31px;
+  background: var(--vno-bg-window, #fff);
+  color: var(--vno-text-primary, #111827);
+  outline: none;
+  opacity: 1;
+  transition: opacity 120ms ease;
+}
+
+.vno-sheet-quick-view.is-leaving { opacity: 0; pointer-events: none; }
+
+.vno-sheet-quick-status {
+  min-height: 28px;
+  box-sizing: border-box;
+  padding: 5px 12px;
+  border-bottom: 1px solid var(--vno-border-default, #d1d5db);
+  background: #fff7d6;
+  color: #5c4500;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.vno-sheet-quick-viewport {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  background: var(--vno-bg-window, #fff);
+}
+
+.vno-sheet-quick-spacer { position: absolute; inset: 0 auto auto 0; pointer-events: none; }
+.vno-sheet-quick-layer { position: absolute; inset: 0 auto auto 0; }
+
+.vno-sheet-quick-table {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font: 11pt Calibri, Carlito, Arial, sans-serif;
+  background: #fff;
+}
+
+.vno-sheet-quick-table th,
+.vno-sheet-quick-table td { box-sizing: border-box; }
+
+.vno-sheet-quick-col-header,
+.vno-sheet-quick-row-header,
+.vno-sheet-quick-corner {
+  height: 24px;
+  padding: 2px 5px;
+  border: 1px solid var(--vno-border-default, #d1d5db);
+  background: var(--vno-bg-muted, #f3f4f6);
+  color: var(--vno-text-secondary, #374151);
+  font: 600 12px/18px Arial, sans-serif;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.vno-sheet-quick-row-header { position: sticky; left: 0; z-index: 3; min-width: 44px; }
+.vno-sheet-quick-col-header { position: sticky; top: 0; z-index: 2; }
+.vno-sheet-quick-corner { position: sticky; top: 0; left: 0; z-index: 4; }
+
+.vno-sheet-quick-cell {
+  height: 26px;
+  min-width: 24px;
+  max-width: 480px;
+  padding: 2px 5px;
+  overflow: hidden;
+  border-right: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+  background-clip: padding-box;
+  text-overflow: clip;
+  cursor: cell;
+}
+
+.vno-sheet-quick-cell.is-selected {
+  position: relative;
+  outline: 2px solid var(--vno-sheet-primary, #15803d);
+  outline-offset: -2px;
+  z-index: 1;
+}
+
+.vno-sheet-quick-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  overflow-x: auto;
+  padding: 2px 8px 0 48px;
+  border-top: 1px solid var(--vno-border-default, #d1d5db);
+  background: var(--vno-bg-subtle, #f8fafc);
+}
+
+.vno-sheet-quick-tab {
+  min-width: 76px;
+  max-width: 220px;
+  padding: 3px 12px;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 4px 4px 0 0;
+  background: transparent;
+  color: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.vno-sheet-quick-tab:hover,
+.vno-sheet-quick-tab:focus-visible { background: var(--vno-bg-hover, #e5e7eb); outline: 2px solid var(--vno-border-focus, #2563eb); }
+.vno-sheet-quick-tab.is-active { border-color: var(--vno-border-default, #d1d5db); border-bottom-color: var(--vno-sheet-primary, #15803d); background: #fff; font-weight: 700; }
+
