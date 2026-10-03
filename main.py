@@ -478,6 +478,10 @@ class _StaticFileHandler(http.server.SimpleHTTPRequestHandler):
 
 class _QuietTCPServer(http.server.ThreadingHTTPServer):
     allow_reuse_address = False
+    # The page fetches dozens of module/CSS files in parallel at start-up. socketserver's default backlog (5)
+    # overflows under that burst and Windows then answers ERR_CONNECTION_REFUSED; one refused module leaves
+    # the window blank forever (seen in about 1 of 10 automated launches on 04/10/2026).
+    request_queue_size = 128
 
     def server_bind(self):
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 0)
