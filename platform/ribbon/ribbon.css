@@ -13,6 +13,11 @@
 /* Tabs Bar */
 .vno-ribbon-tabs {
   display: flex;
+  /* Never let the tab strip widen the page: very narrow windows scroll the strip itself (no visible bar). */
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
   align-items: center;
   height: var(--vno-ribbon-tabs-height);
   padding: 0 4px;
@@ -20,6 +25,8 @@
   border-bottom: 1px solid var(--vno-border-subtle);
   gap: 2px;
 }
+
+.vno-ribbon-tabs::-webkit-scrollbar { display: none; }
 
 .vno-ribbon-tab-file {
   background-color: var(--vno-app-current) !important;
@@ -37,7 +44,10 @@
   outline-offset: 1px;
 }
 
+
 .vno-ribbon-tab {
+  white-space: nowrap;
+  flex-shrink: 0;
   padding: 0 12px;
   height: 28px;
   font-family: var(--vno-font-family-ui);
@@ -51,6 +61,15 @@
   outline: none;
 }
 
+/* Tab labels never wrap onto two lines; on narrow windows (laptops at 125-150% scaling, ~900-1100 CSS px) the
+   padding shrinks first so every tab stays on one line. */
+@media (max-width: 1100px) {
+  .vno-ribbon-tab { padding: 0 8px; }
+}
+@media (max-width: 960px) {
+  .vno-ribbon-tab { padding: 0 5px; font-size: 12px; }
+  .vno-ribbon-tab-file { padding: 0 10px; }
+}
 .vno-ribbon-tab:hover {
   color: var(--vno-text-primary);
   background-color: var(--vno-bg-hover);
