@@ -1099,6 +1099,24 @@ class _PersistentSofficeManager:
                         f"UNO helper restart failed: {retry_error} (first error: {first_error})"
                     ) from retry_error
 
+    def view_operation(self, app_kind: str | None, operation: str, timeout: float = 120, **payload) -> dict:
+        """P8 view-first query on a document the worker keeps open.
+
+        Unlike operation(), a rejected request (bad window, unknown id) must NOT stop the
+        worker: that would drop every loaded view.  Transport failures still reset it, and
+        are never retried because the held document would be gone after a restart.
+        """
+        kind = app_kind if app_kind in VALID_APP_KINDS else "shared"
+        with self._lock:
+            worker = self._ensure_locked(kind)
+            try:
+                return worker.operation(operation, payload, timeout=timeout)
+            except _PersistentSofficeConversionError:
+                raise
+            except _PersistentSofficeTransportError:
+                self._stop_locked()
+                raise
+
     def operation(self, app_kind: str | None, operation: str, **payload) -> dict:
         kind = app_kind if app_kind in VALID_APP_KINDS else "shared"
         with self._lock:
@@ -3240,6 +3258,40 @@ class VnOfficeApi:
     def start_document_engine(self):
         """Start LibreOffice after the user first needs a document operation."""
         return {"started": self._start_document_engine()}
+
+    # --- P8 view-first (Sheet): query the document LibreOffice already holds, window by window. ---
+    # Off by default in the UI (flag in the front end); these calls never touch the convert path.
+    def sheet_view_open(self, file_path):
+        try:
+            path = os.path.abspath(str(file_path))
+            if not os.path.isfile(path):
+                return {"ok": False, "error": "Không tìm thấy tệp."}
+            started = time.perf_counter()
+            result = _PERSISTENT_SOFFICE.view_operation("sheet", "view_open", timeout=180, source_path=path)
+            _open_perf_log("sheet_view_open", (time.perf_counter() - started) * 1000, sheets=len(result.get("sheets", [])))
+            return {"ok": True, "doc_id": result["doc_id"], "sheets": result["sheets"]}
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)[:300]}
+
+    def sheet_view_window(self, doc_id, sheet, r0, c0, r1, c1):
+        try:
+            started = time.perf_counter()
+            result = _PERSISTENT_SOFFICE.view_operation(
+                "sheet", "view_window", timeout=60, doc_id=str(doc_id),
+                sheet=int(sheet), r0=int(r0), c0=int(c0), r1=int(r1), c1=int(c1),
+            )
+            result["ok"] = True
+            _open_perf_log("sheet_view_window", (time.perf_counter() - started) * 1000)
+            return result
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)[:300]}
+
+    def sheet_view_close(self, doc_id):
+        try:
+            _PERSISTENT_SOFFICE.view_operation("sheet", "view_close", timeout=30, doc_id=str(doc_id))
+            return {"ok": True}
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)[:300]}
 
     def open_mail_merge_data_dialog(self):
         return self._invoke_reported_api("open_mail_merge_data_dialog", self._open_mail_merge_data_dialog_impl)
