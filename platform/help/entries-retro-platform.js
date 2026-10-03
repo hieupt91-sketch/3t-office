@@ -190,6 +190,22 @@ export const RETRO_PLATFORM_HELP_ENTRIES = [
     ]
   },
   {
+    id: "common.platform.keepFocusHelp",
+    app: "common",
+    commandIds: [],
+    title: "Giữ bàn phím và Tiêu điểm trong vùng soạn thảo (Keep Focus)",
+    summary: "Tự động trả tiêu điểm về vùng soạn thảo cho Doc, Sheet và Slide sau khi đóng hộp thoại, chạy lệnh Ribbon hoặc chuyển đổi cửa sổ.",
+    ribbon: { tab: "Trợ giúp", tabId: "help", group: "Soạn thảo" },
+    keywords: ["giữ tiêu điểm", "tiêu điểm bàn phím", "keep focus", "vùng soạn thảo", "enter không kích hoạt nút", "gõ ngay", "doc", "sheet", "slide"],
+    steps: [
+      "Khi làm việc với Doc (văn bản), Sheet (bảng tính), hoặc Slide (trình chiếu), bạn có thể mở các hộp thoại chức năng (như Tìm kiếm/Thay thế Ctrl+F, Định dạng ô, Phông chữ, In ấn Ctrl+P, Tùy chọn, v.v.).",
+      "Sau khi đóng hộp thoại bằng phím Esc, nút 'Đóng', nút 'Hủy' hoặc nút 'Đồng ý / OK', tiêu điểm bàn phím sẽ ngay lập tức tự động quay trở lại vùng soạn thảo: con trỏ văn bản trong Doc, ô đang chọn trong Sheet, hoặc hộp chữ/khung vẽ trong Slide.",
+      "Khi bạn bấm các nút trên dải Ribbon (như In đậm, Nghiêng, Căn giữa, Chèn bảng) hoặc đổi tab Ribbon, tiêu điểm cũng lập tức được trả về vùng soạn thảo mà không bị kẹt lại trên các nút bấm.",
+      "Khi chuyển sang ứng dụng khác (Alt+Tab) rồi quay trở lại cửa sổ 3T Office, bàn phím luôn sẵn sàng để gõ tiếp ký tự mà không cần phải dùng chuột nhấp lại vào trang.",
+      "Đặc biệt, phím Enter luôn an toàn: nhấn Enter trong Doc sẽ tạo đoạn văn mới, trong Sheet sẽ di chuyển xuống ô kế tiếp, tuyệt đối không bị kích hoạt nhầm vào bất kỳ nút bấm Ribbon hay nút hộp thoại vừa đóng."
+    ]
+  },
+  {
     id: "common.platform.crossAppPasteHelp",
     app: "common",
     commandIds: [

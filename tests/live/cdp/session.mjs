@@ -17,8 +17,8 @@ function readySelector(app) {
 export async function launchApp(app, options = {}) {
   const root = options.root || repoRoot;
   const debugPort = await findFreePort();
-  const profileRoot = await mkdtemp(path.join(os.tmpdir(), "vno-cdp-" + app + "-"));
-  const localAppData = path.join(profileRoot, "localappdata");
+  const profileRoot = options.profileRoot || (!options.localAppData ? await mkdtemp(path.join(os.tmpdir(), "vno-cdp-" + app + "-")) : null);
+  const localAppData = options.localAppData || path.join(profileRoot, "localappdata");
   await mkdir(localAppData, { recursive: true });
   const python = options.python || process.env.VNO_PYTHON || "python";
   const args = ["-s", path.join(root, "main.py"), "--app=" + app];
@@ -112,7 +112,14 @@ async function closeApp(session) {
     await Promise.race([session.exited, sleep(10000)]);
     if (child.exitCode === null && child.signalCode === null) {
       // Only the Python process launched by this harness is ever stopped here.
-      try { child.kill(); } catch {}
+      if (process.platform === "win32") {
+        try {
+          const { spawnSync } = await import("node:child_process");
+          spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { windowsHide: true });
+        } catch {}
+      } else {
+        try { child.kill(); } catch {}
+      }
       await Promise.race([session.exited, sleep(5000)]);
     }
   }

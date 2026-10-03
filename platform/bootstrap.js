@@ -7,6 +7,7 @@
 import { globalCommandBus } from "./commands/command-bus.js";
 import { registerAllStandardCommands } from "./commands/command-definitions.js";
 import { themeManager } from "./theme/theme-manager.js";
+import { installGlobalFocusGuard } from "./shell/focus-manager.js";
 
 let _isBootstrapped = false;
 let _bootstrapPromise = null;
@@ -51,6 +52,7 @@ export async function bootstrapPlatform() {
     registerAllStandardCommands(globalCommandBus);
     globalCommandBus.bindHandler("common.view.toggleTheme", () => themeManager.toggleTheme());
     themeManager.init();
+    installGlobalFocusGuard();
     _isBootstrapped = true;
     console.log("[3T Office Platform] Hoàn tất bootstrap suite thành công.");
   })();

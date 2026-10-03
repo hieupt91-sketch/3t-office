@@ -234,6 +234,7 @@ import { runSpellcheckInlineToggleTests } from "./unit/spellcheck-inline-toggle.
 import { runCh81ConsistencyTests } from "./unit/ch8-1-consistency.test.js";
 import { runSharedInsertCapabilitiesTests } from "./unit/shared-insert-capabilities.test.js";
 
+import { runKeepFocusUnitTests } from "./unit/ch4-6-keep-focus.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -476,7 +477,8 @@ async function runAll() {
     { title: "227. Unit Tests — Office Clipboard Interop (Sheet Excel/Calc HTML, TSV, Writer Word HTML cleaning)", runner: runOfficeClipboardTests },
     { title: "228. Unit Tests — Cross-App Paste (Doc, Sheet, Slide Interoperability)", runner: runCrossAppPasteTests },
     { title: "229. Unit Tests — Writer DOCX review range export metadata", runner: runWriterReviewExportTests },
-    { title: "230. Unit Tests — CH-7.3 Shared Insert Dialogs & Capabilities (Symbol, Hyperlink, Shapes, Textbox, Picture)", runner: runSharedInsertCapabilitiesTests }
+    { title: "230. Unit Tests — CH-7.3 Shared Insert Dialogs & Capabilities (Symbol, Hyperlink, Shapes, Textbox, Picture)", runner: runSharedInsertCapabilitiesTests },
+    { title: "231. Unit Tests — CH-4.6 Editor Focus Keeper & Enter Button Guard (Doc, Sheet, Slide)", runner: runKeepFocusUnitTests }
   ];
 
   for (const suite of suites) {

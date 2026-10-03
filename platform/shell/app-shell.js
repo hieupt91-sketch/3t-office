@@ -18,6 +18,7 @@ import { getPlatformLaunchContext } from "../bootstrap.js";
 import { themeManager } from "../theme/theme-manager.js";
 import { globalUnoBridge } from "../../adapters/libreoffice/common/uno-bridge.js";
 import { NotificationBar } from "../ui-kit/notification-bar.js";
+import { installGlobalFocusGuard, captureEditorFocus, restoreEditorFocus, isEditorElement } from "./focus-manager.js";
 
 const { showAlertDialog, showConfirmDialog, showPromptDialog, showMacroManagerDialog, showUnsavedChangesDialog } = createLazyDialogs("common");
 
@@ -71,7 +72,12 @@ export class AppShell {
 
   setZoomLevel(value) {
     const level = Number(value);
-    if (Number.isFinite(level)) this._setZoomControl?.(level);
+    if (Number.isFinite(level)) {
+      this._setZoomControl?.(level);
+      setTimeout(() => {
+        restoreEditorFocus();
+      }, 0);
+    }
   }
 
   requestAppSwitch(appType, options) {
@@ -81,6 +87,7 @@ export class AppShell {
   }
 
   mount(targetElement) {
+    installGlobalFocusGuard();
     this.rootEl = targetElement;
     this.rootEl.innerHTML = "";
     this.rootEl.className = "vno-shell";
@@ -743,6 +750,7 @@ export class AppShell {
   }
 
   showBackstageMenu() {
+    captureEditorFocus();
     const previousFocused = document.activeElement;
     const modal = document.createElement("div");
     modal.className = "vno-backstage-overlay";
@@ -893,8 +901,10 @@ export class AppShell {
       }
       document.removeEventListener("keydown", onBackstageKeyDown);
       if (modal.parentNode) modal.parentNode.removeChild(modal);
-      if (previousFocused && typeof previousFocused.focus === "function") {
-        previousFocused.focus();
+      if (previousFocused && isEditorElement(previousFocused)) {
+        try { previousFocused.focus(); } catch (_) {}
+      } else {
+        restoreEditorFocus();
       }
     };
 
