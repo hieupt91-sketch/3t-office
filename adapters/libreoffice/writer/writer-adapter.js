@@ -631,6 +631,9 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.para.spacingBefore", (args) => this.applyParagraphSpacingBefore(args));
     globalCommandBus.bindHandler("writer.para.spacingAfter", (args) => this.applyParagraphSpacingAfter(args));
     globalCommandBus.bindHandler("writer.para.firstLineIndent", (args) => this.applyParagraphFirstLineIndent(args));
+    globalCommandBus.bindHandler("writer.ruler.getState", () => this.getRulerState());
+    globalCommandBus.bindHandler("writer.ruler.setParagraphIndents", (args) => this.applyParagraphRulerIndents(args));
+    globalCommandBus.bindHandler("writer.ruler.setPageMargins", (args) => this.setRulerPageMargins(args));
     globalCommandBus.bindHandler("writer.para.moveUp", () => this.moveParagraph("up"));
     globalCommandBus.bindHandler("writer.para.moveDown", () => this.moveParagraph("down"));
     globalCommandBus.bindHandler("writer.para.lineSpacing", async (args) => {
@@ -1163,6 +1166,75 @@ export class WriterAdapter {
     const pt = this._parseParagraphSpacingPt(args);
     if (pt == null) return false;
     return this._applyParagraphVisualStyle({ textIndent: `${pt}pt` }, "writer.para.firstLineIndent");
+  }
+
+  getRulerState() {
+    const setup = this.sectionPageSetups?.[this.activeSectionId] || this.pageSetup;
+    const size = pageSizeMm(setup);
+    const pageWidthMm = setup.orientation === "landscape" ? size.h : size.w;
+    const pageHeightMm = setup.orientation === "landscape" ? size.w : size.h;
+    const blocks = this._getRulerParagraphBlocks();
+    const block = blocks[0] || this.bodyDom?.querySelector?.("p,li,h1,h2,h3,h4,h5,h6,blockquote,div");
+    const pxToMm = value => Math.round((Number.parseFloat(value) || 0) * 25.4 / 96 * 100) / 100;
+    let leftMm = 0;
+    let rightMm = 0;
+    let firstLineMm = 0;
+    if (block && typeof window !== "undefined") {
+      const computed = window.getComputedStyle(block);
+      leftMm = pxToMm(computed.marginLeft);
+      rightMm = pxToMm(computed.marginRight);
+      firstLineMm = pxToMm(computed.textIndent);
+    }
+    return {
+      pageWidthMm,
+      pageHeightMm,
+      margins: { ...setup.margins },
+      paragraph: { leftMm, rightMm, firstLineMm },
+      selectionCount: blocks.length
+    };
+  }
+
+  applyParagraphRulerIndents(args = {}) {
+    const state = this.getRulerState();
+    const contentWidth = state.pageWidthMm - state.margins.left - state.margins.right;
+    const leftMm = Math.max(0, Number(args.leftMm) || 0);
+    const rightMm = Math.max(0, Number(args.rightMm) || 0);
+    const firstLineMm = Number(args.firstLineMm) || 0;
+    if (leftMm + rightMm > contentWidth - 10 || leftMm + firstLineMm < 0) return false;
+    return this._applyParagraphVisualStyle({
+      marginLeft: `${leftMm}mm`,
+      marginRight: `${rightMm}mm`,
+      textIndent: `${firstLineMm}mm`
+    }, "writer.ruler.paragraph", this._getRulerParagraphBlocks());
+  }
+
+  _getRulerParagraphBlocks() {
+    if (typeof window === "undefined" || !this.bodyDom) return [];
+    const selection = window.getSelection?.();
+    if (!selection || !selection.rangeCount) return [];
+    const range = selection.getRangeAt(0);
+    const start = range.startContainer?.nodeType === 1 ? range.startContainer : range.startContainer?.parentElement;
+    const selector = "p,li,h1,h2,h3,h4,h5,h6,blockquote,div,td,th";
+    if (range.collapsed) {
+      const block = start?.closest?.(selector);
+      return block && this.bodyDom.contains(block) ? [block] : [];
+    }
+    return Array.from(this.bodyDom.querySelectorAll?.(selector) || []).filter(block => {
+      if (block.querySelector?.(selector)) return false;
+      try { return range.intersectsNode(block); } catch { return false; }
+    });
+  }
+
+  setRulerPageMargins(args = {}) {
+    const setup = this.sectionPageSetups?.[this.activeSectionId] || this.pageSetup;
+    const size = pageSizeMm(setup);
+    const pageWidthMm = setup.orientation === "landscape" ? size.h : size.w;
+    const margins = { ...setup.margins, ...(args.margins || {}) };
+    for (const side of ["top", "right", "bottom", "left"]) {
+      margins[side] = Math.max(0, Number(margins[side]) || 0);
+    }
+    if (margins.left + margins.right > pageWidthMm - 10) return false;
+    return this.setPageSetup({ ...setup, margins }, "section");
   }
 
   applyMultilevelList(preset) {

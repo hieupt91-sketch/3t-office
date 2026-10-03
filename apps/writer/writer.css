@@ -26,7 +26,7 @@
   border-bottom: 1px solid var(--vno-border-default);
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   user-select: none;
   position: relative;
   z-index: 10;
@@ -37,34 +37,89 @@
   background-color: var(--vno-bg-window);
   border-left: 1px solid var(--vno-border-strong);
   border-right: 1px solid var(--vno-border-strong);
-  position: relative;
-  display: flex;
-  align-items: flex-end;
+  position: absolute;
+  left: 0;
+  top: 0;
+  box-sizing: border-box;
+  overflow: visible;
 }
 .vno-ruler-scale {
-  width: 100%;
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background-color: var(--vno-bg-window);
+  background-image:
+    repeating-linear-gradient(to right, #64748b 0 1px, transparent 1px calc(var(--vno-ruler-cm, 38px) / 4));
+  background-size: var(--vno-ruler-cm, 38px) 7px;
+  background-position: 0 15px;
+  background-repeat: repeat-x;
+}
+.vno-ruler-margin {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: #cbd5e1;
+  box-shadow: inset 0 0 0 1px #94a3b8;
+}
+.vno-ruler-margin-left { left: 0; }
+.vno-ruler-margin-right { right: 0; }
+.vno-ruler-number {
+  position: absolute;
+  top: 1px;
+  transform: translateX(-50%);
+  color: #475569;
+  font: 9px/10px "Segoe UI", sans-serif;
+  pointer-events: none;
+}
+.vno-ruler-marker {
+  position: absolute;
+  z-index: 3;
+  width: 11px;
   height: 8px;
-  background-image: repeating-linear-gradient(to right, #94a3b8 0, #94a3b8 1px, transparent 1px, transparent 10px);
+  margin-left: -5.5px;
+  background: var(--vno-writer-primary);
+  cursor: ew-resize;
+  outline-offset: 1px;
 }
-.vno-ruler-marker-left {
-  position: absolute;
-  left: var(--vno-margin-left, 113px);
+.vno-ruler-marker:focus-visible { outline: 2px solid #f59e0b; }
+.vno-ruler-marker.is-dragging { background: #dc2626; }
+.vno-ruler-first-line {
   top: 0;
-  width: 0;
-  height: 0;
-  border-left: 5px solid transparent;
-  border-right: 5px solid transparent;
-  border-top: 7px solid var(--vno-writer-primary);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
 }
-.vno-ruler-marker-right {
-  position: absolute;
-  right: var(--vno-margin-right, 56px);
+.vno-ruler-hanging {
+  top: 10px;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+.vno-ruler-left-indent {
+  top: 18px;
+  width: 13px;
+  height: 4px;
+  margin-left: -6.5px;
+}
+.vno-ruler-right-indent {
+  top: 10px;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+.vno-ruler-margin-handle {
   top: 0;
-  width: 0;
-  height: 0;
-  border-left: 5px solid transparent;
-  border-right: 5px solid transparent;
-  border-top: 7px solid var(--vno-writer-primary);
+  width: 7px;
+  height: 22px;
+  margin-left: -3.5px;
+  border-radius: 2px;
+  background: rgba(37, 99, 235, 0.35);
+  border-left: 1px solid #1d4ed8;
+  border-right: 1px solid #1d4ed8;
+}
+.vno-ruler-marker-left { width: 5px; margin-left: -10px; }
+.vno-ruler-marker-right { width: 5px; margin-left: 5px; }
+.vno-ruler-guide {
+  position: fixed;
+  z-index: 10000;
+  width: 1px;
+  background: #2563eb;
+  pointer-events: none;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.65);
 }
 
 /* Thước đo dọc (Vertical Ruler) */
