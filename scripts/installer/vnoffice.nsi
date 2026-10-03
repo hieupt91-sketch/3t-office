@@ -36,9 +36,9 @@ Unicode true
 
 !macro RegisterApplication EXE FRIENDLY
   WriteRegStr HKCU "Software\Classes\Applications\${EXE}" "FriendlyAppName" "${FRIENDLY}"
-  WriteRegStr HKCU "Software\Classes\Applications\${EXE}\DefaultIcon" "" "$INSTDIR\${EXE},0"
+  WriteRegStr HKCU "Software\Classes\Applications\${EXE}\DefaultIcon" "" "$INSTDIR\app\launchers\${EXE},0"
   WriteRegStr HKCU "Software\Classes\Applications\${EXE}\shell\open" "FriendlyAppName" "${FRIENDLY}"
-  WriteRegStr HKCU "Software\Classes\Applications\${EXE}\shell\open\command" "" "$\"$INSTDIR\${EXE}$\" $\"%1$\""
+  WriteRegStr HKCU "Software\Classes\Applications\${EXE}\shell\open\command" "" "$\"$INSTDIR\app\launchers\${EXE}$\" $\"%1$\""
 !macroend
 
 ; Older builds listed the shared "Python" entry (ProgID whose command is pythonw.exe) in "Open with" for all three apps.
@@ -53,7 +53,7 @@ Unicode true
     WriteRegStr HKCU "Software\Classes\${PROGID}" "" "${FRIENDLY}"
     WriteRegStr HKCU "Software\Classes\${PROGID}" "FriendlyTypeName" "${FRIENDLY}"
     WriteRegStr HKCU "Software\Classes\${PROGID}\shell\open" "FriendlyAppName" "${FRIENDLY}"
-    WriteRegStr HKCU "Software\Classes\${PROGID}\shell\open\command" "" "$\"$INSTDIR\${EXE}$\" $\"%1$\""
+    WriteRegStr HKCU "Software\Classes\${PROGID}\shell\open\command" "" "$\"$INSTDIR\app\launchers\${EXE}$\" $\"%1$\""
   ${EndIf}
 !macroend
 
@@ -69,7 +69,7 @@ Unicode true
   WriteRegStr HKCU "Software\Classes\${PROGID}" "FriendlyTypeName" "${FRIENDLY}"
   WriteRegStr HKCU "Software\Classes\${PROGID}\DefaultIcon" "" "$INSTDIR\icons\${APPKIND}.ico,0"
   WriteRegStr HKCU "Software\Classes\${PROGID}\shell\open" "FriendlyAppName" "${FRIENDLY}"
-  WriteRegStr HKCU "Software\Classes\${PROGID}\shell\open\command" "" "$\"$INSTDIR\${EXE}$\" $\"%1$\""
+  WriteRegStr HKCU "Software\Classes\${PROGID}\shell\open\command" "" "$\"$INSTDIR\app\launchers\${EXE}$\" $\"%1$\""
 !macroend
 
 !macro RemoveExtension EXT PROGID
@@ -227,9 +227,7 @@ Section "-Core" SEC_CORE
   File "${PackageDir}\VERSION.txt"
   File "${PackageDir}\BUILD-INFO.txt"
   File "${PackageDir}\CAI-DAT.txt"
-  File "${PackageDir}\Doc.exe"
-  File "${PackageDir}\Sheet.exe"
-  File "${PackageDir}\Slide.exe"
+  ; The per-app launchers ship inside app\launchers (a managed update root), so patch updates can deliver them.
 
   WriteUninstaller "$INSTDIR\Uninstall.exe"
   ; Remove the previous pilot launchers while keeping the existing install and registry locations.
@@ -252,9 +250,9 @@ Section "-Core" SEC_CORE
   ; Remove the older ASCII uninstall shortcut from the current 3T menu before replacing it.
   Delete "$SMPROGRAMS\3T Office\Go cai dat 3T Office.lnk"
   CreateDirectory "$SMPROGRAMS\3T Office"
-  CreateShortCut "$SMPROGRAMS\3T Office\Doc.lnk" "$INSTDIR\Doc.exe" "" "$INSTDIR\Doc.exe" 0 SW_SHOWNORMAL "" "Doc" "$INSTDIR\app"
-  CreateShortCut "$SMPROGRAMS\3T Office\Sheet.lnk" "$INSTDIR\Sheet.exe" "" "$INSTDIR\Sheet.exe" 0 SW_SHOWNORMAL "" "Sheet" "$INSTDIR\app"
-  CreateShortCut "$SMPROGRAMS\3T Office\Slide.lnk" "$INSTDIR\Slide.exe" "" "$INSTDIR\Slide.exe" 0 SW_SHOWNORMAL "" "Slide" "$INSTDIR\app"
+  CreateShortCut "$SMPROGRAMS\3T Office\Doc.lnk" "$INSTDIR\app\launchers\Doc.exe" "" "$INSTDIR\app\launchers\Doc.exe" 0 SW_SHOWNORMAL "" "Doc" "$INSTDIR\app"
+  CreateShortCut "$SMPROGRAMS\3T Office\Sheet.lnk" "$INSTDIR\app\launchers\Sheet.exe" "" "$INSTDIR\app\launchers\Sheet.exe" 0 SW_SHOWNORMAL "" "Sheet" "$INSTDIR\app"
+  CreateShortCut "$SMPROGRAMS\3T Office\Slide.lnk" "$INSTDIR\app\launchers\Slide.exe" "" "$INSTDIR\app\launchers\Slide.exe" 0 SW_SHOWNORMAL "" "Slide" "$INSTDIR\app"
   ; "Open with" lists Doc / Sheet / Slide with their own icons (does not change the default program).
   !insertmacro RegisterApplication "Doc.exe" "Doc"
   !insertmacro RegisterApplication "Sheet.exe" "Sheet"
@@ -310,9 +308,9 @@ Section "-Core" SEC_CORE
 SectionEnd
 
 Section "$(TASK_DESKTOP)" SEC_DESKTOP
-  CreateShortCut "$DESKTOP\Doc.lnk" "$INSTDIR\Doc.exe" "" "$INSTDIR\Doc.exe" 0 SW_SHOWNORMAL "" "Doc" "$INSTDIR\app"
-  CreateShortCut "$DESKTOP\Sheet.lnk" "$INSTDIR\Sheet.exe" "" "$INSTDIR\Sheet.exe" 0 SW_SHOWNORMAL "" "Sheet" "$INSTDIR\app"
-  CreateShortCut "$DESKTOP\Slide.lnk" "$INSTDIR\Slide.exe" "" "$INSTDIR\Slide.exe" 0 SW_SHOWNORMAL "" "Slide" "$INSTDIR\app"
+  CreateShortCut "$DESKTOP\Doc.lnk" "$INSTDIR\app\launchers\Doc.exe" "" "$INSTDIR\app\launchers\Doc.exe" 0 SW_SHOWNORMAL "" "Doc" "$INSTDIR\app"
+  CreateShortCut "$DESKTOP\Sheet.lnk" "$INSTDIR\app\launchers\Sheet.exe" "" "$INSTDIR\app\launchers\Sheet.exe" 0 SW_SHOWNORMAL "" "Sheet" "$INSTDIR\app"
+  CreateShortCut "$DESKTOP\Slide.lnk" "$INSTDIR\app\launchers\Slide.exe" "" "$INSTDIR\app\launchers\Slide.exe" 0 SW_SHOWNORMAL "" "Slide" "$INSTDIR\app"
 SectionEnd
 
 Section /o "$(TASK_ASSOC)" SEC_ASSOC

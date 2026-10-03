@@ -107,7 +107,7 @@ if ($LASTEXITCODE -ne 0) { throw "build-seed-profiles.py failed ($LASTEXITCODE)"
 
 # 3c. Per-app launchers (Doc.exe / Sheet.exe / Slide.exe): own icon + name for "Open with", taskbar, Task Manager.
 Write-Host "      Launchers"
-& powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "installer\build-launchers.ps1") -OutDir $dist -Version $Version
+& powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "installer\build-launchers.ps1") -OutDir (Join-Path $appDir "launchers") -Version $Version
 if ($LASTEXITCODE -ne 0) { throw "build-launchers.ps1 failed ($LASTEXITCODE)" }
 
 # 4. Icons (copy real multi-size icons from branding/icons/, or fallback to generated placeholders), version, notices.

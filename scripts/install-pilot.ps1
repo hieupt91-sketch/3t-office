@@ -104,7 +104,7 @@ foreach ($app in $apps) {
     foreach ($linkPath in $targets) {
         $link = $shell.CreateShortcut($linkPath)
         $launcherName = @{ writer = "Doc.exe"; sheet = "Sheet.exe"; slides = "Slide.exe" }[$app.Id]
-        $launcher = Join-Path $InstallDir $launcherName
+        $launcher = Join-Path $InstallDir "app\launchers\$launcherName"
         if (Test-Path -LiteralPath $launcher -PathType Leaf) {
             # Own icon and name in the shell (Open with, taskbar, Task Manager) instead of the shared Python icon.
             $link.TargetPath = $launcher

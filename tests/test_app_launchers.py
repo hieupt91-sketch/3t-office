@@ -61,8 +61,9 @@ class InstallerRegistrationTests(unittest.TestCase):
         build_installer = (REPO / "scripts" / "build-installer.ps1").read_text(encoding="utf-8")
         build_pilot = (REPO / "scripts" / "build-pilot.ps1").read_text(encoding="utf-8")
         for exe in EXES.values():
-            self.assertIn(exe, build_installer)
-            self.assertIn(f'File "${{PackageDir}}\\{exe}"', NSIS)
+            self.assertIn(f"app\\launchers\\{exe}", build_installer)
+            self.assertNotIn(f'File "${{PackageDir}}\\{exe}"', NSIS)  # shipped inside app\launchers via File /r app\*
+        self.assertIn("$INSTDIR\\app\\launchers\\${EXE}", NSIS)
         self.assertIn("build-launchers.ps1", build_pilot)
 
 
@@ -70,9 +71,9 @@ class TaskbarRelaunchTests(unittest.TestCase):
     def test_relaunch_uses_launcher_and_its_icon_when_installed_next_to_app_folder(self):
         with tempfile.TemporaryDirectory() as root:
             app_dir = Path(root) / "app"
-            app_dir.mkdir()
+            (app_dir / "launchers").mkdir(parents=True)
             for exe in EXES.values():
-                (Path(root) / exe).write_bytes(b"MZ")
+                (app_dir / "launchers" / exe).write_bytes(b"MZ")
             fake_main = app_dir / "main.py"
             fake_main.write_text("", encoding="utf-8")
             with patch.object(main, "__file__", str(fake_main)):

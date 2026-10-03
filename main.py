@@ -361,6 +361,17 @@ def _initialize_deferred_services(api, app_kind: str, launch_args: list[str]) ->
     from adapters.updater.trust import get_public_key
     from adapters.updater.updater import queue_rollback_report
 
+    # A patch update cannot rewrite the preserved config or the registry: bring an older install up to date here
+    # (Internet update source + report endpoint; "Open with" entries and shortcuts via the per-app launchers).
+    install_root = _update_install_root()
+    if install_root is not None:
+        from adapters.install_migration import migrate_installed_config, run_shell_migrations_once
+        migrate_installed_config(install_root)
+        threading.Thread(
+            target=run_shell_migrations_once, args=(install_root, _user_data_dir(), APP_VERSION),
+            daemon=True, name="VNO shell registration",
+        ).start()
+
     report_config = load_client_config(ROOT_DIR)
     try:
         _ERROR_REPORTER = ErrorReporter(
@@ -531,7 +542,7 @@ def _taskbar_relaunch_info(app_kind: str) -> dict[str, str] | None:
         return None
     # A pinned taskbar item re-launches through the per-app launcher (own name + icon) when it is installed
     # next to the app folder; otherwise through the interpreter as before (source / older installs).
-    launcher = Path(__file__).resolve().parent.parent / TASKBAR_LAUNCHER_EXES[app_kind]
+    launcher = Path(__file__).resolve().parent / "launchers" / TASKBAR_LAUNCHER_EXES[app_kind]
     if launcher.is_file():
         command = subprocess.list2cmdline([str(launcher)])
         icon_source = launcher
