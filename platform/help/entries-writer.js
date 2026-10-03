@@ -10,10 +10,10 @@ export const WRITER_HELP_ENTRIES = [
     commandIds: ["writer.view.ruler", "writer.ruler.setParagraphIndents", "writer.ruler.setPageMargins"],
     title: "Dùng thước để đặt lề và thụt lề",
     summary: "Thước ngang hiển thị theo cm và cho phép kéo lề trang, thụt dòng đầu, thụt lề treo, lề trái và lề phải của đoạn đang chọn.",
-    ribbon: { tab: "Xem", tabId: "view", group: "Hiển thị" },
+    ribbon: { tab: "Chế độ xem", tabId: "view", group: "Hiển thị" },
     keywords: ["thước", "ruler", "lề", "thụt dòng đầu", "thụt lề treo", "Alt", "cm", "mm"],
     steps: [
-      "Mở tab Xem, nhóm Hiển thị và bật Thước. Vùng xám là lề trang; vùng trắng là vùng nhập văn bản. Các số 1, 2, 3… biểu thị centimet tính từ lề trái.",
+      "Mở tab Chế độ xem, nhóm Hiển thị và bật Thước. Vùng xám là lề trang; vùng trắng là vùng nhập văn bản. Các số 1, 2, 3… biểu thị centimet tính từ lề trái.",
       "Để đổi lề trang, kéo tay nắm dọc ở ranh giới vùng xám bên trái hoặc bên phải. Đường xanh trên trang cho biết vị trí mới; thả chuột để áp dụng. Nhấn Ctrl+Z để hoàn tác một lần kéo.",
       "Đặt con trỏ trong một đoạn hoặc bôi chọn nhiều đoạn. Tam giác trên đặt thụt dòng đầu; tam giác dưới bên trái đặt thụt lề treo; hình chữ nhật bên trái kéo cả thụt dòng đầu và thụt lề treo; tam giác bên phải đặt thụt lề phải.",
       "Khi kéo, giữ Alt để chỉnh chính xác đến 0,1 mm. Có thể nhấn Tab để đưa tiêu điểm tới từng dấu, rồi dùng Mũi tên trái/phải để đổi 1 mm; giữ Shift để đổi 5 mm. Tooltip và trình đọc màn hình thông báo giá trị thật."

@@ -182,6 +182,7 @@ body {
 .vno-topbar-center {
   flex: 1;
   max-width: 440px;
+  min-width: 140px;
   position: relative;
 }
 .vno-search-input-wrap {
@@ -515,8 +516,12 @@ body {
 
   /* Sheet Home - 1366px laptop: Co gon nhan Dinh dang co dieu kien, Tron o, Dan dac biet va Font select */
   .vno-ribbon select[data-command-id$="font.family"] {
-    min-width: 95px;
-    max-width: 115px;
+    min-width: 130px;
+    max-width: 155px;
+    font-size: 10.5px;
+  }
+  .vno-ribbon select[data-command-id$="font.size"] {
+    min-width: 105px;
     font-size: 10.5px;
   }
   .vno-ribbon-group[data-group-id="styles"] button[data-command-id="sheet.format.conditional"] .vno-btn-label {
@@ -560,6 +565,10 @@ body {
    Giam nhe padding nhom va thu gon cac nut it dung/phu thanh icon + tooltip tren cac tab de bi tran.
    Bao toan 100% button DOM, commandId, aria-label, tooltip title va click handlers. */
 @media (max-width: 1300px) {
+  .vno-topbar-center {
+    max-width: 320px;
+    min-width: 120px;
+  }
   .vno-ribbon-content {
     padding: 4px 2px;
   }
@@ -651,6 +660,10 @@ body {
 /* Responsive ribbon breakpoint 4: man hinh <= 1150px (bao gom 1024px tablet/desktop nho)
    Dam bao ca tab Trang chu cua Writer va Sheet khong bi tran ngang hay bien mat cac nut quan trong. */
 @media (max-width: 1150px) {
+  .vno-topbar-center {
+    max-width: 220px;
+    min-width: 100px;
+  }
   .vno-ribbon-content {
     padding: 2px 1px;
   }
@@ -764,8 +777,8 @@ body {
 
   /* Font Family select: Co gon tren man hinh 1024px */
   .vno-ribbon select[data-command-id$="font.family"] {
-    max-width: 105px;
-    min-width: 90px;
+    max-width: 135px;
+    min-width: 115px;
     font-size: 10.5px;
   }
 

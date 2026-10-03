@@ -1,0 +1,65 @@
+[
+  {
+    "type": "clipped_grid_cell",
+    "element": "td.vno-grid-cell.has-content[coord=B1] (\"Nhóm hàng(3 Cấp)\")",
+    "coord": "B1",
+    "scrollWidth": 119,
+    "clientWidth": 80,
+    "cutPx": 39,
+    "text": "Nhóm hàng(3 Cấp)"
+  },
+  {
+    "type": "clipped_grid_cell",
+    "element": "td.vno-grid-cell.has-content[coord=E1] (\"Thương hiệu\")",
+    "coord": "E1",
+    "scrollWidth": 85,
+    "clientWidth": 63,
+    "cutPx": 22,
+    "text": "Thương hiệu"
+  },
+  {
+    "type": "clipped_grid_cell",
+    "element": "td.vno-grid-cell.can-overflow[coord=AB2] (\"đơn cho thuê\")",
+    "coord": "AB2",
+    "scrollWidth": 83,
+    "clientWidth": 64,
+    "cutPx": 19,
+    "text": "đơn cho thuê"
+  },
+  {
+    "type": "clipped_grid_cell",
+    "element": "td.vno-grid-cell.has-content[coord=D5] (\"Máy tính Dell Precision T5810 \")",
+    "coord": "D5",
+    "scrollWidth": 775,
+    "clientWidth": 420,
+    "cutPx": 355,
+    "text": "Máy tính Dell Precision T5810 V3 Xeon E51620/ Ram 16GB/ SSD240GB/ HDD 2TB/ VGA Quadro K2200/ HĐH Windows 7 Pro 64bit"
+  },
+  {
+    "type": "clipped_grid_cell",
+    "element": "td.vno-grid-cell.can-overflow[coord=AB18] (\"đơn quảng hòa của tùng\")",
+    "coord": "AB18",
+    "scrollWidth": 148,
+    "clientWidth": 64,
+    "cutPx": 84,
+    "text": "đơn quảng hòa của tùng"
+  },
+  {
+    "type": "clipped_grid_cell",
+    "element": "td.vno-grid-cell.has-content[coord=E19] (\"Western Digital\")",
+    "coord": "E19",
+    "scrollWidth": 97,
+    "clientWidth": 63,
+    "cutPx": 34,
+    "text": "Western Digital"
+  },
+  {
+    "type": "clipped_grid_cell",
+    "element": "td.vno-grid-cell.has-content[coord=C38] (\"19040503_TSCD\")",
+    "coord": "C38",
+    "scrollWidth": 103,
+    "clientWidth": 63,
+    "cutPx": 40,
+    "text": "19040503_TSCD"
+  }
+]

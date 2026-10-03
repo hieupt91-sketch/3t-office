@@ -1199,7 +1199,14 @@ export class SheetGridController {
     for (let r = 1; r <= this.rowCount; r++) {
       const itm = this.cellsData.get(`${col}${r}`);
       if (itm) {
-        const text = String(itm.formula || itm.val || "");
+        let text = "";
+        if (itm.formula) {
+          text = String(itm.formula);
+        } else if (itm.style?.numberFormat && typeof itm.val === "number") {
+          text = NumberFormatter.formatValue(itm.val, itm.style.numberFormat)?.text || String(itm.val);
+        } else {
+          text = String(itm.val ?? "");
+        }
         if (text.length > maxLen) maxLen = text.length;
       }
     }
@@ -4980,6 +4987,13 @@ _bindGridKeyboardNavigation() {
     if (hasUserEnteredLineBreak) {
       const fittedHeight = this.computeAutoFitRowHeight(row);
       if (fittedHeight > this.getRowHeight(row)) this.setRowHeights(fittedHeight, [row], false);
+    }
+    const isDateTime = item.style?.numberFormat?.category === "date" || item.style?.numberFormat?.category === "time";
+    if (isDateTime && (!this._colWidths().has(col) || this.getColumnWidth(col) === this.defaultColWidth)) {
+      const fittedWidth = this.computeAutoFitColumnWidth(col);
+      if (fittedWidth > this.defaultColWidth) {
+        this.setColumnWidths(fittedWidth, [col], false);
+      }
     }
     const prevColNum = typeof this._columnNumber === "function" ? this._columnNumber(col) - 1 : 0;
     if (prevColNum >= 1) {
@@ -13156,6 +13170,7 @@ _bindGridKeyboardNavigation() {
     let total = 0;
     let count = 0;
     const seenCoords = new Set();
+    let hasCurrency = false;
     for (const selection of ranges) {
       const range = this._normalizeRange(selection);
       const startCol = this.cols.indexOf(range.start.c);
@@ -13175,13 +13190,28 @@ _bindGridKeyboardNavigation() {
           if (!Number.isFinite(num)) continue;
           count++;
           total += num;
+          const cat = itm.style?.numberFormat?.category;
+          if (cat === "currency" || cat === "accounting") {
+            hasCurrency = true;
+          }
         }
       }
     }
     const avg = count > 0 ? total / count : 0;
+    if (hasCurrency) {
+      const formatter = new Intl.NumberFormat("vi-VN", {
+        style: "currency",
+        currency: "VND",
+        maximumFractionDigits: 10
+      });
+      return {
+        count: count,
+        sum: formatter.format(total),
+        avg: formatter.format(avg)
+      };
+    }
     const formatter = new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
+      style: "decimal",
       maximumFractionDigits: 10
     });
     return {
