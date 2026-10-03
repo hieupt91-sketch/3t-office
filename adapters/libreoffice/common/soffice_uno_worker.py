@@ -114,7 +114,13 @@ def _convert(desktop: Any, uno: Any, property_type: Any, request: dict[str, Any]
     }
 
 
-def _load_hidden_document(desktop: Any, uno: Any, property_type: Any, path: str) -> Any:
+def _load_hidden_document(
+    desktop: Any,
+    uno: Any,
+    property_type: Any,
+    path: str,
+    error_message: str = "Không mở được PDF để xử lý.",
+) -> Any:
     load_properties = (
         _property(property_type, "Hidden", True),
         _property(property_type, "Silent", True),
@@ -127,7 +133,7 @@ def _load_hidden_document(desktop: Any, uno: Any, property_type: Any, path: str)
         load_properties,
     )
     if document is None:
-        raise RuntimeError("Không mở được PDF để xử lý.")
+        raise RuntimeError(error_message)
     return document
 
 
@@ -203,7 +209,86 @@ def _print_pdf(desktop: Any, uno: Any, property_type: Any, request: dict[str, An
         _close_hidden_document(document)
 
 
+# --- P8 view-first: keep a spreadsheet loaded in LibreOffice and answer small window queries. ---
+# The convert path above is untouched.  These operations let the UI paint the first screen of a
+# very large workbook from the live document model instead of waiting for a full FODS export.
+_VIEW_DOCUMENTS: dict[str, Any] = {}
+
+
+def _view_open(desktop: Any, uno: Any, property_type: Any, request: dict[str, Any]) -> dict[str, Any]:
+    started = time.monotonic()
+    document = _load_hidden_document(
+        desktop, uno, property_type, request["source_path"], "Không mở được tài liệu để xem nhanh."
+    )
+    try:
+        sheets = document.getSheets()  # AttributeError for non-spreadsheet documents
+        infos = []
+        for index in range(int(sheets.getCount())):
+            sheet = sheets.getByIndex(index)
+            cursor = sheet.createCursor()
+            cursor.gotoEndOfUsedArea(False)
+            address = cursor.getRangeAddress()
+            infos.append({
+                "name": sheet.getName(),
+                "rows": int(address.EndRow) + 1,
+                "cols": int(address.EndColumn) + 1,
+            })
+    except Exception:
+        _close_hidden_document(document)
+        raise
+    doc_id = str(request.get("doc_id") or f"view{len(_VIEW_DOCUMENTS) + 1}_{int(started * 1000)}")
+    _VIEW_DOCUMENTS[doc_id] = document
+    return {
+        "ok": True,
+        "doc_id": doc_id,
+        "sheets": infos,
+        "elapsed_ms": round((time.monotonic() - started) * 1000, 1),
+    }
+
+
+def _view_window(request: dict[str, Any]) -> dict[str, Any]:
+    started = time.monotonic()
+    document = _VIEW_DOCUMENTS.get(str(request.get("doc_id")))
+    if document is None:
+        raise ValueError("Chưa mở tài liệu để xem nhanh.")
+    sheets = document.getSheets()
+    sheet = sheets.getByIndex(int(request["sheet"]))
+    first_row, first_col = int(request["r0"]), int(request["c0"])
+    last_row, last_col = int(request["r1"]), int(request["c1"])
+    if first_row < 0 or first_col < 0 or last_row < first_row or last_col < first_col:
+        raise ValueError("Vùng xem không hợp lệ.")
+    if (last_row - first_row + 1) * (last_col - first_col + 1) > 200_000:
+        raise ValueError("Vùng xem quá lớn.")
+    cell_range = sheet.getCellRangeByPosition(first_col, first_row, last_col, last_row)
+    columns = sheet.getColumns()
+    rows = sheet.getRows()
+    return {
+        "ok": True,
+        "values": [list(row) for row in cell_range.getDataArray()],
+        "formulas": [list(row) for row in cell_range.getFormulaArray()],
+        # 1/100 mm, as LibreOffice stores them; the UI converts.
+        "col_widths": [int(columns.getByIndex(c).Width) for c in range(first_col, last_col + 1)],
+        "row_heights": [int(rows.getByIndex(r).Height) for r in range(first_row, last_row + 1)],
+        "col_hidden": [not bool(columns.getByIndex(c).IsVisible) for c in range(first_col, last_col + 1)],
+        "row_hidden": [not bool(rows.getByIndex(r).IsVisible) for r in range(first_row, last_row + 1)],
+        "elapsed_ms": round((time.monotonic() - started) * 1000, 1),
+    }
+
+
+def _view_close(request: dict[str, Any]) -> dict[str, Any]:
+    document = _VIEW_DOCUMENTS.pop(str(request.get("doc_id")), None)
+    if document is not None:
+        _close_hidden_document(document)
+    return {"ok": True}
+
+
+def _close_all_views() -> None:
+    for doc_id in list(_VIEW_DOCUMENTS):
+        _view_close({"doc_id": doc_id})
+
+
 def _stop_server(desktop: Any, process: subprocess.Popen[str] | None) -> None:
+    _close_all_views()
     if desktop is not None:
         try:
             desktop.terminate()
@@ -314,6 +399,12 @@ def main(argv: list[str] | None = None) -> int:
                     response = _render_pdf_page(desktop, uno, PropertyValue, request)
                 elif operation == "print_pdf":
                     response = _print_pdf(desktop, uno, PropertyValue, request)
+                elif operation == "view_open":
+                    response = _view_open(desktop, uno, PropertyValue, request)
+                elif operation == "view_window":
+                    response = _view_window(request)
+                elif operation == "view_close":
+                    response = _view_close(request)
                 else:
                     raise ValueError("unsupported worker operation")
                 _write({"id": request.get("id"), **response})
