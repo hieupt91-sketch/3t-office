@@ -16,18 +16,22 @@ export class WriterTableController {
     this.selectedCells = new Set();
     this.moveHandle = null;
 
-    this._resizing = false;
+    this._resizing = false; // false | "col" | "row"
     this._resizeColIndex = -1;
     this._resizeStartX = 0;
+    this._resizeStartY = 0;
     this._resizeStartWidth = 0;
+    this._resizeStartHeight = 0;
     this._resizeTable = null;
     this._resizingCell = null;
+    this._resizeRow = null;
 
     this._isSelecting = false;
     this._selectStartCell = null;
 
     this._onPointerMove = this._handlePointerMove.bind(this);
     this._onPointerDown = this._handlePointerDown.bind(this);
+    this._onDblClick = this._handleDblClick.bind(this);
     this._onSelectionChange = this._handleSelectionChange.bind(this);
     this._onDocMouseMove = this._handleDocMouseMove.bind(this);
     this._onDocMouseUp = this._handleDocMouseUp.bind(this);
@@ -40,6 +44,7 @@ export class WriterTableController {
 
     this.body.addEventListener("mousemove", this._onPointerMove);
     this.body.addEventListener("mousedown", this._onPointerDown);
+    this.body.addEventListener("dblclick", this._onDblClick);
     this.body.addEventListener("click", this._onSelectionChange);
     this.body.addEventListener("keyup", this._onSelectionChange);
 
@@ -56,6 +61,7 @@ export class WriterTableController {
   destroy() {
     this.body?.removeEventListener("mousemove", this._onPointerMove);
     this.body?.removeEventListener("mousedown", this._onPointerDown);
+    this.body?.removeEventListener("dblclick", this._onDblClick);
     this.body?.removeEventListener("click", this._onSelectionChange);
     this.body?.removeEventListener("keyup", this._onSelectionChange);
 
@@ -176,9 +182,15 @@ export class WriterTableController {
 
       if (cell) {
         const rect = cell.getBoundingClientRect();
-        const distFromRight = Math.abs(event.clientX - rect.right);
-        if (distFromRight <= 5) {
+        const nearRight = Math.abs(event.clientX - rect.right) <= 8;
+        const nearLeft = Math.abs(event.clientX - rect.left) <= 8 && cell.cellIndex > 0;
+        const nearBottom = Math.abs(event.clientY - rect.bottom) <= 8;
+        const nearTop = Math.abs(event.clientY - rect.top) <= 8 && cell.parentElement?.rowIndex > 0;
+
+        if (nearRight || nearLeft) {
           cell.style.cursor = "col-resize";
+        } else if (nearBottom || nearTop) {
+          cell.style.cursor = "row-resize";
         } else {
           cell.style.cursor = "";
         }
@@ -191,22 +203,58 @@ export class WriterTableController {
   }
 
   _handlePointerDown(event) {
-    const cell = event.target?.closest?.("td, th");
+    let cell = event.target?.closest?.("td, th");
+    if (!cell) {
+      const table = event.target?.closest?.("table") || this.activeTable || this.body?.querySelector?.("table:hover");
+      if (table && table.rows) {
+        for (const row of table.rows) {
+          for (const c of row.cells) {
+            const r = c.getBoundingClientRect();
+            if (event.clientX >= r.left - 8 && event.clientX <= r.right + 8 &&
+                event.clientY >= r.top - 8 && event.clientY <= r.bottom + 8) {
+              cell = c;
+              break;
+            }
+          }
+          if (cell) break;
+        }
+      }
+    }
     if (!cell) return;
 
     const rect = cell.getBoundingClientRect();
-    const distFromRight = Math.abs(event.clientX - rect.right);
+    const nearRight = Math.abs(event.clientX - rect.right) <= 8;
+    const nearLeft = Math.abs(event.clientX - rect.left) <= 8 && cell.cellIndex > 0;
 
-    if (distFromRight <= 5) {
+    if (nearRight || nearLeft) {
       // Bắt đầu kéo chỉnh độ rộng cột
       event.preventDefault();
-      this._resizing = true;
-      this._resizingCell = cell;
-      this._resizeTable = cell.closest("table");
-      this._resizeColIndex = cell.cellIndex;
+      const targetCell = nearRight ? cell : cell.parentElement?.cells[cell.cellIndex - 1];
+      if (!targetCell) return;
+      this._resizing = "col";
+      this._resizingCell = targetCell;
+      this._resizeTable = targetCell.closest("table");
+      this._resizeColIndex = targetCell.cellIndex;
       this._resizeStartX = event.clientX;
-      this._resizeStartWidth = cell.offsetWidth;
+      this._resizeStartWidth = targetCell.offsetWidth;
       document.body.style.cursor = "col-resize";
+      return;
+    }
+
+    const nearBottom = Math.abs(event.clientY - rect.bottom) <= 8;
+    const nearTop = Math.abs(event.clientY - rect.top) <= 8 && cell.parentElement?.rowIndex > 0;
+    if (nearBottom || nearTop) {
+      // Bắt đầu kéo chỉnh chiều cao hàng
+      event.preventDefault();
+      const table = cell.closest("table");
+      const targetRow = nearBottom ? cell.parentElement : table?.rows[cell.parentElement.rowIndex - 1];
+      if (!targetRow) return;
+      this._resizing = "row";
+      this._resizeTable = table;
+      this._resizeRow = targetRow;
+      this._resizeStartY = event.clientY;
+      this._resizeStartHeight = targetRow.offsetHeight;
+      document.body.style.cursor = "row-resize";
       return;
     }
 
@@ -223,8 +271,47 @@ export class WriterTableController {
     }
   }
 
+  _handleDblClick(event) {
+    const cell = event.target?.closest?.("td, th");
+    if (!cell) return;
+
+    const rect = cell.getBoundingClientRect();
+    const nearRight = Math.abs(event.clientX - rect.right) <= 8;
+    const nearLeft = Math.abs(event.clientX - rect.left) <= 8 && cell.cellIndex > 0;
+
+    if (nearRight || nearLeft) {
+      event.preventDefault();
+      event.stopPropagation();
+      const targetCell = nearRight ? cell : cell.parentElement?.cells[cell.cellIndex - 1];
+      const table = targetCell?.closest("table");
+      if (!table || !targetCell) return;
+
+      if (this.adapter?.autoFitTableColumn) {
+        this.adapter.autoFitTableColumn(table, targetCell.cellIndex);
+      } else {
+        const colIdx = targetCell.cellIndex;
+        let maxLen = 4;
+        for (const row of table.rows) {
+          const c = row.cells ? row.cells[colIdx] : null;
+          if (c) {
+            const txt = (c.innerText || c.textContent || "").trim();
+            if (txt.length > maxLen) maxLen = txt.length;
+          }
+        }
+        const fitWidth = Math.max(40, Math.min(650, Math.round(maxLen * 9.5 + 24)));
+        for (const row of table.rows) {
+          const c = row.cells ? row.cells[colIdx] : null;
+          if (c && c.colSpan === 1) {
+            c.style.width = `${fitWidth}px`;
+          }
+        }
+        this.adapter?.recordSnapshot?.("writer.table.colAutoFit");
+      }
+    }
+  }
+
   _handleDocMouseMove(event) {
-    if (this._resizing && this._resizingCell && this._resizeTable) {
+    if (this._resizing === "col" && this._resizingCell && this._resizeTable) {
       const dx = event.clientX - this._resizeStartX;
       const newWidth = Math.max(30, this._resizeStartWidth + dx);
       const colIdx = this._resizeColIndex;
@@ -239,6 +326,16 @@ export class WriterTableController {
       return;
     }
 
+    if (this._resizing === "row" && this._resizeRow && this._resizeTable) {
+      const dy = event.clientY - this._resizeStartY;
+      const newHeight = Math.max(20, this._resizeStartHeight + dy);
+      this._resizeRow.style.height = `${newHeight}px`;
+      for (const c of this._resizeRow.cells) {
+        c.style.height = `${newHeight}px`;
+      }
+      return;
+    }
+
     if (this._isSelecting && this._selectStartCell) {
       const cell = event.target?.closest?.("td, th");
       if (cell && cell.closest("table") === this.activeTable && cell !== this._selectStartCell) {
@@ -249,11 +346,17 @@ export class WriterTableController {
 
   _handleDocMouseUp() {
     if (this._resizing) {
+      const kind = this._resizing;
       this._resizing = false;
       this._resizingCell = null;
       this._resizeTable = null;
+      this._resizeRow = null;
       document.body.style.cursor = "";
-      this.adapter?.recordSnapshot?.("writer.table.colResize");
+      if (kind === "col") {
+        this.adapter?.recordSnapshot?.("writer.table.colResize");
+      } else if (kind === "row") {
+        this.adapter?.recordSnapshot?.("writer.table.rowResize");
+      }
     }
     this._isSelecting = false;
   }

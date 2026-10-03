@@ -1,0 +1,371 @@
+[
+  {
+    "app": "doc",
+    "opId": "doc_dblclick_word",
+    "name": "Nhấp đúp chọn từ",
+    "status": "PASS",
+    "expected": "chứa 'điện'",
+    "actual": "điện",
+    "detail": ""
+  },
+  {
+    "app": "doc",
+    "opId": "doc_tripleclick_para",
+    "name": "Nhấp ba chọn cả đoạn",
+    "status": "PASS",
+    "expected": "Văn phòng điện tử 3T Office thông minh và hiện đại.",
+    "actual": "Văn phòng điện tử 3T Office thông minh và hiện đại.",
+    "detail": ""
+  },
+  {
+    "app": "doc",
+    "opId": "doc_drag_select_text",
+    "name": "Kéo chuột chọn văn bản",
+    "status": "PASS",
+    "expected": "văn bản được bôi đen > 5 ký tự",
+    "actual": "Đoạn văn bản thứ",
+    "detail": ""
+  },
+  {
+    "app": "doc",
+    "opId": "doc_drag_drop_move",
+    "name": "Kéo-thả văn bản di chuyển (Move)",
+    "status": "PASS",
+    "expected": "nguồn mất, đích có",
+    "actual": "{\"srcHas\":false,\"destHas\":true,\"srcText\":\"Nguồn:  còn đây là phần sau.\",\"destText\":\"Đích đến: [DIEMTHA]DULIEUKEO\",\"allText\":\"Nguồn:  còn đây là phần sau.Đích đến: [DIEMTHA]DULIEUKEO\"}",
+    "detail": ""
+  },
+  {
+    "app": "doc",
+    "opId": "doc_drag_drop_move_undo",
+    "name": "Hoàn tác di chuyển văn bản (Ctrl+Z)",
+    "status": "FAIL",
+    "expected": "nguồn phục hồi DULIEUKEO",
+    "actual": "false",
+    "detail": ""
+  },
+  {
+    "app": "doc",
+    "opId": "doc_drag_drop_copy",
+    "name": "Ctrl+kéo sao chép văn bản (Copy)",
+    "status": "FAIL",
+    "expected": "cả nguồn và đích đều có",
+    "actual": "{\"srcHas\":false,\"destHas\":false,\"srcText\":\"\",\"destText\":\"\"}",
+    "detail": ""
+  },
+  {
+    "app": "doc",
+    "opId": "doc_table_col_autofit",
+    "name": "Nhấp đôi viền cột bảng tự vừa",
+    "status": "FAIL",
+    "expected": "< 363px",
+    "actual": "363px",
+    "detail": ""
+  },
+  {
+    "app": "doc",
+    "opId": "doc_table_col_resize",
+    "name": "Kéo viền cột bảng đổi kích thước",
+    "status": "FAIL",
+    "expected": ">= 403px",
+    "actual": "363px",
+    "detail": ""
+  },
+  {
+    "app": "doc",
+    "opId": "doc_table_row_resize",
+    "name": "Kéo viền hàng bảng đổi kích thước",
+    "status": "FAIL",
+    "expected": ">= 70px",
+    "actual": "45px",
+    "detail": ""
+  },
+  {
+    "app": "doc",
+    "opId": "doc_click_image_handles",
+    "name": "Click hình hiện tay cầm",
+    "status": "PASS",
+    "expected": "8 tay cầm",
+    "actual": "8 tay cầm (overlay: true)",
+    "detail": ""
+  },
+  {
+    "app": "doc",
+    "opId": "doc_cursor_contextual",
+    "name": "Con trỏ chuột đổi hình đúng ngữ cảnh",
+    "status": "PASS",
+    "expected": "body: text, link: pointer",
+    "actual": "body: text, link: pointer",
+    "detail": ""
+  },
+  {
+    "app": "doc",
+    "opId": "doc_ctrl_wheel_zoom_in",
+    "name": "Ctrl+cuộn chuột phóng to",
+    "status": "PASS",
+    "expected": "> 100%",
+    "actual": "110%",
+    "detail": ""
+  },
+  {
+    "app": "doc",
+    "opId": "doc_ctrl_wheel_zoom_out",
+    "name": "Ctrl+cuộn chuột thu nhỏ",
+    "status": "PASS",
+    "expected": "< 110%",
+    "actual": "100%",
+    "detail": ""
+  },
+  {
+    "app": "doc",
+    "opId": "doc_wheel_scroll",
+    "name": "Cuộn chuột thường dọc trang",
+    "status": "PASS",
+    "expected": "cuộn bình thường",
+    "actual": "trước: 0, sau: 150",
+    "detail": ""
+  },
+  {
+    "app": "sheet",
+    "opId": "sheet_dblclick_cell_edit",
+    "name": "Nhập đôi ô vào chế độ sửa",
+    "status": "PASS",
+    "expected": "focus formula input / inline editor",
+    "actual": "true",
+    "detail": ""
+  },
+  {
+    "app": "sheet",
+    "opId": "sheet_drag_select_range",
+    "name": "Kéo chuột chọn vùng (B2:D4)",
+    "status": "PASS",
+    "expected": "B2:D4",
+    "actual": " (B2:D4)",
+    "detail": ""
+  },
+  {
+    "app": "sheet",
+    "opId": "sheet_shift_click_extend",
+    "name": "Shift+click mở rộng vùng (B2:E6)",
+    "status": "PASS",
+    "expected": "B2:E6",
+    "actual": " (B2:E6)",
+    "detail": ""
+  },
+  {
+    "app": "sheet",
+    "opId": "sheet_ctrl_click_multiselect",
+    "name": "Ctrl+click chọn nhiều vùng rời nhau",
+    "status": "PASS",
+    "expected": ">= 2 vùng",
+    "actual": "2 vùng",
+    "detail": ""
+  },
+  {
+    "app": "sheet",
+    "opId": "sheet_dblclick_col_autofit",
+    "name": "Nhấp đôi viền cột tự vừa độ rộng",
+    "status": "PASS",
+    "expected": "> 150px",
+    "actual": "500px",
+    "detail": ""
+  },
+  {
+    "app": "sheet",
+    "opId": "sheet_drag_col_resize",
+    "name": "Kéo viền cột đổi độ rộng",
+    "status": "FAIL",
+    "expected": ">= 99px",
+    "actual": "64px (trước: 64px)",
+    "detail": ""
+  },
+  {
+    "app": "sheet",
+    "opId": "sheet_drag_row_resize",
+    "name": "Kéo viền hàng đổi chiều cao",
+    "status": "FAIL",
+    "expected": ">= 40px",
+    "actual": "20px (trước: 20px)",
+    "detail": ""
+  },
+  {
+    "app": "sheet",
+    "opId": "sheet_drag_autofill_numbers",
+    "name": "Kéo tay cầm điền chuỗi số (AutoFill 1..4)",
+    "status": "PASS",
+    "expected": "[1, 2, 3, 4]",
+    "actual": "[1,2,3,4]",
+    "detail": ""
+  },
+  {
+    "app": "sheet",
+    "opId": "sheet_drag_autofill_formula",
+    "name": "Kéo tay cầm điền công thức tịnh tiến",
+    "status": "PASS",
+    "expected": "C2==A2*10, C3==A3*10",
+    "actual": "[{\"f\":\"=A2*10\",\"v\":20},{\"f\":\"=A3*10\",\"v\":30}]",
+    "detail": ""
+  },
+  {
+    "app": "sheet",
+    "opId": "sheet_drag_cell_move",
+    "name": "Kéo viền ô di chuyển dữ liệu (Move)",
+    "status": "PASS",
+    "expected": "D1 rỗng, F1='CHUYEN_O'",
+    "actual": "{\"f1\":\"CHUYEN_O\"}",
+    "detail": ""
+  },
+  {
+    "app": "sheet",
+    "opId": "sheet_drag_cell_move_undo",
+    "name": "Hoàn tác di chuyển ô (Ctrl+Z)",
+    "status": "PASS",
+    "expected": "D1='CHUYEN_O'",
+    "actual": "CHUYEN_O",
+    "detail": ""
+  },
+  {
+    "app": "sheet",
+    "opId": "sheet_drag_cell_copy",
+    "name": "Ctrl+kéo viền ô sao chép dữ liệu (Copy)",
+    "status": "FAIL",
+    "expected": "cả D1 và H1 đều ='CHUYEN_O'",
+    "actual": "{\"h1\":\"CHUYEN_O\"}",
+    "detail": ""
+  },
+  {
+    "app": "sheet",
+    "opId": "sheet_click_col_header",
+    "name": "Click tiêu đề cột chọn cả cột",
+    "status": "FAIL",
+    "expected": "C:C",
+    "actual": "",
+    "detail": ""
+  },
+  {
+    "app": "sheet",
+    "opId": "sheet_click_row_header",
+    "name": "Click tiêu đề hàng chọn cả hàng",
+    "status": "FAIL",
+    "expected": "5:5",
+    "actual": "",
+    "detail": ""
+  },
+  {
+    "app": "sheet",
+    "opId": "sheet_drag_col_headers",
+    "name": "Kéo tiêu đề chọn nhiều cột",
+    "status": "FAIL",
+    "expected": "D:F",
+    "actual": "",
+    "detail": ""
+  },
+  {
+    "app": "sheet",
+    "opId": "sheet_right_click_context_menu",
+    "name": "Chuột phải mở Menu ngữ cảnh",
+    "status": "PASS",
+    "expected": "menu ngữ cảnh hiển thị",
+    "actual": "true",
+    "detail": ""
+  },
+  {
+    "app": "sheet",
+    "opId": "sheet_ctrl_wheel_zoom",
+    "name": "Ctrl+cuộn chuột thu phóng Sheet",
+    "status": "PASS",
+    "expected": "> 100%",
+    "actual": "110%",
+    "detail": ""
+  },
+  {
+    "app": "sheet",
+    "opId": "sheet_composing_text_overflow",
+    "name": "Nội dung soạn ô tràn sang phải khi rỗng",
+    "status": "FAIL",
+    "expected": "overflow: visible",
+    "actual": "{\"text\":\"=VLOOKUP(100, A1:D50, 2, FALSE)\",\"overflow\":\"hidden\",\"zIndex\":\"5\",\"hasCanOverflow\":false,\"isOverflowVisible\":false}",
+    "detail": ""
+  },
+  {
+    "app": "slide",
+    "opId": "slide_drag_move_object",
+    "name": "Kéo di chuyển đối tượng trên canvas",
+    "status": "PASS",
+    "expected": "left dời ~80px, top ~60px",
+    "actual": "left: 160, top: 140",
+    "detail": ""
+  },
+  {
+    "app": "slide",
+    "opId": "slide_drag_move_undo",
+    "name": "Hoàn tác di chuyển đối tượng (Ctrl+Z)",
+    "status": "PASS",
+    "expected": "80px",
+    "actual": "80px",
+    "detail": ""
+  },
+  {
+    "app": "slide",
+    "opId": "slide_drag_resize_handle",
+    "name": "Kéo tay cầm đổi kích thước",
+    "status": "PASS",
+    "expected": "> 230px",
+    "actual": "260px × 160px",
+    "detail": ""
+  },
+  {
+    "app": "slide",
+    "opId": "slide_dblclick_shape_text",
+    "name": "Nhấp đôi vào shape để nhập chữ",
+    "status": "PASS",
+    "expected": "vùng soạn thảo chữ active",
+    "actual": "true",
+    "detail": ""
+  },
+  {
+    "app": "slide",
+    "opId": "slide_drag_marquee_select",
+    "name": "Kéo khung bôi chọn nhiều đối tượng (Marquee)",
+    "status": "PASS",
+    "expected": ">= 2 đối tượng",
+    "actual": "2 đối tượng",
+    "detail": ""
+  },
+  {
+    "app": "slide",
+    "opId": "slide_drag_reorder_filmstrip",
+    "name": "Kéo sắp xếp trang ở khung trái",
+    "status": "FAIL",
+    "expected": "[\"TRANG_HAI\", \"TRANG_MOT\", \"TRANG_BA\"]",
+    "actual": "[\"TRANG_MOT\",\"TRANG_HAI\",\"TRANG_BA\"]",
+    "detail": ""
+  },
+  {
+    "app": "slide",
+    "opId": "slide_drag_reorder_undo",
+    "name": "Hoàn tác sắp xếp trang (Ctrl+Z)",
+    "status": "PASS",
+    "expected": "TRANG_MOT đầu tiên",
+    "actual": "[\"TRANG_MOT\",\"TRANG_HAI\",\"TRANG_BA\"]",
+    "detail": ""
+  },
+  {
+    "app": "slide",
+    "opId": "slide_click_select_slide",
+    "name": "Click chọn trang chiếu ở khung trái",
+    "status": "PASS",
+    "expected": "index 2",
+    "actual": "index 2",
+    "detail": ""
+  },
+  {
+    "app": "slide",
+    "opId": "slide_ctrl_wheel_zoom",
+    "name": "Ctrl+cuộn chuột thu phóng Slide",
+    "status": "PASS",
+    "expected": "> 100%",
+    "actual": "110%",
+    "detail": ""
+  }
+]

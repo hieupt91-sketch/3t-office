@@ -743,6 +743,22 @@ export const SLIDES_HELP_ENTRIES = [
       "Ghi âm thuyết minh trực tiếp (tab Chèn > nhóm Đa phương tiện > Âm thanh): hiện chỉ chèn file âm thanh từ máy tính — chưa có thu âm microphone trực tiếp trên từng trang chiếu.",
       "Các nút này vẫn hiển thị trên ribbon đúng vị trí chuẩn phần mềm trình chiếu khác. Khi bấm vào, hệ thống sẽ hiển thị thông báo tiếng Việt rõ ràng thay vì thao tác câm. Ứng dụng này là Slide, một phần của bộ 3T Office."
     ]
+  },
+  {
+    id: "slides.mouse.operations",
+    app: "slides",
+    commandIds: ["slides.shape.insert"],
+    title: "Thao tác chuột trên trang chiếu và danh sách",
+    summary: "Thao tác chuột trực quan: kéo di chuyển hình vẽ, kéo tay cầm đổi kích thước (giữ Shift giữ tỉ lệ), nhấp đúp hình nhập chữ, quét khung chuột chọn nhiều đối tượng (Marquee), kéo thả sắp xếp thứ tự trang chiếu ở danh sách bên trái.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Đối tượng vẽ" },
+    keywords: ["chuột", "kéo đối tượng", "tay cầm kích thước", "Shift giữ tỉ lệ", "nhấp đúp sửa chữ", "khung chọn", "marquee", "sắp xếp trang", "kéo thả slide", "filmstrip"],
+    steps: [
+      "Nhấp chọn một đối tượng (hình vẽ, khung chữ, hình ảnh) rồi kéo chuột để di chuyển đến vị trí mong muốn trên trang chiếu. Nhấn Ctrl+Z để hoàn tác.",
+      "Kéo một trong 8 tay cầm tròn/vuông ở viền đối tượng để thay đổi kích thước. Giữ phím Shift trong khi kéo tay cầm góc để giữ nguyên tỉ lệ khung hình (chiều rộng / chiều cao).",
+      "Nhấp đúp chuột vào giữa hình vẽ (shape) để kích hoạt ngay con trỏ soạn thảo văn bản bên trong hình.",
+      "Nhấp giữ chuột trái ở vùng trống trên trang chiếu (hoặc vùng ngoài trang) rồi kéo chéo để vẽ khung bao chọn (Marquee / Rubber-band). Mọi đối tượng nằm trong khung sẽ được chọn đồng thời.",
+      "Ở danh sách trang chiếu thu nhỏ (filmstrip) bên trái, nhấp giữ chuột vào một trang rồi kéo lên hoặc kéo xuống qua các trang khác để thay đổi thứ tự trình chiếu. Nhấn Ctrl+Z để khôi phục lại thứ tự ban đầu."
+    ]
   }
 ];
 

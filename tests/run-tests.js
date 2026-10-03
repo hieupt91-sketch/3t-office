@@ -240,6 +240,7 @@ import { runSheetFormulaBarDisplayTests } from "./unit/sheet-formula-bar-display
 import { runContextMenuUnitTests } from "./unit/context-menu.test.js";
 import { runSheetOverlapAutofitStatusTests } from "./unit/sheet-overlap-autofit-status.test.js";
 import { runSheetFormulaHintsTests } from "./unit/sheet-formula-hints.test.js";
+import { runMouseOpsParityTests } from "./unit/mouse-ops-parity.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -488,7 +489,8 @@ async function runAll() {
     { title: "233. Unit Tests — Shared Context Menu & Submenus (Doc & Sheet)", runner: runContextMenuUnitTests },
     { title: "234. Unit Tests — VN Writer interactive ruler", runner: runWriterInteractiveRulerTests },
     { title: "235. Unit Tests — Sheet auto-fit date/time on default column & currency symbol on status bar", runner: runSheetOverlapAutofitStatusTests },
-    { title: "236. Unit Tests — Sheet Formula IntelliSense, Vietnamese hints & Composing visual", runner: runSheetFormulaHintsTests }
+    { title: "236. Unit Tests — Sheet Formula IntelliSense, Vietnamese hints & Composing visual", runner: runSheetFormulaHintsTests },
+    { title: "237. Unit Tests — Mouse Operations Parity & Sheet Cell Overflow", runner: runMouseOpsParityTests }
   ];
 
   for (const suite of suites) {
