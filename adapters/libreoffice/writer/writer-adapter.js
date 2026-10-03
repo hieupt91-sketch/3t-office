@@ -2857,10 +2857,20 @@ export class WriterAdapter {
             let inserted = false;
             if (pText) {
               const escapedText = pText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-              const pRegex = new RegExp(`(<p\\b[^>]*>[\\s\\S]*?${escapedText}[\\s\\S]*?<\\/p\\s*>)`, "i");
-              if (pRegex.test(html)) {
-                html = html.replace(pRegex, `$1${markerHtml}`);
-                inserted = true;
+              if (globalThis.__VNO_OPEN_LEGACY === true) {
+                // superseded by P3 - xoa chi khi chu so huu duyet. Ban cu: regex dong
+                // `<p>[\s\S]*?TEXT[\s\S]*?</p>` quet ca tai lieu cho moi section (bac hai; MYTIME 160 s).
+                const pRegex = new RegExp(`(<p\\b[^>]*>[\\s\\S]*?${escapedText}[\\s\\S]*?<\\/p\\s*>)`, "i");
+                if (pRegex.test(html)) {
+                  html = html.replace(pRegex, `$1${markerHtml}`);
+                  inserted = true;
+                }
+              } else {
+                const insertAt = this._endOfFirstParagraphWithText(html, escapedText);
+                if (insertAt >= 0) {
+                  html = html.slice(0, insertAt) + markerHtml + html.slice(insertAt);
+                  inserted = true;
+                }
               }
             }
             if (!inserted) {
@@ -2882,6 +2892,28 @@ export class WriterAdapter {
 
     const trackingEnabled = /<w:trackRevisions\b/i.test(String(ooxmlSettingsXml || ""));
     return { body: html.trim(), header, footer, page, comments, docStyles, shapes, sectionPageSetups, sectionHeadersFooters, trackingEnabled };
+  }
+
+  /**
+   * P3: tuong duong tuyen tinh cua regex cu `(<p\b[^>]*>[\s\S]*?TEXT[\s\S]*?<\/p\s*>)` (co co "i").
+   * Bo may regex quet tu moi the <p> toi het tai lieu khi khong khop (bac hai). Vi `[\s\S]*?` co the
+   * vuot qua ranh gioi doan, diem bat dau trai nhat hop le LUON la the <p> dau tien: neu TEXT khong
+   * xuat hien sau no thi cung khong xuat hien sau bat ky the <p> nao sau do. Ket thuc = `</p>` dau tien
+   * sau lan xuat hien dau cua TEXT. Tra ve chi so ngay sau `</p>` hoac -1 neu khong khop.
+   * `escapedTextPattern` la mau regex da escape (nhu code cu).
+   */
+  _endOfFirstParagraphWithText(html, escapedTextPattern) {
+    const source = String(html || "");
+    const open = /<p\b[^>]*>/i.exec(source);
+    if (!open) return -1;
+    const textRe = new RegExp(escapedTextPattern, "gi");
+    textRe.lastIndex = open.index + open[0].length;
+    const text = textRe.exec(source);
+    if (!text) return -1;
+    const closeRe = /<\/p\s*>/gi;
+    closeRe.lastIndex = text.index + text[0].length;
+    const close = closeRe.exec(source);
+    return close ? close.index + close[0].length : -1;
   }
 
   /**
