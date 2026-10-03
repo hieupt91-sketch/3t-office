@@ -1488,6 +1488,31 @@ export class SheetGridController {
     this.autocomplete?.closeAll?.();
   }
 
+  // Thanh công thức hiện giá trị như Excel: ngày/giờ/phần trăm ở dạng người dùng gõ vào, không phải số serial.
+  // Nhập lại đúng chuỗi này vẫn được nhận cùng kiểu (ngày dd/mm/yyyy, giờ h:mm[:ss], phần trăm).
+  _formulaBarTextFor(data) {
+    if (!data) return "";
+    if (data.formula) return data.formula;
+    const val = data.val;
+    const category = data.style?.numberFormat?.category;
+    if (typeof val !== "number" || !Number.isFinite(val)) return val ?? "";
+    if (category === "date") {
+      const text = NumberFormatter.formatValue(val, { category: "date", dateFormat: "dd/mm/yyyy" }).text;
+      if (text && !/[#]/.test(text)) return text;
+    } else if (category === "time") {
+      const day = ((val % 1) + 1) % 1;
+      const total = Math.round(day * 86400);
+      const h = Math.floor(total / 3600) % 24;
+      const m = Math.floor((total % 3600) / 60);
+      const s = total % 60;
+      const mm = String(m).padStart(2, "0");
+      return s ? `${h}:${mm}:${String(s).padStart(2, "0")}` : `${h}:${mm}`;
+    } else if (category === "percentage") {
+      return `${Number((val * 100).toPrecision(12))}%`;
+    }
+    return val;
+  }
+
   _validateDataValidationCommit(col, row, value, originalValue) {
     const result = this.validateCellValue(col, row, value);
     if (result.valid) return true;
@@ -2037,7 +2062,7 @@ export class SheetGridController {
     }
     const data = this.cellsData.get(activeCoordKey);
     if (this.formulaInput) {
-      this.formulaInput.value = data ? (data.formula || data.val) : "";
+      this.formulaInput.value = this._formulaBarTextFor(data);
       this._syncFormulaBarHeight();
       this._resizeFormulaInput();
     }
