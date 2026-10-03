@@ -30,9 +30,9 @@ try:
     HAVE_SERVER = True
 except Exception:  # pragma: no cover
     HAVE_SERVER = False
-finally:
     if str(SERVER_DIR) in sys.path:
         sys.path.remove(str(SERVER_DIR))
+# On success SERVER_DIR stays on sys.path: create_app() imports its sibling modules (commerce_db, ...) lazily.
 
 from adapters.license import device as device_mod  # noqa: E402
 from adapters.license.manager import LicenseError, LicenseManager  # noqa: E402
