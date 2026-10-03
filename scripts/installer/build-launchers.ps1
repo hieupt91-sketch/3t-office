@@ -1,4 +1,4 @@
-# Build the three small per-app launchers (3TDoc.exe, 3TSheet.exe, 3TSlide.exe) with the .NET Framework compiler
+# Build the three small per-app launchers (Doc.exe, Sheet.exe, Slide.exe) with the .NET Framework compiler
 # that ships with Windows (no extra dependency, works offline).
 #
 # Why: every app used to run as "python\pythonw.exe main.py --app=..." so Windows showed the Python icon and name in
@@ -96,9 +96,9 @@ internal static class Launcher
 '@
 
 $apps = @(
-    @{ Kind = "writer"; Title = "Doc"; Exe = "3TDoc.exe"; Icon = "writer.ico" },
-    @{ Kind = "sheet"; Title = "Sheet"; Exe = "3TSheet.exe"; Icon = "sheet.ico" },
-    @{ Kind = "slides"; Title = "Slide"; Exe = "3TSlide.exe"; Icon = "slides.ico" }
+    @{ Kind = "writer"; Title = "Doc"; Exe = "Doc.exe"; Icon = "writer.ico" },
+    @{ Kind = "sheet"; Title = "Sheet"; Exe = "Sheet.exe"; Icon = "sheet.ico" },
+    @{ Kind = "slides"; Title = "Slide"; Exe = "Slide.exe"; Icon = "slides.ico" }
 )
 New-Item -ItemType Directory -Force $OutDir | Out-Null
 $work = Join-Path ([System.IO.Path]::GetTempPath()) ("vno-launchers-" + [Guid]::NewGuid().ToString("N"))
