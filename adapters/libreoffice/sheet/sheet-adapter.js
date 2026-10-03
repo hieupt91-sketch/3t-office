@@ -4918,7 +4918,15 @@ ${pristineXlsxMarker}
       supportXml = overlayFodsStructureProtection(supportXml, ooxmlWorkbookXml);
       supportXml = overlayActiveSheetToFods(supportXml, ooxmlWorkbookXml);
       const parseStart = perfEnabled ? performance.now() : 0;
-      const workbook = await buildSheetPayloadModel(payload, this, supportXml);
+      let lastReportedPercent = -1;
+      const workbook = await buildSheetPayloadModel(payload, this, supportXml, {
+        onProgress: ratio => {
+          const percent = Math.max(0, Math.min(100, Math.floor(Number(ratio || 0) * 100)));
+          if (percent < lastReportedPercent + 2 && percent !== 100) return;
+          lastReportedPercent = percent;
+          this.shell?.setStatus?.(`Đang mở bảng tính lớn… ${percent}%`);
+        }
+      });
       if (perfEnabled) window.__vnoPerfReport?.("buildSheetPayloadModel", performance.now() - parseStart);
       if (!workbook.sheets.length) return false;
       return this._commitWorkbook(workbook, perfStart, "loadFromPayload");

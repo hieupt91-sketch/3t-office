@@ -1832,6 +1832,18 @@ def _sheet_open_payload_enabled() -> bool:
     return value in {"1", "true", "yes", "on"}
 
 
+_SHEET_LARGE_FODS_CHARS = 20 * 1024 * 1024
+
+
+def _should_use_sheet_open_payload(fods_xml: str) -> bool:
+    """Use the compact path automatically only for workbooks that need it.
+
+    Small workbooks deliberately retain the established FODS bridge/parser.
+    The environment switch remains useful for focused parity tests.
+    """
+    return _sheet_open_payload_enabled() or len(fods_xml or "") > _SHEET_LARGE_FODS_CHARS
+
+
 def _optimize_fods_for_sheet(fods_xml: str) -> str:
     """Optimize FODS for Sheet: merge repeated empty cells, trim style-only tail.
     
@@ -3914,8 +3926,14 @@ class VnOfficeApi:
                 if app_kind == "sheet" and src_path.lower().endswith(".xlsx"):
                     _notify_sheet_open_progress("Đang chuyển workbook Excel sang dữ liệu bảng tính…", api=self)
                 out_path = _run_soffice_convert(convert_src_path, target_ext, tmp, app_kind=app_kind)
+                sheet_stage_started = time.perf_counter()
                 with open(out_path, "r", encoding="utf-8", errors="replace") as f:
                     content = f.read()
+                if app_kind == "sheet":
+                    _open_perf_log(
+                        "sheet_open_stage", (time.perf_counter() - sheet_stage_started) * 1000,
+                        phase="read_fods", chars=len(content),
+                    )
                 if app_kind == "writer":
                     # Quy ước W9: font/cỡ mặc định từ docDefaults + theme khi LibreOffice không ghi p.western.
                     if convert_src_path.lower().endswith(".docx"):
@@ -3955,13 +3973,23 @@ class VnOfficeApi:
                 elif app_kind == "sheet":
                     # Overlay BEFORE the FODS leaves this process — SheetAdapter.parseFods
                     # must see table:structure-protected when the original XLSX is locked.
+                    sheet_stage_started = time.perf_counter()
                     content = _apply_native_import_overlay(
                         src_path, content, app_kind, source_bytes=original_xlsx
+                    )
+                    _open_perf_log(
+                        "sheet_open_stage", (time.perf_counter() - sheet_stage_started) * 1000,
+                        phase="native_overlay", chars=len(content),
                     )
                     # Optimize FODS: merge repeated empty cells, trim style-only tail.
                     if src_path.lower().endswith(".xlsx"):
                         _notify_sheet_open_progress("Đang tối ưu dữ liệu, công thức và định dạng…", api=self)
+                    sheet_stage_started = time.perf_counter()
                     content = _optimize_fods_for_sheet(content)
+                    _open_perf_log(
+                        "sheet_open_stage", (time.perf_counter() - sheet_stage_started) * 1000,
+                        phase="optimize_fods", chars=len(content),
+                    )
                     # Cell runs can move to their final logical coordinates during
                     # optimization. Reapply only XF ownership at those coordinates;
                     # all other native overlays retain their established ordering.
@@ -3970,8 +3998,9 @@ class VnOfficeApi:
                             original_xlsx = source_file.read()
                     if src_path.lower().endswith(".xlsx") and original_xlsx is not None:
                         patcher = _ooxml_zip_patch()
-                        if _sheet_open_payload_enabled():
+                        if _should_use_sheet_open_payload(content):
                             _notify_sheet_open_progress("Đang đóng gói dữ liệu để nạp nhanh vào Sheet…", api=self)
+                            sheet_stage_started = time.perf_counter()
                             try:
                                 from adapters.libreoffice.sheet.sheet_open_payload import build_sheet_open_payload
                                 final_fods, sheet_open_payload = build_sheet_open_payload(
@@ -3983,6 +4012,12 @@ class VnOfficeApi:
                                 # Keep exactly the existing final-XF FODS route if capture fails.
                                 content = patcher.reoverlay_sheet_xf_indices(original_xlsx, content)
                             else:
+                                _open_perf_log(
+                                    "sheet_open_stage", (time.perf_counter() - sheet_stage_started) * 1000,
+                                    phase="build_compact_payload",
+                                    payload_chars=len(sheet_open_payload.get("rowsDeflateBase64", "")),
+                                    support_chars=len(sheet_open_payload.get("supportXml", "")),
+                                )
                                 content = final_fods
                                 try:
                                     sheet_ooxml_workbook_xml = _read_xlsx_workbook_xml(src_path)

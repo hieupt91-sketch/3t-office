@@ -29,6 +29,17 @@ class SheetOpenPayloadTests(unittest.TestCase):
             with patch.dict(os.environ, {"SHEET_OPEN_PAYLOAD": value}, clear=True):
                 self.assertTrue(main._sheet_open_payload_enabled(), value)
 
+    def test_large_fods_uses_payload_while_small_fods_keeps_legacy_path(self):
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertFalse(main._should_use_sheet_open_payload("x" * 1024))
+            self.assertTrue(
+                main._should_use_sheet_open_payload(
+                    "x" * (main._SHEET_LARGE_FODS_CHARS + 1)
+                )
+            )
+        with patch.dict(os.environ, {"SHEET_OPEN_PAYLOAD": "1"}, clear=True):
+            self.assertTrue(main._should_use_sheet_open_payload("tiny"))
+
     def test_fused_pass_matches_existing_final_xf_transform_and_record_counts(self):
         fods_path = SAMPLES / "src" / "sample-sheet.fods"
         xlsx_path = SAMPLES / "sample-sheet.xlsx"
