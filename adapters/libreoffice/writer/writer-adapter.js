@@ -2874,16 +2874,9 @@ export class WriterAdapter {
               }
             }
             if (!inserted) {
-              const pbRegex = /<p\b[^>]*style=["'][^"']*(?:page-break-before|break-before):\s*(?:always|page)[^"']*["'][^>]*>[\s\S]*?<\/p>/i;
-              if (pbRegex.test(html)) {
-                // The break-before paragraph can contain user text, revisions and
-                // comments. Preserve it when replacing its layout break with a
-                // section marker; deleting the paragraph loses content on reopen.
-                html = html.replace(pbRegex, paragraph => markerHtml + paragraph.replace(
-                  /(?:page-break-before|break-before):\s*(?:always|page)\s*;?/gi, ""
-                ));
-                inserted = true;
-              }
+              const replacement = this._replaceFirstPageBreakParagraph(html, markerHtml);
+              html = replacement.html;
+              inserted = replacement.replaced;
             }
           }
         }
@@ -4151,6 +4144,14 @@ export class WriterAdapter {
    * Số ô / số đoạn không khớp → bỏ qua bảng / ô đó (không đoán).
    */
   _applyOoxmlTableCellEmptyParagraphFontSizes(html, ooxmlDocumentXml, ooxmlStylesXml = "") {
+    if (globalThis.__VNO_OPEN_LEGACY === true) {
+      return this._applyOoxmlTableCellEmptyParagraphFontSizesLegacy(html, ooxmlDocumentXml, ooxmlStylesXml, false);
+    }
+    return this._applyOoxmlTableCellEmptyParagraphFontSizesLegacy(html, ooxmlDocumentXml, ooxmlStylesXml, true);
+  }
+
+  // superseded by P3b - xoa chi khi chu so huu duyet
+  _applyOoxmlTableCellEmptyParagraphFontSizesLegacy(html, ooxmlDocumentXml, ooxmlStylesXml = "", useLinearP3b = false) {
     const source = String(html || "");
     const xml = this._ooxmlBodyParagraphSource(String(ooxmlDocumentXml || ""));
     if (!xml.includes("<w:tbl") || !/<table\b/i.test(source)) return source;
@@ -4204,6 +4205,18 @@ export class WriterAdapter {
     const bodyRanges = ranges.filter(r => !skip.some(z => r.start >= z.start && r.start < z.end));
     if (bodyRanges.length !== tableSpecs.length) return source;
     let out = source;
+    const tableReplacements = [];
+    const applyLinear = (text, replacements) => {
+      const ordered = [...replacements].sort((a, b) => a.start - b.start);
+      const chunks = [];
+      let cursor = 0;
+      for (const replacement of ordered) {
+        chunks.push(text.slice(cursor, replacement.start), replacement.value);
+        cursor = replacement.end;
+      }
+      chunks.push(text.slice(cursor));
+      return chunks.join("");
+    };
     for (let i = bodyRanges.length - 1; i >= 0; i--) {
       const spec = tableSpecs[i]; const { start, end } = bodyRanges[i];
       let tableHtml = out.slice(start, end);
@@ -4216,6 +4229,7 @@ export class WriterAdapter {
         else if (depth === 1 && open >= 0) { cells.push({ start: open, end: c.index + c[0].length }); open = -1; }
       }
       if (cells.length !== spec.length) continue;
+      const cellReplacements = [];
       for (let k = cells.length - 1; k >= 0; k--) {
         const pts = spec[k]; if (!pts.some(v => v !== null)) continue;
         const cellHtml = tableHtml.slice(cells[k].start, cells[k].end);
@@ -4224,19 +4238,25 @@ export class WriterAdapter {
         while ((pm = pre.exec(cellHtml))) { const t = pm[0].toLowerCase(); if (t.startsWith("<table")) d2++; else if (t.startsWith("</table")) d2--; else if (d2 === 0) paras.push({ index: pm.index, full: pm[0], tag: pm[1], attrs: pm[2], inner: pm[3] }); }
         if (paras.length !== pts.length) continue;
         let newCell = cellHtml;
+        const paragraphReplacements = [];
         for (let j = paras.length - 1; j >= 0; j--) {
           const pt = pts[j]; if (pt === null) continue;
           const p = paras[j];
           const text = p.inner.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").trim();
           if (text.length > 0 || /<(?:img|iframe|object|svg|canvas)\b|data-vno-float/i.test(p.inner)) continue;
           const replaced = this._addCssDeclsToParagraph(p.full, p.attrs, p.inner.replace(/\bfont-size:\s*\d+(?:\.\d+)?pt/gi, `font-size: ${pt}pt`), [`font-size: ${pt}pt`], p.tag);
-          newCell = newCell.slice(0, p.index) + replaced + newCell.slice(p.index + p.full.length);
+          if (useLinearP3b) paragraphReplacements.push({ start: p.index, end: p.index + p.full.length, value: replaced });
+          else newCell = newCell.slice(0, p.index) + replaced + newCell.slice(p.index + p.full.length);
         }
-        tableHtml = tableHtml.slice(0, cells[k].start) + newCell + tableHtml.slice(cells[k].end);
+        if (useLinearP3b && paragraphReplacements.length) newCell = applyLinear(cellHtml, paragraphReplacements);
+        if (useLinearP3b) cellReplacements.push({ start: cells[k].start, end: cells[k].end, value: newCell });
+        else tableHtml = tableHtml.slice(0, cells[k].start) + newCell + tableHtml.slice(cells[k].end);
       }
-      out = out.slice(0, start) + tableHtml + out.slice(end);
+      if (useLinearP3b && cellReplacements.length) tableHtml = applyLinear(tableHtml, cellReplacements);
+      if (useLinearP3b) tableReplacements.push({ start, end, value: tableHtml });
+      else out = out.slice(0, start) + tableHtml + out.slice(end);
     }
-    return out;
+    return useLinearP3b ? applyLinear(source, tableReplacements) : out;
   }
 
   /**
@@ -4953,6 +4973,55 @@ export class WriterAdapter {
    * (Word 90px = 2×100 twips). Padding gốc giữ ở `data-vno-lo-padding`.
    */
   _applyOoxmlTableCellMargins(html, ooxmlDocumentXml) {
+    if (globalThis.__VNO_OPEN_LEGACY === true) {
+      return this._applyOoxmlTableCellMarginsLegacy(html, ooxmlDocumentXml, false);
+    }
+    return this._applyOoxmlTableCellMarginsLegacy(html, ooxmlDocumentXml, true);
+  }
+
+  _replaceFirstPageBreakParagraph(html, markerHtml) {
+    if (globalThis.__VNO_OPEN_LEGACY === true) {
+      return this._replaceFirstPageBreakParagraphLegacy(html, markerHtml);
+    }
+    const source = String(html || "");
+    const openingRe = /<p\b[^>]*>/gi;
+    const breakStyleRe = /\bstyle=["'][^"']*(?:page-break-before|break-before):\s*(?:always|page)[^"']*["']/i;
+    const closeRe = /<\/p>/gi;
+    let opening;
+    while ((opening = openingRe.exec(source))) {
+      if (!breakStyleRe.test(opening[0])) continue;
+      closeRe.lastIndex = opening.index + opening[0].length;
+      const close = closeRe.exec(source);
+      if (!close) break;
+      const end = close.index + close[0].length;
+      const paragraph = source.slice(opening.index, end);
+      const cleaned = paragraph.replace(
+        /(?:page-break-before|break-before):\s*(?:always|page)\s*;?/gi,
+        ""
+      );
+      return {
+        html: source.slice(0, opening.index) + markerHtml + cleaned + source.slice(end),
+        replaced: true,
+      };
+    }
+    return { html: source, replaced: false };
+  }
+
+  // superseded by P3b - xoa chi khi chu so huu duyet
+  _replaceFirstPageBreakParagraphLegacy(html, markerHtml) {
+    const source = String(html || "");
+    const pbRegex = /<p\b[^>]*style=["'][^"']*(?:page-break-before|break-before):\s*(?:always|page)[^"']*["'][^>]*>[\s\S]*?<\/p>/i;
+    if (!pbRegex.test(source)) return { html: source, replaced: false };
+    // The break-before paragraph can contain user text, revisions and comments.
+    const replaced = source.replace(pbRegex, paragraph => markerHtml + paragraph.replace(
+      /(?:page-break-before|break-before):\s*(?:always|page)\s*;?/gi,
+      ""
+    ));
+    return { html: replaced, replaced: true };
+  }
+
+  // superseded by P3b - xoa chi khi chu so huu duyet
+  _applyOoxmlTableCellMarginsLegacy(html, ooxmlDocumentXml, useCachedRangesP3b = false) {
     const sourceXml = this._ooxmlBodyParagraphSource(String(ooxmlDocumentXml || ""));
     if (!/<w:tcMar\b/i.test(sourceXml) || !/<table\b/i.test(String(html || ""))) return html;
     const pxOf = (twips) => Math.round(Number(twips) * 96 / 1440 * 1000) / 1000;
@@ -5025,10 +5094,12 @@ export class WriterAdapter {
       }
       return ranges.filter((r) => !zoneRanges.some((zr) => r.start >= zr.start && r.start < zr.end));
     };
-    if (htmlRanges().length !== margins.length) return html;
+    const initialHtmlRanges = htmlRanges();
+    if (initialHtmlRanges.length !== margins.length) return html;
+    const cachedRanges = useCachedRangesP3b ? initialHtmlRanges : null;
     const isPad = (d) => /^padding(?:-top|-right|-bottom|-left)?\s*:/i.test(d);
     for (let i = margins.length - 1; i >= 0; i--) {
-      const ranges = htmlRanges();
+      const ranges = cachedRanges || htmlRanges();
       if (ranges.length !== margins.length) break;
       const { start, end } = ranges[i];
       const slice = html.slice(start, end);
@@ -5068,7 +5139,17 @@ export class WriterAdapter {
         out += slice.slice(last, m.index) + `<${m[2]}${newAttrs}>`;
         last = m.index + m[0].length;
       }
-      html = html.slice(0, start) + out + slice.slice(last) + html.slice(end);
+      const newSlice = out + slice.slice(last);
+      html = html.slice(0, start) + newSlice + html.slice(end);
+      if (cachedRanges) {
+        const delta = newSlice.length - (end - start);
+        ranges[i].end += delta;
+        if (delta !== 0) {
+          for (let parent = 0; parent < i; parent += 1) {
+            if (ranges[parent].start < start && ranges[parent].end >= end) ranges[parent].end += delta;
+          }
+        }
+      }
     }
     return html;
   }
@@ -5249,6 +5330,14 @@ export class WriterAdapter {
   }
 
   _applyOoxmlTableColumnGeometry(html, ooxmlDocumentXml) {
+    if (globalThis.__VNO_OPEN_LEGACY === true) {
+      return this._applyOoxmlTableColumnGeometryLegacy(html, ooxmlDocumentXml, false);
+    }
+    return this._applyOoxmlTableColumnGeometryLegacy(html, ooxmlDocumentXml, true);
+  }
+
+  // superseded by P3b - xoa chi khi chu so huu duyet
+  _applyOoxmlTableColumnGeometryLegacy(html, ooxmlDocumentXml, useCachedRangesP3b = false) {
     const source = String(html || "");
     const geometries = this._ooxmlTableGeometry(ooxmlDocumentXml);
     if (!geometries.length || !/<table\b/i.test(source)) return source;
@@ -5275,7 +5364,8 @@ export class WriterAdapter {
       }
       return ranges.filter(r => !zoneRanges.some(zr => r.start >= zr.start && r.start < zr.end));
     };
-    if (computeRanges(source).length !== geometries.length) return source; // số bảng khác nhau → không đoán
+    const initialRanges = computeRanges(source);
+    if (initialRanges.length !== geometries.length) return source; // số bảng khác nhau → không đoán
     // W30b: giữ giá trị width LibreOffice ghi (`data-vno-lo-width`) để khi LƯU trả lại đúng dạng (100% / phần trăm /
     // px) — nếu gửi px tuyệt đối, LibreOffice ghi `w:tblW` dxa thay vì pct và gridCol lệch (R17: d01 lệch 528 twips).
     const setWidth = (tag, value) => {
@@ -5287,10 +5377,11 @@ export class WriterAdapter {
         : base.replace(/>$/, ` width="${value}">`);
     };
     let out = source;
+    const cachedRanges = useCachedRangesP3b ? initialRanges : null;
     // Sửa từ bảng cuối về đầu; tính lại phạm vi sau mỗi lần sửa (bảng lồng đổi độ dài của bảng ngoài).
     for (let i = geometries.length - 1; i >= 0; i--) {
       const g = geometries[i];
-      const ranges = computeRanges(out);
+      const ranges = cachedRanges || computeRanges(out);
       if (ranges.length !== geometries.length) break;
       const { start, tagEnd, end } = ranges[i];
       if (!g.grid.length || g.gridSum <= 0 || g.widthTwips <= 0) continue;
@@ -5349,11 +5440,28 @@ export class WriterAdapter {
       }
       tableHtml = openTag + newHead + newRest;
       out = out.slice(0, start) + tableHtml + out.slice(end);
+      if (cachedRanges) {
+        const delta = tableHtml.length - (end - start);
+        ranges[i].end += delta;
+        if (delta !== 0) {
+          for (let parent = 0; parent < i; parent += 1) {
+            if (ranges[parent].start < start && ranges[parent].end >= end) ranges[parent].end += delta;
+          }
+        }
+      }
     }
     return out;
   }
 
   _preserveImportedFloatingFrames(html, ooxmlDocumentXml, page = null) {
+    if (globalThis.__VNO_OPEN_LEGACY === true) {
+      return this._preserveImportedFloatingFramesLegacy(html, ooxmlDocumentXml, page, false);
+    }
+    return this._preserveImportedFloatingFramesLegacy(html, ooxmlDocumentXml, page, true);
+  }
+
+  // superseded by P3b - xoa chi khi chu so huu duyet
+  _preserveImportedFloatingFramesLegacy(html, ooxmlDocumentXml, page = null, useLinearP3b = false) {
     const src = String(html || "");
     const anchors = this._ooxmlFloatingAnchorMetadata(ooxmlDocumentXml);
     const groupWsps = typeof this._ooxmlGroupChildTextboxes === "function"
@@ -5469,8 +5577,19 @@ export class WriterAdapter {
     const imgRe = /<img\b[^>]*>/gi;
     const inlineImages = [];
     let iMatch;
+    let containingSpanIndex = 0;
     while ((iMatch = imgRe.exec(src)) !== null) {
-      const inSpan = spans.some((s) => iMatch.index >= s.startPos && iMatch.index < s.endPos);
+      let inSpan;
+      if (useLinearP3b) {
+        while (containingSpanIndex < spans.length && spans[containingSpanIndex].endPos <= iMatch.index) {
+          containingSpanIndex += 1;
+        }
+        const candidate = spans[containingSpanIndex];
+        inSpan = Boolean(candidate && iMatch.index >= candidate.startPos && iMatch.index < candidate.endPos);
+      } else {
+        // Legacy P3: mỗi ảnh quét lại toàn bộ spans, bậc hai trên tài liệu nhiều ảnh.
+        inSpan = spans.some((s) => iMatch.index >= s.startPos && iMatch.index < s.endPos);
+      }
       if (!inSpan) {
         const nameMatch = iMatch[0].match(/\bname=["']?Shape(\d+)\b/i);
         if (nameMatch) {
@@ -5713,10 +5832,33 @@ export class WriterAdapter {
       });
     }
 
-    spanReplacements.sort((a, b) => b.start - a.start);
-    let finalHtml = src;
-    for (const rep of spanReplacements) {
-      finalHtml = finalHtml.slice(0, rep.start) + rep.value + finalHtml.slice(rep.end);
+    let finalHtml;
+    if (useLinearP3b) {
+      const ordered = [...spanReplacements].sort((a, b) => a.start - b.start);
+      let priorEnd = 0;
+      let hasOverlap = false;
+      for (const rep of ordered) {
+        if (rep.start < priorEnd) { hasOverlap = true; break; }
+        priorEnd = rep.end;
+      }
+      if (!hasOverlap) {
+        const chunks = [];
+        let sourceCursor = 0;
+        for (const rep of ordered) {
+          chunks.push(src.slice(sourceCursor, rep.start), rep.value);
+          sourceCursor = rep.end;
+        }
+        chunks.push(src.slice(sourceCursor));
+        finalHtml = chunks.join("");
+      }
+    }
+    if (finalHtml === undefined) {
+      // Legacy P3: mỗi replacement tạo lại toàn bộ chuỗi; giữ nguyên làm rollback/fallback cho range chồng lấn.
+      spanReplacements.sort((a, b) => b.start - a.start);
+      finalHtml = src;
+      for (const rep of spanReplacements) {
+        finalHtml = finalHtml.slice(0, rep.start) + rep.value + finalHtml.slice(rep.end);
+      }
     }
 
     // Stable per-document ids let live pagination position page-relative
@@ -5730,6 +5872,14 @@ export class WriterAdapter {
   }
 
   _makeFloatingAnchorContainers(html, page = null) {
+    if (globalThis.__VNO_OPEN_LEGACY === true) {
+      return this._makeFloatingAnchorContainersLegacy(html, page, false);
+    }
+    return this._makeFloatingAnchorContainersLegacy(html, page, true);
+  }
+
+  // superseded by P3b - xoa chi khi chu so huu duyet
+  _makeFloatingAnchorContainersLegacy(html, page = null, useLinearP3b = false) {
     let out = String(html || "");
     if (!/\bdata-vno-float=["'](?:image|textbox)["']/i.test(out)) return out;
     const hasNativeGroup = /data-vno-source-group=["']1["']/i.test(out);
@@ -5789,6 +5939,26 @@ export class WriterAdapter {
       if (adjustedInner !== inner) replacements.push([opening.index + opening[0].length, tag.index, adjustedInner]);
       replacements.push([opening.index, opening.index + opening[0].length, openTag]);
     }
+    if (useLinearP3b) {
+      const ordered = [...replacements].sort((a, b) => a[0] - b[0]);
+      let priorEnd = 0;
+      let hasOverlap = false;
+      for (const [start, end] of ordered) {
+        if (start < priorEnd) { hasOverlap = true; break; }
+        priorEnd = end;
+      }
+      if (!hasOverlap) {
+        const chunks = [];
+        let sourceCursor = 0;
+        for (const [start, end, value] of ordered) {
+          chunks.push(out.slice(sourceCursor, start), value);
+          sourceCursor = end;
+        }
+        chunks.push(out.slice(sourceCursor));
+        return chunks.join("");
+      }
+    }
+    // Legacy P3: giữ phép thay từ cuối về đầu làm rollback/fallback cho range chồng lấn.
     for (const [start, end, value] of replacements.sort((a, b) => b[0] - a[0])) {
       out = out.slice(0, start) + value + out.slice(end);
     }
