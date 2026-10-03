@@ -27,12 +27,49 @@ Unicode true
 
 !define UninstallRegKey "Software\Microsoft\Windows\CurrentVersion\Uninstall\VNOffice"
 
-!macro RegisterFileType EXT PROGID APPKIND
+; Always listed in "Open with" (not the default handler): the launcher exe carries its own icon and name, so Windows shows
+; "Doc", "Sheet", "Slide" with the right icon on every machine instead of the shared Python icon.
+!macro RegisterOpenWith EXT EXE
+  WriteRegStr HKCU "Software\Classes\${EXT}\OpenWithList\${EXE}" "" ""
+  WriteRegStr HKCU "Software\Classes\Applications\${EXE}\SupportedTypes" "${EXT}" ""
+!macroend
+
+!macro RegisterApplication EXE FRIENDLY
+  WriteRegStr HKCU "Software\Classes\Applications\${EXE}" "FriendlyAppName" "${FRIENDLY}"
+  WriteRegStr HKCU "Software\Classes\Applications\${EXE}\DefaultIcon" "" "$INSTDIR\${EXE},0"
+  WriteRegStr HKCU "Software\Classes\Applications\${EXE}\shell\open" "FriendlyAppName" "${FRIENDLY}"
+  WriteRegStr HKCU "Software\Classes\Applications\${EXE}\shell\open\command" "" "$\"$INSTDIR\${EXE}$\" $\"%1$\""
+!macroend
+
+; Older builds listed the shared "Python" entry (ProgID whose command is pythonw.exe) in "Open with" for all three apps.
+!macro CleanLegacyOpenWithProgid EXT PROGID
+  DeleteRegValue HKCU "Software\Classes\${EXT}\OpenWithProgids" "${PROGID}"
+!macroend
+
+; An older install that already registered the file types keeps working: point its command at the launcher.
+!macro RefreshLegacyProgid PROGID EXE FRIENDLY
+  ReadRegStr $R1 HKCU "Software\Classes\${PROGID}\shell\open\command" ""
+  ${If} $R1 != ""
+    WriteRegStr HKCU "Software\Classes\${PROGID}" "" "${FRIENDLY}"
+    WriteRegStr HKCU "Software\Classes\${PROGID}" "FriendlyTypeName" "${FRIENDLY}"
+    WriteRegStr HKCU "Software\Classes\${PROGID}\shell\open" "FriendlyAppName" "${FRIENDLY}"
+    WriteRegStr HKCU "Software\Classes\${PROGID}\shell\open\command" "" "$\"$INSTDIR\${EXE}$\" $\"%1$\""
+  ${EndIf}
+!macroend
+
+!macro UnregisterOpenWith EXT EXE
+  DeleteRegKey HKCU "Software\Classes\${EXT}\OpenWithList\${EXE}"
+  DeleteRegKey /ifempty HKCU "Software\Classes\${EXT}\OpenWithList"
+  DeleteRegKey /ifempty HKCU "Software\Classes\${EXT}"
+!macroend
+
+!macro RegisterFileType EXT PROGID APPKIND EXE FRIENDLY
   WriteRegStr HKCU "Software\Classes\${EXT}" "" "${PROGID}"
-  WriteRegStr HKCU "Software\Classes\${EXT}\OpenWithProgids" "${PROGID}" ""
-  WriteRegStr HKCU "Software\Classes\${PROGID}" "" "${PROGID}"
+  WriteRegStr HKCU "Software\Classes\${PROGID}" "" "${FRIENDLY}"
+  WriteRegStr HKCU "Software\Classes\${PROGID}" "FriendlyTypeName" "${FRIENDLY}"
   WriteRegStr HKCU "Software\Classes\${PROGID}\DefaultIcon" "" "$INSTDIR\icons\${APPKIND}.ico,0"
-  WriteRegStr HKCU "Software\Classes\${PROGID}\shell\open\command" "" "$\"$INSTDIR\python\pythonw.exe$\" -s -E $\"$INSTDIR\app\main.py$\" --app=${APPKIND} $\"%1$\""
+  WriteRegStr HKCU "Software\Classes\${PROGID}\shell\open" "FriendlyAppName" "${FRIENDLY}"
+  WriteRegStr HKCU "Software\Classes\${PROGID}\shell\open\command" "" "$\"$INSTDIR\${EXE}$\" $\"%1$\""
 !macroend
 
 !macro RemoveExtension EXT PROGID
@@ -190,6 +227,9 @@ Section "-Core" SEC_CORE
   File "${PackageDir}\VERSION.txt"
   File "${PackageDir}\BUILD-INFO.txt"
   File "${PackageDir}\CAI-DAT.txt"
+  File "${PackageDir}\3TDoc.exe"
+  File "${PackageDir}\3TSheet.exe"
+  File "${PackageDir}\3TSlide.exe"
 
   WriteUninstaller "$INSTDIR\Uninstall.exe"
   ; Remove the previous pilot launchers while keeping the existing install and registry locations.
@@ -212,9 +252,39 @@ Section "-Core" SEC_CORE
   ; Remove the older ASCII uninstall shortcut from the current 3T menu before replacing it.
   Delete "$SMPROGRAMS\3T Office\Go cai dat 3T Office.lnk"
   CreateDirectory "$SMPROGRAMS\3T Office"
-  CreateShortCut "$SMPROGRAMS\3T Office\Doc.lnk" "$INSTDIR\python\pythonw.exe" "-s -E $\"$INSTDIR\app\main.py$\" --app=writer" "$INSTDIR\icons\writer.ico" 0 SW_SHOWNORMAL "" "Doc" "$INSTDIR\app"
-  CreateShortCut "$SMPROGRAMS\3T Office\Sheet.lnk" "$INSTDIR\python\pythonw.exe" "-s -E $\"$INSTDIR\app\main.py$\" --app=sheet" "$INSTDIR\icons\sheet.ico" 0 SW_SHOWNORMAL "" "Sheet" "$INSTDIR\app"
-  CreateShortCut "$SMPROGRAMS\3T Office\Slide.lnk" "$INSTDIR\python\pythonw.exe" "-s -E $\"$INSTDIR\app\main.py$\" --app=slides" "$INSTDIR\icons\slides.ico" 0 SW_SHOWNORMAL "" "Slide" "$INSTDIR\app"
+  CreateShortCut "$SMPROGRAMS\3T Office\Doc.lnk" "$INSTDIR\3TDoc.exe" "" "$INSTDIR\3TDoc.exe" 0 SW_SHOWNORMAL "" "Doc" "$INSTDIR\app"
+  CreateShortCut "$SMPROGRAMS\3T Office\Sheet.lnk" "$INSTDIR\3TSheet.exe" "" "$INSTDIR\3TSheet.exe" 0 SW_SHOWNORMAL "" "Sheet" "$INSTDIR\app"
+  CreateShortCut "$SMPROGRAMS\3T Office\Slide.lnk" "$INSTDIR\3TSlide.exe" "" "$INSTDIR\3TSlide.exe" 0 SW_SHOWNORMAL "" "Slide" "$INSTDIR\app"
+  ; "Open with" lists Doc / Sheet / Slide with their own icons (does not change the default program).
+  !insertmacro RegisterApplication "3TDoc.exe" "Doc"
+  !insertmacro RegisterApplication "3TSheet.exe" "Sheet"
+  !insertmacro RegisterApplication "3TSlide.exe" "Slide"
+  !insertmacro RefreshLegacyProgid "VNOffice.Writer.Document" "3TDoc.exe" "Doc"
+  !insertmacro RefreshLegacyProgid "VNOffice.Sheet.Workbook" "3TSheet.exe" "Sheet"
+  !insertmacro RefreshLegacyProgid "VNOffice.Slides.Presentation" "3TSlide.exe" "Slide"
+  !insertmacro CleanLegacyOpenWithProgid ".docx" "VNOffice.Writer.Document"
+  !insertmacro CleanLegacyOpenWithProgid ".doc" "VNOffice.Writer.Document"
+  !insertmacro CleanLegacyOpenWithProgid ".odt" "VNOffice.Writer.Document"
+  !insertmacro CleanLegacyOpenWithProgid ".rtf" "VNOffice.Writer.Document"
+  !insertmacro CleanLegacyOpenWithProgid ".xlsx" "VNOffice.Sheet.Workbook"
+  !insertmacro CleanLegacyOpenWithProgid ".xls" "VNOffice.Sheet.Workbook"
+  !insertmacro CleanLegacyOpenWithProgid ".ods" "VNOffice.Sheet.Workbook"
+  !insertmacro CleanLegacyOpenWithProgid ".csv" "VNOffice.Sheet.Workbook"
+  !insertmacro CleanLegacyOpenWithProgid ".pptx" "VNOffice.Slides.Presentation"
+  !insertmacro CleanLegacyOpenWithProgid ".ppt" "VNOffice.Slides.Presentation"
+  !insertmacro CleanLegacyOpenWithProgid ".odp" "VNOffice.Slides.Presentation"
+  !insertmacro RegisterOpenWith ".docx" "3TDoc.exe"
+  !insertmacro RegisterOpenWith ".doc" "3TDoc.exe"
+  !insertmacro RegisterOpenWith ".odt" "3TDoc.exe"
+  !insertmacro RegisterOpenWith ".rtf" "3TDoc.exe"
+  !insertmacro RegisterOpenWith ".txt" "3TDoc.exe"
+  !insertmacro RegisterOpenWith ".xlsx" "3TSheet.exe"
+  !insertmacro RegisterOpenWith ".xls" "3TSheet.exe"
+  !insertmacro RegisterOpenWith ".ods" "3TSheet.exe"
+  !insertmacro RegisterOpenWith ".csv" "3TSheet.exe"
+  !insertmacro RegisterOpenWith ".pptx" "3TSlide.exe"
+  !insertmacro RegisterOpenWith ".ppt" "3TSlide.exe"
+  !insertmacro RegisterOpenWith ".odp" "3TSlide.exe"
   CreateShortCut "$SMPROGRAMS\3T Office\Gỡ cài đặt 3T Office.lnk" "$INSTDIR\Uninstall.exe" "" "$INSTDIR\icons\vnoffice.ico" 0 SW_SHOWNORMAL "" "Gỡ cài đặt 3T Office" "$INSTDIR"
 
   WriteRegStr HKCU "${UninstallRegKey}" "DisplayName" "3T Office"
@@ -228,6 +298,8 @@ Section "-Core" SEC_CORE
   WriteRegDWORD HKCU "${UninstallRegKey}" "NoRepair" 1
   IntOp $R0 ${PackageSizeBytes} / 1024
   WriteRegDWORD HKCU "${UninstallRegKey}" "EstimatedSize" $R0
+  ; Tell Explorer the associations/icons changed so "Open with" and shortcuts refresh without a restart.
+  System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
 
   ExecWait '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "$PLUGINSDIR\SetupPreflight.ps1" -Mode Unblock -InstallDir "$INSTDIR"' $R0
   ${If} $R0 != 0
@@ -238,23 +310,23 @@ Section "-Core" SEC_CORE
 SectionEnd
 
 Section "$(TASK_DESKTOP)" SEC_DESKTOP
-  CreateShortCut "$DESKTOP\Doc.lnk" "$INSTDIR\python\pythonw.exe" "-s -E $\"$INSTDIR\app\main.py$\" --app=writer" "$INSTDIR\icons\writer.ico" 0 SW_SHOWNORMAL "" "Doc" "$INSTDIR\app"
-  CreateShortCut "$DESKTOP\Sheet.lnk" "$INSTDIR\python\pythonw.exe" "-s -E $\"$INSTDIR\app\main.py$\" --app=sheet" "$INSTDIR\icons\sheet.ico" 0 SW_SHOWNORMAL "" "Sheet" "$INSTDIR\app"
-  CreateShortCut "$DESKTOP\Slide.lnk" "$INSTDIR\python\pythonw.exe" "-s -E $\"$INSTDIR\app\main.py$\" --app=slides" "$INSTDIR\icons\slides.ico" 0 SW_SHOWNORMAL "" "Slide" "$INSTDIR\app"
+  CreateShortCut "$DESKTOP\Doc.lnk" "$INSTDIR\3TDoc.exe" "" "$INSTDIR\3TDoc.exe" 0 SW_SHOWNORMAL "" "Doc" "$INSTDIR\app"
+  CreateShortCut "$DESKTOP\Sheet.lnk" "$INSTDIR\3TSheet.exe" "" "$INSTDIR\3TSheet.exe" 0 SW_SHOWNORMAL "" "Sheet" "$INSTDIR\app"
+  CreateShortCut "$DESKTOP\Slide.lnk" "$INSTDIR\3TSlide.exe" "" "$INSTDIR\3TSlide.exe" 0 SW_SHOWNORMAL "" "Slide" "$INSTDIR\app"
 SectionEnd
 
 Section /o "$(TASK_ASSOC)" SEC_ASSOC
-  !insertmacro RegisterFileType ".docx" "VNOffice.Writer.Document" "writer"
-  !insertmacro RegisterFileType ".doc" "VNOffice.Writer.Document" "writer"
-  !insertmacro RegisterFileType ".odt" "VNOffice.Writer.Document" "writer"
-  !insertmacro RegisterFileType ".rtf" "VNOffice.Writer.Document" "writer"
-  !insertmacro RegisterFileType ".xlsx" "VNOffice.Sheet.Workbook" "sheet"
-  !insertmacro RegisterFileType ".xls" "VNOffice.Sheet.Workbook" "sheet"
-  !insertmacro RegisterFileType ".ods" "VNOffice.Sheet.Workbook" "sheet"
-  !insertmacro RegisterFileType ".csv" "VNOffice.Sheet.Workbook" "sheet"
-  !insertmacro RegisterFileType ".pptx" "VNOffice.Slides.Presentation" "slides"
-  !insertmacro RegisterFileType ".ppt" "VNOffice.Slides.Presentation" "slides"
-  !insertmacro RegisterFileType ".odp" "VNOffice.Slides.Presentation" "slides"
+  !insertmacro RegisterFileType ".docx" "VNOffice.Writer.Document" "writer" "3TDoc.exe" "Doc"
+  !insertmacro RegisterFileType ".doc" "VNOffice.Writer.Document" "writer" "3TDoc.exe" "Doc"
+  !insertmacro RegisterFileType ".odt" "VNOffice.Writer.Document" "writer" "3TDoc.exe" "Doc"
+  !insertmacro RegisterFileType ".rtf" "VNOffice.Writer.Document" "writer" "3TDoc.exe" "Doc"
+  !insertmacro RegisterFileType ".xlsx" "VNOffice.Sheet.Workbook" "sheet" "3TSheet.exe" "Sheet"
+  !insertmacro RegisterFileType ".xls" "VNOffice.Sheet.Workbook" "sheet" "3TSheet.exe" "Sheet"
+  !insertmacro RegisterFileType ".ods" "VNOffice.Sheet.Workbook" "sheet" "3TSheet.exe" "Sheet"
+  !insertmacro RegisterFileType ".csv" "VNOffice.Sheet.Workbook" "sheet" "3TSheet.exe" "Sheet"
+  !insertmacro RegisterFileType ".pptx" "VNOffice.Slides.Presentation" "slides" "3TSlide.exe" "Slide"
+  !insertmacro RegisterFileType ".ppt" "VNOffice.Slides.Presentation" "slides" "3TSlide.exe" "Slide"
+  !insertmacro RegisterFileType ".odp" "VNOffice.Slides.Presentation" "slides" "3TSlide.exe" "Slide"
 SectionEnd
 
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
@@ -317,6 +389,21 @@ Section "Uninstall"
   Delete "$DESKTOP\VN Sheet.lnk"
   Delete "$DESKTOP\VN Slides.lnk"
 
+  !insertmacro UnregisterOpenWith ".xlsx" "3TSheet.exe"
+  !insertmacro UnregisterOpenWith ".xls" "3TSheet.exe"
+  !insertmacro UnregisterOpenWith ".ods" "3TSheet.exe"
+  !insertmacro UnregisterOpenWith ".csv" "3TSheet.exe"
+  !insertmacro UnregisterOpenWith ".docx" "3TDoc.exe"
+  !insertmacro UnregisterOpenWith ".doc" "3TDoc.exe"
+  !insertmacro UnregisterOpenWith ".odt" "3TDoc.exe"
+  !insertmacro UnregisterOpenWith ".rtf" "3TDoc.exe"
+  !insertmacro UnregisterOpenWith ".txt" "3TDoc.exe"
+  !insertmacro UnregisterOpenWith ".pptx" "3TSlide.exe"
+  !insertmacro UnregisterOpenWith ".ppt" "3TSlide.exe"
+  !insertmacro UnregisterOpenWith ".odp" "3TSlide.exe"
+  DeleteRegKey HKCU "Software\Classes\Applications\3TDoc.exe"
+  DeleteRegKey HKCU "Software\Classes\Applications\3TSheet.exe"
+  DeleteRegKey HKCU "Software\Classes\Applications\3TSlide.exe"
   !insertmacro RemoveExtension ".docx" "VNOffice.Writer.Document"
   !insertmacro RemoveExtension ".doc" "VNOffice.Writer.Document"
   !insertmacro RemoveExtension ".odt" "VNOffice.Writer.Document"
