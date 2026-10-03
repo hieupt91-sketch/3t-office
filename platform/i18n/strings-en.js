@@ -101,7 +101,7 @@ export const enStrings = {
     recent: "Recent Files",
     close: "Close (Ctrl+W)",
     options: "Options",
-    account: "Account",
+    account: "Account and license",
     about: "About 3T Office",
     templateTitle: "Standard Vietnamese Document Templates",
     templateSubtitle: "Quickly start a new document from an administrative or business template",

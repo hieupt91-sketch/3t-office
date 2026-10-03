@@ -127,6 +127,8 @@ class KeyTests(unittest.TestCase):
         self.assertEqual(keys_mod.format_while_typing(""), "3TO-")
         self.assertEqual(keys_mod.format_while_typing("3to12345678"), "3TO-12345-678")
         self.assertEqual(keys_mod.format_while_typing("12345 67890 abcde fghjk zz"), "3TO-12345-67890-ABCDE-FGHJK")
+        self.assertEqual(keys_mod.format_while_typing("3TO-3TO-ABCDE-FGHJK-MNPQR-STVW1"), "3TO-ABCDE-FGHJK-MNPQR-STVW1")
+        self.assertEqual(keys_mod.format_while_typing("3TO-3TO12"), "3TO-3TO12")
 
     def test_device_code_format_and_checksum(self):
         fingerprint = device_mod.device_fingerprint("machine-guid", "PC-01")

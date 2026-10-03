@@ -47,6 +47,9 @@ def format_while_typing(raw: str) -> str:
     cleaned = "".join(ch for ch in str(raw or "").upper() if ch.isalnum())
     if cleaned.startswith("3TO"):
         cleaned = cleaned[3:]
+    # The input box already shows "3TO-", so a pasted full key arrives as "3TO-3TO-...": drop the repeated prefix.
+    while cleaned.startswith("3TO") and len(cleaned) > 20:
+        cleaned = cleaned[3:]
     cleaned = cleaned[:20]
     groups = [cleaned[index:index + 5] for index in range(0, len(cleaned), 5)]
     return "-".join(["3TO", *groups]) if groups else "3TO-"

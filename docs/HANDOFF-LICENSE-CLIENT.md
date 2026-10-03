@@ -27,3 +27,10 @@ BRANCH: `feat/license-client-core-claude`
 
 ## Cách chạy
 `python -m unittest tests.test_license_client tests.test_license_client_e2e` (e2e cần fastapi, uvicorn, cryptography — phụ thuộc máy chủ/dev, không nằm trong bản cài).
+
+## Giai đoạn L2 (04/10/2026) — giao diện Tệp ▸ Tài khoản và bản quyền (Doc/Sheet/Slide)
+- Mới: `platform/license/license-dialog.js` + `.css` (hộp), `license-key-format.js` (định dạng ô nhập); nút "Tài khoản và bản quyền" trong menu Tệp (`platform/shell/app-shell.js`), nạp lười; Hướng dẫn tiếng Việt `platform/help/entries-license.js` (đã đăng ký catalog, 3 ứng dụng).
+- Hành vi: trạng thái dùng thử/đã kích hoạt; ô mã tự chèn dấu gạch, kiểm checksum ngay (qua `license_normalize_key`); dán nguyên mã kể cả khi ô đã có "3TO-" không bị nhân đôi tiền tố (đã sửa lỗi này, có test); báo lỗi tiếng Việt khi mất mạng/hết chỗ máy; kích hoạt ngoại tuyến (mã thiết bị + dán mã); gỡ kích hoạt có hỏi xác nhận; Esc/Tab/Enter; không tràn ở 360 px. KHÔNG khóa tính năng nào.
+- `VNO_LICENSE_API_BASE` (biến môi trường): đổi địa chỉ máy chủ bản quyền cho test tự động (chỉ https hoặc http://127.0.0.1).
+- Kiểm thử tự chạy: node 2747/2747 PASS; Python 23 license tests OK (kèm e2e máy chủ thật cục bộ); CDP `license-dialog.desktop.mjs` 39/39 PASS (Doc, Sheet, Slide); hồi quy desktop 27/27; ui-overlap 30/30; ctx-menu 14/14; doc-format-state 12/12. Ảnh chụp thật: `docs/screens-license/`.
+- CHƯA làm: làm mới nền theo `check_by`; banner/khóa tính năng khi hết dùng thử (chờ chủ sở hữu chốt chính sách); số phiên bản thật gửi lên máy chủ; bản macOS.

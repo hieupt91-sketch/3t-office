@@ -2958,7 +2958,15 @@ class VnOfficeApi:
         if manager is None:
             from adapters.license.manager import LicenseManager
 
-            manager = LicenseManager(_user_data_dir(), APP_VERSION, platform_name=_license_platform_name())
+            from adapters.license.manager import DEFAULT_API_BASE
+
+            # VNO_LICENSE_API_BASE lets automated tests point at a local or closed port instead of the live server.
+            manager = LicenseManager(
+                _user_data_dir(),
+                APP_VERSION,
+                api_base=os.environ.get("VNO_LICENSE_API_BASE") or DEFAULT_API_BASE,
+                platform_name=_license_platform_name(),
+            )
             self._license_manager_instance = manager
         return manager
 
