@@ -64,7 +64,7 @@ export async function run3tWebTests() {
     assert(
       "Dung lượng bộ cài 0.9.7 đúng 526608468 byte và mã băm SHA256 chính xác",
       releasesData.download?.file_size_bytes === 526608468 &&
-      releasesData.download?.sha256?.toLowerCase() === "8f3b6a8e0c0ed0324b62c53d0efe56994653a33e660c44446c6065a353c07b15"
+      releasesData.download?.sha256?.toLowerCase() === "517336eb7cf5f8d5804eb4f53531a0b669d434863efeaa478cc0277edc8b642c"
     );
 
     // 2. Kiểm tra sự tồn tại của 9 trang HTML

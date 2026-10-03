@@ -212,3 +212,44 @@ def test_website_is_optional(tmp_path: Path):
             assert home.status_code == 404
 
     asyncio.run(scenario())
+
+
+def test_download_installer_file_with_range_and_security(tmp_path: Path):
+    """Tải bộ cài đặt /downloads/{file_name} hỗ trợ Range, Content-Disposition và bảo vệ an toàn."""
+    downloads = tmp_path / "downloads"
+    downloads.mkdir()
+    installer_data = b"VNOffice Setup 0.9.7 binary payload for tests 0123456789"
+    installer_name = "VNOffice-Setup-0.9.7.exe"
+    (downloads / installer_name).write_bytes(installer_data)
+
+    async def scenario():
+        client, _ = make_client(tmp_path, downloads_dir=downloads)
+        async with client:
+            res = await client.get(f"/downloads/{installer_name}")
+            assert res.status_code == 200
+            assert res.content == installer_data
+            assert res.headers["accept-ranges"] == "bytes"
+            assert f'attachment; filename="{installer_name}"' in res.headers.get("content-disposition", "")
+            assert res.headers["content-length"] == str(len(installer_data))
+
+            head_res = await client.head(f"/downloads/{installer_name}")
+            assert head_res.status_code == 200
+            assert head_res.headers["accept-ranges"] == "bytes"
+
+            partial = await client.get(f"/downloads/{installer_name}", headers={"Range": "bytes=0-13"})
+            assert partial.status_code == 206
+            assert partial.content == installer_data[0:14]
+            assert partial.headers["content-range"] == f"bytes 0-13/{len(installer_data)}"
+            assert partial.headers["content-length"] == "14"
+
+            missing = await client.get("/downloads/NonExistent-0.9.7.exe")
+            assert missing.status_code == 404
+
+            bad_ext = await client.get("/downloads/malicious_script.sh")
+            assert bad_ext.status_code == 404
+
+            traversal = await client.get("/downloads/..%2Fsecret.txt")
+            assert traversal.status_code == 404
+
+    asyncio.run(scenario())
+

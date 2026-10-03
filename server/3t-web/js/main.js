@@ -595,4 +595,12 @@ async function initReleaseData() {
   document.querySelectorAll("[data-release-field='file_name']").forEach((el) => el.textContent = dl.file_name || "VNOffice-Setup-0.9.7.exe");
   document.querySelectorAll("[data-release-field='file_size_formatted']").forEach((el) => el.textContent = dl.file_size_formatted || "502 MB");
   document.querySelectorAll("[data-release-field='sha256']").forEach((el) => el.textContent = dl.sha256 || "");
+
+  const downloadUrl = dl.url || ("https://office.3tcomputer.com/downloads/" + (dl.file_name || "VNOffice-Setup-0.9.7.exe"));
+  document.querySelectorAll("[data-release-download-link]").forEach((el) => {
+    if (el.tagName === "A") {
+      el.href = downloadUrl;
+    }
+  });
 }
+

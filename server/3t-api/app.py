@@ -48,6 +48,7 @@ _DOCUMENT_MARKERS = tuple(re.compile(pattern, re.IGNORECASE) for pattern in (
     r"<\??(?:xml|w:|a:|p:|office:|table:|text:|draw:)", r"\{\\rtf", r"%PDF-", r"PK\x03\x04",
     r"data:(?:application|image)/", r"(?:^|\n)\s*(?:Content_Types\.xml|word/document\.xml|xl/worksheets/|ppt/slides/)",
 ))
+_SAFE_DOWNLOAD_NAME = re.compile(r"^[A-Za-z0-9_.-]+\.(?:exe|msi|zip|tar\.gz)$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,6 +63,7 @@ class Settings:
     admin_password: str
     product: str = "3t-office"
     web_dir: Path | None = None
+    downloads_dir: Path | None = None
     token_ttl_seconds: int = TOKEN_TTL_SECONDS
     report_rate: int = 30
     token_rate: int = 20
@@ -77,6 +79,7 @@ class Settings:
             backups_dir=Path(os.environ.get("BACKUPS_DIR", "/backups")),
             logs_dir=Path(os.environ.get("LOGS_DIR", "/logs")),
             web_dir=Path(os.environ["WEB_DIR"]) if os.environ.get("WEB_DIR") else None,
+            downloads_dir=Path(os.environ["DOWNLOADS_DIR"]) if os.environ.get("DOWNLOADS_DIR") else None,
             install_token_secret=os.environ.get("INSTALL_TOKEN_SECRET", ""),
             admin_username=os.environ.get("ADMIN_USERNAME", ""),
             admin_password=os.environ.get("ADMIN_PASSWORD", ""),
@@ -578,6 +581,70 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                    ORDER BY last_seen DESC LIMIT ?""", (limit,),
             ).fetchall()
         return {"groups": [dict(row) for row in rows]}
+
+    @app.api_route("/downloads/{file_name}", methods=["GET", "HEAD"])
+    async def download_file(file_name: str, request: Request) -> Response:
+        if not _SAFE_DOWNLOAD_NAME.fullmatch(file_name):
+            raise HTTPException(status_code=404, detail="Download file not found")
+        if cfg.downloads_dir is None or not cfg.downloads_dir.is_dir():
+            raise HTTPException(status_code=404, detail="Download file not found")
+        path = _safe_file(cfg.downloads_dir, file_name)
+        size = path.stat().st_size
+        media_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+        disposition = f'attachment; filename="{path.name}"'
+        headers = {
+            "Accept-Ranges": "bytes",
+            "Content-Length": str(size),
+            "Content-Disposition": disposition,
+        }
+        if request.method == "HEAD":
+            return Response(status_code=200, media_type=media_type, headers=headers)
+
+        range_header = request.headers.get("range")
+        if range_header:
+            parsed = _parse_range(range_header, size)
+            if parsed is None:
+                return Response(status_code=416, headers={"Content-Range": f"bytes */{size}", "Accept-Ranges": "bytes"})
+            start, end = parsed
+            length = end - start + 1
+
+            def ranged_file() -> AsyncIterator[bytes]:
+                async def iterator() -> AsyncIterator[bytes]:
+                    with path.open("rb") as stream:
+                        stream.seek(start)
+                        remaining = length
+                        while remaining:
+                            data = await asyncio.to_thread(stream.read, min(64 * 1024, remaining))
+                            if not data:
+                                break
+                            remaining -= len(data)
+                            yield data
+                return iterator()
+
+            return StreamingResponse(
+                ranged_file(), status_code=206, media_type=media_type,
+                headers={
+                    "Accept-Ranges": "bytes",
+                    "Content-Length": str(length),
+                    "Content-Range": f"bytes {start}-{end}/{size}",
+                    "Content-Disposition": disposition,
+                },
+            )
+
+        def whole_file() -> AsyncIterator[bytes]:
+            async def iterator() -> AsyncIterator[bytes]:
+                with path.open("rb") as stream:
+                    while True:
+                        data = await asyncio.to_thread(stream.read, 64 * 1024)
+                        if not data:
+                            break
+                        yield data
+            return iterator()
+
+        return StreamingResponse(
+            whole_file(), media_type=media_type,
+            headers=headers,
+        )
 
     # Trang web sản phẩm (tĩnh). Gắn CUỐI CÙNG để không che /health, /api/v1/* và /updates/*.
     if cfg.web_dir is not None and cfg.web_dir.is_dir():
