@@ -514,6 +514,7 @@ TASKBAR_APP_USER_MODEL_IDS = {
     "slides": "VNOffice.Slides",
 }
 TASKBAR_RELAUNCH_DISPLAY_NAMES = {"writer": "Doc", "sheet": "Sheet", "slides": "Slide"}
+TASKBAR_LAUNCHER_EXES = {"writer": "3TDoc.exe", "sheet": "3TSheet.exe", "slides": "3TSlide.exe"}
 SUITE_TITLE = "3T Office — Bộ Ứng Dụng Văn Phòng Việt"
 FILE_APP_KINDS = {
     ".docx": "writer", ".doc": "writer", ".odt": "writer", ".rtf": "writer", ".txt": "writer",
@@ -528,18 +529,30 @@ def _taskbar_relaunch_info(app_kind: str) -> dict[str, str] | None:
     display_name = TASKBAR_RELAUNCH_DISPLAY_NAMES.get(app_kind)
     if not app_user_model_id or not display_name:
         return None
-    command = subprocess.list2cmdline([
-        sys.executable,
-        "-s",
-        "-E",
-        str(Path(__file__).resolve()),
-        f"--app={app_kind}",
-    ])
-    return {
+    # A pinned taskbar item re-launches through the per-app launcher (own name + icon) when it is installed
+    # next to the app folder; otherwise through the interpreter as before (source / older installs).
+    launcher = Path(__file__).resolve().parent.parent / TASKBAR_LAUNCHER_EXES[app_kind]
+    if launcher.is_file():
+        command = subprocess.list2cmdline([str(launcher)])
+        icon_source = launcher
+    else:
+        command = subprocess.list2cmdline([
+            sys.executable,
+            "-s",
+            "-E",
+            str(Path(__file__).resolve()),
+            f"--app={app_kind}",
+        ])
+        icon_source = Path(__file__).resolve().parent / "branding" / "icons" / f"{app_kind}.ico"
+    info = {
         "app_user_model_id": app_user_model_id,
         "display_name": display_name,
         "command": command,
     }
+    if icon_source.is_file():
+        # Without this the pinned item takes the icon of pythonw.exe, which differs between machines.
+        info["icon_resource"] = f"{icon_source},0"
+    return info
 
 
 def _set_windows_taskbar_relaunch_info(window, app_kind: str) -> bool:
@@ -576,11 +589,13 @@ def _set_windows_taskbar_relaunch_info(window, app_kind: str) -> bool:
 
     property_format_id = GUID.from_buffer_copy(uuid.UUID("9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3").bytes_le)
     property_store_iid = GUID.from_buffer_copy(uuid.UUID("886D8EEB-8CF2-4446-8D02-CDBA1DBDCF99").bytes_le)
-    property_values = (
+    property_values = [
         (2, info["command"]),
         (4, info["display_name"]),
         (5, info["app_user_model_id"]),
-    )
+    ]
+    if info.get("icon_resource"):
+        property_values.append((3, info["icon_resource"]))
 
     property_store = ctypes.c_void_p()
     try:

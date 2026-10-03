@@ -103,10 +103,19 @@ foreach ($app in $apps) {
     if (-not $NoDesktopShortcuts) { $targets += (Join-Path $desktop "$($app.Name).lnk") }
     foreach ($linkPath in $targets) {
         $link = $shell.CreateShortcut($linkPath)
-        $link.TargetPath = Join-Path $InstallDir "python\pythonw.exe"
-        $link.Arguments = "-s -E `"$(Join-Path $InstallDir 'app\main.py')`" --app=$($app.Id)"
+        $launcherName = @{ writer = "3TDoc.exe"; sheet = "3TSheet.exe"; slides = "3TSlide.exe" }[$app.Id]
+        $launcher = Join-Path $InstallDir $launcherName
+        if (Test-Path -LiteralPath $launcher -PathType Leaf) {
+            # Own icon and name in the shell (Open with, taskbar, Task Manager) instead of the shared Python icon.
+            $link.TargetPath = $launcher
+            $link.Arguments = ""
+            $link.IconLocation = "$launcher,0"
+        } else {
+            $link.TargetPath = Join-Path $InstallDir "python\pythonw.exe"
+            $link.Arguments = "-s -E `"$(Join-Path $InstallDir 'app\main.py')`" --app=$($app.Id)"
+            $link.IconLocation = Join-Path $InstallDir "icons\$($app.Id).ico"
+        }
         $link.WorkingDirectory = Join-Path $InstallDir "app"
-        $link.IconLocation = Join-Path $InstallDir "icons\$($app.Id).ico"
         $link.Description = "$($app.Name) - 3T Office (ban thu nghiem)"
         $link.Save()
     }

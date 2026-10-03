@@ -105,6 +105,11 @@ Write-Host "      Seed profiles"
 & (Join-Path $PythonDir "python.exe") -s (Join-Path $PSScriptRoot "release\build-seed-profiles.py") (Join-Path $appDir "seed")
 if ($LASTEXITCODE -ne 0) { throw "build-seed-profiles.py failed ($LASTEXITCODE)" }
 
+# 3c. Per-app launchers (3TDoc.exe / 3TSheet.exe / 3TSlide.exe): own icon + name for "Open with", taskbar, Task Manager.
+Write-Host "      Launchers"
+& powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "installer\build-launchers.ps1") -OutDir $dist -Version $Version
+if ($LASTEXITCODE -ne 0) { throw "build-launchers.ps1 failed ($LASTEXITCODE)" }
+
 # 4. Icons (copy real multi-size icons from branding/icons/, or fallback to generated placeholders), version, notices.
 Write-Host "[4/5] Icons, version, notices"
 # Needed before $iconSpecs below: [System.Drawing.Color] is not loaded in a fresh PowerShell 5.1.
