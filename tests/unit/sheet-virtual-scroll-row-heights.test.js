@@ -54,7 +54,7 @@ function createMockContainer() {
   };
 }
 
-function createGridForTest(rowCount, customRowHeights = {}) {
+export function createGridForTest(rowCount, customRowHeights = {}) {
   const container = createMockContainer();
   const grid = new SheetGridController(container, { isBlank: true });
   grid.rowCount = rowCount;
