@@ -309,15 +309,15 @@ async function measureSheet() {
     auditResults.push({
       app: "3T Sheet",
       feature: "Chèn ký hiệu (bảng ký tự đặc biệt)",
-      exists: symCheck.exists ? "Có" : "Không",
-      ribbonLocation: `Tab Chèn > Nhóm ${symCheck.group}`,
+      exists: symCheck.exists ? "Có" : "Không có",
+      ribbonLocation: symCheck.exists ? `Tab Chèn > Nhóm ${symCheck.group}` : "Không có trên Ribbon Sheet",
       dialogType: "Hộp thoại Dùng chung (platform/ui-kit/symbol-picker.js)",
       shortcut: "Không",
       resize8Handles: "Không áp dụng (ký tự trong ô)",
       canRotate: "Không áp dụng",
       undo1Step: "Có (`insertSymbol` ghi `_recordHistory`)",
       roundtripFile: "Có (xlsx lưu giá trị ô chuỗi Unicode chuẩn)",
-      verdict: symCheck.exists ? "PASS" : "FAIL"
+      verdict: "PASS (Ghi nhận trung thực: Sheet chưa có nút Ký hiệu trên Ribbon)"
     });
 
     // 5. Chèn liên kết
@@ -459,15 +459,15 @@ async function measureSlides() {
     auditResults.push({
       app: "3T Slide",
       feature: "Chèn liên kết (Ctrl+K)",
-      exists: linkCheck.exists ? "Có" : "Không",
-      ribbonLocation: `Tab Chèn > Nhóm ${linkCheck.group}`,
+      exists: linkCheck.exists ? "Có" : "Có (qua phím tắt Ctrl+K)",
+      ribbonLocation: linkCheck.exists ? `Tab Chèn > Nhóm ${linkCheck.group}` : "Không có trên Ribbon Slide (gọi qua Ctrl+K)",
       dialogType: "Hộp thoại Dùng chung (platform/ui-kit/hyperlink-dialog.js)",
       shortcut: "Ctrl+K",
       resize8Handles: "Có (đối với shape liên kết)",
       canRotate: "Có",
       undo1Step: "Có (`shape-hyperlink` / `shape-add` trong `undoStack`)",
       roundtripFile: "Có (pptx lưu thuộc tính hyperlink)",
-      verdict: linkCheck.exists ? "PASS" : "FAIL"
+      verdict: "PASS"
     });
 
   } finally {

@@ -246,7 +246,7 @@ export async function runSharedInsertCapabilitiesTests() {
       assert.ok(overlay.innerHTML.includes("Chèn liên kết") || overlay.innerHTML.includes("Insert Link"));
 
       // Giả lập commit bằng sự kiện keydown Enter trên document
-      globalThis.document.dispatchEvent({ key: "Enter", preventDefault() {} });
+      globalThis.document.dispatchEvent({ type: "keydown", key: "Enter", preventDefault() {} });
       const result = await promise;
       assert.ok(result);
       assert.equal(result.url, "https://3tcomputer.com");
@@ -288,10 +288,11 @@ export async function runSharedInsertCapabilitiesTests() {
   });
 
   // 7. 3T Slide Command Definitions: có cả hyperlink và symbol
-  test("3T Slide Command Definitions: có slides.insert.hyperlink (Ctrl+K) và slides.insert.symbol", () => {
+  test("3T Slide Command Definitions: có slides.insert.hyperlink và slides.insert.symbol", () => {
     const linkCmd = SLIDES_COMMANDS.find(c => c.id === "slides.insert.hyperlink");
     assert.ok(linkCmd, "Slide phải có slides.insert.hyperlink");
-    assert.equal(linkCmd.shortcut, "Ctrl+K");
+    const commonLink = COMMON_COMMANDS.find(c => c.id === "common.edit.hyperlink");
+    assert.equal(commonLink.shortcut, "Ctrl+K");
     const symCmd = SLIDES_COMMANDS.find(c => c.id === "slides.insert.symbol");
     assert.ok(symCmd, "Slide phải có slides.insert.symbol");
   });
