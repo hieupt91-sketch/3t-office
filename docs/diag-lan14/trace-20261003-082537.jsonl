@@ -1,0 +1,17 @@
+{"stage":"python_runtime_started","elapsed_ms":0.0}
+{"stage":"python_imports_complete","elapsed_ms":820.3}
+{"stage":"static_server_ready","elapsed_ms":878.3,"port":8080}
+{"stage":"pywebview_window_created","elapsed_ms":879.7,"app":"sheet"}
+{"stage":"lo_worker_start_requested","elapsed_ms":879.8,"app":"sheet"}
+{"stage":"pywebview_ready","elapsed_ms":2143.8,"app":"sheet","renderer_elapsed_ms":309.8}
+{"stage":"webview_loaded","elapsed_ms":2144.7,"app":"sheet"}
+{"stage":"lo_worker_ready","elapsed_ms":4454.0,"app":"sheet","worker_elapsed_ms":3573.9}
+{"stage":"window_close_api_requested","elapsed_ms":46999.8,"app":"sheet"}
+{"stage":"native_window_closing","elapsed_ms":47107.4,"app":"sheet","approved":true}
+{"stage":"window_close_cleanup_started","elapsed_ms":47108.6,"app":"sheet"}
+{"stage":"autorecover_session_closed","elapsed_ms":47109.7,"app":"sheet"}
+{"stage":"print_sessions_closed","elapsed_ms":47109.8,"app":"sheet"}
+{"stage":"pywebview_window_closed","elapsed_ms":47109.9,"app":"sheet","remaining_app_windows":0}
+{"stage":"window_destroy_requested","elapsed_ms":47428.2,"app":"sheet"}
+{"stage":"pywebview_loop_returned","elapsed_ms":47429.6,"app":"sheet"}
+{"stage":"lo_worker_shutdown_complete","elapsed_ms":48732.1,"app":"sheet"}

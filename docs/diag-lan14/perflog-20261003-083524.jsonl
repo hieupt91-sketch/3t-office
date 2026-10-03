@@ -1,0 +1,2 @@
+{"timestamp":"2026-10-03T08:35:28.596+00:00","event":"soffice_start","operation":"soffice_start","app":"sheet","duration_ms":3592.6,"outcome":"ok","memory_bytes":129839104}
+{"timestamp":"2026-10-03T08:37:09.178+00:00","event":"operation","operation":"open","app":"sheet","duration_ms":102547.0,"outcome":"ok","memory_bytes":1072304128}
