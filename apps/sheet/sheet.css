@@ -344,7 +344,9 @@
 
 /* Data Cells */
 .vno-grid-cell {
-  padding: 3px 3px;
+  /* Vertical padding 0: with 3px the content box was 13px, so an 11pt line (~19px) pushed 20px rows to 25px and the
+     rendered rows no longer matched the row-height model (scroll/selection drifted). */
+  padding: 0px 3px;
   height: 20px;
   box-sizing: border-box;
   /* S29a: Excel giu nguyen khoang trang lien tiep trong o (lan02 A17: 'Phi chuyen tien:' + 15 dau cach + ...);

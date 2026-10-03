@@ -242,7 +242,8 @@ export async function runSheetCellTextFitTests() {
     const css = fs.readFileSync(cssPath, "utf-8");
 
     // Padding ngang phải là ~2-3px (không được 8px gây cắt chữ sớm)
-    assert(css.includes("padding: 3px 3px;") || css.includes("padding: 2px 3px;"), "CSS .vno-grid-cell phải có padding ngang 3px");
+    // Chỉ padding NGANG được kiểm (3px). Padding dọc 0 là chủ ý (03/10): 3px dọc làm hàng 20px nở thành 25px, lệch model hàng.
+    assert(/\.vno-grid-cell\s*\{[^}]*padding:\s*\d+(?:px)?\s+3px\s*;/.test(css), "CSS .vno-grid-cell phải có padding ngang 3px");
     assert(!css.match(/\.vno-grid-cell\s*\{[^}]*padding:\s*3px\s+8px/), "CSS .vno-grid-cell KHÔNG được dùng padding ngang 8px");
     // Mặc định text-overflow là clip, không dùng ellipsis biến chữ thành '…'
     assert(css.includes("text-overflow: clip;"), "CSS .vno-grid-cell phải có text-overflow: clip");
