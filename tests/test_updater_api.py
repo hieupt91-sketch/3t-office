@@ -185,3 +185,71 @@ class ReadUpdateApiTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class UpdaterParallelDownloadTests(unittest.TestCase):
+    """Internet sources download blobs through a small pool; LAN/local stay sequential."""
+
+    def _manager(self, source):
+        temp = tempfile.mkdtemp()
+        return UpdaterManager(
+            install_dir=Path(temp) / "install", updates_dir=Path(temp) / "updates", current_version="0.9.0",
+            sources=[source], channel="pilot", public_key=(3, 3),
+        ), Path(temp)
+
+    def test_https_downloads_run_concurrently_and_sum_the_bytes(self):
+        import threading
+        import time
+        from adapters.updater import updater as updater_module
+
+        manager, temp = self._manager("https://example.test/updates")
+        required = {f"{index:064x}": 100 + index for index in range(40)}
+        active = {"now": 0, "peak": 0}
+        lock = threading.Lock()
+
+        def fake_download(source, digest, destination, *, expected_size, timeout):
+            with lock:
+                active["now"] += 1
+                active["peak"] = max(active["peak"], active["now"])
+            time.sleep(0.02)
+            with lock:
+                active["now"] -= 1
+            return expected_size
+
+        with mock.patch.object(updater_module, "download_blob", fake_download):
+            total = manager._download_blobs("https://example.test/updates", required, temp / "blobs")
+        self.assertEqual(total, sum(required.values()))
+        self.assertGreater(active["peak"], 1)
+        self.assertLessEqual(active["peak"], 8)
+
+    def test_local_sources_stay_sequential(self):
+        from adapters.updater import updater as updater_module
+
+        manager, temp = self._manager(str(Path(tempfile.gettempdir())))
+        required = {f"{index:064x}": 10 for index in range(20)}
+        calls = []
+
+        def fake_download(source, digest, destination, *, expected_size, timeout):
+            calls.append(digest)
+            return expected_size
+
+        with mock.patch.object(updater_module, "download_blob", fake_download):
+            total = manager._download_blobs(str(Path(tempfile.gettempdir())), required, temp / "blobs")
+        self.assertEqual(total, 200)
+        self.assertEqual(calls, list(required))
+
+    def test_first_failure_aborts_the_update(self):
+        from adapters.updater import updater as updater_module
+        from adapters.updater.source import UpdateSourceError
+
+        manager, temp = self._manager("https://example.test/updates")
+        required = {f"{index:064x}": 10 for index in range(30)}
+
+        def fake_download(source, digest, destination, *, expected_size, timeout):
+            if digest == f"{7:064x}":
+                raise UpdateSourceError("SHA-256 blob không khớp")
+            return expected_size
+
+        with mock.patch.object(updater_module, "download_blob", fake_download):
+            with self.assertRaises(UpdateSourceError):
+                manager._download_blobs("https://example.test/updates", required, temp / "blobs")
