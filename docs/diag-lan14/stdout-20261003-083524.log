@@ -1,0 +1,39 @@
+2026-10-03T08:35:26.602Z stdout Could not set the taskbar process identity: cannot access local variable 'ctypes' where it is not associated with a value
+2026-10-03T08:35:26.602Z stdout [pywebview] Using WinForms / Chromium
+2026-10-03T08:35:26.602Z stdout [pywebview] before_load event fired. injecting pywebview object
+2026-10-03T08:35:26.602Z stdout [pywebview] Loading JS files from C:\Users\3T Computer\AppData\Local\Programs\Python\Python312\Lib\site-packages\webview\js
+2026-10-03T08:35:26.602Z stdout [pywebview] _pywebviewready event fired
+2026-10-03T08:35:26.602Z stdout [pywebview] loaded event fired
+2026-10-03T08:35:28.597Z stdout [3T Office] Embedded server ready at http://localhost:8081
+2026-10-03T08:35:28.597Z stdout [VNO Open Perf] worker_start_and_profile_ready: 3593.4 ms app=sheet
+2026-10-03T08:35:41.808Z stdout [VNO Open Perf] uno_load_and_store: 13210.2 ms app=sheet bytes=257170257
+2026-10-03T08:38:13.211Z stdout [VNO Sheet Perf] parseFods:strip embedded objects: 62.3 ms
+2026-10-03T08:38:13.595Z stdout [VNO Sheet Perf] parseFods:number styles: 384.3 ms
+2026-10-03T08:38:13.858Z stdout [VNO Sheet Perf] parseFods:rotation styles: 262.7 ms
+2026-10-03T08:38:14.144Z stdout [VNO Sheet Perf] parseFods:cell visual styles: 286.1 ms
+2026-10-03T08:38:14.423Z stdout [VNO Sheet Perf] parseFods:text styles: 278.5 ms
+2026-10-03T08:38:14.687Z stdout [VNO Sheet Perf] parseFods:row/column styles: 264.0 ms
+2026-10-03T08:38:14.751Z stdout [VNO Sheet Perf] parseFods:remove table blocks: 63.4 ms
+2026-10-03T08:38:26.589Z stdout [VNO Sheet Perf] parseFods:DOM parse: 11806.7 ms
+2026-10-03T08:39:19.488Z stdout [VNO Sheet Perf] parseFods:DOM worksheet traversal: 51534.1 ms
+2026-10-03T08:39:19.493Z stdout [VNO Sheet Perf] parseFods:repeat page-layout scans: 61.8 ms
+2026-10-03T08:39:19.493Z stdout [VNO Sheet Perf] parseFods:repeat print-title scans: 992.9 ms
+2026-10-03T08:39:19.494Z stdout [VNO Sheet Perf] parseFods:repeat tab-color scans: 6.8 ms
+2026-10-03T08:39:19.495Z stdout [VNO Sheet Perf] parseFods:find used range: 2635.5 ms
+2026-10-03T08:39:19.496Z stdout [VNO Sheet Perf] parseFods:build workbook model: 40641.3 ms
+2026-10-03T08:39:22.229Z stdout [VNO Sheet Perf] parseFods:attach rules: 2742.0 ms
+2026-10-03T08:39:22.313Z stdout [VNO Sheet Perf] parseFods:attach pivots: 85.9 ms
+2026-10-03T08:39:22.409Z stdout [VNO Sheet Perf] parseFods:attach charts: 92.3 ms
+2026-10-03T08:39:22.410Z stdout [VNO Sheet Perf] parseFods:attach page breaks: 2.6 ms
+2026-10-03T08:39:22.867Z stdout [VNO Sheet Perf] parseFods:attach protection: 457.1 ms
+2026-10-03T08:39:23.243Z stdout [VNO Sheet Perf] parseFods:attach freeze panes: 374.2 ms
+2026-10-03T08:39:23.604Z stdout [VNO Sheet Perf] parseFods:attach visibility: 363.0 ms
+2026-10-03T08:39:23.946Z stdout [VNO Sheet Perf] parseFods:attach autofilter: 340.7 ms
+2026-10-03T08:39:24.030Z stdout [VNO Sheet Perf] parseFods:attach sparklines: 84.1 ms
+2026-10-03T08:39:24.565Z stdout [VNO Sheet Perf] parseFods:attach outline: 534.6 ms
+2026-10-03T08:39:24.565Z stdout [VNO Sheet Perf] parseFods: 71416.8 ms
+2026-10-03T08:39:24.659Z stdout [VNO Sheet Perf] first grid render: 71511.4 ms
+2026-10-03T08:39:25.603Z stdout [VNO Sheet Perf] loadFromFods: 72455.2 ms
+2026-10-03T08:39:25.666Z stdout [VNO Open Perf] background_filter_warmup_skipped: app=sheet reason=profile-already-primed
+2026-10-03T08:39:25.789Z stdout [VNO Sheet Perf] selection-to-first-grid: 239131.8 ms
+2026-10-03T08:39:25.791Z stdout [VNO Sheet Perf] first layout: 72632.9 ms
