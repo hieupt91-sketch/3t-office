@@ -5556,7 +5556,7 @@ ${pristineXlsxMarker}
       }
       if (result?.status === "cancelled") return false;
       if (result?.status === "error") {
-        if (typeof window !== "undefined") window.dispatchEvent(new Event("vno:sheet-full-model-failed"));
+        if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") window.dispatchEvent(new Event("vno:sheet-full-model-failed"));
         await showAlertDialog({ title: "Không thể mở tệp", message: result.message, type: "error" });
         return false;
       }
@@ -5600,7 +5600,7 @@ ${pristineXlsxMarker}
       this.sourceFilePath = result.sourcePath || "";
       this.isDirty = false;
       this.shell?.resetDocumentChrome?.(result.fileName || "Bảng tính 1.xlsx", null, true, result.sourcePath || "");
-      if (typeof window !== "undefined") window.dispatchEvent(new Event("vno:sheet-full-model-ready"));
+      if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") window.dispatchEvent(new Event("vno:sheet-full-model-ready"));
       return true;
     } catch {
       try {
@@ -5616,7 +5616,7 @@ ${pristineXlsxMarker}
       reportOpenIssue("SheetOpenError", "Workbook opening failed; the previously open workbook was preserved.");
       if (typeof window !== "undefined") window.__vnoSheetOpenStartedAt = null;
       this.shell?.setStatus?.("Không thể mở tệp. Sổ làm việc đang mở được giữ nguyên.");
-      if (typeof window !== "undefined") window.dispatchEvent(new Event("vno:sheet-full-model-failed"));
+      if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") window.dispatchEvent(new Event("vno:sheet-full-model-failed"));
       await showAlertDialog({
         title: "Không thể mở tệp",
         message: "Sheet không thể nạp bảng tính từ dữ liệu đã đọc hoặc bản dự phòng. Sổ làm việc đang mở được giữ nguyên.",
