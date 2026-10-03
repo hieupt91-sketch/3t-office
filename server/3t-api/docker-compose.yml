@@ -23,7 +23,7 @@ services:
     volumes:
       - /srv/3t-office-cloud/data:/data
       - /srv/3t-office-cloud/updates:/updates:ro
-      - /srv/3t-office-cloud/downloads:/downloads:ro
+      - /srv/3t-office-cloud/app/downloads:/downloads:ro
       - /srv/3t-office-cloud/reports:/reports
       - /srv/3t-office-cloud/backups:/backups
       - /srv/3t-office-cloud/logs:/logs
