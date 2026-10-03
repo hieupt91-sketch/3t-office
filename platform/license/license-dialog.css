@@ -1,0 +1,132 @@
+/** 3T Office — Hộp "Tài khoản và bản quyền". Dùng token giao diện của 3T Office, sáng/tối theo chủ đề. */
+
+.vno-license-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(4, 8, 24, 0.6);
+}
+
+.vno-license-dialog {
+  width: 540px;
+  max-width: 100%;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--vno-bg-surface, #ffffff);
+  color: var(--vno-text-primary, #1b1f2a);
+  border-radius: 14px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45), 0 0 0 1px var(--vno-border-default, rgba(0, 0, 0, 0.12));
+  overflow: hidden;
+  outline: none;
+  font-family: "Be Vietnam Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.vno-license-header {
+  padding: 18px 24px 14px;
+  border-bottom: 1px solid var(--vno-border-default, rgba(0, 0, 0, 0.12));
+}
+
+.vno-license-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.vno-license-body {
+  padding: 18px 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.vno-license-badge {
+  display: inline-block;
+  padding: 3px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.vno-license-badge.is-ok { background: #dcf5e4; color: #12682f; }
+.vno-license-badge.is-info { background: #dde9ff; color: #1b4ba6; }
+.vno-license-badge.is-warn { background: #ffe9cf; color: #8a4a00; }
+
+.vno-license-status-text { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
+.vno-license-detail { margin: 2px 0; font-size: 13px; color: var(--vno-text-muted, #5a6275); }
+
+.vno-license-section { display: flex; flex-direction: column; gap: 8px; }
+.vno-license-section[hidden], .vno-license-message[hidden] { display: none; }
+
+.vno-license-label { font-size: 13px; font-weight: 600; }
+
+.vno-license-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  font-size: 15px;
+  font-family: "Cascadia Mono", Consolas, monospace;
+  letter-spacing: 0.04em;
+  color: inherit;
+  background: var(--vno-bg-window, #ffffff);
+  border: 1px solid var(--vno-border-default, rgba(0, 0, 0, 0.25));
+  border-radius: 8px;
+}
+.vno-license-input:focus-visible { outline: 2px solid var(--vno-accent, #2b5ce6); outline-offset: 1px; }
+.vno-license-input[aria-invalid="true"] { border-color: #c0392b; }
+.vno-license-textarea { font-size: 12px; resize: vertical; }
+
+.vno-license-hint { margin: 0; font-size: 12px; color: var(--vno-text-muted, #5a6275); }
+
+.vno-license-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.vno-license-btn {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: inherit;
+  background: var(--vno-bg-subtle, #eef0f5);
+  border: 1px solid var(--vno-border-default, rgba(0, 0, 0, 0.2));
+  border-radius: 8px;
+  cursor: pointer;
+}
+.vno-license-btn:hover:not(:disabled) { filter: brightness(0.96); }
+.vno-license-btn:focus-visible { outline: 2px solid var(--vno-accent, #2b5ce6); outline-offset: 2px; }
+.vno-license-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.vno-license-btn.is-primary { background: #f26b21; border-color: #f26b21; color: #ffffff; }
+.vno-license-btn.is-danger { color: #a52a1c; border-color: #d9a39b; }
+
+.vno-license-offline { border: 1px solid var(--vno-border-default, rgba(0, 0, 0, 0.15)); border-radius: 8px; padding: 8px 12px; }
+.vno-license-offline summary { cursor: pointer; font-size: 13px; font-weight: 600; }
+.vno-license-offline[open] { display: flex; flex-direction: column; gap: 8px; }
+.vno-license-steps { margin: 4px 0 0 18px; padding: 0; font-size: 13px; }
+.vno-license-device-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.vno-license-device-code {
+  flex: 1 1 220px;
+  padding: 8px 10px;
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 14px;
+  background: var(--vno-bg-subtle, #eef0f5);
+  border-radius: 6px;
+  user-select: all;
+}
+
+.vno-license-message { margin: 0; padding: 8px 12px; border-radius: 8px; font-size: 13px; }
+.vno-license-message.is-ok { background: #dcf5e4; color: #12682f; }
+.vno-license-message.is-error { background: #fde4e1; color: #8c1d12; }
+
+.vno-license-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 24px 16px;
+  border-top: 1px solid var(--vno-border-default, rgba(0, 0, 0, 0.12));
+}
+
+@media (max-width: 480px) {
+  .vno-license-header, .vno-license-body, .vno-license-footer { padding-left: 16px; padding-right: 16px; }
+}
