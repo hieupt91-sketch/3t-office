@@ -808,6 +808,9 @@ class _SofficeUnoWorker:
             soffice_pid = 0
         if _PROCESS_TRACKER is not None and soffice_pid > 0:
             _PROCESS_TRACKER.register_tree(soffice_pid, "soffice")
+        timings = handshake.get("timings_ms")
+        if isinstance(timings, dict):
+            _open_perf_log("worker_stage_breakdown", app=self.app_kind, **timings)
         if _PERFORMANCE_LOGGER is not None:
             _PERFORMANCE_LOGGER.record(
                 "soffice_start", app=self.app_kind,
