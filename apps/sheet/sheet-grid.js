@@ -3110,7 +3110,19 @@ export class SheetGridController {
 
     // 6. Re-render lưới hiển thị ảo
     this._renderColumnHeaders();
-    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    // Tính lại cửa sổ theo vị trí cuộn và các dòng thật sự hiện của SHEET MỚI. Dùng lại cửa sổ của sheet trước
+    // là sai khi sheet trước có dòng ẩn: lan14 Sheet1 có 33.586 dòng ẩn nên cửa sổ là 1…32.951; áp vào Sheet2
+    // (15.353 dòng, 14.611 ẩn) dựng thêm ~17.600 dòng trống = 680.000 phần tử DOM, RAM 2 GB → 4,8 GB.
+    if (this.viewport && this.viewport.clientHeight > 0) {
+      const scrollTop = this.viewport.scrollTop || 0;
+      const viewportHeight = this.viewport.clientHeight || 500;
+      this._renderVirtualRows(
+        Math.max(1, this._firstVisibleRow(scrollTop) - 8),
+        Math.min(this.rowCount, this._lastVisibleRow(scrollTop, viewportHeight) + 8)
+      );
+    } else {
+      this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    }
     this.renderCharts();
     this.renderImages();
     this.renderTextBoxes();

@@ -174,9 +174,9 @@ process.env.VNO_OPEN_VIEWFIRST = process.env.VNO_P8_FLAG ?? "1";
     console.log("RAM_TIMELINE_MB(sec,largest WebView2 process)", JSON.stringify(ramTimeline.filter((_, index) => index % 3 === 0)));
     if (file === "lan14.xlsx") {
       const peakGb = peakBytes / (1024 ** 3);
-      // Baselines measured on main (04/10/2026, same harness): lan14 open only = 1.985 GB;
-      // open + user switches to Sheet2 = 4.788 GB (pre-existing cost of the real grid, not of P8).
-      const limitGb = process.env.VNO_P8_NOSWITCH === "1" ? 2.4 : 5.3;
+      // Baseline on main (04/10/2026, same harness): lan14 open only = 1.985 GB. Switching to Sheet2 used to
+      // reach 4.788 GB (stale virtual window, fixed in switchSheet); now ~2.06 GB.
+      const limitGb = 2.4;
       record(file, `peak RAM tiến trình WebView2 lớn nhất <= ${limitGb} GB (so với bản gốc cùng kịch bản)`, peakBytes > 0 && peakGb <= limitGb, `${peakGb.toFixed(3)} GB`);
     }
     await session.close();
