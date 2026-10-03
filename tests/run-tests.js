@@ -271,7 +271,6 @@ async function runAll() {
     { title: "24. Unit Tests — VN Slides Object Animations & Speaker Notes", runner: runSlidesAnimationsNotesTests },
     { title: "25. Behavioral Tests — Sheet Conditional Formatting & Data Validation", runner: runSheetRulesValidationTests },
     { title: "26. Behavioral Tests — VN Writer Track Changes", runner: runWriterTrackChangesTests },
-    { title: "26a. Unit Tests — Writer DOCX review range export metadata", runner: runWriterReviewExportTests },
     { title: "27. Behavioral Tests — VN Writer Print Preview", runner: runWriterPrintPreviewTests },
     { title: "28. Behavioral Tests — VN Slides Slide Layouts", runner: runSlidesLayoutsTests },
     { title: "29. Behavioral Tests — VN Sheet Live Charts", runner: runSheetChartTests },
@@ -473,7 +472,8 @@ async function runAll() {
     { title: "225. Unit Tests — CH-7.2 Sheet inline spellcheck, contextmenu suggestions, 1-step undo & 3-app spellcheck toggle persistence", runner: runSpellcheckInlineToggleTests },
     { title: "226. Unit Tests — CH-8.1 UI Consistency: Backstage, Recent Files, Status Bar, View Modes, Zoom & Shortcuts", runner: runCh81ConsistencyTests },
     { title: "227. Unit Tests — Office Clipboard Interop (Sheet Excel/Calc HTML, TSV, Writer Word HTML cleaning)", runner: runOfficeClipboardTests },
-    { title: "228. Unit Tests — Cross-App Paste (Doc, Sheet, Slide Interoperability)", runner: runCrossAppPasteTests }
+    { title: "228. Unit Tests — Cross-App Paste (Doc, Sheet, Slide Interoperability)", runner: runCrossAppPasteTests },
+    { title: "229. Unit Tests — Writer DOCX review range export metadata", runner: runWriterReviewExportTests }
   ];
 
   for (const suite of suites) {
