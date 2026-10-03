@@ -3,7 +3,7 @@
 > **Hạng mục**: CH-7.3 — CHÈN dùng chung cho 3T Doc, 3T Sheet, 3T Slide (ảnh, hình, hộp văn bản, ký hiệu, liên kết)  
 > **Người thực hiện**: agy  
 > **Chi nhánh**: `feat/ch7-3-shared-insert-agy`  
-> **Ngày thực hiện**: 02/10/2026  
+> **Ngày thực hiện**: 03/10/2026  
 > **Phương pháp đo**: Đo thực tế trên ứng dụng Desktop qua Chrome DevTools Protocol (CDP) WebSocket thuần túy (`tests/live/cdp/ch7-3-insert.desktop.mjs`)  
 > **Nguyên tắc cốt lõi**: REUSE BEFORE REWRITE, không copy chéo giữa các app, đo thật 100% không dữ liệu giả, không đổi đường lưu/mở tệp adapter.
 
@@ -126,7 +126,7 @@ Nội dung hướng dẫn sử dụng tiếng Việt được bổ sung và cậ
 ## 5. KẾT QUẢ KIỂM THỬ ĐƠN VỊ (UNIT TESTS)
 
 - Suite mới được tạo: `tests/unit/shared-insert-capabilities.test.js`
-- Đăng ký vào master test runner: `tests/run-tests.js` (Suite số **226**)
+- Đăng ký vào master test runner: `tests/run-tests.js` (Suite số **229**)
 - Danh sách 10 ca kiểm thử chuyên sâu:
   1. `normalizeHyperlinkUrl: tự động thêm https:// khi thiếu giao thức và giữ nguyên mailto:`: **PASS**
   2. `showHyperlinkDialog: trả về object {url, text} an toàn khi chạy non-DOM`: **PASS**
@@ -134,7 +134,7 @@ Nội dung hướng dẫn sử dụng tiếng Việt được bổ sung và cậ
   4. `showSymbolPicker & listAllSymbols: cung cấp đầy đủ danh mục ký hiệu và ký tự tiền tệ ₫`: **PASS**
   5. `Command definitions: common.edit.hyperlink có phím tắt Ctrl+K và icon hyperlink`: **PASS**
   6. `3T Sheet Command Definitions: có đầy đủ sheet.insert.hyperlink và sheet.insert.symbol`: **PASS**
-  7. `3T Slide Command Definitions: có slides.insert.hyperlink (Ctrl+K) và slides.insert.symbol`: **PASS**
+  7. `3T Slide Command Definitions: có slides.insert.hyperlink và slides.insert.symbol`: **PASS**
   8. `3T Sheet Grid: insertHyperlink và insertSymbol hỗ trợ chèn vào ô và lưu lịch sử hoàn tác`: **PASS**
   9. `3T Slide Canvas: insertHyperlink tạo đối tượng liên kết và đẩy vào undoStack`: **PASS**
   10. `Help Coverage: 3T Doc, Sheet, Slide đều có bài hướng dẫn chèn liên kết và ký hiệu`: **PASS**
