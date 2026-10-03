@@ -87,10 +87,21 @@ export class FormulaAutocompleteController {
       });
     } else if (ctx.mode === "syntax_tooltip") {
       this.popup.hide();
-      const html = formatSyntaxHtml(ctx.funcDef.syntax, ctx.activeParamIndex);
+      const syntax = ctx.funcDef.syntaxVi || ctx.funcDef.syntax;
+      const html = formatSyntaxHtml(syntax, ctx.activeParamIndex, ctx.delimiter);
+      const paramDef = ctx.activeParamDef;
+      const paramName = paramDef?.name || "";
+      const paramDesc = paramDef?.desc || "";
+      const funcDesc = ctx.funcDef.desc || "";
+      const example = ctx.example || ctx.funcDef.example || "";
+
       this.tooltip.show({
         html,
-        desc: ctx.funcDef.desc,
+        paramName,
+        paramDesc,
+        funcDesc,
+        example,
+        desc: paramDesc || funcDesc,
         targetEl
       });
     } else {

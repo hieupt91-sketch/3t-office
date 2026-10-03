@@ -239,6 +239,7 @@ import { runKeepFocusUnitTests } from "./unit/ch4-6-keep-focus.test.js";
 import { runSheetFormulaBarDisplayTests } from "./unit/sheet-formula-bar-display.test.js";
 import { runContextMenuUnitTests } from "./unit/context-menu.test.js";
 import { runSheetOverlapAutofitStatusTests } from "./unit/sheet-overlap-autofit-status.test.js";
+import { runSheetFormulaHintsTests } from "./unit/sheet-formula-hints.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -486,7 +487,8 @@ async function runAll() {
     { title: "232. Unit Tests — Sheet: thanh công thức hiện ngày/giờ/phần trăm như Excel", runner: runSheetFormulaBarDisplayTests },
     { title: "233. Unit Tests — Shared Context Menu & Submenus (Doc & Sheet)", runner: runContextMenuUnitTests },
     { title: "234. Unit Tests — VN Writer interactive ruler", runner: runWriterInteractiveRulerTests },
-    { title: "235. Unit Tests — Sheet auto-fit date/time on default column & currency symbol on status bar", runner: runSheetOverlapAutofitStatusTests }
+    { title: "235. Unit Tests — Sheet auto-fit date/time on default column & currency symbol on status bar", runner: runSheetOverlapAutofitStatusTests },
+    { title: "236. Unit Tests — Sheet Formula IntelliSense, Vietnamese hints & Composing visual", runner: runSheetFormulaHintsTests }
   ];
 
   for (const suite of suites) {

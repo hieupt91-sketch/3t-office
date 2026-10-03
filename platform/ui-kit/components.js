@@ -426,10 +426,12 @@ export function createAutocompletePopup({ onSelect } = {}) {
     currentItems.forEach((item, idx) => {
       const row = document.createElement("div");
       const isActive = idx === currentIndex;
-      row.className = `vno-autocomplete-item ${isActive ? "is-active" : ""}`;
+      row.className = `vno-autocomplete-item vno-ac-item ${isActive ? "is-active active" : ""}`;
       row.setAttribute("role", "option");
       row.setAttribute("aria-selected", String(isActive));
       row.id = `vno-ac-item-${idx}`;
+      const syntaxPreview = item.syntaxVi || item.syntax || `${item.name}()`;
+      const descText = item.desc || "";
       row.innerHTML = `
         <div class="vno-ac-left">
           <span class="vno-ac-fx" aria-hidden="true">fx</span>
@@ -437,7 +439,10 @@ export function createAutocompletePopup({ onSelect } = {}) {
         </div>
         <div class="vno-ac-details">
           <span class="vno-ac-cat">${item.category || ""}</span>
-          <span class="vno-ac-desc">${item.desc || ""}</span>
+          <span class="vno-ac-desc" title="${descText}">
+            <code class="vno-ac-syntax">${syntaxPreview}</code>
+            ${descText ? `<span class="vno-ac-desc-text">— ${descText}</span>` : ""}
+          </span>
         </div>
       `;
       row.addEventListener("mousedown", (e) => {
@@ -456,22 +461,24 @@ export function createAutocompletePopup({ onSelect } = {}) {
   const positionAt = (targetEl) => {
     if (!targetEl || typeof targetEl.getBoundingClientRect !== "function") return;
     const rect = targetEl.getBoundingClientRect();
-    const popupHeight = el.offsetHeight || 180;
+    const popupHeight = el.offsetHeight || 200;
+    const popupWidth = el.offsetWidth || 340;
     const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
 
     let top = rect.bottom + 2;
-    if (spaceBelow < popupHeight && rect.top > popupHeight) {
-      top = rect.top - popupHeight - 2;
+    if (spaceBelow < popupHeight && spaceAbove > spaceBelow) {
+      top = Math.max(10, rect.top - popupHeight - 2);
     }
 
     let left = rect.left;
-    if (left + 260 > window.innerWidth) {
-      left = Math.max(10, window.innerWidth - 270);
+    if (left + popupWidth > window.innerWidth - 10) {
+      left = Math.max(10, Math.min(rect.right - popupWidth, window.innerWidth - popupWidth - 10));
     }
 
     el.style.top = `${top}px`;
     el.style.left = `${left}px`;
-    el.style.minWidth = `${Math.max(220, rect.width)}px`;
+    el.style.minWidth = `${Math.max(240, rect.width)}px`;
   };
 
   return {
@@ -545,17 +552,19 @@ export function createSyntaxTooltip() {
   const positionAt = (targetEl) => {
     if (!targetEl || typeof targetEl.getBoundingClientRect !== "function") return;
     const rect = targetEl.getBoundingClientRect();
-    const tooltipHeight = el.offsetHeight || 40;
+    const tooltipHeight = el.offsetHeight || 60;
+    const tooltipWidth = el.offsetWidth || 380;
     const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
 
     let top = rect.bottom + 2;
-    if (spaceBelow < tooltipHeight && rect.top > tooltipHeight) {
-      top = rect.top - tooltipHeight - 2;
+    if (spaceBelow < tooltipHeight && spaceAbove > spaceBelow) {
+      top = Math.max(10, rect.top - tooltipHeight - 2);
     }
 
     let left = rect.left;
-    if (left + 360 > window.innerWidth) {
-      left = Math.max(10, window.innerWidth - 370);
+    if (left + tooltipWidth > window.innerWidth - 10) {
+      left = Math.max(10, Math.min(rect.right - tooltipWidth, window.innerWidth - tooltipWidth - 10));
     }
 
     el.style.top = `${top}px`;
@@ -564,16 +573,20 @@ export function createSyntaxTooltip() {
 
   return {
     element: el,
-    show({ html, desc, targetEl }) {
-      this.update({ html, desc });
+    show({ html, desc, paramName, paramDesc, funcDesc, example, targetEl }) {
+      this.update({ html, desc, paramName, paramDesc, funcDesc, example, targetEl });
       el.style.display = "block";
       visible = true;
       positionAt(targetEl);
     },
-    update({ html, desc, targetEl }) {
-      let content = `<div class="vno-syntax-content">${html}</div>`;
-      if (desc) {
-        content += `<div class="vno-syntax-desc">${desc}</div>`;
+    update({ html, desc, paramName, paramDesc, funcDesc, example, targetEl }) {
+      let content = `<div class="vno-syntax-content">${html || ""}</div>`;
+      const activeDesc = paramDesc || desc || funcDesc;
+      if (activeDesc) {
+        content += `<div class="vno-syntax-param-desc">${paramName ? `<strong class="vno-syntax-param-name">${paramName}:</strong> ` : ""}${activeDesc}</div>`;
+      }
+      if (example) {
+        content += `<div class="vno-syntax-example">Ví dụ: <code>${example}</code></div>`;
       }
       el.innerHTML = content;
       if (targetEl) positionAt(targetEl);
