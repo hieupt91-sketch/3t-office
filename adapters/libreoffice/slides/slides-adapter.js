@@ -182,6 +182,8 @@ export class SlidesAdapter {
     // Command metadata is app-local because this feature is scoped to Slides;
     // bind explicitly instead of requiring a Platform registry change.
     globalCommandBus.bindHandler("slides.insert.chart", (options) => this.canvas.insertChart ? this.canvas.insertChart(options) : false);
+    globalCommandBus.bindHandler("slides.insert.hyperlink", (options) => this.canvas.insertHyperlink ? this.canvas.insertHyperlink(options) : false);
+    globalCommandBus.bindHandler("common.edit.hyperlink", (options) => this.canvas.insertHyperlink ? this.canvas.insertHyperlink(options) : false);
     globalCommandBus.bindHandler("slides.file.printPreview", () => this.print());
     globalCommandBus.bindHandler("slides.view.normal", () => this.canvas.setNormalView ? this.canvas.setNormalView() : false);
     globalCommandBus.bindHandler("slides.view.slideSorter", () => this.canvas.openSlideSorter ? this.canvas.openSlideSorter() : false);
@@ -4110,6 +4112,10 @@ export class SlidesAdapter {
 
       case "slides.insert.symbol":
         return this.canvas.insertSymbol ? await this.canvas.insertSymbol(args) : false;
+
+      case "slides.insert.hyperlink":
+      case "common.edit.hyperlink":
+        return this.canvas.insertHyperlink ? await this.canvas.insertHyperlink(args) : false;
 
       case "slides.insert.wordart":
         return this.canvas.insertWordArt ? await this.canvas.insertWordArt(args) : false;

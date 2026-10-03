@@ -309,7 +309,7 @@ export async function runHtmlSmokeTests() {
           select(1, 2);
           body.dispatchEvent(new InputEvent("beforeinput", { inputType: "deleteContentBackward", bubbles: true, cancelable: true }));
           const deletionMarked = body.querySelector('del[data-vno-change="delete"]')?.textContent === "b";
-          const exportClean = adapter._contentForExport();
+          const exportClean = adapter._contentForExport({ acceptedView: true });
           const clean = exportClean.includes("acX") && !exportClean.includes("data-vno-change") && !exportClean.includes("<del");
           await globalCommandBus.execute("writer.trackChanges.acceptAll");
           const accepted = body.textContent === "acX" && !body.querySelector("[data-vno-change]");

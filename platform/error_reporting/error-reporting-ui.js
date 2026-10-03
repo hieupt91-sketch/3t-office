@@ -140,10 +140,10 @@ export class ErrorReportingUI {
       body: `
         <p>3T Office có thể gửi dữ liệu kỹ thuật để nhóm phát triển sửa lỗi. ${escapeHtml(networkNote)}</p>
         <h3>Dữ liệu có thể được gửi</h3>
-        <ul><li>Loại lỗi, thông điệp và ngăn xếp đã lọc.</li><li>Ứng dụng, phiên bản, thao tác, thời gian, phiên bản Windows.</li><li>Chỉ phần mở rộng và kích thước tệp đã làm tròn; mã cài đặt ngẫu nhiên.</li></ul>
+        <ul><li>Mã sự kiện, loại lỗi, thông điệp và ngăn xếp đã lọc.</li><li>Ứng dụng, phiên bản 3T Office và phiên bản hệ điều hành.</li><li>Mã cài đặt UUID ngẫu nhiên, không gắn với tên máy hoặc tên người dùng.</li></ul>
         <h3>Không bao giờ được gửi tự động</h3>
         <p>Nội dung tài liệu, tên hoặc đường dẫn tệp, ô tính, đoạn văn, tên trang tính, công thức, clipboard và tên người dùng Windows.</p>
-        <p>Bạn có thể đổi lựa chọn trong tab Trợ giúp. Tệp chỉ được gửi nếu tự mở “Báo lỗi / Góp ý” và đánh dấu ô đính kèm.</p>
+        <p>Bạn có thể đổi lựa chọn trong tab Trợ giúp. 3T Office không gửi tệp đính kèm hoặc nội dung tài liệu tới máy chủ báo lỗi.</p>
         <p class="vno-report-dialog-status" role="status" aria-live="polite"></p>`,
       actions: `<button type="button" class="vno-btn" data-dialog-action="deny">Chỉ ghi cục bộ</button>
         <button type="button" class="vno-btn vno-btn-primary" data-dialog-action="grant">Cho phép gửi tự động</button>`,
@@ -167,17 +167,14 @@ export class ErrorReportingUI {
       body: `
         <p>Mô tả bạn nhập sẽ được gửi cho nhóm phát triển (tối đa 4.000 ký tự). ${escapeHtml(stateNote)}</p>
         <label for="vno-report-description">Mô tả</label>
-        <textarea id="vno-report-description" maxlength="4000" rows="6" aria-describedby="vno-report-attachment-warning"></textarea>
-        <label class="vno-report-attachment-option"><input id="vno-report-attach" type="checkbox">
-          Đính kèm tệp đang mở</label>
-        <p id="vno-report-attachment-warning" class="vno-report-warning">Cảnh báo: nếu đánh dấu ô này, toàn bộ nội dung tệp hiện đang mở sẽ được gửi riêng cho nhóm phát triển. Chỉ chọn khi bạn đã kiểm tra và đồng ý chia sẻ.</p>
+        <textarea id="vno-report-description" maxlength="4000" rows="6" aria-describedby="vno-report-privacy-note"></textarea>
+        <p id="vno-report-privacy-note" class="vno-report-warning">Vì quyền riêng tư, 3T Office không đính kèm tệp đang mở và không gửi nội dung tài liệu tới máy chủ báo lỗi.</p>
         <p class="vno-report-dialog-status" role="status" aria-live="polite"></p>`,
       actions: `<button type="button" class="vno-btn" data-dialog-action="cancel">Hủy</button>
         <button type="button" class="vno-btn vno-btn-primary" data-dialog-action="submit">Gửi góp ý</button>`,
       onSubmit: async (action, dialog, close) => {
         if (action !== "submit") return true;
       const description = dialog.querySelector("#vno-report-description").value.trim();
-      const attach = dialog.querySelector("#vno-report-attach").checked;
         const status = dialog.querySelector(".vno-report-dialog-status");
         if (!description) {
           status.textContent = "Vui lòng nhập mô tả trước khi gửi.";
@@ -193,7 +190,7 @@ export class ErrorReportingUI {
           const app = typeof document.querySelector === "function"
             ? document.querySelector("#vno-app-root")?.getAttribute?.("data-app")
             : undefined;
-          const result = await bridge.submit_user_feedback(description, attach, app);
+          const result = await bridge.submit_user_feedback(description, false, app);
           if (!result?.queued) throw new Error(result?.error || "Không lưu được báo cáo.");
           status.textContent = result.status === "saved_local"
             ? "Đã lưu cục bộ. Bật gửi tự động trong tab Trợ giúp để gửi khi có máy chủ."
@@ -233,10 +230,6 @@ export class ErrorReportingUI {
     document.querySelectorAll("[data-vno-report-open]").forEach((button) => {
       button.disabled = this.state?.enabled === false;
     });
-    const attachmentOption = typeof document.querySelector === "function"
-      ? document.querySelector("#vno-report-attach")
-      : null;
-    if (attachmentOption) attachmentOption.disabled = this.state?.has_current_file === false;
     document.querySelectorAll("[data-vno-reporting-status]").forEach((element) => {
       if (!this.state) element.textContent = "Trạng thái chưa khả dụng.";
       else if (!this.state.enabled) element.textContent = "Tính năng báo cáo đã tắt trong cấu hình.";

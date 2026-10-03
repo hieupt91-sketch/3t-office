@@ -308,22 +308,26 @@ _INSTANCE_DISPATCH_READY = threading.Event()
 _INSTANCE_DISPATCH_STOP = threading.Event()
 
 
-def _load_update_config() -> dict[str, str]:
+def _load_update_config() -> dict[str, object]:
     config_path = Path(ROOT_DIR) / "vnoffice-config.json"
     try:
         config = json.loads(config_path.read_text(encoding="utf-8"))
     except (OSError, ValueError, TypeError):
-        return {"source": "", "channel": "pilot"}
+        return {"sources": [], "channel": "pilot"}
     update = config.get("update", {}) if isinstance(config, dict) else {}
     if not isinstance(update, dict):
         update = {}
     source = update.get("source", "")
+    configured_sources = update.get("sources", [])
     channel = update.get("channel", "pilot")
     if not isinstance(source, str):
         source = ""
+    sources = [item.strip() for item in configured_sources if isinstance(item, str) and item.strip()] if isinstance(configured_sources, list) else []
+    if source.strip() and source.strip() not in sources:
+        sources.insert(0, source.strip())
     if not isinstance(channel, str) or not re.fullmatch(r"[a-z][a-z0-9-]{0,31}", channel):
         channel = "pilot"
-    return {"source": source.strip(), "channel": channel}
+    return {"sources": sources, "channel": channel}
 
 
 def _update_install_root() -> Path | None:
@@ -340,6 +344,7 @@ def _notify_update_ui(state: dict[str, object]) -> None:
     allowed = {key: state.get(key) for key in (
         "current_version", "available_version", "channel", "release_notes", "ready",
         "bytes_downloaded", "changed_files", "removed_files", "checked_at", "status",
+        "selected_source", "error_message",
     )}
     try:
         payload = json.dumps(allowed, ensure_ascii=False, separators=(",", ":"))
@@ -363,7 +368,6 @@ def _initialize_deferred_services(api, app_kind: str, launch_args: list[str]) ->
             app_kind,
             _user_data_dir(),
             endpoint=str(report_config["endpoint"]),
-            token=str(report_config["token"]),
             enabled=bool(report_config["enabled"]),
         )
         _ERROR_REPORTER.install_exception_hooks()
@@ -381,7 +385,7 @@ def _initialize_deferred_services(api, app_kind: str, launch_args: list[str]) ->
                 install_dir=install_root,
                 updates_dir=_UPDATE_DATA_DIR,
                 current_version=installed_version,
-                source=update_config["source"],
+                sources=update_config["sources"],
                 channel=update_config["channel"],
                 public_key=get_public_key(),
                 on_state=_notify_update_ui,
@@ -1532,6 +1536,8 @@ def _apply_native_export_postprocess(
                 converted_docx = handle.read()
             patcher = _ooxml_zip_patch()
             source_html = None
+            original_docx = None
+            preserved_pristine_package = False
             if src_path and str(src_path).lower().endswith(".html"):
                 with open(src_path, "r", encoding="utf-8", errors="replace") as handle:
                     source_html = handle.read()
@@ -1549,7 +1555,11 @@ def _apply_native_export_postprocess(
                 patched = patcher.postprocess_writer_docx(
                     patched,
                     source_docx=original_docx,
+                    source_html=source_html,
                     preserve_pristine_source=pristine_docx_source,
+                )
+                preserved_pristine_package = bool(
+                    pristine_docx_source and patched == original_docx
                 )
             if source_html:
                 patched = patcher.postprocess_writer_section_metadata(
@@ -1557,6 +1567,10 @@ def _apply_native_export_postprocess(
                     source_html=source_html,
                     source_docx=original_docx if source_path and os.path.isfile(source_path) else None,
                 )
+                if not preserved_pristine_package:
+                    patched = patcher.postprocess_writer_review_markup(
+                        patched, source_html=source_html,
+                    )
             if patched != converted_docx:
                 with open(out_path, "wb") as handle:
                     handle.write(patched)
@@ -1991,6 +2005,20 @@ def _convert_save_source_to_native(
     the postprocess converts to its intermediate .docx) whose OOXML
     adapters/libreoffice/common/ooxml_zip_patch.py restores.
     """
+    if app_kind == "writer" and str(target_format).lower() == "pdf" and str(source_path).lower().endswith(".html"):
+        try:
+            with open(source_path, "r", encoding="utf-8", errors="replace") as handle:
+                source_html = handle.read()
+            accepted_html = _ooxml_zip_patch().writer_accepted_view_html(source_html)
+            if accepted_html != source_html:
+                with open(source_path, "w", encoding="utf-8") as handle:
+                    handle.write(accepted_html)
+        except DocumentEngineError:
+            raise
+        except Exception as exc:
+            raise DocumentEngineError(
+                f"Không chuẩn bị được bản PDF theo nội dung đã chấp nhận: {exc}"
+            ) from exc
     if app_kind == "writer" and target_format == "doc" and WRITER_DOC_EXPORT_VIA_DOCX:
         return _convert_writer_html_to_doc(source_path, os.path.dirname(source_path), source_path=source_document_path)
     out_path = _run_soffice_convert(source_path, target_format, os.path.dirname(source_path), app_kind=app_kind)

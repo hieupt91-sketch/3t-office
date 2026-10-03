@@ -262,6 +262,87 @@ class UpdaterTests(unittest.TestCase):
             manager._background_check()
             self.assertEqual(manager.get_state()["status"], "unavailable")
 
+    def test_multiple_sources_fall_back_then_lock_blobs_to_valid_signed_source(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            broken = root / "source-1-broken"
+            valid = root / "source-2-valid"
+            packages = root / "packages"
+            valid.mkdir(); packages.mkdir()
+            installed = create_fake_package(packages, "0.9.0", b"old", key=self.key)
+            install = root / "install"
+            shutil.copytree(installed, install)
+            self._publish_package(valid, packages, "0.9.1", b"from source two")
+            manager = UpdaterManager(
+                install_dir=install, updates_dir=root / "updates", current_version="0.9.0",
+                sources=[str(broken), str(valid)], channel="pilot", public_key=self.public_key,
+            )
+            state = manager.check_and_stage()
+            self.assertTrue(state["ready"])
+            self.assertEqual(state["selected_source"], str(valid))
+            self.assertEqual(manager.source, str(valid))
+            log = (root / "updates" / "update-log.txt").read_text(encoding="utf-8")
+            self.assertIn(f'source="{valid}"', log)
+
+    def test_update_config_prefers_sources_and_keeps_legacy_source_compatible(self):
+        import main
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            config = root / "vnoffice-config.json"
+            config.write_text(json.dumps({
+                "update": {
+                    "source": r"\\server\legacy\updates",
+                    "sources": [r"\\server\lan\updates", "https://office.example/updates"],
+                    "channel": "pilot",
+                }
+            }), encoding="utf-8")
+            with mock.patch.object(main, "ROOT_DIR", str(root)):
+                loaded = main._load_update_config()
+            self.assertEqual(loaded["sources"], [
+                r"\\server\legacy\updates", r"\\server\lan\updates", "https://office.example/updates",
+            ])
+            config.write_text(json.dumps({"update": {"source": r"\\server\legacy\updates"}}), encoding="utf-8")
+            with mock.patch.object(main, "ROOT_DIR", str(root)):
+                legacy = main._load_update_config()
+            self.assertEqual(legacy["sources"], [r"\\server\legacy\updates"])
+
+    def test_invalid_signature_on_last_source_is_refused_without_blob_download(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            broken = root / "source-1-broken"
+            invalid = root / "source-2-invalid"
+            packages = root / "packages"
+            invalid.mkdir(); packages.mkdir()
+            installed = create_fake_package(packages, "0.9.0", b"old", key=self.key)
+            install = root / "install"
+            shutil.copytree(installed, install)
+            self._publish_package(invalid, packages, "0.9.1", b"tampered signature")
+            (invalid / "0.9.1" / "manifest.sig").write_bytes(b"invalid")
+            manager = UpdaterManager(
+                install_dir=install, updates_dir=root / "updates", current_version="0.9.0",
+                sources=[str(broken), str(invalid)], channel="pilot", public_key=self.public_key,
+            )
+            with mock.patch("adapters.updater.updater.download_blob") as download:
+                with self.assertRaisesRegex(UpdateRefused, "Chữ ký manifest không hợp lệ"):
+                    manager.check_and_stage()
+                download.assert_not_called()
+
+    def test_all_sources_unreachable_reports_vietnamese_and_background_keeps_app_running(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            manager = UpdaterManager(
+                install_dir=root / "install", updates_dir=root / "updates", current_version="0.9.0",
+                sources=[str(root / "missing-1"), str(root / "missing-2")],
+                channel="pilot", public_key=self.public_key,
+            )
+            with self.assertRaisesRegex(UpdateSourceError, "Không thể kết nối 2 nguồn cập nhật"):
+                manager.check_and_stage()
+            manager._background_check()
+            state = manager.get_state()
+            self.assertEqual(state["status"], "unavailable")
+            self.assertIn("Không thể kết nối 2 nguồn cập nhật", state["error_message"])
+
     def test_update_check_starts_in_background_without_waiting_for_interval(self):
         with tempfile.TemporaryDirectory() as temp:
             manager = self._manager(Path(temp) / "install", Path(temp) / "updates", Path(temp) / "source")

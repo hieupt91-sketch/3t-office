@@ -126,7 +126,8 @@ class UpdaterManager:
         install_dir: str | Path,
         updates_dir: str | Path,
         current_version: str,
-        source: str,
+        source: str = "",
+        sources: list[str] | tuple[str, ...] | None = None,
         channel: str = "pilot",
         public_key: tuple[int, int] | None = None,
         timeout: int = 12,
@@ -137,7 +138,12 @@ class UpdaterManager:
         self.updates_dir = Path(updates_dir)
         self.current_version = str(current_version)
         version_key(self.current_version)
-        self.source = str(source or "").strip()
+        configured = [str(item).strip() for item in (sources or ()) if str(item).strip()]
+        legacy_source = str(source or "").strip()
+        if legacy_source and legacy_source not in configured:
+            configured.insert(0, legacy_source)
+        self.sources = tuple(configured)
+        self.source = self.sources[0] if self.sources else ""
         self.channel = str(channel or "pilot")
         self.public_key = public_key
         self.timeout = timeout
@@ -156,8 +162,10 @@ class UpdaterManager:
             "release_notes": "",
             "ready": False,
             "bytes_downloaded": 0,
-            "status": "idle" if self.source and self.public_key is not None else ("disabled" if not self.source else "unavailable"),
+            "status": "idle" if self.sources and self.public_key is not None else ("disabled" if not self.sources else "unavailable"),
             "checked_at": None,
+            "selected_source": None,
+            "error_message": "",
         }
         self._manifest: dict[str, object] | None = None
         self._manifest_bytes: bytes | None = None
@@ -184,7 +192,7 @@ class UpdaterManager:
         return state
 
     def start(self, *, interval_seconds: int = CHECK_INTERVAL_SECONDS) -> bool:
-        if not self.source or self.public_key is None:
+        if not self.sources or self.public_key is None:
             return False
         if self._periodic_thread and self._periodic_thread.is_alive():
             return True
@@ -207,7 +215,7 @@ class UpdaterManager:
             self.schedule_check()
 
     def schedule_check(self) -> bool:
-        if not self.source or self.public_key is None:
+        if not self.sources or self.public_key is None:
             return False
         if self._check_thread and self._check_thread.is_alive():
             return False
@@ -221,52 +229,40 @@ class UpdaterManager:
         except Exception as exc:
             # Update failures are deliberately silent; only a short local debug line is retained.
             LOG.debug("Background update check unavailable: %s", type(exc).__name__)
-            self._set_state(status="unavailable", checked_at=_utc_now(), ready=False)
+            message = str(exc) if str(exc) else "Không thể kiểm tra cập nhật từ các nguồn đã cấu hình."
+            self._set_state(status="unavailable", checked_at=_utc_now(), ready=False, error_message=message)
 
     def check_and_stage(self) -> dict[str, object]:
-        if not self.source:
+        if not self.sources:
             raise UpdateSourceError("Chưa cấu hình nguồn cập nhật")
         if self.public_key is None:
             raise UpdateRefused("Chưa nhúng khóa công khai phát hành vào ứng dụng")
         with self._check_lock:
-            self._set_state(status="checking", checked_at=None, ready=False, bytes_downloaded=0)
+            self._set_state(status="checking", checked_at=None, ready=False, bytes_downloaded=0, selected_source=None, error_message="")
             self.updates_dir.mkdir(parents=True, exist_ok=True)
             self._cleanup_old_stages()
-            pointer_raw = read_source_bytes(
-                self.source,
-                f"channels/{self.channel}.json",
-                max_bytes=MAX_CHANNEL_BYTES,
-                timeout=self.timeout,
-            )
-            try:
-                pointer = json.loads(pointer_raw.decode("utf-8"))
-            except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-                raise UpdateRefused("Con trỏ kênh phát hành không hợp lệ") from exc
-            if not isinstance(pointer, dict) or pointer.get("channel") != self.channel:
-                raise UpdateRefused("Con trỏ phát hành không khớp kênh đã cấu hình")
-            version = pointer.get("version")
-            if not isinstance(version, str):
-                raise UpdateRefused("Con trỏ phát hành thiếu version")
-            version_key(version)
-            # The pointer is untrusted. Fetch only the signed metadata before any package blob.
-            manifest_raw = read_source_bytes(
-                self.source,
-                f"{version}/manifest.json",
-                max_bytes=MAX_MANIFEST_BYTES,
-                timeout=self.timeout,
-            )
-            signature = read_source_bytes(
-                self.source,
-                f"{version}/manifest.sig",
-                max_bytes=MAX_SIGNATURE_BYTES,
-                timeout=self.timeout,
-            )
-            modulus, exponent = self.public_key
-            if not verify_sha256_pkcs1v15(manifest_raw, signature, modulus, exponent):
-                raise UpdateRefused("Chữ ký manifest không hợp lệ")
-            manifest = parse_manifest(manifest_raw, expected_channel=self.channel)
-            if manifest["version"] != version:
-                raise UpdateRefused("Version trong manifest không khớp con trỏ kênh")
+            source_errors: list[Exception] = []
+            refused_errors: list[Exception] = []
+            selected_source = ""
+            release = None
+            for candidate in self.sources:
+                try:
+                    release = self._read_signed_release(candidate)
+                    selected_source = candidate
+                    break
+                except UpdateSourceError as exc:
+                    source_errors.append(exc)
+                except (UpdateRefused, ManifestError, ValueError) as exc:
+                    refused_errors.append(exc)
+            if release is None:
+                if refused_errors:
+                    raise UpdateRefused(f"Từ chối cập nhật: {refused_errors[-1]}") from refused_errors[-1]
+                raise UpdateSourceError(
+                    f"Không thể kết nối {len(source_errors) or len(self.sources)} nguồn cập nhật đã cấu hình; 3T Office vẫn tiếp tục chạy."
+                ) from (source_errors[-1] if source_errors else None)
+            version, manifest_raw, signature, manifest = release
+            self.source = selected_source
+            _append_update_log(self.updates_dir, f'update-source-selected source="{selected_source}"')
             version_order = compare_versions(version, self.current_version)
             if version_order == 0:
                 self._manifest = None
@@ -282,6 +278,7 @@ class UpdaterManager:
                     bytes_downloaded=0,
                     checked_at=_utc_now(),
                     status="up-to-date",
+                    selected_source=selected_source,
                 )
             if version_order < 0:
                 raise UpdateRefused("Từ chối hạ cấp hoặc cài lại cùng phiên bản")
@@ -308,7 +305,7 @@ class UpdaterManager:
             downloaded = 0
             for digest, size in required.items():
                 downloaded += download_blob(
-                    self.source,
+                    selected_source,
                     digest,
                     blob_dir / digest,
                     expected_size=size,
@@ -334,8 +331,47 @@ class UpdaterManager:
                 removed_files=len(removals),
                 checked_at=_utc_now(),
                 status="update-ready",
+                selected_source=selected_source,
             )
             return state
+
+    def _read_signed_release(self, source: str) -> tuple[str, bytes, bytes, dict[str, object]]:
+        pointer_raw = read_source_bytes(
+            source,
+            f"channels/{self.channel}.json",
+            max_bytes=MAX_CHANNEL_BYTES,
+            timeout=self.timeout,
+        )
+        try:
+            pointer = json.loads(pointer_raw.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise UpdateRefused("Con trỏ kênh phát hành không hợp lệ") from exc
+        if not isinstance(pointer, dict) or pointer.get("channel") != self.channel:
+            raise UpdateRefused("Con trỏ phát hành không khớp kênh đã cấu hình")
+        version = pointer.get("version")
+        if not isinstance(version, str):
+            raise UpdateRefused("Con trỏ phát hành thiếu version")
+        version_key(version)
+        # Never fetch a package blob until this source's manifest passes the embedded key.
+        manifest_raw = read_source_bytes(
+            source,
+            f"{version}/manifest.json",
+            max_bytes=MAX_MANIFEST_BYTES,
+            timeout=self.timeout,
+        )
+        signature = read_source_bytes(
+            source,
+            f"{version}/manifest.sig",
+            max_bytes=MAX_SIGNATURE_BYTES,
+            timeout=self.timeout,
+        )
+        modulus, exponent = self.public_key
+        if not verify_sha256_pkcs1v15(manifest_raw, signature, modulus, exponent):
+            raise UpdateRefused("Chữ ký manifest không hợp lệ")
+        manifest = parse_manifest(manifest_raw, expected_channel=self.channel)
+        if manifest["version"] != version:
+            raise UpdateRefused("Version trong manifest không khớp con trỏ kênh")
+        return version, manifest_raw, signature, manifest
 
     def _ensure_disk_space(self, stage_dir: Path, required: dict[str, int]) -> None:
         bytes_needed = 0

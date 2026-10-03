@@ -681,6 +681,22 @@ export const SHEET_HELP_ENTRIES = [
     ]
   },
   {
+    id: "sheet.insert.symbol",
+    app: "sheet",
+    commandIds: ["sheet.insert.symbol"],
+    title: "Chèn ký hiệu đặc biệt vào ô",
+    summary: "Chèn các ký tự đặc biệt, biểu tượng toán học, tiền tệ (₫, €, £, ¥) hoặc mũi tên vào ô bảng tính đang chọn bằng bảng ký hiệu dùng chung.",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Ký hiệu" },
+    keywords: ["ký hiệu", "symbol", "ký tự đặc biệt", "đồng", "toán học", "mũi tên", "chèn ký hiệu"],
+    steps: [
+      "Chọn ô cần chèn ký hiệu trên lưới Sheet.",
+      "Vào tab Chèn, nhóm Ký hiệu, nhấn nút Ký hiệu.",
+      "Trong bảng chọn ký hiệu dùng chung: nhấp vào ký tự mong muốn (ví dụ ₫, ©, ™, ∑, →). Ký tự sẽ được chèn ngay vào ô.",
+      "Nhấn phím Esc hoặc nút Hủy bỏ để đóng hộp thoại mà không chèn.",
+      "Nhấn Ctrl+Z để hoàn tác việc chèn ký hiệu trong 1 bước."
+    ]
+  },
+  {
     id: "sheet.insert.textbox",
     app: "sheet",
     commandIds: ["sheet.insert.textbox"],

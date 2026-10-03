@@ -115,7 +115,7 @@ export const WRITER_HELP_ENTRIES = [
       "Nhấn Thay đổi sau hoặc Thay đổi trước để nhảy tới từng mốc, cuộn tới vị trí đó và viền xanh nổi bật thay đổi đang xét.",
       "Nhấn Chấp nhận một để giữ phần chèn / bỏ phần xóa của thay đổi đang chọn, rồi tự chuyển tới thay đổi kế tiếp.",
       "Nhấn Từ chối một để bỏ phần chèn / khôi phục phần xóa của thay đổi đang chọn.",
-      "Chấp nhận thay đổi và Từ chối thay đổi áp dụng cho toàn bộ tài liệu. Xuất DOCX/PDF luôn dùng bản đã chấp nhận, không còn màu đánh dấu."
+      "Chấp nhận thay đổi và Từ chối thay đổi áp dụng cho toàn bộ tài liệu. Nhấn Ctrl+S để lưu DOCX: các thay đổi chưa duyệt giữ tác giả và thời gian, mở lại trong Doc hoặc ứng dụng đọc DOCX khác vẫn duyệt được. PDF dùng bản đã chấp nhận, không còn màu đánh dấu."
     ]
   },
   {
@@ -222,7 +222,7 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["writer.reference.tocInsert", "writer.reference.tocUpdate"],
     title: "Mục lục tự động",
-    summary: "Dựng mục lục từ các đoạn đã gán kiểu Heading 1, Heading 2, Heading 3. Có thể cập nhật lại sau khi sửa tiêu đề.",
+    summary: "Dựng mục lục từ các đoạn đã gán kiểu Heading 1, Heading 2, Heading 3. Khi lưu DOCX, tiêu đề và mục lục vẫn là cấu trúc có thể cập nhật, không bị đổi thành văn bản tĩnh.",
     ribbon: { tab: "Tham chiếu", tabId: "references", group: "Mục lục" },
     keywords: ["mục lục", "table of contents", "toc", "tiêu đề", "heading"],
     steps: [
@@ -230,7 +230,8 @@ export const WRITER_HELP_ENTRIES = [
       "Đặt con trỏ ở đầu tài liệu (hoặc chỗ muốn hiện mục lục).",
       "Mở tab Tham chiếu, nhóm Mục lục, nhấn Mục lục tự động.",
       "Sau khi thêm hoặc đổi tiêu đề, nhấn Cập nhật mục lục để làm mới số trang và dòng đề mục.",
-      "Nhấp một dòng trong mục lục để nhảy tới tiêu đề tương ứng trong tài liệu."
+      "Nhấp một dòng trong mục lục để nhảy tới tiêu đề tương ứng trong tài liệu.",
+      "Khi lưu thành DOCX và mở bằng phần mềm văn phòng tương thích, dùng Cập nhật bảng để tính lại mục lục; các Heading vẫn xuất hiện trong Ngăn Dẫn hướng."
     ]
   },
   {
@@ -428,7 +429,7 @@ export const WRITER_HELP_ENTRIES = [
       "Mở tab Chèn, nhóm Đầu trang / Chân trang. Nhấn Đầu trang hoặc Chân trang (hai nút lớn).",
       "Con trỏ nhảy vào vùng tương ứng trên trang giấy (chỉ thấy rõ ở Bố trí in). Nếu vùng trống, Writer chèn sẵn một dòng căn giữa 10 pt: «Tiêu đề đầu trang» hoặc «Trang 1 / 1». Hai số trong chân trang là trường sống, tự đổi theo trang hiện tại và tổng số trang; có thể gõ thêm nhãn như «Trang».",
       "Đầu trang / chân trang lặp trên mọi trang khi xem Bố trí in, Print Preview và khi in; số trang hiển thị theo từng tờ. Chế độ Bố trí Web ẩn hai vùng này.",
-      "Nhấp lại thân tài liệu để thoát vùng đầu/chân trang. Ctrl+Z hoàn tác lần chèn chữ mẫu nếu vùng vốn trống."
+      "Nhấp lại thân tài liệu để thoát vùng đầu/chân trang. Ctrl+Z hoàn tác lần chèn chữ mẫu nếu vùng vốn trống. Nhấn Ctrl+S để lưu DOCX: đầu/chân trang, trường PAGE / NUMPAGES và thiết lập Trang đầu khác biệt được giữ khi mở lại trong ứng dụng đọc DOCX khác."
     ]
   },
   {
@@ -664,7 +665,7 @@ export const WRITER_HELP_ENTRIES = [
       "Bôi đoạn chữ trong thân tài liệu (không phải đầu/chân trang). Tab Đánh giá, nhóm Ghi chú, nút lớn Thêm ghi chú — hoặc tab Chèn, nhóm Ghi chú — hoặc Ctrl+Alt+M.",
       "Chưa bôi: cảnh báo «Chưa chọn văn bản» / «Hãy bôi đen đoạn văn bản trong nội dung tài liệu trước khi thêm ghi chú.» Đã bôi: hộp «Thêm ghi chú» hiện đoạn trích (tối đa 80 ký tự), ô nhập, nút Thêm ghi chú.",
       "Chữ được bọc mark vàng (neo ghi chú). Panel bên «Ghi chú tài liệu» liệt kê các ghi chú. Không thêm được khi con trỏ chỉ nhấp, khác các phần mềm soạn thảo văn bản khác.",
-      "Ctrl+Z gỡ ghi chú vừa thêm. Nhận xét trước/sau, xóa, đã xử lý: bài «Duyệt nhận xét»."
+      "Ctrl+Z gỡ ghi chú vừa thêm. Nhận xét trước/sau, xóa, đã xử lý: bài «Duyệt nhận xét». Nhấn Ctrl+S để lưu DOCX; ghi chú giữ nội dung, tác giả, thời gian và đoạn chữ được neo khi mở lại trong Doc hoặc ứng dụng đọc DOCX khác."
     ]
   },
   {
@@ -1021,9 +1022,9 @@ export const WRITER_HELP_ENTRIES = [
     steps: [
       "Bôi đen từ hoặc đoạn văn bản muốn gắn liên kết trong tài liệu.",
       "Mở tab Chèn trên thanh ribbon, trong nhóm Liên kết nhấn nút Liên kết (hoặc bấm tổ hợp phím Ctrl+K).",
-      "Hộp thoại chèn liên kết xuất hiện. Nhập địa chỉ web đích (URL đầy đủ, ví dụ: https://example.com) vào ô địa chỉ.",
-      "Nhấn Áp dụng hoặc bấm Enter để hoàn tất. Đoạn văn bản sẽ chuyển sang màu xanh dương có gạch chân biểu thị liên kết.",
-      "Muốn chỉnh sửa hoặc hủy liên kết: đặt con trỏ tại vị trí liên kết, nhấn lại nút Liên kết (Ctrl+K) hoặc dùng Ctrl+Z để hoàn tác."
+      "Hộp thoại «Chèn liên kết» dùng chung xuất hiện. Kiểm tra hoặc nhập văn bản hiển thị và địa chỉ web đích (URL đầy đủ, ví dụ: https://example.com) vào ô địa chỉ.",
+      "Nhấn Chèn hoặc bấm Enter để hoàn tất. Đoạn văn bản sẽ chuyển sang màu xanh dương có gạch chân biểu thị liên kết.",
+      "Muốn chỉnh sửa hoặc hủy liên kết: đặt con trỏ tại vị trí liên kết, nhấn lại nút Liên kết (Ctrl+K) hoặc dùng Ctrl+Z để hoàn tác trong đúng một bước."
     ]
   },
   {

@@ -28,6 +28,7 @@ import { runWriterCommentsTests } from "./unit/writer-comments.test.js";
 import { runSlidesAnimationsNotesTests } from "./unit/slides-animations-notes.test.js";
 import { runSheetRulesValidationTests } from "./unit/sheet-rules-validation.test.js";
 import { runWriterTrackChangesTests } from "./unit/writer-track-changes.test.js";
+import { runWriterReviewExportTests } from "./unit/writer-review-export.test.js";
 import { runWriterPrintPreviewTests } from "./unit/writer-print-preview.test.js";
 import { runSlidesLayoutsTests } from "./unit/slides-layouts.test.js";
 import { runSheetChartTests } from "./unit/sheet-charts.test.js";
@@ -231,6 +232,9 @@ import { runSpellcheckUiUndoTests } from "./unit/spellcheck-ui-undo.test.js";
 import { runSheetGridExtentTests } from "./unit/sheet-grid-extent.test.js";
 import { runSpellcheckInlineToggleTests } from "./unit/spellcheck-inline-toggle.test.js";
 import { runCh81ConsistencyTests } from "./unit/ch8-1-consistency.test.js";
+import { runSharedInsertCapabilitiesTests } from "./unit/shared-insert-capabilities.test.js";
+
+import { runKeepFocusUnitTests } from "./unit/ch4-6-keep-focus.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -471,7 +475,10 @@ async function runAll() {
     { title: "225. Unit Tests — CH-7.2 Sheet inline spellcheck, contextmenu suggestions, 1-step undo & 3-app spellcheck toggle persistence", runner: runSpellcheckInlineToggleTests },
     { title: "226. Unit Tests — CH-8.1 UI Consistency: Backstage, Recent Files, Status Bar, View Modes, Zoom & Shortcuts", runner: runCh81ConsistencyTests },
     { title: "227. Unit Tests — Office Clipboard Interop (Sheet Excel/Calc HTML, TSV, Writer Word HTML cleaning)", runner: runOfficeClipboardTests },
-    { title: "228. Unit Tests — Cross-App Paste (Doc, Sheet, Slide Interoperability)", runner: runCrossAppPasteTests }
+    { title: "228. Unit Tests — Cross-App Paste (Doc, Sheet, Slide Interoperability)", runner: runCrossAppPasteTests },
+    { title: "229. Unit Tests — Writer DOCX review range export metadata", runner: runWriterReviewExportTests },
+    { title: "230. Unit Tests — CH-7.3 Shared Insert Dialogs & Capabilities (Symbol, Hyperlink, Shapes, Textbox, Picture)", runner: runSharedInsertCapabilitiesTests },
+    { title: "231. Unit Tests — CH-4.6 Editor Focus Keeper & Enter Button Guard (Doc, Sheet, Slide)", runner: runKeepFocusUnitTests }
   ];
 
   for (const suite of suites) {

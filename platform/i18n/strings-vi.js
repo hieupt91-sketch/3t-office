@@ -359,6 +359,7 @@ export const viStrings = {
     "sheet.insert.sparklineColumn": { label: "Cột", tooltip: "Chèn biểu đồ mini dạng cột từ vùng đã chọn" },
     "sheet.insert.hyperlink": { label: "Liên kết", tooltip: "Chèn liên kết vào ô hiện tại (Ctrl+K)" },
     "sheet.insert.textbox": { label: "Hộp văn bản", tooltip: "Chèn hộp văn bản nổi" },
+    "sheet.insert.symbol": { label: "Ký hiệu", tooltip: "Chèn ký tự đặc biệt (Symbol)" },
     "common.file.new": { label: "Tạo mới", tooltip: "Tạo tài liệu mới (Ctrl+N)" },
     "common.file.open": { label: "Mở tệp", tooltip: "Mở tài liệu có sẵn (Ctrl+O)" },
     "common.file.save": { label: "Lưu", tooltip: "Lưu tài liệu hiện tại (Ctrl+S)" },
@@ -567,6 +568,7 @@ export const viStrings = {
     ,"slides.insert.dateTime": { label: "Ngày & Giờ", tooltip: "Chèn placeholder ngày giờ tự cập nhật" }
     ,"slides.insert.slideNumber": { label: "Số trang chiếu", tooltip: "Chèn placeholder số trang chiếu tự cập nhật" }
     ,"slides.insert.symbol": { label: "Ký hiệu", tooltip: "Chèn ký tự đặc biệt vào khung văn bản đang chọn" }
+    ,"slides.insert.hyperlink": { label: "Liên kết", tooltip: "Chèn siêu liên kết (Ctrl+K)" }
     ,"slides.insert.wordart": { label: "Chữ nghệ thuật", tooltip: "Chèn chữ nghệ thuật với viền, đổ bóng hoặc gradient" }
     ,"slides.master.apply": { label: "Mẫu Slide Master", tooltip: "Áp dụng mẫu Slide Master đồng bộ font, màu, logo cho toàn bộ trang chiếu" }
     ,"slides.design.themeGallery": { label: "Chủ đề", tooltip: "Chọn chủ đề thiết kế cho toàn bộ bản trình chiếu" }

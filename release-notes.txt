@@ -1,3 +1,24 @@
+3T Office — Thông tin phát hành phiên bản 0.9.8
+Ngày phát hành: (chưa phát hành)
+
+1. Chung (dùng cho Doc, Sheet và Slide):
+- Dán chéo giữa Doc, Sheet và Slide: Ctrl+C sao chép ở ứng dụng này, Ctrl+V dán sang ứng dụng kia; dán xong bấm Ctrl+Z một lần là hoàn tác.
+- Dán chỉ giữ chữ bằng Ctrl+Shift+V ở Doc, Sheet và Slide, không kèm màu nền, kẻ viền hay kiểu chữ cũ.
+
+2. Doc:
+- Dán bảng từ Sheet vào Doc thành bảng đúng số hàng, số cột; hàng tiêu đề vẫn in đậm, số và ngày giữ nguyên dạng hiển thị.
+- Sao chép bảng hoặc đoạn văn từ Doc sang Sheet và Slide: bảng tính thành từng ô, chữ giữ nguyên in đậm và in nghiêng.
+
+3. Sheet:
+- Dán từ Doc hoặc Slide vào Sheet: bảng tính thành từng ô, số được nhận là số nên dùng ngay được trong công thức.
+- Cắt ô bằng Ctrl+X rồi dán bằng Ctrl+V, ô nguồn được xóa sạch.
+- Gõ giờ 13:45 vào ô được nhận là giờ và hiển thị đúng mẫu giờ; giờ sai như 25:00 vẫn giữ nguyên dạng chữ.
+
+4. Slide:
+- Dán bảng từ Sheet hoặc Doc lên vùng trang chiếu sẽ tạo bảng đúng số hàng, số cột; dán vào hộp chữ giữ nguyên chữ in đậm, in nghiêng.
+
+============================================================
+
 3T Office — Thông tin phát hành phiên bản 0.9.7
 Ngày phát hành: 02/10/2026
 

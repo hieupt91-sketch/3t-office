@@ -6,6 +6,7 @@
 
 import { ICONS } from "./icons.js";
 import { t } from "../i18n/i18n.js";
+import { captureEditorFocus, restoreEditorFocus, isEditorElement } from "../shell/focus-manager.js";
 
 let dialogIdCounter = 0;
 
@@ -54,6 +55,7 @@ export function showAlertDialog({
       resolve();
       return;
     }
+    captureEditorFocus();
     const previousFocused = document.activeElement;
     const overlay = document.createElement("div");
     overlay.className = "vno-dialog-overlay";
@@ -89,8 +91,10 @@ export function showAlertDialog({
     const cleanup = () => {
       document.removeEventListener("keydown", onKeyDown);
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-      if (previousFocused && typeof previousFocused.focus === "function") {
-        previousFocused.focus();
+      if (previousFocused && isEditorElement(previousFocused)) {
+        try { previousFocused.focus(); } catch (_) {}
+      } else {
+        restoreEditorFocus();
       }
       resolve();
     };
@@ -159,6 +163,7 @@ export function showConfirmDialog({
       resolve(true);
       return;
     }
+    captureEditorFocus();
     const previousFocused = document.activeElement;
     const overlay = document.createElement("div");
     overlay.className = "vno-dialog-overlay";
@@ -186,8 +191,10 @@ export function showConfirmDialog({
     const finish = (result) => {
       document.removeEventListener("keydown", onKeyDown);
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-      if (previousFocused && typeof previousFocused.focus === "function") {
-        previousFocused.focus();
+      if (previousFocused && isEditorElement(previousFocused)) {
+        try { previousFocused.focus(); } catch (_) {}
+      } else {
+        restoreEditorFocus();
       }
       resolve(result);
     };
@@ -240,6 +247,7 @@ export function showUnsavedChangesDialog({
       resolve("cancel");
       return;
     }
+    captureEditorFocus();
     const previousFocused = document.activeElement;
     const overlay = document.createElement("div");
     overlay.className = "vno-dialog-overlay";
@@ -269,7 +277,11 @@ export function showUnsavedChangesDialog({
     const finish = (choice) => {
       document.removeEventListener("keydown", onKeyDown);
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-      if (previousFocused && typeof previousFocused.focus === "function") previousFocused.focus();
+      if (previousFocused && isEditorElement(previousFocused)) {
+        try { previousFocused.focus(); } catch (_) {}
+      } else {
+        restoreEditorFocus();
+      }
       resolve(choice);
     };
     overlay.querySelectorAll("[data-unsaved-choice]").forEach(button => {
@@ -326,6 +338,7 @@ export function showPromptDialog({
       resolve(defaultValue);
       return;
     }
+    captureEditorFocus();
     const previousFocused = document.activeElement;
     const overlay = document.createElement("div");
     overlay.className = "vno-dialog-overlay";
@@ -360,8 +373,10 @@ export function showPromptDialog({
     const finish = (val) => {
       document.removeEventListener("keydown", onKeyDown);
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-      if (previousFocused && typeof previousFocused.focus === "function") {
-        previousFocused.focus();
+      if (previousFocused && isEditorElement(previousFocused)) {
+        try { previousFocused.focus(); } catch (_) {}
+      } else {
+        restoreEditorFocus();
       }
       resolve(val);
     };
@@ -415,6 +430,7 @@ export function showMacroManagerDialog({ macros, onRun, onRename, onDelete }) {
       return;
     }
     let currentMacros = macros || [];
+    captureEditorFocus();
     const previousFocused = document.activeElement;
     const overlay = document.createElement("div");
     overlay.className = "vno-dialog-overlay";
@@ -485,8 +501,10 @@ export function showMacroManagerDialog({ macros, onRun, onRename, onDelete }) {
     const finish = () => {
       document.removeEventListener("keydown", onKeyDown);
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-      if (previousFocused && typeof previousFocused.focus === "function") {
-        previousFocused.focus();
+      if (previousFocused && isEditorElement(previousFocused)) {
+        try { previousFocused.focus(); } catch (_) {}
+      } else {
+        restoreEditorFocus();
       }
       resolve();
     };
@@ -511,3 +529,6 @@ export function showMacroManagerDialog({ macros, onRun, onRename, onDelete }) {
     closeBtn2.focus();
   });
 }
+
+export { showHyperlinkDialog, normalizeHyperlinkUrl } from "./hyperlink-dialog.js";
+export { showSymbolPicker, listAllSymbols, SYMBOL_CATEGORIES } from "./symbol-picker.js";

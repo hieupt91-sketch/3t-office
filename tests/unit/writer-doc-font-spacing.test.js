@@ -320,6 +320,16 @@ export async function runWriterDocFontSpacingTests() {
     check(out.includes('<ul><li><p>Standard bullet</p></li></ul>'), `standard bullet untouched: ${out}`);
   });
 
+  test("DOCX reopen keeps lowerLetter closing parenthesis from w:lvlText", () => {
+    const adapter = new WriterAdapter({});
+    const html = '<ol type="a"><li><p>Mục chữ cái</p></li></ol>';
+    const doc = '<w:document><w:body><w:p><w:pPr><w:numPr><w:ilvl w:val="2"/><w:numId w:val="7"/></w:numPr></w:pPr><w:r><w:t>Mục chữ cái</w:t></w:r></w:p></w:body></w:document>';
+    const numXml = '<w:numbering><w:abstractNum w:abstractNumId="3"><w:lvl w:ilvl="2"><w:start w:val="1"/><w:numFmt w:val="lowerLetter"/><w:lvlText w:val="%3)"/></w:lvl></w:abstractNum><w:num w:numId="7"><w:abstractNumId w:val="3"/></w:num></w:numbering>';
+    const out = adapter._applyOoxmlListBullets(html, doc, "", numXml);
+    check(out.includes('class="vno-list-suffix-paren"'), `lowerLetter ')' must keep marker class: ${out}`);
+    check(out.includes("list-style-type: lower-alpha"), `lowerLetter must keep lower-alpha counter: ${out}`);
+  });
+
   test("W33: số thứ tự như Word — đếm theo abstractNum, cấp 0 numFmt none = list-style none, ghép có kiểm chữ đầu", () => {
     const adapter = new WriterAdapter(null);
     // LibreOffice: tiêu đề cấp 0 (none) không có <li>, danh sách cấp 1 bị tách <ol> mới (mất start)

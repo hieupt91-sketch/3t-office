@@ -1,11 +1,14 @@
 {
   "errorReporting": {
     "enabled": true,
-    "endpoint": "",
-    "token": ""
+    "endpoint": "https://office.3tcomputer.com"
   },
   "update": {
-    "source": "",
+    "source": "\\\\192.168.1.252\\company1\\Software\\VNOffice\\updates",
+    "sources": [
+      "\\\\192.168.1.252\\company1\\Software\\VNOffice\\updates",
+      "https://office.3tcomputer.com/updates"
+    ],
     "channel": "pilot"
   }
 }

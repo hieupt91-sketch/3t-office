@@ -396,6 +396,7 @@ export const SHEET_COMMANDS = [
   { id: "sheet.insert.sparklineColumn", category: "insert", label: "Cột", icon: "sparklineColumn", tooltip: "Chèn biểu đồ mini dạng cột từ vùng dữ liệu đã chọn" },
   { id: "sheet.insert.hyperlink", category: "insert", label: "Liên kết", icon: "hyperlink", tooltip: "Chèn liên kết vào ô hiện tại (Ctrl+K)" },
   { id: "sheet.insert.textbox", category: "insert", label: "Hộp văn bản", icon: "textBox", tooltip: "Chèn hộp văn bản nổi trên trang tính" },
+  { id: "sheet.insert.symbol", category: "insert", label: "Ký hiệu", icon: "symbol", tooltip: "Chèn ký tự đặc biệt (Symbol)" },
 
   // Kiểu dáng & Định dạng bảng (Styles)
   { id: "sheet.style.formatAsTable", category: "format", label: "Định dạng bảng", icon: "formatTable", tooltip: "Định dạng vùng chọn theo kiểu bảng có màu xen kẽ" },
@@ -452,6 +453,7 @@ export const SLIDES_COMMANDS = [
   { id: "slides.insert.dateTime", category: "insert", label: "Ngày & Giờ", icon: "dateTime", tooltip: "Chèn placeholder ngày giờ tự cập nhật" },
   { id: "slides.insert.slideNumber", category: "insert", label: "Số trang chiếu", icon: "slideNumber", tooltip: "Chèn placeholder số trang chiếu tự cập nhật" },
   { id: "slides.insert.symbol", category: "insert", label: "Ký hiệu", icon: "symbol", tooltip: "Chèn ký tự đặc biệt vào khung văn bản đang chọn" },
+  { id: "slides.insert.hyperlink", category: "insert", label: "Liên kết", icon: "hyperlink", tooltip: "Chèn siêu liên kết (Ctrl+K)" },
   { id: "slides.insert.wordart", category: "insert", label: "Chữ nghệ thuật", icon: "wordArt", tooltip: "Chèn chữ nghệ thuật với viền, đổ bóng hoặc gradient" },
 
   // Trình chiếu & Thiết kế

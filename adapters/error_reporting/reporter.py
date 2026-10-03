@@ -16,10 +16,11 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
+from urllib.error import HTTPError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 
-MAX_MESSAGE_CHARS = 240
+MAX_MESSAGE_CHARS = 1000
 MAX_STACK_CHARS = 8000
 MAX_QUEUE_COUNT = 200
 MAX_QUEUE_BYTES = 20 * 1024 * 1024
@@ -130,6 +131,11 @@ def _current_username() -> str:
         return ""
 
 
+def _safe_version(value: object) -> str:
+    text = str(value or "").strip()
+    return text[:80] if re.fullmatch(r"[0-9A-Za-z][0-9A-Za-z.+_-]*", text) else "unknown"
+
+
 def sanitize_text(value: object, *, secrets: tuple[str, ...] = (), limit: int = MAX_MESSAGE_CHARS) -> str:
     """Remove absolute paths, file names, local identity, secrets and long tokens."""
     text = str(value if value is not None else "")
@@ -181,9 +187,8 @@ def load_client_config(app_dir: str | Path, environ: dict[str, str] | None = Non
     except (OSError, ValueError, TypeError):
         pass
     endpoint = str(env.get("VNOFFICE_REPORT_ENDPOINT", config.get("endpoint", "")) or "").strip()
-    token = str(env.get("VNOFFICE_REPORT_TOKEN", config.get("token", "")) or "").strip()
     enabled = config.get("enabled", True)
-    return {"enabled": enabled is not False, "endpoint": endpoint, "token": token}
+    return {"enabled": enabled is not False, "endpoint": endpoint}
 
 
 def _rounded_size(path: str | Path | None) -> int | None:
@@ -219,12 +224,11 @@ class ErrorReporter:
         data_dir: str | Path,
         *,
         endpoint: str = "",
-        token: str = "",
         enabled: bool = True,
         sender_thread: bool = True,
         timeout: float = SEND_TIMEOUT_SECONDS,
     ) -> None:
-        self.app_version = sanitize_text(app_version, limit=40)
+        self.app_version = _safe_version(app_version)[:40]
         self.app_kind = app_kind if app_kind in _APP_KINDS else "writer"
         self.data_dir = Path(data_dir)
         self.recovery_dir = self.data_dir / "recovery"
@@ -232,8 +236,12 @@ class ErrorReporter:
         self.queue_dir = self.reports_dir / "queue"
         self.attachments_dir = self.reports_dir / "attachments"
         self.consent_path = self.reports_dir / "consent.json"
+        self.installation_path = self.reports_dir / "installation.json"
         self.endpoint = endpoint.strip()
-        self._token = token.strip()
+        self._token = ""
+        self._token_expires_at = 0.0
+        self.last_token_status_code: int | None = None
+        self.last_status_code: int | None = None
         self.enabled = bool(enabled)
         self.timeout = timeout
         self._lock = threading.RLock()
@@ -245,6 +253,7 @@ class ErrorReporter:
         self._installation_id = self._load_installation_id()
         self.queue_dir.mkdir(parents=True, exist_ok=True)
         self.attachments_dir.mkdir(parents=True, exist_ok=True)
+        self._persist_installation_id()
         self._enforce_queue_limits()
         self._thread: threading.Thread | None = None
         if sender_thread:
@@ -263,12 +272,23 @@ class ErrorReporter:
         return "unknown", self._installation_id
 
     def _load_installation_id(self) -> str:
+        for path in (self.installation_path, self.consent_path):
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+                candidate = str(data.get("installation_id", ""))
+                parsed = uuid.UUID(candidate)
+                if parsed.version == 4:
+                    return str(parsed)
+            except (OSError, ValueError, TypeError, AttributeError):
+                continue
+        return str(uuid.uuid4())
+
+    def _persist_installation_id(self) -> None:
         try:
-            data = json.loads(self.consent_path.read_text(encoding="utf-8"))
-            candidate = str(data.get("installation_id", ""))
-            return str(uuid.UUID(candidate))
-        except (OSError, ValueError, TypeError, AttributeError):
-            return str(uuid.uuid4())
+            _atomic_write_json(self.installation_path, {"installation_id": self._installation_id})
+        except OSError:
+            # Reporting storage must never prevent offline document work.
+            pass
 
     def get_state(self) -> dict[str, object]:
         try:
@@ -507,7 +527,7 @@ class ErrorReporter:
     def send_once(self) -> bool:
         """Attempt to send the oldest queued record. Returns whether work completed."""
         state = self.get_state()
-        if not (self.enabled and self.endpoint and self._token and state["consent"] == "granted"):
+        if not (self.enabled and self.endpoint and state["consent"] == "granted"):
             return False
         for queue_file in sorted(self.queue_dir.glob("*.json"), key=lambda item: item.stat().st_mtime):
             try:
@@ -517,16 +537,13 @@ class ErrorReporter:
                     continue
                 report_sent = bool(local.pop("_report_sent", False))
                 attachment_path = local.pop("_attachment_path", None)
-                attachment_id = str(local.pop("_attachment_id", local.get("event_id", "")))
+                local.pop("_attachment_id", None)
                 if not report_sent:
                     self._post_json(local)
                     local["_report_sent"] = True
                     if attachment_path:
                         local["_attachment_path"] = attachment_path
-                        local["_attachment_id"] = attachment_id
                         _atomic_write_json(queue_file, local)
-                if attachment_path:
-                    self._post_attachment(attachment_id, Path(attachment_path))
                 queue_file.unlink(missing_ok=True)
                 if attachment_path:
                     Path(attachment_path).unlink(missing_ok=True)
@@ -538,43 +555,95 @@ class ErrorReporter:
         return False
 
     def _post_json(self, event: dict[str, object]) -> None:
-        body = json.dumps(event, ensure_ascii=False).encode("utf-8")
+        secrets = (self._token,) if self._token else ()
+        message = event.get("feedback_description", event.get("message", ""))
+        payload = {
+            "event_id": str(event.get("event_id", "")),
+            "app": str(event.get("app")) if event.get("app") in _APP_KINDS else self.app_kind,
+            # So phien ban (0.9.7) khong qua lop xoa ten tep: se bi doi thanh "<file>".
+            "version": _safe_version(event.get("app_version", "")),
+            "os": sanitize_text(event.get("os_version", ""), secrets=secrets, limit=80),
+            "error_type": sanitize_text(event.get("error_type", "FrontendError"), secrets=secrets, limit=80),
+            "message": sanitize_text(message, secrets=secrets, limit=MAX_MESSAGE_CHARS),
+            "stack": _sanitize_stack(event.get("stack", ""), secrets=secrets),
+            "installation_id": self._installation_id,
+        }
+        body = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        for attempt in range(2):
+            token = self._get_install_token(force=attempt > 0)
+            self.last_status_code = None
+            request = Request(
+                _report_endpoint(self.endpoint, "/api/v1/reports"),
+                data=body,
+                headers={
+                    "X-Install-Token": token,
+                    "Content-Type": "application/json",
+                    "User-Agent": "3TOffice-ErrorReporter/1",
+                },
+                method="POST",
+            )
+            try:
+                with _HTTP_OPENER.open(request, timeout=self.timeout) as response:
+                    self.last_status_code = response.status
+                    if not 200 <= response.status < 300:
+                        raise OSError(f"Report endpoint returned {response.status}")
+                    return
+            except HTTPError as exc:
+                self.last_status_code = exc.code
+                if exc.code == 401 and attempt == 0:
+                    self._clear_install_token()
+                    continue
+                raise OSError(f"Report endpoint returned {exc.code}") from exc
+        raise OSError("Report endpoint authentication failed")
+
+    def _get_install_token(self, *, force: bool = False) -> str:
+        if not force and self._token and time.time() < self._token_expires_at - 30:
+            return self._token
+        body = json.dumps({"installation_id": self._installation_id}, separators=(",", ":")).encode("utf-8")
         request = Request(
-            self.endpoint,
+            _report_endpoint(self.endpoint, "/api/v1/reports/token"),
             data=body,
-            headers={"Authorization": f"Bearer {self._token}", "Content-Type": "application/json"},
+            headers={"Content-Type": "application/json", "User-Agent": "3TOffice-ErrorReporter/1"},
             method="POST",
         )
-        with _HTTP_OPENER.open(request, timeout=self.timeout) as response:
-            if not 200 <= response.status < 300:
-                raise OSError(f"Report endpoint returned {response.status}")
+        try:
+            with _HTTP_OPENER.open(request, timeout=self.timeout) as response:
+                self.last_token_status_code = response.status
+                if not 200 <= response.status < 300:
+                    raise OSError(f"Token endpoint returned {response.status}")
+                raw = response.read(64 * 1024 + 1)
+        except HTTPError as exc:
+            self.last_token_status_code = exc.code
+            raise OSError(f"Token endpoint returned {exc.code}") from exc
+        if len(raw) > 64 * 1024:
+            raise OSError("Token response exceeds size limit")
+        try:
+            result = json.loads(raw.decode("utf-8"))
+            token = str(result["token"])
+            raw_expires = result["expires_at"]
+            if isinstance(raw_expires, (int, float)) and not isinstance(raw_expires, bool):
+                # May chu 3T Cloud tra expires_at la epoch giay (so nguyen).
+                expiry_timestamp = float(raw_expires)
+            else:
+                expires = datetime.fromisoformat(str(raw_expires).replace("Z", "+00:00"))
+                if expires.tzinfo is None:
+                    expires = expires.replace(tzinfo=timezone.utc)
+                expiry_timestamp = expires.timestamp()
+        except (KeyError, TypeError, ValueError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise OSError("Token response is invalid") from exc
+        if not token or expiry_timestamp <= time.time():
+            raise OSError("Token response is already expired")
+        self._token = token
+        self._token_expires_at = expiry_timestamp
+        return token
+
+    def _clear_install_token(self) -> None:
+        self._token = ""
+        self._token_expires_at = 0.0
 
     def _post_attachment(self, event_id: str, attachment_path: Path) -> None:
-        if self._is_recovery_path(attachment_path):
-            raise OSError("Local recovery files cannot be sent as error report attachments")
-        if not attachment_path.is_file() or attachment_path.stat().st_size > MAX_ATTACHMENT_BYTES:
-            raise OSError("Queued attachment is missing or exceeds the size limit")
-        boundary = f"vno-{uuid.uuid4().hex}"
-        filename = f"document.{attachment_path.suffix.lstrip('.') or 'bin'}"
-        content = attachment_path.read_bytes()
-        body = (
-            f"--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{filename}\"\r\n"
-            f"Content-Type: application/octet-stream\r\n\r\n".encode("ascii")
-            + content
-            + f"\r\n--{boundary}--\r\n".encode("ascii")
-        )
-        request = Request(
-            _report_endpoint(self.endpoint, f"/{event_id}/attachment"),
-            data=body,
-            headers={
-                "Authorization": f"Bearer {self._token}",
-                "Content-Type": f"multipart/form-data; boundary={boundary}",
-            },
-            method="POST",
-        )
-        with _HTTP_OPENER.open(request, timeout=self.timeout) as response:
-            if not 200 <= response.status < 300:
-                raise OSError(f"Attachment endpoint returned {response.status}")
+        del event_id, attachment_path
+        raise OSError("VPS error reporting does not accept document attachments")
 
     def _is_recovery_path(self, path: object) -> bool:
         if not path:
@@ -600,7 +669,7 @@ class ErrorReporter:
             if retry_at and time.monotonic() < retry_at:
                 continue
             try:
-                can_send = self.enabled and self.endpoint and self._token and self._consent_state() == "granted"
+                can_send = self.enabled and self.endpoint and self._consent_state() == "granted"
             except Exception:
                 can_send = False
             if not can_send:

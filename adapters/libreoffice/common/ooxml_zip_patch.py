@@ -31,6 +31,7 @@ import posixpath
 import re
 import sys
 import xml.etree.ElementTree as ET
+from html.parser import HTMLParser
 from urllib.parse import quote as url_quote, unquote as url_unquote
 import uuid
 import zipfile
@@ -8923,6 +8924,12 @@ _DOCX_FOOTER_CONTENT_TYPE = (
 _DOCX_HEADER_CONTENT_TYPE = (
     "application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"
 )
+_DOCX_COMMENTS_REL_TYPE = (
+    "http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments"
+)
+_DOCX_COMMENTS_CONTENT_TYPE = (
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml"
+)
 
 
 _DOCX_HF_EXTRA_CONTENT_TYPES = {
@@ -9946,6 +9953,109 @@ def _remove_writer_untouched_bookmarks(xml: str) -> str:
             flags=re.IGNORECASE,
         )
     return xml
+
+
+def _writer_paragraph_visible_text(paragraph: str) -> str:
+    """Read Word run text plus OMML text in document order for safe equation matching."""
+    pieces: list[str] = []
+    token_re = re.compile(
+        r'<(?:w|m):t\b[^>]*>([\s\S]*?)</(?:w|m):t\s*>|<w:tab\b[^>]*/>',
+        re.IGNORECASE,
+    )
+    for match in token_re.finditer(paragraph):
+        if match.group(1) is not None:
+            pieces.append(_unescape_xml(match.group(1)))
+        else:
+            pieces.append(" ")
+    return re.sub(r"\s+", " ", "".join(pieces)).strip()
+
+
+def _restore_untouched_writer_equations(converted_xml: str, original_xml: str) -> str:
+    """Put native OMML back when HTML conversion flattened an untouched equation.
+
+    Writer's edit model marks unchanged paragraphs with a named bookmark. Match
+    only unique paragraphs carrying that marker and exact visible text; edited,
+    commented, revision-bearing, drawing-bearing, or relationship-bearing
+    paragraphs are left to the normal conversion path.
+    """
+    source_ranges = _document_paragraph_ranges(original_xml)
+    target_ranges = _document_paragraph_ranges(converted_xml)
+    source_paragraphs = [original_xml[start:end] for start, end in source_ranges]
+    target_paragraphs = [converted_xml[start:end] for start, end in target_ranges]
+    source_by_text: dict[str, list[int]] = {}
+    target_by_text: dict[str, list[int]] = {}
+    for index, paragraph in enumerate(source_paragraphs):
+        if "<m:oMath" not in paragraph and "<m:oMathPara" not in paragraph:
+            continue
+        if re.search(
+            r"<w:(?:ins|del|moveFrom|moveTo|commentRangeStart|commentRangeEnd|commentReference|drawing|pict|object|hyperlink|fldSimple|fldChar|instrText|sectPr)\b|\br:id=",
+            paragraph, re.IGNORECASE,
+        ):
+            continue
+        visible = _writer_paragraph_visible_text(paragraph)
+        if visible:
+            source_by_text.setdefault(visible, []).append(index)
+    for index, paragraph in enumerate(target_paragraphs):
+        if not re.search(
+            r'<w:bookmarkStart\b(?=[^>]*\bw:name=["\']vno-untouched-\d+["\'])[^>]*/?>',
+            paragraph, re.IGNORECASE,
+        ):
+            continue
+        visible = _writer_paragraph_visible_text(paragraph)
+        if visible:
+            target_by_text.setdefault(visible, []).append(index)
+
+    replacements: list[tuple[int, int, str]] = []
+    for visible, source_indexes in source_by_text.items():
+        target_indexes = target_by_text.get(visible, [])
+        if len(source_indexes) != 1 or len(target_indexes) != 1:
+            continue
+        source_p = source_paragraphs[source_indexes[0]]
+        target_index = target_indexes[0]
+        target_p = target_paragraphs[target_index]
+        if "<m:oMath" in target_p or "<m:oMathPara" in target_p:
+            continue
+        if re.search(
+            r"<w:(?:ins|del|moveFrom|moveTo|commentRangeStart|commentRangeEnd|commentReference|drawing|pict|object|hyperlink|fldSimple|fldChar|instrText|sectPr)\b|\br:id=",
+            target_p, re.IGNORECASE,
+        ):
+            continue
+        target_open = re.match(r"<w:p\b[^>]*>", target_p, re.IGNORECASE)
+        if not target_open or not target_p.rstrip().endswith("</w:p>"):
+            continue
+        target_ppr = _writer_direct_property(target_p, "pPr") or ""
+        marker_ids = set(re.findall(
+            r'<w:bookmarkStart\b(?=[^>]*\bw:id=["\']([^"\']+)["\'])(?=[^>]*\bw:name=["\']vno-untouched-\d+["\'])[^>]*/?>',
+            target_p, re.IGNORECASE,
+        ))
+        markers: list[str] = []
+        for bookmark in re.findall(r"<w:bookmark(?:Start|End)\b[^>]*/?>", target_p, re.IGNORECASE):
+            bookmark_id = re.search(r'\bw:id=["\']([^"\']+)["\']', bookmark, re.IGNORECASE)
+            if bookmark_id and bookmark_id.group(1) in marker_ids:
+                markers.append(bookmark)
+        source_body = re.sub(r"^<w:p\b[^>]*>", "", source_p.strip(), count=1, flags=re.IGNORECASE)
+        source_body = re.sub(r"</w:p>$", "", source_body, count=1, flags=re.IGNORECASE)
+        source_body = re.sub(r"^\s*<w:pPr\b[^>]*(?:/>|>[\s\S]*?</w:pPr\s*>)", "", source_body, count=1, flags=re.IGNORECASE)
+        source_body = re.sub(r"<w:bookmark(?:Start|End)\b[^>]*/?>", "", source_body, flags=re.IGNORECASE)
+        restored = target_open.group(0) + target_ppr + "".join(markers) + source_body + "</w:p>"
+        start, end = target_ranges[target_index]
+        replacements.append((start, end, restored))
+
+    result = converted_xml
+    for start, end, restored in sorted(replacements, reverse=True):
+        result = result[:start] + restored + result[end:]
+    # LibreOffice's regenerated root may not declare the Office Math
+    # namespace. Restoring source OMML without it leaves an unbound ``m:``
+    # prefix, and Word rejects the package as malformed XML.
+    if replacements and re.search(r"<m:(?:oMath|oMathPara)\b", result, re.IGNORECASE):
+        root_open = re.search(r"<w:document\b[^>]*>", result, re.IGNORECASE)
+        if root_open and not re.search(r"\bxmlns:m\s*=", root_open.group(0), re.IGNORECASE):
+            result = (
+                result[:root_open.end() - 1]
+                + ' xmlns:m="' + _WRITER_MATH_NS + '"'
+                + result[root_open.end() - 1:]
+            )
+    return result
 
 
 def _document_paragraph_ranges(xml: str) -> list[tuple[int, int]]:
@@ -11916,6 +12026,7 @@ def postprocess_writer_docx(
     docx_bytes: bytes,
     *,
     source_docx: bytes | None = None,
+    source_html: str | None = None,
     preserve_pristine_source: bool = False,
 ) -> bytes:
     """Re-inject section structure, header/footer XML from the original DOCX
@@ -12142,6 +12253,7 @@ def postprocess_writer_docx(
             new_xml, original_xml, trusted_untouched_texts=untouched_texts,
             table_paragraphs_only=True,
         )
+    new_xml = _restore_untouched_writer_equations(new_xml, original_xml)
     new_xml = _remove_writer_untouched_bookmarks(new_xml)
     new_xml = _writer_collapse_consecutive_page_breaks(new_xml)
     new_xml = _writer_unique_docpr_ids(new_xml)
@@ -12152,15 +12264,24 @@ def postprocess_writer_docx(
     if merged_numbering is not None:
         replacements["word/numbering.xml"] = merged_numbering.encode("utf-8")
 
-    for entry_name in orig_header_entries:
+    for entry_name in dict.fromkeys(orig_header_entries):
         header_bytes = read_zip_entry(source_docx, entry_name)
         if header_bytes:
             replacements[entry_name] = header_bytes
 
-    for entry_name in orig_footer_entries:
+    for entry_name in dict.fromkeys(orig_footer_entries):
         footer_bytes = read_zip_entry(source_docx, entry_name)
         if footer_bytes:
             replacements[entry_name] = footer_bytes
+
+    new_xml, converted_rels_xml, extra_header_footer_entries = (
+        _writer_apply_section_header_footer_metadata(
+            new_xml, source_docx, source_html, orig_rels, r_id_map,
+            converted_rels_xml, replacements, existing_entries,
+        )
+    )
+    if new_xml != converted_xml:
+        replacements["word/document.xml"] = new_xml.encode("utf-8")
 
     # Runs restored from the original keep `w:asciiTheme="majorHAnsi"`; LibreOffice's regenerated
     # theme1.xml says Arial/Arial while the original says Calibri Light/Calibri, so those runs
@@ -12171,7 +12292,7 @@ def postprocess_writer_docx(
 
     hf_dependencies, hf_extensions = _collect_header_footer_dependencies(
         source_docx,
-        [e for e in (*orig_header_entries, *orig_footer_entries) if e in replacements],
+        [e for e in (*orig_header_entries, *orig_footer_entries, *extra_header_footer_entries) if e in replacements],
         existing_entries,
     )
     replacements.update(hf_dependencies)
@@ -12242,7 +12363,7 @@ def postprocess_writer_docx(
     new_rels_xml = converted_rels_xml
     footer_type = _DOCX_FOOTER_REL_TYPE
     header_type = _DOCX_HEADER_REL_TYPE
-    for entry_name in orig_footer_entries:
+    for entry_name in dict.fromkeys(orig_footer_entries):
         target_file = entry_name.replace("word/", "")
         new_rid = None
         for orig_rid, mapped in r_id_map.items():
@@ -12254,7 +12375,7 @@ def postprocess_writer_docx(
                 break
         if new_rid:
             new_rels_xml = _add_rels_entry(new_rels_xml, new_rid, footer_type, target_file)
-    for entry_name in orig_header_entries:
+    for entry_name in dict.fromkeys(orig_header_entries):
         target_file = entry_name.replace("word/", "")
         new_rid = None
         for orig_rid, mapped in r_id_map.items():
@@ -12282,12 +12403,20 @@ def postprocess_writer_docx(
         '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
         "</Types>"
     )
-    for entry_name in orig_footer_entries:
+    for entry_name in dict.fromkeys(orig_footer_entries):
         part_name = f"/{entry_name}"
         ct_xml = _add_content_types_override(ct_xml, part_name, _DOCX_FOOTER_CONTENT_TYPE)
-    for entry_name in orig_header_entries:
+    for entry_name in dict.fromkeys(orig_header_entries):
         part_name = f"/{entry_name}"
         ct_xml = _add_content_types_override(ct_xml, part_name, _DOCX_HEADER_CONTENT_TYPE)
+    for entry_name in extra_header_footer_entries:
+        part_name = f"/{entry_name}"
+        content_type = (
+            _DOCX_HEADER_CONTENT_TYPE
+            if re.fullmatch(r"word/header\d+\.xml", entry_name, re.IGNORECASE)
+            else _DOCX_FOOTER_CONTENT_TYPE
+        )
+        ct_xml = _add_content_types_override(ct_xml, part_name, content_type)
     if numbering_part_missing:
         ct_xml = _add_content_types_override(
             ct_xml, "/word/numbering.xml",
@@ -12489,6 +12618,372 @@ def _writer_html_plain(inner: str) -> str:
     return html.unescape(re.sub(r"<[^>]+>", "", inner)).strip()
 
 
+def _writer_export_zone_html(source_html: str | None, kind: str) -> str | None:
+    if not source_html:
+        return None
+    meta_match = re.search(
+        r"<!--vno-sections-meta:\s*(\[.*?\])\s*-->",
+        source_html, re.IGNORECASE | re.DOTALL,
+    )
+    if not meta_match:
+        return None
+    try:
+        sections = json.loads(meta_match.group(1))
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(sections, list):
+        return None
+    active = next(
+        (item for item in sections if isinstance(item, dict) and item.get("active")),
+        next((item for item in sections if isinstance(item, dict)), None),
+    )
+    if not active:
+        return None
+    header_footer = active.get("headerFooter") or {}
+    if kind in header_footer:
+        return str(header_footer.get(kind) or "")
+    variants = header_footer.get("headers" if kind == "header" else "footers") or {}
+    if isinstance(variants, dict) and "default" in variants:
+        return str(variants.get("default") or "")
+    return None
+
+
+def _writer_zone_visible_text(inner: str) -> str:
+    """Return comparable visible text for header/footer HTML and OOXML parts."""
+    value = re.sub(r"<br\b[^>]*?/?>", " ", inner or "", flags=re.IGNORECASE)
+    value = re.sub(r"</(?:p|div|li|h[1-6])\s*>", " ", value, flags=re.IGNORECASE)
+    value = html.unescape(re.sub(r"<[^>]+>", "", value))
+    return re.sub(r"\s+", " ", value).strip()
+
+
+def _writer_ooxml_part_visible_text(part_xml: str) -> str:
+    paragraphs = re.findall(r"<w:p\b[^>]*>([\s\S]*?)</w:p\s*>", part_xml or "", re.IGNORECASE)
+    if not paragraphs:
+        paragraphs = [part_xml or ""]
+    texts = [
+        html.unescape("".join(re.findall(r"<w:t\b[^>]*>([\s\S]*?)</w:t\s*>", paragraph, re.IGNORECASE)))
+        for paragraph in paragraphs
+    ]
+    return re.sub(r"\s+", " ", " ".join(texts)).strip()
+
+
+def _writer_header_footer_export_matches(
+    docx_bytes: bytes, kind: str, desired_html: str,
+) -> bytes | None:
+    """Find a converted header/footer part whose visible text matches the HTML export."""
+    desired_text = _writer_zone_visible_text(desired_html)
+    if not desired_text:
+        return None
+    with zipfile.ZipFile(io.BytesIO(docx_bytes), "r") as package:
+        names = sorted(
+            name for name in package.namelist()
+            if re.fullmatch(rf"word/{kind}\d+\.xml", name, re.IGNORECASE)
+        )
+        for name in names:
+            part = package.read(name)
+            part_xml = part.decode("utf-8", errors="replace")
+            # Relationship-bearing parts need their own rels/dependencies copied
+            # as a set. Keep the original in that case; plain text/field edits are
+            # safe to overlay directly onto its existing relationship target.
+            if re.search(r"\br:(?:embed|id|link)=", part_xml, re.IGNORECASE):
+                continue
+            if _writer_ooxml_part_visible_text(part_xml) == desired_text:
+                return part
+    return None
+
+
+def _writer_clear_header_footer_part(part_bytes: bytes, root_name: str) -> bytes:
+    part_xml = part_bytes.decode("utf-8", errors="replace")
+    root = re.search(rf"(<w:{root_name}\b[^>]*>)[\s\S]*?(</w:{root_name}\s*>)", part_xml, re.IGNORECASE)
+    if not root:
+        return part_bytes
+    cleared = part_xml[:root.start()] + root.group(1) + "<w:p/>" + root.group(2) + part_xml[root.end():]
+    return cleared.encode("utf-8")
+
+
+def _writer_zone_html_tokens(inner: str) -> tuple[list[str], list[str]]:
+    fields: list[str] = []
+
+    def mark_field(match: re.Match) -> str:
+        fields.append(match.group(1).upper())
+        return f"\ue000{len(fields) - 1}\ue001"
+
+    marked = re.sub(
+        r"<span\b(?=[^>]*\bdata-vno-field=[\"'](PAGE|NUMPAGES)[\"'])[^>]*>[\s\S]*?</span\s*>",
+        mark_field, inner or "", flags=re.IGNORECASE,
+    )
+    normalized = _writer_zone_visible_text(marked)
+    segments: list[str] = []
+    cursor = 0
+    for token in re.finditer(r"\ue000(\d+)\ue001", normalized):
+        segments.append(normalized[cursor:token.start()])
+        cursor = token.end()
+    segments.append(normalized[cursor:])
+    return segments, fields
+
+
+def _writer_ooxml_field_ranges(part_xml: str) -> list[tuple[int, int, str]]:
+    ranges: list[tuple[int, int, str]] = []
+    simple_fields = re.finditer(
+        r"<w:fldSimple\b([^>]*)>[\s\S]*?</w:fldSimple\s*>", part_xml, re.IGNORECASE,
+    )
+    for match in simple_fields:
+        instruction = re.search(r"\bw:instr=[\"']([^\"']*)[\"']", match.group(1), re.IGNORECASE)
+        field_name = re.search(r"\b(PAGE|NUMPAGES)\b", instruction.group(1), re.IGNORECASE) if instruction else None
+        if field_name:
+            ranges.append((match.start(), match.end(), field_name.group(1).upper()))
+
+    token_re = re.compile(
+        r"<w:fldChar\b[^>]*>|<w:instrText\b[^>]*>[\s\S]*?</w:instrText\s*>",
+        re.IGNORECASE,
+    )
+    stack: list[dict[str, object]] = []
+    for match in token_re.finditer(part_xml):
+        token = match.group(0)
+        if "fldChar" in token:
+            kind = re.search(r"\bw:fldCharType=[\"']([^\"']+)[\"']", token, re.IGNORECASE)
+            field_state = kind.group(1).lower() if kind else ""
+            if field_state == "begin":
+                stack.append({"start": match.start(), "name": "", "depth": 0})
+            elif field_state == "end" and stack:
+                field = stack.pop()
+                if field.get("name"):
+                    ranges.append((int(field["start"]), match.end(), str(field["name"])))
+        elif stack:
+            field_name = re.search(r"\b(PAGE|NUMPAGES)\b", _unescape_xml(token), re.IGNORECASE)
+            if field_name:
+                stack[-1]["name"] = field_name.group(1).upper()
+
+    ranges.sort(key=lambda item: item[0])
+    non_overlapping: list[tuple[int, int, str]] = []
+    for item in ranges:
+        if non_overlapping and item[0] < non_overlapping[-1][1]:
+            continue
+        non_overlapping.append(item)
+    return non_overlapping
+
+
+def _writer_patch_header_footer_text(part_bytes: bytes, kind: str, desired_html: str) -> bytes | None:
+    """Patch visible zone text while retaining source run formatting and field markup."""
+    root_name = "hdr" if kind == "header" else "ftr"
+    part_xml = part_bytes.decode("utf-8", errors="replace")
+    root = re.search(rf"<w:{root_name}\b[^>]*>[\s\S]*?</w:{root_name}\s*>", part_xml, re.IGNORECASE)
+    if not root:
+        return None
+    desired_segments, desired_fields = _writer_zone_html_tokens(desired_html)
+    if not any(desired_segments) and not desired_fields:
+        return _writer_clear_header_footer_part(part_bytes, root_name)
+    xml = root.group(0)
+    field_ranges = _writer_ooxml_field_ranges(xml)
+    source_fields = [name for _start, _end, name in field_ranges]
+    if source_fields != desired_fields:
+        return None
+
+    segments: list[tuple[int, int, list[re.Match]]] = []
+    segment_start = 0
+    for start, end, _name in field_ranges:
+        text_nodes = [
+            match for match in re.finditer(r"<w:t\b([^>]*)>([\s\S]*?)</w:t\s*>", xml, re.IGNORECASE)
+            if segment_start <= match.start() and match.end() <= start
+        ]
+        segments.append((segment_start, start, text_nodes))
+        segment_start = end
+    text_nodes = [
+        match for match in re.finditer(r"<w:t\b([^>]*)>([\s\S]*?)</w:t\s*>", xml, re.IGNORECASE)
+        if segment_start <= match.start() and match.end() <= len(xml)
+    ]
+    segments.append((segment_start, len(xml), text_nodes))
+    if len(segments) != len(desired_segments):
+        return None
+
+    result = xml
+    for (_start, _end, nodes), value in reversed(list(zip(segments, desired_segments))):
+        if value and not nodes:
+            return None
+        for index, node in reversed(list(enumerate(nodes))):
+            replacement_text = value if index == 0 else ""
+            attrs = node.group(1)
+            if replacement_text[:1].isspace() or replacement_text[-1:].isspace():
+                if not re.search(r"\bxml:space=[\"']preserve[\"']", attrs, re.IGNORECASE):
+                    attrs += ' xml:space="preserve"'
+            replacement = f"<w:t{attrs}>{html.escape(replacement_text, quote=False)}</w:t>"
+            result = result[:node.start()] + replacement + result[node.end():]
+    return (part_xml[:root.start()] + result + part_xml[root.end():]).encode("utf-8")
+
+
+def _writer_section_zone_value(section: dict, kind: str, variant: str) -> str | None:
+    header_footer = section.get("headerFooter") or {}
+    variants = header_footer.get("headers" if kind == "header" else "footers") or {}
+    if isinstance(variants, dict) and variant in variants:
+        return str(variants.get(variant) or "")
+    if variant == "default" and kind in header_footer:
+        return str(header_footer.get(kind) or "")
+    return None
+
+
+def _writer_apply_section_header_footer_metadata(
+    document_xml: str,
+    source_docx: bytes,
+    source_html: str | None,
+    source_rels: dict[str, str],
+    rid_map: dict[str, str],
+    converted_rels_xml: str,
+    replacements: dict[str, bytes],
+    existing_entries: set[str],
+) -> tuple[str, str, list[str]]:
+    if not source_html:
+        return document_xml, converted_rels_xml, []
+    meta_match = re.search(
+        r"<!--vno-sections-meta:\s*(\[.*?\])\s*-->",
+        source_html, re.IGNORECASE | re.DOTALL,
+    )
+    if not meta_match:
+        return document_xml, converted_rels_xml, []
+    try:
+        metadata = json.loads(meta_match.group(1))
+    except (TypeError, ValueError):
+        return document_xml, converted_rels_xml, []
+    if not isinstance(metadata, list):
+        return document_xml, converted_rels_xml, []
+    metadata = [item for item in metadata if isinstance(item, dict)]
+    source_xml_bytes = read_zip_entry(source_docx, "word/document.xml")
+    if not source_xml_bytes:
+        return document_xml, converted_rels_xml, []
+    source_xml = source_xml_bytes.decode("utf-8", errors="replace")
+    source_sections = list(re.finditer(r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>", source_xml, re.IGNORECASE))
+    output_sections = list(re.finditer(r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>", document_xml, re.IGNORECASE))
+    if len(source_sections) != len(metadata) or len(output_sections) != len(metadata):
+        return document_xml, converted_rels_xml, []
+
+    requests: list[dict[str, object]] = []
+    reference_re = re.compile(r"<w:(headerReference|footerReference)\b([^>]*)/?>", re.IGNORECASE)
+    for index, (source_section, section_meta) in enumerate(zip(source_sections, metadata)):
+        for ref in reference_re.finditer(source_section.group(0)):
+            tag = ref.group(1).lower()
+            attrs = ref.group(2)
+            rel_match = re.search(r"\br:id=[\"']([^\"']+)[\"']", attrs, re.IGNORECASE)
+            if not rel_match:
+                continue
+            source_rid = rel_match.group(1)
+            variant_match = re.search(r"\bw:type=[\"']([^\"']+)[\"']", attrs, re.IGNORECASE)
+            variant = (variant_match.group(1).lower() if variant_match else "default")
+            kind = "header" if tag == "headerreference" else "footer"
+            desired_html = _writer_section_zone_value(section_meta, kind, variant)
+            if desired_html is None:
+                continue
+            target = source_rels.get(source_rid, "")
+            entry = target.lstrip("/") if target.startswith("/") else posixpath.normpath(posixpath.join("word", target))
+            source_part = read_zip_entry(source_docx, entry)
+            if not source_part:
+                continue
+            source_part_xml = source_part.decode("utf-8", errors="replace")
+            if _writer_ooxml_part_visible_text(source_part_xml) == _writer_zone_visible_text(desired_html):
+                patched_part = source_part
+            else:
+                patched_part = _writer_patch_header_footer_text(source_part, kind, desired_html)
+                if patched_part is None:
+                    raise ValueError(
+                        f"Writer đã sửa {kind} nhưng không thể ánh xạ an toàn nội dung/field vào part DOCX hiện có."
+                    )
+            requests.append({
+                "section": index, "tag": tag, "variant": variant,
+                "source_rid": source_rid, "entry": entry,
+                "kind": kind, "part": patched_part,
+            })
+
+    if not requests:
+        return document_xml, converted_rels_xml, []
+
+    mapped_rid_numbers = [
+        int(match.group(1))
+        for value in rid_map.values()
+        if (match := re.fullmatch(r"rId(\d+)", value, re.IGNORECASE))
+    ]
+    next_rid = max(_max_rels_rid(converted_rels_xml), max(mapped_rid_numbers, default=0)) + 1
+    grouped: dict[tuple[str, str], list[bytes]] = {}
+    source_parts: dict[tuple[str, str], bytes] = {}
+    for request in requests:
+        key = (str(request["kind"]), str(request["source_rid"]))
+        source_parts[key] = read_zip_entry(source_docx, str(request["entry"])) or b""
+        value = bytes(request["part"])
+        if value not in grouped.setdefault(key, []):
+            grouped[key].append(value)
+
+    rid_by_request: dict[tuple[int, str, str, str], str] = {}
+    duplicate_entries: list[str] = []
+    used_entries = set(existing_entries) | set(replacements)
+    for key, contents in grouped.items():
+        kind, source_rid = key
+        original_entry = next(str(r["entry"]) for r in requests if (str(r["kind"]), str(r["source_rid"])) == key)
+        original_bytes = source_parts[key]
+        base_rid = rid_map.get(source_rid, source_rid)
+        if original_bytes in contents:
+            contents.remove(original_bytes)
+            base_content = original_bytes
+        elif contents:
+            base_content = contents.pop(0)
+        else:
+            base_content = original_bytes
+        replacements[original_entry] = base_content
+        content_to_rid = {base_content: base_rid}
+        for content in contents:
+            existing_indexes = [
+                int(value) for name in used_entries
+                if re.fullmatch(rf"word/{kind}(\d+)\.xml", name, re.IGNORECASE)
+                for value in [re.fullmatch(rf"word/{kind}(\d+)\.xml", name, re.IGNORECASE).group(1)]
+            ]
+            next_index = max(existing_indexes, default=0) + 1
+            entry = f"word/{kind}{next_index}.xml"
+            while entry in used_entries:
+                next_index += 1
+                entry = f"word/{kind}{next_index}.xml"
+            used_entries.add(entry)
+            duplicate_entries.append(entry)
+            replacements[entry] = content
+            rel_type = _DOCX_HEADER_REL_TYPE if kind == "header" else _DOCX_FOOTER_REL_TYPE
+            new_rid = f"rId{next_rid}"
+            next_rid += 1
+            converted_rels_xml = _add_rels_entry(converted_rels_xml, new_rid, rel_type, entry.replace("word/", "", 1))
+            content_to_rid[content] = new_rid
+        for request in requests:
+            if (str(request["kind"]), str(request["source_rid"])) != key:
+                continue
+            rid_by_request[(int(request["section"]), str(request["tag"]), str(request["variant"]), source_rid)] = content_to_rid[bytes(request["part"])]
+
+    updated_sections: list[str] = []
+    for index, output_section in enumerate(output_sections):
+        section_xml = output_section.group(0)
+        source_section = source_sections[index].group(0)
+        source_refs = list(reference_re.finditer(source_section))
+        for source_ref in reversed(source_refs):
+            tag = source_ref.group(1).lower()
+            attrs = source_ref.group(2)
+            source_rid_match = re.search(r"\br:id=[\"']([^\"']+)[\"']", attrs, re.IGNORECASE)
+            if not source_rid_match:
+                continue
+            variant_match = re.search(r"\bw:type=[\"']([^\"']+)[\"']", attrs, re.IGNORECASE)
+            variant = variant_match.group(1).lower() if variant_match else "default"
+            key = (index, tag, variant, source_rid_match.group(1))
+            target_rid = rid_by_request.get(key)
+            if not target_rid:
+                continue
+            updated_ref = re.sub(
+                r"\br:id=[\"'][^\"']+[\"']", f'r:id="{target_rid}"',
+                source_ref.group(0), count=1, flags=re.IGNORECASE,
+            )
+            current_ref = next((
+                match for match in re.finditer(rf"<w:{re.escape(tag)}\b[^>]*/?>", section_xml, re.IGNORECASE)
+                if (re.search(r"\bw:type=[\"']([^\"']+)[\"']", match.group(0), re.IGNORECASE) or [None, "default"])[1].lower() == variant
+            ), None)
+            if current_ref:
+                section_xml = section_xml[:current_ref.start()] + updated_ref + section_xml[current_ref.end():]
+        updated_sections.append(section_xml)
+    result = document_xml
+    for output_section, replacement in reversed(list(zip(output_sections, updated_sections))):
+        result = result[:output_section.start()] + replacement + result[output_section.end():]
+    return result, converted_rels_xml, duplicate_entries
+
+
 def _writer_restore_created_paragraph_css(document_xml: str, source_html: str) -> str:
     """Restore basic paragraph properties that LibreOffice's HTML filter drops."""
     by_text: dict[str, dict[str, str]] = {}
@@ -12557,53 +13052,409 @@ def _writer_restore_created_run_highlight(run_xml: str, highlighted_texts: dict[
     return run_xml
 
 
-def _writer_clone_lower_alpha_suffix(document_xml: str, numbering_xml: str, source_html: str) -> tuple[str, str]:
-    """Use Word's requested a) suffix for HTML lower-alpha ordered lists."""
-    item_texts = {
-        re.sub(r"\s+", " ", _writer_html_plain(item.group(1))).strip()
-        for listing in re.finditer(r"<ol\b(?=[^>]*\btype\s*=\s*([\"'])a\1)[^>]*>([\s\S]*?)</ol\s*>", source_html, re.IGNORECASE)
-        for item in re.finditer(r"<li\b[^>]*>([\s\S]*?)</li\s*>", listing.group(2), re.IGNORECASE)
+class _WriterExportListParser(HTMLParser):
+    """Collect direct list-item text without confusing it with nested items."""
+
+    _PRESET_BY_CLASS = {
+        "vno-ml-decimal": "decimal",
+        "vno-ml-letter": "letter",
+        "vno-ml-nd30": "nd30",
     }
-    if not item_texts:
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.list_stack: list[dict] = []
+        self.item_stack: list[dict] = []
+        self.groups: dict[int, dict] = {}
+        self._next_group = 1
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attrs_map = {name.casefold(): (value or "") for name, value in attrs}
+        if tag.casefold() == "ol":
+            classes = attrs_map.get("class", "").split()
+            preset = next((self._PRESET_BY_CLASS[name] for name in classes if name in self._PRESET_BY_CLASS), "")
+            inherited = self.list_stack[-1] if self.list_stack else None
+            if not preset and attrs_map.get("type") == "a":
+                preset = "lower-alpha"
+            if not preset and inherited:
+                preset = inherited["preset"]
+            if inherited and inherited["preset"] == preset:
+                group_id = inherited["group_id"]
+                depth = inherited["depth"] + 1
+            else:
+                group_id = self._next_group
+                self._next_group += 1
+                depth = 0
+                self.groups[group_id] = {"preset": preset, "items": []}
+            self.list_stack.append({"preset": preset, "group_id": group_id, "depth": depth})
+        elif tag.casefold() == "li" and self.list_stack:
+            current = self.list_stack[-1]
+            item = {"text_parts": [], "depth": current["depth"], "group_id": current["group_id"]}
+            self.item_stack.append(item)
+            self.groups[current["group_id"]]["items"].append(item)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag.casefold() == "li" and self.item_stack:
+            self.item_stack.pop()
+        elif tag.casefold() == "ol" and self.list_stack:
+            self.list_stack.pop()
+
+    def handle_data(self, data: str) -> None:
+        if self.item_stack:
+            self.item_stack[-1]["text_parts"].append(data)
+
+    def result(self) -> list[dict]:
+        groups = []
+        for group in self.groups.values():
+            if not group["preset"]:
+                continue
+            items = []
+            for item in group["items"]:
+                text = re.sub(r"\s+", " ", "".join(item["text_parts"])).strip()
+                if text:
+                    items.append({"text": text, "depth": item["depth"]})
+            if items:
+                groups.append({"preset": group["preset"], "items": items})
+        return groups
+
+
+def _writer_list_level_format(preset: str, level: int) -> tuple[str, str] | None:
+    """Return Word numFmt/lvlText for the three list presets shown by Writer."""
+    formats = {
+        "decimal": [("decimal", "%1."), ("decimal", "%1.%2."), ("decimal", "%1.%2.%3.")],
+        "letter": [("decimal", "%1."), ("lowerLetter", "%2."), ("lowerRoman", "%3.")],
+        "nd30": [("decimal", "Điều %1."), ("decimal", "%2."), ("lowerLetter", "%3)")],
+        "lower-alpha": [("lowerLetter", "%1)")],
+    }
+    levels = formats.get(preset, [])
+    return levels[level] if 0 <= level < len(levels) else None
+
+
+def _writer_clone_lower_alpha_suffix(document_xml: str, numbering_xml: str, source_html: str) -> tuple[str, str]:
+    """Restore semantic multilevel numbering lost by LibreOffice's HTML filter.
+
+    Writer already owns the requested presets and its FODT serializer expresses
+    them as decimal/lowerLetter/lowerRoman.  Production Save currently goes via
+    LibreOffice HTML import, which preserves numId/ilvl but flattens every level
+    to decimal.  Clone only the affected abstractNum and keep soffice's layout.
+    """
+    parser = _WriterExportListParser()
+    try:
+        parser.feed(source_html)
+        groups = parser.result()
+    except (TypeError, ValueError):
+        groups = []
+    if not groups:
         return document_xml, numbering_xml
-    item_num_id = None
-    for paragraph in re.findall(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", document_xml, re.IGNORECASE):
-        if re.sub(r"\s+", " ", _paragraph_plain_text(paragraph)).strip() not in item_texts:
+
+    abstract_ids = [int(value[1]) for value in re.findall(
+        r"<w:abstractNum\b[^>]*w:abstractNumId=([\"'])(\d+)\1", numbering_xml, re.IGNORECASE
+    )]
+    num_ids = [int(value[1]) for value in re.findall(
+        r"<w:num\b[^>]*w:numId=([\"'])(\d+)\1", numbering_xml, re.IGNORECASE
+    )]
+    next_abstract_id = max(abstract_ids, default=0) + 1
+    next_num_id = max(num_ids, default=0) + 1
+
+    paragraphs = [match.group(0) for match in re.finditer(
+        r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", document_xml, re.IGNORECASE
+    )]
+    paragraph_replacements: dict[int, str] = {}
+    search_from = 0
+    new_abstracts: list[str] = []
+    new_nums: list[str] = []
+
+    for group in groups:
+        matched: list[tuple[int, dict, str]] = []
+        cursor = search_from
+        for item in group["items"]:
+            found = None
+            for index in range(cursor, len(paragraphs)):
+                paragraph = paragraphs[index]
+                if _paragraph_plain_text(paragraph).strip() != item["text"]:
+                    continue
+                num_id = re.search(r"<w:numId\b[^>]*w:val=([\"'])(\d+)\1", paragraph, re.IGNORECASE)
+                if num_id:
+                    found = (index, item, num_id.group(2))
+                    break
+            if found is None:
+                matched = []
+                break
+            matched.append(found)
+            cursor = found[0] + 1
+        if not matched:
             continue
-        num_id = re.search(r"<w:numId\b[^>]*w:val=([\"'])(\d+)\1", paragraph, re.IGNORECASE)
-        if num_id:
-            item_num_id = num_id.group(2)
+        search_from = matched[-1][0] + 1
+        source_num_id = matched[0][2]
+        num = re.search(
+            rf"<w:num\b[^>]*w:numId=([\"']){re.escape(source_num_id)}\1[^>]*>[\s\S]*?</w:num\s*>",
+            numbering_xml, re.IGNORECASE,
+        )
+        abstract_id = re.search(
+            r"<w:abstractNumId\b[^>]*w:val=([\"'])(\d+)\1", num.group(0), re.IGNORECASE
+        ) if num else None
+        abstract = re.search(
+            rf"<w:abstractNum\b[^>]*w:abstractNumId=([\"']){abstract_id.group(2)}\1[^>]*>[\s\S]*?</w:abstractNum\s*>",
+            numbering_xml, re.IGNORECASE,
+        ) if abstract_id else None
+        if not abstract:
+            continue
+
+        new_abstract_id = next_abstract_id
+        new_group_num_id = next_num_id
+        next_abstract_id += 1
+        next_num_id += 1
+        cloned = re.sub(
+            r"(w:abstractNumId=)([\"'])\d+\2", rf'\g<1>"{new_abstract_id}"',
+            abstract.group(0), count=1, flags=re.IGNORECASE,
+        )
+
+        def patch_level(match: re.Match) -> str:
+            level_xml = match.group(0)
+            level_id = int(match.group(2))
+            requested = _writer_list_level_format(group["preset"], level_id)
+            if not requested:
+                return level_xml
+            num_fmt, level_text = requested
+            level_xml = re.sub(
+                r"<w:numFmt\b[^>]*/>", f'<w:numFmt w:val="{num_fmt}"/>',
+                level_xml, count=1, flags=re.IGNORECASE,
+            )
+            level_xml = re.sub(
+                r"<w:lvlText\b[^>]*/>", f'<w:lvlText w:val="{html.escape(level_text, quote=True)}"/>',
+                level_xml, count=1, flags=re.IGNORECASE,
+            )
+            return level_xml
+
+        cloned = re.sub(
+            r"<w:lvl\b[^>]*w:ilvl=([\"'])(\d+)\1[^>]*>[\s\S]*?</w:lvl\s*>",
+            patch_level, cloned, flags=re.IGNORECASE,
+        )
+        new_abstracts.append(cloned)
+        new_nums.append(
+            f'<w:num w:numId="{new_group_num_id}"><w:abstractNumId w:val="{new_abstract_id}"/></w:num>'
+        )
+        for index, _item, _old_num_id in matched:
+            paragraph_replacements[index] = re.sub(
+                r"(<w:numId\b[^>]*w:val=)([\"'])\d+\2",
+                rf'\g<1>"{new_group_num_id}"', paragraphs[index], count=1, flags=re.IGNORECASE,
+            )
+
+    if not new_abstracts:
+        return document_xml, numbering_xml
+    first_num = re.search(r"<w:num\b", numbering_xml, re.IGNORECASE)
+    abstract_insert = first_num.start() if first_num else numbering_xml.rfind("</w:numbering>")
+    numbering_xml = numbering_xml[:abstract_insert] + "".join(new_abstracts) + numbering_xml[abstract_insert:]
+    num_insert = numbering_xml.rfind("</w:numbering>")
+    numbering_xml = numbering_xml[:num_insert] + "".join(new_nums) + numbering_xml[num_insert:]
+
+    output: list[str] = []
+    last = 0
+    for index, match in enumerate(re.finditer(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", document_xml, re.IGNORECASE)):
+        output.append(document_xml[last:match.start()])
+        output.append(paragraph_replacements.get(index, match.group(0)))
+        last = match.end()
+    output.append(document_xml[last:])
+    return "".join(output), numbering_xml
+
+
+def _writer_restore_heading_styles(
+    document_xml: str, styles_xml: str, source_html: str
+) -> tuple[str, str]:
+    """Keep HTML headings as Word built-in Heading 1/2/3 paragraph styles."""
+    headings = [
+        (int(match.group(1)), re.sub(r"\s+", " ", _writer_html_plain(match.group(2))).strip())
+        for match in re.finditer(r"<h([1-3])\b[^>]*>([\s\S]*?)</h\1\s*>", source_html, re.IGNORECASE)
+    ]
+    headings = [(level, text) for level, text in headings if text]
+    if not headings:
+        return document_xml, styles_xml
+
+    paragraph_matches = list(re.finditer(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", document_xml, re.IGNORECASE))
+    toc_indexes: set[int] = set()
+    toc_cursor = 0
+    for toc_text in _writer_toc_fallback_texts(source_html):
+        found = next((
+            index for index in range(toc_cursor, len(paragraph_matches))
+            if _paragraph_plain_text(paragraph_matches[index].group(0)).strip() == toc_text
+        ), None)
+        if found is None:
             break
-    if not item_num_id:
-        return document_xml, numbering_xml
-    num = re.search(rf"<w:num\b[^>]*w:numId=([\"']){item_num_id}\1[^>]*>[\s\S]*?</w:num\s*>", numbering_xml, re.IGNORECASE)
-    abstract_id = re.search(r"<w:abstractNumId\b[^>]*w:val=([\"'])(\d+)\1", num.group(0), re.IGNORECASE) if num else None
-    abstract = re.search(rf"<w:abstractNum\b[^>]*w:abstractNumId=([\"']){abstract_id.group(2)}\1[^>]*>[\s\S]*?</w:abstractNum\s*>", numbering_xml, re.IGNORECASE) if abstract_id else None
-    if not abstract or not num:
-        return document_xml, numbering_xml
-    abstract_ids = [int(value) for value in re.findall(r"<w:abstractNum\b[^>]*w:abstractNumId=([\"'])(\d+)\1", numbering_xml, re.IGNORECASE) for value in [value[1]]]
-    num_ids = [int(value) for value in re.findall(r"<w:num\b[^>]*w:numId=([\"'])(\d+)\1", numbering_xml, re.IGNORECASE) for value in [value[1]]]
-    new_abstract_id, new_num_id = max(abstract_ids, default=0) + 1, max(num_ids, default=0) + 1
-    cloned_abstract = re.sub(r"(w:abstractNumId=)([\"'])\d+\2", rf'\g<1>"{new_abstract_id}"', abstract.group(0), count=1, flags=re.IGNORECASE)
-    cloned_abstract = re.sub(r"<w:lvlText\b[^>]*/>", '<w:lvlText w:val="%1)"/>', cloned_abstract, count=1, flags=re.IGNORECASE)
-    cloned_num = re.sub(r"(w:numId=)([\"'])\d+\2", rf'\g<1>"{new_num_id}"', num.group(0), count=1, flags=re.IGNORECASE)
-    cloned_num = re.sub(r"(<w:abstractNumId\b[^>]*w:val=)([\"'])\d+\2", rf'\g<1>"{new_abstract_id}"', cloned_num, count=1, flags=re.IGNORECASE)
-    insert_abstract = re.search(r"<w:abstractNum\b", numbering_xml, re.IGNORECASE)
-    insert_num = numbering_xml.rfind("</w:numbering>")
-    if not insert_abstract or insert_num < 0:
-        return document_xml, numbering_xml
-    numbering_xml = numbering_xml[:insert_abstract.start()] + cloned_abstract + numbering_xml[insert_abstract.start():]
-    insert_num = numbering_xml.rfind("</w:numbering>")
-    numbering_xml = numbering_xml[:insert_num] + f'<w:num w:numId="{new_num_id}"><w:abstractNumId w:val="{new_abstract_id}"/></w:num>' + numbering_xml[insert_num:]
+        toc_indexes.add(found)
+        toc_cursor = found + 1
 
-    def assign_new_list(match: re.Match) -> str:
-        paragraph = match.group(0)
-        if re.sub(r"\s+", " ", _paragraph_plain_text(paragraph)).strip() not in item_texts:
-            return paragraph
-        return re.sub(r"(<w:numId\b[^>]*w:val=)([\"'])\d+\2", rf'\g<1>"{new_num_id}"', paragraph, count=1, flags=re.IGNORECASE)
+    replacements: dict[int, str] = {}
+    cursor = 0
+    for level, expected in headings:
+        found = next((
+            index for index in range(cursor, len(paragraph_matches))
+            if index not in toc_indexes
+            and _paragraph_plain_text(paragraph_matches[index].group(0)).strip() == expected
+        ), None)
+        if found is None:
+            continue
+        replacements[found] = _writer_upsert_ppr_empty(
+            paragraph_matches[found].group(0), "pStyle", f'<w:pStyle w:val="Heading{level}"/>'
+        )
+        cursor = found + 1
+    if replacements:
+        output: list[str] = []
+        previous = 0
+        for index, paragraph in enumerate(paragraph_matches):
+            output.append(document_xml[previous:paragraph.start()])
+            output.append(replacements.get(index, paragraph.group(0)))
+            previous = paragraph.end()
+        output.append(document_xml[previous:])
+        document_xml = "".join(output)
 
-    document_xml = re.sub(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", assign_new_list, document_xml, flags=re.IGNORECASE)
-    return document_xml, numbering_xml
+    for level in sorted({level for level, _text in headings}):
+        style_match = re.search(
+            rf'<w:style\b(?=[^>]*\bw:type=["\']paragraph["\'])(?=[^>]*\bw:styleId=["\']Heading{level}["\'])[^>]*>[\s\S]*?</w:style\s*>',
+            styles_xml, re.IGNORECASE,
+        )
+        outline = level - 1
+        if style_match:
+            style = style_match.group(0)
+            if re.search(r"<w:name\b", style, re.IGNORECASE):
+                style = re.sub(
+                    r'<w:name\b[^>]*/>', f'<w:name w:val="Heading {level}"/>',
+                    style, count=1, flags=re.IGNORECASE,
+                )
+            else:
+                style = re.sub(
+                    r"(<w:style\b[^>]*>)", rf'\1<w:name w:val="Heading {level}"/>',
+                    style, count=1, flags=re.IGNORECASE,
+                )
+            if not re.search(r"<w:qFormat\b", style, re.IGNORECASE):
+                style = re.sub(r"</w:style\s*>", "<w:qFormat/></w:style>", style, count=1, flags=re.IGNORECASE)
+            ppr = re.search(r"<w:pPr\b[^>]*>[\s\S]*?</w:pPr\s*>", style, re.IGNORECASE)
+            if ppr:
+                updated_ppr = re.sub(
+                    r'<w:outlineLvl\b[^>]*/>', f'<w:outlineLvl w:val="{outline}"/>',
+                    ppr.group(0), count=1, flags=re.IGNORECASE,
+                )
+                if updated_ppr == ppr.group(0):
+                    updated_ppr = re.sub(
+                        r"</w:pPr\s*>", f'<w:outlineLvl w:val="{outline}"/></w:pPr>',
+                        updated_ppr, count=1, flags=re.IGNORECASE,
+                    )
+                style = style[:ppr.start()] + updated_ppr + style[ppr.end():]
+            else:
+                style = re.sub(
+                    r"(<w:rPr\b|</w:style\s*>)",
+                    f'<w:pPr><w:outlineLvl w:val="{outline}"/></w:pPr>\\1',
+                    style, count=1, flags=re.IGNORECASE,
+                )
+            styles_xml = styles_xml[:style_match.start()] + style + styles_xml[style_match.end():]
+        else:
+            style = (
+                f'<w:style w:type="paragraph" w:styleId="Heading{level}">'
+                f'<w:name w:val="Heading {level}"/><w:basedOn w:val="Normal"/>'
+                f'<w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/>'
+                f'<w:outlineLvl w:val="{outline}"/></w:pPr></w:style>'
+            )
+            close = styles_xml.rfind("</w:styles>")
+            if close >= 0:
+                styles_xml = styles_xml[:close] + style + styles_xml[close:]
+    return document_xml, styles_xml
+
+
+def _writer_balanced_html_element(source: str, start: int, tag: str) -> str:
+    token_re = re.compile(rf"</?{re.escape(tag)}\b[^>]*>", re.IGNORECASE)
+    depth = 0
+    for token in token_re.finditer(source, start):
+        if token.group(0).startswith("</"):
+            depth -= 1
+            if depth == 0:
+                return source[start:token.end()]
+        elif not token.group(0).rstrip().endswith("/>"):
+            depth += 1
+    return ""
+
+
+def _writer_toc_fallback_texts(source_html: str) -> list[str]:
+    marker = re.search(
+        r'<div\b(?=[^>]*\bdata-vno-toc\s*=\s*(["\'])true\1)[^>]*>',
+        source_html, re.IGNORECASE,
+    )
+    if not marker:
+        return []
+    block = _writer_balanced_html_element(source_html, marker.start(), "div")
+    if not block:
+        return []
+    paragraphs = [
+        re.sub(r"\s+", " ", _writer_html_plain(match.group(1))).strip()
+        for match in re.finditer(r"<p\b[^>]*>([\s\S]*?)</p\s*>", block, re.IGNORECASE)
+    ]
+    paragraphs = [text for text in paragraphs if text]
+    if paragraphs:
+        return paragraphs
+
+    texts: list[str] = []
+    title = re.search(
+        r'<span\b(?=[^>]*\bclass=["\'][^"\']*\bvno-toc-title\b[^"\']*["\'])[^>]*>([\s\S]*?)</span\s*>',
+        block, re.IGNORECASE,
+    )
+    if title:
+        value = re.sub(r"\s+", " ", _writer_html_plain(title.group(1))).strip()
+        if value:
+            texts.append(value)
+    for item_start in re.finditer(
+        r'<div\b(?=[^>]*\bclass=["\'][^"\']*\bvno-toc-item\b[^"\']*["\'])[^>]*>',
+        block, re.IGNORECASE,
+    ):
+        item = _writer_balanced_html_element(block, item_start.start(), "div")
+        value = re.sub(r"\s+", " ", _writer_html_plain(item)).strip()
+        if value:
+            texts.append(value)
+    return texts
+
+
+def _writer_restore_toc_field(document_xml: str, source_html: str) -> str:
+    """Wrap soffice's visible TOC fallback in a native complex Word TOC field."""
+    if re.search(r"<w:instrText\b[^>]*>[\s\S]*?\bTOC\b", document_xml, re.IGNORECASE):
+        return document_xml
+    toc_texts = _writer_toc_fallback_texts(source_html)
+    if not toc_texts:
+        return document_xml
+    paragraphs = list(re.finditer(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", document_xml, re.IGNORECASE))
+    matched: list[int] = []
+    cursor = 0
+    for expected in toc_texts:
+        found = next((
+            index for index in range(cursor, len(paragraphs))
+            if _paragraph_plain_text(paragraphs[index].group(0)).strip() == expected
+        ), None)
+        if found is None:
+            return document_xml
+        matched.append(found)
+        cursor = found + 1
+    if not matched:
+        return document_xml
+
+    begin = (
+        '<w:r><w:fldChar w:fldCharType="begin" w:dirty="true"/></w:r>'
+        '<w:r><w:instrText xml:space="preserve"> TOC \\o "1-3" \\h \\z \\u </w:instrText></w:r>'
+        '<w:r><w:fldChar w:fldCharType="separate"/></w:r>'
+    )
+    end = '<w:r><w:fldChar w:fldCharType="end"/></w:r>'
+    first_index, last_index = matched[0], matched[-1]
+    replacements: dict[int, str] = {}
+    first = paragraphs[first_index].group(0)
+    ppr = re.search(r"<w:pPr\b[^>]*>[\s\S]*?</w:pPr\s*>", first, re.IGNORECASE)
+    insert_at = ppr.end() if ppr else re.search(r"<w:p\b[^>]*>", first, re.IGNORECASE).end()
+    replacements[first_index] = first[:insert_at] + begin + first[insert_at:]
+    last = replacements.get(last_index, paragraphs[last_index].group(0))
+    replacements[last_index] = re.sub(r"</w:p\s*>", end + "</w:p>", last, count=1, flags=re.IGNORECASE)
+
+    output: list[str] = []
+    previous = 0
+    for index, paragraph in enumerate(paragraphs):
+        output.append(document_xml[previous:paragraph.start()])
+        output.append(replacements.get(index, paragraph.group(0)))
+        previous = paragraph.end()
+    output.append(document_xml[previous:])
+    return "".join(output)
 
 
 def _writer_insert_page_field(footer_xml: str, field_name: str, fallback: str = "1") -> str:
@@ -12620,20 +13471,20 @@ def _writer_insert_page_field(footer_xml: str, field_name: str, fallback: str = 
         block = paragraph.group(0)
         runs = list(re.finditer(r"<w:r\b[^>]*>[\s\S]*?</w:r\s*>", block, re.IGNORECASE))
         plain = html.unescape("".join(re.findall(r"<w:t\b[^>]*>([\s\S]*?)</w:t\s*>", block, re.IGNORECASE)))
-        if "Trang" not in plain:
-            continue
-        if field_name.upper() == "NUMPAGES":
+        has_page_label = "Trang" in plain
+        if field_name.upper() == "NUMPAGES" and has_page_label:
             target = re.search(r"/\s*" + re.escape(fallback), plain[plain.find("Trang"):], re.IGNORECASE)
             if target:
                 target_start = plain.find("Trang") + target.start() + target.group(0).rfind(fallback)
             else:
                 continue
         else:
-            prefix = plain[plain.find("Trang"):]
-            target = re.search(re.escape(fallback), prefix)
-            if not target:
+            if field_name.upper() == "NUMPAGES":
+                target_start = plain.rfind(fallback)
+            else:
+                target_start = plain.find(fallback)
+            if target_start < 0:
                 continue
-            target_start = plain.find("Trang") + target.start()
         cursor = 0
         for run in runs:
             run_text = html.unescape("".join(re.findall(r"<w:t\b[^>]*>([\s\S]*?)</w:t\s*>", run.group(0), re.IGNORECASE)))
@@ -13613,18 +14464,27 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
     section_starts = []
     for section_id in section_ids[1:]:
         start = re.search(
-            rf'<div\b[^>]*data-vno-export-section=["\']{re.escape(section_id)}["\'][^>]*>\s*<p\b[^>]*>([\s\S]*?)</p\s*>',
+            rf'<div\b[^>]*data-vno-export-section=["\']{re.escape(section_id)}["\'][^>]*>\s*<p\b([^>]*)>([\s\S]*?)</p\s*>',
             source_html,
             re.IGNORECASE,
         )
         if start:
-            section_starts.append(_writer_html_plain(start.group(1)))
-    for section_text in section_starts:
-        if not section_text:
+            bookmark = re.search(r"\bid=[\"'](vno-(?:untouched|edited)-\d+)[\"']", start.group(1), re.IGNORECASE)
+            section_starts.append((_writer_html_plain(start.group(2)), bookmark.group(1) if bookmark else ""))
+    for section_text, section_bookmark in section_starts:
+        if not section_text and not section_bookmark:
             continue
         paragraphs = list(re.finditer(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", document_xml, re.IGNORECASE))
+        # Equation markers have already become OMML, so the HTML text is no
+        # longer equal to the OOXML text. Use the paragraph's conversion
+        # bookmark first to keep its section boundary and header/footer edits.
         target_index = next((index for index, match in enumerate(paragraphs)
-                             if _paragraph_plain_text(match.group(0)).strip() == section_text), None)
+                             if section_bookmark and re.search(
+                                 rf'<w:bookmarkStart\b[^>]*\bw:name=["\']{re.escape(section_bookmark)}["\']',
+                                 match.group(0), re.IGNORECASE)), None)
+        if target_index is None:
+            target_index = next((index for index, match in enumerate(paragraphs)
+                                 if _paragraph_plain_text(match.group(0)).strip() == section_text), None)
         final_sect = re.search(r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>", document_xml, re.IGNORECASE)
         if target_index is not None and target_index > 0 and final_sect:
             carrier_match = paragraphs[target_index - 1]
@@ -13871,7 +14731,28 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
         document_xml = re.sub(r'<w:p\b[^>]*>[\s\S]*?</w:p\s*>', patch_tab_stop, document_xml, flags=re.IGNORECASE)
 
     document_xml = _writer_restore_equation_markers(document_xml, source_html)
+    styles_bytes = read_zip_entry(docx_bytes, "word/styles.xml")
+    styles_xml = styles_bytes.decode("utf-8", errors="replace") if styles_bytes else ""
+    if styles_xml:
+        document_xml, styles_xml = _writer_restore_heading_styles(document_xml, styles_xml, source_html)
+    document_xml = _writer_restore_toc_field(document_xml, source_html)
     replacements = {"word/document.xml": document_xml.encode("utf-8")}
+    if styles_bytes and styles_xml != styles_bytes.decode("utf-8", errors="replace"):
+        replacements["word/styles.xml"] = styles_xml.encode("utf-8")
+    if _writer_toc_fallback_texts(source_html):
+        settings_bytes = read_zip_entry(docx_bytes, "word/settings.xml")
+        if settings_bytes:
+            settings_xml = settings_bytes.decode("utf-8", errors="replace")
+            if re.search(r"<w:updateFields\b", settings_xml, re.IGNORECASE):
+                settings_xml = re.sub(
+                    r'<w:updateFields\b[^>]*/>', '<w:updateFields w:val="true"/>',
+                    settings_xml, count=1, flags=re.IGNORECASE,
+                )
+            else:
+                settings_xml = settings_xml.replace(
+                    "</w:settings>", '<w:updateFields w:val="true"/></w:settings>', 1
+                )
+            replacements["word/settings.xml"] = settings_xml.encode("utf-8")
     numbering_bytes = read_zip_entry(docx_bytes, "word/numbering.xml")
     numbering = numbering_bytes.decode("utf-8", errors="replace") if numbering_bytes else ""
     if numbering:
@@ -13957,6 +14838,302 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
             else:
                 settings_xml = re.sub(r"<w:evenAndOddHeaders\b[^>]*/>", "", settings_xml, flags=re.IGNORECASE)
             replacements["word/settings.xml"] = settings_xml.encode("utf-8")
+    return patch_ooxml_zip(docx_bytes, replacements)
+
+
+def _writer_review_metadata(source_html: str) -> dict | None:
+    match = re.search(r"<!--vno-review-meta-hex:([0-9a-f]+)-->", source_html or "", re.IGNORECASE)
+    if not match:
+        return None
+    try:
+        metadata = json.loads(bytes.fromhex(match.group(1)).decode("utf-8"))
+    except (ValueError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError("Dữ liệu ghi chú/Track Changes trong bản xuất không hợp lệ.") from exc
+    if not isinstance(metadata, dict) or not isinstance(metadata.get("records"), list):
+        raise ValueError("Thiếu danh sách ghi chú/Track Changes trong bản xuất.")
+    return metadata
+
+
+def writer_accepted_view_html(source_html: str) -> str:
+    """Remove deleted review ranges and temporary anchors for PDF/print output."""
+    metadata = _writer_review_metadata(source_html)
+    if not metadata:
+        return source_html
+    result = str(source_html or "")
+    records = [item for item in metadata.get("records", []) if isinstance(item, dict)]
+    for record in reversed(records):
+        if record.get("type") != "revision" or record.get("kind") != "delete":
+            continue
+        start_name = re.escape(str(record.get("startBookmark") or ""))
+        end_name = re.escape(str(record.get("endBookmark") or ""))
+        if not start_name or not end_name:
+            continue
+        start = re.search(
+            rf'<a\b(?=[^>]*\bname=["\']{start_name}["\'])[^>]*>\s*</a\s*>',
+            result, re.IGNORECASE,
+        )
+        end = re.search(
+            rf'<a\b(?=[^>]*\bname=["\']{end_name}["\'])[^>]*>\s*</a\s*>',
+            result[start.end():], re.IGNORECASE,
+        ) if start else None
+        if start and end:
+            end_start = start.end() + end.start()
+            end_end = start.end() + end.end()
+            result = result[:start.start()] + result[end_end:]
+    result = re.sub(
+        r'<a\b(?=[^>]*\bname=["\']vno-review-(?:start|end)-\d+["\'])[^>]*>\s*</a\s*>',
+        "", result, flags=re.IGNORECASE,
+    )
+    result = re.sub(r"<!--vno-review-meta-hex:[0-9a-f]+-->", "", result, flags=re.IGNORECASE)
+    return result
+
+
+def _writer_find_review_bookmark_pair(document_xml: str, name: str) -> tuple[re.Match, re.Match]:
+    escaped = re.escape(name)
+    start_match = re.search(
+        rf'<w:bookmarkStart\b(?=[^>]*\bw:name=["\']{escaped}["\'])[^>]*/?>',
+        document_xml, re.IGNORECASE,
+    )
+    if not start_match:
+        raise ValueError(f"LibreOffice không giữ được dấu neo {name} khi tạo DOCX.")
+    bookmark_id = re.search(r'\bw:id=["\']([^"\']+)["\']', start_match.group(0), re.IGNORECASE)
+    if not bookmark_id:
+        raise ValueError(f"Dấu neo {name} thiếu mã bookmark trong DOCX.")
+    end_re = re.compile(
+        rf'<w:bookmarkEnd\b(?=[^>]*\bw:id=["\']{re.escape(bookmark_id.group(1))}["\'])[^>]*/?>',
+        re.IGNORECASE,
+    )
+    end_match = end_re.search(document_xml, start_match.end())
+    if not end_match:
+        raise ValueError(f"DOCX thiếu điểm kết thúc cho dấu neo {name}.")
+    return start_match, end_match
+
+
+def _writer_next_ooxml_id(xml: str, tag: str) -> int:
+    values = [int(value) for value in re.findall(
+        rf'<w:{tag}\b[^>]*\bw:id=["\'](\d+)["\']', xml, re.IGNORECASE,
+    )]
+    return max(values, default=-1) + 1
+
+
+def _writer_wrap_revision_fragment(
+    fragment: str, kind: str, revision_id: int, author: str, date: str,
+) -> str:
+    tag = "del" if kind == "delete" else "ins"
+    open_tag = (
+        f'<w:{tag} w:id="{revision_id}" w:author="{_escape_xml(author)}" '
+        f'w:date="{_escape_xml(date)}">'
+    )
+    boundary_re = re.compile(
+        r'<w:commentRange(?:Start|End)\b[^>]*/>'
+        r'|<w:r\b[^>]*>[\s\S]*?<w:commentReference\b[^>]*/>[\s\S]*?</w:r\s*>'
+        r'|</w:p\s*>|<w:p\b[^>]*>|<w:pPr\b[^>]*>[\s\S]*?</w:pPr\s*>',
+        re.IGNORECASE,
+    )
+    pieces = boundary_re.split(fragment)
+    boundaries = boundary_re.findall(fragment)
+    output: list[str] = []
+    for index, piece in enumerate(pieces):
+        if piece:
+            content = re.sub(r'<w:t\b', '<w:delText', piece, flags=re.IGNORECASE) if kind == "delete" else piece
+            content = re.sub(r'</w:t\s*>', '</w:delText>', content, flags=re.IGNORECASE) if kind == "delete" else content
+            output.extend((open_tag, content, f'</w:{tag}>'))
+        if index < len(boundaries):
+            output.append(boundaries[index])
+    return "".join(output)
+
+
+def postprocess_writer_review_markup(docx_bytes: bytes, *, source_html: str | None = None) -> bytes:
+    """Turn Writer's temporary review bookmarks into native Word revisions/comments.
+
+    The HTML→DOCX filter reliably carries named HTML anchors into OOXML bookmarks,
+    even when it flattens <ins>/<del> and comment markup. The adapter places those
+    anchors around each review range and stores author/date/comment text in a local
+    hex-encoded HTML comment. This pass restores native package semantics after the
+    source-aware section/header-footer pass has finished.
+    """
+    if not docx_bytes or not source_html:
+        return docx_bytes
+    metadata = _writer_review_metadata(source_html)
+    if not metadata:
+        return docx_bytes
+    records = [record for record in metadata["records"] if isinstance(record, dict)]
+    if not records:
+        return docx_bytes
+    document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
+    if not document_bytes:
+        raise ValueError("DOCX thiếu word/document.xml; không thể lưu ghi chú/Track Changes.")
+    document_xml = document_bytes.decode("utf-8", errors="replace")
+    comments: list[dict] = []
+
+    rels_bytes = read_zip_entry(docx_bytes, "word/_rels/document.xml.rels")
+    rels_xml = rels_bytes.decode("utf-8", errors="replace") if rels_bytes else (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
+    )
+    existing_comments_rel = re.search(
+        r'<Relationship\b(?=[^>]*\bType=["\'][^"\']*/comments["\'])[^>]*/?>',
+        rels_xml, re.IGNORECASE,
+    )
+    comments_part = "word/comments.xml"
+    if existing_comments_rel:
+        target_match = re.search(r'\bTarget=["\']([^"\']+)["\']', existing_comments_rel.group(0), re.IGNORECASE)
+        if target_match:
+            target = target_match.group(1).replace("\\", "/")
+            comments_part = target.lstrip("/") if target.startswith("/") else posixpath.normpath(posixpath.join("word", target))
+    comments_bytes = read_zip_entry(docx_bytes, comments_part)
+    comments_xml = comments_bytes.decode("utf-8", errors="replace") if comments_bytes else ""
+
+    # Comments are converted first so any comment markers that lie inside a tracked
+    # range can stay at paragraph level while the revision wrapper is restored.
+    for record in records:
+        if record.get("type") != "comment":
+            continue
+        start_name = str(record.get("startBookmark") or "")
+        end_name = str(record.get("endBookmark") or "")
+        if not re.fullmatch(r"vno-review-start-\d{5}", start_name) or not re.fullmatch(r"vno-review-end-\d{5}", end_name):
+            raise ValueError("Tên dấu neo comment trong bản xuất không hợp lệ.")
+        start_match, start_bookmark_end = _writer_find_review_bookmark_pair(document_xml, start_name)
+        end_name_match, end_bookmark_end = _writer_find_review_bookmark_pair(document_xml, end_name)
+        if start_match.start() >= end_name_match.start() or start_bookmark_end.end() > end_name_match.start():
+            raise ValueError("Phạm vi comment trong DOCX không đúng thứ tự.")
+        existing_comment_ids = [
+            int(value) for value in re.findall(
+                r'<w:comment\b[^>]*\bw:id=["\'](\d+)["\']', comments_xml, re.IGNORECASE,
+            )
+        ]
+        comment_id = str(max(
+            _writer_next_ooxml_id(document_xml, "commentRangeStart"),
+            max(existing_comment_ids, default=-1) + 1,
+        ))
+        operations = [
+            # Replace each point tag independently. LibreOffice can serialize
+            # adjacent nested HTML bookmarks as interleaved bookmarkStart tags
+            # followed by bookmarkEnd tags; slicing the whole point range would
+            # then erase another review range's start bookmark.
+            (start_bookmark_end.start(), start_bookmark_end.end(), ""),
+            (start_match.start(), start_match.end(), f'<w:commentRangeStart w:id="{comment_id}"/>'),
+            (end_bookmark_end.start(), end_bookmark_end.end(),
+             f'<w:commentRangeEnd w:id="{comment_id}"/>'
+             f'<w:r><w:rPr><w:rStyle w:val="CommentReference"/></w:rPr>'
+             f'<w:commentReference w:id="{comment_id}"/></w:r>'),
+            (end_name_match.start(), end_name_match.end(), ""),
+        ]
+        for start_at, end_at, replacement in sorted(operations, reverse=True):
+            document_xml = document_xml[:start_at] + replacement + document_xml[end_at:]
+        content = str(record.get("content") or "").strip()
+        if not content:
+            raise ValueError("Comment trống không thể tạo trong DOCX.")
+        comments.append({
+            "id": comment_id,
+            "author": str(record.get("author") or "3T Office"),
+            "date": str(record.get("date") or ""),
+            "content": content,
+        })
+
+    revision_id = _writer_next_ooxml_id(document_xml, "ins")
+    revision_id = max(revision_id, _writer_next_ooxml_id(document_xml, "del"))
+    for record in records:
+        if record.get("type") != "revision":
+            continue
+        start_name = str(record.get("startBookmark") or "")
+        end_name = str(record.get("endBookmark") or "")
+        if not re.fullmatch(r"vno-review-start-\d{5}", start_name) or not re.fullmatch(r"vno-review-end-\d{5}", end_name):
+            raise ValueError("Tên dấu neo Track Changes trong bản xuất không hợp lệ.")
+        start_match, start_bookmark_end = _writer_find_review_bookmark_pair(document_xml, start_name)
+        end_name_start, end_bookmark_end = _writer_find_review_bookmark_pair(document_xml, end_name)
+        if start_match.start() >= end_name_start.start() or start_bookmark_end.end() > end_name_start.start():
+            raise ValueError("Phạm vi Track Changes trong DOCX không đúng thứ tự.")
+        fragment = document_xml[start_bookmark_end.end():end_name_start.start()]
+        if re.search(r"</?w:(?:tbl|tr|tc)\b", fragment, re.IGNORECASE):
+            raise ValueError("Track Changes qua ranh giới bảng chưa được hỗ trợ; bản gốc chưa bị ghi đè.")
+        if not re.search(r"<w:t\b", fragment, re.IGNORECASE):
+            raise ValueError("Không tìm thấy nội dung chữ trong phạm vi Track Changes.")
+        kind = "delete" if record.get("kind") == "delete" else "insert"
+        wrapped = _writer_wrap_revision_fragment(
+            fragment,
+            kind,
+            revision_id,
+            str(record.get("author") or "3T Office"),
+            str(record.get("date") or ""),
+        )
+        operations = [
+            (start_match.start(), start_match.end(), ""),
+            (start_bookmark_end.start(), start_bookmark_end.end(), ""),
+            (start_bookmark_end.end(), end_name_start.start(), wrapped),
+            (end_name_start.start(), end_name_start.end(), ""),
+            (end_bookmark_end.start(), end_bookmark_end.end(), ""),
+        ]
+        for start_at, end_at, replacement in sorted(operations, reverse=True):
+            document_xml = document_xml[:start_at] + replacement + document_xml[end_at:]
+        revision_id += 1
+
+    replacements: dict[str, bytes] = {"word/document.xml": document_xml.encode("utf-8")}
+    if comments:
+        if comments_bytes:
+            for comment in comments:
+                paragraphs = "".join(
+                    f'<w:p><w:r><w:t xml:space="preserve">{_escape_xml(line)}</w:t></w:r></w:p>'
+                    for line in (comment["content"].splitlines() or [""])
+                )
+                comment_xml = (
+                    f'<w:comment w:id="{comment["id"]}" w:author="{_escape_xml(comment["author"])}"'
+                    f' w:date="{_escape_xml(comment["date"])}">{paragraphs}</w:comment>'
+                )
+                comments_xml = comments_xml.replace("</w:comments>", comment_xml + "</w:comments>", 1)
+        else:
+            comment_blocks = []
+            for comment in comments:
+                paragraphs = "".join(
+                    f'<w:p><w:r><w:t xml:space="preserve">{_escape_xml(line)}</w:t></w:r></w:p>'
+                    for line in (comment["content"].splitlines() or [""])
+                )
+                comment_blocks.append(
+                    f'<w:comment w:id="{comment["id"]}" w:author="{_escape_xml(comment["author"])}"'
+                    f' w:date="{_escape_xml(comment["date"])}">{paragraphs}</w:comment>'
+                )
+            comments_xml = (
+                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+                '<w:comments xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+                + "".join(comment_blocks) + "</w:comments>"
+            )
+        replacements[comments_part] = comments_xml.encode("utf-8")
+
+        if existing_comments_rel:
+            rel_id_match = re.search(r'\bId=["\']([^"\']+)["\']', existing_comments_rel.group(0), re.IGNORECASE)
+            if not rel_id_match:
+                raise ValueError("Relationship comment thiếu Id trong DOCX.")
+            rel_id = rel_id_match.group(1)
+        else:
+            rel_id = f"rId{_max_rels_rid(rels_xml) + 1}"
+            rels_xml = _add_rels_entry(rels_xml, rel_id, _DOCX_COMMENTS_REL_TYPE, "comments.xml")
+            replacements["word/_rels/document.xml.rels"] = rels_xml.encode("utf-8")
+
+        content_types_bytes = read_zip_entry(docx_bytes, "[Content_Types].xml")
+        content_types_xml = content_types_bytes.decode("utf-8", errors="replace") if content_types_bytes else (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"></Types>'
+        )
+        content_types_xml = _add_content_types_override(
+            content_types_xml, f"/{comments_part}", _DOCX_COMMENTS_CONTENT_TYPE,
+        )
+        replacements["[Content_Types].xml"] = content_types_xml.encode("utf-8")
+
+    settings_bytes = read_zip_entry(docx_bytes, "word/settings.xml")
+    settings_xml = settings_bytes.decode("utf-8", errors="replace") if settings_bytes else (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"></w:settings>'
+    )
+    if metadata.get("trackingEnabled"):
+        track_flag = re.search(r"<w:trackRevisions\b[^>]*/>", settings_xml, re.IGNORECASE)
+        if track_flag:
+            flag_xml = track_flag.group(0)
+            if re.search(r'\bw:val=["\'](?:0|false|off)["\']', flag_xml, re.IGNORECASE):
+                settings_xml = settings_xml[:track_flag.start()] + "<w:trackRevisions/>" + settings_xml[track_flag.end():]
+        elif "</w:settings>" in settings_xml:
+            settings_xml = settings_xml.replace("</w:settings>", "<w:trackRevisions/></w:settings>", 1)
+        replacements["word/settings.xml"] = settings_xml.encode("utf-8")
+
     return patch_ooxml_zip(docx_bytes, replacements)
 
 
