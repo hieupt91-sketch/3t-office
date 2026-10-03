@@ -128,12 +128,16 @@ export async function runWriterTrackChangesTests() {
     if (!second.trackChangesEnabled) throw new Error("Tắt tài liệu đầu làm thay đổi tài liệu thứ hai");
   });
 
-  await test("Writer Track Changes: save/PDF dùng accepted view sạch, không lẫn màu hay marker", async () => {
+  await test("Writer Track Changes: DOCX Save retains review ranges; PDF uses accepted view", async () => {
     const body = new FakeBody('<p>Gốc <ins class="x" data-vno-change="insert">mới</ins><del contenteditable="false" data-vno-change="delete">cũ</del></p>');
     const adapter = makeAdapter(body);
-    const clean = adapter._contentForExport();
-    if (!clean.includes("Gốc mới") || clean.includes("cũ") || /<\/?(?:ins|del)\b/i.test(clean) || clean.includes("data-vno-change")) {
-      throw new Error(`Accepted view không sạch: ${clean}`);
+    const docxContent = adapter._contentForExport();
+    const acceptedView = adapter._contentForExport({ acceptedView: true });
+    if (!acceptedView.includes("Gốc mới") || acceptedView.includes("cũ") || /<\/?(?:ins|del)\b/i.test(acceptedView) || acceptedView.includes("data-vno-change")) {
+      throw new Error(`Accepted view không sạch: ${acceptedView}`);
+    }
+    if (!docxContent.includes("cũ") || !docxContent.includes("vno-review-meta-hex:") || /<\/?(?:ins|del)\b/i.test(docxContent) || docxContent.includes("data-vno-change")) {
+      throw new Error(`DOCX export must retain revision ranges through bookmark metadata: ${docxContent}`);
     }
     const originalSave = globalUnoBridge.saveRealFile;
     const originalPdf = globalUnoBridge.exportRealPdf;
@@ -148,7 +152,12 @@ export async function runWriterTrackChangesTests() {
       globalUnoBridge.saveRealFile = originalSave;
       globalUnoBridge.exportRealPdf = originalPdf;
     }
-    if (saved !== clean || pdf !== clean) throw new Error("Save/PDF không dùng chung accepted view sạch");
+    if (!saved.includes("cũ") || !saved.includes("vno-review-meta-hex:") || /<\/?(?:ins|del)\b/i.test(saved)) {
+      throw new Error("DOCX Save did not retain the tracked deletion and review metadata");
+    }
+    if (pdf.includes("cũ") || /<\/?(?:ins|del)\b/i.test(pdf) || pdf.includes("data-vno-change")) {
+      throw new Error("PDF export included deleted content or review markup");
+    }
   });
 
   await test("Writer Track Changes: Previous/Next nhảy và highlight tuần tự, rồi quay vòng", async () => {

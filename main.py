@@ -1536,6 +1536,8 @@ def _apply_native_export_postprocess(
                 converted_docx = handle.read()
             patcher = _ooxml_zip_patch()
             source_html = None
+            original_docx = None
+            preserved_pristine_package = False
             if src_path and str(src_path).lower().endswith(".html"):
                 with open(src_path, "r", encoding="utf-8", errors="replace") as handle:
                     source_html = handle.read()
@@ -1553,7 +1555,11 @@ def _apply_native_export_postprocess(
                 patched = patcher.postprocess_writer_docx(
                     patched,
                     source_docx=original_docx,
+                    source_html=source_html,
                     preserve_pristine_source=pristine_docx_source,
+                )
+                preserved_pristine_package = bool(
+                    pristine_docx_source and patched == original_docx
                 )
             if source_html:
                 patched = patcher.postprocess_writer_section_metadata(
@@ -1561,6 +1567,10 @@ def _apply_native_export_postprocess(
                     source_html=source_html,
                     source_docx=original_docx if source_path and os.path.isfile(source_path) else None,
                 )
+                if not preserved_pristine_package:
+                    patched = patcher.postprocess_writer_review_markup(
+                        patched, source_html=source_html,
+                    )
             if patched != converted_docx:
                 with open(out_path, "wb") as handle:
                     handle.write(patched)
@@ -1995,6 +2005,20 @@ def _convert_save_source_to_native(
     the postprocess converts to its intermediate .docx) whose OOXML
     adapters/libreoffice/common/ooxml_zip_patch.py restores.
     """
+    if app_kind == "writer" and str(target_format).lower() == "pdf" and str(source_path).lower().endswith(".html"):
+        try:
+            with open(source_path, "r", encoding="utf-8", errors="replace") as handle:
+                source_html = handle.read()
+            accepted_html = _ooxml_zip_patch().writer_accepted_view_html(source_html)
+            if accepted_html != source_html:
+                with open(source_path, "w", encoding="utf-8") as handle:
+                    handle.write(accepted_html)
+        except DocumentEngineError:
+            raise
+        except Exception as exc:
+            raise DocumentEngineError(
+                f"Không chuẩn bị được bản PDF theo nội dung đã chấp nhận: {exc}"
+            ) from exc
     if app_kind == "writer" and target_format == "doc" and WRITER_DOC_EXPORT_VIA_DOCX:
         return _convert_writer_html_to_doc(source_path, os.path.dirname(source_path), source_path=source_document_path)
     out_path = _run_soffice_convert(source_path, target_format, os.path.dirname(source_path), app_kind=app_kind)

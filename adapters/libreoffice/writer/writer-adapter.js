@@ -1687,6 +1687,8 @@ export class WriterAdapter {
   _insertTrackedText(range, text, selection) {
     const insertion = document.createElement("ins");
     insertion.dataset.vnoChange = "insert";
+    insertion.dataset.vnoAuthor = "3T Office";
+    insertion.dataset.vnoDate = new Date().toISOString();
     insertion.appendChild(document.createTextNode(text));
     range.insertNode(insertion);
     range.setStartAfter(insertion);
@@ -1708,6 +1710,8 @@ export class WriterAdapter {
       const deletion = document.createElement("del");
       deletion.dataset.vnoChange = "delete";
       deletion.setAttribute("contenteditable", "false");
+      deletion.dataset.vnoAuthor = "3T Office";
+      deletion.dataset.vnoDate = new Date().toISOString();
       deletion.appendChild(range.extractContents());
       range.insertNode(deletion);
       range.setStartAfter(deletion);
@@ -2790,7 +2794,12 @@ export class WriterAdapter {
             if (!inserted) {
               const pbRegex = /<p\b[^>]*style=["'][^"']*(?:page-break-before|break-before):\s*(?:always|page)[^"']*["'][^>]*>[\s\S]*?<\/p>/i;
               if (pbRegex.test(html)) {
-                html = html.replace(pbRegex, markerHtml);
+                // The break-before paragraph can contain user text, revisions and
+                // comments. Preserve it when replacing its layout break with a
+                // section marker; deleting the paragraph loses content on reopen.
+                html = html.replace(pbRegex, paragraph => markerHtml + paragraph.replace(
+                  /(?:page-break-before|break-before):\s*(?:always|page)\s*;?/gi, ""
+                ));
                 inserted = true;
               }
             }
@@ -2799,7 +2808,8 @@ export class WriterAdapter {
       }
     }
 
-    return { body: html.trim(), header, footer, page, comments, docStyles, shapes, sectionPageSetups, sectionHeadersFooters };
+    const trackingEnabled = /<w:trackRevisions\b/i.test(String(ooxmlSettingsXml || ""));
+    return { body: html.trim(), header, footer, page, comments, docStyles, shapes, sectionPageSetups, sectionHeadersFooters, trackingEnabled };
   }
 
   /**
@@ -7205,6 +7215,7 @@ export class WriterAdapter {
       id,
       anchorText,
       content: String(content).trim(),
+      author: "3T Office",
       createdAt: new Date().toISOString()
     });
     this.activeCommentId = id;
@@ -8530,12 +8541,12 @@ export class WriterAdapter {
         foundRun = true;
         const rAttrs = rMatch[1];
         const rInner = rMatch[2];
-        if (rAttrs.includes("PAGE")) {
-          pText += `<span data-vno-field="PAGE">1</span>`;
-          continue;
-        }
         if (rAttrs.includes("NUMPAGES")) {
           pText += `<span data-vno-field="NUMPAGES">1</span>`;
+          continue;
+        }
+        if (/\bPAGE\b/.test(rAttrs)) {
+          pText += `<span data-vno-field="PAGE">1</span>`;
           continue;
         }
         const isBold = /<w:b(\/|\s|>)/i.test(rInner);
@@ -12939,6 +12950,102 @@ export class WriterAdapter {
     );
   }
 
+  _serializeReviewRangesForExport(html) {
+    const records = [];
+    const commentsById = new Map((this.comments || []).map(comment => [String(comment.id), comment]));
+    const attrValue = (attrs, name) => {
+      const value = String(attrs || "").match(new RegExp(`\\b${name}=["']([^"']*)["']`, "i"))?.[1] || "";
+      return this._decodeXmlEntities(value);
+    };
+    const reviewAnchors = (record) => {
+      records.push(record);
+      const suffix = String(records.length).padStart(5, "0");
+      record.startBookmark = `vno-review-start-${suffix}`;
+      record.endBookmark = `vno-review-end-${suffix}`;
+      return record;
+    };
+
+    // Walk the review wrappers as a stream and emit sibling bookmark points.
+    // Nested <a> elements are invalid HTML; emitting points at each opening /
+    // closing tag keeps overlapping comments and revisions representable.
+    const reviewTagRe = /<(\/?)\s*(ins|del|mark)\b([^>]*)>/gi;
+    const stack = [];
+    const source = String(html || "");
+    let output = "";
+    let cursor = 0;
+    let token;
+    while ((token = reviewTagRe.exec(source))) {
+      output += source.slice(cursor, token.index);
+      cursor = reviewTagRe.lastIndex;
+      const closing = Boolean(token[1]);
+      const tag = String(token[2] || "").toLowerCase();
+      const attrs = token[3] || "";
+      if (closing) {
+        const stackIndex = stack.map(entry => entry.tag).lastIndexOf(tag);
+        if (stackIndex < 0) {
+          output += token[0];
+          continue;
+        }
+        // Preserve valid wrapper nesting: close any open review elements up to
+        // this tag before writing their end bookmarks.
+        while (stack.length > stackIndex) {
+          const entry = stack.pop();
+          output += `<a name="${entry.record.endBookmark}"></a>`;
+        }
+        continue;
+      }
+
+      let record = null;
+      if (tag === "ins" || tag === "del") {
+        record = reviewAnchors({
+          type: "revision",
+          kind: tag === "del" ? "delete" : "insert",
+          author: attrValue(attrs, "data-vno-author") || "3T Office",
+          date: attrValue(attrs, "data-vno-date") || new Date().toISOString()
+        });
+      } else if (tag === "mark") {
+        const rawId = attrs.match(/\bdata-comment-id=["']([^"']+)["']/i)?.[1] || "";
+        const id = this._decodeXmlEntities(rawId);
+        const comment = commentsById.get(id);
+        if (comment && String(comment.content || "").trim()) {
+          record = reviewAnchors({
+            type: "comment",
+            author: String(comment.author || attrValue(attrs, "data-vno-comment-author") || "3T Office"),
+            date: String(comment.createdAt || new Date().toISOString()),
+            content: String(comment.content).trim(),
+            resolved: Boolean(comment.resolved)
+          });
+        }
+      }
+      if (!record) {
+        output += token[0];
+        continue;
+      }
+      output += `<a name="${record.startBookmark}"></a>`;
+      stack.push({ tag, record });
+    }
+    output += source.slice(cursor);
+    while (stack.length) {
+      const entry = stack.pop();
+      output += `<a name="${entry.record.endBookmark}"></a>`;
+    }
+
+    if (!records.length) return { html: output, metadataComment: "" };
+    const bytes = new TextEncoder().encode(JSON.stringify({
+      version: 1,
+      trackingEnabled: Boolean(this.trackChangesEnabled),
+      records
+    }));
+    const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
+    return { html: output, metadataComment: `<!--vno-review-meta-hex:${hex}-->` };
+  }
+
+  _acceptedReviewHtml(html) {
+    return String(html || "")
+      .replace(/<del\b(?=[^>]*\bdata-vno-change=["']delete["'])[^>]*>[\s\S]*?<\/del\s*>/gi, "")
+      .replace(/<ins\b(?=[^>]*\bdata-vno-change=["']insert["'])[^>]*>([\s\S]*?)<\/ins\s*>/gi, "$1");
+  }
+
   /**
    * Nội dung HTML thật sự gửi cho LibreOffice để lưu/xuất — có kèm `@page` CSS của
    * Page Setup hiện tại, để khổ giấy/lề trong DOCX/PDF xuất ra khớp với canvas.
@@ -12946,12 +13053,13 @@ export class WriterAdapter {
    * nội dung (xem `main.py: save_document_dialog` bọc `<body>{content}</body>`) —
    * trình phân tích HTML của LibreOffice vẫn áp dụng đúng CSS ở vị trí này.
    */
-  _contentForExport() {
+  _contentForExport({ acceptedView = false } = {}) {
     this._initZones();
     let bodyHtml = "";
     let headerHtml = "";
     let footerHtml = "";
     let watermarkHtml = "";
+    let reviewMetaComment = "";
 
     if (this.watermark && this.watermark.text) {
       const angle = this.watermark.angle ?? 45;
@@ -12967,11 +13075,23 @@ export class WriterAdapter {
 
     if (this.bodyDom) {
       const exportRoot = this.bodyDom.cloneNode?.(true) || this.bodyDom;
-      this._markCurrentUntouchedParagraphs(exportRoot);
       this._serializeEquationsForExport(exportRoot);
-      bodyHtml = this._stripSessionMarkup(exportRoot.innerHTML);
+      if (acceptedView) {
+        bodyHtml = this._stripSessionMarkup(this._acceptedReviewHtml(exportRoot.innerHTML));
+      } else {
+        this._markCurrentUntouchedParagraphs(exportRoot);
+        const reviewExport = this._serializeReviewRangesForExport(exportRoot.innerHTML);
+        bodyHtml = this._stripSessionMarkup(reviewExport.html);
+        reviewMetaComment = reviewExport.metadataComment;
+      }
     } else if (this.editorDom) {
-      bodyHtml = this._stripSessionMarkup(this.editorDom.innerHTML);
+      if (acceptedView) {
+        bodyHtml = this._stripSessionMarkup(this._acceptedReviewHtml(this.editorDom.innerHTML));
+      } else {
+        const reviewExport = this._serializeReviewRangesForExport(this.editorDom.innerHTML);
+        bodyHtml = this._stripSessionMarkup(reviewExport.html);
+        reviewMetaComment = reviewExport.metadataComment;
+      }
     }
     bodyHtml = this._prepareFloatingFramesForExport(bodyHtml);
     bodyHtml = this._restoreProportionalLineHeightsForExport(bodyHtml);
@@ -13021,21 +13141,43 @@ export class WriterAdapter {
 
     const allSectionIds = Object.keys(this.sectionPageSetups || {});
     if (allSectionIds.length === 0) allSectionIds.push(firstSectionId);
-    const sectionsMeta = allSectionIds.map((sId) => ({
-      id: sId,
-      type: sectionTypesMap[sId] || "nextPage",
-      breakMarkerPresent: sectionBreakMarkerIds.has(sId),
-      pageSetup: this.sectionPageSetups?.[sId] || this.pageSetup,
-      headerFooter: this.sectionHeadersFooters?.[sId] || {
+    const activeSectionId = this.getActiveSectionId?.() || this.activeSectionId || firstSectionId;
+    const sectionsMeta = allSectionIds.map((sId) => {
+      const storedHeaderFooter = this.sectionHeadersFooters?.[sId] || {
         linkToPrevious: sId !== firstSectionId,
         header: this.headerDom?.innerHTML || "",
         footer: this.footerDom?.innerHTML || "",
+        headers: { default: this.headerDom?.innerHTML || "" },
+        footers: { default: this.footerDom?.innerHTML || "" },
         differentFirstPage: false,
         differentOddEven: false,
         pageNumberRestart: false,
         pageNumberStart: 1
-      }
-    }));
+      };
+      const headerFooter = sId === activeSectionId
+        ? {
+            ...storedHeaderFooter,
+            header: this.headerDom?.innerHTML ?? storedHeaderFooter.header ?? "",
+            footer: this.footerDom?.innerHTML ?? storedHeaderFooter.footer ?? "",
+            headers: {
+              ...(storedHeaderFooter.headers || {}),
+              default: this.headerDom?.innerHTML ?? storedHeaderFooter.header ?? ""
+            },
+            footers: {
+              ...(storedHeaderFooter.footers || {}),
+              default: this.footerDom?.innerHTML ?? storedHeaderFooter.footer ?? ""
+            }
+          }
+        : storedHeaderFooter;
+      return {
+        id: sId,
+        active: sId === activeSectionId,
+        type: sectionTypesMap[sId] || "nextPage",
+        breakMarkerPresent: sectionBreakMarkerIds.has(sId),
+        pageSetup: this.sectionPageSetups?.[sId] || this.pageSetup,
+        headerFooter
+      };
+    });
     const sectionsMetaComment = `<!--vno-sections-meta: ${JSON.stringify(sectionsMeta)} -->`;
 
     let columnsCss = "";
@@ -13064,7 +13206,7 @@ export class WriterAdapter {
     const mutationMarkers = this._shapeMutationMarkerHtml();
 
     const pristineMarker = this._isOpenedDocumentPristine() ? '<a name="vno-pristine-document"></a>' : "";
-    const fullHtml = `${pristineMarker}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}`;
+    const fullHtml = `${pristineMarker}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${reviewMetaComment}`;
     const rawExport = `<style>${this._getPageSetupCss()}\n${this._getSectionPageCss()}${columnsCss}</style>${fullHtml}`;
     return this._sanitizeExportHtmlForWordCompat(rawExport);
   }
@@ -13279,7 +13421,7 @@ export class WriterAdapter {
       this._sourcePath = result.sourcePath || null;
       // Comments chỉ thuộc tài liệu đang mở trong phiên; file khác không dùng lại anchor cũ.
       this.comments = [];
-      this.trackChangesEnabled = false;
+      this.trackChangesEnabled = Boolean(imported.trackingEnabled);
       this.activeCommentId = null;
       this._renderCommentsPanel();
       if (imported.sectionPageSetups && Object.keys(imported.sectionPageSetups).length > 0) {
@@ -13511,7 +13653,7 @@ export class WriterAdapter {
   async exportPdf() {
     this.documentContent = this.editorDom.innerHTML;
     const result = await globalUnoBridge.exportRealPdf(
-      "writer", this._contentForExport(), this.sourceFileName, this._sourcePath || null,
+      "writer", this._contentForExport({ acceptedView: true }), this.sourceFileName, this._sourcePath || null,
     );
     if (result.status === "ok") {
       await showAlertDialog({ title: "Đã xuất PDF", message: result.message, type: "success" });
@@ -13543,7 +13685,7 @@ export class WriterAdapter {
     return withLazyFeatureProgress("writer", "In và xem trước", () => import("../../../platform/print/print-dialog.js"))
       .then(({ openPrintDialog }) => openPrintDialog({
       appKind: "writer",
-      content: this._contentForExport(),
+      content: this._contentForExport({ acceptedView: true }),
       documentName: this.sourceFileName || "Tài liệu",
       sourcePath: this._sourcePath || null,
       pageSetupLabel,

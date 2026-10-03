@@ -28,6 +28,7 @@ import { runWriterCommentsTests } from "./unit/writer-comments.test.js";
 import { runSlidesAnimationsNotesTests } from "./unit/slides-animations-notes.test.js";
 import { runSheetRulesValidationTests } from "./unit/sheet-rules-validation.test.js";
 import { runWriterTrackChangesTests } from "./unit/writer-track-changes.test.js";
+import { runWriterReviewExportTests } from "./unit/writer-review-export.test.js";
 import { runWriterPrintPreviewTests } from "./unit/writer-print-preview.test.js";
 import { runSlidesLayoutsTests } from "./unit/slides-layouts.test.js";
 import { runSheetChartTests } from "./unit/sheet-charts.test.js";
@@ -471,7 +472,8 @@ async function runAll() {
     { title: "225. Unit Tests — CH-7.2 Sheet inline spellcheck, contextmenu suggestions, 1-step undo & 3-app spellcheck toggle persistence", runner: runSpellcheckInlineToggleTests },
     { title: "226. Unit Tests — CH-8.1 UI Consistency: Backstage, Recent Files, Status Bar, View Modes, Zoom & Shortcuts", runner: runCh81ConsistencyTests },
     { title: "227. Unit Tests — Office Clipboard Interop (Sheet Excel/Calc HTML, TSV, Writer Word HTML cleaning)", runner: runOfficeClipboardTests },
-    { title: "228. Unit Tests — Cross-App Paste (Doc, Sheet, Slide Interoperability)", runner: runCrossAppPasteTests }
+    { title: "228. Unit Tests — Cross-App Paste (Doc, Sheet, Slide Interoperability)", runner: runCrossAppPasteTests },
+    { title: "229. Unit Tests — Writer DOCX review range export metadata", runner: runWriterReviewExportTests }
   ];
 
   for (const suite of suites) {
