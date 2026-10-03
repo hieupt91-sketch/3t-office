@@ -1,0 +1,328 @@
+{
+  "filePath": "E:\\Tài Liệu MH\\HƯỚNG DẪN SỬ DỤNG PHẦN MỀM CHẤM CÔNG MYTIME Ver1.1.docx",
+  "wallMilliseconds": 33482.1062,
+  "profileStartTime": 297948880338,
+  "profileEndTime": 297980739953,
+  "top": [
+    {
+      "frame": "_endOfFirstParagraphWithText @ http://localhost:8081/adapters/libreoffice/writer/writer-adapter.js:2898",
+      "milliseconds": 13705.038
+    },
+    {
+      "frame": "(idle) @ :0",
+      "milliseconds": 8391.199
+    },
+    {
+      "frame": "_applyOoxmlTableCellMarginsLegacy @ http://localhost:8081/adapters/libreoffice/writer/writer-adapter.js:5046",
+      "milliseconds": 1364.559
+    },
+    {
+      "frame": "_applyOoxmlTableColumnGeometryLegacy @ http://localhost:8081/adapters/libreoffice/writer/writer-adapter.js:5362",
+      "milliseconds": 1289.051
+    },
+    {
+      "frame": "(program) @ :0",
+      "milliseconds": 1008.599
+    },
+    {
+      "frame": "(garbage collector) @ :0",
+      "milliseconds": 908.822
+    },
+    {
+      "frame": "_openDocumentFromDisk @ http://localhost:8081/adapters/libreoffice/writer/writer-adapter.js:13746",
+      "milliseconds": 503.436
+    },
+    {
+      "frame": "(anonymous) @ :1",
+      "milliseconds": 472.344
+    },
+    {
+      "frame": "RegExp: <p\\b[^>]*> @ :0",
+      "milliseconds": 436.295
+    },
+    {
+      "frame": "_createSnapshot @ http://localhost:8081/adapters/libreoffice/writer/writer-adapter.js:14903",
+      "milliseconds": 435.61
+    },
+    {
+      "frame": "_editorDomFingerprint @ http://localhost:8081/adapters/libreoffice/writer/writer-adapter.js:3158",
+      "milliseconds": 303.893
+    },
+    {
+      "frame": "_normalizeImportedFontMetrics @ http://localhost:8081/adapters/libreoffice/writer/writer-adapter.js:2558",
+      "milliseconds": 232.97
+    },
+    {
+      "frame": "_untouchedParagraphFingerprint @ http://localhost:8081/adapters/libreoffice/writer/writer-adapter.js:3143",
+      "milliseconds": 158.418
+    },
+    {
+      "frame": "_preserveImportedFloatingFramesLegacy @ http://localhost:8081/adapters/libreoffice/writer/writer-adapter.js:5486",
+      "milliseconds": 117.954
+    },
+    {
+      "frame": "RegExp: <(div|tr|li)\\b[^>]*data-vno-auto-page-gap=[\"']true[\"'][^>]*>[\\s\\S]*?<\\/\\1> @ :0",
+      "milliseconds": 114.375
+    },
+    {
+      "frame": "_markImportedParagraphsUntouched @ http://localhost:8081/adapters/libreoffice/writer/writer-adapter.js:3178",
+      "milliseconds": 103.035
+    },
+    {
+      "frame": "RegExp: \\s+data-vno-(?:src-hash|untouched)=[\"'][^\"']*[\"'] @ :0",
+      "milliseconds": 77.899
+    },
+    {
+      "frame": "RegExp: <img\\b[^>]*\\bsrc=[\"']([^\"']+)[\"'][^>]*> @ :0",
+      "milliseconds": 73.922
+    },
+    {
+      "frame": "RegExp: <table\\b[^>]*>|<\\/table\\s*> @ :0",
+      "milliseconds": 66.593
+    },
+    {
+      "frame": "RegExp: <table\\b @ :0",
+      "milliseconds": 66.254
+    },
+    {
+      "frame": "window.pywebview._returnValuesCallbacks.<computed>.<computed> @ :137",
+      "milliseconds": 65.329
+    },
+    {
+      "frame": "_encodeProportionalLineHeights @ http://localhost:8081/adapters/libreoffice/writer/writer-adapter.js:2944",
+      "milliseconds": 65.28
+    },
+    {
+      "frame": "RegExp: <span\\b[^>]*data-vno-format-mark=[\"'][^\"']+[\"'][^>]*>([\\s\\S]*?)<\\/span> @ :0",
+      "milliseconds": 65.04
+    },
+    {
+      "frame": "RegExp: <div\\b[^>]*\\btitle=[\"'](?:header|footer)[\"'][^>]*> @ :0",
+      "milliseconds": 64.643
+    },
+    {
+      "frame": "RegExp: <div\\b[^>]*\\bid=[\"']sd(?:foot|end)note\\d*[\"'][^>]*> @ :0",
+      "milliseconds": 61.944
+    },
+    {
+      "frame": "getBoundingClientRect @ :0",
+      "milliseconds": 61.706
+    },
+    {
+      "frame": "RegExp: <(?:p|div|table|h\\d|ul|ol)\\b @ :0",
+      "milliseconds": 57.302
+    },
+    {
+      "frame": "RegExp: (?:page-break-before|break-before):\\s*(?:always|page)\\s*;? @ :0",
+      "milliseconds": 54.314
+    },
+    {
+      "frame": "RegExp: <(?:p|div|table|h[1-6])\\b @ :0",
+      "milliseconds": 45.142
+    },
+    {
+      "frame": "RegExp: <div\\b[^>]*(?:\\btitle=[\"'](?:header|footer)[\"']|\\bid=[\"']sd(?:foot|end)note\\d*[\"'])[^>]*> @ :0",
+      "milliseconds": 43.442
+    },
+    {
+      "frame": "_getUsablePageHeight @ http://localhost:8081/adapters/libreoffice/writer/writer-adapter.js:14100",
+      "milliseconds": 42.837
+    },
+    {
+      "frame": "RegExp: \\bsrc=[\"']?([^\"'\\s>]+) @ :0",
+      "milliseconds": 42.191
+    },
+    {
+      "frame": "RegExp: <span\\b(?=[^>]*\\bclass=[\"'][^\"']*\\bvno-spelling-(?:error|uncertain)\\b[^\"']*[\"'])[^>]*>([\\s\\S]*?)<\\/span> @ :0",
+      "milliseconds": 41.406
+    },
+    {
+      "frame": "RegExp: <(p|h[1-6])\\b([^>]*)>([\\s\\S]*?)<\\/\\1> @ :0",
+      "milliseconds": 39.165
+    },
+    {
+      "frame": "_normalizeImportedHtml @ http://localhost:8081/adapters/libreoffice/writer/writer-adapter.js:2739",
+      "milliseconds": 33.245
+    },
+    {
+      "frame": "_applyOoxmlKeepNextToHtml @ http://localhost:8081/adapters/libreoffice/writer/writer-adapter.js:3808",
+      "milliseconds": 31.84
+    },
+    {
+      "frame": "_applyOoxmlEmptyParagraphFontSizes @ http://localhost:8081/adapters/libreoffice/writer/writer-adapter.js:4035",
+      "milliseconds": 31.788
+    },
+    {
+      "frame": "_collapseFloatOnlyParagraphBreaks @ http://localhost:8081/adapters/libreoffice/writer/writer-adapter.js:3098",
+      "milliseconds": 31.553
+    },
+    {
+      "frame": "_makeFloatingAnchorContainersLegacy @ http://localhost:8081/adapters/libreoffice/writer/writer-adapter.js:5904",
+      "milliseconds": 31.44
+    },
+    {
+      "frame": "_pageSetupFromImportedCss @ http://localhost:8081/adapters/libreoffice/writer/writer-adapter.js:2266",
+      "milliseconds": 30.945
+    },
+    {
+      "frame": "captureSelectionBookmark @ http://localhost:8081/platform/text/spellcheck-dom-controller.js:110",
+      "milliseconds": 30.389
+    },
+    {
+      "frame": "_applyOoxmlTableParagraphSpacing @ http://localhost:8081/adapters/libreoffice/writer/writer-adapter.js:3537",
+      "milliseconds": 30.284
+    },
+    {
+      "frame": "_applyPaintOnlyTableBorders @ http://localhost:8081/adapters/libreoffice/writer/writer-adapter.js:5186",
+      "milliseconds": 29.012
+    },
+    {
+      "frame": "applyLinear @ http://localhost:8081/adapters/libreoffice/writer/writer-adapter.js:4231",
+      "milliseconds": 28.354
+    },
+    {
+      "frame": "RegExp: <p\\b[^>]*>|<\\/p> @ :0",
+      "milliseconds": 28.033
+    },
+    {
+      "frame": "RegExp: <(\\/?)(table|tr|td|th)\\b([^>]*)> @ :0",
+      "milliseconds": 26.502
+    },
+    {
+      "frame": "RegExp: <a\\b[^>]*\\bname=[\"']vno-untouched-\\d+[\"'][^>]*>\\s*<\\/a> @ :0",
+      "milliseconds": 25.937
+    },
+    {
+      "frame": "RegExp: <p\\b[^>]*>\\s*(?=(?:<center>\\s*)?<table\\b) @ :0",
+      "milliseconds": 23.61
+    },
+    {
+      "frame": "RegExp: sdfootnoteanc|sdendnoteanc|id=[\"']sdfootnote\\d+|id=[\"']sdendnote\\d+ @ :0",
+      "milliseconds": 22.637
+    },
+    {
+      "frame": "RegExp: <span\\b([^>]*)> @ :0",
+      "milliseconds": 22.234
+    },
+    {
+      "frame": "RegExp: <div\\s+title=[\"']footer[\"'][^>]*>([\\s\\S]*?)<\\/div> @ :0",
+      "milliseconds": 21.434
+    },
+    {
+      "frame": "RegExp: font-size\\s*:\\s*13(?:\\.0+)?pt(?!\\s*;\\s*--vno-gdi-advance) @ :0",
+      "milliseconds": 21.428
+    },
+    {
+      "frame": "RegExp: <font\\b([^>]*\\bface=([\"'])([^\"']*)\\2[^>]*)> @ :0",
+      "milliseconds": 21.111
+    },
+    {
+      "frame": "RegExp: <br\\s+clear=[\"']left[\"']\\s*\\/?> @ :0",
+      "milliseconds": 20.831
+    },
+    {
+      "frame": "RegExp: <li\\b @ :0",
+      "milliseconds": 20.701
+    },
+    {
+      "frame": "RegExp: <table\\b[^>]*>[\\s\\S]*?<\\/table> @ :0",
+      "milliseconds": 20.533
+    },
+    {
+      "frame": "RegExp: <del\\b([^>]*)> @ :0",
+      "milliseconds": 20.471
+    },
+    {
+      "frame": "RegExp: <li\\b([^>]*)>(\\s*)<p\\b([^>]*\\bfont-size:\\s*([\\d.]+)pt[^>]*)>(\\s*(?:<br\\s*\\/?>)?\\s*)<\\/p>(\\s*)<\\/li> @ :0",
+      "milliseconds": 20.367
+    },
+    {
+      "frame": "RegExp: <ins\\b([^>]*)> @ :0",
+      "milliseconds": 20.204
+    },
+    {
+      "frame": "RegExp: (<br\\s*\\/?>)\\s*<br\\s*\\/?>(\\s*)$ @ :0",
+      "milliseconds": 20.147
+    },
+    {
+      "frame": "RegExp: <div\\b[^>]*class=[\"'][^\"']*\\bvno-section-break\\b @ :0",
+      "milliseconds": 20.067
+    },
+    {
+      "frame": "RegExp: <div\\s+title=[\"']header[\"'][^>]*>([\\s\\S]*?)<\\/div> @ :0",
+      "milliseconds": 19.905
+    },
+    {
+      "frame": "RegExp: \\bdata-vno-float=[\"']textbox[\"'] @ :0",
+      "milliseconds": 19.877
+    },
+    {
+      "frame": "RegExp: <span\\b[^>]*data-vno-inline-group=[\"']\\d+[\"'][\\s\\S]*?<\\/span> @ :0",
+      "milliseconds": 19.569
+    },
+    {
+      "frame": "querySelector @ :0",
+      "milliseconds": 19.337
+    },
+    {
+      "frame": "RegExp: data-vno-source-group=[\"']1[\"'] @ :0",
+      "milliseconds": 19.335
+    },
+    {
+      "frame": "RegExp: <span\\b[^>]*data-vno-wrap=[\"']wrapTopAndBottom[\"'][^>]*> @ :0",
+      "milliseconds": 17.984
+    },
+    {
+      "frame": "RegExp: \\bstyle=([\"'])([^\"']*)\\1 @ :0",
+      "milliseconds": 17.908
+    },
+    {
+      "frame": "RegExp: <body\\b[^>]*>([\\s\\S]*?)<\\/body> @ :0",
+      "milliseconds": 17.429
+    },
+    {
+      "frame": "RegExp: (<\\/table>\\s*(?:<\\/center>\\s*)?)<\\/p> @ :0",
+      "milliseconds": 17.342
+    },
+    {
+      "frame": "RegExp: <\\/img> @ :0",
+      "milliseconds": 16.625
+    },
+    {
+      "frame": "RegExp: \\bheight=[\"']?([^\"'\\s>]+) @ :0",
+      "milliseconds": 16.363
+    },
+    {
+      "frame": "walk @ http://localhost:8081/adapters/libreoffice/writer/writer-adapter.js:17474",
+      "milliseconds": 16.1
+    },
+    {
+      "frame": "_fontLineRatio @ http://localhost:8081/adapters/libreoffice/writer/writer-adapter.js:3065",
+      "milliseconds": 15.934
+    },
+    {
+      "frame": "RegExp: <span\\b[^>]*\\bdata-vno-float=[^>]*>[\\s\\S]*?<\\/span> @ :0",
+      "milliseconds": 15.33
+    },
+    {
+      "frame": "RegExp: <w:p(?:\\s|>) @ :0",
+      "milliseconds": 15.271
+    },
+    {
+      "frame": "RegExp: <p\\b([^>]*)>([\\s\\S]*?)<\\/p> @ :0",
+      "milliseconds": 15.058
+    },
+    {
+      "frame": "RegExp: <img\\b[^>]*> @ :0",
+      "milliseconds": 14.259
+    },
+    {
+      "frame": "RegExp: <w:br\\b[^>]*w:type=[\"']page[\"'] @ :0",
+      "milliseconds": 12.966
+    },
+    {
+      "frame": "RegExp: VNO_CITATIONS_V1:([^\\s<]+) @ :0",
+      "milliseconds": 12.913
+    }
+  ]
+}

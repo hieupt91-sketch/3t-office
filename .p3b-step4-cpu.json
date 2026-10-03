@@ -1,0 +1,328 @@
+{
+  "filePath": "E:\\Tài Liệu MH\\HƯỚNG DẪN SỬ DỤNG PHẦN MỀM CHẤM CÔNG MYTIME Ver1.1.docx",
+  "wallMilliseconds": 22889.6194,
+  "profileStartTime": 297342248759,
+  "profileEndTime": 297362810865,
+  "top": [
+    {
+      "frame": "(idle) @ :0",
+      "milliseconds": 8358.421
+    },
+    {
+      "frame": "_applyOoxmlTableColumnGeometryLegacy @ http://localhost:8080/adapters/libreoffice/writer/writer-adapter.js:5279",
+      "milliseconds": 1225.681
+    },
+    {
+      "frame": "_applyOoxmlTableCellMarginsLegacy @ http://localhost:8080/adapters/libreoffice/writer/writer-adapter.js:4963",
+      "milliseconds": 1224.017
+    },
+    {
+      "frame": "_applyOoxmlTableCellEmptyParagraphFontSizes @ http://localhost:8080/adapters/libreoffice/writer/writer-adapter.js:4153",
+      "milliseconds": 1152.733
+    },
+    {
+      "frame": "_endOfFirstParagraphWithText @ http://localhost:8080/adapters/libreoffice/writer/writer-adapter.js:2905",
+      "milliseconds": 980.637
+    },
+    {
+      "frame": "(program) @ :0",
+      "milliseconds": 938.042
+    },
+    {
+      "frame": "(garbage collector) @ :0",
+      "milliseconds": 878.977
+    },
+    {
+      "frame": "RegExp: <p\\b[^>]*style=[\"'][^\"']*(?:page-break-before|break-before):\\s*(?:always|page)[^\"']*[\"'][^>]*>[\\s\\S]*?<\\/p> @ :0",
+      "milliseconds": 844.671
+    },
+    {
+      "frame": "_openDocumentFromDisk @ http://localhost:8080/adapters/libreoffice/writer/writer-adapter.js:13663",
+      "milliseconds": 492.209
+    },
+    {
+      "frame": "(anonymous) @ :1",
+      "milliseconds": 440.228
+    },
+    {
+      "frame": "_createSnapshot @ http://localhost:8080/adapters/libreoffice/writer/writer-adapter.js:14820",
+      "milliseconds": 391.248
+    },
+    {
+      "frame": "_editorDomFingerprint @ http://localhost:8080/adapters/libreoffice/writer/writer-adapter.js:3143",
+      "milliseconds": 289.482
+    },
+    {
+      "frame": "_normalizeImportedFontMetrics @ http://localhost:8080/adapters/libreoffice/writer/writer-adapter.js:2558",
+      "milliseconds": 207.815
+    },
+    {
+      "frame": "_untouchedParagraphFingerprint @ http://localhost:8080/adapters/libreoffice/writer/writer-adapter.js:3128",
+      "milliseconds": 147.805
+    },
+    {
+      "frame": "RegExp: <(div|tr|li)\\b[^>]*data-vno-auto-page-gap=[\"']true[\"'][^>]*>[\\s\\S]*?<\\/\\1> @ :0",
+      "milliseconds": 108.431
+    },
+    {
+      "frame": "_markImportedParagraphsUntouched @ http://localhost:8080/adapters/libreoffice/writer/writer-adapter.js:3163",
+      "milliseconds": 100.955
+    },
+    {
+      "frame": "_preserveImportedFloatingFramesLegacy @ http://localhost:8080/adapters/libreoffice/writer/writer-adapter.js:5403",
+      "milliseconds": 95.622
+    },
+    {
+      "frame": "RegExp: \\s+data-vno-(?:src-hash|untouched)=[\"'][^\"']*[\"'] @ :0",
+      "milliseconds": 74.833
+    },
+    {
+      "frame": "RegExp: <img\\b[^>]*\\bsrc=[\"']([^\"']+)[\"'][^>]*> @ :0",
+      "milliseconds": 67.354
+    },
+    {
+      "frame": "RegExp: <table\\b[^>]*>|<\\/table\\s*> @ :0",
+      "milliseconds": 65.777
+    },
+    {
+      "frame": "RegExp: <span\\b[^>]*data-vno-format-mark=[\"'][^\"']+[\"'][^>]*>([\\s\\S]*?)<\\/span> @ :0",
+      "milliseconds": 60.225
+    },
+    {
+      "frame": "RegExp: <table\\b @ :0",
+      "milliseconds": 60.142
+    },
+    {
+      "frame": "RegExp: <div\\b[^>]*\\bid=[\"']sd(?:foot|end)note\\d*[\"'][^>]*> @ :0",
+      "milliseconds": 59.482
+    },
+    {
+      "frame": "getBoundingClientRect @ :0",
+      "milliseconds": 58.91
+    },
+    {
+      "frame": "RegExp: <div\\b[^>]*\\btitle=[\"'](?:header|footer)[\"'][^>]*> @ :0",
+      "milliseconds": 58.845
+    },
+    {
+      "frame": "window.pywebview._returnValuesCallbacks.<computed>.<computed> @ :137",
+      "milliseconds": 58.07
+    },
+    {
+      "frame": "RegExp: <(?:p|div|table|h\\d|ul|ol)\\b @ :0",
+      "milliseconds": 56.433
+    },
+    {
+      "frame": "_encodeProportionalLineHeights @ http://localhost:8080/adapters/libreoffice/writer/writer-adapter.js:2929",
+      "milliseconds": 55.888
+    },
+    {
+      "frame": "RegExp: (?:page-break-before|break-before):\\s*(?:always|page)\\s*;? @ :0",
+      "milliseconds": 51.511
+    },
+    {
+      "frame": "RegExp: <(?:p|div|table|h[1-6])\\b @ :0",
+      "milliseconds": 44.399
+    },
+    {
+      "frame": "_getUsablePageHeight @ http://localhost:8080/adapters/libreoffice/writer/writer-adapter.js:14017",
+      "milliseconds": 41.304
+    },
+    {
+      "frame": "RegExp: <span\\b(?=[^>]*\\bclass=[\"'][^\"']*\\bvno-spelling-(?:error|uncertain)\\b[^\"']*[\"'])[^>]*>([\\s\\S]*?)<\\/span> @ :0",
+      "milliseconds": 39.705
+    },
+    {
+      "frame": "RegExp: \\bsrc=[\"']?([^\"'\\s>]+) @ :0",
+      "milliseconds": 39.395
+    },
+    {
+      "frame": "RegExp: <(p|h[1-6])\\b([^>]*)>([\\s\\S]*?)<\\/\\1> @ :0",
+      "milliseconds": 38.999
+    },
+    {
+      "frame": "RegExp: <div\\b[^>]*(?:\\btitle=[\"'](?:header|footer)[\"']|\\bid=[\"']sd(?:foot|end)note\\d*[\"'])[^>]*> @ :0",
+      "milliseconds": 38.791
+    },
+    {
+      "frame": "_normalizeImportedHtml @ http://localhost:8080/adapters/libreoffice/writer/writer-adapter.js:2739",
+      "milliseconds": 30.654
+    },
+    {
+      "frame": "_collapseFloatOnlyParagraphBreaks @ http://localhost:8080/adapters/libreoffice/writer/writer-adapter.js:3083",
+      "milliseconds": 30.583
+    },
+    {
+      "frame": "RegExp: <(\\/?)(table|tr|td|th)\\b([^>]*)> @ :0",
+      "milliseconds": 27.07
+    },
+    {
+      "frame": "RegExp: <p\\b[^>]*>|<\\/p> @ :0",
+      "milliseconds": 26.68
+    },
+    {
+      "frame": "_makeFloatingAnchorContainersLegacy @ http://localhost:8080/adapters/libreoffice/writer/writer-adapter.js:5821",
+      "milliseconds": 26.105
+    },
+    {
+      "frame": "_applyOoxmlKeepNextToHtml @ http://localhost:8080/adapters/libreoffice/writer/writer-adapter.js:3793",
+      "milliseconds": 25.654
+    },
+    {
+      "frame": "_applyOoxmlEmptyParagraphFontSizes @ http://localhost:8080/adapters/libreoffice/writer/writer-adapter.js:4020",
+      "milliseconds": 25.546
+    },
+    {
+      "frame": "_pageSetupFromImportedCss @ http://localhost:8080/adapters/libreoffice/writer/writer-adapter.js:2266",
+      "milliseconds": 25.265
+    },
+    {
+      "frame": "_applyPaintOnlyTableBorders @ http://localhost:8080/adapters/libreoffice/writer/writer-adapter.js:5103",
+      "milliseconds": 25.13
+    },
+    {
+      "frame": "_applyOoxmlTableParagraphSpacing @ http://localhost:8080/adapters/libreoffice/writer/writer-adapter.js:3522",
+      "milliseconds": 23.97
+    },
+    {
+      "frame": "_propagateEmptyParagraphFontSizeToListItem @ http://localhost:8080/adapters/libreoffice/writer/writer-adapter.js:4124",
+      "milliseconds": 23.631
+    },
+    {
+      "frame": "RegExp: sdfootnoteanc|sdendnoteanc|id=[\"']sdfootnote\\d+|id=[\"']sdendnote\\d+ @ :0",
+      "milliseconds": 22.913
+    },
+    {
+      "frame": "RegExp: <p\\b[^>]*>\\s*(?=(?:<center>\\s*)?<table\\b) @ :0",
+      "milliseconds": 22.54
+    },
+    {
+      "frame": "RegExp: <li\\b @ :0",
+      "milliseconds": 20.944
+    },
+    {
+      "frame": "RegExp: <li\\b([^>]*)>(\\s*)<p\\b([^>]*\\bfont-size:\\s*([\\d.]+)pt[^>]*)>(\\s*(?:<br\\s*\\/?>)?\\s*)<\\/p>(\\s*)<\\/li> @ :0",
+      "milliseconds": 20.403
+    },
+    {
+      "frame": "RegExp: <br\\s+clear=[\"']left[\"']\\s*\\/?> @ :0",
+      "milliseconds": 20.278
+    },
+    {
+      "frame": "RegExp: <a\\b[^>]*\\bname=[\"']vno-untouched-\\d+[\"'][^>]*>\\s*<\\/a> @ :0",
+      "milliseconds": 20.196
+    },
+    {
+      "frame": "RegExp: font-size\\s*:\\s*13(?:\\.0+)?pt(?!\\s*;\\s*--vno-gdi-advance) @ :0",
+      "milliseconds": 20.102
+    },
+    {
+      "frame": "RegExp: <span\\b[^>]*data-vno-inline-group=[\"']\\d+[\"'][\\s\\S]*?<\\/span> @ :0",
+      "milliseconds": 19.943
+    },
+    {
+      "frame": "RegExp: <table\\b[^>]*>[\\s\\S]*?<\\/table> @ :0",
+      "milliseconds": 19.855
+    },
+    {
+      "frame": "RegExp: <div\\s+title=[\"']footer[\"'][^>]*>([\\s\\S]*?)<\\/div> @ :0",
+      "milliseconds": 19.759
+    },
+    {
+      "frame": "RegExp: <div\\s+title=[\"']header[\"'][^>]*>([\\s\\S]*?)<\\/div> @ :0",
+      "milliseconds": 19.751
+    },
+    {
+      "frame": "RegExp: <div\\b[^>]*class=[\"'][^\"']*\\bvno-section-break\\b @ :0",
+      "milliseconds": 19.722
+    },
+    {
+      "frame": "RegExp: <del\\b([^>]*)> @ :0",
+      "milliseconds": 19.572
+    },
+    {
+      "frame": "querySelector @ :0",
+      "milliseconds": 19.357
+    },
+    {
+      "frame": "RegExp: <ins\\b([^>]*)> @ :0",
+      "milliseconds": 19.223
+    },
+    {
+      "frame": "RegExp: <font\\b([^>]*\\bface=([\"'])([^\"']*)\\2[^>]*)> @ :0",
+      "milliseconds": 18.947
+    },
+    {
+      "frame": "RegExp: Xóa nhân viên-Để xóa nhân viên đã nghỉ việc chúng ta cần thực hiện xóa ở máy chấm công trước sau đó mới xóa ở phần mềmB1\\. Xóa nhân viên trên máy chấm công -Vào Máy chấm công   Chức năng nâng cao  Chọn nhân viên cần xóa trên cây danh sách  Tải lại danh sách nhân viên và chọn lại nhân viên cần xóa  Chọn các máy chấm công cần xóa   Và chọn xóa nhân viên trên máy B2\\. Xóa ở phần mềm --Vào dữ liệu  Xóa hồ sơ nhân viên Chọn các nhân viên cần xóa trên cây danh sách HƯỚNG DẪN SỬDỤNG PHẦN MỀM CHẤM CÔNG MYTIME17 @ :0",
+      "milliseconds": 18.558
+    },
+    {
+      "frame": "RegExp: <span\\b[^>]*data-vno-wrap=[\"']wrapTopAndBottom[\"'][^>]*> @ :0",
+      "milliseconds": 18.435
+    },
+    {
+      "frame": "RegExp: HƯỚNG DẪN SỬ DỤNG PHẦN MỀM CHẤM CÔNG MYTIME \\(Ver1\\.1\\) 1\\.Phụ lục 2\\.Hướng dẫn cài đặt phần mềm 2\\.1 Cài đặt phần mềm  Mytime                                                       ……………………        3- Mytime \\( là bản cài chạy độc lập hoặc cài cho máy trạm\\) - MyTime Sever là bản cài cho máy chủ \\(có kèm CSDL SQLMyTime\\) 2\\.2 Thay đổi port kết nối và cập nhật lại  IP máy chủ khi máy tính bị thay đổi địa chỉ IP \\( Cập nhật CloudURL \\)                                                  ……………………        5 3\\.Tab Dữ liệu 3\\.1 Khai báo chi nhánh, phòng ban và thiết lập đi làm 2 ca \\/ ngày Khai báo chi nhánh                                                                   ……………………        7 Khai báo phòng ban                                                                  ……………………        8Thiết lập đi làm 2 ca \\/ ngày                                                      ……………………        9 3\\.2 Hồ sơ nhân viên Tạo hồ sơ nhân viên mới từ phần mềm                                   ……………………        10Cập nhật thông tin @ :0",
+      "milliseconds": 18.254
+    },
+    {
+      "frame": "RegExp: data-vno-source-group=[\"']1[\"'] @ :0",
+      "milliseconds": 17.815
+    },
+    {
+      "frame": "RegExp: Khai báo phòng ban B1\\.  Chọn mục dữ liệu B2\\.  Thiết lập phòng ban B3\\.  Chọn  Chi nhánh cần thêm phòng ban và ấn Thêm Mới sau đó sửa các trường thông tin và lưu lại Lưu ý : Phòng ban Nhân viên mới là mặc định và không được sửa phòng ban này HƯỚNG DẪN SỬDỤNG PHẦN MỀM CHẤM CÔNG MYTIME8 @ :0",
+      "milliseconds": 17.129
+    },
+    {
+      "frame": "RegExp: B3\\. Trên phần mềm Vào mục Cấu hình kết nối -Trỏ về file cần khôi phục -Khôi phục thành công tắt phần mềm và mở lại HƯỚNG DẪN SỬDỤNG PHẦN MỀM CHẤM CÔNG MYTIME42 @ :0",
+      "milliseconds": 17.075
+    },
+    {
+      "frame": "RegExp: \\bstyle=([\"'])([^\"']*)\\1 @ :0",
+      "milliseconds": 16.971
+    },
+    {
+      "frame": "RegExp: Giao diện phần mềm khi mở lên 2\\.2  Đổi Port kết nối hoặc Cập nhật lại IP - Để sửa đổi lại Port kết nối phần mềm hoặc Cập nhật lại IP mới khi Máy tính thay đổi IP \\( CloudURL báo HPA  như hình bên dưới\\) ta làm như sauPhần mềm báo lỗi HPA HƯỚNG DẪN SỬDỤNG PHẦN MỀM CHẤM CÔNG MYTIME5 @ :0",
+      "milliseconds": 16.935
+    },
+    {
+      "frame": "RegExp: <span\\b[^>]*\\bdata-vno-float=[^>]*>[\\s\\S]*?<\\/span> @ :0",
+      "milliseconds": 16.706
+    },
+    {
+      "frame": "RegExp: Nhập danh sách nhân viên bằng file ExelVới những công ty có nhiều nhân viên có thể chọn hình thức này để nhập danh sách nhân viên bằng file Exel vào phần mềm sau đó sẽ lấy vân tay theo danh sách nhân viên đã có B1\\. Lấy file Exel mẫu từ phần mềm \\( Vào Tab Dữ liệu &gt; Hồ sơ nhân viên &gt; File mẫu Import B2\\. Nhập thông tin nhân viên vào file Exel mẫu đã có và chọn các trường đã tạo sẵn từ phần mềm sau đó lưu lại Lưu ý : -Các trường màu đỏ và cột Mã chấm công là bắt buộc -Cột Loại nhân viên chỉ chọn 1 trong 3 gợi ý có sẵn\\. Các trường Chi nhánh, Phòng ban, Chức danh đều có thể thay đổi HƯỚNG DẪN SỬDỤNG PHẦN MỀM CHẤM CÔNG MYTIME13 @ :0",
+      "milliseconds": 16.681
+    },
+    {
+      "frame": "RegExp: (<\\/table>\\s*(?:<\\/center>\\s*)?)<\\/p> @ :0",
+      "milliseconds": 16.618
+    },
+    {
+      "frame": "RegExp: Thực hiện tắt bảng cấu hình kết nối và mở lại phần mềm bằng quyền Run as administrator để tạo cơ sở dữ liệu Hệ thống sẽ tự tạo Data dữ liệu kích chọn Ok để kết thúc quá trình cài đặt Sau khi cài đặt xong chúng ta sẽ được giao diện của phần mềm Giao diện khi đăng nhập phần mềm Tài khoản mặc định là     Tài khoản: admin Mật khẩu: 123 Phần mềm sẽ tự động đăng nhập sau 5s nếu không tạo tài khoản đăng nhập khác Có thể chọn ngôn ngữ là Tiếng việt hoặc Tiếng anhHƯỚNG DẪN SỬDỤNG PHẦN MỀM CHẤM CÔNG MYTIME4 @ :0",
+      "milliseconds": 16.361
+    },
+    {
+      "frame": "RegExp: \\bdata-vno-float=[\"']textbox[\"'] @ :0",
+      "milliseconds": 16.358
+    },
+    {
+      "frame": "RegExp: (<br\\s*\\/?>)\\s*<br\\s*\\/?>(\\s*)$ @ :0",
+      "milliseconds": 16.259
+    },
+    {
+      "frame": "RegExp: <body\\b[^>]*>([\\s\\S]*?)<\\/body> @ :0",
+      "milliseconds": 16.231
+    },
+    {
+      "frame": "RegExp: 9 \\.Chuyển dữ liệu từ máy tính cũ qua máy tính mới B1\\. Cài phần mềm trên máy tính mới B2\\. Lấy file Bakup từ máy cũ và chuyển qua máy mới \\( Tham khảo mục 8\\.1\\) B3 Giải nén file Backup,  Sao chép vào thư mục Database và Khôi phục dữ liệu từ file Backup B4  Cập nhật lại CloudURL theo IP mới \\( Tham khảo mục 2\\.2 \\) 10\\. Cấu hình máy chủ máy trạm \\( Sử dụng nhiều máy tính và phân quyền sử dụng \\)Để sử dụng được chức năng này cần có 1 máy tính là máy tính chủ cài phần mềm MyTimeServer và IP của máy tính chủ phải cố định\\. Khi máy chủ mở thì các máy trạm mới có thể truy cập được B1\\. Cài phần mềm MyTimeServer trên máy chủ và Cài bản MyTime trên máy trạm B2\\. Trên máy chủ mở mục cấu hình kết nối để xem các thông tin B3\\. Trên máy trạm mở mục cấu hình kết nối điền các thông tin như ở máy chủ HƯỚNG DẪN SỬDỤNG PHẦN MỀM CHẤM CÔNG MYTIME43 @ :0",
+      "milliseconds": 16.106
+    },
+    {
+      "frame": "RegExp: <span\\b([^>]*)> @ :0",
+      "milliseconds": 15.825
+    },
+    {
+      "frame": "RegExp: Bảng chấm công chi tiết Bảng công giờ đầu tiên và giờ cuối cùng HƯỚNG DẪN SỬDỤNG PHẦN MỀM CHẤM CÔNG MYTIME31 @ :0",
+      "milliseconds": 15.807
+    }
+  ]
+}
