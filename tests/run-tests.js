@@ -4,6 +4,7 @@
  */
 
 import { runCommandBusTests } from "./unit/command-bus.test.js";
+import { runWriterInteractiveRulerTests } from "./unit/writer-interactive-ruler.test.js";
 import { runAdapterMappingTests } from "./unit/adapter-mapping.test.js";
 import { runSuiteSmokeTests } from "./smoke/suite-smoke.test.js";
 import { runFormulaEngineTests } from "./unit/formula-engine.test.js";
@@ -482,7 +483,8 @@ async function runAll() {
     { title: "230. Unit Tests — CH-7.3 Shared Insert Dialogs & Capabilities (Symbol, Hyperlink, Shapes, Textbox, Picture)", runner: runSharedInsertCapabilitiesTests },
     { title: "231. Unit Tests — CH-4.6 Editor Focus Keeper & Enter Button Guard (Doc, Sheet, Slide)", runner: runKeepFocusUnitTests },
     { title: "232. Unit Tests — Sheet: thanh công thức hiện ngày/giờ/phần trăm như Excel", runner: runSheetFormulaBarDisplayTests },
-    { title: "233. Unit Tests — Shared Context Menu & Submenus (Doc & Sheet)", runner: runContextMenuUnitTests }
+    { title: "233. Unit Tests — Shared Context Menu & Submenus (Doc & Sheet)", runner: runContextMenuUnitTests },
+    { title: "234. Unit Tests — VN Writer interactive ruler", runner: runWriterInteractiveRulerTests }
   ];
 
   for (const suite of suites) {

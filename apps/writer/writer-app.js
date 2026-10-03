@@ -12,6 +12,7 @@ import { globalShortcutManager } from "../../platform/commands/shortcut-manager.
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { withLazyFeatureProgress } from "../../platform/startup/lazy-feature.js";
 import { WriterViewController } from "./writer-view-controller.js";
+import { WriterRulerController } from "./writer-ruler-controller.js";
 import { WriterTableController } from "./writer-table.js";
 import { getHelpEntryById } from "../../platform/help/help-catalog.js";
 import { InputNormalizer } from "../../platform/keyboard/input-normalizer.js";
@@ -25,6 +26,7 @@ export class WriterApp {
     this.canvas = null;
     this._lifecycleObserver = null;
     this.viewController = null;
+    this.rulerController = null;
     this.spellcheckController = null;
     this.helpPanel = null;
     this.autoRecoverManager = null;
@@ -56,13 +58,19 @@ export class WriterApp {
     // Thước đo ngang (Ruler)
     const ruler = document.createElement("div");
     ruler.className = "vno-writer-ruler";
-    ruler.setAttribute("role", "presentation");
-    ruler.setAttribute("aria-hidden", "true");
+    ruler.setAttribute("role", "toolbar");
+    ruler.setAttribute("aria-label", "Thước ngang");
     ruler.innerHTML = `
       <div class="vno-ruler-track">
-        <div class="vno-ruler-marker-left" title="Lề trái: 30mm (NĐ 30/2020/NĐ-CP)"></div>
+        <div class="vno-ruler-margin vno-ruler-margin-left"></div>
         <div class="vno-ruler-scale"></div>
-        <div class="vno-ruler-marker-right" title="Lề phải: 15mm (NĐ 30/2020/NĐ-CP)"></div>
+        <div class="vno-ruler-margin vno-ruler-margin-right"></div>
+        <div class="vno-ruler-marker vno-ruler-margin-handle vno-ruler-marker-left" data-ruler-kind="marginLeft" role="slider" tabindex="0"></div>
+        <div class="vno-ruler-marker vno-ruler-first-line" data-ruler-kind="firstLine" role="slider" tabindex="0"></div>
+        <div class="vno-ruler-marker vno-ruler-hanging" data-ruler-kind="hanging" role="slider" tabindex="0"></div>
+        <div class="vno-ruler-marker vno-ruler-left-indent" data-ruler-kind="leftIndent" role="slider" tabindex="0"></div>
+        <div class="vno-ruler-marker vno-ruler-right-indent" data-ruler-kind="rightIndent" role="slider" tabindex="0"></div>
+        <div class="vno-ruler-marker vno-ruler-margin-handle vno-ruler-marker-right" data-ruler-kind="marginRight" role="slider" tabindex="0"></div>
       </div>
     `;
     container.appendChild(ruler);
@@ -257,6 +265,14 @@ export class WriterApp {
       shell: this.shell
     }).attach();
 
+    this.rulerController = new WriterRulerController({
+      ruler,
+      page: this.canvas,
+      body,
+      viewport,
+      shell: this.shell
+    }).attach();
+
     this.shell.onZoomChange = (percent) => {
       this.viewController.setZoom(percent / 100);
     };
@@ -376,6 +392,8 @@ export class WriterApp {
     this._styleGalleryObserver = null;
     this.viewController?.destroy();
     this.viewController = null;
+    this.rulerController?.destroy();
+    this.rulerController = null;
     this.arrangeController?.destroy();
     this.arrangeController = null;
     this.tableController?.destroy();
