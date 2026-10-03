@@ -63,3 +63,26 @@ Nhánh lazy-sheets của Codex (`perf/ch1-lazy-sheets-codex`, commit WIP `68bdd0
 - Cổng chung mọi phase: `node tests/run-tests.js` 0 FAIL; `run-desktop-regression.mjs` 27 PASS; đối soát 28 file LAN; số đo trước/sau cùng máy cùng lệnh.
 - Claude chạy lại mọi cổng, đối chiếu báo cáo với tệp thô, **không gộp vào `main` nếu có số chưa tự chạy**.
 - Giám sát: tiến trình theo dõi nền + kiểm tra thưa (20–30 phút), ghi tiến độ vào `docs/HANDOFF-PERF-OPEN.md`.
+
+## 6. Bổ sung 03/10 — Thử nghiệm "hỏi trực tiếp LibreOffice qua UNO, chỉ lấy vùng đang xem" (spike, chưa đưa vào app)
+Mô hình: giữ tài liệu mở trong LibreOffice (worker UNO hiện có đã nối sẵn), UI chỉ hỏi vùng đang hiển thị; không xuất FODS toàn bộ.
+Đo thật (`_spike_uno.py`, LibreOffice 26.2 đóng gói, hồ sơ có sẵn, một lần/file):
+
+| Thao tác | lan03 | lan14 (FODS 257 MB) |
+|---|---|---|
+| Nạp tài liệu vào LibreOffice (không xuất) | 0,7 s | **3,6 s** |
+| Lấy danh sách sheet | 4 ms | 4 ms |
+| Vùng dùng của sheet đầu (33.642 dòng × 49 cột) | 12 ms | 12 ms |
+| `getDataArray` 60×30 ô | 4 ms | 2 ms |
+| `getFormulaArray` 60×30 ô | 8 ms | 4 ms |
+| Độ rộng cột + chiều cao dòng cửa sổ | 40 ms | 38 ms |
+| Định dạng từng ô (gọi từng ô, 1.800 ô) | 0,9 s | 0,9 s (cần gộp theo vùng để nhanh hơn) |
+| Vùng dùng của mọi sheet | 12 ms | 4 ms |
+
+Ước tính khung nhìn đầu tiên lan14: ~2,4 s khởi động + 3,6 s nạp + ~1 s truy vấn ≈ **6–8 s** (hiện 169 s).
+Hạn chế phải xử lý trước khi áp dụng (xem phase P8 dưới):
+1. Chi tiết hiển thị (gộp ô, định dạng có điều kiện, kiểu ô, hình, biểu đồ, xác thực, ẩn dòng…) phải lấy qua UNO theo vùng, không gọi từng ô.
+2. Sửa/lưu hiện đi qua đường FODS + lớp vá OOXML; trong lúc chưa có mô hình đầy đủ, chỉ cho xem + cuộn, hoặc nạp đầy đủ nền rồi **chuyển êm** sang mô hình đầy đủ.
+3. Công thức/tham chiếu xuyên sheet, tìm kiếm, lọc, sắp xếp toàn bảng cần dữ liệu đầy đủ.
+
+**P8 — Mở theo khung nhìn (viewport-first) qua UNO** (ưu tiên cao hơn P6): giai đoạn A = chế độ xem nhanh (chỉ đọc) trong ~8 s trong khi đường FODS đầy đủ chạy nền; giai đoạn B = chuyển sang mô hình đầy đủ khi sẵn sàng (giữ vị trí cuộn/ô chọn); giai đoạn C = mở rộng truy vấn theo vùng để dần thay đường FODS. Luôn sau cờ; **giữ nguyên đường FODS**; cổng: ô hiển thị ở chế độ nhanh **giống** bản đầy đủ (so giá trị+định dạng cửa sổ trên 28 file), chuyển chế độ không mất vị trí/không nháy.
