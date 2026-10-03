@@ -303,15 +303,7 @@ class UpdaterManager:
             blob_dir = stage_dir / "blobs"
             blob_dir.mkdir(parents=True, exist_ok=True)
             self._ensure_disk_space(blob_dir, required)
-            downloaded = 0
-            for digest, size in required.items():
-                downloaded += download_blob(
-                    selected_source,
-                    digest,
-                    blob_dir / digest,
-                    expected_size=size,
-                    timeout=self.timeout,
-                )
+            downloaded = self._download_blobs(selected_source, required, blob_dir)
             _atomic_write(stage_dir / "manifest.json", manifest_raw)
             _atomic_write(stage_dir / "manifest.sig", signature)
             manifest_paths = {str(item["path"]) for item in manifest["files"]}
@@ -335,6 +327,34 @@ class UpdaterManager:
                 selected_source=selected_source,
             )
             return state
+
+    def _download_blobs(self, source: str, required: dict[str, int], blob_dir: Path) -> int:
+        """Fetch every blob. Over the Internet each request costs ~0.6-1.5 s of latency (about 600 files in a normal
+        patch), so HTTPS sources use a small pool; LAN/local sources stay sequential. Blobs are content-addressed and
+        verified individually, so order does not matter and the first failure aborts the whole update."""
+        items = list(required.items())
+        workers = 8 if source.lower().startswith("https://") and len(items) > 4 else 1
+        if workers == 1:
+            return sum(
+                download_blob(source, digest, blob_dir / digest, expected_size=size, timeout=self.timeout)
+                for digest, size in items
+            )
+        from concurrent.futures import ThreadPoolExecutor
+
+        total = 0
+        with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="vno-update") as pool:
+            futures = [
+                pool.submit(download_blob, source, digest, blob_dir / digest, expected_size=size, timeout=self.timeout)
+                for digest, size in items
+            ]
+            try:
+                for future in futures:
+                    total += future.result()
+            except BaseException:
+                for future in futures:
+                    future.cancel()
+                raise
+        return total
 
     def _read_release_from_api(self, source: str):
         """Ask the 3T Cloud API for the release; None when the source has no usable API (caller uses static files).
