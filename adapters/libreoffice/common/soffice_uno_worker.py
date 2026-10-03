@@ -28,7 +28,14 @@ def _property(property_type: Any, name: str, value: Any) -> Any:
     return prop
 
 
-def _connect(uno: Any, pipe_name: str, process: subprocess.Popen[str]) -> Any:
+def _soffice_creation_flags() -> int:
+    return (
+        getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        | getattr(subprocess, "ABOVE_NORMAL_PRIORITY_CLASS", 0)
+    )
+
+
+def _connect(uno: Any, pipe_name: str, process: subprocess.Popen[str]) -> tuple[Any, int]:
     local_context = uno.getComponentContext()
     resolver = local_context.ServiceManager.createInstanceWithContext(
         "com.sun.star.bridge.UnoUrlResolver", local_context
@@ -36,14 +43,16 @@ def _connect(uno: Any, pipe_name: str, process: subprocess.Popen[str]) -> Any:
     connection_url = f"uno:pipe,name={pipe_name};urp;StarOffice.ComponentContext"
     deadline = time.monotonic() + 90
     last_error: Exception | None = None
+    attempts = 0
     while time.monotonic() < deadline:
         if process.poll() is not None:
             raise RuntimeError(f"Bộ xử lý tài liệu đã dừng khi khởi động. Hãy thử lại.")
         try:
-            return resolver.resolve(connection_url)
+            attempts += 1
+            return resolver.resolve(connection_url), attempts
         except Exception as exc:  # pipe listener is not ready yet
             last_error = exc
-            time.sleep(0.1)
+            time.sleep(0.02)
     raise TimeoutError(f"Bộ xử lý tài liệu chưa sẵn sàng. Hãy thử lại.")
 
 
@@ -228,6 +237,7 @@ def _stop_server(desktop: Any, process: subprocess.Popen[str] | None) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    worker_started = time.monotonic()
     args = list(sys.argv[1:] if argv is None else argv)
     if len(args) != 4:
         _write({"ready": False, "error": "Không khởi động được bộ xử lý tài liệu. Vui lòng cài lại 3T Office."})
@@ -244,6 +254,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         import uno  # provided by the adjacent LibreOffice program directory
         from com.sun.star.beans import PropertyValue
+        uno_imported = time.monotonic()
 
         command = [
             soffice_path,
@@ -258,7 +269,7 @@ def main(argv: list[str] | None = None) -> int:
             f"--accept=pipe,name={pipe_name};urp;StarOffice.ServiceManager",
             f"-env:UserInstallation={profile_uri}",
         ]
-        creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        creationflags = _soffice_creation_flags()
         process = subprocess.Popen(
             command,
             stdin=subprocess.DEVNULL,
@@ -267,11 +278,25 @@ def main(argv: list[str] | None = None) -> int:
             text=True,
             creationflags=creationflags,
         )
-        context = _connect(uno, pipe_name, process)
+        soffice_spawned = time.monotonic()
+        context, resolve_attempts = _connect(uno, pipe_name, process)
+        pipe_resolved = time.monotonic()
         desktop = context.ServiceManager.createInstanceWithContext(
             "com.sun.star.frame.Desktop", context
         )
-        _write({"ready": True, "app_kind": app_kind, "soffice_pid": process.pid})
+        desktop_created = time.monotonic()
+        _write({
+            "ready": True,
+            "app_kind": app_kind,
+            "soffice_pid": process.pid,
+            "timings_ms": {
+                "python_and_uno_import": round((uno_imported - worker_started) * 1000, 1),
+                "soffice_spawn": round((soffice_spawned - uno_imported) * 1000, 1),
+                "pipe_resolve": round((pipe_resolved - soffice_spawned) * 1000, 1),
+                "desktop_service": round((desktop_created - pipe_resolved) * 1000, 1),
+                "resolve_attempts": resolve_attempts,
+            },
+        })
 
         for line in sys.stdin:
             request = None
