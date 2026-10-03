@@ -31,6 +31,11 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
+try:
+    import license as lic_mod
+except ImportError:
+    from . import license as lic_mod
+
 MAX_REPORT_BYTES = 64 * 1024
 TOKEN_TTL_SECONDS = 90 * 24 * 60 * 60
 _CHANNEL_RE = re.compile(r"^[a-z][a-z0-9-]{0,31}$")
@@ -69,6 +74,8 @@ class Settings:
     token_rate: int = 20
     rate_window_seconds: int = 60
     backup_retention_days: int = 14
+    license_signing_key: str = ""
+    license_signing_key_file: Path | None = None
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -84,7 +91,40 @@ class Settings:
             admin_username=os.environ.get("ADMIN_USERNAME", ""),
             admin_password=os.environ.get("ADMIN_PASSWORD", ""),
             product=os.environ.get("PRODUCT", "3t-office"),
+            license_signing_key=os.environ.get("LICENSE_SIGNING_KEY", ""),
+            license_signing_key_file=Path(os.environ["LICENSE_SIGNING_KEY_FILE"]) if os.environ.get("LICENSE_SIGNING_KEY_FILE") else None,
         )
+
+
+class LicenseActivateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    product: str = Field(default="3t-office", min_length=1, max_length=64)
+    key: str = Field(min_length=10, max_length=64)
+    device_fingerprint: str = Field(min_length=8, max_length=128)
+    device_name: str = Field(min_length=1, max_length=128)
+    app_version: str = Field(min_length=1, max_length=40)
+    email: str | None = Field(default=None, max_length=255)
+
+
+class LicenseValidateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    token: str | None = Field(default=None, max_length=2048)
+    license_id: str | None = Field(default=None, max_length=64)
+    device_fingerprint: str | None = Field(default=None, max_length=128)
+
+
+class LicenseDeactivateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    token: str | None = Field(default=None, max_length=2048)
+    license_id: str | None = Field(default=None, max_length=64)
+    device_fingerprint: str | None = Field(default=None, max_length=128)
+
+
+class LicenseOfflineActivateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    key: str = Field(min_length=10, max_length=64)
+    device_code: str = Field(min_length=8, max_length=256)
+    device_name: str | None = Field(default=None, max_length=128)
 
 
 class TokenRequest(BaseModel):
@@ -240,19 +280,58 @@ def _public_update_path(relative: str) -> bool:
     return bool(re.fullmatch(r"files/[0-9a-f]{64}", relative))
 
 
-def _basic_auth(request: Request, settings: Settings) -> None:
+def _authenticate_admin(
+    request: Request,
+    settings: Settings,
+    sessions: dict[str, dict[str, Any]] | None = None,
+) -> str:
+    # Bảo mật: không mở admin API khi ADMIN_PASSWORD rỗng
+    if not settings.admin_password or not settings.admin_username:
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "admin_disabled", "message": "Tính năng quản trị chưa được cấu hình"}
+        )
+
+    # 1. Thử xác thực qua phiên Cookie (cho trình duyệt quản trị)
+    if sessions is not None:
+        session_id = request.cookies.get("session_id")
+        if session_id and session_id in sessions:
+            session = sessions[session_id]
+            if time.time() < session.get("expires_at", 0):
+                # Kiểm tra CSRF token cho các phương thức ghi
+                if request.method in ("POST", "PUT", "DELETE", "PATCH"):
+                    csrf_header = request.headers.get("x-csrf-token", "")
+                    expected_csrf = session.get("csrf_token", "")
+                    if not csrf_header or not hmac.compare_digest(csrf_header.encode("utf-8"), expected_csrf.encode("utf-8")):
+                        raise HTTPException(
+                            status_code=403,
+                            detail={"error": "invalid_csrf", "message": "CSRF token bị thiếu hoặc không hợp lệ"}
+                        )
+                return str(session.get("admin", settings.admin_username))
+
+    # 2. Thử xác thực qua HTTP Basic Auth (cho script hoặc API)
     auth = request.headers.get("authorization", "")
     scheme, _, value = auth.partition(" ")
-    if scheme.lower() != "basic":
-        raise HTTPException(status_code=401, detail="Authentication required", headers={"WWW-Authenticate": "Basic"})
-    try:
-        username, password = base64.b64decode(value, validate=True).decode("utf-8").split(":", 1)
-    except (ValueError, UnicodeError):
-        username, password = "", ""
-    user_ok = hmac.compare_digest(username.encode("utf-8"), settings.admin_username.encode("utf-8"))
-    pass_ok = hmac.compare_digest(password.encode("utf-8"), settings.admin_password.encode("utf-8"))
-    if not (user_ok and pass_ok):
-        raise HTTPException(status_code=401, detail="Authentication required", headers={"WWW-Authenticate": "Basic"})
+    if scheme.lower() == "basic":
+        try:
+            username, password = base64.b64decode(value, validate=True).decode("utf-8").split(":", 1)
+        except (ValueError, UnicodeError):
+            username, password = "", ""
+        user_ok = hmac.compare_digest(username.encode("utf-8"), settings.admin_username.encode("utf-8"))
+        pass_ok = hmac.compare_digest(password.encode("utf-8"), settings.admin_password.encode("utf-8"))
+        if user_ok and pass_ok:
+            return settings.admin_username
+
+    raise HTTPException(
+        status_code=401,
+        detail={"error": "unauthorized", "message": "Yêu cầu đăng nhập quản trị viên"},
+        headers={"WWW-Authenticate": "Basic"}
+    )
+
+
+def _basic_auth(request: Request, settings: Settings, sessions: dict[str, dict[str, Any]] | None = None) -> None:
+    _authenticate_admin(request, settings, sessions)
+
 
 
 def _client_address(request: Request) -> str:
@@ -291,6 +370,7 @@ def _ensure_schema(db_path: Path) -> None:
             )
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS reports_group_idx ON reports(signature, version, received_at)")
+        lic_mod.init_license_schema(conn)
 
 
 def _write_report_log(directory: Path, received_at: str, payload: ReportPayload, signature: str) -> None:
@@ -381,6 +461,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     except OSError:
         pass
     limiter = RateLimiter()
+    signing_key = lic_mod.load_private_key(cfg.license_signing_key, cfg.license_signing_key_file)
+    public_key = signing_key.public_key() if signing_key is not None else None
+    admin_sessions: dict[str, dict[str, Any]] = {}
+    login_lockout: dict[str, dict[str, Any]] = {}
 
     logger = logging.getLogger("3t-office-cloud")
     logger.setLevel(logging.INFO)
@@ -577,9 +661,333 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         return StreamingResponse(whole_file(), media_type=media_type, headers={"Accept-Ranges": "bytes", "Content-Length": str(size)})
 
+    @app.post("/api/v1/license/activate")
+    async def license_activate(request: Request, payload: LicenseActivateRequest) -> Response:
+        peer = _client_address(request)
+        if not limiter.allow(f"lic_act_ip:{peer}", 30, cfg.rate_window_seconds):
+            return JSONResponse(status_code=429, content={"error": "rate_limited", "message": "Quá nhiều yêu cầu kích hoạt từ địa chỉ IP này"})
+
+        if payload.product != cfg.product:
+            return JSONResponse(status_code=400, content={"error": "invalid_product", "message": f"Sản phẩm không hợp lệ, yêu cầu: {cfg.product}"})
+
+        canonical_key = lic_mod.normalize_and_validate_key(payload.key)
+        if not canonical_key:
+            return JSONResponse(status_code=400, content={"error": "invalid_key", "message": "Mã kích hoạt không đúng định dạng hoặc sai số kiểm tra"})
+
+        key_hash = lic_mod.hash_key(canonical_key)
+        if not limiter.allow(f"lic_act_key:{key_hash}", 10, cfg.rate_window_seconds):
+            return JSONResponse(status_code=429, content={"error": "rate_limited", "message": "Quá nhiều yêu cầu kích hoạt cho mã bản quyền này"})
+
+        if signing_key is None:
+            return JSONResponse(status_code=503, content={"error": "signing_key_not_configured", "message": "Máy chủ chưa được cấu hình khóa ký bản quyền"})
+
+        device_hash = hashlib.sha256(payload.device_fingerprint.encode("utf-8")).hexdigest()
+        now_iso = _utc_iso()
+
+        with _open_db(db_path) as conn:
+            key_row = conn.execute(
+                """SELECT id, key_hint, note, email, seats_max, status FROM license_keys WHERE key_hash = ?""",
+                (key_hash,),
+            ).fetchone()
+
+            if not key_row:
+                return JSONResponse(status_code=404, content={"error": "unknown_key", "message": "Mã kích hoạt không tồn tại trên hệ thống"})
+
+            if key_row["status"] == "revoked":
+                return JSONResponse(status_code=403, content={"error": "revoked", "message": "Mã kích hoạt này đã bị thu hồi"})
+
+            license_id = key_row["id"]
+            key_hint = key_row["key_hint"]
+            seats_max = key_row["seats_max"]
+
+            # Kiểm tra xem máy này đã từng kích hoạt key này chưa
+            act_row = conn.execute(
+                """SELECT id, removed_at FROM activations WHERE license_id = ? AND device_hash = ?""",
+                (license_id, device_hash),
+            ).fetchone()
+
+            if act_row and act_row["removed_at"] is None:
+                # Kích hoạt lại cùng máy: cập nhật thông tin, không tốn thêm slot
+                conn.execute(
+                    """UPDATE activations SET last_check_at = ?, device_name = ?, app_version = ? WHERE id = ?""",
+                    (now_iso, payload.device_name, payload.app_version, act_row["id"]),
+                )
+            else:
+                # Kiểm tra số lượng máy đang kích hoạt còn chỗ không
+                active_rows = conn.execute(
+                    """SELECT device_name FROM activations WHERE license_id = ? AND removed_at IS NULL""",
+                    (license_id,),
+                ).fetchall()
+                if len(active_rows) >= seats_max:
+                    active_names = [r["device_name"] for r in active_rows]
+                    return JSONResponse(
+                        status_code=409,
+                        content={
+                            "error": "seats_exhausted",
+                            "message": "Mã kích hoạt đã hết số lượng máy cho phép",
+                            "active_devices": active_names,
+                        },
+                    )
+
+                if act_row and act_row["removed_at"] is not None:
+                    # Máy đã từng bị gỡ, nay kích hoạt lại vào slot trống
+                    conn.execute(
+                        """UPDATE activations SET removed_at = NULL, last_check_at = ?, device_name = ?, app_version = ? WHERE id = ?""",
+                        (now_iso, payload.device_name, payload.app_version, act_row["id"]),
+                    )
+                else:
+                    # Máy mới tinh
+                    conn.execute(
+                        """INSERT INTO activations (id, license_id, device_hash, device_name, first_at, last_check_at, app_version, removed_at)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, NULL)""",
+                        (str(uuid.uuid4()), license_id, device_hash, payload.device_name, now_iso, now_iso, payload.app_version),
+                    )
+
+            seats_used = conn.execute(
+                """SELECT COUNT(*) FROM activations WHERE license_id = ? AND removed_at IS NULL""",
+                (license_id,),
+            ).fetchone()[0]
+
+        token, next_check_iso = lic_mod.issue_license_token(
+            signing_key,
+            license_id=license_id,
+            device_fingerprint=payload.device_fingerprint,
+            key_hint=key_hint,
+        )
+
+        return JSONResponse(
+            status_code=200,
+            content={
+                "token": token,
+                "license": {
+                    "id": license_id,
+                    "edition": "perpetual",
+                    "seats_used": seats_used,
+                    "seats_max": seats_max,
+                    "updates_until": None,
+                },
+                "next_check_at": next_check_iso,
+            },
+        )
+
+    @app.post("/api/v1/license/validate")
+    async def license_validate(request: Request, payload: LicenseValidateRequest) -> Response:
+        peer = _client_address(request)
+        if not limiter.allow(f"lic_val_ip:{peer}", 60, cfg.rate_window_seconds):
+            return JSONResponse(status_code=429, content={"error": "rate_limited", "message": "Quá nhiều yêu cầu kiểm tra bản quyền"})
+
+        if signing_key is None or public_key is None:
+            return JSONResponse(status_code=503, content={"error": "signing_key_not_configured", "message": "Máy chủ chưa được cấu hình khóa ký bản quyền"})
+
+        license_id: str | None = None
+        device_fingerprint: str | None = None
+
+        if payload.token:
+            claims = lic_mod.verify_license_token(payload.token, public_key)
+            if claims is None:
+                return JSONResponse(
+                    status_code=401,
+                    content={"error": "invalid_token", "message": "Token bản quyền không hợp lệ hoặc đã bị chỉnh sửa", "valid": False},
+                )
+            license_id = claims.get("lid")
+            device_fingerprint = claims.get("fp")
+        elif payload.license_id and payload.device_fingerprint:
+            license_id = payload.license_id
+            device_fingerprint = payload.device_fingerprint
+        else:
+            return JSONResponse(
+                status_code=400,
+                content={"error": "missing_parameters", "message": "Cần cung cấp token hoặc cặp (license_id, device_fingerprint)"},
+            )
+
+        if not license_id or not device_fingerprint:
+            return JSONResponse(status_code=400, content={"error": "invalid_payload", "message": "Thông tin thiết bị hoặc giấy phép không hợp lệ"})
+
+        device_hash = hashlib.sha256(device_fingerprint.encode("utf-8")).hexdigest()
+        now_iso = _utc_iso()
+
+        with _open_db(db_path) as conn:
+            key_row = conn.execute(
+                """SELECT id, key_hint, seats_max, status FROM license_keys WHERE id = ?""",
+                (license_id,),
+            ).fetchone()
+
+            if not key_row or key_row["status"] == "revoked":
+                return JSONResponse(
+                    status_code=403,
+                    content={"error": "revoked", "message": "Giấy phép này đã bị thu hồi", "valid": False},
+                )
+
+            act_row = conn.execute(
+                """SELECT id, removed_at FROM activations WHERE license_id = ? AND device_hash = ?""",
+                (license_id, device_hash),
+            ).fetchone()
+
+            if not act_row or act_row["removed_at"] is not None:
+                return JSONResponse(
+                    status_code=403,
+                    content={"error": "device_removed", "message": "Thiết bị này đã bị gỡ khỏi giấy phép", "valid": False},
+                )
+
+            conn.execute(
+                """UPDATE activations SET last_check_at = ? WHERE id = ?""",
+                (now_iso, act_row["id"]),
+            )
+
+            seats_used = conn.execute(
+                """SELECT COUNT(*) FROM activations WHERE license_id = ? AND removed_at IS NULL""",
+                (license_id,),
+            ).fetchone()[0]
+
+            key_hint = key_row["key_hint"]
+            seats_max = key_row["seats_max"]
+
+        new_token, next_check_iso = lic_mod.issue_license_token(
+            signing_key,
+            license_id=license_id,
+            device_fingerprint=device_fingerprint,
+            key_hint=key_hint,
+        )
+
+        return JSONResponse(
+            status_code=200,
+            content={
+                "valid": True,
+                "token": new_token,
+                "next_check_at": next_check_iso,
+                "license": {
+                    "id": license_id,
+                    "edition": "perpetual",
+                    "seats_used": seats_used,
+                    "seats_max": seats_max,
+                    "updates_until": None,
+                },
+            },
+        )
+
+    @app.post("/api/v1/license/deactivate")
+    async def license_deactivate(request: Request, payload: LicenseDeactivateRequest) -> Response:
+        if signing_key is None or public_key is None:
+            return JSONResponse(status_code=503, content={"error": "signing_key_not_configured", "message": "Máy chủ chưa được cấu hình khóa ký bản quyền"})
+
+        license_id: str | None = None
+        device_fingerprint: str | None = None
+
+        if payload.token:
+            claims = lic_mod.verify_license_token(payload.token, public_key)
+            if claims is None:
+                return JSONResponse(status_code=401, content={"error": "invalid_token", "message": "Token bản quyền không hợp lệ"})
+            license_id = claims.get("lid")
+            device_fingerprint = claims.get("fp")
+        elif payload.license_id and payload.device_fingerprint:
+            license_id = payload.license_id
+            device_fingerprint = payload.device_fingerprint
+        else:
+            return JSONResponse(status_code=400, content={"error": "missing_parameters", "message": "Cần token hoặc (license_id, device_fingerprint)"})
+
+        if not license_id or not device_fingerprint:
+            return JSONResponse(status_code=400, content={"error": "invalid_payload", "message": "Thông tin gỡ kích hoạt không hợp lệ"})
+
+        device_hash = hashlib.sha256(device_fingerprint.encode("utf-8")).hexdigest()
+        now_iso = _utc_iso()
+
+        with _open_db(db_path) as conn:
+            cursor = conn.execute(
+                """UPDATE activations SET removed_at = ? WHERE license_id = ? AND device_hash = ? AND removed_at IS NULL""",
+                (now_iso, license_id, device_hash),
+            )
+            updated = cursor.rowcount > 0
+
+        return JSONResponse(
+            status_code=200,
+            content={
+                "ok": True,
+                "message": "Đã gỡ kích hoạt thiết bị thành công" if updated else "Thiết bị không ở trạng thái kích hoạt",
+            },
+        )
+
+    @app.post("/api/v1/admin/license/activate-offline")
+    async def admin_license_activate_offline(request: Request, payload: LicenseOfflineActivateRequest) -> Response:
+        admin_user = _authenticate_admin(request, cfg, admin_sessions)
+        if signing_key is None:
+            return JSONResponse(status_code=503, content={"error": "signing_key_not_configured", "message": "Máy chủ chưa được cấu hình khóa ký bản quyền"})
+
+        canonical_key = lic_mod.normalize_and_validate_key(payload.key)
+        if not canonical_key:
+            return JSONResponse(status_code=400, content={"error": "invalid_key", "message": "Mã kích hoạt không đúng định dạng hoặc sai số kiểm tra"})
+
+        key_hash = lic_mod.hash_key(canonical_key)
+        device_fingerprint = hashlib.sha256(payload.device_code.encode("utf-8")).hexdigest()
+        device_hash = hashlib.sha256(device_fingerprint.encode("utf-8")).hexdigest()
+        device_name = payload.device_name or f"Ngoại tuyến ({payload.device_code[:8]})"
+        now_iso = _utc_iso()
+
+        with _open_db(db_path) as conn:
+            key_row = conn.execute(
+                """SELECT id, key_hint, seats_max, status FROM license_keys WHERE key_hash = ?""",
+                (key_hash,),
+            ).fetchone()
+
+            if not key_row:
+                return JSONResponse(status_code=404, content={"error": "unknown_key", "message": "Mã kích hoạt không tồn tại"})
+
+            if key_row["status"] == "revoked":
+                return JSONResponse(status_code=403, content={"error": "revoked", "message": "Mã kích hoạt này đã bị thu hồi"})
+
+            license_id = key_row["id"]
+            key_hint = key_row["key_hint"]
+            seats_max = key_row["seats_max"]
+
+            act_row = conn.execute(
+                """SELECT id, removed_at FROM activations WHERE license_id = ? AND device_hash = ?""",
+                (license_id, device_hash),
+            ).fetchone()
+
+            if act_row and act_row["removed_at"] is None:
+                conn.execute(
+                    """UPDATE activations SET last_check_at = ?, device_name = ? WHERE id = ?""",
+                    (now_iso, device_name, act_row["id"]),
+                )
+            else:
+                active_count = conn.execute(
+                    """SELECT COUNT(*) FROM activations WHERE license_id = ? AND removed_at IS NULL""",
+                    (license_id,),
+                ).fetchone()[0]
+
+                if active_count >= seats_max:
+                    return JSONResponse(status_code=409, content={"error": "seats_exhausted", "message": "Mã kích hoạt đã hết số lượng máy cho phép"})
+
+                if act_row and act_row["removed_at"] is not None:
+                    conn.execute(
+                        """UPDATE activations SET removed_at = NULL, last_check_at = ?, device_name = ? WHERE id = ?""",
+                        (now_iso, device_name, act_row["id"]),
+                    )
+                else:
+                    conn.execute(
+                        """INSERT INTO activations (id, license_id, device_hash, device_name, first_at, last_check_at, app_version, removed_at)
+                           VALUES (?, ?, ?, ?, ?, ?, 'offline', NULL)""",
+                        (str(uuid.uuid4()), license_id, device_hash, device_name, now_iso, now_iso),
+                    )
+
+            # Ghi nhật ký quản trị (chỉ ghi hint và device_code rút gọn, TUYỆT ĐỐI KHÔNG ghi key thô)
+            conn.execute(
+                """INSERT INTO admin_audit (id, at, admin, action, target) VALUES (?, ?, ?, ?, ?)""",
+                (str(uuid.uuid4()), now_iso, admin_user, "activate_offline", f"hint={key_hint},dev={payload.device_code[:12]}"),
+            )
+
+        token, _ = lic_mod.issue_license_token(
+            signing_key,
+            license_id=license_id,
+            device_fingerprint=device_fingerprint,
+            key_hint=key_hint,
+        )
+
+        return JSONResponse(status_code=200, content={"activation_code": token})
+
     @app.get("/api/v1/admin/reports")
     async def admin_reports(request: Request, limit: int = 500) -> dict[str, object]:
-        _basic_auth(request, cfg)
+        _authenticate_admin(request, cfg, admin_sessions)
+
         limit = min(max(limit, 1), 1000)
         with _open_db(db_path) as conn:
             rows = conn.execute(
