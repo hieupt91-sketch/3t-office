@@ -673,6 +673,11 @@ def _user_data_dir() -> Path:
     return Path(base) / APP_DATA_DIR_NAME
 
 
+def _license_platform_name() -> str:
+    """Tên nền tảng gửi cho máy chủ bản quyền (windows | macos | linux)."""
+    return {"Windows": "windows", "Darwin": "macos"}.get(platform.system(), "linux")
+
+
 def find_soffice() -> str | None:
     """Tìm đường dẫn thực thi LibreOffice headless engine trên Windows/Linux/macOS."""
     env_override = os.environ.get("VNOFFICE_SOFFICE_PATH")
@@ -2946,6 +2951,48 @@ class VnOfficeApi:
     def get_app_version(self) -> str:
         """Trả về phiên bản ứng dụng hiện tại."""
         return APP_VERSION
+
+    # --- Bản quyền (adapters/license). Chỉ báo trạng thái; KHÔNG khóa tính năng nào ở giai đoạn này. ---
+    def _license_manager(self):
+        manager = getattr(self, "_license_manager_instance", None)
+        if manager is None:
+            from adapters.license.manager import LicenseManager
+
+            manager = LicenseManager(_user_data_dir(), APP_VERSION, platform_name=_license_platform_name())
+            self._license_manager_instance = manager
+        return manager
+
+    def _license_call(self, operation):
+        from adapters.license.manager import LicenseError
+
+        try:
+            return {"ok": True, **operation(self._license_manager())}
+        except LicenseError as exc:
+            return {"ok": False, "error": exc.code, "message": exc.message, **exc.extra}
+        except Exception as exc:  # never let a license problem break the app
+            logging.getLogger("vnoffice.license").warning("License operation failed: %s", type(exc).__name__)
+            return {"ok": False, "error": "internal", "message": "Không xử lý được bản quyền. Vui lòng thử lại."}
+
+    def license_status(self):
+        return self._license_call(lambda manager: manager.status())
+
+    def license_normalize_key(self, text):
+        """Định dạng lại ô nhập key khi gõ và cho biết key đã đúng checksum chưa (không cần mạng)."""
+        from adapters.license.keys import format_while_typing, normalize_key
+
+        return {"formatted": format_while_typing(str(text or "")), "valid": normalize_key(str(text or "")) is not None}
+
+    def license_activate(self, key, email=None):
+        return self._license_call(lambda manager: manager.activate(str(key or ""), str(email).strip() or None if email else None))
+
+    def license_refresh(self):
+        return self._license_call(lambda manager: manager.refresh())
+
+    def license_deactivate(self):
+        return self._license_call(lambda manager: manager.deactivate())
+
+    def license_apply_activation_code(self, code):
+        return self._license_call(lambda manager: manager.apply_activation_code(str(code or "")))
 
     def get_system_number_separators(self) -> dict[str, str]:
         """Trả về dấu phân cách thập phân và dấu phân nhóm hàng nghìn theo Windows regional settings."""
