@@ -5,7 +5,7 @@
 const LOCAL_TABLE_RE = /<table:table(?=[\s/>])([^>]*)>([\s\S]*?)<\/table:table>/gi;
 const NS_TABLE = "table";
 
-function parseAttrs(adapter, raw) {
+function parseAttrsLegacy(adapter, raw) {
   const attrs = {};
   String(raw || "").replace(/([\w:-]+)=(["'])([\s\S]*?)\2/g, (_, key, quote, value) => {
     attrs[key] = adapter._unescapeXml(value);
@@ -14,10 +14,56 @@ function parseAttrs(adapter, raw) {
   return attrs;
 }
 
+function unescapeXmlP2(value) {
+  if (!value || !value.includes("&")) return value || "";
+  return value.replace(/&(#x[0-9a-fA-F]+|#\d+|apos|quot|gt|lt|amp);/g, (entity, token) => {
+    const lower = token.toLowerCase();
+    if (lower.startsWith("#x")) return String.fromCodePoint(parseInt(lower.slice(2), 16));
+    if (lower.startsWith("#")) return String.fromCodePoint(parseInt(lower.slice(1), 10));
+    return { apos: "'", quot: '"', gt: ">", lt: "<", amp: "&" }[lower] ?? entity;
+  });
+}
+
+const P2_ATTR_RE = /([\w:-]+)=(["'])([\s\S]*?)\2/g;
+
+function parseAttrsP2(raw) {
+  const attrs = {};
+  const source = String(raw || "");
+  P2_ATTR_RE.lastIndex = 0;
+  let match;
+  while ((match = P2_ATTR_RE.exec(source)) !== null) {
+    attrs[match[1]] = unescapeXmlP2(match[3]);
+  }
+  return attrs;
+}
+
+function parseAttrs(adapter, raw, p2Fast = false) {
+  return p2Fast ? parseAttrsP2(raw) : parseAttrsLegacy(adapter, raw);
+}
+
 const PAYLOAD_ROWS_PER_UI_SLICE = 128;
 
 function yieldToRenderer() {
   return new Promise(resolve => setTimeout(resolve, 0));
+}
+
+async function eachCachedRecord(records, onRecord, options = {}) {
+  const shouldYield = typeof process === "undefined" || !process.versions?.node;
+  let processedRows = 0;
+  const totalRows = Math.max(1, Number(options.totalRows) || 1);
+  const progressStart = Number(options.progressStart) || 0;
+  const progressSpan = Math.max(0, (Number(options.progressEnd) || 0) - progressStart);
+  for (let index = 0; index < records.length; index++) {
+    const record = records[index];
+    records[index] = null;
+    onRecord(record);
+    if (record[0] !== "row") continue;
+    processedRows++;
+    if (!shouldYield || processedRows % PAYLOAD_ROWS_PER_UI_SLICE !== 0) continue;
+    options.onProgress?.(progressStart + progressSpan * Math.min(1, processedRows / totalRows));
+    await yieldToRenderer();
+  }
+  options.onProgress?.(progressStart + progressSpan);
 }
 
 async function eachCompressedRecord(payload, onRecord, options = {}) {
@@ -158,11 +204,11 @@ function domRichRecordsForRow(adapter, rowXml, richContext) {
   }
 }
 
-function rowXmlRecord(adapter, rowXml, richContext = null) {
+function rowXmlRecord(adapter, rowXml, richContext = null, p2Fast = false) {
   const source = String(rowXml || "");
   const rowOpen = source.match(/^<table:table-row\b([^>]*)>/i);
   if (!rowOpen) throw new Error("Malformed row XML payload record");
-  const rowAttrs = parseAttrs(adapter, rowOpen[1]);
+  const rowAttrs = parseAttrs(adapter, rowOpen[1], p2Fast);
   const rowBody = source.slice(rowOpen[0].length).replace(/<\/table:table-row\s*>\s*$/i, "");
   const cells = [];
   const domRich = domRichRecordsForRow(adapter, source, richContext);
@@ -171,7 +217,7 @@ function rowXmlRecord(adapter, rowXml, richContext = null) {
     const cellOpen = cellXml.match(/^<(table:covered-table-cell|table:table-cell)\b([^>]*)>/i);
     if (!cellOpen) continue;
     const covered = cellOpen[1].toLowerCase() === "table:covered-table-cell" ? 1 : 0;
-    const attrs = parseAttrs(adapter, cellOpen[2]);
+    const attrs = parseAttrs(adapter, cellOpen[2], p2Fast);
     const selfClosing = /\/\s*>$/.test(cellOpen[0]);
     const closeTag = `</${cellOpen[1]}>`;
     const closeAt = selfClosing ? -1 : cellXml.lastIndexOf(closeTag);
@@ -181,23 +227,24 @@ function rowXmlRecord(adapter, rowXml, richContext = null) {
     // between those children. Match that boundary while keeping text inside
     // each child intact (spaces between rich-text spans are meaningful).
     const content = directXmlChildren(rawContent).join("");
-    const cellRecord = [covered, Object.entries(attrs), content];
+    const cellRecord = [covered, p2Fast ? attrs : Object.entries(attrs), content];
     if (domRich) cellRecord.push({ domRich: true, value: domRich[cellIndex] || null });
     cells.push(cellRecord);
     cellIndex++;
   }
-  return ["row", Object.entries(rowAttrs), cells];
+  return ["row", p2Fast ? rowAttrs : Object.entries(rowAttrs), cells];
 }
 
-function normalizedRecord(adapter, record, richContext = null) {
+function normalizedRecord(adapter, record, richContext = null, p2Fast = false) {
   // XML parsers normalize CRLF/CR to LF before exposing text nodes. Match the
   // prior ElementTree payload behavior before regex-based rich-text extraction.
   return record?.[0] === "row-xml"
-    ? rowXmlRecord(adapter, String(record[1] || "").replace(/\r\n?/g, "\n"), richContext)
+    ? rowXmlRecord(adapter, String(record[1] || "").replace(/\r\n?/g, "\n"), richContext, p2Fast)
     : record;
 }
 
 function cellImagesDomEquivalent(adapter, content, baseId) {
+  if (!/<draw:frame\b/i.test(String(content || ""))) return [];
   const images = [];
   const frames = directXmlChildren(content).filter(xml => /^<draw:frame\b/i.test(xml));
   for (let index = 0; index < frames.length; index++) {
@@ -344,13 +391,26 @@ function validatePayload(payload, adapter, supportXmlOverride) {
 
 export async function buildSheetPayloadModel(payload, adapter, supportXmlOverride, options = {}) {
   if (!adapter) throw new TypeError("SheetAdapter is required to build a payload model");
+  const useLegacy = options.legacy === true || globalThis.__VNO_OPEN_LEGACY === true;
+  const perfEnabled = typeof window !== "undefined" && window.__vnoPerfDebug === true;
+  const perfNow = () => performance.now();
+  const perfReport = (name, started) => {
+    if (perfEnabled) window.__vnoPerfReport?.(`buildSheetPayloadModel:${name}`, perfNow() - started);
+  };
+  let phaseStarted = perfEnabled ? perfNow() : 0;
   const supportXml = validatePayload(payload, adapter, supportXmlOverride);
+  perfReport("validate payload", phaseStarted);
+  phaseStarted = perfEnabled ? perfNow() : 0;
   const xml = adapter._xmlWithoutEmbeddedObjects(supportXml);
+  perfReport("strip embedded objects", phaseStarted);
+  phaseStarted = perfEnabled ? perfNow() : 0;
   const numberStyles = adapter._parseNumberStyles(xml);
   const rotationStyles = adapter._parseRotationStyles(xml);
   const cellVisualStyles = adapter._parseCellVisualStyles(xml);
   const textStyles = adapter._parseTextStyles(xml);
   const rowColStyles = adapter._parseRowColStyles(xml);
+  perfReport("parse styles", phaseStarted);
+  phaseStarted = perfEnabled ? perfNow() : 0;
   const blocks = tableBlocks(adapter, xml);
   const workbook = {
     sheets: [], sheetsData: {}, activeSheet: "", commentsBySheet: {}, mergedRangesBySheet: {},
@@ -369,6 +429,7 @@ export async function buildSheetPayloadModel(payload, adapter, supportXmlOverrid
     if (range) workbook.namedRangesWorkbook.push(range);
     return "";
   });
+  perfReport("scan support XML", phaseStarted);
 
   const cellScan = new Map();
   let scanSheet = "";
@@ -377,7 +438,21 @@ export async function buildSheetPayloadModel(payload, adapter, supportXmlOverrid
   const sheetRecordNames = [];
   let rowRecords = 0;
   let sheetRecords = 0;
+  // Superseded by P2 - xoa chi khi chu so huu duyet: the legacy path still
+  // inflates and normalizes all row XML twice. P2 retains pass-1 records and
+  // releases them one by one while building the workbook in pass 2.
+  const p2Records = useLegacy ? null : [];
+  const rootOpen = xml.match(/<office:document\b([^>]*)>/i);
+  const richContext = {
+    textStyles,
+    cellVisualStyles,
+    namespaceAttrs: rootOpen?.[1] || "",
+  };
+  let scanNormalizeMs = 0;
+  let scanRowsMs = 0;
+  phaseStarted = perfEnabled ? perfNow() : 0;
   await eachCompressedRecord(payload, record => {
+    const recordStarted = perfEnabled ? perfNow() : 0;
     if (!Array.isArray(record)) throw new TypeError("Invalid Sheet payload record");
     if (record[0] === "sheet") {
       const name = record[1];
@@ -399,7 +474,10 @@ export async function buildSheetPayloadModel(payload, adapter, supportXmlOverrid
     } else {
       throw new TypeError("Unknown Sheet payload record type");
     }
-    record = normalizedRecord(adapter, record);
+    record = normalizedRecord(adapter, record, useLegacy ? null : richContext, !useLegacy);
+    if (p2Records) p2Records.push(record);
+    if (perfEnabled) scanNormalizeMs += perfNow() - recordStarted;
+    const scanStarted = perfEnabled ? perfNow() : 0;
     if (record[0] === "sheet") {
       scanSheet = record[1];
       if (scanSheet) cellScan.set(scanSheet, { row: 1, lastDataRow: 0, lastDataCol: 0 });
@@ -407,13 +485,13 @@ export async function buildSheetPayloadModel(payload, adapter, supportXmlOverrid
     }
     if (record[0] !== "row" || !scanSheet) return;
     const stats = cellScan.get(scanSheet);
-    const rowAttrs = Object.fromEntries(record[1]);
+    const rowAttrs = useLegacy ? Object.fromEntries(record[1]) : record[1];
     const rowRepeat = Math.max(1, Number(rowAttrs["table:number-rows-repeated"]) || 1);
     let column = 1;
     let rowHasData = false;
     for (const [covered, pairs, content] of record[2]) {
       if (covered !== 0 && covered !== 1) continue;
-      const attrs = Object.fromEntries(pairs);
+      const attrs = useLegacy ? Object.fromEntries(pairs) : pairs;
       const colRepeat = Math.max(1, Number(attrs["table:number-columns-repeated"]) || 1);
       const hasValue = adapter._fodsCellMarkupHasRealContent(attrs, content, cellVisualStyles, false);
       const compactBorderBlock = !hasValue && colRepeat <= adapter.constructor.STYLE_ONLY_MAX_COLUMN_REPEAT
@@ -427,7 +505,13 @@ export async function buildSheetPayloadModel(payload, adapter, supportXmlOverrid
     }
     if (rowHasData) stats.lastDataRow = stats.row + rowRepeat - 1;
     stats.row += rowRepeat;
+    if (perfEnabled) scanRowsMs += perfNow() - scanStarted;
   }, { ...options, progressStart: 0, progressEnd: 0.35 });
+  perfReport("pass 1 total", phaseStarted);
+  if (perfEnabled) {
+    window.__vnoPerfReport?.("buildSheetPayloadModel:pass 1 normalize rows", scanNormalizeMs);
+    window.__vnoPerfReport?.("buildSheetPayloadModel:pass 1 scan cells", scanRowsMs);
+  }
   if (openSheet || sheetRecords !== payload.sheets || rowRecords !== payload.rows) {
     throw new TypeError("Sheet payload record counts do not match its header");
   }
@@ -476,14 +560,16 @@ export async function buildSheetPayloadModel(payload, adapter, supportXmlOverrid
 
   const tableByName = new Map(sheetBlocks.map(block => [parseAttrs(adapter, block.attrs)["table:name"] || `Trang tính ${block.index + 1}`, block]));
   let buildingSheet = "";
-  const rootOpen = xml.match(/<office:document\b([^>]*)>/i);
-  const richContext = {
-    textStyles,
-    cellVisualStyles,
-    namespaceAttrs: rootOpen?.[1] || "",
-  };
-  await eachCompressedRecord(payload, record => {
-    record = normalizedRecord(adapter, record, richContext);
+  const p2CellCache = useLegacy ? null : { numberFormats: new Map(), styleHashes: new Map(), styles: new Map() };
+  let buildNormalizeMs = 0;
+  let buildRowsMs = 0;
+  let buildEndSheetMs = 0;
+  phaseStarted = perfEnabled ? perfNow() : 0;
+  const buildRecord = record => {
+    const recordStarted = perfEnabled ? perfNow() : 0;
+    if (useLegacy) record = normalizedRecord(adapter, record, richContext);
+    if (perfEnabled) buildNormalizeMs += perfNow() - recordStarted;
+    const buildStarted = perfEnabled ? perfNow() : 0;
     if (record[0] === "sheet") {
       buildingSheet = record[1];
       return;
@@ -508,12 +594,13 @@ export async function buildSheetPayloadModel(payload, adapter, supportXmlOverrid
         workbook.imagesAtOpenBySheet[buildingSheet] = state.images.length;
       }
       buildingSheet = "";
+      if (perfEnabled) buildEndSheetMs += perfNow() - buildStarted;
       return;
     }
     if (record[0] !== "row" || !buildingSheet) return;
     const state = sheetState.get(buildingSheet);
     if (!state) return;
-    const rowAttrs = Object.fromEntries(record[1]);
+    const rowAttrs = useLegacy ? Object.fromEntries(record[1]) : record[1];
     const rowRepeat = Math.max(1, Number(rowAttrs["table:number-rows-repeated"]) || 1);
     const rowStyleName = rowAttrs["table:style-name"] || "";
     const rowVisibility = (rowAttrs["table:visibility"] || "").toLowerCase();
@@ -534,7 +621,7 @@ export async function buildSheetPayloadModel(payload, adapter, supportXmlOverrid
       }
       let columnNumber = 1;
       for (const [isCoveredNumber, pairs, content, domRich] of record[2]) {
-        const attributes = Object.fromEntries(pairs);
+        const attributes = useLegacy ? Object.fromEntries(pairs) : pairs;
         const columnRepeat = Math.max(1, Number(attributes["table:number-columns-repeated"]) || 1);
         const isCovered = isCoveredNumber === 1;
         const isCoveredErrorFormula = isCovered && Boolean(attributes["table:formula"] || attributes["vno:formula"])
@@ -557,8 +644,10 @@ export async function buildSheetPayloadModel(payload, adapter, supportXmlOverrid
           || text !== "" || annotationMatch || attributes["table:content-validation-name"]
           || (columnNumber <= state.lastDataCol && adapter._cellStyleHasBorder(attributes["table:style-name"], cellVisualStyles));
         if (hasValue && (!isCovered || isCoveredErrorFormula)) {
-          const item = adapter._cellFromFodsAttributes(attributes, text, numberStyles, rotationStyles, cellVisualStyles);
-          if (textStyles.size > 0) {
+          const item = useLegacy
+            ? adapter._cellFromFodsAttributesLegacy(attributes, text, numberStyles, rotationStyles, cellVisualStyles)
+            : adapter._cellFromFodsAttributes(attributes, text, numberStyles, rotationStyles, cellVisualStyles, p2CellCache);
+          if (textStyles.size > 0 && (useLegacy || domRich?.domRich || /<text:span\b/i.test(valueContent))) {
             const cellVisual = cellVisualStyles.get(attributes["table:style-name"]) || {};
             const rich = domRich?.domRich
               ? domRich.value
@@ -600,8 +689,23 @@ export async function buildSheetPayloadModel(payload, adapter, supportXmlOverrid
       }
       state.rowNumber++;
     }
-  }, { ...options, progressStart: 0.35, progressEnd: 1 });
+    if (perfEnabled) buildRowsMs += perfNow() - buildStarted;
+  };
+  if (useLegacy) {
+    await eachCompressedRecord(payload, buildRecord, { ...options, progressStart: 0.35, progressEnd: 1 });
+  } else {
+    await eachCachedRecord(p2Records, buildRecord, {
+      ...options, totalRows: payload.rows, progressStart: 0.35, progressEnd: 1,
+    });
+  }
+  perfReport("pass 2 total", phaseStarted);
+  if (perfEnabled) {
+    window.__vnoPerfReport?.("buildSheetPayloadModel:pass 2 normalize rows", buildNormalizeMs);
+    window.__vnoPerfReport?.("buildSheetPayloadModel:pass 2 build rows", buildRowsMs);
+    window.__vnoPerfReport?.("buildSheetPayloadModel:pass 2 finalize sheets", buildEndSheetMs);
+  }
 
+  phaseStarted = perfEnabled ? perfNow() : 0;
   if (!workbook.sheets.includes(workbook.activeSheet)) workbook.activeSheet = workbook.sheets[0] || "";
   adapter._attachImportedRules(workbook, supportXml);
   adapter._attachImportedPivots(workbook, supportXml);
@@ -613,6 +717,7 @@ export async function buildSheetPayloadModel(payload, adapter, supportXmlOverrid
   adapter._attachImportedAutoFilter(workbook, supportXml);
   adapter._attachImportedSparklines(workbook, supportXml);
   adapter._attachImportedOutline(workbook, supportXml);
+  perfReport("attach workbook metadata", phaseStarted);
   return workbook;
 }
 
