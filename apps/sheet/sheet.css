@@ -374,6 +374,13 @@
   z-index: 2;
 }
 
+.vno-grid-cell.is-selected.can-overflow,
+.vno-grid-cell.is-composing,
+.vno-grid-cell.can-overflow.is-selected {
+  overflow: visible !important;
+  z-index: 20 !important;
+}
+
 .vno-grid-cell.has-content {
   z-index: 3;
 }

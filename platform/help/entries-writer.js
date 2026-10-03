@@ -1275,6 +1275,21 @@ export const WRITER_HELP_ENTRIES = [
       "Chọn «Đánh số lại từ 1» để bắt đầu đánh số lại thứ tự từ 1 cho danh sách hiện tại. Các mục kế tiếp sẽ tự động tăng số theo thứ tự 2, 3…",
       "Chọn «Tiếp tục đánh số» để liên kết số thứ tự nối tiếp với danh sách số phía trước trong tài liệu. Bạn có thể nhấn Ctrl+Z để hoàn tác bất kỳ lúc nào."
     ]
+  },
+  {
+    id: "writer.mouse.operations",
+    app: "writer",
+    commandIds: ["common.edit.selectAll"],
+    title: "Thao tác chuột tương tác văn bản và bảng",
+    summary: "Sử dụng chuột tự nhiên và trực quan: nhấp đúp chọn từ, nhấp ba chọn đoạn, kéo thả di chuyển/sao chép văn bản, nhấp đúp và kéo viền bảng để đổi kích thước.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
+    keywords: ["chuột", "nhấp đúp", "nhấp ba", "kéo thả", "chọn từ", "chọn đoạn", "viền bảng", "tự vừa cột", "auto-fit", "Ctrl+kéo", "Ctrl+cuộn"],
+    steps: [
+      "Nhấp đúp chuột vào một từ để chọn nhanh toàn bộ từ đó. Nhấp chuột 3 lần liên tiếp (triple-click) vào bất kỳ vị trí nào trong đoạn để bôi đen trọn vẹn cả đoạn văn bản.",
+      "Kéo chuột để bôi đen một vùng văn bản bất kỳ. Sau khi bôi đen, nhấp giữ chuột trái trên vùng chữ đã chọn rồi kéo sang vị trí khác để di chuyển (Move). Giữ phím Ctrl trong lúc kéo để sao chép (Copy) sang vị trí đích. Nhấn Ctrl+Z để hoàn tác.",
+      "Trong bảng, di chuột tới đường viền giữa hai cột (hoặc hai hàng) đến khi con trỏ chuột đổi dạng mũi tên hai chiều. Kéo chuột để thay đổi độ rộng cột hoặc chiều cao hàng. Nhấp đúp chuột vào viền phải cột để tự động vừa khít độ rộng theo nội dung (Auto-fit).",
+      "Giữ phím Ctrl và cuộn bánh xe chuột để phóng to hoặc thu nhỏ trang hiển thị."
+    ]
   }
 ];
 

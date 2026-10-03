@@ -904,11 +904,14 @@ export class WriterAdapter {
       const cell = e.target?.closest?.("td, th");
       if (!cell || !cell.getBoundingClientRect) return;
       const rect = cell.getBoundingClientRect();
-      if (e.clientX >= rect.right - 8 && e.clientX <= rect.right + 2) {
-        const table = cell.closest?.("table");
-        if (table) {
+      const nearRight = Math.abs(e.clientX - rect.right) <= 8;
+      const nearLeft = Math.abs(e.clientX - rect.left) <= 8 && cell.cellIndex > 0;
+      if (nearRight || nearLeft) {
+        const targetCell = nearRight ? cell : cell.parentElement?.cells[cell.cellIndex - 1];
+        const table = targetCell?.closest?.("table");
+        if (table && targetCell) {
           e.preventDefault?.();
-          this.autoFitTableColumn(table, cell.cellIndex);
+          this.autoFitTableColumn(table, targetCell.cellIndex);
         }
       }
     });
@@ -15398,6 +15401,24 @@ export class WriterAdapter {
         }
       };
       target.addEventListener("keydown", this._undoKeyHandler, true);
+      if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
+        document.addEventListener("keydown", (event) => {
+          if (!event.ctrlKey && !event.metaKey) return;
+          const key = (event.key || "").toLowerCase();
+          if (key !== "z" && key !== "y") return;
+          const active = document.activeElement;
+          if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA") && !active.closest?.(".vno-writer-container, .vno-writer-body")) {
+            return;
+          }
+          if (key === "z" && !event.shiftKey) {
+            event.preventDefault();
+            this.undo();
+          } else if (key === "y" || (key === "z" && event.shiftKey)) {
+            event.preventDefault();
+            this.redo();
+          }
+        }, true);
+      }
     }
   }
 
