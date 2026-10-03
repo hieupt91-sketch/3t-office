@@ -13,8 +13,8 @@
 - **Đường dẫn tệp gốc:** `E:\VNOffice-dist\VNOffice-Setup-0.9.7.exe`
 - **Kích thước chính xác:** `526.608.468 byte` (khoảng `502,2 MB`, làm tròn hiển thị: `502 MB`)
 - **Mã băm toàn vẹn (SHA-256):**  
-  `517336EB7CF5F8D5804EB4F53531A0B669D434863EFEAA478CC0277EDC8B642C`  
-  *(Viết thường: `517336eb7cf5f8d5804eb4f53531a0b669d434863efeaa478cc0277edc8b642c`)*
+  `8F3B6A8E0C0ED0324B62C53D0EFE56994653A33E660C44446C6065A353C07B15`  
+  *(Viết thường: `8F3B6A8E0C0ED0324B62C53D0EFE56994653A33E660C44446C6065A353C07B15`)*
 
 ---
 
@@ -93,7 +93,7 @@ Bổ sung biến môi trường `DOWNLOADS_DIR` và volume mount chế độ ch�
 - **Kích thước thực tế:** `526.608.468 byte`
 - **Kích thước hiển thị người dùng:** `502 MB`
 - **Mã băm toàn vẹn SHA-256:**  
-  `517336EB7CF5F8D5804EB4F53531A0B669D434863EFEAA478CC0277EDC8B642C`
+  `8F3B6A8E0C0ED0324B62C53D0EFE56994653A33E660C44446C6065A353C07B15`
 - **URL tải chính thức:**  
   `https://office.3tcomputer.com/downloads/VNOffice-Setup-0.9.7.exe`
 
@@ -124,7 +124,7 @@ Trang `tai-ve.html` đã được bổ sung đầy đủ hướng dẫn từng b
    ```
 2. **Lệnh đối chiếu tự động 1 bước qua Windows PowerShell (trả về True nếu khớp 100%):**
    ```powershell
-   (Get-FileHash .\VNOffice-Setup-0.9.7.exe).Hash -eq "517336EB7CF5F8D5804EB4F53531A0B669D434863EFEAA478CC0277EDC8B642C"
+   (Get-FileHash .\VNOffice-Setup-0.9.7.exe).Hash -eq "8F3B6A8E0C0ED0324B62C53D0EFE56994653A33E660C44446C6065A353C07B15"
    ```
 3. **Lệnh đối chiếu qua Windows Command Prompt (cmd.exe):**
    ```cmd
