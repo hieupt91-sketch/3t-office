@@ -1,16 +1,53 @@
-TASK: CH-1 — mở file Sheet lớn theo sheet, Pha 2 WIP.
-AGENT/ROLE: Codex / VN Sheet performance.
-BRANCH: perf/ch1-lazy-sheets-codex
-WORKTREE: E:\VNOffice-codex-lan14c
-OBJECTIVE: lan14 mở và thao tác được <60 giây, WebView2 peak <1,5 GB, không treo >2 giây; save đủ và đúng 10 sheet.
-FINDINGS: Pha 1 đo 180,203 giây và WebView2 peak 2.685,3 MB nên cả hai mục tiêu FAIL. `switchSheet()` hiện đồng bộ và được nhiều consumer gọi; `serializeToFods()` dựng lại toàn workbook từ model WebView2. Bật stub trước khi có ensure-load/save-merge có thể tính công thức từ sheet rỗng và ghi mất sheet chưa nạp.
-IMPLEMENTATION SUMMARY: Đã thêm wire-format Pha 2 sau cờ tắt: builder nhận `included_sheets`, chỉ phát row record của sheet được chọn, giữ các sheet còn lại dưới dạng stub gồm tên/trạng thái ẩn/màu tab/used range/số ô; support XML giữ cấu trúc workbook nhưng bỏ row của stub. Parser kiểm tra chặt stub/deferred sheet, dựng model rỗng có đánh dấu để bước sau nạp theo yêu cầu. Production chưa truyền `included_sheets`, nên hành vi Pha 1 không đổi và safety gate chưa bị vượt qua.
-FILES CHANGED: adapters/libreoffice/sheet/sheet_open_payload.py; adapters/libreoffice/sheet/sheet-payload-parser.js; tests/test_sheet_open_payload.py; tests/unit/sheet-open-payload.test.js; docs/PLAN-CH1-LAZY-SHEETS.md; file này.
-COMMANDS RUN: `python -s -m unittest tests.test_sheet_open_payload`; runner JS hẹp gọi `runSheetOpenPayloadTests`; `git diff --check`.
-BUILD RESULT: NOT RUN — WIP chưa bật production.
-TEST RESULTS: Python focused 6/6 PASS; JS payload focused 7/7 PASS; diff check PASS. Full Node, desktop 27 ca, legacy audit, probe lan14, save lan14: NOT RUN trong WIP này.
-KNOWN FAILURES: Mục tiêu mở <60 giây FAIL theo số Pha 1 180,203 giây; WebView2 <1,5 GB FAIL theo số Pha 1 2,685 GB. Pha 2 production, first sheet-switch, save lan14, công thức xuyên sheet và consumer toàn-workbook chưa hiện thực/chưa đo.
-RISKS: Stub chưa được phép đi vào grid production. Builder scaffold vẫn đọc metadata XF toàn workbook trước khi lọc record, nên chưa loại hotspot 65,8 giây. Session Pha 1 vẫn được release sau mở; bước tiếp theo phải giữ session tới khi đóng tài liệu.
-DEPENDENCIES/BLOCKERS: Không thêm dependency, không sửa Core. Cần thiết kế API ensureSheetLoaded bất đồng bộ nhưng tương thích các caller đồng bộ, và save-merge phía Python từ FODS/session hoặc nguồn XLSX.
-CORE PATCH ID (if any): None.
-NEXT ACTION: Thêm session API trả payload một sheet; adapter điều phối ensure-load cho tab/formula/search/Ctrl+End/thống kê; save gửi delta các sheet đã sửa và giữ nguyên sheet chưa nạp. Chỉ sau test công thức xuyên sheet + audit save mới bật lazy mặc định cho FODS >20 MiB, chạy full gate một lần và probe lan14 ba lần.
+# AGENT HANDOFF — CH-1 Lazy Sheets, Pha 2 WIP
+
+- **Task:** CH-1 Pha 2 — mở `lan14.xlsx` theo sheet.
+- **Agent/role:** Codex / VN Sheet performance.
+- **Branch:** `perf/ch1-lazy-sheets-codex`.
+- **Worktree:** `E:\VNOffice-codex-lan14c`.
+- **Objective:** mở và thao tác được dưới 60 giây, WebView2 peak dưới 1,5 GB, không treo quá 2 giây; lưu đủ và đúng 10 sheet.
+
+## Trạng thái
+
+- Đã merge `main` vào nhánh trước khi làm tiếp (nhánh từng sau 3 commit).
+- Commit trước `a0e755df` đã có wire format: payload chỉ chứa sheet chọn và stub cho sheet hoãn.
+- Lần này đã thêm API Python `get_sheet_open_payload(openId, sheetName)`, bridge JS, `ensureSheetLoaded()` có gộp request trùng và hợp nhất model của đúng một sheet.
+- Tab chuột, bàn phím, double-click và context menu gọi `activateSheet()` để chờ nạp sheet trước khi chuyển; lỗi nạp không chuyển sang model rỗng.
+- Session giữ thêm bản sao XLSX riêng tư cạnh FODS để nạp sheet không phụ thuộc tệp nguồn có còn nguyên trên đường dẫn hay không; cleanup xóa cả hai.
+- Session không bị release sau open nếu workbook còn sheet hoãn.
+- **Production vẫn chưa truyền `included_sheets`; hành vi thực tế vẫn là Pha 1.** Không bật cờ vì save-merge và consumer toàn workbook chưa hoàn tất.
+
+## File thay đổi
+
+- `main.py`
+- `adapters/libreoffice/common/uno-bridge.js`
+- `adapters/libreoffice/sheet/sheet-adapter.js`
+- `apps/sheet/sheet-grid.js`
+- `tests/test_sheet_open_payload.py`
+- `tests/unit/sheet-open-payload.test.js`
+- tài liệu handoff này
+
+## Kiểm chứng thật
+
+- `python -s -m unittest tests.test_sheet_open_payload`: **PASS 7/7**.
+- runner hẹp `runSheetOpenPayloadTests`: **PASS 8/8**.
+- `git diff --check`: **PASS**.
+- `node tests/run-tests.js`: **NOT RUN** — WIP chưa qua safety gate, full gate chỉ chạy một lần cuối pha.
+- Desktop regression 27 ca: **NOT RUN**.
+- Audit legacy lan01–03: **NOT RUN**.
+- Probe `lan14` 3 lần, lưu và first switch: **NOT RUN**.
+- Mục tiêu dưới 60 giây và WebView2 dưới 1,5 GB: **FAIL theo số Pha 1 gần nhất (180,203 giây; 2,685 GB); Pha 2 chưa bật/chưa đo.**
+
+## Việc bắt buộc tiếp theo
+
+1. Save-merge phía Python: chỉ ghép các sheet đã sửa vào FODS/XLSX session; sheet chưa nạp giữ nguyên byte/semantics nguồn. Test hash/số ô từng sheet trước khi bật.
+2. Nối safety cho công thức xuyên sheet, tìm/thay toàn workbook, Ctrl+End, thống kê, named range, conditional formatting và sheet ẩn. Không cho consumer tiếp tục trên stub rỗng.
+3. Hoàn thiện vòng đời session khi đóng/thay tài liệu và gia hạn phù hợp; hiện TTL vẫn là 600 giây.
+4. Chỉ sau khi các test an toàn xanh mới truyền `included_sheets={activeSheet}` cho file FODS trên 20 MiB.
+5. Chạy đúng một full gate, audit legacy, rồi probe `lan14` 3 lần + save + first switch khi RAM trống trên 6 GB; điền số thật.
+
+## Rủi ro / rollback
+
+- API deferred hiện dựng payload bằng cách đọc lại toàn FODS, nên chưa tối ưu hotspot Python và chưa chứng minh chuyển sheet dưới 2 giây.
+- Không có core patch, dependency hay thay build system.
+- Rollback: không truyền `included_sheets`; đường Pha 1/FODS legacy giữ nguyên.
+- Template `/09-templates/AGENT-HANDOFF.md` được AGENTS.md nhắc tới nhưng không tồn tại trong worktree; tài liệu này giữ cấu trúc handoff hiện hành của task.

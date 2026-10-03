@@ -37,3 +37,7 @@ Test hẹp Python/JS cho threshold, payload, fallback và save; cuối mỗi pha
 - **Risks:** API `switchSheet` hiện đồng bộ và được nhiều tính năng gọi; serialize hiện dựng lại toàn workbook từ model WebView2. Vì vậy một lát cắt chỉ có stub mà chưa có ensure-load/save-merge phải được coi là WIP và giữ sau cờ tắt.
 - **Test plan:** test hẹp builder/session/parser/switch/formula/save; sau khi safety gate xanh mới chạy đúng một lần Node full, desktop regression và audit legacy; probe lan14 ba lần + save/sheet-switch khi RAM trống >6 GB.
 - **Rollback:** tắt nhánh lazy-sheet hoặc bỏ cờ opt-in mới; đường compact Pha 1 và FODS legacy vẫn giữ nguyên.
+
+## Cập nhật WIP lần 3
+
+Đã có cầu nối Python/JS nạp payload của đúng một sheet và đường tab chờ `ensureSheetLoaded()` trước khi chuyển. Session giữ FODS cùng bản sao XLSX riêng tư để nguồn nạp không thay đổi. Cờ production vẫn tắt vì save-merge, công thức xuyên sheet và các consumer toàn workbook chưa qua safety gate. Bước kế tiếp bắt buộc là save-merge từ session, không phải bật lazy rồi ép renderer nạp toàn workbook trước khi lưu.

@@ -626,7 +626,7 @@ export class SheetGridController {
     this._renderSheetTabs();
 
     if (tabsListEl) {
-      tabsListEl.addEventListener("keydown", (e) => {
+      tabsListEl.addEventListener("keydown", async (e) => {
         const tabs = Array.from(tabsListEl.querySelectorAll(".vno-sheet-tab-item"));
         const curIdx = tabs.findIndex(t => t.dataset.sheet === this.activeSheet);
         let targetIdx = -1;
@@ -642,7 +642,7 @@ export class SheetGridController {
         if (targetIdx >= 0 && tabs[targetIdx]) {
           e.preventDefault();
           const nextSheet = tabs[targetIdx].dataset.sheet;
-          this.switchSheet(nextSheet);
+          await this.activateSheet(nextSheet);
           tabs[targetIdx].focus();
         }
       });
@@ -3237,23 +3237,33 @@ export class SheetGridController {
       label.className = "vno-sheet-tab-label";
       label.textContent = sheetName;
       tab.appendChild(label);
-      tab.addEventListener("click", () => {
+      tab.addEventListener("click", async () => {
         const pointMode = this.formulaEntry && this._canInsertPointReference();
-        this.switchSheet(sheetName, pointMode ? { pointMode: true } : {});
+        await this.activateSheet(sheetName, pointMode ? { pointMode: true } : {});
       });
-      tab.addEventListener("dblclick", event => {
+      tab.addEventListener("dblclick", async event => {
         event.preventDefault();
         event.stopPropagation();
-        this.switchSheet(sheetName);
+        if (!(await this.activateSheet(sheetName))) return;
         this.showRenameSheetDialog(sheetName);
       });
-      tab.addEventListener("contextmenu", event => {
+      tab.addEventListener("contextmenu", async event => {
         event.preventDefault();
-        this.switchSheet(sheetName);
+        if (!(await this.activateSheet(sheetName))) return;
         this._showSheetTabContextMenu(event, sheetName);
       });
       tabsListEl.appendChild(tab);
     });
+  }
+
+  async activateSheet(sheetName, options = {}) {
+    try {
+      if (this.adapter?.ensureSheetLoaded) await this.adapter.ensureSheetLoaded(sheetName);
+    } catch (error) {
+      this._showDataNotice?.(error?.message || "Không nạp được trang tính. Dữ liệu gốc vẫn được giữ nguyên.");
+      return false;
+    }
+    return this.switchSheet(sheetName, options);
   }
 
   _showSheetTabContextMenu(event, sheetName) {

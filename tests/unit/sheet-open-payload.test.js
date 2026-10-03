@@ -90,6 +90,45 @@ export async function runSheetOpenPayloadTests() {
     assert(workbook.sheetStubs.Deferred.usedRange === "A1:C9", "stub used range was lost");
   });
 
+  await test("ensureSheetLoaded coalesces requests and merges one deferred sheet", async () => {
+    const grid = new SheetGridController(makeContainer());
+    const adapter = new SheetAdapter(grid);
+    const initial = makePayload();
+    initial.supportXml = initial.supportXml.replace(
+      "</office:spreadsheet>",
+      '<table:table table:name="Deferred"></table:table></office:spreadsheet>'
+    );
+    initial.sheetStubs = [
+      { name: "Data", state: "visible", tabColor: "", usedRange: "A1", cellCount: 1 },
+      { name: "Deferred", state: "visible", tabColor: "", usedRange: "A1", cellCount: 1 }
+    ];
+    initial.deferredSheets = ["Deferred"];
+    assert(await adapter.loadFromPayload(initial), "initial stub payload did not load");
+    adapter._sheetOpenId = "open-id";
+
+    const deferred = makePayload([
+      ["sheet", "Deferred"],
+      ["row-xml", '<table:table-row><table:table-cell office:value-type="string"><text:p>Later</text:p></table:table-cell></table:table-row>'],
+      ["end-sheet"]
+    ]);
+    deferred.supportXml = initial.supportXml;
+    deferred.sheetStubs = initial.sheetStubs;
+    deferred.deferredSheets = ["Data"];
+    const original = globalUnoBridge.getSheetOpenPayload;
+    let calls = 0;
+    globalUnoBridge.getSheetOpenPayload = async () => { calls++; return { status: "ok", sheetPayload: deferred }; };
+    try {
+      const [first, second] = await Promise.all([
+        adapter.ensureSheetLoaded("Deferred"), adapter.ensureSheetLoaded("Deferred")
+      ]);
+      assert(first && second && calls === 1, "concurrent loads were not coalesced");
+      assert(grid.sheetsData.Deferred.get("A1")?.val === "Later", "deferred cell was not merged");
+      assert(!adapter._deferredSheets.has("Deferred"), "deferred marker was not cleared");
+    } finally {
+      globalUnoBridge.getSheetOpenPayload = original;
+    }
+  });
+
   await test("payload parser rejects unsupported versions, broken counts, and truncated records", async () => {
     const adapter = new SheetAdapter(null);
     const wrongVersion = makePayload();

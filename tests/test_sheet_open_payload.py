@@ -117,6 +117,28 @@ class SheetOpenPayloadTests(unittest.TestCase):
             self.assertFalse(path.exists())
             self.assertNotIn(open_id, api._sheet_open_sessions)
 
+    def test_deferred_sheet_api_returns_only_requested_sheet(self):
+        fods = (SAMPLES / "src" / "sample-sheet.fods").read_text(encoding="utf-8")
+        source_bytes = (SAMPLES / "sample-sheet.xlsx").read_bytes()
+        sheet_names = list(main._ooxml_zip_patch()._resolve_xlsx_sheet_entries(source_bytes))
+        with tempfile.TemporaryDirectory() as temp_dir, patch("main._user_data_dir", return_value=Path(temp_dir)):
+            source = Path(temp_dir) / "source.xlsx"
+            source.write_bytes(source_bytes)
+            api = main.VnOfficeApi(app_kind="sheet")
+            open_id = api._store_sheet_open_fallback(fods, str(source), None)
+
+            result = api._read_sheet_open_payload(open_id, sheet_names[-1])
+
+            self.assertEqual(result["status"], "ok")
+            payload = result["sheetPayload"]
+            records = [
+                json.loads(line)
+                for line in zlib.decompress(base64.b64decode(payload["rowsDeflateBase64"])).decode("utf-8").splitlines()
+            ]
+            self.assertEqual([record[1] for record in records if record[0] == "sheet"], [sheet_names[-1]])
+            self.assertNotIn(sheet_names[-1], payload["deferredSheets"])
+            self.assertEqual(api._read_sheet_open_payload(open_id, "missing")["status"], "error")
+
 
 if __name__ == "__main__":
     unittest.main()

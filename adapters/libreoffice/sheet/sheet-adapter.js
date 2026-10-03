@@ -4929,11 +4929,54 @@ ${pristineXlsxMarker}
       });
       if (perfEnabled) window.__vnoPerfReport?.("buildSheetPayloadModel", performance.now() - parseStart);
       if (!workbook.sheets.length) return false;
-      return this._commitWorkbook(workbook, perfStart, "loadFromPayload");
+      const committed = this._commitWorkbook(workbook, perfStart, "loadFromPayload");
+      if (committed) {
+        this._deferredSheets = new Set(workbook.deferredSheets || []);
+        this._sheetStubs = workbook.sheetStubs || {};
+      }
+      return committed;
     } finally {
       if (hadDefaultWidth) this._sheetPayloadImportDefaultColWidth = oldDefaultWidth;
       else delete this._sheetPayloadImportDefaultColWidth;
     }
+  }
+
+  async ensureSheetLoaded(sheetName) {
+    if (!this._deferredSheets?.has(sheetName)) return true;
+    if (!this._sheetOpenId) throw new Error("Phiên nạp trang tính không còn khả dụng.");
+    this._sheetLoadPromises ||= new Map();
+    if (this._sheetLoadPromises.has(sheetName)) return await this._sheetLoadPromises.get(sheetName);
+    const pending = (async () => {
+      this.shell?.setStatus?.(`Đang nạp trang tính ${sheetName}…`);
+      const result = await globalUnoBridge.getSheetOpenPayload(this._sheetOpenId, sheetName);
+      if (result?.status !== "ok" || !result.sheetPayload) {
+        throw new Error(result?.message || "Không nạp được trang tính.");
+      }
+      const workbook = await buildSheetPayloadModel(result.sheetPayload, this);
+      const data = workbook.sheetsData?.[sheetName];
+      if (!(data instanceof Map)) throw new Error("Dữ liệu trang tính không hợp lệ.");
+      const mappings = [
+        "sheetsData", "commentsBySheet", "mergedRangesBySheet", "namedRangesBySheet",
+        "printAreaBySheet", "pageSetupBySheet", "conditionalFormattingBySheet",
+        "dataValidationsBySheet", "pivotTablesBySheet", "chartsBySheet", "imagesBySheet",
+        "imagesAtOpenBySheet", "rowHeightsBySheet", "colWidthsBySheet",
+        "autoRowsAtImportBySheet", "userHiddenRowsBySheet", "userHiddenColsBySheet",
+        "pageBreaksBySheet", "protectionBySheet", "outlineGroupsBySheet", "scenariosBySheet",
+        "freezePanesBySheet", "autoFilterBySheet", "sheetVisibilityBySheet", "tabColors"
+      ];
+      for (const key of mappings) {
+        if (workbook[key] && Object.prototype.hasOwnProperty.call(workbook[key], sheetName)) {
+          this.grid[key] ||= {};
+          this.grid[key][sheetName] = workbook[key][sheetName];
+        }
+      }
+      this._deferredSheets.delete(sheetName);
+      this.shell?.setStatus?.(`Đã nạp trang tính ${sheetName}`);
+      return true;
+    })();
+    this._sheetLoadPromises.set(sheetName, pending);
+    try { return await pending; }
+    finally { this._sheetLoadPromises.delete(sheetName); }
   }
 
   _snapshotGridForOpen() {
@@ -5503,6 +5546,7 @@ ${pristineXlsxMarker}
           this.shell?.setStatus?.("Đang dựng mô hình bảng tính và chuẩn bị lưới…");
           const loaded = await this.loadFromPayload(result.sheetPayload, result.ooxmlWorkbookXml);
           if (!loaded) throw new Error("Không dựng được sổ làm việc từ dữ liệu đã đọc.");
+          if (this._deferredSheets?.size) this._sheetOpenId = openId;
         } catch {
           reportOpenIssue("SheetOpenPayloadError", "Sheet payload parsing or model construction failed; using the retained FODS fallback.");
           this.shell?.setStatus?.("Đang tải dữ liệu bảng tính dự phòng…");
@@ -5551,7 +5595,7 @@ ${pristineXlsxMarker}
       });
       return false;
     } finally {
-      if (openId) {
+      if (openId && this._sheetOpenId !== openId) {
         try { await globalUnoBridge.releaseSheetOpenFallback(openId); } catch { /* expires automatically */ }
       }
     }

@@ -3082,26 +3082,41 @@ class VnOfficeApi:
                 Path(str(entry["path"])).unlink(missing_ok=True)
             except OSError:
                 pass
+            try:
+                source_copy_path = entry.get("source_copy_path")
+                if source_copy_path:
+                    Path(str(source_copy_path)).unlink(missing_ok=True)
+            except OSError:
+                pass
 
     def _clear_sheet_open_sessions(self):
         with self._sheet_open_session_lock:
             for open_id in list(self._sheet_open_sessions):
                 self._remove_sheet_open_session_locked(open_id)
 
-    def _store_sheet_open_fallback(self, fods_content: str, source_path: str, workbook_xml: str | None) -> str:
+    def _store_sheet_open_fallback(
+        self, fods_content: str, source_path: str, workbook_xml: str | None,
+        source_bytes: bytes | None = None,
+    ) -> str:
         self._prune_sheet_open_sessions()
         folder = _user_data_dir() / "sheet-open-sessions"
         folder.mkdir(parents=True, exist_ok=True)
         open_id = secrets.token_urlsafe(32)
         target = folder / f"{open_id}.fods"
+        source_copy = folder / f"{open_id}.xlsx" if source_bytes is not None else None
         temporary = folder / f".{open_id}.tmp"
         try:
             with temporary.open("w", encoding="utf-8", newline="") as handle:
                 handle.write(fods_content)
             os.replace(temporary, target)
+            if source_copy is not None:
+                source_copy.write_bytes(source_bytes)
         except Exception:
             try:
                 temporary.unlink(missing_ok=True)
+                target.unlink(missing_ok=True)
+                if source_copy is not None:
+                    source_copy.unlink(missing_ok=True)
             except OSError:
                 pass
             raise
@@ -3117,6 +3132,7 @@ class VnOfficeApi:
                 "path": target,
                 "expires_at": now + _SHEET_OPEN_SESSION_TTL_SECONDS,
                 "source_path": source_path,
+                "source_copy_path": source_copy,
                 "file_name": Path(source_path).name,
                 "workbook_xml": workbook_xml,
                 "timer": expiry_timer,
@@ -3167,6 +3183,41 @@ class VnOfficeApi:
     def get_latest_sheet_open_fallback(self):
         return self._invoke_reported_api(
             "get_latest_sheet_open_fallback", self._read_sheet_open_fallback, None
+        )
+
+    def _read_sheet_open_payload(self, open_id, sheet_name):
+        """Build one deferred-sheet payload from the retained private FODS."""
+        if (not isinstance(open_id, str) or not open_id or len(open_id) > 128
+                or not isinstance(sheet_name, str) or not sheet_name
+                or len(sheet_name) > 1024):
+            return {"status": "error", "message": "Yêu cầu nạp trang tính không hợp lệ."}
+        self._prune_sheet_open_sessions()
+        with self._sheet_open_session_lock:
+            entry = self._sheet_open_sessions.get(open_id)
+            fods_path = Path(str(entry["path"])) if entry else None
+            source_value = (entry.get("source_copy_path") or entry.get("source_path")) if entry else None
+            source_path = Path(str(source_value)) if source_value else None
+        if not fods_path or not fods_path.is_file() or not source_path or not source_path.is_file():
+            return {"status": "error", "message": "Phiên nạp trang tính đã hết hạn. Hãy mở lại tệp."}
+        try:
+            with fods_path.open("r", encoding="utf-8", errors="replace", newline="") as handle:
+                fods_content = handle.read()
+            source_bytes = source_path.read_bytes()
+            from adapters.libreoffice.sheet.sheet_open_payload import build_sheet_open_payload
+            _final_fods, payload = build_sheet_open_payload(
+                source_bytes, fods_content, _ooxml_zip_patch(), included_sheets={sheet_name}
+            )
+            stub_names = {stub.get("name", "") for stub in payload.get("sheetStubs", [])}
+            if sheet_name not in stub_names or sheet_name in payload.get("deferredSheets", []):
+                return {"status": "error", "message": "Không tìm thấy trang tính cần nạp."}
+            return {"status": "ok", "openId": open_id, "sheetName": sheet_name, "sheetPayload": payload}
+        except Exception:
+            self._record_sheet_open_payload_failure("deferred-sheet")
+            return {"status": "error", "message": "Không nạp được trang tính. Dữ liệu gốc vẫn được giữ nguyên."}
+
+    def get_sheet_open_payload(self, open_id, sheet_name):
+        return self._invoke_reported_api(
+            "get_sheet_open_payload", self._read_sheet_open_payload, open_id, sheet_name
         )
 
     def release_sheet_open_fallback(self, open_id):
@@ -4022,7 +4073,8 @@ class VnOfficeApi:
                                 try:
                                     sheet_ooxml_workbook_xml = _read_xlsx_workbook_xml(src_path)
                                     sheet_open_id = self._store_sheet_open_fallback(
-                                        final_fods, src_path, sheet_ooxml_workbook_xml
+                                        final_fods, src_path, sheet_ooxml_workbook_xml,
+                                        source_bytes=original_xlsx,
                                     )
                                 except Exception:
                                     sheet_open_payload = None

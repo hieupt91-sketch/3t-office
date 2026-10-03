@@ -186,6 +186,13 @@ export class UnoBridge {
     return await this.desktopApi.release_sheet_open_fallback(openId);
   }
 
+  async getSheetOpenPayload(openId, sheetName) {
+    if (!this.desktopApi || !openId || !sheetName) {
+      return { status: "error", message: "Không có phiên nạp trang tính hợp lệ." };
+    }
+    return await this.desktopApi.get_sheet_open_payload(openId, sheetName);
+  }
+
   async reportFrontendError(payload) {
     if (!this.desktopApi) return { queued: false };
     return await this.desktopApi.report_frontend_error(payload);
