@@ -94,7 +94,7 @@ async function main() {
   // KHỞI ĐỘNG ỨNG DỤNG DESKTOP VỚI initialDocxPath
   // ============================================================================
   const debugPort = await freePort();
-  const tempAppData = path.resolve(path.join("E:/VNOffice-profiles", `agy-docnotrun-${Date.now()}`));
+  const tempAppData = path.resolve(path.join("E:/VNOffice-profiles", `codex-docexport-${Date.now()}`));
   fs.mkdirSync(tempAppData, { recursive: true });
 
   console.log(`[AUDIT] Khởi chạy desktop app: python -s main.py --app=writer trên port ${debugPort}...`);
@@ -665,8 +665,8 @@ async function main() {
     };
 
     // B4 Number formats a) and i.
-    const hasListA = lists.listStringA?.includes("a") || lists.listStringA?.includes("a)");
-    const hasListI = lists.listStringI?.includes("i") || lists.listStringI?.includes("i.");
+    const hasListA = String(lists.listStringA || "").trim().toLowerCase() === "a)";
+    const hasListI = String(lists.listStringI || "").trim().toLowerCase() === "i.";
     results["B4_Number_formats_a_and_i"] = {
       status: (hasListA && hasListI) ? "PASS" : "FAIL",
       evidence: `Word COM PID ${wordReadback.ownedPid} readback: danh sách lồng cấp 3 nd30 ListString="${lists.listStringA}"; danh sách lồng cấp 3 letter ListString="${lists.listStringI}".`
@@ -682,8 +682,8 @@ async function main() {
     const h1Ok = heads.h1Style?.toLowerCase().includes("heading 1") || heads.h1Style?.toLowerCase().includes("tiêu đề 1");
     const h2Ok = heads.h2Style?.toLowerCase().includes("heading 2") || heads.h2Style?.toLowerCase().includes("tiêu đề 2");
     results["B5_DOCX_Word_style_and_TOC_round_trip_Undo"] = {
-      status: (h1Ok && h2Ok) ? "PASS" : "FAIL",
-      evidence: `Word COM PID ${wordReadback.ownedPid}: Heading 1 style="${heads.h1Style}", Heading 2 style="${heads.h2Style}"; TOC khối và trường mục lục hiển thị trong Word; Ctrl+Z / Ctrl+Y hoàn tác và làm lại thành công.`
+      status: (h1Ok && h2Ok && heads.tocCount >= 1 && heads.hasTocField === true) ? "PASS" : "FAIL",
+      evidence: `Word COM PID ${wordReadback.ownedPid}: Heading 1 style="${heads.h1Style}", Heading 2 style="${heads.h2Style}"; TablesOfContents.Count=${heads.tocCount}, có trường wdFieldTOC=${heads.hasTocField}; Ctrl+Z / Ctrl+Y hoàn tác và làm lại thành công.`
     };
 
     // B6 Table round trip & Undo
@@ -758,7 +758,7 @@ async function main() {
 
     // A14: Recovery after restart
     console.log("\n--> ĐO MỤC A14 (Khôi phục sau khởi động lại)...");
-    const a14ProfileDir = path.resolve(path.join("E:/VNOffice-profiles", `agy-docnotrun-a14-${Date.now()}`));
+    const a14ProfileDir = path.resolve(path.join("E:/VNOffice-profiles", `codex-docexport-a14-${Date.now()}`));
     fs.mkdirSync(a14ProfileDir, { recursive: true });
 
     let a14SnapshotSaved = false;

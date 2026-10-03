@@ -31,6 +31,7 @@ import posixpath
 import re
 import sys
 import xml.etree.ElementTree as ET
+from html.parser import HTMLParser
 from urllib.parse import quote as url_quote, unquote as url_unquote
 import uuid
 import zipfile
@@ -13051,53 +13052,409 @@ def _writer_restore_created_run_highlight(run_xml: str, highlighted_texts: dict[
     return run_xml
 
 
-def _writer_clone_lower_alpha_suffix(document_xml: str, numbering_xml: str, source_html: str) -> tuple[str, str]:
-    """Use Word's requested a) suffix for HTML lower-alpha ordered lists."""
-    item_texts = {
-        re.sub(r"\s+", " ", _writer_html_plain(item.group(1))).strip()
-        for listing in re.finditer(r"<ol\b(?=[^>]*\btype\s*=\s*([\"'])a\1)[^>]*>([\s\S]*?)</ol\s*>", source_html, re.IGNORECASE)
-        for item in re.finditer(r"<li\b[^>]*>([\s\S]*?)</li\s*>", listing.group(2), re.IGNORECASE)
+class _WriterExportListParser(HTMLParser):
+    """Collect direct list-item text without confusing it with nested items."""
+
+    _PRESET_BY_CLASS = {
+        "vno-ml-decimal": "decimal",
+        "vno-ml-letter": "letter",
+        "vno-ml-nd30": "nd30",
     }
-    if not item_texts:
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.list_stack: list[dict] = []
+        self.item_stack: list[dict] = []
+        self.groups: dict[int, dict] = {}
+        self._next_group = 1
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attrs_map = {name.casefold(): (value or "") for name, value in attrs}
+        if tag.casefold() == "ol":
+            classes = attrs_map.get("class", "").split()
+            preset = next((self._PRESET_BY_CLASS[name] for name in classes if name in self._PRESET_BY_CLASS), "")
+            inherited = self.list_stack[-1] if self.list_stack else None
+            if not preset and attrs_map.get("type") == "a":
+                preset = "lower-alpha"
+            if not preset and inherited:
+                preset = inherited["preset"]
+            if inherited and inherited["preset"] == preset:
+                group_id = inherited["group_id"]
+                depth = inherited["depth"] + 1
+            else:
+                group_id = self._next_group
+                self._next_group += 1
+                depth = 0
+                self.groups[group_id] = {"preset": preset, "items": []}
+            self.list_stack.append({"preset": preset, "group_id": group_id, "depth": depth})
+        elif tag.casefold() == "li" and self.list_stack:
+            current = self.list_stack[-1]
+            item = {"text_parts": [], "depth": current["depth"], "group_id": current["group_id"]}
+            self.item_stack.append(item)
+            self.groups[current["group_id"]]["items"].append(item)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag.casefold() == "li" and self.item_stack:
+            self.item_stack.pop()
+        elif tag.casefold() == "ol" and self.list_stack:
+            self.list_stack.pop()
+
+    def handle_data(self, data: str) -> None:
+        if self.item_stack:
+            self.item_stack[-1]["text_parts"].append(data)
+
+    def result(self) -> list[dict]:
+        groups = []
+        for group in self.groups.values():
+            if not group["preset"]:
+                continue
+            items = []
+            for item in group["items"]:
+                text = re.sub(r"\s+", " ", "".join(item["text_parts"])).strip()
+                if text:
+                    items.append({"text": text, "depth": item["depth"]})
+            if items:
+                groups.append({"preset": group["preset"], "items": items})
+        return groups
+
+
+def _writer_list_level_format(preset: str, level: int) -> tuple[str, str] | None:
+    """Return Word numFmt/lvlText for the three list presets shown by Writer."""
+    formats = {
+        "decimal": [("decimal", "%1."), ("decimal", "%1.%2."), ("decimal", "%1.%2.%3.")],
+        "letter": [("decimal", "%1."), ("lowerLetter", "%2."), ("lowerRoman", "%3.")],
+        "nd30": [("decimal", "Điều %1."), ("decimal", "%2."), ("lowerLetter", "%3)")],
+        "lower-alpha": [("lowerLetter", "%1)")],
+    }
+    levels = formats.get(preset, [])
+    return levels[level] if 0 <= level < len(levels) else None
+
+
+def _writer_clone_lower_alpha_suffix(document_xml: str, numbering_xml: str, source_html: str) -> tuple[str, str]:
+    """Restore semantic multilevel numbering lost by LibreOffice's HTML filter.
+
+    Writer already owns the requested presets and its FODT serializer expresses
+    them as decimal/lowerLetter/lowerRoman.  Production Save currently goes via
+    LibreOffice HTML import, which preserves numId/ilvl but flattens every level
+    to decimal.  Clone only the affected abstractNum and keep soffice's layout.
+    """
+    parser = _WriterExportListParser()
+    try:
+        parser.feed(source_html)
+        groups = parser.result()
+    except (TypeError, ValueError):
+        groups = []
+    if not groups:
         return document_xml, numbering_xml
-    item_num_id = None
-    for paragraph in re.findall(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", document_xml, re.IGNORECASE):
-        if re.sub(r"\s+", " ", _paragraph_plain_text(paragraph)).strip() not in item_texts:
+
+    abstract_ids = [int(value[1]) for value in re.findall(
+        r"<w:abstractNum\b[^>]*w:abstractNumId=([\"'])(\d+)\1", numbering_xml, re.IGNORECASE
+    )]
+    num_ids = [int(value[1]) for value in re.findall(
+        r"<w:num\b[^>]*w:numId=([\"'])(\d+)\1", numbering_xml, re.IGNORECASE
+    )]
+    next_abstract_id = max(abstract_ids, default=0) + 1
+    next_num_id = max(num_ids, default=0) + 1
+
+    paragraphs = [match.group(0) for match in re.finditer(
+        r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", document_xml, re.IGNORECASE
+    )]
+    paragraph_replacements: dict[int, str] = {}
+    search_from = 0
+    new_abstracts: list[str] = []
+    new_nums: list[str] = []
+
+    for group in groups:
+        matched: list[tuple[int, dict, str]] = []
+        cursor = search_from
+        for item in group["items"]:
+            found = None
+            for index in range(cursor, len(paragraphs)):
+                paragraph = paragraphs[index]
+                if _paragraph_plain_text(paragraph).strip() != item["text"]:
+                    continue
+                num_id = re.search(r"<w:numId\b[^>]*w:val=([\"'])(\d+)\1", paragraph, re.IGNORECASE)
+                if num_id:
+                    found = (index, item, num_id.group(2))
+                    break
+            if found is None:
+                matched = []
+                break
+            matched.append(found)
+            cursor = found[0] + 1
+        if not matched:
             continue
-        num_id = re.search(r"<w:numId\b[^>]*w:val=([\"'])(\d+)\1", paragraph, re.IGNORECASE)
-        if num_id:
-            item_num_id = num_id.group(2)
+        search_from = matched[-1][0] + 1
+        source_num_id = matched[0][2]
+        num = re.search(
+            rf"<w:num\b[^>]*w:numId=([\"']){re.escape(source_num_id)}\1[^>]*>[\s\S]*?</w:num\s*>",
+            numbering_xml, re.IGNORECASE,
+        )
+        abstract_id = re.search(
+            r"<w:abstractNumId\b[^>]*w:val=([\"'])(\d+)\1", num.group(0), re.IGNORECASE
+        ) if num else None
+        abstract = re.search(
+            rf"<w:abstractNum\b[^>]*w:abstractNumId=([\"']){abstract_id.group(2)}\1[^>]*>[\s\S]*?</w:abstractNum\s*>",
+            numbering_xml, re.IGNORECASE,
+        ) if abstract_id else None
+        if not abstract:
+            continue
+
+        new_abstract_id = next_abstract_id
+        new_group_num_id = next_num_id
+        next_abstract_id += 1
+        next_num_id += 1
+        cloned = re.sub(
+            r"(w:abstractNumId=)([\"'])\d+\2", rf'\g<1>"{new_abstract_id}"',
+            abstract.group(0), count=1, flags=re.IGNORECASE,
+        )
+
+        def patch_level(match: re.Match) -> str:
+            level_xml = match.group(0)
+            level_id = int(match.group(2))
+            requested = _writer_list_level_format(group["preset"], level_id)
+            if not requested:
+                return level_xml
+            num_fmt, level_text = requested
+            level_xml = re.sub(
+                r"<w:numFmt\b[^>]*/>", f'<w:numFmt w:val="{num_fmt}"/>',
+                level_xml, count=1, flags=re.IGNORECASE,
+            )
+            level_xml = re.sub(
+                r"<w:lvlText\b[^>]*/>", f'<w:lvlText w:val="{html.escape(level_text, quote=True)}"/>',
+                level_xml, count=1, flags=re.IGNORECASE,
+            )
+            return level_xml
+
+        cloned = re.sub(
+            r"<w:lvl\b[^>]*w:ilvl=([\"'])(\d+)\1[^>]*>[\s\S]*?</w:lvl\s*>",
+            patch_level, cloned, flags=re.IGNORECASE,
+        )
+        new_abstracts.append(cloned)
+        new_nums.append(
+            f'<w:num w:numId="{new_group_num_id}"><w:abstractNumId w:val="{new_abstract_id}"/></w:num>'
+        )
+        for index, _item, _old_num_id in matched:
+            paragraph_replacements[index] = re.sub(
+                r"(<w:numId\b[^>]*w:val=)([\"'])\d+\2",
+                rf'\g<1>"{new_group_num_id}"', paragraphs[index], count=1, flags=re.IGNORECASE,
+            )
+
+    if not new_abstracts:
+        return document_xml, numbering_xml
+    first_num = re.search(r"<w:num\b", numbering_xml, re.IGNORECASE)
+    abstract_insert = first_num.start() if first_num else numbering_xml.rfind("</w:numbering>")
+    numbering_xml = numbering_xml[:abstract_insert] + "".join(new_abstracts) + numbering_xml[abstract_insert:]
+    num_insert = numbering_xml.rfind("</w:numbering>")
+    numbering_xml = numbering_xml[:num_insert] + "".join(new_nums) + numbering_xml[num_insert:]
+
+    output: list[str] = []
+    last = 0
+    for index, match in enumerate(re.finditer(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", document_xml, re.IGNORECASE)):
+        output.append(document_xml[last:match.start()])
+        output.append(paragraph_replacements.get(index, match.group(0)))
+        last = match.end()
+    output.append(document_xml[last:])
+    return "".join(output), numbering_xml
+
+
+def _writer_restore_heading_styles(
+    document_xml: str, styles_xml: str, source_html: str
+) -> tuple[str, str]:
+    """Keep HTML headings as Word built-in Heading 1/2/3 paragraph styles."""
+    headings = [
+        (int(match.group(1)), re.sub(r"\s+", " ", _writer_html_plain(match.group(2))).strip())
+        for match in re.finditer(r"<h([1-3])\b[^>]*>([\s\S]*?)</h\1\s*>", source_html, re.IGNORECASE)
+    ]
+    headings = [(level, text) for level, text in headings if text]
+    if not headings:
+        return document_xml, styles_xml
+
+    paragraph_matches = list(re.finditer(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", document_xml, re.IGNORECASE))
+    toc_indexes: set[int] = set()
+    toc_cursor = 0
+    for toc_text in _writer_toc_fallback_texts(source_html):
+        found = next((
+            index for index in range(toc_cursor, len(paragraph_matches))
+            if _paragraph_plain_text(paragraph_matches[index].group(0)).strip() == toc_text
+        ), None)
+        if found is None:
             break
-    if not item_num_id:
-        return document_xml, numbering_xml
-    num = re.search(rf"<w:num\b[^>]*w:numId=([\"']){item_num_id}\1[^>]*>[\s\S]*?</w:num\s*>", numbering_xml, re.IGNORECASE)
-    abstract_id = re.search(r"<w:abstractNumId\b[^>]*w:val=([\"'])(\d+)\1", num.group(0), re.IGNORECASE) if num else None
-    abstract = re.search(rf"<w:abstractNum\b[^>]*w:abstractNumId=([\"']){abstract_id.group(2)}\1[^>]*>[\s\S]*?</w:abstractNum\s*>", numbering_xml, re.IGNORECASE) if abstract_id else None
-    if not abstract or not num:
-        return document_xml, numbering_xml
-    abstract_ids = [int(value) for value in re.findall(r"<w:abstractNum\b[^>]*w:abstractNumId=([\"'])(\d+)\1", numbering_xml, re.IGNORECASE) for value in [value[1]]]
-    num_ids = [int(value) for value in re.findall(r"<w:num\b[^>]*w:numId=([\"'])(\d+)\1", numbering_xml, re.IGNORECASE) for value in [value[1]]]
-    new_abstract_id, new_num_id = max(abstract_ids, default=0) + 1, max(num_ids, default=0) + 1
-    cloned_abstract = re.sub(r"(w:abstractNumId=)([\"'])\d+\2", rf'\g<1>"{new_abstract_id}"', abstract.group(0), count=1, flags=re.IGNORECASE)
-    cloned_abstract = re.sub(r"<w:lvlText\b[^>]*/>", '<w:lvlText w:val="%1)"/>', cloned_abstract, count=1, flags=re.IGNORECASE)
-    cloned_num = re.sub(r"(w:numId=)([\"'])\d+\2", rf'\g<1>"{new_num_id}"', num.group(0), count=1, flags=re.IGNORECASE)
-    cloned_num = re.sub(r"(<w:abstractNumId\b[^>]*w:val=)([\"'])\d+\2", rf'\g<1>"{new_abstract_id}"', cloned_num, count=1, flags=re.IGNORECASE)
-    insert_abstract = re.search(r"<w:abstractNum\b", numbering_xml, re.IGNORECASE)
-    insert_num = numbering_xml.rfind("</w:numbering>")
-    if not insert_abstract or insert_num < 0:
-        return document_xml, numbering_xml
-    numbering_xml = numbering_xml[:insert_abstract.start()] + cloned_abstract + numbering_xml[insert_abstract.start():]
-    insert_num = numbering_xml.rfind("</w:numbering>")
-    numbering_xml = numbering_xml[:insert_num] + f'<w:num w:numId="{new_num_id}"><w:abstractNumId w:val="{new_abstract_id}"/></w:num>' + numbering_xml[insert_num:]
+        toc_indexes.add(found)
+        toc_cursor = found + 1
 
-    def assign_new_list(match: re.Match) -> str:
-        paragraph = match.group(0)
-        if re.sub(r"\s+", " ", _paragraph_plain_text(paragraph)).strip() not in item_texts:
-            return paragraph
-        return re.sub(r"(<w:numId\b[^>]*w:val=)([\"'])\d+\2", rf'\g<1>"{new_num_id}"', paragraph, count=1, flags=re.IGNORECASE)
+    replacements: dict[int, str] = {}
+    cursor = 0
+    for level, expected in headings:
+        found = next((
+            index for index in range(cursor, len(paragraph_matches))
+            if index not in toc_indexes
+            and _paragraph_plain_text(paragraph_matches[index].group(0)).strip() == expected
+        ), None)
+        if found is None:
+            continue
+        replacements[found] = _writer_upsert_ppr_empty(
+            paragraph_matches[found].group(0), "pStyle", f'<w:pStyle w:val="Heading{level}"/>'
+        )
+        cursor = found + 1
+    if replacements:
+        output: list[str] = []
+        previous = 0
+        for index, paragraph in enumerate(paragraph_matches):
+            output.append(document_xml[previous:paragraph.start()])
+            output.append(replacements.get(index, paragraph.group(0)))
+            previous = paragraph.end()
+        output.append(document_xml[previous:])
+        document_xml = "".join(output)
 
-    document_xml = re.sub(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", assign_new_list, document_xml, flags=re.IGNORECASE)
-    return document_xml, numbering_xml
+    for level in sorted({level for level, _text in headings}):
+        style_match = re.search(
+            rf'<w:style\b(?=[^>]*\bw:type=["\']paragraph["\'])(?=[^>]*\bw:styleId=["\']Heading{level}["\'])[^>]*>[\s\S]*?</w:style\s*>',
+            styles_xml, re.IGNORECASE,
+        )
+        outline = level - 1
+        if style_match:
+            style = style_match.group(0)
+            if re.search(r"<w:name\b", style, re.IGNORECASE):
+                style = re.sub(
+                    r'<w:name\b[^>]*/>', f'<w:name w:val="Heading {level}"/>',
+                    style, count=1, flags=re.IGNORECASE,
+                )
+            else:
+                style = re.sub(
+                    r"(<w:style\b[^>]*>)", rf'\1<w:name w:val="Heading {level}"/>',
+                    style, count=1, flags=re.IGNORECASE,
+                )
+            if not re.search(r"<w:qFormat\b", style, re.IGNORECASE):
+                style = re.sub(r"</w:style\s*>", "<w:qFormat/></w:style>", style, count=1, flags=re.IGNORECASE)
+            ppr = re.search(r"<w:pPr\b[^>]*>[\s\S]*?</w:pPr\s*>", style, re.IGNORECASE)
+            if ppr:
+                updated_ppr = re.sub(
+                    r'<w:outlineLvl\b[^>]*/>', f'<w:outlineLvl w:val="{outline}"/>',
+                    ppr.group(0), count=1, flags=re.IGNORECASE,
+                )
+                if updated_ppr == ppr.group(0):
+                    updated_ppr = re.sub(
+                        r"</w:pPr\s*>", f'<w:outlineLvl w:val="{outline}"/></w:pPr>',
+                        updated_ppr, count=1, flags=re.IGNORECASE,
+                    )
+                style = style[:ppr.start()] + updated_ppr + style[ppr.end():]
+            else:
+                style = re.sub(
+                    r"(<w:rPr\b|</w:style\s*>)",
+                    f'<w:pPr><w:outlineLvl w:val="{outline}"/></w:pPr>\\1',
+                    style, count=1, flags=re.IGNORECASE,
+                )
+            styles_xml = styles_xml[:style_match.start()] + style + styles_xml[style_match.end():]
+        else:
+            style = (
+                f'<w:style w:type="paragraph" w:styleId="Heading{level}">'
+                f'<w:name w:val="Heading {level}"/><w:basedOn w:val="Normal"/>'
+                f'<w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/>'
+                f'<w:outlineLvl w:val="{outline}"/></w:pPr></w:style>'
+            )
+            close = styles_xml.rfind("</w:styles>")
+            if close >= 0:
+                styles_xml = styles_xml[:close] + style + styles_xml[close:]
+    return document_xml, styles_xml
+
+
+def _writer_balanced_html_element(source: str, start: int, tag: str) -> str:
+    token_re = re.compile(rf"</?{re.escape(tag)}\b[^>]*>", re.IGNORECASE)
+    depth = 0
+    for token in token_re.finditer(source, start):
+        if token.group(0).startswith("</"):
+            depth -= 1
+            if depth == 0:
+                return source[start:token.end()]
+        elif not token.group(0).rstrip().endswith("/>"):
+            depth += 1
+    return ""
+
+
+def _writer_toc_fallback_texts(source_html: str) -> list[str]:
+    marker = re.search(
+        r'<div\b(?=[^>]*\bdata-vno-toc\s*=\s*(["\'])true\1)[^>]*>',
+        source_html, re.IGNORECASE,
+    )
+    if not marker:
+        return []
+    block = _writer_balanced_html_element(source_html, marker.start(), "div")
+    if not block:
+        return []
+    paragraphs = [
+        re.sub(r"\s+", " ", _writer_html_plain(match.group(1))).strip()
+        for match in re.finditer(r"<p\b[^>]*>([\s\S]*?)</p\s*>", block, re.IGNORECASE)
+    ]
+    paragraphs = [text for text in paragraphs if text]
+    if paragraphs:
+        return paragraphs
+
+    texts: list[str] = []
+    title = re.search(
+        r'<span\b(?=[^>]*\bclass=["\'][^"\']*\bvno-toc-title\b[^"\']*["\'])[^>]*>([\s\S]*?)</span\s*>',
+        block, re.IGNORECASE,
+    )
+    if title:
+        value = re.sub(r"\s+", " ", _writer_html_plain(title.group(1))).strip()
+        if value:
+            texts.append(value)
+    for item_start in re.finditer(
+        r'<div\b(?=[^>]*\bclass=["\'][^"\']*\bvno-toc-item\b[^"\']*["\'])[^>]*>',
+        block, re.IGNORECASE,
+    ):
+        item = _writer_balanced_html_element(block, item_start.start(), "div")
+        value = re.sub(r"\s+", " ", _writer_html_plain(item)).strip()
+        if value:
+            texts.append(value)
+    return texts
+
+
+def _writer_restore_toc_field(document_xml: str, source_html: str) -> str:
+    """Wrap soffice's visible TOC fallback in a native complex Word TOC field."""
+    if re.search(r"<w:instrText\b[^>]*>[\s\S]*?\bTOC\b", document_xml, re.IGNORECASE):
+        return document_xml
+    toc_texts = _writer_toc_fallback_texts(source_html)
+    if not toc_texts:
+        return document_xml
+    paragraphs = list(re.finditer(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", document_xml, re.IGNORECASE))
+    matched: list[int] = []
+    cursor = 0
+    for expected in toc_texts:
+        found = next((
+            index for index in range(cursor, len(paragraphs))
+            if _paragraph_plain_text(paragraphs[index].group(0)).strip() == expected
+        ), None)
+        if found is None:
+            return document_xml
+        matched.append(found)
+        cursor = found + 1
+    if not matched:
+        return document_xml
+
+    begin = (
+        '<w:r><w:fldChar w:fldCharType="begin" w:dirty="true"/></w:r>'
+        '<w:r><w:instrText xml:space="preserve"> TOC \\o "1-3" \\h \\z \\u </w:instrText></w:r>'
+        '<w:r><w:fldChar w:fldCharType="separate"/></w:r>'
+    )
+    end = '<w:r><w:fldChar w:fldCharType="end"/></w:r>'
+    first_index, last_index = matched[0], matched[-1]
+    replacements: dict[int, str] = {}
+    first = paragraphs[first_index].group(0)
+    ppr = re.search(r"<w:pPr\b[^>]*>[\s\S]*?</w:pPr\s*>", first, re.IGNORECASE)
+    insert_at = ppr.end() if ppr else re.search(r"<w:p\b[^>]*>", first, re.IGNORECASE).end()
+    replacements[first_index] = first[:insert_at] + begin + first[insert_at:]
+    last = replacements.get(last_index, paragraphs[last_index].group(0))
+    replacements[last_index] = re.sub(r"</w:p\s*>", end + "</w:p>", last, count=1, flags=re.IGNORECASE)
+
+    output: list[str] = []
+    previous = 0
+    for index, paragraph in enumerate(paragraphs):
+        output.append(document_xml[previous:paragraph.start()])
+        output.append(replacements.get(index, paragraph.group(0)))
+        previous = paragraph.end()
+    output.append(document_xml[previous:])
+    return "".join(output)
 
 
 def _writer_insert_page_field(footer_xml: str, field_name: str, fallback: str = "1") -> str:
@@ -14374,7 +14731,28 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
         document_xml = re.sub(r'<w:p\b[^>]*>[\s\S]*?</w:p\s*>', patch_tab_stop, document_xml, flags=re.IGNORECASE)
 
     document_xml = _writer_restore_equation_markers(document_xml, source_html)
+    styles_bytes = read_zip_entry(docx_bytes, "word/styles.xml")
+    styles_xml = styles_bytes.decode("utf-8", errors="replace") if styles_bytes else ""
+    if styles_xml:
+        document_xml, styles_xml = _writer_restore_heading_styles(document_xml, styles_xml, source_html)
+    document_xml = _writer_restore_toc_field(document_xml, source_html)
     replacements = {"word/document.xml": document_xml.encode("utf-8")}
+    if styles_bytes and styles_xml != styles_bytes.decode("utf-8", errors="replace"):
+        replacements["word/styles.xml"] = styles_xml.encode("utf-8")
+    if _writer_toc_fallback_texts(source_html):
+        settings_bytes = read_zip_entry(docx_bytes, "word/settings.xml")
+        if settings_bytes:
+            settings_xml = settings_bytes.decode("utf-8", errors="replace")
+            if re.search(r"<w:updateFields\b", settings_xml, re.IGNORECASE):
+                settings_xml = re.sub(
+                    r'<w:updateFields\b[^>]*/>', '<w:updateFields w:val="true"/>',
+                    settings_xml, count=1, flags=re.IGNORECASE,
+                )
+            else:
+                settings_xml = settings_xml.replace(
+                    "</w:settings>", '<w:updateFields w:val="true"/></w:settings>', 1
+                )
+            replacements["word/settings.xml"] = settings_xml.encode("utf-8")
     numbering_bytes = read_zip_entry(docx_bytes, "word/numbering.xml")
     numbering = numbering_bytes.decode("utf-8", errors="replace") if numbering_bytes else ""
     if numbering:

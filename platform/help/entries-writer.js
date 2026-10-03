@@ -222,7 +222,7 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["writer.reference.tocInsert", "writer.reference.tocUpdate"],
     title: "Mục lục tự động",
-    summary: "Dựng mục lục từ các đoạn đã gán kiểu Heading 1, Heading 2, Heading 3. Có thể cập nhật lại sau khi sửa tiêu đề.",
+    summary: "Dựng mục lục từ các đoạn đã gán kiểu Heading 1, Heading 2, Heading 3. Khi lưu DOCX, tiêu đề và mục lục vẫn là cấu trúc có thể cập nhật, không bị đổi thành văn bản tĩnh.",
     ribbon: { tab: "Tham chiếu", tabId: "references", group: "Mục lục" },
     keywords: ["mục lục", "table of contents", "toc", "tiêu đề", "heading"],
     steps: [
@@ -230,7 +230,8 @@ export const WRITER_HELP_ENTRIES = [
       "Đặt con trỏ ở đầu tài liệu (hoặc chỗ muốn hiện mục lục).",
       "Mở tab Tham chiếu, nhóm Mục lục, nhấn Mục lục tự động.",
       "Sau khi thêm hoặc đổi tiêu đề, nhấn Cập nhật mục lục để làm mới số trang và dòng đề mục.",
-      "Nhấp một dòng trong mục lục để nhảy tới tiêu đề tương ứng trong tài liệu."
+      "Nhấp một dòng trong mục lục để nhảy tới tiêu đề tương ứng trong tài liệu.",
+      "Khi lưu thành DOCX và mở bằng phần mềm văn phòng tương thích, dùng Cập nhật bảng để tính lại mục lục; các Heading vẫn xuất hiện trong Ngăn Dẫn hướng."
     ]
   },
   {

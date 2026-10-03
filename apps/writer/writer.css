@@ -689,6 +689,12 @@ li.vno-page-auto-gap {
 .vno-writer-page ol.vno-ml-letter ol { list-style-type: lower-alpha; }
 .vno-writer-page ol.vno-ml-letter ol ol { list-style-type: lower-roman; }
 
+/* DOCX import: CSS lower-alpha always renders "a."; OOXML may request "a)". */
+.vno-writer-body li.vno-list-suffix-paren::marker,
+.vno-print-preview-body li.vno-list-suffix-paren::marker {
+  content: counter(list-item, lower-alpha) ") ";
+}
+
 .vno-writer-page ol.vno-ml-nd30 { list-style: none; counter-reset: vno-nd1; }
 .vno-writer-page ol.vno-ml-nd30 > li { counter-increment: vno-nd1; }
 .vno-writer-page ol.vno-ml-nd30 > li::before { content: "Điều " counter(vno-nd1) ". "; font-weight: 600; margin-right: 0.25em; }

@@ -4,6 +4,8 @@ from adapters.libreoffice.common.ooxml_zip_patch import (
     _writer_clone_lower_alpha_suffix,
     _writer_insert_page_field,
     _restore_writer_html_page_breaks,
+    _writer_restore_heading_styles,
+    _writer_restore_toc_field,
     _writer_restore_created_paragraph_css,
     _writer_restore_created_run_highlight,
 )
@@ -51,6 +53,65 @@ class WriterBasicOpsOoxmlTests(unittest.TestCase):
         self.assertIn('<w:abstractNum w:abstractNumId="1">', updated_nums)
         self.assertIn('<w:lvlText w:val="%1)"/>', updated_nums)
         self.assertIn('<w:lvlText w:val="%1."/>', updated_nums)
+
+    def test_multilevel_presets_restore_decimal_letter_and_roman_levels(self):
+        source = (
+            '<ol class="vno-ml-letter"><li>Cấp 1'
+            '<ol class="vno-ml-letter"><li>Cấp 2'
+            '<ol class="vno-ml-letter"><li>Cấp 3</li></ol>'
+            '</li></ol></li></ol>'
+        )
+        document = "".join(
+            f'<w:p><w:pPr><w:numPr><w:ilvl w:val="{level}"/><w:numId w:val="1"/>'
+            f'</w:numPr></w:pPr><w:r><w:t>Cấp {level + 1}</w:t></w:r></w:p>'
+            for level in range(3)
+        )
+        levels = "".join(
+            f'<w:lvl w:ilvl="{level}"><w:numFmt w:val="decimal"/>'
+            f'<w:lvlText w:val="%{level + 1}."/></w:lvl>'
+            for level in range(3)
+        )
+        numbering = (
+            f'<w:numbering><w:abstractNum w:abstractNumId="1">{levels}</w:abstractNum>'
+            '<w:num w:numId="1"><w:abstractNumId w:val="1"/></w:num></w:numbering>'
+        )
+        updated_doc, updated_nums = _writer_clone_lower_alpha_suffix(document, numbering, source)
+        self.assertEqual(updated_doc.count('<w:numId w:val="2"/>'), 3)
+        self.assertIn('<w:numFmt w:val="decimal"/><w:lvlText w:val="%1."/>', updated_nums)
+        self.assertIn('<w:numFmt w:val="lowerLetter"/><w:lvlText w:val="%2."/>', updated_nums)
+        self.assertIn('<w:numFmt w:val="lowerRoman"/><w:lvlText w:val="%3."/>', updated_nums)
+
+    def test_heading_styles_are_word_builtin_and_toc_fallback_becomes_live_field(self):
+        source = (
+            '<div data-vno-toc="true"><p>MỤC LỤC</p><p>Tiêu đề cấp 1 .... 1</p></div>'
+            '<h1>Tiêu đề cấp 1</h1><h2>Tiêu đề cấp 2</h2>'
+        )
+        document = (
+            '<w:document><w:body>'
+            '<w:p><w:pPr><w:pStyle w:val="BodyText"/></w:pPr><w:r><w:t>MỤC LỤC</w:t></w:r></w:p>'
+            '<w:p><w:pPr><w:pStyle w:val="BodyText"/></w:pPr><w:r><w:t>Tiêu đề cấp 1 .... 1</w:t></w:r></w:p>'
+            '<w:p><w:pPr><w:pStyle w:val="BodyText"/></w:pPr><w:r><w:t>Tiêu đề cấp 1</w:t></w:r></w:p>'
+            '<w:p><w:pPr><w:pStyle w:val="BodyText"/></w:pPr><w:r><w:t>Tiêu đề cấp 2</w:t></w:r></w:p>'
+            '</w:body></w:document>'
+        )
+        styles = (
+            '<w:styles><w:style w:type="paragraph" w:styleId="Heading1">'
+            '<w:name w:val="heading 1"/><w:pPr/></w:style>'
+            '<w:style w:type="paragraph" w:styleId="Heading2">'
+            '<w:name w:val="heading 2"/><w:pPr></w:pPr></w:style></w:styles>'
+        )
+        updated_doc, updated_styles = _writer_restore_heading_styles(document, styles, source)
+        updated_doc = _writer_restore_toc_field(updated_doc, source)
+        self.assertEqual(updated_doc.count('<w:pStyle w:val="Heading1"/>'), 1)
+        self.assertEqual(updated_doc.count('<w:pStyle w:val="Heading2"/>'), 1)
+        self.assertIn('<w:name w:val="Heading 1"/>', updated_styles)
+        self.assertIn('<w:outlineLvl w:val="0"/>', updated_styles)
+        self.assertIn('<w:name w:val="Heading 2"/>', updated_styles)
+        self.assertIn('<w:outlineLvl w:val="1"/>', updated_styles)
+        self.assertIn(' TOC \\o "1-3" \\h \\z \\u ', updated_doc)
+        self.assertEqual(updated_doc.count('w:fldCharType="begin"'), 1)
+        self.assertEqual(updated_doc.count('w:fldCharType="separate"'), 1)
+        self.assertEqual(updated_doc.count('w:fldCharType="end"'), 1)
 
     def test_footer_fallback_becomes_live_page_field(self):
         footer = (
