@@ -29,9 +29,9 @@ $required = @(
     "icons\writer.ico",
     "icons\sheet.ico",
     "icons\slides.ico",
-    "3TDoc.exe",
-    "3TSheet.exe",
-    "3TSlide.exe",
+    "Doc.exe",
+    "Sheet.exe",
+    "Slide.exe",
     "VERSION.txt",
     "BUILD-INFO.txt",
     "THIRD-PARTY-NOTICES"

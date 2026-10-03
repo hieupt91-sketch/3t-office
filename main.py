@@ -514,7 +514,7 @@ TASKBAR_APP_USER_MODEL_IDS = {
     "slides": "VNOffice.Slides",
 }
 TASKBAR_RELAUNCH_DISPLAY_NAMES = {"writer": "Doc", "sheet": "Sheet", "slides": "Slide"}
-TASKBAR_LAUNCHER_EXES = {"writer": "3TDoc.exe", "sheet": "3TSheet.exe", "slides": "3TSlide.exe"}
+TASKBAR_LAUNCHER_EXES = {"writer": "Doc.exe", "sheet": "Sheet.exe", "slides": "Slide.exe"}
 SUITE_TITLE = "3T Office — Bộ Ứng Dụng Văn Phòng Việt"
 FILE_APP_KINDS = {
     ".docx": "writer", ".doc": "writer", ".odt": "writer", ".rtf": "writer", ".txt": "writer",

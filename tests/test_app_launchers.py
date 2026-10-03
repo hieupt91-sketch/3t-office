@@ -13,7 +13,7 @@ import main
 
 REPO = Path(__file__).resolve().parents[1]
 NSIS = (REPO / "scripts" / "installer" / "vnoffice.nsi").read_text(encoding="utf-8")
-EXES = {"writer": "3TDoc.exe", "sheet": "3TSheet.exe", "slides": "3TSlide.exe"}
+EXES = {"writer": "Doc.exe", "sheet": "Sheet.exe", "slides": "Slide.exe"}
 TITLES = {"writer": "Doc", "sheet": "Sheet", "slides": "Slide"}
 
 
@@ -21,7 +21,7 @@ class InstallerRegistrationTests(unittest.TestCase):
     def test_shortcuts_target_launchers_not_the_python_interpreter(self):
         for line in NSIS.splitlines():
             if line.strip().startswith("CreateShortCut") and "3T Office\\Doc.lnk" in line:
-                self.assertIn("3TDoc.exe", line)
+                self.assertIn("Doc.exe", line)
         shortcut_lines = [l for l in NSIS.splitlines() if l.strip().startswith("CreateShortCut") and "Uninstall" not in l and "Gỡ" not in l]
         self.assertEqual(len(shortcut_lines), 6)  # 3 Start Menu + 3 Desktop
         for line in shortcut_lines:
@@ -29,31 +29,31 @@ class InstallerRegistrationTests(unittest.TestCase):
 
     def test_open_with_is_registered_for_every_supported_extension_without_the_assoc_task(self):
         core = NSIS.split('Section "-Core" SEC_CORE', 1)[1].split("SectionEnd", 1)[0]
-        for ext, exe in [(".docx", "3TDoc.exe"), (".doc", "3TDoc.exe"), (".odt", "3TDoc.exe"), (".rtf", "3TDoc.exe"),
-                         (".txt", "3TDoc.exe"), (".xlsx", "3TSheet.exe"), (".xls", "3TSheet.exe"), (".ods", "3TSheet.exe"),
-                         (".csv", "3TSheet.exe"), (".pptx", "3TSlide.exe"), (".ppt", "3TSlide.exe"), (".odp", "3TSlide.exe")]:
+        for ext, exe in [(".docx", "Doc.exe"), (".doc", "Doc.exe"), (".odt", "Doc.exe"), (".rtf", "Doc.exe"),
+                         (".txt", "Doc.exe"), (".xlsx", "Sheet.exe"), (".xls", "Sheet.exe"), (".ods", "Sheet.exe"),
+                         (".csv", "Sheet.exe"), (".pptx", "Slide.exe"), (".ppt", "Slide.exe"), (".odp", "Slide.exe")]:
             self.assertIn(f'RegisterOpenWith "{ext}" "{exe}"', core)
-        for exe, friendly in (("3TDoc.exe", "Doc"), ("3TSheet.exe", "Sheet"), ("3TSlide.exe", "Slide")):
+        for exe, friendly in (("Doc.exe", "Doc"), ("Sheet.exe", "Sheet"), ("Slide.exe", "Slide")):
             self.assertIn(f'RegisterApplication "{exe}" "{friendly}"', core)
 
     def test_upgrade_replaces_the_legacy_shared_python_open_with_entry(self):
         core = NSIS.split('Section "-Core" SEC_CORE', 1)[1].split("SectionEnd", 1)[0]
-        for progid, exe in (("VNOffice.Writer.Document", "3TDoc.exe"), ("VNOffice.Sheet.Workbook", "3TSheet.exe"),
-                            ("VNOffice.Slides.Presentation", "3TSlide.exe")):
+        for progid, exe in (("VNOffice.Writer.Document", "Doc.exe"), ("VNOffice.Sheet.Workbook", "Sheet.exe"),
+                            ("VNOffice.Slides.Presentation", "Slide.exe")):
             self.assertIn(f'RefreshLegacyProgid "{progid}" "{exe}"', core)
-            self.assertIn(f'CleanLegacyOpenWithProgid ".docx" "{progid}"' if exe == "3TDoc.exe" else progid, core)
+            self.assertIn(f'CleanLegacyOpenWithProgid ".docx" "{progid}"' if exe == "Doc.exe" else progid, core)
 
     def test_uninstall_removes_open_with_and_application_keys(self):
         uninstall = NSIS.split('Section "Uninstall"', 1)[1]
         for exe in EXES.values():
             self.assertIn(f'Software\\Classes\\Applications\\{exe}', uninstall)
-            self.assertIn(f'UnregisterOpenWith ".docx" "3TDoc.exe"' if exe == "3TDoc.exe" else exe, uninstall)
+            self.assertIn(f'UnregisterOpenWith ".docx" "Doc.exe"' if exe == "Doc.exe" else exe, uninstall)
 
     def test_file_type_commands_use_launchers_with_friendly_names(self):
         assoc = NSIS.split('Section /o "$(TASK_ASSOC)" SEC_ASSOC', 1)[1].split("SectionEnd", 1)[0]
-        self.assertIn('"VNOffice.Writer.Document" "writer" "3TDoc.exe" "Doc"', assoc)
-        self.assertIn('"VNOffice.Sheet.Workbook" "sheet" "3TSheet.exe" "Sheet"', assoc)
-        self.assertIn('"VNOffice.Slides.Presentation" "slides" "3TSlide.exe" "Slide"', assoc)
+        self.assertIn('"VNOffice.Writer.Document" "writer" "Doc.exe" "Doc"', assoc)
+        self.assertIn('"VNOffice.Sheet.Workbook" "sheet" "Sheet.exe" "Sheet"', assoc)
+        self.assertIn('"VNOffice.Slides.Presentation" "slides" "Slide.exe" "Slide"', assoc)
         macro = NSIS.split("!macro RegisterFileType", 1)[1].split("!macroend", 1)[0]
         self.assertNotIn("pythonw.exe", macro)
 
