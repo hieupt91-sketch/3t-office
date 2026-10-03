@@ -11,7 +11,7 @@ import { globalShortcutManager } from "../../../platform/commands/shortcut-manag
 import { getVnCommand } from "../common/command-dispatch-mapper.js";
 import { overlayFodsStructureProtection } from "./xlsx-workbook-protection.js";
 import { overlayActiveSheetToFods } from "./xlsx-active-sheet.js";
-import { buildSheetPayloadModel } from "./sheet-payload-parser.js";
+import { buildSheetPayloadModel, toPlain as sheetPayloadToPlain } from "./sheet-payload-parser.js";
 import {
   parseOfficeHtmlTable,
   parseOfficeTsv,
@@ -4963,6 +4963,32 @@ ${pristineXlsxMarker}
         }
       });
       if (perfEnabled) window.__vnoPerfReport?.("buildSheetPayloadModel", performance.now() - parseStart);
+      // Diagnostic only (set by the CDP test harness): rebuild the model with the retained
+      // legacy parser and compare, so P2 equivalence is proven on real payloads.
+      if (typeof window !== "undefined" && window.__vnoP2Verify === true) {
+        try {
+          const legacyWorkbook = await buildSheetPayloadModel(payload, this, supportXml, { legacy: true });
+          const deepEqual = (a, b, path) => {
+            if (a === b) return null;
+            if (typeof a !== typeof b || a === null || b === null || typeof a !== "object") {
+              return Number.isNaN(a) && Number.isNaN(b) ? null : path;
+            }
+            if (Array.isArray(a) !== Array.isArray(b)) return path;
+            const keysA = Object.keys(a), keysB = Object.keys(b);
+            if (keysA.length !== keysB.length) return `${path}#keys`;
+            for (const key of keysA) {
+              if (!Object.prototype.hasOwnProperty.call(b, key)) return `${path}.${key}#missing`;
+              const diff = deepEqual(a[key], b[key], `${path}.${key}`);
+              if (diff) return diff;
+            }
+            return null;
+          };
+          const firstDiff = deepEqual(sheetPayloadToPlain(workbook), sheetPayloadToPlain(legacyWorkbook), "$");
+          window.__vnoP2VerifyResult = { equal: firstDiff === null, firstDiff, sheets: workbook.sheets.length };
+        } catch (error) {
+          window.__vnoP2VerifyResult = { equal: false, error: String(error?.message || error) };
+        }
+      }
       if (!workbook.sheets.length) return false;
       return this._commitWorkbook(workbook, perfStart, "loadFromPayload");
     } finally {
