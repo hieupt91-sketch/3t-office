@@ -321,10 +321,26 @@ def test_scenario_3_invalid_webhooks_do_not_issue_keys(commerce_env):
     assert res_no_code.status_code == 200
     assert res_no_code.json()["result"] == "unmatched_order"
 
-    # Kiểm tra: Đơn hàng vẫn pending_payment và chưa được cấp key nào
+    # 3.4 Đơn hết hạn (expires_at trong quá khứ) -> Không cấp key, trả order_expired
+    past_iso = "2026-01-01T00:00:00Z"
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("UPDATE orders SET expires_at = ? WHERE code = ?", (past_iso, order_code))
+        conn.commit()
+
+    body_expired = json.dumps({"id": "evt_expired_order", "content": order_code, "amount": 200000}).encode("utf-8")
+    sig_expired = sign_bank_webhook(body_expired, webhook_secret)
+    res_expired = client.post(
+        "/api/v1/payments/webhook/bank_transfer",
+        content=body_expired,
+        headers={"x-signature": sig_expired, "content-type": "application/json"},
+    )
+    assert res_expired.status_code == 200
+    assert res_expired.json()["result"] == "order_expired"
+
+    # Kiểm tra: Đơn hàng chuyển sang status 'expired' và chưa được cấp key nào
     with sqlite3.connect(db_path) as conn:
         row = conn.execute("SELECT status FROM orders WHERE code = ?", (order_code,)).fetchone()
-        assert row[0] == "pending_payment"
+        assert row[0] == "expired"
         key_count = conn.execute("SELECT COUNT(*) FROM license_keys lk JOIN orders o ON lk.order_id = o.id WHERE o.code = ?", (order_code,)).fetchone()[0]
         assert key_count == 0
 
@@ -599,3 +615,276 @@ def test_security_checks_no_secrets_in_logs_and_malformed_inputs(commerce_env):
         "malicious_extra_field": "hacked",
     })
     assert extra_field.status_code == 422
+
+
+def test_owner_totp_2fa_enforcement(commerce_env):
+    """Kiểm tra quy trình bắt buộc 2FA TOTP cho vai trò Owner:
+    1. Đăng nhập lần đầu khi chưa setup -> requires_totp_setup: True
+    2. Khởi tạo khóa TOTP và xác thực thành công
+    3. Đăng nhập sau đó BẮT BUỘC có totp_code (thiếu -> 403, sai -> 401, đúng -> 200).
+    """
+    client = commerce_env["client"]
+    db_path = commerce_env["db_path"]
+
+    # 1. Đăng nhập ban đầu (chưa cấu hình TOTP)
+    login1 = client.post("/api/v1/admin/login", json={"username": "admin_owner", "password": "secretpassword123"})
+    assert login1.status_code == 200
+    assert login1.json()["role"] == "owner"
+    assert login1.json().get("requires_totp_setup") is True
+    csrf = login1.json()["csrf_token"]
+
+    # 2. Khởi tạo TOTP bí mật
+    setup_res = client.post("/api/v1/admin/setup-totp", headers={"x-csrf-token": csrf})
+    assert setup_res.status_code == 200
+    secret = setup_res.json()["secret"]
+    assert len(secret) >= 16
+    assert "otpauth://" in setup_res.json()["otpauth_url"]
+
+    # Xác thực mã TOTP đầu tiên
+    valid_code = get_totp_code(secret)
+    verify_res = client.post(
+        "/api/v1/admin/verify-totp",
+        json={"secret": secret, "totp_code": valid_code},
+        headers={"x-csrf-token": csrf},
+    )
+    assert verify_res.status_code == 200
+    assert verify_res.json()["ok"] is True
+
+    # Kiểm tra CSDL: user đã có totp_secret_enc
+    with sqlite3.connect(db_path) as conn:
+        u_row = conn.execute("SELECT totp_secret_enc FROM admin_users WHERE username = 'admin_owner'").fetchone()
+        assert u_row is not None
+        assert u_row[0] == secret
+
+    # 3. Đăng xuất (xóa cookie phiên)
+    client.cookies.clear()
+
+    # 3a. Đăng nhập lại KHÔNG truyền mã TOTP -> 403 totp_required
+    login_no_totp = client.post("/api/v1/admin/login", json={"username": "admin_owner", "password": "secretpassword123"})
+    assert login_no_totp.status_code == 403
+    assert login_no_totp.json()["error"] == "totp_required"
+
+    # 3b. Đăng nhập với mã TOTP SAI -> 401 invalid_totp
+    login_bad_totp = client.post(
+        "/api/v1/admin/login",
+        json={"username": "admin_owner", "password": "secretpassword123", "totp_code": "000000"},
+    )
+    assert login_bad_totp.status_code == 401
+    assert login_bad_totp.json()["error"] == "invalid_totp"
+
+    # 3c. Đăng nhập với mã TOTP ĐÚNG -> 200 thành công
+    fresh_code = get_totp_code(secret)
+    login_ok_totp = client.post(
+        "/api/v1/admin/login",
+        json={"username": "admin_owner", "password": "secretpassword123", "totp_code": fresh_code},
+    )
+    assert login_ok_totp.status_code == 200
+    assert login_ok_totp.json()["ok"] is True
+    assert login_ok_totp.json()["role"] == "owner"
+
+
+def test_customer_portal_full_management(commerce_env):
+    """Kiểm tra trọn vẹn nghiệp vụ Cổng khách hàng (Customer Portal):
+    - Đăng nhập mã 6 số gửi qua email
+    - Xem hồ sơ khách /portal/me
+    - Xem lịch sử đơn hàng /portal/orders
+    - Quản lý danh sách thiết bị /portal/devices và gỡ máy /portal/devices/{id}/remove
+    - Kích hoạt ngoại tuyến /portal/offline-activation
+    """
+    client = commerce_env["client"]
+    db_path = commerce_env["db_path"]
+    client.cookies.clear()
+
+    cust_email = "khach_portal_full@example.vn"
+    # 1. Tạo đơn mua bản quyền
+    order_res = client.post("/api/v1/shop/orders", json={
+        "plan": "perpetual",
+        "quantity": 1,
+        "customer": {
+            "email": cust_email,
+            "name": "Đặng Thị Thảo",
+            "phone": "0934567890",
+            "company": "Công ty TNHH Phần Mềm",
+            "tax_code": "0109988776",
+        },
+    })
+    assert order_res.status_code == 200
+    issued_key = order_res.json()["keys"][0]
+    order_code = order_res.json()["order_code"]
+
+    # 2. Kích hoạt 1 máy với key
+    act_res = client.post("/api/v1/license/activate", json={
+        "product": "3t-office",
+        "key": issued_key,
+        "device_fingerprint": "dev_fp_full_pt_01",
+        "device_name": "PC-LAPTOP-THAO",
+        "app_version": "0.9.8",
+        "platform": "windows",
+    })
+    assert act_res.status_code == 200
+
+    # 3. Đăng nhập Cổng khách hàng bằng mã 6 số
+    code_req = client.post("/api/v1/portal/login", json={"email": cust_email})
+    assert code_req.status_code == 200
+
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        outbox_row = conn.execute(
+            "SELECT payload_json FROM email_outbox WHERE to_email = ? AND template = 'portal_login_code' ORDER BY rowid DESC",
+            (cust_email,),
+        ).fetchone()
+        code_6 = json.loads(outbox_row["payload_json"])["code"]
+
+    # Nhập sai mã -> 400 invalid_code
+    bad_verify = client.post("/api/v1/portal/verify", json={"email": cust_email, "code": "999999"})
+    assert bad_verify.status_code == 400
+    assert bad_verify.json()["error"] == "invalid_code"
+
+    # Nhập đúng mã -> 200 và có cookie session
+    ok_verify = client.post("/api/v1/portal/verify", json={"email": cust_email, "code": code_6})
+    assert ok_verify.status_code == 200
+
+    # 4. GET /portal/me
+    me_res = client.get("/api/v1/portal/me")
+    assert me_res.status_code == 200
+    me_data = me_res.json()
+    assert me_data["email"] == cust_email
+    assert me_data["full_name"] == "Đặng Thị Thảo"
+    assert me_data["company_name"] == "Công ty TNHH Phần Mềm"
+
+    # 5. GET /portal/orders
+    orders_res = client.get("/api/v1/portal/orders")
+    assert orders_res.status_code == 200
+    orders = orders_res.json()["orders"]
+    assert len(orders) >= 1
+    found_order = next((o for o in orders if o["code"] == order_code), None)
+    assert found_order is not None
+    assert found_order["status"] == "fulfilled"
+
+    # 6. GET /portal/devices
+    dev_res = client.get("/api/v1/portal/devices")
+    assert dev_res.status_code == 200
+    devices = dev_res.json()["devices"]
+    assert len(devices) >= 1
+    target_dev = next((d for d in devices if d["device_name"] == "PC-LAPTOP-THAO"), None)
+    assert target_dev is not None
+    dev_id = target_dev["id"]
+
+    # 7. POST /portal/devices/{id}/remove -> Gỡ máy thành công
+    remove_res = client.post(f"/api/v1/portal/devices/{dev_id}/remove")
+    assert remove_res.status_code == 200
+    assert remove_res.json()["ok"] is True
+
+    # Kiểm tra lại /portal/devices: danh sách máy hoạt động không còn máy này
+    dev_after = client.get("/api/v1/portal/devices")
+    active_after = [d for d in dev_after.json()["devices"] if d["id"] == dev_id]
+    assert len(active_after) == 0
+
+    # 8. POST /portal/offline-activation -> Kích hoạt ngoại tuyến
+    offline_res = client.post("/api/v1/portal/offline-activation", json={
+        "key": issued_key,
+        "device_code": "device_fingerprint_offline_machine_555",
+        "device_name": "PC-MAY-OFFLINE",
+    })
+    assert offline_res.status_code == 200
+    assert "activation_code" in offline_res.json()
+    assert len(offline_res.json()["activation_code"]) > 20
+
+
+def test_email_outbox_encryption_and_dispatch(commerce_env):
+    """Kiểm tra module Email Outbox & SMTP Dispatcher:
+    - Mã hóa payload AES-256-GCM, không lưu key thô dạng văn bản rõ
+    - Render mẫu email chuẩn tiếng Việt
+    - Gửi nền (dispatch) cập nhật trạng thái 'sent' và 'failed' kèm xử lý lỗi.
+    """
+    import smtplib
+    from emails.service import EmailService, encrypt_payload, decrypt_payload
+    from emails.templates import render_template
+    db_path = commerce_env["db_path"]
+    secret_key = "test_encryption_secret_key_32bytes"
+
+    # 1. Kiểm tra mã hóa và giải mã AES-256-GCM
+    sample_data = {"raw_keys": ["3TO-TEST-ABCD-EFGH-1234"]}
+    enc_token = encrypt_payload(sample_data, secret_key)
+    assert enc_token != json.dumps(sample_data)
+    dec = decrypt_payload(enc_token, secret_key)
+    assert dec == sample_data
+
+    # Giải mã bằng secret sai -> trả None
+    assert decrypt_payload(enc_token, "wrong_secret_key_abcdef") is None
+
+    # 2. Xếp email vào CSDL với EmailService
+    svc = EmailService(
+        smtp_host="smtp.example.com",
+        smtp_port=587,
+        smtp_user="test@example.com",
+        smtp_password="testpassword",
+    )
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        email_id = svc.queue_email(
+            conn=conn,
+            to_email="khach_outbox@example.vn",
+            template="order_fulfilled",
+            data={"customer_name": "Trần Thị C", "order_code": "3T-261004-TEST"},
+            raw_keys=["3TO-SECRET-KEY-1111"],
+            encryption_secret=secret_key,
+        )
+        conn.commit()
+
+        # Kiểm tra CSDL: KHÔNG chứa key thô dạng plaintext
+        row = conn.execute("SELECT * FROM email_outbox WHERE id = ?", (email_id,)).fetchone()
+        assert row is not None
+        assert row["status"] == "queued"
+        assert "3TO-SECRET-KEY-1111" not in row["payload_json"]
+        # Phải chứa key_hints
+        assert "1111" in row["payload_json"]
+
+    # 3. Giả lập gửi thành công
+    sent_messages = []
+    def mock_send(to_email, subject, body_text):
+        sent_messages.append((to_email, subject, body_text))
+
+    svc.send_smtp_message = mock_send
+
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        res = svc.dispatch_queued_emails(conn, encryption_secret=secret_key)
+        assert res["sent"] >= 1
+        assert res["failed"] == 0
+
+        # Kiểm tra trạng thái đã chuyển thành sent
+        updated_row = conn.execute("SELECT status, sent_at FROM email_outbox WHERE id = ?", (email_id,)).fetchone()
+        assert updated_row["status"] == "sent"
+        assert updated_row["sent_at"] is not None
+
+    # Đảm bảo nội dung email gửi đi có key sau khi giải mã
+    assert len(sent_messages) >= 1
+    target_msg = next((m for m in sent_messages if m[0] == "khach_outbox@example.vn"), None)
+    assert target_msg is not None
+    assert "3TO-SECRET-KEY-1111" in target_msg[2]
+
+    # 4. Giả lập gửi thất bại (SMTP ném ngoại lệ)
+    def mock_send_fail(to_email, subject, body_text):
+        raise smtplib.SMTPException("Kết nối máy chủ gửi thư bị từ chối")
+
+    svc.send_smtp_message = mock_send_fail
+
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        fail_email_id = svc.queue_email(
+            conn=conn,
+            to_email="khach_fail@example.vn",
+            template="portal_login_code",
+            data={"code": "123456", "expires_minutes": 15},
+        )
+        conn.commit()
+
+        res_fail = svc.dispatch_queued_emails(conn)
+        assert res_fail["failed"] >= 1
+
+        fail_row = conn.execute("SELECT status, attempts, last_error FROM email_outbox WHERE id = ?", (fail_email_id,)).fetchone()
+        assert fail_row["status"] == "queued"
+        assert fail_row["attempts"] == 1
+        assert "SMTPException" in fail_row["last_error"]
+

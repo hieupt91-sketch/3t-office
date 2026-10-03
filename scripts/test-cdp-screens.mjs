@@ -439,7 +439,7 @@ async function main() {
     await sleep(600);
 
     // Lấy mã 6 số từ CSDL sqlite3
-    const dbPath = path.join(dataDir, "commerce.db");
+    const dbPath = path.join(dataDir, "3t-office-cloud.sqlite3");
     const getCodeScript = `
 import sqlite3, json
 conn = sqlite3.connect(r"${dbPath}")
