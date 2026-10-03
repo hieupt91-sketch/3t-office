@@ -14,7 +14,13 @@ function parseAttrs(adapter, raw) {
   return attrs;
 }
 
-async function eachCompressedRecord(payload, onRecord) {
+const PAYLOAD_ROWS_PER_UI_SLICE = 128;
+
+function yieldToRenderer() {
+  return new Promise(resolve => setTimeout(resolve, 0));
+}
+
+async function eachCompressedRecord(payload, onRecord, options = {}) {
   if (typeof process !== "undefined" && process.versions?.node) {
     const { createInflate } = await import("node:zlib");
     const inflate = createInflate();
@@ -56,15 +62,31 @@ async function eachCompressedRecord(payload, onRecord) {
   const reader = stream.getReader();
   const decoder = new TextDecoder();
   let carry = "";
+  let processedRows = 0;
+  const totalRows = Math.max(1, Number(payload.rows) || 1);
+  const progressStart = Number(options.progressStart) || 0;
+  const progressSpan = Math.max(0, (Number(options.progressEnd) || 0) - progressStart);
+  const processLine = async line => {
+    if (!line) return;
+    const record = JSON.parse(line);
+    onRecord(record);
+    if (record[0] !== "row-xml") return;
+    processedRows++;
+    if (processedRows % PAYLOAD_ROWS_PER_UI_SLICE !== 0) return;
+    options.onProgress?.(progressStart + progressSpan * Math.min(1, processedRows / totalRows));
+    // Keep WebView2 painting/responding while a large workbook model is built.
+    await yieldToRenderer();
+  };
   while (true) {
     const { value, done } = await reader.read();
     if (done) break;
     const lines = (carry + decoder.decode(value, { stream: true })).split("\n");
     carry = lines.pop() || "";
-    for (const line of lines) if (line) onRecord(JSON.parse(line));
+    for (const line of lines) await processLine(line);
   }
   carry += decoder.decode();
-  if (carry) onRecord(JSON.parse(carry));
+  await processLine(carry);
+  options.onProgress?.(progressStart + progressSpan);
 }
 
 function tableBlocks(adapter, xml) {
@@ -320,7 +342,7 @@ function validatePayload(payload, adapter, supportXmlOverride) {
   return supportXml;
 }
 
-export async function buildSheetPayloadModel(payload, adapter, supportXmlOverride) {
+export async function buildSheetPayloadModel(payload, adapter, supportXmlOverride, options = {}) {
   if (!adapter) throw new TypeError("SheetAdapter is required to build a payload model");
   const supportXml = validatePayload(payload, adapter, supportXmlOverride);
   const xml = adapter._xmlWithoutEmbeddedObjects(supportXml);
@@ -405,7 +427,7 @@ export async function buildSheetPayloadModel(payload, adapter, supportXmlOverrid
     }
     if (rowHasData) stats.lastDataRow = stats.row + rowRepeat - 1;
     stats.row += rowRepeat;
-  });
+  }, { ...options, progressStart: 0, progressEnd: 0.35 });
   if (openSheet || sheetRecords !== payload.sheets || rowRecords !== payload.rows) {
     throw new TypeError("Sheet payload record counts do not match its header");
   }
@@ -578,7 +600,7 @@ export async function buildSheetPayloadModel(payload, adapter, supportXmlOverrid
       }
       state.rowNumber++;
     }
-  });
+  }, { ...options, progressStart: 0.35, progressEnd: 1 });
 
   if (!workbook.sheets.includes(workbook.activeSheet)) workbook.activeSheet = workbook.sheets[0] || "";
   adapter._attachImportedRules(workbook, supportXml);

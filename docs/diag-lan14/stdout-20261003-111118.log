@@ -1,0 +1,20 @@
+2026-10-03T11:11:20.545Z stdout Could not set the taskbar process identity: cannot access local variable 'ctypes' where it is not associated with a value
+2026-10-03T11:11:20.545Z stdout [pywebview] Using WinForms / Chromium
+2026-10-03T11:11:20.545Z stdout [pywebview] before_load event fired. injecting pywebview object
+2026-10-03T11:11:20.545Z stdout [pywebview] Loading JS files from C:\Users\3T Computer\AppData\Local\Programs\Python\Python312\Lib\site-packages\webview\js
+2026-10-03T11:11:20.545Z stdout [pywebview] _pywebviewready event fired
+2026-10-03T11:11:20.545Z stdout [pywebview] loaded event fired
+2026-10-03T11:11:22.253Z stdout [3T Office] Embedded server ready at http://localhost:8080
+2026-10-03T11:11:22.253Z stdout [VNO Open Perf] worker_stage_breakdown: app=sheet python_and_uno_import=16.0 soffice_spawn=16.0 pipe_resolve=3093.0 desktop_service=0.0 resolve_attempts=149
+2026-10-03T11:11:22.254Z stdout [VNO Open Perf] worker_start_and_profile_ready: 3314.5 ms app=sheet
+2026-10-03T11:11:34.685Z stdout [VNO Open Perf] uno_load_and_store: 12431.3 ms app=sheet bytes=257170257
+2026-10-03T11:11:34.949Z stdout [VNO Open Perf] sheet_open_stage: 264.1 ms phase=read_fods chars=255065122
+2026-10-03T11:12:16.758Z stdout [VNO Open Perf] sheet_open_stage: 41808.6 ms phase=native_overlay chars=325621994
+2026-10-03T11:12:46.029Z stdout [VNO Open Perf] sheet_open_stage: 29267.3 ms phase=optimize_fods chars=311008516
+2026-10-03T11:13:22.461Z stdout [VNO Open Perf] sheet_open_stage: 36430.0 ms phase=build_compact_payload payload_chars=9366868 support_chars=7067385
+2026-10-03T11:14:19.708Z stdout [VNO Sheet Perf] buildSheetPayloadModel: 52426.5 ms
+2026-10-03T11:14:19.750Z stdout [VNO Sheet Perf] first grid render: 52469.2 ms
+2026-10-03T11:14:20.757Z stdout [VNO Sheet Perf] loadFromPayload: 53476.4 ms
+2026-10-03T11:14:20.797Z stdout [VNO Sheet Perf] selection-to-first-grid: 180203.1 ms
+2026-10-03T11:14:20.797Z stdout [VNO Sheet Perf] first layout: 53514.4 ms
+2026-10-03T11:14:20.810Z stdout [VNO Open Perf] background_filter_warmup_skipped: app=sheet reason=profile-already-primed

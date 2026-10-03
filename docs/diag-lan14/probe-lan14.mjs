@@ -15,7 +15,8 @@ const execFileP = promisify(execFile);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..", "..");
 const SOURCE_XLSX = "E:\\VN OFice\\file test\\lan\\lan14.xlsx";
-const LOCAL_APP_DATA = "E:\\VNOffice-profiles\\opencode-lan14";
+const LOCAL_APP_DATA = process.env.VNO_LAN14_LOCALAPPDATA
+  || "E:\\VNOffice-profiles\\opencode-lan14";
 const PROFILE_ROOT = path.join(LOCAL_APP_DATA, "VNOffice");
 const PERF_SETTINGS = path.join(PROFILE_ROOT, "performance", "settings.json");
 const PERF_LOG = path.join(PROFILE_ROOT, "performance", "performance.jsonl");
