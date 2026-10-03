@@ -3766,7 +3766,13 @@ ${pristineXlsxMarker}
     return false;
   }
 
-  _cellFromFodsAttributes(attributes, text, numberStyles = new Map(), rotationStyles = new Map(), cellVisualStyles = new Map()) {
+  _cellFromFodsAttributesLegacy(attributes, text, numberStyles = new Map(), rotationStyles = new Map(), cellVisualStyles = new Map()) {
+    // Superseded by P2 - xoa chi khi chu so huu duyet. Keep the uncached
+    // conversion entry point for model parity checks and immediate rollback.
+    return this._cellFromFodsAttributes(attributes, text, numberStyles, rotationStyles, cellVisualStyles, null);
+  }
+
+  _cellFromFodsAttributes(attributes, text, numberStyles = new Map(), rotationStyles = new Map(), cellVisualStyles = new Map(), p2Cache = null) {
     const get = name => attributes[name] ?? "";
     const valueType = get("office:value-type");
     let value = text;
@@ -3809,25 +3815,41 @@ ${pristineXlsxMarker}
     // recalculates it; remember the exact LibreOffice formula so an unedited
     // link is written back byte-for-byte on save.
     const externalOdf = !get("vno:formula") && this._isExternalOdfFormula(odfFormula) ? odfFormula : "";
-    const style = {};
+    const styleName = get("table:style-name");
     const numFmtAttr = get("vno:number-format");
-    const standardFormat = numberStyles.get(get("table:style-name"));
+    const origXf = get("vno:xf");
+    const styleKey = p2Cache ? `${styleName}\u0000${numFmtAttr}\u0000${origXf}\u0000${valueType}` : "";
+    const cachedStyle = p2Cache?.styles.get(styleKey);
+    const style = cachedStyle
+      ? { ...cachedStyle, ...(cachedStyle.numberFormat ? { numberFormat: { ...cachedStyle.numberFormat } } : {}) }
+      : {};
+    if (!cachedStyle) {
+    const standardFormat = numberStyles.get(styleName);
     const numericTypes = new Set(["float", "percentage", "currency", "date", "time"]);
     // Apply number format from vno:number-format for ALL cell types (including string/empty)
     // Per task requirement: keep original Excel format code for every cell/column/row with format
     if (numFmtAttr) {
       let parsed;
       let excelCode = null;
-      try {
-        parsed = JSON.parse(numFmtAttr);
-        // If parsed from app's own JSON, try to reconstruct excelCode from category
-        if (parsed.category) {
-          excelCode = this._excelCodeFromNumberFormat(parsed);
+      const cachedFormat = p2Cache?.numberFormats.get(numFmtAttr);
+      if (cachedFormat) {
+        parsed = { ...cachedFormat.parsed };
+        excelCode = cachedFormat.excelCode;
+      } else {
+        try {
+          parsed = JSON.parse(numFmtAttr);
+          // If parsed from app's own JSON, try to reconstruct excelCode from category
+          if (parsed.category) {
+            excelCode = this._excelCodeFromNumberFormat(parsed);
+          }
+        } catch (e) {
+          // Raw Excel format code from Python overlay
+          excelCode = numFmtAttr;
+          parsed = numberFormatFromExcelCode(numFmtAttr);
         }
-      } catch (e) {
-        // Raw Excel format code from Python overlay
-        excelCode = numFmtAttr;
-        parsed = numberFormatFromExcelCode(numFmtAttr);
+        if (p2Cache && parsed) {
+          p2Cache.numberFormats.set(numFmtAttr, { parsed: { ...parsed }, excelCode });
+        }
       }
       if (parsed) {
         style.numberFormat = parsed;
@@ -3846,21 +3868,34 @@ ${pristineXlsxMarker}
     } else if (valueType === "currency") {
       style.numberFormat = { category: "currency", currencySymbol: "₫", decimals: 0, useThousands: true };
     }
-    const rotation = rotationStyles.get(get("table:style-name"));
+    const rotation = rotationStyles.get(styleName);
     if (rotation != null) style.textRotation = rotation;
-    const visualStyle = cellVisualStyles.get(get("table:style-name"));
+    const visualStyle = cellVisualStyles.get(styleName);
     if (visualStyle) {
       for (const [key, val] of Object.entries(visualStyle)) {
         if (val !== undefined && val !== null && val !== "") style[key] = val;
       }
     }
     // S8: Preserve original xf index for untouched cells round-trip.
-    const origXf = get("vno:xf");
     if (origXf !== "") {
       style.origXf = parseInt(origXf, 10);
     }
     // S8: Compute stable hash of style at import time.
-    style.styleHashAtImport = this._computeStyleHash(style);
+    if (p2Cache) {
+      let styleHash = p2Cache.styleHashes.get(styleKey);
+      if (styleHash === undefined) {
+        styleHash = this._computeStyleHash(style);
+        p2Cache.styleHashes.set(styleKey, styleHash);
+      }
+      style.styleHashAtImport = styleHash;
+      p2Cache.styles.set(styleKey, {
+        ...style,
+        ...(style.numberFormat ? { numberFormat: { ...style.numberFormat } } : {}),
+      });
+    } else {
+      style.styleHashAtImport = this._computeStyleHash(style);
+    }
+    }
     return externalOdf
       ? { val: value, formula, style, externalLink: { odf: externalOdf, formula } }
       : { val: value, formula, style };
