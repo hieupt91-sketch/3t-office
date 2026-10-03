@@ -113,6 +113,43 @@ a:hover {
   color: var(--adm-text-muted);
 }
 
+.role-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.role-badge-owner {
+  background-color: #FEF3C7;
+  color: #92400E;
+  border: 1px solid rgba(146, 64, 14, 0.3);
+}
+
+.role-badge-support {
+  background-color: #E0E7FF;
+  color: #3730A3;
+  border: 1px solid rgba(55, 48, 163, 0.3);
+}
+
+.role-badge-viewer {
+  background-color: #F1F5F9;
+  color: #475569;
+  border: 1px solid rgba(71, 85, 105, 0.3);
+}
+
+.session-warning-bar {
+  background-color: #FEF3C7;
+  color: #92400E;
+  padding: 8px 16px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  border-bottom: 1px solid rgba(146, 64, 14, 0.2);
+}
+
 /* Bố cục chính */
 .admin-container {
   max-width: 1200px;

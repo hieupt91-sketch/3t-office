@@ -20,7 +20,8 @@ const HTML_PAGES = [
   "ban-quyen.html",
   "lien-he.html",
   "trang-thai.html",
-  "404.html"
+  "404.html",
+  "tai-khoan/index.html"
 ];
 
 const ALLOWED_DOMAINS = [
@@ -91,19 +92,20 @@ export async function run3tWebTests() {
     for (const page of HTML_PAGES) {
       const pagePath = path.join(webRoot, page);
       if (!fs.existsSync(pagePath)) continue;
+      const pageDir = path.dirname(pagePath);
       const html = fs.readFileSync(pagePath, "utf-8");
 
       const hrefRegex = /href=["']([^"']+)["']/gi;
       let match;
       while ((match = hrefRegex.exec(html)) !== null) {
         const href = match[1];
-        if (href.startsWith("http://") || href.startsWith("https://") || href.startsWith("mailto:") || href.startsWith("#")) {
+        if (href.startsWith("http://") || href.startsWith("https://") || href.startsWith("mailto:") || href.startsWith("#") || href.startsWith("javascript:")) {
           continue;
         }
         const cleanHref = href.split("#")[0].split("?")[0];
         if (!cleanHref) continue;
 
-        const resolved = path.resolve(webRoot, cleanHref);
+        const resolved = cleanHref.startsWith("/") ? path.resolve(webRoot, cleanHref.slice(1)) : path.resolve(pageDir, cleanHref);
         assert(`${page}: Liên kết nội bộ href="${href}" phân giải được tệp`, fs.existsSync(resolved), `Không tìm thấy: ${resolved}`);
       }
     }
@@ -112,6 +114,7 @@ export async function run3tWebTests() {
     for (const page of HTML_PAGES) {
       const pagePath = path.join(webRoot, page);
       if (!fs.existsSync(pagePath)) continue;
+      const pageDir = path.dirname(pagePath);
       const html = fs.readFileSync(pagePath, "utf-8");
 
       const srcRegex = /(?:src|srcset)=["']([^"']+)["']/gi;
@@ -120,7 +123,7 @@ export async function run3tWebTests() {
         const src = match[1];
         if (src.startsWith("http://") || src.startsWith("https://") || src.startsWith("data:")) continue;
         const cleanSrc = src.split(" ")[0].split("?")[0];
-        const resolved = path.resolve(webRoot, cleanSrc);
+        const resolved = cleanSrc.startsWith("/") ? path.resolve(webRoot, cleanSrc.slice(1)) : path.resolve(pageDir, cleanSrc);
         assert(`${page}: Nguồn tài nguyên ${cleanSrc} phân giải được tệp`, fs.existsSync(resolved), `Không tìm thấy: ${resolved}`);
       }
     }
