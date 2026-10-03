@@ -39,6 +39,22 @@ function selectedPages(state) {
  * trong (bản quyền của chúng được ghi đầy đủ trong Trợ giúp → Giới thiệu và THIRD-PARTY-NOTICES),
  * nên giao diện chỉ nói "bộ dựng tích hợp" hay "phần mềm văn phòng trên máy".
  */
+const OFFICE_PREFERENCE_KEY = "vno.print.useInstalledOffice";
+
+function readOfficePreference() {
+  try {
+    return globalThis.localStorage?.getItem(OFFICE_PREFERENCE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeOfficePreference(enabled) {
+  try {
+    globalThis.localStorage?.setItem(OFFICE_PREFERENCE_KEY, enabled ? "1" : "0");
+  } catch { /* storage may be unavailable; the choice then applies to this dialog only */ }
+}
+
 export function engineDisplayName(engineId) {
   const value = String(engineId || "").trim().toLowerCase();
   if (!value) return "đang kiểm tra…";
@@ -328,6 +344,7 @@ export async function openPrintDialog({
   printerSelect.addEventListener("change", validateOptions);
   officeOption.addEventListener("change", async () => {
     if (!state.officeAvailable || state.preparing) return;
+    writeOfficePreference(officeOption.checked);
     const previousSession = state.sessionId;
     await preparePreview(officeOption.checked, previousSession);
   });
@@ -398,8 +415,12 @@ export async function openPrintDialog({
     state.preferredEngine = String(engineStatus?.preferredEngine || "LibreOffice");
     officeOption.parentElement.hidden = !state.officeAvailable;
     officeOptionLabel.textContent = "Dùng phần mềm văn phòng có sẵn trên máy để in (chính xác nhất)";
-    officeOption.checked = state.officeAvailable;
-    state.useOfficeSelected = state.officeAvailable;
+    // Fast path by default: the built-in engine renders the preview in a few seconds. Starting Word/WPS through COM can
+    // take a minute or more (activation prompts, first start) and used to be the default whenever it was installed.
+    // The person can still opt in; the choice is remembered.
+    const preferOffice = state.officeAvailable && readOfficePreference();
+    officeOption.checked = preferOffice;
+    state.useOfficeSelected = preferOffice;
     engineUsedLabel.textContent = `Bộ dựng trang in: ${engineDisplayName(state.preferredEngine)}`;
     if (printerResult?.status !== "ok") throw new Error(printerResult?.message || "Không đọc được danh sách máy in Windows.");
     state.printers = Array.isArray(printerResult.printers) ? printerResult.printers : [];
@@ -415,7 +436,7 @@ export async function openPrintDialog({
       printerSelect.value = chooseDefaultPrinter(state.printers);
       printerSelect.disabled = false;
     }
-    return await preparePreview(state.officeAvailable);
+    return await preparePreview(preferOffice);
   } catch (error) {
     status.textContent = getPrintErrorMessage(error);
     status.classList.add("is-error");

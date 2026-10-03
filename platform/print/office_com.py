@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Callable
 
 
-OFFICE_EXPORT_TIMEOUT_SECONDS = 300
+OFFICE_EXPORT_TIMEOUT_SECONDS = 60  # opt-in path only; a stuck activation prompt must not hold the print dialog for minutes
 _OFFICE_JOB_LOCK = threading.Lock()
 _OFFICE_BY_APP = {
     "writer": (("Word.Application", "Microsoft Office"), ("Kwps.Application", "WPS")),
