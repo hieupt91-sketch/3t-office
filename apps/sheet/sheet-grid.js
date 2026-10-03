@@ -4503,8 +4503,51 @@ _bindGridKeyboardNavigation() {
       } else return;
 
       e.preventDefault();
+      if (!e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey
+        && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Tab"].includes(e.key)) {
+        const target = this._resolveKeyboardTarget(nextCol, nextRow);
+        nextCol = target.c;
+        nextRow = target.r;
+      }
       this.selectCell(nextCol, nextRow, extendRange);
     });
+  }
+
+  // Đích của phím mũi tên/Tab giống Excel: nhảy qua cả vùng ô gộp đang đứng, bỏ qua hàng/cột ẩn,
+  // và rơi vào vùng gộp khác thì chọn ô neo (góc trên trái). Hết đường thì đứng yên.
+  _resolveKeyboardTarget(nextCol, nextRow) {
+    const from = this.selectedCoord;
+    const fromColNo = this._columnNumber(from.c);
+    const step = {
+      dr: Math.sign(nextRow - from.r),
+      dc: Math.sign(this._columnNumber(nextCol) - fromColNo)
+    };
+    if (!step.dr && !step.dc) return { c: from.c, r: from.r };
+    const origin = this.getMergedRangeForCell(from.c, from.r);
+    let colNo = fromColNo;
+    let row = from.r;
+    if (origin) {
+      const box = this._normalizeRange(origin);
+      if (step.dr > 0) row = box.end.r;
+      if (step.dr < 0) row = box.start.r;
+      if (step.dc > 0) colNo = this._columnNumber(box.end.c);
+      if (step.dc < 0) colNo = this._columnNumber(box.start.c);
+    }
+    const lastCol = this.cols.length;
+    for (let guard = 0; guard < 100000; guard += 1) {
+      row += step.dr;
+      colNo += step.dc;
+      if (row < 1 || row > this.rowCount || colNo < 1 || colNo > lastCol) return { c: from.c, r: from.r };
+      const col = this.cols[colNo - 1];
+      if ((step.dr && this._isRowSkipped(row)) || (step.dc && this._isColumnHidden(col))) continue;
+      const hit = this.getMergedRangeForCell(col, row);
+      if (hit) {
+        const box = this._normalizeRange(hit);
+        return { c: box.start.c, r: box.start.r };
+      }
+      return { c: col, r: row };
+    }
+    return { c: from.c, r: from.r };
   }
 
   focusFormulaInput() {
