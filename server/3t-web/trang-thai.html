@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trạng thái dịch vụ 3T Cloud — Kiểm tra kết nối /health</title>
+  <meta name="description" content="Kiểm tra trạng thái sẵn sàng của hệ thống máy chủ 3T Cloud (/health). Theo dõi khả năng kết nối dịch vụ cập nhật và API.">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+  <link rel="alternate icon" href="favicon.ico">
+  <link rel="stylesheet" href="css/style.css">
+  <script>
+    try {
+      var t = localStorage.getItem("3t_theme");
+      if (!t && window.matchMedia("(prefers-color-scheme: dark)").matches) t = "dark";
+      if (t) document.documentElement.setAttribute("data-theme", t);
+    } catch(e) {}
+  </script>
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Chuyển đến nội dung chính</a>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="index.html" class="brand-link" aria-label="Trang chủ 3T Office">
+        <img src="assets/brand/logo-3t.png" alt="Logo 3T Office" class="brand-icon">
+        <div class="brand-text">
+          <span class="brand-name">Office</span>
+          <span class="brand-tagline">Bộ ứng dụng văn phòng</span>
+        </div>
+      </a>
+
+      <nav id="primary-nav" class="main-nav" aria-label="Điều hướng chính">
+        <ul class="nav-list">
+          <li><a href="index.html" class="nav-link">Trang chủ</a></li>
+          <li><a href="tinh-nang.html" class="nav-link">Tính năng</a></li>
+          <li><a href="tai-ve.html" class="nav-link">Tải về</a></li>
+          <li><a href="co-gi-moi.html" class="nav-link">Có gì mới</a></li>
+          <li><a href="huong-dan.html" class="nav-link">Hướng dẫn</a></li>
+          <li><a href="ban-quyen.html" class="nav-link">Bản quyền</a></li>
+          <li><a href="trang-thai.html" class="nav-link active" aria-current="page">Trạng thái</a></li>
+          <li><a href="lien-he.html" class="nav-link">Liên hệ</a></li>
+        </ul>
+      </nav>
+
+      <div class="nav-actions">
+        <button type="button" class="theme-toggle-btn" aria-label="Chuyển đổi giao diện Sáng / Tối" title="Chuyển đổi giao diện Sáng / Tối">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"></circle></svg>
+        </button>
+        <a href="tai-ve.html" class="nav-cta-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+          </svg>
+          Tải 0.9.7 Pilot
+        </a>
+        <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="primary-nav" aria-label="Mở trình đơn chuyển hướng">
+          ☰
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main-content">
+    <section class="section">
+      <div class="container">
+        <div class="section-header">
+          <span class="badge badge-glow">Giám sát hệ thống</span>
+          <h1 class="section-title">Trạng thái kết nối máy chủ 3T Cloud</h1>
+          <p class="section-lead">
+            Kiểm tra thời gian thực điểm kết nối <code>/health</code> của máy chủ 3T Cloud (office.3tcomputer.com).
+          </p>
+        </div>
+
+        <div class="status-card" id="health-status-container">
+          <div id="status-indicator" class="status-indicator status-loading">⏳</div>
+          <h2 id="status-title" style="font-size: 1.5rem; font-weight: 800; color: var(--text-main);">Đang kiểm tra trạng thái…</h2>
+          <p id="status-desc" style="font-size: 0.938rem; color: var(--text-muted); max-width: 520px; line-height: 1.6;">
+            Hệ thống đang truy vấn điểm cuối /health trên máy chủ dịch vụ…
+          </p>
+
+          <div id="status-meta" class="status-meta">
+            Đang khởi tạo kết nối...
+          </div>
+
+          <div style="display: flex; justify-content: center; gap: 14px; flex-wrap: wrap;">
+            <button type="button" id="status-retry-btn" class="btn btn-primary">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+              </svg>
+              Kiểm tra lại
+            </button>
+            <a href="https://office.3tcomputer.com/health" class="btn btn-secondary">
+              Xem trực tiếp /health
+            </a>
+          </div>
+        </div>
+
+        <!-- Giải thích trạng thái & Tình trạng thành phần cục bộ -->
+        <div style="max-width: 680px; margin: 36px auto 0 auto; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: var(--space-6);">
+          <h2 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 12px; color: var(--text-main);">
+            Ý nghĩa của các trạng thái phản hồi
+          </h2>
+          <ul style="list-style: none; display: flex; flex-direction: column; gap: 12px; font-size: 0.9rem; color: var(--text-muted); line-height: 1.55;">
+            <li>
+              <strong style="color: #10B981;">✓ OK (Hoạt động tốt):</strong> Máy chủ dịch vụ 3T Cloud đang vận hành bình thường, sẵn sàng cung cấp các bản cập nhật và tiếp nhận báo cáo lỗi.
+            </li>
+            <li>
+              <strong style="color: #EF4444;">✕ Lỗi kết nối:</strong> Máy chủ đang bảo trì hoặc mạng bị ngắt quãng. Ứng dụng 3T Office trên máy bạn vẫn hoạt động ngoại tuyến bình thường không bị gián đoạn.
+            </li>
+            <li>
+              <strong style="color: #3B82F6;">📁 Chế độ tệp cục bộ (file://):</strong> Bạn đang mở tệp HTML trực tiếp từ ổ cứng. Trình duyệt bảo mật ngăn truy vấn đường dẫn tương đối <code>/health</code> mà không có máy chủ HTTP.
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="index.html" class="brand-link" style="margin-bottom: 14px;">
+            <img src="assets/brand/logo-3t.png" alt="Logo 3T Office" class="brand-icon">
+            <div class="brand-text">
+              <span class="brand-name">Office</span>
+              <span class="brand-tagline">Bộ ứng dụng văn phòng</span>
+            </div>
+          </a>
+          <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;">
+            Bộ ứng dụng văn phòng chạy ngoại tuyến cho Windows được nghiên cứu và phát triển bởi 3T Computer. 
+            Tôn trọng tối đa quyền riêng tư và quyền sở hữu dữ liệu của người dùng.
+          </p>
+        </div>
+
+        <div class="footer-col">
+          <h4>Ứng dụng</h4>
+          <ul class="footer-links">
+            <li><a href="tinh-nang.html#doc">Doc (.docx)</a></li>
+            <li><a href="tinh-nang.html#sheet">Sheet (.xlsx)</a></li>
+            <li><a href="tinh-nang.html#slide">Slide (.pptx)</a></li>
+            <li><a href="tinh-nang.html">Danh mục tính năng</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h4>Thông tin</h4>
+          <ul class="footer-links">
+            <li><a href="tai-ve.html">Tải về bộ cài</a></li>
+            <li><a href="co-gi-moi.html">Có gì mới (0.9.7)</a></li>
+            <li><a href="huong-dan.html">Hướng dẫn sử dụng</a></li>
+            <li><a href="ban-quyen.html">Chính sách bản quyền</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h4>Kết nối &amp; Hỗ trợ</h4>
+          <ul class="footer-links">
+            <li><a href="lien-he.html">Thông tin liên hệ</a></li>
+            <li><a href="trang-thai.html">Kiểm tra trạng thái máy chủ</a></li>
+            <li><a href="https://office.3tcomputer.com">Cổng thông tin 3T Office</a></li>
+            <li><a href="https://3tcomputer.com">Trang chủ 3T Computer</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <div>
+          Bản quyền thuộc về CÔNG TY TNHH ĐẦU TƯ CÔNG NGHỆ VÀ XÂY LẮP 3T.
+        </div>
+        <div style="font-size: 0.813rem; color: var(--text-dim);">
+          Địa chỉ: Số 470 Quang Trung, Phường Ba Đồn, Tỉnh Quảng Trị. &bull; MST: 3101126773.
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>
