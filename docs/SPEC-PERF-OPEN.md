@@ -93,6 +93,26 @@ Hạn chế phải xử lý trước khi áp dụng (xem phase P8 dưới):
 | P1 Python Sheet | lan14 96,6 → 82 s; lan06 108 → 81 s (chỉ −15…−25%) | Byte-identical 4 file; đang so 28 file | Chưa vào `main` (chưa đạt mục tiêu 35 s) |
 Kết luận: vi tối ưu P1 chạm giới hạn (≈1,5 triệu ô xử lý bằng regex Python). Phần còn lại phải đổi cấu trúc → P8.
 
+### 6.1b Kết quả đêm 03–04/10 (đã vào `main`, mỗi mục Claude tự chạy lại cổng)
+| Hạng mục | Kết quả |
+|---|---|
+| P2 JS dựng mô hình | lan14 52 → ~21 s; mô hình deep-equal bản cũ trên 4 file |
+| P3 Doc (regex bậc hai ở ngắt section) | MYTIME 173 → 33 s; fuzz 4000 tài liệu = bản cũ |
+| P1 Python Sheet | −15…−25%; byte-identical 28/28; chưa đạt 35 s (≈1,5 triệu ô xử lý bằng regex) |
+| P8 xem nhanh (cờ `VNO_OPEN_VIEWFIRST`, tắt mặc định) | lan14 màn hình đầu ~9 s, lan06 ~14,5 s, lan03/16/26 ~4,5–5 s; 37/37 + 18/18 CDP |
+| Sửa chuyển sheet (cửa sổ dựng cũ của sheet trước) | lan14 Sheet2: DOM 680k → 1,9k; RAM đỉnh 4,79 → 2,06 GB |
+| Sửa khởi động (hàng đợi máy chủ tĩnh 5 → 128) | A/B 60 lượt: kẹt 13/60 (22%) → 0/60 |
+| Sửa lưu file rất lớn (chia đoạn qua cầu nối) | lan14: trang sập khi lưu → lưu 31 s, 0 sai lệch |
+| Không gộp | P3b (không nhanh hơn: 32,4 vs 33,6 s); P4 (khởi động LibreOffice sớm: chưa đo ảnh hưởng khung hình đầu) |
+
+### 6.1c Lộ trình tiếp theo (phân công 04/10)
+1. **Đối soát 28 file phải đo đường lưu THẬT** (`roundtrip-file.mjs` hiện gọi API trực tiếp, bỏ qua `globalUnoBridge`; lan14 báo "không lưu được" là do bộ đo) — Codex (J1).
+2. **P1b**: song song hóa overlay/optimize/payload theo sheet/khối dòng, giữ byte-identical — Codex (J2).
+3. **Slide chưa đo**; quét ngoại lệ DOM/RAM trên 26 file LAN còn lại; xác nhận 0 lượt kẹt khởi động cho cả 3 ứng dụng — agy (đo đạc, không sửa mã).
+4. **Rà soát Hướng dẫn tiếng Việt** (AGENTS.md mục 10) — opencode (chỉ tài liệu).
+5. **Kế hoạch tách `platform/os_services`** (tiền đề macOS) — Codex (chỉ lập kế hoạch).
+6. **Chờ chủ sở hữu quyết định**: bật xem nhanh mặc định; P4 chỉ gộp nếu đo thấy lợi mà không chậm khung hình đầu; phát hành 0.9.9 (đang gác).
+
 ### 6.2 Kế hoạch chi tiết P8 (giai đoạn A — chế độ xem nhanh, chỉ đọc)
 - **Mục tiêu:** lan14 hiện lưới đầu ≤ 10 s; giao diện/chức năng sau khi đầy đủ **không đổi** so với bản hiện dùng.
 - **Worker (`adapters/libreoffice/common/soffice_uno_worker.py`):** thêm thao tác `view_open` (nạp tài liệu ẩn, **giữ mở**, trả danh sách sheet + vùng dùng + cỡ mặc định), `view_window` (sheet, r0,c0,r1,c1 → giá trị/công thức từ `getDataArray`/`getFormulaArray`, độ rộng cột/chiều cao dòng, định dạng ô theo **khối** — không gọi từng ô; đã đo 0,9 s/1.800 ô nếu gọi từng ô), `view_close`. Giao thức JSON-lines hiện có; thao tác `convert` giữ nguyên.
