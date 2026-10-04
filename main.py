@@ -2956,6 +2956,90 @@ class VnOfficeApi:
         """Trả về phiên bản ứng dụng hiện tại."""
         return APP_VERSION
 
+    # --- Chuyển nội dung lưu rất lớn theo từng đoạn (tránh sập trang khi đẩy cả chuỗi 300+ MB qua cầu nối một lần). ---
+    # Trang chia nội dung thành các đoạn nhỏ, Python ghép vào một tệp tạm rồi mới lưu như thường. Tài liệu nhỏ không dùng đường này.
+    _CONTENT_STAGE_MAX_AGE_SECONDS = 3600
+
+    def _content_stage_state(self):
+        state = getattr(self, "_content_stage_data", None)
+        if state is None:
+            state = {"lock": threading.Lock(), "stages": {}}
+            self._content_stage_data = state
+        return state
+
+    @staticmethod
+    def _content_stage_dir() -> Path:
+        return Path(tempfile.gettempdir()) / f"vnoffice_content_stage_{os.getpid()}"
+
+    def begin_content_stage(self):
+        try:
+            state = self._content_stage_state()
+            directory = self._content_stage_dir()
+            directory.mkdir(parents=True, exist_ok=True)
+            now = time.time()
+            with state["lock"]:
+                for stale_id, entry in list(state["stages"].items()):
+                    if now - entry["at"] > self._CONTENT_STAGE_MAX_AGE_SECONDS:
+                        state["stages"].pop(stale_id, None)
+                        try:
+                            os.unlink(entry["path"])
+                        except OSError:
+                            pass
+                stage_id = uuid.uuid4().hex
+                path = directory / f"{stage_id}.part"
+                path.write_bytes(b"")
+                state["stages"][stage_id] = {"path": str(path), "chars": 0, "at": now}
+            return {"ok": True, "id": stage_id}
+        except Exception:
+            return {"ok": False}
+
+    def append_content_stage(self, stage_id, chunk):
+        try:
+            state = self._content_stage_state()
+            with state["lock"]:
+                entry = state["stages"].get(str(stage_id))
+                if entry is None or not isinstance(chunk, str):
+                    return {"ok": False}
+                with open(entry["path"], "ab") as handle:
+                    handle.write(chunk.encode("utf-8", "surrogatepass"))
+                entry["chars"] += len(chunk)
+                entry["at"] = time.time()
+                return {"ok": True, "chars": entry["chars"]}
+        except Exception:
+            return {"ok": False}
+
+    def abort_content_stage(self, stage_id):
+        state = self._content_stage_state()
+        with state["lock"]:
+            entry = state["stages"].pop(str(stage_id), None)
+        if entry:
+            try:
+                os.unlink(entry["path"])
+            except OSError:
+                pass
+        return {"ok": True}
+
+    def _resolve_staged_content(self, content):
+        """Return the real text for a staged reference ({'vnoContentStage': id, 'chars': n}); other values pass through."""
+        if not (isinstance(content, dict) and content.get("vnoContentStage")):
+            return content
+        state = self._content_stage_state()
+        with state["lock"]:
+            entry = state["stages"].pop(str(content["vnoContentStage"]), None)
+        if entry is None:
+            raise DocumentEngineError("Nội dung cần lưu không còn trong bộ nhớ tạm. Hãy thử lưu lại.")
+        try:
+            text = Path(entry["path"]).read_bytes().decode("utf-8", "surrogatepass")
+        finally:
+            try:
+                os.unlink(entry["path"])
+            except OSError:
+                pass
+        expected = content.get("chars")
+        if isinstance(expected, int) and len(text) != expected:
+            raise DocumentEngineError("Nội dung chuyển sang bộ lưu bị thiếu. Hãy thử lưu lại.")
+        return text
+
     # --- Bản quyền (adapters/license). Chỉ báo trạng thái; KHÔNG khóa tính năng nào ở giai đoạn này. ---
     def _license_manager(self):
         manager = getattr(self, "_license_manager_instance", None)
@@ -4412,6 +4496,10 @@ class VnOfficeApi:
         giữ nguyên định dạng gốc và thay thế nguyên tử an toàn."""
         if not target_path:
             return {"status": "error", "message": "Đường dẫn tệp không hợp lệ."}
+        try:
+            content = self._resolve_staged_content(content)
+        except DocumentEngineError as exc:
+            return {"status": "error", "message": str(exc)}
 
         target_path, target_format = _infer_save_format_from_path(target_path, app_kind=app_kind)
         source_path = source_path or target_path
@@ -4440,6 +4528,10 @@ class VnOfficeApi:
         window = _active_window(self)
         if not window:
             return {"status": "error", "message": "Cửa sổ ứng dụng chưa sẵn sàng."}
+        try:
+            content = self._resolve_staged_content(content)
+        except DocumentEngineError as exc:
+            return {"status": "error", "message": str(exc)}
 
         default_ext = target_format or DEFAULT_SAVE_FORMAT.get(app_kind, "docx")
         default_stem = suggested_name or "TaiLieu"
