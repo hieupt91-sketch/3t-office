@@ -227,7 +227,8 @@ class PrintPipeline:
                 pdf_path = self._convert_pdf(native_source_path, app_kind, root)
             if not Path(pdf_path).is_file() or Path(pdf_path).stat().st_size <= 0:
                 raise RuntimeError("LibreOffice không tạo được tệp PDF xem trước.")
-            _perf("print_convert_pdf", _t, engine=engine_name)
+            _perf("print_convert_pdf", _t, engine=engine_name,
+                  bytes=Path(pdf_path).stat().st_size if Path(pdf_path).is_file() else 0)
             _t = time.perf_counter()
             page_count = self._inspect_pdf(app_kind, pdf_path)
             _perf("print_inspect_pdf", _t)
