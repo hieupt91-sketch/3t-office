@@ -38,6 +38,7 @@
           <li><a href="co-gi-moi.html" class="nav-link">Có gì mới</a></li>
           <li><a href="huong-dan.html" class="nav-link">Hướng dẫn</a></li>
           <li><a href="ban-quyen.html" class="nav-link active" aria-current="page">Bản quyền</a></li>
+          <li><a href="tai-khoan/index.html" class="nav-link">Cổng khách hàng</a></li>
           <li><a href="trang-thai.html" class="nav-link">Trạng thái</a></li>
           <li><a href="lien-he.html" class="nav-link">Liên hệ</a></li>
         </ul>
@@ -101,11 +102,11 @@
             <p class="pricing-desc">
               Mua một lần, sở hữu giấy phép sử dụng vĩnh viễn trên máy tính kèm 1 năm cập nhật tính năng mới.
             </p>
-            <div class="pricing-price">
-              TODO-CONFIRM
-              <div style="font-size: 0.85rem; color: var(--text-dim); font-weight: 600; margin-top: 4px;">
-                (Giá chính thức chưa quyết định)
-              </div>
+            <div id="plan-perpetual-price" class="pricing-price">
+              0 đ <span style="font-size: 0.9rem; font-weight: normal; color: var(--text-dim);">/ máy</span>
+            </div>
+            <div id="plan-perpetual-note" style="font-size: 0.85rem; color: var(--text-dim); font-weight: 600; margin-bottom: var(--space-4);">
+              (Chương trình thử nghiệm nội bộ 0 đ)
             </div>
             <ul class="pricing-features">
               <li><span class="check-icon">✓</span> Bản quyền sử dụng vĩnh viễn cho thiết bị</li>
@@ -113,9 +114,13 @@
               <li><span class="check-icon">✓</span> Sau 1 năm, vẫn tiếp tục sử dụng bình thường bản đã cài</li>
               <li><span class="check-icon">✓</span> Cơ chế hoạt động ngoại tuyến an toàn 30 ngày</li>
             </ul>
-            <div class="todo-confirm-box" style="margin-top: auto;">
-              <span class="todo-confirm-badge">TODO-CONFIRM</span>
-              Đơn giá chính thức cho từng máy hoặc gói bản quyền cơ quan đang chờ chủ quản dự án phê duyệt.
+            <div style="margin-top: auto; padding-top: var(--space-4);">
+              <button type="button" id="btn-buy-perpetual" class="btn btn-primary" style="width: 100%;">
+                Đăng ký nhận bản quyền
+              </button>
+              <div style="text-align: center; margin-top: 10px; font-size: 0.875rem;">
+                <a href="tai-khoan/index.html" style="color: var(--brand-blue); text-decoration: underline;">Đã có bản quyền? Vào Cổng khách hàng</a>
+              </div>
             </div>
           </div>
 
@@ -251,6 +256,101 @@
         </div>
       </div>
     </section>
+
+    <!-- Modal Đặt mua bản quyền & Thanh toán VietQR -->
+    <div id="modal-checkout" class="portal-modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 9999; align-items: center; justify-content: center; padding: 16px;">
+      <div class="portal-modal-box" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: var(--space-6); width: 100%; max-width: 520px; box-shadow: var(--shadow-lg); box-sizing: border-box; max-height: 90vh; overflow-y: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4);">
+          <h2 style="font-size: 1.25rem; font-weight: 700; margin: 0; color: var(--text-main);">Đăng ký nhận mã bản quyền</h2>
+          <button type="button" id="btn-close-checkout" style="background: none; border: none; font-size: 1.25rem; cursor: pointer; color: var(--text-muted); line-height: 1;" aria-label="Đóng">✕</button>
+        </div>
+
+        <div id="checkout-alert" style="display: none; padding: 10px 14px; border-radius: var(--radius-md); margin-bottom: 14px; font-size: 0.875rem;"></div>
+
+        <!-- Màn hình 1: Biểu mẫu đặt mua -->
+        <div id="checkout-view-form">
+          <form id="form-checkout">
+            <div class="form-group" style="margin-bottom: var(--space-3);">
+              <label for="checkout-name" class="form-label" style="display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 4px;">Họ và tên người nhận (*)</label>
+              <input type="text" id="checkout-name" required placeholder="Nguyễn Văn A" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-main); color: var(--text-main); box-sizing: border-box;">
+            </div>
+            <div class="form-group" style="margin-bottom: var(--space-3);">
+              <label for="checkout-email" class="form-label" style="display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 4px;">Email nhận mã bản quyền (*)</label>
+              <input type="email" id="checkout-email" required placeholder="email@domain.vn" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-main); color: var(--text-main); box-sizing: border-box;">
+            </div>
+            <div class="form-group" style="margin-bottom: var(--space-3);">
+              <label for="checkout-phone" class="form-label" style="display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 4px;">Số điện thoại (Tùy chọn)</label>
+              <input type="tel" id="checkout-phone" placeholder="0912345678" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-main); color: var(--text-main); box-sizing: border-box;">
+            </div>
+            <div class="form-group" style="margin-bottom: var(--space-3);">
+              <label for="checkout-org" class="form-label" style="display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 4px;">Tên cơ quan / Công ty (Tùy chọn)</label>
+              <input type="text" id="checkout-org" placeholder="Công ty TNHH Giải Pháp 3T" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-main); color: var(--text-main); box-sizing: border-box;">
+            </div>
+            <div class="form-group" style="margin-bottom: var(--space-3);">
+              <label for="checkout-tax" class="form-label" style="display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 4px;">Mã số thuế (Tùy chọn)</label>
+              <input type="text" id="checkout-tax" placeholder="3101126773" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-main); color: var(--text-main); box-sizing: border-box;">
+            </div>
+            <div class="form-group" style="margin-bottom: var(--space-4);">
+              <label for="checkout-quantity" class="form-label" style="display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 4px;">Số lượng máy sử dụng (1 - 100)</label>
+              <input type="number" id="checkout-quantity" min="1" max="100" value="1" required style="width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-main); color: var(--text-main); box-sizing: border-box;">
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-top: 1px solid var(--border-color); margin-bottom: 16px;">
+              <span style="font-weight: 600; color: var(--text-main);">Tổng thanh toán:</span>
+              <span id="checkout-total-amount" style="font-size: 1.25rem; font-weight: 800; color: var(--brand-orange);">0 VNĐ</span>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%;">
+              Xác nhận đặt mua
+            </button>
+          </form>
+        </div>
+
+        <!-- Màn hình 2: Chuyển khoản VietQR -->
+        <div id="checkout-view-vietqr" style="display: none; text-align: center;">
+          <div style="font-size: 0.938rem; color: var(--text-muted); margin-bottom: 12px;">
+            Vui lòng quét mã QR hoặc chuyển khoản đúng số tiền và nội dung dưới đây:
+          </div>
+          <div style="margin-bottom: 12px;">
+            <img id="qr-image" src="assets/brand/logo-3t.png" alt="Mã VietQR Thanh toán" style="max-width: 220px; border-radius: var(--radius-md); margin: 0 auto; display: none; border: 1px solid var(--border-color);">
+          </div>
+          <div style="text-align: left; background: var(--bg-main); padding: 12px 16px; border-radius: var(--radius-md); font-size: 0.875rem; line-height: 1.6; margin-bottom: 14px;">
+            <div><strong>Mã đơn hàng:</strong> <span id="qr-order-code" style="font-family: var(--font-mono); font-weight: 700; color: var(--brand-blue);"></span></div>
+            <div><strong>Số tiền:</strong> <span id="qr-amount" style="font-weight: 700; color: var(--brand-orange);"></span></div>
+            <div><strong>Ngân hàng:</strong> <span id="qr-bank-name"></span></div>
+            <div><strong>Số tài khoản:</strong> <span id="qr-account-no" style="font-family: var(--font-mono); font-weight: 700;"></span></div>
+            <div><strong>Chủ tài khoản:</strong> <span id="qr-account-name"></span></div>
+            <div><strong>Nội dung bắt buộc:</strong> <code id="qr-transfer-content" style="font-family: var(--font-mono); font-weight: 700; background: var(--status-pending-bg); color: var(--status-pending-text); padding: 2px 6px; border-radius: 4px;"></code></div>
+          </div>
+          <div style="font-size: 0.813rem; color: var(--text-dim); display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <span class="status-indicator status-pending" style="width: 8px; height: 8px; border-radius: 50%; display: inline-block;"></span>
+            Đang tự động kiểm tra giao dịch chuyển khoản...
+          </div>
+        </div>
+
+        <!-- Màn hình 3: Cấp key thành công tức thì -->
+        <div id="checkout-view-success" style="display: none; text-align: center;">
+          <div style="font-size: 2rem; margin-bottom: 8px;">✓</div>
+          <h3 style="font-size: 1.2rem; font-weight: 700; color: var(--status-ready-text); margin-bottom: 6px;">Cấp mã bản quyền thành công!</h3>
+          <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 14px;">
+            Mã bản quyền đã được gửi về email của bạn và hiển thị ngay dưới đây:
+          </p>
+          <div id="success-key-list" style="margin-bottom: 14px;"></div>
+          <div style="display: flex; gap: 8px; justify-content: center; margin-bottom: 16px;">
+            <button type="button" id="btn-copy-success-key" class="btn btn-secondary btn-sm">Sao chép toàn bộ mã</button>
+            <a href="tai-khoan/index.html" class="btn btn-primary btn-sm">Quản lý tại Cổng khách hàng</a>
+          </div>
+          <div style="text-align: left; background: var(--bg-main); padding: 12px; border-radius: var(--radius-md); font-size: 0.813rem; color: var(--text-muted); line-height: 1.5;">
+            <strong>Hướng dẫn kích hoạt:</strong>
+            <ol style="padding-left: 18px; margin: 4px 0 0 0;">
+              <li>Mở ứng dụng 3T Office trên máy tính của bạn.</li>
+              <li>Chọn biểu tượng Bản quyền ở góc phải hoặc vào Trợ giúp &gt; Kích hoạt bản quyền.</li>
+              <li>Dán mã bản quyền ở trên vào ô kích hoạt và bấm Xác nhận.</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
 
   <footer class="site-footer">
@@ -287,6 +387,7 @@
             <li><a href="co-gi-moi.html">Có gì mới (0.9.8)</a></li>
             <li><a href="huong-dan.html">Hướng dẫn sử dụng</a></li>
             <li><a href="ban-quyen.html">Chính sách bản quyền</a></li>
+            <li><a href="tai-khoan/index.html">Cổng khách hàng</a></li>
           </ul>
         </div>
 
@@ -313,5 +414,6 @@
   </footer>
 
   <script src="js/main.js"></script>
+  <script src="js/shop.js"></script>
 </body>
 </html>

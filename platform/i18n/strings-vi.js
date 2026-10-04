@@ -100,7 +100,7 @@ export const viStrings = {
     recent: "Tệp gần đây",
     close: "Đóng (Ctrl+W)",
     options: "Tùy chọn",
-    account: "Tài khoản",
+    account: "Tài khoản và bản quyền",
     about: "Giới thiệu 3T Office",
     templateTitle: "Mẫu văn bản tiêu chuẩn Việt Nam",
     templateSubtitle: "Khởi tạo tài liệu mới nhanh chóng theo mẫu quy chuẩn hành chính và doanh nghiệp",

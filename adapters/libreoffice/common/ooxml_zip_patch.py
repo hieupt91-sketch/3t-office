@@ -22,6 +22,7 @@ Keep the XML transform in lock step with the JS helpers.
 from __future__ import annotations
 
 import argparse
+from concurrent.futures import ProcessPoolExecutor
 import html
 import io
 import json
@@ -281,7 +282,10 @@ def patch_ooxml_zip(zip_bytes: bytes, replacements: dict[str, str | bytes | None
     return dest.getvalue()
 
 
-_FREEZE_TABLE_TAG_RE = re.compile(r"<table:table\b([^>]*)>")
+# `\b` also matches the boundary before '-' in <table:table-cell>, forcing a
+# callback for every cell in a large FODS.  A sheet header can only continue
+# with whitespace, '/', or '>', so keep this scan proportional to sheet count.
+_FREEZE_TABLE_TAG_RE = re.compile(r"<table:table(?=[\s>/])([^>]*)>")
 _FREEZE_ROWS_ATTR_RE = re.compile(r'vno:frozen-rows="(\d+)"', re.IGNORECASE)
 _FREEZE_COLS_ATTR_RE = re.compile(r'vno:frozen-cols="(\d+)"', re.IGNORECASE)
 _SHEET_VIEW_RE = re.compile(r"(<sheetView\b[^>]*>)([\s\S]*?)(</sheetView>)", re.IGNORECASE)
@@ -6437,6 +6441,42 @@ def overlay_sheet_xlsx_fods(
     return xml
 
 
+def overlay_sheet_xlsx_fods_p1(
+    xlsx_bytes: bytes,
+    fods_xml: str | None,
+    *,
+    skip_initial_xf: bool = False,
+) -> str:
+    """P1 equivalent of :func:`overlay_sheet_xlsx_fods` with a faster metadata pass."""
+    xlsx_bytes = normalize_source_xlsx(xlsx_bytes)
+    xml = fods_xml or ""
+    current = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
+    if current:
+        workbook_xml = current.decode("utf-8", errors="replace")
+        xml = overlay_fods_structure_protection(xml, workbook_xml)
+        visibility = parse_sheet_visibility_from_workbook(workbook_xml)
+        if visibility:
+            xml = apply_sheet_visibility_to_fods(xml, visibility)
+        xml = overlay_active_sheet_to_fods(xml, workbook_xml)
+        xml = apply_print_titles_to_fods(xml, parse_print_titles_from_workbook(workbook_xml))
+    xml = overlay_page_margins_to_fods(xlsx_bytes, xml)
+    xml = overlay_sheet_xlsx_freeze_panes(xlsx_bytes, xml)
+    xml = _overlay_autofilter_from_xlsx(xlsx_bytes, xml)
+    xml = _overlay_sheet_layout_from_xlsx(xlsx_bytes, xml)
+    xml = _overlay_sheet_cell_metadata_from_xlsx_p1(
+        xlsx_bytes,
+        xml,
+        include_xf=not skip_initial_xf,
+    )
+    xml = _promote_covered_formula_errors(xml)
+    tab_colors = parse_tab_colors_from_xlsx(xlsx_bytes)
+    if tab_colors:
+        xml = apply_tab_colors_to_fods(xml, tab_colors)
+    xml = _overlay_sheet_drawing_image_ids(xlsx_bytes, xml)
+    xml = _overlay_scenarios_from_xlsx(xlsx_bytes, xml)
+    return xml
+
+
 def _xml_attrs(raw: str) -> dict[str, str]:
     """Thuộc tính XML. Cùng kết quả finditer `([\\w:.-]+)\\s*=\\s*(quote)…\\2`, không biên dịch regex mỗi ô."""
     if not raw:
@@ -6878,6 +6918,616 @@ def _xlsx_cells_with_metadata(xlsx_bytes: bytes):
             xfs[sheet_name] = sheet_xfs
     result = (formats, strings, xfs)
     _index_memo_put("sheet_metadata", xlsx_bytes, result)
+    return result
+
+
+_P1_CELL_TARGET_ATTR_RE = re.compile(
+    r"(?:^|\s)(r|s|t)\s*=\s*([\"'])(.*?)\2",
+    re.IGNORECASE | re.DOTALL,
+)
+_P1_COORD_RE = re.compile(r"([A-Z]+)(\d+)", re.IGNORECASE)
+_P1_VALUE_RE = re.compile(r"<v\b[^>]*>([\s\S]*?)</v>", re.IGNORECASE)
+_P1_TEXT_RE = re.compile(r"<t\b[^>]*>([\s\S]*?)</t>", re.IGNORECASE)
+_P1_FODS_TABLE_BLOCK_RE = re.compile(
+    r"<table:table(?=[\s>/])[^>]*>[\s\S]*?</table:table\s*>", re.IGNORECASE
+)
+_P1_FODS_ROW_BLOCK_RE = re.compile(
+    r"<table:table-row(?=[\s>/])[^>]*?(?:/\s*>|>[\s\S]*?</table:table-row\s*>)",
+    re.IGNORECASE,
+)
+_P1_FODS_CELL_BLOCK_RE = re.compile(
+    r"<table:(?:table-cell|covered-table-cell)(?=[\s>/])[^>]*?(?:/\s*>|>[\s\S]*?</table:(?:table-cell|covered-table-cell)\s*>)",
+    re.IGNORECASE,
+)
+_P1_COL_REPEAT_WITH_WS_RE = re.compile(
+    r'\s+table:number-columns-repeated\s*=\s*(["\'])(\d+)\1'
+)
+_P1_PARALLEL_FODS_CHARS = 20 * 1024 * 1024
+_P1_MAX_WORKERS = 4
+_P1_PROCESS_POOL: ProcessPoolExecutor | None = None
+
+
+def _p1_process_pool() -> ProcessPoolExecutor:
+    global _P1_PROCESS_POOL
+    if _P1_PROCESS_POOL is None:
+        _P1_PROCESS_POOL = ProcessPoolExecutor(max_workers=_P1_MAX_WORKERS)
+    return _P1_PROCESS_POOL
+
+
+def _shutdown_p1_process_pool() -> None:
+    global _P1_PROCESS_POOL
+    pool, _P1_PROCESS_POOL = _P1_PROCESS_POOL, None
+    if pool is not None:
+        pool.shutdown(wait=True)
+
+
+def _p1_cell_attributes(raw: str) -> tuple[str, int, str]:
+    """Read r/s/t once without running three regex searches per XLSX cell."""
+    coordinate = ""
+    style_index = 0
+    kind = ""
+    index = 0
+    length = len(raw)
+    while index < length:
+        while index < length and raw[index] in " \t\r\n/":
+            index += 1
+        name_start = index
+        while index < length and _is_xml_name_char(raw[index]):
+            index += 1
+        if name_start == index:
+            index += 1
+            continue
+        name = raw[name_start:index].lower()
+        while index < length and raw[index] in " \t\r\n":
+            index += 1
+        if index >= length or raw[index] != "=":
+            continue
+        index += 1
+        while index < length and raw[index] in " \t\r\n":
+            index += 1
+        if index >= length or raw[index] not in "\"'":
+            continue
+        quote = raw[index]
+        value_start = index + 1
+        value_end = raw.find(quote, value_start)
+        if value_end < 0:
+            break
+        if name == "r":
+            coordinate = raw[value_start:value_end]
+        elif name == "s":
+            value = raw[value_start:value_end]
+            style_index = int(value) if value.isdigit() else 0
+        elif name == "t":
+            kind = raw[value_start:value_end].lower()
+        index = value_end + 1
+    return coordinate, style_index, kind
+
+
+def _p1_coordinate_key(coordinate: str) -> tuple[int, int] | None:
+    split = 0
+    length = len(coordinate)
+    column = 0
+    while split < length:
+        code = ord(coordinate[split])
+        if 97 <= code <= 122:
+            code -= 32
+        if not 65 <= code <= 90:
+            break
+        column = column * 26 + code - 64
+        split += 1
+    if split == 0 or split == length:
+        return None
+    row_text = coordinate[split:]
+    if not row_text.isdigit():
+        return None
+    return int(row_text), column
+
+
+def _iter_xlsx_cell_parts_p1(sheet_xml: str):
+    """Yield XLSX cell attributes/body with one forward string scan."""
+    cursor = 0
+    length = len(sheet_xml)
+    while cursor < length:
+        start = sheet_xml.find("<c", cursor)
+        if start < 0:
+            return
+        boundary = start + 2
+        if boundary < length and sheet_xml[boundary] not in " \t\r\n>/":
+            cursor = boundary
+            continue
+        opening_end = sheet_xml.find(">", boundary)
+        if opening_end < 0:
+            return
+        attrs_end = opening_end
+        while attrs_end > boundary and sheet_xml[attrs_end - 1] in " \t\r\n":
+            attrs_end -= 1
+        if attrs_end > boundary and sheet_xml[attrs_end - 1] == "/":
+            yield sheet_xml[boundary : attrs_end - 1], ""
+            cursor = opening_end + 1
+            continue
+        close = sheet_xml.find("</c>", opening_end + 1)
+        if close < 0:
+            return
+        yield sheet_xml[boundary:opening_end], sheet_xml[opening_end + 1 : close]
+        cursor = close + 4
+
+
+def _p1_split_xlsx_cell_chunks(sheet_xml: str, count: int) -> list[str]:
+    """Split before cell opening tags so every worker receives whole cells."""
+    if count <= 1 or not sheet_xml:
+        return [sheet_xml]
+    boundaries = [0]
+    length = len(sheet_xml)
+    for part in range(1, count):
+        cursor = length * part // count
+        while cursor < length:
+            start = sheet_xml.find("<c", cursor)
+            if start < 0:
+                break
+            boundary = start + 2
+            if boundary >= length or sheet_xml[boundary] in " \t\r\n>/":
+                if start > boundaries[-1]:
+                    boundaries.append(start)
+                break
+            cursor = boundary
+    boundaries.append(length)
+    return [
+        sheet_xml[boundaries[index] : boundaries[index + 1]]
+        for index in range(len(boundaries) - 1)
+        if boundaries[index] < boundaries[index + 1]
+    ]
+
+
+def _p1_parse_metadata_chunk(args):
+    sheet_xml, format_by_xf, include_xf = args
+    formats: dict[tuple[int, int], str] = {}
+    shared_refs: dict[tuple[int, int], int] = {}
+    direct_strings: dict[tuple[int, int], str] = {}
+    xfs: dict[tuple[int, int], int] = {}
+    for attrs_text, body in _iter_xlsx_cell_parts_p1(sheet_xml):
+        coordinate_text, style_index, kind = _p1_cell_attributes(attrs_text)
+        key = _p1_coordinate_key(coordinate_text)
+        if key is None:
+            continue
+        if include_xf:
+            xfs[key] = style_index
+        if 0 <= style_index < len(format_by_xf):
+            code = format_by_xf[style_index]
+            if code.lower() != "general":
+                formats[key] = code
+        if kind not in {"s", "str", "inlinestr"}:
+            continue
+        if kind == "s":
+            raw = _P1_VALUE_RE.search(body)
+            shared_refs[key] = int(raw.group(1)) if raw else -1
+        else:
+            text_values = _P1_TEXT_RE.findall(body)
+            raw_value = _P1_VALUE_RE.search(body)
+            direct_strings[key] = "".join(
+                _unescape_xml(item) for item in text_values
+            ) or (_unescape_xml(raw_value.group(1)) if raw_value else "")
+    return formats, shared_refs, direct_strings, xfs
+
+
+def _p1_append_opening_attr(opening: str, addition: str) -> str:
+    if opening.endswith("/"):
+        return opening[:-1] + addition + "/"
+    return opening + addition
+
+
+def _p1_stamp_cell_metadata(
+    cell_xml: str,
+    repeat: int,
+    number_format: str | None,
+    original_string: str | None,
+    xf_index: int | None,
+) -> str:
+    """Apply repeat and metadata while scanning the opening tag only once."""
+    opening_end = cell_xml.find(">")
+    if opening_end < 0:
+        return cell_xml
+    opening = _strip_first_repeat_attr(
+        cell_xml[:opening_end], "table:number-columns-repeated"
+    )
+    if repeat > 1:
+        opening = _p1_append_opening_attr(
+            opening, f' table:number-columns-repeated="{repeat}"'
+        )
+    tail = cell_xml[opening_end + 1 :]
+    covered = opening.lower().startswith("<table:covered-table-cell")
+    covered_formula = covered and "table:formula=" in opening.lower()
+    if number_format is not None and not covered:
+        opening = _VNO_NUMFMT_RE.sub("", opening, count=1)
+        opening = _p1_append_opening_attr(
+            opening, f' vno:number-format="{_escape_xml(number_format)}"'
+        )
+    if covered_formula:
+        opening = "<table:table-cell" + opening[len("<table:covered-table-cell") :]
+        close = "</table:covered-table-cell>"
+        close_at = tail.rfind(close)
+        if close_at >= 0:
+            tail = tail[:close_at] + "</table:table-cell>" + tail[close_at + len(close) :]
+        covered = False
+    if original_string is not None and not covered:
+        attr_value = (
+            _escape_xml(original_string)
+            .replace("\r", "&#13;")
+            .replace("\n", "&#10;")
+            .replace("\t", "&#9;")
+        )
+        opening = _VNO_STRING_RE.sub("", opening, count=1)
+        opening = _p1_append_opening_attr(
+            opening, f' vno:original-string="{attr_value}"'
+        )
+    if xf_index is not None and not covered:
+        opening = _VNO_XF_RE.sub("", opening, count=1)
+        opening = _p1_append_opening_attr(opening, f' vno:xf="{xf_index}"')
+    stamped = opening + ">" + tail
+    if (
+        original_string is not None
+        and not covered
+        and _LEADING_BREAK_RE.match(original_string)
+        and not _EMPTY_FIRST_P_RE.match(stamped)
+    ):
+        first_end = stamped.find(">")
+        stamped = stamped[: first_end + 1] + "<text:p></text:p>" + stamped[first_end + 1 :]
+    return stamped
+
+
+def _p1_apply_metadata_row(
+    row_xml: str,
+    format_targets: dict[int, str],
+    string_targets: dict[int, str],
+    xf_targets: dict[int, int],
+) -> str:
+    columns = {}
+    for source, kind in (
+        (format_targets, "format"),
+        (string_targets, "string"),
+        (xf_targets, "xf"),
+    ):
+        for col, value in source.items():
+            columns.setdefault(col, {})[kind] = value
+    pieces, cursor, column = [], 0, 1
+    sorted_columns = sorted(columns)
+    target_index = 0
+    for start, end in _flat_xml_blocks(
+        row_xml, ("table:table-cell", "table:covered-table-cell")
+    ):
+        pieces.append(row_xml[cursor:start])
+        cell = row_xml[start:end]
+        repeat = _repeat_count(cell, "table:number-columns-repeated")
+        while target_index < len(sorted_columns) and sorted_columns[target_index] < column:
+            target_index += 1
+        hit_end = target_index
+        while hit_end < len(sorted_columns) and sorted_columns[hit_end] < column + repeat:
+            hit_end += 1
+        hits = sorted_columns[target_index:hit_end]
+        target_index = hit_end
+        if not hits:
+            pieces.append(cell)
+        else:
+            at = column
+            for col in hits:
+                meta = columns[col]
+                if col > at:
+                    pieces.append(
+                        _p1_stamp_cell_metadata(cell, col - at, None, None, None)
+                    )
+                pieces.append(
+                    _p1_stamp_cell_metadata(
+                        cell,
+                        1,
+                        meta.get("format"),
+                        meta.get("string"),
+                        meta.get("xf"),
+                    )
+                )
+                at = col + 1
+            if at < column + repeat:
+                pieces.append(
+                    _p1_stamp_cell_metadata(
+                        cell, column + repeat - at, None, None, None
+                    )
+                )
+        cursor, column = end, column + repeat
+    pieces.append(row_xml[cursor:])
+    return "".join(pieces)
+
+
+def _p1_metadata_table_chunks(table_xml: str, count: int):
+    rows = []
+    row_number = 1
+    for start, end in _flat_xml_blocks(table_xml, ("table:table-row",)):
+        repeat = _repeat_count(table_xml[start:end], "table:number-rows-repeated")
+        rows.append((start, end, row_number, repeat))
+        row_number += repeat
+    if len(rows) < 2 or count <= 1:
+        return table_xml, [], ""
+    split_indices = [0]
+    for part in range(1, count):
+        target = len(table_xml) * part // count
+        index = split_indices[-1] + 1
+        while index < len(rows) and rows[index][0] < target:
+            index += 1
+        if index < len(rows) and index > split_indices[-1]:
+            split_indices.append(index)
+    split_indices.append(len(rows))
+    chunks = []
+    for position in range(len(split_indices) - 1):
+        first_index = split_indices[position]
+        next_index = split_indices[position + 1]
+        start = rows[first_index][0]
+        end = rows[next_index][0] if next_index < len(rows) else rows[-1][1]
+        logical_start = rows[first_index][2]
+        logical_end = (
+            rows[next_index][2]
+            if next_index < len(rows)
+            else rows[-1][2] + rows[-1][3]
+        )
+        chunks.append((table_xml[start:end], logical_start, logical_end))
+    return table_xml[: rows[0][0]], chunks, table_xml[rows[-1][1] :]
+
+
+def _p1_transform_metadata_rows_chunk(args) -> str:
+    chunk, row_number, format_rows, string_rows, xf_rows = args
+    sorted_rows = sorted(set(format_rows) | set(string_rows) | set(xf_rows))
+    target_index = 0
+    pieces, cursor = [], 0
+    for row_start, row_end in _flat_xml_blocks(chunk, ("table:table-row",)):
+        pieces.append(chunk[cursor:row_start])
+        row_xml = chunk[row_start:row_end]
+        repeat = _repeat_count(row_xml, "table:number-rows-repeated")
+        while target_index < len(sorted_rows) and sorted_rows[target_index] < row_number:
+            target_index += 1
+        hit_end = target_index
+        while hit_end < len(sorted_rows) and sorted_rows[hit_end] < row_number + repeat:
+            hit_end += 1
+        hits = sorted_rows[target_index:hit_end]
+        target_index = hit_end
+        if not hits:
+            pieces.append(row_xml)
+        else:
+            at = row_number
+            for row in hits:
+                if row > at:
+                    pieces.append(
+                        _set_repeat(
+                            row_xml, "table:number-rows-repeated", row - at
+                        )
+                    )
+                pieces.append(
+                    _p1_apply_metadata_row(
+                        _set_repeat(row_xml, "table:number-rows-repeated", 1),
+                        format_rows.get(row, {}),
+                        string_rows.get(row, {}),
+                        xf_rows.get(row, {}),
+                    )
+                )
+                at = row + 1
+            if at < row_number + repeat:
+                pieces.append(
+                    _set_repeat(
+                        row_xml,
+                        "table:number-rows-repeated",
+                        row_number + repeat - at,
+                    )
+                )
+        cursor, row_number = row_end, row_number + repeat
+    pieces.append(chunk[cursor:])
+    return "".join(pieces)
+
+
+def _xlsx_cells_with_metadata_p1(
+    xlsx_bytes: bytes, *, include_xf: bool, parallel: bool = False
+):
+    """Build the legacy metadata maps while parsing only the three needed attributes."""
+    cache_name = "sheet_metadata" if include_xf else "sheet_metadata_p1_no_xf"
+    cached = _index_memo_get(cache_name, xlsx_bytes)
+    if cached is not _INDEX_MISS:
+        return cached
+    format_by_xf = _xlsx_number_formats(xlsx_bytes)
+    shared_xml = (read_zip_entry(xlsx_bytes, "xl/sharedStrings.xml") or b"").decode(
+        "utf-8", errors="replace"
+    )
+    shared = []
+    for item in re.finditer(r"<si\b[^>]*>([\s\S]*?)</si>", shared_xml, re.IGNORECASE):
+        shared.append(
+            "".join(
+                _unescape_xml(match.group(1))
+                for match in _P1_TEXT_RE.finditer(item.group(1))
+            )
+        )
+
+    formats, strings, xfs = {}, {}, {}
+    for sheet_name, entry_path in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
+        entry = read_zip_entry(xlsx_bytes, entry_path)
+        if not entry:
+            continue
+        sheet_formats, sheet_strings, sheet_xfs = {}, {}, {}
+        sheet_xml = entry.decode("utf-8", errors="replace")
+        chunks = _p1_split_xlsx_cell_chunks(
+            sheet_xml,
+            _P1_MAX_WORKERS if parallel and len(sheet_xml) > _P1_PARALLEL_FODS_CHARS else 1,
+        )
+        tasks = [(chunk, format_by_xf, include_xf) for chunk in chunks]
+        if len(tasks) > 1:
+            parsed_chunks = _p1_process_pool().map(_p1_parse_metadata_chunk, tasks)
+            for parsed_formats, shared_refs, direct_strings, parsed_xfs in parsed_chunks:
+                sheet_formats.update(parsed_formats)
+                sheet_xfs.update(parsed_xfs)
+                sheet_strings.update(direct_strings)
+                for key, shared_index in shared_refs.items():
+                    sheet_strings[key] = (
+                        shared[shared_index]
+                        if 0 <= shared_index < len(shared)
+                        else ""
+                    )
+        else:
+            parsed_formats, shared_refs, direct_strings, parsed_xfs = _p1_parse_metadata_chunk(tasks[0])
+            sheet_formats.update(parsed_formats)
+            sheet_xfs.update(parsed_xfs)
+            sheet_strings.update(direct_strings)
+            for key, shared_index in shared_refs.items():
+                sheet_strings[key] = (
+                    shared[shared_index] if 0 <= shared_index < len(shared) else ""
+                )
+        if sheet_formats:
+            formats[sheet_name] = sheet_formats
+        if sheet_strings:
+            strings[sheet_name] = sheet_strings
+        if sheet_xfs:
+            xfs[sheet_name] = sheet_xfs
+    result = (formats, strings, xfs)
+    _index_memo_put(cache_name, xlsx_bytes, result)
+    return result
+
+
+def _xlsx_cells_with_xf_indices_p1(
+    xlsx_bytes: bytes,
+) -> dict[str, dict[tuple[int, int], int]]:
+    """Reuse the P1 metadata scan, or parse only coordinate/style attributes."""
+    cached = _index_memo_get("xf", xlsx_bytes)
+    if cached is not _INDEX_MISS:
+        return cached
+    metadata = _index_memo_get("sheet_metadata", xlsx_bytes)
+    if metadata is not _INDEX_MISS:
+        result = metadata[2]
+        _index_memo_put("xf", xlsx_bytes, result)
+        return result
+    result = {}
+    for sheet_name, entry_path in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
+        entry = read_zip_entry(xlsx_bytes, entry_path)
+        if not entry:
+            continue
+        cells = {}
+        sheet_xml = entry.decode("utf-8", errors="replace")
+        for attrs_text, _body in _iter_xlsx_cell_parts_p1(sheet_xml):
+            coordinate_text, style_index, _kind = _p1_cell_attributes(attrs_text)
+            key = _p1_coordinate_key(coordinate_text)
+            if key is None:
+                continue
+            cells[key] = style_index
+        if cells:
+            result[sheet_name] = cells
+    _index_memo_put("xf", xlsx_bytes, result)
+    return result
+
+
+def _overlay_sheet_cell_metadata_from_xlsx_p1(
+    xlsx_bytes: bytes,
+    fods_xml: str,
+    *,
+    include_xf: bool = True,
+) -> str:
+    """Byte-compatible P1 metadata overlay using C-regex block scans."""
+    formats, strings, xfs = _xlsx_cells_with_metadata_p1(
+        xlsx_bytes,
+        include_xf=include_xf,
+        parallel=len(fods_xml) > _P1_PARALLEL_FODS_CHARS,
+    )
+    if not formats and not strings and not xfs:
+        return fods_xml
+
+    def metadata_rows(mapping, sheet_name):
+        rows = {}
+        for (row, col), value in mapping.get(sheet_name, {}).items():
+            rows.setdefault(row, {})[col] = value
+        return rows
+
+    pieces, cursor = [], 0
+    needs_vno = bool(formats or xfs)
+    for start, end in _flat_xml_blocks(fods_xml, ("table:table",)):
+        pieces.append(fods_xml[cursor:start])
+        table_xml = fods_xml[start:end]
+        opening_end = table_xml.find(">")
+        attrs = _xml_attrs(table_xml[: opening_end + 1]) if opening_end >= 0 else {}
+        sheet_name = attrs.get("table:name", "")
+        row_maps = [metadata_rows(mapping, sheet_name) for mapping in (formats, strings, xfs)]
+        if any(row_maps):
+            if len(fods_xml) > _P1_PARALLEL_FODS_CHARS and len(table_xml) > _P1_PARALLEL_FODS_CHARS:
+                prefix, chunks, suffix = _p1_metadata_table_chunks(
+                    table_xml, _P1_MAX_WORKERS
+                )
+                if len(chunks) > 1:
+                    tasks = []
+                    for chunk, logical_start, logical_end in chunks:
+                        subsets = [
+                            {
+                                row: values
+                                for row, values in mapping.items()
+                                if logical_start <= row < logical_end
+                            }
+                            for mapping in row_maps
+                        ]
+                        tasks.append(
+                            (chunk, logical_start, subsets[0], subsets[1], subsets[2])
+                        )
+                    table_xml = prefix + "".join(
+                        _p1_process_pool().map(
+                            _p1_transform_metadata_rows_chunk, tasks
+                        )
+                    ) + suffix
+                    pieces.append(table_xml)
+                    cursor = end
+                    continue
+            table_parts, table_cursor, row_number = [], 0, 1
+            sorted_rows = sorted(set().union(*(mapping.keys() for mapping in row_maps)))
+            target_index = 0
+            for row_start, row_end in _flat_xml_blocks(
+                table_xml, ("table:table-row",)
+            ):
+                table_parts.append(table_xml[table_cursor:row_start])
+                row_xml = table_xml[row_start:row_end]
+                repeat = _repeat_count(row_xml, "table:number-rows-repeated")
+                while target_index < len(sorted_rows) and sorted_rows[target_index] < row_number:
+                    target_index += 1
+                hit_end = target_index
+                while hit_end < len(sorted_rows) and sorted_rows[hit_end] < row_number + repeat:
+                    hit_end += 1
+                hits = sorted_rows[target_index:hit_end]
+                target_index = hit_end
+                if not hits:
+                    table_parts.append(row_xml)
+                else:
+                    at = row_number
+                    for row in hits:
+                        if row > at:
+                            table_parts.append(
+                                _set_repeat(row_xml, "table:number-rows-repeated", row - at)
+                            )
+                        table_parts.append(
+                            _p1_apply_metadata_row(
+                                _set_repeat(row_xml, "table:number-rows-repeated", 1),
+                                row_maps[0].get(row, {}),
+                                row_maps[1].get(row, {}),
+                                row_maps[2].get(row, {}),
+                            )
+                        )
+                        at = row + 1
+                    if at < row_number + repeat:
+                        table_parts.append(
+                            _set_repeat(
+                                row_xml,
+                                "table:number-rows-repeated",
+                                row_number + repeat - at,
+                            )
+                        )
+                table_cursor, row_number = row_end, row_number + repeat
+            table_parts.append(table_xml[table_cursor:])
+            table_xml = "".join(table_parts)
+        pieces.append(table_xml)
+        cursor = end
+    pieces.append(fods_xml[cursor:])
+    result = "".join(pieces)
+    if needs_vno and not re.search(r"xmlns:vno\s*=", result, re.IGNORECASE):
+        match = _OFFICE_DOCUMENT_OPEN_RE.search(result)
+        if match:
+            result = (
+                result[: match.start()]
+                + f'<office:document{match.group(1)} xmlns:vno="{SHEET_VNO_NS}">'
+                + result[match.end() :]
+            )
     return result
 
 
@@ -15285,7 +15935,7 @@ def _parse_fods_cell_visual_styles(fods_xml: str) -> dict:
     return styles
 
 
-def optimize_fods_streaming(fods_xml: str, max_style_only_col_repeat: int = 64) -> str:
+def optimize_fods_streaming_legacy(fods_xml: str, max_style_only_col_repeat: int = 64) -> str:
     """Optimize FODS by merging consecutive empty cells with same style and trimming style-only tail.
 
     This runs BEFORE the FODS is passed to JS, using streaming regex (no DOM).
@@ -15298,6 +15948,7 @@ def optimize_fods_streaming(fods_xml: str, max_style_only_col_repeat: int = 64) 
     Returns:
         Optimized FODS XML string
     """
+    # superseded by P1b - xoa chi khi chu so huu duyet
     if not fods_xml:
         return fods_xml
 
@@ -15485,6 +16136,398 @@ def optimize_fods_streaming(fods_xml: str, max_style_only_col_repeat: int = 64) 
             flush_pending()
 
             # Rebuild row (thẻ mở giữ nguyên thuộc tính, kể cả number-rows-repeated)
+            if row_self_close:
+                return f"{row_open_tag}/>"
+            return f"{row_open_tag}>" + "".join(new_row_content) + "</table:table-row>"
+
+        pieces: list[str] = []
+        cursor = 0
+        for row_start, row_end in _flat_xml_blocks(table_body, ("table:table-row",)):
+            pieces.append(table_body[cursor:row_start])
+            pieces.append(process_row(table_body[row_start:row_end]))
+            cursor = row_end
+        pieces.append(table_body[cursor:])
+        return table_open + "".join(pieces) + table_close
+
+    return _FODS_TABLE_RE.sub(process_table, fods_xml)
+
+
+def _p1_split_fods_row_chunks(table_body: str, count: int) -> list[str]:
+    if count <= 1 or not table_body:
+        return [table_body]
+    boundaries = [0]
+    length = len(table_body)
+    opener = "<table:table-row"
+    for part in range(1, count):
+        cursor = length * part // count
+        while cursor < length:
+            start = table_body.find(opener, cursor)
+            if start < 0:
+                break
+            boundary = start + len(opener)
+            if boundary >= length or table_body[boundary] in " \t\r\n>/":
+                if start > boundaries[-1]:
+                    boundaries.append(start)
+                break
+            cursor = boundary
+    boundaries.append(length)
+    return [
+        table_body[boundaries[index] : boundaries[index + 1]]
+        for index in range(len(boundaries) - 1)
+        if boundaries[index] < boundaries[index + 1]
+    ]
+
+
+def _p1_opt_cell_style(cell_xml: str) -> str:
+    match = _STYLE_NAME_ATTR_RE.search(cell_xml)
+    return match.group(2) if match else ""
+
+
+def _p1_opt_cell_repeat(cell_xml: str) -> int:
+    match = _COL_REPEAT_ATTR_RE.search(cell_xml)
+    return int(match.group(2)) if match else 1
+
+
+def _p1_opt_cell_has_content(cell_xml: str) -> bool:
+    if "office:value-type" in cell_xml:
+        value_type = _VALUE_TYPE_ATTR_RE.search(cell_xml)
+        if value_type and value_type.group(2) != "void":
+            return True
+    if "table:formula" in cell_xml and _FORMULA_ATTR_RE.search(cell_xml):
+        return True
+    if "<office:annotation" in cell_xml:
+        return True
+    if "<text:p" in cell_xml and _has_simple_text_p(cell_xml):
+        return True
+    if "<text:span" in cell_xml:
+        return True
+    if "table:number-columns-spanned" in cell_xml or "table:number-rows-spanned" in cell_xml:
+        return True
+    if "covered-table-cell" in cell_xml:
+        return True
+    open_end = cell_xml.find(">")
+    if open_end < 0:
+        return False
+    inner = cell_xml[open_end + 1 :]
+    if "<" not in inner:
+        return False
+    inner = _OPT_CLOSE_CELL_RE.sub("", inner)
+    inner = _OPT_EMPTY_P_RE.sub("", inner)
+    return "<" in inner
+
+
+def _p1_opt_style_only(
+    cell_xml: str,
+    style: str,
+    cell_visual_styles: dict,
+    *,
+    known_empty: bool = False,
+) -> bool:
+    if not known_empty and _p1_opt_cell_has_content(cell_xml):
+        return False
+    if not style:
+        return False
+    if cell_visual_styles and style in cell_visual_styles:
+        visual = cell_visual_styles[style]
+        if visual.get("hasBorder") or visual.get("hasBackground"):
+            return True
+    return bool(style)
+
+
+def _p1_opt_set_cell_repeat(cell_xml: str, count: int) -> str:
+    if count <= 1 and "table:number-columns-repeated" not in cell_xml:
+        return cell_xml
+    cell_xml = _P1_COL_REPEAT_WITH_WS_RE.sub("", cell_xml)
+    if count <= 1:
+        return cell_xml
+    return _insert_repeat_before_end(
+        cell_xml,
+        ("<table:table-cell", "<table:covered-table-cell"),
+        "table:number-columns-repeated",
+        count,
+    )
+
+
+def _p1_opt_split_row(row_xml: str) -> tuple[str, bool, str]:
+    open_match = _FODS_ROW_RE.match(row_xml)
+    row_open_tag = open_match.group(1)
+    row_self_close = open_match.group(2) == "/"
+    row_content = ""
+    if not row_self_close:
+        row_content = row_xml[open_match.end() :]
+        close_idx = row_content.rfind("</table:table-row")
+        if close_idx >= 0:
+            row_content = row_content[:close_idx]
+    return row_open_tag, row_self_close, row_content
+
+
+def _p1_opt_last_data_col_chunk(table_body: str) -> int:
+    last_data_col = 0
+    for row_start, row_end in _flat_xml_blocks(table_body, ("table:table-row",)):
+        _row_open_tag, _row_self_close, row_content = _p1_opt_split_row(
+            table_body[row_start:row_end]
+        )
+        scan_col = 1
+        row_last_data_col = 0
+        for cell_start, cell_end in _flat_xml_blocks(
+            row_content, ("table:table-cell", "table:covered-table-cell")
+        ):
+            cell_xml = row_content[cell_start:cell_end]
+            repeat = _p1_opt_cell_repeat(cell_xml)
+            if _p1_opt_cell_has_content(cell_xml):
+                row_last_data_col = max(row_last_data_col, scan_col + repeat - 1)
+            scan_col += repeat
+        last_data_col = max(last_data_col, row_last_data_col)
+    return last_data_col
+
+
+def _p1_optimize_rows_chunk(args) -> str:
+    table_body, last_data_col, max_style_only_col_repeat, cell_visual_styles = args
+
+    def process_row(row_xml: str) -> str:
+        row_open_tag, row_self_close, row_content = _p1_opt_split_row(row_xml)
+        new_row_content: list[str] = []
+        col_number = 1
+        pending_cell = None
+        pending_count = 0
+        pending_style = None
+
+        def flush_pending() -> None:
+            nonlocal pending_cell, pending_count, pending_style
+            if pending_cell is not None and pending_count > 0:
+                new_row_content.append(
+                    _p1_opt_set_cell_repeat(pending_cell, pending_count)
+                )
+                pending_cell = None
+                pending_count = 0
+                pending_style = None
+
+        for cell_start, cell_end in _flat_xml_blocks(
+            row_content, ("table:table-cell", "table:covered-table-cell")
+        ):
+            cell_xml = row_content[cell_start:cell_end]
+            repeat = _p1_opt_cell_repeat(cell_xml)
+            style = _p1_opt_cell_style(cell_xml)
+            has_content = _p1_opt_cell_has_content(cell_xml)
+            is_style_only = False if has_content else _p1_opt_style_only(
+                cell_xml, style, cell_visual_styles, known_empty=True
+            )
+            if is_style_only and not has_content:
+                keep_limit = max(max_style_only_col_repeat, last_data_col)
+                keep_count = max(
+                    0,
+                    min(col_number + repeat - 1, keep_limit) - col_number + 1,
+                )
+                if (
+                    repeat > max_style_only_col_repeat
+                    and 0 < keep_count <= max_style_only_col_repeat
+                ):
+                    keep_count = min(repeat, max_style_only_col_repeat + 1)
+                if keep_count > 0:
+                    kept_cell = _p1_opt_set_cell_repeat(cell_xml, keep_count)
+                    if style == pending_style:
+                        pending_count += keep_count
+                    else:
+                        flush_pending()
+                        pending_cell = kept_cell
+                        pending_count = keep_count
+                        pending_style = style
+                col_number += repeat
+            else:
+                flush_pending()
+                pending_cell = cell_xml
+                pending_count = repeat
+                pending_style = style if (is_style_only and not has_content) else None
+                col_number += repeat
+        flush_pending()
+        if row_self_close:
+            return f"{row_open_tag}/>"
+        return f"{row_open_tag}>" + "".join(new_row_content) + "</table:table-row>"
+
+    pieces: list[str] = []
+    cursor = 0
+    for row_start, row_end in _flat_xml_blocks(table_body, ("table:table-row",)):
+        pieces.append(table_body[cursor:row_start])
+        pieces.append(process_row(table_body[row_start:row_end]))
+        cursor = row_end
+    pieces.append(table_body[cursor:])
+    return "".join(pieces)
+
+
+def optimize_fods_streaming(fods_xml: str, max_style_only_col_repeat: int = 64) -> str:
+    """P1 equivalent that avoids materializing every cell twice per row."""
+    if not fods_xml:
+        return fods_xml
+
+    cell_visual_styles = _parse_fods_cell_visual_styles(fods_xml)
+
+    def cell_style(cell_xml: str) -> str:
+        match = _STYLE_NAME_ATTR_RE.search(cell_xml)
+        return match.group(2) if match else ""
+
+    def cell_repeat(cell_xml: str) -> int:
+        match = _COL_REPEAT_ATTR_RE.search(cell_xml)
+        return int(match.group(2)) if match else 1
+
+    def cell_has_content(cell_xml: str) -> bool:
+        if "office:value-type" in cell_xml:
+            value_type = _VALUE_TYPE_ATTR_RE.search(cell_xml)
+            if value_type and value_type.group(2) != "void":
+                return True
+        if "table:formula" in cell_xml and _FORMULA_ATTR_RE.search(cell_xml):
+            return True
+        if "<office:annotation" in cell_xml:
+            return True
+        if "<text:p" in cell_xml and _has_simple_text_p(cell_xml):
+            return True
+        if "<text:span" in cell_xml:
+            return True
+        if "table:number-columns-spanned" in cell_xml or "table:number-rows-spanned" in cell_xml:
+            return True
+        if "covered-table-cell" in cell_xml:
+            return True
+        open_end = cell_xml.find(">")
+        if open_end < 0:
+            return False
+        inner = cell_xml[open_end + 1 :]
+        if "<" not in inner:
+            return False
+        inner = _OPT_CLOSE_CELL_RE.sub("", inner)
+        inner = _OPT_EMPTY_P_RE.sub("", inner)
+        return "<" in inner
+
+    def style_only(
+        cell_xml: str, style: str | None = None, *, known_empty: bool = False
+    ) -> bool:
+        if not known_empty and cell_has_content(cell_xml):
+            return False
+        style = cell_style(cell_xml) if style is None else style
+        if not style:
+            return False
+        if cell_visual_styles and style in cell_visual_styles:
+            visual = cell_visual_styles[style]
+            if visual.get("hasBorder") or visual.get("hasBackground"):
+                return True
+        return bool(style)
+
+    def set_cell_repeat(cell_xml: str, count: int) -> str:
+        if count <= 1 and "table:number-columns-repeated" not in cell_xml:
+            return cell_xml
+        cell_xml = _P1_COL_REPEAT_WITH_WS_RE.sub("", cell_xml)
+        if count <= 1:
+            return cell_xml
+        return _insert_repeat_before_end(
+            cell_xml,
+            ("<table:table-cell", "<table:covered-table-cell"),
+            "table:number-columns-repeated",
+            count,
+        )
+
+    def split_row(row_xml: str) -> tuple[str, bool, str]:
+        open_match = _FODS_ROW_RE.match(row_xml)
+        row_open_tag = open_match.group(1)
+        row_self_close = open_match.group(2) == "/"
+        row_content = ""
+        if not row_self_close:
+            row_content = row_xml[open_match.end() :]
+            close_idx = row_content.rfind("</table:table-row")
+            if close_idx >= 0:
+                row_content = row_content[:close_idx]
+        return row_open_tag, row_self_close, row_content
+
+    def process_table(match: re.Match) -> str:
+        table_open, table_body, table_close = match.group(1), match.group(2), match.group(3)
+        if "<table:table-row" not in table_body:
+            return match.group(0)
+
+        if len(fods_xml) > _P1_PARALLEL_FODS_CHARS and len(table_body) > _P1_PARALLEL_FODS_CHARS:
+            chunks = _p1_split_fods_row_chunks(table_body, _P1_MAX_WORKERS)
+            if len(chunks) > 1:
+                pool = _p1_process_pool()
+                last_data_col = max(pool.map(_p1_opt_last_data_col_chunk, chunks))
+                optimized = pool.map(
+                    _p1_optimize_rows_chunk,
+                    (
+                        (
+                            chunk,
+                            last_data_col,
+                            max_style_only_col_repeat,
+                            cell_visual_styles,
+                        )
+                        for chunk in chunks
+                    ),
+                )
+                return table_open + "".join(optimized) + table_close
+
+        last_data_col = 0
+        for row_start, row_end in _flat_xml_blocks(table_body, ("table:table-row",)):
+            _row_open_tag, _row_self_close, row_content = split_row(
+                table_body[row_start:row_end]
+            )
+            scan_col = 1
+            row_last_data_col = 0
+            for cell_start, cell_end in _flat_xml_blocks(
+                row_content, ("table:table-cell", "table:covered-table-cell")
+            ):
+                cell_xml = row_content[cell_start:cell_end]
+                repeat = cell_repeat(cell_xml)
+                if cell_has_content(cell_xml):
+                    row_last_data_col = max(row_last_data_col, scan_col + repeat - 1)
+                scan_col += repeat
+            if row_last_data_col > last_data_col:
+                last_data_col = row_last_data_col
+
+        def process_row(row_xml: str) -> str:
+            row_open_tag, row_self_close, row_content = split_row(row_xml)
+            new_row_content: list[str] = []
+            col_number = 1
+            pending_cell = None
+            pending_count = 0
+            pending_style = None
+
+            def flush_pending() -> None:
+                nonlocal pending_cell, pending_count, pending_style
+                if pending_cell is not None and pending_count > 0:
+                    new_row_content.append(set_cell_repeat(pending_cell, pending_count))
+                    pending_cell = None
+                    pending_count = 0
+                    pending_style = None
+
+            for cell_start, cell_end in _flat_xml_blocks(
+                row_content, ("table:table-cell", "table:covered-table-cell")
+            ):
+                cell_xml = row_content[cell_start:cell_end]
+                repeat = cell_repeat(cell_xml)
+                style = cell_style(cell_xml)
+                has_content = cell_has_content(cell_xml)
+                is_style_only = False if has_content else style_only(
+                    cell_xml, style, known_empty=True
+                )
+                if is_style_only and not has_content:
+                    keep_limit = max(max_style_only_col_repeat, last_data_col)
+                    keep_count = max(
+                        0,
+                        min(col_number + repeat - 1, keep_limit) - col_number + 1,
+                    )
+                    if repeat > max_style_only_col_repeat and 0 < keep_count <= max_style_only_col_repeat:
+                        keep_count = min(repeat, max_style_only_col_repeat + 1)
+                    if keep_count > 0:
+                        kept_cell = set_cell_repeat(cell_xml, keep_count)
+                        if style == pending_style:
+                            pending_count += keep_count
+                        else:
+                            flush_pending()
+                            pending_cell = kept_cell
+                            pending_count = keep_count
+                            pending_style = style
+                    col_number += repeat
+                else:
+                    flush_pending()
+                    pending_cell = cell_xml
+                    pending_count = repeat
+                    pending_style = style if (is_style_only and not has_content) else None
+                    col_number += repeat
+            flush_pending()
             if row_self_close:
                 return f"{row_open_tag}/>"
             return f"{row_open_tag}>" + "".join(new_row_content) + "</table:table-row>"

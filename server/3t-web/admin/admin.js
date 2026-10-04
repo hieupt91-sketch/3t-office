@@ -1,15 +1,18 @@
 /**
  * Trình quản trị hệ thống bản quyền 3T Office
- * Mã nguồn thuần không phụ thuộc thư viện ngoài
+ * Mã nguồn thuần không phụ thuộc thư viện ngoài, tối ưu bảo mật và phân quyền vai trò.
  */
 
 (function () {
   "use strict";
 
   let currentAdmin = null;
+  let currentRole = "viewer";
   let csrfToken = "";
   let activeTab = "overview";
   let generatedKeysCache = [];
+  let lastActivityTime = Date.now();
+  let sessionTimer = null;
 
   const elements = {
     loginView: document.getElementById("view-login"),
@@ -17,7 +20,11 @@
     loginForm: document.getElementById("login-form"),
     loginError: document.getElementById("login-error"),
     adminUserName: document.getElementById("admin-user-name"),
+    adminUserRole: document.getElementById("admin-user-role"),
     logoutBtn: document.getElementById("logout-btn"),
+    btnChangePwdHeader: document.getElementById("btn-change-pwd-header"),
+    sessionWarning: document.getElementById("session-warning"),
+    sessionTimeoutSecs: document.getElementById("session-timeout-secs"),
     tabs: document.querySelectorAll(".tab-btn"),
     tabPanels: document.querySelectorAll(".tab-panel"),
   };
@@ -32,6 +39,44 @@
     el.className = `alert alert-${type}`;
     el.textContent = text;
     el.style.display = "block";
+  }
+
+  function resetActivity() {
+    lastActivityTime = Date.now();
+    if (elements.sessionWarning) elements.sessionWarning.style.display = "none";
+  }
+
+  window.addEventListener("mousemove", resetActivity, { passive: true });
+  window.addEventListener("keydown", resetActivity, { passive: true });
+  window.addEventListener("click", resetActivity, { passive: true });
+
+  function startSessionTimer() {
+    if (sessionTimer) clearInterval(sessionTimer);
+    sessionTimer = setInterval(() => {
+      if (!currentAdmin) return;
+      const inactiveSecs = Math.floor((Date.now() - lastActivityTime) / 1000);
+      const remainingSecs = 1800 - inactiveSecs; // 30 phút = 1800 giây
+
+      if (remainingSecs <= 300 && remainingSecs > 0) {
+        if (elements.sessionWarning) {
+          elements.sessionWarning.style.display = "block";
+          if (elements.sessionTimeoutSecs) elements.sessionTimeoutSecs.textContent = remainingSecs;
+        }
+      } else if (remainingSecs <= 0) {
+        // Hết hạn 30 phút tự động đăng xuất
+        clearInterval(sessionTimer);
+        sessionTimer = null;
+        handleSessionExpired();
+      }
+    }, 1000);
+  }
+
+  async function handleSessionExpired() {
+    try {
+      await fetch("/api/v1/admin/logout", { method: "POST" });
+    } catch (_) {}
+    showLoginView();
+    setStatusMessage(elements.loginError, "Phiên làm việc đã hết hạn do không hoạt động trong 30 phút.", "warning");
   }
 
   async function apiRequest(url, options = {}) {
@@ -52,22 +97,75 @@
     return response;
   }
 
+  function applyRolePermissions() {
+    // Cập nhật nhãn vai trò
+    if (elements.adminUserRole) {
+      elements.adminUserRole.style.display = "inline-block";
+      elements.adminUserRole.className = `role-badge role-badge-${currentRole}`;
+      if (currentRole === "owner") elements.adminUserRole.textContent = "Chủ sở hữu";
+      else if (currentRole === "support") elements.adminUserRole.textContent = "Hỗ trợ";
+      else elements.adminUserRole.textContent = "Chỉ xem";
+    }
+
+    // Ẩn hoặc tắt nút ghi đối với vai trò hạn chế
+    const writeElements = document.querySelectorAll(".require-write");
+    const ownerElements = document.querySelectorAll(".require-owner");
+
+    if (currentRole === "viewer") {
+      writeElements.forEach((el) => {
+        el.style.display = "none";
+      });
+      ownerElements.forEach((el) => {
+        el.style.display = "none";
+      });
+    } else if (currentRole === "support") {
+      writeElements.forEach((el) => {
+        el.style.display = "";
+      });
+      ownerElements.forEach((el) => {
+        el.style.display = "none";
+      });
+    } else {
+      writeElements.forEach((el) => {
+        el.style.display = "";
+      });
+      ownerElements.forEach((el) => {
+        el.style.display = "";
+      });
+    }
+  }
+
   function showLoginView() {
     currentAdmin = null;
+    currentRole = "viewer";
     csrfToken = "";
+    if (sessionTimer) {
+      clearInterval(sessionTimer);
+      sessionTimer = null;
+    }
     if (elements.loginView) elements.loginView.style.display = "block";
     if (elements.dashboardView) elements.dashboardView.style.display = "none";
     if (elements.logoutBtn) elements.logoutBtn.style.display = "none";
+    if (elements.btnChangePwdHeader) elements.btnChangePwdHeader.style.display = "none";
     if (elements.adminUserName) elements.adminUserName.textContent = "";
+    if (elements.adminUserRole) elements.adminUserRole.style.display = "none";
+    if (elements.sessionWarning) elements.sessionWarning.style.display = "none";
   }
 
-  function showDashboardView(adminName, token) {
+  function showDashboardView(adminName, role, token) {
     currentAdmin = adminName;
+    currentRole = role || "viewer";
     csrfToken = token || csrfToken;
+
     if (elements.loginView) elements.loginView.style.display = "none";
     if (elements.dashboardView) elements.dashboardView.style.display = "block";
     if (elements.logoutBtn) elements.logoutBtn.style.display = "inline-flex";
+    if (elements.btnChangePwdHeader) elements.btnChangePwdHeader.style.display = "inline-flex";
     if (elements.adminUserName) elements.adminUserName.textContent = adminName;
+
+    applyRolePermissions();
+    resetActivity();
+    startSessionTimer();
     switchTab(activeTab);
   }
 
@@ -81,10 +179,16 @@
     });
 
     if (tabName === "overview") loadOverview();
+    else if (tabName === "orders") loadOrders();
+    else if (tabName === "reconciliation") loadReconciliation();
+    else if (tabName === "customers") loadCustomers();
+    else if (tabName === "invoices") loadInvoices();
     else if (tabName === "keys") loadKeys();
+    else if (tabName === "outbox") loadOutbox();
     else if (tabName === "reports") loadReports();
     else if (tabName === "releases") loadReleases();
     else if (tabName === "audit") loadAudit();
+    else if (tabName === "settings") loadSettings();
   }
 
   // Khởi tạo và kiểm tra phiên làm việc
@@ -94,13 +198,11 @@
       if (res.ok) {
         const data = await res.json();
         if (data.authenticated) {
-          showDashboardView(data.admin, data.csrf_token);
+          showDashboardView(data.admin, data.role || "viewer", data.csrf_token);
           return;
         }
       }
-    } catch (e) {
-      // Bỏ qua lỗi mạng khi khởi tạo
-    }
+    } catch (_) {}
     showLoginView();
   }
 
@@ -111,17 +213,23 @@
       setStatusMessage(elements.loginError, "", "");
       const username = document.getElementById("login-username").value.trim();
       const password = document.getElementById("login-password").value;
+      const totp_code = document.getElementById("login-totp").value.trim() || undefined;
 
       try {
         const res = await apiRequest("/api/v1/admin/login", {
           method: "POST",
-          body: { username, password },
+          body: { username, password, totp_code },
         });
         const data = await res.json();
         if (res.ok && data.ok) {
-          showDashboardView(data.admin, data.csrf_token);
+          showDashboardView(data.admin, data.role, data.csrf_token);
+
+          // Nếu máy chủ yêu cầu đổi mật khẩu lần đầu
+          if (data.must_change_password) {
+            openChangePasswordModal(true);
+          }
         } else {
-          const msg = data.message || "Tên đăng nhập hoặc mật khẩu không chính xác.";
+          const msg = data.message || "Tên đăng nhập, mật khẩu hoặc mã 2FA không chính xác.";
           setStatusMessage(elements.loginError, msg, "danger");
         }
       } catch (err) {
@@ -135,7 +243,7 @@
     elements.logoutBtn.addEventListener("click", async () => {
       try {
         await apiRequest("/api/v1/admin/logout", { method: "POST" });
-      } catch (e) {}
+      } catch (_) {}
       showLoginView();
     });
   }
@@ -147,7 +255,7 @@
     });
   });
 
-  // Tải dữ liệu Tổng quan
+  // 1. Tải dữ liệu Tổng quan
   async function loadOverview() {
     try {
       const res = await apiRequest("/api/v1/admin/overview");
@@ -157,8 +265,17 @@
       document.getElementById("kpi-active-keys").textContent = data.active_keys || 0;
       document.getElementById("kpi-revoked-keys").textContent = data.revoked_keys || 0;
       document.getElementById("kpi-devices").textContent = data.total_active_devices || 0;
-      document.getElementById("kpi-7d").textContent = data.activations_7d || 0;
       document.getElementById("kpi-errors-24h").textContent = data.error_groups_24h || 0;
+
+      // KPI thương mại mới
+      const revToday = document.getElementById("kpi-revenue-today");
+      if (revToday) revToday.textContent = `${(data.revenue_today || 0).toLocaleString("vi-VN")} đ`;
+
+      const pendingOrders = document.getElementById("kpi-orders-pending");
+      if (pendingOrders) pendingOrders.textContent = data.orders_pending || 0;
+
+      const unmatchedPay = document.getElementById("kpi-unmatched-payments");
+      if (unmatchedPay) unmatchedPay.textContent = data.unmatched_payments || 0;
 
       const channelsBody = document.getElementById("overview-channels-tbody");
       if (channelsBody) {
@@ -176,10 +293,164 @@
             .join("");
         }
       }
-    } catch (e) {}
+    } catch (_) {}
   }
 
-  // Tải và hiển thị danh sách Key
+  // 2. Tải và hiển thị danh sách Đơn hàng
+  async function loadOrders() {
+    const tbody = document.getElementById("orders-tbody");
+    if (!tbody) return;
+    const q = (document.getElementById("orders-search")?.value || "").trim();
+    const status = document.getElementById("orders-filter-status")?.value || "";
+
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">Đang tải danh sách đơn hàng...</td></tr>';
+    try {
+      const res = await apiRequest(`/api/v1/admin/orders?q=${encodeURIComponent(q)}&status=${encodeURIComponent(status)}&limit=50`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const orders = data.orders || [];
+
+      if (orders.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">Không tìm thấy đơn hàng nào</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = orders
+        .map((o) => `
+        <tr>
+          <td><strong style="font-family: var(--font-mono);">${escapeHtml(o.code)}</strong></td>
+          <td>${escapeHtml(o.customer_name || "—")}</td>
+          <td>${escapeHtml(o.customer_email || "—")}</td>
+          <td>${escapeHtml(o.plan_name || "Gói vĩnh viễn")}</td>
+          <td>${o.quantity || 1}</td>
+          <td><strong>${(o.amount_vnd || 0).toLocaleString("vi-VN")} đ</strong></td>
+          <td>
+            <span class="badge ${o.status === 'fulfilled' ? 'badge-active' : (o.status === 'pending' ? 'badge-warning' : 'badge-revoked')}">
+              ${o.status === 'fulfilled' ? 'Hoàn tất' : (o.status === 'pending' ? 'Chờ thanh toán' : o.status)}
+            </span>
+          </td>
+          <td>${formatDate(o.created_at)}</td>
+          <td>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="window.adminShowOrderDetail('${o.id}')">Chi tiết</button>
+          </td>
+        </tr>
+      `).join("");
+    } catch (e) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; color:red;">Lỗi nạp danh sách đơn hàng</td></tr>';
+    }
+  }
+
+  // 3. Tải danh sách giao dịch chưa khớp
+  async function loadReconciliation() {
+    const tbody = document.getElementById("reconcile-tbody");
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Đang tải danh sách giao dịch...</td></tr>';
+
+    try {
+      const res = await apiRequest("/api/v1/admin/payments/unmatched");
+      if (!res.ok) return;
+      const data = await res.json();
+      const payments = data.unmatched_payments || [];
+
+      if (payments.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--adm-success);">Không có giao dịch nào chưa khớp</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = payments
+        .map((p) => `
+        <tr>
+          <td><code style="font-family: var(--font-mono);">${escapeHtml(p.provider_ref)}</code></td>
+          <td>${escapeHtml(p.provider)}</td>
+          <td><strong style="color: var(--adm-warning);">${(p.amount_vnd || 0).toLocaleString("vi-VN")} đ</strong></td>
+          <td>${formatDate(p.created_at)}</td>
+          <td><span class="badge badge-warning">Chưa khớp</span></td>
+          <td>
+            <button type="button" class="btn btn-primary btn-sm require-write" onclick="window.adminOpenAssignPayment('${p.id}')">Gán vào đơn</button>
+          </td>
+        </tr>
+      `).join("");
+      applyRolePermissions();
+    } catch (_) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:red;">Lỗi tải dữ liệu đối soát</td></tr>';
+    }
+  }
+
+  // 4. Tải danh sách Khách hàng
+  async function loadCustomers() {
+    const tbody = document.getElementById("customers-tbody");
+    if (!tbody) return;
+    const q = (document.getElementById("customers-search")?.value || "").trim();
+
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">Đang tải danh sách khách hàng...</td></tr>';
+    try {
+      const res = await apiRequest(`/api/v1/admin/customers?q=${encodeURIComponent(q)}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const customers = data.customers || [];
+
+      if (customers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">Không tìm thấy khách hàng nào</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = customers
+        .map((c) => `
+        <tr>
+          <td><strong>${escapeHtml(c.name || "—")}</strong></td>
+          <td>${escapeHtml(c.email)}</td>
+          <td>${escapeHtml(c.phone || "—")}</td>
+          <td>${escapeHtml(c.company || "—")}</td>
+          <td>${escapeHtml(c.tax_code || "—")}</td>
+          <td>${c.total_orders || 0}</td>
+          <td>${c.active_keys || 0}</td>
+          <td><strong>${(c.total_spent_vnd || 0).toLocaleString("vi-VN")} đ</strong></td>
+        </tr>
+      `).join("");
+    } catch (_) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:red;">Lỗi tải danh sách khách hàng</td></tr>';
+    }
+  }
+
+  // 5. Tải danh sách Hóa đơn
+  async function loadInvoices() {
+    const tbody = document.getElementById("invoices-tbody");
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">Đang tải danh sách hóa đơn...</td></tr>';
+
+    try {
+      const res = await apiRequest("/api/v1/admin/invoices");
+      if (!res.ok) return;
+      const data = await res.json();
+      const invoices = data.invoices || [];
+
+      if (invoices.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">Chưa có hóa đơn nào được tạo</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = invoices
+        .map((inv) => `
+        <tr>
+          <td><strong>${escapeHtml(inv.invoice_number)}</strong></td>
+          <td><code>${escapeHtml(inv.order_code || inv.order_id)}</code></td>
+          <td>${escapeHtml(inv.buyer_name || "—")}</td>
+          <td>${escapeHtml(inv.buyer_tax_code || "—")}</td>
+          <td>${(inv.total_vnd || 0).toLocaleString("vi-VN")} đ</td>
+          <td>${formatDate(inv.issued_at)}</td>
+          <td><span class="badge ${inv.status === 'issued' ? 'badge-active' : 'badge-revoked'}">${inv.status}</span></td>
+          <td>
+            ${inv.pdf_url ? `<a href="${escapeHtml(inv.pdf_url)}" target="_blank" class="btn btn-secondary btn-sm">Xem PDF</a>` : "—"}
+          </td>
+        </tr>
+      `).join("");
+      applyRolePermissions();
+    } catch (_) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:red;">Lỗi nạp hóa đơn</td></tr>';
+    }
+  }
+
+  // 6. Tải và hiển thị danh sách Key
   let currentKeyPage = 1;
   async function loadKeys(page = 1) {
     currentKeyPage = page;
@@ -217,9 +488,9 @@
               <button type="button" class="btn btn-secondary btn-sm" onclick="window.adminShowKeyDetail('${k.id}')">Chi tiết</button>
               ${
                 !isRevoked
-                  ? `<button type="button" class="btn btn-secondary btn-sm" onclick="window.adminUpdateSeats('${k.id}', ${k.seats_max})">Sửa máy</button>
-                     <button type="button" class="btn btn-secondary btn-sm" onclick="window.adminReissueKey('${k.id}')">Cấp lại</button>
-                     <button type="button" class="btn btn-danger btn-sm" onclick="window.adminRevokeKey('${k.id}')">Thu hồi</button>`
+                  ? `<button type="button" class="btn btn-secondary btn-sm require-write" onclick="window.adminUpdateSeats('${k.id}', ${k.seats_max})">Sửa máy</button>
+                     <button type="button" class="btn btn-secondary btn-sm require-write" onclick="window.adminReissueKey('${k.id}')">Cấp lại</button>
+                     <button type="button" class="btn btn-danger btn-sm require-owner" onclick="window.adminRevokeKey('${k.id}')">Thu hồi</button>`
                   : ""
               }
             </div>
@@ -228,9 +499,9 @@
         })
         .join("");
 
-      // Phân trang
       renderKeysPagination(data.total, data.page, data.page_size);
-    } catch (e) {
+      applyRolePermissions();
+    } catch (_) {
       tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:red;">Lỗi tải danh sách</td></tr>';
     }
   }
@@ -254,471 +525,575 @@
     `;
   }
 
-  window.adminLoadKeysPage = function (page) {
-    loadKeys(page);
-  };
+  // 7. Tải Outbox Email
+  async function loadOutbox() {
+    const tbody = document.getElementById("outbox-tbody");
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Đang tải danh sách thư...</td></tr>';
 
-  const keysSearchInput = document.getElementById("keys-search");
-  if (keysSearchInput) {
-    keysSearchInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") loadKeys(1);
-    });
-  }
-  const keysFilterStatus = document.getElementById("keys-filter-status");
-  if (keysFilterStatus) {
-    keysFilterStatus.addEventListener("change", () => loadKeys(1));
-  }
-
-  // Modal Tạo Key
-  const createKeyModal = document.getElementById("modal-create-keys");
-  const openCreateKeyBtn = document.getElementById("btn-open-create-keys");
-  const closeCreateKeyBtn = document.getElementById("btn-close-create-keys");
-  const formCreateKeys = document.getElementById("form-create-keys");
-  const createdResultBox = document.getElementById("created-keys-result");
-
-  if (openCreateKeyBtn && createKeyModal) {
-    openCreateKeyBtn.addEventListener("click", () => {
-      createKeyModal.style.display = "flex";
-      document.getElementById("create-key-error").style.display = "none";
-    });
-  }
-  if (closeCreateKeyBtn && createKeyModal) {
-    closeCreateKeyBtn.addEventListener("click", () => {
-      createKeyModal.style.display = "none";
-    });
-  }
-
-  if (formCreateKeys) {
-    formCreateKeys.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const count = parseInt(document.getElementById("create-count").value, 10) || 1;
-      const seatsMax = parseInt(document.getElementById("create-seats").value, 10) || 2;
-      const note = document.getElementById("create-note").value.trim();
-      const email = document.getElementById("create-email").value.trim();
-      const errBox = document.getElementById("create-key-error");
-
-      try {
-        const res = await apiRequest("/api/v1/admin/keys", {
-          method: "POST",
-          body: { count, seats_max: seatsMax, note, email },
-        });
-        const data = await res.json();
-        if (res.ok && data.ok) {
-          createKeyModal.style.display = "none";
-          showCreatedKeysResult(data.keys, note, email, seatsMax);
-          loadKeys(1);
-        } else {
-          setStatusMessage(errBox, data.message || "Lỗi tạo mã bản quyền.", "danger");
-        }
-      } catch (err) {
-        setStatusMessage(errBox, err.message || "Lỗi kết nối.", "danger");
-      }
-    });
-  }
-
-  function showCreatedKeysResult(keys, note, email, seatsMax) {
-    generatedKeysCache = keys.map((k) => ({
-      key: k,
-      note: note,
-      email: email,
-      seats: seatsMax,
-    }));
-
-    if (createdResultBox) {
-      createdResultBox.style.display = "block";
-      const listEl = document.getElementById("created-keys-list");
-      if (listEl) {
-        listEl.innerHTML = keys
-          .map((k) => `<div style="padding:4px 0;"><span class="code-text" style="font-size:14px;font-weight:600;">${k}</span></div>`)
-          .join("");
-      }
-      createdResultBox.scrollIntoView({ behavior: "smooth" });
-    }
-  }
-
-  // Tải tệp CSV danh sách key vừa tạo
-  const downloadCsvBtn = document.getElementById("btn-download-csv");
-  if (downloadCsvBtn) {
-    downloadCsvBtn.addEventListener("click", () => {
-      if (!generatedKeysCache || generatedKeysCache.length === 0) return;
-      let csvContent = "\uFEFFMa_Ban_Quyen,Ghi_Chu,Email,So_May\n";
-      generatedKeysCache.forEach((row) => {
-        csvContent += `"${row.key}","${(row.note || "").replace(/"/g, '""')}","${(row.email || "").replace(/"/g, '""')}",${row.seats}\n`;
-      });
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.setAttribute("href", url);
-      link.setAttribute("download", `3t-office-keys-${new Date().toISOString().slice(0, 10)}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    });
-  }
-
-  // Thu hồi key
-  window.adminRevokeKey = async function (keyId) {
-    if (!confirm("Bạn có chắc chắn muốn thu hồi mã bản quyền này không? Tất cả thiết bị đang sử dụng sẽ bị hủy quyền.")) {
-      return;
-    }
     try {
-      const res = await apiRequest(`/api/v1/admin/keys/${keyId}/revoke`, { method: "POST" });
-      const data = await res.json();
-      if (res.ok && data.ok) {
-        alert("Đã thu hồi mã bản quyền thành công.");
-        loadKeys(currentKeyPage);
-      } else {
-        alert(data.message || "Không thể thu hồi mã bản quyền.");
-      }
-    } catch (e) {
-      alert("Lỗi kết nối.");
-    }
-  };
-
-  // Cấp lại key
-  window.adminReissueKey = async function (keyId) {
-    if (!confirm("Cấp lại mã bản quyền mới sẽ thu hồi mã bản quyền cũ ngay lập tức. Bạn có muốn tiếp tục?")) {
-      return;
-    }
-    try {
-      const res = await apiRequest(`/api/v1/admin/keys/${keyId}/reissue`, { method: "POST" });
-      const data = await res.json();
-      if (res.ok && data.ok) {
-        showCreatedKeysResult([data.key], data.note, data.email, data.seats_max);
-        alert(`Đã cấp lại mã bản quyền mới thành công:\n${data.key}\n\nLưu ý: Mã bản quyền chỉ hiển thị một lần này!`);
-        loadKeys(currentKeyPage);
-      } else {
-        alert(data.message || "Không thể cấp lại mã bản quyền.");
-      }
-    } catch (e) {
-      alert("Lỗi kết nối.");
-    }
-  };
-
-  // Sửa số máy tối đa
-  window.adminUpdateSeats = async function (keyId, currentSeats) {
-    const val = prompt("Nhập số lượng máy tối đa cho mã bản quyền này:", currentSeats);
-    if (!val) return;
-    const seatsMax = parseInt(val, 10);
-    if (isNaN(seatsMax) || seatsMax < 1 || seatsMax > 100) {
-      alert("Số máy phải nằm trong khoảng từ 1 đến 100.");
-      return;
-    }
-    try {
-      const res = await apiRequest(`/api/v1/admin/keys/${keyId}/seats`, {
-        method: "POST",
-        body: { seats_max: seatsMax },
-      });
-      const data = await res.json();
-      if (res.ok && data.ok) {
-        alert("Đã cập nhật số máy thành công.");
-        loadKeys(currentKeyPage);
-      } else {
-        alert(data.message || "Không thể cập nhật số máy.");
-      }
-    } catch (e) {
-      alert("Lỗi kết nối.");
-    }
-  };
-
-  // Chi tiết Key và danh sách thiết bị
-  const detailModal = document.getElementById("modal-key-detail");
-  const closeDetailBtn = document.getElementById("btn-close-key-detail");
-  if (closeDetailBtn && detailModal) {
-    closeDetailBtn.addEventListener("click", () => {
-      detailModal.style.display = "none";
-    });
-  }
-
-  window.adminShowKeyDetail = async function (keyId) {
-    try {
-      const res = await apiRequest(`/api/v1/admin/keys/${keyId}`);
+      const res = await apiRequest("/api/v1/admin/emails/outbox");
       if (!res.ok) return;
       const data = await res.json();
-      const k = data.key;
-      document.getElementById("detail-key-hint").textContent = `…${k.key_hint}`;
-      document.getElementById("detail-key-status").textContent = k.status === "active" ? "Hoạt động" : "Đã thu hồi";
-      document.getElementById("detail-key-seats").textContent = `${k.seats_used} / ${k.seats_max}`;
-      document.getElementById("detail-key-note").textContent = k.note || "—";
-      document.getElementById("detail-key-email").textContent = k.email || "—";
+      const emails = data.emails || [];
 
-      const devTbody = document.getElementById("detail-devices-tbody");
-      if (devTbody) {
-        if (!data.activations || data.activations.length === 0) {
-          devTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Chưa có thiết bị nào kích hoạt</td></tr>';
-        } else {
-          devTbody.innerHTML = data.activations
-            .map((a) => {
-              const isRemoved = a.removed_at !== null;
-              return `<tr>
-              <td><strong>${escapeHtml(a.device_name || "Thiết bị")}</strong></td>
-              <td>${escapeHtml(a.app_version || "—")}</td>
-              <td>${formatDate(a.first_at)}</td>
-              <td>${formatDate(a.last_check_at)}</td>
-              <td>
-                ${
-                  !isRemoved
-                    ? `<button type="button" class="btn btn-danger btn-sm" onclick="window.adminRemoveDevice('${k.id}', '${a.id}')">Gỡ máy</button>`
-                    : '<span style="color:var(--adm-text-muted);">Đã gỡ</span>'
-                }
-              </td>
-            </tr>`;
-            })
-            .join("");
-        }
+      if (emails.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Hàng đợi thư rỗng</td></tr>';
+        return;
       }
 
-      if (detailModal) detailModal.style.display = "flex";
-    } catch (e) {
-      alert("Lỗi tải thông tin chi tiết.");
+      tbody.innerHTML = emails
+        .map((em) => `
+        <tr>
+          <td>${formatDate(em.created_at)}</td>
+          <td><strong>${escapeHtml(em.to_email)}</strong></td>
+          <td><code>${escapeHtml(em.template)}</code></td>
+          <td>
+            <span class="badge ${em.status === 'sent' ? 'badge-active' : (em.status === 'queued' ? 'badge-warning' : 'badge-revoked')}">
+              ${em.status}
+            </span>
+          </td>
+          <td>${em.attempts || 0}</td>
+          <td style="font-size: 12px; color: var(--adm-text-muted);">${escapeHtml(em.last_error || "—")}</td>
+          <td>
+            ${em.status !== 'sent' ? `
+              <button type="button" class="btn btn-secondary btn-sm require-write" onclick="window.adminRetryEmail('${em.id}')">Gửi lại</button>
+            ` : '—'}
+          </td>
+        </tr>
+      `).join("");
+      applyRolePermissions();
+    } catch (_) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:red;">Lỗi tải danh sách thư</td></tr>';
     }
-  };
-
-  // Gỡ thiết bị khỏi key
-  window.adminRemoveDevice = async function (keyId, deviceId) {
-    if (!confirm("Bạn có chắc chắn muốn gỡ thiết bị này? Thiết bị sẽ mất quyền kích hoạt.")) {
-      return;
-    }
-    try {
-      const res = await apiRequest(`/api/v1/admin/keys/${keyId}/devices/${deviceId}/remove`, { method: "POST" });
-      const data = await res.json();
-      if (res.ok && data.ok) {
-        alert("Đã gỡ thiết bị thành công.");
-        window.adminShowKeyDetail(keyId);
-        loadKeys(currentKeyPage);
-      } else {
-        alert(data.message || "Không thể gỡ thiết bị.");
-      }
-    } catch (e) {
-      alert("Lỗi kết nối.");
-    }
-  };
-
-  // Kích hoạt ngoại tuyến
-  const formOffline = document.getElementById("form-offline-activate");
-  const offlineResultBox = document.getElementById("offline-result-box");
-  const offlineErrorBox = document.getElementById("offline-error-box");
-  const offlineCodeOutput = document.getElementById("offline-code-output");
-  const copyOfflineCodeBtn = document.getElementById("btn-copy-offline-code");
-
-  if (formOffline) {
-    formOffline.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      setStatusMessage(offlineErrorBox, "", "");
-      if (offlineResultBox) offlineResultBox.style.display = "none";
-
-      const key = document.getElementById("offline-key").value.trim();
-      const deviceCode = document.getElementById("offline-device-code").value.trim();
-      const deviceName = document.getElementById("offline-device-name").value.trim();
-
-      try {
-        const res = await apiRequest("/api/v1/admin/license/activate-offline", {
-          method: "POST",
-          body: { key, device_code: deviceCode, device_name: deviceName || null },
-        });
-        const data = await res.json();
-        if (res.ok && data.activation_code) {
-          if (offlineCodeOutput) offlineCodeOutput.textContent = data.activation_code;
-          if (offlineResultBox) offlineResultBox.style.display = "block";
-        } else {
-          setStatusMessage(offlineErrorBox, data.message || "Không thể tạo mã kích hoạt ngoại tuyến.", "danger");
-        }
-      } catch (err) {
-        setStatusMessage(offlineErrorBox, err.message || "Lỗi kết nối.", "danger");
-      }
-    });
   }
 
-  if (copyOfflineCodeBtn && offlineCodeOutput) {
-    copyOfflineCodeBtn.addEventListener("click", () => {
-      const text = offlineCodeOutput.textContent;
-      if (!text) return;
-      navigator.clipboard
-        .writeText(text)
-        .then(() => {
-          alert("Đã sao chép mã kích hoạt vào bộ nhớ đệm!");
-        })
-        .catch(() => {
-          alert("Vui lòng bôi đen và sao chép thủ công.");
-        });
-    });
-  }
-
-  // Báo cáo lỗi (Reports)
+  // 8. Tải Báo cáo lỗi
   async function loadReports() {
     const tbody = document.getElementById("reports-tbody");
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Đang tải danh sách báo lỗi...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Đang tải danh sách...</td></tr>';
+
     try {
       const res = await apiRequest("/api/v1/admin/reports");
       if (!res.ok) return;
       const data = await res.json();
-      if (!data.groups || data.groups.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Không có báo cáo lỗi nào được ghi nhận</td></tr>';
+      const groups = data.error_groups || [];
+
+      if (groups.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color: var(--adm-success);">Không ghi nhận sự cố nào gần đây</td></tr>';
         return;
       }
 
-      window.reportsCache = data.groups;
-      tbody.innerHTML = data.groups
-        .map(
-          (r, idx) => `<tr>
-          <td><span class="badge badge-active">${escapeHtml(r.apps || "Chung")}</span></td>
-          <td>${escapeHtml(r.version)}</td>
-          <td><span class="code-text">${escapeHtml(r.error_type || "Error")}</span></td>
-          <td>${r.occurrences}</td>
-          <td>${r.installations}</td>
-          <td>${formatDate(r.last_seen)}</td>
+      tbody.innerHTML = groups
+        .map((g) => `
+        <tr>
+          <td><strong>${escapeHtml(g.app_name)}</strong></td>
+          <td>${escapeHtml(g.app_version)}</td>
+          <td><code class="code-text">${escapeHtml(g.signature)}</code></td>
+          <td><strong>${g.count}</strong></td>
+          <td>${g.unique_devices || 1}</td>
+          <td>${formatDate(g.last_seen)}</td>
           <td>
-            <button type="button" class="btn btn-secondary btn-sm" onclick="window.adminViewReportDetail(${idx})">Xem mẫu</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="window.adminShowReportDetail('${g.signature}')">Chi tiết</button>
           </td>
-        </tr>`
-        )
-        .join("");
-    } catch (e) {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:red;">Lỗi tải danh sách báo lỗi</td></tr>';
+        </tr>
+      `).join("");
+    } catch (_) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:red;">Lỗi tải báo cáo sự cố</td></tr>';
     }
   }
 
-  const reportModal = document.getElementById("modal-report-detail");
-  const closeReportBtn = document.getElementById("btn-close-report-detail");
-  if (closeReportBtn && reportModal) {
-    closeReportBtn.addEventListener("click", () => {
-      reportModal.style.display = "none";
-    });
-  }
-
-  window.adminViewReportDetail = function (idx) {
-    const report = window.reportsCache && window.reportsCache[idx];
-    if (!report || !reportModal) return;
-    document.getElementById("report-modal-label").textContent = `${report.error_type} (${report.version})`;
-    document.getElementById("report-modal-msg").textContent = report.sample_message || "—";
-    document.getElementById("report-modal-stack").textContent = report.sample_stack || "Không có nhật ký ngăn xếp";
-    reportModal.style.display = "flex";
-  };
-
-  // Phát hành & Bộ cài (Releases)
+  // 9. Tải Kênh phát hành & Bộ cài
   async function loadReleases() {
-    const chBody = document.getElementById("releases-channels-tbody");
+    const chanBody = document.getElementById("releases-channels-tbody");
     const dlBody = document.getElementById("releases-downloads-tbody");
+
     try {
       const res = await apiRequest("/api/v1/admin/releases");
       if (!res.ok) return;
       const data = await res.json();
 
-      if (chBody) {
-        if (!data.channels || data.channels.length === 0) {
-          chBody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Không có dữ liệu kênh phát hành</td></tr>';
-        } else {
-          chBody.innerHTML = data.channels
-            .map(
-              (c) => `<tr>
-              <td><strong>${escapeHtml(c.channel)}</strong></td>
-              <td>${escapeHtml(c.version)}</td>
-              <td>${escapeHtml(c.date || "—")}</td>
-              <td><span class="code-text">${escapeHtml(c.manifest_sha256 ? c.manifest_sha256.slice(0, 16) + "…" : "—")}</span></td>
-            </tr>`
-            )
-            .join("");
-        }
+      if (chanBody) {
+        chanBody.innerHTML = (data.channels || []).map((ch) => `
+          <tr>
+            <td><strong>${escapeHtml(ch.channel)}</strong></td>
+            <td>${escapeHtml(ch.version)}</td>
+            <td>${formatDate(ch.released_at)}</td>
+            <td><code class="code-text" style="font-size:11px;">${escapeHtml(ch.manifest_hash || "—")}</code></td>
+            <td>
+              <button type="button" class="btn btn-danger btn-sm require-owner" onclick="window.adminRollbackRelease('${ch.channel}')">Rút lại</button>
+            </td>
+          </tr>
+        `).join("");
       }
 
       if (dlBody) {
-        if (!data.downloads || data.downloads.length === 0) {
-          dlBody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Chưa có tệp bộ cài nào trong thư mục tải về</td></tr>';
-        } else {
-          dlBody.innerHTML = data.downloads
-            .map(
-              (d) => `<tr>
-              <td><strong>${escapeHtml(d.file_name)}</strong></td>
-              <td>${formatBytes(d.file_size)}</td>
-              <td><span class="code-text">${escapeHtml(d.sha256)}</span></td>
-              <td>
-                <button type="button" class="btn btn-secondary btn-sm" onclick="window.adminCheckDownloadLink('${escapeHtml(d.file_name)}')">Kiểm tra tải</button>
-              </td>
-            </tr>`
-            )
-            .join("");
-        }
+        dlBody.innerHTML = (data.downloads || []).map((d) => `
+          <tr>
+            <td><strong>${escapeHtml(d.file_name)}</strong></td>
+            <td>${(d.size_bytes / (1024 * 1024)).toFixed(1)} MB</td>
+            <td><code class="code-text" style="font-size:11px;">${escapeHtml(d.sha256)}</code></td>
+            <td>
+              <a href="${escapeHtml(d.url)}" class="btn btn-secondary btn-sm">Tải thử</a>
+            </td>
+          </tr>
+        `).join("");
       }
-    } catch (e) {}
+      applyRolePermissions();
+    } catch (_) {}
   }
 
-  window.adminCheckDownloadLink = async function (fileName) {
-    try {
-      const res = await fetch(`/downloads/${encodeURIComponent(fileName)}`, { method: "HEAD" });
-      if (res.ok) {
-        alert(`Đường tải tệp '${fileName}' hoạt động bình thường (Mã trạng thái HTTP ${res.status}).`);
-      } else {
-        alert(`Lỗi đường tải: HTTP ${res.status}`);
-      }
-    } catch (e) {
-      alert("Không thể kết nối để kiểm tra đường tải.");
-    }
-  };
-
-  // Nhật ký Quản trị (Audit)
+  // 10. Tải Nhật ký quản trị
   async function loadAudit() {
     const tbody = document.getElementById("audit-tbody");
     if (!tbody) return;
     tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Đang tải nhật ký...</td></tr>';
+
     try {
-      const res = await apiRequest("/api/v1/admin/audit?limit=100");
+      const res = await apiRequest("/api/v1/admin/audit");
       if (!res.ok) return;
       const data = await res.json();
-      if (!data.audit_logs || data.audit_logs.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Chưa có thao tác quản trị nào được ghi lại</td></tr>';
+      const logs = data.audit_logs || [];
+
+      if (logs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Nhật ký thao tác trống</td></tr>';
         return;
       }
 
-      tbody.innerHTML = data.audit_logs
-        .map(
-          (a) => `<tr>
-          <td>${formatDate(a.at)}</td>
-          <td><strong>${escapeHtml(a.admin)}</strong></td>
-          <td><span class="badge badge-active">${escapeHtml(a.action)}</span></td>
-          <td><span class="code-text">${escapeHtml(a.target)}</span></td>
-        </tr>`
-        )
-        .join("");
-    } catch (e) {
-      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:red;">Lỗi tải nhật ký</td></tr>';
+      tbody.innerHTML = logs.map((l) => `
+        <tr>
+          <td>${formatDate(l.created_at)}</td>
+          <td><strong>${escapeHtml(l.admin_user || "system")}</strong></td>
+          <td><code>${escapeHtml(l.action)}</code></td>
+          <td>${escapeHtml(l.target || "—")}</td>
+        </tr>
+      `).join("");
+    } catch (_) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:red;">Lỗi tải nhật ký</td></tr>';
     }
   }
 
-  // Tiện ích
+  // 11. Tải và xử lý Cài đặt hệ thống
+  async function loadSettings() {
+    // Nạp giá gói bán
+    try {
+      const res = await apiRequest("/api/v1/shop/plans");
+      if (res.ok) {
+        const data = await res.json();
+        const p = (data.plans || []).find((x) => x.code === "perpetual");
+        if (p) {
+          const priceInput = document.getElementById("set-plan-price");
+          if (priceInput) priceInput.value = p.price_vnd || 0;
+        }
+      }
+    } catch (_) {}
+
+    // Nạp danh sách admin users
+    const adminsTbody = document.getElementById("admins-tbody");
+    if (adminsTbody) {
+      try {
+        const res = await apiRequest("/api/v1/admin/users");
+        if (res.ok) {
+          const data = await res.json();
+          const users = data.users || [];
+          adminsTbody.innerHTML = users.map((u) => `
+            <tr>
+              <td><strong>${escapeHtml(u.username)}</strong></td>
+              <td>${escapeHtml(u.full_name || "—")}</td>
+              <td>${escapeHtml(u.email || "—")}</td>
+              <td><span class="role-badge role-badge-${u.role}">${escapeHtml(u.role)}</span></td>
+              <td>${u.totp_enabled ? '<span style="color:var(--adm-success); font-weight:700;">Đã bật</span>' : '<span style="color:var(--adm-text-muted);">Chưa bật</span>'}</td>
+              <td>${formatDate(u.last_login_at)}</td>
+              <td>${u.is_active ? '<span class="badge badge-active">Hoạt động</span>' : '<span class="badge badge-revoked">Khóa</span>'}</td>
+            </tr>
+          `).join("");
+        }
+      } catch (_) {
+        adminsTbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:red;">Lỗi tải danh sách quản trị viên</td></tr>';
+      }
+    }
+    applyRolePermissions();
+  }
+
+  // Gắn form Cài đặt giá gói
+  const formPlan = document.getElementById("form-settings-plan");
+  if (formPlan) {
+    formPlan.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const price_vnd = parseInt(document.getElementById("set-plan-price").value, 10) || 0;
+      try {
+        const res = await apiRequest("/api/v1/admin/settings/plans/perpetual", {
+          method: "PUT",
+          body: { price_vnd },
+        });
+        if (res.ok) alert("Đã cập nhật đơn giá gói vĩnh viễn thành công!");
+        else alert("Không thể cập nhật giá gói.");
+      } catch (err) {
+        alert(err.message || "Lỗi cập nhật giá.");
+      }
+    });
+  }
+
+  // Thiết lập 2FA TOTP
+  const btnStartTotp = document.getElementById("btn-start-totp");
+  const totpSetupBox = document.getElementById("totp-setup-box");
+  const totpSecretText = document.getElementById("totp-secret-text");
+  const btnConfirmTotp = document.getElementById("btn-confirm-totp");
+
+  if (btnStartTotp) {
+    btnStartTotp.addEventListener("click", async () => {
+      try {
+        const res = await apiRequest("/api/v1/admin/2fa/setup", { method: "POST" });
+        const data = await res.json();
+        if (res.ok && data.secret) {
+          totpSecretText.textContent = data.secret;
+          totpSetupBox.style.display = "block";
+        } else {
+          alert(data.detail || "Không thể khởi tạo 2FA.");
+        }
+      } catch (_) {
+        alert("Lỗi khi kết nối máy chủ thiết lập 2FA.");
+      }
+    });
+  }
+
+  if (btnConfirmTotp) {
+    btnConfirmTotp.addEventListener("click", async () => {
+      const code = document.getElementById("totp-verify-code").value.trim();
+      if (!code || code.length !== 6) {
+        alert("Vui lòng nhập đúng 6 chữ số mã xác thực.");
+        return;
+      }
+      try {
+        const res = await apiRequest("/api/v1/admin/2fa/verify", {
+          method: "POST",
+          body: { code },
+        });
+        const data = await res.json();
+        if (res.ok && data.ok) {
+          alert("Kích hoạt xác thực 2 yếu tố (2FA TOTP) thành công!");
+          totpSetupBox.style.display = "none";
+          loadSettings();
+        } else {
+          alert(data.detail || "Mã xác thực không chính xác.");
+        }
+      } catch (_) {
+        alert("Lỗi xác nhận mã 2FA.");
+      }
+    });
+  }
+
+  // Đổi mật khẩu
+  function openChangePasswordModal(isFirstTime = false) {
+    const modal = document.getElementById("modal-change-password");
+    const title = document.getElementById("change-pwd-title");
+    const alertBox = document.getElementById("change-pwd-alert");
+    if (!modal) return;
+    if (alertBox) alertBox.style.display = "none";
+    if (title) title.textContent = isFirstTime ? "Bắt buộc đổi mật khẩu lần đầu" : "Đổi mật khẩu tài khoản";
+    modal.style.display = "flex";
+  }
+
+  if (elements.btnChangePwdHeader) {
+    elements.btnChangePwdHeader.addEventListener("click", () => openChangePasswordModal(false));
+  }
+
+  const btnCloseChangePwd = document.getElementById("btn-close-change-pwd");
+  if (btnCloseChangePwd) {
+    btnCloseChangePwd.addEventListener("click", () => {
+      document.getElementById("modal-change-password").style.display = "none";
+    });
+  }
+
+  const formChangePwd = document.getElementById("form-change-password");
+  if (formChangePwd) {
+    formChangePwd.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const old_password = document.getElementById("pwd-old").value;
+      const new_password = document.getElementById("pwd-new").value;
+      const confirm_password = document.getElementById("pwd-confirm").value;
+      const alertBox = document.getElementById("change-pwd-alert");
+
+      if (new_password !== confirm_password) {
+        setStatusMessage(alertBox, "Mật khẩu mới và xác nhận mật khẩu không khớp.", "danger");
+        return;
+      }
+
+      try {
+        const res = await apiRequest("/api/v1/admin/change-password", {
+          method: "POST",
+          body: { old_password, new_password },
+        });
+        const data = await res.json();
+        if (res.ok && data.ok) {
+          alert("Đổi mật khẩu thành công!");
+          document.getElementById("modal-change-password").style.display = "none";
+          formChangePwd.reset();
+        } else {
+          setStatusMessage(alertBox, data.detail || "Không thể đổi mật khẩu.", "danger");
+        }
+      } catch (err) {
+        setStatusMessage(alertBox, err.message || "Lỗi kết nối máy chủ.", "danger");
+      }
+    });
+  }
+
+  // Modal Chi tiết Đơn hàng & Hoàn tiền
+  let activeDetailOrderId = null;
+  window.adminShowOrderDetail = async function (orderId) {
+    const modal = document.getElementById("modal-order-detail");
+    if (!modal) return;
+    activeDetailOrderId = orderId;
+
+    try {
+      const res = await apiRequest(`/api/v1/admin/orders/${orderId}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const ord = data.order;
+
+      document.getElementById("ord-detail-code").textContent = ord.code;
+      document.getElementById("ord-detail-cust").textContent = ord.customer_name || "—";
+      document.getElementById("ord-detail-email").textContent = ord.customer_email || "—";
+      document.getElementById("ord-detail-phone").textContent = ord.customer_phone || "—";
+      document.getElementById("ord-detail-tax").textContent = ord.customer_tax_code || "—";
+      document.getElementById("ord-detail-plan").textContent = ord.plan_name || "Gói vĩnh viễn";
+      document.getElementById("ord-detail-qty").textContent = ord.quantity || 1;
+      document.getElementById("ord-detail-amount").textContent = `${(ord.amount_vnd || 0).toLocaleString("vi-VN")} đ`;
+      document.getElementById("ord-detail-status").textContent = ord.status;
+
+      const keysEl = document.getElementById("ord-detail-keys");
+      const keys = data.keys || [];
+      keysEl.textContent = keys.length ? keys.map((k) => `Mã: ${k.key || k.hint} (Trạng thái: ${k.status})`).join("\n") : "Chưa có mã được cấp";
+
+      modal.style.display = "flex";
+      applyRolePermissions();
+    } catch (_) {}
+  };
+
+  const btnCloseOrderDetail = document.getElementById("btn-close-order-detail");
+  if (btnCloseOrderDetail) {
+    btnCloseOrderDetail.addEventListener("click", () => {
+      document.getElementById("modal-order-detail").style.display = "none";
+      activeDetailOrderId = null;
+    });
+  }
+
+  const btnRefundOrder = document.getElementById("btn-order-refund");
+  if (btnRefundOrder) {
+    btnRefundOrder.addEventListener("click", async () => {
+      if (!activeDetailOrderId) return;
+      const reason = prompt("Nhập lý do hoàn tiền và thu hồi mã:");
+      if (!reason) return;
+
+      try {
+        const res = await apiRequest(`/api/v1/admin/orders/${activeDetailOrderId}/refund`, {
+          method: "POST",
+          body: { reason },
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert(`Đã hoàn tiền và thu hồi ${data.revoked_count || 0} mã bản quyền thành công.`);
+          document.getElementById("modal-order-detail").style.display = "none";
+          loadOrders();
+        } else {
+          alert(data.detail || "Không thể hoàn tiền đơn hàng.");
+        }
+      } catch (_) {
+        alert("Lỗi khi thực hiện hoàn tiền.");
+      }
+    });
+  }
+
+  // Modal Gán giao dịch chưa khớp
+  let activeAssignPaymentId = null;
+  window.adminOpenAssignPayment = function (paymentId) {
+    activeAssignPaymentId = paymentId;
+    document.getElementById("assign-payment-id").value = paymentId;
+    document.getElementById("modal-assign-payment").style.display = "flex";
+  };
+
+  const btnCloseAssign = document.getElementById("btn-close-assign");
+  if (btnCloseAssign) {
+    btnCloseAssign.addEventListener("click", () => {
+      document.getElementById("modal-assign-payment").style.display = "none";
+      activeAssignPaymentId = null;
+    });
+  }
+
+  const formAssign = document.getElementById("form-assign-payment");
+  if (formAssign) {
+    formAssign.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const payment_id = activeAssignPaymentId;
+      const order_code = document.getElementById("assign-order-code").value.trim();
+      if (!order_code) return;
+
+      try {
+        const res = await apiRequest(`/api/v1/admin/payments/${payment_id}/assign`, {
+          method: "POST",
+          body: { order_code },
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert("Gán giao dịch và kích hoạt đơn hàng thành công!");
+          document.getElementById("modal-assign-payment").style.display = "none";
+          loadReconciliation();
+          loadOrders();
+        } else {
+          alert(data.detail || "Không thể gán giao dịch.");
+        }
+      } catch (_) {
+        alert("Lỗi kết nối khi gán giao dịch.");
+      }
+    });
+  }
+
+  // Xuất CSV
+  document.getElementById("btn-export-orders-csv")?.addEventListener("click", () => {
+    window.location.href = "/api/v1/admin/orders/export/csv";
+  });
+  document.getElementById("btn-export-reconcile-csv")?.addEventListener("click", () => {
+    window.location.href = "/api/v1/admin/payments/export/csv";
+  });
+  document.getElementById("btn-export-audit-csv")?.addEventListener("click", () => {
+    window.location.href = "/api/v1/admin/audit/export/csv";
+  });
+
+  // Modal Tạo Hóa Đơn Nhập Tay
+  const btnOpenCreateInvoice = document.getElementById("btn-open-create-invoice");
+  const modalCreateInvoice = document.getElementById("modal-create-invoice");
+  const btnCloseInvoiceModal = document.getElementById("btn-close-invoice-modal");
+  const formCreateInvoice = document.getElementById("form-create-invoice");
+
+  if (btnOpenCreateInvoice) {
+    btnOpenCreateInvoice.addEventListener("click", () => {
+      if (modalCreateInvoice) modalCreateInvoice.style.display = "flex";
+    });
+  }
+  if (btnCloseInvoiceModal) {
+    btnCloseInvoiceModal.addEventListener("click", () => {
+      if (modalCreateInvoice) modalCreateInvoice.style.display = "none";
+    });
+  }
+  if (formCreateInvoice) {
+    formCreateInvoice.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const order_id = document.getElementById("inv-order-id").value.trim();
+      const invoice_number = document.getElementById("inv-number").value.trim();
+      const buyer_name = document.getElementById("inv-buyer-name").value.trim();
+      const buyer_tax_code = document.getElementById("inv-buyer-tax").value.trim();
+      const pdf_url = document.getElementById("inv-pdf-url").value.trim();
+
+      try {
+        const res = await apiRequest("/api/v1/admin/invoices", {
+          method: "POST",
+          body: { order_id, invoice_number, buyer_name, buyer_tax_code, pdf_url },
+        });
+        if (res.ok) {
+          alert("Lưu hóa đơn thành công!");
+          modalCreateInvoice.style.display = "none";
+          formCreateInvoice.reset();
+          loadInvoices();
+        } else {
+          const d = await res.json();
+          alert(d.detail || "Không thể tạo hóa đơn.");
+        }
+      } catch (_) {
+        alert("Lỗi khi tạo hóa đơn.");
+      }
+    });
+  }
+
+  // Modal Tạo Admin Mới
+  const btnOpenCreateAdmin = document.getElementById("btn-open-create-admin");
+  const modalCreateAdmin = document.getElementById("modal-create-admin");
+  const btnCloseCreateAdmin = document.getElementById("btn-close-create-admin");
+  const formCreateAdmin = document.getElementById("form-create-admin");
+
+  if (btnOpenCreateAdmin) {
+    btnOpenCreateAdmin.addEventListener("click", () => {
+      if (modalCreateAdmin) modalCreateAdmin.style.display = "flex";
+    });
+  }
+  if (btnCloseCreateAdmin) {
+    btnCloseCreateAdmin.addEventListener("click", () => {
+      if (modalCreateAdmin) modalCreateAdmin.style.display = "none";
+    });
+  }
+  if (formCreateAdmin) {
+    formCreateAdmin.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const username = document.getElementById("new-admin-user").value.trim();
+      const password = document.getElementById("new-admin-pwd").value;
+      const full_name = document.getElementById("new-admin-name").value.trim();
+      const email = document.getElementById("new-admin-email").value.trim();
+      const role = document.getElementById("new-admin-role").value;
+
+      try {
+        const res = await apiRequest("/api/v1/admin/users", {
+          method: "POST",
+          body: { username, password, full_name, email, role },
+        });
+        if (res.ok) {
+          alert("Tạo tài khoản quản trị viên mới thành công!");
+          modalCreateAdmin.style.display = "none";
+          formCreateAdmin.reset();
+          loadSettings();
+        } else {
+          const d = await res.json();
+          alert(d.detail || "Không thể tạo quản trị viên.");
+        }
+      } catch (_) {
+        alert("Lỗi khi tạo tài khoản quản trị.");
+      }
+    });
+  }
+
+  // Xử lý gửi lại email và test send
+  window.adminRetryEmail = async function (outboxId) {
+    try {
+      const res = await apiRequest(`/api/v1/admin/emails/outbox/${outboxId}/retry`, { method: "POST" });
+      if (res.ok) {
+        alert("Đã gửi lại yêu cầu vào hàng đợi.");
+        loadOutbox();
+      } else {
+        alert("Không thể gửi lại email.");
+      }
+    } catch (_) {}
+  };
+
+  document.getElementById("btn-test-smtp")?.addEventListener("click", async () => {
+    const to_email = prompt("Nhập email nhận thư kiểm tra:");
+    if (!to_email) return;
+    try {
+      const res = await apiRequest("/api/v1/admin/emails/test-send", {
+        method: "POST",
+        body: { to_email },
+      });
+      const data = await res.json();
+      if (res.ok) alert("Đã gửi thư thử nghiệm: " + (data.message || "OK"));
+      else alert(data.detail || "Lỗi gửi thư thử nghiệm.");
+      loadOutbox();
+    } catch (_) {
+      alert("Lỗi kết nối khi gửi thư.");
+    }
+  });
+
+  // Hỗ trợ tiện ích
   function escapeHtml(str) {
-    if (str === null || str === undefined) return "";
-    return String(str)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
+    if (!str) return "";
+    return String(str).replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
   }
 
   function formatDate(isoStr) {
     if (!isoStr) return "—";
     try {
       const d = new Date(isoStr);
-      return d.toLocaleString("vi-VN", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      });
-    } catch (e) {
+      return d.toLocaleString("vi-VN");
+    } catch (_) {
       return isoStr;
     }
-  }
-
-  function formatBytes(bytes) {
-    if (!bytes || bytes === 0) return "0 B";
-    const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   }
 
   // Khởi động

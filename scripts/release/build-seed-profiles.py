@@ -42,14 +42,9 @@ def main(argv: list[str]) -> int:
         out_dir.mkdir(parents=True)
         for kind in APP_KINDS:
             profile_uri = app_main._profile_uri(kind)
-            if kind in ("writer", "sheet"):
-                app_main._warmup_persistent_filter(kind)
-            else:
-                subprocess.run(
-                    [app_main.SOFFICE_PATH, "--headless", "--invisible", "--nologo", "--norestore",
-                     "--nolockcheck", "--terminate_after_init", f"-env:UserInstallation={profile_uri}"],
-                    check=True, timeout=180, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-                )
+            # Slide used to get only a bare --terminate_after_init, leaving its seed at 15 files and costing every
+            # new install ~12 s on the first Slide open (04/10/2026); all three apps now open a real sample document.
+            app_main._warmup_persistent_filter(kind)
             profile = app_main._user_data_dir() / f"lo-profile-{kind}"
             _drop_locks(profile)
             shutil.copytree(profile, out_dir / f"lo-profile-{kind}")

@@ -240,6 +240,13 @@ import { runSheetFormulaBarDisplayTests } from "./unit/sheet-formula-bar-display
 import { runContextMenuUnitTests } from "./unit/context-menu.test.js";
 import { runSheetOverlapAutofitStatusTests } from "./unit/sheet-overlap-autofit-status.test.js";
 import { runSheetFormulaHintsTests } from "./unit/sheet-formula-hints.test.js";
+import { runSheetPayloadP2EquivalenceTests } from "./unit/sheet-payload-p2-equivalence.test.js";
+import { runWriterSectionMarkerP3Tests } from "./unit/writer-section-marker-p3.test.js";
+import { runMouseOpsParityTests } from "./unit/mouse-ops-parity.test.js";
+import { runSheetQuickViewTests } from "./unit/sheet-quick-view.test.js";
+import { runSheetSwitchWindowTests } from "./unit/sheet-switch-window.test.js";
+import { runLicenseKeyFormatTests } from "./unit/license-key-format.test.js";
+import { runUnoBridgeContentStageTests } from "./unit/uno-bridge-content-stage.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -488,7 +495,14 @@ async function runAll() {
     { title: "233. Unit Tests — Shared Context Menu & Submenus (Doc & Sheet)", runner: runContextMenuUnitTests },
     { title: "234. Unit Tests — VN Writer interactive ruler", runner: runWriterInteractiveRulerTests },
     { title: "235. Unit Tests — Sheet auto-fit date/time on default column & currency symbol on status bar", runner: runSheetOverlapAutofitStatusTests },
-    { title: "236. Unit Tests — Sheet Formula IntelliSense, Vietnamese hints & Composing visual", runner: runSheetFormulaHintsTests }
+    { title: "236. Unit Tests — Sheet Formula IntelliSense, Vietnamese hints & Composing visual", runner: runSheetFormulaHintsTests },
+    { title: "237. Unit Tests — Sheet payload P2 equivalence and legacy rollback", runner: runSheetPayloadP2EquivalenceTests },
+    { title: "238. Unit Tests — Writer section marker lookup P3 (equal to legacy regex, linear)", runner: runWriterSectionMarkerP3Tests },
+    { title: "239. Unit Tests — Mouse Operations Parity & Sheet Cell Overflow", runner: runMouseOpsParityTests },
+    { title: "240. Unit Tests — P8 Sheet quick view cache, format mapping and seamless transition", runner: runSheetQuickViewTests },
+    { title: "241. Unit Tests — Sheet switch recomputes the virtual window (lan14 Sheet2 DOM explosion)", runner: runSheetSwitchWindowTests },
+    { title: "242. Unit Tests — License key input formatting", runner: runLicenseKeyFormatTests },
+    { title: "243. Unit Tests — Chunked hand-over of very large save content", runner: runUnoBridgeContentStageTests }
   ];
 
   for (const suite of suites) {

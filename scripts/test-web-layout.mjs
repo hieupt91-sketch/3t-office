@@ -32,7 +32,8 @@ const HTML_PAGES = [
   "lien-he.html",
   "trang-thai.html",
   "404.html",
-  "admin/index.html"
+  "admin/index.html",
+  "tai-khoan/index.html"
 ];
 
 

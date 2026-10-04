@@ -11,6 +11,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import main
+from adapters.libreoffice.sheet import sheet_open_payload
 from adapters.libreoffice.sheet.sheet_open_payload import build_sheet_open_payload
 
 
@@ -86,6 +87,20 @@ class SheetOpenPayloadTests(unittest.TestCase):
         self.assertEqual([stub["name"] for stub in payload["sheetStubs"]], sheet_names)
         self.assertTrue(all(stub["usedRange"] for stub in payload["sheetStubs"]))
         self.assertTrue(all(stub["cellCount"] >= 0 for stub in payload["sheetStubs"]))
+
+    def test_p1b_parallel_blocks_are_byte_identical_to_sequential_payload(self):
+        fods = (SAMPLES / "src" / "sample-sheet.fods").read_text(
+            encoding="utf-8"
+        )
+        xlsx = (SAMPLES / "sample-sheet.xlsx").read_bytes()
+        patcher = main._ooxml_zip_patch()
+        patcher._INDEX_MEMO.clear()
+        expected_fods, expected_payload = build_sheet_open_payload(xlsx, fods, patcher)
+        patcher._INDEX_MEMO.clear()
+        with patch.object(sheet_open_payload, "_P1B_LARGE_FODS_CHARS", 1):
+            actual_fods, actual_payload = build_sheet_open_payload(xlsx, fods, patcher)
+        self.assertEqual(actual_fods, expected_fods)
+        self.assertEqual(actual_payload, expected_payload)
 
     def test_fallback_session_is_opaque_private_retrievable_and_released(self):
         with tempfile.TemporaryDirectory() as temp_dir, patch("main._user_data_dir", return_value=Path(temp_dir)):

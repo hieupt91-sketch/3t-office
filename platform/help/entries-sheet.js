@@ -57,6 +57,21 @@ export const SHEET_HELP_ENTRIES = [
     ]
   },
   {
+    id: "sheet.file.largeExcelQuickView",
+    app: "sheet",
+    commandIds: ["common.file.open"],
+    title: "Mở tệp bảng tính lớn: màn hình xem nhanh và nạp đầy đủ",
+    summary: "Khi mở tệp XLSX lớn, Sheet có thể hiện sớm một màn hình xem nhanh chỉ đọc lấy trực tiếp từ tài liệu trên máy. Bạn xem, cuộn và đổi trang tính trong khi mô hình đầy đủ tiếp tục nạp ngoại tuyến ở nền.",
+    ribbon: { tab: "Tệp", tabId: "file", group: "Mở" },
+    keywords: ["xlsx lớn", "xem nhanh", "nạp đầy đủ", "chỉ đọc", "đang tải", "cuộn", "đổi sheet", "mở bảng tính lớn"],
+    steps: [
+      "Nhấn Ctrl+O hoặc mở Tệp > Mở rồi chọn tệp XLSX lớn. Khi chế độ tăng tốc được bật, lưới xem nhanh xuất hiện cùng dòng «Đang nạp đầy đủ… N%». Dữ liệu vẫn chỉ được xử lý trên máy và không gửi ra dịch vụ mạng.",
+      "Trong màn hình xem nhanh, bạn có thể cuộn đến vùng khác, bấm một ô để chọn và dùng các tab ở cuối lưới để đổi trang tính. Giá trị đã định dạng, phông chữ, chữ đậm/nghiêng, màu, nền và căn lề của vùng đang xem được hiển thị đúng như trong tệp gốc.",
+      "Màn hình xem nhanh là chỉ đọc. Nếu gõ, dán, cắt hoặc lưu trước khi nạp xong, Sheet sẽ chặn thao tác và báo rõ trên thanh trạng thái; thao tác không được ghi đệm nên không có nguy cơ sửa nhầm hoặc mất nội dung.",
+      "Chờ đến khi dòng trạng thái báo đã nạp đầy đủ. Sheet tự chuyển sang lưới chỉnh sửa thật và giữ trang tính, ô đã chọn cùng vùng đang cuộn; lúc đó bạn có thể soạn, dán và lưu bình thường bằng các lệnh quen thuộc."
+    ]
+  },
+  {
     id: "sheet.formula.externalLinks",
     app: "sheet",
     commandIds: [],
@@ -1312,6 +1327,24 @@ export const SHEET_HELP_ENTRIES = [
       "Chú giải cú pháp (Syntax Tooltip) bằng tiếng Việt: Ngay khi dấu mở ngoặc ( xuất hiện, chú giải cú pháp hiển thị rõ ràng. Đối số đang nhập được tô đậm nổi bật; dòng bên dưới giải thích rõ đối số đó là gì; dòng dưới cùng gợi ý ví dụ thực tế (ví dụ: =VLOOKUP(A2; Bảng!A:C; 3; 0)).",
       "Chuyển đối số linh hoạt: Khi bạn gõ dấu phân cách (dấu phẩy , hoặc chấm phẩy ; tùy theo vùng máy), chú giải cú pháp tự động chuyển điểm tô đậm và dòng giải thích sang đối số tiếp theo. Tính năng nhận diện chuẩn xác ngay cả khi lồng nhiều hàm hoặc có dấu phẩy trong chuỗi nháy kép.",
       "Hiển thị ô trực quan: Trong suốt quá trình đang gõ dở công thức, ô trên bảng tính hiển thị chính xác chuỗi ký tự bạn đang soạn (hoặc thanh công thức), tuyệt đối không tính trước gây hiện lỗi #VALUE! hay #NAME?. Chỉ khi bạn nhấn Enter hoặc Tab để xác nhận, công thức mới được tính toán hoàn chỉnh."
+    ]
+  },
+  {
+    id: "sheet.mouse.operations",
+    app: "sheet",
+    commandIds: ["sheet.edit.fillDown"],
+    title: "Thao tác chuột và tràn chữ khi soạn ô",
+    summary: "Thao tác chuột trực quan và tiện lợi: nhấp đúp ô để sửa, kéo chọn vùng, Shift/Ctrl chọn vùng, kéo tay cầm điền AutoFill, kéo-thả di chuyển/sao chép ô, nhấp đúp và kéo viền cột/hàng để đổi kích thước, nội dung soạn ô tự động tràn sang phải.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
+    keywords: ["chuột", "nhấp đúp ô", "kéo chọn vùng", "Shift+click", "Ctrl+click", "tay cầm điền", "AutoFill", "di chuyển ô", "sao chép ô", "viền cột", "viền hàng", "tự vừa cột", "tràn chữ", "overflow"],
+    steps: [
+      "Nhấp đúp chuột trái vào một ô để vào chế độ chỉnh sửa trực tiếp nội dung trong ô (tương đương phím F2).",
+      "Kéo chuột qua các ô để chọn một dải ô. Nhấp vào ô đầu, giữ phím Shift và nhấp vào ô cuối để mở rộng vùng chọn (ví dụ B2:E6). Giữ phím Ctrl và nhấp chuột vào các ô khác nhau để chọn đồng thời nhiều vùng rời rạc.",
+      "Kéo tay cầm điền (hình vuông nhỏ màu xanh ở góc dưới bên phải ô đang chọn) để tự động điền dãy số, ngày tháng hoặc sao chép công thức (AutoFill).",
+      "Di chuột tới viền bao quanh ô/vùng chọn đến khi con trỏ đổi sang hình bàn tay / mũi tên bốn hướng; kéo chuột để di chuyển dữ liệu sang vị trí mới. Giữ phím Ctrl trong lúc kéo để sao chép ô mà không làm mất dữ liệu gốc. Nhấn Ctrl+Z để hoàn tác.",
+      "Nhấp vào tiêu đề cột (A, B, C...) hoặc hàng (1, 2, 3...) để chọn trọn vẹn cả cột hoặc hàng; kéo chuột qua các tiêu đề để chọn nhiều cột/hàng liên tiếp.",
+      "Di chuột tới vạch phân cách giữa hai tiêu đề cột/hàng để kéo thay đổi độ rộng/chiều cao. Nhấp đúp vào vạch phân cách cột để tự động vừa khít độ rộng theo nội dung dài nhất (Auto-fit).",
+      "Khi đang soạn thảo văn bản hoặc gõ công thức dài trong ô, nếu các ô bên phải còn trống, nội dung đang gõ sẽ tự động hiển thị tràn sang các ô bên phải một cách tự nhiên, không bị cắt ngắn."
     ]
   }
 ];

@@ -749,6 +749,15 @@ export class AppShell {
     return showAboutDialog();
   }
 
+  async _showLicenseDialog() {
+    const { showLicenseDialog } = await withLazyFeatureProgress(
+      this.appName,
+      "Tài khoản và bản quyền",
+      () => import("../license/license-dialog.js")
+    );
+    return showLicenseDialog();
+  }
+
   showBackstageMenu() {
     captureEditorFocus();
     const previousFocused = document.activeElement;
@@ -863,6 +872,7 @@ export class AppShell {
         <button type="button" class="vno-backstage-nav-btn" data-backstage-tab="recent" id="vno-backstage-nav-recent">${t("backstage.recent")}</button>
         <button type="button" class="vno-backstage-nav-btn" data-backstage-action="closeDocument" id="vno-backstage-close">${t("backstage.close")}</button>
         <div style="flex:1;"></div>
+        <button type="button" class="vno-backstage-nav-btn" id="vno-backstage-account">${t("backstage.account")}</button>
         <button type="button" class="vno-backstage-nav-btn" id="vno-backstage-about">${t("backstage.about")}</button>
         <button type="button" class="vno-backstage-nav-btn" id="vno-backstage-options">${t("backstage.options")}</button>
       </div>
@@ -1120,6 +1130,11 @@ export class AppShell {
     });
 
     modal.querySelector("#vno-backstage-back").addEventListener("click", closeModal);
+
+    modal.querySelector("#vno-backstage-account")?.addEventListener("click", () => {
+      closeModal();
+      this._showLicenseDialog();
+    });
 
     modal.querySelector("#vno-backstage-about")?.addEventListener("click", () => {
       closeModal();

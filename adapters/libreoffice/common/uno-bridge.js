@@ -6,6 +6,10 @@
 import { mapVnCommandToUno } from "./command-dispatch-mapper.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
 
+// Above this many characters the save content travels to Python in chunks instead of one bridge call.
+const LARGE_CONTENT_STAGE_THRESHOLD_CHARS = 16 * 1024 * 1024;
+const LARGE_CONTENT_CHUNK_CHARS = 4 * 1024 * 1024;
+
 export class UnoBridge {
   constructor() {
     this.isConnected = false;
@@ -113,6 +117,22 @@ export class UnoBridge {
     return await this.desktopApi.open_document_dialog(appKind);
   }
 
+  /** P8 Sheet viewport-first APIs. UI talks to this adapter, never to UNO directly. */
+  async sheetViewWindow(docId, sheet, r0, c0, r1, c1, includeStrings = true, includeFormats = true) {
+    if (!this.desktopApi?.sheet_view_window) {
+      return { ok: false, error: "Màn hình xem nhanh chỉ khả dụng trong ứng dụng Desktop." };
+    }
+    return await this.desktopApi.sheet_view_window(
+      String(docId), Number(sheet), Number(r0), Number(c0), Number(r1), Number(c1),
+      !!includeStrings, !!includeFormats
+    );
+  }
+
+  async sheetViewClose(docId) {
+    if (!this.desktopApi?.sheet_view_close) return { ok: true };
+    return await this.desktopApi.sheet_view_close(String(docId));
+  }
+
   async createNewDocumentWindow(appKind) {
     if (this.desktopApi?.create_new_document_window) {
       return await this.desktopApi.create_new_document_window(appKind);
@@ -213,7 +233,40 @@ export class UnoBridge {
         message: "Chức năng Lưu tệp thật chỉ khả dụng trong 3T Office bản cài trên máy.",
       };
     }
-    return await this.desktopApi.save_document_dialog(content, appKind, targetFormat, suggestedName, sourcePath);
+    const payload = await this._stageLargeContent(content);
+    return await this.desktopApi.save_document_dialog(payload, appKind, targetFormat, suggestedName, sourcePath);
+  }
+
+  /**
+   * Nội dung lưu rất lớn (vd. FODS 327 triệu ký tự của lan14) KHÔNG được đẩy qua cầu nối trong một lệnh gọi:
+   * việc tuần tự hóa nhân đôi chuỗi làm trang hết bộ nhớ và sập. Thay vào đó chuyển theo từng đoạn nhỏ vào tệp
+   * tạm phía Python rồi truyền tham chiếu. Tài liệu nhỏ, hoặc bất kỳ lỗi nào khi chia đoạn, giữ đường cũ.
+   * Đường cũ giữ sau cờ globalThis.__VNO_SAVE_LEGACY (superseded by P9 - xóa chỉ khi chủ sở hữu duyệt).
+   */
+  async _stageLargeContent(content) {
+    if (typeof content !== "string" || content.length < LARGE_CONTENT_STAGE_THRESHOLD_CHARS) return content;
+    if (globalThis.__VNO_SAVE_LEGACY === true) return content;
+    const api = this.desktopApi;
+    if (typeof api?.begin_content_stage !== "function" || typeof api?.append_content_stage !== "function") return content;
+    let stageId = null;
+    try {
+      const begun = await api.begin_content_stage();
+      if (!begun?.ok || !begun.id) return content;
+      stageId = begun.id;
+      let offset = 0;
+      while (offset < content.length) {
+        let end = Math.min(content.length, offset + LARGE_CONTENT_CHUNK_CHARS);
+        const lastCode = content.charCodeAt(end - 1);
+        if (end < content.length && lastCode >= 0xd800 && lastCode <= 0xdbff) end--; // never split a surrogate pair
+        const result = await api.append_content_stage(stageId, content.slice(offset, end));
+        if (!result?.ok) throw new Error("append_content_stage failed");
+        offset = end;
+      }
+      return { vnoContentStage: stageId, chars: content.length };
+    } catch {
+      try { if (stageId) await api.abort_content_stage?.(stageId); } catch { /* best effort */ }
+      return content;
+    }
   }
 
   /**
@@ -230,7 +283,8 @@ export class UnoBridge {
         message: "Chức năng Lưu tệp thật chỉ khả dụng trong 3T Office bản cài trên máy.",
       };
     }
-    return await this.desktopApi.save_document_in_place(content, appKind, targetPath, sourcePath || targetPath);
+    const payload = await this._stageLargeContent(content);
+    return await this.desktopApi.save_document_in_place(payload, appKind, targetPath, sourcePath || targetPath);
   }
 
   /**
@@ -246,7 +300,7 @@ export class UnoBridge {
         message: "Chức năng Xuất PDF thật chỉ khả dụng trong 3T Office bản cài trên máy.",
       };
     }
-    return await this.desktopApi.export_pdf_dialog(content, appKind, suggestedName, sourcePath);
+    return await this.desktopApi.export_pdf_dialog(await this._stageLargeContent(content), appKind, suggestedName, sourcePath);
   }
 
   async preparePrintDocument(appKind, content, suggestedName, sourcePath, useOffice = true, printOptions = null) {

@@ -11,7 +11,7 @@ import { globalShortcutManager } from "../../../platform/commands/shortcut-manag
 import { getVnCommand } from "../common/command-dispatch-mapper.js";
 import { overlayFodsStructureProtection } from "./xlsx-workbook-protection.js";
 import { overlayActiveSheetToFods } from "./xlsx-active-sheet.js";
-import { buildSheetPayloadModel } from "./sheet-payload-parser.js";
+import { buildSheetPayloadModel, toPlain as sheetPayloadToPlain } from "./sheet-payload-parser.js";
 import {
   parseOfficeHtmlTable,
   parseOfficeTsv,
@@ -194,6 +194,13 @@ export class SheetAdapter {
       shell.adapter = this;
       if (this.grid) shell.grid = this.grid;
     }
+  }
+
+  _guardQuickViewReadOnly() {
+    const quickView = typeof window !== "undefined" ? window.__vnoSheetQuickViewController : null;
+    if (!quickView?.active) return false;
+    quickView.notifyReadOnly?.();
+    return true;
   }
 
   _bindFormatPainterRibbon() {
@@ -3766,7 +3773,13 @@ ${pristineXlsxMarker}
     return false;
   }
 
-  _cellFromFodsAttributes(attributes, text, numberStyles = new Map(), rotationStyles = new Map(), cellVisualStyles = new Map()) {
+  _cellFromFodsAttributesLegacy(attributes, text, numberStyles = new Map(), rotationStyles = new Map(), cellVisualStyles = new Map()) {
+    // Superseded by P2 - xoa chi khi chu so huu duyet. Keep the uncached
+    // conversion entry point for model parity checks and immediate rollback.
+    return this._cellFromFodsAttributes(attributes, text, numberStyles, rotationStyles, cellVisualStyles, null);
+  }
+
+  _cellFromFodsAttributes(attributes, text, numberStyles = new Map(), rotationStyles = new Map(), cellVisualStyles = new Map(), p2Cache = null) {
     const get = name => attributes[name] ?? "";
     const valueType = get("office:value-type");
     let value = text;
@@ -3809,25 +3822,41 @@ ${pristineXlsxMarker}
     // recalculates it; remember the exact LibreOffice formula so an unedited
     // link is written back byte-for-byte on save.
     const externalOdf = !get("vno:formula") && this._isExternalOdfFormula(odfFormula) ? odfFormula : "";
-    const style = {};
+    const styleName = get("table:style-name");
     const numFmtAttr = get("vno:number-format");
-    const standardFormat = numberStyles.get(get("table:style-name"));
+    const origXf = get("vno:xf");
+    const styleKey = p2Cache ? `${styleName}\u0000${numFmtAttr}\u0000${origXf}\u0000${valueType}` : "";
+    const cachedStyle = p2Cache?.styles.get(styleKey);
+    const style = cachedStyle
+      ? { ...cachedStyle, ...(cachedStyle.numberFormat ? { numberFormat: { ...cachedStyle.numberFormat } } : {}) }
+      : {};
+    if (!cachedStyle) {
+    const standardFormat = numberStyles.get(styleName);
     const numericTypes = new Set(["float", "percentage", "currency", "date", "time"]);
     // Apply number format from vno:number-format for ALL cell types (including string/empty)
     // Per task requirement: keep original Excel format code for every cell/column/row with format
     if (numFmtAttr) {
       let parsed;
       let excelCode = null;
-      try {
-        parsed = JSON.parse(numFmtAttr);
-        // If parsed from app's own JSON, try to reconstruct excelCode from category
-        if (parsed.category) {
-          excelCode = this._excelCodeFromNumberFormat(parsed);
+      const cachedFormat = p2Cache?.numberFormats.get(numFmtAttr);
+      if (cachedFormat) {
+        parsed = { ...cachedFormat.parsed };
+        excelCode = cachedFormat.excelCode;
+      } else {
+        try {
+          parsed = JSON.parse(numFmtAttr);
+          // If parsed from app's own JSON, try to reconstruct excelCode from category
+          if (parsed.category) {
+            excelCode = this._excelCodeFromNumberFormat(parsed);
+          }
+        } catch (e) {
+          // Raw Excel format code from Python overlay
+          excelCode = numFmtAttr;
+          parsed = numberFormatFromExcelCode(numFmtAttr);
         }
-      } catch (e) {
-        // Raw Excel format code from Python overlay
-        excelCode = numFmtAttr;
-        parsed = numberFormatFromExcelCode(numFmtAttr);
+        if (p2Cache && parsed) {
+          p2Cache.numberFormats.set(numFmtAttr, { parsed: { ...parsed }, excelCode });
+        }
       }
       if (parsed) {
         style.numberFormat = parsed;
@@ -3846,21 +3875,34 @@ ${pristineXlsxMarker}
     } else if (valueType === "currency") {
       style.numberFormat = { category: "currency", currencySymbol: "₫", decimals: 0, useThousands: true };
     }
-    const rotation = rotationStyles.get(get("table:style-name"));
+    const rotation = rotationStyles.get(styleName);
     if (rotation != null) style.textRotation = rotation;
-    const visualStyle = cellVisualStyles.get(get("table:style-name"));
+    const visualStyle = cellVisualStyles.get(styleName);
     if (visualStyle) {
       for (const [key, val] of Object.entries(visualStyle)) {
         if (val !== undefined && val !== null && val !== "") style[key] = val;
       }
     }
     // S8: Preserve original xf index for untouched cells round-trip.
-    const origXf = get("vno:xf");
     if (origXf !== "") {
       style.origXf = parseInt(origXf, 10);
     }
     // S8: Compute stable hash of style at import time.
-    style.styleHashAtImport = this._computeStyleHash(style);
+    if (p2Cache) {
+      let styleHash = p2Cache.styleHashes.get(styleKey);
+      if (styleHash === undefined) {
+        styleHash = this._computeStyleHash(style);
+        p2Cache.styleHashes.set(styleKey, styleHash);
+      }
+      style.styleHashAtImport = styleHash;
+      p2Cache.styles.set(styleKey, {
+        ...style,
+        ...(style.numberFormat ? { numberFormat: { ...style.numberFormat } } : {}),
+      });
+    } else {
+      style.styleHashAtImport = this._computeStyleHash(style);
+    }
+    }
     return externalOdf
       ? { val: value, formula, style, externalLink: { odf: externalOdf, formula } }
       : { val: value, formula, style };
@@ -4928,6 +4970,32 @@ ${pristineXlsxMarker}
         }
       });
       if (perfEnabled) window.__vnoPerfReport?.("buildSheetPayloadModel", performance.now() - parseStart);
+      // Diagnostic only (set by the CDP test harness): rebuild the model with the retained
+      // legacy parser and compare, so P2 equivalence is proven on real payloads.
+      if (typeof window !== "undefined" && window.__vnoP2Verify === true) {
+        try {
+          const legacyWorkbook = await buildSheetPayloadModel(payload, this, supportXml, { legacy: true });
+          const deepEqual = (a, b, path) => {
+            if (a === b) return null;
+            if (typeof a !== typeof b || a === null || b === null || typeof a !== "object") {
+              return Number.isNaN(a) && Number.isNaN(b) ? null : path;
+            }
+            if (Array.isArray(a) !== Array.isArray(b)) return path;
+            const keysA = Object.keys(a), keysB = Object.keys(b);
+            if (keysA.length !== keysB.length) return `${path}#keys`;
+            for (const key of keysA) {
+              if (!Object.prototype.hasOwnProperty.call(b, key)) return `${path}.${key}#missing`;
+              const diff = deepEqual(a[key], b[key], `${path}.${key}`);
+              if (diff) return diff;
+            }
+            return null;
+          };
+          const firstDiff = deepEqual(sheetPayloadToPlain(workbook), sheetPayloadToPlain(legacyWorkbook), "$");
+          window.__vnoP2VerifyResult = { equal: firstDiff === null, firstDiff, sheets: workbook.sheets.length };
+        } catch (error) {
+          window.__vnoP2VerifyResult = { equal: false, error: String(error?.message || error) };
+        }
+      }
       if (!workbook.sheets.length) return false;
       const committed = this._commitWorkbook(workbook, perfStart, "loadFromPayload");
       if (committed) {
@@ -5398,6 +5466,7 @@ ${pristineXlsxMarker}
    * - Nếu bảng tính mới (chưa có đường dẫn): chuyển tiếp sang saveAs() để mở hộp thoại lưu tệp.
    */
   async save() {
+    if (this._guardQuickViewReadOnly()) return false;
     if (!this.sourceFilePath) {
       return await this.saveAs();
     }
@@ -5439,6 +5508,7 @@ ${pristineXlsxMarker}
    * hoặc chọn định dạng xuất (.xlsx, .xls, .ods, .csv).
    */
   async saveAs() {
+    if (this._guardQuickViewReadOnly()) return false;
     const fodsContent = this.serializeToFods();
     const currentName = this.sourceFileName || "BangTinh";
     const suggestedName = this.sourceFilePath
@@ -5529,6 +5599,7 @@ ${pristineXlsxMarker}
       }
       if (result?.status === "cancelled") return false;
       if (result?.status === "error") {
+        if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") window.dispatchEvent(new Event("vno:sheet-full-model-failed"));
         await showAlertDialog({ title: "Không thể mở tệp", message: result.message, type: "error" });
         return false;
       }
@@ -5573,6 +5644,7 @@ ${pristineXlsxMarker}
       this.sourceFilePath = result.sourcePath || "";
       this.isDirty = false;
       this.shell?.resetDocumentChrome?.(result.fileName || "Bảng tính 1.xlsx", null, true, result.sourcePath || "");
+      if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") window.dispatchEvent(new Event("vno:sheet-full-model-ready"));
       return true;
     } catch {
       try {
@@ -5588,6 +5660,7 @@ ${pristineXlsxMarker}
       reportOpenIssue("SheetOpenError", "Workbook opening failed; the previously open workbook was preserved.");
       if (typeof window !== "undefined") window.__vnoSheetOpenStartedAt = null;
       this.shell?.setStatus?.("Không thể mở tệp. Sổ làm việc đang mở được giữ nguyên.");
+      if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") window.dispatchEvent(new Event("vno:sheet-full-model-failed"));
       await showAlertDialog({
         title: "Không thể mở tệp",
         message: "Sheet không thể nạp bảng tính từ dữ liệu đã đọc hoặc bản dự phòng. Sổ làm việc đang mở được giữ nguyên.",
@@ -6262,6 +6335,7 @@ ${pristineXlsxMarker}
    * @param {boolean} isCut nếu true, xóa nội dung ô sau khi sao chép
    */
   async _copySelectedCell(isCut) {
+    if (isCut && this._guardQuickViewReadOnly()) return false;
     const payload = this._captureSelectedClipboard();
     if (!payload) return false;
     this._rememberClipboard(payload, isCut ? "cut" : "copy");
@@ -6420,6 +6494,7 @@ ${pristineXlsxMarker}
   }
 
   async _pasteModelIntoGrid(model, text, isInternal = false) {
+    if (this._guardQuickViewReadOnly()) return false;
     if (!model?.cells?.length || !this.grid.selectedCoord || !this.grid.applyPasteSpecial) return false;
     if (globalThis.window?.__vnoClipboardDiagnostics) console.info("__VNO_CLIPBOARD_DIAG__" + JSON.stringify({ phase: "sheet-paste-destination", selectedCoord: this.grid.selectedCoord, isInternal, cellsBefore: [...this.grid.cellsData.entries()].filter(([coord]) => /^(A1|B2|C2|B3|C3)$/.test(coord)).map(([coord, cell]) => ({ coord, val: cell.val, style: cell.style })) }));
     const clipboardState = this.grid._clipboardRange;
@@ -6438,6 +6513,7 @@ ${pristineXlsxMarker}
   }
 
   async _openPasteSpecialFromClipboard() {
+    if (this._guardQuickViewReadOnly()) return false;
     const native = await this._readClipboardData();
     let model = null;
     if (native?.status === "ok") {
@@ -6461,6 +6537,7 @@ ${pristineXlsxMarker}
   }
 
   async _applyPasteSpecialMode(mode) {
+    if (this._guardQuickViewReadOnly()) return false;
     const native = await this._readClipboardData();
     let model = null;
     if (native?.status === "ok") {
@@ -6497,6 +6574,7 @@ ${pristineXlsxMarker}
    * @param {boolean} plainTextOnly Nếu true thì chỉ dán giá trị thuần, không nhận diện định dạng hay HTML
    */
   async _pasteIntoSelectedCell(plainTextOnly = false) {
+    if (this._guardQuickViewReadOnly()) return false;
     const coord = this.grid.selectedCoord;
     if (!coord || !this.grid.setCellValue) return false;
     const native = await this._readClipboardData();

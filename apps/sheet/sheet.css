@@ -3,6 +3,8 @@
  * Tiêu chuẩn bảng tính bảng biểu doanh nghiệp chuẩn mực
  */
 
+@import url("./sheet-quick-view.css");
+
 .vno-sheet-workspace {
   display: flex;
   width: 100%;
@@ -372,6 +374,13 @@
 .vno-grid-cell.can-overflow {
   overflow: visible;
   z-index: 2;
+}
+
+.vno-grid-cell.is-selected.can-overflow,
+.vno-grid-cell.is-composing,
+.vno-grid-cell.can-overflow.is-selected {
+  overflow: visible !important;
+  z-index: 20 !important;
 }
 
 .vno-grid-cell.has-content {

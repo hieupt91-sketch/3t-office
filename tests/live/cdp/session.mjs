@@ -17,8 +17,9 @@ function readySelector(app) {
 export async function launchApp(app, options = {}) {
   const root = options.root || repoRoot;
   const debugPort = await findFreePort();
-  const profileRoot = options.profileRoot || (!options.localAppData ? await mkdtemp(path.join(os.tmpdir(), "vno-cdp-" + app + "-")) : null);
-  const localAppData = options.localAppData || path.join(profileRoot, "localappdata");
+  const requestedLocalAppData = options.localAppData || process.env.VNO_CDP_LOCALAPPDATA || "";
+  const profileRoot = options.profileRoot || (!requestedLocalAppData ? await mkdtemp(path.join(os.tmpdir(), "vno-cdp-" + app + "-")) : null);
+  const localAppData = requestedLocalAppData || path.join(profileRoot, "localappdata");
   await mkdir(localAppData, { recursive: true });
   const python = options.python || process.env.VNO_PYTHON || "python";
   const args = ["-s", path.join(root, "main.py"), "--app=" + app];

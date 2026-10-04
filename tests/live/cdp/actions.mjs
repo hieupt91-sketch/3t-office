@@ -1,4 +1,5 @@
 import { sleep } from "./client.mjs";
+export { sleep };
 
 const modifierBits = { alt: 1, ctrl: 2, meta: 4, shift: 8 };
 const specialKeys = {
@@ -91,9 +92,74 @@ export async function click(cdp, selector, index = 0) {
   return point;
 }
 
-export async function mouseClick(cdp, x, y) {
-  await cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", buttons: 1, clickCount: 1 });
-  await cdp.send("Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", buttons: 0, clickCount: 1 });
+export async function mouseClick(cdp, x, y, modifiers = {}) {
+  const mask = modifierMask(modifiers);
+  await cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", buttons: 1, clickCount: 1, modifiers: mask });
+  await cdp.send("Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", buttons: 0, clickCount: 1, modifiers: mask });
+  await sleep(300);
+}
+
+export async function mouseDoubleClick(cdp, x, y, modifiers = {}) {
+  const mask = modifierMask(modifiers);
+  await cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", buttons: 1, clickCount: 1, modifiers: mask });
+  await cdp.send("Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", buttons: 0, clickCount: 1, modifiers: mask });
+  await cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", buttons: 1, clickCount: 2, modifiers: mask });
+  await cdp.send("Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", buttons: 0, clickCount: 2, modifiers: mask });
+  await sleep(300);
+}
+
+export async function mouseTripleClick(cdp, x, y, modifiers = {}) {
+  const mask = modifierMask(modifiers);
+  await cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", buttons: 1, clickCount: 1, modifiers: mask });
+  await cdp.send("Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", buttons: 0, clickCount: 1, modifiers: mask });
+  await cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", buttons: 1, clickCount: 2, modifiers: mask });
+  await cdp.send("Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", buttons: 0, clickCount: 2, modifiers: mask });
+  await cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", buttons: 1, clickCount: 3, modifiers: mask });
+  await cdp.send("Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", buttons: 0, clickCount: 3, modifiers: mask });
+  await sleep(300);
+}
+
+export async function mouseRightClick(cdp, x, y, modifiers = {}) {
+  const mask = modifierMask(modifiers);
+  await cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "right", buttons: 2, clickCount: 1, modifiers: mask });
+  await cdp.send("Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "right", buttons: 0, clickCount: 1, modifiers: mask });
+  await sleep(300);
+}
+
+export async function mouseMove(cdp, x, y, modifiers = {}) {
+  const mask = modifierMask(modifiers);
+  await cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", x, y, modifiers: mask });
+  await sleep(150);
+}
+
+export async function mouseDrag(cdp, startX, startY, endX, endY, options = {}) {
+  const mask = modifierMask(options.modifiers || {});
+  const steps = options.steps || 8;
+  await cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: startX, y: startY, modifiers: mask });
+  await cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", x: startX, y: startY, button: "left", buttons: 1, clickCount: 1, modifiers: mask });
+  for (let step = 1; step <= steps; step += 1) {
+    const curX = startX + (endX - startX) * step / steps;
+    const curY = startY + (endY - startY) * step / steps;
+    await cdp.send("Input.dispatchMouseEvent", {
+      type: "mouseMoved",
+      x: curX,
+      y: curY,
+      button: "left",
+      buttons: 1,
+      modifiers: mask,
+    });
+    if (options.delayPerStep) await sleep(options.delayPerStep);
+  }
+  await cdp.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: endX, y: endY, button: "left", buttons: 0, clickCount: 1, modifiers: mask });
+  await sleep(options.settleMs || 300);
+}
+
+export async function mouseWheel(cdp, x, y, deltaX, deltaY, modifiers = {}) {
+  const mask = modifierMask(modifiers);
+  await cdp.send("Input.dispatchMouseEvent", {
+    type: "mouseWheel",
+    x, y, deltaX, deltaY, modifiers: mask
+  });
   await sleep(300);
 }
 
@@ -123,3 +189,4 @@ export async function drag(cdp, fromSelector, toSelector) {
 export async function readState(cdp, expression) {
   return await cdp.evaluate(expression);
 }
+

@@ -27,6 +27,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import hashlib
 import threading
 import time
 import uuid
@@ -411,6 +412,7 @@ def _initialize_deferred_services(api, app_kind: str, launch_args: list[str]) ->
     else:
         _UPDATE_MANAGER = None
     api._updater = _UPDATE_MANAGER
+    _start_license_background_refresh(api)
     try:
         queue_rollback_report(_ERROR_REPORTER, _UPDATE_DATA_DIR)
     except Exception as exc:
@@ -418,6 +420,44 @@ def _initialize_deferred_services(api, app_kind: str, launch_args: list[str]) ->
     finally:
         _startup_trace("background_services_ready", app=app_kind)
         _BACKGROUND_SERVICES_READY.set()
+
+
+def _license_app_version() -> str:
+    """Số phiên bản thật của bản cài (VERSION.txt) gửi cho máy chủ bản quyền; ngoài bản cài dùng APP_VERSION."""
+    try:
+        install_root = _update_install_root()
+        if install_root:
+            text = (install_root / "VERSION.txt").read_text(encoding="ascii").strip()
+            if text:
+                return text[:40]
+    except Exception:
+        pass
+    return APP_VERSION
+
+
+def _license_refresh_due(status: dict) -> bool:
+    """Chỉ làm mới khi đã kích hoạt VÀ đã gần/qua hạn xác nhận; dùng thử hoặc chưa kích hoạt thì không gọi mạng."""
+    if not status.get("licensed"):
+        return False
+    if status.get("state") != "active":
+        return True
+    days = status.get("days_until_check")
+    return isinstance(days, (int, float)) and days <= 7
+
+
+def _start_license_background_refresh(api) -> None:
+    """Sau khi khởi động xong, lặng lẽ xác nhận lại bản quyền khi tới hạn. Mất mạng/lỗi: bỏ qua, không ảnh hưởng ai."""
+
+    def worker() -> None:
+        time.sleep(30)  # không tranh tài nguyên với việc mở tài liệu đầu tiên
+        try:
+            manager = api._license_manager()
+            if _license_refresh_due(manager.status()):
+                manager.refresh()
+        except Exception as exc:
+            logging.getLogger("vnoffice.license").debug("License background refresh skipped: %s", type(exc).__name__)
+
+    threading.Thread(target=worker, name="vno-license-refresh", daemon=True).start()
 
 
 def _start_deferred_startup(api, app_kind: str, launch_args: list[str]) -> None:
@@ -478,6 +518,10 @@ class _StaticFileHandler(http.server.SimpleHTTPRequestHandler):
 
 class _QuietTCPServer(http.server.ThreadingHTTPServer):
     allow_reuse_address = False
+    # The page fetches dozens of module/CSS files in parallel at start-up. socketserver's default backlog (5)
+    # overflows under that burst and Windows then answers ERR_CONNECTION_REFUSED; one refused module leaves
+    # the window blank forever (seen in about 1 of 10 automated launches on 04/10/2026).
+    request_queue_size = 128
 
     def server_bind(self):
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 0)
@@ -671,6 +715,11 @@ def _user_data_dir() -> Path:
     # Linux và các hệ Unix khác
     base = os.environ.get("XDG_DATA_HOME") or str(Path.home() / ".local" / "share")
     return Path(base) / APP_DATA_DIR_NAME
+
+
+def _license_platform_name() -> str:
+    """Tên nền tảng gửi cho máy chủ bản quyền (windows | macos | linux)."""
+    return {"Windows": "windows", "Darwin": "macos"}.get(platform.system(), "linux")
 
 
 def find_soffice() -> str | None:
@@ -1041,7 +1090,7 @@ class _PersistentSofficeManager:
             _open_perf_log("worker_background_start_failed", app=app_kind, error=str(exc)[:180])
 
     def warm_profile_filter(self, app_kind: str) -> None:
-        if app_kind not in {"writer", "sheet"} or not _PERSISTENT_SOFFICE_ENABLED:
+        if app_kind not in {"writer", "sheet", "slides"} or not _PERSISTENT_SOFFICE_ENABLED:
             return
         try:
             _warmup_persistent_filter(app_kind)
@@ -1098,6 +1147,24 @@ class _PersistentSofficeManager:
                     raise _PersistentSofficeTransportError(
                         f"UNO helper restart failed: {retry_error} (first error: {first_error})"
                     ) from retry_error
+
+    def view_operation(self, app_kind: str | None, operation: str, timeout: float = 120, **payload) -> dict:
+        """P8 view-first query on a document the worker keeps open.
+
+        Unlike operation(), a rejected request (bad window, unknown id) must NOT stop the
+        worker: that would drop every loaded view.  Transport failures still reset it, and
+        are never retried because the held document would be gone after a restart.
+        """
+        kind = app_kind if app_kind in VALID_APP_KINDS else "shared"
+        with self._lock:
+            worker = self._ensure_locked(kind)
+            try:
+                return worker.operation(operation, payload, timeout=timeout)
+            except _PersistentSofficeConversionError:
+                raise
+            except _PersistentSofficeTransportError:
+                self._stop_locked()
+                raise
 
     def operation(self, app_kind: str | None, operation: str, **payload) -> dict:
         kind = app_kind if app_kind in VALID_APP_KINDS else "shared"
@@ -1319,7 +1386,7 @@ def _persistent_writer_html_safe(source_path: str, app_kind: str | None, target_
     cheap, local preflight; when present, stop the persistent instance and
     preserve the established command-line output.
     """
-    if app_kind != "writer" or target_ext != "html" or Path(source_path).suffix.lower() != ".docx":
+    if app_kind != "writer" or target_ext not in {"html", "pdf"} or Path(source_path).suffix.lower() != ".docx":
         return True
     try:
         with zipfile.ZipFile(source_path) as archive:
@@ -1330,6 +1397,22 @@ def _persistent_writer_html_safe(source_path: str, app_kind: str | None, target_
     except Exception:
         return False
     return True
+
+
+_PRINT_CONTEXT = threading.local()
+
+
+def _is_print_persistent_pair(app_kind: str | None, target_ext: str, source_ext: str) -> bool:
+    """Allow the warm worker only for print-only conversions verified against CLI."""
+    if os.environ.get("VNO_PRINT_LEGACY") == "1" or not getattr(_PRINT_CONTEXT, "active", False):
+        return False
+    return (app_kind, target_ext, source_ext) in {
+        ("writer", "docx", ".html"),
+        ("sheet", "xlsx", ".fods"),
+        ("sheet", "pdf", ".xlsx"),
+        ("slides", "pptx", ".fodp"),
+        ("slides", "pdf", ".pptx"),
+    }
 
 
 def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind: str | None = None) -> str:
@@ -1408,7 +1491,17 @@ def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind:
         (app_kind == "writer" and target_ext == "html" and source_ext == ".docx")
         or (app_kind == "writer" and target_ext == "docx" and source_ext == ".doc")
         or (app_kind == "sheet" and target_ext == "fods" and source_ext in {".xlsx", ".xls"})
+        # Print preview: reuse the warm worker instead of a cold CLI start per
+        # preview (PDF byte sizes and page counts matched the CLI on d01/d04/d12).
+        # VNO_PRINT_LEGACY=1 restores the CLI path.
+        or (os.environ.get("VNO_PRINT_LEGACY") != "1"
+            and app_kind == "writer" and target_ext == "pdf" and source_ext in {".docx", ".odt"})
+        # Print-only native/PDF pairs stay on the warm worker. This avoids CLI/worker
+        # ping-pong without changing Save or Export; VNO_PRINT_LEGACY=1 restores CLI.
+        or _is_print_persistent_pair(app_kind, target_ext, source_ext)
     )
+    if persistent_pair_is_validated and source_ext == ".html" and target_ext == "docx" and input_filter is None:
+        input_filter = "HTML (StarWriter)"
     use_persistent_worker = (
         _PERSISTENT_SOFFICE_ENABLED
         and persistent_pair_is_validated
@@ -1436,6 +1529,29 @@ def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind:
                     csv_filter_options,
                 )
                 if Path(persistent_path).is_file():
+                    if target_ext == "docx" and os.environ.get("VNO_PRINT_VERIFY") == "1" and src_path.lower().endswith(".html"):
+                        _PERSISTENT_SOFFICE.release_for_cli_fallback(app_kind)
+                        with tempfile.TemporaryDirectory() as cli_dir:
+                            subprocess.run(cmd[:-3] + ["--outdir", cli_dir, src_path], capture_output=True, timeout=120, check=False)
+                            cli_docx = Path(cli_dir) / out_path.name
+
+                            def _parts(path):
+                                with zipfile.ZipFile(path) as z:
+                                    return {n: hashlib.sha256(z.read(n)).hexdigest() for n in z.namelist() if n.startswith("word/") or n == "[Content_Types].xml"}
+                            pa, pb = _parts(persistent_path), _parts(cli_docx)
+                            diff = sorted(n for n in set(pa) | set(pb) if pa.get(n) != pb.get(n))
+                            print(f"[VNO Print Verify] docx parts_equal={not diff} differing={diff[:6]}", flush=True)
+                    if target_ext == "pdf" and os.environ.get("VNO_PRINT_VERIFY") == "1":
+                        # Diagnostic only: compare with what the CLI path would have produced.
+                        _PERSISTENT_SOFFICE.release_for_cli_fallback(app_kind)
+                        with tempfile.TemporaryDirectory() as cli_dir:
+                            cli_cmd = cmd[:-3] + ["--outdir", cli_dir, src_path]
+                            subprocess.run(cli_cmd, capture_output=True, timeout=120, check=False)
+                            cli_pdf = Path(cli_dir) / out_path.name
+                            pm = _get_print_pipeline_module()
+                            a, b = pm.fast_pdf_page_count(persistent_path), pm.fast_pdf_page_count(str(cli_pdf))
+                            print(f"[VNO Print Verify] persistent_pages={a} cli_pages={b} match={a == b} "
+                                  f"bytes={Path(persistent_path).stat().st_size}/{cli_pdf.stat().st_size if cli_pdf.is_file() else 0}", flush=True)
                     return persistent_path
                 raise _PersistentSofficeTransportError("Không tạo được tệp kết quả. Hãy thử lại.")
             except Exception as exc:
@@ -1477,15 +1593,21 @@ _OOXML_ZIP_PATCH = None
 
 
 def _ooxml_zip_patch():
-    """Load adapters/libreoffice/common/ooxml_zip_patch.py without making adapters a package."""
+    """Load the OOXML patcher under an importable name for P1b workers."""
     global _OOXML_ZIP_PATCH
     if _OOXML_ZIP_PATCH is None:
         module_path = os.path.join(ROOT_DIR, "adapters", "libreoffice", "common", "ooxml_zip_patch.py")
-        spec = importlib.util.spec_from_file_location("vno_ooxml_zip_patch", module_path)
+        module_name = "adapters.libreoffice.common.ooxml_zip_patch"
+        spec = importlib.util.spec_from_file_location(module_name, module_path)
         if spec is None or spec.loader is None:
             raise DocumentEngineError("Không tải được module hậu-kỳ OOXML.")
         module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
+        sys.modules[module_name] = module
+        try:
+            spec.loader.exec_module(module)
+        except Exception:
+            sys.modules.pop(module_name, None)
+            raise
         _OOXML_ZIP_PATCH = module
     return _OOXML_ZIP_PATCH
 
@@ -1767,12 +1889,19 @@ def _read_pptx_pres_props_xml(src_path: str) -> str | None:
         return None
 
 
-def _apply_native_import_overlay(
+def _vno_open_legacy_enabled() -> bool:
+    """Return whether the owner-requested P1 rollback path is enabled."""
+    value = os.environ.get("VNO_OPEN_LEGACY", "").strip().lower()
+    return value in {"1", "true", "yes", "on"}
+
+
+def _apply_native_import_overlay_legacy(
     src_path: str,
     fods: str,
     app_kind: str | None,
     source_bytes: bytes | None = None,
 ) -> str:
+    # superseded by P1b - xoa chi khi chu so huu duyet
     """After soffice convert, restore native flags LibreOffice dropped.
 
     Sheet XLSX: lockStructure → table:structure-protected. Failures return
@@ -1817,6 +1946,33 @@ def _apply_native_import_overlay(
     return fods
 
 
+def _apply_native_import_overlay(
+    src_path: str,
+    fods: str,
+    app_kind: str | None,
+    source_bytes: bytes | None = None,
+) -> str:
+    """Apply the byte-compatible P1 Sheet overlay, with an owner rollback."""
+    if _vno_open_legacy_enabled() or app_kind != "sheet":
+        return _apply_native_import_overlay_legacy(
+            src_path, fods, app_kind, source_bytes=source_bytes
+        )
+    if not src_path or not str(src_path).lower().endswith(".xlsx"):
+        return fods
+    try:
+        original = source_bytes
+        if original is None:
+            with open(src_path, "rb") as handle:
+                original = handle.read()
+        return _ooxml_zip_patch().overlay_sheet_xlsx_fods_p1(
+            original,
+            fods,
+            skip_initial_xf=_sheet_open_skip_initial_xf_enabled(),
+        )
+    except Exception:
+        return fods
+
+
 def _sheet_open_skip_initial_xf_enabled() -> bool:
     """Return the explicit opt-in for skipping the redundant first XF overlay.
 
@@ -1844,11 +2000,19 @@ def _should_use_sheet_open_payload(fods_xml: str) -> bool:
     return _sheet_open_payload_enabled() or len(fods_xml or "") > _SHEET_LARGE_FODS_CHARS
 
 
-def _optimize_fods_for_sheet(fods_xml: str) -> str:
+def _optimize_fods_for_sheet_legacy(fods_xml: str) -> str:
     """Optimize FODS for Sheet: merge repeated empty cells, trim style-only tail.
     
     Delegates to the shared implementation in ooxml_zip_patch.
     """
+    # superseded by P1b - xoa chi khi chu so huu duyet
+    return _ooxml_zip_patch().optimize_fods_streaming_legacy(fods_xml)
+
+
+def _optimize_fods_for_sheet(fods_xml: str) -> str:
+    """Use the P1 optimizer by default; retain the exact legacy rollback."""
+    if _vno_open_legacy_enabled():
+        return _optimize_fods_for_sheet_legacy(fods_xml)
     return _ooxml_zip_patch().optimize_fods_streaming(fods_xml)
 
 
@@ -2111,10 +2275,18 @@ def _write_print_source(
     target_format = _PRINT_NATIVE_FORMAT.get(app_kind)
     if not target_format:
         raise ValueError(f"Loại ứng dụng không hợp lệ: {app_kind}")
+    _stage_t = time.perf_counter()
     interchange_path = _write_save_source(content, app_kind, temp_dir, target_format)
-    native_path = _convert_save_source_to_native(
-        interchange_path, app_kind, target_format, source_document_path=source_document_path,
-    )
+    _open_perf_log("print_write_interchange", app=app_kind, ms=round((time.perf_counter() - _stage_t) * 1000, 1))
+    _stage_t = time.perf_counter()
+    _PRINT_CONTEXT.active = True
+    try:
+        native_path = _convert_save_source_to_native(
+            interchange_path, app_kind, target_format, source_document_path=source_document_path,
+        )
+    finally:
+        _PRINT_CONTEXT.active = False
+    _open_perf_log("print_convert_native", app=app_kind, ms=round((time.perf_counter() - _stage_t) * 1000, 1))
     if app_kind == "sheet" and target_format == "xlsx":
         try:
             options = print_options if isinstance(print_options, dict) else {}
@@ -2175,7 +2347,12 @@ def _write_print_source(
 
 def _convert_print_source_to_pdf(source_path: str, app_kind: str, output_dir: str) -> str:
     """Convert the saved native print source to PDF with the matching LibreOffice filter."""
-    return _run_soffice_convert(source_path, "pdf", output_dir, app_kind=app_kind)
+    previous = getattr(_PRINT_CONTEXT, "active", False)
+    _PRINT_CONTEXT.active = True
+    try:
+        return _run_soffice_convert(source_path, "pdf", output_dir, app_kind=app_kind)
+    finally:
+        _PRINT_CONTEXT.active = previous
 
 
 def _convert_print_source_with_office(
@@ -2198,6 +2375,21 @@ def _office_candidates_for_print(app_kind: str) -> tuple[dict[str, str], ...]:
         "progid": str(info["progId"]),
         "engine_info": info,
     },)
+
+
+def _inspect_print_pdf_pages(app_kind: str, pdf_path: str) -> int:
+    """Page count for the print preview; the engine inspection stays the fallback.
+
+    VNO_PRINT_LEGACY=1 keeps the previous behaviour (always ask the engine).
+    """
+    if os.environ.get("VNO_PRINT_LEGACY") != "1":
+        fast = _get_print_pipeline_module().fast_pdf_page_count(pdf_path)
+        if fast is not None:
+            if os.environ.get("VNO_PRINT_VERIFY") == "1":
+                engine = int(_PERSISTENT_SOFFICE.operation(app_kind, "inspect_pdf", pdf_path=pdf_path)["page_count"])
+                print(f"[VNO Print Verify] fast={fast} engine={engine} match={fast == engine}", flush=True)
+            return fast
+    return int(_PERSISTENT_SOFFICE.operation(app_kind, "inspect_pdf", pdf_path=pdf_path)["page_count"])
 
 
 def _render_print_source_to_pdf(
@@ -2842,6 +3034,7 @@ class VnOfficeApi:
         self._sheet_open_sessions: dict[str, dict[str, object]] = {}
         self._sheet_open_session_lock = threading.RLock()
         self._last_sheet_open_id: str | None = None
+        self._sheet_view_doc_ids: set[str] = set()
         self._print_pipeline = None
         self._print_pipeline_lock = threading.Lock()
         self._performance_log = _PERFORMANCE_LOGGER
@@ -2868,9 +3061,7 @@ class VnOfficeApi:
                     convert_pdf=_convert_print_source_to_pdf,
                     office_candidates=_office_candidates_for_print,
                     convert_office_pdf=_convert_print_source_with_office,
-                    inspect_pdf=lambda kind, pdf_path: int(
-                        _PERSISTENT_SOFFICE.operation(kind, "inspect_pdf", pdf_path=pdf_path)["page_count"]
-                    ),
+                    inspect_pdf=_inspect_print_pdf_pages,
                     render_page=lambda kind, pdf_path, page_index, output_path: _PERSISTENT_SOFFICE.operation(
                         kind,
                         "render_pdf_page",
@@ -2885,6 +3076,140 @@ class VnOfficeApi:
     def get_app_version(self) -> str:
         """Trả về phiên bản ứng dụng hiện tại."""
         return APP_VERSION
+
+    # --- Chuyển nội dung lưu rất lớn theo từng đoạn (tránh sập trang khi đẩy cả chuỗi 300+ MB qua cầu nối một lần). ---
+    # Trang chia nội dung thành các đoạn nhỏ, Python ghép vào một tệp tạm rồi mới lưu như thường. Tài liệu nhỏ không dùng đường này.
+    _CONTENT_STAGE_MAX_AGE_SECONDS = 3600
+
+    def _content_stage_state(self):
+        state = getattr(self, "_content_stage_data", None)
+        if state is None:
+            state = {"lock": threading.Lock(), "stages": {}}
+            self._content_stage_data = state
+        return state
+
+    @staticmethod
+    def _content_stage_dir() -> Path:
+        return Path(tempfile.gettempdir()) / f"vnoffice_content_stage_{os.getpid()}"
+
+    def begin_content_stage(self):
+        try:
+            state = self._content_stage_state()
+            directory = self._content_stage_dir()
+            directory.mkdir(parents=True, exist_ok=True)
+            now = time.time()
+            with state["lock"]:
+                for stale_id, entry in list(state["stages"].items()):
+                    if now - entry["at"] > self._CONTENT_STAGE_MAX_AGE_SECONDS:
+                        state["stages"].pop(stale_id, None)
+                        try:
+                            os.unlink(entry["path"])
+                        except OSError:
+                            pass
+                stage_id = uuid.uuid4().hex
+                path = directory / f"{stage_id}.part"
+                path.write_bytes(b"")
+                state["stages"][stage_id] = {"path": str(path), "chars": 0, "at": now}
+            return {"ok": True, "id": stage_id}
+        except Exception:
+            return {"ok": False}
+
+    def append_content_stage(self, stage_id, chunk):
+        try:
+            state = self._content_stage_state()
+            with state["lock"]:
+                entry = state["stages"].get(str(stage_id))
+                if entry is None or not isinstance(chunk, str):
+                    return {"ok": False}
+                with open(entry["path"], "ab") as handle:
+                    handle.write(chunk.encode("utf-8", "surrogatepass"))
+                entry["chars"] += len(chunk)
+                entry["at"] = time.time()
+                return {"ok": True, "chars": entry["chars"]}
+        except Exception:
+            return {"ok": False}
+
+    def abort_content_stage(self, stage_id):
+        state = self._content_stage_state()
+        with state["lock"]:
+            entry = state["stages"].pop(str(stage_id), None)
+        if entry:
+            try:
+                os.unlink(entry["path"])
+            except OSError:
+                pass
+        return {"ok": True}
+
+    def _resolve_staged_content(self, content):
+        """Return the real text for a staged reference ({'vnoContentStage': id, 'chars': n}); other values pass through."""
+        if not (isinstance(content, dict) and content.get("vnoContentStage")):
+            return content
+        state = self._content_stage_state()
+        with state["lock"]:
+            entry = state["stages"].pop(str(content["vnoContentStage"]), None)
+        if entry is None:
+            raise DocumentEngineError("Nội dung cần lưu không còn trong bộ nhớ tạm. Hãy thử lưu lại.")
+        try:
+            text = Path(entry["path"]).read_bytes().decode("utf-8", "surrogatepass")
+        finally:
+            try:
+                os.unlink(entry["path"])
+            except OSError:
+                pass
+        expected = content.get("chars")
+        if isinstance(expected, int) and len(text) != expected:
+            raise DocumentEngineError("Nội dung chuyển sang bộ lưu bị thiếu. Hãy thử lưu lại.")
+        return text
+
+    # --- Bản quyền (adapters/license). Chỉ báo trạng thái; KHÔNG khóa tính năng nào ở giai đoạn này. ---
+    def _license_manager(self):
+        manager = getattr(self, "_license_manager_instance", None)
+        if manager is None:
+            from adapters.license.manager import LicenseManager
+
+            from adapters.license.manager import DEFAULT_API_BASE
+
+            # VNO_LICENSE_API_BASE lets automated tests point at a local or closed port instead of the live server.
+            manager = LicenseManager(
+                _user_data_dir(),
+                _license_app_version(),
+                api_base=os.environ.get("VNO_LICENSE_API_BASE") or DEFAULT_API_BASE,
+                platform_name=_license_platform_name(),
+            )
+            self._license_manager_instance = manager
+        return manager
+
+    def _license_call(self, operation):
+        from adapters.license.manager import LicenseError
+
+        try:
+            return {"ok": True, **operation(self._license_manager())}
+        except LicenseError as exc:
+            return {"ok": False, "error": exc.code, "message": exc.message, **exc.extra}
+        except Exception as exc:  # never let a license problem break the app
+            logging.getLogger("vnoffice.license").warning("License operation failed: %s", type(exc).__name__)
+            return {"ok": False, "error": "internal", "message": "Không xử lý được bản quyền. Vui lòng thử lại."}
+
+    def license_status(self):
+        return self._license_call(lambda manager: manager.status())
+
+    def license_normalize_key(self, text):
+        """Định dạng lại ô nhập key khi gõ và cho biết key đã đúng checksum chưa (không cần mạng)."""
+        from adapters.license.keys import format_while_typing, normalize_key
+
+        return {"formatted": format_while_typing(str(text or "")), "valid": normalize_key(str(text or "")) is not None}
+
+    def license_activate(self, key, email=None):
+        return self._license_call(lambda manager: manager.activate(str(key or ""), str(email).strip() or None if email else None))
+
+    def license_refresh(self):
+        return self._license_call(lambda manager: manager.refresh())
+
+    def license_deactivate(self):
+        return self._license_call(lambda manager: manager.deactivate())
+
+    def license_apply_activation_code(self, code):
+        return self._license_call(lambda manager: manager.apply_activation_code(str(code or "")))
 
     def get_system_number_separators(self) -> dict[str, str]:
         """Trả về dấu phân cách thập phân và dấu phân nhóm hàng nghìn theo Windows regional settings."""
@@ -3291,6 +3616,95 @@ class VnOfficeApi:
     def start_document_engine(self):
         """Start LibreOffice after the user first needs a document operation."""
         return {"started": self._start_document_engine()}
+
+    # --- P8 view-first (Sheet): query the document LibreOffice already holds, window by window. ---
+    # Off by default in the UI (flag in the front end); these calls never touch the convert path.
+    def sheet_view_open(self, file_path):
+        try:
+            path = os.path.abspath(str(file_path))
+            if not os.path.isfile(path):
+                return {"ok": False, "error": "Không tìm thấy tệp."}
+            started = time.perf_counter()
+            result = _PERSISTENT_SOFFICE.view_operation("sheet", "view_open", timeout=180, source_path=path)
+            self._sheet_view_doc_ids.add(str(result["doc_id"]))
+            _open_perf_log("sheet_view_open", (time.perf_counter() - started) * 1000, sheets=len(result.get("sheets", [])))
+            return {"ok": True, "doc_id": result["doc_id"], "sheets": result["sheets"]}
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)[:300]}
+
+    def sheet_view_window(self, doc_id, sheet, r0, c0, r1, c1, include_strings=False, include_formats=False):
+        try:
+            started = time.perf_counter()
+            result = _PERSISTENT_SOFFICE.view_operation(
+                "sheet", "view_window", timeout=60, doc_id=str(doc_id),
+                sheet=int(sheet), r0=int(r0), c0=int(c0), r1=int(r1), c1=int(c1),
+                include_strings=bool(include_strings), include_formats=bool(include_formats),
+            )
+            result["ok"] = True
+            _open_perf_log("sheet_view_window", (time.perf_counter() - started) * 1000)
+            return result
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)[:300]}
+
+    def sheet_view_close(self, doc_id):
+        doc_id = str(doc_id)
+        try:
+            _PERSISTENT_SOFFICE.view_operation("sheet", "view_close", timeout=30, doc_id=doc_id)
+            return {"ok": True}
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)[:300]}
+        finally:
+            self._sheet_view_doc_ids.discard(doc_id)
+
+    def close_sheet_views(self):
+        """Close every live P8 view owned by this document window (idempotent)."""
+        for doc_id in tuple(self._sheet_view_doc_ids):
+            self.sheet_view_close(doc_id)
+
+    def _open_sheet_quick_view_if_enabled(self, source_path):
+        """Paint the first XLSX window before the normal FODS conversion takes the worker lock."""
+        if os.environ.get("VNO_OPEN_VIEWFIRST") != "1":
+            return False
+        try:
+            path = os.path.abspath(str(source_path))
+            if not path.lower().endswith(".xlsx") or os.path.getsize(path) < 5 * 1024 * 1024:
+                return False
+        except OSError:
+            return False
+        opened = self.sheet_view_open(path)
+        if not opened.get("ok") or not opened.get("sheets"):
+            return False
+        doc_id = opened["doc_id"]
+        first_sheet = opened["sheets"][0]
+        r1 = min(max(0, int(first_sheet.get("rows", 1)) - 1), 79)
+        c1 = min(max(0, int(first_sheet.get("cols", 1)) - 1), 29)
+        first_window = self.sheet_view_window(doc_id, 0, 0, 0, r1, c1, True, True)
+        if not first_window.get("ok"):
+            self.sheet_view_close(doc_id)
+            return False
+        window = _active_window(self)
+        if not window:
+            self.sheet_view_close(doc_id)
+            return False
+        payload = {
+            "doc_id": doc_id,
+            "sheets": opened["sheets"],
+            "sheet": 0,
+            "r0": 0,
+            "c0": 0,
+            "window": first_window,
+        }
+        try:
+            window.evaluate_js(
+                "window.__vnoSheetQuickViewOpen?.("
+                + json.dumps(payload, ensure_ascii=True, separators=(",", ":"))
+                + ")"
+            )
+            _open_perf_log("sheet_quick_view_first_window", sheets=len(opened["sheets"]))
+            return True
+        except Exception:
+            self.sheet_view_close(doc_id)
+            return False
 
     def open_mail_merge_data_dialog(self):
         return self._invoke_reported_api("open_mail_merge_data_dialog", self._open_mail_merge_data_dialog_impl)
@@ -3873,6 +4287,13 @@ class VnOfficeApi:
             # LibreOffice detect the real format, so let the engine decide.
             if signature == b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1":
                 return
+            if signature.startswith(b"%PDF"):
+                # A PDF renamed to .docx/.xlsx/.pptx (seen in the LAN sample as d10.docx): say what it really is.
+                raise DocumentEngineError(
+                    f"Tệp này có đuôi {extension} nhưng thực chất là tài liệu PDF nên không mở như tài liệu soạn thảo được. "
+                    "Hãy mở bằng trình đọc PDF, hoặc xuất bản gốc ra đúng định dạng rồi mở lại. "
+                    "Tài liệu đang mở được giữ nguyên."
+                )
             with zipfile.ZipFile(source_path) as package:
                 members = set(package.namelist())
                 if key in ooxml:
@@ -3938,6 +4359,11 @@ class VnOfficeApi:
             self._validate_open_package(src_path, app_kind)
         except DocumentEngineError as exc:
             return {"status": "error", "message": str(exc)}
+
+        if app_kind == "sheet":
+            # P8: the preview is supplementary. Any preview failure falls through to
+            # the exact pre-existing full-load route and must never hide its errors.
+            self._open_sheet_quick_view_if_enabled(src_path)
 
         if app_kind == "writer":
             target_ext = "html"
@@ -4250,6 +4676,10 @@ class VnOfficeApi:
         giữ nguyên định dạng gốc và thay thế nguyên tử an toàn."""
         if not target_path:
             return {"status": "error", "message": "Đường dẫn tệp không hợp lệ."}
+        try:
+            content = self._resolve_staged_content(content)
+        except DocumentEngineError as exc:
+            return {"status": "error", "message": str(exc)}
 
         target_path, target_format = _infer_save_format_from_path(target_path, app_kind=app_kind)
         source_path = source_path or target_path
@@ -4278,6 +4708,10 @@ class VnOfficeApi:
         window = _active_window(self)
         if not window:
             return {"status": "error", "message": "Cửa sổ ứng dụng chưa sẵn sàng."}
+        try:
+            content = self._resolve_staged_content(content)
+        except DocumentEngineError as exc:
+            return {"status": "error", "message": str(exc)}
 
         default_ext = target_format or DEFAULT_SAVE_FORMAT.get(app_kind, "docx")
         default_stem = suggested_name or "TaiLieu"
@@ -4387,6 +4821,11 @@ def _register_app_window(api: VnOfficeApi, window) -> None:
         except Exception as exc:
             logging.getLogger("vnoffice.print").debug("Print session close unavailable: %s", type(exc).__name__)
         _startup_trace("print_sessions_closed", app=api._app_kind)
+        try:
+            api.close_sheet_views()
+        except Exception as exc:
+            logging.getLogger("vnoffice.sheet").debug("Quick-view cleanup unavailable: %s", type(exc).__name__)
+        _startup_trace("sheet_quick_views_closed", app=api._app_kind)
         with _APP_WINDOW_LOCK:
             _APP_WINDOW_APIS.pop(api._window_uid or "", None)
             remaining_windows = len(_APP_WINDOW_APIS)
@@ -4470,6 +4909,8 @@ def build_launch_url(
         query["documentName"] = document_name
     if os.environ.get("VNO_PERF_DEBUG") == "1":
         query["perfDebug"] = "1"
+    if app_kind == "sheet" and os.environ.get("VNO_OPEN_VIEWFIRST") == "1":
+        query["viewFirst"] = "1"
     return f"http://localhost:{port}/?{urlencode(query)}"
 
 
@@ -4570,6 +5011,47 @@ def _write_profile_warmup_xlsx(path: str) -> None:
             package.writestr(name, content)
 
 
+def _write_profile_warmup_pptx(path: str) -> None:
+    """Smallest valid one-slide presentation: enough to make LibreOffice register its Impress import filters."""
+    ns = (
+        'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" '
+        'xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"'
+    )
+    rel = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+    group = (
+        '<p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>'
+        '<p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>'
+    )
+    fill_list = "<a:solidFill><a:schemeClr val=\"phClr\"/></a:solidFill>" * 3
+    line_list = "<a:ln w=\"6350\"><a:solidFill><a:schemeClr val=\"phClr\"/></a:solidFill></a:ln>" * 3
+    members = {
+        "[Content_Types].xml": """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>
+<Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/>
+<Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/>
+<Override PartName="/ppt/slides/slide1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>
+<Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>
+</Types>""",
+        "_rels/.rels": f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="{rel}/officeDocument" Target="ppt/presentation.xml"/></Relationships>',
+        "ppt/presentation.xml": f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<p:presentation {ns}><p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst><p:sldIdLst><p:sldId id="256" r:id="rId2"/></p:sldIdLst><p:sldSz cx="9144000" cy="6858000"/><p:notesSz cx="6858000" cy="9144000"/></p:presentation>',
+        "ppt/_rels/presentation.xml.rels": f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="{rel}/slideMaster" Target="slideMasters/slideMaster1.xml"/><Relationship Id="rId2" Type="{rel}/slide" Target="slides/slide1.xml"/><Relationship Id="rId3" Type="{rel}/theme" Target="theme/theme1.xml"/></Relationships>',
+        "ppt/slideMasters/slideMaster1.xml": f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<p:sldMaster {ns}><p:cSld><p:spTree>{group}</p:spTree></p:cSld><p:clrMap bg1="lt1" tx1="dk1" bg2="lt2" tx2="dk2" accent1="accent1" accent2="accent2" accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" hlink="hlink" folHlink="folHlink"/><p:sldLayoutIdLst><p:sldLayoutId id="2147483649" r:id="rId1"/></p:sldLayoutIdLst></p:sldMaster>',
+        "ppt/slideMasters/_rels/slideMaster1.xml.rels": f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="{rel}/slideLayout" Target="../slideLayouts/slideLayout1.xml"/><Relationship Id="rId2" Type="{rel}/theme" Target="../theme/theme1.xml"/></Relationships>',
+        "ppt/slideLayouts/slideLayout1.xml": f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<p:sldLayout {ns} type="blank"><p:cSld name="Blank"><p:spTree>{group}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sldLayout>',
+        "ppt/slideLayouts/_rels/slideLayout1.xml.rels": f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="{rel}/slideMaster" Target="../slideMasters/slideMaster1.xml"/></Relationships>',
+        "ppt/slides/slide1.xml": f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<p:sld {ns}><p:cSld><p:spTree>{group}<p:sp><p:nvSpPr><p:cNvPr id="2" name="Warmup"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="914400" y="914400"/><a:ext cx="4572000" cy="914400"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr><p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang="vi-VN"/><a:t>3T Office local profile warm-up</a:t></a:r></a:p></p:txBody></p:sp></p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>',
+        "ppt/slides/_rels/slide1.xml.rels": f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="{rel}/slideLayout" Target="../slideLayouts/slideLayout1.xml"/></Relationships>',
+        "ppt/theme/theme1.xml": f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="Warmup"><a:themeElements><a:clrScheme name="Warmup"><a:dk1><a:srgbClr val="000000"/></a:dk1><a:lt1><a:srgbClr val="FFFFFF"/></a:lt1><a:dk2><a:srgbClr val="1F2937"/></a:dk2><a:lt2><a:srgbClr val="F3F4F6"/></a:lt2><a:accent1><a:srgbClr val="2B5CE6"/></a:accent1><a:accent2><a:srgbClr val="F26B21"/></a:accent2><a:accent3><a:srgbClr val="12682F"/></a:accent3><a:accent4><a:srgbClr val="8A4A00"/></a:accent4><a:accent5><a:srgbClr val="6D28D9"/></a:accent5><a:accent6><a:srgbClr val="C0392B"/></a:accent6><a:hlink><a:srgbClr val="0563C1"/></a:hlink><a:folHlink><a:srgbClr val="954F72"/></a:folHlink></a:clrScheme><a:fontScheme name="Warmup"><a:majorFont><a:latin typeface="Calibri"/><a:ea typeface=""/><a:cs typeface=""/></a:majorFont><a:minorFont><a:latin typeface="Calibri"/><a:ea typeface=""/><a:cs typeface=""/></a:minorFont></a:fontScheme><a:fmtScheme name="Warmup"><a:fillStyleLst>{fill_list}</a:fillStyleLst><a:lnStyleLst>{line_list}</a:lnStyleLst><a:effectStyleLst><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle></a:effectStyleLst><a:bgFillStyleLst>{fill_list}</a:bgFillStyleLst></a:fmtScheme></a:themeElements></a:theme>',
+    }
+    with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as package:
+        for name, content in members.items():
+            package.writestr(name, content)
+
+
 def _profile_filter_warm_marker(app_kind: str) -> Path:
     return _user_data_dir() / f"lo-profile-{app_kind}" / ".vnoffice-open-filters-warm-v1"
 
@@ -4589,6 +5071,10 @@ def _warmup_persistent_filter(app_kind: str) -> None:
             source_path = os.path.join(temp_dir, "vnoffice-filter-warmup.xlsx")
             target_ext = "fods"
             _write_profile_warmup_xlsx(source_path)
+        elif app_kind == "slides":
+            source_path = os.path.join(temp_dir, "vnoffice-filter-warmup.pptx")
+            target_ext = "fodp"
+            _write_profile_warmup_pptx(source_path)
         else:
             return
         started = time.perf_counter()

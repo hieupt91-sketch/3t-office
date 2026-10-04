@@ -34,7 +34,13 @@ NODE_ROUNDTRIP = REPO_ROOT / "tests" / "live" / "cdp" / "roundtrip-file.mjs"
 NODE_AUDIT_SHEET = REPO_ROOT / "scripts" / "audit-sheet-import.mjs"
 
 
-def _run_desktop_roundtrip(app: str, source: Path, destination: Path, edit: bool = False) -> dict[str, Any]:
+def _run_desktop_roundtrip(
+    app: str,
+    source: Path,
+    destination: Path,
+    edit: bool = False,
+    large_file: bool = False,
+) -> dict[str, Any]:
     node = shutil.which("node")
     if not node:
         return {"status": "BLOCKED", "message": "Node.js is not installed."}
@@ -51,6 +57,8 @@ def _run_desktop_roundtrip(app: str, source: Path, destination: Path, edit: bool
     ]
     if edit:
         command.extend(["--edit", "true"])
+    if large_file:
+        command.extend(["--large-file", "true"])
     try:
         result = subprocess.run(
             command,
@@ -178,7 +186,7 @@ def _run_xlsx(root: Path, input_dir: Path, out_dir: Path, names: list[str]) -> l
             rows.append(row)
             continue
         saved = out_dir / (source.stem + ".roundtrip.xlsx")
-        source_payload = _run_desktop_roundtrip("sheet", source, saved)
+        source_payload = _run_desktop_roundtrip("sheet", source, saved, large_file=True)
         row["saved"] = "yes" if saved.is_file() else "no"
         row["status"] = source_payload.get("status", "FAIL")
         row["details"] = source_payload.get("message", "")

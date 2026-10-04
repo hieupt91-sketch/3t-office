@@ -65,6 +65,27 @@ def _source_xlsx() -> bytes:
 
 
 class SheetOpenPhase1Tests(unittest.TestCase):
+    def test_p1b_sheet_header_scan_does_not_visit_cells(self):
+        xml = (
+            '<table:table table:name="Data"><table:table-row>'
+            '<table:table-cell/><table:table-cell/></table:table-row></table:table>'
+        )
+        matches = list(ooxml_zip_patch._FREEZE_TABLE_TAG_RE.finditer(xml))
+        self.assertEqual(len(matches), 1)
+        self.assertIn('table:name="Data"', matches[0].group(1))
+
+    def test_p1b_cell_attribute_parser_reads_r_s_t_in_one_pass(self):
+        self.assertEqual(
+            ooxml_zip_patch._p1_cell_attributes(
+                " custom='x' t=\"inlineStr\" s='17' r=\"bc2048\""
+            ),
+            ("bc2048", 17, "inlinestr"),
+        )
+        self.assertEqual(
+            ooxml_zip_patch._p1_coordinate_key("bc2048"),
+            (2048, 55),
+        )
+
     def test_skip_initial_xf_flag_is_opt_in(self):
         with patch.dict(os.environ, {"SHEET_OPEN_SKIP_INITIAL_XF": ""}):
             self.assertFalse(vn_main._sheet_open_skip_initial_xf_enabled())

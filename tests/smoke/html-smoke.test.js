@@ -207,18 +207,25 @@ export async function runHtmlSmokeTests() {
     const browserName = path.basename(browserBinary);
     const fileUrl = "file:///" + INDEX_HTML_PATH.replace(/\\/g, "/");
 
+    // Headless Edge occasionally dumps the DOM before the modules have run when the machine is busy (other agents
+    // running audits). Retry ONLY while the page has not mounted at all; a genuinely broken UI fails every attempt.
+    const dumpDomWithRetry = (url, virtualTimeBudget, mountedMarker) => {
+      let last;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        last = spawnSync(browserBinary, [
+          "--headless=new",
+          "--allow-file-access-from-files",
+          `--virtual-time-budget=${virtualTimeBudget}`,
+          "--dump-dom",
+          url
+        ], { encoding: "utf8", timeout: 30000, windowsHide: true });
+        if (last.status === 0 && (last.stdout || "").includes(mountedMarker)) break;
+      }
+      return last;
+    };
+
     try {
-      const proc = spawnSync(browserBinary, [
-        "--headless=new",
-        "--allow-file-access-from-files",
-        "--virtual-time-budget=10000",
-        "--dump-dom",
-        fileUrl
-      ], {
-        encoding: "utf8",
-        timeout: 15000,
-        windowsHide: true
-      });
+      const proc = dumpDomWithRetry(fileUrl, 10000, "vno-shell");
 
       const renderedDom = proc.stdout || "";
       const hasRoot = renderedDom.includes('id="vno-app-root"');
@@ -263,13 +270,7 @@ export async function runHtmlSmokeTests() {
         ...(!webSwitcherVisible ? { error: "Không tìm thấy switcher trong web mode mặc định" } : {})
       });
 
-      const sheetProc = spawnSync(browserBinary, [
-        "--headless=new",
-        "--allow-file-access-from-files",
-        "--virtual-time-budget=3000",
-        "--dump-dom",
-        `${fileUrl}?app=sheet&singleApp=1`
-      ], { encoding: "utf8", timeout: 15000, windowsHide: true });
+      const sheetProc = dumpDomWithRetry(`${fileUrl}?app=sheet&singleApp=1`, 3000, 'data-app="sheet"');
       const sheetDom = sheetProc.stdout || "";
       const sheetSingleAppPassed = sheetProc.status === 0 &&
         sheetDom.includes('data-app="sheet"') &&
