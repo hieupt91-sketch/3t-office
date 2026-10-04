@@ -5,6 +5,7 @@ import { press, typeText } from "./actions.mjs";
 import { launchApp } from "./session.mjs";
 
 const extensions = { writer: "docx", sheet: "xlsx", slides: "pptx" };
+const LARGE_FILE_EVALUATE_TIMEOUT_MS = 1500000;
 
 function parseArguments(args) {
   const parsed = {};
@@ -55,7 +56,7 @@ async function editWriterThroughKeyboard(cdp) {
   return { pass: Boolean(verified), detail: "Bold shortcut and ZZ inserted via CDP." };
 }
 
-async function serialize(session) {
+async function serialize(session, largeFile = false) {
   const expression = session.app === "writer"
     ? "window.__vnoAppInstance.adapter._contentForExport()"
     : session.app === "sheet"
@@ -65,6 +66,7 @@ async function serialize(session) {
     "(() => { window.__vnoAuditContent = " + expression + ";"
     + " if (typeof window.__vnoAuditContent !== 'string' || !window.__vnoAuditContent.trim()) throw new Error('Loaded document content was empty.');"
     + " return window.__vnoAuditContent.length; })()",
+    largeFile ? { timeoutMilliseconds: LARGE_FILE_EVALUATE_TIMEOUT_MS } : {},
   );
   return length;
 }
@@ -92,26 +94,26 @@ async function writeSentContent(session, sentPath, length) {
   return bytes;
 }
 
-export async function roundtripFile({ app, input, output, edit = false }) {
+export async function roundtripFile({ app, input, output, edit = false, largeFile = false }) {
   if (!extensions[app]) throw new Error("Expected app to be writer, sheet, or slides.");
   const inputPath = path.resolve(input);
   const outputPath = path.resolve(output);
   const session = await launchApp(app, { filePath: inputPath });
   try {
     await waitForSource(session, inputPath);
-    const before = await serialize(session);
+    const before = await serialize(session, largeFile);
     const sentPath = outputPath + (app === "sheet" ? ".sent.fods" : app === "writer" ? ".sent.html" : ".sent.fodp");
     const beforeBytes = edit ? await writeSentContent(session, sentPath, before) : null;
     const editResult = app === "writer" && edit
       ? await editWriterThroughKeyboard(session.cdp)
       : { pass: true, detail: "No edit requested." };
-    const length = edit ? await serialize(session) : before;
+    const length = edit ? await serialize(session, largeFile) : before;
     const contentBytes = await writeSentContent(session, sentPath, length);
     const saved = await session.cdp.evaluate(
-      "window.pywebview.api.save_document_in_place("
-      + "window.__vnoAuditContent, " + JSON.stringify(app) + ", "
+      "globalThis.globalUnoBridge.saveRealFileInPlace("
+      + JSON.stringify(app) + ", window.__vnoAuditContent, "
       + JSON.stringify(outputPath) + ", " + JSON.stringify(inputPath) + ")",
-      { timeoutMilliseconds: 1200000 },
+      { timeoutMilliseconds: largeFile ? LARGE_FILE_EVALUATE_TIMEOUT_MS : 1200000 },
     );
     if (saved?.status !== "ok") throw new Error("App save service failed: " + JSON.stringify(saved));
     const stat = await fs.stat(outputPath);
@@ -137,11 +139,17 @@ export async function roundtripFile({ app, input, output, edit = false }) {
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   const args = parseArguments(process.argv.slice(2));
   if (!args.app || !args.input || !args.output) {
-    console.error("Usage: node --experimental-websocket tests/live/cdp/roundtrip-file.mjs --app <app> --input <file> --output <file> [--edit true]");
+    console.error("Usage: node --experimental-websocket tests/live/cdp/roundtrip-file.mjs --app <app> --input <file> --output <file> [--edit true] [--large-file true]");
     process.exitCode = 2;
   } else {
     try {
-      const result = await roundtripFile({ app: args.app, input: args.input, output: args.output, edit: args.edit === "true" });
+      const result = await roundtripFile({
+        app: args.app,
+        input: args.input,
+        output: args.output,
+        edit: args.edit === "true",
+        largeFile: args["large-file"] === "true",
+      });
       console.log("RESULT " + JSON.stringify(result));
     } catch (error) {
       console.error("FAIL " + (error?.stack || error));
