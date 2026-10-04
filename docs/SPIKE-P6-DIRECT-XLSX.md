@@ -64,60 +64,77 @@ Kết quả: **PASS 4/4**. Các ca bao phủ giá trị Unicode, số/boolean, c
 
 ## 5. Đối chiếu corpus LAN
 
-Corpus yêu cầu không có trong worktree: `E:\VNOffice-codex-p6\file test\lan` không tồn tại. Repo chỉ dẫn tới corpus khác ở `E:\VN OFice\file test\lan`, nhưng ranh giới nhiệm vụ chỉ cho phép đọc/ghi trong worktree và `E:\VNOffice-profiles\codex-p6-*`; vì vậy spike không đọc đường ngoài phạm vi đó. Không có file nào được tự nhận PASS và không có số đo giả.
+Đã được người phụ trách cho phép **chỉ đọc** 28 file `lan01.xlsx`…`lan28.xlsx` tại `E:\VN OFice\file test\lan`. Tất cả artifact FODS/payload/model/comparison được ghi ngoài repo vào `E:\VNOffice-profiles\codex-p6-1`; không ghi hoặc sửa corpus. Mỗi số “direct” dưới đây là một lần chạy CLI prototype; với file bị loại, đó là thời gian detector đi đến quyết định fallback. Đường cũ chỉ chạy cho hai file đơn giản và ba file benchmark bắt buộc.
 
-| File | Đơn giản? | Thời gian mới vs cũ | Số ô khác biệt | Loại khác biệt |
-|---|---:|---:|---:|---|
-| lan01.xlsx | BLOCKED | NOT RUN / NOT RUN | NOT RUN | thiếu corpus trong worktree |
-| lan02.xlsx | BLOCKED | NOT RUN / NOT RUN | NOT RUN | thiếu corpus trong worktree |
-| lan03.xlsx | BLOCKED | NOT RUN / NOT RUN | NOT RUN | thiếu corpus trong worktree |
-| lan04.xlsx | BLOCKED | NOT RUN / NOT RUN | NOT RUN | thiếu corpus trong worktree |
-| lan05.xlsx | BLOCKED | NOT RUN / NOT RUN | NOT RUN | thiếu corpus trong worktree |
-| lan06.xlsx | BLOCKED | NOT RUN / NOT RUN | NOT RUN | thiếu corpus trong worktree |
-| lan07.xlsx | BLOCKED | NOT RUN / NOT RUN | NOT RUN | thiếu corpus trong worktree |
-| lan08.xlsx | BLOCKED | NOT RUN / NOT RUN | NOT RUN | thiếu corpus trong worktree |
-| lan09.xlsx | BLOCKED | NOT RUN / NOT RUN | NOT RUN | thiếu corpus trong worktree |
-| lan10.xlsx | BLOCKED | NOT RUN / NOT RUN | NOT RUN | thiếu corpus trong worktree |
-| lan11.xlsx | BLOCKED | NOT RUN / NOT RUN | NOT RUN | thiếu corpus trong worktree |
-| lan12.xlsx | BLOCKED | NOT RUN / NOT RUN | NOT RUN | thiếu corpus trong worktree |
-| lan13.xlsx | BLOCKED | NOT RUN / NOT RUN | NOT RUN | thiếu corpus trong worktree |
-| lan14.xlsx | BLOCKED | NOT RUN / NOT RUN | NOT RUN | thiếu corpus trong worktree |
-| lan15.xlsx | BLOCKED | NOT RUN / NOT RUN | NOT RUN | thiếu corpus trong worktree |
-| lan16.xlsx | BLOCKED | NOT RUN / NOT RUN | NOT RUN | thiếu corpus trong worktree |
-| lan17.xlsx | BLOCKED | NOT RUN / NOT RUN | NOT RUN | thiếu corpus trong worktree |
-| lan18.xlsx | BLOCKED | NOT RUN / NOT RUN | NOT RUN | thiếu corpus trong worktree |
-| lan19.xlsx | BLOCKED | NOT RUN / NOT RUN | NOT RUN | thiếu corpus trong worktree |
-| lan20.xlsx | BLOCKED | NOT RUN / NOT RUN | NOT RUN | thiếu corpus trong worktree |
-| lan21.xlsx | BLOCKED | NOT RUN / NOT RUN | NOT RUN | thiếu corpus trong worktree |
-| lan22.xlsx | BLOCKED | NOT RUN / NOT RUN | NOT RUN | thiếu corpus trong worktree |
-| lan23.xlsx | BLOCKED | NOT RUN / NOT RUN | NOT RUN | thiếu corpus trong worktree |
-| lan24.xlsx | BLOCKED | NOT RUN / NOT RUN | NOT RUN | thiếu corpus trong worktree |
-| lan25.xlsx | BLOCKED | NOT RUN / NOT RUN | NOT RUN | thiếu corpus trong worktree |
-| lan26.xlsx | BLOCKED | NOT RUN / NOT RUN | NOT RUN | thiếu corpus trong worktree |
-| lan27.xlsx | BLOCKED | NOT RUN / NOT RUN | NOT RUN | thiếu corpus trong worktree |
-| lan28.xlsx | BLOCKED | NOT RUN / NOT RUN | NOT RUN | thiếu corpus trong worktree |
+| File | Đơn giản? | Direct/detector (s) | Đường cũ đủ pha (s) | Số ô khác | Lý do detector / loại khác biệt |
+|---|---:|---:|---:|---:|---|
+| lan01.xlsx | Không | 4,363 | — | — | formula non-scalar; rich string; workbook `extLst` |
+| lan02.xlsx | Không | 0,004 | — | — | formula non-scalar; drawing; rich string |
+| lan03.xlsx | Không | 0,029 | **13,344** | — | formula non-scalar; drawing; rich string; conditional formatting; `extLst` |
+| lan04.xlsx | Không | 0,006 | — | — | formula non-scalar; drawing; rich string |
+| lan05.xlsx | Không | 0,019 | — | — | formula non-scalar |
+| lan06.xlsx | Không | 5,630 | — | — | formula non-scalar; `extLst` |
+| lan07.xlsx | Không | 0,009 | — | — | formula non-scalar; `extLst` |
+| lan08.xlsx | Không | 0,014 | — | — | formula non-scalar; drawing; rich string; conditional formatting; comment |
+| lan09.xlsx | Không | 0,710 | — | — | drawing; rich string; hyperlink; external link; `extLst` |
+| lan10.xlsx | Không | 0,013 | — | — | drawing; rich string; OLE/embedding |
+| lan11.xlsx | Không | 0,084 | — | — | drawing; rich string; conditional formatting; hyperlink; `extLst` |
+| lan12.xlsx | Không | 0,026 | — | — | drawing; rich string; `extLst` |
+| lan13.xlsx | Không | 0,010 | — | — | formula non-scalar; `extLst` |
+| lan14.xlsx | Không | 4,865 | **94,247** | — | formula non-scalar; drawing; rich string; conditional formatting; external link; `extLst` |
+| lan15.xlsx | Không | 0,047 | — | — | drawing; rich string; hyperlink; `extLst` |
+| lan16.xlsx | Không | 0,037 | — | — | formula non-scalar; drawing; rich string; conditional formatting |
+| lan17.xlsx | Không | 0,029 | — | — | formula non-scalar; `extLst` |
+| lan18.xlsx | Không | 0,004 | — | — | drawing; rich string; `extLst` |
+| lan19.xlsx | Không | 0,005 | — | — | formula non-scalar; drawing; rich string; `extLst` |
+| lan20.xlsx | Không | 0,010 | — | — | formula non-scalar; `extLst` |
+| lan21.xlsx | **Có** | **0,021** | 3,718 | **254** | 254 ô rỗng tường minh bị đường cũ lược bỏ; các trường semantic còn lại khớp |
+| lan22.xlsx | Không | 0,017 | — | — | external link; `extLst` |
+| lan23.xlsx | Không | 0,014 | — | — | formula non-scalar |
+| lan24.xlsx | Không | 0,005 | — | — | formula non-scalar; drawing |
+| lan25.xlsx | Không | 0,013 | — | — | table part |
+| lan26.xlsx | Không | 0,265 | **16,130** | — | formula non-scalar; drawing; rich string; person metadata; `extLst` |
+| lan27.xlsx | **Có** | **0,077** | 17,343 | **707** | 707 ô rỗng tường minh bị đường cũ lược bỏ; các trường semantic còn lại khớp |
+| lan28.xlsx | Không | 0,022 | — | — | formula non-scalar; `extLst` |
 
-Tỷ lệ file đơn giản, thời gian so với mục tiêu 35 giây và số ô lệch đều **chưa thể kết luận** khi chưa chạy corpus thật.
+Tỷ lệ detector nhận “đơn giản” là **2/28 = 7,14%**. Comparator dùng mô hình thật sau `buildSheetPayloadModel` trong WebView2. Kết quả chi tiết:
+
+- `lan21`: direct 1.089 cell record, đường cũ materialize 835; 254/1.089 ô khác biệt đều là ô rỗng tường minh. 18/18 tên và thứ tự sheet khớp.
+- `lan27`: direct 5.136 cell record, đường cũ materialize 4.429; 707/5.136 ô khác biệt đều là ô rỗng tường minh.
+- Trên các ô cùng tồn tại: **0 khác biệt** về giá trị, công thức, kiểu và `numberFormat`. `numberFormat` cũ là object giàu metadata nên được so bằng `excelCode` với mã OOXML của direct.
+- Merge, độ rộng cột, chiều cao dòng (chuẩn hóa point → pixel theo công thức Excel hiện có), ẩn hàng/cột, tên sheet và used range đều khớp. Không ép 254/707 ô rỗng thành PASS: direct hiện bảo tồn record rỗng mà đường cũ chủ động không materialize chúng.
+
+### Benchmark đường cũ
+
+“Đủ pha” = LibreOffice→FODS + native overlay + optimize + tạo payload Python + bridge WebView2 + `JSON.parse`/`buildSheetPayloadModel`. Đây là benchmark pipeline, không cộng thời gian boot chrome/app shell.
+
+| File | LO→FODS | Overlay | Optimize | Payload Python | Bridge | JS parse+model | Tổng | So mục tiêu 35 s |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| lan03 | 6,532 | 1,991 | 0,742 | 1,711 | 1,245 | 1,124 | **13,344** | Đạt |
+| lan14 | 17,975 | 22,255 | 13,927 | 17,686 | 1,111 | 21,293 | **94,247** | Không đạt; +59,247 s |
+| lan26 | 5,556 | 3,029 | 1,824 | 2,948 | 1,244 | 1,529 | **16,130** | Đạt |
+
+`lan14` sinh raw FODS 257.170.145 byte, final FODS 315.991.252 ký tự và mô hình 1.490.828 ô. Số mới thấp hơn mốc mở đầy đủ khoảng 106 s trước đó nhưng vẫn vượt xa mục tiêu 35 s. File này cũng bị detector direct loại sau 4,865 s, nên prototype hiện **không** giải quyết trường hợp khó nhất.
 
 ## 6. Kết luận khả thi
 
-Kết luận tạm thời: đọc trực tiếp là khả thi về mặt cơ chế cho subset bảo thủ; prototype chứng minh có thể stream worksheet và dựng đầy đủ dữ kiện cơ bản mà không thêm dependency. Tuy nhiên chưa đủ bằng chứng để bật trong app, kể cả sau cờ, vì cổng 28 file đang BLOCKED và schema chưa nối vào `buildSheetPayloadModel`.
+Đọc trực tiếp khả thi về tốc độ cho subset rất hẹp: hai file được nhận đều đọc dưới 0,1 s và thấp hơn 35 s rất xa. Tuy nhiên mức phủ **7,14%** chưa đủ để biện minh cho việc tích hợp production, và comparator còn cho thấy direct giữ styled/explicit empty cell khác với mô hình hiện tại. Kết luận P6 hiện tại là **không nên bật**, kể cả sau feature flag, trước khi định nghĩa rõ semantics của ô rỗng và tăng mức phủ hoặc chứng minh 7,14% đem lại giá trị thực tế đáng kể.
 
 Các phần khó nhất còn lại:
 
-1. Chuẩn hóa formula Excel ↔ mô hình VN Sheet, gồm shared/array formula, external reference và cached error/string.
-2. Date/time và precision: serial 1900/1904, leap-year giả của Excel, số dài, scientific notation và format locale.
-3. Style: theme/tint/indexed colors, inheritance qua `cellStyleXfs`, custom number format, styled-empty cell và default row/column style.
-4. Used range/hình học: dimension sai hoặc phình, row/column range lặp, hidden/filter/outline, covered cell của merge.
-5. Tạo đúng mô hình JS hiện tại mà không dựng FODS trung gian, đồng thời detector không false-positive.
+1. Formula shared/array/data-table và external reference; đây là lý do loại phổ biến nhất trong corpus.
+2. Rich shared string, drawing/image và conditional formatting; bỏ qua các phần này sẽ tạo false-positive mất dữ liệu.
+3. Date/time và precision: serial 1900/1904, leap-year giả, số dài/scientific và locale.
+4. Style đầy đủ: theme/tint/indexed colors, `cellStyleXfs`, number-format object, styled-empty cell và default row/column style.
+5. Adapter JS nhận schema direct, fallback nguyên tử về LibreOffice khi parse/build lỗi, telemetry cục bộ và kiểm thử desktop offline.
 
-Ước lượng sau khi corpus hợp lệ: 8–13 ngày kỹ sư cho comparator semantic tự động, hoàn thiện parser subset, adapter JS nhận schema direct, cờ `VNO_OPEN_DIRECT=1`, fallback LibreOffice, telemetry lỗi, test/hướng dẫn tiếng Việt và đo desktop. Chỉ nên bắt đầu tích hợp sau khi: (a) mọi file detector nhận “đơn giản” có 0 khác biệt ở trường đã cam kết; (b) mở end-to-end dưới 35 giây; (c) mọi lỗi parse tự động fallback mà không mất dữ liệu.
+Ước lượng còn lại cho **subset hiện tại**: 7–10 ngày kỹ sư (chốt semantics ô rỗng, adapter JS, feature flag, fallback, error states, test và hướng dẫn tiếng Việt). Để tăng mức phủ corpus một cách đáng kể cần thêm khoảng **15–25+ ngày kỹ sư**, chủ yếu cho formula/rich text/drawing/conditional formatting; con số này cần spike riêng trước khi cam kết vì các tính năng đó đang là vùng LibreOffice xử lý tốt hơn. Điều kiện vào production vẫn là: 0 khác biệt semantic đã cam kết, mở end-to-end dưới 35 s, và mọi lỗi tự fallback không mất dữ liệu.
 
-## 7. Cách chạy lại khi corpus nằm trong phạm vi cho phép
+## 7. Cách chạy lại
 
 ```text
-python scripts/perf-proto/direct_xlsx_reader.py "file test/lan/lan01.xlsx" --detect-only
-python scripts/perf-proto/direct_xlsx_reader.py "file test/lan/lan01.xlsx" --output "E:/VNOffice-profiles/codex-p6-direct/lan01.direct.json"
+python scripts/perf-proto/direct_xlsx_reader.py "E:/VN OFice/file test/lan/lan21.xlsx"
+python -m unittest tests.test_direct_xlsx_reader -v
 ```
 
-Đối chiếu đầy đủ vẫn cần harness chạy đường LibreOffice hiện tại, hydrate payload v2 qua parser JS rồi so semantic theo từng ô. Không được dùng payload direct làm oracle cho chính nó.
+Đặt `LOCALAPPDATA` dưới `E:\VNOffice-profiles\codex-p6-N`; ghi artifact ngoài repo; không commit XLSX/FODS/payload/model tài liệu thật. Harness CDP chỉ điều khiển qua DevTools Protocol, không dùng SendKeys/SendInput/pyautogui.
