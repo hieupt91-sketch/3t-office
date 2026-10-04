@@ -192,6 +192,16 @@ class OpenPackageLeniencyTests(unittest.TestCase):
             source.write_bytes(b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + b"\0" * 512)
             main.VnOfficeApi(app_kind="sheet")._validate_open_package(str(source), "sheet")
 
+    def test_pdf_renamed_to_an_office_extension_gets_a_specific_message(self):
+        for app_kind, name in (("writer", "scan.docx"), ("sheet", "scan.xlsx"), ("slides", "scan.pptx")):
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as temp_dir:
+                source = Path(temp_dir) / name
+                source.write_bytes(b"%PDF-1.7\n" + b"0" * 2048)
+                with self.assertRaises(main.DocumentEngineError) as ctx:
+                    main.VnOfficeApi(app_kind=app_kind)._validate_open_package(str(source), app_kind)
+                self.assertIn("PDF", str(ctx.exception))
+                self.assertIn(Path(name).suffix, str(ctx.exception))
+
     def test_odf_with_wrong_mimetype_is_rejected(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             source = Path(temp_dir) / "wrong.ods"
