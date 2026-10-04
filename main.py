@@ -4160,6 +4160,13 @@ class VnOfficeApi:
             # LibreOffice detect the real format, so let the engine decide.
             if signature == b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1":
                 return
+            if signature.startswith(b"%PDF"):
+                # A PDF renamed to .docx/.xlsx/.pptx (seen in the LAN sample as d10.docx): say what it really is.
+                raise DocumentEngineError(
+                    f"Tệp này có đuôi {extension} nhưng thực chất là tài liệu PDF nên không mở như tài liệu soạn thảo được. "
+                    "Hãy mở bằng trình đọc PDF, hoặc xuất bản gốc ra đúng định dạng rồi mở lại. "
+                    "Tài liệu đang mở được giữ nguyên."
+                )
             with zipfile.ZipFile(source_path) as package:
                 members = set(package.namelist())
                 if key in ooxml:
