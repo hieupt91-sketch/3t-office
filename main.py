@@ -27,6 +27,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import hashlib
 import threading
 import time
 import uuid
@@ -1398,6 +1399,9 @@ def _persistent_writer_html_safe(source_path: str, app_kind: str | None, target_
     return True
 
 
+_PRINT_CONTEXT = threading.local()
+
+
 def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind: str | None = None) -> str:
     """Chạy LibreOffice headless để chuyển đổi thật một tệp. Trả về đường dẫn tệp kết quả."""
     started_at = time.monotonic()
@@ -1479,7 +1483,13 @@ def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind:
         # VNO_PRINT_LEGACY=1 restores the CLI path.
         or (os.environ.get("VNO_PRINT_LEGACY") != "1"
             and app_kind == "writer" and target_ext == "pdf" and source_ext in {".docx", ".odt"})
+        # The print source (HTML -> DOCX) used to run as a cold CLI and then force a second
+        # worker start for the PDF; keep both on the warm worker. Print only, never Save.
+        or (os.environ.get("VNO_PRINT_LEGACY") != "1" and getattr(_PRINT_CONTEXT, "active", False)
+            and app_kind == "writer" and target_ext == "docx" and source_ext == ".html")
     )
+    if persistent_pair_is_validated and source_ext == ".html" and target_ext == "docx" and input_filter is None:
+        input_filter = "HTML (StarWriter)"
     use_persistent_worker = (
         _PERSISTENT_SOFFICE_ENABLED
         and persistent_pair_is_validated
@@ -1507,6 +1517,18 @@ def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind:
                     csv_filter_options,
                 )
                 if Path(persistent_path).is_file():
+                    if target_ext == "docx" and os.environ.get("VNO_PRINT_VERIFY") == "1" and src_path.lower().endswith(".html"):
+                        _PERSISTENT_SOFFICE.release_for_cli_fallback(app_kind)
+                        with tempfile.TemporaryDirectory() as cli_dir:
+                            subprocess.run(cmd[:-3] + ["--outdir", cli_dir, src_path], capture_output=True, timeout=120, check=False)
+                            cli_docx = Path(cli_dir) / out_path.name
+
+                            def _parts(path):
+                                with zipfile.ZipFile(path) as z:
+                                    return {n: hashlib.sha256(z.read(n)).hexdigest() for n in z.namelist() if n.startswith("word/") or n == "[Content_Types].xml"}
+                            pa, pb = _parts(persistent_path), _parts(cli_docx)
+                            diff = sorted(n for n in set(pa) | set(pb) if pa.get(n) != pb.get(n))
+                            print(f"[VNO Print Verify] docx parts_equal={not diff} differing={diff[:6]}", flush=True)
                     if target_ext == "pdf" and os.environ.get("VNO_PRINT_VERIFY") == "1":
                         # Diagnostic only: compare with what the CLI path would have produced.
                         _PERSISTENT_SOFFICE.release_for_cli_fallback(app_kind)
@@ -2241,10 +2263,18 @@ def _write_print_source(
     target_format = _PRINT_NATIVE_FORMAT.get(app_kind)
     if not target_format:
         raise ValueError(f"Loại ứng dụng không hợp lệ: {app_kind}")
+    _stage_t = time.perf_counter()
     interchange_path = _write_save_source(content, app_kind, temp_dir, target_format)
-    native_path = _convert_save_source_to_native(
-        interchange_path, app_kind, target_format, source_document_path=source_document_path,
-    )
+    _open_perf_log("print_write_interchange", app=app_kind, ms=round((time.perf_counter() - _stage_t) * 1000, 1))
+    _stage_t = time.perf_counter()
+    _PRINT_CONTEXT.active = True
+    try:
+        native_path = _convert_save_source_to_native(
+            interchange_path, app_kind, target_format, source_document_path=source_document_path,
+        )
+    finally:
+        _PRINT_CONTEXT.active = False
+    _open_perf_log("print_convert_native", app=app_kind, ms=round((time.perf_counter() - _stage_t) * 1000, 1))
     if app_kind == "sheet" and target_format == "xlsx":
         try:
             options = print_options if isinstance(print_options, dict) else {}
