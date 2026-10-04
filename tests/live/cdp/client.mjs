@@ -121,9 +121,14 @@ export async function connectToPort(port, options = {}) {
     try {
       const targets = await readTargets(port);
       const pages = targets.filter(target => target.type === "page");
+      // The app page can still be about:blank (or a DevTools page can be listed first) right after launch. Wait for the
+      // real localhost page and only settle for another page near the end of the time budget; connecting to the wrong
+      // target made ~1 in 20 automated launches look "stuck" (04/10/2026).
+      const appPage = pages.find(page => /127\.0\.0\.1|localhost/.test(page.url || ""));
+      const nearDeadline = Date.now() - started > timeoutMilliseconds * 0.8;
       const target = options.targetId
         ? pages.find(page => page.id === options.targetId)
-        : pages.find(page => /127\.0\.0\.1|localhost/.test(page.url || "")) || pages[0];
+        : appPage || (nearDeadline ? pages[0] : undefined);
       if (target) return await new CdpClient(target).open();
     } catch (error) {
       lastError = error;
