@@ -411,6 +411,7 @@ def _initialize_deferred_services(api, app_kind: str, launch_args: list[str]) ->
     else:
         _UPDATE_MANAGER = None
     api._updater = _UPDATE_MANAGER
+    _start_license_background_refresh(api)
     try:
         queue_rollback_report(_ERROR_REPORTER, _UPDATE_DATA_DIR)
     except Exception as exc:
@@ -418,6 +419,44 @@ def _initialize_deferred_services(api, app_kind: str, launch_args: list[str]) ->
     finally:
         _startup_trace("background_services_ready", app=app_kind)
         _BACKGROUND_SERVICES_READY.set()
+
+
+def _license_app_version() -> str:
+    """Số phiên bản thật của bản cài (VERSION.txt) gửi cho máy chủ bản quyền; ngoài bản cài dùng APP_VERSION."""
+    try:
+        install_root = _update_install_root()
+        if install_root:
+            text = (install_root / "VERSION.txt").read_text(encoding="ascii").strip()
+            if text:
+                return text[:40]
+    except Exception:
+        pass
+    return APP_VERSION
+
+
+def _license_refresh_due(status: dict) -> bool:
+    """Chỉ làm mới khi đã kích hoạt VÀ đã gần/qua hạn xác nhận; dùng thử hoặc chưa kích hoạt thì không gọi mạng."""
+    if not status.get("licensed"):
+        return False
+    if status.get("state") != "active":
+        return True
+    days = status.get("days_until_check")
+    return isinstance(days, (int, float)) and days <= 7
+
+
+def _start_license_background_refresh(api) -> None:
+    """Sau khi khởi động xong, lặng lẽ xác nhận lại bản quyền khi tới hạn. Mất mạng/lỗi: bỏ qua, không ảnh hưởng ai."""
+
+    def worker() -> None:
+        time.sleep(30)  # không tranh tài nguyên với việc mở tài liệu đầu tiên
+        try:
+            manager = api._license_manager()
+            if _license_refresh_due(manager.status()):
+                manager.refresh()
+        except Exception as exc:
+            logging.getLogger("vnoffice.license").debug("License background refresh skipped: %s", type(exc).__name__)
+
+    threading.Thread(target=worker, name="vno-license-refresh", daemon=True).start()
 
 
 def _start_deferred_startup(api, app_kind: str, launch_args: list[str]) -> None:
@@ -3051,7 +3090,7 @@ class VnOfficeApi:
             # VNO_LICENSE_API_BASE lets automated tests point at a local or closed port instead of the live server.
             manager = LicenseManager(
                 _user_data_dir(),
-                APP_VERSION,
+                _license_app_version(),
                 api_base=os.environ.get("VNO_LICENSE_API_BASE") or DEFAULT_API_BASE,
                 platform_name=_license_platform_name(),
             )
