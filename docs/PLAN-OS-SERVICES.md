@@ -1,8 +1,11 @@
 # Kế hoạch tách dịch vụ hệ điều hành (platform/os_services)
 
-Ngày lập: 04/10/2026  
-Nhánh: plan/os-services-codex  
-Mốc nguồn: main tại 951f4e22ad164950c4fa92620fa4b0a2d4cf8e98  
+Ngày lập: 04/10/2026
+
+Nhánh: plan/os-services-codex
+
+Mốc nguồn: main tại 951f4e22ad164950c4fa92620fa4b0a2d4cf8e98
+
 Trạng thái: **CHỜ CHỦ SỞ HỮU PHÊ DUYỆT — chưa được phép refactor**
 
 ## 1. Mục tiêu, phạm vi và căn cứ
@@ -383,21 +386,36 @@ Không giao hai coding agent cùng sửa windows.py; agent miền khác chuẩn 
 
 ## 10. Handoff chính (theo AGENT-HANDOFF)
 
-**TASK:** Lập kế hoạch tách Windows vào platform/os_services; không sửa ứng dụng.  
-**AGENT/ROLE:** Codex / Architecture planning.  
-**BRANCH:** plan/os-services-codex.  
-**WORKTREE:** E:\VNOffice-codex-os.  
-**OBJECTIVE:** Inventory bằng chứng, Protocol, chuỗi PR, test/perf gate, rollback và câu hỏi phê duyệt.  
-**FINDINGS:** Windows code nằm ở main/Platform/Adapter/updater/installer; process_tracker chưa dùng Job Object; platform đụng tên stdlib; có bốn capability ngoài danh sách ban đầu.  
-**IMPLEMENTATION SUMMARY:** Chỉ thêm tài liệu kế hoạch; không tạo os_services, không sửa source/build/app, không thêm dependency.  
-**FILES CHANGED:** docs/PLAN-OS-SERVICES.md.  
-**COMMANDS RUN:** Đọc hai spec; rg/git ls-files kiểm kê; kiểm tra branch/base/status; công kiểm ghi dưới.  
-**BUILD RESULT:** NOT RUN — chỉ thay docs, không có build artifact.  
-**TEST RESULTS:** PASS — lần chạy lại node tests/run-tests.js đạt 2753/2753, 0 FAIL. Lần đầu FAIL 2751/2753 do hai ca Browser Headless cùng không mount DOM/switcher; không đổi source/expected, chạy lại nguyên lệnh thì xanh. Python/CDP/build: NOT RUN vì task chỉ sửa tài liệu.  
-**KNOWN FAILURES:** Hai lỗi Browser Headless không tái lập ở lần chạy thứ hai; cần coi đây là dấu hiệu flake môi trường Edge nếu tái xuất hiện ở baseline triển khai.  
-**RISKS:** Cao nhất là update rollback, cleanup PID, GDI fidelity.  
-**DEPENDENCIES/BLOCKERS:** Cần chủ sở hữu trả lời Q1–Q9 và duyệt plan trước P1.  
-**CORE PATCH ID:** Không có.  
+**TASK:** Lập kế hoạch tách Windows vào platform/os_services; không sửa ứng dụng.
+
+**AGENT/ROLE:** Codex / Architecture planning.
+
+**BRANCH:** plan/os-services-codex.
+
+**WORKTREE:** E:\VNOffice-codex-os.
+
+**OBJECTIVE:** Inventory bằng chứng, Protocol, chuỗi PR, test/perf gate, rollback và câu hỏi phê duyệt.
+
+**FINDINGS:** Windows code nằm ở main/Platform/Adapter/updater/installer; process_tracker chưa dùng Job Object; platform đụng tên stdlib; có bốn capability ngoài danh sách ban đầu.
+
+**IMPLEMENTATION SUMMARY:** Chỉ thêm tài liệu kế hoạch; không tạo os_services, không sửa source/build/app, không thêm dependency.
+
+**FILES CHANGED:** docs/PLAN-OS-SERVICES.md.
+
+**COMMANDS RUN:** Đọc hai spec; rg/git ls-files kiểm kê; kiểm tra branch/base/status; công kiểm ghi dưới.
+
+**BUILD RESULT:** NOT RUN — chỉ thay docs, không có build artifact.
+
+**TEST RESULTS:** PASS — lần chạy lại node tests/run-tests.js đạt 2753/2753, 0 FAIL. Lần đầu FAIL 2751/2753 do hai ca Browser Headless cùng không mount DOM/switcher; không đổi source/expected, chạy lại nguyên lệnh thì xanh. Python/CDP/build: NOT RUN vì task chỉ sửa tài liệu.
+
+**KNOWN FAILURES:** Hai lỗi Browser Headless không tái lập ở lần chạy thứ hai; cần coi đây là dấu hiệu flake môi trường Edge nếu tái xuất hiện ở baseline triển khai.
+
+**RISKS:** Cao nhất là update rollback, cleanup PID, GDI fidelity.
+
+**DEPENDENCIES/BLOCKERS:** Cần chủ sở hữu trả lời Q1–Q9 và duyệt plan trước P1.
+
+**CORE PATCH ID:** Không có.
+
 **NEXT ACTION:** Chủ sở hữu duyệt/chỉnh plan; sau đó tạo branch/worktree riêng cho P1.
 
 ### Đã làm
