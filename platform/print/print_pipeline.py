@@ -10,9 +10,43 @@ import shutil
 import subprocess
 import tempfile
 import threading
+import time
 import uuid
 from pathlib import Path
 from typing import Callable
+
+
+_PAGES_COUNT_RE = re.compile(rb"/Type\s*/Pages\b[^>]*?/Count\s+(\d+)|/Count\s+(\d+)[^>]*?/Type\s*/Pages\b")
+_PAGE_OBJECT_RE = re.compile(rb"/Type\s*/Page(?![A-Za-z])")
+
+
+def fast_pdf_page_count(pdf_path: str) -> int | None:
+    """Page count of a LibreOffice-written PDF without re-opening it in LibreOffice.
+
+    Returns None whenever the file does not look like a plain (uncompressed
+    page tree) PDF, or when the two independent readings disagree; callers then
+    use the slower engine inspection, so a wrong count is never trusted.
+    """
+    try:
+        data = Path(pdf_path).read_bytes()
+    except OSError:
+        return None
+    if not data.startswith(b"%PDF-"):
+        return None
+    declared = [int(a or b) for a, b in _PAGES_COUNT_RE.findall(data)]
+    objects = len(_PAGE_OBJECT_RE.findall(data))
+    if not declared or objects < 1:
+        return None
+    total = max(declared)
+    return total if total == objects else None
+
+
+def _perf(stage: str, started: float, **fields) -> None:
+    """Stage timing for the print preview; silent unless VNO_PERF_DEBUG is set."""
+    if os.environ.get("VNO_PERF_DEBUG") != "1":
+        return
+    extra = " ".join(f"{k}={v}" for k, v in fields.items())
+    print(f"[VNO Open Perf] {stage} {(time.perf_counter() - started) * 1000:.1f}ms {extra}".rstrip(), flush=True)
 
 
 PAGE_RANGE_ERROR = "Phạm vi trang không hợp lệ. Nhập số trang từ 1 đến tổng số trang, ví dụ 1-3,5."
@@ -163,12 +197,15 @@ class PrintPipeline:
         temp_dir = tempfile.TemporaryDirectory(prefix="vnoffice_print_", ignore_cleanup_errors=True)
         root = temp_dir.name
         try:
+            _t = time.perf_counter()
             if app_kind == "sheet" and isinstance(print_options, dict):
                 native_source_path = self._write_source(
                     content, app_kind, root, source_path, print_options,
                 )
             else:
                 native_source_path = self._write_source(content, app_kind, root, source_path)
+            _perf("print_write_source", _t, chars=len(content))
+            _t = time.perf_counter()
             engine_name = "LibreOffice"
             if use_office and self._convert_office_pdf:
                 for candidate in self._office_candidates(app_kind):
@@ -190,7 +227,10 @@ class PrintPipeline:
                 pdf_path = self._convert_pdf(native_source_path, app_kind, root)
             if not Path(pdf_path).is_file() or Path(pdf_path).stat().st_size <= 0:
                 raise RuntimeError("LibreOffice không tạo được tệp PDF xem trước.")
+            _perf("print_convert_pdf", _t, engine=engine_name)
+            _t = time.perf_counter()
             page_count = self._inspect_pdf(app_kind, pdf_path)
+            _perf("print_inspect_pdf", _t)
             if type(page_count) is not int or page_count < 1:
                 raise RuntimeError("LibreOffice không xác định được số trang PDF.")
             session_id = uuid.uuid4().hex
