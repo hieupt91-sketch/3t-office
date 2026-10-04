@@ -1,0 +1,950 @@
+{
+  "results": [
+    {
+      "file": "d01.docx",
+      "originalName": "2. ĐIỀU LỆ.docx",
+      "filePath": "E:\\VN OFice\\file test\\landocx\\d01.docx",
+      "sizeBytes": 82095,
+      "sizeMB": 0.0782918930053711,
+      "totalMs": 7439,
+      "seconds": 7.439,
+      "sPerMB": 95.01622344844388,
+      "isOver30s": false,
+      "isOver5sPerMB": true,
+      "flagged": true,
+      "note": "> 5s/MB (95.0 s/MB)",
+      "perfLines": [
+        "[VNO Open Perf] profile_seeded: app=writer",
+        "[VNO Open Perf] worker_stage_breakdown: app=writer python_and_uno_import=63.0 soffice_spawn=15.0 pipe_resolve=3203.0 desktop_service=16.0 resolve_attempts=150",
+        "[VNO Open Perf] worker_start_and_profile_ready: 3411.8 ms app=writer",
+        "[VNO Open Perf] uno_load_and_store: 1854.3 ms app=writer bytes=217791",
+        "[VNO Open Perf] background_filter_warmup_skipped: app=writer reason=profile-already-primed"
+      ],
+      "logFile": "docs/perf-measure/logs/doc_open_d01_run1.log",
+      "ramBefore": {
+        "totalGB": "15.85",
+        "freeGB": "7.62",
+        "usedGB": "8.23",
+        "usedPercent": "51.9"
+      },
+      "ramAfter": {
+        "totalGB": "15.85",
+        "freeGB": "8.10",
+        "usedGB": "7.75",
+        "usedPercent": "48.9"
+      }
+    },
+    {
+      "file": "d02.docx",
+      "originalName": "22.05.20-Hop dong dich vu camera.docx",
+      "filePath": "E:\\VN OFice\\file test\\landocx\\d02.docx",
+      "sizeBytes": 53494,
+      "sizeMB": 0.05101585388183594,
+      "totalMs": 6378,
+      "seconds": 6.378,
+      "sPerMB": 125.01995977118929,
+      "isOver30s": false,
+      "isOver5sPerMB": true,
+      "flagged": true,
+      "note": "> 5s/MB (125.0 s/MB)",
+      "perfLines": [
+        "[VNO Open Perf] profile_seeded: app=writer",
+        "[VNO Open Perf] worker_stage_breakdown: app=writer python_and_uno_import=47.0 soffice_spawn=31.0 pipe_resolve=3156.0 desktop_service=0.0 resolve_attempts=148",
+        "[VNO Open Perf] worker_start_and_profile_ready: 3359.6 ms app=writer",
+        "[VNO Open Perf] uno_load_and_store: 1795.7 ms app=writer bytes=116006",
+        "[VNO Open Perf] background_filter_warmup_skipped: app=writer reason=profile-already-primed"
+      ],
+      "logFile": "docs/perf-measure/logs/doc_open_d02_run1.log",
+      "ramBefore": {
+        "totalGB": "15.85",
+        "freeGB": "8.10",
+        "usedGB": "7.75",
+        "usedPercent": "48.9"
+      },
+      "ramAfter": {
+        "totalGB": "15.85",
+        "freeGB": "7.48",
+        "usedGB": "8.37",
+        "usedPercent": "52.8"
+      }
+    },
+    {
+      "file": "d03.docx",
+      "originalName": "6. QUYẾT ĐỊNH BAN HÀNH DẤU.docx",
+      "filePath": "E:\\VN OFice\\file test\\landocx\\d03.docx",
+      "sizeBytes": 21717,
+      "sizeMB": 0.02071094512939453,
+      "totalMs": 5230,
+      "seconds": 5.23,
+      "sPerMB": 252.52348298567944,
+      "isOver30s": false,
+      "isOver5sPerMB": true,
+      "flagged": true,
+      "note": "> 5s/MB (252.5 s/MB)",
+      "perfLines": [
+        "[VNO Open Perf] profile_seeded: app=writer",
+        "[VNO Open Perf] worker_stage_breakdown: app=writer python_and_uno_import=93.0 soffice_spawn=16.0 pipe_resolve=3203.0 desktop_service=0.0 resolve_attempts=150",
+        "[VNO Open Perf] worker_start_and_profile_ready: 3439.5 ms app=writer",
+        "[VNO Open Perf] uno_load_and_store: 781.1 ms app=writer bytes=11538",
+        "[VNO Open Perf] background_filter_warmup_skipped: app=writer reason=profile-already-primed"
+      ],
+      "logFile": "docs/perf-measure/logs/doc_open_d03_run1.log",
+      "ramBefore": {
+        "totalGB": "15.85",
+        "freeGB": "7.48",
+        "usedGB": "8.37",
+        "usedPercent": "52.8"
+      },
+      "ramAfter": {
+        "totalGB": "15.85",
+        "freeGB": "7.47",
+        "usedGB": "8.38",
+        "usedPercent": "52.8"
+      }
+    },
+    {
+      "file": "d04.docx",
+      "originalName": "Báo giá AIO Viettel 03 10 2023.docx",
+      "filePath": "E:\\VN OFice\\file test\\landocx\\d04.docx",
+      "sizeBytes": 2211749,
+      "sizeMB": 2.109288215637207,
+      "totalMs": 6485,
+      "seconds": 6.485,
+      "sPerMB": 3.0744968619856956,
+      "isOver30s": false,
+      "isOver5sPerMB": false,
+      "flagged": false,
+      "note": "",
+      "perfLines": [
+        "[VNO Open Perf] profile_seeded: app=writer",
+        "[VNO Open Perf] worker_stage_breakdown: app=writer python_and_uno_import=78.0 soffice_spawn=15.0 pipe_resolve=3250.0 desktop_service=0.0 resolve_attempts=153",
+        "[VNO Open Perf] worker_start_and_profile_ready: 3455.1 ms app=writer",
+        "[VNO Open Perf] uno_load_and_store: 1206.7 ms app=writer bytes=63625",
+        "[VNO Open Perf] background_filter_warmup_skipped: app=writer reason=profile-already-primed"
+      ],
+      "logFile": "docs/perf-measure/logs/doc_open_d04_run1.log",
+      "ramBefore": {
+        "totalGB": "15.85",
+        "freeGB": "7.47",
+        "usedGB": "8.38",
+        "usedPercent": "52.8"
+      },
+      "ramAfter": {
+        "totalGB": "15.85",
+        "freeGB": "8.06",
+        "usedGB": "7.78",
+        "usedPercent": "49.1"
+      }
+    },
+    {
+      "file": "d05.docx",
+      "originalName": "Biên bản đối chiếu.docx",
+      "filePath": "E:\\VN OFice\\file test\\landocx\\d05.docx",
+      "sizeBytes": 10177,
+      "sizeMB": 0.009705543518066406,
+      "totalMs": 5420,
+      "seconds": 5.42,
+      "sPerMB": 558.443737840228,
+      "isOver30s": false,
+      "isOver5sPerMB": true,
+      "flagged": true,
+      "note": "> 5s/MB (558.4 s/MB)",
+      "perfLines": [
+        "[VNO Open Perf] profile_seeded: app=writer",
+        "[VNO Open Perf] worker_stage_breakdown: app=writer python_and_uno_import=46.0 soffice_spawn=32.0 pipe_resolve=3250.0 desktop_service=0.0 resolve_attempts=152",
+        "[VNO Open Perf] worker_start_and_profile_ready: 3445.6 ms app=writer",
+        "[VNO Open Perf] uno_load_and_store: 922.1 ms app=writer bytes=19681",
+        "[VNO Open Perf] background_filter_warmup_skipped: app=writer reason=profile-already-primed"
+      ],
+      "logFile": "docs/perf-measure/logs/doc_open_d05_run1.log",
+      "ramBefore": {
+        "totalGB": "15.85",
+        "freeGB": "8.06",
+        "usedGB": "7.78",
+        "usedPercent": "49.1"
+      },
+      "ramAfter": {
+        "totalGB": "15.85",
+        "freeGB": "8.78",
+        "usedGB": "7.07",
+        "usedPercent": "44.6"
+      }
+    },
+    {
+      "file": "d06.docx",
+      "originalName": "BV hoàn công SG.docx",
+      "filePath": "E:\\VN OFice\\file test\\landocx\\d06.docx",
+      "sizeBytes": 274948,
+      "sizeMB": 0.2622108459472656,
+      "totalMs": 11376,
+      "seconds": 11.376,
+      "sPerMB": 43.38493306370659,
+      "isOver30s": false,
+      "isOver5sPerMB": true,
+      "flagged": true,
+      "note": "> 5s/MB (43.4 s/MB)",
+      "perfLines": [
+        "[VNO Open Perf] profile_seeded: app=writer",
+        "[VNO Open Perf] worker_stage_breakdown: app=writer python_and_uno_import=47.0 soffice_spawn=16.0 pipe_resolve=3187.0 desktop_service=16.0 resolve_attempts=150",
+        "[VNO Open Perf] worker_start_and_profile_ready: 3382.0 ms app=writer",
+        "[VNO Open Perf] uno_fallback_to_convert_to: app=writer reason=writer-docx-textboxes",
+        "[VNO Open Perf] background_filter_warmup_skipped: app=writer reason=profile-already-primed"
+      ],
+      "logFile": "docs/perf-measure/logs/doc_open_d06_run1.log",
+      "ramBefore": {
+        "totalGB": "15.85",
+        "freeGB": "8.78",
+        "usedGB": "7.07",
+        "usedPercent": "44.6"
+      },
+      "ramAfter": {
+        "totalGB": "15.85",
+        "freeGB": "6.20",
+        "usedGB": "9.65",
+        "usedPercent": "60.9"
+      }
+    },
+    {
+      "file": "d07.docx",
+      "originalName": "CAC LOAI MAU HOP DONG LAO DONG.docx",
+      "filePath": "E:\\VN OFice\\file test\\landocx\\d07.docx",
+      "sizeBytes": 45134,
+      "sizeMB": 0.04304313659667969,
+      "totalMs": 7140,
+      "seconds": 7.14,
+      "sPerMB": 165.88010457748038,
+      "isOver30s": false,
+      "isOver5sPerMB": true,
+      "flagged": true,
+      "note": "> 5s/MB (165.9 s/MB)",
+      "perfLines": [
+        "[VNO Open Perf] profile_seeded: app=writer",
+        "[VNO Open Perf] worker_stage_breakdown: app=writer python_and_uno_import=109.0 soffice_spawn=0.0 pipe_resolve=3687.0 desktop_service=0.0 resolve_attempts=163",
+        "[VNO Open Perf] worker_start_and_profile_ready: 3981.7 ms app=writer",
+        "[VNO Open Perf] uno_load_and_store: 1752.5 ms app=writer bytes=157496",
+        "[VNO Open Perf] background_filter_warmup_skipped: app=writer reason=profile-already-primed"
+      ],
+      "logFile": "docs/perf-measure/logs/doc_open_d07_run1.log",
+      "ramBefore": {
+        "totalGB": "15.85",
+        "freeGB": "6.20",
+        "usedGB": "9.65",
+        "usedPercent": "60.9"
+      },
+      "ramAfter": {
+        "totalGB": "15.85",
+        "freeGB": "5.76",
+        "usedGB": "10.09",
+        "usedPercent": "63.7"
+      }
+    },
+    {
+      "file": "d08.docx",
+      "originalName": "Công văn BẢI TRÌ SẢN PHẨM.docx",
+      "filePath": "E:\\VN OFice\\file test\\landocx\\d08.docx",
+      "sizeBytes": 91815,
+      "sizeMB": 0.08756160736083984,
+      "totalMs": 5748,
+      "seconds": 5.748,
+      "sPerMB": 65.6452088220879,
+      "isOver30s": false,
+      "isOver5sPerMB": true,
+      "flagged": true,
+      "note": "> 5s/MB (65.6 s/MB)",
+      "perfLines": [
+        "[VNO Open Perf] profile_seeded: app=writer",
+        "[VNO Open Perf] worker_stage_breakdown: app=writer python_and_uno_import=109.0 soffice_spawn=16.0 pipe_resolve=3672.0 desktop_service=0.0 resolve_attempts=165",
+        "[VNO Open Perf] worker_start_and_profile_ready: 3944.5 ms app=writer",
+        "[VNO Open Perf] uno_load_and_store: 766.8 ms app=writer bytes=10785",
+        "[VNO Open Perf] background_filter_warmup_skipped: app=writer reason=profile-already-primed"
+      ],
+      "logFile": "docs/perf-measure/logs/doc_open_d08_run1.log",
+      "ramBefore": {
+        "totalGB": "15.85",
+        "freeGB": "5.76",
+        "usedGB": "10.09",
+        "usedPercent": "63.7"
+      },
+      "ramAfter": {
+        "totalGB": "15.85",
+        "freeGB": "9.64",
+        "usedGB": "6.21",
+        "usedPercent": "39.2"
+      }
+    },
+    {
+      "file": "d09.docx",
+      "originalName": "ĐỀ CƯƠNG BÁO CÁO TỔNG  HỢP - PHẠM TRUNG HIẾU.docx",
+      "filePath": "E:\\VN OFice\\file test\\landocx\\d09.docx",
+      "sizeBytes": 72159,
+      "sizeMB": 0.0688161849975586,
+      "totalMs": 10270,
+      "seconds": 10.27,
+      "sPerMB": 149.2381479787691,
+      "isOver30s": false,
+      "isOver5sPerMB": true,
+      "flagged": true,
+      "note": "> 5s/MB (149.2 s/MB)",
+      "perfLines": [
+        "[VNO Open Perf] profile_seeded: app=writer",
+        "[VNO Open Perf] worker_stage_breakdown: app=writer python_and_uno_import=62.0 soffice_spawn=0.0 pipe_resolve=3109.0 desktop_service=16.0 resolve_attempts=145",
+        "[VNO Open Perf] worker_start_and_profile_ready: 3295.6 ms app=writer",
+        "[VNO Open Perf] uno_fallback_to_convert_to: app=writer reason=writer-docx-textboxes",
+        "[VNO Open Perf] background_filter_warmup_skipped: app=writer reason=profile-already-primed"
+      ],
+      "logFile": "docs/perf-measure/logs/doc_open_d09_run1.log",
+      "ramBefore": {
+        "totalGB": "15.85",
+        "freeGB": "9.64",
+        "usedGB": "6.21",
+        "usedPercent": "39.2"
+      },
+      "ramAfter": {
+        "totalGB": "15.85",
+        "freeGB": "9.58",
+        "usedGB": "6.27",
+        "usedPercent": "39.6"
+      }
+    },
+    {
+      "file": "d10.docx",
+      "originalName": "đề nghị thanh toán vcm.docx",
+      "filePath": "E:\\VN OFice\\file test\\landocx\\d10.docx",
+      "sizeBytes": 823958,
+      "sizeMB": 0.7857875823974609,
+      "totalMs": null,
+      "seconds": 300.022,
+      "sPerMB": 381.81056397534826,
+      "isOver30s": true,
+      "isOver5sPerMB": true,
+      "flagged": true,
+      "note": "> 30s, > 5s/MB (381.8 s/MB), FAIL / NO TOTAL_MS",
+      "perfLines": [],
+      "logFile": "docs/perf-measure/logs/doc_open_d10_run1.log",
+      "ramBefore": {
+        "totalGB": "15.85",
+        "freeGB": "9.58",
+        "usedGB": "6.27",
+        "usedPercent": "39.6"
+      },
+      "ramAfter": {
+        "totalGB": "15.85",
+        "freeGB": "6.90",
+        "usedGB": "8.95",
+        "usedPercent": "56.5"
+      }
+    },
+    {
+      "file": "d11.docx",
+      "originalName": "Đề số 06.docx",
+      "filePath": "E:\\VN OFice\\file test\\landocx\\d11.docx",
+      "sizeBytes": 22229,
+      "sizeMB": 0.02119922637939453,
+      "totalMs": 5587,
+      "seconds": 5.587,
+      "sPerMB": 263.5473530973053,
+      "isOver30s": false,
+      "isOver5sPerMB": true,
+      "flagged": true,
+      "note": "> 5s/MB (263.5 s/MB)",
+      "perfLines": [
+        "[VNO Open Perf] profile_seeded: app=writer",
+        "[VNO Open Perf] worker_stage_breakdown: app=writer python_and_uno_import=93.0 soffice_spawn=0.0 pipe_resolve=3188.0 desktop_service=16.0 resolve_attempts=149",
+        "[VNO Open Perf] worker_start_and_profile_ready: 3440.3 ms app=writer",
+        "[VNO Open Perf] uno_load_and_store: 988.6 ms app=writer bytes=44488",
+        "[VNO Open Perf] background_filter_warmup_skipped: app=writer reason=profile-already-primed"
+      ],
+      "logFile": "docs/perf-measure/logs/doc_open_d11_run1.log",
+      "ramBefore": {
+        "totalGB": "15.85",
+        "freeGB": "6.90",
+        "usedGB": "8.95",
+        "usedPercent": "56.4"
+      },
+      "ramAfter": {
+        "totalGB": "15.85",
+        "freeGB": "8.49",
+        "usedGB": "7.36",
+        "usedPercent": "46.4"
+      }
+    },
+    {
+      "file": "d12.docx",
+      "originalName": "DonDatHang_PO0000006488.docx",
+      "filePath": "E:\\VN OFice\\file test\\landocx\\d12.docx",
+      "sizeBytes": 26547,
+      "sizeMB": 0.02531719207763672,
+      "totalMs": 5152,
+      "seconds": 5.152,
+      "sPerMB": 203.49808083775946,
+      "isOver30s": false,
+      "isOver5sPerMB": true,
+      "flagged": true,
+      "note": "> 5s/MB (203.5 s/MB)",
+      "perfLines": [
+        "[VNO Open Perf] profile_seeded: app=writer",
+        "[VNO Open Perf] worker_stage_breakdown: app=writer python_and_uno_import=62.0 soffice_spawn=16.0 pipe_resolve=3156.0 desktop_service=0.0 resolve_attempts=150",
+        "[VNO Open Perf] worker_start_and_profile_ready: 3362.2 ms app=writer",
+        "[VNO Open Perf] uno_load_and_store: 797.3 ms app=writer bytes=24806",
+        "[VNO Open Perf] background_filter_warmup_skipped: app=writer reason=profile-already-primed"
+      ],
+      "logFile": "docs/perf-measure/logs/doc_open_d12_run1.log",
+      "ramBefore": {
+        "totalGB": "15.85",
+        "freeGB": "8.49",
+        "usedGB": "7.36",
+        "usedPercent": "46.4"
+      },
+      "ramAfter": {
+        "totalGB": "15.85",
+        "freeGB": "8.06",
+        "usedGB": "7.79",
+        "usedPercent": "49.2"
+      }
+    },
+    {
+      "file": "d13.docx",
+      "originalName": "HappyKids_TaiLieuTongHop_DuAn_VI.docx",
+      "filePath": "E:\\VN OFice\\file test\\landocx\\d13.docx",
+      "sizeBytes": 184662,
+      "sizeMB": 0.17610740661621094,
+      "totalMs": 5634,
+      "seconds": 5.634,
+      "sPerMB": 31.99184014036456,
+      "isOver30s": false,
+      "isOver5sPerMB": true,
+      "flagged": true,
+      "note": "> 5s/MB (32.0 s/MB)",
+      "perfLines": [
+        "[VNO Open Perf] profile_seeded: app=writer",
+        "[VNO Open Perf] worker_stage_breakdown: app=writer python_and_uno_import=62.0 soffice_spawn=16.0 pipe_resolve=3187.0 desktop_service=16.0 resolve_attempts=150",
+        "[VNO Open Perf] worker_start_and_profile_ready: 3394.3 ms app=writer",
+        "[VNO Open Perf] uno_load_and_store: 1101.3 ms app=writer bytes=72631",
+        "[VNO Open Perf] background_filter_warmup_skipped: app=writer reason=profile-already-primed"
+      ],
+      "logFile": "docs/perf-measure/logs/doc_open_d13_run1.log",
+      "ramBefore": {
+        "totalGB": "15.85",
+        "freeGB": "8.06",
+        "usedGB": "7.79",
+        "usedPercent": "49.2"
+      },
+      "ramAfter": {
+        "totalGB": "15.85",
+        "freeGB": "8.77",
+        "usedGB": "7.07",
+        "usedPercent": "44.6"
+      }
+    },
+    {
+      "file": "d14.docx",
+      "originalName": "HDSD KAADAS S500-C.docx",
+      "filePath": "E:\\VN OFice\\file test\\landocx\\d14.docx",
+      "sizeBytes": 22205,
+      "sizeMB": 0.02117633819580078,
+      "totalMs": 5237,
+      "seconds": 5.237,
+      "sPerMB": 247.30432389101554,
+      "isOver30s": false,
+      "isOver5sPerMB": true,
+      "flagged": true,
+      "note": "> 5s/MB (247.3 s/MB)",
+      "perfLines": [
+        "[VNO Open Perf] profile_seeded: app=writer",
+        "[VNO Open Perf] worker_stage_breakdown: app=writer python_and_uno_import=47.0 soffice_spawn=47.0 pipe_resolve=3188.0 desktop_service=0.0 resolve_attempts=150",
+        "[VNO Open Perf] worker_start_and_profile_ready: 3400.4 ms app=writer",
+        "[VNO Open Perf] uno_load_and_store: 816.2 ms app=writer bytes=16779",
+        "[VNO Open Perf] background_filter_warmup_skipped: app=writer reason=profile-already-primed"
+      ],
+      "logFile": "docs/perf-measure/logs/doc_open_d14_run1.log",
+      "ramBefore": {
+        "totalGB": "15.85",
+        "freeGB": "8.77",
+        "usedGB": "7.07",
+        "usedPercent": "44.6"
+      },
+      "ramAfter": {
+        "totalGB": "15.85",
+        "freeGB": "6.68",
+        "usedGB": "9.17",
+        "usedPercent": "57.8"
+      }
+    },
+    {
+      "file": "d15.docx",
+      "originalName": "HỢP ĐỒNG ĐẠI LÝ- NHÀ THÔNG MINH 3T QUẢNG BÌNH.docx",
+      "filePath": "E:\\VN OFice\\file test\\landocx\\d15.docx",
+      "sizeBytes": 687562,
+      "sizeMB": 0.6557102203369141,
+      "totalMs": 7018,
+      "seconds": 7.018,
+      "sPerMB": 10.702898601144334,
+      "isOver30s": false,
+      "isOver5sPerMB": true,
+      "flagged": true,
+      "note": "> 5s/MB (10.7 s/MB)",
+      "perfLines": [
+        "[VNO Open Perf] profile_seeded: app=writer",
+        "[VNO Open Perf] worker_stage_breakdown: app=writer python_and_uno_import=63.0 soffice_spawn=0.0 pipe_resolve=3984.0 desktop_service=0.0 resolve_attempts=177",
+        "[VNO Open Perf] worker_start_and_profile_ready: 4231.8 ms app=writer",
+        "[VNO Open Perf] uno_load_and_store: 1494.2 ms app=writer bytes=64896",
+        "[VNO Open Perf] background_filter_warmup_skipped: app=writer reason=profile-already-primed"
+      ],
+      "logFile": "docs/perf-measure/logs/doc_open_d15_run1.log",
+      "ramBefore": {
+        "totalGB": "15.85",
+        "freeGB": "6.68",
+        "usedGB": "9.17",
+        "usedPercent": "57.8"
+      },
+      "ramAfter": {
+        "totalGB": "15.85",
+        "freeGB": "8.11",
+        "usedGB": "7.74",
+        "usedPercent": "48.8"
+      }
+    },
+    {
+      "file": "d16.docx",
+      "originalName": "HỢP ĐỒNG DỊCH VỤ NHÀ DÂN.docx",
+      "filePath": "E:\\VN OFice\\file test\\landocx\\d16.docx",
+      "sizeBytes": 137498,
+      "sizeMB": 0.13112831115722656,
+      "totalMs": 7038,
+      "seconds": 7.038,
+      "sPerMB": 53.67261987810732,
+      "isOver30s": false,
+      "isOver5sPerMB": true,
+      "flagged": true,
+      "note": "> 5s/MB (53.7 s/MB)",
+      "perfLines": [
+        "[VNO Open Perf] profile_seeded: app=writer",
+        "[VNO Open Perf] worker_stage_breakdown: app=writer python_and_uno_import=47.0 soffice_spawn=15.0 pipe_resolve=3594.0 desktop_service=0.0 resolve_attempts=168",
+        "[VNO Open Perf] worker_start_and_profile_ready: 3772.8 ms app=writer",
+        "[VNO Open Perf] uno_load_and_store: 1797.0 ms app=writer bytes=107305",
+        "[VNO Open Perf] background_filter_warmup_skipped: app=writer reason=profile-already-primed"
+      ],
+      "logFile": "docs/perf-measure/logs/doc_open_d16_run1.log",
+      "ramBefore": {
+        "totalGB": "15.85",
+        "freeGB": "8.11",
+        "usedGB": "7.74",
+        "usedPercent": "48.8"
+      },
+      "ramAfter": {
+        "totalGB": "15.85",
+        "freeGB": "9.46",
+        "usedGB": "6.38",
+        "usedPercent": "40.3"
+      }
+    },
+    {
+      "file": "d17.docx",
+      "originalName": "Hợp Đồng Lao Động.docx",
+      "filePath": "E:\\VN OFice\\file test\\landocx\\d17.docx",
+      "sizeBytes": 23643,
+      "sizeMB": 0.02254772186279297,
+      "totalMs": 5304,
+      "seconds": 5.304,
+      "sPerMB": 235.23440781626698,
+      "isOver30s": false,
+      "isOver5sPerMB": true,
+      "flagged": true,
+      "note": "> 5s/MB (235.2 s/MB)",
+      "perfLines": [
+        "[VNO Open Perf] profile_seeded: app=writer",
+        "[VNO Open Perf] worker_stage_breakdown: app=writer python_and_uno_import=47.0 soffice_spawn=16.0 pipe_resolve=3218.0 desktop_service=0.0 resolve_attempts=152",
+        "[VNO Open Perf] worker_start_and_profile_ready: 3416.0 ms app=writer",
+        "[VNO Open Perf] uno_load_and_store: 880.5 ms app=writer bytes=43901",
+        "[VNO Open Perf] background_filter_warmup_skipped: app=writer reason=profile-already-primed"
+      ],
+      "logFile": "docs/perf-measure/logs/doc_open_d17_run1.log",
+      "ramBefore": {
+        "totalGB": "15.85",
+        "freeGB": "9.46",
+        "usedGB": "6.38",
+        "usedPercent": "40.3"
+      },
+      "ramAfter": {
+        "totalGB": "15.85",
+        "freeGB": "9.48",
+        "usedGB": "6.37",
+        "usedPercent": "40.2"
+      }
+    },
+    {
+      "file": "d18.docx",
+      "originalName": "Laptop Dell Vostro 15 3591...docx",
+      "filePath": "E:\\VN OFice\\file test\\landocx\\d18.docx",
+      "sizeBytes": 258452,
+      "sizeMB": 0.24647903442382812,
+      "totalMs": 5238,
+      "seconds": 5.238,
+      "sPerMB": 21.25130038846672,
+      "isOver30s": false,
+      "isOver5sPerMB": true,
+      "flagged": true,
+      "note": "> 5s/MB (21.3 s/MB)",
+      "perfLines": [
+        "[VNO Open Perf] profile_seeded: app=writer",
+        "[VNO Open Perf] worker_stage_breakdown: app=writer python_and_uno_import=47.0 soffice_spawn=15.0 pipe_resolve=3266.0 desktop_service=0.0 resolve_attempts=154",
+        "[VNO Open Perf] worker_start_and_profile_ready: 3460.5 ms app=writer",
+        "[VNO Open Perf] uno_load_and_store: 768.4 ms app=writer bytes=15353",
+        "[VNO Open Perf] background_filter_warmup_skipped: app=writer reason=profile-already-primed"
+      ],
+      "logFile": "docs/perf-measure/logs/doc_open_d18_run1.log",
+      "ramBefore": {
+        "totalGB": "15.85",
+        "freeGB": "9.48",
+        "usedGB": "6.37",
+        "usedPercent": "40.2"
+      },
+      "ramAfter": {
+        "totalGB": "15.85",
+        "freeGB": "9.28",
+        "usedGB": "6.57",
+        "usedPercent": "41.4"
+      }
+    },
+    {
+      "file": "d19.docx",
+      "originalName": "Microsoft Open License Purchase Order_3T.docx",
+      "filePath": "E:\\VN OFice\\file test\\landocx\\d19.docx",
+      "sizeBytes": 18035,
+      "sizeMB": 0.01719951629638672,
+      "totalMs": 5215,
+      "seconds": 5.215,
+      "sPerMB": 303.20620127529804,
+      "isOver30s": false,
+      "isOver5sPerMB": true,
+      "flagged": true,
+      "note": "> 5s/MB (303.2 s/MB)",
+      "perfLines": [
+        "[VNO Open Perf] profile_seeded: app=writer",
+        "[VNO Open Perf] worker_stage_breakdown: app=writer python_and_uno_import=62.0 soffice_spawn=16.0 pipe_resolve=3234.0 desktop_service=0.0 resolve_attempts=151",
+        "[VNO Open Perf] worker_start_and_profile_ready: 3433.4 ms app=writer",
+        "[VNO Open Perf] uno_load_and_store: 812.5 ms app=writer bytes=15460",
+        "[VNO Open Perf] background_filter_warmup_skipped: app=writer reason=profile-already-primed"
+      ],
+      "logFile": "docs/perf-measure/logs/doc_open_d19_run1.log",
+      "ramBefore": {
+        "totalGB": "15.85",
+        "freeGB": "9.28",
+        "usedGB": "6.57",
+        "usedPercent": "41.4"
+      },
+      "ramAfter": {
+        "totalGB": "15.85",
+        "freeGB": "9.33",
+        "usedGB": "6.52",
+        "usedPercent": "41.1"
+      }
+    },
+    {
+      "file": "d20.docx",
+      "originalName": "PL3a-Giay yeu cau BH tau ca 2024.docx",
+      "filePath": "E:\\VN OFice\\file test\\landocx\\d20.docx",
+      "sizeBytes": 297941,
+      "sizeMB": 0.28413867950439453,
+      "totalMs": 9685,
+      "seconds": 9.685,
+      "sPerMB": 34.08546846523305,
+      "isOver30s": false,
+      "isOver5sPerMB": true,
+      "flagged": true,
+      "note": "> 5s/MB (34.1 s/MB)",
+      "perfLines": [
+        "[VNO Open Perf] profile_seeded: app=writer",
+        "[VNO Open Perf] worker_stage_breakdown: app=writer python_and_uno_import=47.0 soffice_spawn=31.0 pipe_resolve=3172.0 desktop_service=0.0 resolve_attempts=149",
+        "[VNO Open Perf] worker_start_and_profile_ready: 3384.7 ms app=writer",
+        "[VNO Open Perf] uno_fallback_to_convert_to: app=writer reason=writer-docx-textboxes",
+        "[VNO Open Perf] background_filter_warmup_skipped: app=writer reason=profile-already-primed"
+      ],
+      "logFile": "docs/perf-measure/logs/doc_open_d20_run1.log",
+      "ramBefore": {
+        "totalGB": "15.85",
+        "freeGB": "9.33",
+        "usedGB": "6.52",
+        "usedPercent": "41.1"
+      },
+      "ramAfter": {
+        "totalGB": "15.85",
+        "freeGB": "9.36",
+        "usedGB": "6.49",
+        "usedPercent": "41.0"
+      }
+    },
+    {
+      "file": "d21.docx",
+      "originalName": "Sở hữu ngoại hình mới.docx",
+      "filePath": "E:\\VN OFice\\file test\\landocx\\d21.docx",
+      "sizeBytes": 1860926,
+      "sizeMB": 1.7747173309326172,
+      "totalMs": 5747,
+      "seconds": 5.747,
+      "sPerMB": 3.238262172703267,
+      "isOver30s": false,
+      "isOver5sPerMB": false,
+      "flagged": false,
+      "note": "",
+      "perfLines": [
+        "[VNO Open Perf] profile_seeded: app=writer",
+        "[VNO Open Perf] worker_stage_breakdown: app=writer python_and_uno_import=78.0 soffice_spawn=15.0 pipe_resolve=3188.0 desktop_service=15.0 resolve_attempts=151",
+        "[VNO Open Perf] worker_start_and_profile_ready: 3404.3 ms app=writer",
+        "[VNO Open Perf] uno_load_and_store: 1033.8 ms app=writer bytes=19980",
+        "[VNO Open Perf] background_filter_warmup_skipped: app=writer reason=profile-already-primed"
+      ],
+      "logFile": "docs/perf-measure/logs/doc_open_d21_run1.log",
+      "ramBefore": {
+        "totalGB": "15.85",
+        "freeGB": "9.36",
+        "usedGB": "6.49",
+        "usedPercent": "41.0"
+      },
+      "ramAfter": {
+        "totalGB": "15.85",
+        "freeGB": "9.48",
+        "usedGB": "6.37",
+        "usedPercent": "40.2"
+      }
+    },
+    {
+      "file": "d22.docx",
+      "originalName": "Hợp Đồng Lao Động (trùng d17).docx",
+      "filePath": "E:\\VN OFice\\file test\\landocx\\d22.docx",
+      "sizeBytes": 23643,
+      "sizeMB": 0.02254772186279297,
+      "totalMs": 5305,
+      "seconds": 5.305,
+      "sPerMB": 235.27875819481451,
+      "isOver30s": false,
+      "isOver5sPerMB": true,
+      "flagged": true,
+      "note": "> 5s/MB (235.3 s/MB)",
+      "perfLines": [
+        "[VNO Open Perf] profile_seeded: app=writer",
+        "[VNO Open Perf] worker_stage_breakdown: app=writer python_and_uno_import=94.0 soffice_spawn=0.0 pipe_resolve=3219.0 desktop_service=0.0 resolve_attempts=154",
+        "[VNO Open Perf] worker_start_and_profile_ready: 3437.3 ms app=writer",
+        "[VNO Open Perf] uno_load_and_store: 879.8 ms app=writer bytes=43901",
+        "[VNO Open Perf] background_filter_warmup_skipped: app=writer reason=profile-already-primed"
+      ],
+      "logFile": "docs/perf-measure/logs/doc_open_d22_run1.log",
+      "ramBefore": {
+        "totalGB": "15.85",
+        "freeGB": "9.48",
+        "usedGB": "6.37",
+        "usedPercent": "40.2"
+      },
+      "ramAfter": {
+        "totalGB": "15.85",
+        "freeGB": "9.09",
+        "usedGB": "6.76",
+        "usedPercent": "42.6"
+      }
+    },
+    {
+      "file": "d23.docx",
+      "originalName": "6. QUYẾT ĐỊNH BAN HÀNH DẤU (trùng d03).docx",
+      "filePath": "E:\\VN OFice\\file test\\landocx\\d23.docx",
+      "sizeBytes": 21717,
+      "sizeMB": 0.02071094512939453,
+      "totalMs": 5240,
+      "seconds": 5.24,
+      "sPerMB": 253.00631947322375,
+      "isOver30s": false,
+      "isOver5sPerMB": true,
+      "flagged": true,
+      "note": "> 5s/MB (253.0 s/MB)",
+      "perfLines": [
+        "[VNO Open Perf] profile_seeded: app=writer",
+        "[VNO Open Perf] worker_stage_breakdown: app=writer python_and_uno_import=62.0 soffice_spawn=16.0 pipe_resolve=3203.0 desktop_service=0.0 resolve_attempts=151",
+        "[VNO Open Perf] worker_start_and_profile_ready: 3408.5 ms app=writer",
+        "[VNO Open Perf] uno_load_and_store: 787.6 ms app=writer bytes=11538",
+        "[VNO Open Perf] background_filter_warmup_skipped: app=writer reason=profile-already-primed"
+      ],
+      "logFile": "docs/perf-measure/logs/doc_open_d23_run1.log",
+      "ramBefore": {
+        "totalGB": "15.85",
+        "freeGB": "9.09",
+        "usedGB": "6.76",
+        "usedPercent": "42.6"
+      },
+      "ramAfter": {
+        "totalGB": "15.85",
+        "freeGB": "9.31",
+        "usedGB": "6.54",
+        "usedPercent": "41.3"
+      }
+    },
+    {
+      "file": "d24.docx",
+      "originalName": "aquara final (1) (2).docx",
+      "filePath": "E:\\VN OFice\\file test\\landocx\\d24.docx",
+      "sizeBytes": 23771853,
+      "sizeMB": 22.670605659484863,
+      "totalMs": 15132,
+      "seconds": 15.132,
+      "sPerMB": 0.667472242571919,
+      "isOver30s": false,
+      "isOver5sPerMB": false,
+      "flagged": false,
+      "note": "",
+      "perfLines": [
+        "[VNO Open Perf] profile_seeded: app=writer",
+        "[VNO Open Perf] worker_stage_breakdown: app=writer python_and_uno_import=78.0 soffice_spawn=16.0 pipe_resolve=3234.0 desktop_service=16.0 resolve_attempts=153",
+        "[VNO Open Perf] worker_start_and_profile_ready: 3463.4 ms app=writer",
+        "[VNO Open Perf] uno_fallback_to_convert_to: app=writer reason=writer-docx-textboxes",
+        "[VNO Open Perf] background_filter_warmup_skipped: app=writer reason=profile-already-primed"
+      ],
+      "logFile": "docs/perf-measure/logs/doc_open_d24_run1.log",
+      "ramBefore": {
+        "totalGB": "15.85",
+        "freeGB": "9.31",
+        "usedGB": "6.54",
+        "usedPercent": "41.3"
+      },
+      "ramAfter": {
+        "totalGB": "15.85",
+        "freeGB": "7.67",
+        "usedGB": "8.17",
+        "usedPercent": "51.6"
+      }
+    }
+  ],
+  "top3Slowest": [
+    {
+      "file": "d10.docx",
+      "originalName": "đề nghị thanh toán vcm.docx",
+      "filePath": "E:\\VN OFice\\file test\\landocx\\d10.docx",
+      "sizeBytes": 823958,
+      "sizeMB": 0.7857875823974609,
+      "totalMs": null,
+      "seconds": 300.022,
+      "sPerMB": 381.81056397534826,
+      "isOver30s": true,
+      "isOver5sPerMB": true,
+      "flagged": true,
+      "note": "> 30s, > 5s/MB (381.8 s/MB), FAIL / NO TOTAL_MS",
+      "perfLines": [],
+      "logFile": "docs/perf-measure/logs/doc_open_d10_run1.log",
+      "ramBefore": {
+        "totalGB": "15.85",
+        "freeGB": "9.58",
+        "usedGB": "6.27",
+        "usedPercent": "39.6"
+      },
+      "ramAfter": {
+        "totalGB": "15.85",
+        "freeGB": "6.90",
+        "usedGB": "8.95",
+        "usedPercent": "56.5"
+      }
+    },
+    {
+      "file": "d24.docx",
+      "originalName": "aquara final (1) (2).docx",
+      "filePath": "E:\\VN OFice\\file test\\landocx\\d24.docx",
+      "sizeBytes": 23771853,
+      "sizeMB": 22.670605659484863,
+      "totalMs": 15132,
+      "seconds": 15.132,
+      "sPerMB": 0.667472242571919,
+      "isOver30s": false,
+      "isOver5sPerMB": false,
+      "flagged": false,
+      "note": "",
+      "perfLines": [
+        "[VNO Open Perf] profile_seeded: app=writer",
+        "[VNO Open Perf] worker_stage_breakdown: app=writer python_and_uno_import=78.0 soffice_spawn=16.0 pipe_resolve=3234.0 desktop_service=16.0 resolve_attempts=153",
+        "[VNO Open Perf] worker_start_and_profile_ready: 3463.4 ms app=writer",
+        "[VNO Open Perf] uno_fallback_to_convert_to: app=writer reason=writer-docx-textboxes",
+        "[VNO Open Perf] background_filter_warmup_skipped: app=writer reason=profile-already-primed"
+      ],
+      "logFile": "docs/perf-measure/logs/doc_open_d24_run1.log",
+      "ramBefore": {
+        "totalGB": "15.85",
+        "freeGB": "9.31",
+        "usedGB": "6.54",
+        "usedPercent": "41.3"
+      },
+      "ramAfter": {
+        "totalGB": "15.85",
+        "freeGB": "7.67",
+        "usedGB": "8.17",
+        "usedPercent": "51.6"
+      }
+    },
+    {
+      "file": "d06.docx",
+      "originalName": "BV hoàn công SG.docx",
+      "filePath": "E:\\VN OFice\\file test\\landocx\\d06.docx",
+      "sizeBytes": 274948,
+      "sizeMB": 0.2622108459472656,
+      "totalMs": 11376,
+      "seconds": 11.376,
+      "sPerMB": 43.38493306370659,
+      "isOver30s": false,
+      "isOver5sPerMB": true,
+      "flagged": true,
+      "note": "> 5s/MB (43.4 s/MB)",
+      "perfLines": [
+        "[VNO Open Perf] profile_seeded: app=writer",
+        "[VNO Open Perf] worker_stage_breakdown: app=writer python_and_uno_import=47.0 soffice_spawn=16.0 pipe_resolve=3187.0 desktop_service=16.0 resolve_attempts=150",
+        "[VNO Open Perf] worker_start_and_profile_ready: 3382.0 ms app=writer",
+        "[VNO Open Perf] uno_fallback_to_convert_to: app=writer reason=writer-docx-textboxes",
+        "[VNO Open Perf] background_filter_warmup_skipped: app=writer reason=profile-already-primed"
+      ],
+      "logFile": "docs/perf-measure/logs/doc_open_d06_run1.log",
+      "ramBefore": {
+        "totalGB": "15.85",
+        "freeGB": "8.78",
+        "usedGB": "7.07",
+        "usedPercent": "44.6"
+      },
+      "ramAfter": {
+        "totalGB": "15.85",
+        "freeGB": "6.20",
+        "usedGB": "9.65",
+        "usedPercent": "60.9"
+      }
+    }
+  ],
+  "run2Results": {
+    "d10.docx": {
+      "totalMs": null,
+      "seconds": 300.022,
+      "logFile": "docs/perf-measure/logs/doc_open_d10_run2.log",
+      "perfLines": []
+    },
+    "d24.docx": {
+      "totalMs": 14805,
+      "seconds": 14.805,
+      "logFile": "docs/perf-measure/logs/doc_open_d24_run2.log",
+      "perfLines": [
+        "[VNO Open Perf] profile_seeded: app=writer",
+        "[VNO Open Perf] worker_stage_breakdown: app=writer python_and_uno_import=94.0 soffice_spawn=0.0 pipe_resolve=3000.0 desktop_service=0.0 resolve_attempts=142",
+        "[VNO Open Perf] worker_start_and_profile_ready: 3250.8 ms app=writer",
+        "[VNO Open Perf] uno_fallback_to_convert_to: app=writer reason=writer-docx-textboxes",
+        "[VNO Open Perf] background_filter_warmup_skipped: app=writer reason=profile-already-primed"
+      ]
+    },
+    "d06.docx": {
+      "totalMs": 9941,
+      "seconds": 9.941,
+      "logFile": "docs/perf-measure/logs/doc_open_d06_run2.log",
+      "perfLines": [
+        "[VNO Open Perf] profile_seeded: app=writer",
+        "[VNO Open Perf] worker_stage_breakdown: app=writer python_and_uno_import=47.0 soffice_spawn=15.0 pipe_resolve=3032.0 desktop_service=0.0 resolve_attempts=142",
+        "[VNO Open Perf] worker_start_and_profile_ready: 3226.4 ms app=writer",
+        "[VNO Open Perf] uno_fallback_to_convert_to: app=writer reason=writer-docx-textboxes",
+        "[VNO Open Perf] background_filter_warmup_skipped: app=writer reason=profile-already-primed"
+      ]
+    }
+  },
+  "initialRam": {
+    "totalGB": "15.85",
+    "freeGB": "7.62",
+    "usedGB": "8.23",
+    "usedPercent": "51.9"
+  }
+}
