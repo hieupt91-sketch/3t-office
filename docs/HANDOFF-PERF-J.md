@@ -24,3 +24,19 @@ NEXT ACTION: Commit riêng Việc 1; sau đó lập plan chi tiết và bắt đ
 - Kết quả máy đọc report: 28 dòng mới, không có dòng sai `saved/diffs/lint`; 27 file ngoài lan14 không hồi quy.
 - Batch chạy tuần tự; không chạy tải nặng khác trong lúc đo.
 - Log cổng được giữ ngoài worktree tại `E:\VNOffice-baseline3\logs\perf-j`.
+
+## Plan gate Việc 2 — P1b Python Sheet
+
+- Objective: giữ byte-identical bốn checkpoint `overlay`, `optimize`, `final_fods`, `payload_stable_json` trên LAN01–LAN28; giảm trung vị tổng ba khâu của lan06/lan14 ít nhất 40%, mục tiêu không quá 55 giây.
+- Current capability: main mặc định dùng overlay/optimizer/payload P1; `VNO_OPEN_LEGACY=1` còn nguyên đường cũ. Hot path vẫn quét khoảng 1,5–3,5 triệu ô bằng nhiều regex/search/sub.
+- Files/modules dự kiến: `adapters/libreoffice/common/ooxml_zip_patch.py`; `adapters/libreoffice/sheet/sheet_open_payload.py`; test Python hẹp; `scripts/perf-proto/compare_sheet_open_p1.py` chỉ bổ sung đo/đối chiếu nếu cần; handoff này.
+- Dependency: chỉ Python stdlib `concurrent.futures.ProcessPoolExecutor`; không thêm gói, không đổi UI/Core/build/file-format semantics.
+- Implementation: giới hạn visibility/freeze vào thẻ mở của từng sheet; phân tích thuộc tính/cell một lượt thay vì nhiều regex trên cùng ô; song song theo sheet/khối tối đa 4 worker chỉ khi FODS lớn hơn 20 MiB và luôn ghép theo thứ tự gốc.
+- Risk: thay whitespace/thứ tự thuộc tính làm khác byte; pickle/process startup triệt tiêu lợi ích; tiến trình con tăng RAM. Phải đo peak RAM và không vượt 1,5 lần đường hiện tại.
+- Test plan: test hẹp sau mỗi bước; compare 28 file PASS trước full gate; lan06/lan14 đo ba lần lấy trung vị; cuối cùng đúng một lượt Node 0 FAIL, Python chỉ định+cập nhật, desktop CDP 27 PASS.
+- Rollback: giữ nguyên các hàm cũ với comment `superseded by P1b - xoa chi khi chu so huu duyet`; `VNO_OPEN_LEGACY=1` chọn đường cũ.
+
+## Kiem chung boi Claude (04/10/2026, tu chay lai) - P1b
+- compare_sheet_open_p1.py: 28/28 file PASS byte-identical (4 checkpoint). lan14 legacy 92,0 s -> p1b 57,1 s; lan06 116,1 s -> 53,5 s; lan01 74,8 -> 44,5 s.
+- Ung dung that (desktop CDP, lan14): native_overlay 45,7 -> 22,3 s; optimize 19,6 -> 14,0 s; payload 26,4 -> 18,1 s (tong 3 khau Python 91,7 -> 54,4 s, -41%); tong mo 125 -> 106 s. Khong con tien trinh python con sau khi mo.
+- Dieu kien: chi song song khi FODS > 20 MiB (4 tien trinh, ProcessPoolExecutor, dong pool trong finally cua build_sheet_open_payload); VNO_OPEN_LEGACY=1 chon duong cu.

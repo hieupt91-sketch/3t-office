@@ -15,6 +15,10 @@ import zlib
 from io import BytesIO
 
 
+_P1B_LARGE_FODS_CHARS = 20 * 1024 * 1024
+_P1B_MAX_WORKERS = 4
+
+
 class _PayloadRows:
     def __init__(self) -> None:
         self.buffer = BytesIO()
@@ -100,9 +104,71 @@ def _row_with_xf_and_record(row_xml, targets, patcher, sink):
     return transformed
 
 
+def _transform_payload_rows_chunk(args):
+    chunk, row_number, row_map = args
+    from adapters.libreoffice.common import ooxml_zip_patch as patcher
+
+    sorted_rows = sorted(row_map)
+    target_index = 0
+    out, support, cursor = [], [], 0
+
+    def append_row_fragment(fragment):
+        out.append(fragment)
+        support.append(_empty_row(fragment))
+
+    for start, end in patcher._flat_xml_blocks(chunk, ("table:table-row",)):
+        untouched = chunk[cursor:start]
+        out.append(untouched)
+        support.append(untouched)
+        row_xml = chunk[start:end]
+        repeat = patcher._repeat_count(row_xml, "table:number-rows-repeated")
+        while target_index < len(sorted_rows) and sorted_rows[target_index] < row_number:
+            target_index += 1
+        hit_end = target_index
+        while hit_end < len(sorted_rows) and sorted_rows[hit_end] < row_number + repeat:
+            hit_end += 1
+        hits = sorted_rows[target_index:hit_end]
+        target_index = hit_end
+        if not hits:
+            append_row_fragment(row_xml)
+        else:
+            at = row_number
+            for logical_row in hits:
+                if logical_row > at:
+                    append_row_fragment(
+                        patcher._set_repeat(
+                            row_xml,
+                            "table:number-rows-repeated",
+                            logical_row - at,
+                        )
+                    )
+                single_row = patcher._set_repeat(
+                    row_xml, "table:number-rows-repeated", 1
+                )
+                transformed = _cell_parts_with_xf(
+                    single_row, row_map[logical_row], patcher
+                )
+                out.append(transformed)
+                support.append(_empty_row(transformed))
+                at = logical_row + 1
+            if at < row_number + repeat:
+                append_row_fragment(
+                    patcher._set_repeat(
+                        row_xml,
+                        "table:number-rows-repeated",
+                        row_number + repeat - at,
+                    )
+                )
+        cursor, row_number = end, row_number + repeat
+    trailing = chunk[cursor:]
+    out.append(trailing)
+    support.append(trailing)
+    return "".join(out), "".join(support)
+
+
 def build_sheet_open_payload_legacy(xlsx_bytes: bytes, fods_xml: str, patcher) -> tuple[str, dict]:
     """Return the final XF-adjusted FODS and its validated v2 open payload."""
-    # superseded by P1 - xoa chi khi chu so huu duyet
+    # superseded by P1b - xoa chi khi chu so huu duyet
     sink = _PayloadRows()
     clean = re.sub(
         r'\s+vno:xf\s*=\s*(["\'])\d+\1', "", fods_xml, flags=re.IGNORECASE
@@ -126,6 +192,38 @@ def build_sheet_open_payload_legacy(xlsx_bytes: bytes, fods_xml: str, patcher) -
         target_index = 0
         row_number = 1
         out, support, table_cursor = [], [], 0
+
+        if len(clean) > _P1B_LARGE_FODS_CHARS and len(table_xml) > _P1B_LARGE_FODS_CHARS:
+            prefix, chunks, suffix = patcher._p1_metadata_table_chunks(
+                table_xml, _P1B_MAX_WORKERS
+            )
+            if len(chunks) > 1:
+                tasks = []
+                for chunk, logical_start, logical_end in chunks:
+                    subset = {
+                        row: values
+                        for row, values in row_map.items()
+                        if logical_start <= row < logical_end
+                    }
+                    tasks.append((chunk, logical_start, subset))
+                transformed_chunks = list(
+                    patcher._p1_process_pool().map(
+                        _transform_payload_rows_chunk, tasks
+                    )
+                )
+                output_chunks = [item[0] for item in transformed_chunks]
+                support_chunks = [item[1] for item in transformed_chunks]
+                if active:
+                    for output_chunk in output_chunks:
+                        for row_start, row_end in patcher._flat_xml_blocks(
+                            output_chunk, ("table:table-row",)
+                        ):
+                            sink.add_row(output_chunk[row_start:row_end])
+                    sink.end_sheet()
+                return (
+                    prefix + "".join(output_chunks) + suffix,
+                    prefix + "".join(support_chunks) + suffix,
+                )
 
         def append_row_fragment(fragment):
             out.append(fragment)
@@ -219,20 +317,23 @@ def build_sheet_open_payload_legacy(xlsx_bytes: bytes, fods_xml: str, patcher) -
 
 def build_sheet_open_payload(xlsx_bytes: bytes, fods_xml: str, patcher) -> tuple[str, dict]:
     """Build the P1 payload by default, retaining the owner-requested rollback."""
-    value = os.environ.get("VNO_OPEN_LEGACY", "").strip().lower()
-    if value in {"1", "true", "yes", "on"}:
-        return build_sheet_open_payload_legacy(xlsx_bytes, fods_xml, patcher)
+    try:
+        value = os.environ.get("VNO_OPEN_LEGACY", "").strip().lower()
+        if value in {"1", "true", "yes", "on"}:
+            return build_sheet_open_payload_legacy(xlsx_bytes, fods_xml, patcher)
 
-    class _P1PatcherProxy:
-        def __init__(self, target) -> None:
-            self._target = target
+        class _P1PatcherProxy:
+            def __init__(self, target) -> None:
+                self._target = target
 
-        def __getattr__(self, name):
-            return getattr(self._target, name)
+            def __getattr__(self, name):
+                return getattr(self._target, name)
 
-        def _xlsx_cells_with_xf_indices(self, source: bytes):
-            return self._target._xlsx_cells_with_xf_indices_p1(source)
+            def _xlsx_cells_with_xf_indices(self, source: bytes):
+                return self._target._xlsx_cells_with_xf_indices_p1(source)
 
-    return build_sheet_open_payload_legacy(
-        xlsx_bytes, fods_xml, _P1PatcherProxy(patcher)
-    )
+        return build_sheet_open_payload_legacy(
+            xlsx_bytes, fods_xml, _P1PatcherProxy(patcher)
+        )
+    finally:
+        patcher._shutdown_p1_process_pool()
