@@ -1504,15 +1504,21 @@ _OOXML_ZIP_PATCH = None
 
 
 def _ooxml_zip_patch():
-    """Load adapters/libreoffice/common/ooxml_zip_patch.py without making adapters a package."""
+    """Load the OOXML patcher under an importable name for P1b workers."""
     global _OOXML_ZIP_PATCH
     if _OOXML_ZIP_PATCH is None:
         module_path = os.path.join(ROOT_DIR, "adapters", "libreoffice", "common", "ooxml_zip_patch.py")
-        spec = importlib.util.spec_from_file_location("vno_ooxml_zip_patch", module_path)
+        module_name = "adapters.libreoffice.common.ooxml_zip_patch"
+        spec = importlib.util.spec_from_file_location(module_name, module_path)
         if spec is None or spec.loader is None:
             raise DocumentEngineError("Không tải được module hậu-kỳ OOXML.")
         module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
+        sys.modules[module_name] = module
+        try:
+            spec.loader.exec_module(module)
+        except Exception:
+            sys.modules.pop(module_name, None)
+            raise
         _OOXML_ZIP_PATCH = module
     return _OOXML_ZIP_PATCH
 
@@ -1806,7 +1812,7 @@ def _apply_native_import_overlay_legacy(
     app_kind: str | None,
     source_bytes: bytes | None = None,
 ) -> str:
-    # superseded by P1 - xoa chi khi chu so huu duyet
+    # superseded by P1b - xoa chi khi chu so huu duyet
     """After soffice convert, restore native flags LibreOffice dropped.
 
     Sheet XLSX: lockStructure → table:structure-protected. Failures return
@@ -1910,7 +1916,7 @@ def _optimize_fods_for_sheet_legacy(fods_xml: str) -> str:
     
     Delegates to the shared implementation in ooxml_zip_patch.
     """
-    # superseded by P1 - xoa chi khi chu so huu duyet
+    # superseded by P1b - xoa chi khi chu so huu duyet
     return _ooxml_zip_patch().optimize_fods_streaming_legacy(fods_xml)
 
 
