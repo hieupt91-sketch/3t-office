@@ -1,0 +1,74 @@
+[
+  {
+    "file": "lan03.xlsx",
+    "app": "sheet",
+    "runIndex": 1,
+    "totalMs": 14056.5079,
+    "writeSourceMs": 5746.8,
+    "convertPdfMs": 3876.8,
+    "inspectPdfMs": 2808.5,
+    "renderPageMs": 120.1,
+    "printVerifyText": "fast=1 engine=1 match=True",
+    "fullLog": "[3T Office] Embedded server ready at http://localhost:8080\r\n[VNO Open Perf] worker_stage_breakdown: app=sheet python_and_uno_import=31.0 soffice_spawn=0.0 pipe_resolve=2953.0 desktop_service=0.0 resolve_attempts=141\r\n[VNO Open Perf] worker_start_and_profile_ready: 3165.8 ms app=sheet\r\n\n[VNO Open Perf] uno_load_and_store: 3635.7 ms app=sheet bytes=19872505\r\n\n[VNO Open Perf] sheet_open_stage: 23.9 ms phase=read_fods chars=19823593\r\n\n[VNO Open Perf] sheet_open_stage: 2292.2 ms phase=native_overlay chars=25348619\r\n\n[VNO Open Perf] sheet_open_stage: 867.8 ms phase=optimize_fods chars=25325015\r\n\n[VNO Open Perf] print_write_source 5746.8ms chars=5516\r\n\n[VNO Open Perf] sheet_open_stage: 1941.8 ms phase=build_compact_payload payload_chars=16643104 support_chars=6030623\r\n\n[VNO Sheet Perf] buildSheetPayloadModel: 1302.2 ms\r\n\n[VNO Sheet Perf] first grid render: 1348.6 ms\r\n\n[VNO Sheet Perf] loadFromPayload: 1876.2 ms\r\n\n[VNO Open Perf] background_filter_warmup_skipped: app=sheet reason=profile-already-primed\r\n\n[VNO Sheet Perf] selection-to-first-grid: 13781.0 ms\r\n\n[VNO Sheet Perf] first layout: 1921.4 ms\r\n\n[VNO Open Perf] print_convert_pdf 3876.8ms engine=LibreOffice\r\n\n[VNO Open Perf] worker_stage_breakdown: app=sheet python_and_uno_import=31.0 soffice_spawn=0.0 pipe_resolve=2407.0 desktop_service=15.0 resolve_attempts=117\r\n\n[VNO Open Perf] worker_start_and_profile_ready: 2579.6 ms app=sheet\r\n\n[VNO Open Perf] uno_inspect_pdf: 227.8 ms app=sheet\r\n[VNO Print Verify] fast=1 engine=1 match=True\r\n\n[VNO Open Perf] print_inspect_pdf 2808.5ms\r\n\n[VNO Open Perf] uno_render_pdf_page: 120.1 ms app=sheet\r\n"
+  },
+  {
+    "file": "lan03.xlsx",
+    "app": "sheet",
+    "runIndex": 2,
+    "totalMs": 14026.589300000003,
+    "writeSourceMs": 5746.3,
+    "convertPdfMs": 3833.6,
+    "inspectPdfMs": 0.2,
+    "renderPageMs": 269.9,
+    "printVerifyText": null,
+    "fullLog": "[3T Office] Embedded server ready at http://localhost:8080\r\n[VNO Open Perf] worker_stage_breakdown: app=sheet python_and_uno_import=31.0 soffice_spawn=0.0 pipe_resolve=2969.0 desktop_service=0.0 resolve_attempts=142\r\n[VNO Open Perf] worker_start_and_profile_ready: 3182.5 ms app=sheet\r\n\n[VNO Open Perf] uno_load_and_store: 3700.2 ms app=sheet bytes=19872427\r\n\n[VNO Open Perf] sheet_open_stage: 21.0 ms phase=read_fods chars=19823515\r\n\n[VNO Open Perf] sheet_open_stage: 2287.3 ms phase=native_overlay chars=25348541\r\n\n[VNO Open Perf] sheet_open_stage: 802.3 ms phase=optimize_fods chars=25324937\r\n\n[VNO Open Perf] print_write_source 5746.3ms chars=5516\r\n\n[VNO Open Perf] sheet_open_stage: 1975.3 ms phase=build_compact_payload payload_chars=16643104 support_chars=6030545\r\n\n[VNO Sheet Perf] buildSheetPayloadModel: 1230.5 ms\r\n\n[VNO Sheet Perf] first grid render: 1279.7 ms\r\n\n[VNO Sheet Perf] loadFromPayload: 1793.5 ms\r\n\n[VNO Open Perf] background_filter_warmup_skipped: app=sheet reason=profile-already-primed\r\n\n[VNO Sheet Perf] selection-to-first-grid: 13748.9 ms\r\n\n[VNO Sheet Perf] first layout: 1840.6 ms\r\n\n[VNO Open Perf] print_convert_pdf 3833.6ms engine=LibreOffice\r\n\n[VNO Open Perf] print_inspect_pdf 0.2ms\r\n\n[VNO Open Perf] worker_stage_breakdown: app=sheet python_and_uno_import=32.0 soffice_spawn=0.0 pipe_resolve=2468.0 desktop_service=0.0 resolve_attempts=120\r\n[VNO Open Perf] worker_start_and_profile_ready: 2658.8 ms app=sheet\r\n\n[VNO Open Perf] uno_render_pdf_page: 269.9 ms app=sheet\r\n"
+  },
+  {
+    "file": "lan26.xlsx",
+    "app": "sheet",
+    "runIndex": 1,
+    "totalMs": 14235.426500000001,
+    "writeSourceMs": 5636.5,
+    "convertPdfMs": 3861.4,
+    "inspectPdfMs": 2994.6,
+    "renderPageMs": 157.1,
+    "printVerifyText": "fast=1 engine=1 match=True",
+    "fullLog": "[3T Office] Embedded server ready at http://localhost:8080\r\n[VNO Open Perf] worker_stage_breakdown: app=sheet python_and_uno_import=47.0 soffice_spawn=0.0 pipe_resolve=2953.0 desktop_service=0.0 resolve_attempts=141\r\n[VNO Open Perf] worker_start_and_profile_ready: 3184.1 ms app=sheet\r\n\n[VNO Open Perf] uno_load_and_store: 2335.4 ms app=sheet bytes=24794934\r\n\n[VNO Open Perf] sheet_open_stage: 25.2 ms phase=read_fods chars=24786664\r\n\n[VNO Open Perf] sheet_open_stage: 3491.4 ms phase=native_overlay chars=34324006\r\n\n[VNO Open Perf] sheet_open_stage: 2066.8 ms phase=optimize_fods chars=27447912\r\n\n[VNO Open Perf] print_write_source 5636.5ms chars=5516\r\n\n[VNO Open Perf] sheet_open_stage: 3295.5 ms phase=build_compact_payload payload_chars=21607544 support_chars=1412534\r\n\n[VNO Open Perf] print_convert_pdf 3861.4ms engine=LibreOffice\r\n\n[VNO Sheet Perf] buildSheetPayloadModel: 1648.5 ms\r\n\n[VNO Sheet Perf] first grid render: 1694.3 ms\r\n\n[VNO Sheet Perf] loadFromPayload: 2019.3 ms\r\n\n[VNO Open Perf] background_filter_warmup_skipped: app=sheet reason=profile-already-primed\r\n\n[VNO Sheet Perf] selection-to-first-grid: 16651.8 ms\r\n\n[VNO Sheet Perf] first layout: 2250.3 ms\r\n\n[VNO Open Perf] worker_stage_breakdown: app=sheet python_and_uno_import=31.0 soffice_spawn=16.0 pipe_resolve=2609.0 desktop_service=16.0 resolve_attempts=127\r\n\n[VNO Open Perf] worker_start_and_profile_ready: 2810.7 ms app=sheet\r\n\n[VNO Open Perf] uno_inspect_pdf: 183.0 ms app=sheet\r\n[VNO Print Verify] fast=1 engine=1 match=True\r\n\n[VNO Open Perf] print_inspect_pdf 2994.6ms\r\n\n[VNO Open Perf] uno_render_pdf_page: 157.1 ms app=sheet\r\n"
+  },
+  {
+    "file": "lan26.xlsx",
+    "app": "sheet",
+    "runIndex": 2,
+    "totalMs": 14709.67809999999,
+    "writeSourceMs": 5665.1,
+    "convertPdfMs": 3972.7,
+    "inspectPdfMs": 0.2,
+    "renderPageMs": 253.3,
+    "printVerifyText": null,
+    "fullLog": "[3T Office] Embedded server ready at http://localhost:8080\r\n[VNO Open Perf] worker_stage_breakdown: app=sheet python_and_uno_import=32.0 soffice_spawn=0.0 pipe_resolve=2937.0 desktop_service=0.0 resolve_attempts=140\r\n[VNO Open Perf] worker_start_and_profile_ready: 3142.8 ms app=sheet\r\n\n[VNO Open Perf] uno_load_and_store: 2354.3 ms app=sheet bytes=24794934\r\n\n[VNO Open Perf] sheet_open_stage: 30.7 ms phase=read_fods chars=24786664\r\n\n[VNO Open Perf] sheet_open_stage: 3446.4 ms phase=native_overlay chars=34324006\r\n\n[VNO Open Perf] sheet_open_stage: 2072.0 ms phase=optimize_fods chars=27447912\r\n\n[VNO Open Perf] print_write_source 5665.1ms chars=5516\r\n\n[VNO Open Perf] sheet_open_stage: 3239.2 ms phase=build_compact_payload payload_chars=21607544 support_chars=1412534\r\n\n[VNO Open Perf] print_convert_pdf 3972.7ms engine=LibreOffice\r\n\n[VNO Open Perf] print_inspect_pdf 0.2ms\r\n\n[VNO Sheet Perf] buildSheetPayloadModel: 1655.7 ms\r\n\n[VNO Sheet Perf] first grid render: 1701.9 ms\r\n\n[VNO Sheet Perf] loadFromPayload: 2015.6 ms\r\n\n[VNO Open Perf] background_filter_warmup_skipped: app=sheet reason=profile-already-primed\r\n\n[VNO Sheet Perf] selection-to-first-grid: 16584.2 ms\r\n\n[VNO Sheet Perf] first layout: 2246.5 ms\r\n\n[VNO Open Perf] worker_stage_breakdown: app=sheet python_and_uno_import=32.0 soffice_spawn=15.0 pipe_resolve=2610.0 desktop_service=15.0 resolve_attempts=127\r\n[VNO Open Perf] worker_start_and_profile_ready: 2805.2 ms app=sheet\r\n\n[VNO Open Perf] uno_render_pdf_page: 253.3 ms app=sheet\r\n"
+  },
+  {
+    "file": "sample-3.pptx",
+    "app": "slides",
+    "runIndex": 1,
+    "totalMs": 17342.8569,
+    "writeSourceMs": 9006,
+    "convertPdfMs": 3908.3,
+    "inspectPdfMs": 2813.4,
+    "renderPageMs": 109.8,
+    "printVerifyText": "fast=1 engine=1 match=True",
+    "fullLog": "[3T Office] Embedded server ready at http://localhost:8080\r\n[VNO Open Perf] worker_stage_breakdown: app=slides python_and_uno_import=31.0 soffice_spawn=0.0 pipe_resolve=2938.0 desktop_service=0.0 resolve_attempts=140\r\n[VNO Open Perf] worker_start_and_profile_ready: 3146.5 ms app=slides\r\n\n[VNO Open Perf] print_write_source 9006.0ms chars=4961\r\n\n[VNO Open Perf] print_convert_pdf 3908.3ms engine=LibreOffice\r\n\n[VNO Open Perf] worker_stage_breakdown: app=slides python_and_uno_import=31.0 soffice_spawn=0.0 pipe_resolve=2407.0 desktop_service=15.0 resolve_attempts=117\r\n[VNO Open Perf] worker_start_and_profile_ready: 2581.9 ms app=slides\r\n\n[VNO Open Perf] uno_inspect_pdf: 230.7 ms app=slides\r\n[VNO Print Verify] fast=1 engine=1 match=True\r\n\n[VNO Open Perf] print_inspect_pdf 2813.4ms\r\n\n[VNO Open Perf] uno_render_pdf_page: 109.8 ms app=slides\r\n"
+  },
+  {
+    "file": "sample-3.pptx",
+    "app": "slides",
+    "runIndex": 2,
+    "totalMs": 16790.560799999992,
+    "writeSourceMs": 8649.8,
+    "convertPdfMs": 3780.4,
+    "inspectPdfMs": 0.2,
+    "renderPageMs": 277.4,
+    "printVerifyText": null,
+    "fullLog": "[3T Office] Embedded server ready at http://localhost:8080\r\n[VNO Open Perf] worker_stage_breakdown: app=slides python_and_uno_import=31.0 soffice_spawn=0.0 pipe_resolve=2875.0 desktop_service=0.0 resolve_attempts=136\r\n\n[VNO Open Perf] worker_start_and_profile_ready: 3104.0 ms app=slides\r\n\n[VNO Open Perf] print_write_source 8649.8ms chars=4961\r\n\n[VNO Open Perf] print_convert_pdf 3780.4ms engine=LibreOffice\r\n\n[VNO Open Perf] print_inspect_pdf 0.2ms\r\n\n[VNO Open Perf] worker_stage_breakdown: app=slides python_and_uno_import=31.0 soffice_spawn=0.0 pipe_resolve=2390.0 desktop_service=0.0 resolve_attempts=116\r\n\n[VNO Open Perf] worker_start_and_profile_ready: 2561.7 ms app=slides\r\n\n[VNO Open Perf] uno_render_pdf_page: 277.4 ms app=slides\r\n"
+  }
+]
