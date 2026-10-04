@@ -1402,6 +1402,19 @@ def _persistent_writer_html_safe(source_path: str, app_kind: str | None, target_
 _PRINT_CONTEXT = threading.local()
 
 
+def _is_print_persistent_pair(app_kind: str | None, target_ext: str, source_ext: str) -> bool:
+    """Allow the warm worker only for print-only conversions verified against CLI."""
+    if os.environ.get("VNO_PRINT_LEGACY") == "1" or not getattr(_PRINT_CONTEXT, "active", False):
+        return False
+    return (app_kind, target_ext, source_ext) in {
+        ("writer", "docx", ".html"),
+        ("sheet", "xlsx", ".fods"),
+        ("sheet", "pdf", ".xlsx"),
+        ("slides", "pptx", ".fodp"),
+        ("slides", "pdf", ".pptx"),
+    }
+
+
 def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind: str | None = None) -> str:
     """Chạy LibreOffice headless để chuyển đổi thật một tệp. Trả về đường dẫn tệp kết quả."""
     started_at = time.monotonic()
@@ -1483,10 +1496,9 @@ def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind:
         # VNO_PRINT_LEGACY=1 restores the CLI path.
         or (os.environ.get("VNO_PRINT_LEGACY") != "1"
             and app_kind == "writer" and target_ext == "pdf" and source_ext in {".docx", ".odt"})
-        # The print source (HTML -> DOCX) used to run as a cold CLI and then force a second
-        # worker start for the PDF; keep both on the warm worker. Print only, never Save.
-        or (os.environ.get("VNO_PRINT_LEGACY") != "1" and getattr(_PRINT_CONTEXT, "active", False)
-            and app_kind == "writer" and target_ext == "docx" and source_ext == ".html")
+        # Print-only native/PDF pairs stay on the warm worker. This avoids CLI/worker
+        # ping-pong without changing Save or Export; VNO_PRINT_LEGACY=1 restores CLI.
+        or _is_print_persistent_pair(app_kind, target_ext, source_ext)
     )
     if persistent_pair_is_validated and source_ext == ".html" and target_ext == "docx" and input_filter is None:
         input_filter = "HTML (StarWriter)"
@@ -2335,7 +2347,12 @@ def _write_print_source(
 
 def _convert_print_source_to_pdf(source_path: str, app_kind: str, output_dir: str) -> str:
     """Convert the saved native print source to PDF with the matching LibreOffice filter."""
-    return _run_soffice_convert(source_path, "pdf", output_dir, app_kind=app_kind)
+    previous = getattr(_PRINT_CONTEXT, "active", False)
+    _PRINT_CONTEXT.active = True
+    try:
+        return _run_soffice_convert(source_path, "pdf", output_dir, app_kind=app_kind)
+    finally:
+        _PRINT_CONTEXT.active = previous
 
 
 def _convert_print_source_with_office(
