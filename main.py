@@ -1385,7 +1385,7 @@ def _persistent_writer_html_safe(source_path: str, app_kind: str | None, target_
     cheap, local preflight; when present, stop the persistent instance and
     preserve the established command-line output.
     """
-    if app_kind != "writer" or target_ext != "html" or Path(source_path).suffix.lower() != ".docx":
+    if app_kind != "writer" or target_ext not in {"html", "pdf"} or Path(source_path).suffix.lower() != ".docx":
         return True
     try:
         with zipfile.ZipFile(source_path) as archive:
@@ -1474,6 +1474,11 @@ def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind:
         (app_kind == "writer" and target_ext == "html" and source_ext == ".docx")
         or (app_kind == "writer" and target_ext == "docx" and source_ext == ".doc")
         or (app_kind == "sheet" and target_ext == "fods" and source_ext in {".xlsx", ".xls"})
+        # Print preview: reuse the warm worker instead of a cold CLI start per
+        # preview (PDF byte sizes and page counts matched the CLI on d01/d04/d12).
+        # VNO_PRINT_LEGACY=1 restores the CLI path.
+        or (os.environ.get("VNO_PRINT_LEGACY") != "1"
+            and app_kind == "writer" and target_ext == "pdf" and source_ext in {".docx", ".odt"})
     )
     use_persistent_worker = (
         _PERSISTENT_SOFFICE_ENABLED
@@ -1502,6 +1507,17 @@ def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind:
                     csv_filter_options,
                 )
                 if Path(persistent_path).is_file():
+                    if target_ext == "pdf" and os.environ.get("VNO_PRINT_VERIFY") == "1":
+                        # Diagnostic only: compare with what the CLI path would have produced.
+                        _PERSISTENT_SOFFICE.release_for_cli_fallback(app_kind)
+                        with tempfile.TemporaryDirectory() as cli_dir:
+                            cli_cmd = cmd[:-3] + ["--outdir", cli_dir, src_path]
+                            subprocess.run(cli_cmd, capture_output=True, timeout=120, check=False)
+                            cli_pdf = Path(cli_dir) / out_path.name
+                            pm = _get_print_pipeline_module()
+                            a, b = pm.fast_pdf_page_count(persistent_path), pm.fast_pdf_page_count(str(cli_pdf))
+                            print(f"[VNO Print Verify] persistent_pages={a} cli_pages={b} match={a == b} "
+                                  f"bytes={Path(persistent_path).stat().st_size}/{cli_pdf.stat().st_size if cli_pdf.is_file() else 0}", flush=True)
                     return persistent_path
                 raise _PersistentSofficeTransportError("Không tạo được tệp kết quả. Hãy thử lại.")
             except Exception as exc:
@@ -2314,6 +2330,21 @@ def _office_candidates_for_print(app_kind: str) -> tuple[dict[str, str], ...]:
     },)
 
 
+def _inspect_print_pdf_pages(app_kind: str, pdf_path: str) -> int:
+    """Page count for the print preview; the engine inspection stays the fallback.
+
+    VNO_PRINT_LEGACY=1 keeps the previous behaviour (always ask the engine).
+    """
+    if os.environ.get("VNO_PRINT_LEGACY") != "1":
+        fast = _get_print_pipeline_module().fast_pdf_page_count(pdf_path)
+        if fast is not None:
+            if os.environ.get("VNO_PRINT_VERIFY") == "1":
+                engine = int(_PERSISTENT_SOFFICE.operation(app_kind, "inspect_pdf", pdf_path=pdf_path)["page_count"])
+                print(f"[VNO Print Verify] fast={fast} engine={engine} match={fast == engine}", flush=True)
+            return fast
+    return int(_PERSISTENT_SOFFICE.operation(app_kind, "inspect_pdf", pdf_path=pdf_path)["page_count"])
+
+
 def _render_print_source_to_pdf(
     source_path: str, app_kind: str, output_dir: str, *, use_office: bool = True,
 ) -> tuple[str, str]:
@@ -2983,9 +3014,7 @@ class VnOfficeApi:
                     convert_pdf=_convert_print_source_to_pdf,
                     office_candidates=_office_candidates_for_print,
                     convert_office_pdf=_convert_print_source_with_office,
-                    inspect_pdf=lambda kind, pdf_path: int(
-                        _PERSISTENT_SOFFICE.operation(kind, "inspect_pdf", pdf_path=pdf_path)["page_count"]
-                    ),
+                    inspect_pdf=_inspect_print_pdf_pages,
                     render_page=lambda kind, pdf_path, page_index, output_path: _PERSISTENT_SOFFICE.operation(
                         kind,
                         "render_pdf_page",
