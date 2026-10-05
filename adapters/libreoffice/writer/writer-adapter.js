@@ -7026,7 +7026,7 @@ export class WriterAdapter {
         break;
 
       case "writer.font.size":
-        if (Number(args) === 13.5) return this._applyFontSizePt(13.5);
+        if (Number(args) === 13 || Number(args) === 13.5) return this._applyFontSizePt(Number(args));
         if (args) document.execCommand("fontSize", false, args);
         dispatchResult = true;
         break;

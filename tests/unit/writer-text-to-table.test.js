@@ -60,5 +60,13 @@ export async function runWriterTextToTableTests() {
     assert(snapshots.length === 1 && snapshots[0] === "writer.page.blank", `phải đúng một bước hoàn tác: ${snapshots}`);
   });
 
+  await test("Cỡ chữ: có mức 13 pt (chuẩn văn bản hành chính 13–14) cạnh 12 pt và 14 pt", () => {
+    const home = WRITER_RIBBON_TABS.find(tab => tab.id === "home");
+    const walk = items => (items || []).flatMap(item => [item, ...walk(item.items)]);
+    const select = walk(home.groups).find(item => item.commandId === "writer.font.size");
+    const labels = (select?.options || []).map(option => option.label);
+    assert(labels.includes("12 pt") && labels.includes("13 pt") && labels.includes("14 pt (NĐ 30)"), `thiếu 13 pt: ${labels.join(", ")}`);
+    assert(select.options.find(option => option.label === "13 pt").value === "13", "13 pt phải có giá trị 13");
+  });
   return results;
 }
