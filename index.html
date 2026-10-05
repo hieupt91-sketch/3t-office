@@ -88,6 +88,8 @@
     const mountEl = document.getElementById("vno-app-root");
     window.__vnoStartupMark?.("renderer_entry");
     window.__vnoPerfDebug = new URLSearchParams(window.location.search).get("perfDebug") === "1";
+    // Diagnostic only (VNO_WRITER_VERIFY=1): Doc also runs the old rescanning table-range code and records any difference.
+    if (new URLSearchParams(window.location.search).get("writerVerify") === "1") globalThis.__VNO_WRITER_VERIFY = true;
     window.__vnoPerfReport = (name, elapsedMs) => {
       if (!window.__vnoPerfDebug) return;
       console.info(`[VNO Sheet Perf] ${name}: ${elapsedMs.toFixed(1)} ms`);
