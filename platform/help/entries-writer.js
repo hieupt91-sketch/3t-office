@@ -1321,6 +1321,22 @@ export const WRITER_HELP_ENTRIES = [
       "Trong bảng, di chuột tới đường viền giữa hai cột (hoặc hai hàng) đến khi con trỏ chuột đổi dạng mũi tên hai chiều. Kéo chuột để thay đổi độ rộng cột hoặc chiều cao hàng. Nhấp đúp chuột vào viền phải cột để tự động vừa khít độ rộng theo nội dung (Auto-fit).",
       "Giữ phím Ctrl và cuộn bánh xe chuột để phóng to hoặc thu nhỏ trang hiển thị."
     ]
+  },
+  {
+    id: "writer.insert.coverPage",
+    app: "writer",
+    commandIds: ["writer.insert.coverPage", "writer.insert.removeCoverPage"],
+    title: "Chèn và quản lý trang bìa",
+    summary: "Thêm trang bìa hành chính hoặc báo cáo được thiết kế sẵn vào đầu tài liệu với các trường Tiêu đề, Phụ đề, Tác giả, Đơn vị và Ngày có thể sửa trực tiếp.",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Trang văn bản" },
+    keywords: ["trang bìa", "cover page", "bìa báo cáo", "mẫu trang bìa", "tiêu đề trang bìa", "gỡ trang bìa"],
+    steps: [
+      "Mở tab Chèn, nhóm Trang văn bản và bấm nút Trang bìa.",
+      "Trong hộp thoại Thư viện trang bìa, dùng các phím mũi tên hoặc nhấp chuột để chọn một trong 4 mẫu thiết kế hành chính và báo cáo (Công văn - Quyết định, Báo cáo có khung viền, Hiện đại dải màu, Hợp đồng tiêu đề lớn).",
+      "Nhập nội dung các trường Tiêu đề, Phụ đề, Đơn vị, Tác giả và Ngày (hoặc giữ nguyên để sửa sau), rồi bấm nút Chèn trang bìa.",
+      "Doc sẽ tự động chèn trang bìa vào đầu tài liệu kèm một ngắt trang ngay sau trang bìa. Nhấp chuột trực tiếp vào từng ô văn bản trên trang bìa để chỉnh sửa.",
+      "Để đổi sang mẫu khác hoặc gỡ bỏ: bấm lại Trang bìa trên ribbon, chọn mẫu mới để thay thế hoặc bấm nút Gỡ trang bìa (hoặc gọi lệnh Gỡ trang bìa) để xóa trang bìa cùng ngắt trang kèm theo. Bấm Ctrl+Z ngay sau khi chèn để hoàn tác chỉ trong một bước."
+    ]
   }
 ];
 

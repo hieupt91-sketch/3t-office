@@ -33,6 +33,7 @@ import { slugBookmarkName } from "../../../apps/writer/bookmark-utils.js";
 import { t } from "../../../platform/i18n/i18n.js";
 import { CITATION_STYLES, authorSortKey, citationMetadataHtml, formatBibliographyEntry, formatInTextCitation, normalizeSource, parseCitationMetadata, showInsertCitationDialog, showSourceManagerDialog } from "../../../apps/writer/citations.js";
 import { cleanWordHtml, serializeWriterSelectionToClipboard } from "../../../platform/clipboard/office-clipboard.js";
+import { generateCoverPageHtml, showCoverPageGalleryDialog } from "../../../apps/writer/cover-page.js";
 import {
   buildCaptionHtml,
   captionKindLabel,
@@ -685,6 +686,8 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("common.edit.replace", () => this._showFindReplaceDialog(true));
     globalCommandBus.bindHandler("writer.list.restartNumbering", (args) => this.restartNumbering(args));
     globalCommandBus.bindHandler("writer.list.continueNumbering", (args) => this.continueNumbering(args));
+    globalCommandBus.bindHandler("writer.insert.coverPage", (args) => this.openCoverPageDialog(args));
+    globalCommandBus.bindHandler("writer.insert.removeCoverPage", () => this.removeCoverPage());
     this._bindTableCommands();
 
     if (!this._lastSnapshot) {
@@ -8022,6 +8025,112 @@ export class WriterAdapter {
     if (!table.nextElementSibling) table.after(Object.assign(document.createElement("p"), { innerHTML: "<br>" }));
     this.isDirty = true;
     this.recordSnapshot("writer.table.fromText");
+    return true;
+  }
+
+  async openCoverPageDialog(options = {}) {
+    const opts = options || {};
+    this.flushTyping();
+    this._initZones();
+    if (!this.bodyDom) return false;
+
+    const existingCover = Boolean(
+      this.bodyDom.querySelector('[data-vno-cover-page="true"]') ||
+      this.bodyDom.querySelector('.vno-cover-page')
+    );
+
+    const currentTitle = opts.title
+      || this.bodyDom.querySelector('[data-vno-field="title"]')?.textContent
+      || this.bodyDom.querySelector('h1')?.textContent
+      || "";
+    const currentSubtitle = opts.subtitle
+      || this.bodyDom.querySelector('[data-vno-field="subtitle"]')?.textContent
+      || "";
+    const currentOrganization = opts.organization
+      || this.bodyDom.querySelector('[data-vno-field="organization"]')?.textContent
+      || "";
+    const currentAuthor = opts.author
+      || this.bodyDom.querySelector('[data-vno-field="author"]')?.textContent
+      || "";
+    const currentDate = opts.date
+      || this.bodyDom.querySelector('[data-vno-field="date"]')?.textContent
+      || "";
+
+    const result = await showCoverPageGalleryDialog({
+      hasExistingCover: existingCover,
+      currentTitle,
+      currentSubtitle,
+      currentOrganization,
+      currentAuthor,
+      currentDate
+    });
+
+    if (!result) return false;
+
+    if (result.action === "remove") {
+      return this.removeCoverPage();
+    }
+
+    if (result.action === "insert" && result.templateId) {
+      return this.insertCoverPage(result.templateId, result.fieldValues);
+    }
+
+    return false;
+  }
+
+  insertCoverPage(templateId, fieldValues = {}) {
+    this.flushTyping();
+    this._initZones();
+    if (!this.bodyDom) return false;
+
+    const existing = this.bodyDom.querySelector('[data-vno-cover-page="true"]') || this.bodyDom.querySelector('.vno-cover-page');
+    if (existing) {
+      let pageBreak = existing.nextElementSibling;
+      if (pageBreak && pageBreak.getAttribute("data-vno-page-break") !== "true" && !pageBreak.style?.pageBreakBefore?.includes("always") && !pageBreak.style?.breakBefore?.includes("page")) {
+        pageBreak = null;
+      }
+      if (!pageBreak) {
+        pageBreak = this.bodyDom.querySelector('[data-vno-page-break="true"]');
+      }
+      if (pageBreak) pageBreak.remove();
+      existing.remove();
+    }
+
+    const fullHtml = generateCoverPageHtml(templateId, fieldValues);
+
+    const tempDiv = document.createElement("div");
+    tempDiv.innerHTML = fullHtml;
+
+    const children = Array.from(tempDiv.children);
+    for (let i = children.length - 1; i >= 0; i--) {
+      this.bodyDom.prepend(children[i]);
+    }
+
+    this.isDirty = true;
+    this.recordSnapshot("writer.insert.coverPage");
+    return true;
+  }
+
+  removeCoverPage() {
+    this.flushTyping();
+    this._initZones();
+    if (!this.bodyDom) return false;
+
+    const existing = this.bodyDom.querySelector('[data-vno-cover-page="true"]') || this.bodyDom.querySelector('.vno-cover-page');
+    if (!existing) return false;
+
+    let pageBreak = existing.nextElementSibling;
+    if (pageBreak && pageBreak.getAttribute("data-vno-page-break") !== "true" && !pageBreak.style?.pageBreakBefore?.includes("always") && !pageBreak.style?.breakBefore?.includes("page")) {
+      pageBreak = null;
+    }
+    if (!pageBreak) {
+      pageBreak = this.bodyDom.querySelector('[data-vno-page-break="true"]');
+    }
+    if (pageBreak) pageBreak.remove();
+    existing.remove();
+
+    this.isDirty = true;
+    this.recordSnapshot("writer.insert.removeCoverPage");
     return true;
   }
 

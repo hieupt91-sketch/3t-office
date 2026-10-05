@@ -715,6 +715,8 @@ export const enStrings = {
     "writer.shape.insert": { label: "Shapes", tooltip: "Insert basic shapes (rectangle, circle, arrow, line)" },
     "writer.diagram.insert": { label: "SmartArt", tooltip: "Insert a SmartArt diagram (process, cycle, hierarchy, list)" },
     "writer.chart.insert": { label: "Chart", tooltip: "Insert an illustration chart" },
+    "writer.insert.coverPage": { label: "Cover Page", tooltip: "Open cover page gallery with 4 administrative and report templates" },
+    "writer.insert.removeCoverPage": { label: "Remove Cover Page", tooltip: "Remove cover page and its page break from the document" },
     "writer.page.break": { label: "Page Break", tooltip: "Insert a page break (Ctrl+Enter)" },
     "writer.page.blank": { label: "Blank Page", tooltip: "Insert a completely blank page at the cursor" },
     "writer.header.insert": { label: "Header", tooltip: "Insert header" },
