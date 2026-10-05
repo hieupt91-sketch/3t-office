@@ -763,6 +763,7 @@ export const enStrings = {
     "writer.page.margins": { label: "Margins", tooltip: "Adjust document margins" },
     "writer.page.orientation": { label: "Orientation", tooltip: "Switch page orientation between portrait and landscape" },
     "writer.page.size": { label: "Size", tooltip: "Choose page size (A4, Letter, etc.)" },
+    "writer.page.setupDialog": { label: "Page Setup…", tooltip: "Configure document margins, orientation, paper size, and section layout" },
     "writer.page.columns": { label: "Columns", tooltip: "Split text into two or more columns" },
     "writer.format.paragraphDialog": { label: "Paragraph…", tooltip: "Alignment, indents, spacing and line spacing in one dialog" },
     "writer.page.columns1": { label: "One Column", tooltip: "Format text into one column" },

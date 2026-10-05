@@ -188,6 +188,7 @@ export const WRITER_COMMANDS = [
   { id: "writer.page.margins", category: "layout", label: "Căn lề", icon: "margins", tooltip: "Thiết lập lề tiêu chuẩn văn bản Việt Nam" },
   { id: "writer.page.orientation", category: "layout", label: "Hướng giấy", icon: "orientation", tooltip: "Khổ giấy dọc hoặc ngang" },
   { id: "writer.page.size", category: "layout", label: "Khổ giấy", icon: "pageSize", tooltip: "Chọn khổ A4, Letter, v.v." },
+  { id: "writer.page.setupDialog", category: "layout", label: "Thiết lập trang…", icon: "margins", tooltip: "Cấu hình lề giấy, hướng in, khổ giấy A4 và bố cục phân đoạn" },
   { id: "writer.page.columns", category: "layout", label: "Cột", icon: "pageColumns", tooltip: "Chia văn bản thành nhiều cột (1, 2, 3 cột hoặc tùy chỉnh)" },
   { id: "writer.format.paragraphDialog", category: "paragraph", label: "Đoạn văn…", icon: "lineSpacing", tooltip: "Căn lề, thụt lề, khoảng cách đoạn và giãn dòng trong một hộp thoại" },
   { id: "writer.page.columns1", category: "layout", label: "1 cột", icon: "columnsOne", tooltip: "Định dạng toàn bộ văn bản 1 cột (Normal mặc định)" },
