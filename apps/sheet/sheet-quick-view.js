@@ -380,6 +380,15 @@ export class SheetQuickView {
       this._blockReadOnly(event);
       return;
     }
+    // Tìm/Thay thế chạy trên lưới đầy đủ (còn rỗng ở màn hình xem nhanh): báo rõ thay vì mở hộp thoại tìm trên lưới trống.
+    if ((event.ctrlKey || event.metaKey) && ["f", "h"].includes(String(key).toLowerCase())) {
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      const message = "Tìm kiếm và thay thế dùng được sau khi nạp đầy đủ. Bạn vẫn có thể cuộn và đọc dữ liệu ở màn hình xem nhanh.";
+      this.shell?.setStatus?.(message);
+      if (this.status) this.status.textContent = message;
+      return;
+    }
     if (["Enter", "F2", "Backspace", "Delete"].includes(key) || (key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey)) {
       this._blockReadOnly(event);
       return;
@@ -435,6 +444,16 @@ export class SheetQuickView {
 
   async failFullLoad() {
     if (!this.active && !this.docId) return false;
+    // Giữ màn hình xem nhanh để vẫn đọc được dữ liệu; chỉ cho biết nạp đầy đủ thất bại. (Bản cũ: đóng ngay về lưới trống.)
+    if (this.active && this.root && !globalThis.__VNO_QUICKVIEW_CLOSE_ON_FAIL) {
+      const message = "Không nạp đầy đủ được bảng tính. Bạn vẫn đọc được ở chế độ xem nhanh chỉ đọc; hãy đóng và mở lại tệp để thử lại.";
+      this.shell?.setStatus?.(message);
+      if (this.status) {
+        this.status.textContent = message;
+        this.status.classList?.add?.("is-failed");
+      }
+      return true;
+    }
     await this.closeView();
     return true;
   }

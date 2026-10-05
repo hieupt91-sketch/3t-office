@@ -31,6 +31,11 @@
   font-weight: 600;
 }
 
+.vno-sheet-quick-status.is-failed {
+  background: #fde8e8;
+  color: #8a1c1c;
+}
+
 .vno-sheet-quick-viewport {
   position: relative;
   min-width: 0;
