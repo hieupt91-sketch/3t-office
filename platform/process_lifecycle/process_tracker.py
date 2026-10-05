@@ -11,6 +11,49 @@ from pathlib import Path
 from typing import Callable
 
 
+def parse_ps_start_time(output: str) -> str | None:
+    """`ps -o lstart= -p PID` prints one line like 'Sun Oct  5 11:20:33 2026'; empty means the process is gone."""
+    text = " ".join(str(output or "").split())
+    return text or None
+
+
+def parse_ps_parent_table(output: str) -> dict[int, int]:
+    """`ps -axo pid=,ppid=` -> {pid: ppid}; malformed lines are skipped."""
+    table: dict[int, int] = {}
+    for line in str(output or "").splitlines():
+        parts = line.split()
+        if len(parts) != 2:
+            continue
+        try:
+            table[int(parts[0])] = int(parts[1])
+        except ValueError:
+            continue
+    return table
+
+
+def _run_ps(*arguments: str) -> str | None:
+    import subprocess
+
+    try:
+        completed = subprocess.run(
+            ["ps", *arguments], capture_output=True, text=True, timeout=5, check=False,
+            env={**os.environ, "LC_ALL": "C"},  # fixed English date format, so the token is stable across locales
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return completed.stdout if completed.returncode == 0 else None
+
+
+def _ps_start_time(pid: int) -> str | None:
+    output = _run_ps("-o", "lstart=", "-p", str(int(pid)))
+    return parse_ps_start_time(output) if output is not None else None
+
+
+def _ps_parent_table() -> dict[int, int]:
+    output = _run_ps("-axo", "pid=,ppid=")
+    return parse_ps_parent_table(output) if output is not None else {}
+
+
 def process_identity(pid: int) -> str | None:
     """Return a stable process-creation token suitable for detecting PID reuse."""
     try:
@@ -49,6 +92,11 @@ def process_identity(pid: int) -> str | None:
             # comm is parenthesized and can itself contain spaces or parentheses.
             fields = value[value.rfind(")") + 2:].split()
             return fields[19] if len(fields) > 19 else None  # field 22: starttime
+        if not Path("/proc").is_dir():
+            # macOS has no /proc: the process start time from `ps` is the creation token, so PID reuse is still detected.
+            start = _ps_start_time(int(pid))
+            if start is not None:
+                return start
         os.kill(int(pid), 0)
         return "alive"
     except (OSError, ValueError, IndexError):
@@ -99,8 +147,12 @@ def process_tree(root_pid: int) -> list[tuple[int, int]]:
         else:
             proc = Path("/proc")
             if not proc.is_dir():
-                return []
-            for stat_path in proc.glob("[0-9]*/stat"):
+                # macOS (no /proc): the parent table comes from `ps`; without it a child such as soffice.bin would
+                # be left running when its parent soffice is stopped.
+                parents = _ps_parent_table()
+                if not parents:
+                    return []
+            for stat_path in (proc.glob("[0-9]*/stat") if proc.is_dir() else ()):
                 try:
                     pid = int(stat_path.parent.name)
                     value = stat_path.read_text(encoding="ascii")
