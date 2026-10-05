@@ -21,6 +21,11 @@ Cách đọc: mục A là **mã dùng chung** (mac kéo xuống và phải kiể
 
 Test dùng chung: `node tests/run-tests.js` (2762 PASS), hồi quy desktop 27 ca, các bài CDP trong `tests/live/cdp/`. Bộ đo bằng PowerShell/WMI và CDP trên WebView2 là của Windows.
 
+**Thêm 05/10 chiều (dùng chung, mac cần kiểm):**
+- `platform/process_lifecycle/process_tracker.py`: macOS không có `/proc`, nên nhận diện tiến trình và cây tiến trình con nay lấy từ `ps` (`ps -o lstart= -p PID`, `ps -axo pid=,ppid=`, `LC_ALL=C`). Có test phần phân tích; **chưa chạy trên máy mac thật** — hãy kiểm: dừng `soffice` có dừng luôn `soffice.bin` không.
+- `ooxml_zip_patch.py`: worker của pool P1b tự thoát khi app cha chết (trên POSIX so `os.getppid()`); `prefetch_sheet_open_metadata` chạy trong luồng nền khi mở Sheet (cờ `VNO_OPEN_PREFETCH=0` tắt).
+- `platform/os_services/` (P1, P2): `windows.py` và `portable.py`. **macOS hiện dùng `portable.py`** (đường dẫn `~/Library/Application Support/VNOffice`, tìm `/Applications/LibreOffice.app/...`); khi làm `macos.py`, sao chép từ `portable.py` rồi chỉnh. `VNO_OS_SERVICES_LEGACY=1` quay lại mã cũ.
+
 ## B. Chỉ dành cho Windows (đừng sao chép sang mac)
 - `main.py`: `taskkill` (nhánh `os.name == "nt"`), tiền tố đường dẫn dài `\\?\`, `GetLocaleInfoEx`, `MessageBoxW`, `SetCurrentProcessExplicitAppUserModelID`.
 - `adapters/updater/apply-helper.ps1` (áp dụng cập nhật); mac cần `apply-helper.sh` riêng trong `ports/macos`.
