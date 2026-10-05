@@ -19,16 +19,57 @@ _P1B_LARGE_FODS_CHARS = 20 * 1024 * 1024
 _P1B_MAX_WORKERS = int(os.environ.get("VNO_P1_WORKERS", "").strip() or 0) or (6 if (os.cpu_count() or 4) >= 8 else 4)
 
 
+_ADLER_BASE = 65521
+
+
+def _adler32_combine(adler1: int, adler2: int, length2: int) -> int:
+    """zlib's adler32_combine: checksum of A+B from adler32(A), adler32(B) and len(B)."""
+    remainder = length2 % _ADLER_BASE
+    sum1 = adler1 & 0xFFFF
+    sum2 = (remainder * sum1) % _ADLER_BASE
+    sum1 += (adler2 & 0xFFFF) + _ADLER_BASE - 1
+    sum2 += ((adler1 >> 16) & 0xFFFF) + ((adler2 >> 16) & 0xFFFF) + _ADLER_BASE - remainder
+    if sum1 >= _ADLER_BASE:
+        sum1 -= _ADLER_BASE
+    if sum1 >= _ADLER_BASE:
+        sum1 -= _ADLER_BASE
+    if sum2 >= (_ADLER_BASE << 1):
+        sum2 -= _ADLER_BASE << 1
+    if sum2 >= _ADLER_BASE:
+        sum2 -= _ADLER_BASE
+    return sum1 | (sum2 << 16)
+
+
+def deflate_segment(data: bytes) -> tuple[bytes, int, int]:
+    """Independent raw-deflate piece (sync-flushed, not final) that _PayloadRows can splice into its stream."""
+    compressor = zlib.compressobj(6, zlib.DEFLATED, -15)
+    return compressor.compress(data) + compressor.flush(zlib.Z_SYNC_FLUSH), zlib.adler32(data), len(data)
+
+
 class _PayloadRows:
+    """One zlib stream (level 6). Rows may be appended as pieces deflated elsewhere (see add_segment)."""
+
     def __init__(self) -> None:
         self.buffer = BytesIO()
-        self.compressor = zlib.compressobj(level=6)
+        self.compressor = zlib.compressobj(6, zlib.DEFLATED, -15)  # raw deflate; the zlib header/trailer are added in finish()
+        self.adler = 1
         self.sheets = 0
         self.rows = 0
 
     def emit(self, record) -> None:
         line = (json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n").encode("utf-8")
+        self.adler = zlib.adler32(line, self.adler)
         self.buffer.write(self.compressor.compress(line))
+
+    def add_segment(self, deflated: bytes, adler: int, length: int, count: int) -> None:
+        """Append rows a worker already serialized and deflated with deflate_segment()."""
+        self.buffer.write(self.compressor.flush(zlib.Z_SYNC_FLUSH))
+        self.buffer.write(deflated)
+        # The spliced bytes sit between this compressor's history and its next output, so back-references to that
+        # history would point at the wrong data: continue with a fresh window.
+        self.compressor = zlib.compressobj(6, zlib.DEFLATED, -15)
+        self.adler = _adler32_combine(self.adler, adler, length)
+        self.rows += count
 
     def begin_sheet(self, name: str) -> None:
         self.emit(["sheet", name])
@@ -43,7 +84,7 @@ class _PayloadRows:
 
     def finish(self) -> bytes:
         self.buffer.write(self.compressor.flush())
-        return self.buffer.getvalue()
+        return b"\x78\x9c" + self.buffer.getvalue() + self.adler.to_bytes(4, "big")
 
 
 def _empty_row(row_xml: str) -> str:
@@ -105,8 +146,12 @@ def _row_with_xf_and_record(row_xml, targets, patcher, sink):
 
 
 def _transform_payload_rows_chunk(args):
-    chunk, row_number, row_map = args
+    chunk, row_number, row_map = args[:3]
+    want_jsonl = len(args) > 3 and args[3]
     from adapters.libreoffice.common import ooxml_zip_patch as patcher
+
+    if len(args) > 4 and args[4]:
+        chunk = patcher.strip_vno_xf_attributes(chunk)  # the parent leaves the big tables unstripped, in parallel here
 
     sorted_rows = sorted(row_map)
     target_index = 0
@@ -163,7 +208,18 @@ def _transform_payload_rows_chunk(args):
     trailing = chunk[cursor:]
     out.append(trailing)
     support.append(trailing)
-    return "".join(out), "".join(support)
+    output = "".join(out)
+    if not want_jsonl:
+        return output, "".join(support)
+    # Serialize the sheet rows here, in the worker, so the parent only compresses.
+    lines, count = [], 0
+    for row_start, row_end in patcher._flat_xml_blocks(output, ("table:table-row",)):
+        lines.append(
+            json.dumps(["row-xml", output[row_start:row_end]], ensure_ascii=False, separators=(",", ":"))
+            + "\n"
+        )
+        count += 1
+    return (output, "".join(support), *deflate_segment("".join(lines).encode("utf-8")), count)
 
 
 def build_sheet_open_payload_legacy(xlsx_bytes: bytes, fods_xml: str, patcher) -> tuple[str, dict]:
@@ -171,14 +227,26 @@ def build_sheet_open_payload_legacy(xlsx_bytes: bytes, fods_xml: str, patcher) -
     # superseded by P1b - xoa chi khi chu so huu duyet
     sink = _PayloadRows()
     strip_xf = getattr(patcher, "strip_vno_xf_attributes", None)
-    clean = strip_xf(fods_xml) if strip_xf is not None else re.sub(
-        r'\s+vno:xf\s*=\s*(["\'])\d+\1', "", fods_xml, flags=re.IGNORECASE
+    # Big FODS: strip vno:xf per table (in the workers for the big ones) instead of one pass over the whole string.
+    defer_strip = (
+        strip_xf is not None
+        and len(fods_xml) > _P1B_LARGE_FODS_CHARS
+        and os.environ.get("VNO_PAYLOAD_STRIP_IN_WORKERS", "").strip() != "0"
     )
+    if defer_strip:
+        clean = fods_xml
+    else:
+        clean = strip_xf(fods_xml) if strip_xf is not None else re.sub(
+            r'\s+vno:xf\s*=\s*(["\'])\d+\1', "", fods_xml, flags=re.IGNORECASE
+        )
     normalized_xlsx = patcher.normalize_source_xlsx(xlsx_bytes)
     by_sheet = patcher._xlsx_cells_with_xf_indices(normalized_xlsx)
     output_parts, support_parts, cursor = [], [], 0
 
     def transform_table(table_xml):
+        worker_strip = defer_strip and len(table_xml) > _P1B_LARGE_FODS_CHARS
+        if defer_strip and not worker_strip:
+            table_xml = strip_xf(table_xml)
         opening_match = re.match(r"<[^>]+", table_xml)
         attrs = patcher._xml_attrs(opening_match.group(0)) if opening_match else {}
         name = attrs.get("table:name", "")
@@ -198,6 +266,12 @@ def build_sheet_open_payload_legacy(xlsx_bytes: bytes, fods_xml: str, patcher) -
             prefix, chunks, suffix = patcher._p1_metadata_table_chunks(
                 table_xml, _P1B_MAX_WORKERS
             )
+            if worker_strip:
+                if len(chunks) > 1:
+                    prefix, suffix = strip_xf(prefix), strip_xf(suffix)
+                else:
+                    table_xml = strip_xf(table_xml)
+                    prefix, chunks, suffix = None, [], None
             if len(chunks) > 1:
                 tasks = []
                 for chunk, logical_start, logical_end in chunks:
@@ -206,21 +280,20 @@ def build_sheet_open_payload_legacy(xlsx_bytes: bytes, fods_xml: str, patcher) -
                         for row, values in row_map.items()
                         if logical_start <= row < logical_end
                     }
-                    tasks.append((chunk, logical_start, subset))
+                    tasks.append((chunk, logical_start, subset, active, worker_strip))
                 transformed_chunks = list(
                     patcher._p1_process_pool().map(
                         _transform_payload_rows_chunk, tasks
                     )
                 )
+                tasks = chunks = None
                 output_chunks = [item[0] for item in transformed_chunks]
                 support_chunks = [item[1] for item in transformed_chunks]
                 if active:
-                    for output_chunk in output_chunks:
-                        for row_start, row_end in patcher._flat_xml_blocks(
-                            output_chunk, ("table:table-row",)
-                        ):
-                            sink.add_row(output_chunk[row_start:row_end])
+                    for item in transformed_chunks:
+                        sink.add_segment(item[2], item[3], item[4], item[5])
                     sink.end_sheet()
+                transformed_chunks = None
                 return (
                     "".join([prefix, *output_chunks, suffix]),
                     "".join([prefix, *support_chunks, suffix]),
@@ -273,6 +346,8 @@ def build_sheet_open_payload_legacy(xlsx_bytes: bytes, fods_xml: str, patcher) -
 
     for start, end in patcher._flat_xml_blocks(clean, ("table:table",)):
         outside = clean[cursor:start]
+        if defer_strip:
+            outside = strip_xf(outside)
         output_parts.append(outside)
         support_parts.append(outside)
         table_xml = clean[start:end]
@@ -280,8 +355,11 @@ def build_sheet_open_payload_legacy(xlsx_bytes: bytes, fods_xml: str, patcher) -
         output_parts.append(output_table)
         support_parts.append(support_table)
         cursor = end
-    output_parts.append(clean[cursor:])
-    support_parts.append(clean[cursor:])
+    tail = clean[cursor:]
+    if defer_strip:
+        tail = strip_xf(tail)
+    output_parts.append(tail)
+    support_parts.append(tail)
     final_fods = "".join(output_parts)
     support_xml = "".join(support_parts)
     if by_sheet and not re.search(r"xmlns:vno\s*=", final_fods, re.IGNORECASE):
@@ -299,10 +377,11 @@ def build_sheet_open_payload_legacy(xlsx_bytes: bytes, fods_xml: str, patcher) -
         match = re.search(r"<" + re.escape(tag) + r"\b[^>]*>[\s\S]*?</" + re.escape(tag) + r"\s*>", support_xml)
         if match:
             raw_styles[tag] = match.group(0)
+    source_bytes = len(final_fods.encode("utf-8"))
     payload = {
         "format": "vno.sheet.payload.v2",
         "rowsEncoding": "deflate-base64-jsonl-row-xml",
-        "sourceBytes": len(final_fods.encode("utf-8")),
+        "sourceBytes": source_bytes,
         "sheets": sink.sheets,
         "rows": sink.rows,
         "supportXml": support_xml,
@@ -311,7 +390,7 @@ def build_sheet_open_payload_legacy(xlsx_bytes: bytes, fods_xml: str, patcher) -
     }
     if not payload["sheets"] or not payload["rows"] or not payload["supportXml"]:
         raise ValueError("Sheet open payload is incomplete")
-    if len(final_fods.encode("utf-8")) != payload["sourceBytes"]:
+    if source_bytes != payload["sourceBytes"]:
         raise ValueError("Sheet open payload source size is inconsistent")
     return final_fods, payload
 

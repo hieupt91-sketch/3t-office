@@ -76,7 +76,35 @@ class SheetOpenPayloadTests(unittest.TestCase):
         with patch.object(sheet_open_payload, "_P1B_LARGE_FODS_CHARS", 1):
             actual_fods, actual_payload = build_sheet_open_payload(xlsx, fods, patcher)
         self.assertEqual(actual_fods, expected_fods)
-        self.assertEqual(actual_payload, expected_payload)
+        # The parallel path deflates each block in its worker and splices the pieces (sync-flushed), so the
+        # compressed bytes differ from the sequential stream by design; the decoded records, the zlib checksum
+        # (zlib.decompress verifies it) and every other field must still be identical.
+        def decoded(payload):
+            return zlib.decompress(base64.b64decode(payload["rowsDeflateBase64"]))
+
+        self.assertEqual(decoded(actual_payload), decoded(expected_payload))
+        self.assertEqual(
+            {key: value for key, value in actual_payload.items() if key != "rowsDeflateBase64"},
+            {key: value for key, value in expected_payload.items() if key != "rowsDeflateBase64"},
+        )
+
+    def test_spliced_deflate_segments_form_one_valid_zlib_stream(self):
+        sink = sheet_open_payload._PayloadRows()
+        sink.begin_sheet("A")
+        for index in range(3):
+            lines = "".join(
+                json.dumps(["row-xml", f"<table:table-row>{index}-{row}</table:table-row>"], separators=(",", ":")) + "\n"
+                for row in range(2000)
+            ).encode("utf-8")
+            sink.add_segment(*sheet_open_payload.deflate_segment(lines), 2000)
+            sink.add_row(f"<table:table-row>tail-{index}</table:table-row>")
+        sink.end_sheet()
+        records = zlib.decompress(sink.finish()).decode("utf-8").splitlines()
+        self.assertEqual(sink.rows, 3 * 2001)
+        self.assertEqual(records[0], '["sheet","A"]')
+        self.assertEqual(records[-1], '["end-sheet"]')
+        self.assertEqual(records[2001], '["row-xml","<table:table-row>tail-0</table:table-row>"]')
+        self.assertEqual(len(records), 2 + 3 * 2001)
 
     def test_fallback_session_is_opaque_private_retrievable_and_released(self):
         with tempfile.TemporaryDirectory() as temp_dir, patch("main._user_data_dir", return_value=Path(temp_dir)):
