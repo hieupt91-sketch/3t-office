@@ -466,5 +466,14 @@ export async function runFormulaEngineTests() {
     })()
   });
 
+  // Tham chiếu tuyệt đối/hỗn hợp trong biểu thức số học (trước đây $ còn sót lại -> #VALUE!)
+  const absCells = new Map([["B1", { val: 2, formula: "", style: {} }], ["B2", { val: 4, formula: "", style: {} }]]);
+  const absEngine = new FormulaEngine(absCells);
+  for (const [formula, expected] of [["=$B$1+B1", 4], ["=$B1+B$1", 4], ["=B$2*$B$1", 8], ["=$B$2/$B$1-B1", 0], ["=($B$1+$B$2)*2", 12]]) {
+    results.push({
+      name: `Formula: tham chiếu tuyệt đối trong số học ${formula} = ${expected}`,
+      pass: absEngine.evaluate(formula) === expected
+    });
+  }
   return results;
 }

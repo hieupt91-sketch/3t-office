@@ -2016,7 +2016,7 @@ export class FormulaEngine {
   _evaluateArithmetic(expr, { raw = false } = {}) {
     // Thay thế các tọa độ ô (vd: A1, B2) thành giá trị số tương ứng
     let referenceError = false;
-    const resolved = expr.replace(/(?:'(?:[^']|'')+'|[A-Za-zÀ-ỹ_][^\s!+\-*/()]*)![A-Z]+\d+|[A-Z]+\d+/gi, (token) => {
+    const resolved = expr.replace(/(?:'(?:[^']|'')+'|[A-Za-zÀ-ỹ_][^\s!+\-*/()]*)!\$?[A-Z]+\$?\d+|\$?[A-Z]+\$?\d+/gi, (token) => {
       const reference = this._parseReference(token);
       const val = reference.error || this.getCellValue(reference.ref, reference.sheet);
       if (val === "#REF!") referenceError = true;
