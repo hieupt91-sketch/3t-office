@@ -7480,9 +7480,22 @@ def prefetch_sheet_open_metadata(xlsx_bytes: bytes | None, *, include_xf: bool =
                 info.file_size for info in archive.infolist()
                 if info.filename.startswith("xl/worksheets/") and info.filename.endswith(".xml")
             )
-        _xlsx_cells_with_metadata_p1(
-            xlsx_bytes, include_xf=include_xf, parallel=sheet_chars > _P1_PARALLEL_FODS_CHARS,
-        )
+        large = sheet_chars > _P1_PARALLEL_FODS_CHARS
+        layout_future = None
+        if large:
+            # The sheet layout (row heights from every cell's font) is another xlsx-only computation: 10-13 s on
+            # lan01/lan06. Run it in a worker process right away so it neither waits for the FODS nor holds this
+            # process' GIL; the result goes into the same identity memo.
+            try:
+                layout_future = _p1_process_pool().submit(_compute_xlsx_sheet_layouts, xlsx_bytes)
+            except Exception:
+                layout_future = None
+        _xlsx_cells_with_metadata_p1(xlsx_bytes, include_xf=include_xf, parallel=large)
+        if layout_future is not None:
+            try:
+                _index_memo_put("layouts", xlsx_bytes, layout_future.result())
+            except Exception:
+                pass  # the overlay simply computes it itself
         return True
     except Exception:
         return False
@@ -8982,7 +8995,17 @@ def _column_name(index: int) -> str:
     return name
 
 
-def _overlay_sheet_layout_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
+def _xlsx_sheet_layouts(xlsx_bytes: bytes) -> dict:
+    """Layouts of every sheet, computed from the xlsx alone and memoised (a prefetch may have filled the memo)."""
+    cached = _index_memo_get("layouts", xlsx_bytes)
+    if cached is not _INDEX_MISS:
+        return cached
+    layouts = _compute_xlsx_sheet_layouts(xlsx_bytes)
+    _index_memo_put("layouts", xlsx_bytes, layouts)
+    return layouts
+
+
+def _compute_xlsx_sheet_layouts(xlsx_bytes: bytes) -> dict:
     """Preserve exact Excel width*digit_width px and row pt->px dimensions.
 
     soffice canonicalizes dimensions to ODF lengths and can apply font metrics;
@@ -9229,6 +9252,12 @@ def _overlay_sheet_layout_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
                 layouts[sheet_name]["auto"] = auto_rows
             if has_table:
                 layouts[sheet_name]["defaultRow"] = default_px
+    return layouts
+
+
+def _overlay_sheet_layout_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
+    """Write the xlsx layout of each sheet into its FODS table (the computation itself is _compute_xlsx_sheet_layouts)."""
+    layouts = _xlsx_sheet_layouts(xlsx_bytes)
     if not layouts:
         return fods_xml
 
@@ -15944,6 +15973,64 @@ def main(argv: list[str] | None = None) -> int:
 _FODS_TABLE_OPEN_RE = re.compile(r"<table:table\b([^>]*)>")
 _FODS_TABLE_CLOSE_RE = re.compile(r"</table:table\s*>")
 _FODS_TABLE_RE = re.compile(r"(<table:table\b[^>]*>)([\s\S]*?)(</table:table\s*>)", re.IGNORECASE)
+_FODS_TABLE_OPEN_RE = re.compile(r"<table:table\b[^>]*>", re.IGNORECASE)
+_FODS_TABLE_ODD_CLOSE_RE = re.compile(r"</table:table[ \t\r\n]")
+
+
+class _FodsTableSpan:
+    """Stand-in for the re.Match that _FODS_TABLE_RE.sub hands to process_table (groups 0-3 only)."""
+
+    __slots__ = ("_xml", "_start", "_open_end", "_close_start", "_end")
+
+    def __init__(self, xml: str, start: int, open_end: int, close_start: int, end: int) -> None:
+        self._xml, self._start, self._open_end, self._close_start, self._end = xml, start, open_end, close_start, end
+
+    def group(self, index: int = 0) -> str:
+        if index == 0:
+            return self._xml[self._start:self._end]
+        if index == 1:
+            return self._xml[self._start:self._open_end]
+        if index == 2:
+            return self._xml[self._open_end:self._close_start]
+        if index == 3:
+            return self._xml[self._close_start:self._end]
+        raise IndexError(index)
+
+
+def _sub_fods_tables(fods_xml: str, process_table) -> str:
+    """Same result as _FODS_TABLE_RE.sub(process_table, fods_xml), without the lazy regex scan.
+
+    The regex `([\\s\\S]*?)(</table:table\\s*>)` walks a 300 MB table character by character in the re engine
+    (~9 s on lan14); str.find does the same job at memory speed. LibreOffice writes lower-case tags without blanks
+    in closing tags; anything else (or VNO_FODS_TABLE_REGEX=1) keeps the original regex path.
+    """
+    if os.environ.get("VNO_FODS_TABLE_REGEX") == "1" or _FODS_TABLE_ODD_CLOSE_RE.search(fods_xml):
+        return _FODS_TABLE_RE.sub(process_table, fods_xml)
+    pieces: list[str] = []
+    cursor = 0
+    position = 0
+    while True:
+        start = fods_xml.find("<table:table", position)
+        if start < 0:
+            break
+        opening = _FODS_TABLE_OPEN_RE.match(fods_xml, start)
+        if opening is None:
+            position = start + 1
+            continue
+        close_start = fods_xml.find("</table:table>", opening.end())
+        if close_start < 0:
+            break  # the regex finds no further match either (no closing tag after this opening)
+        end = close_start + len("</table:table>")
+        pieces.append(fods_xml[cursor:start])
+        pieces.append(process_table(_FodsTableSpan(fods_xml, start, opening.end(), close_start, end)))
+        cursor = end
+        position = end
+    if cursor == 0:
+        return fods_xml
+    pieces.append(fods_xml[cursor:])
+    return "".join(pieces)
+
+
 _FODS_ROW_RE = re.compile(r"(<table:table-row\b[^>]*?)(/?)\s*>", re.IGNORECASE)
 _FODS_ROW_CLOSE_RE = re.compile(r"</table:table-row\s*>", re.IGNORECASE)
 _FODS_CELL_OPEN_RE = re.compile(r"(<(table:table-cell|table:covered-table-cell)\b[^>]*?)(/?)\s*>", re.IGNORECASE)
@@ -16644,7 +16731,7 @@ def optimize_fods_streaming(fods_xml: str, max_style_only_col_repeat: int = 64) 
         pieces.append(table_body[cursor:])
         return table_open + "".join(pieces) + table_close
 
-    return _FODS_TABLE_RE.sub(process_table, fods_xml)
+    return _sub_fods_tables(fods_xml, process_table)
 
 
 if __name__ == "__main__":
