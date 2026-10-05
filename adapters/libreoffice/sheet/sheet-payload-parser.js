@@ -29,10 +29,24 @@ const P2_ATTR_RE = /([\w:-]+)=(["'])([\s\S]*?)\2/g;
 function parseAttrsP2(raw) {
   const attrs = {};
   const source = String(raw || "");
-  P2_ATTR_RE.lastIndex = 0;
-  let match;
-  while ((match = P2_ATTR_RE.exec(source)) !== null) {
-    attrs[match[1]] = unescapeXmlP2(match[3]);
+  const isNameChar = code => code === 95 || code === 58 || code === 45
+    || code >= 48 && code <= 57 || code >= 65 && code <= 90 || code >= 97 && code <= 122;
+  let i = 0;
+  while (i < source.length) {
+    while (i < source.length && !isNameChar(source.charCodeAt(i))) i++;
+    const start = i;
+    while (i < source.length && isNameChar(source.charCodeAt(i))) i++;
+    if (start === i) break;
+    const nameEnd = i;
+    if (source.charCodeAt(i) !== 61) continue;
+    i++;
+    const quote = source.charCodeAt(i);
+    if (quote !== 34 && quote !== 39) continue;
+    const valueStart = ++i;
+    while (i < source.length && source.charCodeAt(i) !== quote) i++;
+    if (i === source.length) break;
+    attrs[source.slice(start, nameEnd)] = unescapeXmlP2(source.slice(valueStart, i));
+    i++;
   }
   return attrs;
 }

@@ -1,6 +1,6 @@
 /** P2 payload parser equivalence and rollback selector. */
 
-import { deflateSync } from "node:zlib";
+import { deflateSync, inflateSync } from "node:zlib";
 import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
 import { buildSheetPayloadModel, toPlain } from "../../adapters/libreoffice/sheet/sheet-payload-parser.js";
 
@@ -43,6 +43,25 @@ export async function runSheetPayloadP2EquivalenceTests() {
     } finally {
       delete globalThis.__VNO_OPEN_LEGACY;
     }
+  });
+
+  await test("optimized XML unescape and attribute scan preserve legacy values", async () => {
+    const adapter = new SheetAdapter(null);
+    const legacyUnescape = value => !value ? "" : String(value)
+      .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(parseInt(code, 16)))
+      .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(parseInt(code, 10)))
+      .replace(/&apos;/g, "'").replace(/&quot;/g, '"').replace(/&gt;/g, ">")
+      .replace(/&lt;/g, "<").replace(/&amp;/g, "&");
+    for (const value of ["plain text", "&amp; &#x41; &#65;", "'single' and \"double\"", "  spaced  ", "&amp;lt;"]) {
+      assert(adapter._unescapeXml(value) === legacyUnescape(value), `unescape changed ${value}`);
+    }
+    const payload = fixture();
+    const records = inflateSync(Buffer.from(payload.rowsDeflateBase64, "base64")).toString().trimEnd().split("\n").map(JSON.parse);
+    records[1][1] = '<table:table-row a="first" a="last" b=\'single &amp; &#x41;\' c ="spaced" d="plain"><table:table-cell office:value-type="string" office:string-value="&quot;yes&quot;"/></table:table-row>';
+    payload.rowsDeflateBase64 = deflateSync(Buffer.from(records.map(JSON.stringify).join("\n") + "\n")).toString("base64");
+    const p2 = toPlain(await buildSheetPayloadModel(payload, adapter));
+    const legacy = toPlain(await buildSheetPayloadModel(payload, new SheetAdapter(null), undefined, { legacy: true }));
+    assert(JSON.stringify(p2) === JSON.stringify(legacy), "optimized attributes differ from legacy regex parser");
   });
 
   return results;
