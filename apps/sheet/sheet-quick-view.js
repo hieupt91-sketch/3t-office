@@ -191,7 +191,7 @@ export class SheetQuickView {
     const key = this._cacheKey(this.activeSheet, Number(payload.r0) || 0, Number(payload.c0) || 0);
     this.cache.set(key, payload.window);
     this._renderTabs();
-    this.updateProgress("Đang nạp đầy đủ…", 12);
+    this.updateProgress("Chỉ đọc · đang nạp đầy đủ…", 12);
     await this._renderWindow(Number(payload.r0) || 0, Number(payload.c0) || 0, payload.window);
     this.root?.focus?.({ preventScroll: true });
     if (typeof window !== "undefined") {
@@ -411,7 +411,7 @@ export class SheetQuickView {
   updateProgress(message, percent) {
     if (!this.active && !this.root) return false;
     const suffix = Number.isFinite(Number(percent)) ? ` ${Math.max(0, Math.min(99, Math.round(Number(percent))))}%` : "";
-    const text = `${String(message || "Đang nạp đầy đủ…").replace(/\s+\d+%\s*$/, "")}${suffix}`;
+    const text = `${String(message || "Chỉ đọc · đang nạp đầy đủ…").replace(/\s+\d+%\s*$/, "")}${suffix}`;
     if (this.status) this.status.textContent = text;
     this.shell?.setStatus?.(text);
     return true;

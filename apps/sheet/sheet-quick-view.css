@@ -82,7 +82,7 @@
   border-bottom: 1px solid #e5e7eb;
   background-clip: padding-box;
   text-overflow: clip;
-  cursor: cell;
+  cursor: default;
 }
 
 .vno-sheet-quick-cell.is-selected {

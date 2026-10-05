@@ -134,7 +134,7 @@ export class SheetApp {
             : /tối ưu/i.test(text) ? 52
               : /đóng gói/i.test(text) ? 70
                 : /dựng mô hình|hiển thị lưới|dữ liệu bảng tính/i.test(text) ? 86 : null;
-        if (!this.quickView?.updateProgress(text.replace(/^Đang .+?…?$/i, "Đang nạp đầy đủ…"), progress)) {
+        if (!this.quickView?.updateProgress(text.replace(/^Đang .+?…?$/i, "Chỉ đọc · đang nạp đầy đủ…"), progress)) {
           this.shell?.setStatus?.(text);
         }
       };
