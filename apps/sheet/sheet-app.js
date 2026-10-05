@@ -117,7 +117,13 @@ export class SheetApp {
     this.adapter.setShell(this.shell);
     this.adapter.attach();
     if (launchParams.get("viewFirst") === "1") {
-      this.quickView = new SheetQuickView({ grid: this.grid, shell: this.shell, bridge: globalUnoBridge });
+      this.quickView = new SheetQuickView({
+        grid: this.grid,
+        shell: this.shell,
+        bridge: globalUnoBridge,
+        getSourceFilePath: () => this.adapter?.sourceFilePath,
+        reopenFile: filePath => globalUnoBridge.openFileInNewWindow(filePath, "sheet")
+      });
       this.quickView.install();
     }
     if (typeof window !== "undefined") {

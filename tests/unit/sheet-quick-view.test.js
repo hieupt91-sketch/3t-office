@@ -108,6 +108,26 @@ export async function runSheetQuickViewTests() {
     assert(grid.viewport.scrollTop === 599910 && grid.viewport.scrollLeft === 180, "scroll anchor transition");
   });
 
+  await test("P8 quick view failure retry reopens source once", async () => {
+    const { SheetQuickView } = await import("../../apps/sheet/sheet-quick-view.js");
+    const makeElement = () => ({ attrs: {}, listeners: {}, children: [], classList: { add() {}, remove() {} }, setAttribute(n, v) { this.attrs[n] = v; }, addEventListener(n, fn) { this.listeners[n] = fn; }, appendChild(child) { this.children.push(child); }, remove() {} });
+    const status = makeElement();
+    let opens = 0, closes = 0, openedPath = null;
+    const view = new SheetQuickView({
+      documentRef: { createElement: makeElement },
+      getSourceFilePath: () => "E:\\báo cáo.xlsx",
+      reopenFile: async path => { opens += 1; openedPath = path; },
+      grid: { container: { classList: { remove() {} } } },
+      bridge: { sheetViewClose: async id => { closes += 1; assert(id === "doc", "close targets current preview"); } }
+    });
+    view.active = true; view.docId = "doc"; view.root = makeElement(); view.status = status;
+    await view.failFullLoad();
+    const retry = status.children[0];
+    assert(retry?.textContent === "Thử lại" && retry.attrs["aria-label"], "failure exposes accessible retry");
+    await retry.listeners.click();
+    assert(opens === 1 && openedPath === "E:\\báo cáo.xlsx" && closes === 1, "retry closes preview and reopens source once");
+  });
+
   return results;
 }
 
