@@ -1134,11 +1134,18 @@ export class WriterAdapter {
     });
   }
 
-  _applyParagraphVisualStyle(styles, description, selectedBlocks = null) {
+  _applyParagraphVisualStyle(styles, description, selectedBlocks = null, dataset = null) {
     const blocks = Array.isArray(selectedBlocks) ? selectedBlocks : this._getSelectedParagraphBlocks();
     if (!blocks.length) return false;
     this.flushTyping();
-    blocks.forEach(block => Object.assign(block.style, styles));
+    blocks.forEach(block => {
+      Object.assign(block.style, styles);
+      // dataset: { tên: giá trị | null } — null gỡ thuộc tính; cùng một bước hoàn tác với phần style.
+      if (dataset) Object.entries(dataset).forEach(([name, value]) => {
+        if (value === null || value === undefined) delete block.dataset[name];
+        else block.dataset[name] = String(value);
+      });
+    });
     this.isDirty = true;
     this.recordSnapshot(description);
     return true;
@@ -10337,7 +10344,36 @@ export class WriterAdapter {
       base.lineMode = preset;
       base.lineValue = ratio;
     }
+    // Ngắt dòng và ngắt trang: thuộc tính vno (đặt từ hộp thoại) hoặc CSS tương đương (tài liệu nhập từ DOCX).
+    const style = block.style || {};
+    // data-vno-keep-next="true" là dấu có sẵn do _applyOoxmlKeepNextToHtml gắn khi nhập DOCX (bị gỡ khi xuất); đặt từ hộp thoại dùng data-vno-flow-*.
+    base.keepNext = block.dataset?.vnoFlowNext === "1" || block.dataset?.vnoKeepNext === "true" || style.pageBreakAfter === "avoid" || style.breakAfter === "avoid";
+    base.keepLines = block.dataset?.vnoFlowLines === "1" || style.pageBreakInside === "avoid" || style.breakInside === "avoid";
+    base.pageBreakBefore = block.dataset?.vnoFlowPageBefore === "1" || style.pageBreakBefore === "always" || style.breakBefore === "page";
+    base.widowControl = block.dataset?.vnoFlowWidow !== "off";
     return base;
+  }
+
+  /**
+   * Chuyển thuộc tính đoạn văn "ngắt dòng/ngắt trang" thành CSS cũ mà bộ nhập HTML của LibreOffice hiểu
+   * (đo thật: `page-break-after: avoid` → w:keepNext, `page-break-inside: avoid` → w:keepLines,
+   * `page-break-before: always` → ngắt trang đặt trước đoạn, `orphans/widows: 0` → w:widowControl tắt;
+   * các tên CSS3 `break-*` bị LibreOffice bỏ qua).
+   */
+  _paragraphFlowForExport(html) {
+    return String(html || "").replace(/<(p|h[1-6]|li|div|blockquote)\b([^>]*\bdata-vno-flow-(?:next|lines|page-before|widow)=[^>]*)>/gi, (match, tag, attrs) => {
+      const css = [];
+      if (/\bdata-vno-flow-next=(["'])1\1/i.test(attrs)) css.push("page-break-after: avoid");
+      if (/\bdata-vno-flow-lines=(["'])1\1/i.test(attrs)) css.push("page-break-inside: avoid");
+      if (/\bdata-vno-flow-page-before=(["'])1\1/i.test(attrs)) css.push("page-break-before: always");
+      if (/\bdata-vno-flow-widow=(["'])off\1/i.test(attrs)) css.push("orphans: 0; widows: 0");
+      if (!css.length) return match;
+      const addition = css.join("; ");
+      if (/\bstyle=(["'])/i.test(attrs)) {
+        return `<${tag}${attrs.replace(/\bstyle=(["'])([^"']*)\1/i, (m, quote, value) => `style=${quote}${value.replace(/;?\s*$/, "")}; ${addition}${quote}`)}>`;
+      }
+      return `<${tag}${attrs} style="${addition}">`;
+    });
   }
 
   applyParagraphDialogValues(values) {
@@ -10356,8 +10392,19 @@ export class WriterAdapter {
       textIndent: `${values.firstLineMm}mm`,
       marginTop: `${values.beforePt}pt`,
       marginBottom: `${values.afterPt}pt`,
-      lineHeight
-    }, "writer.format.paragraphDialog", this._getRulerParagraphBlocks());
+      lineHeight,
+      // Chỉ đụng tới nhóm "ngắt dòng/ngắt trang" khi người gọi truyền các trường đó (lệnh cũ chỉ có căn lề/thụt lề/giãn dòng).
+      // Gỡ CSS ngắt trang cũ (tài liệu nhập từ DOCX) để dataset là nguồn duy nhất.
+      ...("keepNext" in values ? { pageBreakAfter: "" } : {}),
+      ...("keepLines" in values ? { pageBreakInside: "" } : {}),
+      ...("pageBreakBefore" in values ? { pageBreakBefore: "" } : {})
+    }, "writer.format.paragraphDialog", this._getRulerParagraphBlocks(), {
+      // Bỏ tích "Giữ cùng trang" cũng gỡ dấu keepNext nhập từ DOCX (vnoKeepNext) để hộp thoại và bố cục khớp nhau.
+      ...("keepNext" in values ? { vnoFlowNext: values.keepNext ? "1" : null, ...(values.keepNext ? {} : { vnoKeepNext: null }) } : {}),
+      ...("keepLines" in values ? { vnoFlowLines: values.keepLines ? "1" : null } : {}),
+      ...("pageBreakBefore" in values ? { vnoFlowPageBefore: values.pageBreakBefore ? "1" : null } : {}),
+      ...("widowControl" in values ? { vnoFlowWidow: values.widowControl === false ? "off" : null } : {})
+    });
   }
 
   async openParagraphDialog(args = null) {
@@ -13418,6 +13465,7 @@ export class WriterAdapter {
     bodyHtml = this._simplifyFontFamiliesForExport(bodyHtml);
     bodyHtml = this._restoreLibreOfficeTableWidthsForExport(bodyHtml);
     bodyHtml = this._preserveEmptyParagraphFontSizesForExport(bodyHtml);
+    bodyHtml = this._paragraphFlowForExport(bodyHtml);
 
     // LibreOffice's Writer HTML importer drops a class-only Drop Cap span
     // completely (including its first letter) because writer.css is not part

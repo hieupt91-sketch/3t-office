@@ -63,7 +63,12 @@ export function normalizeParagraphDialogValues(raw = {}, contentWidthMm = 160) {
       beforePt,
       afterPt,
       lineMode,
-      lineValue
+      lineValue,
+      // Tab "Ngắt dòng và ngắt trang": mặc định giống Word (kiểm soát dòng mồ côi/góa bật, các tùy chọn khác tắt)
+      widowControl: raw.widowControl === undefined ? true : Boolean(raw.widowControl),
+      keepNext: Boolean(raw.keepNext),
+      keepLines: Boolean(raw.keepLines),
+      pageBreakBefore: Boolean(raw.pageBreakBefore)
     }
   };
 }
@@ -96,8 +101,11 @@ export async function showParagraphDialog(current = {}) {
     overlay.className = "vno-dialog-overlay";
     const cur = {
       align: "left", leftCm: 0, rightCm: 0, special: "none", specialCm: 1.27,
-      beforePt: 0, afterPt: 0, lineMode: "single", lineValue: 1, contentWidthMm: 160, ...current
+      beforePt: 0, afterPt: 0, lineMode: "single", lineValue: 1, contentWidthMm: 160,
+      widowControl: true, keepNext: false, keepLines: false, pageBreakBefore: false, ...current
     };
+    const checked = value => (value ? " checked" : "");
+    const tabStyle = "padding:6px 14px; border:1px solid #cbd5e1; border-bottom:none; background:#f1f5f9; border-radius:4px 4px 0 0; cursor:pointer; font-size:13px;";
     const fieldStyle = "font-size:12px; font-weight:600; display:block; margin-bottom:4px;";
     const inputStyle = "width:100%; box-sizing:border-box; font-size:13px; padding:5px 8px;";
     const options = (list, selected) => list.map(item => `<option value="${item.id}"${item.id === selected ? " selected" : ""}>${item.label}</option>`).join("");
@@ -108,6 +116,17 @@ export async function showParagraphDialog(current = {}) {
           <button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="Đóng" aria-label="Đóng">&times;</button>
         </div>
         <div class="vno-dialog-body" style="display:flex; flex-direction:column; gap:14px;">
+          <div role="tablist" aria-label="Nhóm tùy chọn đoạn văn" style="display:flex; gap:4px; border-bottom:1px solid #cbd5e1; margin-bottom:-6px;">
+            <button type="button" role="tab" id="vno-para-tab-indent" aria-selected="true" aria-controls="vno-para-panel-indent" class="vno-para-tab" style="${tabStyle}">Thụt lề và khoảng cách</button>
+            <button type="button" role="tab" id="vno-para-tab-flow" aria-selected="false" aria-controls="vno-para-panel-flow" tabindex="-1" class="vno-para-tab" style="${tabStyle}">Ngắt dòng và ngắt trang</button>
+          </div>
+          <div id="vno-para-panel-flow" role="tabpanel" aria-labelledby="vno-para-tab-flow" hidden style="display:none; flex-direction:column; gap:10px; min-height:200px;">
+            <label style="font-size:13px; display:flex; gap:8px; align-items:flex-start;"><input type="checkbox" id="vno-para-widow"${checked(cur.widowControl)} /> <span><b>Kiểm soát dòng mồ côi/góa</b><br /><span style="color:#64748b; font-size:12px;">Không để một dòng đơn lẻ nằm cuối hoặc đầu trang.</span></span></label>
+            <label style="font-size:13px; display:flex; gap:8px; align-items:flex-start;"><input type="checkbox" id="vno-para-keepnext"${checked(cur.keepNext)} /> <span><b>Giữ cùng trang với đoạn kế tiếp</b><br /><span style="color:#64748b; font-size:12px;">Hay dùng cho tiêu đề để không bị tách khỏi nội dung phía dưới.</span></span></label>
+            <label style="font-size:13px; display:flex; gap:8px; align-items:flex-start;"><input type="checkbox" id="vno-para-keeplines"${checked(cur.keepLines)} /> <span><b>Giữ các dòng liền nhau</b><br /><span style="color:#64748b; font-size:12px;">Không ngắt đoạn này giữa hai trang.</span></span></label>
+            <label style="font-size:13px; display:flex; gap:8px; align-items:flex-start;"><input type="checkbox" id="vno-para-pagebefore"${checked(cur.pageBreakBefore)} /> <span><b>Ngắt trang trước</b><br /><span style="color:#64748b; font-size:12px;">Bắt đầu đoạn này ở một trang mới.</span></span></label>
+          </div>
+          <div id="vno-para-panel-indent" role="tabpanel" aria-labelledby="vno-para-tab-indent" style="display:flex; flex-direction:column; gap:14px;">
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
             <div>
               <label for="vno-para-align" style="${fieldStyle}">Căn lề</label>
@@ -155,6 +174,7 @@ export async function showParagraphDialog(current = {}) {
               <div style="color:#94a3b8;">Đoạn văn kế tiếp. Đoạn văn kế tiếp. Đoạn văn kế tiếp.</div>
             </div>
           </div>
+          </div>
           <div id="vno-para-error" role="alert" style="color:#b91c1c; font-size:12px; min-height:16px;"></div>
         </div>
         <div class="vno-dialog-footer" style="display:flex; justify-content:flex-end; gap:8px;">
@@ -181,8 +201,39 @@ export async function showParagraphDialog(current = {}) {
       beforePt: el("#vno-para-before").value,
       afterPt: el("#vno-para-after").value,
       lineMode: lineSelect.value,
-      lineValue: lineBy.value
+      lineValue: lineBy.value,
+      widowControl: el("#vno-para-widow").checked,
+      keepNext: el("#vno-para-keepnext").checked,
+      keepLines: el("#vno-para-keeplines").checked,
+      pageBreakBefore: el("#vno-para-pagebefore").checked
     });
+
+    const tabs = [
+      { button: el("#vno-para-tab-indent"), panel: el("#vno-para-panel-indent") },
+      { button: el("#vno-para-tab-flow"), panel: el("#vno-para-panel-flow") }
+    ];
+    const selectTab = index => {
+      tabs.forEach((tab, position) => {
+        const active = position === index;
+        tab.button.setAttribute("aria-selected", active ? "true" : "false");
+        tab.button.tabIndex = active ? 0 : -1;
+        tab.button.style.background = active ? "#fff" : "#f1f5f9";
+        tab.button.style.fontWeight = active ? "700" : "400";
+        tab.panel.hidden = !active;
+        tab.panel.style.display = active ? "flex" : "none";
+      });
+    };
+    tabs.forEach((tab, index) => {
+      tab.button.addEventListener("click", () => selectTab(index));
+      tab.button.addEventListener("keydown", event => {
+        if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+        event.preventDefault();
+        const next = (index + (event.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length;
+        selectTab(next);
+        tabs[next].button.focus();
+      });
+    });
+    selectTab(0);
 
     const syncEnabled = () => {
       const mode = lineSelect.value;

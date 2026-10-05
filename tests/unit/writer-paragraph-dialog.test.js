@@ -6,6 +6,7 @@ import { normalizeParagraphDialogValues, LINE_MODES } from "../../apps/writer/pa
 import { WRITER_COMMANDS } from "../../platform/commands/command-definitions.js";
 import { WRITER_RIBBON_TABS } from "../../apps/writer/writer-ribbon.js";
 import { GAP_HELP_ENTRIES } from "../../platform/help/entries-gaps-0410.js";
+import { WriterAdapter } from "../../adapters/libreoffice/writer/writer-adapter.js";
 
 export async function runWriterParagraphDialogTests() {
   const results = [];
@@ -56,5 +57,37 @@ export async function runWriterParagraphDialogTests() {
     assert(help && help.steps.length >= 5 && /chuột phải/i.test(help.steps.join(" ")), "bài Hướng dẫn thiếu bước truy cập menu chuột phải");
   });
 
+  await test("Đoạn văn: tab Ngắt dòng và ngắt trang có mặc định như Word và nhận giá trị người dùng", () => {
+    const defaults = normalizeParagraphDialogValues({}).values;
+    assert(defaults.widowControl === true && defaults.keepNext === false && defaults.keepLines === false && defaults.pageBreakBefore === false, "mặc định phải: mồ côi/góa bật, ba tùy chọn còn lại tắt");
+    const custom = normalizeParagraphDialogValues({ widowControl: false, keepNext: true, keepLines: true, pageBreakBefore: true }).values;
+    assert(custom.widowControl === false && custom.keepNext && custom.keepLines && custom.pageBreakBefore, "giá trị người dùng chọn phải được giữ");
+  });
+
+  await test("Đoạn văn: xuất HTML đổi thuộc tính vno sang CSS cũ mà LibreOffice hiểu (đo thật), giữ style có sẵn", () => {
+    const adapter = new WriterAdapter(null);
+    const out = adapter._paragraphFlowForExport('<p data-vno-flow-next="1" data-vno-flow-lines="1" data-vno-flow-page-before="1" data-vno-flow-widow="off" style="text-align: left;">A</p><p>B</p><h2 data-vno-flow-next="1">C</h2>');
+    assert(/<p[^>]*style="text-align: left; page-break-after: avoid; page-break-inside: avoid; page-break-before: always; orphans: 0; widows: 0"/.test(out), `thiếu CSS cũ: ${out}`);
+    assert(out.includes("<p>B</p>"), "đoạn không có thuộc tính vno phải giữ nguyên");
+    assert(/<h2[^>]*style="page-break-after: avoid"/.test(out), `tiêu đề chưa có style phải được thêm: ${out}`);
+  });
+
+  await test("Đoạn văn: applyParagraphDialogValues ghi dataset cùng một bước hoàn tác; lệnh cũ không có trường ngắt dòng thì không đụng tới", () => {
+    const adapter = new WriterAdapter(null);
+    const block = { style: {}, dataset: {} };
+    let snapshots = 0;
+    adapter._getRulerParagraphBlocks = () => [block];
+    adapter.getRulerState = () => ({ pageWidthMm: 210, margins: { left: 20, right: 20 }, paragraph: { leftMm: 0, rightMm: 0, firstLineMm: 0 } });
+    adapter.flushTyping = () => {};
+    adapter.recordSnapshot = () => { snapshots += 1; };
+    const base = { align: "left", leftMm: 0, rightMm: 0, firstLineMm: 0, beforePt: 0, afterPt: 0, lineMode: "single", lineValue: 1 };
+    assert(adapter.applyParagraphDialogValues({ ...base, keepNext: true, keepLines: false, pageBreakBefore: true, widowControl: false }) === true, "áp dụng phải thành công");
+    assert(block.dataset.vnoFlowNext === "1" && block.dataset.vnoFlowPageBefore === "1" && block.dataset.vnoFlowWidow === "off" && !("vnoFlowLines" in block.dataset), `dataset sai: ${JSON.stringify(block.dataset)}`);
+    assert(snapshots === 1, "một lần áp dụng phải đúng một bước hoàn tác");
+    adapter.applyParagraphDialogValues({ ...base });
+    assert(block.dataset.vnoFlowNext === "1" && block.dataset.vnoFlowPageBefore === "1", "lệnh không truyền trường ngắt dòng không được xóa thiết lập cũ");
+    adapter.applyParagraphDialogValues({ ...base, keepNext: false, keepLines: false, pageBreakBefore: false, widowControl: true });
+    assert(Object.keys(block.dataset).length === 0, `bỏ tích phải gỡ hết thuộc tính: ${JSON.stringify(block.dataset)}`);
+  });
   return results;
 }
