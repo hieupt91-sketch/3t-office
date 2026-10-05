@@ -765,6 +765,7 @@ export const viStrings = {
     "writer.page.orientation": { label: "Hướng giấy", tooltip: "Khổ giấy dọc hoặc ngang" },
     "writer.page.size": { label: "Khổ giấy", tooltip: "Chọn khổ A4, Letter, v.v." },
     "writer.page.columns": { label: "Cột", tooltip: "Chia văn bản thành nhiều cột (1, 2, 3 cột hoặc tùy chỉnh)" },
+    "writer.format.paragraphDialog": { label: "Đoạn văn…", tooltip: "Căn lề, thụt lề, khoảng cách đoạn và giãn dòng trong một hộp thoại" },
     "writer.page.columns1": { label: "1 cột", tooltip: "Định dạng toàn bộ văn bản 1 cột (Normal mặc định)" },
     "writer.page.columns2": { label: "2 cột", tooltip: "Chia nội dung văn bản thành 2 cột đều nhau" },
     "writer.page.columns3": { label: "3 cột", tooltip: "Chia nội dung văn bản thành 3 cột đều nhau" },

@@ -729,7 +729,7 @@ export class WriterApp {
       { label: "Dán đặc biệt...", command: "writer.edit.pasteSpecial" },
       { sep: true },
       { label: "Phông chữ", shortcut: "Ctrl+Shift+F", command: "writer.font.family" },
-      { label: "Đoạn văn...", disabled: true, title: "Tính năng đang được hoàn thiện và sẽ có trong bản cập nhật tới." },
+      { label: "Đoạn văn...", command: "writer.format.paragraphDialog" },
       {
         label: "Danh sách",
         items: [

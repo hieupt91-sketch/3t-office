@@ -189,6 +189,7 @@ export const WRITER_COMMANDS = [
   { id: "writer.page.orientation", category: "layout", label: "Hướng giấy", icon: "orientation", tooltip: "Khổ giấy dọc hoặc ngang" },
   { id: "writer.page.size", category: "layout", label: "Khổ giấy", icon: "pageSize", tooltip: "Chọn khổ A4, Letter, v.v." },
   { id: "writer.page.columns", category: "layout", label: "Cột", icon: "pageColumns", tooltip: "Chia văn bản thành nhiều cột (1, 2, 3 cột hoặc tùy chỉnh)" },
+  { id: "writer.format.paragraphDialog", category: "paragraph", label: "Đoạn văn…", icon: "lineSpacing", tooltip: "Căn lề, thụt lề, khoảng cách đoạn và giãn dòng trong một hộp thoại" },
   { id: "writer.page.columns1", category: "layout", label: "1 cột", icon: "columnsOne", tooltip: "Định dạng toàn bộ văn bản 1 cột (Normal mặc định)" },
   { id: "writer.page.columns2", category: "layout", label: "2 cột", icon: "columnsTwo", tooltip: "Chia nội dung văn bản thành 2 cột đều nhau" },
   { id: "writer.page.columns3", category: "layout", label: "3 cột", icon: "columnsThree", tooltip: "Chia nội dung văn bản thành 3 cột đều nhau" },
