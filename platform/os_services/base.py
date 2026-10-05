@@ -217,16 +217,18 @@ class OfficeAutomation(Protocol):
 class OSServices:
     """The set of services a backend provides. Fields are filled by the backend (windows.py, macos.py...)."""
 
-    data_dirs: DataDirs
-    single_instance: SingleInstance
-    process_tracker: ProcessTracker
-    app_identity: AppIdentity
-    file_associations: FileAssociations
-    launcher: Launcher
-    update_applier: UpdateApplier
-    clipboard_extras: ClipboardExtras
-    device_id: DeviceId
-    office_automation: OfficeAutomation
+    # Services migrate one step at a time (see the plan): a backend fills only what it already provides, the
+    # rest stay None until their step lands. get_services(strict=True) requires all of them.
+    data_dirs: DataDirs | None = None
+    single_instance: SingleInstance | None = None
+    process_tracker: ProcessTracker | None = None
+    app_identity: AppIdentity | None = None
+    file_associations: FileAssociations | None = None
+    launcher: Launcher | None = None
+    update_applier: UpdateApplier | None = None
+    clipboard_extras: ClipboardExtras | None = None
+    device_id: DeviceId | None = None
+    office_automation: OfficeAutomation | None = None
 
 
 SERVICE_FIELDS = (
