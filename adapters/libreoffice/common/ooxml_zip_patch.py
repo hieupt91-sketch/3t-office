@@ -15944,6 +15944,64 @@ def main(argv: list[str] | None = None) -> int:
 _FODS_TABLE_OPEN_RE = re.compile(r"<table:table\b([^>]*)>")
 _FODS_TABLE_CLOSE_RE = re.compile(r"</table:table\s*>")
 _FODS_TABLE_RE = re.compile(r"(<table:table\b[^>]*>)([\s\S]*?)(</table:table\s*>)", re.IGNORECASE)
+_FODS_TABLE_OPEN_RE = re.compile(r"<table:table\b[^>]*>", re.IGNORECASE)
+_FODS_TABLE_ODD_CLOSE_RE = re.compile(r"</table:table[ \t\r\n]")
+
+
+class _FodsTableSpan:
+    """Stand-in for the re.Match that _FODS_TABLE_RE.sub hands to process_table (groups 0-3 only)."""
+
+    __slots__ = ("_xml", "_start", "_open_end", "_close_start", "_end")
+
+    def __init__(self, xml: str, start: int, open_end: int, close_start: int, end: int) -> None:
+        self._xml, self._start, self._open_end, self._close_start, self._end = xml, start, open_end, close_start, end
+
+    def group(self, index: int = 0) -> str:
+        if index == 0:
+            return self._xml[self._start:self._end]
+        if index == 1:
+            return self._xml[self._start:self._open_end]
+        if index == 2:
+            return self._xml[self._open_end:self._close_start]
+        if index == 3:
+            return self._xml[self._close_start:self._end]
+        raise IndexError(index)
+
+
+def _sub_fods_tables(fods_xml: str, process_table) -> str:
+    """Same result as _FODS_TABLE_RE.sub(process_table, fods_xml), without the lazy regex scan.
+
+    The regex `([\\s\\S]*?)(</table:table\\s*>)` walks a 300 MB table character by character in the re engine
+    (~9 s on lan14); str.find does the same job at memory speed. LibreOffice writes lower-case tags without blanks
+    in closing tags; anything else (or VNO_FODS_TABLE_REGEX=1) keeps the original regex path.
+    """
+    if os.environ.get("VNO_FODS_TABLE_REGEX") == "1" or _FODS_TABLE_ODD_CLOSE_RE.search(fods_xml):
+        return _FODS_TABLE_RE.sub(process_table, fods_xml)
+    pieces: list[str] = []
+    cursor = 0
+    position = 0
+    while True:
+        start = fods_xml.find("<table:table", position)
+        if start < 0:
+            break
+        opening = _FODS_TABLE_OPEN_RE.match(fods_xml, start)
+        if opening is None:
+            position = start + 1
+            continue
+        close_start = fods_xml.find("</table:table>", opening.end())
+        if close_start < 0:
+            break  # the regex finds no further match either (no closing tag after this opening)
+        end = close_start + len("</table:table>")
+        pieces.append(fods_xml[cursor:start])
+        pieces.append(process_table(_FodsTableSpan(fods_xml, start, opening.end(), close_start, end)))
+        cursor = end
+        position = end
+    if cursor == 0:
+        return fods_xml
+    pieces.append(fods_xml[cursor:])
+    return "".join(pieces)
+
+
 _FODS_ROW_RE = re.compile(r"(<table:table-row\b[^>]*?)(/?)\s*>", re.IGNORECASE)
 _FODS_ROW_CLOSE_RE = re.compile(r"</table:table-row\s*>", re.IGNORECASE)
 _FODS_CELL_OPEN_RE = re.compile(r"(<(table:table-cell|table:covered-table-cell)\b[^>]*?)(/?)\s*>", re.IGNORECASE)
@@ -16644,7 +16702,7 @@ def optimize_fods_streaming(fods_xml: str, max_style_only_col_repeat: int = 64) 
         pieces.append(table_body[cursor:])
         return table_open + "".join(pieces) + table_close
 
-    return _FODS_TABLE_RE.sub(process_table, fods_xml)
+    return _sub_fods_tables(fods_xml, process_table)
 
 
 if __name__ == "__main__":
