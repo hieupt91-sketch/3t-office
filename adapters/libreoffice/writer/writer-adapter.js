@@ -10402,6 +10402,16 @@ export class WriterAdapter {
    * `page-break-before: always` → ngắt trang đặt trước đoạn, `orphans/widows: 0` → w:widowControl tắt;
    * các tên CSS3 `break-*` bị LibreOffice bỏ qua).
    */
+  /**
+   * "Hàng tiêu đề" của bảng (lớp vno-table-header-row) → <thead>: bộ nhập HTML của LibreOffice đổi hàng trong <thead>
+   * thành "lặp lại hàng tiêu đề ở đầu mỗi trang" (w:tblHeader trong DOCX). Chỉ chuyển khi hàng đầu tiên của bảng là hàng tiêu đề.
+   */
+  _tableHeaderRowsForExport(html) {
+    return String(html || "").replace(
+      /(<table\b[^>]*>\s*)(<tbody\b[^>]*>\s*)(<tr\b[^>]*\bvno-table-header-row\b[^>]*>(?:(?!<\/tr>)[\s\S])*<\/tr>)/gi,
+      (match, tableOpen, bodyOpen, headerRow) => `${tableOpen}<thead>${headerRow}</thead>${bodyOpen}`
+    );
+  }
   _paragraphFlowForExport(html) {
     return String(html || "").replace(/<(p|h[1-6]|li|div|blockquote)\b([^>]*\bdata-vno-flow-(?:next|lines|page-before|widow)=[^>]*)>/gi, (match, tag, attrs) => {
       const css = [];
@@ -13549,6 +13559,7 @@ export class WriterAdapter {
     bodyHtml = this._restoreLibreOfficeTableWidthsForExport(bodyHtml);
     bodyHtml = this._preserveEmptyParagraphFontSizesForExport(bodyHtml);
     bodyHtml = this._paragraphFlowForExport(bodyHtml);
+    bodyHtml = this._tableHeaderRowsForExport(bodyHtml);
 
     // LibreOffice's Writer HTML importer drops a class-only Drop Cap span
     // completely (including its first letter) because writer.css is not part

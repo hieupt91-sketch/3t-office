@@ -68,5 +68,15 @@ export async function runWriterTextToTableTests() {
     assert(labels.includes("12 pt") && labels.includes("13 pt") && labels.includes("14 pt (NĐ 30)"), `thiếu 13 pt: ${labels.join(", ")}`);
     assert(select.options.find(option => option.label === "13 pt").value === "13", "13 pt phải có giá trị 13");
   });
+  await test("Bảng: hàng tiêu đề đổi thành <thead> khi xuất để lặp ở đầu mỗi trang; bảng không có hàng tiêu đề giữ nguyên", () => {
+    const adapter = new WriterAdapter(null);
+    const withHeader = '<table style="width:100%"><tbody><tr class="vno-table-header-row"><td>A</td></tr><tr><td>B</td></tr></tbody></table>';
+    const out = adapter._tableHeaderRowsForExport(withHeader);
+    assert(out === '<table style="width:100%"><thead><tr class="vno-table-header-row"><td>A</td></tr></thead><tbody><tr><td>B</td></tr></tbody></table>', `sai: ${out}`);
+    const plain = '<table><tbody><tr><td>A</td></tr></tbody></table>';
+    assert(adapter._tableHeaderRowsForExport(plain) === plain, "bảng thường không được đổi");
+    const notFirst = '<table><tbody><tr><td>A</td></tr><tr class="vno-table-header-row"><td>B</td></tr></tbody></table>';
+    assert(adapter._tableHeaderRowsForExport(notFirst) === notFirst, "chỉ hàng tiêu đề ở hàng ĐẦU mới được đổi");
+  });
   return results;
 }
