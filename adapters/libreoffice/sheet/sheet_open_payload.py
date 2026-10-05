@@ -16,7 +16,7 @@ from io import BytesIO
 
 
 _P1B_LARGE_FODS_CHARS = 20 * 1024 * 1024
-_P1B_MAX_WORKERS = 4
+_P1B_MAX_WORKERS = int(os.environ.get("VNO_P1_WORKERS", "").strip() or 0) or (6 if (os.cpu_count() or 4) >= 8 else 4)
 
 
 class _PayloadRows:
