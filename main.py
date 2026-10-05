@@ -4406,9 +4406,33 @@ class VnOfficeApi:
                         convert_src_path = os.path.join(tmp, "import-visible.xlsx")
                         with open(convert_src_path, "wb") as import_file:
                             import_file.write(import_xlsx)
+                metadata_prefetch = None
+                if (
+                    app_kind == "sheet" and original_xlsx is not None
+                    and not _vno_open_legacy_enabled()
+                    and os.environ.get("VNO_OPEN_PREFETCH", "1").strip().lower() not in {"0", "false", "off", "no"}
+                ):
+                    # The xlsx-side metadata scan does not depend on the FODS: run it while LibreOffice converts.
+                    metadata_prefetch = threading.Thread(
+                        target=_ooxml_zip_patch().prefetch_sheet_open_metadata,
+                        args=(original_xlsx,),
+                        kwargs={"include_xf": not _sheet_open_skip_initial_xf_enabled()},
+                        name="vno-sheet-metadata-prefetch",
+                        daemon=True,
+                    )
+                    metadata_prefetch.start()
                 if app_kind == "sheet" and src_path.lower().endswith(".xlsx"):
                     _notify_sheet_open_progress("Đang chuyển workbook Excel sang dữ liệu bảng tính…", api=self)
-                out_path = _run_soffice_convert(convert_src_path, target_ext, tmp, app_kind=app_kind)
+                try:
+                    out_path = _run_soffice_convert(convert_src_path, target_ext, tmp, app_kind=app_kind)
+                finally:
+                    if metadata_prefetch is not None:
+                        prefetch_started = time.perf_counter()
+                        metadata_prefetch.join()
+                        _open_perf_log(
+                            "sheet_open_stage", (time.perf_counter() - prefetch_started) * 1000,
+                            phase="metadata_prefetch_wait",
+                        )
                 sheet_stage_started = time.perf_counter()
                 with open(out_path, "r", encoding="utf-8", errors="replace") as f:
                     content = f.read()

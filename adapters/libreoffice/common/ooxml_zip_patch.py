@@ -6948,11 +6948,58 @@ _P1_MAX_WORKERS = 4
 _P1_PROCESS_POOL: ProcessPoolExecutor | None = None
 
 
+def _p1_parent_alive(parent_pid: int) -> bool:
+    try:
+        if os.name == "nt":
+            import ctypes
+            from ctypes import wintypes
+
+            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+            kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+            kernel32.OpenProcess.restype = wintypes.HANDLE
+            kernel32.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+            kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+            handle = kernel32.OpenProcess(0x1000, False, int(parent_pid))  # PROCESS_QUERY_LIMITED_INFORMATION
+            if not handle:
+                return False
+            try:
+                code = wintypes.DWORD()
+                return bool(kernel32.GetExitCodeProcess(handle, ctypes.byref(code))) and code.value == 259  # STILL_ACTIVE
+            finally:
+                kernel32.CloseHandle(handle)
+        return os.getppid() == int(parent_pid)
+    except Exception:
+        return True  # when unsure, never kill a healthy worker
+
+
+def _p1_worker_init(parent_pid: int) -> None:
+    """Pool worker start-up: exit when the app process that owns the pool disappears.
+
+    Without this, a worker whose parent was killed or crashed while a big workbook was opening kept running for
+    hours (32 orphans, ~770 MB, seen after test runs). Workers are idle between jobs, so a 2 s poll costs nothing.
+    """
+    import threading
+    import time as _time
+
+    def watch() -> None:
+        while True:
+            _time.sleep(2.0)
+            if not _p1_parent_alive(parent_pid):
+                os._exit(0)
+
+    threading.Thread(target=watch, name="vno-p1-parent-watch", daemon=True).start()
+
+
 def _p1_process_pool() -> ProcessPoolExecutor:
     global _P1_PROCESS_POOL
     if _P1_PROCESS_POOL is None:
         # "spawn" everywhere: it is already the default on Windows and macOS, and avoids fork-with-threads on Linux.
-        _P1_PROCESS_POOL = ProcessPoolExecutor(max_workers=_P1_MAX_WORKERS, mp_context=multiprocessing.get_context("spawn"))
+        _P1_PROCESS_POOL = ProcessPoolExecutor(
+            max_workers=_P1_MAX_WORKERS,
+            mp_context=multiprocessing.get_context("spawn"),
+            initializer=_p1_worker_init,
+            initargs=(os.getpid(),),
+        )
     return _P1_PROCESS_POOL
 
 
@@ -7414,6 +7461,31 @@ def _xlsx_cells_with_xf_indices_p1(
             result[sheet_name] = cells
     _index_memo_put("xf", xlsx_bytes, result)
     return result
+
+
+def prefetch_sheet_open_metadata(xlsx_bytes: bytes | None, *, include_xf: bool = True) -> bool:
+    """Run the xlsx-side metadata scan early (while LibreOffice converts) and leave it in the index memo.
+
+    The scan reads only the original xlsx, never the FODS, so the later overlay finds it in the memo and skips the
+    work. The memo is keyed by object identity, so this only helps when the overlay receives the very same bytes
+    object (true unless normalize_source_xlsx has to rewrite a prefixed-namespace workbook, which is skipped here).
+    The parallel flag mirrors the FODS-size rule using the uncompressed sheet XML size as the proxy.
+    Returns True when the scan ran. Never raises.
+    """
+    try:
+        if not xlsx_bytes or normalize_source_xlsx(xlsx_bytes) is not xlsx_bytes:
+            return False
+        with zipfile.ZipFile(io.BytesIO(xlsx_bytes), "r") as archive:
+            sheet_chars = sum(
+                info.file_size for info in archive.infolist()
+                if info.filename.startswith("xl/worksheets/") and info.filename.endswith(".xml")
+            )
+        _xlsx_cells_with_metadata_p1(
+            xlsx_bytes, include_xf=include_xf, parallel=sheet_chars > _P1_PARALLEL_FODS_CHARS,
+        )
+        return True
+    except Exception:
+        return False
 
 
 def _overlay_sheet_cell_metadata_from_xlsx_p1(
