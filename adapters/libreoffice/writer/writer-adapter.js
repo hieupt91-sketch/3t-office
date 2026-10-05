@@ -10512,6 +10512,22 @@ export class WriterAdapter {
    * các tên CSS3 `break-*` bị LibreOffice bỏ qua).
    */
   /**
+   * Ký tự Tab → w:tab khi lưu DOCX. Bộ nhập HTML của LibreOffice chỉ giữ ký tự Tab nếu ĐOẠN VĂN có `white-space: pre-wrap`
+   * (đo thật: đặt ở span thì Tab bị đổi thành dấu cách → "TABA TABB" thay vì w:tab). Chỉ thêm cho đoạn có Tab.
+   */
+  _tabCharactersForExport(html) {
+    return String(html || "").replace(
+      /<(p|h[1-6]|li)\b([^>]*)>((?:(?!<\/\1\s*>)[\s\S])*?data-vno-tab-character(?:(?!<\/\1\s*>)[\s\S])*)<\/\1\s*>/gi,
+      (match, tag, attrs, inner) => {
+        if (/white-space\s*:\s*pre/i.test(attrs)) return match;
+        const styled = /\bstyle=(["'])([^"']*)\1/i.test(attrs)
+          ? attrs.replace(/\bstyle=(["'])([^"']*)\1/i, (m, quote, value) => `style=${quote}${value.replace(/;?\s*$/, "")}; white-space: pre-wrap${quote}`)
+          : `${attrs} style="white-space: pre-wrap"`;
+        return `<${tag}${styled}>${inner}</${tag}>`;
+      }
+    );
+  }
+  /**
    * "Hàng tiêu đề" của bảng (lớp vno-table-header-row) → <thead>: bộ nhập HTML của LibreOffice đổi hàng trong <thead>
    * thành "lặp lại hàng tiêu đề ở đầu mỗi trang" (w:tblHeader trong DOCX). Chỉ chuyển khi hàng đầu tiên của bảng là hàng tiêu đề.
    */
@@ -13669,6 +13685,7 @@ export class WriterAdapter {
     bodyHtml = this._preserveEmptyParagraphFontSizesForExport(bodyHtml);
     bodyHtml = this._paragraphFlowForExport(bodyHtml);
     bodyHtml = this._tableHeaderRowsForExport(bodyHtml);
+    bodyHtml = this._tabCharactersForExport(bodyHtml);
 
     // LibreOffice's Writer HTML importer drops a class-only Drop Cap span
     // completely (including its first letter) because writer.css is not part

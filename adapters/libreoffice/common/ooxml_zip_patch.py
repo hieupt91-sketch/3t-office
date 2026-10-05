@@ -13548,12 +13548,36 @@ def _merge_writer_styles(source_styles_xml: str, converted_styles_xml: str) -> s
     return source_styles_xml[:close] + "".join(extra) + source_styles_xml[close:]
 
 
+# Thứ tự phần tử con của w:pPr theo lược đồ OOXML (CT_PPrBase + rPr, sectPr, pPrChange): Word từ chối/sửa tệp sai thứ tự.
+_PPR_CHILD_ORDER = (
+    "pStyle", "keepNext", "keepLines", "pageBreakBefore", "framePr", "widowControl", "numPr", "suppressLineNumbers",
+    "pBdr", "shd", "tabs", "suppressAutoHyphens", "kinsoku", "wordWrap", "overflowPunct", "topLinePunct",
+    "autoSpaceDE", "autoSpaceDN", "bidi", "adjustRightInd", "snapToGrid", "spacing", "ind", "contextualSpacing",
+    "mirrorIndents", "suppressOverlap", "jc", "textDirection", "textAlignment", "textboxTightWrap", "outlineLvl",
+    "divId", "cnfStyle", "rPr", "sectPr", "pPrChange",
+)
+
+
 def _writer_upsert_ppr_empty(paragraph: str, tag: str, replacement: str) -> str:
+    """Replace the w:<tag> child of w:pPr, or insert it where the OOXML schema order puts it (never twice)."""
     ppr = re.search(r"<w:pPr\b[^>]*>[\s\S]*?</w:pPr\s*>", paragraph, re.IGNORECASE)
     if ppr:
-        updated = re.sub(rf"<w:{tag}\b[^>]*/?>", replacement, ppr.group(0), count=1, flags=re.IGNORECASE)
-        if updated == ppr.group(0):
-            updated = re.sub(r"</w:pPr\s*>", replacement + "</w:pPr>", updated, count=1, flags=re.IGNORECASE)
+        block = ppr.group(0)
+        # `<w:tag .../>` or `<w:tag ...>...</w:tag>`; \b keeps `ind` from matching `indent...`, count=1 keeps the first
+        pattern = rf"<w:{tag}\b[^>]*?(?:/>|>[\s\S]*?</w:{tag}\s*>)"
+        updated, replaced = re.subn(pattern, lambda _m: replacement, block, count=1, flags=re.IGNORECASE)
+        if replaced == 0:
+            wanted = _PPR_CHILD_ORDER.index(tag) if tag in _PPR_CHILD_ORDER else len(_PPR_CHILD_ORDER)
+            insert_at = None
+            inner_start = re.match(r"<w:pPr\b[^>]*>", block, re.IGNORECASE).end()
+            for child in re.finditer(r"<w:([A-Za-z]+)\b[^>]*?(?:/>|>[\s\S]*?</w:\1\s*>)", block[inner_start:], re.IGNORECASE):
+                name = child.group(1)
+                if name in _PPR_CHILD_ORDER and _PPR_CHILD_ORDER.index(name) > wanted:
+                    insert_at = inner_start + child.start()
+                    break
+            if insert_at is None:
+                insert_at = block.lower().rfind("</w:ppr")
+            updated = block[:insert_at] + replacement + block[insert_at:]
         return paragraph[:ppr.start()] + updated + paragraph[ppr.end():]
     return re.sub(r"(<w:p\b[^>]*>)", rf"\1<w:pPr>{replacement}</w:pPr>", paragraph, count=1, flags=re.IGNORECASE)
 
