@@ -152,5 +152,39 @@ export async function runWriterExportDocxWordCompatTests() {
     if (!exported.includes("color:red")) throw new Error("_contentForExport stripped color");
   });
 
+  await test("Writer Export: new documents inline visible paragraph defaults as points", () => {
+    const style = () => {
+      const values = {};
+      return { values, setProperty(name, value) { values[name] = value; } };
+    };
+    const source = { style: style() };
+    const exported = { style: style() };
+    exported.attributes = {};
+    exported.setAttribute = (name, value) => { exported.attributes[name] = value; };
+    source.style.marginBottom = "6pt";
+    const adapter2 = new WriterAdapter({ querySelectorAll: () => [source] });
+    adapter2._openedEditorDomHash = null;
+    const original = globalThis.getComputedStyle;
+    globalThis.getComputedStyle = () => ({ textAlign: "justify", marginTop: "16px", marginBottom: "10.6667px" });
+    try {
+      adapter2._applyNewDocumentParagraphDefaults({ querySelectorAll: () => [exported] });
+    } finally {
+      if (original === undefined) delete globalThis.getComputedStyle;
+      else globalThis.getComputedStyle = original;
+    }
+    if (exported.style.values["text-align"] !== "justify") throw new Error("default justify missing");
+    if (exported.style.values["margin-top"] !== "12pt") throw new Error("12pt before spacing mismatch");
+    if (exported.style.values["margin-bottom"] !== "6pt") throw new Error("6pt after spacing mismatch");
+    if (exported.attributes["data-vno-export-defaults"] !== "true") throw new Error("OOXML spacing marker missing");
+  });
+
+  await test("Writer Export: imported DOCX paragraph styles are not rewritten", () => {
+    const originalStyle = { setProperty() { throw new Error("imported style rewritten"); } };
+    const adapter2 = new WriterAdapter({ querySelectorAll: () => [{ style: originalStyle }] });
+    adapter2._sourcePath = "sample.docx";
+    adapter2._openedEditorDomHash = "source-hash";
+    adapter2._applyNewDocumentParagraphDefaults({ querySelectorAll: () => [{ style: originalStyle }] });
+  });
+
   return results;
 }

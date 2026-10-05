@@ -2,9 +2,7 @@
 
 Nhánh: `docs/audit-doc-recheck2-codex`. Phương pháp: khởi chạy VN Writer mới qua `tests/live/cdp/session.mjs`; nhập bằng CDP; định dạng qua command bus/adapter đã đăng ký; lưu DOCX bằng `globalUnoBridge.saveRealFileInPlace`; giải nén/đọc XML với Python zipfile; mở lại chính DOCX qua CDP. Không dùng Word COM.
 
-Tổng: PASS 46 / FAIL 4 / BLOCKED 0.
-
-Ba lỗi chức năng nổi bật: yêu cầu 16 pt xuất thành `w:sz=72` (36 pt); căn đều lưu thành `w:jc=left`; khoảng sau 6 pt không có `w:after` trong đoạn `AFTER_6`. Ctrl+Z cũng không thể xác nhận căn đều vì lệnh không làm đổi kiểu đoạn.
+Tổng: PASS 48 / FAIL 2 / BLOCKED 0.
 
 | Hạng mục | Trạng thái | Giá trị đo được | Lý do / tái hiện nếu lỗi |
 |---|---|---|---|
@@ -15,7 +13,7 @@ Ba lỗi chức năng nổi bật: yêu cầu 16 pt xuất thành `w:sz=72` (36 
 | Run STRIKE_RUN | PASS | `{"result":true,"measured":{"run":"<strike>STRIKE_RUN</strike>","paragraph":"","computed":{"align":"justify","indent":"0px","before":"0px","after":"8px","line":"30.0533px"}}}` |  |
 | Run SUPER_RUN | PASS | `{"result":true,"measured":{"run":"<sup>SUPER_RUN</sup>","paragraph":"","computed":{"align":"justify","indent":"0px","before":"0px","after":"8px","line":"30.0533px"}}}` |  |
 | Run SUB_RUN | PASS | `{"result":true,"measured":{"run":"<sub>SUB_RUN</sub>","paragraph":"","computed":{"align":"justify","indent":"0px","before":"0px","after":"8px","line":"30.0533px"}}}` |  |
-| Run SIZE16_RUN | PASS | `{"result":true,"measured":{"run":"<font size=\"7\">SIZE16_RUN</font>","paragraph":"","computed":{"align":"justify","indent":"0px","before":"0px","after":"8px","line":"30.0533px"}}}` |  |
+| Run SIZE16_RUN | PASS | `{"result":true,"measured":{"run":"<font size=\"4\">SIZE16_RUN</font>","paragraph":"","computed":{"align":"justify","indent":"0px","before":"0px","after":"8px","line":"30.0533px"}}}` |  |
 | Run RED_RUN | PASS | `{"result":true,"measured":{"run":"<font color=\"#ff0000\">RED_RUN</font>","paragraph":"","computed":{"align":"justify","indent":"0px","before":"0px","after":"8px","line":"30.0533px"}}}` |  |
 | Run ARIAL_RUN | PASS | `{"result":true,"measured":{"run":"<font face=\"Arial\">ARIAL_RUN</font>","paragraph":"","computed":{"align":"justify","indent":"0px","before":"0px","after":"8px","line":"30.0533px"}}}` |  |
 | Đoạn ALIGN_LEFT / writer.para.alignLeft | PASS | `{"run":"<p style=\"text-align: left;\">ALIGN_LEFT</p>","paragraph":"text-align: left;","computed":{"align":"left","indent":"0px","before":"0px","after":"8px","line":"30.0533px"}}` |  |
@@ -37,26 +35,28 @@ Ba lỗi chức năng nổi bật: yêu cầu 16 pt xuất thành `w:sz=72` (36 
 | Theo dõi sửa/chèn/xóa | PASS | `{"state":{"enabled":true},"live":{"ins":1,"del":2,"text":"BOLD_RUN ITALIC_RUN UNDERLINE_RUN STRIKE_RUN SUPER_RUN SUB_RUN SIZE16_RUN RED_RUN ARIAL_RUN\n\nALIGN_LEFT\n\nALIGN_CENTER\n\nALIGN_RIGHT\n\nALIGN_JUSTIFY\n\nINDENT_127\n\nLINE_15\n\nBEFORE_12\n\nAFTER_6\n\nUNDO_LEFT\n\nUNDO_CENTER\n\nUNDO_RIGHT\n\nUNDO_JUSTIFY\n\nUNDO_INDENT\n\nUNDO_LINE\n\nUNDO_BEFORE\n\nUNDO_AFTER\n\nTRACK_KEEPTRACK_INSERTED\n\nDELETE_ME\n\nCOMMENT_TARGET"}}` |  |
 | Comment trên vùng chọn | PASS | `{"cards":1,"text":true}` |  |
 | Header/footer + first page | PASS | `{"header":"AUDIT_HEADER","footer":"AUDIT_FOOTER","first":true}` |  |
-| Lưu DOCX qua bridge của app | PASS | `{"saved":{"status":"ok","bytes":7774},"runCount":35,"paragraphCount":20}` |  |
+| Lưu DOCX qua bridge của app | PASS | `{"saved":{"status":"ok","bytes":7782},"runCount":35,"paragraphCount":20}` |  |
 | OOXML BOLD_RUN | PASS | `{"text":"BOLD_RUN","b":true,"i":false,"u":null,"strike":false,"vertAlign":null,"sz":null,"color":null,"font":null}` |  |
 | OOXML ITALIC_RUN | PASS | `{"text":"ITALIC_RUN","b":false,"i":true,"u":null,"strike":false,"vertAlign":null,"sz":null,"color":null,"font":null}` |  |
 | OOXML UNDERLINE_RUN | PASS | `{"text":"UNDERLINE_RUN","b":false,"i":false,"u":"single","strike":false,"vertAlign":null,"sz":null,"color":null,"font":null}` |  |
 | OOXML STRIKE_RUN | PASS | `{"text":"STRIKE_RUN","b":false,"i":false,"u":null,"strike":true,"vertAlign":null,"sz":null,"color":null,"font":null}` |  |
 | OOXML SUPER_RUN | PASS | `{"text":"SUPER_RUN","b":false,"i":false,"u":null,"strike":false,"vertAlign":"superscript","sz":"19","color":null,"font":null}` |  |
 | OOXML SUB_RUN | PASS | `{"text":"SUB_RUN","b":false,"i":false,"u":null,"strike":false,"vertAlign":"subscript","sz":"19","color":null,"font":null}` |  |
-| OOXML SIZE16_RUN | FAIL | `{"text":"SIZE16_RUN","b":false,"i":false,"u":null,"strike":false,"vertAlign":null,"sz":"72","color":null,"font":null}` | Tái hiện: 1) Mở Writer mới; 2) áp dụng SIZE16_RUN qua command bus; 3) lưu DOCX bằng bridge app và đọc document.xml. Nghi ngờ: adapters/libreoffice/writer/writer-adapter.js:7018 (writer.font.size dùng execCommand fontSize) / khâu chuyển HTML→DOCX. |
+| OOXML SIZE16_RUN | FAIL | `{"text":"SIZE16_RUN","b":false,"i":false,"u":null,"strike":false,"vertAlign":null,"sz":"28","color":null,"font":null}` | Tái hiện: 1) Mở Writer mới; 2) áp dụng SIZE16_RUN qua command bus; 3) lưu DOCX bằng bridge app và đọc document.xml. Nghi ngờ: adapters/libreoffice/writer/writer-adapter.js:7018 (writer.font.size dùng execCommand fontSize) / khâu chuyển HTML→DOCX. |
 | OOXML RED_RUN | PASS | `{"text":"RED_RUN","b":false,"i":false,"u":null,"strike":false,"vertAlign":null,"sz":null,"color":"FF0000","font":null}` |  |
 | OOXML ARIAL_RUN | PASS | `{"text":"ARIAL_RUN","b":false,"i":false,"u":null,"strike":false,"vertAlign":null,"sz":null,"color":null,"font":"Arial"}` |  |
-| OOXML ALIGN_LEFT | PASS | `{"text":"ALIGN_LEFT","jc":"left","firstLine":null,"line":null,"lineRule":null,"before":null,"after":null}` |  |
-| OOXML ALIGN_CENTER | PASS | `{"text":"ALIGN_CENTER","jc":"center","firstLine":null,"line":null,"lineRule":null,"before":null,"after":null}` |  |
-| OOXML ALIGN_RIGHT | PASS | `{"text":"ALIGN_RIGHT","jc":"right","firstLine":null,"line":null,"lineRule":null,"before":null,"after":null}` |  |
-| OOXML ALIGN_JUSTIFY | FAIL | `{"text":"ALIGN_JUSTIFY","jc":"left","firstLine":null,"line":null,"lineRule":null,"before":null,"after":null}` | Tái hiện: 1) Mở Writer mới; 2) áp dụng ALIGN_JUSTIFY qua command bus; 3) lưu DOCX bằng bridge app và đọc document.xml. Nghi ngờ: adapters/libreoffice/writer/writer-adapter.js:6936-6938 (writer.para.justify) và khâu chuyển HTML→DOCX. |
-| OOXML INDENT_127 | PASS | `{"text":"INDENT_127","jc":"left","firstLine":"720","line":null,"lineRule":null,"before":null,"after":null}` |  |
-| OOXML LINE_15 | PASS | `{"text":"LINE_15","jc":"left","firstLine":null,"line":"360","lineRule":"auto","before":null,"after":null}` |  |
-| OOXML BEFORE_12 | PASS | `{"text":"BEFORE_12","jc":"left","firstLine":null,"line":null,"lineRule":null,"before":"240","after":"283"}` |  |
-| OOXML AFTER_6 | FAIL | `{"text":"AFTER_6","jc":"left","firstLine":null,"line":null,"lineRule":null,"before":null,"after":null}` | Tái hiện: 1) Mở Writer mới; 2) áp dụng AFTER_6 qua command bus; 3) lưu DOCX bằng bridge app và đọc document.xml. Nghi ngờ: khâu chuyển HTML margin-bottom → OOXML w:spacing; cần đối chiếu adapter lưu DOCX. |
+| OOXML ALIGN_LEFT | PASS | `{"text":"ALIGN_LEFT","jc":"left","firstLine":null,"line":null,"lineRule":null,"before":"0","after":"120"}` |  |
+| OOXML ALIGN_CENTER | PASS | `{"text":"ALIGN_CENTER","jc":"center","firstLine":null,"line":null,"lineRule":null,"before":"0","after":"120"}` |  |
+| OOXML ALIGN_RIGHT | PASS | `{"text":"ALIGN_RIGHT","jc":"right","firstLine":null,"line":null,"lineRule":null,"before":"0","after":"120"}` |  |
+| OOXML ALIGN_JUSTIFY | PASS | `{"text":"ALIGN_JUSTIFY","jc":"both","firstLine":null,"line":null,"lineRule":null,"before":"0","after":"120"}` |  |
+| OOXML INDENT_127 | PASS | `{"text":"INDENT_127","jc":"both","firstLine":"720","line":null,"lineRule":null,"before":"0","after":"120"}` |  |
+| OOXML LINE_15 | PASS | `{"text":"LINE_15","jc":"both","firstLine":null,"line":"360","lineRule":"auto","before":"0","after":"120"}` |  |
+| OOXML BEFORE_12 | PASS | `{"text":"BEFORE_12","jc":"both","firstLine":null,"line":null,"lineRule":null,"before":"240","after":"120"}` |  |
+| OOXML AFTER_6 | PASS | `{"text":"AFTER_6","jc":"both","firstLine":null,"line":null,"lineRule":null,"before":"0","after":"120"}` |  |
 | DOCX header/footer/titlePg | PASS | `{"headerReferences":1,"footerReferences":1,"titlePg":true,"headers":{"word/header1.xml":"AUDIT_HEADER "},"footers":{"word/footer1.xml":"AUDIT_FOOTER "}}` |  |
 | DOCX revisions/comments | PASS | `{"ins":1,"del":2,"comments":1,"commentRanges":1,"commentText":["AUDIT_COMMENT"],"trackRevisions":true}` |  |
 | Mở lại cùng DOCX | PASS | `{"text":"BOLD_RUN ITALIC_RUN UNDERLINE_RUN STRIKE_RUN SUPER_RUN SUB_RUN SIZE16_RUN RED_RUN ARIAL_RUN\n\nALIGN_LEFT\n\nALIGN_CENTER\n\nALIGN_RIGHT\n\nALIGN_JUSTIFY\n\nINDENT_127\n\nLINE_15\n\nBEFORE_12\n\nAFTER_6\n\nUNDO_LEFT\n\nUNDO_CENTER\n\nUNDO_RIGHT\n\nUNDO_JUSTIFY\n\nUNDO_INDENT\n\nUNDO_LINE\n\nUNDO_BEFORE\n\nUNDO_AFTER\n\nTRACK_KEEPTRACK_INSERTED\n\nDELETE_ME\n\nCOMMENT_TARGET","comments":1,"header":"AUDIT_HEADER","footer":"AUDIT_FOOTER"}` |  |
 
 Tái hiện lỗi: chạy `node --experimental-websocket scripts/audit-0610/doc_recheck2.mjs`. Tệp DOCX trung gian nằm trong thư mục tạm được in ở stdout nếu giữ `VNO_KEEP_CDP=1`; nghi ngờ file/hàm chỉ khoanh vùng từ XML và code hiện hữu, không thay đổi mã ứng dụng.
+
+Phân trang PDF (LibreOffice, tài liệu mới tổng hợp): ngắn 5→4 trang; vừa 13→11 trang; dài 32→27 trang. So sánh HTML→DOCX không mang marker CSS cũ với HTML có căn đều và khoảng sau 6 pt; số trang giảm do khoảng đoạn nhỏ hơn.
