@@ -113,6 +113,18 @@ Kết luận: vi tối ưu P1 chạm giới hạn (≈1,5 triệu ô xử lý b�
 5. **Kế hoạch tách `platform/os_services`** (tiền đề macOS) — Codex (chỉ lập kế hoạch).
 6. **Chờ chủ sở hữu quyết định**: bật xem nhanh mặc định; P4 chỉ gộp nếu đo thấy lợi mà không chậm khung hình đầu; phát hành 0.9.9 (đang gác).
 
+### 6.1d Kết quả 04/10 chiều (đã vào `main`, Claude tự chạy lại cổng: node 2755 PASS, Python in OK, hồi quy desktop 27 PASS)
+| Hạng mục | Kết quả đo (app desktop thật, CDP) | Cờ hoàn tác |
+|---|---|---|
+| Xem trước khi in Doc | d04 25,9 → 10,3 s; d01 15,7 → 4,6 s; d12 13,9 → 2,4 s; PDF **cùng số byte** với đường cũ. Nguyên nhân: CLI nguội + giết worker giữa các bước, `inspect_pdf` mở lại PDF | `VNO_PRINT_LEGACY=1` |
+| Xem trước khi in Sheet/Slide (Codex) | lan26 21,4 → 7,5 s (Claude đo lại); lan03 30,4 → 18,6 s; sample-3.pptx 20,4 → 14,2 s; PDF cùng byte/trang trên 4 tệp | `VNO_PRINT_LEGACY=1` |
+| Không hiệu quả | Làm nóng dựng ảnh PDF bằng PDF nhỏ sau khi mở: không đổi (chi phí theo nội dung trang) — đã bỏ | — |
+| P6 đọc xlsx trực tiếp (spike, không đổi app) | Chỉ **2/28** tệp LAN đủ "đơn giản" (7%); 0 khác biệt trên ô cùng tồn tại, 254/707 ô rỗng có định dạng khác đường cũ. **Kết luận: không nên bật** (`docs/SPIKE-P6-DIRECT-XLSX.md`) | không có mã chạy |
+| lan14 theo pha (đường đủ, 94 s) | LO→FODS 18; overlay 22; optimize 14; payload Python 17,7; JS parse+model 21 | — |
+| Nạp sheet theo yêu cầu (CH-1 pha 2) | **Dở dang**, nhánh `perf/ch1-lazy-sheets-codex` (WIP `ddb2981f`), chưa bật; thiếu save-merge phía Python và an toàn cho công thức xuyên sheet/tìm thay/named range. Không merge cho tới khi qua cổng | không truyền `included_sheets` |
+
+Lưu ý đo lường: số của agy cho xem trước Sheet/Slide (nhánh `perf/print-measure-agy`) **sai** (1 trang, 14 s trong khi đo lại được 12 trang, 6–7,5 s) nên không dùng.
+
 ### 6.2 Kế hoạch chi tiết P8 (giai đoạn A — chế độ xem nhanh, chỉ đọc)
 - **Mục tiêu:** lan14 hiện lưới đầu ≤ 10 s; giao diện/chức năng sau khi đầy đủ **không đổi** so với bản hiện dùng.
 - **Worker (`adapters/libreoffice/common/soffice_uno_worker.py`):** thêm thao tác `view_open` (nạp tài liệu ẩn, **giữ mở**, trả danh sách sheet + vùng dùng + cỡ mặc định), `view_window` (sheet, r0,c0,r1,c1 → giá trị/công thức từ `getDataArray`/`getFormulaArray`, độ rộng cột/chiều cao dòng, định dạng ô theo **khối** — không gọi từng ô; đã đo 0,9 s/1.800 ô nếu gọi từng ô), `view_close`. Giao thức JSON-lines hiện có; thao tác `convert` giữ nguyên.
