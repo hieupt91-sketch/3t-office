@@ -131,6 +131,22 @@ const slidesOnly = [
 
 const writerOnly = [
   {
+    id: "writer.format.tabStops",
+    app: "writer",
+    commandIds: ["writer.format.tabStops"],
+    title: "Dừng tab: căn cột bằng phím Tab, ký tự dẫn chấm hoặc gạch",
+    summary: "Đặt vị trí tab riêng (đơn vị cm) cho đoạn văn, căn chữ tại dừng tab theo trái, giữa hoặc phải, và thêm ký tự dẫn (dấu chấm, gạch ngang, gạch dưới). Dùng cho dòng Kính gửi, khối ký tên, danh sách có dấu chấm dẫn đến số liệu.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Đoạn văn" },
+    keywords: ["dừng tab", "tab stop", "tab stops", "tab", "ký tự dẫn", "dấu chấm dẫn", "căn cột", "leader", "vị trí tab"],
+    steps: [
+      "Đặt con trỏ trong đoạn (hoặc bôi đen nhiều đoạn) cần đặt dừng tab.",
+      "Mở hộp thoại Đoạn văn (nút mũi tên nhỏ ở góc nhóm Đoạn văn, hoặc chuột phải ▸ Đoạn văn…) rồi bấm nút Dừng tab… ở góc dưới bên trái. Các thiết lập đoạn văn bạn vừa chỉnh được áp dụng trước, rồi hộp thoại Dừng tab mở ra.",
+      "Nhập Vị trí dừng tab theo cm tính từ lề trái vùng chữ (ví dụ 8), chọn Căn chữ tại dừng tab (Trái, Giữa hoặc Phải) và Ký tự dẫn (Không có, Dấu chấm, Gạch ngang hoặc Gạch dưới), rồi bấm Đặt hoặc Enter. Lặp lại để thêm nhiều dừng tab.",
+      "Để sửa: chọn dừng tab trong danh sách Các dừng tab hiện có, đổi giá trị rồi bấm Đặt. Để bỏ: chọn rồi bấm Xóa, hoặc bấm Xóa tất cả. Bấm Đồng ý để áp dụng, Hủy hoặc Esc để thoát mà không đổi.",
+      "Trong đoạn, nhấn phím Tab để nhảy tới dừng tab kế tiếp. Dừng tab Phải hay dùng để căn số liệu về mép phải; ký tự dẫn chấm nối nội dung với số liệu như mục lục. Khi lưu .docx, các dừng tab được ghi lại cho tài liệu mở ở phần mềm khác.",
+      "Ctrl+Z hoàn tác toàn bộ thay đổi dừng tab chỉ bằng một lần bấm."
+    ]
+  },  {
     id: "writer.format.paragraphDialog",
     app: "writer",
     commandIds: ["writer.format.paragraphDialog"],
