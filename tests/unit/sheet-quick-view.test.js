@@ -108,7 +108,7 @@ export async function runSheetQuickViewTests() {
     assert(grid.viewport.scrollTop === 599910 && grid.viewport.scrollLeft === 180, "scroll anchor transition");
   });
 
-  await test("P8 quick view failure retry reopens source once", async () => {
+  await test("P8 quick view failure retry reopens source once and keeps the preview readable", async () => {
     const { SheetQuickView } = await import("../../apps/sheet/sheet-quick-view.js");
     const makeElement = () => ({ attrs: {}, listeners: {}, children: [], classList: { add() {}, remove() {} }, setAttribute(n, v) { this.attrs[n] = v; }, addEventListener(n, fn) { this.listeners[n] = fn; }, appendChild(child) { this.children.push(child); }, remove() {} });
     const status = makeElement();
@@ -116,16 +116,52 @@ export async function runSheetQuickViewTests() {
     const view = new SheetQuickView({
       documentRef: { createElement: makeElement },
       getSourceFilePath: () => "E:\\báo cáo.xlsx",
-      reopenFile: async path => { opens += 1; openedPath = path; },
+      reopenFile: async path => { opens += 1; openedPath = path; return { status: "ok" }; },
       grid: { container: { classList: { remove() {} } } },
-      bridge: { sheetViewClose: async id => { closes += 1; assert(id === "doc", "close targets current preview"); } }
+      bridge: { sheetViewClose: async () => { closes += 1; } }
     });
     view.active = true; view.docId = "doc"; view.root = makeElement(); view.status = status;
     await view.failFullLoad();
     const retry = status.children[0];
     assert(retry?.textContent === "Thử lại" && retry.attrs["aria-label"], "failure exposes accessible retry");
     await retry.listeners.click();
-    assert(opens === 1 && openedPath === "E:\\báo cáo.xlsx" && closes === 1, "retry closes preview and reopens source once");
+    assert(opens === 1 && openedPath === "E:\\báo cáo.xlsx", "retry reopens the source once");
+    assert(closes === 0 && view.active === true, "the readable preview stays until the user closes the window");
+    assert(/Đã mở lại tệp/.test(status.textContent), `success message expected: ${status.textContent}`);
+  });
+
+  await test("P8 quick view retry: a Python error result is shown again with the button, never treated as success", async () => {
+    const { SheetQuickView } = await import("../../apps/sheet/sheet-quick-view.js");
+    const makeElement = () => ({ attrs: {}, listeners: {}, children: [], classList: { add() {}, remove() {} }, setAttribute(n, v) { this.attrs[n] = v; }, addEventListener(n, fn) { this.listeners[n] = fn; }, appendChild(child) { this.children.push(child); }, remove() {} });
+    const status = makeElement();
+    let opens = 0;
+    const view = new SheetQuickView({
+      documentRef: { createElement: makeElement },
+      getSourceFilePath: () => "E:\\x.xlsx",
+      reopenFile: async () => { opens += 1; return { status: "error", message: "Tệp đang bị khóa" }; },
+      grid: { container: { classList: { remove() {} } } },
+      bridge: { sheetViewClose: async () => {} }
+    });
+    view.active = true; view.docId = "doc"; view.root = makeElement(); view.status = status;
+    await view.failFullLoad();
+    const retry = status.children[0];
+    const first = await retry.listeners.click();
+    assert(opens === 1 && /Tệp đang bị khóa/.test(status.textContent), `error text expected: ${status.textContent}`);
+    assert(retry.disabled === false && status.children.includes(retry), "button is available again for another attempt");
+    assert(first === undefined || first === false, "not reported as success");
+    view._retrying = false;
+    await view.retryFullLoad();
+    assert(opens === 2, "a second attempt is possible after a failure");
+  });
+
+  await test("P8 quick view without a reopen callback keeps the old wording and shows no button", async () => {
+    const { SheetQuickView } = await import("../../apps/sheet/sheet-quick-view.js");
+    const makeElement = () => ({ attrs: {}, children: [], classList: { add() {}, remove() {} }, setAttribute() {}, addEventListener() {}, appendChild(child) { this.children.push(child); }, remove() {} });
+    const status = makeElement();
+    const view = new SheetQuickView({ documentRef: { createElement: makeElement }, grid: { container: { classList: { remove() {} } } }, bridge: {} });
+    view.active = true; view.docId = "doc"; view.root = makeElement(); view.status = status;
+    await view.failFullLoad();
+    assert(status.children.length === 0 && /đóng và mở lại tệp/.test(status.textContent), "no button, old instruction text");
   });
 
   return results;

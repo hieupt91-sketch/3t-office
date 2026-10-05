@@ -450,44 +450,59 @@ export class SheetQuickView {
     if (!this.active && !this.docId) return false;
     // Giữ màn hình xem nhanh để vẫn đọc được dữ liệu; chỉ cho biết nạp đầy đủ thất bại. (Bản cũ: đóng ngay về lưới trống.)
     if (this.active && this.root && !globalThis.__VNO_QUICKVIEW_CLOSE_ON_FAIL) {
-      const message = "Không nạp đầy đủ được bảng tính. Bạn vẫn đọc được ở chế độ xem nhanh chỉ đọc; hãy đóng và mở lại tệp để thử lại.";
-      this.shell?.setStatus?.(message);
-      if (this.status) {
-        this.status.textContent = message;
-        this.status.classList?.add?.("is-failed");
-        if (this.reopenFile && !this._retryButton) {
-          const button = this.document.createElement("button");
-          button.type = "button";
-          button.className = "vno-sheet-quick-retry";
-          button.textContent = "Thử lại";
-          button.setAttribute("aria-label", "Thử lại mở tệp bảng tính này");
-          button.addEventListener("click", () => this.retryFullLoad());
-          this.status.appendChild(button);
-          this._retryButton = button;
-        }
-      }
+      this._showFailure(this.reopenFile
+        ? "Không nạp đầy đủ được bảng tính. Bạn vẫn đọc được ở chế độ xem nhanh chỉ đọc; nhấn Thử lại để mở lại tệp."
+        : "Không nạp đầy đủ được bảng tính. Bạn vẫn đọc được ở chế độ xem nhanh chỉ đọc; hãy đóng và mở lại tệp để thử lại.");
       return true;
     }
     await this.closeView();
     return true;
   }
 
+  // Thanh trạng thái đỏ + nút Thử lại (gán textContent xóa nút, nên luôn đặt lại nút sau khi đổi chữ).
+  _showFailure(message) {
+    this.shell?.setStatus?.(message);
+    if (!this.status) return;
+    this.status.textContent = message;
+    this.status.classList?.add?.("is-failed");
+    if (!this.reopenFile) return;
+    if (!this._retryButton) {
+      const button = this.document.createElement("button");
+      button.type = "button";
+      button.className = "vno-sheet-quick-retry";
+      button.textContent = "Thử lại";
+      button.setAttribute("aria-label", "Thử lại mở tệp bảng tính này");
+      button.addEventListener("click", () => this.retryFullLoad());
+      this._retryButton = button;
+    }
+    this._retryButton.disabled = false;
+    this.status.appendChild(this._retryButton);
+  }
+
+  // Mở lại tệp trong cửa sổ mới. Giữ màn hình đọc được cho tới khi cửa sổ mới mở xong; lỗi (kể cả {status:"error"} từ
+  // Python) hiện lại thông báo đỏ và nút, không bao giờ coi là thành công.
   async retryFullLoad() {
     if (this._retrying || !this.active || !this.reopenFile) return false;
     const filePath = this.getSourceFilePath?.();
     if (!filePath) return false;
     this._retrying = true;
     if (this._retryButton) this._retryButton.disabled = true;
-    const message = "Đang mở lại…";
     this.status?.classList?.remove?.("is-failed");
-    if (this.status) this.status.textContent = message;
-    this.shell?.setStatus?.(message);
+    if (this.status) this.status.textContent = "Đang mở lại…";
+    this.shell?.setStatus?.("Đang mở lại…");
     try {
-      await this.closeView();
-      await this.reopenFile(filePath);
+      const result = await this.reopenFile(filePath);
+      if (result && typeof result === "object" && result.status && result.status !== "ok") {
+        throw new Error(String(result.message || ""));
+      }
+      const done = "Đã mở lại tệp trong cửa sổ mới. Bạn có thể đóng cửa sổ này.";
+      if (this.status) this.status.textContent = done;
+      this.shell?.setStatus?.(done);
+      this._retrying = false;
       return true;
     } catch (error) {
       this._retrying = false;
+      this._showFailure(`Không mở lại được tệp${error?.message ? `: ${error.message}` : ""}. Bạn có thể thử lại.`);
       return false;
     }
   }
