@@ -2,7 +2,7 @@
 
 import { deflateSync, inflateSync } from "node:zlib";
 import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
-import { buildSheetPayloadModel, toPlain } from "../../adapters/libreoffice/sheet/sheet-payload-parser.js";
+import { __parseAttrsP2ForTest, buildSheetPayloadModel, toPlain } from "../../adapters/libreoffice/sheet/sheet-payload-parser.js";
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -64,5 +64,17 @@ export async function runSheetPayloadP2EquivalenceTests() {
     assert(JSON.stringify(p2) === JSON.stringify(legacy), "optimized attributes differ from legacy regex parser");
   });
 
+  await test("attribute scanner equals the regex reference on random and malformed input", async () => {
+    const alphabet = ["a", "b:c", "x-y", "_", "1", "=", "\"", "'", " ", "\n", "&amp;", "&#x41;", ">", "é", "=\"v\"", "='w'"];
+    let seed = 12345;
+    const next = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff);
+    for (let n = 0; n < 4000; n++) {
+      let s = "";
+      for (let k = next() % 14; k > 0; k--) s += alphabet[next() % alphabet.length];
+      const fast = JSON.stringify(__parseAttrsP2ForTest.fast(s));
+      const regex = JSON.stringify(__parseAttrsP2ForTest.regex(s));
+      assert(fast === regex, `attribute scan differs for ${JSON.stringify(s)}: ${fast} vs ${regex}`);
+    }
+  });
   return results;
 }

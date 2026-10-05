@@ -26,6 +26,16 @@ function unescapeXmlP2(value) {
 
 const P2_ATTR_RE = /([\w:-]+)=(["'])([\s\S]*?)\2/g;
 
+function parseAttrsP2Regex(source) {
+  const attrs = {};
+  P2_ATTR_RE.lastIndex = 0;
+  let match;
+  while ((match = P2_ATTR_RE.exec(source)) !== null) {
+    attrs[match[1]] = unescapeXmlP2(match[3]);
+  }
+  return attrs;
+}
+
 function parseAttrsP2(raw) {
   const attrs = {};
   const source = String(raw || "");
@@ -44,7 +54,7 @@ function parseAttrsP2(raw) {
     if (quote !== 34 && quote !== 39) continue;
     const valueStart = ++i;
     while (i < source.length && source.charCodeAt(i) !== quote) i++;
-    if (i === source.length) break;
+    if (i === source.length) return parseAttrsP2Regex(source); // unterminated value: the regex may still match a later attribute
     attrs[source.slice(start, nameEnd)] = unescapeXmlP2(source.slice(valueStart, i));
     i++;
   }
@@ -768,3 +778,6 @@ export function toPlain(value) {
   if (value && typeof value === "object") return Object.fromEntries(Object.keys(value).sort().map(key => [key, toPlain(value[key])]));
   return value;
 }
+
+// Test hook: the scanner and its regex reference are compared by tests/unit/sheet-payload-p2-equivalence.test.js.
+export const __parseAttrsP2ForTest = { fast: parseAttrsP2, regex: parseAttrsP2Regex };
