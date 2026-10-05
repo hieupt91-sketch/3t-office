@@ -287,6 +287,25 @@ def patch_ooxml_zip(zip_bytes: bytes, replacements: dict[str, str | bytes | None
 # `\b` also matches the boundary before '-' in <table:table-cell>, forcing a
 # callback for every cell in a large FODS.  A sheet header can only continue
 # with whitespace, '/', or '>', so keep this scan proportional to sheet count.
+_XMLNS_VNO_RE = re.compile(r"xmlns:vno\s*=", re.IGNORECASE)
+_XMLNS_VNO_TAIL_RE = re.compile(r"\s*=")
+
+
+def _declares_vno_namespace(xml: str) -> bool:
+    """Same answer as re.search(r"xmlns:vno\\s*=", xml, re.IGNORECASE) for LibreOffice output, without the scan.
+
+    The IGNORECASE regex walks the whole 300 MB FODS character by character when the declaration is still missing
+    (2.7 s on lan14, paid by the first overlay stage). str.find reads at memory speed; a case-insensitive pass is kept
+    for the root element region, where namespace declarations live.
+    """
+    position = xml.find("xmlns:vno")
+    while position >= 0:
+        if _XMLNS_VNO_TAIL_RE.match(xml, position + 9):
+            return True
+        position = xml.find("xmlns:vno", position + 9)
+    return bool(_XMLNS_VNO_RE.search(xml[:65536]))
+
+
 _FREEZE_TABLE_TAG_RE = re.compile(r"<table:table(?=[\s>/])([^>]*)>")
 _FREEZE_ROWS_ATTR_RE = re.compile(r'vno:frozen-rows="(\d+)"', re.IGNORECASE)
 _FREEZE_COLS_ATTR_RE = re.compile(r'vno:frozen-cols="(\d+)"', re.IGNORECASE)
@@ -1539,7 +1558,7 @@ def overlay_page_margins_to_fods(xlsx_bytes: bytes, fods_xml: str) -> str:
         return f'<table:table{attrs} vno:page-margins="{_escape_xml(json.dumps(margins))}">'
 
     xml = re.sub(r'<table:table(?=\s|>)([^>]*)>', replace_table, fods_xml, flags=re.IGNORECASE)
-    if not re.search(r'xmlns:vno\s*=', xml, re.IGNORECASE):
+    if not _declares_vno_namespace(xml):
         xml = re.sub(r'<office:document\b', f'<office:document xmlns:vno="{SHEET_VNO_NS}"', xml, count=1)
     return xml
 
@@ -1634,7 +1653,7 @@ def apply_print_titles_to_fods(fods_xml: str, titles_by_sheet: dict[str, dict[st
         )
 
     result = re.sub(r'<table:table\b([^>]*)>', replace_table, fods_xml, flags=re.IGNORECASE)
-    if re.search(r"xmlns:vno\s*=", result, re.IGNORECASE):
+    if _declares_vno_namespace(result):
         return result
     match = _OFFICE_DOCUMENT_OPEN_RE.search(result)
     if not match:
@@ -5150,7 +5169,7 @@ def apply_section_list_from_fodp(presentation_xml: str, fodp_xml: str | None) ->
 
 def ensure_vno_xmlns(fodp_xml: str) -> str:
     xml = fodp_xml or ""
-    if re.search(r"xmlns:vno\s*=", xml, re.IGNORECASE):
+    if _declares_vno_namespace(xml):
         return xml
     match = _OFFICE_DOCUMENT_OPEN_RE.search(xml)
     if not match:
@@ -5922,7 +5941,7 @@ def _overlay_sheet_drawing_image_ids(xlsx_bytes: bytes, fods_xml: str) -> str:
         return xml
 
     # Ensure vno namespace is declared
-    if not re.search(r"xmlns:vno\s*=", xml, re.IGNORECASE):
+    if not _declares_vno_namespace(xml):
         match = _OFFICE_DOCUMENT_OPEN_RE.search(xml)
         if match:
             attrs = match.group(1) or ""
@@ -6752,7 +6771,7 @@ def _overlay_sheet_xf_indices_from_xlsx(
         cursor = end
     pieces.append(fods_xml[cursor:])
     result = "".join(pieces)
-    if re.search(r"xmlns:vno\s*=", result, re.IGNORECASE):
+    if _declares_vno_namespace(result):
         return result
     match = _OFFICE_DOCUMENT_OPEN_RE.search(result)
     if not match:
@@ -6876,7 +6895,7 @@ def _overlay_sheet_cell_metadata_from_xlsx(
         cursor = end
     pieces.append(fods_xml[cursor:])
     result = "".join(pieces)
-    if needs_vno and not re.search(r"xmlns:vno\s*=", result, re.IGNORECASE):
+    if needs_vno and not _declares_vno_namespace(result):
         match = _OFFICE_DOCUMENT_OPEN_RE.search(result)
         if match:
             result = result[:match.start()] + f'<office:document{match.group(1)} xmlns:vno="{SHEET_VNO_NS}">' + result[match.end():]
@@ -7644,7 +7663,7 @@ def _overlay_sheet_cell_metadata_from_xlsx_p1(
         cursor = end
     pieces.append(fods_xml[cursor:])
     result = "".join(pieces)
-    if needs_vno and not re.search(r"xmlns:vno\s*=", result, re.IGNORECASE):
+    if needs_vno and not _declares_vno_namespace(result):
         match = _OFFICE_DOCUMENT_OPEN_RE.search(result)
         if match:
             result = (
@@ -8223,7 +8242,7 @@ def _overlay_sheet_number_formats_from_xlsx(xlsx_bytes: bytes, fods_xml: str) ->
         cursor = end
     pieces.append(fods_xml[cursor:])
     result = "".join(pieces)
-    if re.search(r"xmlns:vno\s*=", result, re.IGNORECASE):
+    if _declares_vno_namespace(result):
         return result
     match = _OFFICE_DOCUMENT_OPEN_RE.search(result)
     if not match:
