@@ -307,6 +307,51 @@ def _declares_vno_namespace(xml: str) -> bool:
 
 
 _FREEZE_TABLE_TAG_RE = re.compile(r"<table:table(?=[\s>/])([^>]*)>")
+
+
+class _TableOpenTagMatch:
+    """Minimal stand-in for re.Match (group 0 and 1) used by _sub_table_open_tags callbacks."""
+
+    __slots__ = ("_whole", "_attrs")
+
+    def __init__(self, whole: str, attrs: str) -> None:
+        self._whole = whole
+        self._attrs = attrs
+
+    def group(self, index: int = 0) -> str:
+        return self._attrs if index == 1 else self._whole
+
+
+def _sub_table_open_tags(xml: str, replace, follow: str = " \t\r\n\f\v>/") -> str:
+    """Same result as re.sub(r"<table:table(?=[\\s>/])([^>]*)>", replace, xml) on lowercase ODF,
+    but located with str.find so a 250 MB FODS is not scanned by the regex engine.
+    """
+    pieces: list[str] = []
+    cursor = position = 0
+    length = len(xml)
+    while True:
+        start = xml.find("<table:table", position)
+        if start < 0:
+            break
+        attrs_start = start + 12
+        if attrs_start >= length or xml[attrs_start] not in follow:
+            position = attrs_start
+            continue
+        end = xml.find(">", attrs_start)
+        if end < 0:
+            break
+        replacement = replace(_TableOpenTagMatch(xml[start : end + 1], xml[attrs_start:end]))
+        if replacement != xml[start : end + 1]:
+            pieces.append(xml[cursor:start])
+            pieces.append(replacement)
+            cursor = end + 1
+        position = end + 1
+    if not pieces:
+        return xml
+    pieces.append(xml[cursor:])
+    return "".join(pieces)
+
+
 _FREEZE_ROWS_ATTR_RE = re.compile(r'vno:frozen-rows="(\d+)"', re.IGNORECASE)
 _FREEZE_COLS_ATTR_RE = re.compile(r'vno:frozen-cols="(\d+)"', re.IGNORECASE)
 _SHEET_VIEW_RE = re.compile(r"(<sheetView\b[^>]*>)([\s\S]*?)(</sheetView>)", re.IGNORECASE)
@@ -367,7 +412,7 @@ def apply_freeze_panes_to_fods(fods_xml: str, freeze_by_sheet: dict[str, dict[st
         next_attrs = f'{next_attrs} vno:frozen-rows="{freeze["rows"]}" vno:frozen-cols="{freeze["cols"]}"'
         return f"<table:table{next_attrs}>"
 
-    return _FREEZE_TABLE_TAG_RE.sub(_replace, xml)
+    return _sub_table_open_tags(xml, _replace)
 
 
 def parse_freeze_pane_from_sheet_xml(sheet_xml: str | None) -> dict[str, int] | None:
@@ -479,7 +524,7 @@ def apply_sheet_visibility_to_fods(fods_xml: str, visibility_by_sheet: dict[str,
         next_attrs = f'{next_attrs} vno:sheet-state="{canonical}"'
         return f"<table:table{next_attrs}>"
 
-    return _FREEZE_TABLE_TAG_RE.sub(_replace, xml)
+    return _sub_table_open_tags(xml, _replace)
 
 
 def parse_sheet_visibility_from_fods(fods_xml: str | None) -> dict[str, str]:
@@ -1557,7 +1602,7 @@ def overlay_page_margins_to_fods(xlsx_bytes: bytes, fods_xml: str) -> str:
         attrs = re.sub(r'\s+vno:page-margins="[^"]*"', '', attrs, flags=re.IGNORECASE)
         return f'<table:table{attrs} vno:page-margins="{_escape_xml(json.dumps(margins))}">'
 
-    xml = re.sub(r'<table:table(?=\s|>)([^>]*)>', replace_table, fods_xml, flags=re.IGNORECASE)
+    xml = _sub_table_open_tags(fods_xml, replace_table, follow=" \t\r\n\f\v>")
     if not _declares_vno_namespace(xml):
         xml = re.sub(r'<office:document\b', f'<office:document xmlns:vno="{SHEET_VNO_NS}"', xml, count=1)
     return xml
@@ -6471,6 +6516,22 @@ def overlay_sheet_xlsx_fods_p1(
     """P1 equivalent of :func:`overlay_sheet_xlsx_fods` with a faster metadata pass."""
     xlsx_bytes = normalize_source_xlsx(xlsx_bytes)
     xml = fods_xml or ""
+    # Big FODS: the steps that only touch table opening tags / the document head run on a skeleton (every table
+    # body cut out), so they stop rebuilding a 250 MB string once each. The bodies are put back once, afterwards.
+    # VNO_OVERLAY_SKELETON=0 keeps the original whole-document sequence.
+    bodies: list[str] = []
+    skeleton = (
+        len(xml) > _P1_PARALLEL_FODS_CHARS
+        and os.environ.get("VNO_OVERLAY_SKELETON", "").strip() != "0"
+        and os.environ.get("VNO_FODS_TABLE_REGEX") != "1"
+    )
+    if skeleton:
+        def _stash_body(span) -> str:
+            bodies.append(span.group(2))
+            return span.group(1) + span.group(3)
+
+        xml = _sub_fods_tables(xml, _stash_body)
+        skeleton = bool(bodies)
     current = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
     if current:
         workbook_xml = current.decode("utf-8", errors="replace")
@@ -6484,18 +6545,47 @@ def overlay_sheet_xlsx_fods_p1(
     xml = overlay_sheet_xlsx_freeze_panes(xlsx_bytes, xml)
     xml = _overlay_autofilter_from_xlsx(xlsx_bytes, xml)
     xml = _overlay_sheet_layout_from_xlsx(xlsx_bytes, xml)
+    tab_colors = parse_tab_colors_from_xlsx(xlsx_bytes)
+    if skeleton:
+        if tab_colors:
+            xml = apply_tab_colors_to_fods(xml, tab_colors)
+        xml = _overlay_scenarios_from_xlsx(xlsx_bytes, xml)
+        xml = _put_back_table_bodies(xml, bodies)
+        bodies = None
     xml = _overlay_sheet_cell_metadata_from_xlsx_p1(
         xlsx_bytes,
         xml,
         include_xf=not skip_initial_xf,
     )
     xml = _promote_covered_formula_errors(xml)
-    tab_colors = parse_tab_colors_from_xlsx(xlsx_bytes)
-    if tab_colors:
-        xml = apply_tab_colors_to_fods(xml, tab_colors)
+    if not skeleton:
+        if tab_colors:
+            xml = apply_tab_colors_to_fods(xml, tab_colors)
     xml = _overlay_sheet_drawing_image_ids(xlsx_bytes, xml)
-    xml = _overlay_scenarios_from_xlsx(xlsx_bytes, xml)
+    if not skeleton:
+        xml = _overlay_scenarios_from_xlsx(xlsx_bytes, xml)
     return xml
+
+
+def _put_back_table_bodies(skeleton_xml: str, bodies: list[str]) -> str:
+    """Inverse of the body stash in overlay_sheet_xlsx_fods_p1: i-th table gets the i-th body back (one join)."""
+    odd = _FODS_TABLE_ODD_CLOSE_RE.search(skeleton_xml) is not None
+    index = 0
+
+    def put_back(span):
+        nonlocal index
+        if index >= len(bodies):
+            raise ValueError("table count changed while overlaying the sheet head")
+        body = bodies[index]
+        index += 1
+        if odd:
+            return span.group(1) + body + span.group(3)
+        return [span.group(1), body, span.group(3)]
+
+    result = _sub_fods_tables(skeleton_xml, put_back)
+    if index != len(bodies):
+        raise ValueError("table count changed while overlaying the sheet head")
+    return result
 
 
 def _xml_attrs(raw: str) -> dict[str, str]:
@@ -8050,6 +8140,8 @@ def _set_original_string_attr(cell_xml: str, value: str) -> str:
 
 def _promote_covered_formula_errors(fods_xml: str) -> str:
     """A covered ODF cell may still carry an OOXML error formula; keep it as data."""
+    if fods_xml and "table:covered-table-cell" not in fods_xml:
+        return fods_xml  # no covered cell at all (ODF tags are lower-case): skip the whole-document regex
     return re.sub(
         r"<table:covered-table-cell\b([^>]*\btable:formula=[^>]*)>([\s\S]*?)</table:covered-table-cell>",
         lambda m: f"<table:table-cell{m.group(1)}>{m.group(2)}</table:table-cell>",
@@ -9341,7 +9433,7 @@ def _overlay_sheet_layout_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
         attrs = re.sub(r'\s+vno:xlsx-layout="[^"]*"', "", attrs)
         return f'<table:table{attrs} vno:xlsx-layout="{encoded}">'
 
-    return re.sub(r"<table:table(?=[\s>/])([^>]*)>", add_layout, fods_xml, flags=re.IGNORECASE)
+    return _sub_table_open_tags(fods_xml, add_layout)
 
 
 def parse_tab_colors_from_xlsx(xlsx_bytes: bytes) -> dict[str, str]:
@@ -9462,7 +9554,7 @@ def apply_tab_colors_to_fods(fods_xml: str, tab_colors: dict[str, str]) -> str:
         attrs = re.sub(r'\s+vno:tab-color="[^"]*"', "", attrs)
         return f'<table:table{attrs} vno:tab-color="{color}">'
     
-    return re.sub(r"<table:table(?=[\s>/])([^>]*)>", add_tab_color, fods_xml, flags=re.IGNORECASE)
+    return _sub_table_open_tags(fods_xml, add_tab_color)
 
 
 def _overlay_autofilter_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
@@ -9471,12 +9563,13 @@ def _overlay_autofilter_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
     # LibreOffice can synthesize a database range from rows hidden with the
     # filter visibility flag even when the source XLSX has no AutoFilter.
     # Source worksheet XML is authoritative; discard synthesized ranges first.
-    fods_xml = re.sub(
-        r"<table:database-ranges\b[^>]*>[\s\S]*?</table:database-ranges\s*>",
-        "",
-        fods_xml,
-        flags=re.IGNORECASE,
-    )
+    if "<table:database-ranges" in fods_xml:
+        fods_xml = re.sub(
+            r"<table:database-ranges\b[^>]*>[\s\S]*?</table:database-ranges\s*>",
+            "",
+            fods_xml,
+            flags=re.IGNORECASE,
+        )
     sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
     if not sheet_entries:
         return fods_xml
@@ -16089,7 +16182,11 @@ def _sub_fods_tables(fods_xml: str, process_table) -> str:
             break  # the regex finds no further match either (no closing tag after this opening)
         end = close_start + len("</table:table>")
         pieces.append(fods_xml[cursor:start])
-        pieces.append(process_table(_FodsTableSpan(fods_xml, start, opening.end(), close_start, end)))
+        replacement = process_table(_FodsTableSpan(fods_xml, start, opening.end(), close_start, end))
+        if isinstance(replacement, list):
+            pieces.extend(replacement)  # callers may hand back parts so the table is never concatenated twice
+        else:
+            pieces.append(replacement)
         cursor = end
         position = end
     if cursor == 0:
