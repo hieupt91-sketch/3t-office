@@ -106,7 +106,7 @@ const sheetOnly = [
       "Mở một bảng tính lớn bằng Tệp ▸ Mở hoặc bấm đúp tệp. Màn hình đầu hiện sau vài giây với dòng trạng thái màu vàng: Chỉ đọc · đang nạp đầy đủ… kèm phần trăm.",
       "Trong lúc đó bạn có thể cuộn, bấm chọn ô và dùng các phím mũi tên để đọc dữ liệu. Chưa gõ, dán, xóa hoặc lưu được; Sheet sẽ báo bằng dòng trạng thái nếu bạn thử.",
       "Tìm kiếm và thay thế (Ctrl+F, Ctrl+H) dùng được sau khi nạp đầy đủ. Khi dòng trạng thái báo Đã nạp đầy đủ, bảng tính chuyển sang chế độ soạn thảo và giữ nguyên ô đang chọn.",
-      "Nếu nạp đầy đủ không thành công, bảng tính vẫn đọc được ở chế độ chỉ đọc và có thông báo màu đỏ; hãy đóng rồi mở lại tệp để thử lại.",
+      "Nếu nạp đầy đủ không thành công, bảng tính vẫn đọc được ở chế độ chỉ đọc và có thông báo màu đỏ. Nhấn nút Thử lại ngay trên thông báo để mở lại chính tệp này; không cần chọn lại tệp.",
       "Muốn tắt tính năng này (luôn chờ nạp đầy đủ như trước), đặt biến môi trường VNO_OPEN_VIEWFIRST=0 trước khi chạy ứng dụng."
     ]
   }

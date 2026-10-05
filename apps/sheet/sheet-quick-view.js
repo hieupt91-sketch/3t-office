@@ -133,10 +133,12 @@ export function restoreQuickViewState(grid, state) {
 }
 
 export class SheetQuickView {
-  constructor({ grid, shell, bridge, documentRef = globalThis.document, timers = globalThis } = {}) {
+  constructor({ grid, shell, bridge, reopenFile, getSourceFilePath, documentRef = globalThis.document, timers = globalThis } = {}) {
     this.grid = grid;
     this.shell = shell;
     this.bridge = bridge;
+    this.reopenFile = reopenFile;
+    this.getSourceFilePath = getSourceFilePath;
     this.document = documentRef;
     this.timers = timers;
     this.cache = new ViewWindowCache(12);
@@ -155,6 +157,8 @@ export class SheetQuickView {
     this._renderToken = 0;
     this._scrollTimer = null;
     this._closed = false;
+    this._retrying = false;
+    this._retryButton = null;
     this._windowHandler = payload => this.open(payload);
     this._readyHandler = () => this.completeFullLoad();
     this._failedHandler = () => this.failFullLoad();
@@ -451,11 +455,41 @@ export class SheetQuickView {
       if (this.status) {
         this.status.textContent = message;
         this.status.classList?.add?.("is-failed");
+        if (this.reopenFile && !this._retryButton) {
+          const button = this.document.createElement("button");
+          button.type = "button";
+          button.className = "vno-sheet-quick-retry";
+          button.textContent = "Thử lại";
+          button.setAttribute("aria-label", "Thử lại mở tệp bảng tính này");
+          button.addEventListener("click", () => this.retryFullLoad());
+          this.status.appendChild(button);
+          this._retryButton = button;
+        }
       }
       return true;
     }
     await this.closeView();
     return true;
+  }
+
+  async retryFullLoad() {
+    if (this._retrying || !this.active || !this.reopenFile) return false;
+    const filePath = this.getSourceFilePath?.();
+    if (!filePath) return false;
+    this._retrying = true;
+    if (this._retryButton) this._retryButton.disabled = true;
+    const message = "Đang mở lại…";
+    this.status?.classList?.remove?.("is-failed");
+    if (this.status) this.status.textContent = message;
+    this.shell?.setStatus?.(message);
+    try {
+      await this.closeView();
+      await this.reopenFile(filePath);
+      return true;
+    } catch (error) {
+      this._retrying = false;
+      return false;
+    }
   }
 
   async closeView() {
