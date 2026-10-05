@@ -23,6 +23,7 @@ import { STYLE_PRESETS, showStyleGalleryDropdown, closeStyleGalleryDropdown, cre
 import { showWatermarkDialog, showPageBorderDialog, showPageColorDialog } from "../../../apps/writer/page-decorations.js";
 import { showColumnsDialog } from "../../../apps/writer/columns-dialog.js";
 import { showParagraphDialog } from "../../../apps/writer/paragraph-dialog.js";
+import { buildTableHtml, showTextToTableDialog, splitTextToRows } from "../../../apps/writer/text-to-table-dialog.js";
 import { SHAPE_TYPES, showShapeDialog, renderShapeSvg, showDiagramDialog, generateDiagramHtml, showChartDialog, generateChartHtml } from "../../../apps/writer/writer-illustrations.js";
 import { DOCUMENT_THEMES, showThemeGalleryDialog } from "../../../apps/writer/theme-gallery.js";
 import { showSymbolPicker } from "../../../platform/ui-kit/symbol-picker.js";
@@ -675,6 +676,8 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.para.lineSpacingLayout", (args) => globalCommandBus.execute("writer.para.lineSpacing", args));
     globalCommandBus.bindHandler("writer.edit.select", () => globalCommandBus.execute("common.edit.selectAll"));
     globalCommandBus.bindHandler("writer.layout.breaks", () => globalCommandBus.execute("writer.page.break"));
+    globalCommandBus.bindHandler("writer.page.blank", () => this.insertBlankPage());
+    globalCommandBus.bindHandler("writer.table.fromText", (args) => this.convertTextToTable(args));
     globalCommandBus.bindHandler("writer.font.grow1pt", () => this._adjustFontSizePt(1));
     globalCommandBus.bindHandler("writer.font.shrink1pt", () => this._adjustFontSizePt(-1));
     globalCommandBus.bindHandler("common.edit.repeat", () => this.repeatLastAction());
@@ -7050,6 +7053,12 @@ export class WriterAdapter {
         this._insertPageBreak();
         return true;
 
+      case "writer.page.blank":
+        return this.insertBlankPage();
+
+      case "writer.table.fromText":
+        return this.convertTextToTable(args);
+
       case "writer.break.column":
         return this._insertColumnBreak();
 
@@ -7984,14 +7993,47 @@ export class WriterAdapter {
     return true;
   }
 
-  _insertPageBreak() {
+  /**
+   * Trang trắng: hai ngắt trang liên tiếp có một đoạn rỗng ở giữa (đúng cách Word chèn Trang trắng),
+   * con trỏ nằm ở trang mới phía sau.
+   */
+  insertBlankPage() {
+    return this._insertPageBreak({ count: 2, description: "writer.page.blank" });
+  }
+
+  /**
+   * Văn bản thành bảng: các đoạn đang chọn → bảng, tách ô theo dấu phân cách.
+   * @param {object|null} args { delimiter: tab|comma|semicolon|space|custom, custom } — không truyền thì mở hộp thoại.
+   */
+  async convertTextToTable(args = null) {
+    const blocks = (this._getSelectedParagraphBlocks?.() || []).filter(block => block?.parentNode && !block.closest?.("table"));
+    if (!blocks.length) return false;
+    const lines = blocks.map(block => String(block.innerText ?? block.textContent ?? "").replace(/ /g, " ").replace(/\n+$/, ""));
+    const choice = args && typeof args === "object" && args.delimiter ? args : await showTextToTableDialog(lines);
+    if (!choice) return null;
+    const result = splitTextToRows(lines, choice.delimiter, choice.custom);
+    if (result.error) return false;
+    this.flushTyping();
+    const holder = document.createElement("div");
+    holder.innerHTML = buildTableHtml(result.rows);
+    const table = holder.firstElementChild;
+    blocks[0].before(table);
+    blocks.forEach(block => block.remove());
+    if (!table.nextElementSibling) table.after(Object.assign(document.createElement("p"), { innerHTML: "<br>" }));
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.fromText");
+    return true;
+  }
+
+  _insertPageBreak({ count = 1, description = "writer.page.break" } = {}) {
     this.flushTyping();
     this._initZones();
     // <p>, not <div>: LibreOffice's Writer HTML-import filter only honors
     // page-break-before on a real <p> element, so exporting this marker as a
     // <div> would silently produce zero real page breaks in DOCX/PDF (same
     // bug class found/fixed for Section Breaks and Labels).
-    const html = `<p data-vno-page-break="true" aria-hidden="true" style="page-break-before:always; break-before:page; border-top:2px dashed #94a3b8; margin:24px 0; user-select:none;"><br></p><p><br></p>`;
+    const oneBreak = `<p data-vno-page-break="true" aria-hidden="true" style="page-break-before:always; break-before:page; border-top:2px dashed #94a3b8; margin:24px 0; user-select:none;"><br></p><p><br></p>`;
+    const html = oneBreak.repeat(Math.max(1, count));
     let inserted = false;
     if (typeof document !== "undefined" && typeof document.execCommand === "function") {
       try {
@@ -8008,7 +8050,7 @@ export class WriterAdapter {
       targetDom.innerHTML = (targetDom.innerHTML || "") + html;
     }
     this.isDirty = true;
-    this.recordSnapshot("writer.page.break");
+    this.recordSnapshot(description);
     return true;
   }
 

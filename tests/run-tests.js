@@ -119,6 +119,7 @@ import { runSlidesSpellcheckRibbonTests } from "./unit/slides-spellcheck-ribbon.
 import { runSlidesFormatBackgroundTests } from "./unit/slides-format-background.test.js";
 import { runWriterWordCountTests } from "./unit/writer-word-count.test.js";
 import { runWriterParagraphDialogTests } from "./unit/writer-paragraph-dialog.test.js";
+import { runWriterTextToTableTests } from "./unit/writer-text-to-table.test.js";
 import { runWriterTableRangesIncrementalTests } from "./unit/writer-table-ranges-incremental.test.js";
 import { runWriterHelpTests } from "./unit/writer-help.test.js";
 import { runWriterSectionBreaksPageColorTests } from "./unit/writer-sectionbreaks-pagecolor.test.js";
@@ -506,6 +507,7 @@ async function runAll() {
     { title: "242. Unit Tests — License key input formatting", runner: runLicenseKeyFormatTests },
     { title: "243. Unit Tests — Chunked hand-over of very large save content", runner: runUnoBridgeContentStageTests },
     { title: "244. Unit Tests — VN Writer Paragraph dialog (Đoạn văn)", runner: runWriterParagraphDialogTests },
+  { title: "246. Unit Tests — VN Writer Văn bản thành bảng và Trang trắng", runner: runWriterTextToTableTests },
     { title: "245. Unit Tests — VN Writer table ranges computed once (incremental) equal the rescanning version", runner: runWriterTableRangesIncrementalTests }
   ];
 

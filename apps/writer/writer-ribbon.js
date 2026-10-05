@@ -249,7 +249,8 @@ export const WRITER_RIBBON_TABS = [
         label: "Trang văn bản",
         labelKey: "writerRibbon.group.pages",
         items: [
-          { type: "button", commandId: "writer.page.break", isLarge: true }
+          { type: "button", commandId: "writer.page.break", isLarge: true },
+          { type: "button", commandId: "writer.page.blank", isLarge: true }
         ]
       },
       {
@@ -257,7 +258,8 @@ export const WRITER_RIBBON_TABS = [
         label: "Bảng biểu",
         labelKey: "writerRibbon.group.tables",
         items: [
-          { type: "button", commandId: "writer.table.insert", isLarge: true }
+          { type: "button", commandId: "writer.table.insert", isLarge: true },
+          { type: "button", commandId: "writer.table.fromText", isLarge: true }
         ]
       },
       {
