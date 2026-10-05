@@ -82,6 +82,7 @@ export const WRITER_RIBBON_TABS = [
                     options: [
                       { value: "1", label: "10 pt" },
                       { value: "2", label: "12 pt" },
+                      { value: "13", label: "13 pt" },
                       { value: "3", label: "14 pt (NĐ 30)" },
                       { value: "13.5", label: "13,5 pt" },
                       { value: "4", label: "16 pt" },
