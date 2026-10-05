@@ -4958,6 +4958,29 @@ export class WriterAdapter {
    * (Word 90px = 2×100 twips). Padding gốc giữ ở `data-vno-lo-padding`.
    */
   _applyOoxmlTableCellMargins(html, ooxmlDocumentXml) {
+    return this._runWithRangeVerify("tableCellMargins", incremental => this._applyOoxmlTableCellMarginsCore(html, ooxmlDocumentXml, incremental));
+  }
+
+  /**
+   * Chạy bản tính phạm vi bảng MỘT lần (tăng dần) thay vì quét lại toàn HTML cho từng bảng (O(bảng × kích thước), ~5 s
+   * với MYTIME). `__VNO_OPEN_LEGACY` chọn lại bản quét lại cũ; `__VNO_WRITER_VERIFY` chạy cả hai và ghi lệch vào
+   * `window.__vnoWriterVerifyMismatches` (dùng cho kiểm chéo bằng tệp thật, không bật khi dùng bình thường).
+   */
+  _runWithRangeVerify(name, run) {
+    if (globalThis.__VNO_OPEN_LEGACY === true) return run(false);
+    const fast = run(true);
+    if (globalThis.__VNO_WRITER_VERIFY === true) {
+      const slow = run(false);
+      const runs = (globalThis.__vnoWriterVerifyRuns ||= {});
+      runs[name] = (runs[name] || 0) + 1;
+      if (slow !== fast) {
+        (globalThis.__vnoWriterVerifyMismatches ||= []).push({ name, fastLength: String(fast).length, slowLength: String(slow).length });
+      }
+    }
+    return fast;
+  }
+
+  _applyOoxmlTableCellMarginsCore(html, ooxmlDocumentXml, incremental) {
     const sourceXml = this._ooxmlBodyParagraphSource(String(ooxmlDocumentXml || ""));
     if (!/<w:tcMar\b/i.test(sourceXml) || !/<table\b/i.test(String(html || ""))) return html;
     const pxOf = (twips) => Math.round(Number(twips) * 96 / 1440 * 1000) / 1000;
@@ -5030,10 +5053,12 @@ export class WriterAdapter {
       }
       return ranges.filter((r) => !zoneRanges.some((zr) => r.start >= zr.start && r.start < zr.end));
     };
-    if (htmlRanges().length !== margins.length) return html;
+    // Phạm vi bảng chỉ đổi theo độ dài: sửa từ bảng cuối về đầu nên chỉ các bảng chứa bảng vừa sửa (bảng lồng) dãn `end`.
+    const trackedRanges = htmlRanges();
+    if (trackedRanges.length !== margins.length) return html;
     const isPad = (d) => /^padding(?:-top|-right|-bottom|-left)?\s*:/i.test(d);
     for (let i = margins.length - 1; i >= 0; i--) {
-      const ranges = htmlRanges();
+      const ranges = incremental ? trackedRanges : htmlRanges();
       if (ranges.length !== margins.length) break;
       const { start, end } = ranges[i];
       const slice = html.slice(start, end);
@@ -5073,7 +5098,12 @@ export class WriterAdapter {
         out += slice.slice(last, m.index) + `<${m[2]}${newAttrs}>`;
         last = m.index + m[0].length;
       }
-      html = html.slice(0, start) + out + slice.slice(last) + html.slice(end);
+      const rewritten = out + slice.slice(last);
+      html = html.slice(0, start) + rewritten + html.slice(end);
+      if (incremental) {
+        const delta = rewritten.length - (end - start);
+        if (delta) for (let k = 0; k < i; k++) if (trackedRanges[k].end >= end) trackedRanges[k].end += delta;
+      }
     }
     return html;
   }
@@ -5254,6 +5284,10 @@ export class WriterAdapter {
   }
 
   _applyOoxmlTableColumnGeometry(html, ooxmlDocumentXml) {
+    return this._runWithRangeVerify("tableColumnGeometry", incremental => this._applyOoxmlTableColumnGeometryCore(html, ooxmlDocumentXml, incremental));
+  }
+
+  _applyOoxmlTableColumnGeometryCore(html, ooxmlDocumentXml, incremental) {
     const source = String(html || "");
     const geometries = this._ooxmlTableGeometry(ooxmlDocumentXml);
     if (!geometries.length || !/<table\b/i.test(source)) return source;
@@ -5280,7 +5314,8 @@ export class WriterAdapter {
       }
       return ranges.filter(r => !zoneRanges.some(zr => r.start >= zr.start && r.start < zr.end));
     };
-    if (computeRanges(source).length !== geometries.length) return source; // số bảng khác nhau → không đoán
+    const trackedRanges = computeRanges(source);
+    if (trackedRanges.length !== geometries.length) return source; // số bảng khác nhau → không đoán
     // W30b: giữ giá trị width LibreOffice ghi (`data-vno-lo-width`) để khi LƯU trả lại đúng dạng (100% / phần trăm /
     // px) — nếu gửi px tuyệt đối, LibreOffice ghi `w:tblW` dxa thay vì pct và gridCol lệch (R17: d01 lệch 528 twips).
     const setWidth = (tag, value) => {
@@ -5295,7 +5330,7 @@ export class WriterAdapter {
     // Sửa từ bảng cuối về đầu; tính lại phạm vi sau mỗi lần sửa (bảng lồng đổi độ dài của bảng ngoài).
     for (let i = geometries.length - 1; i >= 0; i--) {
       const g = geometries[i];
-      const ranges = computeRanges(out);
+      const ranges = incremental ? trackedRanges : computeRanges(out);
       if (ranges.length !== geometries.length) break;
       const { start, tagEnd, end } = ranges[i];
       if (!g.grid.length || g.gridSum <= 0 || g.widthTwips <= 0) continue;
@@ -5354,6 +5389,11 @@ export class WriterAdapter {
       }
       tableHtml = openTag + newHead + newRest;
       out = out.slice(0, start) + tableHtml + out.slice(end);
+      if (incremental) {
+        // Edits go last table to first: only enclosing tables (nested case) change their `end`.
+        const delta = tableHtml.length - (end - start);
+        if (delta) for (let k = 0; k < i; k++) if (trackedRanges[k].end >= end) trackedRanges[k].end += delta;
+      }
     }
     return out;
   }

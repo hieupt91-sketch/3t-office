@@ -4938,6 +4938,8 @@ def build_launch_url(
         query["documentName"] = document_name
     if os.environ.get("VNO_PERF_DEBUG") == "1":
         query["perfDebug"] = "1"
+    if os.environ.get("VNO_WRITER_VERIFY") == "1":
+        query["writerVerify"] = "1"
     if app_kind == "sheet" and _view_first_enabled():
         query["viewFirst"] = "1"
     return f"http://localhost:{port}/?{urlencode(query)}"
