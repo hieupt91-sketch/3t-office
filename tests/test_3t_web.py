@@ -49,10 +49,10 @@ class Test3TWeb(unittest.TestCase):
 
         # Kiem tra thong tin tai ve
         dl = data.get("download", {})
-        self.assertEqual(dl.get("file_size_bytes"), 526479307)
+        self.assertEqual(dl.get("file_size_bytes"), 529497844)  # bo cai 0.9.8 = 505 MB (commit 4e319f3f)
         self.assertEqual(
             dl.get("sha256", "").lower(),
-            "6387f9358327e442a6ba9c0367a2277a57b06d8b4b3cd9f37ffef9b228c46f11"
+            "e96cc953ae2b5097c6a047d939ae68f6a60161522929b359b904efb28788ba32"  # SHA-256 bo cai 0.9.8 (commit 4e319f3f)
         )
 
     def test_html_pages_structure(self):
