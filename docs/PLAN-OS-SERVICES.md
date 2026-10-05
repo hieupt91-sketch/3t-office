@@ -6,7 +6,22 @@ Nhánh: plan/os-services-codex
 
 Mốc nguồn: main tại 951f4e22ad164950c4fa92620fa4b0a2d4cf8e98
 
-Trạng thái: **CHỜ CHỦ SỞ HỮU PHÊ DUYỆT — chưa được phép refactor**
+Trạng thái: **ĐÃ DUYỆT 05/10/2026 (chủ sở hữu cho làm theo khuyến nghị, kèm hai đề xuất thay thế cho Q4 và Q6 bên dưới). P1 hoàn thành trên nhánh `refactor/os-services-contract-claude`; P2 trở đi làm tuần tự, mỗi bước một nhánh.**
+
+### Quyết định 05/10/2026
+| Q | Quyết định |
+|---|---|
+| Q1 | Có: thêm PrinterServices, SystemLocale, SystemMetrics, FileLock. |
+| Q2 | Giữ nhánh portable (`portable.py`) cho đến khi có `macos.py`; không âm thầm chọn Windows. Trong P1, `get_services()` trên nền tảng chưa đăng ký backend ném `NotImplementedError`. |
+| Q3 | Giữ Toolhelp32 + TerminateProcess; Job Object là kế hoạch riêng. |
+| Q4 | **Đổi so với khuyến nghị gốc:** không viết lại bằng Python. Giữ `apply-helper.ps1`, lớp OS chỉ lo "chạy helper tách rời"; thêm số phiên bản vào `apply-task.json`, test file mẫu cố định theo phiên bản và chế độ `--dry-run`. macOS có `apply-helper.sh` riêng trong `ports/macos`. |
+| Q5 | Không đổi đường dẫn build sang `ports/windows/**` ở đợt này (P11 hoãn). |
+| Q6 | **Đã làm theo hướng khác:** bảng số đo font dựng sẵn `adapters/libreoffice/common/font_descent_table.json` (28/28 file giống bản cũ), GDI chỉ còn là đường dự phòng; không cần inject callback. Cờ `VNO_FONT_TABLE_LEGACY=1`. |
+| Q7 | Duyệt loader `_vno_os_services` bằng `spec_from_file_location` + `submodule_search_locations` (đã có test ở P1). |
+| Q8 | Duyệt ngưỡng nhiễu max(100 ms, 5%) và 100 ms/stage. |
+| Q9 | Giữ nguyên chuỗi và thư mục hiện tại (VNOffice, 3T Office, Doc/Sheet/Slide). |
+
+**P1 (xong):** `platform/os_services/base.py` (kiểu trung tính + 10 Protocol + `OSServices`), `__init__.py` (bộ chọn backend, chưa có backend nào đăng ký), `tests/test_os_services_contract.py` (9 test, gồm kiểm "hợp đồng không nhắc tên API hệ điều hành"). Khác kế hoạch: chưa tạo `windows.py` rỗng; nó được thêm ở P2 cùng với dịch vụ thật đầu tiên để không có mã chết.
 
 ## 1. Mục tiêu, phạm vi và căn cứ
 
