@@ -35,7 +35,7 @@ Tổng: PASS 48 / FAIL 2 / BLOCKED 0.
 | Theo dõi sửa/chèn/xóa | PASS | `{"state":{"enabled":true},"live":{"ins":1,"del":2,"text":"BOLD_RUN ITALIC_RUN UNDERLINE_RUN STRIKE_RUN SUPER_RUN SUB_RUN SIZE16_RUN RED_RUN ARIAL_RUN\n\nALIGN_LEFT\n\nALIGN_CENTER\n\nALIGN_RIGHT\n\nALIGN_JUSTIFY\n\nINDENT_127\n\nLINE_15\n\nBEFORE_12\n\nAFTER_6\n\nUNDO_LEFT\n\nUNDO_CENTER\n\nUNDO_RIGHT\n\nUNDO_JUSTIFY\n\nUNDO_INDENT\n\nUNDO_LINE\n\nUNDO_BEFORE\n\nUNDO_AFTER\n\nTRACK_KEEPTRACK_INSERTED\n\nDELETE_ME\n\nCOMMENT_TARGET"}}` |  |
 | Comment trên vùng chọn | PASS | `{"cards":1,"text":true}` |  |
 | Header/footer + first page | PASS | `{"header":"AUDIT_HEADER","footer":"AUDIT_FOOTER","first":true}` |  |
-| Lưu DOCX qua bridge của app | PASS | `{"saved":{"status":"ok","bytes":7782},"runCount":35,"paragraphCount":20}` |  |
+| Lưu DOCX qua bridge của app | PASS | `{"saved":{"status":"ok","bytes":7781},"runCount":35,"paragraphCount":20}` |  |
 | OOXML BOLD_RUN | PASS | `{"text":"BOLD_RUN","b":true,"i":false,"u":null,"strike":false,"vertAlign":null,"sz":null,"color":null,"font":null}` |  |
 | OOXML ITALIC_RUN | PASS | `{"text":"ITALIC_RUN","b":false,"i":true,"u":null,"strike":false,"vertAlign":null,"sz":null,"color":null,"font":null}` |  |
 | OOXML UNDERLINE_RUN | PASS | `{"text":"UNDERLINE_RUN","b":false,"i":false,"u":"single","strike":false,"vertAlign":null,"sz":null,"color":null,"font":null}` |  |
@@ -58,5 +58,3 @@ Tổng: PASS 48 / FAIL 2 / BLOCKED 0.
 | Mở lại cùng DOCX | PASS | `{"text":"BOLD_RUN ITALIC_RUN UNDERLINE_RUN STRIKE_RUN SUPER_RUN SUB_RUN SIZE16_RUN RED_RUN ARIAL_RUN\n\nALIGN_LEFT\n\nALIGN_CENTER\n\nALIGN_RIGHT\n\nALIGN_JUSTIFY\n\nINDENT_127\n\nLINE_15\n\nBEFORE_12\n\nAFTER_6\n\nUNDO_LEFT\n\nUNDO_CENTER\n\nUNDO_RIGHT\n\nUNDO_JUSTIFY\n\nUNDO_INDENT\n\nUNDO_LINE\n\nUNDO_BEFORE\n\nUNDO_AFTER\n\nTRACK_KEEPTRACK_INSERTED\n\nDELETE_ME\n\nCOMMENT_TARGET","comments":1,"header":"AUDIT_HEADER","footer":"AUDIT_FOOTER"}` |  |
 
 Tái hiện lỗi: chạy `node --experimental-websocket scripts/audit-0610/doc_recheck2.mjs`. Tệp DOCX trung gian nằm trong thư mục tạm được in ở stdout nếu giữ `VNO_KEEP_CDP=1`; nghi ngờ file/hàm chỉ khoanh vùng từ XML và code hiện hữu, không thay đổi mã ứng dụng.
-
-Phân trang PDF (LibreOffice, tài liệu mới tổng hợp): ngắn 5→4 trang; vừa 13→11 trang; dài 32→27 trang. So sánh HTML→DOCX không mang marker CSS cũ với HTML có căn đều và khoảng sau 6 pt; số trang giảm do khoảng đoạn nhỏ hơn.
