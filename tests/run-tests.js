@@ -250,6 +250,7 @@ import { runSheetQuickViewTests } from "./unit/sheet-quick-view.test.js";
 import { runSheetSwitchWindowTests } from "./unit/sheet-switch-window.test.js";
 import { runLicenseKeyFormatTests } from "./unit/license-key-format.test.js";
 import { runUnoBridgeContentStageTests } from "./unit/uno-bridge-content-stage.test.js";
+import { runWriterCoverPageTests } from "./unit/writer-cover-page.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -508,7 +509,8 @@ async function runAll() {
     { title: "243. Unit Tests — Chunked hand-over of very large save content", runner: runUnoBridgeContentStageTests },
     { title: "244. Unit Tests — VN Writer Paragraph dialog (Đoạn văn)", runner: runWriterParagraphDialogTests },
   { title: "246. Unit Tests — VN Writer Văn bản thành bảng và Trang trắng", runner: runWriterTextToTableTests },
-    { title: "245. Unit Tests — VN Writer table ranges computed once (incremental) equal the rescanning version", runner: runWriterTableRangesIncrementalTests }
+    { title: "245. Unit Tests — VN Writer table ranges computed once (incremental) equal the rescanning version", runner: runWriterTableRangesIncrementalTests },
+    { title: "247. Unit Tests — VN Writer Trang bìa (Cover Page)", runner: runWriterCoverPageTests }
   ];
 
   for (const suite of suites) {

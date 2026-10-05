@@ -154,6 +154,8 @@ export const WRITER_COMMANDS = [
   { id: "writer.shape.insert", category: "insert", label: "Hình khối", icon: "shape", tooltip: "Chèn hình khối cơ bản (chữ nhật, hình tròn, mũi tên, đường thẳng)" },
   { id: "writer.diagram.insert", category: "insert", label: "Sơ đồ", icon: "diagram", tooltip: "Chèn sơ đồ quy trình, chu trình hoặc phân cấp" },
   { id: "writer.chart.insert", category: "insert", label: "Biểu đồ", icon: "chart", tooltip: "Chèn biểu đồ minh họa dữ liệu" },
+  { id: "writer.insert.coverPage", category: "insert", label: "Trang bìa", icon: "coverPage", tooltip: "Mở thư viện 4 mẫu trang bìa hành chính và báo cáo để chèn vào đầu tài liệu" },
+  { id: "writer.insert.removeCoverPage", category: "insert", label: "Gỡ trang bìa", icon: "removeCoverPage", tooltip: "Xóa trang bìa và ngắt trang kèm theo khỏi tài liệu" },
   { id: "writer.page.break", category: "insert", label: "Ngắt trang", shortcut: "Ctrl+Enter", icon: "pageBreak", tooltip: "Ngắt sang trang mới (Ctrl+Enter)" },
   { id: "writer.page.blank", category: "insert", label: "Trang trắng", icon: "pageBreak", tooltip: "Chèn một trang trắng hoàn toàn tại vị trí con trỏ" },
   { id: "writer.header.insert", category: "insert", label: "Đầu trang", icon: "header", tooltip: "Chèn tiêu đề đầu trang (Header)" },

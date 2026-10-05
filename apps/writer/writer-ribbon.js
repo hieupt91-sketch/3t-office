@@ -249,8 +249,20 @@ export const WRITER_RIBBON_TABS = [
         label: "Trang văn bản",
         labelKey: "writerRibbon.group.pages",
         items: [
-          { type: "button", commandId: "writer.page.break", isLarge: true },
-          { type: "button", commandId: "writer.page.blank", isLarge: true }
+          {
+            type: "dropdown",
+            id: "writer.insert.coverPage",
+            commandId: "writer.insert.coverPage",
+            label: "Trang bìa",
+            icon: "coverPage",
+            isLarge: true,
+            items: [
+              { commandId: "writer.insert.coverPage", label: "Thư viện trang bìa…" },
+              { commandId: "writer.insert.removeCoverPage", label: "Gỡ trang bìa" }
+            ]
+          },
+          { type: "button", commandId: "writer.page.blank", isLarge: true },
+          { type: "button", commandId: "writer.page.break", isLarge: true }
         ]
       },
       {

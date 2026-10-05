@@ -716,6 +716,8 @@ export const viStrings = {
     "writer.shape.insert": { label: "Hình khối", tooltip: "Chèn hình khối cơ bản (chữ nhật, hình tròn, mũi tên, đường thẳng)" },
     "writer.diagram.insert": { label: "Sơ đồ", tooltip: "Chèn sơ đồ quy trình, chu trình hoặc phân cấp" },
     "writer.chart.insert": { label: "Biểu đồ", tooltip: "Chèn biểu đồ minh họa dữ liệu" },
+    "writer.insert.coverPage": { label: "Trang bìa", tooltip: "Mở thư viện 4 mẫu trang bìa hành chính và báo cáo để chèn vào đầu tài liệu" },
+    "writer.insert.removeCoverPage": { label: "Gỡ trang bìa", tooltip: "Xóa trang bìa và ngắt trang kèm theo khỏi tài liệu" },
     "writer.page.break": { label: "Ngắt trang", tooltip: "Ngắt sang trang mới (Ctrl+Enter)" },
     "writer.page.blank": { label: "Trang trắng", tooltip: "Chèn một trang trắng hoàn toàn tại vị trí con trỏ" },
     "writer.header.insert": { label: "Đầu trang", tooltip: "Chèn tiêu đề đầu trang (Header)" },
