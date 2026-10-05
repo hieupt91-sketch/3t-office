@@ -245,6 +245,32 @@ export function resolveWriterTabBehavior({
   return shiftKey ? "ignore" : "insertTab";
 }
 
+/**
+ * Apply [start, end, value] replacements given in DESCENDING start order. Disjoint ones are joined once from
+ * left to right; the previous per-replacement slice/concat re-copied the whole document each time
+ * (O(replacements x length)). Overlapping replacements, or globalThis.__VNO_OPEN_LEGACY, keep that original splice.
+ */
+function applyDescendingReplacements(text, replacements) {
+  let disjoint = globalThis.__VNO_OPEN_LEGACY !== true;
+  for (let r = 1; disjoint && r < replacements.length; r++) {
+    if (replacements[r - 1][0] < replacements[r][1]) disjoint = false; // previous (later) one starts before this one ends
+  }
+  if (!disjoint) {
+    let out = text;
+    for (const [start, end, value] of replacements) out = out.slice(0, start) + value + out.slice(end);
+    return out;
+  }
+  const pieces = [];
+  let at = 0;
+  for (let r = replacements.length - 1; r >= 0; r--) {
+    const [start, end, value] = replacements[r];
+    pieces.push(text.slice(at, start), value);
+    at = end;
+  }
+  pieces.push(text.slice(at));
+  return pieces.join("");
+}
+
 export class WriterAdapter {
   constructor(editorDom) {
     this.editorDom = editorDom;
@@ -4970,7 +4996,10 @@ export class WriterAdapter {
     if (globalThis.__VNO_OPEN_LEGACY === true) return run(false);
     const fast = run(true);
     if (globalThis.__VNO_WRITER_VERIFY === true) {
-      const slow = run(false);
+      const previousLegacy = globalThis.__VNO_OPEN_LEGACY;
+      globalThis.__VNO_OPEN_LEGACY = true; // the slow run takes every old path (rescanning ranges, per-edit splicing, linear scans)
+      let slow;
+      try { slow = run(false); } finally { if (previousLegacy === undefined) delete globalThis.__VNO_OPEN_LEGACY; else globalThis.__VNO_OPEN_LEGACY = previousLegacy; }
       const runs = (globalThis.__vnoWriterVerifyRuns ||= {});
       runs[name] = (runs[name] || 0) + 1;
       if (slow !== fast) {
@@ -5399,6 +5428,10 @@ export class WriterAdapter {
   }
 
   _preserveImportedFloatingFrames(html, ooxmlDocumentXml, page = null) {
+    return this._runWithRangeVerify("floatingFrames", () => this._preserveImportedFloatingFramesCore(html, ooxmlDocumentXml, page));
+  }
+
+  _preserveImportedFloatingFramesCore(html, ooxmlDocumentXml, page = null) {
     const src = String(html || "");
     const anchors = this._ooxmlFloatingAnchorMetadata(ooxmlDocumentXml);
     const groupWsps = typeof this._ooxmlGroupChildTextboxes === "function"
@@ -5514,8 +5547,24 @@ export class WriterAdapter {
     const imgRe = /<img\b[^>]*>/gi;
     const inlineImages = [];
     let iMatch;
+    // `spans` are disjoint and ascending (the scan resumes after each span), so "inside any span" is a binary search
+    // instead of a linear `some` per <img> (images × spans on image-heavy documents).
+    const useLegacyScan = globalThis.__VNO_OPEN_LEGACY === true;
+    const insideSpan = (index) => {
+      if (useLegacyScan) return spans.some((s) => index >= s.startPos && index < s.endPos);
+      let low = 0;
+      let high = spans.length - 1;
+      while (low <= high) {
+        const mid = (low + high) >> 1;
+        const s = spans[mid];
+        if (index < s.startPos) high = mid - 1;
+        else if (index >= s.endPos) low = mid + 1;
+        else return true;
+      }
+      return false;
+    };
     while ((iMatch = imgRe.exec(src)) !== null) {
-      const inSpan = spans.some((s) => iMatch.index >= s.startPos && iMatch.index < s.endPos);
+      const inSpan = insideSpan(iMatch.index);
       if (!inSpan) {
         const nameMatch = iMatch[0].match(/\bname=["']?Shape(\d+)\b/i);
         if (nameMatch) {
@@ -5759,10 +5808,7 @@ export class WriterAdapter {
     }
 
     spanReplacements.sort((a, b) => b.start - a.start);
-    let finalHtml = src;
-    for (const rep of spanReplacements) {
-      finalHtml = finalHtml.slice(0, rep.start) + rep.value + finalHtml.slice(rep.end);
-    }
+    let finalHtml = applyDescendingReplacements(src, spanReplacements.map((rep) => [rep.start, rep.end, rep.value]));
 
     // Stable per-document ids let live pagination position page-relative
     // floats through a stylesheet instead of mutating element styles (which
@@ -5775,6 +5821,10 @@ export class WriterAdapter {
   }
 
   _makeFloatingAnchorContainers(html, page = null) {
+    return this._runWithRangeVerify("floatingAnchorContainers", () => this._makeFloatingAnchorContainersCore(html, page));
+  }
+
+  _makeFloatingAnchorContainersCore(html, page = null) {
     let out = String(html || "");
     if (!/\bdata-vno-float=["'](?:image|textbox)["']/i.test(out)) return out;
     const hasNativeGroup = /data-vno-source-group=["']1["']/i.test(out);
@@ -5834,10 +5884,7 @@ export class WriterAdapter {
       if (adjustedInner !== inner) replacements.push([opening.index + opening[0].length, tag.index, adjustedInner]);
       replacements.push([opening.index, opening.index + opening[0].length, openTag]);
     }
-    for (const [start, end, value] of replacements.sort((a, b) => b[0] - a[0])) {
-      out = out.slice(0, start) + value + out.slice(end);
-    }
-    return out;
+    return applyDescendingReplacements(out, replacements.sort((a, b) => b[0] - a[0]));
   }
 
   /**
