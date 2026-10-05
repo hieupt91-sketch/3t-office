@@ -125,6 +125,18 @@ Kết luận: vi tối ưu P1 chạm giới hạn (≈1,5 triệu ô xử lý b�
 
 **Chạy song song bước đọc metadata xlsx với LibreOffice (05/10):** phần quét metadata chỉ phụ thuộc xlsx nên chạy luôn trong lúc LibreOffice chuyển FODS (`prefetch_sheet_open_metadata`, tắt bằng `VNO_OPEN_PREFETCH=0`). Máy yên: lan06 mở đầy đủ 69,4 → 63,4 s (hai lượt mỗi chế độ: 69,3/69,5 → 63,2/63,7); lan14 hiện 94,2 s. Kết quả overlay giống hệt 28/28 file (lan23 có tiền tố namespace nên bỏ qua prefetch). Cùng đợt: worker `ProcessPoolExecutor` của P1b tự thoát khi app cha chết (trước đó 32 worker mồ côi, ~770 MB, tồn tại hàng giờ sau các lần chạy thử bị ngắt).
 
+**Đào sâu 05/10 tối (đã vào `main`, mỗi mục so với bản cũ trên 28 file, FODS cuối + payload giống hệt 28/28):**
+| Phát hiện | Cách sửa | Kết quả |
+|---|---|---|
+| `_FODS_TABLE_RE.sub` với `[\s\S]*?` đi từng ký tự trên bảng 306 triệu ký tự (lan14 có 1 bảng chiếm 94% dữ liệu) | quét bằng `str.find` (`_sub_fods_tables`; `VNO_FODS_TABLE_REGEX=1` giữ regex cũ) | optimize lan14 14 → 7,8 s; tổng optimize 28 file 48,5 → 28,2 s |
+| Tính layout/chiều cao dòng từ xlsx (10,8 s lan01, 13,2 s lan06) chỉ phụ thuộc xlsx nhưng chạy sau LibreOffice | `_compute_xlsx_sheet_layouts` chạy trong worker lúc LibreOffice chuyển đổi (prefetch) | overlay lan06 35 → 13 s, lan01 34 → 11 s |
+| Gỡ `vno:xf` bằng regex `\s+vno:xf…` + IGNORECASE (4,6 s lan14) | `strip_vno_xf_attributes` (mẫu có tiền tố cố định, phần còn lại quay về regex cũ); `VNO_STRIP_XF_REGEX=1` | 33,1 → 7,0 s trên 56 chuỗi |
+| Nhóm (hàng, cột) thành bảng theo hàng + lọc tập hàng cho từng worker bằng quét toàn bộ | gom trong prefetch (`_xlsx_metadata_row_maps`) và `bisect` | giảm ≈2–3 s phần nối tiếp |
+| JS nhường luồng bằng `setTimeout(0)` ~1100 lần (mỗi 128 hàng × 2 lượt), mỗi lần bị kẹp ≥ 4 ms | `MessageChannel` (cứ 50 ms một lần timer thật); `__VNO_OPEN_LEGACY` giữ cách cũ | `buildSheetPayloadModel` lan14 21,1 → 13,7 s |
+| Thử bỏ lượt XF đầu (`SHEET_OPEN_SKIP_INITIAL_XF`) | không đổi mặc định | 5/28 file khác kết quả, không nhanh hơn → giữ tắt |
+
+Mở đầy đủ (app thật, xem nhanh tắt, máy yên): **lan14 94,2 → 71,7 s; lan06 69,4 → 42,9 s; lan01 ≈69 → 34,9 s**. Chuỗi Python (overlay+optimize+payload) trên 28 file: 182,4 → 119,5 s chưa kể phần prefetch được ẩn dưới LibreOffice. Cơ cấu lan14 hiện tại (71,7 s): khởi động worker 3,6 + LibreOffice 14 + overlay 15 + optimize 7,8 + payload 13,6 + JS 14,6 + còn lại ≈3.
+
 Phân tích thêm (không đưa vào app): thử thay bộ đọc thuộc tính ô bằng regex — giống hệt trên 8,45 triệu ô nhưng chỉ nhanh hơn ~10% phần đọc, bỏ. Các bước còn lại của lan14 (overlay 18 s, optimize 14 s, payload 18 s, LibreOffice 18 s, JS 21 s) đều là các lượt quét tuyến tính trên chuỗi 255–335 MB; muốn xuống dưới 60 s phải gộp các lượt theo từng bảng (overlay → optimize → payload trong một worker) — việc lớn, cần cổng so băm 28 file như P1/P1b.
 
 **P7 (đo bản đóng gói 0.9.9-rc, 05/10, hồ sơ mới):** lan03 mở lần đầu trong bản đóng gói 25,7 s so với 14,7 s ở các lần sau (và 14,7–15,2 s khi chạy từ mã nguồn). Một phần (≈2,8 s) do gói không có bytecode biên dịch sẵn; đã thêm bước `compileall --invalidation-mode checked-hash` vào `scripts/build-pilot.ps1` (bỏ bằng `VNO_SKIP_PYC=1`) → lần đầu còn 22,9 s. Phần còn lại (≈8 s) là chi phí đọc nguội/quét tệp lần đầu của hệ điều hành trên bộ cài mới, chưa có cách giảm. Doc d04 trong gói: 6,1 s (mã nguồn 5,8 s).
