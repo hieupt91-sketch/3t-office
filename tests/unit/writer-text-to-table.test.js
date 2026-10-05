@@ -78,5 +78,13 @@ export async function runWriterTextToTableTests() {
     const notFirst = '<table><tbody><tr><td>A</td></tr><tr class="vno-table-header-row"><td>B</td></tr></tbody></table>';
     assert(adapter._tableHeaderRowsForExport(notFirst) === notFirst, "chỉ hàng tiêu đề ở hàng ĐẦU mới được đổi");
   });
+  await test("Tab: đoạn có ký tự Tab được thêm white-space: pre-wrap khi xuất (LibreOffice mới giữ w:tab); đoạn không có Tab giữ nguyên", () => {
+    const adapter = new WriterAdapter(null);
+    const out = adapter._tabCharactersForExport('<p style="tab-size: 1.27cm;">A<span class="vno-tab-character" data-vno-tab-character="true">\tB</span></p><p>C</p><li>D<span data-vno-tab-character="true">\t</span></li>');
+    assert(out.includes('<p style="tab-size: 1.27cm; white-space: pre-wrap">A<span'), `đoạn có Tab chưa được thêm style: ${out}`);
+    assert(out.includes("<p>C</p>"), "đoạn không có Tab không được đổi");
+    assert(/<li style="white-space: pre-wrap">D/.test(out), `mục danh sách có Tab chưa được thêm style: ${out}`);
+    assert(adapter._tabCharactersForExport(out) === out, "chạy lại không được chồng thêm style");
+  });
   return results;
 }
