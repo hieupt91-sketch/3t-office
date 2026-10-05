@@ -795,6 +795,14 @@ _convert_lock = threading.Lock()
 _PERSISTENT_SOFFICE_ENABLED = False
 
 
+def _view_first_enabled() -> bool:
+    """Sheet quick view (read-only first screen while the full model loads) is ON by default for xlsx > 5 MiB.
+
+    VNO_OPEN_VIEWFIRST=0 (or false/off/no) restores the previous behaviour: wait for the full model.
+    """
+    return os.environ.get("VNO_OPEN_VIEWFIRST", "1").strip().lower() not in {"0", "false", "off", "no"}
+
+
 def _open_perf_log(stage: str, elapsed_ms: float | None = None, **fields) -> None:
     if os.environ.get("VNO_PERF_DEBUG") != "1":
         return
@@ -3612,7 +3620,7 @@ class VnOfficeApi:
 
     def _open_sheet_quick_view_if_enabled(self, source_path):
         """Paint the first XLSX window before the normal FODS conversion takes the worker lock."""
-        if os.environ.get("VNO_OPEN_VIEWFIRST") != "1":
+        if not _view_first_enabled():
             return False
         try:
             path = os.path.abspath(str(source_path))
@@ -4857,7 +4865,7 @@ def build_launch_url(
         query["documentName"] = document_name
     if os.environ.get("VNO_PERF_DEBUG") == "1":
         query["perfDebug"] = "1"
-    if app_kind == "sheet" and os.environ.get("VNO_OPEN_VIEWFIRST") == "1":
+    if app_kind == "sheet" and _view_first_enabled():
         query["viewFirst"] = "1"
     return f"http://localhost:{port}/?{urlencode(query)}"
 

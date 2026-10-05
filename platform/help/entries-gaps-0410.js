@@ -93,6 +93,22 @@ const sheetOnly = [
       "Nhập địa chỉ đích và nội dung hiển thị, rồi xác nhận.",
       "Ô hiển thị như liên kết; nhấn giữ Ctrl rồi bấm vào ô để mở. Dữ liệu của bạn không được gửi đi đâu khi chèn liên kết."
     ]
+  },
+  {
+    id: "sheet.open.quickView",
+    app: "sheet",
+    commandIds: [],
+    title: "Mở bảng tính lớn: màn hình xem nhanh (chỉ đọc)",
+    summary: "Với tệp .xlsx lớn (từ khoảng 5 MB), Sheet hiện ngay màn hình đầu tiên ở chế độ chỉ đọc trong vài giây, trong khi phần còn lại của tệp được nạp đầy đủ ở nền. Khi nạp xong, bảng tính tự chuyển sang chế độ soạn thảo bình thường và giữ nguyên trang tính, ô đang chọn và vị trí cuộn.",
+    ribbon: { tab: "Trợ giúp", tabId: "help", group: "Phím tắt và thao tác nhanh" },
+    keywords: ["tệp lớn", "mở chậm", "xem nhanh", "chỉ đọc", "đang nạp đầy đủ", "quick view", "bảng tính lớn", "nạp"],
+    steps: [
+      "Mở một bảng tính lớn bằng Tệp ▸ Mở hoặc bấm đúp tệp. Màn hình đầu hiện sau vài giây với dòng trạng thái màu vàng: Chỉ đọc · đang nạp đầy đủ… kèm phần trăm.",
+      "Trong lúc đó bạn có thể cuộn, bấm chọn ô và dùng các phím mũi tên để đọc dữ liệu. Chưa gõ, dán, xóa hoặc lưu được; Sheet sẽ báo bằng dòng trạng thái nếu bạn thử.",
+      "Tìm kiếm và thay thế (Ctrl+F, Ctrl+H) dùng được sau khi nạp đầy đủ. Khi dòng trạng thái báo Đã nạp đầy đủ, bảng tính chuyển sang chế độ soạn thảo và giữ nguyên ô đang chọn.",
+      "Nếu nạp đầy đủ không thành công, bảng tính vẫn đọc được ở chế độ chỉ đọc và có thông báo màu đỏ; hãy đóng rồi mở lại tệp để thử lại.",
+      "Muốn tắt tính năng này (luôn chờ nạp đầy đủ như trước), đặt biến môi trường VNO_OPEN_VIEWFIRST=0 trước khi chạy ứng dụng."
+    ]
   }
 ];
 
