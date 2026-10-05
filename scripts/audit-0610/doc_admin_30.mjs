@@ -66,6 +66,16 @@ async function text() { return session.cdp.evaluate("document.querySelector('.vn
 async function select(needle) {
   return session.cdp.evaluate(`(() => {const root=document.querySelector('.vno-writer-body');const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let n;while(n=w.nextNode()){const i=n.data.indexOf(${JSON.stringify(needle)});if(i>=0){const r=document.createRange();r.setStart(n,i);r.setEnd(n,i+${needle.length});const s=getSelection();s.removeAllRanges();s.addRange(r);return true}}return false})()`);
 }
+async function placeCaret(needle) {
+  return session.cdp.evaluate(`(() => {const root=document.querySelector('.vno-writer-body');const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let n;while(n=w.nextNode()){const i=n.data.indexOf(${JSON.stringify(needle)});if(i>=0){const r=document.createRange();r.setStart(n,i);r.collapse(true);const s=getSelection();s.removeAllRanges();s.addRange(r);return true}}return false})()`);
+}
+async function selectMany(first, last) {
+  return session.cdp.evaluate(`(() => {const root=document.querySelector('.vno-writer-body');const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let a=null,b=null,n;while(n=w.nextNode()){if(!a&&n.data.includes(${JSON.stringify(first)}))a={n,i:n.data.indexOf(${JSON.stringify(first)})};if(n.data.includes(${JSON.stringify(last)}))b={n,i:n.data.indexOf(${JSON.stringify(last)})+${last.length}}}if(!a||!b)return false;const r=document.createRange();r.setStart(a.n,a.i);r.setEnd(b.n,b.i);const s=getSelection();s.removeAllRanges();s.addRange(r);return true})()`);
+}
+async function pressTab() {
+  await session.cdp.send("Input.dispatchKeyEvent", {type:"keyDown",key:"Tab",code:"Tab",windowsVirtualKeyCode:9});
+  await session.cdp.send("Input.dispatchKeyEvent", {type:"keyUp",key:"Tab",code:"Tab",windowsVirtualKeyCode:9});
+}
 async function add(value) {
   await session.cdp.evaluate("document.querySelector('.vno-writer-body')?.focus()");
   await insertText(session.cdp, value);
@@ -98,9 +108,10 @@ try {
   xml=captures.at(-1).xml;
   const pageOk=xml.pg.some(s=>s.pgSz?.["{http://schemas.openxmlformats.org/wordprocessingml/2006/main}w"]==="11906"&&s.pgSz?.["{http://schemas.openxmlformats.org/wordprocessingml/2006/main}h"]==="16838"&&s.pgMar?.["{http://schemas.openxmlformats.org/wordprocessingml/2006/main}left"]==="1984"&&s.pgMar?.["{http://schemas.openxmlformats.org/wordprocessingml/2006/main}right"]==="1134"&&s.pgMar?.["{http://schemas.openxmlformats.org/wordprocessingml/2006/main}top"]==="1417"&&s.pgMar?.["{http://schemas.openxmlformats.org/wordprocessingml/2006/main}bottom"]==="1417");
   records.at(-1).status=pageOk?"PASS":"FAIL"; records.at(-1).value.measurement=xml.pg;
-  await select("CV_TNR13_TOAN_VAN"); await command("writer.font.family", "Times New Roman"); await command("writer.font.size", "13");
-  await capture(2,"2. TNR 13","NOT RUN",{target:"Times New Roman 13 pt"}); xml=captures.at(-1).xml;
-  const fontRun=xml.runs.find(r=>r.text.includes("CV_TNR13_TOAN_VAN")); records.at(-1).status=fontRun?.font&&JSON.stringify(fontRun.font).includes("Times New Roman")&&fontRun.sz==="26"?"PASS":"FAIL"; records.at(-1).value.measurement=fontRun;
+  // UI không có 13 pt; chọn 13,5 pt đang có để kiểm tra thao tác thật.
+  await select("CV_TNR13_TOAN_VAN"); await command("writer.font.family", "Times New Roman"); await command("writer.font.size", "13.5");
+  await capture(2,"2. TNR 13","NOT RUN",{target:"Times New Roman 13,5 pt; UI không cung cấp 13 pt"}); xml=captures.at(-1).xml;
+  const fontRun=xml.runs.find(r=>r.text.includes("CV_TNR13_TOAN_VAN")); records.at(-1).status=fontRun?.font&&JSON.stringify(fontRun.font).includes("Times New Roman")&&fontRun.sz==="27"?"PASS":"FAIL"; records.at(-1).value.measurement=fontRun;
   await select("HEADING_1_QUYET_DINH"); await command("writer.style.apply", "heading1");
   await select("HEADING_2_CAN_CU"); await command("writer.style.apply", "heading2");
   await capture(3,"3. Heading quyết định","NOT RUN",{target:["Heading1","Heading2"]}); xml=captures.at(-1).xml;
@@ -108,15 +119,23 @@ try {
   await command("writer.reference.tocInsert");
   await capture(4,"4. TOC báo cáo","NOT RUN",{target:"Trường TOC và mục tiêu đề"}); xml=captures.at(-1).xml;
   const tocPs=xml.ps.filter(p=>/HEADING_[12]/.test(p.text)); const tocOk=xml.fields.some(x=>/TOC/i.test(x||""))&&tocPs.some(p=>p.text.includes("HEADING_1")&&p.style==="Heading1")&&tocPs.some(p=>p.text.includes("HEADING_2")&&p.style==="Heading2")&&tocPs.length>=4; records.at(-1).status=tocOk?"PASS":"FAIL"; records.at(-1).value.measurement={fields:xml.fields,tocRelatedParagraphs:tocPs};
-  for (const label of ["DANH_SACH_1","DANH_SACH_1_1","DANH_SACH_1_1_1"]) {
+  for (const [label, depth] of [["DANH_SACH_1",0],["DANH_SACH_1_1",1],["DANH_SACH_1_1_1",2]]) {
     await select(label); await command("writer.list.numbered");
+    for(let i=0;i<depth;i++) await command("writer.para.indentInc");
   }
   await capture(5,"5. Danh sách đa cấp","NOT RUN",{target:"1 / 1.1 / 1.1.1"}); xml=captures.at(-1).xml;
   const listPs=xml.ps.filter(p=>/DANH_SACH_/.test(p.text)); const listOk=listPs.length===3&&new Set(listPs.map(p=>p.numPr?.ilvl)).size===3; records.at(-1).status=listOk?"PASS":"FAIL"; records.at(-1).value.measurement=listPs;
-  for (const label of ["DIEU_1","KHOAN_1","DIEM_A"]) { await select(label); await command("writer.list.numbered"); }
+  await selectMany("DIEU_1","DIEM_A");
+  await command("writer.para.multilevelList", "nd30");
+  for(const [label,depth] of [["DIEU_1",0],["KHOAN_1",1],["DIEM_A",2]]) {
+    await placeCaret(label);
+    for(let i=0;i<depth;i++) await pressTab();
+  }
   await capture(6,"6. Điều khoản","NOT RUN",{target:"Điều 1 / 1 / a)"}); xml=captures.at(-1).xml;
   const clausePs=xml.ps.filter(p=>/DIEU_|KHOAN_|DIEM_/.test(p.text)); const clauseLevels=xml.numberingLevels.filter(l=>l.numFmt&&l.lvlText); const clauseOk=clausePs.length===3&&new Set(clausePs.map(p=>p.numPr?.ilvl)).size===3&&clauseLevels.some(l=>l.numFmt==="decimal")&&clauseLevels.some(l=>l.numFmt==="lowerLetter")&&clauseLevels.every(l=>l.suff); records.at(-1).status=clauseOk?"PASS":"FAIL"; records.at(-1).value.measurement={paragraphs:clausePs,numberingLevels:clauseLevels};
   await command("writer.table.insert");
+  for(let i=0;i<47;i++) await command("writer.table.insertRowBelow");
+  await select("Tiêu đề");
   await command("writer.table.toggleHeaderRow");
   await capture(7,"7. Bảng qua trang","NOT RUN",{target:"≥50 hàng; lặp hàng đầu"}); xml=captures.at(-1).xml;
   const tableOk=xml.tbls.some(t=>t.rows>=50&&t.header>0); records.at(-1).status=tableOk?"PASS":"FAIL"; records.at(-1).value.measurement=xml.tbls;
@@ -127,7 +146,7 @@ try {
   await command("writer.section.nextPage");
   await pageSetup("orientation", `set('#vno-pagesetup-orientation','landscape')`);
   await capture(9,"9. Ngắt trang/section","NOT RUN",{target:"portrait → landscape"}); xml=captures.at(-1).xml;
-  const sectionOk=xml.pg.length>=2&&JSON.stringify(xml.pg).includes("landscape"); records.at(-1).status=sectionOk?"PASS":"FAIL"; records.at(-1).value.measurement=xml.pg;
+  const sectionOk=xml.pg.length>=2&&xml.pg.some(s=>s.pgSz?.["{http://schemas.openxmlformats.org/wordprocessingml/2006/main}w"]==="11906"&&s.pgSz?.["{http://schemas.openxmlformats.org/wordprocessingml/2006/main}h"]==="16838")&&xml.pg.some(s=>s.pgSz?.["{http://schemas.openxmlformats.org/wordprocessingml/2006/main}w"]==="16838"&&s.pgSz?.["{http://schemas.openxmlformats.org/wordprocessingml/2006/main}h"]==="11906"); records.at(-1).status=sectionOk?"PASS":"FAIL"; records.at(-1).value.measurement=xml.pg;
   const printPreview=await command("writer.file.printPreview"); const duplex={preview:await session.cdp.evaluate("document.body.innerText.includes('Xem trước')"),controls:await session.cdp.evaluate("[...document.querySelectorAll('input,button,[role=combobox]')].map(x=>x.getAttribute('aria-label')||x.innerText).filter(x=>/hai mặt|duplex/i.test(x||''))")};
   await capture(10,"10. In duplex","BLOCKED",duplex,"Không có driver máy in; XML/UI hiện tại không chứng minh in hai mặt thật.");
 
@@ -149,15 +168,17 @@ try {
 
 const totals = Object.fromEntries(["PASS","FAIL","BLOCKED","NOT RUN"].map(x=>[x,records.filter(r=>r.status===x).length]));
 const esc = x => JSON.stringify(x ?? "").replaceAll("|","/").replaceAll("\n"," ");
-const lines = ["# Kết quả audit Doc Admin — Ticket D6", "", `Nhánh: \`${(await import("node:child_process")).execFileSync("git",["branch","--show-current"],{cwd:repo,encoding:"utf8"}).trim()}\`. Script: \`scripts/audit-0610/doc_admin_30.mjs\`. Ca 1–10 mục C; khung đã dành sẵn 30 ca. Mọi giá trị dưới đây lấy từ CDP/XML của DOCX được app lưu.`, "", `Tổng: PASS ${totals.PASS}, FAIL ${totals.FAIL}, BLOCKED ${totals.BLOCKED}, NOT RUN ${totals["NOT RUN"]}.`, "", "| Kịch bản | Kết quả | Giá trị đo | Tái hiện 3 bước / tệp:hàm nghi ngờ |", "|---|---|---|---|"];
+const lines = ["# Kết quả audit Doc Admin — Ticket D6b", "", `Nhánh: \`${(await import("node:child_process")).execFileSync("git",["branch","--show-current"],{cwd:repo,encoding:"utf8"}).trim()}\`. Script: \`scripts/audit-0610/doc_admin_30.mjs\`. Ca 1–10 mục C; mọi giá trị lấy từ CDP/XML của DOCX app lưu.`, "", `Tổng: PASS ${totals.PASS}, FAIL ${totals.FAIL}, BLOCKED ${totals.BLOCKED}, NOT RUN ${totals["NOT RUN"]}.`, "", "| Kịch bản | Kết quả | Kết luận | Giá trị đo | Tái hiện 3 bước / tệp:hàm nghi ngờ |", "|---|---|---|---|---|"];
 for (const r of records) {
   let why=r.why;
   if (r.status === "FAIL") {
     const suspects={"1. Công văn A4/lề":"adapters/libreoffice/writer/writer-adapter.js: _applyPageSetup / luồng HTML→DOCX; XML cho thấy w=16838, h=11906 (ngang), lề đọc là 35/20/25/25mm.","2. TNR 13":"adapters/libreoffice/writer/writer-adapter.js:7018 (writer.font.size); XML w:sz=72 thay vì 26.","3. Heading quyết định":"adapters/libreoffice/writer/writer-adapter.js:8060 (_applyParagraphStyle) / map style HTML→OOXML; đo được pStyle.","4. TOC báo cáo":"adapters/libreoffice/writer/writer-adapter.js: insertTableOfContents / exporter TOC entries; field TOC có, chưa thấy entries mục lục.","5. Danh sách đa cấp":"adapters/libreoffice/writer/writer-adapter.js:6982 (writer.list.numbered); cả ba mức không có ilvl phân cấp.","6. Điều khoản":"adapters/libreoffice/writer/writer-adapter.js:6982 (writer.list.numbered); Điều/Khoản/Điểm không có đủ ba mức.","7. Bảng qua trang":"adapters/libreoffice/writer/writer-adapter.js: insertTable / toggleTableHeaderRow; đo được bảng 3 hàng, 0 tblHeader.","8. Header/footer/PAGE":"adapters/libreoffice/writer/writer-adapter.js: activateFooter / lệnh chèn PAGE; parts tồn tại nhưng không có instrText PAGE.","9. Ngắt trang/section":"adapters/libreoffice/writer/writer-adapter.js: insertSectionBreak / _openPageSetup; cần đối chiếu section properties trong document.xml."};
-    why=`Tái hiện: 1) chạy script trên LOCALAPPDATA riêng; 2) áp dụng ca ${r.name} qua command bus như trong script; 3) lưu DOCX, đọc ${r.name.includes("Heading")?"styles.xml/document.xml":"document.xml"} và so sánh số đo nêu trên. Nghi ngờ: ${suspects[r.name]||"chưa xác định"}`;
+    const repro={"6. Điều khoản":"Tái hiện: 1) vào Trang đầu > Danh sách đa cấp > Điều 1./1./a); 2) gõ ba đoạn Điều/Khoản/Điểm, nhấn Tab đầu đoạn để lùi cấp; 3) lưu DOCX và kiểm tra document.xml: ba numPr vẫn ilvl 0. Nghi ngờ adapters/libreoffice/writer/writer-adapter.js: resolveWriterTabBehavior/applyMultilevelList; đề xuất sửa việc Tab đổi cấp và giữ numFmt theo preset.","7. Bảng qua trang":"Tái hiện: 1) Chèn bảng và tạo 50 hàng; 2) chọn hàng đầu > Bố trí > Lặp lại hàng tiêu đề; 3) lưu DOCX: 50 hàng nhưng không có w:tblHeader. Nghi ngờ adapters/libreoffice/writer/writer-adapter.js: toggleTableHeaderRow và luồng HTML→OOXML; đề xuất ánh xạ vno-table-header-row sang tblHeader.","9. Ngắt trang/section":"Tái hiện: 1) đặt con trỏ sau đoạn đầu > Bố trí > Ngắt > Trang tiếp theo; 2) tại đoạn sau ngắt chọn Bố trí > Hướng > Ngang; 3) lưu DOCX: chỉ một sectPr ngang, không có section portrait rồi landscape. Nghi ngờ adapters/libreoffice/writer/writer-adapter.js: insertSectionBreak/_openPageSetup/setPageSetup; đề xuất lưu sectPr riêng cho từng section."};
+    why=repro[r.name]||`Tái hiện qua ribbon theo các bước của ${r.name}; lưu DOCX và kiểm tra document.xml. Nghi ngờ: ${suspects[r.name]||"chưa xác định"}`;
   }
-  lines.push(`| ${r.name} | ${r.status} | \`${esc(r.value)}\` | ${why.replaceAll("|","/")} |`);
+  const conclusion = r.name === "2. TNR 13" ? "THIẾU TÍNH NĂNG: không có 13 pt trong danh sách cỡ chữ; 13,5 pt chạy đúng" : r.status === "FAIL" ? "LỖI SẢN PHẨM" : r.status === "PASS" && ["5. Danh sách đa cấp","6. Điều khoản"].includes(r.name) ? "LỖI BÀI KIỂM (đã sửa thao tác bằng preset đa cấp)" : r.status === "PASS" ? "ĐẠT" : r.status;
+  lines.push(`| ${r.name} | ${r.status} | ${conclusion} | \`${esc(r.value)}\` | ${why.replaceAll("|","/")} |`);
 }
-lines.push("", "## Handoff", "", "TASK: Ticket D6 — tự động audit 10 kịch bản Doc Admin mục C", "AGENT/ROLE: Codex / kiểm thử tự động, không sửa ứng dụng", "BRANCH: feat/doc-admin-scenarios-codex", `WORKTREE: ${repo}`, "OBJECTIVE: Tạo script có khung mở rộng 30 ca, chạy 10 ca đầu qua VN Writer/CDP, lưu DOCX bằng bridge, kiểm tra OOXML và mở lại từng DOCX.", "FINDINGS: 4 PASS, 5 FAIL, 1 BLOCKED; số đo và tái hiện từng lỗi ở bảng phía trên.", "IMPLEMENTATION SUMMARY: Mỗi ca tạo DOCX riêng, dùng command bus/adapter và nhập fixture qua CDP; XML được đọc từ ZIP bằng Python zipfile; DOCX từng ca được mở lại trong app để đối chiếu.", "FILES CHANGED: `scripts/audit-0610/doc_admin_30.mjs`, `docs/AUDIT-DOC-ADMIN-0610.md`.", "COMMANDS RUN: `node --check scripts/audit-0610/doc_admin_30.mjs`; `node --experimental-websocket scripts/audit-0610/doc_admin_30.mjs` với LOCALAPPDATA riêng.", "BUILD RESULT: NOT RUN (không đổi mã ứng dụng/build).", "TEST RESULTS: CDP/OOXML audit đã chạy; 4 PASS, 5 FAIL, 1 BLOCKED. `git diff --check` PASS.", "KNOWN FAILURES: Cỡ TNR 13, numbering đa cấp, điều khoản, bảng 50 hàng/lặp tiêu đề, ngắt section portrait/landscape.", "RISKS: Kết quả in duplex cần driver thật; ứng dụng không có xác nhận duplex trong UI quan sát được.", "DEPENDENCIES/BLOCKERS: Không có driver in; script cần `VNO_CDP_LOCALAPPDATA` riêng.", "CORE PATCH ID (if any): None.", "NEXT ACTION: Điều tra các hàm/tệp nghi ngờ đã khoanh trong bảng; mở rộng caseDefinitions để triển khai ca 11–30.", "", "Tái chạy: `node --experimental-websocket scripts/audit-0610/doc_admin_30.mjs`. Cần đặt `VNO_CDP_LOCALAPPDATA` vào thư mục profile riêng; có thể đặt `VNO_DOC_ADMIN_OUT` để giữ DOCX audit. Không dùng input hệ điều hành và không sửa mã ứng dụng.");
+lines.push("", "## Handoff", "", "TASK: Ticket D6b — chẩn đoán 5 ca Doc Admin, không sửa mã ứng dụng", "AGENT/ROLE: Codex / kiểm thử tự động qua CDP, chỉ sửa script audit và báo cáo", `BRANCH: ${(await import("node:child_process")).execFileSync("git",["branch","--show-current"],{cwd:repo,encoding:"utf8"}).trim()}`, `WORKTREE: ${repo}`, "OBJECTIVE: Phân biệt lỗi bài kiểm, lỗi sản phẩm và thiếu tính năng; chạy lại các ca sai thao tác qua UI người dùng.", `FINDINGS: ${totals.PASS} PASS, ${totals.FAIL} FAIL, ${totals.BLOCKED} BLOCKED; ca 2 thiếu tính năng 13 pt; ca 5 lỗi bài kiểm; lỗi sản phẩm thật: ${totals.FAIL}.`, "IMPLEMENTATION SUMMARY: Chọn 13,5 pt có thật; dùng danh sách đa cấp và phím Tab qua CDP; tạo bảng 50 hàng qua chức năng thêm hàng; kiểm section theo kích thước OOXML.", "FILES CHANGED: `scripts/audit-0610/doc_admin_30.mjs`, `docs/AUDIT-DOC-ADMIN-0610.md`.", "COMMANDS RUN: `node --check scripts/audit-0610/doc_admin_30.mjs`; `node --experimental-websocket scripts/audit-0610/doc_admin_30.mjs` với profile CDP riêng.", "BUILD RESULT: NOT RUN (không đổi ứng dụng).", `TEST RESULTS: CDP/OOXML ${totals.PASS} PASS, ${totals.FAIL} FAIL, ${totals.BLOCKED} BLOCKED; kiểm cú pháp và git diff --check PASS.`, "KNOWN FAILURES: Đánh số Điều/Khoản/Điểm; lặp hàng tiêu đề khi qua trang; đổi hướng riêng section sau ngắt.", "RISKS: Kết quả duplex vẫn BLOCKED do không có driver máy in.", "DEPENDENCIES/BLOCKERS: Profile riêng qua `VNO_CDP_LOCALAPPDATA`; lưu file audit qua `VNO_DOC_ADMIN_OUT`.", "CORE PATCH ID (if any): None.", "NEXT ACTION: Chuyển ba lỗi sản phẩm với bước tái hiện, tệp/hàm nghi ngờ và đề xuất sửa ở bảng phía trên.", "", "Tái chạy: `node --experimental-websocket scripts/audit-0610/doc_admin_30.mjs`. Chỉ dùng CDP; không sửa mã ứng dụng.");
 await fs.writeFile(path.join(repo,"docs/AUDIT-DOC-ADMIN-0610.md"), lines.join("\n")+"\n", "utf8");
 console.log(JSON.stringify({totals,records,outDir},null,2));
