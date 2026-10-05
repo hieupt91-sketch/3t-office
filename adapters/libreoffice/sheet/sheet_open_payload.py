@@ -170,7 +170,8 @@ def build_sheet_open_payload_legacy(xlsx_bytes: bytes, fods_xml: str, patcher) -
     """Return the final XF-adjusted FODS and its validated v2 open payload."""
     # superseded by P1b - xoa chi khi chu so huu duyet
     sink = _PayloadRows()
-    clean = re.sub(
+    strip_xf = getattr(patcher, "strip_vno_xf_attributes", None)
+    clean = strip_xf(fods_xml) if strip_xf is not None else re.sub(
         r'\s+vno:xf\s*=\s*(["\'])\d+\1', "", fods_xml, flags=re.IGNORECASE
     )
     normalized_xlsx = patcher.normalize_source_xlsx(xlsx_bytes)

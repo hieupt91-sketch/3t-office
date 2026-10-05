@@ -25,6 +25,7 @@ import argparse
 import multiprocessing
 from concurrent.futures import ProcessPoolExecutor
 import html
+import bisect
 import io
 import json
 import math
@@ -6611,6 +6612,25 @@ def _xlsx_cells_with_xf_indices(xlsx_bytes: bytes) -> dict[str, dict[tuple[int, 
 
 
 _VNO_XF_RE = re.compile(r'\s+vno:xf\s*=\s*(["\'])\d+\1', re.IGNORECASE)
+_VNO_XF_FAST_RE = re.compile(r' vno:xf="[0-9]+"')
+
+
+def strip_vno_xf_attributes(fods_xml: str) -> str:
+    """Remove every vno:xf attribute, giving the result of _VNO_XF_RE.sub("", fods_xml) much faster.
+
+    The general rule starts with \\s+ and ignores case, so the regex engine tests every blank of a 300 MB FODS
+    (4.6 s on lan14). The attributes this code writes are always ` vno:xf="N"` with one leading blank, which a
+    literal-prefix pattern strips at C speed; anything of another shape that remains is then removed by the
+    general rule, so the output is the same. VNO_STRIP_XF_REGEX=1 uses only the general rule.
+    """
+    if "vno:xf" not in fods_xml:
+        return fods_xml
+    if os.environ.get("VNO_STRIP_XF_REGEX") == "1":
+        return _VNO_XF_RE.sub("", fods_xml)
+    stripped = _VNO_XF_FAST_RE.sub("", fods_xml)
+    if "vno:xf" in stripped:
+        stripped = _VNO_XF_RE.sub("", stripped)
+    return stripped
 _CELL_OPEN_RE = re.compile(r"<(table:(?:table-cell|covered-table-cell))\b([^>]*?)(/?)>", re.IGNORECASE)
 
 
@@ -7490,7 +7510,8 @@ def prefetch_sheet_open_metadata(xlsx_bytes: bytes | None, *, include_xf: bool =
                 layout_future = _p1_process_pool().submit(_compute_xlsx_sheet_layouts, xlsx_bytes)
             except Exception:
                 layout_future = None
-        _xlsx_cells_with_metadata_p1(xlsx_bytes, include_xf=include_xf, parallel=large)
+        formats, strings, xfs = _xlsx_cells_with_metadata_p1(xlsx_bytes, include_xf=include_xf, parallel=large)
+        _xlsx_metadata_row_maps(xlsx_bytes, include_xf, formats, strings, xfs)
         if layout_future is not None:
             try:
                 _index_memo_put("layouts", xlsx_bytes, layout_future.result())
@@ -7499,6 +7520,27 @@ def prefetch_sheet_open_metadata(xlsx_bytes: bytes | None, *, include_xf: bool =
         return True
     except Exception:
         return False
+
+
+def _xlsx_metadata_row_maps(xlsx_bytes: bytes, include_xf: bool, formats, strings, xfs) -> dict:
+    """{sheet: [format_rows, string_rows, xf_rows]} with each map {row: {col: value}}; memoised like the metadata.
+
+    Grouping the 1-4 million (row, col) entries by row used to run inside the overlay after LibreOffice finished;
+    the prefetch now does it while LibreOffice is still converting.
+    """
+    name = "metadata_rows" if include_xf else "metadata_rows_no_xf"
+    cached = _index_memo_get(name, xlsx_bytes)
+    if cached is not _INDEX_MISS:
+        return cached
+    result: dict[str, list[dict]] = {}
+    for index, mapping in enumerate((formats, strings, xfs)):
+        for sheet_name, cells in mapping.items():
+            rows: dict[int, dict] = {}
+            for (row, col), value in cells.items():
+                rows.setdefault(row, {})[col] = value
+            result.setdefault(sheet_name, [{}, {}, {}])[index] = rows
+    _index_memo_put(name, xlsx_bytes, result)
+    return result
 
 
 def _overlay_sheet_cell_metadata_from_xlsx_p1(
@@ -7516,11 +7558,7 @@ def _overlay_sheet_cell_metadata_from_xlsx_p1(
     if not formats and not strings and not xfs:
         return fods_xml
 
-    def metadata_rows(mapping, sheet_name):
-        rows = {}
-        for (row, col), value in mapping.get(sheet_name, {}).items():
-            rows.setdefault(row, {})[col] = value
-        return rows
+    rows_by_sheet = _xlsx_metadata_row_maps(xlsx_bytes, include_xf, formats, strings, xfs)
 
     pieces, cursor = [], 0
     needs_vno = bool(formats or xfs)
@@ -7530,7 +7568,7 @@ def _overlay_sheet_cell_metadata_from_xlsx_p1(
         opening_end = table_xml.find(">")
         attrs = _xml_attrs(table_xml[: opening_end + 1]) if opening_end >= 0 else {}
         sheet_name = attrs.get("table:name", "")
-        row_maps = [metadata_rows(mapping, sheet_name) for mapping in (formats, strings, xfs)]
+        row_maps = rows_by_sheet.get(sheet_name) or [{}, {}, {}]
         if any(row_maps):
             if len(fods_xml) > _P1_PARALLEL_FODS_CHARS and len(table_xml) > _P1_PARALLEL_FODS_CHARS:
                 prefix, chunks, suffix = _p1_metadata_table_chunks(
@@ -7538,15 +7576,14 @@ def _overlay_sheet_cell_metadata_from_xlsx_p1(
                 )
                 if len(chunks) > 1:
                     tasks = []
+                    sorted_keys = [sorted(mapping) for mapping in row_maps]
                     for chunk, logical_start, logical_end in chunks:
-                        subsets = [
-                            {
-                                row: values
-                                for row, values in mapping.items()
-                                if logical_start <= row < logical_end
-                            }
-                            for mapping in row_maps
-                        ]
+                        # rows in [logical_start, logical_end): bisect on the sorted keys instead of testing every row
+                        subsets = []
+                        for mapping, keys in zip(row_maps, sorted_keys):
+                            low = bisect.bisect_left(keys, logical_start)
+                            high = bisect.bisect_left(keys, logical_end)
+                            subsets.append({row: mapping[row] for row in keys[low:high]})
                         tasks.append(
                             (chunk, logical_start, subsets[0], subsets[1], subsets[2])
                         )
