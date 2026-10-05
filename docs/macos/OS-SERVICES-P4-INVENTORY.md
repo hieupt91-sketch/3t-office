@@ -1,5 +1,7 @@
 # Kiểm kê P4: API tiến trình riêng Windows
 
+**Đính chính (Claude, 06/10):** các dòng `process_tracker.py:60-87` và `:114-146` ghi "chưa có nhánh POSIX" là cũ — từ 05/10 tệp này đã có nhánh macOS/POSIX dùng `ps -o lstart= -p PID` (định danh) và `ps -axo pid=,ppid=` (cây tiến trình), có test phần phân tích (`tests/test_process_tracker_ps.py`) nhưng **chưa chạy trên máy mac thật**. Phần còn thiếu thật của P4 là chuyển các điểm gọi trong `main.py`, `soffice_uno_worker.py` và `updater.py` sang qua Protocol.
+
 Phạm vi: chỉ mã chạy thật trong `main.py`, `platform/process_lifecycle/`, worker UNO và updater. Không tính mã test, installer migration, UI input, clipboard, locale hay danh tính shell. Không thấy `wmic`, `tasklist` hoặc `psutil` trong phạm vi. Các dòng dưới là vị trí gọi trực tiếp; các dòng liền kề thuộc cùng một thao tác khi ghi chú có dải dòng.
 
 | Tệp:dòng | Gọi gì | Mục đích | Đã có nhánh macOS/POSIX? | Đề xuất Protocol trong `platform/os_services/base.py` |
