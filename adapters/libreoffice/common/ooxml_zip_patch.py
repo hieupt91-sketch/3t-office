@@ -7073,6 +7073,8 @@ _P1_COL_REPEAT_WITH_WS_RE = re.compile(
     r'\s+table:number-columns-repeated\s*=\s*(["\'])(\d+)\1'
 )
 _P1_PARALLEL_FODS_CHARS = 20 * 1024 * 1024
+# Inside a big document, tables from this size on are split across the pool too (the smaller ones used to run serially in the parent).
+_P1_TABLE_PARALLEL_MIN_CHARS = int(os.environ.get("VNO_P1_TABLE_MIN_CHARS", "").strip() or 0) or 2 * 1024 * 1024
 def _p1_default_workers() -> int:
     """Pool size: VNO_P1_WORKERS if set; otherwise 6 on machines with >= 8 logical CPUs (measured on 8: lan14
     chain 34.0 -> 32.0 s, 8 workers 31.1 s), else 4 as before."""
@@ -7688,7 +7690,7 @@ def _overlay_sheet_cell_metadata_from_xlsx_p1(
         sheet_name = attrs.get("table:name", "")
         row_maps = rows_by_sheet.get(sheet_name) or [{}, {}, {}]
         if any(row_maps):
-            if len(fods_xml) > _P1_PARALLEL_FODS_CHARS and len(table_xml) > _P1_PARALLEL_FODS_CHARS:
+            if len(fods_xml) > _P1_PARALLEL_FODS_CHARS and len(table_xml) > _P1_TABLE_PARALLEL_MIN_CHARS:
                 prefix, chunks, suffix = _p1_metadata_table_chunks(
                     table_xml, _P1_MAX_WORKERS
                 )
@@ -16794,7 +16796,7 @@ def optimize_fods_streaming(fods_xml: str, max_style_only_col_repeat: int = 64) 
         if "<table:table-row" not in table_body:
             return match.group(0)
 
-        if len(fods_xml) > _P1_PARALLEL_FODS_CHARS and len(table_body) > _P1_PARALLEL_FODS_CHARS:
+        if len(fods_xml) > _P1_PARALLEL_FODS_CHARS and len(table_body) > _P1_TABLE_PARALLEL_MIN_CHARS:
             chunks = _p1_split_fods_row_chunks(table_body, _P1_MAX_WORKERS)
             if len(chunks) > 1:
                 table_body = None  # the chunks carry the rows now; do not keep a second table-sized copy alive

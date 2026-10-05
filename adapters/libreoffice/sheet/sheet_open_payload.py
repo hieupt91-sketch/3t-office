@@ -16,6 +16,7 @@ from io import BytesIO
 
 
 _P1B_LARGE_FODS_CHARS = 20 * 1024 * 1024
+_P1B_TABLE_MIN_CHARS = int(os.environ.get("VNO_P1_TABLE_MIN_CHARS", "").strip() or 0) or 2 * 1024 * 1024  # per-table pool threshold inside a big document
 _P1B_MAX_WORKERS = int(os.environ.get("VNO_P1_WORKERS", "").strip() or 0) or (6 if (os.cpu_count() or 4) >= 8 else 4)
 
 
@@ -255,7 +256,7 @@ def build_sheet_open_payload_legacy(xlsx_bytes: bytes, fods_xml: str, patcher) -
     output_parts, support_parts, cursor = [], [], 0
 
     def transform_table(table_xml):
-        worker_strip = defer_strip and len(table_xml) > _P1B_LARGE_FODS_CHARS
+        worker_strip = defer_strip and len(table_xml) > _P1B_TABLE_MIN_CHARS
         if defer_strip and not worker_strip:
             table_xml = strip_xf(table_xml)
         opening_match = re.match(r"<[^>]+", table_xml)
@@ -273,7 +274,7 @@ def build_sheet_open_payload_legacy(xlsx_bytes: bytes, fods_xml: str, patcher) -
         row_number = 1
         out, support, table_cursor = [], [], 0
 
-        if len(clean) > _P1B_LARGE_FODS_CHARS and len(table_xml) > _P1B_LARGE_FODS_CHARS:
+        if len(clean) > _P1B_LARGE_FODS_CHARS and len(table_xml) > _P1B_TABLE_MIN_CHARS:
             prefix, chunks, suffix = patcher._p1_metadata_table_chunks(
                 table_xml, _P1B_MAX_WORKERS
             )
