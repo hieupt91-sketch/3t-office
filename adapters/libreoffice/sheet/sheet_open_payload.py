@@ -217,6 +217,13 @@ def build_sheet_open_payload_legacy(
         included = worksheet and (included_sheets is None or name in included_sheets)
         if included:
             sink.begin_sheet(name)
+        elif worksheet:
+            support, table_cursor = [], 0
+            for start, end in patcher._flat_xml_blocks(table_xml, ("table:table-row",)):
+                support.append(table_xml[table_cursor:start])
+                table_cursor = end
+            support.append(table_xml[table_cursor:])
+            return table_xml, "".join(support)
         targets = by_sheet.get(name, {})
         row_map = {}
         for (row, col), xf_index in targets.items():
@@ -253,7 +260,7 @@ def build_sheet_open_payload_legacy(
                         ):
                             sink.add_row(output_chunk[row_start:row_end])
                     sink.end_sheet()
-                else:
+                elif worksheet:
                     support_chunks = [
                         re.sub(
                             r"<table:table-row\b[\s\S]*?</table:table-row\s*>",
@@ -272,6 +279,7 @@ def build_sheet_open_payload_legacy(
             out.append(fragment)
             if included:
                 sink.add_row(fragment)
+            if included or not worksheet:
                 support.append(_empty_row(fragment))
 
         for start, end in patcher._flat_xml_blocks(table_xml, ("table:table-row",)):
@@ -301,7 +309,7 @@ def build_sheet_open_payload_legacy(
                     if included:
                         sink.add_row(transformed)
                     out.append(transformed)
-                    if included:
+                    if included or not worksheet:
                         support.append(_empty_row(transformed))
                     at = logical_row + 1
                 if at < row_number + repeat:

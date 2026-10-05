@@ -1988,6 +1988,12 @@ def _sheet_open_payload_enabled() -> bool:
     return value in {"1", "true", "yes", "on"}
 
 
+def _lazy_sheet_open_enabled() -> bool:
+    """Opt-in gate for loading only the active worksheet model initially."""
+    value = os.environ.get("VNO_OPEN_LAZYSHEETS", "").strip().lower()
+    return value in {"1", "true", "yes", "on"}
+
+
 _SHEET_LARGE_FODS_CHARS = 20 * 1024 * 1024
 
 
@@ -3421,7 +3427,7 @@ class VnOfficeApi:
 
     def _store_sheet_open_fallback(
         self, fods_content: str, source_path: str, workbook_xml: str | None,
-        source_bytes: bytes | None = None,
+        source_bytes: bytes | None = None, lazy_sheets: bool = False,
     ) -> str:
         self._prune_sheet_open_sessions()
         folder = _user_data_dir() / "sheet-open-sessions"
@@ -3460,6 +3466,7 @@ class VnOfficeApi:
                 "source_copy_path": source_copy,
                 "file_name": Path(source_path).name,
                 "workbook_xml": workbook_xml,
+                "lazy_sheets": bool(lazy_sheets),
                 "timer": expiry_timer,
             }
             self._last_sheet_open_id = open_id
@@ -3489,6 +3496,14 @@ class VnOfficeApi:
         try:
             with path.open("r", encoding="utf-8", errors="replace", newline="") as handle:
                 content = handle.read()
+            if metadata.get("lazy_sheets"):
+                source_value = metadata.get("source_copy_path") or metadata.get("source_path")
+                source_path = Path(str(source_value)) if source_value else None
+                if not source_path or not source_path.is_file():
+                    raise OSError("missing lazy-sheet source")
+                content = _ooxml_zip_patch().reoverlay_sheet_xf_indices(
+                    source_path.read_bytes(), content
+                )
         except OSError:
             return {"status": "error", "message": "Không đọc được dữ liệu dự phòng. Hãy mở lại tệp."}
         return {
@@ -3511,10 +3526,13 @@ class VnOfficeApi:
         )
 
     def _read_sheet_open_payload(self, open_id, sheet_name):
-        """Build one deferred-sheet payload from the retained private FODS."""
+        """Build one or more deferred-sheet models from retained local data."""
         if (not isinstance(open_id, str) or not open_id or len(open_id) > 128
-                or not isinstance(sheet_name, str) or not sheet_name
-                or len(sheet_name) > 1024):
+                or not isinstance(sheet_name, (str, list))):
+            return {"status": "error", "message": "Yêu cầu nạp trang tính không hợp lệ."}
+        requested = [sheet_name] if isinstance(sheet_name, str) else sheet_name
+        if (not requested or len(requested) > 1024
+                or any(not isinstance(name, str) or not name or len(name) > 1024 for name in requested)):
             return {"status": "error", "message": "Yêu cầu nạp trang tính không hợp lệ."}
         self._prune_sheet_open_sessions()
         with self._sheet_open_session_lock:
@@ -3530,12 +3548,12 @@ class VnOfficeApi:
             source_bytes = source_path.read_bytes()
             from adapters.libreoffice.sheet.sheet_open_payload import build_sheet_open_payload
             _final_fods, payload = build_sheet_open_payload(
-                source_bytes, fods_content, _ooxml_zip_patch(), included_sheets={sheet_name}
+                source_bytes, fods_content, _ooxml_zip_patch(), included_sheets=set(requested)
             )
             stub_names = {stub.get("name", "") for stub in payload.get("sheetStubs", [])}
-            if sheet_name not in stub_names or sheet_name in payload.get("deferredSheets", []):
+            if any(name not in stub_names or name in payload.get("deferredSheets", []) for name in requested):
                 return {"status": "error", "message": "Không tìm thấy trang tính cần nạp."}
-            return {"status": "ok", "openId": open_id, "sheetName": sheet_name, "sheetPayload": payload}
+            return {"status": "ok", "openId": open_id, "sheetNames": requested, "sheetPayload": payload}
         except Exception:
             self._record_sheet_open_payload_failure("deferred-sheet")
             return {"status": "error", "message": "Không nạp được trang tính. Dữ liệu gốc vẫn được giữ nguyên."}
@@ -4480,8 +4498,17 @@ class VnOfficeApi:
                             sheet_stage_started = time.perf_counter()
                             try:
                                 from adapters.libreoffice.sheet.sheet_open_payload import build_sheet_open_payload
+                                sheet_ooxml_workbook_xml = _read_xlsx_workbook_xml(src_path)
+                                included_sheets = None
+                                if _lazy_sheet_open_enabled():
+                                    active_sheet = patcher.parse_active_sheet_from_workbook(
+                                        sheet_ooxml_workbook_xml
+                                    )
+                                    if active_sheet:
+                                        included_sheets = {active_sheet}
                                 final_fods, sheet_open_payload = build_sheet_open_payload(
-                                    original_xlsx, content, patcher
+                                    original_xlsx, content, patcher,
+                                    included_sheets=included_sheets,
                                 )
                             except Exception:
                                 sheet_open_payload = None
@@ -4495,12 +4522,13 @@ class VnOfficeApi:
                                     payload_chars=len(sheet_open_payload.get("rowsDeflateBase64", "")),
                                     support_chars=len(sheet_open_payload.get("supportXml", "")),
                                 )
+                                session_fods = content if included_sheets is not None else final_fods
                                 content = final_fods
                                 try:
-                                    sheet_ooxml_workbook_xml = _read_xlsx_workbook_xml(src_path)
                                     sheet_open_id = self._store_sheet_open_fallback(
-                                        final_fods, src_path, sheet_ooxml_workbook_xml,
+                                        session_fods, src_path, sheet_ooxml_workbook_xml,
                                         source_bytes=original_xlsx,
+                                        lazy_sheets=included_sheets is not None,
                                     )
                                 except Exception:
                                     sheet_open_payload = None

@@ -754,6 +754,11 @@ export class SheetGridController {
   }
 
   recalculateAll() {
+    if (this.adapter?.hasDeferredSheets?.()) {
+      this.adapter.requestAllSheetsLoaded?.("tính lại công thức xuyên trang tính");
+      this.adapter?.shell?.setStatus?.("Đang nạp đủ dữ liệu trước khi tính lại công thức xuyên trang tính…");
+      return false;
+    }
     this._recalculateAllFormulas(undefined, true);
     this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
     this._updateWatchWindow?.();
@@ -5165,6 +5170,12 @@ _bindGridKeyboardNavigation() {
 
   setCellValue(col, row, val, recordUndo = true, historyOptions = {}) {
     if (typeof val === "string") val = val.normalize("NFC");
+    if (recordUndo && typeof val === "string" && val.startsWith("=") && val.includes("!")
+        && this.adapter?.hasDeferredSheets?.()) {
+      this.adapter.requestAllSheetsLoaded?.("dùng công thức xuyên trang tính");
+      this.adapter?.shell?.setStatus?.("Công thức xuyên trang tính sẽ dùng được sau khi mọi trang tính nạp xong.");
+      return false;
+    }
     if (recordUndo && this._guardProtectedMutation()) return false;
     const key = `${col}${row}`;
     let item = this.cellsData.get(key) || { val: "", formula: "", style: {} };
@@ -8424,6 +8435,11 @@ _bindGridKeyboardNavigation() {
       direction: "forward",
       ...options
     };
+    if (opts.scope === "workbook" && this.adapter?.hasDeferredSheets?.()) {
+      this.adapter.requestAllSheetsLoaded?.("tìm trong toàn bộ sổ làm việc");
+      this.adapter?.shell?.setStatus?.("Đang nạp đủ dữ liệu trước khi tìm trong toàn bộ sổ làm việc…");
+      return false;
+    }
 
     const matcher = createMatcher(needle, opts);
     const isBackward = opts.direction === "backward";
@@ -8550,6 +8566,11 @@ _bindGridKeyboardNavigation() {
       lookIn: "all",
       ...options
     };
+    if (opts.scope === "workbook" && this.adapter?.hasDeferredSheets?.()) {
+      this.adapter.requestAllSheetsLoaded?.("thay thế trong toàn bộ sổ làm việc");
+      this.adapter?.shell?.setStatus?.("Đang nạp đủ dữ liệu trước khi thay thế trong toàn bộ sổ làm việc…");
+      return 0;
+    }
     const matcher = createMatcher(needle, opts);
     const replacement = String(replaceText ?? "");
 

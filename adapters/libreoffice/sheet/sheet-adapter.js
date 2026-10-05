@@ -5021,23 +5021,7 @@ ${pristineXlsxMarker}
         throw new Error(result?.message || "Không nạp được trang tính.");
       }
       const workbook = await buildSheetPayloadModel(result.sheetPayload, this);
-      const data = workbook.sheetsData?.[sheetName];
-      if (!(data instanceof Map)) throw new Error("Dữ liệu trang tính không hợp lệ.");
-      const mappings = [
-        "sheetsData", "commentsBySheet", "mergedRangesBySheet", "namedRangesBySheet",
-        "printAreaBySheet", "pageSetupBySheet", "conditionalFormattingBySheet",
-        "dataValidationsBySheet", "pivotTablesBySheet", "chartsBySheet", "imagesBySheet",
-        "imagesAtOpenBySheet", "rowHeightsBySheet", "colWidthsBySheet",
-        "autoRowsAtImportBySheet", "userHiddenRowsBySheet", "userHiddenColsBySheet",
-        "pageBreaksBySheet", "protectionBySheet", "outlineGroupsBySheet", "scenariosBySheet",
-        "freezePanesBySheet", "autoFilterBySheet", "sheetVisibilityBySheet", "tabColors"
-      ];
-      for (const key of mappings) {
-        if (workbook[key] && Object.prototype.hasOwnProperty.call(workbook[key], sheetName)) {
-          this.grid[key] ||= {};
-          this.grid[key][sheetName] = workbook[key][sheetName];
-        }
-      }
+      this._mergeDeferredWorkbook(workbook, [sheetName]);
       this._deferredSheets.delete(sheetName);
       this.shell?.setStatus?.(`Đã nạp trang tính ${sheetName}`);
       return true;
@@ -5045,6 +5029,91 @@ ${pristineXlsxMarker}
     this._sheetLoadPromises.set(sheetName, pending);
     try { return await pending; }
     finally { this._sheetLoadPromises.delete(sheetName); }
+  }
+
+  _mergeDeferredWorkbook(workbook, sheetNames) {
+    const mappings = [
+      "sheetsData", "commentsBySheet", "mergedRangesBySheet", "namedRangesBySheet",
+      "printAreaBySheet", "pageSetupBySheet", "conditionalFormattingBySheet",
+      "dataValidationsBySheet", "pivotTablesBySheet", "chartsBySheet", "imagesBySheet",
+      "imagesAtOpenBySheet", "rowHeightsBySheet", "colWidthsBySheet",
+      "autoRowsAtImportBySheet", "userHiddenRowsBySheet", "userHiddenColsBySheet",
+      "pageBreaksBySheet", "protectionBySheet", "outlineGroupsBySheet", "scenariosBySheet",
+      "freezePanesBySheet", "autoFilterBySheet", "sheetVisibilityBySheet", "tabColors"
+    ];
+    for (const sheetName of sheetNames) {
+      if (!(workbook.sheetsData?.[sheetName] instanceof Map)) {
+        throw new Error(`Dữ liệu trang tính ${sheetName} không hợp lệ.`);
+      }
+      for (const key of mappings) {
+        if (workbook[key] && Object.prototype.hasOwnProperty.call(workbook[key], sheetName)) {
+          this.grid[key] ||= {};
+          this.grid[key][sheetName] = workbook[key][sheetName];
+        }
+      }
+    }
+  }
+
+  hasDeferredSheets() {
+    return Boolean(this._deferredSheets?.size);
+  }
+
+  async ensureAllSheetsLoaded({ reason = "tiếp tục", background = false } = {}) {
+    if (!this.hasDeferredSheets()) return true;
+    if (this._allSheetsLoadPromise) return await this._allSheetsLoadPromise;
+    if (!this._sheetOpenId) throw new Error("Phiên nạp trang tính không còn khả dụng.");
+    const names = [...this._deferredSheets];
+    const selected = this.grid?.selectedCoord ? { ...this.grid.selectedCoord } : null;
+    const scrollLeft = this.grid?.container?.scrollLeft;
+    const scrollTop = this.grid?.container?.scrollTop;
+    this._allSheetsLoadPromise = (async () => {
+      this.shell?.setStatus?.(background
+        ? `Đang nạp nền ${names.length} trang tính còn lại…`
+        : `Đang nạp đủ dữ liệu trước khi ${reason}…`);
+      const result = await globalUnoBridge.getSheetOpenPayload(this._sheetOpenId, names);
+      if (result?.status !== "ok" || !result.sheetPayload) {
+        throw new Error(result?.message || "Không nạp đủ dữ liệu sổ làm việc.");
+      }
+      const workbook = await buildSheetPayloadModel(result.sheetPayload, this);
+      this._mergeDeferredWorkbook(workbook, names);
+      names.forEach(name => this._deferredSheets.delete(name));
+      if (this._deferredSheets.size) throw new Error("Một số trang tính chưa được nạp đầy đủ.");
+      this.grid?.recalculateAll?.();
+      if (selected) this.grid?.selectCell?.(selected.c, selected.r, false);
+      if (this.grid?.container) {
+        if (Number.isFinite(scrollLeft)) this.grid.container.scrollLeft = scrollLeft;
+        if (Number.isFinite(scrollTop)) this.grid.container.scrollTop = scrollTop;
+      }
+      const openId = this._sheetOpenId;
+      this._sheetOpenId = null;
+      try { await globalUnoBridge.releaseSheetOpenFallback(openId); } catch { /* expires automatically */ }
+      this.shell?.setStatus?.("Đã nạp đầy đủ mọi trang tính");
+      if (typeof window !== "undefined") window.dispatchEvent?.(new Event("vno:sheet-all-models-ready"));
+      return true;
+    })();
+    try { return await this._allSheetsLoadPromise; }
+    finally { this._allSheetsLoadPromise = null; }
+  }
+
+  requestAllSheetsLoaded(reason) {
+    if (!this.hasDeferredSheets()) return true;
+    this.ensureAllSheetsLoaded({ reason }).catch(error => {
+      this.shell?.setStatus?.(`Không thể nạp đủ dữ liệu: ${error?.message || error}`);
+    });
+    return false;
+  }
+
+  async _ensureCompleteForOperation(reason) {
+    try {
+      return await this.ensureAllSheetsLoaded({ reason });
+    } catch (error) {
+      await showAlertDialog({
+        title: "Chưa thể tiếp tục",
+        message: `Sheet chưa nạp đủ mọi trang tính nên không thể ${reason}. Dữ liệu chưa đầy đủ sẽ không bao giờ được lưu hoặc xuất. ${error?.message || "Hãy mở lại tệp và thử lại."}`,
+        type: "error"
+      });
+      return false;
+    }
   }
 
   _snapshotGridForOpen() {
@@ -5467,6 +5536,7 @@ ${pristineXlsxMarker}
    */
   async save() {
     if (this._guardQuickViewReadOnly()) return false;
+    if (!await this._ensureCompleteForOperation("lưu")) return false;
     if (!this.sourceFilePath) {
       return await this.saveAs();
     }
@@ -5509,6 +5579,7 @@ ${pristineXlsxMarker}
    */
   async saveAs() {
     if (this._guardQuickViewReadOnly()) return false;
+    if (!await this._ensureCompleteForOperation("lưu bản sao")) return false;
     const fodsContent = this.serializeToFods();
     const currentName = this.sourceFileName || "BangTinh";
     const suggestedName = this.sourceFilePath
@@ -5645,6 +5716,13 @@ ${pristineXlsxMarker}
       this.isDirty = false;
       this.shell?.resetDocumentChrome?.(result.fileName || "Bảng tính 1.xlsx", null, true, result.sourcePath || "");
       if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") window.dispatchEvent(new Event("vno:sheet-full-model-ready"));
+      if (this._deferredSheets?.size && typeof window !== "undefined") {
+        window.setTimeout(() => {
+          if (this._deferredSheets?.size) this.ensureAllSheetsLoaded({ background: true }).catch(error => {
+            this.shell?.setStatus?.(`Nạp nền tạm dừng: ${error?.message || error}`);
+          });
+        }, 1500);
+      }
       return true;
     } catch {
       try {
@@ -5675,6 +5753,7 @@ ${pristineXlsxMarker}
   }
 
   async exportPdf() {
+    if (!await this._ensureCompleteForOperation("xuất PDF")) return false;
     const fodsContent = this.serializeToFods();
     const result = await globalUnoBridge.exportRealPdf(
       "sheet", fodsContent, this.sourceFileName, this.sourceFilePath || null,
@@ -5688,7 +5767,8 @@ ${pristineXlsxMarker}
     return false;
   }
 
-  print() {
+  async print() {
+    if (!await this._ensureCompleteForOperation("in")) return false;
     const grid = this.grid;
     const setup = grid?.getPageSetup?.(grid.activeSheet) || grid?.pageSetupBySheet?.[grid?.activeSheet] || {};
     const pages = grid?.computePrintPages?.(grid.activeSheet)?.pages || [];

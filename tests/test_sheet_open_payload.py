@@ -41,6 +41,16 @@ class SheetOpenPayloadTests(unittest.TestCase):
         with patch.dict(os.environ, {"SHEET_OPEN_PAYLOAD": "1"}, clear=True):
             self.assertTrue(main._should_use_sheet_open_payload("tiny"))
 
+    def test_lazy_sheet_flag_is_explicit_and_off_by_default(self):
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertFalse(main._lazy_sheet_open_enabled())
+        for value in ("", "0", "false", "off"):
+            with patch.dict(os.environ, {"VNO_OPEN_LAZYSHEETS": value}, clear=True):
+                self.assertFalse(main._lazy_sheet_open_enabled(), value)
+        for value in ("1", "true", "yes", "on"):
+            with patch.dict(os.environ, {"VNO_OPEN_LAZYSHEETS": value}, clear=True):
+                self.assertTrue(main._lazy_sheet_open_enabled(), value)
+
     def test_fused_pass_matches_existing_final_xf_transform_and_record_counts(self):
         fods_path = SAMPLES / "src" / "sample-sheet.fods"
         xlsx_path = SAMPLES / "sample-sheet.xlsx"
@@ -81,7 +91,16 @@ class SheetOpenPayloadTests(unittest.TestCase):
             json.loads(line)
             for line in zlib.decompress(base64.b64decode(payload["rowsDeflateBase64"])).decode("utf-8").splitlines()
         ]
-        self.assertEqual(actual, patcher.reoverlay_sheet_xf_indices(xlsx, fods))
+        full, _full_payload = build_sheet_open_payload(xlsx, fods, patcher)
+        def table_for(xml, wanted):
+            for start, end in patcher._flat_xml_blocks(xml, ("table:table",)):
+                block = xml[start:end]
+                opening = block[:block.find(">") + 1]
+                if patcher._xml_attrs(opening).get("table:name") == wanted:
+                    return block
+            return None
+        self.assertEqual(table_for(actual, sheet_names[0]), table_for(full, sheet_names[0]))
+        self.assertNotEqual(actual, full)
         self.assertEqual([record[1] for record in records if record[0] == "sheet"], [sheet_names[0]])
         self.assertEqual(payload["deferredSheets"], sheet_names[1:])
         self.assertEqual([stub["name"] for stub in payload["sheetStubs"]], sheet_names)
@@ -153,6 +172,20 @@ class SheetOpenPayloadTests(unittest.TestCase):
             self.assertEqual([record[1] for record in records if record[0] == "sheet"], [sheet_names[-1]])
             self.assertNotIn(sheet_names[-1], payload["deferredSheets"])
             self.assertEqual(api._read_sheet_open_payload(open_id, "missing")["status"], "error")
+
+    def test_deferred_sheet_api_can_return_remaining_sheets_in_one_payload(self):
+        fods = (SAMPLES / "src" / "sample-sheet.fods").read_text(encoding="utf-8")
+        source_bytes = (SAMPLES / "sample-sheet.xlsx").read_bytes()
+        sheet_names = list(main._ooxml_zip_patch()._resolve_xlsx_sheet_entries(source_bytes))
+        with tempfile.TemporaryDirectory() as temp_dir, patch("main._user_data_dir", return_value=Path(temp_dir)):
+            source = Path(temp_dir) / "source.xlsx"
+            source.write_bytes(source_bytes)
+            api = main.VnOfficeApi(app_kind="sheet")
+            open_id = api._store_sheet_open_fallback(fods, str(source), None)
+            result = api._read_sheet_open_payload(open_id, sheet_names)
+            self.assertEqual(result["status"], "ok")
+            self.assertEqual(result["sheetNames"], sheet_names)
+            self.assertEqual(result["sheetPayload"]["deferredSheets"], [])
 
 
 if __name__ == "__main__":

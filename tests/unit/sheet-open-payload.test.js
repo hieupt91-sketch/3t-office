@@ -129,6 +129,58 @@ export async function runSheetOpenPayloadTests() {
     }
   });
 
+  await test("Save loads every deferred sheet before serialization and never saves a stub", async () => {
+    const grid = new SheetGridController(makeContainer());
+    const adapter = new SheetAdapter(grid);
+    adapter.setShell({ setStatus() {}, resetDocumentChrome() {} });
+    const initial = makePayload();
+    initial.supportXml = initial.supportXml.replace(
+      "</office:spreadsheet>",
+      '<table:table table:name="Deferred"></table:table></office:spreadsheet>'
+    );
+    initial.sheetStubs = [
+      { name: "Data", state: "visible", tabColor: "", usedRange: "A1", cellCount: 1 },
+      { name: "Deferred", state: "visible", tabColor: "", usedRange: "A1", cellCount: 1 }
+    ];
+    initial.deferredSheets = ["Deferred"];
+    assert(await adapter.loadFromPayload(initial), "initial lazy payload did not load");
+    adapter._sheetOpenId = "open-id";
+    adapter.sourceFilePath = "C:\\input.xlsx";
+
+    const deferred = makePayload([
+      ["sheet", "Deferred"],
+      ["row-xml", '<table:table-row><table:table-cell office:value-type="string"><text:p>Later</text:p></table:table-cell></table:table-row>'],
+      ["end-sheet"]
+    ]);
+    deferred.supportXml = initial.supportXml;
+    deferred.sheetStubs = initial.sheetStubs;
+    deferred.deferredSheets = ["Data"];
+    const saved = {
+      getSheetOpenPayload: globalUnoBridge.getSheetOpenPayload,
+      releaseSheetOpenFallback: globalUnoBridge.releaseSheetOpenFallback,
+      saveRealFileInPlace: globalUnoBridge.saveRealFileInPlace
+    };
+    let requested = null;
+    let serialized = "";
+    try {
+      globalUnoBridge.getSheetOpenPayload = async (_openId, names) => {
+        requested = names;
+        return { status: "ok", sheetPayload: deferred };
+      };
+      globalUnoBridge.releaseSheetOpenFallback = async () => true;
+      globalUnoBridge.saveRealFileInPlace = async (_kind, content) => {
+        serialized = content;
+        return { status: "cancelled" };
+      };
+      await adapter.save();
+      assert(Array.isArray(requested) && requested.join("|") === "Deferred", "Save did not request all deferred sheets");
+      assert(serialized.includes("Hello") && serialized.includes("Later"), "Save serialized a stub instead of both full sheets");
+      assert(!adapter.hasDeferredSheets(), "deferred marker remained after the safe Save gate");
+    } finally {
+      Object.assign(globalUnoBridge, saved);
+    }
+  });
+
   await test("payload parser rejects unsupported versions, broken counts, and truncated records", async () => {
     const adapter = new SheetAdapter(null);
     const wrongVersion = makePayload();

@@ -1346,6 +1346,22 @@ export const SHEET_HELP_ENTRIES = [
       "Di chuột tới vạch phân cách giữa hai tiêu đề cột/hàng để kéo thay đổi độ rộng/chiều cao. Nhấp đúp vào vạch phân cách cột để tự động vừa khít độ rộng theo nội dung dài nhất (Auto-fit).",
       "Khi đang soạn thảo văn bản hoặc gõ công thức dài trong ô, nếu các ô bên phải còn trống, nội dung đang gõ sẽ tự động hiển thị tràn sang các ô bên phải một cách tự nhiên, không bị cắt ngắn."
     ]
+  },
+  {
+    id: "sheet.open.lazySheets",
+    app: "sheet",
+    commandIds: ["common.file.open", "common.file.save", "common.file.saveAs", "common.file.print", "common.file.exportPdf"],
+    title: "Mở sổ lớn và nạp trang tính theo nhu cầu",
+    summary: "Với sổ XLSX rất lớn, Sheet có thể hiển thị trang đang làm việc trước rồi nạp các trang còn lại ở nền; thao tác lưu, xuất PDF và in luôn chờ đủ dữ liệu để không làm mất trang tính.",
+    ribbon: { tab: "Tệp", tabId: "file", group: "Sổ làm việc" },
+    keywords: ["mở sổ lớn", "đang nạp", "nạp trang tính", "lazy sheets", "lưu an toàn", "xuất PDF", "in"],
+    steps: [
+      "Mở tệp XLSX như bình thường bằng Ctrl+O hoặc Tệp > Mở. Khi chế độ mở nhanh được bật cho sổ lớn, Sheet dựng đầy đủ trang đang hoạt động trước; các tab khác vẫn hiện đúng tên và trạng thái trong lúc dữ liệu được nạp ở nền.",
+      "Có thể soạn trên trang đã nạp. Khi chọn một tab chưa nạp, Sheet hiển thị trạng thái “Đang nạp trang tính…” rồi mới chuyển tab; ô đang chọn và vị trí cuộn của trang hiện tại được giữ nguyên trong quá trình nạp nền.",
+      "Nếu dùng công thức xuyên trang tính hoặc Tìm/Thay thế trên toàn bộ sổ khi dữ liệu chưa đủ, Sheet sẽ báo đang nạp và chỉ thực hiện sau khi mọi trang đã sẵn sàng, tránh kết quả thiếu hoặc sai im lặng.",
+      "Khi nhấn Ctrl+S, F12, Xuất PDF hoặc In, Sheet tự chờ nạp đủ mọi trang tính trước khi tạo nội dung đầu ra. Nếu nạp thất bại, thao tác bị khóa và có thông báo rõ; ứng dụng không bao giờ lưu các tab metadata rỗng thay cho dữ liệu thật.",
+      "Nhấn F1, tìm “mở sổ lớn” hoặc “đang nạp” để mở lại hướng dẫn này."
+    ]
   }
 ];
 
