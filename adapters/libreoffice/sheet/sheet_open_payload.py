@@ -150,8 +150,8 @@ def _transform_payload_rows_chunk(args):
     want_jsonl = len(args) > 3 and args[3]
     from adapters.libreoffice.common import ooxml_zip_patch as patcher
 
-    if len(args) > 4 and args[4]:
-        chunk = patcher.strip_vno_xf_attributes(chunk)  # the parent leaves the big tables unstripped, in parallel here
+    strip = patcher.strip_vno_xf_attributes if len(args) > 4 and args[4] else None
+    # The parent leaves the big tables unstripped; strip row by row here (a whole-chunk strip would be one more copy).
 
     sorted_rows = sorted(row_map)
     target_index = 0
@@ -163,9 +163,11 @@ def _transform_payload_rows_chunk(args):
 
     for start, end in patcher._flat_xml_blocks(chunk, ("table:table-row",)):
         untouched = chunk[cursor:start]
+        row_xml = chunk[start:end]
+        if strip is not None:
+            untouched, row_xml = strip(untouched), strip(row_xml)
         out.append(untouched)
         support.append(untouched)
-        row_xml = chunk[start:end]
         repeat = patcher._repeat_count(row_xml, "table:number-rows-repeated")
         while target_index < len(sorted_rows) and sorted_rows[target_index] < row_number:
             target_index += 1
@@ -206,20 +208,29 @@ def _transform_payload_rows_chunk(args):
                 )
         cursor, row_number = end, row_number + repeat
     trailing = chunk[cursor:]
+    if strip is not None:
+        trailing = strip(trailing)
     out.append(trailing)
     support.append(trailing)
     output = "".join(out)
+    out.clear()
+    support_xml = "".join(support)
+    support.clear()
     if not want_jsonl:
-        return output, "".join(support)
-    # Serialize the sheet rows here, in the worker, so the parent only compresses.
+        return output, support_xml
+    # Serialize the sheet rows here, in the worker, so the parent only compresses (bytes lines: half the memory of str).
     lines, count = [], 0
     for row_start, row_end in patcher._flat_xml_blocks(output, ("table:table-row",)):
         lines.append(
-            json.dumps(["row-xml", output[row_start:row_end]], ensure_ascii=False, separators=(",", ":"))
-            + "\n"
+            (
+                json.dumps(["row-xml", output[row_start:row_end]], ensure_ascii=False, separators=(",", ":"))
+                + "\n"
+            ).encode("utf-8")
         )
         count += 1
-    return (output, "".join(support), *deflate_segment("".join(lines).encode("utf-8")), count)
+    jsonl = b"".join(lines)
+    lines = None
+    return (output, support_xml, *deflate_segment(jsonl), count)
 
 
 def build_sheet_open_payload_legacy(xlsx_bytes: bytes, fods_xml: str, patcher) -> tuple[str, dict]:
