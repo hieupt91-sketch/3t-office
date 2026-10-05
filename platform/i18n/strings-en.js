@@ -770,6 +770,7 @@ export const enStrings = {
     "writer.page.setupDialog": { label: "Page Setup…", tooltip: "Configure document margins, orientation, paper size, and section layout" },
     "writer.page.columns": { label: "Columns", tooltip: "Split text into two or more columns" },
     "writer.format.paragraphDialog": { label: "Paragraph…", tooltip: "Alignment, indents, spacing and line spacing in one dialog" },
+    "writer.format.tabStops": { label: "Tab Stops…", tooltip: "Set tab positions, text alignment and leader characters for a paragraph" },
     "writer.page.columns1": { label: "One Column", tooltip: "Format text into one column" },
     "writer.page.columns2": { label: "Two Columns", tooltip: "Split text into two columns" },
     "writer.page.columns3": { label: "Three Columns", tooltip: "Split text into three columns" },

@@ -24,6 +24,7 @@ import { showWatermarkDialog, showPageBorderDialog, showPageColorDialog } from "
 import { showColumnsDialog } from "../../../apps/writer/columns-dialog.js";
 import { showParagraphDialog } from "../../../apps/writer/paragraph-dialog.js";
 import { buildTableHtml, showTextToTableDialog, splitTextToRows } from "../../../apps/writer/text-to-table-dialog.js";
+import { parseTabStops, resolveTab, serializeTabStops, showTabStopsDialog, styleTabElement } from "../../../apps/writer/tab-stops.js";
 import { SHAPE_TYPES, showShapeDialog, renderShapeSvg, showDiagramDialog, generateDiagramHtml, showChartDialog, generateChartHtml } from "../../../apps/writer/writer-illustrations.js";
 import { DOCUMENT_THEMES, showThemeGalleryDialog } from "../../../apps/writer/theme-gallery.js";
 import { showSymbolPicker } from "../../../platform/ui-kit/symbol-picker.js";
@@ -678,6 +679,7 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.edit.select", () => globalCommandBus.execute("common.edit.selectAll"));
     globalCommandBus.bindHandler("writer.layout.breaks", () => globalCommandBus.execute("writer.page.break"));
     globalCommandBus.bindHandler("writer.page.blank", () => this.insertBlankPage());
+    globalCommandBus.bindHandler("writer.format.tabStops", (args) => this.openTabStopsDialog(args));
     globalCommandBus.bindHandler("writer.table.fromText", (args) => this.convertTextToTable(args));
     globalCommandBus.bindHandler("writer.font.grow1pt", () => this._adjustFontSizePt(1));
     globalCommandBus.bindHandler("writer.font.shrink1pt", () => this._adjustFontSizePt(-1));
@@ -727,7 +729,10 @@ export class WriterAdapter {
     }
 
     range.insertNode(inserted);
-    range.setStartAfter(inserted);
+    // Chữ gõ tiếp phải nằm NGOÀI thẻ Tab (nếu không, Chrome nhét chữ vào cùng <span> và dừng tab đo sai): đặt con trỏ vào nút chữ rỗng sau Tab.
+    const caretHost = document.createTextNode("");
+    inserted.after(caretHost);
+    range.setStart(caretHost, 0);
     range.collapse(true);
     selection.removeAllRanges?.();
     selection.addRange?.(range);
@@ -10584,12 +10589,99 @@ export class WriterAdapter {
     });
   }
 
+  // --- Dừng tab (Tab stops) ---
+  _getTabStopsState() {
+    const block = this._getRulerParagraphBlocks()[0];
+    return { block, stops: parseTabStops(block?.dataset?.vnoTabs || "") };
+  }
+
+  /** Đặt danh sách dừng tab cho các đoạn đang chọn (một bước hoàn tác). stops rỗng = xóa hết. */
+  applyTabStops(stops) {
+    const blocks = this._getRulerParagraphBlocks();
+    if (!blocks.length || !Array.isArray(stops)) return false;
+    this.flushTyping();
+    const serialized = serializeTabStops(parseTabStops(serializeTabStops(stops)));
+    blocks.forEach(block => {
+      if (serialized) block.dataset.vnoTabs = serialized;
+      else delete block.dataset.vnoTabs;
+      // Dừng tab riêng thay cho bước tab mặc định: bỏ tab-size để không cộng dồn.
+      if (serialized) block.style.tabSize = "0";
+    });
+    this._layoutTabStopsIn(this.bodyDom);
+    this.isDirty = true;
+    this.recordSnapshot("writer.format.tabStops");
+    return true;
+  }
+
+  async openTabStopsDialog(args = null) {
+    if (args && Array.isArray(args.stops)) return this.applyTabStops(args.stops);
+    if (!this._getRulerParagraphBlocks().length) return false;
+    const state = this.getRulerState();
+    const contentWidthCm = Math.max(1, (state.pageWidthMm - state.margins.left - state.margins.right) / 10);
+    const stops = await showTabStopsDialog(this._getTabStopsState().stops, { contentWidthCm });
+    if (stops === null) return null;
+    return this.applyTabStops(stops);
+  }
+
+  /** Thẻ Tab chỉ được chứa đúng ký tự Tab: chữ lỡ nằm trong cùng <span> (tài liệu cũ) được chuyển ra sau thẻ, trừ thẻ đang giữ con trỏ. */
+  _isolateTabCharacters(paragraph) {
+    const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+    for (const tab of Array.from(paragraph.querySelectorAll(".vno-tab-character"))) {
+      if ((tab.textContent || "").length <= 1) continue;
+      if (selection?.anchorNode && tab.contains(selection.anchorNode)) continue;
+      const first = tab.firstChild;
+      if (!first || first.nodeType !== 3 || first.data.length < 2) continue;
+      const rest = first.splitText(1);
+      const moved = [rest];
+      for (let node = rest.nextSibling; node; node = node.nextSibling) moved.push(node);
+      let anchor = tab;
+      for (const node of moved) { anchor.after(node); anchor = node; }
+    }
+  }
+  _scheduleTabStopsLayout() {
+    if (this._tabLayoutTimer) clearTimeout(this._tabLayoutTimer);
+    this._tabLayoutTimer = setTimeout(() => {
+      this._tabLayoutTimer = null;
+      this._layoutTabStopsIn(this.bodyDom);
+    }, 120);
+  }
+
+  /**
+   * Đặt bề rộng từng ký tự Tab của các đoạn có data-vno-tabs theo dừng tab tùy chỉnh (đo vị trí thật trên màn hình).
+   * Vị trí dừng tính từ lề chữ như Word nên trừ thụt lề trái của đoạn.
+   */
+  _layoutTabStopsIn(root) {
+    if (!root?.querySelectorAll || typeof window === "undefined" || typeof document === "undefined") return;
+    for (const paragraph of root.querySelectorAll("[data-vno-tabs]")) {
+      const stopsCm = parseTabStops(paragraph.dataset.vnoTabs);
+      this._isolateTabCharacters(paragraph);
+      const tabs = Array.from(paragraph.querySelectorAll(".vno-tab-character"));
+      if (!stopsCm.length || !tabs.length) continue;
+      const style = window.getComputedStyle(paragraph);
+      const leftIndent = Number.parseFloat(style.marginLeft) || 0;
+      const stops = stopsCm.map(stop => ({ px: stop.cm * 96 / 2.54 - leftIndent, align: stop.align, leader: stop.leader }));
+      const contentLeft = paragraph.getBoundingClientRect().left + (Number.parseFloat(style.paddingLeft) || 0) + (Number.parseFloat(style.borderLeftWidth) || 0);
+      tabs.forEach(tab => styleTabElement(tab, 0, "n"));
+      tabs.forEach((tab, index) => {
+        const x = tab.getBoundingClientRect().left - contentLeft;
+        const range = document.createRange();
+        range.setStartAfter(tab);
+        if (tabs[index + 1]) range.setEndBefore(tabs[index + 1]); else range.setEndAfter(paragraph.lastChild || tab);
+        const nextWidth = range.getBoundingClientRect().width || 0;
+        const { width, leader } = resolveTab(x, nextWidth, stops, 1.27 * 96 / 2.54);
+        styleTabElement(tab, width, leader);
+      });
+    }
+  }
   async openParagraphDialog(args = null) {
     if (args && typeof args === "object" && args.align) return this.applyParagraphDialogValues(args);
     if (!this._getRulerParagraphBlocks().length) return false;
     const values = await showParagraphDialog(this.getParagraphDialogState());
     if (values === null) return null;
-    return this.applyParagraphDialogValues(values);
+    const { openTabs, ...applied } = values;
+    const done = this.applyParagraphDialogValues(applied);
+    if (openTabs) return this.openTabStopsDialog();
+    return done;
   }
 
   async openColumnsDialog(options = null) {
@@ -15768,7 +15860,7 @@ export class WriterAdapter {
     // bỏ qua. Việc chèn/xóa dải ngăn trang bằng JS (insertBefore/remove) không tự phát
     // sự kiện "input" của trình duyệt, nên không có nguy cơ đệ quy vô hạn.
     if (!this._paginationInputHandler && this.bodyDom && typeof this.bodyDom.addEventListener === "function") {
-      this._paginationInputHandler = () => this._schedulePaginationRecompute();
+      this._paginationInputHandler = () => { this._schedulePaginationRecompute(); this._scheduleTabStopsLayout(); };
       this.bodyDom.addEventListener("input", this._paginationInputHandler);
     }
 

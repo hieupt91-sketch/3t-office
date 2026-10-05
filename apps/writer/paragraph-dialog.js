@@ -178,6 +178,7 @@ export async function showParagraphDialog(current = {}) {
           <div id="vno-para-error" role="alert" style="color:#b91c1c; font-size:12px; min-height:16px;"></div>
         </div>
         <div class="vno-dialog-footer" style="display:flex; justify-content:flex-end; gap:8px;">
+          <button type="button" class="vno-btn" id="vno-para-tabs-btn" style="margin-right:auto;" title="Mở hộp thoại Dừng tab sau khi áp dụng các thiết lập đoạn văn">Dừng tab…</button>
           <button type="button" class="vno-btn vno-dialog-cancel-btn">Hủy</button>
           <button type="button" class="vno-btn vno-btn-primary vno-dialog-ok-btn">Áp dụng</button>
         </div>
@@ -278,12 +279,13 @@ export async function showParagraphDialog(current = {}) {
       previousFocused?.focus?.();
       resolve(result);
     }
-    function apply() {
+    function apply(openTabs = false) {
       const result = normalizeParagraphDialogValues(read(), Number(cur.contentWidthMm) || 160);
       if (result.error) { errorBox.textContent = result.error; return; }
-      cleanup(result.values);
+      cleanup(openTabs === true ? { ...result.values, openTabs: true } : result.values);
     }
-    el(".vno-dialog-ok-btn").addEventListener("click", apply);
+    el(".vno-dialog-ok-btn").addEventListener("click", () => apply());
+    el("#vno-para-tabs-btn").addEventListener("click", () => apply(true));
     el(".vno-dialog-cancel-btn").addEventListener("click", () => cleanup(null));
     el(".vno-dialog-close-btn").addEventListener("click", () => cleanup(null));
     overlay.addEventListener("click", event => { if (event.target === overlay) cleanup(null); });

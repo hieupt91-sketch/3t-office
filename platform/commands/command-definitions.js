@@ -195,6 +195,7 @@ export const WRITER_COMMANDS = [
   { id: "writer.page.setupDialog", category: "layout", label: "Thiết lập trang…", icon: "margins", tooltip: "Cấu hình lề giấy, hướng in, khổ giấy A4 và bố cục phân đoạn" },
   { id: "writer.page.columns", category: "layout", label: "Cột", icon: "pageColumns", tooltip: "Chia văn bản thành nhiều cột (1, 2, 3 cột hoặc tùy chỉnh)" },
   { id: "writer.format.paragraphDialog", category: "paragraph", label: "Đoạn văn…", icon: "lineSpacing", tooltip: "Căn lề, thụt lề, khoảng cách đoạn và giãn dòng trong một hộp thoại" },
+  { id: "writer.format.tabStops", category: "paragraph", label: "Dừng tab…", icon: "lineSpacing", tooltip: "Đặt vị trí tab, căn chữ và ký tự dẫn cho đoạn văn" },
   { id: "writer.page.columns1", category: "layout", label: "1 cột", icon: "columnsOne", tooltip: "Định dạng toàn bộ văn bản 1 cột (Normal mặc định)" },
   { id: "writer.page.columns2", category: "layout", label: "2 cột", icon: "columnsTwo", tooltip: "Chia nội dung văn bản thành 2 cột đều nhau" },
   { id: "writer.page.columns3", category: "layout", label: "3 cột", icon: "columnsThree", tooltip: "Chia nội dung văn bản thành 3 cột đều nhau" },

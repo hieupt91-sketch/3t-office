@@ -13952,6 +13952,29 @@ def _writer_apply_section_header_footer_metadata(
     return result, converted_rels_xml, duplicate_entries
 
 
+_TAB_ALIGN_OOXML = {"l": "left", "c": "center", "r": "right"}
+_TAB_LEADER_OOXML = {"d": "dot", "h": "hyphen", "u": "underscore"}
+
+
+def _writer_tabs_xml(value: str) -> str:
+    """data-vno-tabs="8:l:n;15.5:r:d" (cm:căn:ký tự dẫn) -> <w:tabs>…</w:tabs>; rỗng nếu không có mục hợp lệ."""
+    items: list[tuple[int, str]] = []
+    for part in str(value or "").split(";"):
+        fields = part.split(":")
+        try:
+            twips = round(float(fields[0].replace(",", ".")) / 2.54 * 1440)
+        except (ValueError, IndexError):
+            continue
+        if twips <= 0:
+            continue
+        align = _TAB_ALIGN_OOXML.get(fields[1] if len(fields) > 1 else "l", "left")
+        leader = _TAB_LEADER_OOXML.get(fields[2] if len(fields) > 2 else "n")
+        leader_attr = f' w:leader="{leader}"' if leader else ""
+        items.append((twips, f'<w:tab w:val="{align}"{leader_attr} w:pos="{twips}"/>'))
+    items.sort()
+    return "<w:tabs>" + "".join(xml for _, xml in items) + "</w:tabs>" if items else ""
+
+
 def _writer_restore_created_paragraph_css(document_xml: str, source_html: str) -> str:
     """Restore basic paragraph properties that LibreOffice's HTML filter drops."""
     by_text: dict[str, dict[str, str]] = {}
@@ -13968,13 +13991,17 @@ def _writer_restore_created_paragraph_css(document_xml: str, source_html: str) -
     for match in re.finditer(r"<(p|h[1-6])\b([^>]*)>([\s\S]*?)</\1\s*>", source_html, re.IGNORECASE):
         attrs, inner = match.group(2), match.group(3)
         style_match = re.search(r"\bstyle\s*=\s*([\"'])(.*?)\1", attrs, re.IGNORECASE)
-        if not style_match:
+        tabs_match = re.search(r"\bdata-vno-tabs\s*=\s*([\"'])(.*?)\1", attrs, re.IGNORECASE)
+        if not style_match and not tabs_match:
             continue
         text = re.sub(r"\s+", " ", _writer_html_plain(inner)).strip()
         if not text:
             continue
-        css = style_match.group(2)
+        css = style_match.group(2) if style_match else ""
         properties: dict[str, str] = {}
+        tabs_xml = _writer_tabs_xml(tabs_match.group(2)) if tabs_match else ""
+        if tabs_xml:
+            properties["tabs_xml"] = tabs_xml
         align = re.search(r"(?:^|;)\s*text-align\s*:\s*(left|right|center|justify)(?:\s*!important)?\s*(?:;|$)", css, re.IGNORECASE)
         if align:
             properties["alignment"] = {"left": "left", "right": "right", "center": "center", "justify": "both"}[align.group(1).lower()]
@@ -14002,6 +14029,8 @@ def _writer_restore_created_paragraph_css(document_xml: str, source_html: str) -
             return paragraph
         if props.get("alignment"):
             paragraph = _writer_upsert_ppr_empty(paragraph, "jc", f'<w:jc w:val="{props["alignment"]}"/>')
+        if props.get("tabs_xml"):
+            paragraph = _writer_upsert_ppr_empty(paragraph, "tabs", props["tabs_xml"])
         spacing_values = {"before": props.get("before_twips"), "after": props.get("after_twips")}
         spacing_values = {name: value for name, value in spacing_values.items() if value is not None}
         if spacing_values:

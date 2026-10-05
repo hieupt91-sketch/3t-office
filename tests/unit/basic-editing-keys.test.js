@@ -150,8 +150,8 @@ export async function runBasicEditingKeysTests() {
     const range = {
       commonAncestorContainer: text,
       deleteContents() { deleted = true; },
-      insertNode(node) { inserted = node; node.parentNode = root; node.parentElement = root; },
-      setStartAfter(node) { assert(node === inserted, "caret advances past the inserted tab"); },
+      insertNode(node) { inserted = node; node.parentNode = root; node.parentElement = root; node.after = () => {}; },
+      setStart(node, offset) { assert(node !== inserted && offset === 0, "caret lands in an empty text node after the tab, outside the tab wrapper"); },
       collapse(value) { assert(value === true, "caret collapses after the tab"); }
     };
     const selection = {
@@ -162,6 +162,7 @@ export async function runBasicEditingKeysTests() {
     };
     root.dispatchEvent = event => { inputEvent = event; return true; };
     globalThis.document = {
+      createTextNode: value => fakeText(value),
       createElement(tag) {
         const element = fakeElement(tag);
         element.attributes = {};
