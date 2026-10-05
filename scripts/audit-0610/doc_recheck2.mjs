@@ -83,7 +83,7 @@ try {
   const runCases = [
     ["BOLD_RUN", "writer.text.bold"], ["ITALIC_RUN", "writer.text.italic"], ["UNDERLINE_RUN", "writer.text.underline"],
     ["STRIKE_RUN", "writer.text.strike"], ["SUPER_RUN", "writer.text.superscript"], ["SUB_RUN", "writer.text.subscript"],
-    ["SIZE16_RUN", "writer.font.size", "16"], ["RED_RUN", "writer.color.text", "#ff0000"], ["ARIAL_RUN", "writer.font.family", "Arial"],
+    ["SIZE16_RUN", "writer.font.size", "4"], ["RED_RUN", "writer.color.text", "#ff0000"], ["ARIAL_RUN", "writer.font.family", "Arial"],
   ];
   for (const [label, id, arg] of runCases) {
     try { const selected = await selectText(cdp, label); const result = selected && await command(cdp, id, arg); const measured = await style(cdp, label); rec("Run " + label, result ? "PASS" : "FAIL", {result, measured}); }

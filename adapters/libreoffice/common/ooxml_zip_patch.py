@@ -13931,6 +13931,16 @@ def _writer_apply_section_header_footer_metadata(
 def _writer_restore_created_paragraph_css(document_xml: str, source_html: str) -> str:
     """Restore basic paragraph properties that LibreOffice's HTML filter drops."""
     by_text: dict[str, dict[str, str]] = {}
+
+    def css_length_twips(value: str) -> str | None:
+        match = re.fullmatch(r"\s*(-?(?:\d+\.?\d*|\.\d+))\s*(pt|px|cm|mm|in)\s*", value, re.IGNORECASE)
+        if not match:
+            return None
+        number = float(match.group(1))
+        unit = match.group(2).lower()
+        points = number * {"pt": 1.0, "px": 0.75, "in": 72.0, "cm": 72.0 / 2.54, "mm": 72.0 / 25.4}[unit]
+        return str(round(points * 20))
+
     for match in re.finditer(r"<(p|h[1-6])\b([^>]*)>([\s\S]*?)</\1\s*>", source_html, re.IGNORECASE):
         attrs, inner = match.group(2), match.group(3)
         style_match = re.search(r"\bstyle\s*=\s*([\"'])(.*?)\1", attrs, re.IGNORECASE)
@@ -13948,6 +13958,15 @@ def _writer_restore_created_paragraph_css(document_xml: str, source_html: str) -
         if line:
             points = float(line.group(1)) * (0.75 if line.group(2).lower() == "px" else 1.0)
             properties["exact_line_twips"] = str(round(points * 20))
+        if re.search(r"\bdata-vno-export-defaults=[\"']true[\"']", attrs, re.IGNORECASE):
+            for css_name, property_name in (("margin-top", "before_twips"), ("margin-bottom", "after_twips")):
+                spacing = re.search(
+                    rf"(?:^|;)\s*{re.escape(css_name)}\s*:\s*([^;]+)", css, re.IGNORECASE,
+                )
+                if spacing:
+                    twips = css_length_twips(spacing.group(1))
+                    if twips is not None:
+                        properties[property_name] = twips
         if properties:
             by_text[text] = properties
 
@@ -13959,6 +13978,20 @@ def _writer_restore_created_paragraph_css(document_xml: str, source_html: str) -
             return paragraph
         if props.get("alignment"):
             paragraph = _writer_upsert_ppr_empty(paragraph, "jc", f'<w:jc w:val="{props["alignment"]}"/>')
+        spacing_values = {"before": props.get("before_twips"), "after": props.get("after_twips")}
+        spacing_values = {name: value for name, value in spacing_values.items() if value is not None}
+        if spacing_values:
+            spacing = re.search(r"<w:spacing\b[^>]*/>", paragraph, re.IGNORECASE)
+            if spacing:
+                tag = spacing.group(0)
+                for name, value in spacing_values.items():
+                    attr = re.compile(rf"\bw:{name}=[\"'][^\"']*[\"']", re.IGNORECASE)
+                    replacement = f'w:{name}="{value}"'
+                    tag = attr.sub(replacement, tag) if attr.search(tag) else tag[:-2] + f" {replacement}/>"
+                paragraph = paragraph[:spacing.start()] + tag + paragraph[spacing.end():]
+            else:
+                attrs = " ".join(f'w:{name}="{value}"' for name, value in spacing_values.items())
+                paragraph = _writer_upsert_ppr_empty(paragraph, "spacing", f"<w:spacing {attrs}/>")
         exact_line = props.get("exact_line_twips")
         if exact_line:
             spacing = re.search(r"<w:spacing\b[^>]*/>", paragraph, re.IGNORECASE)

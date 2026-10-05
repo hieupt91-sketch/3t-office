@@ -13366,6 +13366,46 @@ export class WriterAdapter {
       .replace(/<ins\b(?=[^>]*\bdata-vno-change=["']insert["'])[^>]*>([\s\S]*?)<\/ins\s*>/gi, "$1");
   }
 
+  _applyNewDocumentParagraphDefaults(exportRoot) {
+    // Writer CSS (including its default justify and 6 pt paragraph-after gap)
+    // is not part of the HTML payload sent to LibreOffice. Capture the values
+    // users see only for a brand-new, source-free document; imported DOCX keeps
+    // its existing export path byte-for-byte.
+    if (this._sourcePath || /\(đã khôi phục\)$/i.test(String(this.sourceFileName || "")) || !exportRoot?.querySelectorAll) return;
+    const sourceParagraphs = this.bodyDom?.querySelectorAll?.("p,h1,h2,h3,h4,h5,h6") || [];
+    const exportParagraphs = exportRoot.querySelectorAll("p,h1,h2,h3,h4,h5,h6");
+    if (sourceParagraphs.length !== exportParagraphs.length || typeof getComputedStyle !== "function") return;
+
+    const toPt = value => {
+      const match = String(value || "").trim().match(/^(-?(?:\d+\.?\d*|\.\d+))(px|pt)$/i);
+      if (!match) return "";
+      const number = Number(match[1]) * (match[2].toLowerCase() === "px" ? 0.75 : 1);
+      return `${Number(number.toFixed(3))}pt`;
+    };
+    const paragraphText = paragraph => String(paragraph?.textContent || "").replace(/\s+/g, " ").trim();
+    for (let i = 0; i < sourceParagraphs.length; i += 1) {
+      const target = exportParagraphs[i];
+      const targetText = paragraphText(target);
+      const source = targetText
+        ? Array.from(sourceParagraphs).find(paragraph => paragraphText(paragraph) === targetText) || sourceParagraphs[i]
+        : sourceParagraphs[i];
+      const visible = getComputedStyle(source);
+      if (!target?.style?.setProperty) continue;
+      target.setAttribute?.("data-vno-export-defaults", "true");
+      if (["left", "right", "center", "justify"].includes(visible.textAlign)) {
+        target.style.setProperty("text-align", visible.textAlign);
+      }
+      const before = toPt(target.style?.marginTop || source.style?.marginTop || visible.marginTop);
+      const inlineAfter = target.style?.marginBottom || source.style?.marginBottom;
+      const computedAfter = toPt(visible.marginBottom);
+      // A blank Writer paragraph's screen rule is 6 pt; the export clone can
+      // inherit an 8 pt page-shell rule after pagination recomputes its layout.
+      const after = inlineAfter ? toPt(inlineAfter) : (computedAfter === "8pt" ? "6pt" : computedAfter);
+      if (before) target.style.setProperty("margin-top", before);
+      if (after) target.style.setProperty("margin-bottom", after);
+    }
+  }
+
   /**
    * Nội dung HTML thật sự gửi cho LibreOffice để lưu/xuất — có kèm `@page` CSS của
    * Page Setup hiện tại, để khổ giấy/lề trong DOCX/PDF xuất ra khớp với canvas.
@@ -13395,6 +13435,7 @@ export class WriterAdapter {
 
     if (this.bodyDom) {
       const exportRoot = this.bodyDom.cloneNode?.(true) || this.bodyDom;
+      this._applyNewDocumentParagraphDefaults(exportRoot);
       this._serializeEquationsForExport(exportRoot);
       if (acceptedView) {
         bodyHtml = this._stripSessionMarkup(this._acceptedReviewHtml(exportRoot.innerHTML));

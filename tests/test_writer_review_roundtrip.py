@@ -253,6 +253,40 @@ class WriterReviewRoundtripTests(unittest.TestCase):
         self.assertRegex(footer_xml, r"w:instrText[^>]*>\s*PAGE\s*</w:instrText>")
         self.assertRegex(footer_xml, r"w:instrText[^>]*>\s*NUMPAGES\s*</w:instrText>")
 
+    def test_new_document_paragraph_defaults_export_as_explicit_ooxml_twips(self):
+        target = self.root / "new-paragraph-defaults.docx"
+        html = (
+            '<p data-vno-export-defaults="true" style="text-align:justify;margin-top:12pt;margin-bottom:6pt">'
+            'DEFAULT_PARAGRAPH</p>'
+        )
+        result = main.VnOfficeApi().save_document_in_place(html, "writer", str(target), None)
+        self.assertEqual(result.get("status"), "ok", result)
+        document = ET.fromstring(_parts(target)["word/document.xml"])
+        paragraph = next(p for p in document.findall(f".//{{{W}}}p")
+                         if "DEFAULT_PARAGRAPH" in _text(ET.tostring(p, encoding="unicode").encode()))
+        ppr = paragraph.find(f"{{{W}}}pPr")
+        self.assertIsNotNone(ppr)
+        jc = ppr.find(f"{{{W}}}jc")
+        spacing = ppr.find(f"{{{W}}}spacing")
+        self.assertIsNotNone(jc)
+        self.assertEqual(jc.get(f"{{{W}}}val"), "both")
+        self.assertIsNotNone(spacing)
+        self.assertEqual(spacing.get(f"{{{W}}}before"), "240")
+        self.assertEqual(spacing.get(f"{{{W}}}after"), "120")
+
+    def test_three_real_docx_samples_preserve_document_xml_byte_for_byte_when_pristine(self):
+        samples = Path(__file__).parent / "fixtures" / "real-office-samples"
+        for filename in ("sample-writer.docx", "sample-writer-tables.docx", "sample-writer-trackchanges.docx"):
+            with self.subTest(filename=filename):
+                source = samples / filename
+                original_xml = _parts(source)["word/document.xml"]
+                opened = _open_docx(source)
+                target = self.root / f"unchanged-{filename}"
+                content = '<a name="vno-pristine-document"></a>' + str(opened.get("content") or "")
+                result = main.VnOfficeApi().save_document_in_place(content, "writer", str(target), str(source))
+                self.assertEqual(result.get("status"), "ok", result)
+                self.assertEqual(_parts(target)["word/document.xml"], original_xml)
+
     def test_new_document_creates_native_revisions_and_comment_ranges(self):
         target = self.root / "new-review.docx"
         records = [
