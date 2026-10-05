@@ -116,6 +116,8 @@ export const WRITER_RIBBON_TABS = [
         id: "paragraph",
         label: "Đoạn văn",
         labelKey: "writerRibbon.group.paragraph",
+        launcherCommandId: "writer.format.paragraphDialog",
+        launcherTooltip: "Đoạn văn…",
         items: [
           {
             type: "column",
@@ -424,6 +426,8 @@ export const WRITER_RIBBON_TABS = [
         id: "paragraph",
         label: "Đoạn văn",
         labelKey: "writerRibbon.group.paragraph",
+        launcherCommandId: "writer.format.paragraphDialog",
+        launcherTooltip: "Đoạn văn…",
         items: [
           {
             type: "column",

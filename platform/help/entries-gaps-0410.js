@@ -113,4 +113,24 @@ const slidesOnly = [
   }
 ];
 
-export const GAP_HELP_ENTRIES = [...common, ...sheetOnly, ...slidesOnly];
+const writerOnly = [
+  {
+    id: "writer.format.paragraphDialog",
+    app: "writer",
+    commandIds: ["writer.format.paragraphDialog"],
+    title: "Hộp thoại Đoạn văn: căn lề, thụt lề, khoảng cách, giãn dòng",
+    summary: "Đặt cùng lúc căn lề, thụt lề trái/phải, thụt dòng đầu hoặc treo, khoảng cách trước/sau đoạn và giãn dòng cho các đoạn đang chọn, kèm khung xem trước. Một lần Áp dụng là một bước Hoàn tác.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Đoạn văn" },
+    keywords: ["đoạn văn", "paragraph", "thụt lề", "thụt dòng đầu", "thụt treo", "giãn dòng", "khoảng cách đoạn", "căn lề", "hộp thoại đoạn văn"],
+    steps: [
+      "Đặt con trỏ trong đoạn (hoặc bôi đen nhiều đoạn) cần chỉnh.",
+      "Mở hộp thoại bằng một trong hai cách: bấm nút mũi tên nhỏ ở góc nhóm Đoạn văn (tab Trang đầu hoặc tab Bố cục), hoặc nhấp chuột phải vào đoạn rồi chọn Đoạn văn…",
+      "Chọn Căn lề (Trái, Giữa, Phải, Đều hai bên). Nhập Thụt lề trái/phải theo cm. Ở mục Đặc biệt chọn Dòng đầu (thụt riêng dòng đầu) hoặc Treo (các dòng sau thụt vào), rồi nhập Giá trị.",
+      "Nhập Cách đoạn trước/sau theo pt. Chọn Giãn dòng: Đơn, 1,5 dòng, Kép, Nhiều dòng (nhập hệ số, ví dụ 1,15) hoặc Chính xác (nhập chiều cao dòng theo pt).",
+      "Xem khung Xem trước ở dưới, rồi bấm Áp dụng (hoặc Enter). Bấm Hủy hoặc Esc để đóng mà không đổi gì. Nếu giá trị không hợp lệ, hộp thoại báo lý do màu đỏ và chưa áp dụng.",
+      "Muốn quay lại: Ctrl+Z hoàn tác toàn bộ thay đổi vừa áp dụng chỉ bằng một lần bấm."
+    ]
+  }
+];
+
+export const GAP_HELP_ENTRIES = [...common, ...sheetOnly, ...slidesOnly, ...writerOnly];
