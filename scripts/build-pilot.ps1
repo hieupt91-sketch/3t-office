@@ -97,7 +97,16 @@ Get-ChildItem -LiteralPath $siteIn -Directory | Where-Object { $_.Name -match '^
 
 # 3. LibreOffice engine, found by main.find_soffice() at app\tools\libreoffice\program\soffice.exe.
 Write-Host "[3/5] LibreOffice (large, a few minutes)"
-Invoke-Robocopy $LibreOfficeDir (Join-Path $appDir "tools\libreoffice") @()
+# Legal/size slimming (docs/SPEC-DOC-100.md L3): the app never uses LibreOffice's spell-check/hyphenation dictionaries
+# (3T Doc has its own Vietnamese word list), and about half of the language dictionary extensions are GPL. Leaving them out
+# removes the GPL redistribution duty and ~450 MB. The installer .msi files that may sit in the LibreOffice folder are not
+# part of the engine either. Set VNO_KEEP_LO_DICTS=1 to package the full folder as before.
+$loExtra = @()
+if ($env:VNO_KEEP_LO_DICTS -ne "1") {
+    $loExtra = @("/XF", "*.msi", "/XD",
+        "dict-*", "wiki-publisher")  # robocopy /XD takes names (wildcards allowed); only share\extensions has these
+}
+Invoke-Robocopy $LibreOfficeDir (Join-Path $appDir "tools\libreoffice") $loExtra
 
 # 3b. Pre-warmed LibreOffice profiles (~1 MB each): the first launch copies them instead of building a profile
 # from nothing, which costs ~12 s of the first document open (main._seed_profile_dir).
