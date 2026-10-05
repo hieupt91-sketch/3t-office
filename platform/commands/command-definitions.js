@@ -127,6 +127,7 @@ export const WRITER_COMMANDS = [
   { id: "writer.para.borders", category: "paragraph", label: "Viền đoạn", icon: "paragraphBorders", tooltip: "Chọn viền đoạn văn hoặc ô bảng" },
 
   { id: "writer.table.insert", category: "insert", label: "Bảng biểu", icon: "table", tooltip: "Chèn bảng mới vào văn bản" },
+  { id: "writer.table.fromText", category: "insert", label: "Văn bản thành bảng", icon: "table", tooltip: "Chuyển các đoạn đang chọn thành bảng, tách ô theo dấu phân cách" },
   { id: "writer.table.insertRowAbove", category: "table", label: "Chèn hàng phía trên", icon: "insertRow", tooltip: "Chèn một hàng mới ngay phía trên hàng hiện tại" },
   { id: "writer.table.insertRowBelow", category: "table", label: "Chèn hàng phía dưới", icon: "insertRow", tooltip: "Chèn một hàng mới ngay phía dưới hàng hiện tại" },
   { id: "writer.table.insertColLeft", category: "table", label: "Chèn cột bên trái", icon: "insertCol", tooltip: "Chèn một cột mới bên trái cột hiện tại" },
@@ -154,6 +155,7 @@ export const WRITER_COMMANDS = [
   { id: "writer.diagram.insert", category: "insert", label: "Sơ đồ", icon: "diagram", tooltip: "Chèn sơ đồ quy trình, chu trình hoặc phân cấp" },
   { id: "writer.chart.insert", category: "insert", label: "Biểu đồ", icon: "chart", tooltip: "Chèn biểu đồ minh họa dữ liệu" },
   { id: "writer.page.break", category: "insert", label: "Ngắt trang", shortcut: "Ctrl+Enter", icon: "pageBreak", tooltip: "Ngắt sang trang mới (Ctrl+Enter)" },
+  { id: "writer.page.blank", category: "insert", label: "Trang trắng", icon: "pageBreak", tooltip: "Chèn một trang trắng hoàn toàn tại vị trí con trỏ" },
   { id: "writer.header.insert", category: "insert", label: "Đầu trang", icon: "header", tooltip: "Chèn tiêu đề đầu trang (Header)" },
   { id: "writer.footer.insert", category: "insert", label: "Chân trang", icon: "footer", tooltip: "Chèn tiêu đề chân trang (Footer)" },
   { id: "writer.insert.textbox", category: "insert", label: "Hộp văn bản", icon: "textBox", tooltip: "Chèn khung văn bản độc lập, kéo-thả được" },

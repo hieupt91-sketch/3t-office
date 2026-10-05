@@ -48,6 +48,37 @@ export const WRITER_HELP_ENTRIES = [
     ]
   },
   {
+    id: "writer.page.blank",
+    app: "writer",
+    commandIds: ["writer.page.blank"],
+    title: "Chèn trang trắng",
+    summary: "Thêm một trang hoàn toàn trống ngay tại vị trí con trỏ, ví dụ để chừa trang cho phụ lục hoặc chữ ký. Con trỏ nằm ở trang mới phía sau trang trắng.",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Trang văn bản" },
+    keywords: ["trang trắng", "blank page", "trang trống", "chèn trang", "ngắt trang"],
+    steps: [
+      "Đặt con trỏ ở vị trí muốn có trang trắng (cuối đoạn văn hoặc đầu trang).",
+      "Mở tab Chèn, nhóm Trang văn bản, bấm nút Trang trắng.",
+      "Doc chèn hai ngắt trang liên tiếp: nội dung phía sau con trỏ chuyển xuống trang kế tiếp và giữa hai ngắt là một trang trống. Số trang trên thanh trạng thái tăng thêm 1 hoặc 2 tùy vị trí con trỏ.",
+      "Muốn bỏ trang trắng: đặt con trỏ trên đường gạch đứt (ngắt trang) rồi xóa, hoặc bấm Ctrl+Z ngay sau khi chèn để hoàn tác cả hai ngắt trang chỉ bằng một lần."
+    ]
+  },
+  {
+    id: "writer.table.fromText",
+    app: "writer",
+    commandIds: ["writer.table.fromText"],
+    title: "Chuyển văn bản thành bảng",
+    summary: "Biến các đoạn đang chọn thành bảng: mỗi đoạn là một hàng, các ô được tách theo dấu Tab, dấu phẩy, dấu chấm phẩy, khoảng trắng hoặc ký tự do bạn chọn.",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Bảng biểu" },
+    keywords: ["văn bản thành bảng", "text to table", "chuyển thành bảng", "tách ô", "dấu phân cách", "danh sách thành bảng"],
+    steps: [
+      "Gõ hoặc dán dữ liệu, mỗi dòng một đoạn, các cột cách nhau bằng cùng một dấu (ví dụ: Họ tên; Chức vụ; Phòng).",
+      "Bôi đen tất cả các đoạn đó, rồi mở tab Chèn, nhóm Bảng biểu, bấm Văn bản thành bảng.",
+      "Trong hộp thoại, chọn Tách văn bản tại: Tab, Dấu phẩy, Dấu chấm phẩy, Khoảng trắng hoặc Ký tự khác (nhập ký tự vào ô hiện ra). Dòng chữ bên dưới cho biết số hàng và số cột sẽ tạo.",
+      "Bấm Tạo bảng (hoặc Enter). Bảng thay thế đoạn đã chọn; dòng nào ít ô hơn được bù ô trống. Bấm Hủy hoặc Esc để thoát mà không đổi gì.",
+      "Bấm Ctrl+Z để hoàn tác: các đoạn văn bản gốc được khôi phục nguyên vẹn."
+    ]
+  },
+  {
     id: "writer.section.breaks",
     app: "writer",
     commandIds: ["writer.page.break", "writer.break.column", "writer.section.nextPage", "writer.section.continuous", "writer.section.evenPage", "writer.section.oddPage"],
