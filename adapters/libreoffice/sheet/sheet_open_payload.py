@@ -222,8 +222,8 @@ def build_sheet_open_payload_legacy(xlsx_bytes: bytes, fods_xml: str, patcher) -
                             sink.add_row(output_chunk[row_start:row_end])
                     sink.end_sheet()
                 return (
-                    prefix + "".join(output_chunks) + suffix,
-                    prefix + "".join(support_chunks) + suffix,
+                    "".join([prefix, *output_chunks, suffix]),
+                    "".join([prefix, *support_chunks, suffix]),
                 )
 
         def append_row_fragment(fragment):
