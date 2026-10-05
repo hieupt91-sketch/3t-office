@@ -43,8 +43,34 @@ function parseAttrs(adapter, raw, p2Fast = false) {
 
 const PAYLOAD_ROWS_PER_UI_SLICE = 128;
 
+// setTimeout(0) is clamped to >= 4 ms once nested, and the model build yields ~1100 times on a big workbook
+// (every 128 rows, two passes): lan14 spent ~7 s just waiting. A MessageChannel message is a macrotask without
+// that clamp; the renderer still gets its frame/input turn between tasks. A real timer is used every
+// PAYLOAD_TIMER_YIELD_MS so timers and other low-priority work are never starved.
+// globalThis.__VNO_OPEN_LEGACY (the existing P2 rollback) keeps the old setTimeout yield.
+const PAYLOAD_TIMER_YIELD_MS = 50;
+const payloadYieldResolvers = [];
+let payloadYieldPort = null;
+let payloadLastTimerYield = 0;
+
 function yieldToRenderer() {
-  return new Promise(resolve => setTimeout(resolve, 0));
+  const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+  if (
+    typeof MessageChannel !== "function" || globalThis.__VNO_OPEN_LEGACY === true
+    || now - payloadLastTimerYield >= PAYLOAD_TIMER_YIELD_MS
+  ) {
+    payloadLastTimerYield = now;
+    return new Promise(resolve => setTimeout(resolve, 0));
+  }
+  if (!payloadYieldPort) {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = () => { payloadYieldResolvers.shift()?.(); };
+    payloadYieldPort = channel.port2;
+  }
+  return new Promise(resolve => {
+    payloadYieldResolvers.push(resolve);
+    payloadYieldPort.postMessage(0);
+  });
 }
 
 async function eachCachedRecord(records, onRecord, options = {}) {
