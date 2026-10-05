@@ -22,6 +22,7 @@ Keep the XML transform in lock step with the JS helpers.
 from __future__ import annotations
 
 import argparse
+import multiprocessing
 from concurrent.futures import ProcessPoolExecutor
 import html
 import io
@@ -6950,7 +6951,8 @@ _P1_PROCESS_POOL: ProcessPoolExecutor | None = None
 def _p1_process_pool() -> ProcessPoolExecutor:
     global _P1_PROCESS_POOL
     if _P1_PROCESS_POOL is None:
-        _P1_PROCESS_POOL = ProcessPoolExecutor(max_workers=_P1_MAX_WORKERS)
+        # "spawn" everywhere: it is already the default on Windows and macOS, and avoids fork-with-threads on Linux.
+        _P1_PROCESS_POOL = ProcessPoolExecutor(max_workers=_P1_MAX_WORKERS, mp_context=multiprocessing.get_context("spawn"))
     return _P1_PROCESS_POOL
 
 
@@ -8356,6 +8358,32 @@ _EXCEL_FONT_ALIASES = {"times roman": "Times New Roman", "times": "Times New Rom
                        "helvetica": "Arial", "courier": "Courier New", "arial unicode ms": "Arial"}
 
 
+_FONT_DESCENT_TABLE: dict | None = None
+
+
+def _font_descent_from_table(font_key: str, ppem: int, bold: bool, italic: bool) -> int | None:
+    """tmDescent from the prebuilt Windows-GDI table (same numbers on every OS); None when not covered.
+
+    VNO_FONT_TABLE_LEGACY=1 skips the table and keeps asking GDI directly (the previous behaviour).
+    """
+    global _FONT_DESCENT_TABLE
+    if os.environ.get("VNO_FONT_TABLE_LEGACY") == "1":
+        return None
+    if _FONT_DESCENT_TABLE is None:
+        try:
+            path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "font_descent_table.json")
+            with open(path, "r", encoding="utf-8") as handle:
+                _FONT_DESCENT_TABLE = json.load(handle)
+        except Exception:
+            _FONT_DESCENT_TABLE = {"fonts": {}, "minPpem": 0, "maxPpem": -1}
+    table = _FONT_DESCENT_TABLE
+    series = (table.get("fonts") or {}).get(font_key, {}).get(f"b{int(bold)}i{int(italic)}")
+    if not series or not table["minPpem"] <= ppem <= table["maxPpem"]:
+        return None
+    value = series[ppem - table["minPpem"]]
+    return int(value) if value is not None else None
+
+
 def _gdi_font_descent(font_name: str, size_pt: float, bold: bool, italic: bool = False) -> int | None:
     """tmDescent (px nguyên, GDI) của font ở ppem = round(pt·96/72); None ngoài Windows hoặc font không cài
     (GDI thay bằng font khác — lan28 "Times Roman": Excel vẽ bằng font thay thế có desc 4 -> hàng 20, không phải 21)."""
@@ -8364,7 +8392,10 @@ def _gdi_font_descent(font_name: str, size_pt: float, bold: bool, italic: bool =
     key = (str(font_name).lower(), px, bool(bold), bool(italic))
     if key in _GDI_DESCENT_CACHE:
         return _GDI_DESCENT_CACHE[key]
-    value: int | None = None
+    value: int | None = _font_descent_from_table(key[0], px, bool(bold), bool(italic))
+    if value is not None:
+        _GDI_DESCENT_CACHE[key] = value
+        return value
     try:
         import ctypes
         from ctypes import wintypes
