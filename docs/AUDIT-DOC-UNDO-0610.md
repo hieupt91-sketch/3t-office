@@ -1,6 +1,6 @@
 # BÁO CÁO KIỂM THỬ MA TRẬN UNDO / REDO ĐỊNH DẠNG WRITER (TICKET D8)
 
-**Thời gian thực thi:** 2026-10-05T17:37:03.533Z
+**Thời gian thực thi:** 2026-10-05T17:40:55.501Z
 **Phương thức:** CDP (Chrome DevTools Protocol) qua `tests/live/cdp/session.mjs`
 **Kết quả tổng quan:** **0 PASS** / **90 FAIL** (Tổng số 90 lệnh)
 
