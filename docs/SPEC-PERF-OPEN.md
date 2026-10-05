@@ -123,6 +123,8 @@ Kết luận: vi tối ưu P1 chạm giới hạn (≈1,5 triệu ô xử lý b�
 | lan14 theo pha (đường đủ, 94 s) | LO→FODS 18; overlay 22; optimize 14; payload Python 17,7; JS parse+model 21 | — |
 | Nạp sheet theo yêu cầu (CH-1 pha 2) | **Dở dang**, nhánh `perf/ch1-lazy-sheets-codex` (WIP `ddb2981f`), chưa bật; thiếu save-merge phía Python và an toàn cho công thức xuyên sheet/tìm thay/named range. Không merge cho tới khi qua cổng | không truyền `included_sheets` |
 
+**P7 (đo bản đóng gói 0.9.9-rc, 05/10, hồ sơ mới):** lan03 mở lần đầu trong bản đóng gói 25,7 s so với 14,7 s ở các lần sau (và 14,7–15,2 s khi chạy từ mã nguồn). Một phần (≈2,8 s) do gói không có bytecode biên dịch sẵn; đã thêm bước `compileall --invalidation-mode checked-hash` vào `scripts/build-pilot.ps1` (bỏ bằng `VNO_SKIP_PYC=1`) → lần đầu còn 22,9 s. Phần còn lại (≈8 s) là chi phí đọc nguội/quét tệp lần đầu của hệ điều hành trên bộ cài mới, chưa có cách giảm. Doc d04 trong gói: 6,1 s (mã nguồn 5,8 s).
+
 Lưu ý đo lường: số của agy cho xem trước Sheet/Slide (nhánh `perf/print-measure-agy`) **sai** (1 trang, 14 s trong khi đo lại được 12 trang, 6–7,5 s) nên không dùng.
 
 ### 6.2 Kế hoạch chi tiết P8 (giai đoạn A — chế độ xem nhanh, chỉ đọc)
