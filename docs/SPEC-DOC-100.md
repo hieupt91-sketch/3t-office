@@ -50,3 +50,30 @@ Ngoài phạm vi 1.0 (ghi trung thực): macro/script, đồng soạn thảo th�
 - **Sheet 100%:** ma trận gap tương tự; 12 mục UI chưa kiểm; nhận dạng số tiền VND (nhánh `fix/sheet-currency-input-codex` đã tạo, tạm dừng); bộ 28 xlsx + 20 xls; tốc độ lan14.
 - **Slides 100%:** kiểm ở mức người dùng thật (nhánh `audit/slides-ui-agy` đã tạo, tạm dừng); mở rộng bộ pptx mẫu; mục backlog Morph đầy đủ, phát trực tuyến, ghi âm.
 - Mỗi app kết thúc bằng một báo cáo nghiệm thu theo cùng 4 nhóm A–D.
+
+## 6. Tiến độ (cập nhật 06/10/2026 00:30)
+| Gói | Trạng thái | Kết quả đo được |
+|---|---|---|
+| D1 Lưu DOCX tài liệu mới mất căn đều/khoảng cách | **Xong, đã merge** | `doc_recheck2.mjs` ALIGN_JUSTIFY + AFTER_6 PASS; tài liệu nhập từ DOCX không đổi byte (3 mẫu); số trang LibreOffice tài liệu mới 5→4, 13→11, 32→27 (khớp màn hình) |
+| D2 Ma trận gap | **Xong** (`docs/GAP-DOC-VS-WORD-0610.md`) | 4 mục THIẾU thật: Trang bìa, Trang trắng, Văn bản thành bảng, Điều kiện trộn |
+| D3 Giao diện Writer | **Xong, đã merge** | hộp thoại Thiết lập trang chuẩn Nghị định 30 + báo cáo UI + 35 ảnh |
+| D4a Thẻ "Ngắt dòng và ngắt trang" trong hộp thoại Đoạn văn | **Xong, đã merge** | kiểm tra đầu-cuối 9/9 (keepNext, keepLines, ngắt trang trước, widowControl) |
+| D4b Mức đề mục, Tab stops | Chưa làm | — |
+| D5 Xác nhận ghi đè | **Đóng, không cần sửa** | pywebview dùng SaveFileDialog gốc của Windows (đã có hỏi ghi đè); lỗi A5 cũ chỉ do gọi API trực tiếp |
+| D6 Kịch bản hành chính 1–10 | **Xong, đã merge**; mở rộng 11–30 chờ | 6 PASS, 1 BLOCKED (in hai mặt cần driver), 3 FAIL đã chẩn đoán: ca 5, 6, 9 là **lỗi bài kiểm** (đã chứng minh bằng `doc_legal_list_check.mjs`, `doc_section_check.mjs`), ca 7 là lỗi sản phẩm đã sửa |
+| D7 Bộ 24 docx + 20 doc | Đang chạy (Codex, cổng thay thế bằng LibreOffice) | Word COM bị chặn bởi hộp thoại "Word không phải chương trình mặc định" (xem 6.1) |
+| D8 Ma trận Undo/Redo | Đang chạy (agy; Grok hết hạn mức) | — |
+| D10 Hướng dẫn | Đang chạy (opencode, thử lại sau lỗi 503) | — |
+| D12 Ổn định 200 trang | **Xong**, đã merge | 200 trang, RAM 522 MB, tự khôi phục đúng; lưu 7–18 s; **P95 trễ gõ ~270 ms** (mục tiêu < 100 ms) vẫn chưa đạt: chủ yếu do `_recomputeLivePagination()` tính lại cả tài liệu (thử đổi debounce: chưa chứng minh được, đã hoàn tác) |
+| D13 Trang trắng | **Xong, đã merge** | 2 ngắt trang, 1 bước hoàn tác, DOCX đúng |
+| D13 Văn bản thành bảng | **Xong, đã merge** | hộp thoại chọn dấu phân cách, kiểm tra đầu-cuối 8/8 |
+| D13 Trang bìa | **Xong, đã merge** (agy) | 4 mẫu, thay thế/gỡ, đầu-cuối 15/15 |
+| D13 Cỡ chữ 13 pt | **Xong** | DOCX `w:sz=26` |
+| D13 Lặp hàng tiêu đề bảng | **Xong** | bảng 50 hàng → 1 hàng `w:tblHeader` |
+| D13 Điều kiện trộn (mail merge) | Chưa làm | — |
+| L1 EULA/Bảo mật/Dùng thử (nháp) | **Xong** | `docs/legal/` |
+| L2 Thông báo bên thứ ba | Xong phần thông báo; SBOM tự động chưa làm | `THIRD-PARTY-NOTICES` cập nhật |
+| L3 Gọn bộ cài LibreOffice | **Xong** | 1546 → 1048 MB; hồi quy 27 PASS với bản gọn |
+
+### 6.1 Word COM
+Word chạy qua COM nhưng mọi `Documents.Open` bị chặn vì hộp thoại "Microsoft Word isn't your default program… select the file types?" (Excel đã ổn định sau khi dọn 108 mục Document Recovery). Đã thử khóa `NoReReg`, UI Automation và MSAA: hộp thoại là cửa sổ tùy biến, phiên không cho chuột; **cần một người bấm "No" (kèm "Don't show this message again") một lần**. Khi đó `scripts/audit-0610/word_pages.ps1` đếm trang Word thật.
