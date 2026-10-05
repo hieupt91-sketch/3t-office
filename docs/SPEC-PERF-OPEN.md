@@ -163,10 +163,23 @@ Lưu ý đo lường: số của agy cho xem trước Sheet/Slide (nhánh `perf/
 | P6 đọc xlsx trực tiếp | **Đóng: không làm** | chỉ phủ 2/28 file (`docs/SPIKE-P6-DIRECT-XLSX.md`) |
 | P7 đo bản đóng gói | Xong (đo) | lần mở đầu trong gói +8 s do hệ điều hành đọc/quét tệp mới, không giảm được; đã thêm bytecode biên dịch sẵn |
 | P8 xem nhanh A+B | Xong, **bật mặc định** (xlsx > 5 MiB) | `VNO_OPEN_VIEWFIRST=0` tắt; agy kiểm 28/28 an toàn |
-| P8 C / gộp lượt theo bảng | Chưa làm | cần để lan14 mở đầy đủ xuống dưới ~50 s; việc lớn có cổng so băm 28 file |
+| P8 C / gộp lượt theo bảng | Đợt 1 xong (06/10), còn đợt 2 | lan14 70 → 57 s, RAM đỉnh 5,2 → 4,9 GB (mục 6.1f); cần thêm gộp optimize vào payload + truyền phát cho JS để xuống ~50 s |
 | Xem trước in, lưu file lớn, RAM chuyển sheet, cửa sổ trắng | Xong | xem các mục trên |
 
 Mục tiêu chưa đạt: lan14 mở đầy đủ 35 s (hiện ≈70 s). Cơ cấu: worker 3,9 + LibreOffice 14 + overlay 13 + optimize 7,5 + payload 13 + JS 14,6; các lượt quét/chuỗi còn lại đều là việc tuyến tính theo từng ô (≈4 µs/ô, 1,5 triệu ô).
+
+### 6.1f Gộp lượt theo bảng — đợt 1 (06/10)
+Đo lan14, chạy riêng từng giai đoạn Python (bộ nhớ ấm, máy rảnh): chỉ một nửa thời gian nằm ở pool song song, phần còn lại là việc **tuần tự trong tiến trình chính** (dựng/ghép lại chuỗi 325 triệu ký tự, quét regex toàn tài liệu, nén, đóng gói). Đợt này cắt phần tuần tự đó, không đổi kết quả:
+
+| Giai đoạn | Trước | Sau | Cách làm | Cờ hoàn tác |
+|---|---|---|---|---|
+| overlay | 12,0 s | 9,3 s | Các bước chỉ chạm thẻ `<table:table>`/đầu tài liệu (bảo vệ cấu trúc, ẩn/hiện, sheet đang chọn, tiêu đề in, lề trang, đóng băng, bộ lọc, bố cục, màu tab, kịch bản) chạy trên **khung** (thân mọi bảng cắt ra), rồi ráp thân bảng lại một lần; thẻ bảng tìm bằng `str.find`; bỏ regex covered-cell khi tệp không có ô covered | `VNO_OVERLAY_SKELETON=0` |
+| payload | 12,2 s | 8,0 s | Mỗi worker tự dựng JSONL, tự nén deflate (đoạn sync-flush độc lập) và tự bỏ `vno:xf` từng dòng; tiến trình chính nối các đoạn thành một luồng zlib (adler32 combine, cửa sổ nén mới sau mỗi đoạn) | `VNO_PAYLOAD_STRIP_IN_WORKERS=0` (strip); luồng nén chỉ khác byte, nội dung giải nén giống hệt |
+| JS dựng mô hình | 13,5 s | 12,1 s | Codex: quét thuộc tính không regex (lùi về regex khi giá trị cụt), bỏ unescape khi không có `&` | `__VNO_OPEN_LEGACY` |
+
+Kết quả: lan14 mở đầy đủ trong ứng dụng thật ≈ **57 s** (trước ≈ 70 s; lần đo 05/10 chiều 58,9 s khi máy rảnh hơn), chuỗi Python 33,5 → 24,6 s. RAM đỉnh toàn ứng dụng (lan14, xem nhanh tắt) 5,20 → **4,86 GB**, Python 4,54 → 4,20 GB; đỉnh tiến trình chính ở giai đoạn payload 4,45 → 3,4 GB. Cổng: 28/28 tệp LAN giống bản trước đợt này (FODS cuối + các hàng đã giải nén + mọi trường payload khác), test Python Sheet 218 OK, node 2770 PASS, hồi quy desktop 27 PASS. Test `test_p1b_parallel_blocks...` đổi từ so byte nén sang so nội dung giải nén (luồng nén khác byte theo thiết kế) và có thêm test nối đoạn zlib.
+
+Còn lại để xuống ~50 s: phần tuần tự còn ≈ 4,3 (overlay) + 2,4 (optimize) + 2,5 (payload) s là chi phí chuyển chuỗi lớn qua pool; gộp hẳn optimize vào lượt payload và truyền phát payload cho JS song song với Python (JS 12 s chồng lên Python) là hai việc lớn tiếp theo.
 
 ### 6.2 Kế hoạch chi tiết P8 (giai đoạn A — chế độ xem nhanh, chỉ đọc)
 - **Mục tiêu:** lan14 hiện lưới đầu ≤ 10 s; giao diện/chức năng sau khi đầy đủ **không đổi** so với bản hiện dùng.
