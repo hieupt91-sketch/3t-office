@@ -2,6 +2,13 @@
 
 Cập nhật: 06/10/2026 · Trạng thái: **kế hoạch + phân tích xong, chưa viết mã** · Cơ sở: `docs/perf-measure/payload-v3-consumers.md` (Codex kiểm kê consumer), `docs/perf-measure/payload-v3-libreoffice-analysis.md` (Codex đọc mã LibreOffice), số đo trong `docs/SPEC-PERF-OPEN.md` mục 6.1f.
 
+## 0. Kết luận sau khi phân tích kỹ hơn (06/10, cùng ngày) — **khuyến nghị: KHÔNG làm v3**
+Bộ chuẩn G2 (S0) đã dựng xong và xác định được (băm mô hình JS của 28 file, chạy 2 lần cho kết quả giống nhau: `scripts/perf-proto/payload_dump.py`, `payload_model_hash.mjs`). Nhưng khi đối chiếu thứ tự các bước thì thấy v3 **không thể chứng minh giống hệt v2 với chi phí hợp lý**:
+- Overlay hiện **tách** run ô lặp thành ô đơn ở mọi ô có metadata (vì mỗi ô được dán thuộc tính riêng), rồi `optimize` **gộp lại** các ô chỉ-có-kiểu cùng `style-name` (giữ thuộc tính của ô đầu run) và **cắt** đuôi ô rỗng theo `keep_count` (nhánh `repeat > 64` chỉ chạy khi run còn nguyên, không chạy khi run đã bị tách thành ô đơn).
+- Bỏ dán ở overlay nghĩa là run không còn bị tách trước `optimize` ⇒ cấu trúc FODS sau `optimize` khác v2 (số ô đuôi giữ lại có thể lệch 1–65 ô ở vùng đuôi rỗng có kiểu; thuộc tính `number-format` của các ô gộp lệch nếu mã khác nhau trong cùng run). Hai điều này ảnh hưởng vùng dùng (used range) và định dạng ô rỗng — đúng loại sai lệch không thấy ngay nhưng làm lệch tệp lưu ra.
+- Muốn giống hệt phải mô phỏng đúng thuật toán tách/gộp/cắt trong JS hoặc bắt `optimize` biết toạ độ metadata: thêm một bản sao thuật toán nhạy cảm, rủi ro cao hơn lợi ích 4–6 s (≈ 8–10% của một file cực lớn nằm ngoài chế độ xem nhanh).
+**Phương án giữ nguyên kết quả từng byte** (không đổi định dạng payload, không đổi JS): gộp overlay → optimize → payload thành **một lượt worker trên từng chunk** (cùng phép biến đổi, cùng thứ tự, chỉ bỏ hai vòng gửi/nhận chuỗi lớn). Kiểm bằng băm byte của `final_fods` + payload (cổng đã có, 28/28). Ước tính tiết kiệm ≈ 3 s trên lan14. Chưa làm; cần chủ sở hữu quyết định có đáng không.
+
 ## 1. Mục tiêu và lợi ích dự kiến
 Hiện overlay dán `vno:number-format`, `vno:original-string`, `vno:xf` vào từng thẻ ô (≈ 5 s pool trên lan14), rồi bước payload gỡ `vno:xf` và dán lại ở toạ độ cuối. Mục tiêu: bỏ hai lượt dán đó, gửi metadata dạng **bảng phụ theo toạ độ** (sidecar). Ước tính tiết kiệm ròng 4–6 s trên lan14 (JS phải tra bảng, +1–2 s); chưa đo. Mọi file nhỏ gần như không đổi.
 
