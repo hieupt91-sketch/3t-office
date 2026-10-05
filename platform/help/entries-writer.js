@@ -686,7 +686,7 @@ export const WRITER_HELP_ENTRIES = [
   {
     id: "writer.page.setup",
     app: "writer",
-    commandIds: ["writer.page.margins", "writer.page.orientation", "writer.page.size"],
+    commandIds: ["writer.page.margins", "writer.page.orientation", "writer.page.size", "writer.page.setupDialog"],
     title: "Lề, hướng giấy và khổ giấy",
     summary: "Ba nút mở cùng hộp «Thiết lập trang». Mặc định A4 dọc, lề trên/dưới 20 mm, trái 30 mm, phải 15 mm (NĐ 30). Khổ: A4, Letter, Legal. Hướng: Dọc / Ngang. Lề 0–100 mm.",
     ribbon: { tab: "Bố cục", tabId: "layout", group: "Thiết lập trang" },

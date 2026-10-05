@@ -17,6 +17,7 @@ import { WriterTableController } from "./writer-table.js";
 import { getHelpEntryById } from "../../platform/help/help-catalog.js";
 import { InputNormalizer } from "../../platform/keyboard/input-normalizer.js";
 import { showContextMenu, closeActiveContextMenu } from "../../platform/ui-kit/components.js";
+import { showPageSetupDialog } from "./page-setup-dialog.js";
 
 export class WriterApp {
   constructor(mountElement) {
@@ -217,6 +218,14 @@ export class WriterApp {
 
     globalCommandBus.bindHandler("writer.review.toggleSpellCheck", () => {
       return this.toggleSpellcheck();
+    });
+
+    globalCommandBus.bindHandler("writer.page.setupDialog", async () => {
+      const res = await showPageSetupDialog();
+      if (res && res.margins) {
+        await globalCommandBus.execute("writer.ruler.setPageMargins", { margins: res.margins });
+      }
+      return res;
     });
 
     container.appendChild(workspace);

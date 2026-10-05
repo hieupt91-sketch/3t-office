@@ -764,6 +764,7 @@ export const viStrings = {
     "writer.page.margins": { label: "Căn lề", tooltip: "Thiết lập lề tiêu chuẩn văn bản Việt Nam" },
     "writer.page.orientation": { label: "Hướng giấy", tooltip: "Khổ giấy dọc hoặc ngang" },
     "writer.page.size": { label: "Khổ giấy", tooltip: "Chọn khổ A4, Letter, v.v." },
+    "writer.page.setupDialog": { label: "Thiết lập trang…", tooltip: "Cấu hình lề giấy, hướng in, khổ giấy A4 và bố cục phân đoạn" },
     "writer.page.columns": { label: "Cột", tooltip: "Chia văn bản thành nhiều cột (1, 2, 3 cột hoặc tùy chỉnh)" },
     "writer.format.paragraphDialog": { label: "Đoạn văn…", tooltip: "Căn lề, thụt lề, khoảng cách đoạn và giãn dòng trong một hộp thoại" },
     "writer.page.columns1": { label: "1 cột", tooltip: "Định dạng toàn bộ văn bản 1 cột (Normal mặc định)" },

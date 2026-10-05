@@ -367,6 +367,8 @@ export const WRITER_RIBBON_TABS = [
         id: "pageSetup",
         label: "Thiết lập trang",
         labelKey: "writerRibbon.group.pageSetup",
+        launcherCommandId: "writer.page.setupDialog",
+        launcherTooltip: "Thiết lập trang…",
         items: [
           { type: "button", commandId: "writer.page.margins", isLarge: true },
           { type: "button", commandId: "writer.page.orientation", isLarge: true },
