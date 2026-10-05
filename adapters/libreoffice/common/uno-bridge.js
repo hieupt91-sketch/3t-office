@@ -206,6 +206,11 @@ export class UnoBridge {
     return await this.desktopApi.release_sheet_open_fallback(openId);
   }
 
+  async touchSheetOpenSession(openId) {
+    if (!this.desktopApi || !openId) return false;
+    return await this.desktopApi.touch_sheet_open_session(openId);
+  }
+
   async getSheetOpenPayload(openId, sheetName) {
     if (!this.desktopApi || !openId || !sheetName) {
       return { status: "error", message: "Không có phiên nạp trang tính hợp lệ." };
@@ -226,7 +231,7 @@ export class UnoBridge {
    * @param {string} [suggestedName]
    * @param {string} [sourcePath]
    */
-  async saveRealFile(appKind, content, targetFormat, suggestedName, sourcePath) {
+  async saveRealFile(appKind, content, targetFormat, suggestedName, sourcePath, sheetSession = null) {
     if (!this.desktopApi || !this.hasRealEngine) {
       return {
         status: "error",
@@ -234,7 +239,10 @@ export class UnoBridge {
       };
     }
     const payload = await this._stageLargeContent(content);
-    return await this.desktopApi.save_document_dialog(payload, appKind, targetFormat, suggestedName, sourcePath);
+    return await this.desktopApi.save_document_dialog(
+      payload, appKind, targetFormat, suggestedName, sourcePath,
+      sheetSession?.openId || null, sheetSession?.loadedSheets || null
+    );
   }
 
   /**
@@ -276,7 +284,7 @@ export class UnoBridge {
    * @param {string} targetPath
    * @param {string} [sourcePath]
    */
-  async saveRealFileInPlace(appKind, content, targetPath, sourcePath) {
+  async saveRealFileInPlace(appKind, content, targetPath, sourcePath, sheetSession = null) {
     if (!this.desktopApi || !this.hasRealEngine) {
       return {
         status: "error",
@@ -284,7 +292,10 @@ export class UnoBridge {
       };
     }
     const payload = await this._stageLargeContent(content);
-    return await this.desktopApi.save_document_in_place(payload, appKind, targetPath, sourcePath || targetPath);
+    return await this.desktopApi.save_document_in_place(
+      payload, appKind, targetPath, sourcePath || targetPath,
+      sheetSession?.openId || null, sheetSession?.loadedSheets || null
+    );
   }
 
   /**

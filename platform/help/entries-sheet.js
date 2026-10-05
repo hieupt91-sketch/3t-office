@@ -1352,14 +1352,14 @@ export const SHEET_HELP_ENTRIES = [
     app: "sheet",
     commandIds: ["common.file.open", "common.file.save", "common.file.saveAs", "common.file.print", "common.file.exportPdf"],
     title: "Mở sổ lớn và nạp trang tính theo nhu cầu",
-    summary: "Với sổ XLSX rất lớn, Sheet có thể hiển thị trang đang làm việc trước rồi nạp các trang còn lại ở nền; thao tác lưu, xuất PDF và in luôn chờ đủ dữ liệu để không làm mất trang tính.",
+    summary: "Khi quản trị viên bật chế độ thử nghiệm cho sổ XLSX rất lớn, Sheet hiển thị trang đang làm việc trước và chỉ nạp trang khác khi cần. Lưu vẫn an toàn vì dịch vụ cục bộ ghép trang đã sửa vào nguồn đầy đủ; trang chưa nạp không bao giờ bị lưu thành trang rỗng.",
     ribbon: { tab: "Tệp", tabId: "file", group: "Sổ làm việc" },
     keywords: ["mở sổ lớn", "đang nạp", "nạp trang tính", "lazy sheets", "lưu an toàn", "xuất PDF", "in"],
     steps: [
-      "Mở tệp XLSX như bình thường bằng Ctrl+O hoặc Tệp > Mở. Khi chế độ mở nhanh được bật cho sổ lớn, Sheet dựng đầy đủ trang đang hoạt động trước; các tab khác vẫn hiện đúng tên và trạng thái trong lúc dữ liệu được nạp ở nền.",
+      "Mở tệp XLSX như bình thường bằng Ctrl+O hoặc Tệp > Mở. Khi chế độ mở nhanh thử nghiệm được quản trị viên bật cho sổ rất lớn, Sheet dựng đầy đủ trang đang hoạt động trước; các tab khác vẫn hiện đúng tên, trạng thái ẩn, màu tab và phạm vi đã dùng.",
       "Có thể soạn trên trang đã nạp. Khi chọn một tab chưa nạp, Sheet hiển thị trạng thái “Đang nạp trang tính…” rồi mới chuyển tab; ô đang chọn và vị trí cuộn của trang hiện tại được giữ nguyên trong quá trình nạp nền.",
       "Nếu dùng công thức xuyên trang tính hoặc Tìm/Thay thế trên toàn bộ sổ khi dữ liệu chưa đủ, Sheet sẽ báo đang nạp và chỉ thực hiện sau khi mọi trang đã sẵn sàng, tránh kết quả thiếu hoặc sai im lặng.",
-      "Khi nhấn Ctrl+S, F12, Xuất PDF hoặc In, Sheet tự chờ nạp đủ mọi trang tính trước khi tạo nội dung đầu ra. Nếu nạp thất bại, thao tác bị khóa và có thông báo rõ; ứng dụng không bao giờ lưu các tab metadata rỗng thay cho dữ liệu thật.",
+      "Khi nhấn Ctrl+S hoặc F12, Sheet gửi danh sách trang đã nạp cho dịch vụ cục bộ để ghép vào bản dữ liệu đầy đủ; trang chưa nạp giữ nguyên dữ liệu nguồn và tuyệt đối không bị thay bằng trang rỗng. Xuất PDF và In vẫn nạp đủ toàn bộ sổ trước khi tạo đầu ra; nếu không nạp được, thao tác bị khóa và có thông báo tiếng Việt.",
       "Nhấn F1, tìm “mở sổ lớn” hoặc “đang nạp” để mở lại hướng dẫn này."
     ]
   }

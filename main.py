@@ -497,7 +497,7 @@ _STATIC_MIME_OVERRIDES = {
 
 _DEFAULT_STATIC_PORT = 8080
 _MAX_PORT_ATTEMPTS = 20
-_SHEET_OPEN_SESSION_TTL_SECONDS = 600
+_SHEET_OPEN_SESSION_TTL_SECONDS = 8 * 60 * 60
 
 
 class _StaticFileHandler(http.server.SimpleHTTPRequestHandler):
@@ -1997,6 +1997,10 @@ def _lazy_sheet_open_enabled() -> bool:
 _SHEET_LARGE_FODS_CHARS = 20 * 1024 * 1024
 
 
+def _should_lazy_sheet_open(fods_content: str) -> bool:
+    return _lazy_sheet_open_enabled() and len(fods_content) > _SHEET_LARGE_FODS_CHARS
+
+
 def _should_use_sheet_open_payload(fods_xml: str) -> bool:
     """Use the compact path automatically only for workbooks that need it.
 
@@ -3420,6 +3424,24 @@ class VnOfficeApi:
             except OSError:
                 pass
 
+    def _touch_sheet_open_session_locked(self, open_id):
+        entry = self._sheet_open_sessions.get(open_id)
+        if not entry:
+            return None
+        timer = entry.get("timer")
+        if isinstance(timer, threading.Timer):
+            timer.cancel()
+        entry["expires_at"] = time.monotonic() + _SHEET_OPEN_SESSION_TTL_SECONDS
+        timer = threading.Timer(
+            _SHEET_OPEN_SESSION_TTL_SECONDS,
+            self._expire_sheet_open_session,
+            args=(open_id,),
+        )
+        timer.daemon = True
+        entry["timer"] = timer
+        timer.start()
+        return entry
+
     def _clear_sheet_open_sessions(self):
         with self._sheet_open_session_lock:
             for open_id in list(self._sheet_open_sessions):
@@ -3488,7 +3510,7 @@ class VnOfficeApi:
         self._prune_sheet_open_sessions()
         with self._sheet_open_session_lock:
             selected_id = open_id or self._last_sheet_open_id
-            entry = self._sheet_open_sessions.get(selected_id) if selected_id else None
+            entry = self._touch_sheet_open_session_locked(selected_id) if selected_id else None
             path = Path(str(entry["path"])) if entry else None
             metadata = dict(entry) if entry else {}
         if not path or not path.is_file():
@@ -3536,7 +3558,7 @@ class VnOfficeApi:
             return {"status": "error", "message": "Yêu cầu nạp trang tính không hợp lệ."}
         self._prune_sheet_open_sessions()
         with self._sheet_open_session_lock:
-            entry = self._sheet_open_sessions.get(open_id)
+            entry = self._touch_sheet_open_session_locked(open_id)
             fods_path = Path(str(entry["path"])) if entry else None
             source_value = (entry.get("source_copy_path") or entry.get("source_path")) if entry else None
             source_path = Path(str(source_value)) if source_value else None
@@ -3562,6 +3584,48 @@ class VnOfficeApi:
         return self._invoke_reported_api(
             "get_sheet_open_payload", self._read_sheet_open_payload, open_id, sheet_name
         )
+
+    def touch_sheet_open_session(self, open_id):
+        if not isinstance(open_id, str) or not open_id or len(open_id) > 128:
+            return False
+        self._prune_sheet_open_sessions()
+        with self._sheet_open_session_lock:
+            return self._touch_sheet_open_session_locked(open_id) is not None
+
+    def _merge_sheet_open_session_content(self, content, open_id, loaded_sheets):
+        if not open_id:
+            return content
+        if (not isinstance(open_id, str) or len(open_id) > 128
+                or not isinstance(loaded_sheets, list) or not loaded_sheets
+                or len(loaded_sheets) > 1024
+                or any(not isinstance(name, str) or not name or len(name) > 1024
+                       for name in loaded_sheets)):
+            raise DocumentEngineError(
+                "Không thể lưu an toàn vì thông tin trang tính đã nạp không hợp lệ."
+            )
+        self._prune_sheet_open_sessions()
+        with self._sheet_open_session_lock:
+            entry = self._touch_sheet_open_session_locked(open_id)
+            path = Path(str(entry["path"])) if entry and entry.get("lazy_sheets") else None
+        if not path or not path.is_file():
+            raise DocumentEngineError(
+                "Phiên dữ liệu bảng tính đã hết hạn. Không lưu để tránh ghi đè sheet chưa nạp; hãy mở lại tệp."
+            )
+        try:
+            retained = path.read_text(encoding="utf-8", errors="strict")
+            from adapters.libreoffice.sheet.sheet_open_payload import merge_lazy_sheet_fods
+            return merge_lazy_sheet_fods(
+                retained, content, set(loaded_sheets), _ooxml_zip_patch()
+            )
+        except DocumentEngineError:
+            raise
+        except Exception as exc:
+            logging.getLogger("vnoffice.sheet").warning(
+                "Lazy-sheet save merge rejected: %s", type(exc).__name__
+            )
+            raise DocumentEngineError(
+                "Không thể ghép an toàn các trang tính đã sửa. Tệp gốc chưa bị thay đổi."
+            ) from exc
 
     def release_sheet_open_fallback(self, open_id):
         if not isinstance(open_id, str) or not open_id or len(open_id) > 128:
@@ -3727,16 +3791,19 @@ class VnOfficeApi:
     def open_mail_merge_data_dialog(self):
         return self._invoke_reported_api("open_mail_merge_data_dialog", self._open_mail_merge_data_dialog_impl)
 
-    def save_document_in_place(self, content, app_kind="writer", target_path=None, source_path=None):
+    def save_document_in_place(self, content, app_kind="writer", target_path=None, source_path=None,
+                               sheet_open_id=None, loaded_sheets=None):
         return self._invoke_reported_api(
             "save_document_in_place", self._save_document_in_place_impl,
-            content, app_kind, target_path, source_path,
+            content, app_kind, target_path, source_path, sheet_open_id, loaded_sheets,
         )
 
-    def save_document_dialog(self, content, app_kind="writer", target_format=None, suggested_name="TaiLieu", source_path=None):
+    def save_document_dialog(self, content, app_kind="writer", target_format=None, suggested_name="TaiLieu", source_path=None,
+                             sheet_open_id=None, loaded_sheets=None):
         return self._invoke_reported_api(
             "save_document_dialog", self._save_document_dialog_impl,
             content, app_kind, target_format, suggested_name, source_path,
+            sheet_open_id, loaded_sheets,
         )
 
     def export_pdf_dialog(self, content, app_kind="writer", suggested_name="TaiLieu", source_path=None):
@@ -4500,7 +4567,7 @@ class VnOfficeApi:
                                 from adapters.libreoffice.sheet.sheet_open_payload import build_sheet_open_payload
                                 sheet_ooxml_workbook_xml = _read_xlsx_workbook_xml(src_path)
                                 included_sheets = None
-                                if _lazy_sheet_open_enabled():
+                                if _should_lazy_sheet_open(content):
                                     active_sheet = patcher.parse_active_sheet_from_workbook(
                                         sheet_ooxml_workbook_xml
                                     )
@@ -4699,13 +4766,18 @@ class VnOfficeApi:
 
         return {"status": "error", "message": f"Định dạng tệp không được hỗ trợ: {ext}"}
 
-    def _save_document_in_place_impl(self, content, app_kind="writer", target_path=None, source_path=None):
+    def _save_document_in_place_impl(self, content, app_kind="writer", target_path=None, source_path=None,
+                                     sheet_open_id=None, loaded_sheets=None):
         """Lưu nội dung trực tiếp vào tệp đích (Ctrl+S / Save-in-place),
         giữ nguyên định dạng gốc và thay thế nguyên tử an toàn."""
         if not target_path:
             return {"status": "error", "message": "Đường dẫn tệp không hợp lệ."}
         try:
             content = self._resolve_staged_content(content)
+            if app_kind == "sheet" and sheet_open_id:
+                content = self._merge_sheet_open_session_content(
+                    content, sheet_open_id, loaded_sheets
+                )
         except DocumentEngineError as exc:
             return {"status": "error", "message": str(exc)}
 
@@ -4730,7 +4802,8 @@ class VnOfficeApi:
         self._current_file_path = target_path
         return {"status": "ok", "message": f"Đã lưu tại {target_path}", "path": target_path}
 
-    def _save_document_dialog_impl(self, content, app_kind="writer", target_format=None, suggested_name="TaiLieu", source_path=None):
+    def _save_document_dialog_impl(self, content, app_kind="writer", target_format=None, suggested_name="TaiLieu", source_path=None,
+                                   sheet_open_id=None, loaded_sheets=None):
         """Mở hộp thoại lưu tệp NATIVE thật, chuyển đổi nội dung soạn thảo hiện tại
         sang định dạng Office/ODF thật và ghi ra đĩa thật."""
         window = _active_window(self)
@@ -4738,6 +4811,10 @@ class VnOfficeApi:
             return {"status": "error", "message": "Cửa sổ ứng dụng chưa sẵn sàng."}
         try:
             content = self._resolve_staged_content(content)
+            if app_kind == "sheet" and sheet_open_id:
+                content = self._merge_sheet_open_session_content(
+                    content, sheet_open_id, loaded_sheets
+                )
         except DocumentEngineError as exc:
             return {"status": "error", "message": str(exc)}
 

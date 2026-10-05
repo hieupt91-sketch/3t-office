@@ -19,6 +19,112 @@ _P1B_LARGE_FODS_CHARS = 20 * 1024 * 1024
 _P1B_MAX_WORKERS = 4
 
 
+def _worksheet_tables(fods_xml: str, patcher) -> dict[str, tuple[int, int, str]]:
+    tables = {}
+    for start, end in patcher._flat_xml_blocks(fods_xml, ("table:table",)):
+        block = fods_xml[start:end]
+        opening = block[: block.find(">") + 1]
+        name = patcher._xml_attrs(opening).get("table:name", "")
+        if not name or name == "local-table" or name in tables:
+            continue
+        tables[name] = (start, end, block)
+    return tables
+
+
+def _section_inner(xml: str, tag: str) -> tuple[int, int, str] | None:
+    match = re.search(
+        rf"<{re.escape(tag)}\b[^>]*>([\s\S]*?)</{re.escape(tag)}\s*>",
+        xml,
+        flags=re.IGNORECASE,
+    )
+    if not match:
+        return None
+    return match.start(1), match.end(1), match.group(1)
+
+
+def merge_lazy_sheet_fods(
+    source_fods: str,
+    edited_fods: str,
+    loaded_sheets: set[str],
+    patcher,
+) -> str:
+    """Merge loaded worksheet models without ever serializing a deferred stub.
+
+    The retained full FODS remains the base document.  Only worksheet table
+    blocks named in ``loaded_sheets`` are replaced.  Styles produced by the UI
+    serializer are namespaced before being appended so an untouched source
+    table cannot silently acquire different formatting through a name clash.
+    """
+    if not isinstance(source_fods, str) or not isinstance(edited_fods, str):
+        raise ValueError("invalid FODS content")
+    requested = {name for name in loaded_sheets if isinstance(name, str) and name}
+    if not requested:
+        raise ValueError("no loaded worksheets supplied")
+    source_tables = _worksheet_tables(source_fods, patcher)
+    edited_tables = _worksheet_tables(edited_fods, patcher)
+    if not requested <= source_tables.keys() or not requested <= edited_tables.keys():
+        raise ValueError("loaded worksheet set does not match retained source")
+
+    # Isolate all generated automatic/master styles used by replacement tables.
+    style_sections = ("office:automatic-styles", "office:master-styles")
+    style_names = set()
+    edited_inners = {}
+    for tag in style_sections:
+        section = _section_inner(edited_fods, tag)
+        if section:
+            edited_inners[tag] = section[2]
+            style_names.update(
+                re.findall(r'\bstyle:name\s*=\s*["\']([^"\']+)["\']', section[2], re.IGNORECASE)
+            )
+    prefix = "vno-lazy-"
+    name_map = {name: f"{prefix}{name}" for name in style_names}
+
+    attr_re = re.compile(
+        r'(?P<attr>(?:style:name|[\w.-]+:style-name|style:parent-style-name|'
+        r'style:data-style-name|style:page-layout-name|draw:master-page-name|'
+        r'calcext:apply-style-name))\s*=\s*(?P<quote>["\'])(?P<value>[^"\']*)(?P=quote)',
+        re.IGNORECASE,
+    )
+
+    def rename_style_refs(fragment: str) -> str:
+        def replace(match):
+            value = match.group("value")
+            renamed = name_map.get(value, value)
+            quote = match.group("quote")
+            return f'{match.group("attr")}={quote}{renamed}{quote}'
+        return attr_re.sub(replace, fragment)
+
+    replacements = {
+        name: rename_style_refs(edited_tables[name][2]) for name in requested
+    }
+    pieces, cursor = [], 0
+    for name, (start, end, _block) in sorted(source_tables.items(), key=lambda item: item[1][0]):
+        pieces.append(source_fods[cursor:start])
+        pieces.append(replacements.get(name, source_fods[start:end]))
+        cursor = end
+    pieces.append(source_fods[cursor:])
+    merged = "".join(pieces)
+
+    for tag in style_sections:
+        generated = edited_inners.get(tag)
+        if not generated:
+            continue
+        target = _section_inner(merged, tag)
+        if not target:
+            raise ValueError(f"retained FODS is missing {tag}")
+        addition = rename_style_refs(generated)
+        merged = merged[: target[1]] + addition + merged[target[1] :]
+
+    # Font declarations are keyed by family name rather than style name.  It is
+    # safe to append them; duplicate declarations describe the same family and
+    # LibreOffice accepts them while new fonts remain available to edited cells.
+    edited_fonts = _section_inner(edited_fods, "office:font-face-decls")
+    target_fonts = _section_inner(merged, "office:font-face-decls")
+    if edited_fonts and target_fonts:
+        merged = merged[: target_fonts[1]] + edited_fonts[2] + merged[target_fonts[1] :]
+    return merged
+
+
 class _PayloadRows:
     def __init__(self) -> None:
         self.buffer = BytesIO()

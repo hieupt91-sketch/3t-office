@@ -1,6 +1,7 @@
 """Python tests for fused Sheet payload construction and bounded FODS sessions."""
 
 import base64
+import hashlib
 import json
 import os
 import tempfile
@@ -20,6 +21,17 @@ SAMPLES = ROOT / "tests" / "fixtures" / "real-office-samples"
 
 
 class SheetOpenPayloadTests(unittest.TestCase):
+    @staticmethod
+    def _tables(xml, patcher):
+        result = {}
+        for start, end in patcher._flat_xml_blocks(xml, ("table:table",)):
+            block = xml[start:end]
+            opening = block[:block.find(">") + 1]
+            name = patcher._xml_attrs(opening).get("table:name")
+            if name and name != "local-table":
+                result[name] = block
+        return result
+
     def test_payload_flag_is_off_unless_explicitly_enabled(self):
         with patch.dict(os.environ, {}, clear=True):
             self.assertFalse(main._sheet_open_payload_enabled())
@@ -50,6 +62,9 @@ class SheetOpenPayloadTests(unittest.TestCase):
         for value in ("1", "true", "yes", "on"):
             with patch.dict(os.environ, {"VNO_OPEN_LAZYSHEETS": value}, clear=True):
                 self.assertTrue(main._lazy_sheet_open_enabled(), value)
+        with patch.dict(os.environ, {"VNO_OPEN_LAZYSHEETS": "1"}, clear=True):
+            self.assertFalse(main._should_lazy_sheet_open("x" * main._SHEET_LARGE_FODS_CHARS))
+            self.assertTrue(main._should_lazy_sheet_open("x" * (main._SHEET_LARGE_FODS_CHARS + 1)))
 
     def test_fused_pass_matches_existing_final_xf_transform_and_record_counts(self):
         fods_path = SAMPLES / "src" / "sample-sheet.fods"
@@ -186,6 +201,53 @@ class SheetOpenPayloadTests(unittest.TestCase):
             self.assertEqual(result["status"], "ok")
             self.assertEqual(result["sheetNames"], sheet_names)
             self.assertEqual(result["sheetPayload"]["deferredSheets"], [])
+
+    def test_save_merge_preserves_every_unloaded_sheet_byte_and_cell_count(self):
+        fods = (SAMPLES / "src" / "sample-sheet.fods").read_text(encoding="utf-8")
+        patcher = main._ooxml_zip_patch()
+        source_tables = self._tables(fods, patcher)
+        names = list(source_tables)
+        self.assertGreater(len(names), 1)
+        loaded = names[0]
+        loaded_table = source_tables[loaded]
+        edited_table = loaded_table.replace("<text:p>", "<text:p>CH1_EDIT_", 1)
+        self.assertNotEqual(edited_table, loaded_table)
+        edited = fods.replace(loaded_table, edited_table, 1)
+
+        merged = sheet_open_payload.merge_lazy_sheet_fods(
+            fods, edited, {loaded}, patcher
+        )
+        merged_tables = self._tables(merged, patcher)
+
+        self.assertEqual(set(merged_tables), set(source_tables))
+        self.assertEqual(merged_tables[loaded], edited_table)
+        for name in names[1:]:
+            before = source_tables[name].encode("utf-8")
+            after = merged_tables[name].encode("utf-8")
+            self.assertEqual(hashlib.sha256(after).digest(), hashlib.sha256(before).digest(), name)
+            before_cells = len(list(patcher._flat_xml_blocks(
+                source_tables[name], ("table:table-cell", "table:covered-table-cell")
+            )))
+            after_cells = len(list(patcher._flat_xml_blocks(
+                merged_tables[name], ("table:table-cell", "table:covered-table-cell")
+            )))
+            self.assertEqual(after_cells, before_cells, name)
+
+    def test_lazy_save_session_merge_rejects_expired_session_instead_of_saving_stub(self):
+        fods = (SAMPLES / "src" / "sample-sheet.fods").read_text(encoding="utf-8")
+        patcher = main._ooxml_zip_patch()
+        names = list(self._tables(fods, patcher))
+        with tempfile.TemporaryDirectory() as temp_dir, patch("main._user_data_dir", return_value=Path(temp_dir)):
+            api = main.VnOfficeApi(app_kind="sheet")
+            open_id = api._store_sheet_open_fallback(
+                fods, str(SAMPLES / "sample-sheet.xlsx"), None,
+                source_bytes=(SAMPLES / "sample-sheet.xlsx").read_bytes(), lazy_sheets=True,
+            )
+            merged = api._merge_sheet_open_session_content(fods, open_id, [names[0]])
+            self.assertEqual(set(self._tables(merged, patcher)), set(names))
+            self.assertTrue(api.release_sheet_open_fallback(open_id))
+            with self.assertRaises(main.DocumentEngineError):
+                api._merge_sheet_open_session_content(fods, open_id, [names[0]])
 
 
 if __name__ == "__main__":

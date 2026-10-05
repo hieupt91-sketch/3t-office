@@ -3945,6 +3945,11 @@ export class SheetGridController {
 
   _guardWorkbookStructure() {
     if (this._applyingHistory) return false;
+    if (this.adapter?.hasDeferredSheets?.()) {
+      this.adapter.requestAllSheetsLoaded?.("thay đổi cấu trúc hoặc trạng thái ẩn của trang tính");
+      this.adapter?.shell?.setStatus?.("Đang nạp đủ dữ liệu trước khi thay đổi cấu trúc sổ làm việc…");
+      return true;
+    }
     if (!this.isWorkbookProtected()) return false;
     this._notifyWorkbookProtected();
     return true;
@@ -4587,6 +4592,13 @@ _bindGridKeyboardNavigation() {
         nextCol = "A";
         nextRow = 1;
       } else if (e.key === "End" && e.ctrlKey) {
+        if (this.adapter?._deferredSheets?.has?.(this.activeSheet)) {
+          e.preventDefault();
+          this.adapter.ensureSheetLoaded?.(this.activeSheet).catch(error => {
+            this.adapter?.shell?.setStatus?.(`Không thể nạp trang tính: ${error?.message || error}`);
+          });
+          return;
+        }
         let maxC = 0;
         let maxR = 1;
         for (const [coord, data] of this.cellsData.entries()) {
@@ -11179,6 +11191,11 @@ _bindGridKeyboardNavigation() {
 
   showNameManager(options = {}) {
     options = options || {};
+    if (this.adapter?.hasDeferredSheets?.()) {
+      this.adapter.requestAllSheetsLoaded?.("quản lý vùng được đặt tên");
+      this.adapter?.shell?.setStatus?.("Đang nạp đủ dữ liệu trước khi mở Trình quản lý tên…");
+      return false;
+    }
     if (typeof document === "undefined") return false;
     const overlay = this._createSheetDialog(t("sheetDialogs.nameManagerTitle", "Trình quản lý tên"), `<div class="vno-name-manager">
       <div class="vno-name-list" role="list"></div>
@@ -13331,6 +13348,11 @@ _bindGridKeyboardNavigation() {
   }
 
   showConditionalFormattingDialog() {
+    if (this.adapter?.hasDeferredSheets?.()) {
+      this.adapter.requestAllSheetsLoaded?.("quản lý định dạng có điều kiện");
+      this.adapter?.shell?.setStatus?.("Đang nạp đủ dữ liệu trước khi mở Định dạng có điều kiện…");
+      return false;
+    }
     const overlay = this._createSheetDialog(t("sheetDialogs.conditionalFormatting"), `
       <p class="vno-rule-range">${t("sheetDialogs.range")}: <strong>${this.getSelectedRangeLabel()}</strong></p>
       <label>${t("sheetDialogs.rule")}<select id="vno-cf-type" aria-label="${t("sheetDialogs.rule")}"><option value="greaterThan">${t("sheetDialogs.greaterThan")}</option><option value="lessThan">${t("sheetDialogs.lessThan")}</option><option value="blank">${t("sheetDialogs.blankCell")}</option></select></label>

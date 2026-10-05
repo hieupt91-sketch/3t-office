@@ -129,7 +129,7 @@ export async function runSheetOpenPayloadTests() {
     }
   });
 
-  await test("Save loads every deferred sheet before serialization and never saves a stub", async () => {
+  await test("Save delegates deferred-sheet merge to Python and never treats a stub as complete", async () => {
     const grid = new SheetGridController(makeContainer());
     const adapter = new SheetAdapter(grid);
     adapter.setShell({ setStatus() {}, resetDocumentChrome() {} });
@@ -147,38 +147,48 @@ export async function runSheetOpenPayloadTests() {
     adapter._sheetOpenId = "open-id";
     adapter.sourceFilePath = "C:\\input.xlsx";
 
-    const deferred = makePayload([
-      ["sheet", "Deferred"],
-      ["row-xml", '<table:table-row><table:table-cell office:value-type="string"><text:p>Later</text:p></table:table-cell></table:table-row>'],
-      ["end-sheet"]
-    ]);
-    deferred.supportXml = initial.supportXml;
-    deferred.sheetStubs = initial.sheetStubs;
-    deferred.deferredSheets = ["Data"];
     const saved = {
       getSheetOpenPayload: globalUnoBridge.getSheetOpenPayload,
-      releaseSheetOpenFallback: globalUnoBridge.releaseSheetOpenFallback,
       saveRealFileInPlace: globalUnoBridge.saveRealFileInPlace
     };
-    let requested = null;
+    let requested = false;
     let serialized = "";
+    let session = null;
     try {
-      globalUnoBridge.getSheetOpenPayload = async (_openId, names) => {
-        requested = names;
-        return { status: "ok", sheetPayload: deferred };
-      };
-      globalUnoBridge.releaseSheetOpenFallback = async () => true;
-      globalUnoBridge.saveRealFileInPlace = async (_kind, content) => {
+      globalUnoBridge.getSheetOpenPayload = async () => { requested = true; throw new Error("unexpected load"); };
+      globalUnoBridge.saveRealFileInPlace = async (_kind, content, _target, _source, sheetSession) => {
         serialized = content;
+        session = sheetSession;
         return { status: "cancelled" };
       };
       await adapter.save();
-      assert(Array.isArray(requested) && requested.join("|") === "Deferred", "Save did not request all deferred sheets");
-      assert(serialized.includes("Hello") && serialized.includes("Later"), "Save serialized a stub instead of both full sheets");
-      assert(!adapter.hasDeferredSheets(), "deferred marker remained after the safe Save gate");
+      assert(requested === false, "Save unnecessarily loaded every deferred sheet");
+      assert(serialized.includes("Hello") && !serialized.includes("Later"), "Save payload unexpectedly materialised a deferred sheet");
+      assert(session?.openId === "open-id", "Save did not identify the retained Python session");
+      assert(session?.loadedSheets?.join("|") === "Data", "Save did not identify exactly the loaded sheet");
+      assert(adapter.hasDeferredSheets(), "Save incorrectly marked the deferred sheet as loaded");
     } finally {
       Object.assign(globalUnoBridge, saved);
     }
+  });
+
+  await test("whole-workbook consumers block instead of reading deferred stubs", async () => {
+    const grid = new SheetGridController(makeContainer());
+    const reasons = [];
+    grid.adapter = {
+      hasDeferredSheets: () => true,
+      requestAllSheetsLoaded: reason => { reasons.push(reason); return false; },
+      shell: { setStatus() {} }
+    };
+    const beforeSheets = grid.sheets.length;
+    assert(grid.recalculateAll() === false, "cross-sheet recalculation consumed a stub");
+    assert(grid.findNext("missing", { scope: "workbook" }) === false, "workbook find consumed a stub");
+    assert(grid.replaceAll("missing", "x", { scope: "workbook" }) === 0, "workbook replace consumed a stub");
+    assert(grid.setCellValue("A", 1, "=Deferred!A1", true) === false, "cross-sheet formula was accepted against a stub");
+    assert(grid.showNameManager() === false, "name manager opened against incomplete local names");
+    assert(grid.showConditionalFormattingDialog() === false, "conditional formatting opened against incomplete rules");
+    assert(grid.addSheet("Unsafe") === false && grid.sheets.length === beforeSheets, "workbook structure changed while a hidden/deferred sheet existed");
+    assert(reasons.length >= 7, `not every unsafe consumer requested a complete model: ${reasons.length}`);
   });
 
   await test("payload parser rejects unsupported versions, broken counts, and truncated records", async () => {

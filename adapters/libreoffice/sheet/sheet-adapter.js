@@ -5058,6 +5058,21 @@ ${pristineXlsxMarker}
     return Boolean(this._deferredSheets?.size);
   }
 
+  _sheetSaveSession() {
+    if (!this._sheetOpenId || !this.hasDeferredSheets()) return null;
+    const loadedSheets = (this.grid?.sheets || []).filter(name => !this._deferredSheets.has(name));
+    return { openId: this._sheetOpenId, loadedSheets };
+  }
+
+  async _releaseDeferredSession() {
+    const openId = this._sheetOpenId;
+    this._sheetOpenId = null;
+    this._deferredSheets = new Set();
+    if (openId) {
+      try { await globalUnoBridge.releaseSheetOpenFallback(openId); } catch { /* process cleanup is the fallback */ }
+    }
+  }
+
   async ensureAllSheetsLoaded({ reason = "tiếp tục", background = false } = {}) {
     if (!this.hasDeferredSheets()) return true;
     if (this._allSheetsLoadPromise) return await this._allSheetsLoadPromise;
@@ -5511,6 +5526,7 @@ ${pristineXlsxMarker}
    * Tạo tài liệu bảng tính mới trắng hoặc đóng bảng tính hiện tại.
    */
   async newDocument() {
+    await this._releaseDeferredSession();
     if (this.grid && typeof this.grid.resetToBlank === "function") {
       this.grid.resetToBlank();
     }
@@ -5536,7 +5552,6 @@ ${pristineXlsxMarker}
    */
   async save() {
     if (this._guardQuickViewReadOnly()) return false;
-    if (!await this._ensureCompleteForOperation("lưu")) return false;
     if (!this.sourceFilePath) {
       return await this.saveAs();
     }
@@ -5546,7 +5561,8 @@ ${pristineXlsxMarker}
       "sheet",
       fodsContent,
       this.sourceFilePath,
-      this.sourceFilePath
+      this.sourceFilePath,
+      this._sheetSaveSession()
     );
 
     if (result.status === "ok") {
@@ -5579,7 +5595,6 @@ ${pristineXlsxMarker}
    */
   async saveAs() {
     if (this._guardQuickViewReadOnly()) return false;
-    if (!await this._ensureCompleteForOperation("lưu bản sao")) return false;
     const fodsContent = this.serializeToFods();
     const currentName = this.sourceFileName || "BangTinh";
     const suggestedName = this.sourceFilePath
@@ -5593,7 +5608,8 @@ ${pristineXlsxMarker}
       fodsContent,
       targetFormat,
       suggestedName,
-      this.sourceFilePath || null
+      this.sourceFilePath || null,
+      this._sheetSaveSession()
     );
 
     if (result.status === "ok") {
@@ -5647,6 +5663,7 @@ ${pristineXlsxMarker}
     let previous = null;
     let result = null;
     let openId = null;
+    const previousOpenId = this._sheetOpenId || null;
     const reportOpenIssue = (type, message) => {
       try {
         const pending = globalUnoBridge.reportFrontendError({ type, message, stack: "" });
@@ -5679,7 +5696,9 @@ ${pristineXlsxMarker}
         content: this.serializeToFods(),
         sourceFileName: this.sourceFileName,
         sourceFilePath: this.sourceFilePath,
-        isDirty: this.isDirty
+        isDirty: this.isDirty,
+        sheetOpenId: previousOpenId,
+        deferredSheets: new Set(this._deferredSheets || [])
       };
 
       if (result.sheetPayload) {
@@ -5688,7 +5707,7 @@ ${pristineXlsxMarker}
           this.shell?.setStatus?.("Đang dựng mô hình bảng tính và chuẩn bị lưới…");
           const loaded = await this.loadFromPayload(result.sheetPayload, result.ooxmlWorkbookXml);
           if (!loaded) throw new Error("Không dựng được sổ làm việc từ dữ liệu đã đọc.");
-          if (this._deferredSheets?.size) this._sheetOpenId = openId;
+          this._sheetOpenId = this._deferredSheets?.size ? openId : null;
         } catch {
           reportOpenIssue("SheetOpenPayloadError", "Sheet payload parsing or model construction failed; using the retained FODS fallback.");
           this.shell?.setStatus?.("Đang tải dữ liệu bảng tính dự phòng…");
@@ -5703,12 +5722,14 @@ ${pristineXlsxMarker}
           );
           if (!loaded) throw new Error("Không dựng được sổ làm việc từ bản dự phòng.");
           result = { ...result, ...fallback };
+          this._sheetOpenId = null;
         }
       } else {
         this.shell?.setStatus?.("Đang đọc dữ liệu bảng tính và hiển thị lưới…");
         if (typeof result.content !== "string" || !this.loadFromFods(result.content, result.ooxmlWorkbookXml)) {
           throw new Error("Không thể đọc nội dung bảng tính.");
         }
+        this._sheetOpenId = null;
       }
 
       this.sourceFileName = (result.fileName || "BangTinh").replace(/\.[^/.]+$/, "");
@@ -5716,12 +5737,8 @@ ${pristineXlsxMarker}
       this.isDirty = false;
       this.shell?.resetDocumentChrome?.(result.fileName || "Bảng tính 1.xlsx", null, true, result.sourcePath || "");
       if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") window.dispatchEvent(new Event("vno:sheet-full-model-ready"));
-      if (this._deferredSheets?.size && typeof window !== "undefined") {
-        window.setTimeout(() => {
-          if (this._deferredSheets?.size) this.ensureAllSheetsLoaded({ background: true }).catch(error => {
-            this.shell?.setStatus?.(`Nạp nền tạm dừng: ${error?.message || error}`);
-          });
-        }, 1500);
+      if (previousOpenId && previousOpenId !== this._sheetOpenId) {
+        try { await globalUnoBridge.releaseSheetOpenFallback(previousOpenId); } catch { /* expires automatically */ }
       }
       return true;
     } catch {
@@ -5734,6 +5751,8 @@ ${pristineXlsxMarker}
         this.sourceFileName = previous.sourceFileName;
         this.sourceFilePath = previous.sourceFilePath;
         this.isDirty = previous.isDirty;
+        this._sheetOpenId = previous.sheetOpenId;
+        this._deferredSheets = previous.deferredSheets;
       }
       reportOpenIssue("SheetOpenError", "Workbook opening failed; the previously open workbook was preserved.");
       if (typeof window !== "undefined") window.__vnoSheetOpenStartedAt = null;
