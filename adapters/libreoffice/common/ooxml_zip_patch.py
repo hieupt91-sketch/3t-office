@@ -6983,7 +6983,16 @@ _P1_COL_REPEAT_WITH_WS_RE = re.compile(
     r'\s+table:number-columns-repeated\s*=\s*(["\'])(\d+)\1'
 )
 _P1_PARALLEL_FODS_CHARS = 20 * 1024 * 1024
-_P1_MAX_WORKERS = 4
+def _p1_default_workers() -> int:
+    """Pool size: VNO_P1_WORKERS if set; otherwise 6 on machines with >= 8 logical CPUs (measured on 8: lan14
+    chain 34.0 -> 32.0 s, 8 workers 31.1 s), else 4 as before."""
+    value = os.environ.get("VNO_P1_WORKERS", "").strip()
+    if value.isdigit() and int(value) >= 1:
+        return int(value)
+    return 6 if (os.cpu_count() or 4) >= 8 else 4
+
+
+_P1_MAX_WORKERS = _p1_default_workers()
 _P1_PROCESS_POOL: ProcessPoolExecutor | None = None
 
 
