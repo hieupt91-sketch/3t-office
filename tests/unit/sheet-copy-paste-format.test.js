@@ -1,0 +1,127 @@
+import assert from "node:assert/strict";
+import { SheetGridController } from "../../apps/sheet/sheet-grid.js";
+import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
+import { globalCommandBus } from "../../platform/commands/command-bus.js";
+
+function mockContainer() {
+  return {
+    style: {},
+    className: "",
+    classList: { add() {}, remove() {}, toggle() {}, contains: () => false },
+    appendChild() {},
+    querySelector: () => null,
+    querySelectorAll: () => [],
+    addEventListener: () => {},
+    setAttribute() {},
+    removeAttribute() {},
+    dataset: {},
+    innerHTML: ""
+  };
+}
+
+export async function runSheetCopyPasteFormatTests() {
+  const results = [];
+  const test = async (name, fn) => {
+    try {
+      await fn();
+      results.push({ name, pass: true });
+    } catch (error) {
+      results.push({ name, pass: false, error: error.message });
+    }
+  };
+
+  await test("CommandBus common.edit.copy -> common.edit.paste preserves formatting attributes (bold, color, alignment, numberFormat)", async () => {
+    const container = mockContainer();
+    const grid = new SheetGridController(container, { isBlank: true });
+    const adapter = new SheetAdapter(grid);
+    adapter.attach();
+    
+    // Prepare A1 with value and formatting
+    grid.selectCell("A", 1);
+    grid.setCellValue("A", 1, "HelloBold");
+    grid.setStyle("fontWeight", "bold");
+    grid.setStyle("color", "#123456");
+    grid.setStyle("textAlign", "center");
+    grid.applyQuickNumberCategory("currency");
+
+    const a1Before = grid.cellsData.get("A1");
+    assert.equal(a1Before.val, "HelloBold");
+    assert.equal(a1Before.style?.fontWeight, "bold");
+    assert.equal(a1Before.style?.color, "#123456");
+    assert.equal(a1Before.style?.textAlign, "center");
+    assert.equal(a1Before.style?.numberFormat?.category, "currency");
+
+    // Copy A1 via CommandBus
+    const copyResult = await globalCommandBus.execute("common.edit.copy");
+    assert.equal(copyResult, true, "common.edit.copy must return true");
+
+    // Select C1 and Paste via CommandBus
+    grid.selectCell("C", 1);
+    const pasteResult = await globalCommandBus.execute("common.edit.paste");
+    assert.equal(pasteResult, true, "common.edit.paste must return true");
+
+    const c1Model = grid.cellsData.get("C1");
+    assert.ok(c1Model, "Cell C1 must exist in cellsData");
+    assert.equal(c1Model.val, "HelloBold", "C1 must have copied value");
+    assert.equal(c1Model.style?.fontWeight, "bold", "C1 must retain fontWeight bold");
+    assert.equal(c1Model.style?.color, "#123456", "C1 must retain color");
+    assert.equal(c1Model.style?.textAlign, "center", "C1 must retain textAlign");
+    assert.equal(c1Model.style?.numberFormat?.category, "currency", "C1 must retain numberFormat");
+  });
+
+  await test("CommandBus common.edit.cut -> common.edit.paste moves value and formatting attributes", async () => {
+    const container = mockContainer();
+    const grid = new SheetGridController(container, { isBlank: true });
+    const adapter = new SheetAdapter(grid);
+    adapter.attach();
+
+    // Prepare B1 with value and bold
+    grid.selectCell("B", 1);
+    grid.setCellValue("B", 1, "CutVal");
+    grid.setStyle("fontWeight", "bold");
+    grid.setStyle("backgroundColor", "#ffff00");
+
+    // Cut B1 via CommandBus
+    await globalCommandBus.execute("common.edit.cut");
+
+    // Select D1 and Paste
+    grid.selectCell("D", 1);
+    await globalCommandBus.execute("common.edit.paste");
+
+    const b1After = grid.cellsData.get("B1");
+    const d1After = grid.cellsData.get("D1");
+
+    assert.equal(b1After?.val || "", "", "Source B1 value must be cleared on cut");
+    assert.equal(d1After?.val, "CutVal", "Destination D1 must receive cut value");
+    assert.equal(d1After?.style?.fontWeight, "bold", "Destination D1 must retain fontWeight bold");
+    assert.equal(d1After?.style?.backgroundColor, "#ffff00", "Destination D1 must retain background color");
+  });
+
+  await test("CommandBus common.edit.pastePlain (Paste Values Only) pastes value only without copying formatting", async () => {
+    const container = mockContainer();
+    const grid = new SheetGridController(container, { isBlank: true });
+    const adapter = new SheetAdapter(grid);
+    adapter.attach();
+
+    // Prepare A2 with value and formatting
+    grid.selectCell("A", 2);
+    grid.setCellValue("A", 2, "PlainVal");
+    grid.setStyle("fontWeight", "bold");
+    grid.setStyle("color", "#00ff00");
+
+    // Copy A2
+    await globalCommandBus.execute("common.edit.copy");
+
+    // Select E2 and Paste Plain
+    grid.selectCell("E", 2);
+    await globalCommandBus.execute("common.edit.pastePlain");
+
+    const e2Model = grid.cellsData.get("E2");
+    assert.ok(e2Model, "Cell E2 must exist in cellsData");
+    assert.equal(e2Model.val, "PlainVal", "E2 must receive value");
+    assert.notEqual(e2Model.style?.fontWeight, "bold", "E2 must NOT copy fontWeight bold on pastePlain");
+    assert.notEqual(e2Model.style?.color, "#00ff00", "E2 must NOT copy color on pastePlain");
+  });
+
+  return results;
+}
