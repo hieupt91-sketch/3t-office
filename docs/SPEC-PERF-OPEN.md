@@ -135,6 +135,14 @@ Kết luận: vi tối ưu P1 chạm giới hạn (≈1,5 triệu ô xử lý b�
 | JS nhường luồng bằng `setTimeout(0)` ~1100 lần (mỗi 128 hàng × 2 lượt), mỗi lần bị kẹp ≥ 4 ms | `MessageChannel` (cứ 50 ms một lần timer thật); `__VNO_OPEN_LEGACY` giữ cách cũ | `buildSheetPayloadModel` lan14 21,1 → 13,7 s |
 | Thử bỏ lượt XF đầu (`SHEET_OPEN_SKIP_INITIAL_XF`) | không đổi mặc định | 5/28 file khác kết quả, không nhanh hơn → giữ tắt |
 
+**Doc (cùng đợt, mỗi mục chạy kiểm chéo `VNO_WRITER_VERIFY=1` trên 23 tệp Word + MYTIME: 0 lệch; d10 là PDF đổi đuôi):**
+| Phát hiện | Cách sửa | Kết quả |
+|---|---|---|
+| `_applyOoxmlTableColumnGeometry` / `_applyOoxmlTableCellMargins` quét lại toàn HTML (2 regex + vùng header/footer) cho MỖI bảng | tính phạm vi bảng một lần, dịch `end` của bảng chứa khi sửa từ bảng cuối về đầu (`_runWithRangeVerify`) | mất ≈4,2 s regex trên MYTIME |
+| `_preserveImportedFloatingFrames`, `_makeFloatingAnchorContainers` cắt/nối cả HTML cho từng thay thế; `spans.some` cho mỗi `<img>` | `applyDescendingReplacements` (nối một lần khi rời nhau, chồng lấn → cách cũ) + tìm nhị phân | giảm ≈4–5 s |
+| Kết quả | MYTIME mở 32,6 → 23,1/27,0 s (mục tiêu < 30 s **đạt**); CPU renderer còn ≈10 s, các hàm lớn nhất ≈1 s mỗi hàm | |
+`__VNO_OPEN_LEGACY` (JS) giữ lại mọi đường cũ. Slide: JS < 2 s CPU, overlay 0,1 s; thời gian mở ≈15 s gần như toàn LibreOffice (chuyển FODP 6,7 s qua CLI + khởi động worker) — không có lượt quét nào để tối ưu.
+
 Mở đầy đủ (app thật, xem nhanh tắt, máy yên): **lan14 94,2 → 71,7 s; lan06 69,4 → 42,9 s; lan01 ≈69 → 34,9 s**. Chuỗi Python (overlay+optimize+payload) trên 28 file: 182,4 → 119,5 s chưa kể phần prefetch được ẩn dưới LibreOffice. Cơ cấu lan14 hiện tại (71,7 s): khởi động worker 3,6 + LibreOffice 14 + overlay 15 + optimize 7,8 + payload 13,6 + JS 14,6 + còn lại ≈3.
 
 Phân tích thêm (không đưa vào app): thử thay bộ đọc thuộc tính ô bằng regex — giống hệt trên 8,45 triệu ô nhưng chỉ nhanh hơn ~10% phần đọc, bỏ. Các bước còn lại của lan14 (overlay 18 s, optimize 14 s, payload 18 s, LibreOffice 18 s, JS 21 s) đều là các lượt quét tuyến tính trên chuỗi 255–335 MB; muốn xuống dưới 60 s phải gộp các lượt theo từng bảng (overlay → optimize → payload trong một worker) — việc lớn, cần cổng so băm 28 file như P1/P1b.
