@@ -7615,11 +7615,13 @@ def _overlay_sheet_cell_metadata_from_xlsx_p1(
                         tasks.append(
                             (chunk, logical_start, subsets[0], subsets[1], subsets[2])
                         )
-                    table_xml = prefix + "".join(
-                        _p1_process_pool().map(
-                            _p1_transform_metadata_rows_chunk, tasks
-                        )
-                    ) + suffix
+                    # Memory: drop the table copy and the chunk slices as soon as the workers have them, and join
+                    # prefix/chunks/suffix once (the old `prefix + join + suffix` made two extra table-sized copies).
+                    table_xml = None
+                    results = list(_p1_process_pool().map(_p1_transform_metadata_rows_chunk, tasks))
+                    tasks = chunks = None
+                    table_xml = "".join([prefix, *results, suffix])
+                    results = None
                     pieces.append(table_xml)
                     cursor = end
                     continue
@@ -16698,6 +16700,7 @@ def optimize_fods_streaming(fods_xml: str, max_style_only_col_repeat: int = 64) 
         if len(fods_xml) > _P1_PARALLEL_FODS_CHARS and len(table_body) > _P1_PARALLEL_FODS_CHARS:
             chunks = _p1_split_fods_row_chunks(table_body, _P1_MAX_WORKERS)
             if len(chunks) > 1:
+                table_body = None  # the chunks carry the rows now; do not keep a second table-sized copy alive
                 pool = _p1_process_pool()
                 last_data_col = max(pool.map(_p1_opt_last_data_col_chunk, chunks))
                 optimized = pool.map(
@@ -16712,7 +16715,7 @@ def optimize_fods_streaming(fods_xml: str, max_style_only_col_repeat: int = 64) 
                         for chunk in chunks
                     ),
                 )
-                return table_open + "".join(optimized) + table_close
+                return "".join([table_open, *optimized, table_close])  # one join (no table-sized intermediates)
 
         last_data_col = 0
         for row_start, row_end in _flat_xml_blocks(table_body, ("table:table-row",)):
@@ -16794,7 +16797,7 @@ def optimize_fods_streaming(fods_xml: str, max_style_only_col_repeat: int = 64) 
             pieces.append(process_row(table_body[row_start:row_end]))
             cursor = row_end
         pieces.append(table_body[cursor:])
-        return table_open + "".join(pieces) + table_close
+        return "".join([table_open, *pieces, table_close])
 
     return _sub_fods_tables(fods_xml, process_table)
 
