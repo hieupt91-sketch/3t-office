@@ -123,6 +123,10 @@ Kết luận: vi tối ưu P1 chạm giới hạn (≈1,5 triệu ô xử lý b�
 | lan14 theo pha (đường đủ, 94 s) | LO→FODS 18; overlay 22; optimize 14; payload Python 17,7; JS parse+model 21 | — |
 | Nạp sheet theo yêu cầu (CH-1 pha 2) | **Dở dang**, nhánh `perf/ch1-lazy-sheets-codex` (WIP `ddb2981f`), chưa bật; thiếu save-merge phía Python và an toàn cho công thức xuyên sheet/tìm thay/named range. Không merge cho tới khi qua cổng | không truyền `included_sheets` |
 
+**Chạy song song bước đọc metadata xlsx với LibreOffice (05/10):** phần quét metadata chỉ phụ thuộc xlsx nên chạy luôn trong lúc LibreOffice chuyển FODS (`prefetch_sheet_open_metadata`, tắt bằng `VNO_OPEN_PREFETCH=0`). Máy yên: lan06 mở đầy đủ 69,4 → 63,4 s (hai lượt mỗi chế độ: 69,3/69,5 → 63,2/63,7); lan14 hiện 94,2 s. Kết quả overlay giống hệt 28/28 file (lan23 có tiền tố namespace nên bỏ qua prefetch). Cùng đợt: worker `ProcessPoolExecutor` của P1b tự thoát khi app cha chết (trước đó 32 worker mồ côi, ~770 MB, tồn tại hàng giờ sau các lần chạy thử bị ngắt).
+
+Phân tích thêm (không đưa vào app): thử thay bộ đọc thuộc tính ô bằng regex — giống hệt trên 8,45 triệu ô nhưng chỉ nhanh hơn ~10% phần đọc, bỏ. Các bước còn lại của lan14 (overlay 18 s, optimize 14 s, payload 18 s, LibreOffice 18 s, JS 21 s) đều là các lượt quét tuyến tính trên chuỗi 255–335 MB; muốn xuống dưới 60 s phải gộp các lượt theo từng bảng (overlay → optimize → payload trong một worker) — việc lớn, cần cổng so băm 28 file như P1/P1b.
+
 **P7 (đo bản đóng gói 0.9.9-rc, 05/10, hồ sơ mới):** lan03 mở lần đầu trong bản đóng gói 25,7 s so với 14,7 s ở các lần sau (và 14,7–15,2 s khi chạy từ mã nguồn). Một phần (≈2,8 s) do gói không có bytecode biên dịch sẵn; đã thêm bước `compileall --invalidation-mode checked-hash` vào `scripts/build-pilot.ps1` (bỏ bằng `VNO_SKIP_PYC=1`) → lần đầu còn 22,9 s. Phần còn lại (≈8 s) là chi phí đọc nguội/quét tệp lần đầu của hệ điều hành trên bộ cài mới, chưa có cách giảm. Doc d04 trong gói: 6,1 s (mã nguồn 5,8 s).
 
 Lưu ý đo lường: số của agy cho xem trước Sheet/Slide (nhánh `perf/print-measure-agy`) **sai** (1 trang, 14 s trong khi đo lại được 12 trang, 6–7,5 s) nên không dùng.
