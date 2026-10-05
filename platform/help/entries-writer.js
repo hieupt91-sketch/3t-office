@@ -1182,12 +1182,12 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["writer.insert.equation", "writer.section.continuous"],
     title: "Giới hạn cần biết khi soạn tài liệu",
-    summary: "Phương trình và Ngắt mục trong Doc giúp soạn nội dung toán học và chia bố cục tài liệu. Mở Chèn > Ký hiệu > Phương trình để nhập biểu thức. Mở Bố cục > Thiết lập trang > Ngắt trang để chia mục; khi lưu .docx hoặc PDF, đầu/chân trang và hướng giấy vẫn dùng chung cho cả tài liệu.",
+    summary: "Phương trình và Ngắt mục trong Doc giúp soạn nội dung toán học và chia bố cục tài liệu. Mở Chèn > Ký hiệu > Phương trình để nhập biểu thức. Mở Bố cục > Thiết lập trang > Ngắt trang để chia mục; khi lưu .docx hoặc PDF, mỗi mục giữ khổ giấy và hướng giấy riêng.",
     ribbon: { tab: "Chèn", tabId: "insert", group: "Ký hiệu" },
     keywords: ["khác biệt", "công thức", "equation", "ngắt mục", "section break", "header", "footer", "khổ giấy", "hướng giấy"],
     steps: [
       "Phương trình: mở Chèn > Ký hiệu > Phương trình hoặc nhấn Alt+=. Nhập biểu thức như a/b hoặc x^2, dùng các nút cấu trúc để thêm phân số, căn và ma trận. Kiểm tra vùng Xem trước rồi nhấn Chèn vào tài liệu. Nhấp đúp phương trình để sửa lại.",
-      "Ngắt mục: mở Bố cục > Thiết lập trang > Ngắt trang, chọn Trang kế tiếp, Liên tục, Trang chẵn hoặc Trang lẻ. Mục mới có thiết lập trang riêng trên vùng soạn thảo. Khi lưu .docx hoặc PDF, đầu/chân trang và hướng giấy vẫn dùng chung cho cả tài liệu. Ngắt cột chỉ có tác dụng khi tài liệu có từ hai cột trở lên.",
+      "Ngắt mục: mở Bố cục > Thiết lập trang > Ngắt trang, chọn Trang kế tiếp, Liên tục, Trang chẵn hoặc Trang lẻ. Mục mới có thiết lập trang riêng trên vùng soạn thảo. Khi lưu .docx hoặc PDF, mỗi mục giữ khổ giấy và hướng giấy riêng (ví dụ phần chính để dọc, phụ lục để ngang). Ngắt cột chỉ có tác dụng khi tài liệu có từ hai cột trở lên.",
       "Các nút này vẫn hiển thị trên ribbon đúng vị trí chuẩn phần mềm soạn thảo văn bản khác. Khi bấm vào, hộp thoại/hành động chạy ngay thay vì chỉ hiện thông báo đang hoàn thiện."
     ]
   },
@@ -1206,7 +1206,7 @@ export const WRITER_HELP_ENTRIES = [
     keywords: ["thiết kế bảng", "table design", "hàng tiêu đề", "hàng xen kẽ", "tô màu ô", "viền bảng", "borders", "shading"],
     steps: [
       "Đặt con trỏ soạn thảo vào bên trong bảng bất kỳ để thanh công cụ tự động hiển thị thêm tab ngữ cảnh Thiết kế Bảng.",
-      "Trong nhóm Tùy chọn kiểu bảng, nhấp «Hàng tiêu đề» để bật hoặc tắt chữ đậm và nền sáng cho hàng đầu; nhấp «Hàng xen kẽ» để bật dải màu nền so le giúp bảng nhiều dòng dễ đọc hơn.",
+      "Trong nhóm Tùy chọn kiểu bảng, nhấp «Hàng tiêu đề» để bật hoặc tắt chữ đậm và nền sáng cho hàng đầu (khi lưu .docx hoặc in, hàng này tự lặp lại ở đầu mỗi trang nếu bảng dài nhiều trang); nhấp «Hàng xen kẽ» để bật dải màu nền so le giúp bảng nhiều dòng dễ đọc hơn.",
       "Trong nhóm Màu & Viền, nhấp «Tô màu ô» để đổi màu nền cho ô hiện tại hoặc các ô đang chọn; nhấp «Đường viền bảng» để chuyển đổi nhanh giữa có viền đầy đủ hoặc xóa viền bảng.",
       "Mọi thay đổi định dạng bảng đều có thể hoàn tác ngay bằng tổ hợp phím Ctrl+Z hoặc làm lại bằng Ctrl+Y."
     ]
