@@ -704,8 +704,46 @@ def _set_windows_taskbar_relaunch_info(window, app_kind: str) -> bool:
                 logging.getLogger("vnoffice.taskbar").debug("Could not release the taskbar property store: %s", exc)
 
 
+_OS_SERVICES = None
+_OS_SERVICES_LOAD_FAILED = False
+
+
+def _os_services():
+    """OS services (platform/os_services), loaded under a private name because `platform` is a stdlib module.
+
+    Returns None when disabled (VNO_OS_SERVICES_LEGACY=1) or if loading fails, so callers use the legacy code
+    below and the app can never fail to start because of this layer.
+    """
+    global _OS_SERVICES, _OS_SERVICES_LOAD_FAILED
+    if os.environ.get("VNO_OS_SERVICES_LEGACY") == "1" or _OS_SERVICES_LOAD_FAILED:
+        return None
+    if _OS_SERVICES is None:
+        try:
+            package_dir = os.path.join(ROOT_DIR, "platform", "os_services")
+            spec = importlib.util.spec_from_file_location(
+                "_vno_os_services", os.path.join(package_dir, "__init__.py"),
+                submodule_search_locations=[package_dir],
+            )
+            module = importlib.util.module_from_spec(spec)
+            sys.modules["_vno_os_services"] = module
+            spec.loader.exec_module(module)
+            _OS_SERVICES = module.get_services()
+        except Exception:
+            sys.modules.pop("_vno_os_services", None)
+            _OS_SERVICES_LOAD_FAILED = True
+            return None
+    return _OS_SERVICES
+
+
 def _user_data_dir() -> Path:
-    """Thư mục dữ liệu người dùng theo từng hệ điều hành (Windows/Linux/macOS)."""
+    services = _os_services()
+    if services is not None and services.data_dirs is not None:
+        return services.data_dirs.user_data_dir()
+    return _legacy_user_data_dir()
+
+
+def _legacy_user_data_dir() -> Path:
+    """Thư mục dữ liệu người dùng theo từng hệ điều hành (Windows/Linux/macOS). Bản cũ, giữ làm dự phòng."""
     system = platform.system()
     if system == "Windows":
         base = os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
@@ -723,7 +761,15 @@ def _license_platform_name() -> str:
 
 
 def find_soffice() -> str | None:
-    """Tìm đường dẫn thực thi LibreOffice headless engine trên Windows/Linux/macOS."""
+    services = _os_services()
+    if services is not None and services.launcher is not None:
+        found = services.launcher.find_document_engine(Path(ROOT_DIR), os.environ.get("VNOFFICE_SOFFICE_PATH"))
+        return str(found) if found else None
+    return _legacy_find_soffice()
+
+
+def _legacy_find_soffice() -> str | None:
+    """Tìm đường dẫn thực thi LibreOffice headless engine trên Windows/Linux/macOS. Bản cũ, giữ làm dự phòng."""
     env_override = os.environ.get("VNOFFICE_SOFFICE_PATH")
     system = platform.system()
 
@@ -1372,6 +1418,9 @@ def _seed_profile_dir(profile_kind: str, profile_dir: Path) -> None:
 
     def long_path(path: Path) -> str:
         # LibreOffice nests extension caches deeply; with a long user name the copy passes MAX_PATH (260).
+        services = _os_services()
+        if services is not None and services.launcher is not None:
+            return str(services.launcher.native_io_path(path))
         text = str(path.resolve())
         return "\\\\?\\" + text if os.name == "nt" and not text.startswith("\\\\?\\") else text
 
@@ -5178,7 +5227,10 @@ def main(argv: list[str] | None = None):
             f"• Phần mềm diệt virus hoặc tường lửa có đang chặn ứng dụng không.\n"
             f"• Thử khởi động lại máy tính."
         )
-        if platform.system() == "Windows":
+        services = _os_services()
+        if services is not None and services.launcher is not None:
+            services.launcher.show_error("3T Office — Lỗi khởi động", msg)
+        elif platform.system() == "Windows":
             try:
                 import ctypes
                 ctypes.windll.user32.MessageBoxW(0, msg, "3T Office — Lỗi khởi động", 0x10)

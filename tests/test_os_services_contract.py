@@ -66,9 +66,10 @@ class FactoryTests(unittest.TestCase):
         self.assertEqual(self.pkg.__name__, NAME)
 
     def test_unregistered_platform_reports_not_supported_instead_of_picking_another_os(self):
-        self.assertIsNone(self.pkg.backend_name_for("darwin"))
+        self.assertEqual(self.pkg.backend_name_for("darwin"), "portable")  # Q2: portable until macos.py exists
+        self.assertIsNone(self.pkg.backend_name_for("freebsd"))
         with self.assertRaises(NotImplementedError):
-            self.pkg.get_services("darwin")
+            self.pkg.get_services("freebsd")
 
     def test_registered_backend_is_selected_by_platform_prefix_and_completeness_is_checked(self):
         fake = types.ModuleType(NAME + ".fakeos")
@@ -83,8 +84,9 @@ class FactoryTests(unittest.TestCase):
 
         incomplete = dict(complete, launcher=None)
         fake.build_services = lambda: self.pkg.OSServices(**incomplete)
+        self.assertIsNone(self.pkg.get_services("fakeos-1").launcher)  # partial backends are allowed while migrating
         with self.assertRaises(RuntimeError):
-            self.pkg.get_services("fakeos-1")
+            self.pkg.get_services("fakeos-1", strict=True)
 
     def test_contract_lists_the_ten_services_and_closed_child_purposes(self):
         self.assertEqual(len(self.pkg.SERVICE_FIELDS), 10)

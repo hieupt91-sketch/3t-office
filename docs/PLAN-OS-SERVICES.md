@@ -23,6 +23,8 @@ Trạng thái: **ĐÃ DUYỆT 05/10/2026 (chủ sở hữu cho làm theo khuyế
 
 **P1 (xong):** `platform/os_services/base.py` (kiểu trung tính + 10 Protocol + `OSServices`), `__init__.py` (bộ chọn backend, chưa có backend nào đăng ký), `tests/test_os_services_contract.py` (9 test, gồm kiểm "hợp đồng không nhắc tên API hệ điều hành"). Khác kế hoạch: chưa tạo `windows.py` rỗng; nó được thêm ở P2 cùng với dịch vụ thật đầu tiên để không có mã chết.
 
+**P2 (xong, 05/10):** `platform/os_services/windows.py` và `portable.py` (macOS/Linux dùng tạm theo Q2) cung cấp `DataDirs.user_data_dir/document_profile_dir` và `Launcher.find_document_engine/native_io_path/show_error`. `main.py` gọi qua `_os_services()` (nạp dưới tên riêng `_vno_os_services`, lỗi nạp tự rơi về mã cũ): `_user_data_dir`, `find_soffice`, tiền tố đường dẫn dài khi chép hồ sơ seed, hộp lỗi khởi động. Mã cũ giữ nguyên thành `_legacy_user_data_dir`/`_legacy_find_soffice`; `VNO_OS_SERVICES_LEGACY=1` bật lại. Chưa chuyển `open_path` (cần ProcessTracker của P4 để đăng ký tiến trình con). `OSServices` cho phép backend thiếu dịch vụ trong lúc chuyển dần; `get_services(strict=True)` bắt buộc đủ ở bước cuối. Kiểm: `tests/test_os_services_p2.py` (9 test, so bản mới với bản cũ), node 2762 PASS, hồi quy desktop 27 PASS, Python 708/709 (1 lỗi do Word đang bận gọi COM, không phải sản phẩm).
+
 ## 1. Mục tiêu, phạm vi và căn cứ
 
 Mục tiêu là gom thao tác phụ thuộc hệ điều hành của desktop vào platform/os_services/, định nghĩa hợp đồng bằng Python Protocol, giữ nguyên hành vi Windows và để macOS về sau chỉ cần hiện thực macos.py cùng mã đóng gói trong ports/macos/. UI/JavaScript không được biết tên hệ điều hành hay gọi Win32/COM trực tiếp.

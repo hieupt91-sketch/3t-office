@@ -48,8 +48,11 @@ def backend_name_for(platform: str | None = None) -> str | None:
     return None
 
 
-def get_services(platform: str | None = None) -> OSServices:
-    """Build the services of the matching backend. Raises NotImplementedError when none is registered."""
+def get_services(platform: str | None = None, *, strict: bool = False) -> OSServices:
+    """Build the services of the matching backend. Raises NotImplementedError when none is registered.
+
+    strict=True also requires every service to be present (the final state of the migration).
+    """
     module_name = backend_name_for(platform)
     if module_name is None:
         raise NotImplementedError(
@@ -57,7 +60,14 @@ def get_services(platform: str | None = None) -> OSServices:
         )
     module = importlib.import_module(f"{__name__}.{module_name}")
     services = module.build_services()
-    missing = [name for name in SERVICE_FIELDS if getattr(services, name, None) is None]
-    if missing:
-        raise RuntimeError("Backend thiếu dịch vụ: " + ", ".join(missing))
+    if strict:
+        missing = [name for name in SERVICE_FIELDS if getattr(services, name, None) is None]
+        if missing:
+            raise RuntimeError("Backend thiếu dịch vụ: " + ", ".join(missing))
     return services
+
+
+# Built-in backends. macOS/Linux use the portable one until macos.py exists (Q2).
+register_backend("win32", "windows")
+register_backend("darwin", "portable")
+register_backend("linux", "portable")
