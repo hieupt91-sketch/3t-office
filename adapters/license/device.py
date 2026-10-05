@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import hashlib
 import platform
+import re
+import subprocess
 import sys
 import uuid
 
@@ -28,8 +30,52 @@ def is_valid_device_code(code: str) -> bool:
     return all(char in CROCKFORD_ALPHABET for char in body) and body[24:] == _device_checksum(body[:24]) if len(body) == 25 else False
 
 
+_IOREG_UUID_RE = re.compile(r'"IOPlatformUUID"\s*=\s*"([0-9A-Fa-f-]{8,64})"')
+
+
+def parse_ioreg_platform_uuid(output: str) -> str | None:
+    """`ioreg -rd1 -c IOPlatformExpertDevice` prints `"IOPlatformUUID" = "XXXXXXXX-...."` (macOS hardware UUID)."""
+    match = _IOREG_UUID_RE.search(str(output or ""))
+    return match.group(1).upper() if match else None
+
+
+def _macos_platform_uuid() -> str | None:
+    try:
+        completed = subprocess.run(
+            ["ioreg", "-rd1", "-c", "IOPlatformExpertDevice"],
+            capture_output=True, text=True, timeout=5, check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return parse_ioreg_platform_uuid(completed.stdout) if completed.returncode == 0 else None
+
+
+def _linux_machine_id() -> str | None:
+    for path in ("/etc/machine-id", "/var/lib/dbus/machine-id"):
+        try:
+            with open(path, "r", encoding="ascii") as handle:
+                value = handle.read().strip()
+        except OSError:
+            continue
+        if re.fullmatch(r"[0-9a-fA-F]{16,64}", value):
+            return value.lower()
+    return None
+
+
 def machine_id() -> str:
-    """Stable per-installation OS identifier (Windows MachineGuid; other systems fall back to the MAC address)."""
+    """Stable per-installation OS identifier.
+
+    Windows: MachineGuid. macOS: IOPlatformUUID. Linux: /etc/machine-id. Anything else (or when those are not
+    readable) falls back to the MAC address, exactly as before.
+    """
+    if sys.platform == "darwin":
+        value = _macos_platform_uuid()
+        if value:
+            return "mac-uuid-" + value
+    elif sys.platform.startswith("linux"):
+        value = _linux_machine_id()
+        if value:
+            return "linux-" + value
     if sys.platform == "win32":
         try:
             import winreg

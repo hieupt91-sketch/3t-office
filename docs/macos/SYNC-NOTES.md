@@ -26,6 +26,9 @@ Test dùng chung: `node tests/run-tests.js` (2762 PASS), hồi quy desktop 27 ca
 - `ooxml_zip_patch.py`: worker của pool P1b tự thoát khi app cha chết (trên POSIX so `os.getppid()`); `prefetch_sheet_open_metadata` chạy trong luồng nền khi mở Sheet (cờ `VNO_OPEN_PREFETCH=0` tắt).
 - `platform/os_services/` (P1, P2): `windows.py` và `portable.py`. **macOS hiện dùng `portable.py`** (đường dẫn `~/Library/Application Support/VNOffice`, tìm `/Applications/LibreOffice.app/...`); khi làm `macos.py`, sao chép từ `portable.py` rồi chỉnh. `VNO_OS_SERVICES_LEGACY=1` quay lại mã cũ.
 
+- `adapters/license/device.py`: mã máy trên macOS lấy `IOPlatformUUID` qua `ioreg -rd1 -c IOPlatformExpertDevice` (Linux: `/etc/machine-id`), rơi về địa chỉ MAC như cũ nếu không đọc được. Có test phân tích; **chưa chạy trên máy mac thật** — hãy kiểm `device.machine_id()` trả `mac-uuid-…`.
+- Đọc `docs/SPEC-PERF-OPEN.md` mục 6.1d/6.1e để biết các cờ hoàn tác mới (`VNO_FODS_TABLE_REGEX`, `VNO_STRIP_XF_REGEX`, `VNO_OPEN_PREFETCH`, `VNO_WRITER_VERIFY`, `__VNO_OPEN_LEGACY` trong JS).
+
 ## B. Chỉ dành cho Windows (đừng sao chép sang mac)
 - `main.py`: `taskkill` (nhánh `os.name == "nt"`), tiền tố đường dẫn dài `\\?\`, `GetLocaleInfoEx`, `MessageBoxW`, `SetCurrentProcessExplicitAppUserModelID`.
 - `adapters/updater/apply-helper.ps1` (áp dụng cập nhật); mac cần `apply-helper.sh` riêng trong `ports/macos`.
