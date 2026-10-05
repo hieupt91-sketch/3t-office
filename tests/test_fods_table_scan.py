@@ -67,3 +67,32 @@ class TableScanEquivalenceTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class OpenTagScanEquivalenceTests(unittest.TestCase):
+    def test_find_path_matches_regex_for_sheet_open_tag_shapes(self):
+        xml = (
+            "<office:spreadsheet><table:table-cell/></office:spreadsheet>"
+            "<table:table table:name=\"First\"></table:table>"
+            "<table:table\ntable:name=\"Newline\">x</table:table>"
+            "<table:table table:name=\"Last\">y</table:table>"
+            "<table:table></table:table>"
+            "<table:table/>"
+            "<table:table-row><table:table-cell/></table:table-row>"
+        )
+        def replace(match):
+            return f"<table:table{match.group(1)} scanned=\"yes\">"
+        expected = P._FODS_TABLE_OPEN_TAG_RE.sub(replace, xml)
+        self.assertEqual(P._sub_fods_table_open_tags(xml, replace), expected)
+
+    def test_many_cell_prefix_decoys_are_ignored(self):
+        xml = "<table:table-cell/>" * 20000 + "<table:table table:name=\"Sheet\">body</table:table>"
+        replace = lambda match: match.group(0) + "<!--found-->"
+        expected = P._FODS_TABLE_OPEN_TAG_RE.sub(replace, xml)
+        self.assertEqual(P._sub_fods_table_open_tags(xml, replace), expected)
+
+    def test_freeze_self_closing_delimiter_matches_regex(self):
+        xml = "<table:table/>"
+        replace = lambda match: match.group(0) + "!"
+        expected = P._FREEZE_TABLE_TAG_RE.sub(replace, xml)
+        self.assertEqual(P._sub_fods_table_open_tags(xml, replace, P._FREEZE_TABLE_TAG_RE), expected)

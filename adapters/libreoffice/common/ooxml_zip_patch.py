@@ -288,6 +288,7 @@ def patch_ooxml_zip(zip_bytes: bytes, replacements: dict[str, str | bytes | None
 # callback for every cell in a large FODS.  A sheet header can only continue
 # with whitespace, '/', or '>', so keep this scan proportional to sheet count.
 _FREEZE_TABLE_TAG_RE = re.compile(r"<table:table(?=[\s>/])([^>]*)>")
+_FODS_TABLE_OPEN_TAG_RE = re.compile(r"<table:table(?=\s|>)([^>]*)>", re.IGNORECASE)
 _FREEZE_ROWS_ATTR_RE = re.compile(r'vno:frozen-rows="(\d+)"', re.IGNORECASE)
 _FREEZE_COLS_ATTR_RE = re.compile(r'vno:frozen-cols="(\d+)"', re.IGNORECASE)
 _SHEET_VIEW_RE = re.compile(r"(<sheetView\b[^>]*>)([\s\S]*?)(</sheetView>)", re.IGNORECASE)
@@ -297,6 +298,64 @@ _PANE_MATCH_RE = re.compile(r"<pane\b([^>]*)/>", re.IGNORECASE)
 _SELECTION_TAG_RE = re.compile(r"<selection\b[^>]*/>", re.IGNORECASE)
 _WB_SHEET_TAG_RE = re.compile(r"<(?:[A-Za-z_][\w.-]*:)?sheet\b([^>]*)/?>", re.IGNORECASE)
 _WB_RELATIONSHIP_TAG_RE = re.compile(r"<Relationship\b([^>]*)/?>", re.IGNORECASE)
+
+
+class _FodsOpenTagSpan:
+    """Small re.Match-compatible view of a FODS table opening tag."""
+    __slots__ = ("_xml", "_start", "_end", "_attrs_end")
+
+    def __init__(self, xml: str, start: int, end: int) -> None:
+        self._xml, self._start, self._end, self._attrs_end = xml, start, end, end - 1
+
+    def group(self, index: int = 0) -> str:
+        if index == 0:
+            return self._xml[self._start:self._end]
+        if index == 1:
+            return self._xml[self._start + len("<table:table"):self._attrs_end]
+        raise IndexError(index)
+
+
+def _sub_fods_table_open_tags(xml: str, callback, regex: re.Pattern | None = None) -> str:
+    """Replace FODS table openings using delimiter-specific find needles."""
+    regex = regex or _FODS_TABLE_OPEN_TAG_RE
+    if os.environ.get("VNO_FODS_TABLE_REGEX") == "1":
+        return regex.sub(callback, xml)
+    positions = _fods_table_open_positions(xml, include_slash=regex is _FREEZE_TABLE_TAG_RE)
+    if not positions:
+        return regex.sub(callback, xml)
+    pieces = []
+    cursor = 0
+    last_start = -1
+    for start in positions:
+        if start == last_start:
+            continue
+        last_start = start
+        end = xml.find(">", start + len("<table:table"))
+        if end < 0:
+            continue
+        end += 1
+        pieces.append(xml[cursor:start])
+        pieces.append(callback(_FodsOpenTagSpan(xml, start, end)))
+        cursor = end
+    if cursor == 0:
+        return xml
+    pieces.append(xml[cursor:])
+    return "".join(pieces)
+
+
+def _fods_table_open_positions(xml: str, *, include_slash: bool = False) -> list[int]:
+    """Find only sheet opening delimiters, avoiding table-row/cell prefix hits."""
+    needles = ("<table:table ", "<table:table\n", "<table:table>")
+    if include_slash:
+        needles += ("<table:table/>",)
+    positions = []
+    for needle in needles:
+        pos = xml.find(needle)
+        while pos >= 0:
+            positions.append(pos)
+            pos = xml.find(needle, pos + len(needle))
+    positions.sort()
+    return positions
 
 
 def column_label_from_index(one_based_index: int) -> str:
@@ -348,7 +407,7 @@ def apply_freeze_panes_to_fods(fods_xml: str, freeze_by_sheet: dict[str, dict[st
         next_attrs = f'{next_attrs} vno:frozen-rows="{freeze["rows"]}" vno:frozen-cols="{freeze["cols"]}"'
         return f"<table:table{next_attrs}>"
 
-    return _FREEZE_TABLE_TAG_RE.sub(_replace, xml)
+    return _sub_fods_table_open_tags(xml, _replace, _FREEZE_TABLE_TAG_RE)
 
 
 def parse_freeze_pane_from_sheet_xml(sheet_xml: str | None) -> dict[str, int] | None:
@@ -460,7 +519,7 @@ def apply_sheet_visibility_to_fods(fods_xml: str, visibility_by_sheet: dict[str,
         next_attrs = f'{next_attrs} vno:sheet-state="{canonical}"'
         return f"<table:table{next_attrs}>"
 
-    return _FREEZE_TABLE_TAG_RE.sub(_replace, xml)
+    return _sub_fods_table_open_tags(xml, _replace, _FREEZE_TABLE_TAG_RE)
 
 
 def parse_sheet_visibility_from_fods(fods_xml: str | None) -> dict[str, str]:
@@ -1538,7 +1597,7 @@ def overlay_page_margins_to_fods(xlsx_bytes: bytes, fods_xml: str) -> str:
         attrs = re.sub(r'\s+vno:page-margins="[^"]*"', '', attrs, flags=re.IGNORECASE)
         return f'<table:table{attrs} vno:page-margins="{_escape_xml(json.dumps(margins))}">'
 
-    xml = re.sub(r'<table:table(?=\s|>)([^>]*)>', replace_table, fods_xml, flags=re.IGNORECASE)
+    xml = _sub_fods_table_open_tags(fods_xml, replace_table)
     if not re.search(r'xmlns:vno\s*=', xml, re.IGNORECASE):
         xml = re.sub(r'<office:document\b', f'<office:document xmlns:vno="{SHEET_VNO_NS}"', xml, count=1)
     return xml
@@ -5935,7 +5994,7 @@ def _overlay_sheet_drawing_image_ids(xlsx_bytes: bytes, fods_xml: str) -> str:
     # For each sheet in FODS, find draw:frame elements with draw:image and assign image-id
     pieces = []
     cursor = 0
-    for table_start, table_end in _flat_xml_blocks(xml, ("table:table",)):
+    for table_start, table_end in _iter_fods_table_blocks(xml):
         pieces.append(xml[cursor:table_start])
         table_xml = xml[table_start:table_end]
         table_attrs = _xml_attrs(re.match(r"<[^>]+", table_xml).group(0))
@@ -16066,6 +16125,28 @@ def _sub_fods_tables(fods_xml: str, process_table) -> str:
         return fods_xml
     pieces.append(fods_xml[cursor:])
     return "".join(pieces)
+
+
+def _iter_fods_table_blocks(fods_xml: str):
+    """Yield flat FODS sheet spans without scanning every markup character."""
+    if os.environ.get("VNO_FODS_TABLE_REGEX") == "1" or _FODS_TABLE_ODD_CLOSE_RE.search(fods_xml):
+        for match in _FODS_TABLE_RE.finditer(fods_xml):
+            yield match.start(), match.end()
+        return
+    positions = _fods_table_open_positions(fods_xml)
+    last_start = -1
+    for start in positions:
+        if start == last_start:
+            continue
+        last_start = start
+        opening_end = fods_xml.find(">", start + len("<table:table"))
+        if opening_end < 0:
+            continue
+        close_start = fods_xml.find("</table:table>", opening_end + 1)
+        if close_start < 0:
+            continue
+        end = close_start + len("</table:table>")
+        yield start, end
 
 
 _FODS_ROW_RE = re.compile(r"(<table:table-row\b[^>]*?)(/?)\s*>", re.IGNORECASE)
