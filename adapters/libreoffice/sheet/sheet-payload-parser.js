@@ -26,13 +26,37 @@ function unescapeXmlP2(value) {
 
 const P2_ATTR_RE = /([\w:-]+)=(["'])([\s\S]*?)\2/g;
 
-function parseAttrsP2(raw) {
+function parseAttrsP2Regex(source) {
   const attrs = {};
-  const source = String(raw || "");
   P2_ATTR_RE.lastIndex = 0;
   let match;
   while ((match = P2_ATTR_RE.exec(source)) !== null) {
     attrs[match[1]] = unescapeXmlP2(match[3]);
+  }
+  return attrs;
+}
+
+function parseAttrsP2(raw) {
+  const attrs = {};
+  const source = String(raw || "");
+  const isNameChar = code => code === 95 || code === 58 || code === 45
+    || code >= 48 && code <= 57 || code >= 65 && code <= 90 || code >= 97 && code <= 122;
+  let i = 0;
+  while (i < source.length) {
+    while (i < source.length && !isNameChar(source.charCodeAt(i))) i++;
+    const start = i;
+    while (i < source.length && isNameChar(source.charCodeAt(i))) i++;
+    if (start === i) break;
+    const nameEnd = i;
+    if (source.charCodeAt(i) !== 61) continue;
+    i++;
+    const quote = source.charCodeAt(i);
+    if (quote !== 34 && quote !== 39) continue;
+    const valueStart = ++i;
+    while (i < source.length && source.charCodeAt(i) !== quote) i++;
+    if (i === source.length) return parseAttrsP2Regex(source); // unterminated value: the regex may still match a later attribute
+    attrs[source.slice(start, nameEnd)] = unescapeXmlP2(source.slice(valueStart, i));
+    i++;
   }
   return attrs;
 }
@@ -754,3 +778,6 @@ export function toPlain(value) {
   if (value && typeof value === "object") return Object.fromEntries(Object.keys(value).sort().map(key => [key, toPlain(value[key])]));
   return value;
 }
+
+// Test hook: the scanner and its regex reference are compared by tests/unit/sheet-payload-p2-equivalence.test.js.
+export const __parseAttrsP2ForTest = { fast: parseAttrsP2, regex: parseAttrsP2Regex };

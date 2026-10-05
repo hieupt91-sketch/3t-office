@@ -614,7 +614,9 @@ export class SheetAdapter {
 
   _unescapeXml(value) {
     if (!value) return "";
-    return String(value)
+    const source = String(value);
+    if (!source.includes("&")) return source;
+    return source
       .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(parseInt(code, 16)))
       .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(parseInt(code, 10)))
       .replace(/&apos;/g, "'")
@@ -3783,7 +3785,7 @@ ${pristineXlsxMarker}
     const get = name => attributes[name] ?? "";
     const valueType = get("office:value-type");
     let value = text;
-    if (["float", "percentage", "currency"].includes(valueType)) {
+    if (valueType === "float" || valueType === "percentage" || valueType === "currency") {
       const numericValue = Number(get("office:value"));
       value = Number.isFinite(numericValue) ? numericValue : text;
     } else if (valueType === "date") {

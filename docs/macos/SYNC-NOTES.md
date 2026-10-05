@@ -27,6 +27,7 @@ Test dùng chung: `node tests/run-tests.js` (2762 PASS), hồi quy desktop 27 ca
 - `platform/os_services/` (P1, P2): `windows.py` và `portable.py`. **macOS hiện dùng `portable.py`** (đường dẫn `~/Library/Application Support/VNOffice`, tìm `/Applications/LibreOffice.app/...`); khi làm `macos.py`, sao chép từ `portable.py` rồi chỉnh. `VNO_OS_SERVICES_LEGACY=1` quay lại mã cũ.
 
 - `adapters/license/device.py`: mã máy trên macOS lấy `IOPlatformUUID` qua `ioreg -rd1 -c IOPlatformExpertDevice` (Linux: `/etc/machine-id`), rơi về địa chỉ MAC như cũ nếu không đọc được. Có test phân tích; **chưa chạy trên máy mac thật** — hãy kiểm `device.machine_id()` trả `mac-uuid-…`.
+- **06/10 (dùng chung):** `ooxml_zip_patch.py` + `sheet_open_payload.py` gộp bớt lượt xử lý khi mở Sheet lớn (khung bảng, nén deflate trong worker). Không có mã riêng hệ điều hành; `zlib`/`ProcessPoolExecutor spawn` chạy như nhau trên mac. Cờ hoàn tác `VNO_OVERLAY_SKELETON=0`, `VNO_PAYLOAD_STRIP_IN_WORKERS=0`. Mac cần chạy lại `tests/test_overlay_skeleton.py` và `tests/test_sheet_open_payload.py` (chi tiết `docs/SPEC-PERF-OPEN.md` mục 6.1f).
 - Đọc `docs/SPEC-PERF-OPEN.md` mục 6.1d/6.1e để biết các cờ hoàn tác mới (`VNO_FODS_TABLE_REGEX`, `VNO_STRIP_XF_REGEX`, `VNO_OPEN_PREFETCH`, `VNO_WRITER_VERIFY`, `__VNO_OPEN_LEGACY` trong JS).
 
 ## B. Chỉ dành cho Windows (đừng sao chép sang mac)
