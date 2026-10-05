@@ -428,6 +428,15 @@ export class SheetGridController {
       return this.toggleSpellcheck();
     });
 
+    globalCommandBus.bindHandler("common.edit.copy", () => this.copySelection(false));
+    globalCommandBus.bindHandler("common.edit.cut", () => this.copySelection(true));
+    globalCommandBus.bindHandler("common.edit.paste", () => this.pasteClipboard(false));
+    globalCommandBus.bindHandler("common.edit.pastePlain", () => this.pasteClipboard(true));
+    globalCommandBus.bindHandler("sheet.edit.copy", () => this.copySelection(false));
+    globalCommandBus.bindHandler("sheet.edit.cut", () => this.copySelection(true));
+    globalCommandBus.bindHandler("sheet.edit.paste", () => this.pasteClipboard(false));
+    globalCommandBus.bindHandler("sheet.edit.pastePlain", () => this.pasteClipboard(true));
+
     this.autocomplete.mount();
 
     this.formulaInput.addEventListener("focus", () => {
@@ -2298,6 +2307,42 @@ export class SheetGridController {
       this._applyClipboardVisual(cell, cell.dataset.col, Number(cell.dataset.row))
     );
     return true;
+  }
+
+  copySelection(isCut = false) {
+    const range = this.selectionRange || (this.selectedCoord ? { start: this.selectedCoord, end: this.selectedCoord } : null);
+    if (!range) return false;
+    this.setClipboardRange(range, isCut ? "cut" : "copy", this.activeSheet);
+    return true;
+  }
+
+  pasteClipboard(plainTextOnly = false) {
+    if (!this._clipboardRange || !this.selectedCoord) return false;
+    const cb = this._clipboardRange;
+    const srcSheet = cb.sheet || this.activeSheet;
+    const srcMap = srcSheet === this.activeSheet ? this.cellsData : (this.sheetsData[srcSheet] || new Map());
+    const startCol = this._columnNumber(cb.range.start.c);
+    const endCol = this._columnNumber(cb.range.end.c);
+    const startRow = Number(cb.range.start.r);
+    const endRow = Number(cb.range.end.r);
+    const cells = [];
+    for (let r = startRow; r <= endRow; r++) {
+      const row = [];
+      for (let c = startCol; c <= endCol; c++) {
+        const item = srcMap.get(`${this._columnLabel(c)}${r}`) || { val: "", formula: "", style: {} };
+        row.push(structuredClone(item));
+      }
+      cells.push(row);
+    }
+    const model = { range: structuredClone(cb.range), cells, sourceSheet: srcSheet };
+    const mode = plainTextOnly ? "values" : "source";
+    const isCut = cb.mode === "cut" && srcSheet === this.activeSheet;
+    const applied = this.applyPasteSpecial(model, mode, this.selectedCoord, {
+      moveRange: isCut ? cb.range : null,
+      sourceSheet: srcSheet
+    });
+    if (applied && isCut) this.clearClipboardRange();
+    return applied;
   }
 
   _applyClipboardVisual(cell, col, row) {
@@ -7871,9 +7916,30 @@ _bindGridKeyboardNavigation() {
       }
     }
 
+    const cbRange = this._clipboardRange;
+    const cbStartCol = cbRange?.range ? this._columnNumber(cbRange.range.start.c) : null;
+    const cbEndCol = cbRange?.range ? this._columnNumber(cbRange.range.end.c) : null;
+    const cbStartRow = cbRange?.range ? Number(cbRange.range.start.r) : null;
+    const cbEndRow = cbRange?.range ? Number(cbRange.range.end.r) : null;
+    const cbWidth = cbStartCol != null && cbEndCol != null ? (cbEndCol - cbStartCol + 1) : null;
+    const cbHeight = cbStartRow != null && cbEndRow != null ? (cbEndRow - cbStartRow + 1) : null;
+
     for (let rowOffset = 0; rowOffset < height; rowOffset++) {
       for (let colOffset = 0; colOffset < width; colOffset++) {
         const source = structuredClone(transpose ? sourceRows[colOffset][rowOffset] : sourceRows[rowOffset][colOffset]);
+        if (cbRange && cbWidth === (transpose ? sourceRows.length : sourceRows[0].length) && cbHeight === (transpose ? sourceRows[0].length : sourceRows.length)) {
+          const srcSheet = cbRange.sheet || this.activeSheet;
+          const srcMap = srcSheet === this.activeSheet ? this.cellsData : this.sheetsData[srcSheet];
+          if (srcMap) {
+            const srcR = transpose ? (cbStartRow + colOffset) : (cbStartRow + rowOffset);
+            const srcC = transpose ? (cbStartCol + rowOffset) : (cbStartCol + colOffset);
+            const srcCoord = `${this._columnLabel(srcC)}${srcR}`;
+            const srcCell = srcMap.get(srcCoord);
+            if (srcCell && srcCell.style && Object.keys(srcCell.style).length > 0) {
+              source.style = { ...structuredClone(srcCell.style), ...(source.style || {}) };
+            }
+          }
+        }
         const destColNumber = destStartCol + colOffset;
         const destRow = Number(destination.r) + rowOffset;
         if (destColNumber < 1 || destColNumber > this.cols.length || destRow < 1 || destRow > this.rowCount) continue;

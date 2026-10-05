@@ -86,6 +86,7 @@ import { runSheetPivotImportTests } from "./unit/sheet-pivot-import.test.js";
 import { runSheetPivotSaveFodsTests } from "./unit/sheet-pivot-save-fods.test.js";
 import { runSheetMergeCellsTests } from "./unit/sheet-merge-cells.test.js";
 import { runSheetPasteSpecialTests } from "./unit/sheet-paste-special.test.js";
+import { runSheetCopyPasteFormatTests } from "./unit/sheet-copy-paste-format.test.js";
 import { runOfficeClipboardTests } from "./unit/office-clipboard.test.js";
 import { runCrossAppPasteTests } from "./unit/cross-app-paste.test.js";
 import { runSlidesSmartartImportTests } from "./unit/slides-smartart-import.test.js";
@@ -346,6 +347,7 @@ async function runAll() {
     { title: "80. Round-trip Tests — Sheet Pivot Table Save FODS", runner: runSheetPivotSaveFodsTests },
     { title: "81. Behavioral Tests — VN Sheet Merge Cells", runner: runSheetMergeCellsTests },
     { title: "82. Behavioral Tests — VN Sheet Paste Special", runner: runSheetPasteSpecialTests },
+    { title: "82b. Behavioral Tests — VN Sheet Copy Cut Paste Formatting Preservation", runner: runSheetCopyPasteFormatTests },
     { title: "83. Unit Tests — Slides SmartArt Import Fidelity (real PPTX DrawingML → FODP)", runner: runSlidesSmartartImportTests },
     { title: "84. Unit Tests — Writer Header/Footer Import Fidelity (real DOCX → StarWriter HTML)", runner: runWriterHeaderFooterImportTests },
     { title: "85. Behavioral Tests — VN Slides Diagram Group Select / Move / Delete", runner: runSlidesDiagramGroupSelectTests },
