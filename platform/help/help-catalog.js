@@ -10,6 +10,7 @@ import { STABILITY_HELP_ENTRIES } from "./entries-stability.js";
 import { UPDATER_HELP_ENTRIES } from "./entries-updater.js";
 import { LICENSE_HELP_ENTRIES } from "./entries-license.js";
 import { GAP_HELP_ENTRIES } from "./entries-gaps-0410.js";
+import { AUDIT2_HELP_ENTRIES } from "./entries-audit2-0410.js";
 import { LAUNCHER_HELP_ENTRIES } from "./entries-launcher.js";
 import { CONSISTENCY_HELP_ENTRIES } from "./entries-consistency.js";
 import { RETRO_RIBBON_HELP_ENTRIES } from "./entries-retro-ribbon.js";
@@ -26,6 +27,7 @@ export const HELP_ENTRIES = [
   ...UPDATER_HELP_ENTRIES,
   ...LICENSE_HELP_ENTRIES,
   ...GAP_HELP_ENTRIES,
+  ...AUDIT2_HELP_ENTRIES,
   ...LAUNCHER_HELP_ENTRIES,
   ...CONSISTENCY_HELP_ENTRIES,
   ...RETRO_RIBBON_HELP_ENTRIES,
