@@ -5334,6 +5334,18 @@ _bindGridKeyboardNavigation() {
     const nextStyle = { ...(style || {}) };
     if (escapedText) return { value: String(value ?? ""), style: nextStyle };
     const category = nextStyle.numberFormat?.category;
+    // Currency input is a type inference result, so apply both its real numeric
+    // value and display format at the point where literal cell edits are stored.
+    if (typeof value === "string" && (!category || category === "general")) {
+      const inferred = NumberFormatter.inferUserInput(value, nextStyle.numberFormat, {
+        decimalSeparator: ",",
+        thousandsSeparator: "."
+      });
+      if (inferred?.numberFormat?.category === "currency") {
+        nextStyle.numberFormat = inferred.numberFormat;
+        return { value: inferred.value, style: nextStyle };
+      }
+    }
     if (typeof value === "string" && (!category || category === "general")
       && /^[+-]?(?:\d+(?:\.\d+)?|\.\d+)\s*%$/.test(value.trim())) {
       nextStyle.numberFormat = { category: "percentage", decimals: value.match(/\.(\d+)/)?.[1].length || 0 };

@@ -177,6 +177,17 @@ export async function runSheetFormatCellsTests() {
     assert(NumberFormatter.normalizeInputForFormat("08:30", { category: "time", timeFormat: "hh:mm" }) === 8.5 / 24);
   });
 
+  test("C1b: gõ tiền tệ (₫250000, 250.000 ₫) vào ô lưu số thật kèm định dạng currency", () => {
+    const grid = Object.create(SheetGridController.prototype);
+    for (const text of ["₫250000", "250.000 ₫", "250000 VND"]) {
+      const out = grid._normalizeCellInput(text, {}, false);
+      assert(out.value === 250000, `"${text}" phải thành số 250000, nhận ${JSON.stringify(out.value)}`);
+      assert(out.style.numberFormat?.category === "currency", `"${text}" phải có định dạng currency`);
+    }
+    assert(grid._normalizeCellInput("abc", {}, false).value === "abc", "Chữ thường giữ nguyên");
+    assert(grid._normalizeCellInput("₫250000", {}, true).value === "₫250000", "Có dấu ' đầu thì giữ văn bản");
+  });
+
   test("C1: tự nhận dạng kiểu nhập theo vùng Windows và giữ văn bản có chủ ý", () => {
     const us = { decimalSeparator: ".", thousandsSeparator: "," };
     const vi = { decimalSeparator: ",", thousandsSeparator: "." };
