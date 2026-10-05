@@ -22,6 +22,7 @@ import {
 import { STYLE_PRESETS, showStyleGalleryDropdown, closeStyleGalleryDropdown, createStyleGalleryStrip } from "../../../apps/writer/style-gallery.js";
 import { showWatermarkDialog, showPageBorderDialog, showPageColorDialog } from "../../../apps/writer/page-decorations.js";
 import { showColumnsDialog } from "../../../apps/writer/columns-dialog.js";
+import { showParagraphDialog } from "../../../apps/writer/paragraph-dialog.js";
 import { SHAPE_TYPES, showShapeDialog, renderShapeSvg, showDiagramDialog, generateDiagramHtml, showChartDialog, generateChartHtml } from "../../../apps/writer/writer-illustrations.js";
 import { DOCUMENT_THEMES, showThemeGalleryDialog } from "../../../apps/writer/theme-gallery.js";
 import { showSymbolPicker } from "../../../platform/ui-kit/symbol-picker.js";
@@ -602,6 +603,7 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.layout.sectionOptions", () => this.openHeaderFooterOptionsDialog());
     globalCommandBus.bindHandler("writer.page.border", (args) => this.openPageBorderDialog(args));
     globalCommandBus.bindHandler("writer.page.columns", (args) => this.openColumnsDialog(args));
+    globalCommandBus.bindHandler("writer.format.paragraphDialog", (args) => this.openParagraphDialog(args));
     globalCommandBus.bindHandler("writer.page.columns1", () => this.setColumns({ count: 1, gap: 0, rule: false }));
     globalCommandBus.bindHandler("writer.page.columns2", () => this.setColumns({ count: 2, gap: 10, rule: false }));
     globalCommandBus.bindHandler("writer.page.columns3", () => this.setColumns({ count: 3, gap: 10, rule: false }));
@@ -10209,6 +10211,74 @@ export class WriterAdapter {
       : "";
     badge.textContent = `Danh số dòng: ${modeLabel}. Số hiện ở lề trái khi mở bằng phần mềm văn phòng khác có hỗ trợ — Doc chưa vẽ số cạnh từng dòng.${sectionNote}`;
     badge.setAttribute("title", badge.textContent);
+  }
+
+  // --- Hộp thoại Đoạn văn: một lần áp dụng = một bước hoàn tác (dùng chung _applyParagraphVisualStyle). ---
+  getParagraphDialogState() {
+    const state = this.getRulerState();
+    const block = this._getRulerParagraphBlocks()[0];
+    const base = {
+      align: "left", leftCm: 0, rightCm: 0, special: "none", specialCm: 1.27,
+      beforePt: 0, afterPt: 0, lineMode: "single", lineValue: 1,
+      contentWidthMm: Math.max(10, state.pageWidthMm - state.margins.left - state.margins.right)
+    };
+    if (!block || typeof window === "undefined") return base;
+    const computed = window.getComputedStyle(block);
+    const round = (value, digits = 2) => Math.round(value * 10 ** digits) / 10 ** digits;
+    const align = String(computed.textAlign || "left").toLowerCase();
+    base.align = align === "center" || align === "right" || align === "justify" ? align : "left";
+    base.leftCm = round(Math.max(0, state.paragraph.leftMm) / 10);
+    base.rightCm = round(Math.max(0, state.paragraph.rightMm) / 10);
+    if (state.paragraph.firstLineMm > 0.01) {
+      base.special = "firstLine";
+      base.specialCm = round(state.paragraph.firstLineMm / 10);
+    } else if (state.paragraph.firstLineMm < -0.01) {
+      base.special = "hanging";
+      base.specialCm = round(-state.paragraph.firstLineMm / 10);
+    }
+    base.beforePt = round((Number.parseFloat(computed.marginTop) || 0) * 0.75, 1);
+    base.afterPt = round((Number.parseFloat(computed.marginBottom) || 0) * 0.75, 1);
+    const lineHeight = Number.parseFloat(computed.lineHeight);
+    const fontSize = Number.parseFloat(computed.fontSize) || 16;
+    const inlineLine = String(block.style?.lineHeight || "").trim();
+    if (inlineLine.endsWith("pt")) {
+      base.lineMode = "exact";
+      base.lineValue = round(Number.parseFloat(inlineLine), 1);
+    } else if (Number.isFinite(lineHeight) && lineHeight > 0 && inlineLine) {
+      const ratio = round(lineHeight / fontSize);
+      const preset = ratio === 1 ? "single" : ratio === 1.5 ? "onehalf" : ratio === 2 ? "double" : "multiple";
+      base.lineMode = preset;
+      base.lineValue = ratio;
+    }
+    return base;
+  }
+
+  applyParagraphDialogValues(values) {
+    if (!values || typeof values !== "object") return false;
+    const state = this.getRulerState();
+    const contentWidth = state.pageWidthMm - state.margins.left - state.margins.right;
+    if (values.leftMm + values.rightMm > contentWidth - 10 || values.leftMm + values.firstLineMm < 0) return false;
+    let lineHeight;
+    if (values.lineMode === "exact") lineHeight = `${values.lineValue}pt`;
+    else if (values.lineMode === "multiple") lineHeight = String(values.lineValue);
+    else lineHeight = values.lineMode === "onehalf" ? "1.5" : values.lineMode === "double" ? "2" : "1";
+    return this._applyParagraphVisualStyle({
+      textAlign: values.align,
+      marginLeft: `${values.leftMm}mm`,
+      marginRight: `${values.rightMm}mm`,
+      textIndent: `${values.firstLineMm}mm`,
+      marginTop: `${values.beforePt}pt`,
+      marginBottom: `${values.afterPt}pt`,
+      lineHeight
+    }, "writer.format.paragraphDialog", this._getRulerParagraphBlocks());
+  }
+
+  async openParagraphDialog(args = null) {
+    if (args && typeof args === "object" && args.align) return this.applyParagraphDialogValues(args);
+    if (!this._getRulerParagraphBlocks().length) return false;
+    const values = await showParagraphDialog(this.getParagraphDialogState());
+    if (values === null) return null;
+    return this.applyParagraphDialogValues(values);
   }
 
   async openColumnsDialog(options = null) {
