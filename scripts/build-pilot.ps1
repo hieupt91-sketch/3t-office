@@ -105,6 +105,21 @@ Write-Host "      Seed profiles"
 & (Join-Path $PythonDir "python.exe") -s (Join-Path $PSScriptRoot "release\build-seed-profiles.py") (Join-Path $appDir "seed")
 if ($LASTEXITCODE -ne 0) { throw "build-seed-profiles.py failed ($LASTEXITCODE)" }
 
+# 3b2. Precompiled bytecode (checked-hash = valid wherever the files are copied, independent of file times).
+# Without it the first run compiles ooxml_zip_patch.py and the other large modules (and every Sheet worker process
+# does it again): measured on 0.9.9-rc1, first lan03 open 25.7 s vs 14.8 s once __pycache__ existed. Set
+# VNO_SKIP_PYC=1 to skip this step.
+if ($env:VNO_SKIP_PYC -ne "1") {
+    Write-Host "      Precompile bytecode"
+    $pyExe = Join-Path $pyOut "python.exe"
+    $compileTargets = @((Join-Path $appDir "adapters"), (Join-Path $appDir "apps"), (Join-Path $appDir "platform"), (Join-Path $pyOut "Lib"))
+    foreach ($target in $compileTargets) {
+        if (Test-Path -LiteralPath $target) {
+            & $pyExe -s -m compileall -q -j 0 --invalidation-mode checked-hash $target | Out-Null
+        }
+    }
+}
+
 # 3c. Per-app launchers (Doc.exe / Sheet.exe / Slide.exe): own icon + name for "Open with", taskbar, Task Manager.
 Write-Host "      Launchers"
 & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "installer\build-launchers.ps1") -OutDir (Join-Path $appDir "launchers") -Version $Version
