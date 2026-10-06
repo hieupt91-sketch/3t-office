@@ -503,7 +503,13 @@ export class WriterApp {
       this._renderWordCountStatus(stats);
     };
 
-    this.canvas.addEventListener("input", updateStats);
+    // Đếm từ dùng innerText (ép bố cục đồng bộ, ~27 ms ở tài liệu 50 trang): gộp theo nhịp gõ thay vì chạy sau từng phím.
+    let statsTimer = null;
+    const updateStatsSoon = () => {
+      if (statsTimer) clearTimeout(statsTimer);
+      statsTimer = setTimeout(() => { statsTimer = null; updateStats(); }, 350);
+    };
+    this.canvas.addEventListener("input", updateStatsSoon);
     this.canvas.addEventListener("vno-pagination-updated", updateStats);
     updateStats();
   }

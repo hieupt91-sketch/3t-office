@@ -15423,10 +15423,15 @@ export class WriterAdapter {
     if (this._paginationDebounceTimer) {
       clearTimeout(this._paginationDebounceTimer);
     }
+    // Tính lại dàn trang là đồng bộ và chặn luồng giao diện: ở tài liệu dài (~270 ms/lần) nếu chạy ngay khi người gõ
+    // dừng 250 ms thì phím kế tiếp bị trễ cả lần tính (P95 gõ 270 ms). Chờ lâu hơn theo chi phí lần tính trước (tối đa 1,5 s).
+    const delay = Math.max(this._paginationDebounceMs, Math.min(1500, Math.round((this._lastPaginationCostMs || 0) * 2.5)));
     this._paginationDebounceTimer = setTimeout(() => {
       this._paginationDebounceTimer = null;
+      const startedAt = typeof performance !== "undefined" ? performance.now() : 0;
       this._recomputeLivePagination();
-    }, this._paginationDebounceMs);
+      if (startedAt) this._lastPaginationCostMs = performance.now() - startedAt;
+    }, delay);
   }
 
   /**
