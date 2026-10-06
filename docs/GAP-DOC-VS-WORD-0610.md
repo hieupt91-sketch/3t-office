@@ -263,3 +263,21 @@ Kiểm tra `word/document.xml`, `styles.xml`, `numbering.xml`, `header*.xml`, `f
 
 - Nhánh `docs/doc-gap-vs-word-codex`, worktree ban đầu sạch.
 - Chỉ đọc mã, tạo tài liệu phân tích; test/CDP NOT RUN vì harness cần khởi chạy ứng dụng.
+
+## Cập nhật kiểm chứng 06/10 (tối) — Claude
+
+Đã thao tác thật trên app desktop (CDP) và, với phần lưu tệp, đọc lại XML DOCX; một số mục mở lại bằng Word thật. Script: `doc_matrix_verify.mjs` (19 dòng thao tác), `doc_matrix_roundtrip.mjs` (15 dòng lưu/đọc), `doc_matrix_roundtrip2.mjs` (8 dòng lưu/đọc).
+
+**Đã kiểm, đạt (đổi từ MỘT PHẦN/THIẾU sang ĐẦY ĐỦ ở mức chức năng):** Trang trắng, Ngắt trang, Hộp văn bản, WordArt, Phương trình, Ngày giờ, Chấp nhận/Từ chối thay đổi, Ngắt mục (trang kế/liên tục/chẵn/lẻ), Ngắt cột, Mục lục + Cập nhật sau khi sửa, Hàng tiêu đề lặp, Sắp xếp đoạn, Khởi động lại số, Danh sách đa cấp, Chiều rộng trang, Văn bản thành bảng, Trang bìa, Điều kiện trộn (Nếu/Thì), Hướng ngang, Lề trang, Trang đầu khác, Bookmark, Liên kết, Hình mờ, Chú thích hình (SEQ) + Danh mục hình, Trích dẫn + Thư mục, Trường trộn thư (MERGEFIELD), Giữ cùng trang với đoạn sau, Tắt dòng mồ côi/góa, Ngắt trang trước.
+
+**Lỗi thật tìm được và đã sửa (commit 13634216):**
+1. `w:type` của sectPr bị gán lệch một phần → "Ngắt mục liên tục" thành ngắt trang, chẵn/lẻ lệch (Word thật xác nhận).
+2. Phần bắt đầu bằng danh sách / tiêu đề / bảng làm mất ngắt mục.
+
+**Sai khác nhỏ còn lại:**
+- "Ngắt trang trước" lưu thành dấu ngắt trang ở cuối đoạn trước (cùng kết quả ngắt trang, nhưng Word không hiện hộp "Ngắt trang trước" được chọn).
+- Tên bookmark được chuyển thành chữ thường khi lưu.
+
+**THIẾU thật (không có lệnh trong ứng dụng):** So sánh tài liệu, Bảo vệ tài liệu (mật khẩu/hạn chế sửa), **Ngăn dẫn hướng** (danh sách tiêu đề để nhảy nhanh trong tài liệu dài). Mỗi mục là một tính năng mới cần kế hoạch (tệp/ảnh hưởng/kiểm thử) và hướng dẫn tiếng Việt kèm theo.
+
+**Chưa kiểm:** các dòng cần hộp thoại nhập liệu (trộn thư với tệp CSV/Excel, quản lý nguồn), mẫu văn bản hành chính (công văn, quyết định, hợp đồng, biên bản), chuẩn hóa Times New Roman 13/14, kiểu APA, ngôn ngữ kiểm lỗi, cửa sổ mới.
