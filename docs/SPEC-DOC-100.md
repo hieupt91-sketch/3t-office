@@ -83,3 +83,19 @@ Word chạy qua COM nhưng mọi `Documents.Open` bị chặn vì hộp thoại 
 - **D14** (agy): ribbon Writer — icon hợp lý, KHÔNG thanh cuộn ở mọi tab (1366×768 và 1920×1080, zoom 100%/125%), sắp xếp nhóm/tab theo thói quen người dùng; nhánh design/writer-ribbon-agy.
 - **D15** (kế tiếp): kiểm chứng từng mục MỘT PHẦN trong GAP-DOC-VS-WORD-0610 bằng CDP + XML DOCX (bảng, ảnh, số trang, phần/section, ký hiệu, WordArt, phương trình, tìm/thay thế, danh sách đa cấp…), phím tắt (D9), phông/định dạng, soạn thảo.
 - Đang chạy: D6b (Codex, kịch bản 11–30), D9 (Codex, phím tắt), D10 (agy, hướng dẫn), D14 (agy, ribbon).
+
+### 6.3 Cập nhật 06/10 09:30 (tập trung Doc)
+| Gói | Kết quả |
+|---|---|
+| D6b kịch bản hành chính 11–30 | 20/20 PASS (Codex); ca 6 và 9 trong 1–10 là lỗi bài kiểm đã chứng minh trước đó |
+| D9 phím tắt | `doc_shortcuts2.mjs`: 27 phím có hiệu lực, 0 sai, 6 phím mở hộp thoại tệp hệ điều hành bỏ qua; đã sửa F7 (bị nuốt trong vùng soạn thảo) |
+| D10 hướng dẫn | agy: bổ sung bài hướng dẫn cho lệnh Doc, test xanh |
+| D14 ribbon | `doc_ribbon_check.mjs`: 0 thanh cuộn, 0 icon rơi về chấm tròn ở 4 tổ hợp (1366×768/1920×1080 × 100%/125%); đã sửa tab ngữ cảnh Bảng/Hình hiện sai |
+| D15a bảng, ảnh | bảng 18 PASS; ảnh `doc_image_check.mjs` 6/6 PASS sau khi sửa lỗi ảnh luu sai kích thước (trước: 1 px) |
+| D15b soạn thảo | 13 PASS ban đầu; đã kiểm lại 4 FAIL: Shift+Enter là lỗi bài kiểm (CDP không gửi text), Tìm tiếng Việt chạy đúng, Ctrl+Z từng ký tự là lỗi THẬT (đã sửa: theo cụm chữ) |
+| D16 hộp thoại | agy: 23 hộp thoại × 4 tổ hợp: đạt; thêm lệnh `writer.paragraph.tabStops` |
+| Cỡ chữ/phông | danh sách 8–72 pt, ô Phông/Cỡ theo con trỏ, 15 định dạng lưu DOCX đúng |
+| Mức đại cương, Dừng tab | xong |
+| Lỗi i18n lộ khóa | hộp thoại Phương trình, Trang bìa: đã sửa |
+| P95 gõ phím | đã bỏ tác vụ dài mỗi phím (đếm từ gộp 350 ms); số đo tổng thể P95 chưa chốt vì các agent chạy song song làm nhiễu |
+| Đang chạy | D17 quy tắc trộn thư (Codex), D18 hồi quy corpus + legacy13 (Codex), D19 khung chính UI (agy) |
