@@ -1003,7 +1003,8 @@ export function cleanCssStyleString(styleAttr) {
     }
     // Giữ thuộc tính CSS chuẩn hợp lệ
     if (ALLOWED_CSS_PROPERTIES.has(prop)) {
-      cleaned.push(`${prop}:${val}`);
+      // Dấu " trong giá trị (font-family:"Times New Roman") sẽ phá thuộc tính style="..." => đổi sang nháy đơn.
+      cleaned.push(`${prop}:${String(val).replace(/"/g, "'")}`);
     }
   }
 
@@ -1022,8 +1023,16 @@ export function cleanWordHtml(html) {
 
   let cleaned = html;
 
+  // 0. An toàn: không để mã chủ động lọt vào tài liệu (script, iframe, onXxx=, javascript:)
+  cleaned = cleaned.replace(/<(script|iframe|object|embed)\b[\s\S]*?<\/\1\s*>/gi, "");
+  cleaned = cleaned.replace(/<(script|iframe|object|embed)\b[^>]*\/?>/gi, "");
+  cleaned = cleaned.replace(/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "");
+  cleaned = cleaned.replace(/(\s(?:href|src)\s*=\s*["'])\s*(?:javascript|vbscript):[^"']*/gi, "$1#");
+
   // 1. Loại bỏ các khối chú thích có điều kiện của Microsoft (<!--[if ...]>...<![endif]-->)
   cleaned = cleaned.replace(/<!--\[if[\s\S]*?<!\[endif\]-->/gi, "");
+  // 1b. Dạng "downlevel-revealed" của Word: <![if !supportLists]> ... <![endif]> (không phải chú thích) — bỏ thẻ, giữ nội dung
+  cleaned = cleaned.replace(/<!\[(?:if\b[^\]]*|endif)\]>/gi, "");
 
   // 2. Loại bỏ các khối meta XML, Office Document Settings, VML shapes
   cleaned = cleaned.replace(/<xml[\s\S]*?<\/xml>/gi, "");
@@ -1067,14 +1076,32 @@ export function convertMsoListsToHtmlLists(html) {
   // Tìm các đoạn <p ...class="MsoListParagraph"...>...</p> hoặc có mso-list
   const listParaRegex = /<p\b([^>]*(?:MsoListParagraph|mso-list)[^>]*)>([\s\S]*?)<\/p>/gi;
 
-  return html.replace(listParaRegex, (match, pAttrs, content) => {
-    // Xác định xem đây là bullet (unordered) hay numbering (ordered)
-    // Word thường chèn ký tự bullet trong span font Symbol/Wingdings hoặc ký tự · / o
-    const isNumbered = /^\s*(?:\d+|[a-zA-Z]|[ivxIVX]+)[.)]\s+/.test(stripHtmlTags(content));
+  // Gỡ cả <span style="mso-list:Ignore">…</span> kể cả khi bên trong còn span lồng nhau (Word chèn span font 7pt chứa dấu cách)
+  const removeIgnoredMarker = (source) => {
+    const open = /<span\b[^>]*mso-list:\s*Ignore[^>]*>/i.exec(source);
+    if (!open) return { content: source, marker: "" };
+    let depth = 1;
+    const tagRe = /<(\/?)span\b[^>]*>/gi;
+    tagRe.lastIndex = open.index + open[0].length;
+    let match;
+    while ((match = tagRe.exec(source))) {
+      depth += match[1] ? -1 : 1;
+      if (depth === 0) {
+        const markerHtml = source.slice(open.index + open[0].length, match.index);
+        return { content: source.slice(0, open.index) + source.slice(match.index + match[0].length), marker: stripHtmlTags(markerHtml).replace(/&nbsp;| /g, " ").trim() };
+      }
+    }
+    return { content: source, marker: "" };
+  };
 
-    // Bỏ đoạn span chứa ký tự đánh số/bullet gốc của Word
+  return html.replace(listParaRegex, (match, pAttrs, rawContent) => {
+    const { content, marker } = removeIgnoredMarker(rawContent);
+    // Xác định xem đây là bullet (unordered) hay numbering (ordered): nhìn dấu đầu dòng Word đã chèn (1. a) i. hay •)
+    const isNumbered = /^(?:\d+|[a-zA-Z]|[ivxIVX]+)[.)]$/.test(marker)
+      || (!marker && /^\s*(?:\d+|[a-zA-Z]|[ivxIVX]+)[.)]\s+/.test(stripHtmlTags(content)));
+
+    // Bỏ phần còn lại của dấu đầu dòng Word
     const cleanedContent = content
-      .replace(/<span[^>]*style=['"][^'"]*mso-list:\s*Ignore[^'"]*['"][^>]*>[\s\S]*?<\/span>/gi, "")
       // Bỏ span bullet của Word (font Symbol/Wingdings chứa · • o §)
       .replace(/<span[^>]*font-family\s*:\s*['"]?(Symbol|Wingdings)['"]?[^>]*>[\s\S]*?<\/span>/gi, "")
       .replace(/^[\s·•§\-*]+\s*/, "")

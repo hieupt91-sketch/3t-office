@@ -123,6 +123,7 @@ import { runWriterParagraphDialogTests } from "./unit/writer-paragraph-dialog.te
 import { runWriterTextToTableTests } from "./unit/writer-text-to-table.test.js";
 import { runI18nFlatKeyTests } from "./unit/i18n-flat-keys.test.js";
 import { runHeaderThemeTests } from "./unit/header-theme.test.js";
+import { runOfficeClipboardWordPasteTests } from "./unit/office-clipboard-word-paste.test.js";
 import { runWriterTableRangesIncrementalTests } from "./unit/writer-table-ranges-incremental.test.js";
 import { runWriterHelpTests } from "./unit/writer-help.test.js";
 import { runWriterSectionBreaksPageColorTests } from "./unit/writer-sectionbreaks-pagecolor.test.js";
@@ -516,6 +517,7 @@ async function runAll() {
   { title: "246. Unit Tests — VN Writer Văn bản thành bảng và Trang trắng", runner: runWriterTextToTableTests },
   { title: "247. Unit Tests — i18n khóa phẳng và chuỗi dự phòng", runner: runI18nFlatKeyTests },
   { title: "248. Unit Tests — Tùy biến khu vực tiêu đề (màu/hình ảnh)", runner: runHeaderThemeTests },
+  { title: "249. Unit Tests — Dán từ Word (danh sách, font, an toàn)", runner: runOfficeClipboardWordPasteTests },
     { title: "245. Unit Tests — VN Writer table ranges computed once (incremental) equal the rescanning version", runner: runWriterTableRangesIncrementalTests },
     { title: "247. Unit Tests — VN Writer Trang bìa (Cover Page)", runner: runWriterCoverPageTests },
     { title: "248. Unit Tests — VN Writer Dialogs & Keyboard Focus (TICKET D16)", runner: runWriterDialogsD16Tests }
