@@ -7034,7 +7034,8 @@ export class WriterAdapter {
         break;
 
       case "writer.font.size":
-        if (Number(args) === 13 || Number(args) === 13.5) return this._applyFontSizePt(Number(args));
+        // 1–7 là chỉ số cũ của execCommand; mọi giá trị khác là số pt thật (8–72 từ ô Cỡ chữ).
+        if (Number.isFinite(Number(args)) && Number(args) > 0 && !(Number.isInteger(Number(args)) && Number(args) <= 7)) return this._applyFontSizePt(Number(args));
         if (args) document.execCommand("fontSize", false, args);
         dispatchResult = true;
         break;
@@ -8443,6 +8444,42 @@ export class WriterAdapter {
         continue;
       }
       if (current.checked !== active) globalCommandBus.updateState(commandId, { checked: active });
+    }
+    this._syncFontBoxes(selection);
+  }
+
+  /** Ô Phông chữ và Cỡ chữ trên ribbon theo chữ dưới con trỏ (như Word), không chỉ lệnh vừa chạy. */
+  _syncFontBoxes(selection) {
+    if (typeof document === "undefined" || typeof window?.getComputedStyle !== "function") return;
+    let node = selection?.anchorNode;
+    if (!node) return;
+    if (node.nodeType === 3) node = node.parentElement;
+    if (!node || !this.bodyDom?.contains?.(node)) return;
+    const computed = window.getComputedStyle(node);
+    const family = String(computed.fontFamily || "").split(",")[0].replace(/["']/g, "").trim();
+    const familySelect = document.querySelector?.('select[data-command-id="writer.font.family"]');
+    if (familySelect && family && document.activeElement !== familySelect) {
+      const match = Array.from(familySelect.options || []).find(option => option.value.toLowerCase() === family.toLowerCase());
+      if (match && familySelect.value !== match.value) familySelect.value = match.value;
+    }
+    const sizeSelect = document.querySelector?.('select[data-command-id="writer.font.size"]');
+    const px = parseFloat(computed.fontSize);
+    if (sizeSelect && Number.isFinite(px) && document.activeElement !== sizeSelect) {
+      const pt = Math.round(px * 0.75 * 2) / 2;
+      const value = String(pt);
+      let option = Array.from(sizeSelect.options || []).find(item => item.value === value);
+      if (!option) {
+        option = document.createElement("option");
+        option.value = value;
+        option.textContent = `${String(pt).replace(".", ",")} pt`;
+        option.dataset.vnoDynamic = "1";
+        const before = Array.from(sizeSelect.options).find(item => Number(item.value) > pt);
+        sizeSelect.insertBefore(option, before || null);
+      }
+      if (sizeSelect.value !== value) sizeSelect.value = value;
+      for (const stale of Array.from(sizeSelect.querySelectorAll?.("option[data-vno-dynamic]") || [])) {
+        if (stale !== option) stale.remove();
+      }
     }
   }
 
