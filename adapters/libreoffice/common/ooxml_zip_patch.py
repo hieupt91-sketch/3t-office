@@ -16163,6 +16163,61 @@ def postprocess_writer_captions(docx_bytes: bytes, *, source_html: str | None = 
     return patch_ooxml_zip(docx_bytes, {"word/document.xml": document_xml.encode("utf-8")})
 
 
+def postprocess_writer_drop_caps(docx_bytes: bytes, *, source_html: str | None = None) -> bytes:
+    """Chữ cái đầu đoạn (drop cap): tách chữ cái thành đoạn khung `w:framePr w:dropCap` như Word, phần còn lại giữ nguyên đoạn."""
+    if not docx_bytes or not source_html or "vno-drop-cap" not in source_html:
+        return docx_bytes
+    caps: dict[str, tuple[str, int]] = {}
+    for match in re.finditer(r"<p\b[^>]*>((?:(?!</p>)[\s\S])*?<span\b[^>]*class=\"vno-drop-cap\"[^>]*data-drop-lines=\"(\d+)\"[^>]*>([^<])</span>(?:(?!</p>)[\s\S])*?)</p>", source_html, re.IGNORECASE):
+        text = re.sub(r"\s+", " ", _writer_html_plain(match.group(1))).strip()
+        if text:
+            caps[text] = (match.group(3), max(2, min(8, int(match.group(2)))))
+    if not caps:
+        return docx_bytes
+    document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
+    if not document_bytes:
+        return docx_bytes
+    document_xml = document_bytes.decode("utf-8", errors="replace")
+    changed = False
+
+    def patch(match: re.Match) -> str:
+        nonlocal changed
+        paragraph = match.group(0)
+        text = re.sub(r"\s+", " ", _paragraph_plain_text(paragraph)).strip()
+        found = caps.get(text)
+        if not found or "<w:framePr" in paragraph:
+            return paragraph
+        letter, lines = found
+        if letter in "&<>" or not text.startswith(letter):
+            return paragraph
+        run = re.search(r"<w:r\b[^>]*>(?:<w:rPr>(?:(?!</w:rPr>)[\s\S])*</w:rPr>)?<w:t(?:\s[^>]*)?>([^<]*)</w:t></w:r>", paragraph)
+        if not run or not run.group(1).startswith(letter):
+            return paragraph
+        # Cỡ thân lấy từ các run SAU chữ cái (run chữ cái đã được phóng to); không có thì 14 pt (chuẩn văn bản hành chính).
+        size_match = re.search(r'<w:sz w:val="(\d+)"', paragraph[run.end():]) or re.search(r'<w:sz w:val="(\d+)"', paragraph[:run.start()])
+        body_half_points = int(size_match.group(1)) if size_match else 28
+        cap_half_points = min(400, round(body_half_points * lines * 1.25))
+        full = run.group(0)
+        remainder_text = run.group(1)[len(letter):]
+        replacement_run = "" if not remainder_text else re.sub(
+            r"(<w:t(?:\s[^>]*)?>)[^<]*(</w:t>)", lambda m: f'<w:t xml:space="preserve">{remainder_text}</w:t>', full, count=1,
+        )
+        rest = paragraph[:run.start()] + replacement_run + paragraph[run.end():]
+        frame = (
+            '<w:p><w:pPr><w:framePr w:dropCap="drop" w:lines="' + str(lines) + '" w:wrap="around" w:vAnchor="text" w:hAnchor="text"/>'
+            f'<w:spacing w:after="0" w:line="{lines * 240 + 40}" w:lineRule="exact"/></w:pPr>'
+            f'<w:r><w:rPr><w:position w:val="-{lines * 6}"/><w:sz w:val="{cap_half_points}"/><w:szCs w:val="{cap_half_points}"/></w:rPr>'
+            f'<w:t>{letter}</w:t></w:r></w:p>'
+        )
+        changed = True
+        return frame + rest
+
+    document_xml = re.sub(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", patch, document_xml, flags=re.IGNORECASE)
+    if not changed:
+        return docx_bytes
+    return patch_ooxml_zip(docx_bytes, {"word/document.xml": document_xml.encode("utf-8")})
+
+
 def postprocess_writer_merge_fields(docx_bytes: bytes, *, source_html: str | None = None) -> bytes:
     """Trường trộn thư «Tên» thành trường Word `MERGEFIELD Tên` (Word mở tệp mẫu vẫn trộn được)."""
     if not docx_bytes or not source_html or "vno-merge-field" not in source_html:
