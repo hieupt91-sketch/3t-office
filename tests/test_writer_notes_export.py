@@ -120,5 +120,22 @@ class WriterPageDecorExportTests(unittest.TestCase):
         self.assertNotIn("<w:background", _read(out, "word/document.xml"))
 
 
+class WriterCaptionSeqTests(unittest.TestCase):
+    def test_caption_number_becomes_seq_field(self):
+        body = '<w:p><w:r><w:rPr><w:i/></w:rPr><w:t>Hình 1: Sơ đồ</w:t></w:r></w:p><w:p><w:r><w:t>Bảng 1: Số liệu</w:t></w:r></w:p>'
+        html = ('<p><span class="vno-caption-label">Hình</span> <span class="vno-caption-number">1</span><span>: </span></p>'
+                '<p><span class="vno-caption-label">Bảng</span> <span class="vno-caption-number">1</span></p>')
+        out = patcher.postprocess_writer_captions(_docx(body), source_html=html)
+        document = _read(out, "word/document.xml")
+        self.assertIn('w:instr=" SEQ Hình \\* ARABIC "', document)
+        self.assertIn('w:instr=" SEQ Bảng \\* ARABIC "', document)
+        self.assertIn("Sơ đồ", document)
+        self.assertIn("<w:i/>", document, "định dạng run gốc được giữ")
+
+    def test_without_caption_markup_nothing_changes(self):
+        docx = _docx("<w:p><w:r><w:t>Hình 1: x</w:t></w:r></w:p>")
+        self.assertEqual(patcher.postprocess_writer_captions(docx, source_html="<p>Hình 1: x</p>"), docx)
+
+
 if __name__ == "__main__":
     unittest.main()
