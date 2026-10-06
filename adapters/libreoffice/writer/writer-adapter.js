@@ -7830,7 +7830,16 @@ export class WriterAdapter {
   mergeTableCells() {
     const table = this._getActiveTable();
     if (!table) return false;
-    const cells = Array.from(this.tableController?.selectedCells || []);
+    let cells = Array.from(this.tableController?.selectedCells || []);
+    if (cells.length < 2) {
+      // Chọn văn bản kéo qua nhiều ô (giống cách chọn thông thường) cũng được tính là chọn các ô đó
+      const sel = window.getSelection?.();
+      const range = sel && sel.rangeCount ? sel.getRangeAt(0) : null;
+      if (range && !range.collapsed) {
+        const spanned = Array.from(table.querySelectorAll("td, th")).filter((c) => range.intersectsNode(c));
+        if (spanned.length >= 2) cells = spanned;
+      }
+    }
     if (cells.length < 2) return false;
 
     let minRow = Infinity, maxRow = -1;
