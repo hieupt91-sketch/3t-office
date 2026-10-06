@@ -13847,7 +13847,7 @@ export class WriterAdapter {
     // and an obvious drop-cap-style visual fallback in real DOCX/PDF exports.
     bodyHtml = bodyHtml.replace(
       /<span\b(?=[^>]*\bclass=["'][^"']*\bvno-drop-cap\b[^"']*["'])(?=[^>]*\bdata-drop-lines=["']([23])["'])[^>]*>([\s\S]*?)<\/span>/gi,
-      (_match, lines, initial) => `<font size="${lines === "2" ? "6" : "7"}"><b>${initial}</b></font>`
+      (_match, lines, initial) => `<font size="${lines === "2" ? "6" : "7"}"><b><span class="vno-drop-cap" data-drop-lines="${lines}">${initial}</span></b></font>`
     );
 
     const firstSectionId = Object.keys(this.sectionPageSetups || {})[0] || "section-1";

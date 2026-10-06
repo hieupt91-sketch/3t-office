@@ -120,6 +120,25 @@ class WriterPageDecorExportTests(unittest.TestCase):
         self.assertNotIn("<w:background", _read(out, "word/document.xml"))
 
 
+class WriterDropCapExportTests(unittest.TestCase):
+    def test_drop_cap_letter_becomes_frame_paragraph(self):
+        body = '<w:p><w:pPr><w:jc w:val="both"/></w:pPr><w:r><w:rPr><w:sz w:val="28"/></w:rPr><w:t>Dau doan van ban</w:t></w:r></w:p>'
+        html = '<p><span class="vno-drop-cap" data-drop-lines="3">D</span>au doan van ban</p>'
+        out = patcher.postprocess_writer_drop_caps(_docx(body), source_html=html)
+        document = _read(out, "word/document.xml")
+        self.assertIn('<w:framePr w:dropCap="drop" w:lines="3"', document)
+        self.assertEqual(document.count("<w:p>") + document.count("<w:p "), 2)
+        self.assertIn("<w:t>D</w:t>", document)
+        self.assertIn("au doan van ban", document)
+        self.assertNotIn(">Dau doan", document)
+        self.assertIn('<w:sz w:val="105"/>', document, "cỡ chữ cái = cỡ thân x số dòng x 1,25")
+        self.assertIn('<w:jc w:val="both"/>', document, "đoạn còn lại giữ định dạng")
+
+    def test_without_drop_cap_nothing_changes(self):
+        docx = _docx("<w:p><w:r><w:t>Dau</w:t></w:r></w:p>")
+        self.assertEqual(patcher.postprocess_writer_drop_caps(docx, source_html="<p>Dau</p>"), docx)
+
+
 class WriterMergeFieldExportTests(unittest.TestCase):
     def test_merge_field_text_becomes_mergefield(self):
         body = '<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Kính gửi: «HoTen» - «ChucVu»</w:t></w:r></w:p>'
