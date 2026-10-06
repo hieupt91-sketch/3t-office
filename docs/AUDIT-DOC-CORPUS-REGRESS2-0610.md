@@ -118,7 +118,7 @@ Tổng: 22/24 file không giảm số lượng cấu trúc; BLOCKED 1.
 
 - Tái chạy CDP: P0=1, P1=2, P2=2; đúng baseline D18, không phải regression mới.
 - Xuất HTML gốc `.doc` và DOCX Writer đã lưu bằng LibreOffice: mỗi bản có 31 đoạn, 6 đoạn trống, 0 bảng, 1 ảnh; cùng nội dung văn bản, cùng khổ A4/lề 2,54 cm; không có `page-break-before/after` hoặc ngắt trang tường minh. Trang thứ hai không xuất hiện do đoạn/bảng/trang trắng mới được thêm vào.
-- HTML cho thấy ảnh 101×78 px và dòng đầu “CÔNG TY…” có chữ 12 pt ở cả hai bản; các đoạn sau dùng cỡ 10 pt. TXT xuất từ cả hai bản có cùng 2.751 ký tự, phần cuối chỉ còn các dòng trống hiện hữu. Kết quả tương hợp với giả thuyết baseline về khác biệt diễn giải định dạng/layout của đoạn đầu khi nhập `.doc`; phép xuất HTML không chỉ ra thay đổi kích thước ảnh hay nội dung. Không đủ bằng chứng để quy cho một hàm cụ thể hôm nay.
+- TXT xuất từ cả hai bản có cùng 2.751 ký tự; HTML có cùng 31 đoạn và ảnh 101×78 px. Đối chiếu DOCX Writer lưu với DOCX LibreOffice chuyển trực tiếp từ `.doc` xác nhận khác biệt định dạng đoạn đầu: bản Writer dùng style `BodyText` và paragraph `w:sz=24` (12 pt); bản chuyển trực tiếp dùng `Normal` và `w:sz=20` (10 pt). Cỡ chữ 12 pt ở đoạn đầu làm tăng chiều cao bố cục và là nguyên nhân khả dĩ của trang tràn; không phải đoạn trống/bảng/ngắt trang mới hay ảnh đổi kích thước.
 - Không sửa: chưa có bản vá đơn giản, an toàn trong ≤2 file mà không thay đổi ngữ nghĩa nhập `.doc`.
 - Tái hiện (3 bước): (1) mở `E:\VN OFice\file test\lan-legacy\legacy13.doc` trong VN Writer; (2) lưu thành DOCX qua CDP; (3) đếm trang bằng LibreOffice `convert-to pdf`: nguồn 1 trang, DOCX đã lưu 2 trang; so HTML thấy 31 đoạn/6 đoạn trống/0 bảng/1 ảnh ở cả hai.
 
