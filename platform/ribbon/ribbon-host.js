@@ -95,6 +95,8 @@ export class RibbonHost {
   render() {
     closeActiveDropdown();
     this._closeGroupPopover();
+    // Tab ngữ cảnh (Thiết kế/Bố cục Bảng, Định dạng Hình ảnh) chỉ hiện khi app bật; dựng lại ribbon không được làm chúng hiện ra.
+    const previousHidden = new Map(Array.from(this.container.querySelectorAll(".vno-ribbon-tab[id]"), (btn) => [btn.id, btn.hidden]));
     this.container.innerHTML = "";
     this.container.className = "vno-ribbon";
 
@@ -141,6 +143,10 @@ export class RibbonHost {
       tabBtn.setAttribute("aria-controls", `vno-ribbon-tabpanel-${tab.id}`);
       tabBtn.id = `vno-ribbon-tab-${tab.id}`;
       tabBtn.tabIndex = isActive ? 0 : -1;
+      if (tab.contextual && !isActive) {
+        tabBtn.hidden = previousHidden.has(tabBtn.id) ? previousHidden.get(tabBtn.id) : true;
+        tabBtn.setAttribute("aria-hidden", String(tabBtn.hidden));
+      }
 
       tabBtn.addEventListener("click", () => this.selectTab(tab.id));
       // Nhấp đúp vào tab (giống Word/Excel thật) thu gọn/mở rộng Ribbon
