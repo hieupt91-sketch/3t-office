@@ -129,9 +129,11 @@
   height: var(--vno-ribbon-body-height);
   padding: 4px 8px;
   background-color: var(--vno-bg-surface);
-  overflow-x: auto;
+  overflow-x: hidden;
   overflow-y: hidden;
+  scrollbar-width: none;
 }
+.vno-ribbon-content::-webkit-scrollbar { display: none; }
 
 /* LUU Y: cac class .vno-ribbon-* duoi day bi platform/shell/shell.css (nap SAU
    file nay trong index.html) dinh nghia lai va thang cascade - sua responsive/

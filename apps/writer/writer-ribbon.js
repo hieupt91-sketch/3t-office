@@ -201,15 +201,9 @@ export const WRITER_RIBBON_TABS = [
         ]
       },
       {
+        id: "styles",
         label: "Kiểu dáng",
         labelKey: "writerRibbon.group.styles",
-        // CHỈ MỘT cách hiển thị cho việc chọn kiểu đoạn văn (đúng chuẩn Word Home tab:
-        // dải Quick Styles + nút mở thư viện đầy đủ). Trước đây có THÊM một dropdown
-        // <select> writer.style.apply song song với dải thẻ Quick Style tự chèn bởi
-        // `_mountStyleGalleryRibbonStrip()` — cùng 1 việc (chọn Normal/Heading 1/2/3)
-        // bị hiển thị trùng lặp 2 kiểu khác nhau cạnh nhau (lỗi UI thật, người dùng
-        // phát hiện 04/09/2026). `writer.style.apply` vẫn còn là command thật (dùng nội
-        // bộ/lệnh gọi trực tiếp), chỉ không còn render dropdown thừa trên ribbon nữa.
         items: [
           { type: "button", commandId: "writer.style.gallery", isLarge: true }
         ]
@@ -236,8 +230,6 @@ export const WRITER_RIBBON_TABS = [
           }
         ]
       }
-      // Nhóm "Chèn nhanh" (Table/Image/Page Break) đã gỡ khỏi Home: cùng lệnh đã có
-      // trên tab Chèn, vi phạm one-feature-one-display và làm Home thêm dày.
     ]
   },
   {
@@ -343,9 +335,6 @@ export const WRITER_RIBBON_TABS = [
           { type: "button", commandId: "writer.insert.symbol", isLarge: true }
         ]
       }
-      // Mục lục / chú thích chỉ hiển thị trên tab Tham chiếu (canonical Word).
-      // Trước đây nhóm này còn nằm trên tab Chèn, làm tràn ngang ở 1600px và
-      // trùng lệnh với tab Tham chiếu (one-feature-one-display).
     ]
   },
   {

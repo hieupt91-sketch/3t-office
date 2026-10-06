@@ -402,10 +402,12 @@ body {
   height: var(--vno-ribbon-body-height);
   padding: 4px 6px;
   background-color: var(--vno-bg-surface);
-  overflow-x: auto;
+  overflow-x: hidden;
   overflow-y: hidden;
+  scrollbar-width: none;
   gap: 0;
 }
+.vno-ribbon-content::-webkit-scrollbar { display: none; }
 
 .vno-ribbon-group {
   display: flex;
