@@ -13487,6 +13487,25 @@ export class WriterAdapter {
       if (!s) return `${pre}${post}`;
       return `${pre}${s}${post}`;
     });
+    // Ảnh người dùng chèn/kéo đổi cỡ giữ kích thước trong style (width/height); style bị gỡ bên dưới nên phải chuyển
+    // thành thuộc tính width/height (px) mà bộ nhập HTML hiểu, nếu không DOCX lưu ảnh ở cỡ gốc (hoặc 1 px).
+    const cssLengthToPx = (value) => {
+      const m = /^\s*(\d+(?:\.\d+)?)\s*(px|pt|cm|mm|in)\s*$/i.exec(String(value || ""));
+      if (!m) return 0;
+      const factor = { px: 1, pt: 96 / 72, cm: 96 / 2.54, mm: 96 / 25.4, in: 96 }[m[2].toLowerCase()];
+      return Math.round(Number(m[1]) * factor);
+    };
+    out = out.replace(/<img\b[^>]*>/gi, (tag) => {
+      if (/\bposition\s*:\s*absolute\b/i.test(tag)) return tag;
+      const styleVal = /\bstyle=["']([^"']*)["']/i.exec(tag)?.[1] || "";
+      let next = tag;
+      for (const name of ["width", "height"]) {
+        if (new RegExp(`\\s${name}=["']`, "i").test(tag)) continue;
+        const px = cssLengthToPx(new RegExp(`(?:^|;)\\s*${name}\\s*:\\s*([^;]+)`, "i").exec(styleVal)?.[1]);
+        if (px > 0) next = next.replace(/<img\b/i, `<img ${name}="${px}"`);
+      }
+      return next;
+    });
     const IMG_STYLE_RE = /(<img\b[^>]*?\bstyle=["'])([^"']*?)(["'][^>]*>)/gi;
     out = out.replace(IMG_STYLE_RE, (_m, pre, styleVal, post) => {
       if (/\bposition\s*:\s*absolute\b/i.test(styleVal)) return `${pre}${styleVal}${post}`;
