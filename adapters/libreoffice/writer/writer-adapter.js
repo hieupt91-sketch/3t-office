@@ -2913,41 +2913,92 @@ export class WriterAdapter {
         sectionHeadersFooters = extracted.sectionHeadersFooters;
 
         if (!/<div\b[^>]*class=["'][^"']*\bvno-section-break\b/i.test(html)) {
-          const pWithSect = [...ooxmlDocumentXml.matchAll(/<w:p\b[^>]*>([\s\S]*?)<w:sectPr\b[\s\S]*?<\/w:p>/gi)];
+          // Match paragraphs first. The old expression started at any earlier
+          // <w:p> and crossed </w:p> until it found a later sectPr, so an empty
+          // section-boundary paragraph inherited all preceding document text.
+          const ooxmlParagraphs = [...ooxmlDocumentXml.matchAll(/<w:p\b[^>]*>[\s\S]*?<\/w:p>/gi)];
+          const pWithSect = ooxmlParagraphs
+            .map((paragraph, paragraphIndex) => ({ paragraph, paragraphIndex }))
+            .filter(({ paragraph }) => /<w:sectPr\b/i.test(paragraph[0]));
+          const htmlTextPattern = (value) => String(value || "").trim().split(/\s+/)
+            .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+            .join("\\s+");
+          const stripLeadingHtmlPageBreak = (value) => String(value || "").replace(
+            /^(\s*<(?:p|div)\b[^>]*style=["'][^"']*(?:page-break-before|break-before):\s*(?:always|page)[^"']*["'][^>]*>)/i,
+            (openingTag) => openingTag.replace(/(?:page-break-before|break-before):\s*(?:always|page)\s*;?/gi, "")
+          );
+          let sectionSearchStart = 0;
           for (let i = 0; i < pWithSect.length && i < extracted.sections.length - 1; i++) {
             const nextSec = extracted.sections[i + 1];
             const boundarySection = extracted.sections[i];
-            const pContent = pWithSect[i][1];
+            const pContent = pWithSect[i].paragraph[0];
             const pText = [...pContent.matchAll(/<w:t\b[^>]*>([\s\S]*?)<\/w:t>/gi)].map((m) => m[1]).join("").trim();
             const markerHtml = this._buildSectionBreakMarker(boundarySection.type || "nextPage", nextSec.id);
             let inserted = false;
             if (pText) {
-              const escapedText = pText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+              const escapedText = htmlTextPattern(pText);
               if (globalThis.__VNO_OPEN_LEGACY === true) {
                 // superseded by P3 - xoa chi khi chu so huu duyet. Ban cu: regex dong
                 // `<p>[\s\S]*?TEXT[\s\S]*?</p>` quet ca tai lieu cho moi section (bac hai; MYTIME 160 s).
                 const pRegex = new RegExp(`(<p\\b[^>]*>[\\s\\S]*?${escapedText}[\\s\\S]*?<\\/p\\s*>)`, "i");
                 if (pRegex.test(html)) {
                   html = html.replace(pRegex, `$1${markerHtml}`);
+                  const markerAt = html.indexOf(markerHtml, sectionSearchStart);
+                  if (markerAt >= 0) {
+                    const markerEnd = markerAt + markerHtml.length;
+                    html = html.slice(0, markerEnd) + stripLeadingHtmlPageBreak(html.slice(markerEnd));
+                    sectionSearchStart = markerEnd;
+                  }
                   inserted = true;
                 }
               } else {
                 const insertAt = this._endOfFirstParagraphWithText(html, escapedText);
                 if (insertAt >= 0) {
-                  html = html.slice(0, insertAt) + markerHtml + html.slice(insertAt);
+                  html = html.slice(0, insertAt) + markerHtml + stripLeadingHtmlPageBreak(html.slice(insertAt));
+                  sectionSearchStart = insertAt + markerHtml.length;
+                  inserted = true;
+                }
+              }
+            }
+            if (!inserted && !pText) {
+              // sectPr ends the previous section. When the following OOXML
+              // paragraph has text, its corresponding top-level HTML block is
+              // the first block of the next section. This is more precise than
+              // consuming an unrelated manual page break (D25d/d24: section 3
+              // starts at the final page, not at the page-8 image break).
+              const followingParagraph = ooxmlParagraphs[pWithSect[i].paragraphIndex + 1]?.[0] || "";
+              const followingText = [...followingParagraph.matchAll(/<w:t\b[^>]*>([\s\S]*?)<\/w:t>/gi)].map((m) => m[1]).join("").trim();
+              if (followingText) {
+                // StarWriter may fold a text run across source newlines/tabs in
+                // HTML (for example "Aqara smart\n\thome"). Match OOXML word
+                // spacing semantically rather than requiring byte identity.
+                const escapedText = htmlTextPattern(followingText);
+                const block = this._topLevelHtmlBlockWithText(html, escapedText, sectionSearchStart);
+                if (block) {
+                  const openingTag = html.slice(block.start, block.openEnd).replace(
+                    /(?:page-break-before|break-before):\s*(?:always|page)\s*;?/gi,
+                    ""
+                  );
+                  html = html.slice(0, block.start) + markerHtml + openingTag + html.slice(block.openEnd);
+                  sectionSearchStart = block.start + markerHtml.length;
                   inserted = true;
                 }
               }
             }
             if (!inserted) {
               const pbRegex = /<p\b[^>]*style=["'][^"']*(?:page-break-before|break-before):\s*(?:always|page)[^"']*["'][^>]*>[\s\S]*?<\/p>/i;
-              if (pbRegex.test(html)) {
+              const remainingHtml = html.slice(sectionSearchStart);
+              const pageBreak = pbRegex.exec(remainingHtml);
+              if (pageBreak) {
                 // The break-before paragraph can contain user text, revisions and
                 // comments. Preserve it when replacing its layout break with a
                 // section marker; deleting the paragraph loses content on reopen.
-                html = html.replace(pbRegex, paragraph => markerHtml + paragraph.replace(
+                const breakStart = sectionSearchStart + pageBreak.index;
+                const replacement = markerHtml + pageBreak[0].replace(
                   /(?:page-break-before|break-before):\s*(?:always|page)\s*;?/gi, ""
-                ));
+                );
+                html = html.slice(0, breakStart) + replacement + html.slice(breakStart + pageBreak[0].length);
+                sectionSearchStart = breakStart + markerHtml.length;
                 inserted = true;
               }
             }
@@ -2980,6 +3031,41 @@ export class WriterAdapter {
     closeRe.lastIndex = text.index + text[0].length;
     const close = closeRe.exec(source);
     return close ? close.index + close[0].length : -1;
+  }
+
+  /** Locate the outermost top-level HTML block containing matching text. */
+  _topLevelHtmlBlockWithText(html, escapedTextPattern, fromIndex = 0) {
+    const source = String(html || "");
+    const textRe = new RegExp(escapedTextPattern, "gi");
+    textRe.lastIndex = Math.max(0, Number(fromIndex) || 0);
+    const voidTags = new Set(["area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"]);
+    let textMatch;
+    while ((textMatch = textRe.exec(source)) !== null) {
+      const stack = [];
+      let topLevel = null;
+      let textIsMarkup = false;
+      const tagRe = /<!--[\s\S]*?-->|<\/?([a-z][\w:-]*)\b[^>]*>/gi;
+      let tag;
+      while ((tag = tagRe.exec(source)) !== null && tag.index <= textMatch.index) {
+        if (tagRe.lastIndex > textMatch.index) {
+          textIsMarkup = true;
+          break;
+        }
+        if (tag[0].startsWith("<!--")) continue;
+        const name = String(tag[1] || "").toLowerCase();
+        if (tag[0][1] === "/") {
+          const matchAt = stack.map((entry) => entry.name).lastIndexOf(name);
+          if (matchAt >= 0) stack.splice(matchAt);
+          if (stack.length === 0) topLevel = null;
+        } else if (!tag[0].endsWith("/>") && !voidTags.has(name)) {
+          if (stack.length === 0) topLevel = { start: tag.index, openEnd: tagRe.lastIndex };
+          stack.push({ name });
+        }
+      }
+      if (!textIsMarkup && topLevel && stack.length > 0) return topLevel;
+      if (textMatch[0].length === 0) textRe.lastIndex += 1;
+    }
+    return null;
   }
 
   /**

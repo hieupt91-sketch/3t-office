@@ -518,6 +518,52 @@ export async function runWriterHeaderFooterImportTests() {
     }
   });
 
+  test("D25d: empty sectPr paragraphs anchor the following text block instead of unrelated page breaks", () => {
+    const adapter = new WriterAdapter(null);
+    adapter._extractSectionsFromOoxml = () => ({
+      sections: [
+        { id: "section-1", type: "nextPage" },
+        { id: "section-2", type: "nextPage" },
+        { id: "section-3", type: "nextPage" }
+      ],
+      sectionPageSetups: {},
+      sectionHeadersFooters: {}
+    });
+    const documentXml = '<w:document><w:body>'
+      + '<w:p><w:r><w:t>Earlier section text must not leak into sectPr matching</w:t></w:r></w:p>'
+      + '<w:p><w:pPr><w:sectPr><w:type w:val="nextPage"/></w:sectPr></w:pPr></w:p>'
+      + '<w:p><w:r><w:drawing/></w:r></w:p>'
+      + '<w:p><w:r><w:br w:type="page"/></w:r><w:r><w:t>Unrelated manual break</w:t></w:r></w:p>'
+      + '<w:p><w:r><w:t>Middle section content</w:t></w:r></w:p>'
+      + '<w:p><w:pPr><w:sectPr><w:type w:val="nextPage"/></w:sectPr></w:pPr></w:p>'
+      + '<w:p><w:r><w:t>Final section anchor</w:t></w:r></w:p>'
+      + '<w:sectPr/></w:body></w:document>';
+    const imported = adapter._normalizeImportedHtml(
+      '<html><body><div>Earlier section text must not leak into sectPr matching</div>'
+        + '<p style="page-break-before: always; break-before: page"><img src="page-3.png"></p>'
+        + '<p style="page-break-before: always; break-before: page">Unrelated manual break</p>'
+        + '<p>Middle section content</p>'
+        + '<div style="page-break-before: always; break-before: page"><span>Final section\n\tanchor</span></div>'
+        + '</body></html>',
+      documentXml
+    );
+    const section2At = imported.body.indexOf('data-vno-section-id="section-2"');
+    const imageAt = imported.body.indexOf('<img src="page-3.png">');
+    const manualAt = imported.body.indexOf('Unrelated manual break');
+    const section3At = imported.body.indexOf('data-vno-section-id="section-3"');
+    const finalAt = imported.body.indexOf('Final section');
+    if (!(section2At >= 0 && section2At < imageAt)) throw new Error("Section 2 was not placed before its image-only first paragraph");
+    if (!(manualAt < section3At && section3At < finalAt)) throw new Error("Section 3 consumed an unrelated earlier manual page break");
+    const finalBlock = imported.body.slice(imported.body.lastIndexOf('<div', finalAt), finalAt);
+    if (/(?:page-break-before|break-before):\s*(?:always|page)/i.test(finalBlock)) {
+      throw new Error("Section 3 kept a duplicate break on its anchored HTML block");
+    }
+    const manualBlock = imported.body.slice(imported.body.lastIndexOf('<p', manualAt), manualAt);
+    if (!/(?:page-break-before|break-before):\s*(?:always|page)/i.test(manualBlock)) {
+      throw new Error("The unrelated manual page break was removed");
+    }
+  });
+
   test("W24a: bảng và danh sách cao hơn trang được cắt theo hàng/mục (gap tr/li), khối thường vẫn đẩy nguyên", () => {
     const check = (value, message) => { if (!value) throw new Error(message); };
     const adapter = new WriterAdapter(null);
