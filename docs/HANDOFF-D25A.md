@@ -15,3 +15,8 @@ RISKS: Phép thử Word thật chưa xác nhận được trong môi trường h
 DEPENDENCIES/BLOCKERS: BLOCKED — Word COM có đăng ký nhưng phiên automation ẩn không trả kết quả sau hơn 176 giây; có nhiều phiên Word automation từ worktree khác nên không can thiệp hoặc kill theo tên.
 CORE PATCH ID (if any): Không có; chỉ sửa VN LibreOffice Adapter.
 NEXT ACTION: Chạy lại phép thử Word COM trên máy/phiên Word sạch: mở DOCX, khóa kết quả MERGEFIELD lần lượt thành chuỗi có/không có `abc`, gọi `Fields.Update`, xác nhận kết quả `dung`/`sai`.
+
+
+## CAP NHAT 06/10 (Claude, do bang Word that)
+- Ket luan 'contains -> IF voi *gia tri*' o tren SAI: Word that tra ket qua sai cho IF "xxabcxx" = "*abc*" (ky tu thay the o ca hai dau khong duoc ho tro; chi khop "abc*", "*abcxx", "??abc??"). Da go ban xuat contains; van ban ket qua duoc giu nguyen.
+- Loi that khac tim thay: truong IF truoc day viet { MERGEFIELD x } thang trong instr (chu thuong) -> Word hien ket qua 'MERGEFIELD'. Da sua thanh truong phuc long nhau (fldChar); Word that: nested=1, ket qua tinh dung.

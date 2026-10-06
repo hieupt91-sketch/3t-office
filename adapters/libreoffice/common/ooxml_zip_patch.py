@@ -16349,18 +16349,33 @@ def postprocess_writer_if_ref_fields(docx_bytes: bytes, *, source_html: str | No
     for _, attrs, fallback in parser.rules:
         field = (attrs.get("data-merge-if") or "").strip()
         op = attrs.get("data-op") or "equals"
-        operators = {"equals": "=", "notEquals": "<>", "greaterThan": ">", "lessThan": "<", "empty": "=", "notEmpty": "<>", "contains": "="}
+        operators = {"equals": "=", "notEquals": "<>", "greaterThan": ">", "lessThan": "<", "empty": "=", "notEmpty": "<>"}
+        # `contains` KHÔNG xuất được: đo bằng Word thật (06/10) thì IF "xxabcxx" = "*abc*" cho kết quả sai
+        # (ký tự thay thế `*` ở cả hai đầu không được Word hỗ trợ), nên giữ nguyên văn bản kết quả.
         if not field or op not in operators: continue
         value = "" if op in ("empty", "notEmpty") else (attrs.get("data-value") or "")
-        if op == "contains":
-            if "*" in value or "?" in value: continue
-            value = f"*{value}*"
         then = attrs.get("data-then") or ""
         otherwise = attrs.get("data-else") or ""
         # Word field arguments use escaped quotes inside quoted literals.
         quote = lambda value: '"' + value.replace('\\', '\\\\').replace('"', '\\"') + '"'
-        instr = f' IF {{ MERGEFIELD {field} }} {operators[op]} {quote(value)} {quote(then)} {quote(otherwise)} '
-        field_xml = f'<w:fldSimple w:instr="{_escape_xml(instr)}"><w:r><w:t>{_escape_xml(fallback)}</w:t></w:r></w:fldSimple>'
+        tail_instr = f' {operators[op]} {quote(value)} {quote(then)} {quote(otherwise)} '
+
+        def _fld(kind: str, rpr: str = "") -> str:
+            return f'<w:r>{rpr}<w:fldChar w:fldCharType="{kind}"/></w:r>'
+
+        def _instr(text: str, rpr: str = "") -> str:
+            return f'<w:r>{rpr}<w:instrText xml:space="preserve">{_escape_xml(text)}</w:instrText></w:r>'
+
+        def build_if_field(rpr: str = "") -> str:
+            # Word chỉ coi MERGEFIELD là trường lồng khi nó là trường phức (fldChar) nằm TRONG lệnh IF;
+            # dấu `{ }` viết thẳng vào instr là chữ thường (Word hiện kết quả "MERGEFIELD" sai).
+            return (
+                _fld("begin", rpr) + _instr(" IF ", rpr)
+                + _fld("begin", rpr) + _instr(f" MERGEFIELD {field} ", rpr) + _fld("separate", rpr)
+                + f'<w:r>{rpr}<w:t>«{_escape_xml(field)}»</w:t></w:r>' + _fld("end", rpr)
+                + _instr(tail_instr, rpr) + _fld("separate", rpr)
+                + f'<w:r>{rpr}<w:t xml:space="preserve">{_escape_xml(fallback)}</w:t></w:r>' + _fld("end", rpr)
+            )
         if fallback:
             text_pattern = re.compile(r'<w:r\b[^>]*>(?P<rpr><w:rPr>[\s\S]*?</w:rPr>)?<w:t(?:\s[^>]*)?>(?P<text>[^<]*)</w:t></w:r>')
             escaped_fallback = _escape_xml(fallback)
@@ -16375,7 +16390,7 @@ def postprocess_writer_if_ref_fields(docx_bytes: bytes, *, source_html: str | No
                 before, after = text[:at], text[at + len(escaped_fallback):]
                 pieces = []
                 if before: pieces.append(f'<w:r>{rpr}<w:t xml:space="preserve">{before}</w:t></w:r>')
-                pieces.append(field_xml.replace('<w:r><w:t>', f'<w:r>{rpr}<w:t>'))
+                pieces.append(build_if_field(rpr))
                 if after: pieces.append(f'<w:r>{rpr}<w:t xml:space="preserve">{after}</w:t></w:r>')
                 xml = xml[:selected.start()] + "".join(pieces) + xml[selected.end():]
                 changed = True

@@ -206,7 +206,9 @@ class WriterMergeFieldExportTests(unittest.TestCase):
                 '<span data-merge-if="DiaChi" data-op="notEmpty" data-value="ignored" data-then="có" data-else="trống">nonempty</span>')
         body = ''.join(f'<w:p><w:r><w:t>{word}</w:t></w:r></w:p>' for word in ('fallback','alt','gt','lt','empty','nonempty'))
         doc = _read(patcher.postprocess_writer_if_ref_fields(_docx(body), source_html=html), 'word/document.xml')
-        self.assertEqual(doc.count('w:instr=" IF { MERGEFIELD'), 6)
+        self.assertEqual(doc.count('<w:instrText xml:space="preserve"> IF </w:instrText>'), 6)
+        self.assertEqual(doc.count('> MERGEFIELD '), 6)
+        self.assertNotIn('{ MERGEFIELD', doc)
         for part in (' = ', ' &lt;&gt; ', ' &gt; ', ' &lt; ', '&quot;&quot;'):
             self.assertIn(part, doc)
         self.assertIn('A &amp; \\&quot;B\\&quot;', doc)
@@ -219,18 +221,27 @@ class WriterMergeFieldExportTests(unittest.TestCase):
         self.assertIn('Before', doc)
         self.assertIn('after', doc)
         self.assertIn('<w:i/>', doc)
-        self.assertIn('w:instr=" IF { MERGEFIELD Flag }', doc)
+        self.assertIn('<w:instrText xml:space="preserve"> MERGEFIELD Flag </w:instrText>', doc)
 
-    def test_contains_rule_exports_word_wildcard_unless_value_has_wildcards(self):
-        html = ('<span data-merge-if="NoiDung" data-op="contains" data-value="abc" data-then="chua" data-else="khong chua">contains-result</span>'
-                '<span data-merge-if="NoiDung" data-op="contains" data-value="a*c" data-then="chua" data-else="khong chua">wildcard-fallback</span>')
-        body = ('<w:p><w:r><w:t>contains-result</w:t></w:r></w:p>'
-                '<w:p><w:r><w:t>wildcard-fallback</w:t></w:r></w:p>')
+    def test_contains_rule_is_not_exported_because_word_wildcards_cannot_express_it(self):
+        # Word that: IF "xxabcxx" = "*abc*" cho ket qua sai -> khong duoc xuat thanh truong IF gia.
+        html = '<span data-merge-if="NoiDung" data-op="contains" data-value="abc" data-then="chua" data-else="khong chua">contains-result</span>'
+        body = '<w:p><w:r><w:t>contains-result</w:t></w:r></w:p>'
         doc = _read(patcher.postprocess_writer_if_ref_fields(_docx(body), source_html=html), 'word/document.xml')
-        self.assertIn('w:instr=" IF { MERGEFIELD NoiDung } = &quot;*abc*&quot; &quot;chua&quot; &quot;khong chua&quot; "', doc)
-        self.assertIn('<w:t>wildcard-fallback</w:t>', doc)
-        self.assertNotIn('&quot;*a*c*&quot;', doc)
+        self.assertIn('<w:t>contains-result</w:t>', doc)
+        self.assertNotIn('MERGEFIELD', doc)
+        self.assertNotIn('fldChar', doc)
 
+    def test_if_field_nests_mergefield_as_complex_field_not_literal_braces(self):
+        # Word that: dau ngoac { } viet trong instr la chu thuong -> ket qua hien "MERGEFIELD"; phai la truong phuc long nhau.
+        html = '<span data-merge-if="City" data-op="equals" data-value="Hanoi" data-then="A" data-else="B">kq</span>'
+        body = '<w:p><w:r><w:t>kq</w:t></w:r></w:p>'
+        doc = _read(patcher.postprocess_writer_if_ref_fields(_docx(body), source_html=html), 'word/document.xml')
+        self.assertNotIn('{', doc)
+        self.assertEqual(doc.count('w:fldCharType="begin"'), 2)
+        self.assertEqual(doc.count('w:fldCharType="end"'), 2)
+        self.assertEqual(doc.count('w:fldCharType="separate"'), 2)
+        self.assertLess(doc.index(' IF </w:instrText>'), doc.index(' MERGEFIELD City </w:instrText>'))
     def test_cross_reference_anchor_becomes_ref_hyperlink_field(self):
         body = '<w:p><w:bookmarkStart w:id="4" w:name="Heading_1"/><w:hyperlink w:anchor="Heading_1"><w:r><w:t>Mục 1</w:t></w:r></w:hyperlink></w:p>'
         html = '<a class="vno-cross-ref" data-xref-type="heading" href="#Heading_1">Mục 1</a>'
