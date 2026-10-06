@@ -120,6 +120,24 @@ class WriterPageDecorExportTests(unittest.TestCase):
         self.assertNotIn("<w:background", _read(out, "word/document.xml"))
 
 
+class WriterMergeFieldExportTests(unittest.TestCase):
+    def test_merge_field_text_becomes_mergefield(self):
+        body = '<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Kính gửi: «HoTen» - «ChucVu»</w:t></w:r></w:p>'
+        html = '<p>Kính gửi: <span class="vno-merge-field" data-field="HoTen">«HoTen»</span> <span class="vno-merge-field" data-field="ChucVu">«ChucVu»</span></p>'
+        out = patcher.postprocess_writer_merge_fields(_docx(body), source_html=html)
+        document = _read(out, "word/document.xml")
+        self.assertIn('w:instr=" MERGEFIELD HoTen \\* MERGEFORMAT "', document)
+        self.assertIn('w:instr=" MERGEFIELD ChucVu \\* MERGEFORMAT "', document)
+        self.assertIn("Kính gửi: ", document)
+        self.assertIn("<w:b/>", document)
+
+    def test_unknown_guillemets_are_left_alone(self):
+        body = "<w:p><w:r><w:t>«Khac» van ban</w:t></w:r></w:p>"
+        html = '<span class="vno-merge-field" data-field="HoTen">«HoTen»</span>'
+        out = patcher.postprocess_writer_merge_fields(_docx(body), source_html=html)
+        self.assertNotIn("MERGEFIELD", _read(out, "word/document.xml"))
+
+
 class WriterCaptionSeqTests(unittest.TestCase):
     def test_caption_number_becomes_seq_field(self):
         body = '<w:p><w:r><w:rPr><w:i/></w:rPr><w:t>Hình 1: Sơ đồ</w:t></w:r></w:p><w:p><w:r><w:t>Bảng 1: Số liệu</w:t></w:r></w:p>'
