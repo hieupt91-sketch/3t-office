@@ -534,6 +534,7 @@ export const WRITER_RIBBON_TABS = [
   {
     id: "pictureFormat",
     label: "Định dạng Hình ảnh",
+    contextual: true,
     groups: []
   },
   {

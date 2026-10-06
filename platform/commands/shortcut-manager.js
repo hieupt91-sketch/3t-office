@@ -165,7 +165,9 @@ export class ShortcutManager {
       return;
     }
     const isInput = target && (target.isContentEditable || target.tagName === "INPUT" || target.tagName === "TEXTAREA");
-    if (isInput && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    // Phím chức năng (F7 soát lỗi...) trong vùng soạn thảo Writer là lệnh, không phải ký tự gõ (như Word).
+    const writerFunctionKey = /^F(?:[3-9]|1[0-2])$/.test(e.key) && !!target?.closest?.(".vno-writer-body");
+    if (isInput && !e.ctrlKey && !e.altKey && !e.metaKey && !writerFunctionKey) {
       return;
     }
     // Guard: Animation Pane handles its own Delete and Alt+Shift reorder

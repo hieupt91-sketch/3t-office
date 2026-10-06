@@ -153,11 +153,12 @@ const writerOnly = [
     title: "Hộp thoại Đoạn văn: căn lề, thụt lề, khoảng cách, giãn dòng, ngắt dòng và ngắt trang",
     summary: "Đặt cùng lúc căn lề, thụt lề trái/phải, thụt dòng đầu hoặc treo, khoảng cách trước/sau đoạn, giãn dòng, và các tùy chọn ngắt dòng/ngắt trang (kiểm soát dòng mồ côi/góa, giữ cùng trang với đoạn kế tiếp, giữ các dòng liền nhau, ngắt trang trước) cho các đoạn đang chọn. Một lần Áp dụng là một bước Hoàn tác.",
     ribbon: { tab: "Bố cục", tabId: "layout", group: "Đoạn văn" },
-    keywords: ["đoạn văn", "paragraph", "thụt lề", "thụt dòng đầu", "thụt treo", "giãn dòng", "khoảng cách đoạn", "căn lề", "hộp thoại đoạn văn", "ngắt trang", "giữ cùng trang", "giữ các dòng liền nhau", "dòng mồ côi", "dòng góa", "keep with next"],
+    keywords: ["đoạn văn", "paragraph", "thụt lề", "thụt dòng đầu", "thụt treo", "giãn dòng", "khoảng cách đoạn", "căn lề", "hộp thoại đoạn văn", "ngắt trang", "giữ cùng trang", "giữ các dòng liền nhau", "dòng mồ côi", "dòng góa", "keep with next", "mức đại cương", "outline level"],
     steps: [
       "Đặt con trỏ trong đoạn (hoặc bôi đen nhiều đoạn) cần chỉnh.",
       "Mở hộp thoại bằng một trong hai cách: bấm nút mũi tên nhỏ ở góc nhóm Đoạn văn (tab Trang đầu hoặc tab Bố cục), hoặc nhấp chuột phải vào đoạn rồi chọn Đoạn văn…",
       "Chọn Căn lề (Trái, Giữa, Phải, Đều hai bên). Nhập Thụt lề trái/phải theo cm. Ở mục Đặc biệt chọn Dòng đầu (thụt riêng dòng đầu) hoặc Treo (các dòng sau thụt vào), rồi nhập Giá trị.",
+      "Ở thẻ đầu, chọn Mức đại cương: Mức 1–9 để đoạn xuất hiện trong Khung điều hướng và Mục lục như một tiêu đề (lưu vào tệp DOCX dạng mức đại cương), hoặc Nội dung văn bản cho đoạn thường. Tiêu đề 1–6 tự có mức tương ứng.",
       "Nhập Cách đoạn trước/sau theo pt. Chọn Giãn dòng: Đơn, 1,5 dòng, Kép, Nhiều dòng (nhập hệ số, ví dụ 1,15) hoặc Chính xác (nhập chiều cao dòng theo pt).",
       "Chuyển sang thẻ Ngắt dòng và ngắt trang (bấm vào thẻ hoặc dùng phím mũi tên trái/phải khi đang chọn thẻ). Tích Giữ cùng trang với đoạn kế tiếp cho tiêu đề không bị tách khỏi nội dung; Giữ các dòng liền nhau để đoạn không bị cắt giữa hai trang; Ngắt trang trước để đoạn bắt đầu ở trang mới; Kiểm soát dòng mồ côi/góa (mặc định bật) để không còn một dòng đơn lẻ ở đầu hoặc cuối trang.",
       "Xem khung Xem trước ở dưới, rồi bấm Áp dụng (hoặc Enter). Bấm Hủy hoặc Esc để đóng mà không đổi gì. Nếu giá trị không hợp lệ, hộp thoại báo lý do màu đỏ và chưa áp dụng.",

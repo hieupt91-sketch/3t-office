@@ -458,7 +458,7 @@ export class WriterAdapter {
       ? " data-vno-equation-original-omml=\"" + this._escapeHtml(originalOmml) + "\""
       : "";
     const displayAttribute = display === "block" ? " data-vno-equation-display=\"block\"" : "";
-    const label = this._escapeHtml(t("writer.insert.equation") + ": " + String(linear || "").trim());
+    const label = this._escapeHtml(t("writer.insert.equation", "Phương trình") + ": " + String(linear || "").trim());
     return "<span class=\"vno-equation\" role=\"math\" tabindex=\"0\" contenteditable=\"false\""
       + " data-vno-equation=\"true\" data-vno-equation-id=\"" + safeId + "\""
       + " data-vno-equation-linear=\"" + this._escapeHtml(linear || "") + "\""
@@ -10031,7 +10031,7 @@ export class WriterAdapter {
       target.setAttribute("data-vno-equation-linear", linear);
       target.setAttribute("data-vno-equation-mathml", encodeURIComponent(mathml));
       target.setAttribute("data-vno-equation-edited", "true");
-      target.setAttribute("aria-label", t("writer.insert.equation") + ": " + linear);
+      target.setAttribute("aria-label", t("writer.insert.equation", "Phương trình") + ": " + linear);
       if (display === "block") target.setAttribute("data-vno-equation-display", "block");
       else target.removeAttribute("data-vno-equation-display");
       target.classList?.remove("is-selected");
@@ -10507,6 +10507,8 @@ export class WriterAdapter {
     base.keepLines = block.dataset?.vnoFlowLines === "1" || style.pageBreakInside === "avoid" || style.breakInside === "avoid";
     base.pageBreakBefore = block.dataset?.vnoFlowPageBefore === "1" || style.pageBreakBefore === "always" || style.breakBefore === "page";
     base.widowControl = block.dataset?.vnoFlowWidow !== "off";
+    const headingLevel = /^H[1-6]$/.test(block.tagName || "") ? Number(block.tagName[1]) : 0;
+    base.outlineLevel = Number(block.dataset?.vnoOutline) || headingLevel;
     return base;
   }
 
@@ -10585,6 +10587,7 @@ export class WriterAdapter {
       ...("keepNext" in values ? { vnoFlowNext: values.keepNext ? "1" : null, ...(values.keepNext ? {} : { vnoKeepNext: null }) } : {}),
       ...("keepLines" in values ? { vnoFlowLines: values.keepLines ? "1" : null } : {}),
       ...("pageBreakBefore" in values ? { vnoFlowPageBefore: values.pageBreakBefore ? "1" : null } : {}),
+      ...("outlineLevel" in values ? { vnoOutline: Number(values.outlineLevel) > 0 ? String(Math.min(9, Math.round(Number(values.outlineLevel)))) : null } : {}),
       ...("widowControl" in values ? { vnoFlowWidow: values.widowControl === false ? "off" : null } : {})
     });
   }

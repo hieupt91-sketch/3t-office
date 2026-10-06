@@ -13992,7 +13992,8 @@ def _writer_restore_created_paragraph_css(document_xml: str, source_html: str) -
         attrs, inner = match.group(2), match.group(3)
         style_match = re.search(r"\bstyle\s*=\s*([\"'])(.*?)\1", attrs, re.IGNORECASE)
         tabs_match = re.search(r"\bdata-vno-tabs\s*=\s*([\"'])(.*?)\1", attrs, re.IGNORECASE)
-        if not style_match and not tabs_match:
+        outline_match = re.search(r"\bdata-vno-outline\s*=\s*([\"'])([1-9])\1", attrs, re.IGNORECASE)
+        if not style_match and not tabs_match and not outline_match:
             continue
         text = re.sub(r"\s+", " ", _writer_html_plain(inner)).strip()
         if not text:
@@ -14002,7 +14003,9 @@ def _writer_restore_created_paragraph_css(document_xml: str, source_html: str) -
         tabs_xml = _writer_tabs_xml(tabs_match.group(2)) if tabs_match else ""
         if tabs_xml:
             properties["tabs_xml"] = tabs_xml
-        align = re.search(r"(?:^|;)\s*text-align\s*:\s*(left|right|center|justify)(?:\s*!important)?\s*(?:;|$)", css, re.IGNORECASE)
+        if outline_match:
+            properties["outline_xml"] = f'<w:outlineLvl w:val="{int(outline_match.group(2)) - 1}"/>'
+        align =re.search(r"(?:^|;)\s*text-align\s*:\s*(left|right|center|justify)(?:\s*!important)?\s*(?:;|$)", css, re.IGNORECASE)
         if align:
             properties["alignment"] = {"left": "left", "right": "right", "center": "center", "justify": "both"}[align.group(1).lower()]
         line = re.search(r"(?:^|;)\s*line-height\s*:\s*([\d.]+)\s*(pt|px)(?:\s*!important)?\s*(?:;|$)", css, re.IGNORECASE)
@@ -14031,6 +14034,8 @@ def _writer_restore_created_paragraph_css(document_xml: str, source_html: str) -
             paragraph = _writer_upsert_ppr_empty(paragraph, "jc", f'<w:jc w:val="{props["alignment"]}"/>')
         if props.get("tabs_xml"):
             paragraph = _writer_upsert_ppr_empty(paragraph, "tabs", props["tabs_xml"])
+        if props.get("outline_xml"):
+            paragraph = _writer_upsert_ppr_empty(paragraph, "outlineLvl", props["outline_xml"])
         spacing_values = {"before": props.get("before_twips"), "after": props.get("after_twips")}
         spacing_values = {name: value for name, value in spacing_values.items() if value is not None}
         if spacing_values:

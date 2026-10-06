@@ -58,7 +58,7 @@ Ngoài phạm vi 1.0 (ghi trung thực): macro/script, đồng soạn thảo th�
 | D2 Ma trận gap | **Xong** (`docs/GAP-DOC-VS-WORD-0610.md`) | 4 mục THIẾU thật: Trang bìa, Trang trắng, Văn bản thành bảng, Điều kiện trộn |
 | D3 Giao diện Writer | **Xong, đã merge** | hộp thoại Thiết lập trang chuẩn Nghị định 30 + báo cáo UI + 35 ảnh |
 | D4a Thẻ "Ngắt dòng và ngắt trang" trong hộp thoại Đoạn văn | **Xong, đã merge** | kiểm tra đầu-cuối 9/9 (keepNext, keepLines, ngắt trang trước, widowControl) |
-| D4b Mức đề mục, Tab stops | Chưa làm | — |
+| D4b Mức đề mục, Tab stops | **Xong, đã merge** | Dừng tab (màn hình đúng 8/15 cm, DOCX w:tabs) + Mức đại cương 1–9 (w:outlineLvl, e2e + hoàn tác), Python 11/11, node 2809/2809 |
 | D5 Xác nhận ghi đè | **Đóng, không cần sửa** | pywebview dùng SaveFileDialog gốc của Windows (đã có hỏi ghi đè); lỗi A5 cũ chỉ do gọi API trực tiếp |
 | D6 Kịch bản hành chính 1–10 | **Xong, đã merge**; mở rộng 11–30 chờ | 6 PASS, 1 BLOCKED (in hai mặt cần driver), 3 FAIL đã chẩn đoán: ca 5, 6, 9 là **lỗi bài kiểm** (đã chứng minh bằng `doc_legal_list_check.mjs`, `doc_section_check.mjs`), ca 7 là lỗi sản phẩm đã sửa |
 | D7 Bộ 24 docx + 20 doc | Đang chạy (Codex, cổng thay thế bằng LibreOffice) | Word COM bị chặn bởi hộp thoại "Word không phải chương trình mặc định" (xem 6.1) |
@@ -77,3 +77,9 @@ Ngoài phạm vi 1.0 (ghi trung thực): macro/script, đồng soạn thảo th�
 
 ### 6.1 Word COM
 Word chạy qua COM nhưng mọi `Documents.Open` bị chặn vì hộp thoại "Microsoft Word isn't your default program… select the file types?" (Excel đã ổn định sau khi dọn 108 mục Document Recovery). Đã thử khóa `NoReReg`, UI Automation và MSAA: hộp thoại là cửa sổ tùy biến, phiên không cho chuột; **cần một người bấm "No" (kèm "Don't show this message again") một lần**. Khi đó `scripts/audit-0610/word_pages.ps1` đếm trang Word thật.
+
+### 6.2 Chỉ đạo chủ sở hữu 06/10 sáng
+- Tạm dừng Sheet và Slides; toàn bộ nhân lực vào Doc cho đến khi đạt chuẩn mục 1.
+- **D14** (agy): ribbon Writer — icon hợp lý, KHÔNG thanh cuộn ở mọi tab (1366×768 và 1920×1080, zoom 100%/125%), sắp xếp nhóm/tab theo thói quen người dùng; nhánh design/writer-ribbon-agy.
+- **D15** (kế tiếp): kiểm chứng từng mục MỘT PHẦN trong GAP-DOC-VS-WORD-0610 bằng CDP + XML DOCX (bảng, ảnh, số trang, phần/section, ký hiệu, WordArt, phương trình, tìm/thay thế, danh sách đa cấp…), phím tắt (D9), phông/định dạng, soạn thảo.
+- Đang chạy: D6b (Codex, kịch bản 11–30), D9 (Codex, phím tắt), D10 (agy, hướng dẫn), D14 (agy, ribbon).
