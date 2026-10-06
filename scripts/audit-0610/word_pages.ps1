@@ -21,13 +21,18 @@ foreach ($file in $Files) {
         Invoke-Retry { $word.DisplayAlerts = 0 } | Out-Null
         $doc = Invoke-Retry { $word.Documents.Open($file, $false, $true, $false) }
         Invoke-Retry { $doc.Repaginate() } | Out-Null
-        $pages = Invoke-Retry { $doc.ComputeStatistics(2) }
+        # Cua so an o che do doc (reading view = 7) lam ComputeStatistics(2) dem trang man hinh doc (gap ~2 lan). Dung bo cuc in + Information(4).
+        try { $word.ActiveWindow.View.Type = 3 } catch { }
+        Invoke-Retry { $doc.Repaginate() } | Out-Null
+        $pages = Invoke-Retry { $doc.Content.Information(4) }
         $words = Invoke-Retry { $doc.ComputeStatistics(0) }
         "{0}`t{1}`t{2}" -f (Split-Path $file -Leaf), $pages, $words
+        # Repaginate danh dau tai lieu da sua: dat Saved = true de Quit khong bi hop thoai "Luu thay doi?" chan (Word con sot lai)
+        try { $doc.Saved = $true } catch { }
     } catch {
         "{0}`tERROR`t{1}" -f (Split-Path $file -Leaf), $_.Exception.Message
     } finally {
-        if ($word) { try { Invoke-Retry { $word.Quit() } 10 | Out-Null } catch { } }
+        if ($word) { try { Invoke-Retry { $word.Quit(0) } 10 | Out-Null } catch { } }
         Start-Sleep -Milliseconds 500
     }
 }
