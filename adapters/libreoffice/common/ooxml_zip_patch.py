@@ -16349,9 +16349,12 @@ def postprocess_writer_if_ref_fields(docx_bytes: bytes, *, source_html: str | No
     for _, attrs, fallback in parser.rules:
         field = (attrs.get("data-merge-if") or "").strip()
         op = attrs.get("data-op") or "equals"
-        operators = {"equals": "=", "notEquals": "<>", "greaterThan": ">", "lessThan": "<", "empty": "=", "notEmpty": "<>"}
+        operators = {"equals": "=", "notEquals": "<>", "greaterThan": ">", "lessThan": "<", "empty": "=", "notEmpty": "<>", "contains": "="}
         if not field or op not in operators: continue
         value = "" if op in ("empty", "notEmpty") else (attrs.get("data-value") or "")
+        if op == "contains":
+            if "*" in value or "?" in value: continue
+            value = f"*{value}*"
         then = attrs.get("data-then") or ""
         otherwise = attrs.get("data-else") or ""
         # Word field arguments use escaped quotes inside quoted literals.

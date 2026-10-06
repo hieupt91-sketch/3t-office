@@ -221,6 +221,16 @@ class WriterMergeFieldExportTests(unittest.TestCase):
         self.assertIn('<w:i/>', doc)
         self.assertIn('w:instr=" IF { MERGEFIELD Flag }', doc)
 
+    def test_contains_rule_exports_word_wildcard_unless_value_has_wildcards(self):
+        html = ('<span data-merge-if="NoiDung" data-op="contains" data-value="abc" data-then="chua" data-else="khong chua">contains-result</span>'
+                '<span data-merge-if="NoiDung" data-op="contains" data-value="a*c" data-then="chua" data-else="khong chua">wildcard-fallback</span>')
+        body = ('<w:p><w:r><w:t>contains-result</w:t></w:r></w:p>'
+                '<w:p><w:r><w:t>wildcard-fallback</w:t></w:r></w:p>')
+        doc = _read(patcher.postprocess_writer_if_ref_fields(_docx(body), source_html=html), 'word/document.xml')
+        self.assertIn('w:instr=" IF { MERGEFIELD NoiDung } = &quot;*abc*&quot; &quot;chua&quot; &quot;khong chua&quot; "', doc)
+        self.assertIn('<w:t>wildcard-fallback</w:t>', doc)
+        self.assertNotIn('&quot;*a*c*&quot;', doc)
+
     def test_cross_reference_anchor_becomes_ref_hyperlink_field(self):
         body = '<w:p><w:bookmarkStart w:id="4" w:name="Heading_1"/><w:hyperlink w:anchor="Heading_1"><w:r><w:t>Mục 1</w:t></w:r></w:hyperlink></w:p>'
         html = '<a class="vno-cross-ref" data-xref-type="heading" href="#Heading_1">Mục 1</a>'
