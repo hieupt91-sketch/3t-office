@@ -99,3 +99,10 @@ Word chạy qua COM nhưng mọi `Documents.Open` bị chặn vì hộp thoại 
 | Lỗi i18n lộ khóa | hộp thoại Phương trình, Trang bìa: đã sửa |
 | P95 gõ phím | đã bỏ tác vụ dài mỗi phím (đếm từ gộp 350 ms); số đo tổng thể P95 chưa chốt vì các agent chạy song song làm nhiễu |
 | Đang chạy | D17 quy tắc trộn thư (Codex), D18 hồi quy corpus + legacy13 (Codex), D19 khung chính UI (agy) |
+
+### 6.4 Kiểm chứng tính năng lưu DOCX (06/10 10:30) — `doc_features_roundtrip/2/3.mjs`
+| Nhóm | Kết quả đo |
+|---|---|
+| Đã đúng sau sửa | chú thích cuối trang/cuối tài liệu (footnotes.xml/endnotes.xml thật), liên kết, dấu trang, mục lục, hình mờ, viền trang, màu nền trang, đánh số dòng, hộp văn bản, chữ nghệ thuật, phương trình (OMML), ký hiệu, cột, tiêu đề/ngắt trang, đầu/chân trang, ngắt mục + đổi hướng giấy, ảnh đúng kích thước |
+| Còn thiếu (đã đo, chưa sửa) | chú thích hình/bảng lưu thành chữ thường, chưa phải trường SEQ của Word; tham chiếu chéo chưa là trường REF; chữ cái đầu đoạn (drop cap) chưa có `w:dropCap`; trộn thư: trường MERGEFIELD/IF chưa xuất thành trường Word (trộn trong app vẫn đúng) |
+| Giới hạn tài liệu nhập | mở lại tệp do app tạo (có chú thích) rồi sửa/lưu: chú thích bị làm phẳng thành chữ (kho 48 tài liệu thật không có tệp nào có chú thích) |
