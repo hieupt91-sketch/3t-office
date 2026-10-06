@@ -15439,10 +15439,35 @@ export class WriterAdapter {
    * @param {string} [description]
    * @private
    */
+  /**
+   * HTML thân tài liệu cho snapshot. Tài liệu có ảnh nhúng nặng (~10 MB HTML) mất ~50 ms để
+   * serialize; canUndo()/commit gọi liên tục nên dùng lại chuỗi cũ khi DOM không đổi
+   * (MutationObserver + takeRecords đồng bộ để không bao giờ trả bản cũ sau khi DOM đã đổi).
+   * @private
+   */
+  _snapshotBodyHtml() {
+    const root = this.bodyDom || this.editorDom;
+    if (!root) return "";
+    if (typeof MutationObserver !== "function") return this._stripAutoPageGaps(root.innerHTML);
+    if (this._snapBodyRoot !== root) {
+      this._snapBodyObserver?.disconnect();
+      this._snapBodyRoot = root;
+      this._snapBodyDirty = true;
+      this._snapBodyObserver = new MutationObserver(() => { this._snapBodyDirty = true; });
+      this._snapBodyObserver.observe(root, { subtree: true, childList: true, attributes: true, characterData: true });
+    }
+    if (this._snapBodyObserver.takeRecords().length) this._snapBodyDirty = true;
+    if (this._snapBodyDirty || this._snapBodyCache == null) {
+      this._snapBodyCache = this._stripAutoPageGaps(root.innerHTML);
+      this._snapBodyDirty = false;
+    }
+    return this._snapBodyCache;
+  }
+
   _createSnapshot(description = "") {
     this._initZones();
     return {
-      bodyHtml: this._stripAutoPageGaps(this.bodyDom ? this.bodyDom.innerHTML : (this.editorDom ? this.editorDom.innerHTML : "")),
+      bodyHtml: this._snapshotBodyHtml(),
       headerHtml: this.headerDom ? this.headerDom.innerHTML : null,
       footerHtml: this.footerDom ? this.footerDom.innerHTML : null,
       pageSetup: this.pageSetup ? JSON.parse(JSON.stringify(this.pageSetup)) : null,
@@ -16490,11 +16515,13 @@ export class WriterAdapter {
     if (this._typingDebounceTimer) {
       clearTimeout(this._typingDebounceTimer);
     }
-    this._updateUndoRedoUI();
     this._typingDebounceTimer = setTimeout(() => {
       this._typingDebounceTimer = null;
       this.recordSnapshot("Typing");
     }, this._typingDebounceMs);
+    // Đặt timer TRƯỚC: canUndo() thấy đang gõ dở thì trả true ngay, không phải serialize
+    // cả tài liệu (ảnh nhúng ~10 MB HTML = ~80 ms mỗi lần ở phím đầu của mỗi cụm gõ).
+    this._updateUndoRedoUI();
   }
 
   /**
