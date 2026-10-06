@@ -13920,6 +13920,9 @@ export class WriterAdapter {
     });
     const sectionsMetaComment = `<!--vno-sections-meta: ${JSON.stringify(sectionsMeta)} -->`;
 
+    const notesExport = this._notesForExport(bodyHtml);
+    bodyHtml = notesExport.html;
+
     let columnsCss = "";
     let bodyExportHtml = bodyHtml;
     if (this.columns && this.columns.count > 1) {
@@ -13946,9 +13949,46 @@ export class WriterAdapter {
     const mutationMarkers = this._shapeMutationMarkerHtml();
 
     const pristineMarker = this._isOpenedDocumentPristine() ? '<a name="vno-pristine-document"></a>' : "";
-    const fullHtml = `${pristineMarker}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${reviewMetaComment}`;
+    const fullHtml = `${pristineMarker}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${reviewMetaComment}${notesExport.metadataComment}`;
     const rawExport = `<style>${this._getPageSetupCss()}\n${this._getSectionPageCss()}${columnsCss}</style>${fullHtml}`;
     return this._sanitizeExportHtmlForWordCompat(rawExport);
+  }
+
+  /**
+   * Chú thích cuối trang/cuối tài liệu: bộ chuyển HTML→DOCX của LibreOffice làm phẳng chúng thành chữ thường.
+   * Thay mỗi dấu tham chiếu bằng mã tạm [[VNOFN:id]] / [[VNOEN:id]], gỡ khung chú thích khỏi nội dung và gửi nội dung
+   * ghi chú qua chú thích HTML để phía Python dựng footnotes.xml/endnotes.xml thật (ooxml_zip_patch).
+   */
+  _notesForExport(html) {
+    const source = String(html || "");
+    // Tài liệu nhập từ DOCX (đoạn mang data-vno-src-hash) đi đường vá bản gốc và giữ chú thích gốc: không đụng tới.
+    if (!/data-vno-(?:footnote|endnote)/i.test(source) || /data-vno-(?:src-hash|untouched)=/i.test(source)
+      || typeof document === "undefined" || typeof document.createElement !== "function") {
+      return { html: source, metadataComment: "" };
+    }
+    // DOMParser (không dùng innerHTML= vì lớp bảo vệ của ứng dụng gỡ liên kết ngoài khỏi chuỗi gán).
+    const host = new DOMParser().parseFromString(`<body>${source}</body>`, "text/html").body;
+    const notes = [];
+    for (const [kind, refAttr, itemAttr, token] of [
+      ["footnote", "data-vno-footnote-ref", "data-vno-footnote-id", "VNOFN"],
+      ["endnote", "data-vno-endnote-ref", "data-vno-endnote-id", "VNOEN"]
+    ]) {
+      const bodies = new Map();
+      for (const item of Array.from(host.querySelectorAll(`[${itemAttr}]`))) {
+        const text = item.querySelector(".vno-note-text")?.textContent ?? "";
+        bodies.set(item.getAttribute(itemAttr), String(text).replace(/ /g, " ").trim());
+      }
+      for (const ref of Array.from(host.querySelectorAll(`sup[${refAttr}]`))) {
+        const id = ref.getAttribute(refAttr);
+        notes.push({ kind, id, text: bodies.get(id) || "" });
+        ref.replaceWith(document.createTextNode(`[[${token}:${id}]]`));
+      }
+    }
+    for (const container of Array.from(host.querySelectorAll('[data-vno-footnotes="true"], [data-vno-endnotes="true"]'))) container.remove();
+    if (!notes.length) return { html: host.innerHTML, metadataComment: "" };
+    const bytes = new TextEncoder().encode(JSON.stringify({ version: 1, notes }));
+    const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+    return { html: host.innerHTML, metadataComment: `<!--vno-notes-meta-hex:${hex}-->` };
   }
 
   _stripCommentMarkup(html) {

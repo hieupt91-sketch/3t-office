@@ -15978,6 +15978,218 @@ def _writer_wrap_revision_fragment(
     return "".join(output)
 
 
+_DOCX_NOTE_PARTS = {
+    "footnote": {
+        "token": "VNOFN", "part": "word/footnotes.xml", "target": "footnotes.xml", "root": "footnotes", "child": "footnote",
+        "rel": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes",
+        "type": "application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml",
+        "ref": "footnoteReference", "mark": "footnoteRef", "settings": "footnotePr",
+    },
+    "endnote": {
+        "token": "VNOEN", "part": "word/endnotes.xml", "target": "endnotes.xml", "root": "endnotes", "child": "endnote",
+        "rel": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/endnotes",
+        "type": "application/vnd.openxmlformats-officedocument.wordprocessingml.endnotes+xml",
+        "ref": "endnoteReference", "mark": "endnoteRef", "settings": "endnotePr",
+    },
+}
+_W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+
+
+def _writer_notes_metadata(source_html: str) -> list[dict]:
+    match = re.search(r"<!--vno-notes-meta-hex:([0-9a-f]+)-->", source_html or "", re.IGNORECASE)
+    if not match:
+        return []
+    try:
+        data = json.loads(bytes.fromhex(match.group(1)).decode("utf-8"))
+    except (ValueError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError("Dữ liệu chú thích trong bản xuất không hợp lệ.") from exc
+    notes = data.get("notes") if isinstance(data, dict) else None
+    return [item for item in (notes or []) if isinstance(item, dict) and item.get("kind") in _DOCX_NOTE_PARTS]
+
+
+def postprocess_writer_notes(docx_bytes: bytes, *, source_html: str | None = None) -> bytes:
+    """Dựng chú thích cuối trang/cuối tài liệu thật (footnotes.xml/endnotes.xml) từ mã tạm [[VNOFN:id]]/[[VNOEN:id]].
+
+    Bộ chuyển HTML→DOCX của LibreOffice làm phẳng <sup> thành chữ thường; phía JS thay dấu tham chiếu bằng mã tạm và gửi
+    nội dung ghi chú qua chú thích HTML vno-notes-meta-hex. Hàm này đổi mã tạm thành w:footnoteReference/w:endnoteReference.
+    """
+    notes = _writer_notes_metadata(source_html or "")
+    if not docx_bytes or not notes:
+        return docx_bytes
+    document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
+    if not document_bytes:
+        return docx_bytes
+    document_xml = document_bytes.decode("utf-8", errors="replace")
+    replacements: dict[str, bytes] = {}
+    number_for: dict[tuple[str, str], int] = {}
+    bodies: dict[str, list[tuple[int, str]]] = {"footnote": [], "endnote": []}
+    for note in notes:
+        kind = note["kind"]
+        number = len(bodies[kind]) + 1
+        number_for[(kind, str(note.get("id")))] = number
+        bodies[kind].append((number, str(note.get("text") or "")))
+    token_for = {spec["token"]: kind for kind, spec in _DOCX_NOTE_PARTS.items()}
+    token_re = re.compile(r"\[\[(VNOFN|VNOEN):([^\]<>]+)\]\]")
+    run_re = re.compile(
+        r"<w:r\b[^>]*>(?P<rpr><w:rPr>(?:(?!</w:rPr>)[\s\S])*</w:rPr>)?<w:t(?:\s[^>]*)?>(?P<text>[^<]*\[\[VNO(?:FN|EN):[^<\]]+\]\][^<]*)</w:t></w:r>"
+    )
+
+    def split_run(match: re.Match) -> str:
+        rpr = match.group("rpr") or ""
+        text = match.group("text")
+        out: list[str] = []
+        position = 0
+
+        def text_run(piece: str) -> str:
+            return f'<w:r>{rpr}<w:t xml:space="preserve">{piece}</w:t></w:r>' if piece else ""
+
+        for token in token_re.finditer(text):
+            out.append(text_run(text[position:token.start()]))
+            kind = token_for[token.group(1)]
+            number = number_for.get((kind, token.group(2).strip()))
+            if number is not None:
+                spec = _DOCX_NOTE_PARTS[kind]
+                out.append(
+                    f'<w:r><w:rPr><w:vertAlign w:val="superscript"/></w:rPr><w:{spec["ref"]} w:id="{number}"/></w:r>'
+                )
+            position = token.end()
+        out.append(text_run(text[position:]))
+        return "".join(out)
+
+    document_xml = run_re.sub(split_run, document_xml)
+    document_xml = token_re.sub("", document_xml)  # mã tạm lọt vào run bị tách: bỏ để không lộ ra văn bản
+    replacements["word/document.xml"] = document_xml.encode("utf-8")
+
+    rels_bytes = read_zip_entry(docx_bytes, "word/_rels/document.xml.rels")
+    rels_xml = rels_bytes.decode("utf-8", errors="replace") if rels_bytes else (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
+    )
+    ct_bytes = read_zip_entry(docx_bytes, "[Content_Types].xml")
+    ct_xml = ct_bytes.decode("utf-8", errors="replace") if ct_bytes else (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"></Types>'
+    )
+    settings_bytes = read_zip_entry(docx_bytes, "word/settings.xml")
+    settings_xml = settings_bytes.decode("utf-8", errors="replace") if settings_bytes else (
+        f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:settings xmlns:w="{_W_NS}"></w:settings>'
+    )
+
+    for kind, spec in _DOCX_NOTE_PARTS.items():
+        if not bodies[kind]:
+            continue
+        items = []
+        for number, text in bodies[kind]:
+            lines = text.splitlines() or [""]
+            first = (
+                f'<w:p><w:r><w:rPr><w:vertAlign w:val="superscript"/></w:rPr><w:{spec["mark"]}/></w:r>'
+                f'<w:r><w:t xml:space="preserve"> {_escape_xml(lines[0])}</w:t></w:r></w:p>'
+            )
+            rest = "".join(f'<w:p><w:r><w:t xml:space="preserve">{_escape_xml(line)}</w:t></w:r></w:p>' for line in lines[1:])
+            items.append(f'<w:{spec["child"]} w:id="{number}">{first}{rest}</w:{spec["child"]}>')
+        separators = (
+            f'<w:{spec["child"]} w:type="separator" w:id="-1"><w:p><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr>'
+            f'<w:r><w:separator/></w:r></w:p></w:{spec["child"]}>'
+            f'<w:{spec["child"]} w:type="continuationSeparator" w:id="0"><w:p><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr>'
+            f'<w:r><w:continuationSeparator/></w:r></w:p></w:{spec["child"]}>'
+        )
+        replacements[spec["part"]] = (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            f'<w:{spec["root"]} xmlns:w="{_W_NS}">{separators}{"".join(items)}</w:{spec["root"]}>'
+        ).encode("utf-8")
+        if not re.search(r'Type="[^"]*/' + spec["root"] + '"', rels_xml):
+            rels_xml = _add_rels_entry(rels_xml, f"rId{_max_rels_rid(rels_xml) + 1}", spec["rel"], spec["target"])
+        ct_xml = _add_content_types_override(ct_xml, "/" + spec["part"], spec["type"])
+        if f'<w:{spec["settings"]}' not in settings_xml:
+            block = f'<w:{spec["settings"]}><w:{spec["child"]} w:id="-1"/><w:{spec["child"]} w:id="0"/></w:{spec["settings"]}>'
+            anchor = next((tag for tag in ("<w:endnotePr", "<w:compat", "<w:rsids", "<w:themeFontLang") if tag in settings_xml and tag != f'<w:{spec["settings"]}'), None)
+            if spec["settings"] == "endnotePr":
+                anchor = next((tag for tag in ("<w:compat", "<w:rsids", "<w:themeFontLang") if tag in settings_xml), None)
+            if anchor:
+                settings_xml = settings_xml.replace(anchor, block + anchor, 1)
+            else:
+                settings_xml = settings_xml.replace("</w:settings>", block + "</w:settings>", 1)
+    replacements["word/_rels/document.xml.rels"] = rels_xml.encode("utf-8")
+    replacements["[Content_Types].xml"] = ct_xml.encode("utf-8")
+    replacements["word/settings.xml"] = settings_xml.encode("utf-8")
+    return patch_ooxml_zip(docx_bytes, replacements)
+
+
+_CSS_NAMED_COLORS = {"black": "000000", "white": "FFFFFF", "red": "FF0000", "green": "008000", "blue": "0000FF", "yellow": "FFFF00",
+                     "gray": "808080", "grey": "808080", "orange": "FFA500", "navy": "000080"}
+
+
+def _css_color_hex(value: str) -> str | None:
+    value = (value or "").strip().lower()
+    match = re.fullmatch(r"#([0-9a-f]{3})", value)
+    if match:
+        return "".join(ch * 2 for ch in match.group(1)).upper()
+    match = re.fullmatch(r"#([0-9a-f]{6})(?:[0-9a-f]{2})?", value)
+    if match:
+        return match.group(1).upper()
+    match = re.fullmatch(r"rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*[\d.]+\s*)?\)", value)
+    if match:
+        return "".join(f"{min(255, int(part)):02X}" for part in match.groups())
+    return _CSS_NAMED_COLORS.get(value)
+
+
+def postprocess_writer_page_decor(docx_bytes: bytes, *, source_html: str | None = None) -> bytes:
+    """Viền trang (w:pgBorders) và màu nền trang (w:background): bộ nhập HTML của LibreOffice bỏ `border`/`background-color` của @page."""
+    if not docx_bytes or not source_html:
+        return docx_bytes
+    block = re.search(r"@page\s*\{([^}]*)\}", source_html, re.IGNORECASE)
+    if not block:
+        return docx_bytes
+    css = block.group(1)
+    border = re.search(
+        r"(?:^|[;\s])border\s*:\s*([\d.]+)pt\s+(solid|dashed|dotted|double|groove|ridge|inset|outset)\s+(#[0-9a-fA-F]{3,8}|rgba?\([^)]*\)|[a-zA-Z]+)",
+        css, re.IGNORECASE,
+    )
+    background = re.search(r"background-color\s*:\s*(#[0-9a-fA-F]{3,8}|rgba?\([^)]*\)|[a-zA-Z]+)", css, re.IGNORECASE)
+    if not border and not background:
+        return docx_bytes
+    document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
+    if not document_bytes:
+        return docx_bytes
+    document_xml = document_bytes.decode("utf-8", errors="replace")
+    replacements: dict[str, bytes] = {}
+    if border:
+        color = _css_color_hex(border.group(3)) or "000000"
+        style = {"solid": "single", "dashed": "dashed", "dotted": "dotted", "double": "double"}.get(border.group(2).lower(), "single")
+        size = max(2, min(96, round(float(border.group(1)) * 8)))
+        sides = "".join(
+            f'<w:{side} w:val="{style}" w:sz="{size}" w:space="24" w:color="{color}"/>' for side in ("top", "left", "bottom", "right")
+        )
+        block_xml = f'<w:pgBorders w:offsetFrom="page">{sides}</w:pgBorders>'
+
+        def add_borders(match: re.Match) -> str:
+            sect = match.group(0)
+            if "<w:pgBorders" in sect:
+                return sect
+            mar = re.search(r"<w:pgMar\b[^>]*/>", sect, re.IGNORECASE)
+            if mar:
+                return sect[:mar.end()] + block_xml + sect[mar.end():]
+            size_tag = re.search(r"<w:pgSz\b[^>]*/>", sect, re.IGNORECASE)
+            return sect[:size_tag.end()] + block_xml + sect[size_tag.end():] if size_tag else sect
+
+        document_xml = re.sub(r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>", add_borders, document_xml, flags=re.IGNORECASE)
+    bg_color = _css_color_hex(background.group(1)) if background else None
+    if bg_color and bg_color != "FFFFFF" and "<w:background" not in document_xml:
+        document_xml = re.sub(r"(<w:document\b[^>]*>)", rf'\1<w:background w:color="{bg_color}"/>', document_xml, count=1, flags=re.IGNORECASE)
+        settings_bytes = read_zip_entry(docx_bytes, "word/settings.xml")
+        if settings_bytes:
+            settings_xml = settings_bytes.decode("utf-8", errors="replace")
+            if "<w:displayBackgroundShape" not in settings_xml:
+                zoom = re.search(r"<w:zoom\b[^>]*/>", settings_xml, re.IGNORECASE)
+                if zoom:
+                    settings_xml = settings_xml[:zoom.end()] + "<w:displayBackgroundShape/>" + settings_xml[zoom.end():]
+                else:
+                    settings_xml = re.sub(r"(<w:settings\b[^>]*>)", r"\1<w:displayBackgroundShape/>", settings_xml, count=1, flags=re.IGNORECASE)
+                replacements["word/settings.xml"] = settings_xml.encode("utf-8")
+    replacements["word/document.xml"] = document_xml.encode("utf-8")
+    return patch_ooxml_zip(docx_bytes, replacements)
+
+
 def postprocess_writer_review_markup(docx_bytes: bytes, *, source_html: str | None = None) -> bytes:
     """Turn Writer's temporary review bookmarks into native Word revisions/comments.
 
