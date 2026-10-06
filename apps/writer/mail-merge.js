@@ -13,6 +13,8 @@ import { globalUnoBridge } from "../../adapters/libreoffice/common/uno-bridge.js
 export { parseCsv, parseDelimitedText, parseFodsData, replaceMergeFields } from "./mail-merge-data.js";
 import { parseCsv, parseDelimitedText, parseFodsData } from "./mail-merge-data.js";
 
+let closeActiveMailMergeIfDialog = null;
+
 function trapFocus(dialogBox, event) {
   if (event.key !== "Tab") return;
   const focusables = Array.from(dialogBox.querySelectorAll(
@@ -667,13 +669,45 @@ export function showInsertMergeFieldDialog({
  */
 export function showMailMergeIfDialog({ fields = [], onInsert, onCancel } = {}) {
   if (typeof document === "undefined" || !document.body) { onCancel?.(); return; }
+  closeActiveMailMergeIfDialog?.(false);
   const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
   const overlay = document.createElement("div"); overlay.className = "vno-dialog-overlay";
-  overlay.innerHTML = `<div class="vno-dialog-box" role="dialog" aria-modal="true" aria-labelledby="vno-merge-if-title"><div class="vno-dialog-header"><span id="vno-merge-if-title">${t("writerDialogs.mailMerge.ifTitle", "Quy tắc Nếu...Thì...Ngược lại")}</span><button class="vno-btn vno-dialog-close-btn" aria-label="${t("common.close", "Đóng")}">×</button></div><div class="vno-dialog-body" style="display:grid;gap:10px;padding:16px"><label>${t("writerDialogs.mailMerge.ifField", "Trường")}<select data-field>${fields.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join("")}</select></label><label>${t("writerDialogs.mailMerge.ifOperator", "Toán tử")}<select data-op><option value="equals">${t("writerDialogs.mailMerge.opEquals", "bằng")}</option><option value="notEquals">${t("writerDialogs.mailMerge.opNotEquals", "khác")}</option><option value="contains">${t("writerDialogs.mailMerge.opContains", "chứa")}</option><option value="greaterThan">${t("writerDialogs.mailMerge.opGreater", "lớn hơn")}</option><option value="lessThan">${t("writerDialogs.mailMerge.opLess", "nhỏ hơn")}</option><option value="empty">${t("writerDialogs.mailMerge.opEmpty", "rỗng")}</option><option value="notEmpty">${t("writerDialogs.mailMerge.opNotEmpty", "không rỗng")}</option></select></label><label>${t("writerDialogs.mailMerge.ifValue", "Giá trị")}<input data-value></label><label>${t("writerDialogs.mailMerge.ifThen", "Thì")}<input data-then></label><label>${t("writerDialogs.mailMerge.ifElse", "Ngược lại")}<input data-else></label><div style="display:flex;justify-content:flex-end;gap:8px"><button data-cancel>${t("common.cancel", "Hủy")}</button><button data-insert>${t("writerDialogs.mailMerge.insertBtn", "Chèn")}</button></div></div></div>`;
-  const close = (cancel=true) => { overlay.remove(); if(cancel) onCancel?.(); };
+  const previousFocused = document.activeElement;
+  overlay.innerHTML = `<div class="vno-dialog-box" role="dialog" aria-modal="true" aria-labelledby="vno-merge-if-title"><div class="vno-dialog-header"><span id="vno-merge-if-title">${t("writerDialogs.mailMerge.ifTitle", "Quy tắc Nếu...Thì...Ngược lại")}</span><button type="button" class="vno-btn vno-dialog-close-btn" aria-label="${t("common.close", "Đóng")}">×</button></div><div class="vno-dialog-body" style="display:grid;gap:10px;padding:16px"><label>${t("writerDialogs.mailMerge.ifField", "Trường")}<select data-field aria-describedby="vno-merge-if-error">${fields.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join("")}</select></label><p id="vno-merge-if-error" class="vno-dialog-error" role="alert" hidden style="margin:0;color:var(--vno-color-error,#b91c1c);font-size:12px">${t("writerDialogs.mailMerge.ifFieldRequired", "Vui lòng chọn trường dữ liệu.")}</p><label>${t("writerDialogs.mailMerge.ifOperator", "Toán tử")}<select data-op><option value="equals">${t("writerDialogs.mailMerge.opEquals", "bằng")}</option><option value="notEquals">${t("writerDialogs.mailMerge.opNotEquals", "khác")}</option><option value="contains">${t("writerDialogs.mailMerge.opContains", "chứa")}</option><option value="greaterThan">${t("writerDialogs.mailMerge.opGreater", "lớn hơn")}</option><option value="lessThan">${t("writerDialogs.mailMerge.opLess", "nhỏ hơn")}</option><option value="empty">${t("writerDialogs.mailMerge.opEmpty", "rỗng")}</option><option value="notEmpty">${t("writerDialogs.mailMerge.opNotEmpty", "không rỗng")}</option></select></label><label>${t("writerDialogs.mailMerge.ifValue", "Giá trị")}<input data-value></label><label>${t("writerDialogs.mailMerge.ifThen", "Thì")}<input data-then></label><label>${t("writerDialogs.mailMerge.ifElse", "Ngược lại")}<input data-else></label><div style="display:flex;justify-content:flex-end;gap:8px"><button type="button" data-cancel>${t("common.cancel", "Hủy")}</button><button type="button" data-insert>${t("writerDialogs.mailMerge.insertBtn", "Chèn")}</button></div></div></div>`;
+  const dialogBox = overlay.querySelector(".vno-dialog-box");
+  const fieldSelect = overlay.querySelector("[data-field]");
+  const fieldError = overlay.querySelector("#vno-merge-if-error");
+  const close = (cancel=true) => {
+    document.removeEventListener("keydown", onKeyDown);
+    overlay.remove();
+    if (closeActiveMailMergeIfDialog === close) closeActiveMailMergeIfDialog = null;
+    previousFocused?.focus?.();
+    if(cancel) onCancel?.();
+  };
   overlay.querySelector("[data-cancel]").onclick=()=>close(true); overlay.querySelector(".vno-dialog-close-btn").onclick=()=>close(true);
-  overlay.querySelector("[data-insert]").onclick=()=>{ onInsert?.({ field:overlay.querySelector("[data-field]").value, op:overlay.querySelector("[data-op]").value, value:overlay.querySelector("[data-value]").value, then:overlay.querySelector("[data-then]").value, otherwise:overlay.querySelector("[data-else]").value }); close(false); };
-  document.body.appendChild(overlay); overlay.querySelector("[data-field]")?.focus();
+  overlay.querySelector("[data-insert]").onclick=()=>{
+    if (!String(fieldSelect?.value || "").trim()) {
+      fieldSelect?.setAttribute("aria-invalid", "true");
+      if (fieldError) fieldError.hidden = false;
+      fieldSelect?.focus?.();
+      return;
+    }
+    fieldSelect.removeAttribute("aria-invalid");
+    onInsert?.({ field:fieldSelect.value, op:overlay.querySelector("[data-op]").value, value:overlay.querySelector("[data-value]").value, then:overlay.querySelector("[data-then]").value, otherwise:overlay.querySelector("[data-else]").value }); close(false);
+  };
+  overlay.addEventListener("click", event => { if (event.target === overlay) close(true); });
+  const onKeyDown = (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      close(true);
+    } else if (event.key === "Tab") {
+      trapFocus(dialogBox, event);
+    }
+  };
+  document.body.appendChild(overlay);
+  document.addEventListener("keydown", onKeyDown);
+  closeActiveMailMergeIfDialog = close;
+  fieldSelect?.focus();
 }
 
 export function showFinishMailMergeDialog({

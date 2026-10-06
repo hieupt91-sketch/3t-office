@@ -906,7 +906,11 @@ export const viStrings = {
       wholeDocument: "Toàn bộ tài liệu",
       apply: "Áp dụng",
       cancel: "Hủy bỏ",
-      close: "Đóng"
+      close: "Đóng",
+      marginRangeError: "Lề trang phải là số từ 0 đến 100 mm."
+    },
+    bookmark: {
+      nameRequired: "Vui lòng nhập tên đánh dấu."
     },
     sections: {
       nextPage: "Ngắt mục (Trang tiếp theo)",
@@ -968,6 +972,7 @@ export const viStrings = {
       angleHorizontal: "Nằm ngang 0°",
       opacityLabel: "Độ mờ (Opacity):",
       removeWatermark: "Xóa hình mờ",
+      textRequired: "Vui lòng nhập nội dung hình mờ; để xóa, hãy dùng nút Xóa hình mờ.",
       apply: "Áp dụng",
       cancel: "Hủy bỏ",
       suggestions: {
@@ -1081,7 +1086,7 @@ export const viStrings = {
       finishNoData: "Chưa có nguồn dữ liệu trộn thư để tạo tài liệu. Vui lòng mở 'Nguồn dữ liệu' để chọn tệp bảng tính hoặc dán bảng dữ liệu.",
       finishNoFields: "Tài liệu hiện tại chưa chứa trường trộn thư nào. Hãy dùng lệnh 'Chèn trường' để chèn ít nhất một trường trộn.",
       finishSuccess: "Đã hoàn tất trộn thư thành công {count} bản ghi vào tài liệu. Bạn có thể xem trước khi in hoặc xuất tệp."
-      ,ifTitle: "Quy tắc Nếu...Thì...Ngược lại", ifField: "Trường", ifOperator: "Toán tử", ifValue: "Giá trị so sánh", ifThen: "Thì", ifElse: "Ngược lại", opEquals: "bằng", opNotEquals: "khác", opContains: "chứa", opGreater: "lớn hơn", opLess: "nhỏ hơn", opEmpty: "rỗng", opNotEmpty: "không rỗng"
+      ,ifTitle: "Quy tắc Nếu...Thì...Ngược lại", ifField: "Trường", ifFieldRequired: "Vui lòng chọn trường dữ liệu.", ifOperator: "Toán tử", ifValue: "Giá trị so sánh", ifThen: "Thì", ifElse: "Ngược lại", opEquals: "bằng", opNotEquals: "khác", opContains: "chứa", opGreater: "lớn hơn", opLess: "nhỏ hơn", opEmpty: "rỗng", opNotEmpty: "không rỗng"
     },
     printPreview: {
       title: "Xem trước khi in",

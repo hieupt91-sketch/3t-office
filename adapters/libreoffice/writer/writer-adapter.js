@@ -6791,6 +6791,9 @@ export class WriterAdapter {
       const wholeDocumentLabel = (typeof t === "function" && t("writerDialogs.pageSetup.wholeDocument") !== "writerDialogs.pageSetup.wholeDocument")
         ? t("writerDialogs.pageSetup.wholeDocument")
         : "Toàn bộ tài liệu";
+      const marginRangeError = (typeof t === "function" && t("writerDialogs.pageSetup.marginRangeError") !== "writerDialogs.pageSetup.marginRangeError")
+        ? t("writerDialogs.pageSetup.marginRangeError")
+        : "Lề trang phải là số từ 0 đến 100 mm.";
 
       const marginLabels = {
         top: (typeof t === "function" && t("writerDialogs.pageSetup.marginTop") !== "writerDialogs.pageSetup.marginTop") ? t("writerDialogs.pageSetup.marginTop") : "Lề trên",
@@ -6821,10 +6824,13 @@ export class WriterAdapter {
                 return `<label style="font-size:12px;">${sideLabel} (mm)
                   <input type="number" min="0" max="100" class="vno-dialog-input" id="vno-pagesetup-margin-${side}"
                     value="${this.pageSetup.margins[side]}"
+                    aria-describedby="vno-pagesetup-margin-error"
                     style="width:100%;margin-top:4px;box-sizing:border-box;padding:6px 10px;border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md);font-size:13px;" />
                 </label>`;
               }).join("")}
             </div>
+            <p id="vno-pagesetup-margin-error" class="vno-dialog-error" role="alert" hidden
+              style="margin:0;color:var(--vno-color-error,#b91c1c);font-size:12px;">${marginRangeError}</p>
             <label style="font-size:13px;font-weight:500;">${applyToLabel}
               <select class="vno-select" id="vno-pagesetup-apply-to" style="width:100%;margin-top:4px;">
                 <option value="section" selected>${thisSectionLabel}</option>
@@ -6864,7 +6870,29 @@ export class WriterAdapter {
         applyTo: overlay.querySelector("#vno-pagesetup-apply-to")?.value || "section"
       });
 
-      overlay.querySelector(".vno-dialog-ok-btn").addEventListener("click", () => finish(readForm()));
+      const validateMargins = () => {
+        const inputs = [...overlay.querySelectorAll('[id^="vno-pagesetup-margin-"]')]
+          .filter(input => input.tagName === "INPUT");
+        const invalid = inputs.find(input => {
+          const raw = String(input.value ?? "").trim();
+          const value = Number(raw);
+          return raw === "" || !Number.isFinite(value) || value < 0 || value > 100;
+        });
+        inputs.forEach(input => input.removeAttribute("aria-invalid"));
+        const error = overlay.querySelector("#vno-pagesetup-margin-error");
+        if (!invalid) {
+          if (error) error.hidden = true;
+          return true;
+        }
+        invalid.setAttribute("aria-invalid", "true");
+        if (error) error.hidden = false;
+        invalid.focus();
+        return false;
+      };
+
+      overlay.querySelector(".vno-dialog-ok-btn").addEventListener("click", () => {
+        if (validateMargins()) finish(readForm());
+      });
       overlay.querySelector(".vno-dialog-cancel-btn").addEventListener("click", () => finish(null));
       overlay.querySelector(".vno-dialog-close-btn").addEventListener("click", () => finish(null));
       overlay.addEventListener("click", (e) => {

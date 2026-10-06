@@ -178,12 +178,16 @@
 .vno-about-notices-btn {
   background: none;
   border: none;
-  color: #5b6cf6;
+  color: #3f46b5;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   padding: 2px 6px;
   border-radius: 4px;
+}
+
+[data-theme="dark"] .vno-about-notices-btn {
+  color: #aeb8ff;
 }
 
 .vno-about-notices-btn:hover {

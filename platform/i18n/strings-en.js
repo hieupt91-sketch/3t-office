@@ -905,7 +905,11 @@ export const enStrings = {
       wholeDocument: "Whole document",
       apply: "Apply",
       cancel: "Cancel",
-      close: "Close"
+      close: "Close",
+      marginRangeError: "Page margins must be numbers from 0 to 100 mm."
+    },
+    bookmark: {
+      nameRequired: "Enter a bookmark name."
     },
     sections: {
       nextPage: "Section Break (Next Page)",
@@ -967,6 +971,7 @@ export const enStrings = {
       angleHorizontal: "Horizontal (0°)",
       opacityLabel: "Transparency (Opacity):",
       removeWatermark: "Remove Watermark",
+      textRequired: "Enter watermark text; to remove it, use the Remove Watermark button.",
       apply: "Apply",
       cancel: "Cancel",
       suggestions: {
@@ -1080,7 +1085,7 @@ export const enStrings = {
       finishNoData: "No mail merge data source to create documents. Please open 'Select Recipients' to select an spreadsheet/CSV file.",
       finishNoFields: "Current document contains no merge fields. Use 'Insert Merge Field' to insert at least one field.",
       finishSuccess: "Successfully merged {count} records into document. You can preview or export the document."
-      ,ifTitle: "If...Then...Else Rule", ifField: "Field", ifOperator: "Comparison", ifValue: "Compare to", ifThen: "Then", ifElse: "Otherwise", opEquals: "equal to", opNotEquals: "not equal to", opContains: "contains", opGreater: "greater than", opLess: "less than", opEmpty: "is blank", opNotEmpty: "is not blank"
+      ,ifTitle: "If...Then...Else Rule", ifField: "Field", ifFieldRequired: "Select a data field.", ifOperator: "Comparison", ifValue: "Compare to", ifThen: "Then", ifElse: "Otherwise", opEquals: "equal to", opNotEquals: "not equal to", opContains: "contains", opGreater: "greater than", opLess: "less than", opEmpty: "is blank", opNotEmpty: "is not blank"
     },
     printPreview: {
       title: "Print Preview",

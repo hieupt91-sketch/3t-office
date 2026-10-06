@@ -206,7 +206,10 @@ export function showBookmarkDialog(options = {}) {
         <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:10px;">
           <label for="vno-bookmark-input" style="font-size:13px;font-weight:500;">${isEn ? "Bookmark name" : "Tên đánh dấu"}</label>
           <input id="vno-bookmark-input" class="vno-dialog-input" type="text" value="${String(defaultName).replace(/"/g, "&quot;")}"
+            aria-describedby="vno-bookmark-error"
             style="width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid var(--vno-border-default);border-radius:6px;font-size:13px;" />
+          <p id="vno-bookmark-error" class="vno-dialog-error" role="alert" hidden
+            style="margin:0;color:var(--vno-color-error,#b91c1c);font-size:12px;">${t("writerDialogs.bookmark.nameRequired")}</p>
         </div>
         <div class="vno-dialog-footer">
           <button type="button" class="vno-btn vno-dialog-cancel-btn">${t("common.cancel")}</button>
@@ -217,6 +220,7 @@ export function showBookmarkDialog(options = {}) {
     document.body.appendChild(overlay);
     const dialogBox = overlay.querySelector(".vno-dialog-box");
     const input = overlay.querySelector("#vno-bookmark-input");
+    const error = overlay.querySelector("#vno-bookmark-error");
     input.focus();
     input.select();
 
@@ -227,7 +231,19 @@ export function showBookmarkDialog(options = {}) {
       resolve(value);
     };
 
-    overlay.querySelector(".vno-dialog-ok-btn")?.addEventListener("click", () => cleanup((input.value || "").trim() || null));
+    const submit = () => {
+      const name = (input.value || "").trim();
+      if (!name) {
+        input.setAttribute("aria-invalid", "true");
+        if (error) error.hidden = false;
+        input.focus();
+        return;
+      }
+      input.removeAttribute("aria-invalid");
+      cleanup(name);
+    };
+
+    overlay.querySelector(".vno-dialog-ok-btn")?.addEventListener("click", submit);
     overlay.querySelector(".vno-dialog-cancel-btn")?.addEventListener("click", () => cleanup(null));
     overlay.querySelector(".vno-dialog-close-btn")?.addEventListener("click", () => cleanup(null));
     overlay.addEventListener("click", (event) => {
@@ -240,7 +256,7 @@ export function showBookmarkDialog(options = {}) {
         cleanup(null);
       } else if (event.key === "Enter") {
         event.preventDefault();
-        cleanup((input.value || "").trim() || null);
+        submit();
       } else if (event.key === "Tab") {
         trapFocus(dialogBox, event);
       }
