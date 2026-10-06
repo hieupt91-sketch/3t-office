@@ -463,6 +463,33 @@ export async function runWriterHeaderFooterImportTests() {
   });
 
   // Đo R16/d07: 20 bảng trải ≥ 2 trang Word trong 10 file; d07 <ul> 2 mục bị đẩy cả khối. Word cắt giữa hàng / giữa mục.
+  test("D23: live pagination uses the page margins of each section", () => {
+    const adapter = new WriterAdapter(null);
+    adapter.pageSetup = { size: "custom", widthMm: 147, heightMm: 213, orientation: "portrait", margins: { top: 25.4, right: 25.4, bottom: 25.4, left: 25.4 } };
+    adapter.sectionPageSetups = { "section-1": adapter.pageSetup, "section-2": { ...adapter.pageSetup, margins: { top: 5.7, right: 25.4, bottom: 5.7, left: 25.4 } } };
+    const mk = (tag, top, height, sectionId = "") => ({ tagName: tag, textContent: tag === "DIV" ? "Ngắt mục (Trang tiếp theo)" : "x", offsetTop: top, offsetHeight: height, children: [], parentNode: null, classList: { contains: name => name === "vno-section-break" && tag === "DIV" }, getAttribute: name => name === "style" ? "" : name === "data-vno-section-id" ? sectionId : null, getBoundingClientRect: () => ({ top, height }), querySelectorAll: () => [] });
+    const first = mk("P", 0, 500), marker = mk("DIV", 500, 0, "section-2"), second = mk("P", 520, 600), third = mk("P", 1120, 100);
+    const inserted = [];
+    const body = { style: {}, children: [first, marker, second, third], scrollTop: 0, getBoundingClientRect: () => ({ top: 0 }), querySelectorAll: () => [], insertBefore: (gap, ref) => inserted.push(ref), dispatchEvent: () => {} };
+    for (const el of body.children) el.parentNode = body;
+    adapter.bodyDom = body;
+    adapter.headerDom = { innerText: "", offsetHeight: 0 };
+    adapter.footerDom = { innerText: "", offsetHeight: 0 };
+    adapter._alignPageRelativeFloats = () => {};
+    adapter._bleedInnerPageGaps = () => {};
+    const heights = [];
+    const getUsable = adapter._getUsablePageHeight.bind(adapter);
+    adapter._getUsablePageHeight = dim => { const value = getUsable(dim); heights.push({ value, margins: { ...adapter.pageSetup.margins } }); return value; };
+    const origDoc = globalThis.document, origWin = globalThis.window;
+    globalThis.document = { createElement: tag => ({ tagName: tag.toUpperCase(), setAttribute() {}, classList: { add() {} } }) };
+    globalThis.window = { getComputedStyle: () => ({ marginTop: "0px", lineHeight: "normal", fontSize: "16px" }) };
+    try {
+      adapter._recomputeLivePagination();
+      if (adapter._livePageCount !== 2 || inserted.includes(third)) throw new Error(`Section 2 margin should fit 700px on one page; pages=${adapter._livePageCount}, gaps=${inserted.length}, heights=${JSON.stringify(heights)}`);
+      if (adapter.pageSetup !== adapter.sectionPageSetups["section-1"]) throw new Error("Pagination did not restore the original page setup");
+    } finally { globalThis.document = origDoc; globalThis.window = origWin; }
+  });
+
   test("W24a: bảng và danh sách cao hơn trang được cắt theo hàng/mục (gap tr/li), khối thường vẫn đẩy nguyên", () => {
     const check = (value, message) => { if (!value) throw new Error(message); };
     const adapter = new WriterAdapter(null);
