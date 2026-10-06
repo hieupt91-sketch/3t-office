@@ -2612,7 +2612,15 @@ sup.vno-endnote-ref:hover {
 }
 
 /* Dải chọn kiểu ngang (Quick Styles Ribbon Strip) */
+/* Nhóm Kiểu co lại khi ribbon hết chỗ để ribbon không bao giờ cuộn ngang */
+.vno-ribbon-group[data-group-id="styles"],
+.vno-ribbon-group[data-group-id="styles"] .vno-ribbon-group-items {
+  flex-shrink: 1;
+  min-width: 0;
+}
 .vno-style-gallery-strip {
+  flex-shrink: 1;
+  min-width: 0;
   display: flex;
   gap: 4px;
   align-items: center;
