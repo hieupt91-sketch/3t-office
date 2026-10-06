@@ -10062,8 +10062,19 @@ def _writer_anchor_properties(document_xml: str) -> list[dict[str, str]]:
             "horizontal": (re.search(r'<wp:positionH\b[^>]*relativeFrom=["\']([^"\']+)', body, re.IGNORECASE) or [None, "paragraph"])[1],
             "vertical": (re.search(r'<wp:positionV\b[^>]*relativeFrom=["\']([^"\']+)', body, re.IGNORECASE) or [None, "paragraph"])[1],
             "wrap": (re.search(r'<wp:(wrapNone|wrapSquare|wrapTopAndBottom|wrapTight|wrapThrough)\b', body, re.IGNORECASE) or [None, "wrapNone"])[1],
+            # Nguyên phần tử bao chữ của bản gốc (wrapSquare cần wrapText, wrapTight/Through cần wrapPolygon): ghi lại <wp:wrapSquare/> trơn làm Word không mở được tệp.
+            "wrap_xml": (re.search(
+                r'<wp:(wrapNone|wrapSquare|wrapTopAndBottom|wrapTight|wrapThrough)\b[^>]*?(?:/>|>[\s\S]*?</wp:\1\s*>)', body, re.IGNORECASE,
+            ) or [None])[0] or "",
         })
     return props
+
+
+def _writer_valid_wrap_element(kind: str) -> str:
+    """Phần tử bao chữ hợp lệ theo schema: wrapSquare bắt buộc wrapText; wrapTight/wrapThrough bắt buộc wrapPolygon (không có thì dùng wrapSquare)."""
+    if kind in ("wrapSquare", "wrapTight", "wrapThrough"):
+        return '<wp:wrapSquare wrapText="bothSides"/>'
+    return f"<wp:{kind}/>"
 
 
 def _restore_writer_anchor_properties(converted_xml: str, original_xml: str) -> str:
@@ -10092,7 +10103,8 @@ def _restore_writer_anchor_properties(converted_xml: str, original_xml: str) -> 
             attrs = re.sub(r'\bbehindDoc=["\'][^"\']*["\']', f'behindDoc="{props["behind"]}"', attrs, count=1, flags=re.IGNORECASE)
         else:
             attrs += f' behindDoc="{props["behind"]}"'
-        body = re.sub(r'<wp:(?:wrapNone|wrapSquare|wrapTopAndBottom|wrapTight|wrapThrough)\b[^>]*(?:/>|>[\s\S]*?</wp:(?:wrapNone|wrapSquare|wrapTopAndBottom|wrapTight|wrapThrough)\s*>)', f'<wp:{props["wrap"]}/>', body, count=1, flags=re.IGNORECASE)
+        wrap_xml = props.get("wrap_xml") or _writer_valid_wrap_element(props["wrap"])
+        body = re.sub(r'<wp:(?:wrapNone|wrapSquare|wrapTopAndBottom|wrapTight|wrapThrough)\b[^>]*(?:/>|>[\s\S]*?</wp:(?:wrapNone|wrapSquare|wrapTopAndBottom|wrapTight|wrapThrough)\s*>)', lambda _m: wrap_xml, body, count=1, flags=re.IGNORECASE)
         return f"<wp:anchor{attrs}>{body}</wp:anchor>"
 
     return re.sub(r"<wp:anchor\b([^>]*)>([\s\S]*?)</wp:anchor\s*>", restore, converted_xml, flags=re.IGNORECASE)
@@ -16161,6 +16173,19 @@ def postprocess_writer_captions(docx_bytes: bytes, *, source_html: str | None = 
     if not changed:
         return docx_bytes
     return patch_ooxml_zip(docx_bytes, {"word/document.xml": document_xml.encode("utf-8")})
+
+
+def postprocess_writer_schema_fixes(docx_bytes: bytes) -> bytes:
+    """Lưới an toàn cuối: sửa các phần tử không hợp lệ theo schema mà Word từ chối mở (cả tệp)."""
+    document_bytes = read_zip_entry(docx_bytes, "word/document.xml") if docx_bytes else None
+    if not document_bytes:
+        return docx_bytes
+    document_xml = document_bytes.decode("utf-8", errors="replace")
+    fixed = re.sub(r"<wp:wrapSquare\s*/>", '<wp:wrapSquare wrapText="bothSides"/>', document_xml)
+    fixed = re.sub(r"<wp:wrap(?:Tight|Through)\b[^>]*?/>", '<wp:wrapSquare wrapText="bothSides"/>', fixed)
+    if fixed == document_xml:
+        return docx_bytes
+    return patch_ooxml_zip(docx_bytes, {"word/document.xml": fixed.encode("utf-8")})
 
 
 def postprocess_writer_strip_markers(docx_bytes: bytes) -> bytes:
