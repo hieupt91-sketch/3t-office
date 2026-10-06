@@ -15540,14 +15540,15 @@ export class WriterAdapter {
     // nên phải kiểm tra trước khi Array.from(), nếu không sẽ crash toàn bộ suite Undo/Redo.
     if (!this.bodyDom.children || typeof this.bodyDom.querySelectorAll !== "function") return;
     this._paginating = true;
+    const originalPageSetup = this.pageSetup;
     try {
       const oldGaps = this.bodyDom.querySelectorAll('[data-vno-auto-page-gap="true"]');
       if (oldGaps && typeof oldGaps.forEach === "function") {
         oldGaps.forEach((el) => el.remove());
       }
 
-      const dim = this.getPageDimensions();
-      const availableHeightPx = this._getUsablePageHeight(dim);
+      let dim = this.getPageDimensions();
+      let availableHeightPx = this._getUsablePageHeight(dim);
 
       // Cap nhat body margin-top va margin-bottom theo quy tac Word W23b:
       // Day bodyTop neu header vuot qua le tren; cat day neu footer vuot qua le duoi.
@@ -15640,7 +15641,8 @@ export class WriterAdapter {
         const el = children[childIndex];
         const styleStr = (typeof el.getAttribute === "function" ? el.getAttribute("style") : "") || "";
         const textContent = el.textContent || "";
-        const isManualBreak = styleStr.includes("page-break-before") || styleStr.includes("break-before") || textContent.includes("Phân tách trang");
+        const isSectionBreak = el.classList?.contains("vno-section-break");
+        const isManualBreak = isSectionBreak || styleStr.includes("page-break-before") || styleStr.includes("break-before") || textContent.includes("Phân tách trang");
 
         const h = heightOf(el);
         const top = topOf(el);
@@ -15653,16 +15655,25 @@ export class WriterAdapter {
           // Ngắt trang thủ công / page-break-before nhập từ DOCX cũng phải hiện
           // thành một tờ mới trong khung soạn thảo (Word tách trang thật), nếu
           // không mọi float neo theo trang của các trang sau sẽ đè lên trang 1.
-          if (el !== children[0]) {
+          const sectionAlreadyHasSoftBreak = isSectionBreak && gapBeforeEls.some((gap) => gap.el === el);
+          if (el !== children[0] && !sectionAlreadyHasSoftBreak) {
             gapBeforeEls.push({ el, soft: false, kind: "block" });
             pageCount++;
           }
           // Hidden section markers have a zero top in the canvas. Let the next
           // real block establish the new page origin instead of counting its
           // document offset as overflow from the marker.
-          pageStartTop = el.classList?.contains("vno-section-break")
+          pageStartTop = isSectionBreak
             ? null
             : top - marginTopOf(el);
+          if (isSectionBreak) {
+            const sectionSetup = this.sectionPageSetups?.[el.getAttribute?.("data-vno-section-id")];
+            if (sectionSetup) {
+              this.pageSetup = sectionSetup;
+              dim = this.getPageDimensions();
+              availableHeightPx = this._getUsablePageHeight(dim);
+            }
+          }
           continue;
         }
 
@@ -15744,6 +15755,8 @@ export class WriterAdapter {
         pageCount++;
       }
 
+      this.pageSetup = originalPageSetup;
+
       const canInsertGaps = typeof this.bodyDom.insertBefore === "function" && typeof document.createElement === "function";
       const innerGapEls = [];
       for (const { el, soft, kind, table } of canInsertGaps ? gapBeforeEls : []) {
@@ -15779,6 +15792,7 @@ export class WriterAdapter {
         } catch {}
       }
     } finally {
+      if (typeof originalPageSetup !== "undefined") this.pageSetup = originalPageSetup;
       this._paginating = false;
     }
   }
