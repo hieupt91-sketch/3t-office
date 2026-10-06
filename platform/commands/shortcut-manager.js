@@ -164,6 +164,11 @@ export class ShortcutManager {
     if ((nativeClipboardTarget || textControlTarget) && /^CTRL\+(X|C|V)$/.test(combo)) {
       return;
     }
+    // Ctrl+A khi focus ở ô chọn/nút trong hộp thoại không được kích hoạt "Chọn tất cả" của tài liệu:
+    // lệnh đó kéo focus ra khỏi hộp thoại và Tab sau đó gõ ký tự Tab vào văn bản bên dưới.
+    if (combo === "CTRL+A" && !textControlTarget && target?.closest?.(".vno-dialog-box")) {
+      return;
+    }
     const isInput = target && (target.isContentEditable || target.tagName === "INPUT" || target.tagName === "TEXTAREA");
     // Phím chức năng (F7 soát lỗi...) trong vùng soạn thảo Writer là lệnh, không phải ký tự gõ (như Word).
     const writerFunctionKey = /^F(?:[3-9]|1[0-2])$/.test(e.key) && !!target?.closest?.(".vno-writer-body");
