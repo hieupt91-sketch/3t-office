@@ -109,3 +109,12 @@ Word chạy qua COM nhưng mọi `Documents.Open` bị chặn vì hộp thoại 
 
 #### Cập nhật 6.4 (06/10 11:00)
 Đã sửa thêm: chú thích hình/bảng = trường SEQ; trường trộn thư = MERGEFIELD; chữ cái đầu đoạn = khung w:framePr w:dropCap; đánh số dòng = w:lnNumType; gỡ dấu trang tạm no-edited-N khỏi DOCX cuối (trước đó khiến tài liệu mở lại bị coi là đã sửa và mất chú thích); tài liệu nhập có chú thích vẫn giữ chú thích khi sửa và lưu. Còn: quy tắc IF của trộn thư chưa xuất thành trường IF của Word; tham chiếu chéo lưu là liên kết nội bộ (không phải trường REF).
+
+### 6.5 Tổng kết chiều 06/10 (đo bằng Word thật, Word 16 qua COM)
+| Nhóm nghiệm thu | Kết quả đo |
+|---|---|
+| B. Trung thực chuyển đổi | 43/43 tài liệu thật: số trang bản app lưu = bản gốc (Word); 40/42 số từ trùng tuyệt đối, 2 tệp lệch 1 từ; 43/43 bản lưu mở được trong Word (đã sửa `wp:wrapSquare` thiếu `wrapText` làm Word từ chối `legacy13`). Số trang HIỂN THỊ trong app = Word: 42/43 (d24: 17 so với 16, đã giảm từ 18). |
+| A. Chức năng | Word đọc lại đúng: chú thích cuối trang/cuối tài liệu, liên kết, dấu trang, trường SEQ/MERGEFIELD/IF/REF, khung drop cap, theo dõi thay đổi + bình luận, đánh số dòng, viền trang, cột. |
+| D. Chất lượng | Gõ phím (Event Timing thật): 54 và 160 trang đều 0 sự kiện > 100 ms (sự kiện chậm nhất 32/48 ms; trước đó 1120 ms ở 160 trang). Ribbon không thanh cuộn; Sáng/Tối đạt; 27 phím tắt; 23 hộp thoại. |
+| C. Kịch bản hành chính | 30 kịch bản mở được trong Word; 27 PASS, 1 BLOCKED (in hai mặt cần driver), 2 FAIL ca 6 và 9 là lỗi bài kiểm đã chứng minh. |
+Còn lại: d24 lệch 1 trang hiển thị; toán tử "chứa" của quy tắc trộn thư chưa thành trường IF; chưa so từng dòng ngắt trang với Word; Word cần script tự đóng hộp thoại mặc định (`word_dialog_dismisser.ps1`); hộp thoại in/xuất PDF của hệ điều hành chưa kiểm.
