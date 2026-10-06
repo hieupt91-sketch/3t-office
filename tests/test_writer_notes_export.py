@@ -120,6 +120,29 @@ class WriterPageDecorExportTests(unittest.TestCase):
         self.assertNotIn("<w:background", _read(out, "word/document.xml"))
 
 
+class WriterSchemaFixTests(unittest.TestCase):
+    ANCHOR = '<w:p><w:r><w:drawing><wp:anchor xmlns:wp="x" behindDoc="0">{wrap}<wp:docPr id="1" name="a"/></wp:anchor></w:drawing></w:r></w:p>'
+
+    def test_bare_wrap_square_gets_required_wrap_text(self):
+        out = patcher.postprocess_writer_schema_fixes(_docx(self.ANCHOR.format(wrap="<wp:wrapSquare/>")))
+        self.assertIn('<wp:wrapSquare wrapText="bothSides"/>', _read(out, "word/document.xml"))
+
+    def test_valid_document_is_unchanged(self):
+        docx = _docx(self.ANCHOR.format(wrap='<wp:wrapSquare wrapText="left"/>'))
+        self.assertEqual(patcher.postprocess_writer_schema_fixes(docx), docx)
+
+    def test_anchor_restore_keeps_original_wrap_element_with_attributes(self):
+        original = '<wp:anchor behindDoc="0"><wp:wrapSquare wrapText="largest"/></wp:anchor>'
+        converted = '<wp:anchor behindDoc="1"><wp:wrapNone/></wp:anchor>'
+        out = patcher._restore_writer_anchor_properties(converted, original)
+        self.assertIn('<wp:wrapSquare wrapText="largest"/>', out)
+        self.assertNotIn("<wp:wrapSquare/>", out)
+
+    def test_anchor_restore_without_original_element_emits_valid_fallback(self):
+        self.assertEqual(patcher._writer_valid_wrap_element("wrapSquare"), '<wp:wrapSquare wrapText="bothSides"/>')
+        self.assertEqual(patcher._writer_valid_wrap_element("wrapNone"), "<wp:wrapNone/>")
+
+
 class WriterStripMarkersTests(unittest.TestCase):
     def test_edit_markers_removed_with_their_ends_but_user_bookmarks_kept(self):
         body = ('<w:p><w:bookmarkStart w:id="3" w:name="vno-edited-1"/><w:bookmarkEnd w:id="3"/><w:r><w:t>A</w:t></w:r></w:p>'

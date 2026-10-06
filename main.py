@@ -1826,6 +1826,7 @@ def _apply_native_export_postprocess(
                         patched, source_html=source_html,
                     )
                     patched = patcher.postprocess_writer_strip_markers(patched)
+                    patched = patcher.postprocess_writer_schema_fixes(patched)
             if patched != converted_docx:
                 with open(out_path, "wb") as handle:
                     handle.write(patched)
