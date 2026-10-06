@@ -490,6 +490,34 @@ export async function runWriterHeaderFooterImportTests() {
     } finally { globalThis.document = origDoc; globalThis.window = origWin; }
   });
 
+  test("D25c: imported section markers do not add a blank spacer paragraph", () => {
+    const adapter = new WriterAdapter(null);
+    adapter._extractSectionsFromOoxml = () => ({
+      sections: [
+        { id: "section-1", type: "nextPage" },
+        { id: "section-2", type: "nextPage" }
+      ],
+      sectionPageSetups: {},
+      sectionHeadersFooters: {}
+    });
+    const documentXml = '<w:document><w:body>'
+      + '<w:p><w:pPr><w:sectPr><w:type w:val="nextPage"/></w:sectPr></w:pPr></w:p>'
+      + '<w:sectPr/></w:body></w:document>';
+    const imported = adapter._normalizeImportedHtml(
+      '<html><body><p style="page-break-before: always; break-before: page"><span>Image anchor carrier</span></p><p>After section</p></body></html>',
+      documentXml
+    );
+    const markerAt = imported.body.indexOf('data-vno-section-id="section-2"');
+    if (markerAt < 0) throw new Error("Imported section marker was not inserted");
+    const afterMarker = imported.body.slice(markerAt);
+    if (/<\/div>\s*<p>\s*<br\s*\/?\s*>\s*<\/p>/i.test(afterMarker)) {
+      throw new Error("Imported section marker still creates a synthetic blank spacer");
+    }
+    if (!/<\/div>\s*<p\b[^>]*>\s*<span>Image anchor carrier<\/span>/i.test(afterMarker)) {
+      throw new Error("The original page-break paragraph was not preserved directly after the marker");
+    }
+  });
+
   test("W24a: bảng và danh sách cao hơn trang được cắt theo hàng/mục (gap tr/li), khối thường vẫn đẩy nguyên", () => {
     const check = (value, message) => { if (!value) throw new Error(message); };
     const adapter = new WriterAdapter(null);

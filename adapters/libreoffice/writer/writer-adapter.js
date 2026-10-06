@@ -2919,7 +2919,7 @@ export class WriterAdapter {
             const boundarySection = extracted.sections[i];
             const pContent = pWithSect[i][1];
             const pText = [...pContent.matchAll(/<w:t\b[^>]*>([\s\S]*?)<\/w:t>/gi)].map((m) => m[1]).join("").trim();
-            const markerHtml = this._buildSectionBreakMarker(boundarySection.type || "nextPage", nextSec.id) + "<p><br></p>";
+            const markerHtml = this._buildSectionBreakMarker(boundarySection.type || "nextPage", nextSec.id);
             let inserted = false;
             if (pText) {
               const escapedText = pText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
