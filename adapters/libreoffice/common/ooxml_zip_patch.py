@@ -16163,6 +16163,53 @@ def postprocess_writer_captions(docx_bytes: bytes, *, source_html: str | None = 
     return patch_ooxml_zip(docx_bytes, {"word/document.xml": document_xml.encode("utf-8")})
 
 
+def postprocess_writer_merge_fields(docx_bytes: bytes, *, source_html: str | None = None) -> bytes:
+    """Trường trộn thư «Tên» thành trường Word `MERGEFIELD Tên` (Word mở tệp mẫu vẫn trộn được)."""
+    if not docx_bytes or not source_html or "vno-merge-field" not in source_html:
+        return docx_bytes
+    names = [html.unescape(name).strip() for name in re.findall(
+        r'<span\b[^>]*class="[^"]*vno-merge-field[^"]*"[^>]*data-field="([^"]+)"|<span\b[^>]*data-field="([^"]+)"[^>]*class="[^"]*vno-merge-field', source_html
+    ) for name in name if name]
+    if not names:
+        return docx_bytes
+    document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
+    if not document_bytes:
+        return docx_bytes
+    document_xml = document_bytes.decode("utf-8", errors="replace")
+    run_re = re.compile(r"<w:r\b[^>]*>(?P<rpr><w:rPr>(?:(?!</w:rPr>)[\s\S])*</w:rPr>)?<w:t(?:\s[^>]*)?>(?P<text>[^<]*«[^<»]+»[^<]*)</w:t></w:r>")
+    known = {_escape_xml(name) for name in names}
+    token_re = re.compile(r"«([^<»]+)»")
+    changed = False
+
+    def split_run(match: re.Match) -> str:
+        nonlocal changed
+        rpr = match.group("rpr") or ""
+        text = match.group("text")
+        out: list[str] = []
+        position = 0
+        for token in token_re.finditer(text):
+            if token.group(1) not in known:
+                continue
+            if token.start() > position:
+                out.append(f'<w:r>{rpr}<w:t xml:space="preserve">{text[position:token.start()]}</w:t></w:r>')
+            name = token.group(1)
+            out.append(
+                f'<w:fldSimple w:instr=" MERGEFIELD {name} \\* MERGEFORMAT "><w:r>{rpr}<w:t>«{name}»</w:t></w:r></w:fldSimple>'
+            )
+            position = token.end()
+            changed = True
+        if position == 0:
+            return match.group(0)
+        if position < len(text):
+            out.append(f'<w:r>{rpr}<w:t xml:space="preserve">{text[position:]}</w:t></w:r>')
+        return "".join(out)
+
+    document_xml = run_re.sub(split_run, document_xml)
+    if not changed:
+        return docx_bytes
+    return patch_ooxml_zip(docx_bytes, {"word/document.xml": document_xml.encode("utf-8")})
+
+
 _CSS_NAMED_COLORS = {"black": "000000", "white": "FFFFFF", "red": "FF0000", "green": "008000", "blue": "0000FF", "yellow": "FFFF00",
                      "gray": "808080", "grey": "808080", "orange": "FFA500", "navy": "000080"}
 
