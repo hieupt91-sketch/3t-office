@@ -78,16 +78,28 @@ export const WRITER_RIBBON_TABS = [
                   {
                     type: "select",
                     commandId: "writer.font.size",
-                    defaultValue: "3",
+                    defaultValue: "14",
+                    // Giá trị là số pt thật (Word có 8–72 pt); 1–7 chỉ còn là chỉ số cũ của execCommand khi gọi trực tiếp.
                     options: [
-                      { value: "1", label: "10 pt" },
-                      { value: "2", label: "12 pt" },
+                      { value: "8", label: "8 pt" },
+                      { value: "9", label: "9 pt" },
+                      { value: "10", label: "10 pt" },
+                      { value: "10.5", label: "10,5 pt" },
+                      { value: "11", label: "11 pt" },
+                      { value: "12", label: "12 pt" },
                       { value: "13", label: "13 pt" },
-                      { value: "3", label: "14 pt (NĐ 30)" },
                       { value: "13.5", label: "13,5 pt" },
-                      { value: "4", label: "16 pt" },
-                      { value: "5", label: "18 pt" },
-                      { value: "6", label: "24 pt" }
+                      { value: "14", label: "14 pt (NĐ 30)" },
+                      { value: "16", label: "16 pt" },
+                      { value: "18", label: "18 pt" },
+                      { value: "20", label: "20 pt" },
+                      { value: "22", label: "22 pt" },
+                      { value: "24", label: "24 pt" },
+                      { value: "26", label: "26 pt" },
+                      { value: "28", label: "28 pt" },
+                      { value: "36", label: "36 pt" },
+                      { value: "48", label: "48 pt" },
+                      { value: "72", label: "72 pt" }
                     ]
                   },
                   { type: "button", commandId: "writer.font.grow", iconOnly: true },
