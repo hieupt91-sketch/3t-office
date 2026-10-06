@@ -12,6 +12,7 @@
 
 // Window in ms within which Backspace + replacement events are considered part of an IME burst
 export const IME_BURST_WINDOW_MS = 60;
+export const IDLE_SNAPSHOT_MS = 700;
 
 // Set of characters that delimit words in Vietnamese text
 const WORD_DELIMITERS = new Set([" ", "\t", "\n", "\r", ".", ",", ";", ":", "!", "?", "-", "(", ")", "[", "]", "{", "}", "\"", "'", "/", "\\"]);
@@ -225,8 +226,15 @@ export class InputNormalizer {
       if (this._burstSettleTimer) clearTimeout(this._burstSettleTimer);
       this._burstSettleTimer = setTimeout(() => {
         this.normalizeNow();
-        this._recordWordSnapshot();
       }, IME_BURST_WINDOW_MS);
+      // Bước hoàn tác chỉ ghi khi người gõ DỪNG (như Office: hoàn tác theo cụm chữ), không phải sau từng ký tự:
+      // trước đây khoảng nghỉ > 60 ms giữa hai phím đã tạo một bước riêng, Ctrl+Z chỉ bỏ được một ký tự.
+      // Ranh giới từ (dấu cách, dấu câu, Enter) vẫn ghi ngay ở onKeyDown.
+      if (this._idleSnapshotTimer) clearTimeout(this._idleSnapshotTimer);
+      this._idleSnapshotTimer = setTimeout(() => {
+        this._idleSnapshotTimer = null;
+        this._recordWordSnapshot();
+      }, IDLE_SNAPSHOT_MS);
     };
 
     // 3. Composition events (TSF / Windows built-in IME)
@@ -264,6 +272,7 @@ export class InputNormalizer {
 
   destroy() {
     if (this._burstSettleTimer) clearTimeout(this._burstSettleTimer);
+    if (this._idleSnapshotTimer) clearTimeout(this._idleSnapshotTimer);
     if (this.target && this.target._vnoNormalizer === this) delete this.target._vnoNormalizer;
     for (const remove of this._listeners) remove();
     this._listeners = [];
