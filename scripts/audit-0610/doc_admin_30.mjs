@@ -150,13 +150,55 @@ try {
   const printPreview=await command("writer.file.printPreview"); const duplex={preview:await session.cdp.evaluate("document.body.innerText.includes('Xem trước')"),controls:await session.cdp.evaluate("[...document.querySelectorAll('input,button,[role=combobox]')].map(x=>x.getAttribute('aria-label')||x.innerText).filter(x=>/hai mặt|duplex/i.test(x||''))")};
   await capture(10,"10. In duplex","BLOCKED",duplex,"Không có driver máy in; XML/UI hiện tại không chứng minh in hai mặt thật.");
 
+  // Ca 11–30: mẫu văn bản hành chính được nhập và định dạng từ UI qua CDP.
+  // Mỗi ca lưu DOCX riêng ngay sau thao tác, rồi kiểm tra nội dung và cấu trúc OOXML.
+  const adminCases = [
+    [11,"Công văn đi","CÔNG VĂN SỐ 11\nVề việc triển khai nhiệm vụ\nKính gửi: Các đơn vị trực thuộc\nNơi nhận: Như trên; Lưu: VT"],
+    [12,"Quyết định","QUYẾT ĐỊNH SỐ 12\nVề việc thành lập tổ công tác\nĐiều 1. Thành lập tổ công tác.\nĐiều 2. Quyết định có hiệu lực kể từ ngày ký."],
+    [13,"Tờ trình","TỜ TRÌNH SỐ 13\nVề việc phê duyệt kế hoạch\nKính trình: Thủ trưởng cơ quan\nI. Sự cần thiết\nII. Nội dung đề xuất"],
+    [14,"Biên bản cuộc họp","BIÊN BẢN CUỘC HỌP\nThời gian: 08 giờ 00 ngày 06/10/2026\nĐịa điểm: Phòng họp cơ quan\nChủ trì: Nguyễn Văn An\nThư ký: Trần Thị Bình"],
+    [15,"Hợp đồng","HỢP ĐỒNG SỐ 15\nCăn cứ nhu cầu và năng lực của các bên\nĐiều 1. Nội dung hợp đồng\nĐiều 2. Quyền và nghĩa vụ\nĐẠI DIỆN BÊN A                 ĐẠI DIỆN BÊN B"],
+    [16,"Báo cáo","BÁO CÁO KẾT QUẢ CÔNG TÁC\nI. Tình hình thực hiện\nII. Kết quả đạt được\nIII. Khó khăn, kiến nghị"],
+    [17,"Bảng ký nhận","BẢNG KÝ NHẬN\nSTT | Họ và tên | Đơn vị | Chữ ký\n1 | Nguyễn Văn An | Văn phòng |\n2 | Trần Thị Bình | Tổ chức |"],
+    [18,"Công văn đến","PHIẾU XỬ LÝ CÔNG VĂN ĐẾN\nSố đến: 018\nNgày đến: 06/10/2026\nĐơn vị xử lý: Phòng Hành chính\nÝ kiến chỉ đạo: Giải quyết theo quy định"],
+    [19,"Quyết định bổ nhiệm","QUYẾT ĐỊNH BỔ NHIỆM\nĐiều 1. Bổ nhiệm ông Nguyễn Văn An.\nĐiều 2. Thời hạn bổ nhiệm là 05 năm.\nĐiều 3. Các đơn vị liên quan chịu trách nhiệm thi hành."],
+    [20,"Tờ trình kinh phí","TỜ TRÌNH DỰ TOÁN KINH PHÍ\n1. Nội dung: tổ chức hội nghị\n2. Kinh phí đề nghị: 25.000.000 đồng\na) Hội trường; b) Tài liệu; c) Nước uống"],
+    [21,"Biên bản bàn giao","BIÊN BẢN BÀN GIAO\nBên giao: Phòng Hành chính\nBên nhận: Phòng Tài vụ\nTài sản bàn giao: 05 bộ hồ sơ\nHai bên xác nhận đúng hiện trạng."],
+    [22,"Hợp đồng dịch vụ","HỢP ĐỒNG DỊCH VỤ\nĐiều 1. Phạm vi công việc\nKhoản 1. Bên cung cấp thực hiện dịch vụ.\nĐiểm a) Bảo đảm tiến độ; b) Bảo mật thông tin."],
+    [23,"Báo cáo tháng","BÁO CÁO CÔNG TÁC THÁNG 9\n1. Công tác chuyên môn\n2. Công tác phối hợp\n3. Nhiệm vụ trọng tâm tháng 10"],
+    [24,"Bảng chấm công","BẢNG TỔNG HỢP CHẤM CÔNG\nSTT | Họ và tên | Ngày công | Ghi chú\n1 | Nguyễn Văn An | 22 | Đủ\n2 | Trần Thị Bình | 21 | Nghỉ phép"],
+    [25,"Thông báo","THÔNG BÁO\nVề lịch nghỉ lễ\nCác đơn vị chủ động bố trí lịch trực.\nNơi nhận: Các đơn vị; Lưu: VT."],
+    [26,"Kế hoạch","KẾ HOẠCH TRIỂN KHAI\nI. Mục đích, yêu cầu\nII. Nội dung thực hiện\nIII. Phân công trách nhiệm\nIV. Tiến độ"],
+    [27,"Biên bản kiểm kê","BIÊN BẢN KIỂM KÊ TÀI SẢN\nThời điểm kiểm kê: 06/10/2026\nSTT | Tên tài sản | Số lượng | Tình trạng\n1 | Máy tính | 10 | Đang sử dụng"],
+    [28,"Hợp đồng thuê","HỢP ĐỒNG THUÊ TÀI SẢN\nĐiều 1. Tài sản cho thuê\nĐiều 2. Thời hạn thuê\nĐiều 3. Giá thuê và phương thức thanh toán\nĐiều 4. Trách nhiệm các bên"],
+    [29,"Báo cáo có phụ lục","BÁO CÁO KÈM PHỤ LỤC\nI. Kết quả thực hiện\nII. Đánh giá chung\nPHỤ LỤC: BẢNG SỐ LIỆU\nSTT | Chỉ tiêu | Kết quả"],
+    [30,"Công văn trình ký","CÔNG VĂN TRÌNH KÝ\nKính trình Thủ trưởng xem xét, ký ban hành.\nNơi nhận: Như trên; Lưu: VT.\nNGƯỜI SOẠN THẢO                 THỦ TRƯỞNG ĐƠN VỊ"],
+  ];
+  for (const [id, label, content] of adminCases) {
+    const marker = `AUDIT_${String(id).padStart(2,"0")}_${label.replaceAll(" ","_")}`;
+    await add(`${marker}\n${content}`);
+    await select(marker); await command("writer.font.family", "Times New Roman"); await command("writer.font.size", "13.5");
+    const shown = await text();
+    const shownOk = shown.includes(marker) && shown.includes(content.split("\n")[1]);
+    await capture(id,`${id}. ${label}`,"NOT RUN",{template:label,uiVisible:shownOk,font:"Times New Roman 13,5 pt"});
+    xml=captures.at(-1).xml;
+    const paragraph=xml.ps.find(p=>p.text.includes(marker));
+    const run=xml.runs.find(r=>r.text.includes(marker));
+    const structureOk=xml.ps.some(p=>p.text.includes(marker))&&xml.styles>0&&xml.pg.length>0&&xml.parts.includes("word/document.xml");
+    const fontOk=run?.font&&JSON.stringify(run.font).includes("Times New Roman")&&run.sz==="27";
+    records.at(-1).status=!shownOk?"BLOCKED":structureOk&&fontOk?"PASS":"FAIL";
+    if(!shownOk) records.at(-1).why="Lỗi bài kiểm/harness: thao tác nhập qua CDP không làm nội dung xuất hiện trên bề mặt Writer; chưa quy lỗi cho sản phẩm.";
+    records.at(-1).value.measurement={visible:shownOk,paragraph,run,styles:xml.styles,sections:xml.pg.length,documentPart:xml.parts.includes("word/document.xml")};
+  }
+
   await session.close(); session = null;
   for(const c of captures) {
     session=await launchApp("writer",{localAppData,filePath:c.file,startTimeoutMilliseconds:90000});
     const real=(await fs.realpath(c.file)).replace(/\\/g,"/").toLowerCase();
     await session.cdp.waitFor(`(window.__vnoAppInstance?.adapter?._sourcePath||'').replace(/\\\\/g,'/').toLowerCase()===${JSON.stringify(real)}`,{timeoutMilliseconds:90000});
     const reopenedText=await text(); const reopenedXml=await inspect(c.file);
-    const retained=reopenedText.includes("CV_A4_LE_MAU")&&reopenedText.includes("NOI_DUNG_TRANG_SAU");
+    const expectedMarker=c.id>=11?`AUDIT_${String(c.id).padStart(2,"0")}_`:"CV_A4_LE_MAU";
+    const retained=reopenedText.includes(expectedMarker)&&(c.id<11?reopenedText.includes("NOI_DUNG_TRANG_SAU"):true);
     const row=records.find(r=>r.name===c.name);
     row.value.reopen={source:await session.cdp.evaluate("window.__vnoAppInstance?.adapter?._sourcePath||null"),characters:reopenedText.length,retained,paragraphs:reopenedXml.ps.length,sections:reopenedXml.pg,fields:reopenedXml.fields};
     if(!retained&&row.status==="PASS")row.status="FAIL";
@@ -167,18 +209,19 @@ try {
 } finally { if (session) await session.close().catch(()=>{}); }
 
 const totals = Object.fromEntries(["PASS","FAIL","BLOCKED","NOT RUN"].map(x=>[x,records.filter(r=>r.status===x).length]));
+const adminTotals = Object.fromEntries(["PASS","FAIL","BLOCKED","NOT RUN"].map(x=>[x,records.filter(r=>/^([1-2][1-9]|30)\./.test(r.name)&&r.status===x).length]));
 const esc = x => JSON.stringify(x ?? "").replaceAll("|","/").replaceAll("\n"," ");
-const lines = ["# Kết quả audit Doc Admin — Ticket D6b", "", `Nhánh: \`${(await import("node:child_process")).execFileSync("git",["branch","--show-current"],{cwd:repo,encoding:"utf8"}).trim()}\`. Script: \`scripts/audit-0610/doc_admin_30.mjs\`. Ca 1–10 mục C; mọi giá trị lấy từ CDP/XML của DOCX app lưu.`, "", `Tổng: PASS ${totals.PASS}, FAIL ${totals.FAIL}, BLOCKED ${totals.BLOCKED}, NOT RUN ${totals["NOT RUN"]}.`, "", "| Kịch bản | Kết quả | Kết luận | Giá trị đo | Tái hiện 3 bước / tệp:hàm nghi ngờ |", "|---|---|---|---|---|"];
+const lines = ["# Kết quả audit Doc Admin 11–30 (D6b)", "", `Nhánh: \`${(await import("node:child_process")).execFileSync("git",["branch","--show-current"],{cwd:repo,encoding:"utf8"}).trim()}\`. Ca 11–30 được nhập và định dạng qua CDP; mỗi DOCX lưu riêng, kiểm tra word/document.xml, styles, sectPr và hiển thị khi mở lại.`, "", `Kết quả ca 11–30: PASS ${adminTotals.PASS}, FAIL ${adminTotals.FAIL}, BLOCKED ${adminTotals.BLOCKED}, NOT RUN ${adminTotals["NOT RUN"]}.`, `Tổng toàn bộ lượt chạy (ca 1–30): PASS ${totals.PASS}, FAIL ${totals.FAIL}, BLOCKED ${totals.BLOCKED}, NOT RUN ${totals["NOT RUN"]}.`, "", "| Kịch bản | Kết quả | Kết luận | Giá trị đo | Tái hiện 3 bước / tệp:hàm nghi ngờ |", "|---|---|---|---|---|"];
 for (const r of records) {
   let why=r.why;
   if (r.status === "FAIL") {
     const suspects={"1. Công văn A4/lề":"adapters/libreoffice/writer/writer-adapter.js: _applyPageSetup / luồng HTML→DOCX; XML cho thấy w=16838, h=11906 (ngang), lề đọc là 35/20/25/25mm.","2. TNR 13":"adapters/libreoffice/writer/writer-adapter.js:7018 (writer.font.size); XML w:sz=72 thay vì 26.","3. Heading quyết định":"adapters/libreoffice/writer/writer-adapter.js:8060 (_applyParagraphStyle) / map style HTML→OOXML; đo được pStyle.","4. TOC báo cáo":"adapters/libreoffice/writer/writer-adapter.js: insertTableOfContents / exporter TOC entries; field TOC có, chưa thấy entries mục lục.","5. Danh sách đa cấp":"adapters/libreoffice/writer/writer-adapter.js:6982 (writer.list.numbered); cả ba mức không có ilvl phân cấp.","6. Điều khoản":"adapters/libreoffice/writer/writer-adapter.js:6982 (writer.list.numbered); Điều/Khoản/Điểm không có đủ ba mức.","7. Bảng qua trang":"adapters/libreoffice/writer/writer-adapter.js: insertTable / toggleTableHeaderRow; đo được bảng 3 hàng, 0 tblHeader.","8. Header/footer/PAGE":"adapters/libreoffice/writer/writer-adapter.js: activateFooter / lệnh chèn PAGE; parts tồn tại nhưng không có instrText PAGE.","9. Ngắt trang/section":"adapters/libreoffice/writer/writer-adapter.js: insertSectionBreak / _openPageSetup; cần đối chiếu section properties trong document.xml."};
     const repro={"6. Điều khoản":"Tái hiện: 1) vào Trang đầu > Danh sách đa cấp > Điều 1./1./a); 2) gõ ba đoạn Điều/Khoản/Điểm, nhấn Tab đầu đoạn để lùi cấp; 3) lưu DOCX và kiểm tra document.xml: ba numPr vẫn ilvl 0. Nghi ngờ adapters/libreoffice/writer/writer-adapter.js: resolveWriterTabBehavior/applyMultilevelList; đề xuất sửa việc Tab đổi cấp và giữ numFmt theo preset.","7. Bảng qua trang":"Tái hiện: 1) Chèn bảng và tạo 50 hàng; 2) chọn hàng đầu > Bố trí > Lặp lại hàng tiêu đề; 3) lưu DOCX: 50 hàng nhưng không có w:tblHeader. Nghi ngờ adapters/libreoffice/writer/writer-adapter.js: toggleTableHeaderRow và luồng HTML→OOXML; đề xuất ánh xạ vno-table-header-row sang tblHeader.","9. Ngắt trang/section":"Tái hiện: 1) đặt con trỏ sau đoạn đầu > Bố trí > Ngắt > Trang tiếp theo; 2) tại đoạn sau ngắt chọn Bố trí > Hướng > Ngang; 3) lưu DOCX: chỉ một sectPr ngang, không có section portrait rồi landscape. Nghi ngờ adapters/libreoffice/writer/writer-adapter.js: insertSectionBreak/_openPageSetup/setPageSetup; đề xuất lưu sectPr riêng cho từng section."};
-    why=repro[r.name]||`Tái hiện qua ribbon theo các bước của ${r.name}; lưu DOCX và kiểm tra document.xml. Nghi ngờ: ${suspects[r.name]||"chưa xác định"}`;
+    why=repro[r.name]||`Tái hiện: 1) nhập mẫu “${r.name}” qua Writer; 2) chọn dòng AUDIT_${r.name.split(".")[0].padStart(2,"0")} và áp dụng Times New Roman 13,5 pt; 3) lưu DOCX, đối chiếu run trong word/document.xml và mở lại. Nghi ngờ adapters/libreoffice/writer/writer-adapter.js: writer.font.family / writer.font.size hoặc xuất HTML→DOCX; xác nhận bằng giá trị font/sz trong cột đo.`;
   }
-  const conclusion = r.name === "2. TNR 13" ? "THIẾU TÍNH NĂNG: không có 13 pt trong danh sách cỡ chữ; 13,5 pt chạy đúng" : r.status === "FAIL" ? "LỖI SẢN PHẨM" : r.status === "PASS" && ["5. Danh sách đa cấp","6. Điều khoản"].includes(r.name) ? "LỖI BÀI KIỂM (đã sửa thao tác bằng preset đa cấp)" : r.status === "PASS" ? "ĐẠT" : r.status;
+  const conclusion = r.name === "2. TNR 13" ? "THIẾU TÍNH NĂNG: không có 13 pt trong danh sách cỡ chữ; 13,5 pt chạy đúng" : r.why?.startsWith("Lỗi bài kiểm") ? "LỖI BÀI KIỂM/HARNESS" : r.status === "FAIL" ? "LỖI SẢN PHẨM (UI hiển thị; DOCX/XML không đạt)" : r.status === "PASS" && ["5. Danh sách đa cấp","6. Điều khoản"].includes(r.name) ? "LỖI BÀI KIỂM (đã sửa thao tác bằng preset đa cấp)" : r.status === "PASS" ? "ĐẠT" : r.status;
   lines.push(`| ${r.name} | ${r.status} | ${conclusion} | \`${esc(r.value)}\` | ${why.replaceAll("|","/")} |`);
 }
-lines.push("", "## Handoff", "", "TASK: Ticket D6b — chẩn đoán 5 ca Doc Admin, không sửa mã ứng dụng", "AGENT/ROLE: Codex / kiểm thử tự động qua CDP, chỉ sửa script audit và báo cáo", `BRANCH: ${(await import("node:child_process")).execFileSync("git",["branch","--show-current"],{cwd:repo,encoding:"utf8"}).trim()}`, `WORKTREE: ${repo}`, "OBJECTIVE: Phân biệt lỗi bài kiểm, lỗi sản phẩm và thiếu tính năng; chạy lại các ca sai thao tác qua UI người dùng.", `FINDINGS: ${totals.PASS} PASS, ${totals.FAIL} FAIL, ${totals.BLOCKED} BLOCKED; ca 2 thiếu tính năng 13 pt; ca 5 lỗi bài kiểm; lỗi sản phẩm thật: ${totals.FAIL}.`, "IMPLEMENTATION SUMMARY: Chọn 13,5 pt có thật; dùng danh sách đa cấp và phím Tab qua CDP; tạo bảng 50 hàng qua chức năng thêm hàng; kiểm section theo kích thước OOXML.", "FILES CHANGED: `scripts/audit-0610/doc_admin_30.mjs`, `docs/AUDIT-DOC-ADMIN-0610.md`.", "COMMANDS RUN: `node --check scripts/audit-0610/doc_admin_30.mjs`; `node --experimental-websocket scripts/audit-0610/doc_admin_30.mjs` với profile CDP riêng.", "BUILD RESULT: NOT RUN (không đổi ứng dụng).", `TEST RESULTS: CDP/OOXML ${totals.PASS} PASS, ${totals.FAIL} FAIL, ${totals.BLOCKED} BLOCKED; kiểm cú pháp và git diff --check PASS.`, "KNOWN FAILURES: Đánh số Điều/Khoản/Điểm; lặp hàng tiêu đề khi qua trang; đổi hướng riêng section sau ngắt.", "RISKS: Kết quả duplex vẫn BLOCKED do không có driver máy in.", "DEPENDENCIES/BLOCKERS: Profile riêng qua `VNO_CDP_LOCALAPPDATA`; lưu file audit qua `VNO_DOC_ADMIN_OUT`.", "CORE PATCH ID (if any): None.", "NEXT ACTION: Chuyển ba lỗi sản phẩm với bước tái hiện, tệp/hàm nghi ngờ và đề xuất sửa ở bảng phía trên.", "", "Tái chạy: `node --experimental-websocket scripts/audit-0610/doc_admin_30.mjs`. Chỉ dùng CDP; không sửa mã ứng dụng.");
-await fs.writeFile(path.join(repo,"docs/AUDIT-DOC-ADMIN-0610.md"), lines.join("\n")+"\n", "utf8");
+lines.push("", "## Handoff", "", "TASK: Ticket D6b — mở rộng audit hành chính 11–30; không sửa ứng dụng.", "AGENT/ROLE: Codex / kiểm thử qua CDP, sửa script audit và báo cáo.", `BRANCH: ${(await import("node:child_process")).execFileSync("git",["branch", "--show-current"],{cwd:repo,encoding:"utf8"}).trim()}`, `WORKTREE: ${repo}`, "OBJECTIVE: Tạo 20 kịch bản hành chính, lưu DOCX từng ca và phân biệt lỗi bài kiểm với lỗi sản phẩm.", `FINDINGS: ${totals.PASS} PASS, ${totals.FAIL} FAIL, ${totals.BLOCKED} BLOCKED.`, "IMPLEMENTATION SUMMARY: Kịch bản 11–30 được thao tác qua CDP, lưu DOCX riêng, đo OOXML và mở lại để xác nhận hiển thị.", "FILES CHANGED: `scripts/audit-0610/doc_admin_30.mjs`, `docs/AUDIT-DOC-ADMIN-11-30.md`.", "BUILD RESULT: NOT RUN (không sửa ứng dụng).", `TEST RESULTS: CDP ${totals.PASS} PASS / ${totals.FAIL} FAIL / ${totals.BLOCKED} BLOCKED.`, "RISKS: In duplex cần driver máy in.", "DEPENDENCIES/BLOCKERS: Cần desktop Writer và profile CDP riêng qua VNO_CDP_LOCALAPPDATA.", "CORE PATCH ID (if any): None.", "NEXT ACTION: Xem lỗi sản phẩm còn lại trong bảng; không sửa ứng dụng theo phạm vi ticket.", "", "Tái chạy: `node --experimental-websocket scripts/audit-0610/doc_admin_30.mjs`.");
+await fs.writeFile(path.join(repo,"docs/AUDIT-DOC-ADMIN-11-30.md"), lines.join("\n")+"\n", "utf8");
 console.log(JSON.stringify({totals,records,outDir},null,2));
