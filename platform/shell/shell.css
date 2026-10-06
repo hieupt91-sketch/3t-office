@@ -2054,3 +2054,34 @@ body {
     overflow: visible !important;
   }
 }
+
+/* ==========================================================================
+   Tùy biến khu vực tiêu đề (màu hoặc hình ảnh) — platform/theme/header-theme.js
+   Chỉ có hiệu lực khi người dùng chọn trong Tùy chọn (thuộc tính data-vno-header trên <html>).
+   Thanh tiêu đề và hàng thẻ ribbon dùng CHUNG một nền; hình ảnh trải liền hai thanh.
+   ========================================================================== */
+:root[data-vno-header] .vno-topbar,
+:root[data-vno-header] .vno-ribbon-tabs {
+  background-color: var(--vno-header-bg-color);
+  background-image: var(--vno-header-bg-image, none);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  background-position: 0 0;
+  background-size: 100vw calc(var(--vno-topbar-height, 44px) + var(--vno-ribbon-tabs-height, 34px));
+  border-bottom-color: var(--vno-header-border);
+  color: var(--vno-header-fg);
+}
+:root[data-vno-header] .vno-quick-btn,
+:root[data-vno-header] .vno-ribbon-tab:not(.is-active),
+:root[data-vno-header] .vno-ribbon-collapse-btn {
+  color: var(--vno-header-fg);
+}
+:root[data-vno-header] .vno-quick-btn:hover,
+:root[data-vno-header] .vno-ribbon-tab:not(.is-active):hover,
+:root[data-vno-header] .vno-ribbon-collapse-btn:hover {
+  background-color: var(--vno-header-hover);
+  color: var(--vno-header-fg);
+}
+:root[data-vno-header] .vno-quick-tools { border-left-color: var(--vno-header-border); }
+:root[data-vno-header] .vno-quick-btn:disabled,
+:root[data-vno-header] .vno-quick-btn[disabled] { opacity: 0.55; }
