@@ -15501,7 +15501,7 @@ export class WriterAdapter {
     }
     // Tính lại dàn trang là đồng bộ và chặn luồng giao diện: ở tài liệu dài (~270 ms/lần) nếu chạy ngay khi người gõ
     // dừng 250 ms thì phím kế tiếp bị trễ cả lần tính (P95 gõ 270 ms). Chờ lâu hơn theo chi phí lần tính trước (tối đa 1,5 s).
-    const delay = Math.max(this._paginationDebounceMs, Math.min(1500, Math.round((this._lastPaginationCostMs || 0) * 2.5)));
+    const delay = Math.max(this._paginationDebounceMs, Math.min(2500, Math.round(Math.max(this._lastPaginationCostMs || 0, (this.bodyDom?.children?.length || 0) * 0.06) * 8)));
     this._paginationDebounceTimer = setTimeout(() => {
       this._paginationDebounceTimer = null;
       const startedAt = typeof performance !== "undefined" ? performance.now() : 0;
