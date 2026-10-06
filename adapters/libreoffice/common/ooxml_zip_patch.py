@@ -16163,6 +16163,32 @@ def postprocess_writer_captions(docx_bytes: bytes, *, source_html: str | None = 
     return patch_ooxml_zip(docx_bytes, {"word/document.xml": document_xml.encode("utf-8")})
 
 
+def postprocess_writer_strip_markers(docx_bytes: bytes) -> bytes:
+    """Gỡ dấu trang tạm `vno-edited-N` / `vno-untouched-N` còn sót trong DOCX cuối.
+
+    Chúng chỉ phục vụ ghép đoạn lúc lưu; để lại thì (1) hiện trong danh sách dấu trang của Word, (2) khiến lần mở lại bị coi là
+    "đã sửa" nên không giữ nguyên gói gốc (mất chú thích...).
+    """
+    document_bytes = read_zip_entry(docx_bytes, "word/document.xml") if docx_bytes else None
+    if not document_bytes:
+        return docx_bytes
+    document_xml = document_bytes.decode("utf-8", errors="replace")
+    if "vno-edited-" not in document_xml and "vno-untouched-" not in document_xml:
+        return docx_bytes
+    marker_ids = set(re.findall(
+        r'<w:bookmarkStart\b(?=[^>]*\bw:name="vno-(?:edited|untouched)-\d+")[^>]*\bw:id="([^"]+)"', document_xml,
+    ))
+    marker_ids.update(re.findall(
+        r'<w:bookmarkStart\b(?=[^>]*\bw:id="([^"]+)")(?=[^>]*\bw:name="vno-(?:edited|untouched)-\d+")', document_xml,
+    ))
+    cleaned = re.sub(r'<w:bookmarkStart\b(?=[^>]*\bw:name="vno-(?:edited|untouched)-\d+")[^>]*/>', "", document_xml)
+    for marker_id in marker_ids:
+        cleaned = re.sub(rf'<w:bookmarkEnd\b[^>]*\bw:id="{re.escape(marker_id)}"[^>]*/>', "", cleaned)
+    if cleaned == document_xml:
+        return docx_bytes
+    return patch_ooxml_zip(docx_bytes, {"word/document.xml": cleaned.encode("utf-8")})
+
+
 def postprocess_writer_drop_caps(docx_bytes: bytes, *, source_html: str | None = None) -> bytes:
     """Chữ cái đầu đoạn (drop cap): tách chữ cái thành đoạn khung `w:framePr w:dropCap` như Word, phần còn lại giữ nguyên đoạn."""
     if not docx_bytes or not source_html or "vno-drop-cap" not in source_html:
