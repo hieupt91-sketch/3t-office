@@ -101,6 +101,15 @@ class WriterPageDecorExportTests(unittest.TestCase):
         self.assertIn("<w:displayBackgroundShape/>", _read(out, "word/settings.xml"))
         self.assertNotIn("<w:pgBorders", document)
 
+    def test_line_numbers_added_before_cols_after_borders(self):
+        docx = _docx(f"<w:p><w:r><w:t>A</w:t></w:r></w:p>{self.SECT}")
+        html = "<style>@page { margin: 20mm; border: 1pt solid #000000; }</style><p>A</p><!--vno-line-numbers:5:page-->"
+        out = patcher.postprocess_writer_page_decor(docx, source_html=html)
+        document = _read(out, "word/document.xml")
+        self.assertIn('<w:lnNumType w:countBy="5" w:restart="newPage"/>', document)
+        self.assertLess(document.index("<w:pgBorders"), document.index("<w:lnNumType"))
+        self.assertLess(document.index("<w:lnNumType"), document.index("<w:cols"))
+
     def test_without_border_or_background_nothing_changes(self):
         docx = _docx(f"<w:p><w:r><w:t>A</w:t></w:r></w:p>{self.SECT}")
         self.assertEqual(patcher.postprocess_writer_page_decor(docx, source_html="<style>@page { margin: 20mm; }</style>"), docx)

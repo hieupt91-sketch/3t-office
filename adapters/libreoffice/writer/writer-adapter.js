@@ -13950,7 +13950,7 @@ export class WriterAdapter {
     const mutationMarkers = this._shapeMutationMarkerHtml();
 
     const pristineMarker = this._isOpenedDocumentPristine() ? '<a name="vno-pristine-document"></a>' : "";
-    const fullHtml = `${pristineMarker}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${reviewMetaComment}${notesExport.metadataComment}`;
+    const fullHtml = `${pristineMarker}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${reviewMetaComment}${notesExport.metadataComment}${this.lineNumbers?.enabled ? `<!--vno-line-numbers:${Math.max(1, Number(this.lineNumbers.countBy) || 1)}:${["page", "section"].includes(this.lineNumbers.restart) ? this.lineNumbers.restart : "continuous"}-->` : ""}`;
     const rawExport = `<style>${this._getPageSetupCss()}\n${this._getSectionPageCss()}${columnsCss}</style>${fullHtml}`;
     return this._sanitizeExportHtmlForWordCompat(rawExport);
   }

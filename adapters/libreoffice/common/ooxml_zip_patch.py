@@ -16137,22 +16137,38 @@ def postprocess_writer_page_decor(docx_bytes: bytes, *, source_html: str | None 
     """Viền trang (w:pgBorders) và màu nền trang (w:background): bộ nhập HTML của LibreOffice bỏ `border`/`background-color` của @page."""
     if not docx_bytes or not source_html:
         return docx_bytes
+    line_numbers = re.search(r"<!--vno-line-numbers:(\d+):(continuous|page|section)-->", source_html)
     block = re.search(r"@page\s*\{([^}]*)\}", source_html, re.IGNORECASE)
-    if not block:
+    if not block and not line_numbers:
         return docx_bytes
-    css = block.group(1)
+    css = block.group(1) if block else ""
     border = re.search(
         r"(?:^|[;\s])border\s*:\s*([\d.]+)pt\s+(solid|dashed|dotted|double|groove|ridge|inset|outset)\s+(#[0-9a-fA-F]{3,8}|rgba?\([^)]*\)|[a-zA-Z]+)",
         css, re.IGNORECASE,
     )
     background = re.search(r"background-color\s*:\s*(#[0-9a-fA-F]{3,8}|rgba?\([^)]*\)|[a-zA-Z]+)", css, re.IGNORECASE)
-    if not border and not background:
+    if not border and not background and not line_numbers:
         return docx_bytes
     document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
     if not document_bytes:
         return docx_bytes
     document_xml = document_bytes.decode("utf-8", errors="replace")
     replacements: dict[str, bytes] = {}
+    if line_numbers:
+        restart = {"continuous": "continuous", "page": "newPage", "section": "newSection"}[line_numbers.group(2)]
+        ln_xml = f'<w:lnNumType w:countBy="{max(1, int(line_numbers.group(1)))}" w:restart="{restart}"/>'
+
+        def add_line_numbers(match: re.Match) -> str:
+            sect = match.group(0)
+            if "<w:lnNumType" in sect:
+                return sect
+            for anchor in ("<w:pgNumType", "<w:cols", "<w:vAlign", "<w:docGrid", "</w:sectPr"):
+                position = sect.find(anchor)
+                if position >= 0:
+                    return sect[:position] + ln_xml + sect[position:]
+            return sect
+
+        document_xml = re.sub(r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>", add_line_numbers, document_xml, flags=re.IGNORECASE)
     if border:
         color = _css_color_hex(border.group(3)) or "000000"
         style = {"solid": "single", "dashed": "dashed", "dotted": "dotted", "double": "double"}.get(border.group(2).lower(), "single")
