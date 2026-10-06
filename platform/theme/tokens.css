@@ -135,6 +135,11 @@
   --vno-app-current-light: var(--vno-writer-light);
   --vno-app-current-fg: var(--vno-writer-primary);
 
+  /* Tên tương thích cho các dialog cũ; vẫn lấy màu từ hệ token hiện hành. */
+  --vno-bg-panel: var(--vno-bg-subtle);
+  --vno-bg-surface-secondary: var(--vno-bg-subtle);
+  --vno-primary: var(--vno-app-current-fg);
+
   --vno-color-accent: var(--vno-app-current);
   --vno-color-accent-hover: var(--vno-app-current-hover);
   --vno-color-accent-light: var(--vno-app-current-light);
