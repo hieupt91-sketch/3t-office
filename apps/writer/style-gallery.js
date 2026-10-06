@@ -215,6 +215,14 @@ export function showStyleGalleryDropdown(options = {}) {
     } else if (e.key === "End") {
       e.preventDefault();
       if (cards.length) cards[cards.length - 1].focus();
+    } else if (e.key === "Tab") {
+      if (e.shiftKey && (idx <= 0 || !dropdown.contains(focused))) {
+        e.preventDefault();
+        cards[cards.length - 1]?.focus();
+      } else if (!e.shiftKey && (idx === cards.length - 1 || !dropdown.contains(focused))) {
+        e.preventDefault();
+        cards[0]?.focus();
+      }
     }
   };
 

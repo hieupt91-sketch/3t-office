@@ -225,6 +225,8 @@ export async function showWatermarkDialog(currentWatermark = null) {
               ${t("writerDialogs.watermark.textLabel")}
             </label>
             <input type="text" id="vno-wm-text" class="vno-dialog-input" value="${activeText}" placeholder="${t("writerDialogs.watermark.placeholder")}" style="width:100%; box-sizing:border-box; font-size:14px; font-weight:bold; padding:8px 10px;" />
+            <p id="vno-wm-text-error" class="vno-dialog-error" role="alert" hidden
+              style="margin:4px 0 0;color:var(--vno-color-error,#b91c1c);font-size:12px;">${t("writerDialogs.watermark.textRequired")}</p>
           </div>
 
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
@@ -271,6 +273,7 @@ export async function showWatermarkDialog(currentWatermark = null) {
     const dialogBox = overlay.querySelector(".vno-dialog-box");
 
     const txtInput = overlay.querySelector("#vno-wm-text");
+    const textError = overlay.querySelector("#vno-wm-text-error");
     const opacityInput = overlay.querySelector("#vno-wm-opacity");
     const opacityLabel = overlay.querySelector("#vno-wm-opacity-val");
     const btnRemove = overlay.querySelector(".vno-wm-btn-remove");
@@ -306,9 +309,12 @@ export async function showWatermarkDialog(currentWatermark = null) {
     overlay.querySelector(".vno-dialog-ok-btn")?.addEventListener("click", () => {
       const text = (txtInput?.value || "").trim();
       if (!text) {
-        cleanup("");
+        txtInput?.setAttribute("aria-invalid", "true");
+        if (textError) textError.hidden = false;
+        txtInput?.focus?.();
         return;
       }
+      txtInput?.removeAttribute("aria-invalid");
       cleanup({
         text,
         color: overlay.querySelector("#vno-wm-color")?.value || "#dc2626",
