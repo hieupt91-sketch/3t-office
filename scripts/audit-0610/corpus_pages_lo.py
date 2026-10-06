@@ -57,8 +57,16 @@ def lo_convert(source: Path, target_dir: Path, fmt: str, soffice: str) -> Path:
         shutil.rmtree(profile, ignore_errors=True)
 
 
-def char_count(path: Path, work: Path, soffice: str) -> int:
-    txt = lo_convert(path, work, "txt:Text", soffice)
+def char_count(path: Path, work: Path, soffice: str) -> int | None:
+    # Specify encoding explicitly because Text defaults vary by LibreOffice profile.
+    try:
+        txt = lo_convert(path, work, "txt:Text (encoded):UTF8", soffice)
+    except RuntimeError:
+        # PDF inputs are page-counted separately and do not have a DOCX text
+        # baseline. Do not turn a PDF text-filter limitation into a blocker.
+        if path.read_bytes()[:5] == b"%PDF-":
+            return None
+        raise
     text = txt.read_text(encoding="utf-8", errors="replace")
     return sum(not char.isspace() for char in text)
 
@@ -90,6 +98,10 @@ def audit(source: Path, soffice: str) -> dict:
         try:
             p0pdf = lo_convert(source, work / "p0", "pdf", soffice)
             row["p0"] = page_count(p0pdf)
+            if source.read_bytes()[:5] == b"%PDF-":
+                row["reason"] = "Nguồn là PDF (header %PDF-), không phải DOC/DOCX; không thể roundtrip qua Writer."
+                row["seconds"] = round(time.monotonic() - started, 1)
+                return row
             original_chars = char_count(source, work / "text-original", soffice)
             if source.suffix.casefold() == ".docx":
                 intermediate = work / "roundtrip.docx"
@@ -100,8 +112,10 @@ def audit(source: Path, soffice: str) -> dict:
                 run_roundtrip(source, first, False)
             row["p1"] = page_count(lo_convert(first, work / "p1", "pdf", soffice))
             first_chars = char_count(first, work / "text-p1", soffice)
-            row["chars"] = 0.0 if original_chars == 0 and first_chars == 0 else (
-                None if original_chars == 0 else round(abs(first_chars - original_chars) * 100 / original_chars, 3))
+            row["chars"] = (None if original_chars is None or first_chars is None else
+                             (0.0 if original_chars == 0 and first_chars == 0 else
+                              None if original_chars == 0 else
+                              round(abs(first_chars - original_chars) * 100 / original_chars, 3)))
             edited = work / "edited.docx"
             run_roundtrip(source, edited, True)
             row["p2"] = page_count(lo_convert(edited, work / "p2", "pdf", soffice))
@@ -116,7 +130,7 @@ def audit(source: Path, soffice: str) -> dict:
     return row
 
 
-def write_report(rows: list[dict], selected: list[Path], soffice: str) -> None:
+def write_report(rows: list[dict], selected: list[Path], soffice: str, report: Path) -> None:
     counts = {state: sum(r["status"] == state for r in rows) for state in ("PASS", "FAIL", "BLOCKED")}
     lines = ["# Audit roundtrip tài liệu: đối chiếu LibreOffice", "",
              "Ticket D7 — phép đo thay thế vì Word COM bị hộp thoại ‘Word không phải chương trình mặc định’ chặn. Số trang Word thật chưa được đo; P0 là LibreOffice headless làm chuẩn đối chiếu. Corpus chỉ đọc; đầu ra trung gian được tạo trong thư mục tạm và xóa sau mỗi tài liệu.", "",
@@ -136,13 +150,14 @@ def write_report(rows: list[dict], selected: list[Path], soffice: str) -> None:
     blocked = [r for r in rows if r["status"] == "BLOCKED"]
     lines += ["", "## BLOCKED", ""]
     lines.extend([f"- `{r['name']}`: {r['reason']}" for r in blocked] or ["Không có."])
-    REPORT.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    report.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--limit", type=int)
     parser.add_argument("--only", help="Tên tệp chính xác (basename)")
+    parser.add_argument("--report", type=Path, default=REPORT, help="Đường dẫn báo cáo Markdown")
     args = parser.parse_args()
     if args.limit is not None and args.limit < 0:
         parser.error("--limit phải >= 0")
@@ -166,8 +181,8 @@ def main() -> int:
         row = audit(source, soffice)
         rows.append(row)
         print(f"  {row['status']} P0={row['p0']} P1={row['p1']} P2={row['p2']} {row['seconds']}s", flush=True)
-        write_report(rows, sources, soffice)
-    write_report(rows, sources, soffice)
+        write_report(rows, sources, soffice, args.report)
+    write_report(rows, sources, soffice, args.report)
     return 0
 
 
