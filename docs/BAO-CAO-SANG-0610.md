@@ -35,14 +35,14 @@ Tổng có trọng số ≈ **78%** (trước 77%). Bỏ G5 và thương mại (
 1. **Word COM vẫn bị chặn** bởi hộp thoại "Word không phải chương trình mặc định" → chưa có số trang Word thật. Cần một người bấm "Không" + "Không hỏi lại" một lần trên máy (chuột, UIA, MSAA, registry đều đã thử, không vượt được). Excel thì đã chạy lại bình thường.
 2. **`legacy13.doc` lệch 1 trang** sau mở–lưu (cần xem tay).
 3. **Độ trễ gõ phím tài liệu 150–200 trang**: P95 ≈ 270 ms (hàm `_recomputeLivePagination`), chưa sửa.
-4. **Ma trận Undo/Redo của agy báo 0/90 FAIL — KHÔNG đáng tin.** Tôi chạy lại độc lập trên app thật: Ctrl+Z và lệnh `common.edit.undo` đều khôi phục đúng cho bold, in nghiêng, căn giữa, tăng cỡ chữ (4/4). Bài đo của agy gán `innerHTML` trực tiếp và xóa undoStack nên không phản ánh luồng thật. Nhánh đó **chưa merge**; cần agy viết lại bài đo theo luồng người dùng.
+4. **Ma trận Undo/Redo (đã đo lại theo luồng thật, agy bài 2):** 44 lệnh định dạng có handler: **36 PASS, 4 FAIL, 4 bỏ qua** (mở hộp thoại). 4 FAIL thật: `writer.para.lineSpacing` và `writer.para.lineSpacingLayout` (Ctrl+Z không khôi phục), `writer.list.bullet` và `writer.list.numbered` (Ctrl+Y không tái lập). Bài đo đầu của agy (0/90 FAIL) sai do gán innerHTML và xóa undoStack; tôi đã kiểm độc lập và bài đo mới khớp (bold/italic/căn giữa/tăng cỡ chữ PASS). Chưa sửa 4 lỗi này (việc kế tiếp, bước tái hiện ở docs/AUDIT-DOC-UNDO2-0610.md).
 5. Corpus D7 chưa có tài liệu nào kiểm bằng Word thật; chuẩn đối chiếu là LibreOffice.
 6. `docs/RELEASE-0.9.9-DRAFT.md` còn ghi xem nhanh (view-first) mặc định tắt, thực tế đang bật — phải sửa trước khi phát hành. **Bản 0.9.9 vẫn giữ nguyên chưa phát hành; G5 vẫn treo.**
 7. Hai tiến trình agy (Sheet UI, Slides UI) và Codex tiền tệ đã chết âm thầm đêm qua (log đứng); agy được chạy lại và xong, phần tiền tệ tôi tiếp nhận và hoàn tất. Opencode (D10 trợ giúp) chưa có kết quả.
 
 ## 4. Việc kế tiếp (không cần chờ bạn)
 
-- Doc: D6 kịch bản 11–30, D9 phím tắt, Điều kiện trộn thư, mức đại cương (D4b), sửa P95 gõ phím, xem tay `legacy13.doc`.
+- Doc: sửa 4 lỗi Undo/Redo (giãn dòng, danh sách), D6 kịch bản 11–30, D9 phím tắt, Điều kiện trộn thư, mức đại cương (D4b), sửa P95 gõ phím, xem tay `legacy13.doc`.
 - Sheet: 28 xlsx + 20 xls, lan14 chậm (57 s so mục tiêu 35 s), 3 mục UI cần hộp thoại hệ điều hành.
 - Slides: thêm pptx mẫu, Morph/phát sóng/âm thanh.
 - Pháp lý: SBOM, gói hồ sơ cho luật sư (L4).
