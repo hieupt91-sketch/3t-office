@@ -13,6 +13,8 @@ import { globalUnoBridge } from "../../adapters/libreoffice/common/uno-bridge.js
 export { parseCsv, parseDelimitedText, parseFodsData, replaceMergeFields } from "./mail-merge-data.js";
 import { parseCsv, parseDelimitedText, parseFodsData } from "./mail-merge-data.js";
 
+let closeActiveMailMergeIfDialog = null;
+
 function trapFocus(dialogBox, event) {
   if (event.key !== "Tab") return;
   const focusables = Array.from(dialogBox.querySelectorAll(
@@ -667,6 +669,7 @@ export function showInsertMergeFieldDialog({
  */
 export function showMailMergeIfDialog({ fields = [], onInsert, onCancel } = {}) {
   if (typeof document === "undefined" || !document.body) { onCancel?.(); return; }
+  closeActiveMailMergeIfDialog?.(false);
   const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
   const overlay = document.createElement("div"); overlay.className = "vno-dialog-overlay";
   const previousFocused = document.activeElement;
@@ -677,6 +680,7 @@ export function showMailMergeIfDialog({ fields = [], onInsert, onCancel } = {}) 
   const close = (cancel=true) => {
     document.removeEventListener("keydown", onKeyDown);
     overlay.remove();
+    if (closeActiveMailMergeIfDialog === close) closeActiveMailMergeIfDialog = null;
     previousFocused?.focus?.();
     if(cancel) onCancel?.();
   };
@@ -702,6 +706,7 @@ export function showMailMergeIfDialog({ fields = [], onInsert, onCancel } = {}) 
   };
   document.body.appendChild(overlay);
   document.addEventListener("keydown", onKeyDown);
+  closeActiveMailMergeIfDialog = close;
   fieldSelect?.focus();
 }
 
