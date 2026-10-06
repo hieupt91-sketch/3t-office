@@ -2933,7 +2933,8 @@ export class WriterAdapter {
             const boundarySection = extracted.sections[i];
             const pContent = pWithSect[i].paragraph[0];
             const pText = [...pContent.matchAll(/<w:t\b[^>]*>([\s\S]*?)<\/w:t>/gi)].map((m) => m[1]).join("").trim();
-            const markerHtml = this._buildSectionBreakMarker(boundarySection.type || "nextPage", nextSec.id);
+            // Loại ngắt giữa hai phần là loại bắt đầu của phần SAU (w:type của sectPr phần đó), không phải phần trước.
+            const markerHtml = this._buildSectionBreakMarker(nextSec.type || "nextPage", nextSec.id);
             let inserted = false;
             if (pText) {
               const escapedText = htmlTextPattern(pText);

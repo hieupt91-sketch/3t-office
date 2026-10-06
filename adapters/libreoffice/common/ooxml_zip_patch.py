@@ -15323,11 +15323,13 @@ def _restore_created_writer_section_metadata(
             else:
                 section_xml = re.sub(r"<w:pgNumType\b[^>]*/>", "", section_xml, flags=re.IGNORECASE)
 
-        if index < len(section_meta) - 1:
-            next_section = section_meta[index + 1]
-            marker_present = bool(next_section.get("breakMarkerPresent", True))
+        # `w:type` của sectPr mô tả cách CHÍNH phần đó bắt đầu (liên tục / trang kế / trang chẵn / trang lẻ).
+        # Đo bằng Word thật (06/10): trước đây gán loại của phần KẾ TIẾP vào sectPr trước → "Ngắt mục liên tục"
+        # thành ngắt trang, trang chẵn/lẻ lệch một phần. Phần đầu tiên không có ngắt phía trước.
+        if index >= 1:
+            marker_present = bool(section.get("breakMarkerPresent", True))
             if marker_present:
-                break_type = str(next_section.get("type") or "nextPage")
+                break_type = str(section.get("type") or "nextPage")
                 if break_type not in {"nextPage", "continuous", "evenPage", "oddPage"}:
                     break_type = "nextPage"
                 source_type = attr_value(source_section_xml or "", "type", "val") if source_section_xml is not None else None
@@ -15510,14 +15512,21 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
         section_ids = [str(section.get("id")) for section in section_meta if section.get("id")]
     section_starts = []
     for section_id in section_ids[1:]:
-        start = re.search(
-            rf'<div\b[^>]*data-vno-export-section=["\']{re.escape(section_id)}["\'][^>]*>\s*<p\b([^>]*)>([\s\S]*?)</p\s*>',
+        div_open = re.search(
+            rf'<div\b[^>]*data-vno-export-section=["\']{re.escape(section_id)}["\'][^>]*>\s*',
             source_html,
             re.IGNORECASE,
         )
-        if start:
-            bookmark = re.search(r"\bid=[\"'](vno-(?:untouched|edited)-\d+)[\"']", start.group(1), re.IGNORECASE)
-            section_starts.append((_writer_html_plain(start.group(2)), bookmark.group(1) if bookmark else ""))
+        if not div_open:
+            continue
+        # Khối đầu của phần có thể là đoạn, tiêu đề, danh sách hoặc bảng (đo bằng Word thật 06/10: phần mở đầu bằng
+        # danh sách/tiêu đề trước đây không tìm được đoạn đầu → ngắt mục biến mất và các phần dồn thành một).
+        first_block = re.match(r'<(p|h[1-6]|li|td|th)\b([^>]*)>([\s\S]*?)</\1\s*>', source_html[div_open.end():], re.IGNORECASE)
+        if not first_block:
+            first_block = re.match(r'<(?:ol|ul|table|tbody|tr|thead|blockquote)\b[^>]*>\s*(?:<(?:tbody|tr|thead)\b[^>]*>\s*)*<(p|h[1-6]|li|td|th)\b([^>]*)>([\s\S]*?)</\1\s*>', source_html[div_open.end():], re.IGNORECASE)
+        if first_block:
+            bookmark = re.search(r"\bid=[\"'](vno-(?:untouched|edited)-\d+)[\"']", first_block.group(0), re.IGNORECASE)
+            section_starts.append((_writer_html_plain(first_block.group(3)), bookmark.group(1) if bookmark else ""))
     for section_text, section_bookmark in section_starts:
         if not section_text and not section_bookmark:
             continue

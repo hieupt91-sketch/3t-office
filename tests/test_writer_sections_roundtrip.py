@@ -240,6 +240,86 @@ class TestWriterSectionsRoundtrip(unittest.TestCase):
                 no_marker_sections = _section_properties(no_marker_xml)
             self.assertEqual(no_marker_sections, source_sections)
 
+    def test_created_document_section_types_follow_each_section_start(self):
+        # Word that (06/10): w:type cua sectPr la cach CHINH phan do bat dau. Truoc day loai cua phan ke tiep bi
+        # ghi vao sectPr truoc -> "Ngat muc lien tuc" thanh ngat trang, chan/le lech mot phan.
+        types = ["nextPage", "continuous", "evenPage", "oddPage"]
+        page_setup = {
+            "size": "a4", "orientation": "portrait",
+            "margins": {"top": 20, "right": 20, "bottom": 20, "left": 20},
+            "headerDistanceMm": 12.7, "footerDistanceMm": 12.7,
+        }
+        section_meta = [
+            {"id": f"section-{i + 1}", "type": kind, "breakMarkerPresent": True, "pageSetup": page_setup,
+             "headerFooter": {"linkToPrevious": i > 0, "differentFirstPage": False, "differentOddEven": False,
+                              "pageNumberRestart": False, "pageNumberStart": 1}}
+            for i, kind in enumerate(types)
+        ]
+        body = ""
+        for i, kind in enumerate(types):
+            if i > 0:
+                body += (f'<div class="vno-section-break" data-vno-section-break="{kind}" '
+                         f'data-vno-section-id="section-{i + 1}"></div>')
+            body += (f'<div class="vno-export-section" data-vno-export-section="section-{i + 1}" '
+                     f'data-vno-section-type="{kind}"><p>Section {i + 1} text</p></div>')
+        content = ('<style>' + ''.join(f'@page vno-section-{i + 1} {{ size:210mm 297mm; margin:20mm; }} ' for i in range(4))
+                   + '</style>' + body + f'<!--vno-sections-meta: {json.dumps(section_meta)} -->')
+        with tempfile.TemporaryDirectory() as tmp:
+            destination_path = os.path.join(tmp, "created-section-types.docx")
+            save_window = MagicMock()
+            save_window.create_file_dialog.return_value = destination_path
+            api = VnOfficeApi(app_kind="writer")
+            with patch.object(main, "_active_window", return_value=save_window):
+                saved = api.save_document_dialog(content, app_kind="writer", target_format="docx",
+                                                 suggested_name="created-section-types.docx")
+            self.assertEqual(saved.get("status"), "ok", repr(saved))
+            with zipfile.ZipFile(destination_path, "r") as archive:
+                sections = _section_properties(archive.read("word/document.xml").decode("utf-8"))
+        self.assertEqual(len(sections), 4)
+        saved_types = [(re.search(r'<w:type w:val="(\w+)"/>', s) or [None, "nextPage"])[1] for s in sections]
+        self.assertEqual(saved_types[1:], ["continuous", "evenPage", "oddPage"], saved_types)
+
+    def test_sections_starting_with_list_heading_or_table_keep_their_breaks(self):
+        # Word that (06/10): phan mo dau bang danh sach/tieu de/bang truoc day mat ngat muc (cac phan don thanh mot).
+        starts = [
+            "<p>Alpha opening</p>",
+            "<ol><li><p>Beta list item</p></li></ol>",
+            "<h1>Gamma heading</h1>",
+            "<table><tbody><tr><td><p>Delta cell</p></td><td><p>x</p></td></tr></tbody></table>",
+        ]
+        kinds = ["nextPage", "continuous", "nextPage", "evenPage"]
+        page_setup = {"size": "a4", "orientation": "portrait", "margins": {"top": 20, "right": 20, "bottom": 20, "left": 20},
+                      "headerDistanceMm": 12.7, "footerDistanceMm": 12.7}
+        section_meta = [
+            {"id": f"section-{i + 1}", "type": kind, "breakMarkerPresent": True, "pageSetup": page_setup,
+             "headerFooter": {"linkToPrevious": i > 0, "differentFirstPage": False, "differentOddEven": False,
+                              "pageNumberRestart": False, "pageNumberStart": 1}}
+            for i, kind in enumerate(kinds)
+        ]
+        body = ""
+        for i, (start, kind) in enumerate(zip(starts, kinds)):
+            if i > 0:
+                body += (f'<div class="vno-section-break" data-vno-section-break="{kind}" '
+                         f'data-vno-section-id="section-{i + 1}"></div>')
+            body += (f'<div class="vno-export-section" data-vno-export-section="section-{i + 1}" '
+                     f'data-vno-section-type="{kind}">{start}<p>tail {i + 1}</p></div>')
+        content = ('<style>' + ''.join(f'@page vno-section-{i + 1} {{ size:210mm 297mm; margin:20mm; }} ' for i in range(4))
+                   + '</style>' + body + f'<!--vno-sections-meta: {json.dumps(section_meta)} -->')
+        with tempfile.TemporaryDirectory() as tmp:
+            destination_path = os.path.join(tmp, "sections-block-starts.docx")
+            save_window = MagicMock()
+            save_window.create_file_dialog.return_value = destination_path
+            api = VnOfficeApi(app_kind="writer")
+            with patch.object(main, "_active_window", return_value=save_window):
+                saved = api.save_document_dialog(content, app_kind="writer", target_format="docx",
+                                                 suggested_name="sections-block-starts.docx")
+            self.assertEqual(saved.get("status"), "ok", repr(saved))
+            with zipfile.ZipFile(destination_path, "r") as archive:
+                sections = _section_properties(archive.read("word/document.xml").decode("utf-8"))
+        self.assertEqual(len(sections), 4, "moi phan mo dau bang khoi nao cung phai giu ngat muc")
+        saved_types = [(re.search(r'<w:type w:val="(\w+)"/>', s) or [None, "nextPage"])[1] for s in sections]
+        self.assertEqual(saved_types[1:], ["continuous", "nextPage", "evenPage"], saved_types)
+
     def test_open_and_save_as_keeps_two_section_orientations_and_headers(self):
         with tempfile.TemporaryDirectory(prefix="vno-writer-sections-") as tmp:
             source_path = os.path.join(tmp, "two-sections.docx")
