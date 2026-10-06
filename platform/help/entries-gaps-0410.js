@@ -152,7 +152,7 @@ const writerOnly = [
     commandIds: ["writer.format.paragraphDialog"],
     title: "Hộp thoại Đoạn văn: căn lề, thụt lề, khoảng cách, giãn dòng, ngắt dòng và ngắt trang",
     summary: "Đặt cùng lúc căn lề, thụt lề trái/phải, thụt dòng đầu hoặc treo, khoảng cách trước/sau đoạn, giãn dòng, và các tùy chọn ngắt dòng/ngắt trang (kiểm soát dòng mồ côi/góa, giữ cùng trang với đoạn kế tiếp, giữ các dòng liền nhau, ngắt trang trước) cho các đoạn đang chọn. Một lần Áp dụng là một bước Hoàn tác.",
-    ribbon: { tab: "Trang đầu", tabId: "home", group: "Đoạn văn" },
+    ribbon: { tab: "Bố cục", tabId: "layout", group: "Đoạn văn" },
     keywords: ["đoạn văn", "paragraph", "thụt lề", "thụt dòng đầu", "thụt treo", "giãn dòng", "khoảng cách đoạn", "căn lề", "hộp thoại đoạn văn", "ngắt trang", "giữ cùng trang", "giữ các dòng liền nhau", "dòng mồ côi", "dòng góa", "keep with next"],
     steps: [
       "Đặt con trỏ trong đoạn (hoặc bôi đen nhiều đoạn) cần chỉnh.",

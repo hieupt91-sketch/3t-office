@@ -1338,7 +1338,391 @@ export const WRITER_HELP_ENTRIES = [
       "Để đổi sang mẫu khác hoặc gỡ bỏ: bấm lại Trang bìa trên ribbon, chọn mẫu mới để thay thế hoặc bấm nút Gỡ trang bìa (hoặc gọi lệnh Gỡ trang bìa) để xóa trang bìa cùng ngắt trang kèm theo. Bấm Ctrl+Z ngay sau khi chèn để hoàn tác chỉ trong một bước."
     ]
   }
+,
+{
+  "id": "writer.table.colorAndBordersHelp",
+  "app": "writer",
+  "commandIds": [
+    "writer.table.cellBg",
+    "writer.table.borders"
+  ],
+  "title": "Tô màu ô và đường viền bảng",
+  "summary": "Thay đổi màu nền ô (tô màu ô) và chọn các kiểu đường viền bảng trên nhóm Màu & Viền thuộc tab ngữ cảnh Thiết kế Bảng.",
+  "ribbon": {
+    "tab": "Thiết kế Bảng",
+    "tabId": "tableDesign",
+    "group": "Màu & Viền"
+  },
+  "keywords": [
+    "tô màu ô",
+    "đường viền bảng",
+    "cell bg",
+    "borders",
+    "màu nền ô",
+    "viền bảng"
+  ],
+  "steps": [
+    "Đặt con trỏ vào ô hoặc bôi đen khối ô cần tô màu / tạo viền trong bảng.",
+    "Chuyển sang tab ngữ cảnh Thiết kế Bảng, nhìn tới nhóm Màu & Viền.",
+    "Bấm nút «Tô màu ô» để chọn màu nền cho ô đang chọn từ bảng màu.",
+    "Bấm nút «Đường viền bảng» để chọn kiểu viền (Viền ngoài, Viền trong, Xóa viền hoặc Tất cả đường viền). Bấm Ctrl+Z để hoàn tác."
+  ]
+},
+{
+  "id": "writer.table.distributeSizeHelp",
+  "app": "writer",
+  "commandIds": [
+    "writer.table.distributeRows",
+    "writer.table.distributeCols"
+  ],
+  "title": "Phân bố đều hàng và cột trong bảng",
+  "summary": "Cân bằng kích thước hàng và cột trong bảng đều nhau 100% qua nhóm Kích cỡ ô thuộc tab Bố cục Bảng.",
+  "ribbon": {
+    "tab": "Bố cục Bảng",
+    "tabId": "tableLayout",
+    "group": "Kích cỡ ô"
+  },
+  "keywords": [
+    "phân bố đều hàng",
+    "phân bố đều cột",
+    "distribute rows",
+    "distribute cols",
+    "kích cỡ ô"
+  ],
+  "steps": [
+    "Bôi đen các hàng hoặc cột trong bảng cần phân bố lại kích thước.",
+    "Mở tab Bố cục Bảng, nhìn sang nhóm Kích cỡ ô.",
+    "Nhấp nút «Phân bố đều hàng» để dàn đều chiều cao các hàng, hoặc «Phân bố đều cột» để chia lại độ rộng các cột bằng nhau.",
+    "Có thể rê vạch phân cách giữa hai cột để tùy chỉnh chiều rộng theo ý muốn. Bấm Ctrl+Z nếu muốn quay lại."
+  ]
+},
+{
+  "id": "writer.table.cellAlignmentHelp",
+  "app": "writer",
+  "commandIds": [
+    "writer.table.alignTop",
+    "writer.table.alignMiddle",
+    "writer.table.alignBottom"
+  ],
+  "title": "Căn lề ô theo chiều dọc trong bảng",
+  "summary": "Định vị vị trí văn bản theo chiều dọc trong ô bảng: căn đỉnh, căn giữa hoặc căn đáy từ nhóm Căn lề ô trên tab Bố cục Bảng.",
+  "ribbon": {
+    "tab": "Bố cục Bảng",
+    "tabId": "tableLayout",
+    "group": "Căn lề ô"
+  },
+  "keywords": [
+    "căn lề ô",
+    "căn đỉnh",
+    "căn giữa dọc",
+    "căn đáy",
+    "align top",
+    "align middle",
+    "align bottom"
+  ],
+  "steps": [
+    "Chọn các ô trong bảng cần căn chỉnh vị trí dọc.",
+    "Chuyển sang tab Bố cục Bảng, tới nhóm Căn lề ô.",
+    "Nhấp «Căn đỉnh ô» để chữ áp sát mép trên, «Căn giữa dọc ô» để chữ lơ chửng ở giữa ô, hoặc «Căn đáy ô» để chữ sát mép dưới.",
+    "Kết hợp với căn lề trái/giữa/phải ở tab Trang đầu để có vị trí căn ô mong muốn."
+  ]
+},
+{
+  "id": "writer.insert.crossReferenceHelp",
+  "app": "writer",
+  "commandIds": [
+    "writer.insert.crossReference"
+  ],
+  "title": "Chèn tham chiếu chéo (Cross Reference)",
+  "summary": "Tạo liên kết tham chiếu đến tiêu đề, hình ảnh, bảng biểu hoặc đánh dấu Bookmark trong tài liệu qua nhóm Chú thích ảnh trên tab Tham chiếu.",
+  "ribbon": {
+    "tab": "Tham chiếu",
+    "tabId": "references",
+    "group": "Chú thích ảnh"
+  },
+  "keywords": [
+    "tham chiếu chéo",
+    "cross reference",
+    "liên kết tiêu đề",
+    "tham chiếu hình",
+    "bookmark"
+  ],
+  "steps": [
+    "Đặt con trỏ tại vị trí muốn chèn tham chiếu chéo trong văn bản.",
+    "Mở tab Tham chiếu, tại nhóm Chú thích ảnh, nhấn nút «Tham chiếu chéo».",
+    "Trong hộp thoại xuất hiện, chọn Loại tham chiếu (Tiêu đề, Hình, Bảng hoặc Bookmark) và chọn vị trí đích cần tham chiếu tới.",
+    "Nhấn Chèn để chèn văn bản liên kết nhảy trực tiếp tới vị trí đã chọn. Bấm Esc để đóng hộp thoại."
+  ]
+},
+{
+  "id": "writer.mailMerge.insertFieldHelp",
+  "app": "writer",
+  "commandIds": [
+    "writer.mailMerge.insertField"
+  ],
+  "title": "Chèn trường trộn thư",
+  "summary": "Chèn các trường dữ liệu động như Họ tên, Địa chỉ từ danh sách người nhận vào mẫu thư qua nhóm Viết & Chèn trường trên tab Trộn thư.",
+  "ribbon": {
+    "tab": "Trộn thư",
+    "tabId": "mailings",
+    "group": "Viết & Chèn trường"
+  },
+  "keywords": [
+    "chèn trường",
+    "insert merge field",
+    "trường trộn thư",
+    "họ tên",
+    "địa chỉ"
+  ],
+  "steps": [
+    "Đặt con trỏ tại vị trí cần chèn thông tin động trong mẫu thư.",
+    "Mở tab Trộn thư, nhóm Viết & Chèn trường, bấm nút «Chèn trường trộn».",
+    "Chọn tên trường (ví dụ: Họ_và_Tên, Chức_vụ, Công_ty) từ danh sách.",
+    "Trường được chèn vào văn bản dưới dạng mã chèn «Họ_và_Tên». Khi trộn thư, mã này sẽ tự động thay bằng dữ liệu thật."
+  ]
+},
+{
+  "id": "writer.mailMerge.previewHelp",
+  "app": "writer",
+  "commandIds": [
+    "writer.mailMerge.preview",
+    "writer.mailMerge.prevRecord",
+    "writer.mailMerge.nextRecord"
+  ],
+  "title": "Xem trước kết quả trộn thư và chuyển bản ghi",
+  "summary": "Xem trước dữ liệu thật thay thế cho mã trường và duyệt qua lại giữa các người nhận qua nhóm Xem trước kết quả trên tab Trộn thư.",
+  "ribbon": {
+    "tab": "Trộn thư",
+    "tabId": "mailings",
+    "group": "Xem trước kết quả"
+  },
+  "keywords": [
+    "xem trước kết quả",
+    "preview results",
+    "chuyển bản ghi",
+    "bản ghi tiếp",
+    "bản ghi trước"
+  ],
+  "steps": [
+    "Mở tab Trộn thư, tại nhóm Xem trước kết quả, nhấp nút «Xem trước kết quả».",
+    "Các mã trường trong tài liệu lập tức chuyển thành dữ liệu thực tế của người nhận đầu tiên.",
+    "Bấm nút «Bản ghi trước» hoặc «Bản ghi tiếp» để xem thư của các người nhận khác trong danh sách.",
+    "Bấm lại nút «Xem trước kết quả» để trở về dạng mã trường ban đầu."
+  ]
+},
+{
+  "id": "writer.mailMerge.finishHelp",
+  "app": "writer",
+  "commandIds": [
+    "writer.mailMerge.finish"
+  ],
+  "title": "Hoàn tất và xuất kết quả trộn thư",
+  "summary": "Tạo tài liệu mới chứa toàn bộ thư đã trộn hoặc in trực tiếp ra máy in từ nhóm Hoàn tất trên tab Trộn thư.",
+  "ribbon": {
+    "tab": "Trộn thư",
+    "tabId": "mailings",
+    "group": "Hoàn tất"
+  },
+  "keywords": [
+    "hoàn tất trộn thư",
+    "finish merge",
+    "xuất thư",
+    "in thư hàng loạt"
+  ],
+  "steps": [
+    "Sau khi kiểm tra mẫu thư và dữ liệu, mở tab Trộn thư, nhóm Hoàn tất.",
+    "Nhấp nút «Hoàn tất & Trộn» để mở danh sách tùy chọn.",
+    "Chọn «Chỉnh sửa tài liệu riêng lẻ» để tạo một tệp Doc mới chứa tất cả các thư đã thay dữ liệu, hoặc chọn «In tài liệu» để gửi trực tiếp tới máy in.",
+    "Xác nhận phạm vi bản ghi cần trộn (Tất cả, Bản ghi hiện tại hoặc Từ... đến...). Nhấn OK để thực thi."
+  ]
+},
+{
+  "id": "writer.view.pageWidthHelp",
+  "app": "writer",
+  "commandIds": [
+    "writer.view.pageWidth"
+  ],
+  "title": "Thu phóng vừa chiều rộng khổ trang",
+  "summary": "Tự động co giãn kích thước trang soạn thảo vừa khít chiều rộng cửa sổ ứng dụng từ nhóm Thu phóng trên tab Chế độ xem.",
+  "ribbon": {
+    "tab": "Chế độ xem",
+    "tabId": "view",
+    "group": "Thu phóng"
+  },
+  "keywords": [
+    "vừa chiều rộng",
+    "page width",
+    "vừa khổ trang",
+    "thu phóng chiều rộng"
+  ],
+  "steps": [
+    "Mở tab Chế độ xem trên thanh ribbon.",
+    "Tại nhóm Thu phóng, nhấp chọn tùy chọn «Chiều rộng trang».",
+    "Tỉ lệ hiển thị tài liệu tự động điều chỉnh sao cho mép trái và mép phải trang giấy vừa khít khung nhìn cửa sổ (trong khoảng 50%–200%).",
+    "Nhấn 100% hoặc Đặt lại nếu muốn đưa tỉ lệ về kích thước 1:1 mặc định."
+  ]
+},
+{
+  "id": "writer.view.newWindowHelp",
+  "app": "writer",
+  "commandIds": [
+    "writer.view.newWindow"
+  ],
+  "title": "Mở tài liệu hiện tại trong cửa sổ mới",
+  "summary": "Nhân bản cửa sổ tài liệu hiện tại sang một cửa sổ độc lập từ nhóm Cửa sổ trên tab Chế độ xem để đối chiếu văn bản.",
+  "ribbon": {
+    "tab": "Chế độ xem",
+    "tabId": "view",
+    "group": "Cửa sổ"
+  },
+  "keywords": [
+    "cửa sổ mới",
+    "new window",
+    "nhân bản cửa sổ",
+    "đối chiếu tài liệu"
+  ],
+  "steps": [
+    "Mở tab Chế độ xem trên thanh ribbon.",
+    "Tại nhóm Cửa sổ, nhấp nút «Cửa sổ mới».",
+    "Ứng dụng mở thêm một cửa sổ mới hiển thị cùng tài liệu hiện tại.",
+    "Thay đổi trên bất kỳ cửa sổ nào sẽ tự động cập nhật sang cửa sổ kia; đóng một trong hai cửa sổ không làm mất dữ liệu."
+  ]
+},
+{
+  "id": "writer.comment.insertRibbonHelp",
+  "app": "writer",
+  "commandIds": [
+    "writer.comment.insert"
+  ],
+  "title": "Chèn ghi chú vào văn bản từ tab Chèn",
+  "summary": "Thêm ý kiến nhận xét hoặc ghi chú thảo luận tại vị trí con trỏ qua nhóm Ghi chú trên tab Chèn hoặc tab Đánh giá.",
+  "ribbon": {
+    "tab": "Chèn",
+    "tabId": "insert",
+    "group": "Ghi chú"
+  },
+  "keywords": [
+    "chèn ghi chú",
+    "insert comment",
+    "ghi chú văn bản",
+    "thảo luận"
+  ],
+  "steps": [
+    "Đặt con trỏ hoặc bôi đen cụm từ cần ghi chú trong văn bản.",
+    "Mở tab Chèn (hoặc tab Đánh giá), nhóm Ghi chú, nhấp nút «Ghi chú» (hoặc nhấn Ctrl+Alt+M).",
+    "Khung ghi chú xuất hiện ở lề phải văn bản kèm tên người dùng và thời gian.",
+    "Nhập nội dung ghi chú. Nhấp ra ngoài hoặc bấm Esc để hoàn tất. Bấm nút Xóa ghi chú trên tab Đánh giá để gỡ bỏ."
+  ]
+},
+{
+  "id": "writer.para.layoutParagraphHelp",
+  "app": "writer",
+  "commandIds": [
+    "writer.para.indentDec",
+    "writer.para.indentInc",
+    "writer.para.spacing1",
+    "writer.para.spacing15",
+    "writer.para.spacing2",
+    "writer.para.lineSpacing"
+  ],
+  "title": "Định dạng thụt lề và giãn dòng đoạn văn trên tab Bố cục",
+  "summary": "Điều chỉnh thụt lề trái/phải và các mức giãn khoảng cách dòng/đoạn văn trực quan từ nhóm Đoạn văn trên tab Bố cục.",
+  "ribbon": {
+    "tab": "Bố cục",
+    "tabId": "layout",
+    "group": "Đoạn văn"
+  },
+  "keywords": [
+    "thụt lề bố cục",
+    "giãn dòng bố cục",
+    "khoảng cách đoạn bố cục",
+    "indent layout",
+    "line spacing layout"
+  ],
+  "steps": [
+    "Đặt con trỏ trong đoạn (hoặc chọn nhiều đoạn văn) cần định dạng.",
+    "Mở tab Bố cục, tìm đến nhóm Đoạn văn.",
+    "Dùng các nút Tăng/Giảm thụt lề để đẩy đoạn sang phải hoặc lùi sang trái.",
+    "Dùng danh sách Giãn dòng (Đơn 1.0, 1.5 dòng, Kép 2.0) để đổi khoảng cách giữa các dòng trong đoạn. Nhấn Ctrl+Z để hoàn tác."
+  ]
+},
+{
+  "id": "writer.page.insertPageBreakHelp",
+  "app": "writer",
+  "commandIds": [
+    "writer.page.break"
+  ],
+  "title": "Chèn ngắt trang từ tab Chèn",
+  "summary": "Ngắt dòng và bắt đầu một trang mới ngay tại vị trí con trỏ qua nhóm Trang văn bản trên tab Chèn hoặc nhấn phím tắt Ctrl+Enter.",
+  "ribbon": {
+    "tab": "Chèn",
+    "tabId": "insert",
+    "group": "Trang văn bản"
+  },
+  "keywords": [
+    "chèn ngắt trang",
+    "page break insert",
+    "ngắt trang tab chèn",
+    "ctrl+enter"
+  ],
+  "steps": [
+    "Đặt con trỏ tại vị trí muốn kết thúc trang hiện tại và bắt đầu trang mới.",
+    "Mở tab Chèn, nhóm Trang văn bản, nhấp nút «Ngắt trang» (hoặc nhấn tổ hợp phím Ctrl+Enter).",
+    "Nội dung phía sau con trỏ ngay lập tức chuyển sang đầu trang kế tiếp.",
+    "Muốn xóa ngắt trang: đặt con trỏ tại vị trí đầu trang mới rồi nhấn phím Backspace hoặc Delete."
+  ]
+}
+,
+{
+  "id": "writer.page.watermarkBorderLayout",
+  "app": "writer",
+  "commandIds": [
+    "writer.page.watermark",
+    "writer.page.border"
+  ],
+  "title": "Hình mờ và viền trang trên tab Bố cục",
+  "summary": "Chèn hình mờ (watermark) mờ bảo vệ bản quyền và tạo viền bao xung quanh trang tài liệu từ nhóm Nền & Viền trang trên tab Bố cục.",
+  "ribbon": {
+    "tab": "Bố cục",
+    "tabId": "layout",
+    "group": "Nền & Viền trang"
+  },
+  "keywords": [
+    "hình mờ bố cục",
+    "viền trang bố cục",
+    "watermark layout",
+    "page border layout"
+  ],
+  "steps": [
+    "Mở tab Bố cục trên thanh ribbon, tới nhóm Nền & Viền trang.",
+    "Bấm nút «Hình mờ» để chọn chữ chèn mờ chéo (DỰ THẢO, MẬT, KHẨN...).",
+    "Bấm nút «Viền trang» để chọn kiểu đường viền bao quanh các trang giấy.",
+    "Bấm Ctrl+Z để hoàn tác hoặc bỏ viền/hình mờ bất kỳ lúc nào."
+  ]
+},
+{
+  "id": "writer.format.paragraphHomeHelp",
+  "app": "writer",
+  "commandIds": [
+    "writer.format.paragraphDialog"
+  ],
+  "title": "Hộp thoại Đoạn văn từ tab Trang đầu",
+  "summary": "Mở hộp thoại Đoạn văn để thiết lập đầy đủ thụt lề, khoảng cách dòng và đoạn văn từ nút mở rộng nhóm Đoạn văn trên tab Trang đầu.",
+  "ribbon": {
+    "tab": "Trang đầu",
+    "tabId": "home",
+    "group": "Đoạn văn"
+  },
+  "keywords": [
+    "hộp thoại đoạn văn trang đầu",
+    "paragraph dialog home",
+    "thụt lề trang đầu"
+  ],
+  "steps": [
+    "Đặt con trỏ trong đoạn văn cần chỉnh sửa.",
+    "Mở tab Trang đầu trên thanh ribbon.",
+    "Nhấp vào nút mũi tên nhỏ ở góc dưới bên phải nhóm Đoạn văn (hoặc chuột phải chọn Đoạn văn...).",
+    "Thay đổi các thông số căn lề, thụt lề, khoảng cách trước/sau và giãn dòng rồi bấm Áp dụng."
+  ]
+}
 ];
-
-
-
