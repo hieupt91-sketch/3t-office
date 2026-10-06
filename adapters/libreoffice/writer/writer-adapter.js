@@ -1808,6 +1808,21 @@ export class WriterAdapter {
   }
 
   _insertTrackedText(range, text, selection) {
+    // Gõ liên tục là MỘT lần chèn (Word cũng gộp): nối vào <ins> liền trước thay vì tạo một <ins> cho từng phím.
+    const container = range.startContainer;
+    const offset = range.startOffset;
+    const previous = container?.nodeType === 3
+      ? (offset === 0 ? container.previousSibling : null)
+      : (container?.childNodes?.[offset - 1] || null);
+    if (previous?.nodeType === 1 && previous.matches?.('ins[data-vno-change="insert"]') && previous.dataset?.vnoAuthor === "3T Office") {
+      previous.appendChild(document.createTextNode(text));
+      previous.normalize?.();
+      range.setStartAfter(previous);
+      range.collapse(true);
+      selection?.removeAllRanges?.();
+      selection?.addRange?.(range);
+      return previous;
+    }
     const insertion = document.createElement("ins");
     insertion.dataset.vnoChange = "insert";
     insertion.dataset.vnoAuthor = "3T Office";
