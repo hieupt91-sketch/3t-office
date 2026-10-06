@@ -2,6 +2,8 @@
  * 3T Office Platform — Theme Manager
  */
 
+import { headerTheme } from "./header-theme.js";
+
 export class ThemeManager {
   constructor() {
     this._currentTheme = "light";
@@ -19,6 +21,8 @@ export class ThemeManager {
     } catch (e) {}
     this.setTheme(savedTheme);
     this.setFontSize(savedFontSize);
+    // Màu/hình ảnh khu vực tiêu đề do người dùng chọn (nếu có)
+    headerTheme.init();
   }
 
   setTheme(themeName) {

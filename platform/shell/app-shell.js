@@ -16,6 +16,7 @@ import { createLazyDialogs } from "../ui-kit/lazy-dialogs.js";
 import { t, getLocale, setLocale, getSupportedLocales } from "../i18n/i18n.js";
 import { getPlatformLaunchContext } from "../bootstrap.js";
 import { themeManager } from "../theme/theme-manager.js";
+import { headerTheme, loadHeaderImage, HEADER_PRESET_COLORS } from "../theme/header-theme.js";
 import { globalUnoBridge } from "../../adapters/libreoffice/common/uno-bridge.js";
 import { NotificationBar } from "../ui-kit/notification-bar.js";
 import { installGlobalFocusGuard, captureEditorFocus, restoreEditorFocus, isEditorElement } from "./focus-manager.js";
@@ -1248,7 +1249,7 @@ export class AppShell {
           </div>
           <button class="vno-btn vno-btn-icon-only vno-options-close-btn" title="Đóng" aria-label="Đóng">&times;</button>
         </div>
-        <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:16px;">
+        <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:16px;max-height:calc(100vh - 170px);overflow-y:auto;">
           <!-- Section Giao diện -->
           <fieldset style="border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md);padding:12px 16px;margin:0;">
             <legend style="font-size:13px;font-weight:600;color:var(--vno-text-primary);padding:0 6px;">Giao diện (Theme)</legend>
@@ -1262,6 +1263,35 @@ export class AppShell {
                 <span>Giao diện Tối</span>
               </label>
             </div>
+          </fieldset>
+
+          <!-- Section Khu vực tiêu đề: màu hoặc hình ảnh -->
+          <fieldset id="vno-opt-header" style="border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md);padding:12px 16px;margin:0;">
+            <legend style="font-size:13px;font-weight:600;color:var(--vno-text-primary);padding:0 6px;">Khu vực tiêu đề (thanh tiêu đề và thẻ ribbon)</legend>
+            <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:6px;">
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="radio" name="vno-opt-header" value="default" /><span>Mặc định (theo Sáng/Tối)</span></label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="radio" name="vno-opt-header" value="color" /><span>Một màu</span></label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="radio" name="vno-opt-header" value="image" /><span>Hình ảnh</span></label>
+            </div>
+            <div id="vno-opt-header-color-row" style="display:none;margin-top:10px;gap:6px;flex-wrap:wrap;align-items:center;">
+              ${HEADER_PRESET_COLORS.map((item) => `<button type="button" class="vno-btn vno-opt-header-swatch" data-color="${item.value}" title="${item.label}" aria-label="${item.label}" style="width:26px;height:26px;padding:0;border-radius:50%;background:${item.value};border:2px solid var(--vno-border-strong);"></button>`).join("")}
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;margin-left:6px;">Màu khác <input type="color" id="vno-opt-header-color" value="#0f4c81" aria-label="Chọn màu tùy ý cho khu vực tiêu đề" style="width:34px;height:26px;padding:0;border:none;background:none;" /></label>
+            </div>
+            <div id="vno-opt-header-image-row" style="display:none;margin-top:10px;flex-direction:column;gap:8px;">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <button type="button" class="vno-btn" id="vno-opt-header-pick">Chọn hình…</button>
+                <input type="file" id="vno-opt-header-file" accept="image/*" style="display:none;" />
+                <span id="vno-opt-header-file-name" style="font-size:12px;color:var(--vno-text-muted);">Chưa chọn hình</span>
+              </div>
+              <label style="display:flex;align-items:center;gap:8px;font-size:12px;">Vị trí cắt (trên ⇄ dưới)
+                <input type="range" id="vno-opt-header-pos" min="0" max="100" step="1" value="50" style="flex:1;" aria-label="Vị trí cắt hình theo chiều dọc" />
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;font-size:12px;">Độ phủ tối (giúp chữ dễ đọc)
+                <input type="range" id="vno-opt-header-dim" min="0" max="70" step="5" value="25" style="flex:1;" aria-label="Độ phủ tối lên hình, từ 0 đến 70 phần trăm" />
+              </label>
+            </div>
+            <div id="vno-opt-header-error" role="alert" style="display:none;margin-top:8px;font-size:12px;color:var(--vno-danger, #b91c1c);"></div>
+            <div style="margin-top:10px;"><button type="button" class="vno-btn" id="vno-opt-header-reset">Đặt lại mặc định</button></div>
           </fieldset>
 
           <!-- Section Cỡ chữ -->
@@ -1296,8 +1326,98 @@ export class AppShell {
     const cancelBtn = overlay.querySelector(".vno-options-cancel-btn");
     const closeBtn = overlay.querySelector(".vno-options-close-btn");
 
+    // --- Khu vực tiêu đề: xem trước trực tiếp, chỉ lưu khi bấm Đồng ý ---
+    let headerCommitted = false;
+    let headerDraft = headerTheme.get();
+    let headerImageSource = null;
+    let headerImageLuminance = 0.35;
+    const headerEl = (selector) => overlay.querySelector(selector);
+    const headerError = (message) => {
+      const box = headerEl("#vno-opt-header-error");
+      box.textContent = message || "";
+      box.style.display = message ? "block" : "none";
+    };
+    const previewHeader = () => headerTheme.preview(headerDraft, headerImageLuminance);
+    const syncHeaderRows = () => {
+      headerEl("#vno-opt-header-color-row").style.display = headerDraft.mode === "color" ? "flex" : "none";
+      headerEl("#vno-opt-header-image-row").style.display = headerDraft.mode === "image" ? "flex" : "none";
+      const radio = overlay.querySelector(`input[name="vno-opt-header"][value="${headerDraft.mode}"]`);
+      if (radio) radio.checked = true;
+      headerEl("#vno-opt-header-color").value = headerDraft.color;
+      headerEl("#vno-opt-header-pos").value = String(headerDraft.position);
+      headerEl("#vno-opt-header-dim").value = String(Math.round(headerDraft.dim * 100));
+      headerEl("#vno-opt-header-file-name").textContent = headerDraft.image ? (headerImageSource ? "Đã chọn hình mới" : "Đang dùng hình đã lưu") : "Chưa chọn hình";
+    };
+    const rebuildHeaderStrip = () => {
+      if (!headerImageSource) return;
+      const strip = headerImageSource.strip(headerDraft.position);
+      headerDraft = { ...headerDraft, image: strip.dataUrl, imageColor: strip.color };
+      headerImageLuminance = strip.luminance;
+    };
+    overlay.querySelectorAll('input[name="vno-opt-header"]').forEach((radio) => radio.addEventListener("change", () => {
+      headerError("");
+      const mode = radio.value;
+      if (mode === "image" && !headerDraft.image) {
+        headerDraft = { ...headerDraft, mode: "image" };
+        syncHeaderRows();
+        headerEl("#vno-opt-header-pick").focus();
+        return; // chưa có hình: chờ người dùng chọn rồi mới xem trước
+      }
+      headerDraft = { ...headerDraft, mode };
+      syncHeaderRows();
+      previewHeader();
+    }));
+    overlay.querySelectorAll(".vno-opt-header-swatch").forEach((button) => button.addEventListener("click", () => {
+      headerDraft = { ...headerDraft, mode: "color", color: button.dataset.color };
+      syncHeaderRows();
+      previewHeader();
+    }));
+    headerEl("#vno-opt-header-color").addEventListener("input", (event) => {
+      headerDraft = { ...headerDraft, mode: "color", color: event.target.value };
+      previewHeader();
+    });
+    headerEl("#vno-opt-header-pick").addEventListener("click", () => headerEl("#vno-opt-header-file").click());
+    headerEl("#vno-opt-header-file").addEventListener("change", async (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      headerError("");
+      try {
+        const bar = document.querySelector(".vno-topbar");
+        const tabs = document.querySelector(".vno-ribbon-tabs");
+        headerImageSource = await loadHeaderImage(file, {
+          headerHeightPx: (bar?.offsetHeight || 44) + (tabs?.offsetHeight || 34),
+          viewportWidthPx: window.innerWidth || 1366
+        });
+        headerDraft = { ...headerDraft, mode: "image" };
+        rebuildHeaderStrip();
+        syncHeaderRows();
+        headerEl("#vno-opt-header-file-name").textContent = file.name;
+        previewHeader();
+      } catch (error) {
+        headerError(error && error.message ? error.message : "Không dùng được hình này.");
+      }
+    });
+    headerEl("#vno-opt-header-pos").addEventListener("input", (event) => {
+      headerDraft = { ...headerDraft, position: Number(event.target.value) };
+      rebuildHeaderStrip();
+      previewHeader();
+    });
+    headerEl("#vno-opt-header-dim").addEventListener("input", (event) => {
+      headerDraft = { ...headerDraft, dim: Number(event.target.value) / 100 };
+      previewHeader();
+    });
+    headerEl("#vno-opt-header-reset").addEventListener("click", () => {
+      headerError("");
+      headerImageSource = null;
+      headerDraft = { mode: "default", color: "#0f4c81", image: "", imageColor: "#1f2937", dim: 0.25, position: 50 };
+      syncHeaderRows();
+      previewHeader();
+    });
+    syncHeaderRows();
+
     const closeDialog = () => {
       document.removeEventListener("keydown", onKeyDown);
+      if (!headerCommitted) headerTheme.restore();
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
       if (previousFocused && typeof previousFocused.focus === "function") {
         previousFocused.focus();
@@ -1309,6 +1429,8 @@ export class AppShell {
       const selectedFontSize = overlay.querySelector('input[name="vno-opt-fontsize"]:checked')?.value || "normal";
       themeManager.setTheme(selectedTheme);
       themeManager.setFontSize(selectedFontSize);
+      headerTheme.save(headerDraft, headerImageLuminance);
+      headerCommitted = true;
       closeDialog();
     };
 

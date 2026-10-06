@@ -116,6 +116,24 @@ export const RETRO_PLATFORM_HELP_ENTRIES = [
     ]
   },
   {
+    id: "common.platform.headerThemeHelp",
+    app: "common",
+    commandIds: [],
+    title: "Đổi màu hoặc hình nền khu vực tiêu đề",
+    summary: "Tự chọn màu hoặc hình ảnh cho thanh tiêu đề và hàng thẻ ribbon (Trang đầu, Chèn, Bố cục…), không chỉ chế độ Sáng/Tối. Chữ tự đổi đen hoặc trắng để luôn dễ đọc. Áp dụng cho cả Doc, Sheet và Slide.",
+    ribbon: { tab: "Tệp", tabId: "file", group: "Tùy chọn" },
+    keywords: ["màu thanh tiêu đề", "hình nền", "đổi màu giao diện", "tùy biến giao diện", "chủ đề", "theme", "màu ribbon", "hình ảnh tiêu đề", "tùy chọn"],
+    steps: [
+      "Bấm nút Tệp ở góc trái, chọn Tùy chọn để mở hộp thoại Tùy chọn 3T Office.",
+      "Tìm mục Khu vực tiêu đề (thanh tiêu đề và thẻ ribbon). Có ba lựa chọn: Mặc định (theo Sáng/Tối), Một màu, Hình ảnh.",
+      "Chọn Một màu: bấm một ô màu gợi ý (xanh Doc, xanh lá, cam, tím, đỏ mận, xanh ngọc, xám, đen, vàng kem, xanh nhạt) hoặc dùng ô Màu khác để chọn bất kỳ màu nào. Thanh tiêu đề đổi ngay để bạn xem trước.",
+      "Chọn Hình ảnh: bấm Chọn hình… rồi chọn tệp PNG, JPG, WEBP, GIF hoặc BMP (tối đa 25 MB). Hình được thu nhỏ và cắt thành dải trải liền qua thanh tiêu đề và hàng thẻ; hình chỉ lưu trên máy bạn, không gửi đi đâu.",
+      "Kéo thanh Vị trí cắt để chọn phần hình nào hiện ra (trên hoặc dưới). Kéo thanh Độ phủ tối để làm tối hình khi chữ khó đọc (0–70%).",
+      "Bấm Đồng ý để lưu; bấm Hủy bỏ hoặc Esc để quay lại như cũ. Bấm Đặt lại mặc định để bỏ màu/hình đã chọn.",
+      "Lưu ý: màu hoặc hình bạn chọn vẫn giữ khi đổi giữa chế độ Sáng/Tối và khi mở lại ứng dụng. Chữ trên thanh tiêu đề tự chuyển đen hoặc trắng theo độ sáng của nền."
+    ]
+  },
+  {
     id: "common.platform.contextualF1Help",
     app: "common",
     commandIds: [
