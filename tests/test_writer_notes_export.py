@@ -197,6 +197,38 @@ class WriterMergeFieldExportTests(unittest.TestCase):
         out = patcher.postprocess_writer_merge_fields(_docx(body), source_html=html)
         self.assertNotIn("MERGEFIELD", _read(out, "word/document.xml"))
 
+    def test_if_rules_export_word_operators_quotes_and_empty_values(self):
+        html = ('<span data-merge-if="HoTen" data-op="equals" data-value="A &amp; &quot;B&quot;" data-then="Có &quot;""""" data-else="Không">fallback</span>'
+                '<span data-merge-if="Ma" data-op="notEquals" data-value="x" data-then="Y" data-else="N">alt</span>'
+                '<span data-merge-if="So" data-op="greaterThan" data-value="2" data-then="Y" data-else="N">gt</span>'
+                '<span data-merge-if="So" data-op="lessThan" data-value="9" data-then="Y" data-else="N">lt</span>'
+                '<span data-merge-if="DiaChi" data-op="empty" data-value="ignored" data-then="trống" data-else="có">empty</span>'
+                '<span data-merge-if="DiaChi" data-op="notEmpty" data-value="ignored" data-then="có" data-else="trống">nonempty</span>')
+        body = ''.join(f'<w:p><w:r><w:t>{word}</w:t></w:r></w:p>' for word in ('fallback','alt','gt','lt','empty','nonempty'))
+        doc = _read(patcher.postprocess_writer_if_ref_fields(_docx(body), source_html=html), 'word/document.xml')
+        self.assertEqual(doc.count('w:instr=" IF { MERGEFIELD'), 6)
+        for part in (' = ', ' &lt;&gt; ', ' &gt; ', ' &lt; ', '&quot;&quot;'):
+            self.assertIn(part, doc)
+        self.assertIn('A &amp; \\&quot;B\\&quot;', doc)
+        self.assertNotIn('<w:r><w:fldSimple', doc)
+
+    def test_rule_fallback_can_be_embedded_in_run_text(self):
+        body = '<w:p><w:r><w:rPr><w:i/></w:rPr><w:t>Before fallback after</w:t></w:r></w:p>'
+        html = '<span data-merge-if="Flag" data-op="equals" data-value="Y" data-then="Yes" data-else="No">fallback</span>'
+        doc = _read(patcher.postprocess_writer_if_ref_fields(_docx(body), source_html=html), 'word/document.xml')
+        self.assertIn('Before', doc)
+        self.assertIn('after', doc)
+        self.assertIn('<w:i/>', doc)
+        self.assertIn('w:instr=" IF { MERGEFIELD Flag }', doc)
+
+    def test_cross_reference_anchor_becomes_ref_hyperlink_field(self):
+        body = '<w:p><w:bookmarkStart w:id="4" w:name="Heading_1"/><w:hyperlink w:anchor="Heading_1"><w:r><w:t>Mục 1</w:t></w:r></w:hyperlink></w:p>'
+        html = '<a class="vno-cross-ref" data-xref-type="heading" href="#Heading_1">Mục 1</a>'
+        doc = _read(patcher.postprocess_writer_if_ref_fields(_docx(body), source_html=html), 'word/document.xml')
+        self.assertIn('w:instr=" REF Heading_1 \\h "', doc)
+        self.assertNotIn('<w:hyperlink', doc)
+        self.assertIn('w:name="Heading_1"', doc)
+
 
 class WriterCaptionSeqTests(unittest.TestCase):
     def test_caption_number_becomes_seq_field(self):
