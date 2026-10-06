@@ -1825,6 +1825,7 @@ def _apply_native_export_postprocess(
                     patched = patcher.postprocess_writer_drop_caps(
                         patched, source_html=source_html,
                     )
+                    patched = patcher.postprocess_writer_strip_markers(patched)
             if patched != converted_docx:
                 with open(out_path, "wb") as handle:
                     handle.write(patched)

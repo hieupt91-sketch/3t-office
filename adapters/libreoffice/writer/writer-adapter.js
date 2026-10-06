@@ -13963,7 +13963,7 @@ export class WriterAdapter {
   _notesForExport(html) {
     const source = String(html || "");
     // Tài liệu nhập từ DOCX (đoạn mang data-vno-src-hash) đi đường vá bản gốc và giữ chú thích gốc: không đụng tới.
-    if (!/data-vno-(?:footnote|endnote)/i.test(source) || /data-vno-(?:src-hash|untouched)=/i.test(source)
+    if (!/data-vno-(?:footnote|endnote)/i.test(source)
       || typeof document === "undefined" || typeof document.createElement !== "function") {
       return { html: source, metadataComment: "" };
     }

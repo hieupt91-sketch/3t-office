@@ -120,6 +120,24 @@ class WriterPageDecorExportTests(unittest.TestCase):
         self.assertNotIn("<w:background", _read(out, "word/document.xml"))
 
 
+class WriterStripMarkersTests(unittest.TestCase):
+    def test_edit_markers_removed_with_their_ends_but_user_bookmarks_kept(self):
+        body = ('<w:p><w:bookmarkStart w:id="3" w:name="vno-edited-1"/><w:bookmarkEnd w:id="3"/><w:r><w:t>A</w:t></w:r></w:p>'
+                '<w:p><w:bookmarkStart w:id="4" w:name="dautrang1"/><w:bookmarkEnd w:id="4"/><w:bookmarkStart w:id="5" w:name="vno-untouched-2"/><w:r><w:t>B</w:t></w:r><w:bookmarkEnd w:id="5"/></w:p>')
+        out = patcher.postprocess_writer_strip_markers(_docx(body))
+        document = _read(out, "word/document.xml")
+        self.assertNotIn("vno-edited-", document)
+        self.assertNotIn("vno-untouched-", document)
+        self.assertIn('w:name="dautrang1"', document)
+        self.assertIn('<w:bookmarkEnd w:id="4"/>', document)
+        self.assertNotIn('<w:bookmarkEnd w:id="3"/>', document)
+        self.assertNotIn('<w:bookmarkEnd w:id="5"/>', document)
+
+    def test_without_markers_nothing_changes(self):
+        docx = _docx('<w:p><w:r><w:t>A</w:t></w:r></w:p>')
+        self.assertEqual(patcher.postprocess_writer_strip_markers(docx), docx)
+
+
 class WriterDropCapExportTests(unittest.TestCase):
     def test_drop_cap_letter_becomes_frame_paragraph(self):
         body = '<w:p><w:pPr><w:jc w:val="both"/></w:pPr><w:r><w:rPr><w:sz w:val="28"/></w:rPr><w:t>Dau doan van ban</w:t></w:r></w:p>'
