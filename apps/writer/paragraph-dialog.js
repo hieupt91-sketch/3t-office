@@ -19,6 +19,8 @@ export const ALIGN_OPTIONS = [
   { id: "justify", label: "Đều hai bên" }
 ];
 
+export const OUTLINE_OPTIONS = [{ id: 0, label: "Nội dung văn bản" }, ...Array.from({ length: 9 }, (_, i) => ({ id: i + 1, label: `Mức ${i + 1}` }))];
+
 export const SPECIAL_OPTIONS = [
   { id: "none", label: "(Không có)" },
   { id: "firstLine", label: "Dòng đầu" },
@@ -65,6 +67,7 @@ export function normalizeParagraphDialogValues(raw = {}, contentWidthMm = 160) {
       lineMode,
       lineValue,
       // Tab "Ngắt dòng và ngắt trang": mặc định giống Word (kiểm soát dòng mồ côi/góa bật, các tùy chọn khác tắt)
+      outlineLevel: clamp(Math.round(numberOr(raw.outlineLevel, 0)), 0, 9),
       widowControl: raw.widowControl === undefined ? true : Boolean(raw.widowControl),
       keepNext: Boolean(raw.keepNext),
       keepLines: Boolean(raw.keepLines),
@@ -102,7 +105,7 @@ export async function showParagraphDialog(current = {}) {
     const cur = {
       align: "left", leftCm: 0, rightCm: 0, special: "none", specialCm: 1.27,
       beforePt: 0, afterPt: 0, lineMode: "single", lineValue: 1, contentWidthMm: 160,
-      widowControl: true, keepNext: false, keepLines: false, pageBreakBefore: false, ...current
+      outlineLevel: 0, widowControl: true, keepNext: false, keepLines: false, pageBreakBefore: false, ...current
     };
     const checked = value => (value ? " checked" : "");
     const tabStyle = "padding:6px 14px; border:1px solid #cbd5e1; border-bottom:none; background:#f1f5f9; border-radius:4px 4px 0 0; cursor:pointer; font-size:13px;";
@@ -132,7 +135,10 @@ export async function showParagraphDialog(current = {}) {
               <label for="vno-para-align" style="${fieldStyle}">Căn lề</label>
               <select id="vno-para-align" class="vno-dialog-input" style="${inputStyle}">${options(ALIGN_OPTIONS, cur.align)}</select>
             </div>
-            <div></div>
+            <div>
+              <label for="vno-para-outline" style="${fieldStyle}">Mức đại cương</label>
+              <select id="vno-para-outline" class="vno-dialog-input" style="${inputStyle}">${OUTLINE_OPTIONS.map(item => `<option value="${item.id}"${Number(cur.outlineLevel) === item.id ? " selected" : ""}>${item.label}</option>`).join("")}</select>
+            </div>
             <div>
               <label for="vno-para-left" style="${fieldStyle}">Thụt lề trái (cm)</label>
               <input type="number" id="vno-para-left" class="vno-dialog-input" min="0" max="50" step="0.1" value="${cur.leftCm}" style="${inputStyle}" />
@@ -203,6 +209,7 @@ export async function showParagraphDialog(current = {}) {
       afterPt: el("#vno-para-after").value,
       lineMode: lineSelect.value,
       lineValue: lineBy.value,
+      outlineLevel: el("#vno-para-outline").value,
       widowControl: el("#vno-para-widow").checked,
       keepNext: el("#vno-para-keepnext").checked,
       keepLines: el("#vno-para-keeplines").checked,
