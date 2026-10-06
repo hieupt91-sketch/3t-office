@@ -355,6 +355,7 @@ export function showPromptDialog({
           <label for="${inputId}" style="font-size:13px;font-weight:500;color:var(--vno-text-primary);">${message}</label>
           <input type="text" id="${inputId}" class="vno-dialog-input" value="${defaultValue}" placeholder="${placeholder}" 
                  style="width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md);font-size:13px;outline:none;" />
+          <div class="vno-dialog-error" role="alert" aria-live="assertive" style="min-height:16px;color:#b91c1c;font-size:12px;font-weight:600;"></div>
         </div>
         <div class="vno-dialog-footer">
           <button class="vno-btn vno-dialog-cancel-btn">${cancelText}</button>
@@ -384,10 +385,25 @@ export function showPromptDialog({
     const cancelBtn = overlay.querySelector(".vno-dialog-cancel-btn");
     const closeBtn = overlay.querySelector(".vno-dialog-close-btn");
     const okBtn = overlay.querySelector(".vno-dialog-ok-btn");
+    const errorBox = overlay.querySelector(".vno-dialog-error");
 
-    okBtn.addEventListener("click", () => finish(input.value));
+    const commit = () => {
+      if (!String(input.value || "").trim()) {
+        errorBox.textContent = "Vui lòng nhập nội dung trước khi tiếp tục.";
+        input.setAttribute("aria-invalid", "true");
+        input.focus();
+        return;
+      }
+      finish(input.value);
+    };
+
+    okBtn.addEventListener("click", commit);
     cancelBtn.addEventListener("click", () => finish(null));
     closeBtn.addEventListener("click", () => finish(null));
+    input.addEventListener("input", () => {
+      errorBox.textContent = "";
+      input.removeAttribute("aria-invalid");
+    });
 
     overlay.addEventListener("click", (e) => {
       if (e.target === overlay) finish(null);
@@ -402,7 +418,7 @@ export function showPromptDialog({
         if (document.activeElement === cancelBtn || document.activeElement === closeBtn) {
           finish(null);
         } else {
-          finish(input.value);
+          commit();
         }
       } else if (e.key === "Tab") {
         trapFocus(dialogBox, e);
