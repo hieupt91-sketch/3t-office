@@ -15845,6 +15845,17 @@ export class WriterAdapter {
     const bodyDom = targetBodyDom;
     if (!bodyDom || !bodyDom.children || typeof bodyDom.querySelectorAll !== "function") return;
 
+    // Phần lớn tài liệu không có khung nổi neo theo trang: bỏ qua việc đo vị trí mọi khối (tài liệu 160 trang: ~145 ms mỗi lần).
+    if (typeof bodyDom.querySelector === "function") {
+      let hasPageFloats = true;
+      try { hasPageFloats = Boolean(bodyDom.querySelector('[data-vno-float][data-vno-relative-v="page"],[data-vno-float][data-vno-relative-v="margin"]')); } catch { hasPageFloats = true; }
+      if (!hasPageFloats) {
+        const styleEl = this._liveFloatStyleEl || (typeof document !== "undefined" ? document.getElementById?.("vno-live-float-tops") : null);
+        if (styleEl && styleEl.textContent) styleEl.textContent = "";
+        return;
+      }
+    }
+
     const dim = this.getPageDimensions ? this.getPageDimensions() : null;
     const marginTopCm = Number(dim?.margins?.top ?? 25.4) / 10;
 
