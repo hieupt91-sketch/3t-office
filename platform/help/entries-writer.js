@@ -5,6 +5,21 @@
 
 export const WRITER_HELP_ENTRIES = [
   {
+    id: "writer.mailMerge.ifRule.docx",
+    app: "writer",
+    commandIds: ["writer.mailMerge.ifRule", "writer.insert.crossReference"],
+    title: "Lưu quy tắc trộn thư và tham chiếu trong DOCX",
+    summary: "Quy tắc Nếu...Thì...Ngược lại được lưu thành trường IF của Word; tham chiếu chéo tới dấu trang được lưu thành trường REF để Word cập nhật được.",
+    ribbon: { tab: "Trộn thư / Tham chiếu", tabId: "mailings", group: "Quy tắc / Chú thích ảnh" },
+    keywords: ["IF", "REF", "DOCX", "trộn thư", "tham chiếu chéo", "dấu trang"],
+    steps: [
+      "Mở tab Trộn thư, nhóm Quy tắc, chọn Quy tắc để đặt trường, toán tử so sánh, giá trị, nội dung Thì và Ngược lại.",
+      "Chọn Tệp > Lưu thành và lưu dưới dạng DOCX. Khi mở tệp trong Microsoft Word, quy tắc được giữ dưới dạng trường IF; chọn trường rồi nhấn F9 để cập nhật.",
+      "Để tham chiếu tới tiêu đề hoặc dấu trang, mở tab Tham chiếu, nhóm Chú thích ảnh, chọn Tham chiếu chéo và chọn đích trong tài liệu.",
+      "Lưu DOCX rồi mở trong Word. Trường REF trỏ tới dấu trang nội bộ và có tùy chọn liên kết; nhấn Ctrl+A rồi F9 để cập nhật các trường trong tài liệu."
+    ]
+  },
+  {
     id: "writer.view.ruler.interactive",
     app: "writer",
     commandIds: ["writer.view.ruler", "writer.ruler.setParagraphIndents", "writer.ruler.setPageMargins"],

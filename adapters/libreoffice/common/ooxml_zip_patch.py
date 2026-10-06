@@ -16316,6 +16316,78 @@ def postprocess_writer_merge_fields(docx_bytes: bytes, *, source_html: str | Non
     return patch_ooxml_zip(docx_bytes, {"word/document.xml": document_xml.encode("utf-8")})
 
 
+def postprocess_writer_if_ref_fields(docx_bytes: bytes, *, source_html: str | None = None) -> bytes:
+    """Serialize Writer mail-merge rules and internal cross references as Word fields."""
+    if not docx_bytes or not source_html:
+        return docx_bytes
+    # Parse attributes and visible fallback text from the HTML saved by Writer.
+    class _Fields(HTMLParser):
+        def __init__(self):
+            super().__init__(convert_charrefs=True)
+            self.rules = []
+            self.refs = []
+            self.active = None
+        def handle_starttag(self, tag, attrs):
+            if tag != "span" and tag != "a": return
+            a = dict(attrs)
+            if "data-merge-if" in a:
+                self.active = ["if", a, ""]
+            elif tag == "a" and "vno-cross-ref" in (a.get("class") or "") and (a.get("href") or "").startswith("#"):
+                self.active = ["ref", a, ""]
+        def handle_data(self, data):
+            if self.active: self.active[2] += data
+        def handle_endtag(self, tag):
+            if self.active and ((self.active[0] == "if" and tag == "span") or (self.active[0] == "ref" and tag == "a")):
+                (self.rules if self.active[0] == "if" else self.refs).append(self.active)
+                self.active = None
+    parser = _Fields()
+    parser.feed(source_html)
+    document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
+    if not document_bytes or not (parser.rules or parser.refs): return docx_bytes
+    xml = document_bytes.decode("utf-8", errors="replace")
+    changed = False
+    for _, attrs, fallback in parser.rules:
+        field = (attrs.get("data-merge-if") or "").strip()
+        op = attrs.get("data-op") or "equals"
+        operators = {"equals": "=", "notEquals": "<>", "greaterThan": ">", "lessThan": "<", "empty": "=", "notEmpty": "<>"}
+        if not field or op not in operators: continue
+        value = "" if op in ("empty", "notEmpty") else (attrs.get("data-value") or "")
+        then = attrs.get("data-then") or ""
+        otherwise = attrs.get("data-else") or ""
+        # Word field arguments use escaped quotes inside quoted literals.
+        quote = lambda value: '"' + value.replace('\\', '\\\\').replace('"', '\\"') + '"'
+        instr = f' IF {{ MERGEFIELD {field} }} {operators[op]} {quote(value)} {quote(then)} {quote(otherwise)} '
+        field_xml = f'<w:fldSimple w:instr="{_escape_xml(instr)}"><w:r><w:t>{_escape_xml(fallback)}</w:t></w:r></w:fldSimple>'
+        if fallback:
+            text_pattern = re.compile(r'<w:r\b[^>]*>(?P<rpr><w:rPr>[\s\S]*?</w:rPr>)?<w:t(?:\s[^>]*)?>(?P<text>[^<]*)</w:t></w:r>')
+            escaped_fallback = _escape_xml(fallback)
+            runs = list(text_pattern.finditer(xml))
+            exact = next((m for m in runs if m.group("text") == escaped_fallback), None)
+            embedded = [m for m in runs if escaped_fallback in m.group("text")]
+            selected = exact or (embedded[0] if len(embedded) == 1 else None)
+            if selected:
+                text = selected.group("text")
+                at = text.find(escaped_fallback)
+                rpr = selected.group("rpr") or ""
+                before, after = text[:at], text[at + len(escaped_fallback):]
+                pieces = []
+                if before: pieces.append(f'<w:r>{rpr}<w:t xml:space="preserve">{before}</w:t></w:r>')
+                pieces.append(field_xml.replace('<w:r><w:t>', f'<w:r>{rpr}<w:t>'))
+                if after: pieces.append(f'<w:r>{rpr}<w:t xml:space="preserve">{after}</w:t></w:r>')
+                xml = xml[:selected.start()] + "".join(pieces) + xml[selected.end():]
+                changed = True
+    for _, attrs, display in parser.refs:
+        target = (attrs.get("href") or "")[1:]
+        if not target: continue
+        # LibreOffice emits the bookmark name as the hyperlink anchor.
+        instr = f' REF {target} \\h '
+        field_xml = f'<w:fldSimple w:instr="{_escape_xml(instr)}"><w:r><w:t>{_escape_xml(display)}</w:t></w:r></w:fldSimple>'
+        pattern = re.compile(r'<w:hyperlink\b(?=[^>]*\bw:anchor="' + re.escape(_escape_xml(target)) + r'")[^>]*>[\s\S]*?</w:hyperlink>')
+        xml, count = pattern.subn(lambda _: field_xml, xml, count=1)
+        changed |= count > 0
+    return patch_ooxml_zip(docx_bytes, {"word/document.xml": xml.encode("utf-8")}) if changed else docx_bytes
+
+
 _CSS_NAMED_COLORS = {"black": "000000", "white": "FFFFFF", "red": "FF0000", "green": "008000", "blue": "0000FF", "yellow": "FFFF00",
                      "gray": "808080", "grey": "808080", "orange": "FFA500", "navy": "000080"}
 
