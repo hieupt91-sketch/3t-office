@@ -665,5 +665,29 @@ export async function runWriterColumnsTests() {
     }
   })();
 
+  await (async () => {
+    const cleanup = setupMockEnvironment();
+    try {
+      const promise = showColumnsDialog({ count: 1, gap: 10, rule: false });
+      const overlay = document.body.querySelector(".vno-dialog-overlay");
+      const countInput = overlay?.querySelector("#vno-col-count-input");
+      const errorBox = overlay?.querySelector("#vno-col-error");
+      const okBtn = overlay?.querySelector(".vno-dialog-ok-btn");
+      countInput.value = "0";
+      okBtn.click();
+      assert(
+        "Writer Columns Dialog: giá trị 0 báo lỗi tiếng Việt và giữ dialog mở",
+        Boolean(document.body.querySelector(".vno-dialog-overlay")) && /1 đến 4/.test(errorBox?.textContent || ""),
+        `Không thấy lỗi hợp lệ: ${errorBox?.textContent || ""}`
+      );
+      countInput.value = "2";
+      okBtn.click();
+      const result = await promise;
+      assert("Writer Columns Dialog: sửa giá trị rồi áp dụng được", result?.count === 2, JSON.stringify(result));
+    } finally {
+      cleanup();
+    }
+  })();
+
   return results;
 }

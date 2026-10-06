@@ -35,18 +35,19 @@ export async function runWriterParagraphDialogTests() {
     assert(!wide.values && /thụt lề/i.test(wide.error), "phải từ chối tổng thụt lề vượt bề rộng trang");
   });
 
-  await test("Đoạn văn: giãn dòng Đơn/1,5/Kép dùng hệ số cố định; Nhiều dòng và Chính xác bị kẹp trong giới hạn", () => {
+  await test("Đoạn văn: giãn dòng Đơn/1,5/Kép dùng hệ số cố định; giá trị ngoài giới hạn bị từ chối", () => {
     assert(LINE_MODES.map(item => item.id).join() === "single,onehalf,double,multiple,exact", "danh sách chế độ giãn dòng đổi");
-    assert(normalizeParagraphDialogValues({ lineMode: "multiple", lineValue: "99" }).values.lineValue === 10, "Nhiều dòng tối đa 10");
-    assert(normalizeParagraphDialogValues({ lineMode: "multiple", lineValue: "0" }).values.lineValue === 0.5, "Nhiều dòng tối thiểu 0,5");
+    assert(/0.5–10/.test(normalizeParagraphDialogValues({ lineMode: "multiple", lineValue: "99" }).error), "Nhiều dòng >10 phải báo lỗi");
+    assert(/0.5–10/.test(normalizeParagraphDialogValues({ lineMode: "multiple", lineValue: "0" }).error), "Nhiều dòng <0,5 phải báo lỗi");
     assert(normalizeParagraphDialogValues({ lineMode: "exact", lineValue: "18" }).values.lineValue === 18, "Chính xác giữ 18pt");
     assert(normalizeParagraphDialogValues({ lineMode: "abc" }).values.lineMode === "single", "chế độ lạ về Đơn");
   });
 
-  await test("Đoạn văn: giá trị rác (chữ, âm) được kẹp về mặc định an toàn", () => {
-    const values = normalizeParagraphDialogValues({ align: "x", leftCm: "abc", beforePt: "-5", afterPt: "999" }).values;
-    assert(values.align === "left" && values.leftMm === 0, "căn lề và thụt lề rác phải về mặc định");
-    assert(values.beforePt === 0 && values.afterPt === 240, `khoảng cách phải kẹp 0..240, thực tế ${values.beforePt}/${values.afterPt}`);
+  await test("Đoạn văn: giá trị chữ, rỗng, âm và vượt giới hạn đều có lỗi tiếng Việt", () => {
+    assert(/số hợp lệ/.test(normalizeParagraphDialogValues({ leftCm: "abc" }).error), "chữ ở ô số phải báo lỗi");
+    assert(/Vui lòng nhập/.test(normalizeParagraphDialogValues({ leftCm: "" }).error), "ô số rỗng phải báo lỗi");
+    assert(/0–240/.test(normalizeParagraphDialogValues({ beforePt: "-5" }).error), "số âm phải báo giới hạn");
+    assert(/0–240/.test(normalizeParagraphDialogValues({ afterPt: "999" }).error), "số vượt tối đa phải báo giới hạn");
   });
 
   await test("Đoạn văn: lệnh có định nghĩa, nút góc nhóm ở cả tab Trang đầu và Bố cục, bài Hướng dẫn có đủ bước", () => {
