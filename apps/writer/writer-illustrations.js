@@ -185,6 +185,8 @@ export async function showShapeDialog(currentOptions = null) {
       });
     });
 
+    overlay.querySelector(".vno-shape-card.is-selected")?.focus();
+
     const cleanup = (result) => {
       document.removeEventListener("keydown", onKeyDown);
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
@@ -399,6 +401,7 @@ export async function showDiagramDialog(currentOptions = null) {
             </label>
             <input id="vno-diagram-count-input" type="number" min="3" max="6" value="4" class="vno-input" style="width:70px; text-align:center; padding:4px 8px; border:1px solid var(--vno-border-default, #cbd5e1); border-radius:4px; font-size:13px; background:var(--vno-bg-surface); color:var(--vno-text-primary);" />
           </div>
+          <div class="vno-dialog-error" role="alert" aria-live="polite" hidden style="color:var(--vno-danger, #b91c1c); font-size:12px;"></div>
         </div>
         <div class="vno-dialog-footer" style="display:flex; justify-content:flex-end; gap:8px;">
           <button type="button" class="vno-btn vno-dialog-cancel-btn">${t("common.cancel")}</button>
@@ -427,6 +430,30 @@ export async function showDiagramDialog(currentOptions = null) {
       });
     });
 
+    const countInput = overlay.querySelector("#vno-diagram-count-input");
+    const errorMessage = overlay.querySelector(".vno-dialog-error");
+    const readCount = () => {
+      const rawValue = countInput?.value.trim() || "";
+      const count = Number(rawValue);
+      if (rawValue === "" || !Number.isInteger(count) || count < 3 || count > 6) {
+        if (errorMessage) {
+          errorMessage.hidden = false;
+          errorMessage.textContent = "Vui lòng nhập số nguyên từ 3 đến 6.";
+        }
+        countInput?.setAttribute("aria-invalid", "true");
+        countInput?.focus();
+        return null;
+      }
+      errorMessage?.setAttribute("hidden", "");
+      countInput?.removeAttribute("aria-invalid");
+      return count;
+    };
+    countInput?.addEventListener("input", () => {
+      errorMessage?.setAttribute("hidden", "");
+      countInput.removeAttribute("aria-invalid");
+    });
+    overlay.querySelector(".vno-diagram-card.is-selected")?.focus();
+
     const cleanup = (result) => {
       document.removeEventListener("keydown", onKeyDown);
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
@@ -437,8 +464,8 @@ export async function showDiagramDialog(currentOptions = null) {
     };
 
     overlay.querySelector(".vno-dialog-ok-btn")?.addEventListener("click", () => {
-      const countInput = overlay.querySelector("#vno-diagram-count-input");
-      const count = Number(countInput?.value) || 4;
+      const count = readCount();
+      if (count === null) return;
       cleanup({ type: selectedType, count });
     });
 
@@ -454,9 +481,7 @@ export async function showDiagramDialog(currentOptions = null) {
         cleanup(null);
       } else if (e.key === "Enter") {
         e.preventDefault();
-        const countInput = overlay.querySelector("#vno-diagram-count-input");
-        const count = Number(countInput?.value) || 4;
-        cleanup({ type: selectedType, count });
+        overlay.querySelector(".vno-dialog-ok-btn")?.click();
       } else if (e.key === "Tab") {
         trapFocus(dialogBox, e);
       }
@@ -651,6 +676,7 @@ export async function showChartDialog(currentOptions = null) {
               `).join("")}
             </div>
           </div>
+          <div class="vno-dialog-error" role="alert" aria-live="polite" hidden style="color:var(--vno-danger, #b91c1c); font-size:12px;"></div>
 
           <!-- Khung xem trước trực quan (Live SVG Preview) -->
           <div>
@@ -676,6 +702,7 @@ export async function showChartDialog(currentOptions = null) {
     const titleInput = overlay.querySelector("#vno-chart-title-input");
     const typeSelect = overlay.querySelector("#vno-chart-type-select");
     const previewBox = overlay.querySelector("#vno-chart-preview-box");
+    const errorMessage = overlay.querySelector(".vno-dialog-error");
 
     const getFormValues = () => {
       const lblInputs = overlay.querySelectorAll(".vno-chart-lbl");
@@ -694,6 +721,24 @@ export async function showChartDialog(currentOptions = null) {
       };
     };
 
+    const getValidatedFormValues = () => {
+      const values = getFormValues();
+      const valInputs = Array.from(overlay.querySelectorAll(".vno-chart-val"));
+      const invalidIndex = valInputs.findIndex(input => input.value.trim() === "" || !Number.isFinite(Number(input.value)));
+      if (invalidIndex >= 0) {
+        if (errorMessage) {
+          errorMessage.hidden = false;
+          errorMessage.textContent = `Vui lòng nhập giá trị số hợp lệ cho mục ${invalidIndex + 1}.`;
+        }
+        valInputs[invalidIndex].setAttribute("aria-invalid", "true");
+        valInputs[invalidIndex].focus();
+        return null;
+      }
+      errorMessage?.setAttribute("hidden", "");
+      valInputs.forEach(input => input.removeAttribute("aria-invalid"));
+      return values;
+    };
+
     const updatePreview = () => {
       if (!previewBox) return;
       const vals = getFormValues();
@@ -703,9 +748,15 @@ export async function showChartDialog(currentOptions = null) {
     titleInput?.addEventListener("input", updatePreview);
     typeSelect?.addEventListener("change", updatePreview);
     overlay.querySelectorAll(".vno-chart-lbl, .vno-chart-val").forEach(el => {
-      el.addEventListener("input", updatePreview);
+      el.addEventListener("input", () => {
+        errorMessage?.setAttribute("hidden", "");
+        el.removeAttribute("aria-invalid");
+        updatePreview();
+      });
     });
     updatePreview();
+    titleInput?.focus();
+    titleInput?.select();
 
     const cleanup = (result) => {
       document.removeEventListener("keydown", onKeyDown);
@@ -717,7 +768,8 @@ export async function showChartDialog(currentOptions = null) {
     };
 
     overlay.querySelector(".vno-dialog-ok-btn")?.addEventListener("click", () => {
-      cleanup(getFormValues());
+      const values = getValidatedFormValues();
+      if (values) cleanup(values);
     });
 
     overlay.querySelector(".vno-dialog-cancel-btn")?.addEventListener("click", () => cleanup(null));

@@ -114,6 +114,7 @@ export function showHyperlinkDialog(options = {}) {
                    placeholder="${urlPlaceholder}"
                    style="width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid var(--vno-border-default,#cbd5e1);border-radius:6px;font-size:13px;outline:none;" />
           </div>
+          <div class="vno-dialog-error" role="alert" aria-live="assertive" style="min-height:16px;color:#b91c1c;font-size:12px;font-weight:600;"></div>
         </div>
         <div class="vno-dialog-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:12px 20px;border-top:1px solid var(--vno-border-default,#e2e8f0);">
           <button type="button" class="vno-btn vno-dialog-cancel-btn">${cancelLabel}</button>
@@ -129,6 +130,7 @@ export function showHyperlinkDialog(options = {}) {
     const okBtn = overlay.querySelector(".vno-dialog-ok-btn");
     const cancelBtn = overlay.querySelector(".vno-dialog-cancel-btn");
     const closeBtn = overlay.querySelector(".vno-dialog-close-btn");
+    const errorBox = overlay.querySelector(".vno-dialog-error");
 
     // Nếu đã có text nhưng chưa có url hoặc url mặc định -> focus vào urlInput
     if (defaultText && defaultText.trim()) {
@@ -152,6 +154,8 @@ export function showHyperlinkDialog(options = {}) {
       const rawUrl = (urlInput?.value || defaultUrl || "").trim();
       const rawText = (textInput?.value || defaultText || "").trim();
       if (!rawUrl || rawUrl === "https://" || rawUrl === "http://") {
+        errorBox.textContent = "Vui lòng nhập địa chỉ liên kết hợp lệ.";
+        urlInput?.setAttribute?.("aria-invalid", "true");
         urlInput?.focus?.();
         return;
       }
@@ -163,6 +167,10 @@ export function showHyperlinkDialog(options = {}) {
     okBtn?.addEventListener?.("click", commit);
     cancelBtn?.addEventListener?.("click", () => finish(null));
     closeBtn?.addEventListener?.("click", () => finish(null));
+    urlInput?.addEventListener?.("input", () => {
+      errorBox.textContent = "";
+      urlInput.removeAttribute?.("aria-invalid");
+    });
 
     overlay.addEventListener?.("click", (e) => {
       if (e.target === overlay) finish(null);

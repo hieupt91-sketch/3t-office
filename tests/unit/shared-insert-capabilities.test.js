@@ -6,6 +6,7 @@
 
 import assert from "node:assert/strict";
 import { showHyperlinkDialog, normalizeHyperlinkUrl } from "../../platform/ui-kit/hyperlink-dialog.js";
+import { showPromptDialog } from "../../platform/ui-kit/dialogs.js";
 import { showSymbolPicker, listAllSymbols, SYMBOL_CATEGORIES } from "../../platform/ui-kit/symbol-picker.js";
 import { COMMON_COMMANDS, WRITER_COMMANDS, SHEET_COMMANDS, SLIDES_COMMANDS } from "../../platform/commands/command-definitions.js";
 import { SHEET_HELP_ENTRIES } from "../../platform/help/entries-sheet.js";
@@ -87,8 +88,9 @@ class MockElement {
     }
   }
 
-  focus() { this._focused = true; }
+  focus() { this._focused = true; if (globalThis.document) globalThis.document.activeElement = this; }
   select() { this._selected = true; }
+  click() { this.dispatchEvent({ type: "click", target: this, preventDefault() {} }); }
 
   closest(sel) {
     let cur = this;
@@ -174,6 +176,7 @@ class MockElement {
 
   setAttribute(k, v) { this.attributes[k] = String(v); }
   getAttribute(k) { return this.attributes[k] || null; }
+  removeAttribute(k) { delete this.attributes[k]; }
 }
 
 export async function runSharedInsertCapabilitiesTests() {
@@ -252,6 +255,38 @@ export async function runSharedInsertCapabilitiesTests() {
       assert.equal(result.url, "https://3tcomputer.com");
       assert.equal(result.text, "Trang chủ");
       assert.equal(root.children.length, 0, "Overlay phải được dọn dẹp sau khi đóng");
+    } finally {
+      globalThis.document = origDoc;
+    }
+  });
+
+  await asyncTest("Dialog dùng chung: URL và prompt rỗng hiện lỗi tiếng Việt, giữ hộp thoại mở", async () => {
+    const origDoc = globalThis.document;
+    const root = new MockElement("body");
+    const docListeners = {};
+    globalThis.document = {
+      createElement: (tag) => new MockElement(tag), body: root, activeElement: root,
+      addEventListener: (type, fn) => { (docListeners[type] ||= []).push(fn); },
+      removeEventListener: (type, fn) => { docListeners[type] = (docListeners[type] || []).filter(cb => cb !== fn); }
+    };
+    try {
+      const linkPromise = showHyperlinkDialog({ url: "https://", text: "Liên kết" });
+      let overlay = root.children[0];
+      overlay.querySelector(".vno-dialog-ok-btn").click();
+      assert.equal(root.children.length, 1, "URL rỗng không được đóng dialog");
+      assert.match(overlay.querySelector(".vno-dialog-error").textContent, /Vui lòng.*hợp lệ/);
+      overlay.querySelector(".vno-hyperlink-url-input").value = "https://vnoffice.vn";
+      overlay.querySelector(".vno-dialog-ok-btn").click();
+      assert.equal((await linkPromise).url, "https://vnoffice.vn");
+
+      const promptPromise = showPromptDialog({ title: "Thêm ghi chú", message: "Nội dung" });
+      overlay = root.children[0];
+      overlay.querySelector(".vno-dialog-ok-btn").click();
+      assert.equal(root.children.length, 1, "Prompt rỗng không được đóng dialog");
+      assert.match(overlay.querySelector(".vno-dialog-error").textContent, /Vui lòng nhập nội dung/);
+      overlay.querySelector(".vno-dialog-input").value = "Nội dung hợp lệ";
+      overlay.querySelector(".vno-dialog-ok-btn").click();
+      assert.equal(await promptPromise, "Nội dung hợp lệ");
     } finally {
       globalThis.document = origDoc;
     }

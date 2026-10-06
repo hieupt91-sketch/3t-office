@@ -113,6 +113,7 @@ export async function showColumnsDialog(currentColumns = null) {
               </div>
             </div>
           </div>
+          <div id="vno-col-error" role="alert" aria-live="assertive" style="min-height:16px;color:#b91c1c;font-size:12px;font-weight:600;"></div>
         </div>
 
         <div class="vno-dialog-footer" style="display:flex; justify-content:space-between; align-items:center;">
@@ -136,6 +137,26 @@ export async function showColumnsDialog(currentColumns = null) {
     const previewSheet = overlay.querySelector("#vno-col-preview-sheet");
     const presetButtons = overlay.querySelectorAll(".vno-col-preset-btn");
     const btnRemove = overlay.querySelector(".vno-col-btn-remove");
+    const errorBox = overlay.querySelector("#vno-col-error");
+
+    const validate = () => {
+      const count = Number(countInput?.value);
+      const gap = Number(gapInput?.value);
+      let error = "";
+      let invalidInput = null;
+      if (!Number.isInteger(count) || count < 1 || count > 4) {
+        error = "Số cột phải là số nguyên từ 1 đến 4.";
+        invalidInput = countInput;
+      } else if (!Number.isFinite(gap) || gap < 0 || gap > 50) {
+        error = "Khoảng cách cột phải là số từ 0 đến 50 mm.";
+        invalidInput = gapInput;
+      }
+      errorBox.textContent = error;
+      countInput?.removeAttribute?.("aria-invalid");
+      gapInput?.removeAttribute?.("aria-invalid");
+      invalidInput?.setAttribute?.("aria-invalid", "true");
+      return error ? null : { count, gap, rule: Boolean(ruleInput?.checked) };
+    };
 
     const updatePreview = () => {
       if (!previewSheet) return;
@@ -194,8 +215,8 @@ export async function showColumnsDialog(currentColumns = null) {
     };
 
     // Event listeners
-    countInput?.addEventListener("input", updatePreview);
-    gapInput?.addEventListener("input", updatePreview);
+    countInput?.addEventListener("input", () => { validate(); updatePreview(); });
+    gapInput?.addEventListener("input", () => { validate(); updatePreview(); });
     ruleInput?.addEventListener("change", updatePreview);
 
     presetButtons.forEach(btn => {
@@ -204,6 +225,7 @@ export async function showColumnsDialog(currentColumns = null) {
         const g = Number(btn.getAttribute("data-gap")) || (c > 1 ? 10 : 0);
         if (countInput) countInput.value = String(c);
         if (gapInput) gapInput.value = String(g);
+        validate();
         updatePreview();
       });
     });
@@ -221,10 +243,12 @@ export async function showColumnsDialog(currentColumns = null) {
     };
 
     overlay.querySelector(".vno-dialog-ok-btn")?.addEventListener("click", () => {
-      const count = Math.max(1, Math.min(4, Number(countInput?.value) || 1));
-      const gap = Math.max(0, Number(gapInput?.value) || 0);
-      const rule = Boolean(ruleInput?.checked);
-      cleanup({ count, gap, rule });
+      const values = validate();
+      if (!values) {
+        (countInput?.getAttribute?.("aria-invalid") === "true" ? countInput : gapInput)?.focus?.();
+        return;
+      }
+      cleanup(values);
     });
 
     if (btnRemove) {

@@ -29,9 +29,14 @@ export const SPECIAL_OPTIONS = [
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
-function numberOr(value, fallback) {
-  const parsed = Number(String(value ?? "").replace(",", "."));
-  return Number.isFinite(parsed) ? parsed : fallback;
+function readNumber(raw, key, fallback, min, max, label) {
+  if (!Object.prototype.hasOwnProperty.call(raw, key)) return { value: fallback };
+  const source = String(raw[key] ?? "").trim().replace(",", ".");
+  if (!source) return { error: `Vui lòng nhập ${label}.` };
+  const value = Number(source);
+  if (!Number.isFinite(value)) return { error: `${label} phải là một số hợp lệ.` };
+  if (value < min || value > max) return { error: `${label} phải nằm trong khoảng ${min}–${max}.` };
+  return { value };
 }
 
 /**
@@ -40,16 +45,26 @@ function numberOr(value, fallback) {
  */
 export function normalizeParagraphDialogValues(raw = {}, contentWidthMm = 160) {
   const align = ALIGN_OPTIONS.some(item => item.id === raw.align) ? raw.align : "left";
-  const leftCm = clamp(numberOr(raw.leftCm, 0), 0, 50);
-  const rightCm = clamp(numberOr(raw.rightCm, 0), 0, 50);
+  const leftResult = readNumber(raw, "leftCm", 0, 0, 50, "Thụt lề trái");
+  const rightResult = readNumber(raw, "rightCm", 0, 0, 50, "Thụt lề phải");
+  if (leftResult.error || rightResult.error) return { error: leftResult.error || rightResult.error };
+  const leftCm = leftResult.value;
+  const rightCm = rightResult.value;
   const special = SPECIAL_OPTIONS.some(item => item.id === raw.special) ? raw.special : "none";
-  const specialCm = special === "none" ? 0 : clamp(numberOr(raw.specialCm, 1.27), 0, 50);
-  const beforePt = clamp(numberOr(raw.beforePt, 0), 0, 240);
-  const afterPt = clamp(numberOr(raw.afterPt, 0), 0, 240);
+  const specialResult = special === "none" ? { value: 0 } : readNumber(raw, "specialCm", 1.27, 0, 50, "Giá trị thụt lề đặc biệt");
+  const beforeResult = readNumber(raw, "beforePt", 0, 0, 240, "Khoảng cách trước đoạn");
+  const afterResult = readNumber(raw, "afterPt", 0, 0, 240, "Khoảng cách sau đoạn");
+  if (specialResult.error || beforeResult.error || afterResult.error) return { error: specialResult.error || beforeResult.error || afterResult.error };
+  const specialCm = specialResult.value;
+  const beforePt = beforeResult.value;
+  const afterPt = afterResult.value;
   const lineMode = LINE_MODES.some(item => item.id === raw.lineMode) ? raw.lineMode : "single";
-  let lineValue = numberOr(raw.lineValue, lineMode === "exact" ? 18 : 1);
-  if (lineMode === "multiple") lineValue = clamp(lineValue, 0.5, 10);
-  if (lineMode === "exact") lineValue = clamp(lineValue, 1, 1584);
+  let lineValue = LINE_MODES.find(item => item.id === lineMode)?.value || 1;
+  if (lineMode === "multiple" || lineMode === "exact") {
+    const lineResult = readNumber(raw, "lineValue", lineMode === "exact" ? 18 : 1, lineMode === "multiple" ? 0.5 : 1, lineMode === "multiple" ? 10 : 1584, "Giá trị giãn dòng");
+    if (lineResult.error) return { error: lineResult.error };
+    lineValue = lineResult.value;
+  }
   if ((leftCm + rightCm) * 10 > contentWidthMm - 10) {
     return { error: "Tổng thụt lề trái và phải quá lớn so với bề rộng trang. Hãy giảm thụt lề." };
   }
@@ -67,7 +82,7 @@ export function normalizeParagraphDialogValues(raw = {}, contentWidthMm = 160) {
       lineMode,
       lineValue,
       // Tab "Ngắt dòng và ngắt trang": mặc định giống Word (kiểm soát dòng mồ côi/góa bật, các tùy chọn khác tắt)
-      outlineLevel: clamp(Math.round(numberOr(raw.outlineLevel, 0)), 0, 9),
+      outlineLevel: clamp(Math.round(Number(raw.outlineLevel) || 0), 0, 9),
       widowControl: raw.widowControl === undefined ? true : Boolean(raw.widowControl),
       keepNext: Boolean(raw.keepNext),
       keepLines: Boolean(raw.keepLines),
