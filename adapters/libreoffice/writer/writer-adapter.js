@@ -458,7 +458,7 @@ export class WriterAdapter {
       ? " data-vno-equation-original-omml=\"" + this._escapeHtml(originalOmml) + "\""
       : "";
     const displayAttribute = display === "block" ? " data-vno-equation-display=\"block\"" : "";
-    const label = this._escapeHtml(t("writer.insert.equation") + ": " + String(linear || "").trim());
+    const label = this._escapeHtml(t("writer.insert.equation", "Phương trình") + ": " + String(linear || "").trim());
     return "<span class=\"vno-equation\" role=\"math\" tabindex=\"0\" contenteditable=\"false\""
       + " data-vno-equation=\"true\" data-vno-equation-id=\"" + safeId + "\""
       + " data-vno-equation-linear=\"" + this._escapeHtml(linear || "") + "\""
@@ -10031,7 +10031,7 @@ export class WriterAdapter {
       target.setAttribute("data-vno-equation-linear", linear);
       target.setAttribute("data-vno-equation-mathml", encodeURIComponent(mathml));
       target.setAttribute("data-vno-equation-edited", "true");
-      target.setAttribute("aria-label", t("writer.insert.equation") + ": " + linear);
+      target.setAttribute("aria-label", t("writer.insert.equation", "Phương trình") + ": " + linear);
       if (display === "block") target.setAttribute("data-vno-equation-display", "block");
       else target.removeAttribute("data-vno-equation-display");
       target.classList?.remove("is-selected");

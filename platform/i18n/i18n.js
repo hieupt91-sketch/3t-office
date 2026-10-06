@@ -38,6 +38,15 @@ const _catalogs = {
  */
 export function t(key, params = {}) {
   const catalog = _catalogs[_currentLocale] || _catalogs.vi;
+  // Một số chuỗi hộp thoại được khai báo phẳng ("writer.equation.dialog.title") trong nhóm commands.
+  const flat = catalog.commands?.[key];
+  if (typeof flat === "string") {
+    let text = flat;
+    if (params && typeof params === "object") {
+      for (const [k, v] of Object.entries(params)) text = text.replaceAll(`{${k}}`, String(v));
+    }
+    return text;
+  }
   const parts = key.split(".");
   let val = catalog;
 

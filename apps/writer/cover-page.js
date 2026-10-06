@@ -257,7 +257,7 @@ export function showCoverPageGalleryDialog(options = {}) {
 
     // Header
     const header = make("div", "vno-dialog-header");
-    const title = make("span", "", t("writer.insert.coverPage") || "Thư viện trang bìa");
+    const title = make("span", "", t("writer.insert.coverPage", "Thư viện trang bìa"));
     title.id = "vno-cover-dialog-title";
     title.style.fontWeight = "bold";
     title.style.fontSize = "15px";
