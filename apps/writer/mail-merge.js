@@ -665,6 +665,17 @@ export function showInsertMergeFieldDialog({
  * @param {Function} [options.onFinish]
  * @param {Function} [options.onCancel]
  */
+export function showMailMergeIfDialog({ fields = [], onInsert, onCancel } = {}) {
+  if (typeof document === "undefined" || !document.body) { onCancel?.(); return; }
+  const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+  const overlay = document.createElement("div"); overlay.className = "vno-dialog-overlay";
+  overlay.innerHTML = `<div class="vno-dialog-box" role="dialog" aria-modal="true" aria-labelledby="vno-merge-if-title"><div class="vno-dialog-header"><span id="vno-merge-if-title">${t("writerDialogs.mailMerge.ifTitle", "Quy tắc Nếu...Thì...Ngược lại")}</span><button class="vno-btn vno-dialog-close-btn" aria-label="${t("common.close", "Đóng")}">×</button></div><div class="vno-dialog-body" style="display:grid;gap:10px;padding:16px"><label>${t("writerDialogs.mailMerge.ifField", "Trường")}<select data-field>${fields.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join("")}</select></label><label>${t("writerDialogs.mailMerge.ifOperator", "Toán tử")}<select data-op><option value="equals">${t("writerDialogs.mailMerge.opEquals", "bằng")}</option><option value="notEquals">${t("writerDialogs.mailMerge.opNotEquals", "khác")}</option><option value="contains">${t("writerDialogs.mailMerge.opContains", "chứa")}</option><option value="greaterThan">${t("writerDialogs.mailMerge.opGreater", "lớn hơn")}</option><option value="lessThan">${t("writerDialogs.mailMerge.opLess", "nhỏ hơn")}</option><option value="empty">${t("writerDialogs.mailMerge.opEmpty", "rỗng")}</option><option value="notEmpty">${t("writerDialogs.mailMerge.opNotEmpty", "không rỗng")}</option></select></label><label>${t("writerDialogs.mailMerge.ifValue", "Giá trị")}<input data-value></label><label>${t("writerDialogs.mailMerge.ifThen", "Thì")}<input data-then></label><label>${t("writerDialogs.mailMerge.ifElse", "Ngược lại")}<input data-else></label><div style="display:flex;justify-content:flex-end;gap:8px"><button data-cancel>${t("common.cancel", "Hủy")}</button><button data-insert>${t("writerDialogs.mailMerge.insertBtn", "Chèn")}</button></div></div></div>`;
+  const close = (cancel=true) => { overlay.remove(); if(cancel) onCancel?.(); };
+  overlay.querySelector("[data-cancel]").onclick=()=>close(true); overlay.querySelector(".vno-dialog-close-btn").onclick=()=>close(true);
+  overlay.querySelector("[data-insert]").onclick=()=>{ onInsert?.({ field:overlay.querySelector("[data-field]").value, op:overlay.querySelector("[data-op]").value, value:overlay.querySelector("[data-value]").value, then:overlay.querySelector("[data-then]").value, otherwise:overlay.querySelector("[data-else]").value }); close(false); };
+  document.body.appendChild(overlay); overlay.querySelector("[data-field]")?.focus();
+}
+
 export function showFinishMailMergeDialog({
   totalRecords = 0,
   currentIndex = 0,

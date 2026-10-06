@@ -601,6 +601,7 @@ export class WriterAdapter {
     // Bind Mail Merge (Trộn thư)
     globalCommandBus.bindHandler("writer.mailMerge.open", (args) => this.openMailMergeDataSourceDialog(args));
     globalCommandBus.bindHandler("writer.mailMerge.insertField", (args) => this.insertMergeField(args));
+    globalCommandBus.bindHandler("writer.mailMerge.ifRule", (args) => this.insertMailMergeIfRule(args));
     globalCommandBus.bindHandler("writer.mailMerge.preview", (args) => this.toggleMailMergePreview(args));
     globalCommandBus.bindHandler("writer.mailMerge.prevRecord", (args) => this.prevMailMergeRecord(args));
     globalCommandBus.bindHandler("writer.mailMerge.nextRecord", (args) => this.nextMailMergeRecord(args));
@@ -18611,6 +18612,27 @@ export class WriterAdapter {
     return span;
   }
 
+  insertMailMergeIfRule() {
+    this.flushTyping(); this._initZones();
+    if (!this.bodyDom) return null;
+    loadWriterMailMergeDialogs().then(({ showMailMergeIfDialog }) => showMailMergeIfDialog({
+      fields: this.mailMergeData?.fields || [],
+      onInsert: ({ field, op, value, then, otherwise }) => {
+        const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+        const span = document.createElement("span");
+        span.className = "vno-merge-if";
+        span.setAttribute("data-merge-if", field); span.setAttribute("data-op", op);
+        span.setAttribute("data-value", value); span.setAttribute("data-then", then); span.setAttribute("data-else", otherwise);
+        span.textContent = `Nếu ${field} ${op} ${value} thì ${then} ngược lại ${otherwise}`;
+        const sel = window.getSelection?.();
+        if (sel?.rangeCount) { const range = sel.getRangeAt(0); range.deleteContents(); range.insertNode(span); range.setStartAfter(span); range.collapse(true); sel.removeAllRanges(); sel.addRange(range); }
+        else this.bodyDom.appendChild(span);
+        this.isDirty = true; this.recordSnapshot("writer.mailMerge.ifRule");
+      }
+    })).catch((error) => { console.error("Could not open mail merge rule dialog.", error); });
+    return true;
+  }
+
   /**
    * Bật/tắt chế độ xem trước bản ghi trộn thư (Preview Results)
    * @param {Object|boolean} [options={}]
@@ -18653,6 +18675,7 @@ export class WriterAdapter {
     }
 
     if (this.mailMergePreview.enabled) {
+      this._mailMergeTemplateHtml = this.bodyDom.innerHTML || "";
       const currentIdx = Math.max(0, Math.min(records.length - 1, this.mailMergePreview.recordIndex));
       this.mailMergePreview.recordIndex = currentIdx;
       this._renderMergePreview(records[currentIdx]);
@@ -18791,7 +18814,7 @@ export class WriterAdapter {
 
     const templateHtml = this.bodyDom.innerHTML || "";
 
-    const hasField = templateHtml.includes("vno-merge-field") || templateHtml.includes("data-field");
+    const hasField = templateHtml.includes("vno-merge-field") || templateHtml.includes("data-field") || templateHtml.includes("data-merge-if");
     if (!hasField) {
       if (typeof document !== "undefined" && typeof document.createElement === "function" && document.body) {
         showAlertDialog({
@@ -18846,6 +18869,10 @@ export class WriterAdapter {
    */
   _renderMergePreview(record) {
     if (!this.bodyDom) return;
+    if (this._mailMergeTemplateHtml != null) {
+      this.bodyDom.innerHTML = replaceMergeFields(this._mailMergeTemplateHtml, record);
+      return;
+    }
     const fields = this.bodyDom.querySelectorAll
       ? this.bodyDom.querySelectorAll(".vno-merge-field, [data-field]")
       : [];
@@ -18878,6 +18905,11 @@ export class WriterAdapter {
    */
   _clearMergePreview() {
     if (!this.bodyDom) return;
+    if (this._mailMergeTemplateHtml != null) {
+      this.bodyDom.innerHTML = this._mailMergeTemplateHtml;
+      this._mailMergeTemplateHtml = null;
+      return;
+    }
     const fields = this.bodyDom.querySelectorAll
       ? this.bodyDom.querySelectorAll(".vno-merge-field, [data-field]")
       : [];

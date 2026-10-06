@@ -819,6 +819,7 @@ export const enStrings = {
     "writer.reference.tofUpdate": { label: "Update Table of Figures", tooltip: "Refresh the table of figures from captions in the document" },
     "writer.mailMerge.open": { label: "Select Recipients", tooltip: "Open mail merge recipient list from spreadsheet (.xlsx, .xls) or CSV/TSV file" },
     "writer.mailMerge.insertField": { label: "Insert Merge Field", tooltip: "Insert a mail merge field" },
+    "writer.mailMerge.ifRule": { label: "Rules", tooltip: "Insert an If...Then...Else rule" },
     "writer.mailMerge.preview": { label: "Preview Results", tooltip: "Preview merged records" },
     "writer.mailMerge.prevRecord": { label: "Previous Record", tooltip: "Go to previous record" },
     "writer.mailMerge.nextRecord": { label: "Next Record", tooltip: "Go to next record" },
@@ -1079,6 +1080,7 @@ export const enStrings = {
       finishNoData: "No mail merge data source to create documents. Please open 'Select Recipients' to select an spreadsheet/CSV file.",
       finishNoFields: "Current document contains no merge fields. Use 'Insert Merge Field' to insert at least one field.",
       finishSuccess: "Successfully merged {count} records into document. You can preview or export the document."
+      ,ifTitle: "If...Then...Else Rule", ifField: "Field", ifOperator: "Comparison", ifValue: "Compare to", ifThen: "Then", ifElse: "Otherwise", opEquals: "equal to", opNotEquals: "not equal to", opContains: "contains", opGreater: "greater than", opLess: "less than", opEmpty: "is blank", opNotEmpty: "is not blank"
     },
     printPreview: {
       title: "Print Preview",

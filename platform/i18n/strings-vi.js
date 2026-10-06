@@ -820,6 +820,7 @@ export const viStrings = {
     "writer.reference.tofUpdate": { label: "Cập nhật danh mục", tooltip: "Cập nhật lại danh mục hình ảnh/bảng từ các chú thích hiện có" },
     "writer.mailMerge.open": { label: "Nguồn dữ liệu", tooltip: "Mở danh sách người nhận trộn thư từ tệp bảng tính (.xlsx, .xls) hoặc CSV/TSV" },
     "writer.mailMerge.insertField": { label: "Chèn trường", tooltip: "Chèn trường trộn thư tại vị trí con trỏ" },
+    "writer.mailMerge.ifRule": { label: "Quy tắc", tooltip: "Chèn quy tắc Nếu...Thì...Ngược lại" },
     "writer.mailMerge.preview": { label: "Xem trước kết quả", tooltip: "Bật/tắt xem trước bản ghi trộn thư" },
     "writer.mailMerge.prevRecord": { label: "Bản ghi trước", tooltip: "Chuyển tới bản ghi trước" },
     "writer.mailMerge.nextRecord": { label: "Bản ghi sau", tooltip: "Chuyển tới bản ghi tiếp theo" },
@@ -1080,6 +1081,7 @@ export const viStrings = {
       finishNoData: "Chưa có nguồn dữ liệu trộn thư để tạo tài liệu. Vui lòng mở 'Nguồn dữ liệu' để chọn tệp bảng tính hoặc dán bảng dữ liệu.",
       finishNoFields: "Tài liệu hiện tại chưa chứa trường trộn thư nào. Hãy dùng lệnh 'Chèn trường' để chèn ít nhất một trường trộn.",
       finishSuccess: "Đã hoàn tất trộn thư thành công {count} bản ghi vào tài liệu. Bạn có thể xem trước khi in hoặc xuất tệp."
+      ,ifTitle: "Quy tắc Nếu...Thì...Ngược lại", ifField: "Trường", ifOperator: "Toán tử", ifValue: "Giá trị so sánh", ifThen: "Thì", ifElse: "Ngược lại", opEquals: "bằng", opNotEquals: "khác", opContains: "chứa", opGreater: "lớn hơn", opLess: "nhỏ hơn", opEmpty: "rỗng", opNotEmpty: "không rỗng"
     },
     printPreview: {
       title: "Xem trước khi in",
