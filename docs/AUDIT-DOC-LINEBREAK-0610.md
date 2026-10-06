@@ -21,7 +21,7 @@ Công cụ: `word_paragraph_ypos.ps1` + `app_paragraph_ypos.mjs` (toạ độ d�
 - Hàng 48 ("Tư vấn máy vi tính và quản trị hệ thống máy vi tính") và hàng 52 ("Hoạt động kiến trúc và tư vấn kỹ thuật có liên quan"): Word xuống 2 dòng (43,4 pt), app chỉ 1 dòng (26,4 pt) → app thiếu 17 pt mỗi hàng. Ô rộng 290,3 pt, chữ Times New Roman 13 pt; câu dài gần sát độ rộng ô nên Word (cộng dồn độ rộng ký tự theo số nguyên của GDI) xuống dòng còn trình duyệt thì chưa.
 - Hàng 1 (tiêu đề bảng): Word 52,5 pt, app 78,2 pt (app cao hơn 25,7 pt).
 - Hàng cao bị ngắt giữa trang: mô hình tràn hàng (W24c) khớp trong ~3 pt.
-Tổng: các hàng xuống dòng sai làm nội dung sau bảng lên sớm ~34 pt; cộng các lệch nhỏ khác thì đến trang 6 app sớm ~127 pt so với Word (đo ở vị trí đoạn đầu tiên sau bảng), đủ để đoạn "Địa chỉ liên lạc" nằm trang 6 trong app thay vì trang 7.
+Tổng chênh lệch chiều cao các hàng cùng trang (app trừ Word) của d01 là -5,5 pt, nên hai hàng xuống dòng sai (-34 pt) bị bù một phần bởi hàng 1 (+25,7 pt). Chênh lệch ~127 pt giữa vị trí đoạn đầu trang 6 của app và Word (đo bằng toạ độ dọc) CHƯA giải thích được bằng các hàng cùng trang: phần còn lại nằm ở các hàng bị ngắt giữa trang (hàng 29, 43, 59) mà phép so này bỏ qua. Đây là điểm cần đo tiếp.
 
 **d07 (app trễ 1 trang):** bảng T6 hàng 1 ("CÔNG TY / CỘNG HOÀ XÃ HỘI…"): Word 153,8 pt, app 135,6 pt (thiếu 18,2 pt, một dòng). Cùng họ nguyên nhân: Word xuống dòng nhiều hơn.
 
