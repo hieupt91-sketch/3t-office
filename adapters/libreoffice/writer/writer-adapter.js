@@ -10507,6 +10507,8 @@ export class WriterAdapter {
     base.keepLines = block.dataset?.vnoFlowLines === "1" || style.pageBreakInside === "avoid" || style.breakInside === "avoid";
     base.pageBreakBefore = block.dataset?.vnoFlowPageBefore === "1" || style.pageBreakBefore === "always" || style.breakBefore === "page";
     base.widowControl = block.dataset?.vnoFlowWidow !== "off";
+    const headingLevel = /^H[1-6]$/.test(block.tagName || "") ? Number(block.tagName[1]) : 0;
+    base.outlineLevel = Number(block.dataset?.vnoOutline) || headingLevel;
     return base;
   }
 
@@ -10585,6 +10587,7 @@ export class WriterAdapter {
       ...("keepNext" in values ? { vnoFlowNext: values.keepNext ? "1" : null, ...(values.keepNext ? {} : { vnoKeepNext: null }) } : {}),
       ...("keepLines" in values ? { vnoFlowLines: values.keepLines ? "1" : null } : {}),
       ...("pageBreakBefore" in values ? { vnoFlowPageBefore: values.pageBreakBefore ? "1" : null } : {}),
+      ...("outlineLevel" in values ? { vnoOutline: Number(values.outlineLevel) > 0 ? String(Math.min(9, Math.round(Number(values.outlineLevel)))) : null } : {}),
       ...("widowControl" in values ? { vnoFlowWidow: values.widowControl === false ? "off" : null } : {})
     });
   }
