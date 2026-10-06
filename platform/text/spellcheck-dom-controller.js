@@ -195,7 +195,9 @@ export class SpellcheckDomController {
     this.timer = null;
     this.menu = null;
     this._focusBeforeMenu = null;
-    this._onInput = () => this.schedule();
+    this._dirtyBlocks = new Set();
+    this._needFull = true;
+    this._onInput = () => { this._markDirtyFromSelection(); this.schedule(); };
     this._onContextMenu = event => this._handleContextMenu(event);
     this._onDocumentPointer = event => {
       if (this.menu && !this.menu.contains(event.target)) this.closeMenu();
@@ -294,7 +296,34 @@ export class SpellcheckDomController {
       // Defer until burst ends
       return;
     }
-    this.timer = setTimeout(() => this.refresh(), delay);
+    this.timer = setTimeout(() => this._refreshPending(), delay);
+  }
+
+  /** Khối (đoạn, mục, ô…) chứa con trỏ: chỉ khối này cần kiểm tra lại sau khi gõ. */
+  _markDirtyFromSelection() {
+    const selection = globalThis.getSelection?.();
+    let node = selection?.anchorNode;
+    if (!node) { this._needFull = true; return; }
+    if (node.nodeType === 3) node = node.parentElement;
+    const root = this.roots.find((candidate) => candidate.contains?.(node));
+    const block = node?.closest?.("p,li,td,th,h1,h2,h3,h4,h5,h6,blockquote,div");
+    if (!root || !block || block === root || !root.contains(block)) { this._needFull = true; return; }
+    this._dirtyBlocks.add(block);
+  }
+
+  /** Gõ phím: chỉ kiểm tra lại vài khối đã đổi (tài liệu 160 trang: toàn bộ mất ~1 s và làm bố cục lại cả tài liệu). */
+  _refreshPending() {
+    if (!this.enabled) return;
+    if (globalImeTracker.isBurstActive()) return;
+    const blocks = [...this._dirtyBlocks].filter((block) => block.isConnected !== false);
+    const full = this._needFull || !blocks.length || blocks.length > 6;
+    this._dirtyBlocks.clear();
+    this._needFull = false;
+    if (full) { for (const root of this.roots) this._refreshRoot(root); return; }
+    for (const block of blocks) {
+      const root = this.roots.find((candidate) => candidate.contains?.(block));
+      if (root) this._refreshScope(root, block);
+    }
   }
 
   refresh() {
@@ -302,16 +331,22 @@ export class SpellcheckDomController {
     if (globalImeTracker.isBurstActive()) {
       return;
     }
+    this._dirtyBlocks.clear();
+    this._needFull = false;
     for (const root of this.roots) this._refreshRoot(root);
   }
 
   _refreshRoot(root) {
+    this._refreshScope(root, root);
+  }
+
+  _refreshScope(root, scope) {
     const doc = root?.ownerDocument || (typeof document !== "undefined" ? document : null);
     if (!doc || typeof doc.createTreeWalker !== "function") return;
     const NodeFilterObj = globalThis.NodeFilter || { SHOW_TEXT: 4 };
     const selection = captureSelectionBookmark(root);
-    unwrapMarkers(root);
-    const walker = doc.createTreeWalker(root, NodeFilterObj.SHOW_TEXT);
+    unwrapMarkers(scope);
+    const walker = doc.createTreeWalker(scope, NodeFilterObj.SHOW_TEXT);
     const nodes = [];
     let node;
     while ((node = walker.nextNode())) if (isEligibleTextNode(node, root)) nodes.push(node);
