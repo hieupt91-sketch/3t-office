@@ -13,3 +13,18 @@ Các đoạn lệch tập trung thành từng cụm trên một ranh giới tran
 
 ## Chưa làm
 - Chưa xác định nguyên nhân từng điểm lệch (chiều cao dòng, khoảng cách đoạn, bảng, ảnh nổi, chống góa/mồ côi). Các ca cần xem trước: d07 (đoạn đầu hợp đồng lệch 2 trang), d01 (ranh giới trang 6-7), d15.
+## Chẩn đoán điểm lệch (Claude, 06/10 tối) — d01, d07, d15
+
+Công cụ: `word_paragraph_ypos.ps1` + `app_paragraph_ypos.mjs` (toạ độ dọc từng đoạn), `word_table_rows.ps1` + `app_table_rows.mjs` + `compare_table_rows.ps1` (chiều cao từng hàng bảng, Word thật so với app).
+
+**d01 (app sớm 1 trang từ trang 6):** bảng T1 (64 hàng) trải trang 1–5. Chiều cao khớp Word trong ±0,7 pt ở phần lớn hàng; sai lệch lớn nằm ở 3 hàng:
+- Hàng 48 ("Tư vấn máy vi tính và quản trị hệ thống máy vi tính") và hàng 52 ("Hoạt động kiến trúc và tư vấn kỹ thuật có liên quan"): Word xuống 2 dòng (43,4 pt), app chỉ 1 dòng (26,4 pt) → app thiếu 17 pt mỗi hàng. Ô rộng 290,3 pt, chữ Times New Roman 13 pt; câu dài gần sát độ rộng ô nên Word (cộng dồn độ rộng ký tự theo số nguyên của GDI) xuống dòng còn trình duyệt thì chưa.
+- Hàng 1 (tiêu đề bảng): Word 52,5 pt, app 78,2 pt (app cao hơn 25,7 pt).
+- Hàng cao bị ngắt giữa trang: mô hình tràn hàng (W24c) khớp trong ~3 pt.
+Tổng: các hàng xuống dòng sai làm nội dung sau bảng lên sớm ~34 pt; cộng các lệch nhỏ khác thì đến trang 6 app sớm ~127 pt so với Word (đo ở vị trí đoạn đầu tiên sau bảng), đủ để đoạn "Địa chỉ liên lạc" nằm trang 6 trong app thay vì trang 7.
+
+**d07 (app trễ 1 trang):** bảng T6 hàng 1 ("CÔNG TY / CỘNG HOÀ XÃ HỘI…"): Word 153,8 pt, app 135,6 pt (thiếu 18,2 pt, một dòng). Cùng họ nguyên nhân: Word xuống dòng nhiều hơn.
+
+**d15:** bảng T2 hàng 1 Word 90,0 pt, app 30,2 pt; hàng 2 Word 122,3 pt, app 156,8 pt (hai hàng cộng lại app thấp hơn 25,3 pt). Cần xem riêng (nghi ô gộp hàng/ô nhiều dòng).
+
+**Kết luận:** nguyên nhân chính là chênh lệch vị trí xuống dòng ở độ rộng sát giới hạn (Word dùng độ rộng ký tự nguyên theo GDI) và vài hàng tiêu đề bảng; mô hình phân trang bảng, khoảng cách đoạn và chiều cao dòng đã khớp. Việc kế tiếp (chưa làm): xác định hệ số độ rộng ký tự của Word cho Times New Roman 13 pt để app xuống dòng cùng chỗ (đã có biến `--vno-gdi-advance`, cần kiểm tra vì sao hai ô trên không được áp).
