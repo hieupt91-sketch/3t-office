@@ -680,6 +680,7 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.layout.breaks", () => globalCommandBus.execute("writer.page.break"));
     globalCommandBus.bindHandler("writer.page.blank", () => this.insertBlankPage());
     globalCommandBus.bindHandler("writer.format.tabStops", (args) => this.openTabStopsDialog(args));
+    globalCommandBus.bindHandler("writer.paragraph.tabStops", (args) => this.openTabStopsDialog(args));
     globalCommandBus.bindHandler("writer.table.fromText", (args) => this.convertTextToTable(args));
     globalCommandBus.bindHandler("writer.font.grow1pt", () => this._adjustFontSizePt(1));
     globalCommandBus.bindHandler("writer.font.shrink1pt", () => this._adjustFontSizePt(-1));
@@ -8947,7 +8948,7 @@ export class WriterAdapter {
         }
       };
       document.addEventListener("keydown", onKeyDown);
-      dialogBox.querySelector("#vno-hf-link-prev:not(:disabled)")?.focus();
+      (dialogBox.querySelector("#vno-hf-link-prev:not(:disabled)") || dialogBox.querySelector("input:not([disabled]), button:not([disabled])"))?.focus();
       overlay.querySelector("#vno-hf-open-pgnum")?.addEventListener("click", () => {
         this.openPageNumberDialog(sId);
       });

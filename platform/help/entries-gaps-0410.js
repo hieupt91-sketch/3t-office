@@ -133,7 +133,7 @@ const writerOnly = [
   {
     id: "writer.format.tabStops",
     app: "writer",
-    commandIds: ["writer.format.tabStops"],
+    commandIds: ["writer.format.tabStops", "writer.paragraph.tabStops"],
     title: "Dừng tab: căn cột bằng phím Tab, ký tự dẫn chấm hoặc gạch",
     summary: "Đặt vị trí tab riêng (đơn vị cm) cho đoạn văn, căn chữ tại dừng tab theo trái, giữa hoặc phải, và thêm ký tự dẫn (dấu chấm, gạch ngang, gạch dưới). Dùng cho dòng Kính gửi, khối ký tên, danh sách có dấu chấm dẫn đến số liệu.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Đoạn văn" },

@@ -472,6 +472,7 @@ export async function showPageBorderDialog(currentBorder = null) {
     const colorSelect = overlay.querySelector("#vno-border-color");
     const previewInner = overlay.querySelector("#vno-border-preview-inner");
     const btnRemove = overlay.querySelector(".vno-border-btn-remove");
+    styleSelect?.focus();
 
     const updatePreview = () => {
       if (!previewInner) return;

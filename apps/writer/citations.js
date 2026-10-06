@@ -164,5 +164,6 @@ export function showSourceManagerDialog(sources = [], options = {}) {
     overlay.querySelector(".vno-add-source").addEventListener("click", async () => { const added = await showSourceEditorDialog({}); if (added) { draft.push(added); render(); } });
     overlay.querySelectorAll(".vno-cancel,.vno-dialog-close-btn").forEach(b => b.addEventListener("click", () => finish(null)));
     overlay.querySelector(".vno-apply-sources").addEventListener("click", () => finish(draft));
+    (overlay.querySelector(".vno-add-source") || overlay.querySelector(".vno-cancel"))?.focus();
   });
 }

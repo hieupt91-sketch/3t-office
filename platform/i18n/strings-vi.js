@@ -772,6 +772,7 @@ export const viStrings = {
     "writer.page.columns": { label: "Cột", tooltip: "Chia văn bản thành nhiều cột (1, 2, 3 cột hoặc tùy chỉnh)" },
     "writer.format.paragraphDialog": { label: "Đoạn văn…", tooltip: "Căn lề, thụt lề, khoảng cách đoạn và giãn dòng trong một hộp thoại" },
     "writer.format.tabStops": { label: "Dừng tab…", tooltip: "Đặt vị trí tab, căn chữ và ký tự dẫn cho đoạn văn" },
+    "writer.paragraph.tabStops": { label: "Dừng tab…", tooltip: "Đặt vị trí tab, căn chữ và ký tự dẫn cho đoạn văn" },
     "writer.page.columns1": { label: "1 cột", tooltip: "Định dạng toàn bộ văn bản 1 cột (Normal mặc định)" },
     "writer.page.columns2": { label: "2 cột", tooltip: "Chia nội dung văn bản thành 2 cột đều nhau" },
     "writer.page.columns3": { label: "3 cột", tooltip: "Chia nội dung văn bản thành 3 cột đều nhau" },

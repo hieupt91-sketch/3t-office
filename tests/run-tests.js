@@ -253,6 +253,7 @@ import { runSheetSwitchWindowTests } from "./unit/sheet-switch-window.test.js";
 import { runLicenseKeyFormatTests } from "./unit/license-key-format.test.js";
 import { runUnoBridgeContentStageTests } from "./unit/uno-bridge-content-stage.test.js";
 import { runWriterCoverPageTests } from "./unit/writer-cover-page.test.js";
+import { runWriterDialogsD16Tests } from "./unit/writer-dialogs-d16.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -514,7 +515,8 @@ async function runAll() {
   { title: "246. Unit Tests — VN Writer Văn bản thành bảng và Trang trắng", runner: runWriterTextToTableTests },
   { title: "247. Unit Tests — i18n khóa phẳng và chuỗi dự phòng", runner: runI18nFlatKeyTests },
     { title: "245. Unit Tests — VN Writer table ranges computed once (incremental) equal the rescanning version", runner: runWriterTableRangesIncrementalTests },
-    { title: "247. Unit Tests — VN Writer Trang bìa (Cover Page)", runner: runWriterCoverPageTests }
+    { title: "247. Unit Tests — VN Writer Trang bìa (Cover Page)", runner: runWriterCoverPageTests },
+    { title: "248. Unit Tests — VN Writer Dialogs & Keyboard Focus (TICKET D16)", runner: runWriterDialogsD16Tests }
   ];
 
   for (const suite of suites) {
