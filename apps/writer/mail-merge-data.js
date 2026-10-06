@@ -300,7 +300,26 @@ export function parseCsv(text) {
  */
 export function replaceMergeFields(html, record) {
   if (!html || typeof html !== "string") return "";
-  return html.replace(
+  const withRules = html.replace(/<span\b([^>]*\bdata-merge-if=["']([^"']+)["'][^>]*)>([\s\S]*?)<\/span>/gi,
+    (match, attrs, field, fallback) => {
+      const get = (name) => (attrs.match(new RegExp(`\\b${name}=["']([^"']*)["']`, "i")) || [])[1] || "";
+      const value = record?.[field] == null ? "" : String(record[field]);
+      const expected = get("data-value");
+      const op = get("data-op");
+      let pass = false;
+      switch (op) {
+        case "equals": pass = value === expected; break;
+        case "notEquals": pass = value !== expected; break;
+        case "contains": pass = value.includes(expected); break;
+        case "greaterThan": pass = Number(value) > Number(expected); break;
+        case "lessThan": pass = Number(value) < Number(expected); break;
+        case "empty": pass = value.trim() === ""; break;
+        case "notEmpty": pass = value.trim() !== ""; break;
+        default: return fallback;
+      }
+      return pass ? get("data-then") : get("data-else");
+    });
+  return withRules.replace(
     /<span\b([^>]*\bdata-field=["']([^"']+)["'][^>]*)>([\s\S]*?)<\/span>/gi,
     (match, attrs, fieldName) => {
       if (record && record[fieldName] !== undefined) {

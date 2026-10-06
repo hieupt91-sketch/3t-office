@@ -244,6 +244,7 @@ export const WRITER_HELP_ENTRIES = [
     commandIds: [
       "writer.mailMerge.open",
       "writer.mailMerge.insertField",
+      "writer.mailMerge.ifRule",
       "writer.mailMerge.preview",
       "writer.mailMerge.prevRecord",
       "writer.mailMerge.nextRecord",
@@ -259,6 +260,7 @@ export const WRITER_HELP_ENTRIES = [
       "Xem trước danh sách người nhận trong bảng. Có thể nhập từ khóa vào ô tìm kiếm để lọc, và bỏ dấu tích ở các dòng không muốn gửi để loại trừ người nhận đó khỏi danh sách.",
       "Nhấn 'Lưu nguồn dữ liệu' để áp dụng danh sách người nhận vào tài liệu.",
       "Đặt con trỏ tại vị trí muốn đưa thông tin người nhận vào văn bản, mở nhóm Viết & Chèn trường, nhấn Chèn trường và chọn trường dữ liệu tương ứng (ví dụ: Họ tên, Lương thưởng, Ngày ký).",
+      "Để chèn nội dung có điều kiện, đặt con trỏ trong văn bản, mở tab Trộn thư > nhóm Viết & Chèn trường > Quy tắc. Chọn trường, toán tử, giá trị so sánh và nhập nội dung cho Thì/Nếu không; quy tắc sẽ được đánh giá theo từng người nhận khi xem trước hoặc hoàn tất trộn.",
       "Nhấn Xem trước kết quả (nhóm Xem trước kết quả) để bật chế độ xem trước văn bản sau khi ghép dữ liệu của từng bản ghi. Dùng nút Bản ghi trước hoặc Bản ghi sau để duyệt qua từng người nhận được chọn.",
       "Mở nhóm Hoàn tất, nhấn Hoàn tất trộn để chọn hình thức xuất: 'Tạo tài liệu mới' (hợp nhất toàn bộ bản ghi nối tiếp nhau bằng ngắt trang) hoặc 'In tài liệu trực tiếp'."
     ]

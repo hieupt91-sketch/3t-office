@@ -354,6 +354,14 @@ export async function runWriterMailMergeTests() {
         results.push({ name, pass: false, error: err.message });
       }
     };
+    await test("Writer Mail Merge IF rules: evaluate all operators and expand before field replacement", async () => {
+      const rule = (op, value, rec = {}) => replaceMergeFields(`<span data-merge-if="Amount" data-op="${op}" data-value="${value}" data-then="YES" data-else="NO">IF</span>`, { Amount: "12", ...rec });
+      for (const [op, expected] of [["equals","NO"],["notEquals","YES"],["contains","YES"],["greaterThan","YES"],["lessThan","NO"],["empty","NO"],["notEmpty","YES"]]) {
+        if (rule(op, op === "equals" ? "13" : "2") !== expected) throw new Error(`${op} rule result incorrect`);
+      }
+      const html = replaceMergeFields('<span data-merge-if="City" data-op="equals" data-value="Hà Nội" data-then="Xin chào" data-else="Kính gửi">IF</span> <span data-field="Name">«Name»</span>', { City:"Hà Nội", Name:"An" });
+      if (html !== "Xin chào An") throw new Error(`Rule and merge field output: ${html}`);
+    });
 
   // Test 1: Command Definitions
   await test("Writer Mail Merge: 6 command mới được khai báo chuẩn trong WRITER_COMMANDS", async () => {

@@ -2406,6 +2406,16 @@ sup.vno-endnote-ref:hover {
   transition: background-color 0.15s, border-color 0.15s;
 }
 
+.vno-merge-if {
+  background: #f1f5f9;
+  border: 1px dashed #64748b;
+  border-radius: 3px;
+  padding: 1px 5px;
+  color: #334155;
+  display: inline-block;
+  user-select: all;
+}
+
 .vno-merge-field:hover {
   background-color: #bae6fd;
   border-color: #7dd3fc;

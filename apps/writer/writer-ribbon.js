@@ -735,7 +735,8 @@ export const WRITER_RIBBON_TABS = [
         label: "Viết & Chèn trường",
         labelKey: "writerRibbon.group.writeInsert",
         items: [
-          { type: "button", commandId: "writer.mailMerge.insertField", isLarge: true }
+          { type: "button", commandId: "writer.mailMerge.insertField", isLarge: true },
+          { type: "button", commandId: "writer.mailMerge.ifRule", isLarge: true }
         ]
       },
       {
