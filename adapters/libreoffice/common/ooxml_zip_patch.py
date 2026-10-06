@@ -16115,6 +16115,54 @@ def postprocess_writer_notes(docx_bytes: bytes, *, source_html: str | None = Non
     return patch_ooxml_zip(docx_bytes, replacements)
 
 
+def postprocess_writer_captions(docx_bytes: bytes, *, source_html: str | None = None) -> bytes:
+    """Chú thích hình/bảng: số thứ tự thành trường Word `SEQ <nhãn> \\* ARABIC` (Danh mục hình/bảng của Word dùng được)."""
+    if not docx_bytes or not source_html or "vno-caption-number" not in source_html:
+        return docx_bytes
+    captions = re.findall(
+        r'<span\b[^>]*class="vno-caption-label"[^>]*>([^<]+)</span>\s*<span\b[^>]*class="vno-caption-number"[^>]*>(\d+)</span>',
+        source_html,
+    )
+    if not captions:
+        return docx_bytes
+    document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
+    if not document_bytes:
+        return docx_bytes
+    document_xml = document_bytes.decode("utf-8", errors="replace")
+    run_re = re.compile(r"<w:r\b[^>]*>(?P<rpr><w:rPr>(?:(?!</w:rPr>)[\s\S])*</w:rPr>)?<w:t(?:\s[^>]*)?>(?P<text>[^<]*)</w:t></w:r>")
+    position = 0
+    changed = False
+    for label, number in captions:
+        label = html.unescape(label).strip()
+        wanted = f"{_escape_xml(label)} {number}"
+        found = None
+        for match in run_re.finditer(document_xml, position):
+            text = match.group("text")
+            index = text.find(wanted)
+            if index >= 0:
+                found = (match, index)
+                break
+        if not found:
+            continue
+        match, index = found
+        text = match.group("text")
+        rpr = match.group("rpr") or ""
+        before = text[:index] + _escape_xml(label) + " "
+        after = text[index + len(wanted):]
+        instruction = f" SEQ {_escape_xml(label)} \\* ARABIC "
+        replacement = (
+            f'<w:r>{rpr}<w:t xml:space="preserve">{before}</w:t></w:r>'
+            f'<w:fldSimple w:instr="{instruction}"><w:r>{rpr}<w:t>{number}</w:t></w:r></w:fldSimple>'
+            + (f'<w:r>{rpr}<w:t xml:space="preserve">{after}</w:t></w:r>' if after else "")
+        )
+        document_xml = document_xml[:match.start()] + replacement + document_xml[match.end():]
+        position = match.start() + len(replacement)
+        changed = True
+    if not changed:
+        return docx_bytes
+    return patch_ooxml_zip(docx_bytes, {"word/document.xml": document_xml.encode("utf-8")})
+
+
 _CSS_NAMED_COLORS = {"black": "000000", "white": "FFFFFF", "red": "FF0000", "green": "008000", "blue": "0000FF", "yellow": "FFFF00",
                      "gray": "808080", "grey": "808080", "orange": "FFA500", "navy": "000080"}
 
