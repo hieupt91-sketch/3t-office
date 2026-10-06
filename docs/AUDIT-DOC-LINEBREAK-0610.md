@@ -28,3 +28,10 @@ Tổng chênh lệch chiều cao các hàng cùng trang (app trừ Word) của d
 **d15:** bảng T2 hàng 1 Word 90,0 pt, app 30,2 pt; hàng 2 Word 122,3 pt, app 156,8 pt (hai hàng cộng lại app thấp hơn 25,3 pt). Cần xem riêng (nghi ô gộp hàng/ô nhiều dòng).
 
 **Kết luận:** nguyên nhân chính là chênh lệch vị trí xuống dòng ở độ rộng sát giới hạn (Word dùng độ rộng ký tự nguyên theo GDI) và vài hàng tiêu đề bảng; mô hình phân trang bảng, khoảng cách đoạn và chiều cao dòng đã khớp. Việc kế tiếp (chưa làm): xác định hệ số độ rộng ký tự của Word cho Times New Roman 13 pt để app xuống dòng cùng chỗ (đã có biến `--vno-gdi-advance`, cần kiểm tra vì sao hai ô trên không được áp).
+
+### Thử giả thuyết (cùng đêm): chừa lề phải trong ô bảng
+Thử đặt `padding-right` cho mọi ô bảng (0 / 1 / 2,5 / 5 pt) rồi so chiều cao hàng với Word (hàng cùng trang):
+- **d01:** hàng lệch >5 pt giảm 3 → 2 → 1 → 1; với 2,5 pt hai hàng xuống dòng sai (48, 52) khớp Word, không hàng nào khác bị lệch thêm (đến 5 pt vẫn không thêm hàng lệch). Còn lại hàng 1 (tiêu đề, app cao hơn 25,7 pt) không liên quan chiều rộng.
+- **d07 (T6 hàng 1, app thiếu 18 pt) và d15 (T2 hàng 1–2):** không đổi theo lề phải ở bất kỳ mức nào → nguyên nhân khác (d15 nghi ô gộp hàng / chiều cao tối thiểu hàng; d07 nghi thiếu một dòng trống/khoảng cách).
+- **Chưa áp dụng vào sản phẩm:** chỉ có d01 chứng minh, chưa kiểm trên cả bộ mẫu; một lề mặc định cho mọi bảng có thể làm sai các bảng khác. Cần chạy `doc_linebreak_vs_word.mjs` (khoảng 25 phút) với thay đổi thử trước khi đưa vào.
+- Tham số đo: ở d01, chữ trong ô cột 2 rộng 290,0 pt (hàng 48) và 288,1 pt (hàng 52) trong ô rộng 290,3 pt nhưng Word xuống dòng, nên độ rộng khả dụng của Word nhỏ hơn app khoảng 2,2 pt trở lên (chữ đơn dòng khác nhau chỉ ~0,3%, nên không phải do độ rộng chữ).
