@@ -349,7 +349,7 @@ export function createEmptyState({
     justify-content: center;
     padding: 36px 20px;
     text-align: center;
-    background: #fafafa;
+    background: var(--vno-bg-subtle, #fafafa);
     border: 1px dashed var(--vno-border-default);
     border-radius: var(--vno-radius-md);
   `;

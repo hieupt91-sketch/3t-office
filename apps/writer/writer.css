@@ -2691,6 +2691,27 @@ sup.vno-endnote-ref:hover {
 [data-theme="dark"] .vno-style-strip-preview [style*="color:#475569"] {
   color: var(--vno-text-muted) !important;
 }
+/* Mẫu kiểu dáng ghi màu inline dạng rgb()/hex khác: bản tối phải sáng lên (tương phản >= 3:1). */
+[data-theme="dark"] .vno-style-strip-preview [style*="rgb(31, 78, 121)"],
+[data-theme="dark"] .vno-style-strip-preview [style*="#1f4e79"],
+[data-theme="dark"] .vno-style-card-preview [style*="rgb(31, 78, 121)"],
+[data-theme="dark"] .vno-style-card-preview [style*="#1f4e79"],
+[data-theme="dark"] .vno-style-strip-preview [style*="rgb(15, 76, 129)"],
+[data-theme="dark"] .vno-style-card-preview [style*="rgb(15, 76, 129)"] {
+  color: var(--vno-app-current-fg) !important;
+}
+[data-theme="dark"] .vno-style-strip-preview [style*="rgb(30, 41, 59)"],
+[data-theme="dark"] .vno-style-card-preview [style*="rgb(30, 41, 59)"] {
+  color: var(--vno-text-primary) !important;
+}
+/* Chính phần tử xem trước mang style="color:…" (không chỉ con của nó). */
+[data-theme="dark"] .vno-style-strip-preview[style*="#1f4e79"],
+[data-theme="dark"] .vno-style-card-preview[style*="#1f4e79"],
+[data-theme="dark"] .vno-style-strip-preview[style*="#0f4c81"],
+[data-theme="dark"] .vno-style-card-preview[style*="#0f4c81"] { color: var(--vno-app-current-fg) !important; }
+[data-theme="dark"] .vno-style-strip-preview[style*="#1e293b"],
+[data-theme="dark"] .vno-style-card-preview[style*="#1e293b"] { color: var(--vno-text-primary) !important; }
+[data-theme="dark"] .vno-ruler-number { color: var(--vno-text-secondary); }
 [data-theme="dark"] .vno-style-card-preview [style*="color:#b45309"],
 [data-theme="dark"] .vno-style-strip-preview [style*="color:#b45309"] {
   color: #fbbf24 !important;
