@@ -359,6 +359,12 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     xlsx.add_argument("--input-dir", type=Path)
     xlsx.add_argument("--out-dir", type=Path)
 
+    xls = subparsers.add_parser("xls", help="Run the legacy XLS desktop round-trip audit.")
+    xls.add_argument("worktree", type=Path)
+    xls.add_argument("names", nargs="*")
+    xls.add_argument("--input-dir", type=Path)
+    xls.add_argument("--out-dir", type=Path)
+
     for mode in ("docx", "pptx"):
         batch = subparsers.add_parser(mode, help=f"Run the {mode.upper()} desktop audit.")
         batch.add_argument("worktree", type=Path)
@@ -384,6 +390,15 @@ def main(argv: list[str] | None = None) -> int:
         out_dir = (out_dir or worktree / "_batch_document_audit").resolve()
         rows = _run_xlsx(worktree, input_dir, out_dir, args.names)
         report = _write_report(rows, out_dir, "_batch_audit_report.md")
+    elif args.mode == "xls":
+        input_dir = (args.input_dir or worktree / "file test" / "lan-legacy").resolve()
+        out_dir = (out_dir or worktree / "_batch_xls_out").resolve()
+        plugin = SCRIPT_DIR / "_batch_xls_roundtrip.py"
+        cmd = [sys.executable, str(plugin), str(worktree), str(input_dir), str(out_dir)] + list(args.names or [])
+        proc = subprocess.run(cmd, cwd=REPO_ROOT, check=False)
+        report = out_dir / "_batch_xls_report.md"
+        print("report: " + str(report))
+        return proc.returncode
     elif args.mode == "docx":
         out_dir = args.out_dir.resolve()
         rows = _run_docx(args.input_dir.resolve(), out_dir, args.names)

@@ -60,7 +60,7 @@ $job = Start-Job -ScriptBlock {
     "RESULT " + (@{ sheets = $da.Count; cells = $total; diff = $diff; examples = $examples } | ConvertTo-Json -Compress)
   } catch { "RESULT " + (@{ error = "$_" } | ConvertTo-Json -Compress) } finally { $xl.Quit() }
 } -ArgumentList $A, $B
-if (Wait-Job $job -Timeout 900) { Receive-Job $job } else { 'RESULT {"error":"timeout (Excel dialog?)"}'; Stop-Job $job }
+if (Wait-Job $job -Timeout 30) { Receive-Job $job } else { 'RESULT {"error":"timeout (Excel dialog?)"}'; Stop-Job $job }
 """
 compare_path = os.path.join(OUTDIR, "_compare_xls.ps1")
 with open(compare_path, "w", encoding="utf-8-sig") as handle:
@@ -82,14 +82,14 @@ for name in names:
     comparator = "excel"
     if saved:
         cmp = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", compare_path, "-A", src, "-B", out],
-                             capture_output=True, text=True, timeout=1000)
+                             capture_output=True, text=True, timeout=100)
         line = next((l for l in (cmp.stdout or "").splitlines() if l.startswith("RESULT ")), "RESULT {}")
         try:
             result = json.loads(line[7:])
         except ValueError:
             result = {"error": line[:120]}
-        # If Excel COM failed to open original (error contains "Open" or "detected a problem"), fall back to LibreOffice
-        if "error" in result and ("Open" in result["error"] or "detected a problem" in result["error"] or "0x800A03EC" in result["error"]):
+        # If Excel COM failed for any reason (Protected View, RPC busy, dialog timeout, array index), fall back to LibreOffice
+        if "error" in result:
             print(f"  Excel COM failed for {name}: {result.get('error')}, falling back to LibreOffice...", flush=True)
             cmp2 = subprocess.run([sys.executable, LIBRE_COMPARE, src, out],
                                   capture_output=True, text=True, timeout=1000, cwd=ROOT, encoding="utf-8", errors="replace")
