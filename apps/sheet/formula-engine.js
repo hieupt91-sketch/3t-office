@@ -253,6 +253,23 @@ export class FormulaEngine {
     if (!item) return 0;
     const raw = (item.val !== undefined && item.val !== null) ? item.val : "";
 
+    if ((raw === "#NAME?" || raw === "#ADDIN?") && item.formula) {
+      if (!this._evaluatingCoords) this._evaluatingCoords = new Set();
+      const coordKey = (sheetName ? sheetName + "!" : "") + coord.toUpperCase();
+      if (!this._evaluatingCoords.has(coordKey)) {
+        this._evaluatingCoords.add(coordKey);
+        try {
+          const recomputed = this.evaluate(item.formula.startsWith("=") ? item.formula : "=" + item.formula);
+          if (recomputed && recomputed !== "#NAME?" && recomputed !== "#LỖI!") {
+            item.val = recomputed;
+            return recomputed;
+          }
+        } finally {
+          this._evaluatingCoords.delete(coordKey);
+        }
+      }
+    }
+
     if (this._isError(raw)) return raw;
 
     // Giữ nguyên chuỗi ngày để các hàm ngày tháng có thể phân tích, không coi dấu "/" là ký hiệu tiền tệ.
@@ -691,6 +708,11 @@ export class FormulaEngine {
   }
 
   _equals(left, right) {
+    const leftIsBlank = left === null || left === undefined || (typeof left === "string" && left.trim() === "");
+    const rightIsBlank = right === null || right === undefined || (typeof right === "string" && right.trim() === "");
+    if (leftIsBlank && rightIsBlank) return true;
+    if (leftIsBlank !== rightIsBlank) return false;
+
     if (typeof left === "number" || typeof right === "number") {
       const a = Number(left);
       const b = Number(right);
@@ -699,10 +721,10 @@ export class FormulaEngine {
     return String(left).toLocaleLowerCase() === String(right).toLocaleLowerCase();
   }
 
-  _matchesCriteria(value, rawCriteria) {
-    const criteria = this._resolveSingleValue(rawCriteria);
+
+  _matchesCriteria(value, criteria) {
     if (typeof criteria === "number" || typeof criteria === "boolean") return this._equals(value, criteria);
-    const text = String(criteria);
+    const text = String(criteria ?? "");
     const match = text.match(/^(<=|>=|<>|!=|=|<|>)(.*)$/);
     if (match) {
       const rightText = match[2];
@@ -822,14 +844,16 @@ export class FormulaEngine {
       // 2. Tham chiếu ô đơn: =A1, =$A$1, ='Sheet1'!A1
       if (/^(?:(?:'(?:[^']|'')+'|[A-Za-zÀ-ỹ0-9_.\s]+)!)?\$?[A-Za-z]+\$?\d+$/i.test(expr)) {
         const reference = this._parseReference(expr);
-        return reference.error || this.getCellValue(reference.ref, reference.sheet);
+        const val = reference.error || this.getCellValue(reference.ref, reference.sheet);
+        return val instanceof String ? String(val) : val;
       }
 
       const named = this._resolveNamedRange(expr);
       if (named) {
         const expanded = this.expandRange(this._resolveRangeReference(expr));
         if (expanded && expanded.length === 1) {
-          return this.getCellValue(expanded[0]);
+          const val = this.getCellValue(expanded[0]);
+          return val instanceof String ? String(val) : val;
         }
       }
 
@@ -838,11 +862,13 @@ export class FormulaEngine {
       if (funcMatch) {
         const funcName = funcMatch[1].toUpperCase();
         const rawArgs = this._splitArgs(funcMatch[2]);
-        return this._executeFunction(funcName, rawArgs);
+        const val = this._executeFunction(funcName, rawArgs);
+        return val instanceof String ? String(val) : val;
       }
 
       // 4. Biểu thức toán học số học thông thường: =A1 + B2 * 3
-      return this._evaluateArithmetic(expr);
+      const arithVal = this._evaluateArithmetic(expr);
+      return arithVal instanceof String ? String(arithVal) : arithVal;
     } catch (err) {
       console.warn("[FormulaEngine] Lỗi tính toán:", formula, err);
       return "#LỖI!";
@@ -977,7 +1003,8 @@ export class FormulaEngine {
         const averageValues = this._rangeValues(args[2] || args[0]);
         if (criteriaValues.includes("#REF!") || averageValues.includes("#REF!")) return "#REF!";
         if (criteriaValues.length !== averageValues.length) return "#VALUE!";
-        const matches = averageValues.filter((value, index) => this._matchesCriteria(criteriaValues[index], args[1]) && typeof value === "number");
+        const criteria = this._resolveSingleValue(args[1]);
+        const matches = averageValues.filter((value, index) => this._matchesCriteria(criteriaValues[index], criteria) && typeof value === "number");
         return matches.length ? matches.reduce((sum, value) => sum + value, 0) / matches.length : "#DIV/0!";
       }
 
@@ -985,7 +1012,7 @@ export class FormulaEngine {
         if (args.length < 3 || args.length % 2 === 0) return "#VALUE!";
         const averageValues = this._rangeValues(args[0]);
         const pairs = [];
-        for (let index = 1; index < args.length; index += 2) pairs.push([this._rangeValues(args[index]), args[index + 1]]);
+        for (let index = 1; index < args.length; index += 2) pairs.push([this._rangeValues(args[index]), this._resolveSingleValue(args[index + 1])]);
         if (pairs.some(([values]) => values.includes("#REF!"))) return "#REF!";
         if (pairs.some(([values]) => values.length !== averageValues.length)) return "#VALUE!";
         const matches = averageValues.filter((value, index) => typeof value === "number" && pairs.every(([values, criteria]) => this._matchesCriteria(values[index], criteria)));
@@ -1043,6 +1070,7 @@ export class FormulaEngine {
         const requestedIndex = Number(this._resolveSingleValue(args[2]));
         const exact = args[3] !== undefined && !Boolean(this._resolveSingleValue(args[3]));
         if (!matrix || !matrix.length || !matrix[0]) return "#REF!";
+        if (exact && (lookup === "" || lookup === null || lookup === undefined)) return "#N/A";
         const indexData = this._getLookupIndex(args[1], matrix, funcName);
         let found = null;
         if (exact) {
@@ -1055,7 +1083,7 @@ export class FormulaEngine {
         }
         if (!found || requestedIndex < 1) return "#N/A";
         const result = funcName === "VLOOKUP" ? matrix[found.index]?.[requestedIndex - 1] : matrix[requestedIndex - 1]?.[found.index];
-        return result === undefined ? "#REF!" : result;
+        return result === undefined ? "#REF!" : (result === "" ? 0 : result);
       }
 
       case "INDEX": {
@@ -2213,6 +2241,26 @@ export class FormulaEngine {
     return Boolean(val && val !== "FALSE" && val !== "0");
   }
 
+  _isSingleFunctionCall(token) {
+    const m = token.match(/^([A-Za-z_][A-Za-z0-9_.]*)\s*\(/);
+    if (!m) return false;
+    let depth = 0;
+    let inQuotes = false;
+    for (let i = m[0].length - 1; i < token.length; i++) {
+      const ch = token[i];
+      if (ch === '"' && token[i - 1] !== "\\") {
+        inQuotes = !inQuotes;
+      } else if (!inQuotes) {
+        if (ch === "(") depth++;
+        else if (ch === ")") {
+          depth--;
+          if (depth === 0) return i === token.length - 1;
+        }
+      }
+    }
+    return false;
+  }
+
   _resolveSingleValue(token) {
     if (typeof token !== "string") return token;
     token = token.trim();
@@ -2220,9 +2268,15 @@ export class FormulaEngine {
     if (token.startsWith('"') && token.endsWith('"')) {
       return token.slice(1, -1);
     }
-    if (/^(?:(?:'[^']+'|[^!]+)!)?[A-Z]+\d+$/i.test(token)) {
+    if (/^(?:(?:'[^']+'|[^!]+)!)?\$?[A-Z]+\$?\d+$/i.test(token)) {
       const reference = this._parseReference(token);
-      return reference.error || this.getCellValue(reference.ref, reference.sheet);
+      if (reference.error) return reference.error;
+      const map = reference.sheet && typeof this.sheetResolver === "function" ? this.sheetResolver(reference.sheet) : this.cellsMap;
+      const item = map ? map.get(reference.ref) : null;
+      if (!item || item.val === "" || item.val === null || item.val === undefined) {
+        return "";
+      }
+      return this.getCellValue(reference.ref, reference.sheet);
     }
     const named = this._resolveNamedRange(token);
     if (named) return this.getCellValue(this.expandRange(this._resolveRangeReference(token))[0]);
@@ -2232,6 +2286,13 @@ export class FormulaEngine {
     if (token.toUpperCase() === "TRUE") return true;
     if (token.toUpperCase() === "FALSE") return false;
 
+    if (this._isSingleFunctionCall(token)) {
+      const nested = this.evaluate(`=${token}`);
+      if (nested !== "#LỖI!") {
+        return nested;
+      }
+    }
+
     // Hỗ trợ biểu thức số học trong đối số hàm (ví dụ: 0.08/12, 12*5, A1/12)
     if (/[+\-*/^()]/.test(token)) {
       const arith = this._evaluateArithmetic(token, { raw: true });
@@ -2240,12 +2301,6 @@ export class FormulaEngine {
       }
       if (this._isError(arith)) {
         return arith;
-      }
-    }
-    if (/^[A-Z_.]+\s*\(.*\)$/i.test(token)) {
-      const nested = this.evaluate(`=${token}`);
-      if (nested !== "#LỖI!" && nested !== "#NAME?") {
-        return nested;
       }
     }
 
@@ -2404,8 +2459,11 @@ export class FormulaEngine {
 
     // Tính toán an toàn
     if (/^[\d\s+\-*/().%^]+$/.test(resolved)) {
-      // Thay thế ^ thành **
-      const jsExpr = resolved.replace(/\^/g, "**");
+      // Thay thế toán tử phần trăm % (postfix: 70% -> (70/100)) và ^ thành **
+      const jsExpr = resolved
+        .replace(/(\d+(?:\.\d+)?)\s*%/g, "($1/100)")
+        .replace(/\)\s*%/g, ")/100")
+        .replace(/\^/g, "**");
       try {
         // eslint-disable-next-line no-new-func
         const result = Function(`"use strict"; return (${jsExpr})`)();

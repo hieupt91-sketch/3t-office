@@ -792,5 +792,91 @@ export async function runFormulaEngineTests() {
     pass: sb6Muc4Engine.evaluate("=E3+E4") === "#N/A"
   });
 
+  // 8. SB7 NHÓM 1: VLOOKUP và so sánh phân biệt chuỗi rỗng với số 0 (không khớp nhầm ô rỗng)
+  const sb7Nhom1Cells = new Map([
+    ["A1", { val: "SP01", formula: "", style: {} }],
+    ["B1", { val: "Sản phẩm 1", formula: "", style: {} }],
+    ["A2", { val: "", formula: "", style: {} }],
+    ["B2", { val: "Dòng rỗng", formula: "", style: {} }],
+    ["C1", { val: 0, formula: "", style: {} }],
+    ["C2", { val: "", formula: "", style: {} }]
+  ]);
+  const sb7Nhom1Engine = new FormulaEngine(sb7Nhom1Cells);
+  results.push({
+    name: 'SB7 NHÓM 1: _equals phân biệt chuỗi rỗng "" và số 0 (_equals("", 0) === false)',
+    pass: sb7Nhom1Engine._equals("", 0) === false && sb7Nhom1Engine._equals(0, "") === false
+  });
+  results.push({
+    name: 'SB7 NHÓM 1: _equals("0", 0) và _equals("", "") vẫn bằng true',
+    pass: sb7Nhom1Engine._equals("0", 0) === true && sb7Nhom1Engine._equals("", "") === true
+  });
+  results.push({
+    name: 'SB7 NHÓM 1: VLOOKUP với lookup=0 không khớp dòng rỗng trong bảng (trả về #N/A)',
+    pass: sb7Nhom1Engine.evaluate('=VLOOKUP(C1, A1:B2, 2, FALSE)') === "#N/A"
+  });
+  results.push({
+    name: 'SB7 NHÓM 1: VLOOKUP tham chiếu ô rỗng không khớp dòng rỗng trong bảng (trả về #N/A)',
+    pass: sb7Nhom1Engine.evaluate('=VLOOKUP(C2, A1:B2, 2, FALSE)') === "#N/A"
+  });
+
+  // 9. SB7 NHÓM 2: SUMIF với điều kiện là hàm lồng nhau (VLOOKUP, INDEX, ...)
+  const sb7Nhom2Cells = new Map([
+    ["A1", { val: "M01", formula: "", style: {} }],
+    ["B1", { val: 10, formula: "", style: {} }],
+    ["A2", { val: "M02", formula: "", style: {} }],
+    ["B2", { val: 20, formula: "", style: {} }],
+    ["A3", { val: "M01", formula: "", style: {} }],
+    ["B3", { val: 30, formula: "", style: {} }],
+    ["D1", { val: "X", formula: "", style: {} }],
+    ["E1", { val: "M01", formula: "", style: {} }]
+  ]);
+  const sb7Nhom2Engine = new FormulaEngine(sb7Nhom2Cells);
+  results.push({
+    name: 'SB7 NHÓM 2: SUMIF với điều kiện là hàm lồng VLOOKUP(=SUMIF(A1:A3, VLOOKUP("X", D1:E1, 2, FALSE), B1:B3) -> 40)',
+    pass: sb7Nhom2Engine.evaluate('=SUMIF(A1:A3, VLOOKUP("X", D1:E1, 2, FALSE), B1:B3)') === 40
+  });
+
+  // 10. SB7 NHÓM 3: Lan truyền mã lỗi qua các ô phụ thuộc khi ô nguồn có formula và val ban đầu là #NAME?
+  const sb7Nhom3Cells = new Map([
+    ["A12", { val: "#NAME?", formula: "=#ref!+1", style: {} }],
+    ["A13", { val: "#NAME?", formula: "=A12+1", style: {} }],
+    ["A14", { val: "#NAME?", formula: "=A13+1", style: {} }]
+  ]);
+  const sb7Nhom3Engine = new FormulaEngine(sb7Nhom3Cells);
+  results.push({
+    name: 'SB7 NHÓM 3: Ô nguồn chứa =#ref!+1 với val=#NAME? được tính lại thành #REF!',
+    pass: sb7Nhom3Engine.getCellValue("A12") === "#REF!"
+  });
+  results.push({
+    name: 'SB7 NHÓM 3: Ô phụ thuộc =A12+1 lan truyền #REF! thay vì #NAME?',
+    pass: sb7Nhom3Engine.evaluate("=A12+1") === "#REF!" && sb7Nhom3Engine.evaluate("=A13+1") === "#REF!"
+  });
+
+  // 11. SB7 NHÓM 4: Toán tử phần trăm (%) trong biểu thức số học (F7*E7*70%, 100*50%, (10+20)%)
+  const sb7Nhom4Cells = new Map([
+    ["F7", { val: 200, formula: "", style: {} }],
+    ["E7", { val: 50, formula: "", style: {} }]
+  ]);
+  const sb7Nhom4Engine = new FormulaEngine(sb7Nhom4Cells);
+  results.push({
+    name: 'SB7 NHÓM 4: Toán tử phần trăm =F7*E7*70% trả về 7000',
+    pass: approximatelyEqual(sb7Nhom4Engine.evaluate("=F7*E7*70%"), 7000)
+  });
+  results.push({
+    name: 'SB7 NHÓM 4: Toán tử phần trăm đơn lẻ và ngoặc =100*50% và =(10+20)%',
+    pass: sb7Nhom4Engine.evaluate("=100*50%") === 50 && approximatelyEqual(sb7Nhom4Engine.evaluate("=(10+20)%"), 0.3)
+  });
+
+  // 12. SB7 NHÓM 5: Tham chiếu ô Text Cell trả về chuỗi nguyên thủy primitive string
+  const sb7Nhom5Cells = new Map([
+    ["B3", { val: "00990011", formula: "", style: { numberFormat: { category: "text" } } }]
+  ]);
+  const sb7Nhom5Engine = new FormulaEngine(sb7Nhom5Cells);
+  const sb7Nhom5Res = sb7Nhom5Engine.evaluate("=B3");
+  results.push({
+    name: 'SB7 NHÓM 5: =B3 với ô text trả về primitive string thay vì String object',
+    pass: typeof sb7Nhom5Res === "string" && sb7Nhom5Res === "00990011" && !(sb7Nhom5Res instanceof String)
+  });
+
   return results;
 }
