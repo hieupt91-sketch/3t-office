@@ -186,3 +186,39 @@ Hàm `TODAY()` là hàm biến động (volatile function). Giá trị cache tro
 1. **Độ ổn định**: Script đã kiểm tra thành công toàn bộ **28 tệp** XLSX doanh nghiệp thật (lan01.xlsx – lan28.xlsx), xử lý tổng cộng **138,506** ô công thức, đánh giá **72,837** công thức hợp lệ.
 2. **Tỷ lệ tương thích**: Bộ tính toán FormulaEngine của VN Sheet đạt tỷ lệ khớp **50.96%** so với kết quả cache chuẩn của Microsoft Excel.
 3. **Độ an toàn**: Toàn bộ quy trình kiểm chứng thực hiện tự động qua CDP, không can thiệp hay sửa đổi bất kỳ tệp dữ liệu nào của người dùng. Các chênh lệch được tổng hợp đầy đủ làm cơ sở cho các ticket tối ưu tiếp theo.
+
+---
+
+## 6. Kết Quả Sau SB6 (07/10/2026)
+
+Ticket **SB6** đã xử lý triệt để 4 nhóm lỗi công thức cốt lõi phát hiện qua đợt đối chiếu cache trên các tệp XLSX doanh nghiệp thật:
+
+### 6.1. Bốn nhóm cải tiến cốt lõi đã hoàn thành
+1. **MỤC 1 — `getCellValue` chỉ đổi chuỗi sang số khi toàn bộ chuỗi là số/tiền tệ**:
+   - Sử dụng regex kiểm tra toàn bộ chuỗi `/^\s*[-+]?[\d.,\s]+\s*(?:₫|đ|vnd|vnđ)?\s*$/i && /\d/.test(str)`.
+   - Các chuỗi mô tả kết hợp chữ và số (ví dụ `"Máy in canon LBP 2900"`, `"24 tháng"`) được giữ nguyên bản dưới dạng text, không bị bóc tách nhầm thành số (`2900`, `24`).
+   - Giữ nguyên vẹn khả năng nhận diện định dạng tiền tệ Việt Nam chuẩn (ví dụ `"25.000.000 ₫"` -> `25000000`).
+2. **MỤC 2 — Xử lý tiền tố `+` và toán tử nối chuỗi `&` giữ nguyên kiểu văn bản**:
+   - Bổ sung tách toán tử `&` theo mức ưu tiên thấp hơn các phép toán số học, lan truyền lỗi và chuyển đổi toán hạng boolean/chuỗi chuẩn Excel.
+   - Bỏ tiền tố `+` đầu công thức mà không ép kiểu về số học (`=+TRIM(B13)` -> giữ chuỗi text; `=+F260&" "&G260` -> ghép chuỗi đúng, không sinh `#VALUE!`).
+3. **MỤC 3 — `SUMIF` tự động định lại kích thước `sum_range` theo vùng điều kiện**:
+   - Theo chuẩn Excel, khi `sum_range` có kích thước khác vùng điều kiện (ví dụ `SUMIF(E1:L300, B2, H1:H300)`), `sum_range` sẽ lấy ô trên cùng bên trái làm gốc và mở rộng theo đúng số hàng/cột của vùng điều kiện.
+   - `SUMIFS` giữ nguyên kiểm tra yêu cầu các vùng có cùng kích thước (`#VALUE!` nếu lệch) theo SB1.
+4. **MỤC 4 — Lan truyền mã lỗi tham chiếu (`#REF!`) và các lỗi nguồn qua phép tính số học**:
+   - Khắc phục `_isError` có neo kết thúc chuỗi để không nhận nhầm chuỗi biểu thức bắt đầu bằng mã lỗi (như `"#REF!+1"`).
+   - Trong `_evaluateArithmetic`, regex bắt token bao gồm các mã lỗi literal (`#REF!`, `#N/A`, `#VALUE!`, `#DIV/0!`, `#NUM!`, `#NAME?`, `#NULL!`, `#LỖI!`).
+   - Lan truyền mã lỗi gốc với thứ bậc ưu tiên (`#REF!` và `#N/A` được ưu tiên giữ nguyên), giúp các công thức `=#REF!+1`, `=C17+1` (với C17 là `#REF!`) trả về `#REF!` thay vì chuỗi literal hoặc `#VALUE!`.
+
+### 6.2. Bảng so sánh kết quả kiểm chứng trước & sau SB6 (Các tệp trọng điểm)
+
+| Tệp kiểm tra | Số ô công thức | Trước SB6 (Khớp) | Trước SB6 (%) | Sau SB6 (Khớp) | Sau SB6 (%) | Mức tăng | Ghi chú nguyên nhân khắc phục |
+|---|---|---|---|---|---|---|---|
+| `lan01.xlsx` | 865 | 860 | 99.42% | **865** | **100.00%** | **+5 ô** (+0.58%) | Khắc phục 100% lệch `SUMIF` với vùng điều kiện nhiều cột (Mục 3) |
+| `lan04.xlsx` | 49 | 8 | 16.33% | **32** | **65.31%** | **+24 ô** (+48.98%) | Khắc phục lan truyền `#REF!` (`=#REF!+1`, `=A12+1`) và tiền tố `+` (Mục 2, 4) |
+| `lan06.xlsx` | 1,023 | 412 | 40.27% | **466** | **45.55%** | **+54 ô** (+5.28%) | Giữ nguyên chuỗi văn bản chứa số và nối chuỗi `&` (Mục 1, 2) |
+| `lan22.xlsx` | 124 | 0 | 0.00% | 0 | 0.00% | 0 | 100% công thức là liên kết workbook ngoài (`'[1]...'`) |
+
+- **Toàn bộ bộ test hồi quy nền tảng**:
+  - `node tests/run-tests.js`: **2911/2911 PASS (0 FAIL)** (tăng từ 2896 test lên 2911 test nhờ bổ sung 15 unit test mới cho SB6).
+  - `node --experimental-websocket scripts/audit-0610/sheet_formulas_vs_excel.mjs --oracle-expected`: **81/86 PASS, 0 FAIL, 5 INFO**.
+
