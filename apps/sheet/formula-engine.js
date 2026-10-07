@@ -325,7 +325,7 @@ export class FormulaEngine {
   }
 
   _isError(value) {
-    return typeof value === "string" && /^#(?:N\/A|VALUE!|REF!|DIV\/0!|NUM!|NAME\?|NULL!|LỖI!)/.test(value);
+    return (typeof value === "string" || value instanceof String) && /^#(?:N\/A|VALUE!|REF!|DIV\/0!|NUM!|NAME\?|NULL!|LỖI!)(?:\s*\(.*\))?$/i.test(String(value).trim());
   }
 
   _sheetNames() {
@@ -2369,13 +2369,22 @@ export class FormulaEngine {
   }
 
   _evaluateArithmetic(expr, { raw = false } = {}) {
-    // Thay thế các tọa độ ô (vd: A1, B2) thành giá trị số tương ứng
+    // Thay thế các tọa độ ô (vd: A1, B2) hoặc mã lỗi thành giá trị số tương ứng
     let propagatedError = null;
-    const resolved = expr.replace(/(?:'(?:[^']|'')+'|[A-Za-zÀ-ỹ_][^\s!+\-*/()]*)!\$?[A-Z]+\$?\d+|\$?[A-Z]+\$?\d+/gi, (token) => {
+    const tokenRegex = /(?:'(?:[^']|'')+'|[A-Za-zÀ-ỹ_][^\s!+\-*/()]*)!(?:\$?[A-Z]+\$?\d+|#(?:REF!|N\/A|VALUE!|DIV\/0!|NUM!|NAME\?|NULL!|LỖI!))|\$?[A-Z]+\$?\d+|#(?:REF!|N\/A|VALUE!|DIV\/0!|NUM!|NAME\?|NULL!|LỖI!)/gi;
+    const resolved = expr.replace(tokenRegex, (token) => {
+      const errMatch = token.match(/#(?:REF!|N\/A|VALUE!|DIV\/0!|NUM!|NAME\?|NULL!|LỖI!)/i);
+      if (errMatch) {
+        const errUpper = errMatch[0].toUpperCase();
+        if (!propagatedError || errUpper === "#REF!" || errUpper === "#N/A") {
+          propagatedError = errUpper;
+        }
+        return 0;
+      }
       const reference = this._parseReference(token);
       const val = reference.error || this.getCellValue(reference.ref, reference.sheet);
       if (this._isError(val)) {
-        if (!propagatedError || val === "#N/A") propagatedError = val;
+        if (!propagatedError || val === "#REF!" || val === "#N/A") propagatedError = val;
         return 0;
       }
       if (typeof val === "string" || (val && val.isTextCell)) {

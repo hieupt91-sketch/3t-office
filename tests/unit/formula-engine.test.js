@@ -752,5 +752,45 @@ export async function runFormulaEngineTests() {
     pass: sb6Muc3Engine.evaluate('=SUMIFS(H1:H2, E1:F2, "A")') === "#VALUE!"
   });
 
+  // 7. SB6 MỤC 4: Lan truyền mã lỗi tham chiếu (#REF!) và các lỗi nguồn qua phép toán số học
+  const sb6Muc4Cells = new Map([
+    ["C17", { val: "#REF!", formula: "=#REF!+1", style: {} }],
+    ["C18", { val: 0, formula: "=C17+1", style: {} }],
+    ["E1", { val: "#VALUE!", formula: "", style: {} }],
+    ["E2", { val: "#REF!", formula: "", style: {} }],
+    ["E3", { val: "#DIV/0!", formula: "", style: {} }],
+    ["E4", { val: "#N/A", formula: "", style: {} }]
+  ]);
+  const sb6Muc4Engine = new FormulaEngine(sb6Muc4Cells);
+
+  results.push({
+    name: 'SB6 MỤC 4: =#REF!+1 trả về mã lỗi #REF! thay vì chuỗi "#REF!+1"',
+    pass: sb6Muc4Engine.evaluate("=#REF!+1") === "#REF!"
+  });
+  results.push({
+    name: 'SB6 MỤC 4: =1+#REF! trả về mã lỗi #REF!',
+    pass: sb6Muc4Engine.evaluate("=1+#REF!") === "#REF!"
+  });
+  results.push({
+    name: 'SB6 MỤC 4: =+#REF!+1 trả về mã lỗi #REF!',
+    pass: sb6Muc4Engine.evaluate("=+#REF!+1") === "#REF!"
+  });
+  results.push({
+    name: 'SB6 MỤC 4: =#REF!*2 và =-#REF! trả về mã lỗi #REF!',
+    pass: sb6Muc4Engine.evaluate("=#REF!*2") === "#REF!" && sb6Muc4Engine.evaluate("=-#REF!") === "#REF!"
+  });
+  results.push({
+    name: 'SB6 MỤC 4: Tham chiếu ô chứa #REF! (=C17+1) lan truyền #REF!',
+    pass: sb6Muc4Engine.evaluate("=C17+1") === "#REF!"
+  });
+  results.push({
+    name: 'SB6 MỤC 4: Phép cộng nhiều lỗi ưu tiên #REF! trên #VALUE! (=E1+E2)',
+    pass: sb6Muc4Engine.evaluate("=E1+E2") === "#REF!"
+  });
+  results.push({
+    name: 'SB6 MỤC 4: Phép cộng nhiều lỗi ưu tiên #N/A trên #DIV/0! (=E3+E4)',
+    pass: sb6Muc4Engine.evaluate("=E3+E4") === "#N/A"
+  });
+
   return results;
 }
