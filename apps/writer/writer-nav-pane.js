@@ -40,7 +40,7 @@ export function collectNavigationHeadings(root) {
       continue;
     }
     const level = getNavigationHeadingLevel(element);
-    const text = String(element?.innerText ?? element?.textContent ?? "").replace(/\s+/g, " ").trim();
+    const text = String(element?.textContent ?? element?.innerText ?? "").replace(/\s+/g, " ").trim();
     if (!level || !text) continue;
     headings.push({ element, level, text, page });
   }
@@ -112,7 +112,6 @@ export class WriterNavigationPane {
     if (!this.workspace || !this.body || typeof document === "undefined") return this;
     this._buildUi();
     this.workspace.insertBefore(this.element, this.workspace.firstChild || null);
-    this.commandBus.bindHandler(NAVIGATION_COMMAND, () => this.toggle());
     this.body.addEventListener?.("input", this._onInput);
     this.body.addEventListener?.("vno-pagination-updated", this._onPagination);
     document.addEventListener?.("selectionchange", this._onSelectionChange);
@@ -198,7 +197,7 @@ export class WriterNavigationPane {
           continue;
         }
         const level = getNavigationHeadingLevel(element);
-        const text = String(element?.innerText ?? element?.textContent ?? "").replace(/\s+/g, " ").trim();
+        const text = String(element?.textContent ?? element?.innerText ?? "").replace(/\s+/g, " ").trim();
         if (!level || !text) continue;
         let id = this._elementIds.get(element);
         if (!id) {

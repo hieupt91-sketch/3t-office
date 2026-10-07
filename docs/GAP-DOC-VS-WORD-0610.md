@@ -142,8 +142,8 @@
 | Xem | 100% | 1 | ĐẦY ĐỦ | `apps/writer/writer-ribbon.js:814-849; tests/unit/writer-vertical-ruler.test.js; tests/unit/writer-zoom-wheel.test.js` | S |
 | Xem | Chiều rộng trang | 1 | MỘT PHẦN — có lệnh/UI, chưa chứng minh đủ fidelity/phạm vi | `apps/writer/writer-ribbon.js:814-849; tests/unit/writer-vertical-ruler.test.js; tests/unit/writer-zoom-wheel.test.js` | M |
 | Xem | Đường lưới | 1 | ĐẦY ĐỦ | `apps/writer/writer-ribbon.js:814-849; tests/unit/writer-vertical-ruler.test.js; tests/unit/writer-zoom-wheel.test.js` | M |
-| Xem | Ngăn dẫn hướng | 1 | MỘT PHẦN — có lệnh/UI, chưa chứng minh đủ fidelity/phạm vi | `apps/writer/writer-ribbon.js:814-849; tests/unit/writer-vertical-ruler.test.js; tests/unit/writer-zoom-wheel.test.js` | M |
-| Xem | Tìm theo tiêu đề | 1 | MỘT PHẦN — có lệnh/UI, chưa chứng minh đủ fidelity/phạm vi | `apps/writer/writer-ribbon.js:814-849; tests/unit/writer-vertical-ruler.test.js; tests/unit/writer-zoom-wheel.test.js` | M |
+| Xem | Ngăn dẫn hướng | 1 | ĐẦY ĐỦ | `apps/writer/writer-nav-pane.js; tests/unit/writer-nav-pane.test.js; scripts/audit-0610/doc_nav_pane_check.mjs` (desktop CDP 9/9 PASS) | M |
+| Xem | Tìm theo tiêu đề | 1 | ĐẦY ĐỦ | `apps/writer/writer-nav-pane.js; tests/unit/writer-nav-pane.test.js; scripts/audit-0610/doc_nav_pane_check.mjs` (lọc có/không dấu, cây Heading/Mức đại cương) | M |
 | Xem | Cửa sổ mới | 1 | MỘT PHẦN — có lệnh/UI, chưa chứng minh đủ fidelity/phạm vi | `apps/writer/writer-ribbon.js:814-849; tests/unit/writer-vertical-ruler.test.js; tests/unit/writer-zoom-wheel.test.js` | M |
 | Xem | Trang hiện tại/thanh trạng thái | 1 | MỘT PHẦN — có lệnh/UI, chưa chứng minh đủ fidelity/phạm vi | `apps/writer/writer-ribbon.js:814-849; tests/unit/writer-vertical-ruler.test.js; tests/unit/writer-zoom-wheel.test.js` | M |
 | Trang đầu | Mở lại DOCX | 1 | MỘT PHẦN — kịch bản end-to-end chưa chạy | `tests/live/cdp/session.mjs (có harness; kịch bản chưa chạy)` | M |
@@ -278,7 +278,7 @@ Kiểm tra `word/document.xml`, `styles.xml`, umbering.xml`, `header*.xml`, `foo
 - "Ngắt trang trước" lưu thành dấu ngắt trang ở cuối đoạn trước (cùng kết quả ngắt trang, nhưng Word không hiện hộp "Ngắt trang trước" được chọn).
 - Tên bookmark được chuyển thành chữ thường khi lưu.
 
-**THIẾU thật (không có lệnh trong ứng dụng):** So sánh tài liệu, Bảo vệ tài liệu (mật khẩu/hạn chế sửa), **Ngăn dẫn hướng** (danh sách tiêu đề để nhảy nhanh trong tài liệu dài). Mỗi mục là một tính năng mới cần kế hoạch (tệp/ảnh hưởng/kiểm thử) và hướng dẫn tiếng Việt kèm theo.
+**THIẾU thật (không có lệnh trong ứng dụng):** So sánh tài liệu, Bảo vệ tài liệu (mật khẩu/hạn chế sửa). Ngăn dẫn hướng đã được hoàn thiện trong NAV1 với danh sách tiêu đề, tìm kiếm, thu/mở nhánh, số trang ước lượng và điều hướng bàn phím.
 
 **Chưa kiểm:** các dòng cần hộp thoại nhập liệu (trộn thư với tệp CSV/Excel, quản lý nguồn), mẫu văn bản hành chính (công văn, quyết định, hợp đồng, biên bản), chuẩn hóa Times New Roman 13/14, kiểu APA, ngôn ngữ kiểm lỗi, cửa sổ mới.
 
@@ -352,7 +352,7 @@ Kết quả tổng cộng 40 dòng ma trận còn lại (các dòng MỘT PHẦN
 | Xem lại — Giải quyết bình luận | PASS | Đánh dấu trạng thái bình luận Đã giải quyết (resolved=true) thành công. |
 | Xem lại — Bình luận trước/sau | PASS | Điều hướng tới (next) và lui (previous) giữa các bình luận hoạt động chuẩn xác. |
 | Xem lại — Sửa đổi trước/sau | PASS | Điều hướng tới và lui qua các điểm theo dõi sửa đổi (nextTrackChange/previousTrackChange) thành công. |
-| Xem — Tìm theo tiêu đề | FAIL | Chưa có ngăn dẫn hướng hay lệnh duyệt/tìm theo danh sách tiêu đề trong tài liệu (tính năng đang ở bước kế hoạch PLAN-WRITER-NAV-PANE.md). |
+| Xem — Tìm theo tiêu đề | PASS | Ngăn dẫn hướng liệt kê Heading 1–6 và đoạn có Mức đại cương, lọc có/không dấu, thu/mở nhánh và nhảy tới tiêu đề. Kiểm chứng app desktop thật tại `scripts/audit-0610/doc_nav_pane_check.mjs`: 9/9 PASS. |
 | Trang đầu — Mở lại DOCX | PASS | Lưu tài liệu ra DOCX và mở lại xác thực bảo toàn toàn bộ nội dung. |
 | Trang đầu — Tìm thay giữ định dạng | PASS | Thay thế nội dung chữ trong khi bảo toàn các thẻ định dạng in đậm và màu sắc. |
 | Trang đầu — Tạo bullet thụt lề | PASS | Tạo danh sách dấu đầu dòng thụt lề cấp 2 thành công. |
@@ -365,7 +365,7 @@ Kết quả tổng cộng 40 dòng ma trận còn lại (các dòng MỘT PHẦN
 | Bố cục/Thiết kế — Bảng không tách hàng qua trang | PASS | Các hàng bảng được thiết lập thuộc tính chống tách qua trang (page-break-inside: avoid) thành công. |
 | Bố cục/Thiết kế — Phụ lục đổi landscape | PASS | Phần phụ lục (section-appendix) được thiết lập hướng giấy nằm ngang (landscape) riêng biệt. |
 
-Tuân thủ nghiêm ngặt quy tắc không sửa mã sản phẩm trong đợt kiểm chứng này. Dòng FAIL duy nhất (`Xem — Tìm theo tiêu đề`) xác nhận thiếu ngăn dẫn hướng, đúng theo tài liệu kế hoạch `PLAN-WRITER-NAV-PANE.md`. 7 dòng BLOCKED được ghi nhận đúng do phụ thuộc hộp thoại OS hoặc thiết bị in phần cứng.
+Đợt D30 ban đầu không sửa mã sản phẩm và đã ghi nhận đúng phần thiếu. NAV1 sau đó triển khai theo `PLAN-WRITER-NAV-PANE.md` và chuyển dòng `Xem — Tìm theo tiêu đề` sang PASS bằng kiểm thử app desktop thật. 7 dòng BLOCKED khác của D30 vẫn giữ nguyên do phụ thuộc hộp thoại OS hoặc thiết bị in phần cứng.
 
 ## Cập nhật sửa lỗi 07/10/2026 — WF2 Codex
 

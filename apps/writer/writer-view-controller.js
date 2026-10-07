@@ -49,6 +49,7 @@ export class WriterViewController {
     bind("writer.view.readMode", () => this.setMode("readMode"));
     bind("writer.view.ruler", () => this.toggleRuler());
     bind("writer.view.gridlines", () => this.toggleGridlines());
+    bind("writer.view.navigationPane", () => this.navigationPane?.toggle());
     bind("writer.view.zoomIn", () => this.zoomIn());
     bind("writer.view.zoomOut", () => this.zoomOut());
     bind("writer.view.zoomReset", () => this.zoomReset());
