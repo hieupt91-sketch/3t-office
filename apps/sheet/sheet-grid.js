@@ -5243,6 +5243,15 @@ _bindGridKeyboardNavigation() {
       } else {
         item.val = this.formulaEngine.evaluate(val);
       }
+      const category = item.style?.numberFormat?.category;
+      if (!category || category === "general") {
+        const trimmedFormula = String(val).trim();
+        if (/^=\s*\(?\s*NOW\s*\(/i.test(trimmedFormula)) {
+          item.style = { ...(item.style || {}), numberFormat: { category: "date", dateFormat: "dd/mm/yyyy hh:mm" } };
+        } else if (/^=\s*\(?\s*(?:DATE|TODAY|EDATE|EOMONTH|WORKDAY)\s*\(/i.test(trimmedFormula)) {
+          item.style = { ...(item.style || {}), numberFormat: { category: "date", dateFormat: "dd/mm/yyyy" } };
+        }
+      }
     } else {
       item.formula = "";
       const normalized = this._normalizeCellInput(val, item.style, escapedText);

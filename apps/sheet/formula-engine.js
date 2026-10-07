@@ -1571,23 +1571,38 @@ export class FormulaEngine {
 
       // Ngày tháng
       case "TODAY": {
-        const now = new Date();
-        return `${String(now.getDate()).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(2, "0")}/${now.getFullYear()}`;
+        return this._dateToSerial(new Date());
       }
 
       case "NOW": {
         const now = new Date();
-        return `${String(now.getDate()).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(2, "0")}/${now.getFullYear()} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+        const dateSerial = this._dateToSerial(now);
+        const timeFraction = (now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds()) / 86400;
+        return dateSerial + timeFraction;
       }
 
       case "DATE": {
-        const date = new Date(Number(this._resolveSingleValue(args[0])), Number(this._resolveSingleValue(args[1])) - 1, Number(this._resolveSingleValue(args[2])));
-        return Number.isNaN(date.getTime()) ? "#VALUE!" : this._formatDate(date);
+        const yVal = this._resolveSingleValue(args[0]);
+        const mVal = this._resolveSingleValue(args[1]);
+        const dVal = this._resolveSingleValue(args[2]);
+        if (this._isError(yVal)) return yVal;
+        if (this._isError(mVal)) return mVal;
+        if (this._isError(dVal)) return dVal;
+        const y = Number(yVal);
+        const m = Number(mVal);
+        const d = Number(dVal);
+        if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return "#VALUE!";
+        const date = new Date(y, m - 1, d);
+        return Number.isNaN(date.getTime()) ? "#VALUE!" : this._dateToSerial(date);
       }
 
       case "DATEDIF": {
-        const start = this._parseDate(this._resolveSingleValue(args[0]));
-        const end = this._parseDate(this._resolveSingleValue(args[1]));
+        const startVal = this._resolveSingleValue(args[0]);
+        if (this._isError(startVal)) return startVal;
+        const endVal = this._resolveSingleValue(args[1]);
+        if (this._isError(endVal)) return endVal;
+        const start = this._parseDate(startVal);
+        const end = this._parseDate(endVal);
         const unit = String(this._resolveSingleValue(args[2]) || "").toLowerCase();
         if (!start || !end || end < start) return "#NUM!";
         if (unit === "d") return Math.floor((end - start) / 86400000);
@@ -1607,18 +1622,27 @@ export class FormulaEngine {
       }
 
       case "EDATE": {
-        const start = this._parseDate(this._resolveSingleValue(args[0]));
-        if (!start) return "#VALUE!";
-        const months = Math.trunc(Number(this._resolveSingleValue(args[1])));
+        const startVal = this._resolveSingleValue(args[0]);
+        if (this._isError(startVal)) return startVal;
+        const monthsVal = this._resolveSingleValue(args[1]);
+        if (this._isError(monthsVal)) return monthsVal;
+        const start = this._parseDate(startVal);
+        const monthsNum = Number(monthsVal);
+        if (!start || !Number.isFinite(monthsNum)) return "#VALUE!";
+        const months = Math.trunc(monthsNum);
         const targetDay = start.getDate();
         const result = new Date(start.getFullYear(), start.getMonth() + months, 1);
         result.setDate(Math.min(targetDay, new Date(result.getFullYear(), result.getMonth() + 1, 0).getDate()));
-        return this._formatDate(result);
+        return this._dateToSerial(result);
       }
 
       case "WEEKDAY": {
-        const date = this._parseDate(this._resolveSingleValue(args[0]));
-        const type = args[1] === undefined ? 1 : Number(this._resolveSingleValue(args[1]));
+        const arg = this._resolveSingleValue(args[0]);
+        if (this._isError(arg)) return arg;
+        const date = this._parseDate(arg);
+        const typeVal = args[1] === undefined ? 1 : this._resolveSingleValue(args[1]);
+        if (this._isError(typeVal)) return typeVal;
+        const type = Number(typeVal);
         if (!date) return "#VALUE!";
         const starts = { 1: 0, 2: 1, 3: 1, 11: 1, 12: 2, 13: 3, 14: 4, 15: 5, 16: 6, 17: 0 };
         if (!(type in starts)) return "#NUM!";
@@ -1627,8 +1651,12 @@ export class FormulaEngine {
       }
 
       case "NETWORKDAYS": {
-        const start = this._parseDate(this._resolveSingleValue(args[0]));
-        const end = this._parseDate(this._resolveSingleValue(args[1]));
+        const startVal = this._resolveSingleValue(args[0]);
+        if (this._isError(startVal)) return startVal;
+        const endVal = this._resolveSingleValue(args[1]);
+        if (this._isError(endVal)) return endVal;
+        const start = this._parseDate(startVal);
+        const end = this._parseDate(endVal);
         if (!start || !end) return "#VALUE!";
         const holidays = this._holidaySet(args[2]);
         if (holidays.error) return holidays.error;
@@ -1641,8 +1669,12 @@ export class FormulaEngine {
       }
 
       case "WORKDAY": {
-        const start = this._parseDate(this._resolveSingleValue(args[0]));
-        const days = Number(this._resolveSingleValue(args[1]));
+        const startVal = this._resolveSingleValue(args[0]);
+        if (this._isError(startVal)) return startVal;
+        const daysVal = this._resolveSingleValue(args[1]);
+        if (this._isError(daysVal)) return daysVal;
+        const start = this._parseDate(startVal);
+        const days = Number(daysVal);
         if (!start || !Number.isInteger(days)) return "#VALUE!";
         const holidays = this._holidaySet(args[2]);
         if (holidays.error) return holidays.error;
@@ -1653,36 +1685,49 @@ export class FormulaEngine {
           result.setDate(result.getDate() + direction);
           if (this._isWorkday(result, holidays.values)) remaining--;
         }
-        return this._formatDate(result);
+        return this._dateToSerial(result);
       }
 
       case "EOMONTH": {
-        const start = this._parseDate(this._resolveSingleValue(args[0]));
-        const months = Number(this._resolveSingleValue(args[1]));
+        const startVal = this._resolveSingleValue(args[0]);
+        if (this._isError(startVal)) return startVal;
+        const monthsVal = this._resolveSingleValue(args[1]);
+        if (this._isError(monthsVal)) return monthsVal;
+        const start = this._parseDate(startVal);
+        const months = Number(monthsVal);
         if (!start || !Number.isFinite(months)) return "#VALUE!";
-        return this._formatDate(new Date(start.getFullYear(), start.getMonth() + Math.trunc(months) + 1, 0));
+        return this._dateToSerial(new Date(start.getFullYear(), start.getMonth() + Math.trunc(months) + 1, 0));
       }
 
       case "DAYS": {
-        const end = this._parseDate(this._resolveSingleValue(args[0]));
-        const start = this._parseDate(this._resolveSingleValue(args[1]));
+        const endVal = this._resolveSingleValue(args[0]);
+        if (this._isError(endVal)) return endVal;
+        const startVal = this._resolveSingleValue(args[1]);
+        if (this._isError(startVal)) return startVal;
+        const end = this._parseDate(endVal);
+        const start = this._parseDate(startVal);
         if (!start || !end) return "#VALUE!";
         return Math.round((end - start) / 86400000);
       }
 
       case "YEAR": {
-        const val = String(this._resolveSingleValue(args[0]) || "");
-        const parts = val.split("/");
-        return parts.length >= 3 ? parseInt(parts[2], 10) : new Date().getFullYear();
+        const arg = this._resolveSingleValue(args[0]);
+        if (this._isError(arg)) return arg;
+        const date = this._parseDate(arg);
+        return date ? date.getFullYear() : "#VALUE!";
       }
 
       case "MONTH": {
-        const date = this._parseDate(this._resolveSingleValue(args[0]));
+        const arg = this._resolveSingleValue(args[0]);
+        if (this._isError(arg)) return arg;
+        const date = this._parseDate(arg);
         return date ? date.getMonth() + 1 : "#VALUE!";
       }
 
       case "DAY": {
-        const date = this._parseDate(this._resolveSingleValue(args[0]));
+        const arg = this._resolveSingleValue(args[0]);
+        if (this._isError(arg)) return arg;
+        const date = this._parseDate(arg);
         return date ? date.getDate() : "#VALUE!";
       }
 
@@ -2010,9 +2055,35 @@ export class FormulaEngine {
     return token;
   }
 
+  _dateToSerial(date) {
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "#VALUE!";
+    const epoch = Date.UTC(1899, 11, 30);
+    const utc = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
+    return Math.round((utc - epoch) / 86400000);
+  }
+
   _parseDate(value) {
     if (value instanceof Date && !Number.isNaN(value.getTime())) return new Date(value);
-    const text = String(value).trim();
+    if (typeof value === "number" && Number.isFinite(value)) {
+      if (value > 0 && value < 200000) {
+        const epoch = Date.UTC(1899, 11, 30);
+        const ms = epoch + Math.round(value * 86400000);
+        const utc = new Date(ms);
+        return new Date(utc.getUTCFullYear(), utc.getUTCMonth(), utc.getUTCDate(), utc.getUTCHours(), utc.getUTCMinutes(), utc.getUTCSeconds());
+      }
+      return null;
+    }
+    const text = String(value ?? "").trim();
+    if (!text) return null;
+    if (/^\d+(?:\.\d+)?$/.test(text)) {
+      const num = Number(text);
+      if (Number.isFinite(num) && num > 0 && num < 200000) {
+        const epoch = Date.UTC(1899, 11, 30);
+        const ms = epoch + Math.round(num * 86400000);
+        const utc = new Date(ms);
+        return new Date(utc.getUTCFullYear(), utc.getUTCMonth(), utc.getUTCDate(), utc.getUTCHours(), utc.getUTCMinutes(), utc.getUTCSeconds());
+      }
+    }
     const isoMatch = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
     if (isoMatch) {
       const date = new Date(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3]));
