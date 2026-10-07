@@ -221,7 +221,7 @@ def _run_excel_open_test(paths: list[Path]) -> tuple[str, str]:
     return status, output[-1200:]
 
 
-def _run_xlsx(root: Path, input_dir: Path, out_dir: Path, names: list[str], reuse_saved: bool = True) -> list[dict[str, Any]]:
+def _run_xlsx(root: Path, input_dir: Path, out_dir: Path, names: list[str], reuse_saved: bool = False) -> list[dict[str, Any]]:
     # An unedited XLSX is saved by restoring the source package (identity copy). Mark the workbook dirty so the
     # audit exercises the real conversion path every user edit takes. Set VNO_AUDIT_MARK_DIRTY=0 to opt out.
     os.environ.setdefault("VNO_AUDIT_MARK_DIRTY", "1")
@@ -415,7 +415,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     xlsx.add_argument("names", nargs="*")
     xlsx.add_argument("--input-dir", type=Path)
     xlsx.add_argument("--out-dir", type=Path)
-    xlsx.add_argument("--reuse-saved", dest="reuse_saved", action="store_true", default=True, help="Reuse valid non-empty saved roundtrip files (default: True).")
+    xlsx.add_argument("--reuse-saved", dest="reuse_saved", action="store_true", default=False, help="Reuse valid non-empty saved roundtrip files (default: True).")
     xlsx.add_argument("--no-reuse-saved", dest="reuse_saved", action="store_false", help="Force re-running desktop roundtrip save.")
 
     xls = subparsers.add_parser("xls", help="Run the legacy XLS desktop round-trip audit.")
@@ -447,7 +447,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.mode == "xlsx":
         input_dir = (args.input_dir or worktree / "file test" / "lan").resolve()
         out_dir = (out_dir or worktree / "_batch_document_audit").resolve()
-        rows = _run_xlsx(worktree, input_dir, out_dir, args.names, reuse_saved=getattr(args, "reuse_saved", True))
+        rows = _run_xlsx(worktree, input_dir, out_dir, args.names, reuse_saved=getattr(args, "reuse_saved", False))
         report = _write_report(rows, out_dir, "_batch_audit_report.md")
     elif args.mode == "xls":
         input_dir = (args.input_dir or worktree / "file test" / "lan-legacy").resolve()
