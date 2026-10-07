@@ -15,7 +15,7 @@ function readySelector(app) {
 }
 
 export async function launchApp(app, options = {}) {
-  const root = options.root || repoRoot;
+  const root = options.root || process.env.VNO_APP_ROOT || repoRoot;
   const debugPort = await findFreePort();
   const requestedLocalAppData = options.localAppData || process.env.VNO_CDP_LOCALAPPDATA || "";
   const profileRoot = options.profileRoot || (!requestedLocalAppData ? await mkdtemp(path.join(os.tmpdir(), "vno-cdp-" + app + "-")) : null);
