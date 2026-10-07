@@ -2879,6 +2879,8 @@ def _restore_missing_hyperlinks_step(
             if not hl_match:
                 continue
             src_hl_xml = hl_match.group(0)
+            # Strip non-standard extension attributes (e.g. xr:uid) to prevent unbound prefix errors
+            src_hl_xml = re.sub(r'\s*xr:\w+="[^"]*"', '', src_hl_xml)
 
             tgt_xml_str = replacements.get(tgt_entry)
             if tgt_xml_str is None:
@@ -2892,7 +2894,26 @@ def _restore_missing_hyperlinks_step(
             if re.search(r'<hyperlinks\b', tgt_xml_str, re.IGNORECASE):
                 continue
 
-            new_tgt_xml = _insert_worksheet_child_in_schema_order(tgt_xml_str, src_hl_xml, "hyperlinks")
+            # Ensure xmlns:r is declared on <worksheet> root element
+            if 'r:id=' in src_hl_xml and 'xmlns:r=' not in tgt_xml_str:
+                tgt_xml_str = re.sub(
+                    r'<worksheet\b',
+                    '<worksheet xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"',
+                    tgt_xml_str,
+                    count=1,
+                )
+
+            # Insert <hyperlinks> in schema order (before printOptions, pageMargins, pageSetup, drawing, or </worksheet>)
+            anchor_m = re.search(
+                r'<(?:printOptions|pageMargins|pageSetup|headerFooter|rowBreaks|colBreaks|customProperties|cellWatches|ignoredErrors|smartTags|drawing|legacyDrawing|picture|oleObjects|controls|webPublishItems|tableParts|extLst)\b|</worksheet>',
+                tgt_xml_str,
+                re.IGNORECASE,
+            )
+            if anchor_m:
+                new_tgt_xml = tgt_xml_str[:anchor_m.start()] + src_hl_xml + tgt_xml_str[anchor_m.start():]
+            else:
+                new_tgt_xml = _insert_worksheet_child_in_schema_order(tgt_xml_str, src_hl_xml, "hyperlinks")
+
             if new_tgt_xml != tgt_xml_str:
                 replacements[tgt_entry] = new_tgt_xml
 
