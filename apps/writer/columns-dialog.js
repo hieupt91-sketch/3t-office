@@ -145,10 +145,10 @@ export async function showColumnsDialog(currentColumns = null) {
       let error = "";
       let invalidInput = null;
       if (!Number.isInteger(count) || count < 1 || count > 4) {
-        error = "Số cột phải là số nguyên từ 1 đến 4.";
+        error = t("writerDialogs.columns.countError", "Số cột phải là số nguyên từ 1 đến 4.");
         invalidInput = countInput;
       } else if (!Number.isFinite(gap) || gap < 0 || gap > 50) {
-        error = "Khoảng cách cột phải là số từ 0 đến 50 mm.";
+        error = t("writerDialogs.columns.gapError", "Khoảng cách cột phải là số từ 0 đến 50 mm.");
         invalidInput = gapInput;
       }
       errorBox.textContent = error;

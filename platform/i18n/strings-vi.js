@@ -26,6 +26,7 @@ export const viStrings = {
     themeLight: "Giao diện Sáng",
     notice: "Thông báo",
     confirm: "Đồng ý",
+    promptRequired: "Vui lòng nhập nội dung trước khi tiếp tục.",
     featurePendingNotice: "Tính năng này đang được hoàn thiện và sẽ có trong bản cập nhật tới."
   },
   help: {
@@ -909,7 +910,22 @@ export const viStrings = {
       close: "Đóng",
       marginRangeError: "Lề trang phải là số từ 0 đến 100 mm."
     },
+    paragraph: {
+      leftIndent: "Thụt lề trái",
+      rightIndent: "Thụt lề phải",
+      specialIndent: "Giá trị thụt lề đặc biệt",
+      beforeSpacing: "Khoảng cách trước đoạn",
+      afterSpacing: "Khoảng cách sau đoạn",
+      lineSpacing: "Giá trị giãn dòng",
+      fieldRequired: "Vui lòng nhập {label}.",
+      invalidNumber: "{label} phải là một số hợp lệ.",
+      rangeError: "{label} phải nằm trong khoảng {min}–{max}.",
+      indentTotalTooLarge: "Tổng thụt lề trái và phải quá lớn so với bề rộng trang. Hãy giảm thụt lề.",
+      hangingIndentTooLarge: "Thụt lề treo không được lớn hơn thụt lề trái. Hãy tăng Trái hoặc giảm Giá trị."
+    },
     bookmark: {
+      title: "Đánh dấu",
+      nameLabel: "Tên đánh dấu",
       nameRequired: "Vui lòng nhập tên đánh dấu."
     },
     sections: {
@@ -958,7 +974,9 @@ export const viStrings = {
       preview: "Xem trước",
       removeColumns: "Bỏ chia cột (1 cột)",
       apply: "Áp dụng",
-      cancel: "Hủy bỏ"
+      cancel: "Hủy bỏ",
+      countError: "Số cột phải là số nguyên từ 1 đến 4.",
+      gapError: "Khoảng cách cột phải là số từ 0 đến 50 mm."
     },
     watermark: {
       title: "Hình mờ (Watermark)",
@@ -1123,7 +1141,14 @@ export const viStrings = {
     },
     hyperlink: {
       title: "Chèn Liên Kết (Hyperlink)",
-      message: "Nhập địa chỉ liên kết (URL):"
+      message: "Nhập địa chỉ liên kết (URL):",
+      invalidUrl: "Vui lòng nhập địa chỉ liên kết hợp lệ."
+    },
+    diagram: {
+      countError: "Vui lòng nhập số nguyên từ 3 đến 6."
+    },
+    chart: {
+      itemValueError: "Vui lòng nhập giá trị số hợp lệ cho mục {index}."
     },
     toc: {
       title: "MỤC LỤC",

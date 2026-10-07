@@ -389,7 +389,7 @@ export function showPromptDialog({
 
     const commit = () => {
       if (!String(input.value || "").trim()) {
-        errorBox.textContent = "Vui lòng nhập nội dung trước khi tiếp tục.";
+        errorBox.textContent = t("common.promptRequired", "Vui lòng nhập nội dung trước khi tiếp tục.");
         input.setAttribute("aria-invalid", "true");
         input.focus();
         return;
