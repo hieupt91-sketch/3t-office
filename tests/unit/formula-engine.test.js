@@ -792,5 +792,32 @@ export async function runFormulaEngineTests() {
     pass: sb6Muc4Engine.evaluate("=E3+E4") === "#N/A"
   });
 
+  // 8. SB7 NHÓM 1: VLOOKUP và so sánh phân biệt chuỗi rỗng với số 0 (không khớp nhầm ô rỗng)
+  const sb7Nhom1Cells = new Map([
+    ["A1", { val: "SP01", formula: "", style: {} }],
+    ["B1", { val: "Sản phẩm 1", formula: "", style: {} }],
+    ["A2", { val: "", formula: "", style: {} }],
+    ["B2", { val: "Dòng rỗng", formula: "", style: {} }],
+    ["C1", { val: 0, formula: "", style: {} }],
+    ["C2", { val: "", formula: "", style: {} }]
+  ]);
+  const sb7Nhom1Engine = new FormulaEngine(sb7Nhom1Cells);
+  results.push({
+    name: 'SB7 NHÓM 1: _equals phân biệt chuỗi rỗng "" và số 0 (_equals("", 0) === false)',
+    pass: sb7Nhom1Engine._equals("", 0) === false && sb7Nhom1Engine._equals(0, "") === false
+  });
+  results.push({
+    name: 'SB7 NHÓM 1: _equals("0", 0) và _equals("", "") vẫn bằng true',
+    pass: sb7Nhom1Engine._equals("0", 0) === true && sb7Nhom1Engine._equals("", "") === true
+  });
+  results.push({
+    name: 'SB7 NHÓM 1: VLOOKUP với lookup=0 không khớp dòng rỗng trong bảng (trả về #N/A)',
+    pass: sb7Nhom1Engine.evaluate('=VLOOKUP(C1, A1:B2, 2, FALSE)') === "#N/A"
+  });
+  results.push({
+    name: 'SB7 NHÓM 1: VLOOKUP tham chiếu ô rỗng không khớp dòng rỗng trong bảng (trả về #N/A)',
+    pass: sb7Nhom1Engine.evaluate('=VLOOKUP(C2, A1:B2, 2, FALSE)') === "#N/A"
+  });
+
   return results;
 }

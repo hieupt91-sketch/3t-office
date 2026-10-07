@@ -691,6 +691,11 @@ export class FormulaEngine {
   }
 
   _equals(left, right) {
+    const leftIsBlank = left === null || left === undefined || (typeof left === "string" && left.trim() === "");
+    const rightIsBlank = right === null || right === undefined || (typeof right === "string" && right.trim() === "");
+    if (leftIsBlank && rightIsBlank) return true;
+    if (leftIsBlank !== rightIsBlank) return false;
+
     if (typeof left === "number" || typeof right === "number") {
       const a = Number(left);
       const b = Number(right);
@@ -698,6 +703,7 @@ export class FormulaEngine {
     }
     return String(left).toLocaleLowerCase() === String(right).toLocaleLowerCase();
   }
+
 
   _matchesCriteria(value, rawCriteria) {
     const criteria = this._resolveSingleValue(rawCriteria);
@@ -1043,6 +1049,7 @@ export class FormulaEngine {
         const requestedIndex = Number(this._resolveSingleValue(args[2]));
         const exact = args[3] !== undefined && !Boolean(this._resolveSingleValue(args[3]));
         if (!matrix || !matrix.length || !matrix[0]) return "#REF!";
+        if (exact && (lookup === "" || lookup === null || lookup === undefined)) return "#N/A";
         const indexData = this._getLookupIndex(args[1], matrix, funcName);
         let found = null;
         if (exact) {
@@ -1055,7 +1062,7 @@ export class FormulaEngine {
         }
         if (!found || requestedIndex < 1) return "#N/A";
         const result = funcName === "VLOOKUP" ? matrix[found.index]?.[requestedIndex - 1] : matrix[requestedIndex - 1]?.[found.index];
-        return result === undefined ? "#REF!" : result;
+        return result === undefined ? "#REF!" : (result === "" ? 0 : result);
       }
 
       case "INDEX": {
@@ -2220,9 +2227,15 @@ export class FormulaEngine {
     if (token.startsWith('"') && token.endsWith('"')) {
       return token.slice(1, -1);
     }
-    if (/^(?:(?:'[^']+'|[^!]+)!)?[A-Z]+\d+$/i.test(token)) {
+    if (/^(?:(?:'[^']+'|[^!]+)!)?\$?[A-Z]+\$?\d+$/i.test(token)) {
       const reference = this._parseReference(token);
-      return reference.error || this.getCellValue(reference.ref, reference.sheet);
+      if (reference.error) return reference.error;
+      const map = reference.sheet && typeof this.sheetResolver === "function" ? this.sheetResolver(reference.sheet) : this.cellsMap;
+      const item = map ? map.get(reference.ref) : null;
+      if (!item || item.val === "" || item.val === null || item.val === undefined) {
+        return "";
+      }
+      return this.getCellValue(reference.ref, reference.sheet);
     }
     const named = this._resolveNamedRange(token);
     if (named) return this.getCellValue(this.expandRange(this._resolveRangeReference(token))[0]);
