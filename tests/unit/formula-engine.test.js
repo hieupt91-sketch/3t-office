@@ -345,7 +345,7 @@ export async function runFormulaEngineTests() {
   vlookupData.set("B2", { val: 200, formula: "", style: {} });
   vlookupData.set("A3", { val: "Orange", formula: "", style: {} });
   vlookupData.set("B3", { val: 300, formula: "", style: {} });
-  vlookupData.set("A4", { val: "10", formula: "", style: {} });
+  vlookupData.set("A4", { val: "10", formula: "", style: { numberFormat: { category: "text" } } });
   vlookupData.set("B4", { val: 400, formula: "", style: {} });
   vlookupData.set("A5", { val: 20, formula: "", style: {} });
   vlookupData.set("B5", { val: 500, formula: "", style: {} });
@@ -911,6 +911,64 @@ export async function runFormulaEngineTests() {
     name: "SB9 NHÓM 1: HLOOKUP row_index = 0 trả #VALUE! và vượt trả #REF!",
     pass: sb9Nhom1Engine.evaluate("=HLOOKUP(10, A1:B2, 0, FALSE)") === "#VALUE!" &&
           sb9Nhom1Engine.evaluate("=HLOOKUP(10, A1:B2, 3, FALSE)") === "#REF!"
+  });
+
+  // 14. SB9 NHÓM 2: Phân biệt số 5 vs chuỗi "5", không phân biệt hoa thường và wildcard (?, *, ~*, ~~) trong exact match
+  const sb9Nhom2Cells = new Map([
+    ["A1", { val: 5, formula: "", style: {} }],
+    ["B1", { val: "NumberFive", formula: "", style: {} }],
+    ["A2", { val: "5", formula: "", style: { numberFormat: { category: "text" } } }],
+    ["B2", { val: "StringFive", formula: "", style: {} }],
+    ["A3", { val: "Product Alpha", formula: "", style: {} }],
+    ["B3", { val: 100, formula: "", style: {} }],
+    ["A4", { val: "Car", formula: "", style: {} }],
+    ["B4", { val: 10, formula: "", style: {} }],
+    ["A5", { val: "Cart", formula: "", style: {} }],
+    ["B5", { val: 20, formula: "", style: {} }],
+    ["A6", { val: "Item*", formula: "", style: {} }],
+    ["B6", { val: 99, formula: "", style: {} }],
+    ["A7", { val: "Item~A", formula: "", style: {} }],
+    ["B7", { val: 77, formula: "", style: {} }],
+    ["C1", { val: "North", formula: "", style: {} }],
+    ["D1", { val: "South", formula: "", style: {} }],
+    ["C2", { val: 100, formula: "", style: {} }],
+    ["D2", { val: 200, formula: "", style: {} }]
+  ]);
+  const sb9Nhom2Engine = new FormulaEngine(sb9Nhom2Cells);
+  results.push({
+    name: 'SB9 NHÓM 2: VLOOKUP số 5 khớp ô số 5 và chuỗi "5" khớp ô chuỗi "5"',
+    pass: sb9Nhom2Engine.evaluate("=VLOOKUP(5, A1:B2, 2, FALSE)") === "NumberFive" &&
+          sb9Nhom2Engine.evaluate('=VLOOKUP("5", A1:B2, 2, FALSE)') === "StringFive"
+  });
+  results.push({
+    name: 'SB9 NHÓM 2: VLOOKUP số 5 không khớp chuỗi "5" trên bảng chỉ có chuỗi (trả về #N/A)',
+    pass: sb9Nhom2Engine.evaluate("=VLOOKUP(5, A2:B2, 2, FALSE)") === "#N/A" &&
+          sb9Nhom2Engine.evaluate('=VLOOKUP("5", A1:B1, 2, FALSE)') === "#N/A"
+  });
+  results.push({
+    name: 'SB9 NHÓM 2: VLOOKUP exact match không phân biệt hoa thường',
+    pass: sb9Nhom2Engine.evaluate('=VLOOKUP("pRoDuCt aLpHa", A3:B3, 2, FALSE)') === 100
+  });
+  results.push({
+    name: 'SB9 NHÓM 2: VLOOKUP wildcard * khớp tiền tố và ? khớp một ký tự',
+    pass: sb9Nhom2Engine.evaluate('=VLOOKUP("Prod*", A3:B3, 2, FALSE)') === 100 &&
+          sb9Nhom2Engine.evaluate('=VLOOKUP("Car?", A4:B5, 2, FALSE)') === 20
+  });
+  results.push({
+    name: 'SB9 NHÓM 2: VLOOKUP wildcard escape ~* và ~~ khớp ký tự thật',
+    pass: sb9Nhom2Engine.evaluate('=VLOOKUP("Item~*", A6:B6, 2, FALSE)') === 99 &&
+          sb9Nhom2Engine.evaluate('=VLOOKUP("Item~~A", A7:B7, 2, FALSE)') === 77
+  });
+  results.push({
+    name: 'SB9 NHÓM 2: HLOOKUP exact match với wildcard',
+    pass: sb9Nhom2Engine.evaluate('=HLOOKUP("So*", C1:D2, 2, FALSE)') === 200
+  });
+  results.push({
+    name: 'SB9 NHÓM 2: MATCH exact phân biệt số 5 vs chuỗi "5" và hỗ trợ wildcard',
+    pass: sb9Nhom2Engine.evaluate("=MATCH(5, A1:A2, 0)") === 1 &&
+          sb9Nhom2Engine.evaluate('=MATCH("5", A1:A2, 0)') === 2 &&
+          sb9Nhom2Engine.evaluate('=MATCH("Car?", A4:A5, 0)') === 2 &&
+          sb9Nhom2Engine.evaluate('=MATCH("Item~*", A6:A6, 0)') === 1
   });
 
   return results;
