@@ -852,6 +852,7 @@ export const WRITER_RIBBON_TABS = [
         label: "Hiển thị",
         labelKey: "writerRibbon.group.show",
         items: [
+          { type: "button", commandId: "writer.view.navigationPane" },
           { type: "button", commandId: "writer.view.ruler" },
           { type: "button", commandId: "writer.view.gridlines" }
         ]

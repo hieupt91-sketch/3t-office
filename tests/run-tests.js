@@ -5,6 +5,7 @@
 
 import { runCommandBusTests } from "./unit/command-bus.test.js";
 import { runWriterInteractiveRulerTests } from "./unit/writer-interactive-ruler.test.js";
+import { runWriterNavigationPaneTests } from "./unit/writer-nav-pane.test.js";
 import { runAdapterMappingTests } from "./unit/adapter-mapping.test.js";
 import { runSuiteSmokeTests } from "./smoke/suite-smoke.test.js";
 import { runFormulaEngineTests } from "./unit/formula-engine.test.js";
@@ -520,7 +521,8 @@ async function runAll() {
   { title: "249. Unit Tests — Dán từ Word (danh sách, font, an toàn)", runner: runOfficeClipboardWordPasteTests },
     { title: "245. Unit Tests — VN Writer table ranges computed once (incremental) equal the rescanning version", runner: runWriterTableRangesIncrementalTests },
     { title: "247. Unit Tests — VN Writer Trang bìa (Cover Page)", runner: runWriterCoverPageTests },
-    { title: "248. Unit Tests — VN Writer Dialogs & Keyboard Focus (TICKET D16)", runner: runWriterDialogsD16Tests }
+    { title: "248. Unit Tests — VN Writer Dialogs & Keyboard Focus (TICKET D16)", runner: runWriterDialogsD16Tests },
+    { title: "249. Unit Tests — VN Writer Navigation Pane", runner: runWriterNavigationPaneTests }
   ];
 
   for (const suite of suites) {

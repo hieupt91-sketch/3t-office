@@ -19,6 +19,52 @@
   min-width: 0;
 }
 
+/* Ngăn dẫn hướng nằm trong luồng flex bên trái, không phủ lên trang và không đổi
+   bề rộng trang giấy; viewport chỉ xuất hiện thanh cuộn ngang khi cửa sổ hẹp. */
+.vno-writer-navigation-pane {
+  width: 260px;
+  flex: 0 0 260px;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  color: var(--vno-text-primary);
+  background: var(--vno-bg-window);
+  border-right: 1px solid var(--vno-border-default);
+  box-shadow: 2px 0 8px rgba(15, 23, 42, 0.08);
+}
+
+.vno-writer-navigation-pane[hidden] { display: none; }
+.vno-writer-navigation-header { display: flex; align-items: center; justify-content: space-between; min-height: 42px; padding: 0 10px 0 14px; border-bottom: 1px solid var(--vno-border-default); }
+.vno-writer-navigation-header strong { font-size: 13px; }
+.vno-writer-navigation-close { width: 30px; height: 30px; border: 0; border-radius: 4px; color: var(--vno-text-secondary); background: transparent; font-size: 20px; cursor: pointer; }
+.vno-writer-navigation-close:hover { color: var(--vno-text-primary); background: var(--vno-bg-hover); }
+.vno-writer-navigation-search-wrap { padding: 10px 10px 6px; }
+.vno-writer-navigation-search { width: 100%; min-height: 32px; padding: 5px 9px; color: var(--vno-text-primary); background: var(--vno-bg-window); border: 1px solid var(--vno-border-strong); border-radius: 4px; font: 12px/1.4 var(--vno-font-ui); }
+.vno-writer-navigation-actions { display: flex; gap: 6px; padding: 0 10px 8px; border-bottom: 1px solid var(--vno-border-subtle); }
+.vno-writer-navigation-actions button { flex: 1; min-height: 27px; padding: 3px 5px; color: var(--vno-text-secondary); background: var(--vno-bg-muted); border: 1px solid var(--vno-border-default); border-radius: 4px; font: 11px/1.2 var(--vno-font-ui); cursor: pointer; }
+.vno-writer-navigation-actions button:hover { color: var(--vno-text-primary); background: var(--vno-bg-hover); }
+.vno-writer-navigation-tree { flex: 1; min-height: 0; overflow: auto; padding: 6px 0; }
+.vno-writer-navigation-item { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; align-items: center; min-height: 30px; padding: 3px 9px 3px calc(5px + (var(--vno-nav-level, 1) - 1) * 14px); border-left: 3px solid transparent; color: var(--vno-text-primary); cursor: pointer; }
+.vno-writer-navigation-item:hover { background: var(--vno-bg-hover); }
+.vno-writer-navigation-item[aria-selected="true"] { border-left-color: var(--vno-writer-primary); background: var(--vno-bg-selected); font-weight: 600; }
+.vno-writer-navigation-item:focus-visible,
+.vno-writer-navigation-close:focus-visible,
+.vno-writer-navigation-search:focus-visible,
+.vno-writer-navigation-actions button:focus-visible { outline: 2px solid var(--vno-focus-ring, #2563eb); outline-offset: -2px; }
+.vno-writer-navigation-branch { width: 18px; height: 22px; padding: 0; border: 0; color: var(--vno-text-secondary); background: transparent; font-size: 18px; line-height: 18px; pointer-events: auto; cursor: pointer; }
+.vno-writer-navigation-item-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.vno-writer-navigation-page { min-width: 22px; margin-left: 7px; color: var(--vno-text-secondary); text-align: right; font-size: 11px; font-variant-numeric: tabular-nums; }
+.vno-writer-navigation-status { margin: 0; padding: 12px 14px; color: var(--vno-text-secondary); font-size: 12px; line-height: 1.45; }
+
+@media (max-width: 900px) {
+  .vno-writer-navigation-pane { width: 230px; flex-basis: 230px; }
+}
+
+@media print {
+  .vno-writer-navigation-pane { display: none !important; }
+}
+
 /* Thước đo ngang (Horizontal Ruler) */
 .vno-writer-ruler {
   height: 22px;
