@@ -51,7 +51,9 @@ try {
     throw "Excel did not start a private process; existing Excel instances were left untouched."
   }
 
-  Invoke-ComWithRetry { $excel.Visible = $false } "Hide Excel" | Out-Null
+  if ($excel.Visible) {
+    Invoke-ComWithRetry { $excel.Visible = $false } "Hide Excel" | Out-Null
+  }
   Invoke-ComWithRetry { $excel.DisplayAlerts = $false } "Disable Excel alerts" | Out-Null
   foreach ($file in $Files) {
     $workbook = $null

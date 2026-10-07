@@ -87,7 +87,13 @@ def _run_desktop_roundtrip(
 
 
 def _xlsx_inputs(input_dir: Path, names: list[str]) -> list[Path]:
-    selected = names or sorted(path.name for path in input_dir.glob("lan*.xlsx"))
+    if names:
+        selected = names
+    else:
+        all_names = sorted(path.name for path in input_dir.glob("lan*.xlsx"))
+        others = [name for name in all_names if name.lower() != "lan14.xlsx"]
+        lan14 = [name for name in all_names if name.lower() == "lan14.xlsx"]
+        selected = others + lan14
     paths = []
     for name in selected:
         leaf = Path(name).name
