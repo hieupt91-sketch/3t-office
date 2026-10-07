@@ -16,6 +16,8 @@ const specialKeys = {
   End: { code: "End", keyCode: 35, text: "" },
   PageUp: { code: "PageUp", keyCode: 33, text: "" },
   PageDown: { code: "PageDown", keyCode: 34, text: "" },
+  F2: { code: "F2", keyCode: 113, text: "" },
+  F4: { code: "F4", keyCode: 115, text: "" },
   F12: { code: "F12", keyCode: 123, text: "" },
 };
 
