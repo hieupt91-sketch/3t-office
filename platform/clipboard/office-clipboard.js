@@ -810,6 +810,7 @@ export function serializeSheetRangeToClipboard(grid, range) {
   const textLines = [];
   const cellsModel = [];
   const colWidths = [];
+  const mergedRanges = [];
 
   for (let c = startCol; c <= endCol; c++) {
     const colLbl = grid._columnLabel(c);
@@ -855,8 +856,12 @@ export function serializeSheetRangeToClipboard(grid, range) {
         if (merged.start.c === colLbl && merged.start.r === r) {
           const mEndCol = Math.min(endCol, grid._columnNumber(merged.end.c));
           const mEndRow = Math.min(endRow, merged.end.r);
-          colSpan = mEndCol - startCol + 1;
-          rowSpan = mEndRow - startRow + 1;
+          colSpan = mEndCol - c + 1;
+          rowSpan = mEndRow - r + 1;
+          mergedRanges.push({
+            start: { c: columnLabel(c - startCol + 1), r: r - startRow + 1 },
+            end: { c: columnLabel(mEndCol - startCol + 1), r: mEndRow - startRow + 1 }
+          });
 
           for (let mr = r; mr <= mEndRow; mr++) {
             for (let mc = c; mc <= mEndCol; mc++) {
@@ -934,7 +939,8 @@ export function serializeSheetRangeToClipboard(grid, range) {
   const model = {
     range: structuredClone(norm),
     cells: cellsModel,
-    colWidths
+    colWidths,
+    mergedRanges
   };
 
   return { html: htmlTable, text, model };

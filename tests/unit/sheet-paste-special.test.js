@@ -56,5 +56,24 @@ export async function runSheetPasteSpecialTests() {
     assert(grid.cellsData.get("E1").formula === "=D1*2" && String(grid.cellsData.get("E1").val).includes("14"), "Công thức tương đối phải dịch và tính lại");
     assert(grid.cellsData.get("E1").style.color === "blue", "Style đích phải giữ nguyên");
   });
+  test("Paste Source keeps merged cells and Undo/Redo in one history step", () => {
+    const grid = new SheetGridController(container());
+    const source = {
+      range: { start: { c: "A", r: 1 }, end: { c: "B", r: 2 } },
+      cells: [
+        [{ val: "Gộp", formula: "", style: { fontWeight: "bold" } }, { val: "", formula: "", style: {} }],
+        [{ val: "", formula: "", style: {} }, { val: "", formula: "", style: {} }]
+      ],
+      mergedRanges: [{ start: { c: "A", r: 1 }, end: { c: "B", r: 2 } }]
+    };
+    grid.undoStack = [];
+    grid.applyPasteSpecial(source, "source", { c: "D", r: 3 });
+    assert(grid.getMergedRanges().some(range => range.start.c === "D" && range.start.r === 3 && range.end.c === "E" && range.end.r === 4), "Ô gộp tương đối phải được tạo tại D3:E4");
+    assert(grid.undoStack.length === 1, "Dán dữ liệu và ô gộp phải là đúng một bước history");
+    grid.undo();
+    assert(!grid.getMergedRanges().length && (grid.cellsData.get("D3")?.val || "") === "", "Undo phải bỏ cả dữ liệu và ô gộp");
+    grid.redo();
+    assert(grid.cellsData.get("D3")?.val === "Gộp" && grid.getMergedRanges().some(range => range.start.c === "D" && range.end.c === "E"), "Redo phải khôi phục dữ liệu và ô gộp");
+  });
   return results;
 }

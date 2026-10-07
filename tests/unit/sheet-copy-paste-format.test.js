@@ -92,6 +92,7 @@ export async function runSheetCopyPasteFormatTests() {
     const d1After = grid.cellsData.get("D1");
 
     assert.equal(b1After?.val || "", "", "Source B1 value must be cleared on cut");
+    assert.deepEqual(b1After?.style || {}, {}, "Source B1 formatting must be cleared on cut");
     assert.equal(d1After?.val, "CutVal", "Destination D1 must receive cut value");
     assert.equal(d1After?.style?.fontWeight, "bold", "Destination D1 must retain fontWeight bold");
     assert.equal(d1After?.style?.backgroundColor, "#ffff00", "Destination D1 must retain background color");
@@ -121,6 +122,41 @@ export async function runSheetCopyPasteFormatTests() {
     assert.equal(e2Model.val, "PlainVal", "E2 must receive value");
     assert.notEqual(e2Model.style?.fontWeight, "bold", "E2 must NOT copy fontWeight bold on pastePlain");
     assert.notEqual(e2Model.style?.color, "#00ff00", "E2 must NOT copy color on pastePlain");
+  });
+
+  await test("CommandBus copy/paste preserves a merged range through the app-local clipboard cache", async () => {
+    const grid = new SheetGridController(mockContainer(), { isBlank: true });
+    const adapter = new SheetAdapter(grid);
+    adapter.attach();
+    grid.setCellValue("A", 1, "Merged");
+    grid.selectionRange = { start: { c: "A", r: 1 }, end: { c: "B", r: 2 } };
+    grid.selectedCoord = { c: "A", r: 1 };
+    grid.mergedRangesBySheet[grid.activeSheet] = [{ start: { c: "A", r: 1 }, end: { c: "B", r: 2 } }];
+
+    await globalCommandBus.execute("common.edit.copy");
+    grid.selectCell("D", 3);
+    await globalCommandBus.execute("common.edit.paste");
+
+    assert.equal(grid.cellsData.get("D3")?.val, "Merged");
+    assert.ok(grid.getMergedRanges().some(range => range.start.c === "D" && range.start.r === 3 && range.end.c === "E" && range.end.r === 4), "D3:E4 must remain merged");
+  });
+
+  await test("Internal clipboard model wins over echoed bridge HTML so formulas use the real source range", async () => {
+    const grid = new SheetGridController(mockContainer(), { isBlank: true });
+    const adapter = new SheetAdapter(grid);
+    grid.setCellValue("A", 10, 2);
+    grid.setCellValue("B", 10, "=A10*2");
+    grid.selectionRange = { start: { c: "A", r: 10 }, end: { c: "B", r: 10 } };
+    grid.selectedCoord = { c: "A", r: 10 };
+    const payload = adapter._captureSelectedClipboard();
+    adapter._rememberClipboard(payload, "copy");
+    adapter._readClipboardData = async () => ({ status: "ok", text: payload.text, html: payload.html });
+
+    grid.selectCell("D", 3);
+    await adapter._pasteIntoSelectedCell();
+
+    assert.equal(grid.cellsData.get("D3")?.val, 2);
+    assert.equal(grid.cellsData.get("E3")?.formula, "=D3*2", "Formula must shift from A10:B10 to D3:E3, not from parsed HTML A1:B1");
   });
 
   return results;

@@ -84,15 +84,26 @@ export async function runSheetFormulaEntryTests() {
       new FormulaEntrySession({ value: "=SUM(", caret: 5 }).insertPoint("Sheet2!A1").formula === "=SUM(Sheet2!A1"
   });
 
-  const f4 = new FormulaEntrySession({ value: "=SUM($A$1)", caret: 9 });
+  const f4 = new FormulaEntrySession({ value: "=SUM(A1)", caret: 7 });
   const cycle1 = f4.cycleReference();
   const cycle2 = f4.cycleReference();
   const cycle3 = f4.cycleReference();
   const cycle4 = f4.cycleReference();
   results.push({
-    name: "Formula entry: F4 cycles $A$1, A$1, $A1, and A1",
-    pass: cycle1.formula === "=SUM(A$1)" && cycle2.formula === "=SUM($A1)" &&
-      cycle3.formula === "=SUM(A1)" && cycle4.formula === "=SUM($A$1)"
+    name: "Formula entry: F4 cycles A1, $A$1, A$1, $A1, and A1",
+    pass: cycle1.formula === "=SUM($A$1)" && cycle2.formula === "=SUM(A$1)" &&
+      cycle3.formula === "=SUM($A1)" && cycle4.formula === "=SUM(A1)"
+  });
+
+  const f4Range = new FormulaEntrySession({ value: "=SUM(A1:B2)", caret: 10 });
+  const rangeCycle1 = f4Range.cycleReference();
+  const rangeCycle2 = f4Range.cycleReference();
+  const rangeCycle3 = f4Range.cycleReference();
+  const rangeCycle4 = f4Range.cycleReference();
+  results.push({
+    name: "Formula entry: F4 cycles both endpoints of A1:B2 as one range",
+    pass: rangeCycle1.formula === "=SUM($A$1:$B$2)" && rangeCycle2.formula === "=SUM(A$1:B$2)" &&
+      rangeCycle3.formula === "=SUM($A1:$B2)" && rangeCycle4.formula === "=SUM(A1:B2)"
   });
 
   const cancelled = new FormulaEntrySession({ original: "original", value: "=SUM(A1", caret: 7 }).cancel();

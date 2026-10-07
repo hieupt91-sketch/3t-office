@@ -6340,6 +6340,7 @@ ${pristineXlsxMarker}
       cells,
       text: clipboardHtml.text,
       html: clipboardHtml.html,
+      mergedRanges: structuredClone(clipboardHtml.model?.mergedRanges || []),
       sourceSheet: this.grid.activeSheet
     };
   }
@@ -6348,6 +6349,7 @@ ${pristineXlsxMarker}
     this._clipboardModel = {
       range: structuredClone(payload.range),
       cells: structuredClone(payload.cells),
+      mergedRanges: structuredClone(payload.mergedRanges || []),
       sourceSheet: payload.sourceSheet || this.grid.activeSheet
     };
     this._clipboardText = String(payload.text ?? "");
@@ -6550,6 +6552,7 @@ ${pristineXlsxMarker}
         !native || native.status !== "ok" || String(native.text || "").replace(/\r\n/g, "\n").trim() === String(this._clipboardText || "").replace(/\r\n/g, "\n").trim()
       )
     );
+    if (isInternal) return this._pasteModelIntoGrid(this._clipboardModel, this._clipboardText, true);
     if (native?.status === "ok" && native.html) {
       const model = parseOfficeHtmlTable(native.html, native.text || "");
       if (model) return this._pasteModelIntoGrid(model, native.text || "", isInternal);

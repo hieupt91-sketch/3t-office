@@ -179,10 +179,12 @@ export async function runSheetFormatCellsTests() {
 
   test("C1b: gõ tiền tệ (₫250000, 250.000 ₫) vào ô lưu số thật kèm định dạng currency", () => {
     const grid = Object.create(SheetGridController.prototype);
-    for (const text of ["₫250000", "250.000 ₫", "250000 VND"]) {
+    for (const [text, expected] of [["₫250000", 250000], ["250.000 ₫", 250000], ["250000 VND", 250000], ["25.000.000 ₫", 25000000], ["VNĐ 1.500.000", 1500000]]) {
       const out = grid._normalizeCellInput(text, {}, false);
-      assert(out.value === 250000, `"${text}" phải thành số 250000, nhận ${JSON.stringify(out.value)}`);
+      assert(out.value === expected, `"${text}" phải thành số ${expected}, nhận ${JSON.stringify(out.value)}`);
       assert(out.style.numberFormat?.category === "currency", `"${text}" phải có định dạng currency`);
+      const committed = grid._normalizeCellInput(text, out.style, false);
+      assert(committed.value === expected, `"${text}" phải giữ số ${expected} ở pha commit sau preview, nhận ${JSON.stringify(committed.value)}`);
     }
     assert(grid._normalizeCellInput("abc", {}, false).value === "abc", "Chữ thường giữ nguyên");
     assert(grid._normalizeCellInput("₫250000", {}, true).value === "₫250000", "Có dấu ' đầu thì giữ văn bản");

@@ -164,16 +164,35 @@ export function cycleAbsoluteReference(formula, caret) {
   const ref = refs.find(item => item.start <= position && position <= item.end) ||
     [...refs].reverse().find(item => item.end <= position);
   if (!ref) return { formula: source, caret: position, changed: false };
-  const parts = parseReference(ref.text);
-  if (!parts) return { formula: source, caret: position, changed: false };
   const cycle = [
     [true, true], [false, true], [true, false], [false, false]
   ];
-  const current = cycle.findIndex(([colAbs, rowAbs]) => colAbs === parts.colAbsolute && rowAbs === parts.rowAbsolute);
-  const [colAbsolute, rowAbsolute] = cycle[(current + 1) % cycle.length];
-  const nextRef = `${colAbsolute ? "$" : ""}${parts.col}${rowAbsolute ? "$" : ""}${parts.row}`;
-  const next = source.slice(0, ref.start) + nextRef + source.slice(ref.end);
-  return { formula: next, caret: ref.start + nextRef.length, changed: true, reference: { start: ref.start, end: ref.start + nextRef.length } };
+  const refIndex = refs.indexOf(ref);
+  let firstIndex = refIndex;
+  let lastIndex = refIndex;
+  while (firstIndex > 0 && /^\s*:\s*$/.test(source.slice(refs[firstIndex - 1].end, refs[firstIndex].start))) firstIndex--;
+  while (lastIndex < refs.length - 1 && /^\s*:\s*$/.test(source.slice(refs[lastIndex].end, refs[lastIndex + 1].start))) lastIndex++;
+  const targets = refs.slice(firstIndex, lastIndex + 1);
+  const replacements = targets.map(item => {
+    const parts = parseReference(item.text);
+    if (!parts) return item.text;
+    const current = cycle.findIndex(([colAbs, rowAbs]) => colAbs === parts.colAbsolute && rowAbs === parts.rowAbsolute);
+    const [colAbsolute, rowAbsolute] = cycle[(current + 1) % cycle.length];
+    return `${colAbsolute ? "$" : ""}${parts.col}${rowAbsolute ? "$" : ""}${parts.row}`;
+  });
+  let next = source;
+  for (let index = targets.length - 1; index >= 0; index--) {
+    next = next.slice(0, targets[index].start) + replacements[index] + next.slice(targets[index].end);
+  }
+  const referenceStart = targets[0].start;
+  const referenceEnd = targets.at(-1).end + replacements.reduce((delta, value, index) => delta + value.length - targets[index].text.length, 0);
+  const caretOffset = position <= targets.at(-1).end ? position - targets.at(-1).end : 0;
+  return {
+    formula: next,
+    caret: Math.max(referenceStart, referenceEnd + caretOffset),
+    changed: true,
+    reference: { start: referenceStart, end: referenceEnd }
+  };
 }
 
 export function movePointReference(formula, reference, deltaCol, deltaRow) {
