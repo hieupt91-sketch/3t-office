@@ -32,6 +32,9 @@ LAYOUT_AUDIT_DIR = REPO_ROOT / "scripts" / "layout-audit"
 if str(LAYOUT_AUDIT_DIR) not in sys.path:
     sys.path.insert(0, str(LAYOUT_AUDIT_DIR))
 
+# TICKET SB12b: Force real conversion path every user edit takes (untouched XLSX otherwise restores source package)
+os.environ["VNO_AUDIT_MARK_DIRTY"] = "1"
+
 try:
     from batch_document_audit import _run_desktop_roundtrip
 except ImportError:
@@ -395,6 +398,26 @@ def compare_xlsx_workbooks(orig_path: Path, saved_path: Path) -> dict[str, Any]:
     return result
 
 
+def get_office_pids() -> set[int]:
+    """Get PIDs of running Excel and Word processes."""
+    pids = set()
+    try:
+        res = subprocess.run(
+            ["powershell", "-NoProfile", "-Command", "Get-Process -Name excel, winword -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        for line in (res.stdout or "").splitlines():
+            line = line.strip()
+            if line.isdigit():
+                pids.add(int(line))
+    except Exception:
+        pass
+    return pids
+
+
 def _clean_owned_pids(owned_pids: set[int]):
     """Safety cleanup: close owned background processes strictly by PID."""
     for pid in owned_pids:
@@ -409,6 +432,31 @@ def _clean_owned_pids(owned_pids: set[int]):
             pass
 
 
+def is_empty_save(source_path: Path, saved_path: Path) -> bool:
+    """Check if saved file has identical bytes to source file (luu rong)."""
+    if not source_path.is_file() or not saved_path.is_file():
+        return False
+    if source_path.stat().st_size != saved_path.stat().st_size:
+        return False
+    return source_path.read_bytes() == saved_path.read_bytes()
+
+
+def check_not_empty_save(source_path: Path, saved_path: Path) -> bool:
+    """Verify saved file is not an empty save (restored identical source package).
+
+    Raises ValueError with FAIL 'luu rong' if bytes are identical.
+    """
+    if not saved_path.is_file():
+        raise FileNotFoundError(f"Saved file does not exist: {saved_path}")
+    if not source_path.is_file():
+        raise FileNotFoundError(f"Source file does not exist: {source_path}")
+    if is_empty_save(source_path, saved_path):
+        raise ValueError(
+            f"FAIL 'luu rong': tệp lưu ra ({saved_path.name}) giống từng byte tệp gốc ({source_path.name})"
+        )
+    return True
+
+
 def run_audit(
     worktree: Path,
     input_dir: Path,
@@ -419,7 +467,11 @@ def run_audit(
 ) -> list[dict[str, Any]]:
     """Run open + save (if needed) and perform XML numFmt roundtrip comparison for all selected files."""
     out_dir.mkdir(parents=True, exist_ok=True)
-    selected_names = names or [f"lan{i:02d}.xlsx" for i in range(1, 29)]
+    if names:
+        selected_names = names
+    else:
+        others = [f"lan{i:02d}.xlsx" for i in range(1, 29) if i != 14]
+        selected_names = others if skip_lan14 else (others + ["lan14.xlsx"])
 
     results: list[dict[str, Any]] = []
 
@@ -435,15 +487,23 @@ def run_audit(
 
         saved_file = out_dir / (source_file.stem + ".roundtrip.xlsx")
 
-        # Step A: Ensure saved file exists via desktop roundtrip
-        if not (reuse_saved and saved_file.is_file()):
+        # Check whether an existing saved file is an invalid empty save from an old run
+        is_empty = is_empty_save(source_file, saved_file) if saved_file.is_file() else False
+
+        # Step A: Ensure saved file exists via desktop roundtrip (with VNO_AUDIT_MARK_DIRTY=1)
+        if not (reuse_saved and saved_file.is_file() and not is_empty):
             if _run_desktop_roundtrip is None:
                 print(f"[-] {leaf}: batch_document_audit roundtrip runner not available.", flush=True)
                 continue
-            print(f"[>] {leaf}: Running desktop roundtrip save...", flush=True)
+            print(f"[>] {leaf}: Running desktop roundtrip save (VNO_AUDIT_MARK_DIRTY=1)...", flush=True)
+            pids_before = get_office_pids()
             t0 = time.monotonic()
+            os.environ["VNO_AUDIT_MARK_DIRTY"] = "1"
             res = _run_desktop_roundtrip("sheet", source_file, saved_file, large_file=True)
             dur = round(time.monotonic() - t0, 1)
+            pids_after = get_office_pids()
+            _clean_owned_pids(pids_after - pids_before)
+
             if not saved_file.is_file():
                 print(f"[!] {leaf}: Save failed after {dur}s ({res.get('message', '')})", flush=True)
                 continue
@@ -451,7 +511,27 @@ def run_audit(
         else:
             print(f"[*] {leaf}: Using existing saved roundtrip file {saved_file.name}", flush=True)
 
-        # Step B: XML numFmt roundtrip comparison
+        # Step B: Tu kiem tra luu rong (BAT BUOC: tep luu ra KHONG duoc giong byte tep goc)
+        try:
+            check_not_empty_save(source_file, saved_file)
+        except ValueError as err:
+            print(f"[!] {err}", flush=True)
+            results.append({
+                "file": leaf,
+                "error": str(err),
+                "status": "FAIL 'luu rong'",
+                "total_value_cells": 0,
+                "format_changed_cells": 0,
+                "type_changed_cells": 0,
+                "value_changed_cells": 0,
+                "missing_cells": 0,
+                "top_format_pairs": [],
+                "cause_breakdown": Counter(),
+                "per_sheet": {},
+            })
+            continue
+
+        # Step C: XML numFmt roundtrip comparison
         cmp_res = compare_xlsx_workbooks(source_file, saved_file)
         results.append(cmp_res)
 
@@ -494,11 +574,12 @@ def write_markdown_report(results: list[dict[str, Any]], report_path: Path):
             combined_pairs[pair] += cnt
 
     lines = [
-        "# Báo cáo đối chiếu định dạng số/tiền/ngày (numFmt) XLSX khi lưu lại (TICKET SB12)",
+        "# Báo cáo đối chiếu định dạng số/tiền/ngày (numFmt) XLSX khi lưu lại (TICKET SB12b)",
         "",
         f"- **Thời gian đo:** {time.strftime('%Y-%m-%d %H:%M:%S')}",
-        "- **Phương pháp:** Mở + lưu tệp qua VN Sheet desktop, đối chiếu trực tiếp XML (`xl/styles.xml` + `sheet*.xml`) giữa bản gốc và bản lưu lại.",
-        "- **Phạm vi:** 28 tệp XLSX thật (`lan01.xlsx` – `lan28.xlsx`). Không dùng Excel COM, không lộ nội dung ô thật của tài liệu.",
+        "- **Phương pháp:** Mở + lưu tệp qua VN Sheet desktop trên đường lưu thật (`VNO_AUDIT_MARK_DIRTY=1`), đối chiếu trực tiếp XML (`xl/styles.xml` + `sheet*.xml`) giữa bản gốc và bản lưu lại.",
+        "- **Tự kiểm tra tệp lưu rỗng:** BẮT BUỘC tệp lưu ra không được trùng byte với tệp gốc (báo FAIL 'luu rong' nếu trùng).",
+        "- **Phạm vi:** 28 tệp XLSX thật (`lan01.xlsx` – `lan28.xlsx`). Không dùng Excel COM để đo XML, không lộ nội dung ô thật của tài liệu.",
         "",
         "## 1. Tổng quan kết quả",
         "",
@@ -524,7 +605,7 @@ def write_markdown_report(results: list[dict[str, Any]], report_path: Path):
         kc = r["type_changed_cells"]
         vc = r["value_changed_cells"]
         mc = r["missing_cells"]
-        main_cause = r["cause_breakdown"].most_common(1)[0][0] if r["cause_breakdown"] else "Không đổi (100% khớp)"
+        main_cause = r.get("status") or (r["cause_breakdown"].most_common(1)[0][0] if r["cause_breakdown"] else "Không đổi (100% khớp)")
         lines.append(f"| {fn} | {tc:,} | {fc:,} | {pk:.2f}% | {kc:,} | {vc:,} | {mc:,} | {main_cause} |")
 
     lines.extend([
@@ -582,6 +663,32 @@ def write_markdown_report(results: list[dict[str, Any]], report_path: Path):
     print(f"\n[+] Báo cáo đã được ghi tại: {report_path}", flush=True)
 
 
+def load_results_cache(cache_path: Path) -> dict[str, dict[str, Any]]:
+    """Load cached audit results."""
+    if cache_path.is_file():
+        try:
+            data = json.loads(cache_path.read_text(encoding="utf-8"))
+            for entry in data.values():
+                entry["cause_breakdown"] = Counter(entry.get("cause_breakdown", {}))
+                entry["top_format_pairs"] = [tuple(p) for p in entry.get("top_format_pairs", [])]
+            return data
+        except Exception:
+            pass
+    return {}
+
+
+def save_results_cache(cache_path: Path, results_by_file: dict[str, dict[str, Any]]):
+    """Save audit results to JSON cache."""
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    serializable = {}
+    for fn, r in results_by_file.items():
+        copy_r = dict(r)
+        copy_r["cause_breakdown"] = dict(r["cause_breakdown"])
+        copy_r["top_format_pairs"] = list(r["top_format_pairs"])
+        serializable[fn] = copy_r
+    cache_path.write_text(json.dumps(serializable, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Audit XLSX numFmt roundtrip fidelity.")
     parser.add_argument("--worktree", type=Path, default=REPO_ROOT, help="Worktree root directory")
@@ -599,14 +706,17 @@ def main():
     input_dir = (args.input_dir or worktree / "file test" / "lan").resolve()
     out_dir = (args.out_dir or worktree / "_batch_document_audit").resolve()
     report_path = (args.report or worktree / "docs" / "AUDIT-SHEET-NUMFMT-ROUNDTRIP-0710.md").resolve()
+    cache_path = out_dir / "numfmt_results.json"
 
-    print(f"=== XLSX NumFmt Roundtrip Audit (TICKET SB12) ===")
+    print(f"=== XLSX NumFmt Roundtrip Audit (TICKET SB12b) ===")
     print(f"Worktree:  {worktree}")
     print(f"InputDir:  {input_dir}")
     print(f"OutDir:    {out_dir}")
     print(f"Report:    {report_path}")
     print(f"Reuse:     {args.reuse_saved}")
-    print(f"Files:     {args.names or 'lan01..lan28'}\n", flush=True)
+    print(f"Files:     {args.names or 'lan01..lan28 (lan14 cuoi cung)'}\n", flush=True)
+
+    cache = load_results_cache(cache_path)
 
     results = run_audit(
         worktree=worktree,
@@ -617,7 +727,12 @@ def main():
         skip_lan14=args.skip_lan14,
     )
 
-    write_markdown_report(results, report_path)
+    for r in results:
+        cache[r["file"]] = r
+    save_results_cache(cache_path, cache)
+
+    all_results = sorted(cache.values(), key=lambda r: r["file"])
+    write_markdown_report(all_results, report_path)
 
 
 if __name__ == "__main__":

@@ -188,6 +188,40 @@ class XlsxNumfmtRoundtripTests(unittest.TestCase):
             self.assertEqual(res["value_changed_cells"], 0)
             self.assertEqual(res["cause_breakdown"]["ngay thanh so"], 1)
 
+    def test_check_not_empty_save_identical_bytes(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            p1 = Path(td) / "orig.xlsx"
+            p2 = Path(td) / "saved.xlsx"
+            data = b"PK\x03\x04exact_same_content"
+            p1.write_bytes(data)
+            p2.write_bytes(data)
+
+            self.assertTrue(auditor.is_empty_save(p1, p2))
+            with self.assertRaises(ValueError) as ctx:
+                auditor.check_not_empty_save(p1, p2)
+            self.assertIn("FAIL 'luu rong'", str(ctx.exception))
+
+    def test_check_not_empty_save_different_bytes(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            p1 = Path(td) / "orig.xlsx"
+            p2 = Path(td) / "saved.xlsx"
+            p1.write_bytes(b"PK\x03\x04original_data")
+            p2.write_bytes(b"PK\x03\x04real_saved_data_with_changes")
+
+            self.assertFalse(auditor.is_empty_save(p1, p2))
+            self.assertTrue(auditor.check_not_empty_save(p1, p2))
+
+    def test_check_not_empty_save_missing_file(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            p1 = Path(td) / "orig.xlsx"
+            p2 = Path(td) / "missing.xlsx"
+            p1.write_bytes(b"data")
+            with self.assertRaises(FileNotFoundError):
+                auditor.check_not_empty_save(p1, p2)
+
 
 if __name__ == "__main__":
     unittest.main()
