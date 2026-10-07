@@ -7921,6 +7921,7 @@ _bindGridKeyboardNavigation() {
     const sourceStartCol = this._columnNumber(clipboard.range?.start?.c || "A");
     const sourceStartRow = Number(clipboard.range?.start?.r || 1);
     const destStartCol = this._columnNumber(destination.c);
+    const destStartRow = Number(destination.r);
 
     const moveRange = options.moveRange && options.sourceSheet === this.activeSheet
       ? this._normalizeRange(options.moveRange)
@@ -7994,8 +7995,35 @@ _bindGridKeyboardNavigation() {
       }
     }
     if (!Object.keys(after).length) return false;
+    const beforeRanges = structuredClone(this.getMergedRanges());
+    let afterRanges = beforeRanges;
+    if (isSourceMode && (clipboard.mergedRanges?.length || moveRange)) {
+      const destinationRange = {
+        start: { c: this._columnLabel(destStartCol), r: destStartRow },
+        end: { c: this._columnLabel(destStartCol + width - 1), r: destStartRow + height - 1 }
+      };
+      afterRanges = beforeRanges.filter(range => {
+        if (this._rangesIntersect(range, destinationRange)) return false;
+        return !moveRange || !this._rangesIntersect(range, moveRange);
+      });
+      for (const relative of clipboard.mergedRanges || []) {
+        const relativeStartCol = this._columnNumber(relative.start.c) - 1;
+        const relativeEndCol = this._columnNumber(relative.end.c) - 1;
+        const relativeStartRow = Number(relative.start.r) - 1;
+        const relativeEndRow = Number(relative.end.r) - 1;
+        const mapped = transpose ? {
+          start: { c: this._columnLabel(destStartCol + relativeStartRow), r: destStartRow + relativeStartCol },
+          end: { c: this._columnLabel(destStartCol + relativeEndRow), r: destStartRow + relativeEndCol }
+        } : {
+          start: { c: this._columnLabel(destStartCol + relativeStartCol), r: destStartRow + relativeStartRow },
+          end: { c: this._columnLabel(destStartCol + relativeEndCol), r: destStartRow + relativeEndRow }
+        };
+        if (!afterRanges.some(range => this._rangesIntersect(range, mapped))) afterRanges.push(mapped);
+      }
+      this.mergedRangesBySheet[this.activeSheet] = structuredClone(afterRanges);
+    }
     for (const [coord, item] of Object.entries(after)) this.cellsData.set(coord, item);
-    this._recordHistory({ type: "batch-cells", sheet: this.activeSheet, before, after });
+    this._recordHistory({ type: "batch-cells", sheet: this.activeSheet, before, after, beforeRanges, afterRanges });
     this._recalculateAllFormulas();
     this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
     this.selectCell(destination.c, destination.r);
@@ -9763,6 +9791,10 @@ _bindGridKeyboardNavigation() {
             dom.style.cssText = "";
           }
         }
+      }
+      if (action.type === "batch-cells" && Array.isArray(action.beforeRanges) && Array.isArray(action.afterRanges)) {
+        this.mergedRangesBySheet[action.sheet] = structuredClone(direction === "undo" ? action.beforeRanges : action.afterRanges);
+        this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
       }
       this._recalculateAllFormulas();
     } else if (action.type === "batch-workbook") {

@@ -6340,6 +6340,7 @@ ${pristineXlsxMarker}
       cells,
       text: clipboardHtml.text,
       html: clipboardHtml.html,
+      mergedRanges: structuredClone(clipboardHtml.model?.mergedRanges || []),
       sourceSheet: this.grid.activeSheet
     };
   }
@@ -6348,6 +6349,7 @@ ${pristineXlsxMarker}
     this._clipboardModel = {
       range: structuredClone(payload.range),
       cells: structuredClone(payload.cells),
+      mergedRanges: structuredClone(payload.mergedRanges || []),
       sourceSheet: payload.sourceSheet || this.grid.activeSheet
     };
     this._clipboardText = String(payload.text ?? "");

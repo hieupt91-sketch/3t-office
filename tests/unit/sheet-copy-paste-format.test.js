@@ -123,5 +123,22 @@ export async function runSheetCopyPasteFormatTests() {
     assert.notEqual(e2Model.style?.color, "#00ff00", "E2 must NOT copy color on pastePlain");
   });
 
+  await test("CommandBus copy/paste preserves a merged range through the app-local clipboard cache", async () => {
+    const grid = new SheetGridController(mockContainer(), { isBlank: true });
+    const adapter = new SheetAdapter(grid);
+    adapter.attach();
+    grid.setCellValue("A", 1, "Merged");
+    grid.selectionRange = { start: { c: "A", r: 1 }, end: { c: "B", r: 2 } };
+    grid.selectedCoord = { c: "A", r: 1 };
+    grid.mergedRangesBySheet[grid.activeSheet] = [{ start: { c: "A", r: 1 }, end: { c: "B", r: 2 } }];
+
+    await globalCommandBus.execute("common.edit.copy");
+    grid.selectCell("D", 3);
+    await globalCommandBus.execute("common.edit.paste");
+
+    assert.equal(grid.cellsData.get("D3")?.val, "Merged");
+    assert.ok(grid.getMergedRanges().some(range => range.start.c === "D" && range.start.r === 3 && range.end.c === "E" && range.end.r === 4), "D3:E4 must remain merged");
+  });
+
   return results;
 }
