@@ -281,3 +281,37 @@ Kiểm tra `word/document.xml`, `styles.xml`, `numbering.xml`, `header*.xml`, `f
 **THIẾU thật (không có lệnh trong ứng dụng):** So sánh tài liệu, Bảo vệ tài liệu (mật khẩu/hạn chế sửa), **Ngăn dẫn hướng** (danh sách tiêu đề để nhảy nhanh trong tài liệu dài). Mỗi mục là một tính năng mới cần kế hoạch (tệp/ảnh hưởng/kiểm thử) và hướng dẫn tiếng Việt kèm theo.
 
 **Chưa kiểm:** các dòng cần hộp thoại nhập liệu (trộn thư với tệp CSV/Excel, quản lý nguồn), mẫu văn bản hành chính (công văn, quyết định, hợp đồng, biên bản), chuẩn hóa Times New Roman 13/14, kiểu APA, ngôn ngữ kiểm lỗi, cửa sổ mới.
+
+## Cập nhật kiểm chứng 07/10/2026 — D30 Codex
+
+Đã chạy app desktop thật bằng CDP với `LOCALAPPDATA` riêng; thao tác phím chỉ qua CDP. Script `scripts/audit-0610/doc_matrix_verify2.mjs` lưu DOCX, đọc `word/document.xml`/`styles.xml` và mở lại bản nháp. Lệnh acceptance chạy hết 25 dòng: **22 PASS, 3 FAIL, 0 BLOCKED** (exit code 1 vì có 3 lỗi thật).
+
+| Dòng ma trận | Kết quả | Bằng chứng/nguyên nhân |
+|---|---|---|
+| Thư tín — Nguồn CSV/Excel | PASS | Nạp nguồn CSV qua UI “Dán CSV / Thủ công”: 2 trường, 2 bản ghi; không suy diễn thêm cho nhánh Excel. |
+| Thư tín — Trường trộn thư | PASS | Chèn `HoTen` qua dialog, tài liệu có marker `«HoTen»`. |
+| Thư tín — Xem trước bản ghi | PASS | Bản ghi 1 hiển thị `Nguyễn Văn D30`. |
+| Thư tín — Bản ghi trước | PASS | Từ bản ghi 2 quay lại đúng bản ghi 1. |
+| Thư tín — Bản ghi sau | PASS | Chuyển đúng sang bản ghi 2 (`Trần Thị D30`). |
+| Thư tín — Hoàn tất trộn | PASS | Dialog “Hoàn tất và Trộn thư” mở đúng, mặc định toàn bộ 2 bản ghi ra tài liệu. |
+| Thư tín — Trộn ra tài liệu | PASS | DOCX chứa đủ 2 tên, có 1 page break và không còn marker trộn. |
+| Tham chiếu — Quản lý nguồn | PASS | Thêm và áp dụng nguồn `Nguyễn Văn D30 — Tài liệu kiểm chứng D30 — 2026` qua dialog. |
+| Tham chiếu — Kiểu APA/MLA | PASS | Đổi MLA rồi về APA qua ribbon; trích dẫn hiện `(Nguyễn, 2026)`. |
+| Trang đầu — Mẫu hành chính | FAIL | Thẻ “Văn bản hành chính” chỉ đổi tên tab thành `Quyết định ban hành tiêu chuẩn 01.docx`, nội dung vẫn rỗng. |
+| Trang đầu — Soạn công văn | PASS | DOCX giữ quốc hiệu, số/ký hiệu, tên công văn và trích yếu. |
+| Trang đầu — Soạn quyết định | PASS | DOCX giữ căn cứ và Điều 1. |
+| Trang đầu — Soạn hợp đồng | PASS | DOCX giữ HỢP ĐỒNG, BÊN A và BÊN B. |
+| Trang đầu — Soạn biên bản | PASS | DOCX giữ thành phần và kết luận. |
+| Trang đầu — Soạn báo cáo có mục lục | PASS | XML có trường TOC, Heading 1 và hai Heading 2. |
+| Trang đầu — Tạo trang ký tên | PASS | DOCX giữ đủ ba nhãn ký tên và có page break trước trang ký. |
+| Trang đầu — Thêm nơi nhận | PASS | DOCX giữ nguyên `Nơi nhận: Phòng Hành chính; Lưu: VT.`. |
+| Trang đầu — Căn giữa quốc hiệu | PASS | Đoạn quốc hiệu có `w:jc w:val="center"`. |
+| Trang đầu — Chuẩn hóa TNR 13 | PASS | XML đoạn Unicode có Times New Roman và `w:sz=26`. |
+| Trang đầu — Chuẩn hóa TNR 14 | PASS | XML đoạn Unicode có Times New Roman và `w:sz=28`. |
+| Trang đầu — Gõ tiếng Việt Unicode | PASS | CDP nhập và DOCX giữ đúng `Trường, Nguyễn, cộng hòa, số hóa`. |
+| Trang đầu — Lưu bản nháp không mất format | PASS | Mở lại DOCX giữ đủ nội dung, quốc hiệu căn giữa, TNR 13, Heading 1, TOC và page break. |
+| Xem — Cửa sổ mới | FAIL | Không tạo target/window mới; thanh trạng thái báo trình duyệt đã chặn cửa sổ mới. |
+| Xem — Trang hiện tại/thanh trạng thái | FAIL | Caret ở trang cuối (live pagination 3 trang) nhưng thanh trạng thái vẫn báo `Trang 1 / 3`. |
+| Xem lại — Ngôn ngữ kiểm lỗi | PASS | Bật/tắt lại qua ribbon; bộ kiểm lỗi tiếng Việt đánh dấu `saiiichinhta`, trạng thái hiển thị Tiếng Việt/Unicode NFC. |
+
+Không sửa mã sản phẩm theo phạm vi D30. Ba dòng FAIL cần ticket sửa riêng kèm hướng dẫn sử dụng nếu triển khai thành thay đổi tính năng.
