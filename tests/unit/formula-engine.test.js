@@ -420,10 +420,10 @@ export async function runFormulaEngineTests() {
     pass: vlEngine.evaluate('=VLOOKUP("Apple", A1:B5, 3, FALSE)') === "#REF!"
   });
 
-  // Column index < 1 -> #VALUE! (Excel) / legacy #N/A
+  // Excel: col_index_num < 1 -> #VALUE!
   results.push({
-    name: "VLOOKUP: Column index < 1 returns #N/A or #VALUE!",
-    pass: ["#VALUE!", "#N/A"].includes(vlEngine.evaluate('=VLOOKUP("Apple", A1:B5, 0, FALSE)'))
+    name: "VLOOKUP: Column index < 1 returns #VALUE! (Excel)",
+    pass: vlEngine.evaluate('=VLOOKUP("Apple", A1:B5, 0, FALSE)') === "#VALUE!"
   });
 
   // Cross-sheet VLOOKUP
