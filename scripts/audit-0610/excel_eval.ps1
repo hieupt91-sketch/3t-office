@@ -64,6 +64,9 @@ function Set-CellInput {
         $cell = $Sheet.Range($Address)
         if ($Value -is [string] -and $Value.StartsWith("=")) {
             $cell.Formula = $Value
+        } elseif ($Value -is [string] -and $Value.StartsWith("'")) {
+            $cell.NumberFormat = "@"
+            $cell.Value2 = $Value.Substring(1)
         } else {
             $cell.Value2 = $Value
         }

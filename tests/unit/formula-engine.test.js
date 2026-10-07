@@ -345,7 +345,7 @@ export async function runFormulaEngineTests() {
   vlookupData.set("B2", { val: 200, formula: "", style: {} });
   vlookupData.set("A3", { val: "Orange", formula: "", style: {} });
   vlookupData.set("B3", { val: 300, formula: "", style: {} });
-  vlookupData.set("A4", { val: "10", formula: "", style: {} });
+  vlookupData.set("A4", { val: "10", formula: "", style: { numberFormat: { category: "text" } } });
   vlookupData.set("B4", { val: 400, formula: "", style: {} });
   vlookupData.set("A5", { val: 20, formula: "", style: {} });
   vlookupData.set("B5", { val: 500, formula: "", style: {} });
@@ -420,10 +420,10 @@ export async function runFormulaEngineTests() {
     pass: vlEngine.evaluate('=VLOOKUP("Apple", A1:B5, 3, FALSE)') === "#REF!"
   });
 
-  // Column index < 1 -> #N/A
+  // Excel: col_index_num < 1 -> #VALUE!
   results.push({
-    name: "VLOOKUP: Column index < 1 returns #N/A",
-    pass: vlEngine.evaluate('=VLOOKUP("Apple", A1:B5, 0, FALSE)') === "#N/A"
+    name: "VLOOKUP: Column index < 1 returns #VALUE! (Excel)",
+    pass: vlEngine.evaluate('=VLOOKUP("Apple", A1:B5, 0, FALSE)') === "#VALUE!"
   });
 
   // Cross-sheet VLOOKUP
@@ -876,6 +876,198 @@ export async function runFormulaEngineTests() {
   results.push({
     name: 'SB7 NHÓM 5: =B3 với ô text trả về primitive string thay vì String object',
     pass: typeof sb7Nhom5Res === "string" && sb7Nhom5Res === "00990011" && !(sb7Nhom5Res instanceof String)
+  });
+
+  // 13. SB9 NHÓM 1: Kiểm tra tham số col_index/row_index và lan truyền lỗi cho VLOOKUP/HLOOKUP
+  const sb9Nhom1Cells = new Map([
+    ["A1", { val: 10, formula: "", style: {} }],
+    ["B1", { val: "Ten", formula: "", style: {} }],
+    ["A2", { val: 20, formula: "", style: {} }],
+    ["B2", { val: "Twenty", formula: "", style: {} }],
+    ["D1", { val: "Solo", formula: "", style: {} }],
+    ["D2", { val: "Duo", formula: "", style: {} }],
+    ["E1", { val: "#DIV/0!", formula: "", style: {} }]
+  ]);
+  const sb9Nhom1Engine = new FormulaEngine(sb9Nhom1Cells);
+  results.push({
+    name: "SB9 NHÓM 1: VLOOKUP col_index = 0 trả về #VALUE!",
+    pass: sb9Nhom1Engine.evaluate("=VLOOKUP(10, A1:B2, 0, FALSE)") === "#VALUE!"
+  });
+  results.push({
+    name: "SB9 NHÓM 1: VLOOKUP col_index vượt quá số cột trả về #REF!",
+    pass: sb9Nhom1Engine.evaluate("=VLOOKUP(10, A1:B2, 3, FALSE)") === "#REF!"
+  });
+  results.push({
+    name: "SB9 NHÓM 1: VLOOKUP lookup_value là lỗi lan truyền đúng mã lỗi",
+    pass: sb9Nhom1Engine.evaluate("=VLOOKUP(E1, A1:B2, 2, FALSE)") === "#DIV/0!" &&
+          sb9Nhom1Engine.evaluate("=VLOOKUP(1/0, A1:B2, 2, FALSE)") === "#DIV/0!"
+  });
+  results.push({
+    name: "SB9 NHÓM 1: VLOOKUP trên bảng 1 cột hoạt động đúng với col_index=1 và #REF! với col_index=2",
+    pass: sb9Nhom1Engine.evaluate('=VLOOKUP("Solo", D1:D2, 1, FALSE)') === "Solo" &&
+          sb9Nhom1Engine.evaluate('=VLOOKUP("Solo", D1:D2, 2, FALSE)') === "#REF!"
+  });
+  results.push({
+    name: "SB9 NHÓM 1: HLOOKUP row_index = 0 trả #VALUE! và vượt trả #REF!",
+    pass: sb9Nhom1Engine.evaluate("=HLOOKUP(10, A1:B2, 0, FALSE)") === "#VALUE!" &&
+          sb9Nhom1Engine.evaluate("=HLOOKUP(10, A1:B2, 3, FALSE)") === "#REF!"
+  });
+
+  // 14. SB9 NHÓM 2: Phân biệt số 5 vs chuỗi "5", không phân biệt hoa thường và wildcard (?, *, ~*, ~~) trong exact match
+  const sb9Nhom2Cells = new Map([
+    ["A1", { val: 5, formula: "", style: {} }],
+    ["B1", { val: "NumberFive", formula: "", style: {} }],
+    ["A2", { val: "5", formula: "", style: { numberFormat: { category: "text" } } }],
+    ["B2", { val: "StringFive", formula: "", style: {} }],
+    ["A3", { val: "Product Alpha", formula: "", style: {} }],
+    ["B3", { val: 100, formula: "", style: {} }],
+    ["A4", { val: "Car", formula: "", style: {} }],
+    ["B4", { val: 10, formula: "", style: {} }],
+    ["A5", { val: "Cart", formula: "", style: {} }],
+    ["B5", { val: 20, formula: "", style: {} }],
+    ["A6", { val: "Item*", formula: "", style: {} }],
+    ["B6", { val: 99, formula: "", style: {} }],
+    ["A7", { val: "Item~A", formula: "", style: {} }],
+    ["B7", { val: 77, formula: "", style: {} }],
+    ["C1", { val: "North", formula: "", style: {} }],
+    ["D1", { val: "South", formula: "", style: {} }],
+    ["C2", { val: 100, formula: "", style: {} }],
+    ["D2", { val: 200, formula: "", style: {} }]
+  ]);
+  const sb9Nhom2Engine = new FormulaEngine(sb9Nhom2Cells);
+  results.push({
+    name: 'SB9 NHÓM 2: VLOOKUP số 5 khớp ô số 5 và chuỗi "5" khớp ô chuỗi "5"',
+    pass: sb9Nhom2Engine.evaluate("=VLOOKUP(5, A1:B2, 2, FALSE)") === "NumberFive" &&
+          sb9Nhom2Engine.evaluate('=VLOOKUP("5", A1:B2, 2, FALSE)') === "StringFive"
+  });
+  results.push({
+    name: 'SB9 NHÓM 2: VLOOKUP số 5 không khớp chuỗi "5" trên bảng chỉ có chuỗi (trả về #N/A)',
+    pass: sb9Nhom2Engine.evaluate("=VLOOKUP(5, A2:B2, 2, FALSE)") === "#N/A" &&
+          sb9Nhom2Engine.evaluate('=VLOOKUP("5", A1:B1, 2, FALSE)') === "#N/A"
+  });
+  results.push({
+    name: 'SB9 NHÓM 2: VLOOKUP exact match không phân biệt hoa thường',
+    pass: sb9Nhom2Engine.evaluate('=VLOOKUP("pRoDuCt aLpHa", A3:B3, 2, FALSE)') === 100
+  });
+  results.push({
+    name: 'SB9 NHÓM 2: VLOOKUP wildcard * khớp tiền tố và ? khớp một ký tự',
+    pass: sb9Nhom2Engine.evaluate('=VLOOKUP("Prod*", A3:B3, 2, FALSE)') === 100 &&
+          sb9Nhom2Engine.evaluate('=VLOOKUP("Car?", A4:B5, 2, FALSE)') === 20
+  });
+  results.push({
+    name: 'SB9 NHÓM 2: VLOOKUP wildcard escape ~* và ~~ khớp ký tự thật',
+    pass: sb9Nhom2Engine.evaluate('=VLOOKUP("Item~*", A6:B6, 2, FALSE)') === 99 &&
+          sb9Nhom2Engine.evaluate('=VLOOKUP("Item~~A", A7:B7, 2, FALSE)') === 77
+  });
+  results.push({
+    name: 'SB9 NHÓM 2: HLOOKUP exact match với wildcard',
+    pass: sb9Nhom2Engine.evaluate('=HLOOKUP("So*", C1:D2, 2, FALSE)') === 200
+  });
+  results.push({
+    name: 'SB9 NHÓM 2: MATCH exact phân biệt số 5 vs chuỗi "5" và hỗ trợ wildcard',
+    pass: sb9Nhom2Engine.evaluate("=MATCH(5, A1:A2, 0)") === 1 &&
+          sb9Nhom2Engine.evaluate('=MATCH("5", A1:A2, 0)') === 2 &&
+          sb9Nhom2Engine.evaluate('=MATCH("Car?", A4:A5, 0)') === 2 &&
+          sb9Nhom2Engine.evaluate('=MATCH("Item~*", A6:A6, 0)') === 1
+  });
+
+  // 15. SB9 NHÓM 3: Khớp gần đúng (approximate match) thuật toán tìm kiếm nhị phân Excel
+  const sb9Nhom3Cells = new Map([
+    ["A1", { val: 10, formula: "", style: {} }],
+    ["B1", { val: "Ten", formula: "", style: {} }],
+    ["A2", { val: 20, formula: "", style: {} }],
+    ["B2", { val: "Twenty", formula: "", style: {} }],
+    ["A3", { val: 30, formula: "", style: {} }],
+    ["B3", { val: "Thirty", formula: "", style: {} }],
+    // Bảng không sắp xếp
+    ["D1", { val: 5, formula: "", style: {} }],
+    ["E1", { val: "Nam", formula: "", style: {} }],
+    ["D2", { val: 1, formula: "", style: {} }],
+    ["E2", { val: "Mot", formula: "", style: {} }],
+    ["D3", { val: 9, formula: "", style: {} }],
+    ["E3", { val: "Chin", formula: "", style: {} }],
+    ["D4", { val: 3, formula: "", style: {} }],
+    ["E4", { val: "Ba", formula: "", style: {} }],
+    ["D5", { val: 7, formula: "", style: {} }],
+    ["E5", { val: "Bay", formula: "", style: {} }],
+    // Mảng giảm dần cho MATCH -1
+    ["G1", { val: 30, formula: "", style: {} }],
+    ["G2", { val: 20, formula: "", style: {} }],
+    ["G3", { val: 10, formula: "", style: {} }],
+    // Bảng có lỗi
+    ["H1", { val: "#DIV/0!", formula: "", style: {} }],
+    ["H2", { val: 20, formula: "", style: {} }]
+  ]);
+  const sb9Nhom3Engine = new FormulaEngine(sb9Nhom3Cells);
+  results.push({
+    name: "SB9 NHÓM 3: VLOOKUP approximate khóa nhỏ hơn phần tử đầu trả về #N/A",
+    pass: sb9Nhom3Engine.evaluate("=VLOOKUP(5, A1:B3, 2, TRUE)") === "#N/A"
+  });
+  results.push({
+    name: "SB9 NHÓM 3: VLOOKUP approximate khóa ở giữa và lớn hơn cuối",
+    pass: sb9Nhom3Engine.evaluate("=VLOOKUP(25, A1:B3, 2, TRUE)") === "Twenty" &&
+          sb9Nhom3Engine.evaluate("=VLOOKUP(50, A1:B3, 2, TRUE)") === "Thirty"
+  });
+  results.push({
+    name: "SB9 NHÓM 3: VLOOKUP approximate trên bảng chưa sắp xếp cho kết quả nhị phân 'Mot'",
+    pass: sb9Nhom3Engine.evaluate("=VLOOKUP(6, D1:E5, 2, TRUE)") === "Mot"
+  });
+  results.push({
+    name: "SB9 NHÓM 3: VLOOKUP approximate lan truyền lỗi trong vùng tra",
+    pass: sb9Nhom3Engine.evaluate("=VLOOKUP(15, H1:H2, 1, TRUE)") === "#DIV/0!"
+  });
+  results.push({
+    name: "SB9 NHÓM 3: MATCH approximate type 1 và type -1",
+    pass: sb9Nhom3Engine.evaluate("=MATCH(5, A1:A3, 1)") === "#N/A" &&
+          sb9Nhom3Engine.evaluate("=MATCH(25, A1:A3, 1)") === 2 &&
+          sb9Nhom3Engine.evaluate("=MATCH(35, G1:G3, -1)") === "#N/A" &&
+          sb9Nhom3Engine.evaluate("=MATCH(15, G1:G3, -1)") === 2
+  });
+  results.push({
+    name: "SB9 NHÓM 3: LOOKUP approximate vector",
+    pass: sb9Nhom3Engine.evaluate("=LOOKUP(25, A1:A3, B1:B3)") === "Twenty" &&
+          sb9Nhom3Engine.evaluate("=LOOKUP(5, A1:A3, B1:B3)") === "#N/A"
+  });
+
+  // 16. SB9 NHÓM 4: Cải tiến hàm INDEX hàng/cột 0, mảng 1 hàng và ô trống
+  const sb9Nhom4Cells = new Map([
+    ["A1", { val: 10, formula: "", style: {} }],
+    ["A2", { val: 20, formula: "", style: {} }],
+    ["A3", { val: 30, formula: "", style: {} }],
+    ["B1", { val: 1, formula: "", style: {} }],
+    ["C1", { val: 2, formula: "", style: {} }],
+    ["D1", { val: 3, formula: "", style: {} }],
+    ["E1", { val: 100, formula: "", style: {} }],
+    ["F1", { val: 10, formula: "", style: {} }],
+    ["E2", { val: 200, formula: "", style: {} }],
+    ["F2", { val: 20, formula: "", style: {} }],
+    ["G1", { val: "", formula: "", style: {} }]
+  ]);
+  const sb9Nhom4Engine = new FormulaEngine(sb9Nhom4Cells);
+  results.push({
+    name: "SB9 NHÓM 4: INDEX trên bảng 1 cột với cột 0",
+    pass: sb9Nhom4Engine.evaluate("=INDEX(A1:A3, 2, 0)") === 20
+  });
+  results.push({
+    name: "SB9 NHÓM 4: INDEX trên bảng 1 hàng với hàng 0",
+    pass: sb9Nhom4Engine.evaluate("=INDEX(B1:D1, 0, 2)") === 2
+  });
+  results.push({
+    name: "SB9 NHÓM 4: INDEX trên bảng 1 hàng chỉ truyền 1 tham số (coi là cột)",
+    pass: sb9Nhom4Engine.evaluate("=INDEX(B1:D1, 3)") === 3
+  });
+  results.push({
+    name: "SB9 NHÓM 4: INDEX hàng 0 trong hàm SUM tính đúng toàn bộ cột",
+    pass: sb9Nhom4Engine.evaluate("=SUM(INDEX(E1:F2, 0, 2))") === 30
+  });
+  results.push({
+    name: "SB9 NHÓM 4: INDEX ô kết quả trống trả về 0",
+    pass: sb9Nhom4Engine.evaluate("=INDEX(G1, 1, 1)") === 0
+  });
+  results.push({
+    name: "SB9 NHÓM 4: INDEX chỉ số âm trả về #VALUE!",
+    pass: sb9Nhom4Engine.evaluate("=INDEX(A1:A3, -1, 1)") === "#VALUE!" &&
+          sb9Nhom4Engine.evaluate("=INDEX(A1:A3, 1, -1)") === "#VALUE!"
   });
 
   return results;

@@ -648,18 +648,11 @@ export class FormulaEngine {
     for (let i = 0; i < candidates.length; i++) {
       const candidate = candidates[i];
       const k = candidate.key;
-      if (typeof k === "number") {
+      if (typeof k === "number" && !k.isTextCell) {
         if (!numMap.has(k)) numMap.set(k, candidate);
-      } else if (typeof k === "string") {
-        const lower = k.toLocaleLowerCase();
+      } else if (typeof k === "string" || (typeof k === "object" && k instanceof String)) {
+        const lower = String(k).toLocaleLowerCase();
         if (!strMap.has(lower)) strMap.set(lower, candidate);
-        const trimmed = k.trim();
-        if (trimmed !== "") {
-          const n = Number(trimmed);
-          if (!Number.isNaN(n) && !numMap.has(n)) {
-            numMap.set(n, candidate);
-          }
-        }
       }
     }
 
@@ -670,36 +663,188 @@ export class FormulaEngine {
     return data;
   }
 
+  _matchWildcard(pattern, text) {
+    if (typeof text !== "string" && !(text instanceof String)) return false;
+    const strText = String(text);
+    let regexStr = "^";
+    for (let i = 0; i < pattern.length; i++) {
+      const ch = pattern[i];
+      if (ch === "~") {
+        if (i + 1 < pattern.length) {
+          const next = pattern[++i];
+          regexStr += next.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        } else {
+          regexStr += "\\~";
+        }
+      } else if (ch === "*") {
+        regexStr += ".*";
+      } else if (ch === "?") {
+        regexStr += ".";
+      } else {
+        regexStr += ch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      }
+    }
+    regexStr += "$";
+    try {
+      return new RegExp(regexStr, "i").test(strText);
+    } catch {
+      return false;
+    }
+  }
+
+  _lookupExactEquals(candidateKey, lookup) {
+    const isCandText = typeof candidateKey === "string" || (typeof candidateKey === "object" && candidateKey instanceof String);
+    const isLookupText = typeof lookup === "string" || (typeof lookup === "object" && lookup instanceof String);
+
+    if (isLookupText) {
+      if (!isCandText) return false;
+      const lookStr = String(lookup);
+      const candStr = String(candidateKey);
+      if (lookStr.includes("*") || lookStr.includes("?") || lookStr.includes("~")) {
+        return this._matchWildcard(lookStr, candStr);
+      }
+      return candStr.toLocaleLowerCase() === lookStr.toLocaleLowerCase();
+    }
+
+    const isCandNum = typeof candidateKey === "number" && !candidateKey.isTextCell;
+    const isLookupNum = typeof lookup === "number" && !lookup.isTextCell;
+    if (isLookupNum) {
+      if (!isCandNum) return false;
+      return candidateKey === lookup;
+    }
+
+    if (typeof lookup === "boolean") {
+      return typeof candidateKey === "boolean" && candidateKey === lookup;
+    }
+
+    return candidateKey === lookup;
+  }
+
   _findExactInLookupIndex(indexData, lookup) {
     const { candidates, numMap, strMap } = indexData;
     let found = null;
-    if (typeof lookup === "number") {
+    const isLookupNum = typeof lookup === "number" && !lookup.isTextCell;
+    const isLookupText = typeof lookup === "string" || (typeof lookup === "object" && lookup instanceof String);
+
+    if (isLookupNum) {
       const cand = numMap.get(lookup);
-      if (cand && this._equals(cand.key, lookup)) {
+      if (cand && typeof cand.key === "number" && !cand.key.isTextCell && cand.key === lookup) {
         found = cand;
       }
-    } else if (typeof lookup === "string") {
-      const lower = lookup.toLocaleLowerCase();
-      let cand = strMap.get(lower);
-      if (cand && this._equals(cand.key, lookup)) {
-        found = cand;
+    } else if (isLookupText) {
+      const lookStr = String(lookup);
+      const hasWildcard = lookStr.includes("*") || lookStr.includes("?") || lookStr.includes("~");
+      if (!hasWildcard) {
+        const lower = lookStr.toLocaleLowerCase();
+        const cand = strMap.get(lower);
+        if (cand && (typeof cand.key === "string" || cand.key instanceof String) && String(cand.key).toLocaleLowerCase() === lower) {
+          found = cand;
+        }
       } else {
-        const trimmed = lookup.trim();
-        if (trimmed !== "") {
-          const n = Number(trimmed);
-          if (!Number.isNaN(n)) {
-            cand = numMap.get(n);
-            if (cand && this._equals(cand.key, lookup)) {
-              found = cand;
-            }
+        for (const cand of candidates) {
+          if ((typeof cand.key === "string" || cand.key instanceof String) && this._matchWildcard(lookStr, cand.key)) {
+            found = cand;
+            break;
           }
         }
       }
+    } else if (typeof lookup === "boolean") {
+      found = candidates.find(item => item.key === lookup) || null;
     }
     if (!found) {
-      found = candidates.find(item => this._equals(item.key, lookup)) || null;
+      found = candidates.find(item => this._lookupExactEquals(item.key, lookup)) || null;
     }
     return found;
+  }
+
+  _compareLookupValues(left, right) {
+    if (left === right) return 0;
+    const isLNum = typeof left === "number" && !left.isTextCell;
+    const isRNum = typeof right === "number" && !right.isTextCell;
+    if (isLNum && isRNum) return left - right;
+
+    const isLText = typeof left === "string" || (typeof left === "object" && left instanceof String);
+    const isRText = typeof right === "string" || (typeof right === "object" && right instanceof String);
+    if (isLText && isRText) {
+      return String(left).localeCompare(String(right), undefined, { sensitivity: "accent" });
+    }
+
+    if (typeof left === "boolean" && typeof right === "boolean") {
+      return (left ? 1 : 0) - (right ? 1 : 0);
+    }
+
+    // Excel type order: Number < Text < Boolean < Blank
+    const typeOrder = val => {
+      if (val === null || val === undefined || val === "") return 4;
+      if (typeof val === "number" && !val.isTextCell) return 1;
+      if (typeof val === "string" || (typeof val === "object" && val instanceof String)) return 2;
+      if (typeof val === "boolean") return 3;
+      return 5;
+    };
+    const orderL = typeOrder(left);
+    const orderR = typeOrder(right);
+    if (orderL !== orderR) return orderL - orderR;
+    return String(left).localeCompare(String(right), undefined, { sensitivity: "accent" });
+  }
+
+  _lookupApproximateAscending(candidates, lookup) {
+    if (!candidates || candidates.length === 0) return null;
+
+    const firstKey = candidates[0].key;
+    if (this._isError(firstKey)) return { error: firstKey };
+    if (this._compareLookupValues(firstKey, lookup) > 0) {
+      return null;
+    }
+
+    let low = 0;
+    let high = candidates.length - 1;
+    let best = -1;
+
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      const key = candidates[mid].key;
+      if (this._isError(key)) return { error: key };
+
+      const cmp = this._compareLookupValues(key, lookup);
+      if (cmp <= 0) {
+        best = mid;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+
+    return best >= 0 ? candidates[best] : null;
+  }
+
+  _lookupApproximateDescending(values, lookup) {
+    if (!values || values.length === 0) return -1;
+
+    const firstVal = values[0];
+    if (this._isError(firstVal)) return { error: firstVal };
+    if (this._compareLookupValues(firstVal, lookup) < 0) {
+      return -1;
+    }
+
+    let low = 0;
+    let high = values.length - 1;
+    let best = -1;
+
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      const val = values[mid];
+      if (this._isError(val)) return { error: val };
+
+      const cmp = this._compareLookupValues(val, lookup);
+      if (cmp >= 0) {
+        best = mid;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+
+    return best;
   }
 
   _compareValues(left, right) {
@@ -1065,49 +1210,126 @@ export class FormulaEngine {
 
       case "VLOOKUP":
       case "HLOOKUP": {
+        if (args.length < 3) return "#VALUE!";
         const lookup = this._resolveSingleValue(args[0]);
+        if (this._isError(lookup)) return lookup;
+
         const matrix = this._rangeMatrix(args[1]);
-        const requestedIndex = Number(this._resolveSingleValue(args[2]));
-        const exact = args[3] !== undefined && !Boolean(this._resolveSingleValue(args[3]));
         if (!matrix || !matrix.length || !matrix[0]) return "#REF!";
+
+        const indexArg = this._resolveSingleValue(args[2]);
+        if (this._isError(indexArg)) return indexArg;
+        const requestedIndex = Number(indexArg);
+        if (Number.isNaN(requestedIndex) || requestedIndex < 1) return "#VALUE!";
+
+        const maxIndex = funcName === "VLOOKUP" ? matrix[0].length : matrix.length;
+        if (requestedIndex > maxIndex) return "#REF!";
+
+        const rangeLookupArg = args[3] !== undefined ? this._resolveSingleValue(args[3]) : true;
+        if (this._isError(rangeLookupArg)) return rangeLookupArg;
+        const exact = args[3] !== undefined && !Boolean(rangeLookupArg);
+
         if (exact && (lookup === "" || lookup === null || lookup === undefined)) return "#N/A";
-        const indexData = this._getLookupIndex(args[1], matrix, funcName);
         let found = null;
         if (exact) {
+          const indexData = this._getLookupIndex(args[1], matrix, funcName);
           found = this._findExactInLookupIndex(indexData, lookup);
         } else {
-          for (const candidate of indexData.candidates) {
-            if (this._compareValues(candidate.key, lookup) <= 0) found = candidate;
-            else break;
-          }
+          const candidates = funcName === "VLOOKUP"
+            ? matrix.map((row, index) => ({ key: row[0], index }))
+            : matrix[0].map((key, index) => ({ key, index }));
+          const approx = this._lookupApproximateAscending(candidates, lookup);
+          if (approx?.error) return approx.error;
+          found = approx;
         }
-        if (!found || requestedIndex < 1) return "#N/A";
+        if (!found) return "#N/A";
         const result = funcName === "VLOOKUP" ? matrix[found.index]?.[requestedIndex - 1] : matrix[requestedIndex - 1]?.[found.index];
         return result === undefined ? "#REF!" : (result === "" ? 0 : result);
       }
 
       case "INDEX": {
+        if (args.length < 2) return "#VALUE!";
         const matrix = this._rangeMatrix(args[0]);
-        const row = Number(this._resolveSingleValue(args[1]));
-        const col = args[2] === undefined ? 1 : Number(this._resolveSingleValue(args[2]));
-        return row >= 1 && col >= 1 && matrix[row - 1]?.[col - 1] !== undefined ? matrix[row - 1][col - 1] : "#REF!";
+        if (!matrix || !matrix.length || !matrix[0]) return "#REF!";
+
+        const rowArg = this._resolveSingleValue(args[1]);
+        if (this._isError(rowArg)) return rowArg;
+        let row = Number(rowArg);
+        if (Number.isNaN(row) || row < 0) return "#VALUE!";
+
+        let colArg = args[2] !== undefined ? this._resolveSingleValue(args[2]) : undefined;
+        if (colArg !== undefined && this._isError(colArg)) return colArg;
+        let col = colArg !== undefined ? Number(colArg) : undefined;
+        if (col !== undefined && (Number.isNaN(col) || col < 0)) return "#VALUE!";
+
+        const numRows = matrix.length;
+        const numCols = matrix[0].length;
+
+        // If array has only one row and col is omitted, row_num is used as col_num
+        if (numRows === 1 && col === undefined) {
+          col = row;
+          row = 1;
+        } else if (col === undefined) {
+          col = 1;
+        }
+
+        // Bounds checking
+        if (row > numRows || col > numCols) return "#REF!";
+
+        // Handle 1-column array with col = 0
+        if (numCols === 1 && col === 0) col = 1;
+        // Handle 1-row array with row = 0
+        if (numRows === 1 && row === 0) row = 1;
+
+        if (row === 0 && col === 0) {
+          return matrix.flat();
+        }
+        if (row === 0) {
+          return matrix.map(r => r[col - 1]);
+        }
+        if (col === 0) {
+          return matrix[row - 1];
+        }
+
+        const cellValue = matrix[row - 1]?.[col - 1];
+        if (cellValue === undefined) return "#REF!";
+        return cellValue === "" ? 0 : cellValue;
       }
 
       case "MATCH": {
+        if (args.length < 2) return "#VALUE!";
         const lookup = this._resolveSingleValue(args[0]);
-        const values = this._rangeMatrix(args[1]).flat();
-        const matchType = args[2] === undefined ? 1 : Number(this._resolveSingleValue(args[2]));
+        if (this._isError(lookup)) return lookup;
+
+        const matrix = this._rangeMatrix(args[1]);
+        if (!matrix || !matrix.length || !matrix[0]) return "#REF!";
+        if (matrix.length > 1 && matrix[0].length > 1) return "#N/A";
+        const values = matrix.flat();
+
+        const typeArg = args[2] === undefined ? 1 : this._resolveSingleValue(args[2]);
+        if (this._isError(typeArg)) return typeArg;
+        const matchType = Number(typeArg);
+        if (Number.isNaN(matchType)) return "#VALUE!";
+
         if (matchType === 0) {
-          const index = values.findIndex(value => this._equals(value, lookup));
+          if (lookup === "" || lookup === null || lookup === undefined) return "#N/A";
+          const index = values.findIndex(value => this._lookupExactEquals(value, lookup));
           return index < 0 ? "#N/A" : index + 1;
         }
-        let found = -1;
-        for (let index = 0; index < values.length; index++) {
-          const comparison = this._compareValues(values[index], lookup);
-          if ((matchType === 1 && comparison <= 0) || (matchType === -1 && comparison >= 0)) found = index;
-          else break;
+        if (matchType > 0) {
+          const candidates = values.map((val, idx) => ({ key: val, index: idx }));
+          const approx = this._lookupApproximateAscending(candidates, lookup);
+          if (approx?.error) return approx.error;
+          return approx ? approx.index + 1 : "#N/A";
         }
-        return found < 0 ? "#N/A" : found + 1;
+
+        if (matchType < 0) {
+          const approxIndex = this._lookupApproximateDescending(values, lookup);
+          if (approxIndex?.error) return approxIndex.error;
+          return approxIndex >= 0 ? approxIndex + 1 : "#N/A";
+        }
+
+        return "#N/A";
       }
 
       case "XLOOKUP": {
@@ -1144,13 +1366,18 @@ export class FormulaEngine {
       case "LOOKUP": {
         if (args.length < 2) return "#VALUE!";
         const lookup = this._resolveSingleValue(args[0]);
+        if (this._isError(lookup)) return lookup;
         const vector = this._rangeValues(args[1]);
         const results = args[2] === undefined ? vector : this._rangeValues(args[2]);
         if (vector.includes("#REF!") || results.includes("#REF!")) return "#REF!";
         if (vector.length !== results.length) return "#N/A";
-        let found = -1;
-        for (let index = 0; index < vector.length; index++) if (this._compareValues(vector[index], lookup) <= 0) found = index;
-        return found < 0 ? "#N/A" : results[found];
+
+        const candidates = vector.map((val, idx) => ({ key: val, index: idx }));
+        const approx = this._lookupApproximateAscending(candidates, lookup);
+        if (approx?.error) return approx.error;
+        if (!approx) return "#N/A";
+        const res = results[approx.index];
+        return res === "" ? 0 : res;
       }
 
       case "CHOOSE": {

@@ -141,6 +141,45 @@ add("P02", "Sao chep cong thuc", "cot va hang tuyet doi", "=$B$1+C1", { B1: 1, B
 add("P03", "Sao chep cong thuc", "hang tuyet doi va cot hon hop", "=B$1+$C1", { B1: 1, B2: 10, C1: 2, C2: 20 }, { mode: "fillDown" });
 add("P04", "Sao chep cong thuc", "cot tuyet doi va hang tuyet doi", "=$B1+C$1", { B1: 1, B2: 10, C1: 2, C2: 20 }, { mode: "fillDown" });
 
+// Bo sung SB9: Ngu nghia tra cuu Excel that (VLOOKUP, HLOOKUP, MATCH, INDEX, LOOKUP)
+add("P-LOOKUP-01", "LOOKUP-SEMANTICS", "VLOOKUP exact so 5 khong khop chuoi '5'", '=VLOOKUP("5",A1:B2,2,FALSE)', { A1: 5, B1: "So 5", A2: "'5", B2: "Chu 5" });
+add("P-LOOKUP-02", "LOOKUP-SEMANTICS", "VLOOKUP exact chuoi '5' khong khop so 5", '=VLOOKUP(5,A1:B2,2,FALSE)', { A1: "'5", B1: "Chu 5", A2: 5, B2: "So 5" });
+add("P-LOOKUP-03", "LOOKUP-SEMANTICS", "VLOOKUP exact khong phan biet hoa thuong", '=VLOOKUP("apple",A1:B1,2,FALSE)', { A1: "APPLE", B1: 100 });
+add("P-LOOKUP-04", "LOOKUP-SEMANTICS", "VLOOKUP exact wildcard dau sao *", '=VLOOKUP("ap*e",A1:B2,2,FALSE)', { A1: "apple", B1: 100, A2: "banana", B2: 200 });
+add("P-LOOKUP-05", "LOOKUP-SEMANTICS", "VLOOKUP exact wildcard dau hoi ?", '=VLOOKUP("d?g",A1:B2,2,FALSE)', { A1: "cat", B1: 10, A2: "dog", B2: 20 });
+add("P-LOOKUP-06", "LOOKUP-SEMANTICS", "VLOOKUP exact escape wildcard ~*", '=VLOOKUP("cat~*dog",A1:B2,2,FALSE)', { A1: "cat*dog", B1: 30, A2: "category", B2: 40 });
+add("P-LOOKUP-07", "LOOKUP-SEMANTICS", "VLOOKUP exact escape wildcard ~~", '=VLOOKUP("cat~~dog",A1:B2,2,FALSE)', { A1: "cat~dog", B1: 50, A2: "cat dog", B2: 60 });
+add("P-LOOKUP-08", "LOOKUP-SEMANTICS", "VLOOKUP col_index 0 bao loi VALUE", '=VLOOKUP(1,A1:B1,0,FALSE)', { A1: 1, B1: 10 });
+add("P-LOOKUP-09", "LOOKUP-SEMANTICS", "VLOOKUP col_index vuot so cot bao loi REF", '=VLOOKUP(1,A1:B1,3,FALSE)', { A1: 1, B1: 10 });
+add("P-LOOKUP-10", "LOOKUP-SEMANTICS", "VLOOKUP col_index am bao loi VALUE", '=VLOOKUP(1,A1:B1,-1,FALSE)', { A1: 1, B1: 10 });
+add("P-LOOKUP-11", "LOOKUP-SEMANTICS", "VLOOKUP bang 1 cot col_index 1", '=VLOOKUP("Beta",A1:A2,1,FALSE)', { A1: "Alpha", A2: "Beta" });
+add("P-LOOKUP-12", "LOOKUP-SEMANTICS", "VLOOKUP tra ve o trong ra so 0", '=VLOOKUP("Item1",A1:B2,2,FALSE)', { A1: "Item1", B1: "", A2: "Item2", B2: 10 });
+add("P-LOOKUP-13", "LOOKUP-SEMANTICS", "VLOOKUP lan truyen loi tu lookup_value", '=VLOOKUP(1/0,A1:B1,2,FALSE)', { A1: 1, B1: 10 });
+add("P-LOOKUP-14", "LOOKUP-SEMANTICS", "VLOOKUP lan truyen loi tu o dich", '=VLOOKUP(1,A1:B1,2,FALSE)', { A1: 1, B1: "=1/0" });
+add("P-LOOKUP-15", "LOOKUP-SEMANTICS", "VLOOKUP approximate bo qua tham so range_lookup", '=VLOOKUP(6,A1:C5,2)', lookupRows);
+add("P-LOOKUP-16", "LOOKUP-SEMANTICS", "VLOOKUP approximate khoa nho hon dau tien ra NA", '=VLOOKUP(0,A1:C5,2,TRUE)', lookupRows);
+add("P-LOOKUP-17", "LOOKUP-SEMANTICS", "VLOOKUP approximate khoa lon hon phan tu cuoi", '=VLOOKUP(10,A1:C5,2,TRUE)', lookupRows);
+add("P-LOOKUP-18", "LOOKUP-SEMANTICS", "VLOOKUP approximate khong match wildcard ma coi la ky tu", '=VLOOKUP("a*",A1:B2,2,TRUE)', { A1: "a", B1: "Chu A", A2: "b", B2: "Chu B" });
+add("P-LOOKUP-19", "LOOKUP-SEMANTICS", "VLOOKUP approximate binary search mang chua sap xep", '=VLOOKUP(6,A1:B5,2,TRUE)', { A1: 5, B1: "Nam", A2: 1, B2: "Mot", A3: 9, B3: "Chin", A4: 3, B4: "Ba", A5: 7, B5: "Bay" });
+add("P-LOOKUP-20", "LOOKUP-SEMANTICS", "HLOOKUP exact tra dung hang", '=HLOOKUP("b",A1:C2,2,FALSE)', { A1: "a", B1: "b", C1: "c", A2: 10, B2: 20, C2: 30 });
+add("P-LOOKUP-21", "LOOKUP-SEMANTICS", "HLOOKUP row_index 0 bao loi VALUE", '=HLOOKUP("a",A1:B2,0,FALSE)', { A1: "a", B1: "b", A2: 10, B2: 20 });
+add("P-LOOKUP-22", "LOOKUP-SEMANTICS", "HLOOKUP row_index vuot so hang bao loi REF", '=HLOOKUP("a",A1:B2,3,FALSE)', { A1: "a", B1: "b", A2: 10, B2: 20 });
+add("P-LOOKUP-23", "LOOKUP-SEMANTICS", "HLOOKUP approximate khoa nho hon phan tu dau ra NA", '=HLOOKUP(2,A1:C2,2,TRUE)', { A1: 5, B1: 10, C1: 15, A2: 100, B2: 200, C2: 300 });
+add("P-LOOKUP-24", "LOOKUP-SEMANTICS", "MATCH type 0 exact wildcard ?", '=MATCH("ban?na",A1:A3,0)', { A1: "apple", A2: "banana", A3: "orange" });
+add("P-LOOKUP-25", "LOOKUP-SEMANTICS", "MATCH type 0 so 5 khong khop chuoi '5'", '=MATCH("5",A1:A3,0)', { A1: 5, A2: 6, A3: "'5" });
+add("P-LOOKUP-26", "LOOKUP-SEMANTICS", "MATCH type 1 approximate tang dan nho hon dau tien ra NA", '=MATCH(5,A1:A3,1)', { A1: 10, A2: 20, A3: 30 });
+add("P-LOOKUP-27", "LOOKUP-SEMANTICS", "MATCH type 1 approximate tang dan lon hon cuoi", '=MATCH(50,A1:A3,1)', { A1: 10, A2: 20, A3: 30 });
+add("P-LOOKUP-28", "LOOKUP-SEMANTICS", "MATCH type -1 approximate giam dan lon hon phan tu dau ra NA", '=MATCH(50,A1:A3,-1)', { A1: 30, A2: 20, A3: 10 });
+add("P-LOOKUP-29", "LOOKUP-SEMANTICS", "MATCH type -1 approximate giam dan nho hon cuoi", '=MATCH(5,A1:A3,-1)', { A1: 30, A2: 20, A3: 10 });
+add("P-LOOKUP-30", "LOOKUP-SEMANTICS", "MATCH type -1 approximate giam dan o giua", '=MATCH(15,A1:A3,-1)', { A1: 30, A2: 20, A3: 10 });
+add("P-LOOKUP-31", "LOOKUP-SEMANTICS", "INDEX row 0 tra ve toan bo cot", '=SUM(INDEX(A1:B3,0,2))', { A1: 1, B1: 10, A2: 2, B2: 20, A3: 3, B3: 30 });
+add("P-LOOKUP-32", "LOOKUP-SEMANTICS", "INDEX col 0 tra ve toan bo hang", '=SUM(INDEX(A1:B3,2,0))', { A1: 1, B1: 10, A2: 2, B2: 20, A3: 3, B3: 30 });
+add("P-LOOKUP-33", "LOOKUP-SEMANTICS", "INDEX mang 1 hang 1 tham so tra ve cot", '=INDEX(A1:C1,2)', { A1: 100, B1: 200, C1: 300 });
+add("P-LOOKUP-34", "LOOKUP-SEMANTICS", "INDEX tra ve o trong ra so 0", '=INDEX(A1:B2,1,2)', { A1: 1, B1: "", A2: 2, B2: 20 });
+add("P-LOOKUP-35", "LOOKUP-SEMANTICS", "INDEX chi so row am bao loi VALUE", '=INDEX(A1:B1,-1,1)', { A1: 1, B1: 10 });
+add("P-LOOKUP-36", "LOOKUP-SEMANTICS", "INDEX chi so col am bao loi VALUE", '=INDEX(A1:B1,1,-1)', { A1: 1, B1: 10 });
+add("P-LOOKUP-37", "LOOKUP-SEMANTICS", "LOOKUP approximate vector", '=LOOKUP(6,A1:A5,B1:B5)', { A1: 1, B1: 10, A2: 3, B2: 30, A3: 5, B3: 50, A4: 7, B4: 70, A5: 9, B5: 90 });
+
 // Che do --oracle-expected: khi Excel COM khong dung duoc (may nay: "Product Activation Failed" + Activation Wizard
 // chan moi lenh COM), doi chieu voi KET QUA EXCEL DA BIET theo ngu nghia chuan cua Excel (khong lay tu app).
 // null = cach thuc hien phu thuoc ban Excel/vung mien -> chi ghi nhan ket qua app, khong tinh PASS/FAIL.
@@ -164,6 +203,43 @@ const expectedOracle = {
   E08: err("#DIV/0!"), E09: err("#DIV/0!"), E10: txt("caught"),
   A01: { result: num(7), formula: "=A1" }, A02: { result: num(7), formula: "=$A$1" }, A03: { result: num(7), formula: "=A$1" }, A04: { result: num(7), formula: "=$A1" },
   P01: { result: num(30), formula: "=B2+C2" }, P02: { result: num(21), formula: "=$B$1+C2" }, P03: { result: num(21), formula: "=B$1+$C2" }, P04: { result: num(12), formula: "=$B2+C$1" },
+  "P-LOOKUP-01": txt("Chu 5"),
+  "P-LOOKUP-02": txt("So 5"),
+  "P-LOOKUP-03": num(100),
+  "P-LOOKUP-04": num(100),
+  "P-LOOKUP-05": num(20),
+  "P-LOOKUP-06": num(30),
+  "P-LOOKUP-07": num(50),
+  "P-LOOKUP-08": err("#VALUE!"),
+  "P-LOOKUP-09": err("#REF!"),
+  "P-LOOKUP-10": err("#VALUE!"),
+  "P-LOOKUP-11": txt("Beta"),
+  "P-LOOKUP-12": num(0),
+  "P-LOOKUP-13": err("#DIV/0!"),
+  "P-LOOKUP-14": err("#DIV/0!"),
+  "P-LOOKUP-15": txt("Nam"),
+  "P-LOOKUP-16": err("#N/A"),
+  "P-LOOKUP-17": txt("Chin"),
+  "P-LOOKUP-18": txt("Chu A"),
+  "P-LOOKUP-19": txt("Mot"),
+  "P-LOOKUP-20": num(20),
+  "P-LOOKUP-21": err("#VALUE!"),
+  "P-LOOKUP-22": err("#REF!"),
+  "P-LOOKUP-23": err("#N/A"),
+  "P-LOOKUP-24": num(2),
+  "P-LOOKUP-25": num(3),
+  "P-LOOKUP-26": err("#N/A"),
+  "P-LOOKUP-27": num(3),
+  "P-LOOKUP-28": err("#N/A"),
+  "P-LOOKUP-29": num(3),
+  "P-LOOKUP-30": num(2),
+  "P-LOOKUP-31": num(60),
+  "P-LOOKUP-32": num(22),
+  "P-LOOKUP-33": num(200),
+  "P-LOOKUP-34": num(0),
+  "P-LOOKUP-35": err("#VALUE!"),
+  "P-LOOKUP-36": err("#VALUE!"),
+  "P-LOOKUP-37": num(50),
 };
 
 function runProcess(command, args, options = {}) {
@@ -228,7 +304,12 @@ async function resetAndSeed(cdp, test) {
     const cells = ${payload};
     for (const [address, value] of Object.entries(cells)) {
       const match = /^([A-Z]+)(\\d+)$/.exec(address);
+      const isForcedText = typeof value === "string" && value.startsWith("'");
       grid.setCellValue(match[1], Number(match[2]), value, false, { userInput: true, commit: true });
+      if (isForcedText) {
+        const item = grid.cellsData.get(address);
+        if (item) item.style = { ...(item.style || {}), numberFormat: { category: "text" } };
+      }
     }
     grid.selectCell("J", 1);
     return true;
