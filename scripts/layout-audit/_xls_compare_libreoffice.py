@@ -67,8 +67,12 @@ def parse_fods(fods_path: str) -> dict:
                 elif value_type == "boolean":
                     value = "TRUE" if cell_elem.get(f"{office_ns}boolean-value") == "true" else "FALSE"
                 elif value_type == "string":
-                    # itertext(): text inside text:span / text:a / text:s counts too.
-                    value = "\n".join("".join(p.itertext()) for p in cell_elem.findall("text:p", NS))
+                    str_val = cell_elem.get(f"{office_ns}string-value")
+                    if str_val is not None:
+                        value = str_val
+                    else:
+                        # itertext(): text inside text:span / text:a / text:s counts too.
+                        value = "\n".join("".join(p.itertext()) for p in cell_elem.findall("text:p", NS))
                 formula = cell_elem.get(f"{table_ns}formula", "")
                 if formula.startswith("of:"):
                     formula = formula[3:]
