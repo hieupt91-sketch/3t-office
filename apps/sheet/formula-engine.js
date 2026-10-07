@@ -253,6 +253,23 @@ export class FormulaEngine {
     if (!item) return 0;
     const raw = (item.val !== undefined && item.val !== null) ? item.val : "";
 
+    if ((raw === "#NAME?" || raw === "#ADDIN?") && item.formula) {
+      if (!this._evaluatingCoords) this._evaluatingCoords = new Set();
+      const coordKey = (sheetName ? sheetName + "!" : "") + coord.toUpperCase();
+      if (!this._evaluatingCoords.has(coordKey)) {
+        this._evaluatingCoords.add(coordKey);
+        try {
+          const recomputed = this.evaluate(item.formula.startsWith("=") ? item.formula : "=" + item.formula);
+          if (recomputed && recomputed !== "#NAME?" && recomputed !== "#LỖI!") {
+            item.val = recomputed;
+            return recomputed;
+          }
+        } finally {
+          this._evaluatingCoords.delete(coordKey);
+        }
+      }
+    }
+
     if (this._isError(raw)) return raw;
 
     // Giữ nguyên chuỗi ngày để các hàm ngày tháng có thể phân tích, không coi dấu "/" là ký hiệu tiền tệ.

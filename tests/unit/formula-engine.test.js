@@ -836,5 +836,21 @@ export async function runFormulaEngineTests() {
     pass: sb7Nhom2Engine.evaluate('=SUMIF(A1:A3, VLOOKUP("X", D1:E1, 2, FALSE), B1:B3)') === 40
   });
 
+  // 10. SB7 NHÓM 3: Lan truyền mã lỗi qua các ô phụ thuộc khi ô nguồn có formula và val ban đầu là #NAME?
+  const sb7Nhom3Cells = new Map([
+    ["A12", { val: "#NAME?", formula: "=#ref!+1", style: {} }],
+    ["A13", { val: "#NAME?", formula: "=A12+1", style: {} }],
+    ["A14", { val: "#NAME?", formula: "=A13+1", style: {} }]
+  ]);
+  const sb7Nhom3Engine = new FormulaEngine(sb7Nhom3Cells);
+  results.push({
+    name: 'SB7 NHÓM 3: Ô nguồn chứa =#ref!+1 với val=#NAME? được tính lại thành #REF!',
+    pass: sb7Nhom3Engine.getCellValue("A12") === "#REF!"
+  });
+  results.push({
+    name: 'SB7 NHÓM 3: Ô phụ thuộc =A12+1 lan truyền #REF! thay vì #NAME?',
+    pass: sb7Nhom3Engine.evaluate("=A12+1") === "#REF!" && sb7Nhom3Engine.evaluate("=A13+1") === "#REF!"
+  });
+
   return results;
 }
