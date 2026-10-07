@@ -5345,7 +5345,8 @@ _bindGridKeyboardNavigation() {
     const category = nextStyle.numberFormat?.category;
     // Currency input is a type inference result, so apply both its real numeric
     // value and display format at the point where literal cell edits are stored.
-    if (typeof value === "string" && (!category || category === "general")) {
+    const hasExplicitCurrency = typeof value === "string" && /(?:₫|VN(?:D|Đ))/iu.test(value);
+    if (typeof value === "string" && (!category || category === "general" || (category === "currency" && hasExplicitCurrency))) {
       const inferred = NumberFormatter.inferUserInput(value, nextStyle.numberFormat, {
         decimalSeparator: ",",
         thousandsSeparator: "."
