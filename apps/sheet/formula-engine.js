@@ -1324,6 +1324,7 @@ export class FormulaEngine {
       case "IF": {
         const condExpr = args[0];
         const condResult = this._evaluateCondition(condExpr);
+        if (this._isError(condResult)) return condResult;
         if (condResult) {
           return this._resolveSingleValue(args[1]);
         } else {
@@ -1333,20 +1334,26 @@ export class FormulaEngine {
 
       case "AND": {
         for (const a of args) {
-          if (!this._evaluateCondition(a)) return false;
+          const res = this._evaluateCondition(a);
+          if (this._isError(res)) return res;
+          if (!res) return false;
         }
         return true;
       }
 
       case "OR": {
         for (const a of args) {
-          if (this._evaluateCondition(a)) return true;
+          const res = this._evaluateCondition(a);
+          if (this._isError(res)) return res;
+          if (res) return true;
         }
         return false;
       }
 
       case "NOT": {
-        return !this._evaluateCondition(args[0]);
+        const res = this._evaluateCondition(args[0]);
+        if (this._isError(res)) return res;
+        return !res;
       }
 
       case "IFERROR":
@@ -1842,6 +1849,7 @@ export class FormulaEngine {
         if (args.length < 2 || args.length % 2 !== 0) return "#VALUE!";
         for (let i = 0; i < args.length; i += 2) {
           const cond = this._evaluateCondition(String(args[i]));
+          if (this._isError(cond)) return cond;
           if (cond) return this._resolveSingleValue(args[i + 1]);
         }
         return "#N/A";
@@ -1946,6 +1954,10 @@ export class FormulaEngine {
       const leftVal = this._resolveSingleValue(leftStr);
       const rightVal = this._resolveSingleValue(rightStr);
 
+      if (rightVal === "#N/A") return rightVal;
+      if (this._isError(leftVal)) return leftVal;
+      if (this._isError(rightVal)) return rightVal;
+
       if (op === ">=") return leftVal >= rightVal;
       if (op === "<=") return leftVal <= rightVal;
       if (op === ">") return leftVal > rightVal;
@@ -1955,6 +1967,7 @@ export class FormulaEngine {
     }
 
     const val = this._resolveSingleValue(condStr);
+    if (this._isError(val)) return val;
     return Boolean(val && val !== "FALSE" && val !== "0");
   }
 
