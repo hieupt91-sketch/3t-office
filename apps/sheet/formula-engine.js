@@ -409,7 +409,7 @@ export class FormulaEngine {
 
   collectNumericValues(args) {
     return this.collectValues(args)
-      .filter(v => !(v && v.isTextCell))
+      .filter(v => !(v && v.isTextCell) && !this._isError(v))
       .map(v => typeof v === "number" ? v : Number(v.toString().replace(/[^\d.-]/g, "")))
       .filter(v => !isNaN(v));
   }
@@ -744,7 +744,8 @@ export class FormulaEngine {
       // Toán học
       case "SUM": {
         const rawValues = this.collectValues(args);
-        if (rawValues.includes("#REF!")) return "#REF!";
+        const err = rawValues.find(v => this._isError(v));
+        if (err) return err;
         const nums = rawValues
           .filter(v => !(v && v.isTextCell))
           .map(v => typeof v === "number" ? v : Number(String(v).replace(/[^\d.-]/g, "")))
@@ -754,6 +755,9 @@ export class FormulaEngine {
       }
 
       case "PRODUCT": {
+        const rawValues = this.collectValues(args);
+        const err = rawValues.find(v => this._isError(v));
+        if (err) return err;
         const nums = this.collectNumericValues(args);
         return nums.reduce((acc, v) => acc * v, 1);
       }
@@ -768,7 +772,8 @@ export class FormulaEngine {
 
       case "AVERAGE": {
         const rawValues = this.collectValues(args);
-        if (rawValues.includes("#REF!")) return "#REF!";
+        const err = rawValues.find(v => this._isError(v));
+        if (err) return err;
         const nums = this.collectNumericValues(args);
         if (nums.length === 0) return 0;
         const sum = nums.reduce((acc, v) => acc + v, 0);
@@ -776,13 +781,17 @@ export class FormulaEngine {
       }
 
       case "MIN": {
-        if (this.collectValues(args).includes("#REF!")) return "#REF!";
+        const rawValues = this.collectValues(args);
+        const err = rawValues.find(v => this._isError(v));
+        if (err) return err;
         const nums = this.collectNumericValues(args);
         return nums.length ? Math.min(...nums) : 0;
       }
 
       case "MAX": {
-        if (this.collectValues(args).includes("#REF!")) return "#REF!";
+        const rawValues = this.collectValues(args);
+        const err = rawValues.find(v => this._isError(v));
+        if (err) return err;
         const nums = this.collectNumericValues(args);
         return nums.length ? Math.max(...nums) : 0;
       }
