@@ -7933,7 +7933,7 @@ _bindGridKeyboardNavigation() {
           const coord = `${this._columnLabel(col)}${row}`;
           const existing = structuredClone(this.cellsData.get(coord) || { val: "", formula: "", style: {} });
           before[coord] = existing;
-          after[coord] = { val: "", formula: "", style: structuredClone(existing.style || {}) };
+          after[coord] = { val: "", formula: "", style: {} };
         }
       }
     }

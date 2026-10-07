@@ -92,6 +92,7 @@ export async function runSheetCopyPasteFormatTests() {
     const d1After = grid.cellsData.get("D1");
 
     assert.equal(b1After?.val || "", "", "Source B1 value must be cleared on cut");
+    assert.deepEqual(b1After?.style || {}, {}, "Source B1 formatting must be cleared on cut");
     assert.equal(d1After?.val, "CutVal", "Destination D1 must receive cut value");
     assert.equal(d1After?.style?.fontWeight, "bold", "Destination D1 must retain fontWeight bold");
     assert.equal(d1After?.style?.backgroundColor, "#ffff00", "Destination D1 must retain background color");
