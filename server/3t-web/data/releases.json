@@ -1,16 +1,16 @@
 {
   "product": "3T Office",
-  "current_version": "0.9.8",
+  "current_version": "0.9.9",
   "version_family": "0.9.x",
   "channel": "pilot",
-  "release_date": "2026-10-03",
+  "release_date": "2026-10-07",
   "download": {
-    "file_name": "VNOffice-Setup-0.9.8.exe",
-    "alias_file_name": "Setup-0.9.8.exe",
-    "file_size_bytes": 529497844,
-    "file_size_formatted": "505 MB",
-    "sha256": "E96CC953AE2B5097C6A047D939AE68F6A60161522929B359B904EFB28788BA32",
-    "url": "https://office.3tcomputer.com/downloads/VNOffice-Setup-0.9.8.exe",
+    "file_name": "VNOffice-Setup-0.9.9.exe",
+    "alias_file_name": "Setup-0.9.9.exe",
+    "file_size_bytes": 401414822,
+    "file_size_formatted": "383 MB",
+    "sha256": "9AECB1D53CC5B587154EBC6691C76129CEC0210776FB5E12F57F6399D192AB63",
+    "url": "https://office.3tcomputer.com/downloads/VNOffice-Setup-0.9.9.exe",
     "status": "ready",
     "public_download_status": "Sẵn sàng tải về từ hạ tầng phân phối máy chủ 3T Cloud",
     "requirements": {
@@ -21,6 +21,33 @@
     }
   },
   "releases": [
+    {
+      "version": "0.9.9",
+      "channel": "pilot",
+      "date": "2026-10-07",
+      "summary": "Hộp Tài khoản và bản quyền, hộp thoại Đoạn văn, Ngăn dẫn hướng Doc, sửa công thức Sheet, mở và in nhanh hơn, hết lỗi cửa sổ trắng",
+      "highlights": [
+        "Chung: Sửa lỗi cửa sổ trắng thỉnh thoảng xuất hiện khi mở ứng dụng (đo 60 lượt khởi động: trước sửa kẹt 22%, sau sửa 0%).",
+        "Chung: Mới: Tệp ▸ Tài khoản và bản quyền. Nhập mã kích hoạt (tự kiểm lỗi gõ, không cần Internet), kích hoạt ngoại tuyến, gỡ kích hoạt. Hiện chưa khóa tính năng nào; ứng dụng không bao giờ tự tắt chỉ vì mất mạng.",
+        "Chung: Xem trước khi in nhanh hơn rõ rệt ở cả ba ứng dụng (ví dụ Doc 25,9 giây xuống 10,3 giây; Sheet 21,4 giây xuống 7,5 giây); bản PDF in ra giống hệt trước.",
+        "Chung: Thao tác chuột đồng bộ giữa Doc, Sheet và Slide: kéo đổi cỡ hàng, cột, chọn, chữ tràn khi soạn ô.",
+        "Chung: Bổ sung hướng dẫn tiếng Việt trong Trợ giúp cho các lệnh còn thiếu (Toàn màn hình, giao diện Tối/Sáng, Lặp lại F4, Tính lại ngay F9…) và cho hộp bản quyền.",
+        "Doc: Mới: hộp thoại Đoạn văn (chuột phải ▸ Đoạn văn…, hoặc nút mũi tên nhỏ ở góc nhóm Đoạn văn): căn lề, thụt lề, thụt dòng đầu hoặc thụt treo, khoảng cách trước và sau đoạn, giãn dòng, có khung xem trước; một lần Áp dụng là một bước Hoàn tác.",
+        "Doc: Mới: Ngăn dẫn hướng (tab Xem hoặc Ctrl+Alt+N) liệt kê các tiêu đề; bấm để nhảy tới đúng chỗ, không làm chậm khi gõ.",
+        "Doc: Lưu DOCX giữ đúng trường Nếu (IF) và trường trộn thư, giữ đúng loại ngắt mục (trang mới, trang lẻ, liên tục) kể cả khi mục bắt đầu bằng danh sách, tiêu đề hoặc bảng.",
+        "Doc: Bảng giữ chiều cao hàng và khoảng cách dòng trong ô như tài liệu gốc; số trang hiển thị khớp bản gốc trên toàn bộ 43 tài liệu mẫu kiểm tra.",
+        "Doc: Gõ phím nhanh hơn trên tài liệu dài nhiều hình; nút Gộp ô hoạt động khi chọn chữ trải qua nhiều ô; thanh ribbon tab Trang đầu không còn phải cuộn ngang.",
+        "Doc: Tài liệu nặng (30 MB, nhiều ngắt mục) mở trong khoảng 33 giây thay vì 173 giây.",
+        "Doc: Các hộp thoại Doc dùng được bằng bàn phím, có tiếng Việt và tiếng Anh đầy đủ; Ctrl+A trong hộp thoại không còn chọn nhầm văn bản phía sau.",
+        "Sheet: Sửa công thức: ROUND với số âm, IFERROR bắt đúng lỗi, SUMIFS và COUNTIFS khi dải ô khác kích thước, SUMIF khi dải tính tổng khác hình dạng, lỗi (#REF!, #DIV/0!…) được truyền đúng qua phép tính và SUM, AVERAGE, MIN, MAX, IF.",
+        "Sheet: Hàm ngày (DATE, TODAY, EDATE, EOMONTH, WORKDAY…) trả về số ngày như bảng tính thông dụng và tự đặt định dạng ngày; ô văn bản chỉ được đọc thành số khi toàn bộ nội dung là số.",
+        "Sheet: Trên 28 tệp xlsx thực tế, tỷ lệ công thức cho kết quả trùng giá trị đã lưu trong tệp tăng từ 50,96% lên 53,41%; lưu rồi mở lại cả 28 tệp không sai ô nào.",
+        "Sheet: Nhập số tiền có ký hiệu tiền tệ được nhận là số và có định dạng tiền tệ.",
+        "Sheet: Lưu tệp rất lớn không còn làm ứng dụng sập (tệp 300 triệu ký tự lưu trong khoảng 31 giây); chuyển sheet trong tệp có nhiều dòng ẩn dùng ít bộ nhớ hơn (4,8 GB xuống 2,1 GB).",
+        "Sheet: Dựng mô hình nhanh hơn (tệp lớn nhất từ 52 giây xuống 21 giây). Tùy chọn xem nhanh khi mở tệp lớn có sẵn nhưng tắt mặc định.",
+        "Slide: Lần mở đầu tiên trên máy mới nhanh gần gấp đôi (27 giây xuống 15 giây)."
+      ]
+    },
     {
       "version": "0.9.8",
       "channel": "pilot",

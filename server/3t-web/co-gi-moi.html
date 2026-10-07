@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Có gì mới — Nhật ký phát hành và cập nhật 3T Office</title>
-  <meta name="description" content="Lịch sử các bản cập nhật và ghi chú phát hành thực tế của bộ ứng dụng 3T Office từ bản 0.9.1 đến 0.9.8 mới nhất.">
+  <meta name="description" content="Lịch sử các bản cập nhật và ghi chú phát hành thực tế của bộ ứng dụng 3T Office từ bản 0.9.1 đến 0.9.9 mới nhất.">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
   <link rel="alternate icon" href="favicon.ico">
@@ -51,7 +51,7 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
           </svg>
-          Tải 0.9.8 Pilot
+          Tải 0.9.9 Pilot
         </a>
         <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="primary-nav" aria-label="Mở trình đơn chuyển hướng">
           ☰
@@ -72,14 +72,70 @@
         </div>
 
         <div class="timeline" id="releases-container">
-          <!-- Bản 0.9.8 mới nhất -->
+          <!-- Bản 0.9.9 mới nhất -->
+          <div class="timeline-item">
+            <div class="timeline-dot"></div>
+            <article class="timeline-content">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span class="tag tag-ready">Phiên bản 0.9.9</span>
+                  <span style="font-weight: 700; color: var(--brand-orange); font-size: 0.875rem;">(Hiện tại)</span>
+                </div>
+                <span style="font-size: 0.813rem; color: var(--text-dim); font-weight: 600;">07/10/2026</span>
+              </div>
+              <h2 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 12px; color: var(--text-main);">
+                Hộp Tài khoản và bản quyền, hộp thoại Đoạn văn, Ngăn dẫn hướng Doc, sửa công thức Sheet, mở và in nhanh hơn, hết lỗi cửa sổ trắng
+              </h2>
+              <div style="display: flex; flex-direction: column; gap: 16px; font-size: 0.938rem; color: var(--text-muted); line-height: 1.6;">
+                <div>
+                  <h3 style="font-size: 1rem; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">1. Chung (dùng cho Doc, Sheet và Slide):</h3>
+                  <ul style="list-style: disc; padding-left: 20px; display: flex; flex-direction: column; gap: 6px;">
+                    <li>Sửa lỗi cửa sổ trắng thỉnh thoảng xuất hiện khi mở ứng dụng (đo 60 lượt khởi động: trước sửa kẹt 22%, sau sửa 0%).</li>
+                    <li>Mới: Tệp ▸ Tài khoản và bản quyền. Nhập mã kích hoạt (tự kiểm lỗi gõ, không cần Internet), kích hoạt ngoại tuyến, gỡ kích hoạt. Hiện chưa khóa tính năng nào; ứng dụng không bao giờ tự tắt chỉ vì mất mạng.</li>
+                    <li>Xem trước khi in nhanh hơn rõ rệt ở cả ba ứng dụng (ví dụ Doc 25,9 giây xuống 10,3 giây; Sheet 21,4 giây xuống 7,5 giây); bản PDF in ra giống hệt trước.</li>
+                    <li>Thao tác chuột đồng bộ giữa Doc, Sheet và Slide: kéo đổi cỡ hàng, cột, chọn, chữ tràn khi soạn ô.</li>
+                    <li>Bổ sung hướng dẫn tiếng Việt trong Trợ giúp cho các lệnh còn thiếu (Toàn màn hình, giao diện Tối/Sáng, Lặp lại F4, Tính lại ngay F9…) và cho hộp bản quyền.</li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 style="font-size: 1rem; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">2. Doc:</h3>
+                  <ul style="list-style: disc; padding-left: 20px; display: flex; flex-direction: column; gap: 6px;">
+                    <li>Mới: hộp thoại Đoạn văn (chuột phải ▸ Đoạn văn…, hoặc nút mũi tên nhỏ ở góc nhóm Đoạn văn): căn lề, thụt lề, thụt dòng đầu hoặc thụt treo, khoảng cách trước và sau đoạn, giãn dòng, có khung xem trước; một lần Áp dụng là một bước Hoàn tác.</li>
+                    <li>Mới: Ngăn dẫn hướng (tab Xem hoặc Ctrl+Alt+N) liệt kê các tiêu đề; bấm để nhảy tới đúng chỗ, không làm chậm khi gõ.</li>
+                    <li>Lưu DOCX giữ đúng trường Nếu (IF) và trường trộn thư, giữ đúng loại ngắt mục (trang mới, trang lẻ, liên tục) kể cả khi mục bắt đầu bằng danh sách, tiêu đề hoặc bảng.</li>
+                    <li>Bảng giữ chiều cao hàng và khoảng cách dòng trong ô như tài liệu gốc; số trang hiển thị khớp bản gốc trên toàn bộ 43 tài liệu mẫu kiểm tra.</li>
+                    <li>Gõ phím nhanh hơn trên tài liệu dài nhiều hình; nút Gộp ô hoạt động khi chọn chữ trải qua nhiều ô; thanh ribbon tab Trang đầu không còn phải cuộn ngang.</li>
+                    <li>Tài liệu nặng (30 MB, nhiều ngắt mục) mở trong khoảng 33 giây thay vì 173 giây.</li>
+                    <li>Các hộp thoại Doc dùng được bằng bàn phím, có tiếng Việt và tiếng Anh đầy đủ; Ctrl+A trong hộp thoại không còn chọn nhầm văn bản phía sau.</li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 style="font-size: 1rem; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">3. Sheet:</h3>
+                  <ul style="list-style: disc; padding-left: 20px; display: flex; flex-direction: column; gap: 6px;">
+                    <li>Sửa công thức: ROUND với số âm, IFERROR bắt đúng lỗi, SUMIFS và COUNTIFS khi dải ô khác kích thước, SUMIF khi dải tính tổng khác hình dạng, lỗi (#REF!, #DIV/0!…) được truyền đúng qua phép tính và SUM, AVERAGE, MIN, MAX, IF.</li>
+                    <li>Hàm ngày (DATE, TODAY, EDATE, EOMONTH, WORKDAY…) trả về số ngày như bảng tính thông dụng và tự đặt định dạng ngày; ô văn bản chỉ được đọc thành số khi toàn bộ nội dung là số.</li>
+                    <li>Trên 28 tệp xlsx thực tế, tỷ lệ công thức cho kết quả trùng giá trị đã lưu trong tệp tăng từ 50,96% lên 53,41%; lưu rồi mở lại cả 28 tệp không sai ô nào.</li>
+                    <li>Nhập số tiền có ký hiệu tiền tệ được nhận là số và có định dạng tiền tệ.</li>
+                    <li>Lưu tệp rất lớn không còn làm ứng dụng sập (tệp 300 triệu ký tự lưu trong khoảng 31 giây); chuyển sheet trong tệp có nhiều dòng ẩn dùng ít bộ nhớ hơn (4,8 GB xuống 2,1 GB).</li>
+                    <li>Dựng mô hình nhanh hơn (tệp lớn nhất từ 52 giây xuống 21 giây). Tùy chọn xem nhanh khi mở tệp lớn có sẵn nhưng tắt mặc định.</li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 style="font-size: 1rem; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">4. Slide:</h3>
+                  <ul style="list-style: disc; padding-left: 20px; display: flex; flex-direction: column; gap: 6px;">
+                    <li>Lần mở đầu tiên trên máy mới nhanh gần gấp đôi (27 giây xuống 15 giây).</li>
+                  </ul>
+                </div>
+              </div>
+            </article>
+          </div>
+          <!-- Bản 0.9.8 -->
           <div class="timeline-item">
             <div class="timeline-dot"></div>
             <article class="timeline-content">
               <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <span class="tag tag-ready">Phiên bản 0.9.8</span>
-                  <span style="font-weight: 700; color: var(--brand-orange); font-size: 0.875rem;">(Hiện tại)</span>
                 </div>
                 <span style="font-size: 0.813rem; color: var(--text-dim); font-weight: 600;">03/10/2026</span>
               </div>
@@ -356,7 +412,7 @@
           <h4>Thông tin</h4>
           <ul class="footer-links">
             <li><a href="tai-ve.html">Tải về bộ cài</a></li>
-            <li><a href="co-gi-moi.html">Có gì mới (0.9.8)</a></li>
+            <li><a href="co-gi-moi.html">Có gì mới (0.9.9)</a></li>
             <li><a href="huong-dan.html">Hướng dẫn sử dụng</a></li>
             <li><a href="ban-quyen.html">Chính sách bản quyền</a></li>
           </ul>
