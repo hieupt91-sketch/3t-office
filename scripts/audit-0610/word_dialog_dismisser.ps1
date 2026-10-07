@@ -1,7 +1,7 @@
 # Tu dong dong hop thoai "Word khong phai chuong trinh mac dinh" (va nut OK cua hop thoai "khong the dong Word") cua cac tien trinh Word tu dong hoa
 # bang thong diep cua so (BM_CLICK) - khong dung SendKeys/chuot. Chay song song voi word_pages.ps1.
 # Dung: powershell -File scripts/audit-0610/word_dialog_dismisser.ps1 -Seconds 600
-param([int]$Seconds = 600)
+param([int]$Seconds = 600, [string]$ProcessName = 'WINWORD')
 Add-Type @"
 using System; using System.Text; using System.Runtime.InteropServices; using System.Collections.Generic;
 public class WordDlg {
@@ -42,7 +42,7 @@ public class WordDlg {
 "@
 $deadline = (Get-Date).AddSeconds($Seconds)
 while ((Get-Date) -lt $deadline) {
-    $ids = @(Get-Process WINWORD -ErrorAction SilentlyContinue | ForEach-Object { [uint32]$_.Id })
+    $ids = @(Get-Process $ProcessName -ErrorAction SilentlyContinue | ForEach-Object { [uint32]$_.Id })
     if ($ids.Count) { [void][WordDlg]::Dismiss($ids) }
     Start-Sleep -Milliseconds 500
 }
