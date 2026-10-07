@@ -819,5 +819,22 @@ export async function runFormulaEngineTests() {
     pass: sb7Nhom1Engine.evaluate('=VLOOKUP(C2, A1:B2, 2, FALSE)') === "#N/A"
   });
 
+  // 9. SB7 NHÓM 2: SUMIF với điều kiện là hàm lồng nhau (VLOOKUP, INDEX, ...)
+  const sb7Nhom2Cells = new Map([
+    ["A1", { val: "M01", formula: "", style: {} }],
+    ["B1", { val: 10, formula: "", style: {} }],
+    ["A2", { val: "M02", formula: "", style: {} }],
+    ["B2", { val: 20, formula: "", style: {} }],
+    ["A3", { val: "M01", formula: "", style: {} }],
+    ["B3", { val: 30, formula: "", style: {} }],
+    ["D1", { val: "X", formula: "", style: {} }],
+    ["E1", { val: "M01", formula: "", style: {} }]
+  ]);
+  const sb7Nhom2Engine = new FormulaEngine(sb7Nhom2Cells);
+  results.push({
+    name: 'SB7 NHÓM 2: SUMIF với điều kiện là hàm lồng VLOOKUP(=SUMIF(A1:A3, VLOOKUP("X", D1:E1, 2, FALSE), B1:B3) -> 40)',
+    pass: sb7Nhom2Engine.evaluate('=SUMIF(A1:A3, VLOOKUP("X", D1:E1, 2, FALSE), B1:B3)') === 40
+  });
+
   return results;
 }

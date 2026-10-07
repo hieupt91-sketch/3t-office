@@ -705,10 +705,9 @@ export class FormulaEngine {
   }
 
 
-  _matchesCriteria(value, rawCriteria) {
-    const criteria = this._resolveSingleValue(rawCriteria);
+  _matchesCriteria(value, criteria) {
     if (typeof criteria === "number" || typeof criteria === "boolean") return this._equals(value, criteria);
-    const text = String(criteria);
+    const text = String(criteria ?? "");
     const match = text.match(/^(<=|>=|<>|!=|=|<|>)(.*)$/);
     if (match) {
       const rightText = match[2];
@@ -983,7 +982,8 @@ export class FormulaEngine {
         const averageValues = this._rangeValues(args[2] || args[0]);
         if (criteriaValues.includes("#REF!") || averageValues.includes("#REF!")) return "#REF!";
         if (criteriaValues.length !== averageValues.length) return "#VALUE!";
-        const matches = averageValues.filter((value, index) => this._matchesCriteria(criteriaValues[index], args[1]) && typeof value === "number");
+        const criteria = this._resolveSingleValue(args[1]);
+        const matches = averageValues.filter((value, index) => this._matchesCriteria(criteriaValues[index], criteria) && typeof value === "number");
         return matches.length ? matches.reduce((sum, value) => sum + value, 0) / matches.length : "#DIV/0!";
       }
 
@@ -991,7 +991,7 @@ export class FormulaEngine {
         if (args.length < 3 || args.length % 2 === 0) return "#VALUE!";
         const averageValues = this._rangeValues(args[0]);
         const pairs = [];
-        for (let index = 1; index < args.length; index += 2) pairs.push([this._rangeValues(args[index]), args[index + 1]]);
+        for (let index = 1; index < args.length; index += 2) pairs.push([this._rangeValues(args[index]), this._resolveSingleValue(args[index + 1])]);
         if (pairs.some(([values]) => values.includes("#REF!"))) return "#REF!";
         if (pairs.some(([values]) => values.length !== averageValues.length)) return "#VALUE!";
         const matches = averageValues.filter((value, index) => typeof value === "number" && pairs.every(([values, criteria]) => this._matchesCriteria(values[index], criteria)));
@@ -2220,6 +2220,26 @@ export class FormulaEngine {
     return Boolean(val && val !== "FALSE" && val !== "0");
   }
 
+  _isSingleFunctionCall(token) {
+    const m = token.match(/^([A-Za-z_][A-Za-z0-9_.]*)\s*\(/);
+    if (!m) return false;
+    let depth = 0;
+    let inQuotes = false;
+    for (let i = m[0].length - 1; i < token.length; i++) {
+      const ch = token[i];
+      if (ch === '"' && token[i - 1] !== "\\") {
+        inQuotes = !inQuotes;
+      } else if (!inQuotes) {
+        if (ch === "(") depth++;
+        else if (ch === ")") {
+          depth--;
+          if (depth === 0) return i === token.length - 1;
+        }
+      }
+    }
+    return false;
+  }
+
   _resolveSingleValue(token) {
     if (typeof token !== "string") return token;
     token = token.trim();
@@ -2245,6 +2265,13 @@ export class FormulaEngine {
     if (token.toUpperCase() === "TRUE") return true;
     if (token.toUpperCase() === "FALSE") return false;
 
+    if (this._isSingleFunctionCall(token)) {
+      const nested = this.evaluate(`=${token}`);
+      if (nested !== "#LỖI!") {
+        return nested;
+      }
+    }
+
     // Hỗ trợ biểu thức số học trong đối số hàm (ví dụ: 0.08/12, 12*5, A1/12)
     if (/[+\-*/^()]/.test(token)) {
       const arith = this._evaluateArithmetic(token, { raw: true });
@@ -2253,12 +2280,6 @@ export class FormulaEngine {
       }
       if (this._isError(arith)) {
         return arith;
-      }
-    }
-    if (/^[A-Z_.]+\s*\(.*\)$/i.test(token)) {
-      const nested = this.evaluate(`=${token}`);
-      if (nested !== "#LỖI!" && nested !== "#NAME?") {
-        return nested;
       }
     }
 
