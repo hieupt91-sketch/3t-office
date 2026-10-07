@@ -1,0 +1,5 @@
+# TICKET SB8 — Sheet: KE HOACH (chua code) cho Color Scales, Data Bars, Icon Sets (agy)
+Day la buoc plan gate (AGENTS.md muc 6): viet docs/PLAN-SHEET-CF-VISUALS.md, KHONG sua code app.
+Noi dung bat buoc: muc tieu; hien trang (doc apps/sheet conditional formatting hien co, import/export xlsx cua cac quy tac nay qua LibreOffice FODS/OOXML, cac tep xlsx that trong file test/lan co dung <colorScale>/<dataBar>/<iconSet> khong - dem so tep va so quy tac bang script, KHONG dua noi dung that vao tai lieu); cac tep/mo-dun se sua; phu thuoc; rui ro (luu xlsx giu nguyen quy tac; hieu nang tren lan14); ke hoach test (unit + CDP desktop + mo-luu-mo lai 28 xlsx 0 diff); rollback; noi dung Huong dan tieng Viet se them (AGENTS.md muc 10); i18n VI/EN.
+Tieu chi: tai lieu day du, co so lieu dem tu corpus that; claude se duyet roi moi giao ticket code.
+Cam: nhu TICKET-SB7.md. KHONG push, KHONG merge. Bao cao 3 dong.
