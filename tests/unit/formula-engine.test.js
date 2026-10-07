@@ -649,5 +649,43 @@ export async function runFormulaEngineTests() {
     pass: errEngine.evaluate("=IF(A1, 42, 10)") === "#DIV/0!"
   });
 
+  // 4. SB6 MỤC 1: getCellValue chỉ đổi chuỗi sang số khi toàn bộ là số/tiền tệ
+  const sb6Muc1Cells = new Map([
+    ["A1", { val: "Máy in canon LBP 2900", formula: "", style: {} }],
+    ["A2", { val: "24 tháng", formula: "", style: {} }],
+    ["A3", { val: "25.000.000 ₫", formula: "", style: {} }],
+    ["A4", { val: "45.000.000 ₫", formula: "", style: {} }],
+    ["A5", { val: "15.000 VND", formula: "", style: {} }],
+    ["B1", { val: "Canon", formula: "", style: {} }],
+    ["B2", { val: "Máy in canon LBP 2900", formula: "", style: {} }],
+    ["K1", { val: "Canon", formula: "", style: {} }]
+  ]);
+  const sb6Muc1Engine = new FormulaEngine(sb6Muc1Cells);
+
+  results.push({
+    name: 'SB6 MỤC 1: getCellValue giữ nguyên chuỗi chứa số "Máy in canon LBP 2900"',
+    pass: sb6Muc1Engine.getCellValue("A1") === "Máy in canon LBP 2900"
+  });
+  results.push({
+    name: 'SB6 MỤC 1: getCellValue giữ nguyên chuỗi chứa số "24 tháng"',
+    pass: sb6Muc1Engine.getCellValue("A2") === "24 tháng"
+  });
+  results.push({
+    name: 'SB6 MỤC 1: VLOOKUP trả về đúng chuỗi văn bản chứa số "Máy in canon LBP 2900"',
+    pass: sb6Muc1Engine.evaluate("=VLOOKUP(K1, B1:B2, 1, FALSE)") === "Canon"
+  });
+  results.push({
+    name: 'SB6 MỤC 1: getCellValue chuyển chuỗi tiền tệ "25.000.000 ₫" thành 25000000',
+    pass: sb6Muc1Engine.getCellValue("A3") === 25000000
+  });
+  results.push({
+    name: 'SB6 MỤC 1: SUM tính đúng chuỗi tiền tệ (25tr + 45tr = 70.000.000)',
+    pass: sb6Muc1Engine.evaluate("=SUM(A3:A4)") === 70000000
+  });
+  results.push({
+    name: 'SB6 MỤC 1: Phép cộng A1+1 với chuỗi chữ có số trả về #VALUE!',
+    pass: sb6Muc1Engine.evaluate("=A1+1") === "#VALUE!"
+  });
+
   return results;
 }

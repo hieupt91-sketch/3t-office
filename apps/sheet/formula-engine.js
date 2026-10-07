@@ -225,6 +225,24 @@ export class FormulaEngine {
     return typeof this.cellsData === "function" ? this.cellsData() : this.cellsData;
   }
 
+  _parseNumberOrCurrency(raw) {
+    if (typeof raw === "number") return raw;
+    if (raw === null || raw === undefined) return null;
+    const str = String(raw).trim();
+    if (!str) return null;
+    if (!/^\s*[-+]?[\d.,\s]+\s*(?:₫|đ|vnd|vnđ)?\s*$/i.test(str) || !/\d/.test(str)) {
+      return null;
+    }
+    if (!isNaN(Number(str))) {
+      return Number(str);
+    }
+    const cleaned = str.replace(/\./g, "").replace(/[^\d-]/g, "");
+    if (cleaned && !isNaN(Number(cleaned))) {
+      return Number(cleaned);
+    }
+    return null;
+  }
+
   /**
    * Trích xuất giá trị số hoặc chuỗi từ một ô
    */
@@ -233,7 +251,7 @@ export class FormulaEngine {
     if (sheetName && !map) return "#REF!";
     const item = map ? map.get(coord.toUpperCase()) : null;
     if (!item) return 0;
-    const raw = item.val || "";
+    const raw = (item.val !== undefined && item.val !== null) ? item.val : "";
 
     if (this._isError(raw)) return raw;
 
@@ -254,9 +272,10 @@ export class FormulaEngine {
     if (typeof raw === "number") return raw;
 
     // Xử lý chuỗi tiền tệ VNĐ (vd: "25.000.000 ₫" -> loại bỏ dấu chấm hàng nghìn -> 25000000)
-    const cleaned = raw.toString().replace(/\./g, "").replace(/[^\d-]/g, "");
-    if (cleaned && !isNaN(Number(cleaned))) {
-      return Number(cleaned);
+    // Chỉ đổi sang số khi toàn bộ chuỗi là số/số tiền. Chuỗi chứa chữ (vd: "Máy in canon LBP 2900", "24 tháng") giữ nguyên văn bản.
+    const parsed = this._parseNumberOrCurrency(raw);
+    if (parsed !== null) {
+      return parsed;
     }
     return raw;
   }
@@ -410,8 +429,8 @@ export class FormulaEngine {
   collectNumericValues(args) {
     return this.collectValues(args)
       .filter(v => !(v && v.isTextCell) && !this._isError(v))
-      .map(v => typeof v === "number" ? v : Number(v.toString().replace(/[^\d.-]/g, "")))
-      .filter(v => !isNaN(v));
+      .map(v => this._parseNumberOrCurrency(v))
+      .filter(v => v !== null && !isNaN(v));
   }
 
   _rangeValues(range) {
@@ -748,8 +767,8 @@ export class FormulaEngine {
         if (err) return err;
         const nums = rawValues
           .filter(v => !(v && v.isTextCell))
-          .map(v => typeof v === "number" ? v : Number(String(v).replace(/[^\d.-]/g, "")))
-          .filter(v => !isNaN(v));
+          .map(v => this._parseNumberOrCurrency(v))
+          .filter(v => v !== null && !isNaN(v));
         const sum = nums.reduce((acc, v) => acc + v, 0);
         return sum;
       }
@@ -2182,12 +2201,12 @@ export class FormulaEngine {
         return 0;
       }
       if (typeof val === "string" || (val && val.isTextCell)) {
-        const strVal = String(val);
-        const cleaned = strVal.replace(/\./g, "").replace(/[^\d-]/g, "");
-        if (cleaned && !isNaN(Number(cleaned)) && !(val && val.isTextCell)) {
-          return Number(cleaned);
+        if (!(val && val.isTextCell)) {
+          const parsed = this._parseNumberOrCurrency(val);
+          if (parsed !== null) return parsed;
         }
-        if (strVal.trim() !== "" && isNaN(Number(strVal))) {
+        const strVal = String(val);
+        if (strVal.trim() !== "") {
           if (!propagatedError) propagatedError = "#VALUE!";
           return 0;
         }
