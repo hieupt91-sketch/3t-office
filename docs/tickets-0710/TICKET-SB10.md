@@ -1,0 +1,8 @@
+# TICKET SB10 — Sheet: tep .xls (97-2003) luu lai bi lech o (agy)
+Boi canh: ~41% tep that la .xls/.doc cu. Lan do truoc (E:\VNOffice-profiles\sb4-xls-out\_batch_xls_report.md): legacy06.xls luu xong lech 10 o, legacy18.xls lech 1 o; nhieu tep khong so duoc vi Excel COM khong dung duoc may nay (da dung LibreOffice lam bo so sanh).
+Worktree rieng E:\VNOffice-agy-sb10, nhanh fix/sheet-xls-save-diffs-agy, tu main. Tao junction 'file test' -> E:\VN OFice\file test neu thieu.
+BUOC 1 — Chay lai python scripts/layout-audit/batch_document_audit.py xls <worktree> (cac tep legacyNN.xls; 1 tep/lan neu can, khong chay song song voi viec nang khac). Lap bang tep: saved / diffs / bo so sanh (excel hay libreoffice).
+BUOC 2 — Voi legacy06 (10 o) va legacy18 (1 o): liet ke tung o lech (dia chi, gia tri truoc, sau, kieu dinh dang), phan loai nguyen nhan goc (ngay/gio, so, cong thuc, kieu o, ham bi doi ten khi luu .xls...). Ghi docs/AUDIT-SHEET-XLS-SAVE-DIFFS-0710.md (KHONG dua noi dung that cua o vao tai lieu: chi dia chi, kieu va loai lech).
+BUOC 3 — Sua nguyen nhan neu nam trong code VN (apps/sheet, adapters/libreoffice/sheet, bo hau xu ly luu xls); neu nam trong LibreOffice (khong vá duoc) thi ghi ro va dung. Moi nhom 1 commit + test.
+Tieu chi xong: node tests/run-tests.js khong FAIL moi (hien 2952); 28 xlsx python scripts/layout-audit/batch_document_audit.py xlsx <worktree> van 28/28 saved=yes diffs=0; bang xls truoc/sau, khong tep xls nao tut; Ctrl+S giu dinh dang .xls (khong doi duoi).
+Cam/Quy tac: nhu TICKET-SB7.md; bo nho: khong chay lan14, 1 app test cung luc, dong theo PID, don Excel/Word ngam cua minh. KHONG push, KHONG merge. Bao cao 3 dong.
