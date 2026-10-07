@@ -300,11 +300,11 @@ export const VI_FORMULA_CATALOG = [
   {
     name: "ROUND",
     category: "Toán học",
-    desc: "Làm tròn một số đến số lượng chữ số thập phân đã định trước.",
+    desc: "Làm tròn một số đến số lượng chữ số thập phân đã định trước (làm tròn nửa ra xa số 0 chuẩn Excel).",
     syntax: "ROUND(number, num_digits)",
     syntaxVi: "ROUND(số, số_chữ_số)",
     params: [
-      { name: "số", desc: "Giá trị số cần làm tròn theo quy tắc toán học." },
+      { name: "số", desc: "Giá trị số cần làm tròn (làm tròn nửa ra xa số 0 cho cả số dương và số âm)." },
       { name: "số_chữ_số", desc: "Số lượng chữ số thập phân cần giữ lại (0 để làm tròn số nguyên, số âm để làm tròn hàng chục/trăm)." }
     ],
     example: "=ROUND(123.456; 2)"
@@ -760,12 +760,12 @@ export const VI_FORMULA_CATALOG = [
   {
     name: "SUMIFS",
     category: "Thống kê",
-    desc: "Tính tổng các hàng thỏa đồng thời nhiều điều kiện.",
+    desc: "Tính tổng các hàng thỏa đồng thời nhiều điều kiện (vùng tổng và các vùng điều kiện phải cùng kích thước).",
     syntax: "SUMIFS(sum_range, range1, criteria1, [range2], [criteria2], ...)",
     syntaxVi: "SUMIFS(vùng_tổng, vùng_đk1, điều_kiện1, [vùng_đk2], [điều_kiện2], ...)",
     params: [
-      { name: "vùng_tổng", desc: "Vùng ô chứa các số thực tế cần tính tổng." },
-      { name: "vùng_đk1", desc: "Vùng ô thứ nhất dùng để kiểm tra điều kiện 1." },
+      { name: "vùng_tổng", desc: "Vùng ô chứa các số thực tế cần tính tổng (phải cùng kích thước hàng và cột với các vùng điều kiện)." },
+      { name: "vùng_đk1", desc: "Vùng ô thứ nhất dùng để kiểm tra điều kiện 1 (phải cùng kích thước với vùng tổng)." },
       { name: "điều_kiện1", desc: "Điều kiện thứ nhất áp dụng cho vùng 1." },
       { name: "[vùng_đk2]", desc: "Vùng ô thứ hai dùng để kiểm tra điều kiện 2.", optional: true },
       { name: "[điều_kiện2]", desc: "Điều kiện thứ hai áp dụng cho vùng 2.", optional: true },

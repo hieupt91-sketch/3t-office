@@ -11,7 +11,7 @@ export const FUNCTION_CATALOG = [
   // Toán học & Lượng giác
   { name: "SUM", category: "Toán học", syntax: "SUM(number1, [number2], ...)", desc: "Tính tổng tất cả các số trong một phạm vi ô được chọn." },
   { name: "PRODUCT", category: "Toán học", syntax: "PRODUCT(number1, [number2], ...)", desc: "Nhân tất cả các số được cung cấp làm đối số và trả về tích." },
-  { name: "ROUND", category: "Toán học", syntax: "ROUND(number, num_digits)", desc: "Làm tròn một số đến số lượng chữ số thập phân đã định trước." },
+  { name: "ROUND", category: "Toán học", syntax: "ROUND(number, num_digits)", desc: "Làm tròn một số đến số lượng chữ số thập phân đã định trước (làm tròn nửa ra xa số 0 chuẩn Excel)." },
   { name: "ABS", category: "Toán học", syntax: "ABS(number)", desc: "Trả về giá trị tuyệt đối của một số." },
   { name: "INT", category: "Toán học", syntax: "INT(number)", desc: "Làm tròn một số xuống số nguyên gần nhất." },
   { name: "MOD", category: "Toán học", syntax: "MOD(number, divisor)", desc: "Trả về số dư sau khi chia một số cho một số chia." },
@@ -34,7 +34,7 @@ export const FUNCTION_CATALOG = [
   { name: "COUNTIF", category: "Thống kê", syntax: "COUNTIF(range, criteria)", desc: "Đếm các ô thỏa một điều kiện." },
   { name: "SUMIF", category: "Thống kê", syntax: "SUMIF(range, criteria, [sum_range])", desc: "Tính tổng các ô tương ứng thỏa một điều kiện." },
   { name: "COUNTIFS", category: "Thống kê", syntax: "COUNTIFS(range1, criteria1, [range2, criteria2], ...)", desc: "Đếm các hàng thỏa đồng thời nhiều điều kiện." },
-  { name: "SUMIFS", category: "Thống kê", syntax: "SUMIFS(sum_range, range1, criteria1, [range2, criteria2], ...)", desc: "Tính tổng các hàng thỏa đồng thời nhiều điều kiện." },
+  { name: "SUMIFS", category: "Thống kê", syntax: "SUMIFS(sum_range, range1, criteria1, [range2, criteria2], ...)", desc: "Tính tổng các hàng thỏa đồng thời nhiều điều kiện (các vùng phải cùng kích thước)." },
   { name: "AVERAGEIF", category: "Thống kê", syntax: "AVERAGEIF(range, criteria, [average_range])", desc: "Tính trung bình các ô tương ứng thỏa một điều kiện." },
   { name: "AVERAGEIFS", category: "Thống kê", syntax: "AVERAGEIFS(average_range, criteria_range1, criteria1, ...)", desc: "Tính trung bình các ô thỏa đồng thời nhiều điều kiện." },
   { name: "MEDIAN", category: "Thống kê", syntax: "MEDIAN(number1, [number2], ...)", desc: "Trả về trung vị của tập hợp số." },
@@ -444,6 +444,36 @@ export class FormulaEngine {
     }
     this._rangeMatrixCache.set(cacheKey, rows);
     return rows;
+  }
+
+  _rangeDimensions(range) {
+    const reference = this._parseReference(range);
+    if (!reference || reference.error) return null;
+    const ref = reference.ref;
+    if (!ref) return null;
+    const column = ref.match(/^([A-Z]+):([A-Z]+)$/);
+    if (column) {
+      const startColIndex = this._columnIndex(column[1]);
+      const endColIndex = this._columnIndex(column[2]);
+      const rows = this._maxUsedRow(reference.sheet);
+      const cols = Math.abs(endColIndex - startColIndex) + 1;
+      return { rows, cols };
+    }
+    const match = ref.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
+    if (match) {
+      const startColIndex = this._columnIndex(match[1]);
+      const endColIndex = this._columnIndex(match[3]);
+      const r1 = parseInt(match[2], 10);
+      const r2 = parseInt(match[4], 10);
+      const rows = Math.abs(r2 - r1) + 1;
+      const cols = Math.abs(endColIndex - startColIndex) + 1;
+      return { rows, cols };
+    }
+    const singleMatch = ref.match(/^([A-Z]+)(\d+)$/);
+    if (singleMatch) {
+      return { rows: 1, cols: 1 };
+    }
+    return null;
   }
 
   _columnIndex(name) {
@@ -971,15 +1001,26 @@ export class FormulaEngine {
 
       case "COUNTIFS":
       case "SUMIFS": {
+        if (funcName === "SUMIFS" && (args.length < 3 || args.length % 2 === 0)) return "#VALUE!";
+        if (funcName === "COUNTIFS" && (args.length < 2 || args.length % 2 !== 0)) return "#VALUE!";
         const offset = funcName === "SUMIFS" ? 1 : 0;
-        const sumValues = funcName === "SUMIFS" ? this._rangeValues(args[0]) : null;
+        const sumRange = funcName === "SUMIFS" ? args[0] : null;
+        const sumValues = sumRange ? this._rangeValues(sumRange) : null;
+        const sumDims = sumRange ? this._rangeDimensions(sumRange) : null;
         const pairs = [];
+        const critDims = [];
         for (let index = offset; index < args.length; index += 2) {
           pairs.push([this._rangeValues(args[index]), this._resolveSingleValue(args[index + 1])]);
+          critDims.push(this._rangeDimensions(args[index]));
         }
-        if (!pairs.length || pairs.some(([values]) => values.length !== pairs[0][0].length)) return "#VALUE!";
+        if (!pairs.length) return "#VALUE!";
+        const firstLen = pairs[0][0].length;
+        if (pairs.some(([values]) => values.length !== firstLen)) return "#VALUE!";
+        if (sumValues && sumValues.length !== firstLen) return "#VALUE!";
+        if (sumDims && critDims[0] && (sumDims.rows !== critDims[0].rows || sumDims.cols !== critDims[0].cols)) return "#VALUE!";
+        if (critDims.some(d => d && critDims[0] && (d.rows !== critDims[0].rows || d.cols !== critDims[0].cols))) return "#VALUE!";
         let result = 0;
-        for (let index = 0; index < pairs[0][0].length; index++) {
+        for (let index = 0; index < firstLen; index++) {
           if (pairs.every(([values, criteria]) => this._matchesCriteria(values[index], criteria))) result += sumValues ? Number(sumValues[index]) || 0 : 1;
         }
         return result;

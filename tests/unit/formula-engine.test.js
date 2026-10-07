@@ -537,5 +537,44 @@ export async function runFormulaEngineTests() {
     pass: iferrorEngine.evaluate('=IFERROR("hợp lệ", "fb")') === "hợp lệ"
   });
 
+  // SUMIFS/COUNTIFS kiểm tra kích thước vùng sum và criteria
+  const ifsCells = new Map([
+    ["A1", { val: "North", formula: "", style: {} }],
+    ["A2", { val: "North", formula: "", style: {} }],
+    ["A3", { val: "South", formula: "", style: {} }],
+    ["A4", { val: "South", formula: "", style: {} }],
+    ["A5", { val: "North", formula: "", style: {} }],
+    ["A6", { val: "West", formula: "", style: {} }],
+    ["B1", { val: "Pen", formula: "", style: {} }],
+    ["B2", { val: "Pencil", formula: "", style: {} }],
+    ["B3", { val: "Pen", formula: "", style: {} }],
+    ["B4", { val: "Paper", formula: "", style: {} }],
+    ["B5", { val: "Pen", formula: "", style: {} }],
+    ["B6", { val: "Pencil", formula: "", style: {} }],
+    ["D1", { val: 100, formula: "", style: {} }],
+    ["D2", { val: 200, formula: "", style: {} }],
+    ["D3", { val: 300, formula: "", style: {} }],
+    ["D4", { val: 400, formula: "", style: {} }],
+    ["D5", { val: 500, formula: "", style: {} }],
+    ["D6", { val: 600, formula: "", style: {} }]
+  ]);
+  const ifsEngine = new FormulaEngine(ifsCells);
+  results.push({
+    name: 'Formula: SUMIFS sum_range và criteria_range cùng kích thước tính đúng',
+    pass: ifsEngine.evaluate('=SUMIFS(D1:D6, A1:A6, "North")') === 800
+  });
+  results.push({
+    name: 'Formula: SUMIFS sum_range ngắn hơn criteria_range trả về #VALUE!',
+    pass: ifsEngine.evaluate('=SUMIFS(D1:D5, A1:A6, "North")') === "#VALUE!"
+  });
+  results.push({
+    name: 'Formula: SUMIFS các criteria_range khác kích thước trả về #VALUE!',
+    pass: ifsEngine.evaluate('=SUMIFS(D1:D6, A1:A5, "North", B1:B6, "Pen")') === "#VALUE!"
+  });
+  results.push({
+    name: 'Formula: COUNTIFS các range khác kích thước trả về #VALUE!',
+    pass: ifsEngine.evaluate('=COUNTIFS(A1:A6, "North", B1:B5, "Pen")') === "#VALUE!"
+  });
+
   return results;
 }
