@@ -852,5 +852,20 @@ export async function runFormulaEngineTests() {
     pass: sb7Nhom3Engine.evaluate("=A12+1") === "#REF!" && sb7Nhom3Engine.evaluate("=A13+1") === "#REF!"
   });
 
+  // 11. SB7 NHÓM 4: Toán tử phần trăm (%) trong biểu thức số học (F7*E7*70%, 100*50%, (10+20)%)
+  const sb7Nhom4Cells = new Map([
+    ["F7", { val: 200, formula: "", style: {} }],
+    ["E7", { val: 50, formula: "", style: {} }]
+  ]);
+  const sb7Nhom4Engine = new FormulaEngine(sb7Nhom4Cells);
+  results.push({
+    name: 'SB7 NHÓM 4: Toán tử phần trăm =F7*E7*70% trả về 7000',
+    pass: approximatelyEqual(sb7Nhom4Engine.evaluate("=F7*E7*70%"), 7000)
+  });
+  results.push({
+    name: 'SB7 NHÓM 4: Toán tử phần trăm đơn lẻ và ngoặc =100*50% và =(10+20)%',
+    pass: sb7Nhom4Engine.evaluate("=100*50%") === 50 && approximatelyEqual(sb7Nhom4Engine.evaluate("=(10+20)%"), 0.3)
+  });
+
   return results;
 }

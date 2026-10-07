@@ -2455,8 +2455,11 @@ export class FormulaEngine {
 
     // Tính toán an toàn
     if (/^[\d\s+\-*/().%^]+$/.test(resolved)) {
-      // Thay thế ^ thành **
-      const jsExpr = resolved.replace(/\^/g, "**");
+      // Thay thế toán tử phần trăm % (postfix: 70% -> (70/100)) và ^ thành **
+      const jsExpr = resolved
+        .replace(/(\d+(?:\.\d+)?)\s*%/g, "($1/100)")
+        .replace(/\)\s*%/g, ")/100")
+        .replace(/\^/g, "**");
       try {
         // eslint-disable-next-line no-new-func
         const result = Function(`"use strict"; return (${jsExpr})`)();
