@@ -6552,6 +6552,7 @@ ${pristineXlsxMarker}
         !native || native.status !== "ok" || String(native.text || "").replace(/\r\n/g, "\n").trim() === String(this._clipboardText || "").replace(/\r\n/g, "\n").trim()
       )
     );
+    if (isInternal) return this._pasteModelIntoGrid(this._clipboardModel, this._clipboardText, true);
     if (native?.status === "ok" && native.html) {
       const model = parseOfficeHtmlTable(native.html, native.text || "");
       if (model) return this._pasteModelIntoGrid(model, native.text || "", isInternal);

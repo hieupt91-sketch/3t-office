@@ -141,5 +141,23 @@ export async function runSheetCopyPasteFormatTests() {
     assert.ok(grid.getMergedRanges().some(range => range.start.c === "D" && range.start.r === 3 && range.end.c === "E" && range.end.r === 4), "D3:E4 must remain merged");
   });
 
+  await test("Internal clipboard model wins over echoed bridge HTML so formulas use the real source range", async () => {
+    const grid = new SheetGridController(mockContainer(), { isBlank: true });
+    const adapter = new SheetAdapter(grid);
+    grid.setCellValue("A", 10, 2);
+    grid.setCellValue("B", 10, "=A10*2");
+    grid.selectionRange = { start: { c: "A", r: 10 }, end: { c: "B", r: 10 } };
+    grid.selectedCoord = { c: "A", r: 10 };
+    const payload = adapter._captureSelectedClipboard();
+    adapter._rememberClipboard(payload, "copy");
+    adapter._readClipboardData = async () => ({ status: "ok", text: payload.text, html: payload.html });
+
+    grid.selectCell("D", 3);
+    await adapter._pasteIntoSelectedCell();
+
+    assert.equal(grid.cellsData.get("D3")?.val, 2);
+    assert.equal(grid.cellsData.get("E3")?.formula, "=D3*2", "Formula must shift from A10:B10 to D3:E3, not from parsed HTML A1:B1");
+  });
+
   return results;
 }
