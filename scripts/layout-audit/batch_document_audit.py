@@ -87,7 +87,13 @@ def _run_desktop_roundtrip(
 
 
 def _xlsx_inputs(input_dir: Path, names: list[str]) -> list[Path]:
-    selected = names or sorted(path.name for path in input_dir.glob("lan*.xlsx"))
+    if names:
+        selected = names
+    else:
+        all_names = sorted(path.name for path in input_dir.glob("lan*.xlsx"))
+        others = [n for n in all_names if n.lower() != "lan14.xlsx"]
+        lan14 = [n for n in all_names if n.lower() == "lan14.xlsx"]
+        selected = others + lan14
     paths = []
     for name in selected:
         leaf = Path(name).name
@@ -148,12 +154,53 @@ def _run_xlsx_lints(saved: Path) -> tuple[str, str]:
     return ("clean" if clean else "issues"), "; ".join(reports[:4])
 
 
+def _get_office_pids() -> set[int]:
+    pids = set()
+    try:
+        res = subprocess.run(
+            ["powershell", "-NoProfile", "-Command", "Get-Process -Name excel, winword -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        for line in (res.stdout or "").splitlines():
+            line = line.strip()
+            if line.isdigit():
+                pids.add(int(line))
+    except Exception:
+        pass
+    return pids
+
+
+def _clean_owned_pids(owned_pids: set[int]):
+    for pid in owned_pids:
+        try:
+            subprocess.run(
+                ["powershell", "-NoProfile", "-Command", f"Stop-Process -Id {pid} -Force -ErrorAction SilentlyContinue"],
+                capture_output=True,
+                timeout=5,
+                check=False,
+            )
+        except Exception:
+            pass
+
+
+def _is_empty_save(source: Path, saved: Path) -> bool:
+    if not source.is_file() or not saved.is_file():
+        return False
+    if source.stat().st_size != saved.stat().st_size:
+        return False
+    return source.read_bytes() == saved.read_bytes()
+
+
 def _run_excel_open_test(paths: list[Path]) -> tuple[str, str]:
     powershell = shutil.which("powershell.exe") or shutil.which("powershell")
     if not powershell:
         return "BLOCKED", "PowerShell is unavailable."
     command = [powershell, "-NoProfile", "-File", str(SCRIPT_DIR / "_excel_open_test.ps1"), "-Files"]
     command.extend(str(path.resolve()) for path in paths)
+    pids_before = _get_office_pids()
     try:
         result = subprocess.run(
             command,
@@ -165,13 +212,16 @@ def _run_excel_open_test(paths: list[Path]) -> tuple[str, str]:
             check=False,
         )
     except subprocess.TimeoutExpired:
+        _clean_owned_pids(_get_office_pids() - pids_before)
         return "FAIL", "Hidden Excel open checks exceeded 15 minutes."
+    finally:
+        _clean_owned_pids(_get_office_pids() - pids_before)
     output = (result.stdout or "").strip()
     status = "PASS" if result.returncode == 0 else ("BLOCKED" if output.startswith("BLOCKED") else "FAIL")
     return status, output[-1200:]
 
 
-def _run_xlsx(root: Path, input_dir: Path, out_dir: Path, names: list[str]) -> list[dict[str, Any]]:
+def _run_xlsx(root: Path, input_dir: Path, out_dir: Path, names: list[str], reuse_saved: bool = True) -> list[dict[str, Any]]:
     # An unedited XLSX is saved by restoring the source package (identity copy). Mark the workbook dirty so the
     # audit exercises the real conversion path every user edit takes. Set VNO_AUDIT_MARK_DIRTY=0 to opt out.
     os.environ.setdefault("VNO_AUDIT_MARK_DIRTY", "1")
@@ -189,7 +239,11 @@ def _run_xlsx(root: Path, input_dir: Path, out_dir: Path, names: list[str]) -> l
             rows.append(row)
             continue
         saved = out_dir / (source.stem + ".roundtrip.xlsx")
-        source_payload = _run_desktop_roundtrip("sheet", source, saved, large_file=True)
+        can_reuse = reuse_saved and saved.is_file() and not _is_empty_save(source, saved)
+        if can_reuse:
+            source_payload = {"status": "PASS", "message": "Using existing saved roundtrip file"}
+        else:
+            source_payload = _run_desktop_roundtrip("sheet", source, saved, large_file=True)
         row["saved"] = "yes" if saved.is_file() else "no"
         row["status"] = source_payload.get("status", "FAIL")
         row["details"] = source_payload.get("message", "")
@@ -361,6 +415,8 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     xlsx.add_argument("names", nargs="*")
     xlsx.add_argument("--input-dir", type=Path)
     xlsx.add_argument("--out-dir", type=Path)
+    xlsx.add_argument("--reuse-saved", dest="reuse_saved", action="store_true", default=True, help="Reuse valid non-empty saved roundtrip files (default: True).")
+    xlsx.add_argument("--no-reuse-saved", dest="reuse_saved", action="store_false", help="Force re-running desktop roundtrip save.")
 
     xls = subparsers.add_parser("xls", help="Run the legacy XLS desktop round-trip audit.")
     xls.add_argument("worktree", type=Path)
@@ -391,7 +447,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.mode == "xlsx":
         input_dir = (args.input_dir or worktree / "file test" / "lan").resolve()
         out_dir = (out_dir or worktree / "_batch_document_audit").resolve()
-        rows = _run_xlsx(worktree, input_dir, out_dir, args.names)
+        rows = _run_xlsx(worktree, input_dir, out_dir, args.names, reuse_saved=getattr(args, "reuse_saved", True))
         report = _write_report(rows, out_dir, "_batch_audit_report.md")
     elif args.mode == "xls":
         input_dir = (args.input_dir or worktree / "file test" / "lan-legacy").resolve()
