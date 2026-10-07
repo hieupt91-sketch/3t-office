@@ -201,6 +201,33 @@ export async function runWriterDocFontSpacingTests() {
     check(out.startsWith("<p>before</p>"), "paragraphs outside tables must not change");
   });
 
+  test("WF1: top-level table rows keep OOXML atLeast/default heights without confusing nested rows", () => {
+    const adapter = new WriterAdapter(null);
+    const html = '<table><tbody><tr style="color: red; height: 1pt"><td>A<table><tr><td>N</td></tr></table></td></tr><tr><td>B</td></tr></tbody></table>'
+      + '<table><tr><td>C</td></tr></table>';
+    const doc = '<w:document><w:body><w:tbl><w:tr><w:trPr><w:trHeight w:val="683"/></w:trPr><w:tc><w:p/><w:tbl>'
+      + '<w:tr><w:trPr><w:trHeight w:val="400" w:hRule="atLeast"/></w:trPr><w:tc><w:p/></w:tc></w:tr></w:tbl></w:tc></w:tr>'
+      + '<w:tr><w:trPr><w:trHeight w:val="700" w:hRule="exact"/></w:trPr><w:tc><w:p/></w:tc></w:tr></w:tbl>'
+      + '<w:tbl><w:tr><w:trPr><w:trHeight w:hRule="atLeast" w:val="2897"/></w:trPr><w:tc><w:p/></w:tc></w:tr></w:tbl>'
+      + '</w:body></w:document>';
+    const out = adapter._applyOoxmlTableRowHeights(html, doc);
+    check(/<tr style="color: red;?\s*height: 34\.15pt;"><td>A/.test(out), `outer default/atLeast height missing: ${out}`);
+    check(out.includes('<table><tr style="height: 20pt;"><td>N'), `nested row height mapped to the wrong row: ${out}`);
+    check(out.includes('</table></td></tr><tr><td>B'), `exact height must stay untouched: ${out}`);
+    check(out.endsWith('<table><tr style="height: 144.85pt;"><td>C</td></tr></table>'), `second top-level table height missing: ${out}`);
+    adapter._importSourceExtension = "doc";
+    check(adapter._applyOoxmlTableRowHeights(html, doc) === html, "legacy .doc intermediate OOXML must not override row heights");
+  });
+
+  test("WF1: explicit OOXML paragraph spacing without w:line restores Word single spacing in table cells", () => {
+    const adapter = new WriterAdapter(null);
+    const html = '<table><tr><td><p style="margin-top: 0.1cm; line-height: 115%">A</p></td></tr></table>';
+    const doc = '<w:document><w:body><w:tbl><w:tr><w:trPr><w:trHeight w:val="683"/></w:trPr><w:tc><w:tcPr><w:vAlign w:val="center"/></w:tcPr><w:p><w:pPr><w:spacing w:before="120" w:after="120"/></w:pPr><w:r><w:t>A</w:t></w:r></w:p></w:tc></w:tr></w:tbl></w:body></w:document>';
+    const out = adapter._applyOoxmlTableParagraphSpacing(html, doc);
+    check(out.includes('margin-top: 0.212cm; margin-bottom: 0.212cm; line-height: 100%'), `single spacing was not restored: ${out}`);
+    check(!out.includes('line-height: 115%'), `LibreOffice 115% leaked through: ${out}`);
+  });
+
   test("Imported document class toggles with docStyles (NÄ30 table margins off)", () => {
     const classes = new Set();
     const editor = {
