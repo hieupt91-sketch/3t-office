@@ -21,15 +21,15 @@ export async function runSheetNamedRangesTextDateTests() {
     assert(engine.evaluate('=TEXT(12.5,"0.00")') === "12.50", "Sai 0.00");
     assert(engine.evaluate('=TEXT("3/2/2026","dd/mm/yyyy")') === "03/02/2026", "Sai ngày");
   });
-  test("DATE chuẩn hóa tháng tràn và tạo chuỗi dd/mm/yyyy", () => assert(engine.evaluate("=DATE(2025,13,2)") === "02/01/2026", "DATE sai"));
+  test("DATE chuẩn hóa tháng tràn và trả số serial Excel", () => assert(engine.evaluate("=DATE(2025,13,2)") === 46024, "DATE sai"));
   test("DATEDIF tính đúng ngày, tháng và năm trọn vẹn", () => {
     assert(engine.evaluate('=DATEDIF("01/01/2024","11/02/2024","d")') === 41, "Sai ngày");
     assert(engine.evaluate('=DATEDIF("15/01/2024","14/03/2024","m")') === 1, "Sai tháng trọn");
     assert(engine.evaluate('=DATEDIF("15/06/2020","14/06/2025","y")') === 4, "Sai năm trọn");
   });
-  test("EDATE kẹp ngày cuối tháng khi cộng/trừ tháng", () => {
-    assert(engine.evaluate('=EDATE("31/01/2024",1)') === "29/02/2024", "Sai tháng nhuận");
-    assert(engine.evaluate('=EDATE("31/03/2024",-1)') === "29/02/2024", "Sai trừ tháng");
+  test("EDATE kẹp ngày cuối tháng khi cộng/trừ tháng và trả số serial Excel", () => {
+    assert(engine.evaluate('=EDATE("31/01/2024",1)') === 45351, "Sai tháng nhuận");
+    assert(engine.evaluate('=EDATE("31/03/2024",-1)') === 45351, "Sai trừ tháng");
   });
   test("SUBSTITUTE thay tất cả hoặc đúng lần xuất hiện", () => {
     assert(engine.evaluate('=SUBSTITUTE("a-b-a","a","x")') === "x-b-x", "Sai thay tất cả");

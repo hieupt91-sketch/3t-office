@@ -1404,7 +1404,7 @@ export const VI_FORMULA_CATALOG = [
   {
     name: "DATE",
     category: "Ngày tháng",
-    desc: "Tạo một ngày từ năm, tháng và ngày.",
+    desc: "Tạo số serial ngày từ năm, tháng và ngày (ô tự áp dụng định dạng dd/mm/yyyy và có thể cộng trừ số học).",
     syntax: "DATE(year, month, day)",
     syntaxVi: "DATE(năm, tháng, ngày)",
     params: [
@@ -1417,7 +1417,7 @@ export const VI_FORMULA_CATALOG = [
   {
     name: "TODAY",
     category: "Ngày tháng",
-    desc: "Trả về ngày hiện tại của hệ thống.",
+    desc: "Trả về số serial của ngày hiện tại (ô tự áp dụng định dạng ngày dd/mm/yyyy).",
     syntax: "TODAY()",
     syntaxVi: "TODAY()",
     params: [],
@@ -1426,7 +1426,7 @@ export const VI_FORMULA_CATALOG = [
   {
     name: "NOW",
     category: "Ngày tháng",
-    desc: "Trả về ngày và giờ hiện tại của hệ thống.",
+    desc: "Trả về số serial của ngày và giờ hiện tại (có phần thập phân biểu diễn giờ phút, ô tự áp dụng định dạng dd/mm/yyyy hh:mm).",
     syntax: "NOW()",
     syntaxVi: "NOW()",
     params: [],
@@ -1435,33 +1435,33 @@ export const VI_FORMULA_CATALOG = [
   {
     name: "YEAR",
     category: "Ngày tháng",
-    desc: "Trả về năm tương ứng của một ngày cụ thể.",
+    desc: "Trả về năm tương ứng từ số serial hoặc chuỗi ngày hợp lệ.",
     syntax: "YEAR(date)",
     syntaxVi: "YEAR(ngày_tháng)",
     params: [
-      { name: "ngày_tháng", desc: "Giá trị ngày hợp lệ hoặc ô chứa ngày cần lấy năm." }
+      { name: "ngày_tháng", desc: "Số serial ngày hợp lệ hoặc ô chứa ngày cần lấy năm." }
     ],
     example: "=YEAR(TODAY())"
   },
   {
     name: "MONTH",
     category: "Ngày tháng",
-    desc: "Trả về tháng trong năm (từ 1 đến 12).",
+    desc: "Trả về tháng trong năm (từ 1 đến 12) từ số serial hoặc chuỗi ngày hợp lệ.",
     syntax: "MONTH(date)",
     syntaxVi: "MONTH(ngày_tháng)",
     params: [
-      { name: "ngày_tháng", desc: "Giá trị ngày hợp lệ hoặc ô chứa ngày cần lấy tháng (1 đến 12)." }
+      { name: "ngày_tháng", desc: "Số serial ngày hợp lệ hoặc ô chứa ngày cần lấy tháng (1 đến 12)." }
     ],
     example: "=MONTH(TODAY())"
   },
   {
     name: "DAY",
     category: "Ngày tháng",
-    desc: "Trả về ngày trong tháng (từ 1 đến 31).",
+    desc: "Trả về ngày trong tháng (từ 1 đến 31) từ số serial hoặc chuỗi ngày hợp lệ.",
     syntax: "DAY(date)",
     syntaxVi: "DAY(ngày_tháng)",
     params: [
-      { name: "ngày_tháng", desc: "Giá trị ngày hợp lệ hoặc ô chứa ngày cần lấy ngày trong tháng (1 đến 31)." }
+      { name: "ngày_tháng", desc: "Số serial ngày hợp lệ hoặc ô chứa ngày cần lấy ngày trong tháng (1 đến 31)." }
     ],
     example: "=DAY(TODAY())"
   },
@@ -1472,7 +1472,7 @@ export const VI_FORMULA_CATALOG = [
     syntax: "DATEDIF(start_date, end_date, unit)",
     syntaxVi: "DATEDIF(ngày_bắt_đầu, ngày_kết_thúc, đơn_vị)",
     params: [
-      { name: "ngày_bắt_đầu", desc: "Ngày mốc bắt đầu của khoảng thời gian." },
+      { name: "ngày_bắt_đầu", desc: "Ngày mốc bắt đầu của khoảng thời gian (số serial hoặc chuỗi ngày)." },
       { name: "ngày_kết_thúc", desc: "Ngày mốc kết thúc của khoảng thời gian (phải lớn hơn hoặc bằng ngày bắt đầu)." },
       { name: "đơn_vị", desc: "Đơn vị tính khoảng cách: \"Y\" (năm), \"M\" (tháng), \"D\" (ngày), \"YM\", \"YD\", \"MD\"." }
     ],
@@ -1481,11 +1481,11 @@ export const VI_FORMULA_CATALOG = [
   {
     name: "EDATE",
     category: "Ngày tháng",
-    desc: "Cộng hoặc trừ số tháng vào một ngày.",
+    desc: "Cộng hoặc trừ số tháng vào một ngày và trả về số serial ngày tương ứng.",
     syntax: "EDATE(start_date, months)",
     syntaxVi: "EDATE(ngày_bắt_đầu, số_tháng)",
     params: [
-      { name: "ngày_bắt_đầu", desc: "Ngày mốc xuất phát." },
+      { name: "ngày_bắt_đầu", desc: "Ngày mốc xuất phát (số serial hoặc chuỗi ngày)." },
       { name: "số_tháng", desc: "Số tháng cần cộng thêm (số dương) hoặc trừ lùi (số âm)." }
     ],
     example: "=EDATE(TODAY(); 3)"
@@ -1493,11 +1493,11 @@ export const VI_FORMULA_CATALOG = [
   {
     name: "EOMONTH",
     category: "Ngày tháng",
-    desc: "Trả về ngày cuối tháng trước hoặc sau số tháng chỉ định.",
+    desc: "Trả về số serial ngày cuối tháng trước hoặc sau số tháng chỉ định.",
     syntax: "EOMONTH(start_date, months)",
     syntaxVi: "EOMONTH(ngày_bắt_đầu, số_tháng)",
     params: [
-      { name: "ngày_bắt_đầu", desc: "Ngày mốc xuất phát." },
+      { name: "ngày_bắt_đầu", desc: "Ngày mốc xuất phát (số serial hoặc chuỗi ngày)." },
       { name: "số_tháng", desc: "Số tháng trước hoặc sau ngày bắt đầu (0 là ngày cuối tháng hiện tại)." }
     ],
     example: "=EOMONTH(TODAY(); 0)"
@@ -1505,11 +1505,11 @@ export const VI_FORMULA_CATALOG = [
   {
     name: "WEEKDAY",
     category: "Ngày tháng",
-    desc: "Trả về số thứ tự của ngày trong tuần theo kiểu đánh số chỉ định.",
+    desc: "Trả về số thứ tự của ngày trong tuần (từ số serial hoặc chuỗi ngày) theo kiểu đánh số chỉ định.",
     syntax: "WEEKDAY(date, [return_type])",
     syntaxVi: "WEEKDAY(ngày_tháng, [kiểu_trả_về])",
     params: [
-      { name: "ngày_tháng", desc: "Ngày cần xác định thứ trong tuần." },
+      { name: "ngày_tháng", desc: "Ngày cần xác định thứ trong tuần (số serial hoặc chuỗi ngày)." },
       { name: "[kiểu_trả_về]", desc: "Kiểu đánh số thứ: 1 (Chủ nhật=1 đến Thứ bảy=7, mặc định), 2 (Thứ hai=1 đến Chủ nhật=7).", optional: true }
     ],
     example: "=WEEKDAY(TODAY(); 2)"
@@ -1521,8 +1521,8 @@ export const VI_FORMULA_CATALOG = [
     syntax: "DAYS(end_date, start_date)",
     syntaxVi: "DAYS(ngày_kết_thúc, ngày_bắt_đầu)",
     params: [
-      { name: "ngày_kết_thúc", desc: "Ngày kết thúc của khoảng thời gian." },
-      { name: "ngày_bắt_đầu", desc: "Ngày bắt đầu của khoảng thời gian." }
+      { name: "ngày_kết_thúc", desc: "Ngày kết thúc của khoảng thời gian (số serial hoặc chuỗi ngày)." },
+      { name: "ngày_bắt_đầu", desc: "Ngày bắt đầu của khoảng thời gian (số serial hoặc chuỗi ngày)." }
     ],
     example: "=DAYS(B1; A1)"
   },
@@ -1533,8 +1533,8 @@ export const VI_FORMULA_CATALOG = [
     syntax: "NETWORKDAYS(start_date, end_date, [holidays])",
     syntaxVi: "NETWORKDAYS(ngày_bắt_đầu, ngày_kết_thúc, [ngày_nghỉ_lễ])",
     params: [
-      { name: "ngày_bắt_đầu", desc: "Ngày bắt đầu kỳ làm việc." },
-      { name: "ngày_kết_thúc", desc: "Ngày kết thúc kỳ làm việc." },
+      { name: "ngày_bắt_đầu", desc: "Ngày bắt đầu kỳ làm việc (số serial hoặc chuỗi ngày)." },
+      { name: "ngày_kết_thúc", desc: "Ngày kết thúc kỳ làm việc (số serial hoặc chuỗi ngày)." },
       { name: "[ngày_nghỉ_lễ]", desc: "Vùng ô chứa danh sách các ngày nghỉ lễ cần loại trừ (tùy chọn).", optional: true }
     ],
     example: "=NETWORKDAYS(A1; B1; C1:C10)"
@@ -1542,11 +1542,11 @@ export const VI_FORMULA_CATALOG = [
   {
     name: "WORKDAY",
     category: "Ngày tháng",
-    desc: "Trả về ngày làm việc trước hoặc sau một số ngày làm việc chỉ định.",
+    desc: "Trả về số serial của ngày làm việc trước hoặc sau một số ngày làm việc chỉ định.",
     syntax: "WORKDAY(start_date, days, [holidays])",
     syntaxVi: "WORKDAY(ngày_bắt_đầu, số_ngày_làm_việc, [ngày_nghỉ_lễ])",
     params: [
-      { name: "ngày_bắt_đầu", desc: "Ngày bắt đầu công việc." },
+      { name: "ngày_bắt_đầu", desc: "Ngày bắt đầu công việc (số serial hoặc chuỗi ngày)." },
       { name: "số_ngày_làm_việc", desc: "Số ngày làm việc không bao gồm thứ 7 và Chủ nhật." },
       { name: "[ngày_nghỉ_lễ]", desc: "Vùng ô chứa danh sách các ngày nghỉ lễ cần bỏ qua (tùy chọn).", optional: true }
     ],
