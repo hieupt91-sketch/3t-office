@@ -475,5 +475,32 @@ export async function runFormulaEngineTests() {
       pass: absEngine.evaluate(formula) === expected
     });
   }
+
+  // ROUND chuẩn Excel: làm tròn nửa ra xa 0 cho cả số dương, số âm và midpoint
+  const roundCases = [
+    ["=ROUND(12.345, 2)", 12.35],
+    ["=ROUND(-12.345, 2)", -12.35],
+    ["=ROUND(2.5, 0)", 3],
+    ["=ROUND(-2.5, 0)", -3],
+    ["=ROUND(1.25, 1)", 1.3],
+    ["=ROUND(-1.25, 1)", -1.3],
+    ["=ROUND(2.675, 2)", 2.68],
+    ["=ROUND(-2.675, 2)", -2.68],
+    ["=ROUND(125, -1)", 130],
+    ["=ROUND(-125, -1)", -130],
+    ["=ROUND(1499, -2)", 1500],
+    ["=ROUND(-1499, -2)", -1500],
+    ["=ROUND(-1500, -3)", -2000],
+    ["=ROUND(1500, -3)", 2000],
+    ["=ROUND(0, 0)", 0],
+    ["=ROUND(0.045, 2)", 0.05],
+    ["=ROUND(-0.045, 2)", -0.05]
+  ];
+  for (const [formula, expected] of roundCases) {
+    results.push({
+      name: `Formula: ROUND ${formula} = ${expected}`,
+      pass: engine.evaluate(formula) === expected
+    });
+  }
   return results;
 }

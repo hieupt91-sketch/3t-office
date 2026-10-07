@@ -986,10 +986,28 @@ export class FormulaEngine {
       }
 
       case "ROUND": {
-        const val = this.collectNumericValues([args[0]])[0] || 0;
-        const digits = args[1] ? Number(args[1]) : 0;
-        const factor = Math.pow(10, digits);
-        return Math.round(val * factor) / factor;
+        if (!args.length) return "#VALUE!";
+        const rawVal = this._resolveSingleValue(args[0]);
+        if (this._isError(rawVal)) return rawVal;
+        const rawDigits = args[1] !== undefined ? this._resolveSingleValue(args[1]) : 0;
+        if (this._isError(rawDigits)) return rawDigits;
+        const val = Number(rawVal);
+        const digits = Math.trunc(Number(rawDigits));
+        if (!Number.isFinite(val) || !Number.isFinite(digits)) return "#VALUE!";
+        if (val === 0) return 0;
+        const sign = val < 0 ? -1 : 1;
+        const absVal = Math.abs(val);
+        const parts = String(absVal).split("e");
+        const base = parts[0];
+        const curExp = parts[1] ? Number(parts[1]) : 0;
+        const shiftedExp = curExp + digits;
+        const shifted = Math.round(Number(`${base}e${shiftedExp}`));
+        const finalParts = String(shifted).split("e");
+        const finalBase = finalParts[0];
+        const finalCurExp = finalParts[1] ? Number(finalParts[1]) : 0;
+        const finalExp = finalCurExp - digits;
+        const result = sign * Number(`${finalBase}e${finalExp}`);
+        return Object.is(result, -0) ? 0 : result;
       }
 
       case "ABS": {
