@@ -3720,6 +3720,9 @@ export class WriterAdapter {
       const tbl = tables[tableIndex++];
       if (!tbl) return tableHtml;
       const tableStyle = styleSpacing(tbl.match(/<w:tblStyle w:val="([^"]+)"/)?.[1]);
+      const hasMinimumRowHeight = [...tbl.matchAll(/<w:trHeight\b([^>]*)\/?\s*>/gi)]
+        .some((match) => !/\bw:hRule=["']exact["']/i.test(match[1]));
+      const hasCenteredCells = /<w:vAlign\b[^>]*\bw:val=["']center["']/i.test(tbl);
       const paras = [...tbl.matchAll(/<w:p\b(?:(?!<w:p\b)[\s\S])*?<\/w:p>|<w:p\/>/g)].map((p) => {
         const ppr = p[0].match(/<w:pPr>([\s\S]*?)<\/w:pPr>/);
         return { own: ppr ? spacingOf(ppr[1]) : null, contextual: /<w:contextualSpacing\b/.test(ppr?.[1] || "") };
@@ -3737,7 +3740,7 @@ export class WriterAdapter {
         if (eff.line !== null && eff.line !== undefined) {
           if (eff.lineRule === "exact") decls.push(`line-height: ${Math.round(eff.line / 20 * 100) / 100}pt`);
           else if (eff.lineRule === "auto") decls.push(`line-height: ${Math.round(eff.line / 240 * 10000) / 100}%`);
-        } else if (spec.own || tableStyle) {
+        } else if ((spec.own || tableStyle) && hasMinimumRowHeight && hasCenteredCells && this._importSourceExtension !== "doc") {
           // WF1: explicit w:spacing without w:line means Word's default single spacing.
           decls.push("line-height: 100%");
         }
@@ -5446,7 +5449,8 @@ export class WriterAdapter {
   _applyOoxmlTableRowHeights(html, ooxmlDocumentXml) {
     const source = String(html || "");
     const xml = this._ooxmlBodyParagraphSource(String(ooxmlDocumentXml || ""));
-    if (!/<table\b/i.test(source) || !/<w:trHeight\b/i.test(xml)) return source;
+    // Legacy .doc conversion produces intermediate OOXML whose row metrics are not the source document semantics.
+    if (this._importSourceExtension === "doc" || !/<table\b/i.test(source) || !/<w:trHeight\b/i.test(xml)) return source;
 
     const tableRanges = (text, openPattern, closePattern) => {
       const ranges = [];
@@ -14420,6 +14424,8 @@ export class WriterAdapter {
     const result = await globalUnoBridge.openRealFile("writer");
     if (result.status === "ok") {
       let imported;
+      const previousImportSourceExtension = this._importSourceExtension;
+      this._importSourceExtension = String(result.sourcePath || result.fileName || "").match(/\.([^.\\/]+)$/)?.[1]?.toLowerCase() || "";
       try {
         imported = this._normalizeImportedHtml(
           result.content || "",
@@ -14441,6 +14447,8 @@ export class WriterAdapter {
           type: "error"
         });
         return false;
+      } finally {
+        this._importSourceExtension = previousImportSourceExtension;
       }
       this._initZones();
       this._sourcePath = result.sourcePath || null;
