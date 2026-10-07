@@ -2080,14 +2080,28 @@ export class FormulaEngine {
 
   _evaluateArithmetic(expr, { raw = false } = {}) {
     // Thay thế các tọa độ ô (vd: A1, B2) thành giá trị số tương ứng
-    let referenceError = false;
+    let propagatedError = null;
     const resolved = expr.replace(/(?:'(?:[^']|'')+'|[A-Za-zÀ-ỹ_][^\s!+\-*/()]*)!\$?[A-Z]+\$?\d+|\$?[A-Z]+\$?\d+/gi, (token) => {
       const reference = this._parseReference(token);
       const val = reference.error || this.getCellValue(reference.ref, reference.sheet);
-      if (val === "#REF!") referenceError = true;
+      if (this._isError(val)) {
+        if (!propagatedError || val === "#N/A") propagatedError = val;
+        return 0;
+      }
+      if (typeof val === "string" || (val && val.isTextCell)) {
+        const strVal = String(val);
+        const cleaned = strVal.replace(/\./g, "").replace(/[^\d-]/g, "");
+        if (cleaned && !isNaN(Number(cleaned)) && !(val && val.isTextCell)) {
+          return Number(cleaned);
+        }
+        if (strVal.trim() !== "" && isNaN(Number(strVal))) {
+          if (!propagatedError) propagatedError = "#VALUE!";
+          return 0;
+        }
+      }
       return typeof val === "number" ? val : (Number(val) || 0);
     });
-    if (referenceError) return "#REF!";
+    if (propagatedError) return propagatedError;
 
     // Tính toán an toàn
     if (/^[\d\s+\-*/().%^]+$/.test(resolved)) {
