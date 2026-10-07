@@ -101,6 +101,12 @@ export async function roundtripFile({ app, input, output, edit = false, largeFil
   const session = await launchApp(app, { filePath: inputPath });
   try {
     await waitForSource(session, inputPath);
+    // An untouched XLSX is saved by restoring the source package (by design), which makes a no-edit
+    // round trip an identity copy. VNO_AUDIT_MARK_DIRTY=1 forces the real conversion path every user
+    // edit takes, so fidelity audits measure what a saved edit really does.
+    if (process.env.VNO_AUDIT_MARK_DIRTY === "1" && app === "sheet") {
+      await session.cdp.evaluate("(() => { window.__vnoAppInstance.adapter.isDirty = true; return true; })()");
+    }
     const before = await serialize(session, largeFile);
     const sentPath = outputPath + (app === "sheet" ? ".sent.fods" : app === "writer" ? ".sent.html" : ".sent.fodp");
     const beforeBytes = edit ? await writeSentContent(session, sentPath, before) : null;
