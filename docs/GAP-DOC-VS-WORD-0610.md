@@ -315,3 +315,55 @@ Kiểm tra `word/document.xml`, `styles.xml`, `numbering.xml`, `header*.xml`, `f
 | Xem lại — Ngôn ngữ kiểm lỗi | PASS | Bật/tắt lại qua ribbon; bộ kiểm lỗi tiếng Việt đánh dấu `saiiichinhta`, trạng thái hiển thị Tiếng Việt/Unicode NFC. |
 
 Không sửa mã sản phẩm theo phạm vi D30. Ba dòng FAIL cần ticket sửa riêng kèm hướng dẫn sử dụng nếu triển khai thành thay đổi tính năng.
+
+## Cập nhật kiểm chứng 07/10/2026 — AGY V3
+
+Đã chạy kiểm chứng trên app desktop thật bằng CDP (WebView2 qua `main.py`) với `LOCALAPPDATA` riêng (`VNO_CDP_LOCALAPPDATA`); toàn bộ thao tác phím/chuột thực hiện qua CDP, không dùng OS input/SendKeys, không kill tiến trình theo tên. Script: `scripts/audit-0610/doc_matrix_verify3.mjs`.
+
+Kết quả tổng cộng 40 dòng ma trận còn lại (các dòng MỘT PHẦN / THIẾU chưa được kiểm ở đợt Claude và D30 Codex): **32 PASS, 1 FAIL, 7 BLOCKED**.
+
+| Dòng ma trận | Kết quả | Bằng chứng / lý do |
+|---|---|---|
+| Trang đầu — Mở DOCX/DOC/ODT | BLOCKED | Phải chọn tệp hệ điều hành qua hộp thoại mở tệp của hệ thống, không tự động hóa bằng CDP thuần. |
+| Trang đầu — Lưu thành | BLOCKED | Phải chọn tệp hệ điều hành qua hộp thoại lưu tệp của hệ thống, không tự động hóa bằng CDP thuần. |
+| Trang đầu — In | BLOCKED | Cần thiết bị in thật hoặc driver in của hệ điều hành, không in thật qua CDP thuần. |
+| Trang đầu — Xuất PDF | BLOCKED | Phải chọn tệp hệ điều hành qua hộp thoại lưu tệp của hệ thống, không tự động hóa bằng CDP thuần. |
+| Trang đầu — Cắt sao chép dán | PASS | Cut/Paste hoạt động chính xác qua Clipboard API/DOM command, nội dung văn bản bảo toàn nguyên vẹn. |
+| Trang đầu — Tìm | PASS | Hộp thoại tìm kiếm mở thành công và sẵn sàng nhận chuỗi tìm kiếm. |
+| Trang đầu — Thay thế | PASS | Hộp thoại tìm thay thế mở thành công, tính năng Thay thế tất cả hoạt động chính xác. |
+| Trang đầu — Màu chữ | PASS | Áp dụng thành công màu chữ (#dc2626) cho vùng văn bản được chọn. |
+| Trang đầu — Tô sáng | PASS | Áp dụng thành công màu tô sáng (#ffcd00) cho vùng văn bản được chọn. |
+| Trang đầu — Heading | PASS | Chuyển đổi khối văn bản thành tiêu đề Heading 1 (<h1>) chuẩn. |
+| Chèn — Bảng | PASS | Chèn thành công bảng 3 hàng × 4 cột vào vị trí con trỏ tài liệu. |
+| Chèn — Ảnh | BLOCKED | Phải chọn tệp hệ điều hành qua hộp thoại chọn tệp ảnh của hệ thống, không tự động hóa bằng CDP thuần. |
+| Chèn — Cắt dòng ảnh | PASS | Thiết lập thành công kiểu ngắt dòng vuông (square) quanh ảnh (wrapMode=square). |
+| Chèn — Tham chiếu chéo | PASS | Chèn tham chiếu chéo nội bộ (#bm-verify3) thành công. |
+| Chèn — Số trang | PASS | Hộp thoại định dạng và chèn số trang mở thành công, sẵn sàng cấu hình. |
+| Chèn — Ký hiệu | PASS | Chèn thành công ký hiệu đặc biệt Unicode © vào tài liệu. |
+| Bố cục/Thiết kế — Header/footer riêng section | PASS | Section 2 được cấu hình tách biệt header/footer độc lập với phần trước (linkToPrevious=false). |
+| Bố cục/Thiết kế — Số trang theo section | PASS | Đánh lại số trang theo section thành công, bắt đầu lại từ 1 (pageNumberRestart=true, start=1). |
+| Bố cục/Thiết kế — Phông chủ đề | PASS | Áp dụng thành công chủ đề phông (theme=modern). |
+| Bố cục/Thiết kế — In hai mặt | BLOCKED | Cần máy in hỗ trợ duplex và driver in hai mặt của hệ điều hành, không kiểm chứng được qua CDP thuần. |
+| Tham chiếu — Cập nhật danh mục | PASS | Tạo và cập nhật danh mục hình vẽ/bảng biểu (TOF/LOT) tự động thành công. |
+| Thư tín — Trộn và in | BLOCKED | Cần thiết bị in thật hoặc driver máy in hệ điều hành để xuất bản in hàng loạt, không in thật qua CDP thuần. |
+| Xem lại — Kiểm lỗi chính tả | PASS | Bộ kiểm lỗi chính tả tiếng Việt sẵn sàng và hoạt động khi kích hoạt. |
+| Xem lại — Thêm bình luận | PASS | Thêm ghi chú/bình luận thành công, neo bình luận được gắn vào DOM. |
+| Xem lại — Xóa bình luận | PASS | Xóa bình luận thành công, danh sách bình luận được dọn sạch. |
+| Xem lại — Giải quyết bình luận | PASS | Đánh dấu trạng thái bình luận Đã giải quyết (resolved=true) thành công. |
+| Xem lại — Bình luận trước/sau | PASS | Điều hướng tới (next) và lui (previous) giữa các bình luận hoạt động chuẩn xác. |
+| Xem lại — Sửa đổi trước/sau | PASS | Điều hướng tới và lui qua các điểm theo dõi sửa đổi (nextTrackChange/previousTrackChange) thành công. |
+| Xem — Tìm theo tiêu đề | FAIL | Chưa có ngăn dẫn hướng hay lệnh duyệt/tìm theo danh sách tiêu đề trong tài liệu (tính năng đang ở bước kế hoạch PLAN-WRITER-NAV-PANE.md). |
+| Trang đầu — Mở lại DOCX | PASS | Lưu tài liệu ra DOCX và mở lại xác thực bảo toàn toàn bộ nội dung. |
+| Trang đầu — Tìm thay giữ định dạng | PASS | Thay thế nội dung chữ trong khi bảo toàn các thẻ định dạng in đậm và màu sắc. |
+| Trang đầu — Tạo bullet thụt lề | PASS | Tạo danh sách dấu đầu dòng thụt lề cấp 2 thành công. |
+| Trang đầu — Danh sách 1/1.1/1.1.1 | PASS | Áp dụng thành công kiểu danh sách đa cấp thập phân 1. / 1.1. / 1.1.1. |
+| Trang đầu — Điều khoản Điều 1/1/a) | PASS | Áp dụng thành công định dạng danh sách điều khoản hành chính chuẩn NĐ30 (Điều 1. / 1. / a)) |
+| Trang đầu — Chỉnh khoảng cách đoạn | PASS | Thiết lập khoảng cách đoạn văn bản thành công (trước 12pt, sau 6pt, giãn dòng 1.5). |
+| Trang đầu — Chọn tất cả rồi đổi font | PASS | Chọn toàn bộ văn bản (Select All) và đổi sang phông chữ Times New Roman thành công. |
+| Chèn — Chèn PAGE động | PASS | Chân trang chèn trường số trang động data-vno-field="PAGE" thành công. |
+| Chèn — Bảng danh sách nhân sự | PASS | Bảng danh sách nhân sự lưu DOCX bảo toàn đầy đủ các cột STT, Họ tên, Chức vụ, Đơn vị và dữ liệu. |
+| Bố cục/Thiết kế — Bảng không tách hàng qua trang | PASS | Các hàng bảng được thiết lập thuộc tính chống tách qua trang (page-break-inside: avoid) thành công. |
+| Bố cục/Thiết kế — Phụ lục đổi landscape | PASS | Phần phụ lục (section-appendix) được thiết lập hướng giấy nằm ngang (landscape) riêng biệt. |
+
+Tuân thủ nghiêm ngặt quy tắc không sửa mã sản phẩm trong đợt kiểm chứng này. Dòng FAIL duy nhất (`Xem — Tìm theo tiêu đề`) xác nhận thiếu ngăn dẫn hướng, đúng theo tài liệu kế hoạch `PLAN-WRITER-NAV-PANE.md`. 7 dòng BLOCKED được ghi nhận đúng do phụ thuộc hộp thoại OS hoặc thiết bị in phần cứng.
+
