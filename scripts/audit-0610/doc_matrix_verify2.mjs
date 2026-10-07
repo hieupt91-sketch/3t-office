@@ -416,10 +416,20 @@ try {
   await checkRow("Xem/Trang hiện tại/thanh trạng thái", async () => {
     await selectText("TRANG KÝ TÊN", true);
     await sleep(800);
-    const state = await ev("({visible:!!document.querySelector('.vno-statusbar-left')?.getClientRects().length,text:document.querySelector('.vno-statusbar-left')?.innerText||'',pages:window.__vnoAppInstance.adapter._livePageCount||1})");
+    const state = await ev(`(() => {
+      const body=document.querySelector('.vno-writer-body');
+      const caret=getSelection()?.rangeCount ? getSelection().getRangeAt(0).startContainer : null;
+      const gaps=[...body.querySelectorAll('[data-vno-auto-page-gap="true"]')];
+      return {
+        visible:!!document.querySelector('.vno-statusbar-left')?.getClientRects().length,
+        text:document.querySelector('.vno-statusbar-left')?.innerText||'',
+        pages:window.__vnoAppInstance.adapter._livePageCount||1,
+        caretPage:1+gaps.filter(g=>caret && (g.compareDocumentPosition(caret)&Node.DOCUMENT_POSITION_FOLLOWING)).length
+      };
+    })()`);
     const match = state.text.match(/Trang\s+(\d+)\s*\/\s*(\d+)/i);
     const current = Number(match?.[1] || 0), total = Number(match?.[2] || 0);
-    return { ok: state.visible && state.pages >= 2 && total === state.pages && current === state.pages, note: `status=${state.text}; livePages=${state.pages}; caretExpectedPage=${state.pages}` };
+    return { ok: state.visible && state.pages >= 2 && total === state.pages && current === state.caretPage, note: `status=${state.text}; livePages=${state.pages}; caretExpectedPage=${state.caretPage}` };
   });
 
   await checkRow("Xem/Cửa sổ mới", async () => {
