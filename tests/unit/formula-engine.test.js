@@ -420,10 +420,10 @@ export async function runFormulaEngineTests() {
     pass: vlEngine.evaluate('=VLOOKUP("Apple", A1:B5, 3, FALSE)') === "#REF!"
   });
 
-  // Column index < 1 -> #N/A
+  // Column index < 1 -> #VALUE! (Excel) / legacy #N/A
   results.push({
-    name: "VLOOKUP: Column index < 1 returns #N/A",
-    pass: vlEngine.evaluate('=VLOOKUP("Apple", A1:B5, 0, FALSE)') === "#N/A"
+    name: "VLOOKUP: Column index < 1 returns #N/A or #VALUE!",
+    pass: ["#VALUE!", "#N/A"].includes(vlEngine.evaluate('=VLOOKUP("Apple", A1:B5, 0, FALSE)'))
   });
 
   // Cross-sheet VLOOKUP
@@ -876,6 +876,41 @@ export async function runFormulaEngineTests() {
   results.push({
     name: 'SB7 NHÓM 5: =B3 với ô text trả về primitive string thay vì String object',
     pass: typeof sb7Nhom5Res === "string" && sb7Nhom5Res === "00990011" && !(sb7Nhom5Res instanceof String)
+  });
+
+  // 13. SB9 NHÓM 1: Kiểm tra tham số col_index/row_index và lan truyền lỗi cho VLOOKUP/HLOOKUP
+  const sb9Nhom1Cells = new Map([
+    ["A1", { val: 10, formula: "", style: {} }],
+    ["B1", { val: "Ten", formula: "", style: {} }],
+    ["A2", { val: 20, formula: "", style: {} }],
+    ["B2", { val: "Twenty", formula: "", style: {} }],
+    ["D1", { val: "Solo", formula: "", style: {} }],
+    ["D2", { val: "Duo", formula: "", style: {} }],
+    ["E1", { val: "#DIV/0!", formula: "", style: {} }]
+  ]);
+  const sb9Nhom1Engine = new FormulaEngine(sb9Nhom1Cells);
+  results.push({
+    name: "SB9 NHÓM 1: VLOOKUP col_index = 0 trả về #VALUE!",
+    pass: sb9Nhom1Engine.evaluate("=VLOOKUP(10, A1:B2, 0, FALSE)") === "#VALUE!"
+  });
+  results.push({
+    name: "SB9 NHÓM 1: VLOOKUP col_index vượt quá số cột trả về #REF!",
+    pass: sb9Nhom1Engine.evaluate("=VLOOKUP(10, A1:B2, 3, FALSE)") === "#REF!"
+  });
+  results.push({
+    name: "SB9 NHÓM 1: VLOOKUP lookup_value là lỗi lan truyền đúng mã lỗi",
+    pass: sb9Nhom1Engine.evaluate("=VLOOKUP(E1, A1:B2, 2, FALSE)") === "#DIV/0!" &&
+          sb9Nhom1Engine.evaluate("=VLOOKUP(1/0, A1:B2, 2, FALSE)") === "#DIV/0!"
+  });
+  results.push({
+    name: "SB9 NHÓM 1: VLOOKUP trên bảng 1 cột hoạt động đúng với col_index=1 và #REF! với col_index=2",
+    pass: sb9Nhom1Engine.evaluate('=VLOOKUP("Solo", D1:D2, 1, FALSE)') === "Solo" &&
+          sb9Nhom1Engine.evaluate('=VLOOKUP("Solo", D1:D2, 2, FALSE)') === "#REF!"
+  });
+  results.push({
+    name: "SB9 NHÓM 1: HLOOKUP row_index = 0 trả #VALUE! và vượt trả #REF!",
+    pass: sb9Nhom1Engine.evaluate("=HLOOKUP(10, A1:B2, 0, FALSE)") === "#VALUE!" &&
+          sb9Nhom1Engine.evaluate("=HLOOKUP(10, A1:B2, 3, FALSE)") === "#REF!"
   });
 
   return results;

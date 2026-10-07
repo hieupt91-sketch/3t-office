@@ -1065,11 +1065,25 @@ export class FormulaEngine {
 
       case "VLOOKUP":
       case "HLOOKUP": {
+        if (args.length < 3) return "#VALUE!";
         const lookup = this._resolveSingleValue(args[0]);
+        if (this._isError(lookup)) return lookup;
+
         const matrix = this._rangeMatrix(args[1]);
-        const requestedIndex = Number(this._resolveSingleValue(args[2]));
-        const exact = args[3] !== undefined && !Boolean(this._resolveSingleValue(args[3]));
         if (!matrix || !matrix.length || !matrix[0]) return "#REF!";
+
+        const indexArg = this._resolveSingleValue(args[2]);
+        if (this._isError(indexArg)) return indexArg;
+        const requestedIndex = Number(indexArg);
+        if (Number.isNaN(requestedIndex) || requestedIndex < 1) return "#VALUE!";
+
+        const maxIndex = funcName === "VLOOKUP" ? matrix[0].length : matrix.length;
+        if (requestedIndex > maxIndex) return "#REF!";
+
+        const rangeLookupArg = args[3] !== undefined ? this._resolveSingleValue(args[3]) : true;
+        if (this._isError(rangeLookupArg)) return rangeLookupArg;
+        const exact = args[3] !== undefined && !Boolean(rangeLookupArg);
+
         if (exact && (lookup === "" || lookup === null || lookup === undefined)) return "#N/A";
         const indexData = this._getLookupIndex(args[1], matrix, funcName);
         let found = null;
@@ -1081,7 +1095,7 @@ export class FormulaEngine {
             else break;
           }
         }
-        if (!found || requestedIndex < 1) return "#N/A";
+        if (!found) return "#N/A";
         const result = funcName === "VLOOKUP" ? matrix[found.index]?.[requestedIndex - 1] : matrix[requestedIndex - 1]?.[found.index];
         return result === undefined ? "#REF!" : (result === "" ? 0 : result);
       }
