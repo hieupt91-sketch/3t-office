@@ -154,7 +154,7 @@ export function showHyperlinkDialog(options = {}) {
       const rawUrl = (urlInput?.value || defaultUrl || "").trim();
       const rawText = (textInput?.value || defaultText || "").trim();
       if (!rawUrl || rawUrl === "https://" || rawUrl === "http://") {
-        errorBox.textContent = "Vui lòng nhập địa chỉ liên kết hợp lệ.";
+        errorBox.textContent = t("writerDialogs.hyperlink.invalidUrl", "Vui lòng nhập địa chỉ liên kết hợp lệ.");
         urlInput?.setAttribute?.("aria-invalid", "true");
         urlInput?.focus?.();
         return;

@@ -13,10 +13,12 @@ export const WRITER_HELP_ENTRIES = [
     ribbon: { tab: "Trộn thư", tabId: "mailings", group: "Viết & Chèn trường" },
     keywords: ["IF", "REF", "DOCX", "trộn thư", "quy tắc", "tham chiếu chéo", "dấu trang"],
     steps: [
-      "Mở tab Trộn thư, nhóm Viết & Chèn trường, bấm Quy tắc để đặt trường, toán tử so sánh, giá trị, nội dung Thì và nội dung Ngược lại.",
-      "Chọn Tệp > Lưu thành và lưu dưới dạng DOCX. Quy tắc được giữ dưới dạng trường IF; mở tệp bằng phần mềm soạn thảo khác thì chọn trường rồi cập nhật trường để tính lại.",
-      "Để tham chiếu tới tiêu đề hoặc dấu trang, mở tab Tham chiếu, nhóm Chú thích ảnh, chọn Tham chiếu chéo rồi chọn đích trong tài liệu.",
-      "Khi lưu DOCX, tham chiếu chéo trở thành trường REF trỏ tới dấu trang nội bộ, có liên kết để nhảy tới đích."
+      "Mở tab Trộn thư, nhóm Viết & Chèn trường, bấm nút Quy tắc để mở hộp thoại Quy tắc Nếu...Thì...Ngược lại.",
+      "Chọn trường dữ liệu từ danh sách tại mục Trường. Nếu trường bị bỏ trống khi bấm Chèn, hộp thoại hiển thị cảnh báo lỗi «Vui lòng chọn trường dữ liệu.» và giữ hộp thoại mở để chọn lại.",
+      "Chọn phép so sánh tại mục Toán tử (bằng, khác, chứa, lớn hơn, nhỏ hơn, rỗng, không rỗng), sau đó nhập Giá trị so sánh, nội dung chèn khi đúng điều kiện tại mục Thì và nội dung chèn khi sai tại mục Ngược lại.",
+      "Dùng phím Tab để di chuyển giữa các trường nhập và nút bấm; nhấn Chèn (hoặc phím Enter khi nút Chèn nhận tiêu điểm) để hoàn tất. Nhấn phím Esc hoặc nút Hủy để đóng hộp thoại mà không thay đổi.",
+      "Khi lưu tệp dạng DOCX (Tệp > Lưu thành), quy tắc được ghi thành trường IF chuẩn; mở bằng các phần mềm soạn thảo khác có thể chọn trường và cập nhật bình thường.",
+      "Để tham chiếu tới tiêu đề hoặc dấu trang, mở tab Tham chiếu > nhóm Chú thích ảnh > Tham chiếu chéo; khi lưu DOCX, tham chiếu chéo trở thành trường REF trỏ tới dấu trang nội bộ."
     ]
   },
   {
@@ -268,7 +270,7 @@ export const WRITER_HELP_ENTRIES = [
     title: "Trộn thư và Danh sách người nhận từ bảng tính",
     summary: "Lấy danh sách người nhận từ tệp bảng tính .xlsx (.xlsx, .xls, .ods) hoặc CSV/TSV, hỗ trợ chọn trang tính, dòng đầu là tên trường, xem trước từng bản ghi, lọc/bỏ chọn người nhận, chèn trường trộn vào văn bản và hoàn tất ra tài liệu mới hoặc in ấn.",
     ribbon: { tab: "Trộn thư", tabId: "mailings", group: "Bắt đầu trộn" },
-    keywords: ["trộn thư", "mail merge", "excel", "xlsx", "xls", "csv", "tsv", "trường", "người nhận", "bản ghi", "nguồn dữ liệu", "chèn trường", "xem trước kết quả", "hoàn tất trộn", "in ấn", "lọc người nhận"],
+    keywords: ["trộn thư", "mail merge", "bảng tính", "xlsx", "xls", "csv", "tsv", "trường", "người nhận", "bản ghi", "nguồn dữ liệu", "chèn trường", "xem trước kết quả", "hoàn tất trộn", "in ấn", "lọc người nhận"],
     steps: [
       "Mở tab Trộn thư, nhóm Bắt đầu trộn, nhấn Nguồn dữ liệu. Trong hộp thoại, nhấn 'Chọn tệp bảng tính .xlsx / CSV...' để mở tệp bảng tính (.xlsx, .xls, .ods, .csv, .tsv) hoặc dán dữ liệu thủ công.",
       "Nếu tệp bảng tính .xlsx có nhiều trang tính, chọn trang tính mong muốn tại mục 'Trang tính'. Đánh dấu tùy chọn 'Dòng đầu tiên là tên trường' nếu hàng đầu của bảng chứa tiêu đề cột.",
@@ -595,14 +597,15 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["writer.style.gallery", "writer.style.normal", "writer.style.apply"],
     title: "Thư viện kiểu và kiểu Thường",
-    summary: "Dải Quick Styles trên tab Trang đầu và nút Thư viện kiểu áp Normal, Tiêu đề 1/2/3, Trích dẫn, Nhấn mạnh. Ctrl+Shift+N luôn về Normal. writer.style.apply không còn dropdown trên ribbon (tránh trùng dải thẻ).",
+    summary: "Dải Quick Styles trên tab Trang đầu và nút Thư viện kiểu áp 7 kiểu dáng định dạng sẵn: Tiêu đề, Normal, Tiêu đề 1/2/3, Trích dẫn, Nhấn mạnh. Hỗ trợ phím mũi tên và Tab xoay vòng để duyệt chọn kiểu. Ctrl+Shift+N luôn trở về Normal.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Kiểu dáng" },
-    keywords: ["thư viện kiểu", "styles gallery", "normal", "tiêu đề 1", "heading", "ctrl+shift+n", "trích dẫn", "nhấn mạnh"],
+    keywords: ["thư viện kiểu", "styles gallery", "tiêu đề", "normal", "tiêu đề 1", "heading", "ctrl+shift+n", "trích dẫn", "nhấn mạnh"],
     steps: [
-      "Tab Trang đầu, nhóm Kiểu dáng: nút lớn Thư viện kiểu, kèm dải thẻ nhanh (Normal, Tiêu đề 1/2/3…) ngay trên ribbon. Không còn hộp chọn Kiểu dáng riêng — lệnh apply vẫn chạy nội bộ khi nhấp thẻ.",
-      "Thư viện kiểu mở hộp «Thư viện Kiểu dáng (Styles Gallery)», gợi ý «Nhấp để áp dụng ngay». Sáu thẻ: Normal (văn bản thường, 14 pt Times New Roman), Tiêu đề 1 (chữ hoa, căn giữa), Tiêu đề 2 (14 pt đậm), Tiêu đề 3 (13 pt đậm nghiêng), Trích dẫn (blockquote, viền trái), Nhấn mạnh (đậm nghiêng màu #b45309). Esc hoặc nhấp ra ngoài đóng.",
-      "Ctrl+Shift+N (Kiểu Thường) — không có nút riêng — đặt đoạn đang đứng về Normal, gỡ lớp trích dẫn/nhấn mạnh. Đặt con trỏ trong đoạn rồi chọn thẻ, không cần bôi cả đoạn.",
-      "Chỉ có sáu kiểu sẵn, không tạo/sửa kiểu tùy chỉnh như các phần mềm soạn thảo văn bản khác. Ctrl+Z hoàn tác lần áp kiểu."
+      "Mở tab Trang đầu, nhóm Kiểu dáng: nhấp nút lớn Thư viện kiểu (hoặc chọn nhanh từ dải thẻ Normal, Tiêu đề 1/2/3 hiển thị trực tiếp trên ribbon).",
+      "Hộp thoại Thư viện Kiểu dáng mở ra với 7 kiểu định dạng: Tiêu đề (chữ đậm màu xanh 18 pt căn giữa), Normal (văn bản thường, 14 pt Times New Roman), Tiêu đề 1 (chữ hoa 16 pt xanh), Tiêu đề 2 (14 pt đậm), Tiêu đề 3 (13 pt đậm nghiêng), Trích dẫn (khối thụt lề có viền bên trái), Nhấn mạnh (chữ nghiêng màu hổ phách #b45309).",
+      "Điều hướng bằng bàn phím: nhấn phím Tab để di chuyển xoay vòng giữa các thẻ kiểu dáng trong danh sách (giữ phím Shift khi nhấn Tab để di chuyển ngược lại); dùng các phím mũi tên Lên/Xuống/Trái/Phải để chuyển chọn thẻ; nhấn phím Enter để áp dụng ngay kiểu đang chọn; nhấn Esc hoặc nhấp ra ngoài để đóng hộp thoại mà không thay đổi.",
+      "Nhấn Ctrl+Shift+N (Kiểu Thường) để đưa đoạn văn bản đang đứng về kiểu Normal, gỡ bỏ nhanh lớp trích dẫn hoặc nhấn mạnh mà không cần bôi đen toàn bộ đoạn.",
+      "Bấm Ctrl+Z bất kỳ lúc nào để hoàn tác thao tác áp dụng kiểu dáng vừa thực hiện."
     ]
   },
   {
@@ -668,8 +671,8 @@ export const WRITER_HELP_ENTRIES = [
     steps: [
       "Tab Chèn, nhóm Minh họa: Hình khối, Sơ đồ, Biểu đồ (ba nút lớn, cạnh Hình ảnh). Mỗi nút mở hộp thoại chọn kiểu; Hủy, nút ×, Esc hoặc bấm ra ngoài thì không chèn gì.",
       "Hình khối: hộp «Chèn hình khối» — bảy thẻ radio: Hình chữ nhật (140×80, nền #2563eb), Chữ nhật bo tròn, Hình tròn / Elip (110×110, #0ea5e9), Hình tam giác (120×100, #16a34a), Hình thoi (120×100, #9333ea), Mũi tên sang phải (140×70, #f59e0b), Đường thẳng ngang. Chọn thẻ rồi Chèn. Lớp nổi tại x=100, y lệch dần 160+(n×25); kéo để đặt, nút × xóa khi đang chọn.",
-      "Sơ đồ: hộp «Chèn sơ đồ SmartArt» — Quy trình / Chu trình / Phân cấp / Danh sách, ô số bước 3–6 (mặc định 4). Chèn sơ đồ tạo khối tiêu đề theo kiểu đã chọn, nút «Bước 1»… sửa được chữ, nút Xóa sơ đồ. Không phải SmartArt truyền thống.",
-      "Biểu đồ: hộp «Chèn biểu đồ minh họa» — tiêu đề, kiểu Cột/Đường/Tròn/Miền, hàng nhãn & giá trị (mẫu Quý 1–4: 120, 190, 300, 250) và khung Xem trước trực quan. Chèn biểu đồ đưa SVG đã chọn vào trang. Ctrl+Z gỡ đối tượng vừa chèn. Hình ảnh cùng nhóm là bài riêng."
+      "Sơ đồ: hộp «Chèn sơ đồ SmartArt» — Quy trình / Chu trình / Phân cấp / Danh sách, ô số bước 3–6 (mặc định 4). Nếu nhập số bước ngoài khoảng 3 đến 6, hộp thoại báo lỗi «Vui lòng nhập số nguyên từ 3 đến 6.» và giữ hộp thoại mở để sửa lại. Chèn sơ đồ tạo khối tiêu đề theo kiểu đã chọn, nút «Bước 1»… sửa được chữ, nút Xóa sơ đồ.",
+      "Biểu đồ: hộp «Chèn biểu đồ minh họa» — tiêu đề, kiểu Cột/Đường/Tròn/Miền, hàng nhãn & giá trị (mẫu Quý 1–4: 120, 190, 300, 250) và khung Xem trước trực quan. Nếu giá trị của một mục không phải là số hợp lệ, hộp thoại báo lỗi «Vui lòng nhập giá trị số hợp lệ cho mục...» và giữ hộp thoại mở để sửa lại. Chèn biểu đồ đưa SVG đã chọn vào trang. Ctrl+Z gỡ đối tượng vừa chèn. Hình ảnh cùng nhóm là bài riêng."
     ]
   },
   {
@@ -711,9 +714,12 @@ export const WRITER_HELP_ENTRIES = [
     ribbon: { tab: "Chèn", tabId: "insert", group: "Liên kết" },
     keywords: ["đánh dấu", "bookmark", "tham chiếu chéo", "cross reference"],
     steps: [
-      "Đánh dấu: cùng tab, nhóm Liên kết, nút Đánh dấu. Hộp «Đánh dấu», Tên đánh dấu mặc định bookmark1. Tên được bỏ dấu, ký tự lạ thành -, trùng thì thêm -2, -3… Tạo thẻ neo ẩn tại con trỏ.",
-      "Tham chiếu chéo: nút ngay dưới Đánh dấu. Hộp «Tham chiếu chéo» — nếu chưa có tiêu đề (Heading) hay đánh dấu thì báo «Chưa có tiêu đề hoặc đánh dấu nào.» và khóa Chèn. Có rồi: chọn H tiêu đề hoặc ⚑ đánh dấu, chèn liên kết nội bộ hiện tên đó.",
-      "Ctrl+Z gỡ đánh dấu hoặc liên kết vừa chèn. Ký hiệu đặc biệt là bài riêng cùng nhóm Ký hiệu."
+      "Mở tab Chèn trên thanh ribbon, vào nhóm Liên kết và bấm nút Đánh dấu.",
+      "Trong hộp thoại Đánh dấu, nhập tên vào ô Tên đánh dấu (mặc định gợi ý bookmark1). Nếu để trống ô tên và bấm Thêm, hộp thoại sẽ hiển thị cảnh báo lỗi «Vui lòng nhập tên đánh dấu.» và giữ hộp thoại mở để bạn nhập lại.",
+      "Tên đánh dấu hợp lệ được tự động chuẩn hóa (loại bỏ dấu tiếng Việt và ký tự đặc biệt, nếu trùng tên sẽ tự thêm hậu tố -2, -3). Bấm nút Thêm (hoặc Enter) để tạo thẻ neo ẩn tại vị trí con trỏ; nhấn phím Esc để đóng hộp thoại mà không thêm.",
+      "Để tạo liên kết tới đánh dấu hoặc tiêu đề đã có, mở tab Chèn > nhóm Liên kết > bấm nút Tham chiếu chéo.",
+      "Trong hộp thoại Tham chiếu chéo: nếu tài liệu chưa có tiêu đề hoặc đánh dấu nào, hộp thoại sẽ thông báo «Chưa có tiêu đề hoặc đánh dấu nào.» và nút Chèn bị vô hiệu hóa. Khi đã có, chọn Tiêu đề hoặc Đánh dấu, chọn mục tiêu từ danh sách rồi bấm Chèn để tạo liên kết nội bộ.",
+      "Bấm Ctrl+Z để gỡ đánh dấu hoặc liên kết tham chiếu vừa chèn."
     ]
   },
   {
@@ -777,7 +783,7 @@ export const WRITER_HELP_ENTRIES = [
     steps: [
       "Tab Bố cục, nhóm Thiết lập trang: nút lớn Cột, rồi cột 1 cột / 2 cột / 3 cột.",
       "1 cột: một luồng, khe 0, không kẻ. 2 cột / 3 cột: count 2 hoặc 3, khe 10 mm, không kẻ. Áp ngay, không hỏi.",
-      "Nút Cột mở hộp «Chia cột văn bản (Columns)»: mẫu Một cột / Hai cột / Ba cột; Số cột 1–4; Khoảng cách giữa các cột 0–50 mm; tick Đường kẻ phân cách cột; khung Xem trước. Đang chia nhiều cột thì có Bỏ chia cột (1 cột). Áp dụng.",
+      "Nút Cột mở hộp «Chia cột văn bản (Columns)»: mẫu Một cột / Hai cột / Ba cột; Số cột 1–4; Khoảng cách giữa các cột 0–50 mm; tick Đường kẻ phân cách cột; khung Xem trước trực quan. Nếu nhập số cột ngoài khoảng 1 đến 4 hoặc khoảng cách ngoài khoảng 0 đến 50 mm, hộp thoại sẽ báo lỗi «Số cột phải là số nguyên từ 1 đến 4.» hoặc «Khoảng cách cột phải là số từ 0 đến 50 mm.» và giữ hộp thoại mở để nhập lại. Đang chia nhiều cột thì có nút Bỏ chia cột (1 cột). Bấm Áp dụng để hoàn tất.",
       "Chia cột CSS trên toàn bộ thân, không theo vùng bôi hay từng section. Ngắt cột (menu Ngắt cùng nhóm) đẩy chữ sau con trỏ sang cột kế. Ctrl+Z hoàn tác."
     ]
   },
@@ -791,7 +797,7 @@ export const WRITER_HELP_ENTRIES = [
     keywords: ["hình mờ", "watermark", "dự thảo", "mật", "khẩn", "viền trang", "page border", "nét đôi", "thiết kế", "design", "page background"],
     steps: [
       "Tab Thiết kế, nhóm Nền & Viền trang: Hình mờ, Màu trang (bài riêng), Viền trang — ba nút lớn. Cùng Hình mờ / Viền trang còn trên tab Bố cục, nhóm Nền & Viền trang.",
-      "Hình mờ (440 px): chip DỰ THẢO, MẬT, TUYỆT MẬT, KHẨN, BẢN SAO; hoặc gõ chữ. Màu: Đỏ nhạt #dc2626 (mặc định), Xám, Xanh dương, Vàng hổ phách. Góc: Chéo 45° (chuẩn), −45°, Nằm ngang 0°. Độ mờ 0.05–0.60 (bước 0.05), mặc định 0.2. Cỡ chữ cố định 72. Áp dụng. Đã có hình mờ thì thêm Xóa hình mờ.",
+      "Hình mờ (440 px): chọn một trong các mẫu sẵn (DỰ THẢO, MẬT, TUYỆT MẬT, KHẨN, BẢN SAO) hoặc gõ chữ tùy chọn vào ô Nội dung. Nếu để trống ô nội dung và bấm Áp dụng, hộp thoại sẽ báo lỗi «Vui lòng nhập nội dung hình mờ; để xóa, hãy dùng nút Xóa hình mờ.» và giữ nguyên tiêu điểm ở ô nhập. Chọn màu sắc (Đỏ nhạt #dc2626, Xám, Xanh dương, Vàng hổ phách), góc xoay (Chéo 45°, −45°, Nằm ngang 0°) và độ mờ 0.05–0.60 (mặc định 0.2). Bấm Áp dụng để chèn; nếu muốn gỡ bỏ hình mờ hiện có, bấm nút Xóa hình mờ.",
       "Viền trang: nét Liền / Đứt / Đôi / Không có viền; dày 1, 1.5, 2 (mặc định), 3, 4.5, 6 pt; màu Xanh 3T Office #0f4c81, Đen than, Xám, Đỏ hành chính, Xanh lá. Xem trước khung. Đang có viền thì Xóa viền trang.",
       "Hình mờ và viền phủ overlay soạn thảo và mỗi tờ khi Xem trước khi in. Không có hình mờ ảnh. Ctrl+Z hoàn tác."
     ]
@@ -1085,7 +1091,7 @@ export const WRITER_HELP_ENTRIES = [
     steps: [
       "Bôi đen từ hoặc đoạn văn bản muốn gắn liên kết trong tài liệu.",
       "Mở tab Chèn trên thanh ribbon, trong nhóm Liên kết nhấn nút Liên kết (hoặc bấm tổ hợp phím Ctrl+K).",
-      "Hộp thoại «Chèn liên kết» dùng chung xuất hiện. Kiểm tra hoặc nhập văn bản hiển thị và địa chỉ web đích (URL đầy đủ, ví dụ: https://example.com) vào ô địa chỉ.",
+      "Hộp thoại «Chèn liên kết» dùng chung xuất hiện. Kiểm tra hoặc nhập văn bản hiển thị và địa chỉ web đích (URL đầy đủ, ví dụ: https://example.com) vào ô địa chỉ. Nếu để trống địa chỉ liên kết và bấm Chèn, hộp thoại sẽ hiển thị cảnh báo lỗi «Vui lòng nhập địa chỉ liên kết hợp lệ.» và giữ hộp thoại mở để bạn nhập lại.",
       "Nhấn Chèn hoặc bấm Enter để hoàn tất. Đoạn văn bản sẽ chuyển sang màu xanh dương có gạch chân biểu thị liên kết.",
       "Muốn chỉnh sửa hoặc hủy liên kết: đặt con trỏ tại vị trí liên kết, nhấn lại nút Liên kết (Ctrl+K) hoặc dùng Ctrl+Z để hoàn tác trong đúng một bước."
     ]
@@ -1712,9 +1718,11 @@ export const WRITER_HELP_ENTRIES = [
   ],
   "steps": [
     "Mở tab Bố cục trên thanh ribbon, tới nhóm Nền & Viền trang.",
-    "Bấm nút «Hình mờ» để chọn chữ chèn mờ chéo (DỰ THẢO, MẬT, KHẨN...).",
-    "Bấm nút «Viền trang» để chọn kiểu đường viền bao quanh các trang giấy.",
-    "Bấm Ctrl+Z để hoàn tác hoặc bỏ viền/hình mờ bất kỳ lúc nào."
+    "Bấm nút «Hình mờ» để mở hộp thoại thiết lập hình mờ văn bản (Watermark).",
+    "Chọn từ các mẫu chữ chèn mờ có sẵn (DỰ THẢO, MẬT, TUYỆT MẬT, KHẨN, BẢN SAO) hoặc nhập nội dung tùy ý. Ô nội dung bắt buộc phải có chữ; nếu để trống và bấm Áp dụng, hệ thống sẽ báo lỗi «Vui lòng nhập nội dung hình mờ; để xóa, hãy dùng nút Xóa hình mờ.» và giữ hộp thoại mở.",
+    "Tùy chỉnh góc nghiêng (chéo 45°, −45°, ngang 0°), màu chữ và độ mờ theo ý muốn rồi nhấn Áp dụng.",
+    "Bấm nút «Viền trang» trong cùng nhóm để chọn kiểu nét liền, nét đứt hoặc nét đôi bao quanh các trang giấy.",
+    "Bấm Ctrl+Z để hoàn tác hoặc dùng nút gỡ bỏ trong từng hộp thoại bất kỳ lúc nào."
   ]
 },
 {
@@ -1724,7 +1732,7 @@ export const WRITER_HELP_ENTRIES = [
     "writer.format.paragraphDialog"
   ],
   "title": "Hộp thoại Đoạn văn từ tab Trang đầu",
-  "summary": "Mở hộp thoại Đoạn văn để thiết lập đầy đủ thụt lề, khoảng cách dòng và đoạn văn từ nút mở rộng nhóm Đoạn văn trên tab Trang đầu.",
+  "summary": "Mở hộp thoại Đoạn văn để thiết lập đầy đủ thụt lề, khoảng cách dòng và đoạn văn từ nút mở rộng nhóm Đoạn văn trên tab Trang đầu hoặc Bố cục.",
   "ribbon": {
     "tab": "Trang đầu",
     "tabId": "home",
@@ -1733,13 +1741,17 @@ export const WRITER_HELP_ENTRIES = [
   "keywords": [
     "hộp thoại đoạn văn trang đầu",
     "paragraph dialog home",
-    "thụt lề trang đầu"
+    "thụt lề trang đầu",
+    "khoảng cách dòng",
+    "line spacing"
   ],
   "steps": [
-    "Đặt con trỏ trong đoạn văn cần chỉnh sửa.",
-    "Mở tab Trang đầu trên thanh ribbon.",
-    "Nhấp vào nút mũi tên nhỏ ở góc dưới bên phải nhóm Đoạn văn (hoặc chuột phải chọn Đoạn văn...).",
-    "Thay đổi các thông số căn lề, thụt lề, khoảng cách trước/sau và giãn dòng rồi bấm Áp dụng."
+    "Đặt con trỏ trong đoạn văn cần chỉnh sửa hoặc bôi đen nhiều đoạn văn bản.",
+    "Mở tab Trang đầu (hoặc tab Bố cục) trên thanh ribbon.",
+    "Nhấp vào nút mũi tên nhỏ ở góc dưới bên phải nhóm Đoạn văn (launcher) hoặc nhấp chuột phải vào văn bản và chọn Đoạn văn...",
+    "Trong tab «Thụt lề và khoảng cách»: chọn Căn lề, chỉnh Thụt lề trái/phải (mm), Thụt dòng đặc biệt (Dòng đầu tiên hoặc Thụt lề treo) và Khoảng cách trước/sau (pt), Giãn dòng. Nếu nhập giá trị không hợp lệ (ngoài khoảng -100 đến 100 mm cho thụt lề, 0 đến 500 pt cho khoảng cách, hoặc tổng thụt lề vượt quá bề rộng trang), hộp thoại sẽ hiển thị cảnh báo lỗi bằng tiếng Việt và giữ nguyên để sửa lại.",
+    "Chuyển sang tab «Dòng và ngắt trang» để thiết lập các tùy chọn phân trang như Ngắt trang trước đoạn, Giữ với đoạn kế tiếp hoặc Kiểm soát dòng đầu/cuối mồ côi.",
+    "Bấm Áp dụng (hoặc nhấn Enter) để thực hiện định dạng; bấm Đặt lại để quay về thông số ban đầu, hoặc bấm Hủy / nhấn Esc để đóng hộp thoại mà không thay đổi."
   ]
 }
 ];

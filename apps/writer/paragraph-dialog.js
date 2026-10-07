@@ -4,6 +4,8 @@
  * hoặc nhấp chuột phải ▸ Đoạn văn…
  */
 
+import { t } from "../../platform/i18n/i18n.js";
+
 export const LINE_MODES = [
   { id: "single", label: "Đơn", value: 1 },
   { id: "onehalf", label: "1,5 dòng", value: 1.5 },
@@ -32,10 +34,10 @@ const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 function readNumber(raw, key, fallback, min, max, label) {
   if (!Object.prototype.hasOwnProperty.call(raw, key)) return { value: fallback };
   const source = String(raw[key] ?? "").trim().replace(",", ".");
-  if (!source) return { error: `Vui lòng nhập ${label}.` };
+  if (!source) return { error: t("writerDialogs.paragraph.fieldRequired", { label }) };
   const value = Number(source);
-  if (!Number.isFinite(value)) return { error: `${label} phải là một số hợp lệ.` };
-  if (value < min || value > max) return { error: `${label} phải nằm trong khoảng ${min}–${max}.` };
+  if (!Number.isFinite(value)) return { error: t("writerDialogs.paragraph.invalidNumber", { label }) };
+  if (value < min || value > max) return { error: t("writerDialogs.paragraph.rangeError", { label, min, max }) };
   return { value };
 }
 
@@ -44,16 +46,23 @@ function readNumber(raw, key, fallback, min, max, label) {
  * Đơn vị: thụt lề cm, khoảng cách và giãn dòng "chính xác" pt, "nhiều dòng" là hệ số.
  */
 export function normalizeParagraphDialogValues(raw = {}, contentWidthMm = 160) {
+  const leftLabel = t("writerDialogs.paragraph.leftIndent", "Thụt lề trái");
+  const rightLabel = t("writerDialogs.paragraph.rightIndent", "Thụt lề phải");
+  const specialLabel = t("writerDialogs.paragraph.specialIndent", "Giá trị thụt lề đặc biệt");
+  const beforeLabel = t("writerDialogs.paragraph.beforeSpacing", "Khoảng cách trước đoạn");
+  const afterLabel = t("writerDialogs.paragraph.afterSpacing", "Khoảng cách sau đoạn");
+  const lineLabel = t("writerDialogs.paragraph.lineSpacing", "Giá trị giãn dòng");
+
   const align = ALIGN_OPTIONS.some(item => item.id === raw.align) ? raw.align : "left";
-  const leftResult = readNumber(raw, "leftCm", 0, 0, 50, "Thụt lề trái");
-  const rightResult = readNumber(raw, "rightCm", 0, 0, 50, "Thụt lề phải");
+  const leftResult = readNumber(raw, "leftCm", 0, 0, 50, leftLabel);
+  const rightResult = readNumber(raw, "rightCm", 0, 0, 50, rightLabel);
   if (leftResult.error || rightResult.error) return { error: leftResult.error || rightResult.error };
   const leftCm = leftResult.value;
   const rightCm = rightResult.value;
   const special = SPECIAL_OPTIONS.some(item => item.id === raw.special) ? raw.special : "none";
-  const specialResult = special === "none" ? { value: 0 } : readNumber(raw, "specialCm", 1.27, 0, 50, "Giá trị thụt lề đặc biệt");
-  const beforeResult = readNumber(raw, "beforePt", 0, 0, 240, "Khoảng cách trước đoạn");
-  const afterResult = readNumber(raw, "afterPt", 0, 0, 240, "Khoảng cách sau đoạn");
+  const specialResult = special === "none" ? { value: 0 } : readNumber(raw, "specialCm", 1.27, 0, 50, specialLabel);
+  const beforeResult = readNumber(raw, "beforePt", 0, 0, 240, beforeLabel);
+  const afterResult = readNumber(raw, "afterPt", 0, 0, 240, afterLabel);
   if (specialResult.error || beforeResult.error || afterResult.error) return { error: specialResult.error || beforeResult.error || afterResult.error };
   const specialCm = specialResult.value;
   const beforePt = beforeResult.value;
@@ -61,15 +70,15 @@ export function normalizeParagraphDialogValues(raw = {}, contentWidthMm = 160) {
   const lineMode = LINE_MODES.some(item => item.id === raw.lineMode) ? raw.lineMode : "single";
   let lineValue = LINE_MODES.find(item => item.id === lineMode)?.value || 1;
   if (lineMode === "multiple" || lineMode === "exact") {
-    const lineResult = readNumber(raw, "lineValue", lineMode === "exact" ? 18 : 1, lineMode === "multiple" ? 0.5 : 1, lineMode === "multiple" ? 10 : 1584, "Giá trị giãn dòng");
+    const lineResult = readNumber(raw, "lineValue", lineMode === "exact" ? 18 : 1, lineMode === "multiple" ? 0.5 : 1, lineMode === "multiple" ? 10 : 1584, lineLabel);
     if (lineResult.error) return { error: lineResult.error };
     lineValue = lineResult.value;
   }
   if ((leftCm + rightCm) * 10 > contentWidthMm - 10) {
-    return { error: "Tổng thụt lề trái và phải quá lớn so với bề rộng trang. Hãy giảm thụt lề." };
+    return { error: t("writerDialogs.paragraph.indentTotalTooLarge", "Tổng thụt lề trái và phải quá lớn so với bề rộng trang. Hãy giảm thụt lề.") };
   }
   if (special === "hanging" && leftCm - specialCm < 0) {
-    return { error: "Thụt lề treo không được lớn hơn thụt lề trái. Hãy tăng Trái hoặc giảm Giá trị." };
+    return { error: t("writerDialogs.paragraph.hangingIndentTooLarge", "Thụt lề treo không được lớn hơn thụt lề trái. Hãy tăng Trái hoặc giảm Giá trị.") };
   }
   return {
     values: {

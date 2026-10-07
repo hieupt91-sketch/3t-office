@@ -438,7 +438,7 @@ export async function showDiagramDialog(currentOptions = null) {
       if (rawValue === "" || !Number.isInteger(count) || count < 3 || count > 6) {
         if (errorMessage) {
           errorMessage.hidden = false;
-          errorMessage.textContent = "Vui lòng nhập số nguyên từ 3 đến 6.";
+          errorMessage.textContent = t("writerDialogs.diagram.countError", "Vui lòng nhập số nguyên từ 3 đến 6.");
         }
         countInput?.setAttribute("aria-invalid", "true");
         countInput?.focus();
@@ -728,7 +728,7 @@ export async function showChartDialog(currentOptions = null) {
       if (invalidIndex >= 0) {
         if (errorMessage) {
           errorMessage.hidden = false;
-          errorMessage.textContent = `Vui lòng nhập giá trị số hợp lệ cho mục ${invalidIndex + 1}.`;
+          errorMessage.textContent = t("writerDialogs.chart.itemValueError", { index: invalidIndex + 1 });
         }
         valInputs[invalidIndex].setAttribute("aria-invalid", "true");
         valInputs[invalidIndex].focus();

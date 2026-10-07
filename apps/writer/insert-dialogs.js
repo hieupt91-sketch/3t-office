@@ -200,20 +200,20 @@ export function showBookmarkDialog(options = {}) {
     overlay.innerHTML = `
       <div class="vno-dialog-box" style="width: 420px;" role="dialog" aria-modal="true" aria-labelledby="vno-bookmark-title">
         <div class="vno-dialog-header">
-          <span id="vno-bookmark-title">${isEn ? "Bookmark" : "Đánh dấu"}</span>
+          <span id="vno-bookmark-title">${t("writerDialogs.bookmark.title", isEn ? "Bookmark" : "Đánh dấu")}</span>
           <button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${t("common.close")}" aria-label="${t("common.close")}">&times;</button>
         </div>
         <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:10px;">
-          <label for="vno-bookmark-input" style="font-size:13px;font-weight:500;">${isEn ? "Bookmark name" : "Tên đánh dấu"}</label>
+          <label for="vno-bookmark-input" style="font-size:13px;font-weight:500;">${t("writerDialogs.bookmark.nameLabel", isEn ? "Bookmark name" : "Tên đánh dấu")}</label>
           <input id="vno-bookmark-input" class="vno-dialog-input" type="text" value="${String(defaultName).replace(/"/g, "&quot;")}"
             aria-describedby="vno-bookmark-error"
             style="width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid var(--vno-border-default);border-radius:6px;font-size:13px;" />
           <p id="vno-bookmark-error" class="vno-dialog-error" role="alert" hidden
-            style="margin:0;color:var(--vno-color-error,#b91c1c);font-size:12px;">${t("writerDialogs.bookmark.nameRequired")}</p>
+            style="margin:0;color:var(--vno-color-error,#b91c1c);font-size:12px;">${t("writerDialogs.bookmark.nameRequired", "Vui lòng nhập tên đánh dấu.")}</p>
         </div>
         <div class="vno-dialog-footer">
           <button type="button" class="vno-btn vno-dialog-cancel-btn">${t("common.cancel")}</button>
-          <button type="button" class="vno-btn vno-btn-primary vno-dialog-ok-btn">${isEn ? "Insert" : "Chèn"}</button>
+          <button type="button" class="vno-btn vno-btn-primary vno-dialog-ok-btn">${t("common.insert", isEn ? "Insert" : "Chèn")}</button>
         </div>
       </div>
     `;

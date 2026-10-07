@@ -27,6 +27,7 @@ export const enStrings = {
     themeLight: "Light Theme",
     notice: "Notice",
     confirm: "OK",
+    promptRequired: "Please enter content before continuing.",
     featurePendingNotice: "This feature is being completed and will be available in the next update."
   },
   help: {
@@ -908,7 +909,22 @@ export const enStrings = {
       close: "Close",
       marginRangeError: "Page margins must be numbers from 0 to 100 mm."
     },
+    paragraph: {
+      leftIndent: "Left indentation",
+      rightIndent: "Right indentation",
+      specialIndent: "Special indentation value",
+      beforeSpacing: "Spacing before",
+      afterSpacing: "Spacing after",
+      lineSpacing: "Line spacing value",
+      fieldRequired: "Please enter {label}.",
+      invalidNumber: "{label} must be a valid number.",
+      rangeError: "{label} must be between {min}–{max}.",
+      indentTotalTooLarge: "Total left and right indentation is too large for the page width. Please decrease indentation.",
+      hangingIndentTooLarge: "Hanging indentation cannot be greater than left indentation. Increase Left or decrease Value."
+    },
     bookmark: {
+      title: "Bookmark",
+      nameLabel: "Bookmark name",
       nameRequired: "Enter a bookmark name."
     },
     sections: {
@@ -957,7 +973,9 @@ export const enStrings = {
       preview: "Preview",
       removeColumns: "Remove columns (1 column)",
       apply: "Apply",
-      cancel: "Cancel"
+      cancel: "Cancel",
+      countError: "Number of columns must be an integer from 1 to 4.",
+      gapError: "Column gap must be a number from 0 to 50 mm."
     },
     watermark: {
       title: "Watermark",
@@ -1122,7 +1140,14 @@ export const enStrings = {
     },
     hyperlink: {
       title: "Insert Hyperlink",
-      message: "Enter hyperlink URL:"
+      message: "Enter hyperlink URL:",
+      invalidUrl: "Please enter a valid link address."
+    },
+    diagram: {
+      countError: "Please enter an integer from 3 to 6."
+    },
+    chart: {
+      itemValueError: "Please enter a valid numeric value for item {index}."
     },
     toc: {
       title: "TABLE OF CONTENTS",
