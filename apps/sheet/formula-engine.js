@@ -11,7 +11,7 @@ export const FUNCTION_CATALOG = [
   // Toán học & Lượng giác
   { name: "SUM", category: "Toán học", syntax: "SUM(number1, [number2], ...)", desc: "Tính tổng tất cả các số trong một phạm vi ô được chọn." },
   { name: "PRODUCT", category: "Toán học", syntax: "PRODUCT(number1, [number2], ...)", desc: "Nhân tất cả các số được cung cấp làm đối số và trả về tích." },
-  { name: "ROUND", category: "Toán học", syntax: "ROUND(number, num_digits)", desc: "Làm tròn một số đến số lượng chữ số thập phân đã định trước (làm tròn nửa ra xa số 0 chuẩn Excel)." },
+  { name: "ROUND", category: "Toán học", syntax: "ROUND(number, num_digits)", desc: "Làm tròn một số đến số lượng chữ số thập phân đã định trước (làm tròn nửa ra xa số 0)." },
   { name: "ABS", category: "Toán học", syntax: "ABS(number)", desc: "Trả về giá trị tuyệt đối của một số." },
   { name: "INT", category: "Toán học", syntax: "INT(number)", desc: "Làm tròn một số xuống số nguyên gần nhất." },
   { name: "MOD", category: "Toán học", syntax: "MOD(number, divisor)", desc: "Trả về số dư sau khi chia một số cho một số chia." },

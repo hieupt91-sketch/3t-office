@@ -300,7 +300,7 @@ export const VI_FORMULA_CATALOG = [
   {
     name: "ROUND",
     category: "Toán học",
-    desc: "Làm tròn một số đến số lượng chữ số thập phân đã định trước (làm tròn nửa ra xa số 0 chuẩn Excel).",
+    desc: "Làm tròn một số đến số lượng chữ số thập phân đã định trước (làm tròn nửa ra xa số 0).",
     syntax: "ROUND(number, num_digits)",
     syntaxVi: "ROUND(số, số_chữ_số)",
     params: [
