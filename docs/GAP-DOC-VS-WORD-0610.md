@@ -247,7 +247,7 @@ Xếp theo quan trọng × cỡ việc; điểm phục vụ thứ tự xử lý.
 
 ## C. 10 checklist CDP + XML đầu tiên
 
-Kiểm tra `word/document.xml`, `styles.xml`, `numbering.xml`, `header*.xml`, `footer*.xml` và relationships trong DOCX.
+Kiểm tra `word/document.xml`, `styles.xml`, umbering.xml`, `header*.xml`, `footer*.xml` và relationships trong DOCX.
 1. [ ] **Công văn A4/lề:** CDP chọn A4, bốn lề; XML `w:pgSz` khoảng 11906×16838 twips, `w:pgMar` đúng mm ±1mm.
 2. [ ] **TNR 13:** Chọn toàn văn; XML `w:rFonts` Times New Roman và `w:sz=26`.
 3. [ ] **Heading quyết định:** Áp Heading 1/2; XML `w:pStyle` đúng và text giữ nguyên.
@@ -367,7 +367,7 @@ Kết quả tổng cộng 40 dòng ma trận còn lại (các dòng MỘT PHẦN
 
 Tuân thủ nghiêm ngặt quy tắc không sửa mã sản phẩm trong đợt kiểm chứng này. Dòng FAIL duy nhất (`Xem — Tìm theo tiêu đề`) xác nhận thiếu ngăn dẫn hướng, đúng theo tài liệu kế hoạch `PLAN-WRITER-NAV-PANE.md`. 7 dòng BLOCKED được ghi nhận đúng do phụ thuộc hộp thoại OS hoặc thiết bị in phần cứng.
 
-`n## Cập nhật sửa lỗi 07/10/2026 — WF2 Codex
+## Cập nhật sửa lỗi 07/10/2026 — WF2 Codex
 
 Đã sửa ba lỗi D30 và chạy lại cùng acceptance trên app desktop thật (`main.py` + CDP, `LOCALAPPDATA` riêng; không dùng web/Playwright): **25 PASS, 0 FAIL, 0 BLOCKED**.
 
@@ -377,4 +377,4 @@ Tuân thủ nghiêm ngặt quy tắc không sửa mã sản phẩm trong đợt 
 | Xem — Cửa sổ mới | Lỗi thật: `WriterViewController` gọi thẳng `window.open`, bỏ qua cầu nối desktop đã có. Lệnh nay đi qua `AppShell`/`UnoBridge`/pywebview; CDP thấy số target tăng `1 → 2`. Fallback trình duyệt vẫn nằm trong `UnoBridge`. |
 | Xem — Trang hiện tại/thanh trạng thái | Lỗi thật: chuỗi status ghi cứng `Trang 1`. Adapter nay tính trang caret theo các dải live pagination và cập nhật khi selection đổi; acceptance hiện đúng `Trang 3 / 4`. Assertion D30 được sửa để tính trang kỳ vọng từ vị trí caret: dải trang thứ tư nằm trước `saiiichinhta`, không nằm trước `TRANG KÝ TÊN`, nên giả định cũ “caret luôn ở trang cuối” là sai. |
 
-Regression: `node tests/run-tests.js` đạt **2863/2863 PASS, 0 FAIL**. Không dùng Word COM trong WF2; sau acceptance không còn tiến trình `main.py` của worktree.
+Regression: ode tests/run-tests.js` đạt **2863/2863 PASS, 0 FAIL**. Không dùng Word COM trong WF2; sau acceptance không còn tiến trình `main.py` của worktree.
