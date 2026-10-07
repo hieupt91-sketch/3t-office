@@ -1029,5 +1029,46 @@ export async function runFormulaEngineTests() {
           sb9Nhom3Engine.evaluate("=LOOKUP(5, A1:A3, B1:B3)") === "#N/A"
   });
 
+  // 16. SB9 NHÓM 4: Cải tiến hàm INDEX hàng/cột 0, mảng 1 hàng và ô trống
+  const sb9Nhom4Cells = new Map([
+    ["A1", { val: 10, formula: "", style: {} }],
+    ["A2", { val: 20, formula: "", style: {} }],
+    ["A3", { val: 30, formula: "", style: {} }],
+    ["B1", { val: 1, formula: "", style: {} }],
+    ["C1", { val: 2, formula: "", style: {} }],
+    ["D1", { val: 3, formula: "", style: {} }],
+    ["E1", { val: 100, formula: "", style: {} }],
+    ["F1", { val: 10, formula: "", style: {} }],
+    ["E2", { val: 200, formula: "", style: {} }],
+    ["F2", { val: 20, formula: "", style: {} }],
+    ["G1", { val: "", formula: "", style: {} }]
+  ]);
+  const sb9Nhom4Engine = new FormulaEngine(sb9Nhom4Cells);
+  results.push({
+    name: "SB9 NHÓM 4: INDEX trên bảng 1 cột với cột 0",
+    pass: sb9Nhom4Engine.evaluate("=INDEX(A1:A3, 2, 0)") === 20
+  });
+  results.push({
+    name: "SB9 NHÓM 4: INDEX trên bảng 1 hàng với hàng 0",
+    pass: sb9Nhom4Engine.evaluate("=INDEX(B1:D1, 0, 2)") === 2
+  });
+  results.push({
+    name: "SB9 NHÓM 4: INDEX trên bảng 1 hàng chỉ truyền 1 tham số (coi là cột)",
+    pass: sb9Nhom4Engine.evaluate("=INDEX(B1:D1, 3)") === 3
+  });
+  results.push({
+    name: "SB9 NHÓM 4: INDEX hàng 0 trong hàm SUM tính đúng toàn bộ cột",
+    pass: sb9Nhom4Engine.evaluate("=SUM(INDEX(E1:F2, 0, 2))") === 30
+  });
+  results.push({
+    name: "SB9 NHÓM 4: INDEX ô kết quả trống trả về 0",
+    pass: sb9Nhom4Engine.evaluate("=INDEX(G1, 1, 1)") === 0
+  });
+  results.push({
+    name: "SB9 NHÓM 4: INDEX chỉ số âm trả về #VALUE!",
+    pass: sb9Nhom4Engine.evaluate("=INDEX(A1:A3, -1, 1)") === "#VALUE!" &&
+          sb9Nhom4Engine.evaluate("=INDEX(A1:A3, 1, -1)") === "#VALUE!"
+  });
+
   return results;
 }

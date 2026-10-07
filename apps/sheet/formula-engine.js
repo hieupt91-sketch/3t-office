@@ -1248,10 +1248,52 @@ export class FormulaEngine {
       }
 
       case "INDEX": {
+        if (args.length < 2) return "#VALUE!";
         const matrix = this._rangeMatrix(args[0]);
-        const row = Number(this._resolveSingleValue(args[1]));
-        const col = args[2] === undefined ? 1 : Number(this._resolveSingleValue(args[2]));
-        return row >= 1 && col >= 1 && matrix[row - 1]?.[col - 1] !== undefined ? matrix[row - 1][col - 1] : "#REF!";
+        if (!matrix || !matrix.length || !matrix[0]) return "#REF!";
+
+        const rowArg = this._resolveSingleValue(args[1]);
+        if (this._isError(rowArg)) return rowArg;
+        let row = Number(rowArg);
+        if (Number.isNaN(row) || row < 0) return "#VALUE!";
+
+        let colArg = args[2] !== undefined ? this._resolveSingleValue(args[2]) : undefined;
+        if (colArg !== undefined && this._isError(colArg)) return colArg;
+        let col = colArg !== undefined ? Number(colArg) : undefined;
+        if (col !== undefined && (Number.isNaN(col) || col < 0)) return "#VALUE!";
+
+        const numRows = matrix.length;
+        const numCols = matrix[0].length;
+
+        // If array has only one row and col is omitted, row_num is used as col_num
+        if (numRows === 1 && col === undefined) {
+          col = row;
+          row = 1;
+        } else if (col === undefined) {
+          col = 1;
+        }
+
+        // Bounds checking
+        if (row > numRows || col > numCols) return "#REF!";
+
+        // Handle 1-column array with col = 0
+        if (numCols === 1 && col === 0) col = 1;
+        // Handle 1-row array with row = 0
+        if (numRows === 1 && row === 0) row = 1;
+
+        if (row === 0 && col === 0) {
+          return matrix.flat();
+        }
+        if (row === 0) {
+          return matrix.map(r => r[col - 1]);
+        }
+        if (col === 0) {
+          return matrix[row - 1];
+        }
+
+        const cellValue = matrix[row - 1]?.[col - 1];
+        if (cellValue === undefined) return "#REF!";
+        return cellValue === "" ? 0 : cellValue;
       }
 
       case "MATCH": {
