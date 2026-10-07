@@ -2838,6 +2838,7 @@ export class WriterAdapter {
     html = this._upgradeImportedTrackChangeMarkup(html);
     if (ooxmlDocumentXml) {
       html = this._applyOoxmlTableColumnGeometry(html, ooxmlDocumentXml);
+      html = this._applyOoxmlTableRowHeights(html, ooxmlDocumentXml);
       // W53: padding dọc ô = w:tcMar (LibreOffice chỉ ghi padding-bottom). Trước W44b để viền cộng lên lề thật.
       html = this._applyOoxmlTableCellMargins(html, ooxmlDocumentXml);
     }
@@ -3736,6 +3737,9 @@ export class WriterAdapter {
         if (eff.line !== null && eff.line !== undefined) {
           if (eff.lineRule === "exact") decls.push(`line-height: ${Math.round(eff.line / 20 * 100) / 100}pt`);
           else if (eff.lineRule === "auto") decls.push(`line-height: ${Math.round(eff.line / 240 * 10000) / 100}%`);
+        } else if (spec.own || tableStyle) {
+          // WF1: explicit w:spacing without w:line means Word's default single spacing.
+          decls.push("line-height: 100%");
         }
         if (!decls.length) return tag;
         const styleMatch = attrs.match(/\bstyle=(["'])([^"']*)\1/i);
@@ -5436,6 +5440,107 @@ export class WriterAdapter {
 
   _applyOoxmlTableColumnGeometry(html, ooxmlDocumentXml) {
     return this._runWithRangeVerify("tableColumnGeometry", incremental => this._applyOoxmlTableColumnGeometryCore(html, ooxmlDocumentXml, incremental));
+  }
+
+  /** WF1: restore minimum heights from top-level w:tr rows; exact heights need separate pagination semantics. */
+  _applyOoxmlTableRowHeights(html, ooxmlDocumentXml) {
+    const source = String(html || "");
+    const xml = this._ooxmlBodyParagraphSource(String(ooxmlDocumentXml || ""));
+    if (!/<table\b/i.test(source) || !/<w:trHeight\b/i.test(xml)) return source;
+
+    const tableRanges = (text, openPattern, closePattern) => {
+      const ranges = [];
+      const stack = [];
+      const re = new RegExp(`${openPattern}|${closePattern}`, "gi");
+      const closeRe = new RegExp(`^${closePattern}`, "i");
+      let match;
+      while ((match = re.exec(text))) {
+        if (closeRe.test(match[0])) {
+          const start = stack.pop();
+          if (start !== undefined) ranges.push({ start, end: match.index + match[0].length });
+        } else {
+          stack.push(match.index);
+        }
+      }
+      return ranges.sort((a, b) => a.start - b.start);
+    };
+
+    const xmlTables = tableRanges(xml, "<w:tbl(?:\\s[^>]*)?>", "<\\/w:tbl>");
+    let htmlTables = tableRanges(source, "<table\\b[^>]*>", "<\\/table\\s*>");
+    const excludedZones = [];
+    const zoneRe = /<div\b[^>]*(?:\btitle=["'](?:header|footer)["']|\bid=["']sd(?:foot|end)note\d*["'])[^>]*>/gi;
+    let zone;
+    while ((zone = zoneRe.exec(source))) {
+      const divRe = /<div\b[^>]*>|<\/div\s*>/gi;
+      divRe.lastIndex = zone.index;
+      let depth = 0; let token;
+      while ((token = divRe.exec(source))) {
+        depth += /^<\/div/i.test(token[0]) ? -1 : 1;
+        if (depth === 0) { excludedZones.push({ start: zone.index, end: token.index + token[0].length }); break; }
+      }
+    }
+    htmlTables = htmlTables.filter(table => !excludedZones.some(zoneRange => table.start >= zoneRange.start && table.start < zoneRange.end));
+    if (!xmlTables.length || xmlTables.length !== htmlTables.length) return source;
+
+    const xmlRows = ({ start, end }) => {
+      const table = xml.slice(start, end);
+      const rows = [];
+      const re = /<w:tbl(?:\s[^>]*)?>|<\/w:tbl>|<w:tr\b[^>]*>|<\/w:tr>/gi;
+      let depth = 0; let rowStart = -1; let match;
+      while ((match = re.exec(table))) {
+        const tag = match[0].toLowerCase();
+        if (tag.startsWith("<w:tbl")) depth++;
+        else if (tag.startsWith("</w:tbl")) depth--;
+        else if (tag.startsWith("<w:tr") && depth === 1) rowStart = match.index;
+        else if (tag.startsWith("</w:tr") && depth === 1 && rowStart >= 0) {
+          const row = table.slice(rowStart, match.index + match[0].length);
+          const height = row.match(/<w:trHeight\b([^>]*)\/?\s*>/i)?.[1] || "";
+          const value = Number(height.match(/\bw:val=["'](\d+)["']/i)?.[1]);
+          const rule = height.match(/\bw:hRule=["']([^"']+)["']/i)?.[1] || "atLeast";
+          rows.push(rule.toLowerCase() !== "exact" && Number.isFinite(value) && value > 0 ? value / 20 : null);
+          rowStart = -1;
+        }
+      }
+      return rows;
+    };
+    const htmlRows = ({ start, end }) => {
+      const table = source.slice(start, end);
+      const rows = [];
+      const re = /<table\b[^>]*>|<\/table\s*>|<tr\b[^>]*>/gi;
+      let depth = 0; let match;
+      while ((match = re.exec(table))) {
+        const tag = match[0].toLowerCase();
+        if (tag.startsWith("<table")) depth++;
+        else if (tag.startsWith("</table")) depth--;
+        else if (depth === 1) rows.push({ start: start + match.index, tag: match[0] });
+      }
+      return rows;
+    };
+
+    const edits = [];
+    for (let index = 0; index < xmlTables.length; index++) {
+      const heights = xmlRows(xmlTables[index]);
+      const rows = htmlRows(htmlTables[index]);
+      if (heights.length !== rows.length) continue;
+      for (let row = 0; row < rows.length; row++) {
+        if (heights[row] === null) continue;
+        const pt = Math.round(heights[row] * 1000) / 1000;
+        let tag = rows[row].tag;
+        const style = tag.match(/\bstyle=(["'])([^"']*)\1/i);
+        if (style) {
+          const css = style[2].replace(/(^|;)\s*height\s*:[^;]*/gi, "$1").replace(/;;+/g, ";").replace(/^;\s*/, "").trim();
+          tag = tag.replace(style[0], `style=${style[1]}${css}${css && !css.endsWith(";") ? "; " : ""}height: ${pt}pt;${style[1]}`);
+        } else {
+          tag = tag.replace(/>$/, ` style="height: ${pt}pt;">`);
+        }
+        edits.push({ start: rows[row].start, length: rows[row].tag.length, tag });
+      }
+    }
+    let out = source;
+    for (const edit of edits.sort((a, b) => b.start - a.start)) {
+      out = out.slice(0, edit.start) + edit.tag + out.slice(edit.start + edit.length);
+    }
+    return out;
   }
 
   _applyOoxmlTableColumnGeometryCore(html, ooxmlDocumentXml, incremental) {
