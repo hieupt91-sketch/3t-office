@@ -2659,6 +2659,61 @@ def _restore_source_sheet_names_and_states(workbook_xml: str, source_workbook_xm
     return workbook_xml
 
 
+def _restore_sheet_zoom_step(xlsx_bytes: bytes, source_xlsx_bytes: bytes, replacements: dict[str, str]) -> None:
+    """Restore sheetView zoomScale from source XLSX if dropped or defaulted to 100."""
+    try:
+        source_sheet_entries = _resolve_xlsx_sheet_entries(source_xlsx_bytes)
+        target_sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+        if not source_sheet_entries or not target_sheet_entries:
+            return
+
+        for sheet_name, src_entry in source_sheet_entries.items():
+            tgt_entry = _sheet_name_equivalent_value(target_sheet_entries, sheet_name)
+            if not tgt_entry:
+                continue
+
+            src_xml_bytes = read_zip_entry(source_xlsx_bytes, src_entry)
+            if not src_xml_bytes:
+                continue
+            src_xml = src_xml_bytes.decode("utf-8", errors="replace")
+
+            m_zoom = re.search(r'<sheetView\b[^>]*\bzoomScale=["\'](\d+)["\']', src_xml, re.IGNORECASE)
+            m_zoom_normal = re.search(r'<sheetView\b[^>]*\bzoomScaleNormal=["\'](\d+)["\']', src_xml, re.IGNORECASE)
+            if not m_zoom and not m_zoom_normal:
+                continue
+            zoom_val = m_zoom.group(1) if m_zoom else (m_zoom_normal.group(1) if m_zoom_normal else None)
+            if not zoom_val or zoom_val == "100":
+                continue
+
+            tgt_xml_str = replacements.get(tgt_entry)
+            if tgt_xml_str is None:
+                tgt_bytes = read_zip_entry(xlsx_bytes, tgt_entry)
+                if not tgt_bytes:
+                    continue
+                tgt_xml_str = tgt_bytes.decode("utf-8", errors="replace")
+            elif isinstance(tgt_xml_str, bytes):
+                tgt_xml_str = tgt_xml_str.decode("utf-8", errors="replace")
+
+            sv_match = re.search(r'<sheetView\b([^>]*)>', tgt_xml_str, re.IGNORECASE)
+            if sv_match:
+                tag = sv_match.group(0)
+                if re.search(r'\bzoomScale=["\']\d+["\']', tag):
+                    new_tag = re.sub(r'\bzoomScale=["\']\d+["\']', f'zoomScale="{zoom_val}"', tag, count=1)
+                else:
+                    new_tag = tag[:-1] + f' zoomScale="{zoom_val}">'
+                if m_zoom_normal:
+                    zn_val = m_zoom_normal.group(1)
+                    if re.search(r'\bzoomScaleNormal=["\']\d+["\']', new_tag):
+                        new_tag = re.sub(r'\bzoomScaleNormal=["\']\d+["\']', f'zoomScaleNormal="{zn_val}"', new_tag, count=1)
+                    else:
+                        new_tag = new_tag[:-1] + f' zoomScaleNormal="{zn_val}">'
+                new_tgt_xml = tgt_xml_str[:sv_match.start()] + new_tag + tgt_xml_str[sv_match.end():]
+                if new_tgt_xml != tgt_xml_str:
+                    replacements[tgt_entry] = new_tgt_xml
+    except Exception:
+        pass
+
+
 def _remove_spurious_center_continuous_merges_step(xlsx_bytes: bytes, source_xlsx_bytes: bytes, replacements: dict[str, str]) -> None:
     """Remove merges invented by LibreOffice for source centerContinuous cells."""
     styles = (read_zip_entry(source_xlsx_bytes, XLSX_STYLES_ENTRY) or b"").decode("utf-8", errors="replace")
@@ -3192,6 +3247,7 @@ def postprocess_sheet_xlsx(
         early_copier = _SourceXfCopier(xlsx_bytes, source_xlsx_bytes)
         _restore_formula_results_and_missing_errors_step(xlsx_bytes, source_xlsx_bytes, replacements, early_copier if early_copier.available else None)
         _remove_spurious_center_continuous_merges_step(xlsx_bytes, source_xlsx_bytes, replacements)
+        _restore_sheet_zoom_step(xlsx_bytes, source_xlsx_bytes, replacements)
         if source_fods:
             _restore_untouched_drawings_step(xlsx_bytes, source_fods, source_xlsx_bytes, replacements)
     if source_fods:
