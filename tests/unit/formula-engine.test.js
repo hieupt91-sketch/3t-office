@@ -649,5 +649,148 @@ export async function runFormulaEngineTests() {
     pass: errEngine.evaluate("=IF(A1, 42, 10)") === "#DIV/0!"
   });
 
+  // 4. SB6 MỤC 1: getCellValue chỉ đổi chuỗi sang số khi toàn bộ là số/tiền tệ
+  const sb6Muc1Cells = new Map([
+    ["A1", { val: "Máy in canon LBP 2900", formula: "", style: {} }],
+    ["A2", { val: "24 tháng", formula: "", style: {} }],
+    ["A3", { val: "25.000.000 ₫", formula: "", style: {} }],
+    ["A4", { val: "45.000.000 ₫", formula: "", style: {} }],
+    ["A5", { val: "15.000 VND", formula: "", style: {} }],
+    ["B1", { val: "Canon", formula: "", style: {} }],
+    ["B2", { val: "Máy in canon LBP 2900", formula: "", style: {} }],
+    ["K1", { val: "Canon", formula: "", style: {} }]
+  ]);
+  const sb6Muc1Engine = new FormulaEngine(sb6Muc1Cells);
+
+  results.push({
+    name: 'SB6 MỤC 1: getCellValue giữ nguyên chuỗi chứa số "Máy in canon LBP 2900"',
+    pass: sb6Muc1Engine.getCellValue("A1") === "Máy in canon LBP 2900"
+  });
+  results.push({
+    name: 'SB6 MỤC 1: getCellValue giữ nguyên chuỗi chứa số "24 tháng"',
+    pass: sb6Muc1Engine.getCellValue("A2") === "24 tháng"
+  });
+  results.push({
+    name: 'SB6 MỤC 1: VLOOKUP trả về đúng chuỗi văn bản chứa số "Máy in canon LBP 2900"',
+    pass: sb6Muc1Engine.evaluate("=VLOOKUP(K1, B1:B2, 1, FALSE)") === "Canon"
+  });
+  results.push({
+    name: 'SB6 MỤC 1: getCellValue chuyển chuỗi tiền tệ "25.000.000 ₫" thành 25000000',
+    pass: sb6Muc1Engine.getCellValue("A3") === 25000000
+  });
+  results.push({
+    name: 'SB6 MỤC 1: SUM tính đúng chuỗi tiền tệ (25tr + 45tr = 70.000.000)',
+    pass: sb6Muc1Engine.evaluate("=SUM(A3:A4)") === 70000000
+  });
+  results.push({
+    name: 'SB6 MỤC 1: Phép cộng A1+1 với chuỗi chữ có số trả về #VALUE!',
+    pass: sb6Muc1Engine.evaluate("=A1+1") === "#VALUE!"
+  });
+
+  // 5. SB6 MỤC 2: Tiền tố '+' đầu công thức và toán tử nối chuỗi &
+  const sb6Muc2Cells = new Map([
+    ["B13", { val: " 19200002 ", formula: "", style: {} }],
+    ["F260", { val: "Nguyễn Mạnh", formula: "", style: {} }],
+    ["G260", { val: "Thành", formula: "", style: {} }],
+    ["U1", { val: 44555, formula: "", style: {} }], // 25/12/2021
+    ["G82", { val: "24 tháng", formula: "", style: {} }],
+    ["Z1", { val: "", formula: "", style: {} }]
+  ]);
+  const sb6Muc2Engine = new FormulaEngine(sb6Muc2Cells);
+
+  results.push({
+    name: 'SB6 MỤC 2: =+TRIM(B13) giữ kết quả văn bản không ép về số',
+    pass: sb6Muc2Engine.evaluate("=+TRIM(B13)") === "19200002"
+  });
+  results.push({
+    name: 'SB6 MỤC 2: =+F260&" "&G260 nối chuỗi văn bản chính xác',
+    pass: sb6Muc2Engine.evaluate('=+F260&" "&G260') === "Nguyễn Mạnh Thành"
+  });
+  results.push({
+    name: 'SB6 MỤC 2: =+TEXT(U1,"dd/mm/yyyy") giữ kết quả chuỗi định dạng ngày',
+    pass: sb6Muc2Engine.evaluate('=+TEXT(U1,"dd/mm/yyyy")') === "25/12/2021"
+  });
+  results.push({
+    name: 'SB6 MỤC 2: =+G82 với ô "24 tháng" trả về nguyên văn chuỗi',
+    pass: sb6Muc2Engine.evaluate("=+G82") === "24 tháng"
+  });
+  results.push({
+    name: 'SB6 MỤC 2: =+15 trên số trả về số 15',
+    pass: sb6Muc2Engine.evaluate("=+15") === 15
+  });
+  results.push({
+    name: 'SB6 MỤC 2: Nối chuỗi với ô trống Z1 không sinh ký tự "0"',
+    pass: sb6Muc2Engine.evaluate('=+Z1&"hậu tố"') === "hậu tố"
+  });
+
+  // 6. SB6 MỤC 3: SUMIF với vùng điều kiện nhiều cột và sum_range 1 cột (được định lại kích thước)
+  const sb6Muc3Cells = new Map([
+    ["E1", { val: "A", formula: "", style: {} }],
+    ["F1", { val: "B", formula: "", style: {} }],
+    ["E2", { val: "B", formula: "", style: {} }],
+    ["F2", { val: "A", formula: "", style: {} }],
+    ["H1", { val: 10, formula: "", style: {} }],
+    ["H2", { val: 20, formula: "", style: {} }],
+    ["I1", { val: 100, formula: "", style: {} }],
+    ["I2", { val: 200, formula: "", style: {} }],
+    ["A1", { val: 10, formula: "", style: {} }],
+    ["A2", { val: 20, formula: "", style: {} }],
+    ["A3", { val: 30, formula: "", style: {} }]
+  ]);
+  const sb6Muc3Engine = new FormulaEngine(sb6Muc3Cells);
+
+  results.push({
+    name: 'SB6 MỤC 3: SUMIF vùng điều kiện 2 cột E1:F2 và sum_range 1 cột H1:H2 mở rộng đúng hình dạng (10 + 200 = 210)',
+    pass: sb6Muc3Engine.evaluate('=SUMIF(E1:F2, "A", H1:H2)') === 210
+  });
+  results.push({
+    name: 'SB6 MỤC 3: SUMIF không có sum_range tự cộng trên vùng điều kiện (A1:A3 > 15 -> 50)',
+    pass: sb6Muc3Engine.evaluate('=SUMIF(A1:A3, ">15")') === 50
+  });
+  results.push({
+    name: 'SB6 MỤC 3: SUMIFS vẫn yêu cầu các vùng cùng kích thước nếu khác thì #VALUE!',
+    pass: sb6Muc3Engine.evaluate('=SUMIFS(H1:H2, E1:F2, "A")') === "#VALUE!"
+  });
+
+  // 7. SB6 MỤC 4: Lan truyền mã lỗi tham chiếu (#REF!) và các lỗi nguồn qua phép toán số học
+  const sb6Muc4Cells = new Map([
+    ["C17", { val: "#REF!", formula: "=#REF!+1", style: {} }],
+    ["C18", { val: 0, formula: "=C17+1", style: {} }],
+    ["E1", { val: "#VALUE!", formula: "", style: {} }],
+    ["E2", { val: "#REF!", formula: "", style: {} }],
+    ["E3", { val: "#DIV/0!", formula: "", style: {} }],
+    ["E4", { val: "#N/A", formula: "", style: {} }]
+  ]);
+  const sb6Muc4Engine = new FormulaEngine(sb6Muc4Cells);
+
+  results.push({
+    name: 'SB6 MỤC 4: =#REF!+1 trả về mã lỗi #REF! thay vì chuỗi "#REF!+1"',
+    pass: sb6Muc4Engine.evaluate("=#REF!+1") === "#REF!"
+  });
+  results.push({
+    name: 'SB6 MỤC 4: =1+#REF! trả về mã lỗi #REF!',
+    pass: sb6Muc4Engine.evaluate("=1+#REF!") === "#REF!"
+  });
+  results.push({
+    name: 'SB6 MỤC 4: =+#REF!+1 trả về mã lỗi #REF!',
+    pass: sb6Muc4Engine.evaluate("=+#REF!+1") === "#REF!"
+  });
+  results.push({
+    name: 'SB6 MỤC 4: =#REF!*2 và =-#REF! trả về mã lỗi #REF!',
+    pass: sb6Muc4Engine.evaluate("=#REF!*2") === "#REF!" && sb6Muc4Engine.evaluate("=-#REF!") === "#REF!"
+  });
+  results.push({
+    name: 'SB6 MỤC 4: Tham chiếu ô chứa #REF! (=C17+1) lan truyền #REF!',
+    pass: sb6Muc4Engine.evaluate("=C17+1") === "#REF!"
+  });
+  results.push({
+    name: 'SB6 MỤC 4: Phép cộng nhiều lỗi ưu tiên #REF! trên #VALUE! (=E1+E2)',
+    pass: sb6Muc4Engine.evaluate("=E1+E2") === "#REF!"
+  });
+  results.push({
+    name: 'SB6 MỤC 4: Phép cộng nhiều lỗi ưu tiên #N/A trên #DIV/0! (=E3+E4)',
+    pass: sb6Muc4Engine.evaluate("=E3+E4") === "#N/A"
+  });
+
   return results;
 }

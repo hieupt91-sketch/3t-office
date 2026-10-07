@@ -225,6 +225,24 @@ export class FormulaEngine {
     return typeof this.cellsData === "function" ? this.cellsData() : this.cellsData;
   }
 
+  _parseNumberOrCurrency(raw) {
+    if (typeof raw === "number") return raw;
+    if (raw === null || raw === undefined) return null;
+    const str = String(raw).trim();
+    if (!str) return null;
+    if (!/^\s*[-+]?[\d.,\s]+\s*(?:₫|đ|vnd|vnđ)?\s*$/i.test(str) || !/\d/.test(str)) {
+      return null;
+    }
+    if (!isNaN(Number(str))) {
+      return Number(str);
+    }
+    const cleaned = str.replace(/\./g, "").replace(/[^\d-]/g, "");
+    if (cleaned && !isNaN(Number(cleaned))) {
+      return Number(cleaned);
+    }
+    return null;
+  }
+
   /**
    * Trích xuất giá trị số hoặc chuỗi từ một ô
    */
@@ -233,7 +251,7 @@ export class FormulaEngine {
     if (sheetName && !map) return "#REF!";
     const item = map ? map.get(coord.toUpperCase()) : null;
     if (!item) return 0;
-    const raw = item.val || "";
+    const raw = (item.val !== undefined && item.val !== null) ? item.val : "";
 
     if (this._isError(raw)) return raw;
 
@@ -254,9 +272,10 @@ export class FormulaEngine {
     if (typeof raw === "number") return raw;
 
     // Xử lý chuỗi tiền tệ VNĐ (vd: "25.000.000 ₫" -> loại bỏ dấu chấm hàng nghìn -> 25000000)
-    const cleaned = raw.toString().replace(/\./g, "").replace(/[^\d-]/g, "");
-    if (cleaned && !isNaN(Number(cleaned))) {
-      return Number(cleaned);
+    // Chỉ đổi sang số khi toàn bộ chuỗi là số/số tiền. Chuỗi chứa chữ (vd: "Máy in canon LBP 2900", "24 tháng") giữ nguyên văn bản.
+    const parsed = this._parseNumberOrCurrency(raw);
+    if (parsed !== null) {
+      return parsed;
     }
     return raw;
   }
@@ -306,7 +325,7 @@ export class FormulaEngine {
   }
 
   _isError(value) {
-    return typeof value === "string" && /^#(?:N\/A|VALUE!|REF!|DIV\/0!|NUM!|NAME\?|NULL!|LỖI!)/.test(value);
+    return (typeof value === "string" || value instanceof String) && /^#(?:N\/A|VALUE!|REF!|DIV\/0!|NUM!|NAME\?|NULL!|LỖI!)(?:\s*\(.*\))?$/i.test(String(value).trim());
   }
 
   _sheetNames() {
@@ -410,8 +429,8 @@ export class FormulaEngine {
   collectNumericValues(args) {
     return this.collectValues(args)
       .filter(v => !(v && v.isTextCell) && !this._isError(v))
-      .map(v => typeof v === "number" ? v : Number(v.toString().replace(/[^\d.-]/g, "")))
-      .filter(v => !isNaN(v));
+      .map(v => this._parseNumberOrCurrency(v))
+      .filter(v => v !== null && !isNaN(v));
   }
 
   _rangeValues(range) {
@@ -474,6 +493,51 @@ export class FormulaEngine {
     const singleMatch = ref.match(/^([A-Z]+)(\d+)$/);
     if (singleMatch) {
       return { rows: 1, cols: 1 };
+    }
+    return null;
+  }
+
+  _parseRangeBounds(range) {
+    const reference = this._parseReference(range);
+    if (!reference || reference.error) return null;
+    const ref = reference.ref;
+    if (!ref) return null;
+    const column = ref.match(/^([A-Z]+):([A-Z]+)$/);
+    if (column) {
+      const c1 = this._columnIndex(column[1]);
+      const c2 = this._columnIndex(column[2]);
+      const rows = this._maxUsedRow(reference.sheet);
+      return {
+        sheet: reference.sheet,
+        startCol: Math.min(c1, c2),
+        startRow: 1,
+        cols: Math.abs(c2 - c1) + 1,
+        rows,
+      };
+    }
+    const match = ref.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
+    if (match) {
+      const c1 = this._columnIndex(match[1]);
+      const c2 = this._columnIndex(match[3]);
+      const r1 = parseInt(match[2], 10);
+      const r2 = parseInt(match[4], 10);
+      return {
+        sheet: reference.sheet,
+        startCol: Math.min(c1, c2),
+        startRow: Math.min(r1, r2),
+        cols: Math.abs(c2 - c1) + 1,
+        rows: Math.abs(r2 - r1) + 1,
+      };
+    }
+    const singleMatch = ref.match(/^([A-Z]+)(\d+)$/);
+    if (singleMatch) {
+      return {
+        sheet: reference.sheet,
+        startCol: this._columnIndex(singleMatch[1]),
+        startRow: parseInt(singleMatch[2], 10),
+        cols: 1,
+        rows: 1,
+      };
     }
     return null;
   }
@@ -659,6 +723,64 @@ export class FormulaEngine {
     return this._equals(value, text);
   }
 
+  _splitConcat(expr) {
+    const parts = [];
+    let cur = "";
+    let parenDepth = 0;
+    let inQuotes = false;
+    let hasAmpersand = false;
+
+    for (let i = 0; i < expr.length; i++) {
+      const char = expr[i];
+      if (char === '"' && expr[i - 1] !== "\\") {
+        inQuotes = !inQuotes;
+        cur += char;
+      } else if (char === "(" && !inQuotes) {
+        parenDepth++;
+        cur += char;
+      } else if (char === ")" && !inQuotes) {
+        parenDepth--;
+        cur += char;
+      } else if (char === "&" && parenDepth === 0 && !inQuotes) {
+        hasAmpersand = true;
+        parts.push(cur.trim());
+        cur = "";
+      } else {
+        cur += char;
+      }
+    }
+    if (!hasAmpersand) return null;
+    parts.push(cur.trim());
+    return parts;
+  }
+
+  _resolveConcatOperand(token) {
+    if (typeof token !== "string") return token;
+    let t = token.trim();
+    while (t.startsWith("+")) t = t.substring(1).trim();
+    if (!t) return "";
+
+    if (this._isError(t)) return t;
+
+    if (t.startsWith('"') && t.endsWith('"')) {
+      return t.slice(1, -1);
+    }
+
+    if (/^(?:(?:'(?:[^']|'')+'|[A-Za-zÀ-ỹ0-9_.\s]+)!)?\$?[A-Za-z]+\$?\d+$/i.test(t)) {
+      const reference = this._parseReference(t);
+      if (reference.error) return reference.error;
+      const map = reference.sheet && typeof this.sheetResolver === "function" ? this.sheetResolver(reference.sheet) : this.cellsMap;
+      if (reference.sheet && !map) return "#REF!";
+      const item = map ? map.get(reference.ref.toUpperCase()) : null;
+      if (!item || item.val === undefined || item.val === null || item.val === "") {
+        return "";
+      }
+      return this.getCellValue(reference.ref, reference.sheet);
+    }
+
+    return this.evaluate(`=${t}`);
+  }
+
   /**
    * Tính toán biểu thức công thức (bắt đầu bằng dấu =)
    * @param {string} formula
@@ -666,10 +788,52 @@ export class FormulaEngine {
    */
   evaluate(formula) {
     if (!formula || !formula.startsWith("=")) return formula;
-    const expr = formula.substring(1).trim();
+    let expr = formula.substring(1).trim();
+
+    // Excel prefix '+': tiền tố nhập công thức, không ép về số học
+    while (expr.startsWith("+")) {
+      expr = expr.substring(1).trim();
+    }
+    if (!expr) return 0;
 
     try {
-      // 1. Phân tích hàm có tên: TÊN_HÀM(đối số...)
+      if (this._isError(expr)) {
+        return expr.toUpperCase();
+      }
+
+      // 1. Phép toán nối chuỗi ký tự: &
+      const concatParts = this._splitConcat(expr);
+      if (concatParts) {
+        let errorResult = null;
+        const evaluated = concatParts.map(part => {
+          if (errorResult) return "";
+          const val = this._resolveConcatOperand(part);
+          if (this._isError(val)) {
+            errorResult = val;
+            return "";
+          }
+          if (typeof val === "boolean") return val ? "TRUE" : "FALSE";
+          return String(val ?? "");
+        });
+        if (errorResult) return errorResult;
+        return evaluated.join("");
+      }
+
+      // 2. Tham chiếu ô đơn: =A1, =$A$1, ='Sheet1'!A1
+      if (/^(?:(?:'(?:[^']|'')+'|[A-Za-zÀ-ỹ0-9_.\s]+)!)?\$?[A-Za-z]+\$?\d+$/i.test(expr)) {
+        const reference = this._parseReference(expr);
+        return reference.error || this.getCellValue(reference.ref, reference.sheet);
+      }
+
+      const named = this._resolveNamedRange(expr);
+      if (named) {
+        const expanded = this.expandRange(this._resolveRangeReference(expr));
+        if (expanded && expanded.length === 1) {
+          return this.getCellValue(expanded[0]);
+        }
+      }
+
+      // 3. Phân tích hàm có tên: TÊN_HÀM(đối số...)
       const funcMatch = expr.match(/^([A-Z_.]+)\s*\((.*)\)$/i);
       if (funcMatch) {
         const funcName = funcMatch[1].toUpperCase();
@@ -677,7 +841,7 @@ export class FormulaEngine {
         return this._executeFunction(funcName, rawArgs);
       }
 
-      // 2. Biểu thức toán học số học thông thường: =A1 + B2 * 3
+      // 4. Biểu thức toán học số học thông thường: =A1 + B2 * 3
       return this._evaluateArithmetic(expr);
     } catch (err) {
       console.warn("[FormulaEngine] Lỗi tính toán:", formula, err);
@@ -748,8 +912,8 @@ export class FormulaEngine {
         if (err) return err;
         const nums = rawValues
           .filter(v => !(v && v.isTextCell))
-          .map(v => typeof v === "number" ? v : Number(String(v).replace(/[^\d.-]/g, "")))
-          .filter(v => !isNaN(v));
+          .map(v => this._parseNumberOrCurrency(v))
+          .filter(v => v !== null && !isNaN(v));
         const sum = nums.reduce((acc, v) => acc + v, 0);
         return sum;
       }
@@ -1005,9 +1169,42 @@ export class FormulaEngine {
 
       case "SUMIF": {
         const criteria = this._resolveSingleValue(args[1]);
-        const criteriaValues = this._rangeValues(args[0]);
-        const sumValues = this._rangeValues(args[2] || args[0]);
-        return criteriaValues.reduce((sum, value, index) => sum + (this._matchesCriteria(value, criteria) ? Number(sumValues[index]) || 0 : 0), 0);
+        const critBounds = this._parseRangeBounds(args[0]);
+        if (!critBounds) {
+          const criteriaValues = this._rangeValues(args[0]);
+          const sumValues = this._rangeValues(args[2] || args[0]);
+          return criteriaValues.reduce((sum, value, index) => sum + (this._matchesCriteria(value, criteria) ? Number(sumValues[index]) || 0 : 0), 0);
+        }
+
+        let sumStartCol = critBounds.startCol;
+        let sumStartRow = critBounds.startRow;
+        let sumSheet = critBounds.sheet;
+
+        if (args[2]) {
+          const sumBounds = this._parseRangeBounds(args[2]);
+          if (sumBounds) {
+            sumStartCol = sumBounds.startCol;
+            sumStartRow = sumBounds.startRow;
+            sumSheet = sumBounds.sheet !== null && sumBounds.sheet !== undefined ? sumBounds.sheet : critBounds.sheet;
+          }
+        }
+
+        let total = 0;
+        for (let c = 0; c < critBounds.cols; c++) {
+          for (let r = 0; r < critBounds.rows; r++) {
+            const critCoord = `${this._columnName(critBounds.startCol + c)}${critBounds.startRow + r}`;
+            const critVal = this.getCellValue(critCoord, critBounds.sheet);
+            if (this._isError(critVal)) return critVal;
+            if (this._matchesCriteria(critVal, criteria)) {
+              const sumCoord = `${this._columnName(sumStartCol + c)}${sumStartRow + r}`;
+              const sumVal = this.getCellValue(sumCoord, sumSheet);
+              if (this._isError(sumVal)) return sumVal;
+              const num = typeof sumVal === "number" ? sumVal : (this._parseNumberOrCurrency(sumVal) ?? 0);
+              total += Number(num) || 0;
+            }
+          }
+        }
+        return total;
       }
 
       case "COUNTIFS":
@@ -2172,22 +2369,31 @@ export class FormulaEngine {
   }
 
   _evaluateArithmetic(expr, { raw = false } = {}) {
-    // Thay thế các tọa độ ô (vd: A1, B2) thành giá trị số tương ứng
+    // Thay thế các tọa độ ô (vd: A1, B2) hoặc mã lỗi thành giá trị số tương ứng
     let propagatedError = null;
-    const resolved = expr.replace(/(?:'(?:[^']|'')+'|[A-Za-zÀ-ỹ_][^\s!+\-*/()]*)!\$?[A-Z]+\$?\d+|\$?[A-Z]+\$?\d+/gi, (token) => {
+    const tokenRegex = /(?:'(?:[^']|'')+'|[A-Za-zÀ-ỹ_][^\s!+\-*/()]*)!(?:\$?[A-Z]+\$?\d+|#(?:REF!|N\/A|VALUE!|DIV\/0!|NUM!|NAME\?|NULL!|LỖI!))|\$?[A-Z]+\$?\d+|#(?:REF!|N\/A|VALUE!|DIV\/0!|NUM!|NAME\?|NULL!|LỖI!)/gi;
+    const resolved = expr.replace(tokenRegex, (token) => {
+      const errMatch = token.match(/#(?:REF!|N\/A|VALUE!|DIV\/0!|NUM!|NAME\?|NULL!|LỖI!)/i);
+      if (errMatch) {
+        const errUpper = errMatch[0].toUpperCase();
+        if (!propagatedError || errUpper === "#REF!" || errUpper === "#N/A") {
+          propagatedError = errUpper;
+        }
+        return 0;
+      }
       const reference = this._parseReference(token);
       const val = reference.error || this.getCellValue(reference.ref, reference.sheet);
       if (this._isError(val)) {
-        if (!propagatedError || val === "#N/A") propagatedError = val;
+        if (!propagatedError || val === "#REF!" || val === "#N/A") propagatedError = val;
         return 0;
       }
       if (typeof val === "string" || (val && val.isTextCell)) {
-        const strVal = String(val);
-        const cleaned = strVal.replace(/\./g, "").replace(/[^\d-]/g, "");
-        if (cleaned && !isNaN(Number(cleaned)) && !(val && val.isTextCell)) {
-          return Number(cleaned);
+        if (!(val && val.isTextCell)) {
+          const parsed = this._parseNumberOrCurrency(val);
+          if (parsed !== null) return parsed;
         }
-        if (strVal.trim() !== "" && isNaN(Number(strVal))) {
+        const strVal = String(val);
+        if (strVal.trim() !== "") {
           if (!propagatedError) propagatedError = "#VALUE!";
           return 0;
         }
