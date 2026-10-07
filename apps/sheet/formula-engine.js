@@ -235,6 +235,8 @@ export class FormulaEngine {
     if (!item) return 0;
     const raw = item.val || "";
 
+    if (this._isError(raw)) return raw;
+
     // Giữ nguyên chuỗi ngày để các hàm ngày tháng có thể phân tích, không coi dấu "/" là ký hiệu tiền tệ.
     if (/^\d{1,2}\/\d{1,2}\/\d{4}(?:\s|$)/.test(String(raw).trim())) return raw;
 
@@ -304,7 +306,7 @@ export class FormulaEngine {
   }
 
   _isError(value) {
-    return typeof value === "string" && /^#(?:N\/A|VALUE!|REF!|DIV\/0!|NUM!|NAME\?|LỖI!)/.test(value);
+    return typeof value === "string" && /^#(?:N\/A|VALUE!|REF!|DIV\/0!|NUM!|NAME\?|NULL!|LỖI!)/.test(value);
   }
 
   _sheetNames() {
