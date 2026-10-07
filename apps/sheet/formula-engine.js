@@ -1909,6 +1909,7 @@ export class FormulaEngine {
   _resolveSingleValue(token) {
     if (typeof token !== "string") return token;
     token = token.trim();
+    if (this._isError(token)) return token;
     if (token.startsWith('"') && token.endsWith('"')) {
       return token.slice(1, -1);
     }
@@ -1928,6 +1929,9 @@ export class FormulaEngine {
     if (/[+\-*/^()]/.test(token)) {
       const arith = this._evaluateArithmetic(token, { raw: true });
       if (typeof arith === "number" && Number.isFinite(arith)) {
+        return arith;
+      }
+      if (this._isError(arith)) {
         return arith;
       }
     }
@@ -2066,7 +2070,7 @@ export class FormulaEngine {
       }
     }
 
-    return "#VALUE!";
+    return raw ? null : "#VALUE!";
   }
 }
 

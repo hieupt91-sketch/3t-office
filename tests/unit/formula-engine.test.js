@@ -502,5 +502,40 @@ export async function runFormulaEngineTests() {
       pass: engine.evaluate(formula) === expected
     });
   }
+
+  // IFERROR bắt lỗi số học và lỗi hàm lồng nhau
+  const iferrorCells = new Map([["A1", { val: 0, formula: "", style: {} }]]);
+  const iferrorEngine = new FormulaEngine(iferrorCells);
+  results.push({
+    name: 'Formula: IFERROR(1/0, "fallback") bắt #DIV/0!',
+    pass: iferrorEngine.evaluate('=IFERROR(1/0, "fallback")') === "fallback"
+  });
+  results.push({
+    name: 'Formula: IFERROR(NA(), "missing") bắt #N/A',
+    pass: iferrorEngine.evaluate('=IFERROR(NA(), "missing")') === "missing"
+  });
+  results.push({
+    name: 'Formula: IFERROR(10/2, "fallback") giữ giá trị 5',
+    pass: iferrorEngine.evaluate('=IFERROR(10/2, "fallback")') === 5
+  });
+  results.push({
+    name: 'Formula: IFERROR(IF(A1=0, 1/0, 10), 99) bắt lỗi nhánh IF khi A1=0',
+    pass: iferrorEngine.evaluate('=IFERROR(IF(A1=0, 1/0, 10), 99)') === 99
+  });
+  iferrorCells.set("A1", { val: 1, formula: "", style: {} });
+  iferrorEngine.clearCache();
+  results.push({
+    name: 'Formula: IFERROR(IF(A1=0, 1/0, 10), 99) giữ giá trị 10 khi A1=1',
+    pass: iferrorEngine.evaluate('=IFERROR(IF(A1=0, 1/0, 10), 99)') === 10
+  });
+  results.push({
+    name: 'Formula: IFERROR(SQRT(-1), "neg") bắt #NUM!',
+    pass: iferrorEngine.evaluate('=IFERROR(SQRT(-1), "neg")') === "neg"
+  });
+  results.push({
+    name: 'Formula: IFERROR("hợp lệ", "fb") giữ chuỗi hợp lệ',
+    pass: iferrorEngine.evaluate('=IFERROR("hợp lệ", "fb")') === "hợp lệ"
+  });
+
   return results;
 }
