@@ -971,5 +971,63 @@ export async function runFormulaEngineTests() {
           sb9Nhom2Engine.evaluate('=MATCH("Item~*", A6:A6, 0)') === 1
   });
 
+  // 15. SB9 NHÓM 3: Khớp gần đúng (approximate match) thuật toán tìm kiếm nhị phân Excel
+  const sb9Nhom3Cells = new Map([
+    ["A1", { val: 10, formula: "", style: {} }],
+    ["B1", { val: "Ten", formula: "", style: {} }],
+    ["A2", { val: 20, formula: "", style: {} }],
+    ["B2", { val: "Twenty", formula: "", style: {} }],
+    ["A3", { val: 30, formula: "", style: {} }],
+    ["B3", { val: "Thirty", formula: "", style: {} }],
+    // Bảng không sắp xếp
+    ["D1", { val: 5, formula: "", style: {} }],
+    ["E1", { val: "Nam", formula: "", style: {} }],
+    ["D2", { val: 1, formula: "", style: {} }],
+    ["E2", { val: "Mot", formula: "", style: {} }],
+    ["D3", { val: 9, formula: "", style: {} }],
+    ["E3", { val: "Chin", formula: "", style: {} }],
+    ["D4", { val: 3, formula: "", style: {} }],
+    ["E4", { val: "Ba", formula: "", style: {} }],
+    ["D5", { val: 7, formula: "", style: {} }],
+    ["E5", { val: "Bay", formula: "", style: {} }],
+    // Mảng giảm dần cho MATCH -1
+    ["G1", { val: 30, formula: "", style: {} }],
+    ["G2", { val: 20, formula: "", style: {} }],
+    ["G3", { val: 10, formula: "", style: {} }],
+    // Bảng có lỗi
+    ["H1", { val: "#DIV/0!", formula: "", style: {} }],
+    ["H2", { val: 20, formula: "", style: {} }]
+  ]);
+  const sb9Nhom3Engine = new FormulaEngine(sb9Nhom3Cells);
+  results.push({
+    name: "SB9 NHÓM 3: VLOOKUP approximate khóa nhỏ hơn phần tử đầu trả về #N/A",
+    pass: sb9Nhom3Engine.evaluate("=VLOOKUP(5, A1:B3, 2, TRUE)") === "#N/A"
+  });
+  results.push({
+    name: "SB9 NHÓM 3: VLOOKUP approximate khóa ở giữa và lớn hơn cuối",
+    pass: sb9Nhom3Engine.evaluate("=VLOOKUP(25, A1:B3, 2, TRUE)") === "Twenty" &&
+          sb9Nhom3Engine.evaluate("=VLOOKUP(50, A1:B3, 2, TRUE)") === "Thirty"
+  });
+  results.push({
+    name: "SB9 NHÓM 3: VLOOKUP approximate trên bảng chưa sắp xếp cho kết quả nhị phân 'Mot'",
+    pass: sb9Nhom3Engine.evaluate("=VLOOKUP(6, D1:E5, 2, TRUE)") === "Mot"
+  });
+  results.push({
+    name: "SB9 NHÓM 3: VLOOKUP approximate lan truyền lỗi trong vùng tra",
+    pass: sb9Nhom3Engine.evaluate("=VLOOKUP(15, H1:H2, 1, TRUE)") === "#DIV/0!"
+  });
+  results.push({
+    name: "SB9 NHÓM 3: MATCH approximate type 1 và type -1",
+    pass: sb9Nhom3Engine.evaluate("=MATCH(5, A1:A3, 1)") === "#N/A" &&
+          sb9Nhom3Engine.evaluate("=MATCH(25, A1:A3, 1)") === 2 &&
+          sb9Nhom3Engine.evaluate("=MATCH(35, G1:G3, -1)") === "#N/A" &&
+          sb9Nhom3Engine.evaluate("=MATCH(15, G1:G3, -1)") === 2
+  });
+  results.push({
+    name: "SB9 NHÓM 3: LOOKUP approximate vector",
+    pass: sb9Nhom3Engine.evaluate("=LOOKUP(25, A1:A3, B1:B3)") === "Twenty" &&
+          sb9Nhom3Engine.evaluate("=LOOKUP(5, A1:A3, B1:B3)") === "#N/A"
+  });
+
   return results;
 }

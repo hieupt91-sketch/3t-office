@@ -757,6 +757,96 @@ export class FormulaEngine {
     return found;
   }
 
+  _compareLookupValues(left, right) {
+    if (left === right) return 0;
+    const isLNum = typeof left === "number" && !left.isTextCell;
+    const isRNum = typeof right === "number" && !right.isTextCell;
+    if (isLNum && isRNum) return left - right;
+
+    const isLText = typeof left === "string" || (typeof left === "object" && left instanceof String);
+    const isRText = typeof right === "string" || (typeof right === "object" && right instanceof String);
+    if (isLText && isRText) {
+      return String(left).localeCompare(String(right), undefined, { sensitivity: "accent" });
+    }
+
+    if (typeof left === "boolean" && typeof right === "boolean") {
+      return (left ? 1 : 0) - (right ? 1 : 0);
+    }
+
+    // Excel type order: Number < Text < Boolean < Blank
+    const typeOrder = val => {
+      if (val === null || val === undefined || val === "") return 4;
+      if (typeof val === "number" && !val.isTextCell) return 1;
+      if (typeof val === "string" || (typeof val === "object" && val instanceof String)) return 2;
+      if (typeof val === "boolean") return 3;
+      return 5;
+    };
+    const orderL = typeOrder(left);
+    const orderR = typeOrder(right);
+    if (orderL !== orderR) return orderL - orderR;
+    return String(left).localeCompare(String(right), undefined, { sensitivity: "accent" });
+  }
+
+  _lookupApproximateAscending(candidates, lookup) {
+    if (!candidates || candidates.length === 0) return null;
+
+    const firstKey = candidates[0].key;
+    if (this._isError(firstKey)) return { error: firstKey };
+    if (this._compareLookupValues(firstKey, lookup) > 0) {
+      return null;
+    }
+
+    let low = 0;
+    let high = candidates.length - 1;
+    let best = -1;
+
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      const key = candidates[mid].key;
+      if (this._isError(key)) return { error: key };
+
+      const cmp = this._compareLookupValues(key, lookup);
+      if (cmp <= 0) {
+        best = mid;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+
+    return best >= 0 ? candidates[best] : null;
+  }
+
+  _lookupApproximateDescending(values, lookup) {
+    if (!values || values.length === 0) return -1;
+
+    const firstVal = values[0];
+    if (this._isError(firstVal)) return { error: firstVal };
+    if (this._compareLookupValues(firstVal, lookup) < 0) {
+      return -1;
+    }
+
+    let low = 0;
+    let high = values.length - 1;
+    let best = -1;
+
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      const val = values[mid];
+      if (this._isError(val)) return { error: val };
+
+      const cmp = this._compareLookupValues(val, lookup);
+      if (cmp >= 0) {
+        best = mid;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+
+    return best;
+  }
+
   _compareValues(left, right) {
     if (typeof left === "number" && typeof right === "number") return left - right;
     return String(left).localeCompare(String(right), undefined, { sensitivity: "accent", numeric: true });
@@ -1140,15 +1230,17 @@ export class FormulaEngine {
         const exact = args[3] !== undefined && !Boolean(rangeLookupArg);
 
         if (exact && (lookup === "" || lookup === null || lookup === undefined)) return "#N/A";
-        const indexData = this._getLookupIndex(args[1], matrix, funcName);
         let found = null;
         if (exact) {
+          const indexData = this._getLookupIndex(args[1], matrix, funcName);
           found = this._findExactInLookupIndex(indexData, lookup);
         } else {
-          for (const candidate of indexData.candidates) {
-            if (this._compareValues(candidate.key, lookup) <= 0) found = candidate;
-            else break;
-          }
+          const candidates = funcName === "VLOOKUP"
+            ? matrix.map((row, index) => ({ key: row[0], index }))
+            : matrix[0].map((key, index) => ({ key, index }));
+          const approx = this._lookupApproximateAscending(candidates, lookup);
+          if (approx?.error) return approx.error;
+          found = approx;
         }
         if (!found) return "#N/A";
         const result = funcName === "VLOOKUP" ? matrix[found.index]?.[requestedIndex - 1] : matrix[requestedIndex - 1]?.[found.index];
@@ -1182,13 +1274,20 @@ export class FormulaEngine {
           const index = values.findIndex(value => this._lookupExactEquals(value, lookup));
           return index < 0 ? "#N/A" : index + 1;
         }
-        let found = -1;
-        for (let index = 0; index < values.length; index++) {
-          const comparison = this._compareValues(values[index], lookup);
-          if ((matchType === 1 && comparison <= 0) || (matchType === -1 && comparison >= 0)) found = index;
-          else break;
+        if (matchType > 0) {
+          const candidates = values.map((val, idx) => ({ key: val, index: idx }));
+          const approx = this._lookupApproximateAscending(candidates, lookup);
+          if (approx?.error) return approx.error;
+          return approx ? approx.index + 1 : "#N/A";
         }
-        return found < 0 ? "#N/A" : found + 1;
+
+        if (matchType < 0) {
+          const approxIndex = this._lookupApproximateDescending(values, lookup);
+          if (approxIndex?.error) return approxIndex.error;
+          return approxIndex >= 0 ? approxIndex + 1 : "#N/A";
+        }
+
+        return "#N/A";
       }
 
       case "XLOOKUP": {
@@ -1225,13 +1324,18 @@ export class FormulaEngine {
       case "LOOKUP": {
         if (args.length < 2) return "#VALUE!";
         const lookup = this._resolveSingleValue(args[0]);
+        if (this._isError(lookup)) return lookup;
         const vector = this._rangeValues(args[1]);
         const results = args[2] === undefined ? vector : this._rangeValues(args[2]);
         if (vector.includes("#REF!") || results.includes("#REF!")) return "#REF!";
         if (vector.length !== results.length) return "#N/A";
-        let found = -1;
-        for (let index = 0; index < vector.length; index++) if (this._compareValues(vector[index], lookup) <= 0) found = index;
-        return found < 0 ? "#N/A" : results[found];
+
+        const candidates = vector.map((val, idx) => ({ key: val, index: idx }));
+        const approx = this._lookupApproximateAscending(candidates, lookup);
+        if (approx?.error) return approx.error;
+        if (!approx) return "#N/A";
+        const res = results[approx.index];
+        return res === "" ? 0 : res;
       }
 
       case "CHOOSE": {
