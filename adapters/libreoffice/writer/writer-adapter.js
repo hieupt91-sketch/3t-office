@@ -351,6 +351,7 @@ export class WriterAdapter {
     this._paginationDebounceMs = 250;
     this._paginating = false;
     this._livePageCount = 1;
+    this._liveCurrentPage = 1;
 
     // Mail Merge (Trộn thư) State
     this.mailMergeData = {
@@ -14584,24 +14585,46 @@ export class WriterAdapter {
     return false;
   }
 
+  /**
+   * Trang chứa đầu vùng chọn hiện tại, dựa trên chính các dải ngắt trang mà
+   * live pagination đã chèn. Cách này vẫn đúng khi dải ngắt nằm trong bảng /
+   * danh sách và không bị sai bởi phần chiều cao hiển thị thêm giữa hai trang.
+   */
+  getCurrentPage() {
+    const totalPages = Math.max(1, Number(this._livePageCount) || 1);
+    try {
+      const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+      const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+      const startNode = range?.startContainer;
+      if (!range || !startNode || !(startNode === this.bodyDom || this.bodyDom?.contains?.(startNode))) {
+        return Math.max(1, Math.min(totalPages, Number(this._liveCurrentPage) || 1));
+      }
+
+      let currentPage = 1;
+      const gaps = this.bodyDom?.querySelectorAll?.('[data-vno-auto-page-gap="true"]') || [];
+      for (const gap of gaps) {
+        let isBeforeCaret = false;
+        if (typeof range.comparePoint === "function") {
+          try { isBeforeCaret = range.comparePoint(gap, 0) < 0; } catch { isBeforeCaret = false; }
+        }
+        if (!isBeforeCaret && typeof gap?.compareDocumentPosition === "function") {
+          const following = typeof Node !== "undefined" ? Node.DOCUMENT_POSITION_FOLLOWING : 4;
+          isBeforeCaret = Boolean(gap.compareDocumentPosition(startNode) & following);
+        }
+        if (isBeforeCaret) currentPage++;
+      }
+      this._liveCurrentPage = Math.max(1, Math.min(totalPages, currentPage));
+      return this._liveCurrentPage;
+    } catch {
+      return Math.max(1, Math.min(totalPages, Number(this._liveCurrentPage) || 1));
+    }
+  }
+
   print() {
     this.documentContent = this.editorDom?.innerHTML || this.documentContent;
     const page = this.getPageDimensions();
     const pageSetupLabel = `${this.pageSetup?.size?.toUpperCase() || "A4"} · ${this.pageSetup?.orientation === "landscape" ? "Ngang" : "Dọc"}`;
-    let currentPage = 1;
-    try {
-      const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
-      const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
-      if (range && this.bodyDom?.contains?.(range.startContainer)) {
-        const bodyRect = this.bodyDom.getBoundingClientRect?.();
-        const caretRect = range.getBoundingClientRect?.();
-        if (bodyRect && caretRect && page.heightPx > 0) {
-          const bodyHeight = Math.max(1, page.heightPx - page.topPx - page.bottomPx);
-          const offset = Math.max(0, caretRect.top - bodyRect.top + (this.bodyDom.scrollTop || 0));
-          currentPage = Math.max(1, Math.min(this._livePageCount || 1, Math.floor(offset / bodyHeight) + 1));
-        }
-      }
-    } catch { currentPage = 1; }
+    const currentPage = this.getCurrentPage();
     return withLazyFeatureProgress("writer", "In và xem trước", () => import("../../../platform/print/print-dialog.js"))
       .then(({ openPrintDialog }) => openPrintDialog({
       appKind: "writer",

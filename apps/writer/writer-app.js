@@ -45,7 +45,8 @@ export class WriterApp {
     this.shell = new AppShell({
       appName: "writer",
       appTitle: "Doc",
-      documentName: options.documentName || (isBlank ? "Tài liệu 1.docx" : "Quyết định ban hành tiêu chuẩn 01.docx")
+      documentName: options.documentName || (isBlank ? "Tài liệu 1.docx" : "Quyết định ban hành tiêu chuẩn 01.docx"),
+      onApplyTemplate: (selectedTemplateId) => this._applyTemplate(selectedTemplateId)
     });
     this.shell.mount(this.mountElement);
     this._watchLifecycle();
@@ -114,13 +115,11 @@ export class WriterApp {
     footer.setAttribute("aria-multiline", "true");
     footer.setAttribute("data-placeholder", t("writerDialogs.comments.placeholderFooter"));
 
-    if (isBlank) {
-      body.innerHTML = `<p><br></p>`;
-    } else {
-      header.innerHTML = `<p style="text-align:right; font-size:9.5pt; color:#64748b; margin:0;">3T Office — Mẫu văn bản hành chính</p>`;
-      footer.innerHTML = `<p style="text-align:center; font-size:9.5pt; color:#64748b; margin:0;">Trang 1 / 1</p>`;
-      // Mẫu văn bản chuẩn hóa
-      body.innerHTML = `
+    // Dựng nội dung mẫu một lần rồi giữ bản HTML sạch để thẻ mẫu trong Backstage
+    // có thể áp dụng vào tài liệu đang mở, thay vì chỉ đổi tên tab.
+    header.innerHTML = `<p style="text-align:right; font-size:9.5pt; color:#64748b; margin:0;">3T Office — Mẫu văn bản hành chính</p>`;
+    footer.innerHTML = `<p style="text-align:center; font-size:9.5pt; color:#64748b; margin:0;">Trang 1 / 1</p>`;
+    body.innerHTML = `
       <table style="width:100%; border:none; margin-bottom:18pt;">
         <tr>
           <td style="width:45%; text-align:center; border:none; padding:0; vertical-align:top;">
@@ -172,6 +171,15 @@ export class WriterApp {
         </tr>
       </table>
     `;
+    this._administrativeTemplateHtml = {
+      header: header.innerHTML,
+      body: body.innerHTML,
+      footer: footer.innerHTML
+    };
+    if (isBlank) {
+      header.innerHTML = "";
+      body.innerHTML = `<p><br></p>`;
+      footer.innerHTML = "";
     }
 
     this.canvas.appendChild(header);
@@ -297,6 +305,43 @@ export class WriterApp {
     console.log("[WriterApp] Đã khởi tạo 3T Doc chuẩn hóa cao cấp.");
   }
 
+  async _applyTemplate(templateId) {
+    if (templateId !== "admin_doc" || !this._administrativeTemplateHtml || !this.adapter) return false;
+
+    // Reuse Writer's existing new-document reset so an applied template never
+    // retains the old file path, comments, document styles or undo history.
+    await this.adapter.newDocument();
+    const header = this.canvas?.querySelector?.(".vno-writer-header");
+    const body = this.canvas?.querySelector?.(".vno-writer-body");
+    const footer = this.canvas?.querySelector?.(".vno-writer-footer");
+    if (!body) return false;
+
+    if (header) header.innerHTML = this._administrativeTemplateHtml.header;
+    body.innerHTML = this._administrativeTemplateHtml.body;
+    if (footer) footer.innerHTML = this._administrativeTemplateHtml.footer;
+    this.canvas?.classList?.remove?.("vno-doc-imported");
+
+    this.adapter.sourceFileName = "Quyết định ban hành tiêu chuẩn 01";
+    this.adapter.documentContent = this.canvas?.innerHTML || "";
+    this.adapter.isDirty = false;
+    this.adapter._openedEditorDomHash = this.adapter._editorDomFingerprint?.() || "";
+    this.adapter.clearUndoRedo?.();
+    this.shell?.resetDocumentChrome?.("Quyết định ban hành tiêu chuẩn 01.docx", "home", false);
+    this.adapter._recomputeLivePagination?.();
+
+    const firstBlock = body.querySelector?.("p, h1, table") || body;
+    body.focus?.();
+    const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+    const range = typeof document !== "undefined" ? document.createRange?.() : null;
+    if (selection && range && firstBlock) {
+      range.selectNodeContents(firstBlock);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+    return true;
+  }
+
   async initializeBackgroundServices() {
     const [helpPanel] = await Promise.all([
       this._ensureHelpPanel(),
@@ -413,6 +458,10 @@ export class WriterApp {
     this._normalizers?.forEach(n => n.destroy());
     this._normalizers = [];
     this._closeContextMenu();
+    if (this._statusSelectionChangeHandler && typeof document !== "undefined") {
+      document.removeEventListener?.("selectionchange", this._statusSelectionChangeHandler);
+      this._statusSelectionChangeHandler = null;
+    }
     this.canvas?.querySelector?.(".vno-writer-body")?.removeEventListener?.("contextmenu", this._contextMenuHandler);
     this.helpPanel?.destroy();
     this.helpPanel = null;
@@ -496,9 +545,10 @@ export class WriterApp {
       // Debounce 250ms nên ngay sau khi gõ có thể còn số cũ trong chốc lát — sự kiện
       // "vno-pagination-updated" bên dưới sẽ gọi lại updateStats() khi số mới sẵn sàng.
       const totalPages = Math.max(1, this.adapter?._livePageCount || 1);
+      const currentPage = Math.max(1, Math.min(totalPages, this.adapter?.getCurrentPage?.() || 1));
 
       this.shell.setStatus(
-        `Trang 1 / ${totalPages}  |  Tiếng Việt (NĐ 30/2020/NĐ-CP)`
+        `Trang ${currentPage} / ${totalPages}  |  Tiếng Việt (NĐ 30/2020/NĐ-CP)`
       );
       this._renderWordCountStatus(stats);
     };
@@ -511,6 +561,8 @@ export class WriterApp {
     };
     this.canvas.addEventListener("input", updateStatsSoon);
     this.canvas.addEventListener("vno-pagination-updated", updateStats);
+    this._statusSelectionChangeHandler = updateStatsSoon;
+    if (typeof document !== "undefined") document.addEventListener?.("selectionchange", updateStatsSoon);
     updateStats();
   }
 

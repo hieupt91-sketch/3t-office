@@ -30,6 +30,7 @@ export class AppShell {
    * @param {string} options.appTitle
    * @param {string} [options.documentName="Tài liệu chưa đặt tên"]
    * @param {Function} [options.onSwitchApp]
+   * @param {Function} [options.onApplyTemplate]
    * @param {boolean} [options.singleAppMode=false]
    */
   constructor(options) {
@@ -38,6 +39,7 @@ export class AppShell {
     this.documentName = options.documentName || "Tài liệu 1";
     this.singleAppMode = options.singleAppMode ?? getPlatformLaunchContext().singleAppMode;
     this._onSwitchApp = options.onSwitchApp || null;
+    this._onApplyTemplate = typeof options.onApplyTemplate === "function" ? options.onApplyTemplate : null;
     this.zoomLevel = 100;
     this._zoomListeners = new Set();
     this._setZoomControl = null;
@@ -1745,10 +1747,16 @@ export class AppShell {
     };
   }
 
-  applyTemplate(templateId) {
+  async applyTemplate(templateId) {
     if (templateId === "blank") {
-      globalCommandBus.execute("common.file.new");
-      return;
+      return await globalCommandBus.execute("common.file.new");
+    }
+
+    // Nội dung mẫu thuộc app tương ứng; Shared Platform chỉ điều phối callback,
+    // không biết hay gọi trực tiếp implementation riêng của Writer/Sheet/Slides.
+    if (this._onApplyTemplate) {
+      const handled = await this._onApplyTemplate(templateId);
+      if (handled !== false) return handled;
     }
 
     if (this.appName === "writer" && templateId === "admin_doc") {
@@ -1767,6 +1775,7 @@ export class AppShell {
       if (tabEl) tabEl.textContent = this.documentName;
       this._updateDocumentTitle();
     }
+    return true;
   }
 
   /**

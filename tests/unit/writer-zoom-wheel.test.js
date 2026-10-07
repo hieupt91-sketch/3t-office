@@ -61,13 +61,23 @@ export async function runWriterZoomWheelTests() {
       controller.destroy();
       assert.equal(viewport.removedWheelHandler, viewport.wheelHandler, "wheel listener must be removed on destroy");
       assert.equal(zoomListeners.size, 0, "zoom subscription must be removed on destroy");
+
+      let desktopRequests = 0;
+      let browserOpenCalls = 0;
+      shell.requestNewDocumentWindow = async () => { desktopRequests += 1; return true; };
+      globalThis.window.open = () => { browserOpenCalls += 1; return {}; };
+      assert.equal(await controller.newWindow(), true, "desktop new-window request must succeed");
+      assert.equal(desktopRequests, 1, "Writer must route New Window through AppShell");
+      assert.equal(browserOpenCalls, 0, "desktop New Window must not call window.open directly");
     } finally {
       globalThis.window = oldWindow;
       globalThis.document = oldDocument;
     }
     results.push({ name: "Writer Ctrl+wheel zoom: direction, browser suppression, and listener cleanup", pass: true });
+    results.push({ name: "Writer New Window: dùng cầu nối desktop thay vì window.open", pass: true });
   } catch (error) {
     results.push({ name: "Writer Ctrl+wheel zoom: direction, browser suppression, and listener cleanup", pass: false, error: error.stack || error.message });
+    results.push({ name: "Writer New Window: dùng cầu nối desktop thay vì window.open", pass: false, error: error.stack || error.message });
   }
   return results;
 }

@@ -539,7 +539,8 @@ export const WRITER_HELP_ENTRIES = [
       "Mở tab Chế độ xem, nhóm Dạng xem (ba nút lớn). Mặc định khi mở tài liệu là Bố trí in: thấy khổ giấy, lề, đầu trang, chân trang và đường ngắt trang.",
       "Bố trí Web: nội dung chảy liên tục 100% chiều rộng cửa sổ, ẩn ranh giới trang / ngắt trang / đầu-chân trang — tiện soạn trên màn hình hẹp, không đổi nội dung khi in.",
       "Chế độ đọc: ẩn thanh trên, ribbon và thanh trạng thái, mở rộng vùng chữ. Có thanh thoát tối giản. Nhấn Esc (hoặc nút thoát) để về Bố trí in.",
-      "Ba chế độ chỉ đổi cách nhìn, không sửa chữ. Cùng tab còn nhóm Hiển thị (Thước kẻ, Đường lưới) và Thu phóng."
+      "Ba chế độ chỉ đổi cách nhìn, không sửa chữ. Cùng tab còn nhóm Hiển thị (Thước kẻ, Đường lưới) và Thu phóng.",
+      "Ở Bố trí in, góc trái thanh trạng thái hiển thị «Trang X / Y»: X tự đổi theo vị trí con trỏ, Y là tổng số trang sau khi phân trang. Nhấp vào nội dung ở trang khác để kiểm tra nhanh vị trí hiện tại."
     ]
   },
   {
@@ -567,14 +568,14 @@ export const WRITER_HELP_ENTRIES = [
       "writer.view.newWindow"
     ],
     title: "Thước ngang và thước dọc, đường lưới, vừa khổ trang và cửa sổ mới",
-    summary: "Thước đo ngang và thước đo dọc mặc định bật, đánh dấu lề 30 mm trái / 15 mm phải, lề trên 20 mm / lề dưới 20 mm (NĐ 30/2020/NĐ-CP). Đường lưới 5 mm chỉ để căn, không in. Vừa khổ trang co 50%–200% theo chiều rộng cửa sổ. Cửa sổ mới mở tab trình duyệt cùng URL.",
+    summary: "Thước đo ngang và thước đo dọc mặc định bật, đánh dấu lề 30 mm trái / 15 mm phải, lề trên 20 mm / lề dưới 20 mm (NĐ 30/2020/NĐ-CP). Đường lưới 5 mm chỉ để căn, không in. Vừa khổ trang co 50%–200% theo chiều rộng cửa sổ. Cửa sổ mới mở thêm một tài liệu Writer độc lập.",
     ribbon: { tab: "Chế độ xem", tabId: "view", group: "Hiển thị" },
     keywords: ["thước", "thước ngang", "thước dọc", "ruler", "vertical ruler", "đường lưới", "vừa khổ trang", "chiều rộng trang", "cửa sổ mới", "nđ 30", "lề 30mm"],
     steps: [
       "Mở tab Chế độ xem, tại nhóm Hiển thị: nhấp vào nút «Thước» để bật hoặc tắt đồng thời thước đo ngang và thước đo dọc của trang tài liệu.",
       "Thước ngang hiển thị trên đầu trang văn bản (đánh dấu lề trái 30 mm, lề phải 15 mm theo chuẩn hành chính). Thước dọc hiển thị dọc mép trái vùng soạn thảo (đánh dấu lề trên 20 mm, lề dưới 20 mm) và tự động đồng bộ vị trí khi cuộn trang hoặc thay đổi tỉ lệ thu phóng (zoom).",
       "Nút «Đường lưới» phủ lưới 18.8976 px (~5 mm) màu xanh nhạt giúp căn lề hình ảnh và bảng biểu; đường lưới chỉ hiển thị trên màn hình, không xuất hiện khi in ấn hoặc xuất tệp.",
-      "Nhóm Thu phóng cung cấp tùy chọn «Chiều rộng trang» giúp tự động co giãn khổ giấy vừa khít chiều rộng cửa sổ (kẹp trong phạm vi 50%–200%). Nhóm Cửa sổ cung cấp nút «Cửa sổ mới» để nhân bản tài liệu sang cửa sổ mới phục vụ đối chiếu."
+      "Nhóm Thu phóng cung cấp tùy chọn «Chiều rộng trang» giúp tự động co giãn khổ giấy vừa khít chiều rộng cửa sổ (kẹp trong phạm vi 50%–200%). Nhóm Cửa sổ cung cấp nút «Cửa sổ mới» để mở một tài liệu Writer trắng, độc lập trong cửa sổ desktop mới."
     ]
   },
   {
@@ -1006,8 +1007,8 @@ export const WRITER_HELP_ENTRIES = [
     keywords: ["tệp", "file", "backstage", "alt+f", "mẫu tài liệu", "tệp gần đây", "lưu", "in", "xuất pdf", "trang chủ", "menu tệp"],
     steps: [
       "Mở menu Tệp: Nhấp vào nút màu xanh «Tệp» ở góc trên cùng bên trái thanh Ribbon hoặc nhấn tổ hợp phím Alt+F. Giao diện Backstage toàn màn hình sẽ mở ra với thanh điều hướng màu xanh bên trái và tiêu điểm tự động đặt vào nút 'Quay lại'.",
-      "Màn hình Trang chủ: Hiển thị danh sách mẫu tài liệu chuẩn Việt Nam (Văn bản trống, Quyết định ban hành tiêu chuẩn theo NĐ 30/2020/NĐ-CP) và bảng 'Tài liệu mở gần đây'.",
-      "Chọn mẫu tài liệu: Dùng phím mũi tên Phải để đi vào lưới mẫu, dùng mũi tên duyệt và nhấn Enter hoặc phím Space để khởi tạo văn bản theo mẫu đang chọn.",
+      "Màn hình Trang chủ: Hiển thị danh sách mẫu tài liệu chuẩn Việt Nam (Văn bản trống, Văn bản hành chính theo NĐ 30/2020/NĐ-CP) và bảng 'Tài liệu mở gần đây'.",
+      "Chọn mẫu Văn bản hành chính: dùng phím mũi tên Phải để vào lưới mẫu, chọn thẻ «Văn bản hành chính» rồi nhấn Enter/Space (hoặc nhấp chuột). Doc tạo nội dung Quyết định có quốc hiệu, số văn bản, căn cứ, các điều, nơi nhận và phần ký; sửa trực tiếp các dòng mẫu rồi nhấn Ctrl+S để chọn nơi lưu DOCX.",
       "Mở và quản lý tệp gần đây: Dùng phím mũi tên Xuống để chuyển tới danh sách tệp gần đây. Nhấp chuột hoặc bấm Enter để mở lại tệp. Mỗi hàng tệp có nút 'Gỡ khỏi danh sách' (biểu tượng ×) giúp bạn chủ động loại bỏ tệp đã bị xóa hoặc đổi tên. Nút 'Xóa lịch sử' phía trên cho phép dọn sạch toàn bộ danh sách khi cần.",
       "In tài liệu: Chọn mục «In» trong Tệp hoặc nhấn Ctrl+P. Hộp thoại In tạo PDF tạm từ nội dung hiện tại, hiển thị ảnh từng trang, cho chọn máy in, số bản và phạm vi trang; nhấn In để gửi tài liệu.",
       "Các lệnh tài liệu khác: Các mục 'Tạo mới' (Ctrl+N), 'Mở' (Ctrl+O), 'Lưu' (Ctrl+S), 'Lưu bản sao' (F12) và 'Xuất PDF' đều có thể kích hoạt trực tiếp từ thanh bên trái.",
@@ -1591,8 +1592,8 @@ export const WRITER_HELP_ENTRIES = [
   "commandIds": [
     "writer.view.newWindow"
   ],
-  "title": "Mở tài liệu hiện tại trong cửa sổ mới",
-  "summary": "Nhân bản cửa sổ tài liệu hiện tại sang một cửa sổ độc lập từ nhóm Cửa sổ trên tab Chế độ xem để đối chiếu văn bản.",
+  "title": "Mở cửa sổ Writer mới",
+  "summary": "Mở một tài liệu Writer trắng, độc lập từ nhóm Cửa sổ trên tab Chế độ xem.",
   "ribbon": {
     "tab": "Chế độ xem",
     "tabId": "view",
@@ -1601,14 +1602,14 @@ export const WRITER_HELP_ENTRIES = [
   "keywords": [
     "cửa sổ mới",
     "new window",
-    "nhân bản cửa sổ",
-    "đối chiếu tài liệu"
+    "tài liệu mới",
+    "cửa sổ desktop"
   ],
   "steps": [
     "Mở tab Chế độ xem trên thanh ribbon.",
     "Tại nhóm Cửa sổ, nhấp nút «Cửa sổ mới».",
-    "Ứng dụng mở thêm một cửa sổ mới hiển thị cùng tài liệu hiện tại.",
-    "Thay đổi trên bất kỳ cửa sổ nào sẽ tự động cập nhật sang cửa sổ kia; đóng một trong hai cửa sổ không làm mất dữ liệu."
+    "Ứng dụng desktop mở thêm một cửa sổ Writer với tài liệu trắng và tên Tài liệu N.docx; cửa sổ đang soạn vẫn giữ nguyên.",
+    "Hai cửa sổ là hai tài liệu độc lập. Lưu từng tài liệu bằng Ctrl+S; đóng một cửa sổ không đóng cửa sổ còn lại."
   ]
 },
 {

@@ -136,7 +136,13 @@ export class WriterViewController {
     return this.setZoom(available / pageWidth, { pageWidth: true });
   }
 
-  newWindow() {
+  async newWindow() {
+    // AppShell routes desktop builds through pywebview/Python and keeps the
+    // browser fallback in UnoBridge. Calling window.open here bypassed that
+    // boundary, so WebView2 treated the click as a blocked browser popup.
+    if (this.shell?.requestNewDocumentWindow) {
+      return await this.shell.requestNewDocumentWindow();
+    }
     if (typeof window === "undefined") return false;
     const opened = window.open?.(window.location.href, "_blank");
     if (!opened) {
