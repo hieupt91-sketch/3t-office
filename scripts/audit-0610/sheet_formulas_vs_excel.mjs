@@ -304,7 +304,12 @@ async function resetAndSeed(cdp, test) {
     const cells = ${payload};
     for (const [address, value] of Object.entries(cells)) {
       const match = /^([A-Z]+)(\\d+)$/.exec(address);
+      const isForcedText = typeof value === "string" && value.startsWith("'");
       grid.setCellValue(match[1], Number(match[2]), value, false, { userInput: true, commit: true });
+      if (isForcedText) {
+        const item = grid.cellsData.get(address);
+        if (item) item.style = { ...(item.style || {}), numberFormat: { category: "text" } };
+      }
     }
     grid.selectCell("J", 1);
     return true;

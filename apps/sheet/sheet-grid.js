@@ -5341,10 +5341,7 @@ _bindGridKeyboardNavigation() {
 
   _normalizeCellInput(value, style = {}, escapedText = false) {
     const nextStyle = { ...(style || {}) };
-    if (escapedText) {
-      nextStyle.numberFormat = { category: "text" };
-      return { value: String(value ?? ""), style: nextStyle };
-    }
+    if (escapedText) return { value: String(value ?? ""), style: nextStyle };
     const category = nextStyle.numberFormat?.category;
     // Currency input is a type inference result, so apply both its real numeric
     // value and display format at the point where literal cell edits are stored.
