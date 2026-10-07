@@ -2714,6 +2714,75 @@ def _restore_sheet_zoom_step(xlsx_bytes: bytes, source_xlsx_bytes: bytes, replac
         pass
 
 
+def _restore_autofilter_filter_columns_step(
+    xlsx_bytes: bytes,
+    source_xlsx_bytes: bytes,
+    replacements: dict[str, str],
+) -> None:
+    """Restore filterColumn elements inside autoFilter from source XLSX if dropped."""
+    try:
+        source_sheet_entries = _resolve_xlsx_sheet_entries(source_xlsx_bytes)
+        target_sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+        if not source_sheet_entries or not target_sheet_entries:
+            return
+
+        for sheet_name, src_entry in source_sheet_entries.items():
+            tgt_entry = _sheet_name_equivalent_value(target_sheet_entries, sheet_name)
+            if not tgt_entry:
+                continue
+
+            src_xml_bytes = read_zip_entry(source_xlsx_bytes, src_entry)
+            if not src_xml_bytes:
+                continue
+            src_xml = src_xml_bytes.decode("utf-8", errors="replace")
+
+            m_src_af = re.search(r'<autoFilter\b([^>]*?)>(.*?)</autoFilter>', src_xml, re.DOTALL | re.IGNORECASE)
+            if not m_src_af:
+                continue
+            src_af_attrs = m_src_af.group(1)
+            src_af_body = m_src_af.group(2).strip()
+            if not src_af_body or "<filterColumn" not in src_af_body:
+                continue
+
+            src_ref_m = re.search(r'\bref="([^"]*)"', src_af_attrs, re.IGNORECASE)
+            if not src_ref_m:
+                continue
+            src_ref = src_ref_m.group(1).upper()
+
+            tgt_xml_str = replacements.get(tgt_entry)
+            if tgt_xml_str is None:
+                tgt_bytes = read_zip_entry(xlsx_bytes, tgt_entry)
+                if not tgt_bytes:
+                    continue
+                tgt_xml_str = tgt_bytes.decode("utf-8", errors="replace")
+            elif isinstance(tgt_xml_str, bytes):
+                tgt_xml_str = tgt_xml_str.decode("utf-8", errors="replace")
+
+            m_tgt_full = re.search(r'<autoFilter\b([^>]*?)>(.*?)</autoFilter>', tgt_xml_str, re.DOTALL | re.IGNORECASE)
+            m_tgt_empty = re.search(r'<autoFilter\b([^>]*?)/>', tgt_xml_str, re.IGNORECASE)
+
+            if m_tgt_empty:
+                tgt_attrs = m_tgt_empty.group(1)
+                tgt_ref_m = re.search(r'\bref="([^"]*)"', tgt_attrs, re.IGNORECASE)
+                if tgt_ref_m and tgt_ref_m.group(1).upper() == src_ref:
+                    new_tag = f'<autoFilter{tgt_attrs}>{src_af_body}</autoFilter>'
+                    new_tgt_xml = tgt_xml_str[:m_tgt_empty.start()] + new_tag + tgt_xml_str[m_tgt_empty.end():]
+                    if new_tgt_xml != tgt_xml_str:
+                        replacements[tgt_entry] = new_tgt_xml
+            elif m_tgt_full:
+                tgt_body = m_tgt_full.group(2).strip()
+                if "<filterColumn" not in tgt_body:
+                    tgt_attrs = m_tgt_full.group(1)
+                    tgt_ref_m = re.search(r'\bref="([^"]*)"', tgt_attrs, re.IGNORECASE)
+                    if tgt_ref_m and tgt_ref_m.group(1).upper() == src_ref:
+                        new_tag = f'<autoFilter{tgt_attrs}>{src_af_body}</autoFilter>'
+                        new_tgt_xml = tgt_xml_str[:m_tgt_full.start()] + new_tag + tgt_xml_str[m_tgt_full.end():]
+                        if new_tgt_xml != tgt_xml_str:
+                            replacements[tgt_entry] = new_tgt_xml
+    except Exception:
+        pass
+
+
 def _remove_spurious_center_continuous_merges_step(xlsx_bytes: bytes, source_xlsx_bytes: bytes, replacements: dict[str, str]) -> None:
     """Remove merges invented by LibreOffice for source centerContinuous cells."""
     styles = (read_zip_entry(source_xlsx_bytes, XLSX_STYLES_ENTRY) or b"").decode("utf-8", errors="replace")
@@ -3248,6 +3317,7 @@ def postprocess_sheet_xlsx(
         _restore_formula_results_and_missing_errors_step(xlsx_bytes, source_xlsx_bytes, replacements, early_copier if early_copier.available else None)
         _remove_spurious_center_continuous_merges_step(xlsx_bytes, source_xlsx_bytes, replacements)
         _restore_sheet_zoom_step(xlsx_bytes, source_xlsx_bytes, replacements)
+        _restore_autofilter_filter_columns_step(xlsx_bytes, source_xlsx_bytes, replacements)
         if source_fods:
             _restore_untouched_drawings_step(xlsx_bytes, source_fods, source_xlsx_bytes, replacements)
     if source_fods:
@@ -3327,6 +3397,8 @@ def postprocess_sheet_xlsx(
         except Exception:
             # A table part we could not parse is left alone rather than failing the save.
             pass
+        if source_xlsx_bytes:
+            _restore_autofilter_filter_columns_step(xlsx_bytes, source_xlsx_bytes, replacements)
 
     # Scenarios: soffice drops <scenarios> during FODS -> XLSX. Read
     # vno:scenarios from FODS and write <scenarios> into worksheets.
