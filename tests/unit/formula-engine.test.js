@@ -723,5 +723,34 @@ export async function runFormulaEngineTests() {
     pass: sb6Muc2Engine.evaluate('=+Z1&"hậu tố"') === "hậu tố"
   });
 
+  // 6. SB6 MỤC 3: SUMIF với vùng điều kiện nhiều cột và sum_range 1 cột (được định lại kích thước)
+  const sb6Muc3Cells = new Map([
+    ["E1", { val: "A", formula: "", style: {} }],
+    ["F1", { val: "B", formula: "", style: {} }],
+    ["E2", { val: "B", formula: "", style: {} }],
+    ["F2", { val: "A", formula: "", style: {} }],
+    ["H1", { val: 10, formula: "", style: {} }],
+    ["H2", { val: 20, formula: "", style: {} }],
+    ["I1", { val: 100, formula: "", style: {} }],
+    ["I2", { val: 200, formula: "", style: {} }],
+    ["A1", { val: 10, formula: "", style: {} }],
+    ["A2", { val: 20, formula: "", style: {} }],
+    ["A3", { val: 30, formula: "", style: {} }]
+  ]);
+  const sb6Muc3Engine = new FormulaEngine(sb6Muc3Cells);
+
+  results.push({
+    name: 'SB6 MỤC 3: SUMIF vùng điều kiện 2 cột E1:F2 và sum_range 1 cột H1:H2 mở rộng đúng hình dạng (10 + 200 = 210)',
+    pass: sb6Muc3Engine.evaluate('=SUMIF(E1:F2, "A", H1:H2)') === 210
+  });
+  results.push({
+    name: 'SB6 MỤC 3: SUMIF không có sum_range tự cộng trên vùng điều kiện (A1:A3 > 15 -> 50)',
+    pass: sb6Muc3Engine.evaluate('=SUMIF(A1:A3, ">15")') === 50
+  });
+  results.push({
+    name: 'SB6 MỤC 3: SUMIFS vẫn yêu cầu các vùng cùng kích thước nếu khác thì #VALUE!',
+    pass: sb6Muc3Engine.evaluate('=SUMIFS(H1:H2, E1:F2, "A")') === "#VALUE!"
+  });
+
   return results;
 }

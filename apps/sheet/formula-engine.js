@@ -497,6 +497,51 @@ export class FormulaEngine {
     return null;
   }
 
+  _parseRangeBounds(range) {
+    const reference = this._parseReference(range);
+    if (!reference || reference.error) return null;
+    const ref = reference.ref;
+    if (!ref) return null;
+    const column = ref.match(/^([A-Z]+):([A-Z]+)$/);
+    if (column) {
+      const c1 = this._columnIndex(column[1]);
+      const c2 = this._columnIndex(column[2]);
+      const rows = this._maxUsedRow(reference.sheet);
+      return {
+        sheet: reference.sheet,
+        startCol: Math.min(c1, c2),
+        startRow: 1,
+        cols: Math.abs(c2 - c1) + 1,
+        rows,
+      };
+    }
+    const match = ref.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
+    if (match) {
+      const c1 = this._columnIndex(match[1]);
+      const c2 = this._columnIndex(match[3]);
+      const r1 = parseInt(match[2], 10);
+      const r2 = parseInt(match[4], 10);
+      return {
+        sheet: reference.sheet,
+        startCol: Math.min(c1, c2),
+        startRow: Math.min(r1, r2),
+        cols: Math.abs(c2 - c1) + 1,
+        rows: Math.abs(r2 - r1) + 1,
+      };
+    }
+    const singleMatch = ref.match(/^([A-Z]+)(\d+)$/);
+    if (singleMatch) {
+      return {
+        sheet: reference.sheet,
+        startCol: this._columnIndex(singleMatch[1]),
+        startRow: parseInt(singleMatch[2], 10),
+        cols: 1,
+        rows: 1,
+      };
+    }
+    return null;
+  }
+
   _columnIndex(name) {
     return [...name].reduce((value, char) => value * 26 + char.charCodeAt(0) - 64, 0) - 1;
   }
@@ -1124,9 +1169,42 @@ export class FormulaEngine {
 
       case "SUMIF": {
         const criteria = this._resolveSingleValue(args[1]);
-        const criteriaValues = this._rangeValues(args[0]);
-        const sumValues = this._rangeValues(args[2] || args[0]);
-        return criteriaValues.reduce((sum, value, index) => sum + (this._matchesCriteria(value, criteria) ? Number(sumValues[index]) || 0 : 0), 0);
+        const critBounds = this._parseRangeBounds(args[0]);
+        if (!critBounds) {
+          const criteriaValues = this._rangeValues(args[0]);
+          const sumValues = this._rangeValues(args[2] || args[0]);
+          return criteriaValues.reduce((sum, value, index) => sum + (this._matchesCriteria(value, criteria) ? Number(sumValues[index]) || 0 : 0), 0);
+        }
+
+        let sumStartCol = critBounds.startCol;
+        let sumStartRow = critBounds.startRow;
+        let sumSheet = critBounds.sheet;
+
+        if (args[2]) {
+          const sumBounds = this._parseRangeBounds(args[2]);
+          if (sumBounds) {
+            sumStartCol = sumBounds.startCol;
+            sumStartRow = sumBounds.startRow;
+            sumSheet = sumBounds.sheet !== null && sumBounds.sheet !== undefined ? sumBounds.sheet : critBounds.sheet;
+          }
+        }
+
+        let total = 0;
+        for (let c = 0; c < critBounds.cols; c++) {
+          for (let r = 0; r < critBounds.rows; r++) {
+            const critCoord = `${this._columnName(critBounds.startCol + c)}${critBounds.startRow + r}`;
+            const critVal = this.getCellValue(critCoord, critBounds.sheet);
+            if (this._isError(critVal)) return critVal;
+            if (this._matchesCriteria(critVal, criteria)) {
+              const sumCoord = `${this._columnName(sumStartCol + c)}${sumStartRow + r}`;
+              const sumVal = this.getCellValue(sumCoord, sumSheet);
+              if (this._isError(sumVal)) return sumVal;
+              const num = typeof sumVal === "number" ? sumVal : (this._parseNumberOrCurrency(sumVal) ?? 0);
+              total += Number(num) || 0;
+            }
+          }
+        }
+        return total;
       }
 
       case "COUNTIFS":
