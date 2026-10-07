@@ -2783,6 +2783,76 @@ def _restore_autofilter_filter_columns_step(
         pass
 
 
+def _restore_missing_defined_names_step(
+    xlsx_bytes: bytes,
+    source_xlsx_bytes: bytes,
+    replacements: dict[str, str | bytes],
+) -> None:
+    """Restore user-defined names from source XLSX that were dropped during export."""
+    try:
+        src_wb_bytes = read_zip_entry(source_xlsx_bytes, XLSX_WORKBOOK_ENTRY)
+        if not src_wb_bytes:
+            return
+        src_wb_xml = src_wb_bytes.decode("utf-8", errors="replace")
+
+        src_dns: list[tuple[str, str | None, str]] = []
+        for m in re.finditer(r'<definedName\b([^>]*?)>(.*?)</definedName>', src_wb_xml, re.DOTALL | re.IGNORECASE):
+            attrs = m.group(1)
+            name_m = re.search(r'\bname="([^"]*)"', attrs, re.IGNORECASE)
+            if not name_m:
+                continue
+            name = name_m.group(1)
+            if name.startswith("_xlnm._FilterDatabase"):
+                continue
+            loc_m = re.search(r'\blocalSheetId="([^"]*)"', attrs, re.IGNORECASE)
+            loc = loc_m.group(1) if loc_m else None
+            src_dns.append((name, loc, m.group(0)))
+
+        if not src_dns:
+            return
+
+        tgt_wb = replacements.get(XLSX_WORKBOOK_ENTRY)
+        if tgt_wb is None:
+            tgt_wb_bytes = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
+            if not tgt_wb_bytes:
+                return
+            tgt_wb = tgt_wb_bytes.decode("utf-8", errors="replace")
+        elif isinstance(tgt_wb, bytes):
+            tgt_wb = tgt_wb.decode("utf-8", errors="replace")
+
+        existing_keys = set()
+        for m in re.finditer(r'<definedName\b([^>]*?)>', tgt_wb, re.IGNORECASE):
+            attrs = m.group(1)
+            name_m = re.search(r'\bname="([^"]*)"', attrs, re.IGNORECASE)
+            if name_m:
+                loc_m = re.search(r'\blocalSheetId="([^"]*)"', attrs, re.IGNORECASE)
+                loc = loc_m.group(1) if loc_m else None
+                existing_keys.add((name_m.group(1), loc))
+
+        missing_tags = []
+        for name, loc, full_tag in src_dns:
+            if (name, loc) not in existing_keys:
+                missing_tags.append(full_tag)
+
+        if not missing_tags:
+            return
+
+        to_insert = "".join(missing_tags)
+        dn_block_m = re.search(r'<definedNames\b([^>]*?)>(.*?)</definedNames>', tgt_wb, re.DOTALL | re.IGNORECASE)
+        if dn_block_m:
+            insert_pos = dn_block_m.end() - len("</definedNames>")
+            new_wb = tgt_wb[:insert_pos] + to_insert + tgt_wb[insert_pos:]
+            replacements[XLSX_WORKBOOK_ENTRY] = new_wb
+        else:
+            block_xml = f"<definedNames>{to_insert}</definedNames>"
+            anchor_m = re.search(r'<(?:calcPr|oleSize|customWorkbookViews|extLst)\b|</workbook>', tgt_wb, re.IGNORECASE)
+            if anchor_m:
+                new_wb = tgt_wb[:anchor_m.start()] + block_xml + tgt_wb[anchor_m.start():]
+                replacements[XLSX_WORKBOOK_ENTRY] = new_wb
+    except Exception:
+        pass
+
+
 def _remove_spurious_center_continuous_merges_step(xlsx_bytes: bytes, source_xlsx_bytes: bytes, replacements: dict[str, str]) -> None:
     """Remove merges invented by LibreOffice for source centerContinuous cells."""
     styles = (read_zip_entry(source_xlsx_bytes, XLSX_STYLES_ENTRY) or b"").decode("utf-8", errors="replace")
@@ -3318,6 +3388,7 @@ def postprocess_sheet_xlsx(
         _remove_spurious_center_continuous_merges_step(xlsx_bytes, source_xlsx_bytes, replacements)
         _restore_sheet_zoom_step(xlsx_bytes, source_xlsx_bytes, replacements)
         _restore_autofilter_filter_columns_step(xlsx_bytes, source_xlsx_bytes, replacements)
+        _restore_missing_defined_names_step(xlsx_bytes, source_xlsx_bytes, replacements)
         if source_fods:
             _restore_untouched_drawings_step(xlsx_bytes, source_fods, source_xlsx_bytes, replacements)
     if source_fods:
