@@ -2853,6 +2853,95 @@ def _restore_missing_defined_names_step(
         pass
 
 
+def _restore_missing_hyperlinks_step(
+    xlsx_bytes: bytes,
+    source_xlsx_bytes: bytes,
+    replacements: dict[str, str | bytes],
+) -> None:
+    """Restore hyperlinks and their relationships from source XLSX if dropped."""
+    try:
+        source_sheet_entries = _resolve_xlsx_sheet_entries(source_xlsx_bytes)
+        target_sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+        if not source_sheet_entries or not target_sheet_entries:
+            return
+
+        for sheet_name, src_entry in source_sheet_entries.items():
+            tgt_entry = _sheet_name_equivalent_value(target_sheet_entries, sheet_name)
+            if not tgt_entry:
+                continue
+
+            src_xml_bytes = read_zip_entry(source_xlsx_bytes, src_entry)
+            if not src_xml_bytes:
+                continue
+            src_xml = src_xml_bytes.decode("utf-8", errors="replace")
+
+            hl_match = re.search(r'<hyperlinks\b([^>]*?)>(.*?)</hyperlinks>', src_xml, re.DOTALL | re.IGNORECASE)
+            if not hl_match:
+                continue
+            src_hl_xml = hl_match.group(0)
+
+            tgt_xml_str = replacements.get(tgt_entry)
+            if tgt_xml_str is None:
+                tgt_bytes = read_zip_entry(xlsx_bytes, tgt_entry)
+                if not tgt_bytes:
+                    continue
+                tgt_xml_str = tgt_bytes.decode("utf-8", errors="replace")
+            elif isinstance(tgt_xml_str, bytes):
+                tgt_xml_str = tgt_xml_str.decode("utf-8", errors="replace")
+
+            if re.search(r'<hyperlinks\b', tgt_xml_str, re.IGNORECASE):
+                continue
+
+            new_tgt_xml = _insert_worksheet_child_in_schema_order(tgt_xml_str, src_hl_xml, "hyperlinks")
+            if new_tgt_xml != tgt_xml_str:
+                replacements[tgt_entry] = new_tgt_xml
+
+            src_dir, src_filename = posixpath.split(src_entry)
+            src_rels_path = f"{src_dir}/_rels/{src_filename}.rels"
+            src_rels_bytes = read_zip_entry(source_xlsx_bytes, src_rels_path)
+            if not src_rels_bytes:
+                continue
+            src_rels_xml = src_rels_bytes.decode("utf-8", errors="replace")
+
+            hl_rels = []
+            for r_m in re.finditer(r'<Relationship\b[^>]*\bType="[^"]*hyperlink"[^>]*/>', src_rels_xml, re.IGNORECASE):
+                hl_rels.append(r_m.group(0))
+
+            if not hl_rels:
+                continue
+
+            tgt_dir, tgt_filename = posixpath.split(tgt_entry)
+            tgt_rels_path = f"{tgt_dir}/_rels/{tgt_filename}.rels"
+            tgt_rels_str = replacements.get(tgt_rels_path)
+            if tgt_rels_str is None:
+                tgt_rels_bytes = read_zip_entry(xlsx_bytes, tgt_rels_path)
+                tgt_rels_str = tgt_rels_bytes.decode("utf-8", errors="replace") if tgt_rels_bytes else None
+            elif isinstance(tgt_rels_str, bytes):
+                tgt_rels_str = tgt_rels_str.decode("utf-8", errors="replace")
+
+            if tgt_rels_str:
+                existing_ids = set(re.findall(r'\bId="([^"]*)"', tgt_rels_str, re.IGNORECASE))
+                to_add = []
+                for rel_tag in hl_rels:
+                    rid_m = re.search(r'\bId="([^"]*)"', rel_tag, re.IGNORECASE)
+                    if rid_m and rid_m.group(1) not in existing_ids:
+                        to_add.append(rel_tag)
+                if to_add:
+                    pos = tgt_rels_str.rfind("</Relationships>")
+                    if pos != -1:
+                        new_rels = tgt_rels_str[:pos] + "".join(to_add) + tgt_rels_str[pos:]
+                        replacements[tgt_rels_path] = new_rels
+            else:
+                new_rels = (
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+                    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+                    f'{"".join(hl_rels)}</Relationships>'
+                )
+                replacements[tgt_rels_path] = new_rels
+    except Exception:
+        pass
+
+
 def _remove_spurious_center_continuous_merges_step(xlsx_bytes: bytes, source_xlsx_bytes: bytes, replacements: dict[str, str]) -> None:
     """Remove merges invented by LibreOffice for source centerContinuous cells."""
     styles = (read_zip_entry(source_xlsx_bytes, XLSX_STYLES_ENTRY) or b"").decode("utf-8", errors="replace")
@@ -3389,6 +3478,7 @@ def postprocess_sheet_xlsx(
         _restore_sheet_zoom_step(xlsx_bytes, source_xlsx_bytes, replacements)
         _restore_autofilter_filter_columns_step(xlsx_bytes, source_xlsx_bytes, replacements)
         _restore_missing_defined_names_step(xlsx_bytes, source_xlsx_bytes, replacements)
+        _restore_missing_hyperlinks_step(xlsx_bytes, source_xlsx_bytes, replacements)
         if source_fods:
             _restore_untouched_drawings_step(xlsx_bytes, source_fods, source_xlsx_bytes, replacements)
     if source_fods:
