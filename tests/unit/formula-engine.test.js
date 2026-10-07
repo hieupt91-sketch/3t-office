@@ -867,5 +867,16 @@ export async function runFormulaEngineTests() {
     pass: sb7Nhom4Engine.evaluate("=100*50%") === 50 && approximatelyEqual(sb7Nhom4Engine.evaluate("=(10+20)%"), 0.3)
   });
 
+  // 12. SB7 NHÓM 5: Tham chiếu ô Text Cell trả về chuỗi nguyên thủy primitive string
+  const sb7Nhom5Cells = new Map([
+    ["B3", { val: "00990011", formula: "", style: { numberFormat: { category: "text" } } }]
+  ]);
+  const sb7Nhom5Engine = new FormulaEngine(sb7Nhom5Cells);
+  const sb7Nhom5Res = sb7Nhom5Engine.evaluate("=B3");
+  results.push({
+    name: 'SB7 NHÓM 5: =B3 với ô text trả về primitive string thay vì String object',
+    pass: typeof sb7Nhom5Res === "string" && sb7Nhom5Res === "00990011" && !(sb7Nhom5Res instanceof String)
+  });
+
   return results;
 }

@@ -844,14 +844,16 @@ export class FormulaEngine {
       // 2. Tham chiếu ô đơn: =A1, =$A$1, ='Sheet1'!A1
       if (/^(?:(?:'(?:[^']|'')+'|[A-Za-zÀ-ỹ0-9_.\s]+)!)?\$?[A-Za-z]+\$?\d+$/i.test(expr)) {
         const reference = this._parseReference(expr);
-        return reference.error || this.getCellValue(reference.ref, reference.sheet);
+        const val = reference.error || this.getCellValue(reference.ref, reference.sheet);
+        return val instanceof String ? String(val) : val;
       }
 
       const named = this._resolveNamedRange(expr);
       if (named) {
         const expanded = this.expandRange(this._resolveRangeReference(expr));
         if (expanded && expanded.length === 1) {
-          return this.getCellValue(expanded[0]);
+          const val = this.getCellValue(expanded[0]);
+          return val instanceof String ? String(val) : val;
         }
       }
 
@@ -860,11 +862,13 @@ export class FormulaEngine {
       if (funcMatch) {
         const funcName = funcMatch[1].toUpperCase();
         const rawArgs = this._splitArgs(funcMatch[2]);
-        return this._executeFunction(funcName, rawArgs);
+        const val = this._executeFunction(funcName, rawArgs);
+        return val instanceof String ? String(val) : val;
       }
 
       // 4. Biểu thức toán học số học thông thường: =A1 + B2 * 3
-      return this._evaluateArithmetic(expr);
+      const arithVal = this._evaluateArithmetic(expr);
+      return arithVal instanceof String ? String(arithVal) : arithVal;
     } catch (err) {
       console.warn("[FormulaEngine] Lỗi tính toán:", formula, err);
       return "#LỖI!";
