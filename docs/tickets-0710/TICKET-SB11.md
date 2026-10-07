@@ -1,0 +1,6 @@
+# TICKET SB11 — Sheet: 3 tep .xls con lech chua giai thich: legacy08 (6 o), legacy11 (1 o), legacy13 (1 o) (agy)
+Tiep SB10 (docs/AUDIT-SHEET-XLS-SAVE-DIFFS-0710.md: legacy06 do LibreOffice khong ghi duoc token #REF!, legacy18 co chu y). Worktree rieng E:\VNOffice-agy-sb11, nhanh fix/sheet-xls-save-diffs2-agy, tu main. Tao junction 'file test' -> E:\VN OFice\file test neu thieu.
+BUOC 1 — Liet ke tung o lech cua legacy08, legacy11, legacy13 (dia chi, kieu lech, gia tri truoc/sau dang so/chu/ngay/loi; KHONG dua noi dung that vao tai lieu), phan loai nguyen nhan goc (lõi LibreOffice / ma VN / bo so sanh). Bo sung vao docs/AUDIT-SHEET-XLS-SAVE-DIFFS-0710.md.
+BUOC 2 — Neu nguyen nhan trong ma VN (apps/sheet, adapters/libreoffice/sheet, hau xu ly luu): sua, moi nhom 1 commit + test don vi. Neu o loi LibreOffice: ghi ro, de xuat cach giam thieu (vd bao nguoi dung khi luu .xls), KHONG tu y doi hanh vi luu.
+Tieu chi: node tests/run-tests.js khong FAIL moi (hien 2956); python scripts/layout-audit/batch_document_audit.py xls <worktree>: 20/20 saved=True, so tep diff=0 khong giam (hien 15/20); xlsx 28/28 saved=yes diffs=0 neu co sua ma luu.
+Cam/Quy tac: nhu TICKET-SB10.md; bo nho: dong Excel/Word ngam cua minh theo PID NGAY SAU MOI LAN do, 1 app test cung luc. KHONG push, KHONG merge. Bao cao 3 dong.
