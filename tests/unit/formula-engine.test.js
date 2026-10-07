@@ -475,5 +475,106 @@ export async function runFormulaEngineTests() {
       pass: absEngine.evaluate(formula) === expected
     });
   }
+
+  // ROUND chuẩn Excel: làm tròn nửa ra xa 0 cho cả số dương, số âm và midpoint
+  const roundCases = [
+    ["=ROUND(12.345, 2)", 12.35],
+    ["=ROUND(-12.345, 2)", -12.35],
+    ["=ROUND(2.5, 0)", 3],
+    ["=ROUND(-2.5, 0)", -3],
+    ["=ROUND(1.25, 1)", 1.3],
+    ["=ROUND(-1.25, 1)", -1.3],
+    ["=ROUND(2.675, 2)", 2.68],
+    ["=ROUND(-2.675, 2)", -2.68],
+    ["=ROUND(125, -1)", 130],
+    ["=ROUND(-125, -1)", -130],
+    ["=ROUND(1499, -2)", 1500],
+    ["=ROUND(-1499, -2)", -1500],
+    ["=ROUND(-1500, -3)", -2000],
+    ["=ROUND(1500, -3)", 2000],
+    ["=ROUND(0, 0)", 0],
+    ["=ROUND(0.045, 2)", 0.05],
+    ["=ROUND(-0.045, 2)", -0.05]
+  ];
+  for (const [formula, expected] of roundCases) {
+    results.push({
+      name: `Formula: ROUND ${formula} = ${expected}`,
+      pass: engine.evaluate(formula) === expected
+    });
+  }
+
+  // IFERROR bắt lỗi số học và lỗi hàm lồng nhau
+  const iferrorCells = new Map([["A1", { val: 0, formula: "", style: {} }]]);
+  const iferrorEngine = new FormulaEngine(iferrorCells);
+  results.push({
+    name: 'Formula: IFERROR(1/0, "fallback") bắt #DIV/0!',
+    pass: iferrorEngine.evaluate('=IFERROR(1/0, "fallback")') === "fallback"
+  });
+  results.push({
+    name: 'Formula: IFERROR(NA(), "missing") bắt #N/A',
+    pass: iferrorEngine.evaluate('=IFERROR(NA(), "missing")') === "missing"
+  });
+  results.push({
+    name: 'Formula: IFERROR(10/2, "fallback") giữ giá trị 5',
+    pass: iferrorEngine.evaluate('=IFERROR(10/2, "fallback")') === 5
+  });
+  results.push({
+    name: 'Formula: IFERROR(IF(A1=0, 1/0, 10), 99) bắt lỗi nhánh IF khi A1=0',
+    pass: iferrorEngine.evaluate('=IFERROR(IF(A1=0, 1/0, 10), 99)') === 99
+  });
+  iferrorCells.set("A1", { val: 1, formula: "", style: {} });
+  iferrorEngine.clearCache();
+  results.push({
+    name: 'Formula: IFERROR(IF(A1=0, 1/0, 10), 99) giữ giá trị 10 khi A1=1',
+    pass: iferrorEngine.evaluate('=IFERROR(IF(A1=0, 1/0, 10), 99)') === 10
+  });
+  results.push({
+    name: 'Formula: IFERROR(SQRT(-1), "neg") bắt #NUM!',
+    pass: iferrorEngine.evaluate('=IFERROR(SQRT(-1), "neg")') === "neg"
+  });
+  results.push({
+    name: 'Formula: IFERROR("hợp lệ", "fb") giữ chuỗi hợp lệ',
+    pass: iferrorEngine.evaluate('=IFERROR("hợp lệ", "fb")') === "hợp lệ"
+  });
+
+  // SUMIFS/COUNTIFS kiểm tra kích thước vùng sum và criteria
+  const ifsCells = new Map([
+    ["A1", { val: "North", formula: "", style: {} }],
+    ["A2", { val: "North", formula: "", style: {} }],
+    ["A3", { val: "South", formula: "", style: {} }],
+    ["A4", { val: "South", formula: "", style: {} }],
+    ["A5", { val: "North", formula: "", style: {} }],
+    ["A6", { val: "West", formula: "", style: {} }],
+    ["B1", { val: "Pen", formula: "", style: {} }],
+    ["B2", { val: "Pencil", formula: "", style: {} }],
+    ["B3", { val: "Pen", formula: "", style: {} }],
+    ["B4", { val: "Paper", formula: "", style: {} }],
+    ["B5", { val: "Pen", formula: "", style: {} }],
+    ["B6", { val: "Pencil", formula: "", style: {} }],
+    ["D1", { val: 100, formula: "", style: {} }],
+    ["D2", { val: 200, formula: "", style: {} }],
+    ["D3", { val: 300, formula: "", style: {} }],
+    ["D4", { val: 400, formula: "", style: {} }],
+    ["D5", { val: 500, formula: "", style: {} }],
+    ["D6", { val: 600, formula: "", style: {} }]
+  ]);
+  const ifsEngine = new FormulaEngine(ifsCells);
+  results.push({
+    name: 'Formula: SUMIFS sum_range và criteria_range cùng kích thước tính đúng',
+    pass: ifsEngine.evaluate('=SUMIFS(D1:D6, A1:A6, "North")') === 800
+  });
+  results.push({
+    name: 'Formula: SUMIFS sum_range ngắn hơn criteria_range trả về #VALUE!',
+    pass: ifsEngine.evaluate('=SUMIFS(D1:D5, A1:A6, "North")') === "#VALUE!"
+  });
+  results.push({
+    name: 'Formula: SUMIFS các criteria_range khác kích thước trả về #VALUE!',
+    pass: ifsEngine.evaluate('=SUMIFS(D1:D6, A1:A5, "North", B1:B6, "Pen")') === "#VALUE!"
+  });
+  results.push({
+    name: 'Formula: COUNTIFS các range khác kích thước trả về #VALUE!',
+    pass: ifsEngine.evaluate('=COUNTIFS(A1:A6, "North", B1:B5, "Pen")') === "#VALUE!"
+  });
+
   return results;
 }
