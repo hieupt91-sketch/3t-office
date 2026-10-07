@@ -576,5 +576,78 @@ export async function runFormulaEngineTests() {
     pass: ifsEngine.evaluate('=COUNTIFS(A1:A6, "North", B1:B5, "Pen")') === "#VALUE!"
   });
 
+  // SB3: Kiểm tra lan truyền lỗi (Error Propagation) theo mục 5.2 báo cáo AUDIT-SHEET-ERRORS-DATES-0710
+  const errCells = new Map([
+    ["A1", { val: "#DIV/0!", formula: "=1/0", style: {} }],
+    ["A2", { val: "#N/A", formula: "=NA()", style: {} }],
+    ["A3", { val: "#VALUE!", formula: '="x"+1', style: {} }],
+    ["A4", { val: "x", formula: "", style: {} }],
+    ["A5", { val: 10, formula: "", style: {} }],
+    ["B1", { val: 1, formula: "", style: {} }],
+    ["B2", { val: 2, formula: "", style: {} }],
+    ["B3", { val: "#NUM!", formula: "", style: {} }],
+    ["B4", { val: 4, formula: "", style: {} }],
+    ["B5", { val: 5, formula: "", style: {} }]
+  ]);
+  const errEngine = new FormulaEngine(errCells);
+
+  // 1. Lan truyền lỗi qua toán tử số học
+  results.push({
+    name: 'Formula: A1 + 1 khi A1 là #DIV/0! trả về #DIV/0!',
+    pass: errEngine.evaluate("=A1+1") === "#DIV/0!"
+  });
+  results.push({
+    name: 'Formula: A2 + 1 khi A2 là #N/A trả về #N/A',
+    pass: errEngine.evaluate("=A2+1") === "#N/A"
+  });
+  results.push({
+    name: 'Formula: A3 + 1 khi A3 là #VALUE! trả về #VALUE!',
+    pass: errEngine.evaluate("=A3+1") === "#VALUE!"
+  });
+  results.push({
+    name: 'Formula: A4 + 1 khi A4 là chuỗi x không ép được thành số trả về #VALUE!',
+    pass: errEngine.evaluate("=A4+1") === "#VALUE!"
+  });
+
+  // 2. Lan truyền lỗi qua hàm tổng hợp
+  results.push({
+    name: 'Formula: SUM(A1, 1) khi A1 là #DIV/0! trả về #DIV/0!',
+    pass: errEngine.evaluate("=SUM(A1, 1)") === "#DIV/0!"
+  });
+  results.push({
+    name: 'Formula: SUM(B1:B5) chứa ô B3 là #NUM! trả về #NUM!',
+    pass: errEngine.evaluate("=SUM(B1:B5)") === "#NUM!"
+  });
+  results.push({
+    name: 'Formula: AVERAGE(A1, 10) chứa ô #DIV/0! trả về #DIV/0!',
+    pass: errEngine.evaluate("=AVERAGE(A1, 10)") === "#DIV/0!"
+  });
+  results.push({
+    name: 'Formula: MIN(A1, 5) chứa ô #DIV/0! trả về #DIV/0!',
+    pass: errEngine.evaluate("=MIN(A1, 5)") === "#DIV/0!"
+  });
+  results.push({
+    name: 'Formula: MAX(A1, 5) chứa ô #DIV/0! trả về #DIV/0!',
+    pass: errEngine.evaluate("=MAX(A1, 5)") === "#DIV/0!"
+  });
+  results.push({
+    name: 'Formula: PRODUCT(A1, 5) chứa ô #DIV/0! trả về #DIV/0!',
+    pass: errEngine.evaluate("=PRODUCT(A1, 5)") === "#DIV/0!"
+  });
+
+  // 3. Lan truyền lỗi qua hàm logic IF
+  results.push({
+    name: 'Formula: IF(TRUE, 42, A1) khi A1 là #DIV/0! trả về 42 (ngắn mạch đúng)',
+    pass: errEngine.evaluate("=IF(TRUE, 42, A1)") === 42
+  });
+  results.push({
+    name: 'Formula: IF(FALSE, 42, A1) khi A1 là #DIV/0! chọn nhánh lỗi trả về #DIV/0!',
+    pass: errEngine.evaluate("=IF(FALSE, 42, A1)") === "#DIV/0!"
+  });
+  results.push({
+    name: 'Formula: IF(A1, 42, 10) khi A1 là #DIV/0! điều kiện lỗi trả về #DIV/0!',
+    pass: errEngine.evaluate("=IF(A1, 42, 10)") === "#DIV/0!"
+  });
+
   return results;
 }

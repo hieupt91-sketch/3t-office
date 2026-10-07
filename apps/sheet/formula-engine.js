@@ -235,6 +235,8 @@ export class FormulaEngine {
     if (!item) return 0;
     const raw = item.val || "";
 
+    if (this._isError(raw)) return raw;
+
     // Giữ nguyên chuỗi ngày để các hàm ngày tháng có thể phân tích, không coi dấu "/" là ký hiệu tiền tệ.
     if (/^\d{1,2}\/\d{1,2}\/\d{4}(?:\s|$)/.test(String(raw).trim())) return raw;
 
@@ -304,7 +306,7 @@ export class FormulaEngine {
   }
 
   _isError(value) {
-    return typeof value === "string" && /^#(?:N\/A|VALUE!|REF!|DIV\/0!|NUM!|NAME\?|LỖI!)/.test(value);
+    return typeof value === "string" && /^#(?:N\/A|VALUE!|REF!|DIV\/0!|NUM!|NAME\?|NULL!|LỖI!)/.test(value);
   }
 
   _sheetNames() {
@@ -407,7 +409,7 @@ export class FormulaEngine {
 
   collectNumericValues(args) {
     return this.collectValues(args)
-      .filter(v => !(v && v.isTextCell))
+      .filter(v => !(v && v.isTextCell) && !this._isError(v))
       .map(v => typeof v === "number" ? v : Number(v.toString().replace(/[^\d.-]/g, "")))
       .filter(v => !isNaN(v));
   }
@@ -742,7 +744,8 @@ export class FormulaEngine {
       // Toán học
       case "SUM": {
         const rawValues = this.collectValues(args);
-        if (rawValues.includes("#REF!")) return "#REF!";
+        const err = rawValues.find(v => this._isError(v));
+        if (err) return err;
         const nums = rawValues
           .filter(v => !(v && v.isTextCell))
           .map(v => typeof v === "number" ? v : Number(String(v).replace(/[^\d.-]/g, "")))
@@ -752,6 +755,9 @@ export class FormulaEngine {
       }
 
       case "PRODUCT": {
+        const rawValues = this.collectValues(args);
+        const err = rawValues.find(v => this._isError(v));
+        if (err) return err;
         const nums = this.collectNumericValues(args);
         return nums.reduce((acc, v) => acc * v, 1);
       }
@@ -766,7 +772,8 @@ export class FormulaEngine {
 
       case "AVERAGE": {
         const rawValues = this.collectValues(args);
-        if (rawValues.includes("#REF!")) return "#REF!";
+        const err = rawValues.find(v => this._isError(v));
+        if (err) return err;
         const nums = this.collectNumericValues(args);
         if (nums.length === 0) return 0;
         const sum = nums.reduce((acc, v) => acc + v, 0);
@@ -774,13 +781,17 @@ export class FormulaEngine {
       }
 
       case "MIN": {
-        if (this.collectValues(args).includes("#REF!")) return "#REF!";
+        const rawValues = this.collectValues(args);
+        const err = rawValues.find(v => this._isError(v));
+        if (err) return err;
         const nums = this.collectNumericValues(args);
         return nums.length ? Math.min(...nums) : 0;
       }
 
       case "MAX": {
-        if (this.collectValues(args).includes("#REF!")) return "#REF!";
+        const rawValues = this.collectValues(args);
+        const err = rawValues.find(v => this._isError(v));
+        if (err) return err;
         const nums = this.collectNumericValues(args);
         return nums.length ? Math.max(...nums) : 0;
       }
@@ -1313,6 +1324,7 @@ export class FormulaEngine {
       case "IF": {
         const condExpr = args[0];
         const condResult = this._evaluateCondition(condExpr);
+        if (this._isError(condResult)) return condResult;
         if (condResult) {
           return this._resolveSingleValue(args[1]);
         } else {
@@ -1322,20 +1334,26 @@ export class FormulaEngine {
 
       case "AND": {
         for (const a of args) {
-          if (!this._evaluateCondition(a)) return false;
+          const res = this._evaluateCondition(a);
+          if (this._isError(res)) return res;
+          if (!res) return false;
         }
         return true;
       }
 
       case "OR": {
         for (const a of args) {
-          if (this._evaluateCondition(a)) return true;
+          const res = this._evaluateCondition(a);
+          if (this._isError(res)) return res;
+          if (res) return true;
         }
         return false;
       }
 
       case "NOT": {
-        return !this._evaluateCondition(args[0]);
+        const res = this._evaluateCondition(args[0]);
+        if (this._isError(res)) return res;
+        return !res;
       }
 
       case "IFERROR":
@@ -1831,6 +1849,7 @@ export class FormulaEngine {
         if (args.length < 2 || args.length % 2 !== 0) return "#VALUE!";
         for (let i = 0; i < args.length; i += 2) {
           const cond = this._evaluateCondition(String(args[i]));
+          if (this._isError(cond)) return cond;
           if (cond) return this._resolveSingleValue(args[i + 1]);
         }
         return "#N/A";
@@ -1935,6 +1954,10 @@ export class FormulaEngine {
       const leftVal = this._resolveSingleValue(leftStr);
       const rightVal = this._resolveSingleValue(rightStr);
 
+      if (rightVal === "#N/A") return rightVal;
+      if (this._isError(leftVal)) return leftVal;
+      if (this._isError(rightVal)) return rightVal;
+
       if (op === ">=") return leftVal >= rightVal;
       if (op === "<=") return leftVal <= rightVal;
       if (op === ">") return leftVal > rightVal;
@@ -1944,6 +1967,7 @@ export class FormulaEngine {
     }
 
     const val = this._resolveSingleValue(condStr);
+    if (this._isError(val)) return val;
     return Boolean(val && val !== "FALSE" && val !== "0");
   }
 
@@ -2078,14 +2102,28 @@ export class FormulaEngine {
 
   _evaluateArithmetic(expr, { raw = false } = {}) {
     // Thay thế các tọa độ ô (vd: A1, B2) thành giá trị số tương ứng
-    let referenceError = false;
+    let propagatedError = null;
     const resolved = expr.replace(/(?:'(?:[^']|'')+'|[A-Za-zÀ-ỹ_][^\s!+\-*/()]*)!\$?[A-Z]+\$?\d+|\$?[A-Z]+\$?\d+/gi, (token) => {
       const reference = this._parseReference(token);
       const val = reference.error || this.getCellValue(reference.ref, reference.sheet);
-      if (val === "#REF!") referenceError = true;
+      if (this._isError(val)) {
+        if (!propagatedError || val === "#N/A") propagatedError = val;
+        return 0;
+      }
+      if (typeof val === "string" || (val && val.isTextCell)) {
+        const strVal = String(val);
+        const cleaned = strVal.replace(/\./g, "").replace(/[^\d-]/g, "");
+        if (cleaned && !isNaN(Number(cleaned)) && !(val && val.isTextCell)) {
+          return Number(cleaned);
+        }
+        if (strVal.trim() !== "" && isNaN(Number(strVal))) {
+          if (!propagatedError) propagatedError = "#VALUE!";
+          return 0;
+        }
+      }
       return typeof val === "number" ? val : (Number(val) || 0);
     });
-    if (referenceError) return "#REF!";
+    if (propagatedError) return propagatedError;
 
     // Tính toán an toàn
     if (/^[\d\s+\-*/().%^]+$/.test(resolved)) {
