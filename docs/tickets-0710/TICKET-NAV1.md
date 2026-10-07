@@ -1,0 +1,4 @@
+# TICKET NAV1 — Lam Ngan dan huong cho Writer
+Doc ke hoach docs/PLAN-WRITER-NAV-PANE.md va lam dung pham vi do (da duoc chu du an duyet). Worktree/nhanh rieng. Dung lai mau khung dock cua AI sidebar va token mau co san; khong them goi; khong sua adapter/LibreOffice.
+Tieu chi xong: 9 hanh vi trong ke hoach dat tren app desktop that qua CDP; test don vi moi; 43/43 so trang khop Word (doc_live_pages_vs_word.mjs) va do tre go phim khong tang (doc_typing_latency_doc.mjs 0 su kien >100ms); node tests/run-tests.js khong FAIL moi; Tro giup tieng Viet that + i18n VI/EN; cap nhat GAP-DOC-VS-WORD-0610.md.
+Quy tac chung: test bang app desktop (main.py + CDP, KHONG web), khong SendKeys/OS input, khong kill theo ten, LOCALAPPDATA rieng, KHONG push main, KHONG merge. TIET KIEM TOKEN, bao cao 3 dong.
