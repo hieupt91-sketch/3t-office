@@ -1,0 +1,12 @@
+# TICKET SB1 — SUA 3 loi cong thuc Sheet (ROUND so am, IFERROR bat loi, SUMIFS sai kich thuoc)
+Worktree rieng (nhanh fix/sheet-round-iferror-sumifs-<agent>). Chi sua trong worktree nay.
+Muc tieu: ket qua Sheet khop Excel cho cac phep thu sau (script: node --experimental-websocket scripts/audit-0610/sheet_formulas_vs_excel.mjs --oracle-expected; chay app desktop that qua CDP).
+Hien trang (da do truc tiep):
+1. ROUND lam tron nua ve +vo cuc thay vi RA XA SO 0: =ROUND(-2.5,0) ra -2 (Excel -3); =ROUND(-12.345,2) ra -12.34 (Excel -12.35); =ROUND(-1.25,1) ra -1.2 (Excel -1.3); =ROUND(-1500,-3) ra -1000 (Excel -2000). So duong dung (ROUND(2.5,0)=3). Code: apps/sheet/formula-engine.js khoang dong 988 (case "ROUND"). Quy tac Excel: lam tron nua ra xa 0, tinh tren bieu dien thap phan (2.675 -> 2.68). Kiem tra ROUNDUP/ROUNDDOWN/MROUND/CEILING/FLOOR neu dung chung ham loi.
+2. IFERROR khong bat loi: =IFERROR(1/0,"fb") ra chuoi "1/0" (Excel "fb"); =IFERROR(IF(A1=0,1/0,10),99) voi A1=0 ra "1/0" (Excel 99). Code: apps/sheet/formula-engine.js ~1282 va apps/sheet/evaluate-formula.js ~398,436. Co ve doi so thu nhat bi coi la chuoi khi gia tri la loi.
+3. SUMIFS/COUNTIFS khi vung sum va vung tieu chi KHAC kich thuoc phai ra #VALUE! (Excel). Hien SUMIFS(D1:D5,A1:A6,"North") ra 800. (COUNTIFS khac kich thuoc da ra #VALUE! dung.)
+KHONG sua trong ticket nay: lan truyen loi qua +,SUM (ticket SB2 chan doan truoc), DATE tra chuoi (SB2).
+Tieu chi xong: (a) cac phep thu R02,R06,R08,R10,L01,L07,S09 trong script tren PASS, cac phep thu da PASS khong tut; (b) them test don vi vao tests/unit (cung cho cac test cong thuc hien co) cho tung loi, gom truong hop am/duong/midpoint; (c) node tests/run-tests.js khong FAIL moi (hien 2832 PASS); (d) cap nhat help ham neu mo ta sai (platform/help/entries-sheet.js, tieng Viet that).
+Cam: doi expected cho xanh, SendKeys/OS input, kill theo ten tien trinh, pywebview evaluate_js, them dependency, refactor ngoai pham vi. Test app that qua CDP (khong web), LOCALAPPDATA rieng (VNO_CDP_LOCALAPPDATA). Commit tren nhanh cua ban, KHONG push main, KHONG merge.
+Cho agy: chay test trong foreground, khong de tac vu nen; commit som sau moi loi.
+TIET KIEM TOKEN: chi doc ham lien quan; bao cao toi da 3 dong.
