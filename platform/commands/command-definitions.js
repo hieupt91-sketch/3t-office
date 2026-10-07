@@ -64,6 +64,7 @@ export const WRITER_COMMANDS = [
   { id: "writer.view.webLayout", category: "view", label: "Bố trí Web", icon: "writerWebLayout", tooltip: "Hiển thị nội dung liên tục theo chiều rộng cửa sổ", isToggle: true },
   { id: "writer.view.readMode", category: "view", label: "Chế độ đọc", icon: "writerReadMode", tooltip: "Ẩn ribbon và mở rộng vùng đọc; nhấn Esc để thoát", isToggle: true },
   { id: "writer.view.ruler", category: "view", label: "Thước", icon: "writerRuler", tooltip: "Ẩn hoặc hiện thước đo ngang và thước đo dọc theo thiết lập trang", isToggle: true },
+  { id: "writer.view.navigationPane", category: "view", label: "Ngăn dẫn hướng", icon: "tocInsert", tooltip: "Hiện danh sách tiêu đề để tìm và di chuyển nhanh trong tài liệu", shortcut: "Ctrl+Alt+N", isToggle: true },
   { id: "writer.ruler.getState", category: "view", label: "Đọc trạng thái thước", tooltip: "Đồng bộ thước với lề trang và đoạn đang chọn" },
   { id: "writer.ruler.setParagraphIndents", category: "paragraph", label: "Đặt thụt lề bằng thước", tooltip: "Đặt thụt dòng đầu, thụt lề treo, lề trái hoặc lề phải cho đoạn đang chọn" },
   { id: "writer.ruler.setPageMargins", category: "layout", label: "Đặt lề trang bằng thước", tooltip: "Kéo ranh giới lề trái hoặc lề phải trên thước" },

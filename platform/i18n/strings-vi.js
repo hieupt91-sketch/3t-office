@@ -798,6 +798,7 @@ export const viStrings = {
     "writer.view.webLayout": { label: "Bố trí Web", tooltip: "Hiển thị nội dung liên tục theo chiều rộng cửa sổ" },
     "writer.view.readMode": { label: "Chế độ đọc", tooltip: "Ẩn ribbon và mở rộng vùng đọc; nhấn Esc để thoát" },
     "writer.view.ruler": { label: "Thước", tooltip: "Ẩn hoặc hiện thước đo ngang và thước đo dọc theo thiết lập trang" },
+    "writer.view.navigationPane": { label: "Ngăn dẫn hướng", tooltip: "Hiện danh sách tiêu đề để tìm và di chuyển nhanh trong tài liệu (Ctrl+Alt+N)" },
     "writer.ruler.getState": { label: "Đọc trạng thái thước", tooltip: "Đồng bộ thước với lề trang và đoạn đang chọn" },
     "writer.ruler.setParagraphIndents": { label: "Đặt thụt lề bằng thước", tooltip: "Đặt thụt dòng đầu, thụt lề treo, lề trái hoặc lề phải cho đoạn đang chọn" },
     "writer.ruler.setPageMargins": { label: "Đặt lề trang bằng thước", tooltip: "Kéo ranh giới lề trái hoặc lề phải trên thước" },
@@ -890,6 +891,19 @@ export const viStrings = {
       help: "Trợ giúp",
       aiFeatures: "Tính năng AI thuần Việt"
     }
+  },
+  writerNavigation: {
+    title: "Ngăn dẫn hướng",
+    close: "Đóng Ngăn dẫn hướng",
+    searchLabel: "Tìm trong tài liệu",
+    searchPlaceholder: "Tìm trong tài liệu",
+    branchActions: "Thu hoặc mở các nhánh tiêu đề",
+    collapseAll: "Thu gọn tất cả",
+    expandAll: "Mở rộng tất cả",
+    treeLabel: "Các tiêu đề trong tài liệu",
+    page: "Trang {page}",
+    empty: "Tài liệu chưa có tiêu đề. Đặt kiểu Tiêu đề 1–6 để hiện ở đây.",
+    noResults: "Không có tiêu đề khớp."
   },
   writerDialogs: {
     pageSetup: {

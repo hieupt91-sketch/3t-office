@@ -797,6 +797,7 @@ export const enStrings = {
     "writer.view.webLayout": { label: "Web Layout", tooltip: "Flow document content continuously across the window" },
     "writer.view.readMode": { label: "Read Mode", tooltip: "Hide the ribbon and expand the reading area; press Esc to exit" },
     "writer.view.ruler": { label: "Ruler", tooltip: "Show or hide horizontal and vertical rulers based on page setup" },
+    "writer.view.navigationPane": { label: "Navigation Pane", tooltip: "Show document headings for quick search and navigation (Ctrl+Alt+N)" },
     "writer.ruler.getState": { label: "Read ruler state", tooltip: "Sync the ruler with the page margins and the selected paragraph" },
     "writer.ruler.setParagraphIndents": { label: "Set indents with the ruler", tooltip: "Set first-line, hanging, left or right indent for the selected paragraph" },
     "writer.ruler.setPageMargins": { label: "Set page margins with the ruler", tooltip: "Drag the left or right margin boundary on the ruler" },
@@ -889,6 +890,19 @@ export const enStrings = {
       help: "Help",
       aiFeatures: "Vietnamese AI Features"
     }
+  },
+  writerNavigation: {
+    title: "Navigation Pane",
+    close: "Close Navigation Pane",
+    searchLabel: "Search document",
+    searchPlaceholder: "Search document",
+    branchActions: "Collapse or expand heading branches",
+    collapseAll: "Collapse all",
+    expandAll: "Expand all",
+    treeLabel: "Document headings",
+    page: "Page {page}",
+    empty: "This document has no headings. Apply Heading 1–6 to show them here.",
+    noResults: "No matching headings."
   },
   writerDialogs: {
     pageSetup: {

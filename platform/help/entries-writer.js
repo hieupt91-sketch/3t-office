@@ -5,6 +5,23 @@
 
 export const WRITER_HELP_ENTRIES = [
   {
+    id: "writer.view.navigationPane.help",
+    app: "writer",
+    commandIds: ["writer.view.navigationPane"],
+    title: "Dùng Ngăn dẫn hướng để tìm và nhảy tới tiêu đề",
+    summary: "Mở ngăn bên trái để xem cây Tiêu đề 1–6 và các đoạn đã đặt Mức đại cương, lọc nhanh theo chữ rồi nhảy tới đúng vị trí trong tài liệu dài.",
+    ribbon: { tab: "Chế độ xem", tabId: "view", group: "Hiển thị" },
+    keywords: ["ngăn dẫn hướng", "khung điều hướng", "navigation pane", "tiêu đề", "heading", "mức đại cương", "tìm tiêu đề", "ctrl alt n"],
+    steps: [
+      "Mở tab Chế độ xem trên thanh ribbon, tới nhóm Hiển thị rồi bấm Ngăn dẫn hướng; có thể nhấn Ctrl+Alt+N để bật hoặc tắt nhanh.",
+      "Danh sách bên trái hiển thị các đoạn dùng kiểu Tiêu đề 1–6 hoặc đã đặt Mức đại cương trong hộp thoại Đoạn văn. Số bên phải mỗi dòng là trang ước lượng theo bố cục hiện tại.",
+      "Nhập chữ vào ô Tìm trong tài liệu để lọc tiêu đề; tìm kiếm không phân biệt chữ hoa, chữ thường và vẫn khớp khi nhập tiếng Việt không dấu.",
+      "Bấm một tiêu đề hoặc chọn bằng phím Mũi tên lên/xuống, Home, End rồi nhấn Enter để cuộn tới tiêu đề và đặt con trỏ ở đầu tiêu đề đó.",
+      "Dùng mũi tên cạnh tiêu đề để thu/mở một nhánh, hoặc bấm Thu gọn tất cả / Mở rộng tất cả. Nhấn Esc trong ngăn để đưa tiêu điểm trở lại tài liệu.",
+      "Nếu ngăn trống, hãy chọn đoạn cần làm tiêu đề rồi áp dụng kiểu Tiêu đề 1–6 ở tab Trang đầu; hoặc mở hộp thoại Đoạn văn và chọn Mức đại cương phù hợp."
+    ]
+  },
+  {
     id: "writer.mailMerge.ifRule.docx",
     app: "writer",
     commandIds: ["writer.mailMerge.ifRule"],

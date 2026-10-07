@@ -1,4 +1,5 @@
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
+import { WriterNavigationPane } from "./writer-nav-pane.js";
 
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2;
@@ -38,6 +39,7 @@ export class WriterViewController {
       }
     };
     this._zoomUnsubscribe = null;
+    this.navigationPane = null;
   }
 
   attach() {
@@ -47,6 +49,7 @@ export class WriterViewController {
     bind("writer.view.readMode", () => this.setMode("readMode"));
     bind("writer.view.ruler", () => this.toggleRuler());
     bind("writer.view.gridlines", () => this.toggleGridlines());
+    bind("writer.view.navigationPane", () => this.navigationPane?.toggle());
     bind("writer.view.zoomIn", () => this.zoomIn());
     bind("writer.view.zoomOut", () => this.zoomOut());
     bind("writer.view.zoomReset", () => this.zoomReset());
@@ -61,12 +64,21 @@ export class WriterViewController {
       this.zoomLevel = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Number(level) / 100));
       this._applyViewState();
     }) || null;
+    this.navigationPane = new WriterNavigationPane({
+      workspace: this.viewport?.parentElement,
+      viewport: this.viewport,
+      page: this.page,
+      body: this.page?.querySelector?.(".vno-writer-body"),
+      commandBus: globalCommandBus
+    }).attach();
     this._applyViewState();
     this._syncCommandStates();
     return this;
   }
 
   destroy() {
+    this.navigationPane?.destroy();
+    this.navigationPane = null;
     if (typeof document !== "undefined") document.removeEventListener?.("keydown", this._escapeHandler);
     if (typeof window !== "undefined") window.removeEventListener?.("resize", this._resizeHandler);
     this.viewport?.removeEventListener?.("scroll", this._scrollHandler);
