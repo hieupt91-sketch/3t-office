@@ -171,7 +171,10 @@ def _run_excel_open_test(paths: list[Path]) -> tuple[str, str]:
     return status, output[-1200:]
 
 
-def _run_xlsx(root: Path, input_dir: Path, out_dir: Path, names: list[str]) -> list[dict[str, Any]]:
+def _run_xlsx(root: Path, input_dir: Path, out_dir: Path, names: list[str]) -> list[dict[str, Any]]:
+    # An unedited XLSX is saved by restoring the source package (identity copy). Mark the workbook dirty so the
+    # audit exercises the real conversion path every user edit takes. Set VNO_AUDIT_MARK_DIRTY=0 to opt out.
+    os.environ.setdefault("VNO_AUDIT_MARK_DIRTY", "1")
     out_dir.mkdir(parents=True, exist_ok=True)
     rows = []
     selected = _xlsx_inputs(input_dir, names)
