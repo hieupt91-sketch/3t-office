@@ -678,6 +678,64 @@ export class FormulaEngine {
     return this._equals(value, text);
   }
 
+  _splitConcat(expr) {
+    const parts = [];
+    let cur = "";
+    let parenDepth = 0;
+    let inQuotes = false;
+    let hasAmpersand = false;
+
+    for (let i = 0; i < expr.length; i++) {
+      const char = expr[i];
+      if (char === '"' && expr[i - 1] !== "\\") {
+        inQuotes = !inQuotes;
+        cur += char;
+      } else if (char === "(" && !inQuotes) {
+        parenDepth++;
+        cur += char;
+      } else if (char === ")" && !inQuotes) {
+        parenDepth--;
+        cur += char;
+      } else if (char === "&" && parenDepth === 0 && !inQuotes) {
+        hasAmpersand = true;
+        parts.push(cur.trim());
+        cur = "";
+      } else {
+        cur += char;
+      }
+    }
+    if (!hasAmpersand) return null;
+    parts.push(cur.trim());
+    return parts;
+  }
+
+  _resolveConcatOperand(token) {
+    if (typeof token !== "string") return token;
+    let t = token.trim();
+    while (t.startsWith("+")) t = t.substring(1).trim();
+    if (!t) return "";
+
+    if (this._isError(t)) return t;
+
+    if (t.startsWith('"') && t.endsWith('"')) {
+      return t.slice(1, -1);
+    }
+
+    if (/^(?:(?:'(?:[^']|'')+'|[A-Za-zÀ-ỹ0-9_.\s]+)!)?\$?[A-Za-z]+\$?\d+$/i.test(t)) {
+      const reference = this._parseReference(t);
+      if (reference.error) return reference.error;
+      const map = reference.sheet && typeof this.sheetResolver === "function" ? this.sheetResolver(reference.sheet) : this.cellsMap;
+      if (reference.sheet && !map) return "#REF!";
+      const item = map ? map.get(reference.ref.toUpperCase()) : null;
+      if (!item || item.val === undefined || item.val === null || item.val === "") {
+        return "";
+      }
+      return this.getCellValue(reference.ref, reference.sheet);
+    }
+
+    return this.evaluate(`=${t}`);
+  }
+
   /**
    * Tính toán biểu thức công thức (bắt đầu bằng dấu =)
    * @param {string} formula
@@ -685,10 +743,52 @@ export class FormulaEngine {
    */
   evaluate(formula) {
     if (!formula || !formula.startsWith("=")) return formula;
-    const expr = formula.substring(1).trim();
+    let expr = formula.substring(1).trim();
+
+    // Excel prefix '+': tiền tố nhập công thức, không ép về số học
+    while (expr.startsWith("+")) {
+      expr = expr.substring(1).trim();
+    }
+    if (!expr) return 0;
 
     try {
-      // 1. Phân tích hàm có tên: TÊN_HÀM(đối số...)
+      if (this._isError(expr)) {
+        return expr.toUpperCase();
+      }
+
+      // 1. Phép toán nối chuỗi ký tự: &
+      const concatParts = this._splitConcat(expr);
+      if (concatParts) {
+        let errorResult = null;
+        const evaluated = concatParts.map(part => {
+          if (errorResult) return "";
+          const val = this._resolveConcatOperand(part);
+          if (this._isError(val)) {
+            errorResult = val;
+            return "";
+          }
+          if (typeof val === "boolean") return val ? "TRUE" : "FALSE";
+          return String(val ?? "");
+        });
+        if (errorResult) return errorResult;
+        return evaluated.join("");
+      }
+
+      // 2. Tham chiếu ô đơn: =A1, =$A$1, ='Sheet1'!A1
+      if (/^(?:(?:'(?:[^']|'')+'|[A-Za-zÀ-ỹ0-9_.\s]+)!)?\$?[A-Za-z]+\$?\d+$/i.test(expr)) {
+        const reference = this._parseReference(expr);
+        return reference.error || this.getCellValue(reference.ref, reference.sheet);
+      }
+
+      const named = this._resolveNamedRange(expr);
+      if (named) {
+        const expanded = this.expandRange(this._resolveRangeReference(expr));
+        if (expanded && expanded.length === 1) {
+          return this.getCellValue(expanded[0]);
+        }
+      }
+
+      // 3. Phân tích hàm có tên: TÊN_HÀM(đối số...)
       const funcMatch = expr.match(/^([A-Z_.]+)\s*\((.*)\)$/i);
       if (funcMatch) {
         const funcName = funcMatch[1].toUpperCase();
@@ -696,7 +796,7 @@ export class FormulaEngine {
         return this._executeFunction(funcName, rawArgs);
       }
 
-      // 2. Biểu thức toán học số học thông thường: =A1 + B2 * 3
+      // 4. Biểu thức toán học số học thông thường: =A1 + B2 * 3
       return this._evaluateArithmetic(expr);
     } catch (err) {
       console.warn("[FormulaEngine] Lỗi tính toán:", formula, err);

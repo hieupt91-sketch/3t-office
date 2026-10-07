@@ -687,5 +687,41 @@ export async function runFormulaEngineTests() {
     pass: sb6Muc1Engine.evaluate("=A1+1") === "#VALUE!"
   });
 
+  // 5. SB6 MỤC 2: Tiền tố '+' đầu công thức và toán tử nối chuỗi &
+  const sb6Muc2Cells = new Map([
+    ["B13", { val: " 19200002 ", formula: "", style: {} }],
+    ["F260", { val: "Nguyễn Mạnh", formula: "", style: {} }],
+    ["G260", { val: "Thành", formula: "", style: {} }],
+    ["U1", { val: 44555, formula: "", style: {} }], // 25/12/2021
+    ["G82", { val: "24 tháng", formula: "", style: {} }],
+    ["Z1", { val: "", formula: "", style: {} }]
+  ]);
+  const sb6Muc2Engine = new FormulaEngine(sb6Muc2Cells);
+
+  results.push({
+    name: 'SB6 MỤC 2: =+TRIM(B13) giữ kết quả văn bản không ép về số',
+    pass: sb6Muc2Engine.evaluate("=+TRIM(B13)") === "19200002"
+  });
+  results.push({
+    name: 'SB6 MỤC 2: =+F260&" "&G260 nối chuỗi văn bản chính xác',
+    pass: sb6Muc2Engine.evaluate('=+F260&" "&G260') === "Nguyễn Mạnh Thành"
+  });
+  results.push({
+    name: 'SB6 MỤC 2: =+TEXT(U1,"dd/mm/yyyy") giữ kết quả chuỗi định dạng ngày',
+    pass: sb6Muc2Engine.evaluate('=+TEXT(U1,"dd/mm/yyyy")') === "25/12/2021"
+  });
+  results.push({
+    name: 'SB6 MỤC 2: =+G82 với ô "24 tháng" trả về nguyên văn chuỗi',
+    pass: sb6Muc2Engine.evaluate("=+G82") === "24 tháng"
+  });
+  results.push({
+    name: 'SB6 MỤC 2: =+15 trên số trả về số 15',
+    pass: sb6Muc2Engine.evaluate("=+15") === 15
+  });
+  results.push({
+    name: 'SB6 MỤC 2: Nối chuỗi với ô trống Z1 không sinh ký tự "0"',
+    pass: sb6Muc2Engine.evaluate('=+Z1&"hậu tố"') === "hậu tố"
+  });
+
   return results;
 }
