@@ -172,6 +172,9 @@ def _run_excel_open_test(paths: list[Path]) -> tuple[str, str]:
 
 
 def _run_xlsx(root: Path, input_dir: Path, out_dir: Path, names: list[str]) -> list[dict[str, Any]]:
+    # An untouched XLSX is restored from the original package. Force the same
+    # conversion path used after a real edit unless the caller opts out.
+    os.environ.setdefault("VNO_AUDIT_MARK_DIRTY", "1")
     out_dir.mkdir(parents=True, exist_ok=True)
     rows = []
     selected = _xlsx_inputs(input_dir, names)
