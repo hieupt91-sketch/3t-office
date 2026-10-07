@@ -297,6 +297,29 @@ export async function runWriterPrintPreviewTests() {
       }
     });
 
+    await test("Writer thanh trạng thái: trang hiện tại đi theo caret qua các dải phân trang", async () => {
+      const caret = { nodeType: 3 };
+      const gaps = [{ order: 1 }, { order: 2 }];
+      const body = new FakeElement("div");
+      body.className = "vno-writer-body";
+      body.contains = node => node === caret;
+      body.querySelectorAll = selector => selector.includes("data-vno-auto-page-gap") ? gaps : [];
+      const adapter = new WriterAdapter(null);
+      adapter.bodyDom = body;
+      adapter._livePageCount = 3;
+      window.getSelection = () => ({
+        rangeCount: 1,
+        getRangeAt: () => ({
+          startContainer: caret,
+          comparePoint: gap => gap.order <= 2 ? -1 : 1
+        })
+      });
+      if (adapter.getCurrentPage() !== 3) throw new Error("Caret sau hai dải ngắt phải ở trang 3");
+
+      window.getSelection = () => null;
+      if (adapter.getCurrentPage() !== 3) throw new Error("Mất focus tạm thời không được đưa chỉ số trang về 1");
+    });
+
     await test("Writer Print Preview: đổi Page Setup sang Letter Landscape phản ánh chính xác trong preview (không cố định A4)", async () => {
       const editorDom = new FakeElement("div");
       editorDom.className = "vno-writer-page";

@@ -10,6 +10,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { SheetGridController } from "../../apps/sheet/sheet-grid.js";
 import { SlidesCanvasController } from "../../apps/slides/slides-canvas.js";
+import { WriterApp } from "../../apps/writer/writer-app.js";
 import { WriterAdapter } from "../../adapters/libreoffice/writer/writer-adapter.js";
 import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
 import { SlidesAdapter } from "../../adapters/libreoffice/slides/slides-adapter.js";
@@ -224,6 +225,54 @@ export async function runBlankDefaultTests() {
       results.push({ name, pass: false, error: error.message });
     }
   };
+  await asyncTest("Writer: chọn mẫu hành chính áp nội dung thật và reset danh tính tệp cũ", async () => {
+    const roots = {
+      ".vno-writer-header": { innerHTML: "" },
+      ".vno-writer-body": { innerHTML: "", querySelector: () => null, focus() {} },
+      ".vno-writer-footer": { innerHTML: "" }
+    };
+    let resetCalls = 0;
+    const app = Object.create(WriterApp.prototype);
+    app._administrativeTemplateHtml = {
+      header: "<p>Mẫu văn bản hành chính</p>",
+      body: "<h1>QUYẾT ĐỊNH</h1><p>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</p><p>Nơi nhận:</p>",
+      footer: "<p>Trang 1 / 1</p>"
+    };
+    app.canvas = {
+      innerHTML: "",
+      querySelector: selector => roots[selector] || null,
+      classList: { remove() {} }
+    };
+    app.shell = {
+      resetDocumentChrome(name, tab, recent) {
+        resetCalls += 1;
+        this.name = name;
+        this.tab = tab;
+        this.recent = recent;
+      }
+    };
+    app.adapter = {
+      _sourcePath: "C:\\docs\\cu.docx",
+      async newDocument() { this._sourcePath = null; },
+      _editorDomFingerprint: () => "template-fingerprint",
+      clearUndoRedo() { this.cleared = true; },
+      _recomputeLivePagination() { this.paginated = true; }
+    };
+
+    if (await app._applyTemplate("admin_doc") !== true) throw new Error("Mẫu hành chính không được xử lý");
+    if (!roots[".vno-writer-body"].innerHTML.includes("QUYẾT ĐỊNH")
+      || !roots[".vno-writer-body"].innerHTML.includes("CỘNG HÒA")
+      || !roots[".vno-writer-body"].innerHTML.includes("Nơi nhận")) {
+      throw new Error("Mẫu hành chính thiếu nội dung thực");
+    }
+    if (app.adapter._sourcePath !== null || app.adapter.sourceFileName !== "Quyết định ban hành tiêu chuẩn 01") {
+      throw new Error("Áp mẫu phải tạo danh tính tài liệu mới, không giữ đường dẫn cũ");
+    }
+    if (!app.adapter.cleared || !app.adapter.paginated || resetCalls !== 1
+      || app.shell.name !== "Quyết định ban hành tiêu chuẩn 01.docx") {
+      throw new Error("Áp mẫu chưa đồng bộ lịch sử, phân trang hoặc tên tài liệu");
+    }
+  });
   const makeShell = (documentName) => ({
     documentName,
     status: "",
