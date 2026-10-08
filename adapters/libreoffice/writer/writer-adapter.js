@@ -7135,7 +7135,7 @@ export class WriterAdapter {
 
       case "writer.text.underline":
         document.execCommand("underline", false, null);
-        dispatchResult = document.queryCommandState("underline");
+        dispatchResult = this._readInlineCommandState("underline");
         break;
 
       case "writer.text.strike":
@@ -8651,6 +8651,28 @@ export class WriterAdapter {
       this.bodyDom.addEventListener("keyup", this._styleSelectionHandler);
       this.bodyDom.addEventListener("mouseup", this._styleSelectionHandler);
     }
+  }
+
+  _readInlineCommandState(domCommand) {
+    let fallback = false;
+    try { fallback = Boolean(document.queryCommandState(domCommand)); } catch {}
+    if (domCommand !== "underline" || typeof window === "undefined") return fallback;
+    const selection = window.getSelection?.();
+    let node = selection?.anchorNode || null;
+    if (node?.nodeType === 3) node = node.parentElement;
+    if (!node || !this.bodyDom?.contains?.(node)) return fallback;
+    while (node && node !== this.bodyDom) {
+      if (String(node.tagName || "").toLowerCase() === "u") return true;
+      const inline = String(node.style?.textDecorationLine || node.style?.textDecoration || "").toLowerCase();
+      if (inline.includes("underline")) return true;
+      try {
+        if (String(window.getComputedStyle?.(node)?.textDecorationLine || "").toLowerCase().includes("underline")) return true;
+      } catch {}
+      node = node.parentElement;
+    }
+    // Chromium can retain queryCommandState('underline') after removing the final <u>
+    // around a spell-check span. DOM/computed style is the actual formatting source.
+    return false;
   }
 
   // Ribbon toggle buttons (Bold, Italic, alignment, lists...) must follow the text under the caret, not only the last
