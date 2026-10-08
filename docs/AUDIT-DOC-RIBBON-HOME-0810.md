@@ -1,9 +1,9 @@
 # Audit RB-D1 — VN Writer, tab Trang đầu
 
-Ngày kiểm tra: 08/10/2026  
-Baseline: `ace3271c`; các fix tiếp quản: `68d017c2`, `e4b63e39`, `4f9a86c1`  
-Đặc tả: `tests/live/ribbon-specs/doc-home.json` (53 control/mục con)  
-Harness: `scripts/audit-0610/ribbon_functional.mjs`  
+Ngày kiểm tra: 08/10/2026
+Baseline: `ace3271c`; các fix tiếp quản: `68d017c2`, `e4b63e39`, `4f9a86c1`
+Đặc tả: `tests/live/ribbon-specs/doc-home.json` (53 control/mục con)
+Harness: `scripts/audit-0610/ribbon_functional.mjs`
 Bằng chứng ngoài Git: `E:\VNOffice-profiles\ribbon-shots\doc-home-rbd1-complete\`
 
 ## Phương pháp và kết quả tổng
