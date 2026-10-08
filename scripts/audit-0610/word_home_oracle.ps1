@@ -68,8 +68,8 @@ try {
         "cut" { $target.Cut(); $detail = [string]$document.Content.Text }
         "copy" { $target.Copy(); $end = $document.Content.Duplicate; $end.Collapse(0); $end.Paste(); $detail = [string]$document.Content.Text }
         "formatPainter" { $source.Font.Bold = -1; $source.Select(); $word.Selection.CopyFormat(); $target.Select(); $word.Selection.PasteFormat(); $detail = "Bold=$([int]$target.Font.Bold)" }
-        "fontFamily" { $target.Font.Name = "Arial"; $detail = "Name=$($target.Font.Name)" }
-        "fontSize" { $target.Font.Size = 18; $detail = "Size=$([double]$target.Font.Size)" }
+        "fontFamily" { $target.Font.Name = "Calibri"; $detail = "Name=$($target.Font.Name)" }
+        "fontSize" { $target.Font.Size = 16; $detail = "Size=$([double]$target.Font.Size)" }
         "fontGrow" { $old = [double]$target.Font.Size; $target.Font.Grow(); $detail = "Size=$old->$([double]$target.Font.Size)" }
         "fontShrink" { $target.Font.Size = 18; $old = [double]$target.Font.Size; $target.Font.Shrink(); $detail = "Size=$old->$([double]$target.Font.Size)" }
         "bold" { $target.Font.Bold = -1; $detail = "Bold=$([int]$target.Font.Bold)" }

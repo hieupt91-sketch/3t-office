@@ -77,13 +77,14 @@ async function chooseSelect(cdp, item) {
     const node=document.querySelector(${JSON.stringify(selector)});
     return node ? [...node.options].findIndex(option => option.value === ${JSON.stringify(item.value)}) : -1;
   })()`);
+  const currentIndex = await cdp.evaluate(`document.querySelector(${JSON.stringify(selector)})?.selectedIndex ?? -1`);
   if (optionIndex < 0) throw new Error(`Select option not found: ${item.commandId}=${item.value}`);
   await click(cdp, selector);
   await press(cdp, "Escape", {}, 30);
   await cdp.evaluate(`document.querySelector(${JSON.stringify(selector)}).focus()`);
-  await press(cdp, "Home", {}, 30);
-  for (let index = 0; index < optionIndex; index += 1) await press(cdp, "ArrowDown", {}, 20);
-  await press(cdp, "Enter", {}, 250);
+  const direction = optionIndex >= currentIndex ? "ArrowDown" : "ArrowUp";
+  for (let index = 0; index < Math.abs(optionIndex - currentIndex); index += 1) await press(cdp, direction, {}, 0);
+  await sleep(300);
 }
 
 async function clickMenuItem(cdp, item) {
@@ -178,7 +179,7 @@ function assertEffect(item, before, after) {
     case "toggleSubscript": return truth(after.subscript || after.verticalAlign === "sub", `subscript=${after.subscript}`);
     case "toggleSuperscript": return truth(after.superscript || after.verticalAlign === "super", `superscript=${after.superscript}`);
     case "changeCase": return truth(after.text.includes("BETA"), after.text);
-    case "clearFormat": return truth(!after.bold && !after.italic && !/<b|<i/i.test(after.targetHtml), after.targetHtml);
+    case "clearFormat": return truth(!/<(?:b|i|u|strike|sub|sup)\b[^>]*>[^<]+/i.test(after.targetHtml) && !/style=["'][^"']*(?:font|color|background|text-decoration)/i.test(after.targetHtml), after.targetHtml);
     case "highlight": return truth(after.backgroundColor === "rgb(255, 205, 0)" || /background-color:\s*rgb\(255,\s*205,\s*0\)/i.test(after.html), after.backgroundColor);
     case "textColor": return truth(after.color !== before.color, `${before.color}->${after.color}`);
     case "bullet": return truth(after.listTag === "UL", after.listHtml);
@@ -228,8 +229,11 @@ async function saveAndReadXml(cdp, item, runNumber) {
   if (result?.status !== "ok") return { status: "BLOCKED", marker: JSON.stringify(result) };
   const python = spawnSync("python", ["-c", "import sys,zipfile;print(zipfile.ZipFile(sys.argv[1]).read('word/document.xml').decode('utf-8'))", output], { encoding: "utf8", maxBuffer: 20 * 1024 * 1024 });
   if (python.status !== 0) return { status: "BLOCKED", marker: python.stderr.trim() };
-  const present = python.stdout.includes(`<${item.xml}`);
-  return { status: present ? "PASS" : "FAIL", marker: item.xml, output };
+  const paragraphs = python.stdout.match(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g) || [];
+  const scope = paragraphs.find(paragraph => paragraph.includes("beta")) || python.stdout;
+  const pattern = item.xmlPattern ? new RegExp(item.xmlPattern, "i") : new RegExp(`<${item.xml}(?:\\s|/|>)`, "i");
+  const present = pattern.test(scope);
+  return { status: present ? "PASS" : "FAIL", marker: item.xmlPattern || item.xml, output };
 }
 
 async function discoverDom(cdp) {
