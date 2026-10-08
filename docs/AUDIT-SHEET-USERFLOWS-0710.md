@@ -31,6 +31,8 @@
 
 Lệnh: `node --experimental-websocket tests/live/sheet-user-flows.desktop.mjs` — **PASS 7/7**.
 
+Kết quả trên đã được chạy lại sau khi merge `main` tại commit `cae2bcef`; toàn bộ PID app do harness mở đều được đóng thành công trước khi chuyển app.
+
 ## Lỗi tìm thấy và sửa
 
 ### SC2-01 — Dán không giữ độ rộng cột
@@ -48,5 +50,11 @@ Lệnh: `node --experimental-websocket tests/live/sheet-user-flows.desktop.mjs` 
 | Desktop CDP matrix | PASS 7/7 |
 | Unit riêng Sheet copy/paste | PASS 6/6 |
 | `node tests/run-tests.js` | PASS 2957/2957, 0 FAIL |
-| `python -m unittest discover -s tests` | PASS 773/773 ở lần chạy cuối; lần đầu có race cleanup của updater, test lỗi chạy riêng PASS rồi full suite PASS |
+| `python -m unittest discover -s tests` | PASS 793/793 sau khi merge main; lần chạy cũ trước merge có race cleanup của updater, test lỗi chạy riêng PASS rồi full suite PASS |
 | `batch_document_audit.py xlsx` | NOT RUN — không chạy lại theo quy tắc mới; lần thử trước đó đã bị hủy khi phát hiện worktree khác đang giữ Excel COM/chạy Sheet đồng thời |
+
+## Tích hợp main
+
+- Đã merge `main` để lấy SB10–SB13 (và SB14 đã có trên đầu main) tại commit `cae2bcef`.
+- Xung đột duy nhất ở `scripts/layout-audit/batch_document_audit.py`: giữ API `reuse_saved`, đánh dấu dirty mặc định và cơ chế dọn PID Office theo ownership từ main; phần SC2 trùng chức năng được loại bỏ.
+- `xmlns:loext` trong root `office:document` chỉ còn một khai báo sau merge.
