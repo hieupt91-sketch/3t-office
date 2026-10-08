@@ -137,6 +137,17 @@ async function state(cdp) {
     const targetElement=target || body.querySelector('li,p') || body;
     const anchorElement=anchor?.nodeType===1 ? anchor : anchor?.parentElement;
     const style=getComputedStyle(anchorElement || targetElement); const targetStyle=getComputedStyle(targetElement);
+    const inlineUnderline=(()=>{
+      let node=anchorElement;
+      while(node && node!==body){
+        if(String(node.tagName||'').toLowerCase()==='u') return true;
+        const inline=String(node.style?.textDecorationLine||node.style?.textDecoration||'').toLowerCase();
+        if(inline.includes('underline')) return true;
+        if(!node.hasAttribute?.('data-vno-spelling-uncertain') && String(getComputedStyle(node).textDecorationLine||'').toLowerCase().includes('underline')) return true;
+        node=node.parentElement;
+      }
+      return false;
+    })();
     const visible=node => !!node && !!node.getClientRects().length;
     const dialogs=[...document.querySelectorAll('[role=dialog],.vno-dialog,.vno-modal,.vno-find-panel')].filter(visible);
     return {
@@ -147,7 +158,7 @@ async function state(cdp) {
       targetBorder:targetStyle.borderStyle, targetBorderBottom:targetStyle.borderBottomStyle,
       align:targetStyle.textAlign, lineHeight:targetStyle.lineHeight, marginLeft:parseFloat(targetStyle.marginLeft)||0,
       lineHeightToken:targetElement.style.getPropertyValue('--vno-lh') || targetElement.style.lineHeight || '',
-      bold:document.queryCommandState('bold'), italic:document.queryCommandState('italic'), underline:document.queryCommandState('underline'),
+      bold:document.queryCommandState('bold'), italic:document.queryCommandState('italic'), underline:inlineUnderline,
       strike:document.queryCommandState('strikeThrough'), subscript:document.queryCommandState('subscript'), superscript:document.queryCommandState('superscript'),
       menuOpen:!!document.querySelector('.vno-ribbon-dropdown-menu'), marks:body.classList.contains('vno-show-formatting-marks'),
       dialogCount:dialogs.length, dialogText:dialogs.at(-1)?.innerText?.replace(/\\s+/g,' ').slice(0,160)||'',
