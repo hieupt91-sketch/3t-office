@@ -8712,7 +8712,7 @@ export class WriterAdapter {
       if (!current) continue;
       let active = false;
       try {
-        active = Boolean(document.queryCommandState(domCommand));
+        active = this._readInlineCommandState(domCommand);
       } catch {
         continue;
       }
