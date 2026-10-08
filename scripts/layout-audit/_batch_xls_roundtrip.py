@@ -20,6 +20,7 @@ param([string]$A, [string]$B)
 $job = Start-Job -ScriptBlock {
   param($a, $b)
   $xl = New-Object -ComObject Excel.Application
+  $xl_pid = (Get-Process -Name excel -ErrorAction SilentlyContinue | Sort-Object StartTime -Descending | Select-Object -First 1).Id
   $xl.Visible = $false; $xl.DisplayAlerts = $false; $xl.AskToUpdateLinks = $false
   function Dump($path) {
     $wb = $xl.Workbooks.Open($path, 0, $true)
@@ -58,9 +59,13 @@ $job = Start-Job -ScriptBlock {
       foreach ($k in $db[$s].Keys) { if (-not $da[$s].ContainsKey($k)) { $diff++; if ($examples.Count -lt 5) { $examples += "$s!$k extra=[$($db[$s][$k])]" } } }
     }
     "RESULT " + (@{ sheets = $da.Count; cells = $total; diff = $diff; examples = $examples } | ConvertTo-Json -Compress)
-  } catch { "RESULT " + (@{ error = "$_" } | ConvertTo-Json -Compress) } finally { $xl.Quit() }
+  } catch { "RESULT " + (@{ error = "$_" } | ConvertTo-Json -Compress) } finally {
+    try { $xl.Quit() } catch {}
+    if ($xl_pid) { Stop-Process -Id $xl_pid -Force -ErrorAction SilentlyContinue }
+  }
 } -ArgumentList $A, $B
-if (Wait-Job $job -Timeout 900) { Receive-Job $job } else { 'RESULT {"error":"timeout (Excel dialog?)"}'; Stop-Job $job }
+if (Wait-Job $job -Timeout 30) { Receive-Job $job } else { 'RESULT {"error":"timeout (Excel dialog?)"}'; Stop-Job $job }
+Remove-Job $job -Force -ErrorAction SilentlyContinue
 """
 compare_path = os.path.join(OUTDIR, "_compare_xls.ps1")
 with open(compare_path, "w", encoding="utf-8-sig") as handle:
@@ -82,14 +87,14 @@ for name in names:
     comparator = "excel"
     if saved:
         cmp = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", compare_path, "-A", src, "-B", out],
-                             capture_output=True, text=True, timeout=1000)
+                             capture_output=True, text=True, timeout=100)
         line = next((l for l in (cmp.stdout or "").splitlines() if l.startswith("RESULT ")), "RESULT {}")
         try:
             result = json.loads(line[7:])
         except ValueError:
             result = {"error": line[:120]}
-        # If Excel COM failed to open original (error contains "Open" or "detected a problem"), fall back to LibreOffice
-        if "error" in result and ("Open" in result["error"] or "detected a problem" in result["error"] or "0x800A03EC" in result["error"]):
+        # If Excel COM failed for any reason (Protected View, RPC busy, dialog timeout, array index), fall back to LibreOffice
+        if "error" in result:
             print(f"  Excel COM failed for {name}: {result.get('error')}, falling back to LibreOffice...", flush=True)
             cmp2 = subprocess.run([sys.executable, LIBRE_COMPARE, src, out],
                                   capture_output=True, text=True, timeout=1000, cwd=ROOT, encoding="utf-8", errors="replace")

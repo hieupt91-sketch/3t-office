@@ -2659,6 +2659,310 @@ def _restore_source_sheet_names_and_states(workbook_xml: str, source_workbook_xm
     return workbook_xml
 
 
+def _restore_sheet_zoom_step(xlsx_bytes: bytes, source_xlsx_bytes: bytes, replacements: dict[str, str]) -> None:
+    """Restore sheetView zoomScale from source XLSX if dropped or defaulted to 100."""
+    try:
+        source_sheet_entries = _resolve_xlsx_sheet_entries(source_xlsx_bytes)
+        target_sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+        if not source_sheet_entries or not target_sheet_entries:
+            return
+
+        for sheet_name, src_entry in source_sheet_entries.items():
+            tgt_entry = _sheet_name_equivalent_value(target_sheet_entries, sheet_name)
+            if not tgt_entry:
+                continue
+
+            src_xml_bytes = read_zip_entry(source_xlsx_bytes, src_entry)
+            if not src_xml_bytes:
+                continue
+            src_xml = src_xml_bytes.decode("utf-8", errors="replace")
+
+            m_zoom = re.search(r'<sheetView\b[^>]*\bzoomScale=["\'](\d+)["\']', src_xml, re.IGNORECASE)
+            m_zoom_normal = re.search(r'<sheetView\b[^>]*\bzoomScaleNormal=["\'](\d+)["\']', src_xml, re.IGNORECASE)
+            if not m_zoom and not m_zoom_normal:
+                continue
+            zoom_val = m_zoom.group(1) if m_zoom else (m_zoom_normal.group(1) if m_zoom_normal else None)
+            if not zoom_val or zoom_val == "100":
+                continue
+
+            tgt_xml_str = replacements.get(tgt_entry)
+            if tgt_xml_str is None:
+                tgt_bytes = read_zip_entry(xlsx_bytes, tgt_entry)
+                if not tgt_bytes:
+                    continue
+                tgt_xml_str = tgt_bytes.decode("utf-8", errors="replace")
+            elif isinstance(tgt_xml_str, bytes):
+                tgt_xml_str = tgt_xml_str.decode("utf-8", errors="replace")
+
+            sv_match = re.search(r'<sheetView\b([^>]*)>', tgt_xml_str, re.IGNORECASE)
+            if sv_match:
+                tag = sv_match.group(0)
+                if re.search(r'\bzoomScale=["\']\d+["\']', tag):
+                    new_tag = re.sub(r'\bzoomScale=["\']\d+["\']', f'zoomScale="{zoom_val}"', tag, count=1)
+                else:
+                    new_tag = tag[:-1] + f' zoomScale="{zoom_val}">'
+                if m_zoom_normal:
+                    zn_val = m_zoom_normal.group(1)
+                    if re.search(r'\bzoomScaleNormal=["\']\d+["\']', new_tag):
+                        new_tag = re.sub(r'\bzoomScaleNormal=["\']\d+["\']', f'zoomScaleNormal="{zn_val}"', new_tag, count=1)
+                    else:
+                        new_tag = new_tag[:-1] + f' zoomScaleNormal="{zn_val}">'
+                new_tgt_xml = tgt_xml_str[:sv_match.start()] + new_tag + tgt_xml_str[sv_match.end():]
+                if new_tgt_xml != tgt_xml_str:
+                    replacements[tgt_entry] = new_tgt_xml
+    except Exception:
+        pass
+
+
+def _restore_autofilter_filter_columns_step(
+    xlsx_bytes: bytes,
+    source_xlsx_bytes: bytes,
+    replacements: dict[str, str],
+) -> None:
+    """Restore filterColumn elements inside autoFilter from source XLSX if dropped."""
+    try:
+        source_sheet_entries = _resolve_xlsx_sheet_entries(source_xlsx_bytes)
+        target_sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+        if not source_sheet_entries or not target_sheet_entries:
+            return
+
+        for sheet_name, src_entry in source_sheet_entries.items():
+            tgt_entry = _sheet_name_equivalent_value(target_sheet_entries, sheet_name)
+            if not tgt_entry:
+                continue
+
+            src_xml_bytes = read_zip_entry(source_xlsx_bytes, src_entry)
+            if not src_xml_bytes:
+                continue
+            src_xml = src_xml_bytes.decode("utf-8", errors="replace")
+
+            m_src_af = re.search(r'<autoFilter\b([^>]*?)>(.*?)</autoFilter>', src_xml, re.DOTALL | re.IGNORECASE)
+            if not m_src_af:
+                continue
+            src_af_attrs = m_src_af.group(1)
+            src_af_body = m_src_af.group(2).strip()
+            if not src_af_body or "<filterColumn" not in src_af_body:
+                continue
+
+            src_ref_m = re.search(r'\bref="([^"]*)"', src_af_attrs, re.IGNORECASE)
+            if not src_ref_m:
+                continue
+            src_ref = src_ref_m.group(1).upper()
+
+            tgt_xml_str = replacements.get(tgt_entry)
+            if tgt_xml_str is None:
+                tgt_bytes = read_zip_entry(xlsx_bytes, tgt_entry)
+                if not tgt_bytes:
+                    continue
+                tgt_xml_str = tgt_bytes.decode("utf-8", errors="replace")
+            elif isinstance(tgt_xml_str, bytes):
+                tgt_xml_str = tgt_xml_str.decode("utf-8", errors="replace")
+
+            m_tgt_full = re.search(r'<autoFilter\b([^>]*?)>(.*?)</autoFilter>', tgt_xml_str, re.DOTALL | re.IGNORECASE)
+            m_tgt_empty = re.search(r'<autoFilter\b([^>]*?)/>', tgt_xml_str, re.IGNORECASE)
+
+            if m_tgt_empty:
+                tgt_attrs = m_tgt_empty.group(1)
+                tgt_ref_m = re.search(r'\bref="([^"]*)"', tgt_attrs, re.IGNORECASE)
+                if tgt_ref_m and tgt_ref_m.group(1).upper() == src_ref:
+                    new_tag = f'<autoFilter{tgt_attrs}>{src_af_body}</autoFilter>'
+                    new_tgt_xml = tgt_xml_str[:m_tgt_empty.start()] + new_tag + tgt_xml_str[m_tgt_empty.end():]
+                    if new_tgt_xml != tgt_xml_str:
+                        replacements[tgt_entry] = new_tgt_xml
+            elif m_tgt_full:
+                tgt_body = m_tgt_full.group(2).strip()
+                if "<filterColumn" not in tgt_body:
+                    tgt_attrs = m_tgt_full.group(1)
+                    tgt_ref_m = re.search(r'\bref="([^"]*)"', tgt_attrs, re.IGNORECASE)
+                    if tgt_ref_m and tgt_ref_m.group(1).upper() == src_ref:
+                        new_tag = f'<autoFilter{tgt_attrs}>{src_af_body}</autoFilter>'
+                        new_tgt_xml = tgt_xml_str[:m_tgt_full.start()] + new_tag + tgt_xml_str[m_tgt_full.end():]
+                        if new_tgt_xml != tgt_xml_str:
+                            replacements[tgt_entry] = new_tgt_xml
+    except Exception:
+        pass
+
+
+def _restore_missing_defined_names_step(
+    xlsx_bytes: bytes,
+    source_xlsx_bytes: bytes,
+    replacements: dict[str, str | bytes],
+) -> None:
+    """Restore user-defined names from source XLSX that were dropped during export."""
+    try:
+        src_wb_bytes = read_zip_entry(source_xlsx_bytes, XLSX_WORKBOOK_ENTRY)
+        if not src_wb_bytes:
+            return
+        src_wb_xml = src_wb_bytes.decode("utf-8", errors="replace")
+
+        src_dns: list[tuple[str, str | None, str]] = []
+        for m in re.finditer(r'<definedName\b([^>]*?)>(.*?)</definedName>', src_wb_xml, re.DOTALL | re.IGNORECASE):
+            attrs = m.group(1)
+            name_m = re.search(r'\bname="([^"]*)"', attrs, re.IGNORECASE)
+            if not name_m:
+                continue
+            name = name_m.group(1)
+            if name.startswith("_xlnm._FilterDatabase"):
+                continue
+            loc_m = re.search(r'\blocalSheetId="([^"]*)"', attrs, re.IGNORECASE)
+            loc = loc_m.group(1) if loc_m else None
+            src_dns.append((name, loc, m.group(0)))
+
+        if not src_dns:
+            return
+
+        tgt_wb = replacements.get(XLSX_WORKBOOK_ENTRY)
+        if tgt_wb is None:
+            tgt_wb_bytes = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
+            if not tgt_wb_bytes:
+                return
+            tgt_wb = tgt_wb_bytes.decode("utf-8", errors="replace")
+        elif isinstance(tgt_wb, bytes):
+            tgt_wb = tgt_wb.decode("utf-8", errors="replace")
+
+        existing_keys = set()
+        for m in re.finditer(r'<definedName\b([^>]*?)>', tgt_wb, re.IGNORECASE):
+            attrs = m.group(1)
+            name_m = re.search(r'\bname="([^"]*)"', attrs, re.IGNORECASE)
+            if name_m:
+                loc_m = re.search(r'\blocalSheetId="([^"]*)"', attrs, re.IGNORECASE)
+                loc = loc_m.group(1) if loc_m else None
+                existing_keys.add((name_m.group(1), loc))
+
+        missing_tags = []
+        for name, loc, full_tag in src_dns:
+            if (name, loc) not in existing_keys:
+                missing_tags.append(full_tag)
+
+        if not missing_tags:
+            return
+
+        to_insert = "".join(missing_tags)
+        dn_block_m = re.search(r'<definedNames\b([^>]*?)>(.*?)</definedNames>', tgt_wb, re.DOTALL | re.IGNORECASE)
+        if dn_block_m:
+            insert_pos = dn_block_m.end() - len("</definedNames>")
+            new_wb = tgt_wb[:insert_pos] + to_insert + tgt_wb[insert_pos:]
+            replacements[XLSX_WORKBOOK_ENTRY] = new_wb
+        else:
+            block_xml = f"<definedNames>{to_insert}</definedNames>"
+            anchor_m = re.search(r'<(?:calcPr|oleSize|customWorkbookViews|extLst)\b|</workbook>', tgt_wb, re.IGNORECASE)
+            if anchor_m:
+                new_wb = tgt_wb[:anchor_m.start()] + block_xml + tgt_wb[anchor_m.start():]
+                replacements[XLSX_WORKBOOK_ENTRY] = new_wb
+    except Exception:
+        pass
+
+
+def _restore_missing_hyperlinks_step(
+    xlsx_bytes: bytes,
+    source_xlsx_bytes: bytes,
+    replacements: dict[str, str | bytes],
+) -> None:
+    """Restore hyperlinks and their relationships from source XLSX if dropped."""
+    try:
+        source_sheet_entries = _resolve_xlsx_sheet_entries(source_xlsx_bytes)
+        target_sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+        if not source_sheet_entries or not target_sheet_entries:
+            return
+
+        for sheet_name, src_entry in source_sheet_entries.items():
+            tgt_entry = _sheet_name_equivalent_value(target_sheet_entries, sheet_name)
+            if not tgt_entry:
+                continue
+
+            src_xml_bytes = read_zip_entry(source_xlsx_bytes, src_entry)
+            if not src_xml_bytes:
+                continue
+            src_xml = src_xml_bytes.decode("utf-8", errors="replace")
+
+            hl_match = re.search(r'<hyperlinks\b([^>]*?)>(.*?)</hyperlinks>', src_xml, re.DOTALL | re.IGNORECASE)
+            if not hl_match:
+                continue
+            src_hl_xml = hl_match.group(0)
+            # Strip non-standard extension attributes (e.g. xr:uid) to prevent unbound prefix errors
+            src_hl_xml = re.sub(r'\s*xr:\w+="[^"]*"', '', src_hl_xml)
+
+            tgt_xml_str = replacements.get(tgt_entry)
+            if tgt_xml_str is None:
+                tgt_bytes = read_zip_entry(xlsx_bytes, tgt_entry)
+                if not tgt_bytes:
+                    continue
+                tgt_xml_str = tgt_bytes.decode("utf-8", errors="replace")
+            elif isinstance(tgt_xml_str, bytes):
+                tgt_xml_str = tgt_xml_str.decode("utf-8", errors="replace")
+
+            if re.search(r'<hyperlinks\b', tgt_xml_str, re.IGNORECASE):
+                continue
+
+            # Ensure xmlns:r is declared on <worksheet> root element
+            if 'r:id=' in src_hl_xml and 'xmlns:r=' not in tgt_xml_str:
+                tgt_xml_str = re.sub(
+                    r'<worksheet\b',
+                    '<worksheet xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"',
+                    tgt_xml_str,
+                    count=1,
+                )
+
+            # Insert <hyperlinks> in schema order (before printOptions, pageMargins, pageSetup, drawing, or </worksheet>)
+            anchor_m = re.search(
+                r'<(?:printOptions|pageMargins|pageSetup|headerFooter|rowBreaks|colBreaks|customProperties|cellWatches|ignoredErrors|smartTags|drawing|legacyDrawing|picture|oleObjects|controls|webPublishItems|tableParts|extLst)\b|</worksheet>',
+                tgt_xml_str,
+                re.IGNORECASE,
+            )
+            if anchor_m:
+                new_tgt_xml = tgt_xml_str[:anchor_m.start()] + src_hl_xml + tgt_xml_str[anchor_m.start():]
+            else:
+                new_tgt_xml = _insert_worksheet_child_in_schema_order(tgt_xml_str, src_hl_xml, "hyperlinks")
+
+            if new_tgt_xml != tgt_xml_str:
+                replacements[tgt_entry] = new_tgt_xml
+
+            src_dir, src_filename = posixpath.split(src_entry)
+            src_rels_path = f"{src_dir}/_rels/{src_filename}.rels"
+            src_rels_bytes = read_zip_entry(source_xlsx_bytes, src_rels_path)
+            if not src_rels_bytes:
+                continue
+            src_rels_xml = src_rels_bytes.decode("utf-8", errors="replace")
+
+            hl_rels = []
+            for r_m in re.finditer(r'<Relationship\b[^>]*\bType="[^"]*hyperlink"[^>]*/>', src_rels_xml, re.IGNORECASE):
+                hl_rels.append(r_m.group(0))
+
+            if not hl_rels:
+                continue
+
+            tgt_dir, tgt_filename = posixpath.split(tgt_entry)
+            tgt_rels_path = f"{tgt_dir}/_rels/{tgt_filename}.rels"
+            tgt_rels_str = replacements.get(tgt_rels_path)
+            if tgt_rels_str is None:
+                tgt_rels_bytes = read_zip_entry(xlsx_bytes, tgt_rels_path)
+                tgt_rels_str = tgt_rels_bytes.decode("utf-8", errors="replace") if tgt_rels_bytes else None
+            elif isinstance(tgt_rels_str, bytes):
+                tgt_rels_str = tgt_rels_str.decode("utf-8", errors="replace")
+
+            if tgt_rels_str:
+                existing_ids = set(re.findall(r'\bId="([^"]*)"', tgt_rels_str, re.IGNORECASE))
+                to_add = []
+                for rel_tag in hl_rels:
+                    rid_m = re.search(r'\bId="([^"]*)"', rel_tag, re.IGNORECASE)
+                    if rid_m and rid_m.group(1) not in existing_ids:
+                        to_add.append(rel_tag)
+                if to_add:
+                    pos = tgt_rels_str.rfind("</Relationships>")
+                    if pos != -1:
+                        new_rels = tgt_rels_str[:pos] + "".join(to_add) + tgt_rels_str[pos:]
+                        replacements[tgt_rels_path] = new_rels
+            else:
+                new_rels = (
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+                    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+                    f'{"".join(hl_rels)}</Relationships>'
+                )
+                replacements[tgt_rels_path] = new_rels
+    except Exception:
+        pass
+
+
 def _remove_spurious_center_continuous_merges_step(xlsx_bytes: bytes, source_xlsx_bytes: bytes, replacements: dict[str, str]) -> None:
     """Remove merges invented by LibreOffice for source centerContinuous cells."""
     styles = (read_zip_entry(source_xlsx_bytes, XLSX_STYLES_ENTRY) or b"").decode("utf-8", errors="replace")
@@ -3192,6 +3496,10 @@ def postprocess_sheet_xlsx(
         early_copier = _SourceXfCopier(xlsx_bytes, source_xlsx_bytes)
         _restore_formula_results_and_missing_errors_step(xlsx_bytes, source_xlsx_bytes, replacements, early_copier if early_copier.available else None)
         _remove_spurious_center_continuous_merges_step(xlsx_bytes, source_xlsx_bytes, replacements)
+        _restore_sheet_zoom_step(xlsx_bytes, source_xlsx_bytes, replacements)
+        _restore_autofilter_filter_columns_step(xlsx_bytes, source_xlsx_bytes, replacements)
+        _restore_missing_defined_names_step(xlsx_bytes, source_xlsx_bytes, replacements)
+        _restore_missing_hyperlinks_step(xlsx_bytes, source_xlsx_bytes, replacements)
         if source_fods:
             _restore_untouched_drawings_step(xlsx_bytes, source_fods, source_xlsx_bytes, replacements)
     if source_fods:
@@ -3271,6 +3579,8 @@ def postprocess_sheet_xlsx(
         except Exception:
             # A table part we could not parse is left alone rather than failing the save.
             pass
+        if source_xlsx_bytes:
+            _restore_autofilter_filter_columns_step(xlsx_bytes, source_xlsx_bytes, replacements)
 
     # Scenarios: soffice drops <scenarios> during FODS -> XLSX. Read
     # vno:scenarios from FODS and write <scenarios> into worksheets.
