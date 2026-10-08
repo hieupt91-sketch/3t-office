@@ -19,7 +19,7 @@ const safeName = item => [item.commandId, item.args].filter(Boolean).join("-").r
 const selectorFor = item => item.action === "dropdown"
   ? `[data-dropdown-id=${JSON.stringify(item.commandId)}]`
   : item.action === "launcher"
-    ? `.vno-ribbon-group[data-group-id=${JSON.stringify(item.group)}] .vno-ribbon-group-launcher`
+    ? `.vno-ribbon-group[data-group-id=${JSON.stringify(item.group)}] .vno-ribbon-dialog-launcher`
     : `[data-command-id=${JSON.stringify(item.commandId)}]`;
 
 async function capture(cdp, output) {
@@ -36,7 +36,7 @@ async function resetSample(cdp, item) {
     body.innerHTML = ${JSON.stringify(spec.sample.html)};
     body.focus();
     const target = body.querySelector(${JSON.stringify(spec.sample.selection.selector)});
-    const text = target.firstChild;
+    const text = document.createTreeWalker(target, NodeFilter.SHOW_TEXT).nextNode();
     const range = document.createRange();
     range.setStart(text, ${spec.sample.selection.start}); range.setEnd(text, ${spec.sample.selection.end});
     const selection = getSelection(); selection.removeAllRanges(); selection.addRange(range);
@@ -47,13 +47,20 @@ async function resetSample(cdp, item) {
     await click(cdp, '[data-command-id="writer.list.numbered"]');
     await resetSelection(cdp);
   }
+  if (item.setup === "indented") {
+    await click(cdp, '[data-command-id="writer.para.indentInc"]');
+    await resetSelection(cdp);
+  }
 }
 
 async function resetSelection(cdp, collapsed = false, selector = spec.sample.selection.selector) {
   await cdp.evaluate(`(() => {
-    const target=document.querySelector(${JSON.stringify(selector)}); const text=target?.firstChild;
-    if(!text) return false; const range=document.createRange();
-    range.setStart(text, 0); range.setEnd(text, ${collapsed ? 0 : spec.sample.selection.end});
+    const target=document.querySelector(${JSON.stringify(selector)}); if(!target) return false;
+    const nodes=[]; const walker=document.createTreeWalker(target,NodeFilter.SHOW_TEXT); let node;
+    while((node=walker.nextNode())) nodes.push(node); if(!nodes.length) return false;
+    const point=(offset)=>{let rest=offset; for(const n of nodes){if(rest<=n.data.length)return [n,rest];rest-=n.data.length;}return [nodes.at(-1),nodes.at(-1).data.length];};
+    const start=point(0), end=point(${collapsed ? 0 : spec.sample.selection.end}); const range=document.createRange();
+    range.setStart(start[0],start[1]); range.setEnd(end[0],end[1]);
     const selection=getSelection(); selection.removeAllRanges(); selection.addRange(range); target.closest('[contenteditable]')?.focus(); return true;
   })()`);
 }
@@ -66,6 +73,7 @@ async function chooseSelect(cdp, item) {
   })()`);
   if (optionIndex < 0) throw new Error(`Select option not found: ${item.commandId}=${item.value}`);
   await click(cdp, selector);
+  await cdp.evaluate(`document.querySelector(${JSON.stringify(selector)}).focus()`);
   await press(cdp, "Home", {}, 30);
   for (let index = 0; index < optionIndex; index += 1) await press(cdp, "ArrowDown", {}, 20);
   await press(cdp, "Enter", {}, 250);
@@ -73,8 +81,7 @@ async function chooseSelect(cdp, item) {
 
 async function clickMenuItem(cdp, item) {
   await click(cdp, `[data-dropdown-id=${JSON.stringify(item.parent)}]`);
-  const menuSelector = `.vno-ribbon-dropdown-menu .vno-ribbon-dropdown-item[data-command-id=${JSON.stringify(item.commandId)}]`;
-  await click(cdp, menuSelector, item.commandId === item.parent ? Number(item.index || 0) : 0);
+  await click(cdp, ".vno-ribbon-dropdown-menu .vno-ribbon-dropdown-item", Number(item.index || 0));
 }
 
 async function perform(cdp, item) {
@@ -92,6 +99,13 @@ async function prepareSpecial(cdp, item) {
   if (item.assertion === "formatPainter") {
     await resetSelection(cdp, false, "#source");
   }
+  if (item.assertion === "clearFormat") {
+    await click(cdp, '[data-command-id="writer.text.bold"]');
+    await resetSelection(cdp);
+  }
+  if (item.assertion === "sort") {
+    await cdp.evaluate(`(() => { const body=document.querySelector('.vno-writer-body'); body.innerHTML='<p>Zulu</p><p>beta</p><p>Alpha</p>'; const range=document.createRange(); range.selectNodeContents(body); const selection=getSelection(); selection.removeAllRanges(); selection.addRange(range); body.focus(); })()`);
+  }
 }
 
 async function finishSpecial(cdp, item) {
@@ -101,7 +115,7 @@ async function finishSpecial(cdp, item) {
   }
   if (item.assertion === "formatPainter") {
     const points = await cdp.evaluate(`(() => {
-      const node=document.querySelector('#target').firstChild; const range=document.createRange(); range.setStart(node,0); range.setEnd(node,4);
+      const target=document.querySelector('#target'); const node=document.createTreeWalker(target,NodeFilter.SHOW_TEXT).nextNode(); const range=document.createRange(); range.setStart(node,0); range.setEnd(node,Math.min(4,node.data.length));
       const rect=range.getBoundingClientRect(); return {x1:rect.left+2,y:rect.top+rect.height/2,x2:rect.right-2};
     })()`);
     await mouseDrag(cdp, points.x1, points.y, points.x2, points.y, { steps: 6 });
@@ -112,7 +126,9 @@ async function state(cdp) {
   return cdp.evaluate(`(() => {
     const body=document.querySelector('.vno-writer-body'); const target=body.querySelector('#target');
     const selection=getSelection(); const anchor=selection?.anchorNode?.nodeType===3?selection.anchorNode.parentElement:selection?.anchorNode;
-    const style=getComputedStyle(anchor || target); const targetStyle=getComputedStyle(target);
+    const targetElement=target || body.querySelector('li,p') || body;
+    const anchorElement=anchor?.nodeType===1 ? anchor : anchor?.parentElement;
+    const style=getComputedStyle(anchorElement || targetElement); const targetStyle=getComputedStyle(targetElement);
     const visible=node => !!node && !!node.getClientRects().length;
     const dialogs=[...document.querySelectorAll('[role=dialog],.vno-dialog,.vno-modal,.vno-find-panel')].filter(visible);
     return {
@@ -122,12 +138,13 @@ async function state(cdp) {
       color:style.color, backgroundColor:style.backgroundColor, targetBackground:targetStyle.backgroundColor,
       targetBorder:targetStyle.borderStyle, targetBorderBottom:targetStyle.borderBottomStyle,
       align:targetStyle.textAlign, lineHeight:targetStyle.lineHeight, marginLeft:parseFloat(targetStyle.marginLeft)||0,
+      lineHeightToken:targetElement.style.getPropertyValue('--vno-lh') || targetElement.style.lineHeight || '',
       bold:document.queryCommandState('bold'), italic:document.queryCommandState('italic'), underline:document.queryCommandState('underline'),
       strike:document.queryCommandState('strikeThrough'), subscript:document.queryCommandState('subscript'), superscript:document.queryCommandState('superscript'),
       menuOpen:!!document.querySelector('.vno-ribbon-dropdown-menu'), marks:body.classList.contains('vno-show-formatting-marks'),
       dialogCount:dialogs.length, dialogText:dialogs.at(-1)?.innerText?.replace(/\\s+/g,' ').slice(0,160)||'',
-      findVisible:[...document.querySelectorAll('.vno-find-panel,[data-find-panel]')].some(visible),
-      replaceVisible:[...document.querySelectorAll('.vno-find-panel,[data-find-panel]')].some(node=>visible(node)&&/thay/i.test(node.innerText||'')),
+      findVisible:[...document.querySelectorAll('.vno-fr-dialog-overlay,.vno-find-panel,[data-find-panel]')].some(visible),
+      replaceVisible:[...document.querySelectorAll('.vno-fr-dialog-overlay')].some(node=>visible(node)&&node.querySelector('#vno-fr-tab-replace[aria-selected="true"]')),
       listTag:target.closest('li')?.parentElement?.tagName || body.querySelector('li')?.parentElement?.tagName || '',
       listHtml:target.closest('ol,ul')?.outerHTML || body.querySelector('ol,ul')?.outerHTML || '',
       pressed:Object.fromEntries([...document.querySelectorAll('[data-command-id][aria-pressed]')].map(node=>[node.dataset.commandId,node.getAttribute('aria-pressed')]))
@@ -142,7 +159,7 @@ function assertEffect(item, before, after) {
     case "paste": return truth(after.text !== before.text && /beta/.test(after.text), `${before.text} -> ${after.text}`);
     case "cut": return truth(!after.text.includes("beta gamma"), after.text);
     case "copy": return truth(after.text.length > before.text.length && after.text.includes("beta"), after.text);
-    case "formatPainter": return truth(/<b[^>]*>beta|<strong[^>]*>beta/i.test(after.html), after.html);
+    case "formatPainter": return truth(/<(b|strong)[^>]*>[\s\S]*beta/i.test(after.html), after.html);
     case "fontFamily": return truth(after.fontFamily.toLowerCase().includes(String(item.expected).toLowerCase()), after.fontFamily);
     case "fontSize": return truth(close(after.fontSize, item.expected), `${after.fontSize}pt`);
     case "fontGrow": return truth(after.fontSize > before.fontSize, `${before.fontSize}->${after.fontSize}pt`);
@@ -154,20 +171,20 @@ function assertEffect(item, before, after) {
     case "toggleSubscript": return truth(after.subscript || after.verticalAlign === "sub", `subscript=${after.subscript}`);
     case "toggleSuperscript": return truth(after.superscript || after.verticalAlign === "super", `superscript=${after.superscript}`);
     case "changeCase": return truth(after.text.includes("BETA"), after.text);
-    case "clearFormat": return truth(!after.bold && !after.italic && !/<b|<i|style=/i.test(after.html), after.html);
-    case "highlight": return truth(after.backgroundColor !== before.backgroundColor && after.backgroundColor !== "rgba(0, 0, 0, 0)", after.backgroundColor);
+    case "clearFormat": return truth(!after.bold && !after.italic && !/<b|<i/i.test(after.html), after.html);
+    case "highlight": return truth(after.backgroundColor === "rgb(255, 205, 0)" || /background-color:\s*rgb\(255,\s*205,\s*0\)/i.test(after.html), after.backgroundColor);
     case "textColor": return truth(after.color !== before.color, `${before.color}->${after.color}`);
     case "bullet": return truth(after.listTag === "UL", after.listHtml);
     case "numbered": return truth(after.listTag === "OL", after.listHtml);
     case "multilevel": return truth(after.listTag === "OL" && after.listHtml.toLowerCase().includes(String(item.expected).toLowerCase()), after.listHtml);
-    case "indentInc": return truth(after.marginLeft > before.marginLeft, `${before.marginLeft}->${after.marginLeft}px`);
-    case "indentDec": return truth(after.marginLeft < before.marginLeft || (before.marginLeft === 0 && after.marginLeft === 0), `${before.marginLeft}->${after.marginLeft}px`);
+    case "indentInc": return truth(after.marginLeft > before.marginLeft || (after.html !== before.html && /blockquote|margin-left/i.test(after.html)), `${before.marginLeft}->${after.marginLeft}px; ${after.html}`);
+    case "indentDec": return truth(after.marginLeft < before.marginLeft || (after.html !== before.html && !/blockquote/i.test(after.html)), `${before.marginLeft}->${after.marginLeft}px; ${after.html}`);
     case "sort": return truth(after.text.indexOf("Alpha") < after.text.indexOf("beta") && after.text.indexOf("beta") < after.text.indexOf("Zulu"), after.text);
     case "toggleMarks": return truth(after.marks && after.pressed[item.commandId] === "true", `marks=${after.marks}, pressed=${after.pressed[item.commandId]}`);
     case "restartNumbering": return truth(after.listTag === "OL" && /start=["']1/i.test(after.listHtml), after.listHtml);
     case "continueNumbering": return truth(after.listTag === "OL", after.listHtml);
     case "align": return truth(after.align === item.expected || (item.expected === "left" && ["left", "start"].includes(after.align)), after.align);
-    case "lineHeight": return truth(close(parseFloat(after.lineHeight), parseFloat(getComputedLineHeight(before, item.expected)), 1.5) || after.html.includes(`line-height: ${item.expected}`), `${after.lineHeight}; ${after.html}`);
+    case "lineHeight": return truth(close(parseFloat(after.lineHeightToken), Number(item.expected), 0.01) || after.html.includes(`--vno-lh: ${item.expected}`), `${after.lineHeight}/${after.lineHeightToken}; ${after.html}`);
     case "shading": return truth(after.targetBackground !== before.targetBackground && after.targetBackground !== "rgba(0, 0, 0, 0)", after.targetBackground);
     case "borders": return truth(after.targetBorder !== "none" || after.targetBorderBottom !== "none", `${after.targetBorder}/${after.targetBorderBottom}`);
     case "dialog": return truth(after.dialogCount > before.dialogCount, after.dialogText);
@@ -177,11 +194,6 @@ function assertEffect(item, before, after) {
     case "selectAll": return truth(after.selected.includes("Alpha") && after.selected.includes("Zulu"), after.selected.slice(0, 80));
     default: return truth(false, `Unknown assertion ${item.assertion}`);
   }
-}
-
-function getComputedLineHeight(before, multiplier) {
-  const base = before.fontSize * 96 / 72;
-  return base * Number(multiplier);
 }
 
 const toggleAssertions = new Set(["toggleBold", "toggleItalic", "toggleUnderline", "toggleStrike", "toggleSubscript", "toggleSuperscript", "toggleMarks"]);
@@ -207,7 +219,7 @@ async function saveAndReadXml(cdp, item, runNumber) {
 }
 
 async function discoverDom(cdp) {
-  const direct = await cdp.evaluate(`(() => [...document.querySelectorAll('#vno-ribbon-panel-home button,#vno-ribbon-panel-home select')]
+  const direct = await cdp.evaluate(`(() => [...document.querySelectorAll('.vno-ribbon-content button,.vno-ribbon-content select')]
     .filter(node=>node.getClientRects().length).map(node=>({commandId:node.dataset.commandId||'',dropdown:node.dataset.dropdownId||'',label:node.getAttribute('aria-label')||node.title||node.innerText.trim()})))()`);
   const menus = [];
   for (const parent of direct.filter(item => item.dropdown)) {

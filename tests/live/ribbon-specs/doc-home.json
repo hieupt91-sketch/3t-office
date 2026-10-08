@@ -31,7 +31,7 @@
     { "commandId": "writer.para.multilevelList", "args": "decimal", "label": "1. / 1.1. / 1.1.1.", "action": "menuItem", "parent": "writer.para.multilevelList", "index": 0, "assertion": "multilevel", "expected": "decimal", "xml": "w:numPr", "word": "multilevelDecimal" },
     { "commandId": "writer.para.multilevelList", "args": "letter", "label": "1. / a. / i.", "action": "menuItem", "parent": "writer.para.multilevelList", "index": 1, "assertion": "multilevel", "expected": "letter", "xml": "w:numPr", "word": "multilevelLetter" },
     { "commandId": "writer.para.multilevelList", "args": "nd30", "label": "Điều 1. / 1. / a)", "action": "menuItem", "parent": "writer.para.multilevelList", "index": 2, "assertion": "multilevel", "expected": "nd30", "xml": "w:numPr", "wordBlocked": "Word COM không có mẫu dựng sẵn tương đương chính xác cấu trúc Điều/Khoản/Điểm NĐ30 của VN Writer." },
-    { "commandId": "writer.para.indentDec", "label": "Giảm thụt lề", "action": "button", "assertion": "indentDec", "xml": "w:ind", "word": "indentDec" },
+    { "commandId": "writer.para.indentDec", "label": "Giảm thụt lề", "action": "button", "setup": "indented", "assertion": "indentDec", "xml": "w:ind", "word": "indentDec" },
     { "commandId": "writer.para.indentInc", "label": "Tăng thụt lề", "action": "button", "assertion": "indentInc", "xml": "w:ind", "word": "indentInc" },
     { "commandId": "writer.para.sort", "label": "Sắp xếp", "action": "button", "assertion": "sort", "word": "sort" },
     { "commandId": "writer.para.showFormattingMarks", "label": "Hiện/ẩn ký tự định dạng", "action": "button", "assertion": "toggleMarks", "word": "showMarks" },

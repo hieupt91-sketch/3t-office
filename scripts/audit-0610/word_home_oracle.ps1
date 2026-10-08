@@ -67,7 +67,7 @@ try {
         "paste" { $source.Copy(); $target.Collapse(1); $target.Paste(); $detail = [string]$document.Content.Text }
         "cut" { $target.Cut(); $detail = [string]$document.Content.Text }
         "copy" { $target.Copy(); $end = $document.Content.Duplicate; $end.Collapse(0); $end.Paste(); $detail = [string]$document.Content.Text }
-        "formatPainter" { $source.Font.Bold = -1; $source.CopyFormat(); $target.PasteFormat(); $detail = "Bold=$([int]$target.Font.Bold)" }
+        "formatPainter" { $source.Font.Bold = -1; $source.Select(); $word.Selection.CopyFormat(); $target.Select(); $word.Selection.PasteFormat(); $detail = "Bold=$([int]$target.Font.Bold)" }
         "fontFamily" { $target.Font.Name = "Arial"; $detail = "Name=$($target.Font.Name)" }
         "fontSize" { $target.Font.Size = 18; $detail = "Size=$([double]$target.Font.Size)" }
         "fontGrow" { $old = [double]$target.Font.Size; $target.Font.Grow(); $detail = "Size=$old->$([double]$target.Font.Size)" }
@@ -89,7 +89,7 @@ try {
         "indentDec" { $target.ParagraphFormat.LeftIndent = 36; $old = [double]$target.ParagraphFormat.LeftIndent; $target.ParagraphFormat.LeftIndent = 0; $detail = "LeftIndent=$old->$([double]$target.ParagraphFormat.LeftIndent)" }
         "indentInc" { $old = [double]$target.ParagraphFormat.LeftIndent; $target.ParagraphFormat.LeftIndent = 36; $detail = "LeftIndent=$old->$([double]$target.ParagraphFormat.LeftIndent)" }
         "sort" { $document.Content.Sort(); $detail = ([string]$document.Content.Text).Replace("`r", "|") }
-        "showMarks" { $word.Options.ShowAll = $true; $detail = "ShowAll=$([bool]$word.Options.ShowAll)"; $word.Options.ShowAll = $false }
+        "showMarks" { $word.ActiveWindow.View.ShowAll = $true; $detail = "ShowAll=$([bool]$word.ActiveWindow.View.ShowAll)"; $word.ActiveWindow.View.ShowAll = $false }
         "restartNumbering" { $target.ListFormat.ApplyNumberDefault(); $template = $target.ListFormat.ListTemplate; $target.ListFormat.ApplyListTemplate($template, $false); $detail = "String=$($target.ListFormat.ListString)" }
         "continueNumbering" { $source.ListFormat.ApplyNumberDefault(); $template = $source.ListFormat.ListTemplate; $target.ListFormat.ApplyListTemplate($template, $true); $detail = "String=$($target.ListFormat.ListString)" }
         "alignLeft" { $target.ParagraphFormat.Alignment = 0; $detail = "Alignment=$([int]$target.ParagraphFormat.Alignment)" }
@@ -125,7 +125,7 @@ try {
 }
 finally {
   if ($null -ne $word) {
-    try { $word.Options.ShowAll = $false } catch {}
+    try { $word.ActiveWindow.View.ShowAll = $false } catch {}
     try { $word.Quit(0) } catch {}
     [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($word)
   }
