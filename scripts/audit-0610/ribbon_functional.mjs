@@ -1,7 +1,7 @@
 // Functional ribbon audit: real CDP mouse clicks, property assertions, DOCX XML proof and Word COM oracle.
 // Usage: node --experimental-websocket scripts/audit-0610/ribbon_functional.mjs tests/live/ribbon-specs/doc-home.json [--runs=2]
 import { spawnSync } from "node:child_process";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { launchApp } from "../../tests/live/cdp/session.mjs";
@@ -18,6 +18,8 @@ await mkdir(docxRoot, { recursive: true });
 const safeName = item => [item.commandId, item.args].filter(Boolean).join("-").replace(/[^a-zA-Z0-9._-]/g, "_");
 const selectorFor = item => item.action === "dropdown"
   ? `[data-dropdown-id=${JSON.stringify(item.commandId)}]`
+  : item.action === "styleCard"
+    ? `.vno-style-gallery-strip [data-style-id=${JSON.stringify(item.args)}]`
   : item.action === "launcher"
     ? `.vno-ribbon-group[data-group-id=${JSON.stringify(item.group)}] .vno-ribbon-dialog-launcher`
     : `[data-command-id=${JSON.stringify(item.commandId)}]`;
@@ -51,6 +53,10 @@ async function resetSample(cdp, item) {
     await click(cdp, '[data-command-id="writer.para.indentInc"]');
     await resetSelection(cdp);
   }
+  if (item.setup === "styleTitle") {
+    await cdp.evaluate(`(() => { const target=document.querySelector('#target'); target.className='vno-style-title'; Object.assign(target.style,{fontSize:'26pt',fontWeight:'bold',color:'#1f4e79',textAlign:'center',marginBottom:'8pt'}); })()`);
+    await resetSelection(cdp);
+  }
 }
 
 async function resetSelection(cdp, collapsed = false, selector = spec.sample.selection.selector) {
@@ -73,6 +79,7 @@ async function chooseSelect(cdp, item) {
   })()`);
   if (optionIndex < 0) throw new Error(`Select option not found: ${item.commandId}=${item.value}`);
   await click(cdp, selector);
+  await press(cdp, "Escape", {}, 30);
   await cdp.evaluate(`document.querySelector(${JSON.stringify(selector)}).focus()`);
   await press(cdp, "Home", {}, 30);
   for (let index = 0; index < optionIndex; index += 1) await press(cdp, "ArrowDown", {}, 20);
@@ -132,7 +139,7 @@ async function state(cdp) {
     const visible=node => !!node && !!node.getClientRects().length;
     const dialogs=[...document.querySelectorAll('[role=dialog],.vno-dialog,.vno-modal,.vno-find-panel')].filter(visible);
     return {
-      html:body.innerHTML, text:body.innerText, selected:selection?.toString() || '',
+      html:body.innerHTML, text:body.innerText, selected:selection?.toString() || '', targetHtml:targetElement.outerHTML,
       fontFamily:style.fontFamily, fontSize:parseFloat(style.fontSize)*72/96, fontWeight:style.fontWeight,
       fontStyle:style.fontStyle, decoration:style.textDecorationLine, verticalAlign:style.verticalAlign,
       color:style.color, backgroundColor:style.backgroundColor, targetBackground:targetStyle.backgroundColor,
@@ -145,8 +152,8 @@ async function state(cdp) {
       dialogCount:dialogs.length, dialogText:dialogs.at(-1)?.innerText?.replace(/\\s+/g,' ').slice(0,160)||'',
       findVisible:[...document.querySelectorAll('.vno-fr-dialog-overlay,.vno-find-panel,[data-find-panel]')].some(visible),
       replaceVisible:[...document.querySelectorAll('.vno-fr-dialog-overlay')].some(node=>visible(node)&&node.querySelector('#vno-fr-tab-replace[aria-selected="true"]')),
-      listTag:target.closest('li')?.parentElement?.tagName || body.querySelector('li')?.parentElement?.tagName || '',
-      listHtml:target.closest('ol,ul')?.outerHTML || body.querySelector('ol,ul')?.outerHTML || '',
+      listTag:targetElement.closest('li')?.parentElement?.tagName || body.querySelector('li')?.parentElement?.tagName || '',
+      listHtml:targetElement.closest('ol,ul')?.outerHTML || body.querySelector('ol,ul')?.outerHTML || '',
       pressed:Object.fromEntries([...document.querySelectorAll('[data-command-id][aria-pressed]')].map(node=>[node.dataset.commandId,node.getAttribute('aria-pressed')]))
     };
   })()`);
@@ -171,7 +178,7 @@ function assertEffect(item, before, after) {
     case "toggleSubscript": return truth(after.subscript || after.verticalAlign === "sub", `subscript=${after.subscript}`);
     case "toggleSuperscript": return truth(after.superscript || after.verticalAlign === "super", `superscript=${after.superscript}`);
     case "changeCase": return truth(after.text.includes("BETA"), after.text);
-    case "clearFormat": return truth(!after.bold && !after.italic && !/<b|<i/i.test(after.html), after.html);
+    case "clearFormat": return truth(!after.bold && !after.italic && !/<b|<i/i.test(after.targetHtml), after.targetHtml);
     case "highlight": return truth(after.backgroundColor === "rgb(255, 205, 0)" || /background-color:\s*rgb\(255,\s*205,\s*0\)/i.test(after.html), after.backgroundColor);
     case "textColor": return truth(after.color !== before.color, `${before.color}->${after.color}`);
     case "bullet": return truth(after.listTag === "UL", after.listHtml);
@@ -188,6 +195,12 @@ function assertEffect(item, before, after) {
     case "shading": return truth(after.targetBackground !== before.targetBackground && after.targetBackground !== "rgba(0, 0, 0, 0)", after.targetBackground);
     case "borders": return truth(after.targetBorder !== "none" || after.targetBorderBottom !== "none", `${after.targetBorder}/${after.targetBorderBottom}`);
     case "dialog": return truth(after.dialogCount > before.dialogCount, after.dialogText);
+    case "style": {
+      const pass = item.expected === "title" ? /vno-style-title/.test(after.html) && after.text.includes("beta")
+        : item.expected === "h1" ? /<h1[^>]*>[\s\S]*beta/i.test(after.html)
+        : /<p[^>]*>[\s\S]*beta/i.test(after.html) && !/vno-style-title/.test(after.html);
+      return truth(pass, after.html);
+    }
     case "findPanel": return truth(after.findVisible, after.dialogText);
     case "replacePanel": return truth(after.replaceVisible, after.dialogText);
     case "menuOpen": return truth(after.menuOpen, `menuOpen=${after.menuOpen}`);
@@ -200,12 +213,13 @@ const toggleAssertions = new Set(["toggleBold", "toggleItalic", "toggleUnderline
 function assertToggleOff(item, second) {
   const map = { toggleBold: "bold", toggleItalic: "italic", toggleUnderline: "underline", toggleStrike: "strike", toggleSubscript: "subscript", toggleSuperscript: "superscript", toggleMarks: "marks" };
   const key = map[item.assertion];
-  return { pass: !second[key] && second.pressed[item.commandId] !== "true", detail: `${key}=${second[key]}, pressed=${second.pressed[item.commandId]}` };
+  return { pass: !second[key] && second.pressed[item.commandId] !== "true", detail: `${key}=${second[key]}, pressed=${second.pressed[item.commandId]}, html=${second.targetHtml}` };
 }
 
 async function saveAndReadXml(cdp, item, runNumber) {
   if (!item.xml) return { status: "N/A", marker: "" };
   const output = path.join(docxRoot, `${safeName(item)}-run${runNumber}.docx`);
+  await unlink(output).catch(error => { if (error?.code !== "ENOENT") throw error; });
   const result = await cdp.evaluate(`(async()=>{
     const [{globalUnoBridge}] = await Promise.all([import('/adapters/libreoffice/common/uno-bridge.js')]);
     const adapter=window.__vnoAppInstance?.adapter; const content=adapter?._contentForExport?.();
