@@ -129,9 +129,12 @@ export async function runWriterRibbonBreadthTests() {
       const staleBrowserStateIsIgnored = adapter._readInlineCommandState("underline") === false;
       globalThis.window = { getSelection: () => ({ anchorNode: underlined }), getComputedStyle: () => ({ textDecorationLine: "underline" }) };
       const realUnderlineIsDetected = adapter._readInlineCommandState("underline") === true;
+      const spellingMarker = { nodeType: 1, tagName: "SPAN", style: {}, parentElement: body, hasAttribute: name => name === "data-vno-spelling-uncertain" };
+      globalThis.window = { getSelection: () => ({ anchorNode: spellingMarker }), getComputedStyle: () => ({ textDecorationLine: "underline" }) };
+      const spellingMarkerIsNotFormatting = adapter._readInlineCommandState("underline") === false;
       assert(
         "Writer Home: trạng thái nút Gạch chân theo DOM thật khi Chromium giữ queryCommandState cũ",
-        staleBrowserStateIsIgnored && realUnderlineIsDetected,
+        staleBrowserStateIsIgnored && realUnderlineIsDetected && spellingMarkerIsNotFormatting,
         "Nút Gạch chân không tắt/bật theo định dạng thật của vùng chọn"
       );
     } finally {

@@ -8665,9 +8665,14 @@ export class WriterAdapter {
       if (String(node.tagName || "").toLowerCase() === "u") return true;
       const inline = String(node.style?.textDecorationLine || node.style?.textDecoration || "").toLowerCase();
       if (inline.includes("underline")) return true;
-      try {
-        if (String(window.getComputedStyle?.(node)?.textDecorationLine || "").toLowerCase().includes("underline")) return true;
-      } catch {}
+      // The spell-check marker itself is rendered with a wavy underline by CSS.
+      // That visual decoration is not document formatting and must not keep the
+      // Ribbon's Gạch chân toggle on after the real <u> element is removed.
+      if (!node.hasAttribute?.("data-vno-spelling-uncertain")) {
+        try {
+          if (String(window.getComputedStyle?.(node)?.textDecorationLine || "").toLowerCase().includes("underline")) return true;
+        } catch {}
+      }
       node = node.parentElement;
     }
     // Chromium can retain queryCommandState('underline') after removing the final <u>
