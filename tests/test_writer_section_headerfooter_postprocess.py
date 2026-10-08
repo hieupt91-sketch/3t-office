@@ -164,6 +164,17 @@ class UnitPostprocessWriterDocxTests(unittest.TestCase):
         document = _read_entry(result, "word/document.xml").decode("utf-8")
         self.assertIn('<w:highlight w:val="yellow"/>', document)
 
+    def test_w22b_created_document_vn_writer_gold_highlight(self):
+        converted = _build_minimal_docx(
+            '<w:p><w:r><w:t>Chữ tô vàng VN</w:t></w:r></w:p><w:sectPr/>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_created_writer_docx(
+            converted,
+            source_html='<p><span style="background-color: rgb(255, 205, 0);">Chữ tô vàng VN</span></p>',
+        )
+        document = _read_entry(result, "word/document.xml").decode("utf-8")
+        self.assertIn('<w:highlight w:val="yellow"/>', document)
+
     def test_w22c_created_document_letter_size(self):
         converted = _build_minimal_docx(
             '<w:p><w:r><w:t>Letter page</w:t></w:r></w:p>'
