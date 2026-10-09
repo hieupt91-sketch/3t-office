@@ -6341,6 +6341,7 @@ ${pristineXlsxMarker}
       cells,
       text: clipboardHtml.text,
       html: clipboardHtml.html,
+      colWidths: structuredClone(clipboardHtml.model?.colWidths || []),
       mergedRanges: structuredClone(clipboardHtml.model?.mergedRanges || []),
       sourceSheet: this.grid.activeSheet
     };
@@ -6350,6 +6351,7 @@ ${pristineXlsxMarker}
     this._clipboardModel = {
       range: structuredClone(payload.range),
       cells: structuredClone(payload.cells),
+      colWidths: structuredClone(payload.colWidths || []),
       mergedRanges: structuredClone(payload.mergedRanges || []),
       sourceSheet: payload.sourceSheet || this.grid.activeSheet
     };

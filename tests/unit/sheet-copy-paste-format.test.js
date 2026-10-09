@@ -159,5 +159,33 @@ export async function runSheetCopyPasteFormatTests() {
     assert.equal(grid.cellsData.get("E3")?.formula, "=D3*2", "Formula must shift from A10:B10 to D3:E3, not from parsed HTML A1:B1");
   });
 
+  await test("Copy/paste carries source column widths in the same Undo/Redo history step", async () => {
+    const grid = new SheetGridController(mockContainer(), { isBlank: true });
+    const adapter = new SheetAdapter(grid);
+    adapter.attach();
+    grid.setCellValue("A", 1, "Wide");
+    grid.setCellValue("B", 1, 2);
+    grid.setColumnWidths(111, ["A"], false);
+    grid.setColumnWidths(144, ["B"], false);
+    grid.selectionRange = { start: { c: "A", r: 1 }, end: { c: "B", r: 1 } };
+    grid.selectedCoord = { c: "A", r: 1 };
+
+    await globalCommandBus.execute("common.edit.copy");
+    grid.selectCell("D", 1);
+    await globalCommandBus.execute("common.edit.paste");
+    assert.equal(grid.getColumnWidth("D"), 111);
+    assert.equal(grid.getColumnWidth("E"), 144);
+
+    grid.undo();
+    assert.equal(grid.cellsData.get("D1")?.val || "", "");
+    assert.equal(grid.getColumnWidth("D"), grid.defaultColWidth);
+    assert.equal(grid.getColumnWidth("E"), grid.defaultColWidth);
+
+    grid.redo();
+    assert.equal(grid.cellsData.get("D1")?.val, "Wide");
+    assert.equal(grid.getColumnWidth("D"), 111);
+    assert.equal(grid.getColumnWidth("E"), 144);
+  });
+
   return results;
 }
