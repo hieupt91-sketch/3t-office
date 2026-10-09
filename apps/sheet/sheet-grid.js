@@ -7928,6 +7928,10 @@ _bindGridKeyboardNavigation() {
       ? this._normalizeRange(options.moveRange)
       : null;
     const isSourceMode = mode === "source" || mode === "all";
+    const pasteColumnWidths = isSourceMode && !transpose && Array.isArray(clipboard.colWidths)
+      ? clipboard.colWidths.slice(0, width).map(value => this._clampColWidth(value))
+      : [];
+    const beforeLayout = pasteColumnWidths.some(Number.isFinite) ? this._snapshotRowColLayout() : null;
     if (moveRange && isSourceMode) {
       for (let row = moveRange.start.r; row <= moveRange.end.r; row++) {
         for (let col = this._columnNumber(moveRange.start.c); col <= this._columnNumber(moveRange.end.c); col++) {
@@ -8023,9 +8027,21 @@ _bindGridKeyboardNavigation() {
       }
       this.mergedRangesBySheet[this.activeSheet] = structuredClone(afterRanges);
     }
+    if (beforeLayout) {
+      const colWidths = this._colWidths();
+      pasteColumnWidths.forEach((columnWidth, colOffset) => {
+        if (!Number.isFinite(columnWidth)) return;
+        const column = this._columnLabel(destStartCol + colOffset);
+        if (columnWidth === this.defaultColWidth) colWidths.delete(column);
+        else colWidths.set(column, columnWidth);
+      });
+      this._invalidateColLeftsCache?.();
+    }
     for (const [coord, item] of Object.entries(after)) this.cellsData.set(coord, item);
-    this._recordHistory({ type: "batch-cells", sheet: this.activeSheet, before, after, beforeRanges, afterRanges });
+    const afterLayout = beforeLayout ? this._snapshotRowColLayout() : null;
+    this._recordHistory({ type: "batch-cells", sheet: this.activeSheet, before, after, beforeRanges, afterRanges, beforeLayout, afterLayout });
     this._recalculateAllFormulas();
+    if (beforeLayout) this._renderColumnHeaders();
     this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
     this.selectCell(destination.c, destination.r);
     return true;
@@ -9796,6 +9812,9 @@ _bindGridKeyboardNavigation() {
       if (action.type === "batch-cells" && Array.isArray(action.beforeRanges) && Array.isArray(action.afterRanges)) {
         this.mergedRangesBySheet[action.sheet] = structuredClone(direction === "undo" ? action.beforeRanges : action.afterRanges);
         this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+      }
+      if (action.type === "batch-cells" && action.beforeLayout && action.afterLayout) {
+        this._restoreRowColLayout(direction === "undo" ? action.beforeLayout : action.afterLayout);
       }
       this._recalculateAllFormulas();
     } else if (action.type === "batch-workbook") {
