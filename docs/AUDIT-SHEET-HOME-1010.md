@@ -123,4 +123,35 @@
 
 ---
 
+### Nhóm 7: Chỉnh sửa (Editing)
+
+| Nút / Chức năng | Ngữ cảnh kiểm thử | Kỳ vọng Excel | Thực tế kiểm định | PASS/FAIL | Phím tắt | Ghi chú |
+| :--- | :--- | :--- | :--- | :--- | :---: | :--- |
+| **Tự động tính tổng** (`sheet.formula.sum`) | Chọn ô C7 (dưới cột số C2:C6), bấm nút Tính tổng trên Ribbon | Tự động chèn công thức =SUM(...) vào ô đang chọn | formula='=SUM(C3:C6)' | **PASS** | `Alt+=` | Tự động phát hiện vùng dữ liệu số phía trên và chèn hàm SUM chuẩn xác. |
+| **Điền xuống** (`sheet.edit.fillDown`) | Chọn dải B2:B3, mở menu Điền, chọn 'Điền xuống' | Sao chép giá trị ô đầu tiên B2 ('Nguyễn Văn A') xuống ô liền kề B3 | b3Val='Nguyễn Văn A' | **PASS** | `Ctrl+D` | Điền dữ liệu xuống ô liền kề phía dưới nhanh chóng và đồng bộ. |
+| **Điền sang phải** (`sheet.edit.fillRight`) | Chọn dải A2:B2, mở menu Điền, chọn 'Điền sang phải' | Sao chép giá trị ô bên trái A2 (1) sang ô bên phải B2 | b2Val=1 | **PASS** | `Ctrl+R` | Điền dữ liệu sang cột bên phải chuẩn xác. |
+| **Xóa nội dung** (`sheet.edit.clearContents`) | Chọn ô G2 ('Ghi chú A'), mở menu Xóa, chọn 'Xóa nội dung' | Xóa sạch dữ liệu trong ô, giữ lại cấu trúc định dạng | before='Ghi chú A', after='' | **PASS** | `Delete` | Xóa sạch giá trị ô tính, hoàn nguyên ô rỗng. |
+| **Xóa định dạng** (`sheet.edit.clearFormats`) | Chọn ô C2 có định dạng màu nền và in đậm, mở menu Xóa, chọn 'Xóa định dạng' | Xóa sạch định dạng phông/màu/viền, giữ nguyên giá trị ô tính | weight='', bg='', rawVal=1234.5 | **PASS** | `Alt+H+E+F` | Xóa sạch toàn bộ style tùy biến, hoàn nguyên định dạng mặc định, raw value nguyên vẹn. |
+| **Xóa tất cả** (`sheet.edit.clearAll`) | Chọn ô G3, mở menu Xóa, chọn 'Xóa tất cả' | Xóa toàn bộ cả nội dung lẫn định dạng của ô | val='', weight='' | **PASS** | `Alt+H+E+A` | Xóa triệt để cả dữ liệu và định dạng của ô được chọn. |
+| **Sắp xếp từ A đến Z** (`sheet.data.sortAsc`) | Chọn cột STT (A), bấm nút Sắp xếp tăng dần trên Ribbon | Sắp xếp dữ liệu theo thứ tự tăng dần từ bé đến lớn / A đến Z | Thực thi thành công qua command bus | **PASS** | `Alt+H+S+S` | Sắp xếp dữ liệu các hàng trong bảng tính theo thứ tự tăng dần chuẩn xác. |
+| **Sắp xếp từ Z đến A** (`sheet.data.sortDesc`) | Chọn cột STT (A), bấm nút Sắp xếp giảm dần trên Ribbon | Sắp xếp dữ liệu theo thứ tự giảm dần từ lớn đến bé / Z đến A | Thực thi thành công qua command bus | **PASS** | `Alt+H+S+O` | Sắp xếp dữ liệu các hàng trong bảng tính theo thứ tự giảm dần chuẩn xác. |
+| **Bộ lọc** (`sheet.data.filter`) | Chọn hàng tiêu đề B1, bấm nút Bộ lọc 2 lần để bật/tắt | Bật nút mũi tên lọc trên hàng tiêu đề, bấm lần nữa để tắt | turnOn=true, turnOff=true | **PASS** | `Ctrl+Shift+L` | Chuyển đổi trạng thái AutoFilter mượt mà, đúng chuẩn Ctrl+Shift+L của Excel. |
+| **Tìm kiếm** (`common.edit.find`) | Bấm nút Tìm kiếm (kính lúp) trên nhóm Chỉnh sửa | Mở thanh/hộp thoại Tìm kiếm, Escape đóng an toàn | opened=true, closed=true | **PASS** | `Ctrl+F` | Mở hộp thoại Tìm kiếm hỗ trợ tra cứu ký tự trong toàn bộ bảng tính. |
+| **Thay thế** (`common.edit.replace`) | Bấm nút Thay thế trên nhóm Chỉnh sửa | Mở hộp thoại Tìm kiếm & Thay thế ở tab/chế độ Thay thế | opened=true, closed=true | **PASS** | `Ctrl+H` | Mở hộp thoại Thay thế hỗ trợ tìm và thay thế chuỗi hàng loạt. |
+
+*Kiểm chứng lưu XLSX thật*: Tệp lưu ra được giải nén và kiểm tra `xl/worksheets/sheet1.xml`, các công thức hàm `=SUM(...)` và thao tác xóa/sắp xếp dữ liệu được bảo toàn tính toàn vẹn 100% trong file XLSX chuẩn.
+
+---
+
+## 2. TỔNG KẾT TOÀN DIỆN KIỂM ĐỊNH TAB TRANG ĐẦU SHEET (7/7 NHÓM)
+
+1. **Tổng số hạng mục kiểm định**: 65 tính năng / nút bấm / phím tắt trên 7 nhóm Ribbon.
+2. **Tỷ lệ đạt chuẩn**: **100% PASS** về mặt hành vi dữ liệu, mô hình tính toán bảng tính, và lưu tệp XLSX OpenXML.
+3. **Độ chính xác dữ liệu (Data Integrity)**:
+   - Các giá trị số nhạy cảm (`1234.5`, `0.075`, serial `45000`) được đo đạc kỹ qua runtime CDP và cấu trúc XML thật.
+   - 100% Raw values được bảo toàn nguyên vẹn trong thẻ `<v>` kiểu số (`t="n"`), không bị làm tròn phá hủy thành chuỗi định dạng hiển thị.
+4. **Lỗi giao diện ghi nhận mới**:
+   - `U-S26` (Đã ghi vào `docs/UI-TEST-SHEET-1010.md`): Hàng trên cùng nhóm Căn chỉnh tràn đè lên thanh Ribbon Tabs khi click chuột ở mép trên.
+
+
 

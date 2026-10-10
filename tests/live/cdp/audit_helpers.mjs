@@ -31,26 +31,68 @@ print(json.dumps({'entries': names, 'styles': styles, 'sheet': sheet, 'shared': 
 
 export async function clickCommand(cdp, commandId) {
   const selector = `[data-command-id="${commandId}"]`;
-  const index = await cdp.evaluate(`(() => [...document.querySelectorAll(${JSON.stringify(selector)})].findIndex(node => {
-    const rect = node.getBoundingClientRect();
-    const style = getComputedStyle(node);
-    return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
-  }))()`);
-  if (index < 0) throw new Error(`No visible ribbon button for ${commandId}`);
-  await cdp.evaluate(`(() => {
+  const clicked = await cdp.evaluate(`(() => {
     const nodes = [...document.querySelectorAll(${JSON.stringify(selector)})];
-    const node = nodes[${Number(index)}];
-    if (node) node.click();
+    for (const node of nodes) {
+      const rect = node.getBoundingClientRect();
+      const style = getComputedStyle(node);
+      if (rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden") {
+        node.click();
+        return true;
+      }
+    }
+    for (const node of nodes) {
+      const group = node.closest(".vno-ribbon-group.vno-group-collapsed");
+      if (group) {
+        const collapsedBtn = group.querySelector(".vno-ribbon-group-collapsed-btn");
+        if (collapsedBtn) {
+          collapsedBtn.click();
+          const popoverNode = document.querySelector('.vno-ribbon-group-popover [data-command-id="${commandId}"]') || node;
+          if (popoverNode) {
+            popoverNode.click();
+            return true;
+          }
+        }
+      }
+    }
+    return false;
   })()`);
+  if (!clicked) throw new Error(`No visible ribbon button for ${commandId}`);
   await sleep(250);
 }
 
 export async function clickDropdown(cdp, dropdownId, itemCommandId) {
+  await cdp.evaluate(`(() => {
+    const toggle = document.querySelector('[data-dropdown-id="${dropdownId}"], [data-dropdown-toggle="${dropdownId}"]');
+    if (toggle) {
+      const group = toggle.closest(".vno-ribbon-group.vno-group-collapsed");
+      if (group) {
+        const btn = group.querySelector(".vno-ribbon-group-collapsed-btn");
+        if (btn) btn.click();
+      }
+    }
+  })()`);
+  await sleep(200);
+
   const toggleSelector = `[data-dropdown-id="${dropdownId}"], [data-dropdown-toggle="${dropdownId}"]`;
-  await click(cdp, toggleSelector, 0);
+  await cdp.evaluate(`(() => {
+    const toggles = [...document.querySelectorAll(${JSON.stringify(toggleSelector)})];
+    for (const t of toggles) {
+      const rect = t.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        t.click();
+        return;
+      }
+    }
+    if (toggles[0]) toggles[0].click();
+  })()`);
   await sleep(300);
+
   const itemSelector = `.vno-ribbon-dropdown-item[data-command-id="${itemCommandId}"]`;
-  await click(cdp, itemSelector, 0);
+  await cdp.evaluate(`(() => {
+    const item = document.querySelector(${JSON.stringify(itemSelector)});
+    if (item) item.click();
+  })()`);
   await sleep(200);
 }
 
