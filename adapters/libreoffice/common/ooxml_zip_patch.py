@@ -3400,10 +3400,24 @@ def _preserve_external_links(
             out_wb_bytes = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
             if out_wb_bytes:
                 out_wb_xml = out_wb_bytes.decode("utf-8", errors="replace")
+        replaced_existing_list = False
         if out_wb_xml and "<externalReferences" not in out_wb_xml:
             # Insert externalReferences after <sheets> element (schema order)
             out_wb_xml = _insert_external_references(out_wb_xml, external_references_xml)
             replacements[XLSX_WORKBOOK_ENTRY] = out_wb_xml
+        elif out_wb_xml:
+            # LibreOffice đã tự ghi một <externalReferences> (thường chỉ vài mục nó hiểu). Công thức/tên đã khôi phục dùng chỉ số
+            # [N] của DANH SÁCH GỐC, nên danh sách phải là danh sách gốc đầy đủ và đúng thứ tự: để nguyên bản ngắn của LibreOffice
+            # thì Excel thấy [2]..[8] không tồn tại và từ chối mở tệp (lan22: 1 mục so với 8 phần externalLink).
+            out_wb_xml = re.sub(
+                r"<externalReferences\b[^>]*>[\s\S]*?</externalReferences>",
+                lambda _match: external_references_xml,
+                out_wb_xml,
+                count=1,
+                flags=re.IGNORECASE,
+            )
+            replacements[XLSX_WORKBOOK_ENTRY] = out_wb_xml
+            replaced_existing_list = True
 
         # 4. Update workbook.xml.rels: add externalLink relationships
         out_rels_xml = replacements.get(XLSX_WORKBOOK_RELS_ENTRY)
@@ -3412,6 +3426,15 @@ def _preserve_external_links(
             if out_rels_bytes:
                 out_rels_xml = out_rels_bytes.decode("utf-8", errors="replace")
         if out_rels_xml:
+            if replaced_existing_list:
+                # Bỏ quan hệ externalLink cũ của LibreOffice (không còn được danh sách mới tham chiếu) để không trùng đích.
+                kept_ids = set(id_map.values())
+                out_rels_xml = re.sub(
+                    r'<Relationship\b(?=[^>]*\bType="[^"]*externalLink")(?=[^>]*\bId="([^"]*)")[^>]*/>\s*',
+                    lambda rel: rel.group(0) if rel.group(1) in kept_ids else "",
+                    out_rels_xml,
+                    flags=re.IGNORECASE,
+                )
             out_rels_xml = _add_external_link_relationships(out_rels_xml, extlink_rels)
             replacements[XLSX_WORKBOOK_RELS_ENTRY] = out_rels_xml
 
