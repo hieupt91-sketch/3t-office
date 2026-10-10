@@ -773,6 +773,10 @@
       "setup": "styleTitle",
       "assertion": "style",
       "expected": "normal",
+      "assertComputed": {
+        "tagName": "P",
+        "description": "Đoạn văn được chuyển về thẻ P (Normal) với định dạng chuẩn"
+      },
       "wordBlocked": "Kiểu Normal của VN Writer có mặc định NĐ30 riêng, không ánh xạ một-một với Normal của Word.",
       "shortcut": "Ctrl+Shift+N",
       "contexts": [
@@ -788,9 +792,53 @@
       "action": "styleCard",
       "assertion": "style",
       "expected": "h1",
+      "assertComputed": {
+        "tagName": "H1",
+        "description": "Đoạn văn được chuyển đổi sang thẻ H1 (Heading 1) theo chuẩn phân cấp Office"
+      },
       "xml": "w:pStyle",
       "wordBlocked": "Kiểu Tiêu đề 1 có thiết lập riêng của VN Writer; chỉ đối chiếu hiệu quả nội bộ và XML.",
       "shortcut": "Ctrl+Alt+1",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.style.apply",
+      "args": "h2",
+      "label": "Kiểu nhanh Tiêu đề 2",
+      "action": "styleCard",
+      "assertion": "style",
+      "expected": "h2",
+      "assertComputed": {
+        "tagName": "H2",
+        "description": "Đoạn văn được chuyển đổi sang thẻ H2 (Heading 2) theo chuẩn phân cấp Office"
+      },
+      "xml": "w:pStyle",
+      "wordBlocked": "Kiểu Tiêu đề 2 có thiết lập riêng của VN Writer; chỉ đối chiếu hiệu quả nội bộ và XML.",
+      "shortcut": "Ctrl+Alt+2",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.style.apply",
+      "args": "h3",
+      "label": "Kiểu nhanh Tiêu đề 3",
+      "action": "styleCard",
+      "assertion": "style",
+      "expected": "h3",
+      "assertComputed": {
+        "tagName": "H3",
+        "description": "Đoạn văn được chuyển đổi sang thẻ H3 (Heading 3) theo chuẩn phân cấp Office"
+      },
+      "xml": "w:pStyle",
+      "wordBlocked": "Kiểu Tiêu đề 3 có thiết lập riêng của VN Writer; chỉ đối chiếu hiệu quả nội bộ và XML.",
+      "shortcut": "Ctrl+Alt+3",
       "contexts": [
         "Đầu tài liệu (Trang 1)",
         "Giữa tài liệu (Trong bảng / danh sách)",

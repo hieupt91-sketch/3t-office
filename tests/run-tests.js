@@ -258,6 +258,7 @@ import { runUnoBridgeContentStageTests } from "./unit/uno-bridge-content-stage.t
 import { runWriterCoverPageTests } from "./unit/writer-cover-page.test.js";
 import { runWriterDialogsD16Tests } from "./unit/writer-dialogs-d16.test.js";
 import { runWriterLineSpacingRenderTests } from "./unit/writer-line-spacing-render.test.js";
+import { runWriterHeadingShortcutsTests } from "./unit/writer-heading-shortcuts.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -524,7 +525,8 @@ async function runAll() {
     { title: "247. Unit Tests — VN Writer Trang bìa (Cover Page)", runner: runWriterCoverPageTests },
     { title: "248. Unit Tests — VN Writer Dialogs & Keyboard Focus (TICKET D16)", runner: runWriterDialogsD16Tests },
     { title: "249. Unit Tests — VN Writer Navigation Pane", runner: runWriterNavigationPaneTests },
-    { title: "250. Unit Tests — VN Writer Line Spacing Rendering & Scale", runner: runWriterLineSpacingRenderTests }
+    { title: "250. Unit Tests — VN Writer Line Spacing Rendering & Scale", runner: runWriterLineSpacingRenderTests },
+    { title: "251. Unit Tests — VN Writer Heading Styles & Shortcuts", runner: runWriterHeadingShortcutsTests }
   ];
 
   for (const suite of suites) {

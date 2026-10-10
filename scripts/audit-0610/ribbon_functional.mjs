@@ -272,9 +272,13 @@ function assertEffect(item, before, after) {
     case "dialog": return truth(after.dialogCount > before.dialogCount, after.dialogText);
     case "style": {
       const h1WithBeta = /<h1\b[^>]*>(?:(?!<\/h1>)[\s\S])*?beta[\s\S]*?<\/h1>/i.test(after.html);
+      const h2WithBeta = /<h2\b[^>]*>(?:(?!<\/h2>)[\s\S])*?beta[\s\S]*?<\/h2>/i.test(after.html);
+      const h3WithBeta = /<h3\b[^>]*>(?:(?!<\/h3>)[\s\S])*?beta[\s\S]*?<\/h3>/i.test(after.html);
       const pWithBeta = /<p\b[^>]*>(?:(?!<\/p>)[\s\S])*?beta[\s\S]*?<\/p>/i.test(after.html);
       const pass = item.expected === "title" ? /vno-style-title/.test(after.html) && after.text.includes("beta")
         : item.expected === "h1" ? h1WithBeta
+        : item.expected === "h2" ? h2WithBeta
+        : item.expected === "h3" ? h3WithBeta
         : pWithBeta && !/vno-style-title/.test(after.targetHtml);
       return truth(pass, after.html);
     }

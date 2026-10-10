@@ -656,6 +656,9 @@ export class WriterAdapter {
     this._bindMouseAndKeyboardParity();
     this._hydrateWordArtFromDom();
     globalCommandBus.bindHandler("writer.style.normal", () => this._applyParagraphStyle("normal"));
+    globalCommandBus.bindHandler("writer.style.heading1", () => this._applyParagraphStyle("h1"));
+    globalCommandBus.bindHandler("writer.style.heading2", () => this._applyParagraphStyle("h2"));
+    globalCommandBus.bindHandler("writer.style.heading3", () => this._applyParagraphStyle("h3"));
     globalCommandBus.bindHandler("writer.text.changeCase", () => this.changeCase());
     globalCommandBus.bindHandler("writer.para.sort", () => this.sortParagraphs());
     globalCommandBus.bindHandler("writer.para.showFormattingMarks", () => this.toggleFormattingMarks());
@@ -7440,6 +7443,15 @@ export class WriterAdapter {
       case "writer.style.normal":
         return this._applyParagraphStyle("normal");
 
+      case "writer.style.heading1":
+        return this._applyParagraphStyle("h1");
+
+      case "writer.style.heading2":
+        return this._applyParagraphStyle("h2");
+
+      case "writer.style.heading3":
+        return this._applyParagraphStyle("h3");
+
       case "writer.text.changeCase":
         return this.changeCase();
 
@@ -8507,6 +8519,15 @@ export class WriterAdapter {
       targetTag = "p";
     }
 
+    let origId = "";
+    if (typeof window !== "undefined") {
+      const sel = window.getSelection ? window.getSelection() : null;
+      let n = sel && sel.rangeCount > 0 ? sel.anchorNode : null;
+      if (n && n.nodeType === 3) n = n.parentNode;
+      const blk = n && n.closest ? n.closest("p,h1,h2,h3,h4,h5,h6,blockquote,div,li") : null;
+      origId = blk ? (blk.id || "") : "";
+    }
+
     if (typeof document !== "undefined" && typeof document.execCommand === "function") {
       try {
         document.execCommand("formatBlock", false, `<${targetTag}>`);
@@ -8517,7 +8538,7 @@ export class WriterAdapter {
       }
     }
 
-    this._updateCurrentBlockStyle(targetTag, addClass);
+    this._updateCurrentBlockStyle(targetTag, addClass, origId);
     if (styleKey === "title" || styleKey === "tieude") {
       this._getSelectedParagraphBlocks().forEach((block) => Object.assign(block.style, {
         fontSize: "26pt",
@@ -8534,7 +8555,7 @@ export class WriterAdapter {
     return true;
   }
 
-  _updateCurrentBlockStyle(targetTag, addClass) {
+  _updateCurrentBlockStyle(targetTag, addClass, origId = "") {
     if (typeof window === "undefined") return;
     const sel = window.getSelection ? window.getSelection() : null;
     let node = sel && sel.rangeCount > 0 ? sel.anchorNode : null;
@@ -8584,6 +8605,9 @@ export class WriterAdapter {
         if (block.className) {
           newBlock.className = block.className;
         }
+        if (block.id || origId) {
+          newBlock.id = block.id || origId;
+        }
         if (typeof block.parentNode.replaceChild === "function") {
           block.parentNode.replaceChild(newBlock, block);
         }
@@ -8592,6 +8616,9 @@ export class WriterAdapter {
     }
 
     if (block) {
+      if (origId && !block.id) {
+        block.id = origId;
+      }
       block.classList?.remove?.("vno-style-quote");
       block.classList?.remove?.("vno-style-emphasis");
       const wasTitle = block.classList?.contains?.("vno-style-title");
