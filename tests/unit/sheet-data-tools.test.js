@@ -23,6 +23,16 @@ export async function runSheetDataToolsTests() {
     assert(calls.length >= ids.length, "Command bus chưa đi tới grid handler");
   });
 
+  await test("Tạo từ vùng chọn: một ô hiện thông báo cụ thể thay vì thất bại im lặng", () => {
+    const grid = new SheetGridController(container());
+    const messages = [];
+    grid._showDataNotice = message => messages.push(message);
+    grid.selectionRange = { start: { c: "A", r: 1 }, end: { c: "A", r: 1 } };
+    grid.selectedCoord = { c: "A", r: 1 };
+    assert(grid.createNamesFromSelection() === false, "Vùng một ô không tạo tên");
+    assert(messages.length === 1 && messages[0].includes("ít nhất hai hàng") && messages[0].includes("tiêu đề"), `Thiếu thông báo tiếng Việt rõ ràng: ${messages}`);
+  });
+
   await test("Remove Duplicates: xét cột chọn, giữ header và Undo/Redo", () => {
     const grid = new SheetGridController(container());
     [["A1","Name"],["B1","Amount"],["A2","An"],["B2",10],["A3","An"],["B3",10],["A4","An"],["B4",20]].forEach(([c,v]) => put(grid,c,v));
