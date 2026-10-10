@@ -3426,14 +3426,20 @@ export class WriterAdapter {
    */
   _paragraphPropsFingerprint(element) {
     if (!element) return "";
-    const ignored = new Set(["id", "data-vno-src-hash", "data-vno-src-props", "data-vno-untouched", "data-vno-edited", "data-vno-keep-next"]);
+    const ignored = new Set([
+      "id", "data-vno-src-hash", "data-vno-src-props", "data-vno-untouched", "data-vno-edited", "data-vno-keep-next",
+      "data-vno-src-rows", "data-vno-src-idx", "data-vno-src-cells", "data-vno-src-w",
+    ]);
     const parts = [];
     for (const attribute of Array.from(element.attributes || [])) {
       const name = String(attribute.name || "").toLowerCase();
       if (ignored.has(name)) continue;
       let value = String(attribute.value ?? "");
       if (name === "style") {
-        value = value.split(";").map((item) => item.trim().replace(/\s+/g, " ")).filter(Boolean).sort().join(";");
+        // Con trỏ chuột (cursor) do bộ điều khiển bảng đặt khi rê chuột qua mép ô: không phải chỉnh sửa của người dùng.
+        value = value.split(";").map((item) => item.trim().replace(/\s+/g, " "))
+          .filter((item) => item && !/^cursor\s*:/i.test(item)).sort().join(";");
+        if (!value) continue;
       } else if (name === "class") {
         value = value.split(/\s+/).filter((token) => token && !/^(?:is-|vno-(?:selected|focus|active|hover))/.test(token)).sort().join(" ");
         if (!value) continue;
@@ -3463,11 +3469,26 @@ export class WriterAdapter {
     // Bảng, hàng, ô: vân tay thuộc tính để lúc lưu biết phần nào người dùng đã sửa (tô nền, căn dọc, viền, độ rộng...).
     if (root.querySelectorAll) {
       for (const element of Array.from(root.querySelectorAll("table,tr,td,th"))) {
-        if (typeof element.setAttribute === "function") {
-          element.setAttribute("data-vno-src-props", this._paragraphPropsFingerprint(element));
+        if (typeof element.setAttribute !== "function") continue;
+        element.setAttribute("data-vno-src-props", this._paragraphPropsFingerprint(element));
+        const tag = String(element.tagName || "").toUpperCase();
+        if (tag === "TABLE") {
+          element.setAttribute("data-vno-src-rows", String(element.rows?.length ?? 0));
+        } else if (tag === "TR") {
+          const table = element.closest?.("table");
+          const rowIndex = table ? Array.from(table.rows || []).indexOf(element) : -1;
+          if (rowIndex >= 0) element.setAttribute("data-vno-src-idx", String(rowIndex));
+          element.setAttribute("data-vno-src-cells", String(element.cells?.length ?? 0));
+        } else {
+          element.setAttribute("data-vno-src-w", element.style?.width || "");
         }
       }
     }
+  }
+
+  /** Chữ đầu của bảng (24 ký tự chuẩn hoá), cùng cách tính với _writer_table_key_text bên Python để ghép bảng theo nội dung. */
+  _tableKeyText(table) {
+    return String(table?.textContent || "").toLowerCase().replace(/[^0-9a-zà-ỹ]+/g, "").slice(0, 24);
   }
 
   /**
@@ -3479,19 +3500,33 @@ export class WriterAdapter {
     if (!root?.querySelectorAll) return [];
     const topTables = Array.from(root.querySelectorAll("table")).filter((table) => !table.parentElement?.closest?.("table"));
     const edits = [];
-    topTables.forEach((table, tableIndex) => {
-      const edit = { t: tableIndex, table: false, rows: [], cells: [] };
+    topTables.forEach((table) => {
+      const rows = Array.from(table.rows || []);
+      const edit = { k: this._tableKeyText(table), table: false, all: false, rows: [], cells: [] };
       const sourceTable = table.getAttribute?.("data-vno-src-props");
       if (sourceTable && sourceTable !== this._paragraphPropsFingerprint(table)) edit.table = true;
-      Array.from(table.rows || []).forEach((row, rowIndex) => {
+      // Cấu trúc đổi (thêm/xóa/đổi chỗ hàng, đổi số ô) hoặc có ô gộp dọc: chỉ số ô DOM không còn khớp w:tc nên
+      // không khôi phục gì cho bảng này, giữ nguyên bản chuyển đổi để không bao giờ làm mất chỉnh sửa.
+      const sourceRowCount = table.getAttribute?.("data-vno-src-rows");
+      let structural = sourceRowCount !== null && sourceRowCount !== undefined && Number(sourceRowCount) !== rows.length;
+      let hasRowSpan = false;
+      rows.forEach((row, rowIndex) => {
+        const srcIdx = row.getAttribute?.("data-vno-src-idx");
+        const srcCells = row.getAttribute?.("data-vno-src-cells");
+        if (srcIdx === null || srcIdx === undefined || Number(srcIdx) !== rowIndex) structural = true;
+        if (srcCells === null || srcCells === undefined || Number(srcCells) !== (row.cells?.length ?? 0)) structural = true;
         const sourceRow = row.getAttribute?.("data-vno-src-props");
         if (sourceRow && sourceRow !== this._paragraphPropsFingerprint(row)) edit.rows.push(rowIndex);
         Array.from(row.cells || []).forEach((cell, cellIndex) => {
+          if ((Number(cell.rowSpan) || 1) > 1) hasRowSpan = true;
           const sourceCell = cell.getAttribute?.("data-vno-src-props");
           if (sourceCell && sourceCell !== this._paragraphPropsFingerprint(cell)) edit.cells.push([rowIndex, cellIndex]);
+          const sourceWidth = cell.getAttribute?.("data-vno-src-w");
+          if (sourceWidth !== null && sourceWidth !== undefined && sourceWidth !== (cell.style?.width || "")) edit.table = true;
         });
       });
-      if (edit.table || edit.rows.length || edit.cells.length) edits.push(edit);
+      if (structural || (hasRowSpan && (edit.cells.length || edit.rows.length))) edit.all = true;
+      if (edit.table || edit.all || edit.rows.length || edit.cells.length) edits.push(edit);
     });
     return edits;
   }
@@ -14617,6 +14652,7 @@ export class WriterAdapter {
     return withoutComments
       .replace(/\s+data-vno-src-hash=["'][^"']*["']/gi, "")
       .replace(/\s+data-vno-src-props=["'][^"']*["']/gi, "")
+      .replace(/\s+data-vno-src-(?:rows|idx|cells|w)=["'][^"']*["']/gi, "")
       .replace(/\s+data-vno-edited=["'][^"']*["']/gi, "")
       .replace(/\s+data-vno-keep-next=["'][^"']*["']/gi, "")
       .replace(/<span\b(?=[^>]*\bclass=["'][^"']*\bvno-spelling-(?:error|uncertain)\b[^"']*["'])[^>]*>([\s\S]*?)<\/span>/gi, "$1")

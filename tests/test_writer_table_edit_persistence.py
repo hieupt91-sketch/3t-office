@@ -77,15 +77,55 @@ class WriterTableEditPersistenceTests(unittest.TestCase):
         self.assertEqual(result.count('w:val="900"'), 1, "hàng đã sửa giữ chiều cao mới")
         self.assertEqual(result.count('w:val="500"'), 1, "hàng chưa sửa lấy lại chiều cao nguồn")
 
-    def test_parse_table_edits_comment(self):
-        html = '<p>x</p><!--vno-table-edits: [{"t":1,"table":true,"rows":[2],"cells":[[0,3],[4,5]]}] -->'
+    def test_parse_table_edits_comment_keyed_by_table_text(self):
+        html = '<p>x</p><!--vno-table-edits: [{"k":"hoten","table":true,"all":false,"rows":[2],"cells":[[0,3],[4,5]]}] -->'
         edits = patcher._writer_parse_table_edits(html)
-        self.assertEqual(set(edits), {1})
-        self.assertTrue(edits[1]["table"])
-        self.assertEqual(edits[1]["rows"], {2})
-        self.assertEqual(edits[1]["cells"], {(0, 3), (4, 5)})
+        self.assertEqual(set(edits), {"hoten"})
+        item = edits["hoten"][0]
+        self.assertTrue(item["table"])
+        self.assertFalse(item["all"])
+        self.assertEqual(item["rows"], {2})
+        self.assertEqual(item["cells"], {(0, 3), (4, 5)})
         self.assertEqual(patcher._writer_parse_table_edits(None), {})
         self.assertEqual(patcher._writer_parse_table_edits("<!--vno-table-edits: nonsense -->"), {})
+
+    def test_parse_table_edits_uses_last_marker_so_body_text_cannot_shadow_it(self):
+        body_text = "<p>vno-table-edits: [{\"k\":\"gia\",\"cells\":[[9,9]]}] --&gt;</p>"
+        html = body_text + '<!--vno-table-edits: [{"k":"that","cells":[[0,0]]}] -->'
+        edits = patcher._writer_parse_table_edits(html)
+        self.assertEqual(set(edits), {"that"})
+
+    def test_all_flag_leaves_converted_table_untouched(self):
+        source = _table([[("a", SRC_TCPR), ("b", SRC_TCPR)]], "<w:tblPr><w:tblW w:w=\"2000\"/></w:tblPr>", 2)
+        converted = _table([[("a", LO_TCPR), ("b", SHADED_TCPR)]], "<w:tblPr><w:tblW w:w=\"1999\"/></w:tblPr>", 2)
+        result = patcher._writer_apply_source_table_properties(
+            converted, source, {"table": False, "all": True, "rows": set(), "cells": set()}
+        )
+        self.assertEqual(result, converted)
+
+    def test_single_cell_edit_keeps_source_grid_but_table_edit_drops_it(self):
+        source = _table([[("a", SRC_TCPR), ("b", SRC_TCPR)]], "<w:tblPr/>", 2)
+        converted = _table([[("a", LO_TCPR), ("b", SHADED_TCPR)]], "<w:tblPr/>", 3)
+        only_cell = patcher._writer_apply_source_table_properties(
+            converted, source, {"table": False, "all": False, "rows": set(), "cells": {(0, 1)}}
+        )
+        self.assertEqual(only_cell.count('<w:gridCol w:w="1000"/>'), 2, "tô nền một ô không đổi lưới cột: lưới nguồn trở lại")
+        widths = patcher._writer_apply_source_table_properties(
+            converted, source, {"table": True, "all": False, "rows": set(), "cells": {(0, 1)}}
+        )
+        self.assertEqual(widths.count("<w:gridCol"), 3, "đổi độ rộng cột thì giữ lưới của bản chuyển đổi")
+
+    def test_edits_pair_by_key_text_not_by_position(self):
+        first = _table([[("khac", SRC_TCPR)]], "<w:tblPr/>", 1)
+        second = _table([[("chuduoc", SRC_TCPR)]], "<w:tblPr/>", 1)
+        source = f"<w:body>{first}{second}</w:body>"
+        conv_first = _table([[("khac", LO_TCPR)]], "<w:tblPr/>", 1)
+        conv_second = _table([[("chuduoc", SHADED_TCPR)]], "<w:tblPr/>", 1)
+        converted = f"<w:body>{conv_first}{conv_second}</w:body>"
+        edits = {"chuduoc": [{"table": False, "all": False, "rows": set(), "cells": {(0, 0)}}]}
+        result = patcher._restore_writer_table_properties(converted, source, edits)
+        self.assertIn('w:fill="FFFF00"', result, "bảng 'chuduoc' đã sửa giữ tô nền dù là bảng thứ hai")
+        self.assertEqual(result.count('<w:tcW w:w="1000" w:type="dxa"/>'), 1, "bảng 'khac' chưa sửa lấy tcPr nguồn")
 
     def test_untouched_paragraph_keeps_page_break_added_by_converter(self):
         source = (

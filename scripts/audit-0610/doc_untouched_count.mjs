@@ -16,7 +16,7 @@ for (const name of names.length ? names : ["d13"]) {
       const edited = (html.match(/data-vno-edited=/g) || []).length;
       const ids = (html.match(/id="vno-untouched-/g) || []).length;
       const live = document.querySelectorAll('.vno-writer-body p, .vno-writer-body h1, .vno-writer-body h2, .vno-writer-body h3, .vno-writer-body h4, .vno-writer-body h5, .vno-writer-body h6').length;
-      return { untouched, edited, idsUntouched: ids, paragraphs: live, withSrcProps: document.querySelectorAll('[data-vno-src-props]').length };
+      const te = html.match(/<!--vno-table-edits:\s*(\[.*?\])\s*-->/s); const tableEdits = te ? JSON.parse(te[1]).length : 0; return { tableEdits, untouched, edited, idsUntouched: ids, paragraphs: live, withSrcProps: document.querySelectorAll('[data-vno-src-props]').length };
     })()`);
     console.log(`${name}: ${JSON.stringify(r)}`);
   } finally { await session.close(); }
