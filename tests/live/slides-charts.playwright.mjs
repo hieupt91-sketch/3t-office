@@ -35,6 +35,7 @@ try {
 
   const dialog = page.locator('[data-vno-dialog="slides-chart"]');
   await dialog.waitFor();
+  assert(await dialog.locator('.vno-chart-preview svg[data-chart-type="bar"]').count() === 1, "Biểu đồ mặc định không render khi hộp thoại mở");
   await dialog.locator("[data-chart-title-input]").fill("Doanh thu 2026");
   const rows = dialog.locator("tbody tr");
   await rows.nth(0).locator("[data-chart-label]").fill("Tháng 1");

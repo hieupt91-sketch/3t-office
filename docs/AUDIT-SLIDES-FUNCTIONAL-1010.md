@@ -17,3 +17,14 @@ Nhánh `audit/slides-functional-codex`; fixture gốc `E:\VN OFice\file test\sam
 | Cỡ chữ, màu chữ/nền, căn lề, danh sách, giãn dòng | Chưa kiểm hiệu quả trên vùng văn bản được chọn | Cập nhật định dạng trong model và lưu PPTX | NOT RUN | NOT RUN | Chưa đo đủ | Chỉ xác nhận nút tồn tại không được tính là kết quả. |
 
 
+
+## Nhóm 2 — Chèn
+
+| Nút | Ngữ cảnh | Kỳ vọng PowerPoint | Thực tế | PASS/FAIL | Phím tắt | Ghi chú |
+|---|---|---|---|---|---|---|
+| Hộp văn bản | Chèn trên slide đầu, click canvas, nhập `RB-L2 text object` | Thêm textbox tại vị trí chọn, giữ chữ sau lưu/mở lại | Model tăng 1 đối tượng; chữ có trong model và sau khi adapter.save() + mở lại PPTX | PASS | NOT RUN | Đã xác nhận `sourceFilePath` khớp và nạp đủ 10 slide trước khi kiểm tra lại. |
+| Hình khối | Chèn > Hình khối, click canvas | Thêm hình vào slide tại vị trí chọn | Model tăng 1 đối tượng `rect` sau click | PASS | NOT RUN | Tọa độ canvas được đo; loại và số shape đọc từ model. |
+| Bảng | Chèn > Bảng, giữ mặc định 3×3, bấm Chèn | Thêm bảng có 3 hàng và 3 cột | Model có thêm `table`; giữ sau lưu và mở lại; slide XML có `graphicFrame` | PASS | NOT RUN | File đầu ra là bản sao trong profile audit. |
+| Biểu đồ | Chèn > Biểu đồ, mặc định Cột, bấm Chèn | Đóng hộp thoại và thêm biểu đồ vào slide | Tái hiện ban đầu: exception `ReferenceError: numeric is not defined`, model không tăng và PPTX thiếu chart part. Sau sửa, model có `chart`, PPTX có `ppt/charts/chart1.xml`, mở lại giữ biểu đồ | PASS (sau sửa) | NOT RUN | Lỗi và sửa ở `apps/slides/slides-chart.js`; CDP cổng 56225, profile riêng. `slides-charts.playwright.mjs` NOT RUN: thiếu gói Playwright tại đường dẫn cấu hình. |
+| Hình ảnh | Chèn > Hình ảnh | Chọn ảnh cục bộ và thêm vào slide | NOT RUN | BLOCKED | NOT RUN | Nút gọi hộp thoại native; CDP không điều khiển hộp thoại hệ điều hành, không dùng SendKeys/OS input. |
+

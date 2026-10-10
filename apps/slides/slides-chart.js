@@ -97,7 +97,16 @@ export function showSlidesChartDialog(initial = {}) {
       tbody.appendChild(row);
     };
     defaults.labels.forEach((label, index) => addRow(label, defaults.data[index]));
-    const read = () => ({ chartType, title: overlay.querySelector("[data-chart-title-input]").value.trim() || "Biểu đồ dữ liệu", labels: [...tbody.querySelectorAll("[data-chart-label]")].map((input) => input.value.trim()), data: [...tbody.querySelectorAll("[data-chart-value]")].map((input) => numeric(input.value)) });
+    const read = () => {
+      const labels = [...tbody.querySelectorAll("[data-chart-label]")].map((input) => input.value.trim());
+      const data = normalizeSlidesChart({ data: [...tbody.querySelectorAll("[data-chart-value]")].map((input) => input.value) }).data;
+      return {
+        chartType,
+        title: overlay.querySelector("[data-chart-title-input]").value.trim() || "Biểu đồ dữ liệu",
+        labels,
+        data
+      };
+    };
     function render() { overlay.querySelector(".vno-chart-preview").innerHTML = generateSlidesChartSvg(read()); error.textContent = ""; }
     overlay.querySelector("[data-chart-title-input]").addEventListener("input", render);
     const typeButtons = Array.from(overlay.querySelectorAll("[data-chart-type]"));
