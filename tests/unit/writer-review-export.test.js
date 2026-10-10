@@ -44,6 +44,15 @@ export async function runWriterReviewExportTests() {
   assert.equal(metadata.records[2].content, "Kiểm tra số liệu quý II.");
   assert.equal(metadata.records[2].author, "Trần Thị Hoa");
 
+  const resolvedImport = adapter._applyOoxmlCommentsToHtml(
+    "<p>Đoạn cần xem lại.</p>",
+    '<w:document><w:body><w:p><w:commentRangeStart w:id="4"/><w:r><w:t>Đoạn cần xem lại.</w:t></w:r><w:commentRangeEnd w:id="4"/></w:p></w:body></w:document>',
+    '<w:comments xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml"><w:comment w:id="4" w:author="Reviewer"><w:p w14:paraId="A1B2C3D4"><w:r><w:t>Đã xong</w:t></w:r></w:p></w:comment></w:comments>',
+    '<w15:commentsEx xmlns:w15="http://schemas.microsoft.com/office/word/2012/wordml"><w15:commentEx w15:paraId="A1B2C3D4" w15:done="1"/></w15:commentsEx>'
+  );
+  assert.equal(resolvedImport.comments.length, 1);
+  assert.equal(resolvedImport.comments[0].resolved, true, "Resolved state must load back into the Writer comment model");
+
   const cleanForOffice = adapter._stripSessionMarkup(serialized.html);
   assert.match(cleanForOffice, /nội dung mới/);
   assert.match(cleanForOffice, /nội dung cũ/);

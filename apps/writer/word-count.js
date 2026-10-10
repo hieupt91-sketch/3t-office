@@ -36,6 +36,10 @@ function emptyStats(scope = "document") {
   };
 }
 
+function isFloatingShapeContent(element) {
+  return Boolean(element?.closest?.("[data-vno-float]"));
+}
+
 /**
  * Đếm thống kê từ một chuỗi văn bản thuần.
  * Từ tiếng Việt: tách theo khoảng trắng, bỏ token rỗng.
@@ -44,15 +48,21 @@ function emptyStats(scope = "document") {
  */
 export function countDocumentStats(text, options = {}) {
   const scope = options.scope || "document";
+  const markerStats = options.markerStats || {};
   const raw = String(text ?? "").replace(/\u00a0/g, " ");
   const trimmed = raw.trim();
   if (!trimmed) {
-    return emptyStats(scope);
+    const empty = emptyStats(scope);
+    empty.words = Number(markerStats.words) || 0;
+    empty.charactersWithSpaces = Number(markerStats.charactersWithSpaces) || 0;
+    empty.charactersNoSpaces = Number(markerStats.charactersNoSpaces) || 0;
+    empty.lines = options.lineCount != null ? options.lineCount : 0;
+    return empty;
   }
 
-  const words = trimmed.split(/\s+/).filter(Boolean).length;
-  const charactersWithSpaces = raw.replace(/[\r\n\u2028\u2029]/g, "").length;
-  const charactersNoSpaces = raw.replace(/\s+/g, "").length;
+  const words = trimmed.split(/\s+/).filter(Boolean).length + (Number(markerStats.words) || 0);
+  const charactersWithSpaces = raw.replace(/[\r\n\u2028\u2029]/g, "").length + (Number(markerStats.charactersWithSpaces) || 0);
+  const charactersNoSpaces = raw.replace(/\s+/g, "").length + (Number(markerStats.charactersNoSpaces) || 0);
   const paragraphs = options.paragraphCount != null
     ? options.paragraphCount
     : raw.split(/\n+/).filter((block) => block.trim().length > 0).length;
@@ -79,6 +89,7 @@ export function countBlockParagraphs(bodyEl) {
   const blocks = bodyEl.querySelectorAll("p, h1, h2, h3, h4, h5, h6, li, blockquote");
   let count = 0;
   for (const el of blocks) {
+    if (isFloatingShapeContent(el)) continue;
     // DOCX list paragraphs are rendered as <li><p>…</p></li>. Count the
     // paragraph, not both its paragraph and its list container.
     if ((el.tagName === "LI" || el.tagName === "BLOCKQUOTE") &&
@@ -89,6 +100,118 @@ export function countBlockParagraphs(bodyEl) {
     if (String(value).trim()) count += 1;
   }
   return count;
+}
+
+/**
+ * Đếm số dòng đang hiển thị theo khung chữ thực tế, thay vì coi mỗi mục
+ * innerText là một dòng. Số dòng thay đổi theo độ rộng trang và font hiện tại.
+ * @param {ParentNode | null | undefined} bodyEl
+ * @returns {number | null} null khi DOM không hỗ trợ đo hình học
+ */
+export function countBlockLines(bodyEl) {
+  if (!bodyEl || typeof bodyEl.querySelectorAll !== "function") return null;
+  const blocks = bodyEl.querySelectorAll("p, h1, h2, h3, h4, h5, h6, li, blockquote");
+  let count = 0;
+  let measuredAny = false;
+  for (const el of blocks) {
+    if (isFloatingShapeContent(el)) continue;
+    if ((el.tagName === "LI" || el.tagName === "BLOCKQUOTE") &&
+        el.querySelector?.("p, h1, h2, h3, h4, h5, h6")) continue;
+    if (el.classList?.contains("vno-section-break") || el.hasAttribute?.("data-vno-section-break") ||
+        el.hasAttribute?.("data-vno-auto-page-gap")) continue;
+    const ownerDocument = el.ownerDocument || (typeof document !== "undefined" ? document : null);
+    if (!ownerDocument || typeof ownerDocument.createRange !== "function") return null;
+    const range = ownerDocument.createRange();
+    try {
+      range.selectNodeContents(el);
+      const rects = Array.from(range.getClientRects?.() || [])
+        .filter((rect) => rect.width > 0 && rect.height > 0);
+      if (rects.length) {
+        measuredAny = true;
+        count += new Set(rects.map((rect) => Math.round(rect.top * 100) / 100)).size;
+      } else if (el.getBoundingClientRect?.().height > 0) {
+        measuredAny = true;
+        count += 1;
+      }
+    } catch {
+      return null;
+    }
+  }
+  return measuredAny ? count : null;
+}
+
+function alphaCounter(value, upper) {
+  let number = Math.max(1, Math.trunc(value));
+  let label = "";
+  while (number > 0) {
+    number -= 1;
+    label = String.fromCharCode((upper ? 65 : 97) + (number % 26)) + label;
+    number = Math.floor(number / 26);
+  }
+  return label;
+}
+
+function romanCounter(value, upper) {
+  let number = Math.max(1, Math.trunc(value));
+  if (number > 3999) return String(number);
+  const pairs = [[1000, "M"], [900, "CM"], [500, "D"], [400, "CD"], [100, "C"], [90, "XC"], [50, "L"], [40, "XL"], [10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"]];
+  let label = "";
+  for (const [amount, symbol] of pairs) while (number >= amount) { label += symbol; number -= amount; }
+  return upper ? label : label.toLowerCase();
+}
+
+/**
+ * Word counts generated list labels as characters (numbered labels also count
+ * as words), though browser innerText omits the ::marker text and its tab.
+ * @param {ParentNode | null | undefined} bodyEl
+ */
+export function countListMarkerStats(bodyEl) {
+  if (!bodyEl || typeof bodyEl.querySelectorAll !== "function") return { words: 0, charactersNoSpaces: 0, charactersWithSpaces: 0 };
+  const items = bodyEl.querySelectorAll("li");
+  let words = 0;
+  let charactersNoSpaces = 0;
+  let charactersWithSpaces = 0;
+  for (const item of items) {
+    if (isFloatingShapeContent(item)) continue;
+    const list = item.parentElement;
+    const ordered = String(list?.tagName || "").toUpperCase() === "OL";
+    const unordered = String(list?.tagName || "").toUpperCase() === "UL";
+    if (!ordered && !unordered) continue;
+    let listStyle = list.getAttribute?.("type") || (ordered ? "decimal" : "disc");
+    try {
+      const computed = typeof getComputedStyle === "function" ? getComputedStyle(list).listStyleType : "";
+      if (computed && computed !== "none") listStyle = computed;
+      else if (computed === "none") continue;
+      const markerContent = getComputedStyle(item, "::marker").content;
+      if (markerContent && markerContent !== "normal" && markerContent !== "none") {
+        const explicit = markerContent.replace(/^(?:["'])(.*)(?:["'])$/, "$1");
+        if (explicit) {
+          charactersNoSpaces += explicit.length;
+          charactersWithSpaces += explicit.length + 1;
+          if (/\d|[a-z]/i.test(explicit)) words += 1;
+          continue;
+        }
+      }
+    } catch { /* DOM shims and unsupported pseudo styles use the list tag defaults. */ }
+    const siblings = Array.from(list.children || []).filter((child) => String(child.tagName || "").toUpperCase() === "LI");
+    const itemIndex = Math.max(0, siblings.indexOf(item));
+    const ordinal = Number(item.getAttribute?.("value")) || (Number(list.getAttribute?.("start")) || 1) + itemIndex;
+    let label = "";
+    if (ordered) {
+      const style = String(listStyle).toLowerCase();
+      if (style.includes("roman")) label = romanCounter(ordinal, style.startsWith("upper")) + ".";
+      else if (style.includes("alpha") || style.includes("latin")) label = alphaCounter(ordinal, style.startsWith("upper")) + ".";
+      else if (style === "none") continue;
+      else label = `${Math.max(1, Math.trunc(ordinal))}.`;
+      words += 1;
+    } else {
+      if (String(listStyle).toLowerCase() === "none") continue;
+      label = "•";
+    }
+    charactersNoSpaces += label.length;
+    charactersWithSpaces += label.length + 1;
+  }
+  return { words, charactersNoSpaces, charactersWithSpaces };
 }
 
 function formatNumber(value) {

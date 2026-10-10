@@ -2658,6 +2658,11 @@ def _read_docx_comments_xml(src_path: str) -> str | None:
     return _read_docx_zip_entry(src_path, "word/comments.xml")
 
 
+def _read_docx_comments_extended_xml(src_path: str) -> str | None:
+    """Read word/commentsExtended.xml (resolved state linked by comment paragraph id)."""
+    return _read_docx_zip_entry(src_path, "word/commentsExtended.xml")
+
+
 def _read_docx_header_footer_xmls(src_path: str) -> tuple[str | None, str | None]:
     """Quy ước W26b: Đọc các part header/footer XML từ DOCX theo thứ tự rels của sectPr đầu (default trước, first/even sau)."""
     if not src_path or not str(src_path).lower().endswith(".docx"):
@@ -4487,6 +4492,7 @@ class VnOfficeApi:
                         writer_ooxml_metadata = {
                             "ooxmlDocumentXml": _read_docx_document_xml(convert_src_path),
                             "ooxmlCommentsXml": _read_docx_comments_xml(convert_src_path),
+                            "ooxmlCommentsExtendedXml": _read_docx_comments_extended_xml(convert_src_path),
                             "ooxmlStylesXml": _read_docx_zip_entry(convert_src_path, "word/styles.xml"),
                             "ooxmlNumberingXml": _read_docx_zip_entry(convert_src_path, "word/numbering.xml"),
                             "ooxmlSettingsXml": _read_docx_zip_entry(convert_src_path, "word/settings.xml"),
@@ -4599,6 +4605,13 @@ class VnOfficeApi:
             )
             if comments_xml:
                 payload["ooxmlCommentsXml"] = comments_xml
+            comments_extended_xml = (
+                writer_ooxml_metadata["ooxmlCommentsExtendedXml"]
+                if writer_ooxml_metadata is not None
+                else _read_docx_comments_extended_xml(src_path)
+            )
+            if comments_extended_xml:
+                payload["ooxmlCommentsExtendedXml"] = comments_extended_xml
             # Quy ước W11: style bảng (TableGrid: spacing after=0, line=240) nằm trong styles.xml.
             styles_xml = (
                 writer_ooxml_metadata["ooxmlStylesXml"]
