@@ -1,0 +1,9 @@
+# TICKET FIX-T3 — Doc: loi giao dien da do (Codex)  [CHI SUA icon/hanh vi DA CO, KHONG them tinh nang moi]
+Nguon: docs/UI-TEST-DOC-1010.md (da do bang so + anh). Lam theo thu tu, moi muc 1 commit nho + test:
+1. U20 (CAO): Sao chep dinh dang bi KET bat (class vno-format-painter-active tren .vno-writer-page): Esc phai huy; tu tat sau 1 lan ap dung dinh dang len vung chon (nhap don) ; bam nut lan 2 tat; nut sang/aria-pressed phai phan anh dung. Chuot that + Esc, do class truoc/sau.
+2. U37 (CAO): Che do toi, Thu vien kieu (Trang dau): chu the xem truoc kieu mau den cung tren nen toi => doc duoc (dung bien mau theme, tuong phan >= 4.5:1). U38: tab ngu canh Bang khi active mau xanh sam tren nen toi: dung mau tuong phan.
+3. U40 (CAO): cua so 1024x600 + co tab ngu canh Bang: thanh tab tran (1198px > 1024px), tab "Tro giup"/"Tro ly 3T AI" bi day ra ngoai. Sua: thanh tab cuon ngang/thu gon tab (nut >>) sao cho moi tab van bam duoc. Giu nguyen 1366x768.
+4. U30/U33/U35: nhan nut bi lap ky tu bieu tuong ("1 1 Chu thich trang", "i i Chu thich cuoi", "<< >> Chen truong", "123 Dem tu"): chi hien icon + nhan chu dung mot lan (aria/ten truy cap khong doi).
+5. U10: Hang xen ke: nut phai co trang thai bat (aria-pressed/active) va mau xen ke du ro de thay (tuong phan nhe nhung thay duoc, dark mode cung dung). U31: bam Thu muc tai lieu khi chua co nguon: hien thong bao tieng Viet ro rang (khong im lang).
+KHONG lam: U9/U22 (bang mau — la tinh nang moi, cho chu so huu), U32/U34/U36/U39 (thieu chuc nang so voi Word — ghi vao docs/RIBBON-BACKLOG.md neu chua co), U41.
+Quy trinh/CAM/TIET KIEM TOKEN: nhu TICKET-FIX-T1.md. Worktree E:\VNOffice-codex-ft3 nhanh fix/doc-ui-t3-codex tu main. Moi muc co test + do bang so (chuot + phim tat), npm test + python unittest day du, bao so that (loi Python don le thi chay lai rieng). Them/chinh Tro giup tieng Viet neu hanh vi nguoi dung thay doi.
