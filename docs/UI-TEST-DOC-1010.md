@@ -52,6 +52,10 @@ Ghi chú ĐẠT (Đánh giá): Bật/tắt kiểm tra chính tả (Spellcheck to
 | U38 | TRUNG BÌNH | Chế độ tối (Dark Mode) > Tab ngữ cảnh Bảng | Nhãn tab "Thiết kế Bảng" và "Bố cục Bảng" khi active có chữ màu xanh sẫm rgb(15, 76, 129) trên nền ribbon tối rgb(37, 37, 38), độ tương phản kém (chênh lệch ~26.7) rất khó đọc. | Đo màu activeTab: rgb(15, 76, 129) vs ribbon rgb(37, 37, 38); ảnh dark-tab-tableDesign, dark-tab-tableLayout. |
 | U39 | THẤP | Chế độ tối (Dark Mode) > Chế độ xem | Thiếu nút "Chuyển chế độ xem trang" (Switch Modes: xem nền trang trắng/đen) như Word; trang tài liệu bị áp màu nền tối rgb(30, 30, 30) cố định. | So sánh tính năng Dark Mode Word chuẩn; ảnh dark-tab-view. |
 Ghi chú ĐẠT (Chế độ tối): Nền ribbon (rgb(37, 37, 38)), thanh trạng thái, các nhóm nút, icon SVG trên 12 tab đều đổi màu chuẩn Fluent Dark/Dark Gray; chữ tab thường màu xanh sáng rgb(96, 165, 250) rõ ràng; văn bản tài liệu đổi màu chữ trắng rgb(241, 245, 249) dễ đọc.
+| U40 | CAO | Màn hình 1024x600 > Thanh Tab bị tràn mép phải | Khi mở bảng (hiện tab ngữ cảnh), thanh tab rộng 1198 px > 1024 px; hai tab cuối "Trợ giúp" và "Trợ lý 3T AI" bị đẩy ra ngoài cạnh phải màn hình (x = 1058 và 1162 px), không bấm được. | Đo scrollWidth = 1198 px vs clientWidth = 1024 px, tab Trợ giúp/Trợ lý AI isOffscreen = true; ảnh res-1024-tab-home. |
+| U41 | TRUNG BÌNH | Màn hình 1024x600 > Chiều cao soạn thảo bị co hẹp | Ribbon và thanh công cụ chiếm gần 200 px, vùng hiển thị trang giấy chỉ còn 399 px chiều cao (chỉ vừa 1 đoạn văn ngắn); thiếu chế độ thanh Ribbon đơn giản (Simplified/Compact Ribbon) cho màn hình nhỏ. | Đo chiều cao hữu dụng usableEditorHeight = 399 px; ảnh res-1024-tab-home. |
+Ghi chú ĐẠT (1024x600): Không phát sinh thanh cuộn ngang toàn cửa sổ (hasWindowHScroll = false); toàn bộ 12 tab đều tự động kích hoạt cơ chế thu gọn nhóm (responsive collapsing); thanh trạng thái co giãn vừa vặn, không bị đè chữ.
+
 
 
 
