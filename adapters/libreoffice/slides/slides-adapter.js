@@ -155,6 +155,7 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("common.edit.replace", () => this._showFindReplaceDialog(true));
     globalCommandBus.bindHandler("slides.edit.selectAll", () => this.canvas.selectAllShapes ? this.canvas.selectAllShapes() : false);
     globalCommandBus.bindHandler("slides.edit.selectObjects", () => this.canvas.selectDrawingObjects ? this.canvas.selectDrawingObjects() : false);
+    globalCommandBus.bindHandler("slides.shape.insert", () => this.canvas.insertShape ? this.canvas.insertShape("rect") : false);
     // Những lệnh này có triển khai trong Canvas/adapter; bind tại đây để ribbon
     // và phím tắt dùng cùng một đường thực thi thay vì chỉ hoạt động qua UNO.
     globalCommandBus.bindHandler("slides.transition.apply", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);
