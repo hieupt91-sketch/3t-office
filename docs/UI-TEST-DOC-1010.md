@@ -42,4 +42,8 @@ Ghi chú ĐẠT (Tham chiếu): Mục lục tự động liệt kê đủ 4 tiê
 | U30 | THẤP | Tham chiếu > Chú thích trang & Chú thích cuối | Nhãn nút trên ribbon hiển thị lặp ký tự số biểu tượng: "1 1 Chú thích trang" và "i i Chú thích cuối". | Đo text nút: "1 1 Chú thích trang", "i i Chú thích cuối"; ảnh tab-references-full. |
 | U31 | TRUNG BÌNH | Tham chiếu > Thư mục tài liệu | Bấm "Thư mục tài liệu" khi chưa có nguồn trích dẫn thì không có phản hồi, thông báo toast hay hộp thoại; thiếu ô chọn Kiểu trích dẫn (APA, MLA, IEEE) như Word. | Đo: dialogs = [], toast = null; ảnh tab-references-full. |
 | U32 | THẤP | Tham chiếu > Thiếu chức năng chuẩn Word | Thiếu nút "Thêm văn bản" (Add Text: Mức 1, 2, 3) vào mục lục; thiếu "Chú thích tiếp theo" và "Hiện vùng chú thích". | So sánh cấu trúc Ribbon Word chuẩn. |
+| U33 | THẤP | Trộn thư > Nhãn nút « » | Nhãn nút trên ribbon lặp ký tự biểu tượng góc: "« » Chèn trường" và "« » Quy tắc" thay vì chỉ có nhãn chữ và icon riêng. | Đo text nút: "« » Chèn trường", "« » Quy tắc"; ảnh tab-mailings-full. |
+| U34 | TRUNG BÌNH | Trộn thư > Thiếu các bước chuẩn Word | Nhóm "Bắt đầu trộn" chỉ có 1 nút "Nguồn dữ liệu"; thiếu menu "Bắt đầu trộn thư" (Thư, Email, Wizard), thiếu các nút "Khối địa chỉ" (Address Block), "Dòng lời chào" (Greeting Line) và "Đánh dấu trường hợp nhất". | So sánh cấu trúc Ribbon Word chuẩn. |
+Ghi chú ĐẠT (Trộn thư): Phong bì, Nhãn, Nguồn dữ liệu, Chèn trường, Quy tắc Nếu...Thì đều mở đúng hộp thoại giao diện tiếng Việt; các nút Xem trước kết quả, Bản ghi trước/sau, Hoàn tất & Trộn tự động vô hiệu hóa (disabled) chính xác khi chưa kết nối nguồn dữ liệu.
+
 
