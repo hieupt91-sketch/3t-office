@@ -5836,7 +5836,10 @@ _bindGridKeyboardNavigation() {
     const startCol = range.start.c;
     const endCol = range.end.c;
 
-    if (endRow <= startRow) return false;
+    if (endRow <= startRow) {
+      this._showDataNotice(t("sheetDialogs.createNamesNeedsRange", "Tạo từ vùng chọn cần ít nhất hai hàng: hàng đầu làm tiêu đề, các hàng bên dưới là dữ liệu. Hãy chọn cả tiêu đề và dữ liệu rồi thử lại."));
+      return false;
+    }
 
     let createdCount = 0;
     const startColIdx = this.cols.indexOf(startCol);
@@ -5853,7 +5856,11 @@ _bindGridKeyboardNavigation() {
         createdCount++;
       }
     }
-    return createdCount > 0;
+    if (createdCount === 0) {
+      this._showDataNotice(t("sheetDialogs.createNamesNoHeaders", "Không tìm thấy tiêu đề hợp lệ để tạo tên vùng. Hãy kiểm tra hàng tiêu đề trong vùng đã chọn."));
+      return false;
+    }
+    return true;
   }
 
   extractFormulaReferences(formula) {
@@ -10017,6 +10024,15 @@ _bindGridKeyboardNavigation() {
     rowSnapshots.sort((a, b) => {
       const vA = a.sortVal;
       const vB = b.sortVal;
+      const blankA = vA === null || vA === undefined || vA === "";
+      const blankB = vB === null || vB === undefined || vB === "";
+      // Excel keeps empty sort keys after populated keys in both A-Z and Z-A.
+      // Handle this before applying direction so descending sort cannot pull
+      // blank rows to the top.
+      if (blankA || blankB) {
+        if (blankA && blankB) return a.originalRow - b.originalRow;
+        return blankA ? 1 : -1;
+      }
       const numA = typeof vA === "number" ? vA : parseFloat(String(vA).replace(/\./g, "").replace(/[^\d-]/g, ""));
       const numB = typeof vB === "number" ? vB : parseFloat(String(vB).replace(/\./g, "").replace(/[^\d-]/g, ""));
 

@@ -1415,7 +1415,36 @@ def parse_autofilter_from_fods(fods_xml: str | None) -> dict[str, str]:
     return result
 
 
-def apply_autofilter_to_worksheet(sheet_xml: str, ref: str) -> str:
+def parse_autofilter_filter_columns_from_fods(fods_xml: str | None) -> dict[str, list[dict]]:
+    """Read VN's discrete active-filter metadata from FODS database ranges."""
+    result: dict[str, list[dict]] = {}
+    if not fods_xml:
+        return result
+    for match in _DB_RANGE_RE.finditer(fods_xml):
+        attrs = match.group(1) or ""
+        target_match = re.search(r'table:target-range-address="([^"]*)"', attrs)
+        columns_match = re.search(r'vno:filter-columns="([^"]*)"', attrs, re.IGNORECASE)
+        if not target_match or not columns_match:
+            continue
+        target = _unescape_xml(target_match.group(1))
+        range_match = re.match(r"^(.+?)\.(\$?[A-Za-z]{1,3}\$?\d+):(?:.+\.)?(\$?[A-Za-z]{1,3}\$?\d+)$", target)
+        if not range_match:
+            continue
+        try:
+            decoded = json.loads(_unescape_xml(columns_match.group(1)))
+        except (TypeError, ValueError):
+            continue
+        sheet_name = range_match.group(1).strip("'")
+        if sheet_name and isinstance(decoded, list):
+            result[sheet_name] = [
+                {"colId": int(item["colId"]), "values": [str(value) for value in item["values"]]}
+                for item in decoded
+                if isinstance(item, dict) and isinstance(item.get("values"), list)
+            ]
+    return result
+
+
+def apply_autofilter_to_worksheet(sheet_xml: str, ref: str, filter_columns: list[dict] | None = None) -> str:
     """Inject <autoFilter ref="..."/> into a worksheet XML if not already present.
 
     Position follows CT_Worksheet schema order (after ``sheetProtection`` /
@@ -1425,6 +1454,27 @@ def apply_autofilter_to_worksheet(sheet_xml: str, ref: str) -> str:
     if not ref:
         return xml
     existing = _AUTOFILTER_REF_RE.search(xml)
+    if filter_columns:
+        column_xml = "".join(
+            f'<filterColumn colId="{int(column["colId"])}"><filters>'
+            + "".join(f'<filter val="{_escape_xml(str(value))}"/>' for value in column["values"])
+            + "</filters></filterColumn>"
+            for column in filter_columns if column.get("values")
+        )
+        paired = re.search(r'<autoFilter\b([^>]*)>([\s\S]*?)</autoFilter>', xml, re.IGNORECASE)
+        if paired:
+            attrs, body = paired.group(1), paired.group(2)
+            body = re.sub(r'<filterColumn\b[^>]*>[\s\S]*?</filterColumn>', "", body, flags=re.IGNORECASE)
+            body = re.sub(r'<filterColumn\b[^>]*/>', "", body, flags=re.IGNORECASE)
+            tag = f'<autoFilter{attrs}>{body}{column_xml}</autoFilter>'
+            xml = xml[:paired.start()] + tag + xml[paired.end():]
+        elif existing:
+            tag = f'<autoFilter ref="{ref}">{column_xml}</autoFilter>'
+            xml = xml[:existing.start()] + tag + xml[existing.end():]
+        else:
+            element_xml = f'<autoFilter ref="{ref}">{column_xml}</autoFilter>'
+            return _insert_worksheet_child_in_schema_order(xml, element_xml, "autoFilter")
+        existing = _AUTOFILTER_REF_RE.search(xml)
     if existing:
         # S27a: chỉ thay giá trị ref, giữ nguyên thẻ (tự đóng hay cặp) và các <filterColumn> con — thay cả thẻ mở
         # bằng thẻ tự đóng để dư </autoFilter> làm worksheet XML hỏng (lan11/lan14/lan20 Excel không mở).
@@ -1433,6 +1483,41 @@ def apply_autofilter_to_worksheet(sheet_xml: str, ref: str) -> str:
         return xml[:existing.start()] + new_tag + xml[existing.end():]
     element_xml = f'<autoFilter ref="{ref}"/>'
     return _insert_worksheet_child_in_schema_order(xml, element_xml, "autoFilter")
+
+
+def _apply_filter_database_names(xlsx_bytes: bytes, autofilter_by_sheet: dict[str, str], workbook_xml: str | None = None) -> str | None:
+    """Add Excel's sheet-scoped _FilterDatabase defined name for active filters."""
+    if not autofilter_by_sheet:
+        return None
+    if workbook_xml is None:
+        workbook = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
+        if not workbook:
+            return None
+        workbook_xml = workbook.decode("utf-8", errors="replace")
+    xml = workbook_xml
+    names = re.findall(r'<sheet\b[^>]*\bname="([^"]+)"', xml, re.IGNORECASE)
+    additions = []
+    for index, sheet_name in enumerate(names):
+        ref = next((value for key, value in autofilter_by_sheet.items() if key.casefold() == _unescape_xml(sheet_name).casefold()), None)
+        if not ref:
+            continue
+        name = "_xlnm._FilterDatabase"
+        if re.search(rf'<definedName\b(?=[^>]*\bname="{re.escape(name)}")(?=[^>]*\blocalSheetId="{index}")[^>]*>', xml, re.IGNORECASE):
+            continue
+        # Normalize both endpoints to absolute references.
+        endpoints = ref.split(":")
+        absolute_ref = ":".join("$" + re.sub(r"([A-Z]+)(\d+)", r"\1$\2", endpoint.replace("$", "")) for endpoint in endpoints)
+        sheet_ref = _escape_xml(f"'{_unescape_xml(sheet_name).replace(chr(39), chr(39) * 2)}'!{absolute_ref}")
+        additions.append(f'<definedName name="{name}" localSheetId="{index}" hidden="1">{sheet_ref}</definedName>')
+    if not additions:
+        return None
+    block = re.search(r'<definedNames\b[^>]*>([\s\S]*?)</definedNames>', xml, re.IGNORECASE)
+    if block:
+        return xml[:block.end() - len("</definedNames>")] + "".join(additions) + xml[block.end() - len("</definedNames>"):]
+    anchor = re.search(r'<(?:calcPr|oleSize|customWorkbookViews|extLst)\b|</workbook>', xml, re.IGNORECASE)
+    if not anchor:
+        return None
+    return xml[:anchor.start()] + f'<definedNames>{"".join(additions)}</definedNames>' + xml[anchor.start():]
 
 
 def parse_scenarios_from_fods(fods_xml: str | None) -> dict[str, list[dict]]:
@@ -3560,6 +3645,7 @@ def postprocess_sheet_xlsx(
     # FODS and write <autoFilter ref> back into the correct worksheet XML.
     autofilter_by_sheet = parse_autofilter_from_fods(source_fods)
     if autofilter_by_sheet:
+        filter_columns_by_sheet = parse_autofilter_filter_columns_from_fods(source_fods)
         sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
         for sheet_name, ref in autofilter_by_sheet.items():
             entry_path = _sheet_name_equivalent_value(sheet_entries, sheet_name)
@@ -3571,9 +3657,13 @@ def postprocess_sheet_xlsx(
                 if not entry_bytes:
                     continue
                 sheet_xml = entry_bytes.decode("utf-8", errors="replace")
-            next_sheet_xml = apply_autofilter_to_worksheet(sheet_xml, ref)
+            next_sheet_xml = apply_autofilter_to_worksheet(sheet_xml, ref, filter_columns_by_sheet.get(sheet_name))
             if next_sheet_xml != sheet_xml:
                 replacements[entry_path] = next_sheet_xml
+        current_workbook_xml = replacements.get(XLSX_WORKBOOK_ENTRY)
+        filter_names_xml = _apply_filter_database_names(xlsx_bytes, autofilter_by_sheet, current_workbook_xml)
+        if filter_names_xml:
+            replacements[XLSX_WORKBOOK_ENTRY] = filter_names_xml
         try:
             strip_autofilter_table_parts(xlsx_bytes, replacements)
         except Exception:

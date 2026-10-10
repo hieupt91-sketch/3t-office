@@ -2862,10 +2862,15 @@ export class SheetAdapter {
     // column captions (measured: lan11 "Reyee" A3:F3 could not be opened).
     sheetNames.forEach((sheetName, sheetIndex) => {
       const ss = this.grid.sheetStates?.[sheetName];
-      const isActive = ss?.isFilterActive;
-      if (!isActive || (!ss?.filterRange && !ss?.filterSetByUser)) return;
+      // The active sheet's live grid fields may be newer than sheetStates
+      // (toggle/apply filter updates history first and persists sheet state on
+      // sheet switch). Serialize the live state for that sheet.
+      const isActiveSheet = sheetName === this.grid.activeSheet;
+      const isActive = isActiveSheet ? this.grid.isFilterActive : ss?.isFilterActive;
+      const liveRange = isActiveSheet ? ss?.filterRange : ss?.filterRange;
+      if (!isActive || (!liveRange && !ss?.filterSetByUser)) return;
       // Bộ lọc người dùng bật trong app không có filterRange -> dùng vùng đã dùng của sheet
-      const ref = ss?.filterRange || this._usedRangeOfSheet(sheetName) || "";
+      const ref = liveRange || this._usedRangeOfSheet(sheetName) || "";
       if (!ref) return;
       // Tên sheet có khoảng trắng/ký tự đặc biệt phải đặt trong nháy đơn ở CẢ HAI đầu vùng
       // ('Nguồn 2020 (GVCN)'.A1:'Nguồn 2020 (GVCN)'.J2650) như Calc ghi; không nháy LibreOffice
@@ -2873,10 +2878,19 @@ export class SheetAdapter {
       const quotedSheet = /^[A-Za-z0-9_]+$/.test(sheetName) ? sheetName : `'${sheetName.replace(/'/g, "''")}'`;
       const [start, end] = ref.split(":");
       const address = end ? `${quotedSheet}.${start}:${quotedSheet}.${end}` : `${quotedSheet}.${start}`;
+      const filters = isActiveSheet ? this.grid.activeFilters : ss?.activeFilters;
+      const startCol = this._columnNumber(start.match(/^\$?([A-Z]+)/)?.[1] || "A");
+      const filterColumns = Array.from(filters || [], ([column, values]) => ({
+        colId: this._columnNumber(column) - startCol,
+        values: Array.from(values || [], value => String(value))
+      })).filter(item => item.colId >= 0 && item.values.length > 0);
+      const filterAttr = filterColumns.length
+        ? ` vno:filter-columns="${this._escapeXml(JSON.stringify(filterColumns))}"`
+        : "";
       ranges.push(
         `<table:database-range table:name="__Anonymous_Sheet_DB__${sheetIndex}"`
         + ` table:target-range-address="${this._escapeXml(address)}"`
-        + ` table:display-filter-buttons="true"/>`
+        + ` table:display-filter-buttons="true"${filterAttr}/>`
       );
     });
     if (ranges.length === 0) return "";
