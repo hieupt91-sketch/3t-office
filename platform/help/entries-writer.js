@@ -216,7 +216,8 @@ export const WRITER_HELP_ENTRIES = [
       "Chọn kiểu APA hoặc MLA trên hộp Kiểu trích dẫn.",
       "Nhấn Quản lý nguồn để thêm nguồn mới (tác giả, tiêu đề, năm, nhà xuất bản, URL), sửa hoặc xóa, rồi Áp dụng.",
       "Đặt con trỏ tại chỗ cần chú thích, nhấn Chèn trích dẫn, chọn nguồn rồi Chèn. Nếu chưa có nguồn, dùng Thêm nguồn mới ngay trong hộp thoại.",
-      "Đặt con trỏ ở cuối tài liệu (hoặc vị trí muốn in danh mục), nhấn Thư mục tài liệu để chèn danh sách đã định dạng."
+      "Đặt con trỏ ở cuối tài liệu (hoặc vị trí muốn in danh mục), nhấn Thư mục tài liệu để chèn danh sách đã định dạng.",
+      "Thư mục chỉ được tạo khi tài liệu có ít nhất một trích dẫn. Nếu chưa có, dùng Quản lý nguồn để thêm nguồn, chèn trích dẫn vào văn bản rồi thử lại; VN Writer sẽ báo rõ khi chưa đủ nguồn thay vì chèn danh mục rỗng."
     ]
   },
   {

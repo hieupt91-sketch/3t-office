@@ -410,6 +410,20 @@ export async function runWriterCitationsTests() {
     if (/Tài liệu H chưa dùng/.test(bib.textContent)) throw new Error("Bibliography không được liệt kê nguồn chưa từng trích dẫn");
   });
 
+  await test("Writer Citations: empty bibliography notifies and leaves document unchanged", () => {
+    const { page, body } = createMockWriterDoc("<p>Chưa có trích dẫn.</p>");
+    const adapter = new WriterAdapter(page);
+    adapter.attach();
+    let notification = null;
+    adapter.setShell({ showNotification(options) { notification = options; } });
+    const before = body.innerHTML;
+    if (adapter.insertBibliography() !== false) throw new Error("Không có nguồn thì không báo thành công");
+    if (body.innerHTML !== before) throw new Error("Không được chèn thư mục rỗng");
+    if (notification?.type !== "info" || !notification.message.includes("Chưa có nguồn") || !notification.message.includes("Quản lý nguồn")) {
+      throw new Error(`Thiếu thông báo có hướng dẫn: ${JSON.stringify(notification)}`);
+    }
+  });
+
   await test("Writer Citations: quản lý nguồn qua options.sources (headless) thêm/sửa/xóa đúng", async () => {
     const { page } = createMockWriterDoc("<p>Đoạn văn gốc.</p>");
     const adapter = new WriterAdapter(page);

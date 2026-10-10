@@ -1009,6 +1009,14 @@ li.vno-page-auto-gap {
   caret-color: var(--vno-text-primary);
 }
 
+.vno-writer-body table.vno-table-banded-rows > tbody > tr:nth-child(even) > :is(td, th) {
+  background-color: var(--vno-writer-table-banded-bg, #dbeafe);
+}
+
+[data-theme="dark"] .vno-writer-body table.vno-table-banded-rows > tbody > tr:nth-child(even) > :is(td, th) {
+  --vno-writer-table-banded-bg: #334155;
+}
+
 #vno-ribbon-tab-pictureFormat[hidden] { display: none; }
 .vno-writer-image-context #vno-ribbon-tab-pictureFormat {
   color: #7c3aed;

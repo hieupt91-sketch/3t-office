@@ -139,6 +139,32 @@ try {
     return value.label === expected[1] && value.aria === expected[2] && !value.iconText;
   });
   check("U30/U33/U35: nhãn hiển thị chỉ một lần, tên truy cập giữ nguyên trên ba tab", labelsPass, JSON.stringify(measuredLabels));
+
+  // U10: mouse and Space keep the banded-row button state synchronized with the table in both themes.
+  await session.cdp.evaluate(`(() => {const body=document.querySelector('.vno-writer-body');body.innerHTML='<table><tbody><tr><td>A1</td></tr><tr><td>A2</td></tr><tr><td>A3</td></tr></tbody></table>';body.dispatchEvent(new Event('input',{bubbles:true}));})()`);
+  await click(session.cdp, ".vno-writer-body td");
+  await session.cdp.waitFor(`!document.querySelector('#vno-ribbon-tab-tableDesign')?.hidden`);
+  await click(session.cdp, "#vno-ribbon-tab-tableDesign");
+  await click(session.cdp, '[data-command-id="writer.table.toggleBandedRows"]');
+  const bandedLight = await session.cdp.evaluate(`(() => {const button=document.querySelector('[data-command-id="writer.table.toggleBandedRows"]'),table=document.querySelector('.vno-writer-body table'),rows=[...table.rows].map(row=>getComputedStyle(row.cells[0]).backgroundColor);return {active:table.classList.contains('vno-table-banded-rows'),pressed:button.getAttribute('aria-pressed'),buttonActive:button.classList.contains('is-checked'),rows};})()`);
+  check("U10: bấm chuột bật Hàng xen kẽ, cập nhật aria-pressed/class và đo màu hàng", bandedLight.active && bandedLight.pressed === "true" && bandedLight.buttonActive && bandedLight.rows[1] === "rgb(219, 234, 254)" && bandedLight.rows[0] !== bandedLight.rows[1], JSON.stringify(bandedLight));
+  await session.cdp.evaluate(`document.querySelector('[data-command-id="writer.table.toggleBandedRows"]').focus()`);
+  await press(session.cdp, " ");
+  const bandedOff = await session.cdp.evaluate(`(() => {const button=document.querySelector('[data-command-id="writer.table.toggleBandedRows"]'),table=document.querySelector('.vno-writer-body table');return {active:table.classList.contains('vno-table-banded-rows'),pressed:button.getAttribute('aria-pressed'),buttonActive:button.classList.contains('is-checked'),row:getComputedStyle(table.rows[1].cells[0]).backgroundColor};})()`);
+  check("U10: nhấn Space tắt Hàng xen kẽ và đồng bộ nút về false", !bandedOff.active && bandedOff.pressed === "false" && !bandedOff.buttonActive, JSON.stringify(bandedOff));
+  await click(session.cdp, '[data-command-id="writer.table.toggleBandedRows"]');
+  await session.cdp.evaluate(`document.documentElement.setAttribute('data-theme','dark')`);
+  const bandedDark = await session.cdp.evaluate(`(() => ({pressed:document.querySelector('[data-command-id="writer.table.toggleBandedRows"]').getAttribute('aria-pressed'),row:getComputedStyle(document.querySelector('.vno-writer-body table').rows[1].cells[0]).backgroundColor}))()`);
+  check("U10: màu hàng xen kẽ ở giao diện tối vẫn khác rõ với hàng nền", bandedDark.pressed === "true" && bandedDark.row === "rgb(51, 65, 85)", JSON.stringify(bandedDark));
+  await session.cdp.evaluate(`document.documentElement.removeAttribute('data-theme')`);
+
+  // U31: an empty bibliography request shows an actionable Vietnamese notification and inserts nothing.
+  await click(session.cdp, "#vno-ribbon-tab-references");
+  const beforeBibliography = await session.cdp.evaluate(`document.querySelectorAll('.vno-writer-body [data-vno-bibliography="true"]').length`);
+  await click(session.cdp, '[data-command-id="writer.reference.bibliographyInsert"]');
+  await session.cdp.waitFor(`!!document.querySelector('.vno-notification-bar-message')`);
+  const bibliographyNotice = await session.cdp.evaluate(`({message:document.querySelector('.vno-notification-bar-message')?.textContent||'',after:document.querySelectorAll('.vno-writer-body [data-vno-bibliography="true"]').length})`);
+  check("U31: Thư mục tài liệu khi chưa có nguồn hiện hướng dẫn tiếng Việt và không chèn mục rỗng", /Chưa có nguồn/.test(bibliographyNotice.message) && /Tham chiếu > Quản lý nguồn/.test(bibliographyNotice.message) && bibliographyNotice.after === beforeBibliography, JSON.stringify(bibliographyNotice));
 } catch (error) {
   check("FIX-T3 U20 desktop regression không phát sinh ngoại lệ", false, error.stack || error.message);
 } finally {

@@ -8578,11 +8578,11 @@ export class WriterAdapter {
     const isBanded = table.classList.toggle("vno-table-banded-rows");
     for (let i = 1; i < table.rows.length; i++) {
       const row = table.rows[i];
-      const bg = isBanded && (i % 2 === 1) ? "#f8fafc" : "";
       for (const cell of row.cells) {
-        cell.style.backgroundColor = bg;
+        cell.style.backgroundColor = "";
       }
     }
+    globalCommandBus.updateState("writer.table.toggleBandedRows", { checked: isBanded });
     this.isDirty = true;
     this.recordSnapshot("writer.table.toggleBandedRows");
     return true;
@@ -18980,6 +18980,13 @@ export class WriterAdapter {
   }
 
   insertBibliography(range = null) {
+    if (!this.citationSources?.length || !this._usedCitationSourceIds().length) {
+      this.shell?.showNotification?.({
+        type: "info",
+        message: "Chưa có nguồn được trích dẫn để tạo Thư mục tài liệu. Hãy thêm nguồn ở Tham chiếu > Quản lý nguồn, chèn trích dẫn vào văn bản rồi thử lại."
+      });
+      return false;
+    }
     this.flushTyping();
     const html = `<section class="vno-bibliography" data-vno-bibliography="true" contenteditable="false">${this._bibliographyInnerHtml()}</section>`;
     this._insertCitationHtmlAtRange(html, range || this._captureCitationRange());
