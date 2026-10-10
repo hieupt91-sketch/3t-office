@@ -292,7 +292,7 @@ class WriterReviewRoundtripTests(unittest.TestCase):
         records = [
             {"type": "revision", "kind": "insert", "author": "Synthetic Author", "date": "2026-10-02T00:00:00Z", "startBookmark": "vno-review-start-00001", "endBookmark": "vno-review-end-00001"},
             {"type": "revision", "kind": "delete", "author": "Synthetic Author", "date": "2026-10-02T00:01:00Z", "startBookmark": "vno-review-start-00002", "endBookmark": "vno-review-end-00002"},
-            {"type": "comment", "author": "Synthetic Reviewer", "date": "2026-10-02T00:02:00Z", "content": "Synthetic comment", "startBookmark": "vno-review-start-00003", "endBookmark": "vno-review-end-00003"},
+            {"type": "comment", "author": "Synthetic Reviewer", "date": "2026-10-02T00:02:00Z", "content": "Synthetic comment", "resolved": True, "startBookmark": "vno-review-start-00003", "endBookmark": "vno-review-end-00003"},
         ]
         metadata = {"version": 1, "trackingEnabled": True, "records": records}
         html = ('<p><a name="vno-review-start-00001"></a>NEW_INSERT<a name="vno-review-end-00001"></a> '
@@ -311,7 +311,18 @@ class WriterReviewRoundtripTests(unittest.TestCase):
         self.assertIn("w:commentReference", document)
         self.assertIn("Synthetic comment", _text(parts["word/comments.xml"]))
         self.assertIn("Synthetic Reviewer", _text(parts["word/comments.xml"]))
+        comments_root = ET.fromstring(parts["word/comments.xml"])
+        comment_paragraph = comments_root.find(f".//{{{W}}}comment/{{{W}}}p")
+        self.assertIsNotNone(comment_paragraph)
+        para_id = comment_paragraph.get("{http://schemas.microsoft.com/office/word/2010/wordml}paraId")
+        self.assertRegex(para_id or "", r"^[0-9A-F]{8}$")
         self.assertIn("relationships/comments", _text(parts["word/_rels/document.xml.rels"]))
+        self.assertIn("office/2011/relationships/commentsExtended", _text(parts["word/_rels/document.xml.rels"]))
+        extended_root = ET.fromstring(parts["word/commentsExtended.xml"])
+        resolved_entries = extended_root.findall(".//{http://schemas.microsoft.com/office/word/2012/wordml}commentEx")
+        resolved_entry = next(entry for entry in resolved_entries if entry.get("{http://schemas.microsoft.com/office/word/2012/wordml}paraId") == para_id)
+        self.assertEqual(resolved_entry.get("{http://schemas.microsoft.com/office/word/2012/wordml}done"), "1")
+        self.assertIn("commentsExtended.xml", _text(parts["[Content_Types].xml"]))
         self.assertIn("trackRevisions", _text(parts["word/settings.xml"]))
 
     def test_review_ranges_across_paragraphs_keep_valid_native_markup(self):

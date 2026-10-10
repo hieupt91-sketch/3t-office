@@ -10184,6 +10184,12 @@ _DOCX_COMMENTS_REL_TYPE = (
 _DOCX_COMMENTS_CONTENT_TYPE = (
     "application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml"
 )
+_DOCX_COMMENTS_EXTENDED_REL_TYPE = (
+    "http://schemas.microsoft.com/office/2011/relationships/commentsExtended"
+)
+_DOCX_COMMENTS_EXTENDED_CONTENT_TYPE = (
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.commentsExtended+xml"
+)
 
 
 _DOCX_HF_EXTRA_CONTENT_TYPES = {
@@ -17208,6 +17214,7 @@ def postprocess_writer_review_markup(docx_bytes: bytes, *, source_html: str | No
             "author": str(record.get("author") or "3T Office"),
             "date": str(record.get("date") or ""),
             "content": content,
+            "resolved": bool(record.get("resolved")),
         })
 
     revision_id = _writer_next_ooxml_id(document_xml, "ins")
@@ -17249,11 +17256,32 @@ def postprocess_writer_review_markup(docx_bytes: bytes, *, source_html: str | No
 
     replacements: dict[str, bytes] = {"word/document.xml": document_xml.encode("utf-8")}
     if comments:
+        used_para_ids = {
+            value.upper() for value in re.findall(
+                r'\bw14:paraId=["\']([0-9A-F]{8})["\']', comments_xml, re.IGNORECASE,
+            )
+        }
+        comments_xml = re.sub(
+            r'(<w:comments\b[^>]*)(>)',
+            lambda match: match.group(0) if re.search(r'\bxmlns:w14=', match.group(1))
+            else f'{match.group(1)} xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml"{match.group(2)}',
+            comments_xml, count=1, flags=re.IGNORECASE,
+        )
+        for comment in comments:
+            while True:
+                para_id = uuid.uuid4().hex[:8].upper()
+                if para_id not in used_para_ids:
+                    used_para_ids.add(para_id)
+                    comment["paraId"] = para_id
+                    break
         if comments_bytes:
             for comment in comments:
+                para_id_attr = f' w14:paraId="{comment["paraId"]}"'
+                lines = comment["content"].splitlines() or [""]
                 paragraphs = "".join(
-                    f'<w:p><w:r><w:t xml:space="preserve">{_escape_xml(line)}</w:t></w:r></w:p>'
-                    for line in (comment["content"].splitlines() or [""])
+                    f'<w:p{para_id_attr if index == len(lines) - 1 else ""}>'
+                    f'<w:r><w:t xml:space="preserve">{_escape_xml(line)}</w:t></w:r></w:p>'
+                    for index, line in enumerate(lines)
                 )
                 comment_xml = (
                     f'<w:comment w:id="{comment["id"]}" w:author="{_escape_xml(comment["author"])}"'
@@ -17263,9 +17291,12 @@ def postprocess_writer_review_markup(docx_bytes: bytes, *, source_html: str | No
         else:
             comment_blocks = []
             for comment in comments:
+                para_id_attr = f' w14:paraId="{comment["paraId"]}"'
+                lines = comment["content"].splitlines() or [""]
                 paragraphs = "".join(
-                    f'<w:p><w:r><w:t xml:space="preserve">{_escape_xml(line)}</w:t></w:r></w:p>'
-                    for line in (comment["content"].splitlines() or [""])
+                    f'<w:p{para_id_attr if index == len(lines) - 1 else ""}>'
+                    f'<w:r><w:t xml:space="preserve">{_escape_xml(line)}</w:t></w:r></w:p>'
+                    for index, line in enumerate(lines)
                 )
                 comment_blocks.append(
                     f'<w:comment w:id="{comment["id"]}" w:author="{_escape_xml(comment["author"])}"'
@@ -17273,7 +17304,8 @@ def postprocess_writer_review_markup(docx_bytes: bytes, *, source_html: str | No
                 )
             comments_xml = (
                 '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-                '<w:comments xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+                '<w:comments xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+                'xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml">'
                 + "".join(comment_blocks) + "</w:comments>"
             )
         replacements[comments_part] = comments_xml.encode("utf-8")
@@ -17295,6 +17327,39 @@ def postprocess_writer_review_markup(docx_bytes: bytes, *, source_html: str | No
         )
         content_types_xml = _add_content_types_override(
             content_types_xml, f"/{comments_part}", _DOCX_COMMENTS_CONTENT_TYPE,
+        )
+        replacements["[Content_Types].xml"] = content_types_xml.encode("utf-8")
+
+        existing_extended = read_zip_entry(docx_bytes, "word/commentsExtended.xml")
+        extended_xml = existing_extended.decode("utf-8", errors="replace") if existing_extended else (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            '<w15:commentsEx xmlns:w15="http://schemas.microsoft.com/office/word/2012/wordml" '
+            'xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml"></w15:commentsEx>'
+        )
+        for comment in comments:
+            entry = (
+                f'<w15:commentEx w15:paraId="{comment["paraId"]}"'
+                f' w15:done="{"1" if comment["resolved"] else "0"}"/>'
+            )
+            extended_xml = re.sub(
+                rf'<w15:commentEx\b(?=[^>]*\bw15:paraId=["\']{re.escape(comment["paraId"])}["\'])[^>]*/>',
+                entry, extended_xml, flags=re.IGNORECASE,
+            )
+            if entry not in extended_xml:
+                extended_xml = extended_xml.replace("</w15:commentsEx>", entry + "</w15:commentsEx>", 1)
+        replacements["word/commentsExtended.xml"] = extended_xml.encode("utf-8")
+        rel_id_match = re.search(
+            r'<Relationship\b(?=[^>]*\bType=["\'][^"\']*/commentsExtended["\'])[^>]*/?>',
+            rels_xml, re.IGNORECASE,
+        )
+        if not rel_id_match:
+            rel_id = f"rId{_max_rels_rid(rels_xml) + 1}"
+            rels_xml = _add_rels_entry(
+                rels_xml, rel_id, _DOCX_COMMENTS_EXTENDED_REL_TYPE, "commentsExtended.xml",
+            )
+            replacements["word/_rels/document.xml.rels"] = rels_xml.encode("utf-8")
+        content_types_xml = _add_content_types_override(
+            content_types_xml, "/word/commentsExtended.xml", _DOCX_COMMENTS_EXTENDED_CONTENT_TYPE,
         )
         replacements["[Content_Types].xml"] = content_types_xml.encode("utf-8")
 

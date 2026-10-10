@@ -53,7 +53,7 @@ import {
   tableOfFiguresTitle,
   tofMarkerHtml
 } from "../../../apps/writer/captions.js";
-import { countBlockParagraphs, countDocumentStats, showWordCountDialog } from "../../../apps/writer/word-count.js";
+import { countBlockLines, countBlockParagraphs, countDocumentStats, countListMarkerStats, showWordCountDialog } from "../../../apps/writer/word-count.js";
 import { showFontDialog } from "../../../apps/writer/font-dialog.js";
 
 let writerInsertDialogsPromise;
@@ -2294,10 +2294,25 @@ export class WriterAdapter {
 
     const text = body.innerText != null ? body.innerText : (body.textContent || "");
     const paragraphCount = countBlockParagraphs(body);
-    return countDocumentStats(text, {
+    const lineCount = countBlockLines(body);
+    const markerStats = countListMarkerStats(body);
+    const stats = countDocumentStats(text, {
       scope: "document",
-      paragraphCount: paragraphCount || undefined
+      paragraphCount,
+      lineCount: lineCount == null ? undefined : lineCount,
+      markerStats
     });
+    // Word's document statistics omit floating text boxes and shapes. They are
+    // visible in Writer's DOM body, so subtract their text explicitly.
+    const floatingShapes = Array.from(body.querySelectorAll('[data-vno-float]'))
+      .filter((shape) => !shape.parentElement?.closest?.('[data-vno-float]'));
+    for (const shape of floatingShapes) {
+      const floatingStats = countDocumentStats(shape.innerText ?? shape.textContent ?? "");
+      stats.words = Math.max(0, stats.words - floatingStats.words);
+      stats.charactersWithSpaces = Math.max(0, stats.charactersWithSpaces - floatingStats.charactersWithSpaces);
+      stats.charactersNoSpaces = Math.max(0, stats.charactersNoSpaces - floatingStats.charactersNoSpaces);
+    }
+    return stats;
   }
 
   openWordCountDialog() {
@@ -3003,7 +3018,7 @@ export class WriterAdapter {
       `font-size: 13pt; --vno-gdi-advance: ${scale}`);
   }
 
-  _normalizeImportedHtml(raw, ooxmlDocumentXml, ooxmlCommentsXml, ooxmlStylesXml = "", ooxmlNumberingXml = "", ooxmlHeaderXml = "", ooxmlFooterXml = "", ooxmlHeaders = {}, ooxmlFooters = {}, ooxmlRels = {}, ooxmlSettingsXml = "") {
+  _normalizeImportedHtml(raw, ooxmlDocumentXml, ooxmlCommentsXml, ooxmlStylesXml = "", ooxmlNumberingXml = "", ooxmlHeaderXml = "", ooxmlFooterXml = "", ooxmlHeaders = {}, ooxmlFooters = {}, ooxmlRels = {}, ooxmlSettingsXml = "", ooxmlCommentsExtendedXml = "") {
     let html = String(raw || "");
     let comments = [];
     html = this._unwrapOutlineHeadingLists(html, ooxmlDocumentXml, ooxmlStylesXml, ooxmlNumberingXml);
@@ -3032,7 +3047,7 @@ export class WriterAdapter {
       }
     }
     if (ooxmlDocumentXml && ooxmlCommentsXml) {
-      const overlaid = this._applyOoxmlCommentsToHtml(html, ooxmlDocumentXml, ooxmlCommentsXml);
+      const overlaid = this._applyOoxmlCommentsToHtml(html, ooxmlDocumentXml, ooxmlCommentsXml, ooxmlCommentsExtendedXml);
       html = overlaid.html;
       comments = overlaid.comments;
     }
@@ -7050,8 +7065,17 @@ export class WriterAdapter {
    * Parse word/comments.xml: id → author, date, body.
    * StarWriter HTML keeps the body only as `<!-- ... -->` and drops the author.
    */
-  _extractOoxmlCommentBodies(commentsXml) {
+  _extractOoxmlCommentBodies(commentsXml, commentsExtendedXml = "") {
     const source = String(commentsXml || "");
+    const resolvedParaIds = new Set();
+    const extendedRe = /<w15:commentEx\b([^>]*)\/?\s*>/gi;
+    let extendedMatch;
+    while ((extendedMatch = extendedRe.exec(String(commentsExtendedXml || "")))) {
+      const attrs = extendedMatch[1] || "";
+      const paraId = (attrs.match(/\bw15:paraId=["']([0-9a-f]{8})["']/i) || [])[1];
+      const done = (attrs.match(/\bw15:done=["']([^"']+)["']/i) || [])[1];
+      if (paraId && /^(?:1|true|on)$/i.test(done || "")) resolvedParaIds.add(paraId.toUpperCase());
+    }
     const bodies = new Map();
     const blockRe = /<w:comment\b([^>]*)>([\s\S]*?)<\/w:comment>/gi;
     let match;
@@ -7062,6 +7086,9 @@ export class WriterAdapter {
       if (id === "") continue;
       const author = this._decodeXmlEntities((attrs.match(/\bw:author="([^"]*)"/i) || [])[1] || "");
       const date = this._decodeXmlEntities((attrs.match(/\bw:date="([^"]*)"/i) || [])[1] || "");
+      const commentParagraphs = [...inner.matchAll(/<w:p\b[^>]*>/gi)];
+      const lastParagraph = commentParagraphs.at(-1)?.[0] || "";
+      const paraId = (lastParagraph.match(/\bw14:paraId=["']([0-9a-f]{8})["']/i) || [])[1] || "";
       const paragraphs = [];
       const pRe = /<w:p\b[^>]*>([\s\S]*?)<\/w:p>/gi;
       let pMatch;
@@ -7069,7 +7096,10 @@ export class WriterAdapter {
         const para = this._ooxmlPlainText(pMatch[1]).trim();
         if (para) paragraphs.push(para);
       }
-      bodies.set(id, { author, date, content: paragraphs.join("\n").trim() });
+      bodies.set(id, {
+        author, date, content: paragraphs.join("\n").trim(),
+        resolved: Boolean(paraId && resolvedParaIds.has(paraId.toUpperCase()))
+      });
     }
     return bodies;
   }
@@ -7164,8 +7194,8 @@ export class WriterAdapter {
     return { html: source, applied: false };
   }
 
-  _applyOoxmlCommentsToHtml(html, documentXml, commentsXml) {
-    const bodies = this._extractOoxmlCommentBodies(commentsXml);
+  _applyOoxmlCommentsToHtml(html, documentXml, commentsXml, commentsExtendedXml = "") {
+    const bodies = this._extractOoxmlCommentBodies(commentsXml, commentsExtendedXml);
     const anchors = this._extractOoxmlCommentAnchors(documentXml);
     if (!bodies.size) return { html: String(html || ""), comments: [] };
     let next = String(html || "");
@@ -7179,7 +7209,8 @@ export class WriterAdapter {
         prefix: this._lastWords(anchor.prefix, 4),
         suffix: this._firstWords(anchor.suffix, 4),
         content: body.content,
-        author: body.author
+        author: body.author,
+        resolved: body.resolved
       });
       if (!wrapped.applied) continue;
       next = wrapped.html;
@@ -7188,7 +7219,8 @@ export class WriterAdapter {
         anchorText: String(anchor.text || "").trim().replace(/\s+/g, " "),
         content: body.content,
         author: body.author || "",
-        createdAt: body.date || new Date().toISOString()
+        createdAt: body.date || new Date().toISOString(),
+        resolved: body.resolved
       });
     }
     for (const comment of imported) {
@@ -15267,7 +15299,8 @@ export class WriterAdapter {
           result.ooxmlHeaders,
           result.ooxmlFooters,
           result.ooxmlRels,
-          result.ooxmlSettingsXml
+          result.ooxmlSettingsXml,
+          result.ooxmlCommentsExtendedXml
         );
       } catch (error) {
         await showAlertDialog({

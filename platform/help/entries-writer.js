@@ -162,13 +162,14 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["writer.review.wordCount"],
     title: "Đếm từ",
-    summary: "Đếm số từ, ký tự, đoạn văn và dòng trong thân tài liệu Doc. Từ tiếng Việt được tách theo khoảng trắng, không đếm phần rỗng. Đầu trang và chân trang không được tính.",
+    summary: "Đếm từ, ký tự, đoạn văn và dòng trong thân tài liệu Doc. Từ tiếng Việt được tách theo khoảng trắng; nhãn danh sách cũng được tính. Đầu trang, chân trang và hộp văn bản nổi không được tính.",
     ribbon: { tab: "Đánh giá", tabId: "review", group: "Chính tả & Ngữ pháp" },
     keywords: ["đếm từ", "word count", "số từ", "ký tự", "thống kê", "status bar"],
     steps: [
       "Mở tab Đánh giá trên ribbon.",
       "Trong nhóm Chính tả & Ngữ pháp, nhấn nút Đếm từ (cạnh Soát lỗi chính tả).",
       "Hộp thoại hiện số Từ, Ký tự (không khoảng trắng), Ký tự (có khoảng trắng), Đoạn văn và Dòng. Nếu đang bôi đen một vùng chữ thì thống kê chỉ tính vùng chọn.",
+      "Dòng của toàn tài liệu được đo theo các dòng chữ đang hiển thị; kết quả thay đổi theo độ rộng trang, phông và bố cục. Khi bôi đen, số dòng tính trong vùng chọn.",
       "Nhấn Đóng hoặc Esc để tắt hộp thoại.",
       "Muốn xem nhanh: nhìn góc trái thanh trạng thái dưới cùng, dòng “X từ” cập nhật khi gõ. Nhấp vào dòng đó cũng mở cùng hộp thoại Đếm từ."
     ]
@@ -340,7 +341,7 @@ export const WRITER_HELP_ENTRIES = [
     summary: "Duyệt lần lượt các nhận xét, đánh dấu đã xử lý mà vẫn giữ nội dung, mở lại hoặc xóa nhận xét.",
     ribbon: { tab: "Đánh giá", tabId: "review", group: "Ghi chú" },
     keywords: ["nhận xét", "ghi chú", "trước", "sau", "xử lý", "resolve", "xóa"],
-    steps: ["Mở tab Đánh giá, nhóm Ghi chú.", "Nhấn Nhận xét trước hoặc Nhận xét sau để cuộn tới và tô sáng nhận xét; hết danh sách sẽ quay vòng.", "Nhấn Đã xử lý để làm mờ nhận xét nhưng vẫn giữ lại; nhấn lại để mở lại.", "Nhấn Xóa nhận xét để xóa nhận xét đang chọn. Dùng Ctrl+Z/Ctrl+Y để hoàn tác/làm lại Resolve hoặc Delete."]
+    steps: ["Mở tab Đánh giá, nhóm Ghi chú.", "Nhấn Nhận xét trước hoặc Nhận xét sau để cuộn tới và tô sáng nhận xét; hết danh sách sẽ quay vòng.", "Nhấn Đã xử lý để làm mờ nhận xét nhưng vẫn giữ lại; nhấn lại để mở lại. Trạng thái này được lưu trong DOCX và khôi phục khi mở lại tài liệu.", "Nhấn Xóa nhận xét để xóa nhận xét đang chọn. Dùng Ctrl+Z/Ctrl+Y để hoàn tác/làm lại Resolve hoặc Delete."]
   },
   {
     id: "writer.text.basicFormat",
@@ -768,7 +769,7 @@ export const WRITER_HELP_ENTRIES = [
       "Bôi đoạn chữ trong thân tài liệu (không phải đầu/chân trang). Tab Đánh giá, nhóm Ghi chú, nút lớn Thêm ghi chú — hoặc tab Chèn, nhóm Ghi chú — hoặc Ctrl+Alt+M.",
       "Chưa bôi: cảnh báo «Chưa chọn văn bản» / «Hãy bôi đen đoạn văn bản trong nội dung tài liệu trước khi thêm ghi chú.» Đã bôi: hộp «Thêm ghi chú» hiện đoạn trích (tối đa 80 ký tự), ô nhập, nút Thêm ghi chú.",
       "Chữ được bọc mark vàng (neo ghi chú). Panel bên «Ghi chú tài liệu» liệt kê các ghi chú. Không thêm được khi con trỏ chỉ nhấp, khác các phần mềm soạn thảo văn bản khác.",
-      "Ctrl+Z gỡ ghi chú vừa thêm. Nhận xét trước/sau, xóa, đã xử lý: bài «Duyệt nhận xét». Nhấn Ctrl+S để lưu DOCX; ghi chú giữ nội dung, tác giả, thời gian và đoạn chữ được neo khi mở lại trong Doc hoặc ứng dụng đọc DOCX khác."
+      "Ctrl+Z gỡ ghi chú vừa thêm. Nhận xét trước/sau, xóa, đã xử lý: bài «Duyệt nhận xét». Nhấn Ctrl+S để lưu DOCX; nội dung, tác giả, thời gian, đoạn chữ được neo và trạng thái đã xử lý được khôi phục khi mở lại trong ứng dụng hoặc trình đọc DOCX khác."
     ]
   },
   {
