@@ -1,0 +1,11 @@
+# TICKET RB-D3 — Doc: tab "Bo cuc" (27 muc) theo QUY TAC KIEM TRA RIBBON (agy, sau RB-D1c)
+BAT BUOC doc docs/tickets-0710/RIBBON-AUDIT-RULES.md, docs/AUDIT-DOC-RIBBON-HOME-1010.md (mau) va TICKET-RB-D1c.md (bai hoc: do HIEN THI that). Khung: scripts/audit-0610/ribbon_functional.mjs + tests/live/ribbon-specs/doc-layout.json. Worktree E:\VNOffice-agy-rbd3, nhanh audit/doc-ribbon-layout-agy, tu main (da merge RB-D1c).
+DIEM KHOI DAU (Claude do doc lap 10/10 bang scripts/audit-0610/doc_tab_effect_probe.mjs layout tren d07, in thay doi that cua tai lieu):
+ a. Cot (writer.page.columns2/3): app dat column-count len CA THAN tai lieu (.vno-writer-body), Word ap dung cho MUC (section) cua con tro. Tai lieu nhieu muc phai chi doi muc do; luu DOCX phai ra w:cols dung sectPr cua muc do. Kiem tra 1 cot/2/3, hop thoai Cot (do rong tung cot, khoang cach, duong ke), cot khi co ngat muc.
+ b. Thut le (writer.para.indentInc, Ctrl+M): app boc doan trong <blockquote> (+1 BLOCKQUOTE). Word chi tang le TRAI 1,27 cm (ParagraphFormat.LeftIndent), khong dong chu thanh khoi tham chieu va khong thu le phai. Do margin trai/phai tinh ra va luu w:ind. indentDec phai ngoc lai tung buoc va dung o 0.
+ c. Ngat (menu Ngat): page.break, break.column, 4 loai ngat muc: kiem DOCX luu ra w:br page/column va w:sectPr w:type nextPage/continuous/evenPage/oddPage dung vi tri; Xoa ngat muc co hoat dong thay doi khong (hien 'im lang').
+ d. Giãn dòng (menu): 1.0/1.5/2.0 + cac muc 1,15..3,0; Khoang truoc/sau doan (o nhap): do chieu cao doan that va w:spacing.
+ e. Danh so dong (writer.layout.lineNumbers), Hinh mo, Vien trang, Mau trang, Can le/Huong giay/Kho giay (hop thoai Thiet lap trang): thao tac TRONG hop thoai (bam tuy chon that, Ap dung), kiem so trang/kich thuoc trang that, DOCX w:pgSz/w:pgMar/w:pgBorders, so voi Word COM PageSetup (PageWidth, TopMargin, Orientation...).
+ f. Tab 'Bo cuc' cua Word con nhom 'Sap xep' (Dua len truoc/Ra sau, Can chinh, Nhom, Xoay) cho doi tuong va 'Thut le/Khoang cach' dang nhom: nut Microsoft thieu thi bo sung day du.
+Ket qua docs/AUDIT-DOC-RIBBON-LAYOUT-1010.md (7 cot + phim tat + nut Word con thieu). Moi loi: 1 commit + test don vi + muc trong doc-layout.json co khang dinh hien thi. Chay lai toan tab 2 lan lien tiep cung ket qua.
+Tieu chi/Cam: nhu TICKET-RB-D1c.md. KHONG chay bo 28 xlsx. KHONG push, KHONG merge. Bao cao 3 dong.
