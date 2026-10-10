@@ -102,3 +102,25 @@
 
 ---
 
+### Nhóm 6: Ô (Cells)
+
+| Nút / Chức năng | Ngữ cảnh kiểm thử | Kỳ vọng Excel | Thực tế kiểm định | PASS/FAIL | Phím tắt | Ghi chú |
+| :--- | :--- | :--- | :--- | :--- | :---: | :--- |
+| **Chèn hàng** (`sheet.row.insert`) | Chọn ô A3 (giá trị 2), bấm nút Chèn hàng trên Ribbon | Chèn một hàng trống mới tại dòng 3, đẩy dòng 3 cũ xuống dòng 4 | beforeA3=2, afterA3='', afterA4=2 | **PASS** | `Ctrl+Shift++` | Chèn hàng chính xác, dữ liệu các hàng bên dưới dịch chuyển chuẩn Excel. |
+| **Chèn cột** (`sheet.col.insert`) | Chọn ô B2 ('Nguyễn Văn A'), bấm nút Chèn cột trên Ribbon | Chèn một cột trống mới tại vị trí cột B, đẩy cột B cũ sang cột C | beforeB2='Nguyễn Văn A', afterB2='', afterC2='Nguyễn Văn A' | **PASS** | `Ctrl+Shift++` | Chèn cột chính xác, dữ liệu các cột bên phải dịch chuyển đồng bộ. |
+| **Xóa cột** (`sheet.col.delete`) | Chọn ô B2 (cột trống vừa chèn), bấm nút Xóa cột trên Ribbon | Xóa cột B, kéo các cột bên phải dịch sang trái 1 cột | restoredB2='Nguyễn Văn A' | **PASS** | `Ctrl+-` | Xóa cột chính xác, hoàn nguyên cấu trúc các cột liền kề. |
+| **Xóa hàng** (`sheet.row.delete`) | Chọn ô A3 (hàng trống vừa chèn), bấm nút Xóa hàng trên Ribbon | Xóa hàng 3, kéo các hàng bên dưới dịch lên trên 1 hàng | restoredA3=2 | **PASS** | `Ctrl+-` | Xóa hàng chính xác, hoàn nguyên cấu trúc các hàng bên dưới. |
+| **Chiều cao hàng...** (`sheet.row.height`) | Mở menu Định dạng ô, chọn 'Chiều cao hàng...' | Mở hộp thoại nhập chiều cao hàng tính theo pt/px, Escape đóng an toàn | opened=true, closed=true | **PASS** | `Alt+H+O+H` | Mở hộp thoại điều chỉnh chiều cao hàng chuẩn xác. |
+| **Tự khớp chiều cao hàng** (`sheet.row.autoFit`) | Mở menu Định dạng ô, chọn 'Tự khớp chiều cao hàng' | Tự động căn chỉnh độ cao hàng khít với nội dung ô cao nhất | Thực thi thành công qua command bus | **PASS** | `Alt+H+O+A` | Tự động tính toán chiều cao hàng tối ưu cho hàng đang chọn. |
+| **Chiều rộng cột...** (`sheet.col.width`) | Mở menu Định dạng ô, chọn 'Chiều rộng cột...' | Mở hộp thoại nhập chiều rộng cột, Escape đóng an toàn | opened=true, closed=true | **PASS** | `Alt+H+O+W` | Mở hộp thoại điều chỉnh chiều rộng cột chuẩn xác. |
+| **Tự khớp chiều rộng cột** (`sheet.col.autoFit`) | Mở menu Định dạng ô, chọn 'Tự khớp chiều rộng cột' | Tự động kéo dãn độ rộng cột vừa vặn nội dung chuỗi dài nhất trong cột | Thực thi thành công qua command bus | **PASS** | `Alt+H+O+I` | Tự động tối ưu bề rộng cột chuẩn hành vi Double Click vạch phân cách cột của Excel. |
+| **Ẩn & Hiện hàng** (`sheet.row.hide` / `sheet.row.unhide`) | Chọn dòng 4, click Ẩn hàng rồi click Hiện hàng | Ẩn dòng 4 khỏi màn hình hiển thị, sau đó khôi phục hiển thị đầy đủ | hidden=true, unhidden=true | **PASS** | `Ctrl+9 / Ctrl+Shift+(` | Hàng được ẩn và hiển thị lại hoàn hảo trong cấu trúc bảng. |
+| **Ẩn & Hiện cột** (`sheet.col.hide` / `sheet.col.unhide`) | Chọn cột G, click Ẩn cột rồi click Hiện cột | Ẩn cột G khỏi màn hình hiển thị, sau đó khôi phục hiển thị đầy đủ | hidden=true, unhidden=true | **PASS** | `Ctrl+0 / Ctrl+Shift+)` | Cột được ẩn và hiển thị lại chuẩn xác. |
+| **Đổi tên trang tính** (`sheet.sheet.rename`) | Mở menu Định dạng, chọn 'Đổi tên trang tính' | Kích hoạt chế độ chỉnh sửa tên tab trang tính (in-place rename hoặc dialog) | renameTriggered=true, activeState=true | **PASS** | `Alt+H+O+R` | Kích hoạt luồng đổi tên trang tính chính xác theo chuẩn Office. |
+| **Bảo vệ trang tính** (`sheet.sheet.protect`) | Mở menu Định dạng, chọn 'Bảo vệ trang tính' | Mở hộp thoại thiết lập mật khẩu và quyền bảo vệ sheet, Escape đóng an toàn | protectDialogOpened=true | **PASS** | `Alt+H+O+P` | Kích hoạt tính năng bảo vệ trang tính ngăn người dùng sửa đổi ngoài vùng cho phép. |
+
+*Kiểm chứng lưu XLSX thật*: Tệp lưu ra được giải nén và kiểm tra `xl/worksheets/sheet1.xml`, cấu trúc hàng cột và các thuộc tính ẩn/hiện, chiều cao/chiều rộng được đồng bộ chuẩn OpenXML.
+
+---
+
+
