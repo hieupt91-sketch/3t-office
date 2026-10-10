@@ -1771,5 +1771,47 @@ export const WRITER_HELP_ENTRIES = [
     "Chuyển sang tab «Dòng và ngắt trang» để thiết lập các tùy chọn phân trang như Ngắt trang trước đoạn, Giữ với đoạn kế tiếp hoặc Kiểm soát dòng đầu/cuối mồ côi.",
     "Bấm Áp dụng (hoặc nhấn Enter) để thực hiện định dạng; bấm Đặt lại để quay về thông số ban đầu, hoặc bấm Hủy / nhấn Esc để đóng hộp thoại mà không thay đổi."
   ]
+},
+{
+  id: "writer.insert.screenshotHelp",
+  app: "writer",
+  commandIds: ["writer.insert.screenshot"],
+  title: "Chèn ảnh chụp màn hình",
+  summary: "Chèn tệp ảnh chụp màn hình PNG/JPG từ máy tính vào đúng vị trí con trỏ trong tài liệu.",
+  ribbon: { tab: "Chèn", tabId: "insert", group: "Minh họa" },
+  keywords: ["ảnh chụp màn hình", "screenshot", "chèn ảnh"],
+  steps: [
+    "Mở tab Chèn. Để chèn ảnh chụp, vào nhóm Minh họa, nhấn «Ảnh chụp màn hình», chọn tệp PNG/JPG đã chụp và xác nhận; ảnh được chèn đúng vị trí con trỏ.",
+    "Chọn ảnh sau khi chèn để kéo hoặc đổi kích thước. Nhấn Ctrl+Z ngay sau khi chèn để gỡ ảnh trong một bước.",
+    "Nếu hộp chọn tệp hệ điều hành đang mở, nhấn Esc để hủy mà không thay đổi tài liệu."
+  ]
+},
+{
+  id: "writer.insert.pageNumberHelp",
+  app: "writer",
+  commandIds: ["writer.insert.pageNumber"],
+  title: "Chèn số trang tự động",
+  summary: "Chèn trường PAGE tự cập nhật vào chân trang để mỗi trang hiển thị đúng số thứ tự khi lưu, mở lại hoặc in.",
+  ribbon: { tab: "Chèn", tabId: "insert", group: "Đầu trang / Chân trang" },
+  keywords: ["số trang", "page number", "chân trang", "PAGE"],
+  steps: [
+    "Để đánh số trang, vào nhóm Đầu trang / Chân trang, nhấn «Số trang». Ứng dụng chèn trường PAGE tự cập nhật ở giữa chân trang; lưu DOCX rồi mở lại vẫn là trường số trang.",
+    "Nhấp vào vùng chân trang để bổ sung chữ trước hoặc sau số trang nếu cần.",
+    "Nhấn Ctrl+Z ngay sau khi chèn để khôi phục chân trang trước đó trong một bước."
+  ]
+},
+{
+  id: "writer.insert.signatureObjectHelp",
+  app: "writer",
+  commandIds: ["writer.insert.signatureLine", "writer.insert.object"],
+  title: "Chèn dòng chữ ký và đối tượng nhúng",
+  summary: "Tạo khung ký tên có thể kéo thả hoặc chèn biểu đồ nhúng có thể chọn lại và chỉnh sửa dữ liệu.",
+  ribbon: { tab: "Chèn", tabId: "insert", group: "Văn bản" },
+  keywords: ["dòng chữ ký", "đối tượng", "signature line", "object", "biểu đồ nhúng"],
+  steps: [
+    "Để tạo chỗ ký, vào nhóm Văn bản, nhấn «Dòng chữ ký». Một khung chữ ký gồm đường ký, họ tên và chức vụ được đặt trên trang; có thể kéo hoặc đổi kích thước như hộp văn bản.",
+    "Để chèn đối tượng, trong nhóm Văn bản nhấn «Đối tượng», chọn loại và dữ liệu biểu đồ trong hộp thoại rồi nhấn Chèn. Đối tượng biểu đồ nhúng có thể chọn lại để chỉnh sửa.",
+    "Nhấn Ctrl+Z ngay sau khi chèn để gỡ trọn dòng chữ ký hoặc đối tượng trong một bước."
+  ]
 }
 ];

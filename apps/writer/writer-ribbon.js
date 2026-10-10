@@ -293,6 +293,7 @@ export const WRITER_RIBBON_TABS = [
         labelKey: "writerRibbon.group.illustrations",
         items: [
           { type: "button", commandId: "writer.image.insert", isLarge: true },
+          { type: "button", commandId: "writer.insert.screenshot", isLarge: true },
           { type: "button", commandId: "writer.shape.insert", isLarge: true },
           { type: "button", commandId: "writer.diagram.insert", isLarge: true },
           { type: "button", commandId: "writer.chart.insert", isLarge: true }
@@ -327,7 +328,8 @@ export const WRITER_RIBBON_TABS = [
         labelKey: "writerRibbon.group.headerFooter",
         items: [
           { type: "button", commandId: "writer.header.insert", isLarge: true },
-          { type: "button", commandId: "writer.footer.insert", isLarge: true }
+          { type: "button", commandId: "writer.footer.insert", isLarge: true },
+          { type: "button", commandId: "writer.insert.pageNumber", isLarge: true }
         ]
       },
       {
@@ -341,7 +343,9 @@ export const WRITER_RIBBON_TABS = [
             type: "column",
             items: [
               { type: "button", commandId: "writer.format.dropCap" },
-              { type: "button", commandId: "writer.insert.dateTime" }
+              { type: "button", commandId: "writer.insert.dateTime" },
+              { type: "button", commandId: "writer.insert.signatureLine" },
+              { type: "button", commandId: "writer.insert.object" }
             ]
           }
         ]
