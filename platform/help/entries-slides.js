@@ -214,7 +214,7 @@ export const SLIDES_HELP_ENTRIES = [
     summary: "Duyệt nhận xét xuyên suốt các trang chiếu, đánh dấu đã xử lý, mở lại hoặc xóa.",
     ribbon: { tab: "Đánh giá", tabId: "review", group: "Nhận xét" },
     keywords: ["nhận xét", "trang chiếu", "trước", "sau", "xử lý", "resolve", "xóa"],
-    steps: ["Mở tab Đánh giá, nhóm Nhận xét.", "Nhấn Nhận xét trước hoặc Nhận xét sau; Slide chuyển tới đúng trang, mở bảng nhận xét, tô sáng mục và quay vòng ở cuối.", "Nhấn Đã xử lý để làm mờ và gạch nội dung nhưng vẫn giữ nhận xét; nhấn lại để mở lại.", "Nhấn Xóa nhận xét để xóa mục đang chọn. Dùng Ctrl+Z/Ctrl+Y để hoàn tác/làm lại."]
+    steps: ["Mở tab Đánh giá, nhóm Nhận xét.", "Khi bản trình bày chưa có nhận xét, các nút Nhận xét trước/sau, Đã xử lý và Xóa nhận xét tự vô hiệu hóa. Nhấn Nhận xét để thêm nhận xét trước.", "Nhấn Nhận xét trước hoặc Nhận xét sau; Slide chuyển tới đúng trang, mở bảng nhận xét, tô sáng mục và quay vòng ở cuối.", "Nhấn Đã xử lý để làm mờ và gạch nội dung nhưng vẫn giữ nhận xét; nhấn lại để mở lại.", "Nhấn Xóa nhận xét để xóa mục đang chọn. Dùng Ctrl+Z/Ctrl+Y để hoàn tác/làm lại."]
   },
   {
     id: "slides.show.setupShow",

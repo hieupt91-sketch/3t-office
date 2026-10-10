@@ -99,6 +99,25 @@ export async function runSheetViewSlidesCommentsTests() {
     canvas.redo(); assert(canvas.slides[0].comments.length === 1, "Redo thêm không phục hồi comment");
   });
 
+  await test("Slides Review disables comment actions when presentation has no comments", () => {
+    const canvas = slidesCanvas();
+    const ids = ["slides.review.commentDelete", "slides.review.commentPrevious", "slides.review.commentNext", "slides.review.commentResolve"];
+    SLIDES_COMMANDS.filter(command => ids.includes(command.id)).forEach(command => globalCommandBus.register(command));
+    canvas._syncCommandStates();
+    ids.forEach(id => assert(globalCommandBus.getState(id)?.enabled === false, `${id} must be disabled without comments`));
+    canvas.addComment("Kiểm tra trạng thái nhận xét", "Lan");
+    canvas._syncCommandStates();
+    ids.forEach(id => assert(globalCommandBus.getState(id)?.enabled === true, `${id} must enable when a comment exists`));
+  });
+
+  await test("Slides Ribbon labels do not include text embedded in icons", () => {
+    ["textBox", "wordArt", "slideNumber", "symbol", "zoomReset", "zoom100"].forEach(name => {
+      assert(!/<text\b/i.test(ICONS[name] || ""), `${name} icon still contains SVG text`);
+    });
+    const vi = readFileSync(new URL("../../platform/i18n/strings-vi.js", import.meta.url), "utf8");
+    assert(vi.includes('proofing: "Hiệu đính", presentationViews:'), "Slides Proofing group should use the Vietnamese term Hiệu đính");
+  });
+
   await test("Slides Review command, icon, UNO mapping, panel và sorter badge có thật", async () => {
     const id = "slides.review.commentInsert";
     assert(SLIDES_COMMANDS.some(command => command.id === id) && VN_TO_UNO_MAP[id] === ".uno:InsertAnnotation", "Thiếu command/mapping comment");

@@ -7940,6 +7940,7 @@ const startEditing = (initialText) => {
     }
     this._renderThumbnails();
     this._renderSlideSorterGrid();
+    this._syncCommandStates();
   }
 
   applySlideMaster(themeConfig, recordHistory = false) {
@@ -10322,6 +10323,11 @@ const startEditing = (initialText) => {
     globalCommandBus.updateState("slides.slide.toggleHidden", {
       checked: !!this.slides[this.currentSlideIndex]?.hidden
     });
+    const hasComments = this._listComments().length > 0;
+    globalCommandBus.updateState("slides.review.commentDelete", { enabled: hasComments });
+    globalCommandBus.updateState("slides.review.commentPrevious", { enabled: hasComments });
+    globalCommandBus.updateState("slides.review.commentNext", { enabled: hasComments });
+    globalCommandBus.updateState("slides.review.commentResolve", { enabled: hasComments });
     globalCommandBus.updateState("slides.animation.pane", { checked: !!this.isAnimationPaneVisible });
     globalCommandBus.updateState("slides.arrange.alignToSlide", { checked: !!this.alignToSlideMode });
 
