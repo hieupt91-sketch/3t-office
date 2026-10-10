@@ -24,7 +24,7 @@ import { SheetDataTools } from "./data-tools.js";
 import { computeConsolidate, formatSheetRange, parseConsolidateReference, CONSOLIDATE_FUNCTIONS } from "./consolidate.js";
 import { createMatcher } from "../../platform/find/find-engine.js";
 import { InputNormalizer } from "../../platform/keyboard/input-normalizer.js";
-import { isSpellcheckEnabled } from "../../platform/text/spellcheck-dom-controller.js";
+import { isSpellcheckEnabled, setSpellcheckEnabled } from "../../platform/text/spellcheck-dom-controller.js";
 import { showContextMenu, closeActiveContextMenu } from "../../platform/ui-kit/components.js";
 
 
@@ -415,14 +415,16 @@ export class SheetGridController {
     }).attach(this.formulaInput);
 
     this._inlineSpellController = null;
-    import("./sheet-inline-spellcheck.js").then(({ SheetInlineSpellcheck }) => {
+    this._inlineSpellControllerReady = import("./sheet-inline-spellcheck.js").then(({ SheetInlineSpellcheck }) => {
       if (!this._inlineSpellController && this.formulaInput) {
         this._inlineSpellController = new SheetInlineSpellcheck(this);
         if (this.formulaInput) {
           this.formulaInput.dataset.spellcheckStatus = "ready";
         }
+        globalCommandBus.updateState("sheet.review.toggleSpellCheck", { checked: isSpellcheckEnabled() });
       }
-    }).catch(() => {});
+      return this._inlineSpellController;
+    }).catch(() => null);
 
     globalCommandBus.bindHandler("sheet.review.toggleSpellCheck", () => {
       return this.toggleSpellcheck();
@@ -5702,7 +5704,18 @@ _bindGridKeyboardNavigation() {
       renderDesc();
     });
 
-    const close = () => { if (modal.parentNode) modal.parentNode.removeChild(modal); };
+    const onDialogKeyDown = (event) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopPropagation();
+      close();
+    };
+    const close = () => {
+      document.removeEventListener("keydown", onDialogKeyDown, true);
+      if (modal.parentNode) modal.parentNode.removeChild(modal);
+      this.focusGrid();
+    };
+    document.addEventListener("keydown", onDialogKeyDown, true);
     modal.querySelector("#vno-fx-close").addEventListener("click", close);
     modal.querySelector("#vno-fx-cancel-btn").addEventListener("click", close);
 
@@ -11683,6 +11696,20 @@ _bindGridKeyboardNavigation() {
       }
       return res;
     }
+    if (this._inlineSpellControllerReady) {
+      const next = !isSpellcheckEnabled();
+      setSpellcheckEnabled(next);
+      globalCommandBus.updateState("sheet.review.toggleSpellCheck", { checked: next });
+      return this._inlineSpellControllerReady.then(controller => {
+        if (!controller) {
+          setSpellcheckEnabled(!next);
+          globalCommandBus.updateState("sheet.review.toggleSpellCheck", { checked: !next });
+          return false;
+        }
+        controller.setEnabled(next);
+        return next;
+      });
+    }
     return false;
   }
 
@@ -12400,7 +12427,10 @@ _bindGridKeyboardNavigation() {
   showCustomSortDialog() {
     const area = this._normalizeRange(this.selectionRange);
     const columns = this.dataTools.columns(area);
-    if (columns.length < 1 || area.end.r <= area.start.r) return false;
+    if (columns.length < 1 || area.end.r <= area.start.r) {
+      this._showDataNotice(t("sheetDialogs.customSortNeedsRange", "Sắp xếp tùy chỉnh cần vùng có ít nhất hai hàng. Hãy chọn một ô trong vùng dữ liệu hoặc chọn nhiều ô trước khi mở lệnh."));
+      return true;
+    }
     const columnLabel = col => {
       const preview = String(this.dataTools.value(col, area.start.r) ?? "").trim();
       return preview ? `${col}: ${preview}` : col;
