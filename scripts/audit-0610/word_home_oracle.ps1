@@ -28,6 +28,13 @@ function Find-TextRange($document, [string]$text) {
 function New-SampleDocument($application) {
   $document = $application.Documents.Add()
   $document.Content.Text = "Alpha red`rBeta gamma`rZulu`r"
+  for ($i = 1; $i -le 35; $i++) {
+    $end = $document.Content
+    $end.Collapse(0)
+    $end.InsertBreak(7)
+    $end.Collapse(0)
+    $end.Text = "Chuong $($i): Noi dung kiem thu trang $($i) voi bang va danh sach`r"
+  }
   return $document
 }
 

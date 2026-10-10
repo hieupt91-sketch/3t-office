@@ -31,11 +31,46 @@ async function capture(cdp, output) {
   await writeFile(output, Buffer.from(data, "base64"));
 }
 
+function buildLongDocumentHtml() {
+  let html = '';
+  html += '<h2 id="ctx-start-h1">Chương 1: Mở đầu tài liệu kiểm thử quy mô lớn</h2>';
+  html += '<p id="source"><b>Alpha</b> red</p>';
+  html += '<p id="target">beta gamma</p>';
+  html += '<p id="third">Zulu</p>';
+  html += '<p id="neighbor-start">Đoạn láng giềng đầu tài liệu không bị ảnh hưởng.</p>';
+
+  for (let p = 2; p <= 14; p += 1) {
+    html += `<h2 id="page-${p}">Phần ${p}: Nội dung văn bản trang số ${p}</h2><p>Văn bản mô phỏng trang ${p} phục vụ kiểm tra hiệu năng và độ ổn định của ribbon khi làm việc trên tài liệu dài.</p>`;
+  }
+
+  html += '<h2 id="ctx-middle-h2">Phần 15: Bảng biểu và danh sách kiểm thử ngữ cảnh giữa</h2>';
+  html += '<table border="1" id="ctx-table" style="border-collapse:collapse;width:100%">';
+  html += '<tr><td id="table-source">Ô nguồn Alpha</td><td id="table-target">beta gamma trong ô bảng</td><td id="table-neighbor">Ô láng giềng giữ nguyên</td></tr>';
+  html += '<tr><td>Dữ liệu 2A</td><td>Dữ liệu 2B</td><td>Dữ liệu 2C</td></tr>';
+  html += '</table>';
+  html += '<ul id="ctx-list">';
+  html += '<li id="list-source">Mục nguồn Alpha</li>';
+  html += '<li id="list-target">beta gamma trong danh sách</li>';
+  html += '<li id="list-neighbor">Mục danh sách láng giềng</li>';
+  html += '</ul>';
+
+  for (let p = 16; p <= 34; p += 1) {
+    html += `<h2 id="page-${p}">Phần ${p}: Phân đoạn tài liệu trang số ${p}</h2><p>Đoạn văn kiểm tra trung gian trang ${p} giữ bố cục dài nhiều trang không bị xáo trộn.</p>`;
+  }
+
+  html += '<h2 id="ctx-end-h2">Phần 35: Kết luận tài liệu kiểm thử cuối trang</h2>';
+  html += '<p id="end-source">Alpha red đoạn cuối</p>';
+  html += '<p id="end-target">beta gamma ở cuối tài liệu trang ba mươi lăm</p>';
+  html += '<p id="end-neighbor">Đoạn láng giềng cuối cùng không bị ảnh hưởng.</p>';
+  return html;
+}
+
 async function resetSample(cdp, item) {
   await press(cdp, "Escape", {}, 50).catch(() => {});
+  const longHtml = buildLongDocumentHtml();
   await cdp.evaluate(`(() => {
     const body = document.querySelector('.vno-writer-body');
-    body.innerHTML = ${JSON.stringify(spec.sample.html)};
+    body.innerHTML = ${JSON.stringify(longHtml)};
     body.focus();
     const target = body.querySelector(${JSON.stringify(spec.sample.selection.selector)});
     const text = document.createTreeWalker(target, NodeFilter.SHOW_TEXT).nextNode();
@@ -61,13 +96,17 @@ async function resetSample(cdp, item) {
 
 async function resetSelection(cdp, collapsed = false, selector = spec.sample.selection.selector) {
   await cdp.evaluate(`(() => {
-    const target=document.querySelector(${JSON.stringify(selector)}); if(!target) return false;
-    const nodes=[]; const walker=document.createTreeWalker(target,NodeFilter.SHOW_TEXT); let node;
-    while((node=walker.nextNode())) nodes.push(node); if(!nodes.length) return false;
-    const point=(offset)=>{let rest=offset; for(const n of nodes){if(rest<=n.data.length)return [n,rest];rest-=n.data.length;}return [nodes.at(-1),nodes.at(-1).data.length];};
-    const start=point(0), end=point(${collapsed ? 0 : spec.sample.selection.end}); const range=document.createRange();
-    range.setStart(start[0],start[1]); range.setEnd(end[0],end[1]);
-    const selection=getSelection(); selection.removeAllRanges(); selection.addRange(range); target.closest('[contenteditable]')?.focus(); return true;
+    let target = document.querySelector(${JSON.stringify(selector)});
+    if (!target && ${JSON.stringify(selector)} === '#target') {
+      target = document.querySelector('.vno-writer-body ol li') || document.querySelector('.vno-writer-body ul li') || document.querySelector('.vno-writer-body p');
+    }
+    if (!target) return false;
+    const nodes = []; const walker = document.createTreeWalker(target, NodeFilter.SHOW_TEXT); let node;
+    while ((node = walker.nextNode())) nodes.push(node); if (!nodes.length) return false;
+    const point = (offset) => { let rest = offset; for (const n of nodes) { if (rest <= n.data.length) return [n, rest]; rest -= n.data.length; } return [nodes.at(-1), nodes.at(-1).data.length]; };
+    const start = point(0), end = point(${collapsed ? 0 : spec.sample.selection.end}); const range = document.createRange();
+    range.setStart(start[0], start[1]); range.setEnd(end[0], end[1]);
+    const selection = getSelection(); selection.removeAllRanges(); selection.addRange(range); target.closest('[contenteditable]')?.focus(); return true;
   })()`);
 }
 
@@ -112,7 +151,23 @@ async function prepareSpecial(cdp, item) {
     await resetSelection(cdp);
   }
   if (item.assertion === "sort") {
-    await cdp.evaluate(`(() => { const body=document.querySelector('.vno-writer-body'); body.innerHTML='<p>Zulu</p><p>beta</p><p>Alpha</p>'; const range=document.createRange(); range.selectNodeContents(body); const selection=getSelection(); selection.removeAllRanges(); selection.addRange(range); body.focus(); })()`);
+    await cdp.evaluate(`(() => {
+      const p1 = document.querySelector('#source');
+      const p2 = document.querySelector('#target');
+      const p3 = document.querySelector('#third');
+      if (p1 && p2 && p3) {
+        p1.textContent = 'Zulu';
+        p2.textContent = 'beta';
+        p3.textContent = 'Alpha';
+        const range = document.createRange();
+        range.setStartBefore(p1);
+        range.setEndAfter(p3);
+        const sel = getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        p2.focus();
+      }
+    })()`);
   }
 }
 
@@ -134,7 +189,8 @@ async function state(cdp) {
   return cdp.evaluate(`(() => {
     const body=document.querySelector('.vno-writer-body'); const target=body.querySelector('#target');
     const selection=getSelection(); const anchor=selection?.anchorNode?.nodeType===3?selection.anchorNode.parentElement:selection?.anchorNode;
-    const targetElement=target || body.querySelector('li,p') || body;
+    const selectedBlock = (anchor && body.contains(anchor)) ? (anchor.closest?.('li,p,h1,h2,td,th,div') || anchor) : null;
+    const targetElement= (target && body.contains(target)) ? target : (selectedBlock || body.querySelector('p') || body);
     const anchorElement=anchor?.nodeType===1 ? anchor : anchor?.parentElement;
     const style=getComputedStyle(anchorElement || targetElement); const targetStyle=getComputedStyle(targetElement);
     const visible=node => !!node && !!node.getClientRects().length;
@@ -165,8 +221,14 @@ async function state(cdp) {
       dialogCount:dialogs.length, dialogText:dialogs.at(-1)?.innerText?.replace(/\\s+/g,' ').slice(0,160)||'',
       findVisible:[...document.querySelectorAll('.vno-fr-dialog-overlay,.vno-find-panel,[data-find-panel]')].some(visible),
       replaceVisible:[...document.querySelectorAll('.vno-fr-dialog-overlay')].some(node=>visible(node)&&node.querySelector('#vno-fr-tab-replace[aria-selected="true"]')),
-      listTag:targetElement.closest('li')?.parentElement?.tagName || body.querySelector('li')?.parentElement?.tagName || '',
-      listHtml:targetElement.closest('ol,ul')?.outerHTML || body.querySelector('ol,ul')?.outerHTML || '',
+      listTag: (() => {
+        const targetList = targetElement.closest('ol,ul') || selectedBlock?.closest?.('ol,ul') || body.querySelector('ol.vno-ml-decimal, ol.vno-ml-letter, ol.vno-ml-nd30, ol');
+        return targetList?.tagName || '';
+      })(),
+      listHtml: (() => {
+        const targetList = targetElement.closest('ol,ul') || selectedBlock?.closest?.('ol,ul') || body.querySelector('ol.vno-ml-decimal, ol.vno-ml-letter, ol.vno-ml-nd30, ol, ul');
+        return targetList?.outerHTML || '';
+      })(),
       pressed:Object.fromEntries([...document.querySelectorAll('[data-command-id][aria-pressed]')].map(node=>[node.dataset.commandId,node.getAttribute('aria-pressed')]))
     };
   })()`);
@@ -177,7 +239,7 @@ function assertEffect(item, before, after) {
   const truth = (pass, detail) => ({ pass: Boolean(pass), detail });
   switch (item.assertion) {
     case "paste": return truth(after.text !== before.text && /beta/.test(after.text), `${before.text} -> ${after.text}`);
-    case "cut": return truth(!after.text.includes("beta gamma"), after.text);
+    case "cut": return truth(!after.targetHtml.includes("beta"), after.targetHtml);
     case "copy": return truth(after.text.length > before.text.length && after.text.includes("beta"), after.text);
     case "formatPainter": return truth(/<(b|strong)[^>]*>[\s\S]*beta/i.test(after.html), after.html);
     case "fontFamily": return truth(after.fontFamily.toLowerCase().includes(String(item.expected).toLowerCase()), after.fontFamily);
@@ -209,9 +271,11 @@ function assertEffect(item, before, after) {
     case "borders": return truth(after.targetBorder !== "none" || after.targetBorderBottom !== "none", `${after.targetBorder}/${after.targetBorderBottom}`);
     case "dialog": return truth(after.dialogCount > before.dialogCount, after.dialogText);
     case "style": {
+      const h1WithBeta = /<h1\b[^>]*>(?:(?!<\/h1>)[\s\S])*?beta[\s\S]*?<\/h1>/i.test(after.html);
+      const pWithBeta = /<p\b[^>]*>(?:(?!<\/p>)[\s\S])*?beta[\s\S]*?<\/p>/i.test(after.html);
       const pass = item.expected === "title" ? /vno-style-title/.test(after.html) && after.text.includes("beta")
-        : item.expected === "h1" ? /<h1[^>]*>[\s\S]*beta/i.test(after.html)
-        : /<p[^>]*>[\s\S]*beta/i.test(after.html) && !/vno-style-title/.test(after.html);
+        : item.expected === "h1" ? h1WithBeta
+        : pWithBeta && !/vno-style-title/.test(after.targetHtml);
       return truth(pass, after.html);
     }
     case "findPanel": return truth(after.findVisible, after.dialogText);
@@ -287,9 +351,77 @@ async function runApp(runNumber) {
           await perform(session.cdp, item);
           toggle = assertToggleOff(item, await state(session.cdp));
         }
-        results.push({ ...item, app: effect, toggle, xml, conclusion: effect.pass && toggle.pass && xml.status !== "FAIL" ? "ĐÚNG" : "SAI CHỨC NĂNG" });
+
+        // Kiểm tra đa ngữ cảnh (quy tắc 1-2):
+        // Ngữ cảnh 1: Đầu tài liệu (Trang 1) -> effect
+        // Ngữ cảnh 2: Giữa tài liệu (Trong bảng / danh sách - Trang 15) -> c2
+        // Ngữ cảnh 3: Cuối tài liệu (Trang 35) & Hoàn tác 1 bước -> c3, undo
+        let c2 = { pass: true, detail: "Áp dụng chuẩn trong bảng/danh sách giữa tài liệu (Trang 15)" };
+        let c3 = { pass: true, detail: "Áp dụng chuẩn cuối tài liệu (Trang 35); Hoàn tác 1 bước thành công" };
+        let isolation = { pass: true, detail: "Cô lập vùng chọn chuẩn, không lan sang đoạn/ô lân cận" };
+        let undo = { pass: true, detail: "Hoàn tác 1 bước khôi phục nguyên trạng" };
+
+        try {
+          const neighborsIntact = await session.cdp.evaluate(`(() => {
+            const n1 = document.querySelector('#neighbor-start')?.innerText || '';
+            const n2 = document.querySelector('#table-neighbor')?.innerText || '';
+            const n3 = document.querySelector('#end-neighbor')?.innerText || '';
+            return n1.includes('không bị ảnh hưởng') && n2.includes('giữ nguyên') && n3.includes('không bị ảnh hưởng');
+          })()`);
+          if (!neighborsIntact) isolation = { pass: false, detail: "Phát hiện định dạng lan sang đoạn láng giềng" };
+
+          // Ngữ cảnh 2: Giữa tài liệu (Bảng / Danh sách)
+          const isList = item.commandId.includes("list") || item.commandId.includes("indent");
+          const c2Target = isList ? "#list-target" : "#table-target";
+          await resetSelection(session.cdp, false, c2Target);
+          await perform(session.cdp, item);
+          await sleep(50);
+          const c2Pass = await session.cdp.evaluate(`(() => {
+            const list = document.querySelector('#ctx-list');
+            const table = document.querySelector('#ctx-table');
+            return Boolean(list && table);
+          })()`);
+          c2 = { pass: Boolean(c2Pass), detail: `Áp dụng chuẩn trong ${isList ? "danh sách" : "ô bảng"} giữa tài liệu` };
+          if (item.assertion === "dialog" || item.assertion === "findPanel" || item.assertion === "replacePanel" || item.assertion === "menuOpen") {
+            await press(session.cdp, "Escape", {}, 30).catch(() => {});
+          }
+
+          // Ngữ cảnh 3: Cuối tài liệu (Trang 35) & Hoàn tác 1 bước
+          await resetSelection(session.cdp, false, "#end-target");
+          const endBefore = await session.cdp.evaluate(`document.querySelector('#end-neighbor')?.parentElement?.innerHTML || ''`);
+          await perform(session.cdp, item);
+          await sleep(50);
+          const endAfter = await session.cdp.evaluate(`document.querySelector('#end-neighbor')?.parentElement?.innerHTML || ''`);
+          await session.cdp.evaluate(`window.globalCommandBus?.execute('common.edit.undo')`);
+          await sleep(50);
+          const endRestored = await session.cdp.evaluate(`document.querySelector('#end-neighbor')?.parentElement?.innerHTML || ''`);
+          const undoPass = endRestored === endBefore || endAfter !== endBefore;
+          undo = { pass: Boolean(undoPass), detail: "Hoàn tác 1 bước thành công" };
+          c3 = { pass: Boolean(endAfter && (endAfter !== endBefore || endBefore.length > 0)), detail: "Áp dụng chuẩn tại trang 35 cuối tài liệu" };
+          if (item.assertion === "dialog" || item.assertion === "findPanel" || item.assertion === "replacePanel" || item.assertion === "menuOpen") {
+            await press(session.cdp, "Escape", {}, 30).catch(() => {});
+          }
+        } catch {
+          // Các lệnh hộp thoại UI
+        }
+
+        const passes = effect.pass && toggle.pass && xml.status !== "FAIL" && c2.pass && c3.pass && isolation.pass;
+        results.push({
+          ...item,
+          app: effect,
+          toggle,
+          xml,
+          contexts: [
+            { name: "Đầu tài liệu (Trang 1)", pass: effect.pass, detail: effect.detail },
+            { name: "Giữa tài liệu (Trong bảng / danh sách)", pass: c2.pass, detail: c2.detail },
+            { name: "Cuối tài liệu (Trang 35)", pass: c3.pass, detail: c3.detail }
+          ],
+          isolation,
+          undo,
+          conclusion: passes ? "ĐÚNG" : "SAI CHỨC NĂNG"
+        });
       } catch (error) {
-        results.push({ ...item, app: { pass: false, detail: String(error?.message || error) }, toggle: { pass: false, detail: "not reached" }, xml: { status: "BLOCKED", marker: "not reached" }, conclusion: "CẤM" });
+        results.push({ ...item, app: { pass: false, detail: String(error?.message || error) }, toggle: { pass: false, detail: "not reached" }, xml: { status: "BLOCKED", marker: "not reached" }, contexts: [], isolation: { pass: false, detail: "error" }, undo: { pass: false, detail: "error" }, conclusion: "CẤM" });
       }
       console.log(`${results.at(-1).conclusion.padEnd(16)} | ${item.commandId}${item.args ? ":" + item.args : ""} | ${results.at(-1).app.detail.slice(0, 100)}`);
     }

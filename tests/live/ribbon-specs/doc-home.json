@@ -3,61 +3,802 @@
   "tabId": "home",
   "sample": {
     "html": "<p id=\"source\"><b>Alpha</b> red</p><p id=\"target\">beta gamma</p><p id=\"third\">Zulu</p>",
-    "selection": { "selector": "#target", "start": 0, "end": 4 }
+    "selection": {
+      "selector": "#target",
+      "start": 0,
+      "end": 4
+    }
   },
   "items": [
-    { "commandId": "common.edit.paste", "label": "Dán", "action": "button", "assertion": "paste", "word": "paste" },
-    { "commandId": "common.edit.cut", "label": "Cắt", "action": "button", "assertion": "cut", "word": "cut" },
-    { "commandId": "common.edit.copy", "label": "Sao chép", "action": "button", "assertion": "copy", "word": "copy" },
-    { "commandId": "common.edit.formatPainter", "label": "Sao chép định dạng", "action": "button", "assertion": "formatPainter", "word": "formatPainter" },
-    { "commandId": "writer.edit.pasteSpecial", "label": "Dán đặc biệt", "action": "button", "assertion": "dialog", "wordBlocked": "Hộp thoại Dán đặc biệt của UI không có phép so sánh COM tương đương khi Word chạy ẩn." },
-    { "commandId": "writer.font.family", "label": "Phông chữ", "action": "select", "value": "Calibri", "assertion": "fontFamily", "expected": "Calibri", "xml": "w:rFonts", "xmlPattern": "<w:rFonts[^>]*w:ascii=\"Calibri\"", "word": "fontFamily" },
-    { "commandId": "writer.font.size", "label": "Cỡ chữ", "action": "select", "value": "16", "assertion": "fontSize", "expected": 16, "xml": "w:sz", "xmlPattern": "<w:sz w:val=\"32\"", "word": "fontSize" },
-    { "commandId": "writer.font.grow", "label": "Tăng cỡ chữ", "action": "button", "assertion": "fontGrow", "xml": "w:sz", "xmlPattern": "<w:sz w:val=\"30\"", "word": "fontGrow" },
-    { "commandId": "writer.font.shrink", "label": "Giảm cỡ chữ", "action": "button", "assertion": "fontShrink", "xml": "w:sz", "xmlPattern": "<w:sz w:val=\"24\"", "word": "fontShrink" },
-    { "commandId": "writer.text.bold", "label": "Đậm", "action": "button", "assertion": "toggleBold", "xml": "w:b", "xmlPattern": "<w:b/>", "word": "bold" },
-    { "commandId": "writer.text.italic", "label": "Nghiêng", "action": "button", "assertion": "toggleItalic", "xml": "w:i", "xmlPattern": "<w:i/>", "word": "italic" },
-    { "commandId": "writer.text.underline", "label": "Gạch chân", "action": "button", "assertion": "toggleUnderline", "xml": "w:u", "xmlPattern": "<w:u w:val=\"single\"/>", "word": "underline" },
-    { "commandId": "writer.text.strike", "label": "Gạch ngang", "action": "button", "assertion": "toggleStrike", "xml": "w:strike", "xmlPattern": "<w:strike/>", "word": "strike" },
-    { "commandId": "writer.text.subscript", "label": "Chỉ số dưới", "action": "button", "assertion": "toggleSubscript", "xml": "w:vertAlign", "xmlPattern": "w:vertAlign w:val=\"subscript\"", "word": "subscript" },
-    { "commandId": "writer.text.superscript", "label": "Chỉ số trên", "action": "button", "assertion": "toggleSuperscript", "xml": "w:vertAlign", "xmlPattern": "w:vertAlign w:val=\"superscript\"", "word": "superscript" },
-    { "commandId": "writer.text.changeCase", "label": "Đổi chữ hoa/thường", "action": "button", "assertion": "changeCase", "word": "changeCase" },
-    { "commandId": "writer.text.clearFormat", "label": "Xóa định dạng", "action": "button", "assertion": "clearFormat", "word": "clearFormat" },
-    { "commandId": "writer.color.highlight", "label": "Màu nền chữ", "action": "button", "assertion": "highlight", "xml": "w:highlight", "xmlPattern": "w:highlight w:val=\"yellow\"", "word": "highlight" },
-    { "commandId": "writer.color.text", "label": "Màu chữ", "action": "button", "assertion": "textColor", "xml": "w:color", "xmlPattern": "w:color w:val=\"DC2626\"", "word": "textColor" },
-    { "commandId": "writer.list.bullet", "label": "Dấu đầu dòng", "action": "button", "assertion": "bullet", "xml": "w:numPr", "word": "bullet" },
-    { "commandId": "writer.list.numbered", "label": "Đánh số", "action": "button", "assertion": "numbered", "xml": "w:numPr", "word": "numbered" },
-    { "commandId": "writer.para.multilevelList", "label": "Đa cấp", "action": "dropdown", "assertion": "menuOpen", "wordBlocked": "Nút cha chỉ mở menu UI, không thay đổi tài liệu Word." },
-    { "commandId": "writer.para.multilevelList", "args": "decimal", "label": "1. / 1.1. / 1.1.1.", "action": "menuItem", "parent": "writer.para.multilevelList", "index": 0, "assertion": "multilevel", "expected": "decimal", "xml": "w:numPr", "word": "multilevelDecimal" },
-    { "commandId": "writer.para.multilevelList", "args": "letter", "label": "1. / a. / i.", "action": "menuItem", "parent": "writer.para.multilevelList", "index": 1, "assertion": "multilevel", "expected": "letter", "xml": "w:numPr", "word": "multilevelLetter" },
-    { "commandId": "writer.para.multilevelList", "args": "nd30", "label": "Điều 1. / 1. / a)", "action": "menuItem", "parent": "writer.para.multilevelList", "index": 2, "assertion": "multilevel", "expected": "nd30", "xml": "w:numPr", "wordBlocked": "Word COM không có mẫu dựng sẵn tương đương chính xác cấu trúc Điều/Khoản/Điểm NĐ30 của VN Writer." },
-    { "commandId": "writer.para.indentDec", "label": "Giảm thụt lề", "action": "button", "setup": "indented", "assertion": "indentDec", "xml": "w:ind", "word": "indentDec" },
-    { "commandId": "writer.para.indentInc", "label": "Tăng thụt lề", "action": "button", "assertion": "indentInc", "xml": "w:ind", "word": "indentInc" },
-    { "commandId": "writer.para.sort", "label": "Sắp xếp", "action": "button", "assertion": "sort", "word": "sort" },
-    { "commandId": "writer.para.showFormattingMarks", "label": "Hiện/ẩn ký tự định dạng", "action": "button", "assertion": "toggleMarks", "word": "showMarks" },
-    { "commandId": "writer.list.restartNumbering", "label": "Tùy chọn danh sách đánh số", "action": "dropdown", "assertion": "menuOpen", "wordBlocked": "Nút cha chỉ mở menu UI, không thay đổi tài liệu Word." },
-    { "commandId": "writer.list.restartNumbering", "label": "Đánh số lại từ 1", "action": "menuItem", "parent": "writer.list.restartNumbering", "index": 0, "setup": "numbered", "assertion": "restartNumbering", "xml": "w:numPr", "word": "restartNumbering" },
-    { "commandId": "writer.list.continueNumbering", "label": "Tiếp tục đánh số", "action": "menuItem", "parent": "writer.list.restartNumbering", "index": 1, "setup": "numbered", "assertion": "continueNumbering", "xml": "w:numPr", "word": "continueNumbering" },
-    { "commandId": "writer.para.alignLeft", "label": "Căn trái", "action": "button", "assertion": "align", "expected": "left", "xml": "w:jc", "word": "alignLeft" },
-    { "commandId": "writer.para.alignCenter", "label": "Căn giữa", "action": "button", "assertion": "align", "expected": "center", "xml": "w:jc", "word": "alignCenter" },
-    { "commandId": "writer.para.alignRight", "label": "Căn phải", "action": "button", "assertion": "align", "expected": "right", "xml": "w:jc", "word": "alignRight" },
-    { "commandId": "writer.para.justify", "label": "Căn đều", "action": "button", "assertion": "align", "expected": "justify", "xml": "w:jc", "word": "justify" },
-    { "commandId": "writer.para.lineSpacing", "label": "Giãn dòng", "action": "dropdown", "assertion": "menuOpen", "wordBlocked": "Nút cha chỉ mở menu UI, không thay đổi tài liệu Word." },
-    { "commandId": "writer.para.spacing1", "label": "Giãn dòng 1,0", "action": "menuItem", "parent": "writer.para.lineSpacing", "index": 0, "assertion": "lineHeight", "expected": "1", "xml": "w:spacing", "word": "spacing1" },
-    { "commandId": "writer.para.spacing15", "label": "Giãn dòng 1,5", "action": "menuItem", "parent": "writer.para.lineSpacing", "index": 1, "assertion": "lineHeight", "expected": "1.5", "xml": "w:spacing", "word": "spacing15" },
-    { "commandId": "writer.para.spacing2", "label": "Giãn dòng 2,0", "action": "menuItem", "parent": "writer.para.lineSpacing", "index": 2, "assertion": "lineHeight", "expected": "2", "xml": "w:spacing", "word": "spacing2" },
-    { "commandId": "writer.para.lineSpacing", "args": "1.15", "label": "Giãn dòng 1,15", "action": "menuItem", "parent": "writer.para.lineSpacing", "index": 3, "assertion": "lineHeight", "expected": "1.15", "xml": "w:spacing", "word": "spacing115" },
-    { "commandId": "writer.para.lineSpacing", "args": "exact", "label": "Giãn dòng chính xác", "action": "menuItem", "parent": "writer.para.lineSpacing", "index": 4, "assertion": "dialog", "wordBlocked": "Hộp nhập số của UI không có phép so sánh COM tương đương khi Word chạy ẩn." },
-    { "commandId": "writer.para.shading", "label": "Tô nền đoạn", "action": "button", "assertion": "shading", "xml": "w:shd", "word": "shading" },
-    { "commandId": "writer.para.borders", "label": "Viền đoạn", "action": "select", "value": "all", "assertion": "borders", "xml": "w:pBdr", "word": "borders" },
-    { "commandId": "writer.format.paragraphDialog", "label": "Mở rộng Đoạn văn", "action": "launcher", "group": "paragraph", "assertion": "dialog", "wordBlocked": "Hộp thoại UI không được mở trong Word COM chạy ẩn; các thuộc tính con được đối chiếu riêng." },
-    { "commandId": "writer.style.gallery", "label": "Thư viện kiểu", "action": "button", "assertion": "dialog", "wordBlocked": "Thư viện kiểu là hộp thoại riêng của VN Writer; các kiểu Word không có ánh xạ một-một." },
-    { "commandId": "writer.style.apply", "args": "title", "label": "Kiểu nhanh Tiêu đề", "action": "styleCard", "assertion": "style", "expected": "title", "xml": "w:pStyle", "wordBlocked": "Kiểu Tiêu đề tùy biến của VN Writer không ánh xạ một-một với gallery Word." },
-    { "commandId": "writer.style.apply", "args": "normal", "label": "Kiểu nhanh Normal", "action": "styleCard", "setup": "styleTitle", "assertion": "style", "expected": "normal", "wordBlocked": "Kiểu Normal của VN Writer có mặc định NĐ30 riêng, không ánh xạ một-một với Normal của Word." },
-    { "commandId": "writer.style.apply", "args": "h1", "label": "Kiểu nhanh Tiêu đề 1", "action": "styleCard", "assertion": "style", "expected": "h1", "xml": "w:pStyle", "wordBlocked": "Kiểu Tiêu đề 1 có thiết lập riêng của VN Writer; chỉ đối chiếu hiệu quả nội bộ và XML." },
-    { "commandId": "common.edit.find", "label": "Tìm kiếm", "action": "button", "assertion": "findPanel", "word": "find" },
-    { "commandId": "common.edit.replace", "label": "Thay thế", "action": "button", "assertion": "replacePanel", "word": "replace" },
-    { "commandId": "writer.edit.select", "label": "Chọn", "action": "dropdown", "assertion": "menuOpen", "wordBlocked": "Nút cha chỉ mở menu UI, không thay đổi vùng chọn Word." },
-    { "commandId": "common.edit.selectAll", "label": "Chọn tất cả", "action": "menuItem", "parent": "writer.edit.select", "index": 0, "assertion": "selectAll", "word": "selectAll" }
-  ]
+    {
+      "commandId": "common.edit.paste",
+      "label": "Dán",
+      "action": "button",
+      "assertion": "paste",
+      "word": "paste",
+      "shortcut": "Ctrl+V",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "common.edit.cut",
+      "label": "Cắt",
+      "action": "button",
+      "assertion": "cut",
+      "word": "cut",
+      "shortcut": "Ctrl+X",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "common.edit.copy",
+      "label": "Sao chép",
+      "action": "button",
+      "assertion": "copy",
+      "word": "copy",
+      "shortcut": "Ctrl+C",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "common.edit.formatPainter",
+      "label": "Sao chép định dạng",
+      "action": "button",
+      "assertion": "formatPainter",
+      "word": "formatPainter",
+      "shortcut": "Ctrl+Shift+C",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.edit.pasteSpecial",
+      "label": "Dán đặc biệt",
+      "action": "button",
+      "assertion": "dialog",
+      "wordBlocked": "Hộp thoại Dán đặc biệt của UI không có phép so sánh COM tương đương khi Word chạy ẩn.",
+      "shortcut": "Ctrl+Alt+V",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.font.family",
+      "label": "Phông chữ",
+      "action": "select",
+      "value": "Calibri",
+      "assertion": "fontFamily",
+      "expected": "Calibri",
+      "xml": "w:rFonts",
+      "xmlPattern": "<w:rFonts[^>]*w:ascii=\"Calibri\"",
+      "word": "fontFamily",
+      "shortcut": "Ctrl+Shift+F",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.font.size",
+      "label": "Cỡ chữ",
+      "action": "select",
+      "value": "16",
+      "assertion": "fontSize",
+      "expected": 16,
+      "xml": "w:sz",
+      "xmlPattern": "<w:sz w:val=\"32\"",
+      "word": "fontSize",
+      "shortcut": "Ctrl+Shift+P",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.font.grow",
+      "label": "Tăng cỡ chữ",
+      "action": "button",
+      "assertion": "fontGrow",
+      "xml": "w:sz",
+      "xmlPattern": "<w:sz w:val=\"30\"",
+      "word": "fontGrow",
+      "shortcut": "Ctrl+Shift+> / Ctrl+]",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.font.shrink",
+      "label": "Giảm cỡ chữ",
+      "action": "button",
+      "assertion": "fontShrink",
+      "xml": "w:sz",
+      "xmlPattern": "<w:sz w:val=\"24\"",
+      "word": "fontShrink",
+      "shortcut": "Ctrl+Shift+< / Ctrl+[",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.text.bold",
+      "label": "Đậm",
+      "action": "button",
+      "assertion": "toggleBold",
+      "xml": "w:b",
+      "xmlPattern": "<w:b/>",
+      "word": "bold",
+      "shortcut": "Ctrl+B",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.text.italic",
+      "label": "Nghiêng",
+      "action": "button",
+      "assertion": "toggleItalic",
+      "xml": "w:i",
+      "xmlPattern": "<w:i/>",
+      "word": "italic",
+      "shortcut": "Ctrl+I",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.text.underline",
+      "label": "Gạch chân",
+      "action": "button",
+      "assertion": "toggleUnderline",
+      "xml": "w:u",
+      "xmlPattern": "<w:u w:val=\"single\"/>",
+      "word": "underline",
+      "shortcut": "Ctrl+U",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.text.strike",
+      "label": "Gạch ngang",
+      "action": "button",
+      "assertion": "toggleStrike",
+      "xml": "w:strike",
+      "xmlPattern": "<w:strike/>",
+      "word": "strike",
+      "shortcut": "Không có (Word Alt+H,4)",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.text.subscript",
+      "label": "Chỉ số dưới",
+      "action": "button",
+      "assertion": "toggleSubscript",
+      "xml": "w:vertAlign",
+      "xmlPattern": "w:vertAlign w:val=\"subscript\"",
+      "word": "subscript",
+      "shortcut": "Ctrl+=",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.text.superscript",
+      "label": "Chỉ số trên",
+      "action": "button",
+      "assertion": "toggleSuperscript",
+      "xml": "w:vertAlign",
+      "xmlPattern": "w:vertAlign w:val=\"superscript\"",
+      "word": "superscript",
+      "shortcut": "Ctrl+Shift++",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.text.changeCase",
+      "label": "Đổi chữ hoa/thường",
+      "action": "button",
+      "assertion": "changeCase",
+      "word": "changeCase",
+      "shortcut": "Shift+F3",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.text.clearFormat",
+      "label": "Xóa định dạng",
+      "action": "button",
+      "assertion": "clearFormat",
+      "word": "clearFormat",
+      "shortcut": "Ctrl+Space",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.color.highlight",
+      "label": "Màu nền chữ",
+      "action": "button",
+      "assertion": "highlight",
+      "xml": "w:highlight",
+      "xmlPattern": "w:highlight w:val=\"yellow\"",
+      "word": "highlight",
+      "shortcut": "Ctrl+Alt+H",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.color.text",
+      "label": "Màu chữ",
+      "action": "button",
+      "assertion": "textColor",
+      "xml": "w:color",
+      "xmlPattern": "w:color w:val=\"DC2626\"",
+      "word": "textColor",
+      "shortcut": "Không có (Word Alt+H,FC)",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.list.bullet",
+      "label": "Dấu đầu dòng",
+      "action": "button",
+      "assertion": "bullet",
+      "xml": "w:numPr",
+      "word": "bullet",
+      "shortcut": "Ctrl+Shift+L",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.list.numbered",
+      "label": "Đánh số",
+      "action": "button",
+      "assertion": "numbered",
+      "xml": "w:numPr",
+      "word": "numbered",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.para.multilevelList",
+      "label": "Đa cấp",
+      "action": "dropdown",
+      "assertion": "menuOpen",
+      "wordBlocked": "Nút cha chỉ mở menu UI, không thay đổi tài liệu Word.",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.para.multilevelList",
+      "args": "decimal",
+      "label": "1. / 1.1. / 1.1.1.",
+      "action": "menuItem",
+      "parent": "writer.para.multilevelList",
+      "index": 0,
+      "assertion": "multilevel",
+      "expected": "decimal",
+      "xml": "w:numPr",
+      "word": "multilevelDecimal",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.para.multilevelList",
+      "args": "letter",
+      "label": "1. / a. / i.",
+      "action": "menuItem",
+      "parent": "writer.para.multilevelList",
+      "index": 1,
+      "assertion": "multilevel",
+      "expected": "letter",
+      "xml": "w:numPr",
+      "word": "multilevelLetter",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.para.multilevelList",
+      "args": "nd30",
+      "label": "Điều 1. / 1. / a)",
+      "action": "menuItem",
+      "parent": "writer.para.multilevelList",
+      "index": 2,
+      "assertion": "multilevel",
+      "expected": "nd30",
+      "xml": "w:numPr",
+      "wordBlocked": "Word COM không có mẫu dựng sẵn tương đương chính xác cấu trúc Điều/Khoản/Điểm NĐ30 của VN Writer.",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.para.indentDec",
+      "label": "Giảm thụt lề",
+      "action": "button",
+      "setup": "indented",
+      "assertion": "indentDec",
+      "xml": "w:ind",
+      "word": "indentDec",
+      "shortcut": "Ctrl+Shift+M",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.para.indentInc",
+      "label": "Tăng thụt lề",
+      "action": "button",
+      "assertion": "indentInc",
+      "xml": "w:ind",
+      "word": "indentInc",
+      "shortcut": "Ctrl+M",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.para.sort",
+      "label": "Sắp xếp",
+      "action": "button",
+      "assertion": "sort",
+      "word": "sort",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.para.showFormattingMarks",
+      "label": "Hiện/ẩn ký tự định dạng",
+      "action": "button",
+      "assertion": "toggleMarks",
+      "word": "showMarks",
+      "shortcut": "Ctrl+*",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.list.restartNumbering",
+      "label": "Tùy chọn danh sách đánh số",
+      "action": "dropdown",
+      "assertion": "menuOpen",
+      "wordBlocked": "Nút cha chỉ mở menu UI, không thay đổi tài liệu Word.",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.list.restartNumbering",
+      "label": "Đánh số lại từ 1",
+      "action": "menuItem",
+      "parent": "writer.list.restartNumbering",
+      "index": 0,
+      "setup": "numbered",
+      "assertion": "restartNumbering",
+      "xml": "w:numPr",
+      "word": "restartNumbering",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.list.continueNumbering",
+      "label": "Tiếp tục đánh số",
+      "action": "menuItem",
+      "parent": "writer.list.restartNumbering",
+      "index": 1,
+      "setup": "numbered",
+      "assertion": "continueNumbering",
+      "xml": "w:numPr",
+      "word": "continueNumbering",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.para.alignLeft",
+      "label": "Căn trái",
+      "action": "button",
+      "assertion": "align",
+      "expected": "left",
+      "xml": "w:jc",
+      "word": "alignLeft",
+      "shortcut": "Ctrl+L",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.para.alignCenter",
+      "label": "Căn giữa",
+      "action": "button",
+      "assertion": "align",
+      "expected": "center",
+      "xml": "w:jc",
+      "word": "alignCenter",
+      "shortcut": "Ctrl+E",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.para.alignRight",
+      "label": "Căn phải",
+      "action": "button",
+      "assertion": "align",
+      "expected": "right",
+      "xml": "w:jc",
+      "word": "alignRight",
+      "shortcut": "Ctrl+R",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.para.justify",
+      "label": "Căn đều",
+      "action": "button",
+      "assertion": "align",
+      "expected": "justify",
+      "xml": "w:jc",
+      "word": "justify",
+      "shortcut": "Ctrl+J",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.para.lineSpacing",
+      "label": "Giãn dòng",
+      "action": "dropdown",
+      "assertion": "menuOpen",
+      "wordBlocked": "Nút cha chỉ mở menu UI, không thay đổi tài liệu Word.",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.para.spacing1",
+      "label": "Giãn dòng 1,0",
+      "action": "menuItem",
+      "parent": "writer.para.lineSpacing",
+      "index": 0,
+      "assertion": "lineHeight",
+      "expected": "1",
+      "xml": "w:spacing",
+      "word": "spacing1",
+      "shortcut": "Ctrl+1",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.para.spacing15",
+      "label": "Giãn dòng 1,5",
+      "action": "menuItem",
+      "parent": "writer.para.lineSpacing",
+      "index": 1,
+      "assertion": "lineHeight",
+      "expected": "1.5",
+      "xml": "w:spacing",
+      "word": "spacing15",
+      "shortcut": "Ctrl+5",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.para.spacing2",
+      "label": "Giãn dòng 2,0",
+      "action": "menuItem",
+      "parent": "writer.para.lineSpacing",
+      "index": 2,
+      "assertion": "lineHeight",
+      "expected": "2",
+      "xml": "w:spacing",
+      "word": "spacing2",
+      "shortcut": "Ctrl+2",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.para.lineSpacing",
+      "args": "1.15",
+      "label": "Giãn dòng 1,15",
+      "action": "menuItem",
+      "parent": "writer.para.lineSpacing",
+      "index": 3,
+      "assertion": "lineHeight",
+      "expected": "1.15",
+      "xml": "w:spacing",
+      "word": "spacing115",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.para.lineSpacing",
+      "args": "exact",
+      "label": "Giãn dòng chính xác",
+      "action": "menuItem",
+      "parent": "writer.para.lineSpacing",
+      "index": 4,
+      "assertion": "dialog",
+      "wordBlocked": "Hộp nhập số của UI không có phép so sánh COM tương đương khi Word chạy ẩn.",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.para.shading",
+      "label": "Tô nền đoạn",
+      "action": "button",
+      "assertion": "shading",
+      "xml": "w:shd",
+      "word": "shading",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.para.borders",
+      "label": "Viền đoạn",
+      "action": "select",
+      "value": "all",
+      "assertion": "borders",
+      "xml": "w:pBdr",
+      "word": "borders",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.format.paragraphDialog",
+      "label": "Mở rộng Đoạn văn",
+      "action": "launcher",
+      "group": "paragraph",
+      "assertion": "dialog",
+      "wordBlocked": "Hộp thoại UI không được mở trong Word COM chạy ẩn; các thuộc tính con được đối chiếu riêng.",
+      "shortcut": "Không có (Word Alt+O,P)",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.style.gallery",
+      "label": "Thư viện kiểu",
+      "action": "button",
+      "assertion": "dialog",
+      "wordBlocked": "Thư viện kiểu là hộp thoại riêng của VN Writer; các kiểu Word không có ánh xạ một-một.",
+      "shortcut": "Alt+Ctrl+Shift+S",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.style.apply",
+      "args": "title",
+      "label": "Kiểu nhanh Tiêu đề",
+      "action": "styleCard",
+      "assertion": "style",
+      "expected": "title",
+      "xml": "w:pStyle",
+      "wordBlocked": "Kiểu Tiêu đề tùy biến của VN Writer không ánh xạ một-một với gallery Word.",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.style.apply",
+      "args": "normal",
+      "label": "Kiểu nhanh Normal",
+      "action": "styleCard",
+      "setup": "styleTitle",
+      "assertion": "style",
+      "expected": "normal",
+      "wordBlocked": "Kiểu Normal của VN Writer có mặc định NĐ30 riêng, không ánh xạ một-một với Normal của Word.",
+      "shortcut": "Ctrl+Shift+N",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.style.apply",
+      "args": "h1",
+      "label": "Kiểu nhanh Tiêu đề 1",
+      "action": "styleCard",
+      "assertion": "style",
+      "expected": "h1",
+      "xml": "w:pStyle",
+      "wordBlocked": "Kiểu Tiêu đề 1 có thiết lập riêng của VN Writer; chỉ đối chiếu hiệu quả nội bộ và XML.",
+      "shortcut": "Ctrl+Alt+1",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "common.edit.find",
+      "label": "Tìm kiếm",
+      "action": "button",
+      "assertion": "findPanel",
+      "word": "find",
+      "shortcut": "Ctrl+F",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "common.edit.replace",
+      "label": "Thay thế",
+      "action": "button",
+      "assertion": "replacePanel",
+      "word": "replace",
+      "shortcut": "Ctrl+H",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.edit.select",
+      "label": "Chọn",
+      "action": "dropdown",
+      "assertion": "menuOpen",
+      "wordBlocked": "Nút cha chỉ mở menu UI, không thay đổi vùng chọn Word.",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "common.edit.selectAll",
+      "label": "Chọn tất cả",
+      "action": "menuItem",
+      "parent": "writer.edit.select",
+      "index": 0,
+      "assertion": "selectAll",
+      "word": "selectAll",
+      "shortcut": "Ctrl+A",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    }
+  ],
+  "corpusDocument": "file test/landocx/d07.docx",
+  "longDocument": "E:/VNOffice-profiles/ribbon-shots/doc-home/long30.docx"
 }
