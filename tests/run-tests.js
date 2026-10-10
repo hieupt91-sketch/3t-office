@@ -131,6 +131,7 @@ import { runWriterParagraphSortTests } from "./unit/writer-paragraph-sort.test.j
 import { runWriterSectionBreaksPageColorTests } from "./unit/writer-sectionbreaks-pagecolor.test.js";
 import { runSheetHelpTests } from "./unit/sheet-help.test.js";
 import { runSlidesHelpTests } from "./unit/slides-help.test.js";
+import { runSlidesFixL2RoundtripTests } from "./unit/slides-fix-l2-roundtrip.test.js";
 import { runHelpCoverageTests } from "./unit/help-coverage.test.js";
 import { runHelpGettingStartedTests } from "./unit/help-getting-started.test.js";
 import { runHelpRibbonLocationTests } from "./unit/help-ribbon-location.test.js";
@@ -394,6 +395,7 @@ async function runAll() {
     { title: "112. Behavioral Tests — VN Writer Section Breaks & Page Color", runner: runWriterSectionBreaksPageColorTests },
     { title: "113. Behavioral Tests — VN Sheet In-app Help", runner: runSheetHelpTests },
     { title: "114. Behavioral Tests — VN Slides In-app Help", runner: runSlidesHelpTests },
+    { title: "FIX-L2. Slides FODP import/save round trip", runner: runSlidesFixL2RoundtripTests },
     { title: "115. Regression Guard — Help Coverage (100% Writer, Sheet & Slides Ribbon Commands, Catalog Quality & Shared Platform)", runner: runHelpCoverageTests },
     { title: "116. Regression Guard — Help ⇄ Ribbon Location Consistency (commandIds thật, tab/nhóm khớp ribbon hiện tại)", runner: runHelpRibbonLocationTests },
     { title: "117. Regression Guard — Help ⇄ Shortcut Consistency (shortcut trong Help khớp command-definitions + app binds)", runner: runHelpShortcutConsistencyTests },
