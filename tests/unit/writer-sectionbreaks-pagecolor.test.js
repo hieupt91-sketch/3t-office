@@ -243,5 +243,32 @@ export async function runWriterSectionBreaksPageColorTests() {
     assert(second.header.includes("Section Two"), "Mất đầu trang riêng của mục 2");
   });
 
+  await test("Writer Section Break: deleteSectionBreak finds active section break and does not fail silently", () => {
+    const { adapter, body } = createAdapter("<p>Đoạn 1</p>");
+    adapter.attach();
+    const sId = adapter.insertSectionBreak("nextPage");
+    assert(body.innerHTML.includes(`data-vno-section-id="${sId}"`), "Ngắt mục chưa được chèn");
+    assert(adapter.activeSectionId === sId, "Mục mới chưa được kích hoạt");
+
+    // Gọi deleteSectionBreak không tham số khi con trỏ ở mục 2
+    const deleted = adapter.deleteSectionBreak();
+    assert(deleted, "deleteSectionBreak trả về false khi có ngắt mục");
+    assert(!body.innerHTML.includes(`data-vno-section-id="${sId}"`), "Ngắt mục không bị gỡ khỏi body");
+    assert(!adapter.sectionPageSetups[sId], "sectionPageSetups chưa dọn mục đã xóa");
+  });
+
+  await test("Writer Section Columns: columns apply to active section when sections exist", () => {
+    const { adapter, body } = createAdapter("<p>Đoạn mục 1</p>");
+    adapter.attach();
+    const sId = adapter.insertSectionBreak("continuous");
+    adapter.setColumns({ count: 2, gap: 10, rule: false });
+
+    assert(adapter.sectionPageSetups[sId]?.columns?.count === 2, "sectionPageSetups của mục 2 không lưu columns count=2");
+    const exportedHtml = adapter._contentForExport();
+    assert(exportedHtml.includes('<!--vno-sections-meta:'), "Xuất thiếu vno-sections-meta");
+    assert(exportedHtml.includes('"count":2'), "vno-sections-meta thiếu columns count:2");
+    assert(!exportedHtml.includes('<div class="vno-writer-columns-content vno-writer-body"'), "Đa mục không được bọc toàn thân trong columns-content");
+  });
+
   return results;
 }

@@ -634,8 +634,10 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.section.options", (args) => this.openHeaderFooterOptionsDialog(args));
     globalCommandBus.bindHandler("writer.layout.sectionOptions", () => this.openHeaderFooterOptionsDialog());
     globalCommandBus.bindHandler("writer.page.border", (args) => this.openPageBorderDialog(args));
+    globalCommandBus.bindHandler("writer.page.setupDialog", (args) => this._openPageSetup(args));
     globalCommandBus.bindHandler("writer.page.columns", (args) => this.openColumnsDialog(args));
     globalCommandBus.bindHandler("writer.format.paragraphDialog", (args) => this.openParagraphDialog(args));
+    globalCommandBus.bindHandler("writer.para.lineSpacingLayout", (args) => (args ? this.setLineHeight(args) : true));
     globalCommandBus.bindHandler("writer.page.columns1", () => this.setColumns({ count: 1, gap: 0, rule: false }));
     globalCommandBus.bindHandler("writer.page.columns2", () => this.setColumns({ count: 2, gap: 10, rule: false }));
     globalCommandBus.bindHandler("writer.page.columns3", () => this.setColumns({ count: 3, gap: 10, rule: false }));
@@ -7630,6 +7632,9 @@ export class WriterAdapter {
       case "writer.file.printPreview":
         return this.print();
 
+      case "writer.page.setupDialog":
+        return await this._openPageSetup(args);
+
       case "writer.page.margins":
         return await this._openPageSetup("margins");
 
@@ -9150,6 +9155,16 @@ export class WriterAdapter {
         }
       }
       breakEl ||= this.bodyDom.querySelector?.(".vno-section-break.is-selected");
+      if (!breakEl) {
+        const curId = this.getActiveSectionId ? this.getActiveSectionId() : this.activeSectionId;
+        const allBreaks = Array.from(this.bodyDom.querySelectorAll?.(".vno-section-break") || []);
+        if (curId && curId !== Object.keys(this.sectionPageSetups || {})[0]) {
+          breakEl = this.bodyDom.querySelector?.(`[data-vno-section-id="${curId}"]`);
+        }
+        if (!breakEl && allBreaks.length > 0) {
+          breakEl = allBreaks[allBreaks.length - 1];
+        }
+      }
     }
     if (!breakEl) return false;
     const sectionId = breakEl.getAttribute("data-vno-section-id");
@@ -10858,6 +10873,17 @@ export class WriterAdapter {
       rule: count > 1 ? rule : false
     };
 
+    const multiSections = Object.keys(this.sectionPageSetups || {}).length > 1
+      || (this.bodyDom?.querySelectorAll?.(".vno-section-break")?.length || 0) > 0;
+    if (multiSections) {
+      const activeId = this.getActiveSectionId ? this.getActiveSectionId() : (this.activeSectionId || "section-1");
+      if (!this.sectionPageSetups) this.sectionPageSetups = {};
+      if (!this.sectionPageSetups[activeId]) {
+        this.sectionPageSetups[activeId] = JSON.parse(JSON.stringify(this.pageSetup || {}));
+      }
+      this.sectionPageSetups[activeId].columns = { ...this.columns };
+    }
+
     this._applyColumns();
     this.isDirty = true;
     this.recordSnapshot(count > 1 ? `writer.page.columns.${count}` : "writer.page.columns.reset");
@@ -11189,50 +11215,125 @@ export class WriterAdapter {
     const target = this.bodyDom || this.editorDom;
     if (!target) return;
 
-    const config = this.columns || { count: 1 };
-    const count = Math.max(1, Math.min(4, Number(config.count) || 1));
-    const gap = config.gap ?? 10;
-    const rule = config.rule;
+    const breaks = Array.from(target.querySelectorAll?.(".vno-section-break") || []);
+    if (breaks.length === 0) {
+      const config = this.columns || { count: 1 };
+      const count = Math.max(1, Math.min(4, Number(config.count) || 1));
+      const gap = config.gap ?? 10;
+      const rule = config.rule;
 
-    if (!target.style) {
-      target.style = {};
-    }
-    if (!target.dataset) {
-      target.dataset = {};
-    }
-
-    if (count > 1) {
-      const gapStr = typeof gap === "number" ? `${gap}mm` : String(gap);
-      const ruleStr = rule ? (typeof rule === "string" ? rule : "1px solid #94a3b8") : "none";
-
-      target.style.columnCount = String(count);
-      target.style.webkitColumnCount = String(count);
-      target.style.columnGap = gapStr;
-      target.style.webkitColumnGap = gapStr;
-      target.style.columnRule = ruleStr;
-      target.style.webkitColumnRule = ruleStr;
-
-      target.dataset.vnoColumnCount = String(count);
-      if (target.classList) {
-        target.classList.add?.("vno-columns-active");
-        target.classList.toggle?.("vno-columns-2", count === 2);
-        target.classList.toggle?.("vno-columns-3", count === 3);
-        target.classList.toggle?.("vno-columns-4", count === 4);
+      if (!target.style) {
+        target.style = {};
       }
-    } else {
-      target.style.columnCount = "";
-      target.style.webkitColumnCount = "";
-      target.style.columnGap = "";
-      target.style.webkitColumnGap = "";
-      target.style.columnRule = "";
-      target.style.webkitColumnRule = "";
+      if (!target.dataset) {
+        target.dataset = {};
+      }
 
-      delete target.dataset.vnoColumnCount;
-      if (target.classList) {
-        target.classList.remove?.("vno-columns-active");
-        target.classList.remove?.("vno-columns-2");
-        target.classList.remove?.("vno-columns-3");
-        target.classList.remove?.("vno-columns-4");
+      if (count > 1) {
+        const gapStr = typeof gap === "number" ? `${gap}mm` : String(gap);
+        const ruleStr = rule ? (typeof rule === "string" ? rule : "1px solid #94a3b8") : "none";
+
+        target.style.columnCount = String(count);
+        target.style.webkitColumnCount = String(count);
+        target.style.columnGap = gapStr;
+        target.style.webkitColumnGap = gapStr;
+        target.style.columnRule = ruleStr;
+        target.style.webkitColumnRule = ruleStr;
+
+        target.dataset.vnoColumnCount = String(count);
+        if (target.classList) {
+          target.classList.add?.("vno-columns-active");
+          target.classList.toggle?.("vno-columns-2", count === 2);
+          target.classList.toggle?.("vno-columns-3", count === 3);
+          target.classList.toggle?.("vno-columns-4", count === 4);
+        }
+      } else {
+        target.style.columnCount = "";
+        target.style.webkitColumnCount = "";
+        target.style.columnGap = "";
+        target.style.webkitColumnGap = "";
+        target.style.columnRule = "";
+        target.style.webkitColumnRule = "";
+
+        delete target.dataset.vnoColumnCount;
+        if (target.classList) {
+          target.classList.remove?.("vno-columns-active");
+          target.classList.remove?.("vno-columns-2");
+          target.classList.remove?.("vno-columns-3");
+          target.classList.remove?.("vno-columns-4");
+        }
+      }
+      return;
+    }
+
+    // Khi có nhiều mục (ngắt mục): không áp columnCount lên toàn thân
+    target.style.columnCount = "";
+    target.style.webkitColumnCount = "";
+    target.style.columnGap = "";
+    target.style.webkitColumnGap = "";
+    target.style.columnRule = "";
+    target.style.webkitColumnRule = "";
+    delete target.dataset?.vnoColumnCount;
+    if (target.classList) {
+      target.classList.remove?.("vno-columns-active", "vno-columns-2", "vno-columns-3", "vno-columns-4");
+    }
+
+    if (typeof document !== "undefined") {
+      const firstSectionId = Object.keys(this.sectionPageSetups || {})[0] || "section-1";
+      let curSecId = firstSectionId;
+      let curWrapper = target.querySelector?.(`.vno-section-content[data-vno-section-id="${curSecId}"]`);
+      const children = Array.from(target.childNodes || []);
+      for (const child of children) {
+        if (child.nodeType === 1 && child.classList?.contains?.("vno-section-break")) {
+          curSecId = child.getAttribute?.("data-vno-section-id") || curSecId;
+          curWrapper = null;
+          continue;
+        }
+        if (child.nodeType === 1 && child.classList?.contains?.("vno-section-content")) {
+          curSecId = child.getAttribute?.("data-vno-section-id") || curSecId;
+          curWrapper = child;
+          continue;
+        }
+        if (!curWrapper && typeof document.createElement === "function") {
+          curWrapper = document.createElement("div");
+          curWrapper.className = "vno-section-content";
+          curWrapper.setAttribute("data-vno-section-id", curSecId);
+          target.insertBefore(curWrapper, child);
+        }
+        if (curWrapper) {
+          curWrapper.appendChild(child);
+        }
+      }
+
+      const wrappers = target.querySelectorAll?.(".vno-section-content") || [];
+      for (const w of wrappers) {
+        const sId = w.getAttribute?.("data-vno-section-id");
+        const sSetup = this.sectionPageSetups?.[sId];
+        const sCols = sSetup?.columns || (sId === this.activeSectionId ? this.columns : null) || { count: 1 };
+        const sCount = Math.max(1, Math.min(4, Number(sCols.count) || 1));
+        const sGap = sCols.gap ?? 10;
+        const sRule = sCols.rule;
+        if (sCount > 1) {
+          const gapStr = typeof sGap === "number" ? `${sGap}mm` : String(sGap);
+          const ruleStr = sRule ? (typeof sRule === "string" ? sRule : "1px solid #94a3b8") : "none";
+          w.style.columnCount = String(sCount);
+          w.style.webkitColumnCount = String(sCount);
+          w.style.columnGap = gapStr;
+          w.style.webkitColumnGap = gapStr;
+          w.style.columnRule = ruleStr;
+          w.style.webkitColumnRule = ruleStr;
+          if (w.dataset) w.dataset.vnoColumnCount = String(sCount);
+          w.classList?.add?.("vno-columns-active", `vno-columns-${sCount}`);
+        } else {
+          w.style.columnCount = "";
+          w.style.webkitColumnCount = "";
+          w.style.columnGap = "";
+          w.style.webkitColumnGap = "";
+          w.style.columnRule = "";
+          w.style.webkitColumnRule = "";
+          if (w.dataset) delete w.dataset.vnoColumnCount;
+          w.classList?.remove?.("vno-columns-active", "vno-columns-2", "vno-columns-3", "vno-columns-4");
+        }
       }
     }
   }
@@ -14388,6 +14489,11 @@ export class WriterAdapter {
 
     if (this.bodyDom) {
       const exportRoot = this.bodyDom.cloneNode?.(true) || this.bodyDom;
+      const wrappers = Array.from(exportRoot.querySelectorAll?.(".vno-section-content") || []);
+      for (const w of wrappers) {
+        while (w.firstChild) w.parentNode?.insertBefore(w.firstChild, w);
+        w.remove?.();
+      }
       this._applyNewDocumentParagraphDefaults(exportRoot);
       this._serializeEquationsForExport(exportRoot);
       if (acceptedView) {
@@ -14436,7 +14542,17 @@ export class WriterAdapter {
       sectionBreakMarkerIds.add(bMatch[2]);
     }
 
-    bodyHtml = `<div class="vno-export-section vno-export-${firstSectionId}" data-vno-export-section="${firstSectionId}" data-vno-section-type="nextPage">` + bodyHtml.replace(
+    const sectionColStyle = (id) => {
+      const s = this.sectionPageSetups?.[id]?.columns;
+      if (s && s.count > 1) {
+        const gap = typeof s.gap === "number" ? `${s.gap}mm` : (s.gap || "10mm");
+        const rule = s.rule ? (typeof s.rule === "string" ? s.rule : "1px solid #94a3b8") : "none";
+        return ` style="column-count:${s.count};-webkit-column-count:${s.count};column-gap:${gap};-webkit-column-gap:${gap};${s.rule ? `column-rule:${rule};-webkit-column-rule:${rule};` : ""}"`;
+      }
+      return "";
+    };
+
+    bodyHtml = `<div class="vno-export-section vno-export-${firstSectionId}" data-vno-export-section="${firstSectionId}" data-vno-section-type="nextPage"${sectionColStyle(firstSectionId)}>` + bodyHtml.replace(
       // Spacer `<p><br></p>` sau marker (do insertSectionBreak chèn) là tùy chọn: phong bì/nhãn/FODT
       // tạo marker không có spacer và vẫn phải tách mục.
       /<div\b[^>]*data-vno-section-break=["'](nextPage|continuous|evenPage|oddPage)["'][^>]*data-vno-section-id=["']([^"']+)["'][^>]*>[\s\S]*?<\/div>(?:\s*<p\b[^>]*>\s*<br\s*\/?\s*>\s*<\/p>)?/gi,
@@ -14448,7 +14564,7 @@ export class WriterAdapter {
         // new page. Adding a separate page-break paragraph here creates two
         // consecutive breaks (a blank page) for nextPage sections.
         const pageBreak = "";
-        return `</div>${pageBreak}<div class="vno-export-section vno-export-${id}" data-vno-export-section="${id}" data-vno-section-type="${type}">`;
+        return `</div>${pageBreak}<div class="vno-export-section vno-export-${id}" data-vno-export-section="${id}" data-vno-section-type="${type}"${sectionColStyle(id)}>`;
       }
     ) + `</div>`;
 
@@ -14486,12 +14602,15 @@ export class WriterAdapter {
             }
           }
         : storedHeaderFooter;
+      const sectionSetup = this.sectionPageSetups?.[sId] || this.pageSetup;
+      const secCols = sectionSetup?.columns || (allSectionIds.length === 1 ? this.columns : null);
       return {
         id: sId,
         active: sId === activeSectionId,
         type: sectionTypesMap[sId] || "nextPage",
         breakMarkerPresent: sectionBreakMarkerIds.has(sId),
-        pageSetup: this.sectionPageSetups?.[sId] || this.pageSetup,
+        pageSetup: sectionSetup,
+        columns: secCols,
         headerFooter
       };
     });
@@ -14502,7 +14621,8 @@ export class WriterAdapter {
 
     let columnsCss = "";
     let bodyExportHtml = bodyHtml;
-    if (this.columns && this.columns.count > 1) {
+    const hasMultiSections = allSectionIds.length > 1 || sectionBreakMarkerIds.size > 1;
+    if (!hasMultiSections && this.columns && this.columns.count > 1) {
       const colCount = this.columns.count;
       const colGap = typeof this.columns.gap === "number" ? `${this.columns.gap}mm` : (this.columns.gap || "10mm");
       const colRule = this.columns.rule ? (typeof this.columns.rule === "string" ? this.columns.rule : "1px solid #94a3b8") : "none";
@@ -16043,6 +16163,7 @@ export class WriterAdapter {
     this._lastKnownSectionId = this.activeSectionId;
     if (this.sectionPageSetups[this.activeSectionId]) {
       this.pageSetup = JSON.parse(JSON.stringify(this.sectionPageSetups[this.activeSectionId]));
+      if (this.pageSetup?.columns) delete this.pageSetup.columns;
       this._applyPageSetup();
     }
     if (snapshot.sectionSequence) this._sectionSequence = snapshot.sectionSequence;
@@ -16063,7 +16184,8 @@ export class WriterAdapter {
       this.pageBorder = snapshot.pageBorder ? JSON.parse(JSON.stringify(snapshot.pageBorder)) : { enabled: false };
     }
     if (Object.prototype.hasOwnProperty.call(snapshot, "columns")) {
-      this.columns = snapshot.columns ? JSON.parse(JSON.stringify(snapshot.columns)) : { count: 1, gap: 10, rule: false };
+      this.columns = snapshot.columns ? JSON.parse(JSON.stringify(snapshot.columns)) : { count: 1, gap: 0, rule: false };
+      this._applyColumns();
     }
     if (Object.prototype.hasOwnProperty.call(snapshot, "lineNumbers")) {
       this.lineNumbers = this._cloneLineNumbers(snapshot.lineNumbers);

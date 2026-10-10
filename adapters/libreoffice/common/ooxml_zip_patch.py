@@ -14334,15 +14334,29 @@ def _writer_restore_created_paragraph_css(document_xml: str, source_html: str) -
         if line:
             points = float(line.group(1)) * (0.75 if line.group(2).lower() == "px" else 1.0)
             properties["exact_line_twips"] = str(round(points * 20))
-        if re.search(r"\bdata-vno-export-defaults=[\"']true[\"']", attrs, re.IGNORECASE):
-            for css_name, property_name in (("margin-top", "before_twips"), ("margin-bottom", "after_twips")):
-                spacing = re.search(
-                    rf"(?:^|;)\s*{re.escape(css_name)}\s*:\s*([^;]+)", css, re.IGNORECASE,
-                )
-                if spacing:
-                    twips = css_length_twips(spacing.group(1))
-                    if twips is not None:
-                        properties[property_name] = twips
+        for css_name, property_name in (("margin-top", "before_twips"), ("margin-bottom", "after_twips")):
+            spacing = re.search(
+                rf"(?:^|;)\s*{re.escape(css_name)}\s*:\s*([^;]+)", css, re.IGNORECASE,
+            )
+            if spacing:
+                twips = css_length_twips(spacing.group(1))
+                if twips is not None:
+                    properties[property_name] = twips
+        indent = re.search(r"(?:^|;)\s*text-indent\s*:\s*([^;]+)", css, re.IGNORECASE)
+        if indent:
+            twips = css_length_twips(indent.group(1))
+            if twips is not None:
+                properties["first_line_twips"] = twips
+        m_left = re.search(r"(?:^|;)\s*margin-left\s*:\s*([^;]+)", css, re.IGNORECASE)
+        if m_left:
+            twips = css_length_twips(m_left.group(1))
+            if twips is not None:
+                properties["left_indent_twips"] = twips
+        m_right = re.search(r"(?:^|;)\s*margin-right\s*:\s*([^;]+)", css, re.IGNORECASE)
+        if m_right:
+            twips = css_length_twips(m_right.group(1))
+            if twips is not None:
+                properties["right_indent_twips"] = twips
         if properties:
             by_text[text] = properties
 
@@ -14358,6 +14372,24 @@ def _writer_restore_created_paragraph_css(document_xml: str, source_html: str) -
             paragraph = _writer_upsert_ppr_empty(paragraph, "tabs", props["tabs_xml"])
         if props.get("outline_xml"):
             paragraph = _writer_upsert_ppr_empty(paragraph, "outlineLvl", props["outline_xml"])
+        ind_attrs = []
+        if props.get("left_indent_twips") is not None:
+            ind_attrs.append(f'w:left="{props["left_indent_twips"]}"')
+        if props.get("right_indent_twips") is not None:
+            ind_attrs.append(f'w:right="{props["right_indent_twips"]}"')
+        if props.get("first_line_twips") is not None:
+            ind_attrs.append(f'w:firstLine="{props["first_line_twips"]}"')
+        if ind_attrs:
+            ind_match = re.search(r"<w:ind\b[^>]*/>", paragraph, re.IGNORECASE)
+            if ind_match:
+                tag = ind_match.group(0)
+                for item in ind_attrs:
+                    k, v = item.split("=")
+                    attr = re.compile(rf"\b{k}=[\"'][^\"']*[\"']", re.IGNORECASE)
+                    tag = attr.sub(f'{k}={v}', tag) if attr.search(tag) else tag[:-2] + f" {k}={v}/>"
+                paragraph = paragraph[:ind_match.start()] + tag + paragraph[ind_match.end():]
+            else:
+                paragraph = _writer_upsert_ppr_empty(paragraph, "ind", f"<w:ind {' '.join(ind_attrs)}/>")
         spacing_values = {"before": props.get("before_twips"), "after": props.get("after_twips")}
         spacing_values = {name: value for name, value in spacing_values.items() if value is not None}
         if spacing_values:
@@ -15836,8 +15868,17 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
             first_block = re.match(r'<(?:ol|ul|table|tbody|tr|thead|blockquote)\b[^>]*>\s*(?:<(?:tbody|tr|thead)\b[^>]*>\s*)*<(p|h[1-6]|li|td|th)\b([^>]*)>([\s\S]*?)</\1\s*>', source_html[div_open.end():], re.IGNORECASE)
         if first_block:
             bookmark = re.search(r"\bid=[\"'](vno-(?:untouched|edited)-\d+)[\"']", first_block.group(0), re.IGNORECASE)
-            section_starts.append((_writer_html_plain(first_block.group(3)), bookmark.group(1) if bookmark else ""))
-    for section_text, section_bookmark in section_starts:
+            sec_type = "nextPage"
+            type_m = re.search(rf'<div\b[^>]*data-vno-export-section=["\']{re.escape(section_id)}["\'][^>]*data-vno-section-type=["\']([^"\']+)["\']', source_html, re.IGNORECASE)
+            if type_m:
+                sec_type = type_m.group(1)
+            else:
+                for sm in section_meta:
+                    if str(sm.get("id")) == section_id:
+                        sec_type = sm.get("type") or "nextPage"
+                        break
+            section_starts.append((_writer_html_plain(first_block.group(3)), bookmark.group(1) if bookmark else "", sec_type))
+    for section_text, section_bookmark, section_type in section_starts:
         if not section_text and not section_bookmark:
             continue
         paragraphs = list(re.finditer(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", document_xml, re.IGNORECASE))
@@ -15856,7 +15897,9 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
             carrier_match = paragraphs[target_index - 1]
             carrier = carrier_match.group(0)
             section_props = re.sub(r"<w:type\b[^>]*/>", "", final_sect.group(0), flags=re.IGNORECASE)
-            section_props = re.sub(r"(<w:sectPr\b[^>]*>)", r'\1<w:type w:val="nextPage"/>', section_props, count=1)
+            valid_types = ("nextPage", "continuous", "evenPage", "oddPage")
+            stype = section_type if section_type in valid_types else "nextPage"
+            section_props = re.sub(r"(<w:sectPr\b[^>]*>)", rf'\1<w:type w:val="{stype}"/>', section_props, count=1)
             carrier = _writer_upsert_ppr_empty(carrier, "sectPr", section_props)
             document_xml = document_xml[:carrier_match.start()] + carrier + document_xml[carrier_match.end():]
     if section_starts:
@@ -15866,7 +15909,7 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
             cleaned = re.sub(r'<w:type\b[^>]*/>', '', final.group(0), flags=re.IGNORECASE)
             document_xml = document_xml[:final.start()] + cleaned + document_xml[final.end():]
 
-    # W22e: Định hướng trang Landscape cho từng section theo @page CSS
+    # W22e: Định hướng trang Landscape và Cột cho từng section theo metadata
     if section_ids:
         section_orientations = {}
         for sid in section_ids:
@@ -15884,9 +15927,10 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
         sections = list(re.finditer(r'<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>', document_xml, re.IGNORECASE))
         if len(sections) == len(section_ids):
             for idx, sid in enumerate(section_ids):
+                sect_match = sections[idx]
+                sect_content = sect_match.group(0)
+                sect_updated = False
                 if section_orientations.get(sid) == "landscape":
-                    sect_match = sections[idx]
-                    sect_content = sect_match.group(0)
                     pgsz_m = re.search(r'<w:pgSz\b([^>]*)/?>', sect_content, re.IGNORECASE)
                     if pgsz_m:
                         w_m = re.search(r'\bw:w="(\d+)"', pgsz_m.group(1))
@@ -15900,9 +15944,81 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
                             elif 16800 <= land_w <= 16900 and 11850 <= land_h <= 12000:
                                 land_w, land_h = 16838, 11906
                             new_pgsz = f'<w:pgSz w:w="{land_w}" w:h="{land_h}" w:orient="landscape"/>'
-                            updated_sect = sect_content[:pgsz_m.start()] + new_pgsz + sect_content[pgsz_m.end():]
-                            document_xml = document_xml[:sect_match.start()] + updated_sect + document_xml[sect_match.end():]
-                            sections = list(re.finditer(r'<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>', document_xml, re.IGNORECASE))
+                            sect_content = sect_content[:pgsz_m.start()] + new_pgsz + sect_content[pgsz_m.end():]
+                            sect_updated = True
+
+                sec_cols = None
+                for sm in section_meta:
+                    if str(sm.get("id")) == sid:
+                        sec_cols = sm.get("columns") or sm.get("pageSetup", {}).get("columns")
+                        break
+                if not sec_cols:
+                    div_cols = re.search(rf'<div\b[^>]*data-vno-export-section=["\']{re.escape(sid)}["\'][^>]*style=["\'][^"\']*column-count:\s*([1-4])', source_html, re.IGNORECASE)
+                    if div_cols:
+                        sec_cols = {"count": int(div_cols.group(1))}
+
+                if sec_cols and isinstance(sec_cols, dict):
+                    col_count = max(1, min(4, int(sec_cols.get("count") or 1)))
+                    col_gap = float(sec_cols.get("gap") or 10.0)
+                    col_rule = bool(sec_cols.get("rule"))
+                    space_dxa = round(col_gap / 25.4 * 1440) if col_gap else 720
+                    sep_attr = ' w:sep="1"' if col_rule else ""
+                    cols_xml = f'<w:cols w:num="{col_count}" w:space="{space_dxa}"{sep_attr}/>' if col_count > 1 else '<w:cols w:num="1"/>'
+                    if "<w:cols" in sect_content:
+                        sect_content = re.sub(r'<w:cols\b[^>]*/>', cols_xml, sect_content, count=1, flags=re.IGNORECASE)
+                    else:
+                        for anchor in ("<w:formProt", "<w:vAlign", "<w:noEndnote", "<w:titlePg", "<w:docGrid", "</w:sectPr"):
+                            pos = sect_content.find(anchor)
+                            if pos >= 0:
+                                sect_content = sect_content[:pos] + cols_xml + sect_content[pos:]
+                                break
+                    sect_updated = True
+
+                if sect_updated:
+                    document_xml = document_xml[:sect_match.start()] + sect_content + document_xml[sect_match.end():]
+                    sections = list(re.finditer(r'<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>', document_xml, re.IGNORECASE))
+
+    if len(section_ids) <= 1:
+        single_cols = None
+        if section_meta:
+            single_cols = section_meta[0].get("columns") or section_meta[0].get("pageSetup", {}).get("columns")
+        if not single_cols:
+            col_match = re.search(r"(?:column-count|\bvno-column-count=[\"'])\s*:?=?\s*([2-4])", source_html, re.IGNORECASE)
+            if col_match:
+                gap_m = re.search(r"column-gap\s*:\s*([\d.]+)(mm|pt|px)", source_html, re.IGNORECASE)
+                rule_m = re.search(r"column-rule\s*:\s*([^;\"']+)", source_html, re.IGNORECASE)
+                gap_val = float(gap_m.group(1)) if gap_m else 10.0
+                single_cols = {
+                    "count": int(col_match.group(1)),
+                    "gap": gap_val,
+                    "rule": bool(rule_m and "none" not in rule_m.group(1).lower())
+                }
+        if single_cols and isinstance(single_cols, dict):
+            count = max(1, min(4, int(single_cols.get("count") or 1)))
+            gap_val = float(single_cols.get("gap") or 10.0)
+            rule_val = bool(single_cols.get("rule"))
+            space_dxa = round(gap_val / 25.4 * 1440) if gap_val else 720
+            sep_attr = ' w:sep="1"' if rule_val else ""
+            cols_xml = f'<w:cols w:num="{count}" w:space="{space_dxa}"{sep_attr}/>' if count > 1 else '<w:cols w:num="1"/>'
+
+            def patch_single_cols(m: re.Match) -> str:
+                s = m.group(0)
+                if "<w:cols" in s:
+                    return re.sub(r'<w:cols\b[^>]*/>', cols_xml, s, count=1, flags=re.IGNORECASE)
+                for anchor in ("<w:formProt", "<w:vAlign", "<w:noEndnote", "<w:titlePg", "<w:docGrid", "</w:sectPr"):
+                    pos = s.find(anchor)
+                    if pos >= 0:
+                        return s[:pos] + cols_xml + s[pos:]
+                return s
+            document_xml = re.sub(r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>", patch_single_cols, document_xml, flags=re.IGNORECASE)
+
+    # Column breaks: replace paragraph carrying column break marker with <w:r><w:br w:type="column"/></w:r>
+    document_xml = re.sub(
+        r'<w:p\b[^>]*>(?:(?!<\/w:p>)[\s\S])*?(?:--- Ngắt cột \(Column Break\) ---|data-vno-column-break)[\s\S]*?<\/w:p\s*>',
+        '<w:p><w:r><w:br w:type="column"/></w:r></w:p>',
+        document_xml,
+        flags=re.IGNORECASE
+    )
 
     page = re.search(r"@page\s*\{[^}]*\bmargin\s*:\s*([\d.]+)mm\s+([\d.]+)mm\s+([\d.]+)mm\s+([\d.]+)mm", source_html, re.IGNORECASE)
     if page:
