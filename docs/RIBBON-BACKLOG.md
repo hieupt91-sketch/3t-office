@@ -32,6 +32,10 @@ Các mục dưới đây cần một ticket riêng trước khi bổ sung. Các 
 | U-L23 | Chế độ xem | Màn hình xem trước khi in với bố cục slide và bản phát tay. |
 | U-L24 | Ngữ cảnh | Tab Định dạng Hình khi chọn đối tượng trên canvas. |
 | U-L33 | Đối tượng | PPTX roundtrip cho nhóm shape: Ctrl+G tạo groupId trong model nhưng lưu/mở lại làm mất group; OOXML slide không có p:grpSp. Cần giữ group/ungroup trên đối tượng nhập và mới tạo. |
+| U-L35 | Chèn | Đầu trang/chân trang, ngày giờ và số trang chiếu cập nhật trạng thái trong phiên nhưng marker không được ghi vào PPTX; mở lại làm mất header/footer. Cần serialize và khôi phục trạng thái theo slide/toàn bộ bài. |
+| U-L36 | Chèn > Phương tiện | Shape audio/video xuất hiện trong model sau khi chọn file nhưng media không được đóng gói đúng trong PPTX; video chỉ còn target `data:` URI ngoài package và audio mất sau khi mở lại. Cần đóng gói media, tạo relationship/part hợp lệ và kiểm tra playback offline. |
+| U-L37 | Đánh giá > Nhận xét | Thêm/xóa nhận xét hoạt động, nhưng trạng thái Đã xử lý bị mất sau PPTX roundtrip và giao diện chưa có thao tác trả lời. Cần giữ metadata resolve và bổ sung luồng trả lời. |
+| U-L38 | Trình chiếu > Ghi chú | Panel ghi chú mở được nhưng vùng nhập bị thanh trạng thái che ở viewport đo được; click không tới textarea nên chưa nhập/lưu ghi chú. Cần bố trí panel trong vùng cuộn/không bị status bar phủ, rồi kiểm tra nhập và roundtrip. |
 | U-L27 | Chế độ xem | Chế độ xem canvas tối độc lập với giao diện tối. |
 | U-L29 | Chế độ xem | Tùy chọn giảm chiều cao Ribbon cho màn hình thấp. |
 
