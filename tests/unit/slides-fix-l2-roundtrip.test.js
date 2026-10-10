@@ -19,6 +19,7 @@ const FODP = `<?xml version="1.0" encoding="UTF-8"?>
    <draw:frame draw:name="title" presentation:class="title" svg:x="1cm" svg:y="1cm" svg:width="20cm" svg:height="2cm"><draw:text-box><text:p>Tiêu đề</text:p></draw:text-box></draw:frame>
    <draw:frame draw:name="body" presentation:class="outline" svg:x="1cm" svg:y="4cm" svg:width="20cm" svg:height="10cm"><draw:text-box><text:p>Nội dung</text:p></draw:text-box></draw:frame>
    <draw:custom-shape draw:name="textbox-1" svg:x="2cm" svg:y="2cm" svg:width="5cm" svg:height="2cm"><draw:text-box><text:p>Hộp kiểm thử L2</text:p></draw:text-box></draw:custom-shape>
+   <draw:frame draw:name="user-frame" presentation:class="outline" presentation:user-transformed="true" svg:x="3cm" svg:y="5cm" svg:width="5cm" svg:height="2cm"><draw:text-box><text:p>Nhãn lớp giữa</text:p></draw:text-box></draw:frame>
    <draw:custom-shape draw:name="shape-2" svg:x="8cm" svg:y="2cm" svg:width="4cm" svg:height="3cm"><draw:enhanced-geometry draw:type="ooxml-rect"/></draw:custom-shape>
   </draw:page>
  </office:presentation></office:body>
@@ -38,6 +39,7 @@ export async function runSlidesFixL2RoundtripTests() {
     canvas.slides[0].shapes.map(({ type, text }) => ({ type, text })),
     [
       { type: "rect", text: "Hộp kiểm thử L2" },
+      { type: "textbox", text: "Nhãn lớp giữa" },
       { type: "rect", text: "" }
     ],
     "textbox và hình giữ đúng nội dung cùng thứ tự lớp"
