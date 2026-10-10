@@ -45,5 +45,9 @@ Ghi chú ĐẠT (Tham chiếu): Mục lục tự động liệt kê đủ 4 tiê
 | U33 | THẤP | Trộn thư > Nhãn nút « » | Nhãn nút trên ribbon lặp ký tự biểu tượng góc: "« » Chèn trường" và "« » Quy tắc" thay vì chỉ có nhãn chữ và icon riêng. | Đo text nút: "« » Chèn trường", "« » Quy tắc"; ảnh tab-mailings-full. |
 | U34 | TRUNG BÌNH | Trộn thư > Thiếu các bước chuẩn Word | Nhóm "Bắt đầu trộn" chỉ có 1 nút "Nguồn dữ liệu"; thiếu menu "Bắt đầu trộn thư" (Thư, Email, Wizard), thiếu các nút "Khối địa chỉ" (Address Block), "Dòng lời chào" (Greeting Line) và "Đánh dấu trường hợp nhất". | So sánh cấu trúc Ribbon Word chuẩn. |
 Ghi chú ĐẠT (Trộn thư): Phong bì, Nhãn, Nguồn dữ liệu, Chèn trường, Quy tắc Nếu...Thì đều mở đúng hộp thoại giao diện tiếng Việt; các nút Xem trước kết quả, Bản ghi trước/sau, Hoàn tất & Trộn tự động vô hiệu hóa (disabled) chính xác khi chưa kết nối nguồn dữ liệu.
+| U35 | THẤP | Đánh giá > Nhãn nút Đếm từ | Nhãn nút trên ribbon lặp ký tự số: "123 Đếm từ" do gộp chuỗi icon vào text hiển thị. | Đo text nút: "123 Đếm từ"; ảnh tab-review-full. |
+| U36 | TRUNG BÌNH | Đánh giá > Thiếu các công cụ duyệt chuẩn Word | Thiếu Từ điển đồng nghĩa (Thesaurus / Shift+F7), Dịch thuật, Bảng duyệt thay đổi (Reviewing Pane), So sánh tài liệu (Compare) và Bảo vệ/Hạn chế chỉnh sửa (Restrict Editing). | So sánh cấu trúc Ribbon Word chuẩn. |
+Ghi chú ĐẠT (Đánh giá): Bật/tắt kiểm tra chính tả (Spellcheck toggle) cập nhật đúng trạng thái active; Đếm từ mở hộp thoại thống kê chuẩn; Thêm ghi chú (Comment) mở hộp thoại nhập nhận xét; Theo dõi thay đổi (Track Changes) bật/tắt đúng, các nút Chấp nhận/Từ chối vô hiệu hóa chính xác khi chưa có sửa đổi.
+
 
 
