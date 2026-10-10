@@ -690,7 +690,8 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.page.blank", () => this.insertBlankPage());
     globalCommandBus.bindHandler("writer.format.tabStops", (args) => this.openTabStopsDialog(args));
     globalCommandBus.bindHandler("writer.paragraph.tabStops", (args) => this.openTabStopsDialog(args));
-    globalCommandBus.bindHandler("writer.table.fromText", (args) => this.convertTextToTable(args));
+    globalCommandBus.bindHandler("writer.font.grow", () => this._adjustFontSize(1));
+    globalCommandBus.bindHandler("writer.font.shrink", () => this._adjustFontSize(-1));
     globalCommandBus.bindHandler("writer.font.grow1pt", () => this._adjustFontSizePt(1));
     globalCommandBus.bindHandler("writer.font.shrink1pt", () => this._adjustFontSizePt(-1));
     globalCommandBus.bindHandler("common.edit.repeat", () => this.repeatLastAction());
@@ -11216,75 +11217,168 @@ export class WriterAdapter {
     return true;
   }
 
-  _adjustFontSize(delta) {
-    const sel = window.getSelection();
-    if (sel.rangeCount > 0) {
-      let node = sel.anchorNode;
-      if (node.nodeType === 3) node = node.parentNode;
-      const curSize = parseInt(window.getComputedStyle(node).fontSize) || 16;
-      const nextSize = Math.max(8, Math.min(72, curSize + delta * 2));
-      document.execCommand("fontSize", false, "7");
-      const fontElements = this.editorDom.getElementsByTagName("font");
-      for (let i = 0; i < fontElements.length; i++) {
-        if (fontElements[i].size === "7") {
-          fontElements[i].removeAttribute("size");
-          fontElements[i].style.fontSize = `${nextSize}px`;
-        }
+  _getNextLadderFontSize(curPt, delta) {
+    const WORD_FONT_LADDER = [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72];
+    if (delta > 0) {
+      if (curPt >= 72) return Math.min(1638, Math.round(curPt + 10));
+      for (const step of WORD_FONT_LADDER) {
+        if (step > curPt + 0.05) return step;
       }
+      return 72;
+    } else {
+      if (curPt > 72) return Math.max(72, Math.round(curPt - 10));
+      for (let i = WORD_FONT_LADDER.length - 1; i >= 0; i--) {
+        const step = WORD_FONT_LADDER[i];
+        if (step < curPt - 0.05) return step;
+      }
+      return Math.max(1, Math.round((curPt - 1) * 2) / 2);
     }
   }
 
-  _adjustFontSizePt(deltaPt) {
-    if (typeof window === "undefined" || typeof document === "undefined") return;
+  _getCurrentFontSizePt() {
+    if (typeof window === "undefined") return 12;
     const sel = window.getSelection?.();
-    if (sel && sel.rangeCount > 0) {
-      let node = sel.anchorNode;
-      if (node && node.nodeType === 3) node = node.parentNode;
-      let curPt = 12;
-      if (node && typeof window.getComputedStyle === "function") {
-        const computed = window.getComputedStyle(node);
-        const curPx = parseFloat(computed?.fontSize) || 16;
-        curPt = Math.round(curPx * 0.75) || 12;
-      }
-      const nextPt = Math.max(1, Math.min(1638, curPt + deltaPt));
-      this.flushTyping?.();
-      if (typeof document.execCommand === "function") {
-        document.execCommand("fontSize", false, "7");
-      }
-      if (this.editorDom) {
-        const fontElements = this.editorDom.getElementsByTagName("font");
-        for (let i = 0; i < fontElements.length; i++) {
-          if (fontElements[i].size === "7") {
-            fontElements[i].removeAttribute("size");
-            fontElements[i].style.fontSize = `${nextPt}pt`;
-          }
+    if (!sel || !sel.rangeCount) return 12;
+    let node = sel.anchorNode;
+    if (!node) return 12;
+    if (node.nodeType === 3) node = node.parentElement || node.parentNode;
+    if (!node) return 12;
+    if (typeof window.getComputedStyle === "function") {
+      const computed = window.getComputedStyle(node);
+      const curPx = parseFloat(computed?.fontSize) || 16;
+      return Math.round(curPx * 0.75 * 2) / 2 || 12;
+    }
+    return 12;
+  }
+
+  _applyFontSizeToSelection(targetPt, snapshotCommand = "writer.font.size") {
+    if (typeof window === "undefined" || typeof document === "undefined") return false;
+    const pt = Number(targetPt);
+    if (!Number.isFinite(pt) || pt <= 0 || pt > 1638) return false;
+
+    const sel = window.getSelection?.();
+    if (!sel || !sel.rangeCount) return false;
+    const root = this.bodyDom || this.editorDom || document.body;
+
+    this.flushTyping?.();
+
+    // 1. Lưu lại thuộc tính inline font-size trên các khối đoạn (p, h1-h6, li, td, th) giao với vùng chọn
+    // để ngăn Chromium execCommand("fontSize") tự ý xoá style trên khối cha (như lỗi p{font-size:16px} trong d07).
+    const range = sel.getRangeAt(0);
+    const touchedBlocks = [];
+    if (root.querySelectorAll) {
+      const candidates = root.querySelectorAll("p, h1, h2, h3, h4, h5, h6, li, td, th");
+      for (let i = 0; i < candidates.length; i++) {
+        const b = candidates[i];
+        if (range.intersectsNode ? range.intersectsNode(b) : root.contains(b)) {
+          touchedBlocks.push({
+            element: b,
+            savedFontSize: b.style.fontSize
+          });
         }
       }
-      this.isDirty = true;
-      this.recordSnapshot?.(deltaPt > 0 ? "writer.font.grow1pt" : "writer.font.shrink1pt");
     }
+    for (const n of [sel.anchorNode, sel.focusNode]) {
+      const b = n?.nodeType === 3 ? n.parentElement?.closest?.("p, h1, h2, h3, h4, h5, h6, li, td, th") : n?.closest?.("p, h1, h2, h3, h4, h5, h6, li, td, th");
+      if (b && !touchedBlocks.some(tb => tb.element === b)) {
+        touchedBlocks.push({
+          element: b,
+          savedFontSize: b.style.fontSize
+        });
+      }
+    }
+
+    // 2. Gọi execCommand("fontSize", false, "7") để Chromium bọc đoạn được chọn bằng thẻ font tạm thời
+    let execOk = false;
+    try {
+      if (typeof document.execCommand === "function") {
+        execOk = document.execCommand("fontSize", false, "7");
+      }
+    } catch (_) {
+      execOk = false;
+    }
+
+    // 3. Khôi phục inline font-size của khối cha nếu bị execCommand xoá mất
+    for (const tb of touchedBlocks) {
+      if (tb.savedFontSize && tb.element.style.fontSize !== tb.savedFontSize) {
+        tb.element.style.fontSize = tb.savedFontSize;
+      }
+    }
+
+    // 4. Tìm tất cả thẻ font[size="7"] vừa được tạo và gán cỡ chữ theo đơn vị pt
+    let applied = false;
+    const allFonts = root.getElementsByTagName ? Array.from(root.getElementsByTagName("font")) : [];
+    const formattedFonts = allFonts.filter(
+      (el) => el.getAttribute("size") === "7" || el.size === "7" || el.size === 7
+    );
+
+    for (const element of formattedFonts) {
+      element.removeAttribute("size");
+      element.style.fontSize = `${pt}pt`;
+      applied = true;
+
+      // Xoá style font-size hoặc thẻ font lồng bên trong để cỡ chữ mới không bị xung đột
+      if (element.querySelectorAll) {
+        const innerStyled = element.querySelectorAll("font, span[style*='font-size']");
+        for (let i = 0; i < innerStyled.length; i++) {
+          const inner = innerStyled[i];
+          if (inner.style.fontSize) inner.style.fontSize = "";
+          if (inner.hasAttribute("size")) inner.removeAttribute("size");
+        }
+      }
+    }
+
+    // 5. Khôi phục vùng chọn bao phủ toàn bộ nội dung vừa định dạng để anchorNode
+    // nằm đúng bên trong văn bản và không bị nhảy ra ngoài thẻ đoạn.
+    if (formattedFonts.length > 0 && sel.removeAllRanges) {
+      try {
+        const firstEl = formattedFonts[0];
+        const lastEl = formattedFonts[formattedFonts.length - 1];
+        const firstText = firstEl.firstChild || firstEl;
+        const lastText = lastEl.lastChild || lastEl;
+        const endOffset = lastText.nodeType === 3 ? lastText.textContent.length : lastText.childNodes.length;
+
+        if (sel.setBaseAndExtent) {
+          sel.setBaseAndExtent(lastText, endOffset, firstText, 0);
+        } else {
+          const newRange = document.createRange();
+          if (firstText.nodeType === 3) newRange.setStart(firstText, 0);
+          else newRange.setStart(firstEl, 0);
+          if (lastText.nodeType === 3) newRange.setEnd(lastText, endOffset);
+          else newRange.setEnd(lastEl, lastEl.childNodes.length);
+          sel.removeAllRanges();
+          sel.addRange(newRange);
+        }
+        this._syncFontUI?.(firstEl);
+      } catch (_) {
+        // Fallback
+      }
+    }
+
+    if (!applied && !execOk) return false;
+
+    this.isDirty = true;
+    this.recordSnapshot?.(snapshotCommand);
+    this._recomputeLivePagination?.();
+    return true;
+  }
+
+  _adjustFontSize(delta) {
+    const curPt = this._getCurrentFontSizePt();
+    const nextPt = this._getNextLadderFontSize(curPt, delta);
+    return this._applyFontSizeToSelection(nextPt, delta > 0 ? "writer.font.grow" : "writer.font.shrink");
+  }
+
+  _adjustFontSizePt(deltaPt) {
+    const curPt = this._getCurrentFontSizePt();
+    const nextPt = Math.max(1, Math.min(1638, Math.round((curPt + deltaPt) * 2) / 2));
+    return this._applyFontSizeToSelection(nextPt, deltaPt > 0 ? "writer.font.grow1pt" : "writer.font.shrink1pt");
   }
 
   _applyFontSizePt(sizePt) {
     const pt = Number(sizePt);
-    if (!Number.isFinite(pt) || pt <= 0 || pt > 1638 || typeof document === "undefined") return false;
-    const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
-    if (!selection?.rangeCount) return false;
-    this.flushTyping?.();
-    if (typeof document.execCommand === "function") document.execCommand("fontSize", false, "7");
-    let applied = false;
-    const fontElements = this.editorDom?.getElementsByTagName?.("font") || [];
-    for (const element of fontElements) {
-      if (element.size === "7") {
-        element.removeAttribute?.("size");
-        element.style.fontSize = `${pt}pt`;
-        applied = true;
-      }
-    }
-    if (!applied) return false;
-    this.isDirty = true;
-    this.recordSnapshot?.("writer.font.size");
-    return true;
+    if (!Number.isFinite(pt) || pt <= 0 || pt > 1638) return false;
+    return this._applyFontSizeToSelection(pt, "writer.font.size");
   }
 
   async _pastePlainText() {

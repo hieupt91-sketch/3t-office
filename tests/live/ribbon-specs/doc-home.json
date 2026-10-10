@@ -114,6 +114,11 @@
       "label": "Tăng cỡ chữ",
       "action": "button",
       "assertion": "fontGrow",
+      "assertComputed": {
+        "property": "fontSize",
+        "relative": "grow",
+        "description": "Cỡ chữ thực tế getComputedStyle của văn bản được chọn phải tăng theo thang chuẩn Word (12pt -> 14pt) và không làm mất thuộc tính của đoạn cha"
+      },
       "xml": "w:sz",
       "xmlPattern": "<w:sz w:val=\"30\"",
       "word": "fontGrow",
@@ -129,6 +134,11 @@
       "label": "Giảm cỡ chữ",
       "action": "button",
       "assertion": "fontShrink",
+      "assertComputed": {
+        "property": "fontSize",
+        "relative": "shrink",
+        "description": "Cỡ chữ thực tế getComputedStyle của văn bản được chọn phải giảm theo thang chuẩn Word (14pt -> 12pt -> 11pt) và không làm mất thuộc tính của đoạn cha"
+      },
       "xml": "w:sz",
       "xmlPattern": "<w:sz w:val=\"24\"",
       "word": "fontShrink",
