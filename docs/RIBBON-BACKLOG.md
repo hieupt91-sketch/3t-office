@@ -31,6 +31,7 @@ Các mục dưới đây cần một ticket riêng trước khi bổ sung. Các 
 | U-L15 | Hoạt hình | Gallery hiệu ứng trực tiếp trên Ribbon. |
 | U-L23 | Chế độ xem | Màn hình xem trước khi in với bố cục slide và bản phát tay. |
 | U-L24 | Ngữ cảnh | Tab Định dạng Hình khi chọn đối tượng trên canvas. |
+| U-L33 | Đối tượng | PPTX roundtrip cho nhóm shape: Ctrl+G tạo groupId trong model nhưng lưu/mở lại làm mất group; OOXML slide không có p:grpSp. Cần giữ group/ungroup trên đối tượng nhập và mới tạo. |
 | U-L27 | Chế độ xem | Chế độ xem canvas tối độc lập với giao diện tối. |
 | U-L29 | Chế độ xem | Tùy chọn giảm chiều cao Ribbon cho màn hình thấp. |
 
