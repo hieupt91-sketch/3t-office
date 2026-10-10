@@ -8496,24 +8496,49 @@ export class WriterAdapter {
     if (cell.colSpan > 1 || cell.rowSpan > 1) {
       const table = cell.closest?.("table");
       const startRow = cell.parentElement?.rowIndex ?? 0;
-      const startCell = cell.cellIndex ?? 0;
       const rowSpan = Math.max(1, cell.rowSpan || 1);
       const colSpan = Math.max(1, cell.colSpan || 1);
+      // Cột LƯỚI thật của ô (không phải chỉ số trong row.cells: các hàng dưới có thể bị ô gộp dọc của cột khác chiếm chỗ).
+      const columnStart = new Map();
+      const occupied = [];
+      Array.from(table?.rows || []).forEach((tableRow, rowIndex) => {
+        occupied[rowIndex] = occupied[rowIndex] || [];
+        let column = 0;
+        for (const tableCell of Array.from(tableRow.cells)) {
+          while (occupied[rowIndex][column]) column++;
+          columnStart.set(tableCell, column);
+          const rs = Math.max(1, tableCell.rowSpan || 1);
+          const cs = Math.max(1, tableCell.colSpan || 1);
+          for (let dr = 0; dr < rs; dr++) {
+            occupied[rowIndex + dr] = occupied[rowIndex + dr] || [];
+            for (let dc = 0; dc < cs; dc++) occupied[rowIndex + dr][column + dc] = true;
+          }
+          column += cs;
+        }
+      });
+      const startColumn = columnStart.get(cell) ?? 0;
+      const makeCell = () => {
+        const newCell = document.createElement(cell.tagName?.toLowerCase?.() || "td");
+        // Giữ kiểu của ô gốc (viền, nền, căn dọc...) thay vì kiểu mặc định; bỏ chiều rộng/cao của ô đã gộp.
+        const inline = cell.getAttribute?.("style");
+        if (inline) newCell.setAttribute("style", inline);
+        newCell.style.width = "";
+        newCell.style.height = "";
+        if (!newCell.style.border) newCell.style.border = "1px solid #94a3b8";
+        if (!newCell.style.padding) newCell.style.padding = "6pt 10pt";
+        newCell.innerHTML = "<br>";
+        return newCell;
+      };
       cell.colSpan = 1;
       cell.rowSpan = 1;
       for (let rowOffset = 0; rowOffset < rowSpan; rowOffset++) {
         const row = table?.rows?.[startRow + rowOffset];
         if (!row) continue;
         const count = rowOffset === 0 ? colSpan - 1 : colSpan;
-        const insertAt = startCell + (rowOffset === 0 ? 1 : 0);
-        const reference = row.cells?.[insertAt] || null;
-        for (let i = 0; i < count; i++) {
-          const newCell = document.createElement(cell.tagName?.toLowerCase?.() || "td");
-          newCell.style.border = cell.style.border || "1px solid #94a3b8";
-          newCell.style.padding = cell.style.padding || "6pt 10pt";
-          newCell.innerHTML = "<br>";
-          row.insertBefore(newCell, reference);
-        }
+        const reference = rowOffset === 0
+          ? cell.nextElementSibling
+          : (Array.from(row.cells).find((other) => (columnStart.get(other) ?? 0) >= startColumn + colSpan) || null);
+        for (let i = 0; i < count; i++) row.insertBefore(makeCell(), reference);
       }
     } else {
       const newCell = document.createElement("td");
@@ -11527,7 +11552,23 @@ export class WriterAdapter {
     return this.setColumns(result);
   }
 
+  /**
+   * Áp cột: tài liệu nhiều mục bọc nội dung vào các khối `.vno-section-content` (di chuyển nút DOM) nên vùng chọn/con trỏ
+   * rơi về thẻ body — gõ tiếp chữ vào sai chỗ. Chụp và khôi phục con trỏ (theo offset văn bản) quanh thao tác.
+   */
   _applyColumns() {
+    let bookmark = null;
+    // Khi đang Undo/Redo, _restoreSnapshot tự đặt lại con trỏ từ snapshot ở cuối: không chụp thêm ở đây.
+    if (!this._isUndoingRedoing) {
+      try { bookmark = this._captureSelectionBookmark?.() || null; } catch (_) { bookmark = null; }
+    }
+    this._applyColumnsCore();
+    if (bookmark) {
+      try { this._restoreSelectionBookmark?.(bookmark); } catch (_) { /* khôi phục con trỏ chỉ là tối ưu */ }
+    }
+  }
+
+  _applyColumnsCore() {
     this._initZones();
     const target = this.bodyDom || this.editorDom;
     if (!target) return;
@@ -16564,6 +16605,8 @@ export class WriterAdapter {
     this._hydrateWordArtFromDom();
     this._applyDecorations();
     this._syncActiveStyleUI?.();
+    // Các bước trên (áp cột nhiều mục, trang trí, hydrate) có thể di chuyển nút DOM và làm rơi con trỏ: đặt lại lần cuối.
+    this._restoreSelectionBookmark(snapshot.selection);
 
     this.isDirty = true;
     this._updateTrackChangesCommandState?.();
