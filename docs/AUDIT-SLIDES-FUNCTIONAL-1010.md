@@ -37,3 +37,11 @@ Nhánh `audit/slides-functional-codex`; fixture gốc `E:\VN OFice\file test\sam
 | Định dạng nền | Thiết kế > Định dạng nền, chọn Gradient và Áp dụng trang này | Đổi nền slide đang chọn và giữ sau khi lưu/mở lại | Model chuyển `solid #ffffff` sang gradient; sau lưu/mở lại `background.type=gradient` | PASS | NOT RUN | Đã đọc model sau khi adapter.save() và sau khi app nạp lại đúng file. |
 | Mẫu Slide Master | Thiết kế > Mẫu Slide Master; chọn Than Chì Hiện Đại và Áp dụng mẫu | Áp dụng theme/master và giữ đúng trạng thái sau PPTX roundtrip | Dialog mở, chọn được theme; trước lưu `themeId=minimal-dark`. Sau mở lại, background gradient/logo còn trong model nhưng `themeId=modern-blue` | FAIL | NOT RUN | Đã mở lại đúng `sourceFilePath`. Ghi lỗi U-L31; XML theme không có metadata `minimal-dark`. |
 
+
+## Nhóm 4 — Chuyển tiếp và Hiệu ứng
+
+| Nút | Ngữ cảnh | Kỳ vọng PowerPoint | Thực tế | PASS/FAIL | Phím tắt | Ghi chú |
+|---|---|---|---|---|---|---|
+| Chuyển tiếp | Tab Chuyển tiếp; chọn Slide, thời lượng 800 ms; Áp dụng trang này | Lưu chuyển tiếp cho slide đang chọn và phát sinh OOXML | Model có `{type:slide,duration:800}`; `ppt/slides/slide1.xml` có `<p:transition>`; sau mở lại đúng file model giữ type/duration | PASS | NOT RUN | Lựa chọn bằng dropdown keyboard ArrowDown/Enter, áp dụng bằng click chuột. |
+| Hiệu ứng đối tượng | Tab Hoạt hình; đối tượng `Google Shape;58;p13`; Fade In | Lưu animation trên đúng shape và phát sinh OOXML timing | Model shape có `fadeIn`; slide XML có `<p:timing>`; sau mở lại giữ `fadeIn` trên cùng shape | PASS | NOT RUN | Lựa chọn hiệu ứng bằng dropdown keyboard, áp dụng bằng click; đã nạp lại đủ 10 slide và xác nhận source path. |
+
