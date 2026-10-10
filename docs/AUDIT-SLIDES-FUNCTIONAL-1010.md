@@ -45,3 +45,15 @@ Nhánh `audit/slides-functional-codex`; fixture gốc `E:\VN OFice\file test\sam
 | Chuyển tiếp | Tab Chuyển tiếp; chọn Slide, thời lượng 800 ms; Áp dụng trang này | Lưu chuyển tiếp cho slide đang chọn và phát sinh OOXML | Model có `{type:slide,duration:800}`; `ppt/slides/slide1.xml` có `<p:transition>`; sau mở lại đúng file model giữ type/duration | PASS | NOT RUN | Lựa chọn bằng dropdown keyboard ArrowDown/Enter, áp dụng bằng click chuột. |
 | Hiệu ứng đối tượng | Tab Hoạt hình; đối tượng `Google Shape;58;p13`; Fade In | Lưu animation trên đúng shape và phát sinh OOXML timing | Model shape có `fadeIn`; slide XML có `<p:timing>`; sau mở lại giữ `fadeIn` trên cùng shape | PASS | NOT RUN | Lựa chọn hiệu ứng bằng dropdown keyboard, áp dụng bằng click; đã nạp lại đủ 10 slide và xác nhận source path. |
 
+
+## Nhóm 5 — Trình chiếu
+
+| Nút | Ngữ cảnh | Kỳ vọng PowerPoint | Thực tế | PASS/FAIL | Phím tắt | Ghi chú |
+|---|---|---|---|---|---|---|
+| Bắt đầu từ đầu / F5 | Chọn slide 3; gửi F5 bằng CDP key event | Trình chiếu bắt đầu ở slide 1 | Overlay mở ở `Trang 1 / 10`, tiêu đề slide đầu hiển thị | PASS | F5 | CDP port 60948, profile riêng. |
+| Bắt đầu từ slide hiện tại / Shift+F5 | Chọn slide 3; gửi Shift+F5 bằng CDP key event | Trình chiếu bắt đầu tại slide đang chọn | Overlay mở ở `Trang 3 / 10` và tiêu đề khớp slide 3 | PASS | Shift+F5 | Thao tác bằng key event CDP, không dùng OS input. |
+| Điều hướng | Trong trình chiếu | ArrowRight/ArrowLeft chuyển slide tuần tự | ArrowRight: Trang 1 → 2; ArrowLeft: Trang 2 → 1, tiêu đề thay đổi khớp | PASS | ← / → | Đo text trang trong overlay. |
+| Con trỏ laser | Trong trình chiếu | Ctrl+L bật laser | Sau Ctrl+L, overlay `cursor=none` và chấm laser `display=block` | PASS | Ctrl+L | Trạng thái đo trên DOM. |
+| Bút vẽ | Trong trình chiếu | Ctrl+P bật bút vẽ | Sau Ctrl+P, overlay cursor vẫn rỗng/auto, chấm laser vẫn ẩn; không vào chế độ bút | FAIL | Ctrl+P | Tái hiện hai phiên CDP độc lập; ghi lỗi U-L32. |
+| Thoát | Trình chiếu đang mở | Esc đóng trình chiếu | Overlay hiện hữu trước phím Esc, bị gỡ sau phím Esc | PASS | Esc | Không gọi close API trực tiếp. |
+
