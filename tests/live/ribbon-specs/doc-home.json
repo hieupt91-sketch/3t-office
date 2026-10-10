@@ -597,6 +597,11 @@
       "index": 2,
       "assertion": "lineHeight",
       "expected": "2",
+      "assertComputed": {
+        "property": "lineHeight",
+        "factor": 2.0,
+        "description": "Chiều cao dòng thực tế phải đạt tỉ lệ bội số 2.0x tự nhiên (tăng chiều cao hiển thị đoạn)"
+      },
       "xml": "w:spacing",
       "word": "spacing2",
       "shortcut": "Ctrl+2",
@@ -615,8 +620,56 @@
       "index": 3,
       "assertion": "lineHeight",
       "expected": "1.15",
+      "assertComputed": {
+        "property": "lineHeight",
+        "factor": 1.15
+      },
       "xml": "w:spacing",
       "word": "spacing115",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.para.lineSpacing",
+      "args": "2.5",
+      "label": "Giãn dòng 2,5",
+      "action": "menuItem",
+      "parent": "writer.para.lineSpacing",
+      "index": 4,
+      "assertion": "lineHeight",
+      "expected": "2.5",
+      "assertComputed": {
+        "property": "lineHeight",
+        "factor": 2.5
+      },
+      "xml": "w:spacing",
+      "word": "spacing25",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.para.lineSpacing",
+      "args": "3.0",
+      "label": "Giãn dòng 3,0",
+      "action": "menuItem",
+      "parent": "writer.para.lineSpacing",
+      "index": 5,
+      "assertion": "lineHeight",
+      "expected": "3.0",
+      "assertComputed": {
+        "property": "lineHeight",
+        "factor": 3.0
+      },
+      "xml": "w:spacing",
+      "word": "spacing30",
       "shortcut": "Không có",
       "contexts": [
         "Đầu tài liệu (Trang 1)",
@@ -630,7 +683,7 @@
       "label": "Giãn dòng chính xác",
       "action": "menuItem",
       "parent": "writer.para.lineSpacing",
-      "index": 4,
+      "index": 6,
       "assertion": "dialog",
       "wordBlocked": "Hộp nhập số của UI không có phép so sánh COM tương đương khi Word chạy ẩn.",
       "shortcut": "Không có",

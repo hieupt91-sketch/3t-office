@@ -489,9 +489,15 @@
 .vno-writer-page :is(p, h1, h2, h3, h4, h5, h6, li, dd, dt, td, th, blockquote, div, span, font, b, i, u, em, strong, a) {
   line-height: calc(var(--vno-lh) * var(--vno-font-ratio, 1));
 }
+.vno-writer-page [style*="--vno-lh"] {
+  line-height: calc(var(--vno-lh) * var(--vno-font-ratio, 1)) !important;
+}
+.vno-writer-page [style*="--vno-lh"] :is(span, font, b, i, u, em, strong, a) {
+  line-height: calc(var(--vno-lh) * var(--vno-font-ratio, 1)) !important;
+}
 /* Giãn dòng "chính xác" (line-height: 0.53cm inline) cố định chiều cao dòng bất kể font
    của run - các phần tử inline bên trong phải kế thừa, không tính lại theo font. */
-.vno-writer-page [style*="line-height"] * {
+.vno-writer-page :is(p, h1, h2, h3, h4, h5, h6, li, td, th)[style*="line-height:"]:not([style*="-line-height:"]) * {
   line-height: inherit;
 }
 
@@ -1589,7 +1595,13 @@ li.vno-page-auto-gap {
 .vno-print-preview-sheet :is(p, h1, h2, h3, h4, h5, h6, li, dd, dt, td, th, blockquote, div, span, font, b, i, u, em, strong, a) {
   line-height: calc(var(--vno-lh) * var(--vno-font-ratio, 1));
 }
-.vno-print-preview-sheet [style*="line-height"] * {
+.vno-print-preview-sheet [style*="--vno-lh"] {
+  line-height: calc(var(--vno-lh) * var(--vno-font-ratio, 1)) !important;
+}
+.vno-print-preview-sheet [style*="--vno-lh"] :is(span, font, b, i, u, em, strong, a) {
+  line-height: calc(var(--vno-lh) * var(--vno-font-ratio, 1)) !important;
+}
+.vno-print-preview-sheet :is(p, h1, h2, h3, h4, h5, h6, li, td, th)[style*="line-height:"]:not([style*="-line-height:"]) * {
   line-height: inherit;
 }
 
@@ -3418,7 +3430,7 @@ p.vno-style-title {
 [data-vno-theme="administrative"] {
   font-family: 'Times New Roman', Times, serif !important;
   color: #000000 !important;
-  line-height: 1.5 !important;
+  line-height: 1.5;
 }
 [data-vno-theme="administrative"] h1,
 [data-vno-theme="administrative"] h2,
@@ -3427,59 +3439,59 @@ p.vno-style-title {
 }
 [data-vno-theme="administrative"] p {
   margin-bottom: 6pt !important;
-  line-height: 1.5 !important;
+  line-height: 1.5;
 }
 
 [data-vno-theme="modern"] {
   font-family: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, sans-serif !important;
   color: #334155 !important;
-  line-height: 1.6 !important;
+  line-height: 1.6;
 }
 [data-vno-theme="modern"] h1 { color: #0284c7 !important; }
 [data-vno-theme="modern"] h2 { color: #0369a1 !important; }
 [data-vno-theme="modern"] h3 { color: #075985 !important; }
 [data-vno-theme="modern"] p {
   margin-bottom: 12pt !important;
-  line-height: 1.6 !important;
+  line-height: 1.6;
 }
 
 [data-vno-theme="elegant"] {
   font-family: Georgia, 'Times New Roman', serif !important;
   color: #27272a !important;
-  line-height: 1.6 !important;
+  line-height: 1.6;
 }
 [data-vno-theme="elegant"] h1 { color: #b45309 !important; }
 [data-vno-theme="elegant"] h2 { color: #d97706 !important; }
 [data-vno-theme="elegant"] h3 { color: #92400e !important; }
 [data-vno-theme="elegant"] p {
   margin-bottom: 10pt !important;
-  line-height: 1.6 !important;
+  line-height: 1.6;
 }
 
 [data-vno-theme="formal-slate"] {
   font-family: Arial, Helvetica, sans-serif !important;
   color: #1e293b !important;
-  line-height: 1.45 !important;
+  line-height: 1.45;
 }
 [data-vno-theme="formal-slate"] h1 { color: #0f172a !important; }
 [data-vno-theme="formal-slate"] h2 { color: #334155 !important; }
 [data-vno-theme="formal-slate"] h3 { color: #475569 !important; }
 [data-vno-theme="formal-slate"] p {
   margin-bottom: 8pt !important;
-  line-height: 1.45 !important;
+  line-height: 1.45;
 }
 
 [data-vno-theme="emerald"] {
   font-family: 'Calibri', 'Segoe UI', sans-serif !important;
   color: #1c1917 !important;
-  line-height: 1.5 !important;
+  line-height: 1.5;
 }
 [data-vno-theme="emerald"] h1 { color: #065f46 !important; }
 [data-vno-theme="emerald"] h2 { color: #047857 !important; }
 [data-vno-theme="emerald"] h3 { color: #047857 !important; }
 [data-vno-theme="emerald"] p {
   margin-bottom: 8pt !important;
-  line-height: 1.5 !important;
+  line-height: 1.5;
 }
 
 [data-vno-theme="office"] {

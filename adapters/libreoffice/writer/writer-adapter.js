@@ -674,7 +674,11 @@ export class WriterAdapter {
       if (args === "1.15" || args === 1.15) return this._setLineHeight("1.15");
       if (args === "1.5" || args === 1.5) return this._setLineHeight("1.5");
       if (args === "2" || args === 2 || args === "2.0") return this._setLineHeight("2.0");
+      if (args === "2.5" || args === 2.5) return this._setLineHeight("2.5");
+      if (args === "3" || args === 3 || args === "3.0") return this._setLineHeight("3.0");
       if (args === "exact") return this._applyExactLineSpacing();
+      const num = parseFloat(args);
+      if (!Number.isNaN(num) && num > 0) return this._setLineHeight(String(num));
       return this._setLineHeight("1.5");
     });
     globalCommandBus.bindHandler("writer.para.lineSpacingLayout", (args) => globalCommandBus.execute("writer.para.lineSpacing", args));
@@ -11148,23 +11152,34 @@ export class WriterAdapter {
   }
 
   _setLineHeight(val) {
-    const sel = typeof window !== "undefined" ? window.getSelection?.() : null;
-    let applied = false;
-    if (sel?.rangeCount > 0) {
-      let node = sel.anchorNode;
-      if (node.nodeType === 3) node = node.parentNode;
-      while (node && node !== this.editorDom && node.tagName !== "P" && node.tagName !== "DIV") {
-        node = node.parentNode;
-      }
-      if (node && node !== this.editorDom) {
-        // Bội số dòng kiểu Word (1.0/1.5/2.0 dòng): ghi vào --vno-lh để stylesheet nhân
-        // với tỉ số font (--vno-font-ratio); khi xuất đổi lại thành line-height: 150%.
-        if (typeof node.style.setProperty === "function") {
-          node.style.removeProperty("line-height");
-          node.style.setProperty("--vno-lh", String(Number(val) || val));
-        } else {
-          node.style.lineHeight = val;
+    const blocks = (typeof this._getSelectedParagraphBlocks === "function" ? this._getSelectedParagraphBlocks() : []) || [];
+    if (!blocks.length) {
+      const sel = typeof window !== "undefined" ? window.getSelection?.() : null;
+      if (sel?.rangeCount > 0) {
+        let node = sel.anchorNode;
+        if (node?.nodeType === 3) node = node.parentNode;
+        const block = node?.closest?.("p,h1,h2,h3,h4,h5,h6,li,blockquote,div,td,th");
+        if (block && (this.bodyDom?.contains(block) || this.editorDom?.contains(block))) {
+          blocks.push(block);
         }
+      }
+    }
+    if (!blocks.length) return false;
+    const lhVal = String(Number(val) || val);
+    let applied = false;
+    for (const node of blocks) {
+      if (typeof node.style?.setProperty === "function") {
+        node.style.removeProperty("line-height");
+        node.style.setProperty("--vno-lh", lhVal);
+        if (typeof node.querySelectorAll === "function") {
+          const children = node.querySelectorAll("[style*='line-height']");
+          for (let i = 0; i < children.length; i++) {
+            children[i].style.removeProperty("line-height");
+          }
+        }
+        applied = true;
+      } else if (node.style) {
+        node.style.lineHeight = val;
         applied = true;
       }
     }
