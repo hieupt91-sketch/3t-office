@@ -11,7 +11,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../
 const specPath = path.resolve(process.argv[2] || "tests/live/ribbon-specs/doc-home.json");
 const runs = Number(process.argv.find(value => value.startsWith("--runs="))?.split("=")[1] || 1);
 const spec = JSON.parse(await readFile(specPath, "utf8"));
-const proofRoot = path.resolve(process.env.VNO_RIBBON_SHOTS || "E:/VNOffice-profiles/ribbon-shots/doc-home");
+const proofRoot = path.resolve(process.env.VNO_RIBBON_SHOTS || `E:/VNOffice-profiles/ribbon-shots/${spec.proofFolder || `doc-${spec.tabId}`}`);
 const docxRoot = path.join(proofRoot, "docx");
 await mkdir(docxRoot, { recursive: true });
 
@@ -137,6 +137,37 @@ async function perform(cdp, item) {
   await click(cdp, selectorFor(item));
 }
 
+async function completeInteraction(cdp, item) {
+  if (item.assertion === "fileDialog") {
+    await press(cdp, "Escape", {}, 50).catch(() => {});
+    await cdp.evaluate(`window.__vnoAppInstance?.adapter?._insertImageDataUrl?.('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADElEQVR42mNk+M/wHwAF/gL+AvzZVwAAAABJRU5ErkJggg==', ${JSON.stringify(item.commandId)})`);
+    return;
+  }
+  const command = item.commandId;
+  if (command === "writer.insert.symbol") {
+    await click(cdp, "[data-symbol-char]");
+    return;
+  }
+  if (command === "writer.design.themeGallery") {
+    await click(cdp, '.vno-theme-card[data-theme-id="modern"]');
+  } else if (command === "writer.page.watermark") {
+    await click(cdp, '.vno-watermark-chip[data-text="DỰ THẢO"]');
+  } else if (command === "writer.page.color") {
+    await click(cdp, '.vno-page-color-swatch[data-page-color="#dbeafe"]');
+  } else if (command === "writer.insert.coverPage") {
+    await click(cdp, ".vno-cover-template-card");
+  }
+  const shouldConfirm = new Set([
+    "writer.insert.coverPage", "writer.shape.insert", "writer.diagram.insert", "writer.chart.insert",
+    "common.edit.hyperlink", "writer.insert.wordart", "writer.insert.dateTime", "writer.insert.equation",
+    "writer.design.themeGallery", "writer.page.watermark", "writer.page.color", "writer.page.border"
+  ]).has(command);
+  if (shouldConfirm) {
+    const primary = await cdp.evaluate(`Boolean(document.querySelector('.vno-dialog-overlay .vno-dialog-ok-btn, [data-vno-dialog="cover-page"] .vno-dialog-footer .vno-btn-primary'))`);
+    if (primary) await click(cdp, '.vno-dialog-overlay .vno-dialog-ok-btn, [data-vno-dialog="cover-page"] .vno-dialog-footer .vno-btn-primary');
+  }
+}
+
 async function prepareSpecial(cdp, item) {
   if (item.assertion === "paste") {
     await resetSelection(cdp, false, "#source");
@@ -230,6 +261,25 @@ async function state(cdp) {
         return targetList?.outerHTML || '';
       })(),
       pressed:Object.fromEntries([...document.querySelectorAll('[data-command-id][aria-pressed]')].map(node=>[node.dataset.commandId,node.getAttribute('aria-pressed')]))
+      ,objects: {
+        tables: body.querySelectorAll('table').length,
+        pageBreaks: body.querySelectorAll('[data-vno-page-break="true"]').length,
+        images: body.querySelectorAll('img').length,
+        hyperlinks: body.querySelectorAll('a[href]').length,
+        comments: body.querySelectorAll('.vno-comment-anchor').length,
+        textBoxes: document.querySelectorAll('.vno-writer-textbox,[data-shape-type="textbox"]').length,
+        wordArt: body.querySelectorAll('.vno-writer-wordart,[data-vno-wordart="true"]').length,
+        dropCaps: body.querySelectorAll('.vno-drop-cap').length,
+        dateTimes: body.querySelectorAll('.vno-datetime').length,
+        equations: body.querySelectorAll('.vno-equation').length,
+        shapes: (window.__vnoAppInstance?.adapter?.shapes || []).map(shape => shape.type || shape.shapeType),
+        header: document.querySelector('.vno-writer-header')?.innerHTML || '',
+        footer: document.querySelector('.vno-writer-footer')?.innerHTML || '',
+        theme: body.dataset.vnoTheme || document.querySelector('.vno-writer-page')?.dataset.vnoTheme || '',
+        watermark: document.querySelector('.vno-watermark-text')?.textContent || '',
+        pageColor: getComputedStyle(document.querySelector('.vno-writer-page')).backgroundColor,
+        pageBorder: Boolean(document.querySelector('.vno-page-border-frame'))
+      }
     };
   })()`);
 }
@@ -282,6 +332,27 @@ function assertEffect(item, before, after) {
     case "replacePanel": return truth(after.replaceVisible, after.dialogText);
     case "menuOpen": return truth(after.menuOpen, `menuOpen=${after.menuOpen}`);
     case "selectAll": return truth(after.selected.includes("Alpha") && after.selected.includes("Zulu"), after.selected.slice(0, 80));
+    case "coverPage": return truth(after.objects.pageBreaks > before.objects.pageBreaks && after.html.includes("data-vno-cover-page"), `breaks=${after.objects.pageBreaks}`);
+    case "pageBreak": return truth(after.objects.pageBreaks > before.objects.pageBreaks, `breaks=${before.objects.pageBreaks}->${after.objects.pageBreaks}`);
+    case "table": return truth(after.objects.tables > before.objects.tables, `tables=${before.objects.tables}->${after.objects.tables}`);
+    case "fileDialog": return truth(after.objects.images > before.objects.images, `images=${before.objects.images}->${after.objects.images}`);
+    case "shape": return truth(after.objects.shapes.length > before.objects.shapes.length && after.objects.shapes.includes("rectangle"), after.objects.shapes.join(","));
+    case "diagram": return truth(after.objects.shapes.length > before.objects.shapes.length && after.objects.shapes.some(type => String(type).includes("diagram")), after.objects.shapes.join(","));
+    case "chart": return truth(after.objects.shapes.length > before.objects.shapes.length && after.objects.shapes.includes("chart"), after.objects.shapes.join(","));
+    case "hyperlink": return truth(after.objects.hyperlinks > before.objects.hyperlinks, `links=${before.objects.hyperlinks}->${after.objects.hyperlinks}`);
+    case "comment": return truth(after.objects.comments > before.objects.comments, `comments=${before.objects.comments}->${after.objects.comments}`);
+    case "header": return truth(after.objects.header !== before.objects.header && /<p/i.test(after.objects.header), after.objects.header);
+    case "footer": return truth(after.objects.footer !== before.objects.footer && /data-vno-field/i.test(after.objects.footer), after.objects.footer);
+    case "textBox": return truth(after.objects.shapes.length > before.objects.shapes.length && after.objects.shapes.includes("textbox"), after.objects.shapes.join(","));
+    case "wordArt": return truth(after.objects.wordArt > before.objects.wordArt, `wordArt=${before.objects.wordArt}->${after.objects.wordArt}`);
+    case "dropCap": return truth(after.objects.dropCaps > before.objects.dropCaps, `dropCaps=${before.objects.dropCaps}->${after.objects.dropCaps}`);
+    case "dateTime": return truth(after.objects.dateTimes > before.objects.dateTimes, `dateTimes=${before.objects.dateTimes}->${after.objects.dateTimes}`);
+    case "equation": return truth(after.objects.equations > before.objects.equations, `equations=${before.objects.equations}->${after.objects.equations}`);
+    case "symbol": return truth(after.text !== before.text, `${before.text.slice(0,40)} -> ${after.text.slice(0,40)}`);
+    case "theme": return truth(after.objects.theme && after.objects.theme !== before.objects.theme, `${before.objects.theme}->${after.objects.theme}`);
+    case "watermark": return truth(after.objects.watermark === "DỰ THẢO", after.objects.watermark);
+    case "pageColor": return truth(after.objects.pageColor !== before.objects.pageColor, `${before.objects.pageColor}->${after.objects.pageColor}`);
+    case "pageBorder": return truth(after.objects.pageBorder, `pageBorder=${after.objects.pageBorder}`);
     default: return truth(false, `Unknown assertion ${item.assertion}`);
   }
 }
@@ -306,7 +377,7 @@ async function saveAndReadXml(cdp, item, runNumber) {
   const python = spawnSync("python", ["-c", "import sys,zipfile;print(zipfile.ZipFile(sys.argv[1]).read('word/document.xml').decode('utf-8'))", output], { encoding: "utf8", maxBuffer: 20 * 1024 * 1024 });
   if (python.status !== 0) return { status: "BLOCKED", marker: python.stderr.trim() };
   const paragraphs = python.stdout.match(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g) || [];
-  const scope = paragraphs.find(paragraph => paragraph.includes("beta")) || python.stdout;
+  const scope = spec.tabId === "insert" ? python.stdout : (paragraphs.find(paragraph => paragraph.includes("beta")) || python.stdout);
   const pattern = item.xmlPattern ? new RegExp(item.xmlPattern, "i") : new RegExp(`<${item.xml}(?:\\s|/|>)`, "i");
   const present = pattern.test(scope);
   return { status: present ? "PASS" : "FAIL", marker: item.xmlPattern || item.xml, output };
@@ -339,6 +410,7 @@ async function runApp(runNumber) {
         const before = await state(session.cdp);
         await capture(session.cdp, path.join(proofRoot, `${key}-truoc.png`));
         await perform(session.cdp, item);
+        await completeInteraction(session.cdp, item);
         await finishSpecial(session.cdp, item);
         await sleep(180);
         const after = await state(session.cdp);
@@ -374,30 +446,33 @@ async function runApp(runNumber) {
           const isList = item.commandId.includes("list") || item.commandId.includes("indent");
           const c2Target = isList ? "#list-target" : "#table-target";
           await resetSelection(session.cdp, false, c2Target);
+          const c2Before = await state(session.cdp);
           await perform(session.cdp, item);
+          await completeInteraction(session.cdp, item);
           await sleep(50);
-          const c2Pass = await session.cdp.evaluate(`(() => {
-            const list = document.querySelector('#ctx-list');
-            const table = document.querySelector('#ctx-table');
-            return Boolean(list && table);
-          })()`);
-          c2 = { pass: Boolean(c2Pass), detail: `Áp dụng chuẩn trong ${isList ? "danh sách" : "ô bảng"} giữa tài liệu` };
+          const c2Effect = assertEffect(item, c2Before, await state(session.cdp));
+          c2 = { pass: c2Effect.pass, detail: `${isList ? "Danh sách" : "Ô bảng"}: ${c2Effect.detail}` };
           if (item.assertion === "dialog" || item.assertion === "findPanel" || item.assertion === "replacePanel" || item.assertion === "menuOpen") {
             await press(session.cdp, "Escape", {}, 30).catch(() => {});
           }
 
           // Ngữ cảnh 3: Cuối tài liệu (Trang 35) & Hoàn tác 1 bước
           await resetSelection(session.cdp, false, "#end-target");
-          const endBefore = await session.cdp.evaluate(`document.querySelector('#end-neighbor')?.parentElement?.innerHTML || ''`);
+          const endBeforeState = await state(session.cdp);
+          const endBefore = JSON.stringify({ html: endBeforeState.html, objects: endBeforeState.objects });
           await perform(session.cdp, item);
+          await completeInteraction(session.cdp, item);
           await sleep(50);
-          const endAfter = await session.cdp.evaluate(`document.querySelector('#end-neighbor')?.parentElement?.innerHTML || ''`);
+          const endAfterState = await state(session.cdp);
+          const endAfter = JSON.stringify({ html: endAfterState.html, objects: endAfterState.objects });
           await session.cdp.evaluate(`window.globalCommandBus?.execute('common.edit.undo')`);
           await sleep(50);
-          const endRestored = await session.cdp.evaluate(`document.querySelector('#end-neighbor')?.parentElement?.innerHTML || ''`);
-          const undoPass = endRestored === endBefore || endAfter !== endBefore;
-          undo = { pass: Boolean(undoPass), detail: "Hoàn tác 1 bước thành công" };
-          c3 = { pass: Boolean(endAfter && (endAfter !== endBefore || endBefore.length > 0)), detail: "Áp dụng chuẩn tại trang 35 cuối tài liệu" };
+          const restoredState = await state(session.cdp);
+          const endRestored = JSON.stringify({ html: restoredState.html, objects: restoredState.objects });
+          const undoPass = endAfter !== endBefore && endRestored === endBefore;
+          undo = { pass: Boolean(undoPass), detail: undoPass ? "Hoàn tác 1 bước khôi phục nguyên trạng" : "Hoàn tác không khôi phục đúng trạng thái trước" };
+          const c3Effect = assertEffect(item, endBeforeState, endAfterState);
+          c3 = { pass: c3Effect.pass, detail: `Cuối tài liệu: ${c3Effect.detail}` };
           if (item.assertion === "dialog" || item.assertion === "findPanel" || item.assertion === "replacePanel" || item.assertion === "menuOpen") {
             await press(session.cdp, "Escape", {}, 30).catch(() => {});
           }
@@ -405,7 +480,7 @@ async function runApp(runNumber) {
           // Các lệnh hộp thoại UI
         }
 
-        const passes = effect.pass && toggle.pass && xml.status !== "FAIL" && c2.pass && c3.pass && isolation.pass;
+        const passes = effect.pass && toggle.pass && xml.status !== "FAIL" && c2.pass && c3.pass && isolation.pass && undo.pass;
         results.push({
           ...item,
           app: effect,
@@ -433,7 +508,7 @@ async function runApp(runNumber) {
 
 function runWordOracle() {
   const helper = path.join(repoRoot, "scripts/audit-0610/word_home_oracle.ps1");
-  const output = path.join(proofRoot, "word-home.json");
+  const output = path.join(proofRoot, `word-${spec.tabId}.json`);
   const result = spawnSync("powershell", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", helper, "-SpecPath", specPath, "-OutputPath", output], { cwd: repoRoot, encoding: "utf8", timeout: 300000, maxBuffer: 10 * 1024 * 1024 });
   if (result.error || result.status !== 0) return { blocked: true, detail: result.error?.message || result.stderr || result.stdout };
   try { return JSON.parse(result.stdout.trim().split(/\r?\n/).at(-1)); }
@@ -444,7 +519,8 @@ const appRuns = [];
 for (let runNumber = 1; runNumber <= runs; runNumber += 1) appRuns.push(await runApp(runNumber));
 const word = runWordOracle();
 const stable = appRuns.length < 2 || appRuns[0].results.every((result, index) => result.conclusion === appRuns[1].results[index]?.conclusion);
+const wordPass = !word.blocked && (word.results || []).every(result => result.pass === true);
 const evidence = { generatedAt: new Date().toISOString(), spec: path.relative(repoRoot, specPath), proofRoot, stable, runs: appRuns, word };
 await writeFile(path.join(proofRoot, "audit-results.json"), JSON.stringify(evidence, null, 2), "utf8");
-console.log(`SUMMARY items=${spec.items.length} runs=${runs} stable=${stable} appPass=${appRuns.at(-1).results.filter(item=>item.conclusion==='ĐÚNG').length} wordBlocked=${Boolean(word.blocked)}`);
-process.exitCode = stable && appRuns.every(run => run.results.every(item => item.conclusion === "ĐÚNG")) && !word.blocked ? 0 : 1;
+console.log(`SUMMARY items=${spec.items.length} runs=${runs} stable=${stable} appPass=${appRuns.at(-1).results.filter(item=>item.conclusion==='ĐÚNG').length} wordPass=${wordPass}`);
+process.exitCode = stable && appRuns.every(run => run.results.every(item => item.conclusion === "ĐÚNG")) && wordPass ? 0 : 1;

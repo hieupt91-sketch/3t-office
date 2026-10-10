@@ -17,6 +17,8 @@ $spec = Get-Content -Raw -LiteralPath $SpecPath | ConvertFrom-Json
 $word = $null
 $ownedPid = 0
 $results = @()
+$tempPng = Join-Path ([IO.Path]::GetTempPath()) ("vno-ribbon-" + [guid]::NewGuid().ToString("N") + ".png")
+[IO.File]::WriteAllBytes($tempPng, [Convert]::FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADElEQVR42mNk+M/wHwAF/gL+AvzZVwAAAABJRU5ErkJggg=="))
 
 function Find-TextRange($document, [string]$text) {
   $range = $document.Content.Duplicate
@@ -112,6 +114,26 @@ try {
         "find" { $probe = $document.Content.Duplicate; $found = $probe.Find.Execute("Beta"); $detail = "Found=$([bool]$found), Text=$($probe.Text)" }
         "replace" { $probe = $document.Content.Duplicate; [void]$probe.Find.Execute("Beta", $false, $false, $false, $false, $false, $true, 1, $false, "BETA", 2); $detail = [string]$document.Content.Text }
         "selectAll" { $document.Content.Select(); $detail = "SelectedLength=$($word.Selection.Range.Text.Length), DocumentLength=$($document.Content.Text.Length)" }
+        "blankPage" { $target.Collapse(1); $target.InsertBreak(7); $target.InsertBreak(7); $detail = "Pages=$($document.ComputeStatistics(2))" }
+        "pageBreak" { $target.Collapse(1); $target.InsertBreak(7); $detail = "Pages=$($document.ComputeStatistics(2))" }
+        "table" { $table = $document.Tables.Add($target, 2, 2); $detail = "Tables=$($document.Tables.Count), Rows=$($table.Rows.Count), Columns=$($table.Columns.Count)"; [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($table) }
+        "picture" { $shape = $document.InlineShapes.AddPicture($tempPng, $false, $true, $target); $detail = "InlineShapes=$($document.InlineShapes.Count), Width=$($shape.Width), Height=$($shape.Height)"; [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($shape) }
+        "shape" { $shape = $document.Shapes.AddShape(1, 72, 72, 120, 70, $target); $detail = "Shapes=$($document.Shapes.Count), Type=$($shape.Type)"; [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($shape) }
+        "smartArt" { $layout = $word.SmartArtLayouts.Item(1); $shape = $document.Shapes.AddSmartArt($layout, 72, 72, 260, 160, $target); $detail = "Shapes=$($document.Shapes.Count), Nodes=$($shape.SmartArt.AllNodes.Count)"; [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($shape); [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($layout) }
+        "chart" { $shape = $document.InlineShapes.AddChart(51, $target); $detail = "InlineShapes=$($document.InlineShapes.Count), Type=$($shape.Type)"; [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($shape) }
+        "hyperlink" { $link = $document.Hyperlinks.Add($target, "https://example.com", "", "", "Beta"); $detail = "Hyperlinks=$($document.Hyperlinks.Count), Address=$($link.Address)"; [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($link) }
+        "comment" { $comment = $document.Comments.Add($target, "Ghi chu kiem thu"); $detail = "Comments=$($document.Comments.Count), Text=$($comment.Range.Text)"; [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($comment) }
+        "header" { $range = $document.Sections.Item(1).Headers.Item(1).Range; $range.Text = "Tieu de dau trang"; $detail = "Header=$($range.Text)"; [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($range) }
+        "footer" { $range = $document.Sections.Item(1).Footers.Item(1).Range; $range.Text = "Trang "; $range.Collapse(0); $field = $document.Fields.Add($range, 33); $detail = "FooterFields=$($document.Sections.Item(1).Footers.Item(1).Range.Fields.Count), Code=$($field.Code.Text)"; [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($field); [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($range) }
+        "textBox" { $shape = $document.Shapes.AddTextbox(1, 72, 72, 220, 80, $target); $shape.TextFrame.TextRange.Text = "Nhap van ban"; $detail = "Shapes=$($document.Shapes.Count), Text=$($shape.TextFrame.TextRange.Text)"; [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($shape) }
+        "wordArt" { $shape = $document.Shapes.AddTextEffect(1, "3T Office", "Arial", 28, $false, $false, 72, 72, $target); $detail = "Shapes=$($document.Shapes.Count), Text=$($shape.TextEffect.Text)"; [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($shape) }
+        "dropCap" { $dropCap = $target.Paragraphs.Item(1).DropCap; $dropCap.Position = 1; $dropCap.LinesToDrop = 3; $detail = "Position=$([int]$dropCap.Position), Lines=$([int]$dropCap.LinesToDrop)"; [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($dropCap) }
+        "dateTime" { $field = $document.Fields.Add($target, 31); $detail = "Fields=$($document.Fields.Count), Code=$($field.Code.Text)"; [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($field) }
+        "equation" { $target.Text = "x^2"; $mathRange = $document.OMaths.Add($target); $math = $document.OMaths.Item(1); $math.BuildUp(); $detail = "OMaths=$($document.OMaths.Count), Text=$($math.Range.Text)"; [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($math); [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($mathRange) }
+        "symbol" { $target.InsertSymbol(169, "Arial", $true); $detail = "Symbol=$($target.Text)" }
+        "watermark" { $header = $document.Sections.Item(1).Headers.Item(1); $shape = $header.Shapes.AddTextEffect(1, "DRAFT", "Arial", 36, $false, $false, 100, 100); $detail = "HeaderShapes=$($header.Shapes.Count)"; [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($shape); [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($header) }
+        "pageColor" { $document.Background.Fill.Visible = -1; $document.Background.Fill.ForeColor.RGB = 16773360; $detail = "PageColor=$($document.Background.Fill.ForeColor.RGB)" }
+        "pageBorder" { $document.Sections.Item(1).Borders.Enable = 1; $detail = "Borders=$([int]$document.Sections.Item(1).Borders.Enable)" }
         default { throw "Word operation chưa được cài: $($item.word)" }
       }
 
@@ -144,6 +166,7 @@ finally {
       Stop-Process -Id $ownedPid -Force -ErrorAction SilentlyContinue
     }
   }
+  Remove-Item -LiteralPath $tempPng -Force -ErrorAction SilentlyContinue
 }
 
 $payload = [ordered]@{ blocked = $false; pid = $ownedPid; results = $results }
