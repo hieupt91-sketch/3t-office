@@ -229,6 +229,9 @@ export class WriterApp {
     });
 
     globalCommandBus.bindHandler("writer.page.setupDialog", async () => {
+      if (this.adapter && typeof this.adapter._openPageSetup === "function") {
+        return await this.adapter._openPageSetup();
+      }
       const res = await showPageSetupDialog();
       if (res && res.margins) {
         await globalCommandBus.execute("writer.ruler.setPageMargins", { margins: res.margins });

@@ -1,0 +1,581 @@
+{
+  "app": "writer",
+  "tabId": "layout",
+  "sample": {
+    "html": "<p id=\"source\"><b>Alpha</b> red</p><p id=\"target\">beta gamma</p><p id=\"third\">Zulu</p>",
+    "selection": {
+      "selector": "#target",
+      "start": 0,
+      "end": 4
+    }
+  },
+  "items": [
+    {
+      "commandId": "writer.page.setupDialog",
+      "group": "pageSetup",
+      "label": "Mở rộng Thiết lập trang",
+      "action": "launcher",
+      "assertion": "dialog",
+      "wordBlocked": "[CHẶN] Hộp thoại Thiết lập trang của UI không mở trực tiếp trong Word COM chạy ẩn.",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.page.margins",
+      "label": "Căn lề",
+      "action": "button",
+      "assertion": "dialog",
+      "wordBlocked": "[CHẶN] Nút mở hộp thoại/menu căn lề của VN Writer.",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.page.orientation",
+      "label": "Hướng giấy",
+      "action": "button",
+      "assertion": "dialog",
+      "wordBlocked": "[CHẶN] Nút mở hộp thoại/menu hướng giấy của VN Writer.",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.page.size",
+      "label": "Khổ giấy",
+      "action": "button",
+      "assertion": "dialog",
+      "wordBlocked": "[CHẶN] Nút mở hộp thoại/menu khổ giấy của VN Writer.",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.page.columns",
+      "label": "Hộp thoại Cột",
+      "action": "button",
+      "assertion": "dialog",
+      "wordBlocked": "[CHẶN] Nút mở hộp thoại cấu hình cột của VN Writer.",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.page.columns1",
+      "label": "Một cột",
+      "action": "button",
+      "assertion": "columns",
+      "expected": "1",
+      "xml": "w:cols",
+      "xmlScope": "document",
+      "xmlPattern": "<w:cols[^>]*w:num=\"1\"",
+      "word": "columns1",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.page.columns2",
+      "label": "Hai cột",
+      "action": "button",
+      "assertion": "columns",
+      "expected": "2",
+      "xml": "w:cols",
+      "xmlScope": "document",
+      "xmlPattern": "<w:cols[^>]*w:num=\"2\"",
+      "word": "columns2",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.page.columns3",
+      "label": "Ba cột",
+      "action": "button",
+      "assertion": "columns",
+      "expected": "3",
+      "xml": "w:cols",
+      "xmlScope": "document",
+      "xmlPattern": "<w:cols[^>]*w:num=\"3\"",
+      "word": "columns3",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.layout.breaks",
+      "label": "Ngắt",
+      "action": "dropdown",
+      "assertion": "menuOpen",
+      "wordBlocked": "[CHẶN] Nút cha chỉ mở menu thả xuống các tùy chọn ngắt.",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.page.break",
+      "label": "Ngắt trang",
+      "action": "menuItem",
+      "parent": "writer.layout.breaks",
+      "index": 0,
+      "assertion": "pageBreak",
+      "xml": "w:br",
+      "xmlScope": "document",
+      "xmlPattern": "(?:<w:br[^>]*w:type=\"page\"|<w:pageBreakBefore)",
+      "word": "pageBreak",
+      "shortcut": "Ctrl+Enter",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.break.column",
+      "label": "Ngắt cột",
+      "action": "menuItem",
+      "parent": "writer.layout.breaks",
+      "index": 1,
+      "assertion": "columnBreak",
+      "xml": "w:br",
+      "xmlScope": "document",
+      "xmlPattern": "<w:br[^>]*w:type=\"column\"",
+      "word": "columnBreak",
+      "shortcut": "Ctrl+Shift+Enter",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.section.nextPage",
+      "label": "Ngắt mục trang tiếp",
+      "action": "menuItem",
+      "parent": "writer.layout.breaks",
+      "index": 2,
+      "assertion": "sectionBreak",
+      "expected": "nextPage",
+      "xml": "w:sectPr",
+      "xmlScope": "document",
+      "xmlPattern": "<w:type[^>]*w:val=\"nextPage\"",
+      "word": "sectionNextPage",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.section.continuous",
+      "label": "Ngắt mục liên tục",
+      "action": "menuItem",
+      "parent": "writer.layout.breaks",
+      "index": 3,
+      "assertion": "sectionBreak",
+      "expected": "continuous",
+      "xml": "w:sectPr",
+      "xmlScope": "document",
+      "xmlPattern": "<w:type[^>]*w:val=\"continuous\"",
+      "word": "sectionContinuous",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.section.evenPage",
+      "label": "Ngắt mục trang chẵn",
+      "action": "menuItem",
+      "parent": "writer.layout.breaks",
+      "index": 4,
+      "assertion": "sectionBreak",
+      "expected": "evenPage",
+      "xml": "w:sectPr",
+      "xmlScope": "document",
+      "xmlPattern": "<w:type[^>]*w:val=\"evenPage\"",
+      "word": "sectionEvenPage",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.section.oddPage",
+      "label": "Ngắt mục trang lẻ",
+      "action": "menuItem",
+      "parent": "writer.layout.breaks",
+      "index": 5,
+      "assertion": "sectionBreak",
+      "expected": "oddPage",
+      "xml": "w:sectPr",
+      "xmlScope": "document",
+      "xmlPattern": "<w:type[^>]*w:val=\"oddPage\"",
+      "word": "sectionOddPage",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.layout.lineNumbers",
+      "label": "Số dòng: Liên tục",
+      "action": "select",
+      "value": "continuous",
+      "assertion": "lineNumbers",
+      "expected": "continuous",
+      "xml": "w:lnNumType",
+      "xmlScope": "document",
+      "xmlPattern": "<w:lnNumType",
+      "word": "lineNumbers",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.layout.sectionOptions",
+      "label": "Tùy chọn mục",
+      "action": "dropdown",
+      "assertion": "menuOpen",
+      "wordBlocked": "[CHẶN] Nút cha chỉ mở menu thả xuống các tùy chọn cấu hình mục.",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.section.options",
+      "label": "Cấu hình mục",
+      "action": "menuItem",
+      "parent": "writer.layout.sectionOptions",
+      "index": 0,
+      "assertion": "dialog",
+      "wordBlocked": "[CHẶN] Hộp thoại tùy chọn cấu hình mục của VN Writer.",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.pageNumber.format",
+      "label": "Định dạng số trang",
+      "action": "menuItem",
+      "parent": "writer.layout.sectionOptions",
+      "index": 1,
+      "assertion": "dialog",
+      "wordBlocked": "[CHẶN] Hộp thoại cấu hình số trang của VN Writer.",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.section.delete",
+      "label": "Xóa ngắt mục",
+      "action": "menuItem",
+      "parent": "writer.layout.sectionOptions",
+      "index": 2,
+      "assertion": "sectionDelete",
+      "word": "sectionDelete",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.format.paragraphDialog",
+      "group": "paragraph",
+      "label": "Mở rộng Đoạn văn",
+      "action": "launcher",
+      "assertion": "dialog",
+      "wordBlocked": "[CHẶN] Hộp thoại Đoạn văn của UI không mở trực tiếp trong Word COM chạy ẩn.",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.para.indentDec",
+      "label": "Giảm thụt lề",
+      "setup": "indented",
+      "action": "button",
+      "assertion": "indentDec",
+      "word": "indentDec",
+      "xml": "w:ind",
+      "shortcut": "Ctrl+Shift+M",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.para.indentInc",
+      "label": "Tăng thụt lề",
+      "action": "button",
+      "assertion": "indentInc",
+      "word": "indentInc",
+      "xml": "w:ind",
+      "xmlPattern": "<w:ind[^>]*w:left=\"720\"",
+      "shortcut": "Ctrl+M",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.para.lineSpacingLayout",
+      "label": "Giãn dòng",
+      "action": "dropdown",
+      "assertion": "menuOpen",
+      "wordBlocked": "[CHẶN] Nút cha chỉ mở danh sách tùy chọn giãn dòng.",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.para.spacing1",
+      "label": "Giãn dòng 1,0",
+      "action": "menuItem",
+      "parent": "writer.para.lineSpacingLayout",
+      "index": 0,
+      "assertion": "lineHeight",
+      "expected": "1",
+      "xml": "w:spacing",
+      "xmlPattern": "<w:spacing[^>]*w:line=\"240\"",
+      "word": "spacing1",
+      "shortcut": "Ctrl+1",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.para.spacing15",
+      "label": "Giãn dòng 1,5",
+      "action": "menuItem",
+      "parent": "writer.para.lineSpacingLayout",
+      "index": 1,
+      "assertion": "lineHeight",
+      "expected": "1.5",
+      "xml": "w:spacing",
+      "xmlPattern": "<w:spacing[^>]*w:line=\"360\"",
+      "word": "spacing15",
+      "shortcut": "Ctrl+5",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.para.spacing2",
+      "label": "Giãn dòng 2,0",
+      "action": "menuItem",
+      "parent": "writer.para.lineSpacingLayout",
+      "index": 2,
+      "assertion": "lineHeight",
+      "expected": "2",
+      "xml": "w:spacing",
+      "xmlPattern": "<w:spacing[^>]*w:line=\"480\"",
+      "word": "spacing2",
+      "shortcut": "Ctrl+2",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.para.lineSpacing",
+      "args": "1.15",
+      "label": "Giãn dòng 1,15",
+      "action": "menuItem",
+      "parent": "writer.para.lineSpacingLayout",
+      "index": 3,
+      "assertion": "lineHeight",
+      "expected": "1.15",
+      "xml": "w:spacing",
+      "xmlPattern": "<w:spacing[^>]*w:line=\"276\"",
+      "word": "spacing115",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.para.lineSpacing",
+      "args": "exact",
+      "label": "Giãn dòng chính xác",
+      "action": "menuItem",
+      "parent": "writer.para.lineSpacingLayout",
+      "index": 4,
+      "assertion": "dialog",
+      "wordBlocked": "[CHẶN] Hộp nhập số của UI không có phép so sánh COM tương đương khi Word chạy ẩn.",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.para.firstLineIndent",
+      "label": "Thụt đầu dòng: 1,27 cm",
+      "action": "select",
+      "value": "36",
+      "assertion": "firstLineIndent",
+      "expected": "36",
+      "xml": "w:ind",
+      "xmlPattern": "<w:ind[^>]*w:firstLine=\"720\"",
+      "word": "firstLineIndent",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.para.spacingBefore",
+      "label": "Khoảng trước: 6 pt",
+      "action": "select",
+      "value": "6",
+      "assertion": "spacingBefore",
+      "expected": "6",
+      "xml": "w:spacing",
+      "xmlPattern": "<w:spacing[^>]*w:before=\"120\"",
+      "word": "spacingBefore",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.para.spacingAfter",
+      "label": "Khoảng sau: 6 pt",
+      "action": "select",
+      "value": "6",
+      "assertion": "spacingAfter",
+      "expected": "6",
+      "xml": "w:spacing",
+      "xmlPattern": "<w:spacing[^>]*w:after=\"120\"",
+      "word": "spacingAfter",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.page.watermark",
+      "label": "Hình mờ",
+      "action": "button",
+      "assertion": "dialog",
+      "wordBlocked": "[CHẶN] Hộp thoại cấu hình hình mờ của VN Writer.",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.page.border",
+      "label": "Viền trang",
+      "action": "button",
+      "assertion": "dialog",
+      "wordBlocked": "[CHẶN] Hộp thoại cấu hình viền trang của VN Writer.",
+      "shortcut": "Không có",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "common.file.print",
+      "label": "In tài liệu",
+      "action": "button",
+      "assertion": "dialog",
+      "wordBlocked": "[CHẶN] Hộp thoại In hệ thống không mở trong Word COM chạy ẩn.",
+      "shortcut": "Ctrl+P",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    },
+    {
+      "commandId": "writer.file.printPreview",
+      "label": "Xem trước khi in",
+      "action": "button",
+      "assertion": "dialog",
+      "wordBlocked": "[CHẶN] Chế độ xem trước in của UI không so sánh qua COM.",
+      "shortcut": "Ctrl+F2",
+      "contexts": [
+        "Đầu tài liệu (Trang 1)",
+        "Giữa tài liệu (Trong bảng / danh sách)",
+        "Cuối tài liệu (Trang 35+)"
+      ]
+    }
+  ]
+}
