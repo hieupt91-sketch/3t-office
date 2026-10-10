@@ -186,7 +186,7 @@ export const viStrings = {
     conditionalFormatting: "Định dạng có điều kiện", rule: "Quy tắc", greaterThan: "Giá trị lớn hơn", lessThan: "Giá trị nhỏ hơn", blankCell: "Ô trống", fillColor: "Màu nền", invalidNumber: "Vui lòng nhập một giá trị số hợp lệ.",
     dataValidation: "Kiểm tra dữ liệu", allow: "Cho phép", list: "Danh sách lựa chọn", numberRange: "Số trong khoảng", listValues: "Các giá trị (cách nhau bằng dấu phẩy)", listPlaceholder: "Đạt, Chưa đạt, Đang xử lý", minimum: "Tối thiểu", maximum: "Tối đa", invalidValidation: "Thông tin kiểm tra dữ liệu chưa hợp lệ.", chooseOption: "-- Chọn --", selectCellValue: "Chọn giá trị cho ô {col}{row}",
     removeDuplicatesTitle: "Xóa trùng lặp", myHeaderRow: "Dữ liệu có hàng tiêu đề", columnsToCompare: "Cột dùng để xét trùng", selectAtLeastOneColumn: "Hãy chọn ít nhất một cột.", duplicatesRemovedResult: "Đã xóa {removed} hàng trùng lặp; còn {remaining} hàng dữ liệu.",
-    customSortTitle: "Sắp xếp", addLevel: "Thêm cấp", removeLevel: "Xóa cấp", sortBy: "Sắp xếp theo", thenBy: "Sau đó theo", sortByColumn: "Cột sắp xếp", sortOrder: "Thứ tự", sortAtoZ: "A → Z", sortZtoA: "Z → A",
+    customSortTitle: "Sắp xếp", customSortNeedsRange: "Sắp xếp tùy chỉnh cần vùng có ít nhất hai hàng. Hãy chọn một ô trong vùng dữ liệu hoặc chọn nhiều ô trước khi mở lệnh.", addLevel: "Thêm cấp", removeLevel: "Xóa cấp", sortBy: "Sắp xếp theo", thenBy: "Sau đó theo", sortByColumn: "Cột sắp xếp", sortOrder: "Thứ tự", sortAtoZ: "A → Z", sortZtoA: "Z → A",
     printPreview: {
       title: "Xem trước khi in",
       printBtn: "In tài liệu",

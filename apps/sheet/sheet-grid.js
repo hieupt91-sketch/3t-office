@@ -12411,7 +12411,10 @@ _bindGridKeyboardNavigation() {
   showCustomSortDialog() {
     const area = this._normalizeRange(this.selectionRange);
     const columns = this.dataTools.columns(area);
-    if (columns.length < 1 || area.end.r <= area.start.r) return false;
+    if (columns.length < 1 || area.end.r <= area.start.r) {
+      this._showDataNotice(t("sheetDialogs.customSortNeedsRange", "Sắp xếp tùy chỉnh cần vùng có ít nhất hai hàng. Hãy chọn một ô trong vùng dữ liệu hoặc chọn nhiều ô trước khi mở lệnh."));
+      return true;
+    }
     const columnLabel = col => {
       const preview = String(this.dataTools.value(col, area.start.r) ?? "").trim();
       return preview ? `${col}: ${preview}` : col;
