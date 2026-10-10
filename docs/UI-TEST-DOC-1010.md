@@ -39,3 +39,7 @@ Ghi chú ĐẠT (Chèn): Trang trắng, Ngắt trang, Đánh dấu, Chữ nghệ
 Ghi chú ĐẠT (Tham chiếu): Mục lục tự động liệt kê đủ 4 tiêu đề kèm số trang; Chú thích trang (số 1) và Chú thích cuối (số i) chèn đúng, có vùng chú thích.
 | U28 | RẤT CAO (ĐÃ SỬA) | Tệp > Lưu thành (Ctrl+Shift+S) | Báo 'Không thể lưu tài liệu — Không mở được hộp thoại lưu: ... (*.doc) is not a valid file filter'. Nguyên nhân: pywebview từ chối tên bộ lọc có dấu '-' ('97-2003'). Đã sửa 10/10 (đổi thành '97 đến 2003') kèm test dùng đúng bộ kiểm của pywebview. | Ảnh/log phiên live; test tests/test_save_as_filter_names.py. |
 | U29 | TRUNG BÌNH | Phím Ctrl+D | Không mở hộp thoại Phông chữ như Word (Ctrl+D). | Đo: không có hộp thoại sau Ctrl+D. Ctrl+P mở hộp in, Ctrl+H/F/K đúng. |
+| U30 | THẤP | Tham chiếu > Chú thích trang & Chú thích cuối | Nhãn nút trên ribbon hiển thị lặp ký tự số biểu tượng: "1 1 Chú thích trang" và "i i Chú thích cuối". | Đo text nút: "1 1 Chú thích trang", "i i Chú thích cuối"; ảnh tab-references-full. |
+| U31 | TRUNG BÌNH | Tham chiếu > Thư mục tài liệu | Bấm "Thư mục tài liệu" khi chưa có nguồn trích dẫn thì không có phản hồi, thông báo toast hay hộp thoại; thiếu ô chọn Kiểu trích dẫn (APA, MLA, IEEE) như Word. | Đo: dialogs = [], toast = null; ảnh tab-references-full. |
+| U32 | THẤP | Tham chiếu > Thiếu chức năng chuẩn Word | Thiếu nút "Thêm văn bản" (Add Text: Mức 1, 2, 3) vào mục lục; thiếu "Chú thích tiếp theo" và "Hiện vùng chú thích". | So sánh cấu trúc Ribbon Word chuẩn. |
+
