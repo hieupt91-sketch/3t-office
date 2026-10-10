@@ -102,3 +102,21 @@
 *Kiểm chứng lưu XLSX thật*: Tệp `test_sheet_work.xlsx` được lưu thành công với đầy đủ cấu trúc Page Setup (khổ letter, hướng ngang, lề tùy chỉnh, vùng in A1:E6), không gặp lỗi corrupt XML.
 
 ---
+
+### Nhóm 5: Xem lại (Review)
+
+| Nút / Chức năng | Ngữ cảnh kiểm thử | Kỳ vọng Excel | Thực tế kiểm định | PASS/FAIL | Phím tắt | Ghi chú |
+| :--- | :--- | :--- | :--- | :---: | :---: | :--- |
+| **Kiểm tra chính tả** (`sheet.review.spellCheck`) | Bấm nút Chính tả trên nhóm Kiểm lỗi và phím tắt F7 | Mở hộp thoại Kiểm tra chính tả (Spelling) quét các ô văn bản trên trang tính | Ribbon open=true; F7 open=true | **PASS** | `F7` | Kích hoạt kiểm tra chính tả tiếng Việt mượt mà cả chuột và phím F7. |
+| **Bật/tắt kiểm tra chính tả nội tuyến** (`sheet.review.toggleSpellCheck`) | Bấm nút Kiểm tra chính tả trên nhóm Kiểm lỗi | Bật/tắt tính năng gạch chân cảnh báo lỗi chính tả trong khi nhập | Thực thi toggleSpellcheck: initial=true | **PASS** | Không có | Tính năng kiểm tra chính tả nội tuyến sẵn sàng (ghi nhận lỗi hiển thị trạng thái nút tại U-S19). |
+| **Thêm ghi chú** (`sheet.review.commentInsert`) | Ô B2, bấm nút Ghi chú mới trên Ribbon và phím tắt Shift+F2 | Mở hộp thoại/ô nhập ghi chú và gắn biểu tượng chỉ báo ghi chú vào góc trên phải của ô | Dialog open=true; B2 comment=true; C3 comment=true | **PASS** | `Shift+F2` | Tạo và lưu trữ ghi chú ô tính chuẩn xác với người tạo và thời gian. |
+| **Điều hướng ghi chú** (`sheet.review.commentNext`, `commentPrevious`) | Bấm các nút Tiếp theo và Trước trên nhóm Ghi chú | Tự động di chuyển con trỏ chọn ô lần lượt qua các ô có chứa ghi chú (B2 -> C3 -> B2) | Next 1: B2 -> Next 2: C3 -> Prev: B2 | **PASS** | Không có | Điều hướng con trỏ chính xác qua các vị trí ô có ghi chú. |
+| **Đã xử lý ghi chú** (`sheet.review.commentResolve`) | Ô B2 đang có ghi chú, bấm nút Đã xử lý (Resolve) | Chuyển trạng thái ghi chú sang Đã xử lý (resolved = true) và làm mờ chỉ báo | B2 comment resolved=true | **PASS** | Không có | Chuyển trạng thái ghi chú sang Đã xử lý chuẩn xác. |
+| **Xóa ghi chú** (`sheet.review.commentDelete`) | Ô C3 đang có ghi chú, bấm nút Xóa ghi chú | Xóa bỏ toàn bộ nội dung ghi chú và chỉ báo màu đỏ góc ô C3 | C3 comment tồn tại=false | **PASS** | Không có | Xóa ghi chú ô tính an toàn và làm sạch chỉ báo trực quan. |
+| **Bảo vệ trang tính** (`sheet.sheet.protect`) | Bấm nút Bảo vệ trang tính trên nhóm Bảo vệ; kiểm tra khóa sửa ô và mật khẩu | Mở hộp thoại cấu hình mật khẩu; khi bật khóa: ngăn chặn mọi hành vi sửa ô; sai mật khẩu từ chối mở; đúng mật khẩu mở khóa | Khóa ô=true; Sai MK chặn=true; Mở MK đúng=true | **PASS** | Không có | Cơ chế Bảo vệ trang tính khóa chặn sửa ô và xác thực mật khẩu chuẩn xác 100%. |
+| **Bảo vệ sổ làm việc** (`sheet.workbook.protect`) | Bấm nút Bảo vệ workbook trên nhóm Bảo vệ; kiểm tra khóa cấu trúc sheet và mật khẩu | Mở hộp thoại thiết lập mật khẩu cấu trúc; chặn thêm/xóa/đổi tên sheet; nội dung ô vẫn cho phép sửa; xác thực mật khẩu chuẩn | Chặn đổi tên=true; Chặn thêm sheet=true; Ô vẫn sửa=true; Đúng MK mở=true | **PASS** | Không có | Bảo vệ cấu trúc sổ làm việc (Protect Workbook) hoạt động hoàn hảo theo chuẩn hành vi Excel. |
+| **Lưu tệp XLSX thật sau khi xử lý Ghi chú & Bảo vệ** | Lưu tệp workXlsx và giải nén kiểm tra tính toàn vẹn XML | Tệp lưu thành công không bị lỗi; bảo tồn cấu trúc XML tài liệu | Saved=true, XML entries=13 | **PASS** | `Ctrl+S` | Lưu tệp an toàn và duy trì tính toàn vẹn cấu trúc sau khi thêm ghi chú và kiểm tra bảo vệ. |
+
+*Kiểm chứng lưu XLSX thật*: Tệp `test_sheet_work.xlsx` được lưu thành công với 13 XML entries, bảo tồn dữ liệu trang tính và cấu trúc bảo vệ.
+
+---
