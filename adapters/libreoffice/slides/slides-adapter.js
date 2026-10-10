@@ -3879,7 +3879,13 @@ export class SlidesAdapter {
         return this.canvas.addNewSlide();
 
       case "slides.slide.duplicate":
-        return this.canvas.duplicateCurrentSlide();
+        {
+          const duplicated = this.canvas.duplicateCurrentSlide(true, true);
+          if (!duplicated) {
+            this.shell?.setStatus?.("Không thể nhân đôi slide lúc này. Hãy chọn một slide rồi thử lại.");
+          }
+          return duplicated;
+        }
 
       case "slides.slide.delete":
         return this.canvas.deleteCurrentSlide();
