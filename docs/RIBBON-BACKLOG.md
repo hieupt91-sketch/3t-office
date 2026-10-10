@@ -76,3 +76,11 @@ Toàn bộ phím tắt trong bảng tồn đọng trước đây đã được h
 - `Shift+F11`: Chèn trang tính mới trước trang tính hiện tại trong VN Sheet (có hoàn tác Ctrl+Z).
 - `F11`: Chèn biểu đồ chuẩn Excel trong vùng lưới VN Sheet (có hoàn tác Ctrl+Z).
 
+## 5. PHÁT HIỆN RB-D5b — 10/10/2026
+
+| Ứng dụng / vị trí | Phát hiện đã đo | Việc tiếp theo | Owner |
+|---|---|---|---|
+| VN Writer · Đánh giá · Đếm từ (`writer.review.wordCount`) | Trên `d13.docx`, số từ lệch Word 3; ký tự không khoảng trắng lệch 120; ký tự có khoảng trắng lệch 349; dòng lệch 608. Đếm đoạn đã sửa và khớp 326. | Điều tra cách tính từ/ký tự OOXML và giới hạn khác biệt phân trang/dòng giữa canvas và Word; không dùng Word COM lúc chạy app. | Writer |
+| VN Writer · Đánh giá · Đã xử lý (`writer.review.commentResolve`) | UI đánh dấu resolved, nhưng DOCX xuất không ghi trạng thái này; Word COM mở lại thấy tất cả `Comment.Done=False`. | Sửa serializer và roundtrip `commentsExtended`/resolved metadata, thêm kiểm tra XML + Word COM. Chi tiết trong `docs/AGENT-HANDOFF-RB-D5b-1010.md`. | Adapter |
+| VN Writer · Đánh giá · Kiểm tra chính tả | Nút bật/tắt có hiệu quả thật. Lệnh không có shortcut riêng; F7 hiện gọi Soát lỗi chính tả AI nên không chạy trong audit offline. | Xác định shortcut cục bộ an toàn cho lệnh toggle hoặc giữ rõ trạng thái không có shortcut; không dùng F7 để kiểm tài liệu có thể gửi AI. | Writer |
+

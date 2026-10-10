@@ -59,14 +59,22 @@ export async function runWriterWordCountTests() {
     const body = {
       querySelectorAll() {
         return [
-          { innerText: "Có nội dung" },
-          { innerText: "   " },
-          { textContent: "Tiêu đề" },
-          { innerText: "" }
+          { tagName: "P", innerText: "Có nội dung" },
+          { tagName: "P", innerText: "   " },
+          { tagName: "H1", textContent: "Tiêu đề" },
+          { tagName: "LI", innerText: "" }
         ];
       }
     };
     if (countBlockParagraphs(body) !== 2) throw new Error("Không bỏ khối rỗng");
+  });
+
+  await test("Word Count: không đếm kép đoạn nằm trong mục danh sách", () => {
+    const paragraph = { tagName: "P", innerText: "Mục danh sách" };
+    const listItem = { tagName: "LI", innerText: "Mục danh sách", querySelector: () => paragraph };
+    const plainListItem = { tagName: "LI", innerText: "Mục không có thẻ đoạn", querySelector: () => null };
+    const body = { querySelectorAll: () => [paragraph, listItem, plainListItem] };
+    if (countBlockParagraphs(body) !== 2) throw new Error(`Đếm kép mục danh sách: ${countBlockParagraphs(body)}`);
   });
 
   await test("Word Count: lệnh writer.review.wordCount có định nghĩa, icon và i18n VI/EN", () => {

@@ -79,6 +79,12 @@ export function countBlockParagraphs(bodyEl) {
   const blocks = bodyEl.querySelectorAll("p, h1, h2, h3, h4, h5, h6, li, blockquote");
   let count = 0;
   for (const el of blocks) {
+    // DOCX list paragraphs are rendered as <li><p>…</p></li>. Count the
+    // paragraph, not both its paragraph and its list container.
+    if ((el.tagName === "LI" || el.tagName === "BLOCKQUOTE") &&
+        el.querySelector?.("p, h1, h2, h3, h4, h5, h6")) {
+      continue;
+    }
     const value = (el.innerText != null ? el.innerText : el.textContent) || "";
     if (String(value).trim()) count += 1;
   }
