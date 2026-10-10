@@ -657,6 +657,7 @@ export const viStrings = {
     "writer.text.superscript": { label: "Chỉ số trên", tooltip: "Chỉ số trên X² (Ctrl+Shift++)" },
     "writer.text.clearFormat": { label: "Xóa định dạng", tooltip: "Xóa toàn bộ định dạng về mặc định (Ctrl+Space)" },
     "writer.font.family": { label: "Phông chữ", tooltip: "Chọn phông chữ" },
+    "writer.format.fontDialog": { label: "Hộp thoại Phông chữ", tooltip: "Mở hộp thoại Phông chữ (Ctrl+D)" },
     "writer.font.size": { label: "Cỡ chữ", tooltip: "Chọn cỡ chữ (Ctrl+Shift+P)" },
     "writer.style.apply": { label: "Kiểu dáng", tooltip: "Áp dụng kiểu đoạn văn (Normal, Heading 1, 2, 3, Quote, Emphasis)" },
     "writer.style.gallery": { label: "Thư viện kiểu", tooltip: "Mở thư viện kiểu định dạng trực quan (Styles Gallery)" },

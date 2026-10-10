@@ -40,6 +40,7 @@
 | F12 | Lưu thành | ✅ | `common.file.saveAs` |
 | F7 | Kiểm tra chính tả | ✅ | `ai.assistant.grammarCheck` |
 | Shift+F3 | Đổi chữ hoa/thường | ✅ | `writer.text.changeCase` |
+| Ctrl+D | Hộp thoại Phông chữ | ✅ | `writer.format.fontDialog` (scope Writer) |
 | Ctrl+K | Liên kết | ✅ | `common.edit.hyperlink` |
 | Ctrl+Home | Đầu tài liệu | ✅ | `writer.nav.docStart` |
 | Ctrl+End | Cuối tài liệu | ✅ | `writer.nav.docEnd` |

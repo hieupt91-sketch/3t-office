@@ -41,8 +41,11 @@ export class RuleBasedProvider {
         ? lines.map(l => `• ${l.trim().substring(0, 100)}...`).join("\n")
         : "• Tài liệu chứa các điều khoản hành chính chuẩn hóa.";
 
+      const wordCountNote = Number.isFinite(context.documentWordCount)
+        ? `\n\n*Phát hiện ${context.documentWordCount} từ trong văn bản.*`
+        : "";
       return {
-        reply: `**Tóm tắt nội dung tài liệu (Cục bộ & Bảo mật):**\n\n${summaryBullets}\n\n*Phát hiện ${docText.split(/\s+/).length} từ trong văn bản.*`
+        reply: `**Tóm tắt nội dung tài liệu (Cục bộ & Bảo mật):**\n\n${summaryBullets}${wordCountNote}`
       };
     }
 
@@ -84,7 +87,7 @@ export class RuleBasedProvider {
         };
       }
       return {
-        reply: `**Tìm kiếm thông minh (Chế độ cục bộ — giới hạn):**\n\n⚠️ Chế độ quy tắc cục bộ chỉ thực hiện tìm kiếm từ khóa đơn giản, không thể hiểu ngữ cảnh câu hỏi.\n\n**Kết quả tìm kiếm cơ bản:**\n• Tài liệu có ${docText.split(/\s+/).length} từ\n• Nội dung:${docText.substring(0, 300)}${docText.length > 300 ? "..." : ""}\n\n**Khuyến nghị:** Kết nối AI cloud (OpenAI, Gemini hoặc Claude) hoặc Ollama để sử dụng tính năng tìm kiếm thông minh đầy đủ — AI sẽ hiểu câu hỏi bằng ngôn ngữ tự nhiên và tìm các đoạn liên quan chính xác.`
+        reply: `**Tìm kiếm thông minh (Chế độ cục bộ — giới hạn):**\n\n⚠️ Chế độ quy tắc cục bộ chỉ thực hiện tìm kiếm từ khóa đơn giản, không thể hiểu ngữ cảnh câu hỏi.\n\n**Kết quả tìm kiếm cơ bản:**\n${Number.isFinite(context.documentWordCount) ? `• Tài liệu có ${context.documentWordCount} từ\n` : ""}• Nội dung:${docText.substring(0, 300)}${docText.length > 300 ? "..." : ""}\n\n**Khuyến nghị:** Kết nối AI cloud (OpenAI, Gemini hoặc Claude) hoặc Ollama để sử dụng tính năng tìm kiếm thông minh đầy đủ — AI sẽ hiểu câu hỏi bằng ngôn ngữ tự nhiên và tìm các đoạn liên quan chính xác.`
       };
     }
 

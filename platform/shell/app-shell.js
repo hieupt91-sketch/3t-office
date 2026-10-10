@@ -547,7 +547,13 @@ export class AppShell {
       stopBtn.style.display = "inline-block";
       try {
         const { LocalAiService } = await this._loadAiServices();
-        const res = await LocalAiService.query(query, { documentText: docText, appName: this.appName, signal: this._aiRequestController.signal });
+        const documentWordCount = this.getDocumentWordCount?.();
+        const res = await LocalAiService.query(query, {
+          documentText: docText,
+          documentWordCount: Number.isFinite(documentWordCount) ? documentWordCount : undefined,
+          appName: this.appName,
+          signal: this._aiRequestController.signal
+        });
         botMsg.innerHTML = `<div style="font-weight:bold;color:#16a34a;margin-bottom:6px;">✨ ${t("aiAssistant.title")}</div>`;
         const replyEl = document.createElement("div");
         replyEl.style.cssText = "white-space:pre-line;color:var(--vno-text-primary);";

@@ -53,6 +53,7 @@ import {
   tofMarkerHtml
 } from "../../../apps/writer/captions.js";
 import { countBlockParagraphs, countDocumentStats, showWordCountDialog } from "../../../apps/writer/word-count.js";
+import { showFontDialog } from "../../../apps/writer/font-dialog.js";
 
 let writerInsertDialogsPromise;
 let writerMailMergeDialogsPromise;
@@ -665,6 +666,7 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.style.heading2", () => this._applyParagraphStyle("h2"));
     globalCommandBus.bindHandler("writer.style.heading3", () => this._applyParagraphStyle("h3"));
     globalCommandBus.bindHandler("writer.text.changeCase", () => this.changeCase());
+    globalCommandBus.bindHandler("writer.format.fontDialog", () => this.openFontDialog());
     globalCommandBus.bindHandler("writer.para.sort", () => this.sortParagraphs());
     globalCommandBus.bindHandler("writer.para.showFormattingMarks", () => this.toggleFormattingMarks());
     globalCommandBus.bindHandler("writer.para.shading", (args) => this.applyParagraphShading(args));
@@ -1046,38 +1048,100 @@ export class WriterAdapter {
     if (!text) return false;
 
     this.flushTyping();
-    let newText = "";
     const isAllUpper = (text === text.toUpperCase() && text !== text.toLowerCase());
     const isAllLower = (text === text.toLowerCase() && text !== text.toUpperCase());
 
-    if (isAllUpper) {
-      // UPPER -> Title Case: Capitalize first letter of each word
-      newText = text.toLowerCase().replace(/(^|\s)\S/g, char => char.toUpperCase());
-    } else if (isAllLower) {
-      // lower -> UPPER
-      newText = text.toUpperCase();
-    } else {
-      // Mixed/Title -> lower
-      newText = text.toLowerCase();
+    if (!range?.deleteContents || typeof document === "undefined") return false;
+    const fragment = range.cloneContents();
+    const walker = document.createTreeWalker(fragment, NodeFilter.SHOW_TEXT);
+    const textNodes = [];
+    let textNode = walker.nextNode();
+    while (textNode) {
+      textNodes.push(textNode);
+      textNode = walker.nextNode();
     }
-
-    let success = false;
-    if (typeof document !== "undefined" && typeof document.execCommand === "function") {
-      try {
-        success = document.execCommand("insertText", false, newText);
-      } catch {
-        success = false;
-      }
+    const fragmentText = textNodes.map(node => node.data).join("");
+    const transformCase = value => isAllUpper
+      ? value.toLowerCase().replace(/(^|\s)\S/g, char => char.toUpperCase())
+      : isAllLower ? value.toUpperCase() : value.toLowerCase();
+    const convertedText = transformCase(fragmentText);
+    let sourceOffset = 0;
+    for (const node of textNodes) {
+      const sourceEnd = sourceOffset + node.data.length;
+      const outputStart = transformCase(fragmentText.slice(0, sourceOffset)).length;
+      const outputEnd = transformCase(fragmentText.slice(0, sourceEnd)).length;
+      node.data = convertedText.slice(outputStart, outputEnd);
+      sourceOffset = sourceEnd;
     }
-    if (!success && range?.deleteContents) {
-      range.deleteContents();
-      if (typeof document !== "undefined") {
-        range.insertNode(document.createTextNode(newText));
-      }
-    }
+    range.deleteContents();
+    const firstInserted = fragment.firstChild;
+    const lastInserted = fragment.lastChild;
+    if (!firstInserted || !lastInserted) return false;
+    range.insertNode(fragment);
+    const restoredRange = document.createRange();
+    restoredRange.setStartBefore(firstInserted);
+    restoredRange.setEndAfter(lastInserted);
+    sel.removeAllRanges();
+    sel.addRange(restoredRange);
 
     this.isDirty = true;
     this.recordSnapshot("writer.text.changeCase");
+    return true;
+  }
+
+  openFontDialog() {
+    const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+    const range = selection?.rangeCount ? selection.getRangeAt(0).cloneRange() : null;
+    const anchor = range?.startContainer?.nodeType === 1
+      ? range.startContainer
+      : range?.startContainer?.parentElement;
+    const computed = anchor && typeof getComputedStyle === "function" ? getComputedStyle(anchor) : null;
+    const sizePx = Number.parseFloat(computed?.fontSize || "");
+    const colorMatch = String(computed?.color || "").match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+    const initialColor = colorMatch
+      ? `#${colorMatch.slice(1, 4).map(value => Number(value).toString(16).padStart(2, "0")).join("")}`
+      : "#000000";
+    return showFontDialog({
+      initialSize: sizePx > 0 ? Math.round(sizePx * 0.75 * 2) / 2 : 14,
+      initialFamily: computed?.fontFamily?.split(",")[0]?.replace(/["']/g, "").trim(),
+      initialColor,
+      initialBold: Number.parseInt(computed?.fontWeight || "400", 10) >= 600,
+      initialItalic: computed?.fontStyle === "italic",
+      initialUnderline: String(computed?.textDecorationLine || "").includes("underline"),
+      onApply: (settings) => this.applyFontDialogSettings(settings, range)
+    });
+  }
+
+  applyFontDialogSettings(settings, savedRange) {
+    if (!savedRange || savedRange.collapsed || typeof document === "undefined") return false;
+    const selection = window.getSelection?.();
+    if (!selection) return false;
+    selection.removeAllRanges();
+    selection.addRange(savedRange);
+    const fragment = savedRange.extractContents();
+    const wrapper = document.createElement("span");
+    wrapper.style.fontFamily = settings.fontFamily;
+    wrapper.style.fontSize = `${settings.fontSize}pt`;
+    wrapper.style.fontWeight = settings.bold ? "bold" : "normal";
+    wrapper.style.fontStyle = settings.italic ? "italic" : "normal";
+    wrapper.style.textDecoration = settings.underline ? "underline" : "none";
+    if (settings.color) wrapper.style.color = settings.color;
+    wrapper.appendChild(fragment);
+    for (const descendant of wrapper.querySelectorAll("*")) {
+      descendant.style.fontFamily = settings.fontFamily;
+      descendant.style.fontSize = `${settings.fontSize}pt`;
+      descendant.style.fontWeight = settings.bold ? "bold" : "normal";
+      descendant.style.fontStyle = settings.italic ? "italic" : "normal";
+      descendant.style.textDecoration = settings.underline ? "underline" : "none";
+      if (settings.color) descendant.style.color = settings.color;
+    }
+    savedRange.insertNode(wrapper);
+    const nextRange = document.createRange();
+    nextRange.selectNodeContents(wrapper);
+    selection.removeAllRanges();
+    selection.addRange(nextRange);
+    this.isDirty = true;
+    this.recordSnapshot("writer.format.fontDialog");
     return true;
   }
 
