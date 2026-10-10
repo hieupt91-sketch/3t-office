@@ -57,6 +57,20 @@ export async function runSheetDateValuesTests() {
     assert.match(xml, /table:target-range-address="Plain\.A1:Plain\.L431"/);
   });
 
+  test("AutoFilter serializes live active-sheet state and discrete filter values", () => {
+    const a = Object.assign(Object.create(SheetAdapter.prototype), {
+      grid: {
+        activeSheet: "Data", isFilterActive: true,
+        sheetStates: { Data: { filterRange: "B1:D4" } },
+        activeFilters: new Map([["C", new Set(["Đạt", "Tốt"])]]),
+        sheetsData: { Data: new Map([["B1", {}], ["D4", {}]]) }
+      }
+    });
+    const xml = a._serializeDatabaseRanges(["Data"]);
+    assert.match(xml, /table:target-range-address="Data\.B1:Data\.D4"/);
+    assert.match(xml, /vno:filter-columns="\[\{&quot;colId&quot;:1,&quot;values&quot;:\[&quot;Đạt&quot;,&quot;Tốt&quot;\]\}\]"/);
+  });
+
   test("S26a: FODS moi giu dinh dang am co dau tru", () => {
     const adapter = Object.create(SheetAdapter.prototype);
     assert.match(adapter._numberFormatXml({ category: "number", decimals: 0, useThousands: true, negativeStyle: 1 }, "nS26"), /<number:text>-<\/number:text>/);

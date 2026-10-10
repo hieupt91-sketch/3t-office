@@ -268,6 +268,16 @@ class TestParseAutofilterFromFods(unittest.TestCase):
             {"DataSheet": "A3:F3"},
         )
 
+    def test_reads_vno_active_filter_values(self):
+        fods = FODS_BASE.replace(
+            "</office:spreadsheet>",
+            '<table:database-ranges><table:database-range table:name="AF1" table:target-range-address="DataSheet.A1:B4" vno:filter-columns="[{&quot;colId&quot;:0,&quot;values&quot;:[&quot;Đạt&quot;,&quot;Tốt&quot;]}]"/></table:database-ranges></office:spreadsheet>'
+        )
+        self.assertEqual(
+            patcher.parse_autofilter_filter_columns_from_fods(fods),
+            {"DataSheet": [{"colId": 0, "values": ["Đạt", "Tốt"]}]},
+        )
+
 
 class TestApplyAutofilterToFods(unittest.TestCase):
     def test_injects_database_ranges(self):
@@ -300,6 +310,18 @@ class TestPostprocessSheetXlsxAutofilter(unittest.TestCase):
         with zipfile.ZipFile(io.BytesIO(patched)) as z:
             sheet4 = z.read("xl/worksheets/sheet4.xml").decode("utf-8")
         self.assertIn('<autoFilter ref="A1:C10"/>', sheet4)
+
+    def test_writes_filter_columns_and_filter_database_name(self):
+        fods = FODS_BASE.replace(
+            "</office:spreadsheet>",
+            '<table:database-ranges><table:database-range table:name="AF1" table:target-range-address="PlainSheet.A1:C4" table:display-filter-buttons="true" vno:filter-columns="[{&quot;colId&quot;:1,&quot;values&quot;:[&quot;Đạt&quot;,&quot;Tốt&quot;]}]"/></table:database-ranges></office:spreadsheet>'
+        )
+        patched = patcher.postprocess_sheet_xlsx(_fake_xlsx(), source_fods=fods)
+        with zipfile.ZipFile(io.BytesIO(patched)) as z:
+            sheet = z.read("xl/worksheets/sheet4.xml").decode("utf-8")
+            workbook = z.read("xl/workbook.xml").decode("utf-8")
+        self.assertIn('<filterColumn colId="1"><filters><filter val="Đạt"/><filter val="Tốt"/></filters></filterColumn>', sheet)
+        self.assertIn('<definedName name="_xlnm._FilterDatabase" localSheetId="3" hidden="1">\'PlainSheet\'!$A$1:$C$4</definedName>', workbook)
 
     def test_new_workbook_gets_s24_defaults_and_keeps_fods_autofilter(self):
         original = _fake_xlsx()
