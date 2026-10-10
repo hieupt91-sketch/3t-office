@@ -88,3 +88,17 @@
 *Kiểm chứng lưu XLSX thật*: Tệp `test_sheet_work.xlsx` được lưu thành công; giải nén XML `xl/styles.xml` ghi nhận đầy đủ `<numFmt>` (164: General, 165: @, 166: 0.00%, 167: dd/mm/yyyy, 168: #,##0[$₫], 169: #,##0.0) và trong `xl/worksheets/sheet1.xml` các ô C2, D2, E2, C3, D3, C4 đều duy trì kiểu số `<c ... t="n"><v>...</v></c>` với giá trị nguyên gốc (`<v>1234.5</v>`, `<v>0.075</v>`, `<v>45000</v>`, `<v>5678.9</v>`, `<v>2468</v>`) mà không bị làm tròn phá hủy dữ liệu.
 
 ---
+
+### Nhóm 5: Kiểu (Styles)
+
+| Nút / Chức năng | Ngữ cảnh kiểm thử | Kỳ vọng Excel | Thực tế kiểm định | PASS/FAIL | Phím tắt | Ghi chú |
+| :--- | :--- | :--- | :--- | :--- | :---: | :--- |
+| **Định dạng có điều kiện** (`sheet.format.conditional`) | Chọn dải C2:C6, mở hộp thoại Định dạng có điều kiện, thêm quy tắc > 2000 | Mở hộp thoại thiết lập quy tắc, áp dụng quy tắc thành công vào mô hình bảng tính | dialogOpen=true, applied=true, rulesCount=1 | **PASS** | Không có | Mở hộp thoại quy tắc điều kiện (Lớn hơn, Nhỏ hơn, Trống...), áp dụng và lưu quy tắc chuẩn xác. |
+| **Định dạng theo bảng** (`sheet.style.formatAsTable`) | Chọn dải A1:D6, mở thư viện mẫu bảng, chọn mẫu bảng áp dụng | Mở thư viện kiểu bảng (Light/Medium/Dark), áp dụng tiêu đề màu và hàng xen kẽ vào vùng chọn | dialogOpen=true, applied=true, closed=true, headerBg=#2563eb | **PASS** | `Ctrl+T / Ctrl+L` | Thư viện kiểu bảng hiển thị phong phú các mẫu Sáng/Trung bình/Tối, áp dụng màu tiêu đề và hàng chuẩn Excel. |
+| **Kiểu ô** (`sheet.style.cellStyles`) | Chọn ô B2, mở thư viện Kiểu ô, chọn kiểu Trạng thái/Tốt | Mở thư viện kiểu ô (Tốt/Xấu/Trung tính/Tiêu đề), gán màu nền và chữ định sẵn cho ô tính | dialogOpen=true, applied=true, closed=true, bg=#c6efce | **PASS** | Không có | Thư viện kiểu ô phong phú theo chuẩn Excel (Good, Bad, Neutral, Heading, Data), áp style tức thì. |
+| **Đóng hộp thoại Kiểu bằng Escape** | Mở thư viện Kiểu ô, nhấn phím Escape | Hộp thoại đóng an toàn, trả focus về lưới ô tính | opened=true, closed=true | **PASS** | `Escape` | Đóng overlay an toàn chuẩn UI accessibility, không làm treo ứng dụng. |
+
+*Kiểm chứng lưu XLSX thật*: Tệp lưu ra được giải nén và kiểm tra `xl/styles.xml`, ghi nhận các kiểu định dạng bảng và kiểu ô được lưu đầy đủ vào cấu trúc XML chuẩn của OpenXML.
+
+---
+
