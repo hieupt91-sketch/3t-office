@@ -167,7 +167,7 @@ export async function showThemeGalleryDialog(currentThemeId = "office") {
                       <span class="vno-theme-palette-dot" style="width:10px; height:10px; border-radius:50%; background:${theme.h3Color};"></span>
                     </div>
                   </div>
-                  <div style="font-size:11px; font-style:italic; color:var(--vno-text-secondary, #94a3b8); font-family:${theme.fontFamily};">${theme.previewSample}</div>
+                  <div class="vno-theme-card-preview-text" style="font-size:11px; font-style:italic; color:var(--vno-text-secondary, #94a3b8);">${theme.previewSample}</div>
                   <p style="margin:0; font-size:11px; color:var(--vno-text-secondary); line-height:1.4;">${theme.description}</p>
                 </button>
               `;

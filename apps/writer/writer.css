@@ -1228,14 +1228,18 @@ li.vno-page-auto-gap {
   outline-color: #60a5fa;
 }
 
+/* Gạch đỏ chính tả KHÔNG dùng text-decoration: Chromium coi đó là chữ "gạch chân" nên Ctrl+U tại từ bị đánh dấu lại gỡ gạch chân thay vì bật. */
 .vno-spelling-uncertain {
-  text-decoration: underline wavy #dc2626 1.5px;
-  text-underline-offset: 3px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='3' viewBox='0 0 6 3'%3E%3Cpath d='M0 2.2 Q1.5 0.2 3 2.2 T6 2.2' fill='none' stroke='%23dc2626' stroke-width='1'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-position: left bottom;
+  background-size: 6px 3px;
+  padding-bottom: 1px;
   cursor: text;
 }
 
 [data-theme="dark"] .vno-spelling-uncertain {
-  text-decoration-color: #f87171;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='3' viewBox='0 0 6 3'%3E%3Cpath d='M0 2.2 Q1.5 0.2 3 2.2 T6 2.2' fill='none' stroke='%23f87171' stroke-width='1'/%3E%3C/svg%3E");
 }
 
 
@@ -1773,6 +1777,8 @@ li.vno-page-auto-gap {
    Table of Contents (Mục lục tự động — Word Parity)
    ========================================================================== */
 .vno-toc-block {
+  position: relative;
+  z-index: 20;
   margin: 18pt 0;
   padding: 16px 20px;
   background: #f8fafc;
@@ -1794,7 +1800,7 @@ li.vno-page-auto-gap {
   justify-content: space-between;
   border-bottom: 2px solid #0f4c81;
   padding-bottom: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 6px;
 }
 
 .vno-toc-title {
@@ -1848,6 +1854,8 @@ li.vno-page-auto-gap {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  /* The paged Writer canvas adds a measured 60px gap before the first entry. */
+  margin-top: -60px;
 }
 
 .vno-toc-item {
@@ -1902,7 +1910,7 @@ li.vno-page-auto-gap {
 .vno-toc-level-1 {
   font-weight: 700;
   font-size: 12pt;
-  margin-top: 4px;
+  margin-top: 0;
 }
 
 .vno-toc-level-2 {
@@ -2835,6 +2843,12 @@ sup.vno-endnote-ref:hover {
   display: inline-block;
   flex-shrink: 0;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+.vno-theme-card-preview-text {
+  font-family: Arial, "Noto Sans", sans-serif;
+  letter-spacing: normal;
+  word-spacing: normal;
+  font-kerning: normal;
 }
 [data-theme="dark"] .vno-theme-palette-dot {
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35);

@@ -10,6 +10,7 @@ import { mapVnCommandToUno } from "../../adapters/libreoffice/common/command-dis
 import { WRITER_COMMANDS } from "../../platform/commands/command-definitions.js";
 import { WRITER_RIBBON_TABS } from "../../apps/writer/writer-ribbon.js";
 import { ICONS } from "../../platform/ui-kit/icons.js";
+import { readFileSync } from "node:fs";
 
 class FakeClassList {
   constructor(owner) { this.owner = owner; }
@@ -370,6 +371,20 @@ export async function runWriterTocFootnotesTests() {
       results.push({ name, pass: false, error: err.message });
     }
   };
+
+  await test("Writer TOC: tiêu đề sát dòng đầu và nổi trên shape layer", () => {
+    const css = readFileSync(new URL("../../apps/writer/writer.css", import.meta.url), "utf8");
+    const block = css.match(/\.vno-toc-block\s*\{([^}]+)\}/s)?.[1] || "";
+    const header = css.match(/\.vno-toc-header\s*\{([^}]+)\}/s)?.[1] || "";
+    const entries = css.match(/\.vno-toc-entries\s*\{([^}]+)\}/s)?.[1] || "";
+    const levelOne = css.match(/\.vno-toc-level-1\s*\{([^}]+)\}/s)?.[1] || "";
+    if (!/position:\s*relative/.test(block) || !/z-index:\s*20/.test(block)) {
+      throw new Error("Mục lục phải có stacking layer trên shapes layer");
+    }
+    if (!/margin-bottom:\s*6px/.test(header) || !/margin-top:\s*-60px/.test(entries) || !/margin-top:\s*0/.test(levelOne)) {
+      throw new Error("Khoảng cách dưới tiêu đề mục lục chưa được thu gọn");
+    }
+  });
 
   // Test 1: Command Definitions
   await test("Writer References: 4 command mới được khai báo chuẩn trong WRITER_COMMANDS", async () => {

@@ -7,7 +7,7 @@ Cách làm: mở app Doc thật (WebView2) và giữ mở liên tục (`scripts/
 
 | # | Mức | Tab / chức năng | Mô tả (như người dùng thấy) | Bằng chứng / nguyên nhân nghi ngờ |
 |---|---|---|---|---|
-| U1 | CAO | Trang đầu — In đậm / In nghiêng / Gạch chân khi chưa chọn chữ | Bấm Ctrl+B (hoặc nút B) rồi gõ chữ: chữ gõ ra KHÔNG đậm. Người dùng Word làm thao tác này liên tục. | Chỉ xảy ra khi bật kiểm tra chính tả: kiểm tra chính tả bọc từ vào thẻ `span` sau khi gõ nên đặt lại con trỏ và mất trạng thái "gõ tiếp đậm". Tắt kiểm tra chính tả thì Ctrl+B đúng. Gợi ý sửa: dùng CSS Custom Highlight API thay vì sửa DOM. Ảnh 02, 03. |
+| U1 | CAO (ĐÃ SỬA 10/10) | Trang đầu — In đậm / In nghiêng / Gạch chân khi chưa chọn chữ | Bấm Ctrl+B (hoặc nút B) rồi gõ chữ: chữ gõ ra KHÔNG đậm. Người dùng Word làm thao tác này liên tục. | Chỉ xảy ra khi bật kiểm tra chính tả: kiểm tra chính tả bọc từ vào thẻ `span` sau khi gõ nên đặt lại con trỏ và mất trạng thái "gõ tiếp đậm". Tắt kiểm tra chính tả thì Ctrl+B đúng. Gợi ý sửa: dùng CSS Custom Highlight API thay vì sửa DOM. Ảnh 02, 03. |
 | U2 | TRUNG BÌNH | Kiểm tra chính tả tiếng Việt | Gạch đỏ nhầm các từ đúng như "đạt", "tỷ". | Ảnh 02. Từ điển thiếu từ phổ biến. |
 | U3 | THẤP | Trang đầu — Xóa định dạng (Ctrl+Space) tại con trỏ | Ở đoạn mới sau chữ đậm, Ctrl+Space không đưa trạng thái đậm về mặc định. | Phép đo `queryCommandState('bold')` vẫn true. |
 | U4 | THẤP | Chèn > Văn bản — Chữ đầu đoạn, Ngày & Giờ | Nút chỉ có biểu tượng, không có nhãn chữ như các nút khác trong nhóm; người dùng khó đoán chức năng. | Chỉ có tooltip. |
@@ -60,3 +60,5 @@ Ghi chú ĐẠT (1024x600): Không phát sinh thanh cuộn ngang toàn cửa s�
 
 
 
+
+Ghi chú 10/10: U1 đã sửa (commit 729efa6c). Nguyên nhân thật gồm 2 phần: (a) vòng quét chính tả đặt lại vùng chọn khi người dùng vừa bấm Ctrl+B trong lúc chờ gõ; (b) gạch đỏ vẽ bằng text-decoration nên Ctrl+U tại từ bị gạch đỏ lại gỡ gạch chân. Đo desktop: 0/3 trước sửa → 3/3 sau sửa.
