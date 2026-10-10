@@ -420,9 +420,18 @@ export class SlidesAdapter {
     const cssValue = Number.isFinite(multiple) && !/[a-z%]/i.test(String(value))
       ? (this._odfProportionalToCssLineHeight(`${multiple * 100}%`) || String(value))
       : String(value);
-    if (node && node !== root && node.style) node.style.lineHeight = cssValue;
+    let lineHeightTarget = node && node !== root ? node : null;
+    if (!lineHeightTarget && root?.appendChild && typeof document !== "undefined" && typeof document.createElement === "function") {
+      lineHeightTarget = root.querySelector?.("p, div, li") || null;
+      if (!lineHeightTarget) {
+        lineHeightTarget = document.createElement("div");
+        while (root.firstChild) lineHeightTarget.appendChild(root.firstChild);
+        root.appendChild(lineHeightTarget);
+      }
+    }
+    if (lineHeightTarget?.style) lineHeightTarget.style.lineHeight = cssValue;
     else if (this._savedEditable?.style) this._savedEditable.style.lineHeight = cssValue;
-    this.canvas?._syncEditableFieldsFromDom?.();
+    this.canvas?._syncVisibleSpellcheckText?.();
     this._syncTextFormatState();
     return true;
   }
@@ -482,7 +491,9 @@ export class SlidesAdapter {
       el.removeAttribute?.("size");
       el.style.fontSize = `${px}px`;
     }
-    this.canvas?._syncEditableFieldsFromDom?.();
+    // The exact-size normalization edits the DOM after execCommand emits its input event.
+    // Sync shape text too; _syncEditableFieldsFromDom only covers title/body placeholders.
+    this.canvas?._syncVisibleSpellcheckText?.();
     this._syncTextFormatState();
     return true;
   }

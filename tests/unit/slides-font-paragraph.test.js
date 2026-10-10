@@ -191,6 +191,16 @@ export async function runSlidesFontParagraphTests() {
     if (!stateChanges.get("slides.text.bold")?.checked) throw new Error("updateState bold checked=true");
   });
 
+  await test("Font/Paragraph: cỡ chữ và giãn dòng đồng bộ rich text của textbox sau khi sửa DOM", async () => {
+    let shapeSyncCalls = 0;
+    canvas._syncVisibleSpellcheckText = () => { shapeSyncCalls += 1; };
+    adapter._savedEditable = new FakeElement("div");
+    adapter._savedEditable.contentEditable = "true";
+    await adapter.handleDispatch(".uno:FontHeight", "6", "slides.font.size");
+    await adapter.handleDispatch(".uno:SpacePara1", "1.5", "slides.para.lineSpacing");
+    if (shapeSyncCalls !== 2) throw new Error(`Textbox rich text chưa được đồng bộ sau chỉnh định dạng: ${shapeSyncCalls}`);
+  });
+
   await test("Font/Paragraph: italic/underline/bullet/align/fontName/fontSize/foreColor đi đúng execCommand", async () => {
     execCalls.length = 0;
     await adapter.handleDispatch(".uno:Italic", null, "slides.text.italic");
