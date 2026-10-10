@@ -15952,7 +15952,11 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
             highlight_texts[txt] = "yellow"
     for span in re.finditer(r'<(?:span|font)\b(?=[^>]*\bstyle=["\']([^"\']*)["\'])[^>]*>([\s\S]*?)</(?:span|font)\s*>', source_html, re.IGNORECASE):
         style = span.group(1)
-        if re.search(r'background-color\s*:\s*(?:#ffff00|yellow|rgb\(\s*255\s*,\s*255\s*,\s*0\s*\))', style, re.IGNORECASE):
+        if re.search(
+            r'background-color\s*:\s*(?:#ffff00|#ffcd00|yellow|rgb\(\s*255\s*,\s*(?:255|205)\s*,\s*0\s*\))',
+            style,
+            re.IGNORECASE,
+        ):
             txt = _writer_html_plain(span.group(2)).strip()
             if txt:
                 highlight_texts[txt] = "yellow"

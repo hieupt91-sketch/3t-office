@@ -7135,7 +7135,7 @@ export class WriterAdapter {
 
       case "writer.text.underline":
         document.execCommand("underline", false, null);
-        dispatchResult = document.queryCommandState("underline");
+        dispatchResult = this._readInlineCommandState("underline");
         break;
 
       case "writer.text.strike":
@@ -7278,7 +7278,12 @@ export class WriterAdapter {
       case "writer.font.size":
         // 1–7 là chỉ số cũ của execCommand; mọi giá trị khác là số pt thật (8–72 từ ô Cỡ chữ).
         if (Number.isFinite(Number(args)) && Number(args) > 0 && !(Number.isInteger(Number(args)) && Number(args) <= 7)) return this._applyFontSizePt(Number(args));
-        if (args) document.execCommand("fontSize", false, args);
+        if (args) {
+          document.execCommand("fontSize", false, args);
+        } else {
+          const sizeSelect = document.querySelector('select[data-command-id="writer.font.size"]');
+          if (sizeSelect) sizeSelect.focus();
+        }
         dispatchResult = true;
         break;
 
@@ -8653,6 +8658,32 @@ export class WriterAdapter {
     }
   }
 
+  _readInlineCommandState(domCommand) {
+    let fallback = false;
+    try { fallback = Boolean(document.queryCommandState(domCommand)); } catch {}
+    if (domCommand !== "underline" || typeof window === "undefined") return fallback;
+    const selection = window.getSelection?.();
+    let node = selection?.anchorNode || null;
+    if (node?.nodeType === 3) node = node.parentElement;
+    if (!node || !this.bodyDom?.contains?.(node)) return fallback;
+    while (node && node !== this.bodyDom) {
+      if (String(node.tagName || "").toLowerCase() === "u") return true;
+      const inline = String(node.style?.textDecorationLine || node.style?.textDecoration || "").toLowerCase();
+      if (inline.includes("underline")) return true;
+      try {
+        const cs = window.getComputedStyle?.(node);
+        const line = String(cs?.textDecorationLine || "").toLowerCase();
+        const style = String(cs?.textDecorationStyle || "").toLowerCase();
+        const isSpelling = Boolean(node.classList?.contains?.("vno-spelling-uncertain") || node.getAttribute?.("data-vno-spelling-uncertain"));
+        if (line.includes("underline") && style !== "wavy" && !isSpelling) return true;
+      } catch {}
+      node = node.parentElement;
+    }
+    // Chromium can retain queryCommandState('underline') after removing the final <u>
+    // around a spell-check span. DOM/computed style is the actual formatting source.
+    return false;
+  }
+
   // Ribbon toggle buttons (Bold, Italic, alignment, lists...) must follow the text under the caret, not only the last
   // command that was run: moving the caret from a bold word to a normal one used to leave "Bold" lit.
   static FORMAT_TOGGLE_STATES = {
@@ -8690,7 +8721,7 @@ export class WriterAdapter {
       if (!current) continue;
       let active = false;
       try {
-        active = Boolean(document.queryCommandState(domCommand));
+        active = this._readInlineCommandState(domCommand);
       } catch {
         continue;
       }

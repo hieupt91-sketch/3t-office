@@ -48,6 +48,10 @@ const OFFICE_SHORTCUTS = {
     { shortcut: "Ctrl+End", action: "Doc end" },
     { shortcut: "Ctrl+]", action: "Grow font (incremental)" },
     { shortcut: "Ctrl+[", action: "Shrink font (incremental)" },
+    { shortcut: "Ctrl+Shift+P", action: "Font size" },
+    { shortcut: "Ctrl+Shift+L", action: "Bullet list" },
+    { shortcut: "Ctrl+*", action: "Show formatting marks" },
+    { shortcut: "Ctrl+Alt+H", action: "Highlight color" },
   ],
   sheet: [
     { shortcut: "Ctrl+N", action: "New workbook" },

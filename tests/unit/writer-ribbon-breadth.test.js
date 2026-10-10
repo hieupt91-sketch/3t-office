@@ -115,6 +115,34 @@ export async function runWriterRibbonBreadthTests() {
     }
   }
 
+  (() => {
+    const body = { contains: () => true };
+    const plain = { nodeType: 1, tagName: "SPAN", style: {}, parentElement: body };
+    const underlined = { nodeType: 1, tagName: "U", style: {}, parentElement: body };
+    const adapter = Object.create(WriterAdapter.prototype);
+    adapter.bodyDom = body;
+    const originalDocument = globalThis.document;
+    const originalWindow = globalThis.window;
+    try {
+      globalThis.document = { queryCommandState: () => true };
+      globalThis.window = { getSelection: () => ({ anchorNode: plain }), getComputedStyle: () => ({ textDecorationLine: "none" }) };
+      const staleBrowserStateIsIgnored = adapter._readInlineCommandState("underline") === false;
+      globalThis.window = { getSelection: () => ({ anchorNode: underlined }), getComputedStyle: () => ({ textDecorationLine: "underline", textDecorationStyle: "solid" }) };
+      const realUnderlineIsDetected = adapter._readInlineCommandState("underline") === true;
+      const spellNode = { nodeType: 1, tagName: "SPAN", style: {}, classList: { contains: c => c === "vno-spelling-uncertain" }, parentElement: body };
+      globalThis.window = { getSelection: () => ({ anchorNode: spellNode }), getComputedStyle: () => ({ textDecorationLine: "underline", textDecorationStyle: "wavy" }) };
+      const wavySpellUnderlineIsIgnored = adapter._readInlineCommandState("underline") === false;
+      assert(
+        "Writer Home: trạng thái nút Gạch chân theo DOM thật khi Chromium giữ queryCommandState cũ",
+        staleBrowserStateIsIgnored && realUnderlineIsDetected && wavySpellUnderlineIsIgnored,
+        "Nút Gạch chân không tắt/bật theo định dạng thật của vùng chọn"
+      );
+    } finally {
+      if (originalDocument === undefined) delete globalThis.document; else globalThis.document = originalDocument;
+      if (originalWindow === undefined) delete globalThis.window; else globalThis.window = originalWindow;
+    }
+  })();
+
   // =========================================================================
   // PHẦN 1: Chỉ số dưới (Subscript) và Chỉ số trên (Superscript)
   // =========================================================================
