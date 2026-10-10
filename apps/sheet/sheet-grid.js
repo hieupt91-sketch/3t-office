@@ -5703,7 +5703,20 @@ _bindGridKeyboardNavigation() {
       renderDesc();
     });
 
-    const close = () => { if (modal.parentNode) modal.parentNode.removeChild(modal); };
+    const onDialogKeyDown = (event) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopPropagation();
+      close();
+    };
+    const close = () => {
+      document.removeEventListener("keydown", onDialogKeyDown, true);
+      if (modal.parentNode) modal.parentNode.removeChild(modal);
+      if (previousActive && typeof previousActive.focus === "function") {
+        try { previousActive.focus(); } catch (_) {}
+      }
+    };
+    document.addEventListener("keydown", onDialogKeyDown, true);
     modal.querySelector("#vno-fx-close").addEventListener("click", close);
     modal.querySelector("#vno-fx-cancel-btn").addEventListener("click", close);
 
