@@ -2210,7 +2210,7 @@ DEFAULT_SAVE_FORMAT = {
 SAVE_FILE_TYPES = {
     "writer": (
         "Tài liệu Word (*.docx)",
-        "Văn bản Word 97-2003 (*.doc)",
+        "Văn bản Word 97 đến 2003 (*.doc)",
         "Tài liệu ODF (*.odt)",
         "Định dạng Rich Text (*.rtf)",
         "Văn bản thuần (*.txt)",
@@ -2219,7 +2219,7 @@ SAVE_FILE_TYPES = {
     ),
     "sheet": (
         "Bảng tính Excel (*.xlsx)",
-        "Bảng tính Excel 97-2003 (*.xls)",
+        "Bảng tính Excel 97 đến 2003 (*.xls)",
         "Bảng tính ODF (*.ods)",
         "Văn bản phân tách dấu phẩy (*.csv)",
         "Tài liệu PDF (*.pdf)",
@@ -2227,7 +2227,7 @@ SAVE_FILE_TYPES = {
     ),
     "slides": (
         "Bản trình chiếu PowerPoint (*.pptx)",
-        "Bản trình chiếu PowerPoint 97-2003 (*.ppt)",
+        "Bản trình chiếu PowerPoint 97 đến 2003 (*.ppt)",
         "Bản trình chiếu ODF (*.odp)",
         "Tài liệu PDF (*.pdf)",
         "Tất cả tệp (*.*)",
