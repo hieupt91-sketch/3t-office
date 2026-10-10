@@ -270,5 +270,30 @@ export async function runWriterSectionBreaksPageColorTests() {
     assert(!exportedHtml.includes('<div class="vno-writer-columns-content vno-writer-body"'), "Đa mục không được bọc toàn thân trong columns-content");
   });
 
+  await test("Writer Section Columns: _extractSectionsFromOoxml extracts w:cols into section pageSetup", () => {
+    const { adapter } = createAdapter();
+    const docXml = `
+      <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+        <w:body>
+          <w:p><w:pPr><w:sectPr><w:type w:val="continuous"/><w:cols w:num="2" w:space="567" w:sep="1"/></w:sectPr></w:pPr><w:r><w:t>Sec 1</w:t></w:r></w:p>
+          <w:sectPr><w:cols w:space="720"/></w:sectPr>
+        </w:body>
+      </w:document>
+    `;
+    const res = adapter._extractSectionsFromOoxml(docXml);
+    assert(res && res.sections.length === 2, "Cần trích xuất đúng 2 sections");
+    assert(res.sectionPageSetups["section-1"]?.columns?.count === 2, "Section 1 phải có 2 cột");
+    assert(res.sectionPageSetups["section-1"]?.columns?.rule === true, "Section 1 phải có đường kẻ");
+    assert(res.sectionPageSetups["section-2"]?.columns?.count === 1, "Section 2 phải có 1 cột");
+  });
+
+  await test("Writer Section Columns: single section document updates sectionPageSetups and adapter.columns", () => {
+    const { adapter } = createAdapter("<p>Đoạn đơn mục</p>");
+    adapter.attach();
+    adapter.setColumns({ count: 3, gap: 12, rule: true });
+    assert(adapter.columns.count === 3, "adapter.columns phải có 3 cột");
+    assert(adapter.sectionPageSetups["section-1"]?.columns?.count === 3, "sectionPageSetups section-1 phải có 3 cột");
+  });
+
   return results;
 }

@@ -3111,6 +3111,33 @@ export class WriterAdapter {
                 inserted = true;
               }
             }
+            if (!inserted) {
+              const secDivRegex = /<div\b[^>]*id=["'](?:TextSection|Section\d*)["'][^>]*>/i;
+              const remainingHtml = html.slice(sectionSearchStart);
+              const secDivMatch = secDivRegex.exec(remainingHtml);
+              if (secDivMatch) {
+                const divStart = sectionSearchStart + secDivMatch.index;
+                html = html.slice(0, divStart) + markerHtml + html.slice(divStart);
+                sectionSearchStart = divStart + markerHtml.length + secDivMatch[0].length;
+                inserted = true;
+              }
+            }
+            if (!inserted && !pText) {
+              for (let pIdx = pWithSect[i].paragraphIndex - 1; pIdx >= 0; pIdx--) {
+                const prevP = ooxmlParagraphs[pIdx]?.[0] || "";
+                const prevText = [...prevP.matchAll(/<w:t\b[^>]*>([\s\S]*?)<\/w:t>/gi)].map((m) => m[1]).join("").trim();
+                if (prevText) {
+                  const escapedText = htmlTextPattern(prevText);
+                  const insertAt = this._endOfFirstParagraphWithText(html, escapedText);
+                  if (insertAt >= 0) {
+                    html = html.slice(0, insertAt) + markerHtml + stripLeadingHtmlPageBreak(html.slice(insertAt));
+                    sectionSearchStart = insertAt + markerHtml.length;
+                    inserted = true;
+                  }
+                  break;
+                }
+              }
+            }
           }
         }
       }
@@ -9153,6 +9180,14 @@ export class WriterAdapter {
         const sel = window.getSelection();
         if (sel && sel.anchorNode && this.bodyDom.contains(sel.anchorNode)) {
           let node = sel.anchorNode.nodeType === 3 ? sel.anchorNode.parentElement : sel.anchorNode;
+          const secContent = node.closest ? node.closest(".vno-section-content") : null;
+          if (secContent && secContent.getAttribute?.("data-vno-section-id")) {
+            const id = secContent.getAttribute("data-vno-section-id");
+            if (this.sectionPageSetups?.[id]) {
+              this.activeSectionId = id;
+              return id;
+            }
+          }
           const breaks = Array.from(this.bodyDom.querySelectorAll(".vno-section-break"));
           if (breaks.length > 0) {
             let active = Object.keys(this.sectionPageSetups || {})[0] || "section-1";
@@ -9196,6 +9231,9 @@ export class WriterAdapter {
       }
       if (this.sectionPageSetups[currentId]) {
         this.pageSetup = JSON.parse(JSON.stringify(this.sectionPageSetups[currentId]));
+        this.columns = this.sectionPageSetups[currentId]?.columns
+          ? { ...this.sectionPageSetups[currentId].columns }
+          : { count: 1, gap: 10, rule: false };
         this._applyPageSetup();
       }
       if (this.sectionHeadersFooters?.[currentId]) {
@@ -9695,6 +9733,20 @@ export class WriterAdapter {
       prevHeader = headers;
       prevFooter = footers;
 
+      const colsMatch = sectXml.match(/<w:cols\b([^>]*)\/?>/i);
+      let columns = { count: 1, gap: 10, rule: false };
+      if (colsMatch) {
+        const colsAttrs = colsMatch[1] || "";
+        const numM = colsAttrs.match(/w:num=["'](\d+)["']/i);
+        const spaceM = colsAttrs.match(/w:space=["'](\d+)["']/i);
+        const sepM = colsAttrs.match(/w:sep=["'](1|true|on)["']/i);
+        const count = numM ? parseInt(numM[1], 10) : 1;
+        const gapMm = spaceM ? Math.round(((Number(spaceM[1]) * 25.4) / 1440) * 10) / 10 : 10;
+        const rule = Boolean(sepM);
+        columns = { count, gap: gapMm, rule };
+      }
+      pageSetup.columns = columns;
+
       sectionPageSetups[sectionId] = pageSetup;
       sectionHeadersFooters[sectionId] = {
         linkToPrevious,
@@ -9707,7 +9759,7 @@ export class WriterAdapter {
         pageNumberRestart,
         pageNumberStart
       };
-      sections.push({ id: sectionId, type, pageSetup, headerFooter: sectionHeadersFooters[sectionId] });
+      sections.push({ id: sectionId, type, pageSetup, columns, headerFooter: sectionHeadersFooters[sectionId] });
     }
 
     return { sectionPageSetups, sectionHeadersFooters, sections };
@@ -10953,16 +11005,12 @@ export class WriterAdapter {
       rule: count > 1 ? rule : false
     };
 
-    const multiSections = Object.keys(this.sectionPageSetups || {}).length > 1
-      || (this.bodyDom?.querySelectorAll?.(".vno-section-break")?.length || 0) > 0;
-    if (multiSections) {
-      const activeId = this.getActiveSectionId ? this.getActiveSectionId() : (this.activeSectionId || "section-1");
-      if (!this.sectionPageSetups) this.sectionPageSetups = {};
-      if (!this.sectionPageSetups[activeId]) {
-        this.sectionPageSetups[activeId] = JSON.parse(JSON.stringify(this.pageSetup || {}));
-      }
-      this.sectionPageSetups[activeId].columns = { ...this.columns };
+    const activeId = this.getActiveSectionId ? this.getActiveSectionId() : (this.activeSectionId || "section-1");
+    if (!this.sectionPageSetups) this.sectionPageSetups = {};
+    if (!this.sectionPageSetups[activeId]) {
+      this.sectionPageSetups[activeId] = JSON.parse(JSON.stringify(this.pageSetup || {}));
     }
+    this.sectionPageSetups[activeId].columns = { ...this.columns };
 
     this._applyColumns();
     this.isDirty = true;
@@ -11285,7 +11333,9 @@ export class WriterAdapter {
     if (options.count !== undefined && !options.openDialog) {
       return this.setColumns(options);
     }
-    const result = await showColumnsDialog(this.columns);
+    const activeId = this.getActiveSectionId ? this.getActiveSectionId() : (this.activeSectionId || "section-1");
+    const activeColumns = this.sectionPageSetups?.[activeId]?.columns || this.columns;
+    const result = await showColumnsDialog(activeColumns);
     if (result === null) return null;
     return this.setColumns(result);
   }
@@ -11297,7 +11347,8 @@ export class WriterAdapter {
 
     const breaks = Array.from(target.querySelectorAll?.(".vno-section-break") || []);
     if (breaks.length === 0) {
-      const config = this.columns || { count: 1 };
+      const activeId = this.getActiveSectionId ? this.getActiveSectionId() : (this.activeSectionId || "section-1");
+      const config = this.sectionPageSetups?.[activeId]?.columns || this.columns || { count: 1 };
       const count = Math.max(1, Math.min(4, Number(config.count) || 1));
       const gap = config.gap ?? 10;
       const rule = config.rule;
@@ -14999,6 +15050,11 @@ export class WriterAdapter {
         this.activeSectionId = firstId;
         this._lastKnownSectionId = firstId;
         this.pageSetup = JSON.parse(JSON.stringify(this.sectionPageSetups[firstId]));
+        if (this.sectionPageSetups[firstId]?.columns) {
+          this.columns = { ...this.sectionPageSetups[firstId].columns };
+        } else {
+          this.columns = { count: 1, gap: 10, rule: false };
+        }
         this._applyPageSetup();
       } else {
         const defaultSetup = {
@@ -15117,6 +15173,11 @@ export class WriterAdapter {
       this.activeSectionId = firstId;
       this._lastKnownSectionId = firstId;
       this.pageSetup = JSON.parse(JSON.stringify(this.sectionPageSetups[firstId]));
+      if (this.sectionPageSetups[firstId]?.columns) {
+        this.columns = { ...this.sectionPageSetups[firstId].columns };
+      } else {
+        this.columns = { count: 1, gap: 10, rule: false };
+      }
       this._applyPageSetup();
     } else if (imported.page) {
       this.pageSetup = {
