@@ -2741,7 +2741,7 @@ export class SlidesAdapter {
     const blocks = [];
     let match;
     while ((match = regex.exec(pageContent)) !== null) {
-      handler(match[1], match[2] || "", match[3] || "");
+      handler(match[1], match[2] || "", match[3] || "", match.index, match[0]);
       blocks.push(match[0]);
     }
     let next = pageContent;
@@ -2749,7 +2749,7 @@ export class SlidesAdapter {
     return next;
   }
 
-  _extractShapeFrames(pageContent, shapes, graphicStyles, idMap) {
+  _extractShapeFrames(pageContent, shapes, graphicStyles, idMap, sourceXml = pageContent) {
     const regex = /<draw:frame\b([^>]*)>([\s\S]*?)<\/draw:frame>/gi;
     const blocks = [];
     let match;
@@ -2764,6 +2764,8 @@ export class SlidesAdapter {
       if (isPlaceholder) continue;
       const shape = this._parseFrameShape(match[1], match[2], graphicStyles);
       if (!shape) continue;
+      const sourceOrder = sourceXml.indexOf(match[0]);
+      if (sourceOrder >= 0) shape._importOrder = sourceOrder;
       // Khung tiêu đề / phụ đề / nội dung của tệp PowerPoint mở vào thành hộp chữ tự do trên
       // canvas; nhớ vai trò placeholder để khi lưu lại PowerPoint vẫn thấy đúng khung Tiêu đề
       // (bản cũ lưu thành hộp chữ thường — mất tiêu đề trong dàn ý/điều hướng, đo COM G8).
@@ -2879,18 +2881,21 @@ export class SlidesAdapter {
   _parseInnerDrawShapes(xml, graphicStyles, idMap) {
     const shapes = [];
     let rest = xml;
-    rest = this._extractTaggedShapes(rest, ["rect", "ellipse", "circle", "custom-shape", "polygon", "path"], (tagName, attrs, inner) => {
+    rest = this._extractTaggedShapes(rest, ["rect", "ellipse", "circle", "custom-shape", "polygon", "path"], (tagName, attrs, inner, _sourceOrder, block) => {
       const shape = this._parseDrawShape(tagName, attrs, inner, graphicStyles);
+      shape._importOrder = xml.indexOf(block);
       this._recordShapeId(attrs, shape, idMap);
       shapes.push(shape);
     });
-    rest = this._extractTaggedShapes(rest, ["connector", "line"], (tagName, attrs, inner) => {
+    rest = this._extractTaggedShapes(rest, ["connector", "line"], (tagName, attrs, inner, _sourceOrder, block) => {
       const shape = this._parseConnectorShape(attrs, inner, graphicStyles);
+      shape._importOrder = xml.indexOf(block);
       if (tagName === "line" && !shape.sourceId && !shape.targetId) shape.type = "connector";
       this._recordShapeId(attrs, shape, idMap);
       shapes.push(shape);
     });
-    this._extractShapeFrames(rest, shapes, graphicStyles, idMap);
+    this._extractShapeFrames(rest, shapes, graphicStyles, idMap, xml);
+    shapes.sort((a, b) => a._importOrder - b._importOrder);
     return shapes;
   }
 
@@ -2920,7 +2925,7 @@ export class SlidesAdapter {
     return kept;
   }
 
-  _extractDrawGroups(pageContent, shapes, graphicStyles, idMap) {
+  _extractDrawGroups(pageContent, shapes, graphicStyles, idMap, sourceXml = pageContent) {
     const regex = /<draw:g\b([^>]*)>([\s\S]*?)<\/draw:g>/gi;
     const blocks = [];
     let match;
@@ -2933,6 +2938,13 @@ export class SlidesAdapter {
       const groupId = this._diagramGroupIdFromAttrs(attrs, groupIndex);
       const origin = this._parseDrawTranslate(attrs);
       const children = this._parseInnerDrawShapes(inner, graphicStyles, idMap);
+      const groupOrder = sourceXml.indexOf(match[0]);
+      const innerOffset = match[0].indexOf(inner);
+      if (groupOrder >= 0 && innerOffset >= 0) {
+        for (const shape of children) {
+          if (Number.isFinite(shape._importOrder)) shape._importOrder += groupOrder + innerOffset;
+        }
+      }
       this._applyGroupOffset(children, origin.x, origin.y);
       const grouped = this._stampImportedDiagramGroup(children, groupId, idMap);
       for (const shape of grouped) shapes.push(shape);
@@ -3347,21 +3359,33 @@ export class SlidesAdapter {
 
       const shapes = [];
       const idMap = new Map();
-      pageContent = this._extractDrawGroups(pageContent, shapes, graphicStyles, idMap);
-      pageContent = this._extractTaggedShapes(pageContent, ["rect", "ellipse", "circle", "custom-shape", "polygon", "path"], (tagName, attrs, inner) => {
+      pageContent = this._extractDrawGroups(pageContent, shapes, graphicStyles, idMap, originalPageXml);
+      pageContent = this._extractTaggedShapes(pageContent, ["rect", "ellipse", "circle", "custom-shape", "polygon", "path"], (tagName, attrs, inner, _sourceOrder, block) => {
         const shape = this._parseDrawShape(tagName, attrs, inner, graphicStyles);
+        const sourceOrder = originalPageXml.indexOf(block);
+        if (sourceOrder >= 0) shape._importOrder = sourceOrder;
         this._recordShapeId(attrs, shape, idMap);
         shapes.push(shape);
       });
-      pageContent = this._extractTaggedShapes(pageContent, ["connector", "line"], (tagName, attrs, inner) => {
+      pageContent = this._extractTaggedShapes(pageContent, ["connector", "line"], (tagName, attrs, inner, _sourceOrder, block) => {
         const shape = this._parseConnectorShape(attrs, inner, graphicStyles);
+        const sourceOrder = originalPageXml.indexOf(block);
+        if (sourceOrder >= 0) shape._importOrder = sourceOrder;
         if (tagName === "line" && !shape.sourceId && !shape.targetId) {
           shape.type = "connector";
         }
         this._recordShapeId(attrs, shape, idMap);
         shapes.push(shape);
       });
-      pageContent = this._extractShapeFrames(pageContent, shapes, graphicStyles, idMap);
+      pageContent = this._extractShapeFrames(pageContent, shapes, graphicStyles, idMap, originalPageXml);
+      const orderedShapes = shapes.map((shape, index) => ({ shape, index }));
+      orderedShapes.sort((a, b) => {
+        const aOrder = Number.isFinite(a.shape._importOrder) ? a.shape._importOrder : Number.MAX_SAFE_INTEGER;
+        const bOrder = Number.isFinite(b.shape._importOrder) ? b.shape._importOrder : Number.MAX_SAFE_INTEGER;
+        return aOrder - bOrder || a.index - b.index;
+      });
+      shapes.splice(0, shapes.length, ...orderedShapes.map(({ shape }) => shape));
+      for (const shape of shapes) delete shape._importOrder;
       for (const shape of shapes) {
         if (shape.type !== "connector") continue;
         shape.sourceId = this._mapConnectorRef(shape.sourceId, idMap);
@@ -3855,7 +3879,13 @@ export class SlidesAdapter {
         return this.canvas.addNewSlide();
 
       case "slides.slide.duplicate":
-        return this.canvas.duplicateCurrentSlide();
+        {
+          const duplicated = this.canvas.duplicateCurrentSlide(true, true);
+          if (!duplicated) {
+            this.shell?.setStatus?.("Không thể nhân đôi slide lúc này. Hãy chọn một slide rồi thử lại.");
+          }
+          return duplicated;
+        }
 
       case "slides.slide.delete":
         return this.canvas.deleteCurrentSlide();
