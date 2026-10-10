@@ -1,0 +1,15 @@
+{
+  "app": "writer",
+  "tabId": "design",
+  "proofFolder": "doc-design",
+  "sample": {
+    "selection": { "selector": "#target", "start": 0, "end": 4 }
+  },
+  "items": [
+    { "commandId": "writer.design.themeGallery", "label": "Chủ đề văn bản", "action": "button", "assertion": "dialog", "word": "theme", "shortcut": "Không có (Word Alt+G, T)", "contexts": ["Tài liệu dài", "Trong bảng/danh sách", "Cuối tài liệu dài"] },
+    { "commandId": "writer.page.watermark", "label": "Hình mờ", "action": "button", "assertion": "dialog", "word": "watermark", "shortcut": "Không có (Word Alt+G, P, W)", "contexts": ["Tài liệu dài", "Trong bảng/danh sách", "Cuối tài liệu dài"] },
+    { "commandId": "writer.page.color", "label": "Màu trang", "action": "button", "assertion": "dialog", "word": "pageColor", "shortcut": "Không có (Word Alt+G, P, C)", "contexts": ["Tài liệu dài", "Trong bảng/danh sách", "Cuối tài liệu dài"] },
+    { "commandId": "writer.page.border", "label": "Viền trang", "action": "button", "assertion": "dialog", "word": "pageBorder", "shortcut": "Không có (Word Alt+G, P, B)", "contexts": ["Tài liệu dài", "Trong bảng/danh sách", "Cuối tài liệu dài"] }
+  ],
+  "missingWordControls": []
+}
