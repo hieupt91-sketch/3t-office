@@ -71,7 +71,7 @@ async function serialize(session, largeFile = false) {
   return length;
 }
 
-async function writeSentContent(session, sentPath, length) {
+async function writeSentContent(session, sentPath, length, largeFile = false) {
   const file = await fs.open(sentPath, "w");
   let bytes = 0;
   try {
@@ -83,6 +83,7 @@ async function writeSentContent(session, sentPath, length) {
         "(() => { const content = window.__vnoAuditContent; let end = Math.min(content.length, " + (offset + 262144) + ");"
         + " const code = content.charCodeAt(end - 1); if (end < content.length && code >= 0xd800 && code <= 0xdbff) end--;"
         + " return content.slice(" + offset + ", end); })()",
+        largeFile ? { timeoutMilliseconds: 120000 } : {},
       );
       await file.write(chunk, null, "utf8");
       bytes += Buffer.byteLength(chunk, "utf8");
@@ -98,10 +99,13 @@ export async function roundtripFile({ app, input, output, edit = false, largeFil
   if (!extensions[app]) throw new Error("Expected app to be writer, sheet, or slides.");
   const inputPath = path.resolve(input);
   const outputPath = path.resolve(output);
+  await fs.rm(outputPath + ".save-timings.json", { force: true }).catch(() => {});
   const session = await launchApp(app, { filePath: inputPath });
+  const timings = {};
+  let phase = "load";
+  let phaseStarted = 0;
   try {
-    const timings = {};
-    let phaseStarted = performance.now();
+    phaseStarted = performance.now();
     await waitForSource(session, inputPath);
     timings.loadMs = Math.round(performance.now() - phaseStarted);
     const sheetStateAfterLoad = app === "sheet"
@@ -113,6 +117,7 @@ export async function roundtripFile({ app, input, output, edit = false, largeFil
     if (process.env.VNO_AUDIT_MARK_DIRTY === "1" && app === "sheet") {
       await session.cdp.evaluate("(() => { window.__vnoAppInstance.adapter.isDirty = true; return true; })()");
     }
+    phase = "serialize";
     phaseStarted = performance.now();
     const before = await serialize(session, largeFile);
     timings.serializeMs = Math.round(performance.now() - phaseStarted);
@@ -120,15 +125,17 @@ export async function roundtripFile({ app, input, output, edit = false, largeFil
       ? await session.cdp.evaluate("(() => ({activeSheet: window.__vnoAppInstance?.adapter?.grid?.activeSheet || null, sheetCount: window.__vnoAppInstance?.adapter?.grid?.sheets?.length || 0}))()")
       : null;
     const sentPath = outputPath + (app === "sheet" ? ".sent.fods" : app === "writer" ? ".sent.html" : ".sent.fodp");
+    phase = "sentContentWrite";
     phaseStarted = performance.now();
-    const beforeBytes = edit ? await writeSentContent(session, sentPath, before) : null;
+    const beforeBytes = edit ? await writeSentContent(session, sentPath, before, largeFile) : null;
     const editResult = app === "writer" && edit
       ? await editWriterThroughKeyboard(session.cdp)
       : { pass: true, detail: "No edit requested." };
     const length = edit ? await serialize(session, largeFile) : before;
-    const contentBytes = await writeSentContent(session, sentPath, length);
+    const contentBytes = await writeSentContent(session, sentPath, length, largeFile);
     timings.sentContentWriteMs = Math.round(performance.now() - phaseStarted);
     if (edit) timings.editSerializeAndWriteMs = timings.sentContentWriteMs;
+    phase = "savePipeline";
     phaseStarted = performance.now();
     const saved = await session.cdp.evaluate(
       "globalThis.globalUnoBridge.saveRealFileInPlace("
@@ -138,6 +145,7 @@ export async function roundtripFile({ app, input, output, edit = false, largeFil
     );
     timings.saveMs = Math.round(performance.now() - phaseStarted);
     if (saved?.status !== "ok") throw new Error("App save service failed: " + JSON.stringify(saved));
+    if (saved?.timings && typeof saved.timings === "object") timings.savePipeline = saved.timings;
     const stat = await fs.stat(outputPath);
     if (stat.size <= 0) throw new Error("App save service produced an empty output file.");
     const result = {
@@ -158,6 +166,33 @@ export async function roundtripFile({ app, input, output, edit = false, largeFil
     };
     await fs.writeFile(outputPath + ".cdp-audit.json", JSON.stringify(result, null, 2), "utf8");
     return result;
+  } catch (error) {
+    if (phase === "savePipeline" && timings.saveMs === undefined) {
+      timings.saveMs = Math.round(performance.now() - phaseStarted);
+    }
+    const sentPath = outputPath + (app === "sheet" ? ".sent.fods" : app === "writer" ? ".sent.html" : ".sent.fodp");
+    let sentBytes = null;
+    try { sentBytes = (await fs.stat(sentPath)).size; } catch {}
+    const failed = {
+      app,
+      input: path.basename(inputPath),
+      output: path.basename(outputPath),
+      status: "FAIL",
+      phase,
+      error: String(error?.stack || error),
+      cdpPort: session.debugPort,
+      profilePath: session.localAppData,
+      timings,
+      sentContentBytes: sentBytes,
+      sourcePath: inputPath,
+    };
+    try {
+      const pipeline = JSON.parse(await fs.readFile(outputPath + ".save-timings.json", "utf8"));
+      failed.timings.savePipeline = pipeline.timings;
+      failed.savePipelineStatus = pipeline.status;
+    } catch {}
+    await fs.writeFile(outputPath + ".cdp-audit.json", JSON.stringify(failed, null, 2), "utf8").catch(() => {});
+    throw error;
   } finally {
     await session.close();
   }
