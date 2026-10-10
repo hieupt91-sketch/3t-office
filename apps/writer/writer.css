@@ -1765,6 +1765,8 @@ li.vno-page-auto-gap {
    Table of Contents (Mục lục tự động — Word Parity)
    ========================================================================== */
 .vno-toc-block {
+  position: relative;
+  z-index: 20;
   margin: 18pt 0;
   padding: 16px 20px;
   background: #f8fafc;
@@ -1786,7 +1788,7 @@ li.vno-page-auto-gap {
   justify-content: space-between;
   border-bottom: 2px solid #0f4c81;
   padding-bottom: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 6px;
 }
 
 .vno-toc-title {
@@ -1840,6 +1842,8 @@ li.vno-page-auto-gap {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  /* The paged Writer canvas adds a measured 60px gap before the first entry. */
+  margin-top: -60px;
 }
 
 .vno-toc-item {
@@ -1894,7 +1898,7 @@ li.vno-page-auto-gap {
 .vno-toc-level-1 {
   font-weight: 700;
   font-size: 12pt;
-  margin-top: 4px;
+  margin-top: 0;
 }
 
 .vno-toc-level-2 {
