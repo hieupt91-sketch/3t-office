@@ -11552,7 +11552,23 @@ export class WriterAdapter {
     return this.setColumns(result);
   }
 
+  /**
+   * Áp cột: tài liệu nhiều mục bọc nội dung vào các khối `.vno-section-content` (di chuyển nút DOM) nên vùng chọn/con trỏ
+   * rơi về thẻ body — gõ tiếp chữ vào sai chỗ. Chụp và khôi phục con trỏ (theo offset văn bản) quanh thao tác.
+   */
   _applyColumns() {
+    let bookmark = null;
+    // Khi đang Undo/Redo, _restoreSnapshot tự đặt lại con trỏ từ snapshot ở cuối: không chụp thêm ở đây.
+    if (!this._isUndoingRedoing) {
+      try { bookmark = this._captureSelectionBookmark?.() || null; } catch (_) { bookmark = null; }
+    }
+    this._applyColumnsCore();
+    if (bookmark) {
+      try { this._restoreSelectionBookmark?.(bookmark); } catch (_) { /* khôi phục con trỏ chỉ là tối ưu */ }
+    }
+  }
+
+  _applyColumnsCore() {
     this._initZones();
     const target = this.bodyDom || this.editorDom;
     if (!target) return;
@@ -16589,6 +16605,8 @@ export class WriterAdapter {
     this._hydrateWordArtFromDom();
     this._applyDecorations();
     this._syncActiveStyleUI?.();
+    // Các bước trên (áp cột nhiều mục, trang trí, hydrate) có thể di chuyển nút DOM và làm rơi con trỏ: đặt lại lần cuối.
+    this._restoreSelectionBookmark(snapshot.selection);
 
     this.isDirty = true;
     this._updateTrackChangesCommandState?.();
