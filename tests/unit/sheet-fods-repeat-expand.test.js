@@ -278,6 +278,61 @@ export async function runSheetFodsRepeatExpandTests() {
 
   // ── MUST FAIL BEFORE FIX: No-value-type repeat is cheap ───────────
 
+  test("serializeToFods run-length encodes adjacent identical styled blank cells only", () => {
+    const grid = makeGrid();
+    const repeatedStyle = { borderLeft: "1px solid #ff0000" };
+    grid.cellsData.set("A1", { val: "", style: { ...repeatedStyle } });
+    grid.cellsData.set("B1", { val: "", style: { ...repeatedStyle } });
+    grid.cellsData.set("C1", { val: "", style: { borderLeft: "1px solid #00ff00" } });
+    grid.cellsData.set("D1", { val: "kept", style: { ...repeatedStyle } });
+    grid.cellsData.set("E1", { val: "", style: { ...repeatedStyle } });
+
+    const adapter = new SheetAdapter(grid);
+    const fods = adapter.serializeToFods();
+    if (!fods.includes('table:number-columns-repeated="2"')) {
+      throw new Error("Adjacent same-style blank cells were not compressed");
+    }
+    if ((fods.match(/table:number-columns-repeated="2"/g) || []).length !== 1) {
+      throw new Error("Serializer compressed cells across a style or value boundary");
+    }
+    if (!fods.includes("<text:p>kept</text:p>")) {
+      throw new Error("A valued cell adjacent to styled blanks was lost");
+    }
+
+    const roundTrippedGrid = makeGrid();
+    const roundTripped = new SheetAdapter(roundTrippedGrid);
+    roundTripped.loadFromFods(fods);
+    for (const address of ["A1", "B1", "C1", "E1"]) {
+      const cell = roundTrippedGrid.cellsData.get(address);
+      if (!cell || cell.val !== "" || !cell.style?.borderLeft) {
+        throw new Error(`Styled blank ${address} changed during FODS round-trip: ${JSON.stringify(cell)}`);
+      }
+    }
+    if (roundTrippedGrid.cellsData.get("D1")?.val !== "kept") {
+      throw new Error("The value after repeated blank cells changed during FODS round-trip");
+    }
+  });
+
+  test("serializeToFods run-length encodes identical empty rows between populated rows", () => {
+    const grid = makeGrid();
+    grid.cellsData.set("A1", { val: "top", style: {} });
+    grid.cellsData.set("A4", { val: "bottom", style: {} });
+
+    const fods = new SheetAdapter(grid).serializeToFods();
+    if (!fods.includes('table:number-rows-repeated="2"')) {
+      throw new Error("Middle empty rows were not compressed");
+    }
+
+    const roundTrippedGrid = makeGrid();
+    new SheetAdapter(roundTrippedGrid).loadFromFods(fods);
+    if (roundTrippedGrid.cellsData.get("A1")?.val !== "top") {
+      throw new Error("Data before repeated empty rows moved");
+    }
+    if (roundTrippedGrid.cellsData.get("A4")?.val !== "bottom") {
+      throw new Error("Data after repeated empty rows moved");
+    }
+  });
+
   test("parseFods: repeat without office:value-type is always cheap", () => {
     const grid = new Proxy({ sheets: [], activeSheet: "", sheetsData: {}, cellsData: new Map(), rowHeight: 26, defaultColWidth: 100, pageSetupBySheet: {}, rowHeightsBySheet: {}, colWidthsBySheet: {}, userHiddenRowsBySheet: {}, userHiddenColsBySheet: {}, commentsBySheet: {}, mergedRangesBySheet: {}, namedRangesBySheet: {}, printAreaBySheet: {}, conditionalFormattingBySheet: {}, dataValidationsBySheet: {}, imagesBySheet: {} }, {
       set(target, prop, value) { target[prop] = value; if (prop === "activeSheet" && target.sheetsData[value]) target.cellsData = target.sheetsData[value]; return true; }

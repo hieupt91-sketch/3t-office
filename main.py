@@ -2308,6 +2308,7 @@ def _convert_save_source_to_native(
     app_kind: str,
     target_format: str,
     source_document_path: str | None = None,
+    timings: dict[str, float] | None = None,
 ) -> str:
     """Run the Save conversion and native-format postprocessing shared by all save routes.
 
@@ -2334,10 +2335,16 @@ def _convert_save_source_to_native(
             ) from exc
     if app_kind == "writer" and target_format == "doc" and WRITER_DOC_EXPORT_VIA_DOCX:
         return _convert_writer_html_to_doc(source_path, os.path.dirname(source_path), source_path=source_document_path)
+    stage_started = time.perf_counter()
     out_path = _run_soffice_convert(source_path, target_format, os.path.dirname(source_path), app_kind=app_kind)
+    if timings is not None:
+        timings["sofficeConvertMs"] = round((time.perf_counter() - stage_started) * 1000, 1)
+    stage_started = time.perf_counter()
     _apply_native_export_postprocess(
         source_path, out_path, app_kind, target_format, source_path=source_document_path,
     )
+    if timings is not None:
+        timings["postprocessMs"] = round((time.perf_counter() - stage_started) * 1000, 1)
     return out_path
 
 
@@ -4760,21 +4767,49 @@ class VnOfficeApi:
         self._reporting_file_path = target_path
         self._reporting_operation = f"save.{target_format}"
 
+        audit_timings = {} if os.environ.get("VNO_CDP_AUDIT_TIMINGS") == "1" else None
+        def write_audit_timings(status):
+            if audit_timings is None:
+                return
+            try:
+                payload = {"status": status, "path": target_path, "timings": audit_timings}
+                with open(target_path + ".save-timings.json", "w", encoding="utf-8") as handle:
+                    json.dump(payload, handle, ensure_ascii=False)
+            except OSError:
+                pass
+
         try:
             with tempfile.TemporaryDirectory(prefix="vnoffice_save_inplace_") as tmp:
+                stage_started = time.perf_counter()
                 src_path = _write_save_source(content, app_kind, tmp, target_format)
+                if audit_timings is not None:
+                    audit_timings["fodsWriteMs"] = round((time.perf_counter() - stage_started) * 1000, 1)
+                    audit_timings["fodsBytes"] = os.path.getsize(src_path)
                 out_path = _convert_save_source_to_native(
-                    src_path, app_kind, target_format, source_document_path=source_path,
+                    src_path, app_kind, target_format, source_document_path=source_path, timings=audit_timings,
                 )
+                stage_started = time.perf_counter()
                 _atomic_replace_file(out_path, target_path)
+                if audit_timings is not None:
+                    audit_timings["atomicReplaceMs"] = round((time.perf_counter() - stage_started) * 1000, 1)
+                stage_started = time.perf_counter()
                 _verify_saved_file(target_path)
+                if audit_timings is not None:
+                    audit_timings["verifyMs"] = round((time.perf_counter() - stage_started) * 1000, 1)
+                    audit_timings["outputBytes"] = os.path.getsize(target_path)
         except DocumentEngineError as exc:
+            write_audit_timings("FAIL")
             return {"status": "error", "message": str(exc)}
         except Exception as exc:
+            write_audit_timings("FAIL")
             return {"status": "error", "message": f"Không lưu được tệp. Hãy kiểm tra quyền ghi, dung lượng trống và thử lại."}
 
+        write_audit_timings("PASS")
         self._current_file_path = target_path
-        return {"status": "ok", "message": f"Đã lưu tại {target_path}", "path": target_path}
+        result = {"status": "ok", "message": f"Đã lưu tại {target_path}", "path": target_path}
+        if audit_timings is not None:
+            result["timings"] = audit_timings
+        return result
 
     def _save_document_dialog_impl(self, content, app_kind="writer", target_format=None, suggested_name="TaiLieu", source_path=None):
         """Mở hộp thoại lưu tệp NATIVE thật, chuyển đổi nội dung soạn thảo hiện tại
