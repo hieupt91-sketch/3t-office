@@ -6,6 +6,7 @@ DIEM KHOI DAU (Claude do doc lap 10/10 bang scripts/audit-0610/doc_tab_effect_pr
  c. Ngat (menu Ngat): page.break, break.column, 4 loai ngat muc: kiem DOCX luu ra w:br page/column va w:sectPr w:type nextPage/continuous/evenPage/oddPage dung vi tri; Xoa ngat muc co hoat dong thay doi khong (hien 'im lang').
  d. Giãn dòng (menu): 1.0/1.5/2.0 + cac muc 1,15..3,0; Khoang truoc/sau doan (o nhap): do chieu cao doan that va w:spacing.
  e. Danh so dong (writer.layout.lineNumbers), Hinh mo, Vien trang, Mau trang, Can le/Huong giay/Kho giay (hop thoai Thiet lap trang): thao tac TRONG hop thoai (bam tuy chon that, Ap dung), kiem so trang/kich thuoc trang that, DOCX w:pgSz/w:pgMar/w:pgBorders, so voi Word COM PageSetup (PageWidth, TopMargin, Orientation...).
- f. Tab 'Bo cuc' cua Word con nhom 'Sap xep' (Dua len truoc/Ra sau, Can chinh, Nhom, Xoay) cho doi tuong va 'Thut le/Khoang cach' dang nhom: nut Microsoft thieu thi bo sung day du.
+ f. Tab 'Bo cuc' cua Word con nhom 'Sap xep' (Dua len truoc/Ra sau, Can chinh, Nhom, Xoay) cho doi tuong va 'Thut le/Khoang cach' dang nhom: nut Microsoft thieu CHI GHI vao danh sach thieu, khong them.
 Ket qua docs/AUDIT-DOC-RIBBON-LAYOUT-1010.md (7 cot + phim tat + nut Word con thieu). Moi loi: 1 commit + test don vi + muc trong doc-layout.json co khang dinh hien thi. Chay lai toan tab 2 lan lien tiep cung ket qua.
 Tieu chi/Cam: nhu TICKET-RB-D1c.md. KHONG chay bo 28 xlsx. KHONG push, KHONG merge. Bao cao 3 dong.
+CHU Y MOI 10/10: KHONG them nut/tinh nang/phim tat moi. Chi kiem va SUA cho icon DA CO chay dung chuan nhu Word (xem muc 5 RIBBON-AUDIT-RULES.md).
