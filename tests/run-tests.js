@@ -262,6 +262,7 @@ import { runWriterHeadingShortcutsTests } from "./unit/writer-heading-shortcuts.
 import { runWriterFontLadderTests } from "./unit/writer-font-ladder.test.js";
 import { runWriterTableEditsExportTests } from "./unit/writer-table-edits-export.test.js";
 import { runWriterParagraphIndentTests } from "./unit/writer-paragraph-indent.test.js";
+import { runPanelOverlayUiP1Tests } from "./unit/panel-overlay-ui-p1.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -532,7 +533,8 @@ async function runAll() {
     { title: "251. Unit Tests — VN Writer Heading Styles & Shortcuts", runner: runWriterHeadingShortcutsTests },
     { title: "252. Unit Tests — VN Writer Font Ladder & Sizing", runner: runWriterFontLadderTests },
     { title: "253. Unit Tests — VN Writer Paragraph Indent (1,27 cm)", runner: runWriterParagraphIndentTests },
-    { title: "254. Unit Tests — VN Writer Table Edits Export", runner: runWriterTableEditsExportTests }
+    { title: "254. Unit Tests — VN Writer Table Edits Export", runner: runWriterTableEditsExportTests },
+    { title: "255. Unit Tests — VN Office Panel Overlay & Drawer (TICKET UI-P1)", runner: runPanelOverlayUiP1Tests }
   ];
 
   for (const suite of suites) {
