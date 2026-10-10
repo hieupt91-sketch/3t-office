@@ -57,3 +57,14 @@ Nhánh `audit/slides-functional-codex`; fixture gốc `E:\VN OFice\file test\sam
 | Bút vẽ | Trong trình chiếu | Ctrl+P bật bút vẽ | Sau Ctrl+P, overlay cursor vẫn rỗng/auto, chấm laser vẫn ẩn; không vào chế độ bút | FAIL | Ctrl+P | Tái hiện hai phiên CDP độc lập; ghi lỗi U-L32. |
 | Thoát | Trình chiếu đang mở | Esc đóng trình chiếu | Overlay hiện hữu trước phím Esc, bị gỡ sau phím Esc | PASS | Esc | Không gọi close API trực tiếp. |
 
+## Nhóm 6 — Đối tượng
+
+| Nút | Ngữ cảnh | Kỳ vọng PowerPoint | Thực tế | PASS/FAIL | Phím tắt | Ghi chú |
+|---|---|---|---|---|---|---|
+| Kéo di chuyển | Hộp chữ nhập từ PPTX | Vị trí đổi theo thao tác kéo; Undo/Redo hoàn nguyên/khôi phục | Model đổi (613,176) → (624,203); Ctrl+Z trả (613,176); Ctrl+Y trả (624,203) | PASS | Ctrl+Z/Y | Mouse drag trên desktop; tọa độ đọc trực tiếp model. |
+| Đổi kích thước | Hộp chữ nhập từ PPTX, tay nắm SE | Kích thước đổi; Undo trả kích thước cũ | Model đổi 336×265 → 347×289; Ctrl+Z được kiểm riêng trong phiên trên | PASS | Ctrl+Z | Đo tay nắm và kích thước model. |
+| Xoay | Hộp chữ nhập từ PPTX, tay nắm xoay | Góc xoay thay đổi và roundtrip giữ nguyên | Tay nắm xoay đổi 0° → 17°; Ctrl+Z trả 0°. Một góc 10° lưu/mở lại giữ 10° | PASS | Ctrl+Z | Có kiểm PPTX save/reopen, nguồn nạp khớp bản sao. |
+| Thứ tự lớp | Đối tượng nhập; menu chuột phải > Đưa lên trên cùng | Thay z-order; Undo hoàn nguyên | Index model của shape đổi 1 → 4; Ctrl+Z trả index 1 | PASS | Ctrl+Z | Menu ngữ cảnh mở bằng chuột phải. Chưa kiểm save/reopen cho z-order. |
+| Nhóm / Bỏ nhóm | Chọn hai hộp chữ nhập bằng Shift+click | Ctrl+G nhóm, Ctrl+Shift+G bỏ nhóm | Trong model, Ctrl+G gán chung groupId; Ctrl+Shift+G xóa. Sau Ctrl+G + adapter.save() + mở lại, cả hai groupId=null; XML có 0 p:grpSp | FAIL | Ctrl+G / Ctrl+Shift+G | Xác nhận app đã nạp đúng tệp trước khi đọc model; ghi lỗi U-L33 và backlog. |
+| Căn chỉnh đối tượng | Chưa kiểm | Thực thi căn chỉnh cho lựa chọn hiện tại | NOT RUN | NOT RUN | NOT RUN | Không đánh giá từ các lệnh hiện trên ribbon. |
+| Ctrl+Z nhiều bước | Chưa kiểm chuỗi ít nhất 3 thao tác liên tiếp | Hoàn tác lần lượt từng thay đổi | NOT RUN | NOT RUN | Ctrl+Z/Y một bước đã kiểm ở các hàng trên | Chưa kết luận về undo stack nhiều bước. |
