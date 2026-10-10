@@ -10623,7 +10623,24 @@ export class WriterAdapter {
   insertTextBox(options = null) {
     options = options || {};
     const text = typeof options.text === "string" ? options.text : "Nhập văn bản";
-    return this.insertShape({
+    let cursorPosition = null;
+    const editorRect = this.editorDom?.getBoundingClientRect?.();
+    const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+    const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+    if (range && this.bodyDom?.contains?.(range.commonAncestorContainer) && editorRect) {
+      let rect = range.getBoundingClientRect?.();
+      if ((!rect || (!rect.width && !rect.height)) && range.commonAncestorContainer?.parentElement) {
+        rect = range.commonAncestorContainer.parentElement.getBoundingClientRect?.();
+      }
+      if (rect) {
+        const width = typeof options.width === "number" ? options.width : 220;
+        cursorPosition = {
+          x: Math.max(0, Math.min(rect.left - editorRect.left, editorRect.width - width)),
+          y: Math.max(0, rect.top - editorRect.top)
+        };
+      }
+    }
+    const shape = this.insertShape({
       type: "textbox",
       shapeType: "textbox",
       width: typeof options.width === "number" ? options.width : 220,
@@ -10631,9 +10648,29 @@ export class WriterAdapter {
       fill: "transparent",
       stroke: "#2563eb",
       text,
-      x: typeof options.x === "number" ? options.x : 72,
-      y: typeof options.y === "number" ? options.y : 120
+      x: typeof options.x === "number" ? options.x : (cursorPosition?.x ?? 72),
+      y: typeof options.y === "number" ? options.y : (cursorPosition?.y ?? 120)
     });
+    if (shape && text === "Nhập văn bản") {
+      const textboxes = typeof document !== "undefined" ? document.querySelectorAll(".vno-writer-textbox-body") : [];
+      const textbox = textboxes[textboxes.length - 1];
+      if (textbox) {
+        const selectPlaceholder = () => {
+          if (!textbox.isConnected) return;
+          textbox.focus?.();
+          if (typeof document !== "undefined" && document.createRange && typeof window !== "undefined") {
+            const textSelection = window.getSelection();
+            const textRange = document.createRange();
+            textRange.selectNodeContents(textbox);
+            textSelection.removeAllRanges();
+            textSelection.addRange(textRange);
+          }
+        };
+        if (typeof setTimeout === "function") setTimeout(selectPlaceholder, 50);
+        else selectPlaceholder();
+      }
+    }
+    return shape;
   }
 
   applyDropCap(options = null) {
