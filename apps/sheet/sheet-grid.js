@@ -5552,6 +5552,7 @@ _bindGridKeyboardNavigation() {
 
   showFunctionDialog(categoryFilter = null) {
     if (typeof document === "undefined") return false;
+    const previousActive = document.activeElement;
     const modal = document.createElement("div");
     modal.className = "vno-dialog-overlay vno-func-dialog";
 
