@@ -35,3 +35,5 @@ Ghi chú kết quả ĐẠT (đo bằng số, chuột thật qua CDP): In đậm
 | U25 | TRUNG BÌNH | Tab Chèn ở 1366 px | Ribbon quá rộng: xuất hiện thanh cuộn ngang ngay trong ribbon, nút "Ký hiệu" bị cắt mép phải. Word thu gọn nhóm thành menu thay vì cuộn. | Ảnh 27. |
 | U26 | THẤP | Chèn > Hộp văn bản | Hộp văn bản chèn ở đỉnh trang 1, đè lên vùng đầu trang thay vì tại vị trí con trỏ; chữ mẫu "Nhập văn bản" không được chọn sẵn. | Ảnh 27. |
 Ghi chú ĐẠT (Chèn): Trang trắng, Ngắt trang, Đánh dấu, Chữ nghệ thuật, Ngày & Giờ, Phương trình, Ký hiệu, Sơ đồ, Biểu đồ, Hình khối, Liên kết, Đầu/Chân trang mở đúng hộp thoại/chèn đúng; "Hình ảnh" mở hộp chọn tệp hệ thống (chưa kiểm bằng ảnh).
+| U27 | THẤP | Tham chiếu > Mục lục tự động | Khoảng trống lớn (~90 px) giữa đường kẻ tiêu đề "MỤC LỤC" và dòng đầu tiên; hộp văn bản nổi (U26) đè lên tiêu đề mục lục (không có thứ tự lớp rõ ràng). | Ảnh 31. |
+Ghi chú ĐẠT (Tham chiếu): Mục lục tự động liệt kê đủ 4 tiêu đề kèm số trang; Chú thích trang (số 1) và Chú thích cuối (số i) chèn đúng, có vùng chú thích.
