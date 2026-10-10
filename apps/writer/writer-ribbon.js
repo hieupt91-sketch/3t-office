@@ -191,6 +191,8 @@ export const WRITER_RIBBON_TABS = [
                       { commandId: "writer.para.spacing15" },
                       { commandId: "writer.para.spacing2" },
                       { commandId: "writer.para.lineSpacing", args: "1.15", label: "1,15" },
+                      { commandId: "writer.para.lineSpacing", args: "2.5", label: "2,5" },
+                      { commandId: "writer.para.lineSpacing", args: "3.0", label: "3,0" },
                       { commandId: "writer.para.lineSpacing", args: "exact", label: "Chính xác…" }
                     ]
                   },

@@ -257,6 +257,9 @@ import { runLicenseKeyFormatTests } from "./unit/license-key-format.test.js";
 import { runUnoBridgeContentStageTests } from "./unit/uno-bridge-content-stage.test.js";
 import { runWriterCoverPageTests } from "./unit/writer-cover-page.test.js";
 import { runWriterDialogsD16Tests } from "./unit/writer-dialogs-d16.test.js";
+import { runWriterLineSpacingRenderTests } from "./unit/writer-line-spacing-render.test.js";
+import { runWriterHeadingShortcutsTests } from "./unit/writer-heading-shortcuts.test.js";
+import { runWriterFontLadderTests } from "./unit/writer-font-ladder.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -522,7 +525,10 @@ async function runAll() {
     { title: "245. Unit Tests — VN Writer table ranges computed once (incremental) equal the rescanning version", runner: runWriterTableRangesIncrementalTests },
     { title: "247. Unit Tests — VN Writer Trang bìa (Cover Page)", runner: runWriterCoverPageTests },
     { title: "248. Unit Tests — VN Writer Dialogs & Keyboard Focus (TICKET D16)", runner: runWriterDialogsD16Tests },
-    { title: "249. Unit Tests — VN Writer Navigation Pane", runner: runWriterNavigationPaneTests }
+    { title: "249. Unit Tests — VN Writer Navigation Pane", runner: runWriterNavigationPaneTests },
+    { title: "250. Unit Tests — VN Writer Line Spacing Rendering & Scale", runner: runWriterLineSpacingRenderTests },
+    { title: "251. Unit Tests — VN Writer Heading Styles & Shortcuts", runner: runWriterHeadingShortcutsTests },
+    { title: "252. Unit Tests — VN Writer Font Ladder & Sizing", runner: runWriterFontLadderTests }
   ];
 
   for (const suite of suites) {
