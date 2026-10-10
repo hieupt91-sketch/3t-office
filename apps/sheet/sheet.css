@@ -1243,12 +1243,19 @@ tr.is-filtered-out {
   color: var(--vno-sheet-primary);
 }
 .vno-fc-tab.is-active {
-  color: var(--vno-sheet-primary) !important;
+  color: var(--vno-sheet-primary-fg, var(--vno-sheet-primary)) !important;
   font-weight: 600;
   background-color: var(--vno-bg-window) !important;
   border: 1px solid var(--vno-border-default);
   border-bottom-color: var(--vno-bg-window);
   margin-bottom: -1px;
+}
+.vno-func-dialog .vno-dialog-header {
+  color: var(--vno-text-primary);
+  background: var(--vno-bg-surface);
+}
+.vno-func-dialog .vno-dialog-header > span {
+  color: inherit;
 }
 .vno-fc-tab[aria-disabled="true"] {
   cursor: not-allowed !important;
