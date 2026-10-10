@@ -48,6 +48,11 @@ Ghi chú ĐẠT (Trộn thư): Phong bì, Nhãn, Nguồn dữ liệu, Chèn trư
 | U35 | THẤP | Đánh giá > Nhãn nút Đếm từ | Nhãn nút trên ribbon lặp ký tự số: "123 Đếm từ" do gộp chuỗi icon vào text hiển thị. | Đo text nút: "123 Đếm từ"; ảnh tab-review-full. |
 | U36 | TRUNG BÌNH | Đánh giá > Thiếu các công cụ duyệt chuẩn Word | Thiếu Từ điển đồng nghĩa (Thesaurus / Shift+F7), Dịch thuật, Bảng duyệt thay đổi (Reviewing Pane), So sánh tài liệu (Compare) và Bảo vệ/Hạn chế chỉnh sửa (Restrict Editing). | So sánh cấu trúc Ribbon Word chuẩn. |
 Ghi chú ĐẠT (Đánh giá): Bật/tắt kiểm tra chính tả (Spellcheck toggle) cập nhật đúng trạng thái active; Đếm từ mở hộp thoại thống kê chuẩn; Thêm ghi chú (Comment) mở hộp thoại nhập nhận xét; Theo dõi thay đổi (Track Changes) bật/tắt đúng, các nút Chấp nhận/Từ chối vô hiệu hóa chính xác khi chưa có sửa đổi.
+| U37 | CAO | Chế độ tối (Dark Mode) > Thư viện kiểu (Trang đầu) | Chữ trên các thẻ xem trước kiểu ("Tiêu đề", "Normal", "Tiêu đề 1") bị gán màu đen cứng rgb(0, 0, 0) trên nền tối rgb(30, 30, 30), chìm hoàn toàn vào nền và không thể đọc được. | Đo màu: color rgb(0,0,0) vs bg rgb(30,30,30); ảnh dark-tab-home. |
+| U38 | TRUNG BÌNH | Chế độ tối (Dark Mode) > Tab ngữ cảnh Bảng | Nhãn tab "Thiết kế Bảng" và "Bố cục Bảng" khi active có chữ màu xanh sẫm rgb(15, 76, 129) trên nền ribbon tối rgb(37, 37, 38), độ tương phản kém (chênh lệch ~26.7) rất khó đọc. | Đo màu activeTab: rgb(15, 76, 129) vs ribbon rgb(37, 37, 38); ảnh dark-tab-tableDesign, dark-tab-tableLayout. |
+| U39 | THẤP | Chế độ tối (Dark Mode) > Chế độ xem | Thiếu nút "Chuyển chế độ xem trang" (Switch Modes: xem nền trang trắng/đen) như Word; trang tài liệu bị áp màu nền tối rgb(30, 30, 30) cố định. | So sánh tính năng Dark Mode Word chuẩn; ảnh dark-tab-view. |
+Ghi chú ĐẠT (Chế độ tối): Nền ribbon (rgb(37, 37, 38)), thanh trạng thái, các nhóm nút, icon SVG trên 12 tab đều đổi màu chuẩn Fluent Dark/Dark Gray; chữ tab thường màu xanh sáng rgb(96, 165, 250) rõ ràng; văn bản tài liệu đổi màu chữ trắng rgb(241, 245, 249) dễ đọc.
+
 
 
 
