@@ -2,7 +2,7 @@
  * VN Office — Unit Tests: U1 — Ctrl+B/I/U tại con trỏ không bị kiểm tra chính tả xóa kiểu "sắp gõ".
  */
 import assert from "node:assert/strict";
-import { hasPendingTypingStyle } from "../../platform/text/spellcheck-dom-controller.js";
+import { getPendingTypingStyleCommands, hasPendingTypingStyle } from "../../platform/text/spellcheck-dom-controller.js";
 
 export async function runSpellcheckPendingStyleTests() {
   const results = [];
@@ -30,6 +30,19 @@ export async function runSpellcheckPendingStyleTests() {
     await withComputed({}, () => {
       assert.equal(hasPendingTypingStyle(root, doc({ italic: true }), sel()), true);
       assert.equal(hasPendingTypingStyle(root, doc({ underline: true }), sel()), true);
+    });
+  });
+  await test("U3: nhận diện riêng các kiểu chữ và màu đang chờ gõ", async () => {
+    await withComputed({ color: "rgb(15, 23, 42)", backgroundColor: "rgba(0, 0, 0, 0)" }, () => {
+      const commands = getPendingTypingStyleCommands(
+        root,
+        {
+          queryCommandState: command => ["bold", "italic", "underline"].includes(command),
+          queryCommandValue: command => command === "foreColor" ? "rgb(220, 38, 38)" : "rgba(0, 0, 0, 0)"
+        },
+        () => ({ rangeCount: 1, isCollapsed: true, anchorNode: textNode })
+      );
+      assert.deepEqual(commands.sort(), ["bold", "foreColor", "italic", "underline"]);
     });
   });
   await test("U1: con trỏ đang trong chữ đậm và lệnh đậm bật -> không có kiểu chờ", async () => {

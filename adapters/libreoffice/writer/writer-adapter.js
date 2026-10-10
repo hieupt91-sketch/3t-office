@@ -7,6 +7,7 @@ import { globalUnoBridge } from "../common/uno-bridge.js";
 import { showPromptDialog, showFindReplaceDialog, showAlertDialog, showHyperlinkDialog } from "../../../platform/ui-kit/dialogs.js";
 import { createMatcher } from "../../../platform/find/find-engine.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
+import { getPendingTypingStyleCommands } from "../../../platform/text/spellcheck-dom-controller.js";
 import { withLazyFeatureProgress } from "../../../platform/startup/lazy-feature.js";
 import { parseCsv, parseDelimitedText, parseFodsData, replaceMergeFields } from "../../../apps/writer/mail-merge-data.js";
 import {
@@ -7489,9 +7490,26 @@ export class WriterAdapter {
         break;
 
       case "writer.text.clearFormat":
+        {
+          const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+          const isCaretInWriter = Boolean(selection?.isCollapsed && selection.anchorNode && this.bodyDom?.contains?.(selection.anchorNode));
+          if (isCaretInWriter) {
+            const pendingCommands = getPendingTypingStyleCommands(this.bodyDom, document, () => selection);
+            const defaultStyle = window.getComputedStyle?.(this.bodyDom);
+            for (const command of pendingCommands) {
+              if (["bold", "italic", "underline", "strikeThrough"].includes(command)) {
+                if (document.queryCommandState(command)) document.execCommand(command, false, null);
+              } else if (command === "foreColor" && defaultStyle?.color) {
+                document.execCommand(command, false, defaultStyle.color);
+              } else if (command === "hiliteColor") {
+                document.execCommand(command, false, defaultStyle?.backgroundColor || "transparent");
+              }
+            }
+          }
         document.execCommand("removeFormat", false, null);
         dispatchResult = true;
         break;
+        }
 
       case "writer.para.alignLeft":
         document.execCommand("justifyLeft", false, null);

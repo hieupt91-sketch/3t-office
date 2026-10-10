@@ -370,7 +370,7 @@ export const WRITER_HELP_ENTRIES = [
       "Bôi chữ cần đổi (hoặc đặt con trỏ trong từ). Mở tab Trang đầu, nhóm Phông chữ — hàng trên là hộp Phông chữ và Cỡ chữ, hàng dưới là các nút kiểu chữ.",
       "Phông chữ: Times New Roman (mặc định), Be Vietnam Pro, Arial, Calibri, Roboto. Dùng phím tắt Ctrl+Shift+F để chuyển tiêu điểm vào hộp chọn Phông chữ bằng bàn phím, dùng phím Mũi tên Lên/Xuống để duyệt danh sách phông và nhấn Enter để áp dụng. Cỡ chữ: danh sách đủ từ 8 pt đến 72 pt (8, 9, 10, 10,5, 11, 12, 13, 13,5, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72); 14 pt (NĐ 30) là cỡ mặc định văn bản hành chính. Hai hộp này tự hiện phông và cỡ của chữ dưới con trỏ. Nút Tăng cỡ chữ (Ctrl+Shift+>) / Giảm cỡ chữ (Ctrl+Shift+<) nhảy nhanh theo các nấc đó. Dùng phím tắt Ctrl+] để tăng cỡ chữ 1 điểm (1 pt) và Ctrl+[ để giảm cỡ chữ 1 điểm (1 pt) từng bước chuẩn phần mềm soạn thảo văn bản khác.",
       "Đậm Ctrl+B, Nghiêng Ctrl+I, Gạch chân Ctrl+U, Gạch ngang (không có phím tắt). Chỉ số dưới Ctrl+= (ví dụ H₂O), Chỉ số trên Ctrl+Shift++ (ví dụ m²). Nhấn lại cùng nút để tắt.",
-      "Màu chữ đổi vùng chọn sang đỏ (#dc2626). Màu nền chữ tô vàng (#ffcd00) giống bút highlight. Xóa định dạng (Ctrl+Space) bỏ hết kiểu, giữ nguyên chữ. Ctrl+Z hoàn tác."
+      "Màu chữ đổi vùng chọn sang đỏ (#dc2626). Màu nền chữ tô vàng (#ffcd00) giống bút highlight. Xóa định dạng (Ctrl+Space) bỏ kiểu trên chữ đã bôi mà vẫn giữ nội dung; nếu chỉ đặt con trỏ, lệnh cũng đưa kiểu đậm/nghiêng/gạch chân và màu đang chờ gõ về mặc định. Ctrl+Z hoàn tác."
     ]
   },
   {

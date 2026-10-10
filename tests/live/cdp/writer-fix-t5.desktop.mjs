@@ -106,6 +106,19 @@ try {
     const spellResult = await cdp.evaluate(`(() => ({status:document.querySelector('.vno-writer-canvas')?.dataset?.spellcheckStatus, words:[...document.querySelectorAll('.vno-writer-body .vno-spelling-uncertain')].map(n=>n.textContent), text:document.querySelector('.vno-writer-body')?.innerText}))()`);
     check("U2 chuột + gõ phím: đạt/tỷ không gạch nhầm, từ gõ sai vẫn được báo", spellResult.words.includes("tỷi") && !spellResult.words.includes("đạt") && !spellResult.words.includes("tỷ"), { cdpPort: session.debugPort, spellResult });
   }
+  if (!selected.size || selected.has("6")) {
+    await cdp.evaluate(`(() => { const body=document.querySelector('.vno-writer-body'); body.innerHTML='<p>Đoạn trước</p><p><br></p>'; const p=body.lastElementChild; const range=document.createRange(); range.setStart(p,0); range.collapse(true); const selection=getSelection(); selection.removeAllRanges(); selection.addRange(range); body.focus(); })()`);
+    await press(cdp, "b", { ctrl: true });
+    await press(cdp, "i", { ctrl: true });
+    await press(cdp, "u", { ctrl: true });
+    await cdp.evaluate("globalCommandBus.execute('writer.color.text','#dc2626')");
+    const pendingBefore = await cdp.evaluate(`(() => { const s=getSelection(),n=s.anchorNode?.nodeType===1?s.anchorNode:s.anchorNode?.parentElement,cs=getComputedStyle(n); return {bold:document.queryCommandState('bold'),italic:document.queryCommandState('italic'),underline:document.queryCommandState('underline'),foreColor:document.queryCommandValue('foreColor'),color:cs.color}; })()`);
+    await press(cdp, " ", { ctrl: true });
+    const pendingAfter = await cdp.evaluate(`(() => { const s=getSelection(),n=s.anchorNode?.nodeType===1?s.anchorNode:s.anchorNode?.parentElement,cs=getComputedStyle(n); return {bold:document.queryCommandState('bold'),italic:document.queryCommandState('italic'),underline:document.queryCommandState('underline'),foreColor:document.queryCommandValue('foreColor'),color:cs.color}; })()`);
+    await typeText(cdp, "Van ban thuong", 8);
+    const typed = await cdp.evaluate(`(() => ({html:document.querySelector('.vno-writer-body p:last-child')?.innerHTML,states:{bold:document.queryCommandState('bold'),italic:document.queryCommandState('italic'),underline:document.queryCommandState('underline')}}))()`);
+    check("U3 Ctrl+Space tại con trỏ: xóa kiểu chữ chờ và gõ tiếp văn bản thường", pendingAfter.bold === false && pendingAfter.italic === false && pendingAfter.underline === false && !/<(b|i|u)\b/i.test(typed.html) && !/color:\s*rgb\(220, 38, 38\)/i.test(typed.html), { cdpPort: session.debugPort, pendingBefore, pendingAfter, typed });
+  }
   if (results.some(item => !item.pass)) process.exitCode = 1;
 } finally {
   await session.close();
