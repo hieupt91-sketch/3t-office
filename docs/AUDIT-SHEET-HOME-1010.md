@@ -43,3 +43,24 @@
 *Kiểm chứng lưu XLSX thật*: Tệp lưu ra được giải nén và kiểm tra `xl/styles.xml`, ghi nhận định dạng phông chữ Times New Roman và kiểu chữ Bold/Italic/Underline được chuyển đổi chuẩn sang các thẻ `<font>` và tham chiếu `<xf fontId="...">` tương thích 100% Microsoft Excel.
 
 ---
+
+### Nhóm 3: Căn chỉnh (Alignment)
+
+| Nút / Chức năng | Ngữ cảnh kiểm thử | Kỳ vọng Excel | Thực tế kiểm định | PASS/FAIL | Phím tắt | Ghi chú |
+| :--- | :--- | :--- | :--- | :---: | :---: | :--- |
+| **Căn trên** (`sheet.cell.alignTop`) | Ô B2 đang chọn, bấm Căn trên trên Ribbon | Văn bản căn sát mép trên của ô tính | verticalAlign='top' | **PASS** | Không có | Căn mép trên chính xác. Lưu ý lỗi bố trí giao diện U-S26 (tràn lên tab). |
+| **Căn giữa dọc** (`sheet.cell.alignMiddle`) | Ô B2 đang chọn, bấm Căn giữa dọc trên Ribbon | Văn bản căn chính giữa theo phương đứng của ô | verticalAlign='middle' | **PASS** | Không có | Căn giữa chiều dọc chính xác. |
+| **Căn dưới** (`sheet.cell.alignBottom`) | Ô B2 đang chọn, bấm Căn dưới trên Ribbon | Văn bản căn sát mép dưới của ô | verticalAlign='bottom' | **PASS** | Không có | Căn mép dưới chuẩn mặc định. |
+| **Căn trái** (`sheet.cell.alignLeft`) | Ô B3 đang chọn, bấm Căn trái trên Ribbon | Văn bản căn sát lề trái của ô | textAlign='left' | **PASS** | Không có | Căn lề trái chính xác. |
+| **Căn giữa ngang** (`sheet.cell.alignCenter`) | Ô B3 đang chọn, bấm Căn giữa trên Ribbon | Văn bản căn chính giữa chiều ngang ô | textAlign='center' | **PASS** | Không có | Căn giữa chiều ngang chính xác. |
+| **Căn phải** (`sheet.cell.alignRight`) | Ô B3 đang chọn, bấm Căn phải trên Ribbon | Văn bản căn sát lề phải của ô | textAlign='right' | **PASS** | Không có | Căn lề phải chính xác. |
+| **Tăng thụt lề** (`sheet.cell.indentIncrease`) | Ô B4 đang chọn, bấm nút Tăng thụt lề | Tăng khoảng cách thụt lề đầu dòng của ô thêm 1 bậc | indentLevel trước: 0 -> sau: 1 | **PASS** | Không có | Tăng khoảng thụt lề chính xác. |
+| **Giảm thụt lề** (`sheet.cell.indentDecrease`) | Ô B4 đang chọn, bấm nút Giảm thụt lề | Giảm khoảng cách thụt lề đầu dòng của ô 1 bậc | indentLevel sau khi giảm: 0 | **PASS** | Không có | Giảm khoảng thụt lề chính xác. |
+| **Xuống dòng tự động** (`sheet.cell.wrapText`) | Ô văn bản dài G2, bấm nút Ngắt dòng trên Ribbon | Tự động ngắt dòng hiển thị nội dung dài vừa khít chiều rộng cột | domWrap=true, whiteSpace='normal' | **PASS** | `Alt+Enter` (trong ô) | Kích hoạt chế độ wrap text chuẩn. |
+| **Trộn & căn giữa** (`sheet.cell.mergeCenter`) | Dải ô D10:F10, bấm nút Trộn & căn giữa | Gộp 3 ô thành 1 ô lớn và căn giữa nội dung | isMerged=true, mergedRanges ghi nhận vùng D10:F10, textAlign='center' | **PASS** | Không có | Trộn ô và thiết lập căn giữa chính xác. |
+| **Hủy trộn ô** (`sheet.cell.unmerge`) | Ô đã trộn D10, bấm Hủy trộn ô | Tách ô đã trộn trở lại thành các ô độc lập riêng biệt | isMerged sau khi unmerge=false, tách ô hoàn nguyên | **PASS** | Không có | Tách ô trở lại trạng thái ban đầu hoàn hảo. |
+| **Launcher Căn chỉnh ô** (`sheet.format.alignmentDialog`) | Nút launcher góc nhóm Căn chỉnh | Mở hộp thoại Định dạng ô chuyển thẳng tới tab Căn chỉnh | Hộp thoại mở với tab Căn chỉnh; Escape đóng an toàn trả focus về lưới | **PASS** | `Ctrl+1` (tab Căn chỉnh) | Mở trực tiếp tab Căn chỉnh của hộp thoại Định dạng ô. |
+
+*Kiểm chứng lưu XLSX thật*: Tệp lưu ra được giải nén và kiểm tra `xl/styles.xml`, ghi nhận thuộc tính căn lề (`horizontal="center"`, `vertical="top"`, `wrapText="1"`) và thẻ `<mergeCells><mergeCell ref="D10:F10"/></mergeCells>` trong `xl/worksheets/sheet1.xml` khớp 100% đặc tả OpenXML của Excel.
+
+---

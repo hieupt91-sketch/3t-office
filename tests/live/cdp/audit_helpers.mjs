@@ -37,7 +37,12 @@ export async function clickCommand(cdp, commandId) {
     return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
   }))()`);
   if (index < 0) throw new Error(`No visible ribbon button for ${commandId}`);
-  await click(cdp, selector, index);
+  await cdp.evaluate(`(() => {
+    const nodes = [...document.querySelectorAll(${JSON.stringify(selector)})];
+    const node = nodes[${Number(index)}];
+    if (node) node.click();
+  })()`);
+  await sleep(250);
 }
 
 export async function clickDropdown(cdp, dropdownId, itemCommandId) {
