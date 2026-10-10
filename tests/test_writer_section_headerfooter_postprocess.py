@@ -1248,6 +1248,43 @@ class IntegrationSaveRoundtripTests(unittest.TestCase):
             )
         self.assertEqual(save_result.get("status"), "ok", f"Save with nonexistent source_path failed: {save_result}")
 
+    def test_collapse_single_section_cols(self):
+        doc_xml = (
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+            '<w:body>'
+            '<w:p><w:r><w:t>Hello paragraph</w:t></w:r></w:p>'
+            '<w:p><w:pPr><w:sectPr><w:type w:val="continuous"/><w:cols w:num="2" w:space="567"/></w:sectPr></w:pPr></w:p>'
+            '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:cols w:space="720"/></w:sectPr>'
+            '</w:body></w:document>'
+        )
+        collapsed = ooxml_zip_patch_mod._collapse_single_section_cols(doc_xml)
+        secs = re.findall(r'<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>', collapsed)
+        self.assertEqual(len(secs), 1, "Tài liệu đơn mục phải gộp thành đúng 1 sectPr")
+        self.assertIn('w:num="2"', secs[0], "sectPr duy nhất phải chứa w:num=2")
+        self.assertNotIn('<w:type', secs[0], "sectPr duy nhất không có w:type")
+
+    def test_restore_created_writer_section_metadata_columns(self):
+        doc_xml = (
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+            '<w:body>'
+            '<w:p><w:pPr><w:sectPr><w:type w:val="continuous"/><w:cols w:space="720"/></w:sectPr></w:pPr><w:r><w:t>Sec 1</w:t></w:r></w:p>'
+            '<w:sectPr><w:cols w:space="720"/></w:sectPr>'
+            '</w:body></w:document>'
+        )
+        source_sections = [
+            '<w:sectPr><w:type w:val="continuous"/><w:cols w:space="720"/></w:sectPr>',
+            '<w:sectPr><w:cols w:space="720"/></w:sectPr>',
+        ]
+        section_meta = [
+            {"id": "section-1", "type": "continuous", "columns": {"count": 2, "gap": 10, "rule": False}},
+            {"id": "section-2", "type": "nextPage", "columns": {"count": 1, "gap": 10, "rule": False}},
+        ]
+        patched = ooxml_zip_patch_mod._restore_created_writer_section_metadata(doc_xml, section_meta, source_sections)
+        secs = re.findall(r'<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>', patched)
+        self.assertEqual(len(secs), 2)
+        self.assertIn('w:num="2"', secs[0], "Mục 1 đổi thành 2 cột")
+        self.assertNotIn('w:num="2"', secs[1], "Mục 2 giữ nguyên 1 cột")
+
 
 if __name__ == "__main__":
     unittest.main()

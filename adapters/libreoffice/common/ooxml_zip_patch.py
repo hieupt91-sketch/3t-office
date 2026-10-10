@@ -10325,13 +10325,10 @@ def _rebuild_docx_document_xml(
     has_sect_pr = bool(re.search(r"<w:sectPr\b", converted_xml, re.IGNORECASE))
 
     if has_sect_pr:
-        converted_xml = re.sub(
-            r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>",
-            original_sect_pr,
-            converted_xml,
-            count=1,
-            flags=re.IGNORECASE,
-        )
+        matches = list(re.finditer(r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>", converted_xml, re.IGNORECASE))
+        if matches:
+            last_m = matches[-1]
+            converted_xml = converted_xml[:last_m.start()] + original_sect_pr + converted_xml[last_m.end():]
     else:
         body_close = re.search(r"</w:body\s*>", converted_xml, re.IGNORECASE)
         if body_close:
@@ -13508,6 +13505,10 @@ def postprocess_writer_docx(
     else:
         remapped_sect_pr = orig_sect_pr
 
+    orig_sect_prs = re.findall(r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>", original_xml, re.IGNORECASE)
+    if len(orig_sect_prs) <= 1:
+        converted_xml = _collapse_single_section_cols(converted_xml)
+
     new_xml = _rebuild_docx_document_xml(
         converted_xml, original_xml, orig_header_entries, orig_footer_entries, remapped_sect_pr
     )
@@ -15536,6 +15537,57 @@ def _writer_restore_equation_markers(document_xml: str, source_html: str) -> str
 
 
 
+def _collapse_single_section_cols(document_xml: str) -> str:
+    """LibreOffice's HTML filter wraps <div style="column-count: N"> in a Writer TextSection,
+    which exports to DOCX as a continuous section break (<w:sectPr> in <w:pPr>) followed by
+    the body <w:sectPr>. For a single-section document, collapse the inner sectPr back into
+    the document's body sectPr so Word sees Sections.Count == 1."""
+    sections = list(re.finditer(r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>", document_xml, re.IGNORECASE))
+    if len(sections) <= 1:
+        return document_xml
+
+    inner_match = None
+    for m in sections[:-1]:
+        pre = document_xml[max(0, m.start() - 40):m.start()]
+        if "<w:pPr" in pre:
+            inner_match = m
+            break
+    if not inner_match:
+        return document_xml
+
+    inner_xml = inner_match.group(0)
+    cols_match = re.search(r"<w:cols\b[^>]*/>", inner_xml, re.IGNORECASE)
+    cols_xml = cols_match.group(0) if cols_match else None
+
+    p_pattern = re.compile(
+        rf"<w:p\b[^>]*>\s*<w:pPr\b[^>]*>\s*{re.escape(inner_xml)}\s*</w:pPr\s*>\s*</w:p\s*>",
+        re.IGNORECASE,
+    )
+    if p_pattern.search(document_xml):
+        document_xml = p_pattern.sub("", document_xml, count=1)
+    else:
+        document_xml = document_xml[:inner_match.start()] + document_xml[inner_match.end():]
+        document_xml = re.sub(r"<w:pPr\b[^>]*>\s*</w:pPr\s*>", "", document_xml)
+
+    remaining_sections = list(re.finditer(r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>", document_xml, re.IGNORECASE))
+    if remaining_sections:
+        final_m = remaining_sections[-1]
+        final_xml = final_m.group(0)
+        final_xml = re.sub(r"<w:type\b[^>]*/>", "", final_xml, flags=re.IGNORECASE)
+        if cols_xml and not re.search(r'\bw:num="1"\b', cols_xml):
+            if "<w:cols" in final_xml:
+                final_xml = re.sub(r"<w:cols\b[^>]*/>", cols_xml, final_xml, count=1, flags=re.IGNORECASE)
+            else:
+                for anchor in ("<w:formProt", "<w:vAlign", "<w:noEndnote", "<w:titlePg", "<w:docGrid", "</w:sectPr"):
+                    pos = final_xml.find(anchor)
+                    if pos >= 0:
+                        final_xml = final_xml[:pos] + cols_xml + final_xml[pos:]
+                        break
+        document_xml = document_xml[:final_m.start()] + final_xml + document_xml[final_m.end():]
+
+    return document_xml
+
+
 def _restore_created_writer_section_metadata(
     document_xml: str,
     section_meta: list[dict],
@@ -15567,6 +15619,9 @@ def _restore_created_writer_section_metadata(
             insert_at = size.end() if size else close_at
         elif name == "pgNumType":
             title = re.search(r"<w:titlePg\b[^>]*/>", sect_xml, re.IGNORECASE)
+            insert_at = title.start() if title else close_at
+        elif name == "cols":
+            title = re.search(r"<w:(formProt|vAlign|noEndnote|titlePg|textDirection|bidi|rtlGutter|docGrid)\b[^>]*/>", sect_xml, re.IGNORECASE)
             insert_at = title.start() if title else close_at
         else:
             insert_at = close_at
@@ -15654,6 +15709,33 @@ def _restore_created_writer_section_metadata(
             page_changed = page_changed or int(header_footer.get("pageNumberStart", 1) or 1) != int(source_start)
         return first_changed, page_changed
 
+    def source_columns_changed(cols_config: dict | None, source_section_xml: str | None) -> bool:
+        if source_section_xml is None:
+            return bool(cols_config and int(cols_config.get("count", 1) or 1) > 1)
+        source_cols = re.search(r"<w:cols\b([^>]*)/?>", source_section_xml, re.IGNORECASE)
+        source_attrs = source_cols.group(1) if source_cols else ""
+        source_num_match = re.search(r'\bw:num\s*=\s*(["\'])(\d+)\1', source_attrs, re.IGNORECASE)
+        source_num = int(source_num_match.group(2)) if source_num_match else 1
+        source_sep_match = re.search(r'\bw:sep\s*=\s*(["\'])(1|true|on)\1', source_attrs, re.IGNORECASE)
+        source_rule = bool(source_sep_match)
+        source_space_match = re.search(r'\bw:space\s*=\s*(["\'])(\d+)\1', source_attrs, re.IGNORECASE)
+        source_gap_mm = js_round(int(source_space_match.group(2)) * 25.4 / 1440 * 10) / 10 if source_space_match else 12.7
+
+        if not cols_config:
+            return False
+        cur_num = max(1, int(cols_config.get("count", 1) or 1))
+        cur_rule = bool(cols_config.get("rule"))
+        cur_gap_mm = float(cols_config.get("gap", 10) or 10) if cur_num > 1 else source_gap_mm
+
+        if cur_num != source_num:
+            return True
+        if cur_num > 1:
+            if cur_rule != source_rule:
+                return True
+            if abs(cur_gap_mm - source_gap_mm) >= 0.5:
+                return True
+        return False
+
     paper_twips = {
         "a3": (16838, 23811), "a4": (11906, 16838), "a5": (8391, 11906),
         "letter": (12240, 15840), "legal": (12240, 20160),
@@ -15726,6 +15808,25 @@ def _restore_created_writer_section_metadata(
                 section_xml = replace_or_insert(section_xml, "pgNumType", pgnum_xml)
             else:
                 section_xml = re.sub(r"<w:pgNumType\b[^>]*/>", "", section_xml, flags=re.IGNORECASE)
+
+        cols_config = section.get("columns")
+        if not cols_config and isinstance(section.get("pageSetup"), dict):
+            cols_config = section.get("pageSetup", {}).get("columns")
+        source_cols_changed = (
+            source_columns_changed(cols_config, source_section_xml)
+            if source_section_xml is not None
+            else bool(cols_config and int(cols_config.get("count", 1) or 1) > 1)
+        )
+        if source_cols_changed:
+            col_count = max(1, int(cols_config.get("count", 1) or 1)) if cols_config else 1
+            if col_count > 1:
+                gap_val = float(cols_config.get("gap", 10) or 10)
+                space_dxa = round(gap_val / 25.4 * 1440) if gap_val else 720
+                sep_attr = ' w:sep="1"' if cols_config.get("rule") else ""
+                cols_xml = f'<w:cols w:num="{col_count}" w:space="{space_dxa}"{sep_attr}/>'
+            else:
+                cols_xml = '<w:cols w:space="720"/>'
+            section_xml = replace_or_insert(section_xml, "cols", cols_xml)
 
         # `w:type` của sectPr mô tả cách CHÍNH phần đó bắt đầu (liên tục / trang kế / trang chẵn / trang lẻ).
         # Đo bằng Word thật (06/10): trước đây gán loại của phần KẾ TIẾP vào sectPr trước → "Ngắt mục liên tục"
@@ -15835,6 +15936,8 @@ def postprocess_writer_section_metadata(
                 match.group(0)
                 for match in re.finditer(r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>", source_xml, re.IGNORECASE)
             ]
+            if len(section_meta) <= 1 or len(source_section_xmls) <= 1:
+                document_xml = _collapse_single_section_cols(document_xml)
             source_rels = _resolve_docx_rels(source_docx)
             output_rels = _resolve_docx_rels(docx_bytes)
 
@@ -15851,6 +15954,8 @@ def postprocess_writer_section_metadata(
             document_xml = _restore_writer_sections_by_order(
                 document_xml, source_xml, r_id_map=source_to_output_ids,
             )
+    elif len(section_meta) <= 1:
+        document_xml = _collapse_single_section_cols(document_xml)
     document_xml = _apply_writer_link_to_previous(document_xml, section_meta)
     patched_xml = _restore_created_writer_section_metadata(document_xml, section_meta, source_section_xmls)
     replacements: dict[str, str | bytes | None] = {}
@@ -16041,6 +16146,7 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
                     sections = list(re.finditer(r'<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>', document_xml, re.IGNORECASE))
 
     if len(section_ids) <= 1:
+        document_xml = _collapse_single_section_cols(document_xml)
         single_cols = None
         if section_meta:
             single_cols = section_meta[0].get("columns") or section_meta[0].get("pageSetup", {}).get("columns")
@@ -16061,7 +16167,7 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
             rule_val = bool(single_cols.get("rule"))
             space_dxa = round(gap_val / 25.4 * 1440) if gap_val else 720
             sep_attr = ' w:sep="1"' if rule_val else ""
-            cols_xml = f'<w:cols w:num="{count}" w:space="{space_dxa}"{sep_attr}/>' if count > 1 else '<w:cols w:num="1"/>'
+            cols_xml = f'<w:cols w:num="{count}" w:space="{space_dxa}"{sep_attr}/>' if count > 1 else '<w:cols w:space="720"/>'
 
             def patch_single_cols(m: re.Match) -> str:
                 s = m.group(0)
