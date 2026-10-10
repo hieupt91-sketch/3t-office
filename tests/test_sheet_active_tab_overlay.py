@@ -172,11 +172,11 @@ class TestApplyActiveSheetToFods(unittest.TestCase):
         self.assertIn(">Thông báo Sản phẩm mới<", res)
         self.assertIn('config:name="VisibleAreaTop"', res)
 
-    def test_preserves_existing_active_table(self):
+    def test_replaces_existing_active_table_with_xlsx_active_sheet(self):
         res = patcher.apply_active_sheet_to_fods(FODS_WITH_ACTIVE_TABLE, "Thông báo Sản phẩm mới")
-        self.assertEqual(res, FODS_WITH_ACTIVE_TABLE)
-        self.assertIn(">PreExistingSheet<", res)
-        self.assertNotIn(">Thông báo Sản phẩm mới<", res)
+        self.assertNotEqual(res, FODS_WITH_ACTIVE_TABLE)
+        self.assertIn(">Thông báo Sản phẩm mới<", res)
+        self.assertNotIn(">PreExistingSheet<", res)
 
     def test_escapes_xml_special_characters(self):
         res = patcher.apply_active_sheet_to_fods(FODS_3_SHEETS, 'Báo cáo & Tổng kết <2023> "Q1"')
@@ -199,12 +199,12 @@ class TestOverlaySheetXlsxActiveTab(unittest.TestCase):
         self.assertIsNotNone(match)
         self.assertEqual(match.group(1), "foxz")
 
-    def test_overlay_preserves_pre_existing_active_table(self):
+    def test_overlay_replaces_pre_existing_active_table_with_xlsx_active_sheet(self):
         xlsx = _fake_xlsx(WORKBOOK_XML_ACTIVE_1)
         overlaid = patcher.overlay_sheet_xlsx_fods(xlsx, FODS_WITH_ACTIVE_TABLE)
         match = re.search(r'config:name="ActiveTable"[^>]*>([^<]*)<', overlaid)
         self.assertIsNotNone(match)
-        self.assertEqual(match.group(1), "PreExistingSheet")
+        self.assertEqual(match.group(1), patcher.parse_active_sheet_from_workbook(WORKBOOK_XML_ACTIVE_1))
 
     def test_overlay_escapes_special_characters_and_vietnamese(self):
         xlsx = _fake_xlsx(WORKBOOK_XML_SPECIAL_CHARS)

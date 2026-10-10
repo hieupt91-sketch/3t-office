@@ -100,27 +100,43 @@ export async function roundtripFile({ app, input, output, edit = false, largeFil
   const outputPath = path.resolve(output);
   const session = await launchApp(app, { filePath: inputPath });
   try {
+    const timings = {};
+    let phaseStarted = performance.now();
     await waitForSource(session, inputPath);
+    timings.loadMs = Math.round(performance.now() - phaseStarted);
+    const sheetStateAfterLoad = app === "sheet"
+      ? await session.cdp.evaluate("(() => ({activeSheet: window.__vnoAppInstance?.adapter?.grid?.activeSheet || null, sheetCount: window.__vnoAppInstance?.adapter?.grid?.sheets?.length || 0}))()")
+      : null;
     // An untouched XLSX is saved by restoring the source package (by design), which makes a no-edit
     // round trip an identity copy. VNO_AUDIT_MARK_DIRTY=1 forces the real conversion path every user
     // edit takes, so fidelity audits measure what a saved edit really does.
     if (process.env.VNO_AUDIT_MARK_DIRTY === "1" && app === "sheet") {
       await session.cdp.evaluate("(() => { window.__vnoAppInstance.adapter.isDirty = true; return true; })()");
     }
+    phaseStarted = performance.now();
     const before = await serialize(session, largeFile);
+    timings.serializeMs = Math.round(performance.now() - phaseStarted);
+    const sheetStateBeforeSave = app === "sheet"
+      ? await session.cdp.evaluate("(() => ({activeSheet: window.__vnoAppInstance?.adapter?.grid?.activeSheet || null, sheetCount: window.__vnoAppInstance?.adapter?.grid?.sheets?.length || 0}))()")
+      : null;
     const sentPath = outputPath + (app === "sheet" ? ".sent.fods" : app === "writer" ? ".sent.html" : ".sent.fodp");
+    phaseStarted = performance.now();
     const beforeBytes = edit ? await writeSentContent(session, sentPath, before) : null;
     const editResult = app === "writer" && edit
       ? await editWriterThroughKeyboard(session.cdp)
       : { pass: true, detail: "No edit requested." };
     const length = edit ? await serialize(session, largeFile) : before;
     const contentBytes = await writeSentContent(session, sentPath, length);
+    timings.sentContentWriteMs = Math.round(performance.now() - phaseStarted);
+    if (edit) timings.editSerializeAndWriteMs = timings.sentContentWriteMs;
+    phaseStarted = performance.now();
     const saved = await session.cdp.evaluate(
       "globalThis.globalUnoBridge.saveRealFileInPlace("
       + JSON.stringify(app) + ", window.__vnoAuditContent, "
       + JSON.stringify(outputPath) + ", " + JSON.stringify(inputPath) + ")",
       { timeoutMilliseconds: largeFile ? LARGE_FILE_EVALUATE_TIMEOUT_MS : 1200000 },
     );
+    timings.saveMs = Math.round(performance.now() - phaseStarted);
     if (saved?.status !== "ok") throw new Error("App save service failed: " + JSON.stringify(saved));
     const stat = await fs.stat(outputPath);
     if (stat.size <= 0) throw new Error("App save service produced an empty output file.");
@@ -130,6 +146,11 @@ export async function roundtripFile({ app, input, output, edit = false, largeFil
       output: path.basename(outputPath),
       loaded: true,
       saved: true,
+      cdpPort: session.debugPort,
+      profilePath: session.localAppData,
+      timings,
+      sheetStateAfterLoad,
+      sheetStateBeforeSave,
       edit: editResult,
       inputContentBytes: beforeBytes ?? contentBytes,
       outputBytes: stat.size,

@@ -597,10 +597,6 @@ def make_all_sheets_visible_for_import(xlsx_bytes: bytes) -> bytes:
 # ---------------------------------------------------------------------------
 
 CONFIG_NS = "urn:oasis:names:tc:opendocument:xmlns:config:1.0"
-_CONFIG_ITEM_ACTIVE_TABLE_RE = re.compile(
-    r'<config:config-item\b[^>]*config:name\s*=\s*(["\'])ActiveTable\1',
-    re.IGNORECASE,
-)
 _VIEW_SETTINGS_SET_RE = re.compile(
     r'(<config:config-item-set\b[^>]*config:name\s*=\s*(["\'])ooo:view-settings\2[^>]*>)([\s\S]*?)(</config:config-item-set>)',
     re.IGNORECASE,
@@ -1066,15 +1062,19 @@ def ensure_config_xmlns(fods_xml: str) -> str:
 
 
 def apply_active_sheet_to_fods(fods_xml: str | None, active_sheet: str | None) -> str:
-    """Inject ActiveTable config item into FODS office:settings if not already present."""
+    """Set FODS ActiveTable from the authoritative XLSX workbookView selection."""
     xml = fods_xml or ""
     if not active_sheet or not xml:
         return xml
 
-    if _CONFIG_ITEM_ACTIVE_TABLE_RE.search(xml):
-        return xml
-
     escaped = _escape_xml(active_sheet)
+    existing = re.compile(
+        r'(<config:config-item\b[^>]*config:name\s*=\s*(["\'])ActiveTable\2[^>]*>)[^<]*(</config:config-item>)',
+        re.IGNORECASE,
+    )
+    if existing.search(xml):
+        return existing.sub(lambda match: match.group(1) + escaped + match.group(3), xml, count=1)
+
     active_item = f'<config:config-item config:name="ActiveTable" config:type="string">{escaped}</config:config-item>'
 
     xml = ensure_config_xmlns(xml)
@@ -2980,6 +2980,52 @@ def _restore_missing_hyperlinks_step(
             if re.search(r'<hyperlinks\b', tgt_xml_str, re.IGNORECASE):
                 continue
 
+            # Quan hệ siêu liên kết của nguồn (rIdN) có thể TRÙNG Id với quan hệ khác của trang đích (vd. drawing = rId1 do
+            # LibreOffice cấp): trước đây quan hệ bị bỏ qua vì "Id đã tồn tại" nên <hyperlink r:id> trỏ nhầm sang drawing và Excel
+            # từ chối mở tệp (lan09: "Unable to get the Open property"). Đọc rels trước để đổi Id trùng sang Id mới.
+            src_dir, src_filename = posixpath.split(src_entry)
+            src_rels_path = f"{src_dir}/_rels/{src_filename}.rels"
+            src_rels_bytes = read_zip_entry(source_xlsx_bytes, src_rels_path)
+            src_rels_xml = src_rels_bytes.decode("utf-8", errors="replace") if src_rels_bytes else ""
+            hl_rels = [
+                r_m.group(0)
+                for r_m in re.finditer(r'<Relationship\b[^>]*\bType="[^"]*hyperlink"[^>]*/>', src_rels_xml, re.IGNORECASE)
+            ]
+
+            tgt_dir, tgt_filename = posixpath.split(tgt_entry)
+            tgt_rels_path = f"{tgt_dir}/_rels/{tgt_filename}.rels"
+            tgt_rels_str = replacements.get(tgt_rels_path)
+            if tgt_rels_str is None:
+                tgt_rels_bytes = read_zip_entry(xlsx_bytes, tgt_rels_path)
+                tgt_rels_str = tgt_rels_bytes.decode("utf-8", errors="replace") if tgt_rels_bytes else None
+            elif isinstance(tgt_rels_str, bytes):
+                tgt_rels_str = tgt_rels_str.decode("utf-8", errors="replace")
+
+            used_ids = set(re.findall(r'\bId="([^"]*)"', tgt_rels_str or "", re.IGNORECASE))
+            id_map: dict[str, str] = {}
+            remapped_rels = []
+            for rel_tag in hl_rels:
+                rid_m = re.search(r'\bId="([^"]*)"', rel_tag, re.IGNORECASE)
+                if not rid_m:
+                    continue
+                old_id = rid_m.group(1)
+                new_id = old_id
+                if new_id in used_ids:
+                    counter = 1
+                    while f"rIdVnoHl{counter}" in used_ids:
+                        counter += 1
+                    new_id = f"rIdVnoHl{counter}"
+                    rel_tag = re.sub(r'\bId="[^"]*"', f'Id="{new_id}"', rel_tag, count=1)
+                used_ids.add(new_id)
+                id_map[old_id] = new_id
+                remapped_rels.append(rel_tag)
+            if id_map:
+                src_hl_xml = re.sub(
+                    r'\br:id="([^"]*)"',
+                    lambda m: f'r:id="{id_map.get(m.group(1), m.group(1))}"',
+                    src_hl_xml,
+                )
+
             # Ensure xmlns:r is declared on <worksheet> root element
             if 'r:id=' in src_hl_xml and 'xmlns:r=' not in tgt_xml_str:
                 tgt_xml_str = re.sub(
@@ -3003,48 +3049,19 @@ def _restore_missing_hyperlinks_step(
             if new_tgt_xml != tgt_xml_str:
                 replacements[tgt_entry] = new_tgt_xml
 
-            src_dir, src_filename = posixpath.split(src_entry)
-            src_rels_path = f"{src_dir}/_rels/{src_filename}.rels"
-            src_rels_bytes = read_zip_entry(source_xlsx_bytes, src_rels_path)
-            if not src_rels_bytes:
+            if not remapped_rels:
                 continue
-            src_rels_xml = src_rels_bytes.decode("utf-8", errors="replace")
-
-            hl_rels = []
-            for r_m in re.finditer(r'<Relationship\b[^>]*\bType="[^"]*hyperlink"[^>]*/>', src_rels_xml, re.IGNORECASE):
-                hl_rels.append(r_m.group(0))
-
-            if not hl_rels:
-                continue
-
-            tgt_dir, tgt_filename = posixpath.split(tgt_entry)
-            tgt_rels_path = f"{tgt_dir}/_rels/{tgt_filename}.rels"
-            tgt_rels_str = replacements.get(tgt_rels_path)
-            if tgt_rels_str is None:
-                tgt_rels_bytes = read_zip_entry(xlsx_bytes, tgt_rels_path)
-                tgt_rels_str = tgt_rels_bytes.decode("utf-8", errors="replace") if tgt_rels_bytes else None
-            elif isinstance(tgt_rels_str, bytes):
-                tgt_rels_str = tgt_rels_str.decode("utf-8", errors="replace")
 
             if tgt_rels_str:
-                existing_ids = set(re.findall(r'\bId="([^"]*)"', tgt_rels_str, re.IGNORECASE))
-                to_add = []
-                for rel_tag in hl_rels:
-                    rid_m = re.search(r'\bId="([^"]*)"', rel_tag, re.IGNORECASE)
-                    if rid_m and rid_m.group(1) not in existing_ids:
-                        to_add.append(rel_tag)
-                if to_add:
-                    pos = tgt_rels_str.rfind("</Relationships>")
-                    if pos != -1:
-                        new_rels = tgt_rels_str[:pos] + "".join(to_add) + tgt_rels_str[pos:]
-                        replacements[tgt_rels_path] = new_rels
+                pos = tgt_rels_str.rfind("</Relationships>")
+                if pos != -1:
+                    replacements[tgt_rels_path] = tgt_rels_str[:pos] + "".join(remapped_rels) + tgt_rels_str[pos:]
             else:
-                new_rels = (
+                replacements[tgt_rels_path] = (
                     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
                     '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-                    f'{"".join(hl_rels)}</Relationships>'
+                    f'{"".join(remapped_rels)}</Relationships>'
                 )
-                replacements[tgt_rels_path] = new_rels
     except Exception:
         pass
 
@@ -3384,10 +3401,24 @@ def _preserve_external_links(
             out_wb_bytes = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
             if out_wb_bytes:
                 out_wb_xml = out_wb_bytes.decode("utf-8", errors="replace")
+        replaced_existing_list = False
         if out_wb_xml and "<externalReferences" not in out_wb_xml:
             # Insert externalReferences after <sheets> element (schema order)
             out_wb_xml = _insert_external_references(out_wb_xml, external_references_xml)
             replacements[XLSX_WORKBOOK_ENTRY] = out_wb_xml
+        elif out_wb_xml:
+            # LibreOffice đã tự ghi một <externalReferences> (thường chỉ vài mục nó hiểu). Công thức/tên đã khôi phục dùng chỉ số
+            # [N] của DANH SÁCH GỐC, nên danh sách phải là danh sách gốc đầy đủ và đúng thứ tự: để nguyên bản ngắn của LibreOffice
+            # thì Excel thấy [2]..[8] không tồn tại và từ chối mở tệp (lan22: 1 mục so với 8 phần externalLink).
+            out_wb_xml = re.sub(
+                r"<externalReferences\b[^>]*>[\s\S]*?</externalReferences>",
+                lambda _match: external_references_xml,
+                out_wb_xml,
+                count=1,
+                flags=re.IGNORECASE,
+            )
+            replacements[XLSX_WORKBOOK_ENTRY] = out_wb_xml
+            replaced_existing_list = True
 
         # 4. Update workbook.xml.rels: add externalLink relationships
         out_rels_xml = replacements.get(XLSX_WORKBOOK_RELS_ENTRY)
@@ -3396,6 +3427,15 @@ def _preserve_external_links(
             if out_rels_bytes:
                 out_rels_xml = out_rels_bytes.decode("utf-8", errors="replace")
         if out_rels_xml:
+            if replaced_existing_list:
+                # Bỏ quan hệ externalLink cũ của LibreOffice (không còn được danh sách mới tham chiếu) để không trùng đích.
+                kept_ids = set(id_map.values())
+                out_rels_xml = re.sub(
+                    r'<Relationship\b(?=[^>]*\bType="[^"]*externalLink")(?=[^>]*\bId="([^"]*)")[^>]*/>\s*',
+                    lambda rel: rel.group(0) if rel.group(1) in kept_ids else "",
+                    out_rels_xml,
+                    flags=re.IGNORECASE,
+                )
             out_rels_xml = _add_external_link_relationships(out_rels_xml, extlink_rels)
             replacements[XLSX_WORKBOOK_RELS_ENTRY] = out_rels_xml
 
