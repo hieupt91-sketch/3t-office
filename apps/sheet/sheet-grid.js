@@ -10017,6 +10017,15 @@ _bindGridKeyboardNavigation() {
     rowSnapshots.sort((a, b) => {
       const vA = a.sortVal;
       const vB = b.sortVal;
+      const blankA = vA === null || vA === undefined || vA === "";
+      const blankB = vB === null || vB === undefined || vB === "";
+      // Excel keeps empty sort keys after populated keys in both A-Z and Z-A.
+      // Handle this before applying direction so descending sort cannot pull
+      // blank rows to the top.
+      if (blankA || blankB) {
+        if (blankA && blankB) return a.originalRow - b.originalRow;
+        return blankA ? 1 : -1;
+      }
       const numA = typeof vA === "number" ? vA : parseFloat(String(vA).replace(/\./g, "").replace(/[^\d-]/g, ""));
       const numB = typeof vB === "number" ? vB : parseFloat(String(vB).replace(/\./g, "").replace(/[^\d-]/g, ""));
 

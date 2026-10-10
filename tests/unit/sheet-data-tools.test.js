@@ -109,6 +109,28 @@ export async function runSheetDataToolsTests() {
     assert(grid.sortMultiLevel({ hasHeader: false, levels: [{ col: "Z", ascending: true }] }) === false, "Không có cấp nào trỏ tới cột trong vùng thì phải false");
   });
 
+  await test("Sort A-Z/Z-A: ô trống luôn xuống cuối với số, chữ Việt, ngày serial và dữ liệu hỗn hợp", () => {
+    const sortedValues = (values, ascending) => {
+      const grid = new SheetGridController(container());
+      put(grid, "A1", "Giá trị");
+      values.forEach((value, index) => {
+        put(grid, `A${index + 2}`, value);
+        put(grid, `B${index + 2}`, `hàng-${index + 1}`);
+      });
+      grid.selectionRange = { start: { c: "A", r: 1 }, end: { c: "B", r: values.length + 1 } };
+      assert(grid.sort("A", ascending), "Sort phải chạy trên vùng đã chọn");
+      return Array.from({ length: values.length }, (_, index) => grid.cellsData.get(`A${index + 2}`)?.val ?? "");
+    };
+    const numeric = sortedValues([10, 2, "", 1], true);
+    assert(numeric.join("|") === "1|2|10|", `Sort số tăng dần sai hoặc ô trống không cuối: ${numeric}`);
+    const vietnamese = sortedValues(["Ổi", "Áo", "", "Đào"], true);
+    assert(vietnamese.at(-1) === "" && vietnamese.slice(0, -1).join("|") === ["Ổi", "Áo", "Đào"].sort((a, b) => a.localeCompare(b, "vi-VN")).join("|"), `Sort chữ Việt sai: ${vietnamese}`);
+    const dates = sortedValues([44500, 44100, "", 44200], true);
+    assert(dates.join("|") === "44100|44200|44500|", `Sort ngày dạng serial sai: ${dates}`);
+    const mixedDescending = sortedValues([8, "Táo", "", 3], false);
+    assert(mixedDescending.at(-1) === "" && mixedDescending.length === 4, `Sort hỗn hợp giảm dần phải để ô trống cuối: ${mixedDescending}`);
+  });
+
   await test("Custom Sort: một hàng dữ liệu (không header) là no-op an toàn, không báo lỗi và không đổi dữ liệu", () => {
     const grid = new SheetGridController(container());
     put(grid, "A1", "Chỉ một hàng");
