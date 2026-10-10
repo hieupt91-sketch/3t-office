@@ -61,16 +61,19 @@ export async function selectCell(cdp, coord) {
 
 export async function getCellInfo(cdp, coord) {
   return await cdp.evaluate(`(() => {
-    const grid = window.__vnoAppInstance.grid;
+    const grid = window.__vnoAppInstance?.grid;
+    if (!grid) return {};
     const item = grid.cellsData.get(${JSON.stringify(coord)}) || {};
     const rawVal = item.val !== undefined ? item.val : "";
     const dom = document.querySelector('.vno-grid-cell[data-coord="' + ${JSON.stringify(coord)} + '"]');
     const computed = dom ? window.getComputedStyle(dom) : {};
     return {
+      val: rawVal,
       rawVal,
       formula: item.formula || "",
       style: item.style || {},
-      numFmt: item.numFmt || null,
+      numFmt: item.style?.numberFormat || item.numFmt || null,
+      numberFormat: item.style?.numberFormat || null,
       domText: dom ? dom.innerText.trim() : "",
       domBg: computed.backgroundColor || "",
       domColor: computed.color || "",
