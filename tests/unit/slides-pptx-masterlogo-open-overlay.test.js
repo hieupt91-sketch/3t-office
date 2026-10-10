@@ -13,11 +13,15 @@ import { SlidesAdapter } from "../../adapters/libreoffice/slides/slides-adapter.
 import {
   MASTER_LOGO_SHAPE_NAME,
   applyMasterLogoShape,
+  applyMasterThemeId,
   findNamedLogoShapes,
   fodpHasMasterLogo,
   overlayFodpMasterLogo,
+  overlayFodpMasterThemeId,
   parseMasterLogoFromFodp,
-  parseMasterLogoFromSlideMaster
+  parseMasterLogoFromSlideMaster,
+  parseMasterThemeId,
+  parseMasterThemeIdFromFodp
 } from "../../adapters/libreoffice/slides/pptx-master-logo.js";
 import {
   overlaySlidesPptxFodp,
@@ -127,6 +131,19 @@ export async function runSlidesPptxMasterLogoOpenOverlayTests() {
       results.push({ name, pass: false, error: error.message });
     }
   };
+
+  await test("PPTX Slide Master keeps and restores the native theme ID", () => {
+    const themeId = "minimal-dark";
+    const master = applyMasterThemeId(LO_MASTER_XML, themeId);
+    assert(parseMasterThemeId(master) === themeId, "Slide Master metadata must carry minimal-dark");
+    const withTheme = overlayFodpMasterThemeId(LO_FODP, master);
+    assert(parseMasterThemeIdFromFodp(withTheme) === themeId, "Open overlay must restore vno:master-theme id");
+    const saved = postProcessSlidesPptx(fakePptx(LO_MASTER_XML), { sourceFodp: withTheme });
+    const patched = readZipEntry(saved, "ppt/slideMasters/slideMaster1.xml").toString("utf8");
+    assert(parseMasterThemeId(patched) === themeId, "PPTX save post-process must stamp the theme ID");
+    const reopened = overlaySlidesPptxFodp(fakePptx(patched), LO_FODP);
+    assert(parseMasterThemeIdFromFodp(reopened) === themeId, "PPTX open overlay must restore the same theme ID");
+  });
 
   await test("overlayFodpMasterLogo: gắn vno:master-theme từ p:sp VNOfficeMasterLogo, không đoán", () => {
     assert(!fodpHasMasterLogo(LO_FODP), "FODP soffice giả lập chưa có vno:master-theme/grMasterLogo");

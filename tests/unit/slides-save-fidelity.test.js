@@ -329,5 +329,37 @@ export async function runSlidesSaveFidelityTests() {
     assert(xmlNew.includes("THUYẾT TRÌNH"), "Tài liệu tạo mới từ mẫu phải chứa chữ THUYẾT TRÌNH");
   });
 
+  await test("Grouped and nested shapes remain p:g-equivalent structures through FODP serialize/parse", () => {
+    const canvas = {
+      slides: [{
+        id: "group-roundtrip",
+        title: "",
+        body: "",
+        layoutType: "blank",
+        groups: [{ id: "inner", parentId: "outer" }, { id: "outer", parentId: null }],
+        shapes: [
+          { id: "rect-1", type: "rect", x: 40, y: 50, w: 100, h: 60, groupId: "inner", fill: "#ff0000" },
+          { id: "text-1", type: "textbox", x: 180, y: 50, w: 120, h: 60, groupId: "outer", text: "Grouped text" },
+          { id: "image-1", type: "image", x: 320, y: 50, w: 80, h: 60, groupId: "outer", src: "data:image/png;base64,iVBORw0KGgo=" }
+        ]
+      }],
+      currentSlideIndex: 0,
+      slideSize: { width: 960, height: 540 },
+      masterTheme: { id: "modern-blue" },
+      selectSlide() {}
+    };
+    const adapter = new SlidesAdapter(canvas);
+    const xml = adapter.serializeToFodp();
+    assert((xml.match(/<draw:g\b/g) || []).length === 2, "Phểi ghi hai mức draw:g lồng nhau");
+    assert(xml.includes("VNOfficeGroup:outer") && xml.includes("VNOfficeGroup:inner"), "Phải giữ ID nhóm trong tên draw:g");
+    const parsed = adapter.parseFodp(xml);
+    const slide = parsed[0];
+    assert(slide.groups.some(group => group.id === "outer") && slide.groups.some(group => group.id === "inner" && group.parentId === "outer"), "Parser phải khôi phục quan hệ nhóm cha/con");
+    assert(slide.shapes.length === 3, `Phải khôi phục đủ hình, hộp chữ và ảnh; thực tế ${slide.shapes.length}`);
+    assert(slide.shapes.find(shape => shape.text === "Grouped text")?.groupId === "outer", "Hộp chữ phải còn thuộc nhóm ngoài");
+    assert(slide.shapes.some(shape => shape.type === "image" && shape.groupId === "outer"), "Ảnh phải còn thuộc nhóm ngoài");
+    assert(slide.shapes.find(shape => shape.type === "rect")?.groupId === "inner", "Hình con phải còn thuộc nhóm lồng");
+  });
+
   return results;
 }

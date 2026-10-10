@@ -23,6 +23,7 @@
 import { ensureVnoXmlns } from "./pptx-section-list.js";
 
 export const MASTER_LOGO_SHAPE_NAME = "VNOfficeMasterLogo";
+export const MASTER_THEME_MARKER = "VNOfficeTheme:";
 export const SLIDE_MASTER_ENTRY_RE = /^ppt\/slideMasters\/slideMaster\d+\.xml$/i;
 export const PPTX_PRESENTATION_ENTRY = "ppt/presentation.xml";
 
@@ -58,6 +59,60 @@ function escapeXml(value) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+function decodeXmlAttr(value) {
+  return String(value || "").replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+}
+
+export function parseMasterThemeId(masterXml) {
+  const cSld = String(masterXml || "").match(/<(?:[\w]+:)?cSld\b([^>]*)>/i)?.[1] || "";
+  const name = decodeXmlAttr(cSld.match(/\bname=["']([^"']*)["']/i)?.[1] || "");
+  if (!name.startsWith(MASTER_THEME_MARKER)) return "";
+  try { return decodeURIComponent(name.slice(MASTER_THEME_MARKER.length)); }
+  catch { return name.slice(MASTER_THEME_MARKER.length); }
+}
+
+export function applyMasterThemeId(masterXml, themeId) {
+  const xml = String(masterXml || "");
+  const id = String(themeId || "").trim();
+  if (!xml || !id || !/<(?:[\w]+:)?cSld\b/i.test(xml)) return xml;
+  const marker = `${MASTER_THEME_MARKER}${encodeURIComponent(id)}`;
+  return xml.replace(/<(?:[\w]+:)?cSld\b([^>]*)>/i, (tag, rawAttrs) => {
+    const attrs = rawAttrs.replace(/\s+name=(?:"[^"]*"|'[^']*')/i, "");
+    return `<${tag.slice(1, tag.indexOf(" ") > 0 ? tag.indexOf(" ") : tag.length - 1)}${attrs} name="${escapeXml(marker)}">`;
+  });
+}
+
+export function parseMasterThemeIdFromFodp(fodpXml) {
+  const master = String(fodpXml || "").match(/<style:master-page\b([^>]*)>/i)?.[1] || "";
+  const raw = decodeXmlAttr(master.match(/\bvno:master-theme\s*=\s*["']([^"']*)["']/i)?.[1] || "");
+  try {
+    const parsed = JSON.parse(raw);
+    return String(parsed?.id || parsed?.themeId || "");
+  } catch { return ""; }
+}
+
+export function overlayFodpMasterThemeId(fodpXml, masterXml) {
+  const id = parseMasterThemeId(masterXml);
+  if (!id) return String(fodpXml || "");
+  const xml = String(fodpXml || "");
+  const match = xml.match(/<style:master-page\b([^>]*)\/?\s*>/i);
+  if (!match) return xml;
+  const attrs = (match[1] || "").replace(/\/\s*$/, "");
+  const selfClose = /\/\s*>$/.test(match[0]);
+  const raw = decodeXmlAttr(attrs.match(/\bvno:master-theme\s*=\s*["']([^"']*)["']/i)?.[1] || "");
+  let payload = {};
+  try { payload = JSON.parse(raw) || {}; } catch { payload = {}; }
+  payload.id = id;
+  const nextAttr = `vno:master-theme="${escapeXml(JSON.stringify(payload))}"`;
+  const nextAttrs = /\bvno:master-theme\s*=\s*(?:"[^"]*"|'[^']*')/i.test(attrs)
+    ? attrs.replace(/\bvno:master-theme\s*=\s*(?:"[^"]*"|'[^']*')/i, nextAttr)
+    : `${attrs.trimEnd()} ${nextAttr}`;
+  const tagName = match[0].match(/^<([\w:.-]+)/)?.[1] || "style:master-page";
+  const nextTag = `<${tagName}${nextAttrs}${selfClose ? "/>" : ">"}`;
+  return xml.slice(0, match.index) + nextTag + xml.slice(match.index + match[0].length);
 }
 
 function stripTags(value) {

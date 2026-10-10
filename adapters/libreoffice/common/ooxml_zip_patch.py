@@ -45,6 +45,7 @@ XLSX_STYLES_ENTRY = "xl/styles.xml"
 PPTX_PRESENTATION_ENTRY = "ppt/presentation.xml"
 PPTX_PRESPROPS_ENTRY = "ppt/presProps.xml"
 MASTER_LOGO_SHAPE_NAME = "VNOfficeMasterLogo"
+MASTER_THEME_MARKER = "VNOfficeTheme:"
 SLIDE_MASTER_ENTRY_RE = re.compile(r"^ppt/slideMasters/slideMaster\d+\.xml$", re.IGNORECASE)
 CM_EMU = 360000
 DEFAULT_SLIDE_CX = 28 * CM_EMU
@@ -5873,6 +5874,79 @@ def overlay_fodp_master_logo(fodp_xml: str, master_xml: str | list[str] | None) 
     return apply_fodp_master_theme_attrs(xml, logo)
 
 
+def parse_master_theme_id(master_xml: str | None) -> str:
+    xml = str(master_xml or "")
+    match = re.search(r"<(?:[\w]+:)?cSld\b([^>]*)>", xml, re.IGNORECASE)
+    attrs = match.group(1) if match else ""
+    name = re.search(r"\bname=[\"']([^\"']*)[\"']", attrs, re.IGNORECASE)
+    value = html.unescape(name.group(1)) if name else ""
+    if not value.startswith(MASTER_THEME_MARKER):
+        return ""
+    try:
+        return url_unquote(value[len(MASTER_THEME_MARKER):])
+    except Exception:
+        return value[len(MASTER_THEME_MARKER):]
+
+
+def apply_master_theme_id(master_xml: str, theme_id: str | None) -> str:
+    xml = str(master_xml or "")
+    value = str(theme_id or "").strip()
+    if not xml or not value:
+        return xml
+    marker = MASTER_THEME_MARKER + url_quote(value, safe="")
+
+    def replace(match: re.Match[str]) -> str:
+        attrs = re.sub(r"\s+name=(?:\"[^\"]*\"|'[^']*')", "", match.group(2), flags=re.IGNORECASE)
+        return f'<{match.group(1)}{attrs} name="{html.escape(marker, quote=True)}">'
+
+    return re.sub(r"<((?:[\w:.-]+:)?cSld)\b([^>]*)>", replace, xml, count=1, flags=re.IGNORECASE)
+
+
+def parse_master_theme_id_from_fodp(fodp_xml: str | None) -> str:
+    xml = str(fodp_xml or "")
+    match = re.search(r"<style:master-page\b([^>]*)>", xml, re.IGNORECASE)
+    attr = re.search(r"\bvno:master-theme\s*=\s*([\"'])(.*?)\1", match.group(1) if match else "", re.IGNORECASE)
+    if not attr:
+        return ""
+    try:
+        payload = json.loads(html.unescape(attr.group(2)))
+        return str(payload.get("id") or payload.get("themeId") or "") if isinstance(payload, dict) else ""
+    except (TypeError, ValueError):
+        return ""
+
+
+def overlay_fodp_master_theme_id(fodp_xml: str, master_xml: str | list[str] | None) -> str:
+    masters = master_xml if isinstance(master_xml, list) else ([master_xml] if master_xml else [])
+    ids = {parse_master_theme_id(item) for item in masters} - {""}
+    if len(ids) != 1:
+        return fodp_xml or ""
+    xml = fodp_xml or ""
+    match = re.search(r"<style:master-page\b([^>]*)\/?\s*>", xml, re.IGNORECASE)
+    if not match:
+        return xml
+    attrs = re.sub(r"/\s*$", "", match.group(1) or "")
+    self_close = bool(re.search(r"/\s*>$", match.group(0)))
+    attr = re.search(r"\bvno:master-theme\s*=\s*([\"'])(.*?)\1", attrs, re.IGNORECASE)
+    payload = {}
+    if attr:
+        try:
+            parsed = json.loads(html.unescape(attr.group(2)))
+            if isinstance(parsed, dict):
+                payload = parsed
+        except (TypeError, ValueError):
+            pass
+    payload["id"] = ids.pop()
+    next_attr = 'vno:master-theme="' + html.escape(json.dumps(payload, ensure_ascii=False, separators=(",", ":")), quote=True) + '"'
+    if attr:
+        attrs = attrs[:attr.start()] + next_attr + attrs[attr.end():]
+    else:
+        attrs = attrs.rstrip() + " " + next_attr
+    tag = re.match(r"<([\w:.-]+)", match.group(0))
+    tag_name = tag.group(1) if tag else "style:master-page"
+    replacement = f'<{tag_name}{attrs}{"/" if self_close else ""}>'
+    return xml[:match.start()] + replacement + xml[match.end():]
+
+
 # ---------------------------------------------------------------------------
 # Speaker notes (presentation:notes) restoration
 # ---------------------------------------------------------------------------
@@ -6165,6 +6239,7 @@ def postprocess_slides_pptx(
     apply_logo = bool(logo["logoText"])
     if apply_logo and source_fodp and not fodp_has_master_logo(source_fodp) and logo_text is None:
         apply_logo = False
+    theme_id = parse_master_theme_id_from_fodp(source_fodp)
     apply_sections = bool(sections) if sections is not None else fodp_has_sections(source_fodp)
     apply_show = bool(show_without_narration or pointer_color) or fodp_has_show_setup_patch(source_fodp)
 
@@ -6202,17 +6277,17 @@ def postprocess_slides_pptx(
     # Luôn kiểm tra notes — ghi chú diễn giả mất trắng khi soffice convert
     notes_by_slide = parse_notes_from_fodp(source_fodp) if source_fodp else {}
 
-    if not apply_logo and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide:
+    if not apply_logo and not theme_id and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide:
         return pptx_bytes
 
     if apply_slide_size and presentation_xml:
         presentation_xml = apply_intended_slide_size(presentation_xml, intended_size)
 
-    if apply_logo:
+    if apply_logo or theme_id:
         with zipfile.ZipFile(io.BytesIO(pptx_bytes), "r") as package:
             master_names = [name for name in package.namelist() if SLIDE_MASTER_ENTRY_RE.match(name)]
         if not master_names:
-            raise ValueError("PPTX thiếu ppt/slideMasters/slideMaster*.xml — không thể bổ sung logo")
+            raise ValueError("PPTX thiếu ppt/slideMasters/slideMaster*.xml — không thể bổ sung metadata Slide Master")
         for name in master_names:
             current = _read_zip_entry(pptx_bytes, name)
             xml = current.decode("utf-8")
@@ -6223,7 +6298,9 @@ def postprocess_slides_pptx(
                 font_family=logo["fontFamily"],
                 slide_cx=effective_size["cx"],
                 slide_cy=effective_size["cy"],
-            )
+            ) if apply_logo else xml
+            if theme_id:
+                next_xml = apply_master_theme_id(next_xml, theme_id)
             if next_xml != xml:
                 replacements[name] = next_xml
     if apply_sections:
@@ -10071,6 +10148,7 @@ def overlay_slides_pptx_fodp(pptx_bytes: bytes, fodp_xml: str | None) -> str:
             raise ValueError(f"PPTX thiếu {name} — không đoán logo master")
         masters.append(entry.decode("utf-8", errors="replace"))
     xml = overlay_fodp_master_logo(xml, masters)
+    xml = overlay_fodp_master_theme_id(xml, masters)
     props = read_zip_entry(pptx_bytes, PPTX_PRESPROPS_ENTRY)
     if props:
         xml = overlay_fodp_show_properties(xml, props.decode("utf-8", errors="replace"))

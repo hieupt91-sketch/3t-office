@@ -198,6 +198,9 @@ export async function runSlidesPenLaserTests() {
       const show = canvas.startSlideShow(0);
 
       show.setPointerMode("pen");
+      globalThis.document.dispatchEvent({ type: "keydown", key: "Escape", ctrlKey: false, altKey: false, metaKey: false, preventDefault() {} });
+      assert(show.getPointerMode() === "arrow", "Esc exits pen mode and keeps the slideshow open");
+      show.setPointerMode("pen");
       assert(show.getPointerMode() === "pen", "Chuyển sang chế độ bút vẽ");
 
       // Vẽ 1 nét trên slide 0

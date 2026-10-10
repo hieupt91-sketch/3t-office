@@ -161,6 +161,27 @@ export async function runSlidesEditingGroupTests() {
     assert(canvas.selectedShapeIds.size === 1 && canvas.selectedShapeIds.has("11"), "Chọn đối tượng bỏ connector");
   });
 
+  await test("Ctrl+G cÃ³ thá»ƒ nhÃ³m lÃªn nhÃ³m con vÃ  Ctrl+Shift+G gá»¡ nhÃ³m cha", () => {
+    const canvas = canvasWithSlides();
+    canvas.slides[0].shapes.push(
+      { id: 13, type: "textbox", x: 220, y: 40, w: 80, h: 40, text: "Text" },
+      { id: 14, type: "rect", x: 320, y: 40, w: 80, h: 40, text: "Shape" }
+    );
+    canvas.selectedShapeIds = new Set(["11", "13"]);
+    assert(canvas.groupSelectedShapes(), "NhÃ³m hai shape Ä‘áº§u");
+    const innerGroup = canvas.slides[0].shapes[0].groupId;
+    canvas.selectedShapeIds = new Set(["11", "14"]);
+    assert(canvas.groupSelectedShapes(), "NhÃ³m nhÃ³m con cÃ¹ng textbox");
+    const outerGroup = canvas.slides[0].shapes[3].groupId;
+    assert(outerGroup && outerGroup !== innerGroup, "NhÃ³m cha cÃ³ ID riÃªng");
+    assert(canvas.slides[0].groups.find(group => group.id === innerGroup)?.parentId === outerGroup, "NhÃ³m con cÃ³ liÃªn káº¿t cha");
+    assert(canvas.selectShapeFromUserClick(canvas.slides[0].shapes[0]), "Chá»n group sau khi táº¡o");
+    assert(canvas.selectedShapeIds.size === 3, `Click nhÃ³m cha chá»n 3 shape, thá»±c táº¿ ${canvas.selectedShapeIds.size}`);
+    assert(canvas.ungroupSelectedShapes(), "Bá»� nhÃ³m cha");
+    assert(canvas.slides[0].shapes[0].groupId === innerGroup, "Gá»¡ nhÃ³m cha giá»¯ nhÃ³m con");
+    assert(canvas.slides[0].shapes[3].groupId === null, "Shape trá»±c tiáº¿p thuá»™c nhÃ³m cha Ä‘Æ°á»£c gá»¡");
+  });
+
   await test("Adapter handleDispatch Find/Replace/Select", async () => {
     const canvas = canvasWithSlides();
     const adapter = new SlidesAdapter(canvas);

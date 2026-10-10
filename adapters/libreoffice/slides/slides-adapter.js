@@ -2240,10 +2240,63 @@ export class SlidesAdapter {
         </draw:rect>`;
   }
 
-  _serializeSlideShapes(shapes, idMap, richCtx) {
+  _serializeSlideShapes(shapes, idMap, richCtx, groupRecords = []) {
     if (!Array.isArray(shapes) || shapes.length === 0) return "";
     const map = idMap || this._collectShapeIdMap(shapes);
-    return shapes.map((shape) => this._serializeShape(shape, map.get(String(shape.id)), map, richCtx)).join("");
+    const groups = Array.isArray(groupRecords) ? groupRecords.map(group => ({ ...group })) : [];
+    for (const shape of shapes) {
+      if (shape.groupId && !groups.some(group => group.id === shape.groupId)) {
+        groups.push({ id: shape.groupId, parentId: null });
+      }
+    }
+    if (!groups.length) return shapes.map(shape => this._serializeShape(shape, map.get(String(shape.id)), map, richCtx)).join("");
+
+    const groupById = new Map(groups.map(group => [String(group.id), group]));
+    const shapeOrder = new Map(shapes.map((shape, index) => [String(shape.id), index]));
+    const pageWidth = this._pxToOdf(this.canvas?.slideSize?.width || 960);
+    const pageHeight = this._pxToOdf(this.canvas?.slideSize?.height || 540);
+    const serializeGroup = (group) => {
+      const id = String(group.id);
+      const children = [];
+      for (const child of groups.filter(item => String(item.parentId || "") === id)) {
+        const descendants = this._groupDescendantShapeIds(child.id, groups, shapes);
+        const order = Math.min(...descendants.map(shapeId => shapeOrder.get(String(shapeId)) ?? Infinity));
+        children.push({ order, xml: serializeGroup(child) });
+      }
+      for (const shape of shapes.filter(item => String(item.groupId || "") === id)) {
+        children.push({ order: shapeOrder.get(String(shape.id)), xml: this._serializeShape(shape, map.get(String(shape.id)), map, richCtx) });
+      }
+      children.sort((a, b) => a.order - b.order);
+      return `<draw:g draw:name="VNOfficeGroup:${this._escapeXml(id)}" svg:x="0cm" svg:y="0cm" svg:width="${pageWidth}" svg:height="${pageHeight}">${children.map(item => item.xml).join("")}</draw:g>`;
+    };
+    const output = [];
+    for (const shape of shapes) {
+      if (!shape.groupId) {
+        output.push({ order: shapeOrder.get(String(shape.id)), xml: this._serializeShape(shape, map.get(String(shape.id)), map, richCtx) });
+      }
+    }
+    for (const group of groups.filter(item => !item.parentId)) {
+      const descendants = this._groupDescendantShapeIds(group.id, groups, shapes);
+      const order = Math.min(...descendants.map(shapeId => shapeOrder.get(String(shapeId)) ?? Infinity));
+      if (Number.isFinite(order)) output.push({ order, xml: serializeGroup(group) });
+    }
+    output.sort((a, b) => a.order - b.order);
+    return output.map(item => item.xml).join("");
+  }
+
+  _groupDescendantShapeIds(groupId, groups, shapes) {
+    const ids = new Set([String(groupId)]);
+    let expanded = true;
+    while (expanded) {
+      expanded = false;
+      for (const group of groups) {
+        if (ids.has(String(group.parentId || "")) && !ids.has(String(group.id))) {
+          ids.add(String(group.id));
+          expanded = true;
+        }
+      }
+    }
+    return shapes.filter(shape => ids.has(String(shape.groupId || ""))).map(shape => shape.id);
   }
 
   _parseGraphicFillStyles(xmlText) {
@@ -2926,32 +2979,85 @@ export class SlidesAdapter {
   }
 
   _extractDrawGroups(pageContent, shapes, graphicStyles, idMap, sourceXml = pageContent) {
-    const regex = /<draw:g\b([^>]*)>([\s\S]*?)<\/draw:g>/gi;
-    const blocks = [];
-    let match;
+    const groups = [];
     let groupIndex = 0;
-    while ((match = regex.exec(pageContent)) !== null) {
-      blocks.push(match[0]);
-      groupIndex += 1;
-      const attrs = match[1] || "";
-      const inner = match[2] || "";
-      const groupId = this._diagramGroupIdFromAttrs(attrs, groupIndex);
-      const origin = this._parseDrawTranslate(attrs);
-      const children = this._parseInnerDrawShapes(inner, graphicStyles, idMap);
-      const groupOrder = sourceXml.indexOf(match[0]);
-      const innerOffset = match[0].indexOf(inner);
-      if (groupOrder >= 0 && innerOffset >= 0) {
-        for (const shape of children) {
-          if (Number.isFinite(shape._importOrder)) shape._importOrder += groupOrder + innerOffset;
+    const directGroupBlocks = (xml) => {
+      const tokens = /<\/?draw:g\b[^>]*>/gi;
+      const blocks = [];
+      let token;
+      let depth = 0;
+      let start = -1;
+      let attrs = "";
+      while ((token = tokens.exec(xml)) !== null) {
+        if (/^<\//.test(token[0])) {
+          depth--;
+          if (depth === 0 && start >= 0) {
+            blocks.push({ start, end: tokens.lastIndex, attrs, xml: xml.slice(start, tokens.lastIndex) });
+            start = -1;
+          }
+        } else {
+          if (depth === 0) { start = token.index; attrs = token[0].slice(8, -1); }
+          if (!/\/\s*>$/.test(token[0])) depth++;
+          else if (depth === 0) blocks.push({ start: token.index, end: tokens.lastIndex, attrs, xml: token[0] });
         }
       }
-      this._applyGroupOffset(children, origin.x, origin.y);
-      const grouped = this._stampImportedDiagramGroup(children, groupId, idMap);
-      for (const shape of grouped) shapes.push(shape);
-    }
-    let next = pageContent;
-    for (const block of blocks) next = next.replace(block, "");
-    return next;
+      return blocks;
+    };
+    const stripDirectGroups = xml => directGroupBlocks(xml).slice().reverse()
+      .reduce((result, block) => result.slice(0, block.start) + result.slice(block.end), xml);
+    const parseNamedGroup = (xml, parentId = null, baseOrder = 0, includeDirectShapes = true) => {
+      const blocks = directGroupBlocks(xml);
+      let remaining = xml;
+      for (const block of blocks) {
+        const name = this._attr(block.attrs, "draw:name") || "";
+        const importedId = name.match(/^VNOfficeGroup:(.*)$/)?.[1];
+        if (importedId) {
+          const id = this._unescapeXml(importedId);
+          groups.push({ id, parentId });
+          const inner = block.xml.match(/^<draw:g\b[^>]*>([\s\S]*)<\/draw:g>$/i)?.[1] || "";
+          const innerOffset = block.xml.indexOf(inner);
+          parseNamedGroup(inner, id, baseOrder + block.start + Math.max(0, innerOffset));
+          remaining = remaining.replace(block.xml, "");
+          continue;
+        }
+        groupIndex++;
+        const groupId = this._diagramGroupIdFromAttrs(block.attrs, groupIndex);
+        const origin = this._parseDrawTranslate(block.attrs);
+        const inner = block.xml.match(/^<draw:g\b[^>]*>([\s\S]*)<\/draw:g>$/i)?.[1] || "";
+        const before = shapes.length;
+        groups.push({ id: groupId, parentId });
+        parseNamedGroup(inner, groupId, baseOrder + block.start + Math.max(0, block.xml.indexOf(inner)));
+        const children = shapes.splice(before);
+        this._applyGroupOffset(children, origin.x, origin.y);
+        const isDiagram = children.some(shape => shape.type === "connector")
+          || this._omitGroupBackground(children).length < children.length;
+        if (isDiagram) {
+          groups.splice(groups.findIndex(group => group.id === groupId), 1);
+          for (const shape of children) if (shape.groupId === groupId) shape.groupId = null;
+          for (const shape of this._stampImportedDiagramGroup(children, groupId, idMap)) {
+            shape._importOrder = baseOrder + block.start;
+            shapes.push(shape);
+          }
+        } else {
+          for (const shape of children) {
+            shape._importOrder = baseOrder + block.start;
+            shapes.push(shape);
+          }
+        }
+        remaining = remaining.replace(block.xml, "");
+      }
+      if (includeDirectShapes) {
+        const direct = this._parseInnerDrawShapes(remaining, graphicStyles, idMap);
+        for (const shape of direct) {
+          if (parentId) shape.groupId = parentId;
+          if (Number.isFinite(shape._importOrder)) shape._importOrder += baseOrder;
+          shapes.push(shape);
+        }
+      }
+      return remaining;
+    };
+    shapes.groups = groups;
+    return parseNamedGroup(pageContent, null, 0, false);
   }
 
   _frameBlocksByClass(pageXml, className) {
@@ -3221,7 +3327,7 @@ export class SlidesAdapter {
         </draw:frame>`;
       }
 
-      const shapesXml = this._serializeSlideShapes(slide.shapes || [], idMap, richCtx);
+      const shapesXml = this._serializeSlideShapes(slide.shapes || [], idMap, richCtx, slide.groups || []);
       const pageXmlId = `idPage${idx + 1}`;
       const pageStyleName = this._pageDrawingStyleName(slide, idx);
       const animXml = this._serializePageAnimXml(pageXmlId, slide, idMap, placeholderIds);
@@ -3510,6 +3616,7 @@ export class SlidesAdapter {
         ...(body2Html && this._htmlHasFormat(body2Html) ? { body2Html } : {}),
         layoutType: pageLayout,
         shapes,
+        groups: shapes.groups || [],
         notes: notesText,
         ...(background ? { background } : {}),
         comments: parsedComments.comments,

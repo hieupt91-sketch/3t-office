@@ -1715,6 +1715,30 @@ export class SlidesCanvasController {
       this._updateSelectionUi();
       return true;
     }
+    if (shape.groupId) {
+      const slide = this.slides[this.currentSlideIndex];
+      const groups = Array.isArray(slide?.groups) ? slide.groups : [];
+      let rootId = shape.groupId;
+      while (groups.find(group => group.id === rootId)?.parentId) {
+        rootId = groups.find(group => group.id === rootId).parentId;
+      }
+      const groupIds = new Set([rootId]);
+      let expanded = true;
+      while (expanded) {
+        expanded = false;
+        for (const group of groups) {
+          if (groupIds.has(group.parentId) && !groupIds.has(group.id)) {
+            groupIds.add(group.id);
+            expanded = true;
+          }
+        }
+      }
+      const ids = (slide?.shapes || []).filter(item => groupIds.has(item.groupId)).map(item => String(item.id));
+      this.selectedShapeIds = new Set(ids);
+      this.selectedTarget = String(shape.id);
+      this._updateSelectionUi();
+      return true;
+    }
     if (shape.diagramGroupId) {
       return this.selectDiagramGroup(shape.diagramGroupId, shape.id);
     }
@@ -4749,10 +4773,162 @@ const startEditing = (initialText) => {
     return Number.isFinite(scale) && scale > 0.05 ? scale : 1;
   }
 
+  _getObjectGroupShapes(groupId) {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide || !groupId) return [];
+    const groups = Array.isArray(slide.groups) ? slide.groups : [];
+    let rootId = groupId;
+    while (groups.find(group => group.id === rootId)?.parentId) {
+      rootId = groups.find(group => group.id === rootId).parentId;
+    }
+    const ids = new Set([rootId]);
+    let expanded = true;
+    while (expanded) {
+      expanded = false;
+      for (const group of groups) {
+        if (ids.has(group.parentId) && !ids.has(group.id)) {
+          ids.add(group.id);
+          expanded = true;
+        }
+      }
+    }
+    return (slide.shapes || []).filter(shape => ids.has(shape.groupId) && shape.type !== "connector");
+  }
+
+  _applyObjectGroupGeometry(entries, geometryKey) {
+    for (const entry of entries) {
+      const shape = this.slides[entry.slideIndex]?.shapes?.find(item => String(item.id) === String(entry.shapeId));
+      if (!shape) continue;
+      Object.assign(shape, entry[geometryKey]);
+      const el = this.shapesLayer?.querySelector(`[data-shape-id="${shape.id}"]`);
+      if (el) {
+        el.style.left = `${shape.x}px`;
+        el.style.top = `${shape.y}px`;
+        el.style.width = `${shape.w}px`;
+        el.style.height = `${shape.h}px`;
+        el.style.transform = shape.rotation ? `rotate(${shape.rotation}deg)` : "";
+      }
+    }
+  }
+
+  _attachGroupResize(handleEl, shape, dir, event) {
+    const slideIndex = this.currentSlideIndex;
+    const members = this._getObjectGroupShapes(shape.groupId);
+    if (members.length < 2) return false;
+    const original = members.map(item => ({ shapeId: item.id, x: item.x, y: item.y, w: item.w, h: item.h, rotation: item.rotation }));
+    const left = Math.min(...original.map(item => item.x));
+    const top = Math.min(...original.map(item => item.y));
+    const right = Math.max(...original.map(item => item.x + item.w));
+    const bottom = Math.max(...original.map(item => item.y + item.h));
+    const bounds = { x: left, y: top, w: right - left, h: bottom - top };
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const pointerScale = this._pointerScale();
+    let changed = false;
+    const move = moveEvent => {
+      const dx = (moveEvent.clientX - startX) / pointerScale;
+      const dy = (moveEvent.clientY - startY) / pointerScale;
+      if (Math.abs(dx) + Math.abs(dy) < 2 && !changed) return;
+      changed = true;
+      const newW = Math.max(20, bounds.w + (dir.includes("e") ? dx : dir.includes("w") ? -dx : 0));
+      const newH = Math.max(20, bounds.h + (dir.includes("s") ? dy : dir.includes("n") ? -dy : 0));
+      const sx = newW / Math.max(bounds.w, 1);
+      const sy = newH / Math.max(bounds.h, 1);
+      const x0 = dir.includes("w") ? right - newW : left;
+      const y0 = dir.includes("n") ? bottom - newH : top;
+      for (const item of original) {
+        const target = this.slides[slideIndex].shapes.find(candidate => String(candidate.id) === String(item.shapeId));
+        if (!target) continue;
+        target.x = x0 + (item.x - left) * sx;
+        target.y = y0 + (item.y - top) * sy;
+        target.w = Math.max(8, item.w * sx);
+        target.h = Math.max(8, item.h * sy);
+        const el = this.shapesLayer?.querySelector(`[data-shape-id="${target.id}"]`);
+        if (el) {
+          el.style.left = `${target.x}px`; el.style.top = `${target.y}px`;
+          el.style.width = `${target.w}px`; el.style.height = `${target.h}px`;
+        }
+      }
+    };
+    const up = () => {
+      document.removeEventListener("pointermove", move);
+      document.removeEventListener("pointerup", up);
+      if (!changed) return;
+      const after = members.map(item => ({ ...item }));
+      this.undoStack.push({ type: "shapes-transform", slideIndex, entries: original.map((item, index) => ({ shapeId: item.shapeId, before: item, after: { x: after[index].x, y: after[index].y, w: after[index].w, h: after[index].h, rotation: after[index].rotation } })) });
+      this.redoStack = [];
+      this._syncUndoRedoState();
+      this._renderThumbnails();
+    };
+    document.addEventListener("pointermove", move);
+    document.addEventListener("pointerup", up);
+    return true;
+  }
+
+  _attachGroupRotate(handleEl, shape, event, shapeEl) {
+    const slideIndex = this.currentSlideIndex;
+    const members = this._getObjectGroupShapes(shape.groupId);
+    if (members.length < 2) return false;
+    const original = members.map(item => ({ shapeId: item.id, x: item.x, y: item.y, w: item.w, h: item.h, rotation: item.rotation }));
+    const left = Math.min(...original.map(item => item.x));
+    const top = Math.min(...original.map(item => item.y));
+    const right = Math.max(...original.map(item => item.x + item.w));
+    const bottom = Math.max(...original.map(item => item.y + item.h));
+    const centerX = left + (right - left) / 2;
+    const centerY = top + (bottom - top) / 2;
+    const rect = this.canvasEl?.getBoundingClientRect?.() || { left: 0, top: 0 };
+    const scale = this._pointerScale();
+    const angleAt = e => Math.atan2((e.clientY - rect.top) / scale - centerY, (e.clientX - rect.left) / scale - centerX);
+    const startAngle = angleAt(event);
+    let changed = false;
+    const move = moveEvent => {
+      let delta = (angleAt(moveEvent) - startAngle) * 180 / Math.PI;
+      if (moveEvent.shiftKey) delta = Math.round(delta / 15) * 15;
+      delta = Math.round(delta);
+      changed = changed || Math.abs(delta) > 0;
+      const radians = delta * Math.PI / 180;
+      for (const item of original) {
+        const target = this.slides[slideIndex].shapes.find(candidate => String(candidate.id) === String(item.shapeId));
+        if (!target) continue;
+        const cx = item.x + item.w / 2 - centerX;
+        const cy = item.y + item.h / 2 - centerY;
+        const nextCx = centerX + cx * Math.cos(radians) - cy * Math.sin(radians);
+        const nextCy = centerY + cx * Math.sin(radians) + cy * Math.cos(radians);
+        target.x = nextCx - item.w / 2;
+        target.y = nextCy - item.h / 2;
+        const nextRotation = ((item.rotation || 0) + delta) % 360;
+        if (nextRotation) target.rotation = nextRotation; else delete target.rotation;
+        const el = this.shapesLayer?.querySelector(`[data-shape-id="${target.id}"]`);
+        if (el) {
+          el.style.left = `${target.x}px`; el.style.top = `${target.y}px`;
+          el.style.transform = target.rotation ? `rotate(${target.rotation}deg)` : "";
+        }
+      }
+    };
+    const up = () => {
+      document.removeEventListener("pointermove", move);
+      document.removeEventListener("pointerup", up);
+      if (!changed) return;
+      const after = members.map(item => ({ ...item }));
+      this.undoStack.push({ type: "shapes-transform", slideIndex, entries: original.map((item, index) => ({ shapeId: item.shapeId, before: item, after: { x: after[index].x, y: after[index].y, w: after[index].w, h: after[index].h, rotation: after[index].rotation } })) });
+      this.redoStack = [];
+      this._syncUndoRedoState();
+      this._renderThumbnails();
+      shapeEl?.classList?.remove("is-rotating");
+      handleEl?.classList?.remove("is-rotating");
+    };
+    shapeEl?.classList?.add("is-rotating");
+    handleEl?.classList?.add("is-rotating");
+    document.addEventListener("pointermove", move);
+    document.addEventListener("pointerup", up);
+    return true;
+  }
+
   _attachResizeHandle(handleEl, shapeEl, shape, dir) {
     handleEl.addEventListener("pointerdown", (event) => {
       event.stopPropagation();
       event.preventDefault();
+      if (shape.groupId && this._attachGroupResize(handleEl, shape, dir, event)) return;
 
       const startClientX = event.clientX;
       const startClientY = event.clientY;
@@ -4877,6 +5053,7 @@ const startEditing = (initialText) => {
     handleEl.addEventListener("pointerdown", (event) => {
       event.stopPropagation();
       event.preventDefault();
+      if (shape.groupId && this._attachGroupRotate(handleEl, shape, event, shapeEl)) return;
 
       const origRotation = shape.rotation;
       const rect = shapeEl.getBoundingClientRect();
@@ -5041,6 +5218,8 @@ const startEditing = (initialText) => {
           if (this.diagramGroupSelectionId !== shape.diagramGroupId) {
             this.selectDiagramGroup(shape.diagramGroupId, shape.id);
           }
+        } else if (shape.groupId && !this.selectedShapeIds.has(String(shape.id))) {
+          this.selectShapeFromUserClick(shape, event);
         } else if (!this.selectedShapeIds.has(String(shape.id))) {
           this.setSelectedTarget(shape.id);
         }
@@ -5394,6 +5573,14 @@ const startEditing = (initialText) => {
         this.insertHyperlink();
         return;
       }
+
+      if ((e.ctrlKey || e.metaKey) && (e.key === "g" || e.key === "G")) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.shiftKey) this.ungroupSelectedShapes();
+        else this.groupSelectedShapes();
+        return;
+      }
     };
 
     if (typeof window !== "undefined") {
@@ -5407,15 +5594,28 @@ const startEditing = (initialText) => {
     const selectedList = slide.shapes?.filter(s => this.selectedShapeIds.has(String(s.id)) && s.type !== "connector") || [];
     if (selectedList.length < 2) return false;
 
-    const newGroupId = `group-${Date.now()}`;
+    const newGroupId = `group-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const previousGroups = selectedList.map(s => ({ shapeId: s.id, groupId: s.groupId || null }));
-    selectedList.forEach(s => { s.groupId = newGroupId; });
+    const existingGroups = new Set(selectedList.map(shape => shape.groupId).filter(Boolean));
+    const groups = Array.isArray(slide.groups) ? slide.groups : (slide.groups = []);
+    const previousGroupParents = [];
+    for (const groupId of existingGroups) {
+      if (!groups.some(group => group.id === groupId)) groups.push({ id: groupId, parentId: null });
+      const group = groups.find(item => item.id === groupId);
+      previousGroupParents.push({ id: groupId, parentId: group.parentId || null });
+      group.parentId = newGroupId;
+    }
+    const newShapeIds = selectedList.filter(shape => !shape.groupId).map(shape => shape.id);
+    selectedList.forEach(shape => { if (!shape.groupId) shape.groupId = newGroupId; });
+    groups.push({ id: newGroupId, parentId: null });
 
     this.undoStack.push({
       type: "shapes-group",
       slideIndex: this.currentSlideIndex,
       groupId: newGroupId,
-      previousGroups
+      previousGroups,
+      previousGroupParents,
+      newShapeIds
     });
     this.redoStack = [];
     this._syncUndoRedoState();
@@ -5428,17 +5628,27 @@ const startEditing = (initialText) => {
     if (!slide || !this.selectedShapeIds || this.selectedShapeIds.size === 0) return false;
     const allShapes = slide.shapes || [];
     const selected = allShapes.filter(s => this.selectedShapeIds.has(String(s.id)));
-    const targetGroup = selected.find(s => s.groupId)?.groupId;
+    const groups = Array.isArray(slide.groups) ? slide.groups : [];
+    let targetGroup = selected.find(s => s.groupId)?.groupId;
+    while (targetGroup && groups.find(group => group.id === targetGroup)?.parentId) {
+      targetGroup = groups.find(group => group.id === targetGroup).parentId;
+    }
     if (!targetGroup) return false;
 
-    const groupShapes = allShapes.filter(s => s.groupId === targetGroup);
-    groupShapes.forEach(s => { s.groupId = null; });
+    const childGroups = groups.filter(group => group.parentId === targetGroup);
+    const previousChildParents = childGroups.map(group => ({ id: group.id, parentId: group.parentId || null }));
+    const groupShapes = allShapes.filter(shape => shape.groupId === targetGroup);
+    groupShapes.forEach(shape => { shape.groupId = null; });
+    childGroups.forEach(group => { group.parentId = null; });
+    slide.groups = groups.filter(group => group.id !== targetGroup);
 
     this.undoStack.push({
       type: "shapes-ungroup",
       slideIndex: this.currentSlideIndex,
       groupId: targetGroup,
-      shapeIds: groupShapes.map(s => s.id)
+      shapeIds: groupShapes.map(s => s.id),
+      childGroupIds: childGroups.map(group => group.id),
+      previousChildParents
     });
     this.redoStack = [];
     this._syncUndoRedoState();
@@ -7340,6 +7550,25 @@ const startEditing = (initialText) => {
       this.selectSlide(action.slideIndex);
       this._renderShapesLayer();
       return true;
+    } else if (action.type === "shapes-transform") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      for (const entry of action.entries || []) {
+        const shape = slide.shapes?.find(item => String(item.id) === String(entry.shapeId));
+        if (!shape) continue;
+        const { shapeId: _shapeId, ...beforeGeometry } = entry.before;
+        Object.assign(shape, beforeGeometry);
+        const el = this.shapesLayer?.querySelector(`[data-shape-id="${shape.id}"]`);
+        if (el) {
+          el.style.left = `${shape.x}px`; el.style.top = `${shape.y}px`;
+          el.style.width = `${shape.w}px`; el.style.height = `${shape.h}px`;
+          el.style.transform = shape.rotation ? `rotate(${shape.rotation}deg)` : "";
+        }
+      }
+      this.redoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
+      return true;
     } else if (action.type === "shape-resize") {
       const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
       if (!shape) return false;
@@ -7383,6 +7612,11 @@ const startEditing = (initialText) => {
         const s = slide.shapes?.find(item => String(item.id) === String(pg.shapeId));
         if (s) s.groupId = pg.groupId;
       });
+      slide.groups = (slide.groups || []).filter(group => group.id !== action.groupId);
+      for (const parent of action.previousGroupParents || []) {
+        const group = slide.groups.find(item => item.id === parent.id);
+        if (group) group.parentId = parent.parentId;
+      }
       this.redoStack.push(action);
       this.selectSlide(action.slideIndex);
       this._renderShapesLayer();
@@ -7394,6 +7628,12 @@ const startEditing = (initialText) => {
         const s = slide.shapes?.find(item => String(item.id) === String(id));
         if (s) s.groupId = action.groupId;
       });
+      slide.groups ||= [];
+      if (!slide.groups.some(group => group.id === action.groupId)) slide.groups.push({ id: action.groupId, parentId: null });
+      for (const parent of action.previousChildParents || []) {
+        const group = slide.groups.find(item => item.id === parent.id);
+        if (group) group.parentId = parent.parentId;
+      }
       this.redoStack.push(action);
       this.selectSlide(action.slideIndex);
       this._renderShapesLayer();
@@ -7664,6 +7904,25 @@ const startEditing = (initialText) => {
       this.selectSlide(action.slideIndex);
       this._renderShapesLayer();
       return true;
+    } else if (action.type === "shapes-transform") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      for (const entry of action.entries || []) {
+        const shape = slide.shapes?.find(item => String(item.id) === String(entry.shapeId));
+        if (!shape) continue;
+        const { shapeId: _shapeId, ...afterGeometry } = entry.after;
+        Object.assign(shape, afterGeometry);
+        const el = this.shapesLayer?.querySelector(`[data-shape-id="${shape.id}"]`);
+        if (el) {
+          el.style.left = `${shape.x}px`; el.style.top = `${shape.y}px`;
+          el.style.width = `${shape.w}px`; el.style.height = `${shape.h}px`;
+          el.style.transform = shape.rotation ? `rotate(${shape.rotation}deg)` : "";
+        }
+      }
+      this.undoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
+      return true;
     } else if (action.type === "shape-resize") {
       const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
       if (!shape) return false;
@@ -7703,9 +7962,19 @@ const startEditing = (initialText) => {
     } else if (action.type === "shapes-group") {
       const slide = this.slides[action.slideIndex];
       if (!slide) return false;
+      slide.groups ||= [];
+      for (const parent of action.previousGroupParents || []) {
+        const group = slide.groups.find(item => item.id === parent.id);
+        if (group) group.parentId = action.groupId;
+      }
+      if (!slide.groups.some(group => group.id === action.groupId)) slide.groups.push({ id: action.groupId, parentId: null });
+      action.newShapeIds?.forEach(id => {
+        const shape = slide.shapes?.find(item => String(item.id) === String(id));
+        if (shape) shape.groupId = action.groupId;
+      });
       action.previousGroups.forEach(pg => {
         const s = slide.shapes?.find(item => String(item.id) === String(pg.shapeId));
-        if (s) s.groupId = action.groupId;
+        if (s && pg.groupId) s.groupId = pg.groupId;
       });
       this.undoStack.push(action);
       this.selectSlide(action.slideIndex);
@@ -7718,6 +7987,10 @@ const startEditing = (initialText) => {
         const s = slide.shapes?.find(item => String(item.id) === String(id));
         if (s) s.groupId = null;
       });
+      for (const group of slide.groups || []) {
+        if (group.parentId === action.groupId) group.parentId = null;
+      }
+      slide.groups = (slide.groups || []).filter(group => group.id !== action.groupId);
       this.undoStack.push(action);
       this.selectSlide(action.slideIndex);
       this._renderShapesLayer();
@@ -9702,7 +9975,7 @@ const startEditing = (initialText) => {
         } else {
           saved = rehearsing ? finishRehearsal() : undefined;
         }
-        document.removeEventListener("keydown", keyHandler);
+        keyTarget.removeEventListener("keydown", keyHandler, true);
         if (globalShortcutManager.getActiveScope?.() === "slides-show") {
           globalShortcutManager.setActiveScope?.(previousShortcutScope);
         }
@@ -9809,14 +10082,20 @@ const startEditing = (initialText) => {
         const k = (e.key || "").toLowerCase();
         if (k === "p") {
           e.preventDefault?.();
+          e.stopPropagation?.();
+          e.stopImmediatePropagation?.();
           setPointerMode("pen");
           return;
         } else if (k === "l") {
           e.preventDefault?.();
+          e.stopPropagation?.();
+          e.stopImmediatePropagation?.();
           setPointerMode("laser");
           return;
         } else if (k === "a") {
           e.preventDefault?.();
+          e.stopPropagation?.();
+          e.stopImmediatePropagation?.();
           setPointerMode("arrow");
           return;
         }
@@ -9831,6 +10110,10 @@ const startEditing = (initialText) => {
       }
       if (k === "Escape") {
         e.preventDefault?.();
+        if (pointerMode === "pen") {
+          setPointerMode("arrow");
+          return;
+        }
         closeShow();
       } else if (k === " " || k === "ArrowRight" || k === "ArrowDown" || k === "PageDown" || k === "Enter" || k === "n" || k === "N") {
         e.preventDefault?.();
@@ -9853,7 +10136,11 @@ const startEditing = (initialText) => {
 
     const previousShortcutScope = globalShortcutManager.getActiveScope?.() ?? "slides";
     globalShortcutManager.setActiveScope?.("slides-show");
-    document.addEventListener("keydown", keyHandler);
+    const keyTarget = typeof window !== "undefined" && window.addEventListener
+      && window.document?.defaultView === window && window.document === document
+      ? window
+      : document;
+    keyTarget.addEventListener("keydown", keyHandler, true);
     this._activeShowCleanup?.();
     this._activeShowCleanup = cleanupShow;
     overlay.addEventListener?.("click", (e) => {
