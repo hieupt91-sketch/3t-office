@@ -5552,7 +5552,6 @@ _bindGridKeyboardNavigation() {
 
   showFunctionDialog(categoryFilter = null) {
     if (typeof document === "undefined") return false;
-    const previousActive = document.activeElement;
     const modal = document.createElement("div");
     modal.className = "vno-dialog-overlay vno-func-dialog";
 
@@ -5712,9 +5711,7 @@ _bindGridKeyboardNavigation() {
     const close = () => {
       document.removeEventListener("keydown", onDialogKeyDown, true);
       if (modal.parentNode) modal.parentNode.removeChild(modal);
-      if (previousActive && typeof previousActive.focus === "function") {
-        try { previousActive.focus(); } catch (_) {}
-      }
+      this.focusGrid();
     };
     document.addEventListener("keydown", onDialogKeyDown, true);
     modal.querySelector("#vno-fx-close").addEventListener("click", close);
