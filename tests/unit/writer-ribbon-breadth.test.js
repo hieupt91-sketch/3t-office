@@ -16,6 +16,7 @@ import { DOCUMENT_THEMES } from "../../apps/writer/theme-gallery.js";
 import { renderShapeSvg, generateDiagramHtml, generateChartHtml } from "../../apps/writer/writer-illustrations.js";
 import { viStrings } from "../../platform/i18n/strings-vi.js";
 import { enStrings } from "../../platform/i18n/strings-en.js";
+import { readFileSync } from "node:fs";
 
 function createMockWriterDoc(initialHtml = "<p>Văn bản kiểm thử ban đầu</p>") {
   const listeners = {};
@@ -353,6 +354,16 @@ export async function runWriterRibbonBreadthTests() {
       "Writer Themes: Tất cả các chủ đề đều có đầy đủ cấu hình phông chữ, màu sắc và dãn dòng",
       hasValidProps,
       "Có chủ đề thiếu thuộc tính bắt buộc"
+    );
+
+    const themeGallerySource = readFileSync(new URL("../../apps/writer/theme-gallery.js", import.meta.url), "utf8");
+    const writerCss = readFileSync(new URL("../../apps/writer/writer.css", import.meta.url), "utf8");
+    const elegantPreview = DOCUMENT_THEMES.find(theme => theme.id === "elegant")?.previewSample;
+    assert(
+      "Writer Themes: mẫu Trang nhã giữ tiếng Việt và đặt font/khoảng chữ riêng cho dòng xem trước",
+      elegantPreview?.startsWith("Ấn bản") && themeGallerySource.includes("vno-theme-card-preview-text") &&
+        /\.vno-theme-card-preview-text\s*\{[^}]*font-family:\s*Arial,\s*\"Noto Sans\",\s*sans-serif;[^}]*letter-spacing:\s*normal;/s.test(writerCss),
+      "Dòng xem trước Elegant cần font có dấu tiếng Việt và letter-spacing bình thường"
     );
 
     // Áp dụng chủ đề và kiểm tra snapshot undo/redo
