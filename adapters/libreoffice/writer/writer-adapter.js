@@ -345,6 +345,8 @@ export class WriterAdapter {
     this._typingDebounceTimer = null;
     this._typingDebounceMs = 600;
     this._inputHandler = null;
+    this._beforeInputSelectionHandler = null;
+    this._selectionChangeHandler = null;
     this._undoKeyHandler = null;
     this._lastSnapshot = null;
     this._paginationInputHandler = null;
@@ -16226,6 +16228,7 @@ export class WriterAdapter {
     this._initZones();
     return {
       bodyHtml: this._snapshotBodyHtml(),
+      selection: this._captureSelectionBookmark(),
       headerHtml: this.headerDom ? this.headerDom.innerHTML : null,
       footerHtml: this.footerDom ? this.footerDom.innerHTML : null,
       pageSetup: this.pageSetup ? JSON.parse(JSON.stringify(this.pageSetup)) : null,
@@ -16294,6 +16297,7 @@ export class WriterAdapter {
         this.editorDom.innerHTML = snapshot.bodyHtml;
       }
     }
+    this._restoreSelectionBookmark(snapshot.selection);
     if (snapshot.footerHtml !== null && this.footerDom) {
       this.footerDom.innerHTML = snapshot.footerHtml;
     }
@@ -16860,6 +16864,29 @@ export class WriterAdapter {
     const target = this.editorDom;
     if (!target || typeof target.addEventListener !== "function") return;
 
+    this._beforeInputSelectionHandler = () => {
+      if (this._isUndoingRedoing || !this._lastSnapshot) return;
+      const currentHtml = this._snapshotBodyHtml();
+      if (currentHtml === this._lastSnapshot.bodyHtml) {
+        const bookmark = this._captureSelectionBookmark();
+        if (bookmark) this._lastSnapshot.selection = bookmark;
+      }
+    };
+    target.addEventListener("beforeinput", this._beforeInputSelectionHandler);
+
+    this._selectionChangeHandler = () => {
+      if (this._isUndoingRedoing || !this._lastSnapshot) return;
+      // Keep the prior document's bookmark current while the user moves the caret.
+      // Once content changes, beforeinput has already preserved the pre-edit position.
+      if (this._snapshotBodyHtml() === this._lastSnapshot.bodyHtml) {
+        const bookmark = this._captureSelectionBookmark();
+        if (bookmark) this._lastSnapshot.selection = bookmark;
+      }
+    };
+    if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
+      document.addEventListener("selectionchange", this._selectionChangeHandler);
+    }
+
     this._inputHandler = (event) => {
       if (this._isUndoingRedoing) return;
       if (event && event._vnoHandled) return;
@@ -16962,6 +16989,68 @@ export class WriterAdapter {
           }
         }, true);
       }
+    }
+  }
+
+  _captureSelectionBookmark() {
+    const root = this.bodyDom || this.editorDom;
+    if (!root || typeof document === "undefined" || typeof document.createRange !== "function") return null;
+    try {
+      const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+      if (!selection?.rangeCount || !root.contains?.(selection.anchorNode)) return null;
+      const range = selection.getRangeAt(0);
+      const offsetOf = (node, offset) => {
+        const prefix = document.createRange();
+        prefix.selectNodeContents(root);
+        prefix.setEnd(node, offset);
+        return prefix.toString().length;
+      };
+      return {
+        start: offsetOf(range.startContainer, range.startOffset),
+        end: offsetOf(range.endContainer, range.endOffset)
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  _restoreSelectionBookmark(bookmark) {
+    const root = this.bodyDom || this.editorDom;
+    if (!root || !bookmark || typeof document === "undefined" || typeof document.createRange !== "function") return false;
+    try {
+      const showText = typeof NodeFilter !== "undefined" ? NodeFilter.SHOW_TEXT : 4;
+      const walker = document.createTreeWalker?.(root, showText);
+      const textNodes = [];
+      if (walker) {
+        let node;
+        while ((node = walker.nextNode())) textNodes.push(node);
+      }
+      const pointAt = (requestedOffset) => {
+        let remaining = Math.max(0, Number(requestedOffset) || 0);
+        for (const node of textNodes) {
+          const length = node.textContent?.length || 0;
+          if (remaining <= length) return [node, remaining];
+          remaining -= length;
+        }
+        if (textNodes.length) {
+          const last = textNodes[textNodes.length - 1];
+          return [last, last.textContent?.length || 0];
+        }
+        const paragraph = root.querySelector?.("p,li,h1,h2,h3,h4,h5,h6") || root.firstElementChild;
+        return paragraph ? [paragraph, 0] : [root, 0];
+      };
+      const [startNode, startOffset] = pointAt(bookmark.start);
+      const [endNode, endOffset] = pointAt(bookmark.end);
+      const range = document.createRange();
+      range.setStart(startNode, startOffset);
+      range.setEnd(endNode, endOffset);
+      const selection = window.getSelection?.();
+      if (!selection) return false;
+      selection.removeAllRanges();
+      selection.addRange(range);
+      return true;
+    } catch {
+      return false;
     }
   }
 
