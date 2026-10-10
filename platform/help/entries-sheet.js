@@ -887,14 +887,14 @@ export const SHEET_HELP_ENTRIES = [
     commandIds: ["sheet.review.spellCheck", "sheet.review.toggleSpellCheck"],
     title: "Kiểm tra chính tả tiếng Việt trên trang tính",
     summary: "Gạch đỏ sống khi đang sửa ô (F2 hoặc gõ trực tiếp) và thanh công thức (không gạch công thức =). Chuột phải mở menu gợi ý tiếng Việt, Ctrl+Z hoàn tác 1 bước. Nút Bật/Tắt trên tab Xem xét lưu trạng thái qua lần sau. Phím F7 quét toàn bộ trang tính.",
-    ribbon: { tab: "Xem xét", tabId: "review", group: "Chứng minh" },
+    ribbon: { tab: "Xem xét", tabId: "review", group: "Kiểm lỗi" },
     keywords: ["chính tả", "spell check", "f7", "từ điển", "tiếng việt", "bỏ qua", "thay thế", "ctrl+z", "gạch đỏ", "bật tắt chính tả", "gợi ý", "chuột phải"],
     steps: [
       "Khi đang chỉnh sửa ô (nhấn F2 hoặc gõ trực tiếp) hoặc soạn thảo tại thanh công thức, các từ sai chính tả tiếng Việt tự động được gạch sóng đỏ trực tiếp trong nội dung đang sửa (không áp dụng với công thức bắt đầu bằng dấu '=').",
       "Nhấp chuột phải vào từ bị gạch sóng đỏ để mở danh sách từ gợi ý tiếng Việt chuẩn xác. Chọn một từ gợi ý để thay thế ngay vào nội dung ô.",
       "Nhấn Ctrl+Z để hoàn tác việc thay thế trong đúng 1 bước duy nhất, khôi phục lại từ sai ban đầu.",
-      "Tùy chọn Bật/Tắt kiểm tra chính tả: Mở tab Xem xét, nhóm Chứng minh, nhấn nút «Kiểm tra chính tả» để bật hoặc tắt. Khi tắt, toàn bộ gạch đỏ biến mất ngay lập tức; khi bật lại, gạch đỏ xuất hiện trở lại. Lựa chọn được lưu tự động cho các lần mở ứng dụng tiếp theo.",
-      "Quét toàn diện: Nhấn F7 hoặc nút lớn «Chính tả» trên nhóm Chứng minh để mở hộp thoại quét lần lượt các ô có chữ trên toàn bộ sheet hiện tại, hỗ trợ Bỏ qua, Bỏ qua tất cả, Thêm vào từ điển và Thay thế.",
+      "Tùy chọn Bật/Tắt kiểm tra chính tả: Mở tab Xem xét, nhóm Kiểm lỗi, nhấn nút «Kiểm tra chính tả» để bật hoặc tắt. Khi tắt, toàn bộ gạch đỏ biến mất ngay lập tức; khi bật lại, gạch đỏ xuất hiện trở lại. Lựa chọn được lưu tự động cho các lần mở ứng dụng tiếp theo.",
+      "Quét toàn diện: Nhấn F7 hoặc nút lớn «Chính tả» trên nhóm Kiểm lỗi để mở hộp thoại quét lần lượt các ô có chữ trên toàn bộ sheet hiện tại, hỗ trợ Bỏ qua, Bỏ qua tất cả, Thêm vào từ điển và Thay thế.",
       "Sau khi rời ô (Enter), để bảo vệ tốc độ cuộn mượt mà của hàng ngàn ô bảng tính và giữ độ trễ gõ phím cực thấp (< 10 ms), đường gạch đỏ tập trung hiển thị trực quan trong chế độ chỉnh sửa."
     ]
   },
