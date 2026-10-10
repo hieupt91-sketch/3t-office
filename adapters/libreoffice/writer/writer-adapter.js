@@ -3428,14 +3428,20 @@ export class WriterAdapter {
    */
   _paragraphPropsFingerprint(element) {
     if (!element) return "";
-    const ignored = new Set(["id", "data-vno-src-hash", "data-vno-src-props", "data-vno-untouched", "data-vno-edited", "data-vno-keep-next"]);
+    const ignored = new Set([
+      "id", "data-vno-src-hash", "data-vno-src-props", "data-vno-untouched", "data-vno-edited", "data-vno-keep-next",
+      "data-vno-src-rows", "data-vno-src-idx", "data-vno-src-cells", "data-vno-src-w",
+    ]);
     const parts = [];
     for (const attribute of Array.from(element.attributes || [])) {
       const name = String(attribute.name || "").toLowerCase();
       if (ignored.has(name)) continue;
       let value = String(attribute.value ?? "");
       if (name === "style") {
-        value = value.split(";").map((item) => item.trim().replace(/\s+/g, " ")).filter(Boolean).sort().join(";");
+        // Con trỏ chuột (cursor) do bộ điều khiển bảng đặt khi rê chuột qua mép ô: không phải chỉnh sửa của người dùng.
+        value = value.split(";").map((item) => item.trim().replace(/\s+/g, " "))
+          .filter((item) => item && !/^cursor\s*:/i.test(item)).sort().join(";");
+        if (!value) continue;
       } else if (name === "class") {
         value = value.split(/\s+/).filter((token) => token && !/^(?:is-|vno-(?:selected|focus|active|hover))/.test(token)).sort().join(" ");
         if (!value) continue;
@@ -3462,6 +3468,80 @@ export class WriterAdapter {
       element.setAttribute("data-vno-src-hash", this._untouchedParagraphFingerprint(element.innerHTML));
       element.setAttribute("data-vno-src-props", this._paragraphPropsFingerprint(element));
     }
+    // Bảng, hàng, ô: vân tay thuộc tính để lúc lưu biết phần nào người dùng đã sửa (tô nền, căn dọc, viền, độ rộng...).
+    if (root.querySelectorAll) {
+      for (const element of Array.from(root.querySelectorAll("table,tr,td,th"))) {
+        if (typeof element.setAttribute !== "function") continue;
+        element.setAttribute("data-vno-src-props", this._paragraphPropsFingerprint(element));
+        const tag = String(element.tagName || "").toUpperCase();
+        if (tag === "TABLE") {
+          element.setAttribute("data-vno-src-rows", String(this._contentRows(element).length));
+        } else if (tag === "TR") {
+          if (this._isAutoGapRow(element)) continue;
+          const table = element.closest?.("table");
+          const rowIndex = table ? this._contentRows(table).indexOf(element) : -1;
+          if (rowIndex >= 0) element.setAttribute("data-vno-src-idx", String(rowIndex));
+          element.setAttribute("data-vno-src-cells", String(element.cells?.length ?? 0));
+        } else {
+          element.setAttribute("data-vno-src-w", element.style?.width || "");
+        }
+      }
+    }
+  }
+
+  /** Hàng phân trang tự động do trình soạn thảo chèn để hiển thị (không thuộc nội dung tài liệu, không có trong DOCX). */
+  _isAutoGapRow(row) {
+    return !!(row?.getAttribute?.("data-vno-auto-page-gap") || (row?.classList?.contains?.("vno-page-auto-gap")));
+  }
+
+  /** Các hàng nội dung thật của bảng (bỏ hàng phân trang tự động). */
+  _contentRows(table) {
+    return Array.from(table?.rows || []).filter((row) => !this._isAutoGapRow(row));
+  }
+
+  /** Chữ đầu của bảng (24 ký tự chuẩn hoá), cùng cách tính với _writer_table_key_text bên Python để ghép bảng theo nội dung. */
+  _tableKeyText(table) {
+    return String(table?.textContent || "").toLowerCase().replace(/[^0-9a-zà-ỹ]+/g, "").slice(0, 24);
+  }
+
+  /**
+   * Danh sách bảng cấp 1 (theo thứ tự tài liệu) mà người dùng đã đổi thuộc tính bảng/hàng/ô so với lúc nhập.
+   * Bước hậu xử lý lưu DOCX chỉ được khôi phục thuộc tính gốc (tblPr/tblGrid/trPr/tcPr) cho phần CHƯA bị sửa.
+   * Dạng: [{ t: chỉ số bảng, table: bool, rows: [chỉ số hàng], cells: [[hàng, ô], ...] }]
+   */
+  _tableEditsForExport(root = this.bodyDom) {
+    if (!root?.querySelectorAll) return [];
+    const topTables = Array.from(root.querySelectorAll("table")).filter((table) => !table.parentElement?.closest?.("table"));
+    const edits = [];
+    topTables.forEach((table) => {
+      const rows = this._contentRows(table);
+      const edit = { k: this._tableKeyText(table), table: false, all: false, rows: [], cells: [] };
+      const sourceTable = table.getAttribute?.("data-vno-src-props");
+      if (sourceTable && sourceTable !== this._paragraphPropsFingerprint(table)) edit.table = true;
+      // Cấu trúc đổi (thêm/xóa/đổi chỗ hàng, đổi số ô) hoặc có ô gộp dọc: chỉ số ô DOM không còn khớp w:tc nên
+      // không khôi phục gì cho bảng này, giữ nguyên bản chuyển đổi để không bao giờ làm mất chỉnh sửa.
+      const sourceRowCount = table.getAttribute?.("data-vno-src-rows");
+      let structural = sourceRowCount !== null && sourceRowCount !== undefined && Number(sourceRowCount) !== rows.length;
+      let hasRowSpan = false;
+      rows.forEach((row, rowIndex) => {
+        const srcIdx = row.getAttribute?.("data-vno-src-idx");
+        const srcCells = row.getAttribute?.("data-vno-src-cells");
+        if (srcIdx === null || srcIdx === undefined || Number(srcIdx) !== rowIndex) structural = true;
+        if (srcCells === null || srcCells === undefined || Number(srcCells) !== (row.cells?.length ?? 0)) structural = true;
+        const sourceRow = row.getAttribute?.("data-vno-src-props");
+        if (sourceRow && sourceRow !== this._paragraphPropsFingerprint(row)) edit.rows.push(rowIndex);
+        Array.from(row.cells || []).forEach((cell, cellIndex) => {
+          if ((Number(cell.rowSpan) || 1) > 1) hasRowSpan = true;
+          const sourceCell = cell.getAttribute?.("data-vno-src-props");
+          if (sourceCell && sourceCell !== this._paragraphPropsFingerprint(cell)) edit.cells.push([rowIndex, cellIndex]);
+          const sourceWidth = cell.getAttribute?.("data-vno-src-w");
+          if (sourceWidth !== null && sourceWidth !== undefined && sourceWidth !== (cell.style?.width || "")) edit.table = true;
+        });
+      });
+      if (structural || (hasRowSpan && (edit.cells.length || edit.rows.length))) edit.all = true;
+      if (edit.table || edit.all || edit.rows.length || edit.cells.length) edits.push(edit);
+    });
+    return edits;
   }
 
   _markCurrentUntouchedParagraphs(root = this.bodyDom) {
@@ -14474,6 +14554,7 @@ export class WriterAdapter {
     let footerHtml = "";
     let watermarkHtml = "";
     let reviewMetaComment = "";
+    let tableEditsComment = "";
 
     if (this.watermark && this.watermark.text) {
       const angle = this.watermark.angle ?? 45;
@@ -14500,6 +14581,8 @@ export class WriterAdapter {
         bodyHtml = this._stripSessionMarkup(this._acceptedReviewHtml(exportRoot.innerHTML));
       } else {
         this._markCurrentUntouchedParagraphs(exportRoot);
+        const tableEdits = this._tableEditsForExport(exportRoot);
+        if (tableEdits.length) tableEditsComment = `<!--vno-table-edits: ${JSON.stringify(tableEdits)} -->`;
         const reviewExport = this._serializeReviewRangesForExport(exportRoot.innerHTML);
         bodyHtml = this._stripSessionMarkup(reviewExport.html);
         reviewMetaComment = reviewExport.metadataComment;
@@ -14646,7 +14729,7 @@ export class WriterAdapter {
     const mutationMarkers = this._shapeMutationMarkerHtml();
 
     const pristineMarker = this._isOpenedDocumentPristine() ? '<a name="vno-pristine-document"></a>' : "";
-    const fullHtml = `${pristineMarker}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${reviewMetaComment}${notesExport.metadataComment}${this.lineNumbers?.enabled ? `<!--vno-line-numbers:${Math.max(1, Number(this.lineNumbers.countBy) || 1)}:${["page", "section"].includes(this.lineNumbers.restart) ? this.lineNumbers.restart : "continuous"}-->` : ""}`;
+    const fullHtml = `${pristineMarker}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${tableEditsComment}${reviewMetaComment}${notesExport.metadataComment}${this.lineNumbers?.enabled ? `<!--vno-line-numbers:${Math.max(1, Number(this.lineNumbers.countBy) || 1)}:${["page", "section"].includes(this.lineNumbers.restart) ? this.lineNumbers.restart : "continuous"}-->` : ""}`;
     const rawExport = `<style>${this._getPageSetupCss()}\n${this._getSectionPageCss()}${columnsCss}</style>${fullHtml}`;
     return this._sanitizeExportHtmlForWordCompat(rawExport);
   }
@@ -14700,6 +14783,7 @@ export class WriterAdapter {
     return withoutComments
       .replace(/\s+data-vno-src-hash=["'][^"']*["']/gi, "")
       .replace(/\s+data-vno-src-props=["'][^"']*["']/gi, "")
+      .replace(/\s+data-vno-src-(?:rows|idx|cells|w)=["'][^"']*["']/gi, "")
       .replace(/\s+data-vno-edited=["'][^"']*["']/gi, "")
       .replace(/\s+data-vno-keep-next=["'][^"']*["']/gi, "")
       .replace(/<span\b(?=[^>]*\bclass=["'][^"']*\bvno-spelling-(?:error|uncertain)\b[^"']*["'])[^>]*>([\s\S]*?)<\/span>/gi, "$1")

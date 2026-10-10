@@ -260,6 +260,7 @@ import { runWriterDialogsD16Tests } from "./unit/writer-dialogs-d16.test.js";
 import { runWriterLineSpacingRenderTests } from "./unit/writer-line-spacing-render.test.js";
 import { runWriterHeadingShortcutsTests } from "./unit/writer-heading-shortcuts.test.js";
 import { runWriterFontLadderTests } from "./unit/writer-font-ladder.test.js";
+import { runWriterTableEditsExportTests } from "./unit/writer-table-edits-export.test.js";
 import { runWriterParagraphIndentTests } from "./unit/writer-paragraph-indent.test.js";
 
 async function runAll() {
@@ -530,7 +531,8 @@ async function runAll() {
     { title: "250. Unit Tests — VN Writer Line Spacing Rendering & Scale", runner: runWriterLineSpacingRenderTests },
     { title: "251. Unit Tests — VN Writer Heading Styles & Shortcuts", runner: runWriterHeadingShortcutsTests },
     { title: "252. Unit Tests — VN Writer Font Ladder & Sizing", runner: runWriterFontLadderTests },
-    { title: "253. Unit Tests — VN Writer Paragraph Indent (1,27 cm)", runner: runWriterParagraphIndentTests }
+    { title: "253. Unit Tests — VN Writer Paragraph Indent (1,27 cm)", runner: runWriterParagraphIndentTests },
+    { title: "254. Unit Tests — VN Writer Table Edits Export", runner: runWriterTableEditsExportTests }
   ];
 
   for (const suite of suites) {
