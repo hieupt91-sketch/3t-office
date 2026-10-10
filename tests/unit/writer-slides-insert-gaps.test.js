@@ -200,6 +200,33 @@ export async function runWriterSlidesInsertGapsTests() {
     }
   });
 
+  await test("Writer Insert: hộp văn bản neo theo vị trí con trỏ hiện tại", () => {
+    const { page, body } = createMockWriterDoc();
+    const adapter = new WriterAdapter(page);
+    const priorWindow = globalThis.window;
+    const range = {
+      commonAncestorContainer: {},
+      getBoundingClientRect: () => ({ left: 520, top: 610, width: 0, height: 0 })
+    };
+    globalThis.window = { getSelection: () => ({ rangeCount: 1, getRangeAt: () => range }) };
+    adapter.bodyDom = body;
+    body.contains = () => true;
+    adapter.editorDom = {
+      getBoundingClientRect: () => ({ left: 300, top: 400, width: 500, height: 900 }),
+      querySelectorAll: () => []
+    };
+    adapter.insertShape = options => options;
+    try {
+      const shape = adapter.insertTextBox();
+      if (shape.x !== 220 || shape.y !== 210) {
+        throw new Error(`Textbox lệch khỏi caret: x=${shape.x}, y=${shape.y}`);
+      }
+    } finally {
+      if (priorWindow === undefined) delete globalThis.window;
+      else globalThis.window = priorWindow;
+    }
+  });
+
   await test("Writer Insert: CommandBus.execute đi qua UNO mapping (không gọi handleDispatch trực tiếp)", async () => {
     const { page, body } = createMockWriterDoc("<p>Bus path</p>");
     const adapter = new WriterAdapter(page);
