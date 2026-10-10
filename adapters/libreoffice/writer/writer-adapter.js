@@ -3460,6 +3460,40 @@ export class WriterAdapter {
       element.setAttribute("data-vno-src-hash", this._untouchedParagraphFingerprint(element.innerHTML));
       element.setAttribute("data-vno-src-props", this._paragraphPropsFingerprint(element));
     }
+    // Bảng, hàng, ô: vân tay thuộc tính để lúc lưu biết phần nào người dùng đã sửa (tô nền, căn dọc, viền, độ rộng...).
+    if (root.querySelectorAll) {
+      for (const element of Array.from(root.querySelectorAll("table,tr,td,th"))) {
+        if (typeof element.setAttribute === "function") {
+          element.setAttribute("data-vno-src-props", this._paragraphPropsFingerprint(element));
+        }
+      }
+    }
+  }
+
+  /**
+   * Danh sách bảng cấp 1 (theo thứ tự tài liệu) mà người dùng đã đổi thuộc tính bảng/hàng/ô so với lúc nhập.
+   * Bước hậu xử lý lưu DOCX chỉ được khôi phục thuộc tính gốc (tblPr/tblGrid/trPr/tcPr) cho phần CHƯA bị sửa.
+   * Dạng: [{ t: chỉ số bảng, table: bool, rows: [chỉ số hàng], cells: [[hàng, ô], ...] }]
+   */
+  _tableEditsForExport(root = this.bodyDom) {
+    if (!root?.querySelectorAll) return [];
+    const topTables = Array.from(root.querySelectorAll("table")).filter((table) => !table.parentElement?.closest?.("table"));
+    const edits = [];
+    topTables.forEach((table, tableIndex) => {
+      const edit = { t: tableIndex, table: false, rows: [], cells: [] };
+      const sourceTable = table.getAttribute?.("data-vno-src-props");
+      if (sourceTable && sourceTable !== this._paragraphPropsFingerprint(table)) edit.table = true;
+      Array.from(table.rows || []).forEach((row, rowIndex) => {
+        const sourceRow = row.getAttribute?.("data-vno-src-props");
+        if (sourceRow && sourceRow !== this._paragraphPropsFingerprint(row)) edit.rows.push(rowIndex);
+        Array.from(row.cells || []).forEach((cell, cellIndex) => {
+          const sourceCell = cell.getAttribute?.("data-vno-src-props");
+          if (sourceCell && sourceCell !== this._paragraphPropsFingerprint(cell)) edit.cells.push([rowIndex, cellIndex]);
+        });
+      });
+      if (edit.table || edit.rows.length || edit.cells.length) edits.push(edit);
+    });
+    return edits;
   }
 
   _markCurrentUntouchedParagraphs(root = this.bodyDom) {
@@ -14373,6 +14407,7 @@ export class WriterAdapter {
     let footerHtml = "";
     let watermarkHtml = "";
     let reviewMetaComment = "";
+    let tableEditsComment = "";
 
     if (this.watermark && this.watermark.text) {
       const angle = this.watermark.angle ?? 45;
@@ -14394,6 +14429,8 @@ export class WriterAdapter {
         bodyHtml = this._stripSessionMarkup(this._acceptedReviewHtml(exportRoot.innerHTML));
       } else {
         this._markCurrentUntouchedParagraphs(exportRoot);
+        const tableEdits = this._tableEditsForExport(exportRoot);
+        if (tableEdits.length) tableEditsComment = `<!--vno-table-edits: ${JSON.stringify(tableEdits)} -->`;
         const reviewExport = this._serializeReviewRangesForExport(exportRoot.innerHTML);
         bodyHtml = this._stripSessionMarkup(reviewExport.html);
         reviewMetaComment = reviewExport.metadataComment;
@@ -14526,7 +14563,7 @@ export class WriterAdapter {
     const mutationMarkers = this._shapeMutationMarkerHtml();
 
     const pristineMarker = this._isOpenedDocumentPristine() ? '<a name="vno-pristine-document"></a>' : "";
-    const fullHtml = `${pristineMarker}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${reviewMetaComment}${notesExport.metadataComment}${this.lineNumbers?.enabled ? `<!--vno-line-numbers:${Math.max(1, Number(this.lineNumbers.countBy) || 1)}:${["page", "section"].includes(this.lineNumbers.restart) ? this.lineNumbers.restart : "continuous"}-->` : ""}`;
+    const fullHtml = `${pristineMarker}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${tableEditsComment}${reviewMetaComment}${notesExport.metadataComment}${this.lineNumbers?.enabled ? `<!--vno-line-numbers:${Math.max(1, Number(this.lineNumbers.countBy) || 1)}:${["page", "section"].includes(this.lineNumbers.restart) ? this.lineNumbers.restart : "continuous"}-->` : ""}`;
     const rawExport = `<style>${this._getPageSetupCss()}\n${this._getSectionPageCss()}${columnsCss}</style>${fullHtml}`;
     return this._sanitizeExportHtmlForWordCompat(rawExport);
   }
