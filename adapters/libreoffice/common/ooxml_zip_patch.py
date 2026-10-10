@@ -596,10 +596,6 @@ def make_all_sheets_visible_for_import(xlsx_bytes: bytes) -> bytes:
 # ---------------------------------------------------------------------------
 
 CONFIG_NS = "urn:oasis:names:tc:opendocument:xmlns:config:1.0"
-_CONFIG_ITEM_ACTIVE_TABLE_RE = re.compile(
-    r'<config:config-item\b[^>]*config:name\s*=\s*(["\'])ActiveTable\1',
-    re.IGNORECASE,
-)
 _VIEW_SETTINGS_SET_RE = re.compile(
     r'(<config:config-item-set\b[^>]*config:name\s*=\s*(["\'])ooo:view-settings\2[^>]*>)([\s\S]*?)(</config:config-item-set>)',
     re.IGNORECASE,
@@ -1065,15 +1061,19 @@ def ensure_config_xmlns(fods_xml: str) -> str:
 
 
 def apply_active_sheet_to_fods(fods_xml: str | None, active_sheet: str | None) -> str:
-    """Inject ActiveTable config item into FODS office:settings if not already present."""
+    """Set FODS ActiveTable from the authoritative XLSX workbookView selection."""
     xml = fods_xml or ""
     if not active_sheet or not xml:
         return xml
 
-    if _CONFIG_ITEM_ACTIVE_TABLE_RE.search(xml):
-        return xml
-
     escaped = _escape_xml(active_sheet)
+    existing = re.compile(
+        r'(<config:config-item\b[^>]*config:name\s*=\s*(["\'])ActiveTable\2[^>]*>)[^<]*(</config:config-item>)',
+        re.IGNORECASE,
+    )
+    if existing.search(xml):
+        return existing.sub(lambda match: match.group(1) + escaped + match.group(3), xml, count=1)
+
     active_item = f'<config:config-item config:name="ActiveTable" config:type="string">{escaped}</config:config-item>'
 
     xml = ensure_config_xmlns(xml)

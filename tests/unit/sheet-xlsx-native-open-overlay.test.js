@@ -20,6 +20,7 @@ import {
 import {
   overlayActiveSheetToFods,
   overlaySheetXlsxFods,
+  parseActiveSheetFromWorkbook,
   postProcessSheetXlsx
 } from "../../adapters/libreoffice/sheet/xlsx-native-postprocess.js";
 import { createZip, readZipEntry } from "../helpers/zip-package.mjs";
@@ -261,11 +262,11 @@ export async function runSheetXlsxNativeOpenOverlayTests() {
     assert(grid.activeSheet === "foxz", `grid.activeSheet = ${grid.activeSheet}`);
   });
 
-  await test("loadFromFods(fods, workbookXml): FODS đã có ActiveTable -> giữ nguyên", () => {
+  await test("loadFromFods(fods, workbookXml): ưu tiên activeTab XLSX khi FODS đã có ActiveTable", () => {
     const grid = new SheetGridController(container());
     const adapter = new SheetAdapter(grid);
     assert(adapter.loadFromFods(FODS_3_SHEETS_WITH_ACTIVE_TABLE, WORKBOOK_XML_3_SHEETS_ACTIVE_1) === true);
-    assert(grid.activeSheet === "Camera IP", `grid.activeSheet = ${grid.activeSheet}`);
+    assert(grid.activeSheet === parseActiveSheetFromWorkbook(WORKBOOK_XML_3_SHEETS_ACTIVE_1), `grid.activeSheet = ${grid.activeSheet}`);
   });
 
   await test("Python twin overlay ActiveTable trong FODS giống JS (CLI --overlay-fods)", () => {
@@ -288,6 +289,37 @@ export async function runSheetXlsxNativeOpenOverlayTests() {
       assert(pyFods.includes('config:name="ActiveTable"'), "Python phải gắn ActiveTable");
       assert(pyFods.includes(">Thông báo Sản phẩm mới<"), "Python phải trỏ đúng sheet thứ 2");
       assert(jsFods === pyFods, "JS và Python active sheet overlay phải ra cùng FODS");
+    } finally {
+      fs.rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  await test("XLSX activeTab ghi đè ActiveTable mặc định LibreOffice trong FODS", () => {
+    const selectedWorkbook = fakeXlsx(WORKBOOK_XML_3_SHEETS_ACTIVE_1);
+    const selectedSheet = parseActiveSheetFromWorkbook(WORKBOOK_XML_3_SHEETS_ACTIVE_1);
+    const jsFods = overlaySheetXlsxFods(selectedWorkbook, FODS_3_SHEETS_WITH_ACTIVE_TABLE);
+    const activeTable = /<config:config-item\b[^>]*config:name="ActiveTable"[^>]*>([^<]*)<\/config:config-item>/i.exec(jsFods)?.[1];
+    assert(activeTable === selectedSheet, `JS ActiveTable phải theo activeTab XLSX: ${activeTable}`);
+    assert(!jsFods.includes(">Camera IP</config:config-item>"), "ActiveTable mặc định sai phải bị thay thế");
+
+    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "vno-xlsx-active-stale-"));
+    try {
+      const xlsxPath = path.join(tempRoot, "active.xlsx");
+      const fodsPath = path.join(tempRoot, "lo.fods");
+      const outPath = path.join(tempRoot, "overlaid.fods");
+      fs.writeFileSync(xlsxPath, selectedWorkbook);
+      fs.writeFileSync(fodsPath, FODS_3_SHEETS_WITH_ACTIVE_TABLE, "utf8");
+      const py = spawnSync(process.env.PYTHON || "python", [
+        PYTHON_PATCHER,
+        "--xlsx", xlsxPath,
+        "--overlay-fods", fodsPath,
+        "--out", outPath
+      ], { encoding: "utf8" });
+      assert(py.status === 0, `Python overlay failed: ${(py.stderr || py.stdout || "").trim()}`);
+      const pyFods = fs.readFileSync(outPath, "utf8");
+      const pyActiveTable = /<config:config-item\b[^>]*config:name="ActiveTable"[^>]*>([^<]*)<\/config:config-item>/i.exec(pyFods)?.[1];
+      assert(pyActiveTable === selectedSheet, `Python ActiveTable phải theo activeTab XLSX: ${pyActiveTable}`);
+      assert(jsFods === pyFods, "JS và Python overlay phải thống nhất khi sửa ActiveTable đã có");
     } finally {
       fs.rmSync(tempRoot, { recursive: true, force: true });
     }

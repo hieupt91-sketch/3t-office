@@ -3706,10 +3706,22 @@ class VnOfficeApi:
         if not opened.get("ok") or not opened.get("sheets"):
             return False
         doc_id = opened["doc_id"]
-        first_sheet = opened["sheets"][0]
+        active_sheet_index = 0
+        try:
+            workbook_xml = _read_xlsx_workbook_xml(path)
+            active_sheet_name = _ooxml_zip_patch().parse_active_sheet_from_workbook(workbook_xml)
+            if active_sheet_name:
+                active_sheet_index = next(
+                    (index for index, sheet in enumerate(opened["sheets"]) if sheet.get("name") == active_sheet_name),
+                    0,
+                )
+        except Exception:
+            # Quick view is an optional first paint; the full import owns error reporting.
+            active_sheet_index = 0
+        first_sheet = opened["sheets"][active_sheet_index]
         r1 = min(max(0, int(first_sheet.get("rows", 1)) - 1), 79)
         c1 = min(max(0, int(first_sheet.get("cols", 1)) - 1), 29)
-        first_window = self.sheet_view_window(doc_id, 0, 0, 0, r1, c1, True, True)
+        first_window = self.sheet_view_window(doc_id, active_sheet_index, 0, 0, r1, c1, True, True)
         if not first_window.get("ok"):
             self.sheet_view_close(doc_id)
             return False
@@ -3720,7 +3732,7 @@ class VnOfficeApi:
         payload = {
             "doc_id": doc_id,
             "sheets": opened["sheets"],
-            "sheet": 0,
+            "sheet": active_sheet_index,
             "r0": 0,
             "c0": 0,
             "window": first_window,

@@ -9,7 +9,6 @@
  */
 
 const CONFIG_NS = "urn:oasis:names:tc:opendocument:xmlns:config:1.0";
-const CONFIG_ITEM_ACTIVE_TABLE_RE = /<config:config-item\b[^>]*config:name\s*=\s*(["'])ActiveTable\1/i;
 const VIEW_SETTINGS_SET_RE = /(<config:config-item-set\b[^>]*config:name\s*=\s*(["'])ooo:view-settings\2[^>]*>)([\s\S]*?)(<\/config:config-item-set>)/i;
 const VIEW_MAP_ENTRY_RE = /(<config:config-item-map-entry\b[^>]*>)([\s\S]*?)(<\/config:config-item-map-entry>)/i;
 const OFFICE_SETTINGS_RE = /(<office:settings\b[^>]*>)([\s\S]*?)(<\/office:settings>)/i;
@@ -89,10 +88,17 @@ export function ensureConfigXmlns(fodsXml) {
 export function applyActiveSheetToFods(fodsXml, activeSheet) {
   let xml = String(fodsXml || "");
   if (!activeSheet || !xml) return xml;
-  if (CONFIG_ITEM_ACTIVE_TABLE_RE.test(xml)) return xml;
 
   const escaped = escapeXml(activeSheet);
   const activeItem = `<config:config-item config:name="ActiveTable" config:type="string">${escaped}</config:config-item>`;
+  // LibreOffice may emit an ActiveTable for its default first sheet even when
+  // the XLSX workbookView selects another sheet. The native XLSX activeTab is
+  // authoritative while importing, so replace that existing value as well as
+  // injecting the setting when LibreOffice omitted it.
+  const existing = /(<config:config-item\b[^>]*config:name\s*=\s*(["'])ActiveTable\2[^>]*>)[^<]*(<\/config:config-item>)/i;
+  if (existing.test(xml)) {
+    return xml.replace(existing, (_match, openTag, _quote, closeTag) => openTag + escaped + closeTag);
+  }
   xml = ensureConfigXmlns(xml);
 
   const viewMatch = xml.match(VIEW_SETTINGS_SET_RE);
