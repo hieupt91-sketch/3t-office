@@ -1014,7 +1014,7 @@ li.vno-page-auto-gap {
 }
 
 [data-theme="dark"] .vno-writer-body table.vno-table-banded-rows > tbody > tr:nth-child(even) > :is(td, th) {
-  --vno-writer-table-banded-bg: #334155;
+  background-color: #334155 !important;
 }
 
 #vno-ribbon-tab-pictureFormat[hidden] { display: none; }

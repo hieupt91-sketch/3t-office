@@ -8578,8 +8578,9 @@ export class WriterAdapter {
     const isBanded = table.classList.toggle("vno-table-banded-rows");
     for (let i = 1; i < table.rows.length; i++) {
       const row = table.rows[i];
+      const backgroundColor = isBanded && i % 2 === 1 ? "#dbeafe" : "";
       for (const cell of row.cells) {
-        cell.style.backgroundColor = "";
+        cell.style.backgroundColor = backgroundColor;
       }
     }
     globalCommandBus.updateState("writer.table.toggleBandedRows", { checked: isBanded });
