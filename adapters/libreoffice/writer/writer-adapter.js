@@ -3473,10 +3473,11 @@ export class WriterAdapter {
         element.setAttribute("data-vno-src-props", this._paragraphPropsFingerprint(element));
         const tag = String(element.tagName || "").toUpperCase();
         if (tag === "TABLE") {
-          element.setAttribute("data-vno-src-rows", String(element.rows?.length ?? 0));
+          element.setAttribute("data-vno-src-rows", String(this._contentRows(element).length));
         } else if (tag === "TR") {
+          if (this._isAutoGapRow(element)) continue;
           const table = element.closest?.("table");
-          const rowIndex = table ? Array.from(table.rows || []).indexOf(element) : -1;
+          const rowIndex = table ? this._contentRows(table).indexOf(element) : -1;
           if (rowIndex >= 0) element.setAttribute("data-vno-src-idx", String(rowIndex));
           element.setAttribute("data-vno-src-cells", String(element.cells?.length ?? 0));
         } else {
@@ -3484,6 +3485,16 @@ export class WriterAdapter {
         }
       }
     }
+  }
+
+  /** Hàng phân trang tự động do trình soạn thảo chèn để hiển thị (không thuộc nội dung tài liệu, không có trong DOCX). */
+  _isAutoGapRow(row) {
+    return !!(row?.getAttribute?.("data-vno-auto-page-gap") || (row?.classList?.contains?.("vno-page-auto-gap")));
+  }
+
+  /** Các hàng nội dung thật của bảng (bỏ hàng phân trang tự động). */
+  _contentRows(table) {
+    return Array.from(table?.rows || []).filter((row) => !this._isAutoGapRow(row));
   }
 
   /** Chữ đầu của bảng (24 ký tự chuẩn hoá), cùng cách tính với _writer_table_key_text bên Python để ghép bảng theo nội dung. */
@@ -3501,7 +3512,7 @@ export class WriterAdapter {
     const topTables = Array.from(root.querySelectorAll("table")).filter((table) => !table.parentElement?.closest?.("table"));
     const edits = [];
     topTables.forEach((table) => {
-      const rows = Array.from(table.rows || []);
+      const rows = this._contentRows(table);
       const edit = { k: this._tableKeyText(table), table: false, all: false, rows: [], cells: [] };
       const sourceTable = table.getAttribute?.("data-vno-src-props");
       if (sourceTable && sourceTable !== this._paragraphPropsFingerprint(table)) edit.table = true;

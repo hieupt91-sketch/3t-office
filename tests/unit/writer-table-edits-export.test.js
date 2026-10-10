@@ -120,6 +120,15 @@ export async function runWriterTableEditsExportTests() {
     assert.equal(edits[0].all, true);
   });
 
+  await test("Hàng phân trang tự động do trình soạn thảo chèn không bị coi là đổi cấu trúc", () => {
+    const table = makeTable([["A", "B"], ["C", "D"], ["E", "F"]]);
+    const { adapter, root } = makeAdapter(table);
+    const gap = makeElement("TR", { "data-vno-auto-page-gap": "true", class: "vno-page-auto-gap" }, []);
+    gap.cells = [{ rowSpan: 1, getAttribute: () => null, attributes: [], style: {} }];
+    table.rows.splice(1, 0, gap);
+    assert.deepEqual(adapter._tableEditsForExport(root), [], "hàng phân trang tự động không phải chỉnh sửa");
+  });
+
   await test("Hàng chèn mới không có dấu nguồn: bảng báo all", () => {
     const table = makeTable([["A", "B"], ["C", "D"]]);
     const { adapter, root } = makeAdapter(table);
