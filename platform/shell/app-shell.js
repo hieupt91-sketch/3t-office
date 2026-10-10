@@ -57,6 +57,27 @@ export class AppShell {
     this.editorContainer = null;
     this.notificationHost = null;
     this.activeNotificationBar = null;
+    this.helpPanel = options.helpPanel || null;
+
+    this._onAiOutsidePointer = (event) => {
+      if (!this.isAiOpen) return;
+      const target = event.target;
+      if (!target) return;
+      if (this.aiSidebar && this.aiSidebar.contains(target)) return;
+      if (target.closest?.("#vno-toggle-ai-btn, [data-command-id='ai.assistant.toggle'], [data-cmd='ai.assistant.toggle'], .vno-ai-trigger-btn")) return;
+      if (target.closest?.(".vno-dialog-overlay, .vno-about-backdrop, .vno-about-dialog, .vno-error-reporting-overlay, .vno-modal, [role='dialog'], [role='alertdialog']")) return;
+      this.toggleAiSidebar(false);
+    };
+
+    this._onAiKeyDown = (event) => {
+      if (!this.isAiOpen) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        this.toggleAiSidebar(false);
+        restoreEditorFocus({ force: true });
+      }
+    };
   }
 
   set onSwitchApp(callback) {
@@ -92,6 +113,10 @@ export class AppShell {
   mount(targetElement) {
     installGlobalFocusGuard();
     this.rootEl = targetElement;
+    if (this.rootEl) this.rootEl.__vnoShell = this;
+    if (typeof window !== "undefined") {
+      window.__vnoShell = this;
+    }
     this.rootEl.innerHTML = "";
     this.rootEl.className = "vno-shell";
     this.rootEl.setAttribute("data-app", this.appName);
@@ -429,7 +454,10 @@ export class AppShell {
       </div>
     `;
 
-    this.aiSidebar.querySelector("#vno-ai-close").addEventListener("click", () => this.toggleAiSidebar(false));
+    this.aiSidebar.querySelector("#vno-ai-close").addEventListener("click", () => {
+      this.toggleAiSidebar(false);
+      restoreEditorFocus({ force: true });
+    });
 
     // Xử lý gửi yêu cầu tới Trợ lý 3T AI
     const sendBtn = this.aiSidebar.querySelector("#vno-ai-send");
@@ -708,22 +736,50 @@ export class AppShell {
   }
 
   toggleAiSidebar(forceState) {
-    this.isAiOpen = forceState !== undefined ? forceState : !this.isAiOpen;
+    const nextState = forceState !== undefined ? forceState : !this.isAiOpen;
+    const wasOpen = this.isAiOpen;
+    this.isAiOpen = nextState;
+
     if (this.isAiOpen) {
-      this.aiSidebar.classList.remove("is-hidden");
+      this.closeHelpPanel();
+      if (this.aiSidebar) this.aiSidebar.classList.remove("is-hidden");
+      if (typeof document !== "undefined") {
+        document.removeEventListener("pointerdown", this._onAiOutsidePointer);
+        document.addEventListener("pointerdown", this._onAiOutsidePointer);
+        document.removeEventListener("keydown", this._onAiKeyDown);
+        document.addEventListener("keydown", this._onAiKeyDown);
+      }
       void this._loadAiServices()
         .then(({ LocalAiService }) => {
           if (!this.isAiOpen) return;
-          const providerSelect = this.aiSidebar.querySelector("#vno-ai-provider");
+          const providerSelect = this.aiSidebar?.querySelector?.("#vno-ai-provider");
           if (providerSelect) providerSelect.value = LocalAiService.getSelectedProviderId();
           return this._refreshAiProviderUi?.();
         })
         .catch((error) => {
-          const status = this.aiSidebar.querySelector("#vno-ai-provider-status");
+          const status = this.aiSidebar?.querySelector?.("#vno-ai-provider-status");
           if (status) status.textContent = `Không tải được Trợ lý 3T AI: ${error.message}`;
         });
     } else {
-      this.aiSidebar.classList.add("is-hidden");
+      if (this.aiSidebar) this.aiSidebar.classList.add("is-hidden");
+      if (typeof document !== "undefined") {
+        document.removeEventListener("pointerdown", this._onAiOutsidePointer);
+        document.removeEventListener("keydown", this._onAiKeyDown);
+      }
+      if (wasOpen && forceState === undefined) {
+        restoreEditorFocus({ force: true });
+      }
+    }
+  }
+
+  closeHelpPanel() {
+    const appHelp = (typeof window !== "undefined" ? window.__vnoAppInstance?.helpPanel : null) || this.helpPanel;
+    if (appHelp && typeof appHelp.isOpen === "function" && appHelp.isOpen()) {
+      appHelp.close();
+    }
+    const domHelp = typeof document !== "undefined" && typeof document.getElementById === "function" ? document.getElementById("vno-help-panel") : null;
+    if (domHelp && !domHelp.hidden) {
+      domHelp.hidden = true;
     }
   }
 

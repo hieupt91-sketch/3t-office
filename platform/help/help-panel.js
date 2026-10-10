@@ -7,6 +7,7 @@ import { ICONS } from "../ui-kit/icons.js";
 import { t } from "../i18n/i18n.js";
 import { getHelpEntryById, groupHelpEntriesByTab, searchHelpEntries } from "./help-service.js";
 import { showAboutDialog } from "../about/about-dialog.js";
+import { restoreEditorFocus } from "../shell/focus-manager.js";
 
 function localize(key, fallback) {
   const value = t(key);
@@ -49,6 +50,7 @@ export class HelpPanel {
     this._query = "";
     this._activeId = null;
     this._onKeyDown = (event) => this._handleKeyDown(event);
+    this._onOutsidePointer = (event) => this._handleOutsidePointer(event);
   }
 
   mount(host) {
@@ -56,6 +58,7 @@ export class HelpPanel {
     ensureHelpStyles();
     this.destroy();
     this._host = host;
+    const targetHost = host?.closest?.(".vno-workspace") || host;
     this.root = document.createElement("aside");
     this.root.className = "vno-help-panel";
     this.root.id = "vno-help-panel";
@@ -90,8 +93,11 @@ export class HelpPanel {
         <article class="vno-help-article" aria-live="polite"></article>
       </div>
     `;
-    host.appendChild(this.root);
-    this.root.querySelector(".vno-help-close").addEventListener("click", () => this.close());
+    targetHost.appendChild(this.root);
+    this.root.querySelector(".vno-help-close").addEventListener("click", () => {
+      this.close();
+      restoreEditorFocus({ force: true });
+    });
     this.root.querySelector("[data-vno-about-open]")?.addEventListener("click", () => showAboutDialog());
     this.root.querySelector("[data-vno-whats-new-open]")?.addEventListener("click", () => this.open({ entryId: "common.help.whatsNew" }));
     this.root.querySelector(".vno-help-search").addEventListener("input", (event) => {
@@ -120,7 +126,42 @@ export class HelpPanel {
     return this._open;
   }
 
+  _getShell() {
+    if (this.shell) return this.shell;
+    if (typeof window !== "undefined") {
+      if (window.__vnoShell) return window.__vnoShell;
+      if (window.__vnoAppInstance?.shell) return window.__vnoAppInstance.shell;
+    }
+    if (typeof document !== "undefined") {
+      const shellEl = document.querySelector(".vno-shell");
+      if (shellEl?.__vnoShell) return shellEl.__vnoShell;
+    }
+    return null;
+  }
+
+  _handleOutsidePointer(event) {
+    if (!this._open) return;
+    const target = event.target;
+    if (!target) return;
+    if (this.root && this.root.contains(target)) return;
+    if (target.closest?.("[data-command-id$='.help.open'], [data-cmd$='.help.open'], #vno-help-btn, [data-vno-help-trigger]")) return;
+    if (target.closest?.(".vno-dialog-overlay, .vno-about-backdrop, .vno-about-dialog, .vno-error-reporting-overlay, .vno-modal, [role='dialog'], [role='alertdialog']")) return;
+    this.close();
+  }
+
   open(options = {}) {
+    // Chỉ một panel bên phải tại một thời điểm: đóng Trợ lý AI nếu đang mở
+    const shell = this._getShell();
+    if (shell && typeof shell.toggleAiSidebar === "function" && shell.isAiOpen) {
+      shell.toggleAiSidebar(false);
+    } else {
+      const fallbackDoc = typeof document !== "undefined" ? document : null;
+      const domAi = (this.root?.parentNode || fallbackDoc)?.querySelector?.(".vno-ai-sidebar");
+      if (domAi && !domAi.classList.contains("is-hidden")) {
+        domAi.classList.add("is-hidden");
+      }
+    }
+
     if (options.query != null) this._query = String(options.query);
     if (options.entryId) {
       const match = getHelpEntryById(options.entryId);
@@ -142,6 +183,8 @@ export class HelpPanel {
     if (typeof document !== "undefined") {
       document.removeEventListener("keydown", this._onKeyDown);
       document.addEventListener("keydown", this._onKeyDown);
+      document.removeEventListener("pointerdown", this._onOutsidePointer);
+      document.addEventListener("pointerdown", this._onOutsidePointer);
     }
     this._render();
     return true;
@@ -150,17 +193,27 @@ export class HelpPanel {
   close() {
     this._open = false;
     if (this.root) this.root.hidden = true;
-    if (typeof document !== "undefined") document.removeEventListener("keydown", this._onKeyDown);
+    if (typeof document !== "undefined") {
+      document.removeEventListener("keydown", this._onKeyDown);
+      document.removeEventListener("pointerdown", this._onOutsidePointer);
+    }
     return false;
   }
 
   toggle(options = {}) {
-    if (this._open && !options.entryId && options.query == null) return this.close();
+    if (this._open && !options.entryId && options.query == null) {
+      this.close();
+      restoreEditorFocus({ force: true });
+      return false;
+    }
     return this.open(options);
   }
 
   destroy() {
     this.close();
+    if (typeof document !== "undefined") {
+      document.removeEventListener("pointerdown", this._onOutsidePointer);
+    }
     if (this.root?.parentNode) this.root.parentNode.removeChild(this.root);
     this.root = null;
     this._host = null;
@@ -170,7 +223,9 @@ export class HelpPanel {
     if (!this._open) return;
     if (event.key === "Escape") {
       event.preventDefault();
+      event.stopPropagation();
       this.close();
+      restoreEditorFocus({ force: true });
     }
   }
 
