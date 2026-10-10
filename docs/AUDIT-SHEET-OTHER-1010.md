@@ -83,3 +83,22 @@
 *Kiểm chứng lưu XLSX thật*: Tệp `test_sheet_work.xlsx` được lưu thành công; giải nén ZIP kiểm tra XML ghi nhận 25 entries bao gồm các bảng tính, styles, drawing tương thích Microsoft Excel.
 
 ---
+
+### Nhóm 4: Bố cục trang (Page Layout)
+
+| Nút / Chức năng | Ngữ cảnh kiểm thử | Kỳ vọng Excel | Thực tế kiểm định | PASS/FAIL | Phím tắt | Ghi chú |
+| :--- | :--- | :--- | :--- | :---: | :---: | :--- |
+| **Căn lề** (`sheet.page.margins`) | Bấm nút Căn lề trên nhóm Thiết lập trang | Mở hộp thoại hoặc menu thiết lập khoảng cách lề trang (Trên, Dưới, Trái, Phải) | Hộp thoại open=true, hasMarginInputs=true; Escape đóng an toàn | **PASS** | Không có | Mở hộp thoại Thiết lập trang cấu hình lề giấy đầy đủ (ghi nhận U-S9 mở chung hộp thoại lớn). |
+| **Hướng giấy** (`sheet.page.orientation`) | Bấm nút Hướng giấy trên nhóm Thiết lập trang | Mở tùy chọn chọn hướng trang in Dọc (Portrait) hoặc Ngang (Landscape) | Hộp thoại open=true, hasOrientation=true | **PASS** | Không có | Hộp thoại cấu hình hướng in Dọc/Ngang đầy đủ. |
+| **Khổ giấy** (`sheet.page.size`) | Bấm nút Khổ giấy trên nhóm Thiết lập trang | Mở tùy chọn chọn kích cỡ trang in (A4, Letter, Legal, A3...) | Hộp thoại open=true, hasSize=true | **PASS** | Không có | Cấu hình khổ giấy in đa dạng kích cỡ (ghi nhận U-S10 icon A4 dính nhãn). |
+| **Vùng in: Đặt & Xóa vùng in** (`sheet.page.setPrintArea`, `clearPrintArea`) | Chọn A1:E6, bấm Đặt vùng in; sau đó bấm Xóa vùng in | Thiết lập vùng in thành 'A1:E6' (có viền nét đứt phân định); sau khi xóa trả về null | Sau khi đặt: 'A1:E6'; Sau khi xóa: 'null' | **PASS** | Không có | Thiết lập và xóa vùng in hoạt động chuẩn xác theo mô hình Excel. |
+| **Ngắt trang: Chèn & Xóa ngắt trang** (`sheet.page.insertPageBreak`, `removePageBreak`) | Ô C5, bấm Chèn ngắt trang; sau đó bấm Xóa ngắt trang | Chèn đường ngắt trang đứng và ngang qua hàng 5 và cột C; xóa ngắt trang đưa về rỗng | Sau chèn: row5=true, colC=true; Sau xóa: row5=false | **PASS** | Không có | Chèn và xóa đường ngắt trang in chính xác theo tọa độ hàng/cột. |
+| **Tiêu đề in** (`sheet.page.printTitles`) | Bấm nút Tiêu đề in trên nhóm Thiết lập trang | Mở hộp thoại cấu hình Hàng lặp lại ở đầu trang (Rows to repeat at top) và Cột lặp lại bên trái (Columns to repeat at left) | Hộp thoại open=true, hasTitleInputs=true | **PASS** | Không có | Mở hộp thoại cấu hình tiêu đề trang in lặp lại đầy đủ. |
+| **Tỷ lệ vừa trang** (`sheet.page.scale`) | Bấm nút Tỷ lệ trên nhóm Vừa trang | Mở tùy chọn thu phóng tỷ lệ in (Scale %) hoặc ép vừa số trang rộng/cao (Fit to 1 page wide by tall) | Hộp thoại open=true, hasScale=true | **PASS** | Không có | Cấu hình tỷ lệ in và vừa số trang hoạt động hoàn chỉnh. |
+| **Đường lưới** (`sheet.view.gridlines`) | Bấm nút Đường lưới trên nhóm Tùy chọn trang tính | Bật/tắt hiển thị đường kẻ lưới các ô tính trên màn hình | Ban đầu: true -> Sau khi bấm: false -> Bấm lại: true | **PASS** | Không có | Chuyển đổi hiển thị đường kẻ ô bảng tính mượt mà và chính xác. |
+| **Tiêu đề hàng/cột** (`sheet.view.headings`) | Bấm nút Tiêu đề trên nhóm Tùy chọn trang tính | Bật/tắt hiển thị thanh chữ cái cột (A, B, C...) và số thứ tự hàng (1, 2, 3...) | Ban đầu: true -> Sau khi bấm: false -> Bấm lại: true | **PASS** | Không có | Chuyển đổi ẩn/hiện thanh tiêu đề hàng và cột tức thì. |
+| **Lưu tệp XLSX thật sau khi cấu hình Thiết lập trang** | Lưu tệp workXlsx với Print Area, Page Setup, kiểm tra cấu trúc XML | Tệp lưu thành công; XML sheet1.xml bảo tồn các thẻ pageMargins, printOptions hoặc cấu hình in | Saved=true, XML entries=10 | **PASS** | `Ctrl+S` | Lưu tệp thành công, bảo toàn đầy đủ các tham số thiết lập in ấn. |
+
+*Kiểm chứng lưu XLSX thật*: Tệp `test_sheet_work.xlsx` được lưu thành công với đầy đủ cấu trúc Page Setup (khổ letter, hướng ngang, lề tùy chỉnh, vùng in A1:E6), không gặp lỗi corrupt XML.
+
+---
