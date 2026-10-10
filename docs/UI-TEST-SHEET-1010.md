@@ -1,0 +1,23 @@
+# Nhật ký kiểm thử giao diện Sheet (người dùng Excel) — 10/10/2026
+
+Cách làm: mở app Sheet thật (WebView2) và giữ mở liên tục (`scripts/audit-0610/app_session_server.mjs`), mở tệp xlsx thật (`ui_test_sheet_lan02.xlsx`), thao tác từng icon ở từng tab, đo bằng số (DOM/computed style) trước qua CDP và phím tắt/chuột thật, chụp ảnh xem trực quan. Lỗi chỉ ghi lại để xử lý sau; chưa sửa trong đợt này.
+Ảnh minh chứng: `E:\VNOffice-profiles\ui-shots\live-sheet\` (không commit).
+
+## Lỗi đã ghi nhận
+
+| # | Mức | Tab / chức năng | Mô tả (như người dùng thấy) | Bằng chứng / nguyên nhân nghi ngờ |
+|---|---|---|---|---|
+| U-S1 | TRUNG BÌNH | Trang đầu > Màu nền (Tô màu ô) | Bấm nút chỉ áp màu vàng cố định #FFF200 (rgb(255, 242, 0)) vào ô; nút KHÔNG mở bảng chọn màu (color palette) nào như Excel; người dùng không thể tự chọn màu sắc mong muốn. | Đã đo bằng số qua CDP: cell nhận style backgroundColor rgb(255, 242, 0), popup màu paletteOpen = false. Mã adapter `sheet.cell.fillColor` gán cứng `#FFF200`. Ảnh `tab-home.png`. |
+| U-S2 | TRUNG BÌNH | Trang đầu > Màu chữ | Bấm nút chỉ áp màu đỏ cố định #DC2626 (rgb(220, 38, 38)) vào chữ trong ô; nút KHÔNG mở bảng chọn màu (palette) nào như Excel; người dùng không thể chọn màu chữ khác. | Đã đo bằng số qua CDP: cell nhận style color rgb(220, 38, 38), paletteOpen = false. Mã adapter `sheet.cell.textColor` gán cứng `#DC2626`. Ảnh `tab-home.png`. |
+| U-S3 | TRUNG BÌNH | Trang đầu > Đường viền ô (Borders) | Bấm nút chỉ áp một kiểu viền đen 2px cố định vào ô; KHÔNG mở menu danh sách viền như Excel (Viền dưới, Viền trên, Tất cả đường viền, Viền ngoài dày, Không viền...); người dùng không thể tùy biến kiểu kẻ bảng. | Đã đo bằng số qua CDP: cell nhận style border `2px solid rgb(15, 23, 42)`, menuOpen = false. Mã adapter `sheet.cell.borders` gán cứng `2px solid #0f172a`. Ảnh `tab-home.png`. |
+| U-S4 | THẤP | Trang đầu > Trạng thái nút In đậm / In nghiêng / Gạch chân | Khi chọn ô có chữ đậm/nghiêng/gạch chân, hoặc sau khi bấm nút B/I/U, các nút trên ribbon KHÔNG cập nhật trạng thái bật sáng (class is-checked/active vẫn false, aria-pressed không đổi) khiến người dùng không biết định dạng đang bật hay tắt. | Đã đo bằng số: cell nhận fontWeight bold / fontStyle italic / textDecoration underline nhưng `btn.classList.contains('is-checked')` = false. Ảnh `tab-home.png`. |
+| U-S5 | THẤP | Trang đầu > Lặp ký tự biểu tượng vào nhãn nút | Nhãn các nút trên ribbon bị dính chuỗi ký tự của icon SVG/text vào nhãn chữ: "a Trộn & căn giữa", "A Z Sắp xếp A-Z", "Z A Sắp xếp Z-A", ".0 .00" (Tăng thập phân), ".00 .0" (Giảm thập phân), "12 ₫" (Định dạng ô), "9,9" (Phân cách nghìn), "₫ Định dạng số" (Mở rộng nhóm). | Đã đo bằng số: DOM innerText của các button chứa tiền tố thừa do gộp text icon với label. Ảnh `tab-home.png`. |
+| U-S6 | THẤP | Trang đầu > Nhóm Ô và Kiểu thiếu nhãn chữ hiển thị | Các nút "Định dạng bảng", "Kiểu ô", "Chèn hàng", "Chèn cột", "Xóa hàng", "Xóa cột", "Định dạng" chỉ hiện icon nhỏ, nhãn chữ bị rỗng (text = "") gây khó nhận diện chức năng so với ribbon Excel chuẩn. | Đã đo bằng số: button.innerText.trim() = "". Ảnh `tab-home.png`. |
+
+Ghi chú kết quả ĐẠT (Trang đầu — đo bằng số, chuột thật qua CDP): Phím tắt Ctrl+B, Ctrl+I, Ctrl+U áp dụng định dạng đậm/nghiêng/gạch chân vào ô thành công; Căn trái, căn giữa, căn phải, căn trên/giữa dọc/dưới hoạt động chuẩn; Tăng/giảm thụt lề; Ngắt dòng tự động (wrap text); Trộn & căn giữa (merge center); Hộp thoại Định dạng ô (Ctrl+1 / Format Cells) mở đầy đủ đa tab (Số, Căn chỉnh, Phông chữ...); Định dạng có điều kiện (Conditional Formatting) mở hộp thoại cấu hình quy tắc theo phạm vi ô; Định dạng theo bảng (Format as Table) và Thư viện kiểu ô (Cell Styles) mở hộp thoại chọn kiểu mẫu trực quan; Sắp xếp A-Z / Z-A và Bộ lọc (Ctrl+Shift+L) hoạt động; Tìm kiếm (Ctrl+F) và Thay thế (Ctrl+H) mở panel chuẩn.
+
+### Chức năng còn thiếu so với Excel (Trang đầu)
+- Bảng chọn màu nền ô (Theme Colors, Standard Colors, No Fill, More Colors).
+- Bảng chọn màu chữ (Theme Colors, Standard Colors, Automatic).
+- Menu xổ xuống đường viền ô (Bottom/Top/Left/Right Border, No Border, All Borders, Outside Borders, Thick Box Border, Draw Border...).
+- Menu định dạng tiền tệ đa quốc gia ($, €, ¥, £ bên cạnh ₫).
