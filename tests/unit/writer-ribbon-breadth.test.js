@@ -117,6 +117,16 @@ export async function runWriterRibbonBreadthTests() {
   }
 
   (() => {
+    const shellCss = readFileSync(new URL("../../platform/shell/shell.css", import.meta.url), "utf8");
+    const selector = /#vno-ribbon-tabpanel-tableLayout \.vno-ribbon-group\[data-group-id="tableSelectGroup"\] \.vno-ribbon-group-items\s*\{[^}]*height:\s*auto;[^}]*max-height:\s*none;/s;
+    assert(
+      "Writer Table Layout: nhóm Bảng dùng đủ chiều cao cho bốn lệnh chọn",
+      selector.test(shellCss) && /#vno-ribbon-tabpanel-tableLayout \.vno-ribbon-group\[data-group-id="tableSelectGroup"\] \.vno-ribbon-group-column\s*\{[^}]*height:\s*auto;[^}]*max-height:\s*none;/s.test(shellCss),
+      "Cột bốn lệnh Chọn ô/hàng/cột/bảng vẫn bị giới hạn ở chiều cao cột ribbon mặc định"
+    );
+  })();
+
+  (() => {
     const body = { contains: () => true };
     const plain = { nodeType: 1, tagName: "SPAN", style: {}, parentElement: body };
     const underlined = { nodeType: 1, tagName: "U", style: {}, parentElement: body };
