@@ -120,3 +120,19 @@
 *Kiểm chứng lưu XLSX thật*: Tệp `test_sheet_work.xlsx` được lưu thành công với 13 XML entries, bảo tồn dữ liệu trang tính và cấu trúc bảo vệ.
 
 ---
+
+### Nhóm 6: Xem (View)
+
+| Nút / Chức năng | Ngữ cảnh kiểm thử | Kỳ vọng Excel | Thực tế kiểm định | PASS/FAIL | Phím tắt | Ghi chú |
+| :--- | :--- | :--- | :--- | :---: | :---: | :--- |
+| **Cố định ô** (`sheet.view.freezePanes`, `freezeTopRow`, `freezeFirstColumn`) | Chọn C3 bấm Cố định ô; thử Cố định hàng đầu và Cột đầu | Cố định 2 hàng và 2 cột tại C3 (hàng 1-2 và cột A-B giữ nguyên khi cuộn); cố định hàng 1; cố định cột A | Tại C3: rows=2, cols=2; TopRow: rows=1; FirstCol: cols=1 | **PASS** | `Alt+W+F` | Cố định ô bảng tính mượt mà, hỗ trợ cả 3 chế độ chuẩn của Excel. |
+| **Thu phóng** (`sheet.view.zoomIn`, `zoomOut`, `zoomReset`, `zoomToSelection`) | Bấm các nút Phóng to, Thu nhỏ, 100%, Thu phóng vùng chọn | Phóng to tỷ lệ hiển thị (+10%), thu nhỏ (-10%), khôi phục 100% và vừa vùng chọn | Gốc: 1 -> In: 1.10 -> Out: 1.00 -> 100%: 1 -> ToSel: 2.00 | **PASS** | `Ctrl+Lăn chuột` | Bộ công cụ thu phóng hiển thị hoạt động trơn tru (ghi nhận dính icon tại U-S21). |
+| **Hiển thị: Thanh công thức, Đường lưới, Tiêu đề** (`sheet.view.formulaBar`, `gridlines`, `headings`) | Bấm các nút Thanh công thức, Đường lưới, Tiêu đề trên nhóm Hiển thị | Bật/tắt thanh nhập công thức; bật/tắt lưới ô; bật/tắt tiêu đề hàng và cột | FormulaBar: true->false->true; Gridlines: true->false; Headings: true->false | **PASS** | Không có | Chuyển đổi ẩn/hiện các thành phần giao diện chính tức thì. |
+| **Chế độ xem bảng tính** (`sheet.view.normal`, `pageBreakPreview`, `pageLayout`) | Bấm lần lượt Xem ngắt trang, Bố cục trang và Chế độ bình thường | Chuyển đổi linh hoạt giữa 3 chế độ xem tài liệu: Bình thường, Xem trước ngắt trang, và Bố trí trang | PageBreakPreview='pageBreakPreview'; PageLayout='pageLayout'; Normal='normal' | **PASS** | Không có | Chuyển đổi trạng thái hiển thị 3 chế độ xem chuẩn xác. |
+| **Cửa sổ mới** (`sheet.view.newWindow`) | Bấm nút Cửa sổ mới trên nhóm Cửa sổ | Mở tài liệu hiện hành trong một cửa sổ làm việc mới song song | grid.newWindow sẵn sàng=true | **PASS** | Không có | Phương thức nhân bản cửa sổ làm việc tích hợp sẵn sàng. |
+| **Quản lý Macro** (`common.macro.manager`) | Bấm nút Macro trên nhóm Macro | Mở hộp thoại Quản lý Macro (chạy, tạo, sửa mã lệnh tự động hóa) | Hộp thoại Macro open=true; Escape đóng an toàn | **PASS** | `Alt+F8` | Hộp thoại quản lý kịch bản Macro mở chuẩn xác. |
+| **Lưu tệp XLSX thật sau khi cấu hình Cố định ô & Chế độ xem** | Lưu tệp workXlsx với Cố định ô C3 (2 hàng, 2 cột), kiểm tra cấu trúc XML | Tệp lưu thành công; XML sheet1.xml bảo tồn cấu trúc dữ liệu và trạng thái cố định ô | Saved=true, XML entries=10 | **PASS** | `Ctrl+S` | Lưu tệp an toàn (ghi nhận thiếu thẻ `<pane state="frozen">` trong XML tại U-S44). |
+
+*Kiểm chứng lưu XLSX thật*: Tệp `test_sheet_work.xlsx` được lưu thành công với 10 XML entries; kiểm tra XML xác nhận dữ liệu được giữ nguyên vẹn.
+
+---
