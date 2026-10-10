@@ -23,6 +23,7 @@ import { STYLE_PRESETS, showStyleGalleryDropdown, closeStyleGalleryDropdown, cre
 import { showWatermarkDialog, showPageBorderDialog, showPageColorDialog } from "../../../apps/writer/page-decorations.js";
 import { showColumnsDialog } from "../../../apps/writer/columns-dialog.js";
 import { showParagraphDialog } from "../../../apps/writer/paragraph-dialog.js";
+import { nextIndentPx, indentPxToCss, cssLengthToPx } from "../../../apps/writer/paragraph-indent.js";
 import { buildTableHtml, showTextToTableDialog, splitTextToRows } from "../../../apps/writer/text-to-table-dialog.js";
 import { parseTabStops, resolveTab, serializeTabStops, showTabStopsDialog, styleTabElement } from "../../../apps/writer/tab-stops.js";
 import { SHAPE_TYPES, showShapeDialog, renderShapeSvg, showDiagramDialog, generateDiagramHtml, showChartDialog, generateChartHtml } from "../../../apps/writer/writer-illustrations.js";
@@ -1136,6 +1137,64 @@ export class WriterAdapter {
     if (blocks.length) return blocks;
     const closest = startElement?.closest?.("p,h1,h2,h3,h4,h5,h6,blockquote,div,td,th");
     return closest && (!this.bodyDom.contains || this.bodyDom.contains(closest)) ? [closest] : [];
+  }
+
+  /** Đoạn (không phải mục danh sách) mà Tăng/Giảm thụt lề tác động: đoạn chứa con trỏ hoặc mọi đoạn giao với vùng chọn. */
+  _indentTargetBlocks() {
+    if (typeof window === "undefined" || !this.bodyDom) return [];
+    const selection = window.getSelection?.();
+    if (!selection || !selection.rangeCount || typeof selection.getRangeAt !== "function") return [];
+    let range;
+    try {
+      range = selection.getRangeAt(0);
+    } catch {
+      return [];
+    }
+    if (!range) return [];
+    const start = range.startContainer?.nodeType === 1 ? range.startContainer : range.startContainer?.parentElement;
+    const own = start?.closest?.("p,h1,h2,h3,h4,h5,h6,li");
+    if (own?.closest?.("li")) return []; // danh sách đổi cấp bằng logic danh sách
+    if (range.collapsed || !range.intersectsNode) {
+      return own && this.bodyDom.contains?.(own) ? [own] : [];
+    }
+    return Array.from(this.bodyDom.querySelectorAll("p,h1,h2,h3,h4,h5,h6")).filter((node) =>
+      !node.closest("li, .vno-toc-block, .vno-tof-block") && range.intersectsNode(node)
+    );
+  }
+
+  _blockMarginLeftPx(block) {
+    const inline = cssLengthToPx(block?.style?.marginLeft);
+    if (Number.isFinite(inline)) return inline;
+    if (typeof window !== "undefined" && typeof window.getComputedStyle === "function" && block?.nodeType === 1) {
+      const computed = parseFloat(window.getComputedStyle(block).marginLeft);
+      if (Number.isFinite(computed)) return computed;
+    }
+    return 0;
+  }
+
+  /**
+   * Tăng (direction > 0) hoặc giảm thụt lề trái của các đoạn đang chọn tới điểm dừng 1,27 cm kế tiếp/liền trước.
+   * Trả false khi không đổi gì (để người gọi dùng đường cũ cho danh sách hoặc khối trích dẫn nhập từ tài liệu cũ).
+   */
+  adjustParagraphIndent(direction) {
+    const dir = Number(direction) > 0 ? 1 : -1;
+    const blocks = this._indentTargetBlocks();
+    if (!blocks.length) return false;
+    this.flushTyping();
+    let changed = false;
+    for (const block of blocks) {
+      const current = this._blockMarginLeftPx(block);
+      const next = nextIndentPx(current, dir);
+      if (Math.abs(next - current) < 0.5) continue;
+      const css = indentPxToCss(next);
+      if (css) block.style.marginLeft = css;
+      else block.style.removeProperty("margin-left");
+      changed = true;
+    }
+    if (!changed) return false;
+    this.isDirty = true;
+    this.recordSnapshot(dir > 0 ? "writer.para.indentInc" : "writer.para.indentDec");
+    return true;
   }
 
   sortParagraphs() {
@@ -3328,7 +3387,7 @@ export class WriterAdapter {
   _untouchedParagraphFingerprint(html) {
     const normalized = String(html || "")
       .replace(/<a\b[^>]*\bname=["']vno-untouched-\d+["'][^>]*>\s*<\/a>/gi, "")
-      .replace(/\s+data-vno-(?:src-hash|untouched)=["'][^"']*["']/gi, "")
+      .replace(/\s+data-vno-(?:src-hash|src-props|untouched)=["'][^"']*["']/gi, "")
       .replace(/<span\b(?=[^>]*\bclass=["'][^"']*\bvno-spelling-(?:error|uncertain)\b[^"']*["'])[^>]*>([\s\S]*?)<\/span>/gi, "$1")
       .replace(/\r\n?/g, "\n")
       .trim();
@@ -3342,7 +3401,7 @@ export class WriterAdapter {
 
   _editorDomFingerprint() {
     const normalized = this._stripAutoPageGaps(this.editorDom?.innerHTML || "")
-      .replace(/\s+data-vno-(?:src-hash|untouched)=["'][^"']*["']/gi, "")
+      .replace(/\s+data-vno-(?:src-hash|src-props|untouched)=["'][^"']*["']/gi, "")
       .replace(/<span\b(?=[^>]*\bclass=["'][^"']*\bvno-spelling-(?:error|uncertain)\b[^"']*["'])[^>]*>([\s\S]*?)<\/span>/gi, "$1")
       .replace(/\r\n?/g, "\n")
       .trim();
@@ -3360,6 +3419,37 @@ export class WriterAdapter {
       && this._openedEditorDomHash === this._editorDomFingerprint();
   }
 
+  /**
+   * Vân tay thuộc tính của chính đoạn (thẻ, style, align, class...), tách khỏi nội dung bên trong.
+   * Dùng để nhận ra đoạn nhập từ DOCX chỉ bị đổi định dạng cấp đoạn (thụt lề, căn lề, giãn dòng, kiểu tiêu đề):
+   * nội dung giữ nguyên nên vân tay nội dung không đổi, nhưng đoạn KHÔNG còn là "chưa sửa".
+   */
+  _paragraphPropsFingerprint(element) {
+    if (!element) return "";
+    const ignored = new Set(["id", "data-vno-src-hash", "data-vno-src-props", "data-vno-untouched", "data-vno-edited", "data-vno-keep-next"]);
+    const parts = [];
+    for (const attribute of Array.from(element.attributes || [])) {
+      const name = String(attribute.name || "").toLowerCase();
+      if (ignored.has(name)) continue;
+      let value = String(attribute.value ?? "");
+      if (name === "style") {
+        value = value.split(";").map((item) => item.trim().replace(/\s+/g, " ")).filter(Boolean).sort().join(";");
+      } else if (name === "class") {
+        value = value.split(/\s+/).filter((token) => token && !/^(?:is-|vno-(?:selected|focus|active|hover))/.test(token)).sort().join(" ");
+        if (!value) continue;
+      }
+      parts.push(`${name}=${value}`);
+    }
+    parts.sort();
+    const normalized = `${String(element.tagName || "").toLowerCase()}|${parts.join("|")}`;
+    let hash = 2166136261;
+    for (let i = 0; i < normalized.length; i += 1) {
+      hash ^= normalized.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0).toString(16).padStart(8, "0");
+  }
+
   _markImportedParagraphsUntouched(root = this.bodyDom) {
     if (!root?.children) return;
     const paragraphs = root.querySelectorAll
@@ -3368,6 +3458,7 @@ export class WriterAdapter {
     for (const element of paragraphs) {
       if (!/^(?:P|H[1-6])$/i.test(element.tagName || "") || typeof element.setAttribute !== "function") continue;
       element.setAttribute("data-vno-src-hash", this._untouchedParagraphFingerprint(element.innerHTML));
+      element.setAttribute("data-vno-src-props", this._paragraphPropsFingerprint(element));
     }
   }
 
@@ -3381,7 +3472,11 @@ export class WriterAdapter {
       if (!/^(?:P|H[1-6])$/i.test(element.tagName || "") || typeof element.getAttribute !== "function") continue;
       const sourceHash = element.getAttribute("data-vno-src-hash");
       const currentHash = this._untouchedParagraphFingerprint(element.innerHTML);
-      if (sourceHash && sourceHash === currentHash) {
+      // Đoạn chỉ đổi định dạng cấp đoạn (thụt lề, căn lề, giãn dòng, kiểu tiêu đề) vẫn có nội dung cũ,
+      // nhưng phải đi đường "đã sửa" để thay đổi được ghi vào DOCX thay vì bị khôi phục về đoạn gốc.
+      const sourceProps = element.getAttribute("data-vno-src-props");
+      const propsUnchanged = !sourceProps || sourceProps === this._paragraphPropsFingerprint(element);
+      if (sourceHash && sourceHash === currentHash && propsUnchanged) {
         element.setAttribute("data-vno-untouched", "1");
         // A paragraph id becomes a Word bookmark on that exact paragraph.
         // An inner <a> can be moved by LibreOffice ahead of an absolute frame,
@@ -7299,14 +7394,18 @@ export class WriterAdapter {
         return this.applyMultilevelList(args);
 
       case "writer.para.indentInc":
-        document.execCommand("indent", false, null);
-        this._propagateMultilevelClasses();
+        if (!this.adjustParagraphIndent(1)) {
+          document.execCommand("indent", false, null);
+          this._propagateMultilevelClasses();
+        }
         dispatchResult = true;
         break;
 
       case "writer.para.indentDec":
-        document.execCommand("outdent", false, null);
-        this._propagateMultilevelClasses();
+        if (!this.adjustParagraphIndent(-1)) {
+          document.execCommand("outdent", false, null);
+          this._propagateMultilevelClasses();
+        }
         dispatchResult = true;
         break;
 
@@ -14480,6 +14579,7 @@ export class WriterAdapter {
     const withoutComments = this._stripCommentMarkup(html);
     return withoutComments
       .replace(/\s+data-vno-src-hash=["'][^"']*["']/gi, "")
+      .replace(/\s+data-vno-src-props=["'][^"']*["']/gi, "")
       .replace(/\s+data-vno-edited=["'][^"']*["']/gi, "")
       .replace(/\s+data-vno-keep-next=["'][^"']*["']/gi, "")
       .replace(/<span\b(?=[^>]*\bclass=["'][^"']*\bvno-spelling-(?:error|uncertain)\b[^"']*["'])[^>]*>([\s\S]*?)<\/span>/gi, "$1")
