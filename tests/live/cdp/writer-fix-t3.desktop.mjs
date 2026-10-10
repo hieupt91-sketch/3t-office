@@ -87,6 +87,32 @@ try {
   }).sort((a,b)=>b-a);
   const tableContrast=(tabValues[0]+0.05)/(tabValues[1]+0.05);
   check("U38: nhấp ô bảng rồi chọn tab ngữ cảnh bằng chuột giữ màu active tương phản >=4.5:1", tableTab.active && tableTab.pressed === "true" && tableContrast >= 4.5, JSON.stringify({...tableTab,contrast:tableContrast}));
+  await session.close();
+
+  // U40: force the reported 1024x600 viewport, reveal contextual tabs, and use scroll controls plus keyboard.
+  session = await launchApp("writer", {});
+  await session.cdp.send("Emulation.setDeviceMetricsOverride", { width: 1024, height: 600, deviceScaleFactor: 1, mobile: false });
+  await session.cdp.evaluate(`window.dispatchEvent(new Event('resize'))`);
+  await sleep(250);
+  await session.cdp.evaluate(`(() => { const body=document.querySelector('.vno-writer-body'); body.innerHTML='<table><tbody><tr><td>Ô thử</td><td>Ô hai</td></tr></tbody></table>'; body.dispatchEvent(new Event('input',{bubbles:true})); })()`);
+  await click(session.cdp, ".vno-writer-body td");
+  await session.cdp.waitFor(`!document.querySelector('#vno-ribbon-tab-tableDesign')?.hidden`);
+  const narrowStart = await session.cdp.evaluate(`(() => {const bar=document.querySelector('.vno-ribbon-tabs'),strip=document.querySelector('.vno-ribbon-tab-strip'),ai=document.querySelector('#vno-ribbon-tab-ai'),right=document.querySelector('.vno-ribbon-tab-scroll-btn.is-right'); const r=ai.getBoundingClientRect(),b=bar.getBoundingClientRect(),p=strip.getBoundingClientRect(),q=right.getBoundingClientRect();return {width:innerWidth,height:innerHeight,client:bar.clientWidth,scroll:bar.scrollWidth,scrollLeft:bar.scrollLeft,barLeft:b.left,barRight:b.right,stripLeft:p.left,stripRight:p.right,rightWidth:q.width,aiLeft:r.left,aiRight:r.right,aiVisible:r.left>=0&&r.right<=innerWidth,rightVisible:!right.hidden};})()`);
+  check("U40: tại 1024x600, thanh tab có vùng cuộn và hiện nút cuộn phải khi Trợ lý AI nằm ngoài khung", narrowStart.width === 1024 && narrowStart.height === 600 && narrowStart.scroll > narrowStart.client && !narrowStart.aiVisible && narrowStart.rightVisible, JSON.stringify(narrowStart));
+  await click(session.cdp, ".vno-ribbon-tab-scroll-btn.is-right");
+  await session.cdp.waitFor(`(() => {const r=document.querySelector('#vno-ribbon-tab-help').getBoundingClientRect();return r.left>=0&&r.right<=innerWidth;})()`);
+  let visibleHelp = await session.cdp.evaluate(`(() => {const r=document.querySelector('#vno-ribbon-tab-help').getBoundingClientRect();return {left:r.left,right:r.right,visible:r.left>=0&&r.right<=innerWidth,scrollLeft:document.querySelector('.vno-ribbon-tabs').scrollLeft};})()`);
+  check("U40: nhấn nút cuộn bằng chuột đưa tab Trợ giúp vào vùng bấm được", visibleHelp.visible, JSON.stringify(visibleHelp));
+  await click(session.cdp, "#vno-ribbon-tab-help");
+  await session.cdp.waitFor(`document.activeElement===document.querySelector('#vno-ribbon-tab-help')`);
+  const helpAfterClick = await session.cdp.evaluate(`(() => ({active:document.querySelector('#vno-ribbon-tab-help').classList.contains('is-active'),focused:document.activeElement===document.querySelector('#vno-ribbon-tab-help')}))()`);
+  await press(session.cdp, "ArrowRight");
+  const aiFocus = await session.cdp.evaluate(`(() => {const el=document.querySelector('#vno-ribbon-tab-ai'),r=el.getBoundingClientRect();return {active:el.classList.contains('is-active'),focused:document.activeElement===el,visible:r.left>=0&&r.right<=innerWidth,helpActive:document.querySelector('#vno-ribbon-tab-help').classList.contains('is-active'),current:document.querySelector('.vno-ribbon-tab.is-active')?.dataset.tabId};})()`);
+  check("U40: chọn Trợ giúp bằng chuột rồi ArrowRight đưa Trợ lý AI vào vùng nhìn thấy", aiFocus.active && aiFocus.focused && aiFocus.visible, JSON.stringify({helpAfterClick,aiFocus}));
+  await session.cdp.send("Emulation.setDeviceMetricsOverride", { width: 1366, height: 768, deviceScaleFactor: 1, mobile: false });
+  await sleep(350);
+  const wide = await session.cdp.evaluate(`(() => {const bar=document.querySelector('.vno-ribbon-tabs');return {width:innerWidth,client:bar.clientWidth,scroll:bar.scrollWidth,leftVisible:!document.querySelector('.vno-ribbon-tab-scroll-btn.is-left').hidden,rightVisible:!document.querySelector('.vno-ribbon-tab-scroll-btn.is-right').hidden};})()`);
+  check("U40: ở 1366x768 các tab vẫn vừa như trước và nút cuộn tự ẩn", wide.width === 1366 && wide.scroll <= wide.client + 1 && !wide.leftVisible && !wide.rightVisible, JSON.stringify(wide));
 } catch (error) {
   check("FIX-T3 U20 desktop regression không phát sinh ngoại lệ", false, error.stack || error.message);
 } finally {

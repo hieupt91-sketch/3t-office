@@ -305,8 +305,20 @@ body {
 }
 
 /* Tabs Bar */
+.vno-ribbon-tab-strip {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  width: 100%;
+}
+
 .vno-ribbon-tabs {
   display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
   align-items: center;
   height: var(--vno-ribbon-tabs-height);
   padding: 0 8px;
@@ -314,6 +326,30 @@ body {
   border-bottom: 1px solid var(--vno-border-default);
   gap: 2px;
 }
+.vno-ribbon-tabs::-webkit-scrollbar { display: none; }
+
+.vno-ribbon-tab-scroll-btn {
+  display: flex;
+  flex: 0 0 24px;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--vno-border-default);
+  border-radius: var(--vno-radius-xs);
+  background: var(--vno-bg-surface);
+  color: var(--vno-text-secondary);
+  font: 600 19px/1 var(--vno-font-ui);
+  cursor: pointer;
+}
+.vno-ribbon-tab-scroll-btn:hover,
+.vno-ribbon-tab-scroll-btn:focus-visible {
+  color: var(--vno-text-primary);
+  background: var(--vno-bg-hover);
+}
+.vno-ribbon-tab-scroll-btn[hidden] { display: none; }
+.vno-ribbon-tab-scroll-btn.is-left { margin-right: 2px; }
+.vno-ribbon-tab-scroll-btn.is-right { margin-left: 2px; }
 
 .vno-ribbon-tab-file {
   background-color: var(--vno-app-current) !important;
