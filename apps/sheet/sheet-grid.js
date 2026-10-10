@@ -24,7 +24,7 @@ import { SheetDataTools } from "./data-tools.js";
 import { computeConsolidate, formatSheetRange, parseConsolidateReference, CONSOLIDATE_FUNCTIONS } from "./consolidate.js";
 import { createMatcher } from "../../platform/find/find-engine.js";
 import { InputNormalizer } from "../../platform/keyboard/input-normalizer.js";
-import { isSpellcheckEnabled } from "../../platform/text/spellcheck-dom-controller.js";
+import { isSpellcheckEnabled, setSpellcheckEnabled } from "../../platform/text/spellcheck-dom-controller.js";
 import { showContextMenu, closeActiveContextMenu } from "../../platform/ui-kit/components.js";
 
 
@@ -415,14 +415,16 @@ export class SheetGridController {
     }).attach(this.formulaInput);
 
     this._inlineSpellController = null;
-    import("./sheet-inline-spellcheck.js").then(({ SheetInlineSpellcheck }) => {
+    this._inlineSpellControllerReady = import("./sheet-inline-spellcheck.js").then(({ SheetInlineSpellcheck }) => {
       if (!this._inlineSpellController && this.formulaInput) {
         this._inlineSpellController = new SheetInlineSpellcheck(this);
         if (this.formulaInput) {
           this.formulaInput.dataset.spellcheckStatus = "ready";
         }
+        globalCommandBus.updateState("sheet.review.toggleSpellCheck", { checked: isSpellcheckEnabled() });
       }
-    }).catch(() => {});
+      return this._inlineSpellController;
+    }).catch(() => null);
 
     globalCommandBus.bindHandler("sheet.review.toggleSpellCheck", () => {
       return this.toggleSpellcheck();
@@ -11693,6 +11695,20 @@ _bindGridKeyboardNavigation() {
         if (td) this._renderCellVisual(td, this.cellsData.get(`${this.formulaEntry.coord.c}${this.formulaEntry.coord.r}`), this.formulaEntry.coord.c, this.formulaEntry.coord.r);
       }
       return res;
+    }
+    if (this._inlineSpellControllerReady) {
+      const next = !isSpellcheckEnabled();
+      setSpellcheckEnabled(next);
+      globalCommandBus.updateState("sheet.review.toggleSpellCheck", { checked: next });
+      return this._inlineSpellControllerReady.then(controller => {
+        if (!controller) {
+          setSpellcheckEnabled(!next);
+          globalCommandBus.updateState("sheet.review.toggleSpellCheck", { checked: !next });
+          return false;
+        }
+        controller.setEnabled(next);
+        return next;
+      });
     }
     return false;
   }
