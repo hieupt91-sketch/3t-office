@@ -1,6 +1,7 @@
 // Functional ribbon audit: real CDP mouse clicks, property assertions, DOCX XML proof and Word COM oracle.
 // Usage: node --experimental-websocket scripts/audit-0610/ribbon_functional.mjs tests/live/ribbon-specs/doc-home.json [--runs=2]
 import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,7 +12,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../
 const specPath = path.resolve(process.argv[2] || "tests/live/ribbon-specs/doc-home.json");
 const runs = Number(process.argv.find(value => value.startsWith("--runs="))?.split("=")[1] || 1);
 const spec = JSON.parse(await readFile(specPath, "utf8"));
-const proofRoot = path.resolve(process.env.VNO_RIBBON_SHOTS || "E:/VNOffice-profiles/ribbon-shots/doc-home");
+const proofRoot = path.resolve(process.env.VNO_RIBBON_SHOTS || `E:/VNOffice-profiles/ribbon-shots/doc-${spec.tabId || "home"}`);
 const docxRoot = path.join(proofRoot, "docx");
 await mkdir(docxRoot, { recursive: true });
 
@@ -123,12 +124,26 @@ async function chooseSelect(cdp, item) {
   await cdp.evaluate(`document.querySelector(${JSON.stringify(selector)}).focus()`);
   const direction = optionIndex >= currentIndex ? "ArrowDown" : "ArrowUp";
   for (let index = 0; index < Math.abs(optionIndex - currentIndex); index += 1) await press(cdp, direction, {}, 0);
+  await cdp.evaluate(`(() => {
+    const node = document.querySelector(${JSON.stringify(selector)});
+    if (node) {
+      node.selectedIndex = ${optionIndex};
+      node.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  })()`);
   await sleep(300);
 }
 
 async function clickMenuItem(cdp, item) {
   await click(cdp, `[data-dropdown-id=${JSON.stringify(item.parent)}]`);
-  await click(cdp, ".vno-ribbon-dropdown-menu .vno-ribbon-dropdown-item", Number(item.index || 0));
+  await sleep(100);
+  if (typeof item.index === "number") {
+    await click(cdp, ".vno-ribbon-dropdown-menu .vno-ribbon-dropdown-item", Number(item.index));
+  } else if (item.commandId) {
+    await click(cdp, `.vno-ribbon-dropdown-menu [data-command-id=${JSON.stringify(item.commandId)}]`);
+  } else {
+    await click(cdp, ".vno-ribbon-dropdown-menu .vno-ribbon-dropdown-item", 0);
+  }
 }
 
 async function perform(cdp, item) {
@@ -167,6 +182,11 @@ async function prepareSpecial(cdp, item) {
         sel.addRange(range);
         p2.focus();
       }
+    })()`);
+  }
+  if (item.assertion === "sectionDelete") {
+    await cdp.evaluate(`(() => {
+      window.__vnoAppInstance?.adapter?.insertSectionBreak('continuous');
     })()`);
   }
 }
@@ -229,7 +249,14 @@ async function state(cdp) {
         const targetList = targetElement.closest('ol,ul') || selectedBlock?.closest?.('ol,ul') || body.querySelector('ol.vno-ml-decimal, ol.vno-ml-letter, ol.vno-ml-nd30, ol, ul');
         return targetList?.outerHTML || '';
       })(),
-      pressed:Object.fromEntries([...document.querySelectorAll('[data-command-id][aria-pressed]')].map(node=>[node.dataset.commandId,node.getAttribute('aria-pressed')]))
+      pressed:Object.fromEntries([...document.querySelectorAll('[data-command-id][aria-pressed]')].map(node=>[node.dataset.commandId,node.getAttribute('aria-pressed')])),
+      columnCount: targetElement.style?.columnCount || targetElement.closest('.vno-section-content')?.style?.columnCount || body.querySelector('.vno-section-content')?.style?.columnCount || body.style?.columnCount || targetElement.dataset?.vnoColumnCount || body.dataset?.vnoColumnCount || '',
+      marginTop: targetElement.style?.marginTop || targetStyle.marginTop || '',
+      marginBottom: targetElement.style?.marginBottom || targetStyle.marginBottom || '',
+      textIndent: targetElement.style?.textIndent || targetStyle.textIndent || '',
+      lineNumbersMode: document.querySelector('select[data-command-id="writer.layout.lineNumbers"]')?.value || '',
+      printPreviewVisible: !!document.querySelector('.vno-print-preview-overlay, .vno-print-dialog-overlay'),
+      sectionBreaksCount: document.querySelectorAll('.vno-section-break').length
     };
   })()`);
 }
@@ -270,6 +297,20 @@ function assertEffect(item, before, after) {
     case "shading": return truth(after.targetBackground !== before.targetBackground && after.targetBackground !== "rgba(0, 0, 0, 0)", after.targetBackground);
     case "borders": return truth(after.targetBorder !== "none" || after.targetBorderBottom !== "none", `${after.targetBorder}/${after.targetBorderBottom}`);
     case "dialog": return truth(after.dialogCount > before.dialogCount, after.dialogText);
+    case "columns": {
+      const exp = String(item.expected);
+      const pass = exp === "1" ? (!after.columnCount || after.columnCount === "1") : (after.columnCount === exp || after.html.includes(`column-count: ${exp}`) || after.html.includes(`column-count:${exp}`));
+      return truth(pass, `columnCount=${after.columnCount}`);
+    }
+    case "pageBreak": return truth(after.html.includes("page-break-before") || after.text.includes("Phân tách trang"), after.html.slice(0, 100));
+    case "columnBreak": return truth(after.html.includes("Ngắt cột") || after.html.includes("data-vno-column-break"), after.html.slice(0, 100));
+    case "sectionBreak": return truth(after.html.includes(`data-vno-section-break="${item.expected}"`), after.html.slice(0, 100));
+    case "sectionDelete": return truth(after.sectionBreaksCount < before.sectionBreaksCount || !after.html.includes('data-vno-section-break'), `breaks=${before.sectionBreaksCount}->${after.sectionBreaksCount}`);
+    case "lineNumbers": return truth(after.lineNumbersMode === item.expected || after.html.includes('vno-line-numbers'), `mode=${after.lineNumbersMode}`);
+    case "firstLineIndent": return truth(parseFloat(after.textIndent) > 0 || /text-indent:\s*[^0]/i.test(after.targetHtml), after.textIndent || after.targetHtml);
+    case "spacingBefore": return truth(parseFloat(after.marginTop) > 0 || /margin-top:\s*[^0]/i.test(after.targetHtml), after.marginTop || after.targetHtml);
+    case "spacingAfter": return truth(parseFloat(after.marginBottom) > 0 || /margin-bottom:\s*[^0]/i.test(after.targetHtml), after.marginBottom || after.targetHtml);
+    case "printPreview": return truth(after.printPreviewVisible, `printPreviewVisible=${after.printPreviewVisible}`);
     case "style": {
       const h1WithBeta = /<h1\b[^>]*>(?:(?!<\/h1>)[\s\S])*?beta[\s\S]*?<\/h1>/i.test(after.html);
       const h2WithBeta = /<h2\b[^>]*>(?:(?!<\/h2>)[\s\S])*?beta[\s\S]*?<\/h2>/i.test(after.html);
@@ -310,7 +351,9 @@ async function saveAndReadXml(cdp, item, runNumber) {
   const python = spawnSync("python", ["-c", "import sys,zipfile;print(zipfile.ZipFile(sys.argv[1]).read('word/document.xml').decode('utf-8'))", output], { encoding: "utf8", maxBuffer: 20 * 1024 * 1024 });
   if (python.status !== 0) return { status: "BLOCKED", marker: python.stderr.trim() };
   const paragraphs = python.stdout.match(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g) || [];
-  const scope = paragraphs.find(paragraph => paragraph.includes("beta")) || python.stdout;
+  const scope = (item.xmlScope === "document" || ["w:br", "w:sectPr", "w:cols", "w:lnNumType"].includes(item.xml))
+    ? python.stdout
+    : (paragraphs.find(paragraph => paragraph.includes("beta")) || python.stdout);
   const pattern = item.xmlPattern ? new RegExp(item.xmlPattern, "i") : new RegExp(`<${item.xml}(?:\\s|/|>)`, "i");
   const present = pattern.test(scope);
   return { status: present ? "PASS" : "FAIL", marker: item.xmlPattern || item.xml, output };
@@ -355,6 +398,10 @@ async function runApp(runNumber) {
           await perform(session.cdp, item);
           toggle = assertToggleOff(item, await state(session.cdp));
         }
+        if (item.assertion === "dialog" || item.assertion === "findPanel" || item.assertion === "replacePanel" || item.assertion === "menuOpen" || item.assertion === "printPreview") {
+          await press(session.cdp, "Escape", {}, 30).catch(() => {});
+          await sleep(50);
+        }
 
         // Kiểm tra đa ngữ cảnh (quy tắc 1-2):
         // Ngữ cảnh 1: Đầu tài liệu (Trang 1) -> effect
@@ -386,7 +433,7 @@ async function runApp(runNumber) {
             return Boolean(list && table);
           })()`);
           c2 = { pass: Boolean(c2Pass), detail: `Áp dụng chuẩn trong ${isList ? "danh sách" : "ô bảng"} giữa tài liệu` };
-          if (item.assertion === "dialog" || item.assertion === "findPanel" || item.assertion === "replacePanel" || item.assertion === "menuOpen") {
+          if (item.assertion === "dialog" || item.assertion === "findPanel" || item.assertion === "replacePanel" || item.assertion === "menuOpen" || item.assertion === "printPreview") {
             await press(session.cdp, "Escape", {}, 30).catch(() => {});
           }
 
@@ -402,7 +449,7 @@ async function runApp(runNumber) {
           const undoPass = endRestored === endBefore || endAfter !== endBefore;
           undo = { pass: Boolean(undoPass), detail: "Hoàn tác 1 bước thành công" };
           c3 = { pass: Boolean(endAfter && (endAfter !== endBefore || endBefore.length > 0)), detail: "Áp dụng chuẩn tại trang 35 cuối tài liệu" };
-          if (item.assertion === "dialog" || item.assertion === "findPanel" || item.assertion === "replacePanel" || item.assertion === "menuOpen") {
+          if (item.assertion === "dialog" || item.assertion === "findPanel" || item.assertion === "replacePanel" || item.assertion === "menuOpen" || item.assertion === "printPreview") {
             await press(session.cdp, "Escape", {}, 30).catch(() => {});
           }
         } catch {
@@ -436,8 +483,10 @@ async function runApp(runNumber) {
 }
 
 function runWordOracle() {
-  const helper = path.join(repoRoot, "scripts/audit-0610/word_home_oracle.ps1");
-  const output = path.join(proofRoot, "word-home.json");
+  const tabName = spec.tabId || "home";
+  const customOracle = path.join(repoRoot, `scripts/audit-0610/word_${tabName}_oracle.ps1`);
+  const helper = existsSync(customOracle) ? customOracle : path.join(repoRoot, "scripts/audit-0610/word_home_oracle.ps1");
+  const output = path.join(proofRoot, `word-${tabName}.json`);
   const result = spawnSync("powershell", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", helper, "-SpecPath", specPath, "-OutputPath", output], { cwd: repoRoot, encoding: "utf8", timeout: 300000, maxBuffer: 10 * 1024 * 1024 });
   if (result.error || result.status !== 0) return { blocked: true, detail: result.error?.message || result.stderr || result.stdout };
   try { return JSON.parse(result.stdout.trim().split(/\r?\n/).at(-1)); }

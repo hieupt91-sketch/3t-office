@@ -16020,6 +16020,24 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
         flags=re.IGNORECASE
     )
 
+    ln_match = re.search(r"<!--vno-line-numbers:\s*(\d+):([a-zA-Z]+)\s*-->", source_html, re.IGNORECASE)
+    if ln_match:
+        count_by = ln_match.group(1)
+        restart_raw = ln_match.group(2).lower()
+        restart_mode = "newPage" if restart_raw == "page" else ("newSection" if restart_raw == "section" else "continuous")
+        ln_xml = f'<w:lnNumType w:countBy="{count_by}" w:restart="{restart_mode}"/>'
+        def patch_ln(m: re.Match) -> str:
+            s = m.group(0)
+            if "<w:lnNumType" in s:
+                return re.sub(r'<w:lnNumType\b[^>]*/>', ln_xml, s, count=1, flags=re.IGNORECASE)
+            for anchor in ("<w:cols", "<w:formProt", "<w:vAlign", "<w:noEndnote", "<w:titlePg", "<w:docGrid", "</w:sectPr"):
+                pos = s.find(anchor)
+                if pos >= 0:
+                    return s[:pos] + ln_xml + s[pos:]
+            return s
+        document_xml = re.sub(r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>", patch_ln, document_xml, flags=re.IGNORECASE)
+
+
     page = re.search(r"@page\s*\{[^}]*\bmargin\s*:\s*([\d.]+)mm\s+([\d.]+)mm\s+([\d.]+)mm\s+([\d.]+)mm", source_html, re.IGNORECASE)
     if page:
         top, right, bottom, left = (round(float(value) / 25.4 * 1440) for value in page.groups())
