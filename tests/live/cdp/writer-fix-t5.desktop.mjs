@@ -130,6 +130,17 @@ try {
     const singleSort = await cdp.evaluate(`(() => ({message:document.querySelector('.vno-notification-bar-message')?.textContent||'',paragraphs:document.querySelectorAll('.vno-writer-body p, .vno-writer-body li').length,text:document.querySelector('.vno-writer-body')?.innerText}))()`);
     check("U21 keyboard: Enter trên Sắp xếp với một đoạn báo lý do và giữ nguyên nội dung", /ít nhất hai đoạn/.test(singleSort.message) && singleSort.paragraphs === 1 && singleSort.text === "Đoạn duy nhất", { singleSort });
   }
+  if (!selected.size || selected.has("8")) {
+    await cdp.send("Emulation.setDeviceMetricsOverride", { width: 1366, height: 768, deviceScaleFactor: 1, mobile: false });
+    await sleep(250);
+    await click(cdp, "#vno-ribbon-tab-insert");
+    await sleep(250);
+    const insertRibbon = await cdp.evaluate(`(() => { const p=document.querySelector('.vno-ribbon-content'),s=p?.getBoundingClientRect(),g=p?.querySelector('[data-group-id="symbols"]'),gr=g?.getBoundingClientRect(),b=g?.querySelector('[data-command-id="writer.insert.symbol"]'),br=b?.getBoundingClientRect(); return {viewport:{width:innerWidth,height:innerHeight},ribbon:{client:p?.clientWidth,scroll:p?.scrollWidth,left:p?.scrollLeft,right:s?.right},symbols:{class:g?.className,left:gr?.left,right:gr?.right,width:gr?.width,button:{label:b?.innerText,visible:!!br?.width&&br.left>=s.left&&br.right<=s.right,left:br?.left,right:br?.right}}}; })()`);
+    check("U25 1366px: nút Ký hiệu không bị cắt và ribbon không cần cuộn ngang", insertRibbon.ribbon.scroll <= insertRibbon.ribbon.client + 1 && insertRibbon.symbols.button.visible, { cdpPort: session.debugPort, insertRibbon });
+    await click(cdp, '[data-command-id="writer.insert.symbol"]');
+    const symbolDialog = await cdp.evaluate(`(() => !!document.querySelector('.vno-symbol-picker'))()`);
+    check("U25 chuột: nút Ký hiệu mở hộp chọn ký tự đặc biệt", symbolDialog, { cdpPort: session.debugPort, symbolDialog });
+  }
   if (results.some(item => !item.pass)) process.exitCode = 1;
 } finally {
   await session.close();
