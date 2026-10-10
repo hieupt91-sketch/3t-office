@@ -18,7 +18,7 @@ Quy ước: ĐÃ SỬA = đã gộp vào main và có kiểm độc lập; MỚI
 | # | Rủi ro | Cách kiểm | Trạng thái |
 |---|---|---|---|
 | R1 | Gộp nhiều nhánh trong ngày làm hỏng lưu DOCX | Bộ kiểm DOCX 23 tệp so với Word trên main | ĐÃ KIỂM: 23/23 PASS (22:10); kiểm lại sau lô sửa rủi ro: d03/d13/d23/d24 PASS |
-| R2 | Mở tệp chậm hơn (luật sinh tồn: nhanh như Word) | Đo thời gian mở d07/d13 trước-sau | CHƯA |
+| R2 | Mở tệp chậm hơn (luật sinh tồn: nhanh như Word) | Đo mở d13.docx đến khi có nội dung, 2 lần mỗi bản | ĐÃ ĐO 11/10: sáng 10/10 (0cb8a052) 19,2 s và 18,7 s; main hiện tại 5,8 s và 6,4 s — KHÔNG chậm đi, nhanh hơn |
 | R3 | Gõ chậm trên tài liệu dài sau sửa chính tả (U1) và undo (U23) | Đo độ trễ gõ trên d07 (38.842 ký tự): trước U23 12,3 ms/phím → sau 14,1 ms/phím | ĐÃ ĐO: +15%, vẫn rất nhanh. Còn ghi nhận: selectionchange tuần tự hóa DOM mỗi lần gõ — theo dõi trên tài liệu 160 trang |
 | R4 | Undo/Redo giữ con trỏ đúng ở mọi thao tác | Gõ giữa dòng, Backspace, Enter, Cắt (Ctrl+X), định dạng, bảng, ÁP CỘT nhiều mục | ĐÃ KIỂM: đạt; phát hiện và SỬA lỗi áp cột làm rơi con trỏ |
 | R5 | Ctrl+D xung đột phím tắt khác | Đo trên app thật | ĐÃ KIỂM: Doc mở hộp Phông chữ, Sheet Điền xuống ([5,5,5]), Slides Nhân đôi (1→2 trang) |
