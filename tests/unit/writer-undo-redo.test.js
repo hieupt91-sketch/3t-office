@@ -545,5 +545,60 @@ export async function runWriterUndoRedoTests() {
     results.push({ name: "Writer Undo/Redo: Lỗi Test 10 Document Isolation", pass: false, error: err.message });
   }
 
+  // =========================================================================
+  // TEST 11: Undo khôi phục caret vào text node thay vì body container
+  // =========================================================================
+  try {
+    setupMockDocumentButtons();
+    const oldDocument = globalThis.document;
+    const oldWindow = globalThis.window;
+    const textNode = { nodeType: 3, textContent: "Chapter 1" };
+    const env = createMockWriterEnvironment("<p>Chapter 1</p>");
+    const makeRange = () => ({
+      startContainer: textNode,
+      startOffset: 9,
+      endContainer: textNode,
+      endOffset: 9,
+      selectNodeContents() { this.startContainer = env.bodyEl; this.startOffset = 0; },
+      setEnd(node, offset) { this.endContainer = node; this.endOffset = offset; },
+      setStart(node, offset) { this.startContainer = node; this.startOffset = offset; },
+      toString() { return textNode.textContent.slice(0, this.endOffset); }
+    });
+    const liveRange = makeRange();
+    const selection = {
+      rangeCount: 1,
+      anchorNode: textNode,
+      getRangeAt: () => liveRange,
+      removeAllRanges() { this.rangeCount = 0; },
+      addRange(range) { this.rangeCount = 1; this.restoredRange = range; }
+    };
+    globalThis.document = {
+      ...oldDocument,
+      createRange: makeRange,
+      createTreeWalker: () => ({ nextNode: (() => { let done = false; return () => done ? null : (done = true, textNode); })() }),
+      querySelectorAll: oldDocument.querySelectorAll
+    };
+    globalThis.window = { getSelection: () => selection };
+
+    const adapter = new WriterAdapter(env.editorDom);
+    textNode.textContent = "Chapter 1 ABC";
+    liveRange.startOffset = 13;
+    liveRange.endOffset = 13;
+    env.bodyEl.innerHTML = "<p>Chapter 1 ABC</p>";
+    adapter.recordSnapshot("Typing");
+    adapter.undo();
+    const restored = selection.restoredRange;
+    const passed = restored?.startContainer === textNode && restored.startOffset === 9
+      && restored.endContainer === textNode && restored.endOffset === 9;
+    results.push({
+      name: "Writer Undo/Redo: Undo khôi phục caret tại text node và offset đã lưu",
+      pass: passed
+    });
+    globalThis.document = oldDocument;
+    globalThis.window = oldWindow;
+  } catch (err) {
+    results.push({ name: "Writer Undo/Redo: Lỗi Test 11 khôi phục caret", pass: false, error: err.message });
+  }
+
   return results;
 }
