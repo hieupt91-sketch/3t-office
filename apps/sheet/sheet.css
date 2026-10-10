@@ -1257,6 +1257,11 @@ tr.is-filtered-out {
 .vno-func-dialog .vno-dialog-header > span {
   color: inherit;
 }
+
+/* Keep the names of Sheet's row/column controls visible when ribbon sizing compacts a group. */
+#vno-ribbon-tabpanel-home .vno-ribbon-group[data-group-id="cells"] .vno-ribbon-btn-large .vno-btn-label {
+  display: -webkit-box !important;
+}
 .vno-fc-tab[aria-disabled="true"] {
   cursor: not-allowed !important;
   opacity: 0.65;
