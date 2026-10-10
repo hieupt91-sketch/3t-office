@@ -7,6 +7,12 @@ import { ICONS } from "./icons.js";
 import { globalCommandBus } from "../commands/command-bus.js";
 import { t } from "../i18n/i18n.js";
 
+const ONE_SHOT_HOVER_COMMANDS = new Set([
+  "writer.table.cellBg",
+  "writer.page.border",
+  "writer.page.margins"
+]);
+
 /**
  * Tự động tìm kiếm Icon phù hợp theo Command ID
  */
@@ -263,8 +269,19 @@ export function createCommandButton({ commandId, isLarge = false, iconOnly = fal
 
   // Click handler
   btn.addEventListener("click", () => {
-    globalCommandBus.execute(commandId);
+    globalCommandBus.execute(commandId).then(() => {
+      if (ONE_SHOT_HOVER_COMMANDS.has(commandId)) btn.classList.add("vno-action-complete");
+    });
   });
+
+  if (ONE_SHOT_HOVER_COMMANDS.has(commandId)) {
+    const clearActionHover = () => {
+      const modalOpen = typeof document !== "undefined" && document.querySelector?.(".vno-dialog-overlay, [role='dialog'], [role='alertdialog']");
+      if (!modalOpen) btn.classList.remove("vno-action-complete");
+    };
+    btn.addEventListener("pointerenter", clearActionHover);
+    btn.addEventListener("pointerleave", clearActionHover);
+  }
 
   // Lắng nghe thay đổi trạng thái
   globalCommandBus.subscribe((updatedId, newState) => {

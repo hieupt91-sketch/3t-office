@@ -7,6 +7,7 @@ import { globalUnoBridge } from "../common/uno-bridge.js";
 import { showPromptDialog, showFindReplaceDialog, showAlertDialog, showHyperlinkDialog } from "../../../platform/ui-kit/dialogs.js";
 import { createMatcher } from "../../../platform/find/find-engine.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
+import { getPendingTypingStyleCommands } from "../../../platform/text/spellcheck-dom-controller.js";
 import { withLazyFeatureProgress } from "../../../platform/startup/lazy-feature.js";
 import { parseCsv, parseDelimitedText, parseFodsData, replaceMergeFields } from "../../../apps/writer/mail-merge-data.js";
 import {
@@ -1267,9 +1268,21 @@ export class WriterAdapter {
 
   sortParagraphs() {
     const blocks = this._getSelectedParagraphBlocks();
-    if (blocks.length < 2) return false;
+    if (blocks.length < 2) {
+      this.shell?.showNotification?.({
+        type: "info",
+        message: "Cần chọn ít nhất hai đoạn văn để sắp xếp A–Z."
+      });
+      return false;
+    }
     const parent = blocks[0].parentNode;
-    if (!parent || blocks.some(node => node.parentNode !== parent)) return false;
+    if (!parent || blocks.some(node => node.parentNode !== parent)) {
+      this.shell?.showNotification?.({
+        type: "info",
+        message: "Hãy chọn các đoạn liền nhau trong cùng một vùng rồi sắp xếp lại."
+      });
+      return false;
+    }
     this.flushTyping();
     const marker = document.createComment("vno-sort-anchor");
     parent.insertBefore(marker, blocks[0]);
@@ -7489,9 +7502,26 @@ export class WriterAdapter {
         break;
 
       case "writer.text.clearFormat":
+        {
+          const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+          const isCaretInWriter = Boolean(selection?.isCollapsed && selection.anchorNode && this.bodyDom?.contains?.(selection.anchorNode));
+          if (isCaretInWriter) {
+            const pendingCommands = getPendingTypingStyleCommands(this.bodyDom, document, () => selection);
+            const defaultStyle = window.getComputedStyle?.(this.bodyDom);
+            for (const command of pendingCommands) {
+              if (["bold", "italic", "underline", "strikeThrough"].includes(command)) {
+                if (document.queryCommandState(command)) document.execCommand(command, false, null);
+              } else if (command === "foreColor" && defaultStyle?.color) {
+                document.execCommand(command, false, defaultStyle.color);
+              } else if (command === "hiliteColor") {
+                document.execCommand(command, false, defaultStyle?.backgroundColor || "transparent");
+              }
+            }
+          }
         document.execCommand("removeFormat", false, null);
         dispatchResult = true;
         break;
+        }
 
       case "writer.para.alignLeft":
         document.execCommand("justifyLeft", false, null);
@@ -8401,7 +8431,13 @@ export class WriterAdapter {
         if (spanned.length >= 2) cells = spanned;
       }
     }
-    if (cells.length < 2) return false;
+    if (cells.length < 2) {
+      this.shell?.showNotification?.({
+        type: "info",
+        message: "Hãy chọn ít nhất hai ô liền kề trong bảng trước khi gộp."
+      });
+      return false;
+    }
 
     let minRow = Infinity, maxRow = -1;
     let minCol = Infinity, maxCol = -1;

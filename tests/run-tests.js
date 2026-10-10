@@ -127,6 +127,7 @@ import { runHeaderThemeTests } from "./unit/header-theme.test.js";
 import { runOfficeClipboardWordPasteTests } from "./unit/office-clipboard-word-paste.test.js";
 import { runWriterTableRangesIncrementalTests } from "./unit/writer-table-ranges-incremental.test.js";
 import { runWriterHelpTests } from "./unit/writer-help.test.js";
+import { runWriterParagraphSortTests } from "./unit/writer-paragraph-sort.test.js";
 import { runWriterSectionBreaksPageColorTests } from "./unit/writer-sectionbreaks-pagecolor.test.js";
 import { runSheetHelpTests } from "./unit/sheet-help.test.js";
 import { runSlidesHelpTests } from "./unit/slides-help.test.js";
@@ -389,6 +390,7 @@ async function runAll() {
     { title: "109. Behavioral Tests — VN Slides Format Background", runner: runSlidesFormatBackgroundTests },
     { title: "110. Behavioral Tests — VN Writer Word Count", runner: runWriterWordCountTests },
     { title: "111. Behavioral Tests — VN Writer In-app Help", runner: runWriterHelpTests },
+    { title: "Writer Sort: báo hướng dẫn khi thiếu hai đoạn", runner: runWriterParagraphSortTests },
     { title: "112. Behavioral Tests — VN Writer Section Breaks & Page Color", runner: runWriterSectionBreaksPageColorTests },
     { title: "113. Behavioral Tests — VN Sheet In-app Help", runner: runSheetHelpTests },
     { title: "114. Behavioral Tests — VN Slides In-app Help", runner: runSlidesHelpTests },

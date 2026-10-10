@@ -117,6 +117,27 @@ export async function runWriterRibbonBreadthTests() {
   }
 
   (() => {
+    const shellCss = readFileSync(new URL("../../platform/shell/shell.css", import.meta.url), "utf8");
+    const selector = /#vno-ribbon-tabpanel-tableLayout \.vno-ribbon-group\[data-group-id="tableSelectGroup"\] \.vno-ribbon-group-items\s*\{[^}]*height:\s*auto;[^}]*max-height:\s*none;/s;
+    assert(
+      "Writer Table Layout: nhóm Bảng dùng đủ chiều cao cho bốn lệnh chọn",
+      selector.test(shellCss) && /#vno-ribbon-tabpanel-tableLayout \.vno-ribbon-group\[data-group-id="tableSelectGroup"\] \.vno-ribbon-group-column\s*\{[^}]*height:\s*auto;[^}]*max-height:\s*none;/s.test(shellCss),
+      "Cột bốn lệnh Chọn ô/hàng/cột/bảng vẫn bị giới hạn ở chiều cao cột ribbon mặc định"
+    );
+  })();
+
+  (() => {
+    const componentSource = readFileSync(new URL("../../platform/ui-kit/components.js", import.meta.url), "utf8");
+    const uiCss = readFileSync(new URL("../../platform/ui-kit/ui-kit.css", import.meta.url), "utf8");
+    assert(
+      "Writer one-shot controls: đóng Viền trang/Căn lề/Tô màu ô không để lại nền hover sáng",
+      ["writer.table.cellBg", "writer.page.border", "writer.page.margins"].every(id => componentSource.includes(`"${id}"`)) &&
+        /\.vno-ribbon-btn-large\.vno-action-complete:hover[^\{]*\{[^}]*background-color:\s*var\(--vno-bg-surface\)/s.test(uiCss),
+      "Nút thao tác một lần cần xóa trạng thái hover sau khi hoàn thành"
+    );
+  })();
+
+  (() => {
     const body = { contains: () => true };
     const plain = { nodeType: 1, tagName: "SPAN", style: {}, parentElement: body };
     const underlined = { nodeType: 1, tagName: "U", style: {}, parentElement: body };

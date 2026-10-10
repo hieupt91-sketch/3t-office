@@ -478,6 +478,20 @@ body {
   font-size: 11px;
 }
 
+/* Writer Table > Bảng has four stacked selection commands; let that column use
+   its full height instead of inheriting the generic 72 px ribbon column. */
+#vno-ribbon-tabpanel-tableLayout .vno-ribbon-group[data-group-id="tableSelectGroup"] .vno-ribbon-group-items {
+  align-items: flex-start;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+}
+#vno-ribbon-tabpanel-tableLayout .vno-ribbon-group[data-group-id="tableSelectGroup"] .vno-ribbon-group-column {
+  height: auto;
+  max-height: none;
+  gap: 2px;
+}
+
 .vno-ribbon-group-row {
   display: flex;
   align-items: center;

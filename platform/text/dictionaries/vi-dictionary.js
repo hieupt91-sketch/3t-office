@@ -1,5 +1,7 @@
 // Derived from Mozilla Common Voice's Vietnamese CC0 sentence corpus.
 // Snapshot and transformation details: LICENSES-vi.txt. Do not edit entries by hand.
+import { VIETNAMESE_DICTIONARY_SUPPLEMENT } from "./vi-dictionary-supplement.js";
+
 const WORDS = [
   "a",
   "à",
@@ -2801,4 +2803,6 @@ const WORDS = [
   "zoom"
 ];
 
-export const VIETNAMESE_DICTIONARY_WORDS = Object.freeze(WORDS);
+export const VIETNAMESE_DICTIONARY_WORDS = Object.freeze(
+  [...new Set([...WORDS, ...VIETNAMESE_DICTIONARY_SUPPLEMENT])].sort((a, b) => a.localeCompare(b, "vi"))
+);

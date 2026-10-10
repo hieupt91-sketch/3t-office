@@ -151,22 +151,38 @@ const PENDING_STYLE_CHECKS = [
  * Đặt lại vùng chọn sau khi bọc/gỡ thẻ gạch đỏ chính tả sẽ xóa kiểu này, nên chữ gõ tiếp không còn đậm/nghiêng/gạch chân.
  * Trả true khi trạng thái lệnh (queryCommandState) khác kiểu thực tế tại con trỏ — lúc đó phải hoãn quét chính tả.
  */
-export function hasPendingTypingStyle(root, doc = typeof document !== "undefined" ? document : null, getSel = globalThis.getSelection) {
+export function getPendingTypingStyleCommands(root, doc = typeof document !== "undefined" ? document : null, getSel = globalThis.getSelection) {
   try {
     const selection = getSel?.call(globalThis);
-    if (!doc || typeof doc.queryCommandState !== "function" || !selection?.rangeCount || !selection.isCollapsed) return false;
+    if (!doc || typeof doc.queryCommandState !== "function" || !selection?.rangeCount || !selection.isCollapsed) return [];
     const anchor = selection.anchorNode;
-    if (!anchor || !root?.contains?.(anchor)) return false;
+    if (!anchor || !root?.contains?.(anchor)) return [];
     const element = anchor.nodeType === 1 ? anchor : anchor.parentElement;
-    if (!element || typeof globalThis.getComputedStyle !== "function") return false;
+    if (!element || typeof globalThis.getComputedStyle !== "function") return [];
     const style = globalThis.getComputedStyle(element);
+    const pending = [];
     for (const [command, actual] of PENDING_STYLE_CHECKS) {
-      if (Boolean(doc.queryCommandState(command)) !== Boolean(actual(style))) return true;
+      if (Boolean(doc.queryCommandState(command)) !== Boolean(actual(style))) pending.push(command);
     }
+    if (typeof doc.queryCommandValue === "function") {
+      const colorPairs = [
+        ["foreColor", style.color],
+        ["hiliteColor", style.backgroundColor]
+      ];
+      for (const [command, actual] of colorPairs) {
+        const value = String(doc.queryCommandValue(command) || "").toLowerCase().replace(/\s+/g, "");
+        const computed = String(actual || "").toLowerCase().replace(/\s+/g, "");
+        if (value && computed && value !== computed && value !== "transparent") pending.push(command);
+      }
+    }
+    return pending;
   } catch (_) {
-    return false;
+    return [];
   }
-  return false;
+}
+
+export function hasPendingTypingStyle(root, doc = typeof document !== "undefined" ? document : null, getSel = globalThis.getSelection) {
+  return getPendingTypingStyleCommands(root, doc, getSel).length > 0;
 }
 
 function unwrapMarkers(root) {

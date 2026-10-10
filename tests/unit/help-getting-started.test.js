@@ -13,6 +13,7 @@ import {
   SLIDES_COMMANDS
 } from "../../platform/commands/command-definitions.js";
 import { viStrings } from "../../platform/i18n/strings-vi.js";
+import { resetHelpPanelScroll } from "../../platform/help/help-panel.js";
 
 /** Tra cứu chuỗi theo khóa chấm trong strings-vi — mirror hàm t() của platform/i18n/i18n.js */
 function tVi(key) {
@@ -182,6 +183,19 @@ export async function runHelpGettingStartedTests() {
       results.push({ name, pass: false, error: error.message });
     }
   };
+
+  await test("Help panel: mở panel đưa danh sách chủ đề và bài hướng dẫn về đầu", () => {
+    const elements = {
+      ".vno-help-body": { scrollTop: 120 },
+      ".vno-help-list": { scrollTop: 340 },
+      ".vno-help-article": { scrollTop: 90 }
+    };
+    const root = { scrollTop: 40, querySelector: (selector) => elements[selector] };
+    resetHelpPanelScroll(root);
+    if ([root, ...Object.values(elements)].some((element) => element.scrollTop !== 0)) {
+      throw new Error("Help panel không đưa các vùng cuộn về đầu danh sách");
+    }
+  });
 
   // --- Writer tests ---
   await test("Help Writer Getting Started: entry writer.gettingStarted tồn tại và ribbon location khớp", async () => {

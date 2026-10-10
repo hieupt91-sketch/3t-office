@@ -370,7 +370,7 @@ export const WRITER_HELP_ENTRIES = [
       "Bôi chữ cần đổi (hoặc đặt con trỏ trong từ). Mở tab Trang đầu, nhóm Phông chữ — hàng trên là hộp Phông chữ và Cỡ chữ, hàng dưới là các nút kiểu chữ.",
       "Phông chữ: Times New Roman (mặc định), Be Vietnam Pro, Arial, Calibri, Roboto. Dùng phím tắt Ctrl+Shift+F để chuyển tiêu điểm vào hộp chọn Phông chữ bằng bàn phím, dùng phím Mũi tên Lên/Xuống để duyệt danh sách phông và nhấn Enter để áp dụng. Cỡ chữ: danh sách đủ từ 8 pt đến 72 pt (8, 9, 10, 10,5, 11, 12, 13, 13,5, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72); 14 pt (NĐ 30) là cỡ mặc định văn bản hành chính. Hai hộp này tự hiện phông và cỡ của chữ dưới con trỏ. Nút Tăng cỡ chữ (Ctrl+Shift+>) / Giảm cỡ chữ (Ctrl+Shift+<) nhảy nhanh theo các nấc đó. Dùng phím tắt Ctrl+] để tăng cỡ chữ 1 điểm (1 pt) và Ctrl+[ để giảm cỡ chữ 1 điểm (1 pt) từng bước chuẩn phần mềm soạn thảo văn bản khác.",
       "Đậm Ctrl+B, Nghiêng Ctrl+I, Gạch chân Ctrl+U, Gạch ngang (không có phím tắt). Chỉ số dưới Ctrl+= (ví dụ H₂O), Chỉ số trên Ctrl+Shift++ (ví dụ m²). Nhấn lại cùng nút để tắt.",
-      "Màu chữ đổi vùng chọn sang đỏ (#dc2626). Màu nền chữ tô vàng (#ffcd00) giống bút highlight. Xóa định dạng (Ctrl+Space) bỏ hết kiểu, giữ nguyên chữ. Ctrl+Z hoàn tác."
+      "Màu chữ đổi vùng chọn sang đỏ (#dc2626). Màu nền chữ tô vàng (#ffcd00) giống bút highlight. Xóa định dạng (Ctrl+Space) bỏ kiểu trên chữ đã bôi mà vẫn giữ nội dung; nếu chỉ đặt con trỏ, lệnh cũng đưa kiểu đậm/nghiêng/gạch chân và màu đang chờ gõ về mặc định. Ctrl+Z hoàn tác."
     ]
   },
   {
@@ -689,7 +689,7 @@ export const WRITER_HELP_ENTRIES = [
     keywords: ["sắp xếp đoạn", "dấu định dạng", "tô nền", "viền đoạn", "alt+shift", "move paragraph", "formatting marks"],
     steps: [
       "Tab Trang đầu, nhóm Đoạn văn: Sắp xếp và Hiện/ẩn ký tự định dạng trên hàng danh sách; Tô nền đoạn và hộp Viền đoạn trên hàng căn lề. Di chuyển đoạn lên/xuống không có nút — Alt+Shift+↑ / Alt+Shift+↓.",
-      "Sắp xếp cần ít nhất 2 khối kề nhau; so sánh chữ đã cắt khoảng trắng, locale số thông minh, không phân biệt hoa thường. Con trỏ trong danh sách thì sắp mọi mục li. Chỉ A–Z, không hộp chọn cột/thứ tự.",
+      "Sắp xếp cần ít nhất 2 khối kề nhau; nếu chưa đủ, ứng dụng sẽ báo cần chọn thêm đoạn. So sánh chữ đã cắt khoảng trắng, locale số thông minh, không phân biệt hoa thường. Con trỏ trong danh sách thì sắp mọi mục li. Chỉ A–Z, không hộp chọn cột/thứ tự.",
       "Hiện dấu định dạng: ¶ cuối đoạn, ↵ xuống dòng, · khoảng trắng. Chỉ trên màn hình. Tô nền đoạn luôn vàng kem #FFF2CC (không bảng màu) — nhấn không tự tắt, muốn bỏ thì Xóa định dạng (Ctrl+Space) hoặc tô lại bằng cách khác.",
       "Hộp Viền đoạn: Viền dưới (mặc định, 1px #334155), Tất cả viền, Không viền. Alt+Shift+↑/↓ hoán đổi khối hiện tại với khối trước/sau trong thân tài liệu. Ctrl+Z hoàn tác."
     ]
@@ -1140,7 +1140,7 @@ export const WRITER_HELP_ENTRIES = [
     ribbon: { tab: "Đánh giá", tabId: "review", group: "Chính tả & Ngữ pháp" },
     keywords: ["soát lỗi chính tả", "chính tả", "ngữ pháp", "kiểm tra chính tả", "spell check", "grammar", "F7", "tiếng việt", "nghị định 30", "gợi ý chính tả", "chuột phải", "hoàn tác", "Ctrl+Z", "bật tắt chính tả"],
     steps: [
-      "Khi soạn thảo văn bản trong Doc, các từ nghi ngờ sai chính tả tiếng Việt sẽ tự động được đánh dấu bằng đường gạch dưới lượn sóng màu đỏ khi bạn tạm dừng gõ (độ trễ ~400 ms) mà không làm nhảy con trỏ.",
+      "Khi soạn thảo văn bản trong Doc, các từ nghi ngờ sai chính tả tiếng Việt sẽ tự động được đánh dấu bằng đường gạch dưới lượn sóng màu đỏ khi bạn tạm dừng gõ (độ trễ ~400 ms) mà không làm nhảy con trỏ. Từ điển tiếng Việt nhận các từ phổ biến như «đạt», «tỷ»; có thể bổ sung tên riêng còn thiếu bằng mục «Thêm vào từ điển».",
       "Tùy chọn Bật/Tắt kiểm tra chính tả: Mở tab Đánh giá, nhóm Chính tả & Ngữ pháp, nhấn nút «Kiểm tra chính tả» để bật hoặc tắt gạch sóng đỏ. Khi tắt, các đường gạch chân đỏ biến mất ngay lập tức; khi bật lại, hệ thống quét và gạch đỏ trở lại. Thiết lập được tự động ghi nhớ cho các phiên làm việc tiếp theo.",
       "Nhấp chuột phải trực tiếp vào từ bị gạch chân để mở menu ngữ cảnh gợi ý: hệ thống tự động ưu tiên các từ đúng dấu thanh và ngữ cảnh liên kết (ví dụ: gợi ý chuẩn «định» khi gõ «quyết đinh»).",
       "Nhấp vào từ gợi ý mong muốn để thay thế ngay lập tức trong văn bản, hoặc nhấp «Bỏ qua» để bỏ qua từ đó trong phiên hiện tại, hoặc «Thêm vào từ điển» để lưu vào từ điển cá nhân dùng chung cả bộ Doc, Sheet, Slide.",
@@ -1280,13 +1280,13 @@ export const WRITER_HELP_ENTRIES = [
       "writer.table.deleteTable"
     ],
     title: "Bố cục bảng: chọn vùng và xóa bảng",
-    summary: "Thao tác chọn nhanh ô, hàng, cột hoặc toàn bộ bảng, cũng như xóa toàn bộ bảng qua tab ngữ cảnh Bố cục Bảng.",
+    summary: "Chọn ô, hàng, cột hoặc toàn bộ bảng thành vùng văn bản để sao chép và định dạng; cũng có thể xóa toàn bộ bảng qua tab ngữ cảnh Bố cục Bảng.",
     ribbon: { tab: "Bố cục Bảng", tabId: "tableLayout", group: "Bảng" },
     keywords: ["bố cục bảng", "table layout", "chọn ô", "chọn hàng", "chọn cột", "chọn bảng", "xóa bảng", "tay cầm di chuyển bảng"],
     steps: [
       "Nhấp chuột vào một ô bất kỳ trong bảng để kích hoạt tab ngữ cảnh Bố cục Bảng trên thanh công cụ ribbon.",
-      "Trong nhóm Bảng, nhấp nút «Chọn ô» để bôi đen riêng ô đang chọn; nhấp «Chọn hàng» hoặc «Chọn cột» để chọn toàn bộ hàng hoặc cột chứa con trỏ.",
-      "Nhấp «Chọn bảng» hoặc bấm vào nút tay cầm 4 chiều xuất hiện ở góc trên bên trái bảng để chọn toàn bộ cấu trúc bảng và tất cả dữ liệu.",
+      "Trong nhóm Bảng, nhấp «Chọn ô» để chọn nội dung ô; nhấp «Chọn hàng» hoặc «Chọn cột» để bôi chọn vùng tương ứng. Khi con trỏ đang ở trong ô, nhấn Shift+Space để chọn nhanh hàng hiện tại.",
+      "Nhấp «Chọn bảng» hoặc bấm tay cầm 4 chiều ở góc trên bên trái bảng để chọn toàn bộ bảng. Vùng chọn có thể dùng với Sao chép và các lệnh định dạng trên ribbon.",
       "Nhấp «Xóa bảng» khi cần gỡ bỏ hoàn toàn bảng biểu khỏi tài liệu mà không để lại ô trống thừa. Nhấn Ctrl+Z nếu muốn khôi phục lại bảng."
     ]
   },
@@ -1329,7 +1329,7 @@ export const WRITER_HELP_ENTRIES = [
     ribbon: { tab: "Bố cục Bảng", tabId: "tableLayout", group: "Hợp nhất" },
     keywords: ["gộp ô", "tách ô", "merge cells", "split cells", "phân bố đều", "distribute rows", "distribute columns", "căn lề ô", "căn đỉnh", "căn giữa dọc", "căn đáy"],
     steps: [
-      "Kéo chuột quét chọn nhiều ô liền kề trong bảng, sau đó tại nhóm Hợp nhất trên tab Bố cục Bảng, nhấp «Gộp ô» để hợp nhất các ô thành một ô lớn. Nội dung chữ giữa các ô được nối lại tự động.",
+      "Kéo chuột quét chọn ít nhất hai ô liền kề trong bảng, sau đó tại nhóm Hợp nhất trên tab Bố cục Bảng, nhấp «Gộp ô» để hợp nhất thành một ô lớn. Nếu chưa chọn đủ hai ô, ứng dụng sẽ báo cách khắc phục; nội dung chữ giữa các ô được nối lại tự động.",
       "Để tách ô đã gộp, đặt con trỏ vào ô đó rồi nhấp «Tách ô». Các ô trống được tạo lại theo số hàng và cột của vùng đã gộp; một lần Ctrl+Z hoàn tác lần tách vừa thực hiện.",
       "Trong nhóm Kích cỡ ô, nhấp «Phân bố đều hàng» để cân bằng chiều cao các dòng, hoặc «Phân bố đều cột» để chia lại chiều rộng các cột đều nhau 100%. Bạn cũng có thể rê chuột vào vạch ngăn giữa hai cột để kéo chuột chỉnh độ rộng từng cột tùy ý.",
       "Trong nhóm Căn lề ô, nhấp «Căn đỉnh ô», «Căn giữa dọc ô» hoặc «Căn đáy ô» để bố trí vị trí chữ theo chiều dọc bên trong ô theo đúng ý muốn."

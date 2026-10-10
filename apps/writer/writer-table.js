@@ -32,6 +32,7 @@ export class WriterTableController {
     this._onPointerMove = this._handlePointerMove.bind(this);
     this._onPointerDown = this._handlePointerDown.bind(this);
     this._onDblClick = this._handleDblClick.bind(this);
+    this._onKeyDown = this._handleKeyDown.bind(this);
     this._onSelectionChange = this._handleSelectionChange.bind(this);
     this._onDocMouseMove = this._handleDocMouseMove.bind(this);
     this._onDocMouseUp = this._handleDocMouseUp.bind(this);
@@ -47,6 +48,7 @@ export class WriterTableController {
     this.body.addEventListener("dblclick", this._onDblClick);
     this.body.addEventListener("click", this._onSelectionChange);
     this.body.addEventListener("keyup", this._onSelectionChange);
+    this.body.addEventListener("keydown", this._onKeyDown);
 
     if (typeof document !== "undefined") {
       document.addEventListener("selectionchange", this._onSelectionChange);
@@ -64,6 +66,7 @@ export class WriterTableController {
     this.body?.removeEventListener("dblclick", this._onDblClick);
     this.body?.removeEventListener("click", this._onSelectionChange);
     this.body?.removeEventListener("keyup", this._onSelectionChange);
+    this.body?.removeEventListener("keydown", this._onKeyDown);
 
     if (typeof document !== "undefined") {
       document.removeEventListener("selectionchange", this._onSelectionChange);
@@ -400,12 +403,15 @@ export class WriterTableController {
     if (!table) return;
     this.clearCellSelection();
     this.activeTable = table;
+    const cells = [];
     for (const row of table.rows) {
       for (const cell of row.cells) {
         cell.classList.add("is-vno-cell-selected");
         this.selectedCells.add(cell);
+        cells.push(cell);
       }
     }
+    this._selectCellContents(cells);
     this._syncContextualTabs(true);
     this._positionMoveHandle(table);
   }
@@ -414,10 +420,13 @@ export class WriterTableController {
     const row = cell?.closest("tr");
     if (!row) return;
     this.clearCellSelection();
+    const selected = [];
     for (const c of row.cells) {
       c.classList.add("is-vno-cell-selected");
       this.selectedCells.add(c);
+      selected.push(c);
     }
+    this._selectCellContents(selected);
   }
 
   selectCol(cell = this.activeCell) {
@@ -432,6 +441,7 @@ export class WriterTableController {
         this.selectedCells.add(c);
       }
     }
+    this._selectCellContents([...this.selectedCells]);
   }
 
   selectCell(cell = this.activeCell) {
@@ -439,5 +449,30 @@ export class WriterTableController {
     this.clearCellSelection();
     cell.classList.add("is-vno-cell-selected");
     this.selectedCells.add(cell);
+    this._selectCellContents([cell]);
+  }
+
+  _selectCellContents(cells) {
+    if (!cells?.length || typeof document === "undefined") return;
+    const selection = document.defaultView?.getSelection?.() || globalThis.getSelection?.();
+    if (!selection || typeof document.createRange !== "function") return;
+    const first = cells[0];
+    const last = cells[cells.length - 1];
+    const range = document.createRange();
+    range.setStart(first, 0);
+    range.setEnd(last, last.childNodes?.length ?? last.children?.length ?? 0);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+
+  _handleKeyDown(event) {
+    if (event.key !== " " || !event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) return;
+    const selection = globalThis.getSelection?.();
+    const anchor = selection?.anchorNode;
+    const element = anchor?.nodeType === 1 ? anchor : anchor?.parentElement;
+    const cell = element?.closest?.("td, th") || this.activeCell;
+    if (!cell || !this.body?.contains?.(cell)) return;
+    event.preventDefault();
+    this.selectRow(cell);
   }
 }
