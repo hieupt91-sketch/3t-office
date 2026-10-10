@@ -11164,7 +11164,12 @@ def _writer_restore_untouched_runs(target_paragraph: str, source_paragraph: str)
     """W37: trả lại toàn bộ nội dung sau <w:pPr> của đoạn nguồn (run, trường, tab, ký hiệu) cho đoạn chưa sửa.
     Chỉ khi nguồn có phần tử HTML làm mất và không có hình/hộp văn bản/comment/track change; giữ pPr đã ghép và
     bookmark dấu chưa sửa của bản chuyển đổi để các bước sau còn nhận ra."""
-    if not _W37_LOSSY_RE.search(source_paragraph) or _W37_UNSAFE_RE.search(source_paragraph):
+    # Tô nền cấp ký tự (w:rPr/w:shd) cũng bị HTML làm mất: đoạn chưa sửa chỉ có chữ tô nền vẫn phải được trả lại nguyên văn.
+    has_run_shading = bool(re.search(
+        r'<w:r\b[^>]*>\s*<w:rPr>(?:(?!</w:rPr>)[\s\S])*?<w:shd\b(?![^>]*w:val=["\']nil["\'])(?![^>]*w:fill=["\']auto["\'])',
+        source_paragraph,
+    ))
+    if not (_W37_LOSSY_RE.search(source_paragraph) or has_run_shading) or _W37_UNSAFE_RE.search(source_paragraph):
         return None
     if _W37_UNSAFE_RE.search(target_paragraph):
         return None
@@ -11196,6 +11201,12 @@ def _writer_restore_untouched_runs(target_paragraph: str, source_paragraph: str)
             kept.append(tag)
     # bỏ bookmark nguồn trùng tên có thể gây trùng id với bản chuyển đổi
     source_body = re.sub(r"<w:bookmark(?:Start|End)\b[^>]*/?>", "", source_body, flags=re.IGNORECASE)
+    # Người dùng chèn Ngắt trang ngay sau đoạn này: LibreOffice đặt <w:br w:type="page"/> ở CUỐI đoạn chưa sửa này.
+    # Run nguồn thay vào sẽ làm mất ngắt trang mới đó, nên giữ lại phần ngắt trang dôi ra so với nguồn.
+    page_break_re = r'<w:br\b[^>]*w:type=["\']page["\']'
+    extra_page_breaks = len(re.findall(page_break_re, target_paragraph)) - len(re.findall(page_break_re, source_paragraph))
+    if extra_page_breaks > 0:
+        source_body += '<w:r><w:br w:type="page"/></w:r>' * extra_page_breaks
     return open_match.group(0) + target_ppr + "".join(kept) + source_body + "</w:p>"
 
 
@@ -11817,7 +11828,37 @@ def _writer_source_leading_property(element_xml: str, open_tag_re: str, prop_nam
     return match.group(0) if match else None
 
 
-def _restore_writer_table_properties(converted_xml: str, source_xml: str) -> str:
+def _writer_parse_table_edits(source_html: str | None) -> dict[str, list[dict[str, object]]]:
+    """Danh sách bảng cấp 1 mà giao diện báo ĐÃ SỬA (tô nền, căn dọc, viền, độ rộng, chiều cao hàng, cấu trúc...).
+
+    Giao diện ghi `<!--vno-table-edits: [{"k":"chuđầu","table":false,"all":false,"rows":[1],"cells":[[1,0]]}] -->`.
+    Bảng được ghép theo KHÓA chữ đầu (cùng cách tính với _writer_table_key_text), không theo số thứ tự, vì LibreOffice
+    có thể gộp/bỏ bảng. Phần được liệt kê KHÔNG được khôi phục thuộc tính gốc (tblPr/tblGrid/trPr/tcPr) ở bước W36,
+    nếu không chỉnh sửa của người dùng bị ghi đè. Chú thích nằm cuối HTML nên lấy lần xuất hiện CUỐI CÙNG.
+    """
+    if not source_html:
+        return {}
+    matches = list(re.finditer(r"<!--vno-table-edits:\s*(\[.*?\])\s*-->", source_html, re.IGNORECASE | re.DOTALL))
+    if not matches:
+        return {}
+    try:
+        data = json.loads(matches[-1].group(1))
+    except ValueError:
+        return {}
+    edits: dict[str, list[dict[str, object]]] = {}
+    for item in data if isinstance(data, list) else []:
+        if not isinstance(item, dict) or not isinstance(item.get("k"), str):
+            continue
+        edits.setdefault(item["k"], []).append({
+            "table": bool(item.get("table")),
+            "all": bool(item.get("all")),
+            "rows": {int(r) for r in item.get("rows", []) if isinstance(r, int)},
+            "cells": {(int(c[0]), int(c[1])) for c in item.get("cells", []) if isinstance(c, (list, tuple)) and len(c) == 2},
+        })
+    return edits
+
+
+def _restore_writer_table_properties(converted_xml: str, source_xml: str, table_edits: dict[str, list[dict[str, object]]] | None = None) -> str:
     """W36 (đo d20 bản lưu bằng Word COM: mỗi hàng bảng cao thêm ~3pt vì LibreOffice ghi tblCellMar top/bottom 28
     twips, trHeight 504 → 510 atLeast, tcW 2778 → 2772; nguồn không có tblCellMar → 3 trang thành 5): ghép bảng cấp 1
     theo THỨ TỰ với kiểm chữ đầu (24 ký tự), khi số hàng và số ô từng hàng trùng nhau thì lấy lại tblPr, tblGrid, trPr,
@@ -11829,9 +11870,11 @@ def _restore_writer_table_properties(converted_xml: str, source_xml: str) -> str
     src_index = 0
     out: list[str] = []
     pos = 0
+    pending_edits = {key: list(items) for key, items in (table_edits or {}).items()}
     for c_start, c_end in converted_tables:
         table_xml = converted_xml[c_start:c_end]
         key = _writer_table_key_text(table_xml)
+        edit = pending_edits[key].pop(0) if pending_edits.get(key) else None
         paired = None
         for look in range(0, 3):
             if src_index + look >= len(source_tables):
@@ -11844,7 +11887,7 @@ def _restore_writer_table_properties(converted_xml: str, source_xml: str) -> str
                 break
         if paired is None:
             continue
-        rebuilt = _writer_apply_source_table_properties(table_xml, paired)
+        rebuilt = _writer_apply_source_table_properties(table_xml, paired, edit)
         if rebuilt != table_xml:
             out.append(converted_xml[pos:c_start])
             out.append(rebuilt)
@@ -11855,37 +11898,56 @@ def _restore_writer_table_properties(converted_xml: str, source_xml: str) -> str
     return "".join(out)
 
 
-def _writer_apply_source_table_properties(table_xml: str, source_table_xml: str) -> str:
+def _writer_apply_source_table_properties(table_xml: str, source_table_xml: str, edit: dict[str, object] | None = None) -> str:
+    """Khôi phục tblPr/tblGrid/trPr/tcPr của nguồn, TRỪ phần người dùng đã sửa (edit) và lưới cột khi số ô đã đổi."""
+    edit = edit or {}
+    if edit.get("all"):
+        return table_xml  # cấu trúc đổi hoặc có ô gộp dọc: chỉ số ô không còn khớp, giữ nguyên bản chuyển đổi
+    edited_table = bool(edit.get("table"))
+    edited_rows = edit.get("rows") or set()
+    edited_cells = edit.get("cells") or set()
     src_rows = _writer_table_rows(source_table_xml)
     dst_rows = _writer_table_rows(table_xml)
     if len(src_rows) != len(dst_rows):
         return table_xml
+    structure_same = True
     # Hàng/ô: dựng lại từ cuối về đầu để offset không đổi
     rebuilt = table_xml
-    for (s_s, s_e), (d_s, d_e) in reversed(list(zip(src_rows, dst_rows))):
+    row_pairs = list(zip(src_rows, dst_rows))
+    for row_index in range(len(row_pairs) - 1, -1, -1):
+        (s_s, s_e), (d_s, d_e) = row_pairs[row_index]
         src_row = source_table_xml[s_s:s_e]
         dst_row = rebuilt[d_s:d_e]
         src_cells = _writer_row_cells(src_row)
         dst_cells = _writer_row_cells(dst_row)
         if len(src_cells) != len(dst_cells):
+            structure_same = False
             continue
         new_row = dst_row
-        for (cs_s, cs_e), (cd_s, cd_e) in reversed(list(zip(src_cells, dst_cells))):
+        cell_pairs = list(zip(src_cells, dst_cells))
+        for cell_index in range(len(cell_pairs) - 1, -1, -1):
+            if (row_index, cell_index) in edited_cells:
+                continue  # người dùng đã sửa ô này (tô nền, căn dọc, viền, độ rộng...): giữ bản vừa chuyển đổi
+            (cs_s, cs_e), (cd_s, cd_e) = cell_pairs[cell_index]
             src_cell = src_row[cs_s:cs_e]
             dst_cell = new_row[cd_s:cd_e]
             src_tcpr = _writer_source_leading_property(src_cell, r"<w:tc\b[^>]*>", "tcPr")
             new_cell = _writer_replace_leading_props(dst_cell, r"<w:tc\b[^>]*>", "tcPr", src_tcpr)
             new_row = new_row[:cd_s] + new_cell + new_row[cd_e:]
-        src_trpr = _writer_source_leading_property(src_row, r"<w:tr\b[^>]*>", "trPr")
-        new_row = _writer_replace_leading_props(new_row, r"<w:tr\b[^>]*>", "trPr", src_trpr)
+        if row_index not in edited_rows:
+            src_trpr = _writer_source_leading_property(src_row, r"<w:tr\b[^>]*>", "trPr")
+            new_row = _writer_replace_leading_props(new_row, r"<w:tr\b[^>]*>", "trPr", src_trpr)
         rebuilt = rebuilt[:d_s] + new_row + rebuilt[d_e:]
     # tblPr rồi tblGrid (thay ở đầu bảng, sau khi hàng đã xong)
-    src_tblpr = _writer_source_leading_property(source_table_xml, r"<w:tbl\b[^>]*>", "tblPr")
-    src_grid = _writer_source_leading_property(source_table_xml, r"<w:tbl\b[^>]*>", "tblGrid")
-    if src_tblpr:
-        rebuilt = _writer_replace_leading_props(rebuilt, r"<w:tbl\b[^>]*>", "tblPr", src_tblpr)
-    if src_grid:
-        rebuilt = _writer_replace_leading_props(rebuilt, r"<w:tbl\b[^>]*>", "tblGrid", src_grid)
+    if not edited_table:
+        src_tblpr = _writer_source_leading_property(source_table_xml, r"<w:tbl\b[^>]*>", "tblPr")
+        if src_tblpr:
+            rebuilt = _writer_replace_leading_props(rebuilt, r"<w:tbl\b[^>]*>", "tblPr", src_tblpr)
+    # Lưới cột nguồn chỉ còn đúng khi số ô mỗi hàng không đổi và bảng không bị đổi độ rộng cột (giao diện đặt cờ table)
+    if structure_same and not edited_table:
+        src_grid = _writer_source_leading_property(source_table_xml, r"<w:tbl\b[^>]*>", "tblGrid")
+        if src_grid:
+            rebuilt = _writer_replace_leading_props(rebuilt, r"<w:tbl\b[^>]*>", "tblGrid", src_grid)
     return rebuilt
 
 
@@ -13470,7 +13532,7 @@ def postprocess_writer_docx(
 
     # W36: tblPr/tblGrid/trPr/tcPr của bảng cấp 1 lấy lại từ nguồn khi cấu trúc hàng/ô trùng (LibreOffice thêm
     # tblCellMar 28 twips, đổi trHeight/tcW/viền)
-    new_xml = _restore_writer_table_properties(new_xml, original_xml)
+    new_xml = _restore_writer_table_properties(new_xml, original_xml, _writer_parse_table_edits(source_html))
 
     pristine_document = "vno-pristine-document" in new_xml
     untouched_texts = _writer_unique_marked_texts(new_xml)
