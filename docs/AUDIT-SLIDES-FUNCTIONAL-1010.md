@@ -28,3 +28,12 @@ Nhánh `audit/slides-functional-codex`; fixture gốc `E:\VN OFice\file test\sam
 | Biểu đồ | Chèn > Biểu đồ, mặc định Cột, bấm Chèn | Đóng hộp thoại và thêm biểu đồ vào slide | Tái hiện ban đầu: exception `ReferenceError: numeric is not defined`, model không tăng và PPTX thiếu chart part. Sau sửa, model có `chart`, PPTX có `ppt/charts/chart1.xml`, mở lại giữ biểu đồ | PASS (sau sửa) | NOT RUN | Lỗi và sửa ở `apps/slides/slides-chart.js`; CDP cổng 56225, profile riêng. `slides-charts.playwright.mjs` NOT RUN: thiếu gói Playwright tại đường dẫn cấu hình. |
 | Hình ảnh | Chèn > Hình ảnh | Chọn ảnh cục bộ và thêm vào slide | NOT RUN | BLOCKED | NOT RUN | Nút gọi hộp thoại native; CDP không điều khiển hộp thoại hệ điều hành, không dùng SendKeys/OS input. |
 
+
+## Nhóm 3 — Thiết kế
+
+| Nút | Ngữ cảnh | Kỳ vọng PowerPoint | Thực tế | PASS/FAIL | Phím tắt | Ghi chú |
+|---|---|---|---|---|---|---|
+| Chủ đề | Thiết kế > Chủ đề, mở gallery và chọn Terracotta Ấm Áp | Áp dụng palette/font của theme cho bài chiếu | `themeId` đổi từ `modern-blue` sang `corporate-red` trong model | PASS | NOT RUN | Gallery là hộp thoại; mục thiếu carousel trực tiếp đã có ở backlog U-L11. Chưa kiểm lưu/mở lại riêng theme gallery. |
+| Định dạng nền | Thiết kế > Định dạng nền, chọn Gradient và Áp dụng trang này | Đổi nền slide đang chọn và giữ sau khi lưu/mở lại | Model chuyển `solid #ffffff` sang gradient; sau lưu/mở lại `background.type=gradient` | PASS | NOT RUN | Đã đọc model sau khi adapter.save() và sau khi app nạp lại đúng file. |
+| Mẫu Slide Master | Thiết kế > Mẫu Slide Master; chọn Than Chì Hiện Đại và Áp dụng mẫu | Áp dụng theme/master và giữ đúng trạng thái sau PPTX roundtrip | Dialog mở, chọn được theme; trước lưu `themeId=minimal-dark`. Sau mở lại, background gradient/logo còn trong model nhưng `themeId=modern-blue` | FAIL | NOT RUN | Đã mở lại đúng `sourceFilePath`. Ghi lỗi U-L31; XML theme không có metadata `minimal-dark`. |
+
