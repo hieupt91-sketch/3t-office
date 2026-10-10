@@ -28,6 +28,13 @@
   border-color: var(--vno-border-default);
 }
 
+/* Writer one-shot actions use hover feedback before activation but clear it
+   after the action completes, so a closed dialog cannot look like a toggle. */
+.vno-ribbon-btn-large.vno-action-complete:hover:not(:disabled) {
+  background-color: var(--vno-bg-surface);
+  border-color: transparent;
+}
+
 .vno-btn:active:not(:disabled) {
   background-color: var(--vno-bg-active);
   transform: scale(0.96);

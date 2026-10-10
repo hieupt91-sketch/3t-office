@@ -68,6 +68,28 @@ try {
     const wholeTable = await cdp.evaluate(`(() => ({selected:document.querySelectorAll('.is-vno-cell-selected').length,text:getSelection().toString()}))()`);
     check("U12 chuột: chọn cột và bảng tô sáng, có vùng chọn văn bản", column.selected === 3 && column.text.includes("R1C1") && column.text.includes("R3C1") && wholeTable.selected === 12 && wholeTable.text.includes("R3C4"), { column, wholeTable });
   }
+  if (!selected.size || selected.has("3")) {
+    const ensureTable = await cdp.evaluate("!!document.querySelector('.vno-writer-body table')");
+    if (!ensureTable) {
+      await click(cdp, "#vno-ribbon-tab-insert");
+      await click(cdp, '[data-command-id="writer.table.insert"]');
+      await sleep(300);
+    }
+    const cell = await cdp.evaluate(`(() => { const r=document.querySelector('.vno-writer-body table td')?.getBoundingClientRect(); return r&&{x:r.left+r.width/2,y:r.top+r.height/2}; })()`);
+    await cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", x: cell.x, y: cell.y, button: "left", buttons: 1, clickCount: 1 });
+    await cdp.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: cell.x, y: cell.y, button: "left", buttons: 0, clickCount: 1 });
+    await click(cdp, "#vno-ribbon-tab-tableDesign");
+    await click(cdp, '[data-command-id="writer.table.cellBg"]');
+    const cellBg = await cdp.evaluate(`(() => { const b=document.querySelector('[data-command-id="writer.table.cellBg"]'); const s=getComputedStyle(b); return {class:b.className,pressed:b.getAttribute('aria-pressed'),checked:b.getAttribute('aria-checked'),background:s.backgroundColor}; })()`);
+    await click(cdp, "#vno-ribbon-tab-layout");
+    await click(cdp, '[data-command-id="writer.page.border"]');
+    await press(cdp, "Escape");
+    const borderAfterClose = await cdp.evaluate(`(() => { const b=document.querySelector('[data-command-id="writer.page.border"]'); return {class:b.className,pressed:b.getAttribute('aria-pressed'),checked:b.getAttribute('aria-checked'),focused:document.activeElement===b,background:getComputedStyle(b).backgroundColor}; })()`);
+    await click(cdp, '[data-command-id="writer.page.margins"]');
+    await press(cdp, "Escape");
+    const marginsAfterClose = await cdp.evaluate(`(() => { const b=document.querySelector('[data-command-id="writer.page.margins"]'); return {class:b.className,pressed:b.getAttribute('aria-pressed'),checked:b.getAttribute('aria-checked'),focused:document.activeElement===b,background:getComputedStyle(b).backgroundColor}; })()`);
+    check("U14 chuột + Esc: nút không giữ nền sáng sau thao tác", cellBg.class.includes("vno-action-complete") && borderAfterClose.class.includes("vno-action-complete") && marginsAfterClose.class.includes("vno-action-complete") && [cellBg, borderAfterClose, marginsAfterClose].every(s => !/is-(checked|active)/.test(s.class) && s.pressed !== "true" && s.background === "rgb(255, 255, 255)"), { cdpPort: session.debugPort, cellBg, borderAfterClose, marginsAfterClose });
+  }
   if (results.some(item => !item.pass)) process.exitCode = 1;
 } finally {
   await session.close();

@@ -127,6 +127,17 @@ export async function runWriterRibbonBreadthTests() {
   })();
 
   (() => {
+    const componentSource = readFileSync(new URL("../../platform/ui-kit/components.js", import.meta.url), "utf8");
+    const uiCss = readFileSync(new URL("../../platform/ui-kit/ui-kit.css", import.meta.url), "utf8");
+    assert(
+      "Writer one-shot controls: đóng Viền trang/Căn lề/Tô màu ô không để lại nền hover sáng",
+      ["writer.table.cellBg", "writer.page.border", "writer.page.margins"].every(id => componentSource.includes(`"${id}"`)) &&
+        /\.vno-ribbon-btn-large\.vno-action-complete:hover[^\{]*\{[^}]*background-color:\s*var\(--vno-bg-surface\)/s.test(uiCss),
+      "Nút thao tác một lần cần xóa trạng thái hover sau khi hoàn thành"
+    );
+  })();
+
+  (() => {
     const body = { contains: () => true };
     const plain = { nodeType: 1, tagName: "SPAN", style: {}, parentElement: body };
     const underlined = { nodeType: 1, tagName: "U", style: {}, parentElement: body };
