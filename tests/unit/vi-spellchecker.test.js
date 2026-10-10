@@ -12,8 +12,15 @@ function assert(condition, message) {
 
 export async function runVietnameseSpellcheckerTests() {
   return [
-    test("Từ điển CC0 chứa 2.798 từ tiếng Việt từ corpus", () => {
-      assert(VIETNAMESE_DICTIONARY_WORDS.length === 2798, `có ${VIETNAMESE_DICTIONARY_WORDS.length} mục`);
+    test("Từ điển CC0 gồm 2.798 từ corpus và hai mục bổ sung do VN Office tự biên soạn", () => {
+      assert(VIETNAMESE_DICTIONARY_WORDS.length === 2800, `có ${VIETNAMESE_DICTIONARY_WORDS.length} mục`);
+      assert(VIETNAMESE_DICTIONARY_WORDS.includes("đạt") && VIETNAMESE_DICTIONARY_WORDS.includes("tỷ"), "thiếu hai từ đạt/tỷ");
+    }),
+    test("Không gạch nhầm từ phổ biến đạt và tỷ, vẫn phát hiện dạng thiếu dấu", () => {
+      const checker = new VietnameseSpellChecker(VIETNAMESE_DICTIONARY_WORDS);
+      assert(checker.checkText("đạt tỷ").length === 0, "từ đúng bị báo lỗi");
+      const issues = checker.checkText("tỷi").map(item => item.word);
+      assert(issues.includes("tỷi"), `không phát hiện từ gõ sai: ${issues.join(", ")}`);
     }),
     test("Không báo sai câu tiếng Việt có dấu thực tế", () => {
       const checker = new VietnameseSpellChecker(VIETNAMESE_DICTIONARY_WORDS);

@@ -99,6 +99,13 @@ try {
     const helpScroll = await cdp.evaluate(`(() => { const root=document.querySelector('.vno-help-panel'),list=document.querySelector('.vno-help-list'),topic=list?.querySelector('[data-help-id]'),lr=list?.getBoundingClientRect(),tr=topic?.getBoundingClientRect(),pr=root?.getBoundingClientRect(),wr=document.querySelector('.vno-workspace')?.getBoundingClientRect(); return {scrollTop:list?.scrollTop,firstTopic:topic?.textContent?.trim(),listTop:lr?.top,topicTop:tr?.top,topicBottom:tr?.bottom,listBottom:lr?.bottom,panel:{top:pr?.top,bottom:pr?.bottom,height:pr?.height},children:[...root.children].map(c=>({class:c.className,top:c.getBoundingClientRect().top,bottom:c.getBoundingClientRect().bottom,height:c.getBoundingClientRect().height,scroll:c.scrollTop,scrollHeight:c.scrollHeight})),workspace:{top:wr?.top,bottom:wr?.bottom,height:wr?.height},innerHeight:innerHeight,scrollY:scrollY,docScroll:document.scrollingElement?.scrollTop}; })()`);
     check("U17 chuột + Esc + mở lại: danh sách Help bắt đầu tại chủ đề đầu tiên", helpScroll.scrollTop === 0 && Boolean(helpScroll.firstTopic) && helpScroll.topicTop >= helpScroll.listTop && helpScroll.topicBottom <= helpScroll.listBottom, { cdpPort: session.debugPort, helpScroll });
   }
+  if (!selected.size || selected.has("5")) {
+    await cdp.evaluate(`(() => { const body=document.querySelector('.vno-writer-body'); body.innerHTML='<p><br></p>'; const p=body.firstElementChild; const range=document.createRange(); range.selectNodeContents(p); range.collapse(true); const selection=getSelection(); selection.removeAllRanges(); selection.addRange(range); body.focus(); })()`);
+    await typeText(cdp, "đạt tỷ tỷi", 8);
+    await sleep(900);
+    const spellResult = await cdp.evaluate(`(() => ({status:document.querySelector('.vno-writer-canvas')?.dataset?.spellcheckStatus, words:[...document.querySelectorAll('.vno-writer-body .vno-spelling-uncertain')].map(n=>n.textContent), text:document.querySelector('.vno-writer-body')?.innerText}))()`);
+    check("U2 chuột + gõ phím: đạt/tỷ không gạch nhầm, từ gõ sai vẫn được báo", spellResult.words.includes("tỷi") && !spellResult.words.includes("đạt") && !spellResult.words.includes("tỷ"), { cdpPort: session.debugPort, spellResult });
+  }
   if (results.some(item => !item.pass)) process.exitCode = 1;
 } finally {
   await session.close();

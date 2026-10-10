@@ -1140,7 +1140,7 @@ export const WRITER_HELP_ENTRIES = [
     ribbon: { tab: "Đánh giá", tabId: "review", group: "Chính tả & Ngữ pháp" },
     keywords: ["soát lỗi chính tả", "chính tả", "ngữ pháp", "kiểm tra chính tả", "spell check", "grammar", "F7", "tiếng việt", "nghị định 30", "gợi ý chính tả", "chuột phải", "hoàn tác", "Ctrl+Z", "bật tắt chính tả"],
     steps: [
-      "Khi soạn thảo văn bản trong Doc, các từ nghi ngờ sai chính tả tiếng Việt sẽ tự động được đánh dấu bằng đường gạch dưới lượn sóng màu đỏ khi bạn tạm dừng gõ (độ trễ ~400 ms) mà không làm nhảy con trỏ.",
+      "Khi soạn thảo văn bản trong Doc, các từ nghi ngờ sai chính tả tiếng Việt sẽ tự động được đánh dấu bằng đường gạch dưới lượn sóng màu đỏ khi bạn tạm dừng gõ (độ trễ ~400 ms) mà không làm nhảy con trỏ. Từ điển tiếng Việt nhận các từ phổ biến như «đạt», «tỷ»; có thể bổ sung tên riêng còn thiếu bằng mục «Thêm vào từ điển».",
       "Tùy chọn Bật/Tắt kiểm tra chính tả: Mở tab Đánh giá, nhóm Chính tả & Ngữ pháp, nhấn nút «Kiểm tra chính tả» để bật hoặc tắt gạch sóng đỏ. Khi tắt, các đường gạch chân đỏ biến mất ngay lập tức; khi bật lại, hệ thống quét và gạch đỏ trở lại. Thiết lập được tự động ghi nhớ cho các phiên làm việc tiếp theo.",
       "Nhấp chuột phải trực tiếp vào từ bị gạch chân để mở menu ngữ cảnh gợi ý: hệ thống tự động ưu tiên các từ đúng dấu thanh và ngữ cảnh liên kết (ví dụ: gợi ý chuẩn «định» khi gõ «quyết đinh»).",
       "Nhấp vào từ gợi ý mong muốn để thay thế ngay lập tức trong văn bản, hoặc nhấp «Bỏ qua» để bỏ qua từ đó trong phiên hiện tại, hoặc «Thêm vào từ điển» để lưu vào từ điển cá nhân dùng chung cả bộ Doc, Sheet, Slide.",

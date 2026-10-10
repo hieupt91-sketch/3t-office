@@ -18,11 +18,12 @@ Snapshot commit date: 2022-12-14
 Source SHA-256: 6E6B9D0C3DB850237CC916811951C6536809EECCC15786BB8BDFA5D6B63C2552
 
 The source file contains 5,711 non-empty Vietnamese sentences. The 3T Office
-word list was derived offline by normalizing the corpus to Unicode NFC,
+base word list was derived offline by normalizing the corpus to Unicode NFC,
 extracting alphabetic tokens, converting them to lowercase, removing exact
 duplicates, and sorting the resulting 2,798 distinct tokens with the
 Vietnamese locale. No LibreOffice, Hunspell,
-Ho Ngoc Duc, Wiktionary, OpenSubtitles, or other dictionary data is included.
+Ho Ngoc Duc, Wiktionary, OpenSubtitles, or other dictionary data is included
+in that corpus-derived base list.
 
 Data license: CC0 1.0 Universal
 --------------------------------
@@ -34,3 +35,12 @@ including commercial purposes, without conditions.
 
 The complete, authoritative CC0 1.0 Universal legal code is retained at the
 source license URL above. SPDX identifier: CC0-1.0.
+
+Supplement
+----------
+
+The combined runtime list also includes the small, manually authored
+`vi-dictionary-supplement.js` file. Its entries were written for VN Office and
+are released by VN Office under CC0-1.0; no third-party dictionary data is
+included. The supplement is intentionally separate from the generated corpus
+snapshot so the source-derived 2,798-token list stays reproducible.
