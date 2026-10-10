@@ -8094,7 +8094,7 @@ export class WriterAdapter {
     for (let r = 0; r < rows; r++) {
       html += `<tr>`;
       for (let c = 0; c < cols; c++) {
-        html += `<td style="border:1px solid #94a3b8; padding:6pt 10pt;">${r === 0 ? "<strong>Tiêu đề</strong>" : "Dữ liệu"}</td>`;
+        html += `<td style="border:1px solid #94a3b8; padding:6pt 10pt;"><br></td>`;
       }
       html += `</tr>`;
     }
@@ -8379,8 +8379,27 @@ export class WriterAdapter {
     if (!cell) return false;
 
     if (cell.colSpan > 1 || cell.rowSpan > 1) {
+      const table = cell.closest?.("table");
+      const startRow = cell.parentElement?.rowIndex ?? 0;
+      const startCell = cell.cellIndex ?? 0;
+      const rowSpan = Math.max(1, cell.rowSpan || 1);
+      const colSpan = Math.max(1, cell.colSpan || 1);
       cell.colSpan = 1;
       cell.rowSpan = 1;
+      for (let rowOffset = 0; rowOffset < rowSpan; rowOffset++) {
+        const row = table?.rows?.[startRow + rowOffset];
+        if (!row) continue;
+        const count = rowOffset === 0 ? colSpan - 1 : colSpan;
+        const insertAt = startCell + (rowOffset === 0 ? 1 : 0);
+        const reference = row.cells?.[insertAt] || null;
+        for (let i = 0; i < count; i++) {
+          const newCell = document.createElement(cell.tagName?.toLowerCase?.() || "td");
+          newCell.style.border = cell.style.border || "1px solid #94a3b8";
+          newCell.style.padding = cell.style.padding || "6pt 10pt";
+          newCell.innerHTML = "<br>";
+          row.insertBefore(newCell, reference);
+        }
+      }
     } else {
       const newCell = document.createElement("td");
       newCell.style.border = cell.style.border || "1px solid #94a3b8";

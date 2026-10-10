@@ -457,7 +457,10 @@ export async function runAdapterMappingTests() {
 
   // Test chèn bảng
   await writerAdapter.handleDispatch(".uno:InsertTable", null, "writer.table.insert");
-  if (writerAdapter.isDirty && mockWriterDom.innerHTML.includes("<table") && mockWriterDom.innerHTML.includes("Tiêu đề")) {
+  if (writerAdapter.isDirty && mockWriterDom.innerHTML.includes("<table")
+      && (mockWriterDom.innerHTML.match(/<td\b/g) || []).length === 12
+      && (mockWriterDom.innerHTML.match(/<br><\/td>/g) || []).length === 12
+      && !/Tiêu đề|Dữ liệu/.test(mockWriterDom.innerHTML)) {
     results.push({ name: "WriterAdapter Dispatch: Lệnh writer.table.insert chèn bảng HTML chuẩn vào DOM", pass: true });
   } else {
     results.push({ name: "WriterAdapter Dispatch: writer.table.insert thất bại", pass: false });

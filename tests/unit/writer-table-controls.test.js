@@ -430,6 +430,43 @@ export async function runWriterTableControlsTests() {
     assert.equal(cell1.colSpan, 1);
   });
 
+  await test("Table insertion: ô mới để trống, không có chữ mẫu", () => {
+    const { adapter, body } = setupMockEnvironment();
+    adapter.insertTable(3, 4);
+    assert.equal((body.innerHTML.match(/<td\b/g) || []).length, 12);
+    assert.equal((body.innerHTML.match(/<br><\/td>/g) || []).length, 12);
+    assert.doesNotMatch(body.innerHTML, /Tiêu đề|Dữ liệu/);
+  });
+
+  await test("Table split: khôi phục cột đã gộp ngang và hàng đã gộp dọc", () => {
+    const { table, adapter, tableController } = setupMockEnvironment();
+
+    const firstRow = table.rows[0];
+    tableController.activeTable = table;
+    tableController.activeCell = firstRow.cells[0];
+    tableController.selectedCells = new Set([firstRow.cells[0], firstRow.cells[1], firstRow.cells[2]]);
+    assert.equal(adapter.mergeTableCells(), true);
+    assert.equal(firstRow.cells.length, 1);
+    assert.equal(firstRow.cells[0].colSpan, 3);
+    tableController.activeCell = firstRow.cells[0];
+    assert.equal(adapter.splitTableCells(), true);
+    assert.equal(firstRow.cells.length, 3);
+    assert.equal(firstRow.cells[0].colSpan, 1);
+
+    const row0Cell = table.rows[0].cells[0];
+    const row1Cell = table.rows[1].cells[0];
+    tableController.activeCell = row0Cell;
+    tableController.selectedCells = new Set([row0Cell, row1Cell]);
+    assert.equal(adapter.mergeTableCells(), true);
+    assert.equal(table.rows[0].cells[0].rowSpan, 2);
+    assert.equal(table.rows[1].cells.length, 2);
+    tableController.activeCell = table.rows[0].cells[0];
+    assert.equal(adapter.splitTableCells(), true);
+    assert.equal(table.rows[0].cells.length, 3);
+    assert.equal(table.rows[1].cells.length, 3);
+    assert.equal(table.rows[0].cells[0].rowSpan, 1);
+  });
+
   await test("Table formatting: căn lề, màu nền, đường viền, hàng tiêu đề và hàng xen kẽ", () => {
     const { table, adapter, tableController } = setupMockEnvironment();
     const cell = table.rows[0].cells[0];
