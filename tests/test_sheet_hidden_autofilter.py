@@ -299,6 +299,20 @@ class TestOverlaySheetXlsxAutofilter(unittest.TestCase):
 
 
 class TestPostprocessSheetXlsxAutofilter(unittest.TestCase):
+    def test_unfiltered_arrow_only_auto_filter_writes_range_and_filter_database_name(self):
+        fods = FODS_BASE.replace(
+            "</office:spreadsheet>",
+            '<table:database-ranges><table:database-range table:name="AF1" table:target-range-address="PlainSheet.A1:C10" table:display-filter-buttons="true"/></table:database-ranges></office:spreadsheet>'
+        )
+        patched = patcher.postprocess_sheet_xlsx(_fake_xlsx(), source_fods=fods)
+        with zipfile.ZipFile(io.BytesIO(patched)) as z:
+            sheet = z.read("xl/worksheets/sheet4.xml").decode("utf-8")
+            workbook = z.read("xl/workbook.xml").decode("utf-8")
+        self.assertIn('<autoFilter ref="A1:C10"/>', sheet)
+        self.assertNotIn("<filterColumn", sheet)
+        self.assertIn("_xlnm._FilterDatabase", workbook)
+        self.assertIn("'PlainSheet'!$A$1:$C$10", workbook)
+
     def test_writes_auto_filter_into_worksheet(self):
         fods = FODS_BASE.replace(
             "</office:spreadsheet>",
