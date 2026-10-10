@@ -651,10 +651,6 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.insert.symbol", (args) => this.insertSymbol(args));
     globalCommandBus.bindHandler("writer.insert.bookmark", (args) => this.insertBookmark(args));
     globalCommandBus.bindHandler("writer.insert.crossReference", (args) => this.insertCrossReference(args));
-    globalCommandBus.bindHandler("writer.insert.screenshot", (args) => this.insertScreenshot(args));
-    globalCommandBus.bindHandler("writer.insert.pageNumber", (args) => this.insertPageNumber(args));
-    globalCommandBus.bindHandler("writer.insert.signatureLine", (args) => this.insertSignatureLine(args));
-    globalCommandBus.bindHandler("writer.insert.object", (args) => this.insertEmbeddedObject(args));
 
     // Bind Office Parity Mouse & Shortcuts
     this._bindMouseAndKeyboardParity();
@@ -7309,9 +7305,6 @@ export class WriterAdapter {
         this._insertImageDialog();
         return true;
 
-      case "writer.insert.screenshot":
-        return this.insertScreenshot(args);
-
       case "writer.page.break":
         this._insertPageBreak();
         return true;
@@ -7437,9 +7430,6 @@ export class WriterAdapter {
       case "writer.footer.insert":
         return this.activateFooter();
 
-      case "writer.insert.pageNumber":
-        return this.insertPageNumber(args);
-
       case "writer.style.apply":
         return this._applyParagraphStyle(args);
 
@@ -7540,12 +7530,6 @@ export class WriterAdapter {
 
       case "writer.insert.dateTime":
         return await this.insertDateTime(args);
-
-      case "writer.insert.signatureLine":
-        return this.insertSignatureLine(args);
-
-      case "writer.insert.object":
-        return await this.insertEmbeddedObject(args);
 
       case "writer.insert.equation":
         return await this.insertEquation(args);
@@ -8491,35 +8475,6 @@ export class WriterAdapter {
       this.recordSnapshot("writer.footer.insert");
     }
     return true;
-  }
-
-  insertPageNumber(options = null) {
-    this.flushTyping();
-    this._initZones();
-    if (!this.footerDom) return false;
-    const alignment = ["left", "right", "center"].includes(options?.alignment) ? options.alignment : "center";
-    this.footerDom.innerHTML = `<p style="text-align: ${alignment}; font-size: 10pt; margin: 0;"><span data-vno-field="PAGE">1</span></p>`;
-    this.footerDom.focus?.();
-    this.isDirty = true;
-    this.recordSnapshot("writer.insert.pageNumber");
-    return true;
-  }
-
-  insertSignatureLine(options = null) {
-    const signer = String(options?.signer || "Người ký").trim() || "Người ký";
-    const title = String(options?.title || "Chức vụ").trim() || "Chức vụ";
-    return this.insertTextBox({
-      text: `________________________\n${signer}\n${title}`,
-      width: 260,
-      height: 110,
-      x: typeof options?.x === "number" ? options.x : 300,
-      y: typeof options?.y === "number" ? options.y : 180
-    });
-  }
-
-  async insertEmbeddedObject(options = null) {
-    const chartOptions = options && typeof options === "object" ? options : {};
-    return this.insertChartFromCommand(Object.keys(chartOptions).length ? chartOptions : null);
   }
 
   _applyParagraphStyle(tag = "p") {
@@ -11397,22 +11352,7 @@ export class WriterAdapter {
     form.querySelector('input[name="paste-special-mode"]')?.focus();
   }
 
-  insertScreenshot(options = null) {
-    if (options?.dataUrl) return this._insertImageDataUrl(options.dataUrl, "writer.insert.screenshot");
-    return this._insertImageDialog("writer.insert.screenshot");
-  }
-
-  _insertImageDataUrl(dataUrl, description = "writer.image.insert") {
-    if (!/^data:image\/(?:png|jpe?g|gif|webp);base64,/i.test(String(dataUrl || ""))) return false;
-    this.flushTyping();
-    const imgHtml = `<img src="${String(dataUrl).replace(/"/g, "&quot;")}" data-vno-wrap="inline" tabindex="0" style="max-width:100%; height:auto; margin:10pt 0; box-shadow:0 2px 8px rgba(0,0,0,0.15); display:inline; float:none; position:static; z-index:auto;" /><p><br></p>`;
-    this._insertHtmlAtCursor(imgHtml);
-    this.isDirty = true;
-    this.recordSnapshot(description);
-    return true;
-  }
-
-  _insertImageDialog(description = "writer.image.insert") {
+  _insertImageDialog() {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "image/*";
@@ -11421,7 +11361,11 @@ export class WriterAdapter {
       if (file) {
         const reader = new FileReader();
         reader.onload = (evt) => {
-          this._insertImageDataUrl(evt.target.result, description);
+          this.flushTyping();
+          const imgHtml = `<img src="${evt.target.result}" data-vno-wrap="inline" tabindex="0" style="max-width:100%; height:auto; margin:10pt 0; box-shadow:0 2px 8px rgba(0,0,0,0.15); display:inline; float:none; position:static; z-index:auto;" /><p><br></p>`;
+          document.execCommand("insertHTML", false, imgHtml);
+          this.isDirty = true;
+          this.recordSnapshot("writer.image.insert");
         };
         reader.readAsDataURL(file);
       }

@@ -38,8 +38,7 @@ export async function runHelpCoverageTests() {
     }
     // Section options from main, paragraph-formatting, table controls and numbered list restart/continue commands, pasteSpecial and spellcheck toggle are covered.
     // NAV1 adds writer.view.navigationPane with its own complete Help entry.
-    // RB-D2 adds four live Insert controls, each backed by a handler and concrete Help entry.
-    if (writer.coveredCount !== writer.liveCount || writer.liveCount !== 174) {
+    if (writer.coveredCount !== writer.liveCount || writer.liveCount !== 170) {
       throw new Error(`Số lượng lệnh Writer không khớp: covered=${writer.coveredCount}, live=${writer.liveCount}`);
     }
   });

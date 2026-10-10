@@ -30,19 +30,11 @@ function createMockWriterDoc(initialHtml = "<p>Alpha paragraph for insert tests<
     querySelector() { return null; },
     querySelectorAll() { return []; }
   };
-  const footerEl = {
-    innerHTML: "",
-    innerText: "",
-    style: {},
-    dataset: {},
-    focus() {}
-  };
   const pageEl = {
     style: {},
     dataset: {},
     querySelector(sel) {
       if (sel === ".vno-writer-body") return bodyEl;
-      if (sel === ".vno-writer-footer") return footerEl;
       return null;
     },
     querySelectorAll(sel) {
@@ -50,7 +42,7 @@ function createMockWriterDoc(initialHtml = "<p>Alpha paragraph for insert tests<
       return [];
     }
   };
-  return { page: pageEl, body: bodyEl, footer: footerEl };
+  return { page: pageEl, body: bodyEl };
 }
 
 function commandIds(group) {
@@ -83,11 +75,7 @@ export async function runWriterSlidesInsertGapsTests() {
     "writer.insert.equation",
     "writer.insert.symbol",
     "writer.insert.bookmark",
-    "writer.insert.crossReference",
-    "writer.insert.screenshot",
-    "writer.insert.pageNumber",
-    "writer.insert.signatureLine",
-    "writer.insert.object"
+    "writer.insert.crossReference"
   ];
   const slidesInsertCmds = [
     "slides.insert.table",
@@ -128,13 +116,9 @@ export async function runWriterSlidesInsertGapsTests() {
       throw new Error("Nhóm Links thiếu Hyperlink/Bookmark/Cross-reference");
     }
     const text = commandIds(insertTab.groups.find(group => group.id === "text"));
-    if (!text.includes("writer.insert.textbox") || !text.includes("writer.format.dropCap") || !text.includes("writer.insert.dateTime") || !text.includes("writer.insert.signatureLine") || !text.includes("writer.insert.object")) {
-      throw new Error("Nhóm Text thiếu Text Box/Drop Cap/Date & Time/Signature Line/Object");
+    if (!text.includes("writer.insert.textbox") || !text.includes("writer.format.dropCap") || !text.includes("writer.insert.dateTime")) {
+      throw new Error("Nhóm Text thiếu Text Box/Drop Cap/Date & Time");
     }
-    const illustrations = commandIds(insertTab.groups.find(group => group.id === "illustrations"));
-    if (!illustrations.includes("writer.insert.screenshot")) throw new Error("Nhóm Minh họa thiếu Ảnh chụp màn hình");
-    const headerFooter = commandIds(insertTab.groups.find(group => group.id === "headerFooter"));
-    if (!headerFooter.includes("writer.insert.pageNumber")) throw new Error("Nhóm Đầu trang / Chân trang thiếu Số trang");
     const symbols = commandIds(insertTab.groups.find(group => group.id === "symbols"));
     if (!symbols.includes("writer.insert.equation") || !symbols.includes("writer.insert.symbol")) {
       throw new Error("Nhóm Symbols thiếu Equation/Symbol");
@@ -180,7 +164,7 @@ export async function runWriterSlidesInsertGapsTests() {
   });
 
   await test("Writer Insert: Text Box / Drop Cap / Date / Equation / Symbol / Bookmark / Cross-ref hoạt động trên model", async () => {
-    const { page, body, footer } = createMockWriterDoc("<p>Alpha paragraph</p>");
+    const { page, body } = createMockWriterDoc("<p>Alpha paragraph</p>");
     const adapter = new WriterAdapter(page);
 
     const box = adapter.insertTextBox({ text: "Khung chữ" });
@@ -213,23 +197,6 @@ export async function runWriterSlidesInsertGapsTests() {
     const xrefOk = await adapter.insertCrossReference({ targetId: bookmark.id, display: "intro", type: "bookmark" });
     if (!xrefOk || !body.innerHTML.includes(`href="#${bookmark.id}"`) || !body.innerHTML.includes("vno-cross-ref")) {
       throw new Error("Cross-reference không chèn link nội bộ");
-    }
-
-    adapter.footerDom = footer;
-    if (!adapter.insertPageNumber({ alignment: "right" }) || !footer.innerHTML.includes('data-vno-field="PAGE"')) {
-      throw new Error("Số trang không chèn trường PAGE thật vào footer");
-    }
-    if (!adapter.insertScreenshot({ dataUrl: "data:image/png;base64,iVBORw0KGgo=" }) || !body.innerHTML.includes("data:image/png;base64")) {
-      throw new Error("Ảnh chụp màn hình không chèn data URL ảnh thật");
-    }
-    const signature = adapter.insertSignatureLine({ signer: "Nguyễn Văn A", title: "Giám đốc" });
-    if (signature?.type !== "textbox" || !signature.text.includes("Nguyễn Văn A")) {
-      throw new Error("Dòng chữ ký không tạo drawing textbox thật");
-    }
-    adapter.insertChartFromCommand = async args => ({ objectType: "chart", ...args });
-    const embedded = await adapter.insertEmbeddedObject({ type: "column", title: "Doanh thu" });
-    if (embedded?.objectType !== "chart" || embedded.title !== "Doanh thu") {
-      throw new Error("Đối tượng không dùng model biểu đồ nhúng");
     }
   });
 
