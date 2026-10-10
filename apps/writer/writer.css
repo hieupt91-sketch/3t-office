@@ -2572,6 +2572,11 @@ sup.vno-endnote-ref:hover {
    ========================================================================== */
 
 .vno-style-gallery-dropdown {
+  --vno-style-preview-title: #1f4e79;
+  --vno-style-preview-normal: #1e293b;
+  --vno-style-preview-heading: #0f4c81;
+  --vno-style-preview-muted: #334155;
+  --vno-style-preview-emphasis: #b45309;
   background: var(--vno-bg-surface);
   border: 1px solid var(--vno-border-default);
   border-radius: var(--vno-radius-lg);
@@ -2581,6 +2586,14 @@ sup.vno-endnote-ref:hover {
   box-sizing: border-box;
   font-family: var(--vno-font-ui);
   animation: vnoFadeIn 0.15s ease-out;
+}
+
+[data-theme="dark"] .vno-style-gallery-dropdown {
+  --vno-style-preview-title: #60a5fa;
+  --vno-style-preview-normal: #f1f5f9;
+  --vno-style-preview-heading: #60a5fa;
+  --vno-style-preview-muted: #cbd5e1;
+  --vno-style-preview-emphasis: #fbbf24;
 }
 
 .vno-style-gallery-header {
@@ -2782,6 +2795,7 @@ sup.vno-endnote-ref:hover {
 [data-theme="dark"] .vno-style-strip-preview [style*="color:#b45309"] {
   color: #fbbf24 !important;
 }
+
 
 /* Thẻ chọn chủ đề tài liệu (Theme Gallery Cards) */
 .vno-theme-card {

@@ -13,7 +13,7 @@ export const STYLE_PRESETS = [
     label: "Tiêu đề",
     sublabel: "Title",
     previewSample: "Tiêu đề tài liệu",
-    previewCss: "font-family:'Times New Roman', serif; font-size:18px; font-weight:700; color:#1f4e79; text-align:center;",
+    previewCss: "font-family:'Times New Roman', serif; font-size:18px; font-weight:700; color:var(--vno-style-preview-title, #1f4e79); text-align:center;",
     description: "Tiêu đề tài liệu nổi bật, chữ đậm màu xanh và căn giữa"
   },
   {
@@ -22,7 +22,7 @@ export const STYLE_PRESETS = [
     label: "Normal",
     sublabel: "Văn bản thường",
     previewSample: "AaBbCc",
-    previewCss: "font-family:'Times New Roman', serif; font-size:14px; font-weight:normal; color:#1e293b;",
+    previewCss: "font-family:'Times New Roman', serif; font-size:14px; font-weight:normal; color:var(--vno-style-preview-normal, #1e293b);",
     description: "Văn bản thường, phông chữ chuẩn 14pt căn đều hai bên (Nghị định 30/2020/NĐ-CP)"
   },
   {
@@ -31,7 +31,7 @@ export const STYLE_PRESETS = [
     label: "Tiêu đề 1",
     sublabel: "Heading 1",
     previewSample: "TIÊU ĐỀ 1",
-    previewCss: "font-family:'Times New Roman', serif; font-size:15px; font-weight:700; color:#0f4c81; text-transform:uppercase;",
+    previewCss: "font-family:'Times New Roman', serif; font-size:15px; font-weight:700; color:var(--vno-style-preview-heading, #0f4c81); text-transform:uppercase;",
     description: "Tiêu đề cấp 1: Chữ hoa, in đậm, căn giữa, cỡ 16pt (QUYẾT ĐỊNH, CHỈ THỊ...)"
   },
   {
@@ -40,7 +40,7 @@ export const STYLE_PRESETS = [
     label: "Tiêu đề 2",
     sublabel: "Heading 2",
     previewSample: "Tiêu đề 2",
-    previewCss: "font-family:'Times New Roman', serif; font-size:14px; font-weight:700; color:#0f4c81;",
+    previewCss: "font-family:'Times New Roman', serif; font-size:14px; font-weight:700; color:var(--vno-style-preview-heading, #0f4c81);",
     description: "Tiêu đề cấp 2: Chữ thường in đậm, cỡ 14pt (Điều 1, Mục I...)"
   },
   {
@@ -49,7 +49,7 @@ export const STYLE_PRESETS = [
     label: "Tiêu đề 3",
     sublabel: "Heading 3",
     previewSample: "Tiêu đề 3",
-    previewCss: "font-family:'Times New Roman', serif; font-size:13px; font-weight:700; font-style:italic; color:#334155;",
+    previewCss: "font-family:'Times New Roman', serif; font-size:13px; font-weight:700; font-style:italic; color:var(--vno-style-preview-muted, #334155);",
     description: "Tiêu đề cấp 3: In đậm nghiêng, cỡ 13pt (Khoản 1, Điểm a...)"
   },
   {
@@ -59,7 +59,7 @@ export const STYLE_PRESETS = [
     label: "Trích dẫn",
     sublabel: "Quote",
     previewSample: "“Trích dẫn…”",
-    previewCss: "font-family:'Times New Roman', serif; font-size:12px; font-style:italic; color:#475569; border-left:3px solid #0f4c81; padding-left:6px;",
+    previewCss: "font-family:'Times New Roman', serif; font-size:12px; font-style:italic; color:var(--vno-style-preview-muted, #475569); border-left:3px solid var(--vno-style-preview-heading, #0f4c81); padding-left:6px;",
     description: "Khối trích dẫn: In nghiêng, thụt lề 24pt, viền xanh bên trái"
   },
   {
@@ -69,7 +69,7 @@ export const STYLE_PRESETS = [
     label: "Nhấn mạnh",
     sublabel: "Emphasis",
     previewSample: "Nhấn mạnh",
-    previewCss: "font-family:'Times New Roman', serif; font-size:13px; font-weight:700; font-style:italic; color:#b45309;",
+    previewCss: "font-family:'Times New Roman', serif; font-size:13px; font-weight:700; font-style:italic; color:var(--vno-style-preview-emphasis, #b45309);",
     description: "Đoạn nhấn mạnh: In đậm, in nghiêng, màu sắc nổi bật"
   }
 ];

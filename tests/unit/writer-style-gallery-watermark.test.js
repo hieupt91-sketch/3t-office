@@ -4,6 +4,7 @@
  */
 
 import { WriterAdapter } from "../../adapters/libreoffice/writer/writer-adapter.js";
+import { readFileSync } from "node:fs";
 import { STYLE_PRESETS, showStyleGalleryDropdown, closeStyleGalleryDropdown, createStyleGalleryStrip } from "../../apps/writer/style-gallery.js";
 import { showWatermarkDialog, showPageBorderDialog, WATERMARK_SUGGESTIONS } from "../../apps/writer/page-decorations.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
@@ -238,6 +239,30 @@ export async function runWriterStyleGalleryWatermarkTests() {
   const assert = (name, cond, msg = "") => {
     results.push({ name, pass: Boolean(cond), error: cond ? null : (msg || "Điều kiện kiểm thử không thỏa mãn") });
   };
+
+  (() => {
+    const css = readFileSync(new URL("../../apps/writer/writer.css", import.meta.url), "utf8");
+    const ribbonCss = readFileSync(new URL("../../platform/ribbon/ribbon.css", import.meta.url), "utf8");
+    const contrast = (foreground, background) => {
+      const luminance = hex => {
+        const rgb = hex.match(/[0-9a-f]{2}/gi).map(channel => parseInt(channel, 16) / 255);
+        const linear = rgb.map(value => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
+        return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+      };
+      const values = [luminance(foreground), luminance(background)].sort((a, b) => b - a);
+      return (values[0] + 0.05) / (values[1] + 0.05);
+    };
+    const darkPalette = ["title", "normal", "heading", "muted", "emphasis"]
+      .every(token => css.includes(`--vno-style-preview-${token}: #`));
+    const contextualTabs = ribbonCss.includes('[data-theme="dark"] .vno-ribbon-tabs .vno-ribbon-tab.is-active');
+    const contrastPass = [
+      ["#60a5fa", "#1e1e1e"], ["#f1f5f9", "#1e1e1e"],
+      ["#cbd5e1", "#1e1e1e"], ["#fbbf24", "#1e1e1e"], ["#60a5fa", "#252526"]
+    ].every(([fg, bg]) => contrast(fg, bg) >= 4.5);
+    assert("Dark theme style previews and active contextual tabs use WCAG AA contrast",
+      darkPalette && contextualTabs && contrastPass,
+      `palette=${darkPalette}, contextualTabs=${contextualTabs}, contrast=${contrastPass}`);
+  })();
 
   // TEST 1: Command declarations
   (() => {
