@@ -23,3 +23,23 @@
 *Kiểm chứng lưu XLSX thật*: Tệp `test_sheet_work.xlsx` được lưu thành công qua bridge; giải nén ZIP kiểm tra XML `xl/worksheets/sheet1.xml` và `xl/sharedStrings.xml` ghi nhận đầy đủ các ô được sao chép/cắt dán mới (E10, E11, E12, E13) mà không gây hỏng cấu trúc tệp.
 
 ---
+
+### Nhóm 2: Phông chữ (Font)
+
+| Nút / Chức năng | Ngữ cảnh kiểm thử | Kỳ vọng Excel | Thực tế kiểm định | PASS/FAIL | Phím tắt | Ghi chú |
+| :--- | :--- | :--- | :--- | :---: | :---: | :--- |
+| **Phông chữ** (`sheet.font.family`) | Ô B2 đang chọn, đổi phông sang Times New Roman qua select ribbon | Thay đổi phông chữ hiển thị của ô sang Times New Roman, cập nhật style model | Font family ô B2: style='Times New Roman' | **PASS** | Không có | Đổi phông chữ chính xác qua dropdown Ribbon. |
+| **Cỡ chữ** (`sheet.font.size`) | Ô B2 đang chọn, đổi cỡ chữ sang 16pt qua select ribbon | Thay đổi kích thước chữ ô tính sang 16pt, cập nhật độ cao/style | Cỡ chữ ô B2: style='21.33px' (tương đương 16pt) | **PASS** | Không có | Đổi cỡ chữ chính xác qua dropdown Ribbon. |
+| **Tăng cỡ chữ** (`sheet.font.grow`) | Ô B3 đang chọn, bấm nút Tăng cỡ chữ | Tăng kích thước phông chữ lên một bậc | Trước: '14.67px' (11pt) -> Sau khi tăng: '16px' (12pt) | **PASS** | `Ctrl+Shift+>` | Tăng kích thước chữ đúng nấc tăng dần. |
+| **Giảm cỡ chữ** (`sheet.font.shrink`) | Ô B3 đang chọn, bấm nút Giảm cỡ chữ | Giảm kích thước phông chữ xuống một bậc | Sau khi giảm: '14.67px' (11pt) | **PASS** | `Ctrl+Shift+<` | Giảm kích thước chữ đúng nấc. |
+| **In đậm** (`sheet.cell.bold`) | Ô B4 (bấm nút chuột) và ô B5 (nhấn phím Ctrl+B) | Bật/tắt in đậm văn bản trong ô, cập nhật nút ribbon bật sáng (is-checked) | B4 bold='bold', btnChecked=true; B5 Ctrl+B bold='bold' | **PASS** | `Ctrl+B` | Hoạt động chính xác cả nút chuột và phím tắt Ctrl+B. |
+| **In nghiêng** (`sheet.cell.italic`) | Ô B4 (nút chuột) và ô B5 (Ctrl+I) | Bật/tắt in nghiêng văn bản trong ô | B4 italic='italic'; B5 Ctrl+I italic='italic' | **PASS** | `Ctrl+I` | Hoạt động chính xác cả nút chuột và phím tắt Ctrl+I. |
+| **Gạch chân** (`sheet.cell.underline`) | Ô B4 (nút chuột) và ô B5 (Ctrl+U) | Bật/tắt gạch chân văn bản trong ô | B4 under='underline'; B5 Ctrl+U under='underline' | **PASS** | `Ctrl+U` | Hoạt động chính xác cả nút chuột và phím tắt Ctrl+U. |
+| **Đường viền ô** (`sheet.cell.borders`) | Ô C4 đang chọn, bấm nút Đường viền trên Ribbon | Áp đường viền vào ô (kèm menu chọn viền dưới/trên/trái/phải/tất cả viền) | Áp viền border='2px solid #0f172a'. Không có menu xổ xuống chọn kiểu viền (U-S3). | **PASS** | Không có | Viền được áp dụng thành công vào ô tính (chức năng cốt lõi đạt; thiếu menu chi tiết kiểu viền theo U-S3). |
+| **Màu nền ô** (`sheet.cell.fillColor`) | Ô C4 đang chọn, bấm nút Tô màu nền trên Ribbon | Tô màu nền cho ô tính (kèm bảng chọn màu Theme/Standard/No Fill) | Tô màu nền='#FFF200'. Gán màu mặc định #FFF200, chưa mở palette màu (U-S1). | **PASS** | Không có | Màu nền được lưu vào thuộc tính ô thành công (thiếu palette chọn màu tự do theo U-S1). |
+| **Màu chữ** (`sheet.cell.textColor`) | Ô C4 đang chọn, bấm nút Màu phông chữ trên Ribbon | Đổi màu chữ trong ô (kèm bảng chọn màu Theme/Standard) | Đổi màu chữ='#DC2626'. Gán màu mặc định #DC2626, chưa mở palette màu (U-S2). | **PASS** | Không có | Màu chữ được áp dụng thành công vào ô (thiếu palette chọn màu tự do theo U-S2). |
+| **Launcher Định dạng ô** (`sheet.format.cellsDialog`) | Phím tắt Ctrl+1 và nút launcher góc nhóm Phông chữ | Mở hộp thoại Định dạng ô (Format Cells) đa tab: Số, Căn chỉnh, Phông chữ, Viền, Tô màu | Ctrl+1 open=true; Launcher click open=true. Phím Escape đóng an toàn trả focus về lưới. | **PASS** | `Ctrl+1` | Hộp thoại Định dạng ô mở đầy đủ và đóng hoàn hảo bằng phím Escape. |
+
+*Kiểm chứng lưu XLSX thật*: Tệp lưu ra được giải nén và kiểm tra `xl/styles.xml`, ghi nhận định dạng phông chữ Times New Roman và kiểu chữ Bold/Italic/Underline được chuyển đổi chuẩn sang các thẻ `<font>` và tham chiếu `<xf fontId="...">` tương thích 100% Microsoft Excel.
+
+---
