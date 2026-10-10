@@ -59,6 +59,53 @@ Hai lượt chạy mỗi tab cho cùng inventory 15/14 và cùng kết quả pro
 - d07 dài 37.874 ký tự; DOM Writer báo 23 trang canvas. Không coi con số này là tương đương phân trang Word.
 - Không chụp ảnh.
 
+## Kết quả follow-up RB-D5b — 10/10/2026
+
+Lượt này dùng bản sao `d13.docx` trong `E:\VNOffice-profiles\codex-rd5b\artifacts\` (XML nguồn có 42 heading ngữ nghĩa). App chạy bằng `main.py`, `VNO_CDP_LOCALAPPDATA=E:\VNOffice-profiles\codex-rd5b`; mỗi phiên do harness cấp cổng CDP riêng. Không gửi văn bản tài liệu tới AI/cloud. Các bản DOCX kết quả chỉ nằm ngoài repo.
+
+### Chính tả và đếm từ
+
+| Kiểm tra | VN Writer | Word `ComputeStatistics` | Kết quả |
+|---|---:|---:|---|
+| Chính tả bật/tắt bằng nút tab Đánh giá | `enabled`: true → false → true; marker: 0 → 0 → 686 | — | PASS — bật lại chạy kiểm tra và tạo marker thật; lần mở ban đầu chưa có marker |
+| Từ | 2.761 | 2.764 | FAIL — lệch 3 |
+| Ký tự không khoảng trắng | 13.256 | 13.376 | FAIL — lệch 120 |
+| Ký tự có khoảng trắng | 15.655 | 16.004 | FAIL — lệch 349 |
+| Đoạn văn | 326 sau sửa | 326 | PASS |
+| Dòng | 1.093 | 485 | FAIL — lệch 608; bố cục canvas không cho cùng phép đo dòng với Word |
+
+Chẩn đoán đoạn: XML có 335 thẻ `w:p`, trong đó 326 đoạn có chữ. DOM biểu diễn 120 mục danh sách bằng `<li><p>…</p></li>`; bộ đếm cũ cộng cả `<li>` và `<p>`, thành 446. Commit `c117112b` sửa đếm kép trong `apps/writer/word-count.js`; unit và CDP xác nhận hộp thoại hiện 326. Sai lệch từ/ký tự/dòng còn lại được chuyển vào backlog để điều tra riêng.
+
+Lệnh `writer.review.toggleSpellCheck` không khai báo phím tắt riêng. `F7` của Writer được gán cho Soát lỗi chính tả AI, nên không chạy trong lượt audit này để tránh gửi tài liệu ra AI/cloud.
+
+### Ghi chú và thay đổi
+
+Ba ghi chú được tạo bằng thao tác chuột trên ba heading; từng thao tác có vùng neo. DOCX thật được lưu sau khi tạo, xóa và đánh dấu xử lý:
+
+| Tệp thử | OOXML `comments.xml` / `document.xml` | Word COM mở lại |
+|---|---|---|
+| `comments-three.docx` | 3 `w:comment`; 3 `w:commentRangeStart`, 3 `w:commentRangeEnd`, 3 `w:commentReference` | 3 ghi chú; `Done=[false,false,false]` |
+| `comments-after-delete.docx` | 2 ghi chú; 2 range start/end/reference | 2 ghi chú; `Done=[false,false]` |
+| `comments-after-resolve.docx` | 2 ghi chú; 2 range start/end/reference; không có phần resolved OOXML | Word thấy 2 ghi chú nhưng `Done=[false,false]` |
+
+Previous/Next chuyển active index 2 → 1 → 2 trong app. Xóa giảm comment/anchor 3 → 2. Đã xử lý đổi UI state lên 1 thẻ, nhưng Word roundtrip làm mất resolved state: FAIL. Đây là lỗi serialize OOXML thuộc `adapters/`; ghi nhận handoff cho owner thay vì sửa vùng adapter trong nhánh audit.
+
+Hai thay đổi được chèn ở hai đoạn khác nhau khi Theo dõi thay đổi bật. Tệp `changes-two-paragraphs.docx` có 2 `w:ins`, không có `w:del`, và `word/settings.xml` có `w:trackRevisions`; Word COM mở lại thấy 2 revisions. App mở lại và điều hướng Next/Next/Previous chọn index -1 → 0 → 1 → 0. Nút và `Ctrl+Shift+E` bật/tắt Theo dõi thay đổi.
+
+### Chế độ xem, cửa sổ và macro
+
+- Ngăn dẫn hướng liệt kê 42 heading; bấm heading đặt con trỏ vào heading. `Ctrl+Alt+N` mở pane.
+- Cửa sổ mới tăng số target CDP từ 1 lên 2.
+- Ghi Macro bật bằng nút và dừng bằng `Ctrl+Shift+R`; dừng phiên không có thao tác báo không có macro để lưu. Xem Macro mở được trình quản lý rỗng. Không ghi macro có hành động và không chạy macro.
+- Không chụp ảnh. Không chạy F7/Soát lỗi AI.
+
+### Kết quả kiểm tra
+
+- PASS — `npm test`: 3029/3029.
+- PASS — `python -m unittest discover -s tests`: 811 tests, OK; có cảnh báo `ResourceWarning` về hai file descriptor chưa đóng.
+- PASS — `git diff --check`.
+- NOT RUN — build riêng; không đổi build system.
+
 ## Delta 3 dòng
 
 - DOM d07: 37.874 ký tự, Writer 23 trang canvas; Read Mode/Escape hoạt động; scroll range đo được 50.571 px.
