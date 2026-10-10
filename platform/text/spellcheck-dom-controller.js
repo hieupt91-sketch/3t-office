@@ -139,6 +139,36 @@ export function restoreSelectionBookmark(root, bookmark) {
   selection.addRange(range);
 }
 
+const PENDING_STYLE_CHECKS = [
+  ["bold", (cs) => (parseInt(cs.fontWeight, 10) || 400) >= 600 || cs.fontWeight === "bold"],
+  ["italic", (cs) => cs.fontStyle === "italic" || cs.fontStyle === "oblique"],
+  ["underline", (cs) => String(cs.textDecorationLine || cs.textDecoration || "").includes("underline")],
+  ["strikeThrough", (cs) => String(cs.textDecorationLine || cs.textDecoration || "").includes("line-through")]
+];
+
+/**
+ * Người dùng bấm Ctrl+B/I/U khi con trỏ chưa chọn chữ: trình duyệt chỉ nhớ kiểu "sắp gõ" (chưa có thẻ nào trong DOM).
+ * Đặt lại vùng chọn sau khi bọc/gỡ thẻ gạch đỏ chính tả sẽ xóa kiểu này, nên chữ gõ tiếp không còn đậm/nghiêng/gạch chân.
+ * Trả true khi trạng thái lệnh (queryCommandState) khác kiểu thực tế tại con trỏ — lúc đó phải hoãn quét chính tả.
+ */
+export function hasPendingTypingStyle(root, doc = typeof document !== "undefined" ? document : null, getSel = globalThis.getSelection) {
+  try {
+    const selection = getSel?.call(globalThis);
+    if (!doc || typeof doc.queryCommandState !== "function" || !selection?.rangeCount || !selection.isCollapsed) return false;
+    const anchor = selection.anchorNode;
+    if (!anchor || !root?.contains?.(anchor)) return false;
+    const element = anchor.nodeType === 1 ? anchor : anchor.parentElement;
+    if (!element || typeof globalThis.getComputedStyle !== "function") return false;
+    const style = globalThis.getComputedStyle(element);
+    for (const [command, actual] of PENDING_STYLE_CHECKS) {
+      if (Boolean(doc.queryCommandState(command)) !== Boolean(actual(style))) return true;
+    }
+  } catch (_) {
+    return false;
+  }
+  return false;
+}
+
 function unwrapMarkers(root) {
   if (!root || typeof root.querySelectorAll !== "function") return;
   const doc = root.ownerDocument || (typeof document !== "undefined" ? document : null);
@@ -344,6 +374,8 @@ export class SpellcheckDomController {
     const doc = root?.ownerDocument || (typeof document !== "undefined" ? document : null);
     if (!doc || typeof doc.createTreeWalker !== "function") return;
     const NodeFilterObj = globalThis.NodeFilter || { SHOW_TEXT: 4 };
+    // Đang có kiểu "sắp gõ" (vừa bấm Ctrl+B/I/U chưa gõ chữ): đổi DOM + đặt lại vùng chọn sẽ làm mất nó. Lần gõ kế tiếp sẽ quét lại.
+    if (hasPendingTypingStyle(root, doc)) return;
     const selection = captureSelectionBookmark(root);
     unwrapMarkers(scope);
     const walker = doc.createTreeWalker(scope, NodeFilterObj.SHOW_TEXT);

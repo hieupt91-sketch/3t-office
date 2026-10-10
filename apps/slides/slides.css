@@ -471,11 +471,11 @@
 }
 
 .vno-slides-studio .vno-spelling-uncertain {
-  text-decoration-line: underline;
-  text-decoration-style: wavy;
-  text-decoration-color: #dc2626;
-  text-decoration-thickness: 1.5px;
-  text-underline-offset: 3px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='3' viewBox='0 0 6 3'%3E%3Cpath d='M0 2.2 Q1.5 0.2 3 2.2 T6 2.2' fill='none' stroke='%23dc2626' stroke-width='1'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-position: left bottom;
+  background-size: 6px 3px;
+  padding-bottom: 1px;
 }
 
 /* Fullscreen Presentation Mode */
