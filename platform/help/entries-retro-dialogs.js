@@ -285,7 +285,7 @@ export const RETRO_DIALOGS_HELP_ENTRIES = [
     ribbon: { tab: "Dữ liệu", tabId: "data", group: "Sắp xếp & Lọc" },
     keywords: ["sắp xếp tùy chỉnh", "custom sort", "sắp xếp nhiều cấp", "thứ tự tăng dần", "thứ tự giảm dần", "sort dialog"],
     steps: [
-      "Chọn bảng số liệu cần sắp xếp thứ tự các hàng dữ liệu.",
+      "Chọn bảng số liệu cần sắp xếp thứ tự các hàng dữ liệu. Nếu đang chọn một ô đơn lẻ, hãy chọn ô trong vùng dữ liệu có ít nhất hai hàng; nếu không, Sheet sẽ báo lý do và không mở hộp thoại.",
       "Mở tab Dữ liệu trên thanh công cụ Ribbon, nhóm Sắp xếp & Lọc, bấm nút 'Sắp xếp' (hoặc nhấn Ctrl+Shift+S).",
       "Trong hộp thoại Sắp xếp: đánh dấu chọn 'Dữ liệu của tôi có tiêu đề'.",
       "Tại cấp độ đầu tiên: chọn Cột cần sắp xếp (ví dụ Cột Phòng ban), sắp xếp theo Giá trị của ô, thứ tự Từ A đến Z.",

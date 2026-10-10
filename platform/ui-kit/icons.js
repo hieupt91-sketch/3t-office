@@ -98,8 +98,8 @@ export const ICONS = {
   redo: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#2563EB" stroke-width="2.2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`,
   zoomIn: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5M10.5 7.5v6M7.5 10.5h6"/></svg>`,
   zoomOut: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5M7.5 10.5h6"/></svg>`,
-  zoomReset: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round"><path d="M4 8a8 8 0 1 1-1 7M4 3v5h5"/><circle cx="12" cy="12" r="2.3" fill="#2563EB" stroke="none"/></svg>`,
-  zoom100: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="4" y="2.5" width="16" height="19" rx="2" fill="#EFF6FF" stroke="#0F4C81" stroke-width="1.4"/><path d="M8 8h8M8 12h8M8 16h5" stroke="#2563EB" stroke-width="1.5" stroke-linecap="round"/><circle cx="17" cy="17" r="2" fill="#2563EB"/></svg>`,
+  zoomReset: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round"><path d="M4 8a8 8 0 1 1-1 7M4 3v5h5"/><circle cx="12" cy="12" r="2.4" fill="#2563EB" stroke="none"/></svg>`,
+  zoom100: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="4" y="2.5" width="16" height="19" rx="2" fill="#EFF6FF" stroke="#0F4C81" stroke-width="1.4"/><path d="M8 8h2v6M12 8h2v6M16 8h1v6" stroke="#2563EB" stroke-width="1.4" stroke-linecap="round"/></svg>`,
   gridlines: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#0F6D38" stroke-width="1.7"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>`,
   headings: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#0F6D38" stroke-width="1.7"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M8 3v18M3 8h18"/><path d="m11 6 1.5-3L14 6M5 11v6M4 12l1-1 1 1"/></svg>`,
   coverPage: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="4" y="2.5" width="16" height="19" rx="1.5" fill="#EFF6FF" stroke="#0F4C81" stroke-width="1.5"/><rect x="4" y="2.5" width="16" height="6" fill="#0F4C81"/><path d="M7 12h10M7 15h7M7 18h5" stroke="#2563EB" stroke-width="1.4" stroke-linecap="round"/></svg>`,
@@ -113,7 +113,7 @@ export const ICONS = {
   writerNewWindow: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="3" y="6" width="14" height="14" rx="1.5" fill="#DBEAFE" stroke="#0F4C81" stroke-width="1.4"/><rect x="7" y="3" width="14" height="14" rx="1.5" fill="#FFF" stroke="#2563EB" stroke-width="1.4"/><path d="M7 7h14" stroke="#2563EB" stroke-width="1.4"/></svg>`,
   newWindow: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="3" y="6" width="14" height="14" rx="1.5" fill="#DBEAFE" stroke="#0F4C81" stroke-width="1.4"/><rect x="7" y="3" width="14" height="14" rx="1.5" fill="#FFF" stroke="#2563EB" stroke-width="1.4"/><path d="M7 7h14" stroke="#2563EB" stroke-width="1.4"/></svg>`,
   sheetNormalView: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="3" y="4" width="18" height="16" rx="2" fill="#ECFDF5" stroke="#0F6D38" stroke-width="1.5"/><path d="M3 9h18M3 14h18M9 4v16M15 4v16" stroke="#0F6D38" stroke-width="1.2"/></svg>`,
-  sheetPageBreakPreview: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="3" y="4" width="18" height="16" rx="2" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/><path d="M3 12h18" stroke="#2563EB" stroke-width="1.8" stroke-dasharray="3 2"/><path d="M12 4v16" stroke="#2563EB" stroke-width="1.8" stroke-dasharray="3 2"/><rect x="5" y="6" width="14" height="12" stroke="#1D4ED8" stroke-width="1.5"/><text x="7" y="11" font-size="5" fill="#2563EB" font-weight="700">Trang 1</text></svg>`,
+  sheetPageBreakPreview: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="3" y="4" width="18" height="16" rx="2" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/><path d="M3 12h18" stroke="#2563EB" stroke-width="1.8" stroke-dasharray="3 2"/><path d="M12 4v16" stroke="#2563EB" stroke-width="1.8" stroke-dasharray="3 2"/><rect x="5" y="6" width="14" height="12" stroke="#1D4ED8" stroke-width="1.5"/><circle cx="7.5" cy="8.5" r="1" fill="#2563EB"/></svg>`,
   sheetPageLayout: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="4" y="3" width="16" height="18" rx="1.5" fill="#EFF6FF" stroke="#0F6D38" stroke-width="1.5"/><path d="M7 6h10M7 8h10M7 11h10M7 14h10M7 17h10M11 8v9M14 8v9" stroke="#3B82F6" stroke-width="1.1"/></svg>`,
   sheetFormulaBar: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="2.5" y="7" width="19" height="10" rx="2" fill="#ECFDF5" stroke="#0F6D38" stroke-width="1.4"/><text x="5" y="14" font-size="8" font-weight="700" fill="#0F6D38" font-style="italic">fx</text><line x1="11" y1="9" x2="11" y2="15" stroke="#94A3B8" stroke-width="1.2"/><line x1="13" y1="12" x2="19" y2="12" stroke="#0F6D38" stroke-width="1.5"/></svg>`,
   sheetZoomSelection: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><circle cx="10" cy="10" r="6" stroke="#2563EB" stroke-width="1.8"/><path d="m14.5 14.5 5.5 5.5" stroke="#2563EB" stroke-width="2" stroke-linecap="round"/><rect x="7" y="7" width="6" height="6" stroke="#0F6D38" stroke-width="1.2" stroke-dasharray="2 1"/></svg>`,
@@ -173,9 +173,9 @@ export const ICONS = {
   alignBottom: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true"><path d="M4 20h16" stroke="#0F6D38" stroke-width="2" stroke-linecap="round"/><path d="M7 13h7M7 16h10" stroke="#334155" stroke-width="1.7" stroke-linecap="round"/></svg>`,
   wrapText: `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true"><path d="M3 6h18M3 11h13a3 3 0 0 1 0 6H9" stroke="#334155" stroke-width="1.7" stroke-linecap="round"/><path d="m12 14-3 3 3 3" stroke="#0F6D38" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   textOrientation: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true"><path d="M7 17V7m0 0 3.2 3.2M7 7 3.8 10.2" stroke="#0F6D38" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="m12.2 16.5 7.3-7.3" stroke="#334155" stroke-width="1.7" stroke-linecap="round"/><path d="M13.4 9.2h5.4v5.4" stroke="#334155" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
-  increaseDecimal: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true"><text x="2" y="10" fill="#334155" font-size="8" font-family="Arial,sans-serif" font-weight="700">.0</text><text x="12" y="20" fill="#334155" font-size="8" font-family="Arial,sans-serif" font-weight="700">.00</text><path d="M8 14h7m-2.5-2.5L15 14l-2.5 2.5" stroke="#0F6D38" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
-  commaStyle: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true"><text x="1" y="15" fill="#334155" font-size="10" font-family="Arial,sans-serif" font-weight="700">9,9</text><path d="M9 18l1.6 3.2M9 18h1.6" stroke="#0F6D38" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
-  decreaseDecimal: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true"><text x="1" y="10" fill="#334155" font-size="8" font-family="Arial,sans-serif" font-weight="700">.00</text><text x="14" y="20" fill="#334155" font-size="8" font-family="Arial,sans-serif" font-weight="700">.0</text><path d="M16 14H9m2.5-2.5L9 14l2.5 2.5" stroke="#0F6D38" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  increaseDecimal: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true"><circle cx="5" cy="7" r="1.4" fill="#334155"/><circle cx="10" cy="7" r="1.4" fill="#334155"/><circle cx="15" cy="7" r="1.4" fill="#334155"/><circle cx="5" cy="16" r="1.4" fill="#334155"/><circle cx="10" cy="16" r="1.4" fill="#334155"/><circle cx="15" cy="16" r="1.4" fill="#334155"/><path d="M8 12h7m-2.5-2.5L15 12l-2.5 2.5" stroke="#0F6D38" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  commaStyle: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true"><circle cx="4" cy="8" r="1.5" fill="#334155"/><circle cx="9" cy="8" r="1.5" fill="#334155"/><circle cx="14" cy="8" r="1.5" fill="#334155"/><circle cx="19" cy="8" r="1.5" fill="#334155"/><circle cx="4" cy="15" r="1.5" fill="#334155"/><circle cx="9" cy="15" r="1.5" fill="#334155"/><circle cx="14" cy="15" r="1.5" fill="#334155"/><circle cx="19" cy="15" r="1.5" fill="#334155"/><path d="M9 18l1.6 3.2M9 18h1.6" stroke="#0F6D38" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  decreaseDecimal: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true"><circle cx="4" cy="7" r="1.4" fill="#334155"/><circle cx="9" cy="7" r="1.4" fill="#334155"/><circle cx="14" cy="7" r="1.4" fill="#334155"/><circle cx="19" cy="7" r="1.4" fill="#334155"/><circle cx="4" cy="16" r="1.4" fill="#334155"/><circle cx="9" cy="16" r="1.4" fill="#334155"/><path d="M16 12H9m2.5-2.5L9 12l2.5 2.5" stroke="#0F6D38" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
 
   // Chèn nâng cao (Insert Elements)
   table: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
@@ -241,7 +241,7 @@ export const ICONS = {
   mergeCenter: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
     <rect x="3" y="5" width="18" height="14" rx="2" fill="#E7F4EC" stroke="#0F6D38" stroke-width="1.5"/>
     <path d="M5 12h3M16 12h3M7 10l-2 2 2 2M17 10l2 2-2 2" stroke="#0F6D38" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-    <text x="12" y="14.5" text-anchor="middle" font-size="7" font-weight="700" font-family="sans-serif" fill="#0F6D38">a</text>
+    <circle cx="12" cy="12" r="1.8" fill="#0F6D38"/>
   </svg>`,
   mergeAcross: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none"><rect x="3" y="5" width="18" height="6" rx="1" fill="#E7F4EC" stroke="#0F6D38"/><rect x="3" y="13" width="18" height="6" rx="1" fill="#E7F4EC" stroke="#0F6D38"/><path d="M7 8h10M7 16h10" stroke="#0F6D38" stroke-width="1.5"/></svg>`,
   unmergeCells: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none"><rect x="3" y="5" width="18" height="14" rx="2" fill="#FFF7ED" stroke="#C2410C"/><path d="M12 5v14M3 12h18" stroke="#C2410C"/><path d="m8 9-3 3 3 3m8-6 3 3-3 3" stroke="#C2410C" stroke-width="1.5"/></svg>`,
@@ -256,7 +256,7 @@ export const ICONS = {
   currencyVND: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
     <circle cx="16" cy="16" r="13" fill="#F5B800" stroke="#D97706" stroke-width="1.5"/>
     <circle cx="16" cy="16" r="10" fill="#FCD34D"/>
-    <text x="10" y="21" font-size="16" font-weight="900" fill="#92400E" font-family="sans-serif">₫</text>
+    <path d="M10 12h12M10 16h12M13 8l-2 12M19 8l-2 12" stroke="#92400E" stroke-width="1.6" stroke-linecap="round"/>
   </svg>`,
 
   autoSum: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
@@ -285,14 +285,12 @@ export const ICONS = {
   refreshTable: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none"><rect x="3" y="4" width="18" height="16" rx="2" fill="#ECFDF5" stroke="#0F6D38"/><path d="M8 8h8M8 12h4M8 16h7" stroke="#64748B"/><path d="M18 9a5 5 0 1 1-1.2-3.2M17 3v4h4" stroke="#2563EB" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
 
   sortAsc: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
-    <text x="3" y="9" font-size="9" font-weight="bold" fill="#0F172A" font-family="sans-serif">A</text>
-    <text x="3" y="19" font-size="9" font-weight="bold" fill="#0F172A" font-family="sans-serif">Z</text>
+    <path d="M3 9l2-5 2 5M4 7h2M3 18h4l-4 3h4" stroke="#0F172A" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
     <path d="M15 5V19M15 19L11 15M15 19L19 15" stroke="#2563EB" stroke-width="2" stroke-linecap="round"/>
   </svg>`,
 
   sortDesc: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
-    <text x="3" y="9" font-size="9" font-weight="bold" fill="#0F172A" font-family="sans-serif">Z</text>
-    <text x="3" y="19" font-size="9" font-weight="bold" fill="#0F172A" font-family="sans-serif">A</text>
+    <path d="M3 4h4l-4 3h4M3 18l2-5 2 5M4 16h2" stroke="#0F172A" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
     <path d="M15 5V19M15 19L11 15M15 19L19 15" stroke="#DC2626" stroke-width="2" stroke-linecap="round"/>
   </svg>`,
 
@@ -537,7 +535,7 @@ export const ICONS = {
 
   textBox: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
     <rect x="3" y="3" width="18" height="18" rx="2" stroke="#3B82F6" stroke-width="1.5" stroke-dasharray="2 2"/>
-    <path d="m7 17 4-10 4 10m-6.5-3.5h5" stroke="#1D4ED8" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="m8 17 4-11 4 11m-6.5-4h5" stroke="#1D4ED8" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`,
 
   wordArt: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
@@ -794,8 +792,7 @@ export const ICONS = {
     <rect x="3" y="4" width="18" height="16" rx="2" fill="#F8FAFC" stroke="#0F6D38" stroke-width="1.5"/>
     <line x1="3" y1="10" x2="21" y2="10" stroke="#0F6D38" stroke-width="1.2"/>
     <line x1="10" y1="4" x2="10" y2="20" stroke="#0F6D38" stroke-width="1.2"/>
-    <text x="5" y="8.5" fill="#0F6D38" font-size="5" font-weight="700" font-family="sans-serif">12</text>
-    <text x="12" y="8.5" fill="#0F6D38" font-size="5" font-weight="700" font-family="sans-serif">₫</text>
+    <circle cx="7" cy="7" r="1.1" fill="#0F6D38"/><circle cx="13" cy="7" r="1.1" fill="#0F6D38"/>
     <path d="M14 14l3 3m0-3l-3 3" stroke="#2563EB" stroke-width="1.2" stroke-linecap="round"/>
   </svg>`,
 
@@ -921,7 +918,7 @@ export const ICONS = {
   pageSize: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
     <rect x="6" y="3" width="12" height="18" rx="1.5" fill="#EFF6FF" stroke="#2563EB" stroke-width="1.3"/>
     <path d="M3 8v8M21 8v8M3 8l2-2M3 8l2 2M21 8l-2-2M21 8l-2 2M3 16l2-2M3 16l2 2M21 16l-2-2M21 16l-2 2" stroke="#0F4C81" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-    <text x="8.2" y="14" font-size="6" font-weight="800" fill="#1D4ED8" font-family="sans-serif">A4</text>
+    <path d="M8 14l2-5 2 5m-3.2-1.5h2.4M14 9h3v5h-3V9z" stroke="#1D4ED8" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`,
 
   trackChanges: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
