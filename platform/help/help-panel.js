@@ -38,6 +38,18 @@ function ensureHelpStyles() {
   document.head.appendChild(link);
 }
 
+export function resetHelpPanelScroll(root) {
+  if (!root?.querySelector) return;
+  for (const element of [
+    root,
+    root.querySelector(".vno-help-body"),
+    root.querySelector(".vno-help-list"),
+    root.querySelector(".vno-help-article")
+  ]) {
+    if (element) element.scrollTop = 0;
+  }
+}
+
 export class HelpPanel {
   /**
    * @param {{ app?: "writer"|"sheet"|"slides", host?: HTMLElement }} [options]
@@ -177,7 +189,7 @@ export class HelpPanel {
       const search = this.root.querySelector(".vno-help-search");
       if (search) {
         search.value = this._query;
-        search.focus();
+        search.focus({ preventScroll: true });
       }
     }
     if (typeof document !== "undefined") {
@@ -187,6 +199,10 @@ export class HelpPanel {
       document.addEventListener("pointerdown", this._onOutsidePointer);
     }
     this._render();
+    resetHelpPanelScroll(this.root);
+    if (typeof requestAnimationFrame === "function") {
+      requestAnimationFrame(() => resetHelpPanelScroll(this.root));
+    }
     return true;
   }
 
