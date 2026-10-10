@@ -1,0 +1,10 @@
+# TICKET FIX-S1 — Sheet: loi giao dien da do (Codex)  [CHI SUA icon/hanh vi DA CO, KHONG them tinh nang moi]
+Nguon: docs/UI-TEST-SHEET-1010.md (agy do bang so + anh). Moi muc 1 commit nho + test + do bang so bang CHUOT va PHIM TAT tren app desktop that (khong web), COMMIT SAU MOI MUC.
+1. U-S11 (CAO): hop thoai Chen ham (Shift+F3 / nut fx) khong dong bang Esc: Esc phai dong va tra focus ve o dang chon; kiem cac hop thoai Sheet khac cung loi (Dinh dang o, Sap xep tuy chinh...). Dung mot co che chung neu da co (platform/), khong sua rieng le.
+2. U-S12/U-S13: cac nut Thu vien ham theo the loai (Tai chinh, Logic, Van ban, Ngay & Gio, Tra cuu, Toan hoc) va Cua so theo doi bam khong phan hoi: DIAGNOSE truoc (co handler khong? chi la nhan/placeholder?). Neu nut da co lenh nhung khong hien ket qua -> sua cho hien dung; neu CHUA co chuc nang that -> theo quy tac "khong xoa nut dang cho": hien thong bao tieng Viet ro rang va ghi vao docs/RIBBON-BACKLOG.md (khong lam tinh nang moi).
+3. U-S15 (Sap xep tuy chinh khi chon 1 o im lang) va moi truong hop nut khong tac dung ma khong bao: hien thong bao tieng Viet ngan nguyen nhan.
+4. U-S4/U-S14/U-S19: nut bat/tat (In dam/nghieng/gach chan, Hien cong thuc, Kiem tra chinh ta) phai cap nhat trang thai sang/aria-pressed dung theo o dang chon va sau khi bam.
+5. U-S5/U-S8/U-S10/U-S16/U-S21 (nhan nut lap ky tu bieu tuong) va U-S6/U-S17 (nut thieu nhan chu): lam nhu Doc o FIX-T3 (commit ab6c694b la mau): hien nhan mot lan. U-S18: doi ten nhom "Chung minh" thanh "Kiem loi" (i18n VI/EN, khong ten hang bi cam).
+6. U-S22: chế độ toi - tieu de hop thoai/tab active mau xanh luc sam kho doc: dung bien mau theme, tuong phan >=4.5:1.
+KHONG lam: U-S1/S2/S3 (bang mau, menu vien - tinh nang moi), U-S7, U-S9, U-S20, U-S23, U-S24, U-S25 (cho chu so huu quyet).
+Quy trinh/CAM/TIET KIEM TOKEN: nhu TICKET-FIX-T1.md. Worktree E:\VNOffice-codex-fs1 nhanh fix/sheet-ui-s1-codex tu main. KHONG chay bo 28 xlsx (chi Claude chay). Sau khi xong chay npm test + python unittest, bao so that; sua o Sheet tuyet doi khong lam doi cach luu/mo xlsx. Them/chinh Tro giup tieng Viet neu hanh vi nguoi dung thay doi. Bao cao 3 dong.
