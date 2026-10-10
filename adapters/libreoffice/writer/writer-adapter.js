@@ -1052,36 +1052,51 @@ export class WriterAdapter {
     const isAllUpper = (text === text.toUpperCase() && text !== text.toLowerCase());
     const isAllLower = (text === text.toLowerCase() && text !== text.toUpperCase());
 
-    if (!range?.deleteContents || typeof document === "undefined") return false;
-    const fragment = range.cloneContents();
-    const walker = document.createTreeWalker(fragment, NodeFilter.SHOW_TEXT);
+    if (!range || typeof document === "undefined" || typeof document.createTreeWalker !== "function") return false;
+    // Đổi chữ NGAY TRÊN các nút văn bản trong vùng chọn (không cắt/chèn lại mảnh DOM): an toàn khi vùng chọn trải nhiều
+    // đoạn/ô/danh sách, giữ nguyên cấu trúc, định dạng và vùng chọn.
+    // Range "sống" bị trình duyệt dịch chuyển khi sửa node.data: chụp toạ độ trước khi đổi.
+    const startContainer = range.startContainer;
+    const startOffset = range.startOffset;
+    const endContainer = range.endContainer;
+    const endOffsetOriginal = range.endOffset;
+    const root = range.commonAncestorContainer;
     const textNodes = [];
-    let textNode = walker.nextNode();
-    while (textNode) {
-      textNodes.push(textNode);
-      textNode = walker.nextNode();
+    if (root.nodeType === 3) {
+      textNodes.push(root);
+    } else {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      let textNode = walker.nextNode();
+      while (textNode) {
+        if (range.intersectsNode?.(textNode) !== false) textNodes.push(textNode);
+        textNode = walker.nextNode();
+      }
     }
-    const fragmentText = textNodes.map(node => node.data).join("");
+    const slices = textNodes.map(node => {
+      const from = node === startContainer ? startOffset : 0;
+      const to = node === endContainer ? endOffsetOriginal : node.data.length;
+      return { node, from, to: Math.max(from, to) };
+    }).filter(slice => slice.to > slice.from);
+    if (!slices.length) return false;
+    const fragmentText = slices.map(slice => slice.node.data.slice(slice.from, slice.to)).join("");
     const transformCase = value => isAllUpper
       ? value.toLowerCase().replace(/(^|\s)\S/g, char => char.toUpperCase())
       : isAllLower ? value.toUpperCase() : value.toLowerCase();
     const convertedText = transformCase(fragmentText);
     let sourceOffset = 0;
-    for (const node of textNodes) {
-      const sourceEnd = sourceOffset + node.data.length;
+    let newEndOffset = endOffsetOriginal;
+    for (const slice of slices) {
+      const sourceEnd = sourceOffset + (slice.to - slice.from);
       const outputStart = transformCase(fragmentText.slice(0, sourceOffset)).length;
       const outputEnd = transformCase(fragmentText.slice(0, sourceEnd)).length;
-      node.data = convertedText.slice(outputStart, outputEnd);
+      const piece = convertedText.slice(outputStart, outputEnd);
+      slice.node.data = slice.node.data.slice(0, slice.from) + piece + slice.node.data.slice(slice.to);
+      if (slice.node === endContainer) newEndOffset = slice.from + piece.length;
       sourceOffset = sourceEnd;
     }
-    range.deleteContents();
-    const firstInserted = fragment.firstChild;
-    const lastInserted = fragment.lastChild;
-    if (!firstInserted || !lastInserted) return false;
-    range.insertNode(fragment);
     const restoredRange = document.createRange();
-    restoredRange.setStartBefore(firstInserted);
-    restoredRange.setEndAfter(lastInserted);
+    restoredRange.setStart(startContainer, startOffset);
+    restoredRange.setEnd(endContainer, Math.min(newEndOffset, endContainer.nodeType === 3 ? endContainer.data.length : endContainer.childNodes.length));
     sel.removeAllRanges();
     sel.addRange(restoredRange);
 
@@ -8481,24 +8496,49 @@ export class WriterAdapter {
     if (cell.colSpan > 1 || cell.rowSpan > 1) {
       const table = cell.closest?.("table");
       const startRow = cell.parentElement?.rowIndex ?? 0;
-      const startCell = cell.cellIndex ?? 0;
       const rowSpan = Math.max(1, cell.rowSpan || 1);
       const colSpan = Math.max(1, cell.colSpan || 1);
+      // Cột LƯỚI thật của ô (không phải chỉ số trong row.cells: các hàng dưới có thể bị ô gộp dọc của cột khác chiếm chỗ).
+      const columnStart = new Map();
+      const occupied = [];
+      Array.from(table?.rows || []).forEach((tableRow, rowIndex) => {
+        occupied[rowIndex] = occupied[rowIndex] || [];
+        let column = 0;
+        for (const tableCell of Array.from(tableRow.cells)) {
+          while (occupied[rowIndex][column]) column++;
+          columnStart.set(tableCell, column);
+          const rs = Math.max(1, tableCell.rowSpan || 1);
+          const cs = Math.max(1, tableCell.colSpan || 1);
+          for (let dr = 0; dr < rs; dr++) {
+            occupied[rowIndex + dr] = occupied[rowIndex + dr] || [];
+            for (let dc = 0; dc < cs; dc++) occupied[rowIndex + dr][column + dc] = true;
+          }
+          column += cs;
+        }
+      });
+      const startColumn = columnStart.get(cell) ?? 0;
+      const makeCell = () => {
+        const newCell = document.createElement(cell.tagName?.toLowerCase?.() || "td");
+        // Giữ kiểu của ô gốc (viền, nền, căn dọc...) thay vì kiểu mặc định; bỏ chiều rộng/cao của ô đã gộp.
+        const inline = cell.getAttribute?.("style");
+        if (inline) newCell.setAttribute("style", inline);
+        newCell.style.width = "";
+        newCell.style.height = "";
+        if (!newCell.style.border) newCell.style.border = "1px solid #94a3b8";
+        if (!newCell.style.padding) newCell.style.padding = "6pt 10pt";
+        newCell.innerHTML = "<br>";
+        return newCell;
+      };
       cell.colSpan = 1;
       cell.rowSpan = 1;
       for (let rowOffset = 0; rowOffset < rowSpan; rowOffset++) {
         const row = table?.rows?.[startRow + rowOffset];
         if (!row) continue;
         const count = rowOffset === 0 ? colSpan - 1 : colSpan;
-        const insertAt = startCell + (rowOffset === 0 ? 1 : 0);
-        const reference = row.cells?.[insertAt] || null;
-        for (let i = 0; i < count; i++) {
-          const newCell = document.createElement(cell.tagName?.toLowerCase?.() || "td");
-          newCell.style.border = cell.style.border || "1px solid #94a3b8";
-          newCell.style.padding = cell.style.padding || "6pt 10pt";
-          newCell.innerHTML = "<br>";
-          row.insertBefore(newCell, reference);
-        }
+        const reference = rowOffset === 0
+          ? cell.nextElementSibling
+          : (Array.from(row.cells).find((other) => (columnStart.get(other) ?? 0) >= startColumn + colSpan) || null);
+        for (let i = 0; i < count; i++) row.insertBefore(makeCell(), reference);
       }
     } else {
       const newCell = document.createElement("td");
@@ -10666,6 +10706,10 @@ export class WriterAdapter {
     const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
     if (range && this.bodyDom?.contains?.(range.commonAncestorContainer) && editorRect) {
       let rect = range.getBoundingClientRect?.();
+      const remembered = this._caretRectBeforeUi;
+      if ((!rect || (!rect.width && !rect.height)) && remembered && Date.now() - remembered.at < 60000) {
+        rect = { left: remembered.left, top: remembered.top, width: 1, height: 1 };
+      }
       if ((!rect || (!rect.width && !rect.height)) && range.commonAncestorContainer?.parentElement) {
         rect = range.commonAncestorContainer.parentElement.getBoundingClientRect?.();
       }
@@ -10689,8 +10733,17 @@ export class WriterAdapter {
       y: typeof options.y === "number" ? options.y : (cursorPosition?.y ?? 120)
     });
     if (shape && text === "Nhập văn bản") {
-      const textboxes = typeof document !== "undefined" ? document.querySelectorAll(".vno-writer-textbox-body") : [];
-      const textbox = textboxes[textboxes.length - 1];
+      // Chọn đúng hộp vừa chèn theo id (không phải "hộp cuối trong DOM": hộp chèn giữa tài liệu có thể không ở cuối).
+      const scope = this.editorDom || (typeof document !== "undefined" ? document : null);
+      let textbox = null;
+      if (scope?.querySelectorAll && shape.id != null) {
+        const holder = [...scope.querySelectorAll("[data-shape-id]")].find((node) => node.dataset?.shapeId === String(shape.id));
+        textbox = holder?.querySelector?.(".vno-writer-textbox-body") || null;
+      }
+      if (!textbox && scope?.querySelectorAll) {
+        const textboxes = scope.querySelectorAll(".vno-writer-textbox-body");
+        textbox = textboxes[textboxes.length - 1];
+      }
       if (textbox) {
         const selectPlaceholder = () => {
           if (!textbox.isConnected) return;
@@ -11499,7 +11552,23 @@ export class WriterAdapter {
     return this.setColumns(result);
   }
 
+  /**
+   * Áp cột: tài liệu nhiều mục bọc nội dung vào các khối `.vno-section-content` (di chuyển nút DOM) nên vùng chọn/con trỏ
+   * rơi về thẻ body — gõ tiếp chữ vào sai chỗ. Chụp và khôi phục con trỏ (theo offset văn bản) quanh thao tác.
+   */
   _applyColumns() {
+    let bookmark = null;
+    // Khi đang Undo/Redo, _restoreSnapshot tự đặt lại con trỏ từ snapshot ở cuối: không chụp thêm ở đây.
+    if (!this._isUndoingRedoing) {
+      try { bookmark = this._captureSelectionBookmark?.() || null; } catch (_) { bookmark = null; }
+    }
+    this._applyColumnsCore();
+    if (bookmark) {
+      try { this._restoreSelectionBookmark?.(bookmark); } catch (_) { /* khôi phục con trỏ chỉ là tối ưu */ }
+    }
+  }
+
+  _applyColumnsCore() {
     this._initZones();
     const target = this.bodyDom || this.editorDom;
     if (!target) return;
@@ -11651,7 +11720,10 @@ export class WriterAdapter {
       globalCommandBus.updateState("common.edit.formatPainter", { checked: true });
       this.editorDom?.classList?.add("vno-format-painter-active");
 
-      this._formatPainterMouseUpHandler = () => {
+      this._formatPainterMouseUpHandler = (event) => {
+        // Chỉ nhả chuột TRONG vùng soạn thảo mới là "chọn đích": bấm ribbon/panel/hộp thoại không được áp định dạng.
+        const target = event?.target;
+        if (target && this.editorDom && typeof this.editorDom.contains === "function" && !this.editorDom.contains(target)) return;
         setTimeout(() => {
           const activeSel = window.getSelection?.();
           if (activeSel && !activeSel.isCollapsed && this.copiedFormat) this._applyCopiedFormat();
@@ -11699,6 +11771,9 @@ export class WriterAdapter {
       document.execCommand("hiliteColor", false, fmt.backgroundColor);
     }
     if (fmt.fontFamily) document.execCommand("fontName", false, fmt.fontFamily);
+    // Word cũng sao chép cỡ chữ; trước đây bị bỏ qua nên chữ đích giữ cỡ cũ.
+    const sourcePt = parseFloat(fmt.fontSize) * 0.75;
+    if (Number.isFinite(sourcePt) && sourcePt > 0) this._applyFontSizePt(Math.round(sourcePt * 2) / 2);
 
     this._clearFormatPainter();
     this.isDirty = true;
@@ -16530,6 +16605,8 @@ export class WriterAdapter {
     this._hydrateWordArtFromDom();
     this._applyDecorations();
     this._syncActiveStyleUI?.();
+    // Các bước trên (áp cột nhiều mục, trang trí, hydrate) có thể di chuyển nút DOM và làm rơi con trỏ: đặt lại lần cuối.
+    this._restoreSelectionBookmark(snapshot.selection);
 
     this.isDirty = true;
     this._updateTrackChangesCommandState?.();
@@ -17053,6 +17130,20 @@ export class WriterAdapter {
     };
     if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
       document.addEventListener("selectionchange", this._selectionChangeHandler);
+      // Ghi nhớ toạ độ con trỏ NGAY KHI bấm ra ngoài vùng soạn thảo (ribbon/hộp thoại): sau khi tiêu điểm chuyển sang nút,
+      // Range.getBoundingClientRect() của con trỏ trả về 0 nên các lệnh chèn "tại con trỏ" (hộp văn bản...) rơi về góc trang.
+      this._caretRectBeforeUiHandler = (event) => {
+        try {
+          if (this.editorDom?.contains?.(event.target)) { this._caretRectBeforeUi = null; return; }
+          const sel = window.getSelection?.();
+          if (!sel || !sel.rangeCount || !sel.isCollapsed || !this.bodyDom?.contains?.(sel.anchorNode)) return;
+          const range = sel.getRangeAt(0);
+          const rect = range.getBoundingClientRect?.();
+          // Chỉ ghi khi đo được toạ độ thật; lần bấm ribbon thứ hai (đã mất toạ độ) không được ghi đè lần đầu.
+          if (rect && (rect.width || rect.height)) this._caretRectBeforeUi = { left: rect.left, top: rect.top, at: Date.now() };
+        } catch (_) { /* ghi nhớ toạ độ chỉ là tối ưu */ }
+      };
+      document.addEventListener("pointerdown", this._caretRectBeforeUiHandler, true);
     }
 
     this._inputHandler = (event) => {
