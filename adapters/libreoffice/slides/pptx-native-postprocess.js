@@ -20,10 +20,14 @@ import {
   SLIDE_MASTER_ENTRY_RE,
   applyIntendedSlideSize,
   applyMasterLogoShape,
+  applyMasterThemeId,
   fodpHasMasterLogo,
   overlayFodpMasterLogo,
+  overlayFodpMasterThemeId,
   parseIntendedSlideSizeFromFodp,
   parseMasterLogoFromFodp,
+  parseMasterThemeId,
+  parseMasterThemeIdFromFodp,
   parseSlideSize,
   parseSlideSizeType
 } from "./pptx-master-logo.js";
@@ -124,14 +128,15 @@ export function postProcessSlidesPptx(pptxPathOrBuffer, options = {}) {
     )
   );
   const effectiveSize = applySlideSize ? intendedSize : realSize;
+  const themeId = parseMasterThemeIdFromFodp(options.sourceFodp);
 
-  if (!applyLogo && !applySections && !applyShow && !applySlideSize) return source;
+  if (!applyLogo && !themeId && !applySections && !applyShow && !applySlideSize) return source;
 
   if (applySlideSize && presentationXml) {
     presentationXml = applyIntendedSlideSize(presentationXml, intendedSize);
   }
 
-  if (applyLogo) {
+  if (applyLogo || themeId) {
     for (const listed of listZipEntries(source)) {
       if (!SLIDE_MASTER_ENTRY_RE.test(listed.name)) continue;
       const current = readZipEntry(source, listed.name);
@@ -139,13 +144,14 @@ export function postProcessSlidesPptx(pptxPathOrBuffer, options = {}) {
         throw new Error(`PPTX thiếu ${listed.name} — không thể bổ sung logo Slide Master`);
       }
       const xml = current.toString("utf8");
-      const next = applyMasterLogoShape(xml, {
+      let next = applyLogo ? applyMasterLogoShape(xml, {
         logoText: logo.logoText,
         accentColor: logo.accentColor,
         fontFamily: logo.fontFamily,
         slideCx: effectiveSize.cx,
         slideCy: effectiveSize.cy
-      });
+      }) : xml;
+      if (themeId) next = applyMasterThemeId(next, themeId);
       if (next !== xml) replacements[listed.name] = next;
     }
   }
@@ -219,6 +225,11 @@ export function overlaySlidesPptxFodp(pptxPathOrBuffer, fodpXml) {
     masters.push(entry.toString("utf8"));
   }
   xml = overlayFodpMasterLogo(xml, masters);
+  const themeIds = [...new Set(masters.map(parseMasterThemeId).filter(Boolean))];
+  if (themeIds.length === 1) {
+    const master = masters.find(item => parseMasterThemeId(item) === themeIds[0]);
+    xml = overlayFodpMasterThemeId(xml, master);
+  }
   let props;
   try {
     props = readZipEntry(source, PPTX_PRESPROPS_ENTRY);
