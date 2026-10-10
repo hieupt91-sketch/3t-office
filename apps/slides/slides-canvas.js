@@ -1715,6 +1715,30 @@ export class SlidesCanvasController {
       this._updateSelectionUi();
       return true;
     }
+    if (shape.groupId) {
+      const slide = this.slides[this.currentSlideIndex];
+      const groups = Array.isArray(slide?.groups) ? slide.groups : [];
+      let rootId = shape.groupId;
+      while (groups.find(group => group.id === rootId)?.parentId) {
+        rootId = groups.find(group => group.id === rootId).parentId;
+      }
+      const groupIds = new Set([rootId]);
+      let expanded = true;
+      while (expanded) {
+        expanded = false;
+        for (const group of groups) {
+          if (groupIds.has(group.parentId) && !groupIds.has(group.id)) {
+            groupIds.add(group.id);
+            expanded = true;
+          }
+        }
+      }
+      const ids = (slide?.shapes || []).filter(item => groupIds.has(item.groupId)).map(item => String(item.id));
+      this.selectedShapeIds = new Set(ids);
+      this.selectedTarget = String(shape.id);
+      this._updateSelectionUi();
+      return true;
+    }
     if (shape.diagramGroupId) {
       return this.selectDiagramGroup(shape.diagramGroupId, shape.id);
     }
@@ -5041,6 +5065,8 @@ const startEditing = (initialText) => {
           if (this.diagramGroupSelectionId !== shape.diagramGroupId) {
             this.selectDiagramGroup(shape.diagramGroupId, shape.id);
           }
+        } else if (shape.groupId && !this.selectedShapeIds.has(String(shape.id))) {
+          this.selectShapeFromUserClick(shape, event);
         } else if (!this.selectedShapeIds.has(String(shape.id))) {
           this.setSelectedTarget(shape.id);
         }
@@ -5394,6 +5420,14 @@ const startEditing = (initialText) => {
         this.insertHyperlink();
         return;
       }
+
+      if ((e.ctrlKey || e.metaKey) && (e.key === "g" || e.key === "G")) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.shiftKey) this.ungroupSelectedShapes();
+        else this.groupSelectedShapes();
+        return;
+      }
     };
 
     if (typeof window !== "undefined") {
@@ -5407,15 +5441,28 @@ const startEditing = (initialText) => {
     const selectedList = slide.shapes?.filter(s => this.selectedShapeIds.has(String(s.id)) && s.type !== "connector") || [];
     if (selectedList.length < 2) return false;
 
-    const newGroupId = `group-${Date.now()}`;
+    const newGroupId = `group-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const previousGroups = selectedList.map(s => ({ shapeId: s.id, groupId: s.groupId || null }));
-    selectedList.forEach(s => { s.groupId = newGroupId; });
+    const existingGroups = new Set(selectedList.map(shape => shape.groupId).filter(Boolean));
+    const groups = Array.isArray(slide.groups) ? slide.groups : (slide.groups = []);
+    const previousGroupParents = [];
+    for (const groupId of existingGroups) {
+      if (!groups.some(group => group.id === groupId)) groups.push({ id: groupId, parentId: null });
+      const group = groups.find(item => item.id === groupId);
+      previousGroupParents.push({ id: groupId, parentId: group.parentId || null });
+      group.parentId = newGroupId;
+    }
+    const newShapeIds = selectedList.filter(shape => !shape.groupId).map(shape => shape.id);
+    selectedList.forEach(shape => { if (!shape.groupId) shape.groupId = newGroupId; });
+    groups.push({ id: newGroupId, parentId: null });
 
     this.undoStack.push({
       type: "shapes-group",
       slideIndex: this.currentSlideIndex,
       groupId: newGroupId,
-      previousGroups
+      previousGroups,
+      previousGroupParents,
+      newShapeIds
     });
     this.redoStack = [];
     this._syncUndoRedoState();
@@ -5428,17 +5475,27 @@ const startEditing = (initialText) => {
     if (!slide || !this.selectedShapeIds || this.selectedShapeIds.size === 0) return false;
     const allShapes = slide.shapes || [];
     const selected = allShapes.filter(s => this.selectedShapeIds.has(String(s.id)));
-    const targetGroup = selected.find(s => s.groupId)?.groupId;
+    const groups = Array.isArray(slide.groups) ? slide.groups : [];
+    let targetGroup = selected.find(s => s.groupId)?.groupId;
+    while (targetGroup && groups.find(group => group.id === targetGroup)?.parentId) {
+      targetGroup = groups.find(group => group.id === targetGroup).parentId;
+    }
     if (!targetGroup) return false;
 
-    const groupShapes = allShapes.filter(s => s.groupId === targetGroup);
-    groupShapes.forEach(s => { s.groupId = null; });
+    const childGroups = groups.filter(group => group.parentId === targetGroup);
+    const previousChildParents = childGroups.map(group => ({ id: group.id, parentId: group.parentId || null }));
+    const groupShapes = allShapes.filter(shape => shape.groupId === targetGroup);
+    groupShapes.forEach(shape => { shape.groupId = null; });
+    childGroups.forEach(group => { group.parentId = null; });
+    slide.groups = groups.filter(group => group.id !== targetGroup);
 
     this.undoStack.push({
       type: "shapes-ungroup",
       slideIndex: this.currentSlideIndex,
       groupId: targetGroup,
-      shapeIds: groupShapes.map(s => s.id)
+      shapeIds: groupShapes.map(s => s.id),
+      childGroupIds: childGroups.map(group => group.id),
+      previousChildParents
     });
     this.redoStack = [];
     this._syncUndoRedoState();
@@ -7383,6 +7440,11 @@ const startEditing = (initialText) => {
         const s = slide.shapes?.find(item => String(item.id) === String(pg.shapeId));
         if (s) s.groupId = pg.groupId;
       });
+      slide.groups = (slide.groups || []).filter(group => group.id !== action.groupId);
+      for (const parent of action.previousGroupParents || []) {
+        const group = slide.groups.find(item => item.id === parent.id);
+        if (group) group.parentId = parent.parentId;
+      }
       this.redoStack.push(action);
       this.selectSlide(action.slideIndex);
       this._renderShapesLayer();
@@ -7394,6 +7456,12 @@ const startEditing = (initialText) => {
         const s = slide.shapes?.find(item => String(item.id) === String(id));
         if (s) s.groupId = action.groupId;
       });
+      slide.groups ||= [];
+      if (!slide.groups.some(group => group.id === action.groupId)) slide.groups.push({ id: action.groupId, parentId: null });
+      for (const parent of action.previousChildParents || []) {
+        const group = slide.groups.find(item => item.id === parent.id);
+        if (group) group.parentId = parent.parentId;
+      }
       this.redoStack.push(action);
       this.selectSlide(action.slideIndex);
       this._renderShapesLayer();
@@ -7703,9 +7771,19 @@ const startEditing = (initialText) => {
     } else if (action.type === "shapes-group") {
       const slide = this.slides[action.slideIndex];
       if (!slide) return false;
+      slide.groups ||= [];
+      for (const parent of action.previousGroupParents || []) {
+        const group = slide.groups.find(item => item.id === parent.id);
+        if (group) group.parentId = action.groupId;
+      }
+      if (!slide.groups.some(group => group.id === action.groupId)) slide.groups.push({ id: action.groupId, parentId: null });
+      action.newShapeIds?.forEach(id => {
+        const shape = slide.shapes?.find(item => String(item.id) === String(id));
+        if (shape) shape.groupId = action.groupId;
+      });
       action.previousGroups.forEach(pg => {
         const s = slide.shapes?.find(item => String(item.id) === String(pg.shapeId));
-        if (s) s.groupId = action.groupId;
+        if (s && pg.groupId) s.groupId = pg.groupId;
       });
       this.undoStack.push(action);
       this.selectSlide(action.slideIndex);
@@ -7718,6 +7796,10 @@ const startEditing = (initialText) => {
         const s = slide.shapes?.find(item => String(item.id) === String(id));
         if (s) s.groupId = null;
       });
+      for (const group of slide.groups || []) {
+        if (group.parentId === action.groupId) group.parentId = null;
+      }
+      slide.groups = (slide.groups || []).filter(group => group.id !== action.groupId);
       this.undoStack.push(action);
       this.selectSlide(action.slideIndex);
       this._renderShapesLayer();
