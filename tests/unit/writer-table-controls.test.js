@@ -494,6 +494,9 @@ export async function runWriterTableControlsTests() {
     // Hàng xen kẽ toggle
     adapter.toggleTableBandedRows();
     assert.ok(table.classList.contains("vno-table-banded-rows"));
+    assert.equal(table.rows[1].cells[0].style.backgroundColor, "#dbeafe", "Giữ màu nền xuất tài liệu; CSS theme tối chỉ ghi đè khi hiển thị trong ứng dụng");
+    adapter.toggleTableBandedRows();
+    assert.equal(table.classList.contains("vno-table-banded-rows"), false);
   });
 
   await test("Table editing: xóa toàn bộ bảng và dọn dẹp controller", () => {

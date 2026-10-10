@@ -8578,11 +8578,12 @@ export class WriterAdapter {
     const isBanded = table.classList.toggle("vno-table-banded-rows");
     for (let i = 1; i < table.rows.length; i++) {
       const row = table.rows[i];
-      const bg = isBanded && (i % 2 === 1) ? "#f8fafc" : "";
+      const backgroundColor = isBanded && i % 2 === 1 ? "#dbeafe" : "";
       for (const cell of row.cells) {
-        cell.style.backgroundColor = bg;
+        cell.style.backgroundColor = backgroundColor;
       }
     }
+    globalCommandBus.updateState("writer.table.toggleBandedRows", { checked: isBanded });
     this.isDirty = true;
     this.recordSnapshot("writer.table.toggleBandedRows");
     return true;
@@ -11614,15 +11615,20 @@ export class WriterAdapter {
       globalCommandBus.updateState("common.edit.formatPainter", { checked: true });
       this.editorDom?.classList?.add("vno-format-painter-active");
 
-      const onMouseUp = () => {
+      this._formatPainterMouseUpHandler = () => {
         setTimeout(() => {
           const activeSel = window.getSelection?.();
-          if (activeSel && !activeSel.isCollapsed && this.copiedFormat) {
-            this._applyCopiedFormat();
-          }
+          if (activeSel && !activeSel.isCollapsed && this.copiedFormat) this._applyCopiedFormat();
         }, 20);
       };
-      document.addEventListener("mouseup", onMouseUp, { once: true });
+      this._formatPainterKeyHandler = (event) => {
+        if (event.key !== "Escape" || !this.copiedFormat) return;
+        event.preventDefault();
+        event.stopPropagation();
+        this._clearFormatPainter();
+      };
+      document.addEventListener("mouseup", this._formatPainterMouseUpHandler, true);
+      document.addEventListener("keydown", this._formatPainterKeyHandler, true);
       return true;
     } else {
       const sel = window.getSelection?.();
@@ -11664,6 +11670,12 @@ export class WriterAdapter {
   }
 
   _clearFormatPainter() {
+    if (typeof document !== "undefined") {
+      if (this._formatPainterMouseUpHandler) document.removeEventListener("mouseup", this._formatPainterMouseUpHandler, true);
+      if (this._formatPainterKeyHandler) document.removeEventListener("keydown", this._formatPainterKeyHandler, true);
+    }
+    this._formatPainterMouseUpHandler = null;
+    this._formatPainterKeyHandler = null;
     this.copiedFormat = null;
     globalCommandBus.updateState("common.edit.formatPainter", { checked: false });
     this.editorDom?.classList?.remove("vno-format-painter-active");
@@ -19006,6 +19018,13 @@ export class WriterAdapter {
   }
 
   insertBibliography(range = null) {
+    if (!this.citationSources?.length || !this._usedCitationSourceIds().length) {
+      this.shell?.showNotification?.({
+        type: "info",
+        message: "Chưa có nguồn được trích dẫn để tạo Thư mục tài liệu. Hãy thêm nguồn ở Tham chiếu > Quản lý nguồn, chèn trích dẫn vào văn bản rồi thử lại."
+      });
+      return false;
+    }
     this.flushTyping();
     const html = `<section class="vno-bibliography" data-vno-bibliography="true" contenteditable="false">${this._bibliographyInnerHtml()}</section>`;
     this._insertCitationHtmlAtRange(html, range || this._captureCitationRange());

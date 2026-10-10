@@ -112,6 +112,11 @@
   border-bottom-color: var(--vno-slides-primary-fg, #fb923c);
 }
 
+/* Context tabs (for example Writer's Table tabs) must retain the high contrast active color. */
+[data-theme="dark"] .vno-ribbon-tabs .vno-ribbon-tab.is-active {
+  color: var(--vno-app-current-fg, var(--vno-writer-primary-fg, #60a5fa)) !important;
+}
+
 /* Nút thu gọn/mở rộng Ribbon — đẩy sát góc phải, giống chevron Word/Excel thật */
 .vno-ribbon-collapse-btn {
   margin-left: auto;

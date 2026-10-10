@@ -95,6 +95,8 @@ export class RibbonHost {
   render() {
     closeActiveDropdown();
     this._closeGroupPopover();
+    const activeElement = typeof document !== "undefined" ? document.activeElement : null;
+    const focusedTabId = activeElement && this.container?.contains?.(activeElement) ? activeElement.dataset?.tabId : null;
     // Tab ngữ cảnh (Thiết kế/Bố cục Bảng, Định dạng Hình ảnh) chỉ hiện khi app bật; dựng lại ribbon không được làm chúng hiện ra.
     const previousHidden = new Map(Array.from(this.container.querySelectorAll(".vno-ribbon-tab[id]"), (btn) => [btn.id, btn.hidden]));
     this.container.innerHTML = "";
@@ -105,6 +107,31 @@ export class RibbonHost {
     tabsBar.className = "vno-ribbon-tabs";
     tabsBar.setAttribute("role", "tablist");
     tabsBar.setAttribute("aria-label", "Các thanh công cụ");
+
+    const tabStrip = document.createElement("div");
+    tabStrip.className = "vno-ribbon-tab-strip";
+    const createTabScrollButton = (direction, label) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `vno-ribbon-tab-scroll-btn is-${direction}`;
+      button.setAttribute("aria-label", label);
+      button.title = label;
+      button.textContent = direction === "left" ? "‹" : "›";
+      button.addEventListener("click", () => {
+        tabsBar.scrollBy({ left: (direction === "left" ? -1 : 1) * Math.max(140, tabsBar.clientWidth * 0.7), behavior: "smooth" });
+        requestAnimationFrame(() => this._updateTabScrollControls());
+      });
+      return button;
+    };
+    const scrollLeftBtn = createTabScrollButton("left", "Cuộn thanh tab sang trái");
+    const scrollRightBtn = createTabScrollButton("right", "Cuộn thanh tab sang phải");
+    tabStrip.append(scrollLeftBtn, tabsBar, scrollRightBtn);
+    tabsBar.addEventListener("scroll", () => this._updateTabScrollControls(), { passive: true });
+    this._tabVisibilityObserver?.disconnect?.();
+    if (typeof MutationObserver !== "undefined") {
+      this._tabVisibilityObserver = new MutationObserver(() => requestAnimationFrame(() => this._updateTabScrollControls()));
+      this._tabVisibilityObserver.observe(tabsBar, { attributes: true, attributeFilter: ["hidden"], subtree: true });
+    }
 
     // Nút "Tệp" đặc biệt
     const fileBtn = document.createElement("button");
@@ -142,13 +169,26 @@ export class RibbonHost {
       tabBtn.setAttribute("aria-selected", String(isActive));
       tabBtn.setAttribute("aria-controls", `vno-ribbon-tabpanel-${tab.id}`);
       tabBtn.id = `vno-ribbon-tab-${tab.id}`;
+      tabBtn.dataset.tabId = tab.id;
       tabBtn.tabIndex = isActive ? 0 : -1;
       if (tab.contextual && !isActive) {
         tabBtn.hidden = previousHidden.has(tabBtn.id) ? previousHidden.get(tabBtn.id) : true;
         tabBtn.setAttribute("aria-hidden", String(tabBtn.hidden));
       }
 
-      tabBtn.addEventListener("click", () => this.selectTab(tab.id));
+      tabBtn.addEventListener("click", () => {
+        this.selectTab(tab.id);
+        const focusSelectedTab = () => {
+          const currentTab = this.container.querySelector(`#vno-ribbon-tab-${tab.id}`);
+          currentTab?.focus?.();
+          currentTab?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+        };
+        focusSelectedTab();
+        requestAnimationFrame(focusSelectedTab);
+        // The browser's default click action can still target the removed button after render().
+        // Restore focus in the next task as well so keyboard navigation starts from the new tab.
+        setTimeout(focusSelectedTab, 0);
+      });
       // Nhấp đúp vào tab (giống Word/Excel thật) thu gọn/mở rộng Ribbon
       tabBtn.addEventListener("dblclick", (e) => {
         e.preventDefault();
@@ -157,7 +197,7 @@ export class RibbonHost {
 
       // Hỗ trợ phím mũi tên điều hướng giữa các tab chuẩn WAI-ARIA
       tabBtn.addEventListener("keydown", (e) => {
-        const tabButtons = Array.from(tabsBar.querySelectorAll(".vno-ribbon-tab"));
+        const tabButtons = Array.from(tabsBar.querySelectorAll(".vno-ribbon-tab")).filter(button => !button.hidden);
         const currentIndex = tabButtons.indexOf(tabBtn);
         let targetIndex = -1;
 
@@ -187,12 +227,13 @@ export class RibbonHost {
           targetIndex = tabButtons.length - 1;
         }
 
-        if (targetIndex !== -1 && this.tabs[targetIndex]) {
-          const targetTabId = this.tabs[targetIndex].id;
+        if (targetIndex !== -1 && tabButtons[targetIndex]) {
+          const targetTabId = tabButtons[targetIndex].dataset.tabId;
           this.selectTab(targetTabId);
           const newTabBtn = this.container.querySelector?.(`#vno-ribbon-tab-${targetTabId}`)
             || this.container.querySelectorAll?.(".vno-ribbon-tab")?.[targetIndex];
           newTabBtn?.focus?.();
+          newTabBtn?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
         }
       });
 
@@ -203,9 +244,16 @@ export class RibbonHost {
     const collapseBtn = createCommandButton({ commandId: "common.view.ribbonToggle", iconOnly: true });
     collapseBtn.classList.add("vno-ribbon-collapse-btn");
     collapseBtn.setAttribute("aria-expanded", String(!this.isCollapsed));
-    tabsBar.appendChild(collapseBtn);
+    tabStrip.appendChild(collapseBtn);
 
-    this.container.appendChild(tabsBar);
+    this.container.appendChild(tabStrip);
+    this._updateTabScrollControls();
+    requestAnimationFrame(() => this._updateTabScrollControls());
+    if (focusedTabId) {
+      const restoredTab = this.container.querySelector(`#vno-ribbon-tab-${focusedTabId}`);
+      restoredTab?.focus?.();
+      restoredTab?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+    }
 
     // 2. Render Active Tab Content
     const currentTab = this.tabs.find(t => t.id === this.activeTabId);
@@ -398,6 +446,7 @@ export class RibbonHost {
    * Đảm bảo KHÔNG BAO GIỜ cuộn ngang ở chiều rộng >= 1024px.
    */
   updateAdaptiveLayout() {
+    this._updateTabScrollControls();
     if (this.isCollapsed) return;
     const contentPanel = this.container?.querySelector?.(".vno-ribbon-content");
     if (!contentPanel) return;
@@ -456,6 +505,16 @@ export class RibbonHost {
         if (contentPanel.scrollWidth <= contentPanel.clientWidth + 1) return;
       }
     }
+  }
+
+  _updateTabScrollControls() {
+    const tabsBar = this.container?.querySelector?.(".vno-ribbon-tabs");
+    const left = this.container?.querySelector?.(".vno-ribbon-tab-scroll-btn.is-left");
+    const right = this.container?.querySelector?.(".vno-ribbon-tab-scroll-btn.is-right");
+    if (!tabsBar || !left || !right) return;
+    const overflowing = tabsBar.scrollWidth > tabsBar.clientWidth + 1;
+    left.hidden = !overflowing || tabsBar.scrollLeft <= 1;
+    right.hidden = !overflowing || tabsBar.scrollLeft + tabsBar.clientWidth >= tabsBar.scrollWidth - 1;
   }
 
   _closeGroupPopover() {

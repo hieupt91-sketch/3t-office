@@ -216,7 +216,8 @@ export const WRITER_HELP_ENTRIES = [
       "Chọn kiểu APA hoặc MLA trên hộp Kiểu trích dẫn.",
       "Nhấn Quản lý nguồn để thêm nguồn mới (tác giả, tiêu đề, năm, nhà xuất bản, URL), sửa hoặc xóa, rồi Áp dụng.",
       "Đặt con trỏ tại chỗ cần chú thích, nhấn Chèn trích dẫn, chọn nguồn rồi Chèn. Nếu chưa có nguồn, dùng Thêm nguồn mới ngay trong hộp thoại.",
-      "Đặt con trỏ ở cuối tài liệu (hoặc vị trí muốn in danh mục), nhấn Thư mục tài liệu để chèn danh sách đã định dạng."
+      "Đặt con trỏ ở cuối tài liệu (hoặc vị trí muốn in danh mục), nhấn Thư mục tài liệu để chèn danh sách đã định dạng.",
+      "Thư mục chỉ được tạo khi tài liệu có ít nhất một trích dẫn. Nếu chưa có, dùng Quản lý nguồn để thêm nguồn, chèn trích dẫn vào văn bản rồi thử lại; ứng dụng sẽ báo rõ khi chưa đủ nguồn thay vì chèn danh mục rỗng."
     ]
   },
   {
@@ -1059,7 +1060,8 @@ export const WRITER_HELP_ENTRIES = [
       "Bôi đen đoạn văn bản hoặc chọn đối tượng (bảng, hình ảnh) cần thao tác.",
       "Mở tab Trang đầu, nhóm Bảng nhớ tạm: nhấn Cắt (Ctrl+X) để di chuyển hoặc Sao chép (Ctrl+C) để nhân bản. Các phím Ctrl+X, Ctrl+C và Ctrl+V cũng dùng trực tiếp trong vùng soạn thảo.",
       "Đặt con trỏ tại vị trí đích trong tài liệu rồi nhấn Dán (Ctrl+V). Khi sao chép nội dung từ phần mềm soạn thảo khác (định dạng .docx), tiêu đề, chữ đậm, danh sách và bảng được giữ theo định dạng nguồn; nếu clipboard chỉ có văn bản, nội dung được dán dưới dạng chữ thuần.",
-      "Để sao chép kiểu dáng chữ: bôi đen đoạn mẫu có định dạng ưng ý, nhấn Sao chép định dạng (Ctrl+Shift+C), sau đó quét chuột qua vùng văn bản cần áp dụng kiểu dáng.",
+      "Để sao chép kiểu dáng chữ: bôi đen đoạn mẫu có định dạng ưng ý, nhấn Sao chép định dạng (Ctrl+Shift+C), sau đó quét chuột qua vùng văn bản cần áp dụng kiểu dáng. Chổi tự tắt sau một lần áp dụng.",
+      "Nhấn Esc để hủy chổi định dạng khi chưa áp dụng; nút Sao chép định dạng sáng khi chổi đang bật và tắt khi hủy hoặc áp dụng xong.",
       "Có thể dùng Ctrl+Z để hoàn tác hoặc Ctrl+Y để làm lại mọi thao tác trên."
     ]
   },
