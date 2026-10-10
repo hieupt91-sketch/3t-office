@@ -61,6 +61,15 @@ export async function clickCommand(cdp, commandId) {
   await sleep(250);
 }
 
+export async function switchRibbonTab(cdp, tabId) {
+  await cdp.evaluate(`(() => {
+    const btn = document.querySelector('#vno-ribbon-tab-' + ${JSON.stringify(tabId)}) || document.querySelector('[data-tab-id="' + ${JSON.stringify(tabId)} + '"]');
+    if (btn) btn.click();
+    else if (window.__vnoAppInstance?.shell?.ribbonHost) window.__vnoAppInstance.shell.ribbonHost.selectTab(${JSON.stringify(tabId)});
+  })()`);
+  await sleep(300);
+}
+
 export async function clickDropdown(cdp, dropdownId, itemCommandId) {
   await cdp.evaluate(`(() => {
     const toggle = document.querySelector('[data-dropdown-id="${dropdownId}"], [data-dropdown-toggle="${dropdownId}"]');
