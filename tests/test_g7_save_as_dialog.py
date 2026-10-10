@@ -15,9 +15,9 @@ import main
 class SaveAsDialogTests(unittest.TestCase):
     def test_current_format_filter_is_listed_first(self):
         cases = {
-            ("writer", "doc"): "Văn bản Word 97-2003 (*.doc)",
+            ("writer", "doc"): "Văn bản Word 97 đến 2003 (*.doc)",
             ("writer", "docx"): "Tài liệu Word (*.docx)",
-            ("sheet", "xls"): "Bảng tính Excel 97-2003 (*.xls)",
+            ("sheet", "xls"): "Bảng tính Excel 97 đến 2003 (*.xls)",
             ("sheet", "csv"): "Văn bản phân tách dấu phẩy (*.csv)",
             ("slides", "odp"): "Bản trình chiếu ODF (*.odp)",
         }
@@ -47,7 +47,7 @@ class SaveAsDialogTests(unittest.TestCase):
             kwargs = window.create_file_dialog.call_args.kwargs
             self.assertEqual(kwargs["save_filename"], "Báo cáo")
             self.assertEqual(kwargs["directory"], temp_dir)
-            self.assertEqual(kwargs["file_types"][0], "Bảng tính Excel 97-2003 (*.xls)")
+            self.assertEqual(kwargs["file_types"][0], "Bảng tính Excel 97 đến 2003 (*.xls)")
 
     def test_new_document_save_as_has_no_folder_and_default_format_first(self):
         api = main.VnOfficeApi(app_kind="writer")
