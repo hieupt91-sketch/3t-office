@@ -1215,7 +1215,7 @@ export const WRITER_HELP_ENTRIES = [
       "Cắt: Ctrl+X  |  Sao chép: Ctrl+C  |  Dán: Ctrl+V  |  Chọn tất cả: Ctrl+A",
       "Tìm kiếm: Ctrl+F  |  Thay thế: Ctrl+H",
       "Chữ đậm: Ctrl+B  |  Chữ nghiêng: Ctrl+I  |  Gạch chân: Ctrl+U",
-      "Các phím tắt khác hữu ích: Ctrl+L/E/R/J (căn trái/giữa/phải/đều), Ctrl+Shift+>/< (tăng/giảm cỡ chữ), Ctrl+Enter (ngắt trang), Ctrl+M (thụt lề), Ctrl+Shift+M (giảm thụt), Ctrl+1/2/5 (giãn dòng 1.0/2.0/1.5), Shift+F3 (đổi chữ hoa/thường), Ctrl+K (liên kết), Ctrl+Home/End (đầu/cuối tài liệu), Ctrl+]/[ (tăng/giảm cỡ 1 pt)."
+      "Các phím tắt khác hữu ích: Ctrl+L/E/R/J (căn trái/giữa/phải/đều), Ctrl+Shift+P (chọn cỡ chữ), Ctrl+Shift+>/< (tăng/giảm cỡ chữ), Ctrl+Shift+L (dấu đầu dòng), Ctrl+* (hiện/ẩn ký tự định dạng), Ctrl+Alt+H (màu nền chữ), Ctrl+Enter (ngắt trang), Ctrl+M (thụt lề), Ctrl+Shift+M (giảm thụt), Ctrl+1/2/5 (giãn dòng 1.0/2.0/1.5), Shift+F3 (đổi chữ hoa/thường), Ctrl+K (liên kết), Ctrl+Home/End (đầu/cuối tài liệu), Ctrl+]/[ (tăng/giảm cỡ 1 pt)."
     ]
   },
   {

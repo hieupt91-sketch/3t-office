@@ -94,12 +94,12 @@ export const WRITER_COMMANDS = [
   { id: "writer.style.normal", category: "format", label: "Kiểu Thường", shortcut: "Ctrl+Shift+N", icon: "clearFormat", tooltip: "Áp dụng kiểu Normal chuẩn (Ctrl+Shift+N)" },
   { id: "writer.text.changeCase", category: "format", label: "Đổi chữ hoa/thường", shortcut: "Shift+F3", icon: "changeCase", tooltip: "Chuyển đổi chữ hoa / thường / Tiêu đề (Shift+F3)" },
   { id: "writer.font.family", category: "format", label: "Phông chữ", shortcut: "Ctrl+Shift+F", tooltip: "Chọn phông chữ (Ctrl+Shift+F)" },
-  { id: "writer.font.size", category: "format", label: "Cỡ chữ", tooltip: "Chọn cỡ chữ" },
+  { id: "writer.font.size", category: "format", label: "Cỡ chữ", shortcut: "Ctrl+Shift+P", tooltip: "Chọn cỡ chữ (Ctrl+Shift+P)" },
   { id: "writer.style.apply", category: "format", label: "Kiểu dáng", tooltip: "Áp dụng kiểu đoạn văn (Normal, Heading 1, 2, 3, Quote, Emphasis)" },
   { id: "writer.style.gallery", category: "format", label: "Thư viện kiểu", icon: "styleGallery", tooltip: "Mở thư viện kiểu định dạng trực quan (Styles Gallery)" },
   { id: "writer.design.themeGallery", category: "format", label: "Chủ đề văn bản", icon: "themeGallery", tooltip: "Mở thư viện chủ đề định dạng tài liệu (Document Themes)" },
   { id: "writer.color.text", category: "format", label: "Màu chữ", icon: "colorText", tooltip: "Đổi màu phông chữ" },
-  { id: "writer.color.highlight", category: "format", label: "Màu nền chữ", icon: "colorHighlight", tooltip: "Tô màu nền văn bản" },
+  { id: "writer.color.highlight", category: "format", label: "Màu nền chữ", shortcut: "Ctrl+Alt+H", icon: "colorHighlight", tooltip: "Tô màu nền văn bản (Ctrl+Alt+H)" },
 
   // Định dạng đoạn văn (Paragraph)
   { id: "writer.para.alignLeft", category: "paragraph", label: "Căn trái", shortcut: "Ctrl+L", icon: "alignLeft", tooltip: "Căn lề trái (Ctrl+L)", isToggle: true },
@@ -113,7 +113,7 @@ export const WRITER_COMMANDS = [
   { id: "writer.para.spacingBefore", category: "paragraph", label: "Khoảng trước đoạn", icon: "spacingBefore", tooltip: "Khoảng cách trước đoạn văn (đơn vị pt)" },
   { id: "writer.para.spacingAfter", category: "paragraph", label: "Khoảng sau đoạn", icon: "spacingAfter", tooltip: "Khoảng cách sau đoạn văn (đơn vị pt)" },
   { id: "writer.para.firstLineIndent", category: "paragraph", label: "Thụt đầu dòng", icon: "indentInc", tooltip: "Đặt khoảng thụt của dòng đầu đoạn văn" },
-  { id: "writer.list.bullet", category: "paragraph", label: "Dấu đầu dòng", icon: "listBullet", tooltip: "Tạo danh sách dấu chấm tròn", isToggle: true },
+  { id: "writer.list.bullet", category: "paragraph", label: "Dấu đầu dòng", shortcut: "Ctrl+Shift+L", icon: "listBullet", tooltip: "Tạo danh sách dấu chấm tròn (Ctrl+Shift+L)", isToggle: true },
   { id: "writer.list.numbered", category: "paragraph", label: "Đánh số", icon: "listNumber", tooltip: "Tạo danh sách đánh số thứ tự", isToggle: true },
   { id: "writer.list.restartNumbering", category: "paragraph", label: "Đánh số lại từ 1", icon: "listNumber", tooltip: "Bắt đầu lại việc đánh số thứ tự từ 1" },
   { id: "writer.list.continueNumbering", category: "paragraph", label: "Tiếp tục đánh số", icon: "listNumber", tooltip: "Tiếp tục đánh số từ danh sách trước đó" },
@@ -123,7 +123,7 @@ export const WRITER_COMMANDS = [
   { id: "writer.para.moveUp", category: "paragraph", label: "Di chuyển đoạn lên", shortcut: "Alt+Shift+Up", icon: "indentInc", tooltip: "Di chuyển đoạn văn lên trên (Alt+Shift+Up)" },
   { id: "writer.para.moveDown", category: "paragraph", label: "Di chuyển đoạn xuống", shortcut: "Alt+Shift+Down", icon: "indentDec", tooltip: "Di chuyển đoạn văn xuống dưới (Alt+Shift+Down)" },
   { id: "writer.para.sort", category: "paragraph", label: "Sắp xếp", icon: "paragraphSort", tooltip: "Sắp xếp danh sách hoặc đoạn văn theo A–Z" },
-  { id: "writer.para.showFormattingMarks", category: "paragraph", label: "Hiện/ẩn ký tự định dạng", icon: "formattingMarks", tooltip: "Hiện hoặc ẩn dấu đoạn và xuống dòng", isToggle: true },
+  { id: "writer.para.showFormattingMarks", category: "paragraph", label: "Hiện/ẩn ký tự định dạng", shortcut: "Ctrl+*", icon: "formattingMarks", tooltip: "Hiện hoặc ẩn dấu đoạn và xuống dòng (Ctrl+*)", isToggle: true },
   { id: "writer.para.shading", category: "paragraph", label: "Tô nền đoạn", icon: "paragraphShading", tooltip: "Tô màu nền đoạn văn hoặc ô bảng" },
   { id: "writer.para.borders", category: "paragraph", label: "Viền đoạn", icon: "paragraphBorders", tooltip: "Chọn viền đoạn văn hoặc ô bảng" },
 

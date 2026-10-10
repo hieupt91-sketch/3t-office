@@ -189,6 +189,9 @@ export class ShortcutManager {
     if (!cmdId && (e.shiftKey || keyName === "~")) {
       cmdId = this._shortcuts.get(combo.replace("~", "`"));
     }
+    if (!cmdId && e.shiftKey && combo.startsWith("CTRL+SHIFT+")) {
+      cmdId = this._shortcuts.get(combo.replace("CTRL+SHIFT+", "CTRL+"));
+    }
 
     if (cmdId) {
       const state = globalCommandBus.getState?.(cmdId);

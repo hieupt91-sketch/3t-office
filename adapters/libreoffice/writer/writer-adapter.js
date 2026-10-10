@@ -7278,7 +7278,12 @@ export class WriterAdapter {
       case "writer.font.size":
         // 1–7 là chỉ số cũ của execCommand; mọi giá trị khác là số pt thật (8–72 từ ô Cỡ chữ).
         if (Number.isFinite(Number(args)) && Number(args) > 0 && !(Number.isInteger(Number(args)) && Number(args) <= 7)) return this._applyFontSizePt(Number(args));
-        if (args) document.execCommand("fontSize", false, args);
+        if (args) {
+          document.execCommand("fontSize", false, args);
+        } else {
+          const sizeSelect = document.querySelector('select[data-command-id="writer.font.size"]');
+          if (sizeSelect) sizeSelect.focus();
+        }
         dispatchResult = true;
         break;
 
