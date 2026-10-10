@@ -27,6 +27,47 @@ try {
     const pass = beforeKey.buttons.length === 4 && beforeKey.buttons.every(b => b.height > 0 && b.top >= beforeKey.viewport.top && b.bottom <= beforeKey.viewport.bottom) && afterKey.heights.length === 4 && afterKey.heights.every(h => h > 0) && afterKey.selectedCells === 4;
     check("U7 chuột + phím: nhóm Bảng hiển thị đủ bốn nút và Chọn hàng chạy", pass, { cdpPort: session.debugPort, beforeKey, afterKey });
   }
+  if (!selected.size || selected.has("2")) {
+    const hasTable = await cdp.evaluate("!!document.querySelector('.vno-writer-body table')");
+    if (!hasTable) {
+      await click(cdp, "#vno-ribbon-tab-insert");
+      await click(cdp, '[data-command-id="writer.table.insert"]');
+      await sleep(300);
+    }
+    await cdp.evaluate(`(() => {
+      const table = document.querySelector('.vno-writer-body table');
+      if (!table) throw new Error('Thiếu bảng desktop test');
+      [...table.rows].forEach((row, ri) => [...row.cells].forEach((cell, ci) => { cell.textContent = 'R' + (ri + 1) + 'C' + (ci + 1); }));
+    })()`);
+    const cell = await cdp.evaluate(`(() => { const r=document.querySelector('.vno-writer-body table td')?.getBoundingClientRect(); return r&&{x:r.left+r.width/2,y:r.top+r.height/2}; })()`);
+    await cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", x: cell.x, y: cell.y, button: "left", buttons: 1, clickCount: 1 });
+    await cdp.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: cell.x, y: cell.y, button: "left", buttons: 0, clickCount: 1 });
+    await click(cdp, "#vno-ribbon-tab-tableLayout");
+    await click(cdp, '[data-command-id="writer.table.mergeCells"]');
+    const mergeNotice = await cdp.evaluate(`(() => ({message:document.querySelector('.vno-notification-bar-message')?.textContent||'', rows:document.querySelector('.vno-writer-body table')?.rows.length, cells:document.querySelector('.vno-writer-body table')?.rows[0]?.cells.length}))()`);
+    check("U11 chuột: Gộp ô khi chưa chọn nhiều hiện hướng dẫn ngắn", /ít nhất hai ô liền kề/.test(mergeNotice.message) && mergeNotice.rows === 3 && mergeNotice.cells === 4, { cdpPort: session.debugPort, mergeNotice });
+
+    await click(cdp, '[data-command-id="writer.table.selectRow"]');
+    const rowSelection = await cdp.evaluate(`(() => ({text:getSelection().toString(), selected:[...document.querySelectorAll('.is-vno-cell-selected')].map(c=>c.textContent)}))()`);
+    await cdp.evaluate(`window.__t5Copied=''; document.addEventListener('copy',e=>{window.__t5Copied=e.clipboardData?.getData('text/plain')||getSelection().toString();},{once:true});`);
+    await press(cdp, "c", { ctrl: true });
+    const copied = await cdp.evaluate("window.__t5Copied");
+    check("U12 chuột + Ctrl+C: chọn hàng tạo vùng văn bản có thể sao chép", rowSelection.text.replace(/\s/g, "") === "R1C1R1C2R1C3R1C4" && /R1C1/.test(copied) && /R1C4/.test(copied), { rowSelection, copied });
+
+    const start = await cdp.evaluate(`(() => { const r=document.querySelector('.vno-writer-body table td')?.getBoundingClientRect(); return r&&{x:r.left+r.width/2,y:r.top+r.height/2}; })()`);
+    await cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", x: start.x, y: start.y, button: "left", buttons: 1, clickCount: 1 });
+    await cdp.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: start.x, y: start.y, button: "left", buttons: 0, clickCount: 1 });
+    await press(cdp, " ", { shift: true });
+    const shortcut = await cdp.evaluate(`(() => ({text:getSelection().toString(), selected:document.querySelectorAll('.is-vno-cell-selected').length}))()`);
+    await press(cdp, "b", { ctrl: true });
+    const formatted = await cdp.evaluate(`(() => ({html:document.querySelector('.vno-writer-body table tr')?.innerHTML, text:getSelection().toString()}))()`);
+    check("U12 Shift+Space + Ctrl+B: chọn hàng bằng phím và áp định dạng", shortcut.text.replace(/\s/g, "") === "R1C1R1C2R1C3R1C4" && shortcut.selected === 4 && /<(b|strong)\b/i.test(formatted.html), { shortcut, formatted });
+    await cdp.evaluate("globalCommandBus.execute('writer.table.selectCol')");
+    const column = await cdp.evaluate(`(() => ({selected:document.querySelectorAll('.is-vno-cell-selected').length,text:getSelection().toString()}))()`);
+    await cdp.evaluate("globalCommandBus.execute('writer.table.selectTable')");
+    const wholeTable = await cdp.evaluate(`(() => ({selected:document.querySelectorAll('.is-vno-cell-selected').length,text:getSelection().toString()}))()`);
+    check("U12 chuột: chọn cột và bảng tô sáng, có vùng chọn văn bản", column.selected === 3 && column.text.includes("R1C1") && column.text.includes("R3C1") && wholeTable.selected === 12 && wholeTable.text.includes("R3C4"), { column, wholeTable });
+  }
   if (results.some(item => !item.pass)) process.exitCode = 1;
 } finally {
   await session.close();

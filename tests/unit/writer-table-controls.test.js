@@ -353,6 +353,55 @@ export async function runWriterTableControlsTests() {
     assert.equal(tableController.selectedCells.size, 0);
   });
 
+  await test("Table selection: chọn hàng tạo vùng văn bản và Shift+Space chọn hàng hiện tại", () => {
+    const { table, tableController } = setupMockEnvironment();
+    const ranges = [];
+    const selection = {
+      anchorNode: { nodeType: 1, closest: () => table.rows[0].cells[1] },
+      rangeCount: 0,
+      removeAllRanges() { this.rangeCount = 0; },
+      addRange(range) { ranges.push(range); this.rangeCount = 1; }
+    };
+    const previousDefaultView = global.document.defaultView;
+    const previousCreateRange = global.document.createRange;
+    const previousGetSelection = global.getSelection;
+    global.document.defaultView = { getSelection: () => selection };
+    global.getSelection = () => selection;
+    global.document.createRange = () => ({ setStart(node, offset) { this.start = [node, offset]; }, setEnd(node, offset) { this.end = [node, offset]; } });
+    try {
+      tableController.selectRow(table.rows[0].cells[1]);
+      assert.equal(ranges.length, 1);
+      assert.equal(ranges[0].start[0], table.rows[0].cells[0]);
+      assert.equal(ranges[0].end[0], table.rows[0].cells[2]);
+      assert.equal(tableController.selectedCells.size, 3);
+
+      let prevented = false;
+      tableController._handleKeyDown({
+        key: " ", shiftKey: true, ctrlKey: false, altKey: false, metaKey: false,
+        preventDefault() { prevented = true; }
+      });
+      assert.equal(prevented, true);
+      assert.equal(ranges.length, 2);
+      assert.equal(ranges[1].start[0], table.rows[0].cells[0]);
+      assert.equal(ranges[1].end[0], table.rows[0].cells[2]);
+    } finally {
+      global.document.defaultView = previousDefaultView;
+      global.document.createRange = previousCreateRange;
+      if (previousGetSelection === undefined) delete global.getSelection; else global.getSelection = previousGetSelection;
+    }
+  });
+
+  await test("Merge cells: chưa chọn ít nhất hai ô thì báo cách khắc phục", () => {
+    const { adapter, table, tableController } = setupMockEnvironment();
+    let notification = null;
+    adapter.shell = { showNotification(options) { notification = options; } };
+    tableController.activeTable = table;
+    tableController.selectedCells.clear();
+    assert.equal(adapter.mergeTableCells(), false);
+    assert.equal(notification?.type, "info");
+    assert.match(notification?.message || "", /ít nhất hai ô liền kề/i);
+  });
+
   await test("Table editing: chèn hàng phía trên và phía dưới", () => {
     const { table, adapter, tableController } = setupMockEnvironment();
     assert.equal(table.rows.length, 3);

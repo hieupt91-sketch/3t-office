@@ -1280,13 +1280,13 @@ export const WRITER_HELP_ENTRIES = [
       "writer.table.deleteTable"
     ],
     title: "Bố cục bảng: chọn vùng và xóa bảng",
-    summary: "Thao tác chọn nhanh ô, hàng, cột hoặc toàn bộ bảng, cũng như xóa toàn bộ bảng qua tab ngữ cảnh Bố cục Bảng.",
+    summary: "Chọn ô, hàng, cột hoặc toàn bộ bảng thành vùng văn bản để sao chép và định dạng; cũng có thể xóa toàn bộ bảng qua tab ngữ cảnh Bố cục Bảng.",
     ribbon: { tab: "Bố cục Bảng", tabId: "tableLayout", group: "Bảng" },
     keywords: ["bố cục bảng", "table layout", "chọn ô", "chọn hàng", "chọn cột", "chọn bảng", "xóa bảng", "tay cầm di chuyển bảng"],
     steps: [
       "Nhấp chuột vào một ô bất kỳ trong bảng để kích hoạt tab ngữ cảnh Bố cục Bảng trên thanh công cụ ribbon.",
-      "Trong nhóm Bảng, nhấp nút «Chọn ô» để bôi đen riêng ô đang chọn; nhấp «Chọn hàng» hoặc «Chọn cột» để chọn toàn bộ hàng hoặc cột chứa con trỏ.",
-      "Nhấp «Chọn bảng» hoặc bấm vào nút tay cầm 4 chiều xuất hiện ở góc trên bên trái bảng để chọn toàn bộ cấu trúc bảng và tất cả dữ liệu.",
+      "Trong nhóm Bảng, nhấp «Chọn ô» để chọn nội dung ô; nhấp «Chọn hàng» hoặc «Chọn cột» để bôi chọn vùng tương ứng. Khi con trỏ đang ở trong ô, nhấn Shift+Space để chọn nhanh hàng hiện tại.",
+      "Nhấp «Chọn bảng» hoặc bấm tay cầm 4 chiều ở góc trên bên trái bảng để chọn toàn bộ bảng. Vùng chọn có thể dùng với Sao chép và các lệnh định dạng trên ribbon.",
       "Nhấp «Xóa bảng» khi cần gỡ bỏ hoàn toàn bảng biểu khỏi tài liệu mà không để lại ô trống thừa. Nhấn Ctrl+Z nếu muốn khôi phục lại bảng."
     ]
   },
@@ -1329,7 +1329,7 @@ export const WRITER_HELP_ENTRIES = [
     ribbon: { tab: "Bố cục Bảng", tabId: "tableLayout", group: "Hợp nhất" },
     keywords: ["gộp ô", "tách ô", "merge cells", "split cells", "phân bố đều", "distribute rows", "distribute columns", "căn lề ô", "căn đỉnh", "căn giữa dọc", "căn đáy"],
     steps: [
-      "Kéo chuột quét chọn nhiều ô liền kề trong bảng, sau đó tại nhóm Hợp nhất trên tab Bố cục Bảng, nhấp «Gộp ô» để hợp nhất các ô thành một ô lớn. Nội dung chữ giữa các ô được nối lại tự động.",
+      "Kéo chuột quét chọn ít nhất hai ô liền kề trong bảng, sau đó tại nhóm Hợp nhất trên tab Bố cục Bảng, nhấp «Gộp ô» để hợp nhất thành một ô lớn. Nếu chưa chọn đủ hai ô, VN Writer sẽ báo cách khắc phục; nội dung chữ giữa các ô được nối lại tự động.",
       "Để tách ô đã gộp, đặt con trỏ vào ô đó rồi nhấp «Tách ô». Các ô trống được tạo lại theo số hàng và cột của vùng đã gộp; một lần Ctrl+Z hoàn tác lần tách vừa thực hiện.",
       "Trong nhóm Kích cỡ ô, nhấp «Phân bố đều hàng» để cân bằng chiều cao các dòng, hoặc «Phân bố đều cột» để chia lại chiều rộng các cột đều nhau 100%. Bạn cũng có thể rê chuột vào vạch ngăn giữa hai cột để kéo chuột chỉnh độ rộng từng cột tùy ý.",
       "Trong nhóm Căn lề ô, nhấp «Căn đỉnh ô», «Căn giữa dọc ô» hoặc «Căn đáy ô» để bố trí vị trí chữ theo chiều dọc bên trong ô theo đúng ý muốn."

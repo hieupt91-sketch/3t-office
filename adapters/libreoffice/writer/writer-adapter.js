@@ -8401,7 +8401,13 @@ export class WriterAdapter {
         if (spanned.length >= 2) cells = spanned;
       }
     }
-    if (cells.length < 2) return false;
+    if (cells.length < 2) {
+      this.shell?.showNotification?.({
+        type: "info",
+        message: "Hãy chọn ít nhất hai ô liền kề trong bảng trước khi gộp."
+      });
+      return false;
+    }
 
     let minRow = Infinity, maxRow = -1;
     let minCol = Infinity, maxCol = -1;
