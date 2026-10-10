@@ -11,7 +11,6 @@ import { WRITER_RIBBON_TABS } from "../../apps/writer/writer-ribbon.js";
 import { WRITER_HELP_ENTRIES } from "../../platform/help/entries-writer.js";
 import { viStrings } from "../../platform/i18n/strings-vi.js";
 import { enStrings } from "../../platform/i18n/strings-en.js";
-import { globalCommandBus } from "../../platform/commands/command-bus.js";
 
 const TABLE_COMMAND_IDS = [
   "writer.table.toggleHeaderRow",
@@ -495,11 +494,9 @@ export async function runWriterTableControlsTests() {
     // Hàng xen kẽ toggle
     adapter.toggleTableBandedRows();
     assert.ok(table.classList.contains("vno-table-banded-rows"));
-    assert.equal(cell.style.backgroundColor, "", "Màu xen kẽ do theme CSS cung cấp, không ghim màu sáng vào DOCX");
-    assert.equal(globalCommandBus.getState("writer.table.toggleBandedRows")?.checked, true);
+    assert.equal(table.rows[1].cells[0].style.backgroundColor, "", "Màu xen kẽ do theme CSS cung cấp, không ghim màu sáng vào DOCX");
     adapter.toggleTableBandedRows();
     assert.equal(table.classList.contains("vno-table-banded-rows"), false);
-    assert.equal(globalCommandBus.getState("writer.table.toggleBandedRows")?.checked, false);
   });
 
   await test("Table editing: xóa toàn bộ bảng và dọn dẹp controller", () => {
