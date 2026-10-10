@@ -14,7 +14,11 @@ Nhánh `audit/slides-functional-codex`; fixture gốc `E:\VN OFice\file test\sam
 | Ctrl+B / In đậm | Hộp tiêu đề nhập từ PPTX, bôi chọn từ `ROAD ` | Bật đậm cho phần chữ được chọn | HTML model có `<b>ROAD </b>` sau Ctrl+B | PASS | Ctrl+B | CDP bàn phím desktop; thao tác trong vùng contenteditable. |
 | Ctrl+I / In nghiêng | Hộp tiêu đề nhập từ PPTX, bôi chọn từ `ROAD ` | Bật nghiêng cho phần chữ được chọn | HTML model có `<i>ROAD </i>` sau Ctrl+I | PASS | Ctrl+I | Phiên độc lập từ fixture gốc. |
 | Ctrl+U / Gạch chân | Hộp tiêu đề nhập từ PPTX, bôi chọn từ `ROAD ` | Gạch chân phần chữ được chọn | HTML model có `<u>ROAD </u>` sau Ctrl+U | PASS | Ctrl+U | Phiên độc lập từ fixture gốc. |
-| Cỡ chữ, màu chữ/nền, căn lề, danh sách, giãn dòng | Chưa kiểm hiệu quả trên vùng văn bản được chọn | Cập nhật định dạng trong model và lưu PPTX | NOT RUN | NOT RUN | Chưa đo đủ | Chỉ xác nhận nút tồn tại không được tính là kết quả. |
+| Cỡ chữ | Chưa đo đổi cỡ cho phần chữ được chọn | Cỡ điểm đổi theo lựa chọn trong ribbon | NOT RUN | NOT RUN | Dropdown đã hiện cỡ gốc 48 pt; chưa đo được thao tác chọn giá trị khác bằng chuột/phím. |
+| Màu chữ / màu nền chữ | Bôi chọn `ROAD ` trong hộp chữ | Áp dụng màu cho phần chọn | Model đổi màu chữ sang `#dc2626`; nền chữ sang `#ffcd00` sau click ribbon | PASS | NOT RUN | Chỉ có màu preset; palette tùy chọn vẫn là gap U-L2/U-L3 trong backlog. |
+| Căn phải | Bôi chọn `ROAD ` trong hộp chữ | Căn phải đoạn chứa vùng chọn | Click ribbon làm HTML model có `text-align: right` | PASS | NOT RUN | CDP click nút đang hiển thị; giữ lựa chọn trong editor. |
+| Dấu đầu dòng | Bôi chọn đoạn trong hộp chữ | Chuyển đoạn thành danh sách bullet | HTML model có `<ul><li>` sau click | PASS | NOT RUN | Kiểu dấu mặc định; các kiểu bullet khác vẫn ở backlog U-L5. |
+| Font family, giãn dòng, đánh số | Chưa đo thay đổi model sau khi chọn option | Áp dụng giá trị mới cho vùng chọn | NOT RUN | NOT RUN | Chưa kết luận từ việc các dropdown/nút xuất hiện. |
 
 
 
@@ -26,7 +30,7 @@ Nhánh `audit/slides-functional-codex`; fixture gốc `E:\VN OFice\file test\sam
 | Hình khối | Chèn > Hình khối, click canvas | Thêm hình vào slide tại vị trí chọn | Model tăng 1 đối tượng `rect` sau click | PASS | NOT RUN | Tọa độ canvas được đo; loại và số shape đọc từ model. |
 | Bảng | Chèn > Bảng, giữ mặc định 3×3, bấm Chèn | Thêm bảng có 3 hàng và 3 cột | Model có thêm `table`; giữ sau lưu và mở lại; slide XML có `graphicFrame` | PASS | NOT RUN | File đầu ra là bản sao trong profile audit. |
 | Biểu đồ | Chèn > Biểu đồ, mặc định Cột, bấm Chèn | Đóng hộp thoại và thêm biểu đồ vào slide | Tái hiện ban đầu: exception `ReferenceError: numeric is not defined`, model không tăng và PPTX thiếu chart part. Sau sửa, model có `chart`, PPTX có `ppt/charts/chart1.xml`, mở lại giữ biểu đồ | PASS (sau sửa) | NOT RUN | Lỗi và sửa ở `apps/slides/slides-chart.js`; CDP cổng 56225, profile riêng. `slides-charts.playwright.mjs` NOT RUN: thiếu gói Playwright tại đường dẫn cấu hình. |
-| Hình ảnh | Chèn > Hình ảnh | Chọn ảnh cục bộ và thêm vào slide | NOT RUN | BLOCKED | NOT RUN | Nút gọi hộp thoại native; CDP không điều khiển hộp thoại hệ điều hành, không dùng SendKeys/OS input. |
+| Hình ảnh | Chèn > Hình ảnh, chọn ảnh JPEG cục bộ qua sự kiện file chooser CDP | Thêm ảnh vào slide và giữ sau lưu/mở lại | 3 → 4 ảnh trong model; sau mở lại đúng tệp có 4 ảnh; PPTX có media image mới | PASS | NOT RUN | `Page.fileChooserOpened` + `DOM.setFileInputFiles`; không dùng SendKeys/OS input. CDP cổng 63873. |
 
 
 ## Nhóm 3 — Thiết kế
