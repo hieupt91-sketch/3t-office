@@ -54,6 +54,7 @@ const COMMAND_SHORTCUTS = new Map(
 
 /** Shortcut cấp app bind trong app code (không phải command shortcut) — xem mô tả trên */
 const APP_LEVEL_BINDINGS = {
+  writer: { "Shift+Space": "writer.table.selectRow" },
   sheet: { "Shift+F2": "sheet.review.commentInsert", "Alt+Enter": "sheet.cell.insertLineBreak" },
   slides: { "Ctrl+Enter": "slides.review.commentInsert" }
 };
