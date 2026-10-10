@@ -391,7 +391,9 @@ export class SpellcheckDomController {
     if (!doc || typeof doc.createTreeWalker !== "function") return;
     const NodeFilterObj = globalThis.NodeFilter || { SHOW_TEXT: 4 };
     // Đang có kiểu "sắp gõ" (vừa bấm Ctrl+B/I/U chưa gõ chữ): đổi DOM + đặt lại vùng chọn sẽ làm mất nó. Lần gõ kế tiếp sẽ quét lại.
-    if (hasPendingTypingStyle(root, doc)) return;
+    // Chặn "kẹt mãi": nếu so sánh kiểu (màu/nền kế thừa...) báo nhầm là đang chờ thì chỉ hoãn tối đa vài lần liên tiếp.
+    if (hasPendingTypingStyle(root, doc) && (this._pendingDeferStreak = (this._pendingDeferStreak || 0) + 1) <= 3) return;
+    this._pendingDeferStreak = 0;
     const selection = captureSelectionBookmark(root);
     unwrapMarkers(scope);
     const walker = doc.createTreeWalker(scope, NodeFilterObj.SHOW_TEXT);
