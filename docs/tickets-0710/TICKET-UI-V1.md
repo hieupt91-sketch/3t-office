@@ -5,3 +5,4 @@ Da biet (khong ghi lai): U1-U7 trong docs/UI-TEST-DOC-1010.md. Ghi them U8.. cun
 Kich co cua so: lam them 1 lan 1024x600. Che do toi (Dark): 1 anh moi tab.
 TIET KIEM TOKEN: do bang so truoc, anh chi de xac nhan; 1 anh/tab; khong chup lap; bao cao 3 dong. Neu co skill danh gia giao dien/tro nang thi dung.
 CAM: SendKeys/OS input, kill theo ten (chi PID), push, merge, sua code san pham, chay bo 28 xlsx. Khong khang dinh PASS neu chua do.
+BO SUNG 10/10: (1) Xac minh bang anh+do so U9 (To mau o), U10 (Hang xen ke), U12 (Chon hang), U22 (To nen doan, Vien). (2) Dung CA phim tat VA chuot that cho moi nut. (3) Ket qua vao docs/UI-TEST-DOC-1010.md (them U25..) va commit trong nhanh. Sau UI-P1 da merge vao main: git merge main truoc.
