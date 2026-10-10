@@ -10136,7 +10136,10 @@ const startEditing = (initialText) => {
 
     const previousShortcutScope = globalShortcutManager.getActiveScope?.() ?? "slides";
     globalShortcutManager.setActiveScope?.("slides-show");
-    const keyTarget = typeof window !== "undefined" && window.addEventListener ? window : document;
+    const keyTarget = typeof window !== "undefined" && window.addEventListener
+      && window.document?.defaultView === window && window.document === document
+      ? window
+      : document;
     keyTarget.addEventListener("keydown", keyHandler, true);
     this._activeShowCleanup?.();
     this._activeShowCleanup = cleanupShow;

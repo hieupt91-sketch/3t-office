@@ -3029,7 +3029,8 @@ export class SlidesAdapter {
         parseNamedGroup(inner, groupId, baseOrder + block.start + Math.max(0, block.xml.indexOf(inner)));
         const children = shapes.splice(before);
         this._applyGroupOffset(children, origin.x, origin.y);
-        const isDiagram = children.some(shape => shape.type === "connector");
+        const isDiagram = children.some(shape => shape.type === "connector")
+          || this._omitGroupBackground(children).length < children.length;
         if (isDiagram) {
           groups.splice(groups.findIndex(group => group.id === groupId), 1);
           for (const shape of children) if (shape.groupId === groupId) shape.groupId = null;
