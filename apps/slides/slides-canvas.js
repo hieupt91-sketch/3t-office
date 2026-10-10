@@ -9784,7 +9784,7 @@ const startEditing = (initialText) => {
         } else {
           saved = rehearsing ? finishRehearsal() : undefined;
         }
-        document.removeEventListener("keydown", keyHandler);
+        keyTarget.removeEventListener("keydown", keyHandler, true);
         if (globalShortcutManager.getActiveScope?.() === "slides-show") {
           globalShortcutManager.setActiveScope?.(previousShortcutScope);
         }
@@ -9891,14 +9891,20 @@ const startEditing = (initialText) => {
         const k = (e.key || "").toLowerCase();
         if (k === "p") {
           e.preventDefault?.();
+          e.stopPropagation?.();
+          e.stopImmediatePropagation?.();
           setPointerMode("pen");
           return;
         } else if (k === "l") {
           e.preventDefault?.();
+          e.stopPropagation?.();
+          e.stopImmediatePropagation?.();
           setPointerMode("laser");
           return;
         } else if (k === "a") {
           e.preventDefault?.();
+          e.stopPropagation?.();
+          e.stopImmediatePropagation?.();
           setPointerMode("arrow");
           return;
         }
@@ -9913,6 +9919,10 @@ const startEditing = (initialText) => {
       }
       if (k === "Escape") {
         e.preventDefault?.();
+        if (pointerMode === "pen") {
+          setPointerMode("arrow");
+          return;
+        }
         closeShow();
       } else if (k === " " || k === "ArrowRight" || k === "ArrowDown" || k === "PageDown" || k === "Enter" || k === "n" || k === "N") {
         e.preventDefault?.();
@@ -9935,7 +9945,8 @@ const startEditing = (initialText) => {
 
     const previousShortcutScope = globalShortcutManager.getActiveScope?.() ?? "slides";
     globalShortcutManager.setActiveScope?.("slides-show");
-    document.addEventListener("keydown", keyHandler);
+    const keyTarget = typeof window !== "undefined" && window.addEventListener ? window : document;
+    keyTarget.addEventListener("keydown", keyHandler, true);
     this._activeShowCleanup?.();
     this._activeShowCleanup = cleanupShow;
     overlay.addEventListener?.("click", (e) => {
