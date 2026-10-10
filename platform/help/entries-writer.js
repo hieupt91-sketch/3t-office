@@ -473,13 +473,13 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["writer.table.insert"],
     title: "Chèn bảng",
-    summary: "Chèn ngay một bảng 3 hàng × 4 cột tại vị trí con trỏ: hàng đầu là «Tiêu đề» in đậm, các ô dưới là «Dữ liệu», có viền xám, rộng bằng trang. Gõ đè chữ mẫu để điền nội dung.",
+    summary: "Chèn ngay một bảng trống 3 hàng × 4 cột tại vị trí con trỏ, có viền xám và rộng bằng trang. Hàng đầu là hàng đầu tiên của bảng; các ô không có chữ mẫu.",
     ribbon: { tab: "Chèn", tabId: "insert", group: "Bảng biểu" },
     keywords: ["bảng", "table", "chèn bảng", "hàng", "cột", "ô bảng", "tiêu đề"],
     steps: [
       "Đặt con trỏ vào đoạn văn, chỗ muốn đặt bảng. Mở tab Chèn, nhóm Bảng biểu, nhấn nút lớn Bảng biểu.",
-      "Doc chèn ngay bảng 3 hàng × 4 cột (không mở hộp thoại chọn kích thước). Hàng 1 mỗi ô ghi «Tiêu đề» đậm; hàng 2–3 ghi «Dữ liệu». Viền 1px xám, đệm 6–10 pt, rộng 100% trang.",
-      "Nhấp vào ô rồi gõ đè chữ mẫu. Tab nhảy ô tiếp theo trong bảng. Có thể thêm hàng/cột bằng cách sao chép hàng trong bảng hoặc hoàn tác bằng Ctrl+Z nếu chèn nhầm.",
+      "Doc chèn ngay bảng trống 3 hàng × 4 cột (không mở hộp thoại chọn kích thước). Hàng đầu là hàng đầu tiên của bảng để bạn nhập tiêu đề; các ô đều không có chữ mẫu, nên nội dung gõ vào không bị dính với chữ có sẵn. Viền 1px xám, đệm 6–10 pt, rộng 100% trang.",
+      "Nhấp vào ô cần điền rồi gõ nội dung. Nhấn Tab để chuyển tới ô tiếp theo. Nhấn Ctrl+Z nếu cần hoàn tác việc chèn bảng.",
       "Cùng tab Chèn, nhóm Minh họa có Hình ảnh nếu cần đặt ảnh cạnh bảng."
     ]
   },
@@ -1309,12 +1309,12 @@ export const WRITER_HELP_ENTRIES = [
       "writer.table.alignBottom"
     ],
     title: "Gộp, tách ô, phân bố kích thước và căn lề ô",
-    summary: "Gộp nhiều ô thành một, tách ô, phân bố kích thước hàng cột đồng đều và căn chỉnh vị trí dọc cho chữ trong ô bảng.",
+    summary: "Gộp nhiều ô thành một; khi tách ô đã gộp, khôi phục số hàng và cột ban đầu. Có thể phân bố kích thước hàng cột đồng đều và căn chỉnh chữ trong ô.",
     ribbon: { tab: "Bố cục Bảng", tabId: "tableLayout", group: "Hợp nhất" },
     keywords: ["gộp ô", "tách ô", "merge cells", "split cells", "phân bố đều", "distribute rows", "distribute columns", "căn lề ô", "căn đỉnh", "căn giữa dọc", "căn đáy"],
     steps: [
       "Kéo chuột quét chọn nhiều ô liền kề trong bảng, sau đó tại nhóm Hợp nhất trên tab Bố cục Bảng, nhấp «Gộp ô» để hợp nhất các ô thành một ô lớn. Nội dung chữ giữa các ô được nối lại tự động.",
-      "Để tách một ô đã gộp trở lại trạng thái ban đầu hoặc chia đôi một ô thường, đặt con trỏ vào ô đó rồi nhấp «Tách ô».",
+      "Để tách ô đã gộp, đặt con trỏ vào ô đó rồi nhấp «Tách ô». Các ô trống được tạo lại theo số hàng và cột của vùng đã gộp; một lần Ctrl+Z hoàn tác lần tách vừa thực hiện.",
       "Trong nhóm Kích cỡ ô, nhấp «Phân bố đều hàng» để cân bằng chiều cao các dòng, hoặc «Phân bố đều cột» để chia lại chiều rộng các cột đều nhau 100%. Bạn cũng có thể rê chuột vào vạch ngăn giữa hai cột để kéo chuột chỉnh độ rộng từng cột tùy ý.",
       "Trong nhóm Căn lề ô, nhấp «Căn đỉnh ô», «Căn giữa dọc ô» hoặc «Căn đáy ô» để bố trí vị trí chữ theo chiều dọc bên trong ô theo đúng ý muốn."
     ]

@@ -310,14 +310,18 @@ export async function runWriterUndoRedoTests() {
 
     adapter.insertTable(3, 4);
 
-    const hasTableBeforeUndo = env.bodyEl.innerHTML.includes("<table") && env.bodyEl.innerHTML.includes("Tiêu đề");
+    const hasBlankTable = () => env.bodyEl.innerHTML.includes("<table")
+      && (env.bodyEl.innerHTML.match(/<td\b/g) || []).length === 12
+      && (env.bodyEl.innerHTML.match(/<br><\/td>/g) || []).length === 12
+      && !/Tiêu đề|Dữ liệu/.test(env.bodyEl.innerHTML);
+    const hasTableBeforeUndo = hasBlankTable();
     const canUndoAfterTable = adapter.canUndo();
 
     const undoRes = adapter.undo();
     const noTableAfterUndo = !env.bodyEl.innerHTML.includes("<table") && env.bodyEl.innerHTML.includes("Văn bản trước khi chèn bảng");
 
     const redoRes = adapter.redo();
-    const hasTableAfterRedo = env.bodyEl.innerHTML.includes("<table") && env.bodyEl.innerHTML.includes("Tiêu đề");
+    const hasTableAfterRedo = hasBlankTable();
 
     const test3Passed = hasTableBeforeUndo && canUndoAfterTable && undoRes && noTableAfterUndo && redoRes && hasTableAfterRedo;
 
