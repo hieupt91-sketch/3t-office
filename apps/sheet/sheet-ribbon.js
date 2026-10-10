@@ -550,7 +550,7 @@ export const SHEET_RIBBON_TABS = [
           { type: "button", commandId: "sheet.data.sortAsc", isLarge: true },
           { type: "button", commandId: "sheet.data.sortDesc", isLarge: true },
           { type: "button", commandId: "sheet.data.filter", isLarge: true },
-          { type: "button", commandId: "sheet.data.customSort", iconOnly: true }
+          { type: "button", commandId: "sheet.data.customSort" }
         ]
       },
       {
@@ -600,7 +600,7 @@ export const SHEET_RIBBON_TABS = [
     groups: [
       {
         id: "proofing",
-        label: "Chứng minh",
+        label: "Kiểm lỗi",
         labelKey: "sheetRibbon.group.proofing",
         items: [
           { type: "button", commandId: "sheet.review.spellCheck", isLarge: true },
