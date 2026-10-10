@@ -48,6 +48,8 @@ export class WriterApp {
       documentName: options.documentName || (isBlank ? "Tài liệu 1.docx" : "Quyết định ban hành tiêu chuẩn 01.docx"),
       onApplyTemplate: (selectedTemplateId) => this._applyTemplate(selectedTemplateId)
     });
+    // Dùng cùng bộ đếm với thanh trạng thái và hộp thoại Đếm từ khi Trợ lý AI tóm tắt.
+    this.shell.getDocumentWordCount = () => this.adapter?.getWordCountStats({ preferSelection: false })?.words;
     this.shell.mount(this.mountElement);
     this._watchLifecycle();
     applyLocaleToWriterRibbon(WRITER_RIBBON_TABS);

@@ -658,6 +658,20 @@ export const WRITER_HELP_ENTRIES = [
     ]
   },
   {
+    id: "writer.format.fontDialogHelp",
+    app: "writer",
+    commandIds: ["writer.format.fontDialog"],
+    title: "Hộp thoại Phông chữ",
+    summary: "Ctrl+D mở hộp thoại để đặt phông, cỡ chữ, màu chữ, đậm, nghiêng và gạch chân cho vùng đang chọn.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Phông chữ" },
+    keywords: ["phông chữ", "font dialog", "ctrl+d", "cỡ chữ", "đậm", "nghiêng", "gạch chân"],
+    steps: [
+      "Bôi đen đoạn cần định dạng trong nội dung tài liệu, rồi nhấn Ctrl+D. Có thể mở tab Trang đầu > nhóm Phông chữ và dùng các nút chọn phông/cỡ chữ riêng.",
+      "Trong hộp thoại Phông chữ, chọn tên phông, nhập cỡ chữ từ 1 đến 400 pt, chọn màu và đánh dấu Đậm, Nghiêng hoặc Gạch chân theo nhu cầu.",
+      "Nhấn Áp dụng để định dạng vùng đã bôi; nhấn Hủy hoặc Esc để đóng mà không áp dụng. Ctrl+Z hoàn tác lần áp dụng gần nhất."
+    ]
+  },
+  {
     id: "writer.para.advanced",
     app: "writer",
     commandIds: [
@@ -1216,7 +1230,7 @@ export const WRITER_HELP_ENTRIES = [
       "Cắt: Ctrl+X  |  Sao chép: Ctrl+C  |  Dán: Ctrl+V  |  Chọn tất cả: Ctrl+A",
       "Tìm kiếm: Ctrl+F  |  Thay thế: Ctrl+H",
       "Chữ đậm: Ctrl+B  |  Chữ nghiêng: Ctrl+I  |  Gạch chân: Ctrl+U",
-      "Các phím tắt khác hữu ích: Ctrl+L/E/R/J (căn trái/giữa/phải/đều), Ctrl+Shift+P (chọn cỡ chữ), Ctrl+Shift+>/< (tăng/giảm cỡ chữ), Ctrl+Shift+L (dấu đầu dòng), Ctrl+* (hiện/ẩn ký tự định dạng), Ctrl+Alt+H (màu nền chữ), Ctrl+Enter (ngắt trang), Ctrl+M (thụt lề), Ctrl+Shift+M (giảm thụt), Ctrl+1/2/5 (giãn dòng 1.0/2.0/1.5), Shift+F3 (đổi chữ hoa/thường), Ctrl+K (liên kết), Ctrl+Home/End (đầu/cuối tài liệu), Ctrl+]/[ (tăng/giảm cỡ 1 pt)."
+      "Các phím tắt khác hữu ích: Ctrl+D (hộp thoại Phông chữ), Ctrl+L/E/R/J (căn trái/giữa/phải/đều), Ctrl+Shift+P (chọn cỡ chữ), Ctrl+Shift+>/< (tăng/giảm cỡ chữ), Ctrl+Shift+L (dấu đầu dòng), Ctrl+* (hiện/ẩn ký tự định dạng), Ctrl+Alt+H (màu nền chữ), Ctrl+Enter (ngắt trang), Ctrl+M (thụt lề), Ctrl+Shift+M (giảm thụt), Ctrl+1/2/5 (giãn dòng 1.0/2.0/1.5), Shift+F3 (đổi chữ hoa/thường), Ctrl+K (liên kết), Ctrl+Home/End (đầu/cuối tài liệu), Ctrl+]/[ (tăng/giảm cỡ 1 pt)."
     ]
   },
   {

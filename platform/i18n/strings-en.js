@@ -656,6 +656,7 @@ export const enStrings = {
     "writer.text.superscript": { label: "Superscript", tooltip: "Superscript X² (Ctrl+Shift++)" },
     "writer.text.clearFormat": { label: "Clear All Formatting", tooltip: "Clear all formatting (Ctrl+Space)" },
     "writer.font.family": { label: "Font", tooltip: "Select font family" },
+    "writer.format.fontDialog": { label: "Font dialog", tooltip: "Open the Font dialog (Ctrl+D)" },
     "writer.font.size": { label: "Font Size", tooltip: "Select font size (Ctrl+Shift+P)" },
     "writer.style.apply": { label: "Styles", tooltip: "Apply paragraph style (Normal, Heading 1, 2, 3, Quote, Emphasis)" },
     "writer.style.gallery": { label: "Styles Gallery", tooltip: "Open visual styles gallery" },

@@ -30,6 +30,15 @@ export async function runAiServiceTests() {
     pass: typeof sumRes.reply === "string" && sumRes.reply.includes("Tóm tắt")
   });
 
+  const sharedCountRes = await RuleBasedProvider.query("tóm tắt", {
+    documentText: "một hai ba",
+    documentWordCount: 416
+  });
+  results.push({
+    name: "RuleBasedProvider: số từ tóm tắt dùng giá trị do Writer truyền từ bộ đếm chung",
+    pass: sharedCountRes.reply.includes("Phát hiện 416 từ") && !sharedCountRes.reply.includes("Phát hiện 3 từ")
+  });
+
   const emptyDocRes = await RuleBasedProvider.query("tóm tắt", { documentText: "" });
   results.push({
     name: "RuleBasedProvider: tóm tắt tài liệu rỗng -> báo rõ chưa có nội dung, không bịa",

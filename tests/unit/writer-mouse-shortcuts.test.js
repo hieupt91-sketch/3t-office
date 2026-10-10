@@ -87,6 +87,13 @@ export async function runWriterMouseShortcutsTests() {
     assert(def && def.shortcut === "Shift+F3", "Lệnh writer.text.changeCase phải có shortcut Shift+F3");
   });
 
+  await test("Writer Parity: Ctrl+D mở hộp thoại Phông chữ trong scope Writer", () => {
+    const def = globalCommandBus.getDefinition("writer.format.fontDialog");
+    if (!def || def.shortcut !== "Ctrl+D") throw new Error("writer.format.fontDialog phải gắn Ctrl+D");
+    const writerScope = globalShortcutManager._scopedShortcuts.get("writer")?.get(globalShortcutManager._normalizeCombo("Ctrl+D"));
+    if (writerScope !== "writer.format.fontDialog") throw new Error("Ctrl+D chưa bind tới hộp thoại Phông chữ trong Writer");
+  });
+
   await test("Writer Parity: writer.para.moveUp và moveDown (Alt+Shift+Up/Down) được khai báo chuẩn Word", () => {
     const upDef = globalCommandBus.getDefinition("writer.para.moveUp");
     const downDef = globalCommandBus.getDefinition("writer.para.moveDown");

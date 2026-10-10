@@ -97,6 +97,7 @@ export const WRITER_COMMANDS = [
   { id: "writer.style.heading3", category: "format", label: "Tiêu đề 3", shortcut: "Ctrl+Alt+3", icon: "heading3", tooltip: "Áp dụng kiểu Tiêu đề 3 (Ctrl+Alt+3)" },
   { id: "writer.text.changeCase", category: "format", label: "Đổi chữ hoa/thường", shortcut: "Shift+F3", icon: "changeCase", tooltip: "Chuyển đổi chữ hoa / thường / Tiêu đề (Shift+F3)" },
   { id: "writer.font.family", category: "format", label: "Phông chữ", shortcut: "Ctrl+Shift+F", tooltip: "Chọn phông chữ (Ctrl+Shift+F)" },
+  { id: "writer.format.fontDialog", category: "format", label: "Hộp thoại Phông chữ", shortcut: "Ctrl+D", tooltip: "Mở hộp thoại Phông chữ (Ctrl+D)" },
   { id: "writer.font.size", category: "format", label: "Cỡ chữ", shortcut: "Ctrl+Shift+P", tooltip: "Chọn cỡ chữ (Ctrl+Shift+P)" },
   { id: "writer.style.apply", category: "format", label: "Kiểu dáng", tooltip: "Áp dụng kiểu đoạn văn (Normal, Heading 1, 2, 3, Quote, Emphasis)" },
   { id: "writer.style.gallery", category: "format", label: "Thư viện kiểu", icon: "styleGallery", tooltip: "Mở thư viện kiểu định dạng trực quan (Styles Gallery)" },
