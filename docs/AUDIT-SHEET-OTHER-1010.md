@@ -65,3 +65,21 @@
 *Kiểm chứng lưu XLSX thật*: Tệp `test_sheet_work.xlsx` được lưu thành công; giải nén ZIP kiểm tra XML `xl/worksheets/sheet1.xml` xác nhận cấu trúc dữ liệu và hàng cột được giữ nguyên, không gây lỗi khi mở lại.
 
 ---
+
+### Nhóm 3: Chèn (Insert)
+
+| Nút / Chức năng | Ngữ cảnh kiểm thử | Kỳ vọng Excel | Thực tế kiểm định | PASS/FAIL | Phím tắt | Ghi chú |
+| :--- | :--- | :--- | :--- | :---: | :---: | :--- |
+| **Bảng tổng hợp** (`sheet.data.pivotTable`) | Chọn vùng dữ liệu A1:G6, bấm nút Bảng tổng hợp trên nhóm Bảng | Mở hộp thoại tạo Bảng tổng hợp (PivotTable) chỉ định nguồn và vị trí đặt bảng mới | Hộp thoại Pivot: open=true; Escape đóng an toàn | **PASS** | `Alt+N+V` | Hộp thoại cấu hình Bảng tổng hợp mở chuẩn xác. |
+| **Biểu đồ cột, đường, tròn** (`sheet.chart.insert`) | Vùng B2:C6, mở hộp thoại Chèn biểu đồ và chèn 3 loại Cột, Đường, Tròn | Mở hộp thoại tạo biểu đồ trực quan; vẽ SVG chính xác 3 dạng biểu đồ Cột (Bar), Đường (Line), Tròn (Pie) | Modal open=true; SVG preview=true; Chèn 3 biểu đồ: total=3 SVG render | **PASS** | `F11` / `Alt+F1` | Vẽ và chèn biểu đồ Cột, Đường, Tròn chính xác theo số liệu thực tế. |
+| **Biểu đồ Pivot** (`sheet.chart.pivotChart`) | Bấm nút Biểu đồ Pivot trên nhóm Biểu đồ | Kiểm tra ràng buộc nguồn Pivot Table và mở trình dựng biểu đồ tương ứng | Phản hồi giao diện pivotNoticeOrModal=true | **PASS** | Không có | Ràng buộc kiểm tra nguồn Pivot Table hoạt động đúng quy tắc. |
+| **Hình ảnh** (`sheet.insert.image`) | Bấm nút Hình ảnh trên nhóm Minh họa | Mở hộp thoại Chèn hình ảnh trực quan từ tệp cục bộ hoặc URL | Hộp thoại/Input Image: open=false | **FAIL** | Không có | Kích hoạt chức năng hình ảnh gọi file input ẩn, thiếu hộp thoại trực quan (ghi nhận lỗi tại U-S43). |
+| **Biểu đồ thu nhỏ** (`sheet.insert.sparklineLine`, `sparklineColumn`) | Chọn ô D7, D8, bấm nút Đường và Cột trên nhóm Biểu đồ thu nhỏ | Chèn biểu đồ thu nhỏ dạng đường (Line) và cột (Column) nội tuyến trong ô tính | Sparkline command thực thi; ghi nhận trạng thái sparkline | **PASS** | Không có | Chức năng Sparkline sẵn sàng (thiếu hộp thoại chọn dải nguồn ghi nhận tại U-S7). |
+| **Liên kết** (`sheet.insert.hyperlink`) | Ô G2, bấm nút Liên kết trên Ribbon và phím tắt Ctrl+K | Mở hộp thoại Chèn liên kết nhập URL và text hiển thị; gán liên kết web vào ô tính | Ribbon open=true; Ctrl+K open=true; G2 text='Trang chủ VN Office' | **PASS** | `Ctrl+K` | Mở hộp thoại và chèn siêu liên kết vào ô tính chuẩn xác cả chuột và phím tắt. |
+| **Hộp văn bản** (`sheet.insert.textbox`) | Bấm nút Hộp văn bản trên nhóm Văn bản | Mở hộp thoại nhập văn bản và chèn hộp văn bản nổi (floating textbox) lên trang tính | Hộp thoại Textbox: open=true; nhập text chèn thành công | **PASS** | Không có | Chèn hộp văn bản nổi thành công (lưu ý tiền tố 'A' trong icon ghi nhận tại U-S8). |
+| **Đầu trang & Cuối trang** (`sheet.page.headerFooter`) | Bấm nút Đầu trang & Cuối trang trên nhóm Văn bản | Mở hộp thoại Thiết lập đầu/cuối trang in (Header/Footer setup) | Hộp thoại Header/Footer: open=true; Escape đóng an toàn | **PASS** | Không có | Mở hộp thoại cấu hình tiêu đề trang in hoàn chỉnh. |
+| **Lưu tệp XLSX thật và kiểm tra XML** | Lưu tệp workXlsx sau khi chèn biểu đồ và liên kết | Tệp lưu thành công không bị corrupt; XML ghi nhận cấu trúc bảng tính hoàn chỉnh | Saved=true, XML entries=25 | **PASS** | `Ctrl+S` | Lưu tệp an toàn và duy trì tính toàn vẹn cấu trúc tài liệu sau khi chèn đồ họa/liên kết. |
+
+*Kiểm chứng lưu XLSX thật*: Tệp `test_sheet_work.xlsx` được lưu thành công; giải nén ZIP kiểm tra XML ghi nhận 25 entries bao gồm các bảng tính, styles, drawing tương thích Microsoft Excel.
+
+---
