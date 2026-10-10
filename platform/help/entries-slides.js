@@ -214,7 +214,7 @@ export const SLIDES_HELP_ENTRIES = [
     summary: "Duyệt nhận xét xuyên suốt các trang chiếu, đánh dấu đã xử lý, mở lại hoặc xóa.",
     ribbon: { tab: "Đánh giá", tabId: "review", group: "Nhận xét" },
     keywords: ["nhận xét", "trang chiếu", "trước", "sau", "xử lý", "resolve", "xóa"],
-    steps: ["Mở tab Đánh giá, nhóm Nhận xét.", "Nhấn Nhận xét trước hoặc Nhận xét sau; Slide chuyển tới đúng trang, mở bảng nhận xét, tô sáng mục và quay vòng ở cuối.", "Nhấn Đã xử lý để làm mờ và gạch nội dung nhưng vẫn giữ nhận xét; nhấn lại để mở lại.", "Nhấn Xóa nhận xét để xóa mục đang chọn. Dùng Ctrl+Z/Ctrl+Y để hoàn tác/làm lại."]
+    steps: ["Mở tab Đánh giá, nhóm Nhận xét.", "Khi bản trình bày chưa có nhận xét, các nút Nhận xét trước/sau, Đã xử lý và Xóa nhận xét tự vô hiệu hóa. Nhấn Nhận xét để thêm nhận xét trước.", "Nhấn Nhận xét trước hoặc Nhận xét sau; Slide chuyển tới đúng trang, mở bảng nhận xét, tô sáng mục và quay vòng ở cuối.", "Nhấn Đã xử lý để làm mờ và gạch nội dung nhưng vẫn giữ nhận xét; nhấn lại để mở lại.", "Nhấn Xóa nhận xét để xóa mục đang chọn. Dùng Ctrl+Z/Ctrl+Y để hoàn tác/làm lại."]
   },
   {
     id: "slides.show.setupShow",
@@ -488,13 +488,13 @@ export const SLIDES_HELP_ENTRIES = [
     commandIds: ["slides.review.spellCheck", "slides.review.toggleSpellCheck"],
     title: "Kiểm tra chính tả tiếng Việt trên trang chiếu",
     summary: "F7 (khi đang ở Slide) hoặc nút Chính tả quét tiêu đề, nội dung, cột 2 và chữ trên hình của trang hiện tại; gạch đỏ sống và menu gợi ý chuột phải; hỗ trợ nút Bật/Tắt chính tả trên ribbon.",
-    ribbon: { tab: "Đánh giá", tabId: "review", group: "Chứng minh" },
+    ribbon: { tab: "Đánh giá", tabId: "review", group: "Hiệu đính" },
     keywords: ["chính tả", "spell check", "f7", "từ điển", "tiếng việt", "gạch sóng", "chuột phải", "gợi ý", "Ctrl+Z", "bật tắt chính tả"],
     steps: [
-      "Tab Đánh giá, nhóm Chứng minh, nút lớn Chính tả — hoặc nhấn F7 khi cửa sổ Slide đang hoạt động (F7 Doc là Soát lỗi AI; F7 Sheet/Slide là chính tả).",
+      "Tab Đánh giá, nhóm Hiệu đính, nút lớn Chính tả — hoặc nhấn F7 khi cửa sổ Slide đang hoạt động (F7 Doc là Soát lỗi AI; F7 Sheet/Slide là chính tả).",
       "Hộp «Chính tả» quét trang đang mở: Tiêu đề, Nội dung, Nội dung cột 2, Hình. Hiện «Không có trong từ điển», vị trí, nội dung, gợi ý. Đầy đủ các nút Bỏ qua / Bỏ qua tất cả / Thêm vào từ điển / Thay thế / Thay thế tất cả / Đóng. Nhấn Esc để đóng.",
       "Khi soạn thảo, các từ nghi ngờ sai chính tả trên tiêu đề, nội dung hoặc chữ trong hình tự động được gạch sóng đỏ (độ trễ ~400 ms) mà không làm di chuyển con trỏ đang gõ.",
-      "Tùy chọn Bật/Tắt kiểm tra chính tả: Mở tab Đánh giá, nhóm Chứng minh, nhấn nút «Kiểm tra chính tả» để bật hoặc tắt. Khi tắt, các đường gạch chân đỏ biến mất ngay lập tức; khi bật lại, hệ thống quét và gạch đỏ trở lại. Trạng thái được ghi nhớ qua các lần mở sau.",
+      "Tùy chọn Bật/Tắt kiểm tra chính tả: Mở tab Đánh giá, nhóm Hiệu đính, nhấn nút «Kiểm tra chính tả» để bật hoặc tắt. Khi tắt, các đường gạch chân đỏ biến mất ngay lập tức; khi bật lại, hệ thống quét và gạch đỏ trở lại. Trạng thái được ghi nhớ qua các lần mở sau.",
       "Nhấp chuột phải vào từ bị gạch sóng để mở menu gợi ý từ đúng tiếng Việt; nhấp vào từ gợi ý để thay thế trực tiếp.",
       "Nhấn phím Ctrl+Z ngay sau khi chọn gợi ý để hoàn tác thay thế trong đúng một bước duy nhất.",
       "Từ điển cá nhân được lưu vào bộ nhớ dùng chung cho cả ba ứng dụng Doc, Sheet và Slide (vno-spellcheck-vi-personal)."

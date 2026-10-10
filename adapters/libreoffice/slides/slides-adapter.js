@@ -155,6 +155,15 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("common.edit.replace", () => this._showFindReplaceDialog(true));
     globalCommandBus.bindHandler("slides.edit.selectAll", () => this.canvas.selectAllShapes ? this.canvas.selectAllShapes() : false);
     globalCommandBus.bindHandler("slides.edit.selectObjects", () => this.canvas.selectDrawingObjects ? this.canvas.selectDrawingObjects() : false);
+    globalCommandBus.bindHandler("slides.shape.insert", () => this.canvas.insertShape ? this.canvas.insertShape("rect") : false);
+    globalCommandBus.bindHandler("slides.master.apply", () => this.canvas.showSlideMasterDialog ? this.canvas.showSlideMasterDialog() : false);
+    globalCommandBus.bindHandler("slides.arrange.bringToFront", () => this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("front") : false);
+    globalCommandBus.bindHandler("slides.arrange.bringForward", () => this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("forward") : false);
+    globalCommandBus.bindHandler("slides.arrange.sendBackward", () => this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("backward") : false);
+    globalCommandBus.bindHandler("slides.arrange.sendToBack", () => this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("back") : false);
+    // Những lệnh này có triển khai trong Canvas/adapter; bind tại đây để ribbon
+    // và phím tắt dùng cùng một đường thực thi thay vì chỉ hoạt động qua UNO.
+    globalCommandBus.bindHandler("slides.transition.apply", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);
     globalCommandBus.bindHandler("common.edit.paste", () => this._paste());
     globalCommandBus.bindHandler("common.edit.pastePlain", () => this._pastePlainText());
     globalCommandBus.bindHandler("slides.review.commentInsert", (options) => {

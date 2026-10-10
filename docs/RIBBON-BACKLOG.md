@@ -16,6 +16,26 @@ Theo chỉ thị bắt buộc của Người phụ trách dự án (30/09):
 
 ## 2. DANH SÁCH TÍNH NĂNG CHỜ NÂNG CẤP CHUYÊN SÂU THEO LỘ TRÌNH
 
+### Các khoảng trống UI Slides được giữ lại sau audit 10/10/2026
+
+Các mục dưới đây cần một ticket riêng trước khi bổ sung. Các lệnh hiện có vẫn giữ nguyên; không tạo gallery/menu mới trong đợt FIX-L1. Với lệnh chưa có hành vi thật, nút phải gọi `showPendingFeatureNotice()` khi được nối vào UI.
+
+| Audit | Vị trí | Nội dung còn thiếu |
+| :--- | :--- | :--- |
+| U-L2, U-L3 | Trang đầu | Bảng chọn màu chữ và màu nền chữ. |
+| U-L5 | Trang đầu | Menu chọn kiểu dấu đầu dòng và đánh số. |
+| U-L8 | Chèn | Lưới chọn nhanh số hàng/cột khi chèn bảng. |
+| U-L11 | Thiết kế | Gallery chủ đề trực tiếp trên Ribbon và xem trước khi rê chuột. |
+| U-L12 | Thiết kế | Pa-nen tác vụ Định dạng nền neo cạnh canvas. |
+| U-L14, U-L16 | Chuyển tiếp | Gallery hiệu ứng, tùy chọn và nhóm thời gian trên Ribbon. |
+| U-L15 | Hoạt hình | Gallery hiệu ứng trực tiếp trên Ribbon. |
+| U-L23 | Chế độ xem | Màn hình xem trước khi in với bố cục slide và bản phát tay. |
+| U-L24 | Ngữ cảnh | Tab Định dạng Hình khi chọn đối tượng trên canvas. |
+| U-L27 | Chế độ xem | Chế độ xem canvas tối độc lập với giao diện tối. |
+| U-L29 | Chế độ xem | Tùy chọn giảm chiều cao Ribbon cho màn hình thấp. |
+
+FIX-L1 chỉ xử lý nhãn, trạng thái, lệnh đã có và khả năng hiển thị; các mục trên không được xem là đã hoàn tất.
+
 | Ứng dụng | Tab | Nhóm | Tên tính năng | Command ID | Trạng thái hiện tại | Phạm vi cần hoàn thiện | Quy mô | Dự kiến |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :---: | :---: |
 | **VN Writer (3T Doc)** | Chèn | Ký hiệu | Phương trình | `writer.insert.equation` | Đã hoàn thành: Alt+=, dạng tuyến tính, nút cấu trúc/ký hiệu, xem trước MathML, chọn/sửa/xóa, hoàn tác/làm lại; DOCX giữ OMML tại đúng vị trí. Có bài Hướng dẫn sử dụng trong ứng dụng. | MathML gốc Chromium và OMML Word; không thêm dependency. LibreOffice HTML không giữ MathML nên adapter khôi phục OMML tại dấu vị trí trong pipeline DOCX. | Large | feat/writer-equation-codex |

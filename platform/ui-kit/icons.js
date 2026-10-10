@@ -540,7 +540,7 @@ export const ICONS = {
 
   wordArt: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
     <rect x="2" y="4" width="20" height="16" rx="3" fill="#0F172A"/>
-    <text x="5" y="17" font-size="13" font-weight="800" fill="#38BDF8" stroke="#0C4A6E" stroke-width="0.8" font-family="Arial, sans-serif">Aa</text>
+    <path d="m4.5 16 3-8 3 8m-5-2.7h4m1.3 2.7 2.4-6.1 2.3 6.1m-3.8-2.1h3" fill="none" stroke="#38BDF8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`,
 
   // Utilities
@@ -870,7 +870,7 @@ export const ICONS = {
 
   symbol: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
     <rect x="3" y="3" width="18" height="18" rx="3" fill="#FEF3C7" stroke="#D97706" stroke-width="1.4"/>
-    <text x="6.2" y="17" font-size="13" font-weight="800" fill="#92400E" font-family="serif">Ω</text>
+    <path d="M7 9a5 5 0 0 1 10 0c0 2-1.4 3.1-2.4 4.4L13 16h5M7 16h5l-1.6-2.6C9.4 12.1 8 11 8 9" fill="none" stroke="#92400E" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`,
 
   bookmark: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
@@ -887,7 +887,7 @@ export const ICONS = {
 
   slideNumber: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
     <rect x="3" y="5" width="18" height="13" rx="2" fill="#FAEEE8" stroke="#B53818" stroke-width="1.4"/>
-    <text x="8" y="14.5" font-size="9" font-weight="800" fill="#B53818" font-family="sans-serif">#3</text>
+    <path d="M8 8h6M7 11h7m-5-4-1 8m6-8-1 8m1.5-2c0-1.4 2.5-1.5 2.5-3 0-1.4-2.5-1.6-3.3-.5m.8 4c.8.8 2.5.4 2.5-.8 0-1.5-2.6-1.4-2.6-2.7 0-1.3 1.6-1.8 2.8-1" fill="none" stroke="#B53818" stroke-width=".8" stroke-linecap="round" stroke-linejoin="round"/>
     <path d="M7 21h10" stroke="#64748B" stroke-width="1.5" stroke-linecap="round"/>
   </svg>`,
 

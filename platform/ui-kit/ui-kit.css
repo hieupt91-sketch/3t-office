@@ -331,6 +331,13 @@
   font-family: inherit;
 }
 
+[data-theme="dark"] .vno-dialog-box .vno-dialog-input,
+[data-theme="dark"] .vno-dialog-box input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
+[data-theme="dark"] .vno-dialog-box select,
+[data-theme="dark"] .vno-dialog-box textarea {
+  color: var(--vno-text-primary, #f1f5f9) !important;
+}
+
 .vno-dialog-input:focus,
 .vno-dialog-input:focus-visible,
 .vno-dialog-box input:focus,
