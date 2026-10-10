@@ -147,7 +147,19 @@ async function state(cdp) {
       targetBorder:targetStyle.borderStyle, targetBorderBottom:targetStyle.borderBottomStyle,
       align:targetStyle.textAlign, lineHeight:targetStyle.lineHeight, marginLeft:parseFloat(targetStyle.marginLeft)||0,
       lineHeightToken:targetElement.style.getPropertyValue('--vno-lh') || targetElement.style.lineHeight || '',
-      bold:document.queryCommandState('bold'), italic:document.queryCommandState('italic'), underline:document.queryCommandState('underline'),
+      bold:document.queryCommandState('bold'), italic:document.queryCommandState('italic'),
+      underline:(() => {
+        const anchor = anchorElement || targetElement;
+        if (!anchor) return false;
+        if (anchor.closest('u') || anchor.querySelector('u')) return true;
+        const inline = (anchor.style?.textDecorationLine || anchor.style?.textDecoration || '').toLowerCase();
+        if (inline.includes('underline')) return true;
+        const cs = getComputedStyle(anchor);
+        const line = (cs.textDecorationLine || '').toLowerCase();
+        const style = (cs.textDecorationStyle || '').toLowerCase();
+        const isSpelling = Boolean(anchor.classList?.contains('vno-spelling-uncertain') || anchor.getAttribute?.('data-vno-spelling-uncertain'));
+        return line.includes('underline') && style !== 'wavy' && !isSpelling;
+      })(),
       strike:document.queryCommandState('strikeThrough'), subscript:document.queryCommandState('subscript'), superscript:document.queryCommandState('superscript'),
       menuOpen:!!document.querySelector('.vno-ribbon-dropdown-menu'), marks:body.classList.contains('vno-show-formatting-marks'),
       dialogCount:dialogs.length, dialogText:dialogs.at(-1)?.innerText?.replace(/\\s+/g,' ').slice(0,160)||'',

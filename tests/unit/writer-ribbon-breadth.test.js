@@ -127,11 +127,14 @@ export async function runWriterRibbonBreadthTests() {
       globalThis.document = { queryCommandState: () => true };
       globalThis.window = { getSelection: () => ({ anchorNode: plain }), getComputedStyle: () => ({ textDecorationLine: "none" }) };
       const staleBrowserStateIsIgnored = adapter._readInlineCommandState("underline") === false;
-      globalThis.window = { getSelection: () => ({ anchorNode: underlined }), getComputedStyle: () => ({ textDecorationLine: "underline" }) };
+      globalThis.window = { getSelection: () => ({ anchorNode: underlined }), getComputedStyle: () => ({ textDecorationLine: "underline", textDecorationStyle: "solid" }) };
       const realUnderlineIsDetected = adapter._readInlineCommandState("underline") === true;
+      const spellNode = { nodeType: 1, tagName: "SPAN", style: {}, classList: { contains: c => c === "vno-spelling-uncertain" }, parentElement: body };
+      globalThis.window = { getSelection: () => ({ anchorNode: spellNode }), getComputedStyle: () => ({ textDecorationLine: "underline", textDecorationStyle: "wavy" }) };
+      const wavySpellUnderlineIsIgnored = adapter._readInlineCommandState("underline") === false;
       assert(
         "Writer Home: trạng thái nút Gạch chân theo DOM thật khi Chromium giữ queryCommandState cũ",
-        staleBrowserStateIsIgnored && realUnderlineIsDetected,
+        staleBrowserStateIsIgnored && realUnderlineIsDetected && wavySpellUnderlineIsIgnored,
         "Nút Gạch chân không tắt/bật theo định dạng thật của vùng chọn"
       );
     } finally {

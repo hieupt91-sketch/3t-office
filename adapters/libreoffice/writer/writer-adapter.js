@@ -8666,7 +8666,11 @@ export class WriterAdapter {
       const inline = String(node.style?.textDecorationLine || node.style?.textDecoration || "").toLowerCase();
       if (inline.includes("underline")) return true;
       try {
-        if (String(window.getComputedStyle?.(node)?.textDecorationLine || "").toLowerCase().includes("underline")) return true;
+        const cs = window.getComputedStyle?.(node);
+        const line = String(cs?.textDecorationLine || "").toLowerCase();
+        const style = String(cs?.textDecorationStyle || "").toLowerCase();
+        const isSpelling = Boolean(node.classList?.contains?.("vno-spelling-uncertain") || node.getAttribute?.("data-vno-spelling-uncertain"));
+        if (line.includes("underline") && style !== "wavy" && !isSpelling) return true;
       } catch {}
       node = node.parentElement;
     }
