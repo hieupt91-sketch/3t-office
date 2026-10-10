@@ -2979,6 +2979,52 @@ def _restore_missing_hyperlinks_step(
             if re.search(r'<hyperlinks\b', tgt_xml_str, re.IGNORECASE):
                 continue
 
+            # Quan hệ siêu liên kết của nguồn (rIdN) có thể TRÙNG Id với quan hệ khác của trang đích (vd. drawing = rId1 do
+            # LibreOffice cấp): trước đây quan hệ bị bỏ qua vì "Id đã tồn tại" nên <hyperlink r:id> trỏ nhầm sang drawing và Excel
+            # từ chối mở tệp (lan09: "Unable to get the Open property"). Đọc rels trước để đổi Id trùng sang Id mới.
+            src_dir, src_filename = posixpath.split(src_entry)
+            src_rels_path = f"{src_dir}/_rels/{src_filename}.rels"
+            src_rels_bytes = read_zip_entry(source_xlsx_bytes, src_rels_path)
+            src_rels_xml = src_rels_bytes.decode("utf-8", errors="replace") if src_rels_bytes else ""
+            hl_rels = [
+                r_m.group(0)
+                for r_m in re.finditer(r'<Relationship\b[^>]*\bType="[^"]*hyperlink"[^>]*/>', src_rels_xml, re.IGNORECASE)
+            ]
+
+            tgt_dir, tgt_filename = posixpath.split(tgt_entry)
+            tgt_rels_path = f"{tgt_dir}/_rels/{tgt_filename}.rels"
+            tgt_rels_str = replacements.get(tgt_rels_path)
+            if tgt_rels_str is None:
+                tgt_rels_bytes = read_zip_entry(xlsx_bytes, tgt_rels_path)
+                tgt_rels_str = tgt_rels_bytes.decode("utf-8", errors="replace") if tgt_rels_bytes else None
+            elif isinstance(tgt_rels_str, bytes):
+                tgt_rels_str = tgt_rels_str.decode("utf-8", errors="replace")
+
+            used_ids = set(re.findall(r'\bId="([^"]*)"', tgt_rels_str or "", re.IGNORECASE))
+            id_map: dict[str, str] = {}
+            remapped_rels = []
+            for rel_tag in hl_rels:
+                rid_m = re.search(r'\bId="([^"]*)"', rel_tag, re.IGNORECASE)
+                if not rid_m:
+                    continue
+                old_id = rid_m.group(1)
+                new_id = old_id
+                if new_id in used_ids:
+                    counter = 1
+                    while f"rIdVnoHl{counter}" in used_ids:
+                        counter += 1
+                    new_id = f"rIdVnoHl{counter}"
+                    rel_tag = re.sub(r'\bId="[^"]*"', f'Id="{new_id}"', rel_tag, count=1)
+                used_ids.add(new_id)
+                id_map[old_id] = new_id
+                remapped_rels.append(rel_tag)
+            if id_map:
+                src_hl_xml = re.sub(
+                    r'\br:id="([^"]*)"',
+                    lambda m: f'r:id="{id_map.get(m.group(1), m.group(1))}"',
+                    src_hl_xml,
+                )
+
             # Ensure xmlns:r is declared on <worksheet> root element
             if 'r:id=' in src_hl_xml and 'xmlns:r=' not in tgt_xml_str:
                 tgt_xml_str = re.sub(
@@ -3002,48 +3048,19 @@ def _restore_missing_hyperlinks_step(
             if new_tgt_xml != tgt_xml_str:
                 replacements[tgt_entry] = new_tgt_xml
 
-            src_dir, src_filename = posixpath.split(src_entry)
-            src_rels_path = f"{src_dir}/_rels/{src_filename}.rels"
-            src_rels_bytes = read_zip_entry(source_xlsx_bytes, src_rels_path)
-            if not src_rels_bytes:
+            if not remapped_rels:
                 continue
-            src_rels_xml = src_rels_bytes.decode("utf-8", errors="replace")
-
-            hl_rels = []
-            for r_m in re.finditer(r'<Relationship\b[^>]*\bType="[^"]*hyperlink"[^>]*/>', src_rels_xml, re.IGNORECASE):
-                hl_rels.append(r_m.group(0))
-
-            if not hl_rels:
-                continue
-
-            tgt_dir, tgt_filename = posixpath.split(tgt_entry)
-            tgt_rels_path = f"{tgt_dir}/_rels/{tgt_filename}.rels"
-            tgt_rels_str = replacements.get(tgt_rels_path)
-            if tgt_rels_str is None:
-                tgt_rels_bytes = read_zip_entry(xlsx_bytes, tgt_rels_path)
-                tgt_rels_str = tgt_rels_bytes.decode("utf-8", errors="replace") if tgt_rels_bytes else None
-            elif isinstance(tgt_rels_str, bytes):
-                tgt_rels_str = tgt_rels_str.decode("utf-8", errors="replace")
 
             if tgt_rels_str:
-                existing_ids = set(re.findall(r'\bId="([^"]*)"', tgt_rels_str, re.IGNORECASE))
-                to_add = []
-                for rel_tag in hl_rels:
-                    rid_m = re.search(r'\bId="([^"]*)"', rel_tag, re.IGNORECASE)
-                    if rid_m and rid_m.group(1) not in existing_ids:
-                        to_add.append(rel_tag)
-                if to_add:
-                    pos = tgt_rels_str.rfind("</Relationships>")
-                    if pos != -1:
-                        new_rels = tgt_rels_str[:pos] + "".join(to_add) + tgt_rels_str[pos:]
-                        replacements[tgt_rels_path] = new_rels
+                pos = tgt_rels_str.rfind("</Relationships>")
+                if pos != -1:
+                    replacements[tgt_rels_path] = tgt_rels_str[:pos] + "".join(remapped_rels) + tgt_rels_str[pos:]
             else:
-                new_rels = (
+                replacements[tgt_rels_path] = (
                     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
                     '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-                    f'{"".join(hl_rels)}</Relationships>'
+                    f'{"".join(remapped_rels)}</Relationships>'
                 )
-                replacements[tgt_rels_path] = new_rels
     except Exception:
         pass
 
