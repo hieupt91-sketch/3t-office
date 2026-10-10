@@ -4,9 +4,10 @@
 
 import assert from "node:assert/strict";
 import { WriterAdapter } from "../../adapters/libreoffice/writer/writer-adapter.js";
-import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { WRITER_RIBBON_TABS } from "../../apps/writer/writer-ribbon.js";
 import { WRITER_HELP_ENTRIES } from "../../platform/help/entries-writer.js";
+import { COMMON_COMMANDS } from "../../platform/commands/command-definitions.js";
+import { globalCommandBus } from "../../platform/commands/command-bus.js";
 
 export async function runWriterClipboardTests() {
   const results = [];
@@ -44,6 +45,12 @@ export async function runWriterClipboardTests() {
     assert.ok(helpEntry.steps && helpEntry.steps.length >= 4, "Help phải có ít nhất 4 bước thao tác cụ thể");
     assert.ok(helpEntry.steps.some(s => s.includes("Ctrl+X") && s.includes("Ctrl+C")), "Help phải có phím tắt Ctrl+X, Ctrl+C");
     assert.ok(helpEntry.steps.some(s => s.includes("Ctrl+V")), "Help phải có phím tắt Ctrl+V");
+    assert.ok(helpEntry.steps.some(s => s.includes("Esc") && s.includes("tắt")), "Help phải mô tả Esc hủy và chổi tự tắt sau một lần áp dụng");
+  });
+
+  await test("Format Painter: lệnh công bố trạng thái bật/tắt cho nút ribbon", () => {
+    const definition = COMMON_COMMANDS.find(command => command.id === "common.edit.formatPainter");
+    assert.equal(definition?.isToggle, true, "Format Painter phải là lệnh toggle để aria-pressed theo trạng thái thực");
   });
 
   const mockBody = {

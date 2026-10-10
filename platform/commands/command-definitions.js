@@ -25,7 +25,7 @@ export const COMMON_COMMANDS = [
   { id: "common.edit.copy", category: "edit", label: "Sao chép", shortcut: "Ctrl+C", icon: "copy", tooltip: "Sao chép vùng chọn (Ctrl+C)" },
   { id: "common.edit.paste", category: "edit", label: "Dán", shortcut: "Ctrl+V", icon: "paste", tooltip: "Dán nội dung từ bộ nhớ tạm (Ctrl+V)" },
   { id: "common.edit.pastePlain", category: "edit", label: "Dán văn bản thuần", shortcut: "Ctrl+Shift+V", icon: "paste", tooltip: "Dán văn bản không giữ định dạng (Ctrl+Shift+V)" },
-  { id: "common.edit.formatPainter", category: "edit", label: "Sao chép định dạng", shortcut: "Ctrl+Shift+C", icon: "formatPainter", tooltip: "Sao chép định dạng (Ctrl+Shift+C)" },
+  { id: "common.edit.formatPainter", category: "edit", label: "Sao chép định dạng", shortcut: "Ctrl+Shift+C", icon: "formatPainter", isToggle: true, tooltip: "Sao chép định dạng (Ctrl+Shift+C). Nhấn Esc để hủy; tự tắt sau một lần áp dụng." },
   { id: "common.edit.selectAll", category: "edit", label: "Chọn tất cả", shortcut: "Ctrl+A", icon: "selectAll", tooltip: "Chọn toàn bộ nội dung (Ctrl+A)" },
   { id: "common.edit.find", category: "edit", label: "Tìm kiếm", shortcut: "Ctrl+F", icon: "search", tooltip: "Tìm kiếm văn bản (Ctrl+F)" },
   { id: "common.edit.replace", category: "edit", label: "Thay thế", shortcut: "Ctrl+H", icon: "replace", tooltip: "Tìm và thay thế văn bản (Ctrl+H)" },

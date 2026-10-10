@@ -11577,15 +11577,20 @@ export class WriterAdapter {
       globalCommandBus.updateState("common.edit.formatPainter", { checked: true });
       this.editorDom?.classList?.add("vno-format-painter-active");
 
-      const onMouseUp = () => {
+      this._formatPainterMouseUpHandler = () => {
         setTimeout(() => {
           const activeSel = window.getSelection?.();
-          if (activeSel && !activeSel.isCollapsed && this.copiedFormat) {
-            this._applyCopiedFormat();
-          }
+          if (activeSel && !activeSel.isCollapsed && this.copiedFormat) this._applyCopiedFormat();
         }, 20);
       };
-      document.addEventListener("mouseup", onMouseUp, { once: true });
+      this._formatPainterKeyHandler = (event) => {
+        if (event.key !== "Escape" || !this.copiedFormat) return;
+        event.preventDefault();
+        event.stopPropagation();
+        this._clearFormatPainter();
+      };
+      document.addEventListener("mouseup", this._formatPainterMouseUpHandler, true);
+      document.addEventListener("keydown", this._formatPainterKeyHandler, true);
       return true;
     } else {
       const sel = window.getSelection?.();
@@ -11627,6 +11632,12 @@ export class WriterAdapter {
   }
 
   _clearFormatPainter() {
+    if (typeof document !== "undefined") {
+      if (this._formatPainterMouseUpHandler) document.removeEventListener("mouseup", this._formatPainterMouseUpHandler, true);
+      if (this._formatPainterKeyHandler) document.removeEventListener("keydown", this._formatPainterKeyHandler, true);
+    }
+    this._formatPainterMouseUpHandler = null;
+    this._formatPainterKeyHandler = null;
     this.copiedFormat = null;
     globalCommandBus.updateState("common.edit.formatPainter", { checked: false });
     this.editorDom?.classList?.remove("vno-format-painter-active");
