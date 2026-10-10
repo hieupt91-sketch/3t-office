@@ -1268,9 +1268,21 @@ export class WriterAdapter {
 
   sortParagraphs() {
     const blocks = this._getSelectedParagraphBlocks();
-    if (blocks.length < 2) return false;
+    if (blocks.length < 2) {
+      this.shell?.showNotification?.({
+        type: "info",
+        message: "Cần chọn ít nhất hai đoạn văn để sắp xếp A–Z."
+      });
+      return false;
+    }
     const parent = blocks[0].parentNode;
-    if (!parent || blocks.some(node => node.parentNode !== parent)) return false;
+    if (!parent || blocks.some(node => node.parentNode !== parent)) {
+      this.shell?.showNotification?.({
+        type: "info",
+        message: "Hãy chọn các đoạn liền nhau trong cùng một vùng rồi sắp xếp lại."
+      });
+      return false;
+    }
     this.flushTyping();
     const marker = document.createComment("vno-sort-anchor");
     parent.insertBefore(marker, blocks[0]);

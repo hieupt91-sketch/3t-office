@@ -119,6 +119,17 @@ try {
     const typed = await cdp.evaluate(`(() => ({html:document.querySelector('.vno-writer-body p:last-child')?.innerHTML,states:{bold:document.queryCommandState('bold'),italic:document.queryCommandState('italic'),underline:document.queryCommandState('underline')}}))()`);
     check("U3 Ctrl+Space tại con trỏ: xóa kiểu chữ chờ và gõ tiếp văn bản thường", pendingAfter.bold === false && pendingAfter.italic === false && pendingAfter.underline === false && !/<(b|i|u)\b/i.test(typed.html) && !/color:\s*rgb\(220, 38, 38\)/i.test(typed.html), { cdpPort: session.debugPort, pendingBefore, pendingAfter, typed });
   }
+  if (!selected.size || selected.has("7")) {
+    await click(cdp, "#vno-ribbon-tab-home");
+    await cdp.evaluate(`(() => { const body=document.querySelector('.vno-writer-body'); body.innerHTML=''; body.focus(); })()`);
+    await click(cdp, '[data-command-id="writer.para.sort"]');
+    const emptySort = await cdp.evaluate(`(() => ({message:document.querySelector('.vno-notification-bar-message')?.textContent||'',paragraphs:document.querySelectorAll('.vno-writer-body p, .vno-writer-body li').length}))()`);
+    check("U21 chuột: Sắp xếp khi chưa có đoạn báo lý do", /ít nhất hai đoạn/.test(emptySort.message) && emptySort.paragraphs === 0, { cdpPort: session.debugPort, emptySort });
+    await cdp.evaluate(`(() => { const body=document.querySelector('.vno-writer-body'); body.innerHTML='<p>Đoạn duy nhất</p>'; const p=body.querySelector('p'),range=document.createRange(); range.selectNodeContents(p); range.collapse(true); const s=getSelection(); s.removeAllRanges(); s.addRange(range); body.focus(); document.querySelector('[data-command-id="writer.para.sort"]')?.focus(); })()`);
+    await press(cdp, "Enter");
+    const singleSort = await cdp.evaluate(`(() => ({message:document.querySelector('.vno-notification-bar-message')?.textContent||'',paragraphs:document.querySelectorAll('.vno-writer-body p, .vno-writer-body li').length,text:document.querySelector('.vno-writer-body')?.innerText}))()`);
+    check("U21 keyboard: Enter trên Sắp xếp với một đoạn báo lý do và giữ nguyên nội dung", /ít nhất hai đoạn/.test(singleSort.message) && singleSort.paragraphs === 1 && singleSort.text === "Đoạn duy nhất", { singleSort });
+  }
   if (results.some(item => !item.pass)) process.exitCode = 1;
 } finally {
   await session.close();

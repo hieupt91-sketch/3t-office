@@ -689,7 +689,7 @@ export const WRITER_HELP_ENTRIES = [
     keywords: ["sắp xếp đoạn", "dấu định dạng", "tô nền", "viền đoạn", "alt+shift", "move paragraph", "formatting marks"],
     steps: [
       "Tab Trang đầu, nhóm Đoạn văn: Sắp xếp và Hiện/ẩn ký tự định dạng trên hàng danh sách; Tô nền đoạn và hộp Viền đoạn trên hàng căn lề. Di chuyển đoạn lên/xuống không có nút — Alt+Shift+↑ / Alt+Shift+↓.",
-      "Sắp xếp cần ít nhất 2 khối kề nhau; so sánh chữ đã cắt khoảng trắng, locale số thông minh, không phân biệt hoa thường. Con trỏ trong danh sách thì sắp mọi mục li. Chỉ A–Z, không hộp chọn cột/thứ tự.",
+      "Sắp xếp cần ít nhất 2 khối kề nhau; nếu chưa đủ, VN Writer sẽ báo cần chọn thêm đoạn. So sánh chữ đã cắt khoảng trắng, locale số thông minh, không phân biệt hoa thường. Con trỏ trong danh sách thì sắp mọi mục li. Chỉ A–Z, không hộp chọn cột/thứ tự.",
       "Hiện dấu định dạng: ¶ cuối đoạn, ↵ xuống dòng, · khoảng trắng. Chỉ trên màn hình. Tô nền đoạn luôn vàng kem #FFF2CC (không bảng màu) — nhấn không tự tắt, muốn bỏ thì Xóa định dạng (Ctrl+Space) hoặc tô lại bằng cách khác.",
       "Hộp Viền đoạn: Viền dưới (mặc định, 1px #334155), Tất cả viền, Không viền. Alt+Shift+↑/↓ hoán đổi khối hiện tại với khối trước/sau trong thân tài liệu. Ctrl+Z hoàn tác."
     ]
