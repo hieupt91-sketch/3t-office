@@ -580,21 +580,21 @@ export const ICONS = {
   footnoteInsert: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
     <rect x="4" y="2" width="16" height="20" rx="2" fill="#F8FAFC" stroke="#0F4C81" stroke-width="1.5"/>
     <line x1="7" y1="6" x2="13" y2="6" stroke="#334155" stroke-width="1.4" stroke-linecap="round"/>
-    <text x="14" y="6" font-size="5" font-weight="900" fill="#2563EB" font-family="sans-serif">1</text>
+    <circle cx="15.5" cy="5" r="1.1" fill="#2563EB"/>
     <line x1="7" y1="10" x2="17" y2="10" stroke="#94A3B8" stroke-width="1.4" stroke-linecap="round"/>
     <line x1="7" y1="15" x2="12" y2="15" stroke="#0F4C81" stroke-width="1.2"/>
-    <text x="7" y="19.5" font-size="5" font-weight="900" fill="#2563EB" font-family="sans-serif">1</text>
+    <circle cx="8.5" cy="18.5" r="1.1" fill="#2563EB"/>
     <line x1="10" y1="19" x2="17" y2="19" stroke="#64748B" stroke-width="1.2" stroke-linecap="round"/>
   </svg>`,
 
   endnoteInsert: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
     <path d="M6 3H18C19.1 3 20 3.9 20 5V19C20 20.1 19.1 21 18 21H6C4.9 21 4 20.1 4 19V5C4 3.9 4.9 3 6 3Z" fill="#F8FAFC" stroke="#B53818" stroke-width="1.5"/>
     <line x1="7" y1="6" x2="13" y2="6" stroke="#334155" stroke-width="1.4" stroke-linecap="round"/>
-    <text x="14" y="6" font-size="5" font-weight="900" fill="#DC2626" font-family="sans-serif">i</text>
+    <circle cx="15.5" cy="5" r="1.1" fill="#DC2626"/>
     <line x1="7" y1="10" x2="17" y2="10" stroke="#94A3B8" stroke-width="1.4" stroke-linecap="round"/>
     <line x1="7" y1="14" x2="17" y2="14" stroke="#94A3B8" stroke-width="1.4" stroke-linecap="round"/>
     <line x1="7" y1="17" x2="11" y2="17" stroke="#B53818" stroke-width="1.2"/>
-    <text x="7" y="20.5" font-size="5" font-weight="900" fill="#DC2626" font-family="sans-serif">i</text>
+    <circle cx="8.5" cy="19.5" r="1.1" fill="#DC2626"/>
     <line x1="9.5" y1="20" x2="17" y2="20" stroke="#64748B" stroke-width="1.2" stroke-linecap="round"/>
   </svg>`,
 
@@ -610,9 +610,9 @@ export const ICONS = {
 
   mergeInsertField: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
     <rect x="3" y="3" width="18" height="18" rx="2" fill="#F8FAFC" stroke="#0F4C81" stroke-width="1.4"/>
-    <text x="5" y="15" font-family="monospace, sans-serif" font-size="11" font-weight="bold" fill="#2563EB">«</text>
+    <path d="M9 10 6.5 12l2.5 2M9.5 10h2M9.5 14h2" stroke="#2563EB" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
     <line x1="10" y1="13" x2="14" y2="13" stroke="#94A3B8" stroke-width="1.5" stroke-linecap="round"/>
-    <text x="15" y="15" font-family="monospace, sans-serif" font-size="11" font-weight="bold" fill="#2563EB">»</text>
+    <path d="m15 10 2.5 2-2.5 2m-.5-4h-2m2 4h-2" stroke="#2563EB" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
     <circle cx="18" cy="6" r="3.5" fill="#2563EB"/>
     <line x1="18" y1="4.5" x2="18" y2="7.5" stroke="#FFFFFF" stroke-width="1.2" stroke-linecap="round"/>
     <line x1="16.5" y1="6" x2="19.5" y2="6" stroke="#FFFFFF" stroke-width="1.2" stroke-linecap="round"/>
@@ -973,7 +973,7 @@ export const ICONS = {
     <rect x="4" y="3" width="16" height="18" rx="1.5" fill="#F8FAFC" stroke="#0F4C81" stroke-width="1.3"/>
     <path d="M7 8h10M7 12h7M7 16h5" stroke="#94A3B8" stroke-width="1.4" stroke-linecap="round"/>
     <rect x="13" y="14" width="8" height="7" rx="1.2" fill="#EFF6FF" stroke="#2563EB" stroke-width="1.2"/>
-    <text x="17" y="19.2" text-anchor="middle" font-size="5.5" font-weight="800" fill="#1D4ED8" font-family="sans-serif">123</text>
+    <path d="M15 16v3m2-3v3m2-3v3" stroke="#1D4ED8" stroke-width=".8" stroke-linecap="round"/>
   </svg>`,
 
   percentFormat: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">

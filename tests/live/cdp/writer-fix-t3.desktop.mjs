@@ -113,6 +113,32 @@ try {
   await sleep(350);
   const wide = await session.cdp.evaluate(`(() => {const bar=document.querySelector('.vno-ribbon-tabs');return {width:innerWidth,client:bar.clientWidth,scroll:bar.scrollWidth,leftVisible:!document.querySelector('.vno-ribbon-tab-scroll-btn.is-left').hidden,rightVisible:!document.querySelector('.vno-ribbon-tab-scroll-btn.is-right').hidden};})()`);
   check("U40: ở 1366x768 các tab vẫn vừa như trước và nút cuộn tự ẩn", wide.width === 1366 && wide.scroll <= wide.client + 1 && !wide.leftVisible && !wide.rightVisible, JSON.stringify(wide));
+
+  // U30/U33/U35: icon artwork contributes no duplicate text; visible and accessible labels stay intact.
+  const labelChecks = [
+    ["writer.reference.footnoteInsert", "Chú thích trang", "Chú thích trang (Ctrl+Alt+F)"],
+    ["writer.reference.endnoteInsert", "Chú thích cuối", "Chú thích cuối (Ctrl+Alt+D)"],
+    ["writer.reference.bibliographyInsert", "Thư mục tài liệu", "Thư mục tài liệu"],
+    ["writer.mailMerge.insertField", "Chèn trường", "Chèn trường"],
+    ["writer.mailMerge.ifRule", "Quy tắc", "Quy tắc"],
+    ["writer.review.wordCount", "Đếm từ", "Đếm từ"],
+  ];
+  const measuredLabels = [];
+  for (const tab of ["references", "mailings", "review"]) {
+    await click(session.cdp, `#vno-ribbon-tab-${tab}`);
+    const ids = labelChecks.filter(([id]) => {
+      if (tab === "references") return id.startsWith("writer.reference.");
+      if (tab === "mailings") return id.startsWith("writer.mailMerge.");
+      return id === "writer.review.wordCount";
+    }).map(([id]) => id);
+    const values = await session.cdp.evaluate(`(${JSON.stringify(ids)}).map(id => {const button=document.querySelector('[data-command-id="'+id+'"]');return {id,label:button?.querySelector('.vno-btn-label')?.innerText?.trim(),aria:button?.getAttribute('aria-label'),iconText:button?.querySelector('.vno-btn-icon')?.textContent?.trim()||''};})`);
+    measuredLabels.push(...values);
+  }
+  const labelsPass = measuredLabels.length === labelChecks.length && measuredLabels.every(value => {
+    const expected = labelChecks.find(([id]) => id === value.id);
+    return value.label === expected[1] && value.aria === expected[2] && !value.iconText;
+  });
+  check("U30/U33/U35: nhãn hiển thị chỉ một lần, tên truy cập giữ nguyên trên ba tab", labelsPass, JSON.stringify(measuredLabels));
 } catch (error) {
   check("FIX-T3 U20 desktop regression không phát sinh ngoại lệ", false, error.stack || error.message);
 } finally {
