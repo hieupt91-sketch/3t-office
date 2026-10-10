@@ -1079,26 +1079,63 @@ export class WriterAdapter {
   _getSelectedParagraphBlocks() {
     if (typeof window === "undefined" || !this.bodyDom) return [];
     const selection = window.getSelection?.();
-    if (!selection || selection.rangeCount === 0) return [];
-    const range = selection.getRangeAt(0);
+    if (!selection || !selection.rangeCount) return [];
+    if (typeof selection.getRangeAt !== "function") {
+      let node = selection.anchorNode;
+      if (node?.nodeType === 3) node = node.parentElement || node.parentNode;
+      let block = node;
+      while (block && block !== this.bodyDom && block !== this.editorDom && !/^(P|DIV|H[1-6]|LI|BLOCKQUOTE|TD|TH)$/i.test(block.tagName || "")) {
+        block = block.parentElement || block.parentNode;
+      }
+      if (block && block !== this.bodyDom && block !== this.editorDom) {
+        return [block];
+      }
+      const closest = node?.closest?.("p,h1,h2,h3,h4,h5,h6,blockquote,div,td,th,li");
+      if (closest && (!this.bodyDom.contains || this.bodyDom.contains(closest))) {
+        return [closest];
+      }
+      return [];
+    }
+    let range;
+    try {
+      range = selection.getRangeAt(0);
+    } catch {
+      range = null;
+    }
+    if (!range) {
+      let node = selection.anchorNode;
+      if (node?.nodeType === 3) node = node.parentElement || node.parentNode;
+      let block = node;
+      while (block && block !== this.bodyDom && block !== this.editorDom && !/^(P|DIV|H[1-6]|LI|BLOCKQUOTE|TD|TH)$/i.test(block.tagName || "")) {
+        block = block.parentElement || block.parentNode;
+      }
+      if (block && block !== this.bodyDom && block !== this.editorDom) {
+        return [block];
+      }
+      const closest = node?.closest?.("p,h1,h2,h3,h4,h5,h6,blockquote,div,td,th,li");
+      if (closest && (!this.bodyDom.contains || this.bodyDom.contains(closest))) {
+        return [closest];
+      }
+      return [];
+    }
     const startElement = range.startContainer?.nodeType === 1
       ? range.startContainer
-      : range.startContainer?.parentElement;
+      : range.startContainer?.parentElement || range.startContainer?.parentNode;
     const listItem = startElement?.closest?.("li");
-    if (listItem && this.bodyDom.contains(listItem)) {
+    if (listItem && (!this.bodyDom.contains || this.bodyDom.contains(listItem))) {
       const siblings = Array.from(listItem.parentElement?.children || []).filter(node => node.tagName === "LI");
       if (range.collapsed) return siblings;
-      return siblings.filter(node => range.intersectsNode?.(node));
+      return siblings.filter(node => (range.intersectsNode ? range.intersectsNode(node) : true));
     }
     const blocks = Array.from(this.bodyDom.children || []).filter(node =>
-      !node.hasAttribute?.("data-vno-auto-page-gap") && range.intersectsNode?.(node)
+      !node.hasAttribute?.("data-vno-auto-page-gap") && (range.intersectsNode ? range.intersectsNode(node) : true)
     );
     if (blocks.length === 1 && /^(OL|UL)$/i.test(blocks[0].tagName)) {
       return Array.from(blocks[0].children || []).filter(node => node.tagName === "LI");
     }
     if (blocks.length) return blocks;
     const closest = startElement?.closest?.("p,h1,h2,h3,h4,h5,h6,blockquote,div,td,th");
-    return closest && this.bodyDom.contains(closest) ? [closest] : [];
+    return closest && (!this.bodyDom.contains || this.bodyDom.contains(closest)) ? [closest] : [];
   }
 
   sortParagraphs() {
@@ -11185,10 +11222,18 @@ export class WriterAdapter {
       const sel = typeof window !== "undefined" ? window.getSelection?.() : null;
       if (sel?.rangeCount > 0) {
         let node = sel.anchorNode;
-        if (node?.nodeType === 3) node = node.parentNode;
-        const block = node?.closest?.("p,h1,h2,h3,h4,h5,h6,li,blockquote,div,td,th");
-        if (block && (this.bodyDom?.contains(block) || this.editorDom?.contains(block))) {
+        if (node?.nodeType === 3) node = node.parentElement || node.parentNode;
+        let block = node;
+        while (block && block !== this.editorDom && block !== this.bodyDom && !/^(P|DIV|H[1-6]|LI|BLOCKQUOTE|TD|TH)$/i.test(block.tagName || "")) {
+          block = block.parentElement || block.parentNode;
+        }
+        if (block && block !== this.editorDom && block !== this.bodyDom) {
           blocks.push(block);
+        } else {
+          const closest = node?.closest?.("p,h1,h2,h3,h4,h5,h6,li,blockquote,div,td,th");
+          if (closest && (!this.bodyDom?.contains || this.bodyDom.contains(closest) || !this.editorDom?.contains || this.editorDom.contains(closest))) {
+            blocks.push(closest);
+          }
         }
       }
     }
@@ -11264,26 +11309,33 @@ export class WriterAdapter {
 
     // 1. Lưu lại thuộc tính inline font-size trên các khối đoạn (p, h1-h6, li, td, th) giao với vùng chọn
     // để ngăn Chromium execCommand("fontSize") tự ý xoá style trên khối cha (như lỗi p{font-size:16px} trong d07).
-    const range = sel.getRangeAt(0);
+    let range = null;
+    if (typeof sel.getRangeAt === "function") {
+      try {
+        range = sel.getRangeAt(0);
+      } catch {
+        range = null;
+      }
+    }
     const touchedBlocks = [];
-    if (root.querySelectorAll) {
+    if (root && typeof root.querySelectorAll === "function") {
       const candidates = root.querySelectorAll("p, h1, h2, h3, h4, h5, h6, li, td, th");
       for (let i = 0; i < candidates.length; i++) {
         const b = candidates[i];
-        if (range.intersectsNode ? range.intersectsNode(b) : root.contains(b)) {
+        if (range && typeof range.intersectsNode === "function" ? range.intersectsNode(b) : (!root.contains || root.contains(b))) {
           touchedBlocks.push({
             element: b,
-            savedFontSize: b.style.fontSize
+            savedFontSize: b.style?.fontSize
           });
         }
       }
     }
     for (const n of [sel.anchorNode, sel.focusNode]) {
-      const b = n?.nodeType === 3 ? n.parentElement?.closest?.("p, h1, h2, h3, h4, h5, h6, li, td, th") : n?.closest?.("p, h1, h2, h3, h4, h5, h6, li, td, th");
+      const b = n?.nodeType === 3 ? (n.parentElement?.closest?.("p, h1, h2, h3, h4, h5, h6, li, td, th") || n.parentNode?.closest?.("p, h1, h2, h3, h4, h5, h6, li, td, th")) : n?.closest?.("p, h1, h2, h3, h4, h5, h6, li, td, th");
       if (b && !touchedBlocks.some(tb => tb.element === b)) {
         touchedBlocks.push({
           element: b,
-          savedFontSize: b.style.fontSize
+          savedFontSize: b.style?.fontSize
         });
       }
     }
@@ -11300,54 +11352,63 @@ export class WriterAdapter {
 
     // 3. Khôi phục inline font-size của khối cha nếu bị execCommand xoá mất
     for (const tb of touchedBlocks) {
-      if (tb.savedFontSize && tb.element.style.fontSize !== tb.savedFontSize) {
+      if (tb.savedFontSize && tb.element?.style && tb.element.style.fontSize !== tb.savedFontSize) {
         tb.element.style.fontSize = tb.savedFontSize;
       }
     }
 
     // 4. Tìm tất cả thẻ font[size="7"] vừa được tạo và gán cỡ chữ theo đơn vị pt
     let applied = false;
-    const allFonts = root.getElementsByTagName ? Array.from(root.getElementsByTagName("font")) : [];
+    const allFonts = root && typeof root.getElementsByTagName === "function" ? Array.from(root.getElementsByTagName("font")) : [];
     const formattedFonts = allFonts.filter(
-      (el) => el.getAttribute("size") === "7" || el.size === "7" || el.size === 7
+      (el) => el && (el.getAttribute?.("size") === "7" || el.size === "7" || el.size === 7)
     );
 
     for (const element of formattedFonts) {
-      element.removeAttribute("size");
-      element.style.fontSize = `${pt}pt`;
+      if (typeof element.removeAttribute === "function") {
+        element.removeAttribute("size");
+      } else {
+        element.size = "";
+      }
+      if (element.style) {
+        element.style.fontSize = `${pt}pt`;
+      }
       applied = true;
 
       // Xoá style font-size hoặc thẻ font lồng bên trong để cỡ chữ mới không bị xung đột
-      if (element.querySelectorAll) {
+      if (typeof element.querySelectorAll === "function") {
         const innerStyled = element.querySelectorAll("font, span[style*='font-size']");
         for (let i = 0; i < innerStyled.length; i++) {
           const inner = innerStyled[i];
-          if (inner.style.fontSize) inner.style.fontSize = "";
-          if (inner.hasAttribute("size")) inner.removeAttribute("size");
+          if (inner.style?.fontSize) inner.style.fontSize = "";
+          if (inner.hasAttribute?.("size")) inner.removeAttribute("size");
+          else if (inner.size) inner.size = "";
         }
       }
     }
 
     // 5. Khôi phục vùng chọn bao phủ toàn bộ nội dung vừa định dạng để anchorNode
     // nằm đúng bên trong văn bản và không bị nhảy ra ngoài thẻ đoạn.
-    if (formattedFonts.length > 0 && sel.removeAllRanges) {
+    if (formattedFonts.length > 0 && typeof sel.removeAllRanges === "function") {
       try {
         const firstEl = formattedFonts[0];
         const lastEl = formattedFonts[formattedFonts.length - 1];
         const firstText = firstEl.firstChild || firstEl;
         const lastText = lastEl.lastChild || lastEl;
-        const endOffset = lastText.nodeType === 3 ? lastText.textContent.length : lastText.childNodes.length;
+        const endOffset = lastText.nodeType === 3 ? (lastText.textContent ? lastText.textContent.length : 0) : (lastText.childNodes ? lastText.childNodes.length : 0);
 
-        if (sel.setBaseAndExtent) {
+        if (typeof sel.setBaseAndExtent === "function") {
           sel.setBaseAndExtent(lastText, endOffset, firstText, 0);
-        } else {
+        } else if (typeof document.createRange === "function") {
           const newRange = document.createRange();
           if (firstText.nodeType === 3) newRange.setStart(firstText, 0);
           else newRange.setStart(firstEl, 0);
           if (lastText.nodeType === 3) newRange.setEnd(lastText, endOffset);
-          else newRange.setEnd(lastEl, lastEl.childNodes.length);
+          else newRange.setEnd(lastEl, lastEl.childNodes ? lastEl.childNodes.length : 0);
           sel.removeAllRanges();
-          sel.addRange(newRange);
+          if (typeof sel.addRange === "function") {
+            sel.addRange(newRange);
+          }
         }
         this._syncFontUI?.(firstEl);
       } catch (_) {
