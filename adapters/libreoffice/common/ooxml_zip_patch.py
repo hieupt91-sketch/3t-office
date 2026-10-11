@@ -6601,10 +6601,15 @@ def _normalize_slides_animation_timing(pptx_bytes: bytes) -> dict[str, str]:
         slide_xml = {name: package.read(name) for name in slide_names}
 
     for name, xml_bytes in slide_xml.items():
-        for _, (prefix, uri) in ET.iterparse(io.BytesIO(xml_bytes), events=("start-ns",)):
-            if prefix:
-                ET.register_namespace(prefix, uri)
-        root = ET.fromstring(xml_bytes)
+        try:
+            for _, (prefix, uri) in ET.iterparse(io.BytesIO(xml_bytes), events=("start-ns",)):
+                if prefix:
+                    ET.register_namespace(prefix, uri)
+            root = ET.fromstring(xml_bytes)
+        except ET.ParseError:
+            # Some minimal or legacy PPTX parts use undeclared prefixes. Leave
+            # those slide parts untouched; animation normalization is optional.
+            continue
         parents = {child: parent for parent in root.iter() for child in parent}
         click_effects = [node for node in root.iter(p + "cTn") if node.get("nodeType") == "clickEffect" and node.get("presetID") in {"2", "10"}]
         if not click_effects:

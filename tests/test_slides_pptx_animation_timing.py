@@ -50,6 +50,16 @@ class SlidesPptxAnimationTimingTests(unittest.TestCase):
         original = make_pptx(xml)
         self.assertEqual(patcher.postprocess_slides_pptx(original), original)
 
+    def test_unbound_namespace_prefix_slide_is_left_unchanged(self):
+        malformed_xml = b'<p:sld><p:timing/></p:sld>'
+        original = make_pptx(malformed_xml.decode("utf-8"))
+
+        patched = patcher.postprocess_slides_pptx(original)
+
+        self.assertEqual(patched, original)
+        with zipfile.ZipFile(io.BytesIO(patched)) as package:
+            self.assertEqual(package.read("ppt/slides/slide1.xml"), malformed_xml)
+
 
 if __name__ == "__main__":
     unittest.main()
