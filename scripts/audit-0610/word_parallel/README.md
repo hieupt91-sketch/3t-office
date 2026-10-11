@@ -14,7 +14,7 @@ node --experimental-websocket scripts/audit-0610/word_parallel/app-ops.desktop.m
 .\scripts\audit-0610\word_parallel\word-compare.ps1 -Dir $dir
 ```
 
-`app-ops.desktop.mjs` dùng cổng CDP trống được cấp riêng bởi `tests/live/cdp/session.mjs`; mọi lần mở app dùng `VNO_APP_ROOT` và `VNO_CDP_LOCALAPPDATA` trên. Có thể chọn phép thử bằng `$env:OPS='subscript,highlightYellow'`. Phép `default` lưu template không áp lệnh để đọc riêng SpaceAfter mặc định.
+`app-ops.desktop.mjs` dùng cổng CDP trống được cấp riêng bởi `tests/live/cdp/session.mjs`; mọi lần mở app dùng `VNO_APP_ROOT` và `VNO_CDP_LOCALAPPDATA` trên. Có thể chọn phép thử bằng `$env:OPS='subscript,highlightYellow'`. Cùng biến `OPS` lọc các phép thử trong `word-compare.ps1`. Phép `default` lưu template không áp lệnh để đọc riêng SpaceAfter mặc định.
 
 Word COM chạy ẩn với `DisplayAlerts=0`. Script chụp các PID WINWORD đang có trước khi tạo COM, nhận diện PID mới do phiên automation tạo, gọi `Quit()` rồi chỉ dọn theo PID mới đó. Không dừng tiến trình WINWORD cũ.
 
@@ -40,3 +40,5 @@ Các nhóm dưới đây đã được thêm vào ma trận `docs/AUDIT-DOC-WORD
 - Heading 1–3; thư viện kiểu; tìm/thay thế; ký hiệu; hộp văn bản.
 
 Các script hiện tạo template ba đoạn, chạy một lệnh qua CommandBus, lưu DOCX và đọc các thuộc tính Range/ParagraphFormat/ListFormat bằng Word COM. Để thêm nhóm, khai báo cùng ca kiểm thử trong cả hai harness và chỉ đánh dấu KHỚP sau khi đọc lại DOCX bằng Word COM.
+
+Đã chạy thêm Heading 1–3 riêng. App và Word ghi đúng cùng `w:pStyle` (`Heading1`/`2`/`3`), nhưng font, cỡ, màu và khoảng cách mặc định lệch; xem mục Heading trong `docs/AUDIT-DOC-WORD-PARALLEL-1011.md`. Không đánh dấu nhóm này KHỚP.
