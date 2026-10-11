@@ -40,3 +40,8 @@
 - Ảnh: `evidence/s12/fix-s12-averageBtn.png`, `evidence/s12/fix-s12-autoSum.png`. Log CDP `s12-formula-buttons-fixed.log`; Excel COM `excel-averageBtn-fixed.log`, `excel-autoSum-fixed.log`.
 - Hướng dẫn range detection của Excel: [Calculate the average of a group of numbers](https://support.microsoft.com/en-us/excel/calculate-the-average-of-a-group-of-numbers).
 - **PASS** — focused unit tests cho range liền kề và dừng tại ô không phải số. **NOT RUN** — npm test, unittest tổng, batch XLSX và quét mã hóa (chạy khi hoàn tất lượt rà soát).
+
+## Tab Công thức: Đếm số
+
+- CDP bấm Đếm số tại C7; app tạo `=COUNT(C2:C6)`. Excel COM ReadOnly xác nhận công thức và `Value2=5`; **KHỚP EXCEL**.
+- Ảnh `evidence/s12/fix-s12-countNumbersBtn.png`; log CDP `s12-count-numbers.log`, Excel COM `excel-countNumbersBtn.log` trong profile audit.
