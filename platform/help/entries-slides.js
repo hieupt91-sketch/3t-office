@@ -548,7 +548,7 @@ export const SLIDES_HELP_ENTRIES = [
       "Tab Chèn, nhóm Văn bản, cột nhỏ: Đầu trang & Chân trang, Ngày & Giờ, Số trang chiếu (dưới Hộp văn bản / Chữ nghệ thuật).",
       "Đầu trang & Chân trang mở hộp cùng tên: tick Ngày tháng, Số trang chiếu (mặc định bật), Chân trang (mặc định bật, chữ mẫu «Tài liệu trình chiếu tiêu chuẩn 3T Office»), Áp dụng cho mọi trang chiếu (mặc định bật). Áp dụng / Hủy bỏ. Thanh dưới sân khấu: ngày | chữ chân | «Trang n / N».",
       "Ngày & Giờ mở hộp «Ngày & Giờ»: chọn mẫu dd/MM/yyyy (mặc định), dd/MM/yyyy HH:mm, «6 tháng 9 năm 2026», yyyy-MM-dd hoặc HH:mm. Trường ngày giờ và số trang chiếu tự cập nhật; chân trang giữ nguyên nội dung đã nhập.",
-      "Khi lưu thành .pptx, ngày giờ, số trang chiếu và chân trang được lưu thành trường riêng trên đúng trang đã áp dụng. Mở lại tệp trong VN Slides để kiểm tra nội dung và phạm vi áp dụng.",
+      "Khi lưu thành .pptx, ngày giờ, số trang chiếu và chân trang được lưu thành trường riêng trên đúng trang đã áp dụng. Mở lại tệp để kiểm tra nội dung và phạm vi áp dụng.",
       "Không có vùng đầu trang riêng, không «ẩn trên trang tiêu đề». Khi chiếu F5, overlay dùng chữ chân mẫu chủ đạo + bộ đếm riêng, không đọc hết tùy chọn hộp này."
     ]
   },
