@@ -1,0 +1,20 @@
+﻿bold              E2 | Text='Nguyen Van A' | Fmt='General' | B=1 I=0 U=-4142 Size=11 Font=Calibri Color=0 Fill=16777215 HAl=1 Wrap=0 Brd(B/T/L/R)=-4142/-4142/-4142/-4142
+italic            E2 | Text='Nguyen Van A' | Fmt='General' | B=0 I=1 U=-4142 Size=11 Font=Calibri Color=0 Fill=16777215 HAl=1 Wrap=0 Brd(B/T/L/R)=-4142/-4142/-4142/-4142
+underline         E2 | Text='Nguyen Van A' | Fmt='General' | B=0 I=0 U=2 Size=11 Font=Calibri Color=0 Fill=16777215 HAl=1 Wrap=0 Brd(B/T/L/R)=-4142/-4142/-4142/-4142
+size16            E2 | Text='Nguyen Van A' | Fmt='General' | B=0 I=0 U=-4142 Size=16 Font=Calibri Color=0 Fill=16777215 HAl=1 Wrap=0 Brd(B/T/L/R)=-4142/-4142/-4142/-4142
+fontArial         E2 | Text='Nguyen Van A' | Fmt='General' | B=0 I=0 U=-4142 Size=11 Font=Arial Color=0 Fill=16777215 HAl=1 Wrap=0 Brd(B/T/L/R)=-4142/-4142/-4142/-4142
+fillDefault       E2 | Text='Nguyen Van A' | Fmt='General' | B=0 I=0 U=-4142 Size=11 Font=Calibri Color=0 Fill=62207 HAl=1 Wrap=0 Brd(B/T/L/R)=-4142/-4142/-4142/-4142
+textColorDefault  E2 | Text='Nguyen Van A' | Fmt='General' | B=0 I=0 U=-4142 Size=11 Font=Calibri Color=2500316 Fill=16777215 HAl=1 Wrap=0 Brd(B/T/L/R)=-4142/-4142/-4142/-4142
+alignCenter       E2 | Text='Nguyen Van A' | Fmt='General' | B=0 I=0 U=-4142 Size=11 Font=Calibri Color=0 Fill=16777215 HAl=-4108 Wrap=0 Brd(B/T/L/R)=-4142/-4142/-4142/-4142
+alignRight        E2 | Text='Nguyen Van A' | Fmt='General' | B=0 I=0 U=-4142 Size=11 Font=Calibri Color=0 Fill=16777215 HAl=1 Wrap=0 Brd(B/T/L/R)=-4142/-4142/-4142/-4142
+wrap              E2 | Text='Nguyen Van A' | Fmt='General' | B=0 I=0 U=-4142 Size=11 Font=Calibri Color=0 Fill=16777215 HAl=1 Wrap=0 Brd(B/T/L/R)=-4142/-4142/-4142/-4142
+numNumber         B2 | Text='1,234.50' | Fmt='#,##0.00' | B=0 I=0 U=-4142 Size=11 Font=Calibri Color=0 Fill=16777215 HAl=1 Wrap=0 Brd(B/T/L/R)=-4142/-4142/-4142/-4142
+numCurrency       B2 | Text='1,234.50₫' | Fmt='#,##0.00[$₫]' | B=0 I=0 U=-4142 Size=11 Font=Calibri Color=0 Fill=16777215 HAl=1 Wrap=0 Brd(B/T/L/R)=-4142/-4142/-4142/-4142
+numAccounting     B2 | Text='1,234.50₫' | Fmt='#,##0.00* [$₫]' | B=0 I=0 U=-4142 Size=11 Font=Calibri Color=0 Fill=16777215 HAl=1 Wrap=0 Brd(B/T/L/R)=-4142/-4142/-4142/-4142
+numPercent        C2 | Text='7.50%' | Fmt='0.00%' | B=0 I=0 U=-4142 Size=11 Font=Calibri Color=0 Fill=16777215 HAl=1 Wrap=0 Brd(B/T/L/R)=-4142/-4142/-4142/-4142
+numDate           D2 | Text='########' | Fmt='dd/mm/yyyy' | B=0 I=0 U=-4142 Size=11 Font=Calibri Color=0 Fill=16777215 HAl=1 Wrap=0 Brd(B/T/L/R)=-4142/-4142/-4142/-4142
+decInc            B2 | Text='1234.5' | Fmt='0.0' | B=0 I=0 U=-4142 Size=11 Font=Calibri Color=0 Fill=16777215 HAl=1 Wrap=0 Brd(B/T/L/R)=-4142/-4142/-4142/-4142
+decDec            B2 | Text='1235' | Fmt='0' | B=0 I=0 U=-4142 Size=11 Font=Calibri Color=0 Fill=16777215 HAl=1 Wrap=0 Brd(B/T/L/R)=-4142/-4142/-4142/-4142
+thousands         B2 | Text='1234.5' | Fmt='General' | B=0 I=0 U=-4142 Size=11 Font=Calibri Color=0 Fill=16777215 HAl=1 Wrap=0 Brd(B/T/L/R)=-4142/-4142/-4142/-4142
+percentBtn        C2 | Text='7.50%' | Fmt='0.00%' | B=0 I=0 U=-4142 Size=11 Font=Calibri Color=0 Fill=16777215 HAl=1 Wrap=0 Brd(B/T/L/R)=-4142/-4142/-4142/-4142
+bordersDefault    E2 | Text='Nguyen Van A' | Fmt='General' | B=0 I=0 U=-4142 Size=11 Font=Calibri Color=0 Fill=16777215 HAl=1 Wrap=0 Brd(B/T/L/R)=-4142/-4142/-4142/-4142
