@@ -226,3 +226,9 @@ Phần “chưa chạy” này là ghi nhận giữa chừng, đã được thay
 1. **App/CDP:** bật 2 cột, gõ `Alpha`, Shift+Enter, `Line after`, chèn **Bố cục > Ngắt > Ngắt cột**, gõ `Next column`; ảnh `E:\VNOffice-profiles\codex-ft9\line-column-break-t9.png`.
 2. **Word COM:** DOCX Word có 1 ngắt dòng mềm, 1 ngắt cột và đủ ba chuỗi; DOCX app có 0 ngắt dòng mềm, 1 ngắt cột, giữ `Alpha`/`Line after` nhưng mất `Next column`.
 3. **Kết quả:** **LỆCH**; app xuất w:br column nhưng sentinel cùng đoạn làm mất nội dung theo sau; Shift+Enter không roundtrip thành ngắt dòng mềm. Tái hiện/harness `line-column-break-t9.desktop.mjs` và `word-line-column-break-t9.ps1`; chưa có bản sửa an toàn.
+
+### FIX-T9 — Chú thích cuối trang/cuối tài liệu — 11/10/2026
+
+1. **App/CDP:** chèn một footnote và một endnote, nhập `Footnote content`/`Endnote content`, lưu DOCX; ảnh `E:\VNOffice-profiles\codex-ft9\references-t8-before.png`.
+2. **Word COM:** mở lại tệp app và đối chứng; `Footnotes=1`, `Endnotes=1`, đúng nội dung từng note.
+3. **Kết quả:** **KHỚP** về số lượng/vị trí/nội dung sau roundtrip; không có sai lệch tái hiện.
