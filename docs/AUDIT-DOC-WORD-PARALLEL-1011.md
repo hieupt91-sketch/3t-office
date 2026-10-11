@@ -256,3 +256,9 @@ Phần “chưa chạy” này là ghi nhận giữa chừng, đã được thay
 1. **App/CDP:** áp Normal/Title/Quote qua gallery, lưu DOCX; ảnh `E:\VNOffice-profiles\codex-ft9\styles-t8-before.png`; Subtitle/List Paragraph không có card để chọn.
 2. **Word COM:** app đọc style `Body Text` cho Normal/Title, `Block Quotation` cho Quote; Word đọc Normal/Title/Quote. Title/Quote formats cũng lệch built-in Word theo preset VN.
 3. **Kết quả:** **LỆCH/MISSING** về semantic style; Subtitle và List Paragraph thiếu. Gap ghi ở backlog; không coi các preset VN là Word style tương đương.
+
+### FIX-T9 — Hình khối: màu, viền, xoay — 11/10/2026
+
+1. **App/CDP:** tạo rectangle trong dialog, chọn fill/line và độ dày; ảnh `E:\VNOffice-profiles\codex-ft9\shapes-t8-before.png`.
+2. **Word COM:** app/Word đều đọc một AutoShape loại 1, `59.8×34.2 pt`, trái/trên `75/120 pt`, fill `15426341`, line `14175773`, rộng viền `1.5 pt`.
+3. **Kết quả:** thuộc tính lúc tạo **KHỚP**; không có luồng chọn hình để sửa màu/viền hoặc xoay trong UI hiện tại. Gap ghi ở backlog; chưa đo parity cho chỉnh sửa/xoay.
