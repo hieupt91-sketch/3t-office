@@ -44,3 +44,10 @@ Sai khác tái hiện: không. Hướng dẫn VI hiện có dưới tab Dữ li�
 **PASS.** Dùng chuột phải trên thẻ và bàn phím trong hộp tên để đổi `Sheet2` thành `S9 Review`, di chuyển sheet về đầu thứ tự, thêm rồi xóa `Sheet3` qua menu xác nhận. Excel COM chỉ đọc xác nhận thứ tự lưu là `S9 Review / Sheet1`. XLSX: `E:\VNOffice-profiles\codex-fs10\app_sheetManagementPack.xlsx`; ảnh: `evidence/fix-s9-sheet-management.png`.
 
 Sai khác tái hiện: không. Trợ giúp tiếng Việt có hướng dẫn riêng đổi tên, di chuyển/sao chép, xóa; nhãn menu và hộp thoại có i18n VI/EN.
+
+## Kiểm thử cuối
+
+- `npm test`: **PASS 3062/3062, 0 FAIL**.
+- XLSX batch tuần tự: **PASS 8/8**, `diffs=0`, lint sạch, Excel COM PASS cho `lan01`, `lan02`, `lan04`, `lan06`, `lan09`, `lan11`, `lan22`, `lan26`.
+- Profile/output: `E:\VNOffice-profiles\codex-fs10`; báo cáo batch tại `E:\VNOffice-profiles\codex-fs10\batch\batch_document_audit_report.md`.
+- `git diff --check`: PASS; worktree sạch sau commit.
