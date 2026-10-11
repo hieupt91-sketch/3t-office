@@ -491,7 +491,7 @@ export const WRITER_HELP_ENTRIES = [
     commandIds: ["writer.image.insert"],
     title: "Chèn hình ảnh",
     summary: "Mở hộp chọn tệp ảnh trên máy (mọi kiểu image/*), rồi chèn ảnh vào vị trí con trỏ, co theo chiều rộng trang, giữ tỉ lệ.",
-    ribbon: { tab: "Chèn", tabId: "insert", group: "Minh họa" },
+    ribbon: { tab: "Định dạng ảnh", tabId: "pictureFormat", group: "Sắp xếp & Kích thước" },
     keywords: ["hình ảnh", "ảnh", "chèn ảnh", "image", "picture", "minh họa", "jpg", "png"],
     steps: [
       "Đặt con trỏ tại chỗ cần ảnh. Tab Chèn, nhóm Minh họa, nhấn nút lớn Hình ảnh (cạnh Hình khối, Sơ đồ, Biểu đồ).",
@@ -1351,7 +1351,7 @@ export const WRITER_HELP_ENTRIES = [
       "Nhấp chuột vào hình ảnh trong tài liệu để chọn ảnh. Thanh công cụ sẽ xuất hiện tab ngữ cảnh Định dạng Hình ảnh và trên ảnh hiển thị khung viền cùng 8 tay cầm co giãn.",
       "Kéo một trong 4 tay cầm ở các góc để thay đổi kích thước ảnh mà vẫn giữ nguyên tỷ lệ khung hình; hoặc kéo các tay cầm ở 4 cạnh để kéo giãn theo một chiều.",
       "Nhập trực tiếp số đo chiều Cao (px) và chiều Rộng (px) tại nhóm Sắp xếp & Kích thước trên tab Định dạng Hình ảnh để đặt kích thước chính xác.",
-      "Nhấp vào nút biểu tượng ngắt dòng nhanh ở góc trên bên phải khung ảnh hoặc chọn danh sách Ngắt dòng văn bản trên thanh ribbon để chọn kiểu ngắt dòng mong muốn (Vuông, Khít, Phía sau văn bản, Phía trước văn bản, Trên và dưới, Cùng dòng với văn bản)."
+      "Chọn kiểu trong danh sách Ngắt dòng văn bản trên tab Định dạng ảnh để chọn kiểu bọc chữ (Vuông, Khít, Phía sau văn bản, Phía trước văn bản, Trên và dưới, Cùng dòng với văn bản). Chọn Vị trí để đặt ảnh theo lưới; dùng các ô Cao/Rộng để nhập kích thước chính xác. Các lựa chọn này được lưu vào DOCX."
     ]
   },
   {

@@ -15248,6 +15248,110 @@ def _writer_restore_created_vertical_alignment(document_xml: str, source_html: s
     return document_xml
 
 
+def _writer_restore_created_image_layout(document_xml: str, source_html: str) -> str:
+    """Restore Writer image wrap and page-position choices lost by HTML import.
+
+    The app marks only images whose layout the user changed. Untouched imported
+    images stay on LibreOffice's normal conversion path.
+    """
+    image_tags = list(re.finditer(r"<img\b([^>]*)/?>", source_html or "", re.IGNORECASE))
+    if not image_tags or "data-vno-layout-edited" not in (source_html or "").lower():
+        return document_xml
+
+    def attr(attrs: str, name: str) -> str:
+        match = re.search(rf"\b{re.escape(name)}\s*=\s*([\"'])(.*?)\1", attrs, re.IGNORECASE | re.DOTALL)
+        return html.unescape(match.group(2)) if match else ""
+
+    replacements: list[tuple[int, int, str]] = []
+    page = re.search(r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>", document_xml, re.IGNORECASE)
+    page_size = re.search(r"<w:pgSz\b([^>]*)/?>", page.group(0), re.IGNORECASE) if page else None
+    page_margins = re.search(r"<w:pgMar\b([^>]*)/?>", page.group(0), re.IGNORECASE) if page else None
+
+    def twips_attr(match: re.Match | None, name: str, default: int) -> int:
+        value = re.search(rf"\bw:{name}\s*=\s*['\"](\d+)", match.group(1), re.IGNORECASE) if match else None
+        return int(value.group(1)) if value else default
+
+    page_width = twips_attr(page_size, "w", 12240) * 635
+    page_height = twips_attr(page_size, "h", 15840) * 635
+    margin_left = twips_attr(page_margins, "left", 1440) * 635
+    margin_right = twips_attr(page_margins, "right", 1440) * 635
+    margin_top = twips_attr(page_margins, "top", 1440) * 635
+    margin_bottom = twips_attr(page_margins, "bottom", 1440) * 635
+    inline_matches = list(re.finditer(r"<wp:inline\b([^>]*)>([\s\S]*?)</wp:inline\s*>", document_xml, re.IGNORECASE))
+    image_index = 0
+    for tag in image_tags:
+        attrs = tag.group(1)
+        if attr(attrs, "data-vno-layout-edited").lower() not in {"1", "true", "yes"}:
+            continue
+        while image_index < len(inline_matches):
+            inline = inline_matches[image_index]
+            image_index += 1
+            wrap = attr(attrs, "data-vno-wrap").lower() or "inline"
+            position = attr(attrs, "data-vno-position")
+            if wrap == "inline" and not position:
+                break
+
+            horizontal = {
+                "topLeft": "left", "topCenter": "center", "topRight": "right",
+                "middleLeft": "left", "center": "center", "middleRight": "right",
+                "bottomLeft": "left", "bottomCenter": "center", "bottomRight": "right",
+            }.get(position)
+            vertical = {
+                "topLeft": "top", "topCenter": "top", "topRight": "top",
+                "middleLeft": "center", "center": "center", "middleRight": "center",
+                "bottomLeft": "bottom", "bottomCenter": "bottom", "bottomRight": "bottom",
+            }.get(position)
+            relative_h = "page" if position else "column"
+            relative_v = "page" if position else "paragraph"
+            wrap_tag = {
+                "square": '<wp:wrapSquare wrapText="bothSides"/>',
+                "tight": '<wp:wrapSquare wrapText="bothSides"/>',
+                "topbottom": "<wp:wrapTopAndBottom/>",
+                "top-bottom": "<wp:wrapTopAndBottom/>",
+                "behind": "<wp:wrapNone/>",
+                "front": "<wp:wrapNone/>",
+            }.get(wrap, "<wp:wrapNone/>")
+            inner = inline.group(2)
+            extent = re.search(r"<wp:extent\b[^>]*/>", inner, re.IGNORECASE)
+            effect = re.search(r"<wp:effectExtent\b[^>]*/>", inner, re.IGNORECASE)
+            doc_pr = re.search(r"<wp:docPr\b[^>]*(?:/>|>[\s\S]*?</wp:docPr\s*>)", inner, re.IGNORECASE)
+            frame = re.search(r"<wp:cNvGraphicFramePr\b[\s\S]*?</wp:cNvGraphicFramePr\s*>", inner, re.IGNORECASE)
+            graphic = re.search(r"<a:graphic\b[\s\S]*?</a:graphic\s*>", inner, re.IGNORECASE)
+            if not all((extent, doc_pr, frame, graphic)):
+                break
+            cx_match = re.search(r'\bcx=["\'](\d+)', extent.group(0), re.IGNORECASE)
+            cy_match = re.search(r'\bcy=["\'](\d+)', extent.group(0), re.IGNORECASE)
+            cx = int(cx_match.group(1)) if cx_match else 0
+            cy = int(cy_match.group(1)) if cy_match else 0
+            horizontal_offset = {
+                "left": margin_left,
+                "center": margin_left + max(0, page_width - margin_left - margin_right - cx) // 2,
+                "right": max(0, page_width - margin_right - cx),
+            }.get(horizontal, 0)
+            vertical_offset = {
+                "top": margin_top,
+                "center": margin_top + max(0, page_height - margin_top - margin_bottom - cy) // 2,
+                "bottom": max(0, page_height - margin_bottom - cy),
+            }.get(vertical, 0)
+            pos_h = f'<wp:positionH relativeFrom="{relative_h}"><wp:posOffset>{horizontal_offset}</wp:posOffset></wp:positionH>'
+            pos_v = f'<wp:positionV relativeFrom="{relative_v}"><wp:posOffset>{vertical_offset}</wp:posOffset></wp:positionV>'
+            effect_xml = effect.group(0) if effect else '<wp:effectExtent l="0" t="0" r="0" b="0"/>'
+            behind = '1' if wrap == "behind" else '0'
+            anchor = (
+                f'<wp:anchor distT="0" distB="0" distL="114300" distR="114300" '
+                f'simplePos="0" relativeHeight="251658240" behindDoc="{behind}" '
+                'locked="0" layoutInCell="1" allowOverlap="1">'
+                '<wp:simplePos x="0" y="0"/>' + pos_h + pos_v + extent.group(0) + effect_xml + wrap_tag
+                + doc_pr.group(0) + frame.group(0) + graphic.group(0) + '</wp:anchor>'
+            )
+            replacements.append((inline.start(), inline.end(), anchor))
+            break
+
+    for start, end, replacement in reversed(replacements):
+        document_xml = document_xml[:start] + replacement + document_xml[end:]
+    return document_xml
+
+
 class _WriterExportListParser(HTMLParser):
     """Collect direct list-item text without confusing it with nested items."""
 
@@ -17275,6 +17379,7 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
 
     document_xml = re.sub(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", patch_indent, document_xml, flags=re.IGNORECASE)
     document_xml = _writer_restore_created_paragraph_css(document_xml, source_html)
+    document_xml = _writer_restore_created_image_layout(document_xml, source_html)
 
     section_meta: list[dict] = []
     meta_match = re.search(r"<!--vno-sections-meta:\s*(\[.*?\])\s*-->", source_html, re.IGNORECASE | re.DOTALL)

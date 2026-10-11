@@ -71,7 +71,7 @@ Lượt so sánh COM cuối: **21/21 KHỚP**. Hai lượt chẩn đoán trướ
 | Ký hiệu: ©, ₫, ∑, → | CDP chọn từ nhóm thường/tiền tệ/toán/mũi tên; DOCX lưu đúng chuỗi | Word COM tạo chuỗi tương đương và đọc cả hai DOCX | KHỚP: `Audit symbols:©₫∑→` |
 | Hộp văn bản | Sau lưu, COM đọc 53.6×19.5 pt; AutoSize=0; lề 7.2/3.6 pt | COM đọc cùng kích thước, AutoSize và lề | KHỚP |
 | Hình khối chữ nhật mới | CDP chọn dialog; DOCX đọc Type 1, 59.8×34.2 pt, Left/Top 75/120, fill/line/1.5pt | Word COM tạo cùng AutoShape và format | KHỚP |
-| Hình ảnh PNG 32×32 | CDP intercept file chooser + DOM.setFileInputFiles; Word đọc 1 InlineShape 24×24 pt | Word COM AddPicture cùng file; đọc lại | KHỚP: count/type/size/alignment |
+| Hình ảnh PNG: kích thước, wrap, vị trí | CDP chọn ảnh, sửa kích thước/wrap/position và lưu; Word COM đọc lại | Word COM áp cùng wrap/vị trí, lưu và mở lại | KHỚP sau mở lại: 1 Shape, 23.9×13.6 pt, wrap Square, tọa độ 510.8/56.7 pt |
 
 ### FIX-T8 — kết quả lần chạy `codex-ft8`
 
@@ -207,3 +207,10 @@ Phần “chưa chạy” này là ghi nhận giữa chừng, đã được thay
 - `python -m unittest discover -s tests` với `VNO_APP_ROOT` và `LOCALAPPDATA=E:\VNOffice-profiles\codex-ft8\python-localappdata`: **855 tests OK**, 468.399 giây; có `ResourceWarning` hai pipe chưa đóng sau khi chạy, không có test fail.
 - Batch `scripts/layout-audit/batch_document_audit.py docx` chạy với `VNO_APP_ROOT=E:\VNOffice-codex-ft8`, nguồn `E:\VN OFice\file test\landocx`: **6/6 PASS**, edit PASS, page delta 0. Số trang Word/lưu: d01 19/19, d02 11/11, d07 23/23, d13 10/10, d20 3/3, d24 16/16. Báo cáo: `E:\VNOffice-profiles\codex-ft8\batch-audit-final\batch_document_audit_report.md`.
 - Không chạy build. Không có test FAIL/BLOCKED. Giới hạn chưa đo trong scope phụ: sửa nội dung comment (UI hiện chưa có lệnh chỉnh sửa), các chế độ hiển thị revision và tên tác giả tùy chỉnh; ma trận chính phía trên nêu rõ các phép đã đối chiếu.
+
+
+### FIX-T9 — Hình ảnh — 11/10/2026
+
+1. **App/CDP:** dùng chuột chọn ảnh qua **Chèn > Hình ảnh**, tab **Định dạng ảnh**, đặt 56×32 px, wrap Vuông, vị trí trên-phải; lưu DOCX. Ảnh trước/sau: `E:\VNOffice-profiles\codex-ft9\image-t8-before.png`, `image-edit-t9.png`.
+2. **Word COM:** đối chứng cùng ảnh, wrap Square và vị trí tương ứng; mở lại hai DOCX bằng Word. Cả hai đọc `inline=0`, `shapes=1`, `23.9×13.6 pt`, wrap `0`, relative page `1/1`, position `510.8/56.7 pt`.
+3. **Kết quả/sửa:** trước sửa app DOCX thành InlineShape nên wrap/vị trí mất; adapter giờ chuyển ảnh đã chỉnh thành OOXML anchor, giữ wrap/offset. Unit mới 3/3 PASS; Help tiếng Việt ở **Định dạng ảnh > Sắp xếp & Kích thước**, khóa VI/EN cập nhật.
