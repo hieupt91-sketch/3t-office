@@ -250,3 +250,9 @@ Phần “chưa chạy” này là ghi nhận giữa chừng, đã được thay
 1. **App/CDP:** bật Theo dõi thay đổi, chèn ` added`, xóa `beta`, chấp nhận insertion rồi từ chối deletion; ảnh `E:\VNOffice-profiles\codex-ft9\track-changes-t8-before.png`.
 2. **Word COM:** hai revision đọc cùng type/author/text: deletion Type 2 `beta`, insertion Type 1 ` added`; trạng thái còn 1 sau accept one và 0 sau reject all.
 3. **Kết quả:** **KHỚP** về revision và thao tác accept/reject; hướng dẫn VI/EN đã có, không phát hiện sai lệch mới.
+
+### FIX-T9 — Thư viện kiểu: Title/Subtitle/Quote/List Paragraph — 11/10/2026
+
+1. **App/CDP:** áp Normal/Title/Quote qua gallery, lưu DOCX; ảnh `E:\VNOffice-profiles\codex-ft9\styles-t8-before.png`; Subtitle/List Paragraph không có card để chọn.
+2. **Word COM:** app đọc style `Body Text` cho Normal/Title, `Block Quotation` cho Quote; Word đọc Normal/Title/Quote. Title/Quote formats cũng lệch built-in Word theo preset VN.
+3. **Kết quả:** **LỆCH/MISSING** về semantic style; Subtitle và List Paragraph thiếu. Gap ghi ở backlog; không coi các preset VN là Word style tương đương.
