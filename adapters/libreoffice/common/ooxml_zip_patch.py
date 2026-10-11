@@ -15740,9 +15740,85 @@ def _writer_toc_fallback_texts(source_html: str) -> list[str]:
     return texts
 
 
+def _writer_tof_fallback_texts(source_html: str) -> tuple[str, list[str]]:
+    marker = re.search(
+        r'<div\b(?=[^>]*\bdata-vno-tof\s*=\s*(["\'])true\1)[^>]*>',
+        source_html, re.IGNORECASE,
+    )
+    if not marker:
+        return "", []
+    block = _writer_balanced_html_element(source_html, marker.start(), "div")
+    if not block:
+        return "", []
+    kind_match = re.search(r'\bdata-vno-tof-kind\s*=\s*(["\'])(.*?)\1', marker.group(0), re.IGNORECASE)
+    kind = (kind_match.group(2).strip().lower() if kind_match else "figure")
+    labels = {"figure": "Hình", "table": "Bảng", "equation": "Phương trình"}
+    word_label = labels.get(kind, "")
+    texts: list[str] = []
+    for item_start in re.finditer(
+        r'<div\b(?=[^>]*\bclass=["\'][^"\']*\bvno-tof-item\b[^"\']*["\'])[^>]*>',
+        block, re.IGNORECASE,
+    ):
+        item = _writer_balanced_html_element(block, item_start.start(), "div")
+        value = re.sub(r"\s+", " ", _writer_html_plain(item)).strip()
+        if value:
+            texts.append(value)
+    return word_label, texts
+
+
+def _writer_restore_caption_sequence_fields(document_xml: str) -> str:
+    """Convert app caption markers to native Word SEQ fields in Caption paragraphs."""
+    labels = {"figure": "Hình", "table": "Bảng", "equation": "Phương trình"}
+
+    def patch_paragraph(match: re.Match) -> str:
+        paragraph = match.group(0)
+        texts = re.findall(r"<w:t\b[^>]*>([\s\S]*?)</w:t\s*>", paragraph, re.IGNORECASE)
+        joined = "".join(html.unescape(text) for text in texts)
+        marker = re.search(r"VNO_CAPTION_V1:([^\s<]+)", joined)
+        if not marker:
+            return paragraph
+        try:
+            meta = json.loads(url_unquote(marker.group(1)))
+        except (TypeError, ValueError):
+            return paragraph
+        kind = str(meta.get("kind") or "figure").strip().lower()
+        word_label = labels.get(kind)
+        number = str(int(meta.get("index") or 1))
+        if not word_label:
+            return paragraph
+        visible = joined[:marker.start()]
+        number_match = re.search(rf"(?<!\d){re.escape(number)}(?!\d)", visible)
+        if not number_match:
+            return paragraph
+        before, after = visible[:number_match.start()], visible[number_match.end():]
+        ppr = re.search(r"<w:pPr\b[^>]*>[\s\S]*?</w:pPr\s*>", paragraph, re.IGNORECASE)
+        style = '<w:pStyle w:val="Caption"/>'
+        if ppr:
+            ppr_xml = re.sub(r"<w:pStyle\b[^>]*/>|<w:pStyle\b[^>]*>[\s\S]*?</w:pStyle\s*>", "", ppr.group(0), count=1, flags=re.IGNORECASE)
+            ppr_xml = re.sub(r"(<w:pPr\b[^>]*>)", rf"\1{style}", ppr_xml, count=1, flags=re.IGNORECASE)
+            ppr_xml = re.sub(r"<w:rPr\b[^>]*>[\s\S]*?</w:rPr\s*>", "", ppr_xml, flags=re.IGNORECASE)
+        else:
+            ppr_xml = f"<w:pPr>{style}</w:pPr>"
+        rpr_match = re.search(r"<w:rPr\b[^>]*(?:/>|>[\s\S]*?</w:rPr\s*>)", paragraph, re.IGNORECASE)
+        rpr = rpr_match.group(0) if rpr_match else ""
+        def run(text: str) -> str:
+            if not text:
+                return ""
+            return f'<w:r>{rpr}<w:t xml:space="preserve">{html.escape(text)}</w:t></w:r>'
+        sequence = (
+            f'<w:fldSimple w:instr=" SEQ {html.escape(word_label)} \\* ARABIC ">'
+            f'<w:r>{rpr}<w:t>{number}</w:t></w:r></w:fldSimple>'
+        )
+        bookmarks = "".join(re.findall(r"<w:bookmark(?:Start|End)\b[^>]*/?>", paragraph, re.IGNORECASE))
+        opening = re.search(r"<w:p\b[^>]*>", paragraph, re.IGNORECASE).group(0)
+        return opening + ppr_xml + bookmarks + run(before) + sequence + run(after) + "</w:p>"
+
+    return re.sub(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", patch_paragraph, document_xml, flags=re.IGNORECASE)
+
+
 def _writer_restore_toc_field(document_xml: str, source_html: str) -> str:
     """Wrap soffice's visible TOC fallback in a native complex Word TOC field."""
-    if re.search(r"<w:instrText\b[^>]*>[\s\S]*?\bTOC\b", document_xml, re.IGNORECASE):
+    if re.search(r"<w:instrText\b[^>]*>[\s\S]*?\bTOC\b[^<]*\\o\b", document_xml, re.IGNORECASE):
         return document_xml
     toc_texts = _writer_toc_fallback_texts(source_html)
     if not toc_texts:
@@ -15753,7 +15829,7 @@ def _writer_restore_toc_field(document_xml: str, source_html: str) -> str:
     for expected in toc_texts:
         found = next((
             index for index in range(cursor, len(paragraphs))
-            if _paragraph_plain_text(paragraphs[index].group(0)).strip() == expected
+            if _paragraph_match_key(paragraphs[index].group(0)) == re.sub(r"[^\w]+", "", expected, flags=re.UNICODE).casefold()
         ), None)
         if found is None:
             return document_xml
@@ -15777,6 +15853,64 @@ def _writer_restore_toc_field(document_xml: str, source_html: str) -> str:
     last = replacements.get(last_index, paragraphs[last_index].group(0))
     replacements[last_index] = re.sub(r"</w:p\s*>", end + "</w:p>", last, count=1, flags=re.IGNORECASE)
 
+    output: list[str] = []
+    previous = 0
+    for index, paragraph in enumerate(paragraphs):
+        output.append(document_xml[previous:paragraph.start()])
+        output.append(replacements.get(index, paragraph.group(0)))
+        previous = paragraph.end()
+    output.append(document_xml[previous:])
+    return "".join(output)
+
+
+def _writer_restore_tof_field(document_xml: str, source_html: str) -> str:
+    """Turn a Writer caption list into Word's native table-of-figures TOC field."""
+    if re.search(r"<w:instrText\b[^>]*>[\s\S]*?\bTOC\b[^<]*\\c\b", document_xml, re.IGNORECASE):
+        return document_xml
+    word_label, fallback_texts = _writer_tof_fallback_texts(source_html)
+    if not word_label or not fallback_texts:
+        return document_xml
+    paragraphs = list(re.finditer(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", document_xml, re.IGNORECASE))
+    matched: list[int] = []
+    cursor = 0
+    for expected in fallback_texts:
+        found = next((
+            index for index in range(cursor, len(paragraphs))
+            if _paragraph_match_key(paragraphs[index].group(0)) == re.sub(r"[^\w]+", "", expected, flags=re.UNICODE).casefold()
+        ), None)
+        if found is None:
+            return document_xml
+        matched.append(found)
+        cursor = found + 1
+    begin = (
+        '<w:r><w:fldChar w:fldCharType="begin" w:dirty="true"/></w:r>'
+        f'<w:r><w:instrText xml:space="preserve"> TOC \\h \\c "{html.escape(word_label)}" </w:instrText></w:r>'
+        '<w:r><w:fldChar w:fldCharType="separate"/></w:r>'
+    )
+    end = '<w:r><w:fldChar w:fldCharType="end"/></w:r>'
+    replacements: dict[int, str] = {}
+    def with_paragraph_style(paragraph: str, style_id: str) -> str:
+        ppr = re.search(r"<w:pPr\b[^>]*>[\s\S]*?</w:pPr\s*>", paragraph, re.IGNORECASE)
+        style = f'<w:pStyle w:val="{style_id}"/>'
+        if ppr:
+            body = re.sub(r"<w:pStyle\b[^>]*/>|<w:pStyle\b[^>]*>[\s\S]*?</w:pStyle\s*>", "", ppr.group(0), count=1, flags=re.IGNORECASE)
+            body = re.sub(r"(<w:pPr\b[^>]*>)", rf"\1{style}", body, count=1, flags=re.IGNORECASE)
+            paragraph = paragraph[:ppr.start()] + body + paragraph[ppr.end():]
+        else:
+            paragraph = re.sub(r"(<w:p\b[^>]*>)", rf"\1<w:pPr>{style}</w:pPr>", paragraph, count=1, flags=re.IGNORECASE)
+        return paragraph
+
+    first_index, last_index = matched[0], matched[-1]
+    for index, paragraph in enumerate(paragraphs):
+        block = paragraph.group(0)
+        if re.search(rf"\bSEQ\s+{re.escape(word_label)}\b", block, re.IGNORECASE):
+            replacements[index] = with_paragraph_style(block, "Caption")
+    first = with_paragraph_style(replacements.get(first_index, paragraphs[first_index].group(0)), "TableofFigures")
+    ppr = re.search(r"<w:pPr\b[^>]*>[\s\S]*?</w:pPr\s*>", first, re.IGNORECASE)
+    insert_at = ppr.end() if ppr else re.search(r"<w:p\b[^>]*>", first, re.IGNORECASE).end()
+    replacements[first_index] = first[:insert_at] + begin + first[insert_at:]
+    last = with_paragraph_style(replacements.get(last_index, paragraphs[last_index].group(0)), "TableofFigures")
+    replacements[last_index] = re.sub(r"</w:p\s*>", end + "</w:p>", last, count=1, flags=re.IGNORECASE)
     output: list[str] = []
     previous = 0
     for index, paragraph in enumerate(paragraphs):
@@ -17428,6 +17562,8 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
             document_xml, styles_xml, source_html
         )
     document_xml = _writer_apply_word_default_textbox_margins_for_new_documents(document_xml, source_html)
+    document_xml = _writer_restore_caption_sequence_fields(document_xml)
+    document_xml = _writer_restore_tof_field(document_xml, source_html)
     document_xml = _writer_restore_toc_field(document_xml, source_html)
     replacements = {"word/document.xml": document_xml.encode("utf-8")}
     if styles_bytes and styles_xml != styles_bytes.decode("utf-8", errors="replace"):
@@ -17438,7 +17574,7 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
         word_theme_xml = _writer_apply_word_default_heading_theme_for_new_documents(theme_xml, source_html)
         if word_theme_xml != theme_xml:
             replacements["word/theme/theme1.xml"] = word_theme_xml.encode("utf-8")
-    if _writer_toc_fallback_texts(source_html):
+    if _writer_toc_fallback_texts(source_html) or _writer_tof_fallback_texts(source_html)[1]:
         settings_bytes = read_zip_entry(docx_bytes, "word/settings.xml")
         if settings_bytes:
             settings_xml = settings_bytes.decode("utf-8", errors="replace")

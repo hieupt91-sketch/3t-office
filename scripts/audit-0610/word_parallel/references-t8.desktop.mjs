@@ -1,0 +1,60 @@
+import { launchApp } from "../../../tests/live/cdp/session.mjs";
+import { click, mouseClick, mouseDrag, press, typeText } from "../../../tests/live/cdp/actions.mjs";
+import { mkdirSync, writeFileSync } from "node:fs";
+
+const dir = process.env.VNO_CDP_LOCALAPPDATA;
+if (!dir || !process.env.VNO_APP_ROOT) throw new Error("Set VNO_CDP_LOCALAPPDATA and VNO_APP_ROOT.");
+mkdirSync(dir, { recursive: true });
+const output = `${dir}\\app_references_t8_new.docx`;
+const session = await launchApp("writer", { localAppData: dir, root: process.env.VNO_APP_ROOT, startTimeoutMilliseconds: 180000, readyTimeoutMilliseconds: 180000 });
+try {
+  const cdp = session.cdp;
+  await cdp.waitFor("!!document.querySelector('.vno-writer-body')", { timeoutMilliseconds: 180000, intervalMilliseconds: 500 });
+  await click(cdp, ".vno-writer-body p", 0);
+  await typeText(cdp, "First heading", 20);
+  await press(cdp, "Control+Alt+1", {}, 150);
+  await press(cdp, "Enter", {}, 100);
+  await typeText(cdp, "Second heading", 20);
+  await press(cdp, "Control+Alt+2", {}, 150);
+  await press(cdp, "Enter", {}, 100);
+  await typeText(cdp, "Body with notes", 20);
+  const select = async text => {
+    const r = await cdp.evaluate(`(() => {const p=[...document.querySelectorAll('.vno-writer-body p,.vno-writer-body h1,.vno-writer-body h2,.vno-writer-body h3')].find(x=>x.textContent.includes(${JSON.stringify(text)}));if(!p)return null;const q=document.createRange();q.selectNodeContents(p);const a=[...q.getClientRects()].filter(x=>x.width&&x.height);return a.length?{x1:a[0].left+1,y1:a[0].top+a[0].height/2,x2:a.at(-1).right-1,y2:a.at(-1).top+a.at(-1).height/2}:null})()`);
+    if (!r) throw new Error(`Paragraph not found: ${text}`);
+    await mouseDrag(cdp,r.x1,r.y1,r.x2,r.y2,{steps:7});
+    if (!(await cdp.evaluate("String(getSelection())")).includes(text)) throw new Error(`Could not select: ${text}`);
+  };
+  const clickText = async text => {
+    const p = await cdp.evaluate(`(() => {const e=[...document.querySelectorAll('.vno-writer-body p,.vno-writer-body h1,.vno-writer-body h2,.vno-writer-body h3')].find(x=>x.textContent.includes(${JSON.stringify(text)}));if(!e)return null;const r=e.getBoundingClientRect();return r.width&&r.height?{x:r.left+Math.min(8,r.width/2),y:r.top+r.height/2}:null})()`);
+    if(!p)throw new Error(`Visible text not found: ${text}`);
+    await mouseClick(cdp,p.x,p.y);
+  };
+  const home = await cdp.evaluate("[...document.querySelectorAll('.vno-ribbon-tab')].findIndex(x=>/Trang đầu|Home/i.test(x.textContent))");
+  await click(cdp,".vno-ribbon-tab",home);
+  await select("First heading");
+  await click(cdp,'.vno-style-gallery-strip [data-style-id="h1"]');
+  await select("Second heading");
+  await click(cdp,'button[data-command-id="writer.style.gallery"]');
+  await click(cdp,'.vno-style-gallery-dropdown .vno-style-card[data-style-id="h2"]');
+  const refTab = await cdp.evaluate("[...document.querySelectorAll('.vno-ribbon-tab')].findIndex(x=>/Tham chiếu|References/i.test(x.textContent))");
+  await click(cdp, ".vno-ribbon-tab", refTab);
+  await click(cdp, 'button[data-command-id="writer.reference.tocInsert"]');
+  await select("First heading");
+  await typeText(cdp, "Updated first heading", 20);
+  await click(cdp, 'button[data-command-id="writer.reference.tocUpdate"]');
+  await clickText("Body with notes");
+  await press(cdp, "End", {}, 100);
+  await click(cdp, 'button[data-command-id="writer.reference.footnoteInsert"]');
+  await new Promise(resolve => setTimeout(resolve, 250));
+  await typeText(cdp, "Footnote content", 25);
+  await clickText("Body with notes");
+  await press(cdp, "End", {}, 100);
+  await click(cdp, 'button[data-command-id="writer.reference.endnoteInsert"]');
+  await new Promise(resolve => setTimeout(resolve, 250));
+  await typeText(cdp, "Endnote content", 25);
+  const state = await cdp.evaluate(`(() => {const b=document.querySelector('.vno-writer-body');return {html:b?.innerHTML, toc:b?.querySelector('[data-vno-toc="true"]')?.innerText, footnote:b?.querySelector('.vno-note-text')?.innerText,endnote:b?.querySelector('.vno-endnote-item .vno-note-text')?.innerText,headings:[...b.querySelectorAll('h1,h2,h3')].map(x=>x.textContent)}})()`);
+  const shot = await cdp.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
+  writeFileSync(`${dir}\\references-t8-before.png`, Buffer.from(shot.result.data, "base64"));
+  const saved = await cdp.evaluate(`(() => {const a=window.__vnoAppInstance.adapter;return globalThis.globalUnoBridge.saveRealFileInPlace("writer",a._contentForExport(),${JSON.stringify(output)},${JSON.stringify(output)});})()`, { awaitPromise: true, timeoutMilliseconds: 240000 });
+  console.log(JSON.stringify({ state: { ...state, html: undefined }, saved, output, screenshot: `${dir}\\references-t8-before.png` }));
+} finally { await session.close(); }

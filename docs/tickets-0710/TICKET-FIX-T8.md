@@ -17,3 +17,8 @@ Quy trinh/CAM/TIET KIEM TOKEN: nhu TICKET-FIX-T1.md; COMMIT SAU MOI NHOM; Word C
 1. App desktop: Chèn > Văn bản > Hộp văn bản, gõ bằng CDP keyboard thật, lưu DOCX; ảnh `E:\VNOffice-profiles\codex-ft8\textbox-run-05\textbox-t8-before.png`.
 2. Word COM: cùng shape type 17; sau lưu cả hai DOCX có 53.6×19.5 pt, AutoSize=0, lề 7.2/3.6 pt và OOXML extent/bodyPr khớp.
 3. Đổi khung mặc định 220×80 thành 125.47×45.6 CSS px, kích thước phân số xuất theo pt, lề Word khớp. Help/i18n VI/EN cập nhật; test Python 6/6, JS 2/2 PASS. Commit riêng nhóm 4.
+
+### Nhóm 5 — Kiểu và tham chiếu
+1. CDP áp dụng Normal/Title/Quote, sửa và cập nhật TOC, thêm footnote/endnote, cross-reference và danh mục hình; ảnh `references-run-07`/`captions-run-08`.
+2. Word COM đọc TOC đã cập nhật, note content, 1 REF/bookmark và ToF với 2 SEQ caption; cấu trúc references khớp.
+3. Sửa caption thành native Word SEQ/Caption và ToF; regression Python 4/4 PASS. Gallery Normal/Title/Quote giữ format đặc thù VN; Help/i18n hiện có.

@@ -59,12 +59,14 @@ Lượt so sánh COM cuối: **21/21 KHỚP**. Hai lượt chẩn đoán trướ
 | Bố cục trang: 1/2/3 cột | Đã chạy | Đã chạy | 3/3 KHỚP |
 | Đầu/chân trang, trang đầu khác, số trang | CDP + DOCX đã lưu | Word COM đọc Header/Footer, `DifferentFirstPage=-1`, `StartingNumber=3` | KHỚP |
 | Ngắt trang; mục NextPage/Continuous/EvenPage/OddPage | CDP + DOCX đã lưu; 5 section | Word COM đọc 5 section, đúng loại bắt đầu | KHỚP |
-| Mục lục tự động + Heading 1 | Đã lưu; Word đọc `TablesOfContents.Count=1`, `Style=Heading 1` | Đã tạo cùng Heading 1 + TOC; đọc lại COM | KHỚP về số lượng/cấu trúc; chưa soát cập nhật/trang |
-| Chú thích trang | Đã lưu; Word đọc `Footnotes.Count=1`, nội dung rỗng | Đã tạo footnote; đọc lại COM | KHỚP về số lượng/nội dung rỗng |
+| Mục lục tự động + Heading 1 | CDP tạo, sửa Heading rồi cập nhật; Word COM đọc lại | COM tạo/cập nhật tương đương | KHỚP; TOC có heading đã sửa |
+| Chú thích trang/cuối trang và cuối tài liệu | CDP thêm nội dung `Footnote content`/`Endnote content` | Word COM tạo và đọc lại | KHỚP: mỗi loại 1, nội dung đúng |
+| Tham chiếu chéo | CDP chèn tới `Target heading`; Word đọc lại | COM tạo REF field/bookmark cùng kết quả | KHỚP |
+| Danh mục hình | CDP chèn 2 caption, tạo ToF; Word COM đọc lại | COM tạo caption và ToF native | KHỚP: 2 SEQ fields, 1 TableOfFigures |
 | Ghi chú | Một comment; Word đọc Author/Scope/Text | COM tạo cùng comment; đọc lại | KHỚP: `3T Office` / `Alpha` / `Audit note`; trạng thái Done chưa chạy |
 | Theo dõi thay đổi: chèn cụm ` added` | Word đọc một `Revision` thêm, Type 1, Author 3T Office | COM bật TrackRevisions, chèn cùng cụm; đọc lại | KHỚP về count/type/author/text |
 | Heading 1–3 (kiểu mặc định tài liệu mới) | CDP gõ/chọn/lưu; Word COM đọc đủ thuộc tính | Word COM tạo và đọc cùng kiểu | KHỚP; DOCX nhập giữ nguyên |
-| Thư viện kiểu | Chưa chạy | Chưa chạy | NOT RUN |
+| Thư viện kiểu: Normal/Title/Quote | CDP đã áp dụng và đọc Word COM | COM tạo kiểu Word tương ứng | Chạy đủ; các preset VN có chủ ý khác định dạng Normal/Title/Quote mặc định Word (TNR, 14pt/căn đều; Title đậm xanh/căn giữa; Quote có viền trái) |
 | Tìm/thay thế: thay toàn bộ `Alpha` → `Gamma` | CDP Ctrl+H, 1 thay thế; DOCX có Gamma, không Alpha | `Find.Execute` ReplaceAll; DOCX cùng nội dung | KHỚP |
 | Ký hiệu `π` | CDP chọn Pi; lưu DOCX có đúng 1 `π` ở đoạn Alpha | COM DOCX đối chứng có cùng ký tự/vị trí | KHỚP |
 | Hộp văn bản | Sau lưu, COM đọc 53.6×19.5 pt; AutoSize=0; lề 7.2/3.6 pt | COM đọc cùng kích thước, AutoSize và lề | KHỚP |
@@ -93,13 +95,19 @@ Lượt so sánh COM cuối: **21/21 KHỚP**. Hai lượt chẩn đoán trướ
 2. **Word COM:** tạo cùng ba Heading và đọc lại cả hai DOCX: Calibri Light; 16/13/12 pt; không đậm; màu/theme `-738148353/-738148353/-738164737`; trước 12/2/2 pt, sau 0; outline 1/2/3; căn trái; khớp từng thuộc tính.
 3. **Kết quả/sửa:** **KHỚP**; hậu xử lý chỉ áp theme/style Word cho tài liệu mới và không sửa định dạng đoạn/kết quả mở DOCX nguồn. Canvas mới cũng theo cỡ/màu/spacing; Help F1 **Thư viện kiểu và kiểu Thường** cùng tooltip VI/EN cập nhật. Test Python 4/4 và heading shortcut/help 4/4 PASS.
 
+### FIX-T8 — Kiểu và tham chiếu — 11/10/2026
+
+1. App/CDP: áp dụng Normal/Title/Quote; tạo Heading, TOC rồi sửa Heading và cập nhật; thêm footnote/endnote, cross-reference và danh mục hình; lưu DOCX, ảnh `E:\VNOffice-profiles\codex-ft8\references-run-07\references-t8-before.png` và `captions-run-08\captions-t8-before.png`.
+2. Word COM: TOC cập nhật giữ heading mới; footnote/endnote mỗi loại 1 và nội dung đúng; cross-reference có 1 REF field/bookmark; ToF có 1 bảng, 2 caption SEQ field; style gallery được đo song song.
+3. Kết quả/sửa: sửa caption app thành Word SEQ/Caption và ToF native `TOC \c`, regression Python 4/4 PASS. References KHỚP; Normal/Title/Quote giữ chủ đích thiết kế VN (không cùng format built-in Word). Help F1 và i18n đã có.
+
 ### FIX-T8 — Hộp văn bản — 11/10/2026
 
 1. **App/CDP:** Chèn qua **Chèn > Văn bản > Hộp văn bản**, gõ `Audit textbox` bằng bàn phím thật, lưu DOCX; ảnh `E:\VNOffice-profiles\codex-ft8\textbox-run-05\textbox-t8-before.png`.
 2. **Word COM:** tạo shape type 17 cùng kích thước 94.1×34.2 pt trước lưu; sau mở lại app và Word đều 53.6×19.5 pt, AutoSize=0, wrap bật, lề trái/phải 7.2 pt và trên/dưới 3.6 pt; OOXML ext/bodyPr cũng giống.
 3. **Kết quả/sửa:** **KHỚP**. Nguyên nhân là khung app mặc định 220×80 CSS px quá lớn và phép đổi px làm tròn; đặt mặc định 125.47×45.6 px, xuất kích thước phân số theo pt và khớp lề Word; cỡ người dùng chỉ định giữ nguyên. Test Python 6/6, JS 2/2 PASS; Help F1 và tooltip VI/EN cập nhật.
 
-- Các phép thử FIX-T8 còn lại thuộc Style/References và Comments/Track Changes/Find/Replace/Symbol/Shapes: **NOT RUN** trong lượt này. Kết quả Heading 1–3 trước đó vẫn là sai khác đã ghi, không được tính KHỚP.
+- Các phần Kiểu/Tham chiếu cơ bản đã hoàn tất; còn Comment trạng thái/CRUD, Track Changes xử lý revision, tìm kiếm tùy chọn và hình khối/ảnh cần hoàn tất ở các nhóm tiếp theo. Kết quả Heading 1–3 trước đó vẫn là sai khác đã ghi, không được tính KHỚP.
 - Batch DOCX hồi quy trên worktree/profile `codex-ft8`: **5/5 PASS**, edit PASS; trang nguồn/lưu d01 19/19, d07 23/23, d13 10/10, d20 3/3, d24 16/16. Báo cáo: `E:\VNOffice-profiles\codex-ft8\batch-audit\batch_document_audit_report.md`.
 - Kiểm thử: `npm test` **3058/3058 PASS**. `python -m unittest discover -s tests` lần chạy đầu dùng nhầm LOCALAPPDATA mặc định và có 10 lỗi do xung đột profile LibreOffice với phiên worktree khác; chạy lại toàn bộ với `LOCALAPPDATA=E:\VNOffice-profiles\codex-ft8\python-localappdata`: **832 tests OK**. Hai lần unittest có `ResourceWarning` về pipe chưa đóng; không có test fail ở lần chạy dùng profile riêng.
 
