@@ -7075,6 +7075,110 @@ def _apply_slides_paragraph_levels(pptx_bytes: bytes, source_fodp: str | None) -
     return replacements
 
 
+def _slide_header_footer_fields_from_fodp(source_fodp: str | None) -> list[dict[str, dict[str, str]]]:
+    """Read only VNOffice header/footer frames emitted on each FODP page."""
+    if not source_fodp:
+        return []
+    pages = re.findall(r"<draw:page\b[^>]*?/>|<draw:page\b[^>]*>[\s\S]*?</draw:page>", source_fodp, re.IGNORECASE)
+    result: list[dict[str, dict[str, str]]] = []
+    for page in pages:
+        fields: dict[str, dict[str, str]] = {}
+        for kind, odf_class in (("date", "date-time"), ("number", "page-number"), ("footer", "footer")):
+            pattern = rf"<draw:frame\b(?=[^>]*presentation:class=[\"']{re.escape(odf_class)}[\"'])[^>]*>([\s\S]*?)</draw:frame>"
+            match = re.search(pattern, page, re.IGNORECASE)
+            if not match:
+                continue
+            attrs = page[match.start():page.find(">", match.start()) + 1]
+            paragraphs = re.findall(r"<text:p\b[^>]*>([\s\S]*?)</text:p>", match.group(1), re.IGNORECASE)
+            raw_text = "".join(paragraphs)
+            raw_text = re.sub(r"<presentation:date-time\b[^>]*>|</presentation:date-time>", "", raw_text, flags=re.IGNORECASE)
+            raw_text = re.sub(r"<text:page-number\b[^>]*>|</text:page-number>", "", raw_text, flags=re.IGNORECASE)
+            value = html.unescape(re.sub(r"<[^>]+>", "", raw_text))
+            fields[kind] = {
+                "text": value,
+                "format": html.unescape(re.search(r"\bvno:date-format=[\"']([^\"']*)[\"']", attrs, re.IGNORECASE).group(1))
+                if re.search(r"\bvno:date-format=[\"']([^\"']*)[\"']", attrs, re.IGNORECASE) else "dd/MM/yyyy",
+            }
+        result.append(fields)
+    return result
+
+
+def _slide_placeholder_present(slide_xml: str, placeholder_type: str) -> bool:
+    return bool(re.search(
+        rf"<p:ph\b[^>]*\btype=[\"']{re.escape(placeholder_type)}[\"']",
+        slide_xml,
+        re.IGNORECASE,
+    ))
+
+
+def _slide_header_footer_shape(placeholder_type: str, shape_id: int, data: dict[str, str], slide_name: str, align: str, slide_cy: int, slide_cx: int) -> str:
+    idx = {"dt": "10", "ftr": "11", "sldNum": "12"}[placeholder_type]
+    text = data.get("text", "")
+    guid = lambda suffix: "{" + str(uuid.uuid5(uuid.NAMESPACE_URL, f"vno:{slide_name}:{suffix}")).upper() + "}"
+    field = ""
+    if placeholder_type == "dt":
+        field_type = {
+            "dd/MM/yyyy": "datetimeFigureOut",
+            "dd/MM/yyyy HH:mm": "datetime8",
+            "d MMMM yyyy": "datetime3",
+            "yyyy-MM-dd": "datetime3",
+            "HH:mm": "datetime10",
+        }.get(data.get("format", "dd/MM/yyyy"), "datetime")
+        field = f'<a:fld id="{guid("date")}" type="{field_type}"><a:rPr lang="vi-VN" dirty="0"/><a:pPr/><a:t>{html.escape(text)}</a:t></a:fld>'
+    elif placeholder_type == "sldNum":
+        field = f'<a:fld id="{guid("number")}" type="slidenum"><a:rPr lang="vi-VN" dirty="0"/><a:pPr/><a:t>{html.escape(text)}</a:t></a:fld>'
+    else:
+        field = f'<a:r><a:rPr lang="vi-VN" dirty="0"/><a:t xml:space="preserve">{html.escape(text)}</a:t></a:r>'
+    y = max(0, slide_cy - 620040)
+    body = (
+        f'<p:sp><p:nvSpPr><p:cNvPr id="{shape_id}" name="VNOffice {placeholder_type}"/>'
+        f'<p:cNvSpPr/><p:nvPr><p:ph type="{placeholder_type}" idx="{idx}"/></p:nvPr></p:nvSpPr>'
+        f'<p:spPr><a:xfrm><a:off x="274320" y="{y}"/><a:ext cx="{max(1, slide_cx - 548640)}" cy="320040"/></a:xfrm></p:spPr>'
+        f'<p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:pPr algn="{align}"/>{field}'
+        f'<a:endParaRPr lang="vi-VN"/></a:p></p:txBody></p:sp>'
+    )
+    return body
+
+
+def _postprocess_slides_header_footer(pptx_bytes: bytes, source_fodp: str | None) -> dict[str, str]:
+    fields_by_slide = _slide_header_footer_fields_from_fodp(source_fodp)
+    if not fields_by_slide:
+        return {}
+    with zipfile.ZipFile(io.BytesIO(pptx_bytes), "r") as package:
+        names = sorted(
+            (name for name in package.namelist() if re.fullmatch(r"ppt/slides/slide\d+\.xml", name, re.IGNORECASE)),
+            key=lambda name: int(re.search(r"slide(\d+)", name, re.IGNORECASE).group(1)),
+        )
+    presentation = read_zip_entry(pptx_bytes, PPTX_PRESENTATION_ENTRY)
+    size_xml = presentation.decode("utf-8") if presentation else ""
+    size_match = re.search(r"<p:sldSz\b([^>]*)/?>", size_xml, re.IGNORECASE)
+    size_attrs = size_match.group(1) if size_match else ""
+    slide_cx = int(re.search(r"\bcx=[\"'](\d+)[\"']", size_attrs, re.IGNORECASE).group(1)) if re.search(r"\bcx=[\"'](\d+)[\"']", size_attrs, re.IGNORECASE) else 12192000
+    slide_cy = int(re.search(r"\bcy=[\"'](\d+)[\"']", size_attrs, re.IGNORECASE).group(1)) if re.search(r"\bcy=[\"'](\d+)[\"']", size_attrs, re.IGNORECASE) else 6858000
+    if len(names) != len(fields_by_slide):
+        raise ValueError("Số trang chiếu FODP và PPTX không trùng khi lưu placeholder đầu/chân trang")
+    replacements: dict[str, str] = {}
+    for index, name in enumerate(names):
+        current = read_zip_entry(pptx_bytes, name)
+        if not current:
+            raise ValueError(f"PPTX thiếu {name} khi lưu placeholder đầu/chân trang")
+        xml = current.decode("utf-8")
+        missing = fields_by_slide[index]
+        shapes: list[str] = []
+        next_id = max((int(value) for value in re.findall(r"<p:cNvPr\b[^>]*\bid=[\"'](\d+)[\"']", xml)), default=1) + 1
+        for kind, placeholder_type, align in (("date", "dt", "l"), ("footer", "ftr", "ctr"), ("number", "sldNum", "r")):
+            data = missing.get(kind)
+            if data is None or _slide_placeholder_present(xml, placeholder_type):
+                continue
+            shapes.append(_slide_header_footer_shape(placeholder_type, next_id, data, name, align, slide_cy, slide_cx))
+            next_id += 1
+        if shapes:
+            if "</p:spTree>" not in xml:
+                raise ValueError(f"PPTX {name} thiếu p:spTree khi lưu placeholder đầu/chân trang")
+            replacements[name] = xml.replace("</p:spTree>", "".join(shapes) + "</p:spTree>", 1)
+    return replacements
+
+
 def postprocess_slides_pptx(
     pptx_bytes: bytes,
     *,
@@ -7141,10 +7245,12 @@ def postprocess_slides_pptx(
 
     animation_replacements = _normalize_slides_animation_timing(pptx_bytes)
     paragraph_level_replacements = _apply_slides_paragraph_levels(pptx_bytes, source_fodp)
-    if not apply_logo and not theme_id and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements and not paragraph_level_replacements:
+    header_footer_replacements = _postprocess_slides_header_footer(pptx_bytes, source_fodp)
+    if not apply_logo and not theme_id and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements and not paragraph_level_replacements and not header_footer_replacements:
         return pptx_bytes
     replacements.update(animation_replacements)
     replacements.update(paragraph_level_replacements)
+    replacements.update(header_footer_replacements)
 
     if apply_slide_size and presentation_xml:
         presentation_xml = apply_intended_slide_size(presentation_xml, intended_size)

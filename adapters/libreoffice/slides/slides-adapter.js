@@ -2546,8 +2546,8 @@ export class SlidesAdapter {
     if (hf.showSlideNumber !== false) {
       result.push(frame("page-number", `<text:page-number>${(this.canvas?.slides?.indexOf(slide) ?? 0) + 1}</text:page-number>`));
     }
-    if (hf.showFooter !== false && hf.footerText) {
-      result.push(frame("footer", this._escapeXml(hf.footerText)));
+    if (hf.showFooter !== false) {
+      result.push(frame("footer", this._escapeXml(hf.footerText || "")));
     }
     return result.join("\n");
   }
@@ -3316,6 +3316,8 @@ export class SlidesAdapter {
       ? `<draw:frame draw:style-name="grMasterLogo" svg:x="0.6cm" svg:y="0.4cm" svg:width="16cm" svg:height="0.8cm">\n        <draw:text-box><text:p>${logo}</text:p></draw:text-box>\n      </draw:frame>\n      `
       : "";
     const footerFrame = footer
+      && !(this.canvas?.headerFooter?.showFooter === true
+        || (this.canvas?.slides || []).some(slide => slide?.headerFooter?.showFooter === true))
       ? `<draw:frame draw:style-name="grMasterFooter" svg:x="0.6cm" svg:y="${footerYCm}cm" svg:width="${footerWidthCm}cm" svg:height="0.7cm">\n        <draw:text-box><text:p>${footer}</text:p></draw:text-box>\n      </draw:frame>`
       : "";
 
