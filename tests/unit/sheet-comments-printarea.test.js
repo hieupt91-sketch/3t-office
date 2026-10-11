@@ -64,6 +64,18 @@ export async function runSheetCommentsPrintAreaTests() {
       assert(parsed.commentsBySheet[first].C3.timestamp === "2026-09-04T08:30:00.000Z", "Không đọc lại timestamp");
     });
 
+    await test("Sheet Hyperlink: URL được lưu trong FODS và nạp lại an toàn", () => {
+      const first = grid.activeSheet;
+      grid.cellsData.set("G2", { val: "Trang chủ VN Office", formula: "", style: {}, hyperlink: "https://vnoffice.vn/?a=1&b=2" });
+      const adapter = new SheetAdapter(grid);
+      const xml = adapter.serializeToFods();
+      assert(xml.includes('xlink:href="https://vnoffice.vn/?a=1&amp;b=2"'), "FODS thiếu URL đã escape");
+      const parsed = adapter.parseFods(xml);
+      assert(parsed.sheetsData[first].get("G2").hyperlink === "https://vnoffice.vn/?a=1&b=2", "FODS không khôi phục hyperlink");
+      const unsafe = adapter.parseFods(xml.replace("https://vnoffice.vn/?a=1&amp;b=2", "javascript:alert(1)"));
+      assert(!unsafe.sheetsData[first].get("G2").hyperlink, "FODS nhận scheme hyperlink không an toàn");
+    });
+
     await test("Print Area: viền đúng bốn cạnh, clear và undo-redo", () => {
       grid.selectionRange = { start: { c: "B", r: 2 }, end: { c: "D", r: 4 } };
       assert(grid.setPrintArea() === "B2:D4", "Không lưu B2:D4");
