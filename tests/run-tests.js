@@ -267,6 +267,7 @@ import { runWriterTableEditsExportTests } from "./unit/writer-table-edits-export
 import { runWriterParagraphIndentTests } from "./unit/writer-paragraph-indent.test.js";
 import { runPanelOverlayUiP1Tests } from "./unit/panel-overlay-ui-p1.test.js";
 import { runSpellcheckPendingStyleTests } from "./unit/spellcheck-pending-style.test.js";
+import { runSheetStyleExportWrapBorderAlignTests } from "./unit/sheet-style-export-wrap-border-align.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -542,6 +543,7 @@ async function runAll() {
     { title: "253. Unit Tests — VN Writer Paragraph Indent (1,27 cm)", runner: runWriterParagraphIndentTests },
     { title: "254. Unit Tests — VN Writer Table Edits Export", runner: runWriterTableEditsExportTests },
     { title: "255. Unit Tests — VN Office Panel Overlay & Drawer (TICKET UI-P1)", runner: runPanelOverlayUiP1Tests },
+    { title: "S-X. Unit Tests — Sheet lưu XLSX giữ Gói văn bản, Căn phải và Viền (đối chiếu Excel thật)", runner: runSheetStyleExportWrapBorderAlignTests },
     { title: "U1. Unit Tests — Ctrl+B/I/U tại con trỏ không bị kiểm tra chính tả xóa kiểu sắp gõ", runner: runSpellcheckPendingStyleTests }
   ];
 

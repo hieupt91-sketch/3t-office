@@ -8901,20 +8901,33 @@ def _xlsx_cells_with_original_strings(xlsx_bytes: bytes) -> dict[str, dict[tuple
     shared = []
     for item in re.finditer(r"<si\b[^>]*>([\s\S]*?)</si>", shared_xml, re.IGNORECASE):
         shared.append("".join(_unescape_xml(m.group(1)) for m in re.finditer(r"<t\b[^>]*>([\s\S]*?)</t>", item.group(1), re.IGNORECASE)))
+    cell_type_re = re.compile(r"(?:^|\s)t=([\"'])(s|str|inlinestr)\1", re.IGNORECASE)
+    cell_ref_re = re.compile(r"(?:^|\s)r=([\"'])([A-Z]+)(\d+)\1", re.IGNORECASE)
+    value_re = re.compile(r"<v\b[^>]*>([\s\S]*?)</v>", re.IGNORECASE)
+    text_re = re.compile(r"<t\b[^>]*>([\s\S]*?)</t>", re.IGNORECASE)
     result = {}
     for sheet_name, entry_path in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
         sheet_xml = (read_zip_entry(xlsx_bytes, entry_path) or b"").decode("utf-8", errors="replace"); cells = {}
         for attrs_text, body in _iter_xlsx_cell_parts(sheet_xml):
-            cell_attrs = _xml_attrs(attrs_text)
-            kind = cell_attrs.get("t", "").lower()
-            coord = re.fullmatch(r"([A-Z]+)(\d+)", cell_attrs.get("r", ""), re.IGNORECASE)
-            if not coord or kind not in {"s", "str", "inlinestr"}: continue
+            kind_match = cell_type_re.search(attrs_text)
+            if not kind_match: continue
+            coord = cell_ref_re.search(attrs_text)
+            if not coord: continue
+            kind = kind_match.group(2).lower()
             if kind == "s":
-                raw = re.search(r"<v\b[^>]*>([\s\S]*?)</v>", body, re.IGNORECASE); value = shared[int(raw.group(1))] if raw and int(raw.group(1)) < len(shared) else ""
-            else: value = "".join(_unescape_xml(m.group(1)) for m in re.finditer(r"<t\b[^>]*>([\s\S]*?)</t>", body, re.IGNORECASE)) or _unescape_xml(re.search(r"<v\b[^>]*>([\s\S]*?)</v>", body, re.IGNORECASE).group(1) if re.search(r"<v\b[^>]*>([\s\S]*?)</v>", body, re.IGNORECASE) else "")
+                raw = value_re.search(body)
+                index = int(raw.group(1)) if raw else -1
+                value = shared[index] if 0 <= index < len(shared) else ""
+            else:
+                text_values = text_re.findall(body)
+                if text_values:
+                    value = "".join(_unescape_xml(text) for text in text_values)
+                else:
+                    raw = value_re.search(body)
+                    value = _unescape_xml(raw.group(1)) if raw else ""
             column = 0
-            for char in coord.group(1).upper(): column = column * 26 + ord(char) - 64
-            cells[(int(coord.group(2)), column)] = value
+            for char in coord.group(2).upper(): column = column * 26 + ord(char) - 64
+            cells[(int(coord.group(3)), column)] = value
         if cells: result[sheet_name] = cells
     _index_memo_put("strings", xlsx_bytes, result)
     return result

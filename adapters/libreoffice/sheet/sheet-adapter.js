@@ -653,6 +653,8 @@ export class SheetAdapter {
       textRotation: style.textRotation || "",
       indentLevel: style.indentLevel || 0,
     };
+    // Viền chung (nút ribbon "Viền") chỉ vào hash khi có, để hash của ô không viền (và ảnh chụp kiểm thử cũ) không đổi.
+    if (style.border) visualProps.border = style.border;
     return JSON.stringify(visualProps);
   }
 
@@ -3065,7 +3067,7 @@ export class SheetAdapter {
     };
     const visualStyleFor = (item) => {
       const s = item?.style || {};
-      const keys = ["backgroundColor", "color", "fontWeight", "fontStyle", "textDecoration", "fontFamily", "fontSize", "textAlign", "verticalAlign", "whiteSpace", "indentLevel", "borderLeft", "borderRight", "borderTop", "borderBottom"];
+      const keys = ["backgroundColor", "color", "fontWeight", "fontStyle", "textDecoration", "fontFamily", "fontSize", "textAlign", "verticalAlign", "whiteSpace", "indentLevel", "borderLeft", "borderRight", "borderTop", "borderBottom", "border"];
       const hasVisual = keys.some(k => s[k] !== undefined && s[k] !== "" && s[k] !== null);
       if (!hasVisual) return null;
       const hash = JSON.stringify(keys.map(k => s[k] || ""));
@@ -3075,14 +3077,20 @@ export class SheetAdapter {
       const cellProps = [];
       if (s.backgroundColor) cellProps.push(`fo:background-color="${this._escapeXml(s.backgroundColor)}"`);
       if (s.verticalAlign) cellProps.push(`style:vertical-align="${this._escapeXml(s.verticalAlign)}"`);
-      if (s.whiteSpace === "pre-wrap") cellProps.push(`fo:wrap-option="wrap"`);
+      // Nút ribbon "Gói văn bản" ghi whiteSpace="normal" (CSS: có xuống dòng) và nút "Viền" ghi khóa chung `border`
+      // (viền 4 cạnh): trước đây cả hai bị bỏ qua khi xuất FODS nên mất khi lưu XLSX (đối chiếu Excel thật 11/10).
+      if (s.whiteSpace === "pre-wrap" || s.whiteSpace === "normal" || s.whiteSpace === "pre-line" || s.whiteSpace === "break-spaces") cellProps.push(`fo:wrap-option="wrap"`);
       else if (s.whiteSpace === "nowrap") cellProps.push(`fo:wrap-option="no-wrap"`);
-      if (s.borderLeft) cellProps.push(cssToOdfBorder("fo:border-left", s.borderLeft));
-      if (s.borderRight) cellProps.push(cssToOdfBorder("fo:border-right", s.borderRight));
-      if (s.borderTop) cellProps.push(cssToOdfBorder("fo:border-top", s.borderTop));
-      if (s.borderBottom) cellProps.push(cssToOdfBorder("fo:border-bottom", s.borderBottom));
+      const sideBorder = (side) => s[side] || s.border;
+      if (sideBorder("borderLeft")) cellProps.push(cssToOdfBorder("fo:border-left", sideBorder("borderLeft")));
+      if (sideBorder("borderRight")) cellProps.push(cssToOdfBorder("fo:border-right", sideBorder("borderRight")));
+      if (sideBorder("borderTop")) cellProps.push(cssToOdfBorder("fo:border-top", sideBorder("borderTop")));
+      if (sideBorder("borderBottom")) cellProps.push(cssToOdfBorder("fo:border-bottom", sideBorder("borderBottom")));
+      if (s.textAlign) cellProps.push(`style:text-align-source="fix"`);
       const paraProps = [];
-      if (s.textAlign) paraProps.push(`fo:text-align="${this._escapeXml(s.textAlign)}"`);
+      // LibreOffice đọc fo:text-align="right"/"left" thành "chung" (mất căn lề khi lưu XLSX); chỉ "end"/"start" được nhận (đo 11/10).
+      const odfAlign = { right: "end", left: "start" }[s.textAlign] || s.textAlign;
+      if (s.textAlign) paraProps.push(`fo:text-align="${this._escapeXml(odfAlign)}"`);
       if (Number(s.indentLevel) > 0) paraProps.push(`fo:margin-left="${(Number(s.indentLevel) * 0.235).toFixed(3)}cm"`);
       const textProps = [];
       if (s.fontSize) {
@@ -3370,11 +3378,6 @@ export class SheetAdapter {
       // colWidths/rowHeights, but this prevents serialize blowup defensively).
       maxCol = Math.min(maxCol, 4096);
       maxRow = Math.min(maxRow, 1048576);
-      // Last row that carries a cell, comment, image or covered cell; rows past
-      // it only exist for layout (height/hidden) and can be run-length encoded.
-      let lastContentRow = 0;
-      for (const rowNumber of rows.keys()) lastContentRow = Math.max(lastContentRow, rowNumber);
-
       const columnParts = [];
       for (let columnNumber = 1; columnNumber <= Math.max(1, maxCol); columnNumber++) {
         const colName = this._columnName(columnNumber);
@@ -3394,11 +3397,32 @@ export class SheetAdapter {
         const rowCells = rows.get(rowNumber) || new Map();
         const usedColumns = [...rowCells.keys()].sort((a, b) => a - b);
         let cellsXml = "";
+        let pendingRepeatedBlank = null;
+        const flushRepeatedBlank = () => {
+          if (!pendingRepeatedBlank) return;
+          const repeatAttr = pendingRepeatedBlank.count > 1
+            ? ` table:number-columns-repeated="${pendingRepeatedBlank.count}"`
+            : "";
+          cellsXml += pendingRepeatedBlank.xml.replace(/\/>$/, `${repeatAttr}/>`);
+          pendingRepeatedBlank = null;
+        };
+        const appendCellXml = (xml, repeatableBlank = false) => {
+          if (repeatableBlank && pendingRepeatedBlank?.xml === xml) {
+            pendingRepeatedBlank.count += 1;
+            return;
+          }
+          flushRepeatedBlank();
+          if (repeatableBlank && /^<table:table-cell(?:\s[^>]*)?\/>$/.test(xml)) {
+            pendingRepeatedBlank = { xml, count: 1 };
+          } else {
+            cellsXml += xml;
+          }
+        };
         let previousColumn = 0;
         for (const columnNumber of usedColumns) {
           const gap = columnNumber - previousColumn - 1;
-          if (gap === 1) cellsXml += "<table:table-cell/>";
-          else if (gap > 1) cellsXml += `<table:table-cell table:number-columns-repeated="${gap}"/>`;
+          if (gap === 1) appendCellXml("<table:table-cell/>");
+          else if (gap > 1) appendCellXml(`<table:table-cell table:number-columns-repeated="${gap}"/>`);
 
           const coordinate = `${this._columnName(columnNumber)}${rowNumber}`;
           const storedItem = rowCells.get(columnNumber);
@@ -3410,7 +3434,7 @@ export class SheetAdapter {
             const cellImageXml = cellImages.length > 0
               ? cellImages.map(img => this._serializeCellImageXml(img)).join("")
               : "";
-            cellsXml += cellImageXml ? `<table:covered-table-cell>${cellImageXml}</table:covered-table-cell>` : "<table:covered-table-cell/>";
+            appendCellXml(cellImageXml ? `<table:covered-table-cell>${cellImageXml}</table:covered-table-cell>` : "<table:covered-table-cell/>");
             previousColumn = columnNumber;
             continue;
           }
@@ -3506,9 +3530,9 @@ export class SheetAdapter {
           // No date parts (d, dd, m, mm, mmm, y, yy, yyyy) outside of time context
           const isTimeOnly = isDateType && /^h{1,2}(?::m{1,2}(?::s{1,2})?)?$/i.test(dateFormat);
           if (!storedItem && !comment && !validationName && !conditionalBase && !cellImageXml) {
-            cellsXml += `<table:table-cell${cellAttrs}/>`;
+            appendCellXml(`<table:table-cell${cellAttrs}/>`, true);
           } else if (!storedItem && !comment && !validationName && !conditionalBase) {
-            cellsXml += `<table:table-cell${cellAttrs}>${cellImageXml}</table:table-cell>`;
+            appendCellXml(`<table:table-cell${cellAttrs}>${cellImageXml}</table:table-cell>`);
           } else if (typeof item.val === "number" && Number.isFinite(item.val)) {
             if (isDateType && !isTimeOnly) {
               const isoDate = this._excelSerialToIsoDate(item.val);
@@ -3522,19 +3546,19 @@ export class SheetAdapter {
                   const m = isoTime ? isoTime.match(/^PT(\d+)H(\d+)M(\d+)S$/) : null;
                   if (m) dateValue = `${isoDate}T${m[1]}:${m[2]}:${m[3]}`;
                 }
-                cellsXml += `<table:table-cell office:value-type="date" office:date-value="${dateValue}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`;
+                appendCellXml(`<table:table-cell office:value-type="date" office:date-value="${dateValue}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`);
               } else {
-                cellsXml += `<table:table-cell office:value-type="float" office:value="${item.val}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`;
+                appendCellXml(`<table:table-cell office:value-type="float" office:value="${item.val}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`);
               }
             } else if (isTimeOnly) {
               const isoTime = this._excelSerialToIsoTime(item.val);
               if (isoTime) {
-                cellsXml += `<table:table-cell office:value-type="time" office:time-value="${isoTime}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`;
+                appendCellXml(`<table:table-cell office:value-type="time" office:time-value="${isoTime}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`);
               } else {
-                cellsXml += `<table:table-cell office:value-type="float" office:value="${item.val}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`;
+                appendCellXml(`<table:table-cell office:value-type="float" office:value="${item.val}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`);
               }
             } else {
-              cellsXml += `<table:table-cell office:value-type="float" office:value="${item.val}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`;
+              appendCellXml(`<table:table-cell office:value-type="float" office:value="${item.val}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`);
             }
           } else {
             const text = item.val === undefined || item.val === null ? "" : String(item.val);
@@ -3567,22 +3591,27 @@ export class SheetAdapter {
                 }).join("");
                 return `<text:p>${spanXml}</text:p>`;
               }).join("");
-              cellsXml += `<table:table-cell office:value-type="string"${cellAttrs}>${cellImageXml}${annotationXml}${paraXml}</table:table-cell>`;
+              appendCellXml(`<table:table-cell office:value-type="string"${cellAttrs}>${cellImageXml}${annotationXml}${paraXml}</table:table-cell>`);
             } else if (text === "" && !item.formula) {
               // Ô chỉ có style (viền/nền, không giá trị): KHÔNG ghi office:value-type="string" +
               // <text:p/> — LibreOffice biến thành ô chuỗi rỗng trong XLSX (lan09: 21.930 ô, COUNTA/
               // ISBLANK/Ctrl+End sai, auditor 115k lệch). Ghi ô trống mang style như ODF của Calc.
-              cellsXml += `<table:table-cell${cellAttrs}>${cellImageXml}${annotationXml}</table:table-cell>`;
+              if (!comment && !cellImageXml && !validationName && !conditionalBase) {
+                appendCellXml(`<table:table-cell${cellAttrs}/>`, true);
+              } else {
+                appendCellXml(`<table:table-cell${cellAttrs}>${cellImageXml}${annotationXml}</table:table-cell>`);
+              }
             } else {
               // Excel lưu xuống dòng trong ô là "\n" (đôi khi "\r\n" qua vno:original-string);
               // một "\r" lẻ trong <text:p> sẽ bị XML chuẩn hoá thành "\n" -> thừa dòng trống.
               const lines = text.split(/\r\n|\r|\n/);
               const linesXml = lines.map(line => `<text:p>${this._escapeXml(line)}</text:p>`).join("");
-              cellsXml += `<table:table-cell office:value-type="string"${cellAttrs}>${cellImageXml}${annotationXml}${linesXml}</table:table-cell>`;
+              appendCellXml(`<table:table-cell office:value-type="string"${cellAttrs}>${cellImageXml}${annotationXml}${linesXml}</table:table-cell>`);
             }
           }
           previousColumn = columnNumber;
         }
+        flushRepeatedBlank();
         const rowHidden = layout.hiddenRows.has(rowNumber);
         const rowHeight = layout.rowHeights.get(rowNumber);
         const rowPageBreak = pageBreakRows.has(rowNumber);
@@ -3591,13 +3620,11 @@ export class SheetAdapter {
         else if (isNewWorkbook) rowAttrs.push('table:style-name="vno-default-row"');
         if (rowHidden) rowAttrs.push(`table:visibility="collapse"`);
         const rowOpen = `<table:table-row${rowAttrs.length ? ` ${rowAttrs.join(" ")}` : ""}`;
-        // Trailing rows without cells (Excel "hide every row below the data",
-        // custom default heights) are run-length encoded like ODF does; lan02.xlsx
-        // otherwise produced 1,048,576 <table:table-row> per sheet (231 MB FODS)
-        // and the save never finished.
-        const trailingEmpty = !cellsXml && rowNumber > lastContentRow && !rowPageBreak;
+        // Consecutive empty rows are run-length encoded when their layout matches.
+        // This also covers blank rows between populated rows without shifting data.
+        const repeatableEmptyRow = !cellsXml && !rowPageBreak;
         const previous = rowParts[rowParts.length - 1];
-        if (trailingEmpty && previous?.repeatOpen === rowOpen) {
+        if (repeatableEmptyRow && previous?.repeatOpen === rowOpen) {
           previous.repeat += 1;
           previous.xml = `${rowOpen} table:number-rows-repeated="${previous.repeat}"><table:table-cell/></table:table-row>`;
           continue;
@@ -3605,7 +3632,7 @@ export class SheetAdapter {
         rowParts.push({
           key: rowNumber,
           xml: `${rowOpen}>${cellsXml || "<table:table-cell/>"}</table:table-row>`,
-          ...(trailingEmpty ? { repeatOpen: rowOpen, repeat: 1 } : {})
+          ...(repeatableEmptyRow ? { repeatOpen: rowOpen, repeat: 1 } : {})
         });
       }
       const rowsXml = this._wrapOutlineGroups(sheetName, rowParts, "row", "table:table-row-group");
