@@ -60,6 +60,7 @@ const ops = [
   ["chartLine","A1","chartVariant","sheet.chart.insert","line"],
   ["chartPie","A1","chartVariant","sheet.chart.insert","pie"],
   ["chartArea","A1","chartVariant","sheet.chart.insert","area"],
+  ["sparklineLine","C2","range","sheet.insert.sparklineLine","C2:C6"],["sparklineColumn","C2","range","sheet.insert.sparklineColumn","C2:C6"],
   ["removeDuplicates","A1","removeDuplicates","sheet.data.removeDuplicates","A1:A6"],
   ["fillRight","C2","shortcutRight","Ctrl+R","C2:D2"],
   ["formulaSum","H2","type",null,"=SUM(C2:C6)"],["formulaAverage","H3","type",null,"=AVERAGE(C2:C6)"],

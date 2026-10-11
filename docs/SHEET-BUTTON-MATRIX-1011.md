@@ -5,7 +5,7 @@ Nguồn nút: `docs/ribbon-scan-sheet-1011.json`. Chỉ đánh dấu **KHỚP EX
 - **KHÁC CÓ CHỦ Ý**: khác biệt được thiết kế có chủ ý và có giải thích.
 - **LỆCH ĐÃ BIẾT**: sai khác đã được tái hiện và còn tồn tại.
 - **CHƯA ĐỐI CHIẾU**: chưa có đối chiếu Excel đủ chứng cứ.
-Tổng 138 nút — KHỚP EXCEL: 85 · CHƯA ĐỐI CHIẾU: 53.
+Tổng 138 nút — KHỚP EXCEL: 87 · CHƯA ĐỐI CHIẾU: 51.
 
 Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy trong lượt này sẽ giữ **CHƯA ĐỐI CHIẾU** cho tới khi có phép thử an toàn và xác định rõ luồng dữ liệu.
 
@@ -63,8 +63,8 @@ Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy tron
 | Chèn | `sheet.insert.image` | Chèn ảnh | KHỚP EXCEL | FIX-S12 Chèn: CDP chọn ảnh PNG qua file chooser và đặt tại B2; Excel COM ReadOnly xác nhận Shapes.Count=1, Type=13, TopLeft=B2 (app_image.xlsx); hướng dẫn Chèn > Minh họa trong Help; VI/EN i18n có sẵn; ảnh docs/tickets-0710/evidence/fix-s12-image.png | dom:1 |
 | Chèn | `sheet.chart.insert` | Biểu đồ | KHỚP EXCEL | FIX-S9: Excel COM read-only xác nhận loại biểu đồ, tiêu đề, series và trục | dialog |
 | Chèn | `sheet.chart.pivotChart` | Biểu đồ Pivot | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
-| Chèn | `sheet.insert.sparklineLine` | Đường | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:14 |
-| Chèn | `sheet.insert.sparklineColumn` | Cột | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:14 |
+| Chèn | `sheet.insert.sparklineLine` | Đường | KHỚP EXCEL | FIX-S12 Chèn > Biểu đồ thu nhỏ: CDP chọn dải số C2:C6, chèn tại ô active C6; Excel COM ReadOnly xác nhận SparklineGroups.Count=1, Type=1 (Line) / Type=2 (Column) trong XLSX. Help tiếng Việt và i18n VI/EN có sẵn; ảnh docs/tickets-0710/evidence/fix-s12-sparklineLine.png, fix-s12-sparklineColumn.png | dom:14 |
+| Chèn | `sheet.insert.sparklineColumn` | Cột | KHỚP EXCEL | FIX-S12 Chèn > Biểu đồ thu nhỏ: CDP chọn dải số C2:C6, chèn tại ô active C6; Excel COM ReadOnly xác nhận SparklineGroups.Count=1, Type=1 (Line) / Type=2 (Column) trong XLSX. Help tiếng Việt và i18n VI/EN có sẵn; ảnh docs/tickets-0710/evidence/fix-s12-sparklineLine.png, fix-s12-sparklineColumn.png | dom:14 |
 | Chèn | `sheet.insert.hyperlink` | Liên kết | KHỚP EXCEL | FIX-S12 Chèn: CDP nhập https://vnoffice.vn vào G2; Adapter ghi text:a/xlink:href và nạp lại URL; Excel COM ReadOnly xác nhận Hyperlinks.Count=1, Address=https://vnoffice.vn/, Text='Trang chủ VN Office' (app_hyperlink.xlsx); hướng dẫn platform/help/entries-sheet.js; VI/EN i18n có sẵn; ảnh docs/tickets-0710/evidence/fix-s12-hyperlink.png | dialog,toast:A1 |
 | Chèn | `sheet.insert.textbox` | Hộp văn bản | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
 | Chèn | `sheet.page.headerFooter` | Tiêu đề Đầu/Cuối trang | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
