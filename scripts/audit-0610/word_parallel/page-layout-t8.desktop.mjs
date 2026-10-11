@@ -1,4 +1,4 @@
-﻿import { launchApp } from "../../../tests/live/cdp/session.mjs";
+import { launchApp } from "../../../tests/live/cdp/session.mjs";
 import { click, press, typeText, mouseClick } from "../../../tests/live/cdp/actions.mjs";
 import { mkdirSync, writeFileSync } from "node:fs";
 const dir = process.env.VNO_CDP_LOCALAPPDATA;

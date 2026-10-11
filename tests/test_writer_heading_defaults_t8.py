@@ -1,4 +1,4 @@
-﻿import unittest
+import unittest
 
 from adapters.libreoffice.common import ooxml_zip_patch as patcher
 

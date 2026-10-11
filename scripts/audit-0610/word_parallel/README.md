@@ -1,4 +1,4 @@
-﻿# Đối chiếu song song Writer với Word COM
+# Đối chiếu song song Writer với Word COM
 
 ## Cách chạy trên worktree riêng
 

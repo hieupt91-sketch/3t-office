@@ -1,4 +1,4 @@
-﻿# Đối chiếu VN Writer với Word thật — 11/10/2026
+# Đối chiếu VN Writer với Word thật — 11/10/2026
 
 ## Kế hoạch (FIX-T7)
 - **Mục tiêu:** khớp lưu DOCX với Word COM cho các sai lệch đã tái hiện; lập và mở rộng ma trận đối chiếu theo nhóm trong ticket.

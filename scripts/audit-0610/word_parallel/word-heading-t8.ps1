@@ -1,4 +1,4 @@
-﻿param([Parameter(Mandatory=$true)][string]$Dir)
+param([Parameter(Mandatory=$true)][string]$Dir)
 $ErrorActionPreference="Stop"
 $existingWordPids=@(Get-CimInstance Win32_Process -Filter "Name='WINWORD.EXE'"|ForEach-Object{[int]$_.ProcessId})
 $wordPids=@()
