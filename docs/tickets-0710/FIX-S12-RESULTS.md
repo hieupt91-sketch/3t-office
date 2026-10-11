@@ -193,4 +193,4 @@
 - **PASS** `npm test`: 3089/3089.
 - **PASS** `python -m unittest discover -s tests`: 883 tests, 506.094 seconds, OK. Python emitted `ResourceWarning` for open subprocess streams; no test failed.
 - **PASS** dirty-save XLSX batch for lan01/02/04/06/09/11/22/26: 8/8 saved, `diffs=0`, lint clean, Excel PASS. Report: `E:\VNOffice-profiles\codex-fs14\batch-xlsx\batch_document_audit_report.md`.
-- Matrix generator passed. The S14 CDP probe was refined to choose rendered tab/panel nodes and wait after tab changes; alignment still needs an input-coordinate diagnosis. Remaining 53 buttons mean FIX-S12 is still open.
+- Matrix generator passed. The S14 CDP probe was refined to choose rendered tab/panel nodes and wait after tab changes. Hit testing for `sheet.cell.alignTop` found its sole command node at `(412,56)` while the Home panel starts at `y=78`; `document.elementFromPoint` resolves the tab strip instead of the command. The runner now rejects this occluded target (`NO_BUTTON`) rather than recording a misleading click. Alignment remains unchecked pending a ribbon layout/input fix. Remaining 53 buttons mean FIX-S12 is still open.
