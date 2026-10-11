@@ -1,0 +1,6 @@
+# TICKET VERIFY3 — Kiem chung cac dong ma tran GAP Doc con lai (chi script + bao cao, KHONG sua ma san pham)
+Worktree rieng (nhanh test/doc-matrix-verify3-agy). Doc docs/GAP-DOC-VS-WORD-0610.md: bang chinh + cac muc "Cap nhat kiem chung" o cuoi (da kiem: doc_matrix_verify.mjs, doc_matrix_roundtrip.mjs, doc_matrix_roundtrip2.mjs, doc_matrix_verify2.mjs).
+Viec: (1) liet ke cac dong trang thai MOT PHAN/THIEU CHUA nam trong cac muc "da kiem" (khoang 35 dong); (2) viet scripts/audit-0610/doc_matrix_verify3.mjs kiem bang thao tac that tren app desktop (CDP) cho tung dong lam duoc (mau: doc_matrix_verify.mjs/verify2.mjs, helper clickCmd/clickMenu/setDoc); dong nao phai chon tep he dieu hanh hoac in that ghi BLOCKED + ly do, khong doan; (3) cap nhat muc "Cap nhat kiem chung" cuoi docs/GAP-DOC-VS-WORD-0610.md voi bang PASS/FAIL/BLOCKED tung dong.
+Neu FAIL: ghi nguyen nhan 1 dong, KHONG sua ma san pham.
+Tieu chi xong: script chay duoc (node --experimental-websocket scripts/audit-0610/doc_matrix_verify3.mjs), bang ket qua trong GAP doc, commit script + doc.
+Quy tac chung: app desktop that (main.py + CDP, KHONG web), khong SendKeys/OS input, khong kill theo ten tien trinh, LOCALAPPDATA rieng (VNO_CDP_LOCALAPPDATA), KHONG push main, KHONG merge. Cho agy: chay trong foreground, commit som, bao cao 3 dong.

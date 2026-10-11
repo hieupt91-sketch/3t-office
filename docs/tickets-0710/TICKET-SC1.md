@@ -1,0 +1,7 @@
+# TICKET SC1 — Sheet: nghiem thu va sua luong du lieu nguoi dung (Codex, ngay sau WF3)
+Worktree rieng E:\VNOffice-codex-sc1, nhanh fix/sheet-user-flows-codex, tu main. Nguon: docs/GAP-SHEET-VS-EXCEL-0710.md muc 25 uu tien (cac muc 10, 11, 12, 17). Khong dung vao apps/sheet/formula-engine.js (agy dang sua SB7).
+MUC 1 (#17) F4 tham chieu tuyet doi: trong o dang soan cong thuc, F4 doi vong A1 -> $A$1 -> A$1 -> $A1 -> A1 cho tham chieu tai con tro (ca dai A1:B2). Kiem tren app desktop that (CDP, khong SendKeys), them test don vi + test desktop, sua neu sai.
+MUC 2 (#10) Nhap tien te: "25.000.000 ₫", "25.000.000 VND", "VNĐ 1.500.000" thanh so + dinh dang tien te; kiem nhanh da gop (fix/sheet-currency-input-codex) con dung tren main, luu XLSX lai la so (kiem XML).
+MUC 3 (#11, #12) Cat/sao chep/dan trong Sheet va dan tu Excel/trang web: ma tran gia tri/cong thuc/dinh dang/vien/o gop/ngay/VND, Undo/Redo mot buoc; app desktop that, ghi bang PASS/FAIL vao docs/AUDIT-SHEET-USERFLOWS-0710.md, sua loi tim thay (moi loi 1 commit + test).
+Tieu chi: node tests/run-tests.js khong FAIL moi (hien 2918); python -m unittest discover -s tests OK; 28 xlsx mo-luu-mo lai python scripts/layout-audit/batch_document_audit.py xlsx <worktree> van 28/28 saved=yes diffs=0 (bo qua cot excel=).
+Cam/Quy tac: nhu TICKET-WF3.md (khong SendKeys, kill theo PID, 1 app test cung luc, don Word/Excel ngam cua minh). KHONG push, KHONG merge. Bao cao 3 dong.

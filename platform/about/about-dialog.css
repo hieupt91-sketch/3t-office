@@ -1,0 +1,292 @@
+/**
+ * 3T Office — About Dialog (Hộp Giới thiệu 3T Office) Stylesheet
+ * Học tập mẫu thiết kế AboutDialog của 3T Reader (Header gradient hoàng gia + Nút đóng cam 3T)
+ */
+
+.vno-about-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(4, 8, 24, 0.7);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: vno-about-fadein 0.2s ease-out;
+}
+
+@keyframes vno-about-fadein {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.vno-about-dialog {
+  position: relative;
+  width: 520px;
+  max-width: 94vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--vno-bg-surface, #1e1e2e);
+  color: var(--vno-text-primary, #f0f0ff);
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  outline: none;
+  font-family: "Be Vietnam Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  animation: vno-about-slideup 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes vno-about-slideup {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Header Banner 3T Reader style */
+.vno-about-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  height: 110px;
+  padding: 0 28px;
+  background: linear-gradient(135deg, #0a1550 0%, #1a3c9e 60%, #2b5ce6 100%);
+  color: #ffffff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.vno-about-logo {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4));
+  flex-shrink: 0;
+}
+
+.vno-about-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vno-about-title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  color: #ffffff;
+  line-height: 1.1;
+}
+
+.vno-about-title-orange {
+  color: #ff9a00;
+}
+
+.vno-about-subtitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.85);
+  letter-spacing: 0.3px;
+}
+
+/* Dialog Body */
+.vno-about-body {
+  padding: 22px 28px 12px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  font-size: 13px;
+}
+
+.vno-about-meta-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.vno-about-row {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  line-height: 1.4;
+}
+
+.vno-about-label {
+  width: 115px;
+  flex-shrink: 0;
+  color: var(--vno-text-muted, #8899bb);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.vno-about-value {
+  color: var(--vno-text-primary, #e2e8f0);
+  font-size: 12.5px;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.vno-about-badge-version {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(91, 108, 246, 0.2);
+  color: #8bb2ff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.vno-about-sep {
+  height: 1px;
+  background: var(--vno-border-subtle, rgba(255, 255, 255, 0.08));
+  margin: 4px 0;
+  border: none;
+}
+
+/* Third-Party Notices Section */
+.vno-about-notices-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vno-about-notices-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.vno-about-notices-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--vno-text-muted, #8899bb);
+  margin: 0;
+}
+
+.vno-about-notices-btn {
+  background: none;
+  border: none;
+  color: #3f46b5;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+[data-theme="dark"] .vno-about-notices-btn {
+  color: #aeb8ff;
+}
+
+.vno-about-notices-btn:hover {
+  background: rgba(91, 108, 246, 0.15);
+  text-decoration: underline;
+}
+
+.vno-about-components-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 130px;
+  overflow-y: auto;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--vno-border-subtle, rgba(255, 255, 255, 0.08));
+  border-radius: 8px;
+}
+
+.vno-about-comp-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.vno-about-comp-item:last-child {
+  border-bottom: none;
+}
+
+.vno-about-comp-name {
+  font-weight: 600;
+  color: var(--vno-text-primary, #e2e8f0);
+}
+
+.vno-about-comp-license {
+  color: #a0aec0;
+  font-family: monospace;
+  font-size: 11px;
+}
+
+.vno-about-full-notices {
+  max-height: 140px;
+  overflow-y: auto;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--vno-border-subtle, rgba(255, 255, 255, 0.1));
+  border-radius: 8px;
+  font-family: Consolas, Monaco, "Courier New", monospace;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #cbd5e0;
+  white-space: pre-wrap;
+}
+
+.vno-about-copyright {
+  text-align: center;
+  color: var(--vno-text-muted, #718096);
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+/* Footer & Close button 3T Reader style */
+.vno-about-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 14px 28px 20px;
+  background: inherit;
+  border-top: 1px solid var(--vno-border-subtle, rgba(255, 255, 255, 0.06));
+}
+
+.vno-about-btn-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 110px;
+  height: 36px;
+  padding: 0 20px;
+  background: linear-gradient(135deg, #ff7700 0%, #ff4400 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(255, 68, 0, 0.35);
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.vno-about-btn-close:hover {
+  background: linear-gradient(135deg, #ff9900 0%, #ff5500 100%);
+  box-shadow: 0 6px 16px rgba(255, 68, 0, 0.45);
+  transform: translateY(-1px);
+}
+
+.vno-about-btn-close:focus-visible {
+  box-shadow: 0 0 0 3px rgba(255, 119, 0, 0.4);
+}

@@ -1,0 +1,6 @@
+# TICKET WF2 — SUA 3 loi D30 cua Writer tren app desktop
+Doc docs/GAP-DOC-VS-WORD-0610.md (muc Cap nhat kiem chung D30) + scripts/audit-0610/doc_matrix_verify2.mjs (22 PASS, 3 FAIL).
+1. "Cua so moi" (writer.view.newWindow): dung window.open (apps/writer/writer-view-controller.js ~139) nen tren app desktop bao "Trinh duyet da chan cua so moi". Can mo cua so Writer moi qua phan Python/pywebview (main.py co webview.create_window tai ~4161, ~4196, ~5302; xem cach app khoi dong/--app=writer) hoac khoi tao tien trinh app moi; giu duong web hien co.
+2. "Mau hanh chinh" (vd Quyet dinh ban hanh tieu chuan): sau khi chen mau noiDungMau=false chars=0 — xac dinh la loi that hay script bam sai; neu that thi sua.
+3. "Trang hien tai/thanh trang thai": hien "Trang 1 / 3" du dau nhay o trang 3 — xac dinh that/gia; neu that thi sua de chi so trang theo vi tri con tro.
+Moi loi: chan doan 1 dong truoc, sua nho nhat, kem test. Tieu chi: doc_matrix_verify2.mjs 25/25 PASS hoac lyDo ro cho dong con lai; node tests/run-tests.js khong FAIL moi. Quy tac nhu WF1; Quy tac "kiem thu bang app desktop that, khong web".

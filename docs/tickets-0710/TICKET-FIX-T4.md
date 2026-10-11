@@ -1,0 +1,7 @@
+# TICKET FIX-T4 — Doc: hop van ban, muc luc, chu Hoa (Codex, luong 2)  [CHI SUA hanh vi DA CO, KHONG them tinh nang]
+Nguon: docs/UI-TEST-DOC-1010.md. Moi muc 1 commit nho + test + do bang so (chuot + phim tat):
+1. U26: Chen > Hop van ban chen o DINH trang 1, de len vung dau trang; phai chen tai VI TRI CON TRO (nhu Word, noi dung neo vao doan hien tai), chu mau "Nhap van ban" duoc chon san de go de len. Khong lam hong luu DOCX hop van ban (test luu that + doc XML).
+2. U27: Tham chieu > Muc luc tu dong: khoang trong ~90px giua duong ke tieu de "MUC LUC" va dong dau; thu gon cho vua phai; hop van ban noi (U26) khong duoc de len muc luc (thu tu lop z-index hop ly: noi dung noi o duoi tieu de muc luc/dau trang khong che, hoac theo neo).
+3. U15: the "Trang nha (Elegant)" trong Thu vien Kieu & Chu de: chu "An ban" hien ho dau ("A n ban") — sua font/khoang chu cho dung dau tieng Viet.
+KHONG dung vao: thanh tab/ribbon/che do toi/chuoi nhan nut/Sao chep dinh dang (la FIX-T3 dang chay song song, file khac). Neu phai sua cung file, sua rieng doan nho, khong dinh dang lai file.
+Quy trinh/CAM/TIET KIEM TOKEN: nhu TICKET-FIX-T1.md. Worktree E:\VNOffice-codex-ft4 nhanh fix/doc-textbox-t4-codex tu main. Chay npm test + python unittest, bao so that. Them/chinh Tro giup tieng Viet neu thay doi hanh vi. Bao cao 3 dong.

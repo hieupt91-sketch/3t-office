@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<office:document
+  xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+  xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
+  xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+  xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"
+  xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0"
+  xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+  xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0"
+  office:version="1.3"
+  office:mimetype="application/vnd.oasis.opendocument.presentation">
+  <office:automatic-styles>
+    <style:page-layout style:name="PM1">
+      <style:page-layout-properties fo:page-width="28cm" fo:page-height="15.75cm" style:print-orientation="landscape"/>
+    </style:page-layout>
+    <style:page-layout style:name="PMNotes">
+      <style:page-layout-properties fo:page-width="21cm" fo:page-height="29.7cm" style:print-orientation="portrait"/>
+    </style:page-layout>
+    <style:style style:name="dp1" style:family="drawing-page">
+      <style:drawing-page-properties presentation:background-visible="true" presentation:background-objects-visible="true"/>
+    </style:style>
+    <style:style style:name="dpNotes" style:family="drawing-page">
+      <style:drawing-page-properties presentation:background-visible="true" presentation:background-objects-visible="true"/>
+    </style:style>
+    <style:style style:name="grTitle" style:family="graphic">
+      <style:graphic-properties draw:stroke="none" draw:fill="none"/>
+      <style:text-properties fo:font-size="28pt" fo:font-weight="bold"/>
+    </style:style>
+    <style:style style:name="grBody" style:family="graphic">
+      <style:graphic-properties draw:stroke="none" draw:fill="none"/>
+      <style:text-properties fo:font-size="18pt"/>
+    </style:style>
+    <style:style style:name="grNotes" style:family="graphic">
+      <style:graphic-properties draw:stroke="none" draw:fill="none"/>
+      <style:text-properties fo:font-size="14pt"/>
+    </style:style>
+  </office:automatic-styles>
+  <office:master-styles>
+    <style:master-page style:name="Standard" style:page-layout-name="PM1" draw:style-name="dp1"/>
+  </office:master-styles>
+  <office:body>
+    <office:presentation>
+      <draw:page draw:name="page1" draw:style-name="dp1" draw:master-page-name="Standard">
+        <draw:frame presentation:style-name="grTitle" presentation:class="title" svg:x="1.4cm" svg:y="2cm" svg:width="25.2cm" svg:height="3cm">
+          <draw:text-box>
+            <text:p>Báo cáo đề án VN Office 2026</text:p>
+          </draw:text-box>
+        </draw:frame>
+        <draw:frame presentation:style-name="grBody" presentation:class="outline" svg:x="1.4cm" svg:y="5.5cm" svg:width="25.2cm" svg:height="8cm">
+          <draw:text-box>
+            <text:p>Kiến trúc nền tảng LibreOffice</text:p>
+            <text:p>Tương thích định dạng PPTX</text:p>
+          </draw:text-box>
+        </draw:frame>
+        <presentation:notes draw:style-name="dpNotes">
+          <draw:page-thumbnail presentation:class="page" svg:x="2.257cm" svg:y="2.257cm" svg:width="16.486cm" svg:height="9.273cm" draw:page-number="1"/>
+          <draw:frame presentation:style-name="grNotes" presentation:class="notes" svg:x="2.257cm" svg:y="13.728cm" svg:width="16.486cm" svg:height="13.364cm">
+            <draw:text-box>
+              <text:p>Nhấn mạnh số liệu quý 4: Đã đạt &amp; vượt 120% kế hoạch đề ra!</text:p>
+              <text:p>Cần lưu ý: Tỷ giá ngoại tệ không được đọc trước khán giả.</text:p>
+            </draw:text-box>
+          </draw:frame>
+        </presentation:notes>
+      </draw:page>
+      <draw:page draw:name="page2" draw:style-name="dp1" draw:master-page-name="Standard">
+        <draw:frame presentation:style-name="grTitle" presentation:class="title" svg:x="1.4cm" svg:y="2cm" svg:width="25.2cm" svg:height="3cm">
+          <draw:text-box>
+            <text:p>Slide không có ghi chú thuyết trình</text:p>
+          </draw:text-box>
+        </draw:frame>
+        <draw:frame presentation:style-name="grBody" presentation:class="outline" svg:x="1.4cm" svg:y="5.5cm" svg:width="25.2cm" svg:height="8cm">
+          <draw:text-box>
+            <text:p>Nội dung công khai trên canvas</text:p>
+          </draw:text-box>
+        </draw:frame>
+      </draw:page>
+      <draw:page draw:name="page3" draw:style-name="dp1" draw:master-page-name="Standard">
+        <draw:frame presentation:style-name="grTitle" presentation:class="title" svg:x="1.4cm" svg:y="2cm" svg:width="25.2cm" svg:height="3cm">
+          <draw:text-box>
+            <text:p>Lộ trình triển khai</text:p>
+          </draw:text-box>
+        </draw:frame>
+        <presentation:notes draw:style-name="dpNotes">
+          <draw:frame presentation:style-name="grNotes" presentation:class="notes" svg:x="2.257cm" svg:y="13.728cm" svg:width="16.486cm" svg:height="13.364cm">
+            <draw:text-box>
+              <text:p>Gợi ý chuyển slide: dừng 5 giây tại sơ đồ kiến trúc.</text:p>
+            </draw:text-box>
+          </draw:frame>
+        </presentation:notes>
+      </draw:page>
+    </office:presentation>
+  </office:body>
+</office:document>

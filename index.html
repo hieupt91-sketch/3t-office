@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>
+    window.__vnoStartupEvents = [];
+    window.__vnoPywebviewReady = false;
+    window.__vnoStartupMark = (name) => {
+      const event = { name, elapsedMs: performance.now() };
+      window.__vnoStartupEvents.push(event);
+      window.pywebview?.api?.report_startup_metric?.(name, event.elapsedMs);
+    };
+    window.addEventListener("pywebviewready", () => {
+      window.__vnoPywebviewReady = true;
+      window.__vnoStartupMark("pywebview_ready");
+    }, { once: true });
+  </script>
+  <title>3T Office — Bộ Ứng Dụng Văn Phòng Việt</title>
+  <link rel="icon" id="vno-favicon" href="branding/icons/vnoffice.ico" type="image/x-icon">
+  
+  <!-- Phông chữ Tiếng Việt chuẩn quốc gia -->
+  <!-- Đóng gói sẵn trong app (SIL OFL) để không cần mạng — ứng dụng desktop chạy offline -->
+  <link rel="stylesheet" href="platform/theme/fonts/fonts.css">
+
+  <!-- Design System & Tokens -->
+  <link rel="stylesheet" href="platform/theme/tokens.css">
+  <link rel="stylesheet" href="platform/ui-kit/ui-kit.css">
+  <link rel="stylesheet" href="platform/ribbon/ribbon.css">
+  <link rel="stylesheet" href="platform/shell/shell.css">
+  <link rel="stylesheet" href="platform/error_reporting/error-reporting.css">
+  <link rel="stylesheet" href="platform/about/about-dialog.css">
+  <link rel="stylesheet" href="platform/license/license-dialog.css">
+
+</head>
+<body>
+
+  <!-- App Mount Root -->
+  <div id="vno-app-root"></div>
+
+  <script type="module">
+    import { themeManager } from "./platform/theme/theme-manager.js";
+    import { globalCommandBus } from "./platform/commands/command-bus.js";
+    import { bootstrapPlatform, configurePlatformLaunchContext, resolveLaunchContext, connectDocumentServices } from "./platform/bootstrap.js";
+    import { showDocumentOpenProgress, hideDocumentOpenProgress } from "./platform/ui-kit/components.js";
+
+    window.addEventListener("vno:document-open-progress", () => {
+      showDocumentOpenProgress("Đang mở tài liệu…");
+    });
+    window.addEventListener("vno:document-open-complete", () => {
+      requestAnimationFrame(() => requestAnimationFrame(hideDocumentOpenProgress));
+      window.pywebview?.api?.report_startup_metric?.("document_open_complete", performance.now());
+    });
+
+    let lazyFeatureToast = null;
+    let lazyFeatureToastTimer = null;
+    const appDisplayNames = { writer: "Doc", sheet: "Sheet", slides: "Slide" };
+    window.addEventListener("vno:lazy-feature-start", (event) => {
+      clearTimeout(lazyFeatureToastTimer);
+      if (!lazyFeatureToast) {
+        lazyFeatureToast = document.createElement("div");
+        lazyFeatureToast.className = "vno-lazy-feature-status";
+        lazyFeatureToast.setAttribute("role", "status");
+        lazyFeatureToast.setAttribute("aria-live", "polite");
+        lazyFeatureToast.style.cssText = "position:fixed;right:18px;bottom:42px;z-index:20000;padding:9px 14px;border-radius:6px;background:#1f2937;color:#fff;font:13px 'Be Vietnam Pro',sans-serif;box-shadow:0 4px 18px #0003";
+        document.body.appendChild(lazyFeatureToast);
+      }
+      const { appName, featureName } = event.detail || {};
+      lazyFeatureToast.textContent = `Đang tải ${featureName || "tính năng"} cho ${appDisplayNames[appName] || "3T Office"}…`;
+      delete lazyFeatureToast.dataset.failed;
+    });
+    window.addEventListener("vno:lazy-feature-error", (event) => {
+      if (!lazyFeatureToast) return;
+      lazyFeatureToast.dataset.failed = "true";
+      const { appName, featureName } = event.detail || {};
+      lazyFeatureToast.textContent = `Không tải được ${featureName || "tính năng"} của ${appDisplayNames[appName] || "3T Office"}. Thử lại sau.`;
+      lazyFeatureToast.setAttribute("role", "alert");
+    });
+    window.addEventListener("vno:lazy-feature-complete", () => {
+      if (!lazyFeatureToast) return;
+      const failed = lazyFeatureToast.dataset.failed === "true";
+      lazyFeatureToastTimer = setTimeout(() => {
+        lazyFeatureToast?.remove();
+        lazyFeatureToast = null;
+      }, failed ? 4000 : 400);
+    });
+
+    const mountEl = document.getElementById("vno-app-root");
+    window.__vnoStartupMark?.("renderer_entry");
+    window.__vnoPerfDebug = new URLSearchParams(window.location.search).get("perfDebug") === "1";
+    // Diagnostic only (VNO_WRITER_VERIFY=1): Doc also runs the old rescanning table-range code and records any difference.
+    if (new URLSearchParams(window.location.search).get("writerVerify") === "1") globalThis.__VNO_WRITER_VERIFY = true;
+    window.__vnoPerfReport = (name, elapsedMs) => {
+      if (!window.__vnoPerfDebug) return;
+      console.info(`[VNO Sheet Perf] ${name}: ${elapsedMs.toFixed(1)} ms`);
+      window.pywebview?.api?.report_perf_metric?.(name, elapsedMs);
+    };
+    document.addEventListener("keydown", (event) => {
+      if (window.__vnoFirstEditorKey || !mountEl.contains(event.target) || event.target.closest?.(".vno-ribbon")) return;
+      window.__vnoFirstEditorKey = true;
+      window.__vnoStartupMark?.("first_editor_key");
+    }, true);
+    let documentEngineStartScheduled = false;
+    const startDocumentEngineAfterFirstInput = (event) => {
+      if (documentEngineStartScheduled || !event.isTrusted) return;
+      documentEngineStartScheduled = true;
+      for (const eventName of ["pointerdown", "keydown", "paste", "drop"]) {
+        document.removeEventListener(eventName, startDocumentEngineAfterFirstInput, true);
+      }
+      const startDocumentEngine = () => {
+        const api = window.pywebview?.api;
+        if (!api?.start_document_engine) {
+          window.addEventListener("pywebviewready", startDocumentEngine, { once: true });
+          return;
+        }
+        Promise.resolve(api.start_document_engine()).catch(() => {});
+      };
+      // Let the first pointer/key event finish before LibreOffice starts using CPU.
+      setTimeout(startDocumentEngine, 250);
+    };
+    for (const eventName of ["pointerdown", "keydown", "paste", "drop"]) {
+      document.addEventListener(eventName, startDocumentEngineAfterFirstInput, true);
+    }
+    let currentAppInstance = null;
+    const launchContext = configurePlatformLaunchContext(resolveLaunchContext(window.location.search));
+    let errorReportingUI = null;
+    let ancillaryStartupPromise = null;
+
+    async function ensureAppStyles(appType) {
+      const id = `vno-app-styles-${appType}`;
+      if (document.getElementById(id)) return;
+      await new Promise((resolve, reject) => {
+        const link = document.createElement("link");
+        link.id = id;
+        link.rel = "stylesheet";
+        link.href = `apps/${appType}/${appType}.css`;
+        link.onload = resolve;
+        link.onerror = () => reject(new Error(`Không tải được giao diện 3T ${appType}.`));
+        document.head.appendChild(link);
+      });
+    }
+
+    async function refreshAncillaryUi(appInstance) {
+      if (!appInstance) return;
+      const [{ ErrorReportingUI }, { connectUpdaterUi }] = await Promise.all([
+        import("./platform/error_reporting/error-reporting-ui.js"),
+        import("./platform/updater/update-ui.js")
+      ]);
+      if (!errorReportingUI) errorReportingUI = new ErrorReportingUI().mount();
+      await connectUpdaterUi(appInstance);
+      window.__vnoStartupMark?.("updater_ui_ready");
+      // Reporting consent controls live in Help. Never put a modal over the editor at launch.
+      await errorReportingUI.initialize({ deferConsentPrompt: true });
+    }
+
+    async function switchApp(appType, options = {}) {
+      if (launchContext.singleAppMode && appType !== launchContext.appKind) return false;
+      themeManager.setApp(appType);
+      await ensureAppStyles(appType);
+      const faviconEl = document.getElementById("vno-favicon");
+      if (faviconEl) {
+        faviconEl.href = `branding/icons/${appType}.ico`;
+      }
+
+      if (appType === "writer") {
+        const { WriterApp } = await import("./apps/writer/writer-app.js");
+        currentAppInstance = new WriterApp(mountEl);
+      } else if (appType === "sheet") {
+        const { SheetApp } = await import("./apps/sheet/sheet-app.js");
+        currentAppInstance = new SheetApp(mountEl);
+      } else if (appType === "slides") {
+        const { SlidesApp } = await import("./apps/slides/slides-app.js");
+        currentAppInstance = new SlidesApp(mountEl);
+      }
+
+      await currentAppInstance.init({ ...options, singleApp: launchContext.singleAppMode });
+      window.__vnoStartupMark?.("ribbon_interactive");
+      // Bộ đo (scripts/layout-audit/_create_new_*.py) điều khiển app thật qua handle này; không dùng trong code sản phẩm.
+      window.__vnoAppInstance = currentAppInstance;
+      if (ancillaryStartupPromise) void ancillaryStartupPromise.then(() => refreshAncillaryUi(currentAppInstance));
+
+      // Cập nhật callback chuyển đổi app vào shell hiện tại
+      if (currentAppInstance.shell) {
+        currentAppInstance.shell.onSwitchApp = (nextApp, opt) => switchApp(nextApp, opt);
+      }
+      return true;
+    }
+
+    // Khởi tạo theme (Light/Dark từ localStorage)
+    themeManager.init();
+
+    // Bootstrap suite tập trung một lần duy nhất rồi khởi động 3T Doc
+    await bootstrapPlatform();
+    const initialApp = launchContext.appKind || "writer";
+    await switchApp(initialApp, {
+      singleApp: launchContext.singleAppMode,
+      templateId: "blank",
+      documentName: launchContext.documentName || undefined,
+      openInitialFile: launchContext.openInitialFile
+    });
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    window.__vnoStartupMark?.("blank_document_first_paint");
+    const editableSelector = initialApp === "writer"
+      ? ".vno-writer-body[contenteditable='true']"
+      : initialApp === "sheet"
+        ? ".vno-grid-table[role='grid']"
+        : ".vno-slide-title[contenteditable='true'], .vno-slide-body[contenteditable='true']";
+    const editableSurface = mountEl.querySelector(editableSelector);
+    const editableRect = editableSurface?.getBoundingClientRect?.();
+    if (editableSurface && editableRect?.width > 0 && editableRect?.height > 0) {
+      window.__vnoStartupMark?.("editable_surface_ready");
+    }
+    const waitForDeferredServices = () => {
+      const api = window.pywebview?.api;
+      if (!api) return Promise.resolve({ ready: false });
+      api.start_deferred_startup?.();
+      return api.wait_for_background_services?.() || Promise.resolve({ ready: false });
+    };
+    const deferredServicesReady = window.__vnoPywebviewReady
+      ? waitForDeferredServices()
+      : new Promise((resolve) => window.addEventListener("pywebviewready", () => {
+          waitForDeferredServices().then(resolve, resolve);
+        }, { once: true }));
+    const documentServicesReady = connectDocumentServices();
+    const appBackgroundReady = documentServicesReady.then(() => currentAppInstance?.initializeBackgroundServices?.());
+    ancillaryStartupPromise = Promise.allSettled([deferredServicesReady, documentServicesReady, appBackgroundReady])
+      .then(async () => {
+        await refreshAncillaryUi(currentAppInstance);
+        await currentAppInstance?.showStartupRecovery?.();
+        window.__vnoStartupMark?.("error_reporting_ready");
+      });
+    if (launchContext.openInitialFile) {
+      window.dispatchEvent(new CustomEvent("vno:document-open-progress"));
+      await documentServicesReady;
+      await globalCommandBus.execute("common.file.open");
+      window.__vnoStartupMark?.("initial_file_open_resolved");
+      window.__vnoStartupMark?.("document_open_complete");
+    }
+    if (!launchContext.openInitialFile) void ancillaryStartupPromise;
+  </script>
+</body>
+</html>

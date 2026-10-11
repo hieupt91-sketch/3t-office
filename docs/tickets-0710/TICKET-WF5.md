@@ -1,0 +1,4 @@
+# TICKET WF5 — Doc: KE HOACH (chua code) cho "So sanh tai lieu" va "Bao ve tai lieu" (Codex)
+Plan gate: viet docs/PLAN-DOC-COMPARE-PROTECT.md, KHONG sua code app. Hai tinh nang rieng, moi tinh nang 1 muc day du: muc tieu; hien trang (Review tab, theo doi thay doi da co; ma hoa/mat khau DOCX hien ra sao); phuong an tai su dung LibreOffice (so sanh tai lieu, bao ve chinh sua/mat khau) qua Adapter, KHONG goi truc tiep tu UI; dinh dang luu (w:documentProtection, ma hoa Office co can thu vien ngoai khong - neu co, nen ro giay phep, khong dung phan mem tra phi/doc quyen); tep se sua; rui ro bao mat (khong gui noi dung ra ngoai, khong luu mat khau ro); ke hoach test; rollback; Huong dan tieng Viet; i18n.
+Dau ra: tai lieu + danh sach cau hoi can chu so huu quyet (neu co). Claude se trinh chu so huu duyet truoc khi code.
+Cam/Quy tac: nhu TICKET-WF3.md. KHONG push, KHONG merge. Bao cao 3 dong.

@@ -1,0 +1,7 @@
+# TICKET FIX-T1 — Bang trong Doc: U6 + U8 (Codex)
+Doc docs/UI-TEST-DOC-1010.md muc U6, U8 (mo ta + bang chung). Hai loi, sua tung loi, moi loi co test.
+U6: chen bang (Chen > Bang bieu) roi go + Tab: chu mau "Tieu de"/"Du lieu" khong duoc chon san nen chu go dinh lien ("Hang mucTieu de"). Muc tieu: nhu Word, o moi chen ra TRONG (khong chu mau) hoac chu mau duoc chon/thay khi go. Chon phuong an don gian nhat: bang moi trong (header van duoc nhan dien bang hang dau). Kiem tra khong lam hong luu DOCX (bang trong van luu dung, d01/d07 khong doi) va khong lam hong test hien co.
+U8: gop ca hang thanh 1 o (Bo cuc Bang > Gop o) roi bam Tach o: sinh lai dung so o (cot) goc, khong de hang chi con 1 o (do rows[i].cells.length truoc/sau). Kiem tra gop doc (rowSpan) va gop ngang (colSpan); Ctrl+Z hoan tac 1 buoc.
+Quy trinh: worktree E:\VNOffice-codex-ft1 nhanh fix/doc-table-t1-codex tu main (da gom U23). DIAGNOSE truoc, sua nho nhat, test unit + 1 kich ban CDP desktop that (chuot + phim tat) do bang so; npm test day du + python unittest, bao so that (neu 1 test Python loi, chay lai rieng truoc khi bao). Them noi dung Tro giup tieng Viet neu doi hanh vi nguoi dung nhin thay (muc 10 AGENTS.md).
+CAM: SendKeys/OS input (chi CDP), kill theo ten (chi PID), push, merge, sua test cho xanh. App mo bang VNO_CDP_LOCALAPPDATA rieng; khong dong Writer PID cua Claude.
+TIET KIEM TOKEN: do bang so; bao cao 3 dong delta.

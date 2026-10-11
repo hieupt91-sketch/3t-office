@@ -1,0 +1,6 @@
+# TICKET U23 — Ctrl+Z dua con tro ve dau tai lieu (Codex, uu tien CAO NHAT trong dot UI)
+Hien tuong (da do 10/10, docs/UI-TEST-DOC-1010.md U23): trong Doc, cuoi tai lieu go " ABC", bam Ctrl+Z (chi mat " ABC" dung), roi go "Z" => chu Z chen vao DAU tai lieu ("ZChuong 1..."). Sau Ctrl+Z getSelection().anchorNode la DIV.vno-writer-body (container), khong phai text/doan.
+Muc tieu: sau Undo/Redo (phim tat va nut tren thanh), con tro dat lai tai cho vua hoan tac (cuoi doan thay doi) nhu Word; go tiep vao dung cho.
+Quy trinh: worktree E:\VNOffice-codex-u23 nhanh fix/doc-undo-caret-codex tu main; DIAGNOSE truoc (xem platform/ + adapters/libreoffice/writer/writer-adapter.js: noi undo/redo dung snapshot innerHTML hay execCommand; tim cho khoi phuc selection) roi sua nho nhat. Test: unit (jsdom/gia lap) + 1 kich ban CDP that (go, Ctrl+Z, go tiep; Ctrl+Z nhieu lan; undo dinh dang; undo trong bang; redo), do vi tri bang so. Chay day du npm test + python unittest, bao so that. Khong khang dinh PASS neu chua chay.
+CAM: SendKeys/OS input (chi CDP), kill theo ten (chi PID), push, merge, sua test cho xanh, them tinh nang moi. Ap dung cho Sheet/Slides neu dung chung platform thi sua o platform, khong copy.
+TIET KIEM TOKEN: -c model_reasoning_effort=high; do bang so; bao cao 3 dong delta.

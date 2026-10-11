@@ -1,0 +1,9 @@
+# TICKET SB2 — CHAN DOAN (khong sua ma): loi khong lan truyen + DATE tra chuoi trong Sheet
+Muc tieu: hieu ro mo hinh luu gia tri/loi/ngay trong Sheet va de xuat dung 1 phuong an sua nho nhat, co danh sach rui ro.
+Hien trang (da do truc tiep qua CDP, app desktop):
+- Loi khong lan truyen: A1 "=1/0" co val "#DIV/0!" (chuoi) nhung A2 "=A1+1" ra 1; "=SUM(A1,1)" ra 1; "=NA()" roi +1 ra 1; ="x"+1 roi +1 ra 1. Excel: moi cai ra loi tuong ung (#DIV/0!, #N/A, #VALUE!). IF(TRUE,42,A1) dung 42 (nhanh khong chon), IF(FALSE,42,A1) phai ra #DIV/0! (hien ra 0).
+- DATE tra CHUOI: =DATE(2026,12,31) co val "31/12/2026" (chuoi) nen =A1+1 ra 1. Excel: DATE tra so serial (46387) hien thi theo dinh dang ngay. Chua ro o nhap tay "31/12/2026" luu the nao (so serial hay chuoi) va cac ham ngay khac (TODAY, EDATE, YEAR, DATEDIF...) dung gi.
+Viec: doc apps/sheet/formula-engine.js, evaluate-formula.js, sheet-grid.js (cellsData, kieu gia tri, dinh dang ngay) va tests/unit lien quan. Tra loi: (1) loi hien duoc bieu dien the nao va o dau no bi ep thanh so 0 (toan tu, SUM/AVERAGE/MIN/MAX..., tham chieu o); (2) cac ham ngay dang tra kieu gi, o nhap tay luu gi, xuat xlsx ghi the nao (serial + numFmt?); (3) phuong an sua nho nhat cho tung loi (file/ham/dong), rui ro mat fidelity xlsx (bo 28 xlsx + 20 xls), cac test se can them/sua.
+Tieu chi xong: docs/AUDIT-SHEET-ERRORS-DATES-0710.md (bang so lieu + phuong an + rui ro). Commit chi file nay (va script do neu them trong scripts/audit-0610/). KHONG sua ma san pham.
+Cam: SendKeys/OS input, kill theo ten tien trinh, pywebview evaluate_js. App that qua CDP (khong web), LOCALAPPDATA rieng. KHONG push main, KHONG merge.
+TIET KIEM TOKEN: chi doc ham lien quan; bao cao toi da 3 dong.

@@ -1,0 +1,7 @@
+Ket qua doi chieu Slides voi PowerPoint that (11/10, Claude): 16 thao tac (HAM: lenh -> luu PPTX -> PowerPoint COM doc lai):
+KHOP: italic, gach ngang, font Times New Roman, can giua/phai/deu, bullet, danh so, gian dong 1.5, slide moi, nhan doi slide (thuoc tinh doc duoc khop).
+LECH THAT:
+ 1. Ten phong luu thanh "Arial1" (a:latin typeface="Arial1") sau khi sua chu (bold, underline, mau, can le...), khi italic/strike thi van "Arial" => phong khong ton tai tren may nguoi dung (PowerPoint thay phong khac).
+ 2. Tang co chu (slides.font.grow) tu 18pt len 48pt (PowerPoint: 18 -> 20). Sai nac.
+ 3. Mau chu mac dinh cua nut = #DC2626 (PowerPoint: do FF0000) — thiet ke, thap.
+ 4. Nut "An slide" nam o tab Trinh chieu (khong o Trang dau) — ky thuat test chua phan anh; kiem them.

@@ -1,0 +1,26 @@
+/**
+ * Test Suite: Sheet formula Excel ⇄ ODF conversion of deleted references (#REF!).
+ * LibreOffice spells a deleted reference `[#REF!]`; writing it bare made the saved
+ * .xls hold `=#N/A` instead of Excel's `#REF!` (legacy06.xls, 9 cells, 29/9/2026).
+ */
+
+import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
+
+export async function runSheetFormulaOdfTests() {
+  const adapter = new SheetAdapter(null);
+  const results = [];
+  const check = (name, actual, expected) => results.push({ name, pass: actual === expected, error: `got ${actual}` });
+
+  check("#REF! ghi ra ODF có ngoặc vuông", adapter._formulaToOdf("=#REF!-(#REF!*#REF!)"), "of:=[#REF!]-([#REF!]*[#REF!])");
+  check("#REF! khứ hồi ODF → Excel giữ nguyên", adapter._formulaFromOdf(adapter._formulaToOdf("=#REF!-(#REF!*#REF!)")), "=#REF!-(#REF!*#REF!)");
+  check("#REF! lẫn tham chiếu thường", adapter._formulaToOdf("=SUM(A1:B2)+#REF!"), "of:=SUM([.A1:.B2])+[#REF!]");
+  check("Chuỗi \"#REF!\" trong ngoặc kép giữ nguyên", adapter._formulaToOdf("=IF(A1=\"#REF!\",1,2)"), "of:=IF([.A1]=\"#REF!\";1;2)");
+  // legacy09.xls: a sheet name containing the argument separator lost its comma on save.
+  check("Tên sheet có dấu phẩy giữ nguyên khi ghi ODF",
+    adapter._formulaToOdf("=SUM('Mạng, camera'!G8:G11)"), "of:=SUM([$'Mạng, camera'.G8:$'Mạng, camera'.G11])");
+  check("Tên sheet có dấu phẩy khứ hồi ODF → Excel",
+    adapter._formulaFromOdf("of:=SUM([$'Mạng, camera'.G8:.G11];1)"), "=SUM('Mạng, camera'!G8:G11,1)");
+  // Not covered yet: sheet names containing an escaped quote ('O''Brien'!A1) — the reference
+  // regex in _formulaToOdf matches '[^']+' only (pre-existing limitation, tracked separately).
+  return results;
+}

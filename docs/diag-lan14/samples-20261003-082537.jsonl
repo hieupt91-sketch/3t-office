@@ -1,0 +1,22 @@
+{"nodeTs":1791015937495,"type":"meta","runLabel":"preflight","doSave":false,"id":"20261003-082537","root":"E:\\VNOffice-opencode-lan14","source":"E:\\VN OFice\\file test\\lan\\lan02.xlsx","localAppData":"E:\\VNOffice-profiles\\opencode-lan14","samplesPath":"E:\\VNOffice-opencode-lan14\\docs\\diag-lan14\\samples-20261003-082537.jsonl","tracePath":"E:\\VNOffice-opencode-lan14\\docs\\diag-lan14\\trace-20261003-082537.jsonl","logPath":"E:\\VNOffice-opencode-lan14\\docs\\diag-lan14\\stdout-20261003-082537.log","env":{"VNO_PERF_DEBUG":"1","VNO_STARTUP_TRACE_FILE":"E:\\VNOffice-opencode-lan14\\docs\\diag-lan14\\trace-20261003-082537.jsonl"},"limits":{"SAMPLE_MS":5000,"SAVE_SAMPLE_MS":2000,"OPEN_LIMIT_MS":1200000,"SAVE_LIMIT_MS":1200000,"OPEN_TAIL_MS":60000,"SAVE_TAIL_MS":10000},"freeRAMKBBeforeRun":11429516,"freeRAMEligible":true,"nodeVersion":"v20.20.2"}
+{"nodeTs":1791015937497,"type":"file-copy","source":"E:\\VN OFice\\file test\\lan\\lan02.xlsx","sourceBytes":63430,"copy":"C:\\Users\\3TCOMP~1\\AppData\\Local\\Temp\\vno_lan14_diag\\run-20261003-082537\\lan14.xlsx","copyBytes":63430}
+{"nodeTs":1791015937498,"type":"perf-log-settings","path":"E:\\VNOffice-profiles\\opencode-lan14\\VNOffice\\performance\\settings.json","content":{"enabled":true},"perfLogBytesBefore":333}
+{"nodeTs":1791015937499,"type":"phase","phase":"process_start","t0":1791015937499}
+{"nodeTs":1791015937702,"type":"trace","stage":"python_runtime_started","elapsed_ms":0}
+{"nodeTs":1791015938515,"type":"trace","stage":"python_imports_complete","elapsed_ms":820.3}
+{"nodeTs":1791015938721,"type":"trace","stage":"static_server_ready","elapsed_ms":878.3,"port":8080}
+{"nodeTs":1791015938721,"type":"trace","stage":"pywebview_window_created","elapsed_ms":879.7,"app":"sheet"}
+{"nodeTs":1791015938721,"type":"trace","stage":"lo_worker_start_requested","elapsed_ms":879.8,"app":"sheet"}
+{"nodeTs":1791015939965,"type":"trace","stage":"pywebview_ready","elapsed_ms":2143.8,"app":"sheet","renderer_elapsed_ms":309.8}
+{"nodeTs":1791015939965,"type":"trace","stage":"webview_loaded","elapsed_ms":2144.7,"app":"sheet"}
+{"nodeTs":1791015942217,"type":"trace","stage":"lo_worker_ready","elapsed_ms":4454,"app":"sheet","worker_elapsed_ms":3573.9}
+{"nodeTs":1791015984690,"type":"trace","stage":"window_close_api_requested","elapsed_ms":46999.8,"app":"sheet"}
+{"nodeTs":1791015984895,"type":"trace","stage":"native_window_closing","elapsed_ms":47107.4,"app":"sheet","approved":true}
+{"nodeTs":1791015984895,"type":"trace","stage":"window_close_cleanup_started","elapsed_ms":47108.6,"app":"sheet"}
+{"nodeTs":1791015984895,"type":"trace","stage":"autorecover_session_closed","elapsed_ms":47109.7,"app":"sheet"}
+{"nodeTs":1791015984895,"type":"trace","stage":"print_sessions_closed","elapsed_ms":47109.8,"app":"sheet"}
+{"nodeTs":1791015984895,"type":"trace","stage":"pywebview_window_closed","elapsed_ms":47109.9,"app":"sheet","remaining_app_windows":0}
+{"nodeTs":1791015985302,"type":"trace","stage":"window_destroy_requested","elapsed_ms":47428.2,"app":"sheet"}
+{"nodeTs":1791015985302,"type":"trace","stage":"pywebview_loop_returned","elapsed_ms":47429.6,"app":"sheet"}
+{"nodeTs":1791015986535,"type":"trace","stage":"lo_worker_shutdown_complete","elapsed_ms":48732.1,"app":"sheet"}
+{"nodeTs":1791015988603,"type":"blocked","phase":"launch","error":"Error: Timed out waiting for page state: !!document.querySelector(\".vno-sheet-container\"); last value=false\n    at CdpClient.waitFor (file:///E:/VNOffice-opencode-lan14/tests/live/cdp/client.mjs:106:11)\n    at async launchApp (file:///E:/VNOffice-opencode-lan14/tests/live/cdp/session.mjs:67:5)\n    at async main (file:///E:/VNOffice-opencode-lan14/docs/diag-lan14/probe-lan14.mjs:361:15)","launchMs":51104}

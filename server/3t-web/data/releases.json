@@ -1,0 +1,183 @@
+{
+  "product": "3T Office",
+  "current_version": "0.9.9",
+  "version_family": "0.9.x",
+  "channel": "pilot",
+  "release_date": "2026-10-07",
+  "download": {
+    "file_name": "VNOffice-Setup-0.9.9.exe",
+    "alias_file_name": "Setup-0.9.9.exe",
+    "file_size_bytes": 401414822,
+    "file_size_formatted": "383 MB",
+    "sha256": "9AECB1D53CC5B587154EBC6691C76129CEC0210776FB5E12F57F6399D192AB63",
+    "url": "https://office.3tcomputer.com/downloads/VNOffice-Setup-0.9.9.exe",
+    "status": "ready",
+    "public_download_status": "Sẵn sàng tải về từ hạ tầng phân phối máy chủ 3T Cloud",
+    "requirements": {
+      "os": "Windows 10 hoặc Windows 11, 64-bit",
+      "ram": "Tối thiểu 4 GB (khuyến nghị 8 GB trở lên)",
+      "disk": "Khoảng 1.5 GB dung lượng đĩa trống",
+      "runtime": "Edge WebView2 Runtime (đã tích hợp sẵn trên Windows 10/11 hiện đại)"
+    }
+  },
+  "releases": [
+    {
+      "version": "0.9.9",
+      "channel": "pilot",
+      "date": "2026-10-07",
+      "summary": "Hộp Tài khoản và bản quyền, hộp thoại Đoạn văn, Ngăn dẫn hướng Doc, sửa công thức Sheet, mở và in nhanh hơn, hết lỗi cửa sổ trắng",
+      "highlights": [
+        "Chung: Sửa lỗi cửa sổ trắng thỉnh thoảng xuất hiện khi mở ứng dụng (đo 60 lượt khởi động: trước sửa kẹt 22%, sau sửa 0%).",
+        "Chung: Mới: Tệp ▸ Tài khoản và bản quyền. Nhập mã kích hoạt (tự kiểm lỗi gõ, không cần Internet), kích hoạt ngoại tuyến, gỡ kích hoạt. Hiện chưa khóa tính năng nào; ứng dụng không bao giờ tự tắt chỉ vì mất mạng.",
+        "Chung: Xem trước khi in nhanh hơn rõ rệt ở cả ba ứng dụng (ví dụ Doc 25,9 giây xuống 10,3 giây; Sheet 21,4 giây xuống 7,5 giây); bản PDF in ra giống hệt trước.",
+        "Chung: Thao tác chuột đồng bộ giữa Doc, Sheet và Slide: kéo đổi cỡ hàng, cột, chọn, chữ tràn khi soạn ô.",
+        "Chung: Bổ sung hướng dẫn tiếng Việt trong Trợ giúp cho các lệnh còn thiếu (Toàn màn hình, giao diện Tối/Sáng, Lặp lại F4, Tính lại ngay F9…) và cho hộp bản quyền.",
+        "Doc: Mới: hộp thoại Đoạn văn (chuột phải ▸ Đoạn văn…, hoặc nút mũi tên nhỏ ở góc nhóm Đoạn văn): căn lề, thụt lề, thụt dòng đầu hoặc thụt treo, khoảng cách trước và sau đoạn, giãn dòng, có khung xem trước; một lần Áp dụng là một bước Hoàn tác.",
+        "Doc: Mới: Ngăn dẫn hướng (tab Xem hoặc Ctrl+Alt+N) liệt kê các tiêu đề; bấm để nhảy tới đúng chỗ, không làm chậm khi gõ.",
+        "Doc: Lưu DOCX giữ đúng trường Nếu (IF) và trường trộn thư, giữ đúng loại ngắt mục (trang mới, trang lẻ, liên tục) kể cả khi mục bắt đầu bằng danh sách, tiêu đề hoặc bảng.",
+        "Doc: Bảng giữ chiều cao hàng và khoảng cách dòng trong ô như tài liệu gốc; số trang hiển thị khớp bản gốc trên toàn bộ 43 tài liệu mẫu kiểm tra.",
+        "Doc: Gõ phím nhanh hơn trên tài liệu dài nhiều hình; nút Gộp ô hoạt động khi chọn chữ trải qua nhiều ô; thanh ribbon tab Trang đầu không còn phải cuộn ngang.",
+        "Doc: Tài liệu nặng (30 MB, nhiều ngắt mục) mở trong khoảng 33 giây thay vì 173 giây.",
+        "Doc: Các hộp thoại Doc dùng được bằng bàn phím, có tiếng Việt và tiếng Anh đầy đủ; Ctrl+A trong hộp thoại không còn chọn nhầm văn bản phía sau.",
+        "Sheet: Sửa công thức: ROUND với số âm, IFERROR bắt đúng lỗi, SUMIFS và COUNTIFS khi dải ô khác kích thước, SUMIF khi dải tính tổng khác hình dạng, lỗi (#REF!, #DIV/0!…) được truyền đúng qua phép tính và SUM, AVERAGE, MIN, MAX, IF.",
+        "Sheet: Hàm ngày (DATE, TODAY, EDATE, EOMONTH, WORKDAY…) trả về số ngày như bảng tính thông dụng và tự đặt định dạng ngày; ô văn bản chỉ được đọc thành số khi toàn bộ nội dung là số.",
+        "Sheet: Trên 28 tệp xlsx thực tế, tỷ lệ công thức cho kết quả trùng giá trị đã lưu trong tệp tăng từ 50,96% lên 53,41%; lưu rồi mở lại cả 28 tệp không sai ô nào.",
+        "Sheet: Nhập số tiền có ký hiệu tiền tệ được nhận là số và có định dạng tiền tệ.",
+        "Sheet: Lưu tệp rất lớn không còn làm ứng dụng sập (tệp 300 triệu ký tự lưu trong khoảng 31 giây); chuyển sheet trong tệp có nhiều dòng ẩn dùng ít bộ nhớ hơn (4,8 GB xuống 2,1 GB).",
+        "Sheet: Dựng mô hình nhanh hơn (tệp lớn nhất từ 52 giây xuống 21 giây). Tùy chọn xem nhanh khi mở tệp lớn có sẵn nhưng tắt mặc định.",
+        "Slide: Lần mở đầu tiên trên máy mới nhanh gần gấp đôi (27 giây xuống 15 giây)."
+      ]
+    },
+    {
+      "version": "0.9.8",
+      "channel": "pilot",
+      "date": "2026-10-03",
+      "summary": "Dán chéo ứng dụng, menu chuột phải có nhánh, thước Doc hoạt động, gõ hàm dễ hiểu, cập nhật qua máy chủ",
+      "highlights": [
+        "Chung: Dán chéo giữa Doc, Sheet và Slide: Ctrl+C sao chép ở ứng dụng này, Ctrl+V dán sang ứng dụng kia; dán xong bấm Ctrl+Z một lần là hoàn tác.",
+        "Chung: Dán chỉ giữ chữ bằng Ctrl+Shift+V ở Doc, Sheet và Slide, không kèm màu nền, kẻ viền hay kiểu chữ cũ.",
+        "Chung: Bấm chuột phải ra menu có nhánh (Cắt/Sao chép/Dán, Dán đặc biệt, Chèn, Xóa, Sắp xếp…) ở Doc và Sheet.",
+        "Chung: Chèn dùng chung cho cả 3 ứng dụng: Ký hiệu, Liên kết, Hình, Hộp văn bản, Ảnh.",
+        "Chung: Giữ con trỏ ổn định khi thao tác nhanh; hoàn tác sau khi dán không bị phá.",
+        "Chung: Giao diện không còn chồng chéo trên laptop dùng tỷ lệ hiển thị 125%, 150%; các tab ribbon luôn nằm trên một dòng khi cửa sổ hẹp.",
+        "Chung: Trong menu \"Mở bằng\" của Windows, Doc, Sheet và Slide hiện đúng tên và biểu tượng riêng; ghim lên thanh tác vụ cũng đúng biểu tượng.",
+        "Chung: Cập nhật tự động lấy bản vá từ máy chủ Internet khi không ở mạng nội bộ; kiểm tra bản mới nhẹ hơn nhiều.",
+        "Chung: Mở tài liệu lần đầu trên máy mới nhanh hơn rõ rệt (từ khoảng 14 giây xuống khoảng 3 giây).",
+        "Doc: Dán bảng từ Sheet vào Doc thành bảng đúng số hàng, số cột; hàng tiêu đề vẫn in đậm, số và ngày giữ nguyên dạng hiển thị.",
+        "Doc: Sao chép bảng hoặc đoạn văn từ Doc sang Sheet và Slide: bảng tính thành từng ô, chữ giữ nguyên in đậm và in nghiêng.",
+        "Doc: Thước ngang hoạt động thật: hiển thị theo cm, kéo mép lề trang, thụt dòng đầu, thụt lề treo, thụt trái và thụt phải; giữ Alt để chỉnh mịn; Ctrl+Z hoàn tác một lần kéo.",
+        "Doc: Các nút Đậm, Nghiêng, Gạch chân, Căn lề, Danh sách sáng hoặc tắt đúng theo chữ đang đặt con trỏ; từ bị gạch đỏ chính tả mà in đậm không còn mất định dạng.",
+        "Doc: Lưu DOCX giữ nguyên đầu trang, chân trang, theo dõi thay đổi và ghi chú; xuất DOCX giữ đúng kiểu đánh số a), i., Heading và mục lục.",
+        "Sheet: Dán từ Doc hoặc Slide vào Sheet: bảng tính thành từng ô, số được nhận là số nên dùng ngay được trong công thức.",
+        "Sheet: Cắt ô bằng Ctrl+X rồi dán bằng Ctrl+V, ô nguồn được xóa sạch.",
+        "Sheet: Gõ giờ 13:45 vào ô được nhận là giờ và hiển thị đúng mẫu giờ; giờ sai như 25:00 vẫn giữ nguyên dạng chữ.",
+        "Sheet: Thanh công thức hiện ngày, giờ, phần trăm đúng như người dùng gõ (31/12/2026, 13:45, 25%) thay vì số nội bộ.",
+        "Sheet: Chuyển ô bằng phím mũi tên, Tab: nhảy qua ô gộp và bỏ qua hàng, cột đang ẩn; ô đang chọn luôn nằm trong màn hình, khung không còn nhảy xa.",
+        "Sheet: Lưới hiển thị kín cả cửa sổ khi file có hàng, cột ẩn; hàng 20 px hiển thị đúng chiều cao.",
+        "Sheet: Các nút Đậm, Nghiêng, Gạch chân, Căn lề theo đúng ô đang chọn; tắt Đậm bằng Ctrl+B thì nút tắt ngay.",
+        "Sheet: Gõ hàm trong ô: ô hiện đúng chữ đang gõ, gợi ý hàm có cú pháp, chú giải đối số bằng tiếng Việt (đối số đang nhập được in đậm, có giải thích và ví dụ).",
+        "Sheet: Cột ngày, giờ tự giãn đủ rộng khi nhập; ký hiệu tiền chỉ hiện ở ô có định dạng tiền tệ.",
+        "Sheet: Mở bảng tính rất lớn (hơn một triệu ô) không còn treo cửa sổ, có thanh tiến trình, nhanh hơn và dùng ít bộ nhớ hơn.",
+        "Slide: Dán bảng từ Sheet hoặc Doc lên vùng trang chiếu sẽ tạo bảng đúng số hàng, số cột; dán vào hộp chữ giữ nguyên chữ in đậm, in nghiêng."
+      ]
+    },
+    {
+      "version": "0.9.7",
+      "channel": "pilot",
+      "date": "2026-10-02",
+      "summary": "Giao diện và Trợ giúp thống nhất, Bảng tính mở rộng 1 triệu hàng, Thước & Phương trình Toán, Ổn định tiến trình",
+      "highlights": [
+        "Chung: Giao diện và Trợ giúp thống nhất ở cả 3 ứng dụng: bấm Alt hiện phím tắt, F1 mở hướng dẫn đúng ngữ cảnh, trang Có gì mới trong Trợ giúp.",
+        "Chung: Cập nhật một chạm: ứng dụng báo trước, tự lưu tài liệu rồi áp bản vá và mở lại; ghi nhật ký từng bước để khôi phục khi có sự cố.",
+        "Chung: Tìm/Thay thế dùng chung cho cả 3 ứng dụng: Ctrl+F tìm kiếm, Ctrl+H thay thế, F3 tìm kế tiếp.",
+        "Chung: Tối ưu bộ gõ tiếng Việt ngoài (Unikey, EVKey): Ctrl+Z hoàn tác từng từ, chữ chuẩn hóa, gợi ý công thức không chèn nhầm vào nội dung.",
+        "Chung: Kiểm tra chính tả tiếng Việt: từ sai gạch đỏ khi gõ, chuột phải chọn cách sửa, bật/tắt chính tả trong Tùy chọn.",
+        "Chung: Tên ngắn Doc, Sheet, Slide thống nhất ở tiêu đề cửa sổ, giao diện, nội dung mẫu, phím tắt desktop và thanh tác vụ.",
+        "Chung: Hộp thoại In không còn hiển thị tên thư viện kỹ thuật bên trong.",
+        "Chung: Trợ giúp tiếng Việt được rà soát và bổ sung chi tiết cho 47 mục tính năng.",
+        "Chung: Mở ứng dụng và tệp nhanh hơn, gõ phím ngay được sau khi mở; lệnh Tạo mới ở Sheet và Slide mở cửa sổ mới.",
+        "Chung: Ổn định tiến trình: không còn tiến trình thừa khi đóng/mở; tự động lưu tạm 2 phút một lần; nhật ký hiệu năng chỉ ghi khi bật trong Trợ giúp.",
+        "Chung: Đồng bộ màn hình Tệp, danh sách Tệp gần đây, thanh trạng thái đáy cửa sổ kèm thanh thu phóng 50% – 200%, phím tắt Alt+F, Ctrl+F1.",
+        "Doc: Thêm Thước ngang/dọc, Thụt đầu dòng, Đánh số lại từ 1; nhóm lệnh Bảng hoàn chỉnh; ảnh có 8 tay cầm giữ tỉ lệ và ngắt dòng chữ; chuột phải cắt/dán và gợi ý chính tả.",
+        "Doc: Sửa lỗi số trang trên màn hình lệch so với bản in do phông chữ và giãn dòng.",
+        "Doc: Chèn phương trình toán học bằng Alt+=, soạn dạng tuyến tính, lưu và mở lại giữ nguyên vị trí.",
+        "Sheet: Bảng tính đủ 1.048.576 hàng x 16.384 cột, dựng ảo hóa siêu nhẹ, phím tắt Ctrl+mũi tên và ô tên vùng di chuyển mượt mà.",
+        "Sheet: Dán từ bảng tính và văn bản của phần mềm văn phòng khác giữ đúng định dạng; dán vào Doc giữ tiêu đề, danh sách và bảng.",
+        "Sheet: Sửa 5 lỗi: số và ngày lưu thành giá trị số thật; giữ thiết lập trang in; Ctrl+A chọn đúng vùng dữ liệu; sắp xếp giữ nguyên dòng tiêu đề; xóa trang tính và đổi màu tab.",
+        "Sheet: Hộp thoại In có thêm Phạm vi sổ làm việc: trang tính hiện hoạt, toàn bộ sổ làm việc hoặc vùng bôi đen.",
+        "Slide: Tab/Shift+Tab thụt lề trong hộp chữ; Enter không thoát hộp chữ; đầy đủ Ctrl+C, Ctrl+X, Ctrl+V trong hộp chữ.",
+        "Slide: Kéo góc ảnh giữ nguyên tỉ lệ; xóa hoặc nhân bản trang an toàn; phím tắt dùng được trong chế độ sắp xếp."
+      ]
+    },
+    {
+      "version": "0.9.6",
+      "channel": "pilot",
+      "date": "2026-10-01",
+      "summary": "Tối ưu hóa bàn phím, clipboard, nhập công thức và ngắt mục",
+      "highlights": [
+        "Doc: Bấm Enter xuống dòng đúng chuẩn, chữ gõ tiếp không còn dính vào dòng trên.",
+        "Doc: Phím tắt Ctrl+V dán và Ctrl+X cắt hoạt động trơn tru; bấm Tab chèn khoảng tab chuẩn văn bản và không làm mất chữ đang gõ.",
+        "Doc: Ngắt mục chuẩn định dạng tài liệu (trang tiếp theo, liên tục, trang chẵn/lẻ), giữ nguyên định dạng mục khi lưu tệp .docx.",
+        "Sheet: Nhập hàm công thức trực quan — gõ =SUM rồi nhấn Tab, bấm hoặc kéo chuột chọn ô/vùng khi đang gõ công thức, tô màu vùng tham chiếu trực quan, phím F4 chuyển đổi $A$1.",
+        "Sheet: Bàn phím tự động chuyển tiêu điểm trở lại bảng tính sau khi đóng hộp thoại.",
+        "Sheet: Gõ được ngay vào ô A1 khi vừa mở ứng dụng.",
+        "Tốc độ: Mở nhiều tài liệu cùng lúc nhanh hơn — tài liệu thứ hai mở trong khoảng nửa giây.",
+        "Trợ giúp: Bổ sung các bài viết Bắt đầu nhanh, Phím tắt thường dùng, Khác biệt cần biết ngay trong ứng dụng."
+      ]
+    },
+    {
+      "version": "0.9.5",
+      "channel": "pilot",
+      "date": "2026-10-01",
+      "summary": "Bộ ứng dụng thương hiệu 3T Office, What-If Analysis và công cụ trình chiếu",
+      "highlights": [
+        "Đổi tên nhận diện thương hiệu: Bộ 3T Office gồm Doc, Sheet, Slide và Trợ lý 3T AI.",
+        "Mở ứng dụng vào ngay tài liệu trống, cửa sổ tối ưu sẵn sàng làm việc.",
+        "Các thao tác Mới, Mở, Lưu, Lưu bản sao (chuyển đổi .docx, .xlsx, .pptx, cảnh báo ghi đè) và Đóng hoạt động hoàn chỉnh.",
+        "In ấn và Xuất PDF dựng đúng nội dung tài liệu chuẩn xác.",
+        "Sheet: Kéo chuột chọn vùng dữ liệu; Bảng dữ liệu What-If 2 biến; Trình quản lý kịch bản và báo cáo tóm tắt; Ước lượng công thức từng bước; Cửa sổ theo dõi ô tính; Tiêu đề in lặp lại.",
+        "Doc: Trộn thư Mail Merge lấy dữ liệu nguồn từ bảng tính .xlsx và .csv.",
+        "Slide: Bút vẽ và bút laser khi trình chiếu toàn màn hình; kích thước trang chiếu chuẩn xác.",
+        "Cải thiện tốc độ mở tài liệu."
+      ]
+    },
+    {
+      "version": "0.9.4",
+      "channel": "pilot",
+      "date": "2026-09-30",
+      "summary": "Bản địa hóa tiếng Việt toàn diện và tăng tốc mở tệp",
+      "highlights": [
+        "Giao diện mặc định 100% tiếng Việt chuẩn mực.",
+        "Mở tài liệu nhanh hơn: Tệp .docx và .xlsx thông thường chỉ 2–3 giây; tệp .doc và .xls cũ nhanh gấp 2–3 lần.",
+        "Thanh trạng thái 'Đang mở tài liệu...' phản hồi trực quan khi nạp tệp."
+      ]
+    },
+    {
+      "version": "0.9.2",
+      "channel": "pilot",
+      "date": "2026-09-30",
+      "summary": "Độ chính xác định dạng phông chữ và bố cục trang",
+      "highlights": [
+        "Doc giữ đúng cỡ chữ lẻ nửa điểm (ví dụ 13.5 pt) và chiều cao dòng khi mở và lưu tài liệu .docx, số trang khớp chuẩn xác."
+      ]
+    },
+    {
+      "version": "0.9.1",
+      "channel": "pilot",
+      "date": "2026-09-29",
+      "summary": "Cơ chế cập nhật tự động một chạm",
+      "highlights": [
+        "Bản đầu tiên tích hợp cơ chế tự động kiểm tra và áp dụng bản vá cập nhật qua mạng nội bộ có chữ ký số."
+      ]
+    },
+    {
+      "version": "0.9.0-pilot1",
+      "channel": "pilot",
+      "date": "2026-09-29",
+      "summary": "Bản nền tảng thử nghiệm nội bộ 3T Office",
+      "highlights": [
+        "Khởi động bộ 3 ứng dụng văn phòng chạy ngoại tuyến Doc, Sheet, Slide trên Windows."
+      ]
+    }
+  ]
+}

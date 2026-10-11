@@ -1,0 +1,7 @@
+3T OFFICE - THÔNG BÁO BẢN DÙNG THỬ NỘI BỘ
+
+3T Office sử dụng các thành phần nguồn mở. Xem danh sách ghi công và giấy phép trong Trợ giúp > Giới thiệu 3T Office. Văn bản giấy phép đầy đủ nằm trong thư mục THIRD-PARTY-NOTICES sau khi cài đặt.
+
+Trong đợt dùng thử, hãy giữ bản sao dự phòng của tài liệu quan trọng. Nên dùng Lưu thành để tạo bản thử riêng.
+
+Bộ cài đặt này chưa được ký số. Windows có thể hiện cảnh báo SmartScreen; hãy làm theo hướng dẫn trong tệp CAI-DAT.txt và chỉ chạy bộ cài từ kênh nội bộ đáng tin cậy.

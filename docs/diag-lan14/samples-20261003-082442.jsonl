@@ -1,0 +1,23 @@
+{"nodeTs":1791015883245,"type":"meta","runLabel":"preflight","doSave":false,"id":"20261003-082442","root":"E:\\VNOffice-opencode-lan14","source":"E:\\VN OFice\\file test\\lan\\lan02.xlsx","localAppData":"E:\\VNOffice-profiles\\opencode-lan14","samplesPath":"E:\\VNOffice-opencode-lan14\\docs\\diag-lan14\\samples-20261003-082442.jsonl","tracePath":"E:\\VNOffice-opencode-lan14\\docs\\diag-lan14\\trace-20261003-082442.jsonl","logPath":"E:\\VNOffice-opencode-lan14\\docs\\diag-lan14\\stdout-20261003-082442.log","env":{"VNO_PERF_DEBUG":"1","VNO_STARTUP_TRACE_FILE":"E:\\VNOffice-opencode-lan14\\docs\\diag-lan14\\trace-20261003-082442.jsonl"},"limits":{"SAMPLE_MS":5000,"SAVE_SAMPLE_MS":2000,"OPEN_LIMIT_MS":1200000,"SAVE_LIMIT_MS":1200000,"OPEN_TAIL_MS":60000,"SAVE_TAIL_MS":10000},"freeRAMKBBeforeRun":11382532,"freeRAMEligible":true,"nodeVersion":"v20.20.2"}
+{"nodeTs":1791015883247,"type":"file-copy","source":"E:\\VN OFice\\file test\\lan\\lan02.xlsx","sourceBytes":63430,"copy":"C:\\Users\\3TCOMP~1\\AppData\\Local\\Temp\\vno_lan14_diag\\run-20261003-082442\\lan14.xlsx","copyBytes":63430}
+{"nodeTs":1791015883248,"type":"perf-log-settings","path":"E:\\VNOffice-profiles\\opencode-lan14\\VNOffice\\performance\\settings.json","content":{"enabled":true},"perfLogBytesBefore":0}
+{"nodeTs":1791015883248,"type":"phase","phase":"process_start","t0":1791015883248}
+{"nodeTs":1791015883468,"type":"trace","stage":"python_runtime_started","elapsed_ms":0}
+{"nodeTs":1791015883671,"type":"trace","stage":"python_imports_complete","elapsed_ms":71.6}
+{"nodeTs":1791015883671,"type":"trace","stage":"static_server_ready","elapsed_ms":155.6,"port":8080}
+{"nodeTs":1791015883671,"type":"trace","stage":"pywebview_window_created","elapsed_ms":156.9,"app":"sheet"}
+{"nodeTs":1791015883671,"type":"trace","stage":"lo_worker_start_requested","elapsed_ms":157.1,"app":"sheet"}
+{"nodeTs":1791015884905,"type":"trace","stage":"pywebview_ready","elapsed_ms":1334.8,"app":"sheet","renderer_elapsed_ms":316.5}
+{"nodeTs":1791015884905,"type":"trace","stage":"webview_loaded","elapsed_ms":1350.1,"app":"sheet"}
+{"nodeTs":1791015885108,"type":"trace","stage":"ribbon_interactive","elapsed_ms":1596.4,"app":"sheet","renderer_elapsed_ms":606.4}
+{"nodeTs":1791015885315,"type":"trace","stage":"blank_document_first_paint","elapsed_ms":1734.9,"app":"sheet","renderer_elapsed_ms":745}
+{"nodeTs":1791015885315,"type":"trace","stage":"editable_surface_ready","elapsed_ms":1736.1,"app":"sheet","renderer_elapsed_ms":745.2}
+{"nodeTs":1791015885315,"type":"trace","stage":"uno_bridge_ready","elapsed_ms":1789.8,"app":"sheet","renderer_elapsed_ms":799.2}
+{"nodeTs":1791015886124,"type":"trace","stage":"background_services_ready","elapsed_ms":2612.2,"app":"sheet"}
+{"nodeTs":1791015886124,"type":"trace","stage":"updater_ui_ready","elapsed_ms":2668.8,"app":"sheet","renderer_elapsed_ms":1679}
+{"nodeTs":1791015886124,"type":"trace","stage":"error_reporting_ready","elapsed_ms":2671.9,"app":"sheet","renderer_elapsed_ms":1682.1}
+{"nodeTs":1791015887545,"type":"trace","stage":"lo_worker_ready","elapsed_ms":4087.9,"app":"sheet","worker_elapsed_ms":3930.5}
+{"nodeTs":1791015890589,"type":"trace","stage":"document_open_complete","elapsed_ms":7145.2,"app":"sheet","renderer_elapsed_ms":6155.3}
+{"nodeTs":1791015890589,"type":"trace","stage":"initial_file_open_resolved","elapsed_ms":7145.6,"app":"sheet","renderer_elapsed_ms":6155.4}
+{"nodeTs":1791015890589,"type":"trace","stage":"document_open_complete","elapsed_ms":7146.3,"app":"sheet","renderer_elapsed_ms":6155.4}
+{"nodeTs":1791015924535,"type":"blocked","phase":"launch","error":"Error: No WebView2 page became available on port 63824: Node WebSocket is unavailable. Run Node with --experimental-websocket.\n    at connectToPort (file:///E:/VNOffice-opencode-lan14/tests/live/cdp/client.mjs:133:9)\n    at async launchApp (file:///E:/VNOffice-opencode-lan14/tests/live/cdp/session.mjs:66:19)\n    at async main (file:///E:/VNOffice-opencode-lan14/docs/diag-lan14/probe-lan14.mjs:361:15)","launchMs":41287}

@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tính năng 3T Office — Chi tiết công cụ Doc, Sheet và Slide</title>
+  <meta name="description" content="Danh mục tính năng thực tế của Doc, Sheet và Slide. Khám phá các công cụ đã hoàn thiện và lộ trình tính năng đang phát triển.">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+  <link rel="alternate icon" href="favicon.ico">
+  <link rel="stylesheet" href="css/style.css?v=099">
+  <script>
+    try {
+      var t = localStorage.getItem("3t_theme");
+      if (!t && window.matchMedia("(prefers-color-scheme: dark)").matches) t = "dark";
+      if (t) document.documentElement.setAttribute("data-theme", t);
+    } catch(e) {}
+  </script>
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Chuyển đến nội dung chính</a>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="index.html" class="brand-link" aria-label="Trang chủ 3T Office">
+        <img src="assets/brand/logo-3t.png" alt="Logo 3T Office" class="brand-icon">
+        <div class="brand-text">
+          <span class="brand-name">Office</span>
+          <span class="brand-tagline">Bộ ứng dụng văn phòng</span>
+        </div>
+      </a>
+
+      <nav id="primary-nav" class="main-nav" aria-label="Điều hướng chính">
+        <ul class="nav-list">
+          <li><a href="index.html" class="nav-link">Trang chủ</a></li>
+          <li><a href="tinh-nang.html" class="nav-link active" aria-current="page">Tính năng</a></li>
+          <li><a href="tai-ve.html" class="nav-link">Tải về</a></li>
+          <li><a href="co-gi-moi.html" class="nav-link">Có gì mới</a></li>
+          <li><a href="huong-dan.html" class="nav-link">Hướng dẫn</a></li>
+          <li><a href="ban-quyen.html" class="nav-link">Bản quyền</a></li>
+          <li><a href="trang-thai.html" class="nav-link">Trạng thái</a></li>
+          <li><a href="lien-he.html" class="nav-link">Liên hệ</a></li>
+        </ul>
+      </nav>
+
+      <div class="nav-actions">
+        <button type="button" class="theme-toggle-btn" aria-label="Chuyển đổi giao diện Sáng / Tối" title="Chuyển đổi giao diện Sáng / Tối">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"></circle></svg>
+        </button>
+        <a href="tai-ve.html" class="nav-cta-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+          </svg>
+          Tải 0.9.9 Pilot
+        </a>
+        <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="primary-nav" aria-label="Mở trình đơn chuyển hướng">
+          ☰
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main-content">
+    <section class="section">
+      <div class="container">
+        <div class="section-header">
+          <span class="badge badge-glow">Báo cáo năng lực sản phẩm</span>
+          <h1 class="section-title">Ma trận tính năng thực tế 3T Office</h1>
+          <p class="section-lead">
+            Toàn bộ tính năng dưới đây được tổng hợp trung thực từ mã nguồn kiểm thử và lộ trình kỹ thuật thực tế. 
+            Mọi tính năng được gắn nhãn minh bạch giữa công cụ <strong>Sẵn sàng</strong> và công cụ <strong>Sắp có</strong>.
+          </p>
+        </div>
+
+        <!-- Bộ lọc tương tác (Ứng dụng & Trạng thái) -->
+        <div class="filter-bar" role="toolbar" aria-label="Bộ lọc ứng dụng">
+          <button type="button" class="filter-btn active" data-filter-app="all">Tất cả ứng dụng</button>
+          <button type="button" class="filter-btn" data-filter-app="doc">Doc (Soạn thảo)</button>
+          <button type="button" class="filter-btn" data-filter-app="sheet">Sheet (Bảng tính)</button>
+          <button type="button" class="filter-btn" data-filter-app="slide">Slide (Trình chiếu)</button>
+        </div>
+
+        <div class="filter-bar" role="toolbar" aria-label="Bộ lọc trạng thái">
+          <button type="button" class="filter-btn active" data-filter-status="all">Tất cả trạng thái</button>
+          <button type="button" class="filter-btn" data-filter-status="ready">Đã sẵn sàng</button>
+          <button type="button" class="filter-btn" data-filter-status="pending">Đang phát triển (Sắp có)</button>
+        </div>
+
+        <div id="no-feature-results" style="display: none; text-align: center; padding: 40px; color: var(--text-muted);">
+          Không có tính năng nào phù hợp với bộ lọc đã chọn.
+        </div>
+
+        <!-- Lưới danh sách tính năng chi tiết -->
+        <div class="articles-grid" id="features-container">
+          <!-- Doc -->
+          <div class="article-card feature-item-card" data-app="doc" data-status="ready">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span class="article-category" style="color: var(--app-doc);">Doc</span>
+              <span class="tag tag-ready">Sẵn sàng</span>
+            </div>
+            <h2 class="article-title">Định dạng & Tiêu chuẩn NĐ 30/2020/NĐ-CP</h2>
+            <p class="article-summary">
+              Hỗ trợ cỡ chữ hành chính 13–14pt, phông Times New Roman và Be Vietnam Pro; thiết lập trang lề trái 30mm, lề phải 15mm chuẩn văn bản Việt Nam.
+            </p>
+          </div>
+
+          <div class="article-card feature-item-card" data-app="doc" data-status="ready">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span class="article-category" style="color: var(--app-doc);">Doc</span>
+              <span class="tag tag-ready">Sẵn sàng</span>
+            </div>
+            <h2 class="article-title">Chia cột & Ngắt mục độc lập (Section Breaks)</h2>
+            <p class="article-summary">
+              Chia 1, 2, 3 cột với đường kẻ phân cách. Bốn loại ngắt mục (Trang kế tiếp, Liên tục, Trang chẵn, Trang lẻ) giữ nguyên thuộc tính khi lưu .docx.
+            </p>
+          </div>
+
+          <div class="article-card feature-item-card" data-app="doc" data-status="ready">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span class="article-category" style="color: var(--app-doc);">Doc</span>
+              <span class="tag tag-ready">Sẵn sàng</span>
+            </div>
+            <h2 class="article-title">Mục lục & Chú thích chân trang (TOC & Footnotes)</h2>
+            <p class="article-summary">
+              Tạo mục lục tự động đa cấp độ dựa trên tiêu đề Heading 1–3, cập nhật chỉ số trang tự động và hỗ trợ ghi chú chân trang liên tục.
+            </p>
+          </div>
+
+          <div class="article-card feature-item-card" data-app="doc" data-status="ready">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span class="article-category" style="color: var(--app-doc);">Doc</span>
+              <span class="tag tag-ready">Sẵn sàng</span>
+            </div>
+            <h2 class="article-title">Theo dõi sửa đổi (Track Changes) & Chú thích</h2>
+            <p class="article-summary">
+              Ghi nhận thao tác chèn/xóa văn bản của người biên tập, chấp nhận (Accept) hoặc từ chối (Reject) từng sửa đổi, chèn bình luận bên lề.
+            </p>
+          </div>
+
+          <div class="article-card feature-item-card" data-app="doc" data-status="ready">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span class="article-category" style="color: var(--app-doc);">Doc</span>
+              <span class="tag tag-ready">Sẵn sàng</span>
+            </div>
+            <h2 class="article-title">Trộn thư (Mail Merge) từ tệp .xlsx hoặc CSV</h2>
+            <p class="article-summary">
+              Chèn trường trộn &lt;&lt;Họ tên&gt;&gt;, &lt;&lt;Địa chỉ&gt;&gt; từ bảng tính .xlsx hoặc .csv, xem trước bản ghi và xuất hàng loạt văn bản cá nhân hóa.
+            </p>
+          </div>
+
+          <div class="article-card feature-item-card" data-app="doc" data-status="pending">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span class="article-category" style="color: var(--app-doc);">Doc</span>
+              <span class="tag tag-pending">Sắp có</span>
+            </div>
+            <h2 class="article-title">So sánh văn bản song song (Document Compare)</h2>
+            <p class="article-summary">
+              Đối chiếu hai tệp .docx khác phiên bản để làm nổi bật sự khác biệt trực quan giữa các đoạn sửa đổi.
+            </p>
+          </div>
+
+          <!-- Sheet -->
+          <div class="article-card feature-item-card" data-app="sheet" data-status="ready">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span class="article-category" style="color: var(--app-sheet);">Sheet</span>
+              <span class="tag tag-ready">Sẵn sàng</span>
+            </div>
+            <h2 class="article-title">Động cơ tính toán 100+ hàm công thức</h2>
+            <p class="article-summary">
+              Xử lý toán học, thống kê, tài chính và tra cứu chuỗi (VLOOKUP, XLOOKUP, INDEX, MATCH, SUMIFS, COUNTIF) hoàn toàn ngoại tuyến.
+            </p>
+          </div>
+
+          <div class="article-card feature-item-card" data-app="sheet" data-status="ready">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span class="article-category" style="color: var(--app-sheet);">Sheet</span>
+              <span class="tag tag-ready">Sẵn sàng</span>
+            </div>
+            <h2 class="article-title">Bảng tổng hợp Pivot Table (DataPilot)</h2>
+            <p class="article-summary">
+              Tạo bảng tổng hợp số liệu đa chiều từ nguồn bảng tính .xlsx, kéo thả trường hàng/cột và tính tổng/đếm tự động.
+            </p>
+          </div>
+
+          <div class="article-card feature-item-card" data-app="sheet" data-status="ready">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span class="article-category" style="color: var(--app-sheet);">Sheet</span>
+              <span class="tag tag-ready">Sẵn sàng</span>
+            </div>
+            <h2 class="article-title">Định dạng có điều kiện (Conditional Formatting)</h2>
+            <p class="article-summary">
+              Tô màu ô tính tự động dựa trên quy tắc so sánh giá trị lớn hơn, nhỏ hơn, nằm trong khoảng hoặc chứa chuỗi văn bản cụ thể.
+            </p>
+          </div>
+
+          <div class="article-card feature-item-card" data-app="sheet" data-status="ready">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span class="article-category" style="color: var(--app-sheet);">Sheet</span>
+              <span class="tag tag-ready">Sẵn sàng</span>
+            </div>
+            <h2 class="article-title">Phân tích kịch bản What-If Analysis</h2>
+            <p class="article-summary">
+              Bảng dữ liệu 1 biến, 2 biến, trình quản lý kịch bản (Scenario Manager) và tìm kiếm mục tiêu (Goal Seek) cho dự toán tài chính.
+            </p>
+          </div>
+
+          <div class="article-card feature-item-card" data-app="sheet" data-status="pending">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span class="article-category" style="color: var(--app-sheet);">Sheet</span>
+              <span class="tag tag-pending">Sắp có</span>
+            </div>
+            <h2 class="article-title">Biểu đồ động liên kết thời gian thực</h2>
+            <p class="article-summary">
+              Mở rộng hệ thống biểu đồ thanh ngang, phân tán XY và biểu đồ tròn với hiệu ứng tương tác trực tiếp khi giá trị ô thay đổi.
+            </p>
+          </div>
+
+          <!-- Slide -->
+          <div class="article-card feature-item-card" data-app="slide" data-status="ready">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span class="article-category" style="color: var(--app-slide);">Slide</span>
+              <span class="tag tag-ready">Sẵn sàng</span>
+            </div>
+            <h2 class="article-title">Trình chiếu 2 màn hình (Presenter View)</h2>
+            <p class="article-summary">
+              Màn hình khán giả hiển thị trang chiếu toàn màn hình; màn hình diễn giả hiển thị đồng hồ bấm giờ, trang kế tiếp và ghi chú bí mật.
+            </p>
+          </div>
+
+          <div class="article-card feature-item-card" data-app="slide" data-status="ready">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span class="article-category" style="color: var(--app-slide);">Slide</span>
+              <span class="tag tag-ready">Sẵn sàng</span>
+            </div>
+            <h2 class="article-title">Quản lý Slide Master & Bố cục linh hoạt</h2>
+            <p class="article-summary">
+              Thiết kế bố cục mẫu trang tiêu đề, trang nội dung 2 cột, bảng so sánh; đồng bộ phông chữ và hình nền cho toàn bộ bài thuyết trình.
+            </p>
+          </div>
+
+          <div class="article-card feature-item-card" data-app="slide" data-status="ready">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span class="article-category" style="color: var(--app-slide);">Slide</span>
+              <span class="tag tag-ready">Sẵn sàng</span>
+            </div>
+            <h2 class="article-title">Công cụ bút vẽ & Bút Laser ảo khi thuyết trình</h2>
+            <p class="article-summary">
+              Sử dụng phím tắt Ctrl+P để mở bút vẽ mực, Ctrl+L mở chấm laser đỏ nổi bật và phím E để xóa vết mực trực tiếp khi đang chiếu.
+            </p>
+          </div>
+
+          <div class="article-card feature-item-card" data-app="slide" data-status="pending">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span class="article-category" style="color: var(--app-slide);">Slide</span>
+              <span class="tag tag-pending">Sắp có</span>
+            </div>
+            <h2 class="article-title">Chèn tệp âm thanh và video cục bộ</h2>
+            <p class="article-summary">
+              Hỗ trợ nhúng video MP4 và tệp âm thanh trực tiếp vào trang chiếu với thanh điều khiển phát lại ngoại tuyến.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="index.html" class="brand-link" style="margin-bottom: 14px;">
+            <img src="assets/brand/logo-3t.png" alt="Logo 3T Office" class="brand-icon">
+            <div class="brand-text">
+              <span class="brand-name">Office</span>
+              <span class="brand-tagline">Bộ ứng dụng văn phòng</span>
+            </div>
+          </a>
+          <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;">
+            Bộ ứng dụng văn phòng chạy ngoại tuyến cho Windows được nghiên cứu và phát triển bởi 3T Computer. 
+            Tôn trọng tối đa quyền riêng tư và quyền sở hữu dữ liệu của người dùng.
+          </p>
+        </div>
+
+        <div class="footer-col">
+          <h4>Ứng dụng</h4>
+          <ul class="footer-links">
+            <li><a href="tinh-nang.html#doc">Doc (.docx)</a></li>
+            <li><a href="tinh-nang.html#sheet">Sheet (.xlsx)</a></li>
+            <li><a href="tinh-nang.html#slide">Slide (.pptx)</a></li>
+            <li><a href="tinh-nang.html">Danh mục tính năng</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h4>Thông tin</h4>
+          <ul class="footer-links">
+            <li><a href="tai-ve.html">Tải về bộ cài</a></li>
+            <li><a href="co-gi-moi.html">Có gì mới (0.9.9)</a></li>
+            <li><a href="huong-dan.html">Hướng dẫn sử dụng</a></li>
+            <li><a href="ban-quyen.html">Chính sách bản quyền</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h4>Kết nối &amp; Hỗ trợ</h4>
+          <ul class="footer-links">
+            <li><a href="lien-he.html">Thông tin liên hệ</a></li>
+            <li><a href="trang-thai.html">Kiểm tra trạng thái máy chủ</a></li>
+            <li><a href="https://office.3tcomputer.com">Cổng thông tin 3T Office</a></li>
+            <li><a href="https://3tcomputer.com">Trang chủ 3T Computer</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <div>
+          Bản quyền thuộc về CÔNG TY TNHH ĐẦU TƯ CÔNG NGHỆ VÀ XÂY LẮP 3T.
+        </div>
+        <div style="font-size: 0.813rem; color: var(--text-dim);">
+          Địa chỉ: Số 470 Quang Trung, Phường Ba Đồn, Tỉnh Quảng Trị. &bull; MST: 3101126773.
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/main.js?v=099"></script>
+</body>
+</html>

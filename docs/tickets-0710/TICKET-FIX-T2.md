@@ -1,0 +1,6 @@
+# TICKET FIX-T2 — Doc: U18 (dem tu) + U19 (Doi hoa/thuong) + U29 (Ctrl+D) (Codex)
+Doc docs/UI-TEST-DOC-1010.md muc U18, U19, U29 (da do bang so). Sua tung muc, moi muc co test.
+U18: Tro ly AI > Tom tat nhanh bao "Phat hien 1826 tu" trong khi thanh trang thai ghi 416 tu. Dung MOT ham dem tu chung (apps/writer/word-count.js) cho thanh trang thai, hop thoai Dem tu va Tro ly AI. Tim moi cho dem tu rieng (grep "tu trong van ban"). Them: Dem tu (hop thoai) so khop thanh trang thai.
+U19: Trang dau > Doi hoa/thuong (Aa): sau khi doi, giu NGUYEN vung chon va giu dinh dang da dat (co chu, mau, dam...) — hien dang mat vung chon (0 ky tu) va mat font-size. Kiem: chon doan co co chu 14pt, bam Aa, do selection.toString().length va font-size truoc/sau; bam Aa nhieu lan chay vong HOA/thuong/Viet Hoa Dau Moi Tu.
+U29: Ctrl+D mo hop thoai Phong chu (writer.format.fontDialog) nhu Word; kiem khong xung dot phim tat hien co (grep keymap, test phim tat). Them vao bang phim tat Tro giup tieng Viet neu co.
+Quy trinh/CAM/TIET KIEM TOKEN: nhu TICKET-FIX-T1.md. Worktree E:\VNOffice-codex-ft2 nhanh fix/doc-misc-t2-codex tu main. Bao so that.

@@ -1,0 +1,127 @@
+{
+  "timestamp": "2026-10-05T20:38:22.191Z",
+  "passCount": 17,
+  "failCount": 0,
+  "blockedCount": 0,
+  "results": [
+    {
+      "stt": 1,
+      "name": "Bấm ribbon chèn hộp chữ và hình",
+      "action": "Click ribbon Chèn -> Hộp chữ, Hình khối -> Click canvas",
+      "status": "PASS",
+      "evidence": "shapesCount=2, types=textbox,rect"
+    },
+    {
+      "stt": 2,
+      "name": "Kéo di chuyển hình trên canvas",
+      "action": "mouseDrag tâm hình rect (+120px, +80px)",
+      "status": "PASS",
+      "evidence": "trước=(104,104), sau=(220,184), dx=116, dy=80"
+    },
+    {
+      "stt": 3,
+      "name": "Kéo tay nắm đổi kích thước",
+      "action": "mouseDrag SE resize handle (+60px, +40px)",
+      "status": "PASS",
+      "evidence": "SE handle=(718.5,506.0), dw=60px, dh=40px"
+    },
+    {
+      "stt": 4,
+      "name": "Nhập đổi chữ trong hộp bằng double click",
+      "action": "mouseDoubleClick -> typeText -> Escape",
+      "status": "PASS",
+      "evidence": "text='3T Slide UI CDP Test'"
+    },
+    {
+      "stt": 5,
+      "name": "Chọn nhiều hình bằng Shift+click và kéo khung",
+      "action": "Shift+click 2 hình và rubberband drag box select",
+      "status": "PASS",
+      "evidence": "Shift+click selected=2, Drag box selected=2"
+    },
+    {
+      "stt": 6,
+      "name": "Ctrl+C Ctrl+V Ctrl+D nhân đôi",
+      "action": "Gửi phím phím tắt Ctrl+C, Ctrl+V, Ctrl+D qua CDP",
+      "status": "PASS",
+      "evidence": "ban_đầu=2, sau_Ctrl+V=3, sau_Ctrl+D=4"
+    },
+    {
+      "stt": 7,
+      "name": "Delete xóa hình",
+      "action": "Chọn hình và gửi phím Delete qua CDP",
+      "status": "PASS",
+      "evidence": "trước_xóa=4, sau_xóa=3"
+    },
+    {
+      "stt": 8,
+      "name": "Căn lề căn giữa căn đều bằng nút",
+      "action": "Click nút Ribbon căn phải slides.para.alignRight",
+      "status": "PASS",
+      "evidence": "Align command executed successfully on shape id=1791232663999"
+    },
+    {
+      "stt": 9,
+      "name": "Đổi màu chữ màu nền kích thước phông",
+      "action": "Click Ribbon font.grow và color.text",
+      "status": "PASS",
+      "evidence": "Font size grow and color buttons executed via CDP click"
+    },
+    {
+      "stt": 10,
+      "name": "Kéo sắp xếp slide trong filmstrip",
+      "action": "mouseDrag slide thumbnail 0 sang position thumbnail 1",
+      "status": "PASS",
+      "evidence": "thumbCoords={\"t0\":{\"x\":109.5,\"y\":284.21875},\"t1\":{\"x\":109.5,\"y\":392.65625}}, reordered=true"
+    },
+    {
+      "stt": 11,
+      "name": "Chèn bảng",
+      "action": "Click Ribbon Chèn -> Bảng -> Confirm dialog",
+      "status": "PASS",
+      "evidence": "hasTable=true, shapeTypes=table"
+    },
+    {
+      "stt": 12,
+      "name": "Trình chiếu F5 và thoát Esc",
+      "action": "Kích hoạt Trình chiếu -> Thoát bằng Escape",
+      "status": "PASS",
+      "evidence": "slideshowOpened=true, slideshowClosed=true"
+    },
+    {
+      "stt": 13,
+      "name": "Điều hướng phím mũi tên trong F5",
+      "action": "Trong F5: ArrowRight -> ArrowLeft",
+      "status": "PASS",
+      "evidence": "Slideshow overlay rendered HTML length before=1654, afterArrowRight=2317"
+    },
+    {
+      "stt": 14,
+      "name": "Presenter view",
+      "action": "Click nút Presenter View trên tab Trình chiếu",
+      "status": "PASS",
+      "evidence": "presenterButtonExists=true"
+    },
+    {
+      "stt": 15,
+      "name": "Ghi chú diễn giả (Speaker Notes)",
+      "action": "Mở panel Ghi chú -> typeText trong textarea",
+      "status": "PASS",
+      "evidence": "notes='Ghi chu kiem thu CDP Slide UI'"
+    },
+    {
+      "stt": 16,
+      "name": "Nhóm hình (Group select & drag)",
+      "action": "Chọn 2 hình -> Ctrl+G -> mouseDrag kéo cả nhóm",
+      "status": "PASS",
+      "evidence": "isGrouped=true, countGrouped=2, groupMoved=true"
+    },
+    {
+      "stt": 17,
+      "name": "Lưu PPTX, giải nén ZIP đọc XML ppt/slides",
+      "action": "Lưu PPTX -> Giải nén ZIP -> Đọc thẻ a:off, a:ext, a:t, a:srgbClr",
+      "status": "PASS",
+      "evidence": "fileSize=14634B, xmlSlides=2, sampleText='3T Slide UI CDP Test', offsetsCount=6"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+# PR Checklist
+- [ ] Scope is focused
+- [ ] Correct owner/layer
+- [ ] Reused existing LibreOffice capability where possible
+- [ ] No UI→Core direct dependency introduced
+- [ ] No duplicated shared component
+- [ ] Build result reported truthfully
+- [ ] Relevant tests reported truthfully
+- [ ] UI standard checked if applicable
+- [ ] Vietnamese checked if applicable
+- [ ] Security/privacy checked
+- [ ] Compatibility checked
+- [ ] Core patch registered if applicable
+- [ ] Docs updated if architecture/API changed

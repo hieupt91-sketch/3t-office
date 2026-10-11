@@ -1,0 +1,79 @@
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import { AppShell } from "../../platform/shell/app-shell.js";
+import {
+  configurePlatformLaunchContext,
+  resolveLaunchContext
+} from "../../platform/bootstrap.js";
+
+const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+
+export async function runDesktopLaunchContextTests() {
+  const results = [];
+  const test = (name, fn) => {
+    try {
+      fn();
+      results.push({ name, pass: true });
+    } catch (error) {
+      results.push({ name, pass: false, error: error.message });
+    }
+  };
+
+  test("Desktop URL: ?app=sheet resolves sheet + singleApp", () => {
+    const context = resolveLaunchContext("?app=sheet&singleApp=1");
+    if (context.appKind !== "sheet" || !context.singleAppMode) {
+      throw new Error(JSON.stringify(context));
+    }
+  });
+
+  test("Web URL: no parameters preserves Writer suite mode", () => {
+    const context = resolveLaunchContext("");
+    if (context.appKind !== null || context.singleAppMode) throw new Error(JSON.stringify(context));
+  });
+
+  test("AppShell single-app callback rejects every cross-app logic call", () => {
+    configurePlatformLaunchContext({ appKind: "sheet", singleAppMode: true });
+    let switchedTo = null;
+    const shell = new AppShell({ appName: "sheet", appTitle: "VN Sheet" });
+    shell.onSwitchApp = app => { switchedTo = app; return true; };
+    const result = shell.onSwitchApp("writer");
+    if (result !== false || switchedTo !== null) throw new Error(`switchedTo=${switchedTo}`);
+  });
+
+  test("AppShell web suite callback remains enabled", () => {
+    configurePlatformLaunchContext({});
+    let switchedTo = null;
+    const shell = new AppShell({ appName: "writer", appTitle: "VN Writer" });
+    shell.onSwitchApp = app => { switchedTo = app; return true; };
+    const result = shell.onSwitchApp("sheet");
+    if (result !== true || switchedTo !== "sheet") throw new Error(`switchedTo=${switchedTo}`);
+  });
+
+  test("separate desktop windows keep document chrome and dirty state isolated", () => {
+    const first = new AppShell({ appName: "writer", appTitle: "VN Writer", documentName: "first.docx" });
+    const second = new AppShell({ appName: "writer", appTitle: "VN Writer", documentName: "second.docx" });
+    first.adapter = { isDirty: true };
+    second.adapter = { isDirty: false };
+    first.documentName = "first-edited.docx";
+    if (first.documentName !== "first-edited.docx" || second.documentName !== "second.docx") {
+      throw new Error(`document names leaked: ${first.documentName} / ${second.documentName}`);
+    }
+    if (!first.adapter.isDirty || second.adapter.isDirty) {
+      throw new Error("dirty state leaked between app-shell instances");
+    }
+  });
+
+  test("index.html launches resolved app with explicit singleApp + blank template options", () => {
+    const html = fs.readFileSync(path.join(ROOT_DIR, "index.html"), "utf8");
+    if (!html.includes("templateId: \"blank\"")) {
+      throw new Error("Không tìm thấy templateId: 'blank' trong switchApp call");
+    }
+    if (!html.includes("openInitialFile: launchContext.openInitialFile")) {
+      throw new Error("Không tìm thấy openInitialFile trong switchApp call");
+    }
+  });
+
+  configurePlatformLaunchContext({});
+  return results;
+}

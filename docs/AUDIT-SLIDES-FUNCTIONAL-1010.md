@@ -1,0 +1,92 @@
+﻿# AUDIT-SLIDES-FUNCTIONAL-1010 — RB-L2
+
+Nhánh `audit/slides-functional-codex`; fixture gốc `E:\VN OFice\file test\sample-3.pptx` được copy thành `E:\VNOffice-profiles\codex-rl2\fixtures\rb-l2-sample-copy.pptx`. App được mở bằng harness desktop qua CDP, profile `E:\VNOffice-profiles\codex-rl2`; mỗi phiên dùng cổng CDP tự cấp riêng. Kết luận thao tác chỉ ghi sau khi `adapter.sourceFilePath` khớp fixture và model đủ 10 slide. Các tệp đầu ra nằm ngoài repo.
+
+## Nhóm 1 — Trang đầu: thao tác slide và bố cục
+
+| Nút | Ngữ cảnh | Kỳ vọng PowerPoint | Thực tế | PASS/FAIL | Phím tắt | Ghi chú |
+|---|---|---|---|---|---|---|
+| Trang mới | Trang đầu, slide 1/10 được chọn | Thêm slide sau slide hiện tại, tăng số slide một | Click ribbon: 10 → 11, current index 0 → 1 | PASS | Ctrl+M cũng 10 → 11, index → 1 | Đo `canvas.slides.length` và `currentSlideIndex` trên desktop. |
+| Nhân đôi | Trang đầu, slide mới đang chọn | Nhân bản slide và chọn bản mới | Click ribbon: 11 → 12, index 1 → 2 | PASS | Ctrl+D: 10 → 11 | Đo model trước/sau; kiểm phím tắt trên slide được chọn trong filmstrip. |
+| Xóa trang | Trang đầu, slide mới đang chọn | Xóa slide đang chọn | Click ribbon: 12 → 11 | PASS | NOT RUN | Chưa kiểm hộp xác nhận với slide cuối cùng. |
+| Bố cục | Trang đầu, slide 3 | Hiện gallery bố cục; áp dụng bố cục đã chọn cho slide | Hộp “Chọn Bố Cục Trang Chiếu” mở; chọn `title-only`, Áp dụng; số slide giữ 12 | PASS | NOT RUN | Đo số slide trước/sau. Chưa kiểm toàn bộ layout và ảnh hưởng nội dung. |
+| Sắp xếp | Filmstrip, 12 slide | Kéo thumbnail đổi thứ tự, nội dung đi theo slide | Kéo thumbnail đầu xuống vị trí thứ hai; thứ tự title đổi từ `WEST COAST…` lên sau slide trống | PASS | NOT RUN | CDP mouse drag thật, đo mảng `canvas.slides`. |
+| Ctrl+B / In đậm | Hộp tiêu đề nhập từ PPTX, bôi chọn từ `ROAD ` | Bật đậm cho phần chữ được chọn | HTML model có `<b>ROAD </b>` sau Ctrl+B | PASS | Ctrl+B | CDP bàn phím desktop; thao tác trong vùng contenteditable. |
+| Ctrl+I / In nghiêng | Hộp tiêu đề nhập từ PPTX, bôi chọn từ `ROAD ` | Bật nghiêng cho phần chữ được chọn | HTML model có `<i>ROAD </i>` sau Ctrl+I | PASS | Ctrl+I | Phiên độc lập từ fixture gốc. |
+| Ctrl+U / Gạch chân | Hộp tiêu đề nhập từ PPTX, bôi chọn từ `ROAD ` | Gạch chân phần chữ được chọn | HTML model có `<u>ROAD </u>` sau Ctrl+U | PASS | Ctrl+U | Phiên độc lập từ fixture gốc. |
+| Cỡ chữ | Textbox mới; chọn 32 pt từ ribbon | Cỡ điểm đổi theo lựa chọn và giữ trong PPTX roundtrip | PASS | NOT RUN | Model/XML (`sz="3200"`) và app mở lại cùng source path xác nhận 32 pt; thao tác native select được chọn bằng change event vì popup không nhận phím CDP. Chi tiết sửa lỗi đồng bộ shape rich-text ở phần RB-L3 dưới đây. |
+| Màu chữ / màu nền chữ | Bôi chọn `ROAD ` trong hộp chữ | Áp dụng màu cho phần chọn | Model đổi màu chữ sang `#dc2626`; nền chữ sang `#ffcd00` sau click ribbon | PASS | NOT RUN | Chỉ có màu preset; palette tùy chọn vẫn là gap U-L2/U-L3 trong backlog. |
+| Căn phải | Bôi chọn `ROAD ` trong hộp chữ | Căn phải đoạn chứa vùng chọn | Click ribbon làm HTML model có `text-align: right` | PASS | NOT RUN | CDP click nút đang hiển thị; giữ lựa chọn trong editor. |
+| Dấu đầu dòng | Bôi chọn đoạn trong hộp chữ | Chuyển đoạn thành danh sách bullet | HTML model có `<ul><li>` sau click | PASS | NOT RUN | Kiểu dấu mặc định; các kiểu bullet khác vẫn ở backlog U-L5. |
+| Font family, cỡ chữ, giãn dòng, đánh số | Textbox mới; chọn Arial, 32 pt, line spacing 1.5; chuyển đoạn sang numbering | Các giá trị áp dụng vào chữ/đoạn, được ghi trong PPTX và giữ sau khi mở lại đúng tệp | PASS | NOT RUN | CDP desktop, profile `E:\VNOffice-profiles\codex-rl3`, cổng riêng từng phiên. Model/XML/reopen xác nhận Arial, `<a:rPr sz="3200">`, `<a:spcPct val="150000">`, và `<ol>`. Điều khiển native select được kích hoạt bằng change event sau khi popup không nhận keyboard input qua CDP. Sửa đồng bộ shape rich-text trong `slides-adapter.js`; unit 10/10. |
+
+
+
+## Nhóm 2 — Chèn
+
+| Nút | Ngữ cảnh | Kỳ vọng PowerPoint | Thực tế | PASS/FAIL | Phím tắt | Ghi chú |
+|---|---|---|---|---|---|---|
+| Hộp văn bản | Chèn trên slide đầu, click canvas, nhập `RB-L2 text object` | Thêm textbox tại vị trí chọn, giữ chữ sau lưu/mở lại | Model tăng 1 đối tượng; chữ có trong model và sau khi adapter.save() + mở lại PPTX | PASS | NOT RUN | Đã xác nhận `sourceFilePath` khớp và nạp đủ 10 slide trước khi kiểm tra lại. |
+| Hình khối | Chèn > Hình khối, click canvas | Thêm hình vào slide tại vị trí chọn | Model tăng 1 đối tượng `rect` sau click | PASS | NOT RUN | Tọa độ canvas được đo; loại và số shape đọc từ model. |
+| Bảng | Chèn > Bảng, giữ mặc định 3×3, bấm Chèn | Thêm bảng có 3 hàng và 3 cột | Model có thêm `table`; giữ sau lưu và mở lại; slide XML có `graphicFrame` | PASS | NOT RUN | File đầu ra là bản sao trong profile audit. |
+| Biểu đồ | Chèn > Biểu đồ, mặc định Cột, bấm Chèn | Đóng hộp thoại và thêm biểu đồ vào slide | Tái hiện ban đầu: exception `ReferenceError: numeric is not defined`, model không tăng và PPTX thiếu chart part. Sau sửa, model có `chart`, PPTX có `ppt/charts/chart1.xml`, mở lại giữ biểu đồ | PASS (sau sửa) | NOT RUN | Lỗi và sửa ở `apps/slides/slides-chart.js`; CDP cổng 56225, profile riêng. `slides-charts.playwright.mjs` NOT RUN: thiếu gói Playwright tại đường dẫn cấu hình. |
+| Hình ảnh | Chèn > Hình ảnh, chọn ảnh JPEG cục bộ qua sự kiện file chooser CDP | Thêm ảnh vào slide và giữ sau lưu/mở lại | 3 → 4 ảnh trong model; sau mở lại đúng tệp có 4 ảnh; PPTX có media image mới | PASS | NOT RUN | `Page.fileChooserOpened` + `DOM.setFileInputFiles`; không dùng SendKeys/OS input. CDP cổng 63873. |
+
+### RB-L3 — kiểm tra bổ sung bằng desktop CDP và PPTX roundtrip (11/10/2026)
+
+Mọi file đầu ra là bản sao dưới `E:\VNOffice-profiles\codex-rl3`; mỗi lần mở app nhận cổng CDP riêng. Các kết luận roundtrip chỉ được ghi sau khi `adapter.sourceFilePath` khớp file đã lưu và app nạp đủ 10 slide.
+
+| Nhóm | Thao tác và kết quả đo | Kết luận |
+|---|---|---|
+| Định dạng văn bản | B/I/U/gạch ngang, màu chữ `#dc2626`, tô sáng `#ffcd00`, căn phải, bullet và numbering; lưu PPTX, kiểm XML, mở lại cùng đường dẫn. Model sau mở lại giữ HTML `<ol>`, các thẻ định dạng và màu. | PASS; font-family Arial cũng giữ qua roundtrip. |
+| Cỡ chữ và giãn dòng | Chọn 32 pt và 1.5; ban đầu DOM hiển thị 32 pt nhưng model/XML ghi 48 pt, và giãn dòng không được đưa vào shape HTML. Sửa adapter để đồng bộ rich-text shape; sau sửa model, XML `sz="3200"`/`spcPct val="150000"`, mở lại giữ 32 pt và line-height 1.725. | PASS sau sửa; unit `slides-font-paragraph` 10/10. |
+| Bảng, ký hiệu, media | Bảng 3×3 và ký tự © còn sau mở lại; XML có `graphicFrame`. UI thêm được shape video và audio trong phiên, nhưng PPTX không đóng gói media: video chỉ trỏ tới `data:` URI bên ngoài package; audio không còn sau mở lại. | Bảng/ký hiệu PASS; audio/video roundtrip FAIL, backlog U-L36. File video mẫu chỉ dùng kiểm tra đường dẫn chọn file, không xác nhận playback. |
+| Đầu/chân trang, ngày giờ, số slide | Dialog Header/Footer và Date & Time mở; bật ngày/số trang/chân trang và áp dụng cập nhật trạng thái hiện tại. Sau lưu XML không có marker footer, và mở lại không giữ `headerFooter`. | UI PASS, persistence FAIL; backlog U-L35. |
+| Section và slide ẩn | Thêm section `RB-L3 Section`, bật ẩn slide đầu; lưu/mở lại đúng file giữ tên/phạm vi section và `hidden: true`. | PASS. |
+| Sắp xếp bằng bàn phím | Chọn thumbnail đầu; Ctrl+Shift+Down chuyển thứ tự A,B,C thành B,A,C và chọn slide mới; Ctrl+Shift+Up khôi phục A,B,C. | PASS. |
+| Ghi chú thuyết trình | Panel mở được. Thử nhập không tạo nội dung; phép đo trước đó cho thấy textarea ở y=634–724 bị status bar phủ và hit-test trả về status bar, nên không thể nhập bằng click trong viewport. Chưa xác nhận lưu/mở lại. | FAIL tương tác; backlog U-L38. |
+| Nhận xét | Thêm và xóa comment hoạt động. Resolve đổi model `resolved:true` trong phiên nhưng metadata bị mất sau PPTX roundtrip; panel không có điều khiển trả lời comment. | Thêm/xóa PASS; resolve persistence FAIL, reply chưa có; backlog U-L37. |
+| Tab ngữ cảnh | Chọn shape trên canvas không làm xuất hiện tab Định dạng Hình; số tab trước/sau giống nhau. | FAIL, tiếp tục U-L24. |
+
+
+## Nhóm 3 — Thiết kế
+
+| Nút | Ngữ cảnh | Kỳ vọng PowerPoint | Thực tế | PASS/FAIL | Phím tắt | Ghi chú |
+|---|---|---|---|---|---|---|
+| Chủ đề | Thiết kế > Chủ đề, mở gallery và chọn Terracotta Ấm Áp | Áp dụng palette/font của theme cho bài chiếu | `themeId` đổi từ `modern-blue` sang `corporate-red` trong model | PASS | NOT RUN | Gallery là hộp thoại; mục thiếu carousel trực tiếp đã có ở backlog U-L11. Chưa kiểm lưu/mở lại riêng theme gallery. |
+| Định dạng nền | Thiết kế > Định dạng nền, chọn Gradient và Áp dụng trang này | Đổi nền slide đang chọn và giữ sau khi lưu/mở lại | Model chuyển `solid #ffffff` sang gradient; sau lưu/mở lại `background.type=gradient` | PASS | NOT RUN | Đã đọc model sau khi adapter.save() và sau khi app nạp lại đúng file. |
+| Mẫu Slide Master | Thiết kế > Mẫu Slide Master; chọn Than Chì Hiện Đại và Áp dụng mẫu | Áp dụng theme/master và giữ đúng trạng thái sau PPTX roundtrip | Dialog mở, chọn được theme; trước lưu `themeId=minimal-dark`. Sau mở lại, background gradient/logo còn trong model nhưng `themeId=modern-blue` | FAIL | NOT RUN | Đã mở lại đúng `sourceFilePath`. Ghi lỗi U-L31; XML theme không có metadata `minimal-dark`. |
+
+
+## Nhóm 4 — Chuyển tiếp và Hiệu ứng
+
+| Nút | Ngữ cảnh | Kỳ vọng PowerPoint | Thực tế | PASS/FAIL | Phím tắt | Ghi chú |
+|---|---|---|---|---|---|---|
+| Chuyển tiếp | Tab Chuyển tiếp; chọn Slide, thời lượng 800 ms; Áp dụng trang này | Lưu chuyển tiếp cho slide đang chọn và phát sinh OOXML | Model có `{type:slide,duration:800}`; `ppt/slides/slide1.xml` có `<p:transition>`; sau mở lại đúng file model giữ type/duration | PASS | NOT RUN | Lựa chọn bằng dropdown keyboard ArrowDown/Enter, áp dụng bằng click chuột. |
+| Hiệu ứng đối tượng | Tab Hoạt hình; đối tượng `Google Shape;58;p13`; Fade In | Lưu animation trên đúng shape và phát sinh OOXML timing | Model shape có `fadeIn`; slide XML có `<p:timing>`; sau mở lại giữ `fadeIn` trên cùng shape | PASS | NOT RUN | Lựa chọn hiệu ứng bằng dropdown keyboard, áp dụng bằng click; đã nạp lại đủ 10 slide và xác nhận source path. |
+
+
+## Nhóm 5 — Trình chiếu
+
+| Nút | Ngữ cảnh | Kỳ vọng PowerPoint | Thực tế | PASS/FAIL | Phím tắt | Ghi chú |
+|---|---|---|---|---|---|---|
+| Bắt đầu từ đầu / F5 | Chọn slide 3; gửi F5 bằng CDP key event | Trình chiếu bắt đầu ở slide 1 | Overlay mở ở `Trang 1 / 10`, tiêu đề slide đầu hiển thị | PASS | F5 | CDP port 60948, profile riêng. |
+| Bắt đầu từ slide hiện tại / Shift+F5 | Chọn slide 3; gửi Shift+F5 bằng CDP key event | Trình chiếu bắt đầu tại slide đang chọn | Overlay mở ở `Trang 3 / 10` và tiêu đề khớp slide 3 | PASS | Shift+F5 | Thao tác bằng key event CDP, không dùng OS input. |
+| Điều hướng | Trong trình chiếu | ArrowRight/ArrowLeft chuyển slide tuần tự | ArrowRight: Trang 1 → 2; ArrowLeft: Trang 2 → 1, tiêu đề thay đổi khớp | PASS | ← / → | Đo text trang trong overlay. |
+| Con trỏ laser | Trong trình chiếu | Ctrl+L bật laser | Sau Ctrl+L, overlay `cursor=none` và chấm laser `display=block` | PASS | Ctrl+L | Trạng thái đo trên DOM. |
+| Bút vẽ | Trong trình chiếu | Ctrl+P bật bút vẽ | Sau Ctrl+P, overlay cursor vẫn rỗng/auto, chấm laser vẫn ẩn; không vào chế độ bút | FAIL | Ctrl+P | Tái hiện hai phiên CDP độc lập; ghi lỗi U-L32. |
+| Thoát | Trình chiếu đang mở | Esc đóng trình chiếu | Overlay hiện hữu trước phím Esc, bị gỡ sau phím Esc | PASS | Esc | Không gọi close API trực tiếp. |
+
+## Nhóm 6 — Đối tượng
+
+| Nút | Ngữ cảnh | Kỳ vọng PowerPoint | Thực tế | PASS/FAIL | Phím tắt | Ghi chú |
+|---|---|---|---|---|---|---|
+| Kéo di chuyển | Hộp chữ nhập từ PPTX | Vị trí đổi theo thao tác kéo; Undo/Redo hoàn nguyên/khôi phục | Model đổi (613,176) → (624,203); Ctrl+Z trả (613,176); Ctrl+Y trả (624,203) | PASS | Ctrl+Z/Y | Mouse drag trên desktop; tọa độ đọc trực tiếp model. |
+| Đổi kích thước | Hộp chữ nhập từ PPTX, tay nắm SE | Kích thước đổi; Undo trả kích thước cũ | Model đổi 336×265 → 347×289; Ctrl+Z được kiểm riêng trong phiên trên | PASS | Ctrl+Z | Đo tay nắm và kích thước model. |
+| Xoay | Hộp chữ nhập từ PPTX, tay nắm xoay | Góc xoay thay đổi và roundtrip giữ nguyên | Tay nắm xoay đổi 0° → 17°; Ctrl+Z trả 0°. Một góc 10° lưu/mở lại giữ 10° | PASS | Ctrl+Z | Có kiểm PPTX save/reopen, nguồn nạp khớp bản sao. |
+| Thứ tự lớp (PPTX nhập) | Đối tượng nhập; menu chuột phải > Đưa lên trên cùng | Thay z-order; Undo hoàn nguyên | Index model của shape đổi 1 → 4; Ctrl+Z trả index 1 | PASS | Ctrl+Z | Menu ngữ cảnh mở bằng chuột phải. Chưa kiểm save/reopen cho z-order. |
+| Thứ tự lớp (shape mới) | Hai hình mới, tách vị trí; Trang đầu > Vẽ > Sắp xếp > Đưa lên trên cùng | Thay thứ tự lớp của shape đang chọn | Index shape mới đổi 5 → 6; Ctrl+Z trả 5 | PASS | Ctrl+Z | Đo model sau thao tác menu ribbon. |
+| Nhóm / Bỏ nhóm (shape mới) | Chọn hai hình mới bằng Shift+click | Ctrl+G nhóm; Ctrl+Shift+G bỏ nhóm | Hai shape nhận chung groupId sau Ctrl+G; Ctrl+Shift+G xóa groupId | PASS | Ctrl+G / Ctrl+Shift+G | Xác nhận thao tác trong model; roundtrip persistence nằm ở hàng kế tiếp. |
+| Nhóm / Bỏ nhóm | Chọn hai hộp chữ nhập bằng Shift+click; lặp với hai hình mới | Ctrl+G nhóm, Ctrl+Shift+G bỏ nhóm; lưu/mở giữ cấu trúc | Trong model, cả hai bộ nhận chung groupId sau Ctrl+G; Ctrl+Shift+G xóa. Sau khi lưu/mở lại, cả bộ nhập và bộ mới mất groupId; XML có 0 p:grpSp | FAIL | Ctrl+G / Ctrl+Shift+G | Nạp đúng nguồn trước kết luận; thử hai phiên độc lập trên sample-3 copy và deck có hình mới. Ghi U-L33/backlog. |
+| Căn chỉnh đối tượng | Chọn hai hình mới; Trang đầu > Vẽ > Sắp xếp > Căn trái | Căn cùng mép trái; Undo trả tọa độ cũ | X hai shape cùng `79`; Ctrl+Z trả lần lượt `79` và `494.5` | PASS | Ctrl+Z | Menu lệnh mở và chọn bằng click thật. |
+| Ctrl+Z nhiều bước | Tạo hình, kéo, đổi kích thước rồi hoàn tác ba bước | Hoàn tác lần lượt resize, move, insert | Ctrl+Z lần 1 trả kích thước; lần 2 trả vị trí; lần 3 giảm số shape `6 → 5` | PASS | Ctrl+Z / Ctrl+Y | Ba thay đổi liên tiếp trên shape mới. |

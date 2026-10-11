@@ -1,0 +1,15 @@
+# Coding Standard
+- Follow surrounding LibreOffice/VN module conventions before inventing style.
+- Prefer clear names over abbreviations.
+- Functions/classes should have one coherent responsibility.
+- Avoid hidden global state.
+- Avoid circular dependencies.
+- No magic constants where semantic constants/config are appropriate.
+- Errors must not silently disappear.
+- Comments explain WHY, not restate code.
+- New public API requires purpose and ownership.
+- No premature framework abstraction for one use case.
+- Shared abstraction requires at least plausible cross-app value.
+- Keep upstream modifications surgical.
+- Do not mass-reformat upstream files.
+- Async/long work must not block UI.

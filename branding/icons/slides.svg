@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" fill="none">
+  <defs>
+    <linearGradient id="sl-bg" x1="20" y1="20" x2="236" y2="236" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#D9531E"/>
+      <stop offset="100%" stop-color="#8F260A"/>
+    </linearGradient>
+    <linearGradient id="sl-screen" x1="44" y1="52" x2="212" y2="172" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#FFF7ED"/>
+    </linearGradient>
+    <filter id="sl-shadow" x="0" y="2" width="256" height="256" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  <!-- Background Tile -->
+  <rect x="16" y="16" width="224" height="224" rx="52" fill="url(#sl-bg)"/>
+  <rect x="17" y="17" width="222" height="222" rx="51" stroke="#FFFFFF" stroke-opacity="0.2" stroke-width="2"/>
+  
+  <!-- Presentation Easel Stand -->
+  <path d="M128 168V196M96 204H160M108 196L96 204M148 196L160 204" stroke="#FED7AA" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Widescreen Presentation Display (16:9) -->
+  <rect x="44" y="52" width="168" height="116" rx="12" fill="url(#sl-screen)" filter="url(#sl-shadow)"/>
+  
+  <!-- Slide Screen Top Accent / Title Bar -->
+  <rect x="56" y="66" width="60" height="8" rx="4" fill="#C2410C"/>
+  
+  <!-- Slide Graphic: Presentation Triangle (Play / Spotlight Prism) -->
+  <path d="M106 90L154 116L106 142V90Z" fill="#EA580C"/>
+  
+  <!-- Presentation Chart / Tiered Elements -->
+  <rect x="60" y="130" width="28" height="6" rx="3" fill="#FDBA74"/>
+  <rect x="60" y="140" width="38" height="6" rx="3" fill="#FDBA74"/>
+  <circle cx="168" cy="80" r="8" fill="#F59E0B"/>
+</svg>

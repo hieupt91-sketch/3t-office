@@ -1,0 +1,43 @@
+3T OFFICE - HƯỚNG DẪN CÀI ĐẶT BẢN DÙNG THỬ NỘI BỘ
+====================================================
+
+YÊU CẦU MÁY
+- Windows 10 hoặc Windows 11, 64-bit.
+- Thành phần WebView2 để hiển thị giao diện. Nếu bộ cài thông báo chưa có, liên hệ người cung cấp bộ cài để nhận thành phần còn thiếu.
+- Ổ đĩa cài đặt cần dung lượng trống xấp xỉ gói ứng dụng cộng thêm 256 MiB.
+- Không cần Internet để dùng 3T Office sau khi cài. Không cần quyền quản trị viên.
+
+CÀI ĐẶT BẰNG VNOffice-Setup-<phiên-bản>.exe (KHUYÊN DÙNG)
+1. Tải bộ cài từ kênh nội bộ do người phụ trách cung cấp.
+2. Nhấp đúp VNOffice-Setup-<phiên-bản>.exe. Giao diện bộ cài dùng tiếng Việt.
+3. Đọc trang thông báo giấy phép và bản dùng thử. Giữ bản sao dự phòng của tài liệu quan trọng.
+4. Chấp nhận thư mục mặc định trong hồ sơ người dùng. Không cần chọn Run as administrator.
+5. Tùy chọn tạo lối tắt Desktop được chọn sẵn. Tùy chọn đăng ký phần mở rộng tệp không được chọn; chỉ đánh dấu nếu muốn 3T Office mở các định dạng được liệt kê.
+6. Nhấn Cài đặt. Mở Start Menu > 3T Office rồi chọn Doc, Sheet hoặc Slide; hoặc nhấp đúp lối tắt cùng tên trên Desktop.
+
+CẢNH BÁO SMARTSCREEN
+Bộ cài hiện chưa được ký số nên Windows có thể hiện “Windows protected your PC” hoặc cảnh báo SmartScreen. Chỉ tiếp tục khi bộ cài đúng phiên bản và được lấy từ kênh nội bộ đáng tin cậy: chọn More info (Thông tin khác), kiểm tra tên VNOffice-Setup-<phiên-bản>.exe, rồi chọn Run anyway (Vẫn chạy). Nếu tên hoặc nguồn tệp không khớp thông báo của người phụ trách, hãy hủy và hỏi lại; không tắt SmartScreen.
+
+Trong bản phát hành có chữ ký số, chữ ký của nhà phát hành sẽ giúp Windows xác nhận nguồn bộ cài. Bản hiện tại chưa có chứng thư ký mã.
+
+SAU KHI CÀI
+- 3T Office chạy ngoại tuyến; một số tính năng mạng tùy chọn có thể cần kết nối riêng.
+- Nếu không bật đăng ký phần mở rộng, nhấp đúp tệp DOCX/XLSX/PPTX vẫn mở bằng ứng dụng mặc định hiện có. Có thể mở Doc, Sheet hoặc Slide rồi dùng Ctrl+O.
+- Luôn giữ bản gốc của tài liệu quan trọng. Khi dùng thử, hãy dùng Lưu thành (Ctrl+Shift+S) để tạo bản làm việc riêng.
+- Bảng tính có hàng chục nghìn dòng hoặc nhiều công thức có thể mở chậm.
+- Khi chạy lần đầu, ứng dụng có thể hỏi đồng ý gửi báo cáo lỗi kỹ thuật. Báo cáo không gửi nội dung tài liệu hoặc tên tệp; có thể bật/tắt trong Trợ giúp.
+- Khi gặp lỗi, vào Trợ giúp > Báo lỗi / Góp ý và mô tả ngắn tình huống.
+
+CẬP NHẬT VÀ GỠ CÀI ĐẶT
+- Cài phiên bản mới bằng cách chạy bộ VNOffice-Setup mới; trình cài đặt nâng cấp trong cùng thư mục. Hãy lưu công việc và đóng 3T Office trước khi cập nhật.
+- Mở Settings > Apps > Installed apps (hoặc Apps & Features), chọn 3T Office > Uninstall; có thể dùng lối tắt Gỡ cài đặt 3T Office trong Start Menu.
+- Khi gỡ, dữ liệu trong %APPDATA%\VNOffice (thiết lập đồng ý, khôi phục và hàng đợi báo cáo lỗi) được giữ lại. Chỉ chọn ô xóa dữ liệu nếu muốn xóa cả thư mục này.
+
+PHƯƠNG ÁN DỰ PHÒNG: INSTALL-PILOT.PS1
+Nếu chưa có bộ Setup.exe, người phụ trách có thể tiếp tục dùng gói portable cũ: giải nén toàn bộ thư mục VNOffice-<phiên-bản>, nhấp phải install-pilot.ps1 > Run with PowerShell, hoặc chạy powershell -ExecutionPolicy Bypass -File install-pilot.ps1. Phương án này cài vào %LOCALAPPDATA%\VNOffice\app-install. Có thể gỡ theo hướng dẫn của install-pilot.ps1.
+
+ĐÓNG GÓI CHO PHIÊN BẢN MỚI (NGƯỜI VẬN HÀNH)
+Chạy PowerShell 5.1 từ thư mục mã nguồn:
+  powershell -ExecutionPolicy Bypass -File .\scripts\build-pilot.ps1 -Version 0.9.0-pilot2 -OutDir E:\VNOffice-dist
+  powershell -ExecutionPolicy Bypass -File .\scripts\build-installer.ps1 -PackageDir E:\VNOffice-dist\VNOffice-0.9.0-pilot2 -OutDir E:\VNOffice-dist
+Tệp phát hành là E:\VNOffice-dist\VNOffice-Setup-0.9.0-pilot2.exe. Cần NSIS 3.13 hoặc mới hơn; nếu makensis.exe nằm ở vị trí khác, truyền -MakensisPath <đường-dẫn-makensis.exe> cho lệnh thứ hai. Bộ cài dùng nén zlib solid và không cần quyền quản trị.

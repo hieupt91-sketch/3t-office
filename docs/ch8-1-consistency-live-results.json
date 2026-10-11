@@ -1,0 +1,461 @@
+[
+  {
+    "stt": 1,
+    "id": "1. Backstage: Nút Quay lại",
+    "desc": "Nút Quay lại (#vno-backstage-back) hiện diện và có nhãn/aria-label",
+    "writer": {
+      "val": "Quay lại",
+      "pass": true
+    },
+    "sheet": {
+      "val": "Quay lại",
+      "pass": true
+    },
+    "slides": {
+      "val": "Quay lại",
+      "pass": true
+    }
+  },
+  {
+    "stt": 2,
+    "id": "2. Backstage: Nút Trang chủ",
+    "desc": "Nút Trang chủ (#vno-backstage-nav-home) nhãn Trang chủ",
+    "writer": {
+      "val": "Trang chủ",
+      "pass": true
+    },
+    "sheet": {
+      "val": "Trang chủ",
+      "pass": true
+    },
+    "slides": {
+      "val": "Trang chủ",
+      "pass": true
+    }
+  },
+  {
+    "stt": 3,
+    "id": "3. Backstage: Nút Mới",
+    "desc": "Nút Mới (#vno-backstage-nav-new) có nhãn Mới (Ctrl+N)",
+    "writer": {
+      "val": "Mới (Ctrl+N)",
+      "pass": true
+    },
+    "sheet": {
+      "val": "Mới (Ctrl+N)",
+      "pass": true
+    },
+    "slides": {
+      "val": "Mới (Ctrl+N)",
+      "pass": true
+    }
+  },
+  {
+    "stt": 4,
+    "id": "4. Backstage: Nút Mở",
+    "desc": "Nút Mở (#vno-backstage-nav-open) có nhãn Mở (Ctrl+O)",
+    "writer": {
+      "val": "Mở (Ctrl+O)",
+      "pass": true
+    },
+    "sheet": {
+      "val": "Mở (Ctrl+O)",
+      "pass": true
+    },
+    "slides": {
+      "val": "Mở (Ctrl+O)",
+      "pass": true
+    }
+  },
+  {
+    "stt": 5,
+    "id": "5. Backstage: Nút Lưu",
+    "desc": "Nút Lưu (#vno-backstage-nav-save) có nhãn Lưu (Ctrl+S)",
+    "writer": {
+      "val": "Lưu (Ctrl+S)",
+      "pass": true
+    },
+    "sheet": {
+      "val": "Lưu (Ctrl+S)",
+      "pass": true
+    },
+    "slides": {
+      "val": "Lưu (Ctrl+S)",
+      "pass": true
+    }
+  },
+  {
+    "stt": 6,
+    "id": "6. Backstage: Nút Lưu thành",
+    "desc": "Nút Lưu thành (#vno-backstage-nav-saveas) có nhãn Lưu thành (F12)",
+    "writer": {
+      "val": "Lưu thành (F12)",
+      "pass": true
+    },
+    "sheet": {
+      "val": "Lưu thành (F12)",
+      "pass": true
+    },
+    "slides": {
+      "val": "Lưu thành (F12)",
+      "pass": true
+    }
+  },
+  {
+    "stt": 7,
+    "id": "7. Backstage: Nút In",
+    "desc": "Nút In (#vno-backstage-nav-print) có nhãn In (Ctrl+P)",
+    "writer": {
+      "val": "In (Ctrl+P)",
+      "pass": true
+    },
+    "sheet": {
+      "val": "In (Ctrl+P)",
+      "pass": true
+    },
+    "slides": {
+      "val": "In (Ctrl+P)",
+      "pass": true
+    }
+  },
+  {
+    "stt": 8,
+    "id": "8. Backstage: Nút Xuất PDF",
+    "desc": "Nút Xuất PDF (#vno-backstage-nav-exportpdf) có nhãn Xuất PDF",
+    "writer": {
+      "val": "Xuất PDF",
+      "pass": true
+    },
+    "sheet": {
+      "val": "Xuất PDF",
+      "pass": true
+    },
+    "slides": {
+      "val": "Xuất PDF",
+      "pass": true
+    }
+  },
+  {
+    "stt": 9,
+    "id": "9. Backstage: Nút Tệp gần đây",
+    "desc": "Nút Tệp gần đây (#vno-backstage-nav-recent) có nhãn Tệp gần đây",
+    "writer": {
+      "val": "Tệp gần đây",
+      "pass": true
+    },
+    "sheet": {
+      "val": "Tệp gần đây",
+      "pass": true
+    },
+    "slides": {
+      "val": "Tệp gần đây",
+      "pass": true
+    }
+  },
+  {
+    "stt": 10,
+    "id": "10. Backstage: Nút Đóng",
+    "desc": "Nút Đóng (#vno-backstage-close) có nhãn Đóng (Ctrl+W)",
+    "writer": {
+      "val": "Đóng (Ctrl+W)",
+      "pass": true
+    },
+    "sheet": {
+      "val": "Đóng (Ctrl+W)",
+      "pass": true
+    },
+    "slides": {
+      "val": "Đóng (Ctrl+W)",
+      "pass": true
+    }
+  },
+  {
+    "stt": 11,
+    "id": "11. Backstage: Nút Giới thiệu",
+    "desc": "Nút Giới thiệu (#vno-backstage-about) có nhãn Giới thiệu",
+    "writer": {
+      "val": "Giới thiệu 3T Office",
+      "pass": true
+    },
+    "sheet": {
+      "val": "Giới thiệu 3T Office",
+      "pass": true
+    },
+    "slides": {
+      "val": "Giới thiệu 3T Office",
+      "pass": true
+    }
+  },
+  {
+    "stt": 12,
+    "id": "12. Backstage: Nút Tùy chọn",
+    "desc": "Nút Tùy chọn (#vno-backstage-options) có nhãn Tùy chọn",
+    "writer": {
+      "val": "Tùy chọn",
+      "pass": true
+    },
+    "sheet": {
+      "val": "Tùy chọn",
+      "pass": true
+    },
+    "slides": {
+      "val": "Tùy chọn",
+      "pass": true
+    }
+  },
+  {
+    "stt": 13,
+    "id": "13. Backstage: Thứ tự 12 nút",
+    "desc": "Đúng thứ tự 12 nút sidebar chuẩn trên cả 3 app",
+    "writer": {
+      "val": "12 nút: vno-backstage-back, vno-backstage-nav-home, vno-backstage-nav-new, vno-backstage-nav-open...",
+      "pass": true
+    },
+    "sheet": {
+      "val": "12 nút: vno-backstage-back, vno-backstage-nav-home, vno-backstage-nav-new, vno-backstage-nav-open...",
+      "pass": true
+    },
+    "slides": {
+      "val": "12 nút: vno-backstage-back, vno-backstage-nav-home, vno-backstage-nav-new, vno-backstage-nav-open...",
+      "pass": true
+    }
+  },
+  {
+    "stt": 14,
+    "id": "14. Tệp gần đây: Cấu trúc hiển thị",
+    "desc": "Hiển thị tên tệp, đường dẫn rút gọn, định dạng và nút gỡ",
+    "writer": {
+      "val": "Tên: TaiLieuKiemTra_writer.docx, Rút gọn: C:/.../VNOffice/TaiLieuKiemTra_writer.docx, Định dạng: DOCX",
+      "pass": true
+    },
+    "sheet": {
+      "val": "Tên: TaiLieuKiemTra_sheet.docx, Rút gọn: C:/.../VNOffice/TaiLieuKiemTra_sheet.docx, Định dạng: XLSX",
+      "pass": true
+    },
+    "slides": {
+      "val": "Tên: TaiLieuKiemTra_slides.docx, Rút gọn: C:/.../VNOffice/TaiLieuKiemTra_slides.docx, Định dạng: PPTX",
+      "pass": true
+    }
+  },
+  {
+    "stt": 15,
+    "id": "15. Tệp gần đây: Chuyển tab Recent",
+    "desc": "Bấm tab Tệp gần đây chuyển sang #vno-backstage-recent-view",
+    "writer": {
+      "val": "Hiển thị #vno-backstage-recent-view",
+      "pass": true
+    },
+    "sheet": {
+      "val": "Hiển thị #vno-backstage-recent-view",
+      "pass": true
+    },
+    "slides": {
+      "val": "Hiển thị #vno-backstage-recent-view",
+      "pass": true
+    }
+  },
+  {
+    "stt": 16,
+    "id": "16. Tệp gần đây: Mở lại được",
+    "desc": "Hàng tệp gần đây có data-recent-path và xử lý click/Enter",
+    "writer": {
+      "val": "data-recent-path: C%3A%5CUsers%5CAdministrator%5...",
+      "pass": true
+    },
+    "sheet": {
+      "val": "data-recent-path: C%3A%5CUsers%5CAdministrator%5...",
+      "pass": true
+    },
+    "slides": {
+      "val": "data-recent-path: C%3A%5CUsers%5CAdministrator%5...",
+      "pass": true
+    }
+  },
+  {
+    "stt": 17,
+    "id": "17. Thanh trạng thái: Vị trí đáy",
+    "desc": "Cố định ở đáy cửa sổ (bottom: 0px)",
+    "writer": {
+      "val": "Đáy cách màn hình 0px, cao 28px",
+      "pass": true
+    },
+    "sheet": {
+      "val": "Đáy cách màn hình 0px, cao 28px",
+      "pass": true
+    },
+    "slides": {
+      "val": "Đáy cách màn hình 0px, cao 28px",
+      "pass": true
+    }
+  },
+  {
+    "stt": 18,
+    "id": "18. Thanh trạng thái: Cụm Chế độ xem",
+    "desc": "Có cụm nút .vno-statusbar-view-modes với nhãn tiếng Việt",
+    "writer": {
+      "val": "3 chế độ: Bố cục in, Chế độ đọc, Bố cục web",
+      "pass": true
+    },
+    "sheet": {
+      "val": "3 chế độ: Bình thường, Bố cục trang, Xem trước ngắt trang",
+      "pass": true
+    },
+    "slides": {
+      "val": "4 chế độ: Thông thường, Bộ sắp xếp trang chiếu, Chế độ xem đọc, Trình chiếu",
+      "pass": true
+    }
+  },
+  {
+    "stt": 19,
+    "id": "19. Thanh trạng thái: Slider 50%-200%",
+    "desc": "Thanh trượt #vno-zoom-range có min=50, max=200",
+    "writer": {
+      "val": "min=50, max=200",
+      "pass": true
+    },
+    "sheet": {
+      "val": "min=50, max=200",
+      "pass": true
+    },
+    "slides": {
+      "val": "min=50, max=200",
+      "pass": true
+    }
+  },
+  {
+    "stt": 20,
+    "id": "20. Thanh trạng thái: Cặp nút +/-",
+    "desc": "Có nút thu nhỏ #vno-zoom-out và phóng to #vno-zoom-in",
+    "writer": {
+      "val": "Có đủ #vno-zoom-out và #vno-zoom-in",
+      "pass": true
+    },
+    "sheet": {
+      "val": "Có đủ #vno-zoom-out và #vno-zoom-in",
+      "pass": true
+    },
+    "slides": {
+      "val": "Có đủ #vno-zoom-out và #vno-zoom-in",
+      "pass": true
+    }
+  },
+  {
+    "stt": 21,
+    "id": "21. Thanh trạng thái: Nút % đặt lại",
+    "desc": "Nút #vno-zoom-text hiển thị % và bấm để đặt lại 100%",
+    "writer": {
+      "val": "<button> 100%",
+      "pass": true
+    },
+    "sheet": {
+      "val": "<button> 100%",
+      "pass": true
+    },
+    "slides": {
+      "val": "<button> 100%",
+      "pass": true
+    }
+  },
+  {
+    "stt": 22,
+    "id": "22. Thu phóng: Nút +/- nhịp 10%",
+    "desc": "Bấm + tăng 10%, bấm - giảm 10%",
+    "writer": {
+      "val": "100% -> bấm (+) = 110% -> bấm (-) = 100%",
+      "pass": true
+    },
+    "sheet": {
+      "val": "100% -> bấm (+) = 110% -> bấm (-) = 100%",
+      "pass": true
+    },
+    "slides": {
+      "val": "100% -> bấm (+) = 110% -> bấm (-) = 100%",
+      "pass": true
+    }
+  },
+  {
+    "stt": 23,
+    "id": "23. Thu phóng: Kéo thanh trượt",
+    "desc": "Đổi giá trị slider cập nhật tức thì zoomLevel và hiển thị",
+    "writer": {
+      "val": "Đặt 130 -> nhãn hiển thị: 130%",
+      "pass": true
+    },
+    "sheet": {
+      "val": "Đặt 130 -> nhãn hiển thị: 130%",
+      "pass": true
+    },
+    "slides": {
+      "val": "Đặt 130 -> nhãn hiển thị: 130%",
+      "pass": true
+    }
+  },
+  {
+    "stt": 24,
+    "id": "24. Thu phóng: Ctrl + lăn chuột",
+    "desc": "mouseWheel kèm modifiers Ctrl thay đổi tỷ lệ thu phóng",
+    "writer": {
+      "val": "130% lăn chuột Ctrl -> 140%",
+      "pass": true
+    },
+    "sheet": {
+      "val": "130% lăn chuột Ctrl -> 140%",
+      "pass": true
+    },
+    "slides": {
+      "val": "130% lăn chuột Ctrl -> 140%",
+      "pass": true
+    }
+  },
+  {
+    "stt": 25,
+    "id": "25. Thu phóng: Phím tắt Ctrl+0",
+    "desc": "Ctrl+0 đặt lại chính xác về 100%",
+    "writer": {
+      "val": "Sau Ctrl+0: 100%",
+      "pass": true
+    },
+    "sheet": {
+      "val": "Sau Ctrl+0: 100%",
+      "pass": true
+    },
+    "slides": {
+      "val": "Sau Ctrl+0: 100%",
+      "pass": true
+    }
+  },
+  {
+    "stt": 26,
+    "id": "26. Ribbon: Quick Access Toolbar",
+    "desc": "QAT đủ 4 nút: Lưu (Ctrl+S), Hoàn tác (Ctrl+Z), Làm lại (Ctrl+Y), In (Ctrl+P)",
+    "writer": {
+      "val": "4 nút: Lưu tài liệu (Ctrl+S), Hoàn tác (Ctrl+Z), Làm lại (Ctrl+Y), In tài liệu (Ctrl+P)",
+      "pass": true
+    },
+    "sheet": {
+      "val": "4 nút: Lưu tài liệu (Ctrl+S), Hoàn tác (Ctrl+Z), Làm lại (Ctrl+Y), In tài liệu (Ctrl+P)",
+      "pass": true
+    },
+    "slides": {
+      "val": "4 nút: Lưu tài liệu (Ctrl+S), Hoàn tác (Ctrl+Z), Làm lại (Ctrl+Y), In tài liệu (Ctrl+P)",
+      "pass": true
+    }
+  },
+  {
+    "stt": 27,
+    "id": "27. Ribbon: Thu gọn Ctrl+F1",
+    "desc": "Ctrl+F1 thu gọn và mở rộng thanh Ribbon đồng bộ",
+    "writer": {
+      "val": "Ban đầu: 98px -> Thu gọn: 0px (đã thu gọn: true) -> Mở lại: 98px",
+      "pass": true
+    },
+    "sheet": {
+      "val": "Ban đầu: 98px -> Thu gọn: 0px (đã thu gọn: true) -> Mở lại: 98px",
+      "pass": true
+    },
+    "slides": {
+      "val": "Ban đầu: 98px -> Thu gọn: 0px (đã thu gọn: true) -> Mở lại: 98px",
+      "pass": true
+    }
+  }
+]

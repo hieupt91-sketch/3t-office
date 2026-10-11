@@ -1,0 +1,7 @@
+# TICKET SC2 — Sheet: nghiem thu ma tran cat/sao chep/dan tren app desktop (Codex, phan con lai cua SC1)
+SC1 da merge (F4, o gop khi dan, xoa dinh dang nguon sau cat/dan, giu gia tri tien te). Con lai MUC 3 cua SC1: ma tran cat/sao chep/dan va dan tu Excel/trang web.
+Worktree rieng E:\VNOffice-codex-sc2, nhanh fix/sheet-paste-matrix-codex, tu main. Tep desktop test do dang chua commit nam o E:\VNOffice-codex-sc1\tests\live\sheet-user-flows.desktop.mjs (va thay doi tests/live/cdp/actions.mjs): xem va tai su dung, khong sua worktree sc1.
+Ma tran (app desktop that qua CDP, khong SendKeys, LOCALAPPDATA rieng): gia tri / cong thuc (tham chieu tuong doi tinh lai khi dan) / dinh dang so / ngay / VND / in dam / mau nen / vien / o gop / cot rong; copy trong Sheet, cut trong Sheet, dan tu Doc va Slide (dung cross-app co san), dan chi gia tri (Ctrl+Shift+V). Moi dong: PASS/FAIL, Ctrl+Z mot buoc, Ctrl+Y.
+Ghi docs/AUDIT-SHEET-USERFLOWS-0710.md; moi loi tim thay = 1 commit sua + test don vi.
+Tieu chi: node tests/run-tests.js khong FAIL moi (hien 2956); python -m unittest discover -s tests OK; 28 xlsx python scripts/layout-audit/batch_document_audit.py xlsx <worktree> van 28/28 saved=yes diffs=0 (tao junction 'file test' -> E:\VN OFice\file test neu thieu).
+Cam/Quy tac: nhu TICKET-WF3.md; bo nho: 1 app test cung luc, dong theo PID, khong de Word/Excel ngam, khong chay lan14. TIET KIEM TOKEN (medium, chi gui delta). KHONG push, KHONG merge. Bao cao 3 dong.

@@ -1,0 +1,76 @@
+# VN Office .gitignore
+*.zip
+*.7z
+*.tar.gz
+
+# Build outputs
+/bin/
+/obj/
+/dist/
+/out/
+/build/
+*.exe
+*.dll
+*.so
+*.dylib
+*.pdb
+VNOffice-Setup-*.exe
+/scripts/installer/output/
+
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+/vnoffice-config.json
+
+# VN Office release signing material (public trust is embedded in adapters/updater/trust.py).
+.vnoffice-release/
+signing-key.pem
+signing-key-*.pem
+
+# IDE & OS
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# LibreOffice upstream baseline source (vendored zip-extract, no git history yet)
+/core-master/
+
+# Tool logs
+*.log
+
+# Runtime markers created by the hidden COM clipboard acceptance helper.
+/tests/live/clipboard-office.ready.json
+/tests/live/clipboard-office.stop
+/tests/live/clipboard-office.copy
+/tests/live/clipboard-office.copy-done
+
+# Người dùng: kho file thật (hợp đồng, giấy tờ...) dùng để quét lỗi thật -
+# KHÔNG BAO GIỜ được commit (dữ liệu cá nhân/doanh nghiệp thật của người dùng).
+/file test/
+
+# Scratch measurement scripts/outputs used by agents (never commit)
+/_*
+/TASK-BRIEF-*.md
+
+
+# real LAN documents rendered for visual inspection - never commit
+docs/screenshots/*lan[0-9][0-9]*
+docs/screenshots/**/*lan[0-9][0-9]*
+docs/screenshots/**/*.htm
+docs/screenshots/**/*.pdf
+docs/screenshots/**/console_log.json
+docs/screenshots/*.fods
+docs/screenshots/*.htm
+docs/screenshots/*.pdf
+docs/screenshots/*_files/
+docs/screenshots/visual_excel_*
+docs/screenshots/visual_vnsheet_*
+docs/screenshots/test_out.xlsx
+docs/screenshots/**/*d[0-9][0-9]_*
+.scratch-ch2/
+
+# Pre-warmed LibreOffice profiles are generated at packaging time (scripts/release/build-seed-profiles.py)
+/seed/

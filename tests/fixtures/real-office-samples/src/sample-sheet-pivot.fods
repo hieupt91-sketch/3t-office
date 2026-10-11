@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Hand-written Flat ODF 1.3 spreadsheet with a real Calc DataPilot (Pivot Table).
+  Independent of VN Office serializers. Source: monthly revenue by region.
+  DataPilot: Rows = Khu vực, Columns = Tháng, Data = SUM(Doanh thu).
+  Convert with soffice convert-to xlsx (see generate-real-office-fixtures.mjs).
+-->
+<office:document
+  xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+  xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+  xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+  xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+  xmlns:number="urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0"
+  xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0"
+  xmlns:of="urn:oasis:names:tc:opendocument:xmlns:of:1.2"
+  office:version="1.3"
+  office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
+  <office:body>
+    <office:spreadsheet>
+      <table:table table:name="DoanhThuNguon">
+        <table:table-row>
+          <table:table-cell office:value-type="string" office:string-value="Tháng"><text:p>Tháng</text:p></table:table-cell>
+          <table:table-cell office:value-type="string" office:string-value="Khu vực"><text:p>Khu vực</text:p></table:table-cell>
+          <table:table-cell office:value-type="string" office:string-value="Doanh thu"><text:p>Doanh thu</text:p></table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell office:value-type="string" office:string-value="T1"><text:p>T1</text:p></table:table-cell>
+          <table:table-cell office:value-type="string" office:string-value="Bắc"><text:p>Bắc</text:p></table:table-cell>
+          <table:table-cell office:value-type="float" office:value="120"><text:p>120</text:p></table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell office:value-type="string" office:string-value="T1"><text:p>T1</text:p></table:table-cell>
+          <table:table-cell office:value-type="string" office:string-value="Nam"><text:p>Nam</text:p></table:table-cell>
+          <table:table-cell office:value-type="float" office:value="80"><text:p>80</text:p></table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell office:value-type="string" office:string-value="T1"><text:p>T1</text:p></table:table-cell>
+          <table:table-cell office:value-type="string" office:string-value="Trung"><text:p>Trung</text:p></table:table-cell>
+          <table:table-cell office:value-type="float" office:value="60"><text:p>60</text:p></table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell office:value-type="string" office:string-value="T2"><text:p>T2</text:p></table:table-cell>
+          <table:table-cell office:value-type="string" office:string-value="Bắc"><text:p>Bắc</text:p></table:table-cell>
+          <table:table-cell office:value-type="float" office:value="150"><text:p>150</text:p></table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell office:value-type="string" office:string-value="T2"><text:p>T2</text:p></table:table-cell>
+          <table:table-cell office:value-type="string" office:string-value="Nam"><text:p>Nam</text:p></table:table-cell>
+          <table:table-cell office:value-type="float" office:value="90"><text:p>90</text:p></table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell office:value-type="string" office:string-value="T2"><text:p>T2</text:p></table:table-cell>
+          <table:table-cell office:value-type="string" office:string-value="Trung"><text:p>Trung</text:p></table:table-cell>
+          <table:table-cell office:value-type="float" office:value="70"><text:p>70</text:p></table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell office:value-type="string" office:string-value="T3"><text:p>T3</text:p></table:table-cell>
+          <table:table-cell office:value-type="string" office:string-value="Bắc"><text:p>Bắc</text:p></table:table-cell>
+          <table:table-cell office:value-type="float" office:value="180"><text:p>180</text:p></table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell office:value-type="string" office:string-value="T3"><text:p>T3</text:p></table:table-cell>
+          <table:table-cell office:value-type="string" office:string-value="Nam"><text:p>Nam</text:p></table:table-cell>
+          <table:table-cell office:value-type="float" office:value="100"><text:p>100</text:p></table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell office:value-type="string" office:string-value="T3"><text:p>T3</text:p></table:table-cell>
+          <table:table-cell office:value-type="string" office:string-value="Trung"><text:p>Trung</text:p></table:table-cell>
+          <table:table-cell office:value-type="float" office:value="85"><text:p>85</text:p></table:table-cell>
+        </table:table-row>
+      </table:table>
+      <table:table table:name="BangTongHop">
+        <table:table-row>
+          <table:table-cell office:value-type="string" office:string-value="Khu vực"><text:p>Khu vực</text:p></table:table-cell>
+          <table:table-cell office:value-type="string" office:string-value="T1"><text:p>T1</text:p></table:table-cell>
+          <table:table-cell office:value-type="string" office:string-value="T2"><text:p>T2</text:p></table:table-cell>
+          <table:table-cell office:value-type="string" office:string-value="T3"><text:p>T3</text:p></table:table-cell>
+          <table:table-cell office:value-type="string" office:string-value="Tổng"><text:p>Tổng</text:p></table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell office:value-type="string" office:string-value="Bắc"><text:p>Bắc</text:p></table:table-cell>
+          <table:table-cell office:value-type="float" office:value="120"><text:p>120</text:p></table:table-cell>
+          <table:table-cell office:value-type="float" office:value="150"><text:p>150</text:p></table:table-cell>
+          <table:table-cell office:value-type="float" office:value="180"><text:p>180</text:p></table:table-cell>
+          <table:table-cell office:value-type="float" office:value="450"><text:p>450</text:p></table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell office:value-type="string" office:string-value="Nam"><text:p>Nam</text:p></table:table-cell>
+          <table:table-cell office:value-type="float" office:value="80"><text:p>80</text:p></table:table-cell>
+          <table:table-cell office:value-type="float" office:value="90"><text:p>90</text:p></table:table-cell>
+          <table:table-cell office:value-type="float" office:value="100"><text:p>100</text:p></table:table-cell>
+          <table:table-cell office:value-type="float" office:value="270"><text:p>270</text:p></table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell office:value-type="string" office:string-value="Trung"><text:p>Trung</text:p></table:table-cell>
+          <table:table-cell office:value-type="float" office:value="60"><text:p>60</text:p></table:table-cell>
+          <table:table-cell office:value-type="float" office:value="70"><text:p>70</text:p></table:table-cell>
+          <table:table-cell office:value-type="float" office:value="85"><text:p>85</text:p></table:table-cell>
+          <table:table-cell office:value-type="float" office:value="215"><text:p>215</text:p></table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell office:value-type="string" office:string-value="Tổng"><text:p>Tổng</text:p></table:table-cell>
+          <table:table-cell office:value-type="float" office:value="260"><text:p>260</text:p></table:table-cell>
+          <table:table-cell office:value-type="float" office:value="310"><text:p>310</text:p></table:table-cell>
+          <table:table-cell office:value-type="float" office:value="365"><text:p>365</text:p></table:table-cell>
+          <table:table-cell office:value-type="float" office:value="935"><text:p>935</text:p></table:table-cell>
+        </table:table-row>
+      </table:table>
+      <table:database-ranges>
+        <table:database-range table:name="NguonDoanhThu" table:target-range-address="DoanhThuNguon.A1:C10" table:display-filter-buttons="false"/>
+      </table:database-ranges>
+      <table:data-pilot-tables>
+        <table:data-pilot-table
+          table:name="DoanhThuTheoKhuVuc"
+          table:application-data=""
+          table:target-range-address="BangTongHop.A1:E5"
+          table:buttons="BangTongHop.A1"
+          table:show-filter-button="false"
+          table:drill-down-on-double-click="true">
+          <table:source-cell-range table:cell-range-address="DoanhThuNguon.A1:C10"/>
+          <table:data-pilot-field table:source-field-name="Khu vực" table:orientation="row" table:used-hierarchy="0" table:function="auto">
+            <table:data-pilot-level table:show-empty="false">
+              <table:data-pilot-subtotals>
+                <table:data-pilot-subtotal table:function="auto"/>
+              </table:data-pilot-subtotals>
+              <table:data-pilot-members/>
+            </table:data-pilot-level>
+          </table:data-pilot-field>
+          <table:data-pilot-field table:source-field-name="Tháng" table:orientation="column" table:used-hierarchy="0" table:function="auto">
+            <table:data-pilot-level table:show-empty="false">
+              <table:data-pilot-subtotals>
+                <table:data-pilot-subtotal table:function="auto"/>
+              </table:data-pilot-subtotals>
+              <table:data-pilot-members/>
+            </table:data-pilot-level>
+          </table:data-pilot-field>
+          <table:data-pilot-field table:source-field-name="Doanh thu" table:orientation="data" table:function="sum" table:used-hierarchy="0">
+            <table:data-pilot-level table:show-empty="false">
+              <table:data-pilot-subtotals>
+                <table:data-pilot-subtotal table:function="sum"/>
+              </table:data-pilot-subtotals>
+              <table:data-pilot-members/>
+            </table:data-pilot-level>
+          </table:data-pilot-field>
+          <table:data-pilot-field table:source-field-name="Data" table:is-data-layout-field="true" table:orientation="hidden" table:function="auto">
+            <table:data-pilot-level table:show-empty="false">
+              <table:data-pilot-members/>
+            </table:data-pilot-level>
+          </table:data-pilot-field>
+        </table:data-pilot-table>
+      </table:data-pilot-tables>
+    </office:spreadsheet>
+  </office:body>
+</office:document>

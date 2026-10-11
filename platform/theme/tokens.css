@@ -1,0 +1,244 @@
+/**
+ * 3T Office Design System — Enterprise Design Tokens
+ * Chuẩn hóa cao cấp cho bộ ứng dụng văn phòng chuyên nghiệp
+ */
+
+:root {
+  /* Quốc gia & Nhận diện thương hiệu 3T Office */
+  --vno-brand-red: #c01e17;
+  --vno-brand-red-dark: #96130d;
+  --vno-brand-gold: #f5b800;
+
+  /* Màu sắc chủ đạo từng App */
+  --vno-writer-primary: #0f4c81;
+  --vno-writer-hover: #0a365c;
+  --vno-writer-light: #e8f1f9;
+  --vno-writer-border: #93c5fd;
+  --vno-writer-primary-fg: var(--vno-writer-primary);
+
+  --vno-sheet-primary: #0f6d38;
+  --vno-sheet-hover: #0a4d27;
+  --vno-sheet-light: #e7f4ec;
+  --vno-sheet-border: #86efac;
+  --vno-sheet-primary-fg: var(--vno-sheet-primary);
+
+  --vno-slides-primary: #b53818;
+  --vno-slides-hover: #872911;
+  --vno-slides-light: #faeee8;
+  --vno-slides-border: #fdba74;
+  --vno-slides-primary-fg: var(--vno-slides-primary);
+
+  /* App đang chọn (Mặc định Writer) */
+  --vno-app-current: var(--vno-writer-primary);
+  --vno-app-current-hover: var(--vno-writer-hover);
+  --vno-app-current-light: var(--vno-writer-light);
+
+  /* Bảng màu trung tính (Neutral Palette) */
+  --vno-bg-app: #e5e7eb;
+  --vno-bg-window: #ffffff;
+  --vno-bg-surface: #ffffff;
+  --vno-bg-subtle: #f8fafc;
+  --vno-bg-muted: #f1f5f9;
+  --vno-bg-hover: #e2e8f0;
+  --vno-bg-active: #cbd5e1;
+  --vno-bg-selected: #dbeafe;
+
+  /* Văn bản & Biểu tượng */
+  --vno-text-primary: #0f172a;
+  --vno-text-secondary: #334155;
+  --vno-text-muted: #475569;
+  --vno-text-subtle: #64748b;
+  --vno-text-disabled: #cbd5e1;
+  --vno-text-inverse: #ffffff;
+
+  /* Đường viền & Phân cách */
+  --vno-border-subtle: #f1f5f9;
+  --vno-border-default: #e2e8f0;
+  --vno-border-strong: #cbd5e1;
+  --vno-border-focus: #2563eb;
+
+  /* Đổ bóng (Elevation Shadows) */
+  --vno-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --vno-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --vno-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --vno-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.12), 0 4px 6px -4px rgba(0, 0, 0, 0.08);
+  --vno-shadow-paper: 0 4px 20px rgba(0, 0, 0, 0.15), 0 0 1px rgba(0, 0, 0, 0.2);
+
+  /* Font chữ tối ưu tiếng Việt */
+  --vno-font-ui: "Be Vietnam Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --vno-font-doc: "Times New Roman", "Be Vietnam Pro", Georgia, serif;
+  --vno-font-mono: "Consolas", "Cascadia Code", "Courier New", monospace;
+
+  /* Kích thước chữ */
+  --vno-text-xs: 11px;
+  --vno-text-sm: 12px;
+  --vno-text-base: 13px;
+  --vno-text-md: 14px;
+  --vno-text-lg: 16px;
+  --vno-text-xl: 18px;
+}
+
+[data-ui-font-size="large"],
+:root[data-ui-font-size="large"] {
+  --vno-text-xs: 12px;
+  --vno-text-sm: 13.5px;
+  --vno-text-base: 15px;
+  --vno-text-md: 16px;
+  --vno-text-lg: 18px;
+  --vno-text-xl: 20px;
+}
+
+[data-ui-font-size="xlarge"],
+:root[data-ui-font-size="xlarge"] {
+  --vno-text-xs: 13.5px;
+  --vno-text-sm: 15px;
+  --vno-text-base: 17px;
+  --vno-text-md: 18px;
+  --vno-text-lg: 21px;
+  --vno-text-xl: 24px;
+}
+
+:root {
+  /* Kích thước khối hệ thống */
+  --vno-topbar-height: 44px;
+  --vno-ribbon-tabs-height: 34px;
+  --vno-ribbon-body-height: 98px;
+  --vno-statusbar-height: 28px;
+
+  --vno-radius-sm: 3px;
+  --vno-radius-md: 5px;
+  --vno-radius-lg: 8px;
+  /* Biến ngữ nghĩa chuẩn hóa (Semantic Theme Properties) */
+  --vno-color-bg: var(--vno-bg-window);
+  --vno-color-bg-app: var(--vno-bg-app);
+  --vno-color-bg-surface: var(--vno-bg-surface);
+  --vno-color-bg-subtle: var(--vno-bg-subtle);
+  --vno-color-bg-muted: var(--vno-bg-muted);
+  --vno-color-bg-hover: var(--vno-bg-hover);
+  --vno-color-bg-active: var(--vno-bg-active);
+  --vno-color-bg-selected: var(--vno-bg-selected);
+
+  --vno-color-text: var(--vno-text-primary);
+  --vno-color-text-secondary: var(--vno-text-secondary);
+  --vno-color-text-muted: var(--vno-text-muted);
+  --vno-color-text-subtle: var(--vno-text-subtle);
+  --vno-color-text-disabled: var(--vno-text-disabled);
+  --vno-color-text-inverse: var(--vno-text-inverse);
+
+  --vno-color-border: var(--vno-border-default);
+  --vno-color-border-subtle: var(--vno-border-subtle);
+  --vno-color-border-strong: var(--vno-border-strong);
+  --vno-color-border-focus: var(--vno-border-focus);
+
+  --vno-app-current: var(--vno-writer-primary);
+  --vno-app-current-hover: var(--vno-writer-hover);
+  --vno-app-current-light: var(--vno-writer-light);
+  --vno-app-current-fg: var(--vno-writer-primary);
+
+  /* Tên tương thích cho các dialog cũ; vẫn lấy màu từ hệ token hiện hành. */
+  --vno-bg-panel: var(--vno-bg-subtle);
+  --vno-bg-surface-secondary: var(--vno-bg-subtle);
+  --vno-primary: var(--vno-app-current-fg);
+
+  --vno-color-accent: var(--vno-app-current);
+  --vno-color-accent-hover: var(--vno-app-current-hover);
+  --vno-color-accent-light: var(--vno-app-current-light);
+}
+
+[data-app="writer"] {
+  --vno-app-current: var(--vno-writer-primary);
+  --vno-app-current-hover: var(--vno-writer-hover);
+  --vno-app-current-light: var(--vno-writer-light);
+  --vno-app-current-fg: var(--vno-writer-primary);
+}
+
+[data-app="sheet"] {
+  --vno-app-current: var(--vno-sheet-primary);
+  --vno-app-current-hover: var(--vno-sheet-hover);
+  --vno-app-current-light: var(--vno-sheet-light);
+  --vno-app-current-fg: var(--vno-sheet-primary);
+}
+
+[data-app="slides"] {
+  --vno-app-current: var(--vno-slides-primary);
+  --vno-app-current-hover: var(--vno-slides-hover);
+  --vno-app-current-light: var(--vno-slides-light);
+  --vno-app-current-fg: var(--vno-slides-primary);
+}
+
+/* ==========================================================================
+   CHẾ ĐỘ TỐI (DARK MODE) — Chuẩn Microsoft Office Dark Gray / Fluent Dark
+   ========================================================================== */
+[data-theme="dark"],
+:root[data-theme="dark"] {
+  /* Bảng màu trung tính tối (Dark Gray #1e1e1e / #252526) */
+  --vno-bg-app: #181818;
+  --vno-bg-window: #1e1e1e;
+  --vno-bg-surface: #252526;
+  --vno-bg-subtle: #1f1f1f;
+  --vno-bg-muted: #2d2d2d;
+  --vno-bg-hover: #37373d;
+  --vno-bg-active: #454545;
+  --vno-bg-selected: #094771;
+
+  /* Văn bản & Biểu tượng sáng đạt chuẩn WCAG AA / AAA trên nền tối */
+  --vno-text-primary: #f1f5f9;
+  --vno-text-secondary: #cbd5e1;
+  --vno-text-muted: #94a3b8;
+  --vno-text-subtle: #94a3b8;
+  --vno-text-disabled: #52525b;
+  --vno-text-inverse: #0f172a;
+
+  /* Đường viền & Phân cách tối */
+  --vno-border-subtle: #2d2d2d;
+  --vno-border-default: #3e3e42;
+  --vno-border-strong: #52525b;
+  --vno-border-focus: #3b82f6;
+
+  /* Màu sắc chủ đạo từng App khi ở theme Dark */
+  --vno-writer-light: #172554;
+  --vno-writer-border: #1d4ed8;
+  --vno-writer-primary-fg: #60a5fa;
+
+  --vno-sheet-light: #052e16;
+  --vno-sheet-border: #15803d;
+  --vno-sheet-primary-fg: #4ade80;
+
+  --vno-slides-light: #431407;
+  --vno-slides-border: #c2410c;
+  --vno-slides-primary-fg: #fb923c;
+
+  --vno-app-current-fg: var(--vno-writer-primary-fg);
+  --vno-app-current-light: var(--vno-writer-light);
+
+  /* Đổ bóng cho chế độ Dark */
+  --vno-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --vno-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --vno-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.6);
+  --vno-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.7);
+  --vno-shadow-paper: 0 4px 20px rgba(0, 0, 0, 0.85), 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+/* Phần tử con mang data-app (vùng gắn ứng dụng) đặt lại --vno-app-current-fg = màu chủ đạo ĐẬM: trong chế độ tối phải dùng bản sáng,
+   nếu không tên tài liệu/nút bật có chữ xanh đậm trên nền tối (tương phản 1,7–1,9). */
+[data-theme="dark"] [data-app="writer"] { --vno-app-current-fg: var(--vno-writer-primary-fg); --vno-app-current-light: var(--vno-writer-light); }
+[data-theme="dark"] [data-app="sheet"] { --vno-app-current-fg: var(--vno-sheet-primary-fg); --vno-app-current-light: var(--vno-sheet-light); }
+[data-theme="dark"] [data-app="slides"] { --vno-app-current-fg: var(--vno-slides-primary-fg); --vno-app-current-light: var(--vno-slides-light); }
+
+[data-theme="dark"][data-app="writer"],
+:root[data-theme="dark"][data-app="writer"] {
+  --vno-app-current-fg: var(--vno-writer-primary-fg);
+  --vno-app-current-light: var(--vno-writer-light);
+}
+
+[data-theme="dark"][data-app="sheet"],
+:root[data-theme="dark"][data-app="sheet"] {
+  --vno-app-current-fg: var(--vno-sheet-primary-fg);
+  --vno-app-current-light: var(--vno-sheet-light);
+}
+
+[data-theme="dark"][data-app="slides"],
+:root[data-theme="dark"][data-app="slides"] {
+  --vno-app-current-fg: var(--vno-slides-primary-fg);
+  --vno-app-current-light: var(--vno-slides-light);
+}

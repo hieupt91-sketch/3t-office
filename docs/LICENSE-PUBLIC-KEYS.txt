@@ -1,0 +1,4 @@
+﻿# Khoa cong khai Ed25519 cua he thong ban quyen 3T Office (base64, 32 byte).
+# May khach nhung DANH SACH khoa nay de kiem tra token ban quyen ngoai tuyen; xoay khoa = them khoa moi vao danh sach.
+# Khoa rieng KHONG nam trong kho ma: %USERPROFILE%\.vnoffice-release\license-signing.b64 (ban sao luu) va bien moi truong LICENSE_SIGNING_KEY tren VPS.
+2026-10-03 3VQzs693VXrCbWXvmuR6YoDailm3zV26O4gdLYhK0jI=

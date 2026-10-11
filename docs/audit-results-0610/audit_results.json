@@ -1,0 +1,186 @@
+[
+  {
+    "id": 1,
+    "item": "Tạo mới bài trình chiếu",
+    "action": "Khởi chạy ứng dụng VN Slides với mẫu mặc định rỗng",
+    "verdict": "PASS",
+    "evidence": "slidesCount=1, canvasReady=true, title=''",
+    "repro": ""
+  },
+  {
+    "id": 2,
+    "item": "Thêm slide mới",
+    "action": "Gọi addNewSlide() chèn slide thứ 2 vào bài trình chiếu",
+    "verdict": "PASS",
+    "evidence": "slidesCount=2, currentSlideIndex=1",
+    "repro": ""
+  },
+  {
+    "id": 3,
+    "item": "Xóa slide",
+    "action": "Gọi deleteCurrentSlide(true) xóa slide đang chọn",
+    "verdict": "PASS",
+    "evidence": "slidesCount=1, currentSlideIndex=0",
+    "repro": ""
+  },
+  {
+    "id": 4,
+    "item": "Nhân đôi slide",
+    "action": "Gán tiêu đề 'Slide Gốc' và gọi duplicateCurrentSlide(true)",
+    "verdict": "PASS",
+    "evidence": "slidesCount=2, duplicatedTitle='Slide Gốc', currentIndex=1",
+    "repro": ""
+  },
+  {
+    "id": 5,
+    "item": "Đổi thứ tự slide",
+    "action": "Gọi moveSlide(0, 1) tráo đổi vị trí slide 0 và slide 1",
+    "verdict": "PASS",
+    "evidence": "slide0Title='Slide B', slide1Title='Slide A'",
+    "repro": ""
+  },
+  {
+    "id": 6,
+    "item": "Chèn chữ vào slide",
+    "action": "Gọi insertTextBox({ text: 'Chèn chữ kiểm thử 3T Slide' })",
+    "verdict": "PASS",
+    "evidence": "shapesCount=1, shapeType='textbox', text=''",
+    "repro": ""
+  },
+  {
+    "id": 7,
+    "item": "Chèn hình ảnh",
+    "action": "Gọi insertImage(dummyBase64Png)",
+    "verdict": "PASS",
+    "evidence": "hasImage=true, type='image'",
+    "repro": ""
+  },
+  {
+    "id": 8,
+    "item": "Chọn bố cục (Layout)",
+    "action": "Gọi applySlideLayout('two-content') đổi bố cục slide thành 2 cột nội dung",
+    "verdict": "PASS",
+    "evidence": "layoutType='two-content'",
+    "repro": ""
+  },
+  {
+    "id": 9,
+    "item": "Đổi theme / chủ đề slide",
+    "action": "Gọi applySlideMaster('corporate-red') đổi theme slide sang Terracotta Ấm Áp",
+    "verdict": "PASS",
+    "evidence": "masterTheme='corporate-red'",
+    "repro": ""
+  },
+  {
+    "id": 10,
+    "item": "Ghi chú diễn giả (Speaker Notes)",
+    "action": "Gán ghi chú diễn giả 'Ghi chú diễn giả cho buổi kiểm thử 3T Slide'",
+    "verdict": "PASS",
+    "evidence": "notes='Ghi chú diễn giả cho buổi kiểm thử 3T Slide'",
+    "repro": ""
+  },
+  {
+    "id": 11,
+    "item": "Hiệu ứng chuyển trang (Slide transitions)",
+    "action": "Gọi setTransition('fade', 800, true) thiết lập hiệu ứng mờ dần 800ms",
+    "verdict": "PASS",
+    "evidence": "transitionType='fade', duration=800ms",
+    "repro": ""
+  },
+  {
+    "id": 12,
+    "item": "Hiệu ứng hoạt hình đối tượng (Animations)",
+    "action": "Gán animation 'fadeIn' 600ms cho hình khối đầu tiên trên slide",
+    "verdict": "PASS",
+    "evidence": "hasAnim=true, animType='fadeIn', duration=600ms",
+    "repro": ""
+  },
+  {
+    "id": 13,
+    "item": "Trình chiếu F5 và thoát Esc",
+    "action": "Gọi startSlideShow(0) bật overlay trình chiếu, sau đó exitSlideShow() đóng overlay",
+    "verdict": "PASS",
+    "evidence": "slideshowOverlayOpened=true, slideshowOverlayClosed=true",
+    "repro": ""
+  },
+  {
+    "id": 14,
+    "item": "Dạng xem Sắp xếp trang (Slide Sorter)",
+    "action": "Gọi openSlideSorter() hiển thị lưới Slide Sorter",
+    "verdict": "PASS",
+    "evidence": "slideSorterRendered=true",
+    "repro": ""
+  },
+  {
+    "id": 15,
+    "item": "Lưu PPTX, mở lại & Đọc XML zip",
+    "action": "Lưu bài trình chiếu ra file PPTX, giải nén ZIP kiểm tra XML và mở lại",
+    "verdict": "PASS",
+    "evidence": "fileSize=14586 bytes, xmlSlides=2, xmlNotes=1, xmlImages=2, xmlTransitions=4, reopenedSlideCount=2",
+    "repro": ""
+  },
+  {
+    "id": 16,
+    "item": "In / Xuất bài trình chiếu ra PDF",
+    "action": "Xuất tệp trình chiếu PPTX vừa lưu sang định dạng PDF",
+    "verdict": "PASS",
+    "evidence": "pdfFile='test-save-basic.pdf', pdfSizeBytes=26234",
+    "repro": ""
+  },
+  {
+    "id": 17,
+    "item": "Hoàn tác (Undo) và Làm lại (Redo)",
+    "action": "Thực hiện addNewSlide(), gọi undo() hoàn tác và redo() làm lại",
+    "verdict": "PASS",
+    "evidence": "initial=2, added=3, undone=2, redone=3",
+    "repro": ""
+  },
+  {
+    "id": 18,
+    "item": "Phím tắt cơ bản (Ctrl+M, Ctrl+Z)",
+    "action": "Gửi sự kiện phím qua CDP: Ctrl+M (Thêm slide) và Ctrl+Z (Hoàn tác)",
+    "verdict": "PASS",
+    "evidence": "slidesAfterCtrlM=4, slidesAfterCtrlZ=3",
+    "repro": ""
+  },
+  {
+    "id": 19,
+    "item": "Mở & lưu lại mẫu PPTX: sample-slides.pptx",
+    "action": "Mở tệp sample-slides.pptx bằng app, đo số slide/chữ, lưu lại ra file saved-sample-slides.pptx và kiểm tra lại",
+    "verdict": "PASS",
+    "evidence": "Trước: App(slides=2, chars=154), XML(slides=2, chars=84) | Sau: SavedSize=10810B, App(slides=2, chars=154), XML(slides=2, chars=84)",
+    "repro": ""
+  },
+  {
+    "id": 20,
+    "item": "Mở & lưu lại mẫu PPTX: sample-slides-notes.pptx",
+    "action": "Mở tệp sample-slides-notes.pptx bằng app, đo số slide/chữ, lưu lại ra file saved-sample-slides-notes.pptx và kiểm tra lại",
+    "verdict": "PASS",
+    "evidence": "Trước: App(slides=3, chars=506), XML(slides=3, chars=168) | Sau: SavedSize=17236B, App(slides=3, chars=506), XML(slides=3, chars=168)",
+    "repro": ""
+  },
+  {
+    "id": 21,
+    "item": "Mở & lưu lại mẫu PPTX: sample-slides-smartart.pptx",
+    "action": "Mở tệp sample-slides-smartart.pptx bằng app, đo số slide/chữ, lưu lại ra file saved-sample-slides-smartart.pptx và kiểm tra lại",
+    "verdict": "PASS",
+    "evidence": "Trước: App(slides=1, chars=90), XML(slides=1, chars=21) | Sau: SavedSize=8531B, App(slides=1, chars=90), XML(slides=1, chars=69)",
+    "repro": ""
+  },
+  {
+    "id": 22,
+    "item": "Mở & lưu lại mẫu PPTX: sample-slides-comments.pptx",
+    "action": "Mở tệp sample-slides-comments.pptx bằng app, đo số slide/chữ, lưu lại ra file saved-sample-slides-comments.pptx và kiểm tra lại",
+    "verdict": "PASS",
+    "evidence": "Trước: App(slides=2, chars=77), XML(slides=2, chars=77) | Sau: SavedSize=11386B, App(slides=2, chars=77), XML(slides=2, chars=77)",
+    "repro": ""
+  },
+  {
+    "id": 23,
+    "item": "Mở & lưu lại mẫu PPTX: slides-saved-roundtrip.pptx",
+    "action": "Mở tệp slides-saved-roundtrip.pptx bằng app, đo số slide/chữ, lưu lại ra file saved-slides-saved-roundtrip.pptx và kiểm tra lại",
+    "verdict": "PASS",
+    "evidence": "Trước: App(slides=3, chars=1839), XML(slides=3, chars=740) | Sau: SavedSize=20623B, App(slides=3, chars=1839), XML(slides=3, chars=740)",
+    "repro": ""
+  }
+]
