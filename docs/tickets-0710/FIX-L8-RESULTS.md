@@ -13,6 +13,11 @@
 - `common.edit.find` / `common.edit.replace`: CDP tìm `ROAD TRIP` tại vị trí 10, thay tất cả `Your Name` thành `Presenter` (2 lần); COM Find và đọc lại shape 2 cùng xác nhận.
 - Ma trận hiện có 40 KHỚP POWERPOINT, 42 CHƯA ĐỐI CHIẾU, 4 LỆCH ĐÃ BIẾT và 2 KHÁC CÓ CHỦ Ý. Các nút Trang đầu còn lại và những tab sau vẫn đang chờ đo.
 
+**Chế độ xem và Trợ giúp — thao tác UI đã ghi nhận, chưa tính parity**
+
+- CDP xác nhận Bộ sắp xếp, trở về Bình thường, Chế độ đọc/Esc, Thước, Đường lưới, Đường hướng dẫn, các nút zoom, xem trước khi in, Trợ giúp và Giới thiệu mở/đóng hoặc đổi state dự kiến; bằng chứng trong `evidence/fix-l8/view/`.
+- PowerPoint COM mở lại bản đã lưu và xác nhận deck còn 10 slide, 5 shape. Vì đây là view/UI state không được lưu vào PPTX, phép COM đó không chứng minh tương đương view state; các hàng tương ứng vẫn `CHƯA ĐỐI CHIẾU`.
+
 ## Kiểm tra
 
 - `runSlidesClipboardTests`: PASS, 8/8.
