@@ -142,7 +142,7 @@ export const SHEET_HELP_ENTRIES = [
       "Lấy ký tự bằng =LEFT(B2,3), =MID(B2,2,4), =RIGHT(B2,3). Định dạng số thành chữ bằng =TEXT(C2,\"#,##0.00\"); định dạng ngày bằng =TEXT(D2,\"dd/mm/yyyy\"). TEXT trả về văn bản, nên chỉ dùng kết quả đó để hiển thị hoặc ghép chuỗi.",
       "Tạo ngày với =DATE(2026,10,11); tách năm/tháng/ngày bằng YEAR, MONTH, DAY. EDATE cộng tháng, EOMONTH tìm ngày cuối tháng, WEEKDAY lấy thứ, NETWORKDAYS đếm ngày làm việc, WORKDAY tìm ngày làm việc kế tiếp và DAYS tính khoảng cách ngày. TODAY() và NOW() thay đổi theo thời điểm tính lại.",
       "INDIRECT nhận địa chỉ ô dưới dạng văn bản, ví dụ =INDIRECT(\"C2\") trả nội dung ô C2. OFFSET trả ô/vùng dịch từ một tham chiếu, ví dụ =OFFSET(C2,1,0) lấy ô phía dưới. SUMPRODUCT nhân các phần tử tương ứng rồi cộng; NA() tạo lỗi #N/A để đánh dấu dữ liệu chưa có, có thể bọc bằng IFERROR.",
-      "Sau khi nhập, chọn lại ô để xem công thức trên thanh công thức và kết quả trong lưới. Khi lưu XLSX, mở bằng Excel để xác nhận kết quả hiển thị; công thức TODAY/NOW sẽ lấy thời điểm hiện tại khi Excel tính lại."
+      "Sau khi nhập, chọn lại ô để xem công thức trên thanh công thức và kết quả trong lưới. Khi lưu XLSX, mở bằng ứng dụng bảng tính khác để xác nhận kết quả hiển thị; công thức TODAY/NOW sẽ lấy thời điểm hiện tại khi ứng dụng tính lại."
     ]
   },
   {

@@ -22,8 +22,15 @@ Trợ giúp tiếng Việt mới trong tab Trợ giúp giải thích ẩn/hiện
 
 ## Nhóm 3 — Biểu đồ
 
-NOT RUN.
+**PASS.** Chọn từng kiểu bằng nút trong hộp xem trước rồi lưu XLSX qua UI/CDP; Excel COM read-only mở từng tệp xác nhận chart type: Cột `51`, Đường `4`, Tròn `5`, Miền `1`. Cả bốn giữ tiêu đề `Biểu đồ A1:C6` và một series `Số tiền`, công thức series `=SERIES(Sheet1!$C$1,Sheet1!$A$2:$A$6,Sheet1!$C$2:$C$6,1)`. Biểu đồ Cột/Đường/Miền có trục hạng mục và trục giá trị; Tròn không có trục. UI hiện đặt tiêu đề theo vùng và không có trường đặt tên riêng cho trục. Ảnh chọn kiểu/xem trước: `fix-s9-chartBar.png`, `fix-s9-chartLine.png`, `fix-s9-chartPie.png`, `fix-s9-chartArea.png` trong `evidence/`.
 
 ## Ghi chú harness
 
 Excel reader ban đầu có nhánh `Stop-Process` dự phòng theo PID sau `Quit()`. Sau khi thấy nhánh này chạy, đã bỏ hẳn việc dừng tiến trình theo PID; các lần COM đọc lại sau đó chỉ dùng `Close($false)` và `Quit()`. Harness desktop CDP cũng không còn `taskkill`/`child.kill` dự phòng; khi CDP đóng mà tiến trình chưa thoát, để nguyên tiến trình và báo trạng thái.
+
+Batch `_excel_open_test.ps1` cũng chỉ gọi `Close($false)`/`Quit()` và để nguyên Excel nếu COM không thoát; batch Python không còn sweep/dừng tiến trình Office theo PID.
+
+## Kiểm thử cuối
+
+- `npm test`: **PASS 3061/3061, 0 FAIL**.
+- Batch XLSX (mỗi tệp chạy tuần tự, round-trip qua app, `diffs=0`, lint sạch, Excel read-only PASS): `lan01` 87,7 giây; `lan02` 26,8; `lan04` 25,8; `lan06` 111,1; `lan09` 92,0; `lan11` 36,3; `lan22` 36,4; `lan26` 38,5. Log và tệp round-trip ở `E:\VNOffice-profiles\codex-fs9\batch-xlsx.log` và `E:\VNOffice-profiles\codex-fs9\batch\`.

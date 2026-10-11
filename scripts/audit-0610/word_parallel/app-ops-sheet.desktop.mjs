@@ -33,6 +33,10 @@ const ops = [
   ["definedName","B2","nameManager","sheet.formula.nameManager","SampleNames"],
   ["validation","C2","validation","sheet.data.validation","Open,Closed"],
   ["chart","A1","chart","sheet.chart.insert","A1:C6"],
+  ["chartBar","A1","chartVariant","sheet.chart.insert","bar"],
+  ["chartLine","A1","chartVariant","sheet.chart.insert","line"],
+  ["chartPie","A1","chartVariant","sheet.chart.insert","pie"],
+  ["chartArea","A1","chartVariant","sheet.chart.insert","area"],
   ["removeDuplicates","A1","removeDuplicates","sheet.data.removeDuplicates","A1:A6"],
   ["fillRight","C2","shortcutRight","Ctrl+R","C2:D2"],
   ["formulaSum","H2","type",null,"=SUM(C2:C6)"],["formulaAverage","H3","type",null,"=AVERAGE(C2:C6)"],
@@ -67,13 +71,13 @@ for (const [name, cell, kind, id, value] of ops) {
       if(!duplicate)throw new Error("Could not locate audit duplicate cell A6");
       await mouseClick(session.cdp,duplicate.x,duplicate.y); await typeText(session.cdp,"1"); await press(session.cdp,"Enter");
     }
-    if (kind === "merge" || kind === "range" || kind === "customSort" || kind === "shortcutDown" || kind === "shortcutRight" || kind === "conditional" || kind === "tableStyle" || kind === "chart" || kind === "removeDuplicates") {
+    if (kind === "merge" || kind === "range" || kind === "customSort" || kind === "shortcutDown" || kind === "shortcutRight" || kind === "conditional" || kind === "tableStyle" || kind === "chart" || kind === "chartVariant" || kind === "removeDuplicates") {
       if (kind === "customSort") {
         const duplicate=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-grid-cell[data-coord="B3"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
         if(!duplicate)throw new Error("Could not locate sort tie probe B3");
         await mouseClick(session.cdp,duplicate.x,duplicate.y); await typeText(session.cdp,"Nguy\u1ec5n V\u0103n A"); await press(session.cdp,"Enter");
       }
-      const [from, to] = value.split(":");
+      const [from, to] = kind === "chartVariant" ? ["A1", "C6"] : value.split(":");
       const range = JSON.parse(await ev(`(() => { const a=document.querySelector('.vno-grid-cell[data-coord="${from}"]'); const b=document.querySelector('.vno-grid-cell[data-coord="${to}"]'); if(!a||!b) return 'null'; const ar=a.getBoundingClientRect(), br=b.getBoundingClientRect(); return JSON.stringify({x1:ar.left+ar.width/2,y1:ar.top+ar.height/2,x2:br.left+br.width/2,y2:br.top+br.height/2}); })()`));
       if (!range) { console.log(name.padEnd(18), "khong thay vung", value); continue; }
       await mouseDrag(session.cdp, range.x1, range.y1, range.x2, range.y2);
@@ -194,7 +198,7 @@ for (const [name, cell, kind, id, value] of ops) {
       const align=JSON.parse(await pos("#vno-fc-tab-alignment"));
       if(!align) status="NO_ALIGNMENT_TAB";
       else {await mouseClick(session.cdp,align.x,align.y);await sleep(150);const angle=JSON.parse(await pos('.vno-fc-orient-btn[data-angle="90"]'));if(!angle)status="NO_90_DEGREE_OPTION";else{await mouseClick(session.cdp,angle.x,angle.y);const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000);const evidenceDir=path.join(root,"docs","tickets-0710","evidence");await mkdir(evidenceDir,{recursive:true});await writeFile(path.join(evidenceDir,"fix-s8-text-rotation.png"),Buffer.from((shot.result||shot).data,"base64"));const apply=JSON.parse(await pos(".vno-fc-ok-btn"));if(!apply)status="NO_FORMAT_CELLS_APPLY";else{await mouseClick(session.cdp,apply.x,apply.y);status="set Orientation=90 through Format Cells";}}}
-    } else if (kind === "click" || kind === "merge" || kind === "range" || kind === "conditional" || kind === "tableStyle" || kind === "cellStyle" || kind === "promptNumber" || kind === "nameManager" || kind === "validation" || kind === "chart" || kind === "pageSetup" || kind === "removeDuplicates") {
+    } else if (kind === "click" || kind === "merge" || kind === "range" || kind === "conditional" || kind === "tableStyle" || kind === "cellStyle" || kind === "promptNumber" || kind === "nameManager" || kind === "validation" || kind === "chart" || kind === "chartVariant" || kind === "pageSetup" || kind === "removeDuplicates") {
       const tabId = id.startsWith("sheet.view.") ? "view" : id.startsWith("sheet.page.") ? "pageLayout" : id.startsWith("sheet.data.") ? "data" : id.startsWith("sheet.formula.") ? "formulas" : id.startsWith("sheet.chart.") ? "insert" : "home";
       const tabPos = JSON.parse(await ev(`(() => { const n=document.querySelector('#vno-ribbon-tab-${tabId}'); if(!n)return 'null'; const r=n.getBoundingClientRect(); return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,active:n.classList.contains('is-active')}) })()`));
       if (tabPos && !tabPos.active) { await mouseClick(session.cdp, tabPos.x, tabPos.y); await sleep(250); }
@@ -267,10 +271,18 @@ for (const [name, cell, kind, id, value] of ops) {
         if(!input) status="NO_VALIDATION_FORM";
         else {await mouseClick(session.cdp,input.x,input.y); await typeText(session.cdp,value); const apply=JSON.parse(await pos(".vno-rule-apply")); if(!apply)status="NO_VALIDATION_APPLY"; else {await mouseClick(session.cdp,apply.x,apply.y);status="applied list validation";} }
       }
-      if (kind === "chart" && status === "clicked") {
+      if ((kind === "chart" || kind === "chartVariant") && status === "clicked") {
         await sleep(500);
+        if (kind === "chartVariant") {
+          const typeButton = JSON.parse(await ev(`(() => {const n=document.querySelector('[data-chart-type="${value}"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+          if (!typeButton) throw new Error("Missing chart type option " + value);
+          await mouseClick(session.cdp, typeButton.x, typeButton.y);
+        }
+        const chartShot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000);
+        const chartEvidence=path.join(root,"docs","tickets-0710","evidence"); await mkdir(chartEvidence,{recursive:true});
+        await writeFile(path.join(chartEvidence,`fix-s9-${name}.png`),Buffer.from((chartShot.result||chartShot).data,"base64"));
         const apply=JSON.parse(await ev(`(() => {const n=document.querySelector('[data-chart-apply]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
-        if(!apply)status="NO_CHART_DIALOG"; else {await mouseClick(session.cdp,apply.x,apply.y);status="inserted default chart";}
+        if(!apply)status="NO_CHART_DIALOG"; else {await mouseClick(session.cdp,apply.x,apply.y);status=kind==="chartVariant"?`inserted ${value} chart through UI`:"inserted default chart";}
       }
       if (kind === "pageSetup" && status === "clicked") {
         await sleep(250);

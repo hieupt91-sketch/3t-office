@@ -52,7 +52,7 @@ export async function runHelpCoverageTests() {
         .join("; ");
       throw new Error(`Còn ${uncovered.length} lệnh Sheet chưa có bài Help: ${details}`);
     }
-    if (sheet.coveredCount !== sheet.liveCount || sheet.liveCount !== 153) {
+    if (sheet.coveredCount !== sheet.liveCount || sheet.liveCount !== 155) {
       throw new Error(`Số lượng lệnh Sheet không khớp: covered=${sheet.coveredCount}, live=${sheet.liveCount}`);
     }
   });
