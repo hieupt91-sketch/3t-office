@@ -20,7 +20,7 @@ const ops = [
   ["numNumber","C2","select","sheet.format.quickCategory","number"],["numCurrency","C2","select","sheet.format.quickCategory","currency"],["numAccounting","C2","select","sheet.format.quickCategory","accounting"],
   ["numPercent","D2","select","sheet.format.quickCategory","percentage"],["numDate","E2","select","sheet.format.quickCategory","date"],
   ["decInc","C2","click","sheet.format.increaseDecimal"],["decDec","C2","click","sheet.format.decreaseDecimal"],["standard","C2","click","sheet.format.standard"],["percentBtn","D2","click","sheet.format.percent"],["bordersDefault","B2","click","sheet.cell.borders"],
-  ["indentIncrease","B2","click","sheet.cell.indentIncrease"],["indentDecrease","B2","click","sheet.cell.indentDecrease"],["mergeCenter","A8","merge","sheet.cell.mergeCenter","A8:B8"],["mergeAcross","A8","merge","sheet.cell.mergeAcross","A8:B8"],["mergeCells","A8","merge","sheet.cell.mergeCells","A8:B8"],
+  ["indentIncrease","B2","click","sheet.cell.indentIncrease"],["indentDecrease","B2","click","sheet.cell.indentDecrease"],["mergeCenter","A8","merge","sheet.cell.mergeCenter","A8:B8"],["mergeAcross","A8","merge","sheet.cell.mergeAcross","A8:B8"],["mergeCells","A8","merge","sheet.cell.mergeCells","A8:B8"],["unmerge","A8","click","sheet.cell.unmerge"],
   ["autoSum","C7","click","sheet.formula.sum"],["averageBtn","C7","click","sheet.formula.average"],["countNumbersBtn","C7","click","sheet.formula.countNumbers"],["fillDown","B2","shortcutDown","Ctrl+D","B2:B3"],
   ["insertRow","A3","click","sheet.row.insert"],["deleteRow","A3","click","sheet.row.delete"],
   ["insertCol","B2","click","sheet.col.insert"],["deleteCol","B2","click","sheet.col.delete"],

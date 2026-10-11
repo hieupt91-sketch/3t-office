@@ -83,3 +83,9 @@
 
 - CDP bấm Giảm số thập phân trên C2; Excel COM ReadOnly đọc `Value2=1234.5`, `NumberFormat=0`, hiển thị `1235`. Giá trị giữ nguyên, định dạng giảm còn 0 chữ số thập phân; **KHỚP EXCEL**.
 - Ảnh `evidence/s12/fix-s12-decDec.png`; log CDP `s12-decimal-decrease.log`, Excel COM `excel-decDec.log`.
+
+## Trang đầu: Tách ô
+
+- Mở XLSX đã tạo bằng nút Trộn ô (A8:B8 merged), CDP bấm Tách ô tại A8.
+- Excel COM ReadOnly trên tệp lưu sau đó xác nhận `A8.MergeCells=False`; **KHỚP EXCEL**.
+- Ảnh `evidence/s12/fix-s12-unmerge.png`; log CDP `s12-unmerge.log`, Excel COM `excel-unmerge.log`.
