@@ -229,6 +229,9 @@ class OSServices:
     clipboard_extras: ClipboardExtras | None = None
     device_id: DeviceId | None = None
     office_automation: OfficeAutomation | None = None
+    # Optional desktop webview implementation selected by the OS shell.
+    # None keeps pywebview's native/default backend (the existing Windows behaviour).
+    desktop_webview_gui: str | None = None
 
 
 SERVICE_FIELDS = (
