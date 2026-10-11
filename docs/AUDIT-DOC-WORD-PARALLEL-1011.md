@@ -64,7 +64,7 @@ Lượt so sánh COM cuối: **21/21 KHỚP**. Hai lượt chẩn đoán trướ
 | Tham chiếu chéo | CDP chèn tới `Target heading`; Word đọc lại | COM tạo REF field/bookmark cùng kết quả | KHỚP |
 | Danh mục hình | CDP chèn 2 caption, tạo ToF; Word COM đọc lại | COM tạo caption và ToF native | KHỚP: 2 SEQ fields, 1 TableOfFigures |
 | Ghi chú | CDP tạo 2, điều hướng, resolve Alpha, xóa Beta; DOCX lưu | COM tạo/resolve/xóa cùng cách | KHỚP: còn một comment `3T Office` / `Alpha` / `Resolve audit`, Done=True |
-| Theo dõi thay đổi: chèn cụm ` added` | Word đọc một `Revision` thêm, Type 1, Author 3T Office | COM bật TrackRevisions, chèn cùng cụm; đọc lại | KHỚP về count/type/author/text |
+| Theo dõi thay đổi: chèn + xóa, điều hướng, accept one/reject all | CDP tạo 2 revision; accept insertion rồi reject deletion; trạng thái cuối kiểm tra | COM tạo 2 revision cùng type/author/text | KHỚP: deletion Type 2 `beta`, insertion Type 1 ` added`; còn lại 1 sau accept one, 0 sau reject all |
 | Heading 1–3 (kiểu mặc định tài liệu mới) | CDP gõ/chọn/lưu; Word COM đọc đủ thuộc tính | Word COM tạo và đọc cùng kiểu | KHỚP; DOCX nhập giữ nguyên |
 | Thư viện kiểu: Normal/Title/Quote | CDP đã áp dụng và đọc Word COM | COM tạo kiểu Word tương ứng | Chạy đủ; các preset VN có chủ ý khác định dạng Normal/Title/Quote mặc định Word (TNR, 14pt/căn đều; Title đậm xanh/căn giữa; Quote có viền trái) |
 | Tìm/thay thế: thay toàn bộ `Alpha` → `Gamma` | CDP Ctrl+H, 1 thay thế; DOCX có Gamma, không Alpha | `Find.Execute` ReplaceAll; DOCX cùng nội dung | KHỚP |
@@ -148,6 +148,12 @@ Chưa chạy: đánh dấu Done/Resolved, sửa/xóa comment, điều hướng c
 Mở **Đánh giá > Theo dõi thay đổi**, đặt con trỏ cuối đoạn Alpha và gõ ` added` bằng CDP keyboard, rồi lưu DOCX. Word COM bật `TrackRevisions`, chèn cùng chuỗi và lưu DOCX đối chứng. Đọc lại bằng COM: cả hai tệp có một Revision, `Type=1` (insertion), Author `3T Office`, text `added`: **KHỚP**. Help tiếng Việt **Theo dõi thay đổi** và nhãn thao tác đã có trong `platform/help/entries-writer.js` cùng `platform/i18n/strings-vi.js`/`strings-en.js`.
 
 Chưa chạy: xóa có theo dõi, chấp nhận/từ chối một và tất cả, chuyển đổi chế độ hiển thị, tên tác giả khác và round-trip sửa revision đã tồn tại.
+
+### FIX-T8 — Theo dõi thay đổi — 11/10/2026 (xóa và xử lý revision)
+
+1. App/CDP: bật theo dõi, gõ ` added`, xóa `beta`, Next, Accept One rồi Reject All; ảnh `E:\VNOffice-profiles\codex-ft8\track-run-02\track-changes-t8-before.png`.
+2. Word COM: cùng DOCX baseline có hai revision, Type 2 `beta` và Type 1 ` added`, cùng tác giả `3T Office`; COM đọc lại app và Word.
+3. Kết quả: cấu trúc revision khớp; app còn 1 sau Accept One, hết revision sau Reject All và giữ nội dung như semantics Word. Help F1/i18n đã có; chế độ hiển thị và tác giả tùy chỉnh chưa đo.
 
 ### FIX-T8 tiếp tục — Tìm/Thay thế — 11/10/2026
 

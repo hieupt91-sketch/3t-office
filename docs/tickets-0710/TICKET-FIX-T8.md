@@ -27,3 +27,8 @@ Quy trinh/CAM/TIET KIEM TOKEN: nhu TICKET-FIX-T1.md; COMMIT SAU MOI NHOM; Word C
 1. CDP tạo 2 comment, điều hướng, resolve Alpha và xóa Beta; ảnh `comments-run-01/comments-t8-before.png`.
 2. Word COM thao tác tương đương; cả hai DOCX sau lưu có một comment, cùng Author/Scope/Text và `Done=True`.
 3. Điều hướng, resolve, delete **KHỚP**; Help F1/i18n đã có. Chỉnh sửa comment chưa được kiểm tra vì hiện chưa có thao tác UI.
+
+### Nhóm 7 — Theo dõi thay đổi
+1. CDP bật theo dõi, thêm/xóa text, Next, Accept One, Reject All; ảnh `track-run-02/track-changes-t8-before.png`.
+2. Word COM đọc hai revision tương đương: delete `beta` Type 2, insert ` added` Type 1, Author `3T Office`.
+3. Count và thao tác chấp nhận/từ chối khớp. Help/i18n hiện có; chế độ hiển thị và tác giả tùy chỉnh chưa kiểm tra.
