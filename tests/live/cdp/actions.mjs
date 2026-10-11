@@ -58,7 +58,6 @@ export async function press(cdp, key, modifiers = {}, settleMilliseconds = 250, 
   await cdp.send("Input.dispatchKeyEvent", {
     type: "keyUp", key: info.key, code: info.code,
     windowsVirtualKeyCode: info.keyCode, modifiers: mask,
-    ...(commands ? { commands } : {}),
   }, timeoutMilliseconds);
   if (settleMilliseconds > 0) await sleep(settleMilliseconds);
 }
