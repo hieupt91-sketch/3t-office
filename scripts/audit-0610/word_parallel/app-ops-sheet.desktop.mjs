@@ -12,7 +12,7 @@ const template = process.env.VNO_AUDIT_TEMPLATE || path.join(root, "tests/live/c
 await mkdir(dir, { recursive: true });
 // [ten, o, loai, id, gia tri]
 const ops = [
-  ["bold","B2","click","sheet.cell.bold"],["italic","B2","click","sheet.cell.italic"],["underline","B2","click","sheet.cell.underline"],
+  ["bold","B2","click","sheet.cell.bold"],["italic","B2","click","sheet.cell.italic"],["underline","B2","click","sheet.cell.underline"],["fontGrow","B2","click","sheet.font.grow"],["fontShrink","B2","click","sheet.font.shrink"],
   ["size16","B2","select","sheet.font.size","16"],["fontArial","B2","select","sheet.font.family","Arial"],
   ["fillDefault","B2","click","sheet.cell.fillColor"],["textColorDefault","B2","click","sheet.cell.textColor"],
   ["alignCenter","B2","click","sheet.cell.alignCenter"],["alignRight","B2","click","sheet.cell.alignRight"],["wrap","B2","click","sheet.cell.wrapText"],

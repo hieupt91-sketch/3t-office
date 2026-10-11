@@ -34,5 +34,14 @@ export async function runSheetGridInsertFormulaTests() {
     assert(grid.written.formula === "=SUM(C5:C6)", `Formula sai: ${grid.written.formula}`);
   });
 
+  test("Shrink Font moves down from imported 11 pt despite px rounding", () => {
+    const grid = Object.create(SheetGridController.prototype);
+    grid.selectedCoord = { c: "B", r: 2 };
+    grid.cellsData = new Map([["B2", { style: { fontSize: "14.67px" } }]]);
+    grid.setStyle = (prop, value) => { grid.changed = [prop, value]; return true; };
+    grid.adjustFontSize(-1);
+    assert(JSON.stringify(grid.changed) === JSON.stringify(["fontSize", "13.33px"]), `Font size sai: ${JSON.stringify(grid.changed)}`);
+  });
+
   return results;
 }

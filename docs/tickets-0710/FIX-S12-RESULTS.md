@@ -45,3 +45,10 @@
 
 - CDP bấm Đếm số tại C7; app tạo `=COUNT(C2:C6)`. Excel COM ReadOnly xác nhận công thức và `Value2=5`; **KHỚP EXCEL**.
 - Ảnh `evidence/s12/fix-s12-countNumbersBtn.png`; log CDP `s12-count-numbers.log`, Excel COM `excel-countNumbersBtn.log` trong profile audit.
+
+## Trang đầu: tăng/giảm cỡ chữ
+
+- Tăng cỡ chữ trên B2 từ 11 lên 12 pt; Excel COM ReadOnly xác nhận `Font.Size=12`.
+- Giảm cỡ chữ ban đầu không đổi 11 pt do quy đổi 14.67 px thành 11.0025 pt, rồi chọn lại nấc 11. Đã làm tròn điểm hiện tại trước khi chọn nấc; sau sửa B2 giảm còn 10 pt trong Excel.
+- Ảnh: `evidence/s12/fix-s12-fontGrow.png`, `evidence/s12/fix-s12-fontShrink.png`. Log CDP `s12-fontsize.log`, `s12-font-shrink-fixed.log`; Excel COM `excel-fontGrow.log`, `excel-fontShrink-fixed.log`.
+- **PASS** — focused unit suite gồm 3 kiểm tra range AutoSum/AutoAverage và bước giảm cỡ chữ.

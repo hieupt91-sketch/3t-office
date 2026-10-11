@@ -5,7 +5,7 @@ Nguồn nút: `docs/ribbon-scan-sheet-1011.json`. Chỉ đánh dấu **KHỚP EX
 - **KHÁC CÓ CHỦ Ý**: khác biệt được thiết kế có chủ ý và có giải thích.
 - **LỆCH ĐÃ BIẾT**: sai khác đã được tái hiện và còn tồn tại.
 - **CHƯA ĐỐI CHIẾU**: chưa có đối chiếu Excel đủ chứng cứ.
-Tổng 138 nút — KHỚP EXCEL: 38 · CHƯA ĐỐI CHIẾU: 100.
+Tổng 138 nút — KHỚP EXCEL: 40 · CHƯA ĐỐI CHIẾU: 98.
 
 Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy trong lượt này sẽ giữ **CHƯA ĐỐI CHIẾU** cho tới khi có phép thử an toàn và xác định rõ luồng dữ liệu.
 
@@ -18,8 +18,8 @@ Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy tron
 | Trang đầu | `sheet.edit.formatPainter` | Sao chép định dạng | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:13 |
 | Trang đầu | `sheet.font.family` | Phông chữ | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | control(select/input) |
 | Trang đầu | `sheet.font.size` | Cỡ chữ | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | control(select/input) |
-| Trang đầu | `sheet.font.grow` | Tăng cỡ chữ | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:15 |
-| Trang đầu | `sheet.font.shrink` | Giảm cỡ chữ | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:15 |
+| Trang đầu | `sheet.font.grow` | Tăng cỡ chữ | KHỚP EXCEL | FIX-S12 Trang đầu: CDP click Tăng cỡ chữ; Excel COM ReadOnly xác nhận B2=12 pt | dom:15 |
+| Trang đầu | `sheet.font.shrink` | Giảm cỡ chữ | KHỚP EXCEL | FIX-S12 Trang đầu: sửa làm tròn điểm cỡ chữ; CDP click Giảm cỡ chữ; Excel COM ReadOnly xác nhận B2=10 pt | dom:15 |
 | Trang đầu | `sheet.cell.bold` | Đậm (Ctrl+B) | KHỚP EXCEL | FIX-S7: CDP thao tác và Excel COM đọc lại định dạng, merge, AutoSum, sort, AutoFilter | dom:20 |
 | Trang đầu | `sheet.cell.italic` | Nghiêng (Ctrl+I) | KHỚP EXCEL | FIX-S7: CDP thao tác và Excel COM đọc lại định dạng, merge, AutoSum, sort, AutoFilter | dom:20 |
 | Trang đầu | `sheet.cell.underline` | Gạch chân (Ctrl+U) | KHỚP EXCEL | FIX-S7: CDP thao tác và Excel COM đọc lại định dạng, merge, AutoSum, sort, AutoFilter | dom:20 |

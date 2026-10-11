@@ -30,6 +30,8 @@ mark(MATCH, "sheet.format.increaseDecimal", "FIX-S12 nhóm Trang đầu: CDP cli
 mark(MATCH, "sheet.data.sortDesc", "FIX-S12 tab Dữ liệu: CDP click Z-A; Excel COM ReadOnly xác nhận B2:B6 giảm dần: Trần, Phạm, Nguyễn, Lê, Hoàng (app_sortDesc.xlsx)")
 mark(MATCH, "sheet.formula.average", "FIX-S12 tab Công thức: CDP click Trung bình; Excel COM ReadOnly xác nhận =AVERAGE(C2:C6), Value2=4123.02 (app_S12fix_averageBtn.xlsx)")
 mark(MATCH, "sheet.formula.countNumbers", "FIX-S12 tab Công thức: CDP click Đếm số; Excel COM ReadOnly xác nhận =COUNT(C2:C6), Value2=5 (app_countNumbersBtn.xlsx)")
+mark(MATCH, "sheet.font.grow", "FIX-S12 Trang đầu: CDP click Tăng cỡ chữ; Excel COM ReadOnly xác nhận B2=12 pt")
+mark(MATCH, "sheet.font.shrink", "FIX-S12 Trang đầu: sửa làm tròn điểm cỡ chữ; CDP click Giảm cỡ chữ; Excel COM ReadOnly xác nhận B2=10 pt")
 
 # FIX-S7 recorded an unsuccessful name-manager probe before FIX-S8 corrected
 # and verified the manager flow. The separate Define Name command has no such

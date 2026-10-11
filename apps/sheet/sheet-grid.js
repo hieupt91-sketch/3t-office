@@ -9169,7 +9169,7 @@ _bindGridKeyboardNavigation() {
     const steps = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 36, 48, 72];
     const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
     const currentPx = Number.parseFloat(this.cellsData.get(key)?.style?.fontSize);
-    const current = Number.isFinite(currentPx) ? currentPx * 3 / 4 : 11;
+    const current = Number.isFinite(currentPx) ? Math.round(currentPx * 3 / 4 * 100) / 100 : 11;
     const next = direction > 0
       ? (steps.find(size => size > current) || steps[steps.length - 1])
       : ([...steps].reverse().find(size => size < current) || steps[0]);
