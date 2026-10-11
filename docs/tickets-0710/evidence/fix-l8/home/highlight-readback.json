@@ -1,0 +1,32 @@
+{
+    "baseline":  "E:\\VN OFice\\file test\\sample-3.pptx",
+    "appFile":  "E:\\VNOffice-profiles\\codex-fl8\\fix-l8-highlight.pptx",
+    "baselineReadback":  {
+                             "slides":  10,
+                             "shapes":  5,
+                             "layout":  12,
+                             "titleText":  "WEST COAST\u000bROAD TRIP",
+                             "alignment":  1,
+                             "leftIndent":  null,
+                             "indentLevel":  null,
+                             "lineSpacingRule":  -1,
+                             "lineSpacing":  1,
+                             "textColorRgb":  6710886,
+                             "highlightRgb":  1894392,
+                             "finalShapeText":  null
+                         },
+    "appReadback":  {
+                        "slides":  10,
+                        "shapes":  5,
+                        "layout":  1,
+                        "titleText":  "WEST COAST\rROAD TRIP",
+                        "alignment":  1,
+                        "leftIndent":  null,
+                        "indentLevel":  null,
+                        "lineSpacingRule":  -1,
+                        "lineSpacing":  0.9,
+                        "textColorRgb":  -2147483648,
+                        "highlightRgb":  52735,
+                        "finalShapeText":  null
+                    }
+}

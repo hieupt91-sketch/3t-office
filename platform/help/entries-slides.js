@@ -738,6 +738,7 @@ export const SLIDES_HELP_ENTRIES = [
       "Tạo mới: Ctrl+N  |  Mở: Ctrl+O  |  Lưu: Ctrl+S  |  In: Ctrl+P",
       "Hoàn tác: Ctrl+Z  |  Làm lại: Ctrl+Y",
       "Cắt: Ctrl+X  |  Sao chép: Ctrl+C  |  Dán: Ctrl+V  |  Chọn tất cả: Ctrl+A",
+      "Dùng nút trên ribbon: tab Trang đầu > nhóm Bảng nhớ tạm. Trong hộp văn bản, bôi đen chữ rồi chọn Sao chép hoặc Cắt; đặt con trỏ ở vị trí đích và chọn Dán. Nếu đang chọn cả hình hoặc hộp văn bản, Dán thêm nội dung clipboard thành đối tượng trên trang chiếu.",
       "Tìm kiếm: Ctrl+F  |  Thay thế: Ctrl+H",
       "Trang chiếu mới: Ctrl+M  |  Nhân đôi trang: Ctrl+D  |  Trình chiếu từ đầu: F5",
       "Chữ đậm: Ctrl+B  |  Chữ nghiêng: Ctrl+I  |  Gạch chân: Ctrl+U",

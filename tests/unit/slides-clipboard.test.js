@@ -3,7 +3,7 @@
  * Tests use mock objects to avoid real DOM dependency.
  */
 
-import { SlidesAdapter } from "../../adapters/libreoffice/slides/slides-adapter.js";
+import { SlidesAdapter, stripClipboardFragmentMarkers } from "../../adapters/libreoffice/slides/slides-adapter.js";
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -216,6 +216,23 @@ export async function runSlidesClipboardTests() {
     assert(copyResult === true, "common.edit.copy phải trả về true");
     assert(pasteResult === true, "common.edit.paste phải trả về true");
     assert(pastePlainResult === true, "common.edit.pastePlain phải trả về true");
+  });
+
+  await test("Ribbon Cut/Copy/Paste restore the saved text selection", async () => {
+    const adapter = new SlidesAdapter(mockCanvas());
+    let restored = 0;
+    adapter._restoreTextSelection = () => { restored += 1; };
+
+    await adapter.handleDispatch(".uno:Cut", null, "common.edit.cut");
+    await adapter.handleDispatch(".uno:Copy", null, "common.edit.copy");
+    await adapter.handleDispatch(".uno:Paste", null, "common.edit.paste");
+
+    assert(restored === 3, `Cut/Copy/Paste phải phục hồi vùng chọn trước thao tác, nhận ${restored}/3`);
+  });
+
+  await test("Clipboard HTML fragment markers are stripped before Slides paste", async () => {
+    const html = stripClipboardFragmentMarkers("<!--StartFragment--><b>Nội dung</b><!--EndFragment-->");
+    assert(html === "<b>Nội dung</b>", `Không được dán marker CF_HTML: ${html}`);
   });
 
   return results;

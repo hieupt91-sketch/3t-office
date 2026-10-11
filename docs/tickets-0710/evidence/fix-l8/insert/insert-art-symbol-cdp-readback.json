@@ -1,0 +1,162 @@
+{
+  "symbol": {
+    "before": {
+      "slides": 10,
+      "selectedTarget": "Google Shape;58;p13",
+      "selection": "",
+      "active": "vno-shape-textbox-text is-textbox-text",
+      "shapes": [
+        {
+          "id": "Google Shape;58;p13",
+          "type": "textbox",
+          "text": "WEST COASTROAD TRIP",
+          "presetId": null,
+          "fillColor": null,
+          "gradient": null
+        },
+        {
+          "id": "Google Shape;59;p13",
+          "type": "textbox",
+          "text": "Your Name • Sept 20XX",
+          "presetId": null,
+          "fillColor": null,
+          "gradient": null
+        },
+        {
+          "id": "Google Shape;60;p13",
+          "type": "image",
+          "text": "",
+          "presetId": null,
+          "fillColor": null,
+          "gradient": null
+        },
+        {
+          "id": "Google Shape;61;p13",
+          "type": "image",
+          "text": "",
+          "presetId": null,
+          "fillColor": null,
+          "gradient": null
+        },
+        {
+          "id": "Google Shape;62;p13",
+          "type": "image",
+          "text": "",
+          "presetId": null,
+          "fillColor": null,
+          "gradient": null
+        }
+      ]
+    },
+    "after": {
+      "slides": 10,
+      "selectedTarget": "Google Shape;58;p13",
+      "selection": "",
+      "active": "vno-slide-canvas",
+      "shapes": [
+        {
+          "id": "Google Shape;58;p13",
+          "type": "textbox",
+          "text": "WEST COASTROAD TRIP",
+          "presetId": null,
+          "fillColor": null,
+          "gradient": null
+        },
+        {
+          "id": "Google Shape;59;p13",
+          "type": "textbox",
+          "text": "Your Name • Sept 20XX",
+          "presetId": null,
+          "fillColor": null,
+          "gradient": null
+        },
+        {
+          "id": "Google Shape;60;p13",
+          "type": "image",
+          "text": "",
+          "presetId": null,
+          "fillColor": null,
+          "gradient": null
+        },
+        {
+          "id": "Google Shape;61;p13",
+          "type": "image",
+          "text": "",
+          "presetId": null,
+          "fillColor": null,
+          "gradient": null
+        },
+        {
+          "id": "Google Shape;62;p13",
+          "type": "image",
+          "text": "",
+          "presetId": null,
+          "fillColor": null,
+          "gradient": null
+        }
+      ]
+    }
+  },
+  "wordart": {
+    "slides": 10,
+    "selectedTarget": 1791751598979,
+    "selection": "",
+    "active": "vno-slide-canvas",
+    "shapes": [
+      {
+        "id": "Google Shape;58;p13",
+        "type": "textbox",
+        "text": "WEST COASTROAD TRIP",
+        "presetId": null,
+        "fillColor": null,
+        "gradient": null
+      },
+      {
+        "id": "Google Shape;59;p13",
+        "type": "textbox",
+        "text": "Your Name • Sept 20XX",
+        "presetId": null,
+        "fillColor": null,
+        "gradient": null
+      },
+      {
+        "id": "Google Shape;60;p13",
+        "type": "image",
+        "text": "",
+        "presetId": null,
+        "fillColor": null,
+        "gradient": null
+      },
+      {
+        "id": "Google Shape;61;p13",
+        "type": "image",
+        "text": "",
+        "presetId": null,
+        "fillColor": null,
+        "gradient": null
+      },
+      {
+        "id": "Google Shape;62;p13",
+        "type": "image",
+        "text": "",
+        "presetId": null,
+        "fillColor": null,
+        "gradient": null
+      },
+      {
+        "id": 1791751598979,
+        "type": "wordart",
+        "text": "3T OfficeAudit WordArt",
+        "presetId": "ocean-gradient",
+        "fillColor": "#1d4ed8",
+        "gradient": {
+          "from": "#38bdf8",
+          "to": "#1d4ed8",
+          "angle": 90
+        }
+      }
+    ]
+  },
+  "file": "E:\\VNOffice-profiles\\codex-fl8\\fix-l8-insert-art-symbol.pptx",
+  "saved": true
+}

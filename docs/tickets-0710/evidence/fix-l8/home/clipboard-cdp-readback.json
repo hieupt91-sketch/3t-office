@@ -1,0 +1,35 @@
+{
+  "before": {
+    "slides": 10,
+    "shapeCount": 5,
+    "title": "WEST COAST\nROAD TRIP",
+    "firstShapeText": "WEST COASTROAD TRIP",
+    "liveText": "WEST COAST\nROAD TRIP",
+    "selection": "",
+    "active": "vno-slide-canvas"
+  },
+  "clipboard": {
+    "status": "ok",
+    "text": "WEST COAST\r\nROAD TRIP",
+    "htmlLength": 1771,
+    "hasFragmentMarkers": false
+  },
+  "afterPaste": {
+    "slides": 10,
+    "shapeCount": 5,
+    "title": "WEST COAST\nROAD TRIP",
+    "firstShapeText": "WEST COAST\nROAD TRIP",
+    "liveText": "WEST COAST\nROAD TRIP\n×",
+    "selection": "",
+    "active": "vno-shape-textbox-text is-textbox-text"
+  },
+  "afterCut": {
+    "slides": 10,
+    "shapeCount": 5,
+    "title": "WEST COAST\nROAD TRIP",
+    "firstShapeText": "",
+    "liveText": "\n\n×",
+    "selection": "",
+    "active": "vno-shape-textbox-text is-textbox-text"
+  }
+}

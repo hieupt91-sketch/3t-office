@@ -1,0 +1,49 @@
+{
+  "before": {
+    "slides": 10,
+    "size": {
+      "preset": "wide",
+      "width": 960,
+      "height": 540,
+      "sourceEmu": {
+        "cx": 9144000,
+        "cy": 5143500,
+        "type": ""
+      }
+    },
+    "background": {
+      "type": "solid",
+      "color": "#ffffff"
+    }
+  },
+  "slideSize": {
+    "slides": 10,
+    "size": {
+      "preset": "standard",
+      "width": 960,
+      "height": 720
+    },
+    "background": {
+      "type": "solid",
+      "color": "#ffffff"
+    }
+  },
+  "background": {
+    "slides": 10,
+    "size": {
+      "preset": "standard",
+      "width": 960,
+      "height": 720
+    },
+    "background": {
+      "type": "gradient",
+      "gradient": {
+        "from": "#1e3a8a",
+        "to": "#ffffff",
+        "direction": "horizontal"
+      }
+    }
+  },
+  "file": "E:\\VNOffice-profiles\\codex-fl8\\fix-l8-design.pptx",
+  "saved": true
+}
