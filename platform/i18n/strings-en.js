@@ -551,6 +551,14 @@ export const enStrings = {
     ,"slides.slide.duplicate": { label: "Duplicate Slide", tooltip: "Duplicate the selected slide (Ctrl+D)" }
     ,"slides.slide.delete": { label: "Delete Slide", tooltip: "Delete the selected slide (Delete)" }
     ,"slides.slide.toggleHidden": { label: "Hide Slide", tooltip: "Hide or show the selected slide during F5. The slide stays in the file and Slide Sorter." }
+    ,"slides.context.copy": { label: "Copy Slide", tooltip: "Copy this slide to the in-app slide clipboard" }
+    ,"slides.context.cut": { label: "Cut Slide", tooltip: "Move this slide to the in-app slide clipboard" }
+    ,"slides.context.paste": { label: "Paste Slide", tooltip: "Insert the copied slide after this slide" }
+    ,"slides.context.hide": { label: "Hide Slide", tooltip: "Hide or show this slide during the slide show" }
+    ,"slides.context.moveUp": { label: "Move Up", tooltip: "Move this slide one position earlier" }
+    ,"slides.context.moveDown": { label: "Move Down", tooltip: "Move this slide one position later" }
+    ,"slides.context.sort": { label: "Slide Sorter", tooltip: "Open the slide grid to review and reorder slides" }
+    ,"slides.context.layout": { label: "Layout", tooltip: "Change the layout of this slide" }
     ,"slides.section.add": { label: "Add Section", tooltip: "Add a section starting at the selected slide to group consecutive slides" }
     ,"slides.section.rename": { label: "Rename Section", tooltip: "Rename the section that contains the selected slide" }
     ,"slides.section.remove": { label: "Remove Section", tooltip: "Ungroup the section without deleting the slides inside it" }

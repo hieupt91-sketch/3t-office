@@ -258,6 +258,7 @@ export class SlidesCanvasController {
     // each entry is a named start boundary; the next section (or end of deck) is the end.
     // Slides also keep sectionId so FODP round-trip and contiguous grouping stay in sync.
     this.sections = [];
+    this.slideClipboard = null;
     this.collapsedSectionIds = new Set();
     this.undoStack = [];
     this.redoStack = [];
@@ -6451,6 +6452,33 @@ const startEditing = (initialText) => {
     return true;
   }
 
+  copyCurrentSlide() {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide) return false;
+    this.slideClipboard = JSON.parse(JSON.stringify(slide));
+    return true;
+  }
+
+  cutCurrentSlide() {
+    if (this.slides.length <= 1 || !this.copyCurrentSlide()) return false;
+    return this.deleteCurrentSlide(true, true);
+  }
+
+  pasteSlideAfterCurrent() {
+    if (!this.slideClipboard) return false;
+    const slide = JSON.parse(JSON.stringify(this.slideClipboard));
+    slide.id = Date.now();
+    slide.comments = (slide.comments || []).map(comment => ({ ...comment, id: `${comment.id}-paste-${Date.now()}` }));
+    const index = Math.max(0, Math.min(this.slides.length, this.currentSlideIndex + 1));
+    this.slides.splice(index, 0, slide);
+    this.undoStack.push({ type: "add", index, slide });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+    this.selectSlide(index);
+    this.slideListContainer?.querySelector(`[data-slide-index="${index}"]`)?.focus?.();
+    return true;
+  }
+
   deleteCurrentSlide(recordUndo = true, forceSlide = false) {
     if (!forceSlide && !this.slideSorterOverlay && this.selectedShapeIds && this.selectedShapeIds.size > 0) {
       return this.deleteSelectedShapes();
@@ -6817,12 +6845,21 @@ const startEditing = (initialText) => {
     menu.className = "vno-slide-section-menu vno-context-menu";
     menu.setAttribute?.("role", "menu");
     menu.setAttribute?.("aria-label", "Tùy chọn trang chiếu và phần");
-    menu.style.cssText = `position:fixed;left:${clampedX}px;top:${clampedY}px;z-index:10040;min-width:190px;padding:6px;background:var(--vno-bg-surface,#ffffff);color:var(--vno-text-primary,#0f172a);border:1px solid var(--vno-border-default,#cbd5e1);border-radius:6px;box-shadow:0 8px 24px rgba(15,23,42,.2)`;
+    menu.style.cssText = `position:fixed;left:${clampedX}px;top:${clampedY}px;z-index:10040;min-width:190px;max-height:calc(100vh - 20px);overflow-y:auto;padding:6px;background:var(--vno-bg-surface,#ffffff);color:var(--vno-text-primary,#0f172a);border:1px solid var(--vno-border-default,#cbd5e1);border-radius:6px;box-shadow:0 8px 24px rgba(15,23,42,.2)`;
     
     let menuHtml = `
       <button type="button" data-slide-action="new" role="menuitem" tabindex="0">${t("slides.newSlide", "Trang mới")}</button>
       <button type="button" data-slide-action="duplicate" role="menuitem" tabindex="-1">${t("slides.duplicateSlide", "Nhân đôi trang")}</button>
+      <button type="button" data-slide-action="copy" role="menuitem" tabindex="-1">${t("slides.context.copy", "Sao chép trang chiếu")}</button>
+      <button type="button" data-slide-action="cut" role="menuitem" tabindex="-1"${this.slides.length <= 1 ? " disabled style='opacity:0.5;cursor:not-allowed;'" : ""}>${t("slides.context.cut", "Cắt trang chiếu")}</button>
+      <button type="button" data-slide-action="paste" role="menuitem" tabindex="-1"${this.slideClipboard ? "" : " disabled style='opacity:0.5;cursor:not-allowed;'"}>${t("slides.context.paste", "Dán trang chiếu")}</button>
       <button type="button" data-slide-action="delete" role="menuitem" tabindex="-1"${this.slides.length <= 1 ? " disabled style='opacity:0.5;cursor:not-allowed;'" : ""}>${t("slides.deleteSlide", "Xóa trang")}</button>
+      <div style="height:1px;background:var(--vno-border-default,#cbd5e1);margin:4px 0;"></div>
+      <button type="button" data-slide-action="hide" role="menuitem" tabindex="-1">${t("slides.context.hide", slide.hidden ? "Hiện trang chiếu" : "Ẩn trang chiếu")}</button>
+      <button type="button" data-slide-action="move-up" role="menuitem" tabindex="-1"${slideIndex <= 0 ? " disabled style='opacity:0.5;cursor:not-allowed;'" : ""}>${t("slides.context.moveUp", "Chuyển lên")}</button>
+      <button type="button" data-slide-action="move-down" role="menuitem" tabindex="-1"${slideIndex >= this.slides.length - 1 ? " disabled style='opacity:0.5;cursor:not-allowed;'" : ""}>${t("slides.context.moveDown", "Chuyển xuống")}</button>
+      <button type="button" data-slide-action="sort" role="menuitem" tabindex="-1">${t("slides.context.sort", "Bộ sắp xếp trang chiếu")}</button>
+      <button type="button" data-slide-action="layout" role="menuitem" tabindex="-1">${t("slides.context.layout", "Bố cục")}</button>
       <div style="height:1px;background:var(--vno-border-default,#cbd5e1);margin:4px 0;"></div>
       <button type="button" data-section-action="add" role="menuitem" tabindex="-1">${t("slidesDialogs.sectionAddTitle", "Thêm phần")}</button>
       ${section ? `<button type="button" data-section-action="rename" role="menuitem" tabindex="-1">${t("slidesDialogs.sectionRenameTitle", "Đổi tên phần")}</button><button type="button" data-section-action="remove" role="menuitem" tabindex="-1">${t("slidesDialogs.removeSectionKeepSlides", "Xóa Phần (giữ trang chiếu)")}</button>` : ""}
@@ -6863,6 +6900,45 @@ const startEditing = (initialText) => {
       close(false);
       this.selectSlide(slideIndex);
       this.deleteCurrentSlide(true, true);
+    });
+    menu.querySelector('[data-slide-action="copy"]')?.addEventListener("click", () => {
+      close(false);
+      this.selectSlide(slideIndex);
+      this.copyCurrentSlide();
+    });
+    menu.querySelector('[data-slide-action="cut"]')?.addEventListener("click", () => {
+      close(false);
+      this.selectSlide(slideIndex);
+      this.cutCurrentSlide();
+    });
+    menu.querySelector('[data-slide-action="paste"]')?.addEventListener("click", () => {
+      close(false);
+      this.selectSlide(slideIndex);
+      this.pasteSlideAfterCurrent();
+    });
+    menu.querySelector('[data-slide-action="hide"]')?.addEventListener("click", () => {
+      close(false);
+      this.selectSlide(slideIndex);
+      this.toggleCurrentSlideHidden();
+    });
+    menu.querySelector('[data-slide-action="move-up"]')?.addEventListener("click", () => {
+      close(false);
+      this.moveSlide(slideIndex, slideIndex - 1, true, this.slides[slideIndex - 1]?.sectionId || null);
+      this.slideListContainer?.querySelector(`[data-slide-index="${slideIndex - 1}"]`)?.focus?.();
+    });
+    menu.querySelector('[data-slide-action="move-down"]')?.addEventListener("click", () => {
+      close(false);
+      this.moveSlide(slideIndex, slideIndex + 1, true, this.slides[slideIndex + 1]?.sectionId || null);
+      this.slideListContainer?.querySelector(`[data-slide-index="${slideIndex + 1}"]`)?.focus?.();
+    });
+    menu.querySelector('[data-slide-action="sort"]')?.addEventListener("click", () => {
+      close(false);
+      this.openSlideSorter?.();
+    });
+    menu.querySelector('[data-slide-action="layout"]')?.addEventListener("click", () => {
+      close(false);
+      this.selectSlide(slideIndex);
+      globalCommandBus?.execute?.("slides.layout.apply");
     });
     menu.querySelector('[data-section-action="add"]')?.addEventListener("click", async () => {
       close(false);
@@ -6924,6 +7000,11 @@ const startEditing = (initialText) => {
       }
     });
     document.body.appendChild(menu);
+    const viewportHeight = typeof window !== "undefined" ? window.innerHeight : 800;
+    const menuHeight = menu.getBoundingClientRect?.().height || menu.offsetHeight || 0;
+    if (menuHeight && clampedY + menuHeight > viewportHeight - 10) {
+      menu.style.top = `${Math.max(10, viewportHeight - menuHeight - 10)}px`;
+    }
     menu.querySelector("button:not([disabled])")?.focus?.();
     return true;
   }
