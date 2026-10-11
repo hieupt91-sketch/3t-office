@@ -38,3 +38,9 @@ Sai khác tái hiện: không. Hướng dẫn tiếng Việt hiện có trong ta
 **PASS.** Bôi chọn A1:A6 bằng chuột, sửa hàng cuối thành mã `1` bằng bàn phím rồi chạy Dữ liệu → Xóa trùng lặp. Excel COM chỉ đọc xác nhận còn các mã `1 / 2 / 3 / 4` và hàng dữ liệu cuối đã trống, tức một hàng trùng được loại bỏ. XLSX: `E:\VNOffice-profiles\codex-fs10\app_removeDuplicates.xlsx`.
 
 Sai khác tái hiện: không. Hướng dẫn VI hiện có dưới tab Dữ liệu, nhóm Công cụ dữ liệu; tùy chọn nhận diện hàng tiêu đề và cột so sánh có nhãn i18n VI/EN.
+
+## Nhóm 6 — Đổi tên, xóa và di chuyển sheet
+
+**PASS.** Dùng chuột phải trên thẻ và bàn phím trong hộp tên để đổi `Sheet2` thành `S9 Review`, di chuyển sheet về đầu thứ tự, thêm rồi xóa `Sheet3` qua menu xác nhận. Excel COM chỉ đọc xác nhận thứ tự lưu là `S9 Review / Sheet1`. XLSX: `E:\VNOffice-profiles\codex-fs10\app_sheetManagementPack.xlsx`; ảnh: `evidence/fix-s9-sheet-management.png`.
+
+Sai khác tái hiện: không. Trợ giúp tiếng Việt có hướng dẫn riêng đổi tên, di chuyển/sao chép, xóa; nhãn menu và hộp thoại có i18n VI/EN.
