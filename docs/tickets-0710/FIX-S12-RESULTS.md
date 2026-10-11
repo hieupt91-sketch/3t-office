@@ -128,3 +128,5 @@
 
 - CDP bấm Phóng to/Thu nhỏ; ảnh xác nhận giao diện lần lượt 110%/90%.
 - Excel COM ReadOnly mở từng XLSX và đọc `ActiveWindow.Zoom=100` ở cả hai. `sheet.view.zoomIn` và `sheet.view.zoomOut` là **LỆCH ĐÃ BIẾT**; log `s12-zoomIn.log`, `s12-zoomOut.log`, `excel-zoomIn.log`, `excel-zoomOut.log`; ảnh `evidence/s12/fix-s12-zoomIn.png`, `fix-s12-zoomOut.png`.
+
+- Cùng nhóm chế độ xem, CDP bấm Thanh công thức làm ẩn thanh trên UI; Excel COM ReadOnly vẫn đọc `DisplayFormulaBar=1`. `sheet.view.formulaBar` là **LỆCH ĐÃ BIẾT**; log `s12-formulaBar.log`, `excel-formulaBar.log`; ảnh `evidence/s12/fix-s12-formulaBar.png`.

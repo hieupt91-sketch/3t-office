@@ -5,7 +5,7 @@ Nguồn nút: `docs/ribbon-scan-sheet-1011.json`. Chỉ đánh dấu **KHỚP EX
 - **KHÁC CÓ CHỦ Ý**: khác biệt được thiết kế có chủ ý và có giải thích.
 - **LỆCH ĐÃ BIẾT**: sai khác đã được tái hiện và còn tồn tại.
 - **CHƯA ĐỐI CHIẾU**: chưa có đối chiếu Excel đủ chứng cứ.
-Tổng 138 nút — KHỚP EXCEL: 51 · LỆCH ĐÃ BIẾT: 8 · CHƯA ĐỐI CHIẾU: 79.
+Tổng 138 nút — KHỚP EXCEL: 51 · LỆCH ĐÃ BIẾT: 9 · CHƯA ĐỐI CHIẾU: 78.
 
 Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy trong lượt này sẽ giữ **CHƯA ĐỐI CHIẾU** cho tới khi có phép thử an toàn và xác định rõ luồng dữ liệu.
 
@@ -134,7 +134,7 @@ Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy tron
 | Chế độ xem | `sheet.view.pageLayout` | Bố trí trang | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:147 |
 | Chế độ xem | `sheet.file.printPreview` | Xem trước khi in (Ctrl+F2) | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | skipped(dangerous) |
 | Chế độ xem | `sheet.view.gridlines` | Đường lưới | LỆCH ĐÃ BIẾT | FIX-S12: CDP đổi gridlinesVisible/headingsVisible thành false nhưng XLSX Excel COM ReadOnly giữ DisplayGridlines/Headings=1; handoff adapter ở docs/AGENT-HANDOFF-FIX-S12-VIEW-STATE.md | dom:47 |
-| Chế độ xem | `sheet.view.formulaBar` | Thanh công thức | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:48 |
+| Chế độ xem | `sheet.view.formulaBar` | Thanh công thức | LỆCH ĐÃ BIẾT | FIX-S12: CDP an thanh cong thuc trong giao dien nhung Excel COM ReadOnly doc DisplayFormulaBar=1 cho XLSX; handoff adapter trong docs/AGENT-HANDOFF-FIX-S12-VIEW-STATE.md | dom:48 |
 | Chế độ xem | `sheet.view.headings` | Tiêu đề | LỆCH ĐÃ BIẾT | FIX-S12: CDP đổi gridlinesVisible/headingsVisible thành false nhưng XLSX Excel COM ReadOnly giữ DisplayGridlines/Headings=1; handoff adapter ở docs/AGENT-HANDOFF-FIX-S12-VIEW-STATE.md | dom:47 |
 | Chế độ xem | `sheet.view.zoomIn` | Phóng to | LỆCH ĐÃ BIẾT | FIX-S12: CDP hien thi zoom 110%/90% tren giao dien nhung Excel COM ReadOnly doc ActiveWindow.Zoom=100 cho ca XLSX; handoff adapter trong docs/AGENT-HANDOFF-FIX-S12-VIEW-STATE.md | dom:7 |
 | Chế độ xem | `sheet.view.zoomReset` | 100% | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:7 |

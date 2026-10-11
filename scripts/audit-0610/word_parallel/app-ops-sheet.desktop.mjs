@@ -30,7 +30,7 @@ const ops = [
   ["zoomIn","A1","click","sheet.view.zoomIn"],
   ["zoomReset","A1","click","sheet.view.zoomReset"],
   ["zoomOut","A1","click","sheet.view.zoomOut"],
-  ["freezePanes","B2","click","sheet.view.freezePanes"],["gridlines","A1","click","sheet.view.gridlines"],["headings","A1","click","sheet.view.headings"],["printArea","A1","click","sheet.page.setPrintArea"],["clearArea","A1","click","sheet.page.clearPrintArea"],
+  ["freezePanes","B2","click","sheet.view.freezePanes"],["formulaBar","A1","click","sheet.view.formulaBar"],["gridlines","A1","click","sheet.view.gridlines"],["headings","A1","click","sheet.view.headings"],["printArea","A1","click","sheet.page.setPrintArea"],["clearArea","A1","click","sheet.page.clearPrintArea"],
   ["pageSetup","A1","pageSetup","sheet.page.margins","landscape"],
   ["rotation90","B2","orientation","sheet.cell.orientation","90"],
   ["widthControl","B2","widthControl",null,null],
