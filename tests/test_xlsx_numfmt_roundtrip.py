@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts" / "audit-0610"))
 
 import xlsx_numfmt_roundtrip as auditor
+from adapters.libreoffice.common import ooxml_zip_patch
 
 
 def make_mock_xlsx(styles_xml: str, sheet1_xml: str, sst_xml: str = "") -> bytes:
@@ -37,6 +38,41 @@ def make_mock_xlsx(styles_xml: str, sheet1_xml: str, sst_xml: str = "") -> bytes
 
 
 class XlsxNumfmtRoundtripTests(unittest.TestCase):
+    def test_accounting_postprocess_writes_standard_excel_format_from_fods(self):
+        styles = (
+            '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            '<fonts count="1"><font/></fonts><fills count="1"><fill/></fills>'
+            '<borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0"/></cellStyleXfs>'
+            '<cellXfs count="2"><xf numFmtId="0"/><xf numFmtId="0" xfId="0"/></cellXfs></styleSheet>'
+        )
+        sheet = (
+            '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            '<sheetData><row r="2"><c r="B2" s="1"><v>1234.5</v></c></row></sheetData></worksheet>'
+        )
+        xlsx = make_mock_xlsx(styles, sheet)
+        fods = (
+            '<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" '
+            'xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" '
+            'xmlns:vno="https://vnoffice.vn/ns/spreadsheet/1.0">'
+            '<table:table table:name="Sheet1"><table:table-row/><table:table-row table:number-rows-repeated="1">'
+            '<table:table-cell/><table:table-cell vno:number-format="{&quot;category&quot;:&quot;accounting&quot;,&quot;currencySymbol&quot;:&quot;₫&quot;,&quot;decimals&quot;:2}"/>'
+            '</table:table-row></table:table></office:document>'
+        )
+        replacements = {}
+        ooxml_zip_patch._apply_accounting_number_formats_from_fods(xlsx, fods, replacements)
+        self.assertIn("xl/styles.xml", replacements)
+        self.assertIn("xl/worksheets/sheet1.xml", replacements)
+        self.assertIn('_(* #,##0.00 [$₫]_)', replacements["xl/styles.xml"])
+        self.assertIn('r="B2" s="2"', replacements["xl/worksheets/sheet1.xml"])
+
+        imported_fods = fods.replace(
+            '&quot;decimals&quot;:2}',
+            '&quot;decimals&quot;:2,&quot;excelCode&quot;:&quot;custom-import-code&quot;}'
+        )
+        preserved = {}
+        ooxml_zip_patch._apply_accounting_number_formats_from_fods(xlsx, imported_fods, preserved)
+        self.assertEqual(preserved, {}, "Imported Accounting formats with original Excel metadata must remain untouched")
+
     def test_parse_styles_builtin_and_custom(self):
         styles = (
             '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'

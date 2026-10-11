@@ -3594,6 +3594,124 @@ def _preserve_external_formulas(
             replacements[out_entry] = out_sheet_xml
 
 
+def _apply_accounting_number_formats_from_fods(xlsx_bytes: bytes, source_fods: str, replacements: dict[str, str]) -> None:
+    """Restore Excel's Accounting format code for cells newly formatted in VN Sheet."""
+    try:
+        root = ET.fromstring(source_fods)
+    except (ET.ParseError, TypeError):
+        return
+
+    table_ns = "urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+    vno_ns = "https://vnoffice.vn/ns/spreadsheet/1.0"
+    office_ns = "urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+    main_ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+    rel_ns = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+    table_tag = f"{{{table_ns}}}table"
+    row_tag = f"{{{table_ns}}}table-row"
+    cell_tags = {f"{{{table_ns}}}table-cell", f"{{{table_ns}}}covered-table-cell"}
+    repeat_rows_attr = f"{{{table_ns}}}number-rows-repeated"
+    repeat_cols_attr = f"{{{table_ns}}}number-columns-repeated"
+    number_format_attr = f"{{{vno_ns}}}number-format"
+
+    def column_name(number: int) -> str:
+        label = ""
+        while number:
+            number, remainder = divmod(number - 1, 26)
+            label = chr(65 + remainder) + label
+        return label
+
+    target_cells: dict[str, dict] = {}
+    for table in root.iter(table_tag):
+        sheet_name = table.get(f"{{{table_ns}}}name", "")
+        row_number = 0
+        for row in table.iter(row_tag):
+            row_repeat = max(1, int(row.get(repeat_rows_attr, "1") or "1"))
+            column_number = 1
+            for cell in list(row):
+                if cell.tag not in cell_tags:
+                    continue
+                column_repeat = max(1, int(cell.get(repeat_cols_attr, "1") or "1"))
+                raw_format = cell.get(number_format_attr)
+                if raw_format and sheet_name:
+                    try:
+                        config = json.loads(raw_format)
+                    except (json.JSONDecodeError, TypeError):
+                        config = {}
+                    if config.get("category") == "accounting" and not config.get("excelCode") and not config.get("odf"):
+                        decimals = max(0, min(30, int(config.get("decimals", 2))))
+                        number = "#,##" + "0" + ("." + "0" * decimals if decimals else "")
+                        symbol = str(config.get("currencySymbol") or "₫")
+                        currency = f"[${symbol}]" if symbol in {"₫", "$", "€", "£", "¥"} else f'"{symbol}"'
+                        code = f'_(* {number} {currency}_);_(* ({number} {currency})_);_(* "-"?? {currency}_);_(@_)'
+                        for offset in range(column_repeat):
+                            target_cells[f"{sheet_name}!{column_name(column_number + offset)}{row_number + 1}"] = {"code": code}
+                column_number += column_repeat
+            row_number += row_repeat
+
+    if not target_cells:
+        return
+    sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+    by_sheet: dict[str, dict[str, str]] = {}
+    for key, item in target_cells.items():
+        sheet_name, address = key.rsplit("!", 1)
+        by_sheet.setdefault(sheet_name, {})[address] = item["code"]
+    sheet_paths = {name: _sheet_name_equivalent_value(sheet_entries, name) for name in by_sheet}
+    sheet_paths = {name: entry for name, entry in sheet_paths.items() if entry}
+    if not sheet_paths:
+        return
+
+    styles_bytes = read_zip_entry(xlsx_bytes, XLSX_STYLES_ENTRY)
+    if not styles_bytes:
+        return
+    styles = ET.fromstring(styles_bytes)
+    num_fmts = styles.find(f"{{{main_ns}}}numFmts")
+    if num_fmts is None:
+        num_fmts = ET.Element(f"{{{main_ns}}}numFmts", {"count": "0"})
+        styles.insert(0, num_fmts)
+    cell_xfs = styles.find(f"{{{main_ns}}}cellXfs")
+    if cell_xfs is None:
+        return
+    existing_formats = {node.get("formatCode", ""): int(node.get("numFmtId", "0")) for node in num_fmts}
+    next_num_fmt = max([163, *existing_formats.values()]) + 1
+    xfs: dict[tuple[int, str], int] = {}
+    for sheet_name, entry in sheet_paths.items():
+        sheet_bytes = read_zip_entry(xlsx_bytes, entry)
+        if not sheet_bytes:
+            continue
+        sheet = ET.fromstring(sheet_bytes)
+        changed = False
+        for cell in sheet.iter(f"{{{main_ns}}}c"):
+            address = cell.get("r", "")
+            code = by_sheet[sheet_name].get(address)
+            if not code:
+                continue
+            source_xf = int(cell.get("s", "0"))
+            key = (source_xf, code)
+            target_xf = xfs.get(key)
+            if target_xf is None:
+                num_fmt_id = existing_formats.get(code)
+                if num_fmt_id is None:
+                    num_fmt_id = next_num_fmt
+                    next_num_fmt += 1
+                    ET.SubElement(num_fmts, f"{{{main_ns}}}numFmt", {"numFmtId": str(num_fmt_id), "formatCode": code})
+                    existing_formats[code] = num_fmt_id
+                source_style = cell_xfs[source_xf] if source_xf < len(cell_xfs) else cell_xfs[0]
+                target_style = ET.fromstring(ET.tostring(source_style, encoding="utf-8"))
+                target_style.set("numFmtId", str(num_fmt_id))
+                target_style.set("applyNumberFormat", "1")
+                cell_xfs.append(target_style)
+                target_xf = len(cell_xfs) - 1
+                xfs[key] = target_xf
+            cell.set("s", str(target_xf))
+            changed = True
+        if changed:
+            replacements[entry] = ET.tostring(sheet, encoding="unicode")
+    if xfs:
+        num_fmts.set("count", str(len(num_fmts)))
+        cell_xfs.set("count", str(len(cell_xfs)))
+        replacements[XLSX_STYLES_ENTRY] = ET.tostring(styles, encoding="unicode")
+
+
 def postprocess_sheet_xlsx(
     xlsx_bytes: bytes,
     *,
@@ -3887,6 +4005,9 @@ def postprocess_sheet_xlsx(
                 replacements[XLSX_STYLES_ENTRY] = _restore_normal_font_in_styles(styles_xml, source_normal)
         except Exception:
             pass
+
+    if source_fods:
+        _apply_accounting_number_formats_from_fods(xlsx_bytes, source_fods, replacements)
 
     if not replacements:
         return xlsx_bytes

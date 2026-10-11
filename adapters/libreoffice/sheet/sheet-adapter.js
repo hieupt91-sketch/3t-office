@@ -128,15 +128,14 @@ export class SheetAdapter {
 
     // Build positive section (section 1)
     let posSection = numPattern;
-    if (cat === "currency" || cat === "accounting") {
+    if (cat === "accounting") {
       const symbol = currencySymbol || "₫";
-      if (cat === "accounting") {
-        posSection = `_(* ${symbol} ${numPattern}_);_(* ${negSection}${symbol} ${numPattern}`;
-        if (negativeStyle >= 2) posSection += ")";
-        posSection += ";_(* \"-\"??_)";
-      } else {
-        posSection = `${symbol} ${numPattern}`;
-      }
+      const symbolCode = symbol === "₫" ? "[$₫]" : `[${symbol}]`;
+      return `_(* ${numPattern} ${symbolCode}_);_(* (${numPattern} ${symbolCode})_);_(* \"-\"?? ${symbolCode}_);_(@_)`;
+    } else if (cat === "currency") {
+      const symbol = currencySymbol || "₫";
+      if (symbol === "₫") return `${numPattern} [$₫];-${numPattern} [$₫];${numPattern} [$₫];@`;
+      posSection = `${symbol} ${numPattern}`;
     } else if (cat === "percentage") {
       posSection = numPattern + "%";
     } else {
@@ -1653,6 +1652,9 @@ export class SheetAdapter {
       return this._numberFormatXmlFromExcelCode(config.excelCode, name);
     }
     const category = String(config.category || "number");
+    if (category === "currency" || category === "accounting") {
+      return this._numberFormatXmlFromExcelCode(this._excelCodeFromNumberFormat(config), name);
+    }
     const decimals = Math.max(0, Math.min(30, Number(config.decimals ?? (["currency", "accounting", "percentage", "scientific"].includes(category) ? 2 : 0))));
     const grouping = config.useThousands || category === "accounting" ? ' number:grouping="true"' : "";
     const number = `<number:number number:min-integer-digits="1" number:decimal-places="${decimals}" number:min-decimal-places="${decimals}"${grouping}/>`;
@@ -1685,7 +1687,7 @@ export class SheetAdapter {
       const rawSymbol = config.currencySymbol ?? "₫";
       const symbol = `<number:currency-symbol>${this._escapeXml(rawSymbol)}</number:currency-symbol>`;
       const after = config.symbolPosition === "after" || (config.symbolPosition === undefined && rawSymbol === "₫");
-      const spacer = category === "accounting" ? '<number:fill-character> </number:fill-character>' : "";
+      const spacer = category === "accounting" ? '<number:fill-character> </number:fill-character>' : '<number:text> </number:text>';
       return `<number:currency-style style:name="${name}">${after ? `${number}${spacer}${symbol}` : `${symbol}${spacer}${number}`}</number:currency-style>`;
     }
     if (category === "custom") {
@@ -1746,7 +1748,7 @@ export class SheetAdapter {
     } else if (currencySymbol) {
       // Currency
       const after = pos.indexOf(currencySymbol) > pos.indexOf("0") || pos.indexOf(currencySymbol) > pos.indexOf("#");
-      posBody = after ? `${numberEl}<number:fill-character> </number:fill-character><number:currency-symbol>${this._escapeXml(currencySymbol)}</number:currency-symbol>` : `<number:currency-symbol>${this._escapeXml(currencySymbol)}</number:currency-symbol><number:fill-character> </number:fill-character>${numberEl}`;
+      posBody = after ? `${numberEl}<number:text> </number:text><number:currency-symbol>${this._escapeXml(currencySymbol)}</number:currency-symbol>` : `<number:currency-symbol>${this._escapeXml(currencySymbol)}</number:currency-symbol><number:text> </number:text>${numberEl}`;
     } else if (/%/.test(pos)) {
       // Percentage
       posBody = `${numberEl}<number:text>%</number:text>`;
@@ -1769,7 +1771,7 @@ export class SheetAdapter {
       let negInner = numberEl;
       if (currencySymbol && !isAccounting) {
         const after = neg.indexOf(currencySymbol) > neg.indexOf("0") || neg.indexOf(currencySymbol) > neg.indexOf("#");
-        negInner = after ? `${numberEl}<number:fill-character> </number:fill-character><number:currency-symbol>${this._escapeXml(currencySymbol)}</number:currency-symbol>` : `<number:currency-symbol>${this._escapeXml(currencySymbol)}</number:currency-symbol><number:fill-character> </number:fill-character>${numberEl}`;
+        negInner = after ? `${numberEl}<number:text> </number:text><number:currency-symbol>${this._escapeXml(currencySymbol)}</number:currency-symbol>` : `<number:currency-symbol>${this._escapeXml(currencySymbol)}</number:currency-symbol><number:text> </number:text>${numberEl}`;
       } else if (isAccounting) {
         const symbol = currencySymbol || "₫";
         negInner = `<number:text> </number:text>${numberEl}<number:fill-character> </number:fill-character><number:currency-symbol>${this._escapeXml(symbol)}</number:currency-symbol><number:text> </number:text>`;

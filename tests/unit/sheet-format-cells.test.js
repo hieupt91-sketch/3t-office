@@ -200,6 +200,17 @@ export async function runSheetFormatCellsTests() {
     assert(grid.getColumnWidth("A") === 42, "Applying Date must preserve a user-sized column");
   });
 
+  test("Currency and Accounting export Excel-compatible VND number formats", () => {
+    const adapter = new SheetAdapter(new SheetGridController(mockContainer()));
+    const currencyCode = adapter._excelCodeFromNumberFormat({ category: "currency", currencySymbol: "₫", decimals: 2, useThousands: true });
+    const accountingCode = adapter._excelCodeFromNumberFormat({ category: "accounting", currencySymbol: "₫", decimals: 2, useThousands: true });
+    assert(currencyCode.startsWith('#,##0.00 [$₫]'), `Currency should use a spaced VND suffix, got ${currencyCode}`);
+    assert(accountingCode.includes("_(* #,##0.00 [$₫]_") && accountingCode.endsWith("_(@_)"),
+      `Accounting should use Excel's padded format sections, got ${accountingCode}`);
+    const currencyXml = adapter._numberFormatXml({ category: "currency", currencySymbol: "₫", decimals: 2, useThousands: true }, "n1");
+    assert(currencyXml.includes("<number:text> </number:text>"), "Currency spacing should survive the ODF style conversion");
+  });
+
   // 3. Unit Test Category Currency
   test("Category Currency: Định dạng tiền tệ VNĐ và USD với vị trí ký hiệu chuẩn", () => {
     const vnd = NumberFormatter.formatCurrency(5000000, { currencySymbol: "₫", decimals: 0, useThousands: true });
