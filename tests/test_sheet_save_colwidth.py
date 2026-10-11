@@ -161,5 +161,28 @@ class RowHeightRestore(unittest.TestCase):
         self.assertIn('<row r="2" ht="28.35" customHeight="1">', out)
 
 
+class FodsLayoutMetrics(unittest.TestCase):
+    def test_column_widths_and_repeated_row_heights_share_style_index(self):
+        fods = '''<office:document>
+<office:automatic-styles>
+<style:style style:name="col-wide"><style:table-column-properties style:column-width="2.50cm"/></style:style>
+<style:style style:name="row-tall"><style:table-row-properties style:row-height="0.75cm"/></style:style>
+</office:automatic-styles><office:body><office:spreadsheet>
+<table:table table:name="One">
+<table:table-column table:style-name="col-wide" table:number-columns-repeated="2"/>
+<table:table-row table:style-name="row-tall" table:number-rows-repeated="2"><table:table-cell/></table:table-row>
+<table:table-row><table:table-cell/></table:table-row>
+</table:table>
+<table:table table:name="Two"><table:table-column table:style-name="col-wide"/>
+<table:table-row table:style-name="row-tall"><table:table-cell/></table:table-row></table:table>
+</office:spreadsheet></office:body></office:document>'''
+        self.assertEqual(patcher._get_fods_column_widths_by_letter(fods), {
+            "One": {"A": 2.5, "B": 2.5}, "Two": {"A": 2.5},
+        })
+        self.assertEqual(patcher._extract_fods_row_heights_cm(fods), {
+            "One": {1: 0.75, 2: 0.75}, "Two": {1: 0.75},
+        })
+
+
 if __name__ == "__main__":
     unittest.main()
