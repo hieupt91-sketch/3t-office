@@ -155,3 +155,7 @@
 - Mở XLSX có Pivot đã tạo, đổi nguồn C2 từ 1234.5 thành 2222 qua CDP rồi bấm Làm mới Pivot.
 - Excel COM xác nhận C2 nguồn=2222 nhưng Pivot vẫn có Nguyễn Văn A=1234.5, lặp thêm các hàng Trần/Phạm và Total Result=20615.1; **LỆCH ĐÃ BIẾT**. Log `s12-pivotRefresh.log`, `excel-pivotRefresh.log`; ảnh `evidence/s12/fix-s12-pivotRefresh.png`.
 - Handoff cho adapter owner: `docs/AGENT-HANDOFF-FIX-S12-PIVOT-REFRESH.md`.
+
+## Dữ liệu: Nhóm/Bỏ nhóm hàng
+
+- CDP chọn hàng 2:6 bằng tiêu đề hàng, bấm Nhóm và lưu; Excel COM ReadOnly xác nhận `OutlineLevel=2`. Mở XLSX đó, chọn lại hàng 2:6 và bấm Bỏ nhóm; Excel COM xác nhận `OutlineLevel=1`. **KHỚP EXCEL**. Log `s12-groupRows.log`, `excel-groupRows.log`, `s12-ungroupRows.log`, `excel-ungroupRows.log`; ảnh `evidence/s12/fix-s12-groupRows.png`, `fix-s12-ungroupRows.png`.
