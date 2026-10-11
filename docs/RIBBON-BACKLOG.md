@@ -96,7 +96,7 @@ Toàn bộ phím tắt trong bảng tồn đọng trước đây đã được h
 
 | Nhóm | Tái hiện | Việc cần hoàn thiện | Owner |
 |---|---|---|---|
-| Ngắt dòng/cột | Shift+Enter không roundtrip thành soft break; khi chèn Column Break rồi gõ tiếp, DOCX bỏ chữ sau marker | Lưu w:br type=textWrapping; tách marker cột thành đoạn độc lập và giữ nội dung trước/sau; kiểm tra qua CDP + Word COM | Writer/Adapter |
+| Ngắt dòng mềm | Shift+Enter không roundtrip thành soft break; Column Break đã sửa ở FIX-T9 để giữ đoạn trước/sau | Lưu w:br type=textWrapping cho Shift+Enter; kiểm tra qua CDP + Word COM | Writer/Adapter |
 | Đầu/chân trang riêng | Cờ first/even-even lưu đúng nhưng canvas chỉ có vùng sửa header/footer mặc định | Thêm vùng chọn/biên tập Default/First/Even riêng, lưu và mở lại qua DOCX | Writer/Adapter |
 | Thư viện kiểu | Gallery hiện thiếu Subtitle và List Paragraph | Thêm hai preset có semantics DOCX built-in Style và bài hướng dẫn VI/EN | Writer |
 | Comments trả lời | App hiện chưa có thao tác trả lời chuỗi comment | Thêm reply UI, lưu comment thread và kiểm tra Word COM Replies | Writer/Adapter |

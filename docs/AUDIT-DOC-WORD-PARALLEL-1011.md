@@ -224,8 +224,8 @@ Phần “chưa chạy” này là ghi nhận giữa chừng, đã được thay
 ### FIX-T9 — Ngắt dòng/ngắt cột — 11/10/2026
 
 1. **App/CDP:** bật 2 cột, gõ `Alpha`, Shift+Enter, `Line after`, chèn **Bố cục > Ngắt > Ngắt cột**, gõ `Next column`; ảnh `E:\VNOffice-profiles\codex-ft9\line-column-break-t9.png`.
-2. **Word COM:** DOCX Word có 1 ngắt dòng mềm, 1 ngắt cột và đủ ba chuỗi; DOCX app có 0 ngắt dòng mềm, 1 ngắt cột, giữ `Alpha`/`Line after` nhưng mất `Next column`.
-3. **Kết quả:** **LỆCH**; app xuất w:br column nhưng sentinel cùng đoạn làm mất nội dung theo sau; Shift+Enter không roundtrip thành ngắt dòng mềm. Tái hiện/harness `line-column-break-t9.desktop.mjs` và `word-line-column-break-t9.ps1`; chưa có bản sửa an toàn.
+2. **Word COM:** sau sửa, app và Word đều có 2 cột, 1 ngắt cột, giữ đủ `Alpha`/`Line after`/`Next column`; Word có 1 soft break, app có 0.
+3. **Kết quả/sửa:** ngắt cột **KHỚP** sau khi tách marker thành paragraph riêng và đưa caret vào paragraph sau; Shift+Enter vẫn **LỆCH**. Harness `line-column-break-t9.desktop.mjs` + `word-line-column-break-t9.ps1` xác nhận.
 
 ### FIX-T9 — Chú thích cuối trang/cuối tài liệu — 11/10/2026
 

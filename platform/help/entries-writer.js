@@ -124,7 +124,7 @@ export const WRITER_HELP_ENTRIES = [
       "Đặt con trỏ tại vị trí cần bắt đầu vùng định dạng mới.",
       "Mở tab Bố cục, nhóm Thiết lập trang, mở Ngắt rồi chọn Trang kế tiếp, Liên tục, Trang chẵn hoặc Trang lẻ trong nhóm Ngắt mục.",
       "Sau mốc ngắt, chọn Căn lề, Hướng giấy hoặc Khổ giấy trên cùng nhóm. Thay đổi chỉ được lưu cho mục đang hoạt động; mục trước giữ nguyên.",
-      "Ngắt cột chỉ có hiệu lực rõ khi tài liệu đang dùng từ hai cột trở lên. Dùng Ctrl+Z/Ctrl+Y để hoàn tác hoặc làm lại mốc ngắt cùng thiết lập trang."
+      "Để chuyển phần chữ sau con trỏ sang cột kế, mở Bố cục > Ngắt > Ngắt cột; tài liệu cần có từ hai cột trở lên. Dùng Ctrl+Z/Ctrl+Y để hoàn tác hoặc làm lại mốc ngắt."
     ]
   },
   {
