@@ -84,6 +84,8 @@ export function isFontAvailable(fontName) {
   return false;
 }
 
+const POWERPOINT_FONT_SIZES = [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 44, 48, 54, 60, 66, 72, 80, 88, 96];
+
 export function resolveDisplayFont(name, genericFamily) {
   if (!name) return "Arial";
   const clean = String(name).replace(/['"]/g, "").trim();
@@ -442,22 +444,24 @@ export class SlidesAdapter {
     const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
     let node = selection?.anchorNode;
     if (node?.nodeType === 3) node = node.parentNode;
-    const current = (typeof window !== "undefined" && node && window.getComputedStyle)
-      ? parseInt(window.getComputedStyle(node).fontSize, 10)
+    const cssPixels = (typeof window !== "undefined" && node && window.getComputedStyle)
+      ? parseFloat(window.getComputedStyle(node).fontSize)
       : 16;
-    const nextSize = Math.max(10, Math.min(96, (Number.isFinite(current) ? current : 16) + delta * 4));
-    document.execCommand("fontSize", false, "7");
-    const root = this._savedEditable || this.canvas?.canvasEl;
-    const fonts = root?.getElementsByTagName?.("font") || [];
-    for (let index = 0; index < fonts.length; index++) {
-      if (fonts[index].size === "7" || fonts[index].getAttribute?.("size") === "7") {
-        fonts[index].removeAttribute("size");
-        fonts[index].style.fontSize = `${nextSize}px`;
+    const currentPt = (Number.isFinite(cssPixels) ? cssPixels : 16) * this._ptPerPx();
+    const direction = delta < 0 ? -1 : 1;
+    const nextPt = this._nextPowerPointFontSize(currentPt, direction);
+    if (nextPt == null) return true;
+    return this._applyFontSizePt(nextPt);
+  }
+
+  _nextPowerPointFontSize(currentPt, direction) {
+    if (direction < 0) {
+      for (let index = POWERPOINT_FONT_SIZES.length - 1; index >= 0; index--) {
+        if (POWERPOINT_FONT_SIZES[index] < currentPt - 0.01) return POWERPOINT_FONT_SIZES[index];
       }
+      return POWERPOINT_FONT_SIZES[0];
     }
-    this.canvas?._syncEditableFieldsFromDom?.();
-    this._syncTextFormatState();
-    return true;
+    return POWERPOINT_FONT_SIZES.find(size => size > currentPt + 0.01) ?? null;
   }
 
   /** Giá trị ô Cỡ chữ trên ribbon ("1".."7" = 10/13/16/18/24/32/48) hoặc số pt trực tiếp. */
@@ -983,7 +987,7 @@ export class SlidesAdapter {
           strike: /style:text-line-through-style=["'](?!none)[^"']+["']/i.test(inner),
           color: inner.match(/fo:color=["']([^"']+)["']/i)?.[1],
           bg: inner.match(/fo:background-color=["']([^"']+)["']/i)?.[1],
-          family: inner.match(/fo:font-family=["']([^"']+)["']/i)?.[1] || inner.match(/style:font-name=["']([^"']+)["']/i)?.[1],
+          family: this._resolveFodpFontName(inner.match(/fo:font-family=["']([^"']+)["']/i)?.[1] || inner.match(/style:font-name=["']([^"']+)["']/i)?.[1]),
           genericFamily: inner.match(/style:font-family-generic=["']([^"']+)["']/i)?.[1],
           size: inner.match(/fo:font-size=["']([^"']+)["']/i)?.[1]
         });
@@ -997,6 +1001,7 @@ export class SlidesAdapter {
         para.set(name, {
           align: inner.match(/fo:text-align=["']([^"']+)["']/i)?.[1],
           fontSize: inner.match(/fo:font-size=["']([^"']+)["']/i)?.[1],
+          fontFamily: this._resolveFodpFontName(inner.match(/fo:font-family=["']([^"']+)["']/i)?.[1] || inner.match(/style:font-name=["']([^"']+)["']/i)?.[1]),
           bold: isBold,
           weight: weightMatch || (isBold ? "bold" : null),
           fontWeight: weightMatch || (isBold ? "bold" : null),
@@ -1013,6 +1018,26 @@ export class SlidesAdapter {
       list.set(name, /list-level-style-number/i.test(match[2] || "") ? "number" : "bullet");
     }
     return { text, para, list };
+  }
+
+  _resolveFodpFontName(fontName) {
+    if (!fontName) return fontName;
+    const key = this._unescapeXml(String(fontName).replace(/["']/g, "").trim());
+    const resolved = this._fontFaceMap?.get(key);
+    if (!resolved) return key;
+    return this._unescapeXml(String(resolved).replace(/["']/g, "").split(",")[0].trim());
+  }
+
+  _parseFontFaceMap(xmlText) {
+    const fonts = new Map();
+    const regex = /<style:font-face\b([^>]*)\/?\s*>/gi;
+    let match;
+    while ((match = regex.exec(String(xmlText || ""))) !== null) {
+      const name = this._attr(match[1], "style:name");
+      const family = this._attr(match[1], "svg:font-family");
+      if (name && family) fonts.set(this._unescapeXml(name), this._unescapeXml(family));
+    }
+    return fonts;
   }
 
   _odfInlineToHtml(inner, maps) {
@@ -1074,6 +1099,7 @@ export class SlidesAdapter {
         const styles = [];
         if (para.align) styles.push(`text-align:${para.align}`);
         if (para.fontSize) styles.push(`font-size:${para.fontSize}`);
+        if (para.fontFamily) styles.push(`font-family:'${para.fontFamily.replace(/["']/g, "").trim()}'`);
         if (para.lineHeight) {
           // para.lineHeight đã ở dạng CSS (qua _odfProportionalToCssLineHeight khi parse);
           // giá trị % còn sót (từ nguồn khác) được quy đổi tại đây cho cùng một quy tắc.
@@ -2328,7 +2354,7 @@ export class SlidesAdapter {
       const fontSize = match[2].match(/fo:font-size=["']([^"']+)["']/i)?.[1];
       const fontWeight = match[2].match(/fo:font-weight=["']([^"']+)["']/i)?.[1];
       const fontColor = match[2].match(/fo:color=["']([^"']+)["']/i)?.[1];
-      const fontFamily = match[2].match(/fo:font-family=["']([^"']+)["']/i)?.[1] || match[2].match(/style:font-name=["']([^"']+)["']/i)?.[1];
+      const fontFamily = this._resolveFodpFontName(match[2].match(/fo:font-family=["']([^"']+)["']/i)?.[1] || match[2].match(/style:font-name=["']([^"']+)["']/i)?.[1]);
       let strokeWidth = null;
       if (strokeWidthRaw) {
         strokeWidth = this._odfLengthToPx(strokeWidthRaw, false);
@@ -3404,6 +3430,7 @@ export class SlidesAdapter {
   parseFodp(xmlText) {
     if (!xmlText) return [];
     const parsedSlides = [];
+    this._fontFaceMap = this._parseFontFaceMap(xmlText);
     const graphicStyles = this._parseGraphicFillStyles(xmlText);
     const drawingPageStyles = this._parseDrawingPageStyles(xmlText);
     const backgroundResources = this._parseBackgroundResources(xmlText);

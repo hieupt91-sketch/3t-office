@@ -182,6 +182,17 @@ export async function runSlidesFontParagraphTests() {
   };
   const adapter = new SlidesAdapter(canvas);
 
+  await test("Font size: grow/shrink follows PowerPoint's point-size ladder", () => {
+    const expected = [
+      [18, 1, 20], [20, 1, 24], [24, -1, 20], [10.5, 1, 11],
+      [8, -1, 8], [96, 1, null]
+    ];
+    for (const [current, direction, want] of expected) {
+      const got = adapter._nextPowerPointFontSize(current, direction);
+      if (got !== want) throw new Error(`${current}pt direction ${direction}: expected ${want}, got ${got}`);
+    }
+  });
+
   await test("Font/Paragraph: handleDispatch slides.text.bold gọi execCommand('bold') và trả queryCommandState", async () => {
     execCalls.length = 0;
     commandState.bold = false;

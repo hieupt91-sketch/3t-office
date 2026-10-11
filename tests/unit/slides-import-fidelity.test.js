@@ -340,5 +340,18 @@ export async function runSlidesImportFidelityTests() {
     }
   });
 
+  await test("font-face aliases resolve to their declared real family names", async () => {
+    const adapter = new SlidesAdapter(null);
+    const fontXml = `<office:font-face-decls><style:font-face style:name="Arial1" svg:font-family="Arial"/><style:font-face style:name="Times New Roman1" svg:font-family="Times New Roman"/><style:font-face style:name="Calibri1" svg:font-family="Calibri"/></office:font-face-decls>
+      <style:style style:name="t1" style:family="text"><style:text-properties style:font-name="Arial1"/></style:style>
+      <style:style style:name="g1" style:family="graphic"><style:text-properties style:font-name="Times New Roman1"/></style:style>`;
+    adapter._fontFaceMap = adapter._parseFontFaceMap(fontXml);
+    const maps = adapter._parseRichStyleMaps(fontXml);
+    assert(maps.text.get("t1").family === "Arial", `Arial alias resolved incorrectly: ${maps.text.get("t1").family}`);
+    const graphics = adapter._parseGraphicFillStyles(fontXml);
+    assert(graphics.get("g1").fontFamily === "Times New Roman", `spaced family alias resolved incorrectly: ${graphics.get("g1").fontFamily}`);
+    assert(adapter._resolveFodpFontName("Calibri1") === "Calibri", "Calibri alias must resolve to Calibri");
+  });
+
   return results;
 }
