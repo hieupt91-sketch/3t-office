@@ -9212,6 +9212,13 @@ _bindGridKeyboardNavigation() {
     const level = Math.max(0, Math.round((next - 8) / 12));
     const changed = this.setStyle("paddingLeft", `${next}px`);
     this.setStyle("indentLevel", level);
+    const updated = this.cellsData.get(key);
+    if (updated?.style) {
+      // Imported UI state can already be zero while the original XLSX XF has
+      // indent=1. An explicit decrease must invalidate that source-XF marker.
+      delete updated.style.origXf;
+      delete updated.style.styleHashAtImport;
+    }
     return changed;
   }
 

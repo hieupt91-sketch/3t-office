@@ -217,6 +217,13 @@ export class SheetAdapter {
     return true;
   }
 
+  async _refreshPivotTable() {
+    if (!this.grid?.pivotTableEngine && typeof this.grid?._loadPivotEngine === "function") {
+      await this.grid._loadPivotEngine();
+    }
+    return this.grid?.refreshPivotTable?.() || false;
+  }
+
   _bindFormatPainterRibbon() {
     if (this._formatPainterRibbonBound) return;
     if (typeof document === "undefined" || typeof document.addEventListener !== "function") return;
@@ -293,7 +300,7 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.data.dataTable", () => this.grid.showDataTableDialog());
     globalCommandBus.bindHandler("sheet.data.scenarioManager", () => this.grid.showScenarioManagerDialog());
     globalCommandBus.bindHandler("sheet.data.pivotTable", () => this.grid.showPivotTableDialog());
-    globalCommandBus.bindHandler("sheet.data.pivotRefresh", () => this.grid.refreshPivotTable());
+    globalCommandBus.bindHandler("sheet.data.pivotRefresh", () => this._refreshPivotTable());
     globalCommandBus.bindHandler("sheet.chart.pivotChart", () => this.grid.openPivotChartBuilder());
     globalCommandBus.bindHandler("sheet.formula.nameManager", (args) => {
       args = args || {};
@@ -6232,7 +6239,7 @@ ${pristineXlsxMarker}
         return this.grid.showPivotTableDialog();
 
       case "sheet.data.pivotRefresh":
-        return this.grid.refreshPivotTable();
+        return this._refreshPivotTable();
 
       case "sheet.style.formatAsTable":
         return this.grid.showFormatAsTableDialog ? this.grid.showFormatAsTableDialog() : false;
