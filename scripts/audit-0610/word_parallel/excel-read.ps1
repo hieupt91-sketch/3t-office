@@ -1,5 +1,5 @@
 ﻿param([string[]]$Files)
-$cellMap=@{ bold="E2"; italic="E2"; underline="E2"; size16="E2"; fontArial="E2"; fillDefault="E2"; textColorDefault="E2"; alignCenter="E2"; alignRight="E2"; wrap="E2"; numNumber="B2"; numCurrency="B2"; numAccounting="B2"; numPercent="C2"; numDate="D2"; decInc="B2"; decDec="B2"; thousands="B2"; percentBtn="C2"; bordersDefault="E2" }
+$cellMap=@{ bold="B2"; italic="B2"; underline="B2"; size16="B2"; fontArial="B2"; fillDefault="B2"; textColorDefault="B2"; alignCenter="B2"; alignRight="B2"; wrap="B2"; numNumber="C2"; numCurrency="C2"; numAccounting="C2"; numPercent="D2"; numDate="E2"; decInc="C2"; decDec="C2"; standard="C2"; percentBtn="D2"; bordersDefault="B2" }
 $ErrorActionPreference = "Stop"
 
 function Invoke-ComWithRetry([scriptblock]$Action, [string]$Operation, [int]$Retries = 20) {
