@@ -22,6 +22,7 @@ Keep the XML transform in lock step with the JS helpers.
 from __future__ import annotations
 
 import argparse
+import difflib
 import multiprocessing
 from concurrent.futures import ProcessPoolExecutor
 import html
@@ -1523,6 +1524,8 @@ def _apply_filter_database_names(xlsx_bytes: bytes, autofilter_by_sheet: dict[st
 
 def parse_scenarios_from_fods(fods_xml: str | None) -> dict[str, list[dict]]:
     result: dict[str, list[dict]] = {}
+    if not fods_xml or 'vno:scenarios="' not in fods_xml:
+        return result
     for match in re.finditer(r"<table:table\b([^>]*)>", fods_xml or "", re.IGNORECASE):
         attrs = match.group(1)
         name_m = re.search(r'table:name="([^"]*)"', attrs, re.IGNORECASE)
@@ -1697,13 +1700,27 @@ def overlay_page_margins_to_fods(xlsx_bytes: bytes, fods_xml: str) -> str:
 def parse_print_titles_from_fods(fods_xml: str | None) -> list[tuple[str, str, str]]:
     """Return [(sheet name, row titles, column titles)] in workbook order."""
     result: list[tuple[str, str, str]] = []
-    for match in re.finditer(r"<table:table\b([^>]*)>", fods_xml or "", re.IGNORECASE):
-        attrs = match.group(1)
+    xml = fods_xml or ""
+    pos = 0
+    marker = "<table:table"
+    while True:
+        start = xml.find(marker, pos)
+        if start < 0:
+            break
+        attrs_start = start + len(marker)
+        if attrs_start < len(xml) and xml[attrs_start] not in " \t\r\n>":
+            pos = attrs_start
+            continue
+        end = xml.find(">", attrs_start)
+        if end < 0:
+            break
+        attrs = xml[attrs_start:end]
         name = re.search(r'table:name="([^"]*)"', attrs, re.IGNORECASE)
         rows = re.search(r'vno:print-title-rows="([^"]*)"', attrs, re.IGNORECASE)
         cols = re.search(r'vno:print-title-cols="([^"]*)"', attrs, re.IGNORECASE)
         if name:
             result.append((_unescape_xml(name.group(1)), _unescape_xml(rows.group(1)) if rows else "", _unescape_xml(cols.group(1)) if cols else ""))
+        pos = end + 1
     return result
 
 
@@ -1862,45 +1879,7 @@ def _get_fods_column_widths_by_letter(fods_xml: str) -> dict[str, dict[str, floa
     
     Returns dict: sheet_name -> {col_letter: width_cm}
     """
-    result: dict[str, dict[str, float]] = {}
-    for table_match in re.finditer(r"<table:table\b([^>]*)>([\s\S]*?)</table:table>", fods_xml, re.IGNORECASE):
-        table_attrs, table_body = table_match.group(1), table_match.group(2)
-        name_match = re.search(r'table:name="([^"]*)"', table_attrs)
-        sheet_name = _unescape_xml(name_match.group(1)) if name_match else ""
-        if not sheet_name:
-            continue
-        cols: dict[str, float] = {}
-        col_index = 0
-        # Iterate through column definitions in order
-        for col_match in re.finditer(r"<table:table-column\b([^>]*)/>", table_body, re.IGNORECASE):
-            col_attrs = col_match.group(1)
-            style_match = re.search(r'table:style-name="([^"]*)"', col_attrs)
-            repeat_match = re.search(r'table:number-columns-repeated="(\d+)"', col_attrs)
-            repeat = int(repeat_match.group(1)) if repeat_match else 1
-            has_width = False
-            if style_match:
-                style_name = style_match.group(1)
-                # Find the column style to get width
-                style_pattern = rf'<style:style\b[^>]*style:name="{re.escape(style_name)}"[^>]*>[\s\S]*?<style:table-column-properties\b[^>]*style:column-width="([\d.]+)cm"'
-                style_match2 = re.search(style_pattern, fods_xml, re.IGNORECASE)
-                if style_match2:
-                    width_cm = float(style_match2.group(1))
-                    has_width = True
-                    for _ in range(repeat):
-                        col_index += 1
-                        # Convert index to column letter (1-based)
-                        number = col_index
-                        name = ""
-                        while number:
-                            number, remainder = divmod(number - 1, 26)
-                            name = chr(65 + remainder) + name
-                        cols[name] = width_cm
-            if not has_width:
-                # No style or no width - skip but still count
-                col_index += repeat
-        if cols:
-            result[sheet_name] = cols
-    return result
+    return _extract_fods_layout_metrics(fods_xml)[0]
 
 
 def _extract_fods_row_heights_cm(fods_xml: str) -> dict[str, dict[int, float]]:
@@ -1908,38 +1887,107 @@ def _extract_fods_row_heights_cm(fods_xml: str) -> dict[str, dict[int, float]]:
     
     Returns dict: sheet_name -> {row_number: height_cm}
     """
-    result: dict[str, dict[int, float]] = {}
-    for table_match in re.finditer(r"<table:table\b([^>]*)>([\s\S]*?)</table:table>", fods_xml, re.IGNORECASE):
-        table_attrs, table_body = table_match.group(1), table_match.group(2)
-        name_match = re.search(r'table:name="([^"]*)"', table_attrs)
-        sheet_name = _unescape_xml(name_match.group(1)) if name_match else ""
+    return _extract_fods_layout_metrics(fods_xml)[1]
+
+
+def _extract_fods_layout_metrics(
+    fods_xml: str,
+) -> tuple[dict[str, dict[str, float]], dict[str, dict[int, float]]]:
+    """Read column widths and row heights in one FODS pass.
+
+    Style-name lookups used to search the complete FODS once per column/row.
+    Large sheets can contain hundreds of thousands of rows, so index styles
+    once and resolve both layout maps while visiting each table.
+    """
+    column_widths_by_style: dict[str, float] = {}
+    row_heights_by_style: dict[str, float] = {}
+    for style_match in re.finditer(
+        r'<style:style\b([^>]*)>([\s\S]*?)</style:style>', fods_xml, re.IGNORECASE
+    ):
+        attrs, body = style_match.groups()
+        name = re.search(r'\bstyle:name="([^"]*)"', attrs)
+        if not name:
+            continue
+        style_name = name.group(1)
+        if style_name not in column_widths_by_style:
+            width = re.search(
+                r'<style:table-column-properties\b[^>]*\bstyle:column-width="([\d.]+)cm"',
+                body, re.IGNORECASE,
+            )
+            if width:
+                column_widths_by_style[style_name] = float(width.group(1))
+        if style_name not in row_heights_by_style:
+            height = re.search(
+                r'<style:table-row-properties\b[^>]*\bstyle:row-height="([\d.]+)cm"',
+                body, re.IGNORECASE,
+            )
+            if height:
+                row_heights_by_style[style_name] = float(height.group(1))
+
+    columns_by_sheet: dict[str, dict[str, float]] = {}
+    rows_by_sheet: dict[str, dict[int, float]] = {}
+    # Visit only table, column, and row tags. Capturing table/row bodies here
+    # copied hundreds of MB of cell XML even though layout restoration needs
+    # only the attributes on these tags.
+    event_re = re.compile(
+        r'<table:table(?=[\s>])([^>]*)>|</table:table\s*>|'
+        r'<table:table-column(?=[\s>])([^>]*)/>|'
+        r'<table:table-row(?=[\s>])([^>]*)>',
+        re.IGNORECASE,
+    )
+    style_name_re = re.compile(r'table:style-name="([^"]*)"', re.IGNORECASE)
+    sheet_name = ""
+    columns: dict[str, float] = {}
+    rows: dict[int, float] = {}
+    col_index = 0
+    row_number = 0
+    for event in event_re.finditer(fods_xml):
+        if event.group(1) is not None:
+            name_match = re.search(r'table:name="([^"]*)"', event.group(1))
+            sheet_name = _unescape_xml(name_match.group(1)) if name_match else ""
+            columns, rows = {}, {}
+            col_index = row_number = 0
+            continue
+        if event.group(2) is None and event.group(3) is None:
+            if sheet_name:
+                if columns:
+                    columns_by_sheet[sheet_name] = columns
+                if rows:
+                    rows_by_sheet[sheet_name] = rows
+            sheet_name = ""
+            continue
         if not sheet_name:
             continue
-        rows: dict[int, float] = {}
-        row_number = 0
-        # Iterate through rows
-        for row_match in re.finditer(r"<table:table-row\b([^>]*)>([\s\S]*?)</table:table-row>", table_body, re.IGNORECASE):
-            row_attrs = row_match.group(1)
-            style_match = re.search(r'table:style-name="([^"]*)"', row_attrs)
-            repeat_match = re.search(r'table:number-rows-repeated="(\d+)"', row_attrs)
+        if event.group(2) is not None:
+            attrs = event.group(2)
+            style = style_name_re.search(attrs)
+            repeat_match = re.search(r'table:number-columns-repeated="(\d+)"', attrs)
             repeat = int(repeat_match.group(1)) if repeat_match else 1
-            has_height = False
-            if style_match:
-                style_name = style_match.group(1)
-                # Find the row style to get height
-                style_pattern = rf'<style:style\b[^>]*style:name="{re.escape(style_name)}"[^>]*>[\s\S]*?<style:table-row-properties\b[^>]*style:row-height="([\d.]+)cm"'
-                style_match2 = re.search(style_pattern, fods_xml, re.IGNORECASE)
-                if style_match2:
-                    height_cm = float(style_match2.group(1))
-                    has_height = True
-                    for _ in range(repeat):
-                        row_number += 1
-                        rows[row_number] = height_cm
-            if not has_height:
+            width = column_widths_by_style.get(style.group(1)) if style else None
+            if width is not None:
+                for _ in range(repeat):
+                    col_index += 1
+                    number = col_index
+                    letters = ""
+                    while number:
+                        number, remainder = divmod(number - 1, 26)
+                        letters = chr(65 + remainder) + letters
+                    columns[letters] = width
+            else:
+                col_index += repeat
+        else:
+            attrs = event.group(3)
+            style = style_name_re.search(attrs)
+            repeat_match = re.search(r'table:number-rows-repeated="(\d+)"', attrs)
+            repeat = int(repeat_match.group(1)) if repeat_match else 1
+            height = row_heights_by_style.get(style.group(1)) if style else None
+            if height is not None:
+                for _ in range(repeat):
+                    row_number += 1
+                    rows[row_number] = height
+            else:
                 row_number += repeat
-        if rows:
-            result[sheet_name] = rows
-    return result
+    return columns_by_sheet, rows_by_sheet
 
 
 def _restore_normal_font_and_layout(
@@ -1971,8 +2019,7 @@ def _restore_normal_font_and_layout(
             replacements["xl/styles.xml"] = new_styles_xml
     
     # 2. Extract column widths from FODS (in cm)
-    fods_col_widths = _get_fods_column_widths_by_letter(source_fods)
-    fods_row_heights = _extract_fods_row_heights_cm(source_fods)
+    fods_col_widths, fods_row_heights = _extract_fods_layout_metrics(source_fods)
     fods_auto_rows = parse_auto_rows_from_fods(source_fods)
 
     # 3. Process each worksheet
@@ -2084,8 +2131,7 @@ def _apply_new_workbook_defaults(
         if restored_theme != theme_xml:
             replacements["xl/theme/theme1.xml"] = restored_theme
 
-    fods_col_widths = _get_fods_column_widths_by_letter(source_fods or "")
-    fods_row_heights = _extract_fods_row_heights_cm(source_fods or "")
+    fods_col_widths, fods_row_heights = _extract_fods_layout_metrics(source_fods or "")
     for sheet_name, entry_path in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
         entry = read_zip_entry(xlsx_bytes, entry_path)
         if not entry:
@@ -2311,30 +2357,34 @@ def _restore_empty_string_cells_step(xlsx_bytes: bytes, source_xlsx_bytes: bytes
             replacements["xl/sharedStrings.xml"] = sst_xml
         return out_empty_idx
 
+    source_repair_index = _index_memo_get("source_cell_repairs", source_xlsx_bytes)
     for sheet_name, entry_path in sheet_entries.items():
         if sheet_name not in source_sheet_entries:
             continue
-        source_bytes = read_zip_entry(source_xlsx_bytes, source_sheet_entries[sheet_name])
-        if not source_bytes:
-            continue
-        source_xml = source_bytes.decode("utf-8", errors="replace")
-        wanted: dict[str, int | None] = {}  # coord -> chỉ số xf gốc
-        for m in cell_re.finditer(source_xml):
-            attrs = _xml_attrs(m.group(1))
-            coord = (attrs.get("r") or "").upper()
-            kind = (attrs.get("t") or "").lower()
-            body = m.group(2) or ""
-            if not coord:
+        if source_repair_index is not _INDEX_MISS:
+            wanted = source_repair_index.get(sheet_name, {}).get("empty", {})
+        else:
+            source_bytes = read_zip_entry(source_xlsx_bytes, source_sheet_entries[sheet_name])
+            if not source_bytes:
                 continue
-            is_empty = False
-            if kind == "s":
-                v = re.search(r"<v>\s*(\d+)\s*</v>", body)
-                is_empty = bool(v) and int(v.group(1)) in src_empty
-            elif kind == "inlinestr":
-                texts = re.findall(r"<t\b[^>]*>([\s\S]*?)</t>", body, re.IGNORECASE)
-                is_empty = not texts or all(t == "" for t in texts)
-            if is_empty:
-                wanted[coord] = int(attrs["s"]) if attrs.get("s", "").isdigit() else None
+            source_xml = source_bytes.decode("utf-8", errors="replace")
+            wanted: dict[str, int | None] = {}  # coord -> chỉ số xf gốc
+            for m in cell_re.finditer(source_xml):
+                attrs = _xml_attrs(m.group(1))
+                coord = (attrs.get("r") or "").upper()
+                kind = (attrs.get("t") or "").lower()
+                body = m.group(2) or ""
+                if not coord:
+                    continue
+                is_empty = False
+                if kind == "s":
+                    v = re.search(r"<v>\s*(\d+)\s*</v>", body)
+                    is_empty = bool(v) and int(v.group(1)) in src_empty
+                elif kind == "inlinestr":
+                    texts = re.findall(r"<t\b[^>]*>([\s\S]*?)</t>", body, re.IGNORECASE)
+                    is_empty = not texts or all(t == "" for t in texts)
+                if is_empty:
+                    wanted[coord] = int(attrs["s"]) if attrs.get("s", "").isdigit() else None
         if not wanted:
             continue
         sheet_xml = replacements.get(entry_path)
@@ -2440,26 +2490,32 @@ def _restore_literal_error_cells_step(xlsx_bytes: bytes, source_xlsx_bytes: byte
     for sheet_name, entry_path in sheet_entries.items():
         if sheet_name not in source_sheet_entries:
             continue
-        source_bytes = read_zip_entry(source_xlsx_bytes, source_sheet_entries[sheet_name])
-        if not source_bytes:
-            continue
-        source_xml = source_bytes.decode("utf-8", errors="replace")
-        literal_errors: dict[str, str] = {}
-        source_formulas: dict[str, str] = {}  # coord -> chữ công thức gốc (không shared/array)
-        # `(?:[^>/]|/(?!>))*` — không nuốt <c .../> tự đóng (nếu không, body sẽ chứa ô kế tiếp)
-        for m in re.finditer(r'<c\b((?:[^>/]|/(?!>))*)>([\s\S]*?)</c>', source_xml, re.IGNORECASE):
-            coord = re.search(r'\br="([A-Z]+\d+)"', m.group(1), re.IGNORECASE)
-            if not coord:
+        cached_repairs = _index_memo_get("source_cell_repairs", source_xlsx_bytes)
+        if cached_repairs is not _INDEX_MISS:
+            sheet_repairs = cached_repairs.get(sheet_name, {})
+            literal_errors = sheet_repairs.get("literal_errors", {})
+            source_formulas = sheet_repairs.get("formulas", {})
+        else:
+            source_bytes = read_zip_entry(source_xlsx_bytes, source_sheet_entries[sheet_name])
+            if not source_bytes:
                 continue
-            formula = re.search(r"<f\b([^>]*)>([\s\S]*?)</f>", m.group(2), re.IGNORECASE)
-            if formula:
-                if not re.search(r'\bt="', formula.group(1), re.IGNORECASE):
-                    source_formulas[coord.group(1).upper()] = formula.group(2)
-                continue
-            if re.search(r'\bt="e"', m.group(1), re.IGNORECASE):
-                value = re.search(r"<v>([\s\S]*?)</v>", m.group(2), re.IGNORECASE)
-                if value:
-                    literal_errors[coord.group(1).upper()] = value.group(1).strip()
+            source_xml = source_bytes.decode("utf-8", errors="replace")
+            literal_errors: dict[str, str] = {}
+            source_formulas: dict[str, str] = {}  # coord -> chữ công thức gốc (không shared/array)
+            # `(?:[^>/]|/(?!>))*` — không nuốt <c .../> tự đóng (nếu không, body sẽ chứa ô kế tiếp)
+            for m in re.finditer(r'<c\b((?:[^>/]|/(?!>))*)>([\s\S]*?)</c>', source_xml, re.IGNORECASE):
+                coord = re.search(r'\br="([A-Z]+\d+)"', m.group(1), re.IGNORECASE)
+                if not coord:
+                    continue
+                formula = re.search(r"<f\b([^>]*)>([\s\S]*?)</f>", m.group(2), re.IGNORECASE)
+                if formula:
+                    if not re.search(r'\bt="', formula.group(1), re.IGNORECASE):
+                        source_formulas[coord.group(1).upper()] = formula.group(2)
+                    continue
+                if re.search(r'\bt="e"', m.group(1), re.IGNORECASE):
+                    value = re.search(r"<v>([\s\S]*?)</v>", m.group(2), re.IGNORECASE)
+                    if value:
+                        literal_errors[coord.group(1).upper()] = value.group(1).strip()
         if not literal_errors and not source_formulas:
             continue
         sheet_xml = replacements.get(entry_path)
@@ -2670,6 +2726,22 @@ def _restore_formula_results_and_missing_errors_step(
     """Preserve cached formula results and formula-error cells that LibreOffice drops."""
     out_entries = _resolve_xlsx_sheet_entries(xlsx_bytes); src_entries = _resolve_xlsx_sheet_entries(source_xlsx_bytes)
     cell_re = re.compile(r'<c\b((?:[^>/]|/(?!>))*)(?:/>|>([\s\S]*?)</c>)', re.IGNORECASE)
+    source_repairs: dict[str, dict[str, dict]] = {}
+    source_sst = read_zip_entry(source_xlsx_bytes, "xl/sharedStrings.xml")
+    source_shared_texts: list[str] = []
+    empty_shared_indexes: set[int] = set()
+    string_candidate_indexes: set[int] = set()
+    if source_sst:
+        sst_xml = source_sst.decode("utf-8", errors="replace")
+        shared_items, empty_shared_indexes = _xlsx_empty_shared_string_indexes(sst_xml)
+        for index, item in enumerate(shared_items):
+            value = "".join(
+                _unescape_xml(text.group(1))
+                for text in re.finditer(r"<t\b[^>]*>([\s\S]*?)</t>", item, re.IGNORECASE)
+            )
+            source_shared_texts.append(value)
+            if value and ("\n" in value or "\r" in value or not value.strip() or value.endswith("'")):
+                string_candidate_indexes.add(index)
     for sheet_name, out_path in out_entries.items():
         src_path = src_entries.get(sheet_name)
         if not src_path:
@@ -2677,12 +2749,62 @@ def _restore_formula_results_and_missing_errors_step(
         src_xml = (read_zip_entry(source_xlsx_bytes, src_path) or b"").decode("utf-8", errors="replace")
         out_xml = replacements.get(out_path) or (read_zip_entry(xlsx_bytes, out_path) or b"").decode("utf-8", errors="replace")
         source: dict[str, tuple[dict[str, str], str, str, str]] = {}
+        source_formulas: dict[str, str] = {}
+        literal_errors: dict[str, str] = {}
+        empty_cells: dict[str, int | None] = {}
+        source_strings: dict[tuple[int, int], str] = {}
+        source_styles: dict[str, int] = {}
+        source_formula_cells: set[str] = set()
         for match in cell_re.finditer(src_xml):
             attrs = _xml_attrs(match.group(1)); coord = (attrs.get("r") or "").upper(); body = match.group(2) or ""
             formula = re.search(r"<f\b[^>]*>([\s\S]*?)</f>", body, re.IGNORECASE)
+            formula_attrs = re.search(r"<f\b([^>]*)>", body, re.IGNORECASE)
             value = re.search(r"<v\b[^>]*>([\s\S]*?)</v>", body, re.IGNORECASE)
             if coord and formula and value:
                 source[coord] = (attrs, formula.group(1), value.group(1), body)
+            if coord and formula and formula_attrs and not re.search(r'\bt="', formula_attrs.group(1), re.IGNORECASE):
+                source_formulas[coord] = formula.group(1)
+            if coord and formula:
+                source_formula_cells.add(coord)
+            if coord and attrs.get("s", "").isdigit():
+                source_styles[coord] = int(attrs["s"])
+            if coord and not formula and attrs.get("t", "").lower() == "e" and value:
+                literal_errors[coord] = value.group(1).strip()
+            if not formula:
+                kind = attrs.get("t", "").lower()
+                is_empty = False
+                string_value = None
+                if kind == "s" and value:
+                    try:
+                        shared_index = int(value.group(1).strip())
+                        is_empty = shared_index in empty_shared_indexes
+                        if shared_index in string_candidate_indexes and shared_index < len(source_shared_texts):
+                            string_value = source_shared_texts[shared_index]
+                    except ValueError:
+                        pass
+                elif kind == "inlinestr":
+                    texts = re.findall(r"<t\b[^>]*>([\s\S]*?)</t>", body, re.IGNORECASE)
+                    is_empty = not texts or all(text == "" for text in texts)
+                    string_value = "".join(_unescape_xml(text) for text in texts)
+                elif kind == "str" and value:
+                    string_value = _unescape_xml(value.group(1))
+                if string_value and ("\n" in string_value or "\r" in string_value or not string_value.strip() or string_value.endswith("'")):
+                    coord_match = re.match(r"([A-Z]+)(\d+)", coord)
+                    if coord_match:
+                        column = 0
+                        for char in coord_match.group(1):
+                            column = column * 26 + ord(char) - 64
+                        source_strings[(int(coord_match.group(2)), column)] = string_value
+                if is_empty:
+                    empty_cells[coord] = int(attrs["s"]) if attrs.get("s", "").isdigit() else None
+        source_repairs[sheet_name] = {
+            "formulas": source_formulas,
+            "literal_errors": literal_errors,
+            "empty": empty_cells,
+            "strings": source_strings,
+            "styles": source_styles,
+            "formula_cells": source_formula_cells,
+        }
         if not source:
             continue
         seen: set[str] = set()
@@ -2705,6 +2827,7 @@ def _restore_formula_results_and_missing_errors_step(
             missing[coord] = f'<c r="{coord}"{style} t="e"><f>{formula}</f><v>{value}</v></c>'
         out_xml = _insert_or_replace_cells(out_xml, missing, only_missing=True)
         replacements[out_path] = out_xml
+    _index_memo_put("source_cell_repairs", source_xlsx_bytes, source_repairs)
     if copier is not None:
         copier.write_styles(replacements)
 
@@ -3539,17 +3662,13 @@ def _preserve_external_formulas(
             for m in re.finditer(r'<c\b([^>]*?)(?:>([\s\S]*?)<\/c>|\/\s*>)', src_sheet_xml, re.IGNORECASE):
                 attrs_str = m.group(1)
                 body = m.group(2) or ""
-                # Check if formula contains [N] pattern
                 f_match = re.search(r'<f\b[^>]*>([\s\S]*?)</f>|<f\b[^>]*/>', body, re.IGNORECASE)
                 if f_match:
                     formula = f_match.group(1) or ""
                     if re.search(r'\[\d+\]', formula):
-                        # Get cell coordinate
                         r_match = re.search(r'r="([^"]*)"', attrs_str)
                         if r_match:
-                            coord = r_match.group(1)
-                            # Store the full cell element
-                            ext_cells[coord] = m.group(0)
+                            ext_cells[r_match.group(1)] = m.group(0)
 
             if not ext_cells:
                 continue
@@ -8431,32 +8550,28 @@ def _fods_cells_with_vno_xf(fods_xml: str) -> dict[str, dict[tuple[int, int], in
     Uses the same flat block iteration as the overlay functions to correctly
     handle number-rows-repeated and number-columns-repeated.
     """
-    result = {}
+    result: dict[str, dict[tuple[int, int], int]] = {}
+    if not fods_xml or 'vno:xf="' not in fods_xml:
+        return result
     for table_start, table_end in _flat_xml_blocks(fods_xml, ("table:table",)):
         table_xml = fods_xml[table_start:table_end]
         table_attrs = _xml_attrs(re.match(r"<[^>]+", table_xml).group(0))
         sheet_name = _unescape_xml(table_attrs.get("table:name", ""))
         if not sheet_name:
             continue
-        
-        # Use the same row/col iteration logic as _overlay_xf_indices_in_table
-        targets = {}
+        targets: dict[tuple[int, int], int] = {}
         row_number = 1
         for row_start, row_end in _flat_xml_blocks(table_xml, ("table:table-row",)):
             row_xml = table_xml[row_start:row_end]
             row_repeat = _repeat_count(row_xml, "table:number-rows-repeated")
-            
             col_number = 1
             for cell_start, cell_end in _flat_xml_blocks(row_xml, ("table:table-cell", "table:covered-table-cell")):
                 cell_xml = row_xml[cell_start:cell_end]
                 xf_match = re.search(r'vno:xf="(\d+)"', cell_xml)
                 if xf_match:
-                    xf_index = int(xf_match.group(1))
-                    targets[(row_number, col_number)] = xf_index
-                col_repeat = _repeat_count(cell_xml, "table:number-columns-repeated")
-                col_number += col_repeat
+                    targets[(row_number, col_number)] = int(xf_match.group(1))
+                col_number += _repeat_count(cell_xml, "table:number-columns-repeated")
             row_number += row_repeat
-        
         if targets:
             result[sheet_name] = targets
     return result
@@ -9013,8 +9128,11 @@ def _iter_xlsx_cell_parts(sheet_xml: str):
         cursor = close + 4
 
 
-def _xlsx_cells_with_original_strings(xlsx_bytes: bytes) -> dict[str, dict[tuple[int, int], str]]:
-    cached = _index_memo_get("strings", xlsx_bytes)
+def _xlsx_cells_with_original_strings(
+    xlsx_bytes: bytes,
+    wanted_cells: dict[str, dict[tuple[int, int], str]] | None = None,
+) -> dict[str, dict[tuple[int, int], str]]:
+    cached = _index_memo_get("strings", xlsx_bytes) if wanted_cells is None else _INDEX_MISS
     if cached is not _INDEX_MISS:
         return cached
     shared_xml = (read_zip_entry(xlsx_bytes, "xl/sharedStrings.xml") or b"").decode("utf-8", errors="replace")
@@ -9025,14 +9143,23 @@ def _xlsx_cells_with_original_strings(xlsx_bytes: bytes) -> dict[str, dict[tuple
     cell_ref_re = re.compile(r"(?:^|\s)r=([\"'])([A-Z]+)(\d+)\1", re.IGNORECASE)
     value_re = re.compile(r"<v\b[^>]*>([\s\S]*?)</v>", re.IGNORECASE)
     text_re = re.compile(r"<t\b[^>]*>([\s\S]*?)</t>", re.IGNORECASE)
+    cell_re = re.compile(r'<c\b((?:[^>/]|/(?!>))*)(?:/>|>([\s\S]*?)</c>)', re.IGNORECASE)
     result = {}
     for sheet_name, entry_path in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
         sheet_xml = (read_zip_entry(xlsx_bytes, entry_path) or b"").decode("utf-8", errors="replace"); cells = {}
-        for attrs_text, body in _iter_xlsx_cell_parts(sheet_xml):
-            kind_match = cell_type_re.search(attrs_text)
-            if not kind_match: continue
+        sheet_wanted = wanted_cells.get(sheet_name) if wanted_cells is not None else None
+        for match in cell_re.finditer(sheet_xml):
+            attrs_text = match.group(1)
             coord = cell_ref_re.search(attrs_text)
             if not coord: continue
+            column = 0
+            for char in coord.group(2).upper(): column = column * 26 + ord(char) - 64
+            position = (int(coord.group(3)), column)
+            if sheet_wanted is not None and position not in sheet_wanted:
+                continue
+            kind_match = cell_type_re.search(attrs_text)
+            if not kind_match: continue
+            body = match.group(2) or ""
             kind = kind_match.group(2).lower()
             if kind == "s":
                 raw = value_re.search(body)
@@ -9045,11 +9172,10 @@ def _xlsx_cells_with_original_strings(xlsx_bytes: bytes) -> dict[str, dict[tuple
                 else:
                     raw = value_re.search(body)
                     value = _unescape_xml(raw.group(1)) if raw else ""
-            column = 0
-            for char in coord.group(2).upper(): column = column * 26 + ord(char) - 64
-            cells[(int(coord.group(3)), column)] = value
+            cells[position] = value
         if cells: result[sheet_name] = cells
-    _index_memo_put("strings", xlsx_bytes, result)
+    if wanted_cells is None:
+        _index_memo_put("strings", xlsx_bytes, result)
     return result
 
 
@@ -10121,8 +10247,38 @@ def _restore_lost_leading_newlines_step(
     xlsx_bytes: bytes, source_xlsx_bytes: bytes, replacements: dict[str, str], copier: "_SourceXfCopier | None"
 ) -> None:
     """Restore unchanged source strings when ODF only normalized/lost line breaks."""
-    source_values = _xlsx_cells_with_original_strings(source_xlsx_bytes)
-    output_values = _xlsx_cells_with_original_strings(xlsx_bytes)
+    # Most workbooks need no string restoration. Check the compact shared
+    # string table first so large worksheet XML is not decoded and indexed
+    # unless a source string can match one of this step's repair cases.
+    source_sst = read_zip_entry(source_xlsx_bytes, "xl/sharedStrings.xml") or b""
+    needs_string_repair = False
+    if source_sst:
+        sst_xml = source_sst.decode("utf-8", errors="replace")
+        for text in re.finditer(r"<t\b[^>]*>([\s\S]*?)</t>", sst_xml, re.IGNORECASE):
+            value = _unescape_xml(text.group(1))
+            if value and ("\n" in value or "\r" in value or not value.strip() or value.endswith("'")):
+                needs_string_repair = True
+                break
+    if not needs_string_repair:
+        for entry_path in _resolve_xlsx_sheet_entries(source_xlsx_bytes).values():
+            entry = read_zip_entry(source_xlsx_bytes, entry_path) or b""
+            if b't="inlineStr"' in entry or b"t='inlineStr'" in entry or b't="str"' in entry or b"t='str'" in entry:
+                needs_string_repair = True
+                break
+    if not needs_string_repair:
+        return
+    source_repair_index = _index_memo_get("source_cell_repairs", source_xlsx_bytes)
+    if source_repair_index is _INDEX_MISS:
+        source_values = _xlsx_cells_with_original_strings(source_xlsx_bytes)
+    else:
+        source_values = {
+            name: repairs.get("strings", {})
+            for name, repairs in source_repair_index.items()
+            if repairs.get("strings")
+        }
+        if not source_values:
+            return
+    output_values = _xlsx_cells_with_original_strings(xlsx_bytes, source_values)
     source_entries = _resolve_xlsx_sheet_entries(source_xlsx_bytes)
     output_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
     for sheet_name, source_cells in source_values.items():
@@ -10130,15 +10286,20 @@ def _restore_lost_leading_newlines_step(
         if not out_path or not src_path:
             continue
         output_cells = output_values.get(sheet_name, {}); wanted: dict[str, str] = {}
-        src_xml = (read_zip_entry(source_xlsx_bytes, src_path) or b"").decode("utf-8", errors="replace")
-        src_styles = {}
-        source_formula_cells = set()
-        for attrs_text, body in _iter_xlsx_cell_parts(src_xml):
-            attrs = _xml_attrs(attrs_text)
-            coord = (attrs.get("r") or "").upper()
-            if coord and attrs.get("s", "").isdigit(): src_styles[coord] = int(attrs["s"])
-            if coord and re.search(r'<f\b', body, re.IGNORECASE):
-                source_formula_cells.add(coord)
+        if source_repair_index is not _INDEX_MISS:
+            repairs = source_repair_index.get(sheet_name, {})
+            src_styles = repairs.get("styles", {})
+            source_formula_cells = repairs.get("formula_cells", set())
+        else:
+            src_xml = (read_zip_entry(source_xlsx_bytes, src_path) or b"").decode("utf-8", errors="replace")
+            src_styles = {}
+            source_formula_cells = set()
+            for attrs_text, body in _iter_xlsx_cell_parts(src_xml):
+                attrs = _xml_attrs(attrs_text)
+                coord = (attrs.get("r") or "").upper()
+                if coord and attrs.get("s", "").isdigit(): src_styles[coord] = int(attrs["s"])
+                if coord and re.search(r'<f\b', body, re.IGNORECASE):
+                    source_formula_cells.add(coord)
         for (row, col), source_value in source_cells.items():
             output_value = output_cells.get((row, col))
             missing_whitespace = output_value is None and bool(source_value) and not source_value.strip()
@@ -14752,6 +14913,12 @@ def _writer_restore_created_paragraph_css(document_xml: str, source_html: str) -
             if spacing:
                 twips = css_length_twips(spacing.group(1))
                 if twips is not None:
+                    # The Writer default is represented as 0.28cm (the UI's
+                    # 1.08 line-height preset). Word stores its 8pt equivalent
+                    # as 160 twips; ordinary decimal conversion rounds it to
+                    # 159 and makes Word's paragraph spacing control differ.
+                    if css_name == "margin-bottom" and re.fullmatch(r"\s*0\.28\s*cm\s*", spacing.group(1), re.IGNORECASE):
+                        twips = "160"
                     properties[property_name] = twips
         indent = re.search(r"(?:^|;)\s*text-indent\s*:\s*([^;]+)", css, re.IGNORECASE)
         if indent:
@@ -14835,7 +15002,7 @@ def _writer_restore_created_paragraph_css(document_xml: str, source_html: str) -
 
 
 def _writer_restore_created_run_highlight(run_xml: str, highlighted_texts: dict[str, str]) -> str:
-    text = html.unescape("".join(re.findall(r"<w:t\b[^>]*>([\s\S]*?)</w:t\s*>", run_xml, re.IGNORECASE)))
+    text = re.sub(r"\s+", " ", html.unescape("".join(re.findall(r"<w:t\b[^>]*>([\s\S]*?)</w:t\s*>", run_xml, re.IGNORECASE)))).strip()
     if not text or re.search(r"<w:highlight\b", run_xml, re.IGNORECASE):
         return run_xml
     color = next((value for key, value in highlighted_texts.items() if text.strip() == key), None)
@@ -14850,6 +15017,97 @@ def _writer_restore_created_run_highlight(run_xml: str, highlighted_texts: dict[
     else:
         run_xml = re.sub(r"(<w:r\b[^>]*>)", rf"\1<w:rPr>{highlight}</w:rPr>", run_xml, count=1, flags=re.IGNORECASE)
     return run_xml
+
+
+def _writer_restore_created_vertical_alignment(document_xml: str, source_html: str) -> str:
+    """Convert raised/lowered runs to semantic sub/superscript when HTML marks them."""
+    source_paragraphs: list[tuple[str, list[tuple[int, int, str]]]] = []
+    for paragraph in re.finditer(r"<(?:p|h[1-6])\b[^>]*>([\s\S]*?)</(?:p|h[1-6])\s*>", source_html, re.IGNORECASE):
+        inner = paragraph.group(1)
+        plain = re.sub(r"\s+", " ", _writer_html_plain(inner)).strip()
+        if not plain:
+            continue
+        spans: list[tuple[int, int, str]] = []
+        for match in re.finditer(r"<(sup|sub)\b[^>]*>([\s\S]*?)</\1\s*>", inner, re.IGNORECASE):
+            value = re.sub(r"\s+", "", _writer_html_plain(match.group(2)))
+            start = len(re.sub(r"\s+", "", _writer_html_plain(inner[:match.start()])))
+            if value:
+                spans.append((start, start + len(value), "superscript" if match.group(1).lower() == "sup" else "subscript"))
+        for match in re.finditer(r'<span\b(?=[^>]*\bstyle=["\']([^"\']*)["\'])[^>]*>([\s\S]*?)</span\s*>', inner, re.IGNORECASE):
+            align = re.search(r'(?:^|;)\s*vertical-align\s*:\s*(sub|super)(?:\s*!important)?\s*(?:;|$)', match.group(1), re.IGNORECASE)
+            value = re.sub(r"\s+", "", _writer_html_plain(match.group(2)))
+            start = len(re.sub(r"\s+", "", _writer_html_plain(inner[:match.start()])))
+            if align and value:
+                spans.append((start, start + len(value), "subscript" if align.group(1).lower() == "sub" else "superscript"))
+        if spans:
+            source_paragraphs.append((plain, spans))
+    if not source_paragraphs:
+        return document_xml
+
+    doc_paragraphs = list(re.finditer(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", document_xml, re.IGNORECASE))
+    replacements: dict[int, str] = {}
+    cursor = 0
+    for source_text, spans in source_paragraphs:
+        source_compact = re.sub(r"\s+", "", source_text)
+        target = None
+        best_ratio = 0.74
+        for index in range(cursor, len(doc_paragraphs)):
+            candidate_text = re.sub(r"\s+", "", _paragraph_plain_text(doc_paragraphs[index].group(0)))
+            ratio = difflib.SequenceMatcher(None, source_compact, candidate_text, autojunk=False).ratio()
+            spans_present = all(source_compact[start:end] in candidate_text for start, end, _kind in spans)
+            if spans_present and ratio > best_ratio:
+                target = index
+                best_ratio = ratio
+        if target is None:
+            continue
+        cursor = target + 1
+        paragraph_xml = doc_paragraphs[target].group(0)
+        run_matches = list(re.finditer(r"<w:r\b[^>]*>[\s\S]*?</w:r\s*>", paragraph_xml, re.IGNORECASE))
+        run_ranges: list[tuple[int, int]] = []
+        plain_parts: list[str] = []
+        for run in run_matches:
+            text = re.sub(r"\s+", "", html.unescape("".join(re.findall(r"<w:t\b[^>]*>([\s\S]*?)</w:t\s*>", run.group(0), re.IGNORECASE))))
+            start = sum(len(part) for part in plain_parts)
+            plain_parts.append(text)
+            run_ranges.append((start, start + len(text)))
+        replacements_for_run: dict[int, str] = {}
+        for start, end, kind in spans:
+            selected = source_compact[start:end]
+            matcher = difflib.SequenceMatcher(None, source_compact, "".join(plain_parts), autojunk=False)
+            mapped = []
+            hint = 0
+            for tag, source_start, source_end, doc_start, doc_end in matcher.get_opcodes():
+                if source_end <= start and tag == "equal":
+                    hint = doc_end
+                if tag == "equal" and source_end > start and source_start < end:
+                    overlap_start = max(start, source_start)
+                    overlap_end = min(end, source_end)
+                    mapped.extend(range(doc_start + overlap_start - source_start, doc_start + overlap_end - source_start))
+            if len(mapped) == len(selected):
+                mapped_start, mapped_end = min(mapped), max(mapped) + 1
+            else:
+                mapped_start = "".join(plain_parts).find(selected, hint)
+                if mapped_start < 0:
+                    continue
+                mapped_end = mapped_start + len(selected)
+            for run_index, (run_start, run_end) in enumerate(run_ranges):
+                if run_start >= mapped_start and run_end <= mapped_end and run_end > run_start:
+                    run_xml = replacements_for_run.get(run_index, run_matches[run_index].group(0))
+                    position = re.search(r'<w:position\s+w:val="(-?\d+)"\s*/>', run_xml, re.IGNORECASE)
+                    if position and position.group(1) != "0":
+                        run_xml = run_xml[:position.start()] + f'<w:vertAlign w:val="{kind}"/>' + run_xml[position.end():]
+                    replacements_for_run[run_index] = run_xml
+        for run_index, run_xml in reversed(list(replacements_for_run.items())):
+            run = run_matches[run_index]
+            paragraph_xml = paragraph_xml[:run.start()] + run_xml + paragraph_xml[run.end():]
+        if paragraph_xml != doc_paragraphs[target].group(0):
+            replacements[target] = paragraph_xml
+    if not replacements:
+        return document_xml
+    for index, match in reversed(list(enumerate(doc_paragraphs))):
+        if index in replacements:
+            document_xml = document_xml[:match.start()] + replacements[index] + document_xml[match.end():]
+    return document_xml
 
 
 class _WriterExportListParser(HTMLParser):
@@ -14946,6 +15204,7 @@ def _writer_clone_lower_alpha_suffix(document_xml: str, numbering_xml: str, sour
         groups = []
     if not groups:
         return document_xml, numbering_xml
+
 
     abstract_ids = [int(value[1]) for value in re.findall(
         r"<w:abstractNum\b[^>]*w:abstractNumId=([\"'])(\d+)\1", numbering_xml, re.IGNORECASE
@@ -15057,6 +15316,55 @@ def _writer_clone_lower_alpha_suffix(document_xml: str, numbering_xml: str, sour
     output.append(document_xml[last:])
     return "".join(output), numbering_xml
 
+
+def _writer_normalize_simple_list_numbering(document_xml: str, numbering_xml: str, source_html: str) -> tuple[str, str]:
+    """Use Word's hybrid numbering type and 36pt indent for one-level lists."""
+    if re.search(r"<(?:ul|ol)\b[^>]*>[\s\S]*?<(?:ul|ol)\b", source_html, re.IGNORECASE):
+        return document_xml, numbering_xml
+    list_texts = {
+        re.sub(r"\s+", " ", _writer_html_plain(item.group(1))).strip()
+        for item in re.finditer(r"<(?:ul|ol)\b[^>]*>([\s\S]*?)</(?:ul|ol)\s*>", source_html, re.IGNORECASE)
+        for item in re.finditer(r"<li\b[^>]*>([\s\S]*?)</li\s*>", item.group(1), re.IGNORECASE)
+    }
+    if not list_texts:
+        return document_xml, numbering_xml
+    def normalize_list_paragraph(match: re.Match) -> str:
+        paragraph = match.group(0)
+        if re.sub(r"\s+", " ", _paragraph_plain_text(paragraph)).strip() not in list_texts:
+            return paragraph
+        ppr = re.search(r"<w:pPr\b[^>]*>[\s\S]*?</w:pPr\s*>", paragraph, re.IGNORECASE)
+        if not ppr:
+            return paragraph
+        block = ppr.group(0)
+        block = re.sub(r'(<w:ind\b[^>]*\bw:left=["\'])(7(?:0[0-9]|1[0-5]))(["\'])', r'\g<1>720\3', block, flags=re.IGNORECASE)
+        block = re.sub(r'(<w:tab\b[^>]*\bw:pos=["\'])(7(?:0[0-9]|1[0-5]))(["\'])', r'\g<1>720\3', block, flags=re.IGNORECASE)
+        return paragraph[:ppr.start()] + block + paragraph[ppr.end():]
+    document_xml = re.sub(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", normalize_list_paragraph, document_xml, flags=re.IGNORECASE)
+    num_ids = set()
+    for paragraph in re.findall(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", document_xml, re.IGNORECASE):
+        if re.sub(r"\s+", " ", _paragraph_plain_text(paragraph)).strip() not in list_texts:
+            continue
+        num = re.search(r"<w:numId\b[^>]*w:val=([\"'])(\d+)\1", paragraph, re.IGNORECASE)
+        if num:
+            num_ids.add(num.group(2))
+    abstract_ids = set()
+    for num_id in num_ids:
+        num = re.search(rf"<w:num\b[^>]*w:numId=([\"']){re.escape(num_id)}\1[^>]*>[\s\S]*?</w:num\s*>", numbering_xml, re.IGNORECASE)
+        abstract = re.search(r"<w:abstractNumId\b[^>]*w:val=([\"'])(\d+)\1", num.group(0), re.IGNORECASE) if num else None
+        if abstract:
+            abstract_ids.add(abstract.group(2))
+    for abstract_id in abstract_ids:
+        abstract = re.search(rf"<w:abstractNum\b[^>]*w:abstractNumId=([\"']){re.escape(abstract_id)}\1[^>]*>[\s\S]*?</w:abstractNum\s*>", numbering_xml, re.IGNORECASE)
+        if not abstract:
+            continue
+        block = abstract.group(0)
+        if re.search(r"<w:multiLevelType\b[^>]*/>", block, re.IGNORECASE):
+            block = re.sub(r"<w:multiLevelType\b[^>]*/>", '<w:multiLevelType w:val="hybridMultilevel"/>', block, count=1, flags=re.IGNORECASE)
+        else:
+            block = re.sub(r"(<w:abstractNum\b[^>]*>)", r'\1<w:multiLevelType w:val="hybridMultilevel"/>', block, count=1, flags=re.IGNORECASE)
+        block = re.sub(r'(<w:ind\b[^>]*\bw:left=[\"\'])(7(?:0[0-9]|1[0-5]))([\"\'])', r'\g<1>720\3', block, flags=re.IGNORECASE)
+        numbering_xml = numbering_xml[:abstract.start()] + block + numbering_xml[abstract.end():]
+    return document_xml, numbering_xml
 
 def _writer_restore_heading_styles(
     document_xml: str, styles_xml: str, source_html: str
@@ -16567,49 +16875,34 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
             return tag
         document_xml = re.sub(r"<w:pgMar\b[^>]*/>", patch_margin, document_xml, flags=re.IGNORECASE)
 
-    # W22a: Superscript / Subscript (<w:vertAlign>)
-    # LibreOffice HTML import turns <sup>/<sub> into <w:position w:val="..."/> (e.g. 8 for sup, -2 for sub).
-    # Word COM Font.Superscript/Subscript requires native <w:vertAlign w:val="superscript|subscript"/>.
-    # Chỉ đổi run có chữ đúng bằng nội dung <sup>/<sub> của HTML nguồn: `w:position` còn là "nâng/hạ chữ" hợp lệ
-    # của tài liệu nhập (hàm này chạy cho cả tài liệu mở từ DOCX), không được biến mọi run nâng/hạ thành chỉ số.
-    vert_align_texts: dict[str, set[str]] = {"superscript": set(), "subscript": set()}
-    for tag, val in (("sup", "superscript"), ("sub", "subscript")):
-        for m in re.finditer(rf"<{tag}\b[^>]*>([\s\S]*?)</{tag}\s*>", source_html, re.IGNORECASE):
-            txt = _writer_html_plain(m.group(1)).strip()
-            if txt:
-                vert_align_texts[val].add(txt)
-
-    if vert_align_texts["superscript"] or vert_align_texts["subscript"]:
-        def patch_vert_align(r_match: re.Match) -> str:
-            r = r_match.group(0)
-            pos = re.search(r'<w:position\s+w:val="(-?\d+)"\s*/>', r, re.IGNORECASE)
-            if not pos or pos.group(1) == "0":
-                return r
-            val = "subscript" if pos.group(1).startswith("-") else "superscript"
-            txt = html.unescape("".join(re.findall(r"<w:t\b[^>]*>([^<]*)</w:t>", r))).strip()
-            if txt not in vert_align_texts[val]:
-                return r
-            return r[:pos.start()] + f'<w:vertAlign w:val="{val}"/>' + r[pos.end():]
-
-        document_xml = re.sub(r'<w:r\b[^>]*>[\s\S]*?</w:r\s*>', patch_vert_align, document_xml, flags=re.IGNORECASE)
+    # W22a: The import filter can split a selected sub/sup range into several
+    # runs when it overlaps bold/italic formatting. Match by paragraph range.
+    document_xml = _writer_restore_created_vertical_alignment(document_xml, source_html)
 
     # W22b: Highlight text (<w:highlight>)
     # LibreOffice HTML import drops <mark> and inline background-color.
     highlight_texts: dict[str, str] = {}
+    word_highlight_colors = {
+        "000000": "black", "0000FF": "blue", "00FFFF": "cyan", "00FF00": "green",
+        "FF00FF": "magenta", "FF0000": "red", "FFFF00": "yellow", "FFCD00": "yellow", "FFFFFF": "white",
+        "000080": "darkBlue", "008080": "darkCyan", "008000": "darkGreen",
+        "800080": "darkMagenta", "800000": "darkRed", "808000": "darkYellow",
+        "808080": "darkGray", "C0C0C0": "lightGray",
+    }
     for mark in re.finditer(r'<mark\b[^>]*>([\s\S]*?)</mark\s*>', source_html, re.IGNORECASE):
         txt = _writer_html_plain(mark.group(1)).strip()
         if txt:
-            highlight_texts[txt] = "yellow"
-    for span in re.finditer(r'<(?:span|font)\b(?=[^>]*\bstyle=["\']([^"\']*)["\'])[^>]*>([\s\S]*?)</(?:span|font)\s*>', source_html, re.IGNORECASE):
-        style = span.group(1)
-        if re.search(
-            r'background-color\s*:\s*(?:#ffff00|#ffcd00|yellow|rgb\(\s*255\s*,\s*(?:255|205)\s*,\s*0\s*\))',
-            style,
-            re.IGNORECASE,
-        ):
-            txt = _writer_html_plain(span.group(2)).strip()
-            if txt:
-                highlight_texts[txt] = "yellow"
+            highlight_texts[re.sub(r"\s+", " ", txt).strip()] = "yellow"
+    for tag in ("span", "font"):
+        for span in re.finditer(rf'<{tag}\b(?=[^>]*\bstyle=["\']([^"\']*)["\'])[^>]*>([\s\S]*?)</{tag}\s*>', source_html, re.IGNORECASE):
+            style = span.group(1)
+            bg = re.search(r'(?:^|;)\s*background-color\s*:\s*([^;]+)', style, re.IGNORECASE)
+            color_hex = _css_color_hex(bg.group(1)) if bg else None
+            word_color = word_highlight_colors.get(color_hex.upper()) if color_hex else None
+            if word_color:
+                txt = _writer_html_plain(span.group(2)).strip()
+                if txt:
+                    highlight_texts[re.sub(r"\s+", " ", txt).strip()] = word_color
 
     if highlight_texts:
         document_xml = re.sub(
@@ -16777,6 +17070,7 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
     numbering = numbering_bytes.decode("utf-8", errors="replace") if numbering_bytes else ""
     if numbering:
         document_xml, numbering = _writer_clone_lower_alpha_suffix(document_xml, numbering, source_html)
+        document_xml, numbering = _writer_normalize_simple_list_numbering(document_xml, numbering, source_html)
         replacements["word/document.xml"] = document_xml.encode("utf-8")
         replacements["word/numbering.xml"] = numbering.encode("utf-8")
     bullet_texts = {
