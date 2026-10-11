@@ -4104,6 +4104,36 @@ def _apply_sheet_view_state_from_fods(
             replacements[entry_path] = updated
 
 
+def _apply_workbook_view_state_from_fods(
+    xlsx_bytes: bytes, source_fods: str | None, replacements: dict[str, str]
+) -> None:
+    """Apply explicitly changed workbook-window view settings from VN metadata."""
+    root = re.search(r"<office:document\b([^>]*)>", source_fods or "", re.IGNORECASE)
+    if not root:
+        return
+    value = _xml_attrs(root.group(1)).get("vno:show-formula-bar")
+    if value is None:
+        return
+    enabled = "0" if value.strip().lower() in ("false", "0", "no") else "1"
+    current = replacements.get(XLSX_WORKBOOK_ENTRY)
+    if current is None:
+        workbook = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
+        if not workbook:
+            return
+        current = workbook.decode("utf-8", errors="replace")
+    view = re.search(r"<(?:[\w.-]+:)?workbookView\b[^>]*(?:/>|>)", current, re.IGNORECASE)
+    if not view:
+        return
+    tag = view.group(0)
+    if re.search(r"\bshowFormulaBar\s*=", tag, re.IGNORECASE):
+        updated_tag = re.sub(r"\bshowFormulaBar\s*=\s*(['\"])\w+\1", f'showFormulaBar="{enabled}"', tag, count=1, flags=re.IGNORECASE)
+    else:
+        updated_tag = tag[:-2] + f' showFormulaBar="{enabled}"/>' if tag.endswith("/>") else tag[:-1] + f' showFormulaBar="{enabled}">'
+    updated = current[:view.start()] + updated_tag + current[view.end():]
+    if updated != current:
+        replacements[XLSX_WORKBOOK_ENTRY] = updated
+
+
 def postprocess_sheet_xlsx(
     xlsx_bytes: bytes,
     *,
@@ -4405,6 +4435,7 @@ def postprocess_sheet_xlsx(
     if source_fods:
         _apply_accounting_number_formats_from_fods(xlsx_bytes, source_fods, replacements)
         _apply_sheet_view_state_from_fods(xlsx_bytes, source_fods, replacements)
+        _apply_workbook_view_state_from_fods(xlsx_bytes, source_fods, replacements)
 
     if not replacements:
         return xlsx_bytes

@@ -9387,6 +9387,7 @@ _bindGridKeyboardNavigation() {
 
   toggleFormulaBar() {
     this.formulaBarVisible = !this.formulaBarVisible;
+    this.xlsxViewStateTouched?.add("showFormulaBar");
     this._applyViewState();
     this._syncCommandStates();
     return this.formulaBarVisible;

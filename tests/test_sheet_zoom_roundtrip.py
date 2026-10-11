@@ -38,6 +38,15 @@ def make_test_xlsx(sheet1_xml: str, sheet_name: str = "Sheet1") -> bytes:
     return buf.getvalue()
 
 
+def _replace_zip_entry(package_bytes: bytes, path: str, content: str) -> bytes:
+    source = io.BytesIO(package_bytes)
+    output = io.BytesIO()
+    with zipfile.ZipFile(source, "r") as old, zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as new:
+        for item in old.infolist():
+            new.writestr(item, content.encode("utf-8") if item.filename == path else old.read(item.filename))
+    return output.getvalue()
+
+
 class SheetZoomRoundtripTests(unittest.TestCase):
     def test_zoom_scale_restored_from_source(self):
         source_sheet = (
@@ -111,6 +120,24 @@ class SheetZoomRoundtripTests(unittest.TestCase):
         with zipfile.ZipFile(io.BytesIO(patched)) as archive:
             xml = archive.read("xl/worksheets/sheet1.xml").decode("utf-8")
         self.assertIn('showFormulas="1"', xml)
+
+    def test_explicit_formula_bar_visibility_is_written_to_workbook_view(self):
+        source = make_test_xlsx(
+            '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView/></sheetViews><sheetData/></worksheet>'
+        )
+        source = _replace_zip_entry(source, "xl/workbook.xml", (
+            '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+            'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+            '<bookViews><workbookView showFormulaBar="1"/></bookViews>'
+            '<sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>'
+        ))
+        fods = ('<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" '
+                'xmlns:vno="https://vnoffice.vn/ns/spreadsheet/1.0" vno:show-formula-bar="false"></office:document>')
+
+        patched = postprocess_sheet_xlsx(source, source_fods=fods)
+        with zipfile.ZipFile(io.BytesIO(patched)) as archive:
+            xml = archive.read("xl/workbook.xml").decode("utf-8")
+        self.assertIn('showFormulaBar="0"', xml)
 
 
 if __name__ == "__main__":

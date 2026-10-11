@@ -3800,6 +3800,7 @@ export class SheetAdapter {
       ["showGridLines", "show-grid-lines", this.grid.gridlinesVisible],
       ["showRowColHeaders", "show-row-col-headers", this.grid.headingsVisible],
       ["showFormulas", "show-formulas", this.grid.showFormulas],
+      ["showFormulaBar", "show-formula-bar", this.grid.formulaBarVisible],
     ].filter(([key]) => xlsxViewState.has(key))
       .map(([, attr, value]) => ` vno:${attr}="${value === false ? "false" : "true"}"`).join("");
     // ODF flag. LibreOffice FODS→XLSX keeps <workbookProtection> but drops
