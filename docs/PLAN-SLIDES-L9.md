@@ -16,7 +16,7 @@ Khi người dùng bật các trường trong tab **Chèn → Văn bản**, PPTX
 - `tests/test_slides_pptx_header_footer.py` (mới): kiểm tra ODF→PPTX, placeholder/format/text, apply-per-slide, idempotence, giữ shape không liên quan và slide chưa áp dụng.
 - `tests/live/cdp/slides-fix-l9-header-footer.desktop.mjs` (mới): tạo ba slide qua UI thật, áp dụng trường trên đúng một slide, lưu và mở lại trong app.
 - `platform/help/entries-slides.js`: cập nhật hướng dẫn tiếng Việt cụ thể nếu UI/behavior cần phản ánh rõ hơn.
-- `docs/AGENT-HANDOFF-FIX-L9-CODEX.md`: handoff kết quả, lệnh và trạng thái kiểm chứng.
+- `docs/tickets-0710/HANDOFF-FIX-L9-CODEX.md`: handoff kết quả, lệnh và trạng thái kiểm chứng.
 
 ## Phụ thuộc và ranh giới
 Tái sử dụng LibreOffice Impress và các tiện ích ZIP/OOXML hiện có. Không sửa LibreOffice Core, không thêm dependency, không đổi format semantics ngoài việc ghi các cờ người dùng đã chọn. Xử lý chỉ diễn ra trong adapter/hậu xử lý xuất PPTX; UI không gọi LO trực tiếp. Đầu vào patch lấy từ FODP do chính VN Slides sinh và giới hạn theo slide/placeholder có bật.
