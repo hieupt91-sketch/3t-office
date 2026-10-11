@@ -10,3 +10,11 @@ Harness S7 cũ không bấm **Thêm mới** và gửi tổ hợp Ctrl+A sai các
 Bằng chứng: [Ảnh Name Manager](evidence/fix-s8-name-manager.png).
 
 Kiểm tra mục này: CDP desktop PASS; Excel COM read-only PASS. Harness cú pháp JS PASS.
+
+## 2. Xoay chữ và lề in — PASS
+
+Chọn B2, mở **Định dạng ô > Căn chỉnh**, chọn 90° (Lên), áp dụng và lưu qua app. Grid giữ `textRotation=90`; Excel COM đọc `Orientation=-4171` (xlUpward). Thiết lập trang qua UI thành ngang và bốn lề 1,27 cm; Excel COM đọc `Orientation=2`, lề L/R/T/B đều 0,5 inch. Không phát hiện sai lệch để sửa.
+
+Bằng chứng: [Ảnh xoay chữ](evidence/fix-s8-text-rotation.png), [ảnh lề trang](evidence/fix-s8-page-setup.png).
+
+Kiểm tra mục này: thao tác CDP desktop PASS; Excel COM read-only PASS.
