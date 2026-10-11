@@ -58,6 +58,8 @@ try {
     const has = /<p:ph\b[^>]*\btype=["'](?:dt|ftr|sldNum)["']/.test(xml);
     check(`Slide ${index + 1} native header/footer placeholders`, index === 2 ? has : !has, { has });
   }
+  check("Date and slide number are saved as automatic DrawingML fields", /<a:fld\b[^>]*type=["']datetime/.test(slideXml[2]) && /<a:fld\b[^>]*type=["']slidenum/.test(slideXml[2]));
+  check("Footer text is stored in the native footer placeholder", slideXml[2].includes("VN Office FIX-L9 footer"));
   await writeFile(path.join(workDir, "cdp-result.json"), JSON.stringify({ file, beforeReopen: current, slideNames }, null, 2) + "\n", "utf8");
   await session.close();
   sessionClosed = true;
@@ -74,7 +76,7 @@ try {
   } finally {
     await reopenedSession.close();
   }
-  console.log("SUMMARY 10/10");
+  console.log("SUMMARY 12/12");
 } finally {
   if (!sessionClosed && session.child.exitCode === null && session.cdp) await session.close();
 }
