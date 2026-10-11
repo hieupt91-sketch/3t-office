@@ -78,6 +78,12 @@ export async function launchApp(app, options = {}) {
         await session.cdp.waitFor("!document.querySelector('.vno-error-reporting-overlay')", { timeoutMilliseconds: 8000 });
       }
     }
+    const recoveryPrompt = await session.cdp.evaluate("!!document.querySelector('.vno-recovery-overlay .vno-recovery-later')");
+    if (recoveryPrompt) {
+      const { click } = await import("./actions.mjs");
+      await click(session.cdp, ".vno-recovery-later");
+      await session.cdp.waitFor("!document.querySelector('.vno-recovery-overlay')", { timeoutMilliseconds: 8000 });
+    }
     return session;
   } catch (error) {
     await closeApp(session);

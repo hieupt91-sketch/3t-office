@@ -195,7 +195,8 @@ async function printToPdfThroughApp(session, pdfPath) {
     + " const prepared = await globalUnoBridge.preparePrintDocument(" + JSON.stringify(session.app) + ", content, name, source, true);"
     + " if (prepared?.status !== 'ok') return {status:'error', message:prepared?.message || 'Print preparation failed'};"
     + " const printed = await globalUnoBridge.printDocument(prepared.sessionId, {"
-    + "  printer:'Microsoft Print to PDF', copies:1, pageRange:'', destinationPath:" + JSON.stringify(pdfPath) + "});"
+    + "  printer:" + JSON.stringify(process.platform === "darwin" ? "Save as PDF" : "Microsoft Print to PDF")
+    + ", copies:1, pageRange:'', destinationPath:" + JSON.stringify(pdfPath) + "});"
     + " await globalUnoBridge.cancelPrintDocument(prepared.sessionId);"
     + " return {prepared, printed, previewVisible:!!document.querySelector('.vno-print-preview-overlay')};"
     + "})()",
