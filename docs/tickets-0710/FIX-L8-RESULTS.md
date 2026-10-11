@@ -9,8 +9,9 @@
 - `slides.color.highlight`: PowerPoint COM đọc `Highlight.RGB=52735`; baseline đọc `1894392`.
 - `slides.slide.new` / `slides.slide.delete`: CDP đo lần lượt 10→11→10; PowerPoint COM đọc lại 11 và 10 slide ở hai PPTX đã lưu.
 - `slides.para.alignLeft`: CDP đặt Căn phải rồi Căn trái; COM đọc `Paragraph.Alignment=1` (left).
+- `slides.para.indentDec`: CDP tăng rồi giảm thụt lề cùng vùng chữ; COM đọc lại `TextFrame2.LeftIndent=0 pt`, khớp baseline, số shape vẫn là 5.
 - `common.edit.find` / `common.edit.replace`: CDP tìm `ROAD TRIP` tại vị trí 10, thay tất cả `Your Name` thành `Presenter` (2 lần); COM Find và đọc lại shape 2 cùng xác nhận.
-- Ma trận hiện có 39 KHỚP POWERPOINT, 43 CHƯA ĐỐI CHIẾU, 4 LỆCH ĐÃ BIẾT và 2 KHÁC CÓ CHỦ Ý. Các nút Trang đầu còn lại và những tab sau vẫn đang chờ đo.
+- Ma trận hiện có 40 KHỚP POWERPOINT, 42 CHƯA ĐỐI CHIẾU, 4 LỆCH ĐÃ BIẾT và 2 KHÁC CÓ CHỦ Ý. Các nút Trang đầu còn lại và những tab sau vẫn đang chờ đo.
 
 ## Kiểm tra
 

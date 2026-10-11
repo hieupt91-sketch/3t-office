@@ -2,7 +2,7 @@
 
 Nguồn danh sách nút: [`ribbon-scan-slides-1011.json`](ribbon-scan-slides-1011.json). Ma trận giữ đủ từng dòng scan (kể cả ID xuất hiện ở nhiều tab); trạng thái chỉ áp dụng tới thuộc tính/kịch bản ghi trong bằng chứng.
 
-Tổng: 88 dòng. **KHỚP POWERPOINT**: 39, **CHƯA ĐỐI CHIẾU**: 43, **LỆCH ĐÃ BIẾT**: 4, **KHÁC CÓ CHỦ Ý**: 2.
+Tổng: 88 dòng. **KHỚP POWERPOINT**: 40, **CHƯA ĐỐI CHIẾU**: 42, **LỆCH ĐÃ BIẾT**: 4, **KHÁC CÓ CHỦ Ý**: 2.
 
 - **KHỚP POWERPOINT**: thao tác VN Slides được thực hiện; PowerPoint COM đọc lại cùng thuộc tính và kết quả khớp.
 - **KHÁC CÓ CHỦ Ý**: khác biệt sản phẩm có chủ ý hoặc không có nút đối ứng; nêu rõ lý do.
@@ -35,7 +35,7 @@ Các kết quả kế thừa được giới hạn theo báo cáo FIX-L4/L5/L6; 
 | Trang đầu | `slides.color.highlight` | Màu nền chữ | KHỚP POWERPOINT | FIX-L8: CDP bôi đen tiêu đề và bấm Màu nền chữ; PowerPoint COM đọc Highlight.RGB=52735 so với baseline 1894392. [Ảnh](tickets-0710/evidence/fix-l8/home/highlight.png), [COM](tickets-0710/evidence/fix-l8/home/highlight-readback.json), [no-op](tickets-0710/evidence/fix-l8/home/noop-readback.json) |
 | Trang đầu | `slides.list.bullet` | Dấu đầu dòng | KHỚP POWERPOINT | FIX-L7: CDP bật dấu đầu dòng; PowerPoint COM đọc Bullet.Visible=-1, Type=1. [Ảnh CDP](tickets-0710/evidence/fix-l7/text/bullet.png), [COM](tickets-0710/evidence/fix-l7/powerpoint-text-readback.json) |
 | Trang đầu | `slides.list.numbered` | Đánh số | KHỚP POWERPOINT | FIX-L7: CDP bật đánh số; PowerPoint COM đọc Bullet.Visible=-1, Type=2. [Ảnh CDP](tickets-0710/evidence/fix-l7/text/numbered.png), [COM](tickets-0710/evidence/fix-l7/powerpoint-text-readback.json) |
-| Trang đầu | `slides.para.indentDec` | Giảm thụt lề | CHƯA ĐỐI CHIẾU |  |
+| Trang đầu | `slides.para.indentDec` | Giảm thụt lề | KHỚP POWERPOINT | FIX-L8: CDP tăng thụt lề rồi giảm thụt lề trên cùng vùng chữ; PowerPoint COM đọc lại TextFrame2.LeftIndent=0 pt, khớp baseline 0 pt, và 5 shape giữ nguyên. [CDP](tickets-0710/evidence/fix-l8/home/indent-dec-cdp-readback.json), [COM](tickets-0710/evidence/fix-l8/home/indent-dec-readback.json) |
 | Trang đầu | `slides.para.indentInc` | Thụt lề | KHỚP POWERPOINT | FIX-L7 sửa: CDP tăng thụt lề; lưu PPTX, PowerPoint COM đọc LeftIndent=36 pt và IndentLevel=2. [Ảnh CDP](tickets-0710/evidence/fix-l7/text/indentInc.png), [COM](tickets-0710/evidence/fix-l7/powerpoint-text-readback.json) |
 | Trang đầu | `slides.para.lineSpacing` | Giãn dòng | CHƯA ĐỐI CHIẾU |  |
 | Trang đầu | `slides.para.alignLeft` | Căn trái (Ctrl+L) | KHỚP POWERPOINT | FIX-L8: CDP chọn Căn phải rồi bấm Căn trái; PowerPoint COM đọc Paragraph.Alignment=1 (left). [Ảnh](tickets-0710/evidence/fix-l8/home/align-left.png), [COM](tickets-0710/evidence/fix-l8/home/align-left-readback.json) |
