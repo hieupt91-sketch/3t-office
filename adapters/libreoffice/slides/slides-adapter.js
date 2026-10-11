@@ -3884,48 +3884,57 @@ export class SlidesAdapter {
   async open() {
     if (typeof this.shell?.confirmUnsavedChangesBeforeReplace === "function"
       && !(await this.shell.confirmUnsavedChangesBeforeReplace())) return false;
-    const result = await globalUnoBridge.openRealFile("slides");
-    if (result.status === "ok") {
-      const previous = {
-        content: this.serializeToFodp(),
-        sourceFileName: this.sourceFileName,
-        sourceFilePath: this.sourceFilePath,
-        isDirty: this.isDirty
-      };
-      try {
-        this.loadFromFodp(
-          result.content,
-          result.ooxmlPresentationXml,
-          result.ooxmlSlideMasterXml,
-          result.ooxmlPresPropsXml
-        );
-        if (!this.canvas?.slides?.length) throw new Error("Tệp không có trang chiếu hợp lệ.");
-      } catch (error) {
-        try { this.loadFromFodp(previous.content); } catch (restoreError) {
-          console.error("[SlidesAdapter] Không khôi phục được bản trình chiếu sau khi mở tệp lỗi:", restoreError);
-        }
-        this.sourceFileName = previous.sourceFileName;
-        this.sourceFilePath = previous.sourceFilePath;
-        this.isDirty = previous.isDirty;
-        await showAlertDialog({
-          title: "Không thể mở tệp",
-          message: "Slide không thể đọc nội dung tệp. Hãy kiểm tra tệp gốc hoặc thử lưu bản sao ở định dạng .pptx. Bản trình chiếu đang mở được giữ nguyên.",
-          type: "error"
-        });
-        return false;
-      }
-      this.sourceFileName = (result.fileName || "TrinhChieu").replace(/\.[^/.]+$/, "");
-      this.sourceFilePath = result.sourcePath || "";
-      this.isDirty = false;
-      // Lỗi thật đã xác nhận: nội dung nạp đúng nhưng nhãn tên tệp trên tab
-      // vẫn giữ nguyên tên demo cũ vì resetDocumentChrome() chỉ được gọi ở
-      // File > Mới/Đóng, chưa bao giờ gọi sau khi Mở tệp thật.
-      this.shell?.resetDocumentChrome?.(result.fileName || "Bản trình bày 1.pptx", null, true, this.sourceFilePath);
-      return true;
+    if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
+      window.dispatchEvent(new Event("vno:document-open-progress"));
     }
-    if (result.status === "cancelled") return false;
-    await showAlertDialog({ title: "Không thể mở tệp", message: result.message, type: "error" });
-    return false;
+    try {
+      const result = await globalUnoBridge.openRealFile("slides");
+      if (result.status === "ok") {
+        const previous = {
+          content: this.serializeToFodp(),
+          sourceFileName: this.sourceFileName,
+          sourceFilePath: this.sourceFilePath,
+          isDirty: this.isDirty
+        };
+        try {
+          this.loadFromFodp(
+            result.content,
+            result.ooxmlPresentationXml,
+            result.ooxmlSlideMasterXml,
+            result.ooxmlPresPropsXml
+          );
+          if (!this.canvas?.slides?.length) throw new Error("Tệp không có trang chiếu hợp lệ.");
+        } catch (error) {
+          try { this.loadFromFodp(previous.content); } catch (restoreError) {
+            console.error("[SlidesAdapter] Không khôi phục được bản trình chiếu sau khi mở tệp lỗi:", restoreError);
+          }
+          this.sourceFileName = previous.sourceFileName;
+          this.sourceFilePath = previous.sourceFilePath;
+          this.isDirty = previous.isDirty;
+          await showAlertDialog({
+            title: "Không thể mở tệp",
+            message: "Slide không thể đọc nội dung tệp. Hãy kiểm tra tệp gốc hoặc thử lưu bản sao ở định dạng .pptx. Bản trình chiếu đang mở được giữ nguyên.",
+            type: "error"
+          });
+          return false;
+        }
+        this.sourceFileName = (result.fileName || "TrinhChieu").replace(/\.[^/.]+$/, "");
+        this.sourceFilePath = result.sourcePath || "";
+        this.isDirty = false;
+        // Lỗi thật đã xác nhận: nội dung nạp đúng nhưng nhãn tên tệp trên tab
+        // vẫn giữ nguyên tên demo cũ vì resetDocumentChrome() chỉ được gọi ở
+        // File > Mới/Đóng, chưa bao giờ gọi sau khi Mở tệp thật.
+        this.shell?.resetDocumentChrome?.(result.fileName || "Bản trình bày 1.pptx", null, true, this.sourceFilePath);
+        return true;
+      }
+      if (result.status === "cancelled") return false;
+      await showAlertDialog({ title: "Không thể mở tệp", message: result.message, type: "error" });
+      return false;
+    } finally {
+      if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
+        window.dispatchEvent(new Event("vno:document-open-complete"));
+      }
+    }
   }
 
   async exportPdf() {

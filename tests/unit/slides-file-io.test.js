@@ -233,6 +233,27 @@ export async function runSlidesFileIoTests() {
     }
   });
 
+  await asyncTest("SlidesAdapter.open() always ends document-open progress on cancellation", async () => {
+    const originalOpen = globalUnoBridge.openRealFile;
+    const originalWindow = globalThis.window;
+    const events = [];
+    globalThis.window = { dispatchEvent: event => { events.push(event.type); return true; } };
+    globalUnoBridge.openRealFile = async () => ({ status: "cancelled" });
+    try {
+      const adapter = new SlidesAdapter(null);
+      adapter.setShell({ confirmUnsavedChangesBeforeReplace: async () => true });
+      const opened = await adapter.open();
+      if (opened !== false) throw new Error(`cancelled open must return false, got ${opened}`);
+      if (events.join("|") !== "vno:document-open-progress|vno:document-open-complete") {
+        throw new Error(`open progress events=${events.join("|")}`);
+      }
+    } finally {
+      globalUnoBridge.openRealFile = originalOpen;
+      if (originalWindow === undefined) delete globalThis.window;
+      else globalThis.window = originalWindow;
+    }
+  });
+
   test("SlidesAdapter: slides.shape.insert gọi canvas.insertShape thật, không chỉ hiện thông báo giả", () => {
     const canvas = new MockCanvasController();
     let insertShapeCalledWith = null;
