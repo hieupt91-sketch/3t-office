@@ -1,5 +1,5 @@
 ﻿param([string[]]$Files)
-$cellMap=@{ bold="B2"; italic="B2"; underline="B2"; size16="B2"; fontArial="B2"; fillDefault="B2"; textColorDefault="B2"; alignCenter="B2"; alignRight="B2"; wrap="B2"; numNumber="C2"; numCurrency="C2"; numAccounting="C2"; numPercent="D2"; numDate="E2"; decInc="C2"; decDec="C2"; standard="C2"; percentBtn="D2"; bordersDefault="B2" }
+$cellMap=@{ bold="B2"; italic="B2"; underline="B2"; size16="B2"; fontArial="B2"; fillDefault="B2"; textColorDefault="B2"; alignCenter="B2"; alignRight="B2"; wrap="B2"; numNumber="C2"; numCurrency="C2"; numAccounting="C2"; numPercent="D2"; numDate="E2"; decInc="C2"; decDec="C2"; standard="C2"; percentBtn="D2"; bordersDefault="B2"; indentIncrease="B2"; mergeCenter="A8" }
 $ErrorActionPreference = "Stop"
 
 function Invoke-ComWithRetry([scriptblock]$Action, [string]$Operation, [int]$Retries = 20) {
@@ -89,7 +89,7 @@ try {
         if ($attempt -ge 20) { throw "Read $name sheet count returned $count." }
         Start-Sleep -Milliseconds 500
       }
-      $opn=([IO.Path]::GetFileNameWithoutExtension($file) -replace "^app_",""); $cc=$workbook.Worksheets.Item(1).Range($cellMap[$opn]); $columnWidth=$workbook.Worksheets.Item(1).Columns.Item($cc.Column).ColumnWidth; "{0,-17} {1} | Text='{2}' | Fmt='{3}' | B={4} I={5} U={6} Size={7} Font={8} Color={9} Fill={10} HAl={11} Wrap={12} ColWidth={13} Brd(B/T/L/R)={14}/{15}/{16}/{17}" -f $opn,$cellMap[$opn],$cc.Text,$cc.NumberFormat,[int]$cc.Font.Bold,[int]$cc.Font.Italic,[int]$cc.Font.Underline,$cc.Font.Size,$cc.Font.Name,[int]$cc.Font.Color,[int]$cc.Interior.Color,[int]$cc.HorizontalAlignment,[int]$cc.WrapText,$columnWidth,[int]$cc.Borders.Item(9).LineStyle,[int]$cc.Borders.Item(8).LineStyle,[int]$cc.Borders.Item(7).LineStyle,[int]$cc.Borders.Item(10).LineStyle
+      $opn=([IO.Path]::GetFileNameWithoutExtension($file) -replace "^app_",""); $cc=$workbook.Worksheets.Item(1).Range($cellMap[$opn]); $columnWidth=$workbook.Worksheets.Item(1).Columns.Item($cc.Column).ColumnWidth; "{0,-17} {1} | Text='{2}' | Fmt='{3}' | B={4} I={5} U={6} Size={7} Font={8} Color={9} Fill={10} HAl={11} Wrap={12} Indent={13} Orient={14} Merge={15} ColWidth={16} Brd(B/T/L/R)={17}/{18}/{19}/{20}" -f $opn,$cellMap[$opn],$cc.Text,$cc.NumberFormat,[int]$cc.Font.Bold,[int]$cc.Font.Italic,[int]$cc.Font.Underline,$cc.Font.Size,$cc.Font.Name,[int]$cc.Font.Color,[int]$cc.Interior.Color,[int]$cc.HorizontalAlignment,[int]$cc.WrapText,[int]$cc.IndentLevel,[int]$cc.Orientation,[int]$cc.MergeCells,$columnWidth,[int]$cc.Borders.Item(9).LineStyle,[int]$cc.Borders.Item(8).LineStyle,[int]$cc.Borders.Item(7).LineStyle,[int]$cc.Borders.Item(10).LineStyle
     } catch {
       $failed = $true
       "$name FAIL " + ($_.Exception.Message -replace '[\r\n]', ' ')
