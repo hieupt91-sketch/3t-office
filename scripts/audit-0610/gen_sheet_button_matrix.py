@@ -25,6 +25,7 @@ mark(MATCH, "sheet.style.formatAsTable", "FIX-S11: CDP + Excel COM read-only xá
 mark(MATCH, "sheet.chart.insert", "FIX-S9: Excel COM read-only xác nhận loại biểu đồ, tiêu đề, series và trục")
 mark(MATCH, "sheet.cell.alignCenter", "FIX-S12 nhóm Trang đầu: CDP click căn giữa; Excel COM ReadOnly HAl=-4108 tại B2 (app_alignCenter.xlsx)")
 mark(MATCH, "sheet.cell.alignRight", "FIX-S12 nhóm Trang đầu: CDP click căn phải; Excel COM ReadOnly HAl=-4152 tại B2 (app_alignRight.xlsx)")
+mark(MATCH, "sheet.format.currencyVND", "FIX-S12 Trang dau: CDP click Tien te VNĐ; Excel COM ReadOnly doc lai C2=1234.5, NumberFormat=#,##0 [$₫], hien thi 1,235 ₫ (app_S12_currencyBtn.xlsx)")
 mark(MATCH, "sheet.format.percent", "FIX-S12 nhóm Trang đầu: CDP click Phần trăm; Excel COM ReadOnly D2=0.075, NumberFormat=0% (app_percentBtn.xlsx)")
 mark(MATCH, "sheet.format.increaseDecimal", "FIX-S12 nhóm Trang đầu: CDP click Tăng số thập phân; Excel COM ReadOnly C2=1234.5, NumberFormat=0.00 (app_decInc.xlsx)")
 mark(MATCH, "sheet.data.sortDesc", "FIX-S12 tab Dữ liệu: CDP click Z-A; Excel COM ReadOnly xác nhận B2:B6 giảm dần: Trần, Phạm, Nguyễn, Lê, Hoàng (app_sortDesc.xlsx)")

@@ -17,7 +17,7 @@ const ops = [
   ["size16","B2","select","sheet.font.size","16"],["fontArial","B2","select","sheet.font.family","Arial"],
   ["fillDefault","B2","click","sheet.cell.fillColor"],["textColorDefault","B2","click","sheet.cell.textColor"],
   ["alignLeft","B2","click","sheet.cell.alignLeft"],["alignCenter","B2","click","sheet.cell.alignCenter"],["alignRight","B2","click","sheet.cell.alignRight"],["wrap","B2","click","sheet.cell.wrapText"],
-  ["numNumber","C2","select","sheet.format.quickCategory","number"],["numCurrency","C2","select","sheet.format.quickCategory","currency"],["numAccounting","C2","select","sheet.format.quickCategory","accounting"],
+  ["currencyBtn","C2","click","sheet.format.currencyVND"],["numNumber","C2","select","sheet.format.quickCategory","number"],["numCurrency","C2","select","sheet.format.quickCategory","currency"],["numAccounting","C2","select","sheet.format.quickCategory","accounting"],
   ["numPercent","D2","select","sheet.format.quickCategory","percentage"],["numDate","E2","select","sheet.format.quickCategory","date"],
   ["decInc","C2","click","sheet.format.increaseDecimal"],["decDec","C2","click","sheet.format.decreaseDecimal"],["standard","C2","click","sheet.format.standard"],["percentBtn","D2","click","sheet.format.percent"],["bordersDefault","B2","click","sheet.cell.borders"],
   ["indentIncrease","B2","click","sheet.cell.indentIncrease"],["indentDecrease","B2","click","sheet.cell.indentDecrease"],["mergeCenter","A8","merge","sheet.cell.mergeCenter","A8:B8"],["mergeAcross","A8","merge","sheet.cell.mergeAcross","A8:B8"],["mergeCells","A8","merge","sheet.cell.mergeCells","A8:B8"],["unmerge","A8","click","sheet.cell.unmerge"],

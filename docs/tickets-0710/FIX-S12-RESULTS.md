@@ -108,3 +108,8 @@
 - Ảnh `evidence/s12/fix-s12-gridlines.png`, `fix-s12-headings.png`; CDP `s12-gridlines-retry.log`, `s12-headings-retry.log`; Excel COM `excel-gridlines-retry.log`, `excel-headings-retry.log`.
 - Adapter owner handoff: `docs/AGENT-HANDOFF-FIX-S12-VIEW-STATE.md`.
 - Danh sách Cỡ chữ thử chọn 16 bằng chuột/phím CDP nhưng control giữ 11; Excel COM cũng đọc 11 pt. Chưa có bằng chứng thay đổi nên `sheet.font.size` vẫn **CHƯA ĐỐI CHIẾU**. Log `s12-font-size-select.log`, `excel-size16.log`; ảnh `evidence/s12/fix-s12-size16.png`.
+
+## Trang dau: Tien te VNĐ
+
+- CDP bam nut Tien te VNĐ tren C2; app luu XLSX rieng `app_S12_currencyBtn.xlsx`.
+- Excel COM ReadOnly doc lai `Value2=1234.5`, `NumberFormat=#,##0 [$₫]`, hien thi `1,235 ₫`; **KHOP EXCEL**. Log CDP `s12-currency.log`, Excel COM `excel-currencyBtn.log` trong profile audit; anh `evidence/s12/fix-s12-currencyBtn.png`.
