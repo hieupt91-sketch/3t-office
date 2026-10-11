@@ -1,10 +1,13 @@
 import { launchApp } from "./session.mjs";
 import { mouseClick, typeText, press } from "./actions.mjs";
-import { copyFileSync, mkdirSync, readFileSync, existsSync } from "node:fs";
+import { copyFileSync, mkdirSync, readFileSync, existsSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const dir = "E:\\VNOffice-profiles\\claude-slides-rt"; mkdirSync(dir, { recursive: true });
-const file = dir + "\\work.pptx"; copyFileSync("E:\\VN OFice\\file test\\sample-3.pptx", file);
+const dir = process.env.VNO_CDP_LOCALAPPDATA;
+if (!dir) throw new Error("Set VNO_CDP_LOCALAPPDATA to a dedicated desktop-test profile.");
+mkdirSync(dir, { recursive: true });
+const file = dir + "\\work.pptx";
+copyFileSync(process.env.VNO_FIX_L7_ROUNDTRIP_SOURCE || "E:\\VN OFice\\file test\\sample-3.pptx", file);
 const results = [];
 const check = (n, ok, d) => { results.push(ok); console.log((ok ? "PASS" : "FAIL") + " | " + n + " | " + String(d).slice(0, 230)); };
 async function openApp(path) {
@@ -16,7 +19,7 @@ async function openApp(path) {
   return s;
 }const unzipText = (zip, entry) => execFileSync("powershell", ["-NoProfile", "-Command", `Add-Type -A System.IO.Compression.FileSystem; $z=[IO.Compression.ZipFile]::OpenRead('${zip}'); $e=$z.Entries | ?{ $_.FullName -eq '${entry}' }; if(-not $e){ 'NOENTRY'; $z.Dispose(); exit }; $r=New-Object IO.StreamReader($e.Open(), [Text.Encoding]::UTF8); $r.ReadToEnd(); $r.Close(); $z.Dispose()`], { encoding: "utf8", maxBuffer: 50 * 1024 * 1024 });
 const listZip = (zip) => execFileSync("powershell", ["-NoProfile", "-Command", `Add-Type -A System.IO.Compression.FileSystem; $z=[IO.Compression.ZipFile]::OpenRead('${zip}'); $z.Entries | %{ $_.FullName }; $z.Dispose()`], { encoding: "utf8" }).split(/\r?\n/).filter(Boolean);
-let session = await openApp(dir + "\\saved.pptx");
+let session = await openApp(file);
 let ev = (e) => session.cdp.evaluate(e, { awaitPromise: true });
 const clickSel = async (q) => { const p = await ev(`(() => { const e=document.querySelector(${JSON.stringify(q)}); if(!e) return null; e.scrollIntoView({block:'nearest'}); const r=e.getBoundingClientRect(); return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2}); })()`); if (!p) return false; const { x, y } = JSON.parse(p); await mouseClick(session.cdp, x, y); return true; };
 const model = () => ev(`(() => { const c=window.__vnoAppInstance.adapter.canvas; return JSON.stringify({n:c.slides.length, cur:c.currentSlideIndex, titles:c.slides.map(s=>s.title), shapes:c.slides.map(s=>(s.shapes||[]).length), trans:c.slides.map(s=>s.transition&&s.transition.type||null)}); })()`);
@@ -42,6 +45,8 @@ try {
   check("So slide tang 1 sau Nhan doi", after.n === before.n + 1, `${before.n}->${after.n}`);
   check("Hinh khoi + hop van ban them vao slide hien tai (>=2 doi tuong)", after.shapes[after.cur] >= before.shapes[before.cur] + 2, JSON.stringify(after.shapes));
   check("Chuyen tiep duoc ghi vao model slide hien tai", !!after.trans[after.cur], JSON.stringify(after.trans));
+  const beforeSaveShot = await session.cdp.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
+  writeFileSync(dir + "\\fix-l7-roundtrip-before-save.png", Buffer.from((beforeSaveShot.result || beforeSaveShot).data, "base64"));
   await ev("window.__vnoAppInstance.adapter.isDirty = true");
   const out = dir + "\\saved.pptx";
   const saved = await session.cdp.evaluate(`(() => { window.__vnoAuditContent = window.__vnoAppInstance.adapter.serializeToFodp(); return globalThis.globalUnoBridge.saveRealFileInPlace("slides", window.__vnoAuditContent, ${JSON.stringify(out)}, ${JSON.stringify(file)}); })()`, { awaitPromise: true, timeoutMilliseconds: 600000 });
@@ -60,6 +65,8 @@ session = await openApp(dir + "\\saved.pptx"); ev = (e) => session.cdp.evaluate(
 try {
   const re = JSON.parse(await model());
   console.log("mo lai:", JSON.stringify(re));
+  const reopenedShot = await session.cdp.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
+  writeFileSync(dir + "\\fix-l7-roundtrip-after-open.png", Buffer.from((reopenedShot.result || reopenedShot).data, "base64"));
   check("Mo lai: so slide giu nguyen sau luu", re.n === before.n + 1, `${re.n}`);
   check("Mo lai: co hop van ban moi", await ev(`JSON.stringify(window.__vnoAppInstance.adapter.canvas.slides.map(s=>s.shapes||[])).includes('Hop kiem thu Claude')`), "");
 } finally { await session.close(); }

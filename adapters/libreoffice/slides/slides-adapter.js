@@ -753,6 +753,7 @@ export class SlidesAdapter {
     }
     const blocks = [];
     let current = { texts: [], align: base?.align || null, lineHeight: null, indent: null, list: null };
+    let blockquoteDepth = 0;
     const formatStack = [base?.fmt ? { ...base.fmt } : {}];
     const currentFmt = () => Object.assign({}, ...formatStack);
     const flush = () => {
@@ -768,7 +769,12 @@ export class SlidesAdapter {
         const css = this._styleFromHtmlAttrs(tag, attrs);
         if (css.align) current.align = css.align;
         if (css.lineHeight) current.lineHeight = css.lineHeight;
-        if (css.indent) current.indent = css.indent;
+        if (css.indent && !/^0(?:\.0+)?(?:[a-z%]+)?$/i.test(css.indent)) current.indent = css.indent;
+        if (tag === "blockquote") {
+          blockquoteDepth += 1;
+          // PowerPoint increases a paragraph's indent by 0.5 in (36 pt) per level.
+          current.indent = `${blockquoteDepth * 36}pt`;
+        }
         if (tag === "ul") current.list = "bullet";
         if (tag === "ol") current.list = "number";
         if (tag === "br") {
@@ -782,6 +788,11 @@ export class SlidesAdapter {
       close: (tag) => {
         if (tag === "li" || tag === "p" || tag === "div") {
           if (current.texts.length || tag === "li") flush();
+        }
+        if (tag === "blockquote") {
+          if (current.texts.length) flush();
+          blockquoteDepth = Math.max(0, blockquoteDepth - 1);
+          current.indent = blockquoteDepth ? `${blockquoteDepth * 36}pt` : (base?.indent || null);
         }
         if (tag === "ul" || tag === "ol") current.list = null;
         if (formatStack.length > 1) formatStack.pop();
