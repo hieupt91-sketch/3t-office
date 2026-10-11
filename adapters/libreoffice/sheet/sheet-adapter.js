@@ -2844,7 +2844,7 @@ export class SheetAdapter {
     String(xmlText || "").replace(/<table:database-range\b([^>]*)\/?\s*>/gi, (_, attrs) => {
       const displayFilterButtons = attrs.match(/table:display-filter-buttons=["']([^"']*)["']/i)?.[1];
       if (displayFilterButtons !== "true") return "";
-      const target = this._unescapeXml(attrs.match(/table:target-range-address=["']([^"']*)["']/i)?.[1] || "");
+      const target = this._unescapeXml(attrs.match(/table:target-range-address="([^"]*)"/i)?.[1] || "");
       if (!target) return "";
       // Calc ghi 'Tên sheet'.A1:'Tên sheet'.J2650 (nháy đơn khi tên có dấu cách/ký tự đặc biệt) hoặc
       // Sheet.A3:Sheet.CF145 — tách theo dấu "." đầu tiên làm sai cả hai (đo vòng 8: lan01 sheet 3 và
@@ -2863,7 +2863,7 @@ export class SheetAdapter {
     String(xmlText || "").replace(/<table:database-range\b([^>]*)\/?\s*>/gi, (_, attrs) => {
       const get = name => this._unescapeXml(attrs.match(new RegExp(`(?:vno:)?${name}=["']([^"']*)["']`, "i"))?.[1] || "");
       const name = get("table-name");
-      const target = this._unescapeXml(attrs.match(/table:target-range-address=["']([^"']*)["']/i)?.[1] || "");
+      const target = this._unescapeXml(attrs.match(/table:target-range-address="([^"]*)"/i)?.[1] || "");
       const match = target.match(/^(?:'((?:[^']|'')*)'|([^.'!]+))\.\$?([A-Z]+)\$?(\d+):(?:'(?:[^']|'')*'|[^.'!]+)\.\$?([A-Z]+)\$?(\d+)$/i);
       if (!name || !match) return "";
       const sheet = match[1] !== undefined ? match[1].replace(/''/g, "'") : match[2];
@@ -2883,19 +2883,18 @@ export class SheetAdapter {
       const cells = workbook.sheetsData?.[sheetName];
       if (!cells) continue;
       for (const table of tables) {
-        const bounds = /^(\$?[A-Z]+\$?\d+):(\$?[A-Z]+\$?\d+)$/i.exec(table.ref);
+        const bounds = /^\$?([A-Z]+)\$?(\d+):\$?([A-Z]+)\$?(\d+)$/i.exec(table.ref);
         if (!bounds) continue;
-        const range = this._parseRange(`${bounds[1]}:${bounds[2]}`);
-        if (!range) continue;
         const preset = TABLE_STYLE_PRESETS.find(item => item.id === table.style) || TABLE_STYLE_PRESETS[0];
-        const startCol = this._columnNumber(range.start.c), endCol = this._columnNumber(range.end.c);
-        for (let row = range.start.r; row <= range.end.r; row++) {
+        const startCol = this._columnNumber(bounds[1]), endCol = this._columnNumber(bounds[3]);
+        const startRow = Number(bounds[2]), endRow = Number(bounds[4]);
+        for (let row = startRow; row <= endRow; row++) {
           for (let column = startCol; column <= endCol; column++) {
             const coord = `${this._columnName(column)}${row}`;
             const cell = cells.get(coord) || { val: "", formula: "", style: {} };
-            const rowStyle = table.hasHeaders !== false && row === range.start.r
+            const rowStyle = table.hasHeaders !== false && row === startRow
               ? preset.headerStyle
-              : ((row - range.start.r) % 2 === 1 ? preset.evenRowStyle : preset.oddRowStyle);
+              : ((row - startRow) % 2 === 1 ? preset.evenRowStyle : preset.oddRowStyle);
             cell.style = { ...(cell.style || {}), ...rowStyle };
             cells.set(coord, cell);
           }
@@ -5037,6 +5036,8 @@ ${pristineXlsxMarker}
     perfReport("attach visibility", phaseStart); phaseStart = perfNow();
     this._attachImportedAutoFilter(workbook, xmlText);
     perfReport("attach autofilter", phaseStart); phaseStart = perfNow();
+    this._attachImportedTables(workbook, xmlText);
+    perfReport("attach tables", phaseStart); phaseStart = perfNow();
     this._attachImportedSparklines(workbook, xmlText);
     perfReport("attach sparklines", phaseStart); phaseStart = perfNow();
     this._attachImportedOutline(workbook, tableXml);

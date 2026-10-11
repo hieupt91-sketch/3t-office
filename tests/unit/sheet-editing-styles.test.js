@@ -304,14 +304,18 @@ export async function runSheetEditingStylesTests() {
     grid.selectionRange = { start: { c: "A", r: 1 }, end: { c: "B", r: 2 } };
     grid.formatAsTable("tableGreen", grid.selectionRange, false, { name: "Inventory", hasHeaders: true });
     const adapter = new SheetAdapter(grid);
+    const quotedSheet = "Danh sách-2026";
     const xml = adapter._serializeDatabaseRanges(["Sheet1"]);
     assert(xml.includes('table:name="Inventory"'), "Tên bảng phải nằm trong database range thật");
     assert(xml.includes('vno:table-style="TableStyleMedium4"'), "Kiểu bảng phải được serialize");
     assert(xml.includes('table:target-range-address="Sheet1.A1:Sheet1.B2"'), "Vùng bảng phải được serialize");
     assert(!xml.includes("__Anonymous_Sheet_DB__"), "Bảng thật không được serialize thành AutoFilter ẩn danh");
-    const workbook = { sheetsData: { Sheet1: new Map([["A1", { val: "Item", style: {} }]]) } };
-    adapter._attachImportedTables(workbook, xml);
-    assert(workbook.tablesBySheet.Sheet1[0].name === "Inventory", "Adapter phải khôi phục bảng vào model mở tệp");
+    const workbook = { sheetsData: { [quotedSheet]: new Map([["A1", { val: "Item", style: {} }]]) } };
+    const importedXml = xml.replaceAll("Sheet1", `'${quotedSheet}'`);
+    adapter._attachImportedAutoFilter(workbook, importedXml);
+    adapter._attachImportedTables(workbook, importedXml);
+    assert(workbook.tablesBySheet[quotedSheet][0].name === "Inventory", "Adapter phải khôi phục bảng khi tên sheet cần nháy đơn");
+    assert(workbook.sheetsData[quotedSheet].get("A1").style.backgroundColor, "Sheet phải hiển thị định dạng bảng khi mở");
   });
 
   test("Behavioral: Chuyển thành vùng gỡ lọc bảng và Undo/Redo khôi phục trạng thái", () => {

@@ -5353,7 +5353,7 @@ _bindGridKeyboardNavigation() {
     delete item.richText;
 
     this.cellsData.set(key, item);
-    if (tableStateBeforeEdit) {
+    if (tableStateBeforeEdit && (item.formula || String(item.val ?? "") !== "")) {
       const expanded = this._expandTableForAdjacentEntry(col, Number(row));
       if (expanded && historyAction) {
         historyAction.tablesBefore = tableStateBeforeEdit;
