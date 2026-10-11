@@ -26,3 +26,9 @@ Sai khác tái hiện: không. Trợ giúp tiếng Việt nêu đường dẫn T
 **PASS sau sửa.** Audit UI ban đầu tái hiện thiếu tùy chọn “Khớp toàn bộ nội dung ô”. Đã thêm checkbox trong hộp thoại Sheet; matcher dùng chung nhận `matchCell`, còn tìm kiếm thường ở Writer/Slides giữ nguyên mặc định. Qua chuột/phím CDP, bật khớp toàn ô chỉ thay ô `Ghi chú A` (1 lần), không nhận chuỗi con; tìm trong Sổ làm việc và phân biệt hoa/thường cũng được kiểm tra. XLSX đọc lại bằng Excel COM chỉ đọc cho thấy ô đã đổi ở hai sheet. Ảnh UI: `evidence/fix-s9-find-replace.png`.
 
 Hướng dẫn trong Trợ giúp → Tìm kiếm và Thay thế đã chỉ rõ Ctrl+F/Ctrl+H, phạm vi, thứ tự Hàng/Cột, Giá trị/Công thức và thao tác bật/tắt khớp toàn ô. Đã thêm chuỗi i18n VI/EN.
+
+## Nhóm 4 — Sắp xếp nhiều cấp
+
+**PASS.** Qua menu ngữ cảnh mở Sắp xếp tùy chỉnh, thiết lập tên tăng dần và số tiền giảm dần bằng phím; Excel COM chỉ đọc xác nhận thứ tự: Hoàng Văn E, Lê Văn C, Nguyễn Văn A (5678.9 rồi 1234.5), Phạm Thị D. XLSX: `E:\VNOffice-profiles\codex-fs10\app_customSort.xlsx`; ảnh: `evidence/fix-s9-multi-sort.png`.
+
+Sai khác tái hiện: không. Hướng dẫn tiếng Việt hiện có trong tab Dữ liệu, nhóm Sắp xếp & Lọc, và i18n cho cấp sắp xếp.
