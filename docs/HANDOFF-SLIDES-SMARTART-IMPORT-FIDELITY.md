@@ -184,6 +184,7 @@ Task tiếp theo trên `fix/macos-uno-socket` đã bổ sung bảo toàn gói Dr
 - `npm test` — PASS 3072/3072 sau cập nhật baseline Sheet cũ; baseline mới kèm assert sheet, SUM=450 và tiền ₫.
 - `python -m unittest discover -s tests -p 'test*.py'` — PASS 868 test, 31 skipped trên nhánh này.
 - `git diff --check`, `py_compile` — PASS.
+- Desktop CDP — NOT RUN: harness `tests/live/cdp/session.mjs` không nhận được Chromium `/json/version` trên Darwin; cổng do app mở trả `{"accepted":false,"error":"invalid_json"}` và harness hết thời gian chờ. App được khởi chạy bằng Python 3.12.15 trên Darwin 24.6 arm64; không có thao tác/ảnh UI nào được xác nhận trong lượt này.
 
 ### Giới hạn còn lại
 
@@ -192,3 +193,5 @@ Task tiếp theo trên `fix/macos-uno-socket` đã bổ sung bảo toàn gói Dr
 - `diagramLevel` vẫn không được LibreOffice chuyển sang FODP; không claim giữ được cấu trúc phân cấp/khả năng đổi layout SmartArt sau chỉnh sửa.
 
 NEXT ACTION: Review code + test trên PR trước khi merge; sau đó cập nhật nhánh macOS tích hợp và chạy lại nghiệm thu Slides trên giao diện desktop.
+
+CDP FOLLOW-UP: Kiểm tra vì sao backend macOS hiện tại không cung cấp Chromium CDP endpoint; xác nhận app thực sự chạy QtWebEngine theo yêu cầu port, rồi chạy lại lưu/mở qua chuột/phím và chụp ảnh. Không coi live headless LibreOffice round-trip là thay thế nghiệm thu giao diện.
