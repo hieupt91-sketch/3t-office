@@ -22,3 +22,8 @@ Quy trinh/CAM/TIET KIEM TOKEN: nhu TICKET-FIX-T1.md; COMMIT SAU MOI NHOM; Word C
 1. CDP áp dụng Normal/Title/Quote, sửa và cập nhật TOC, thêm footnote/endnote, cross-reference và danh mục hình; ảnh `references-run-07`/`captions-run-08`.
 2. Word COM đọc TOC đã cập nhật, note content, 1 REF/bookmark và ToF với 2 SEQ caption; cấu trúc references khớp.
 3. Sửa caption thành native Word SEQ/Caption và ToF; regression Python 4/4 PASS. Gallery Normal/Title/Quote giữ format đặc thù VN; Help/i18n hiện có.
+
+### Nhóm 6 — Ghi chú
+1. CDP tạo 2 comment, điều hướng, resolve Alpha và xóa Beta; ảnh `comments-run-01/comments-t8-before.png`.
+2. Word COM thao tác tương đương; cả hai DOCX sau lưu có một comment, cùng Author/Scope/Text và `Done=True`.
+3. Điều hướng, resolve, delete **KHỚP**; Help F1/i18n đã có. Chỉnh sửa comment chưa được kiểm tra vì hiện chưa có thao tác UI.

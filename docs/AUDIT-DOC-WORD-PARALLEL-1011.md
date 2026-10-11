@@ -63,7 +63,7 @@ Lượt so sánh COM cuối: **21/21 KHỚP**. Hai lượt chẩn đoán trướ
 | Chú thích trang/cuối trang và cuối tài liệu | CDP thêm nội dung `Footnote content`/`Endnote content` | Word COM tạo và đọc lại | KHỚP: mỗi loại 1, nội dung đúng |
 | Tham chiếu chéo | CDP chèn tới `Target heading`; Word đọc lại | COM tạo REF field/bookmark cùng kết quả | KHỚP |
 | Danh mục hình | CDP chèn 2 caption, tạo ToF; Word COM đọc lại | COM tạo caption và ToF native | KHỚP: 2 SEQ fields, 1 TableOfFigures |
-| Ghi chú | Một comment; Word đọc Author/Scope/Text | COM tạo cùng comment; đọc lại | KHỚP: `3T Office` / `Alpha` / `Audit note`; trạng thái Done chưa chạy |
+| Ghi chú | CDP tạo 2, điều hướng, resolve Alpha, xóa Beta; DOCX lưu | COM tạo/resolve/xóa cùng cách | KHỚP: còn một comment `3T Office` / `Alpha` / `Resolve audit`, Done=True |
 | Theo dõi thay đổi: chèn cụm ` added` | Word đọc một `Revision` thêm, Type 1, Author 3T Office | COM bật TrackRevisions, chèn cùng cụm; đọc lại | KHỚP về count/type/author/text |
 | Heading 1–3 (kiểu mặc định tài liệu mới) | CDP gõ/chọn/lưu; Word COM đọc đủ thuộc tính | Word COM tạo và đọc cùng kiểu | KHỚP; DOCX nhập giữ nguyên |
 | Thư viện kiểu: Normal/Title/Quote | CDP đã áp dụng và đọc Word COM | COM tạo kiểu Word tương ứng | Chạy đủ; các preset VN có chủ ý khác định dạng Normal/Title/Quote mặc định Word (TNR, 14pt/căn đều; Title đậm xanh/căn giữa; Quote có viền trái) |
@@ -136,6 +136,12 @@ Nhóm chưa hoàn tất: style Normal/Title/Quote, cập nhật TOC sau sửa He
 Chọn đúng từ **Alpha** bằng chuột/phím CDP, mở **Đánh giá > Thêm ghi chú**, nhập `Audit note`, lưu DOCX. Word COM tạo comment trên cùng phạm vi và lưu DOCX đối chứng. COM đọc lại cả hai file: số comment `1/1`, Author `3T Office/3T Office`, Scope `Alpha/Alpha`, Text `Audit note/Audit note`: **KHỚP**. Bài hướng dẫn tiếng Việt **Thêm và quản lý ghi chú** đã có trong Trợ giúp Writer; nhãn có i18n.
 
 Chưa chạy: đánh dấu Done/Resolved, sửa/xóa comment, điều hướng comment và comment trên phạm vi nhiều đoạn.
+
+### FIX-T8 — Ghi chú — 11/10/2026 (đối chiếu trạng thái)
+
+1. App/CDP: tạo hai ghi chú trên Alpha/Beta bằng mouse+keyboard; Previous tới Alpha, đánh dấu đã xử lý, Next rồi xóa Beta; ảnh `E:\VNOffice-profiles\codex-ft8\comments-run-01\comments-t8-before.png`.
+2. Word COM: tạo, resolve và xóa comment tương đương; sau lưu/mở cả hai DOCX có một comment, author `3T Office`, scope `Alpha`, text `Resolve audit`, Done=True.
+3. Kết quả: navigation, resolve, delete và OOXML `w15:done` **KHỚP**. Help F1/i18n hiện có; sửa nội dung comment chưa có thao tác UI và cần bổ sung/đối chiếu riêng.
 
 ### FIX-T8 tiếp tục — Theo dõi thay đổi — 11/10/2026
 
