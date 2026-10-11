@@ -47,6 +47,14 @@ class ResidualLayersR8Tests(unittest.TestCase):
         patcher._restore_formula_results_and_missing_errors_step(saved, src, repl, copier)
         self.assertIn('<v>10</v>', repl['xl/worksheets/sheet1.xml']); self.assertIn('r="B1"', repl['xl/worksheets/sheet1.xml'])
 
+    def test_source_formula_cache_keeps_formulas_in_string_result_cells(self):
+        wb = '<workbook><sheets><sheet name="Data" sheetId="1" r:id="rId1"/></sheets></workbook>'
+        src = package(wb, '<worksheet><sheetData><row r="1"><c r="A1" t="str"><f>CONCAT(A2,A3)</f><v>text</v></c></row></sheetData></worksheet>')
+        saved = package(wb, '<worksheet><sheetData><row r="1"><c r="A1" t="str"><f>CONCAT(A2,A3)</f><v>text</v></c></row></sheetData></worksheet>')
+        patcher._restore_formula_results_and_missing_errors_step(saved, src, {}, None)
+        indexed = patcher._index_memo_get("source_cell_repairs", src)
+        self.assertEqual(indexed["Data"]["formulas"]["A1"], "CONCAT(A2,A3)")
+
     def test_leading_newline_string_restored(self):
         wb = '<workbook><sheets><sheet name="Data" sheetId="1" r:id="rId1"/></sheets></workbook>'
         src = package(wb, '<worksheet><sheetData><row r="1"><c r="A1" t="s"><v>0</v></c></row></sheetData></worksheet>', shared='<sst><si><t xml:space="preserve">\nNoi dung</t></si></sst>')
