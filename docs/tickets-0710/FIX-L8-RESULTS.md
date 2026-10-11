@@ -12,9 +12,11 @@
 - `slides.para.indentDec`: CDP tăng rồi giảm thụt lề cùng vùng chữ; COM đọc lại `TextFrame2.LeftIndent=0 pt`, khớp baseline, số shape vẫn là 5.
 - `common.edit.find` / `common.edit.replace`: CDP tìm `ROAD TRIP` tại vị trí 10, thay tất cả `Your Name` thành `Presenter` (2 lần); COM Find và đọc lại shape 2 cùng xác nhận.
 - `slides.insert.headerFooter`, `slides.insert.dateTime`, `slides.insert.slideNumber`: CDP đặt model ngày/footer/số trang cho 10 slide, nhưng PPTX lưu mở bằng PowerPoint COM có cả ba thuộc tính native `Visible=0`. Ghi nhận để chủ sở hữu duyệt, không sửa ngữ nghĩa trong lượt audit.
+- `slides.insert.wordart`: CDP thêm model WordArt với preset gradient; PowerPoint COM đọc shape `Type=17` (TextBox), không phải native WordArt/TextEffect. Văn bản còn nguyên; ghi nhận để chủ sở hữu duyệt.
+- `slides.insert.symbol`: phép bấm ký hiệu `™` chưa chèn vào text shape trong kịch bản hiện tại; chưa kết luận parity.
 - `slides.design.slideSize`: CDP đổi Wide sang Standard; COM đọc `PageSetup=720×540 pt`, khớp 4:3.
 - `slides.design.formatBackground`: CDP áp gradient ngang `#1e3a8a→#ffffff`; COM đọc `Fill.Type=3`, màu trước `RGB=9058846`.
-- Ma trận hiện có 42 KHỚP POWERPOINT, 37 CHƯA ĐỐI CHIẾU, 7 LỆCH ĐÃ BIẾT và 2 KHÁC CÓ CHỦ Ý. Các nút Trang đầu còn lại và những tab sau vẫn đang chờ đo.
+- Ma trận hiện có 42 KHỚP POWERPOINT, 36 CHƯA ĐỐI CHIẾU, 8 LỆCH ĐÃ BIẾT và 2 KHÁC CÓ CHỦ Ý. Các nút Trang đầu còn lại và những tab sau vẫn đang chờ đo.
 
 **Chế độ xem và Trợ giúp — thao tác UI đã ghi nhận, chưa tính parity**
 

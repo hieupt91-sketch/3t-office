@@ -2,7 +2,7 @@
 
 Nguồn danh sách nút: [`ribbon-scan-slides-1011.json`](ribbon-scan-slides-1011.json). Ma trận giữ đủ từng dòng scan (kể cả ID xuất hiện ở nhiều tab); trạng thái chỉ áp dụng tới thuộc tính/kịch bản ghi trong bằng chứng.
 
-Tổng: 88 dòng. **KHỚP POWERPOINT**: 42, **CHƯA ĐỐI CHIẾU**: 37, **LỆCH ĐÃ BIẾT**: 7, **KHÁC CÓ CHỦ Ý**: 2.
+Tổng: 88 dòng. **KHỚP POWERPOINT**: 42, **CHƯA ĐỐI CHIẾU**: 36, **LỆCH ĐÃ BIẾT**: 8, **KHÁC CÓ CHỦ Ý**: 2.
 
 - **KHỚP POWERPOINT**: thao tác VN Slides được thực hiện; PowerPoint COM đọc lại cùng thuộc tính và kết quả khớp.
 - **KHÁC CÓ CHỦ Ý**: khác biệt sản phẩm có chủ ý hoặc không có nút đối ứng; nêu rõ lý do.
@@ -54,7 +54,7 @@ Các kết quả kế thừa được giới hạn theo báo cáo FIX-L4/L5/L6; 
 | Chèn | `slides.insert.chart` | Biểu đồ | KHỚP POWERPOINT | FIX-L6: chèn chart trong app, lưu/mở bằng PowerPoint COM; đọc được đối tượng chart (ChartType 51). [FIX-L6 results](tickets-0710/FIX-L6-RESULTS.md#kiểm-tra) |
 | Chèn | `slides.review.commentInsert` | Nhận xét mới | CHƯA ĐỐI CHIẾU |  |
 | Chèn | `slides.text.insert` | Hộp văn bản | KHỚP POWERPOINT | FIX-L6: chèn textbox trong app, lưu/mở bằng PowerPoint COM; đọc được đối tượng msoTextBox. [FIX-L6 results](tickets-0710/FIX-L6-RESULTS.md#kiểm-tra) |
-| Chèn | `slides.insert.wordart` | Chữ nghệ thuật | CHƯA ĐỐI CHIẾU |  |
+| Chèn | `slides.insert.wordart` | Chữ nghệ thuật | LỆCH ĐÃ BIẾT | FIX-L8: CDP thêm WordArt model `type=wordart` với preset ocean-gradient; PowerPoint COM mở PPTX dưới dạng Shape.Type=17 (TextBox), không phải native WordArt/TextEffect. Văn bản còn nguyên; ghi nhận để chủ sở hữu duyệt, chưa đổi semantics. [CDP](tickets-0710/evidence/fix-l8/insert/insert-art-symbol-cdp-readback.json), [COM](tickets-0710/evidence/fix-l8/insert/insert-art-symbol-readback.json) |
 | Chèn | `slides.insert.headerFooter` | Đầu trang & Chân trang | LỆCH ĐÃ BIẾT | FIX-L8: CDP áp dụng ngày, số trang chiếu và footer cho cả 10 slide; PowerPoint COM mở PPTX đã lưu vẫn đọc SlideNumber.Visible=0, DateAndTime.Visible=0, Footer.Visible=0. Ghi nhận để chủ sở hữu duyệt, chưa đổi semantics. [CDP](tickets-0710/evidence/fix-l8/insert/insert-fields-cdp-readback.json), [COM](tickets-0710/evidence/fix-l8/insert/insert-fields-readback.json) |
 | Chèn | `slides.insert.dateTime` | Ngày & Giờ | LỆCH ĐÃ BIẾT | FIX-L8: CDP chọn định dạng ngày và áp dụng; model giữ showDate=true trên 10 slide, nhưng PowerPoint COM đọc DateAndTime.Visible=0 trong PPTX đã lưu. Ghi nhận để chủ sở hữu duyệt, chưa đổi semantics. [CDP](tickets-0710/evidence/fix-l8/insert/insert-fields-cdp-readback.json), [COM](tickets-0710/evidence/fix-l8/insert/insert-fields-readback.json) |
 | Chèn | `slides.insert.slideNumber` | Số trang chiếu | LỆCH ĐÃ BIẾT | FIX-L8: CDP áp dụng số trang chiếu cho 10 slide; model giữ showSlideNumber=true nhưng PowerPoint COM đọc SlideNumber.Visible=0 trong PPTX đã lưu. Ghi nhận để chủ sở hữu duyệt, chưa đổi semantics. [CDP](tickets-0710/evidence/fix-l8/insert/insert-fields-cdp-readback.json), [COM](tickets-0710/evidence/fix-l8/insert/insert-fields-readback.json) |
