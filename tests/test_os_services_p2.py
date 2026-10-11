@@ -94,7 +94,8 @@ class ServicesMatchLegacyTests(unittest.TestCase):
 
     def test_native_printer_service_routes_listing_and_pdf_printing_without_changing_windows_fallback(self):
         calls = []
-        self.assertIsNone(vnmain._os_services().printer_services)  # Windows/portable keep their existing pipeline until migrated.
+        if sys.platform != "darwin":
+            self.assertIsNone(vnmain._os_services().printer_services)  # Windows/portable keep their existing pipeline until migrated.
         pkg = sys.modules["_vno_os_services"]
 
         class FakePrinterService:
