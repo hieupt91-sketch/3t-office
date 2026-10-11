@@ -1174,10 +1174,12 @@ export const enStrings = {
       title: "Styles Gallery",
       hint: "Click to apply style",
       normal: { label: "Normal", sublabel: "Normal text", desc: "Standard body text, 14pt justified (Decree 30/2020/ND-CP)" },
+      subtitle: { label: "Subtitle", sublabel: "Subtitle", desc: "Word built-in Subtitle style for text below the title" },
       h1: { label: "Heading 1", sublabel: "Heading 1", desc: "Heading 1: Uppercase, bold, centered, 16pt" },
       h2: { label: "Heading 2", sublabel: "Heading 2", desc: "Heading 2: Title case bold, 14pt" },
       h3: { label: "Heading 3", sublabel: "Heading 3", desc: "Heading 3: Bold italic, 13pt" },
-      quote: { label: "Quote", sublabel: "Quote", desc: "Blockquote: Italic, 24pt indent, blue left border" },
+      quote: { label: "Quote", sublabel: "Quote", desc: "Word built-in Quote style with italic, centered, indented text" },
+      listparagraph: { label: "List Paragraph", sublabel: "List Paragraph", desc: "Word built-in List Paragraph style with a half-inch indent" },
       emphasis: { label: "Emphasis", sublabel: "Emphasis", desc: "Emphasis: Bold, italic, amber color" }
     },
     comments: {

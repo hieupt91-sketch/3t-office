@@ -9040,8 +9040,14 @@ export class WriterAdapter {
     } else if (styleKey === "h3" || styleKey === "heading3") {
       targetTag = "h3";
     } else if (styleKey === "quote" || styleKey === "trichdan" || styleKey === "blockquote") {
-      targetTag = "blockquote";
+      targetTag = "p";
       addClass = "vno-style-quote";
+    } else if (styleKey === "subtitle" || styleKey === "phude") {
+      targetTag = "p";
+      addClass = "vno-style-subtitle";
+    } else if (styleKey === "listparagraph" || styleKey === "list-paragraph" || styleKey === "doandanh sach") {
+      targetTag = "p";
+      addClass = "vno-style-list-paragraph";
     } else if (styleKey === "emphasis" || styleKey === "nhanmanh") {
       targetTag = "p";
       addClass = "vno-style-emphasis";
@@ -9072,16 +9078,6 @@ export class WriterAdapter {
     }
 
     this._updateCurrentBlockStyle(targetTag, addClass, origId);
-    if (styleKey === "title" || styleKey === "tieude") {
-      this._getSelectedParagraphBlocks().forEach((block) => Object.assign(block.style, {
-        fontSize: "26pt",
-        fontWeight: "bold",
-        color: "#1f4e79",
-        textAlign: "center",
-        marginBottom: "8pt"
-      }));
-    }
-
     this.isDirty = true;
     this.recordSnapshot("writer.style.apply");
     this._syncActiveStyleUI();

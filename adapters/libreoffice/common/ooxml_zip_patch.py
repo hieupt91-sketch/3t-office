@@ -15888,6 +15888,92 @@ def _writer_restore_heading_styles(
     return document_xml, styles_xml
 
 
+def _writer_restore_gallery_builtin_styles(document_xml: str, styles_xml: str, source_html: str) -> tuple[str, str]:
+    """Restore semantic Word built-in paragraph styles used by the Writer gallery."""
+    mapping = {
+        "vno-style-title": "Title",
+        "vno-style-subtitle": "Subtitle",
+        "vno-style-quote": "Quote",
+        "vno-style-list-paragraph": "ListParagraph",
+    }
+    run_style_properties = {
+        "Title": '<w:rFonts w:ascii="Calibri Light" w:hAnsi="Calibri Light" w:eastAsia="Calibri Light" w:cs="Calibri Light"/><w:sz w:val="56"/><w:szCs w:val="56"/>',
+        "Subtitle": '<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:eastAsia="Calibri" w:cs="Calibri"/><w:color w:val="5A5A5A"/><w:sz w:val="22"/><w:szCs w:val="22"/>',
+        "Quote": '<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:eastAsia="Calibri" w:cs="Calibri"/><w:i/><w:iCs/><w:color w:val="404040"/><w:sz w:val="22"/><w:szCs w:val="22"/>',
+        "ListParagraph": '<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:eastAsia="Calibri" w:cs="Calibri"/><w:sz w:val="22"/><w:szCs w:val="22"/>',
+    }
+    sources = []
+    for class_name, style_id in mapping.items():
+        pattern = re.compile(
+            rf'<(?:p|div|blockquote)\b(?=[^>]*\bclass=["\'][^"\']*\b{re.escape(class_name)}\b[^"\']*["\'])[^>]*>([\s\S]*?)</(?:p|div|blockquote)\s*>',
+            re.IGNORECASE,
+        )
+        for match in pattern.finditer(source_html or ""):
+            text = re.sub(r"\s+", " ", _writer_html_plain(match.group(1))).strip()
+            if text:
+                sources.append((text, style_id))
+    style_definitions = {
+        "Title": '<w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/><w:contextualSpacing/></w:pPr><w:rPr><w:rFonts w:ascii="Calibri Light" w:hAnsi="Calibri Light" w:eastAsia="Calibri Light" w:cs="Calibri Light"/><w:sz w:val="56"/><w:szCs w:val="56"/></w:rPr></w:style>',
+        "Subtitle": '<w:style w:type="paragraph" w:styleId="Subtitle"><w:name w:val="Subtitle"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr/><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:eastAsia="Calibri" w:cs="Calibri"/><w:color w:val="5A5A5A"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr></w:style>',
+        "Quote": '<w:style w:type="paragraph" w:styleId="Quote"><w:name w:val="Quote"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:before="200"/><w:ind w:left="864" w:right="864"/><w:jc w:val="center"/></w:pPr><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:eastAsia="Calibri" w:cs="Calibri"/><w:i/><w:iCs/><w:color w:val="404040"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr></w:style>',
+        "ListParagraph": '<w:style w:type="paragraph" w:styleId="ListParagraph"><w:name w:val="List Paragraph"/><w:basedOn w:val="Normal"/><w:uiPriority w:val="34"/><w:qFormat/><w:pPr><w:ind w:left="720"/><w:jc w:val="left"/><w:contextualSpacing/></w:pPr><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:eastAsia="Calibri" w:cs="Calibri"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr></w:style>',
+    }
+    for style_id, definition in style_definitions.items():
+        if any(required == style_id for _text, required in sources):
+            existing = re.search(
+                rf'<w:style\b(?=[^>]*\bw:styleId=["\']{style_id}["\'])[^>]*>[\s\S]*?</w:style\s*>',
+                styles_xml, re.IGNORECASE,
+            )
+            if existing:
+                styles_xml = styles_xml[:existing.start()] + definition + styles_xml[existing.end():]
+            else:
+                styles_xml = styles_xml.replace("</w:styles>", definition + "</w:styles>", 1)
+    if not sources:
+        return document_xml, styles_xml
+    paragraphs = list(re.finditer(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", document_xml, re.IGNORECASE))
+    cursor = 0
+    updates = {}
+    for expected, style_id in sources:
+        for index in range(cursor, len(paragraphs)):
+            if _paragraph_plain_text(paragraphs[index].group(0)).strip() == expected:
+                paragraph = paragraphs[index].group(0)
+                ppr_match = re.search(r"<w:pPr\b[^>]*>[\s\S]*?</w:pPr\s*>", paragraph, re.IGNORECASE)
+                if ppr_match:
+                    ppr = re.sub(r"<w:(?:spacing|ind|jc|rPr)\b[^>]*/>|<w:rPr\b[^>]*>[\s\S]*?</w:rPr\s*>", "", ppr_match.group(0), flags=re.IGNORECASE)
+                    paragraph = paragraph[:ppr_match.start()] + ppr + paragraph[ppr_match.end():]
+                paragraph = re.sub(
+                    r"<w:rPr\b[^>]*>([\s\S]*?)</w:rPr\s*>",
+                    lambda match: "<w:rPr>" + re.sub(
+                        r"<w:(?:rFonts|sz|szCs|color|b|bCs|i|iCs)\b[^>]*/>", "", match.group(1), flags=re.IGNORECASE
+                    ) + "</w:rPr>",
+                    paragraph, flags=re.IGNORECASE,
+                )
+                run_props = run_style_properties[style_id]
+                def apply_default_style_to_run(run_match: re.Match) -> str:
+                    run = run_match.group(0)
+                    rpr = f"<w:rPr>{run_props}</w:rPr>"
+                    existing_rpr = re.search(r"<w:rPr\b[^>]*>[\s\S]*?</w:rPr\s*>", run, re.IGNORECASE)
+                    if existing_rpr:
+                        return run[:existing_rpr.start()] + rpr + run[existing_rpr.end():]
+                    opening = re.match(r"<w:r\b[^>]*>", run, re.IGNORECASE)
+                    return run[:opening.end()] + rpr + run[opening.end():] if opening else run
+                paragraph = re.sub(r"<w:r\b[^>]*>[\s\S]*?</w:r\s*>", apply_default_style_to_run, paragraph, flags=re.IGNORECASE)
+                updates[index] = _writer_upsert_ppr_empty(
+                    paragraph, "pStyle", f'<w:pStyle w:val="{style_id}"/>'
+                )
+                cursor = index + 1
+                break
+    if not updates:
+        return document_xml, styles_xml
+    output = []
+    previous = 0
+    for index, paragraph in enumerate(paragraphs):
+        output.extend((document_xml[previous:paragraph.start()], updates.get(index, paragraph.group(0))))
+        previous = paragraph.end()
+    output.append(document_xml[previous:])
+    return "".join(output), styles_xml
+
+
 def _writer_balanced_html_element(source: str, start: int, tag: str) -> str:
     token_re = re.compile(rf"</?{re.escape(tag)}\b[^>]*>", re.IGNORECASE)
     depth = 0
@@ -17862,6 +17948,7 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
     styles_xml = styles_bytes.decode("utf-8", errors="replace") if styles_bytes else ""
     if styles_xml:
         document_xml, styles_xml = _writer_restore_heading_styles(document_xml, styles_xml, source_html)
+        document_xml, styles_xml = _writer_restore_gallery_builtin_styles(document_xml, styles_xml, source_html)
         document_xml, styles_xml = _writer_apply_word_default_heading_styles_for_new_documents(
             document_xml, styles_xml, source_html
         )

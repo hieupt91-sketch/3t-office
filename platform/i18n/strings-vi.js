@@ -1175,10 +1175,12 @@ export const viStrings = {
       title: "Thư viện Kiểu dáng (Styles Gallery)",
       hint: "Nhấp để áp dụng ngay",
       normal: { label: "Normal", sublabel: "Văn bản thường", desc: "Văn bản thường, phông chữ chuẩn 14pt căn đều hai bên (Nghị định 30/2020/NĐ-CP)" },
+      subtitle: { label: "Phụ đề", sublabel: "Subtitle", desc: "Kiểu Subtitle dựng sẵn của Word, dùng dưới tiêu đề tài liệu" },
       h1: { label: "Tiêu đề 1", sublabel: "Heading 1", desc: "Tiêu đề cấp 1: Chữ hoa, in đậm, căn giữa, cỡ 16pt (QUYẾT ĐỊNH, CHỈ THỊ...)" },
       h2: { label: "Tiêu đề 2", sublabel: "Heading 2", desc: "Tiêu đề cấp 2: Chữ thường in đậm, cỡ 14pt (Điều 1, Mục I...)" },
       h3: { label: "Tiêu đề 3", sublabel: "Heading 3", desc: "Tiêu đề cấp 3: In đậm nghiêng, cỡ 13pt (Khoản 1, Điểm a...)" },
-      quote: { label: "Trích dẫn", sublabel: "Quote", desc: "Khối trích dẫn: In nghiêng, thụt lề 24pt, viền xanh bên trái" },
+      quote: { label: "Trích dẫn", sublabel: "Quote", desc: "Kiểu Quote dựng sẵn của Word: chữ nghiêng, căn giữa và thụt lề" },
+      listparagraph: { label: "Đoạn danh sách", sublabel: "List Paragraph", desc: "Kiểu List Paragraph dựng sẵn của Word, thụt lề 0,5 inch" },
       emphasis: { label: "Nhấn mạnh", sublabel: "Emphasis", desc: "Đoạn nhấn mạnh: In đậm, in nghiêng, màu sắc nổi bật" }
     },
     comments: {
@@ -1187,6 +1189,9 @@ export const viStrings = {
       addCommentTitle: "Thêm ghi chú",
       addCommentPlaceholder: "Nhập nội dung ghi chú...",
       addCommentBtn: "Thêm ghi chú",
+      replyTitle: "Trả lời nhận xét",
+      replyPlaceholder: "Nhập nội dung trả lời...",
+      replyBtn: "Gửi trả lời",
       panelLabel: "Ghi chú tài liệu",
       openCommentAria: "Mở ghi chú cho: {text}",
       placeholderHeader: "Nhấp để nhập tiêu đề đầu trang (Header)...",
