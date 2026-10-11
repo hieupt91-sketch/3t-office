@@ -169,3 +169,8 @@
 
 - CDP chọn M1, thêm hai vùng cùng kích thước A2:C3 và A4:C5, dùng SUM, bỏ chọn nhãn hàng/cột.
 - Excel COM ReadOnly đọc M1:O2=`4|0|3702.5` và `6|0|7036.1`, đúng tổng theo vị trí hai vùng nguồn; **KHỚP EXCEL**. Log `s12-consolidate.log`, `excel-consolidate.log`; ảnh `evidence/s12/fix-s12-consolidate.png`.
+
+## Trang đầu: probe ribbon chưa kết luận
+
+- Thử lại Căn trên và Ngắt dòng qua CDP sau khi chờ panel ribbon mới render; thao tác vẫn để ribbon chuyển sang tab khác và model/Excel giữ căn dưới, WrapText=0. Hai command tiếp tục **CHƯA ĐỐI CHIẾU**; chưa coi sự kiện click là bằng chứng. Log `s12-alignTop-tabfix.log`, `excel-alignTop-tabfix.log`, `s12-wrap-tabfix.log`.
+- Runner hiện chờ `tabpanel` đúng tab và tìm command bên trong panel đó; cần xác nhận cách chọn nút sau khi đổi tab trước khi dùng cho các probe Trang đầu còn lại.
