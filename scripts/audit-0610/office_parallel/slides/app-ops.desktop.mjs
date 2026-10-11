@@ -38,9 +38,12 @@ try {
     return {result,cssFontSize:el&&getComputedStyle(el).fontSize,html:el&&el.innerHTML};
   })()`, { awaitPromise: true });
   await record('font-18', () => selectedFont('slides.font.size', '18'));
-  await record('font-grow-1', () => selectedFont('slides.font.grow', null));
-  await record('font-grow-2', () => selectedFont('slides.font.grow', null));
-  await record('font-shrink-1', () => selectedFont('slides.font.shrink', null));
+  for (let step = 1; step <= 5; step++) {
+    await record(`font-grow-${step}`, () => selectedFont('slides.font.grow', null));
+  }
+  for (let step = 1; step <= 5; step++) {
+    await record(`font-shrink-${step}`, () => selectedFont('slides.font.shrink', null));
+  }
   await record('bold', () => selectedFont('slides.text.bold', null));
   await record('align-center', () => selectedFont('slides.para.alignCenter', null));
   await record('insert-shape', () => session.cdp.evaluate(`(async()=>{

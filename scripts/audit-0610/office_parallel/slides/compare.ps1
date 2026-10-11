@@ -1,7 +1,7 @@
-param([string]$Dir = $env:VNO_CDP_LOCALAPPDATA)
+param([string]$Dir = $env:VNO_CDP_LOCALAPPDATA, [string]$AppFile = '')
 $ErrorActionPreference = 'Stop'
 if (-not $Dir) { throw 'Set VNO_CDP_LOCALAPPDATA or pass -Dir.' }
-$appFile = Join-Path $Dir 'app-result.pptx'
+$appFile = if ($AppFile) { $AppFile } else { Join-Path $Dir 'app-result.pptx' }
 $jsonFile = Join-Path $Dir 'powerpoint-result.json'
 if (-not (Test-Path $appFile)) { throw "Missing $appFile. app-ops must save the app result before PowerPoint comparison." }
 $existing = @(Get-CimInstance Win32_Process -Filter "Name='POWERPNT.EXE'" | ForEach-Object { [int]$_.ProcessId })
@@ -48,6 +48,13 @@ try {
     $rows += (& $read 'Shape.Fill.RGB' { $shape.Fill.ForeColor.RGB })
     $rows += (& $read 'Shape.Line.RGB' { $shape.Line.ForeColor.RGB })
     $rows += (& $read 'Shape.ZOrderPosition' { $shape.ZOrderPosition })
+  }
+  $sequence = $slide.TimeLine.MainSequence
+  $rows += (& $read 'Slide.Animation.EffectCount' { $sequence.Count })
+  for ($effectIndex = 1; $effectIndex -le $sequence.Count; $effectIndex++) {
+    $effect = $sequence.Item($effectIndex)
+    $rows += (& $read "Slide.Animation.Effect$effectIndex.Shape" { $effect.Shape.Name })
+    $rows += (& $read "Slide.Animation.Effect$effectIndex.Duration" { $effect.Timing.Duration })
   }
   $rows += (& $read 'Slide.Hidden' { $slide.SlideShowTransition.Hidden })
   $rows += (& $read 'Slide.Transition' { $slide.SlideShowTransition.EntryEffect })
