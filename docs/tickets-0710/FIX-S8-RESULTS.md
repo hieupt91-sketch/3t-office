@@ -18,3 +18,11 @@ Chọn B2, mở **Định dạng ô > Căn chỉnh**, chọn 90° (Lên), áp d�
 Bằng chứng: [Ảnh xoay chữ](evidence/fix-s8-text-rotation.png), [ảnh lề trang](evidence/fix-s8-page-setup.png).
 
 Kiểm tra mục này: thao tác CDP desktop PASS; Excel COM read-only PASS.
+
+## 3. Độ rộng cột sau chèn cột — PASS, không tái hiện lệch
+
+Đối chứng là workbook fixture được mở rồi lưu nguyên trạng qua app; nhánh thử chèn cột B dùng cùng fixture và cùng luồng lưu. Excel COM đọc A:C lần lượt `8.43/8.43/8.43` ở cả hai đầu ra. Cột B mới trống; dữ liệu cũ dịch sang C. Không xuất hiện 8.5 hay 10.88 nên không thay đổi logic độ rộng cột.
+
+Excel COM không đọc trực tiếp được fixture đầu vào (`0x800A03EC`); đối chứng cuối dùng workbook không chỉnh sửa đã lưu qua app. Bằng chứng UI: [Ảnh chèn cột B](evidence/fix-s8-insert-column.png).
+
+Kiểm tra mục này: probe CDP desktop PASS; Excel COM read-only trên đối chứng và đầu ra chèn cột PASS.
