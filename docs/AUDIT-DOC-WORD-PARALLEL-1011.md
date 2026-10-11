@@ -300,3 +300,7 @@ Phần “chưa chạy” này là ghi nhận giữa chừng, đã được thay
 - Word COM mở các DOCX do app lưu: màu nền, viền trang (dashed, 3 pt, #dc2626), khổ A4 và first-line indent (14.15 pt) khớp. Sửa giữ vùng chọn khi bấm select thụt đầu dòng.
 - Lệch đo được: theme Administrative không thành theme Word; watermark được nhập thành dòng text thường; Word COM không thấy numbering type dù app lưu cấu hình `page`. Đánh dấu LỆCH ĐÃ BIẾT.
 - PDF: chưa có phép đo byte/page size từ file PDF của app; Xuất PDF gọi hộp thoại Save native, không điều khiển được bằng CDP. Word COM print preview không có giao diện cùng cơ chế để so trực tiếp. Ma trận ghi rõ giới hạn, không tính là PASS.
+
+## FIX-T11 nhóm 4 — Tham chiếu
+- CDP qua ribbon Tham chiếu: thêm nguồn (tác giả, tiêu đề, năm, nhà xuất bản, URL), chọn MLA, chèn trích dẫn và Works Cited; lưu DOCX.
+- Word COM mở DOCX app: có `(Nguyễn)`, `Works Cited`, tiêu đề nguồn, nhà xuất bản và năm; 1 trang. Ma trận đánh dấu 4 lệnh KHỚP.

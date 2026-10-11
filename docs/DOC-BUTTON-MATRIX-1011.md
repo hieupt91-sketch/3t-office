@@ -6,7 +6,7 @@ Nguồn: `claude-ribbon-scan` (nút nào có phản ứng) + `docs/AUDIT-DOC-WOR
 - **LỆCH ĐÃ BIẾT**: còn lệch đã đo.
 - **CHƯA ĐỐI CHIẾU**: nút có phản ứng (không phải nút câm) nhưng **chưa** so với Word thật — cần làm tiếp.
 
-Tổng kết: KHỚP WORD (đã so Word COM): 80, CHƯA ĐỐI CHIẾU: 33, LỆCH ĐÃ BIẾT: 6, KHÁC CÓ CHỦ Ý: 1 (tổng 120 nút, không kể Trợ lý AI).
+Tổng kết: KHỚP WORD (đã so Word COM): 84, CHƯA ĐỐI CHIẾU: 29, LỆCH ĐÃ BIẾT: 6, KHÁC CÓ CHỦ Ý: 1 (tổng 120 nút, không kể Trợ lý AI).
 
 | Tab | Lệnh | Nút | Trạng thái | Ghi chú |
 |---|---|---|---|---|
@@ -85,10 +85,10 @@ Tổng kết: KHỚP WORD (đã so Word COM): 80, CHƯA ĐỐI CHIẾU: 33, LỆ
 | Tham chiếu | `writer.reference.tocUpdate` | Cập nhật mục lục | KHỚP WORD (đã so Word COM) | mục lục + Heading |
 | Tham chiếu | `writer.reference.footnoteInsert` | Chú thích trang (Ctrl+Alt+F) | KHỚP WORD (đã so Word COM) | chú thích trang/cuối |
 | Tham chiếu | `writer.reference.endnoteInsert` | Chú thích cuối (Ctrl+Alt+D) | KHỚP WORD (đã so Word COM) | chú thích trang/cuối |
-| Tham chiếu | `writer.reference.citationInsert` | Chèn trích dẫn | CHƯA ĐỐI CHIẾU |  |
-| Tham chiếu | `writer.reference.sourcesManage` | Quản lý nguồn | CHƯA ĐỐI CHIẾU |  |
-| Tham chiếu | `writer.reference.citationStyle` | Kiểu trích dẫn | CHƯA ĐỐI CHIẾU |  |
-| Tham chiếu | `writer.reference.bibliographyInsert` | Thư mục tài liệu | CHƯA ĐỐI CHIẾU |  |
+| Tham chiếu | `writer.reference.citationInsert` | Chèn trích dẫn | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 4: CDP tạo nguồn, chọn MLA, chèn trích dẫn và Works Cited; Word COM xác nhận citation, tiêu đề, nhà xuất bản và năm |
+| Tham chiếu | `writer.reference.sourcesManage` | Quản lý nguồn | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 4: CDP tạo nguồn, chọn MLA, chèn trích dẫn và Works Cited; Word COM xác nhận citation, tiêu đề, nhà xuất bản và năm |
+| Tham chiếu | `writer.reference.citationStyle` | Kiểu trích dẫn | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 4: CDP tạo nguồn, chọn MLA, chèn trích dẫn và Works Cited; Word COM xác nhận citation, tiêu đề, nhà xuất bản và năm |
+| Tham chiếu | `writer.reference.bibliographyInsert` | Thư mục tài liệu | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 4: CDP tạo nguồn, chọn MLA, chèn trích dẫn và Works Cited; Word COM xác nhận citation, tiêu đề, nhà xuất bản và năm |
 | Tham chiếu | `writer.reference.captionInsert` | Chèn chú thích ảnh | KHỚP WORD (đã so Word COM) | tham chiếu chéo, chú thích hình, danh mục hình |
 | Tham chiếu | `writer.reference.tofInsert` | Danh mục hình ảnh | KHỚP WORD (đã so Word COM) | tham chiếu chéo, chú thích hình, danh mục hình |
 | Tham chiếu | `writer.reference.tofUpdate` | Cập nhật danh mục | KHỚP WORD (đã so Word COM) | tham chiếu chéo, chú thích hình, danh mục hình |

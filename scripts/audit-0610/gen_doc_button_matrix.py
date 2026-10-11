@@ -44,6 +44,7 @@ mark(KHOP, "writer.page.blank writer.table.fromText common.edit.hyperlink writer
 mark(LECH, "writer.chart.insert writer.diagram.insert", "FIX-T11 nhóm 2: DOCX mở trong Word có 0 Chart/SmartArt native; hiện là minh họa tĩnh, lệch chức năng có thể chỉnh sửa")
 mark(KHOP, "writer.page.color writer.page.border writer.para.firstLineIndent", "FIX-T11 nhóm 3: Word COM xác nhận màu trang #dbeafe, viền 3 pt nét đứt #dc2626 và thụt đầu dòng 14.15 pt khớp")
 mark(LECH, "writer.design.themeGallery writer.page.watermark writer.layout.lineNumbers", "FIX-T11 nhóm 3: Word COM không nhận theme/line numbering; watermark xuất thành dòng văn bản thay vì watermark native")
+mark(KHOP, "writer.reference.citationInsert writer.reference.sourcesManage writer.reference.citationStyle writer.reference.bibliographyInsert", "FIX-T11 nhóm 4: CDP tạo nguồn, chọn MLA, chèn trích dẫn và Works Cited; Word COM xác nhận citation, tiêu đề, nhà xuất bản và năm")
 
 NOTE_DEFAULT = {
     "common.edit.paste": "Dán thường: đã kiểm hành vi (U-series) nhưng chưa so Word COM",
