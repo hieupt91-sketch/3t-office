@@ -491,7 +491,7 @@ export const WRITER_HELP_ENTRIES = [
     commandIds: ["writer.image.insert"],
     title: "Chèn hình ảnh",
     summary: "Mở hộp chọn tệp ảnh trên máy (mọi kiểu image/*), rồi chèn ảnh vào vị trí con trỏ, co theo chiều rộng trang, giữ tỉ lệ.",
-    ribbon: { tab: "Định dạng ảnh", tabId: "pictureFormat", group: "Sắp xếp & Kích thước" },
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Minh họa" },
     keywords: ["hình ảnh", "ảnh", "chèn ảnh", "image", "picture", "minh họa", "jpg", "png"],
     steps: [
       "Đặt con trỏ tại chỗ cần ảnh. Tab Chèn, nhóm Minh họa, nhấn nút lớn Hình ảnh (cạnh Hình khối, Sơ đồ, Biểu đồ).",
@@ -1345,7 +1345,7 @@ export const WRITER_HELP_ENTRIES = [
     commandIds: ["writer.image.resize", "writer.image.wrap"],
     title: "Thay đổi kích thước và ngắt dòng ảnh",
     summary: "Thay đổi kích thước hình ảnh bằng 8 tay cầm co giãn hoặc nhập số đo trực tiếp; tùy chỉnh ngắt dòng văn bản quanh ảnh.",
-    ribbon: { tab: "Chèn", tabId: "insert", group: "Minh họa" },
+    ribbon: { tab: "Định dạng ảnh", tabId: "pictureFormat", group: "Sắp xếp & Kích thước" },
     keywords: ["thay đổi kích thước ảnh", "resize", "ngắt dòng ảnh", "wrap text", "tay cầm", "tỷ lệ khung hình", "aspect ratio", "hình ảnh", "kích thước"],
     steps: [
       "Nhấp chuột vào hình ảnh trong tài liệu để chọn ảnh. Thanh công cụ sẽ xuất hiện tab ngữ cảnh Định dạng Hình ảnh và trên ảnh hiển thị khung viền cùng 8 tay cầm co giãn.",
