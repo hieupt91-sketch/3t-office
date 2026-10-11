@@ -38,6 +38,11 @@ const ops = [
   ["removePageBreak","C5","pageBreak","sheet.page.removePageBreak"],
   ["hyperlink","G2","hyperlink","sheet.insert.hyperlink"],
   ["commentInsert","C2","commentInsert","sheet.review.commentInsert"],
+  ["defineName","B2","defineName","sheet.formula.defineName"],
+  ["formulaRecalculate","H2","click","sheet.formula.recalculate"],
+  ["calculateSheet","H2","click","sheet.calc.calculateSheet"],
+  ["errorChecking","H2","click","sheet.formula.errorChecking"],
+  ["formulaError","H2","type",null,"=1/0"],
   ["rotation90","B2","orientation","sheet.cell.orientation","90"],
   ["widthControl","B2","widthControl",null,null],
   ["definedName","B2","nameManager","sheet.formula.nameManager","SampleNames"],
@@ -225,7 +230,7 @@ for (const [name, cell, kind, id, value] of ops) {
       const align=JSON.parse(await pos("#vno-fc-tab-alignment"));
       if(!align) status="NO_ALIGNMENT_TAB";
       else {await mouseClick(session.cdp,align.x,align.y);await sleep(150);const angle=JSON.parse(await pos('.vno-fc-orient-btn[data-angle="90"]'));if(!angle)status="NO_90_DEGREE_OPTION";else{await mouseClick(session.cdp,angle.x,angle.y);const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000);const evidenceDir=path.join(root,"docs","tickets-0710","evidence");await mkdir(evidenceDir,{recursive:true});await writeFile(path.join(evidenceDir,"fix-s8-text-rotation.png"),Buffer.from((shot.result||shot).data,"base64"));const apply=JSON.parse(await pos(".vno-fc-ok-btn"));if(!apply)status="NO_FORMAT_CELLS_APPLY";else{await mouseClick(session.cdp,apply.x,apply.y);status="set Orientation=90 through Format Cells";}}}
-    } else if (kind === "click" || kind === "merge" || kind === "range" || kind === "flashFill" || kind === "conditional" || kind === "tableStyle" || kind === "cellStyle" || kind === "promptNumber" || kind === "nameManager" || kind === "validation" || kind === "chart" || kind === "chartVariant" || kind === "pivotTable" || kind === "pivotRefresh" || kind === "groupRows" || kind === "subtotal" || kind === "consolidate" || kind === "pageSetup" || kind === "pageSize" || kind === "pageScale" || kind === "pageBreak" || kind === "hyperlink" || kind === "commentInsert" || kind === "removeDuplicates" || kind === "textToColumns") {
+    } else if (kind === "click" || kind === "merge" || kind === "range" || kind === "flashFill" || kind === "conditional" || kind === "tableStyle" || kind === "cellStyle" || kind === "promptNumber" || kind === "nameManager" || kind === "defineName" || kind === "validation" || kind === "chart" || kind === "chartVariant" || kind === "pivotTable" || kind === "pivotRefresh" || kind === "groupRows" || kind === "subtotal" || kind === "consolidate" || kind === "pageSetup" || kind === "pageSize" || kind === "pageScale" || kind === "pageBreak" || kind === "hyperlink" || kind === "commentInsert" || kind === "removeDuplicates" || kind === "textToColumns") {
       if (kind === "consolidate") await mouseClick(session.cdp,pos.x,pos.y);
       if (kind === "groupRows") {
         const a=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-row-header[data-row="2"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
@@ -336,6 +341,31 @@ for (const [name, cell, kind, id, value] of ops) {
           const shot = await session.cdp.send("Page.captureScreenshot", { format: "png" }, 60000);
           await writeFile(path.join(root, "docs", "tickets-0710", "evidence", `fix-s12-${name}.png`), Buffer.from((shot.result || shot).data, "base64"));
         }
+      }
+      if (kind === "defineName" && status === "clicked") {
+        await sleep(150);
+        const fill = async (selector, text) => {
+          const field = JSON.parse(await ev(`(() => {const n=document.querySelector(${JSON.stringify(selector)});if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+          if (!field) throw new Error("Missing Define Name field " + selector);
+          await mouseTripleClick(session.cdp, field.x, field.y); await press(session.cdp, "Home"); await press(session.cdp, "End", { shift: true }); await press(session.cdp, "Backspace"); await typeText(session.cdp, text);
+        };
+        await fill("#vno-defname-name", "S12Cell");
+        await fill("#vno-defname-ref", "B2");
+        const apply = JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-sheet-rule-dialog .vno-rule-apply');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+        if (!apply) status = "NO_DEFINE_NAME_APPLY";
+        else { await mouseClick(session.cdp, apply.x, apply.y); status = "defined workbook name S12Cell for B2"; }
+        if (status.startsWith("defined ")) {
+          const shot = await session.cdp.send("Page.captureScreenshot", { format: "png" }, 60000);
+          await writeFile(path.join(root, "docs", "tickets-0710", "evidence", `fix-s12-${name}.png`), Buffer.from((shot.result || shot).data, "base64"));
+        }
+      }
+      if (kind === "click" && ["sheet.formula.recalculate", "sheet.calc.calculateSheet", "sheet.formula.errorChecking"].includes(id) && status === "clicked") {
+        await sleep(150);
+        const checkerState = id === "sheet.formula.errorChecking" ? await ev("JSON.stringify({rows:document.querySelectorAll('.vno-error-row').length,text:document.querySelector('.vno-error-checking-dialog')?.innerText||''})") : "";
+        const shot = await session.cdp.send("Page.captureScreenshot", { format: "png" }, 60000);
+        await writeFile(path.join(root, "docs", "tickets-0710", "evidence", `fix-s12-${name}.png`), Buffer.from((shot.result || shot).data, "base64"));
+        status = id === "sheet.formula.recalculate" ? "clicked full workbook recalculation" : id === "sheet.calc.calculateSheet" ? "clicked active sheet recalculation" : "opened Formula Error Checking " + checkerState;
+        if (id === "sheet.formula.errorChecking") await press(session.cdp, "Escape");
       }
       if (kind === "textToColumns" && status === "clicked") {
         await sleep(150);

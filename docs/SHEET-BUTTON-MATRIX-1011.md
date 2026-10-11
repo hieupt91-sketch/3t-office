@@ -5,7 +5,7 @@ Nguồn nút: `docs/ribbon-scan-sheet-1011.json`. Chỉ đánh dấu **KHỚP EX
 - **KHÁC CÓ CHỦ Ý**: khác biệt được thiết kế có chủ ý và có giải thích.
 - **LỆCH ĐÃ BIẾT**: sai khác đã được tái hiện và còn tồn tại.
 - **CHƯA ĐỐI CHIẾU**: chưa có đối chiếu Excel đủ chứng cứ.
-Tổng 138 nút — KHỚP EXCEL: 78 · CHƯA ĐỐI CHIẾU: 60.
+Tổng 138 nút — KHỚP EXCEL: 82 · CHƯA ĐỐI CHIẾU: 56.
 
 Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy trong lượt này sẽ giữ **CHƯA ĐỐI CHIẾU** cho tới khi có phép thử an toàn và xác định rõ luồng dữ liệu.
 
@@ -93,19 +93,19 @@ Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy tron
 | Công thức | `sheet.formula.max` | Lớn nhất | KHỚP EXCEL | FIX-S12 Công thức: CDP bấm MAX/MIN; Excel COM ReadOnly xác nhận =MAX(C2:C6)=9876.5 và =MIN(C2:C6)=1234.5 | dom:16 |
 | Công thức | `sheet.formula.min` | Nhỏ nhất | KHỚP EXCEL | FIX-S12 Công thức: CDP bấm MAX/MIN; Excel COM ReadOnly xác nhận =MAX(C2:C6)=9876.5 và =MIN(C2:C6)=1234.5 | dom:16 |
 | Công thức | `sheet.formula.nameManager` | Quản lý tên | KHỚP EXCEL | FIX-S8/FIX-S7: CDP và Excel COM read-only xác nhận name, rotation, dimensions, visibility, print area/orientation | dialog,toast:A1 |
-| Công thức | `sheet.formula.defineName` | Đặt tên vùng | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
+| Công thức | `sheet.formula.defineName` | Đặt tên vùng | KHỚP EXCEL | FIX-S12 Công thức: CDP đặt tên workbook S12Cell cho B2; Excel COM ReadOnly xác nhận Names.Count=1, RefersTo==Sheet1!$B$2 (app_defineName.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-defineName.png | dialog,toast:A1 |
 | Công thức | `sheet.formula.useInFormula` | Dùng trong công thức | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
 | Công thức | `sheet.formula.createFromSelection` | Tạo từ vùng chọn (Ctrl+Shift+F3) | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
 | Công thức | `sheet.formula.tracePrecedents` | Tìm ô tiền lệ | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:3 |
 | Công thức | `sheet.formula.traceDependents` | Tìm ô phụ thuộc | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:3 |
 | Công thức | `sheet.formula.removeArrows` | Xóa mũi tên | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:3 |
 | Công thức | `sheet.formula.showFormulas` | Hiện công thức | KHỚP EXCEL | FIX-S13: CDP nhấn Ctrl+` thật; Excel COM ReadOnly xác nhận ActiveWindow.DisplayFormulas=1 (app_s13_showFormulas.xlsx) | dom:113 |
-| Công thức | `sheet.formula.errorChecking` | Kiểm tra lỗi | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog |
+| Công thức | `sheet.formula.errorChecking` | Kiểm tra lỗi | KHỚP EXCEL | FIX-S12 Công thức: CDP mở Kiểm tra lỗi trên H2=#DIV/0!; app liệt kê H2, =1/0, nguyên nhân chia cho 0; Excel COM ReadOnly xác nhận H2 Formula='=1/0', Text='#DIV/0!' (app_errorChecking.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-errorChecking.png | dialog |
 | Công thức | `sheet.formula.evaluateFormula` | Ước lượng công thức | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
 | Công thức | `sheet.formula.watchWindow` | Cửa sổ theo dõi | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog |
 | Công thức | `sheet.calc.calculationOptions` | Tùy chọn tính toán | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | control(select/input) |
-| Công thức | `sheet.formula.recalculate` | Tính lại toàn bộ (F9) | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:125 |
-| Công thức | `sheet.calc.calculateSheet` | Tính trang hiện tại (Shift+F9) | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:123 |
+| Công thức | `sheet.formula.recalculate` | Tính lại toàn bộ (F9) | KHỚP EXCEL | FIX-S12 Công thức: CDP bấm Tính lại toàn bộ; Excel COM ReadOnly xác nhận F2 =C2*D2, Value2=92.5875 (app_formulaRecalculate.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-formulaRecalculate.png | dom:125 |
+| Công thức | `sheet.calc.calculateSheet` | Tính trang hiện tại (Shift+F9) | KHỚP EXCEL | FIX-S12 Công thức: CDP bấm Tính trang hiện tại; Excel COM ReadOnly xác nhận F2 =C2*D2, Value2=92.5875 (app_calculateSheet.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-calculateSheet.png | dom:123 |
 | Dữ liệu | `sheet.data.sortAsc` | Sắp xếp A-Z | KHỚP EXCEL | FIX-S7: CDP thao tác và Excel COM đọc lại định dạng, merge, AutoSum, sort, AutoFilter | dom:130 |
 | Dữ liệu | `sheet.data.sortDesc` | Sắp xếp Z-A | KHỚP EXCEL | FIX-S12 tab Dữ liệu: CDP click Z-A; Excel COM ReadOnly xác nhận B2:B6 giảm dần: Trần, Phạm, Nguyễn, Lê, Hoàng (app_sortDesc.xlsx) | dom:130 |
 | Dữ liệu | `sheet.data.filter` | Bộ lọc (Ctrl+Shift+L) | KHỚP EXCEL | FIX-S7: CDP thao tác và Excel COM đọc lại định dạng, merge, AutoSum, sort, AutoFilter | dom:161 |
