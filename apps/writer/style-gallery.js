@@ -13,8 +13,18 @@ export const STYLE_PRESETS = [
     label: "Tiêu đề",
     sublabel: "Title",
     previewSample: "Tiêu đề tài liệu",
-    previewCss: "font-family:'Times New Roman', serif; font-size:18px; font-weight:700; color:var(--vno-style-preview-title, #1f4e79); text-align:center;",
-    description: "Tiêu đề tài liệu nổi bật, chữ đậm màu xanh và căn giữa"
+    previewCss: "font-family:Calibri, sans-serif; font-size:28px; font-weight:400; color:var(--vno-style-preview-title, #404040);",
+    description: "Kiểu Title dựng sẵn: phông chủ đề tiêu đề, cỡ 28pt"
+  },
+  {
+    id: "subtitle",
+    tag: "p",
+    className: "vno-style-subtitle",
+    label: "Phụ đề",
+    sublabel: "Subtitle",
+    previewSample: "Phụ đề tài liệu",
+    previewCss: "font-family:Calibri, sans-serif; font-size:15px; color:var(--vno-style-preview-muted, #5a5a5a);",
+    description: "Kiểu Subtitle dựng sẵn, dùng dưới tiêu đề tài liệu"
   },
   {
     id: "normal",
@@ -59,8 +69,18 @@ export const STYLE_PRESETS = [
     label: "Trích dẫn",
     sublabel: "Quote",
     previewSample: "“Trích dẫn…”",
-    previewCss: "font-family:'Times New Roman', serif; font-size:12px; font-style:italic; color:var(--vno-style-preview-muted, #475569); border-left:3px solid var(--vno-style-preview-heading, #0f4c81); padding-left:6px;",
-    description: "Khối trích dẫn: In nghiêng, thụt lề 24pt, viền xanh bên trái"
+    previewCss: "font-family:Calibri, sans-serif; font-size:15px; font-style:italic; color:var(--vno-style-preview-muted, #404040); text-align:center;",
+    description: "Kiểu Quote dựng sẵn: chữ nghiêng, căn giữa và thụt lề"
+  },
+  {
+    id: "listparagraph",
+    tag: "p",
+    className: "vno-style-list-paragraph",
+    label: "Đoạn danh sách",
+    sublabel: "List Paragraph",
+    previewSample: "•  Mục danh sách",
+    previewCss: "font-family:Calibri, sans-serif; font-size:15px; color:var(--vno-style-preview-normal, #1e293b); padding-left:12px;",
+    description: "Kiểu List Paragraph dựng sẵn, thụt lề 0,5 inch"
   },
   {
     id: "emphasis",
@@ -286,7 +306,7 @@ export function createStyleGalleryStrip(options = {}) {
 
   const items = [];
 
-  STYLE_PRESETS.slice(0, 3).forEach((preset, idx) => {
+  STYLE_PRESETS.filter(preset => ["normal", "h1", "h2", "h3"].includes(preset.id)).forEach((preset, idx) => {
     const { label, desc } = getPresetStrings(preset);
     const isActive = (preset.id === activeStyle) || (preset.id === "normal" && activeStyle === "p");
     const item = document.createElement("button");

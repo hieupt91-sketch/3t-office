@@ -98,6 +98,8 @@ Toàn bộ phím tắt trong bảng tồn đọng trước đây đã được h
 |---|---|---|---|
 | Ngắt dòng mềm | Shift+Enter không roundtrip thành soft break; Column Break đã sửa ở FIX-T9 để giữ đoạn trước/sau | Lưu w:br type=textWrapping cho Shift+Enter; kiểm tra qua CDP + Word COM | Writer/Adapter |
 | Đầu/chân trang riêng | Cờ first/even-even lưu đúng nhưng canvas chỉ có vùng sửa header/footer mặc định | Thêm vùng chọn/biên tập Default/First/Even riêng, lưu và mở lại qua DOCX | Writer/Adapter |
-| Thư viện kiểu | Gallery hiện thiếu Subtitle và List Paragraph | Thêm hai preset có semantics DOCX built-in Style và bài hướng dẫn VI/EN | Writer |
-| Comments trả lời | App hiện chưa có thao tác trả lời chuỗi comment | Thêm reply UI, lưu comment thread và kiểm tra Word COM Replies | Writer/Adapter |
-| Hình khối xoay | Dialog tạo hình có fill/line; chưa có chỉnh sửa/rotation control cho shape đã tạo | Bổ sung chỉnh sửa và xoay bằng chuột/nhập góc, bảo toàn OOXML; thêm hướng dẫn VI/EN | Writer |
+| Thư viện kiểu | Đã bổ sung Title, Subtitle, Quote, List Paragraph; DOCX app và Word COM trùng style name, font, size, bold/italic, alignment | Đã hoàn tất FIX-T10, xem audit Word Parallel | Đã xử lý |
+| Comments trả lời | Reply được lưu thành comment con có anchored range và `commentsExtended` parent id; Word COM mở lại nhận đúng reply thread | Đã hoàn tất FIX-T10, xem audit Word Parallel | Đã xử lý |
+| Hình khối đổi màu/viền/xoay sau khi tạo | Chèn hình mới và màu/viền lúc tạo đã đo khớp; chưa có luồng chọn hình đã tạo để sửa/rotate | Thiếu UI edit/rotation và Word COM parity; NOT RUN | Writer |
+| Danh sách nhiều cấp | Serializer DOCX đã kiểm thử; thao tác ribbon/CDP không tạo ba cấp ổn định | UI/Word COM parity NOT RUN; cần harness đầu vào ổn định | Writer |
+| Chú thích trang/cuối tài liệu | Footnote/endnote có số lượng/nội dung khớp Word COM ở FIX-T9; phép T10 mới chưa chạy | Đã có năng lực; T10 recheck NOT RUN | Writer |
