@@ -5,7 +5,7 @@ Nguồn nút: `docs/ribbon-scan-sheet-1011.json`. Chỉ đánh dấu **KHỚP EX
 - **KHÁC CÓ CHỦ Ý**: khác biệt được thiết kế có chủ ý và có giải thích.
 - **LỆCH ĐÃ BIẾT**: sai khác đã được tái hiện và còn tồn tại.
 - **CHƯA ĐỐI CHIẾU**: chưa có đối chiếu Excel đủ chứng cứ.
-Tổng 138 nút — KHỚP EXCEL: 53 · LỆCH ĐÃ BIẾT: 12 · CHƯA ĐỐI CHIẾU: 73.
+Tổng 138 nút — KHỚP EXCEL: 55 · LỆCH ĐÃ BIẾT: 12 · CHƯA ĐỐI CHIẾU: 71.
 
 Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy trong lượt này sẽ giữ **CHƯA ĐỐI CHIẾU** cho tới khi có phép thử an toàn và xác định rõ luồng dữ liệu.
 
@@ -59,7 +59,7 @@ Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy tron
 | Trang đầu | `sheet.data.filter` | Bộ lọc (Ctrl+Shift+L) | KHỚP EXCEL | FIX-S7: CDP thao tác và Excel COM đọc lại định dạng, merge, AutoSum, sort, AutoFilter | dom:1 |
 | Trang đầu | `common.edit.find` | Tìm kiếm (Ctrl+F) | KHỚP EXCEL | FIX-S10: UI/CDP + Excel COM read-only; remove duplicates, custom sort, paste special, find/replace | dom:1 |
 | Trang đầu | `common.edit.replace` | Thay thế (Ctrl+H) | KHỚP EXCEL | FIX-S10: UI/CDP + Excel COM read-only; remove duplicates, custom sort, paste special, find/replace | dom:1 |
-| Chèn | `sheet.data.pivotTable` | Bảng tổng hợp | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
+| Chèn | `sheet.data.pivotTable` | Bảng tổng hợp | KHỚP EXCEL | FIX-S12 Du lieu: CDP chon A1:C6, tao Pivot theo Ho ten va SUM So tien; Excel COM ReadOnly xac nhan Sheet1 (2) PivotTables.Count=1, cot nhan va gia tri (app_S12_pivotTable.xlsx) | dialog,toast:A1 |
 | Chèn | `sheet.insert.image` | Chèn ảnh | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:1 |
 | Chèn | `sheet.chart.insert` | Biểu đồ | KHỚP EXCEL | FIX-S9: Excel COM read-only xác nhận loại biểu đồ, tiêu đề, series và trục | dialog |
 | Chèn | `sheet.chart.pivotChart` | Biểu đồ Pivot | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
@@ -118,7 +118,7 @@ Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy tron
 | Dữ liệu | `sheet.data.group` | Nhóm | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:1 |
 | Dữ liệu | `sheet.data.ungroup` | Bỏ nhóm | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:1 |
 | Dữ liệu | `sheet.data.subtotal` | Tổng phụ | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
-| Dữ liệu | `sheet.data.pivotTable` | Bảng tổng hợp | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
+| Dữ liệu | `sheet.data.pivotTable` | Bảng tổng hợp | KHỚP EXCEL | FIX-S12 Du lieu: CDP chon A1:C6, tao Pivot theo Ho ten va SUM So tien; Excel COM ReadOnly xac nhan Sheet1 (2) PivotTables.Count=1, cot nhan va gia tri (app_S12_pivotTable.xlsx) | dialog,toast:A1 |
 | Dữ liệu | `sheet.data.pivotRefresh` | Làm mới Pivot | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:1 |
 | Xem xét | `sheet.review.spellCheck` | Chính tả | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
 | Xem xét | `sheet.review.toggleSpellCheck` | Kiểm tra chính tả | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:9 |
