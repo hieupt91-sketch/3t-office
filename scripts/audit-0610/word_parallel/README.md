@@ -16,6 +16,21 @@ node --experimental-websocket scripts/audit-0610/word_parallel/app-ops.desktop.m
 
 `app-ops.desktop.mjs` dùng cổng CDP trống được cấp riêng bởi `tests/live/cdp/session.mjs`; mọi lần mở app dùng `VNO_APP_ROOT` và `VNO_CDP_LOCALAPPDATA` trên. Có thể chọn phép thử bằng `$env:OPS='subscript,highlightYellow'`. Cùng biến `OPS` lọc các phép thử trong `word-compare.ps1`. Phép `default` lưu template không áp lệnh để đọc riêng SpaceAfter mặc định.
 
+## Sheet / Excel COM chỉ đọc
+
+Trong worktree audit Sheet, đặt `$env:VNO_APP_ROOT` đúng thư mục worktree và `$env:VNO_CDP_LOCALAPPDATA` đúng profile tách biệt. `app-ops-sheet.desktop.mjs` dùng workbook fixture `tests/live/cdp/test_sheet_home.xlsx`, lấy CDP port trống qua session launcher, lưu bản XLSX sau thao tác vào profile và không gọi Excel COM. Có thể lọc ca bằng `$env:OPS='standard'`.
+
+```powershell
+$env:VNO_APP_ROOT = 'E:\VNOffice-codex-fs7'
+$env:VNO_CDP_LOCALAPPDATA = 'E:\VNOffice-profiles\codex-fs7'
+$env:VNO_AUDIT_MARK_DIRTY = '1'
+$env:OPS = 'standard'
+node --experimental-websocket scripts/audit-0610/word_parallel/app-ops-sheet.desktop.mjs
+scripts\audit-0610\word_parallel\excel-read.ps1 -Files "$env:VNO_CDP_LOCALAPPDATA\app_standard.xlsx"
+```
+
+`excel-read.ps1` chỉ mở các workbook read-only và chỉ đọc thuộc tính qua Excel COM. Với fixture này, số tiền mẫu nằm ở C2. `OPS` lọc ca cần chạy, chẳng hạn `standard`, `autoSum,fillDown,sortAsc,filter` hoặc `formulaSum,formulaAverage,formulaConcat`. Dấu phân cách hàng nghìn dùng command id `sheet.format.standard` (nhãn “Phân cách hàng nghìn”, phím `Ctrl+Shift+1`); không có command `sheet.format.thousands`.
+
 Word COM chạy ẩn với `DisplayAlerts=0`. Script chụp các PID WINWORD đang có trước khi tạo COM, nhận diện PID mới do phiên automation tạo, gọi `Quit()` rồi chỉ dọn theo PID mới đó. Không dừng tiến trình WINWORD cũ.
 
 ## Kết quả 11/10/2026 — FIX-T7
