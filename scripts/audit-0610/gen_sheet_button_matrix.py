@@ -28,6 +28,7 @@ mark(MATCH, "sheet.cell.alignRight", "FIX-S12 nhóm Trang đầu: CDP click căn
 mark(MATCH, "sheet.format.percent", "FIX-S12 nhóm Trang đầu: CDP click Phần trăm; Excel COM ReadOnly D2=0.075, NumberFormat=0% (app_percentBtn.xlsx)")
 mark(MATCH, "sheet.format.increaseDecimal", "FIX-S12 nhóm Trang đầu: CDP click Tăng số thập phân; Excel COM ReadOnly C2=1234.5, NumberFormat=0.00 (app_decInc.xlsx)")
 mark(MATCH, "sheet.data.sortDesc", "FIX-S12 tab Dữ liệu: CDP click Z-A; Excel COM ReadOnly xác nhận B2:B6 giảm dần: Trần, Phạm, Nguyễn, Lê, Hoàng (app_sortDesc.xlsx)")
+mark(MATCH, "sheet.formula.average", "FIX-S12 tab Công thức: CDP click Trung bình; Excel COM ReadOnly xác nhận =AVERAGE(C2:C6), Value2=4123.02 (app_S12fix_averageBtn.xlsx)")
 
 # FIX-S7 recorded an unsuccessful name-manager probe before FIX-S8 corrected
 # and verified the manager flow. The separate Define Name command has no such

@@ -32,3 +32,11 @@
 - Excel COM ReadOnly xác nhận thứ tự B2:B6: `Trần Thị B / Phạm Thị D / Nguyễn Văn A / Lê Văn C / Hoàng Văn E`, đúng thứ tự giảm dần theo thao tác; **KHỚP EXCEL**.
 - Ảnh UI: `evidence/s12/fix-s12-sortDesc.png`; log CDP `s12-sort-desc.log`, Excel COM `excel-sortDesc.log` trong profile audit.
 - Danh sách Định dạng số qua CDP bàn phím chưa được xác nhận: probe XLSX vẫn đọc `General`; giữ CHƯA ĐỐI CHIẾU, không tính các probe này là bằng chứng.
+
+## Tab Công thức: Trung bình
+
+- Probe đầu phát hiện C7 nhận sai `=AVERAGE(C3:C6)`, bỏ số ở C2. Excel hướng dẫn AutoAverage nhận dải số liền kề; đã sửa `insertFormula` để quét dải số liên tục phía trên ô đang chọn.
+- Sau sửa, CDP bấm Trung bình tại C7 tạo `=AVERAGE(C2:C6)`. Excel COM ReadOnly đọc lại công thức và tính `Value2=4123.02`; **KHỚP EXCEL**. AutoSum cùng điểm chọn tạo `=SUM(C2:C6)`, Excel đọc `Value2=20615.1`.
+- Ảnh: `evidence/s12/fix-s12-averageBtn.png`, `evidence/s12/fix-s12-autoSum.png`. Log CDP `s12-formula-buttons-fixed.log`; Excel COM `excel-averageBtn-fixed.log`, `excel-autoSum-fixed.log`.
+- Hướng dẫn range detection của Excel: [Calculate the average of a group of numbers](https://support.microsoft.com/en-us/excel/calculate-the-average-of-a-group-of-numbers).
+- **PASS** — focused unit tests cho range liền kề và dừng tại ô không phải số. **NOT RUN** — npm test, unittest tổng, batch XLSX và quét mã hóa (chạy khi hoàn tất lượt rà soát).

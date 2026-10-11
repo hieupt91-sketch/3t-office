@@ -20,7 +20,7 @@ const ops = [
   ["numPercent","D2","select","sheet.format.quickCategory","percentage"],["numDate","E2","select","sheet.format.quickCategory","date"],
   ["decInc","C2","click","sheet.format.increaseDecimal"],["decDec","C2","click","sheet.format.decreaseDecimal"],["standard","C2","click","sheet.format.standard"],["percentBtn","D2","click","sheet.format.percent"],["bordersDefault","B2","click","sheet.cell.borders"],
   ["indentIncrease","B2","click","sheet.cell.indentIncrease"],["mergeCenter","A8","merge","sheet.cell.mergeCenter","A8:B8"],
-  ["autoSum","C7","click","sheet.formula.sum"],["fillDown","B2","shortcutDown","Ctrl+D","B2:B3"],
+  ["autoSum","C7","click","sheet.formula.sum"],["averageBtn","C7","click","sheet.formula.average"],["fillDown","B2","shortcutDown","Ctrl+D","B2:B3"],
   ["insertRow","A3","click","sheet.row.insert"],["deleteRow","A3","click","sheet.row.delete"],
   ["insertCol","B2","click","sheet.col.insert"],["deleteCol","B2","click","sheet.col.delete"],
   ["rowHeight","A3","promptNumber","sheet.row.height","36"],["colWidth","B2","promptNumber","sheet.col.width","120"],
