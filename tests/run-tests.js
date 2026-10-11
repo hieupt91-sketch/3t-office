@@ -161,6 +161,7 @@ import { runSlidesPptxSectionListTests } from "./unit/slides-pptx-section-list.t
 import { runSlidesPptxSectionsOpenOverlayTests } from "./unit/slides-pptx-sections-open-overlay.test.js";
 import { runSlidesPptxMasterLogoOpenOverlayTests } from "./unit/slides-pptx-masterlogo-open-overlay.test.js";
 import { runSlidesPptxShowPropertiesTests } from "./unit/slides-pptx-show-properties.test.js";
+import { runSlidesHeaderFooterPptxTests } from "./unit/slides-header-footer-pptx.test.js";
 import { runSlidesPptxSlideSizeTests } from "./unit/slides-pptx-slide-size.test.js";
 import { runSlidesTextVerticalDirectionTests } from "./unit/slides-text-vertical-direction.test.js";
 import { runSheetFreezePanesRealTests } from "./unit/sheet-freeze-panes-real.test.js";
@@ -430,6 +431,7 @@ async function runAll() {
     { title: "141. Unit Tests — Slides native PPTX open overlay (VNOfficeMasterLogo → vno:master-theme)", runner: runSlidesPptxMasterLogoOpenOverlayTests },
     { title: "142. Unit Tests — Slides native PPTX post-process (p:showPr Set Up Show)", runner: runSlidesPptxShowPropertiesTests },
     { title: "143. Unit Tests — Slides native PPTX open overlay (p:showPr → vno Set Up Show)", runner: runSlidesPptxSetupShowOpenOverlayTests },
+    { title: "144. Unit Tests — Slides native header/footer placeholders save and reopen", runner: runSlidesHeaderFooterPptxTests },
     { title: "144. Unit Tests — Writer paragraph spacing before/after (pt)", runner: runWriterParagraphSpacingTests },
     { title: "145. Unit Tests — Writer find/replace preserves inline formatting nodes", runner: runWriterFindReplaceDomTests },
     { title: "146. Unit Tests — Writer line numbers (FODT linenumbering-configuration)", runner: runWriterLineNumbersTests },

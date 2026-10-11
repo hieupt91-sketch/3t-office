@@ -12,6 +12,7 @@ import { overlayFodpMasterLogo } from "./pptx-master-logo.js";
 import { overlayFodpSections } from "./pptx-section-list.js";
 import { overlayFodpShowProperties } from "./pptx-show-properties.js";
 import { parseOfficeHtmlTable, parseOfficeTsv, isCellBold } from "../../../platform/clipboard/office-clipboard.js";
+import { formatDateTime } from "../../../platform/ui-kit/datetime-format.js";
 
 export function stripClipboardFragmentMarkers(html) {
   return String(html || "").replace(/<!--\s*(?:Start|End)Fragment\s*-->/gi, "");
@@ -2502,6 +2503,55 @@ export class SlidesAdapter {
     return frames.flat();
   }
 
+  _parseSlideHeaderFooter(pageXml) {
+    const readFrame = (className) => {
+      const match = String(pageXml || "").match(new RegExp(`<draw:frame\\b(?=[^>]*presentation:class=["']${className}["'])[^>]*>([\\s\\S]*?)<\\/draw:frame>`, "i"));
+      if (!match) return null;
+      const text = (match[1].match(/<text:p\b[^>]*>([\s\S]*?)<\/text:p>/i)?.[1] || "")
+        .replace(/<[^>]+>/g, "");
+      return { text: this._unescapeXml(text), attrs: match[0].slice(0, match[0].indexOf(">") + 1) };
+    };
+    const date = readFrame("date-time");
+    const number = readFrame("page-number");
+    const footer = readFrame("footer");
+    if (!date && !number && !footer) return undefined;
+    const format = date?.attrs.match(/vno:date-format=["']([^"']*)["']/i)?.[1] || "dd/MM/yyyy";
+    return {
+      showDate: Boolean(date),
+      dateFormat: this._unescapeXml(format),
+      showSlideNumber: Boolean(number),
+      showFooter: Boolean(footer),
+      footerText: footer?.text || "",
+      applyToAll: false
+    };
+  }
+
+  _serializeSlideHeaderFooter(slide, pageWidthCm, pageHeightCm) {
+    const shared = this.canvas?.headerFooter;
+    const hasPerSlideApply = (this.canvas?.slides || []).some(item => item?.headerFooter?.applyToAll === false);
+    const hf = slide?.headerFooter || (!hasPerSlideApply && shared?.applyToAll !== false ? shared : null);
+    if (!hf) return "";
+    const height = "0.7cm";
+    const y = `${Math.max(0, pageHeightCm - 0.85).toFixed(3)}cm`;
+    const x = "0.6cm";
+    const width = `${Math.max(1, pageWidthCm - 1.2).toFixed(3)}cm`;
+    const frame = (cls, contents, extra = "") =>
+      `<draw:frame draw:name="VNOfficeHeaderFooter-${cls}" presentation:class="${cls}"${extra} svg:x="${x}" svg:y="${y}" svg:width="${width}" svg:height="${height}"><draw:text-box><text:p>${contents}</text:p></draw:text-box></draw:frame>`;
+    const result = [];
+    if (hf.showDate) {
+      const dateFormat = this._escapeXml(hf.dateFormat || "dd/MM/yyyy");
+      const displayDate = this._escapeXml(formatDateTime(new Date(), hf.dateFormat || "dd/MM/yyyy"));
+      result.push(frame("date-time", `<presentation:date-time presentation:date-time-value="${displayDate}">${displayDate}</presentation:date-time>`, ` vno:date-format="${dateFormat}"`));
+    }
+    if (hf.showSlideNumber !== false) {
+      result.push(frame("page-number", `<text:page-number>${(this.canvas?.slides?.indexOf(slide) ?? 0) + 1}</text:page-number>`));
+    }
+    if (hf.showFooter !== false && hf.footerText) {
+      result.push(frame("footer", this._escapeXml(hf.footerText)));
+    }
+    return result.join("\n");
+  }
+
   _parseDrawShape(tagName, attrs, inner, graphicStyles) {
     const get = (name) => this._attr(attrs, name);
     const geomType = inner.match(/draw:type=["']([^"']+)["']/i)?.[1] || tagName;
@@ -3392,6 +3442,7 @@ export class SlidesAdapter {
       const pageStyleName = this._pageDrawingStyleName(slide, idx);
       const animXml = this._serializePageAnimXml(pageXmlId, slide, idMap, placeholderIds);
       const commentsXml = this._serializePageCommentsXml(slide.comments);
+      const headerFooterXml = this._serializeSlideHeaderFooter(slide, pageWidthCm, pageHeightCm);
 
       const vnTransitionAttr = slide.transition?.type === "morph" ? ' vno:transition="morph"' : "";
       const section = sections.find(item => item.id === slide.sectionId);
@@ -3406,7 +3457,7 @@ export class SlidesAdapter {
         : "";
       pagesXml += `
       <draw:page draw:name="${pageName}" draw:style-name="${pageStyleName}" draw:master-page-name="Standard" presentation:layout="${layoutType}" xml:id="${pageXmlId}" draw:id="${pageXmlId}"${vnTransitionAttr}${vnSectionAttrs}>
-        ${framesXml}${shapesXml}${animXml}${notesXml}${commentsXml}
+        ${framesXml}${headerFooterXml}${shapesXml}${animXml}${notesXml}${commentsXml}
       </draw:page>`;
     });
 
@@ -3667,6 +3718,7 @@ export class SlidesAdapter {
         background = { type: "solid", color: "#ffffff" };
       }
 
+      const parsedHeaderFooter = this._parseSlideHeaderFooter(originalPageXml);
       const parsedSlide = {
         id: Date.now() + idx,
         title,
@@ -3679,6 +3731,7 @@ export class SlidesAdapter {
         shapes,
         groups: shapes.groups || [],
         notes: notesText,
+        ...(parsedHeaderFooter ? { headerFooter: parsedHeaderFooter } : {}),
         ...(background ? { background } : {}),
         comments: parsedComments.comments,
         hidden,
