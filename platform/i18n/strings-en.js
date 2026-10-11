@@ -553,6 +553,7 @@ export const enStrings = {
     ,"slides.slide.new": { label: "New Slide", tooltip: "Insert a new slide (Ctrl+M)" }
     ,"slides.layout.apply": { label: "Layout", tooltip: "Change the slide layout (Title, Content, Two Content, Blank)" }
     ,"slides.layout.select": { label: "Choose Layout", tooltip: "Open the slide layout gallery" }
+    ,"slides.layout.reset": { label: "Reset Layout", tooltip: "Reapply the current layout to placeholders while keeping their content" }
     ,"slides.slide.duplicate": { label: "Duplicate Slide", tooltip: "Duplicate the selected slide (Ctrl+D)" }
     ,"slides.slide.delete": { label: "Delete Slide", tooltip: "Delete the selected slide (Delete)" }
     ,"slides.slide.toggleHidden": { label: "Hide Slide", tooltip: "Hide or show the selected slide during F5. The slide stays in the file and Slide Sorter." }

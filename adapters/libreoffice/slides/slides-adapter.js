@@ -4152,6 +4152,9 @@ export class SlidesAdapter {
       case "slides.layout.select":
         return this.canvas.showLayoutDialog ? this.canvas.showLayoutDialog() : false;
 
+      case "slides.layout.reset":
+        return this.canvas.resetSlideLayout ? this.canvas.resetSlideLayout() : false;
+
       case "slides.show.startFromBegin":
         return this.canvas.startSlideShow(0);
 

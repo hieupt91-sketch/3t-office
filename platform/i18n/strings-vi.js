@@ -554,6 +554,7 @@ export const viStrings = {
     ,"slides.slide.new": { label: "Trang mới", tooltip: "Chèn trang chiếu mới (Ctrl+M)" }
     ,"slides.layout.apply": { label: "Bố cục", tooltip: "Thay đổi bố cục trang chiếu (Tiêu đề, Nội dung, Hai cột, Trống)" }
     ,"slides.layout.select": { label: "Chọn bố cục", tooltip: "Mở hộp thoại chọn bố cục trang chiếu" }
+    ,"slides.layout.reset": { label: "Đặt lại", tooltip: "Dựng lại các khung giữ chỗ theo bố cục hiện tại, giữ nguyên nội dung" }
     ,"slides.slide.duplicate": { label: "Nhân đôi", tooltip: "Nhân đôi trang chiếu đang chọn (Ctrl+D)" }
     ,"slides.slide.delete": { label: "Xóa trang", tooltip: "Xóa trang chiếu đang chọn (Delete)" }
     ,"slides.slide.toggleHidden": { label: "Ẩn trang chiếu", tooltip: "Ẩn hoặc hiện trang chiếu đang chọn khi trình chiếu F5. Trang vẫn còn trong tệp và Slide Sorter." }

@@ -454,6 +454,7 @@ export const SLIDES_COMMANDS = [
   { id: "slides.slide.new", category: "slide", label: "Trang mới", shortcut: "Ctrl+M", icon: "slideNew", tooltip: "Chèn trang chiếu mới (Ctrl+M)" },
   { id: "slides.layout.apply", category: "slide", label: "Bố cục", icon: "slideLayout", tooltip: "Thay đổi bố cục trang chiếu (Tiêu đề, Nội dung, Hai cột, Trống)" },
   { id: "slides.layout.select", category: "slide", label: "Chọn bố cục", icon: "slideLayout", tooltip: "Mở hộp thoại chọn bố cục trang chiếu" },
+  { id: "slides.layout.reset", category: "slide", label: "Đặt lại bố cục", icon: "slideLayout", tooltip: "Dựng lại các khung giữ chỗ theo bố cục đang chọn, giữ nguyên nội dung" },
   { id: "slides.slide.duplicate", category: "slide", label: "Nhân đôi", shortcut: "Ctrl+D", icon: "slideDuplicate", tooltip: "Nhân đôi trang chiếu đang chọn (Ctrl+D)" },
   { id: "slides.slide.delete", category: "slide", label: "Xóa trang", shortcut: "Delete", icon: "close", tooltip: "Xóa trang chiếu đang chọn (Delete)" },
   { id: "slides.slide.toggleHidden", category: "show", label: "Ẩn trang chiếu", icon: "hideSlide", tooltip: "Ẩn hoặc hiện trang chiếu đang chọn khi trình chiếu F5. Trang vẫn còn trong tệp và Slide Sorter.", isToggle: true },

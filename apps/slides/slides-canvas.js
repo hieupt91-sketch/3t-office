@@ -6328,6 +6328,15 @@ const startEditing = (initialText) => {
     return true;
   }
 
+  resetSlideLayout() {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide) return false;
+    const layout = slide.layoutType || "title-content";
+    if (layout === "two-content" && slide.body2 === undefined) slide.body2 = "";
+    this.selectSlide(this.currentSlideIndex);
+    return true;
+  }
+
   getSlideLayout() {
     const s = this.slides[this.currentSlideIndex];
     return (s && s.layoutType) || "title-content";

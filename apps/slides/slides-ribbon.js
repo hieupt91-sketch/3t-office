@@ -36,7 +36,8 @@ export const SLIDES_RIBBON_TABS = [
             type: "column",
             items: [
               { type: "button", commandId: "slides.slide.duplicate" },
-              { type: "button", commandId: "slides.slide.delete" }
+              { type: "button", commandId: "slides.slide.delete" },
+              { type: "button", commandId: "slides.layout.reset" }
             ]
           },
           {

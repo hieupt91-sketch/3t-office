@@ -79,6 +79,9 @@ try {
   await screenshot("layout-dialog");
   await click(session.cdp, "#vno-layout-apply-current");
   console.log("LAYOUT " + await state());
+  await click(session.cdp, '[data-command-id="slides.layout.reset"]');
+  console.log("LAYOUT_RESET " + await state());
+  await screenshot("layout-reset");
 
   await click(session.cdp, "#vno-ribbon-tab-design");
   await click(session.cdp, '[data-command-id="slides.master.apply"]');
