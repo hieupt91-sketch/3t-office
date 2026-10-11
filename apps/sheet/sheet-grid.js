@@ -7755,15 +7755,20 @@ _bindGridKeyboardNavigation() {
 
   adjustDecimalPlaces(direction) {
     const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
-    const current = this.cellsData.get(key)?.style?.numberFormat;
-    const config = structuredClone(current || {
-      category: "number",
-      decimals: 0,
-      useThousands: false,
-      negativeStyle: 0
-    });
-    if (["general", "text", "date", "time"].includes(config.category)) return false;
-    config.decimals = Math.max(0, Math.min(30, (Number(config.decimals) || 0) + (direction > 0 ? 1 : -1)));
+    const item = this.cellsData.get(key);
+    const current = item?.style?.numberFormat;
+    const config = structuredClone(current || { category: "general" });
+    if (["text", "date", "time"].includes(config.category)) return false;
+    let displayedDecimals = Number(config.decimals) || 0;
+    if (config.category === "general") {
+      const text = String(item?.val ?? "");
+      const decimalPart = text.match(/[.,](\d+)(?:[eE][+-]?\d+)?$/)?.[1];
+      displayedDecimals = decimalPart?.length || 0;
+      config.category = "number";
+      config.useThousands = false;
+      config.negativeStyle = 0;
+    }
+    config.decimals = Math.max(0, Math.min(30, displayedDecimals + (direction > 0 ? 1 : -1)));
     return this.applyNumberFormat(config);
   }
 

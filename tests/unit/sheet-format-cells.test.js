@@ -117,6 +117,40 @@ export async function runSheetFormatCellsTests() {
     assert(s3.text === "(1,234.10)" && s3.isRed, "Kiểu 3: (1,234.10) đỏ");
   });
 
+  test("Decimal buttons: General uses currently displayed decimal places as its starting point", () => {
+    const grid = new SheetGridController(mockContainer());
+    const cases = [
+      ["A", 1, 1234.5, 1, 2],
+      ["A", 2, 0.075, 1, 4],
+      ["A", 3, -56.789, 1, 4],
+      ["A", 4, 42, 1, 1]
+    ];
+    for (const [col, row, value, direction, expectedDecimals] of cases) {
+      grid.setCellValue(col, row, value);
+      grid.selectedCoord = { c: col, r: row };
+      grid.selectionRange = { start: { c: col, r: row }, end: { c: col, r: row } };
+      assert(grid.adjustDecimalPlaces(direction), `Increase Decimal should apply to ${value}`);
+      const config = grid.cellsData.get(`${col}${row}`).style.numberFormat;
+      assert(config.category === "number" && config.decimals === expectedDecimals && !config.useThousands,
+        `General ${value} should become Number with ${expectedDecimals} displayed decimals`);
+    }
+
+    grid.setCellValue("B", 1, 1234.5);
+    grid.selectedCoord = { c: "B", r: 1 };
+    grid.selectionRange = { start: { c: "B", r: 1 }, end: { c: "B", r: 1 } };
+    assert(grid.adjustDecimalPlaces(-1), "Decrease Decimal should apply to General 1234.5");
+    assert(grid.cellsData.get("B1").style.numberFormat.decimals === 0,
+      "General 1234.5 has one displayed decimal, so Decrease Decimal should round to zero decimals");
+
+    grid.setCellValue("C", 1, 0.075);
+    grid.selectedCoord = { c: "C", r: 1 };
+    grid.selectionRange = { start: { c: "C", r: 1 }, end: { c: "C", r: 1 } };
+    grid.applyNumberFormat({ category: "percentage", decimals: 2 });
+    assert(grid.adjustDecimalPlaces(1), "Increase Decimal should also work for Percentage");
+    assert(grid.cellsData.get("C1").style.numberFormat.decimals === 3,
+      "Existing Percentage format should increase its decimal count by one");
+  });
+
   // 3. Unit Test Category Currency
   test("Category Currency: Định dạng tiền tệ VNĐ và USD với vị trí ký hiệu chuẩn", () => {
     const vnd = NumberFormatter.formatCurrency(5000000, { currencySymbol: "₫", decimals: 0, useThousands: true });
