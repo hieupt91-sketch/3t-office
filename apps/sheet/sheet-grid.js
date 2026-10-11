@@ -8133,9 +8133,7 @@ _bindGridKeyboardNavigation() {
     if (!/^[A-Za-z_\\]/.test(name)) name = `Table_${name}`;
     name = name.slice(0, 255) || this._nextTableName();
     if (/^[A-Z]{1,3}\$?\d+$/i.test(name) || /^R\d+C\d+$/i.test(name)) return "";
-    const names = Object.values(this.tablesBySheet || {}).flat()
-      .map(table => String(table.name).toLowerCase())
-      .filter(existing => existing !== String(exceptName).toLowerCase());
+    const names = Object.values(this.tablesBySheet || {}).flat().map(table => String(table.name).toLowerCase());
     if (names.includes(name.toLowerCase())) return "";
     return name;
   }
@@ -8155,7 +8153,8 @@ _bindGridKeyboardNavigation() {
   renameTable(oldName, requestedName, recordUndo = true) {
     const tables = this.tablesBySheet?.[this.activeSheet] || [];
     const table = tables.find(item => item.name === oldName);
-    const name = this._uniqueTableName(requestedName, oldName);
+    if (String(requestedName || "").trim() === oldName) return true;
+    const name = this._uniqueTableName(requestedName);
     if (!table || !name) return false;
     const before = structuredClone(tables);
     table.name = name;
@@ -8168,8 +8167,26 @@ _bindGridKeyboardNavigation() {
     const index = tables.findIndex(item => item.name === name);
     if (index < 0) return false;
     const before = structuredClone(tables);
+    const filterBefore = this._snapshotFilterState();
+    const filterRangeBefore = this.sheetStates?.[this.activeSheet]?.filterRange || "";
+    const convertedRange = tables[index].ref;
     tables.splice(index, 1);
-    if (recordUndo) this._recordHistory({ type: "sheet-tables", sheet: this.activeSheet, before, after: structuredClone(tables) });
+    const otherTable = tables.find(item => item.ref === convertedRange);
+    if (!otherTable && this.sheetStates?.[this.activeSheet]?.filterRange === convertedRange) {
+      this.sheetStates[this.activeSheet].isFilterActive = false;
+      this.sheetStates[this.activeSheet].filterRange = "";
+      this.isFilterActive = false;
+      this.container?.classList?.remove?.("vno-filter-mode");
+      this.activeFilters.clear();
+      this.hiddenRows.clear();
+      this._updateFilterButtons();
+      this._renderVirtualRows(this.currentStartRow, this.currentEndRow);
+    }
+    if (recordUndo) this._recordHistory({
+      type: "sheet-tables", sheet: this.activeSheet, before, after: structuredClone(tables),
+      filterBefore, filterAfter: this._snapshotFilterState(), filterRangeBefore,
+      filterRangeAfter: this.sheetStates?.[this.activeSheet]?.filterRange || ""
+    });
     return true;
   }
 
@@ -10144,6 +10161,13 @@ _bindGridKeyboardNavigation() {
       this._recalculateAllFormulas();
     } else if (action.type === "sheet-tables") {
       this.tablesBySheet[action.sheet] = structuredClone(direction === "undo" ? action.before : action.after);
+      if (action.filterRangeBefore !== undefined || action.filterRangeAfter !== undefined) {
+        this.sheetStates[action.sheet] = {
+          ...(this.sheetStates[action.sheet] || {}),
+          filterRange: direction === "undo" ? action.filterRangeBefore : action.filterRangeAfter
+        };
+      }
+      if (action.filterBefore && action.filterAfter) this._restoreFilterState(direction === "undo" ? action.filterBefore : action.filterAfter);
     } else if (action.type === "batch-workbook") {
       const bySheet = direction === "undo" ? action.beforeBySheet : action.afterBySheet;
       for (const [sheetName, snapshots] of Object.entries(bySheet || {})) {

@@ -314,6 +314,18 @@ export async function runSheetEditingStylesTests() {
     assert(workbook.tablesBySheet.Sheet1[0].name === "Inventory", "Adapter phải khôi phục bảng vào model mở tệp");
   });
 
+  test("Behavioral: Chuyển thành vùng gỡ lọc bảng và Undo/Redo khôi phục trạng thái", () => {
+    const grid = new SheetGridController(createMockContainer());
+    grid.formatAsTable("tableDark", { start: { c: "A", r: 1 }, end: { c: "B", r: 3 } }, true, { name: "Sales" });
+    assert(grid.isFilterActive, "Bảng mới có nút lọc bật");
+    grid.convertTableToRange("Sales");
+    assert(!grid.isFilterActive, "Chuyển vùng gỡ bộ lọc của bảng");
+    grid.undo();
+    assert(grid.isFilterActive && grid.tablesBySheet.Sheet1.length === 1, "Undo phục hồi bảng và lọc");
+    grid.redo();
+    assert(!grid.isFilterActive && grid.tablesBySheet.Sheet1.length === 0, "Redo chuyển bảng thành vùng");
+  });
+
   // TEST 10: Behavioral — Fill Down & Relative Formula Offsetting
   test("Behavioral: Fill Down sao chép giá trị và tự động dịch tham chiếu công thức tương đối", () => {
     const grid = new SheetGridController(createMockContainer());

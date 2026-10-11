@@ -424,7 +424,7 @@ export const SHEET_COMMANDS = [
   { id: "sheet.insert.symbol", category: "insert", label: "Ký hiệu", icon: "symbol", tooltip: "Chèn ký tự đặc biệt (Symbol)" },
 
   // Kiểu dáng & Định dạng bảng (Styles)
-  { id: "sheet.style.formatAsTable", category: "format", label: "Định dạng bảng", icon: "formatTable", tooltip: "Định dạng vùng chọn theo kiểu bảng có màu xen kẽ" },
+  { id: "sheet.style.formatAsTable", category: "format", label: "Định dạng thành Bảng", icon: "formatTable", tooltip: "Tạo bảng có tên, bộ lọc, hàng xen kẽ và tự mở rộng" },
   { id: "sheet.style.cellStyles", category: "format", label: "Kiểu ô", icon: "cellStyles", tooltip: "Mở thư viện kiểu ô định sẵn (Normal, Good, Bad, Neutral...)" },
 
   // Chỉnh sửa & Điền/Xóa (Editing: Fill & Clear)
