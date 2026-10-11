@@ -44,7 +44,7 @@ const ops = [
   ["commentDelete","C2","click","sheet.review.commentDelete"],
   ["commentSecond","D2","commentInsert","sheet.review.commentInsert"],
   ["commentPrevious","D2","click","sheet.review.commentPrevious"],
-  ["commentNext","D2","click","sheet.review.commentNext"],
+  ["commentNext","C2","click","sheet.review.commentNext"],
   ["defineName","B2","defineName","sheet.formula.defineName"],
   ["insertFunction","H2","click","sheet.formula.insertFunction"],
   ["formulaRecalculate","H2","click","sheet.formula.recalculate"],
