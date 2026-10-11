@@ -7726,7 +7726,7 @@ _bindGridKeyboardNavigation() {
   formatCurrentCellPercent() {
     return this.applyNumberFormat({
       category: "percentage",
-      decimals: 2
+      decimals: 0
     });
   }
 

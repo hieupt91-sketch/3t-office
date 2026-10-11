@@ -149,6 +149,9 @@ export async function runSheetFormatCellsTests() {
     assert(grid.adjustDecimalPlaces(1), "Increase Decimal should also work for Percentage");
     assert(grid.cellsData.get("C1").style.numberFormat.decimals === 3,
       "Existing Percentage format should increase its decimal count by one");
+    grid.formatCurrentCellPercent();
+    assert(grid.cellsData.get("C1").style.numberFormat.decimals === 0,
+      "Percent Style button should apply Excel's zero-decimal percentage format");
   });
 
   // 3. Unit Test Category Currency
