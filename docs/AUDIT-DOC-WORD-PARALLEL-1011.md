@@ -268,3 +268,9 @@ Phần “chưa chạy” này là ghi nhận giữa chừng, đã được thay
 1. **App/CDP:** kiểm tra Match Case, Whole Word, Find Previous vòng lại và Replace One; ảnh `E:\VNOffice-profiles\codex-ft9\find-replace-t8-before.png`.
 2. **Word COM:** cùng các tùy chọn; kết quả Hoa/Hoa và nội dung sau thay một kết quả giống hệt `Hoa hoa Hòa Hoang hoa` ở cả hai DOCX.
 3. **Kết quả:** phép thử nâng cao **KHỚP**; Help Ctrl+H và nhãn tùy chọn VI/EN có sẵn, không phát hiện lệch mới.
+
+### FIX-T9 — Danh sách nhiều cấp — 11/10/2026
+
+1. **App/CDP:** thử tạo danh sách qua Trang đầu > Đa cấp và đổi cấp bằng phím; thao tác UI không cho ra ba cấp ổn định (lần thử có paragraph mất/Tab thành ký tự), không có ảnh kết quả tin cậy.
+2. **Word COM:** phép so sánh UI app/Word **NOT RUN** do đầu vào CDP không hợp lệ; serializer live test hiện hữu chạy FODT→DOCX và xác nhận decimal 1/1.1/1.1.1, letter 1/a/i, NĐ30 cùng numId, ilvl 0/1/2.
+3. **Kết quả:** roundtrip serializer **PASS**; parity UI/COM **NOT RUN**, không suy rộng kết quả serializer thành xác nhận ribbon. Cần harness cấp danh sách ổn định rồi chạy lại COM.
