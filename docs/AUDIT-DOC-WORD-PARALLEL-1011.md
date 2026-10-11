@@ -66,7 +66,7 @@ Lượt so sánh COM cuối: **21/21 KHỚP**. Hai lượt chẩn đoán trướ
 | Heading 1–3 | Chưa chạy | Chưa chạy | NOT RUN |
 | Thư viện kiểu | Chưa chạy | Chưa chạy | NOT RUN |
 | Tìm/thay thế: thay toàn bộ `Alpha` → `Gamma` | CDP Ctrl+H, 1 thay thế; DOCX có Gamma, không Alpha | `Find.Execute` ReplaceAll; DOCX cùng nội dung | KHỚP |
-| Ký hiệu | Chưa chạy | Chưa chạy | NOT RUN |
+| Ký hiệu `π` | CDP chọn Pi; lưu DOCX có đúng 1 `π` ở đoạn Alpha | COM DOCX đối chứng có cùng ký tự/vị trí | KHỚP |
 | Hộp văn bản | Chưa chạy | Chưa chạy | NOT RUN |
 
 ### FIX-T8 — kết quả lần chạy `codex-ft8`
@@ -116,6 +116,10 @@ Chưa chạy: xóa có theo dõi, chấp nhận/từ chối một và tất cả
 Nhấn **Ctrl+H**, nhập `Alpha` ở ô **Tìm gì**, nhập `Gamma` ở ô **Thay bằng**, nhấn **Thay thế tất cả**. App báo 1 thay thế; DOCX sau lưu còn `Gamma`, không còn `Alpha`. Word COM chạy `Find.Execute` với `ReplaceAll` trên DOCX đối chứng; đọc nội dung bằng COM cho cùng kết quả: **KHỚP**. Hướng dẫn tiếng Việt có trong Trợ giúp Writer, chủ đề **Tìm kiếm và Thay thế trong Doc**; Ctrl+H và nhãn nút đã có i18n.
 
 Chưa chạy: khớp hoa/thường, toàn từ, bỏ dấu, Find next/previous và thay thế từng kết quả.
+
+### FIX-T8 tiếp tục — Ký hiệu — 11/10/2026
+
+Đặt con trỏ cuối đoạn Alpha bằng chuột, mở **Chèn > Ký hiệu > Toán học**, chọn **π** bằng chuột và lưu DOCX. Word COM tạo DOCX có `π` tại cùng vị trí. Đọc lại bằng COM: mỗi tài liệu có đúng một `π`, đoạn văn bằng nhau: **KHỚP**. Trợ giúp tiếng Việt **Chèn ký hiệu** mô tả nhóm Thường dùng/Toán học/Mũi tên, đường dẫn và bước chèn; i18n cho nhãn Ký hiệu đã có.
 
 ### Bố cục trang: cột — 11/10/2026
 
