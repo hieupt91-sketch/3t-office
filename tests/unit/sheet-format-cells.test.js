@@ -172,6 +172,22 @@ export async function runSheetFormatCellsTests() {
       "Comma Style command must remain available on the ribbon and Ctrl+Shift+1");
   });
 
+  test("Date number format fits default-width columns and preserves custom widths", () => {
+    const grid = new SheetGridController(mockContainer());
+    grid.setCellValue("A", 1, 45000);
+    grid.selectedCoord = { c: "A", r: 1 };
+    grid.selectionRange = { start: { c: "A", r: 1 }, end: { c: "A", r: 1 } };
+    const defaultWidth = grid.defaultColWidth;
+    grid.applyQuickNumberCategory("date");
+    assert(grid.getColumnWidth("A") > defaultWidth, "Applying Date should widen a default-width column to show the date");
+    grid.undo();
+    assert(grid.getColumnWidth("A") === defaultWidth, "Undo should restore the original default column width");
+
+    grid.setColumnWidths(42, ["A"], false);
+    grid.applyQuickNumberCategory("date");
+    assert(grid.getColumnWidth("A") === 42, "Applying Date must preserve a user-sized column");
+  });
+
   // 3. Unit Test Category Currency
   test("Category Currency: Định dạng tiền tệ VNĐ và USD với vị trí ký hiệu chuẩn", () => {
     const vnd = NumberFormatter.formatCurrency(5000000, { currencySymbol: "₫", decimals: 0, useThousands: true });

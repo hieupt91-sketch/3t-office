@@ -7665,6 +7665,7 @@ _bindGridKeyboardNavigation() {
 
     const before = {};
     const after = {};
+    const beforeLayout = recordUndo ? this._snapshotRowColLayout() : null;
 
     coords.forEach(coord => {
       const existing = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
@@ -7701,12 +7702,27 @@ _bindGridKeyboardNavigation() {
       }
     });
 
+    if (["number", "currency", "accounting", "percentage", "scientific", "date", "time"].includes(config?.category)) {
+      for (const col of this._selectedCols(targetRange)) {
+        const storedWidth = this._colWidths().get(col);
+        const currentWidth = this.getColumnWidth(col);
+        // Imported Excel workbooks use the native default width (~64 px),
+        // while newly created VN Sheet columns use 100 px.
+        const isDefaultWidth = storedWidth === undefined || currentWidth === this.defaultColWidth || currentWidth === 64;
+        if (isDefaultWidth && this.computeAutoFitColumnWidth(col) > currentWidth) {
+          this.setColumnWidths(this.computeAutoFitColumnWidth(col), [col], false);
+        }
+      }
+    }
+
     if (recordUndo) {
       this._recordHistory({
         type: "format-cells",
         sheet: this.activeSheet,
         before,
-        after
+        after,
+        beforeLayout,
+        afterLayout: this._snapshotRowColLayout()
       });
     }
 
@@ -9808,6 +9824,8 @@ _bindGridKeyboardNavigation() {
           this._renderCellVisual(dom, itm, c, r);
         }
       }
+      const layout = direction === "undo" ? action.beforeLayout : action.afterLayout;
+      if (layout) this._restoreRowColLayout(layout);
     } else if (action.type === "cell-style" || action.type === "format-table" || action.type === "fill" || action.type === "clear" || action.type === "batch-cells") {
       const snapshots = direction === "undo" ? action.before : action.after;
       for (const [coord, snap] of Object.entries(snapshots)) {

@@ -58,7 +58,7 @@ try {
     if (!selected) throw new Error(`Ribbon selection failed: ${action.id}=${action.value}`);
   }
   await sleep(500);
-  const model = await session.cdp.evaluate(`(() => { const i=window.__vnoAppInstance.grid.cellsData.get(${JSON.stringify(cell)}); return {value:i?.val,format:i?.style?.numberFormat,fill:i?.style?.backgroundColor,color:i?.style?.color,columnWidth:window.__vnoAppInstance.grid.getColumnWidth(${JSON.stringify(cell.replace(/\d+/g, ""))})}; })()`);
+  const model = await session.cdp.evaluate(`(() => { const g=window.__vnoAppInstance.grid; const col=${JSON.stringify(cell.replace(/\d+/g, ""))}; const i=g.cellsData.get(${JSON.stringify(cell)}); return {value:i?.val,format:i?.style?.numberFormat,fill:i?.style?.backgroundColor,color:i?.style?.color,columnWidth:g.getColumnWidth(col),defaultWidth:g.defaultColWidth,storedWidth:g._colWidths().get(col),autoFitWidth:g.computeAutoFitColumnWidth(col),selectedCoord:g.selectedCoord}; })()`);
   console.log(`MODEL ${JSON.stringify(model)}`);
   await session.cdp.evaluate("window.__vnoAppInstance.adapter.isDirty=true");
   const saved = await session.cdp.evaluate("window.__vnoAppInstance.adapter.save()", { awaitPromise: true, timeoutMilliseconds: 300000 });
