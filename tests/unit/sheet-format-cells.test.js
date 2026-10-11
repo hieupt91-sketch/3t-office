@@ -154,6 +154,24 @@ export async function runSheetFormatCellsTests() {
       "Percent Style button should apply Excel's zero-decimal percentage format");
   });
 
+  test("Number category and Comma Style button keep separate Excel defaults", () => {
+    const grid = new SheetGridController(mockContainer());
+    grid.setCellValue("A", 1, 1234.5);
+    grid.selectedCoord = { c: "A", r: 1 };
+    grid.selectionRange = { start: { c: "A", r: 1 }, end: { c: "A", r: 1 } };
+    grid.applyQuickNumberCategory("number");
+    let format = grid.cellsData.get("A1").style.numberFormat;
+    assert(format.category === "number" && format.decimals === 2 && !format.useThousands,
+      "Quick Number category should be 0.00 without a thousands separator");
+
+    grid.formatCurrentCellStandard();
+    format = grid.cellsData.get("A1").style.numberFormat;
+    assert(format.category === "number" && format.decimals === 2 && format.useThousands,
+      "Comma Style command should apply #,##0.00 with a thousands separator");
+    assert(SHEET_COMMANDS.some(command => command.id === "sheet.format.standard" && command.shortcut === "Ctrl+Shift+1"),
+      "Comma Style command must remain available on the ribbon and Ctrl+Shift+1");
+  });
+
   // 3. Unit Test Category Currency
   test("Category Currency: Định dạng tiền tệ VNĐ và USD với vị trí ký hiệu chuẩn", () => {
     const vnd = NumberFormatter.formatCurrency(5000000, { currencySymbol: "₫", decimals: 0, useThousands: true });

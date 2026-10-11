@@ -31,7 +31,7 @@ const operations = {
   numDate: { cell: "D2", kind: "select", id: "sheet.format.quickCategory", value: "date" },
   numPercent: { cell: "C2", kind: "select", id: "sheet.format.quickCategory", value: "percentage" },
   percentBtn: { cell: "C2", kind: "button", id: "sheet.format.percent" },
-  thousands: { cell: "B2", kind: "button", id: "sheet.format.thousands" },
+  thousands: { cell: "B2", kind: "button", id: "sheet.format.standard" },
   fillDefault: { cell: "E2", kind: "button", id: "sheet.cell.fillColor" },
   textColorDefault: { cell: "E2", kind: "button", id: "sheet.cell.textColor" },
 };

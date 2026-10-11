@@ -7742,7 +7742,7 @@ _bindGridKeyboardNavigation() {
   applyQuickNumberCategory(category) {
     const defaults = {
       general: { category: "general" },
-      number: { category: "number", decimals: 2, useThousands: true, negativeStyle: 0 },
+      number: { category: "number", decimals: 2, useThousands: false, negativeStyle: 0 },
       currency: { category: "currency", currencySymbol: "₫", decimals: 2, useThousands: true, negativeStyle: 0 },
       accounting: { category: "accounting", currencySymbol: "₫", decimals: 2 },
       date: { category: "date", dateFormat: "dd/mm/yyyy" },
