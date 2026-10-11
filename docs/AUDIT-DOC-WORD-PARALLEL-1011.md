@@ -274,3 +274,11 @@ Phần “chưa chạy” này là ghi nhận giữa chừng, đã được thay
 1. **App/CDP:** thử tạo danh sách qua Trang đầu > Đa cấp và đổi cấp bằng phím; thao tác UI không cho ra ba cấp ổn định (lần thử có paragraph mất/Tab thành ký tự), không có ảnh kết quả tin cậy.
 2. **Word COM:** phép so sánh UI app/Word **NOT RUN** do đầu vào CDP không hợp lệ; serializer live test hiện hữu chạy FODT→DOCX và xác nhận decimal 1/1.1/1.1.1, letter 1/a/i, NĐ30 cùng numId, ilvl 0/1/2.
 3. **Kết quả:** roundtrip serializer **PASS**; parity UI/COM **NOT RUN**, không suy rộng kết quả serializer thành xác nhận ribbon. Cần harness cấp danh sách ổn định rồi chạy lại COM.
+
+## Tổng kết FIX-T9 — 11/10/2026
+
+- `main` đã được merge trước audit; branch `audit/doc-t9-codex`. Mỗi nhóm audit có commit riêng; image layout fix `ebbc4335`, header/footer measurement `bb49aa60`, line/column test `7d01148a`, các nhóm còn lại ở log commit branch.
+- `npm test`: **3066/3066 PASS** sau sửa vị trí Ribbon trong Help.
+- `python -m unittest discover -s tests` với `VNO_APP_ROOT=E:\VNOffice-codex-ft9`, `LOCALAPPDATA=E:\VNOffice-profiles\codex-ft9\python-localappdata`: **861 tests OK**, 521.544 giây; còn ResourceWarning hai pipe chưa đóng.
+- Batch `scripts/layout-audit/batch_document_audit.py docx` với nguồn `E:\VN OFice\file test\landocx`: **5/5 PASS**, edit PASS, page delta 0. d01 19/19; d07 23/23; d13 10/10; d20 3/3; d24 16/16. Báo cáo ở `E:\VNOffice-profiles\codex-ft9\batch-audit-final\batch_document_audit_report.md`.
+- Hạn chế tái hiện: header/footer First/Even chưa có vùng nhập riêng; Comment reply chưa có UI; gallery thiếu Subtitle/List Paragraph và lưu Title thành Body Text; shape chưa có sửa/xoay; line/column break làm mất nội dung sau marker và soft break không roundtrip; CDP parity của danh sách đa cấp chưa xác minh. Chi tiết và hướng xử lý nằm ở `docs/RIBBON-BACKLOG.md`.
