@@ -5,7 +5,7 @@ Nguồn nút: `docs/ribbon-scan-sheet-1011.json`. Chỉ đánh dấu **KHỚP EX
 - **KHÁC CÓ CHỦ Ý**: khác biệt được thiết kế có chủ ý và có giải thích.
 - **LỆCH ĐÃ BIẾT**: sai khác đã được tái hiện và còn tồn tại.
 - **CHƯA ĐỐI CHIẾU**: chưa có đối chiếu Excel đủ chứng cứ.
-Tổng 138 nút — KHỚP EXCEL: 90 · LỆCH ĐÃ BIẾT: 1 · CHƯA ĐỐI CHIẾU: 47.
+Tổng 138 nút — KHỚP EXCEL: 94 · LỆCH ĐÃ BIẾT: 1 · CHƯA ĐỐI CHIẾU: 43.
 
 Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy trong lượt này sẽ giữ **CHƯA ĐỐI CHIẾU** cho tới khi có phép thử an toàn và xác định rõ luồng dữ liệu.
 
@@ -26,10 +26,10 @@ Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy tron
 | Trang đầu | `sheet.cell.borders` | Viền ô | KHỚP EXCEL | FIX-S12 Trang đầu: CDP bấm màu nền/màu chữ/viền; Excel COM ReadOnly xác nhận Fill=65535, Font.Color=255 và bốn Border.LineStyle=1 | dom:15 |
 | Trang đầu | `sheet.cell.fillColor` | Màu nền | KHỚP EXCEL | FIX-S12 Trang đầu: CDP bấm màu nền/màu chữ/viền; Excel COM ReadOnly xác nhận Fill=65535, Font.Color=255 và bốn Border.LineStyle=1 | dom:15 |
 | Trang đầu | `sheet.cell.textColor` | Màu chữ | KHỚP EXCEL | FIX-S12 Trang đầu: CDP bấm màu nền/màu chữ/viền; Excel COM ReadOnly xác nhận Fill=65535, Font.Color=255 và bốn Border.LineStyle=1 | dom:15 |
-| Trang đầu | `sheet.cell.alignTop` | Căn trên | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:21 |
-| Trang đầu | `sheet.cell.alignMiddle` | Căn giữa dọc | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:7 |
-| Trang đầu | `sheet.cell.alignBottom` | Căn dưới | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:7 |
-| Trang đầu | `sheet.cell.wrapText` | Ngắt dòng tự động | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:19 |
+| Trang đầu | `sheet.cell.alignTop` | Căn trên | KHỚP EXCEL | FIX-S14: Nút Trộn & căn giữa cao 72px làm cột 3 hàng tràn lên che vùng tab; chuyển nó về icon nhỏ có tooltip. CDP bấm Căn trên, Excel COM ReadOnly xác nhận VerticalAlignment(B2)=-4160 (app_S14_fixed_alignTop.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-alignTop.png. | dom:21 |
+| Trang đầu | `sheet.cell.alignMiddle` | Căn giữa dọc | KHỚP EXCEL | FIX-S14: sau khi sửa bố cục nhóm Căn chỉnh, CDP bấm Căn giữa dọc; Excel COM ReadOnly xác nhận VerticalAlignment(B2)=-4108 (app_S14_fixed_alignMiddle.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-alignMiddle.png. | dom:7 |
+| Trang đầu | `sheet.cell.alignBottom` | Căn dưới | KHỚP EXCEL | FIX-S14: sau khi sửa bố cục nhóm Căn chỉnh, CDP bấm Căn dưới; Excel COM ReadOnly xác nhận VerticalAlignment(B2)=-4107 (app_S14_fixed_alignBottom.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-alignBottom.png. | dom:7 |
+| Trang đầu | `sheet.cell.wrapText` | Ngắt dòng tự động | KHỚP EXCEL | FIX-S14: sau khi sửa bố cục nhóm Căn chỉnh, CDP bấm Ngắt dòng tự động; Excel COM ReadOnly xác nhận WrapText=1, RowHeight=30 cho B2 (app_S14_fixed_wrap.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-wrap.png. | dom:19 |
 | Trang đầu | `sheet.cell.alignLeft` | Căn trái | KHỚP EXCEL | FIX-S12 Trang dau: CDP click Can trai; Excel COM ReadOnly xac nhan B2 HorizontalAlignment=-4131 (app_S12_alignLeft.xlsx) | dom:1 |
 | Trang đầu | `sheet.cell.alignCenter` | Căn giữa | KHỚP EXCEL | FIX-S12 nhóm Trang đầu: CDP click căn giữa; Excel COM ReadOnly HAl=-4108 tại B2 (app_alignCenter.xlsx) | dom:1 |
 | Trang đầu | `sheet.cell.alignRight` | Căn phải | KHỚP EXCEL | FIX-S12 nhóm Trang đầu: CDP click căn phải; Excel COM ReadOnly HAl=-4152 tại B2 (app_alignRight.xlsx) | dom:1 |
