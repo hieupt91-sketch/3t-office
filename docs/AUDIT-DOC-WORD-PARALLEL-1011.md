@@ -244,3 +244,9 @@ Phần “chưa chạy” này là ghi nhận giữa chừng, đã được thay
 1. **App/CDP:** thêm Alpha/Beta, resolve Alpha và xóa Beta; ảnh `E:\VNOffice-profiles\codex-ft9\comments-t8-before.png`.
 2. **Word COM:** app và Word còn cùng một comment của `3T Office`, scope Alpha, text `Resolve audit`, `Done=True`; Word COM tạo được reply trong thread.
 3. **Kết quả:** thêm/xóa/resolve **KHỚP**; app chưa có lệnh trả lời, ghi gap ở `docs/RIBBON-BACKLOG.md`; chưa kết luận parity cho reply.
+
+### FIX-T9 — Track Changes: chấp nhận/từ chối — 11/10/2026
+
+1. **App/CDP:** bật Theo dõi thay đổi, chèn ` added`, xóa `beta`, chấp nhận insertion rồi từ chối deletion; ảnh `E:\VNOffice-profiles\codex-ft9\track-changes-t8-before.png`.
+2. **Word COM:** hai revision đọc cùng type/author/text: deletion Type 2 `beta`, insertion Type 1 ` added`; trạng thái còn 1 sau accept one và 0 sau reject all.
+3. **Kết quả:** **KHỚP** về revision và thao tác accept/reject; hướng dẫn VI/EN đã có, không phát hiện sai lệch mới.
