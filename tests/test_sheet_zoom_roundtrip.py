@@ -152,6 +152,25 @@ class SheetZoomRoundtripTests(unittest.TestCase):
             xml = archive.read("xl/worksheets/sheet1.xml").decode("utf-8")
         self.assertIn('view="pageBreakPreview"', xml)
 
+    def test_explicit_zoom_overrides_source_zoom_after_restore(self):
+        source_sheet = (
+            '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            '<sheetViews><sheetView workbookViewId="0" zoomScale="85" zoomScaleNormal="85"/></sheetViews>'
+            '<sheetData/></worksheet>'
+        )
+        saved_sheet = (
+            '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            '<sheetViews><sheetView workbookViewId="0" zoomScale="100"/></sheetViews><sheetData/></worksheet>'
+        )
+        fods = ('<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" '
+                'xmlns:vno="https://vnoffice.vn/ns/spreadsheet/1.0" vno:zoom-scale="110"></office:document>')
+
+        patched = postprocess_sheet_xlsx(make_test_xlsx(saved_sheet), source_fods=fods, source_xlsx_bytes=make_test_xlsx(source_sheet))
+        with zipfile.ZipFile(io.BytesIO(patched)) as archive:
+            xml = archive.read("xl/worksheets/sheet1.xml").decode("utf-8")
+        self.assertIn('zoomScale="110"', xml)
+        self.assertIn('zoomScaleNormal="110"', xml)
+
 
 if __name__ == "__main__":
     unittest.main()

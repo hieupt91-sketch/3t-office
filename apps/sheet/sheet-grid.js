@@ -9398,6 +9398,7 @@ _bindGridKeyboardNavigation() {
     const next = Math.min(2, Math.max(0.5, Math.round(Number(level) * 10) / 10));
     if (!Number.isFinite(next)) return false;
     this.zoomLevel = next;
+    this.xlsxViewStateTouched?.add("zoomScale");
     this._applyViewState();
     this.options.onZoomChange?.(this.zoomLevel);
     return this.zoomLevel;

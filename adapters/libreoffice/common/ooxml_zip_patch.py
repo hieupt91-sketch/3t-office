@@ -4067,7 +4067,7 @@ def _apply_sheet_view_state_from_fods(
     xlsx_bytes: bytes, source_fods: str | None, replacements: dict[str, str]
 ) -> None:
     """Apply explicitly changed VN view toggles to each worksheet's OOXML view."""
-    if not source_fods or not re.search(r"<office:document\b[^>]*\bvno:(?:show-(?:grid-lines|row-col-headers|formulas)|sheet-view)=", source_fods, re.IGNORECASE):
+    if not source_fods or not re.search(r"<office:document\b[^>]*\bvno:(?:show-(?:grid-lines|row-col-headers|formulas)|sheet-view|zoom-scale)=", source_fods, re.IGNORECASE):
         return
     root = re.search(r"<office:document\b([^>]*)>", source_fods, re.IGNORECASE)
     if not root:
@@ -4081,6 +4081,13 @@ def _apply_sheet_view_state_from_fods(
     sheet_view = attrs.get("vno:sheet-view")
     if sheet_view in ("normal", "pageBreakPreview", "pageLayout"):
         view_attrs["view"] = sheet_view
+    try:
+        zoom = int(attrs.get("vno:zoom-scale", ""))
+    except ValueError:
+        zoom = 0
+    if 10 <= zoom <= 400:
+        view_attrs["zoomScale"] = str(zoom)
+        view_attrs["zoomScaleNormal"] = str(zoom)
     if not view_attrs:
         return
 
