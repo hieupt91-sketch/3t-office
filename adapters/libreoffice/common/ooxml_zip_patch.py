@@ -4067,14 +4067,14 @@ def _apply_sheet_view_state_from_fods(
     xlsx_bytes: bytes, source_fods: str | None, replacements: dict[str, str]
 ) -> None:
     """Apply explicitly changed VN view toggles to each worksheet's OOXML view."""
-    if not source_fods or not re.search(r"<office:document\b[^>]*\bvno:show-(?:grid-lines|row-col-headers)=", source_fods, re.IGNORECASE):
+    if not source_fods or not re.search(r"<office:document\b[^>]*\bvno:show-(?:grid-lines|row-col-headers|formulas)=", source_fods, re.IGNORECASE):
         return
     root = re.search(r"<office:document\b([^>]*)>", source_fods, re.IGNORECASE)
     if not root:
         return
     attrs = _xml_attrs(root.group(1))
     view_attrs: dict[str, str] = {}
-    for fods_name, xlsx_name in (("show-grid-lines", "showGridLines"), ("show-row-col-headers", "showRowColHeaders")):
+    for fods_name, xlsx_name in (("show-grid-lines", "showGridLines"), ("show-row-col-headers", "showRowColHeaders"), ("show-formulas", "showFormulas")):
         value = attrs.get(f"vno:{fods_name}")
         if value is not None:
             view_attrs[xlsx_name] = "0" if value.strip().lower() in ("false", "0", "no") else "1"

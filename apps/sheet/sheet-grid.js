@@ -707,6 +707,7 @@ export class SheetGridController {
 
   toggleShowFormulas() {
     this.showFormulas = !this.showFormulas;
+    this.xlsxViewStateTouched?.add("showFormulas");
     if (this.container) {
       this.container.classList.toggle("is-formula-view-mode", this.showFormulas);
     }

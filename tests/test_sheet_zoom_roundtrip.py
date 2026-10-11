@@ -97,6 +97,21 @@ class SheetZoomRoundtripTests(unittest.TestCase):
         self.assertIn('showGridLines="0"', xml)
         self.assertIn('showRowColHeaders="0"', xml)
 
+    def test_explicit_formula_display_is_written_to_sheet_view(self):
+        saved_sheet = (
+            '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            '<sheetViews><sheetView workbookViewId="0" showFormulas="0"/></sheetViews>'
+            '<sheetData/></worksheet>'
+        )
+        saved_bytes = make_test_xlsx(saved_sheet)
+        fods = ('<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" '
+                'xmlns:vno="https://vnoffice.vn/ns/spreadsheet/1.0" vno:show-formulas="true"></office:document>')
+
+        patched = postprocess_sheet_xlsx(saved_bytes, source_fods=fods)
+        with zipfile.ZipFile(io.BytesIO(patched)) as archive:
+            xml = archive.read("xl/worksheets/sheet1.xml").decode("utf-8")
+        self.assertIn('showFormulas="1"', xml)
+
 
 if __name__ == "__main__":
     unittest.main()
