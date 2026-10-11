@@ -657,6 +657,12 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.page.columns2", () => this.setColumns({ count: 2, gap: 10, rule: false }));
     globalCommandBus.bindHandler("writer.page.columns3", () => this.setColumns({ count: 3, gap: 10, rule: false }));
     globalCommandBus.bindHandler("writer.layout.lineNumbers", (args) => this.setLineNumbers(args));
+    this._firstLineIndentTargetHandler = (event) => {
+      const control = event?.target?.closest?.('select[data-command-id="writer.para.firstLineIndent"]');
+      if (!control) return;
+      this._pendingFirstLineIndentBlocks = this._getSelectedParagraphBlocks();
+    };
+    if (typeof document !== "undefined") document.addEventListener("mousedown", this._firstLineIndentTargetHandler, true);
     globalCommandBus.bindHandler("writer.shape.insert", (args) => this.insertShapeFromCommand(args));
     globalCommandBus.bindHandler("writer.diagram.insert", (args) => this.insertDiagramFromCommand(args));
     globalCommandBus.bindHandler("writer.chart.insert", (args) => this.insertChartFromCommand(args));
@@ -1467,7 +1473,9 @@ export class WriterAdapter {
   applyParagraphFirstLineIndent(args) {
     const pt = this._parseParagraphSpacingPt(args);
     if (pt == null) return false;
-    return this._applyParagraphVisualStyle({ textIndent: `${pt}pt` }, "writer.para.firstLineIndent");
+    const selectedBlocks = this._pendingFirstLineIndentBlocks;
+    this._pendingFirstLineIndentBlocks = null;
+    return this._applyParagraphVisualStyle({ textIndent: `${pt}pt` }, "writer.para.firstLineIndent", selectedBlocks);
   }
 
   getRulerState() {

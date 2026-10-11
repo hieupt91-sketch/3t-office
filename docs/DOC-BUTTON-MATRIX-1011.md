@@ -6,7 +6,7 @@ Nguồn: `claude-ribbon-scan` (nút nào có phản ứng) + `docs/AUDIT-DOC-WOR
 - **LỆCH ĐÃ BIẾT**: còn lệch đã đo.
 - **CHƯA ĐỐI CHIẾU**: nút có phản ứng (không phải nút câm) nhưng **chưa** so với Word thật — cần làm tiếp.
 
-Tổng kết: KHỚP WORD (đã so Word COM): 77, CHƯA ĐỐI CHIẾU: 39, LỆCH ĐÃ BIẾT: 3, KHÁC CÓ CHỦ Ý: 1 (tổng 120 nút, không kể Trợ lý AI).
+Tổng kết: KHỚP WORD (đã so Word COM): 80, CHƯA ĐỐI CHIẾU: 33, LỆCH ĐÃ BIẾT: 6, KHÁC CÓ CHỦ Ý: 1 (tổng 120 nút, không kể Trợ lý AI).
 
 | Tab | Lệnh | Nút | Trạng thái | Ghi chú |
 |---|---|---|---|---|
@@ -64,10 +64,10 @@ Tổng kết: KHỚP WORD (đã so Word COM): 77, CHƯA ĐỐI CHIẾU: 39, LỆ
 | Chèn | `writer.insert.dateTime` | Ngày & Giờ | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 2: 7 lệnh, thao tác CDP và Word COM khớp về đầu ra DOCX |
 | Chèn | `writer.insert.equation` | Phương trình (Alt+=) | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 2: 7 lệnh, thao tác CDP và Word COM khớp về đầu ra DOCX |
 | Chèn | `writer.insert.symbol` | Ký hiệu | KHỚP WORD (đã so Word COM) | ©, ₫, ∑, → |
-| Thiết kế | `writer.design.themeGallery` | Chủ đề văn bản | CHƯA ĐỐI CHIẾU |  |
-| Thiết kế | `writer.page.watermark` | Hình mờ | CHƯA ĐỐI CHIẾU |  |
-| Thiết kế | `writer.page.color` | Màu trang | CHƯA ĐỐI CHIẾU |  |
-| Thiết kế | `writer.page.border` | Viền trang | CHƯA ĐỐI CHIẾU |  |
+| Thiết kế | `writer.design.themeGallery` | Chủ đề văn bản | LỆCH ĐÃ BIẾT | FIX-T11 nhóm 3: Word COM không nhận theme/line numbering; watermark xuất thành dòng văn bản thay vì watermark native |
+| Thiết kế | `writer.page.watermark` | Hình mờ | LỆCH ĐÃ BIẾT | FIX-T11 nhóm 3: Word COM không nhận theme/line numbering; watermark xuất thành dòng văn bản thay vì watermark native |
+| Thiết kế | `writer.page.color` | Màu trang | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 3: Word COM xác nhận màu trang #dbeafe, viền 3 pt nét đứt #dc2626 và thụt đầu dòng 14.15 pt khớp |
+| Thiết kế | `writer.page.border` | Viền trang | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 3: Word COM xác nhận màu trang #dbeafe, viền 3 pt nét đứt #dc2626 và thụt đầu dòng 14.15 pt khớp |
 | Bố cục | `writer.page.margins` | Căn lề | KHỚP WORD (đã so Word COM) | lề Normal/Narrow/Moderate/Wide, A4/A5/Letter, hướng |
 | Bố cục | `writer.page.orientation` | Hướng giấy | KHỚP WORD (đã so Word COM) | lề Normal/Narrow/Moderate/Wide, A4/A5/Letter, hướng |
 | Bố cục | `writer.page.size` | Khổ giấy | KHỚP WORD (đã so Word COM) | lề Normal/Narrow/Moderate/Wide, A4/A5/Letter, hướng |
@@ -75,8 +75,8 @@ Tổng kết: KHỚP WORD (đã so Word COM): 77, CHƯA ĐỐI CHIẾU: 39, LỆ
 | Bố cục | `writer.page.columns1` | 1 cột | KHỚP WORD (đã so Word COM) | 3/3 |
 | Bố cục | `writer.page.columns2` | 2 cột | KHỚP WORD (đã so Word COM) | 3/3 |
 | Bố cục | `writer.page.columns3` | 3 cột | KHỚP WORD (đã so Word COM) | 3/3 |
-| Bố cục | `writer.layout.lineNumbers` | Danh số dòng | CHƯA ĐỐI CHIẾU |  |
-| Bố cục | `writer.para.firstLineIndent` | Thụt đầu dòng | CHƯA ĐỐI CHIẾU |  |
+| Bố cục | `writer.layout.lineNumbers` | Danh số dòng | LỆCH ĐÃ BIẾT | FIX-T11 nhóm 3: Word COM không nhận theme/line numbering; watermark xuất thành dòng văn bản thay vì watermark native |
+| Bố cục | `writer.para.firstLineIndent` | Thụt đầu dòng | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 3: Word COM xác nhận màu trang #dbeafe, viền 3 pt nét đứt #dc2626 và thụt đầu dòng 14.15 pt khớp |
 | Bố cục | `writer.para.spacingBefore` | Khoảng trước đoạn | KHỚP WORD (đã so Word COM) | 20/20 phép thử định dạng |
 | Bố cục | `writer.para.spacingAfter` | Khoảng sau đoạn | KHỚP WORD (đã so Word COM) | 20/20 phép thử định dạng |
 | Bố cục | `common.file.print` | In tài liệu (Ctrl+P) | CHƯA ĐỐI CHIẾU |  |
