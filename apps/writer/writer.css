@@ -309,6 +309,15 @@
   line-height: 1.45;
 }
 
+.vno-comment-reply {
+  margin: 8px 0 0 18px;
+  padding: 8px 10px;
+  border-left: 2px solid var(--vno-border-subtle, #cbd5e1);
+  background: var(--vno-surface-muted, #f8fafc);
+  border-radius: 0 4px 4px 0;
+}
+.vno-comment-reply p { margin: 3px 0 0; white-space: pre-wrap; }
+
 .vno-comment-meta {
   display: flex;
   align-items: center;
@@ -2906,14 +2915,14 @@ sup.vno-endnote-ref:hover {
 /* Kiểu đoạn văn đặc biệt trong văn bản soạn thảo */
 .vno-writer-body blockquote,
 .vno-writer-body .vno-style-quote {
-  margin: 10pt 0 10pt 24pt;
-  padding: 6pt 14pt;
-  border-left: 3.5px solid #0f4c81;
-  background-color: #f8fafc;
+  margin: 10pt 0 0;
+  padding: 0 43.2pt;
+  border-left: 0;
+  background-color: transparent;
   font-style: italic;
-  color: #334155;
-  line-height: 1.5;
-  border-radius: 0 4px 4px 0;
+  font-size: 11pt;
+  color: #404040;
+  text-align: center;
 }
 
 .vno-writer-body .vno-style-emphasis,
@@ -2925,11 +2934,24 @@ p.vno-style-emphasis {
 
 .vno-writer-body .vno-style-title,
 p.vno-style-title {
+  font-family: "Calibri Light", Calibri, sans-serif;
   font-size: 26pt;
-  font-weight: 700;
-  color: #1f4e79;
+  font-weight: 400;
+  color: #404040;
   text-align: center;
-  margin-bottom: 8pt;
+  margin-bottom: 0;
+}
+
+.vno-writer-body .vno-style-subtitle,
+p.vno-style-subtitle {
+  margin: 0;
+  color: #5a5a5a;
+  font-family: Calibri, sans-serif;
+}
+
+.vno-writer-body .vno-style-list-paragraph,
+p.vno-style-list-paragraph {
+  margin-left: 36pt;
 }
 
 /* ==========================================================================

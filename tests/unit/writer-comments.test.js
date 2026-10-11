@@ -138,6 +138,15 @@ export async function runWriterCommentsTests() {
       if (adapter.activeCommentId !== second.id || !secondAnchor.scrolled) throw new Error("Click card không nhảy đúng anchor");
     });
 
+    await test("Writer Comments: reply giữ trong thread và command dùng active comment", async () => {
+      const target = adapter.comments[1];
+      adapter.activeCommentId = target.id;
+      const replied = await globalCommandBus.execute("writer.review.commentReply", { content: "Phản hồi kiểm tra" });
+      const current = adapter.comments.find(item => item.id === target.id);
+      if (!replied || current.replies?.[0]?.content !== "Phản hồi kiểm tra") throw new Error("Reply không được thêm vào thread đang chọn");
+      if (mapVnCommandToUno("writer.review.commentReply")) throw new Error("Reply phải do VN adapter xử lý, không gọi UNO trực tiếp");
+    });
+
     await test("Writer Comments: xóa từng comment loại khỏi state, panel và anchor DOM", async () => {
       const target = adapter.comments[0];
       const deleteButton = panel.children
