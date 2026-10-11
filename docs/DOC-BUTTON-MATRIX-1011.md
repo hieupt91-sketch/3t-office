@@ -6,19 +6,19 @@ Nguồn: `claude-ribbon-scan` (nút nào có phản ứng) + `docs/AUDIT-DOC-WOR
 - **LỆCH ĐÃ BIẾT**: còn lệch đã đo.
 - **CHƯA ĐỐI CHIẾU**: nút có phản ứng (không phải nút câm) nhưng **chưa** so với Word thật — cần làm tiếp.
 
-Tổng kết: CHƯA ĐỐI CHIẾU: 61, KHỚP WORD (đã so Word COM): 57, KHÁC CÓ CHỦ Ý: 1, LỆCH ĐÃ BIẾT: 1 (tổng 120 nút, không kể Trợ lý AI).
+Tổng kết: KHỚP WORD (đã so Word COM): 70, CHƯA ĐỐI CHIẾU: 48, KHÁC CÓ CHỦ Ý: 1, LỆCH ĐÃ BIẾT: 1 (tổng 120 nút, không kể Trợ lý AI).
 
 | Tab | Lệnh | Nút | Trạng thái | Ghi chú |
 |---|---|---|---|---|
-| Trang đầu | `common.edit.paste` | Dán (Ctrl+V) | CHƯA ĐỐI CHIẾU | Dán thường: đã kiểm hành vi (U-series) nhưng chưa so Word COM |
-| Trang đầu | `common.edit.cut` | Cắt (Ctrl+X) | CHƯA ĐỐI CHIẾU |  |
-| Trang đầu | `common.edit.copy` | Sao chép (Ctrl+C) | CHƯA ĐỐI CHIẾU |  |
-| Trang đầu | `common.edit.formatPainter` | Sao chép định dạng (Ctrl+Shift+C) | CHƯA ĐỐI CHIẾU | Đã sửa lỗi hành vi (U20); chưa so Word COM |
-| Trang đầu | `writer.edit.pasteSpecial` | Dán đặc biệt (Ctrl+Alt+V) | CHƯA ĐỐI CHIẾU |  |
+| Trang đầu | `common.edit.paste` | Dán (Ctrl+V) | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 1: 13 lệnh, thao tác CDP và Word COM khớp; Dán đặc biệt đã so cả định dạng nguồn và văn bản thuần |
+| Trang đầu | `common.edit.cut` | Cắt (Ctrl+X) | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 1: 13 lệnh, thao tác CDP và Word COM khớp; Dán đặc biệt đã so cả định dạng nguồn và văn bản thuần |
+| Trang đầu | `common.edit.copy` | Sao chép (Ctrl+C) | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 1: 13 lệnh, thao tác CDP và Word COM khớp; Dán đặc biệt đã so cả định dạng nguồn và văn bản thuần |
+| Trang đầu | `common.edit.formatPainter` | Sao chép định dạng (Ctrl+Shift+C) | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 1: 13 lệnh, thao tác CDP và Word COM khớp; Dán đặc biệt đã so cả định dạng nguồn và văn bản thuần |
+| Trang đầu | `writer.edit.pasteSpecial` | Dán đặc biệt (Ctrl+Alt+V) | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 1: 13 lệnh, thao tác CDP và Word COM khớp; Dán đặc biệt đã so cả định dạng nguồn và văn bản thuần |
 | Trang đầu | `writer.font.family` | Phông chữ | KHỚP WORD (đã so Word COM) | 20/20 phép thử định dạng |
 | Trang đầu | `writer.font.size` | Cỡ chữ | KHỚP WORD (đã so Word COM) | 20/20 phép thử định dạng |
-| Trang đầu | `writer.font.grow` | Tăng cỡ chữ (Ctrl+Shift+>) | CHƯA ĐỐI CHIẾU | Chưa so (Word nhảy theo danh sách cỡ chuẩn) |
-| Trang đầu | `writer.font.shrink` | Giảm cỡ chữ (Ctrl+Shift+<) | CHƯA ĐỐI CHIẾU | Chưa so |
+| Trang đầu | `writer.font.grow` | Tăng cỡ chữ (Ctrl+Shift+>) | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 1: 13 lệnh, thao tác CDP và Word COM khớp; Dán đặc biệt đã so cả định dạng nguồn và văn bản thuần |
+| Trang đầu | `writer.font.shrink` | Giảm cỡ chữ (Ctrl+Shift+<) | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 1: 13 lệnh, thao tác CDP và Word COM khớp; Dán đặc biệt đã so cả định dạng nguồn và văn bản thuần |
 | Trang đầu | `writer.text.bold` | Đậm (Ctrl+B) | KHỚP WORD (đã so Word COM) | 20/20 phép thử định dạng |
 | Trang đầu | `writer.text.italic` | Nghiêng (Ctrl+I) | KHỚP WORD (đã so Word COM) | 20/20 phép thử định dạng |
 | Trang đầu | `writer.text.underline` | Gạch chân (Ctrl+U) | KHỚP WORD (đã so Word COM) | 20/20 phép thử định dạng |
@@ -26,21 +26,21 @@ Tổng kết: CHƯA ĐỐI CHIẾU: 61, KHỚP WORD (đã so Word COM): 57, KHÁ
 | Trang đầu | `writer.text.subscript` | Chỉ số dưới (Ctrl+=) | KHỚP WORD (đã so Word COM) | 20/20 phép thử định dạng |
 | Trang đầu | `writer.text.superscript` | Chỉ số trên (Ctrl+Shift++) | KHỚP WORD (đã so Word COM) | 20/20 phép thử định dạng |
 | Trang đầu | `writer.text.changeCase` | Đổi chữ hoa/thường (Shift+F3) | KHỚP WORD (đã so Word COM) | 20/20 phép thử định dạng |
-| Trang đầu | `writer.text.clearFormat` | Xóa định dạng (Ctrl+Space) | CHƯA ĐỐI CHIẾU | Chưa so Word COM |
+| Trang đầu | `writer.text.clearFormat` | Xóa định dạng (Ctrl+Space) | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 1: 13 lệnh, thao tác CDP và Word COM khớp; Dán đặc biệt đã so cả định dạng nguồn và văn bản thuần |
 | Trang đầu | `writer.color.highlight` | Màu nền chữ (Ctrl+Alt+H) | KHỚP WORD (đã so Word COM) | 20/20 phép thử định dạng |
 | Trang đầu | `writer.color.text` | Màu chữ | KHỚP WORD (đã so Word COM) | 20/20 phép thử định dạng |
 | Trang đầu | `writer.list.bullet` | Dấu đầu dòng (Ctrl+Shift+L) | KHỚP WORD (đã so Word COM) | 20/20 phép thử định dạng |
 | Trang đầu | `writer.list.numbered` | Đánh số | KHỚP WORD (đã so Word COM) | 20/20 phép thử định dạng |
-| Trang đầu | `writer.para.indentDec` | Giảm thụt lề (Ctrl+Shift+M) | CHƯA ĐỐI CHIẾU |  |
+| Trang đầu | `writer.para.indentDec` | Giảm thụt lề (Ctrl+Shift+M) | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 1: 13 lệnh, thao tác CDP và Word COM khớp; Dán đặc biệt đã so cả định dạng nguồn và văn bản thuần |
 | Trang đầu | `writer.para.indentInc` | Thụt lề (Ctrl+M) | KHỚP WORD (đã so Word COM) | 20/20 phép thử định dạng |
-| Trang đầu | `writer.para.sort` | Sắp xếp | CHƯA ĐỐI CHIẾU |  |
-| Trang đầu | `writer.para.showFormattingMarks` | Hiện/ẩn ký tự định dạng (Ctrl+*) | CHƯA ĐỐI CHIẾU |  |
+| Trang đầu | `writer.para.sort` | Sắp xếp | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 1: 13 lệnh, thao tác CDP và Word COM khớp; Dán đặc biệt đã so cả định dạng nguồn và văn bản thuần |
+| Trang đầu | `writer.para.showFormattingMarks` | Hiện/ẩn ký tự định dạng (Ctrl+*) | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 1: 13 lệnh, thao tác CDP và Word COM khớp; Dán đặc biệt đã so cả định dạng nguồn và văn bản thuần |
 | Trang đầu | `writer.para.alignLeft` | Căn trái (Ctrl+L) | KHỚP WORD (đã so Word COM) | 20/20 phép thử định dạng |
 | Trang đầu | `writer.para.alignCenter` | Căn giữa (Ctrl+E) | KHỚP WORD (đã so Word COM) | 20/20 phép thử định dạng |
 | Trang đầu | `writer.para.alignRight` | Căn phải (Ctrl+R) | KHỚP WORD (đã so Word COM) | 20/20 phép thử định dạng |
 | Trang đầu | `writer.para.justify` | Căn đều (Ctrl+J) | KHỚP WORD (đã so Word COM) | 20/20 phép thử định dạng |
-| Trang đầu | `writer.para.shading` | Tô nền đoạn | CHƯA ĐỐI CHIẾU |  |
-| Trang đầu | `writer.para.borders` | Viền đoạn văn | CHƯA ĐỐI CHIẾU |  |
+| Trang đầu | `writer.para.shading` | Tô nền đoạn | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 1: 13 lệnh, thao tác CDP và Word COM khớp; Dán đặc biệt đã so cả định dạng nguồn và văn bản thuần |
+| Trang đầu | `writer.para.borders` | Viền đoạn văn | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 1: 13 lệnh, thao tác CDP và Word COM khớp; Dán đặc biệt đã so cả định dạng nguồn và văn bản thuần |
 | Trang đầu | `writer.style.gallery` | Thư viện kiểu | KHÁC CÓ CHỦ Ý | Normal/Title/Quote đã áp dụng; preset VN cố ý khác định dạng Word; Heading 1–3 khớp |
 | Trang đầu | `common.edit.find` | Tìm kiếm (Ctrl+F) | KHỚP WORD (đã so Word COM) | phân biệt hoa/thường, toàn từ, Tìm trước, thay một |
 | Trang đầu | `common.edit.replace` | Thay thế (Ctrl+H) | KHỚP WORD (đã so Word COM) | phân biệt hoa/thường, toàn từ, Tìm trước, thay một |

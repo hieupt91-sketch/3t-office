@@ -17732,9 +17732,41 @@ export class WriterAdapter {
 
   _insertClipboardContent({ html = "", text = "" } = {}) {
     const sanitizedHtml = html ? this._sanitizeClipboardHtml(cleanWordHtml(html)) : "";
-    const cleanHtml = this._prepareClipboardHtmlForInsertion(sanitizedHtml);
+    let cleanHtml = this._prepareClipboardHtmlForInsertion(sanitizedHtml);
     if (cleanHtml || text) this.flushTyping();
     let inserted = false;
+    const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+    let clipboardPlainText = text;
+    if (!clipboardPlainText && sanitizedHtml && typeof document !== "undefined") {
+      const textProbe = document.createElement("div");
+      textProbe.innerHTML = sanitizedHtml;
+      clipboardPlainText = textProbe.textContent || "";
+    }
+    let insertSmartPasteSpace = false;
+    if (typeof document !== "undefined" && selection?.rangeCount && selection.isCollapsed && clipboardPlainText && this.bodyDom?.contains?.(selection.anchorNode)) {
+      const range = selection.getRangeAt(0);
+      const block = selection.anchorNode?.nodeType === 3
+        ? selection.anchorNode.parentElement?.closest?.("p,li,blockquote,h1,h2,h3,h4,h5,h6,td,th")
+        : selection.anchorNode?.closest?.("p,li,blockquote,h1,h2,h3,h4,h5,h6,td,th");
+      if (block && this.bodyDom.contains(block)) {
+        const before = document.createRange();
+        before.selectNodeContents(block);
+        before.setEnd(range.startContainer, range.startOffset);
+        const after = document.createRange();
+        after.selectNodeContents(block);
+        after.setStart(range.startContainer, range.startOffset);
+        const prefix = before.toString();
+        const suffix = after.toString();
+        if (/\.$/.test(prefix) && !suffix && /^\s*[A-ZÀ-Ỹ]/u.test(clipboardPlainText)) {
+          // Word's smart paste inserts a sentence separator when copied text is pasted at a sentence end.
+          insertSmartPasteSpace = true;
+        }
+      }
+    }
+    if (insertSmartPasteSpace) {
+      if (cleanHtml) cleanHtml = `<span style="white-space: pre-wrap"> </span>${cleanHtml}`;
+      else if (text) text = ` ${text}`;
+    }
     if (cleanHtml) {
       if (document.execCommand?.("insertHTML", false, cleanHtml)) {
         inserted = true;
@@ -17835,9 +17867,23 @@ export class WriterAdapter {
       this.shell?.setStatus?.("Không đọc được bộ nhớ tạm. Hãy dùng Ctrl+V trong vùng soạn thảo hoặc kiểm tra quyền clipboard.");
       return false;
     }
+    let clipboardText = clipboard.text || "";
+    if (!clipboardText && clipboard.html && typeof document !== "undefined") {
+      const textProbe = document.createElement("div");
+      textProbe.innerHTML = this._sanitizeClipboardHtml(cleanWordHtml(clipboard.html));
+      clipboardText = textProbe.textContent || "";
+    }
+    if (!clipboardText) clipboardText = this._clipboardMemory?.text || "";
+    const normalizeClipboardText = value => String(value || "").replace(/[\r\n]+/g, " ").replace(/[\t ]+/g, " ").trim();
+    if (plainTextOnly && this._clipboardMemory?.text && clipboard.html
+      && normalizeClipboardText(clipboardText) === normalizeClipboardText(this._clipboardMemory.text)) {
+      // The app's clipboard bridge may expose formatting-source newlines as literal
+      // plain-text line breaks. Prefer the structured text serialized at Copy time.
+      clipboardText = this._clipboardMemory.text || clipboardText;
+    }
     const inserted = this._insertClipboardContent({
       html: plainTextOnly ? "" : (clipboard.html || ""),
-      text: clipboard.text || ""
+      text: clipboardText
     });
     if (!inserted) this.shell?.setStatus?.("Bộ nhớ tạm không có nội dung để dán.");
     return inserted;

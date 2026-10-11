@@ -1127,7 +1127,7 @@ export function convertMsoListsToHtmlLists(html) {
 export function extractStructuredTextFromDom(root) {
   if (!root) return "";
   if (typeof document === "undefined") {
-    return String(root.textContent || "").trim();
+    return String(root.textContent || "").replace(/[\r\n]+/g, " ").replace(/[\t ]+/g, " ").trim();
   }
 
   // Nếu chứa bảng biểu: trích xuất theo định dạng TSV chuẩn Office
@@ -1160,14 +1160,16 @@ export function extractStructuredTextFromDom(root) {
     if (blocks.length > 0) {
       const lines = [];
       blocks.forEach(b => {
-        const t = (b.textContent || "").trim();
+        // Source formatting can put literal newlines between inline nodes. Word treats
+        // those as whitespace during plain-text paste, not as paragraph breaks.
+        const t = (b.textContent || "").replace(/[\r\n]+/g, " ").replace(/[\t ]+/g, " ").trim();
         if (t) lines.push(t);
       });
       if (lines.length > 0) return lines.join("\n");
     }
   }
 
-  return (root.textContent || "").trim();
+  return (root.textContent || "").replace(/[\r\n]+/g, " ").replace(/[\t ]+/g, " ").trim();
 }
 
 /**

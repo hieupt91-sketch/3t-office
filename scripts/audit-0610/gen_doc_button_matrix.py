@@ -39,6 +39,7 @@ mark(KHOP, "writer.shape.insert", "hình chữ nhật: loại, kích thước, v
 mark(KHOP, "writer.image.insert", "PNG: kích thước, wrap, vị trí")
 mark(KHAC, "writer.style.gallery", "Normal/Title/Quote đã áp dụng; preset VN cố ý khác định dạng Word; Heading 1–3 khớp")
 mark(LECH, "writer.review.wordCount", "chữ khớp, 'ký tự có khoảng trắng' lệch 0.5–7% (tài liệu mẫu); đoạn/dòng gần khớp")
+mark(KHOP, "common.edit.paste common.edit.cut common.edit.copy common.edit.formatPainter writer.edit.pasteSpecial writer.font.grow writer.font.shrink writer.text.clearFormat writer.para.indentDec writer.para.sort writer.para.showFormattingMarks writer.para.shading writer.para.borders", "FIX-T11 nhóm 1: 13 lệnh, thao tác CDP và Word COM khớp; Dán đặc biệt đã so cả định dạng nguồn và văn bản thuần")
 
 NOTE_DEFAULT = {
     "common.edit.paste": "Dán thường: đã kiểm hành vi (U-series) nhưng chưa so Word COM",
