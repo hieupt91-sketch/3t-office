@@ -420,13 +420,13 @@ export class WriterAdapter {
       this.headerDom = null;
       this.bodyDom = this.editorDom;
       this.footerDom = null;
-      this.bodyDom?.classList?.toggle("vno-new-application-document", Boolean(this.isNewApplicationDocument));
+      this.bodyDom?.classList?.toggle?.("vno-new-application-document", Boolean(this.isNewApplicationDocument));
       return;
     }
     this.headerDom = this.editorDom.querySelector(".vno-writer-header");
     this.bodyDom = this.editorDom.querySelector(".vno-writer-body") || this.editorDom;
     this.footerDom = this.editorDom.querySelector(".vno-writer-footer");
-    this.bodyDom?.classList?.toggle("vno-new-application-document", Boolean(this.isNewApplicationDocument));
+    this.bodyDom?.classList?.toggle?.("vno-new-application-document", Boolean(this.isNewApplicationDocument));
   }
 
   _bindEquationInteractions() {

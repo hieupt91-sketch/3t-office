@@ -128,10 +128,10 @@ export async function runWriterHeadingShortcutsTests() {
     assert.ok(entry.commandIds.includes("writer.style.heading1"), "Must include writer.style.heading1");
     assert.ok(entry.commandIds.includes("writer.style.heading2"), "Must include writer.style.heading2");
     assert.ok(entry.commandIds.includes("writer.style.heading3"), "Must include writer.style.heading3");
-    assert.match(entry.summary, /mặc định của Word/i, "Vietnamese Help must describe the new-document Word defaults");
+    assert.match(entry.summary, /theo chuẩn kiểu dáng tài liệu/i, "Vietnamese Help must describe the new-document heading defaults");
     assert.match(entry.summary, /giữ nguyên định dạng nguồn/i, "Vietnamese Help must explain imported style preservation");
-    assert.match(viStrings.commands["writer.style.heading1"].tooltip, /mặc định Word/i);
-    assert.match(enStrings.commands["writer.style.heading1"].tooltip, /Word default/i);
+    assert.match(viStrings.commands["writer.style.heading1"].tooltip, /kiểu Tiêu đề 1 chuẩn/i);
+    assert.match(enStrings.commands["writer.style.heading1"].tooltip, /standard Heading 1 style/i);
     const css = readFileSync("apps/writer/writer.css", "utf8");
     assert.match(css, /\.vno-writer-body\.vno-new-application-document h1[\s\S]*?font-size:\s*16pt/);
     assert.match(css, /\.vno-writer-body\.vno-new-application-document h2[\s\S]*?font-size:\s*13pt/);

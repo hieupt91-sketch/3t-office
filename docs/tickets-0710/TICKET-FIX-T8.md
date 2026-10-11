@@ -6,7 +6,20 @@ Khung: scripts/audit-0610/word_parallel/ (make-template.ps1, app-ops.desktop.mjs
  4. Ghi chu (Comments: Author, Scope, Text, Done), Theo doi thay doi (Revisions: Type, Author, Range.Text), Tim/Thay the (Find.Execute ket qua), Ky hieu/Chen ky tu dac biet (Range.Text ky tu), Hop van ban/Hinh khoi/Hinh anh (Shapes: Type, Width, Height, WrapFormat).
 Quy trinh/CAM/TIET KIEM TOKEN: nhu TICKET-FIX-T1.md; COMMIT SAU MOI NHOM; Word COM chi instance cua ban, ket thuc theo PID; KHONG gui noi dung tai lieu ra AI/cloud. Worktree E:\VNOffice-codex-ft8 nhanh audit/doc-office-parity-2-codex tu main. npm test + python unittest + batch docx. Bao cao 3 dong.
 
-## Kết quả theo nhóm (đang tiếp tục lần lượt)
+## Kết quả theo nhóm (đã hoàn thành lần lượt)
+
+Đã merge `main` trước Nhóm 1 (3985fae6) và đồng bộ lại trước Nhóm 6 (350ea9f2); mỗi nhóm FIX-T8 có commit riêng.
+
+### Nhóm 1 — Bảng — 11/10/2026
+1. App/CDP: chèn và thao tác bảng bằng chuột/phím, gồm xóa cột, gộp/tách ngang-dọc, căn, nền/viền, AutoFit, kích thước hàng/cột; ảnh `E:\VNOffice-profiles\codex-ft8\cdp-run-03\table-*.png`.
+2. Word COM: đối chiếu cấu trúc, căn, màu nền, 6 cạnh viền, AutoFit và chiều rộng/cao sau khi mở DOCX.
+3. Sửa chiều rộng bảng mới, lưu độ rộng/cao và điều khiển AutoFit/viền; kết quả parity ghi trong audit. Help F1 + i18n VI/EN cập nhật; test Python 11/11, JS 15/15 PASS. Commit `a0e8dd23`.
+
+### Nhóm 2 — Bố cục trang — 11/10/2026
+1. App/CDP: thiết lập lề/preset, hướng, A4/A5/Letter, 1/2/3 cột, ngắt trang/mục, header/footer, trang đầu khác và số trang; ảnh `E:\VNOffice-profiles\codex-ft8\cdp-run-06\layout-*.png`.
+2. Word COM: so các PageSetup và 5 section; loại ngắt, đầu/chân trang, DifferentFirstPage và số trang bắt đầu khớp.
+3. Bổ sung A5/preset lề Word, sửa section break tại caret; Help F1 + i18n VI/EN cập nhật. Test 18/18 PASS; commit `130156af`.
+
 
 ### Nhóm 3 — Heading 1–3 — 11/10/2026
 1. App desktop: tài liệu mới, thao tác gõ/chọn/áp kiểu bằng CDP chuột và bàn phím; lưu DOCX và chụp ảnh tại `E:\VNOffice-profiles\codex-ft8\heading-run-09\heading-t8-before.png`.

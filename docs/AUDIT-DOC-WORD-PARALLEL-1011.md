@@ -10,7 +10,7 @@
 - **Rollback:** các thay đổi DOCX cô lập trong adapter; bỏ commit fix T7 nếu hồi quy tài liệu thất bại.
 
 ## Kế hoạch đối chiếu mở rộng (FIX-T8)
-- **Mục tiêu:** hoàn tất lần lượt bốn nhóm Bảng, Bố cục trang, Kiểu/Tham chiếu và Ghi chú/Rà soát/Tìm kiếm/Đối tượng theo Word COM làm chuẩn; chỉ kết luận KHỚP khi app và Word cùng thao tác trên DOCX thật rồi đọc lại thuộc tính trong Word.
+- **Mục tiêu:** hoàn tất lần lượt các nhóm Bảng, Bố cục trang, Heading 1–3, Kiểu/Tham chiếu, Ghi chú, Theo dõi thay đổi, Tìm/Thay, Ký hiệu, TextBox/Hình khối/Hình ảnh theo Word COM làm chuẩn; chỉ kết luận KHỚP khi app và Word cùng thao tác trên DOCX thật rồi đọc lại thuộc tính trong Word.
 - **Năng lực hiện tại:** app có các command Writer cho bảng, bố cục/section, style, TOC/footnote, comments/track changes, find/replace, symbol và textbox; harness hiện mới đối chiếu Trang đầu, Heading và số cột.
 - **Files/modules:** harness trong `scripts/audit-0610/word_parallel/`, ma trận trong tài liệu này, help Writer hiện có và handoff theo mẫu. Chỉ sửa adapter/app khi đo được sai lệch tái hiện, trong đúng vùng Writer/adapter.
 - **Dependency:** Word COM cục bộ làm oracle; app desktop khởi chạy qua `main.py`. Dùng `VNO_APP_ROOT=E:\VNOffice-codex-ft8`, profile riêng `VNO_CDP_LOCALAPPDATA=E:\VNOffice-profiles\codex-ft8`, cổng CDP tự cấp bởi `tests/live/cdp/session.mjs`.
@@ -107,9 +107,9 @@ Lượt so sánh COM cuối: **21/21 KHỚP**. Hai lượt chẩn đoán trướ
 2. **Word COM:** tạo shape type 17 cùng kích thước 94.1×34.2 pt trước lưu; sau mở lại app và Word đều 53.6×19.5 pt, AutoSize=0, wrap bật, lề trái/phải 7.2 pt và trên/dưới 3.6 pt; OOXML ext/bodyPr cũng giống.
 3. **Kết quả/sửa:** **KHỚP**. Nguyên nhân là khung app mặc định 220×80 CSS px quá lớn và phép đổi px làm tròn; đặt mặc định 125.47×45.6 px, xuất kích thước phân số theo pt và khớp lề Word; cỡ người dùng chỉ định giữ nguyên. Test Python 6/6, JS 2/2 PASS; Help F1 và tooltip VI/EN cập nhật.
 
-- Các phần Kiểu/Tham chiếu cơ bản đã hoàn tất; còn Comment trạng thái/CRUD, Track Changes xử lý revision, tìm kiếm tùy chọn và hình khối/ảnh cần hoàn tất ở các nhóm tiếp theo. Kết quả Heading 1–3 trước đó vẫn là sai khác đã ghi, không được tính KHỚP.
-- Batch DOCX hồi quy trên worktree/profile `codex-ft8`: **5/5 PASS**, edit PASS; trang nguồn/lưu d01 19/19, d07 23/23, d13 10/10, d20 3/3, d24 16/16. Báo cáo: `E:\VNOffice-profiles\codex-ft8\batch-audit\batch_document_audit_report.md`.
-- Kiểm thử: `npm test` **3058/3058 PASS**. `python -m unittest discover -s tests` lần chạy đầu dùng nhầm LOCALAPPDATA mặc định và có 10 lỗi do xung đột profile LibreOffice với phiên worktree khác; chạy lại toàn bộ với `LOCALAPPDATA=E:\VNOffice-profiles\codex-ft8\python-localappdata`: **832 tests OK**. Hai lần unittest có `ResourceWarning` về pipe chưa đóng; không có test fail ở lần chạy dùng profile riêng.
+- Ghi chú trạng thái trung gian tại thời điểm viết đã lỗi thời; kết quả hoàn tất của từng nhóm được ghi trong các mục FIX-T8 phía trên và ma trận hiện hành. Baseline Heading sai lệch bên dưới được giữ làm lịch sử trước sửa.
+- Batch DOCX hồi quy cuối trên worktree/profile `codex-ft8`: chạy d01,d02,d07,d13,d20,d24; chi tiết 6/6 và đường dẫn ở phần tổng kết cuối báo cáo.
+- Số liệu test cũ ở đây đã được thay bằng lần chạy cuối trong phần tổng kết. Lượt unittest dùng `LOCALAPPDATA` mặc định từng va chạm LibreOffice; lần chạy profile riêng là nguồn kết quả hợp lệ.
 
 ### Heading 1–3 — 11/10/2026
 
@@ -121,7 +121,7 @@ Lượt so sánh COM cuối: **21/21 KHỚP**. Hai lượt chẩn đoán trướ
 | Heading 2 | đậm `-1 → 0`; cỡ `12 → 13 pt`; phông `Times New Roman → Calibri Light`; trước `0 → 2 pt`; sau `8 → 0 pt`; màu khác | LECH |
 | Heading 3 | đậm `-1 → 0`; phông `Times New Roman → Calibri Light`; trước `0 → 2 pt`; sau `8 → 0 pt`; màu khác | LECH |
 
-Đây là baseline trước sửa; phép thử Heading 1–3 sau sửa và giới hạn chỉ áp dụng tài liệu mới được ghi ở mục **FIX-T8 — Heading 1–3** phía trên. Các phép thử Normal/Title/Quote và cập nhật TOC vẫn chưa hoàn tất.
+Đây là baseline trước sửa; phép thử Heading 1–3 sau sửa và giới hạn chỉ áp dụng tài liệu mới được ghi ở mục **FIX-T8 — Heading 1–3** phía trên. Ghi chú “Normal/Title/Quote và cập nhật TOC chưa hoàn tất” là trạng thái giữa chừng, đã được cập nhật trong mục Kiểu và tham chiếu.
 
 ### FIX-T8 tiếp tục — Kiểu/TOC/Footnote — 11/10/2026
 
@@ -129,13 +129,13 @@ Trong app desktop, chọn đoạn “Alpha beta gamma delta.” bằng chuột, 
 
 Trợ giúp tiếng Việt hiện có tại F1/Trợ giúp với các chủ đề **Thư viện kiểu và Chủ đề tài liệu**, **Mục lục tự động**, **Chú thích cuối trang và chú thích cuối tài liệu** (`platform/help/entries-writer.js`); nhãn/tooltip có trong `platform/i18n/strings-vi.js` và `strings-en.js`.
 
-Nhóm chưa hoàn tất: style Normal/Title/Quote, cập nhật TOC sau sửa Heading, trang tham chiếu, footnote có nội dung, endnote, tham chiếu chéo và danh mục hình chưa chạy. Heading 1–3 mặc định tài liệu mới đã khớp Word; tài liệu mở giữ nguyên nguồn.
+Các phép Normal/Title/Quote, cập nhật TOC, footnote/endnote có nội dung, tham chiếu chéo và danh mục hình đã được đo ở nhóm Kiểu và tham chiếu phía trên. Preset VN Normal/Title/Quote được giữ khác kiểu dựng sẵn của Word theo chủ đích sản phẩm; tài liệu DOCX nguồn giữ nguyên.
 
 ### FIX-T8 tiếp tục — Ghi chú — 11/10/2026
 
 Chọn đúng từ **Alpha** bằng chuột/phím CDP, mở **Đánh giá > Thêm ghi chú**, nhập `Audit note`, lưu DOCX. Word COM tạo comment trên cùng phạm vi và lưu DOCX đối chứng. COM đọc lại cả hai file: số comment `1/1`, Author `3T Office/3T Office`, Scope `Alpha/Alpha`, Text `Audit note/Audit note`: **KHỚP**. Bài hướng dẫn tiếng Việt **Thêm và quản lý ghi chú** đã có trong Trợ giúp Writer; nhãn có i18n.
 
-Chưa chạy: đánh dấu Done/Resolved, sửa/xóa comment, điều hướng comment và comment trên phạm vi nhiều đoạn.
+Baseline này chỉ đo tạo comment. Kết quả Done/Resolved, xóa và điều hướng được đo sau đó trong mục **FIX-T8 — Ghi chú (đối chiếu trạng thái)**; UI hiện không có lệnh sửa nội dung comment.
 
 ### FIX-T8 — Ghi chú — 11/10/2026 (đối chiếu trạng thái)
 
@@ -147,7 +147,7 @@ Chưa chạy: đánh dấu Done/Resolved, sửa/xóa comment, điều hướng c
 
 Mở **Đánh giá > Theo dõi thay đổi**, đặt con trỏ cuối đoạn Alpha và gõ ` added` bằng CDP keyboard, rồi lưu DOCX. Word COM bật `TrackRevisions`, chèn cùng chuỗi và lưu DOCX đối chứng. Đọc lại bằng COM: cả hai tệp có một Revision, `Type=1` (insertion), Author `3T Office`, text `added`: **KHỚP**. Help tiếng Việt **Theo dõi thay đổi** và nhãn thao tác đã có trong `platform/help/entries-writer.js` cùng `platform/i18n/strings-vi.js`/`strings-en.js`.
 
-Chưa chạy: xóa có theo dõi, chấp nhận/từ chối một và tất cả, chuyển đổi chế độ hiển thị, tên tác giả khác và round-trip sửa revision đã tồn tại.
+Baseline này chỉ đo insertion. Xóa, Accept One và Reject All được đo trong mục **FIX-T8 — Theo dõi thay đổi (xóa và xử lý revision)**; chế độ hiển thị và tác giả tùy chỉnh vẫn ngoài phép đo.
 
 ### FIX-T8 — Theo dõi thay đổi — 11/10/2026 (xóa và xử lý revision)
 
@@ -185,7 +185,7 @@ Nhấn **Ctrl+H**, nhập `Alpha` ở ô **Tìm gì**, nhập `Gamma` ở ô **T
 
 ### Bố cục trang: cột — 11/10/2026
 
-Đã chạy riêng `OPS=columns1,columns2,columns3` trên app desktop và Word COM. Đọc `PageSetup.TextColumns.Count` từ DOCX đã lưu: 1 cột, 2 cột và 3 cột đều khớp. Lề, hướng giấy và khổ giấy chưa chạy.
+Đây là kết quả cột riêng lẻ trước khi nhóm Bố cục trang hoàn tất. Lề, hướng và khổ giấy đã được đo trong mục FIX-T8 — Bố cục trang phía trên.
 
 ### FIX-T8 tiếp tục — Thiết lập trang — 11/10/2026
 
@@ -193,8 +193,17 @@ Nhấn **Ctrl+H**, nhập `Alpha` ở ô **Tìm gì**, nhập `Gamma` ở ô **T
 
 Trong app, mở **Bố cục > Thiết lập trang…**, chọn khổ/hướng, nhập bốn lề theo mm, chọn phạm vi áp dụng rồi nhấn **Áp dụng**. Trợ giúp tiếng Việt hiện có tại F1/Trợ giúp, chủ đề **Lề, hướng giấy và khổ giấy**; khóa giao diện đã có trong `platform/i18n/strings-vi.js` và `strings-en.js`.
 
-Chưa chạy: preset Normal/Narrow/Moderate/Wide, Letter/A5, ngắt trang/ngắt mục, đầu/chân trang, trang đầu khác và định dạng số trang. Nhóm Bố cục trang vì vậy vẫn **CHƯA HOÀN TẤT**; cột 1/2/3 và phép thiết lập A4 ngang/lề ở trên là các phép con đã đối chiếu.
+Phần “chưa chạy” này là ghi nhận giữa chừng, đã được thay thế bởi kết quả nhóm Bố cục trang đầy đủ ngay phía trên: các preset/khổ giấy, ngắt, đầu/chân trang và số trang đã được đối chiếu.
 
 ## Batch DOCX hồi quy
 
-`batch_document_audit.py docx` trên d01, d07, d13, d20, d24: **5/5 PASS**, không lệch số trang sau edit/save. Chi tiết và thời gian đo trong `E:\VNOffice-profiles\codex-ft7\batch-audit\batch_document_audit_report.md`.
+`batch_document_audit.py docx` trên d01,d02,d07,d13,d20,d24 chạy cuối với `VNO_APP_ROOT=E:\VNOffice-codex-ft8`; kết quả chi tiết ghi ở tổng kết cuối báo cáo.
+
+
+## Tổng kết FIX-T8 — 11/10/2026
+
+- `main` đã được merge trước Nhóm 1 (merge `3985fae6`); đồng bộ `main` lần nữa trước Nhóm 6 (`350ea9f2`). Nhóm 1–10 có commit riêng: `a0e8dd23`, `130156af`, `fc7fb854`, `143f7e2c`, `9a1bcc7c`, `307e50e4`, `f5e24336`, `e77f2dad`, `7f07c310`, `993fb118`.
+- `npm test` với `VNO_APP_ROOT=E:\VNOffice-codex-ft8`: **3064/3064 PASS**. Hai lỗi ban đầu do test mock `classList` không có `toggle` đã được guard; nội dung Help/VI/EN được sửa để không dùng tên thương hiệu bị cấm. Help coverage kiểm tra toàn bộ lệnh động thay vì số cứng.
+- `python -m unittest discover -s tests` với `VNO_APP_ROOT` và `LOCALAPPDATA=E:\VNOffice-profiles\codex-ft8\python-localappdata`: **855 tests OK**, 468.399 giây; có `ResourceWarning` hai pipe chưa đóng sau khi chạy, không có test fail.
+- Batch `scripts/layout-audit/batch_document_audit.py docx` chạy với `VNO_APP_ROOT=E:\VNOffice-codex-ft8`, nguồn `E:\VN OFice\file test\landocx`: **6/6 PASS**, edit PASS, page delta 0. Số trang Word/lưu: d01 19/19, d02 11/11, d07 23/23, d13 10/10, d20 3/3, d24 16/16. Báo cáo: `E:\VNOffice-profiles\codex-ft8\batch-audit-final\batch_document_audit_report.md`.
+- Không chạy build. Không có test FAIL/BLOCKED. Giới hạn chưa đo trong scope phụ: sửa nội dung comment (UI hiện chưa có lệnh chỉnh sửa), các chế độ hiển thị revision và tên tác giả tùy chỉnh; ma trận chính phía trên nêu rõ các phép đã đối chiếu.

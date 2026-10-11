@@ -525,7 +525,7 @@ export const WRITER_HELP_ENTRIES = [
     ribbon: { tab: "Chèn", tabId: "insert", group: "Văn bản" },
     keywords: ["hộp văn bản", "textbox", "khung chữ", "ngày giờ", "date time", "dd/mm/yyyy", "chèn ngày"],
     steps: [
-      "Đặt con trỏ tại đoạn cần neo khung, rồi mở tab Chèn > nhóm Văn bản > Hộp văn bản. Khung viền xanh có kích thước khởi tạo khớp mặc định Word xuất hiện tại vị trí con trỏ; chữ mẫu «Nhập văn bản» được chọn sẵn, nên có thể gõ ngay để thay thế. Kéo khung để đặt lại hoặc kéo góc để đổi cỡ; kích thước sau lưu giữ nguyên.",
+      "Đặt con trỏ tại đoạn cần neo khung, rồi mở tab Chèn > nhóm Văn bản > Hộp văn bản. Khung viền xanh có kích thước khởi tạo chuẩn xuất hiện tại vị trí con trỏ; chữ mẫu «Nhập văn bản» được chọn sẵn, nên có thể gõ ngay để thay thế. Kéo khung để đặt lại hoặc kéo góc để đổi cỡ; kích thước sau lưu giữ nguyên.",
       "Ngày & Giờ (cột nhỏ, dưới Chữ đầu đoạn): hộp thoại liệt kê 5 mẫu với giá trị lúc bấm — dd/MM/yyyy, dd/MM/yyyy HH:mm, dạng dài «12 tháng 9 năm 2026», yyyy-MM-dd, HH:mm. Chọn mẫu rồi Chèn.",
       "Chuỗi ngày giờ nằm tại con trỏ dạng span, không tự cập nhật sau khi chèn. Esc hoặc Hủy đóng hộp thoại.",
       "Cùng nhóm còn Chữ nghệ thuật (bài riêng) và Chữ đầu đoạn. Ctrl+Z gỡ khung hoặc chuỗi vừa chèn."
@@ -617,12 +617,12 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["writer.style.gallery", "writer.style.normal", "writer.style.apply", "writer.style.heading1", "writer.style.heading2", "writer.style.heading3"],
     title: "Thư viện kiểu và kiểu Thường",
-    summary: "Dải kiểu nhanh trên tab Trang đầu và nút Thư viện kiểu áp 7 kiểu dáng định dạng sẵn. Tiêu đề 1/2/3 trong tài liệu mới dùng cỡ chữ, phông, màu theme và khoảng cách mặc định của Word; tài liệu DOCX mở sẵn giữ nguyên định dạng nguồn. Hỗ trợ Ctrl+Alt+1/2/3 để áp dụng Heading 1/2/3 và Ctrl+Shift+N để về Normal.",
+    summary: "Dải kiểu nhanh trên tab Trang đầu và nút Thư viện kiểu áp 7 kiểu dáng định dạng sẵn. Tiêu đề 1/2/3 trong tài liệu mới dùng cỡ chữ, phông, màu theme và khoảng cách theo chuẩn kiểu dáng tài liệu; tài liệu DOCX mở sẵn giữ nguyên định dạng nguồn. Hỗ trợ Ctrl+Alt+1/2/3 để áp dụng Heading 1/2/3 và Ctrl+Shift+N để về Normal.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Kiểu dáng" },
     keywords: ["thư viện kiểu", "styles gallery", "tiêu đề", "normal", "tiêu đề 1", "tiêu đề 2", "tiêu đề 3", "heading", "ctrl+alt+1", "ctrl+alt+2", "ctrl+alt+3", "ctrl+shift+n", "trích dẫn", "nhấn mạnh"],
     steps: [
       "Mở tab Trang đầu, nhóm Kiểu dáng: nhấp nút lớn Thư viện kiểu (hoặc chọn nhanh từ dải thẻ Normal, Tiêu đề 1/2/3 hiển thị trực tiếp trên ribbon).",
-      "Hộp thoại Thư viện Kiểu dáng mở ra với 7 kiểu định dạng. Tiêu đề 1/2/3 tạo cấp mục để điều hướng và lập mục lục; trong tài liệu mới, DOCX dùng cỡ 16/13/12 pt cùng phông và màu theme theo mặc định Word. Khi mở DOCX có sẵn, kiểu nguồn được giữ nguyên.",
+      "Hộp thoại Thư viện Kiểu dáng mở ra với 7 kiểu định dạng. Tiêu đề 1/2/3 tạo cấp mục để điều hướng và lập mục lục; trong tài liệu mới, DOCX dùng cỡ 16/13/12 pt cùng phông và màu theme theo chuẩn kiểu dáng. Khi mở DOCX có sẵn, kiểu nguồn được giữ nguyên.",
       "Điều hướng bằng bàn phím: nhấn phím Tab để di chuyển xoay vòng giữa các thẻ kiểu dáng trong danh sách (giữ phím Shift khi nhấn Tab để di chuyển ngược lại); dùng các phím mũi tên Lên/Xuống/Trái/Phải để chuyển chọn thẻ; nhấn phím Enter để áp dụng ngay kiểu đang chọn; nhấn Esc hoặc nhấp ra ngoài để đóng hộp thoại mà không thay đổi.",
       "Phím tắt nhanh quen thuộc: nhấn Ctrl+Alt+1 để chuyển đoạn văn thành Tiêu đề 1 (Heading 1 / thẻ H1); nhấn Ctrl+Alt+2 cho Tiêu đề 2 (Heading 2 / thẻ H2); nhấn Ctrl+Alt+3 cho Tiêu đề 3 (Heading 3 / thẻ H3).",
       "Nhấn Ctrl+Shift+N (Kiểu Thường) để đưa đoạn văn bản đang đứng về kiểu Normal, gỡ bỏ nhanh lớp tiêu đề, trích dẫn hoặc nhấn mạnh mà không cần bôi đen toàn bộ đoạn.",
