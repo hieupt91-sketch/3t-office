@@ -430,7 +430,7 @@ export async function openPrintDialog({
       printerSelect.disabled = true;
     } else {
       for (const printer of state.printers) printerSelect.add(new Option(
-        printer.name.replace(/Microsoft Print to PDF/gi, "In ra PDF").replace(/Microsoft XPS Document Writer/gi, "In ra XPS"),
+        printer.name.replace(/Microsoft Print to PDF|Save as PDF/gi, "In ra PDF").replace(/Microsoft XPS Document Writer/gi, "In ra XPS"),
         printer.name
       ));
       printerSelect.value = chooseDefaultPrinter(state.printers);
