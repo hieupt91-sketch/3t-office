@@ -56,6 +56,7 @@ const ops = [
   ["pasteSpecialPack","A1","pasteSpecialPack",null,null],
   ["conditional","C2","conditional","sheet.format.conditional","C2:C6"],
   ["formatAsTable","A1","tableStyle","sheet.style.formatAsTable","A1:G6"],["cellGood","B2","cellStyle","sheet.style.cellStyles","good"],
+  ["textToColumns","B2","textToColumns","sheet.data.textToColumns"],
   ["sortAsc","B2","click","sheet.data.sortAsc"],["sortDesc","B2","click","sheet.data.sortDesc"],["filter","B1","click","sheet.data.filter"],
 ];
 const only = (process.env.OPS || "").split(",").filter(Boolean);
@@ -207,7 +208,12 @@ for (const [name, cell, kind, id, value] of ops) {
       const align=JSON.parse(await pos("#vno-fc-tab-alignment"));
       if(!align) status="NO_ALIGNMENT_TAB";
       else {await mouseClick(session.cdp,align.x,align.y);await sleep(150);const angle=JSON.parse(await pos('.vno-fc-orient-btn[data-angle="90"]'));if(!angle)status="NO_90_DEGREE_OPTION";else{await mouseClick(session.cdp,angle.x,angle.y);const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000);const evidenceDir=path.join(root,"docs","tickets-0710","evidence");await mkdir(evidenceDir,{recursive:true});await writeFile(path.join(evidenceDir,"fix-s8-text-rotation.png"),Buffer.from((shot.result||shot).data,"base64"));const apply=JSON.parse(await pos(".vno-fc-ok-btn"));if(!apply)status="NO_FORMAT_CELLS_APPLY";else{await mouseClick(session.cdp,apply.x,apply.y);status="set Orientation=90 through Format Cells";}}}
-    } else if (kind === "click" || kind === "merge" || kind === "range" || kind === "conditional" || kind === "tableStyle" || kind === "cellStyle" || kind === "promptNumber" || kind === "nameManager" || kind === "validation" || kind === "chart" || kind === "chartVariant" || kind === "pageSetup" || kind === "removeDuplicates") {
+    } else if (kind === "click" || kind === "merge" || kind === "range" || kind === "conditional" || kind === "tableStyle" || kind === "cellStyle" || kind === "promptNumber" || kind === "nameManager" || kind === "validation" || kind === "chart" || kind === "chartVariant" || kind === "pageSetup" || kind === "removeDuplicates" || kind === "textToColumns") {
+      if (kind === "textToColumns") {
+        const end = JSON.parse(await ev(`(() => { const e=document.querySelector('.vno-grid-cell[data-coord="B6"]'); if(!e)return 'null'; const r=e.getBoundingClientRect(); return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2}); })()`));
+        if (!end) throw new Error("Could not locate text-to-columns range end B6");
+        await mouseDrag(session.cdp,pos.x,pos.y,end.x,end.y);
+      }
       const tabId = id.startsWith("sheet.view.") ? "view" : id.startsWith("sheet.page.") ? "pageLayout" : id.startsWith("sheet.data.") ? "data" : id.startsWith("sheet.formula.") ? "formulas" : id.startsWith("sheet.chart.") ? "insert" : "home";
       const tabPos = JSON.parse(await ev(`(() => { const n=document.querySelector('#vno-ribbon-tab-${tabId}'); if(!n)return 'null'; const r=n.getBoundingClientRect(); return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,active:n.classList.contains('is-active')}) })()`));
       if (!tabPos) throw new Error("Ribbon tab missing: " + tabId); if (!tabPos.active) { await mouseClick(session.cdp, tabPos.x, tabPos.y); await session.cdp.waitFor(`document.querySelector('#vno-ribbon-tab-${tabId}')?.classList.contains('is-active')`, { timeoutMilliseconds: 10000, intervalMilliseconds: 100 }); }
@@ -223,6 +229,16 @@ for (const [name, cell, kind, id, value] of ops) {
         const item=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-ribbon-dropdown-menu [data-command-id="${id}"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
         if(!item) status="NO_DROPDOWN_ITEM"; else {await mouseClick(session.cdp,item.x,item.y); status="clicked";}
       } else { await mouseClick(session.cdp, button.x, button.y); status = "clicked"; }
+      if (kind === "textToColumns" && status === "clicked") {
+        await sleep(150);
+        const select = JSON.parse(await ev(`(() => {const n=document.querySelector('#vno-ttc-del');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+        if (!select) status = "NO_TEXT_TO_COLUMNS_DIALOG";
+        else {
+          await mouseClick(session.cdp,select.x,select.y); await press(session.cdp,"ArrowDown"); await press(session.cdp,"ArrowDown"); await press(session.cdp,"Enter");
+          const apply=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-sheet-rule-dialog .vno-rule-apply');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+          if (!apply) status = "NO_TEXT_TO_COLUMNS_APPLY"; else { await mouseClick(session.cdp,apply.x,apply.y); status = "split B2:B6 using spaces"; }
+        }
+      }
       if (kind === "click" && id === "sheet.col.insert" && status === "clicked") {
         const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000);
         const evidenceDir=path.join(root,"docs","tickets-0710","evidence"); await mkdir(evidenceDir,{recursive:true});

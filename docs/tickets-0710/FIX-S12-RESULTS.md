@@ -134,3 +134,8 @@
 - CDP bật Xem ngắt trang và Bố trí trang; ảnh lần lượt cho thấy vùng in có watermark/ngắt trang và vùng đầu/cuối trang. Excel COM ReadOnly đọc `ActiveWindow.View=1` (Normal) cho cả hai XLSX. `sheet.view.pageBreakPreview`, `sheet.view.pageLayout` là **LỆCH ĐÃ BIẾT**; log `s12-pageBreakPreview.log`, `s12-pageLayoutView.log`, `excel-pageBreakPreview.log`, `excel-pageLayoutView.log`; ảnh tương ứng trong `evidence/s12/`.
 
 - Nút Hiện công thức hiển thị công thức trong lưới qua CDP; Excel COM ReadOnly đọc `ActiveWindow.DisplayFormulas=0`. `sheet.formula.showFormulas` là **LỆCH ĐÃ BIẾT**; log `s12-showFormulas.log`, `excel-showFormulas.log`; ảnh `evidence/s12/fix-s12-showFormulas.png`.
+
+## Dữ liệu: Tách văn bản thành cột
+
+- CDP chọn B2:B6, chọn dấu cách trong hộp thoại Tách văn bản và áp dụng.
+- Excel COM ReadOnly xác nhận B2:D6 lần lượt `Nguyễn|Văn|A`, `Trần|Thị|B`, `Lê|Văn|C`, `Phạm|Thị|D`, `Hoàng|Văn|E`; **KHỚP EXCEL**. Log `s12-textToColumns.log`, `excel-textToColumns.log`; ảnh `evidence/s12/fix-s12-textToColumns.png`.

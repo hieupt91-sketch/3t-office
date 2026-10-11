@@ -5,7 +5,7 @@ Nguồn nút: `docs/ribbon-scan-sheet-1011.json`. Chỉ đánh dấu **KHỚP EX
 - **KHÁC CÓ CHỦ Ý**: khác biệt được thiết kế có chủ ý và có giải thích.
 - **LỆCH ĐÃ BIẾT**: sai khác đã được tái hiện và còn tồn tại.
 - **CHƯA ĐỐI CHIẾU**: chưa có đối chiếu Excel đủ chứng cứ.
-Tổng 138 nút — KHỚP EXCEL: 51 · LỆCH ĐÃ BIẾT: 12 · CHƯA ĐỐI CHIẾU: 75.
+Tổng 138 nút — KHỚP EXCEL: 52 · LỆCH ĐÃ BIẾT: 12 · CHƯA ĐỐI CHIẾU: 74.
 
 Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy trong lượt này sẽ giữ **CHƯA ĐỐI CHIẾU** cho tới khi có phép thử an toàn và xác định rõ luồng dữ liệu.
 
@@ -110,7 +110,7 @@ Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy tron
 | Dữ liệu | `sheet.data.sortDesc` | Sắp xếp Z-A | KHỚP EXCEL | FIX-S12 tab Dữ liệu: CDP click Z-A; Excel COM ReadOnly xác nhận B2:B6 giảm dần: Trần, Phạm, Nguyễn, Lê, Hoàng (app_sortDesc.xlsx) | dom:130 |
 | Dữ liệu | `sheet.data.filter` | Bộ lọc (Ctrl+Shift+L) | KHỚP EXCEL | FIX-S7: CDP thao tác và Excel COM đọc lại định dạng, merge, AutoSum, sort, AutoFilter | dom:161 |
 | Dữ liệu | `sheet.data.customSort` | Sắp xếp tùy chỉnh | KHỚP EXCEL | FIX-S10: UI/CDP + Excel COM read-only; remove duplicates, custom sort, paste special, find/replace | dialog,toast:A1 |
-| Dữ liệu | `sheet.data.textToColumns` | Tách văn bản | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
+| Dữ liệu | `sheet.data.textToColumns` | Tách văn bản | KHỚP EXCEL | FIX-S12 Du lieu: CDP chon B2:B6, Tách văn bản bằng dấu cách; Excel COM ReadOnly xác nhận B2:D6 lần lượt Nguyễn\|Văn\|A ... Hoàng\|Văn\|E (app_S12_textToColumns.xlsx) | dialog,toast:A1 |
 | Dữ liệu | `sheet.data.flashFill` | Điền nhanh | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
 | Dữ liệu | `sheet.data.removeDuplicates` | Xóa trùng lặp | KHỚP EXCEL | FIX-S10: UI/CDP + Excel COM read-only; remove duplicates, custom sort, paste special, find/replace | dialog,toast:A1 |
 | Dữ liệu | `sheet.data.validation` | Kiểm tra dữ liệu | KHỚP EXCEL | FIX-S7: CDP + Excel COM; insert/delete, validation, freeze, print area, page setup, chart, conditional format, cell style | dialog,toast:A1 |
