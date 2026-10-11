@@ -1,3 +1,45 @@
+3T Office — Thông tin phát hành phiên bản 0.9.10
+Ngày phát hành: 11/10/2026
+
+Bản vá sửa lỗi quan trọng và đưa Doc, Sheet, Slide sát hơn với bộ Office thông dụng (đã đối chiếu từng thao tác với bản Office thật).
+
+1. Sửa lỗi quan trọng (khuyến nghị cập nhật):
+- Sửa lỗi Tệp ▸ Lưu thành... không lưu được ở các định dạng cũ (Word 97–2003 .doc, Excel 97–2003 .xls, PowerPoint 97–2003 .ppt) — lỗi xuất hiện từ bản 0.9.7.
+- Sheet: sửa hai trường hợp lưu .xlsx xong mà Excel không mở được tệp (tệp có siêu liên kết kèm hình/biểu đồ, và tệp có liên kết ngoài đến nhiều sổ tính khác). Đã kiểm lại 8 tệp thực tế: lưu rồi mở bằng Excel đều thành công.
+
+2. Chung:
+- Menu chuột phải nhiều chỗ đầy đủ hơn, lỗi hiển thị gạch đỏ chính tả không còn che mất định dạng chữ đang gõ.
+- Hướng dẫn tiếng Việt trong Trợ giúp được bổ sung cho các lệnh mới.
+
+3. Doc:
+- Bảng: tách ô đúng theo cột lưới, giữ định dạng ô khi tách; bảng mới trống và gộp/tách ô khôi phục đúng ô đã gộp; hộp văn bản chèn đúng vị trí con trỏ và đúng kích thước mặc định.
+- Bố cục trang: lề chuẩn (Thường, Hẹp, Vừa, Rộng) và khổ A5; ngắt trang, ngắt mục và cột giữ nguyên chữ xung quanh.
+- Tiêu đề (Heading 1–3) tạo mới có kiểu mặc định như bộ Office thông dụng.
+- Hình khối và hình ảnh lưu DOCX giữ đúng bố cục và vị trí; chú thích hình, tham chiếu hình và mục lục giữ đúng khi lưu.
+- Bình luận đã giải quyết được lưu và đọc lại đúng; theo dõi thay đổi, tìm ngược (Tìm trước), chèn ký hiệu, đổi hoa/thường nhiều đoạn, Ctrl+B/I/U không bị chính tả xóa.
+- Hoàn tác trả con trỏ về đúng chỗ; chia cột trong tài liệu nhiều mục không làm nhảy con trỏ.
+- Số trang vẫn khớp bản gốc trên bộ tài liệu mẫu kiểm tra.
+
+4. Sheet:
+- Nút Trang đầu khớp hành vi Excel: tăng/giảm số thập phân, phần trăm, định dạng Số, ngày, tiền tệ (VND) và kế toán, phân cách hàng nghìn, màu tô và màu chữ mặc định.
+- Sửa CONCAT cho Excel cũ, giữ nguyên hàm INDIRECT khi lưu .xlsx để Excel tính đúng.
+- Lưu .xlsx giữ đúng tự xuống dòng, căn phải và viền; giữ AutoFilter, sheet đang chọn, độ rộng cột và chiều cao hàng.
+- Mới: Ẩn sheet / Hiện sheet (tab Trang đầu ▸ Định dạng ▸ Sheet); Tìm và thay thế có tùy chọn khớp cả ô.
+- Đã kiểm khớp Excel: tên vùng, xoay chữ, lề in, sắp xếp nhiều cấp, xóa trùng lặp, đổi tên/di chuyển/xóa sheet, kiểm tra dữ liệu, cố định hàng/cột, vùng in, biểu đồ.
+- Lưu tệp rất lớn (lan14) nhanh hơn rõ rệt.
+
+5. Slide:
+- Nhóm đối tượng giữ cấu trúc lồng nhau, đổi kích thước và xoay cả nhóm; thứ tự lớp được giữ khi mở và lưu.
+- Chèn biểu đồ hoạt động; chọn chủ đề lưu đúng trong Slide Master; bút (Ctrl+P) và laser khi trình chiếu.
+- Cỡ chữ tăng/giảm theo đúng các bước của PowerPoint; tên phông không còn bị thêm số; khoảng cách dòng và phông của hình được giữ khi lưu.
+- Màu chữ mặc định, Ẩn trang chiếu và menu chuột phải của hình thu nhỏ đầy đủ: sao chép, cắt, dán, ẩn, chuyển lên/xuống, bộ sắp xếp, bố cục.
+- Hình khối: tô màu, viền, kích thước và xoay; Đặt lại bố cục; giữ loại hoạt ảnh khi lưu PPTX. Đã đối chiếu 16 thao tác cơ bản với PowerPoint: khớp 16/16.
+
+6. Lưu ý:
+- Sheet: "Định dạng thành bảng" hiện chỉ tô màu chứ chưa tạo bảng có cấu trúc như Excel; sẽ làm ở bản sau.
+- Doc: trả lời bình luận và thư viện kiểu đầy đủ sẽ bổ sung ở bản sau.
+
+============================================================
 3T Office — Thông tin phát hành phiên bản 0.9.9
 Ngày phát hành: 07/10/2026
 
