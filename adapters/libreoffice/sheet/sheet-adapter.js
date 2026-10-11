@@ -3816,7 +3816,10 @@ export class SheetAdapter {
       ["view", "sheet-view", this.grid.workbookView],
       ["zoomScale", "zoom-scale", Math.round(Number(this.grid.zoomLevel || 1) * 100)],
     ].filter(([key]) => xlsxViewState.has(key))
-      .map(([, attr, value]) => ` vno:${attr}="${value === false ? "false" : "true"}"`).join("");
+      .map(([, attr, value]) => {
+        const encoded = typeof value === "boolean" ? (value ? "true" : "false") : String(value);
+        return ` vno:${attr}="${this._escapeXml(encoded)}"`;
+      }).join("");
     // ODF flag. LibreOffice FODS→XLSX keeps <workbookProtection> but drops
     // lockStructure; native-export post-process restores it (see xlsx-native-postprocess.js).
     const structureAttr = structureProtected ? ' table:structure-protected="true"' : "";

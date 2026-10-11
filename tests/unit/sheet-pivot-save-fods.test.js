@@ -88,6 +88,15 @@ export async function runSheetPivotSaveFodsTests() {
     xml = adapter.serializeToFods();
     assert(!xml.includes("vno-pristine-xlsx-source"), "làm mới Pivot vẫn bị đánh dấu workbook nguyên trạng");
   });
+  test("Sheet view save: FODS giữ đúng enum chế độ xem và phần trăm zoom", () => {
+    const grid = makeGrid();
+    grid.workbookView = "pageBreakPreview";
+    grid.zoomLevel = 1.1;
+    grid.xlsxViewStateTouched = new Set(["view", "zoomScale"]);
+    const xml = new SheetAdapter(grid).serializeToFods();
+    assert(xml.includes('vno:sheet-view="pageBreakPreview"'), "FODS không ghi enum pageBreakPreview");
+    assert(xml.includes('vno:zoom-scale="110"'), "FODS không ghi zoom 110 phần trăm");
+  });
   test("Sheet save: giảm indent từ 1 về 0 ghi margin 0 và bỏ vno:xf nguồn", () => {
     const grid = makeGrid();
     const adapter = new SheetAdapter(grid);
