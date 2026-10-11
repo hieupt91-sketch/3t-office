@@ -5,7 +5,7 @@ Nguồn nút: `docs/ribbon-scan-sheet-1011.json`. Chỉ đánh dấu **KHỚP EX
 - **KHÁC CÓ CHỦ Ý**: khác biệt được thiết kế có chủ ý và có giải thích.
 - **LỆCH ĐÃ BIẾT**: sai khác đã được tái hiện và còn tồn tại.
 - **CHƯA ĐỐI CHIẾU**: chưa có đối chiếu Excel đủ chứng cứ.
-Tổng 138 nút — KHỚP EXCEL: 57 · LỆCH ĐÃ BIẾT: 13 · CHƯA ĐỐI CHIẾU: 68.
+Tổng 138 nút — KHỚP EXCEL: 58 · LỆCH ĐÃ BIẾT: 13 · CHƯA ĐỐI CHIẾU: 67.
 
 Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy trong lượt này sẽ giữ **CHƯA ĐỐI CHIẾU** cho tới khi có phép thử an toàn và xác định rõ luồng dữ liệu.
 
@@ -117,7 +117,7 @@ Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy tron
 | Dữ liệu | `sheet.data.consolidate` | Hợp nhất dữ liệu | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
 | Dữ liệu | `sheet.data.group` | Nhóm | KHỚP EXCEL | FIX-S12 Du lieu: CDP chon hang 2:6 va bam Nhom/Bỏ nhóm tren tung XLSX; Excel COM ReadOnly OutlineLevel=2 sau Nhom va =1 sau Bỏ nhóm (app_S12_groupRows.xlsx, app_S12_ungroupRows.xlsx) | dom:1 |
 | Dữ liệu | `sheet.data.ungroup` | Bỏ nhóm | KHỚP EXCEL | FIX-S12 Du lieu: CDP chon hang 2:6 va bam Nhom/Bỏ nhóm tren tung XLSX; Excel COM ReadOnly OutlineLevel=2 sau Nhom va =1 sau Bỏ nhóm (app_S12_groupRows.xlsx, app_S12_ungroupRows.xlsx) | dom:1 |
-| Dữ liệu | `sheet.data.subtotal` | Tổng phụ | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
+| Dữ liệu | `sheet.data.subtotal` | Tổng phụ | KHỚP EXCEL | FIX-S12 Du lieu: CDP chon A1:C6, tao hai ten trung lien nhau, tong phu theo Ho ten/SUM So tien; Excel COM ReadOnly xac nhan Nguyen Van A=6913.4 va Grand Total=20615.1 (app_S12_subtotal.xlsx) | dialog,toast:A1 |
 | Dữ liệu | `sheet.data.pivotTable` | Bảng tổng hợp | KHỚP EXCEL | FIX-S12 Du lieu: CDP chon A1:C6, tao Pivot theo Ho ten va SUM So tien; Excel COM ReadOnly xac nhan Sheet1 (2) PivotTables.Count=1, cot nhan va gia tri (app_S12_pivotTable.xlsx) | dialog,toast:A1 |
 | Dữ liệu | `sheet.data.pivotRefresh` | Làm mới Pivot | LỆCH ĐÃ BIẾT | FIX-S12: Excel COM doc nguon C2=2222 nhung Pivot output cu van con gia tri truoc do va lap cac hang sau refresh; handoff adapter tai docs/AGENT-HANDOFF-FIX-S12-PIVOT-REFRESH.md | dom:1 |
 | Xem xét | `sheet.review.spellCheck` | Chính tả | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |

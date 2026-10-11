@@ -59,6 +59,7 @@ const ops = [
   ["flashFill","K2","flashFill","sheet.data.flashFill"],
   ["pivotTable","A1","pivotTable","sheet.data.pivotTable","A1:C6"],
   ["pivotRefresh","A1","pivotRefresh","sheet.data.pivotRefresh"],
+  ["subtotal","A1","subtotal","sheet.data.subtotal","A1:C6"],
   ["groupRows","A2","groupRows","sheet.data.group","A2:A6"],
   ["ungroupRows","A2","groupRows","sheet.data.ungroup","A2:A6"],
   ["textToColumns","B2","textToColumns","sheet.data.textToColumns"],
@@ -76,12 +77,16 @@ for (const [name, cell, kind, id, value] of ops) {
     await sleep(1500);
     const pos = JSON.parse(await ev(`(() => { const e=document.querySelector('.vno-grid-cell[data-coord="${cell}"]'); if(!e) return 'null'; e.scrollIntoView({block:'nearest'}); const r=e.getBoundingClientRect(); return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2}); })()`));
     if (!pos) { console.log(name.padEnd(18), "khong thay o", cell); continue; }
+    if (kind === "subtotal") {
+      const p=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-grid-cell[data-coord="B3"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+      if(!p)throw new Error("Missing subtotal duplicate probe cell B3");await mouseClick(session.cdp,p.x,p.y);await typeText(session.cdp,"Nguyễn Văn A");await press(session.cdp,"Enter");
+    }
     if (kind === "removeDuplicates") {
       const duplicate=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-grid-cell[data-coord="A6"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
       if(!duplicate)throw new Error("Could not locate audit duplicate cell A6");
       await mouseClick(session.cdp,duplicate.x,duplicate.y); await typeText(session.cdp,"1"); await press(session.cdp,"Enter");
     }
-    if (kind === "merge" || kind === "range" || kind === "customSort" || kind === "shortcutDown" || kind === "shortcutRight" || kind === "conditional" || kind === "tableStyle" || kind === "chart" || kind === "chartVariant" || kind === "pivotTable" || kind === "removeDuplicates") {
+    if (kind === "merge" || kind === "range" || kind === "customSort" || kind === "shortcutDown" || kind === "shortcutRight" || kind === "conditional" || kind === "tableStyle" || kind === "chart" || kind === "chartVariant" || kind === "pivotTable" || kind === "subtotal" || kind === "removeDuplicates") {
       if (kind === "customSort") {
         const duplicate=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-grid-cell[data-coord="B3"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
         if(!duplicate)throw new Error("Could not locate sort tie probe B3");
@@ -213,7 +218,7 @@ for (const [name, cell, kind, id, value] of ops) {
       const align=JSON.parse(await pos("#vno-fc-tab-alignment"));
       if(!align) status="NO_ALIGNMENT_TAB";
       else {await mouseClick(session.cdp,align.x,align.y);await sleep(150);const angle=JSON.parse(await pos('.vno-fc-orient-btn[data-angle="90"]'));if(!angle)status="NO_90_DEGREE_OPTION";else{await mouseClick(session.cdp,angle.x,angle.y);const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000);const evidenceDir=path.join(root,"docs","tickets-0710","evidence");await mkdir(evidenceDir,{recursive:true});await writeFile(path.join(evidenceDir,"fix-s8-text-rotation.png"),Buffer.from((shot.result||shot).data,"base64"));const apply=JSON.parse(await pos(".vno-fc-ok-btn"));if(!apply)status="NO_FORMAT_CELLS_APPLY";else{await mouseClick(session.cdp,apply.x,apply.y);status="set Orientation=90 through Format Cells";}}}
-    } else if (kind === "click" || kind === "merge" || kind === "range" || kind === "flashFill" || kind === "conditional" || kind === "tableStyle" || kind === "cellStyle" || kind === "promptNumber" || kind === "nameManager" || kind === "validation" || kind === "chart" || kind === "chartVariant" || kind === "pivotTable" || kind === "pivotRefresh" || kind === "groupRows" || kind === "pageSetup" || kind === "removeDuplicates" || kind === "textToColumns") {
+    } else if (kind === "click" || kind === "merge" || kind === "range" || kind === "flashFill" || kind === "conditional" || kind === "tableStyle" || kind === "cellStyle" || kind === "promptNumber" || kind === "nameManager" || kind === "validation" || kind === "chart" || kind === "chartVariant" || kind === "pivotTable" || kind === "pivotRefresh" || kind === "groupRows" || kind === "subtotal" || kind === "pageSetup" || kind === "removeDuplicates" || kind === "textToColumns") {
       if (kind === "groupRows") {
         const a=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-row-header[data-row="2"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
         const b=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-row-header[data-row="6"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
@@ -263,6 +268,11 @@ for (const [name, cell, kind, id, value] of ops) {
         const row=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-pivot-field[data-field="Họ tên"] input[data-zone="rows"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
         const val=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-pivot-field[data-field="Số tiền"] input[data-zone="values"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
         if(!row||!val)status="PIVOT_FIELDS_NOT_LOADED";else {await mouseClick(session.cdp,row.x,row.y);await mouseClick(session.cdp,val.x,val.y);const apply=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-sheet-rule-dialog .vno-rule-apply');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));if(!apply)status="NO_PIVOT_APPLY";else{await mouseClick(session.cdp,apply.x,apply.y);status="created Pivot by name and sum of amount";}}
+      }
+      if (kind === "subtotal" && status === "clicked") {
+        await sleep(150);
+        const group=JSON.parse(await ev(`(() => {const n=document.querySelector('#vno-st-group');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+        if(!group)status="NO_SUBTOTAL_DIALOG";else {await mouseClick(session.cdp,group.x,group.y);await press(session.cdp,"ArrowDown");await press(session.cdp,"Enter");const b=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-st-col[value="B"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,checked:n.checked})})()`));if(!b)status="NO_SUBTOTAL_COLUMNS";else{if(b.checked)await mouseClick(session.cdp,b.x,b.y);const apply=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-sheet-rule-dialog .vno-rule-apply');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));if(!apply)status="NO_SUBTOTAL_APPLY";else{await mouseClick(session.cdp,apply.x,apply.y);status="subtotal by Họ tên using SUM of Số tiền";}}}
       }
       if (kind === "flashFill" && status === "clicked") status = "applied Flash Fill K2:K6 using last-name initial examples";
       if (kind === "textToColumns" && status === "clicked") {

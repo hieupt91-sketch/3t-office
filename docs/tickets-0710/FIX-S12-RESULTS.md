@@ -159,3 +159,8 @@
 ## Dữ liệu: Nhóm/Bỏ nhóm hàng
 
 - CDP chọn hàng 2:6 bằng tiêu đề hàng, bấm Nhóm và lưu; Excel COM ReadOnly xác nhận `OutlineLevel=2`. Mở XLSX đó, chọn lại hàng 2:6 và bấm Bỏ nhóm; Excel COM xác nhận `OutlineLevel=1`. **KHỚP EXCEL**. Log `s12-groupRows.log`, `excel-groupRows.log`, `s12-ungroupRows.log`, `excel-ungroupRows.log`; ảnh `evidence/s12/fix-s12-groupRows.png`, `fix-s12-ungroupRows.png`.
+
+## Dữ liệu: Tổng phụ
+
+- CDP tạo hai tên Nguyễn Văn A liền nhau ở B2:B3, chọn A1:C6, dùng nhóm Họ tên và SUM Số tiền.
+- Excel COM ReadOnly xác nhận tổng Nguyễn Văn A=`6913.4`, các nhóm còn lại đúng giá trị nguồn và Grand Total=`20615.1`; **KHỚP EXCEL**. Log `s12-subtotal.log`, `excel-subtotal.log`; ảnh `evidence/s12/fix-s12-subtotal.png`.
