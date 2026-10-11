@@ -3,12 +3,16 @@ import { mouseClick, typeText, press } from "./actions.mjs";
 import { copyFileSync, mkdirSync, readFileSync, existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const dir = "E:\\VNOffice-profiles\\claude-slides-rt"; mkdirSync(dir, { recursive: true });
+const root = process.env.VNO_APP_ROOT;
+const dir = process.env.VNO_CDP_LOCALAPPDATA;
+if (!root) throw new Error("Set VNO_APP_ROOT to this worktree.");
+if (!dir) throw new Error("Set VNO_CDP_LOCALAPPDATA to a dedicated desktop-test profile.");
+mkdirSync(dir, { recursive: true });
 const file = dir + "\\work.pptx"; copyFileSync("E:\\VN OFice\\file test\\sample-3.pptx", file);
 const results = [];
 const check = (n, ok, d) => { results.push(ok); console.log((ok ? "PASS" : "FAIL") + " | " + n + " | " + String(d).slice(0, 230)); };
 async function openApp(path) {
-  const s = await launchApp("slides", { filePath: path, startTimeoutMilliseconds: 180000, readyTimeoutMilliseconds: 180000 });
+  const s = await launchApp("slides", { root, filePath: path, localAppData: dir, startTimeoutMilliseconds: 180000, readyTimeoutMilliseconds: 180000 });
   await s.cdp.waitFor("window.__vnoAppInstance?.adapter?.canvas?.slides?.length > 0", { timeoutMilliseconds: 180000, intervalMilliseconds: 500 });
   await sleep(6000);
   return s;
