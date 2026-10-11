@@ -184,3 +184,13 @@
 - PASS: Sheet matrix generator (`python -X utf8 scripts/audit-0610/gen_sheet_button_matrix.py docs/ribbon-scan-sheet-1011.json docs/SHEET-BUTTON-MATRIX-1011.md`); generated matrix remains 59 match / 13 known gap / 66 unchecked.
 - PASS: UTF-8/no-BOM and mojibake scan of changed text files; 7 files scanned, 0 findings. `git diff --check` clean.
 - The ticket remains in progress: 66 buttons are unchecked. The unresolved Home-tab button selection probes and adapter-owned export gaps are recorded in the section handoffs.
+
+## S12 continuation in worktree S14 (2026-10-12)
+
+- Starting matrix from main: 72 KHỚP EXCEL / 66 CHƯA ĐỐI CHIẾU. Current generated matrix: **85 KHỚP EXCEL / 53 CHƯA ĐỐI CHIẾU**; no evidence was added for failed or inconclusive probes.
+- New read-only Excel COM evidence: Formula named range (`S12Cell -> B2`), `#DIV/0!` error checking, formula recalculation (`F2=92.5875`), image (`Shapes.Count=1`, `TopLeft=B2`), comment insertion/deletion, page size Legal, print scale 80%, row 1 print titles, and page-break insert/remove. Hyperlink export regression fixed in the Sheet adapter/parser; Excel confirms one hyperlink at G2. Existing Vietnamese Help and VI/EN i18n cover hyperlink insertion.
+- Comment Previous/Next and Header/Footer remain CHƯA ĐỐI CHIẾU because the current UI probes did not prove saved state. Home vertical alignment/wrap remain unchecked; CDP diagnostics show the click did not act on the intended ribbon control. No product behavior was inferred from those clicks.
+- **PASS** `npm test`: 3089/3089.
+- **PASS** `python -m unittest discover -s tests`: 883 tests, 506.094 seconds, OK. Python emitted `ResourceWarning` for open subprocess streams; no test failed.
+- **PASS** dirty-save XLSX batch for lan01/02/04/06/09/11/22/26: 8/8 saved, `diffs=0`, lint clean, Excel PASS. Report: `E:\VNOffice-profiles\codex-fs14\batch-xlsx\batch_document_audit_report.md`.
+- Matrix generator passed. The S14 CDP probe was refined to choose rendered tab/panel nodes and wait after tab changes; alignment still needs an input-coordinate diagnosis. Remaining 53 buttons mean FIX-S12 is still open.
