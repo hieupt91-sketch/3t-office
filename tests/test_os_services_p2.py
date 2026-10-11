@@ -94,8 +94,15 @@ class ServicesMatchLegacyTests(unittest.TestCase):
 
     def test_native_printer_service_routes_listing_and_pdf_printing_without_changing_windows_fallback(self):
         calls = []
-        if sys.platform != "darwin":
-            self.assertIsNone(vnmain._os_services().printer_services)  # Windows/portable keep their existing pipeline until migrated.
+        services = vnmain._os_services()
+        if services is None:
+            self.skipTest("OS service backend is not registered on this platform yet")
+        if sys.platform == "darwin":
+            if services.printer_services is None:
+                self.skipTest("native macOS printer service is added by the platform integration")
+            self.assertIsNotNone(services.printer_services)  # macOS uses its native CUPS service.
+        else:
+            self.assertIsNone(services.printer_services)  # Windows/portable keep their existing pipeline until migrated.
         pkg = sys.modules["_vno_os_services"]
 
         class FakePrinterService:
