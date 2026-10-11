@@ -51,8 +51,10 @@ Lượt so sánh COM cuối: **21/21 KHỚP**. Hai lượt chẩn đoán trướ
 
 | Nhóm | App | Word COM | Kết quả |
 |---|---|---|---|
-| Bảng: chèn bảng 3×4 | Đã chạy: 3 hàng, mỗi hàng 4 ô | Đã chạy: 3 hàng, mỗi hàng 4 ô | KHỚP |
-| Bảng: hàng/cột, gộp/tách, căn ô, nền, viền, tiêu đề, tự vừa, kích thước | Chưa chạy | Chưa chạy | NOT RUN |
+| Bảng: chèn bảng 3×4; thêm hàng dưới; thêm cột phải; xóa hàng | Đã chạy; số ô sau thao tác khớp | Đã chạy COM; số ô sau thao tác khớp | KHỚP |
+| Bảng: gộp/tách ngang; Ctrl+Z sau tách | Đã chạy; số ô khớp, Ctrl+Z trả về trạng thái gộp | Đã chạy; số ô khớp, Undo trả về trạng thái gộp | KHỚP |
+| Bảng: căn giữa dọc; lặp hàng tiêu đề | Đã chạy: `VerticalAlignment=1`, `HeadingFormat=-1` | Đã chạy: `VerticalAlignment=1`, `HeadingFormat=-1` | KHỚP |
+| Bảng: xóa cột, gộp/tách dọc, căn ngang, nền, viền, AutoFit, chiều cao/rộng | Chưa chạy | Chưa chạy | NOT RUN |
 | Bố cục trang: lề, hướng, khổ giấy | Chưa chạy | Chưa chạy | NOT RUN |
 | Bố cục trang: 1/2/3 cột | Đã chạy | Đã chạy | 3/3 KHỚP |
 | Đầu/chân trang | Chưa chạy | Chưa chạy | NOT RUN |
@@ -69,8 +71,9 @@ Lượt so sánh COM cuối: **21/21 KHỚP**. Hai lượt chẩn đoán trướ
 
 ### FIX-T8 — kết quả lần chạy `codex-ft8`
 
-- Bảng — chèn 3×4: đã bấm nút **Chèn > Bảng biểu** trong app desktop qua CDP mouse, lưu `app_tableInsert.docx`; Word COM tạo bảng 3×4 trên template tương đương và đọc lại DOCX. Kết quả: **KHỚP** (3 hàng, mỗi hàng 4 ô). Harness app: `scripts/audit-0610/word_parallel/app-table-insert.desktop.mjs`.
-- Các phép thử Bảng còn lại (thêm/xóa hàng/cột, gộp/tách, căn dọc/ngang, nền, viền, header, AutoFit, chiều cao/rộng): **NOT RUN**.
+- Bảng — đã bấm **Chèn > Bảng biểu**, **Bố cục Bảng > Chèn hàng phía dưới / Chèn cột bên phải / Xóa hàng / Gộp ô / Tách ô / Căn giữa dọc**, và **Thiết kế Bảng > Hàng tiêu đề** qua CDP mouse. COM áp thao tác tương đương lên template Word riêng rồi đọc DOCX.
+- Kết quả Bảng: chèn 3×4 KHỚP; sau thêm hàng, thêm cột và xóa hàng, số ô từng hàng khớp; gộp ngang và tách ngang khớp số ô từng hàng; Ctrl+Z của app và Undo của Word sau tách đều trở lại trạng thái gộp; `VerticalAlignment=1` và `HeadingFormat=-1` khớp.
+- Các phép thử Bảng chưa chạy: xóa cột, gộp/tách dọc, căn ngang, nền, viền, AutoFit, chiều cao hàng/rộng cột.
 - Bộ cột 1/2/3 đã có kết quả 3/3 KHỚP ở phần trên. Các phép thử lề, hướng, khổ giấy, ngắt trang/mục, đầu/chân trang, trang đầu khác, số trang: **NOT RUN** trong lượt này.
 - Các phép thử FIX-T8 còn lại thuộc Style/References và Comments/Track Changes/Find/Replace/Symbol/Shapes: **NOT RUN** trong lượt này. Kết quả Heading 1–3 trước đó vẫn là sai khác đã ghi, không được tính KHỚP.
 - Batch DOCX hồi quy trên worktree/profile `codex-ft8`: **5/5 PASS**, edit PASS; trang nguồn/lưu d01 19/19, d07 23/23, d13 10/10, d20 3/3, d24 16/16. Báo cáo: `E:\VNOffice-profiles\codex-ft8\batch-audit\batch_document_audit_report.md`.
