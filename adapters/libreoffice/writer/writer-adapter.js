@@ -599,6 +599,7 @@ export class WriterAdapter {
     this._bindClipboardEvents();
     globalCommandBus.bindHandler("common.edit.undo", () => this.undo());
     globalCommandBus.bindHandler("common.edit.redo", () => this.redo());
+    globalCommandBus.bindHandler("common.edit.hyperlink", (args) => this._insertHyperlink(args));
 
     // Bind References (TOC & Footnotes/Endnotes)
     this._bindReferenceInteractions();
@@ -657,6 +658,14 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.page.columns2", () => this.setColumns({ count: 2, gap: 10, rule: false }));
     globalCommandBus.bindHandler("writer.page.columns3", () => this.setColumns({ count: 3, gap: 10, rule: false }));
     globalCommandBus.bindHandler("writer.layout.lineNumbers", (args) => this.setLineNumbers(args));
+    this._firstLineIndentTargetHandler = (event) => {
+      const control = event?.target?.closest?.('select[data-command-id="writer.para.firstLineIndent"]');
+      if (!control) return;
+      this._pendingFirstLineIndentBlocks = this._getSelectedParagraphBlocks();
+    };
+    if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
+      document.addEventListener("mousedown", this._firstLineIndentTargetHandler, true);
+    }
     globalCommandBus.bindHandler("writer.shape.insert", (args) => this.insertShapeFromCommand(args));
     globalCommandBus.bindHandler("writer.diagram.insert", (args) => this.insertDiagramFromCommand(args));
     globalCommandBus.bindHandler("writer.chart.insert", (args) => this.insertChartFromCommand(args));
@@ -669,6 +678,7 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.insert.symbol", (args) => this.insertSymbol(args));
     globalCommandBus.bindHandler("writer.insert.bookmark", (args) => this.insertBookmark(args));
     globalCommandBus.bindHandler("writer.insert.crossReference", (args) => this.insertCrossReference(args));
+    globalCommandBus.bindHandler("writer.table.fromText", (args) => this.convertTextToTable(args));
 
     // Bind Office Parity Mouse & Shortcuts
     this._bindMouseAndKeyboardParity();
@@ -1466,7 +1476,9 @@ export class WriterAdapter {
   applyParagraphFirstLineIndent(args) {
     const pt = this._parseParagraphSpacingPt(args);
     if (pt == null) return false;
-    return this._applyParagraphVisualStyle({ textIndent: `${pt}pt` }, "writer.para.firstLineIndent");
+    const selectedBlocks = this._pendingFirstLineIndentBlocks;
+    this._pendingFirstLineIndentBlocks = null;
+    return this._applyParagraphVisualStyle({ textIndent: `${pt}pt` }, "writer.para.firstLineIndent", selectedBlocks);
   }
 
   getRulerState() {
@@ -10869,11 +10881,18 @@ export class WriterAdapter {
       if (typeof window !== "undefined" && typeof document !== "undefined" && document.body) {
         const sel = window.getSelection ? window.getSelection() : null;
         const selectedText = sel && sel.rangeCount > 0 ? sel.toString().trim() : "";
+        const savedRange = sel?.rangeCount > 0 && this.bodyDom?.contains?.(sel.anchorNode)
+          ? sel.getRangeAt(0).cloneRange()
+          : null;
         const result = await showHyperlinkDialog({
           url: "https://",
           text: text || selectedText
         });
         if (!result || !result.url) return false;
+        if (savedRange && sel) {
+          sel.removeAllRanges();
+          sel.addRange(savedRange);
+        }
         url = result.url;
         text = result.text || text || selectedText;
       }
@@ -17801,9 +17820,41 @@ export class WriterAdapter {
 
   _insertClipboardContent({ html = "", text = "" } = {}) {
     const sanitizedHtml = html ? this._sanitizeClipboardHtml(cleanWordHtml(html)) : "";
-    const cleanHtml = this._prepareClipboardHtmlForInsertion(sanitizedHtml);
+    let cleanHtml = this._prepareClipboardHtmlForInsertion(sanitizedHtml);
     if (cleanHtml || text) this.flushTyping();
     let inserted = false;
+    const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+    let clipboardPlainText = text;
+    if (!clipboardPlainText && sanitizedHtml && typeof document !== "undefined") {
+      const textProbe = document.createElement("div");
+      textProbe.innerHTML = sanitizedHtml;
+      clipboardPlainText = textProbe.textContent || "";
+    }
+    let insertSmartPasteSpace = false;
+    if (typeof document !== "undefined" && selection?.rangeCount && selection.isCollapsed && clipboardPlainText && this.bodyDom?.contains?.(selection.anchorNode)) {
+      const range = selection.getRangeAt(0);
+      const block = selection.anchorNode?.nodeType === 3
+        ? selection.anchorNode.parentElement?.closest?.("p,li,blockquote,h1,h2,h3,h4,h5,h6,td,th")
+        : selection.anchorNode?.closest?.("p,li,blockquote,h1,h2,h3,h4,h5,h6,td,th");
+      if (block && this.bodyDom.contains(block)) {
+        const before = document.createRange();
+        before.selectNodeContents(block);
+        before.setEnd(range.startContainer, range.startOffset);
+        const after = document.createRange();
+        after.selectNodeContents(block);
+        after.setStart(range.startContainer, range.startOffset);
+        const prefix = before.toString();
+        const suffix = after.toString();
+        if (/\.$/.test(prefix) && !suffix && /^\s*[A-ZÀ-Ỹ]/u.test(clipboardPlainText)) {
+          // Word's smart paste inserts a sentence separator when copied text is pasted at a sentence end.
+          insertSmartPasteSpace = true;
+        }
+      }
+    }
+    if (insertSmartPasteSpace) {
+      if (cleanHtml) cleanHtml = `<span style="white-space: pre-wrap"> </span>${cleanHtml}`;
+      else if (text) text = ` ${text}`;
+    }
     if (cleanHtml) {
       if (document.execCommand?.("insertHTML", false, cleanHtml)) {
         inserted = true;
@@ -17904,9 +17955,23 @@ export class WriterAdapter {
       this.shell?.setStatus?.("Không đọc được bộ nhớ tạm. Hãy dùng Ctrl+V trong vùng soạn thảo hoặc kiểm tra quyền clipboard.");
       return false;
     }
+    let clipboardText = clipboard.text || "";
+    if (!clipboardText && clipboard.html && typeof document !== "undefined") {
+      const textProbe = document.createElement("div");
+      textProbe.innerHTML = this._sanitizeClipboardHtml(cleanWordHtml(clipboard.html));
+      clipboardText = textProbe.textContent || "";
+    }
+    if (!clipboardText) clipboardText = this._clipboardMemory?.text || "";
+    const normalizeClipboardText = value => String(value || "").replace(/[\r\n]+/g, " ").replace(/[\t ]+/g, " ").trim();
+    if (plainTextOnly && this._clipboardMemory?.text && clipboard.html
+      && normalizeClipboardText(clipboardText) === normalizeClipboardText(this._clipboardMemory.text)) {
+      // The app's clipboard bridge may expose formatting-source newlines as literal
+      // plain-text line breaks. Prefer the structured text serialized at Copy time.
+      clipboardText = this._clipboardMemory.text || clipboardText;
+    }
     const inserted = this._insertClipboardContent({
       html: plainTextOnly ? "" : (clipboard.html || ""),
-      text: clipboard.text || ""
+      text: clipboardText
     });
     if (!inserted) this.shell?.setStatus?.("Bộ nhớ tạm không có nội dung để dán.");
     return inserted;
@@ -20320,6 +20385,9 @@ export class WriterAdapter {
     if (!this.bodyDom) return false;
 
     const activeRecords = this._getActiveMailMergeRecords();
+    const mergeTemplateHtml = this.mailMergePreview?.enabled && this._mailMergeTemplateHtml != null
+      ? this._mailMergeTemplateHtml
+      : (this.bodyDom.innerHTML || "");
 
     // Nếu gọi trực tiếp từ thanh Ribbon (không tham số mode) và có DOM -> mở hộp thoại Hoàn tất trộn
     if (
@@ -20329,7 +20397,7 @@ export class WriterAdapter {
       typeof document.createElement === "function" &&
       document.body &&
       activeRecords.length > 0 &&
-      (this.bodyDom.innerHTML || "").includes("vno-merge-field")
+      mergeTemplateHtml.includes("vno-merge-field")
     ) {
       loadWriterMailMergeDialogs().then(({ showFinishMailMergeDialog }) => {
         showFinishMailMergeDialog({

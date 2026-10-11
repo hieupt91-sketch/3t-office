@@ -39,6 +39,16 @@ mark(KHOP, "writer.shape.insert", "hình chữ nhật: loại, kích thước, v
 mark(KHOP, "writer.image.insert", "PNG: kích thước, wrap, vị trí")
 mark(KHAC, "writer.style.gallery", "Normal/Title/Quote đã áp dụng; preset VN cố ý khác định dạng Word; Heading 1–3 khớp")
 mark(LECH, "writer.review.wordCount", "chữ khớp, 'ký tự có khoảng trắng' lệch 0.5–7% (tài liệu mẫu); đoạn/dòng gần khớp")
+mark(KHOP, "common.edit.paste common.edit.cut common.edit.copy common.edit.formatPainter writer.edit.pasteSpecial writer.font.grow writer.font.shrink writer.text.clearFormat writer.para.indentDec writer.para.sort writer.para.showFormattingMarks writer.para.shading writer.para.borders", "FIX-T11 nhóm 1: 13 lệnh, thao tác CDP và Word COM khớp; Dán đặc biệt đã so cả định dạng nguồn và văn bản thuần")
+mark(KHOP, "writer.page.blank writer.table.fromText common.edit.hyperlink writer.insert.bookmark writer.format.dropCap writer.insert.dateTime writer.insert.equation", "FIX-T11 nhóm 2: 7 lệnh, thao tác CDP và Word COM khớp về đầu ra DOCX")
+mark(LECH, "writer.chart.insert writer.diagram.insert", "FIX-T11 nhóm 2: DOCX mở trong Word có 0 Chart/SmartArt native; hiện là minh họa tĩnh, lệch chức năng có thể chỉnh sửa")
+mark(KHOP, "writer.page.color writer.page.border writer.para.firstLineIndent", "FIX-T11 nhóm 3: Word COM xác nhận màu trang #dbeafe, viền 3 pt nét đứt #dc2626 và thụt đầu dòng 14.15 pt khớp")
+mark(LECH, "writer.design.themeGallery writer.page.watermark writer.layout.lineNumbers", "FIX-T11 nhóm 3: Word COM không nhận theme/line numbering; watermark xuất thành dòng văn bản thay vì watermark native")
+mark(KHOP, "writer.reference.citationInsert writer.reference.sourcesManage writer.reference.citationStyle writer.reference.bibliographyInsert", "FIX-T11 nhóm 4: CDP tạo nguồn, chọn MLA, chèn trích dẫn và Works Cited; Word COM xác nhận citation, tiêu đề, nhà xuất bản và năm")
+mark(KHOP, "writer.mailMerge.open writer.mailMerge.insertField writer.mailMerge.ifRule writer.mailMerge.preview writer.mailMerge.prevRecord writer.mailMerge.nextRecord writer.mailMerge.finish writer.mailings.envelopes writer.mailings.labels", "FIX-T11 nhóm 5: 2 bản ghi, điều kiện yes/no, preview/điều hướng và tài liệu hợp nhất; Word COM xác nhận cả hai kết quả, phong bì và nhãn")
+mark(KHOP, "writer.review.toggleSpellCheck writer.view.readMode writer.view.webLayout writer.view.printLayout writer.view.navigationPane writer.view.ruler writer.view.gridlines writer.view.zoomIn writer.view.zoomOut writer.view.zoom100", "FIX-T11 nhóm 6: CDP và Word COM xác nhận spell/view/ruler/grid/zoom; DOCX round-trip d01,d02,d06,d07,d13,d20,d24 = 7/7 PASS")
+mark(LECH, "writer.review.wordCount", "FIX-T11 nhóm 6: Word COM batch d01/d02/d06/d07/d13/d20 có ký tự-khoảng-trắng lệch lần lượt -200/-62/-1061/-632/-107/-414; ký tự không khoảng trắng gần khớp. Cần xử lý riêng tab/khoảng trắng giữ nguyên")
+mark(CHUA, "common.macro.recordToggle common.macro.manager", "FIX-T11 nhóm 6: CDP xác nhận ghi/chạy macro cơ bản; chưa so thao tác tương đương bằng Word COM")
 
 NOTE_DEFAULT = {
     "common.edit.paste": "Dán thường: đã kiểm hành vi (U-series) nhưng chưa so Word COM",
