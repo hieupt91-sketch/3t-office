@@ -132,3 +132,5 @@
 - Cùng nhóm chế độ xem, CDP bấm Thanh công thức làm ẩn thanh trên UI; Excel COM ReadOnly vẫn đọc `DisplayFormulaBar=1`. `sheet.view.formulaBar` là **LỆCH ĐÃ BIẾT**; log `s12-formulaBar.log`, `excel-formulaBar.log`; ảnh `evidence/s12/fix-s12-formulaBar.png`.
 
 - CDP bật Xem ngắt trang và Bố trí trang; ảnh lần lượt cho thấy vùng in có watermark/ngắt trang và vùng đầu/cuối trang. Excel COM ReadOnly đọc `ActiveWindow.View=1` (Normal) cho cả hai XLSX. `sheet.view.pageBreakPreview`, `sheet.view.pageLayout` là **LỆCH ĐÃ BIẾT**; log `s12-pageBreakPreview.log`, `s12-pageLayoutView.log`, `excel-pageBreakPreview.log`, `excel-pageLayoutView.log`; ảnh tương ứng trong `evidence/s12/`.
+
+- Nút Hiện công thức hiển thị công thức trong lưới qua CDP; Excel COM ReadOnly đọc `ActiveWindow.DisplayFormulas=0`. `sheet.formula.showFormulas` là **LỆCH ĐÃ BIẾT**; log `s12-showFormulas.log`, `excel-showFormulas.log`; ảnh `evidence/s12/fix-s12-showFormulas.png`.

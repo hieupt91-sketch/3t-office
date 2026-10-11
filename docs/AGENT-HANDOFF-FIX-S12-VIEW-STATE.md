@@ -4,7 +4,7 @@ TASK: FIX-S12 — persist worksheet view toggles in XLSX
 AGENT/ROLE: Sheet audit / handoff to Adapter owner  
 BRANCH: `audit/sheet-s12-codex`  
 WORKTREE: `E:\VNOffice-codex-fs12`  
-OBJECTIVE: Persist Sheet ribbon view state for gridlines, row/column headings, zoom, formula bar, and worksheet view mode in saved XLSX.
+OBJECTIVE: Persist Sheet ribbon view state for gridlines, row/column headings, zoom, formula bar, and worksheet view mode and formula-display state in saved XLSX.
 
 ## FINDINGS
 
@@ -24,6 +24,7 @@ Evidence:
 - `docs/tickets-0710/evidence/s12/fix-s12-formulaBar.png`
 - `docs/tickets-0710/evidence/s12/fix-s12-pageBreakPreview.png`
 - `docs/tickets-0710/evidence/s12/fix-s12-pageLayoutView.png`
+- `docs/tickets-0710/evidence/s12/fix-s12-showFormulas.png`
 - CDP logs: `E:\VNOffice-profiles\codex-fs12\s12-gridlines-retry.log`, `s12-headings-retry.log`
 - Excel COM read-only logs: `E:\VNOffice-profiles\codex-fs12\excel-gridlines-retry.log`, `excel-headings-retry.log`
 - Outputs: `E:\VNOffice-profiles\codex-fs12\app_S12retry_gridlines.xlsx`, `app_S12retry_headings.xlsx`
@@ -52,7 +53,7 @@ FAIL: Excel COM read-only retains both flags as 1 in output XLSX.
 
 ## KNOWN FAILURES
 
-The XLSX `sheetView` does not reflect the app's hidden gridlines/headings state the changed zoom, or hidden formula bar. Excel reports default zoom 100% and `DisplayFormulaBar=1`.
+The XLSX `sheetView` does not reflect the app's hidden gridlines/headings state the changed zoom, or hidden formula bar. Excel reports default zoom 100%, `DisplayFormulaBar=1`, and `DisplayFormulas=0`.
 
 ## RISKS
 

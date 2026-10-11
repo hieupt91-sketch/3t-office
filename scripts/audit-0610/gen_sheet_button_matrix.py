@@ -41,6 +41,7 @@ mark(MATCH, "sheet.formula.max sheet.formula.min", "FIX-S12 Công thức: CDP b�
 mark(MATCH, "sheet.cell.mergeAcross sheet.cell.mergeCells", "FIX-S12 Trang đầu: CDP chọn A8:B8 và bấm lệnh; Excel COM ReadOnly xác nhận A8.MergeCells=True")
 mark(KNOWN_GAP, "sheet.page.clearPrintArea", "FIX-S12: CDP xóa printAreaBySheet về null nhưng XLSX Excel COM ReadOnly vẫn có PrintArea=$A$1; handoff adapter ở docs/AGENT-HANDOFF-FIX-S12-CLEAR-PRINT-AREA.md")
 mark(KNOWN_GAP, "sheet.cell.indentDecrease", "FIX-S12: CDP giảm indentLevel về 0 nhưng XLSX Excel COM ReadOnly vẫn IndentLevel=1; handoff adapter ở docs/AGENT-HANDOFF-FIX-S12-INDENT-DECREASE.md")
+mark(KNOWN_GAP, "sheet.formula.showFormulas", "FIX-S12: CDP hien cong thuc tren UI nhung Excel COM ReadOnly doc ActiveWindow.DisplayFormulas=0 cho XLSX; handoff adapter trong docs/AGENT-HANDOFF-FIX-S12-VIEW-STATE.md")
 mark(KNOWN_GAP, "sheet.view.pageBreakPreview sheet.view.pageLayout", "FIX-S12: CDP hien thi che do Xem ngat trang/Bo tri trang nhung Excel COM ReadOnly doc ActiveWindow.View=1 (Normal) cho ca XLSX; handoff adapter trong docs/AGENT-HANDOFF-FIX-S12-VIEW-STATE.md")
 mark(KNOWN_GAP, "sheet.view.formulaBar", "FIX-S12: CDP an thanh cong thuc trong giao dien nhung Excel COM ReadOnly doc DisplayFormulaBar=1 cho XLSX; handoff adapter trong docs/AGENT-HANDOFF-FIX-S12-VIEW-STATE.md")
 mark(KNOWN_GAP, "sheet.view.zoomIn sheet.view.zoomOut", "FIX-S12: CDP hien thi zoom 110%/90% tren giao dien nhung Excel COM ReadOnly doc ActiveWindow.Zoom=100 cho ca XLSX; handoff adapter trong docs/AGENT-HANDOFF-FIX-S12-VIEW-STATE.md")
