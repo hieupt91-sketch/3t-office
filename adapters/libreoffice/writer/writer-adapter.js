@@ -9436,7 +9436,38 @@ export class WriterAdapter {
     // <p>, not <div>: LibreOffice's Writer HTML-import filter only honors
     // break-before on a real <p> (same bug class fixed for Page Break /
     // Section Breaks / Labels / Mail Merge).
-    this._insertHtmlAtCaretOrEnd('<p data-vno-column-break="true" style="break-before:column;margin:12px 0;border-top:1px dashed #94a3b8;color:#64748b;text-align:center;font-size:11px;user-select:none">--- Ngắt cột (Column Break) ---</p><p><br></p>');
+    const target = this.bodyDom || this.editorDom;
+    const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+    const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+    const anchor = range?.startContainer?.nodeType === 1 ? range.startContainer : range?.startContainer?.parentElement;
+    const block = anchor?.closest?.("p,h1,h2,h3,h4,h5,h6,blockquote,li");
+    const marker = document.createElement("p");
+    marker.dataset.vnoColumnBreak = "true";
+    marker.setAttribute("style", "break-before:column;margin:12px 0;border-top:1px dashed #94a3b8;color:#64748b;text-align:center;font-size:11px;user-select:none");
+    marker.textContent = "--- Ngắt cột (Column Break) ---";
+    let trailingBlock = null;
+    if (target?.contains?.(anchor) && block?.parentElement === target && range) {
+      if (!range.collapsed) range.deleteContents();
+      const caret = selection.getRangeAt(0);
+      const tail = caret.cloneRange();
+      tail.setEndAfter(block);
+      trailingBlock = block.cloneNode(false);
+      trailingBlock.appendChild(tail.extractContents());
+      if (!trailingBlock.childNodes.length) trailingBlock.appendChild(document.createElement("br"));
+      block.after(marker, trailingBlock);
+    } else {
+      trailingBlock = document.createElement("p");
+      trailingBlock.appendChild(document.createElement("br"));
+      target?.append(marker, trailingBlock);
+    }
+    if (selection && trailingBlock) {
+      const nextCaret = document.createRange();
+      nextCaret.selectNodeContents(trailingBlock);
+      nextCaret.collapse(true);
+      this.bodyDom?.focus?.();
+      selection.removeAllRanges();
+      selection.addRange(nextCaret);
+    }
     this.isDirty = true;
     this.recordSnapshot("writer.break.column");
     return true;

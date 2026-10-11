@@ -90,3 +90,14 @@ Toàn bộ phím tắt trong bảng tồn đọng trước đây đã được h
 | VN Writer · Đánh giá · Đã xử lý (`writer.review.commentResolve`) | UI đánh dấu resolved, nhưng DOCX xuất không ghi trạng thái này; Word COM mở lại thấy tất cả `Comment.Done=False`. | Sửa serializer và roundtrip `commentsExtended`/resolved metadata, thêm kiểm tra XML + Word COM. Chi tiết trong `docs/AGENT-HANDOFF-RB-D5b-1010.md`. | Adapter |
 | VN Writer · Đánh giá · Kiểm tra chính tả | Nút bật/tắt có hiệu quả thật. Lệnh không có shortcut riêng; F7 hiện gọi Soát lỗi chính tả AI nên không chạy trong audit offline. | Xác định shortcut cục bộ an toàn cho lệnh toggle hoặc giữ rõ trạng thái không có shortcut; không dùng F7 để kiểm tài liệu có thể gửi AI. | Writer |
 
+
+
+## FIX-T9 — gaps Writer phát hiện 11/10/2026
+
+| Nhóm | Tái hiện | Việc cần hoàn thiện | Owner |
+|---|---|---|---|
+| Ngắt dòng mềm | Shift+Enter không roundtrip thành soft break; Column Break đã sửa ở FIX-T9 để giữ đoạn trước/sau | Lưu w:br type=textWrapping cho Shift+Enter; kiểm tra qua CDP + Word COM | Writer/Adapter |
+| Đầu/chân trang riêng | Cờ first/even-even lưu đúng nhưng canvas chỉ có vùng sửa header/footer mặc định | Thêm vùng chọn/biên tập Default/First/Even riêng, lưu và mở lại qua DOCX | Writer/Adapter |
+| Thư viện kiểu | Gallery hiện thiếu Subtitle và List Paragraph | Thêm hai preset có semantics DOCX built-in Style và bài hướng dẫn VI/EN | Writer |
+| Comments trả lời | App hiện chưa có thao tác trả lời chuỗi comment | Thêm reply UI, lưu comment thread và kiểm tra Word COM Replies | Writer/Adapter |
+| Hình khối xoay | Dialog tạo hình có fill/line; chưa có chỉnh sửa/rotation control cho shape đã tạo | Bổ sung chỉnh sửa và xoay bằng chuột/nhập góc, bảo toàn OOXML; thêm hướng dẫn VI/EN | Writer |

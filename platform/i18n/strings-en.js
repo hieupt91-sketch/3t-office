@@ -10,6 +10,14 @@ export const enStrings = {
     sheet: "Sheet (Spreadsheet)",
     slides: "Slide (Presentation)"
   },
+  writerArrange: {
+    wrapTitle: "Wrap Text", positionTitle: "Position", choosePosition: "Choose position…",
+    alignTitle: "Align", chooseAlign: "Choose alignment…", height: "Height (px)", width: "Width (px)",
+    forward: "Bring Forward", backward: "Send Backward", group: "Arrange & Size",
+    wrap: { inline: "In line with text", square: "Square", tight: "Tight", behind: "Behind text", front: "In front of text", topBottom: "Top and bottom" },
+    position: { topLeft: "Top Left", topCenter: "Top Center", topRight: "Top Right", middleLeft: "Middle Left", center: "Center", middleRight: "Middle Right", bottomLeft: "Bottom Left", bottomCenter: "Bottom Center", bottomRight: "Bottom Right" },
+    align: { left: "Left", center: "Center", right: "Right", top: "Top", middle: "Middle", bottom: "Bottom" }
+  },
   common: {
     save: "Save document",
     undo: "Undo",

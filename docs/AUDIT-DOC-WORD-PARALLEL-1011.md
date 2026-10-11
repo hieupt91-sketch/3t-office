@@ -57,7 +57,7 @@ Lượt so sánh COM cuối: **21/21 KHỚP**. Hai lượt chẩn đoán trướ
 | Bảng: xóa cột, gộp/tách dọc, căn ngang, nền/viền, AutoFit, chiều cao/rộng | CDP + DOCX đã lưu; Word COM đọc lại | Word COM thao tác tương đương; kích thước XML khớp | KHỚP (viền/đo chiều cao có ghi chú) |
 | Bố cục trang: A4/A5/Letter, lề Normal/Narrow/Moderate/Wide, hướng | CDP + DOCX; COM đọc lại kích thước/lề | Word COM đối chứng A4/A5; Letter đọc COM | KHỚP |
 | Bố cục trang: 1/2/3 cột | Đã chạy | Đã chạy | 3/3 KHỚP |
-| Đầu/chân trang, trang đầu khác, số trang | CDP + DOCX đã lưu | Word COM đọc Header/Footer, `DifferentFirstPage=-1`, `StartingNumber=3` | KHỚP |
+| Đầu/chân trang, trang đầu khác, chẵn/lẻ, số trang | CDP + DOCX đã lưu; `differentFirstPage=true`, `differentOddEven=true`, start=3 | Word COM đọc `DifferentFirstPage=-1`, `OddAndEven=-1`, `StartingNumber=3`; header/footer chính khớp | KHỚP cờ/field; app chưa có vùng nhập nội dung riêng cho header/footer trang đầu và chẵn/lẻ |
 | Ngắt trang; mục NextPage/Continuous/EvenPage/OddPage | CDP + DOCX đã lưu; 5 section | Word COM đọc 5 section, đúng loại bắt đầu | KHỚP |
 | Mục lục tự động + Heading 1 | CDP tạo, sửa Heading rồi cập nhật; Word COM đọc lại | COM tạo/cập nhật tương đương | KHỚP; TOC có heading đã sửa |
 | Chú thích trang/cuối trang và cuối tài liệu | CDP thêm nội dung `Footnote content`/`Endnote content` | Word COM tạo và đọc lại | KHỚP: mỗi loại 1, nội dung đúng |
@@ -71,7 +71,7 @@ Lượt so sánh COM cuối: **21/21 KHỚP**. Hai lượt chẩn đoán trướ
 | Ký hiệu: ©, ₫, ∑, → | CDP chọn từ nhóm thường/tiền tệ/toán/mũi tên; DOCX lưu đúng chuỗi | Word COM tạo chuỗi tương đương và đọc cả hai DOCX | KHỚP: `Audit symbols:©₫∑→` |
 | Hộp văn bản | Sau lưu, COM đọc 53.6×19.5 pt; AutoSize=0; lề 7.2/3.6 pt | COM đọc cùng kích thước, AutoSize và lề | KHỚP |
 | Hình khối chữ nhật mới | CDP chọn dialog; DOCX đọc Type 1, 59.8×34.2 pt, Left/Top 75/120, fill/line/1.5pt | Word COM tạo cùng AutoShape và format | KHỚP |
-| Hình ảnh PNG 32×32 | CDP intercept file chooser + DOM.setFileInputFiles; Word đọc 1 InlineShape 24×24 pt | Word COM AddPicture cùng file; đọc lại | KHỚP: count/type/size/alignment |
+| Hình ảnh PNG: kích thước, wrap, vị trí | CDP chọn ảnh, sửa kích thước/wrap/position và lưu; Word COM đọc lại | Word COM áp cùng wrap/vị trí, lưu và mở lại | KHỚP sau mở lại: 1 Shape, 23.9×13.6 pt, wrap Square, tọa độ 510.8/56.7 pt |
 
 ### FIX-T8 — kết quả lần chạy `codex-ft8`
 
@@ -207,3 +207,78 @@ Phần “chưa chạy” này là ghi nhận giữa chừng, đã được thay
 - `python -m unittest discover -s tests` với `VNO_APP_ROOT` và `LOCALAPPDATA=E:\VNOffice-profiles\codex-ft8\python-localappdata`: **855 tests OK**, 468.399 giây; có `ResourceWarning` hai pipe chưa đóng sau khi chạy, không có test fail.
 - Batch `scripts/layout-audit/batch_document_audit.py docx` chạy với `VNO_APP_ROOT=E:\VNOffice-codex-ft8`, nguồn `E:\VN OFice\file test\landocx`: **6/6 PASS**, edit PASS, page delta 0. Số trang Word/lưu: d01 19/19, d02 11/11, d07 23/23, d13 10/10, d20 3/3, d24 16/16. Báo cáo: `E:\VNOffice-profiles\codex-ft8\batch-audit-final\batch_document_audit_report.md`.
 - Không chạy build. Không có test FAIL/BLOCKED. Giới hạn chưa đo trong scope phụ: sửa nội dung comment (UI hiện chưa có lệnh chỉnh sửa), các chế độ hiển thị revision và tên tác giả tùy chỉnh; ma trận chính phía trên nêu rõ các phép đã đối chiếu.
+
+
+### FIX-T9 — Hình ảnh — 11/10/2026
+
+1. **App/CDP:** dùng chuột chọn ảnh qua **Chèn > Hình ảnh**, tab **Định dạng ảnh**, đặt 56×32 px, wrap Vuông, vị trí trên-phải; lưu DOCX. Ảnh trước/sau: `E:\VNOffice-profiles\codex-ft9\image-t8-before.png`, `image-edit-t9.png`.
+2. **Word COM:** đối chứng cùng ảnh, wrap Square và vị trí tương ứng; mở lại hai DOCX bằng Word. Cả hai đọc `inline=0`, `shapes=1`, `23.9×13.6 pt`, wrap `0`, relative page `1/1`, position `510.8/56.7 pt`.
+3. **Kết quả/sửa:** trước sửa app DOCX thành InlineShape nên wrap/vị trí mất; adapter giờ chuyển ảnh đã chỉnh thành OOXML anchor, giữ wrap/offset. Unit mới 3/3 PASS; Help tiếng Việt ở **Định dạng ảnh > Sắp xếp & Kích thước**, khóa VI/EN cập nhật.
+
+### FIX-T9 — Đầu/chân trang và số trang — 11/10/2026
+
+1. **App/CDP:** chọn Trang đầu khác, Trang chẵn và lẻ khác nhau, đánh lại số trang từ 3; header/footer chính có `Word parity header` và PAGE/NUMPAGES; ảnh `E:\VNOffice-profiles\codex-ft9\layout-header-footer.png`, `layout-page-numbers.png`.
+2. **Word COM:** đọc lại DOCX app và tạo tài liệu đối chứng tương ứng. Cả hai có 5 section cùng loại bắt đầu `2,2,0,3,4`; section đầu `DifferentFirst=-1`, `OddAndEven=-1`, số bắt đầu 3; nội dung header/footer chính giống nhau.
+3. **Kết quả:** tùy chọn và field số trang **KHỚP**. Header/footer trang đầu/chẵn/lẻ riêng chưa có vùng biên tập riêng trong app; các vùng đó đang rỗng trong cả hai DOCX đối chứng. Harness COM nay đọc `PageSetup.OddAndEvenPagesHeaderFooter` chính xác.
+
+### FIX-T9 — Ngắt dòng/ngắt cột — 11/10/2026
+
+1. **App/CDP:** bật 2 cột, gõ `Alpha`, Shift+Enter, `Line after`, chèn **Bố cục > Ngắt > Ngắt cột**, gõ `Next column`; ảnh `E:\VNOffice-profiles\codex-ft9\line-column-break-t9.png`.
+2. **Word COM:** sau sửa, app và Word đều có 2 cột, 1 ngắt cột, giữ đủ `Alpha`/`Line after`/`Next column`; Word có 1 soft break, app có 0.
+3. **Kết quả/sửa:** ngắt cột **KHỚP** sau khi tách marker thành paragraph riêng và đưa caret vào paragraph sau; Shift+Enter vẫn **LỆCH**. Harness `line-column-break-t9.desktop.mjs` + `word-line-column-break-t9.ps1` xác nhận.
+
+### FIX-T9 — Chú thích cuối trang/cuối tài liệu — 11/10/2026
+
+1. **App/CDP:** chèn một footnote và một endnote, nhập `Footnote content`/`Endnote content`, lưu DOCX; ảnh `E:\VNOffice-profiles\codex-ft9\references-t8-before.png`.
+2. **Word COM:** mở lại tệp app và đối chứng; `Footnotes=1`, `Endnotes=1`, đúng nội dung từng note.
+3. **Kết quả:** **KHỚP** về số lượng/vị trí/nội dung sau roundtrip; không có sai lệch tái hiện.
+
+### FIX-T9 — Mục lục, cập nhật TOC — 11/10/2026
+
+1. **App/CDP:** tạo TOC tự động, sửa heading đầu thành `Updated first heading`, bấm cập nhật; lưu DOCX.
+2. **Word COM:** chạy `TablesOfContents.Item(1).Update()` trên cả DOCX app và Word; cả hai đọc `Updated first heading` và `Second heading` cùng số trang `1`, có field `TOC \o "1-3" \h \z \u`.
+3. **Kết quả:** **KHỚP sau cập nhật trong Word**; số trang được điền khi Word refresh field. Hướng dẫn TOC F1 và i18n đã có.
+
+### FIX-T9 — Comments: thêm/trả lời/xóa — 11/10/2026
+
+1. **App/CDP:** thêm Alpha/Beta, resolve Alpha và xóa Beta; ảnh `E:\VNOffice-profiles\codex-ft9\comments-t8-before.png`.
+2. **Word COM:** app và Word còn cùng một comment của `3T Office`, scope Alpha, text `Resolve audit`, `Done=True`; Word COM tạo được reply trong thread.
+3. **Kết quả:** thêm/xóa/resolve **KHỚP**; app chưa có lệnh trả lời, ghi gap ở `docs/RIBBON-BACKLOG.md`; chưa kết luận parity cho reply.
+
+### FIX-T9 — Track Changes: chấp nhận/từ chối — 11/10/2026
+
+1. **App/CDP:** bật Theo dõi thay đổi, chèn ` added`, xóa `beta`, chấp nhận insertion rồi từ chối deletion; ảnh `E:\VNOffice-profiles\codex-ft9\track-changes-t8-before.png`.
+2. **Word COM:** hai revision đọc cùng type/author/text: deletion Type 2 `beta`, insertion Type 1 ` added`; trạng thái còn 1 sau accept one và 0 sau reject all.
+3. **Kết quả:** **KHỚP** về revision và thao tác accept/reject; hướng dẫn VI/EN đã có, không phát hiện sai lệch mới.
+
+### FIX-T9 — Thư viện kiểu: Title/Subtitle/Quote/List Paragraph — 11/10/2026
+
+1. **App/CDP:** áp Normal/Title/Quote qua gallery, lưu DOCX; ảnh `E:\VNOffice-profiles\codex-ft9\styles-t8-before.png`; Subtitle/List Paragraph không có card để chọn.
+2. **Word COM:** app đọc style `Body Text` cho Normal/Title, `Block Quotation` cho Quote; Word đọc Normal/Title/Quote. Title/Quote formats cũng lệch built-in Word theo preset VN.
+3. **Kết quả:** **LỆCH/MISSING** về semantic style; Subtitle và List Paragraph thiếu. Gap ghi ở backlog; không coi các preset VN là Word style tương đương.
+
+### FIX-T9 — Hình khối: màu, viền, xoay — 11/10/2026
+
+1. **App/CDP:** tạo rectangle trong dialog, chọn fill/line và độ dày; ảnh `E:\VNOffice-profiles\codex-ft9\shapes-t8-before.png`.
+2. **Word COM:** app/Word đều đọc một AutoShape loại 1, `59.8×34.2 pt`, trái/trên `75/120 pt`, fill `15426341`, line `14175773`, rộng viền `1.5 pt`.
+3. **Kết quả:** thuộc tính lúc tạo **KHỚP**; không có luồng chọn hình để sửa màu/viền hoặc xoay trong UI hiện tại. Gap ghi ở backlog; chưa đo parity cho chỉnh sửa/xoay.
+
+### FIX-T9 — Tìm/Thay nâng cao — 11/10/2026
+
+1. **App/CDP:** kiểm tra Match Case, Whole Word, Find Previous vòng lại và Replace One; ảnh `E:\VNOffice-profiles\codex-ft9\find-replace-t8-before.png`.
+2. **Word COM:** cùng các tùy chọn; kết quả Hoa/Hoa và nội dung sau thay một kết quả giống hệt `Hoa hoa Hòa Hoang hoa` ở cả hai DOCX.
+3. **Kết quả:** phép thử nâng cao **KHỚP**; Help Ctrl+H và nhãn tùy chọn VI/EN có sẵn, không phát hiện lệch mới.
+
+### FIX-T9 — Danh sách nhiều cấp — 11/10/2026
+
+1. **App/CDP:** thử tạo danh sách qua Trang đầu > Đa cấp và đổi cấp bằng phím; thao tác UI không cho ra ba cấp ổn định (lần thử có paragraph mất/Tab thành ký tự), không có ảnh kết quả tin cậy.
+2. **Word COM:** phép so sánh UI app/Word **NOT RUN** do đầu vào CDP không hợp lệ; serializer live test hiện hữu chạy FODT→DOCX và xác nhận decimal 1/1.1/1.1.1, letter 1/a/i, NĐ30 cùng numId, ilvl 0/1/2.
+3. **Kết quả:** roundtrip serializer **PASS**; parity UI/COM **NOT RUN**, không suy rộng kết quả serializer thành xác nhận ribbon. Cần harness cấp danh sách ổn định rồi chạy lại COM.
+
+## Tổng kết FIX-T9 — 11/10/2026
+
+- `main` đã được merge trước audit; branch `audit/doc-t9-codex`. Mỗi nhóm audit có commit riêng; image layout fix `ebbc4335`, header/footer measurement `bb49aa60`, line/column test `7d01148a`, các nhóm còn lại ở log commit branch.
+- `npm test`: **3066/3066 PASS** sau sửa vị trí Ribbon trong Help.
+- `python -m unittest discover -s tests` với `VNO_APP_ROOT=E:\VNOffice-codex-ft9`, `LOCALAPPDATA=E:\VNOffice-profiles\codex-ft9\python-localappdata`: **861 tests OK**, 502.437 giây; còn ResourceWarning hai pipe chưa đóng.
+- Batch `scripts/layout-audit/batch_document_audit.py docx` với nguồn `E:\VN OFice\file test\landocx`: **5/5 PASS**, edit PASS, page delta 0. d01 19/19; d07 23/23; d13 10/10; d20 3/3; d24 16/16. Báo cáo ở `E:\VNOffice-profiles\codex-ft9\batch-audit-final\batch_document_audit_report.md`.
+- Hạn chế tái hiện: header/footer First/Even chưa có vùng nhập riêng; Comment reply chưa có UI; gallery thiếu Subtitle/List Paragraph và lưu Title thành Body Text; shape chưa có sửa/xoay; Shift+Enter soft break không roundtrip; CDP parity của danh sách đa cấp chưa xác minh. Ngắt cột đã sửa và kiểm chứng giữ nội dung sau marker. Chi tiết và hướng xử lý nằm ở `docs/RIBBON-BACKLOG.md`.

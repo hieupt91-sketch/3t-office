@@ -1,10 +1,17 @@
+import { t } from "../../platform/i18n/i18n.js";
+
+const translate = (key, fallback) => {
+  const value = t(key);
+  return value === key ? fallback : value;
+};
+
 export const WRAP_STYLES = Object.freeze({
-  inline: { label: "Cùng dòng với văn bản", css: { display: "inline", float: "none", position: "static", zIndex: "auto" } },
-  square: { label: "Vuông", css: { display: "block", float: "left", position: "relative", zIndex: "auto" } },
-  tight: { label: "Khít", css: { display: "block", float: "right", position: "relative", zIndex: "auto" } },
-  behind: { label: "Phía sau văn bản", css: { display: "block", float: "none", position: "absolute", zIndex: "-1" } },
-  front: { label: "Phía trước văn bản", css: { display: "block", float: "none", position: "absolute", zIndex: "10" } },
-  topBottom: { label: "Trên và dưới", css: { display: "block", float: "none", position: "relative", zIndex: "auto" } }
+  inline: { label: translate("writerArrange.wrap.inline", "Cùng dòng với văn bản"), css: { display: "inline", float: "none", position: "static", zIndex: "auto" } },
+  square: { label: translate("writerArrange.wrap.square", "Vuông"), css: { display: "block", float: "left", position: "relative", zIndex: "auto" } },
+  tight: { label: translate("writerArrange.wrap.tight", "Khít"), css: { display: "block", float: "right", position: "relative", zIndex: "auto" } },
+  behind: { label: translate("writerArrange.wrap.behind", "Phía sau văn bản"), css: { display: "block", float: "none", position: "absolute", zIndex: "-1" } },
+  front: { label: translate("writerArrange.wrap.front", "Phía trước văn bản"), css: { display: "block", float: "none", position: "absolute", zIndex: "10" } },
+  topBottom: { label: translate("writerArrange.wrap.topBottom", "Trên và dưới"), css: { display: "block", float: "none", position: "relative", zIndex: "auto" } }
 });
 
 export const POSITION_PRESETS = Object.freeze({
@@ -20,9 +27,9 @@ export const POSITION_PRESETS = Object.freeze({
 });
 
 const POSITION_LABELS = {
-  topLeft: "Trên trái", topCenter: "Trên giữa", topRight: "Trên phải",
-  middleLeft: "Giữa trái", center: "Chính giữa", middleRight: "Giữa phải",
-  bottomLeft: "Dưới trái", bottomCenter: "Dưới giữa", bottomRight: "Dưới phải"
+  topLeft: translate("writerArrange.position.topLeft", "Trên trái"), topCenter: translate("writerArrange.position.topCenter", "Trên giữa"), topRight: translate("writerArrange.position.topRight", "Trên phải"),
+  middleLeft: translate("writerArrange.position.middleLeft", "Giữa trái"), center: translate("writerArrange.position.center", "Chính giữa"), middleRight: translate("writerArrange.position.middleRight", "Giữa phải"),
+  bottomLeft: translate("writerArrange.position.bottomLeft", "Dưới trái"), bottomCenter: translate("writerArrange.position.bottomCenter", "Dưới giữa"), bottomRight: translate("writerArrange.position.bottomRight", "Dưới phải")
 };
 
 function optionList(items, selected = "") {
@@ -311,6 +318,7 @@ export class WriterArrangeController {
     Object.assign(image.style, preset.css);
     image.style.margin = mode === "square" || mode === "tight" ? "6pt 10pt 6pt 0" : "10pt 0";
     image.dataset.vnoWrap = mode;
+    image.dataset.vnoLayoutEdited = "true";
     if (mode === "inline") this._clearCoordinates(image);
     if ((mode === "behind" || mode === "front") && !image.style.left) this.applyPosition("topLeft", false);
     this._commit(`writer.image.wrap.${mode}`);
@@ -331,6 +339,7 @@ export class WriterArrangeController {
     image.style.top = preset[1];
     image.style.transform = preset[2];
     image.dataset.vnoPosition = presetName;
+    image.dataset.vnoLayoutEdited = "true";
     image.dataset.vnoWrap ||= "front";
     if (!image.style.zIndex || image.style.zIndex === "auto") image.style.zIndex = "10";
     if (commit) this._commit(`writer.image.position.${presetName}`);
@@ -389,6 +398,7 @@ export class WriterArrangeController {
     if (width > 0) image.style.width = `${Math.round(width)}px`;
     if (height > 0) image.style.height = `${Math.round(height)}px`;
     image.style.maxWidth = "none";
+    image.dataset.vnoLayoutEdited = "true";
     this._positionOverlay();
     this._commit("writer.image.resize");
     return true;
@@ -475,15 +485,15 @@ export class WriterArrangeController {
     group.className = "vno-ribbon-group vno-writer-arrange-group";
     group.dataset.groupId = "writerArrange";
     group.innerHTML = `<div class="vno-ribbon-group-items">
-      <label>Ngắt dòng văn bản<select data-arrange="wrap" aria-label="Kiểu ngắt dòng văn bản">${optionList(WRAP_STYLES, this.selectedImage.dataset.vnoWrap || "inline")}</select></label>
-      <label>Vị trí<select data-arrange="position" aria-label="Vị trí ảnh trên trang"><option value="">Chọn vị trí…</option>${optionList(POSITION_LABELS, this.selectedImage.dataset.vnoPosition || "")}</select></label>
-      <div class="vno-writer-arrange-buttons"><button type="button" data-arrange="forward">Đưa lên</button><button type="button" data-arrange="backward">Đưa xuống</button></div>
-      <label>Căn chỉnh<select data-arrange="align" aria-label="Căn ảnh theo trang"><option value="">Chọn căn…</option><option value="left">Trái</option><option value="center">Giữa ngang</option><option value="right">Phải</option><option value="top">Trên</option><option value="middle">Giữa dọc</option><option value="bottom">Dưới</option></select></label>
+      <label>${translate("writerArrange.wrapTitle", "Ngắt dòng văn bản")}<select data-arrange="wrap" aria-label="${translate("writerArrange.wrapTitle", "Kiểu ngắt dòng văn bản")}">${optionList(WRAP_STYLES, this.selectedImage.dataset.vnoWrap || "inline")}</select></label>
+      <label>${translate("writerArrange.positionTitle", "Vị trí")}<select data-arrange="position" aria-label="${translate("writerArrange.positionTitle", "Vị trí ảnh trên trang")}"><option value="">${translate("writerArrange.choosePosition", "Chọn vị trí…")}</option>${optionList(POSITION_LABELS, this.selectedImage.dataset.vnoPosition || "")}</select></label>
+      <div class="vno-writer-arrange-buttons"><button type="button" data-arrange="forward">${translate("writerArrange.forward", "Đưa lên")}</button><button type="button" data-arrange="backward">${translate("writerArrange.backward", "Đưa xuống")}</button></div>
+      <label>${translate("writerArrange.alignTitle", "Căn chỉnh")}<select data-arrange="align" aria-label="${translate("writerArrange.alignTitle", "Căn ảnh theo trang")}"><option value="">${translate("writerArrange.chooseAlign", "Chọn căn…")}</option><option value="left">${translate("writerArrange.align.left", "Trái")}</option><option value="center">${translate("writerArrange.align.center", "Giữa ngang")}</option><option value="right">${translate("writerArrange.align.right", "Phải")}</option><option value="top">${translate("writerArrange.align.top", "Trên")}</option><option value="middle">${translate("writerArrange.align.middle", "Giữa dọc")}</option><option value="bottom">${translate("writerArrange.align.bottom", "Dưới")}</option></select></label>
       <div style="display:flex; gap:6px; align-items:flex-end;">
-        <label>Cao (px)<input type="number" data-arrange="height" value="${Math.round(curHeight)}" style="width:58px; min-height:26px; border:1px solid #94a3b8; border-radius:3px; padding:2px 4px; font-size:11px;" /></label>
-        <label>Rộng (px)<input type="number" data-arrange="width" value="${Math.round(curWidth)}" style="width:58px; min-height:26px; border:1px solid #94a3b8; border-radius:3px; padding:2px 4px; font-size:11px;" /></label>
+        <label>${translate("writerArrange.height", "Cao (px)")}<input type="number" data-arrange="height" value="${Math.round(curHeight)}" style="width:58px; min-height:26px; border:1px solid #94a3b8; border-radius:3px; padding:2px 4px; font-size:11px;" /></label>
+        <label>${translate("writerArrange.width", "Rộng (px)")}<input type="number" data-arrange="width" value="${Math.round(curWidth)}" style="width:58px; min-height:26px; border:1px solid #94a3b8; border-radius:3px; padding:2px 4px; font-size:11px;" /></label>
       </div>
-    </div><div class="vno-ribbon-group-label">Sắp xếp & Kích thước</div>`;
+    </div><div class="vno-ribbon-group-label">${translate("writerArrange.group", "Sắp xếp & Kích thước")}</div>`;
 
     group.addEventListener("change", (event) => {
       const action = event.target.dataset.arrange;

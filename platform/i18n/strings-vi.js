@@ -9,6 +9,14 @@ export const viStrings = {
     sheet: "Sheet (Bảng tính)",
     slides: "Slide (Trình chiếu)"
   },
+  writerArrange: {
+    wrapTitle: "Ngắt dòng văn bản", positionTitle: "Vị trí", choosePosition: "Chọn vị trí…",
+    alignTitle: "Căn chỉnh", chooseAlign: "Chọn căn…", height: "Cao (px)", width: "Rộng (px)",
+    forward: "Đưa lên", backward: "Đưa xuống", group: "Sắp xếp & Kích thước",
+    wrap: { inline: "Cùng dòng với văn bản", square: "Vuông", tight: "Khít", behind: "Phía sau văn bản", front: "Phía trước văn bản", topBottom: "Trên và dưới" },
+    position: { topLeft: "Trên trái", topCenter: "Trên giữa", topRight: "Trên phải", middleLeft: "Giữa trái", center: "Chính giữa", middleRight: "Giữa phải", bottomLeft: "Dưới trái", bottomCenter: "Dưới giữa", bottomRight: "Dưới phải" },
+    align: { left: "Trái", center: "Giữa ngang", right: "Phải", top: "Trên", middle: "Giữa dọc", bottom: "Dưới" }
+  },
   common: {
     save: "Lưu tài liệu",
     undo: "Hoàn tác",

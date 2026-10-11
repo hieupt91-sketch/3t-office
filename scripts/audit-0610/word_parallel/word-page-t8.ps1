@@ -38,6 +38,7 @@ try {
   $sectionKinds = @(2,3,4,5)
   for ($i=0; $i -lt $sectionKinds.Count; $i++) { $r=$d.Range($d.Content.End-1,$d.Content.End-1); $r.InsertBreak($sectionKinds[$i]); $r=$d.Range($d.Content.End-1,$d.Content.End-1); $r.InsertAfter($breakTexts[$i+1]) }
   $d.Sections.Item(1).PageSetup.DifferentFirstPageHeaderFooter = $true
+  $d.Sections.Item(1).PageSetup.OddAndEvenPagesHeaderFooter = $true
   $d.Sections.Item(1).Headers.Item(1).Range.Text = "Word parity header"
   $footer=$d.Sections.Item(1).Footers.Item(1).Range; $footer.Text="Page "
   $footer.Fields.Add($footer,33) | Out-Null; $footer.InsertAfter(" / "); $footer.Fields.Add($footer,26) | Out-Null
@@ -55,13 +56,14 @@ try {
         $pageStart=try { [int]$section.Footers.Item(1).PageNumbers.StartingNumber } catch { "N/A" }
         $details += "start=$($p.SectionStart),paper=$($p.PaperSize),orient=$($p.Orientation),size=$([math]::Round($p.PageWidth,1))x$([math]::Round($p.PageHeight,1)),margins=$([math]::Round($p.TopMargin,1))/$([math]::Round($p.BottomMargin,1))/$([math]::Round($p.LeftMargin,1))/$([math]::Round($p.RightMargin,1)),diffFirst=$($p.DifferentFirstPageHeaderFooter),pageStart=$pageStart,header='$header',footer='$footer'"
       }
-      Write-Output ("app_{0}: sections={1}; {2}" -f $name,$d.Sections.Count,($details -join " | "))
+      $oddEven = [int]$d.Sections.Item(1).PageSetup.OddAndEvenPagesHeaderFooter
+      Write-Output ("app_{0}: sections={1}; oddEven={2}; {3}" -f $name,$d.Sections.Count,$oddEven,($details -join " | "))
     } finally { $d.Close(0) }
   }
   foreach ($name in @("a5_normal_landscape","narrow","moderate","wide","final")) {
     $d=$w.Documents.Open("$Dir\word_page_t8_$name.docx",$false,$true)
     try {
-      $details=@(); foreach ($section in $d.Sections) { $p=$section.PageSetup; $details += "start=$($p.SectionStart),paper=$($p.PaperSize),orient=$($p.Orientation),size=$([math]::Round($p.PageWidth,1))x$([math]::Round($p.PageHeight,1)),margins=$([math]::Round($p.TopMargin,1))/$([math]::Round($p.BottomMargin,1))/$([math]::Round($p.LeftMargin,1))/$([math]::Round($p.RightMargin,1))" }
+      $details=@(); foreach ($section in $d.Sections) { $p=$section.PageSetup; $details += "start=$($p.SectionStart),paper=$($p.PaperSize),orient=$($p.Orientation),size=$([math]::Round($p.PageWidth,1))x$([math]::Round($p.PageHeight,1)),margins=$([math]::Round($p.TopMargin,1))/$([math]::Round($p.BottomMargin,1))/$([math]::Round($p.LeftMargin,1))/$([math]::Round($p.RightMargin,1)),diffFirst=$($p.DifferentFirstPageHeaderFooter),oddEven=$($p.OddAndEvenPagesHeaderFooter)" }
       Write-Output ("word_{0}: sections={1}; {2}" -f $name,$d.Sections.Count,($details -join " | "))
     } finally { $d.Close(0) }
   }
