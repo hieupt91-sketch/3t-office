@@ -25,6 +25,8 @@ mark(MATCH, "sheet.style.formatAsTable", "FIX-S11: CDP + Excel COM read-only xá
 mark(MATCH, "sheet.chart.insert", "FIX-S9: Excel COM read-only xác nhận loại biểu đồ, tiêu đề, series và trục")
 mark(MATCH, "sheet.cell.alignCenter", "FIX-S12 nhóm Trang đầu: CDP click căn giữa; Excel COM ReadOnly HAl=-4108 tại B2 (app_alignCenter.xlsx)")
 mark(MATCH, "sheet.cell.alignRight", "FIX-S12 nhóm Trang đầu: CDP click căn phải; Excel COM ReadOnly HAl=-4152 tại B2 (app_alignRight.xlsx)")
+mark(MATCH, "sheet.format.percent", "FIX-S12 nhóm Trang đầu: CDP click Phần trăm; Excel COM ReadOnly D2=0.075, NumberFormat=0% (app_percentBtn.xlsx)")
+mark(MATCH, "sheet.format.increaseDecimal", "FIX-S12 nhóm Trang đầu: CDP click Tăng số thập phân; Excel COM ReadOnly C2=1234.5, NumberFormat=0.00 (app_decInc.xlsx)")
 
 # FIX-S7 recorded an unsuccessful name-manager probe before FIX-S8 corrected
 # and verified the manager flow. The separate Define Name command has no such

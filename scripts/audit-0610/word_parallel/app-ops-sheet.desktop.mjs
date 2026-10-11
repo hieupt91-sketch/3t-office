@@ -301,10 +301,28 @@ for (const [name, cell, kind, id, value] of ops) {
         if(!apply)status="NO_DUPLICATE_DIALOG"; else {await mouseClick(session.cdp,apply.x,apply.y);status="removed duplicate ID";}
       }
     } else {
-      status = await ev(`(() => { const s=document.querySelector('select[data-command-id="${id}"]'); if(!s) return 'NO_SELECT'; const opts=[...s.options].map(o=>o.value); const has=opts.includes(${JSON.stringify(value)}); s.value=${JSON.stringify(value)}; s.dispatchEvent(new Event('change',{bubbles:true})); return 'select '+(has?'ok':'GIA TRI KHONG CO trong '+opts.slice(0,12).join('/')); })()`);
+      const homeTab = JSON.parse(await ev(`(() => { const n=document.querySelector('#vno-ribbon-tab-home'); if(!n) return 'null'; const r=n.getBoundingClientRect(); return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,active:n.classList.contains('is-active')}); })()`));
+      if (homeTab && !homeTab.active) { await mouseClick(session.cdp, homeTab.x, homeTab.y); await sleep(250); }
+      let choice = JSON.parse(await ev(`(() => { const s=document.querySelector('select[data-command-id="${id}"]'); if(!s) return 'null'; const r=s.getBoundingClientRect(),g=s.closest('.vno-ribbon-group.vno-group-collapsed'),b=g?.querySelector('.vno-ribbon-group-collapsed-btn'),br=b?.getBoundingClientRect(); const options=[...s.options]; const index=options.findIndex(o=>o.value===${JSON.stringify(value)}); const first=options[index]?.textContent.trim().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'')[0]?.toLowerCase(); return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,index,count:options.length,first,initial:s.value,collapsed:!!(br?.width&&br?.height),cx:br?.left+br?.width/2,cy:br?.top+br?.height/2,visible:!!(r.width&&r.height)}); })()`));
+      if (!choice) status = "NO_SELECT";
+      else if (choice.index < 0) status = "VALUE_NOT_AVAILABLE";
+      else {
+        if (choice.collapsed) {
+          await mouseClick(session.cdp, choice.cx, choice.cy); await sleep(200);
+          choice = JSON.parse(await ev(`(() => { const s=document.querySelector('.vno-ribbon-group-popover select[data-command-id="${id}"]'); if(!s) return 'null'; const r=s.getBoundingClientRect(),options=[...s.options],index=options.findIndex(o=>o.value===${JSON.stringify(value)}),first=options[index]?.textContent.trim().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'')[0]?.toLowerCase(); return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,index,count:options.length,first,initial:s.value,visible:!!(r.width&&r.height)}); })()`));
+        }
+        if (!choice || !choice.visible) { status = "SELECT_NOT_VISIBLE"; }
+        else {
+        await mouseClick(session.cdp, choice.x, choice.y);
+        await press(session.cdp, choice.first);
+        const selectedValue = await ev(`(() => { const s=document.querySelector('select[data-command-id="${id}"]'); return s ? s.value : 'SELECT_UNMOUNTED'; })()`);
+        await press(session.cdp, "Enter");
+        status = `keyboard selection submitted (${selectedValue}; wanted ${value}; key=${choice.first}; initial=${choice.initial}; collapsed=${!!choice.collapsed})`;
+        }
+      }
     }
     await sleep(600);
-    const info = await ev(`(() => { const app=window.__vnoAppInstance,it=app.grid.cellsData.get("${cell}")||{},g=app.grid,a=app.adapter; const fods=a.serializeToFods(); return JSON.stringify({value:it.val, formula:it.formula, calculatedValue:it.calculatedValue, rowHeight:g.getRowHeight?.(3), columnWidth:g.getColumnWidth?.('B'), names:g.namedRangesWorkbook, adapterNames:a.grid?.namedRangesWorkbook, serializedName:fods.includes('table:named-range'), fw:it.style&&it.style.fontWeight, fmt:it.style&&it.style.numberFormat&&it.style.numberFormat.category, textRotation:it.style&&it.style.textRotation}); })()`);
+    const info = await ev(`(() => { const app=window.__vnoAppInstance,it=app.grid.cellsData.get("${cell}")||{},g=app.grid,a=app.adapter; const fods=a.serializeToFods(); return JSON.stringify({value:it.val, formula:it.formula, calculatedValue:it.calculatedValue, style:it.style, quickCategory:document.querySelector('select[data-command-id="sheet.format.quickCategory"]')?.value, rowHeight:g.getRowHeight?.(3), columnWidth:g.getColumnWidth?.('B'), names:g.namedRangesWorkbook, adapterNames:a.grid?.namedRangesWorkbook, serializedName:fods.includes('table:named-range'), fw:it.style&&it.style.fontWeight, fmt:it.style&&it.style.numberFormat&&it.style.numberFormat.category, textRotation:it.style&&it.style.textRotation}); })()`);
     const formulaValues = kind === "formulaPack" ? await ev(`JSON.stringify(Array.from({length:29},(_,i)=>{const k='H'+(i+2),v=window.__vnoAppInstance.grid.cellsData.get(k)||{};return [k,v.formula,v.val]}))`) : null;
     if (kind === "formulaPack") {
       const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000);

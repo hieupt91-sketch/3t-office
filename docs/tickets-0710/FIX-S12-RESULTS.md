@@ -13,3 +13,15 @@
 - **PASS** — ba thao tác CDP lưu XLSX riêng; log ở profile audit `s12-home-format.log`.
 - **PASS** — Excel COM chỉ đọc xác nhận căn giữa và căn phải; log `s12-home-format-excel.log`, `excel-alignRight.log`.
 - **CHƯA ĐỐI CHIẾU** — nút Ngắt dòng: readback khớp trạng thái fixture nên chưa chứng minh thao tác đổi trạng thái.
+
+## Nhóm Trang đầu: định dạng số
+
+- Nút Phần trăm: thao tác CDP trên D2; Excel COM chỉ đọc xác nhận `Value2=0.075`, `NumberFormat=0%`, hiển thị `8%`. **KHỚP EXCEL**. Ảnh `evidence/s12/fix-s12-percentBtn.png`.
+- Nút Tăng số thập phân: thao tác CDP trên C2; Excel COM chỉ đọc xác nhận `Value2=1234.5`, `NumberFormat=0.00`, hiển thị `1234.50`. **KHỚP EXCEL**. Ảnh `evidence/s12/fix-s12-decInc.png`.
+- Lựa chọn trong danh sách Định dạng số chưa được xác nhận bằng UI/readback và vẫn **CHƯA ĐỐI CHIẾU**.
+
+### Kiểm chứng nhóm định dạng số
+
+- **PASS** — hai thao tác CDP lưu XLSX riêng; log `s12-format-buttons.log` trong profile audit.
+- **PASS** — Excel COM ReadOnly xác nhận NumberFormat cho `app_S12_percentBtn.xlsx` và `app_S12_decInc.xlsx`; log `excel-percentBtn.log`, `excel-decInc.log`.
+- **NOT RUN** — chưa chạy bộ kiểm thử tổng (`npm test`, unittest và batch XLSX); sẽ chạy khi hoàn tất lượt rà soát.
