@@ -2,7 +2,7 @@
 
 Nguồn danh sách nút: [`ribbon-scan-slides-1011.json`](ribbon-scan-slides-1011.json). Ma trận giữ đủ từng dòng scan (kể cả ID xuất hiện ở nhiều tab); trạng thái chỉ áp dụng tới thuộc tính/kịch bản ghi trong bằng chứng.
 
-Tổng: 88 dòng. **KHỚP POWERPOINT**: 40, **CHƯA ĐỐI CHIẾU**: 39, **LỆCH ĐÃ BIẾT**: 7, **KHÁC CÓ CHỦ Ý**: 2.
+Tổng: 88 dòng. **KHỚP POWERPOINT**: 42, **CHƯA ĐỐI CHIẾU**: 37, **LỆCH ĐÃ BIẾT**: 7, **KHÁC CÓ CHỦ Ý**: 2.
 
 - **KHỚP POWERPOINT**: thao tác VN Slides được thực hiện; PowerPoint COM đọc lại cùng thuộc tính và kết quả khớp.
 - **KHÁC CÓ CHỦ Ý**: khác biệt sản phẩm có chủ ý hoặc không có nút đối ứng; nêu rõ lý do.
@@ -63,8 +63,8 @@ Các kết quả kế thừa được giới hạn theo báo cáo FIX-L4/L5/L6; 
 | Chèn | `slides.media.insertAudio` | Âm thanh | CHƯA ĐỐI CHIẾU |  |
 | Thiết kế | `slides.design.themeGallery` | Chủ đề | LỆCH ĐÃ BIẾT | FIX-L4 ghi nhận theme chọn trong app không giữ giá trị qua mở lại (`minimal-dark` thành `modern-blue`); FIX-L6 COM thấy Design.Name=Office. Native theme chưa được xác nhận. Không sửa semantics nếu chưa được duyệt. [FIX-L4 audit](AUDIT-SLIDES-OFFICE-PARITY-1011.md#ma-trận-fix-l4-mở-rộng), [FIX-L6 results](tickets-0710/FIX-L6-RESULTS.md#kiểm-tra) |
 | Thiết kế | `slides.master.apply` | Mẫu Slide Master | CHƯA ĐỐI CHIẾU |  |
-| Thiết kế | `slides.design.slideSize` | Cỡ trang chiếu | CHƯA ĐỐI CHIẾU |  |
-| Thiết kế | `slides.design.formatBackground` | Định dạng nền | CHƯA ĐỐI CHIẾU |  |
+| Thiết kế | `slides.design.slideSize` | Cỡ trang chiếu | KHỚP POWERPOINT | FIX-L8: CDP đổi Wide 16:9 sang Standard 4:3; PowerPoint COM đọc PageSetup=720×540 pt (25.4×19.05 cm) sau khi mở PPTX, cùng model. [CDP](tickets-0710/evidence/fix-l8/design/design-cdp-readback.json), [COM](tickets-0710/evidence/fix-l8/design/design-readback.json) |
+| Thiết kế | `slides.design.formatBackground` | Định dạng nền | KHỚP POWERPOINT | FIX-L8: CDP chọn nền gradient ngang (#1e3a8a→#ffffff); PowerPoint COM đọc Fill.Type=3 và RGB=9058846 (#1e3a8a) sau khi mở PPTX. [CDP](tickets-0710/evidence/fix-l8/design/design-cdp-readback.json), [COM](tickets-0710/evidence/fix-l8/design/design-readback.json) |
 | Chuyển tiếp | `slides.transition.apply` | Chuyển tiếp | LỆCH ĐÃ BIẾT | FIX-L4 xác nhận Push Right/0.8 s; FIX-L7 Fade lưu/mở lại và COM đọc EntryEffect=3849/0.5 s; FIX-L6 đo Zoom thành EntryEffect=3073 (BoxOut), nên riêng nhãn Zoom vẫn lệch/chưa xác định mapping. [FIX-L4 audit](AUDIT-SLIDES-OFFICE-PARITY-1011.md#kết-quả-đã-đo), [L7 CDP](tickets-0710/evidence/fix-l7/powerpoint-roundtrip-readback.json), [FIX-L6 results](tickets-0710/FIX-L6-RESULTS.md#kiểm-tra) |
 | Hoạt hình | `slides.animation.apply` | Hiệu ứng đối tượng | KHỚP POWERPOINT | FIX-L6 sau sửa adapter: PowerPoint COM đọc lại Fade, Fade, Fly đúng thứ tự; EffectType 10,10,2, TriggerType=click, duration 0.8/0.8/0.5 s. Chưa suy rộng tới mọi preset. [FIX-L6 results](tickets-0710/FIX-L6-RESULTS.md#kiểm-tra) |
 | Hoạt hình | `slides.animation.pane` | Ngăn hoạt hình | KHỚP POWERPOINT | FIX-L7: CDP mở Ngăn hoạt hình, đổi thứ tự hai hiệu ứng; PowerPoint COM đọc lại Fly In trước Fade In, đúng model sau thao tác. [Ảnh trước](tickets-0710/evidence/fix-l7/animation-pane-before-order.png), [Ảnh sau](tickets-0710/evidence/fix-l7/animation-pane-after-order.png), [COM](tickets-0710/evidence/fix-l7/powerpoint-controls-readback.json) |

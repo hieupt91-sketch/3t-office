@@ -47,6 +47,10 @@ function Read-Presentation($presentation) {
   [pscustomobject]@{
     slides = $presentation.Slides.Count
     shapes = $slide.Shapes.Count
+    slideWidth = (Read-Value { $presentation.PageSetup.SlideWidth })
+    slideHeight = (Read-Value { $presentation.PageSetup.SlideHeight })
+    slideBackgroundFillType = (Read-Value { $slide.Background.Fill.Type })
+    slideBackgroundRgb = (Read-Value { $slide.Background.Fill.ForeColor.RGB })
     layout = $slide.Layout
     titleText = $title.TextFrame.TextRange.Text
     findRoadTrip = (Read-Value { $title.TextFrame.TextRange.Find('ROAD TRIP').Text })
