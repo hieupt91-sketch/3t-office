@@ -67,7 +67,9 @@ Lượt so sánh COM cuối: **21/21 KHỚP**. Hai lượt chẩn đoán trướ
 | Thư viện kiểu | Chưa chạy | Chưa chạy | NOT RUN |
 | Tìm/thay thế: thay toàn bộ `Alpha` → `Gamma` | CDP Ctrl+H, 1 thay thế; DOCX có Gamma, không Alpha | `Find.Execute` ReplaceAll; DOCX cùng nội dung | KHỚP |
 | Ký hiệu `π` | CDP chọn Pi; lưu DOCX có đúng 1 `π` ở đoạn Alpha | COM DOCX đối chứng có cùng ký tự/vị trí | KHỚP |
-| Hộp văn bản | Chưa chạy | Chưa chạy | NOT RUN |
+| Hộp văn bản | Gõ ngay sau khi chèn; Word đọc một shape type 17, text khớp, 94.1×34.2 pt | COM tạo textbox, text khớp nhưng sau lưu 53.6×19.5 pt | LECH kích thước; cần đo lại AutoSize/margins |
+| Hình khối | Chưa chạy | Chưa chạy | NOT RUN |
+| Hình ảnh | Nút mở native file picker; CDP không cấp được file trong lượt này | Chưa chạy | BLOCKED; không dùng OS input |
 
 ### FIX-T8 — kết quả lần chạy `codex-ft8`
 
@@ -120,6 +122,12 @@ Chưa chạy: khớp hoa/thường, toàn từ, bỏ dấu, Find next/previous v
 ### FIX-T8 tiếp tục — Ký hiệu — 11/10/2026
 
 Đặt con trỏ cuối đoạn Alpha bằng chuột, mở **Chèn > Ký hiệu > Toán học**, chọn **π** bằng chuột và lưu DOCX. Word COM tạo DOCX có `π` tại cùng vị trí. Đọc lại bằng COM: mỗi tài liệu có đúng một `π`, đoạn văn bằng nhau: **KHỚP**. Trợ giúp tiếng Việt **Chèn ký hiệu** mô tả nhóm Thường dùng/Toán học/Mũi tên, đường dẫn và bước chèn; i18n cho nhãn Ký hiệu đã có.
+
+### FIX-T8 tiếp tục — Hộp văn bản/Hình ảnh — 11/10/2026
+
+Mở **Chèn > Văn bản > Hộp văn bản** và gõ ngay `Audit textbox` bằng CDP keyboard; chữ gợi ý được thay đúng. DOCX app mở bằng Word COM có một shape type 17, text đúng, Width/Height `94.1×34.2 pt`. Word COM tạo textbox cùng text; sau lưu/đọc lại shape type vẫn 17 nhưng kích thước `53.6×19.5 pt`: **LECH kích thước**. Cần điều tra thêm `TextFrame.AutoSize`/lề khung trước khi sửa; không đổi cách tính kích thước khi chưa xác định chính xác quy đổi. Trợ giúp tiếng Việt **Hộp văn bản và Ngày & Giờ** đã mô tả vị trí, thao tác gõ ngay để thay chữ mẫu và cách kéo/đổi cỡ; i18n đã có.
+
+Phép chèn ảnh đã bấm nút **Chèn > Hình ảnh** bằng chuột CDP; lệnh mở hộp chọn tệp native. CDP `DOM.setFileInputFiles` không kích hoạt được chọn/đọc ảnh trong lượt thử, nên lưu và Word COM readback chưa chạy: **BLOCKED**. Không dùng OS input. Help **Chèn hình ảnh** và nhãn/tooltip i18n đã có. Hình khối cũng chưa chạy.
 
 ### Bố cục trang: cột — 11/10/2026
 

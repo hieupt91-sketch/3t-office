@@ -14,6 +14,7 @@ FINDINGS:
 - Theo dõi thay đổi: chèn ` added` tạo một Revision Type 1, Author `3T Office`, text `added` trong cả app DOCX và Word COM DOCX. Chưa chạy xóa, accept/reject, bulk operations hoặc round-trip revision có sẵn.
 - Tìm/Thay thế: Ctrl+H thay toàn bộ `Alpha` thành `Gamma`; Word COM `Find.Execute` ReplaceAll tạo cùng nội dung DOCX. Các tùy chọn matching và từng kết quả chưa chạy.
 - Ký hiệu: Chèn `π` qua **Chèn > Ký hiệu > Toán học**; Word COM đọc lại đúng một ký tự và cùng đoạn văn. Trợ giúp tiếng Việt và i18n đã có.
+- Hộp văn bản: chèn và gõ ngay thay placeholder qua CDP; Word COM đọc một shape type 17, text khớp. Kích thước app 94.1×34.2 pt, Word COM tạo textbox cùng text rồi đọc 53.6×19.5 pt: LECH, cần xác định quy tắc AutoSize/margins trước khi sửa. Hình ảnh: native picker không nhận file qua CDP trong lượt thử, BLOCKED; Hình khối NOT RUN. Help/i18n cho textbox và ảnh đã có.
 - Unittest đầu tiên dùng LOCALAPPDATA hệ thống, va chạm với LibreOffice của worktree khác. Chạy lại bằng profile riêng thì 832 tests OK.
 IMPLEMENTATION SUMMARY: Hai commit audit bảng trước đó thêm harness desktop CDP. Các lượt tiếp theo xác nhận A4 ngang/lề 25/20 mm và cấu trúc Heading 1 + TOC + footnote bằng thao tác chuột/phím CDP, lưu DOCX và đọc lại bằng Word COM; cập nhật ma trận và vị trí tra cứu Trợ giúp.
 FILES CHANGED: `docs/AUDIT-DOC-WORD-PARALLEL-1011.md`, `docs/AGENT-HANDOFF-FIX-T8-CODEX.md`.
