@@ -1,0 +1,138 @@
+{
+    "readbacks":  [
+                      {
+                          "file":  "E:\\VNOffice-profiles\\codex-fl10\\fix-l10-comments-before-delete.pptx",
+                          "slides":  10,
+                          "slide1Shapes":  5,
+                          "commentCount":  2,
+                          "comments":  [
+                                           {
+                                               "author":  "Người dùng",
+                                               "text":  "FIX-L10 Alpha comment",
+                                               "date":  "\/Date(1791735448000)\/",
+                                               "resolved":  null,
+                                               "properties":  [
+                                                                  "Application",
+                                                                  "Author",
+                                                                  "AuthorIndex",
+                                                                  "AuthorInitials",
+                                                                  "Collapsed",
+                                                                  "DateTime",
+                                                                  "Left",
+                                                                  "Parent",
+                                                                  "ProviderID",
+                                                                  "Replies",
+                                                                  "Text",
+                                                                  "TimeZoneBias",
+                                                                  "Top",
+                                                                  "UserID"
+                                                              ]
+                                           },
+                                           {
+                                               "author":  "Người dùng",
+                                               "text":  "FIX-L10 Beta comment",
+                                               "date":  "\/Date(1791735450000)\/",
+                                               "resolved":  null,
+                                               "properties":  [
+                                                                  "Application",
+                                                                  "Author",
+                                                                  "AuthorIndex",
+                                                                  "AuthorInitials",
+                                                                  "Collapsed",
+                                                                  "DateTime",
+                                                                  "Left",
+                                                                  "Parent",
+                                                                  "ProviderID",
+                                                                  "Replies",
+                                                                  "Text",
+                                                                  "TimeZoneBias",
+                                                                  "Top",
+                                                                  "UserID"
+                                                              ]
+                                           }
+                                       ]
+                      },
+                      {
+                          "file":  "E:\\VNOffice-profiles\\codex-fl10\\fix-l10-comments-resolved.pptx",
+                          "slides":  10,
+                          "slide1Shapes":  5,
+                          "commentCount":  2,
+                          "comments":  [
+                                           {
+                                               "author":  "Người dùng",
+                                               "text":  "FIX-L10 Alpha comment",
+                                               "date":  "\/Date(1791735448000)\/",
+                                               "resolved":  null,
+                                               "properties":  [
+                                                                  "Application",
+                                                                  "Author",
+                                                                  "AuthorIndex",
+                                                                  "AuthorInitials",
+                                                                  "Collapsed",
+                                                                  "DateTime",
+                                                                  "Left",
+                                                                  "Parent",
+                                                                  "ProviderID",
+                                                                  "Replies",
+                                                                  "Text",
+                                                                  "TimeZoneBias",
+                                                                  "Top",
+                                                                  "UserID"
+                                                              ]
+                                           },
+                                           {
+                                               "author":  "Người dùng",
+                                               "text":  "FIX-L10 Beta comment",
+                                               "date":  "\/Date(1791735450000)\/",
+                                               "resolved":  null,
+                                               "properties":  [
+                                                                  "Application",
+                                                                  "Author",
+                                                                  "AuthorIndex",
+                                                                  "AuthorInitials",
+                                                                  "Collapsed",
+                                                                  "DateTime",
+                                                                  "Left",
+                                                                  "Parent",
+                                                                  "ProviderID",
+                                                                  "Replies",
+                                                                  "Text",
+                                                                  "TimeZoneBias",
+                                                                  "Top",
+                                                                  "UserID"
+                                                              ]
+                                           }
+                                       ]
+                      },
+                      {
+                          "file":  "E:\\VNOffice-profiles\\codex-fl10\\fix-l10-comments.pptx",
+                          "slides":  10,
+                          "slide1Shapes":  5,
+                          "commentCount":  1,
+                          "comments":  [
+                                           {
+                                               "author":  "Người dùng",
+                                               "text":  "FIX-L10 Alpha comment",
+                                               "date":  "\/Date(1791735448000)\/",
+                                               "resolved":  null,
+                                               "properties":  [
+                                                                  "Application",
+                                                                  "Author",
+                                                                  "AuthorIndex",
+                                                                  "AuthorInitials",
+                                                                  "Collapsed",
+                                                                  "DateTime",
+                                                                  "Left",
+                                                                  "Parent",
+                                                                  "ProviderID",
+                                                                  "Replies",
+                                                                  "Text",
+                                                                  "TimeZoneBias",
+                                                                  "Top",
+                                                                  "UserID"
+                                                              ]
+                                           }
+                                       ]
+                      }
+                  ]
+}
